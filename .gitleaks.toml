@@ -1,0 +1,73 @@
+# Konfiguracja gitleaks dla repozytorium „Platforma Olimpiady”.
+#
+# Rozszerzamy zestaw domyślny (`useDefault = true`) wyłącznie o listę wyjątków. Każdy wyjątek ma
+# uzasadnienie – allowlist bez powodu jest gorszy niż brak skanu, bo daje fałszywe poczucie czystości.
+#
+# Zasada: **wyciszamy wartości, nie katalogi.** Wyjątek po samej ścieżce zamieniłby katalog testów
+# w worek, do którego wolno wrzucić prawdziwy klucz – i nikt by się o tym nie dowiedział. Dlatego
+# ścieżki wyklucza wyłącznie pierwsza sekcja, i tylko dla plików, których w repozytorium nie ma
+# (widzi je jedynie skan `--no-git`, chodzący po katalogu roboczym).
+#
+# Uruchomienie (Git Bash):
+#   MSYS_NO_PATHCONV=1 docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect -s /repo -v
+#   MSYS_NO_PATHCONV=1 docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect -s /repo --no-git -v
+
+title = "Platforma Olimpiady"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = '''
+Pliki spoza repozytorium, które widzi wyłącznie skan `--no-git` po katalogu roboczym:
+lokalne `.env` z prawdziwymi sekretami, wirtualne środowisko `backend/.venv/` (siedzą w nim
+przykładowe klucze AWS z danych `botocore` – cudze pliki, na które nie mamy wpływu), artefakty
+przebiegów E2E i katalog `runs/` pętli agentycznej.
+
+Wszystkie są w `.gitignore` i żaden nie trafił do historii gita – weryfikacja:
+`git ls-files` nie zwraca ani `.env`, ani niczego spod `.venv/`. Skan historii (`detect -s /repo`
+bez `--no-git`) w ogóle ich nie widzi, więc ta sekcja niczego w nim nie osłabia.
+'''
+targets = ["path"]
+paths = [
+  '''(^|/)\.env$''',
+  '''(^|/)\.venv/''',
+  '''(^|/)e2e/artifacts/''',
+  '''(^|/)runs/''',
+  # Bajtkod i cache narzędzi – kopie kodu, który i tak jest skanowany w źródle.
+  '''(^|/)__pycache__/''',
+  '''(^|/)\.pytest_cache/''',
+  '''(^|/)\.ruff_cache/''',
+]
+
+[[allowlists]]
+description = '''
+Konkretne hasła kont testowych i demonstracyjnych – wyciszane **po wartości**, nie po katalogu,
+więc prawdziwy klucz wklejony do tego samego pliku dalej jest zgłaszany.
+
+To nie są sekrety: `seed_demo` odmawia startu bez `DEBUG` albo bez `--force`, żadna z tych wartości
+nie występuje w środowisku produkcyjnym, a testy muszą podawać hasło przechodzące walidatory Django
+(min. 10 znaków, spoza listy popularnych, nie same cyfry) – stąd wysoka entropia i trafienie reguły
+`generic-api-key`.
+'''
+targets = ["secret"]
+regexes = [
+  '''^Demo12345!$''',
+  '''^(Poprawne|Inne)-Haslo-\d{4}$''',
+  '''^Olimpiada-Testowa-\d{4}$''',
+  '''^Komisja-Odwolawcza-\d{4}$''',
+  '''^Haslo-Testowe-\d{4}$''',
+  '''^Silne\.Haslo\.123$''',
+]
+
+[[allowlists]]
+description = '''
+Wartości-zaślepki z `.env.example`. Też po wartości, nie po ścieżce: `.env.example` jest
+w repozytorium świadomie (bez niego nie da się uruchomić projektu) i ma być skanowany – gdyby ktoś
+wkleił do niego prawdziwe poświadczenie, skan musi to pokazać.
+'''
+targets = ["secret"]
+regexes = [
+  '''^change-me[a-z0-9-]*$''',
+  '''^insecure-dev-key-change-me$''',
+]

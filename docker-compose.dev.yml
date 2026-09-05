@@ -10,6 +10,9 @@ services:
       DJANGO_DEBUG: "1"
       RUN_COLLECTSTATIC: "0"
       S3_PUBLIC_ENDPOINT_URL: http://localhost:9000
+      # Odblokowuje wyłącznie `manage.py e2e_timeline` (przesunięcie osi czasu etapu na potrzeby
+      # scenariusza E2E). Żadnej reguły domenowej nie zmienia; w produkcji nie jest ustawiane.
+      E2E_MODE: "1"
     ports:
       - "8000:8000"
   worker:

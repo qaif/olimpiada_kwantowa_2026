@@ -76,6 +76,24 @@
     });
   });
 
+  /* HTMX: przekroczony limit żądań (429) musi być widoczny w DOM.
+   *
+   * htmx domyślnie nie podmienia treści dla odpowiedzi 4xx, więc fragment z komunikatem
+   * o limicie (apps/web/throttle.py) nigdzie nie trafiał – uczestnik po przekroczeniu limitu
+   * uploadu widział stronę bez żadnej zmiany. Włączamy podmianę wyłącznie dla 429; serwer
+   * dokłada do tej odpowiedzi HX-Retarget i HX-Reswap: beforeend, więc komunikat dokleja się
+   * w karcie zadania i nie kasuje formularza.
+   *
+   * Świadomie zdarzenie ``htmx:beforeSwap``, a nie atrybut ``hx-on::response-error``: handler
+   * w atrybucie jest kompilowany przez ``new Function``, co wymagałoby 'unsafe-eval' w CSP. */
+  document.addEventListener("htmx:beforeSwap", function (event) {
+    const detail = event.detail || {};
+    if (detail.xhr && detail.xhr.status === 429) {
+      detail.shouldSwap = true;
+      detail.isError = false;
+    }
+  });
+
   /* HTMX: błąd sieci nie może zostawić użytkownika bez informacji. */
   document.addEventListener("htmx:responseError", function (event) {
     const status = event.detail && event.detail.xhr ? event.detail.xhr.status : "?";

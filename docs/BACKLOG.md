@@ -14,7 +14,7 @@ Status: `todo` / `in_progress` / `done` / `escalated`.
 | T-07 | Wyniki i kwalifikacja: przeliczenie progów (MIN_POINTS/TOP_N/TOP_N_PER_DISTRICT/HYBRID), StageEntry.status, ResultsPublication snapshot zanonimizowany, publiczna tabela | T-06 | done |
 | T-08 | Panel recenzenta UI (HTMX): lista przydziałów, podgląd PDF (pdf.js) z adnotacjami, formularz oceny; panel uczestnika: upload, statusy, wyniki własne, reklamacja | T-07 | done |
 | T-09 | Część informacyjna (Wagtail): newsroom, strona bieżących zadań, archiwum edycji, tabela wyników publiczna | T-07 | done |
-| T-10 | E2E: scenariusz rejestracja → upload → zamknięcie → 2 oceny → rozjazd → moderacja → reklamacja → publikacja; README, .env.example, security checklist | T-08, T-09 | in_progress |
+| T-10 | E2E: scenariusz rejestracja → upload → zamknięcie → 2 oceny → rozjazd → moderacja → reklamacja → publikacja; README, .env.example, security checklist | T-08, T-09 | done |
 
 ## Kryteria akceptacji per task
 
@@ -71,7 +71,7 @@ Status: `todo` / `in_progress` / `done` / `escalated`.
 | T-02 | `district` członka komitetu jest samodeklarowany; reguła konfliktu interesów (T-05) na nim polega | zamknięte w T-05 (`InvitationCode.district`, `district_verified`, `verify-district`) |
 | T-02 | Token DRF bez TTL i rotacji; jeden token na konto | T-08 (UI używa sesji); rotacja tokenu przy loginie + TTL 30 dni w osobnym tasku po T-10 |
 | T-02 | Enumeracja kont przez `EMAIL_TAKEN` na rejestracji | Zaakceptowane (UX), limit 10/h/IP; do rozważenia flow z e-mailem potwierdzającym |
-| T-02 | Brak testu wyścigu na `redeem_invitation` i testu 429 na `register` | T-10 (testy współbieżne z `transaction=True`) |
+| T-02 | Brak testu wyścigu na `redeem_invitation` i testu 429 na `register` | 429 na `register` zamknięte (`apps/web/tests/test_throttle.py`); wyścig `redeem_invitation` (`transaction=True`) – po T-10 |
 | T-02 | `allocate_public_code` TOCTOU (exists → create) | zamknięte w T-03 (retry na IntegrityError) |
 | T-02 | Zmienne `plain_code` widoczne w tracebacku przy DEBUG | zamknięte w T-03 (`@sensitive_variables`) |
 | T-03 | `statement_pdf` chroniony tylko przez pominięcie URL w serializerze; plik na storage bez kontroli dostępu | zamknięte: `GET /api/competitions/problems/{id}/statement/` (404 przed `opens_at`), test |
@@ -82,7 +82,7 @@ Status: `todo` / `in_progress` / `done` / `escalated`.
 | T-03 | low: `register_for_stage` nie wymaga bieżącej edycji; `for_user` koordynatora w `/me/entries/`; `allowed_values()` akceptuje bool; `seed_demo` vs inna bieżąca edycja; 4 zapytania w `editions/current/` | zamknięte poza liczbą zapytań w `editions/current/` (low, do T-09 przy cache) |
 | T-04 | Osierocone obiekty w S3 przy rollbacku transakcji po `storage.put()` | zadanie sprzątające / lifecycle policy w MinIO (po T-10) |
 | T-04 | Polyglot PDF (`%PDF-` + ZIP/JS w środku) przechodzi walidację; łagodzone przez ClamAV i prywatny bucket | rozważyć lekkie parsowanie struktury PDF lub bezpieczny podgląd dla recenzenta (T-08) |
-| T-04 | Brak twardego limitu bajtów dla ścieżki `.ipynb` niezależnego od `max_file_mb` | T-08/T-10: osobny limit 8 MB |
+| T-04 | Brak twardego limitu bajtów dla ścieżki `.ipynb` niezależnego od `max_file_mb` | **niezrobione w T-10**: osobny limit 8 MB – łagodzone limitem 2 MB na outputy i `max_file_mb` (≤ 100 MB) |
 | T-04 | Klient S3 cache'owany `lru_cache` po wartościach sekretów | singleton czytający settings wewnątrz (po T-10) |
 | T-05 | **high**: download dla recenzenta wysyła `Content-Disposition` z `original_name` (nazwa od uczestnika, może zawierać nazwisko) | zamknięte (`anonymous_download_name`, także `ResponseContentDisposition` w presigned URL) |
 | T-05 | ~~med~~ zamknięte: N+1 w `GET reviews/` (`latest_file` omija prefetch); `_settle_round_one` zakłada 2 recenzje (per_submission=1 = ślepy zaułek); brak blokady przy równoległym `assign_reviewers` (500 na IntegrityError); `NOT_ENOUGH_REVIEWERS` wywraca cały etap; `AuditLog.ip` z REMOTE_ADDR = adres Caddy; osierocona recenzja rundy 2 po rozstrzygnięciu przez koordynatora + `save_draft` bez sprawdzenia stanu; tautologiczny test ELIM dla niezweryfikowanego recenzenta | zamknięte w iteracji poprawkowej T-05 (`TRUSTED_PROXY_IPS`, `pg_advisory_xact_lock`, `skipped`, `CANCELLED`) |
@@ -93,12 +93,30 @@ Status: `todo` / `in_progress` / `done` / `escalated`.
 | T-07 | **high**: tryb FULL publikacji nie jest ograniczony do laureatów finału ani do zgody opiekuna | zamknięte (FULL tylko FINAL + laureat + zgoda/pełnoletność) |
 | T-07 | med: TOP_N przy zerach wpuszcza wszystkich; ponowna kwalifikacja nie cofa wpisów w następnym etapie; brak warunku zamknięcia okna reklamacji przy publikacji; `me/results/` miesza zamrożony total z live score; FINAL bez FinalGrade = ciche 0; INITIALS_SCHOOL quasi-identyfikuje + zbędny `district` | zamknięte (k=3, district tylko CODE, `APPEAL_WINDOW_OPEN`, `differs_from_published`) |
 | T-07 | low: adnotacje w `me/results/` bez jawnego serializera; N+1 w `apply_qualification`; brak blokady etapu przy `publish`; CASCADE na `ResultsPublication.stage`; kryterium 6 spec vs 200 [] | zamknięte |
-| T-07 | `next_stage_conflicts` z publikacji nie ma odbiorcy w UI; `entry_totals` JSON urośnie przy dużych eliminacjach; DISQUALIFIED nie sprząta wpisu w następnym etapie | T-08/T-10: pokazać konflikty w panelu koordynatora; osobna tabela po T-10 |
+| T-07 | `next_stage_conflicts` z publikacji nie ma odbiorcy w UI; `entry_totals` JSON urośnie przy dużych eliminacjach; DISQUALIFIED nie sprząta wpisu w następnym etapie | **niezrobione w T-10**: konflikty w panelu koordynatora i osobna tabela `entry_totals` – po T-10 |
 | T-08 | **high**: `/login/`, `/register/`, `/register/committee/`, upload przez UI omijają throttling (`login` 10/min, `register` 10/h, `upload` 30/h działają tylko na API) | zamknięte (`ThrottledFormMixin`, stawki z `api_settings`) |
 | T-08 | med: CSP bez nonce psuje `/api/docs/` (Swagger inline script); `script-src` z całymi originami CDN (dodać `'strict-dynamic'`); etykieta „(UTC)” przy czasie w Europe/Warsaw; `MESSAGE_STORAGE` cookie dla kodu zaproszenia | zamknięte |
 | T-08 | low: `AppealDecideView` poza `appeals_queue` (oracle konfliktu); N+1 `participant` w `appeals_queue`; `_appealable()` w widoku zamiast serwisu; CSP za WhiteNoise | zamknięte |
 | T-09 | **high**: CSP `img-src`/`media-src` bez originu publicznego bucketu – obrazy Wagtaila blokowane w produkcji | zamknięte |
 | T-09 | med: dokumenty Wagtaila serwowane przez redirect (prywatność kolekcji pozorna) → `WAGTAILDOCS_SERVE_METHOD="serve_view"`; wspólne poświadczenia MinIO dla obu bucketów → infra gotowa (`S3_PUBLIC_*`/`S3_PRIVATE_*`, minio-init z politykami), backend ma ich użyć; `EmbedBlock` bez `WAGTAILEMBEDS_FINDERS` i bez `frame-src`; N+1 na `/wyniki/` | zamknięte (backend używa `S3_PUBLIC_*`/`S3_PRIVATE_*`, `serve_view`, YT/Vimeo) |
 | T-09 | low: brak prefetch dokumentów archiwum; migracja `0004` nie przenosi plików; polityka CSP po prefiksie ścieżki; idempotencja drzewa CMS; testowy `private_media` w tym samym katalogu; kolizje slugów z trasami aplikacji; `unsafe-eval` w panelu do weryfikacji | zamknięte poza `unsafe-eval` (do ręcznej weryfikacji w panelu) |
-| T-08 | 429 przy uploadzie HTMX nie trafia do DOM (`HX-Retarget`/`hx-on::response-error`); licznik per konto bez IP; reset licznika przy zmianie hasła | T-10 (drobne) / po T-10 |
-| T-09 | rotacja kluczy serwisowych MinIO (minio-init tworzy konto tylko raz); `frame-src` panelu `https:`; N+1 `result_links()` w indeksie archiwum; dokumenty Wagtaila w prywatnym buckecie dla materiałów wrażliwych | T-10 README (rotacja); reszta po T-10 |
+| T-08 | ~~429 przy uploadzie HTMX nie trafia do DOM~~ zamknięte w T-10 (`HX-Retarget`/`HX-Reswap: beforeend` + `htmx:beforeSwap` w `static/js/app.js`, 3 testy); licznik per konto bez IP; reset licznika przy zmianie hasła | po T-10 |
+| T-09 | rotacja kluczy serwisowych MinIO (minio-init tworzy konto tylko raz) – procedura ręczna opisana w README 6.2, automatyzacja po T-10; `frame-src` panelu `https:`; N+1 `result_links()` w indeksie archiwum; dokumenty Wagtaila w prywatnym buckecie dla materiałów wrażliwych | po T-10 |
+
+## T-10 – co powstało
+
+| Artefakt | Ścieżka |
+|---|---|
+| Scenariusz E2E (Playwright, Python) | `e2e/test_full_cycle.py`, `e2e/conftest.py`, `e2e/timeline.py`, `e2e/requirements.txt` |
+| Reset środowiska + przebieg E2E | `scripts/e2e.sh` |
+| Instrukcja uruchomienia i procedury operacyjne | `README.md` |
+| Checklista bezpieczeństwa | `docs/SECURITY_CHECKLIST.md` |
+| Raport pokrycia | `docs/COVERAGE.md` |
+| Konfiguracja skanu sekretów | `.gitleaks.toml` |
+| Przesuwanie osi czasu etapu (tylko `E2E_MODE=1`) | `backend/apps/competitions/management/commands/e2e_timeline.py` + testy |
+| 429 z HTMX widoczny w DOM | `backend/apps/web/throttle.py`, `backend/static/js/app.js` + testy |
+
+Otwarte pozycje po T-10 (żadna nie jest `high`): limit bajtów dla `.ipynb`, licznik logowań per
+konto niezależny od IP, rotacja kluczy MinIO bez ręcznej procedury, `next_stage_conflicts` w UI,
+`entry_totals` jako osobna tabela, anonimizacja konta członka komitetu, TTL i rotacja tokenu DRF,
+sprzątanie osieroconych obiektów w S3, weryfikacja `unsafe-eval` w polityce CSP panelu.

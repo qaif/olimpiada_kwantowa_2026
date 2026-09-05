@@ -1,0 +1,10 @@
+# Zależności scenariusza end-to-end. Wersje pinowane co do łatki: obraz kontenera `e2e`
+# (mcr.microsoft.com/playwright/python:v1.49.1-jammy) niesie przeglądarki zbudowane dla
+# playwrighta 1.49.1, więc biblioteka musi być dokładnie tej wersji – inaczej start kończy się
+# komunikatem „Executable doesn't exist”.
+pytest==8.3.4
+pytest-playwright==0.6.2
+playwright==1.49.1
+requests==2.32.3
+# Baza stref czasowych dla ``zoneinfo`` – nie polegamy na tym, że obraz ma /usr/share/zoneinfo.
+tzdata==2024.2

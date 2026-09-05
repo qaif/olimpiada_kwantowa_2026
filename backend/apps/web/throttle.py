@@ -44,6 +44,7 @@ to jest w backlogu, nie w tym tasku.
 from __future__ import annotations
 
 import hashlib
+import re
 import time
 
 from django.core.cache import cache
@@ -63,6 +64,11 @@ PERIOD_SECONDS = {"s": 1, "m": 60, "h": 3600, "d": 86400}
 IDENTITY_FIELDS = ("email", "username")
 
 THROTTLE_MESSAGE = "Zbyt wiele prób z tego adresu. Odczekaj chwilę i spróbuj ponownie."
+
+#: Dozwolony kształt identyfikatora z nagłówka ``HX-Target`` (nasze szablony generują np.
+#: ``problem-12``). Wartość idzie do ``HX-Retarget`` jako selektor CSS, więc nie może nieść
+#: nawiasów, spacji ani znaków sterujących nagłówka.
+SAFE_TARGET_ID = re.compile(r"[A-Za-z][A-Za-z0-9_-]{0,63}")
 
 
 def form_rate(scope: str) -> str | None:
@@ -187,13 +193,22 @@ class ThrottledFormMixin:
         reset(self.throttle_scope, getattr(self, "throttle_bucket_keys", []))
 
     def throttled_response(self, request, wait: float):
-        """HTTP 429 z ``Retry-After``. Treść jest szablonem, nie gołym tekstem."""
+        """HTTP 429 z ``Retry-After``. Treść jest szablonem, nie gołym tekstem.
+
+        Dla żądań HTMX odpowiedź musi jeszcze **trafić do DOM** (dług T-08). htmx domyślnie nie
+        podmienia treści dla kodów 4xx – bez tego uczestnik po przekroczeniu limitu uploadu widział
+        stronę bez żadnej zmiany, jakby przycisk był zepsuty. Naprawa ma dwie połowy:
+
+        - klient: ``static/js/app.js`` włącza podmianę dla statusu 429 w ``htmx:beforeSwap``
+          (zdarzenie, nie ``hx-on`` – atrybutowy handler wymagałby ``unsafe-eval`` w CSP),
+        - serwer: te dwa nagłówki. ``HX-Reswap: beforeend`` dokleja komunikat **wewnątrz** celu,
+          zamiast zastąpić nim całą kartę zadania razem z formularzem uploadu, a ``HX-Retarget``
+          przypina go do elementu wskazanego przez samo żądanie (nagłówek ``HX-Target``), więc
+          reguła nie zna żadnego identyfikatora z szablonu.
+        """
         retry_after = max(1, int(wait) + 1)
-        template = (
-            self.throttle_template_name_partial
-            if request.headers.get("HX-Request")
-            else self.throttle_template_name
-        )
+        is_htmx = bool(request.headers.get("HX-Request"))
+        template = self.throttle_template_name_partial if is_htmx else self.throttle_template_name
         response = TemplateResponse(
             request,
             template,
@@ -201,4 +216,11 @@ class ThrottledFormMixin:
             status=429,
         )
         response["Retry-After"] = str(retry_after)
+        if is_htmx:
+            # Identyfikator przychodzi od klienta, a ląduje w nagłówku i w selektorze CSS – przez
+            # sito przechodzą wyłącznie identyfikatory w kształcie, jaki generują nasze szablony.
+            target = (request.headers.get("HX-Target") or "").strip()
+            if SAFE_TARGET_ID.fullmatch(target):
+                response["HX-Retarget"] = f"#{target}"
+            response["HX-Reswap"] = "beforeend"
         return response

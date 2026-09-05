@@ -14,6 +14,11 @@ DEBUG = env.bool("DJANGO_DEBUG", default=False)
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1", "web"])
 CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
 
+# Tryb scenariusza end-to-end. Odblokowuje wyłącznie ``manage.py e2e_timeline`` (przesunięcie osi
+# czasu etapu), żeby test nie musiał czekać tygodnia na otwarcie okna reklamacji. Nie zmienia
+# żadnej reguły domenowej i domyślnie jest wyłączony – w produkcji nie ustawia się go nigdy.
+E2E_MODE = env.bool("E2E_MODE", default=False)
+
 # Adresy (albo sieci CIDR) proxy, którym wolno podać adres klienta w nagłówku ``X-Real-IP``.
 # Domyślnie pusto: bez jawnej konfiguracji audyt zapisuje wyłącznie ``REMOTE_ADDR``, bo nagłówek
 # od nieznanego nadawcy jest danymi od klienta, a nie faktem (patrz apps.core.models.client_ip).

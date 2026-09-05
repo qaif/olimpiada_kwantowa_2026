@@ -1,0 +1,3 @@
+# Zrzuty ekranu, HTML i logi konsoli z przebiegów E2E – artefakty diagnostyczne, nie źródła.
+artifacts/
+.pytest_cache/

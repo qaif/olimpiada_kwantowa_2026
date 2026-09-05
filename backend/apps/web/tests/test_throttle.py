@@ -197,6 +197,60 @@ def test_upload_from_the_panel_is_throttled(web_client, participant, entry, prob
 
 
 @override_settings(REST_FRAMEWORK=rest_framework_with(upload="3/min"))
+def test_upload_429_is_retargeted_so_htmx_puts_it_in_the_dom(web_client, participant, entry, problems):
+    """Dług T-08: 429 z uploadu HTMX ma trafić do DOM, a nie zniknąć w konsoli.
+
+    Serwerowa połowa naprawy to dwa nagłówki: ``HX-Reswap: beforeend`` (komunikat dokleja się
+    w karcie zadania, zamiast zastąpić ją razem z formularzem) i ``HX-Retarget`` wyprowadzony
+    z ``HX-Target`` samego żądania. Klientowa połowa – włączenie podmiany dla 429 – siedzi
+    w ``static/js/app.js`` (``htmx:beforeSwap``).
+    """
+    web_client.force_login(participant.user)
+    url = f"/me/stages/{entry.stage_id}/problems/1/upload/"
+    target = f"problem-{problems[0].pk}"
+    for _ in range(3):
+        web_client.post(url, {"file": pdf_upload()}, HTTP_HX_REQUEST="true", HTTP_HX_TARGET=target)
+
+    blocked = web_client.post(url, {"file": pdf_upload()}, HTTP_HX_REQUEST="true", HTTP_HX_TARGET=target)
+
+    assert blocked.status_code == 429
+    assert blocked.headers["HX-Reswap"] == "beforeend"
+    assert blocked.headers["HX-Retarget"] == f"#{target}"
+
+
+@override_settings(REST_FRAMEWORK=rest_framework_with(upload="3/min"))
+def test_upload_429_ignores_a_target_id_that_is_not_a_plain_identifier(
+    web_client, participant, entry, problems
+):
+    """``HX-Target`` przychodzi od klienta i ląduje w selektorze CSS – kształt jest filtrowany."""
+    web_client.force_login(participant.user)
+    url = f"/me/stages/{entry.stage_id}/problems/1/upload/"
+    hostile = "x, body"
+    for _ in range(3):
+        web_client.post(url, {"file": pdf_upload()}, HTTP_HX_REQUEST="true", HTTP_HX_TARGET=hostile)
+
+    blocked = web_client.post(url, {"file": pdf_upload()}, HTTP_HX_REQUEST="true", HTTP_HX_TARGET=hostile)
+
+    assert blocked.status_code == 429
+    assert "HX-Retarget" not in blocked.headers
+    # Sama zmiana trybu podmiany zostaje: bez celu htmx użyje domyślnego z atrybutu hx-target.
+    assert blocked.headers["HX-Reswap"] == "beforeend"
+
+
+@override_settings(REST_FRAMEWORK=rest_framework_with(register="3/min"))
+def test_non_htmx_429_has_no_htmx_headers(web_client):
+    """Zwykły formularz dostaje pełną stronę – nagłówki HTMX byłyby tam bez sensu."""
+    for _ in range(3):
+        web_client.post(REGISTER_URL, registration_payload("kolejny@example.test"))
+
+    blocked = web_client.post(REGISTER_URL, registration_payload("ostatni@example.test"))
+
+    assert blocked.status_code == 429
+    assert "HX-Retarget" not in blocked.headers
+    assert "HX-Reswap" not in blocked.headers
+
+
+@override_settings(REST_FRAMEWORK=rest_framework_with(upload="3/min"))
 def test_upload_throttle_does_not_fire_before_the_role_check(web_client, entry, problems):
     """Anonim dostaje 302 na logowanie, a nie 429 – i nie zapełnia licznika uczestnikom."""
     url = f"/me/stages/{entry.stage_id}/problems/1/upload/"
