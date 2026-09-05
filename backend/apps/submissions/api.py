@@ -14,7 +14,12 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 
-from apps.accounts.permissions import IsActiveReviewer, IsCoordinator, IsParticipant
+from apps.accounts.permissions import (
+    IsActiveReviewer,
+    IsAppealsCommittee,
+    IsCoordinator,
+    IsParticipant,
+)
 from apps.competitions.models import Stage
 from apps.core.api import DomainError
 
@@ -71,11 +76,16 @@ class SubmissionDownloadView(GenericAPIView):
     """Pobranie pliku: 302 na presigned URL (S3) albo bezpośrednie wysłanie (backend lokalny).
 
     Widoczność wynika z ``Submission.objects.for_user`` – cudze zgłoszenie daje 404, także dla
-    recenzenta bez przydziału (``grading.Review``). Plik nieprzeskanowany albo zainfekowany może
-    pobrać wyłącznie jego właściciel: recenzent i koordynator dostają go dopiero po ``CLEAN``.
+    recenzenta bez przydziału (``grading.Review``) i dla członka komisji odwoławczej, który jest
+    w konflikcie interesów albo patrzy na rozwiązanie bez reklamacji. Plik nieprzeskanowany albo
+    zainfekowany może pobrać wyłącznie jego właściciel: pozostałe role dostają go dopiero po ``CLEAN``.
+
+    Rola komisji odwoławczej jest tu wymieniona, bo ``GET /api/appeals/`` podaje jej ``download_url``
+    rozpatrywanej pracy (T-06) – bez tego rozszerzenie ``for_user`` o reklamacje nie miałoby żadnego
+    konsumenta, a komisja nie mogłaby zobaczyć rozwiązania, które ma ocenić.
     """
 
-    permission_classes = [IsParticipant | IsCoordinator | IsActiveReviewer]
+    permission_classes = [IsParticipant | IsCoordinator | IsActiveReviewer | IsAppealsCommittee]
     serializer_class = SubmissionSerializer
 
     def get_queryset(self):

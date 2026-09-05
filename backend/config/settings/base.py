@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     "apps.competitions",
     "apps.submissions",
     "apps.grading",
+    "apps.appeals",
 ]
 
 AUTH_USER_MODEL = "accounts.User"
@@ -91,6 +92,11 @@ CELERY_BEAT_SCHEDULE = {
     "close-due-stages": {
         "task": "apps.submissions.tasks.close_due_stages",
         "schedule": 60.0,
+    },
+    # Po zamknięciu okna reklamacji: GRADED_PROVISIONAL → FINAL (APPEALED czeka na komisję).
+    "finalize-closed-appeal-windows": {
+        "task": "apps.appeals.tasks.finalize_closed_appeal_windows",
+        "schedule": 300.0,
     },
 }
 
@@ -174,6 +180,7 @@ SPECTACULAR_SETTINGS = {
         "AvStatusEnum": "apps.submissions.models.AvStatus.choices",
         "ReviewStatusEnum": "apps.grading.models.ReviewStatus.choices",
         "GradeMethodEnum": "apps.grading.models.GradeMethod.choices",
+        "AppealStatusEnum": "apps.appeals.models.AppealStatus.choices",
     },
 }
 

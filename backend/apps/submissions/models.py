@@ -44,10 +44,15 @@ class SubmissionQuerySet(models.QuerySet):
     def for_user(self, user):
         """Widoczność per rola: uczestnik → własne, koordynator → wszystkie, recenzent → przydzielone.
 
+        Członek komisji odwoławczej widzi dodatkowo rozwiązania, na które złożono reklamację –
+        ale wyłącznie te, przy których nie ma konfliktu interesów, czyli nie jest autorem żadnej
+        ``grading.Review`` tego rozwiązania (PROJEKT.md 2.4).
+
         Reguła jest domyślnie zamknięta: kto nie ma ani profilu uczestnika, ani aktywnego profilu
-        komitetu z przydziałem (``grading.Review``), nie widzi niczego. Relacja ``reviews`` jest
-        odwrotną stroną FK z ``apps.grading`` – celowo przez nazwę, żeby nie robić importu w drugą
-        stronę (grading zależy od submissions, nie odwrotnie).
+        komitetu z przydziałem (``grading.Review``) lub uprawnieniem komisji odwoławczej, nie widzi
+        niczego. Relacje ``reviews`` i ``appeals`` są odwrotnymi stronami FK z ``apps.grading``
+        i ``apps.appeals`` – celowo przez nazwę, żeby nie robić importu w drugą stronę (te aplikacje
+        zależą od submissions, nie odwrotnie).
         """
         if not user or not user.is_authenticated or not user.is_active:
             return self.none()
@@ -58,18 +63,20 @@ class SubmissionQuerySet(models.QuerySet):
         if participant is not None:
             conditions.append(Q(entry__participant=participant))
         member = getattr(user, "committee_member", None)
-        is_reviewer = member is not None and member.status == CommitteeStatus.ACTIVE
-        if is_reviewer:
+        is_member = member is not None and member.status == CommitteeStatus.ACTIVE
+        if is_member:
             conditions.append(Q(reviews__reviewer=member))
+            if member.is_appeals_committee:
+                conditions.append(Q(appeals__isnull=False) & ~Q(reviews__reviewer=member))
         if not conditions:
             return self.none()
         query = conditions[0]
         for extra in conditions[1:]:
             query |= extra
         queryset = self.filter(query)
-        # JOIN po recenzjach potrafi zwielokrotnić wiersze (dwie recenzje tego samego zgłoszenia
-        # w rundach 1 i 2), więc tylko ta gałąź wymaga odsiania duplikatów.
-        return queryset.distinct() if is_reviewer else queryset
+        # JOIN po recenzjach i reklamacjach potrafi zwielokrotnić wiersze (dwie recenzje tego samego
+        # zgłoszenia w rundach 1 i 2), więc tylko ta gałąź wymaga odsiania duplikatów.
+        return queryset.distinct() if is_member else queryset
 
 
 class Submission(models.Model):

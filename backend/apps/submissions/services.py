@@ -146,8 +146,10 @@ def submissions_for_user(user):
     """Rozwiązania widoczne dla użytkownika. Filtr roli jest w queryseckie, nie w widoku."""
     return (
         Submission.objects.for_user(user)
-        .select_related("entry", "entry__participant", "entry__stage", "problem")
-        .prefetch_related("files")
+        # ``final_grade`` i ``appeals__decision`` są odwrotnymi stronami relacji z apps.grading
+        # i apps.appeals – dociągane po nazwie, żeby lista własnych rozwiązań nie robiła N+1.
+        .select_related("entry", "entry__participant", "entry__stage", "problem", "final_grade")
+        .prefetch_related("files", "appeals__decision")
         .order_by("entry__stage_id", "problem__number", "-version")
     )
 
