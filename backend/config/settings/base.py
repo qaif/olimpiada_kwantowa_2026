@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "apps.submissions",
     "apps.grading",
     "apps.appeals",
+    "apps.results",
 ]
 
 AUTH_USER_MODEL = "accounts.User"
@@ -187,6 +188,7 @@ SPECTACULAR_SETTINGS = {
         "ReviewStatusEnum": "apps.grading.models.ReviewStatus.choices",
         "GradeMethodEnum": "apps.grading.models.GradeMethod.choices",
         "AppealStatusEnum": "apps.appeals.models.AppealStatus.choices",
+        "AnonymizationEnum": "apps.results.models.Anonymization.choices",
     },
 }
 
