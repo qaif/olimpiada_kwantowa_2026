@@ -13,7 +13,9 @@ Dwie reguły kształtu odpowiedzi:
 from django.urls import reverse
 from rest_framework import serializers
 
-from .models import DECIDABLE_STATUSES, MIN_ARGUMENT_LENGTH, Appeal
+from apps.grading.models import ROUND_BLIND
+
+from .models import DECIDABLE_STATUSES, MAX_TEXT_LENGTH, MIN_ARGUMENT_LENGTH, Appeal
 
 
 class AppealDecisionSerializer(serializers.Serializer):
@@ -60,9 +62,16 @@ class MyAppealSerializer(serializers.ModelSerializer):
 
 
 class AppealFileSerializer(serializers.Serializer):
-    """Wejście złożenia reklamacji. ``submission`` bierze się ze ścieżki, nigdy z body."""
+    """Wejście złożenia reklamacji. ``submission`` bierze się ze ścieżki, nigdy z body.
 
-    argument = serializers.CharField(min_length=MIN_ARGUMENT_LENGTH, trim_whitespace=True)
+    Górny limit długości jest walidacją (400), a nie cichym obcięciem w serwisie: uczestnik ma
+    wiedzieć, że jego odwołanie nie zmieściło się w całości, zamiast dowiadywać się tego po
+    decyzji podjętej na urwanym tekście.
+    """
+
+    argument = serializers.CharField(
+        min_length=MIN_ARGUMENT_LENGTH, max_length=MAX_TEXT_LENGTH, trim_whitespace=True
+    )
 
 
 class AppealReviewSerializer(serializers.Serializer):
@@ -121,7 +130,17 @@ class AppealQueueSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_reviews(self, obj: Appeal) -> list:
-        reviews = sorted(obj.submission.reviews.all(), key=lambda review: (review.round, review.pk))
+        """Wyłącznie oceny rundy 1 – dokładnie to, co komisja ma zobaczyć (T-06, `GET appeals/`).
+
+        Runda 2 (rozjemcza) jest *rozstrzygnięciem* rozjazdu, a nie niezależną oceną zarzutu:
+        jej wynik komisja widzi już w ``final_grade`` (punkty i ``rationale``). Pokazywanie jej
+        drugi raz na liście recenzji tylko poszerzałoby zakres danych – zwłaszcza że autor rundy 2
+        jest w konflikcie interesów jak każdy inny recenzent tej pracy (``CONFLICTING_ROUNDS``).
+        """
+        reviews = sorted(
+            (review for review in obj.submission.reviews.all() if review.round == ROUND_BLIND),
+            key=lambda review: review.pk,
+        )
         return AppealReviewSerializer(reviews, many=True).data
 
     def get_final_grade(self, obj: Appeal) -> dict | None:
@@ -130,7 +149,15 @@ class AppealQueueSerializer(serializers.ModelSerializer):
             return None
         return AppealFinalGradeSerializer(grade).data
 
-    def get_download_url(self, obj: Appeal) -> str:
+    def get_download_url(self, obj: Appeal) -> str | None:
+        """Link tylko do pliku, który faktycznie da się pobrać (czysty skan) – inaczej ``None``.
+
+        Bezwarunkowy link obiecywał pobranie także wtedy, gdy skan jeszcze trwa albo plik został
+        odrzucony przez antywirusa: interfejs pokazywał przycisk, a kliknięcie kończyło się błędem.
+        ``file_available`` i ``download_url`` mówią teraz to samo.
+        """
+        if not self.get_file_available(obj):
+            return None
         return reverse("submissions:submission-download", kwargs={"pk": obj.submission_id})
 
     def get_file_available(self, obj: Appeal) -> bool:
@@ -144,4 +171,4 @@ class AppealDecideSerializer(serializers.Serializer):
 
     status = serializers.ChoiceField(choices=[(item.value, item.label) for item in DECIDABLE_STATUSES])
     new_score = serializers.IntegerField(required=False, allow_null=True, default=None)
-    justification = serializers.CharField(trim_whitespace=True)
+    justification = serializers.CharField(max_length=MAX_TEXT_LENGTH, trim_whitespace=True)

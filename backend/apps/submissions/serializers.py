@@ -5,13 +5,22 @@ a pobranie odbywa się wyłącznie przez ``submissions/{id}/download/`` po spraw
 
 Ocena i reklamacja są tu dołączone w kształcie, jaki wolno pokazać uczestnikowi: punkty,
 uzasadnienie decyzji i status. Nigdy ``comment_internal`` i nigdy tożsamość recenzenta ani składu
-komisji (PROJEKT.md 2.4). Relacje ``final_grade`` i ``appeals`` są odwrotnymi stronami FK z
-``apps.grading`` i ``apps.appeals`` – celowo przez nazwę, bez importu w drugą stronę.
+komisji (PROJEKT.md 2.4) – także pośrednio, przez ``FinalGrade.rationale``, które dla trybu
+``THIRD_REVIEW`` jest kopią komentarza wewnętrznego (patrz ``SubmissionFinalGradeSerializer``).
+
+Relacje ``final_grade`` i ``appeals`` są odwrotnymi stronami FK z ``apps.grading`` i ``apps.appeals``
+– celowo przez nazwę, bez importu w drugą stronę.
 """
 
 from rest_framework import serializers
 
 from .models import Submission, SubmissionFile
+
+#: Jedyny tryb ustalenia oceny, przy którym ``FinalGrade.rationale`` powstaje z tekstu *pisanego do
+#: uczestnika* – to uzasadnienie decyzji komisji odwoławczej (``AppealDecision.justification``).
+#: Wartość jest wpisana literałem, a nie zaimportowana z ``apps.grading``: zależność idzie w drugą
+#: stronę (grading zna submissions), a odwrotny import zamknąłby cykl. Rozjazd wartości łapie test.
+GRADE_METHOD_APPEAL = "APPEAL"
 
 
 class SubmissionFileSerializer(serializers.ModelSerializer):
@@ -22,12 +31,26 @@ class SubmissionFileSerializer(serializers.ModelSerializer):
 
 
 class SubmissionFinalGradeSerializer(serializers.Serializer):
-    """Ocena uzgodniona w wersji dla uczestnika: punkty, tryb i uzasadnienie."""
+    """Ocena uzgodniona w wersji dla uczestnika: punkty, tryb i – warunkowo – uzasadnienie."""
 
     score = serializers.IntegerField(read_only=True)
     method = serializers.CharField(read_only=True)
     decided_at = serializers.DateTimeField(read_only=True)
-    rationale = serializers.CharField(read_only=True)
+    rationale = serializers.SerializerMethodField()
+
+    def get_rationale(self, obj) -> str | None:
+        """``rationale`` tylko dla oceny po reklamacji – w pozostałych trybach ``None``.
+
+        ``FinalGrade.rationale`` nie jest jednorodne: dla ``APPEAL`` to uzasadnienie decyzji
+        komisji, pisane wprost do uczestnika, ale dla ``THIRD_REVIEW`` to dosłowna kopia
+        ``Review.comment_internal`` trzeciego recenzenta, a dla ``MODERATION`` – notatka
+        z posiedzenia. Komentarz wewnętrzny nie może trafić do uczestnika (PROJEKT.md 2.4:
+        „``comment_internal`` i tożsamość recenzenta nie są ujawniane”), więc lista własnych
+        rozwiązań oddaje to pole wyłącznie w trybie, w którym z definicji jest jawne.
+        Uzasadnienia dla pozostałych trybów uczestnik dostaje przez ``comment_for_participant``
+        (T-07), a nie tędy.
+        """
+        return obj.rationale if obj.method == GRADE_METHOD_APPEAL else None
 
 
 class SubmissionAppealSerializer(serializers.Serializer):

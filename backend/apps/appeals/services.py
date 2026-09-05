@@ -26,12 +26,14 @@ from apps.accounts.models import CommitteeMember, CommitteeStatus
 from apps.competitions.models import Stage
 from apps.core.api import DomainError
 from apps.core.models import audit
-from apps.grading.models import ROUND_BLIND, ROUND_TIEBREAK, FinalGrade, GradeMethod, Review
+from apps.grading.models import ROUND_BLIND, FinalGrade, GradeMethod, Review
 from apps.grading.services import allowed_scores
 from apps.submissions.models import Submission, SubmissionFile, SubmissionStatus
 
 from .models import (
+    CONFLICTING_ROUNDS,
     DECIDABLE_STATUSES,
+    MAX_TEXT_LENGTH,
     MIN_ARGUMENT_LENGTH,
     SCORE_CHANGING_STATUSES,
     Appeal,
@@ -41,10 +43,9 @@ from .models import (
 
 logger = logging.getLogger(__name__)
 
-#: Rundy, których autorzy są w konflikcie interesów przy rozpatrywaniu reklamacji.
-CONFLICTING_ROUNDS = (ROUND_BLIND, ROUND_TIEBREAK)
-#: Twardy limit na teksty od użytkownika – uzasadnienie nie może rosnąć w nieskończoność.
-MAX_TEXT_LENGTH = 20000
+#: Ile zgłoszeń bierze jedna transakcja finalizacji. Etap z tysiącami prac nie może trzymać
+#: blokad na wszystkich wierszach naraz przez cały przebieg zadania.
+FINALIZE_BATCH_SIZE = 500
 
 
 # --- błędy domenowe ---------------------------------------------------------------------------
@@ -69,8 +70,18 @@ def _bad_request(detail: str, code: str) -> DomainError:
 # --- pomocnicze -------------------------------------------------------------------------------
 
 
-def _clean_text(value: str | None) -> str:
-    return (value or "").strip()[:MAX_TEXT_LENGTH]
+def _clean_text(value: str | None, *, label: str, code: str) -> str:
+    """Normalizuje tekst od użytkownika i pilnuje twardego limitu długości.
+
+    Za długi tekst jest **odrzucany**, a nie obcinany: obcięcie kasowałoby część odwołania albo
+    uzasadnienia decyzji bez śladu, a oba te teksty są dokumentem procedury. Serializery mają ten
+    sam limit (``max_length``), więc przez API leci czytelne 400 na polu; tutaj jest reguła domeny
+    dla wywołań spoza HTTP (shell, zadania, import).
+    """
+    cleaned = (value or "").strip()
+    if len(cleaned) > MAX_TEXT_LENGTH:
+        raise _bad_request(f"{label} nie może przekraczać {MAX_TEXT_LENGTH} znaków.", code)
+    return cleaned
 
 
 def _locked_submission(submission_id: int) -> Submission:
@@ -120,7 +131,7 @@ def file_appeal(user, submission: Submission, argument: str, *, request=None) ->
     if participant is None or locked.entry.participant_id != participant.pk:
         raise _not_found("Nie ma takiego rozwiązania.", "SUBMISSION_NOT_FOUND")
 
-    cleaned = _clean_text(argument)
+    cleaned = _clean_text(argument, label="Uzasadnienie reklamacji", code="ARGUMENT_TOO_LONG")
     if len(cleaned) < MIN_ARGUMENT_LENGTH:
         raise _bad_request(
             f"Uzasadnienie reklamacji musi mieć co najmniej {MIN_ARGUMENT_LENGTH} znaków.",
@@ -222,7 +233,9 @@ def decide_appeal(
     grade = FinalGrade.objects.filter(submission=locked).first()
     current_score = grade.score if grade is not None else None
     new_score = _validate_decision(locked.entry.stage, decision_status, new_score, current_score)
-    cleaned_justification = _clean_text(justification)
+    cleaned_justification = _clean_text(
+        justification, label="Uzasadnienie decyzji", code="JUSTIFICATION_TOO_LONG"
+    )
     if not cleaned_justification:
         raise _bad_request("Decyzja komisji wymaga uzasadnienia.", "JUSTIFICATION_REQUIRED")
     if new_score is not None and grade is None:
@@ -278,42 +291,87 @@ def decide_appeal(
 # --- finalizacja po zamknięciu okna -----------------------------------------------------------
 
 
-@transaction.atomic
 def finalize_unappealed(stage: Stage, *, now=None, actor=None, request=None) -> int:
     """Po zamknięciu okna reklamacji: GRADED_PROVISIONAL → FINAL (T-06, kryterium 10).
 
-    Rozwiązania w stanie APPEALED zostają nietknięte – ich los rozstrzyga komisja. Zgłoszenia idą
-    pod blokadą wiersza, więc reklamacja złożona w ostatniej sekundzie okna albo zdąży przed
-    finalizacją (i zgłoszenie nie będzie już GRADED_PROVISIONAL), albo poczeka na jej koniec
-    i odbije się o zamknięte okno. Idempotentny.
+    Rozwiązania w stanie APPEALED zostają nietknięte – ich los rozstrzyga komisja. Idempotentny.
+
+    Etap finału ma kilka tysięcy prac, więc przebieg idzie **partiami** po
+    ``FINALIZE_BATCH_SIZE`` kluczy, każda we własnej transakcji i jednym ``UPDATE``. Jedna wielka
+    transakcja trzymałaby blokady na wszystkich wierszach etapu przez cały przebieg zadania beata:
+    każde równoczesne złożenie reklamacji czekałoby do końca finalizacji, a awaria w połowie
+    cofałaby wszystko. Partia jest zamknięta sama w sobie – to, co się zacommitowało, zostaje.
+
+    ``skip_locked=True``: wiersz zajęty właśnie przez ``file_appeal`` jest pomijany, a nie
+    oczekiwany. To celowe – reklamacja złożona w ostatniej sekundzie okna wygrywa wyścig, jej
+    zgłoszenie przestaje być GRADED_PROVISIONAL i nie ma go już czego finalizować. Filtr statusu
+    powtórzony pod blokadą pilnuje, żeby nie nadpisać stanu ustawionego między odczytem a blokadą.
+
+    W audycie idzie licznik i numer partii – nigdy lista identyfikatorów: wpis audytowy z tysiącami
+    id nie jest śladem, tylko kopią tabeli.
     """
     now = now or timezone.now()
     if now < stage.appeal_window_closes_at:
         return 0
-    rows = list(
-        Submission.objects.select_for_update(of=("self",))
-        .filter(entry__stage=stage, status=SubmissionStatus.GRADED_PROVISIONAL)
+    pending = list(
+        Submission.objects.filter(entry__stage=stage, status=SubmissionStatus.GRADED_PROVISIONAL)
         .order_by("pk")
+        .values_list("pk", flat=True)
     )
-    for submission in rows:
-        submission.status = SubmissionStatus.FINAL
-        submission.save(update_fields=["status"])
-    if rows:
-        audit(
-            actor,
-            "submission.finalized",
-            stage,
-            {"submissions": len(rows), "submission_ids": [row.pk for row in rows]},
-            request=request,
+    finalized = 0
+    batches = 0
+    for start in range(0, len(pending), FINALIZE_BATCH_SIZE):
+        chunk = pending[start : start + FINALIZE_BATCH_SIZE]
+        with transaction.atomic():
+            locked = list(
+                Submission.objects.select_for_update(of=("self",), skip_locked=True)
+                .filter(pk__in=chunk, status=SubmissionStatus.GRADED_PROVISIONAL)
+                .order_by("pk")
+                .values_list("pk", flat=True)
+            )
+            if not locked:
+                continue
+            count = Submission.objects.filter(
+                pk__in=locked, status=SubmissionStatus.GRADED_PROVISIONAL
+            ).update(status=SubmissionStatus.FINAL)
+            if not count:
+                continue
+            finalized += count
+            batches += 1
+            audit(
+                actor,
+                "submission.finalized",
+                stage,
+                {"submissions": count, "batch": batches, "batch_size": FINALIZE_BATCH_SIZE},
+                request=request,
+            )
+    if finalized:
+        logger.info(
+            "Etap %s: sfinalizowano %s rozwiązań bez reklamacji w %s partiach",
+            stage.pk,
+            finalized,
+            batches,
         )
-        logger.info("Etap %s: sfinalizowano %s rozwiązań bez reklamacji", stage.pk, len(rows))
-    return len(rows)
+    return finalized
 
 
 def stages_with_closed_appeal_window(now=None):
-    """Etapy, którym minęło okno reklamacji – wejście dla beata."""
+    """Etapy, którym minęło okno reklamacji i które **mają jeszcze co finalizować**.
+
+    Zawężenie do etapów z choć jednym GRADED_PROVISIONAL jest istotne dla beata: bez niego zadanie
+    co 5 minut przemiatałoby wszystkie zamknięte etapy w historii olimpiady, żeby za każdym razem
+    stwierdzić, że nie ma nic do zrobienia. ``distinct()``, bo złączenie idzie przez wpisy i ich
+    rozwiązania (etap ma ich wiele).
+    """
     now = now or timezone.now()
-    return Stage.objects.filter(appeal_window_closes_at__lte=now).order_by("pk")
+    return (
+        Stage.objects.filter(
+            appeal_window_closes_at__lte=now,
+            entries__submissions__status=SubmissionStatus.GRADED_PROVISIONAL,
+        )
+        .distinct()
+        .order_by("pk")
+    )
 
 
 # --- zapytania dla API ------------------------------------------------------------------------
@@ -334,7 +392,13 @@ def appeals_queue(member: CommitteeMember | None):
             "filed_by",
         )
         .prefetch_related(
-            "submission__reviews",
+            # Kolejka pokazuje wyłącznie oceny rundy 1 (T-06: „obie oceny rundy 1”), więc runda
+            # rozjemcza nie musi w ogóle opuszczać bazy. Serializer i tak filtruje po rundzie –
+            # to jest ta sama reguła zapisana o warstwę niżej, żeby nie wozić zbędnych wierszy.
+            Prefetch(
+                "submission__reviews",
+                queryset=Review.objects.filter(round=ROUND_BLIND).order_by("id"),
+            ),
             # Jawny Prefetch z posortowanym querysetem: ``Submission.latest_file`` korzysta wtedy
             # z cache'u prefetchu zamiast robić własne ``order_by`` per wiersz (N+1 na kolejce).
             Prefetch("submission__files", queryset=SubmissionFile.objects.order_by("-id")),

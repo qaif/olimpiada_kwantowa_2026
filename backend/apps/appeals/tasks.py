@@ -1,7 +1,9 @@
 """Zadania Celery reklamacji: finalizacja rozwiązań po zamknięciu okna reklamacji.
 
 ``finalize_closed_appeal_windows`` uruchamia ``beat`` co 5 minut (``CELERY_BEAT_SCHEDULE``).
-Zadanie jest idempotentne: etap bez rozwiązań w GRADED_PROVISIONAL nie trafia do wyniku.
+Zadanie jest idempotentne: etap bez rozwiązań w GRADED_PROVISIONAL nie trafia ani do wyniku, ani –
+odkąd ``stages_with_closed_appeal_window`` zawęża listę – do samej pętli. Bez tego co pięć minut
+przeglądane byłyby wszystkie zamknięte etapy w historii olimpiady.
 """
 
 from __future__ import annotations

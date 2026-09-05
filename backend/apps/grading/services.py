@@ -538,6 +538,13 @@ def submit_review(
     )
 
     if review.round == ROUND_TIEBREAK:
+        # ``rationale`` bierze się z ``comment_internal``, a nie z ``comment_for_participant``,
+        # świadomie: to ślad procedury dla koordynatora i komisji odwoławczej – dlaczego rozjazd
+        # rozstrzygnięto tak, a nie inaczej. Komentarz dla uczestnika bywa pusty (trzeci recenzent
+        # pisze przede wszystkim do komisji), więc oparcie o niego zostawiałoby ocenę bez
+        # uzasadnienia w aktach. Ochroną nie jest tu treść pola, tylko warstwa prezentacji:
+        # ``submissions.serializers.SubmissionFinalGradeSerializer`` oddaje ``rationale``
+        # wyłącznie dla ``method=APPEAL``, więc do uczestnika ten tekst nie trafia (PROJEKT.md 2.4).
         _create_final_grade(
             submission,
             score=score,

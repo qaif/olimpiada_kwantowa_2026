@@ -153,6 +153,8 @@ def test_appeals_queue_shows_public_code_reviews_and_grade_without_personal_data
     )
     submission = graded_submission(open_stage, participant=participant)
     round_one_reviews(submission)
+    # Plik po czystym skanie – ``download_url`` istnieje tylko dla pliku, który da się pobrać.
+    SubmissionFileFactory(submission=submission, av_status=AvStatus.CLEAN)
     assert file_appeal_via_api(client, submission).status_code == 201
     member = AppealsCommitteeMemberFactory()
     client.force_authenticate(member.user)

@@ -174,11 +174,11 @@ class FinalGrade(models.Model):
 class Appeal(models.Model):
     submission = FK(Submission); filed_by = FK(Participant); filed_at = DateTimeField()
     argument = TextField()
-    status = CharField(choices=[("OPEN",),("IN_REVIEW",),("REJECTED",),("ACCEPTED",),("PARTIALLY_ACCEPTED",)])
+    status = CharField(choices=[("OPEN",),("REJECTED",),("ACCEPTED",),("PARTIALLY_ACCEPTED",)])
     class Meta: unique_together = [("submission","filed_by")]   # jedna reklamacja na zadanie
 
 class AppealDecision(models.Model):
-    appeal = OneToOne(Appeal); committee = M2M(CommitteeMember); new_score = PositiveSmallInt(null=True)
+    appeal = OneToOne(Appeal); committee = M2M(CommitteeMember, through=..., PROTECT); new_score = PositiveSmallInt(null=True)
     justification = TextField(); decided_at = DateTimeField()
 
 class ResultsPublication(models.Model):

@@ -45,8 +45,9 @@ class SubmissionQuerySet(models.QuerySet):
         """Widoczność per rola: uczestnik → własne, koordynator → wszystkie, recenzent → przydzielone.
 
         Członek komisji odwoławczej widzi dodatkowo rozwiązania, na które złożono reklamację –
-        ale wyłącznie te, przy których nie ma konfliktu interesów, czyli nie jest autorem żadnej
-        ``grading.Review`` tego rozwiązania (PROJEKT.md 2.4).
+        ale wyłącznie te, przy których nie ma konfliktu interesów, czyli nie jest autorem
+        ``grading.Review`` z rundy 1 ani 2 tego rozwiązania (PROJEKT.md 2.4). Definicja rund jest
+        jedna: ``apps.appeals.models.CONFLICTING_ROUNDS``, ta sama, którą sprawdza serwis decyzji.
 
         Reguła jest domyślnie zamknięta: kto nie ma ani profilu uczestnika, ani aktywnego profilu
         komitetu z przydziałem (``grading.Review``) lub uprawnieniem komisji odwoławczej, nie widzi
@@ -58,9 +59,13 @@ class SubmissionQuerySet(models.QuerySet):
         całego systemu i mieszka w ``apps.accounts.services.active_reviewer_profile`` – widoczność
         plików nie może być luźniejsza niż uprawnienie, które wpuszcza do ``/api/grading/reviews/``.
         """
-        # Import lokalny: ``apps.accounts.services`` ciągnie za sobą warstwę serwisową, a ten moduł
-        # jest ładowany podczas rejestrowania aplikacji.
+        # Importy lokalne. ``apps.accounts.services`` ciągnie za sobą warstwę serwisową, a ten moduł
+        # jest ładowany podczas rejestrowania aplikacji. ``apps.appeals`` i ``apps.grading`` zależą
+        # od ``apps.submissions``, więc import na poziomie modułu byłby cyklem – stąd tutaj, gdzie
+        # obie aplikacje są już załadowane.
         from apps.accounts.services import active_reviewer_profile
+        from apps.appeals.models import CONFLICTING_ROUNDS
+        from apps.grading.models import Review
 
         if not user or not user.is_authenticated or not user.is_active:
             return self.none()
@@ -80,7 +85,22 @@ class SubmissionQuerySet(models.QuerySet):
             else None
         )
         if appeals_member is not None:
-            conditions.append(Q(appeals__isnull=False) & ~Q(reviews__reviewer=appeals_member))
+            # Konflikt interesów wyklucza się podzapytaniem po kluczu głównym, a nie negacją na
+            # złączeniu ``reviews``. Dwa powody:
+            #
+            # - ``~Q(reviews__reviewer=...)`` w tym samym ``filter()`` co gałąź recenzenta reużywa
+            #   jej złączenia i Django koreluje negację z *wierszem recenzji*, a nie ze zgłoszeniem
+            #   (``NOT EXISTS(... U1.id = grading_review.id)``). Wystarczała wtedy jedna cudza
+            #   recenzja tej pracy, żeby warunek był spełniony mimo konfliktu. Efekt maskowała
+            #   gałąź recenzenta (która i tak pokazuje własne przydziały), ale poprawność warunku
+            #   nie może zależeć od tego, jakie inne gałęzie akurat są w zapytaniu,
+            # - rundy konfliktowe mają jedną definicję (``apps.appeals.models.CONFLICTING_ROUNDS``).
+            #   Negacja po całej relacji ukrywała reklamację przy recenzji z *dowolnej* rundy, więc
+            #   „nie widzę” było szersze niż „nie mogę rozstrzygnąć” z serwisu.
+            conflicted = Review.objects.filter(reviewer=appeals_member, round__in=CONFLICTING_ROUNDS).values(
+                "submission_id"
+            )
+            conditions.append(Q(appeals__isnull=False) & ~Q(pk__in=conflicted))
         if not conditions:
             return self.none()
         query = conditions[0]
