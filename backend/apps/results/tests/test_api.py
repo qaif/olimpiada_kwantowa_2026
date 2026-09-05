@@ -26,6 +26,9 @@ INTERNAL_NOTE = "Notatka wewnętrzna: praca podobna do sąsiedniej."
 PARTICIPANT_NOTE = "Brakuje uzasadnienia kroku 3."
 PUBLIC_ANNOTATION = {"page": 1, "rect": [1.0, 2.0, 3.0, 4.0], "text": "tu jest luka", "public": True}
 PRIVATE_ANNOTATION = {"page": 2, "rect": [0.0, 0.0, 1.0, 1.0], "text": "sekret", "public": False}
+#: Kształt adnotacji w odpowiedzi: strona, prostokąt i treść. Flaga ``public`` jest kryterium
+#: filtrowania po stronie serwera, więc do uczestnika nie ma po co wracać.
+PUBLISHED_ANNOTATION = {"page": 1, "rect": [1.0, 2.0, 3.0, 4.0], "text": "tu jest luka"}
 
 
 def public_url(stage) -> str:
@@ -135,7 +138,9 @@ def test_my_results_after_publication_show_points_and_public_feedback(client):
     assert problem["score"] == 6
     (feedback,) = problem["feedback"]
     assert feedback["comment_for_participant"] == PARTICIPANT_NOTE
-    assert feedback["annotations"] == [PUBLIC_ANNOTATION]
+    assert [dict(item) for item in feedback["annotations"]] == [PUBLISHED_ANNOTATION]
+    assert result["published_total"] == 6
+    assert result["differs_from_published"] is False
     body = str(response.data)
     assert INTERNAL_NOTE not in body
     assert PRIVATE_ANNOTATION["text"] not in body
@@ -154,6 +159,45 @@ def test_my_results_never_show_other_participants(client):
     (result,) = response.data
     assert result["total_points"] == 2
     assert other.participant.public_code not in str(response.data)
+
+
+def test_my_results_follow_the_grade_and_flag_the_gap_to_the_published_table(client):
+    """5 (przegląd). Po zmianie oceny uczestnik widzi nową sumę, tabela publiczna zostaje zamrożona.
+
+    Rozjazd nie jest ukrywany: wiersz niesie ``published_total`` z ogłoszonej tabeli i jawny
+    znacznik ``differs_from_published``.
+    """
+    stage = make_stage(problems=1)
+    entry = graded_entry(stage, [6])
+    publish_results(stage, None, Anonymization.CODE)
+    published_rows = client.get(public_url(stage)).data["rows"]
+
+    grade = FinalGrade.objects.get(submission__entry=entry)
+    grade.score = 2
+    grade.save(update_fields=["score"])
+
+    client.force_authenticate(entry.participant.user)
+    (result,) = client.get(MY_RESULTS_URL).data
+
+    assert result["total_points"] == 2
+    assert result["published_total"] == 6
+    assert result["differs_from_published"] is True
+    assert client.get(public_url(stage)).data["rows"] == published_rows
+
+
+def test_public_rows_carry_the_district_only_next_to_pseudonyms(client):
+    """7 (przegląd). Odpowiedź publiczna nie ma pola ``district`` poza trybem CODE."""
+    stage = make_stage(problems=1)
+    for _ in range(3):
+        graded_entry(stage, [6], school="I LO Gdańsk")
+    publish_results(stage, None, Anonymization.CODE)
+    with_code = client.get(public_url(stage)).data["rows"][0]
+    publish_results(stage, None, Anonymization.INITIALS_SCHOOL)
+    with_initials = client.get(public_url(stage)).data["rows"][0]
+
+    assert with_code["district"] == "mazowiecki"
+    assert "district" not in with_initials
+    assert with_initials["display"] == "J.K., I LO Gdańsk"
 
 
 def test_my_results_require_participant_role(client):

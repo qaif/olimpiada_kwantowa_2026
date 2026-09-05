@@ -104,6 +104,24 @@ def test_submitted_without_final_grade_blocks_computation():
     assert error.value.machine_code == "STAGE_NOT_FINALIZED"
 
 
+def test_final_submission_without_a_final_grade_blocks_computation():
+    """6 (przegląd). Praca w stanie FINAL, ale bez ``FinalGrade``, to brak oceny, a nie zero.
+
+    Bez tej blokady nieoceniona praca cicho wpadałaby do tabeli jako 0 punktów i mogła wyrzucić
+    uczestnika spod progu kwalifikacji.
+    """
+    stage = make_stage(problems=1)
+    (problem,) = stage_problems(stage)
+    entry = graded_entry(stage, [None])
+    SubmissionFactory(entry=entry, problem=problem, status=SubmissionStatus.FINAL)
+
+    with pytest.raises(DomainError) as error:
+        compute_stage_results(stage)
+
+    assert error.value.machine_code == "STAGE_NOT_FINALIZED"
+    assert error.value.public_codes == [entry.participant.public_code]
+
+
 def test_ranking_gives_the_same_place_to_a_tie():
     """Ranking: malejąco po sumie, remis = to samo miejsce (1, 1, 3)."""
     stage = make_stage(problems=1)

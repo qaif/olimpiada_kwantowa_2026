@@ -16,7 +16,14 @@ class ResultsPublicationAdmin(admin.ModelAdmin):
     list_display = ("id", "stage", "anonymization", "published_at", "published_by")
     list_filter = ("anonymization", "stage__edition", "stage__kind")
     search_fields = ("stage__edition__year_label",)
-    readonly_fields = ("stage", "published_at", "published_by", "anonymization", "snapshot")
+    readonly_fields = (
+        "stage",
+        "published_at",
+        "published_by",
+        "anonymization",
+        "snapshot",
+        "entry_totals",
+    )
 
     def has_add_permission(self, request) -> bool:
         return False

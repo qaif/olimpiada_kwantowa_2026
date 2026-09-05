@@ -1,6 +1,9 @@
 """Wspólne narzędzia testów wyników: etap ze skalą i progiem oraz sfinalizowane zgłoszenia."""
 
+from datetime import timedelta
+
 import pytest
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.tests.factories import ParticipantFactory
@@ -23,6 +26,12 @@ def client() -> APIClient:
     return APIClient()
 
 
+#: Etap „domknięty”: otwarty 90 dni temu, więc jego okno reklamacji (deadline + 14 + 2 dni, przez
+#: 7 dni) zamknęło się dawno temu. Progi i publikacja wolno liczyć dopiero wtedy (PROJEKT.md 2.4),
+#: więc to jest domyślny etap testów wyników.
+CLOSED_STAGE_AGE = timedelta(days=90)
+
+
 def make_stage(
     *,
     kind=StageKind.ELIM,
@@ -31,9 +40,14 @@ def make_stage(
     mode=QualificationMode.MIN_POINTS,
     min_points=0,
     top_n=None,
+    appeals_open: bool = False,
 ):
-    """Etap ze skalą 0/2/5/6, progiem kwalifikacji i ``problems`` zadaniami o numerach 1..n."""
-    stage = StageFactory(kind=kind, edition=edition or EditionFactory())
+    """Etap ze skalą 0/2/5/6, progiem kwalifikacji i ``problems`` zadaniami o numerach 1..n.
+
+    ``appeals_open=True`` daje etap z **otwartym** oknem reklamacji – do testów bramy czasowej.
+    """
+    opens_at = timezone.now() - (timedelta(days=1) if appeals_open else CLOSED_STAGE_AGE)
+    stage = StageFactory(kind=kind, edition=edition or EditionFactory(), opens_at=opens_at)
     ScoringScaleFactory(stage=stage)
     QualificationRuleFactory(stage=stage, mode=mode, min_points=min_points, top_n=top_n)
     for number in range(1, problems + 1):

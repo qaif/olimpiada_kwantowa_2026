@@ -1,6 +1,8 @@
 """Kryteria 2 i 3 T-07: cztery tryby progu, remisy na granicy i wpisy w następnym etapie."""
 
 import pytest
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 
 from apps.competitions.models import (
     QualificationMode,
@@ -10,9 +12,13 @@ from apps.competitions.models import (
 )
 from apps.competitions.tests.factories import EditionFactory
 from apps.core.api import DomainError
+from apps.core.models import AuditLog
+from apps.grading.models import FinalGrade
 from apps.results.services import apply_qualification
+from apps.submissions.models import SubmissionStatus
+from apps.submissions.tests.factories import SubmissionFactory
 
-from .conftest import graded_entry, make_stage
+from .conftest import graded_entry, make_stage, stage_problems
 
 pytestmark = pytest.mark.django_db
 
@@ -102,6 +108,52 @@ def test_hybrid_mode_requires_both_conditions():
     ]
 
 
+def test_top_n_never_admits_entries_without_a_single_point():
+    """2. „N najlepszych” spośród samych zer to nikt – brak punktów nie jest wynikiem."""
+    stage = make_stage(problems=1, mode=QualificationMode.TOP_N, min_points=None, top_n=2)
+    entries = [graded_entry(stage, [0]) for _ in range(5)]
+
+    summary = apply_qualification(stage)
+
+    assert summary["qualified"] == 0
+    assert statuses(entries) == [NOT_QUALIFIED] * 5
+
+
+def test_top_n_larger_than_the_field_admits_only_those_with_points():
+    """2. N większe niż liczba punktujących: wchodzą wszyscy punktujący i nikt więcej."""
+    stage = make_stage(problems=1, mode=QualificationMode.TOP_N, min_points=None, top_n=5)
+    scoring = [graded_entry(stage, [score]) for score in (6, 5, 2)]
+    empty = [graded_entry(stage, [0]) for _ in range(7)]
+
+    summary = apply_qualification(stage)
+
+    assert summary["qualified"] == 3
+    assert statuses(scoring) == [QUALIFIED] * 3
+    assert statuses(empty) == [NOT_QUALIFIED] * 7
+
+
+def test_hybrid_with_a_zero_minimum_still_ignores_zero_scores():
+    """2. HYBRID z ``min_points=0`` nie może przepuścić prac bez ani jednego punktu."""
+    stage = make_stage(problems=1, mode=QualificationMode.HYBRID, min_points=0, top_n=3)
+    scoring = graded_entry(stage, [2])
+    empty = graded_entry(stage, [0])
+
+    apply_qualification(stage)
+
+    assert statuses([scoring, empty]) == [QUALIFIED, NOT_QUALIFIED]
+
+
+def test_qualification_before_the_appeal_window_closes_is_rejected():
+    """4 (przegląd). Próg liczymy po zamknięciu reklamacji, nigdy wcześniej – 409."""
+    stage = make_stage(problems=1, appeals_open=True)
+
+    with pytest.raises(DomainError) as error:
+        apply_qualification(stage)
+
+    assert error.value.machine_code == "APPEAL_WINDOW_OPEN"
+    assert error.value.status_code == 409
+
+
 def test_qualified_entries_are_created_in_the_next_stage_once():
     """3. Wpis w następnym etapie tylko dla QUALIFIED; drugie wywołanie nic nie duplikuje."""
     edition = EditionFactory()
@@ -121,6 +173,78 @@ def test_qualified_entries_are_created_in_the_next_stage_once():
     assert next_entries[0].participant_id == passing.participant_id
     assert next_entries[0].status == StageEntryStatus.REGISTERED
     assert not StageEntry.objects.filter(stage=district, participant=failing.participant).exists()
+
+
+def elimination_with_district(min_points: int = 5):
+    """Para etapów jednej edycji: eliminacje z progiem i etap okręgowy jako następny."""
+    edition = EditionFactory()
+    elimination = make_stage(
+        edition=edition, problems=1, mode=QualificationMode.MIN_POINTS, min_points=min_points
+    )
+    district = make_stage(edition=edition, kind=StageKind.DISTRICT, problems=1)
+    return elimination, district
+
+
+def regrade(entry, score: int) -> None:
+    """Zmienia ocenę uzgodnioną – tak jak decyzja komisji odwoławczej po reklamacji."""
+    grade = FinalGrade.objects.get(submission__entry=entry)
+    grade.score = score
+    grade.save(update_fields=["score"])
+
+
+def test_losing_qualification_removes_the_empty_entry_in_the_next_stage():
+    """3 (przegląd). Uczestnik, który spadł poniżej progu, znika z pustego wpisu w kolejnym etapie."""
+    elimination, district = elimination_with_district()
+    entry = graded_entry(elimination, [6])
+    apply_qualification(elimination)
+    assert StageEntry.objects.filter(stage=district, participant=entry.participant).exists()
+
+    regrade(entry, 2)
+    summary = apply_qualification(elimination)
+
+    assert statuses([entry]) == [NOT_QUALIFIED]
+    assert summary["removed_entries"] == 1
+    assert summary["next_stage_conflicts"] == []
+    assert not StageEntry.objects.filter(stage=district, participant=entry.participant).exists()
+    diff = AuditLog.objects.filter(action="results.qualification_applied").order_by("id").last().diff
+    assert diff["removed_entries"] == 1
+    assert diff["next_stage_conflicts"] == 0
+
+
+def test_next_stage_entry_with_a_submission_is_kept_and_reported_as_a_conflict():
+    """3 (przegląd). Wpisu z oddaną pracą serwis nie kasuje – zgłasza go koordynatorowi."""
+    elimination, district = elimination_with_district()
+    entry = graded_entry(elimination, [6])
+    apply_qualification(elimination)
+    next_entry = StageEntry.objects.get(stage=district, participant=entry.participant)
+    SubmissionFactory(
+        entry=next_entry, problem=stage_problems(district)[0], status=SubmissionStatus.SUBMITTED
+    )
+
+    regrade(entry, 2)
+    summary = apply_qualification(elimination)
+
+    assert summary["removed_entries"] == 0
+    assert summary["next_stage_conflicts"] == [entry.participant.public_code]
+    assert StageEntry.objects.filter(pk=next_entry.pk).exists()
+
+
+def test_next_stage_entries_cost_a_constant_number_of_queries():
+    """3 (przegląd). Wpisy w kolejnym etapie powstają hurtem: 5 i 50 osób to tyle samo zapytań."""
+    small, _ = elimination_with_district()
+    for _ in range(5):
+        graded_entry(small, [6])
+    large, _ = elimination_with_district()
+    for _ in range(50):
+        graded_entry(large, [6])
+
+    with CaptureQueriesContext(connection) as small_queries:
+        small_summary = apply_qualification(small)
+    with CaptureQueriesContext(connection) as large_queries:
+        large_summary = apply_qualification(large)
+
+    assert (small_summary["created_entries"], large_summary["created_entries"]) == (5, 50)
+    assert len(large_queries) == len(small_queries)
 
 
 def test_final_stage_has_no_next_stage():

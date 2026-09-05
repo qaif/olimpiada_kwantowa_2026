@@ -17,11 +17,16 @@ from .models import Anonymization, ResultsPublication
 
 
 class PublicResultRowSerializer(serializers.Serializer):
-    """Jeden wiersz ogłoszonej tabeli. Etykieta ``display`` jest już zanonimizowana w snapshocie."""
+    """Jeden wiersz ogłoszonej tabeli. Etykieta ``display`` jest już zanonimizowana w snapshocie.
+
+    ``district`` jest opcjonalny: snapshot niesie okręg wyłącznie w trybie ``CODE`` (przy inicjałach
+    ze szkołą i przy nazwiskach dokładałby cechę quasi-identyfikującą). Brak klucza to pominięte
+    pole w odpowiedzi, nie błąd – stąd ``required=False``.
+    """
 
     rank = serializers.IntegerField(read_only=True)
     display = serializers.CharField(read_only=True)
-    district = serializers.CharField(read_only=True, allow_blank=True)
+    district = serializers.CharField(read_only=True, required=False, allow_blank=True)
     points = serializers.DictField(child=serializers.IntegerField(), read_only=True)
     total = serializers.IntegerField(read_only=True)
     qualified = serializers.BooleanField(read_only=True)
@@ -71,11 +76,25 @@ class PublishResultsSerializer(serializers.Serializer):
     anonymization = serializers.ChoiceField(choices=Anonymization.choices, default=Anonymization.CODE)
 
 
+class AnnotationSerializer(serializers.Serializer):
+    """Adnotacja na pracy: strona, prostokąt i treść.
+
+    Kształt jest jawny, a nie „dowolny słownik”: do uczestnika ma iść wyłącznie to, co narysowano
+    i napisano na jego pracy. Flaga ``public`` jest kryterium filtrowania po stronie serwisu, więc
+    w odpowiedzi nie ma czego szukać, a przyszłe pola techniczne recenzenta (np. autor adnotacji)
+    nie wyciekną tylko dlatego, że ktoś dopisał je do JSON-a.
+    """
+
+    page = serializers.IntegerField(read_only=True)
+    rect = serializers.ListField(child=serializers.FloatField(), read_only=True)
+    text = serializers.CharField(read_only=True, allow_blank=True)
+
+
 class ResultFeedbackSerializer(serializers.Serializer):
     """Informacja zwrotna jednej recenzji – bez ``comment_internal`` i bez autora."""
 
     comment_for_participant = serializers.CharField(read_only=True, allow_blank=True)
-    annotations = serializers.ListField(child=serializers.DictField(), read_only=True)
+    annotations = AnnotationSerializer(many=True, read_only=True)
 
 
 class MyProblemResultSerializer(serializers.Serializer):
@@ -89,7 +108,11 @@ class MyProblemResultSerializer(serializers.Serializer):
 
 
 class MyStageResultSerializer(serializers.Serializer):
-    """Własne wyniki uczestnika w jednym opublikowanym etapie."""
+    """Własne wyniki uczestnika w jednym opublikowanym etapie.
+
+    ``total_points`` jest liczone na żywo, ``published_total`` pochodzi z ogłoszonej tabeli, a
+    ``differs_from_published`` mówi wprost, że komisja zmieniła ocenę po publikacji.
+    """
 
     stage_id = serializers.IntegerField(read_only=True)
     stage_kind = serializers.CharField(read_only=True)
@@ -98,4 +121,6 @@ class MyStageResultSerializer(serializers.Serializer):
     status = serializers.CharField(read_only=True)
     qualified = serializers.BooleanField(read_only=True)
     total_points = serializers.IntegerField(read_only=True)
+    published_total = serializers.IntegerField(read_only=True, allow_null=True)
+    differs_from_published = serializers.BooleanField(read_only=True)
     problems = MyProblemResultSerializer(many=True, read_only=True)

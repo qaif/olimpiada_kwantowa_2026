@@ -4,10 +4,14 @@ Widoki tylko orkiestrują. Zasady wspólne dla modułu:
 
 - **snapshot kontra dane bieżące**: publikacja zamraża tabelę. Wszystko, co widzi publiczność,
   pochodzi z ``ResultsPublication.snapshot``; serwisy liczące dotykają bazy tylko w momencie
-  publikacji albo podglądu koordynatora,
+  publikacji albo podglądu koordynatora. Uczestnik w ``me/results/`` widzi natomiast swoje punkty
+  **na żywo** wraz z ``published_total`` i znacznikiem ``differs_from_published`` (PROJEKT.md 2.4),
 - **RODO**: snapshot przechodzi przez ``_display_name`` i zawiera wyłącznie ``rank``, ``display``,
-  ``district``, ``points``, ``total`` i ``qualified``. Nigdy e-maila, roku urodzenia ani id
-  użytkownika; imię i nazwisko wyłącznie przy ``FULL`` i tylko za zgodą uczestnika,
+  ``district`` (tylko przy ``CODE``), ``points``, ``total`` i ``qualified``. Nigdy e-maila, roku
+  urodzenia ani id użytkownika; imię i nazwisko wyłącznie przy ``FULL``, tylko w finale, tylko dla
+  laureata i tylko za zgodą uczestnika (oraz opiekuna, jeśli uczestnik jest niepełnoletni),
+- **kolejność w czasie**: progi i publikacja liczą się dopiero po zamknięciu okna reklamacji
+  (PROJEKT.md 2.4: „nigdy wcześniej”). Podgląd koordynatora (``compute``) wolno robić zawsze,
 - **brak N+1**: przeliczenie etapu to stała liczba zapytań niezależnie od liczby wpisów – wpisy,
   zadania i zgłoszenia czytamy hurtem, a sumy składamy w Pythonie,
 - audyt nigdy nie zawiera danych osobowych: w ``diff`` idą liczniki i identyfikatory,
@@ -17,9 +21,10 @@ Widoki tylko orkiestrują. Zasady wspólne dla modułu:
 from __future__ import annotations
 
 import logging
+from collections import Counter
 
 from django.db import transaction
-from django.db.models import Prefetch
+from django.db.models import Count, Prefetch
 from django.utils import timezone
 from rest_framework import status as http
 
@@ -51,16 +56,19 @@ UNFINISHED_STATUSES = (
     SubmissionStatus.GRADED_PROVISIONAL,
     SubmissionStatus.APPEALED,
 )
-#: Stany sprzed oceniania. Blokują przeliczenie tylko wtedy, gdy nie ma jeszcze ``FinalGrade`` –
-#: praca z oceną uzgodnioną jest policzalna niezależnie od tego, w jakim stanie utknął jej rekord.
-PREGRADING_STATUSES = (
-    SubmissionStatus.SUBMITTED,
-    SubmissionStatus.SCANNING,
-    SubmissionStatus.LOCKED,
-)
 #: Ile pseudonimów wchodzi do komunikatu błędu. Etap finału ma tysiące prac – lista bez limitu
 #: zamieniłaby komunikat w zrzut tabeli.
 MAX_REPORTED_CODES = 20
+
+#: Minimalna liczba uczestników jednej szkoły w etapie, przy której wolno pokazać „inicjały, szkoła”.
+#: Poniżej progu para (inicjały, szkoła) wskazuje konkretną osobę – wtedy wiersz spada do pseudonimu
+#: (k-anonimowość, PROJEKT.md 2.4).
+MIN_SCHOOL_GROUP = 3
+
+#: Wiek, od którego uznajemy uczestnika za pełnoletniego przy zgodzie na publikację nazwiska.
+#: 19, a nie 18: znamy wyłącznie rok urodzenia, więc konserwatywnie zaokrąglamy w stronę ochrony –
+#: osoba, która skończy 18 lat w tym roku, wciąż wymaga zgody opiekuna.
+ADULT_AGE = 19
 
 
 # --- błędy domenowe ---------------------------------------------------------------------------
@@ -72,6 +80,38 @@ def _conflict(detail: str, code: str) -> DomainError:
 
 def _bad_request(detail: str, code: str) -> DomainError:
     return DomainError(detail, code, http.HTTP_400_BAD_REQUEST)
+
+
+# --- brama czasowa i blokada etapu -------------------------------------------------------------
+
+
+def _assert_appeal_window_closed(stage: Stage) -> None:
+    """Progi i publikacja dopiero po zamknięciu okna reklamacji (PROJEKT.md 2.4).
+
+    Reklamacja może zmienić ``FinalGrade``, a więc i sumę punktów. Kwalifikacja policzona przy
+    otwartym oknie musiałaby zostać cofnięta – a status „zakwalifikowany”, raz ogłoszony, jest
+    obietnicą wobec uczestnika. Podgląd (``compute_stage_results``) tej bramy nie ma: to robocza
+    tabela koordynatora, która niczego nie ogłasza.
+    """
+    if stage.appeal_window_closes_at is None:
+        return
+    now = timezone.now()
+    if now < stage.appeal_window_closes_at:
+        raise _conflict(
+            "Okno reklamacji jest jeszcze otwarte "
+            f"(do {stage.appeal_window_closes_at.isoformat()}). Progi liczymy po jego zamknięciu.",
+            "APPEAL_WINDOW_OPEN",
+        )
+
+
+def _locked_stage(stage: Stage) -> Stage:
+    """Etap zablokowany do końca transakcji (``SELECT ... FOR UPDATE``).
+
+    Dwie równoległe publikacje tego samego etapu (koordynator klika dwa razy, panel i API naraz)
+    liczyłyby progi na tych samych danych i zapisywały dwa różne snapshoty. Blokada wiersza etapu
+    ustawia je w kolejkę. Zwracamy świeży obiekt – stan z żądania mógł się zestarzeć.
+    """
+    return Stage.objects.select_for_update().get(pk=stage.pk)
 
 
 # --- przeliczenie wyników ---------------------------------------------------------------------
@@ -98,11 +138,16 @@ def _latest_submissions(stage: Stage) -> dict[tuple[int, int], Submission]:
 
 
 def _blocks_finalization(submission: Submission) -> bool:
-    """Czy to zgłoszenie nie pozwala jeszcze zamknąć tabeli wyników etapu."""
+    """Czy to zgłoszenie nie pozwala jeszcze zamknąć tabeli wyników etapu.
+
+    Blokuje każda praca w ocenianiu oraz **każda praca bez ``FinalGrade``** – także ta w stanie
+    ``FINAL``. Praca oddana i nieoceniona to nie „zero punktów”, tylko brakująca ocena: cicha zamiana
+    takiej luki na 0 zaniżyłaby sumę i mogła wyrzucić kogoś z progu, a błąd wyszedłby dopiero po
+    ogłoszeniu wyników. Lepiej 409 z listą prac do dokończenia.
+    """
     if submission.status in UNFINISHED_STATUSES:
         return True
-    grade = getattr(submission, "final_grade", None)
-    return submission.status in PREGRADING_STATUSES and grade is None
+    return getattr(submission, "final_grade", None) is None
 
 
 def _assert_finalized(pending_codes: list[str]) -> None:
@@ -137,6 +182,13 @@ def _rank_rows(rows: list[dict]) -> list[dict]:
     return ordered
 
 
+def _is_adult(birth_year: int | None, current_year: int) -> bool:
+    """Czy uczestnik jest pełnoletni „na pewno”, licząc wyłącznie po roku urodzenia."""
+    if not birth_year:
+        return False
+    return current_year - int(birth_year) >= ADULT_AGE
+
+
 def compute_stage_results(stage: Stage) -> list[dict]:
     """Tabela wyników etapu: suma ``FinalGrade.score`` po najnowszych wersjach zgłoszeń.
 
@@ -154,6 +206,10 @@ def compute_stage_results(stage: Stage) -> list[dict]:
         .order_by("id")
     )
     latest = _latest_submissions(stage)
+    # Pełnoletność liczymy raz na cały etap: znamy tylko rok urodzenia, więc dokładniejszej daty
+    # i tak nie ma. Do wiersza trafia gotowa flaga, nigdy sam ``birth_year`` – rok urodzenia nie ma
+    # po co wędrować przez warstwy aż do serializera.
+    current_year = timezone.now().year
 
     pending_codes: list[str] = []
     rows: list[dict] = []
@@ -181,6 +237,8 @@ def compute_stage_results(stage: Stage) -> list[dict]:
                 "school": participant.school,
                 "district": participant.district,
                 "publish_full_name": participant.publish_full_name,
+                "guardian_consent": participant.guardian_consent,
+                "is_adult": _is_adult(participant.birth_year, current_year),
                 "status": entry.status,
                 "points": points,
                 "total": total,
@@ -220,11 +278,15 @@ def _top_n_cutoff(totals: list[int], top_n: int) -> int | None:
 
     Remis na granicy rozstrzyga się na korzyść uczestników: progiem jest *wartość* zajmująca
     miejsce ``top_n``, więc wszyscy z takim samym wynikiem wchodzą, choćby było ich więcej niż N.
+
+    Zera nie biorą udziału w progu. „N najlepszych” w etapie, w którym zgłosiło się mniej osób niż
+    N (albo w którym nikt nic nie ugrał), nie może oznaczać awansu za brak rozwiązania – kandydatem
+    jest ten, kto zdobył choć punkt. Dlatego zwracany próg jest zawsze dodatni albo ``None``.
     """
-    if not totals:
+    scoring = sorted((total for total in totals if total > 0), reverse=True)
+    if not scoring:
         return None
-    ordered = sorted(totals, reverse=True)
-    return ordered[min(top_n, len(ordered)) - 1]
+    return scoring[min(top_n, len(scoring)) - 1]
 
 
 def _qualified_entry_ids(rows: list[dict], rule) -> set[int]:
@@ -274,15 +336,77 @@ def next_stage_of(stage: Stage) -> Stage | None:
     return None
 
 
+def _sync_next_stage(following: Stage, candidates: list[dict]) -> tuple[int, int, list[str]]:
+    """Dopasowuje wpisy w następnym etapie do wyniku kwalifikacji.
+
+    Zwraca ``(utworzone, usunięte, konflikty)``. Trzy reguły:
+
+    - zakwalifikowani dostają wpis ``REGISTERED`` – jednym ``bulk_create(ignore_conflicts=True)``,
+      więc powtórne wywołanie nic nie duplikuje i nie kosztuje zapytania na uczestnika,
+    - **odkwalifikowani tracą wpis**, ale tylko jeśli jest jeszcze ``REGISTERED`` i pusty. Ponowne
+      przeliczenie (np. po decyzji reklamacyjnej, która komuś odebrała punkty) nie może zostawić
+      w następnym etapie ludzi, którzy się do niego nie kwalifikują,
+    - wpis z choćby jednym zgłoszeniem **zostaje** i trafia na listę konfliktów. Skasowanie go
+      usunęłoby pracę, którą ktoś naprawdę oddał; to decyzja dla koordynatora, nie dla serwisu.
+    """
+    qualified = [row for row in candidates if row["qualified"]]
+    demoted = {row["participant_id"]: row for row in candidates if not row["qualified"]}
+
+    existing = set(
+        StageEntry.objects.filter(
+            stage=following, participant_id__in=[row["participant_id"] for row in candidates]
+        ).values_list("participant_id", flat=True)
+    )
+    missing = [row for row in qualified if row["participant_id"] not in existing]
+    if missing:
+        StageEntry.objects.bulk_create(
+            [
+                StageEntry(
+                    participant_id=row["participant_id"],
+                    stage=following,
+                    status=StageEntryStatus.REGISTERED,
+                )
+                for row in missing
+            ],
+            ignore_conflicts=True,
+        )
+
+    stale_ids: list[int] = []
+    conflicts: list[str] = []
+    if demoted:
+        stale = (
+            StageEntry.objects.filter(
+                stage=following,
+                participant_id__in=list(demoted),
+                status=StageEntryStatus.REGISTERED,
+            )
+            .annotate(submission_count=Count("submissions"))
+            .only("id", "participant_id")
+        )
+        for entry in stale:
+            if entry.submission_count:
+                conflicts.append(demoted[entry.participant_id]["public_code"])
+            else:
+                stale_ids.append(entry.pk)
+    if stale_ids:
+        StageEntry.objects.filter(pk__in=stale_ids).delete()
+    return len(missing), len(stale_ids), sorted(conflicts)
+
+
 @transaction.atomic
 def apply_qualification(stage: Stage, *, actor=None, request=None) -> dict:
     """Przelicza wyniki i ustawia statusy kwalifikacji, tworząc wpisy w następnym etapie.
 
+    Wymaga zamkniętego okna reklamacji (409 ``APPEAL_WINDOW_OPEN``) i blokuje wiersz etapu na czas
+    transakcji, żeby dwa równoległe przeliczenia nie deptały sobie po statusach.
+
     ``DISQUALIFIED`` zostaje nietknięty i nie bierze udziału w progu – dyskwalifikacja jest
     decyzją proceduralną, a nie wynikiem punktowym, więc nie może zajmować miejsca w „top N”.
-    Idempotentne: wpisy w następnym etapie powstają przez ``get_or_create``, więc drugie wywołanie
-    niczego nie duplikuje ani nie cofa statusu już zarejestrowanego uczestnika.
+    Idempotentne i **odwracalne**: drugie wywołanie niczego nie duplikuje, a jeśli ktoś stracił
+    kwalifikację, sprząta po nim pusty wpis w następnym etapie (``_sync_next_stage``).
     """
+    stage = _locked_stage(stage)
+    _assert_appeal_window_closed(stage)
     rule = _rule_for(stage)
     rows = compute_stage_results(stage)
 
@@ -311,17 +435,10 @@ def apply_qualification(stage: Stage, *, actor=None, request=None) -> dict:
         StageEntry.objects.bulk_update(changed, ["status"])
 
     following = next_stage_of(stage)
-    created_entries = 0
+    created_entries = removed_entries = 0
+    conflicts: list[str] = []
     if following is not None:
-        for row in candidates:
-            if not row["qualified"]:
-                continue
-            _, created = StageEntry.objects.get_or_create(
-                participant_id=row["participant_id"],
-                stage=following,
-                defaults={"status": StageEntryStatus.REGISTERED},
-            )
-            created_entries += int(created)
+        created_entries, removed_entries, conflicts = _sync_next_stage(following, candidates)
 
     summary = {
         "stage_id": stage.pk,
@@ -331,22 +448,30 @@ def apply_qualification(stage: Stage, *, actor=None, request=None) -> dict:
         "disqualified": len(rows) - len(candidates),
         "next_stage_id": following.pk if following is not None else None,
         "created_entries": created_entries,
+        "removed_entries": removed_entries,
+        # Pseudonimy wpisów, których nie wolno było skasować – do decyzji koordynatora.
+        "next_stage_conflicts": conflicts,
         "rows": rows,
     }
     audit(
         actor,
         "results.qualification_applied",
         stage,
-        {key: value for key, value in summary.items() if key != "rows"},
+        # Do audytu idą wyłącznie liczniki: ani tabela z nazwiskami, ani lista pseudonimów.
+        {key: value for key, value in summary.items() if key not in ("rows", "next_stage_conflicts")}
+        | {"next_stage_conflicts": len(conflicts)},
         request=request,
     )
     logger.info(
-        "Etap %s: kwalifikacja %s – %s zakwalifikowanych, %s nowych wpisów w etapie %s",
+        "Etap %s: kwalifikacja %s – %s zakwalifikowanych, %s nowych i %s usuniętych wpisów "
+        "w etapie %s (%s konfliktów)",
         stage.pk,
         rule.mode,
         summary["qualified"],
         created_entries,
+        removed_entries,
         summary["next_stage_id"],
+        len(conflicts),
     )
     return summary
 
@@ -359,47 +484,78 @@ def _initials(first_name: str, last_name: str) -> str:
     return "".join(f"{letter}." for letter in parts)
 
 
-def _display_name(row: dict, anonymization: str) -> str:
+def _school_key(value: str | None) -> str:
+    """Szkoły grupujemy po znormalizowanej nazwie – „XIV LO” i „xiv lo” to jedna szkoła."""
+    return (value or "").strip().casefold()
+
+
+def _may_show_full_name(row: dict) -> bool:
+    """Czy wolno podpisać ten wiersz imieniem i nazwiskiem (PROJEKT.md 2.4).
+
+    Trzy warunki naraz, wszystkie muszą być spełnione:
+
+    - **laureat** – nazwisko publikujemy tylko przy wyniku, który jest wyróżnieniem
+      (``qualified``); przegranych finalistów tabela wymienia pod pseudonimem,
+    - **zgoda uczestnika** (``publish_full_name``),
+    - **zgoda opiekuna** dla niepełnoletniego – małoletni nie udziela jej sam skutecznie.
+    """
+    if not row.get("qualified") or not row.get("publish_full_name"):
+        return False
+    return bool(row.get("guardian_consent") or row.get("is_adult"))
+
+
+def _display_name(row: dict, anonymization: str, school_sizes: dict[str, int]) -> str:
     """Jedyne miejsce, w którym powstaje etykieta uczestnika w publikowanej tabeli.
 
-    Reguła domyślnie zamknięta: każdy tryb, który nie ma kompletu danych do pokazania, spada do
-    pseudonimu. Pełne imię i nazwisko wymaga jednocześnie trybu ``FULL`` i zgody uczestnika
-    (``publish_full_name``) – bez zgody nawet finał pokazuje kod (RODO: minimalizacja + zgoda).
+    Reguła domyślnie zamknięta: każdy tryb, który nie ma kompletu danych albo zgód, spada do
+    pseudonimu. ``FULL`` przepuszcza tylko wiersze z ``_may_show_full_name`` (a sam tryb jest
+    dopuszczony wyłącznie w finale – patrz ``publish_results``). ``INITIALS_SCHOOL`` wymaga do tego
+    grupy co najmniej ``MIN_SCHOOL_GROUP`` uczestników z tej szkoły w tym etapie: „J.K., XIV LO”
+    przy jednym uczestniku z XIV LO to nie anonimizacja, tylko wskazanie palcem.
     """
     code = row["public_code"]
     if anonymization == Anonymization.FULL:
-        if not row.get("publish_full_name"):
+        if not _may_show_full_name(row):
             return code
         full = " ".join(part for part in (row["first_name"], row["last_name"]) if part).strip()
         return full or code
     if anonymization == Anonymization.INITIALS_SCHOOL:
         initials = _initials(row["first_name"], row["last_name"])
-        if not initials:
-            return code
         school = (row.get("school") or "").strip()
-        return f"{initials}, {school}" if school else initials
+        if not initials or not school:
+            return code
+        if school_sizes.get(_school_key(school), 0) < MIN_SCHOOL_GROUP:
+            return code
+        return f"{initials}, {school}"
     return code
 
 
 def build_snapshot(rows: list[dict], anonymization: str) -> list[dict]:
-    """Zamrożona tabela: wyłącznie ``rank``, ``display``, ``district``, ``points``, ``total``,
-    ``qualified``.
+    """Zamrożona tabela: ``rank``, ``display``, ``points``, ``total``, ``qualified`` i – wyłącznie
+    przy ``CODE`` – ``district``.
 
     Kształt jest budowany od zera z jawnie wypisanych pól, a nie przez usuwanie kluczy z wiersza
     roboczego – dopisanie kiedyś kolumny z danymi osobowymi do ``compute_stage_results`` nie może
     w żaden sposób „przeciec” do publikacji.
+
+    Okręg zostaje tylko w tabeli po pseudonimach: tam jest jedyną informacją o kontekście i niczego
+    nie zawęża. Doklejony do inicjałów ze szkołą albo do nazwiska nie dodaje nic, czego czytelnik już
+    nie wie, a mnoży cechy quasi-identyfikujące (PROJEKT.md 2.4).
     """
-    return [
-        {
+    school_sizes = Counter(_school_key(row.get("school")) for row in rows)
+    snapshot = []
+    for row in rows:
+        item = {
             "rank": row["rank"],
-            "display": _display_name(row, anonymization),
-            "district": row["district"],
+            "display": _display_name(row, anonymization, school_sizes),
             "points": dict(row["points"]),
             "total": row["total"],
             "qualified": bool(row.get("qualified")),
         }
-        for row in rows
-    ]
+        if anonymization == Anonymization.CODE:
+            item["district"] = row["district"]
+        snapshot.append(item)
+    return snapshot
 
 
 @transaction.atomic
@@ -409,9 +565,22 @@ def publish_results(stage: Stage, actor, anonymization: str, *, request=None) ->
     Ponowna publikacja nadpisuje snapshot tego samego rekordu (jeden etap = jedna tabela w mocy)
     i zostawia wpis w audycie. ``diff`` audytu ma wyłącznie liczniki – tabela wyników z nazwiskami
     nie może wylądować w logu czytanym przez osoby bez prawa do danych osobowych.
+
+    Bramki wejściowe: znany tryb anonimizacji, ``FULL`` wyłącznie w finale i zamknięte okno
+    reklamacji. Każda z nich wypada przed zapisem, więc odrzucona publikacja nie zostawia śladu.
     """
     if anonymization not in Anonymization.values:
         raise _bad_request(f"Nieznany tryb anonimizacji: {anonymization}.", "INVALID_ANONYMIZATION")
+    stage = _locked_stage(stage)
+    if anonymization == Anonymization.FULL and stage.kind != StageKind.FINAL:
+        # Nazwiska publikuje się przy laureatach finału i nigdzie indziej: tabela eliminacji
+        # z nazwiskami to lista kilkunastu tysięcy uczniów wraz z ich porażkami (PROJEKT.md 2.4).
+        raise _bad_request(
+            "Pełne nazwiska wolno publikować wyłącznie w wynikach finału.",
+            "ANONYMIZATION_NOT_ALLOWED_FOR_STAGE",
+        )
+    _assert_appeal_window_closed(stage)
+
     summary = apply_qualification(stage, actor=actor, request=request)
     snapshot = build_snapshot(summary["rows"], anonymization)
     now = timezone.now()
@@ -423,6 +592,9 @@ def publish_results(stage: Stage, actor, anonymization: str, *, request=None) ->
             "published_by": actor if getattr(actor, "is_authenticated", False) else None,
             "anonymization": anonymization,
             "snapshot": snapshot,
+            # Klucz do „mojego wyniku” w ogłoszonej tabeli. Wierszy snapshotu nie da się przypisać
+            # do osoby (i dobrze), a uczestnik musi wiedzieć, z czym porównać swoje bieżące punkty.
+            "entry_totals": {str(row["entry_id"]): row["total"] for row in summary["rows"]},
         },
     )
     stage.results_published_at = now
@@ -482,8 +654,13 @@ def _feedback_for(submission: Submission | None) -> list[dict]:
 def results_for_participant(user) -> list[dict]:
     """Własne wyniki uczestnika – wyłącznie z etapów, których wyniki są już opublikowane.
 
-    Dane są liczone na bieżąco (to własne punkty uczestnika, nie ogłoszona tabela), ale widoczne
-    dopiero po ``Stage.results_published_at``: przed publikacją etap w ogóle nie jest zwracany.
+    Punkty liczymy **na żywo**, z aktualnych ``FinalGrade``: uczestnikowi należy się prawda o jego
+    pracy, także wtedy, gdy komisja zmieniła ocenę po ogłoszeniu tabeli. Publiczna tabela zostaje
+    przy tym zamrożona, więc oba widoki mogą się rozjechać – i wtedy wiersz niesie ``published_total``
+    (suma z ogłoszonej tabeli) oraz ``differs_from_published=True``. Milczące pokazanie jednej
+    z dwóch różnych liczb byłoby gorsze niż pokazanie obu (PROJEKT.md 2.4).
+
+    Widoczność bez zmian: przed ``Stage.results_published_at`` etap w ogóle nie jest zwracany.
     """
     participant = getattr(user, "participant", None)
     if participant is None:
@@ -497,6 +674,12 @@ def results_for_participant(user) -> list[dict]:
         return []
 
     stage_ids = [entry.stage_id for entry in entries]
+    published_totals: dict[int, dict] = {
+        publication.stage_id: publication.entry_totals or {}
+        for publication in ResultsPublication.objects.filter(stage_id__in=stage_ids).only(
+            "stage_id", "entry_totals"
+        )
+    }
     problems: dict[int, list] = {stage_id: [] for stage_id in stage_ids}
     for problem in Problem.objects.filter(stage_id__in=stage_ids).order_by("number", "id"):
         problems[problem.stage_id].append(problem)
@@ -531,6 +714,8 @@ def results_for_participant(user) -> list[dict]:
                     "feedback": _feedback_for(submission),
                 }
             )
+        published = published_totals.get(stage.pk, {}).get(str(entry.pk))
+        published = int(published) if published is not None else None
         results.append(
             {
                 "stage_id": stage.pk,
@@ -539,7 +724,9 @@ def results_for_participant(user) -> list[dict]:
                 "results_published_at": stage.results_published_at,
                 "status": entry.status,
                 "qualified": entry.status == StageEntryStatus.QUALIFIED,
-                "total_points": entry.total_points if entry.total_points is not None else total,
+                "total_points": total,
+                "published_total": published,
+                "differs_from_published": published is not None and published != total,
                 "problems": rows,
             }
         )
