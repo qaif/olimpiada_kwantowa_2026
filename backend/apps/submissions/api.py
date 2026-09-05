@@ -14,7 +14,7 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 
-from apps.accounts.permissions import IsCoordinator, IsParticipant
+from apps.accounts.permissions import IsActiveReviewer, IsCoordinator, IsParticipant
 from apps.competitions.models import Stage
 from apps.core.api import DomainError
 
@@ -70,11 +70,12 @@ class MySubmissionsView(GenericAPIView):
 class SubmissionDownloadView(GenericAPIView):
     """Pobranie pliku: 302 na presigned URL (S3) albo bezpośrednie wysłanie (backend lokalny).
 
-    Widoczność wynika z ``Submission.objects.for_user`` – cudze zgłoszenie daje 404.
-    Plik nieprzeskanowany albo zainfekowany może pobrać wyłącznie jego właściciel.
+    Widoczność wynika z ``Submission.objects.for_user`` – cudze zgłoszenie daje 404, także dla
+    recenzenta bez przydziału (``grading.Review``). Plik nieprzeskanowany albo zainfekowany może
+    pobrać wyłącznie jego właściciel: recenzent i koordynator dostają go dopiero po ``CLEAN``.
     """
 
-    permission_classes = [IsParticipant | IsCoordinator]
+    permission_classes = [IsParticipant | IsCoordinator | IsActiveReviewer]
     serializer_class = SubmissionSerializer
 
     def get_queryset(self):

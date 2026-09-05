@@ -9,8 +9,8 @@ Status: `todo` / `in_progress` / `done` / `escalated`.
 | T-02 | Konta i RBAC: custom User, grupy participant/reviewer/appeals/coordinator, otwarta rejestracja uczestnika, rejestracja komitetu z kodem zaproszenia (ACTIVE lub PENDING), zatwierdzanie przez koordynatora | T-01 | done |
 | T-03 | Modele domeny: Edition, Stage (terminy, grace, okno reklamacji), ScoringScale (0/2/5/6 param.), QualificationRule, Problem, Participant, CommitteeMember, StageEntry; admin; seed_demo | T-02 | done |
 | T-04 | Upload rozwiązań: Submission/SubmissionFile, storage MinIO, walidacja magic bytes + rozmiar + ipynb, deadline po stronie serwera z select_for_update, zadanie Celery skanu ClamAV, blokada etapu przez beat | T-03 | done |
-| T-05 | Ocenianie: przydział 2 recenzentów (ślepy, bez konfliktu okręgu), Review z adnotacjami, walidacja score wobec skali, konsensus → FinalGrade, rozjazd → MODERATION → trzeci recenzent/koordynator | T-04 | in_progress |
-| T-06 | Reklamacje: okno czasowe, jedna reklamacja na zadanie, komisja odwoławcza bez autorów rundy 1, AppealDecision → FinalGrade(APPEAL), AuditLog | T-05 | todo |
+| T-05 | Ocenianie: przydział 2 recenzentów (ślepy, bez konfliktu okręgu), Review z adnotacjami, walidacja score wobec skali, konsensus → FinalGrade, rozjazd → MODERATION → trzeci recenzent/koordynator | T-04 | done |
+| T-06 | Reklamacje: okno czasowe, jedna reklamacja na zadanie, komisja odwoławcza bez autorów rundy 1, AppealDecision → FinalGrade(APPEAL), AuditLog | T-05 | in_progress |
 | T-07 | Wyniki i kwalifikacja: przeliczenie progów (MIN_POINTS/TOP_N/TOP_N_PER_DISTRICT/HYBRID), StageEntry.status, ResultsPublication snapshot zanonimizowany, publiczna tabela | T-06 | todo |
 | T-08 | Panel recenzenta UI (HTMX): lista przydziałów, podgląd PDF (pdf.js) z adnotacjami, formularz oceny; panel uczestnika: upload, statusy, wyniki własne, reklamacja | T-07 | todo |
 | T-09 | Część informacyjna (Wagtail): newsroom, strona bieżących zadań, archiwum edycji, tabela wyników publiczna | T-07 | todo |
@@ -68,7 +68,7 @@ Status: `todo` / `in_progress` / `done` / `escalated`.
 
 | Źródło | Finding | Plan |
 |---|---|---|
-| T-02 | `district` członka komitetu jest samodeklarowany; reguła konfliktu interesów (T-05) na nim polega | T-05: `InvitationCode.district` ustalany przez koordynatora nadpisuje payload; pole w profilu oznaczone jako zweryfikowane |
+| T-02 | `district` członka komitetu jest samodeklarowany; reguła konfliktu interesów (T-05) na nim polega | zamknięte w T-05 (`InvitationCode.district`, `district_verified`, `verify-district`) |
 | T-02 | Token DRF bez TTL i rotacji; jeden token na konto | T-08 (UI używa sesji); rotacja tokenu przy loginie + TTL 30 dni w osobnym tasku po T-10 |
 | T-02 | Enumeracja kont przez `EMAIL_TAKEN` na rejestracji | Zaakceptowane (UX), limit 10/h/IP; do rozważenia flow z e-mailem potwierdzającym |
 | T-02 | Brak testu wyścigu na `redeem_invitation` i testu 429 na `register` | T-10 (testy współbieżne z `transaction=True`) |

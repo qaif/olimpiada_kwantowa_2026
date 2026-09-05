@@ -71,15 +71,22 @@ class CommitteeMemberFactory(factory.django.DjangoModelFactory):
 
     user = factory.SubFactory(UserFactory)
     district = "mazowiecki"
+    district_verified = False
     status = CommitteeStatus.PENDING
     is_appeals_committee = False
 
 
 class ActiveReviewerFactory(CommitteeMemberFactory):
-    """Recenzent aktywny: status ACTIVE + grupa ``reviewer`` (tak jak po zatwierdzeniu)."""
+    """Recenzent aktywny: status ACTIVE + grupa ``reviewer`` (tak jak po zatwierdzeniu).
+
+    Okręg jest zweryfikowany, bo to przypadek domyślny po wdrożeniu długu T-02 (kod zaproszenia
+    z okręgiem). Test konfliktu interesów jawnie podaje ``district_verified=False``, gdy bada
+    ścieżkę niezweryfikowaną.
+    """
 
     user = factory.SubFactory(UserFactory, groups=[GROUP_REVIEWER])
     status = CommitteeStatus.ACTIVE
+    district_verified = True
 
 
 class PendingReviewerFactory(CommitteeMemberFactory):
@@ -112,3 +119,4 @@ class InvitationCodeFactory(factory.django.DjangoModelFactory):
     used_count = 0
     grants_status = InvitationGrantsStatus.ACTIVE
     is_appeals = False
+    district = None

@@ -39,8 +39,8 @@ class ParticipantAdmin(admin.ModelAdmin):
 
 @admin.register(CommitteeMember)
 class CommitteeMemberAdmin(admin.ModelAdmin):
-    list_display = ("user", "district", "status", "is_appeals_committee", "approved_at")
-    list_filter = ("status", "is_appeals_committee", "district")
+    list_display = ("user", "district", "district_verified", "status", "is_appeals_committee", "approved_at")
+    list_filter = ("status", "is_appeals_committee", "district_verified", "district")
     search_fields = ("user__email",)
     readonly_fields = ("created_at", "approved_at", "approved_by")
     autocomplete_fields = ("user",)
@@ -55,11 +55,12 @@ class InvitationCodeAdmin(admin.ModelAdmin):
         "created_by",
         "grants_status",
         "is_appeals",
+        "district",
         "used_count",
         "max_uses",
         "expires_at",
     )
-    list_filter = ("grants_status", "is_appeals")
+    list_filter = ("grants_status", "is_appeals", "district")
     search_fields = ("code_hash",)
     readonly_fields = ("code_hash", "created_by", "created_at", "used_count")
 

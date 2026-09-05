@@ -1,4 +1,4 @@
-"""``manage.py create_invitation --email <koordynator> [--pending] [--appeals]``.
+"""``manage.py create_invitation --email <koordynator> [--pending] [--appeals] [--district X]``.
 
 Kod jest wypisywany raz na stdout i nigdzie nie jest zapisywany ani logowany.
 """
@@ -22,6 +22,14 @@ class Command(BaseCommand):
             help="Kod nadaje status PENDING (konto wymaga zatwierdzenia). Domyślnie ACTIVE.",
         )
         parser.add_argument("--appeals", action="store_true", help="Kod uprawnia do komisji odwoławczej.")
+        parser.add_argument(
+            "--district",
+            default=None,
+            help=(
+                "Okręg narzucony rejestrowanemu recenzentowi. Nadpisuje deklarację z formularza "
+                "i nadaje profilowi district_verified=True (wymóg reguły konfliktu interesów)."
+            ),
+        )
         parser.add_argument("--max-uses", type=int, default=1, help="Ile razy kod może zostać użyty.")
         parser.add_argument("--valid-days", type=int, default=14, help="Ważność kodu w dniach.")
 
@@ -40,11 +48,13 @@ class Command(BaseCommand):
             max_uses=options["max_uses"],
             grants_status=grants,
             is_appeals=options["appeals"],
+            district=options["district"],
         )
         self.stdout.write(
             self.style.SUCCESS(f"Kod zaproszenia (zapisz teraz, nie da się go odtworzyć): {plain_code}")
         )
         self.stdout.write(
             f"status={invitation.grants_status} appeals={invitation.is_appeals} "
+            f"district={invitation.district or '-'} "
             f"max_uses={invitation.max_uses} expires_at={invitation.expires_at.isoformat()}"
         )

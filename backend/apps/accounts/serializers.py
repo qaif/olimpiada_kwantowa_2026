@@ -73,7 +73,13 @@ class ParticipantProfileSerializer(serializers.ModelSerializer):
 class CommitteeProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = CommitteeMember
-        fields = ("id", "district", "status", "is_appeals_committee")
+        fields = ("id", "district", "district_verified", "status", "is_appeals_committee")
+
+
+class VerifyDistrictSerializer(serializers.Serializer):
+    """Wejście potwierdzenia okręgu przez koordynatora."""
+
+    district = serializers.CharField(max_length=100)
 
 
 class MeSerializer(serializers.ModelSerializer):
@@ -110,6 +116,7 @@ class PendingCommitteeMemberSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "district",
+            "district_verified",
             "status",
             "is_appeals_committee",
             "created_at",

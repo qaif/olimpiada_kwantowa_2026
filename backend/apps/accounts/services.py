@@ -15,6 +15,7 @@ from django.views.decorators.debug import sensitive_variables
 from rest_framework import status
 
 from apps.core.api import DomainError
+from apps.core.models import audit
 
 from .models import (
     GROUP_APPEALS,
@@ -143,10 +144,12 @@ def create_invitation(
     max_uses: int = 1,
     grants_status: str = InvitationGrantsStatus.ACTIVE,
     is_appeals: bool = False,
+    district: str | None = None,
 ) -> tuple[InvitationCode, str]:
     """Tworzy kod zaproszenia i zwraca ``(obiekt, kod_jawny)``.
 
     Kod jawny jest zwracany wyłącznie wywołującemu (komenda CLI) i nigdzie nie jest zapisywany.
+    ``district`` (o ile podany) narzuca okręg rejestrowanego recenzenta i czyni go zweryfikowanym.
     """
     if expires_at is None:
         expires_at = timezone.now() + (valid_for or timedelta(days=14))
@@ -160,6 +163,7 @@ def create_invitation(
         max_uses=max_uses,
         grants_status=grants_status,
         is_appeals=is_appeals,
+        district=(district or "").strip() or None,
     )
     return invitation, plain_code
 
@@ -203,12 +207,20 @@ def register_committee(
     invitation_code: str,
     district: str | None = None,
 ) -> CommitteeMember:
-    """Rejestracja członka komitetu na podstawie kodu zaproszenia."""
+    """Rejestracja członka komitetu na podstawie kodu zaproszenia.
+
+    Okręg z kodu zaproszenia jest nadrzędny wobec deklaracji z formularza: jeśli koordynator
+    przypisał kodowi okręg, pole ``district`` z payloadu jest ignorowane, a profil dostaje
+    ``district_verified=True``. Kod bez okręgu daje profil samodeklarowany i niezweryfikowany –
+    taki recenzent nie jest przydzielany na etapie okręgowym (reguła konfliktu interesów).
+    """
     invitation = redeem_invitation(invitation_code)
     user = _create_user(email=email, password=password, first_name=first_name, last_name=last_name)
+    from_code = (invitation.district or "").strip()
     member = CommitteeMember.objects.create(
         user=user,
-        district=district or None,
+        district=from_code or (district or "").strip() or None,
+        district_verified=bool(from_code),
         status=invitation.grants_status,
         is_appeals_committee=invitation.is_appeals,
     )
@@ -239,6 +251,33 @@ def approve_committee_member(member: CommitteeMember, *, actor: User) -> Committ
     member.approved_by = actor
     member.save(update_fields=["status", "approved_at", "approved_by"])
     _grant_reviewer_groups(member)
+    return member
+
+
+@transaction.atomic
+def verify_committee_district(
+    member: CommitteeMember, *, district: str, actor: User, request=None
+) -> CommitteeMember:
+    """Koordynator potwierdza okręg członka komitetu (dług techniczny T-02).
+
+    Dopóki okręg jest samodeklarowany, reguła konfliktu interesów nie ma na czym się oprzeć –
+    dlatego przydział na etapie okręgowym pomija profile z ``district_verified=False``.
+    """
+    district = (district or "").strip()
+    if not district:
+        raise DomainError("Podaj okręg do potwierdzenia.", "DISTRICT_REQUIRED", status.HTTP_400_BAD_REQUEST)
+    member = CommitteeMember.objects.select_for_update().get(pk=member.pk)
+    previous = member.district
+    member.district = district
+    member.district_verified = True
+    member.save(update_fields=["district", "district_verified"])
+    audit(
+        actor,
+        "committee.district_verified",
+        member,
+        {"district": {"from": previous, "to": district}, "district_verified": {"from": False, "to": True}},
+        request=request,
+    )
     return member
 
 

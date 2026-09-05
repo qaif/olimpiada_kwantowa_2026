@@ -26,8 +26,14 @@ from .serializers import (
     ParticipantRegisterSerializer,
     PendingCommitteeMemberSerializer,
     TokenSerializer,
+    VerifyDistrictSerializer,
 )
-from .services import approve_committee_member, register_committee, register_participant
+from .services import (
+    approve_committee_member,
+    register_committee,
+    register_participant,
+    verify_committee_district,
+)
 
 
 class RegisterParticipantView(GenericAPIView):
@@ -137,3 +143,27 @@ class CommitteeApproveView(GenericAPIView):
         member = get_object_or_404(CommitteeMember.objects.select_related("user"), pk=pk)
         member = approve_committee_member(member, actor=request.user)
         return Response(self.get_serializer(member).data)
+
+
+class CommitteeVerifyDistrictView(GenericAPIView):
+    """Potwierdzenie okręgu członka komitetu – tylko koordynator (dług techniczny T-02).
+
+    Do czasu potwierdzenia okręg jest samodeklarowany, więc recenzent nie jest przydzielany
+    na etapie okręgowym: reguła konfliktu interesów opiera się na tym polu.
+    """
+
+    permission_classes = [IsCoordinator]
+    serializer_class = VerifyDistrictSerializer
+
+    @extend_schema(request=VerifyDistrictSerializer, responses={200: PendingCommitteeMemberSerializer})
+    def post(self, request, pk: int):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        member = get_object_or_404(CommitteeMember.objects.select_related("user"), pk=pk)
+        member = verify_committee_district(
+            member,
+            district=serializer.validated_data["district"],
+            actor=request.user,
+            request=request,
+        )
+        return Response(PendingCommitteeMemberSerializer(member).data)

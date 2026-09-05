@@ -13,7 +13,7 @@ from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 
-from apps.accounts.models import GROUP_COORDINATOR
+from apps.accounts.models import GROUP_COORDINATOR, CommitteeStatus
 from apps.competitions.models import Problem, StageEntry
 
 
@@ -42,19 +42,34 @@ class AvStatus(models.TextChoices):
 
 class SubmissionQuerySet(models.QuerySet):
     def for_user(self, user):
-        """Widoczność per rola: uczestnik → własne, koordynator → wszystkie, recenzent → puste.
+        """Widoczność per rola: uczestnik → własne, koordynator → wszystkie, recenzent → przydzielone.
 
-        Przydziały recenzentów dochodzą w T-05; do tego czasu recenzent nie widzi żadnego
-        rozwiązania (domyślnie zamknięte, nie domyślnie otwarte).
+        Reguła jest domyślnie zamknięta: kto nie ma ani profilu uczestnika, ani aktywnego profilu
+        komitetu z przydziałem (``grading.Review``), nie widzi niczego. Relacja ``reviews`` jest
+        odwrotną stroną FK z ``apps.grading`` – celowo przez nazwę, żeby nie robić importu w drugą
+        stronę (grading zależy od submissions, nie odwrotnie).
         """
         if not user or not user.is_authenticated or not user.is_active:
             return self.none()
         if user.groups.filter(name=GROUP_COORDINATOR).exists():
             return self
+        conditions = []
         participant = getattr(user, "participant", None)
-        if participant is None:
+        if participant is not None:
+            conditions.append(Q(entry__participant=participant))
+        member = getattr(user, "committee_member", None)
+        is_reviewer = member is not None and member.status == CommitteeStatus.ACTIVE
+        if is_reviewer:
+            conditions.append(Q(reviews__reviewer=member))
+        if not conditions:
             return self.none()
-        return self.filter(entry__participant=participant)
+        query = conditions[0]
+        for extra in conditions[1:]:
+            query |= extra
+        queryset = self.filter(query)
+        # JOIN po recenzjach potrafi zwielokrotnić wiersze (dwie recenzje tego samego zgłoszenia
+        # w rundach 1 i 2), więc tylko ta gałąź wymaga odsiania duplikatów.
+        return queryset.distinct() if is_reviewer else queryset
 
 
 class Submission(models.Model):

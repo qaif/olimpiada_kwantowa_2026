@@ -3,6 +3,7 @@ from django.urls import path
 from .api import (
     CommitteeApproveView,
     CommitteePendingListView,
+    CommitteeVerifyDistrictView,
     LoginView,
     LogoutView,
     MeView,
@@ -20,4 +21,9 @@ urlpatterns = [
     path("me/", MeView.as_view(), name="me"),
     path("committee/pending/", CommitteePendingListView.as_view(), name="committee-pending"),
     path("committee/<int:pk>/approve/", CommitteeApproveView.as_view(), name="committee-approve"),
+    path(
+        "committee/<int:pk>/verify-district/",
+        CommitteeVerifyDistrictView.as_view(),
+        name="committee-verify-district",
+    ),
 ]

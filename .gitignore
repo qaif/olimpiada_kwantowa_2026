@@ -11,3 +11,4 @@ staticfiles/
 node_modules/
 .coverage
 coverage.json
+nul

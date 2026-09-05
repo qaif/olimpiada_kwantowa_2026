@@ -142,6 +142,11 @@ class CommitteeMember(models.Model):
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="committee_member")
     district = models.CharField("okręg", max_length=100, null=True, blank=True)  # noqa: DJ001
+    # Okręg samodeklarowany przy rejestracji nie jest podstawą do wykluczania konfliktu interesów.
+    # ``True`` dostaje wyłącznie profil z okręgiem narzuconym przez kod zaproszenia albo potwierdzony
+    # przez koordynatora (``POST /api/auth/committee/{id}/verify-district/``). Przydział na etapie
+    # okręgowym pomija recenzentów niezweryfikowanych – patrz ``apps.grading.services.assign_reviewers``.
+    district_verified = models.BooleanField("okręg zweryfikowany", default=False)
     status = models.CharField(
         "status", max_length=16, choices=CommitteeStatus.choices, default=CommitteeStatus.PENDING
     )
@@ -186,6 +191,9 @@ class InvitationCode(models.Model):
         default=InvitationGrantsStatus.ACTIVE,
     )
     is_appeals = models.BooleanField("uprawnia do komisji odwoławczej", default=False)
+    # Okręg narzucony przez koordynatora przy generowaniu kodu. Jeśli jest ustawiony, wygrywa z
+    # deklaracją z formularza rejestracji, a profil powstaje od razu z ``district_verified=True``.
+    district = models.CharField("okręg", max_length=100, null=True, blank=True)  # noqa: DJ001
 
     class Meta:
         verbose_name = "kod zaproszenia"
