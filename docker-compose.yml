@@ -1,0 +1,206 @@
+# Platforma Olimpiady – docker compose
+# Profile: domyślny = produkcja/staging, `--profile dev` dodaje mailpit i wystawia porty pomocnicze.
+# Sekrety wyłącznie przez .env (patrz .env.example). Żadna usługa danych nie jest w sieci `edge`.
+
+x-app-base: &app-base
+  build:
+    context: ./backend
+    dockerfile: Dockerfile
+    target: runtime
+  image: olimpiada/web:${APP_VERSION:-dev}
+  env_file: .env
+  environment:
+    DJANGO_SETTINGS_MODULE: config.settings.production
+    DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    REDIS_URL: redis://redis:6379/0
+    CELERY_BROKER_URL: redis://redis:6379/1
+    S3_ENDPOINT_URL: http://minio:9000
+    S3_SUBMISSIONS_BUCKET: submissions
+    S3_PUBLIC_BUCKET: public-media
+    CLAMAV_HOST: clamav
+    CLAMAV_PORT: "3310"
+  networks: [internal]
+  restart: unless-stopped
+  read_only: true
+  tmpfs:
+    - /tmp:size=256m
+  security_opt:
+    - no-new-privileges:true
+  cap_drop: [ALL]
+  depends_on:
+    db:        { condition: service_healthy }
+    redis:     { condition: service_healthy }
+    minio:     { condition: service_healthy }
+
+services:
+  proxy:
+    image: caddy:2.8
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - static_files:/srv/static:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-25}
+    networks: [edge]
+    depends_on:
+      web: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:2019/metrics"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  web:
+    <<: *app-base
+    command: >
+      gunicorn config.asgi:application
+      -k uvicorn.workers.UvicornWorker
+      --bind 0.0.0.0:8000 --workers ${WEB_WORKERS:-3}
+      --timeout 120 --graceful-timeout 30 --access-logfile -
+    volumes:
+      - static_files:/app/staticfiles
+    networks: [edge, internal]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz/', timeout=3).status==200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  worker:
+    <<: *app-base
+    command: celery -A config worker -l info --concurrency ${CELERY_CONCURRENCY:-2} -Q default,scan,mail
+    depends_on:
+      db:     { condition: service_healthy }
+      redis:  { condition: service_healthy }
+      minio:  { condition: service_healthy }
+      clamav: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "celery", "-A", "config", "inspect", "ping", "-d", "celery@$$HOSTNAME", "--timeout", "5"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  beat:
+    <<: *app-base
+    command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'celery.*beat' >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--locale=pl_PL.utf8 --encoding=UTF8"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redis_data:/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  minio-init:
+    # Jednorazowo tworzy buckety i polityki: submissions = private, public-media = download.
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD &&
+      mc mb --ignore-existing local/submissions &&
+      mc mb --ignore-existing local/public-media &&
+      mc anonymous set none local/submissions &&
+      mc anonymous set download local/public-media &&
+      echo done"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    networks: [internal]
+    depends_on:
+      minio: { condition: service_healthy }
+    restart: "no"
+
+  clamav:
+    image: clamav/clamav:1.4
+    restart: unless-stopped
+    environment:
+      CLAMAV_NO_FRESHCLAMD: "false"
+    volumes:
+      - clamav_db:/var/lib/clamav
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 60s
+      timeout: 10s
+      retries: 5
+      start_period: 300s   # pierwsze pobranie sygnatur trwa kilka minut
+
+  mailpit:
+    profiles: [dev]
+    image: axllent/mailpit:v1.24
+    ports:
+      - "8025:8025"
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8025/livez"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+networks:
+  edge:
+    driver: bridge
+  internal:
+    driver: bridge
+    internal: true   # brak wyjścia do internetu z usług danych; web ma wyjście przez `edge`
+
+volumes:
+  pg_data:
+  redis_data:
+  minio_data:
+  clamav_db:
+  static_files:
+  caddy_data:
+  caddy_config:

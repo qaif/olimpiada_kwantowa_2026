@@ -1,0 +1,13 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+runs/
+media/
+staticfiles/
+node_modules/
+.coverage
+coverage.json

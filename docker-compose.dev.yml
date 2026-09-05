@@ -1,0 +1,28 @@
+# Override developerski: kod z hosta montowany do kontenera, zapis dozwolony, porty pomocnicze.
+# Użycie: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+services:
+  web:
+    read_only: false
+    volumes:
+      - ./backend:/app
+      - static_files:/app/staticfiles
+    environment:
+      DJANGO_DEBUG: "1"
+      RUN_COLLECTSTATIC: "0"
+    ports:
+      - "8000:8000"
+  worker:
+    read_only: false
+    volumes:
+      - ./backend:/app
+  beat:
+    read_only: false
+    volumes:
+      - ./backend:/app
+  db:
+    ports:
+      - "5432:5432"
+  minio:
+    ports:
+      - "9000:9000"
+      - "9001:9001"
