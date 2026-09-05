@@ -5,8 +5,8 @@ Status: `todo` / `in_progress` / `done` / `escalated`.
 
 | ID | Tytuł | Zależy od | Status |
 |---|---|---|---|
-| T-01 | Scaffold: projekt Django, Dockerfile multi-stage, entrypoint, healthz, compose `web`+`db`+`redis` healthy, pytest+ruff skonfigurowane | – | todo |
-| T-02 | Konta i RBAC: custom User, grupy participant/reviewer/appeals/coordinator, otwarta rejestracja uczestnika, rejestracja komitetu z kodem zaproszenia (ACTIVE lub PENDING), zatwierdzanie przez koordynatora | T-01 | todo |
+| T-01 | Scaffold: projekt Django, Dockerfile multi-stage, entrypoint, healthz, compose `web`+`db`+`redis` healthy, pytest+ruff skonfigurowane | – | done |
+| T-02 | Konta i RBAC: custom User, grupy participant/reviewer/appeals/coordinator, otwarta rejestracja uczestnika, rejestracja komitetu z kodem zaproszenia (ACTIVE lub PENDING), zatwierdzanie przez koordynatora | T-01 | in_progress |
 | T-03 | Modele domeny: Edition, Stage (terminy, grace, okno reklamacji), ScoringScale (0/2/5/6 param.), QualificationRule, Problem, Participant, CommitteeMember, StageEntry; admin; seed_demo | T-02 | todo |
 | T-04 | Upload rozwiązań: Submission/SubmissionFile, storage MinIO, walidacja magic bytes + rozmiar + ipynb, deadline po stronie serwera z select_for_update, zadanie Celery skanu ClamAV, blokada etapu przez beat | T-03 | todo |
 | T-05 | Ocenianie: przydział 2 recenzentów (ślepy, bez konfliktu okręgu), Review z adnotacjami, walidacja score wobec skali, konsensus → FinalGrade, rozjazd → MODERATION → trzeci recenzent/koordynator | T-04 | todo |
