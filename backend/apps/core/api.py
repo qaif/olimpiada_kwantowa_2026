@@ -30,3 +30,14 @@ def exception_handler(exc, context):
         detail = response.data.get("detail", response.data)
         response.data = {"code": str(code).upper(), "detail": detail}
     return response
+
+
+def exclude_admin_endpoints(endpoints, **kwargs):
+    """Hook drf-spectacular: wycina z publicznego schematu wewnętrzne API paneli.
+
+    Wagtail rejestruje pod ``/cms/api/`` własne endpointy DRF dla edytora (strony, obrazy,
+    dokumenty). Nie są częścią kontraktu platformy: wymagają uprawnień redaktora, zmieniają się
+    razem z wersją Wagtaila i tylko zaśmiecałyby ``/api/schema/`` (a przy okazji generowały
+    ostrzeżenia W001/W002 o kolizjach ``operationId``).
+    """
+    return [item for item in endpoints if not item[0].startswith("/cms/")]

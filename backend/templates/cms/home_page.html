@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% load wagtailcore_tags %}
+{% block title %}{{ page.title }} – Platforma Olimpiady{% endblock %}
+{% block content %}
+<h1>{{ page.hero_title|default:page.title }}</h1>
+{% if page.hero_text %}<div class="lead">{{ page.hero_text|richtext }}</div>{% endif %}
+
+{% if page.show_timeline %}
+  {% if edition %}
+    <h2>Bieżąca edycja: {{ edition.year_label }}</h2>
+    {% if current_stage %}
+      <p class="lead">Etap bieżący: <strong>{{ current_stage.get_kind_display }}</strong>,
+        termin oddania rozwiązań {{ current_stage.deadline_at }} (UTC).</p>
+    {% endif %}
+    <table class="grid">
+      <caption>Etapy edycji</caption>
+      <thead>
+        <tr><th>Etap</th><th>Otwarcie</th><th>Deadline</th><th>Okno reklamacji</th><th>Wyniki</th></tr>
+      </thead>
+      <tbody>
+        {% for row in stage_rows %}
+          <tr>
+            <td>{{ row.stage.get_kind_display }}{% if row.is_open %} <span class="tag">otwarty</span>{% endif %}</td>
+            <td>{{ row.stage.opens_at }}</td>
+            <td>{{ row.stage.deadline_at }}</td>
+            <td>{{ row.stage.appeal_window_opens_at }} – {{ row.stage.appeal_window_closes_at }}</td>
+            <td>
+              {% if row.has_results %}
+                <a href="{% url 'web:results' row.stage.pk %}">tabela wyników</a>
+              {% else %}
+                nieogłoszone
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5">Ta edycja nie ma jeszcze etapów.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>Nie ustawiono bieżącej edycji olimpiady.</p>
+  {% endif %}
+{% endif %}
+
+{% if latest_news %}
+  <h2>Aktualności</h2>
+  <ul class="news-list">
+    {% for item in latest_news %}
+      <li><a href="{% pageurl item %}">{{ item.title }}</a> <span class="hint">{{ item.date }}</span></li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
+<h2>Co dalej</h2>
+<ul>
+  <li><a href="{% url 'web:register' %}">Rejestracja uczestnika</a> – otwarta dla każdego.</li>
+  <li><a href="{% url 'web:register-committee' %}">Rejestracja członka komitetu</a> – wymaga kodu zaproszenia.</li>
+  <li><a href="{% url 'web:login' %}">Logowanie</a> do panelu uczestnika, recenzenta lub koordynatora.</li>
+</ul>
+{% endblock %}

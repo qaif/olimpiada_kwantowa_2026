@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% load wagtailcore_tags %}
+{% block title %}{{ page.title }} – Platforma Olimpiady{% endblock %}
+{% block content %}
+<h1>{{ page.title }}</h1>
+{% if page.intro %}<div class="lead">{{ page.intro|richtext }}</div>{% endif %}
+
+{% if not stage %}
+  <p class="hint">Nie ustawiono bieżącej edycji ani etapu.</p>
+{% else %}
+  <h2>{{ stage.get_kind_display }} – {{ stage.edition.year_label }}</h2>
+  <p class="hint">Otwarcie: {{ stage.opens_at }} (UTC), termin oddania: {{ stage.deadline_at }} (UTC).</p>
+  {% if stage_has_opened %}
+    <table class="grid">
+      <caption>Zadania etapu</caption>
+      <thead><tr><th>Nr</th><th>Tytuł</th><th>Treść</th><th>Formaty</th></tr></thead>
+      <tbody>
+        {% for problem in problems %}
+          <tr>
+            <td>{{ problem.number }}</td>
+            <td>{{ problem.title }}</td>
+            <td>
+              {% if problem.statement_pdf %}
+                {# Plik zawsze przez widok aplikacji – nigdy przez URL storage. #}
+                <a href="{% url 'competitions:problem-statement' problem.pk %}">PDF</a>
+              {% else %}
+                brak pliku
+              {% endif %}
+            </td>
+            <td>{{ problem.allowed_formats|join:", " }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4">Ten etap nie ma jeszcze zadań.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    {# Przed opens_at: żadnego tytułu, żadnego linku – tylko komunikat (T-09, kryterium 3). #}
+    <p class="notice">{{ notice }}</p>
+  {% endif %}
+{% endif %}
+
+{% for block in page.body %}
+  {% include_block block %}
+{% endfor %}
+{% endblock %}

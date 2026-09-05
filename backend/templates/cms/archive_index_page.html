@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% load wagtailcore_tags %}
+{% block title %}{{ page.title }} – Platforma Olimpiady{% endblock %}
+{% block content %}
+<h1>{{ page.title }}</h1>
+{% if page.intro %}<div class="lead">{{ page.intro|richtext }}</div>{% endif %}
+
+<ul class="archive-list">
+  {% for item in editions %}
+    <li>
+      <a href="{% pageurl item %}">{{ item.title }}</a>
+      {% if item.edition %}<span class="hint">({{ item.edition.year_label }})</span>{% endif %}
+    </li>
+  {% empty %}
+    <li>Archiwum jest jeszcze puste.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

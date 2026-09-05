@@ -1,0 +1,4 @@
+<p class="cms-doc">
+  <a href="{{ value.document.url }}">{{ value.label|default:value.document.title }}</a>
+  <span class="hint">({{ value.document.file_extension|upper }}, {{ value.document.file_size|filesizeformat }})</span>
+</p>

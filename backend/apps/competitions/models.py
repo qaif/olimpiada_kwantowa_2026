@@ -16,6 +16,8 @@ from django.utils import timezone
 
 from apps.accounts.models import GROUP_COORDINATOR, Participant
 
+from .storage import private_media_storage
+
 # Domyślna skala Olimpiady Matematycznej. Kolejność rosnąca jest częścią kontraktu (walidacja niżej).
 DEFAULT_SCORING_VALUES: list[dict] = [
     {"value": 0, "label": "brak istotnego postępu"},
@@ -285,7 +287,14 @@ class Problem(models.Model):
     stage = models.ForeignKey(Stage, on_delete=models.CASCADE, related_name="problems")
     number = models.PositiveSmallIntegerField("numer")
     title = models.CharField("tytuł", max_length=300)
-    statement_pdf = models.FileField("treść (PDF)", upload_to="problems/statements/", blank=True)
+    # Storage jawnie prywatny (patrz apps.competitions.storage): ``default`` jest w produkcji
+    # publicznym bucketem Wagtaila, a treść zadania przed ``opens_at`` musi być nieosiągalna.
+    statement_pdf = models.FileField(
+        "treść (PDF)",
+        upload_to="problems/statements/",
+        blank=True,
+        storage=private_media_storage,
+    )
     allowed_formats = models.JSONField("dozwolone formaty", default=default_allowed_formats)
     max_file_mb = models.PositiveSmallIntegerField("limit rozmiaru pliku (MB)", default=DEFAULT_MAX_FILE_MB)
 

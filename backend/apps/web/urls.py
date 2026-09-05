@@ -8,7 +8,8 @@ app_name = "web"
 
 urlpatterns = [
     # --- publiczne ---------------------------------------------------------------------------
-    path("", public.HomeView.as_view(), name="home"),
+    # Korzenia ``/`` tu nie ma: od T-09 obsługuje go ``cms.HomePage`` (Wagtail catch-all na końcu
+    # ``config/urls.py``). Wszystkie pozostałe ścieżki ``apps.web`` są dopasowywane wcześniej.
     path("login/", public.LoginView.as_view(), name="login"),
     path("logout/", public.LogoutView.as_view(), name="logout"),
     path("register/", public.RegisterParticipantView.as_view(), name="register"),

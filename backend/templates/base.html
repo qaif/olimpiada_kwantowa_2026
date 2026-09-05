@@ -28,7 +28,14 @@
 {% endcomment %}
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
 <header class="topbar">
-  <a class="brand" href="{% url 'web:home' %}">Platforma Olimpiady</a>
+  <a class="brand" href="/">Platforma Olimpiady</a>
+  {% comment %}
+    Część informacyjna (Wagtail). Lista pochodzi z drzewa stron – patrz
+    apps/cms/context_processors.py; to nawigacja, nie autoryzacja.
+  {% endcomment %}
+  <nav class="cms-nav">
+    {% for item in cms_menu %}<a href="{{ item.url }}">{{ item.title }}</a>{% endfor %}
+  </nav>
   <nav>
     {% if user.is_authenticated %}
       {% if is_participant %}<a href="{% url 'web:me' %}">Mój panel</a>{% endif %}

@@ -19,6 +19,8 @@ dependencies = [
     "boto3>=1.35,<2.0",
     "nbformat>=5.10,<6.0",
     "whitenoise>=6.7,<7.0",
+    # CMS in-process (PROJEKT.md 1.1). 6.3 to linia LTS zgodna z Django 5.1.
+    "wagtail>=6.3,<6.4",
 ]
 
 [project.optional-dependencies]

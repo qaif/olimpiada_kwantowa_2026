@@ -15,8 +15,20 @@ Decyzje (T-08, „Wymagania bezpieczeństwa”):
   pobiera plik rozwiązania przez ``fetch``, a endpoint pobrania przekierowuje na presigned URL,
 - ``object-src 'none'``, ``base-uri 'self'``, ``frame-ancestors 'none'`` – standardowa domknięta baza.
 
-Nagłówek jest ustawiany na **każdej** odpowiedzi (także API i panelu admina): polityka jest
-restrykcyjna tylko dla skryptów, a wyłączanie jej dla części ścieżek zostawiałoby dziurę.
+Nagłówek jest ustawiany na **każdej** odpowiedzi. Dla dwóch prefiksów – ``/cms/`` (Wagtail) i
+``/admin/`` (panel Django) – obowiązuje jednak **osobna, luźniejsza** polityka:
+
+- oba panele wstrzykują skrypty i style inline (Wagtail dodatkowo używa telepathu i Draftaila,
+  panel Django – widgetów kalendarza), więc polityka nonce-only wyłączyłaby je w całości.
+  Przepisanie ich szablonów nie jest w naszej gestii: to kod bibliotek,
+- ryzyko jest ograniczone zakresem: obie ścieżki wymagają zalogowania i uprawnień
+  (``access_admin`` / ``is_staff``), a treści od anonimów nigdy się w nich nie renderują,
+- **strony publiczne pozostają bez ``'unsafe-inline'`` dla skryptów** – to jest testowane
+  (``apps/web/tests/test_public.py`` oraz ``apps/cms/tests/test_security.py``).
+
+Uwaga implementacyjna: w polityce panelu **nie ma** nonce'a. Przeglądarka, widząc ``nonce-…``
+w ``script-src``, ignoruje ``'unsafe-inline'`` – doklejenie obu naraz dałoby politykę pozornie
+luźną i faktycznie blokującą panel.
 """
 
 from __future__ import annotations
@@ -30,6 +42,10 @@ from django.conf import settings
 SCRIPT_CDN_SOURCES = ("https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net")
 
 NONCE_BYTES = 16
+
+#: Prefiksy ścieżek panelu redakcyjnego/administracyjnego. Kolejność bez znaczenia.
+#: ``/cms/`` musi się zgadzać z ``config/urls.py``.
+ADMIN_PATH_PREFIXES = ("/cms/", "/admin/")
 
 
 def _origin(url: str | None) -> str:
@@ -65,6 +81,38 @@ def build_policy(nonce: str) -> str:
     return "; ".join(directives)
 
 
+def build_admin_policy() -> str:
+    """Polityka panelu (``/cms/``, ``/admin/``). Świadomie z ``'unsafe-inline'`` dla skryptów.
+
+    ``frame-ancestors 'self'``, a nie ``'none'``: podgląd strony w Wagtailu osadza własny adres
+    w ``<iframe>`` tej samej domeny. Ramek z obcych domen nadal nie ma.
+    """
+    return "; ".join(
+        [
+            "default-src 'self'",
+            "base-uri 'self'",
+            "object-src 'none'",
+            "frame-ancestors 'self'",
+            "form-action 'self'",
+            "img-src 'self' data: blob:",
+            "font-src 'self' data:",
+            "media-src 'self' data: blob:",
+            "style-src 'self' 'unsafe-inline'",
+            # Patrz docstring modułu: wyjątek dotyczy wyłącznie ścieżek panelu.
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+            "connect-src 'self'",
+            "worker-src 'self' blob:",
+            # Osadzenia (EmbedBlock) w podglądzie: bez tego edytor nie pokaże wstawionego filmu.
+            "frame-src 'self' https:",
+        ]
+    )
+
+
+def is_admin_path(path: str) -> bool:
+    """Czy ścieżka należy do panelu. Porównanie po prefiksie, na znormalizowanej ścieżce."""
+    return any(path.startswith(prefix) for prefix in ADMIN_PATH_PREFIXES)
+
+
 class ContentSecurityPolicyMiddleware:
     """Nadaje żądaniu ``csp_nonce`` i dokleja nagłówek CSP do odpowiedzi."""
 
@@ -79,5 +127,7 @@ class ContentSecurityPolicyMiddleware:
         request.csp_nonce = nonce
         response = self.get_response(request)
         if self.header not in response:
-            response[self.header] = build_policy(nonce)
+            response[self.header] = (
+                build_admin_policy() if is_admin_path(request.path) else build_policy(nonce)
+            )
         return response

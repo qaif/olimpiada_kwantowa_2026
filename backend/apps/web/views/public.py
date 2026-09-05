@@ -1,4 +1,8 @@
-"""Strony publiczne: strona główna, logowanie, rejestracja, ogłoszone wyniki.
+"""Strony publiczne: logowanie, rejestracja, ogłoszone wyniki.
+
+Strona główna (``/``) należy od T-09 do Wagtaila (``apps.cms.models.HomePage``) – tutaj nie ma już
+widoku ``home``. Adres ``/`` jest w kodzie zapisany dosłownie, bo wyznacza go korzeń witryny
+Wagtaila, a nie wpis w ``urls.py``.
 
 Wszystkie treści od użytkowników (nazwy szkół, etykiety w tabeli wyników) renderują się
 z domyślnym autoescapowaniem Django. W żadnym szablonie nie ma ``|safe`` ani ``mark_safe``.
@@ -11,13 +15,10 @@ from django.contrib.auth.views import LoginView as DjangoLoginView
 from django.contrib.auth.views import LogoutView as DjangoLogoutView
 from django.http import Http404
 from django.urls import reverse_lazy
-from django.utils import timezone
 from django.views.generic import FormView, TemplateView
 
 from apps.accounts.services import register_committee, register_participant
-from apps.competitions.services import current_edition, current_stage
 from apps.core.api import DomainError
-from apps.results.models import ResultsPublication
 from apps.results.services import published_results
 from apps.web.context_processors import roles
 from apps.web.forms import (
@@ -25,37 +26,6 @@ from apps.web.forms import (
     EmailAuthenticationForm,
     ParticipantRegisterForm,
 )
-
-
-class HomeView(TemplateView):
-    """Strona główna: bieżąca edycja, oś czasu etapów i linki do ogłoszonych wyników."""
-
-    template_name = "web/home.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        now = timezone.now()
-        edition = current_edition()
-        stages = list(edition.stages.order_by("opens_at", "id")) if edition else []
-        published = set(
-            ResultsPublication.objects.filter(stage__in=stages).values_list("stage_id", flat=True)
-        )
-        context.update(
-            {
-                "edition": edition,
-                "now": now,
-                "current_stage": current_stage(edition, now) if edition else None,
-                "stage_rows": [
-                    {
-                        "stage": stage,
-                        "is_open": stage.is_open_for_submissions(now),
-                        "has_results": stage.pk in published,
-                    }
-                    for stage in stages
-                ],
-            }
-        )
-        return context
 
 
 class LoginView(DjangoLoginView):
@@ -81,13 +51,13 @@ class LoginView(DjangoLoginView):
         ):
             if context.get(flag):
                 return str(reverse_lazy(name))
-        return str(reverse_lazy("web:home"))
+        return "/"
 
 
 class LogoutView(DjangoLogoutView):
     """Wylogowanie. Wyłącznie POST – wylogowanie GET-em byłoby podatne na CSRF przez ``<img>``."""
 
-    next_page = reverse_lazy("web:home")
+    next_page = "/"
 
 
 class ServiceFormView(FormView):

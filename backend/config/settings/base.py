@@ -29,6 +29,20 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "drf_spectacular",
     "django_celery_beat",
+    # Wagtail (CMS in-process, PROJEKT.md 1.1). Kolejność jak w dokumentacji Wagtaila:
+    # aplikacje contrib przed rdzeniem, rdzeń przed aplikacjami projektu.
+    "wagtail.embeds",
+    "wagtail.sites",
+    "wagtail.users",
+    "wagtail.snippets",
+    "wagtail.documents",
+    "wagtail.images",
+    "wagtail.search",
+    "wagtail.admin",
+    "wagtail",
+    "modelcluster",
+    "taggit",
+    "apps.cms",
     "apps.core",
     "apps.accounts",
     "apps.competitions",
@@ -70,6 +84,8 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 # Role do nawigacji (nie do autoryzacji – ta jest w mixinach i uprawnieniach DRF).
                 "apps.web.context_processors.roles",
+                # Menu części informacyjnej (strony Wagtaila oznaczone „pokaż w menu”).
+                "apps.cms.context_processors.cms_menu",
             ],
         },
     },
@@ -132,7 +148,13 @@ STATICFILES_DIRS = [BASE_DIR / "static"] if (BASE_DIR / "static").exists() else 
 WHITENOISE_USE_FINDERS = DEBUG
 WHITENOISE_AUTOREFRESH = DEBUG
 STORAGES = {
+    # ``default`` obsługuje media redakcyjne Wagtaila (obrazy, dokumenty) – produkcyjnie bucket
+    # ``public-media`` (polityka „download”). Wszystko, co nie może być publiczne, MUSI mieć
+    # jawnie wskazany inny storage – patrz alias ``private_media`` niżej.
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    # Media aplikacyjne, których nie wolno oddać anonimowi: treści zadań (``Problem.statement_pdf``)
+    # są jawne dopiero po ``Stage.opens_at`` i serwuje je widok aplikacji, nigdy URL storage.
+    "private_media": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {
         "BACKEND": (
             "django.contrib.staticfiles.storage.StaticFilesStorage"
@@ -168,6 +190,20 @@ CLAMAV_PORT = env.int("CLAMAV_PORT", default=3310)
 # w trakcie INSTREAM, co wyglądałoby jak awaria usługi i uruchamiało bezsensowne retry.
 CLAMAV_STREAM_MAX_BYTES = env.int("CLAMAV_STREAM_MAX_BYTES", default=100 * 1024 * 1024)
 
+# --- Wagtail (część informacyjna, T-09) ------------------------------------------------------
+# Domena publiczna serwisu. Migracja ``apps.cms.0002`` ustawia z niej ``wagtailcore.Site``;
+# późniejsze zmiany domeny robi redaktor w ``/cms/`` (Ustawienia → Witryny), nie deploy.
+SITE_DOMAIN = env("SITE_DOMAIN", default="localhost")
+WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", default="Platforma Olimpiady")
+WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL", default=f"https://{SITE_DOMAIN}")
+# Whitelist rozszerzeń dokumentów: bez niej redaktor mógłby wrzucić do publicznego bucketu plik
+# wykonywalny albo HTML (XSS z tej samej domeny, gdyby kiedyś serwować go bez pośrednictwa widoku).
+WAGTAILDOCS_EXTENSIONS = ["pdf", "doc", "docx", "odt", "ods", "odp", "xls", "xlsx", "csv", "txt", "zip"]
+# Podgląd i wyszukiwarka: prosty backend bazodanowy – bez dodatkowej usługi w compose.
+WAGTAILSEARCH_BACKENDS = {"default": {"BACKEND": "wagtail.search.backends.database"}}
+WAGTAIL_APPEND_SLASH = True
+WAGTAILEMBEDS_RESPONSIVE_HTML = True
+
 # Logowanie sesyjne interfejsu WWW (apps.web). Niezalogowany dostaje 302 na /login/?next=...
 LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "/me/"
@@ -198,6 +234,8 @@ SPECTACULAR_SETTINGS = {
     "TITLE": "Platforma Olimpiady API",
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    # Schemat opisuje wyłącznie API platformy – wewnętrzne API edytora Wagtaila (/cms/api/) wypada.
+    "PREPROCESSING_HOOKS": ["apps.core.api.exclude_admin_endpoints"],
     # Kilka modeli ma pole "status" o różnych zbiorach wartości – nazwy enumów muszą być jawne,
     # inaczej drf-spectacular generuje przypadkowe nazwy typu "StatusE62Enum".
     "ENUM_NAME_OVERRIDES": {

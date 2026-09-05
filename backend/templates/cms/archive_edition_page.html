@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% load wagtailcore_tags %}
+{% block title %}{{ page.title }} – Platforma Olimpiady{% endblock %}
+{% block content %}
+<h1>{{ page.title }}</h1>
+{% if page.edition %}<p class="lead">Edycja: {{ page.edition.year_label }}</p>{% endif %}
+{% if page.summary %}<div class="cms-body">{{ page.summary|richtext }}</div>{% endif %}
+
+<h2>Materiały</h2>
+<ul class="doc-list">
+  {% for item in page.documents.all %}
+    <li>
+      <span class="tag">{{ item.get_kind_display }}</span>
+      <a href="{{ item.document.url }}">{{ item.title }}</a>
+      <span class="hint">({{ item.document.file_extension|upper }})</span>
+    </li>
+  {% empty %}
+    <li>Do tej edycji nie dołączono jeszcze dokumentów.</li>
+  {% endfor %}
+</ul>
+
+<h2>Wyniki</h2>
+<ul class="results-list">
+  {% for link in page.result_links %}
+    <li><a href="{% url 'web:results' link.stage.pk %}">{{ link.stage.get_kind_display }} – tabela wyników</a></li>
+  {% empty %}
+    <li>Dla tej edycji nie ogłoszono tabel wyników.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

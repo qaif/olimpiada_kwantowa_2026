@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load wagtailcore_tags web_extras %}
+{% block title %}{{ page.title }} – Platforma Olimpiady{% endblock %}
+{% block content %}
+<h1>{{ page.title }}</h1>
+{% if page.intro %}<div class="lead">{{ page.intro|richtext }}</div>{% endif %}
+<p class="hint">Tabele pochodzą z zamrożonych snapshotów z chwili publikacji – nie są przeliczane
+  w locie, więc późniejsze decyzje komisji nie zmieniają ich po cichu.</p>
+
+{% for table in tables %}
+  <section class="results-block">
+    <h2>{{ table.stage.get_kind_display }} – {{ table.stage.edition.year_label }}</h2>
+    <p class="hint">Ogłoszone {{ table.publication.published_at }} (UTC), tryb prezentacji:
+      {{ table.publication.get_anonymization_display }}.
+      <a href="{% url 'web:results' table.stage.pk %}">wersja pełnoekranowa</a></p>
+    <div class="scroll">
+      <table class="grid">
+        <thead>
+          <tr>
+            <th>Miejsce</th>
+            <th>Uczestnik</th>
+            <th>Okręg</th>
+            {% for number in table.problem_numbers %}<th>Zad. {{ number }}</th>{% endfor %}
+            <th>Razem</th>
+            <th>Kwalifikacja</th>
+          </tr>
+        </thead>
+        <tbody>
+          {# Wyłącznie pola snapshotu. Żadnego dostępu do Participant/User – patrz apps/cms/models.py. #}
+          {% for row in table.rows %}
+            <tr>
+              <td>{{ row.rank }}</td>
+              <td>{{ row.display }}</td>
+              <td>{{ row.district }}</td>
+              {% for number in table.problem_numbers %}<td>{{ row.points|dict_get:number }}</td>{% endfor %}
+              <td><strong>{{ row.total }}</strong></td>
+              <td>{% if row.qualified %}tak{% else %}nie{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="{{ table.problem_numbers|length|add:5 }}">Tabela jest pusta.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% empty %}
+  <p>Nie ogłoszono jeszcze żadnych wyników.</p>
+{% endfor %}
+{% endblock %}

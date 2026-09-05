@@ -55,6 +55,26 @@ Pełna definicja: [`docker-compose.yml`](../docker-compose.yml) w katalogu głó
 - Deadline egzekwowany **po stronie serwera** w transakcji z `SELECT ... FOR UPDATE` na `StageEntry`, na podstawie `Stage.deadline_at` (UTC) i zegara serwera, z konfigurowalnym `grace_seconds` (domyślnie 0).
 - Nazwy plików są odrzucane (nie są używane do budowy ścieżek); oryginalna nazwa trafia tylko do bazy jako metadana.
 
+### 1.4 Część informacyjna: montaż Wagtaila (T-09)
+
+Wagtail 6.3 LTS działa w tym samym procesie co aplikacja (`INSTALLED_APPS`), bez drugiej usługi i drugiego systemu tożsamości.
+
+**Kolejność adresów (`config/urls.py`) jest kontraktem.** Wagtail jest catch-allem w korzeniu, więc wszystko, co ma własną obsługę, musi być dopasowane wcześniej: `/admin/`, `/healthz/`, `/api/…`, `/cms/` (admin Wagtaila), `/documents/` (widok dokumentów), a na końcu `apps.web` (`/login/`, `/me/`, `/review/`, `/coordinator/`, `/appeals/`, `/results/<id>/`, `/register/…`). Ostatni wpis oddaje resztę drzewu stron. Strona główna `/` należy od T-09 do `cms.HomePage`; widok `web:home` przestał istnieć.
+
+**Drzewo stron i uprawnienia powstają w migracjach danych**, nie w komendzie: `cms.0002_initial_tree` (Root → HomePage → Aktualności / Zadania / Archiwum / Wyniki, plus domyślna `Site` z `SITE_DOMAIN`), `cms.0003_coordinator_permissions` (grupa `coordinator` dostaje komplet uprawnień wbudowanych grup Wagtaila `Editors` + `Moderators`, w tym `access_admin`). Kopiowanie zamiast wypisywania kodowych nazw uprawnień jest odporne na zmiany między wersjami Wagtaila. Uczestnik i recenzent na `/cms/` dostają przekierowanie albo 403.
+
+**Storage mediów.** Po wprowadzeniu Wagtaila `default` storage jest w produkcji publicznym bucketem `public-media` (polityka MinIO `download`) – tam trafiają obrazy i dokumenty redakcyjne. To wymusiło rozdzielenie:
+
+| Alias `STORAGES` | Produkcja | Zawartość |
+|---|---|---|
+| `default` | bucket `public-media`, URL bez podpisu przez `S3_PUBLIC_ENDPOINT_URL` | obrazy i dokumenty Wagtaila (mają być publiczne) |
+| `private_media` | prefiks `problem-statements/` w prywatnym buckecie `submissions` | `Problem.statement_pdf` – treść zadania jest jawna dopiero po `Stage.opens_at` |
+| (backend rozwiązań) | `apps.submissions.storage.S3SubmissionStorage`, bucket `submissions` | prace uczestników, wyłącznie presigned URL |
+
+`Problem.statement_pdf` ma jawnie wskazany `storage=apps.competitions.storage.private_media_storage`; gdyby został na `default`, treść zadania byłaby czytelna anonimowo przed otwarciem etapu. Plik nadal serwuje `ProblemStatementView` (`FileResponse` ze strumienia z storage, 404 przed `opens_at`) – nigdy bezpośredni URL obiektu. Bucket `submissions` pozostaje dla Wagtaila niedostępny: Wagtail używa wyłącznie aliasu `default`.
+
+**CSP.** Panele `/cms/` i `/admin/` dostają osobną, luźniejszą politykę z `'unsafe-inline'` (i bez nonce'a – nonce unieważniłby `'unsafe-inline'`), bo Wagtail i panel Django wstrzykują skrypty inline z własnych szablonów. Wszystkie pozostałe ścieżki, w tym całe drzewo stron CMS, zachowują politykę nonce-only bez `'unsafe-inline'`/`'unsafe-eval'` dla `script-src`. Treści redaktorów renderują się przez `|richtext` i `{% include_block %}` (whitelist Wagtaila); w szablonach `cms/` nie ma ani jednego `|safe`.
+
 ---
 
 ## 2. Model danych i przepływ oceniania
