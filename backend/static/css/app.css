@@ -2169,12 +2169,13 @@ fieldset:disabled .score-option {
   display: grid;
   gap: var(--sp-4);
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  align-items: end;
+  align-items: stretch;
 }
 
 .stage-panel__actions form {
   display: flex;
   flex-direction: column;
+  justify-content: flex-end; /* przyciski w jednej linii niezależnie od liczby pól nad nimi */
   gap: var(--sp-2);
   margin: 0;
   padding: var(--sp-3);

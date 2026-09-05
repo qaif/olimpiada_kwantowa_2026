@@ -92,33 +92,4 @@
   </section>
 {% endif %}
 
-<section class="section">
-  <div class="section__head">
-    <h2 class="mt-0">Skróty</h2>
-  </div>
-  {# Adresy sekcji biorą się z drzewa stron (kontekst ``cms_menu``), a nie z literałów w szablonie. #}
-  <ul class="cards cards--wide">
-    <li>
-      <article class="card card--accent">
-        <h3 class="mt-0">Sekcje serwisu</h3>
-        <ul class="link-list">
-          {% for item in cms_menu %}
-            <li><a href="{{ item.url }}">{{ item.title }}</a></li>
-          {% endfor %}
-        </ul>
-      </article>
-    </li>
-    <li>
-      <article class="card card--accent">
-        <h3 class="mt-0">Rejestracja</h3>
-        <p class="hint">Konto uczestnika zakłada się samodzielnie; członek komitetu potrzebuje
-          kodu zaproszenia od koordynatora.</p>
-        <div class="row">
-          <a class="btn btn--secondary btn--small" href="{% url 'web:register' %}">Konto uczestnika</a>
-          <a class="btn btn--ghost btn--small" href="{% url 'web:register-committee' %}">Rejestracja z kodem</a>
-        </div>
-      </article>
-    </li>
-  </ul>
-</section>
 {% endblock %}

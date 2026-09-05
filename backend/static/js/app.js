@@ -29,8 +29,10 @@
     const parts = [];
     if (days > 0) parts.push(days + " " + plural(days, "dzień", "dni", "dni"));
     parts.push(hours + " godz.");
-    parts.push(minutes + " min.");
-    parts.push(seconds + " s");
+    /* Przy odległym terminie sekundy (i minuty powyżej tygodnia) są tylko szumem –
+     * precyzja rośnie w miarę zbliżania się deadline'u. */
+    if (days < 7) parts.push(minutes + " min.");
+    if (days === 0) parts.push(seconds + " s");
     return "Pozostało: " + parts.join(" ");
   }
 
