@@ -1,0 +1,89 @@
+"""Panel koordynatora dla domeny zawodów.
+
+Skala punktacji, próg kwalifikacji i zadania są inline pod etapem – parametryzacja etapu
+odbywa się w jednym formularzu (macierz uprawnień 2.3: wyłącznie koordynator).
+"""
+
+from django.contrib import admin
+
+from .models import Edition, Problem, QualificationRule, ScoringScale, Stage, StageEntry
+
+
+class StageInline(admin.TabularInline):
+    model = Stage
+    extra = 0
+    fields = ("kind", "opens_at", "deadline_at", "grace_seconds", "results_published_at")
+    show_change_link = True
+
+
+@admin.register(Edition)
+class EditionAdmin(admin.ModelAdmin):
+    list_display = ("year_label", "is_current", "created_at")
+    list_filter = ("is_current",)
+    search_fields = ("year_label",)
+    inlines = (StageInline,)
+
+
+class ScoringScaleInline(admin.StackedInline):
+    model = ScoringScale
+    extra = 0
+    can_delete = False
+
+
+class QualificationRuleInline(admin.StackedInline):
+    model = QualificationRule
+    extra = 0
+    can_delete = False
+
+
+class ProblemInline(admin.TabularInline):
+    model = Problem
+    extra = 0
+    fields = ("number", "title", "statement_pdf", "allowed_formats", "max_file_mb")
+    show_change_link = True
+
+
+@admin.register(Stage)
+class StageAdmin(admin.ModelAdmin):
+    list_display = (
+        "edition",
+        "kind",
+        "opens_at",
+        "deadline_at",
+        "grace_seconds",
+        "review_deadline_at",
+        "results_published_at",
+    )
+    list_filter = ("edition", "kind")
+    date_hierarchy = "opens_at"
+    inlines = (ScoringScaleInline, QualificationRuleInline, ProblemInline)
+
+
+@admin.register(ScoringScale)
+class ScoringScaleAdmin(admin.ModelAdmin):
+    list_display = ("stage", "max_value")
+    list_filter = ("stage__edition",)
+
+
+@admin.register(QualificationRule)
+class QualificationRuleAdmin(admin.ModelAdmin):
+    list_display = ("stage", "mode", "min_points", "top_n")
+    list_filter = ("mode", "stage__edition")
+
+
+@admin.register(Problem)
+class ProblemAdmin(admin.ModelAdmin):
+    list_display = ("stage", "number", "title", "max_file_mb")
+    list_filter = ("stage__edition", "stage__kind")
+    search_fields = ("title",)
+
+
+@admin.register(StageEntry)
+class StageEntryAdmin(admin.ModelAdmin):
+    """Wpisy do etapów. Statusy zmienia kwalifikacja (T-07); tu tylko podgląd i korekty ręczne."""
+
+    list_display = ("participant", "stage", "status", "total_points", "created_at")
+    list_filter = ("status", "stage__edition", "stage__kind")
+    search_fields = ("participant__public_code", "participant__user__email")
+    autocomplete_fields = ("participant",)
+    readonly_fields = ("created_at",)

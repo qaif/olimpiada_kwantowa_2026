@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "django_celery_beat",
     "apps.core",
     "apps.accounts",
+    "apps.competitions",
 ]
 
 AUTH_USER_MODEL = "accounts.User"
@@ -140,6 +141,12 @@ SPECTACULAR_SETTINGS = {
     "TITLE": "Platforma Olimpiady API",
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    # Kilka modeli ma pole "status" o różnych zbiorach wartości – nazwy enumów muszą być jawne,
+    # inaczej drf-spectacular generuje przypadkowe nazwy typu "StatusE62Enum".
+    "ENUM_NAME_OVERRIDES": {
+        "CommitteeStatusEnum": "apps.accounts.models.CommitteeStatus.choices",
+        "StageEntryStatusEnum": "apps.competitions.models.StageEntryStatus.choices",
+    },
 }
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024  # pliki idą strumieniem na dysk tymczasowy powyżej 2 MB

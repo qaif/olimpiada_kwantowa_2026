@@ -7,8 +7,8 @@ Status: `todo` / `in_progress` / `done` / `escalated`.
 |---|---|---|---|
 | T-01 | Scaffold: projekt Django, Dockerfile multi-stage, entrypoint, healthz, compose `web`+`db`+`redis` healthy, pytest+ruff skonfigurowane | – | done |
 | T-02 | Konta i RBAC: custom User, grupy participant/reviewer/appeals/coordinator, otwarta rejestracja uczestnika, rejestracja komitetu z kodem zaproszenia (ACTIVE lub PENDING), zatwierdzanie przez koordynatora | T-01 | done |
-| T-03 | Modele domeny: Edition, Stage (terminy, grace, okno reklamacji), ScoringScale (0/2/5/6 param.), QualificationRule, Problem, Participant, CommitteeMember, StageEntry; admin; seed_demo | T-02 | in_progress |
-| T-04 | Upload rozwiązań: Submission/SubmissionFile, storage MinIO, walidacja magic bytes + rozmiar + ipynb, deadline po stronie serwera z select_for_update, zadanie Celery skanu ClamAV, blokada etapu przez beat | T-03 | todo |
+| T-03 | Modele domeny: Edition, Stage (terminy, grace, okno reklamacji), ScoringScale (0/2/5/6 param.), QualificationRule, Problem, Participant, CommitteeMember, StageEntry; admin; seed_demo | T-02 | done |
+| T-04 | Upload rozwiązań: Submission/SubmissionFile, storage MinIO, walidacja magic bytes + rozmiar + ipynb, deadline po stronie serwera z select_for_update, zadanie Celery skanu ClamAV, blokada etapu przez beat | T-03 | in_progress |
 | T-05 | Ocenianie: przydział 2 recenzentów (ślepy, bez konfliktu okręgu), Review z adnotacjami, walidacja score wobec skali, konsensus → FinalGrade, rozjazd → MODERATION → trzeci recenzent/koordynator | T-04 | todo |
 | T-06 | Reklamacje: okno czasowe, jedna reklamacja na zadanie, komisja odwoławcza bez autorów rundy 1, AppealDecision → FinalGrade(APPEAL), AuditLog | T-05 | todo |
 | T-07 | Wyniki i kwalifikacja: przeliczenie progów (MIN_POINTS/TOP_N/TOP_N_PER_DISTRICT/HYBRID), StageEntry.status, ResultsPublication snapshot zanonimizowany, publiczna tabela | T-06 | todo |
@@ -72,5 +72,5 @@ Status: `todo` / `in_progress` / `done` / `escalated`.
 | T-02 | Token DRF bez TTL i rotacji; jeden token na konto | T-08 (UI używa sesji); rotacja tokenu przy loginie + TTL 30 dni w osobnym tasku po T-10 |
 | T-02 | Enumeracja kont przez `EMAIL_TAKEN` na rejestracji | Zaakceptowane (UX), limit 10/h/IP; do rozważenia flow z e-mailem potwierdzającym |
 | T-02 | Brak testu wyścigu na `redeem_invitation` i testu 429 na `register` | T-10 (testy współbieżne z `transaction=True`) |
-| T-02 | `allocate_public_code` TOCTOU (exists → create) | T-03 przy okazji seed_demo: retry na IntegrityError |
-| T-02 | Zmienne `plain_code` widoczne w tracebacku przy DEBUG | `@sensitive_variables` – T-03 |
+| T-02 | `allocate_public_code` TOCTOU (exists → create) | zamknięte w T-03 (retry na IntegrityError) |
+| T-02 | Zmienne `plain_code` widoczne w tracebacku przy DEBUG | zamknięte w T-03 (`@sensitive_variables`) |
