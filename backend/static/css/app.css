@@ -1833,6 +1833,152 @@ td.empty,
   font-weight: 600;
 }
 
+/* 7.1b Dokument urzędowy (regulamin): metryka, załącznik, sticky spis rozdziałów.
+   Układ jest jednokolumnowy do 1099 px – spis rozdziałów stoi wtedy nad treścią, tak jak
+   w dokumencie drukowanym. Od 1100 px (szerokość kontenera) przechodzi do lewej kolumny
+   i przykleja się przy przewijaniu. Całość na samym CSS: żadnego skryptu, więc spis działa
+   też przy wyłączonym JS i w widoku wydruku. */
+.doc-layout {
+  display: grid;
+  gap: var(--sp-6);
+}
+
+.doc-intro {
+  margin-bottom: var(--sp-6);
+}
+
+.doc-meta {
+  margin-bottom: var(--sp-4);
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.doc-download {
+  max-width: var(--reading);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-6);
+}
+
+.doc-download__title {
+  margin: 0 0 var(--sp-1);
+  font-weight: 600;
+}
+
+.doc-download .hint {
+  margin: 0;
+}
+
+.doc-toc {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  padding: var(--sp-4);
+}
+
+.doc-toc__title {
+  margin: 0 0 var(--sp-2);
+  font-size: 0.8125rem;
+  font-family: var(--font-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.doc-toc__list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.9375rem;
+}
+
+.doc-toc__list li {
+  margin-bottom: var(--sp-1);
+}
+
+.doc-body {
+  /* Szerokość czytelnicza – ten sam token, co w artykułach newsroomu. */
+  max-width: var(--reading);
+}
+
+.doc-heading {
+  /* Kotwice z paska adresu nie mogą lądować tuż pod krawędzią okna. */
+  scroll-margin-top: var(--sp-6);
+}
+
+.doc-heading--chapter {
+  margin-top: var(--sp-12);
+  padding-top: var(--sp-4);
+  border-top: 2px solid var(--line);
+}
+
+.doc-heading--par {
+  margin-top: var(--sp-8);
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  letter-spacing: 0.01em;
+}
+
+.doc-body > .doc-heading:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.notice {
+  margin: var(--sp-6) 0;
+  padding: var(--sp-4);
+  border-left: 4px solid var(--info);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--info-soft);
+  color: var(--ink);
+}
+
+.notice--warning {
+  border-left-color: var(--warn);
+  background: var(--warn-soft);
+}
+
+.notice > :first-child {
+  margin-top: 0;
+}
+
+.notice > :last-child {
+  margin-bottom: 0;
+}
+
+@media (min-width: 1100px) {
+  /* Nazwane obszary, a nie kolejność źródłowa: w HTML-u najpierw stoi nagłówek dokumentu
+     (tytuł, metryka, link do pliku) – to on jest treścią, a spis rozdziałów nawigacją.
+     Na szerokim ekranie spis wjeżdża do lewej kolumny przez oba wiersze, więc przykleja
+     się na całej wysokości dokumentu, a nagłówek zostaje w jednej osi z tekstem. */
+  .doc-layout {
+    grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
+    grid-template-areas: "toc head" "toc body";
+    align-items: start;
+    column-gap: var(--sp-8);
+    row-gap: 0;
+  }
+
+  .doc-head {
+    grid-area: head;
+  }
+
+  .doc-toc {
+    grid-area: toc;
+    position: sticky;
+    top: var(--sp-4);
+    max-height: calc(100vh - 2 * var(--sp-4));
+    overflow-y: auto;
+  }
+
+  .doc-body {
+    grid-area: body;
+  }
+}
+
 /* 7.2 Panel recenzenta */
 .review-layout {
   display: grid;

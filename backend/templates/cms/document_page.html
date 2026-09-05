@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% load wagtailcore_tags %}
+{% block title %}{{ page.title }} – Platforma Olimpiady{% endblock %}
+{% block description %}{{ page.title }}{% if page.version_label %} (wersja {{ page.version_label }}){% endif %} – dokument Olimpiady do przeczytania online i pobrania.{% endblock %}
+{% block content %}
+<div class="doc-layout">
+
+  <div class="doc-head">
+    <div class="page-head">
+      <span class="eyebrow">Dokument</span>
+      <h1>{{ page.title }}</h1>
+      {% comment %}
+        Metryka jako pierwsza rzecz pod tytułem: przy regulaminie pytanie „którą wersję czytam”
+        jest ważniejsze niż jakikolwiek akapit treści.
+      {% endcomment %}
+      {% if page.version_label or page.document_date or page.status_label %}
+        <p class="article__meta doc-meta">
+          {% if page.version_label %}<span class="doc-meta__item">Wersja {{ page.version_label }}</span>{% endif %}
+          {% if page.document_date %}
+            <time class="doc-meta__item" datetime="{{ page.document_date|date:'Y-m-d' }}">{{ page.document_date }}</time>
+          {% endif %}
+          {% if page.status_label %}<span class="tag">{{ page.status_label }}</span>{% endif %}
+        </p>
+      {% endif %}
+    </div>
+
+    {% if page.intro %}<div class="cms-body prose doc-intro">{{ page.intro|richtext }}</div>{% endif %}
+
+    {% if page.attachment %}
+      {# Link idzie przez /documents/<id>/<nazwa> – widok Wagtaila, nie adres obiektu w buckecie. #}
+      <div class="card card--accent doc-download">
+        <div>
+          <p class="doc-download__title">Wersja źródłowa do pobrania</p>
+          {% comment %}
+            ``get_file_size`` zamiast pola ``file_size``: dokumenty wgrane komendą mają je puste
+            do pierwszego odczytu, a „0 bajtów” przy regulaminie wygląda na zepsuty link.
+          {% endcomment %}
+          <p class="hint">{{ page.attachment.title }}
+            ({{ page.attachment.file_extension|upper }}, {{ page.attachment.get_file_size|filesizeformat }})</p>
+        </div>
+        <a class="btn btn--primary" href="{{ page.attachment.url }}"
+           download>Pobierz {{ page.attachment.file_extension|upper }}</a>
+      </div>
+    {% endif %}
+  </div>
+
+  {% if page.chapters %}
+    <nav class="doc-toc" aria-labelledby="spis-rozdzialow">
+      <h2 class="doc-toc__title" id="spis-rozdzialow">Spis rozdziałów</h2>
+      <ol class="doc-toc__list">
+        {% for chapter in page.chapters %}
+          <li><a href="#{{ chapter.anchor }}">{{ chapter.text }}</a></li>
+        {% endfor %}
+      </ol>
+    </nav>
+  {% endif %}
+
+  {# Treść redaktora: każdy blok renderuje własny szablon, RichText przechodzi przez |richtext. #}
+  <div class="doc-body prose">
+    {% for block in page.body %}
+      {% include_block block %}
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}

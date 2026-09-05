@@ -44,6 +44,7 @@ for k in DJANGO_SECRET_KEY (min. 50 znaków; produkcja odmawia startu z krótszy
 $DC up -d --build web worker beat minio-init                                            # 5
 $DC ps                                                                                  # 6 – czekamy na "web ... healthy"
 $DC exec web python manage.py seed_demo && $DC exec web python manage.py seed_cms       # 7
+$DC exec web python manage.py seed_regulamin                                            # 8
 ```
 
 Konto administracyjne poza `seed_demo` (opcjonalnie): `$DC exec web python manage.py createsuperuser`.
@@ -60,6 +61,10 @@ Uwagi:
 - **Krok 6 nie jest ozdobą.** `up -d` wraca, gdy kontenery **wystartowały**, a nie gdy aplikacja
   jest gotowa; migracje robi entrypoint `web`. `seed_demo` uruchomione zbyt wcześnie trafia na
   pustą bazę (`relation "competitions_edition" does not exist`).
+- **Krok 8** publikuje „Regulamin Olimpiady Kwantowej” pod `/regulamin/`: treść z
+  `apps/cms/fixtures/regulamin/` trafia do strony CMS, oryginał `.docx` do biblioteki dokumentów
+  Wagtaila. Komenda jest idempotentna, ale **nadpisuje treść strony** – po redakcji w `/cms/`
+  drugi raz jej nie uruchamiamy.
 - Pierwsze uruchomienie **ClamAV** pobiera sygnatury – kilka minut. Do tego czasu upload działa,
   ale plik zostaje w stanie „oczekuje na skan”.
 
@@ -73,6 +78,7 @@ Uwagi:
 | <http://localhost:8000/coordinator/> | panel koordynatora |
 | <http://localhost:8000/appeals/> | panel komisji odwoławczej |
 | <http://localhost:8000/wyniki/> | publiczne wyniki (strona CMS) |
+| <http://localhost:8000/regulamin/> | regulamin olimpiady (strona CMS + `.docx` do pobrania) |
 | <http://localhost:8000/cms/> | panel redakcyjny Wagtaila (grupa `coordinator`) |
 | <http://localhost:8000/admin/> | panel Django (`is_staff`) |
 | <http://localhost:8000/api/docs/> | Swagger UI |

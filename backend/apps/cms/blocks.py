@@ -54,6 +54,51 @@ class DocumentBlock(blocks.StructBlock):
         template = "cms/blocks/document.html"
 
 
+class HeadingBlock(blocks.StructBlock):
+    """Śródtytuł z jawną kotwicą – budulec spisu treści długich dokumentów.
+
+    Kotwica jest osobnym polem, a nie wyprowadzana ze slugifikacji tekstu: adres ``#rozdzial-3``
+    ma przeżyć redakcyjną poprawkę tytułu rozdziału. Ktoś zdążył go już skopiować do pisma.
+
+    ``in_toc`` oddziela rozdziały od sekcji dodatkowych (źródła, miejsce na uchwałę): obie są
+    śródtytułami tego samego poziomu, ale spis rozdziałów ma wymieniać wyłącznie rozdziały.
+    """
+
+    text = blocks.CharBlock(max_length=250, label="tekst")
+    level = blocks.ChoiceBlock(
+        choices=[("2", "rozdział (H2)"), ("3", "paragraf (H3)")],
+        default="2",
+        label="poziom",
+    )
+    anchor = blocks.CharBlock(
+        max_length=100,
+        label="kotwica",
+        help_text="Fragment adresu po „#”, np. „rozdzial-3”. Zmiana psuje istniejące odnośniki.",
+    )
+    in_toc = blocks.BooleanBlock(required=False, default=True, label="pokaż w spisie rozdziałów")
+
+    class Meta:
+        icon = "title"
+        label = "śródtytuł"
+        template = "cms/blocks/heading.html"
+
+
+class NoticeBlock(blocks.StructBlock):
+    """Wyróżniona ramka: zastrzeżenie prawne, komunikat o statusie dokumentu."""
+
+    tone = blocks.ChoiceBlock(
+        choices=[("info", "informacja"), ("warning", "ostrzeżenie")],
+        default="info",
+        label="ton",
+    )
+    text = blocks.RichTextBlock(features=RICH_TEXT_FEATURES, label="treść")
+
+    class Meta:
+        icon = "warning"
+        label = "ramka"
+        template = "cms/blocks/notice.html"
+
+
 class ArticleStreamBlock(blocks.StreamBlock):
     """Treść artykułu: akapit, obraz, dokument, osadzenie."""
 
@@ -61,6 +106,21 @@ class ArticleStreamBlock(blocks.StreamBlock):
     image = ImageWithCaptionBlock()
     document = DocumentBlock()
     embed = EmbedBlock(label="osadzenie (film, prezentacja)")
+
+    class Meta:
+        required = False
+
+
+class DocumentStreamBlock(ArticleStreamBlock):
+    """Treść dokumentu urzędowego: bloki artykułu plus śródtytuł z kotwicą i ramka.
+
+    Osobna klasa zamiast dopisania obu bloków do ``ArticleStreamBlock``: aktualność ma być
+    krótka i nie potrzebuje własnego spisu treści, a rozszerzenie wspólnego bloku zmieniłoby
+    definicję pola ``body`` także w ``NewsPage`` i ``ProblemsPage`` (migracja bez powodu).
+    """
+
+    heading = HeadingBlock()
+    notice = NoticeBlock()
 
     class Meta:
         required = False

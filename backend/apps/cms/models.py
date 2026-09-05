@@ -34,7 +34,7 @@ from apps.competitions.models import Edition, Stage
 from apps.competitions.services import current_edition, current_stage
 from apps.results.models import ResultsPublication
 
-from .blocks import RICH_TEXT_FEATURES, ArticleStreamBlock
+from .blocks import RICH_TEXT_FEATURES, ArticleStreamBlock, DocumentStreamBlock
 
 #: Adresy pierwszego segmentu, które należą do aplikacji (``config/urls.py`` + ``apps/web/urls.py``).
 #: Strona CMS z takim slugiem na drugim poziomie drzewa byłaby martwa – patrz docstring modułu.
@@ -141,7 +141,13 @@ class HomePage(CMSPage):
     template = "cms/home_page.html"
     # Strona główna jest korzeniem witryny – nie wolno jej zagnieżdżać pod inną stroną treści.
     parent_page_types = ["wagtailcore.Page"]
-    subpage_types = ["cms.NewsIndexPage", "cms.ProblemsPage", "cms.ArchiveIndexPage", "cms.ResultsPage"]
+    subpage_types = [
+        "cms.NewsIndexPage",
+        "cms.ProblemsPage",
+        "cms.DocumentPage",
+        "cms.ArchiveIndexPage",
+        "cms.ResultsPage",
+    ]
     max_count = 1
 
     class Meta:
@@ -257,6 +263,77 @@ class ProblemsPage(CMSPage):
             }
         )
         return context
+
+
+class DocumentPage(CMSPage):
+    """Dokument urzędowy (regulamin, ZOZ) w wersji do czytania w przeglądarce.
+
+    Strona istnieje obok pliku, a nie zamiast niego: ``attachment`` wskazuje oryginał
+    w bibliotece Wagtaila, więc czytelnik ma zarówno tekst z linkowalnymi kotwicami
+    (``#par-16`` w piśmie do komisji odsyła w konkretne miejsce), jak i dokument, który
+    da się wydrukować i podpisać. Treść to **dane**: struktura HTML pochodzi z konwersji
+    pliku źródłowego, brzmienie zapisów – wyłącznie z niego.
+
+    Metadane wersji (``version_label``/``document_date``/``status_label``) są osobnymi polami,
+    a nie akapitem treści: przy dokumencie prawnym pierwsze pytanie czytelnika brzmi „czy to
+    obowiązująca wersja”, więc odpowiedź nie może zależeć od tego, czy redaktor pamiętał
+    o poprawieniu zdania w środku tekstu.
+    """
+
+    intro = RichTextField("wprowadzenie", features=RICH_TEXT_FEATURES, blank=True)
+    body = StreamField(DocumentStreamBlock(), verbose_name="treść", blank=True)
+    attachment = models.ForeignKey(
+        "wagtaildocs.Document",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="plik źródłowy",
+        help_text="Oryginał do pobrania (DOCX/PDF). Usunięcie pliku nie kasuje strony.",
+    )
+    version_label = models.CharField("wersja", max_length=50, blank=True)
+    document_date = models.DateField("data dokumentu", null=True, blank=True)
+    status_label = models.CharField(
+        "status",
+        max_length=200,
+        blank=True,
+        help_text="Np. „Projekt do zatwierdzenia uchwałą Zarządu”.",
+    )
+
+    content_panels = Page.content_panels + [
+        MultiFieldPanel(
+            [FieldPanel("version_label"), FieldPanel("document_date"), FieldPanel("status_label")],
+            heading="Metryka dokumentu",
+        ),
+        FieldPanel("intro"),
+        FieldPanel("attachment"),
+        FieldPanel("body"),
+    ]
+    search_fields = Page.search_fields + [
+        index.SearchField("intro"),
+        index.SearchField("body"),
+        index.FilterField("document_date"),
+    ]
+
+    template = "cms/document_page.html"
+    parent_page_types = ["cms.HomePage"]
+    subpage_types = []
+
+    class Meta:
+        verbose_name = "dokument"
+        verbose_name_plural = "dokumenty"
+
+    def chapters(self) -> list[dict]:
+        """Spis rozdziałów: śródtytuły poziomu 2 oznaczone „pokaż w spisie”.
+
+        Liczymy z ``body``, a nie z wyrenderowanego HTML-a – parsowanie własnego wyjścia
+        po to, by znaleźć w nim ``<h2 id=…>``, robiłoby ze spisu treści funkcję szablonu.
+        """
+        return [
+            {"anchor": block.value["anchor"], "text": block.value["text"]}
+            for block in self.body
+            if block.block_type == "heading" and block.value.get("level") == "2" and block.value.get("in_toc")
+        ]
 
 
 class ArchiveIndexPage(CMSPage):

@@ -1,0 +1,4 @@
+{% comment %}
+  Kotwica jest atrybutem ``id`` – ten sam identyfikator, po który sięga spis rozdziałów
+  w ``cms/document_page.html``. Autoescapowanie Django obejmuje i tekst, i wartość ``id``.
+{% endcomment %}{% if value.level == "3" %}<h3 class="doc-heading doc-heading--par" id="{{ value.anchor }}">{{ value.text }}</h3>{% else %}<h2 class="doc-heading doc-heading--chapter" id="{{ value.anchor }}">{{ value.text }}</h2>{% endif %}

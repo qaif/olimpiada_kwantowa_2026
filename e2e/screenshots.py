@@ -64,8 +64,13 @@ def ensure_playwright() -> None:
         )
 
 
-def shoot(page, path: str, name: str) -> bool:
-    """Otwiera adres i zapisuje pełnostronicowy PNG. Zwraca ``False`` przy odpowiedzi 4xx/5xx."""
+def shoot(page, path: str, name: str, scroll: str = "bottom") -> bool:
+    """Otwiera adres i zapisuje pełnostronicowy PNG. Zwraca ``False`` przy odpowiedzi 4xx/5xx.
+
+    ``scroll`` rozstrzyga, gdzie na zrzucie wyląduje warstwa ``position: sticky`` – patrz niżej.
+    Strony z przyklejonym paskiem akcji chcą ``"bottom"``, strony z przyklejonym spisem treści
+    (``/regulamin/``) ``"top"``, bo tam sticky jest nawigacją, a nie stopką.
+    """
     response = page.goto(f"{BASE_URL}{path}", wait_until="domcontentloaded")
     status = response.status if response is not None else 0
     try:
@@ -77,6 +82,9 @@ def shoot(page, path: str, name: str) -> bool:
     # bez tego pasek wisiałby w połowie strony, nad treścią formularza.
     page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
     page.wait_for_timeout(600)
+    if scroll == "top":
+        page.evaluate("window.scrollTo(0, 0)")
+        page.wait_for_timeout(300)
     target = OUTPUT_DIR / f"{name}.png"
     page.screenshot(path=str(target), full_page=True)
     LOGGER.info("%-34s %s -> %s", path, status, target.name)
@@ -118,6 +126,10 @@ def guest_pages(browser) -> None:
         ("/register/", "07-rejestracja"),
     ):
         shoot(page, path, name)
+
+    # Regulamin (manage.py seed_regulamin): spis rozdziałów jest ``position: sticky``, więc
+    # zrzut robimy od góry – inaczej spis wylądowałby na dole obrazu, obok stopki.
+    shoot(page, "/regulamin/", "02c-regulamin", scroll="top")
 
     # Artykuł: pierwszy wpis z newsroomu, jeśli w ogóle jakiś jest.
     page.goto(f"{BASE_URL}/aktualnosci/", wait_until="domcontentloaded")
