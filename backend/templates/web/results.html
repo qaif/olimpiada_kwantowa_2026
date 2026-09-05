@@ -2,14 +2,17 @@
 {% load web_extras %}
 {% block title %}Wyniki etapu{% endblock %}
 {% block content %}
-<h1>Wyniki: {{ stage.get_kind_display }} ({{ stage.edition.year_label }})</h1>
-<p class="lead">Ogłoszone {{ publication.published_at|local_time }}, tryb prezentacji:
-  {{ publication.get_anonymization_display }}.</p>
-<p class="hint">Tabela pochodzi z zamrożonego snapshotu z chwili publikacji – nie jest przeliczana
-  w locie, więc późniejsze decyzje komisji nie zmieniają jej po cichu.</p>
+<div class="page-head">
+  <span class="eyebrow">Wyniki etapu</span>
+  <h1>{{ stage.get_kind_display }} ({{ stage.edition.year_label }})</h1>
+  <p class="lead">Ogłoszone {{ publication.published_at|local_time }}, tryb prezentacji:
+    {{ publication.get_anonymization_display }}.</p>
+  <p class="hint">Tabela pochodzi z zamrożonego snapshotu z chwili publikacji – nie jest przeliczana
+    w locie, więc późniejsze decyzje komisji nie zmieniają jej po cichu.</p>
+</div>
 
 <div class="scroll">
-<table class="grid">
+<table class="table table--rank">
   <thead>
     <tr>
       <th>Miejsce</th>
@@ -22,16 +25,22 @@
   </thead>
   <tbody>
     {% for row in rows %}
-      <tr>
+      <tr {% if row.qualified %}class="is-qualified"{% endif %}>
         <td>{{ row.rank }}</td>
         <td>{{ row.display }}</td>
         <td>{{ row.district }}</td>
-        {% for number in problem_numbers %}<td>{{ row.points|dict_get:number }}</td>{% endfor %}
-        <td><strong>{{ row.total }}</strong></td>
-        <td>{% if row.qualified %}tak{% else %}nie{% endif %}</td>
+        {% for number in problem_numbers %}<td class="num">{{ row.points|dict_get:number }}</td>{% endfor %}
+        <td class="num total">{{ row.total }}</td>
+        <td>
+          {% if row.qualified %}
+            <span class="badge badge--ok">zakwalifikowany</span>
+          {% else %}
+            <span class="badge badge--neutral">nie</span>
+          {% endif %}
+        </td>
       </tr>
     {% empty %}
-      <tr><td colspan="{{ problem_numbers|length|add:5 }}">Tabela jest pusta.</td></tr>
+      <tr><td colspan="{{ problem_numbers|length|add:5 }}" class="empty">Tabela jest pusta.</td></tr>
     {% endfor %}
   </tbody>
 </table>

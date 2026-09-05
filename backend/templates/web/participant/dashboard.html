@@ -2,115 +2,153 @@
 {% load web_extras %}
 {% block title %}Panel uczestnika{% endblock %}
 {% block content %}
-<h1>Panel uczestnika</h1>
-<p class="lead">Twój kod publiczny: <strong>{{ user.participant.public_code }}</strong>.
-  W ogłaszanych tabelach wyników występujesz pod tym kodem.</p>
+<div class="page-head">
+  <span class="eyebrow">Panel uczestnika</span>
+  <h1>Twoje zgłoszenie</h1>
+  <p class="lead">Kod publiczny: <span class="code-chip">{{ user.participant.public_code }}</span>
+    – pod tym kodem występujesz w ogłaszanych tabelach wyników.</p>
+</div>
 
 {% if stage %}
-  <section>
-    <h2>{{ stage.get_kind_display }} – {{ edition.year_label }}</h2>
-    {% comment %}
-      Odliczanie liczone z czasu serwera: obie wartości są w ISO 8601 z jawnym przesunięciem
-      strefy (filtr `date:'c'`), więc `new Date()` czyta je jako moment bezwzględny, a skrypt
-      koryguje o różnicę względem zegara przeglądarki. Zegar klienta nigdy nie decyduje
-      o terminie – deadline i tak egzekwuje serwis uploadu.
-    {% endcomment %}
-    <p class="countdown"
-       x-data="countdown"
-       data-deadline="{{ stage.submission_deadline|date:'c' }}"
-       data-server-now="{{ now|date:'c' }}">
-      Termin oddania rozwiązań: {{ stage.submission_deadline|local_time }}.
-      <span x-text="label">pozostały czas liczony jest po wczytaniu strony</span>
-    </p>
+  <section class="section">
+    <div class="card card--accent">
+      <div class="card__head">
+        <h2 class="mt-0 card__title">{{ stage.get_kind_display }} – {{ edition.year_label }}</h2>
+        {% if entry %}
+          <span class="{{ entry.status|badge_class }}">{{ entry.get_status_display }}</span>
+        {% endif %}
+      </div>
 
-    {% if can_register %}
-      <form method="post" action="{% url 'web:stage-register' stage.pk %}">
-        {% csrf_token %}
-        <button type="submit">Zgłoś się do etapu eliminacyjnego</button>
-      </form>
-    {% elif entry %}
-      <p>Status Twojego udziału: <strong>{{ entry.get_status_display }}</strong>.</p>
-    {% else %}
-      <p>Nie jesteś zapisany do tego etapu. Wpisy do etapu okręgowego i finału tworzy kwalifikacja.</p>
-    {% endif %}
+      {% comment %}
+        Odliczanie liczone z czasu serwera: obie wartości są w ISO 8601 z jawnym przesunięciem
+        strefy (filtr `date:'c'`), więc `new Date()` czyta je jako moment bezwzględny, a skrypt
+        koryguje o różnicę względem zegara przeglądarki. Zegar klienta nigdy nie decyduje
+        o terminie – deadline i tak egzekwuje serwis uploadu.
+      {% endcomment %}
+      <div class="countdown"
+           x-data="countdown"
+           data-deadline="{{ stage.submission_deadline|date:'c' }}"
+           data-server-now="{{ now|date:'c' }}">
+        <span class="countdown__label">Termin oddania rozwiązań</span>
+        <span class="countdown__deadline">{{ stage.submission_deadline|local_time }}</span>
+        <span class="countdown__value" x-text="label">pozostały czas liczony jest po wczytaniu strony</span>
+      </div>
+
+      {% if can_register %}
+        <form method="post" action="{% url 'web:stage-register' stage.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn--accent">Zgłoś się do etapu eliminacyjnego</button>
+        </form>
+      {% elif entry %}
+        <p class="card__meta">Status Twojego udziału: <strong>{{ entry.get_status_display }}</strong>.</p>
+      {% else %}
+        <p class="card__meta">Nie jesteś zapisany do tego etapu. Wpisy do etapu okręgowego i finału
+          tworzy kwalifikacja.</p>
+      {% endif %}
+    </div>
   </section>
 
   {% if entry %}
-    <section>
-      <h2>Zadania</h2>
+    <section class="section">
+      <div class="section__head">
+        <h2 class="mt-0">Zadania</h2>
+        {% if not upload_open %}
+          <span class="badge badge--warn">upload zamknięty</span>
+        {% endif %}
+      </div>
       {% if not upload_open %}
-        <p class="closed">Etap jest zamknięty – nie można już wysyłać rozwiązań.</p>
+        <p class="msg msg-warning closed">Etap jest zamknięty – nie można już wysyłać rozwiązań.</p>
       {% endif %}
       {% for row in problem_rows %}
         {% include "web/participant/_problem_card.html" with row=row stage=stage entry=entry upload_open=upload_open error=None %}
       {% empty %}
-        <p>Ten etap nie ma jeszcze opublikowanych zadań.</p>
+        <p class="empty"><span class="empty__title">Brak zadań</span>
+          Ten etap nie ma jeszcze opublikowanych zadań.</p>
       {% endfor %}
     </section>
   {% endif %}
 {% else %}
-  <p>Nie ustawiono bieżącej edycji olimpiady.</p>
+  <p class="notice">Nie ustawiono bieżącej edycji olimpiady.</p>
 {% endif %}
 
-<section>
-  <h2>Moje wyniki</h2>
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Moje wyniki</h2></div>
   {% for result in results %}
-    <h3>{{ result.edition }} – {{ result.stage_kind }} (razem {{ result.total_points }} pkt)</h3>
-    <table class="grid">
-      <thead><tr><th>Zadanie</th><th>Punkty</th><th>Informacja zwrotna</th></tr></thead>
-      <tbody>
-        {% for problem in result.problems %}
-          <tr>
-            <td>{{ problem.number }}. {{ problem.title }}</td>
-            <td>{{ problem.score }}</td>
-            <td>
-              {% for item in problem.feedback %}
-                {% if item.comment_for_participant %}<p>{{ item.comment_for_participant }}</p>{% endif %}
-                {% for annotation in item.annotations %}
-                  <p class="annotation">str. {{ annotation.page }}: {{ annotation.text }}</p>
-                {% endfor %}
-              {% empty %}
-                <span class="hint">brak</span>
-              {% endfor %}
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <article class="card">
+      <div class="result-summary">
+        <h3 class="mt-0">{{ result.edition }} – {{ result.stage_kind }}</h3>
+        <span class="result-summary__points">{{ result.total_points }} pkt</span>
+      </div>
+      <div class="scroll">
+        <table class="table">
+          <thead><tr><th>Zadanie</th><th>Punkty</th><th>Informacja zwrotna</th></tr></thead>
+          <tbody>
+            {% for problem in result.problems %}
+              <tr>
+                <td>{{ problem.number }}. {{ problem.title }}</td>
+                <td class="num total">{{ problem.score }}</td>
+                <td>
+                  {% for item in problem.feedback %}
+                    {% if item.comment_for_participant or item.annotations %}
+                      <div class="feedback">
+                        <span class="feedback__title">Od recenzenta</span>
+                        {% if item.comment_for_participant %}<p>{{ item.comment_for_participant }}</p>{% endif %}
+                        {% for annotation in item.annotations %}
+                          <p class="annotation">str. {{ annotation.page }}: {{ annotation.text }}</p>
+                        {% endfor %}
+                      </div>
+                    {% endif %}
+                  {% empty %}
+                    <span class="hint">brak</span>
+                  {% endfor %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </article>
   {% empty %}
-    <p>Żaden etap nie ma jeszcze ogłoszonych wyników.</p>
+    <p class="empty"><span class="empty__title">Wyniki jeszcze przed nami</span>
+      Żaden etap nie ma jeszcze ogłoszonych wyników.</p>
   {% endfor %}
 </section>
 
-<section>
-  <h2>Reklamacje</h2>
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Reklamacje</h2></div>
   {% for submission in appealable %}
-    <form method="post" action="{% url 'web:appeal-create' submission.pk %}" class="stack">
-      {% csrf_token %}
-      <h3>Zadanie {{ submission.problem.number }}: {{ submission.problem.title }}</h3>
-      {{ appeal_form.as_p }}
-      <button type="submit">Złóż reklamację</button>
-    </form>
+    <article class="card">
+      <h3 class="mt-0">Zadanie {{ submission.problem.number }}: {{ submission.problem.title }}</h3>
+      <form method="post" action="{% url 'web:appeal-create' submission.pk %}" class="form form--wide">
+        {% csrf_token %}
+        {{ appeal_form.as_p }}
+        <div class="actions">
+          <button type="submit" class="btn btn--primary">Złóż reklamację</button>
+        </div>
+      </form>
+    </article>
   {% empty %}
     <p class="hint">Obecnie nie ma pracy, na którą można złożyć reklamację (potrzebna jest ocena
       wstępna i otwarte okno odwoławcze).</p>
   {% endfor %}
 
   {% if my_appeals %}
-    <table class="grid">
-      <caption>Złożone reklamacje</caption>
-      <thead><tr><th>Zadanie</th><th>Złożona (czas polski)</th><th>Status</th><th>Uzasadnienie decyzji</th></tr></thead>
-      <tbody>
-        {% for appeal in my_appeals %}
-          <tr>
-            <td>{{ appeal.submission.problem.number }}</td>
-            <td>{{ appeal.filed_at|local_datetime }}</td>
-            <td>{{ appeal.get_status_display }}</td>
-            <td>{% if appeal.decision %}{{ appeal.decision.justification }}{% else %}—{% endif %}</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="scroll">
+      <table class="table">
+        <caption>Złożone reklamacje</caption>
+        <thead><tr><th>Zadanie</th><th>Złożona (czas polski)</th><th>Status</th><th>Uzasadnienie decyzji</th></tr></thead>
+        <tbody>
+          {% for appeal in my_appeals %}
+            <tr>
+              <td class="num">{{ appeal.submission.problem.number }}</td>
+              <td>{{ appeal.filed_at|local_datetime }}</td>
+              <td><span class="{{ appeal.status|badge_class }}">{{ appeal.get_status_display }}</span></td>
+              <td>{% if appeal.decision %}{{ appeal.decision.justification }}{% else %}—{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   {% endif %}
 </section>
 {% endblock %}

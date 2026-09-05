@@ -2,15 +2,20 @@
   Karta jednego zadania: treść, upload i historia wersji. Ten sam fragment renderuje pulpit
   i odpowiedź HTMX po uploadzie, więc lista wersji nie może rozjechać się między nimi.
 {% endcomment %}
-<article class="card" id="problem-{{ row.problem.pk }}">
-  <h3>Zadanie {{ row.problem.number }}: {{ row.problem.title }}</h3>
-  <p class="hint">
-    Dozwolone formaty: {{ row.problem.allowed_formats|join:", " }} · limit {{ row.problem.max_file_mb }} MB.
+<article class="problem-card" id="problem-{{ row.problem.pk }}">
+  <div class="problem-card__head">
+    <h3>Zadanie {{ row.problem.number }}: {{ row.problem.title }}</h3>
     {% if row.problem.statement_pdf %}
-      <a href="{% url 'competitions:problem-statement' row.problem.pk %}">Treść zadania (PDF)</a>
+      <a class="btn btn--secondary btn--small"
+         href="{% url 'competitions:problem-statement' row.problem.pk %}">Treść zadania (PDF)</a>
     {% else %}
-      <span>Treść zadania nie została jeszcze opublikowana.</span>
+      <span class="badge badge--neutral">treść jeszcze nieopublikowana</span>
     {% endif %}
+  </div>
+
+  <p class="problem-card__specs">
+    <span>Dozwolone formaty: <strong>{{ row.problem.allowed_formats|join:", " }}</strong></span>
+    <span>Limit pliku: <strong>{{ row.problem.max_file_mb }} MB</strong></span>
   </p>
 
   {% if error %}<p class="msg msg-error">{{ error }}</p>{% endif %}
@@ -25,33 +30,50 @@
           hx-target="#problem-{{ row.problem.pk }}"
           hx-swap="outerHTML">
       {% csrf_token %}
-      <input type="file" name="file" required aria-label="Plik rozwiązania zadania {{ row.problem.number }}">
-      <button type="submit">Wyślij rozwiązanie</button>
+      {% comment %}
+        „Dropzone” jest wyłącznie warstwą stylu na natywnym ``input[type=file]`` – bez JS, więc
+        wysyłka działa tak samo z klawiatury i przy wyłączonych skryptach.
+      {% endcomment %}
+      <div class="dropzone">
+        <label class="dropzone__label" for="file-{{ row.problem.pk }}">Plik rozwiązania</label>
+        <span class="dropzone__hint">Każda wysyłka tworzy nową wersję – poprzednie zostają
+          w historii poniżej.</span>
+        <input type="file" name="file" id="file-{{ row.problem.pk }}" required
+               aria-label="Plik rozwiązania zadania {{ row.problem.number }}">
+        <button type="submit" class="btn btn--primary">Wyślij rozwiązanie</button>
+      </div>
     </form>
   {% else %}
-    <p class="closed">Termin oddania rozwiązań minął – upload jest zamknięty.</p>
+    <p class="msg msg-warning closed">Termin oddania rozwiązań minął – upload jest zamknięty.</p>
   {% endif %}
 
-  <table class="grid versions">
-    <caption>Wysłane wersje</caption>
-    <thead>
-      <tr><th>Wersja</th><th>Wysłano (czas polski)</th><th>Status pracy</th><th>Skan antywirusowy</th></tr>
-    </thead>
-    <tbody>
-      {% for submission in row.versions %}
-        <tr>
-          <td>wersja {{ submission.version }}{% if submission.is_late %} <span class="tag">po terminie</span>{% endif %}</td>
-          <td>{{ submission.submitted_at|local_datetime }}</td>
-          <td>{{ submission.get_status_display }}</td>
-          <td>
-            {% with file=submission.latest_file %}
-              {% if file %}{{ file.get_av_status_display }}{% else %}brak pliku{% endif %}
-            {% endwith %}
-          </td>
-        </tr>
-      {% empty %}
-        <tr><td colspan="4">Brak wysłanych wersji.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="scroll">
+    <table class="table versions">
+      <caption>Wysłane wersje</caption>
+      <thead>
+        <tr><th>Wersja</th><th>Wysłano (czas polski)</th><th>Status pracy</th><th>Skan antywirusowy</th></tr>
+      </thead>
+      <tbody>
+        {% for submission in row.versions %}
+          <tr>
+            <td>wersja {{ submission.version }}{% if submission.is_late %}
+              <span class="badge badge--warn">po terminie</span>{% endif %}</td>
+            <td>{{ submission.submitted_at|local_datetime }}</td>
+            <td><span class="{{ submission.status|badge_class }}">{{ submission.get_status_display }}</span></td>
+            <td>
+              {% with file=submission.latest_file %}
+                {% if file %}
+                  <span class="{{ file.av_status|badge_class }}">{{ file.get_av_status_display }}</span>
+                {% else %}
+                  <span class="hint">brak pliku</span>
+                {% endif %}
+              {% endwith %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="empty">Brak wysłanych wersji.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </article>

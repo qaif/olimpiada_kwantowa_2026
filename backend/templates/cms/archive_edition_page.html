@@ -2,31 +2,39 @@
 {% load wagtailcore_tags %}
 {% block title %}{{ page.title }} – Platforma Olimpiady{% endblock %}
 {% block content %}
-<h1>{{ page.title }}</h1>
-{% if page.edition %}<p class="lead">Edycja: {{ page.edition.year_label }}</p>{% endif %}
-{% if page.summary %}<div class="cms-body">{{ page.summary|richtext }}</div>{% endif %}
+<div class="page-head">
+  <span class="eyebrow">Archiwum</span>
+  <h1>{{ page.title }}</h1>
+  {% if page.edition %}<p class="lead">Edycja: {{ page.edition.year_label }}</p>{% endif %}
+</div>
 
-<h2>Materiały</h2>
-<ul class="doc-list">
-  {# ``documents`` z get_context, nie ``page.documents.all``: kontekst dociąga plik przez
-     select_related, więc lista materiałów to jedno zapytanie niezależnie od liczby wierszy. #}
-  {% for item in documents %}
-    <li>
-      <span class="tag">{{ item.get_kind_display }}</span>
-      <a href="{{ item.document.url }}">{{ item.title }}</a>
-      <span class="hint">({{ item.document.file_extension|upper }})</span>
-    </li>
-  {% empty %}
-    <li>Do tej edycji nie dołączono jeszcze dokumentów.</li>
-  {% endfor %}
-</ul>
+{% if page.summary %}<div class="cms-body prose">{{ page.summary|richtext }}</div>{% endif %}
 
-<h2>Wyniki</h2>
-<ul class="results-list">
-  {% for link in page.result_links %}
-    <li><a href="{% url 'web:results' link.stage.pk %}">{{ link.stage.get_kind_display }} – tabela wyników</a></li>
-  {% empty %}
-    <li>Dla tej edycji nie ogłoszono tabel wyników.</li>
-  {% endfor %}
-</ul>
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Materiały</h2></div>
+  <ul class="doc-list">
+    {# ``documents`` z get_context, nie ``page.documents.all``: kontekst dociąga plik przez
+       select_related, więc lista materiałów to jedno zapytanie niezależnie od liczby wierszy. #}
+    {% for item in documents %}
+      <li>
+        <span class="tag">{{ item.get_kind_display }}</span>
+        <a href="{{ item.document.url }}">{{ item.title }}</a>
+        <span class="hint">({{ item.document.file_extension|upper }})</span>
+      </li>
+    {% empty %}
+      <li class="empty">Do tej edycji nie dołączono jeszcze dokumentów.</li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Wyniki</h2></div>
+  <ul class="results-list">
+    {% for link in page.result_links %}
+      <li><a href="{% url 'web:results' link.stage.pk %}">{{ link.stage.get_kind_display }} – tabela wyników</a></li>
+    {% empty %}
+      <li class="empty">Dla tej edycji nie ogłoszono tabel wyników.</li>
+    {% endfor %}
+  </ul>
+</section>
 {% endblock %}

@@ -24,6 +24,7 @@ from apps.accounts.services import approve_committee_member, create_invitation, 
 from apps.competitions.models import Stage
 from apps.competitions.services import current_edition
 from apps.core.api import DomainError
+from apps.grading.models import ReviewStatus
 from apps.grading.services import (
     assign_reviewers,
     assign_third_reviewer,
@@ -48,21 +49,49 @@ from apps.web.templatetags.web_extras import LOCAL_TIME_LABEL
 DASHBOARD_URL = reverse_lazy("web:coordinator")
 
 
+def _counters(stages: list[Stage], moderation: list, pending_members: list) -> dict:
+    """Liczniki na kafelki KPI. Wyłącznie prezentacja – żadnej reguły domenowej.
+
+    Import modeli jest lokalny z tego samego powodu, co w akcjach niżej: moduł widoków ładuje się
+    przy starcie urlconfa, a ``apps.submissions``/``apps.grading`` zaciągają wtedy własne serwisy.
+    """
+    from apps.appeals.models import Appeal, AppealStatus
+    from apps.grading.models import Review
+    from apps.submissions.models import Submission
+
+    stage_ids = [stage.pk for stage in stages]
+    return {
+        "submissions": Submission.objects.filter(entry__stage_id__in=stage_ids).count(),
+        "pending_reviews": Review.objects.filter(
+            submission__entry__stage_id__in=stage_ids,
+            status__in=(ReviewStatus.ASSIGNED, ReviewStatus.DRAFT),
+        ).count(),
+        "moderation": len(moderation),
+        "open_appeals": Appeal.objects.filter(
+            submission__entry__stage_id__in=stage_ids, status=AppealStatus.OPEN
+        ).count(),
+        "pending_members": len(pending_members),
+    }
+
+
 def dashboard_context(extra: dict | None = None) -> dict:
     """Wspólny kontekst pulpitu – używany też po przeliczeniu wyników, żeby pokazać podgląd."""
     edition = current_edition()
     stages = list(Stage.objects.filter(edition=edition).order_by("opens_at", "id")) if edition else []
     published = set(ResultsPublication.objects.filter(stage__in=stages).values_list("stage_id", flat=True))
+    moderation = list(moderation_queue())
+    pending_members = list(
+        CommitteeMember.objects.select_related("user")
+        .filter(status=CommitteeStatus.PENDING)
+        .order_by("created_at", "id")
+    )
     context = {
         "now": timezone.now(),
         "edition": edition,
         "stage_rows": [{"stage": stage, "has_results": stage.pk in published} for stage in stages],
-        "moderation": list(moderation_queue()),
-        "pending_members": list(
-            CommitteeMember.objects.select_related("user")
-            .filter(status=CommitteeStatus.PENDING)
-            .order_by("created_at", "id")
-        ),
+        "moderation": moderation,
+        "pending_members": pending_members,
+        "counters": _counters(stages, moderation, pending_members),
         "active_members": list(
             CommitteeMember.objects.select_related("user")
             .filter(status=CommitteeStatus.ACTIVE)

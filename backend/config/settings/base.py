@@ -93,6 +93,8 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 # Role do nawigacji (nie do autoryzacji – ta jest w mixinach i uprawnieniach DRF).
                 "apps.web.context_processors.roles",
+                # Dane prezentacyjne ramy serwisu: etykieta edycji w logotypie, wersja w stopce.
+                "apps.web.context_processors.site_chrome",
                 # Menu części informacyjnej (strony Wagtaila oznaczone „pokaż w menu”).
                 "apps.cms.context_processors.cms_menu",
             ],

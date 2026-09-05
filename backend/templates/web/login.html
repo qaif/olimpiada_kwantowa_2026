@@ -1,12 +1,20 @@
 {% extends "base.html" %}
 {% block title %}Logowanie{% endblock %}
 {% block content %}
-<h1>Logowanie</h1>
-<form method="post" class="stack">
-  {% csrf_token %}
-  {{ form.as_p }}
-  <input type="hidden" name="next" value="{{ next }}">
-  <button type="submit">Zaloguj</button>
-</form>
-<p>Nie masz konta? <a href="{% url 'web:register' %}">Zarejestruj się</a>.</p>
+<div class="auth">
+  <div class="card">
+    <h1>Logowanie</h1>
+    <p class="auth__intro">Panel uczestnika, recenzenta, komisji i koordynatora. Loginem jest
+      adres e-mail podany przy rejestracji.</p>
+    <form method="post" class="form">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <input type="hidden" name="next" value="{{ next }}">
+      <button type="submit" class="btn btn--primary btn--block">Zaloguj</button>
+    </form>
+    <p class="auth__alt">Nie masz konta? <a href="{% url 'web:register' %}">Zarejestruj się</a>.<br>
+      Członek komitetu z kodem zaproszenia:
+      <a href="{% url 'web:register-committee' %}">rejestracja z kodem</a>.</p>
+  </div>
+</div>
 {% endblock %}

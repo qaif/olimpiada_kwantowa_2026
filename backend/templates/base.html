@@ -4,7 +4,24 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Platforma Olimpiady{% endblock %}</title>
+  {% comment %}
+    Kolor paska przeglądarki dopasowany do nagłówka (granat) i do tła ciemnego wariantu –
+    ten sam podział, co w tokenach arkusza (@media prefers-color-scheme).
+  {% endcomment %}
+  <meta name="theme-color" content="#12233f" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f1726" media="(prefers-color-scheme: dark)">
+  <meta name="description" content="{% block description %}Serwis olimpiady przedmiotowej: terminy etapów, zadania, wyniki oraz panel uczestnika, recenzenta i komitetu.{% endblock %}">
+  <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  {% comment %}
+    Fonty są self-hostowane (static/fonts/*.woff2) – żadnego Google Fonts w runtime, więc CSP
+    zostaje przy ``font-src 'self' data:``. Preload dotyczy wyłącznie krojów widocznych od razu
+    w pierwszym ekranie: tekst podstawowy i nagłówki.
+  {% endcomment %}
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="{% static 'fonts/inter-latin-ext-400.woff2' %}">
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="{% static 'fonts/source-serif-4-latin-ext-700.woff2' %}">
   {% comment %}
     Własne komponenty Alpine muszą być zarejestrowane, zanim Alpine wystartuje – stąd ten skrypt
     jako pierwszy. Wszystkie trzy pliki są zewnętrzne: w projekcie nie ma ani jednego skryptu
@@ -27,32 +44,65 @@
   autoescapowanie, więc atrybutu nie da się rozerwać.
 {% endcomment %}
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+<a class="skip-link" href="#tresc">Przejdź do treści</a>
 <header class="topbar">
-  <a class="brand" href="/">Platforma Olimpiady</a>
-  {% comment %}
-    Część informacyjna (Wagtail). Lista pochodzi z drzewa stron – patrz
-    apps/cms/context_processors.py; to nawigacja, nie autoryzacja.
-  {% endcomment %}
-  <nav class="cms-nav">
-    {% for item in cms_menu %}<a href="{{ item.url }}">{{ item.title }}</a>{% endfor %}
-  </nav>
-  <nav>
-    {% if user.is_authenticated %}
-      {% if is_participant %}<a href="{% url 'web:me' %}">Mój panel</a>{% endif %}
-      {% if is_reviewer %}<a href="{% url 'web:review-list' %}">Recenzje</a>{% endif %}
-      {% if is_appeals_committee %}<a href="{% url 'web:appeals' %}">Reklamacje</a>{% endif %}
-      {% if is_coordinator %}<a href="{% url 'web:coordinator' %}">Koordynator</a>{% endif %}
-      <span class="who">{{ user.email }}</span>
-      <form method="post" action="{% url 'web:logout' %}" class="inline">
-        {% csrf_token %}
-        <button type="submit" class="link">Wyloguj</button>
-      </form>
-    {% else %}
-      <a href="{% url 'web:login' %}">Zaloguj</a>
-      <a href="{% url 'web:register' %}">Rejestracja</a>
-      <a href="{% url 'web:register-committee' %}">Rejestracja z kodem</a>
-    {% endif %}
-  </nav>
+  <div class="topbar__inner">
+    <a class="brand" href="/">
+      <span class="brand__mark">Olimpiada</span>
+      {% if site_edition_label %}<span class="brand__sub">edycja {{ site_edition_label }}</span>{% endif %}
+    </a>
+    {% comment %}
+      Część informacyjna (Wagtail). Lista pochodzi z drzewa stron – patrz
+      apps/cms/context_processors.py; to nawigacja, nie autoryzacja.
+      ``aria-current`` na aktywnej pozycji: porównujemy adres pozycji ze ścieżką żądania.
+    {% endcomment %}
+    <nav class="nav nav--cms" aria-label="Serwis">
+      {% for item in cms_menu %}
+        <a class="nav__link" href="{{ item.url }}"
+           {% if item.url == request.path %}aria-current="page"{% endif %}>{{ item.title }}</a>
+      {% endfor %}
+    </nav>
+    <nav class="nav nav--roles" aria-label="Konto">
+      {% if user.is_authenticated %}
+        {% if is_participant %}
+          {% url 'web:me' as me_url %}
+          <a class="nav__link" href="{{ me_url }}"
+             {% if request.path == me_url %}aria-current="page"{% endif %}>Mój panel</a>
+        {% endif %}
+        {% if is_reviewer %}
+          {% url 'web:review-list' as review_url %}
+          <a class="nav__link" href="{{ review_url }}"
+             {% if request.path == review_url %}aria-current="page"{% endif %}>Recenzje</a>
+        {% endif %}
+        {% if is_appeals_committee %}
+          {% url 'web:appeals' as appeals_url %}
+          <a class="nav__link" href="{{ appeals_url }}"
+             {% if request.path == appeals_url %}aria-current="page"{% endif %}>Reklamacje</a>
+        {% endif %}
+        {% if is_coordinator %}
+          {% url 'web:coordinator' as coordinator_url %}
+          <a class="nav__link" href="{{ coordinator_url }}"
+             {% if request.path == coordinator_url %}aria-current="page"{% endif %}>Koordynator</a>
+        {% endif %}
+        <span class="nav__sep" aria-hidden="true"></span>
+        <span class="nav__who who" title="{{ user.email }}">{{ user.email }}</span>
+        <form method="post" action="{% url 'web:logout' %}" class="inline nav__logout">
+          {% csrf_token %}
+          <button type="submit" class="link">Wyloguj</button>
+        </form>
+      {% else %}
+        {% url 'web:login' as login_url %}
+        {% url 'web:register' as register_url %}
+        {% url 'web:register-committee' as committee_url %}
+        <a class="nav__link" href="{{ login_url }}"
+           {% if request.path == login_url %}aria-current="page"{% endif %}>Zaloguj</a>
+        <a class="nav__link" href="{{ register_url }}"
+           {% if request.path == register_url %}aria-current="page"{% endif %}>Rejestracja</a>
+        <a class="nav__link" href="{{ committee_url }}"
+           {% if request.path == committee_url %}aria-current="page"{% endif %}>Rejestracja z kodem</a>
+      {% endif %}
+    </nav>
+  </div>
 </header>
 
 {% if messages %}
@@ -63,12 +113,23 @@
   </ul>
 {% endif %}
 
-<main>
+<main class="page" id="tresc">
   {% block content %}{% endblock %}
 </main>
 
 <footer class="footer">
-  <p>Dane osobowe uczestników są przetwarzane zgodnie z zasadą minimalizacji (RODO).</p>
+  <div class="footer__inner">
+    <div>
+      <p><strong>Platforma Olimpiady</strong> – serwis komitetu głównego olimpiady przedmiotowej.</p>
+      <p>Dane osobowe uczestników są przetwarzane zgodnie z zasadą minimalizacji (RODO):
+        w publicznych tabelach wyników występuje wyłącznie kod uczestnika, a pełne dane widzi
+        jedynie koordynator.</p>
+    </div>
+    <div>
+      <p class="footer__meta">Wersja aplikacji {{ app_version }}</p>
+      <p class="footer__meta">Wszystkie godziny podajemy w czasie polskim.</p>
+    </div>
+  </div>
 </footer>
 {% block scripts %}{% endblock %}
 </body>

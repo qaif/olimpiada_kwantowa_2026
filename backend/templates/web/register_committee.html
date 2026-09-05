@@ -1,12 +1,19 @@
 {% extends "base.html" %}
 {% block title %}Rejestracja członka komitetu{% endblock %}
 {% block content %}
-<h1>Rejestracja członka komitetu</h1>
-<form method="post" class="stack">
-  {% csrf_token %}
-  {{ form.as_p }}
-  <p class="hint">Okręg podany w kodzie zaproszenia jest nadrzędny wobec deklaracji z formularza –
-    tylko taki okręg liczy się przy regule konfliktu interesów.</p>
-  <button type="submit">Załóż konto</button>
-</form>
+<div class="auth">
+  <div class="card">
+    <h1>Rejestracja członka komitetu</h1>
+    <p class="auth__intro">Konto recenzenta lub członka komisji odwoławczej zakłada się na kod
+      zaproszenia wydany przez koordynatora.</p>
+    <form method="post" class="form">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <p class="hint">Okręg podany w kodzie zaproszenia jest nadrzędny wobec deklaracji z formularza –
+        tylko taki okręg liczy się przy regule konfliktu interesów.</p>
+      <button type="submit" class="btn btn--primary btn--block">Załóż konto</button>
+    </form>
+    <p class="auth__alt">Nie masz kodu? <a href="{% url 'web:register' %}">Zarejestruj się jako uczestnik</a>.</p>
+  </div>
+</div>
 {% endblock %}

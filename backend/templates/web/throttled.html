@@ -5,7 +5,10 @@
 {% endcomment %}
 {% block title %}Zbyt wiele prób{% endblock %}
 {% block content %}
-<h1>Zbyt wiele prób</h1>
-<p class="msg msg-error">{{ message }}</p>
-<p class="hint">Ponowna próba będzie możliwa za około {{ retry_after }} s.</p>
+<div class="throttled">
+  <p class="throttled__icon" aria-hidden="true">!</p>
+  <h1>Zbyt wiele prób</h1>
+  <p class="lead">{{ message }}</p>
+  <p class="throttled__retry">Ponowna próba będzie możliwa za około {{ retry_after }} s.</p>
+</div>
 {% endblock %}

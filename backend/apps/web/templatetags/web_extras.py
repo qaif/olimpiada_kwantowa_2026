@@ -10,6 +10,48 @@ from django.utils.formats import date_format
 
 register = template.Library()
 
+#: Mapa kodu stanu → „ton” wizualny odznaki. Wyłącznie prezentacja: nazwy stanów pochodzą
+#: z ``TextChoices`` modeli (SubmissionStatus, AvStatus, ReviewStatus, StageEntryStatus,
+#: AppealStatus, CommitteeStatus), a szablon nie podejmuje na ich podstawie żadnej decyzji poza
+#: doborem koloru. Stan spoza mapy dostaje ton neutralny – nowy status w modelu nie wywraca strony.
+BADGE_TONES = {
+    # rozwiązania (SubmissionStatus)
+    "SUBMITTED": "info",
+    "SCANNING": "warn",
+    "REJECTED_INFECTED": "danger",
+    "LOCKED": "neutral",
+    "IN_REVIEW": "info",
+    "MODERATION": "warn",
+    "GRADED_PROVISIONAL": "accent",
+    "APPEALED": "warn",
+    "FINAL": "ok",
+    # skan antywirusowy (AvStatus)
+    "PENDING": "warn",
+    "CLEAN": "ok",
+    "INFECTED": "danger",
+    "ERROR": "danger",
+    # udział w etapie (StageEntryStatus)
+    "REGISTERED": "info",
+    "QUALIFIED": "ok",
+    "NOT_QUALIFIED": "danger",
+    "DISQUALIFIED": "danger",
+    # recenzje (ReviewStatus)
+    "ASSIGNED": "neutral",
+    "DRAFT": "warn",
+    "CANCELLED": "neutral",
+    # reklamacje (AppealStatus)
+    "OPEN": "warn",
+    "ACCEPTED": "ok",
+    "PARTIALLY_ACCEPTED": "accent",
+    "REJECTED": "danger",
+    # komitet (CommitteeStatus)
+    "ACTIVE": "ok",
+    "SUSPENDED": "danger",
+}
+
+#: Ton dla wartości spoza mapy.
+DEFAULT_BADGE_TONE = "neutral"
+
 #: Domyślny format daty i godziny w interfejsie: „15 października 2026, 12:00”.
 LOCAL_DATETIME_FORMAT = "j E Y, H:i"
 
@@ -32,6 +74,18 @@ def dict_get(mapping, key):
     if value is None:
         value = mapping.get(str(key))
     return value
+
+
+@register.filter
+def badge_class(status) -> str:
+    """Klasy CSS odznaki dla kodu stanu: ``{{ submission.status|badge_class }}``.
+
+    Zwraca sam tekst klas (``badge badge--ok``) – filtr nie generuje HTML-a i niczego nie oznacza
+    jako bezpieczne. Etykietę stanu szablon nadal bierze z ``get_..._display``, żeby tłumaczenia
+    zostały tam, gdzie są zdefiniowane, czyli w modelu.
+    """
+    tone = BADGE_TONES.get(str(status or "").upper(), DEFAULT_BADGE_TONE)
+    return f"badge badge--{tone}"
 
 
 @register.filter(expects_localtime=True, is_safe=False)

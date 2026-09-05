@@ -2,18 +2,27 @@
 {% load wagtailcore_tags %}
 {% block title %}{{ page.title }} – Platforma Olimpiady{% endblock %}
 {% block content %}
-<h1>{{ page.title }}</h1>
-{% if page.intro %}<div class="lead">{{ page.intro|richtext }}</div>{% endif %}
+<div class="page-head">
+  <span class="eyebrow">Newsroom</span>
+  <h1>{{ page.title }}</h1>
+  {% if page.intro %}<div class="lead">{{ page.intro|richtext }}</div>{% endif %}
+</div>
 
-<ul class="news-list">
+<ul class="cards cards--wide news-list">
   {% for item in news %}
     <li>
-      <h2><a href="{% pageurl item %}">{{ item.title }}</a></h2>
-      <p class="hint">{{ item.date }}</p>
-      {% if item.lead %}<p>{{ item.lead }}</p>{% endif %}
+      <article class="card news-card">
+        <span class="news-card__date">{{ item.date }}</span>
+        <h2><a href="{% pageurl item %}">{{ item.title }}</a></h2>
+        {% if item.lead %}<p>{{ item.lead }}</p>{% endif %}
+        <p class="card__foot"><a href="{% pageurl item %}">Czytaj dalej</a></p>
+      </article>
     </li>
   {% empty %}
-    <li>Nie ma jeszcze żadnych aktualności.</li>
+    <li>
+      <p class="empty"><span class="empty__title">Cisza w eterze</span>
+        Nie ma jeszcze żadnych aktualności.</p>
+    </li>
   {% endfor %}
 </ul>
 {% endblock %}

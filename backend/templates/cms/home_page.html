@@ -2,59 +2,123 @@
 {% load wagtailcore_tags web_extras %}
 {% block title %}{{ page.title }} – Platforma Olimpiady{% endblock %}
 {% block content %}
-<h1>{{ page.hero_title|default:page.title }}</h1>
-{% if page.hero_text %}<div class="lead">{{ page.hero_text|richtext }}</div>{% endif %}
+
+<section class="hero">
+  <div class="hero__inner">
+    {% if edition %}<span class="eyebrow">Edycja {{ edition.year_label }}</span>{% endif %}
+    <h1>{{ page.hero_title|default:page.title }}</h1>
+    {% if page.hero_text %}<div class="hero__text">{{ page.hero_text|richtext }}</div>{% endif %}
+
+    <div class="hero__actions">
+      {% if user.is_authenticated %}
+        {% if is_participant %}
+          <a class="btn btn--accent" href="{% url 'web:me' %}">Mój panel</a>
+        {% elif is_reviewer %}
+          <a class="btn btn--accent" href="{% url 'web:review-list' %}">Moje recenzje</a>
+        {% elif is_coordinator %}
+          <a class="btn btn--accent" href="{% url 'web:coordinator' %}">Panel koordynatora</a>
+        {% endif %}
+      {% else %}
+        <a class="btn btn--accent" href="{% url 'web:register' %}">Zarejestruj się</a>
+        <a class="btn btn--secondary" href="{% url 'web:login' %}">Zaloguj się</a>
+      {% endif %}
+    </div>
+
+    {% if current_stage %}
+      <p class="hero__status">Etap bieżący: <strong>{{ current_stage.get_kind_display }}</strong>
+        · termin oddania rozwiązań {{ current_stage.deadline_at|local_time }}</p>
+    {% endif %}
+  </div>
+</section>
 
 {% if page.show_timeline %}
   {% if edition %}
-    <h2>Bieżąca edycja: {{ edition.year_label }}</h2>
-    {% if current_stage %}
-      <p class="lead">Etap bieżący: <strong>{{ current_stage.get_kind_display }}</strong>,
-        termin oddania rozwiązań {{ current_stage.deadline_at|local_time }}.</p>
-    {% endif %}
-    <table class="grid">
-      <caption>Etapy edycji (wszystkie godziny: czas polski)</caption>
-      <thead>
-        <tr><th>Etap</th><th>Otwarcie</th><th>Deadline</th><th>Okno reklamacji</th><th>Wyniki</th></tr>
-      </thead>
-      <tbody>
+    <section class="section">
+      <div class="section__head">
+        <h2 class="mt-0">Przebieg edycji {{ edition.year_label }}</h2>
+        <p class="hint">Wszystkie godziny: czas polski.</p>
+      </div>
+      <ol class="timeline">
         {% for row in stage_rows %}
-          <tr>
-            <td>{{ row.stage.get_kind_display }}{% if row.is_open %} <span class="tag">otwarty</span>{% endif %}</td>
-            <td>{{ row.stage.opens_at|local_datetime }}</td>
-            <td>{{ row.stage.deadline_at|local_datetime }}</td>
-            <td>{{ row.stage.appeal_window_opens_at|local_datetime }} – {{ row.stage.appeal_window_closes_at|local_datetime }}</td>
-            <td>
-              {% if row.has_results %}
-                <a href="{% url 'web:results' row.stage.pk %}">tabela wyników</a>
-              {% else %}
-                nieogłoszone
-              {% endif %}
-            </td>
-          </tr>
+          <li class="timeline__item {% if row.is_open %}timeline__item--open{% elif row.has_opened %}timeline__item--done{% else %}timeline__item--next{% endif %}">
+            <p class="timeline__kind">{{ row.stage.get_kind_display }}</p>
+            {% if row.is_open %}
+              <span class="badge badge--accent">etap otwarty</span>
+            {% elif row.has_opened %}
+              <span class="badge badge--ok">zakończony</span>
+            {% else %}
+              <span class="badge badge--neutral">nadchodzący</span>
+            {% endif %}
+            <dl class="timeline__dates">
+              <div><dt>Otwarcie</dt><dd>{{ row.stage.opens_at|local_datetime }}</dd></div>
+              <div><dt>Deadline</dt><dd>{{ row.stage.deadline_at|local_datetime }}</dd></div>
+              <div><dt>Reklamacje</dt>
+                <dd>{{ row.stage.appeal_window_opens_at|local_datetime }} –
+                  {{ row.stage.appeal_window_closes_at|local_datetime }}</dd></div>
+            </dl>
+            {% if row.has_results %}
+              <a class="btn btn--secondary btn--small" href="{% url 'web:results' row.stage.pk %}">Tabela wyników</a>
+            {% else %}
+              <p class="hint mt-0">Wyniki nieogłoszone.</p>
+            {% endif %}
+          </li>
         {% empty %}
-          <tr><td colspan="5">Ta edycja nie ma jeszcze etapów.</td></tr>
+          <li class="empty"><span class="empty__title">Brak etapów</span>
+            Ta edycja nie ma jeszcze zdefiniowanych etapów.</li>
         {% endfor %}
-      </tbody>
-    </table>
+      </ol>
+    </section>
   {% else %}
-    <p>Nie ustawiono bieżącej edycji olimpiady.</p>
+    <p class="notice">Nie ustawiono bieżącej edycji olimpiady.</p>
   {% endif %}
 {% endif %}
 
 {% if latest_news %}
-  <h2>Aktualności</h2>
-  <ul class="news-list">
-    {% for item in latest_news %}
-      <li><a href="{% pageurl item %}">{{ item.title }}</a> <span class="hint">{{ item.date }}</span></li>
-    {% endfor %}
-  </ul>
+  <section class="section">
+    <div class="section__head">
+      <h2 class="mt-0">Aktualności</h2>
+    </div>
+    <ul class="cards">
+      {% for item in latest_news %}
+        <li>
+          <article class="card news-card">
+            <span class="news-card__date">{{ item.date }}</span>
+            <h3><a href="{% pageurl item %}">{{ item.title }}</a></h3>
+            {% if item.lead %}<p>{{ item.lead }}</p>{% endif %}
+          </article>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
 {% endif %}
 
-<h2>Co dalej</h2>
-<ul>
-  <li><a href="{% url 'web:register' %}">Rejestracja uczestnika</a> – otwarta dla każdego.</li>
-  <li><a href="{% url 'web:register-committee' %}">Rejestracja członka komitetu</a> – wymaga kodu zaproszenia.</li>
-  <li><a href="{% url 'web:login' %}">Logowanie</a> do panelu uczestnika, recenzenta lub koordynatora.</li>
-</ul>
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Skróty</h2>
+  </div>
+  {# Adresy sekcji biorą się z drzewa stron (kontekst ``cms_menu``), a nie z literałów w szablonie. #}
+  <ul class="cards cards--wide">
+    <li>
+      <article class="card card--accent">
+        <h3 class="mt-0">Sekcje serwisu</h3>
+        <ul class="link-list">
+          {% for item in cms_menu %}
+            <li><a href="{{ item.url }}">{{ item.title }}</a></li>
+          {% endfor %}
+        </ul>
+      </article>
+    </li>
+    <li>
+      <article class="card card--accent">
+        <h3 class="mt-0">Rejestracja</h3>
+        <p class="hint">Konto uczestnika zakłada się samodzielnie; członek komitetu potrzebuje
+          kodu zaproszenia od koordynatora.</p>
+        <div class="row">
+          <a class="btn btn--secondary btn--small" href="{% url 'web:register' %}">Konto uczestnika</a>
+          <a class="btn btn--ghost btn--small" href="{% url 'web:register-committee' %}">Rejestracja z kodem</a>
+        </div>
+      </article>
+    </li>
+  </ul>
+</section>
 {% endblock %}

@@ -2,46 +2,66 @@
 {% load wagtailcore_tags web_extras %}
 {% block title %}{{ page.title }} – Platforma Olimpiady{% endblock %}
 {% block content %}
-<h1>{{ page.title }}</h1>
-{% if page.intro %}<div class="lead">{{ page.intro|richtext }}</div>{% endif %}
+<div class="page-head">
+  <span class="eyebrow">Zadania</span>
+  <h1>{{ page.title }}</h1>
+  {% if page.intro %}<div class="lead">{{ page.intro|richtext }}</div>{% endif %}
+</div>
 
 {% if not stage %}
-  <p class="hint">Nie ustawiono bieżącej edycji ani etapu.</p>
+  <p class="notice">Nie ustawiono bieżącej edycji ani etapu.</p>
 {% else %}
-  <h2>{{ stage.get_kind_display }} – {{ stage.edition.year_label }}</h2>
-  <p class="hint">Otwarcie: {{ stage.opens_at|local_time }}, termin oddania:
-    {{ stage.deadline_at|local_time }}.</p>
+  <section class="card card--accent">
+    <div class="card__head">
+      <h2 class="mt-0 card__title">{{ stage.get_kind_display }} – {{ stage.edition.year_label }}</h2>
+      {% if stage_has_opened %}
+        <span class="badge badge--ok">etap otwarty</span>
+      {% else %}
+        <span class="badge badge--neutral">przed otwarciem</span>
+      {% endif %}
+    </div>
+    <dl class="meta-list">
+      <dt>Otwarcie</dt><dd>{{ stage.opens_at|local_time }}</dd>
+      <dt>Termin oddania</dt><dd>{{ stage.deadline_at|local_time }}</dd>
+    </dl>
+  </section>
+
   {% if stage_has_opened %}
-    <table class="grid">
-      <caption>Zadania etapu</caption>
-      <thead><tr><th>Nr</th><th>Tytuł</th><th>Treść</th><th>Formaty</th></tr></thead>
-      <tbody>
-        {% for problem in problems %}
-          <tr>
-            <td>{{ problem.number }}</td>
-            <td>{{ problem.title }}</td>
-            <td>
-              {% if problem.statement_pdf %}
-                {# Plik zawsze przez widok aplikacji – nigdy przez URL storage. #}
-                <a href="{% url 'competitions:problem-statement' problem.pk %}">PDF</a>
-              {% else %}
-                brak pliku
-              {% endif %}
-            </td>
-            <td>{{ problem.allowed_formats|join:", " }}</td>
-          </tr>
-        {% empty %}
-          <tr><td colspan="4">Ten etap nie ma jeszcze zadań.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="scroll">
+      <table class="table">
+        <caption>Zadania etapu</caption>
+        <thead><tr><th>Nr</th><th>Tytuł</th><th>Treść</th><th>Formaty</th></tr></thead>
+        <tbody>
+          {% for problem in problems %}
+            <tr>
+              <td class="num">{{ problem.number }}</td>
+              <td>{{ problem.title }}</td>
+              <td>
+                {% if problem.statement_pdf %}
+                  {# Plik zawsze przez widok aplikacji – nigdy przez URL storage. #}
+                  <a class="btn btn--secondary btn--small"
+                     href="{% url 'competitions:problem-statement' problem.pk %}">PDF</a>
+                {% else %}
+                  <span class="hint">brak pliku</span>
+                {% endif %}
+              </td>
+              <td>{{ problem.allowed_formats|join:", " }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="empty">Ten etap nie ma jeszcze zadań.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   {% else %}
     {# Przed opens_at: żadnego tytułu, żadnego linku – tylko komunikat (T-09, kryterium 3). #}
     <p class="notice">{{ notice }}</p>
   {% endif %}
 {% endif %}
 
-{% for block in page.body %}
-  {% include_block block %}
-{% endfor %}
+<div class="prose">
+  {% for block in page.body %}
+    {% include_block block %}
+  {% endfor %}
+</div>
 {% endblock %}

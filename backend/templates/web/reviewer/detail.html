@@ -1,34 +1,48 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static web_extras %}
 {% block title %}Ocena pracy {{ public_code }}{% endblock %}
 {% block content %}
-<h1>Praca {{ public_code }} · zadanie {{ problem.number }}</h1>
-<p class="lead">{{ problem.title }} · etap {{ submission.entry.stage.get_kind_display }} ·
-  runda {{ review.round }} · status recenzji {{ review.get_status_display }}</p>
+<div class="page-head">
+  <span class="eyebrow">Ocena pracy</span>
+  <h1>Praca <span class="code-chip">{{ public_code }}</span> · zadanie {{ problem.number }}</h1>
+  <p class="lead">{{ problem.title }}</p>
+  <p class="row">
+    <span class="badge badge--info">etap: {{ submission.entry.stage.get_kind_display }}</span>
+    <span class="badge badge--neutral">runda {{ review.round }}</span>
+    <span class="{{ review.status|badge_class }}">{{ review.get_status_display }}</span>
+  </p>
+</div>
 
 {% if dispute_rows is not None %}
-  <section class="dispute">
-    <h2>Materiał rozjemczy (runda 2)</h2>
+  <section class="dispute card card--accent">
+    <h2 class="mt-0">Materiał rozjemczy (runda 2)</h2>
     <p class="hint">Punkty i argumentacja obu recenzji rundy 1. Tożsamość recenzentów nie jest
       ujawniana – rozstrzygasz spór o pracę, nie między osobami.</p>
-    <table class="grid">
-      <thead><tr><th>Punkty</th><th>Komentarz wewnętrzny</th></tr></thead>
-      <tbody>
-        {% for row in dispute_rows %}
-          <tr><td>{{ row.score }}</td><td>{{ row.comment_internal }}</td></tr>
-        {% empty %}
-          <tr><td colspan="2">Brak wystawionych ocen rundy 1.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="scroll">
+      <table class="table">
+        <thead><tr><th>Punkty</th><th>Komentarz wewnętrzny</th></tr></thead>
+        <tbody>
+          {% for row in dispute_rows %}
+            <tr><td class="num total">{{ row.score }}</td><td>{{ row.comment_internal }}</td></tr>
+          {% empty %}
+            <tr><td colspan="2" class="empty">Brak wystawionych ocen rundy 1.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </section>
 {% endif %}
 
 <div class="review-layout">
-  <section class="pdf-pane">
-    <h2>Rozwiązanie</h2>
+  <section class="pdf-pane" aria-label="Rozwiązanie">
+    <div class="card__head">
+      <h2 class="mt-0">Rozwiązanie</h2>
+      {% if file_available %}
+        <a class="btn btn--secondary btn--small" href="{{ download_url }}">Pobierz plik</a>
+      {% endif %}
+    </div>
+
     {% if file_available %}
-      <p><a href="{{ download_url }}">Pobierz plik</a></p>
       {% comment %}Jedyna wyspa JS – parametry idą atrybutami data-*, bez skryptu inline.{% endcomment %}
       <div id="pdf-viewer"
            class="pdf-viewer"
@@ -38,10 +52,10 @@
            data-annotations-input="id_annotations"
            data-annotations-list="annotation-list">
         <div class="pdf-toolbar">
-          <button type="button" data-pdf-prev>Poprzednia strona</button>
+          <button type="button" class="btn btn--secondary btn--small" data-pdf-prev>Poprzednia</button>
           <span data-pdf-pageinfo>—</span>
-          <button type="button" data-pdf-next>Następna strona</button>
-          <button type="button" data-pdf-save>Zapisz adnotacje</button>
+          <button type="button" class="btn btn--secondary btn--small" data-pdf-next>Następna</button>
+          <button type="button" class="btn btn--secondary btn--small" data-pdf-save>Zapisz adnotacje</button>
           <span data-pdf-status role="status"></span>
         </div>
         <div class="pdf-stage" data-pdf-stage>
@@ -51,7 +65,8 @@
       </div>
       <p class="hint">Zaznacz prostokąt na stronie, aby dodać adnotację; treść podasz w okienku.</p>
     {% else %}
-      <p class="closed">Plik nie jest jeszcze dostępny (trwa skan antywirusowy albo praca nie ma pliku).</p>
+      <p class="msg msg-warning closed">Plik nie jest jeszcze dostępny (trwa skan antywirusowy
+        albo praca nie ma pliku).</p>
     {% endif %}
 
     <h3>Adnotacje</h3>
@@ -68,14 +83,15 @@
     </ul>
   </section>
 
-  <section class="form-pane">
-    <h2>Ocena</h2>
+  <section class="form-pane" aria-label="Ocena">
+    <h2 class="mt-0">Ocena</h2>
     {% if not editable %}
-      <p class="closed">Ta recenzja jest zamknięta ({{ review.get_status_display }}) – formularz jest wyłączony.</p>
+      <p class="msg msg-warning closed">Ta recenzja jest zamknięta ({{ review.get_status_display }})
+        – formularz jest wyłączony.</p>
     {% endif %}
     <form method="post"
           action="{% url 'web:review-submit' review.pk %}"
-          class="stack"
+          class="form form--wide"
           id="review-form"
           x-data="confirmSubmit"
           x-on:submit="check"
@@ -83,31 +99,41 @@
       {% csrf_token %}
       <fieldset {% if not editable %}disabled{% endif %}>
         <legend>Punkty (skala etapu)</legend>
-        {% for option in scale_options %}
-          <label class="score-option">
-            <input type="radio" name="score" value="{{ option.value }}"
-                   {% if review.score == option.value %}checked{% endif %}>
-            <strong>{{ option.value }}</strong> – {{ option.label }}
-          </label>
-        {% empty %}
-          <p class="msg msg-error">Etap nie ma skali punktacji – zgłoś to koordynatorowi.</p>
-        {% endfor %}
+        <div class="scale">
+          {% for option in scale_options %}
+            <label class="score-option">
+              <input type="radio" name="score" value="{{ option.value }}"
+                     {% if review.score == option.value %}checked{% endif %}>
+              <span class="score-option__value">{{ option.value }}</span>
+              <span class="score-option__label">{{ option.label }}</span>
+            </label>
+          {% empty %}
+            <p class="msg msg-error">Etap nie ma skali punktacji – zgłoś to koordynatorowi.</p>
+          {% endfor %}
+        </div>
 
-        <label for="id_comment_internal">Komentarz wewnętrzny (dla komitetu)</label>
-        <textarea id="id_comment_internal" name="comment_internal" rows="5">{{ review.comment_internal }}</textarea>
+        <p class="field">
+          <label for="id_comment_internal">Komentarz wewnętrzny (dla komitetu)</label>
+          <textarea id="id_comment_internal" name="comment_internal" rows="5">{{ review.comment_internal }}</textarea>
+          <span class="helptext">Widzą go koordynator i komisja odwoławcza – uczestnik nie.</span>
+        </p>
 
-        <label for="id_comment_for_participant">Komentarz dla uczestnika</label>
-        <textarea id="id_comment_for_participant" name="comment_for_participant" rows="5">{{ review.comment_for_participant }}</textarea>
+        <p class="field">
+          <label for="id_comment_for_participant">Komentarz dla uczestnika</label>
+          <textarea id="id_comment_for_participant" name="comment_for_participant" rows="5">{{ review.comment_for_participant }}</textarea>
+          <span class="helptext">Trafia do panelu uczestnika po ogłoszeniu wyników etapu.</span>
+        </p>
 
         <input type="hidden" id="id_annotations" name="annotations" value="{{ annotations_json }}">
 
-        <div class="actions">
+        <div class="actions actions--sticky">
           <button type="button"
+                  class="btn btn--secondary"
                   hx-post="{% url 'web:review-draft' review.pk %}"
                   hx-include="#review-form"
                   hx-target="#draft-status"
                   hx-swap="outerHTML">Zapisz szkic</button>
-          <button type="submit">Wyślij ocenę</button>
+          <button type="submit" class="btn btn--primary">Wyślij ocenę</button>
         </div>
       </fieldset>
     </form>
