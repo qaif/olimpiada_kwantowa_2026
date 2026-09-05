@@ -74,3 +74,9 @@ Status: `todo` / `in_progress` / `done` / `escalated`.
 | T-02 | Brak testu wyścigu na `redeem_invitation` i testu 429 na `register` | T-10 (testy współbieżne z `transaction=True`) |
 | T-02 | `allocate_public_code` TOCTOU (exists → create) | zamknięte w T-03 (retry na IntegrityError) |
 | T-02 | Zmienne `plain_code` widoczne w tracebacku przy DEBUG | zamknięte w T-03 (`@sensitive_variables`) |
+| T-03 | `statement_pdf` chroniony tylko przez pominięcie URL w serializerze; plik na storage bez kontroli dostępu | po T-04: serwować przez widok z `stage.has_opened()` / presigned URL; test że zasób jest nieosiągalny przed otwarciem |
+| T-03 | Brak `MEDIA_ROOT`/`MEDIA_URL` (pliki lądują w /app) | po T-04: `MEDIA_ROOT=/var/app/media` (wolumen), `MEDIA_URL=/media/`, lub storage S3 |
+| T-03 | Admin tworzy Stage z pominięciem `create_stage` → brak ScoringScale/QualificationRule | po T-04: `min_num=1` na inline'ach + `save_related` dopinający domyślne obiekty; test admina |
+| T-03 | `@sensitive_variables` pomija `password` w register_*/_create_user | po T-04: bezargumentowy `@sensitive_variables()` |
+| T-03 | `create_participant_with_public_code` rozpoznaje kolizję po substringu komunikatu; brak testów | po T-04: `constraint_name` z psycopg diag + 3 testy |
+| T-03 | low: `register_for_stage` nie wymaga bieżącej edycji; `for_user` koordynatora w `/me/entries/`; `allowed_values()` akceptuje bool; `seed_demo` vs inna bieżąca edycja; 4 zapytania w `editions/current/` | po T-04 (jedna seria drobnych poprawek) |
