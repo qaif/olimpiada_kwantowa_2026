@@ -14,6 +14,8 @@
     handle {
         reverse_proxy web:8000 {
             header_up X-Forwarded-Proto {scheme}
+            # Adres klienta dla audytu; backend ufa temu nagłówkowi tylko, gdy REMOTE_ADDR jest adresem proxy.
+            header_up X-Real-IP {remote_host}
         }
     }
     header {
