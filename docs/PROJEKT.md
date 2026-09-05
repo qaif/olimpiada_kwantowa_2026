@@ -36,12 +36,14 @@ Uzasadnienie:
 |---|---|---|
 | `proxy` | caddy:2 | TLS (auto Let's Encrypt), reverse proxy, limity rozmiaru żądań, serwowanie statyków |
 | `web` | build z `./backend` (gunicorn + uvicorn workers) | Django + Wagtail + DRF |
-| `worker` | ten sam obraz, `celery worker` | skan antywirusowy uploadów, generowanie PDF wyników, e‑maile, zamykanie etapów |
-| `beat` | ten sam obraz, `celery beat` | harmonogram: `close_stage_at_deadline`, przypomnienia, otwarcie okna reklamacji |
+| `worker` | ten sam obraz, `celery worker` | skan antywirusowy uploadów, zamykanie etapów, finalizacja okien reklamacji (e‑maile i PDF wyników: backlog) |
+| `beat` | ten sam obraz, `celery beat` | harmonogram: `close_due_stages` (co 60 s), `finalize_closed_appeal_windows` (co 5 min) |
 | `db` | postgres:16 | dane |
 | `redis` | redis:7 | broker Celery, cache, rate limiting |
 | `minio` | minio/minio | prywatny bucket `submissions` (presigned URL, brak publicznego dostępu), bucket `public-media` dla Wagtail |
 | `clamav` | clamav/clamav | skan każdego pliku przed udostępnieniem recenzentom |
+| `minio-init` | minio/mc (jednorazowo) | buckety, polityki anonimowe, konta serwisowe per bucket (`wagtail-media`, `app-private`) |
+| `e2e` | mcr.microsoft.com/playwright/python (profil `e2e`, dev) | scenariusz end‑to‑end w sieci compose |
 | `mailpit` | axllent/mailpit (tylko profil `dev`) | podgląd e‑maili |
 
 Sieci: `edge` (proxy ↔ web) i `internal` (web/worker ↔ db/redis/minio/clamav). Baza, redis, clamav i minio **nie** są w `edge` i nie mają portów wystawionych na hosta w profilu produkcyjnym.
@@ -281,7 +283,7 @@ Zasady punktacji:
 Reklamacje (procedura odwoławcza):
 1. Okno otwiera `beat` (`appeal_window_opens_at`). Uczestnik składa jedną reklamację na zadanie z uzasadnieniem.
 2. Komisja odwoławcza (`is_appeals_committee=True`, z wykluczeniem autorów Review rundy 1) widzi rozwiązanie, obie oceny i argument.
-3. Decyzja: odrzucona / uwzględniona / częściowo, z `new_score` i uzasadnieniem → `FinalGrade(method=APPEAL)`, wpis w `AuditLog`, powiadomienie e‑mail.
+3. Decyzja: odrzucona / uwzględniona / częściowo, z `new_score` i uzasadnieniem → `FinalGrade(method=APPEAL)`, wpis w `AuditLog` (powiadomienie e‑mail: backlog).
 4. Po zamknięciu okna i wszystkich decyzji: przeliczenie progów i publikacja.
 
 ---

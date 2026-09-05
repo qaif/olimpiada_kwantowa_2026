@@ -120,3 +120,6 @@ Otwarte pozycje po T-10 (żadna nie jest `high`): limit bajtów dla `.ipynb`, li
 konto niezależny od IP, rotacja kluczy MinIO bez ręcznej procedury, `next_stage_conflicts` w UI,
 `entry_totals` jako osobna tabela, anonimizacja konta członka komitetu, TTL i rotacja tokenu DRF,
 sprzątanie osieroconych obiektów w S3, weryfikacja `unsafe-eval` w polityce CSP panelu.
+| końcowy | Brak powiadomień e‑mail (decyzja reklamacji, wyniki) i generowania PDF wyników – obiecane w pierwotnym projekcie, nie zamówione w T-01..T-10 | osobny task po T-10 (kolejka `mail`, mailpit gotowe) |
+| końcowy | Brak nagłówka `Permissions-Policy`; test flag ciasteczek w `production.py`; `PHASE_OFFSETS` zduplikowane w e2e i komendzie; `EMBED_FRAME_SOURCES` vs `WAGTAILEMBEDS_FINDERS` bez testu równości; `seed_demo` z progiem 0 pkt | drobne, po T-10 |
+| końcowy | zamknięte: admin API Caddy tylko localhost; bezpiecznik `SECRET_KEY`/S3 w `production.py`; flagi Secure w `.env.example` domyślnie bezpieczne | – |

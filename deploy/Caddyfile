@@ -1,5 +1,6 @@
 {
-    admin 0.0.0.0:2019
+    # API administracyjne wyłącznie z wnętrza kontenera (healthcheck woła 127.0.0.1:2019).
+    admin localhost:2019
 }
 
 {$SITE_DOMAIN} {

@@ -22,6 +22,8 @@ przychodzą od człowieka) sięgałby także prac uczestników. Klucze ustawia `
 
 from urllib.parse import urlsplit
 
+from django.core.exceptions import ImproperlyConfigured
+
 from .base import *  # noqa: F401,F403
 from .base import (
     S3_ENDPOINT_URL,
@@ -36,6 +38,14 @@ from .base import (
     STORAGES,
     env,
 )
+
+# Bezpiecznik: produkcja nie może wstać z kluczem zapasowym z repozytorium ani bez sekretów storage.
+if SECRET_KEY == "insecure-dev-key-change-me" or len(SECRET_KEY) < 50:  # noqa: S105
+    raise ImproperlyConfigured(
+        "DJANGO_SECRET_KEY musi być ustawiony (min. 50 znaków) w środowisku produkcyjnym."
+    )
+if not S3_ACCESS_KEY or not S3_SECRET_KEY:
+    raise ImproperlyConfigured("MINIO_ROOT_USER/MINIO_ROOT_PASSWORD (lub konta serwisowe S3_*) są wymagane.")
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=not DEBUG)

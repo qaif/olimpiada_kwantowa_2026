@@ -38,7 +38,7 @@ Siedem poleceń od pustego katalogu do działającego systemu z danymi demonstra
 git clone <adres-repozytorium> && cd olimpiada-clade                                    # 1
 DC="docker compose -f docker-compose.yml -f docker-compose.dev.yml"                     # 2
 cp .env.example .env                                                                    # 3
-for k in DJANGO_SECRET_KEY POSTGRES_PASSWORD MINIO_ROOT_PASSWORD \
+for k in DJANGO_SECRET_KEY (min. 50 znaków; produkcja odmawia startu z krótszym lub domyślnym kluczem) POSTGRES_PASSWORD MINIO_ROOT_PASSWORD \
          S3_PUBLIC_SECRET_KEY S3_PRIVATE_SECRET_KEY; do \
   v=$(openssl rand -base64 48 | tr -d '/+=\n' | cut -c1-40); sed -i "s|^$k=.*|$k=$v|" .env; done   # 4
 $DC up -d --build web worker beat minio-init                                            # 5
