@@ -8,9 +8,11 @@ from freezegun import freeze_time
 
 from apps.accounts.tests.factories import ParticipantFactory
 from apps.competitions.models import (
+    Edition,
     QualificationMode,
     QualificationRule,
     ScoringScale,
+    Stage,
     StageEntry,
     StageEntryStatus,
     StageKind,
@@ -25,6 +27,8 @@ DEADLINE_AT = datetime(2026, 10, 15, 10, 0, tzinfo=UTC)
 
 
 def _elim_stage(**kwargs):
+    # Rejestracja wymaga bieżącej edycji – reużywamy istniejącą, żeby nie złamać "jedna bieżąca".
+    kwargs.setdefault("edition", Edition.objects.filter(is_current=True).first() or CurrentEditionFactory())
     return StageFactory(kind=StageKind.ELIM, opens_at=OPENS_AT, deadline_at=DEADLINE_AT, **kwargs)
 
 
@@ -138,13 +142,16 @@ def test_kryterium_6_rejestracja_w_oknie_tworzy_wpis_registered():
 @freeze_time("2026-10-15 10:00:05")
 def test_kryterium_6_grace_seconds_przedluza_okno_rejestracji():
     """6. Deadline jest liczony jako `deadline_at + grace_seconds`, po stronie serwera."""
-    with_grace = _elim_stage(grace_seconds=600)
-    without_grace = _elim_stage(grace_seconds=0)
+    # Jeden etap ELIM w bieżącej edycji: najpierw bez tolerancji (zamknięty), potem z tolerancją (otwarty).
+    stage = _elim_stage(grace_seconds=0)
 
-    assert register_for_stage(ParticipantFactory(), with_grace).pk is not None
     with pytest.raises(DomainError) as exc:
-        register_for_stage(ParticipantFactory(), without_grace)
+        register_for_stage(ParticipantFactory(), stage)
     assert exc.value.machine_code == "REGISTRATION_CLOSED"
+
+    Stage.objects.filter(pk=stage.pk).update(grace_seconds=600)
+    stage.refresh_from_db()
+    assert register_for_stage(ParticipantFactory(), stage).pk is not None
 
 
 @pytest.mark.django_db

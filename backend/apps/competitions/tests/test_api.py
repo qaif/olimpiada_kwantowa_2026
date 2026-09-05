@@ -28,7 +28,7 @@ def api():
 @pytest.mark.django_db
 def test_kryterium_7_druga_rejestracja_przez_api_daje_409_already_registered(api):
     """7. `POST stages/{id}/register/` drugi raz → 409 ALREADY_REGISTERED."""
-    stage = StageFactory(kind=StageKind.ELIM)
+    stage = StageFactory(kind=StageKind.ELIM, edition=CurrentEditionFactory())
     participant = ParticipantFactory()
     api.force_authenticate(user=participant.user)
 

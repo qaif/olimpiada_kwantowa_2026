@@ -44,6 +44,7 @@ def _normalize_email(email: str) -> str:
     return email.strip().lower()
 
 
+@sensitive_variables()
 def _validate_password_or_raise(password: str, user: User) -> None:
     try:
         validate_password(password, user=user)
@@ -52,6 +53,7 @@ def _validate_password_or_raise(password: str, user: User) -> None:
         raise DomainError(" ".join(exc.messages), "WEAK_PASSWORD", status.HTTP_400_BAD_REQUEST) from exc
 
 
+@sensitive_variables()
 def _create_user(*, email: str, password: str, first_name: str, last_name: str) -> User:
     email = _normalize_email(email)
     if User.objects.filter(email=email).exists():
@@ -63,6 +65,19 @@ def _create_user(*, email: str, password: str, first_name: str, last_name: str) 
     return User.objects.create_user(
         email=email, password=password, first_name=first_name, last_name=last_name
     )
+
+
+def _violates_constraint(exc: IntegrityError, fragment: str) -> bool:
+    """Czy IntegrityError dotyczy constraintu o nazwie zawierającej ``fragment``.
+
+    Na psycopg nazwa constraintu jest w ``diag.constraint_name`` (pewne źródło); dopasowanie po
+    komunikacie zostaje tylko jako fallback dla backendów bez diagnostyki (np. SQLite).
+    """
+    diag = getattr(exc.__cause__, "diag", None)
+    name = getattr(diag, "constraint_name", None)
+    if name:
+        return fragment in name
+    return fragment in str(exc)
 
 
 def create_participant_with_public_code(**fields) -> Participant:
@@ -77,7 +92,7 @@ def create_participant_with_public_code(**fields) -> Participant:
             with transaction.atomic():
                 return Participant.objects.create(public_code=generate_public_code(), **fields)
         except IntegrityError as exc:
-            if "public_code" not in str(exc):
+            if not _violates_constraint(exc, "public_code"):
                 raise
     raise DomainError(
         "Nie udało się wygenerować kodu uczestnika.",
@@ -86,6 +101,7 @@ def create_participant_with_public_code(**fields) -> Participant:
     )
 
 
+@sensitive_variables()
 @transaction.atomic
 def register_participant(
     *,
@@ -176,7 +192,7 @@ def redeem_invitation(plain_code: str) -> InvitationCode:
     return invitation
 
 
-@sensitive_variables("plain_code", "invitation_code")
+@sensitive_variables()
 @transaction.atomic
 def register_committee(
     *,

@@ -4,6 +4,7 @@ Każdy widok deklaruje ``permission_classes`` jawnie. Widoki tylko orkiestrują 
 są w ``services.py``, kształt odpowiedzi w ``serializers.py``.
 """
 
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema
@@ -16,7 +17,7 @@ from rest_framework.throttling import AnonRateThrottle
 from apps.accounts.permissions import IsParticipant
 from apps.core.api import DomainError
 
-from .models import Stage
+from .models import Problem, Stage
 from .serializers import CurrentEditionSerializer, StageEntrySerializer
 from .services import current_edition, current_stage, entries_for_user, register_for_stage
 
@@ -62,8 +63,32 @@ class MyEntriesView(GenericAPIView):
     serializer_class = StageEntrySerializer
 
     def get_queryset(self):
-        return entries_for_user(self.request.user)
+        # Widok "me" zawsze zawęża do własnego profilu – konto łączące role nie dostanie cudzych wpisów.
+        return entries_for_user(self.request.user).filter(participant__user=self.request.user)
 
     @extend_schema(responses={200: StageEntrySerializer(many=True)})
     def get(self, request):
         return Response(self.get_serializer(self.get_queryset(), many=True).data)
+
+
+class ProblemStatementView(GenericAPIView):
+    """Treść zadania (PDF) – serwowana przez aplikację, nie przez publiczny URL storage.
+
+    Plik jest osiągalny wyłącznie po ``opens_at`` etapu; wcześniej odpowiedź to 404 (nie 403),
+    żeby nie ujawniać, czy treść już istnieje.
+    """
+
+    permission_classes = [AllowAny]
+    throttle_classes = [AnonRateThrottle]
+
+    @extend_schema(responses={(200, "application/pdf"): bytes})
+    def get(self, request, pk: int):
+        problem = get_object_or_404(Problem.objects.select_related("stage"), pk=pk)
+        if not problem.stage.has_opened() or not problem.statement_pdf:
+            raise Http404
+        return FileResponse(
+            problem.statement_pdf.open("rb"),
+            content_type="application/pdf",
+            as_attachment=False,
+            filename=f"zadanie-{problem.number}.pdf",
+        )

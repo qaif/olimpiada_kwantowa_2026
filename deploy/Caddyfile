@@ -22,3 +22,12 @@
         Referrer-Policy "same-origin"
     }
 }
+
+# Publiczny endpoint S3 dla presigned URL (podpis SigV4 obejmuje host, więc osobna nazwa, nie podścieżka).
+# Bucket `submissions` jest prywatny: bez ważnego podpisu MinIO odpowiada 403.
+s3.{$SITE_DOMAIN} {
+    request_body {
+        max_size {$MAX_UPLOAD_MB}MB
+    }
+    reverse_proxy minio:9000
+}

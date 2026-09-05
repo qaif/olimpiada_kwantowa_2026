@@ -29,6 +29,9 @@ DEFAULT_MAX_VALUE = 6
 SUPPORTED_FILE_FORMATS = ("pdf", "ipynb", "py")
 DEFAULT_ALLOWED_FORMATS = ["pdf"]
 DEFAULT_MAX_FILE_MB = 20
+# Górna granica limitu na zadanie. Powyżej 100 MB plik i tak nie przeszedłby skanu: to
+# ``StreamMaxLength`` clamd (``CLAMAV_STREAM_MAX_BYTES``), więc zgłoszenie utknęłoby bez werdyktu.
+MAX_FILE_MB_LIMIT = 100
 
 
 def default_scoring_values() -> list[dict]:
@@ -91,6 +94,9 @@ class Stage(models.Model):
     appeal_window_opens_at = models.DateTimeField("otwarcie okna reklamacji")
     appeal_window_closes_at = models.DateTimeField("zamknięcie okna reklamacji")
     results_published_at = models.DateTimeField("wyniki opublikowane", null=True, blank=True)
+    # Ustawiany przez beat (``apps.submissions.tasks.close_due_stages``) po ``submission_deadline``.
+    # Znacznik pełni też rolę bezpiecznika idempotencji: etap zamykamy dokładnie raz.
+    closed_at = models.DateTimeField("etap zamknięty", null=True, blank=True)
 
     class Meta:
         verbose_name = "etap"
@@ -193,8 +199,10 @@ class ScoringScale(models.Model):
         """Zbiór dopuszczalnych ocen. Używany przy walidacji ``Review.score`` (T-05)."""
         result: set[int] = set()
         for item in self.values or []:
-            if isinstance(item, dict) and isinstance(item.get("value"), int):
-                result.add(item["value"])
+            value = item.get("value") if isinstance(item, dict) else None
+            # bool jest podklasą int – True/False nie są ocenami (spójnie z clean()).
+            if isinstance(value, int) and not isinstance(value, bool):
+                result.add(value)
         return result
 
     def clean(self) -> None:
@@ -291,6 +299,10 @@ class Problem(models.Model):
             models.CheckConstraint(
                 condition=Q(max_file_mb__gte=1), name="competitions_problem_max_file_mb_positive"
             ),
+            models.CheckConstraint(
+                condition=Q(max_file_mb__lte=MAX_FILE_MB_LIMIT),
+                name="competitions_problem_max_file_mb_under_limit",
+            ),
         ]
 
     def __str__(self) -> str:
@@ -308,6 +320,10 @@ class Problem(models.Model):
             )
         if len(set(formats)) != len(formats):
             raise ValidationError({"allowed_formats": "Formaty nie mogą się powtarzać."})
+        if self.max_file_mb is not None and not (1 <= self.max_file_mb <= MAX_FILE_MB_LIMIT):
+            raise ValidationError(
+                {"max_file_mb": f"Limit rozmiaru musi mieścić się w 1–{MAX_FILE_MB_LIMIT} MB."}
+            )
 
 
 class StageEntryStatus(models.TextChoices):

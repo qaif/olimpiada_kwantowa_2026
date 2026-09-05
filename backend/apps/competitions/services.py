@@ -98,6 +98,16 @@ def create_stage(
     return stage
 
 
+def ensure_stage_defaults(stage: Stage) -> None:
+    """Dopina domyślną skalę i próg do etapu utworzonego z pominięciem ``create_stage`` (np. admin)."""
+    ScoringScale.objects.get_or_create(
+        stage=stage, defaults={"values": default_scoring_values(), "max_value": DEFAULT_MAX_VALUE}
+    )
+    QualificationRule.objects.get_or_create(
+        stage=stage, defaults={"mode": QualificationMode.MIN_POINTS, "min_points": 0}
+    )
+
+
 def _registration_closed() -> DomainError:
     return DomainError(
         "Rejestracja do tego etapu jest zamknięta.",
@@ -128,7 +138,8 @@ def register_for_stage(participant: Participant, stage: Stage, *, now=None) -> S
             "STAGE_NOT_OPEN_FOR_REGISTRATION",
             status.HTTP_403_FORBIDDEN,
         )
-    if not stage.is_open_for_submissions(now):
+    if not stage.edition.is_current or not stage.is_open_for_submissions(now):
+        # Etap edycji archiwalnej nie przyjmuje rejestracji, nawet jeśli jego terminy są "otwarte".
         raise _registration_closed()
     if StageEntry.objects.filter(participant=participant, stage=stage).exists():
         raise _already_registered()

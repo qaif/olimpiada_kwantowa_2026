@@ -7,6 +7,7 @@ odbywa się w jednym formularzu (macierz uprawnień 2.3: wyłącznie koordynator
 from django.contrib import admin
 
 from .models import Edition, Problem, QualificationRule, ScoringScale, Stage, StageEntry
+from .services import ensure_stage_defaults
 
 
 class StageInline(admin.TabularInline):
@@ -22,6 +23,11 @@ class EditionAdmin(admin.ModelAdmin):
     list_filter = ("is_current",)
     search_fields = ("year_label",)
     inlines = (StageInline,)
+
+    def save_related(self, request, form, formsets, change):
+        super().save_related(request, form, formsets, change)
+        for stage in form.instance.stages.all():
+            ensure_stage_defaults(stage)
 
 
 class ScoringScaleInline(admin.StackedInline):
@@ -57,6 +63,11 @@ class StageAdmin(admin.ModelAdmin):
     list_filter = ("edition", "kind")
     date_hierarchy = "opens_at"
     inlines = (ScoringScaleInline, QualificationRuleInline, ProblemInline)
+
+    def save_related(self, request, form, formsets, change):
+        """Etap z admina ma zawsze skalę i próg – tak jak etap z ``create_stage``."""
+        super().save_related(request, form, formsets, change)
+        ensure_stage_defaults(form.instance)
 
 
 @admin.register(ScoringScale)

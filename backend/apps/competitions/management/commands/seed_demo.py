@@ -80,9 +80,12 @@ class Command(BaseCommand):
     # --- edycja i etapy -------------------------------------------------------------------
 
     def _ensure_edition(self) -> Edition:
-        edition, created = Edition.objects.get_or_create(
-            year_label=DEMO_EDITION_LABEL, defaults={"is_current": True}
-        )
+        edition, created = Edition.objects.get_or_create(year_label=DEMO_EDITION_LABEL)
+        if not edition.is_current:
+            # Najpierw zdejmij flagę z innych edycji – częściowy unique constraint dopuszcza jedną bieżącą.
+            Edition.objects.filter(is_current=True).exclude(pk=edition.pk).update(is_current=False)
+            edition.is_current = True
+            edition.save(update_fields=["is_current"])
         self._report("edycja", edition.year_label, created)
         return edition
 

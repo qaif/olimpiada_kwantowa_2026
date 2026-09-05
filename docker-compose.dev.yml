@@ -9,6 +9,7 @@ services:
     environment:
       DJANGO_DEBUG: "1"
       RUN_COLLECTSTATIC: "0"
+      S3_PUBLIC_ENDPOINT_URL: http://localhost:9000
     ports:
       - "8000:8000"
   worker:
@@ -23,6 +24,8 @@ services:
     ports:
       - "5432:5432"
   minio:
+    # Sieć `internal` ma internal:true, więc publikacja portu wymaga dodatkowo sieci `edge`.
+    networks: [internal, edge]
     ports:
       - "9000:9000"
       - "9001:9001"

@@ -4,6 +4,7 @@ Publiczne zasoby (``editions/current/``) nie zawierają żadnych danych uczestni
 terminy, rodzaje etapów i metadane zadań. Treść zadania jest ujawniana dopiero po otwarciu etapu.
 """
 
+from django.urls import reverse
 from rest_framework import serializers
 
 from .models import Edition, Problem, Stage, StageEntry
@@ -42,7 +43,7 @@ class PublicProblemSerializer(serializers.ModelSerializer):
         if not obj.statement_pdf:
             return None
         request = self.context.get("request")
-        url = obj.statement_pdf.url
+        url = reverse("competitions:problem-statement", kwargs={"pk": obj.pk})
         return request.build_absolute_uri(url) if request is not None else url
 
 

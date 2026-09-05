@@ -2,6 +2,19 @@
 # Profile: domyślny = produkcja/staging, `--profile dev` dodaje mailpit i wystawia porty pomocnicze.
 # Sekrety wyłącznie przez .env (patrz .env.example). Żadna usługa danych nie jest w sieci `edge`.
 
+x-app-env: &app-env
+  DJANGO_SETTINGS_MODULE: config.settings.production
+  DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+  REDIS_URL: redis://redis:6379/0
+  CELERY_BROKER_URL: redis://redis:6379/1
+  S3_ENDPOINT_URL: http://minio:9000
+  # Host, pod którym przeglądarka widzi MinIO (Caddy: s3.<SITE_DOMAIN>); dev override podaje localhost:9000.
+  S3_PUBLIC_ENDPOINT_URL: ${S3_PUBLIC_ENDPOINT_URL:-https://s3.${SITE_DOMAIN:-localhost}}
+  S3_SUBMISSIONS_BUCKET: submissions
+  S3_PUBLIC_BUCKET: public-media
+  CLAMAV_HOST: clamav
+  CLAMAV_PORT: "3310"
+
 x-app-base: &app-base
   build:
     context: ./backend
@@ -9,16 +22,7 @@ x-app-base: &app-base
     target: runtime
   image: olimpiada/web:${APP_VERSION:-dev}
   env_file: .env
-  environment:
-    DJANGO_SETTINGS_MODULE: config.settings.production
-    DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-    REDIS_URL: redis://redis:6379/0
-    CELERY_BROKER_URL: redis://redis:6379/1
-    S3_ENDPOINT_URL: http://minio:9000
-    S3_SUBMISSIONS_BUCKET: submissions
-    S3_PUBLIC_BUCKET: public-media
-    CLAMAV_HOST: clamav
-    CLAMAV_PORT: "3310"
+  environment: *app-env
   networks: [internal]
   restart: unless-stopped
   read_only: true
@@ -47,7 +51,7 @@ services:
     environment:
       SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-25}
-    networks: [edge]
+    networks: [edge, internal]   # internal: trasa s3.<domena> -> minio
     depends_on:
       web: { condition: service_healthy }
     healthcheck:
@@ -76,13 +80,17 @@ services:
   worker:
     <<: *app-base
     command: celery -A config worker -l info --concurrency ${CELERY_CONCURRENCY:-2} -Q default,scan,mail
+    environment:      # migracje i collectstatic wykonuje tylko web
+      <<: *app-env
+      RUN_MIGRATIONS: "0"
+      RUN_COLLECTSTATIC: "0"
     depends_on:
       db:     { condition: service_healthy }
       redis:  { condition: service_healthy }
       minio:  { condition: service_healthy }
       clamav: { condition: service_healthy }
     healthcheck:
-      test: ["CMD", "celery", "-A", "config", "inspect", "ping", "-d", "celery@$$HOSTNAME", "--timeout", "5"]
+      test: ["CMD-SHELL", "celery -A config inspect ping -d celery@$$HOSTNAME --timeout 5"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -91,6 +99,10 @@ services:
   beat:
     <<: *app-base
     command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    environment:      # migracje i collectstatic wykonuje tylko web
+      <<: *app-env
+      RUN_MIGRATIONS: "0"
+      RUN_COLLECTSTATIC: "0"
     healthcheck:
       test: ["CMD-SHELL", "pgrep -f 'celery.*beat' >/dev/null || exit 1"]
       interval: 30s

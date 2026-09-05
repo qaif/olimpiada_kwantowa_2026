@@ -47,5 +47,8 @@ ignore = ["S101", "S105", "S106"]  # assert w testach, "hasła" w fixture'ach
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings.test"
 python_files = ["test_*.py"]
-addopts = "-ra --strict-markers -p no:cacheprovider"
+# --ds jest konieczne, bo w kontenerach compose ustawia DJANGO_SETTINGS_MODULE=config.settings.production,
+# a w pytest-django zmienna środowiskowa ma pierwszeństwo przed ini. Bez tego testy szłyby na prawdziwy
+# MinIO/Redis i nie miałyby CELERY_TASK_ALWAYS_EAGER.
+addopts = "-ra --strict-markers -p no:cacheprovider --ds=config.settings.test"
 markers = ["slow: testy wymagające zewnętrznych usług"]

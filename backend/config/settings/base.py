@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     "apps.core",
     "apps.accounts",
     "apps.competitions",
+    "apps.submissions",
 ]
 
 AUTH_USER_MODEL = "accounts.User"
@@ -84,6 +85,13 @@ CELERY_TASK_ROUTES = {
 }
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_TIMEZONE = "UTC"
+CELERY_BEAT_SCHEDULE = {
+    # Zamknięcie etapu po deadline: LOCKED na najnowszych wersjach + znacznik Stage.closed_at.
+    "close-due-stages": {
+        "task": "apps.submissions.tasks.close_due_stages",
+        "schedule": 60.0,
+    },
+}
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -104,17 +112,32 @@ STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
+MEDIA_URL = "/media/"
+MEDIA_ROOT = env("DJANGO_MEDIA_ROOT", default=str(BASE_DIR / "media"))
 
 # Prywatny storage rozwiązań (MinIO / S3). Konfiguracja przez env; użycie w apps.submissions.
 S3_ENDPOINT_URL = env("S3_ENDPOINT_URL", default="")
+# Adres, pod którym MinIO jest widoczny dla przeglądarki uczestnika. Wewnętrzny ``S3_ENDPOINT_URL``
+# (np. http://minio:9000) rozwiązuje się wyłącznie w sieci compose, więc presigned URL musi być
+# podpisany hostem publicznym – podpis obejmuje nagłówek Host i nie da się go później podmienić.
+S3_PUBLIC_ENDPOINT_URL = env("S3_PUBLIC_ENDPOINT_URL", default="")
 S3_ACCESS_KEY = env("MINIO_ROOT_USER", default="")
 S3_SECRET_KEY = env("MINIO_ROOT_PASSWORD", default="")
 S3_SUBMISSIONS_BUCKET = env("S3_SUBMISSIONS_BUCKET", default="submissions")
 S3_PUBLIC_BUCKET = env("S3_PUBLIC_BUCKET", default="public-media")
 S3_PRESIGNED_TTL_SECONDS = env.int("S3_PRESIGNED_TTL_SECONDS", default=600)
+S3_REGION = env("S3_REGION", default="us-east-1")
+
+# Backend storage rozwiązań: S3/MinIO produkcyjnie, lokalny katalog w testach (config/settings/test.py).
+SUBMISSION_STORAGE_BACKEND = env(
+    "SUBMISSION_STORAGE_BACKEND", default="apps.submissions.storage.S3SubmissionStorage"
+)
 
 CLAMAV_HOST = env("CLAMAV_HOST", default="clamav")
 CLAMAV_PORT = env.int("CLAMAV_PORT", default=3310)
+# ``StreamMaxLength`` clamd (obraz clamav 1.4 → 100 MB). Powyżej tej wartości clamd zrywa połączenie
+# w trakcie INSTREAM, co wyglądałoby jak awaria usługi i uruchamiało bezsensowne retry.
+CLAMAV_STREAM_MAX_BYTES = env.int("CLAMAV_STREAM_MAX_BYTES", default=100 * 1024 * 1024)
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -146,6 +169,8 @@ SPECTACULAR_SETTINGS = {
     "ENUM_NAME_OVERRIDES": {
         "CommitteeStatusEnum": "apps.accounts.models.CommitteeStatus.choices",
         "StageEntryStatusEnum": "apps.competitions.models.StageEntryStatus.choices",
+        "SubmissionStatusEnum": "apps.submissions.models.SubmissionStatus.choices",
+        "AvStatusEnum": "apps.submissions.models.AvStatus.choices",
     },
 }
 
