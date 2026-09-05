@@ -237,6 +237,7 @@ stateDiagram-v2
 ```
 
 Zasady punktacji:
+- Przydział recenzentów do zgłoszenia jest atomowy (komplet recenzji rundy 1 powstaje w jednej transakcji). Runda 1 domyka się, gdy wszystkie istniejące recenzje rundy 1 są SUBMITTED, więc dokładanie kolejnego recenzenta po pierwszej wystawionej ocenie nie jest możliwe; brakujący recenzent oznacza pominięcie zgłoszenia (`skipped`) i ponowny przydział przed pierwszą oceną.
 - Domyślna skala: **0 / 2 / 5 / 6** (semantyka jak w Olimpiadzie Matematycznej). Skala jest per etap (`ScoringScale.values`), więc finał może używać innej, jeśli komitet tak zdecyduje.
 - Rozjazd oznacza różne wartości. Nie ma uśredniania, bo skala jest porządkowa. Rozstrzyga trzeci recenzent albo posiedzenie.
 - Suma punktów etapu = Σ `FinalGrade.score` po wszystkich zadaniach. `QualificationRule` przelicza `StageEntry.status` po zamknięciu reklamacji, nigdy wcześniej.
