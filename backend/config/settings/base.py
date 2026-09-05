@@ -1,8 +1,10 @@
 """Ustawienia wspólne. Wszystko konfigurowalne przychodzi ze zmiennych środowiskowych."""
 
+import logging
 from pathlib import Path
 
 import environ
+from wagtail.embeds import oembed_providers
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 env = environ.Env()
@@ -162,7 +164,10 @@ STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     # Media aplikacyjne, których nie wolno oddać anonimowi: treści zadań (``Problem.statement_pdf``)
     # są jawne dopiero po ``Stage.opens_at`` i serwuje je widok aplikacji, nigdy URL storage.
-    "private_media": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    # Lokalnie i w testach to podkatalog ``private/`` w ``MEDIA_ROOT`` – rozdział katalogów jest
+    # tym samym, czym w produkcji rozdział bucketów, i tak samo daje się sprawdzić testem
+    # (plik ``statement_pdf`` nie może leżeć w drzewie storage ``default``).
+    "private_media": {"BACKEND": "apps.competitions.storage.PrivateMediaFileSystemStorage"},
     "staticfiles": {
         "BACKEND": (
             "django.contrib.staticfiles.storage.StaticFilesStorage"
@@ -180,8 +185,43 @@ S3_ENDPOINT_URL = env("S3_ENDPOINT_URL", default="")
 # (np. http://minio:9000) rozwiązuje się wyłącznie w sieci compose, więc presigned URL musi być
 # podpisany hostem publicznym – podpis obejmuje nagłówek Host i nie da się go później podmienić.
 S3_PUBLIC_ENDPOINT_URL = env("S3_PUBLIC_ENDPOINT_URL", default="")
+# Poświadczenia administracyjne MinIO. Zostają wyłącznie jako awaryjny fallback dla instalacji
+# sprzed rozdzielenia kont serwisowych – normalnie backend ich nie używa (patrz niżej).
 S3_ACCESS_KEY = env("MINIO_ROOT_USER", default="")
 S3_SECRET_KEY = env("MINIO_ROOT_PASSWORD", default="")
+
+
+def _bucket_credentials(prefix: str, purpose: str) -> tuple[str, str]:
+    """Para (klucz, sekret) konta serwisowego z polityką ograniczoną do jednego bucketu.
+
+    Konta tworzy ``minio-init`` w compose: ``S3_PUBLIC_*`` widzi wyłącznie bucket ``public-media``,
+    ``S3_PRIVATE_*`` wyłącznie ``submissions``. Rozdział jest tu po to, żeby kompromitacja
+    ścieżki redakcyjnej (Wagtail przyjmuje pliki od redaktora) nie dawała dostępu do prac
+    uczestników ani do treści zadań przed otwarciem etapu – i odwrotnie.
+
+    Gdy zmiennych nie ma, schodzimy na ``MINIO_ROOT_*`` (zgodność wsteczna z instalacjami sprzed
+    T-09), ale zostawiamy o tym ostrzeżenie: to konto ma dostęp do **wszystkich** bucketów.
+    """
+    access = env(f"{prefix}_ACCESS_KEY", default="")
+    secret = env(f"{prefix}_SECRET_KEY", default="")
+    if access and secret:
+        return access, secret
+    if S3_ACCESS_KEY:
+        logging.getLogger("config.settings").warning(
+            "Brak %s_ACCESS_KEY/%s_SECRET_KEY – %s używa poświadczeń administracyjnych MinIO "
+            "(dostęp do wszystkich bucketów). Utwórz konto serwisowe ograniczone do jednego bucketu.",
+            prefix,
+            prefix,
+            purpose,
+        )
+    return S3_ACCESS_KEY, S3_SECRET_KEY
+
+
+#: Konto serwisowe bucketu ``public-media`` – media redakcyjne Wagtaila (alias ``default``).
+S3_PUBLIC_ACCESS_KEY, S3_PUBLIC_SECRET_KEY = _bucket_credentials("S3_PUBLIC", "storage publiczny")
+#: Konto serwisowe bucketu ``submissions`` – prace uczestników i treści zadań (``private_media``).
+S3_PRIVATE_ACCESS_KEY, S3_PRIVATE_SECRET_KEY = _bucket_credentials("S3_PRIVATE", "storage prywatny")
+
 S3_SUBMISSIONS_BUCKET = env("S3_SUBMISSIONS_BUCKET", default="submissions")
 S3_PUBLIC_BUCKET = env("S3_PUBLIC_BUCKET", default="public-media")
 S3_PRESIGNED_TTL_SECONDS = env.int("S3_PRESIGNED_TTL_SECONDS", default=600)
@@ -207,10 +247,31 @@ WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL", default=f"https://{SITE_DOM
 # Whitelist rozszerzeń dokumentów: bez niej redaktor mógłby wrzucić do publicznego bucketu plik
 # wykonywalny albo HTML (XSS z tej samej domeny, gdyby kiedyś serwować go bez pośrednictwa widoku).
 WAGTAILDOCS_EXTENSIONS = ["pdf", "doc", "docx", "odt", "ods", "odp", "xls", "xlsx", "csv", "txt", "zip"]
+# Dokumenty idą **przez widok** ``/documents/<id>/<nazwa>``, nie przez przekierowanie na URL bucketu.
+# Wagtail bez tej wartości wybiera dla zdalnego storage tryb ``redirect``: obiekt jest wtedy
+# oddawany 302 na publiczny adres MinIO, więc ograniczenie widoczności kolekcji („tylko zalogowani”)
+# byłoby sprawdzane, ale sam link do bucketu zostawałby w historii przeglądarki i w logach proxy.
+# ``serve_view`` streamuje plik z aplikacji, więc kontrola dostępu i treść idą tą samą drogą.
+# UWAGA (PROJEKT.md 1.4): obiekt nadal leży w anonimowo czytelnym buckecie ``public-media`` –
+# ograniczenie kolekcji utrudnia znalezienie pliku, ale nie czyni go tajnym. Materiały, które
+# naprawdę nie mogą wyciec, idą do ``private_media``, nie do dokumentów Wagtaila.
+WAGTAILDOCS_SERVE_METHOD = "serve_view"
 # Podgląd i wyszukiwarka: prosty backend bazodanowy – bez dodatkowej usługi w compose.
 WAGTAILSEARCH_BACKENDS = {"default": {"BACKEND": "wagtail.search.backends.database"}}
 WAGTAIL_APPEND_SLASH = True
 WAGTAILEMBEDS_RESPONSIVE_HTML = True
+# Osadzenia (``EmbedBlock``) wyłącznie z dwóch serwisów. Domyślny finder Wagtaila akceptuje ponad
+# 70 dostawców oEmbed – każdy z nich to obcy ``<iframe>`` na naszej domenie i obce żądanie z
+# przeglądarki czytelnika, którego nikt u nas nie przeglądał. Lista jest tą samą listą, co
+# ``frame-src`` w ``apps/web/middleware.py``: finder pilnuje, co redaktor może wstawić, CSP – co
+# przeglądarka wykona. Adres spoza listy kończy się ``EmbedUnsupportedProviderException``
+# już w edytorze, więc redaktor dostaje błąd, a nie cichy pusty blok.
+WAGTAILEMBEDS_FINDERS = [
+    {
+        "class": "wagtail.embeds.finders.oembed",
+        "providers": [oembed_providers.youtube, oembed_providers.vimeo],
+    }
+]
 
 # Logowanie sesyjne interfejsu WWW (apps.web). Niezalogowany dostaje 302 na /login/?next=...
 LOGIN_URL = "/login/"

@@ -6,9 +6,10 @@ CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    # Ten sam katalog co ``default`` – rozdział buckietów ma sens dopiero w produkcji, a testy
-    # sprawdzają regułę „statement_pdf nie idzie przez default storage” przez alias, nie przez ścieżkę.
-    "private_media": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    # Osobny katalog (``MEDIA_ROOT/private``), a nie ten sam co ``default``. Rozdział buckietów
+    # jest produkcyjny, ale reguła „``statement_pdf`` nie idzie przez ``default``” ma się dać
+    # sprawdzić skutkiem, a nie nazwą aliasu – patrz apps/cms/tests/test_security.py.
+    "private_media": {"BACKEND": "apps.competitions.storage.PrivateMediaFileSystemStorage"},
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}

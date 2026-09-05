@@ -4,10 +4,13 @@ from datetime import timedelta
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from apps.cms.models import ArchiveDocument, ArchiveEditionPage, NewsPage
-from apps.competitions.models import Problem, Stage
+from apps.competitions.models import Problem, Stage, StageKind
+from apps.competitions.tests.factories import EditionFactory, StageFactory
 from apps.results.models import Anonymization, ResultsPublication
 
 pytestmark = pytest.mark.django_db
@@ -198,3 +201,83 @@ def test_results_page_ignores_stage_without_publication(web_client, open_stage):
     content = web_client.get("/wyniki/").content.decode()
 
     assert "Nie ogłoszono jeszcze żadnych wyników." in content
+
+
+def test_results_page_query_count_does_not_grow_with_publications(
+    web_client, edition, open_stage, django_assert_num_queries
+):
+    """Przegląd Critica T-09, finding 5: jedno zapytanie na całość, nie jedno na etap.
+
+    Rozgrzewka przed pomiarem jest konieczna: pierwsze żądanie w teście dociąga m.in. cache
+    ``ContentType`` i wpis witryny, więc bez niej porównywalibyśmy start procesu z jego pracą.
+    """
+    web_client.get("/wyniki/")
+    publish(open_stage)
+
+    with CaptureQueriesContext(connection) as one_publication:
+        web_client.get("/wyniki/")
+    baseline = len(one_publication.captured_queries)
+
+    for kind in (StageKind.DISTRICT, StageKind.FINAL):
+        publish(StageFactory(edition=edition, kind=kind))
+
+    with django_assert_num_queries(baseline):
+        response = web_client.get("/wyniki/")
+
+    # I nadal jest to strona z trzema tabelami, a nie z pustką, na której łatwo o stałą liczbę.
+    assert response.content.decode().count("OLM-AAAAAA") == 3
+
+
+def test_results_page_shows_older_editions_as_links_not_as_tables(web_client, edition, open_stage):
+    """Snapshot finału to tysiące wierszy – archiwalne roczniki zostają odnośnikiem."""
+    old_edition = EditionFactory(year_label="2019/2020", is_current=False)
+    old_stage = StageFactory(edition=old_edition, kind=StageKind.FINAL)
+    publish(old_stage, snapshot=[{"rank": 1, "display": "OLM-ZZZZZZ", "total": 30, "points": {}}])
+    publish(open_stage)
+
+    content = web_client.get("/wyniki/").content.decode()
+
+    assert "OLM-AAAAAA" in content  # bieżąca edycja: pełna tabela
+    assert "OLM-ZZZZZZ" not in content  # archiwalna: bez tabeli…
+    assert f'href="/results/{old_stage.pk}/"' in content  # …ale z linkiem
+    assert old_edition.year_label in content
+
+
+def test_archive_edition_documents_are_fetched_in_one_query(
+    web_client, archive_index, edition, django_assert_num_queries
+):
+    """Przegląd Critica T-09, finding 6: ``select_related`` na dokumentach archiwum."""
+    from wagtail.documents.models import Document
+
+    page = ArchiveEditionPage(title="Edycja z materiałami", slug="z-materialami", edition=edition)
+    archive_index.add_child(instance=page)
+    for number in range(1, 4):
+        ArchiveDocument.objects.create(
+            page=page,
+            kind=ArchiveDocument.Kind.PROBLEMS,
+            title=f"Materiał {number}",
+            document=Document.objects.create(
+                title=f"Materiał {number}",
+                file=SimpleUploadedFile(f"m{number}.pdf", b"%PDF-1.4", content_type="application/pdf"),
+            ),
+        )
+    web_client.get(page.url)  # rozgrzewka – patrz test wyżej
+
+    with CaptureQueriesContext(connection) as three_documents:
+        web_client.get(page.url)
+    baseline = len(three_documents.captured_queries)
+
+    ArchiveDocument.objects.create(
+        page=page,
+        kind=ArchiveDocument.Kind.SOLUTIONS,
+        title="Materiał 4",
+        document=Document.objects.create(
+            title="Materiał 4",
+            file=SimpleUploadedFile("m4.pdf", b"%PDF-1.4", content_type="application/pdf"),
+        ),
+    )
+
+    with django_assert_num_queries(baseline):
+        response = web_client.get(page.url)
+
+    assert "Materiał 4" in response.content.decode()

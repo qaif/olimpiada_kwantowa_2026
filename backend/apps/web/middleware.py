@@ -25,12 +25,19 @@ Decyzje (T-08, „Wymagania bezpieczeństwa”):
   usunięcie tego wyjątku wymagałoby rezygnacji z HTMX albo własnego builda z nonce na każdym stylu.
   Do listy hostów dochodzi ``cdn.jsdelivr.net`` – arkusz Swagger UI na ``/api/docs/``. Przy już
   obecnym ``'unsafe-inline'`` dopisanie hosta niczego nie osłabia,
-- ``connect-src`` zawiera dodatkowo publiczny host MinIO (``S3_PUBLIC_ENDPOINT_URL``): pdf.js
-  pobiera plik rozwiązania przez ``fetch``, a endpoint pobrania przekierowuje na presigned URL,
+- ``connect-src``, ``img-src`` i ``media-src`` zawierają dodatkowo publiczny host MinIO
+  (``S3_PUBLIC_ENDPOINT_URL``). ``connect-src``, bo pdf.js pobiera plik rozwiązania przez ``fetch``,
+  a endpoint pobrania przekierowuje na presigned URL. ``img-src`` i ``media-src``, bo od T-09
+  obrazy i renditions Wagtaila stoją w publicznym buckecie i są linkowane bezpośrednio spod hosta
+  MinIO – bez tego wpisu przeglądarka blokuje **każdą** ilustrację redakcyjną w produkcji
+  (w devie storage jest lokalny i wpada w ``'self'``, więc problem nie byłby widoczny),
+- ``frame-src`` to zamknięta lista dostawców osadzeń (``EmbedBlock``): YouTube i Vimeo, dokładnie
+  te same, na które zawężony jest ``WAGTAILEMBEDS_FINDERS``. Nagłówek i finder muszą wymieniać
+  te same hosty – finder decyduje, co redaktor może wstawić, CSP, co przeglądarka wykona,
 - ``object-src 'none'``, ``base-uri 'self'``, ``frame-ancestors 'none'`` – standardowa domknięta baza.
 
-Nagłówek jest ustawiany na **każdej** odpowiedzi. Dla dwóch prefiksów – ``/cms/`` (Wagtail) i
-``/admin/`` (panel Django) – obowiązuje jednak **osobna, luźniejsza** polityka:
+Nagłówek jest ustawiany na **każdej** odpowiedzi. Dla panelu redakcyjnego (Wagtail) i panelu
+Django obowiązuje jednak **osobna, luźniejsza** polityka:
 
 - oba panele wstrzykują skrypty i style inline (Wagtail dodatkowo używa telepathu i Draftaila,
   panel Django – widgetów kalendarza), więc polityka nonce-only wyłączyłaby je w całości.
@@ -43,6 +50,10 @@ Nagłówek jest ustawiany na **każdej** odpowiedzi. Dla dwóch prefiksów – `
 Uwaga implementacyjna: w polityce panelu **nie ma** nonce'a. Przeglądarka, widząc ``nonce-…``
 w ``script-src``, ignoruje ``'unsafe-inline'`` – doklejenie obu naraz dałoby politykę pozornie
 luźną i faktycznie blokującą panel.
+
+Jak rozpoznajemy panel: patrz ``is_admin_request``. Prefiks ścieżki jest ostatnim, a nie
+pierwszym kryterium, i nie jest zapisany literałem – bierze się z ``reverse()``, więc przeniesienie
+panelu w ``config/urls.py`` nie zostawia po sobie polityki dopasowanej do starego adresu.
 """
 
 from __future__ import annotations
@@ -51,6 +62,7 @@ import secrets
 from urllib.parse import urlsplit
 
 from django.conf import settings
+from django.urls import NoReverseMatch, reverse
 
 #: CDN-y, z których wolno ładować skrypty. Pinowanie wersji i SRI są w szablonie ``base.html``.
 SCRIPT_CDN_SOURCES = ("https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net")
@@ -60,9 +72,25 @@ STYLE_CDN_SOURCES = ("https://cdn.jsdelivr.net",)
 
 NONCE_BYTES = 16
 
-#: Prefiksy ścieżek panelu redakcyjnego/administracyjnego. Kolejność bez znaczenia.
-#: ``/cms/`` musi się zgadzać z ``config/urls.py``.
-ADMIN_PATH_PREFIXES = ("/cms/", "/admin/")
+#: Hosty ramek dla ``EmbedBlock``. Muszą odpowiadać ``WAGTAILEMBEDS_FINDERS`` z ``settings/base.py``:
+#: oEmbed YouTube'a zwraca ``<iframe src="https://www.youtube.com/embed/…">`` (albo wariant
+#: ``youtube-nocookie`` przy ``?rel=0``), Vimeo – ``https://player.vimeo.com/video/…``.
+EMBED_FRAME_SOURCES = (
+    "https://www.youtube.com",
+    "https://www.youtube-nocookie.com",
+    "https://player.vimeo.com",
+)
+
+#: Nazwy widoków/przestrzeni nazw panelu. ``admin`` to panel Django (ma własną przestrzeń nazw),
+#: ``wagtailadmin_`` to prefiks nazw widoków Wagtaila – ten montuje się **bez** przestrzeni nazw,
+#: więc ``resolver_match.namespace`` dla ``/cms/`` jest pustym stringiem.
+ADMIN_URL_NAMESPACES = frozenset({"admin", "wagtailadmin"})
+ADMIN_VIEW_NAME_PREFIX = "wagtailadmin_"
+
+#: Nazwy adresów, spod których wyprowadzamy prefiksy panelu. Fallback (gdy panel nie jest
+#: zamontowany) trzyma historyczne literały – żeby middleware nie wywracał się na testowym urlconfie.
+ADMIN_ROOT_URL_NAMES = ("wagtailadmin_home", "admin:index")
+FALLBACK_ADMIN_PATH_PREFIXES = ("/cms/", "/admin/")
 
 
 def _origin(url: str | None) -> str:
@@ -73,27 +101,42 @@ def _origin(url: str | None) -> str:
     return ""
 
 
+def storage_origin() -> str:
+    """Origin publicznego bucketu mediów (obrazy i dokumenty Wagtaila). Pusty w devie."""
+    return _origin(getattr(settings, "S3_PUBLIC_ENDPOINT_URL", ""))
+
+
+def _with_storage(sources: list[str]) -> str:
+    """Lista źródeł powiększona o origin publicznego storage, gdy taki jest skonfigurowany."""
+    origin = storage_origin()
+    return " ".join([*sources, origin] if origin else sources)
+
+
 def build_policy(nonce: str) -> str:
     """Buduje treść polityki dla jednego żądania (nonce jest jednorazowy)."""
     # Kolejność jest istotna dla starych przeglądarek: nonce i hosty muszą stać przed
     # 'strict-dynamic', bo CSP2 po prostu pominie nieznane słowo kluczowe i użyje reszty listy.
     script_src = ["'self'", f"'nonce-{nonce}'", *SCRIPT_CDN_SOURCES, "'strict-dynamic'"]
-    connect_src = ["'self'", *SCRIPT_CDN_SOURCES]
-    storage_origin = _origin(getattr(settings, "S3_PUBLIC_ENDPOINT_URL", ""))
-    if storage_origin:
-        connect_src.append(storage_origin)
+    media_sources = _with_storage(["'self'", "data:", "blob:"])
+    connect_sources = _with_storage(["'self'", *SCRIPT_CDN_SOURCES])
     directives = [
         "default-src 'self'",
         "base-uri 'self'",
         "object-src 'none'",
         "frame-ancestors 'none'",
         "form-action 'self'",
-        "img-src 'self' data: blob:",
+        # Obrazy i pliki mediów redakcyjnych stoją w publicznym buckecie MinIO i są linkowane
+        # bezpośrednio (URL bez podpisu) – jego origin musi być na liście, inaczej produkcja
+        # blokuje każdą ilustrację i każdy rendition Wagtaila.
+        f"img-src {media_sources}",
+        f"media-src {media_sources}",
         "font-src 'self' data:",
         # Zobacz docstring modułu: wyjątek dotyczy wyłącznie stylów, nigdy skryptów.
         f"style-src 'self' 'unsafe-inline' {' '.join(STYLE_CDN_SOURCES)}",
         f"script-src {' '.join(script_src)}",
-        f"connect-src {' '.join(connect_src)}",
+        f"connect-src {connect_sources}",
+        # Zamknięta lista dostawców osadzeń – ta sama, na którą zawężony jest WAGTAILEMBEDS_FINDERS.
+        f"frame-src {' '.join(EMBED_FRAME_SOURCES)}",
         # pdf.js uruchamia worker; przy CDN cross-origin robi to przez blob: (fallback biblioteki).
         "worker-src 'self' blob:",
     ]
@@ -106,6 +149,7 @@ def build_admin_policy() -> str:
     ``frame-ancestors 'self'``, a nie ``'none'``: podgląd strony w Wagtailu osadza własny adres
     w ``<iframe>`` tej samej domeny. Ramek z obcych domen nadal nie ma.
     """
+    media_sources = _with_storage(["'self'", "data:", "blob:"])
     return "; ".join(
         [
             "default-src 'self'",
@@ -113,9 +157,11 @@ def build_admin_policy() -> str:
             "object-src 'none'",
             "frame-ancestors 'self'",
             "form-action 'self'",
-            "img-src 'self' data: blob:",
+            # Podgląd obrazu w bibliotece mediów i miniatura w wyborze obrazu idą prosto
+            # z publicznego bucketu – bez originu redaktor widzi w /cms/ same połamane ikony.
+            f"img-src {media_sources}",
             "font-src 'self' data:",
-            "media-src 'self' data: blob:",
+            f"media-src {media_sources}",
             "style-src 'self' 'unsafe-inline'",
             # Patrz docstring modułu: wyjątek dotyczy wyłącznie ścieżek panelu.
             "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
@@ -127,9 +173,50 @@ def build_admin_policy() -> str:
     )
 
 
+def admin_path_prefixes() -> tuple[str, ...]:
+    """Prefiksy panelu wyprowadzone z ``config/urls.py`` przez ``reverse()``.
+
+    Literał ``/cms/`` w kodzie middleware oznaczałby, że przeniesienie panelu w urlconfie po cichu
+    zostawia luźną politykę pod starym adresem, a panel pod nowym – bez działających skryptów.
+    """
+    prefixes = []
+    for name in ADMIN_ROOT_URL_NAMES:
+        try:
+            prefixes.append(reverse(name))
+        except NoReverseMatch:  # pragma: no cover - panel zawsze zamontowany w config/urls.py
+            continue
+    return tuple(prefixes) or FALLBACK_ADMIN_PATH_PREFIXES
+
+
 def is_admin_path(path: str) -> bool:
     """Czy ścieżka należy do panelu. Porównanie po prefiksie, na znormalizowanej ścieżce."""
-    return any(path.startswith(prefix) for prefix in ADMIN_PATH_PREFIXES)
+    return any(path.startswith(prefix) for prefix in admin_path_prefixes())
+
+
+def is_admin_request(request) -> bool:
+    """Czy żądanie trafiło do panelu redakcyjnego/administracyjnego.
+
+    Kolejność kryteriów jest celowa:
+
+    1. **przestrzeń nazw** z ``resolver_match`` – panel Django ma ``admin``. Ten sygnał pochodzi
+       z urlconfa, nie z tekstu adresu, więc nie da się go podrobić ścieżką,
+    2. **nazwa widoku** ``wagtailadmin_…`` – rdzeń panelu Wagtaila montuje się **bez** przestrzeni
+       nazw (``resolver_match.namespace`` jest tam pustym stringiem), więc punkt 1 by go nie złapał,
+    3. **prefiks ścieżki** (z ``reverse()``) – reszta panelu Wagtaila ma własne przestrzenie nazw
+       (``wagtailimages``, ``wagtaildocs``, ``wagtailsnippets``…), a wypisywanie ich listy
+       rozjeżdżałoby się z każdą wersją biblioteki. Ten sam warunek obsługuje odpowiedzi bez
+       ``resolver_match``: 404 pod ``/cms/nie-ma/`` albo wyjątek złapany przed rozwiązaniem adresu.
+    """
+    match = getattr(request, "resolver_match", None)
+    if match is not None:
+        namespaces = set(match.namespaces or ())
+        if match.namespace:
+            namespaces.add(match.namespace)
+        if namespaces & ADMIN_URL_NAMESPACES:
+            return True
+        if (match.view_name or "").rsplit(":", 1)[-1].startswith(ADMIN_VIEW_NAME_PREFIX):
+            return True
+    return is_admin_path(request.path)
 
 
 class ContentSecurityPolicyMiddleware:
@@ -146,7 +233,5 @@ class ContentSecurityPolicyMiddleware:
         request.csp_nonce = nonce
         response = self.get_response(request)
         if self.header not in response:
-            response[self.header] = (
-                build_admin_policy() if is_admin_path(request.path) else build_policy(nonce)
-            )
+            response[self.header] = build_admin_policy() if is_admin_request(request) else build_policy(nonce)
         return response

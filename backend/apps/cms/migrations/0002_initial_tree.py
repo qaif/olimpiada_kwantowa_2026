@@ -52,6 +52,17 @@ def _step(index: int) -> str:
     return digits.rjust(STEPLEN, "0")
 
 
+def _child_count(Page, parent) -> int:
+    """Ilu bezpośrednich potomków ma węzeł. Historyczny ``Page`` nie ma metod ``MP_Node``.
+
+    Liczymy z drzewa, a nie z ``parent.numchild``: licznik bywa nieaktualny na bazie, po której
+    ktoś chodził ręcznie, a od tej liczby zależy zarówno ścieżka nowego węzła, jak i ``numchild``
+    zapisywany na końcu. Warunek na ``path`` musi zostać razem z ``depth`` – samo ``depth``
+    złapałoby dzieci innego korzenia, gdyby takie kiedyś powstały.
+    """
+    return Page.objects.filter(depth=parent.depth + 1, path__startswith=parent.path).count()
+
+
 def _content_type(ContentType, model: str):
     content_type, _ = ContentType.objects.get_or_create(app_label="cms", model=model.lower())
     return content_type
@@ -101,7 +112,11 @@ def create_tree(apps, schema_editor):
     # Strona powitalna Wagtaila jest przykładem, nie treścią – zwalniamy po niej miejsce w drzewie.
     Page.objects.filter(depth=2, slug=HOME_SLUG, content_type__app_label="wagtailcore").delete()
 
-    home_path = root.path + _step(1)
+    # Pierwszy wolny segment liczymy ze stanu drzewa, a nie literałem ``_step(1)``: gdyby pod
+    # korzeniem stała już jakaś strona (inna witryna, strona utworzona przed tą migracją),
+    # ścieżka ``0001`` byłaby zajęta, a treebeard dostałby dwa węzły o tej samej ścieżce.
+    next_step = _child_count(Page, root) + 1
+    home_path = root.path + _step(next_step)
     home = HomePage.objects.create(
         hero_title=HOME_HERO,
         hero_text="",
@@ -133,8 +148,10 @@ def create_tree(apps, schema_editor):
             ),
         )
 
-    Page.objects.filter(pk=home.pk).update(numchild=len(SECTIONS))
-    Page.objects.filter(pk=root.pk).update(numchild=1)
+    # ``numchild`` liczony z drzewa, nie literałem: przy korzeniu z rodzeństwem ``1`` byłoby
+    # wprost nieprawdą, a treebeard trzyma ten licznik jako fakt (używa go m.in. ``add_child``).
+    Page.objects.filter(pk=home.pk).update(numchild=_child_count(Page, home))
+    Page.objects.filter(pk=root.pk).update(numchild=_child_count(Page, root))
 
     # Domyślna witryna. Uwaga: skasowanie strony powitalnej kaskaduje na ``Site`` z
     # ``wagtailcore.0002_initial_data`` (``root_page`` ma ``on_delete=CASCADE``), więc zwykle
@@ -168,7 +185,7 @@ def remove_tree(apps, schema_editor):
         return
     Site.objects.filter(is_default_site=True).update(root_page_id=root.pk)
     Page.objects.filter(content_type__app_label="cms").delete()
-    Page.objects.filter(pk=root.pk).update(numchild=0)
+    Page.objects.filter(pk=root.pk).update(numchild=_child_count(Page, root))
 
 
 class Migration(migrations.Migration):

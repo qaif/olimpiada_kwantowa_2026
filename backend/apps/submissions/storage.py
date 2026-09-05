@@ -102,6 +102,12 @@ class S3SubmissionStorage(SubmissionStorage):
     - ``presign_client`` (``S3_PUBLIC_ENDPOINT_URL``) – tylko do podpisania URL-a, którym pobierze
       plik przeglądarka uczestnika. Podpis SigV4 obejmuje nagłówek ``Host``, więc URL podpisany
       hostem ``minio`` jest bezużyteczny poza siecią compose i nie da się go poprawić po fakcie.
+
+    Oba klienty używają **prywatnego** konta serwisowego (``S3_PRIVATE_*``), którego polityka
+    obejmuje wyłącznie bucket ``submissions``. To nie jest kosmetyka: presigned URL dziedziczy
+    uprawnienia klucza, którym został podpisany, więc podpisanie go kontem administracyjnym
+    dawałoby link ważny także na inne buckety, gdyby ktoś kiedyś podmienił w nim nazwę zasobu
+    przed podpisaniem. Konto publiczne (``S3_PUBLIC_*``) nie ma tu wstępu w żadnym kierunku.
     """
 
     supports_presigned_url = True
@@ -109,12 +115,18 @@ class S3SubmissionStorage(SubmissionStorage):
     def __init__(self, bucket: str | None = None):
         self.bucket = bucket or settings.S3_SUBMISSIONS_BUCKET
 
+    @staticmethod
+    def _credentials() -> tuple[str, str]:
+        """Konto serwisowe bucketu prywatnego. ``base.py`` gwarantuje, że te nazwy istnieją."""
+        return settings.S3_PRIVATE_ACCESS_KEY, settings.S3_PRIVATE_SECRET_KEY
+
     @property
     def client(self):
+        access_key, secret_key = self._credentials()
         return _s3_client(
             settings.S3_ENDPOINT_URL,
-            settings.S3_ACCESS_KEY,
-            settings.S3_SECRET_KEY,
+            access_key,
+            secret_key,
             getattr(settings, "S3_REGION", "us-east-1"),
         )
 
@@ -124,10 +136,11 @@ class S3SubmissionStorage(SubmissionStorage):
         public = getattr(settings, "S3_PUBLIC_ENDPOINT_URL", "") or settings.S3_ENDPOINT_URL
         if public == settings.S3_ENDPOINT_URL:
             return self.client
+        access_key, secret_key = self._credentials()
         return _s3_client(
             public,
-            settings.S3_ACCESS_KEY,
-            settings.S3_SECRET_KEY,
+            access_key,
+            secret_key,
             getattr(settings, "S3_REGION", "us-east-1"),
         )
 

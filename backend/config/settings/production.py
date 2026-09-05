@@ -12,18 +12,26 @@ Storage (T-09):
   publiczny bucket byłby wyciekiem terminu zerowego. Plik serwuje ``ProblemStatementView``
   (``FileResponse`` ze strumienia z storage), nigdy bezpośredni URL obiektu,
 - bucket ``submissions`` pozostaje niedostępny dla Wagtaila: Wagtail używa wyłącznie ``default``.
+
+**Poświadczenia są rozdzielone razem z bucketami.** ``default`` dostaje konto ``S3_PUBLIC_*``
+(polityka MinIO obejmuje wyłącznie ``public-media``), ``private_media`` i backend rozwiązań –
+konto ``S3_PRIVATE_*`` (wyłącznie ``submissions``). Sam podział aliasów storage nie byłby
+zabezpieczeniem: z jednym kontem administracyjnym każdy błąd w ścieżce redakcyjnej (a tam pliki
+przychodzą od człowieka) sięgałby także prac uczestników. Klucze ustawia ``minio-init``.
 """
 
 from urllib.parse import urlsplit
 
 from .base import *  # noqa: F401,F403
 from .base import (
-    S3_ACCESS_KEY,
     S3_ENDPOINT_URL,
+    S3_PRIVATE_ACCESS_KEY,
+    S3_PRIVATE_SECRET_KEY,
+    S3_PUBLIC_ACCESS_KEY,
     S3_PUBLIC_BUCKET,
     S3_PUBLIC_ENDPOINT_URL,
+    S3_PUBLIC_SECRET_KEY,
     S3_REGION,
-    S3_SECRET_KEY,
     S3_SUBMISSIONS_BUCKET,
     STORAGES,
     env,
@@ -42,8 +50,6 @@ SECURE_REFERRER_POLICY = "same-origin"
 _public = urlsplit(S3_PUBLIC_ENDPOINT_URL or S3_ENDPOINT_URL or "")
 _s3_common = {
     "endpoint_url": S3_ENDPOINT_URL or None,
-    "access_key": S3_ACCESS_KEY or None,
-    "secret_key": S3_SECRET_KEY or None,
     "region_name": S3_REGION,
     "addressing_style": "path",
     "signature_version": "s3v4",
@@ -57,6 +63,10 @@ STORAGES = {
         "BACKEND": "storages.backends.s3.S3Storage",
         "OPTIONS": {
             **_s3_common,
+            # Konto z polityką wyłącznie na ``public-media``: Wagtail nie ma czym dosięgnąć
+            # bucketu ``submissions``, nawet gdyby ktoś przestawił mu ``bucket_name``.
+            "access_key": S3_PUBLIC_ACCESS_KEY or None,
+            "secret_key": S3_PUBLIC_SECRET_KEY or None,
             "bucket_name": S3_PUBLIC_BUCKET,
             # Bucket jest anonimowo czytelny, więc URL nie potrzebuje (i nie powinien mieć) podpisu:
             # podpisany link wygasa i psułby cache przeglądarki oraz proxy.
@@ -69,6 +79,10 @@ STORAGES = {
         "BACKEND": "storages.backends.s3.S3Storage",
         "OPTIONS": {
             **_s3_common,
+            # Konto z polityką wyłącznie na ``submissions`` – to samo, którego używa
+            # ``apps.submissions.storage.S3SubmissionStorage``.
+            "access_key": S3_PRIVATE_ACCESS_KEY or None,
+            "secret_key": S3_PRIVATE_SECRET_KEY or None,
             "bucket_name": S3_SUBMISSIONS_BUCKET,
             # Osobny prefiks: klucze rozwiązań budowane są z identyfikatorów zgłoszeń (patrz
             # apps.submissions.storage), więc kolizja jest niemożliwa, a listing zostaje czytelny.

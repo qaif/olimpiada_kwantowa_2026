@@ -13,7 +13,7 @@ Rozwiązanie jest w dwóch kawałkach:
   podaje szablonowi wyłącznie adresy plików; hashe muszą przyjść z konfiguracji, bo to tam
   pinowana jest wersja (``SWAGGER_UI_VERSION``) i tylko tam da się je utrzymać razem.
 
-Ścieżka ``/api/docs/`` celowo **nie** wchodzi do ``ADMIN_PATH_PREFIXES``: to jest strona API,
+Ścieżka ``/api/docs/`` celowo **nie** jest traktowana jak panel (``is_admin_request``): to strona API,
 nie panel biblioteki, której szablonów nie kontrolujemy – i po tej zmianie kontrolujemy.
 """
 

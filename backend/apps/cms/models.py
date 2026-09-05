@@ -8,14 +8,20 @@ Zasady, które te modele mają egzekwować:
 - **Treść zadań jest jawna dopiero po ``Stage.opens_at``.** ``ProblemsPage`` przed otwarciem etapu
   pokazuje wyłącznie komunikat: żadnego tytułu zadania, żadnego linku do PDF (T-09, kryterium 3).
 - **Tabela wyników pochodzi wyłącznie ze snapshotu.** ``ResultsPage`` czyta
-  ``ResultsPublication.snapshot`` przez ``apps.results.services.published_results`` i nie dotyka
-  ``FinalGrade`` ani danych uczestników (PROJEKT.md 2.4).
+  ``ResultsPublication.snapshot`` i nie dotyka ``FinalGrade`` ani danych uczestników
+  (PROJEKT.md 2.4).
 - **Treści redakcyjne renderują się przez filtr ``|richtext`` / ``{% include_block %}``** (Wagtail
   sanityzuje je whitelistą). W szablonach ``cms/`` nie ma ani jednego ``|safe``.
+- **Redaktor nie może przesłonić adresu aplikacji.** Wagtail jest catch-allem w korzeniu, więc
+  strona o slugu ``login`` na drugim poziomie drzewa miałaby adres ``/login/`` – ten sam, co widok
+  logowania. Kolejność z ``config/urls.py`` sprawia, że wygrywa aplikacja, czyli strona byłaby
+  po prostu nieosiągalna: redaktor widziałby „opublikowano”, a czytelnik formularz logowania.
+  ``CMSPage.clean`` odrzuca takie slugi (patrz ``RESERVED_SLUGS``).
 """
 
 from __future__ import annotations
 
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 from modelcluster.fields import ParentalKey
@@ -27,9 +33,70 @@ from wagtail.search import index
 from apps.competitions.models import Edition, Stage
 from apps.competitions.services import current_edition, current_stage
 from apps.results.models import ResultsPublication
-from apps.results.services import published_results
 
 from .blocks import RICH_TEXT_FEATURES, ArticleStreamBlock
+
+#: Adresy pierwszego segmentu, które należą do aplikacji (``config/urls.py`` + ``apps/web/urls.py``).
+#: Strona CMS z takim slugiem na drugim poziomie drzewa byłaby martwa – patrz docstring modułu.
+#: Lista jest jawna, a nie wyprowadzana z urlconfa: ``reverse()`` nie zna adresów, które dopiero
+#: powstaną, a slug raz opublikowany zostaje w linkach i w wyszukiwarkach.
+RESERVED_SLUGS = frozenset(
+    {
+        "admin",
+        "api",
+        "appeals",
+        "cms",
+        "coordinator",
+        "documents",
+        "healthz",
+        "login",
+        "logout",
+        "me",
+        "media",
+        "register",
+        "results",
+        "review",
+        "static",
+    }
+)
+
+#: Głębokość strony głównej w drzewie treebearda: ``Root`` ma 1, ``HomePage`` 2. Strony o adresie
+#: jednosegmentowym (``/aktualnosci/``) są jej dziećmi, czyli mają ``depth == 3``.
+HOME_PAGE_DEPTH = 2
+
+
+class CMSPage(Page):
+    """Wspólna baza stron części informacyjnej. Bez własnych pól – nie generuje migracji.
+
+    Jedyne, co dokłada, to walidacja zarezerwowanych slugów. Sprawdzenie „czy to drugi poziom”
+    ma dwie drogi, bo Wagtail woła ``full_clean`` w dwóch różnych momentach:
+
+    - strona już w drzewie (edycja, przeniesienie) ma ``depth`` i porównujemy je wprost,
+    - strona dopiero tworzona w ``/cms/`` **nie ma** jeszcze ani ``path``, ani ``depth`` (nadaje je
+      ``add_child`` już po walidacji formularza). Zostaje wtedy deklaracja ``parent_page_types``:
+      typy montowane pod stroną główną to dokładnie te, które trafią na drugi poziom.
+    """
+
+    class Meta:
+        abstract = True
+
+    def is_second_level(self) -> bool:
+        """Czy strona jest (albo dopiero będzie) bezpośrednim dzieckiem strony głównej."""
+        if self.depth:
+            return self.depth == HOME_PAGE_DEPTH + 1
+        return "cms.HomePage" in list(self.parent_page_types or ())
+
+    def clean(self):
+        super().clean()
+        if self.slug in RESERVED_SLUGS and self.is_second_level():
+            raise ValidationError(
+                {
+                    "slug": (
+                        f"Adres „/{self.slug}/” należy do aplikacji (logowanie, panel, API). "
+                        "Strona pod tym slugiem nigdy by się nie otworzyła – wybierz inny."
+                    )
+                }
+            )
 
 
 def _stage_rows(edition: Edition | None, now=None) -> list[dict]:
@@ -53,7 +120,7 @@ def _stage_rows(edition: Edition | None, now=None) -> list[dict]:
     ]
 
 
-class HomePage(Page):
+class HomePage(CMSPage):
     """Strona główna serwisu (korzeń witryny). Przejmuje ``/`` po widoku ``web:home`` z T-08."""
 
     hero_title = models.CharField("nagłówek", max_length=200, blank=True)
@@ -96,7 +163,7 @@ class HomePage(Page):
         return context
 
 
-class NewsIndexPage(Page):
+class NewsIndexPage(CMSPage):
     """Newsroom: lista aktualności. Sama nie ma treści poza wprowadzeniem."""
 
     intro = RichTextField("wprowadzenie", features=RICH_TEXT_FEATURES, blank=True)
@@ -117,7 +184,7 @@ class NewsIndexPage(Page):
         return context
 
 
-class NewsPage(Page):
+class NewsPage(CMSPage):
     """Pojedyncza aktualność: data, lead i treść w StreamField (akapit/obraz/dokument/embed)."""
 
     date = models.DateField("data publikacji", default=timezone.localdate)
@@ -144,7 +211,7 @@ class NewsPage(Page):
         verbose_name_plural = "aktualności"
 
 
-class ProblemsPage(Page):
+class ProblemsPage(CMSPage):
     """Zadania bieżącego etapu. Treści PDF pokazujemy dopiero po ``Stage.opens_at``."""
 
     intro = RichTextField("wprowadzenie", features=RICH_TEXT_FEATURES, blank=True)
@@ -192,7 +259,7 @@ class ProblemsPage(Page):
         return context
 
 
-class ArchiveIndexPage(Page):
+class ArchiveIndexPage(CMSPage):
     """Archiwum edycji: lista stron ``ArchiveEditionPage``."""
 
     intro = RichTextField("wprowadzenie", features=RICH_TEXT_FEATURES, blank=True)
@@ -214,7 +281,7 @@ class ArchiveIndexPage(Page):
         return context
 
 
-class ArchiveEditionPage(Page):
+class ArchiveEditionPage(CMSPage):
     """Jedna edycja w archiwum: opis, dokumenty (zadania/rozwiązania), linki do wyników etapów."""
 
     edition = models.ForeignKey(
@@ -241,6 +308,14 @@ class ArchiveEditionPage(Page):
     class Meta:
         verbose_name = "edycja w archiwum"
         verbose_name_plural = "edycje w archiwum"
+
+    def get_context(self, request, *args, **kwargs):
+        context = super().get_context(request, *args, **kwargs)
+        # ``select_related`` zamiast ``page.documents.all`` w szablonie: każdy wiersz sięga po
+        # ``item.document.url`` i ``file_extension``, więc bez tego archiwum z dwudziestoma
+        # materiałami robi dwadzieścia jeden zapytań zamiast jednego.
+        context["documents"] = self.documents.select_related("document")
+        return context
 
     def result_links(self) -> list[dict]:
         """Etapy edycji, dla których istnieje **ogłoszona** tabela wyników.
@@ -285,11 +360,22 @@ class ArchiveDocument(Orderable):
         return f"{self.get_kind_display()}: {self.title}"
 
 
-class ResultsPage(Page):
+class ResultsPage(CMSPage):
     """Publiczna tabela wyników: etapy z ogłoszoną publikacją plus wbudowany snapshot.
 
     Strona nie czyta ani ``StageEntry``, ani ``Participant`` – wyłącznie zamrożony
     ``ResultsPublication.snapshot`` (T-09, kryterium 6).
+
+    Dwie decyzje o kształcie tej strony:
+
+    - **jedno zapytanie na całość.** Wchodzimy od strony publikacji (``ResultsPublication``),
+      a nie od etapów, i dociągamy ``stage__edition`` przez ``select_related``. Wariant „lista
+      etapów, a potem publikacja per etap” rósł liniowo z liczbą ogłoszonych etapów, a rośnie ona
+      z każdą edycją i nigdy nie maleje,
+    - **pełne tabele tylko dla bieżącej edycji.** Archiwalne edycje zostają linkiem do
+      ``/results/<id>/``. Snapshot finału to tysiące wierszy; sklejenie wszystkich roczników
+      w jeden dokument HTML dawałoby stronę rosnącą bez końca, którą i tak nikt nie przewinie.
+      Stare tabele nie znikają – mają własny adres i archiwum.
     """
 
     intro = RichTextField("wprowadzenie", features=RICH_TEXT_FEATURES, blank=True)
@@ -306,24 +392,32 @@ class ResultsPage(Page):
 
     def get_context(self, request, *args, **kwargs):
         context = super().get_context(request, *args, **kwargs)
-        stages = Stage.objects.filter(results_published_at__isnull=False).select_related("edition")
-        tables = []
-        for stage in stages.order_by("-results_published_at", "-id"):
-            publication = published_results(stage.pk)
-            if publication is None:
-                # Znacznik na etapie bez publikacji: tabela nie istnieje, więc nic nie pokazujemy.
-                continue
-            rows = publication.rows
-            tables.append(
-                {
-                    "stage": stage,
-                    "publication": publication,
-                    "rows": rows,
-                    "problem_numbers": sorted(
-                        {key for row in rows for key in (row.get("points") or {})},
-                        key=lambda value: (len(value), value),
-                    ),
-                }
-            )
-        context["tables"] = tables
+        edition = current_edition()
+        # Filtr po ``results_published_at`` zostaje: znacznik na etapie jest tym, co koordynator
+        # zdejmuje, żeby wycofać ogłoszenie, a sam rekord publikacji ma zostać jako ślad.
+        publications = (
+            ResultsPublication.objects.filter(stage__results_published_at__isnull=False)
+            .select_related("stage", "stage__edition")
+            .order_by("-stage__results_published_at", "-stage_id")
+        )
+        tables: list[dict] = []
+        archive: list[dict] = []
+        for publication in publications:
+            stage = publication.stage
+            if edition is not None and stage.edition_id == edition.pk:
+                rows = publication.rows
+                tables.append(
+                    {
+                        "stage": stage,
+                        "publication": publication,
+                        "rows": rows,
+                        "problem_numbers": sorted(
+                            {key for row in rows for key in (row.get("points") or {})},
+                            key=lambda value: (len(value), value),
+                        ),
+                    }
+                )
+            else:
+                archive.append({"stage": stage, "publication": publication})
+        context.update({"edition": edition, "tables": tables, "archive": archive})
         return context
