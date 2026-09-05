@@ -158,7 +158,8 @@ services:
       retries: 5
 
   minio-init:
-    # Jednorazowo tworzy buckety i polityki: submissions = private, public-media = download.
+    # Jednorazowo: buckety, polityki anonimowe oraz dwa konta serwisowe z dostępem tylko do
+    # własnego bucketu (separacja kryptograficzna mediów publicznych i danych prywatnych).
     image: minio/mc:RELEASE.2025-04-16T18-13-26Z
     entrypoint: >
       /bin/sh -c "
@@ -167,10 +168,22 @@ services:
       mc mb --ignore-existing local/public-media &&
       mc anonymous set none local/submissions &&
       mc anonymous set download local/public-media &&
+      mc admin policy create local public-media-rw /policies/policy-public-media.json &&
+      mc admin policy create local submissions-rw /policies/policy-submissions.json &&
+      (mc admin user info local $$S3_PUBLIC_ACCESS_KEY >/dev/null 2>&1 || mc admin user add local $$S3_PUBLIC_ACCESS_KEY $$S3_PUBLIC_SECRET_KEY) &&
+      (mc admin user info local $$S3_PRIVATE_ACCESS_KEY >/dev/null 2>&1 || mc admin user add local $$S3_PRIVATE_ACCESS_KEY $$S3_PRIVATE_SECRET_KEY) &&
+      (mc admin policy attach local public-media-rw --user $$S3_PUBLIC_ACCESS_KEY || true) &&
+      (mc admin policy attach local submissions-rw --user $$S3_PRIVATE_ACCESS_KEY || true) &&
       echo done"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      S3_PUBLIC_ACCESS_KEY: ${S3_PUBLIC_ACCESS_KEY}
+      S3_PUBLIC_SECRET_KEY: ${S3_PUBLIC_SECRET_KEY}
+      S3_PRIVATE_ACCESS_KEY: ${S3_PRIVATE_ACCESS_KEY}
+      S3_PRIVATE_SECRET_KEY: ${S3_PRIVATE_SECRET_KEY}
+    volumes:
+      - ./deploy/minio:/policies:ro
     networks: [internal]
     depends_on:
       minio: { condition: service_healthy }

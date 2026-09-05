@@ -14,7 +14,7 @@ Status: `todo` / `in_progress` / `done` / `escalated`.
 | T-07 | Wyniki i kwalifikacja: przeliczenie progów (MIN_POINTS/TOP_N/TOP_N_PER_DISTRICT/HYBRID), StageEntry.status, ResultsPublication snapshot zanonimizowany, publiczna tabela | T-06 | done |
 | T-08 | Panel recenzenta UI (HTMX): lista przydziałów, podgląd PDF (pdf.js) z adnotacjami, formularz oceny; panel uczestnika: upload, statusy, wyniki własne, reklamacja | T-07 | done |
 | T-09 | Część informacyjna (Wagtail): newsroom, strona bieżących zadań, archiwum edycji, tabela wyników publiczna | T-07 | done |
-| T-10 | E2E: scenariusz rejestracja → upload → zamknięcie → 2 oceny → rozjazd → moderacja → reklamacja → publikacja; README, .env.example, security checklist | T-08, T-09 | todo |
+| T-10 | E2E: scenariusz rejestracja → upload → zamknięcie → 2 oceny → rozjazd → moderacja → reklamacja → publikacja; README, .env.example, security checklist | T-08, T-09 | todo (start po iteracji poprawkowej T-08) |
 
 ## Kryteria akceptacji per task
 
@@ -97,3 +97,6 @@ Status: `todo` / `in_progress` / `done` / `escalated`.
 | T-08 | **high**: `/login/`, `/register/`, `/register/committee/`, upload przez UI omijają throttling (`login` 10/min, `register` 10/h, `upload` 30/h działają tylko na API) | iteracja poprawkowa T-08 po T-09: wspólny limiter na cache kluczowany (IP, e-mail) z tymi samymi stawkami co DRF |
 | T-08 | med: CSP bez nonce psuje `/api/docs/` (Swagger inline script); `script-src` z całymi originami CDN (dodać `'strict-dynamic'`); etykieta „(UTC)” przy czasie w Europe/Warsaw; `MESSAGE_STORAGE` cookie dla kodu zaproszenia | iteracja poprawkowa T-08 |
 | T-08 | low: `AppealDecideView` poza `appeals_queue` (oracle konfliktu); N+1 `participant` w `appeals_queue`; `_appealable()` w widoku zamiast serwisu; CSP za WhiteNoise | iteracja poprawkowa T-08 |
+| T-09 | **high**: CSP `img-src`/`media-src` bez originu publicznego bucketu – obrazy Wagtaila blokowane w produkcji | iteracja poprawkowa T-09 (po T-08-fix) |
+| T-09 | med: dokumenty Wagtaila serwowane przez redirect (prywatność kolekcji pozorna) → `WAGTAILDOCS_SERVE_METHOD="serve_view"`; wspólne poświadczenia MinIO dla obu bucketów → infra gotowa (`S3_PUBLIC_*`/`S3_PRIVATE_*`, minio-init z politykami), backend ma ich użyć; `EmbedBlock` bez `WAGTAILEMBEDS_FINDERS` i bez `frame-src`; N+1 na `/wyniki/` | iteracja poprawkowa T-09 |
+| T-09 | low: brak prefetch dokumentów archiwum; migracja `0004` nie przenosi plików; polityka CSP po prefiksie ścieżki; idempotencja drzewa CMS; testowy `private_media` w tym samym katalogu; kolizje slugów z trasami aplikacji; `unsafe-eval` w panelu do weryfikacji | iteracja poprawkowa T-09 (szybkie) |
