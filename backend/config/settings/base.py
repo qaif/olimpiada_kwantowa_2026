@@ -24,7 +24,10 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "django_celery_beat",
     "apps.core",
+    "apps.accounts",
 ]
+
+AUTH_USER_MODEL = "accounts.User"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -115,14 +118,21 @@ CLAMAV_PORT = env.int("CLAMAV_PORT", default=3310)
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {
+    # Token pierwszy: dzięki temu brak uwierzytelnienia daje 401 (nagłówek WWW-Authenticate),
+    # a nie 403. Sesja nadal działa dla panelu i widoków przeglądarkowych.
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.SessionAuthentication",
         "rest_framework.authentication.TokenAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.AnonRateThrottle"],
-    "DEFAULT_THROTTLE_RATES": {"anon": "60/min", "register": "10/hour", "upload": "30/hour"},
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "60/min",
+        "register": "10/hour",
+        "login": "10/min",
+        "upload": "30/hour",
+    },
     "EXCEPTION_HANDLER": "apps.core.api.exception_handler",
 }
 
