@@ -10,10 +10,12 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
-from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from drf_spectacular.views import SpectacularAPIView
 from wagtail import urls as wagtail_urls
 from wagtail.admin import urls as wagtailadmin_urls
 from wagtail.documents import urls as wagtaildocs_urls
+
+from apps.web.views.docs import NonceSwaggerView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -25,7 +27,10 @@ urlpatterns = [
     path("api/", include("apps.appeals.urls")),
     path("api/", include("apps.results.urls")),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
-    path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
+    # Swagger UI z nonce'ami i SRI – patrz apps/web/views/docs.py. Wersja biblioteki podaje
+    # szablonowi wyłącznie adresy plików, więc podmiana widoku jest jedynym miejscem, w którym
+    # da się dołożyć skróty SRI bez rozjazdu z pinowaną wersją w ustawieniach.
+    path("api/docs/", NonceSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
     # Redakcja części informacyjnej. Dostęp ma wyłącznie grupa `coordinator` (migracja cms.0003).
     path("cms/", include(wagtailadmin_urls)),
     # Dokumenty Wagtaila serwuje widok aplikacji, a nie bezpośredni URL bucketu.

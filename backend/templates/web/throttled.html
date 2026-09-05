@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% comment %}
+  Odpowiedź na przekroczenie limitu prób (HTTP 429). Świadomie nie mówi, czy konto istnieje ani
+  ile prób zostało – komunikat jest ten sam dla każdego formularza objętego limitem.
+{% endcomment %}
+{% block title %}Zbyt wiele prób{% endblock %}
+{% block content %}
+<h1>Zbyt wiele prób</h1>
+<p class="msg msg-error">{{ message }}</p>
+<p class="hint">Ponowna próba będzie możliwa za około {{ retry_after }} s.</p>
+{% endblock %}

@@ -385,6 +385,9 @@ def appeals_queue(member: CommitteeMember | None):
         .select_related(
             "submission",
             "submission__entry",
+            # Kolejka pokazuje pseudonim autora (``participant.public_code``) – bez tego złączenia
+            # panel komisji robił jeden dodatkowy SELECT na każdą reklamację w kolejce.
+            "submission__entry__participant",
             "submission__entry__stage",
             "submission__entry__stage__scoring_scale",
             "submission__problem",
@@ -405,6 +408,32 @@ def appeals_queue(member: CommitteeMember | None):
         )
         .order_by("filed_at", "id")
     )
+
+
+def appealable_submissions(user, now=None) -> list[Submission]:
+    """Własne rozwiązania, na które wolno teraz złożyć reklamację.
+
+    Trzy warunki, dokładnie te same, których pilnuje ``file_appeal``: ocena wstępna
+    (``GRADED_PROVISIONAL``), otwarte okno odwoławcze etapu i brak wcześniejszej reklamacji.
+    Reguła jest tutaj, a nie w widoku, żeby panel nie mógł zaproponować formularza, który serwis
+    i tak odrzuci (ani odwrotnie – ukryć formularza, który by przeszedł).
+
+    Filtr widoczności zostaje w queryseckie (``submissions_for_user`` → ``Submission.for_user``),
+    więc lista nigdy nie wyjdzie poza własne prace pytającego. Ten queryset dociąga już
+    ``entry__stage`` i ``appeals__decision``, więc pętla nie robi zapytań na wiersz.
+    """
+    # Import lokalny: ``apps.submissions`` nie zna ``apps.appeals`` (zależność idzie w drugą
+    # stronę), a ``services`` obu aplikacji ładują się przy starcie – zostawiamy to na wywołanie.
+    from apps.submissions.services import submissions_for_user
+
+    now = now or timezone.now()
+    return [
+        submission
+        for submission in submissions_for_user(user)
+        if submission.status == SubmissionStatus.GRADED_PROVISIONAL
+        and not submission.appeals.all()
+        and submission.entry.stage.is_appeal_window_open(now)
+    ]
 
 
 def appeals_for_participant(user):

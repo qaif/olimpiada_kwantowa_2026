@@ -57,6 +57,10 @@ AUTH_USER_MODEL = "accounts.User"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # CSP bez 'unsafe-inline' dla skryptów – patrz apps/web/middleware.py. Musi stać **przed**
+    # WhiteNoise: WhiteNoise odpowiada na /static/… sam, nie wołając dalszych warstw, więc niżej
+    # w łańcuchu nagłówek nie objąłby ani jednego pliku statycznego.
+    "apps.web.middleware.ContentSecurityPolicyMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -64,8 +68,6 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    # CSP bez 'unsafe-inline' dla skryptów – patrz apps/web/middleware.py.
-    "apps.web.middleware.ContentSecurityPolicyMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -90,6 +92,12 @@ TEMPLATES = [
         },
     },
 ]
+
+# Komunikaty w sesji, nie w ciasteczku. Powód jest konkretny: koordynator dostaje jawny kod
+# zaproszenia przez ``messages`` i przy domyślnym ``FallbackStorage`` ten kod wyjeżdżałby
+# do przeglądarki w ciasteczku ``messages`` – czyli na dysk, do logów proxy i do każdego
+# rozszerzenia czytającego ciasteczka. Sesja trzyma go po stronie serwera (Redis).
+MESSAGE_STORAGE = "django.contrib.messages.storage.session.SessionStorage"
 
 DATABASES = {
     "default": env.db("DATABASE_URL", default="postgres://olimpiada:olimpiada@localhost:5432/olimpiada")
@@ -230,10 +238,34 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "apps.core.api.exception_handler",
 }
 
+# --- Swagger UI (/api/docs/) -----------------------------------------------------------------
+# Wersja pinowana co do łatki i weryfikowana przez SRI. Domyślne ``@latest`` z drf-spectacular
+# oznaczałoby, że treść skryptu na naszej stronie zmienia się bez naszego udziału – z SRI byłoby
+# to zresztą nie do pogodzenia (hash przestałby pasować przy pierwszym wydaniu biblioteki).
+SWAGGER_UI_VERSION = "5.32.15"
+SWAGGER_UI_DIST = f"https://cdn.jsdelivr.net/npm/swagger-ui-dist@{SWAGGER_UI_VERSION}"
+# Skróty policzone z plików tej właśnie wersji. Zmiana wersji = ponowne policzenie hashy
+# (sha384-base64), inaczej przeglądarka odrzuci zasób i /api/docs/ zostanie pustą stroną.
+SWAGGER_UI_SRI = {
+    "swagger-ui.css": "sha384-fgyWYkUAamzuI8mJFu/xpRP0JWCJRwkwUwsYDoOYVHUJ8NQE5cENn8ib3ppwFFSX",
+    "swagger-ui-bundle.js": "sha384-m7zaGj7MPzU+G4lz2eyy73GxK9bbRDr9bB2CSdj8wodg2wu/Wnt6wsoLP3JD+RS9",
+    "swagger-ui-standalone-preset.js": (
+        "sha384-9rDX8vR4ir9/JIiV/XvxMpb5T9tVyFbssk49PV935hrdwmkVNJ7VZMM0RXAm184h"
+    ),
+}
+
 SPECTACULAR_SETTINGS = {
     "TITLE": "Platforma Olimpiady API",
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "SWAGGER_UI_DIST": SWAGGER_UI_DIST,
+    # Ikonka też przychodziła z ``@latest``; własnego pliku nie mamy, a poszerzanie ``img-src``
+    # o CDN dla 32×32 pikseli się nie opłaca. Pusta wartość = szablon nie renderuje <link rel=icon>.
+    "SWAGGER_UI_FAVICON_HREF": "",
+    # Ustawienia trafiają do inline'owego skryptu Swaggera (nasz szablon nadaje mu nonce).
+    # ``persistAuthorization`` zostaje wyłączone: token API nie ma leżeć w ``localStorage``
+    # przeglądarki po zamknięciu karty.
+    "SWAGGER_UI_SETTINGS": {"deepLinking": True, "persistAuthorization": False},
     # Schemat opisuje wyłącznie API platformy – wewnętrzne API edytora Wagtaila (/cms/api/) wypada.
     "PREPROCESSING_HOOKS": ["apps.core.api.exclude_admin_endpoints"],
     # Kilka modeli ma pole "status" o różnych zbiorach wartości – nazwy enumów muszą być jawne,

@@ -19,15 +19,15 @@ from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.generic import TemplateView, View
 
-from apps.appeals.services import appeals_for_participant, file_appeal
+from apps.appeals.services import appealable_submissions, appeals_for_participant, file_appeal
 from apps.competitions.models import Problem, Stage, StageEntry, StageKind
 from apps.competitions.services import current_edition, current_stage, register_for_stage
 from apps.core.api import DomainError
 from apps.results.services import results_for_participant
-from apps.submissions.models import SubmissionStatus
 from apps.submissions.services import create_submission, submissions_for_user
 from apps.web.forms import AppealForm, SubmissionUploadForm
 from apps.web.mixins import ActionViewMixin, ParticipantRequiredMixin
+from apps.web.throttle import ThrottledFormMixin
 
 
 def _entry_for(participant, stage: Stage | None) -> StageEntry | None:
@@ -56,20 +56,6 @@ def _problem_row(user, entry: StageEntry, problem: Problem) -> dict:
         "problem": problem,
         "versions": list(submissions_for_user(user).filter(entry=entry, problem=problem)),
     }
-
-
-def _appealable(user, now) -> list:
-    """Własne rozwiązania, na które wolno teraz złożyć reklamację (ocena wstępna + otwarte okno)."""
-    rows = []
-    for submission in submissions_for_user(user):
-        if submission.status != SubmissionStatus.GRADED_PROVISIONAL:
-            continue
-        if not submission.entry.stage.is_appeal_window_open(now):
-            continue
-        if list(submission.appeals.all()):
-            continue
-        rows.append(submission)
-    return rows
 
 
 class MeView(ParticipantRequiredMixin, TemplateView):
@@ -103,7 +89,9 @@ class MeView(ParticipantRequiredMixin, TemplateView):
                 "upload_form": SubmissionUploadForm(),
                 "problem_rows": _problem_rows(user, entry),
                 "results": results_for_participant(user),
-                "appealable": _appealable(user, now),
+                # Reguła „co podlega reklamacji” mieszka w serwisie reklamacji, nie w widoku –
+                # ten sam predykat obowiązuje w API i przy walidacji w ``file_appeal``.
+                "appealable": appealable_submissions(user, now),
                 "appeal_form": AppealForm(),
                 "my_appeals": list(appeals_for_participant(user)),
             }
@@ -122,14 +110,19 @@ class StageRegisterView(ActionViewMixin, ParticipantRequiredMixin, View):
         return "Zgłoszenie do etapu zostało przyjęte."
 
 
-class ProblemUploadView(ParticipantRequiredMixin, View):
+class ProblemUploadView(ParticipantRequiredMixin, ThrottledFormMixin, View):
     """Upload rozwiązania jednego zadania. Odpowiedź HTMX to odświeżona karta zadania.
 
     Deadline i walidację pliku (rozmiar, magic bytes, formaty) egzekwuje
     ``submissions.services.create_submission`` – widok nie powtarza ani jednej z tych reguł.
+
+    Kolejność mixinów: najpierw rola (anonim dostaje 302, obcy 403), dopiero potem limit –
+    licznik uploadów nie ma się zapełniać żądaniami, które i tak nie wchodzą do widoku.
+    Scope ``upload`` jest ten sam, co w ``POST /api/submissions/``.
     """
 
     template_name = "web/participant/_problem_card.html"
+    throttle_scope = "upload"
 
     def post(self, request, stage_id: int, number: int):
         stage = get_object_or_404(Stage.objects.select_related("edition"), pk=stage_id)

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load web_extras %}
 {% block title %}Panel uczestnika{% endblock %}
 {% block content %}
 <h1>Panel uczestnika</h1>
@@ -9,7 +10,8 @@
   <section>
     <h2>{{ stage.get_kind_display }} – {{ edition.year_label }}</h2>
     {% comment %}
-      Odliczanie liczone z czasu serwera: obie wartości są w ISO 8601 (UTC), a skrypt
+      Odliczanie liczone z czasu serwera: obie wartości są w ISO 8601 z jawnym przesunięciem
+      strefy (filtr `date:'c'`), więc `new Date()` czyta je jako moment bezwzględny, a skrypt
       koryguje o różnicę względem zegara przeglądarki. Zegar klienta nigdy nie decyduje
       o terminie – deadline i tak egzekwuje serwis uploadu.
     {% endcomment %}
@@ -17,7 +19,7 @@
        x-data="countdown"
        data-deadline="{{ stage.submission_deadline|date:'c' }}"
        data-server-now="{{ now|date:'c' }}">
-      Termin oddania rozwiązań: {{ stage.submission_deadline }} (UTC).
+      Termin oddania rozwiązań: {{ stage.submission_deadline|local_time }}.
       <span x-text="label">pozostały czas liczony jest po wczytaniu strony</span>
     </p>
 
@@ -97,12 +99,12 @@
   {% if my_appeals %}
     <table class="grid">
       <caption>Złożone reklamacje</caption>
-      <thead><tr><th>Zadanie</th><th>Złożona</th><th>Status</th><th>Uzasadnienie decyzji</th></tr></thead>
+      <thead><tr><th>Zadanie</th><th>Złożona (czas polski)</th><th>Status</th><th>Uzasadnienie decyzji</th></tr></thead>
       <tbody>
         {% for appeal in my_appeals %}
           <tr>
             <td>{{ appeal.submission.problem.number }}</td>
-            <td>{{ appeal.filed_at }}</td>
+            <td>{{ appeal.filed_at|local_datetime }}</td>
             <td>{{ appeal.get_status_display }}</td>
             <td>{% if appeal.decision %}{{ appeal.decision.justification }}{% else %}—{% endif %}</td>
           </tr>

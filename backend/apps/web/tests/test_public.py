@@ -1,6 +1,9 @@
 """Kryterium 8 z T-08 oraz nagłówek CSP: strony publiczne bez logowania."""
 
+from datetime import UTC, datetime
+
 import pytest
+from django.test import Client, override_settings
 from django.utils import timezone
 
 from apps.results.models import Anonymization, ResultsPublication
@@ -115,3 +118,59 @@ def test_registration_without_gdpr_consent_shows_domain_error(web_client):
 
     assert response.status_code == 200
     assert "Zgoda na przetwarzanie danych osobowych jest wymagana." in response.content.decode()
+
+
+def test_script_src_has_strict_dynamic_with_cdn_fallback(web_client, elim_stage):
+    """``'strict-dynamic'`` (przegląd T-08, ustalenie 3).
+
+    Nowa przeglądarka ufa wyłącznie nonce'owi i temu, co zaufany skrypt sam doładuje –
+    to obejmuje dynamiczny ``import()`` pdf.js z modułu ``review-annotations.js``. Stara
+    przeglądarka ignoruje nieznane słowo kluczowe i zostaje przy liście hostów, więc oba
+    CDN-y muszą w polityce zostać.
+    """
+    policy = web_client.get("/").headers["Content-Security-Policy"]
+    script_src = next(part for part in policy.split("; ") if part.startswith("script-src"))
+
+    assert "'strict-dynamic'" in script_src
+    assert "'nonce-" in script_src
+    assert "https://cdnjs.cloudflare.com" in script_src
+    assert "https://cdn.jsdelivr.net" in script_src
+    # Fallback musi stać przed 'strict-dynamic' – inaczej kolejność myli stare parsery.
+    assert script_src.index("cdnjs.cloudflare.com") < script_src.index("'strict-dynamic'")
+
+
+def test_csp_middleware_sits_above_whitenoise(settings):
+    """Kolejność middleware jest kontraktem: pliki statyczne też mają dostać nagłówek."""
+    order = settings.MIDDLEWARE
+
+    assert order[0] == "django.middleware.security.SecurityMiddleware"
+    assert order[1] == "apps.web.middleware.ContentSecurityPolicyMiddleware"
+    assert order.index("apps.web.middleware.ContentSecurityPolicyMiddleware") < order.index(
+        "whitenoise.middleware.WhiteNoiseMiddleware"
+    )
+
+
+@override_settings(WHITENOISE_USE_FINDERS=True, WHITENOISE_AUTOREFRESH=True)
+def test_static_file_served_by_whitenoise_gets_the_csp_header():
+    """WhiteNoise odpowiada sam, bez wołania dalszych warstw – CSP musi być nad nim.
+
+    Findery włączamy jawnie, bo testy nie robią ``collectstatic``; sam fakt, że odpowiedź
+    ma status 200 i typ ``text/css``, dowodzi, że plik oddał WhiteNoise, a nie 404 z Wagtaila.
+    """
+    response = Client().get("/static/css/app.css")
+
+    assert response.status_code == 200
+    assert response.headers["Content-Type"].startswith("text/css")
+    assert "script-src" in response.headers["Content-Security-Policy"]
+
+
+def test_results_page_shows_local_time_not_utc(web_client, publication):
+    """Etykiety czasu (przegląd T-08, ustalenie 4): czas polski, bez dopisku „(UTC)”."""
+    published_at = datetime(2026, 7, 15, 10, 0, tzinfo=UTC)
+    ResultsPublication.objects.filter(pk=publication.pk).update(published_at=published_at)
+
+    content = web_client.get(f"/results/{publication.stage_id}/").content.decode()
+
+    # 10:00 UTC w lipcu to 12:00 w Europe/Warsaw.
+    assert "15 lipca 2026, 12:00 (czas polski)" in content
+    assert "(UTC)" not in content

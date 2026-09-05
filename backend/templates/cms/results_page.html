@@ -10,7 +10,7 @@
 {% for table in tables %}
   <section class="results-block">
     <h2>{{ table.stage.get_kind_display }} – {{ table.stage.edition.year_label }}</h2>
-    <p class="hint">Ogłoszone {{ table.publication.published_at }} (UTC), tryb prezentacji:
+    <p class="hint">Ogłoszone {{ table.publication.published_at|local_time }}, tryb prezentacji:
       {{ table.publication.get_anonymization_display }}.
       <a href="{% url 'web:results' table.stage.pk %}">wersja pełnoekranowa</a></p>
     <div class="scroll">

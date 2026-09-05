@@ -1,4 +1,4 @@
-{% comment %}
+{% load web_extras %}{% comment %}
   Karta jednego zadania: treść, upload i historia wersji. Ten sam fragment renderuje pulpit
   i odpowiedź HTMX po uploadzie, więc lista wersji nie może rozjechać się między nimi.
 {% endcomment %}
@@ -35,13 +35,13 @@
   <table class="grid versions">
     <caption>Wysłane wersje</caption>
     <thead>
-      <tr><th>Wersja</th><th>Wysłano</th><th>Status pracy</th><th>Skan antywirusowy</th></tr>
+      <tr><th>Wersja</th><th>Wysłano (czas polski)</th><th>Status pracy</th><th>Skan antywirusowy</th></tr>
     </thead>
     <tbody>
       {% for submission in row.versions %}
         <tr>
           <td>wersja {{ submission.version }}{% if submission.is_late %} <span class="tag">po terminie</span>{% endif %}</td>
-          <td>{{ submission.submitted_at }}</td>
+          <td>{{ submission.submitted_at|local_datetime }}</td>
           <td>{{ submission.get_status_display }}</td>
           <td>
             {% with file=submission.latest_file %}

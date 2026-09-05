@@ -43,6 +43,7 @@ from apps.web.forms import (
     VerifyDistrictForm,
 )
 from apps.web.mixins import ActionViewMixin, CoordinatorRequiredMixin
+from apps.web.templatetags.web_extras import LOCAL_TIME_LABEL
 
 DASHBOARD_URL = reverse_lazy("web:coordinator")
 
@@ -212,7 +213,13 @@ class CreateInvitationView(CoordinatorActionView):
             request,
             f"Kod zaproszenia (widoczny tylko teraz, nie da się go odtworzyć): {plain_code}",
         )
-        return f"Kod ważny do {invitation.expires_at:%Y-%m-%d %H:%M} UTC, limit użyć: {invitation.max_uses}."
+        # Ważność podajemy w czasie lokalnym – koordynator przepisuje ją do wiadomości dla
+        # zapraszanego, a „UTC” w takim komunikacie było zaproszeniem do pomyłki o godzinę lub dwie.
+        expires_local = timezone.localtime(invitation.expires_at)
+        return (
+            f"Kod ważny do {expires_local:%Y-%m-%d %H:%M} ({LOCAL_TIME_LABEL}), "
+            f"limit użyć: {invitation.max_uses}."
+        )
 
 
 class ComputeResultsView(CoordinatorRequiredMixin, View):

@@ -6,6 +6,10 @@ Wagtaila, a nie wpis w ``urls.py``.
 
 Wszystkie treści od użytkowników (nazwy szkół, etykiety w tabeli wyników) renderują się
 z domyślnym autoescapowaniem Django. W żadnym szablonie nie ma ``|safe`` ani ``mark_safe``.
+
+Logowanie i obie rejestracje są objęte limitem żądań identycznym z tym na endpointach API –
+patrz ``apps.web.throttle``. Formularz HTML robi to samo, co ``POST /api/auth/…``, więc limit
+tylko po stronie DRF byłby obejściem długości jednego adresu URL.
 """
 
 from __future__ import annotations
@@ -26,14 +30,29 @@ from apps.web.forms import (
     EmailAuthenticationForm,
     ParticipantRegisterForm,
 )
+from apps.web.throttle import ThrottledFormMixin
 
 
-class LoginView(DjangoLoginView):
-    """Logowanie sesyjne (Django auth). Loginem jest adres e-mail."""
+class LoginView(ThrottledFormMixin, DjangoLoginView):
+    """Logowanie sesyjne (Django auth). Loginem jest adres e-mail.
+
+    Limit (scope ``login``) liczy **wyłącznie nieudane** próby: udane logowanie kasuje licznik.
+    Inaczej ucierpiałby ten, kto po prostu często się loguje, a nie ten, kto zgaduje hasło.
+    """
 
     template_name = "web/login.html"
     authentication_form = EmailAuthenticationForm
     redirect_authenticated_user = True
+    throttle_scope = "login"
+    throttle_on_request = False
+
+    def form_valid(self, form):
+        self.reset_throttle()
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        self.consume_throttle()
+        return super().form_invalid(form)
 
     def get_default_redirect_url(self) -> str:
         """Po zalogowaniu bez ``next`` – panel właściwy dla roli, a nie zawsze ``/me/``.
@@ -79,24 +98,31 @@ class ServiceFormView(FormView):
         return super().form_valid(form)
 
 
-class RegisterParticipantView(ServiceFormView):
+class RegisterParticipantView(ThrottledFormMixin, ServiceFormView):
     """Rejestracja otwarta uczestnika – cała logika w ``accounts.services.register_participant``."""
 
     template_name = "web/register.html"
     form_class = ParticipantRegisterForm
     success_url = reverse_lazy("web:login")
     success_message = "Konto uczestnika zostało założone. Zaloguj się."
+    # Tu liczy się każdy POST, także udany: limit ma powstrzymać seryjne zakładanie kont.
+    throttle_scope = "register"
 
     def call_service(self, form):
         register_participant(**form.cleaned_data)
 
 
-class RegisterCommitteeView(ServiceFormView):
-    """Rejestracja członka komitetu na kod zaproszenia."""
+class RegisterCommitteeView(ThrottledFormMixin, ServiceFormView):
+    """Rejestracja członka komitetu na kod zaproszenia.
+
+    Ten sam scope co rejestracja otwarta – limit chroni tu dodatkowo przed zgadywaniem kodu
+    zaproszenia, bo każda próba użycia kodu przechodzi przez ten formularz.
+    """
 
     template_name = "web/register_committee.html"
     form_class = CommitteeRegisterForm
     success_url = reverse_lazy("web:login")
+    throttle_scope = "register"
     success_message = (
         "Konto zostało założone. Jeśli kod wymagał zatwierdzenia, poczekaj na decyzję koordynatora."
     )

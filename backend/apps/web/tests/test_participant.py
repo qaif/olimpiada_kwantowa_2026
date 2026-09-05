@@ -1,7 +1,10 @@
 """Kryteria 3–4 z T-08: panel uczestnika, upload przez HTMX i zamknięcie po deadline."""
 
+from datetime import UTC, datetime
+
 import pytest
 
+from apps.competitions.models import Stage
 from apps.submissions.models import Submission
 from apps.submissions.tests.factories import pdf_upload
 
@@ -75,3 +78,26 @@ def test_participant_can_register_for_open_elimination_stage(web_client, partici
 
     assert response.status_code == 302
     assert elim_stage.entries.filter(participant=participant).exists()
+
+
+def test_dashboard_shows_the_deadline_in_local_time(web_client, participant, entry, problems):
+    """Etykiety czasu (przegląd T-08, ustalenie 4).
+
+    W bazie deadline jest w UTC, ale szablon renderuje ``TIME_ZONE`` serwisu – dopisek „(UTC)”
+    podawał uczestnikowi godzinę przesuniętą o dwie godziny względem tego, co widział obok.
+    """
+    # Deadline zostaje w przyszłości (inaczej panel pokazałby etap zamknięty), reszta osi czasu
+    # przesuwa się za nim – kolejność dat pilnuje constraint w bazie.
+    Stage.objects.filter(pk=entry.stage_id).update(
+        deadline_at=datetime(2027, 7, 15, 10, 0, tzinfo=UTC),
+        review_deadline_at=datetime(2027, 7, 20, 10, 0, tzinfo=UTC),
+        appeal_window_opens_at=datetime(2027, 7, 21, 10, 0, tzinfo=UTC),
+        appeal_window_closes_at=datetime(2027, 7, 28, 10, 0, tzinfo=UTC),
+    )
+    web_client.force_login(participant.user)
+
+    content = web_client.get("/me/").content.decode()
+
+    # 10:00 UTC w lipcu to 12:00 w Europe/Warsaw.
+    assert "15 lipca 2027, 12:00 (czas polski)" in content
+    assert "(UTC)" not in content

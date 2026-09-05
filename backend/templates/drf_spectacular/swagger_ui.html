@@ -1,0 +1,54 @@
+{% load web_extras %}<!DOCTYPE html>
+{% comment %}
+  Przesłonięcie szablonu drf-spectacular (patrz apps/web/views/docs.py). Różnice względem
+  oryginału są dokładnie trzy i tylko one:
+
+  1. każdy <script> ma nonce="{{ request.csp_nonce }}" – bez tego CSP (script-src bez
+     'unsafe-inline') blokuje zarówno pliki Swaggera, jak i inline'ową konfigurację,
+  2. pliki z CDN mają integrity/crossorigin – wersja jest pinowana w SWAGGER_UI_VERSION,
+     a skróty w SWAGGER_UI_SRI (config/settings/base.py),
+  3. znika <link rel="icon"> – SWAGGER_UI_FAVICON_HREF jest puste, żeby nie poszerzać img-src
+     o CDN dla ikonki 32x32.
+
+  Reszta (bloki head/body, nazwy zmiennych kontekstu) jest przepisana 1:1 z drf-spectacular
+  0.28.0, żeby aktualizacja biblioteki dała czytelnego diffa.
+
+  ``request`` w kontekście to obiekt DRF-a, który proxuje atrybuty do HttpRequest – csp_nonce
+  ustawia apps.web.middleware.ContentSecurityPolicyMiddleware przed wejściem do widoku.
+{% endcomment %}
+<html lang="en">
+  <head>
+    {% block head %}
+    <title>{{ title|default:"Swagger" }}</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {% if favicon_href %}<link rel="icon" href="{{ favicon_href }}">{% endif %}
+    <link rel="stylesheet" href="{{ swagger_ui_css }}"
+          {% with hash=sri|dict_get:"swagger-ui.css" %}{% if hash %}integrity="{{ hash }}"
+          crossorigin="anonymous" referrerpolicy="no-referrer"{% endif %}{% endwith %}>
+    <style>
+      html { box-sizing: border-box; overflow-y: scroll; }
+      *, *:after, *:before { box-sizing: inherit; }
+      body { background: #fafafa; margin: 0; }
+    </style>
+    {% endblock head %}
+  </head>
+  <body>
+    {% block body %}
+    <div id="swagger-ui"></div>
+    <script src="{{ swagger_ui_bundle }}" nonce="{{ request.csp_nonce }}"
+            {% with hash=sri|dict_get:"swagger-ui-bundle.js" %}{% if hash %}integrity="{{ hash }}"
+            crossorigin="anonymous" referrerpolicy="no-referrer"{% endif %}{% endwith %}></script>
+    <script src="{{ swagger_ui_standalone }}" nonce="{{ request.csp_nonce }}"
+            {% with hash=sri|dict_get:"swagger-ui-standalone-preset.js" %}{% if hash %}integrity="{{ hash }}"
+            crossorigin="anonymous" referrerpolicy="no-referrer"{% endif %}{% endwith %}></script>
+    {% if script_url %}
+    <script src="{{ script_url }}" nonce="{{ request.csp_nonce }}"></script>
+    {% else %}
+    <script nonce="{{ request.csp_nonce }}">
+    {% include template_name_js %}
+    </script>
+    {% endif %}
+    {% endblock %}
+  </body>
+</html>

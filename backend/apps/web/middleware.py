@@ -7,10 +7,24 @@ Decyzje (T-08, „Wymagania bezpieczeństwa”):
   i pdf.js przychodzą z dwóch pinowanych CDN-ów, a własny kod żyje w ``static/js/*.js``.
   Do listy dochodzi jednorazowy ``nonce`` – jest przypięty do znaczników ``<script>`` interfejsu,
   więc polityka pozostaje szczelna także wtedy, gdy ktoś kiedyś zawęzi listę hostów,
+- ``script-src`` ma też ``'strict-dynamic'``. W przeglądarce, która je rozumie, lista hostów
+  i ``'self'`` przestają cokolwiek znaczyć – liczy się wyłącznie nonce oraz zaufanie przekazane
+  przez skrypt już zaufany. Hosty CDN zostają jako fallback dla starszych przeglądarek (CSP2
+  ignoruje nieznane słowo kluczowe i stosuje listę hostów), a każdy nasz ``<script>`` ma nonce,
+  więc dla nowych przeglądarek to zacieśnienie, nie rozluźnienie.
+
+  Dlaczego dynamiczny ``import()`` pdf.js dalej działa: ``static/js/review-annotations.js`` jest
+  ładowany jako ``<script type="module" nonce=…>``, więc sam jest zaufany. Żądanie modułu
+  wystawione przez ``import()`` ma w CSP3 metadanę „nie wstawione przez parser”, a dla takich
+  żądań ``'strict-dynamic'`` przepuszcza pobranie niezależnie od hosta (CSP3 §6.6.1, „script
+  directives pre-request check”). Innymi słowy: zaufanie propaguje się z modułu na jego importy,
+  dokładnie tak samo jak na ``document.createElement("script")``.
 - ``style-src`` ma ``'unsafe-inline'`` **świadomie**: HTMX ustawia style przejść na elementach
   (``htmx-indicator``), a warstwa adnotacji pdf.js pozycjonuje prostokąty przez ``style.left/top``.
   Styl inline nie wykonuje kodu, więc ryzyko jest nieporównywalnie mniejsze niż przy skryptach;
-  usunięcie tego wyjątku wymagałoby rezygnacji z HTMX albo własnego builda z nonce na każdym stylu,
+  usunięcie tego wyjątku wymagałoby rezygnacji z HTMX albo własnego builda z nonce na każdym stylu.
+  Do listy hostów dochodzi ``cdn.jsdelivr.net`` – arkusz Swagger UI na ``/api/docs/``. Przy już
+  obecnym ``'unsafe-inline'`` dopisanie hosta niczego nie osłabia,
 - ``connect-src`` zawiera dodatkowo publiczny host MinIO (``S3_PUBLIC_ENDPOINT_URL``): pdf.js
   pobiera plik rozwiązania przez ``fetch``, a endpoint pobrania przekierowuje na presigned URL,
 - ``object-src 'none'``, ``base-uri 'self'``, ``frame-ancestors 'none'`` – standardowa domknięta baza.
@@ -41,6 +55,9 @@ from django.conf import settings
 #: CDN-y, z których wolno ładować skrypty. Pinowanie wersji i SRI są w szablonie ``base.html``.
 SCRIPT_CDN_SOURCES = ("https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net")
 
+#: CDN-y arkuszy stylów. Wyłącznie Swagger UI na ``/api/docs/`` – reszta serwisu ma własne CSS.
+STYLE_CDN_SOURCES = ("https://cdn.jsdelivr.net",)
+
 NONCE_BYTES = 16
 
 #: Prefiksy ścieżek panelu redakcyjnego/administracyjnego. Kolejność bez znaczenia.
@@ -58,7 +75,9 @@ def _origin(url: str | None) -> str:
 
 def build_policy(nonce: str) -> str:
     """Buduje treść polityki dla jednego żądania (nonce jest jednorazowy)."""
-    script_src = ["'self'", f"'nonce-{nonce}'", *SCRIPT_CDN_SOURCES]
+    # Kolejność jest istotna dla starych przeglądarek: nonce i hosty muszą stać przed
+    # 'strict-dynamic', bo CSP2 po prostu pominie nieznane słowo kluczowe i użyje reszty listy.
+    script_src = ["'self'", f"'nonce-{nonce}'", *SCRIPT_CDN_SOURCES, "'strict-dynamic'"]
     connect_src = ["'self'", *SCRIPT_CDN_SOURCES]
     storage_origin = _origin(getattr(settings, "S3_PUBLIC_ENDPOINT_URL", ""))
     if storage_origin:
@@ -72,7 +91,7 @@ def build_policy(nonce: str) -> str:
         "img-src 'self' data: blob:",
         "font-src 'self' data:",
         # Zobacz docstring modułu: wyjątek dotyczy wyłącznie stylów, nigdy skryptów.
-        "style-src 'self' 'unsafe-inline'",
+        f"style-src 'self' 'unsafe-inline' {' '.join(STYLE_CDN_SOURCES)}",
         f"script-src {' '.join(script_src)}",
         f"connect-src {' '.join(connect_src)}",
         # pdf.js uruchamia worker; przy CDN cross-origin robi to przez blob: (fallback biblioteki).

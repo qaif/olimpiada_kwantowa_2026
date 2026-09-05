@@ -53,12 +53,18 @@ class AppealsQueueView(AppealsCommitteeRequiredMixin, TemplateView):
 
 
 class AppealDecideView(ActionViewMixin, AppealsCommitteeRequiredMixin, View):
-    """Rozstrzygnięcie reklamacji (odrzucona / uwzględniona / częściowo)."""
+    """Rozstrzygnięcie reklamacji (odrzucona / uwzględniona / częściowo).
+
+    Obiekt pobieramy z **kolejki tego członka komisji**, a nie z całej tabeli: reklamacja
+    z konfliktem interesów albo już rozstrzygnięta nie istnieje dla tego konta i kończy się 404.
+    ``decide_appeal`` sprawdza jedno i drugie ponownie (wywołania spoza HTTP), ale widok nie może
+    polegać wyłącznie na tym – 404 na cudzej reklamacji nie potwierdza nawet, że taka istnieje.
+    """
 
     success_url = reverse_lazy("web:appeals")
 
     def perform(self, request, pk: int) -> str:
-        appeal = get_object_or_404(Appeal.objects.select_related("submission"), pk=pk)
+        appeal = get_object_or_404(appeals_queue(self.member), pk=pk)
         form = AppealDecideForm(request.POST)
         if not form.is_valid():
             raise DomainError("Decyzja wymaga rozstrzygnięcia i uzasadnienia.", "INVALID_DECISION")

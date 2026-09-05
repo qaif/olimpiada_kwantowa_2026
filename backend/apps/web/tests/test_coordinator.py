@@ -1,6 +1,7 @@
 """Kryterium 7 z T-08: przydział recenzentów i publikacja wyników z panelu koordynatora."""
 
 import pytest
+from django.conf import settings
 
 from apps.accounts.models import CommitteeStatus
 from apps.accounts.tests.factories import ActiveReviewerFactory, CommitteeMemberFactory
@@ -90,3 +91,35 @@ def test_compute_results_preview_is_rendered(web_client, coordinator, elim_stage
     assert response.status_code == 200
     assert "Podgląd wyników etapu" in content
     assert entry.participant.public_code in content
+
+
+def test_invitation_code_never_reaches_a_cookie(web_client, coordinator):
+    """Przegląd T-08, ustalenie 5: komunikaty idą przez sesję, nie przez ciasteczko.
+
+    Przy domyślnym ``FallbackStorage`` jawny kod zaproszenia jechałby do przeglądarki
+    w ciasteczku ``messages`` – czyli na dysk klienta i do logów każdego proxy po drodze.
+    """
+    web_client.force_login(coordinator)
+
+    response = web_client.post(
+        "/coordinator/invitations/", {"district": "mazowieckie", "valid_days": 14, "max_uses": 1}
+    )
+
+    assert response.status_code == 302
+    assert "messages" not in response.cookies
+    assert settings.MESSAGE_STORAGE == "django.contrib.messages.storage.session.SessionStorage"
+
+
+def test_invitation_expiry_is_reported_in_local_time(web_client, coordinator):
+    """Przegląd T-08, ustalenie 4: koordynator przepisuje tę godzinę zapraszanemu."""
+    web_client.force_login(coordinator)
+
+    response = web_client.post(
+        "/coordinator/invitations/",
+        {"district": "mazowieckie", "valid_days": 14, "max_uses": 1},
+        follow=True,
+    )
+    content = response.content.decode()
+
+    assert "(czas polski)" in content
+    assert " UTC," not in content
