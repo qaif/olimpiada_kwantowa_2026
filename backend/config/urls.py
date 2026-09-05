@@ -13,4 +13,6 @@ urlpatterns = [
     path("api/", include("apps.results.urls")),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
+    # Interfejs WWW montowany w korzeniu – zawsze po prefiksach API, żeby nie przechwycił /api/.
+    path("", include("apps.web.urls")),
 ]

@@ -1,0 +1,180 @@
+"""Panel uczestnika ``/me/``.
+
+Zakres (T-08): bieżący etap i odliczanie do deadline'u liczone z czasu **serwera**, rejestracja do
+eliminacji, zadania z treścią PDF, upload per zadanie przez HTMX z historią wersji i statusem
+antywirusa, własne wyniki po publikacji oraz reklamacja w oknie odwoławczym.
+
+Wszystkie reguły (deadline, okno reklamacji, widoczność wyników) są egzekwowane w serwisach –
+tutaj są wyłącznie po to, żeby nie pokazywać formularza, którego serwis i tak by nie przyjął.
+"""
+
+from __future__ import annotations
+
+from collections import defaultdict
+
+from django.contrib import messages
+from django.shortcuts import get_object_or_404, redirect
+from django.template.response import TemplateResponse
+from django.urls import reverse, reverse_lazy
+from django.utils import timezone
+from django.views.generic import TemplateView, View
+
+from apps.appeals.services import appeals_for_participant, file_appeal
+from apps.competitions.models import Problem, Stage, StageEntry, StageKind
+from apps.competitions.services import current_edition, current_stage, register_for_stage
+from apps.core.api import DomainError
+from apps.results.services import results_for_participant
+from apps.submissions.models import SubmissionStatus
+from apps.submissions.services import create_submission, submissions_for_user
+from apps.web.forms import AppealForm, SubmissionUploadForm
+from apps.web.mixins import ActionViewMixin, ParticipantRequiredMixin
+
+
+def _entry_for(participant, stage: Stage | None) -> StageEntry | None:
+    if stage is None:
+        return None
+    return StageEntry.objects.filter(participant=participant, stage=stage).first()
+
+
+def _problem_rows(user, entry: StageEntry | None) -> list[dict]:
+    """Zadania etapu wraz z własnymi wersjami rozwiązań (najnowsza pierwsza).
+
+    Rozwiązania biorą się z ``Submission.objects.for_user`` – filtr roli siedzi w queryseckie,
+    a nie w tym widoku (PROJEKT.md 2.3).
+    """
+    if entry is None:
+        return []
+    problems = list(Problem.objects.filter(stage=entry.stage).order_by("number", "id"))
+    versions: dict[int, list] = defaultdict(list)
+    for submission in submissions_for_user(user).filter(entry=entry):
+        versions[submission.problem_id].append(submission)
+    return [{"problem": problem, "versions": versions.get(problem.pk, [])} for problem in problems]
+
+
+def _problem_row(user, entry: StageEntry, problem: Problem) -> dict:
+    return {
+        "problem": problem,
+        "versions": list(submissions_for_user(user).filter(entry=entry, problem=problem)),
+    }
+
+
+def _appealable(user, now) -> list:
+    """Własne rozwiązania, na które wolno teraz złożyć reklamację (ocena wstępna + otwarte okno)."""
+    rows = []
+    for submission in submissions_for_user(user):
+        if submission.status != SubmissionStatus.GRADED_PROVISIONAL:
+            continue
+        if not submission.entry.stage.is_appeal_window_open(now):
+            continue
+        if list(submission.appeals.all()):
+            continue
+        rows.append(submission)
+    return rows
+
+
+class MeView(ParticipantRequiredMixin, TemplateView):
+    """Pulpit uczestnika."""
+
+    template_name = "web/participant/dashboard.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        now = timezone.now()
+        edition = current_edition()
+        stage = current_stage(edition, now) if edition else None
+        entry = _entry_for(self.participant, stage)
+        context.update(
+            {
+                "now": now,
+                "edition": edition,
+                "stage": stage,
+                "entry": entry,
+                "can_register": (
+                    stage is not None
+                    and entry is None
+                    and stage.kind == StageKind.ELIM
+                    and stage.is_open_for_submissions(now)
+                ),
+                "stage_opened": stage is not None and stage.has_opened(now),
+                "upload_open": (
+                    entry is not None and stage.is_open_for_submissions(now) and stage.closed_at is None
+                ),
+                "upload_form": SubmissionUploadForm(),
+                "problem_rows": _problem_rows(user, entry),
+                "results": results_for_participant(user),
+                "appealable": _appealable(user, now),
+                "appeal_form": AppealForm(),
+                "my_appeals": list(appeals_for_participant(user)),
+            }
+        )
+        return context
+
+
+class StageRegisterView(ActionViewMixin, ParticipantRequiredMixin, View):
+    """Rejestracja do etapu eliminacyjnego (``competitions.services.register_for_stage``)."""
+
+    success_url = reverse_lazy("web:me")
+
+    def perform(self, request, stage_id: int) -> str:
+        stage = get_object_or_404(Stage.objects.select_related("edition"), pk=stage_id)
+        register_for_stage(self.participant, stage)
+        return "Zgłoszenie do etapu zostało przyjęte."
+
+
+class ProblemUploadView(ParticipantRequiredMixin, View):
+    """Upload rozwiązania jednego zadania. Odpowiedź HTMX to odświeżona karta zadania.
+
+    Deadline i walidację pliku (rozmiar, magic bytes, formaty) egzekwuje
+    ``submissions.services.create_submission`` – widok nie powtarza ani jednej z tych reguł.
+    """
+
+    template_name = "web/participant/_problem_card.html"
+
+    def post(self, request, stage_id: int, number: int):
+        stage = get_object_or_404(Stage.objects.select_related("edition"), pk=stage_id)
+        entry = get_object_or_404(StageEntry, participant=self.participant, stage=stage)
+        problem = get_object_or_404(Problem, stage=stage, number=number)
+        form = SubmissionUploadForm(request.POST, request.FILES)
+        error = None
+        if form.is_valid():
+            try:
+                create_submission(
+                    user=request.user,
+                    stage=stage,
+                    problem_number=number,
+                    upload=form.cleaned_data["file"],
+                )
+            except DomainError as exc:
+                error = str(exc.detail)
+        else:
+            error = " ".join(message for messages_ in form.errors.values() for message in messages_)
+        now = timezone.now()
+        context = {
+            "row": _problem_row(request.user, entry, problem),
+            "stage": stage,
+            "entry": entry,
+            "now": now,
+            "upload_open": stage.is_open_for_submissions(now) and stage.closed_at is None,
+            "upload_form": SubmissionUploadForm(),
+            "error": error,
+        }
+        return TemplateResponse(request, self.template_name, context)
+
+
+class AppealCreateView(ParticipantRequiredMixin, View):
+    """Złożenie reklamacji na własne rozwiązanie (``appeals.services.file_appeal``)."""
+
+    def post(self, request, submission_id: int):
+        submission = get_object_or_404(submissions_for_user(request.user), pk=submission_id)
+        form = AppealForm(request.POST)
+        if not form.is_valid():
+            messages.error(request, " ".join(form.errors.get("argument", ["Nieprawidłowe uzasadnienie."])))
+            return redirect(reverse("web:me"))
+        try:
+            file_appeal(request.user, submission, form.cleaned_data["argument"], request=request)
+        except DomainError as exc:
+            messages.error(request, str(exc.detail))
+        else:
+            messages.success(request, "Reklamacja została złożona.")
+        return redirect(reverse("web:me"))

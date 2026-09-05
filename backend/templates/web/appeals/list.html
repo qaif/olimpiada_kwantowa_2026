@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Komisja odwoławcza{% endblock %}
+{% block content %}
+<h1>Reklamacje do rozpatrzenia</h1>
+<p class="hint">Kolejka pomija sprawy, w których jesteś w konflikcie interesów (recenzowałeś tę pracę).</p>
+
+{% for row in rows %}
+  <article class="card">
+    <h2>{{ row.public_code }} · zadanie {{ row.submission.problem.number }}</h2>
+    <p>Ocena wstępna: <strong>{% if row.current_score is not None %}{{ row.current_score }}{% else %}—{% endif %}</strong>
+      · złożona {{ row.appeal.filed_at }}</p>
+
+    <h3>Argument uczestnika</h3>
+    <p class="quote">{{ row.appeal.argument }}</p>
+
+    <h3>Oceny rundy 1</h3>
+    <table class="grid">
+      <thead><tr><th>Punkty</th><th>Komentarz wewnętrzny</th></tr></thead>
+      <tbody>
+        {% for review in row.reviews %}
+          <tr><td>{{ review.score }}</td><td>{{ review.comment_internal }}</td></tr>
+        {% empty %}
+          <tr><td colspan="2">Brak wystawionych ocen rundy 1.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <p><a href="{% url 'submissions:submission-download' row.submission.pk %}">Pobierz pracę</a></p>
+
+    <form method="post" action="{% url 'web:appeal-decide' row.appeal.pk %}" class="stack"
+          x-data="confirmSubmit" x-on:submit="check"
+          data-confirm="Zapisać decyzję komisji? Rozstrzygnięcie jest ostateczne.">
+      {% csrf_token %}
+      {{ decide_form.as_p }}
+      <button type="submit">Zapisz decyzję</button>
+    </form>
+  </article>
+{% empty %}
+  <p>Brak reklamacji do rozpatrzenia.</p>
+{% endfor %}
+{% endblock %}

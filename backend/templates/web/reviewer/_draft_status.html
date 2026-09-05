@@ -1,0 +1,8 @@
+{# Fragment zwracany przez HTMX po zapisie szkicu. #}
+<div id="draft-status" role="status">
+  {% if error %}
+    <span class="msg msg-error">{{ error }}</span>
+  {% elif saved %}
+    <span class="msg msg-success">Szkic zapisany (status: {{ review.get_status_display }}).</span>
+  {% endif %}
+</div>

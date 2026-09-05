@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "apps.grading",
     "apps.appeals",
     "apps.results",
+    "apps.web",
 ]
 
 AUTH_USER_MODEL = "accounts.User"
@@ -49,6 +50,8 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # CSP bez 'unsafe-inline' dla skryptów – patrz apps/web/middleware.py.
+    "apps.web.middleware.ContentSecurityPolicyMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -65,6 +68,8 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                # Role do nawigacji (nie do autoryzacji – ta jest w mixinach i uprawnieniach DRF).
+                "apps.web.context_processors.roles",
             ],
         },
     },
@@ -122,9 +127,19 @@ USE_TZ = True  # wszystkie DateTimeField w UTC; deadline'y porównywane przez ti
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"] if (BASE_DIR / "static").exists() else []
+# Dev (DEBUG=1) nie robi collectstatic, więc WhiteNoise musi szukać plików przez findery,
+# a manifest (hashowane nazwy) jest wtedy tylko przeszkodą – brak wpisu wywracałby szablon.
+WHITENOISE_USE_FINDERS = DEBUG
+WHITENOISE_AUTOREFRESH = DEBUG
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+    "staticfiles": {
+        "BACKEND": (
+            "django.contrib.staticfiles.storage.StaticFilesStorage"
+            if DEBUG
+            else "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        )
+    },
 }
 MEDIA_URL = "/media/"
 MEDIA_ROOT = env("DJANGO_MEDIA_ROOT", default=str(BASE_DIR / "media"))
@@ -152,6 +167,11 @@ CLAMAV_PORT = env.int("CLAMAV_PORT", default=3310)
 # ``StreamMaxLength`` clamd (obraz clamav 1.4 → 100 MB). Powyżej tej wartości clamd zrywa połączenie
 # w trakcie INSTREAM, co wyglądałoby jak awaria usługi i uruchamiało bezsensowne retry.
 CLAMAV_STREAM_MAX_BYTES = env.int("CLAMAV_STREAM_MAX_BYTES", default=100 * 1024 * 1024)
+
+# Logowanie sesyjne interfejsu WWW (apps.web). Niezalogowany dostaje 302 na /login/?next=...
+LOGIN_URL = "/login/"
+LOGIN_REDIRECT_URL = "/me/"
+LOGOUT_REDIRECT_URL = "/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

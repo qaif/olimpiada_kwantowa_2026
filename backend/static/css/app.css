@@ -1,0 +1,83 @@
+/* Minimalny arkusz własny – bez frameworka CSS.
+   Powód: jedna zależność mniej w CSP i w SRI, a panel ma być czytelny, nie efektowny. */
+
+:root {
+  --fg: #14181f;
+  --muted: #5b6472;
+  --bg: #ffffff;
+  --line: #d7dce3;
+  --accent: #1f4f8f;
+  --error: #8c1c13;
+  --ok: #17603a;
+  --warn: #7a4b00;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font: 16px/1.5 system-ui, "Segoe UI", Roboto, sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+}
+
+main { max-width: 72rem; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+
+.topbar {
+  display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between;
+  padding: 0.75rem 1rem; border-bottom: 1px solid var(--line);
+}
+.topbar .brand { font-weight: 700; text-decoration: none; color: var(--fg); }
+.topbar nav { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; }
+.topbar nav a { color: var(--accent); }
+.topbar .who { color: var(--muted); font-size: 0.875rem; }
+
+h1 { font-size: 1.75rem; }
+h2 { font-size: 1.25rem; margin-top: 2rem; }
+h3 { font-size: 1.05rem; }
+.lead { color: var(--muted); }
+.hint { color: var(--muted); font-size: 0.875rem; }
+.closed { color: var(--warn); font-weight: 600; }
+.quote { border-left: 3px solid var(--line); padding-left: 0.75rem; white-space: pre-wrap; }
+
+.messages { list-style: none; margin: 0; padding: 0.5rem 1rem; }
+.msg { padding: 0.5rem 0.75rem; border-left: 4px solid var(--line); margin-bottom: 0.25rem; }
+.msg-error { border-color: var(--error); color: var(--error); }
+.msg-success { border-color: var(--ok); color: var(--ok); }
+.msg-warning { border-color: var(--warn); color: var(--warn); }
+
+.card { border: 1px solid var(--line); border-radius: 6px; padding: 1rem; margin: 1rem 0; }
+
+.grid { border-collapse: collapse; width: 100%; margin: 0.5rem 0 1rem; }
+.grid caption { text-align: left; color: var(--muted); font-size: 0.875rem; padding-bottom: 0.25rem; }
+.grid th, .grid td { border: 1px solid var(--line); padding: 0.4rem 0.6rem; text-align: left; vertical-align: top; }
+.grid th { background: #f4f6f9; }
+.scroll { overflow-x: auto; }
+
+.stack { display: flex; flex-direction: column; gap: 0.5rem; max-width: 40rem; }
+.stack p { margin: 0.25rem 0; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-end; }
+form.inline { display: inline-flex; gap: 0.4rem; align-items: center; }
+button { padding: 0.4rem 0.9rem; cursor: pointer; }
+button.link { background: none; border: none; color: var(--accent); text-decoration: underline; padding: 0; }
+textarea, input[type="text"], input[type="email"], input[type="password"], input[type="number"], select {
+  padding: 0.35rem 0.5rem; border: 1px solid var(--line); border-radius: 4px; font: inherit; width: 100%;
+}
+fieldset { border: 1px solid var(--line); border-radius: 6px; }
+.score-option { display: block; padding: 0.2rem 0; }
+.tag { font-size: 0.75rem; background: #eef2f7; border-radius: 3px; padding: 0.05rem 0.35rem; }
+
+.review-layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 1.5rem; }
+@media (max-width: 60rem) { .review-layout { grid-template-columns: 1fr; } }
+
+.pdf-toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
+.pdf-stage { position: relative; display: inline-block; border: 1px solid var(--line); }
+.pdf-stage canvas { display: block; max-width: 100%; }
+/* Warstwa adnotacji leży dokładnie na canvasie; prostokąty są pozycjonowane stylem inline
+   (stąd 'unsafe-inline' w style-src – patrz apps/web/middleware.py). */
+.pdf-annotations { position: absolute; inset: 0; }
+.pdf-annotations .rect { position: absolute; border: 2px solid var(--error); background: rgba(140, 28, 19, 0.08); }
+.annotations { padding-left: 1.1rem; }
+.annotations li { overflow-wrap: anywhere; }
+
+.footer { border-top: 1px solid var(--line); padding: 1rem; color: var(--muted); font-size: 0.8125rem; }

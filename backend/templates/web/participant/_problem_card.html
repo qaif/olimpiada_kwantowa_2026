@@ -1,0 +1,57 @@
+{% comment %}
+  Karta jednego zadania: treść, upload i historia wersji. Ten sam fragment renderuje pulpit
+  i odpowiedź HTMX po uploadzie, więc lista wersji nie może rozjechać się między nimi.
+{% endcomment %}
+<article class="card" id="problem-{{ row.problem.pk }}">
+  <h3>Zadanie {{ row.problem.number }}: {{ row.problem.title }}</h3>
+  <p class="hint">
+    Dozwolone formaty: {{ row.problem.allowed_formats|join:", " }} · limit {{ row.problem.max_file_mb }} MB.
+    {% if row.problem.statement_pdf %}
+      <a href="{% url 'competitions:problem-statement' row.problem.pk %}">Treść zadania (PDF)</a>
+    {% else %}
+      <span>Treść zadania nie została jeszcze opublikowana.</span>
+    {% endif %}
+  </p>
+
+  {% if error %}<p class="msg msg-error">{{ error }}</p>{% endif %}
+
+  {% if upload_open %}
+    <form class="upload"
+          method="post"
+          enctype="multipart/form-data"
+          action="{% url 'web:problem-upload' stage.pk row.problem.number %}"
+          hx-post="{% url 'web:problem-upload' stage.pk row.problem.number %}"
+          hx-encoding="multipart/form-data"
+          hx-target="#problem-{{ row.problem.pk }}"
+          hx-swap="outerHTML">
+      {% csrf_token %}
+      <input type="file" name="file" required aria-label="Plik rozwiązania zadania {{ row.problem.number }}">
+      <button type="submit">Wyślij rozwiązanie</button>
+    </form>
+  {% else %}
+    <p class="closed">Termin oddania rozwiązań minął – upload jest zamknięty.</p>
+  {% endif %}
+
+  <table class="grid versions">
+    <caption>Wysłane wersje</caption>
+    <thead>
+      <tr><th>Wersja</th><th>Wysłano</th><th>Status pracy</th><th>Skan antywirusowy</th></tr>
+    </thead>
+    <tbody>
+      {% for submission in row.versions %}
+        <tr>
+          <td>wersja {{ submission.version }}{% if submission.is_late %} <span class="tag">po terminie</span>{% endif %}</td>
+          <td>{{ submission.submitted_at }}</td>
+          <td>{{ submission.get_status_display }}</td>
+          <td>
+            {% with file=submission.latest_file %}
+              {% if file %}{{ file.get_av_status_display }}{% else %}brak pliku{% endif %}
+            {% endwith %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4">Brak wysłanych wersji.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</article>

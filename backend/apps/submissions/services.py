@@ -215,6 +215,29 @@ def close_stage(stage: Stage) -> int:
     return Submission.objects.filter(pk__in=to_lock).update(status=SubmissionStatus.LOCKED)
 
 
+@transaction.atomic
+def close_stage_now(stage: Stage, *, actor=None, request=None) -> int:
+    """Ręczne zamknięcie etapu przez koordynatora (panel WWW, T-08).
+
+    Ta sama treść, co przebieg beata (``close_due_stages``): blokada najnowszych wersji plus
+    znacznik ``closed_at``. Różnica jest jedna – koordynator może zamknąć etap przed deadline'em
+    (np. po awarii albo decyzją komitetu), więc nie ma tu warunku na zegar. Idempotencja jest
+    twarda: powtórne zamknięcie to ``STAGE_ALREADY_CLOSED``, a nie ciche „nic się nie stało”.
+    """
+    from apps.core.models import audit
+
+    locked_stage = Stage.objects.select_for_update().get(pk=stage.pk)
+    if locked_stage.closed_at is not None:
+        raise DomainError("Etap jest już zamknięty.", "STAGE_ALREADY_CLOSED", status.HTTP_409_CONFLICT)
+    locked = close_stage(locked_stage)
+    locked_stage.closed_at = timezone.now()
+    locked_stage.save(update_fields=["closed_at"])
+    audit(actor, "stage.closed", locked_stage, {"locked": locked, "manual": True}, request=request)
+    logger.info("Etap %s zamknięty ręcznie, zablokowanych rozwiązań: %s", locked_stage.pk, locked)
+    stage.closed_at = locked_stage.closed_at
+    return locked
+
+
 def due_stages(now=None):
     """Etapy po deadline (z tolerancją) i jeszcze niezamknięte.
 

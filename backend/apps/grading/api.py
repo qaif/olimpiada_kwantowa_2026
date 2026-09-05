@@ -19,6 +19,7 @@ from .serializers import (
     AssignmentResultSerializer,
     AssignReviewersSerializer,
     AssignThirdReviewerSerializer,
+    DisputeReviewSerializer,
     FinalGradeSerializer,
     ModerationSubmissionSerializer,
     ResolveModerationSerializer,
@@ -30,6 +31,7 @@ from .services import (
     active_reviewer_profile,
     assign_reviewers,
     assign_third_reviewer,
+    dispute_context,
     moderation_queue,
     resolve_moderation,
     reviews_for_reviewer,
@@ -168,3 +170,18 @@ class ModerationAssignThirdView(GenericAPIView):
         )
         review = assign_third_reviewer(submission, reviewer, actor=request.user, request=request)
         return Response(ReviewSerializer(review).data)
+
+
+class ReviewDisputeView(ReviewerScopedMixin, GenericAPIView):
+    """Materiał rozjemczy rundy 2: punkty i komentarze wewnętrzne obu ocen rundy 1.
+
+    Widoczność jest podwójnie zawężona: queryset daje wyłącznie własne przydziały (cudza recenzja
+    to 404, nie 403), a serwis odmawia dla rundy 1. Odpowiedź nie zawiera tożsamości recenzentów.
+    """
+
+    serializer_class = DisputeReviewSerializer
+
+    @extend_schema(responses={200: DisputeReviewSerializer(many=True)})
+    def get(self, request, pk: int):
+        review = self.get_review(pk)
+        return Response(self.get_serializer(dispute_context(review), many=True).data)

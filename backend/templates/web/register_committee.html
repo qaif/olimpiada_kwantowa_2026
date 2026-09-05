@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Rejestracja członka komitetu{% endblock %}
+{% block content %}
+<h1>Rejestracja członka komitetu</h1>
+<form method="post" class="stack">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <p class="hint">Okręg podany w kodzie zaproszenia jest nadrzędny wobec deklaracji z formularza –
+    tylko taki okręg liczy się przy regule konfliktu interesów.</p>
+  <button type="submit">Załóż konto</button>
+</form>
+{% endblock %}

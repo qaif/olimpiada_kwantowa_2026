@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Moje recenzje{% endblock %}
+{% block content %}
+<h1>Moje przydziały</h1>
+<p class="hint">Ocenianie jest ślepe: prace są identyfikowane kodem publicznym uczestnika.</p>
+<table class="grid">
+  <thead>
+    <tr><th>Praca</th><th>Etap</th><th>Zadanie</th><th>Runda</th><th>Status</th><th>Punkty</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for review in reviews %}
+      <tr>
+        <td>{{ review.submission.entry.participant.public_code }}</td>
+        <td>{{ review.submission.entry.stage.get_kind_display }}</td>
+        <td>{{ review.submission.problem.number }}. {{ review.submission.problem.title }}</td>
+        <td>{{ review.round }}</td>
+        <td>{{ review.get_status_display }}</td>
+        <td>{% if review.score is not None %}{{ review.score }}{% else %}—{% endif %}</td>
+        <td><a href="{% url 'web:review-detail' review.pk %}">otwórz</a></td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="7">Nie masz jeszcze przydzielonych prac.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

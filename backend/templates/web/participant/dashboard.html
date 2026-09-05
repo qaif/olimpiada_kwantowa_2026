@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Panel uczestnika{% endblock %}
+{% block content %}
+<h1>Panel uczestnika</h1>
+<p class="lead">Twój kod publiczny: <strong>{{ user.participant.public_code }}</strong>.
+  W ogłaszanych tabelach wyników występujesz pod tym kodem.</p>
+
+{% if stage %}
+  <section>
+    <h2>{{ stage.get_kind_display }} – {{ edition.year_label }}</h2>
+    {% comment %}
+      Odliczanie liczone z czasu serwera: obie wartości są w ISO 8601 (UTC), a skrypt
+      koryguje o różnicę względem zegara przeglądarki. Zegar klienta nigdy nie decyduje
+      o terminie – deadline i tak egzekwuje serwis uploadu.
+    {% endcomment %}
+    <p class="countdown"
+       x-data="countdown"
+       data-deadline="{{ stage.submission_deadline|date:'c' }}"
+       data-server-now="{{ now|date:'c' }}">
+      Termin oddania rozwiązań: {{ stage.submission_deadline }} (UTC).
+      <span x-text="label">pozostały czas liczony jest po wczytaniu strony</span>
+    </p>
+
+    {% if can_register %}
+      <form method="post" action="{% url 'web:stage-register' stage.pk %}">
+        {% csrf_token %}
+        <button type="submit">Zgłoś się do etapu eliminacyjnego</button>
+      </form>
+    {% elif entry %}
+      <p>Status Twojego udziału: <strong>{{ entry.get_status_display }}</strong>.</p>
+    {% else %}
+      <p>Nie jesteś zapisany do tego etapu. Wpisy do etapu okręgowego i finału tworzy kwalifikacja.</p>
+    {% endif %}
+  </section>
+
+  {% if entry %}
+    <section>
+      <h2>Zadania</h2>
+      {% if not upload_open %}
+        <p class="closed">Etap jest zamknięty – nie można już wysyłać rozwiązań.</p>
+      {% endif %}
+      {% for row in problem_rows %}
+        {% include "web/participant/_problem_card.html" with row=row stage=stage entry=entry upload_open=upload_open error=None %}
+      {% empty %}
+        <p>Ten etap nie ma jeszcze opublikowanych zadań.</p>
+      {% endfor %}
+    </section>
+  {% endif %}
+{% else %}
+  <p>Nie ustawiono bieżącej edycji olimpiady.</p>
+{% endif %}
+
+<section>
+  <h2>Moje wyniki</h2>
+  {% for result in results %}
+    <h3>{{ result.edition }} – {{ result.stage_kind }} (razem {{ result.total_points }} pkt)</h3>
+    <table class="grid">
+      <thead><tr><th>Zadanie</th><th>Punkty</th><th>Informacja zwrotna</th></tr></thead>
+      <tbody>
+        {% for problem in result.problems %}
+          <tr>
+            <td>{{ problem.number }}. {{ problem.title }}</td>
+            <td>{{ problem.score }}</td>
+            <td>
+              {% for item in problem.feedback %}
+                {% if item.comment_for_participant %}<p>{{ item.comment_for_participant }}</p>{% endif %}
+                {% for annotation in item.annotations %}
+                  <p class="annotation">str. {{ annotation.page }}: {{ annotation.text }}</p>
+                {% endfor %}
+              {% empty %}
+                <span class="hint">brak</span>
+              {% endfor %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% empty %}
+    <p>Żaden etap nie ma jeszcze ogłoszonych wyników.</p>
+  {% endfor %}
+</section>
+
+<section>
+  <h2>Reklamacje</h2>
+  {% for submission in appealable %}
+    <form method="post" action="{% url 'web:appeal-create' submission.pk %}" class="stack">
+      {% csrf_token %}
+      <h3>Zadanie {{ submission.problem.number }}: {{ submission.problem.title }}</h3>
+      {{ appeal_form.as_p }}
+      <button type="submit">Złóż reklamację</button>
+    </form>
+  {% empty %}
+    <p class="hint">Obecnie nie ma pracy, na którą można złożyć reklamację (potrzebna jest ocena
+      wstępna i otwarte okno odwoławcze).</p>
+  {% endfor %}
+
+  {% if my_appeals %}
+    <table class="grid">
+      <caption>Złożone reklamacje</caption>
+      <thead><tr><th>Zadanie</th><th>Złożona</th><th>Status</th><th>Uzasadnienie decyzji</th></tr></thead>
+      <tbody>
+        {% for appeal in my_appeals %}
+          <tr>
+            <td>{{ appeal.submission.problem.number }}</td>
+            <td>{{ appeal.filed_at }}</td>
+            <td>{{ appeal.get_status_display }}</td>
+            <td>{% if appeal.decision %}{{ appeal.decision.justification }}{% else %}—{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</section>
+{% endblock %}

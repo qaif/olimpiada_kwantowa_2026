@@ -648,3 +648,30 @@ def moderation_queue():
         .prefetch_related("reviews__reviewer__user")
         .order_by("entry__stage_id", "problem__number", "id")
     )
+
+
+def dispute_context(review: Review) -> list[dict]:
+    """Materiał rozjemczy dla trzeciego recenzenta: obie oceny rundy 1 **bez tożsamości autorów**.
+
+    Rozjemca musi wiedzieć, na czym polega rozjazd (punkty i argumentacja wewnętrzna), ale nie
+    może wiedzieć, kto co napisał – inaczej runda 2 przestaje być niezależna, a staje się
+    arbitrażem między nazwiskami (PROJEKT.md 2.4, przegląd T-05).
+
+    Dostępne wyłącznie dla recenzji rundy 2; dla rundy 1 leci 404, bo materiał rozjemczy dla
+    zwykłego recenzenta nie istnieje (a 403 potwierdzałoby, że coś takiego jest).
+
+    Kolejność jest po ``score``, nie po ``id`` przydziału: numer recenzji rośnie z kolejnością
+    przydzielania, więc sortowanie po nim korelowałoby wiersze z pulą recenzentów.
+    """
+    if review.round != ROUND_TIEBREAK:
+        raise DomainError(
+            "Materiał rozjemczy jest dostępny wyłącznie dla recenzji rundy 2.",
+            "NOT_A_TIEBREAK_REVIEW",
+            http.HTTP_404_NOT_FOUND,
+        )
+    rows = Review.objects.filter(
+        submission_id=review.submission_id,
+        round=ROUND_BLIND,
+        status=ReviewStatus.SUBMITTED,
+    ).order_by("score", "id")
+    return [{"score": row.score, "comment_internal": row.comment_internal} for row in rows]

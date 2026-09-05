@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}Panel koordynatora{% endblock %}
+{% block content %}
+<h1>Panel koordynatora</h1>
+
+<section>
+  <h2>Etapy {% if edition %}({{ edition.year_label }}){% endif %}</h2>
+  {% for row in stage_rows %}
+    <article class="card">
+      <h3>{{ row.stage.get_kind_display }}</h3>
+      <p class="hint">Deadline {{ row.stage.submission_deadline }} · recenzje do
+        {{ row.stage.review_deadline_at }} ·
+        {% if row.stage.closed_at %}zamknięty {{ row.stage.closed_at }}{% else %}otwarty{% endif %}</p>
+
+      <div class="actions">
+        <form method="post" action="{% url 'web:coordinator-close-stage' row.stage.pk %}">
+          {% csrf_token %}
+          <button type="submit">Zamknij etap</button>
+        </form>
+
+        <form method="post" action="{% url 'web:coordinator-assign' row.stage.pk %}">
+          {% csrf_token %}
+          {{ assign_form.as_p }}
+          <button type="submit">Przydziel recenzentów</button>
+        </form>
+
+        <form method="post" action="{% url 'web:coordinator-compute' row.stage.pk %}">
+          {% csrf_token %}
+          <button type="submit">Przelicz wyniki (podgląd)</button>
+        </form>
+
+        <form method="post" action="{% url 'web:coordinator-publish' row.stage.pk %}">
+          {% csrf_token %}
+          {{ publish_form.as_p }}
+          <button type="submit">Opublikuj wyniki</button>
+        </form>
+      </div>
+      {% if row.has_results %}
+        <p><a href="{% url 'web:results' row.stage.pk %}">Ogłoszona tabela wyników</a></p>
+      {% endif %}
+    </article>
+  {% empty %}
+    <p>Brak etapów w bieżącej edycji.</p>
+  {% endfor %}
+</section>
+
+{% if preview %}
+  <section>
+    <h2>Podgląd wyników etapu {{ preview.stage.get_kind_display }}</h2>
+    <p class="hint">Widok wyłącznie dla koordynatora – zawiera dane osobowe i nie jest publikacją.</p>
+    <div class="scroll">
+      <table class="grid">
+        <thead><tr><th>Miejsce</th><th>Kod</th><th>Imię i nazwisko</th><th>Szkoła</th><th>Okręg</th><th>Razem</th></tr></thead>
+        <tbody>
+          {% for row in preview.rows %}
+            <tr>
+              <td>{{ row.rank }}</td>
+              <td>{{ row.public_code }}</td>
+              <td>{{ row.first_name }} {{ row.last_name }}</td>
+              <td>{{ row.school }}</td>
+              <td>{{ row.district }}</td>
+              <td>{{ row.total }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endif %}
+
+<section>
+  <h2>Moderacja (rozjazdy ocen)</h2>
+  {% for submission in moderation %}
+    <article class="card">
+      <h3>{{ submission.entry.participant.public_code }} · zadanie {{ submission.problem.number }}</h3>
+      <table class="grid">
+        <thead><tr><th>Recenzent</th><th>Runda</th><th>Punkty</th><th>Komentarz wewnętrzny</th></tr></thead>
+        <tbody>
+          {% for review in submission.reviews.all %}
+            <tr>
+              <td>{{ review.reviewer.user.email }}</td>
+              <td>{{ review.round }}</td>
+              <td>{% if review.score is not None %}{{ review.score }}{% else %}—{% endif %}</td>
+              <td>{{ review.comment_internal }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <form method="post" action="{% url 'web:coordinator-resolve' submission.pk %}" class="stack">
+        {% csrf_token %}
+        {{ resolve_form.as_p }}
+        <button type="submit">Rozstrzygnij (posiedzenie komisji)</button>
+      </form>
+
+      <form method="post" action="{% url 'web:coordinator-assign-third' submission.pk %}" class="stack">
+        {% csrf_token %}
+        <label for="third-{{ submission.pk }}">Trzeci recenzent</label>
+        <select id="third-{{ submission.pk }}" name="reviewer_id">
+          {% for member in reviewer_pool %}
+            <option value="{{ member.pk }}">{{ member.user.email }}{% if member.district %} ({{ member.district }}){% endif %}</option>
+          {% endfor %}
+        </select>
+        <button type="submit">Wyznacz trzeciego recenzenta</button>
+      </form>
+    </article>
+  {% empty %}
+    <p>Brak prac w moderacji.</p>
+  {% endfor %}
+</section>
+
+<section>
+  <h2>Komitet – oczekujący na zatwierdzenie</h2>
+  <table class="grid">
+    <thead><tr><th>E-mail</th><th>Okręg</th><th>Komisja odwoławcza</th><th></th></tr></thead>
+    <tbody>
+      {% for member in pending_members %}
+        <tr>
+          <td>{{ member.user.email }}</td>
+          <td>{{ member.district|default:"—" }}</td>
+          <td>{% if member.is_appeals_committee %}tak{% else %}nie{% endif %}</td>
+          <td>
+            <form method="post" action="{% url 'web:coordinator-approve' member.pk %}">
+              {% csrf_token %}
+              <button type="submit">Zatwierdź</button>
+            </form>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4">Brak zgłoszeń oczekujących.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h3>Weryfikacja okręgu</h3>
+  <p class="hint">Bez potwierdzonego okręgu recenzent nie wchodzi do przydziału na etapie okręgowym.</p>
+  <table class="grid">
+    <thead><tr><th>E-mail</th><th>Okręg</th><th>Zweryfikowany</th><th></th></tr></thead>
+    <tbody>
+      {% for member in active_members %}
+        <tr>
+          <td>{{ member.user.email }}</td>
+          <td>{{ member.district|default:"—" }}</td>
+          <td>{% if member.district_verified %}tak{% else %}nie{% endif %}</td>
+          <td>
+            <form method="post" action="{% url 'web:coordinator-verify-district' member.pk %}" class="inline">
+              {% csrf_token %}
+              <input type="text" name="district" value="{{ member.district|default:'' }}" aria-label="Okręg">
+              <button type="submit">Potwierdź okręg</button>
+            </form>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4">Brak aktywnych członków komitetu.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>Kod zaproszenia</h2>
+  <p class="hint">W bazie zapisujemy wyłącznie sha256 kodu – po zamknięciu tego komunikatu kodu nie
+    da się odtworzyć. Trzeba wygenerować nowy.</p>
+  <form method="post" action="{% url 'web:coordinator-invitation' %}" class="stack">
+    {% csrf_token %}
+    {{ invitation_form.as_p }}
+    <button type="submit">Wygeneruj kod</button>
+  </form>
+</section>
+{% endblock %}

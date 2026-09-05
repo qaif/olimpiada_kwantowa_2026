@@ -6,6 +6,7 @@ from .api import (
     ModerationResolveView,
     MyReviewsView,
     ReviewDetailView,
+    ReviewDisputeView,
     ReviewSubmitView,
     StageAssignView,
 )
@@ -16,6 +17,7 @@ urlpatterns = [
     path("reviews/", MyReviewsView.as_view(), name="review-list"),
     path("reviews/<int:pk>/", ReviewDetailView.as_view(), name="review-detail"),
     path("reviews/<int:pk>/submit/", ReviewSubmitView.as_view(), name="review-submit"),
+    path("reviews/<int:pk>/dispute/", ReviewDisputeView.as_view(), name="review-dispute"),
     path("stages/<int:pk>/assign/", StageAssignView.as_view(), name="stage-assign"),
     path("moderation/", ModerationListView.as_view(), name="moderation-list"),
     path(

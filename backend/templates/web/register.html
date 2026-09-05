@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Rejestracja uczestnika{% endblock %}
+{% block content %}
+<h1>Rejestracja uczestnika</h1>
+<form method="post" class="stack">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <p class="hint">Zgoda na przetwarzanie danych osobowych jest wymagana. Uczestnik niepełnoletni
+    potrzebuje dodatkowo zgody opiekuna.</p>
+  <button type="submit">Załóż konto</button>
+</form>
+{% endblock %}

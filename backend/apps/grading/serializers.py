@@ -158,3 +158,15 @@ class FinalGradeSerializer(serializers.ModelSerializer):
         model = FinalGrade
         fields = ("id", "submission_id", "score", "method", "decided_at", "rationale")
         read_only_fields = fields
+
+
+class DisputeReviewSerializer(serializers.Serializer):
+    """Jedna ocena rundy 1 w materiale rozjemczym.
+
+    Celowo **nie** ma tu pola z recenzentem (ani id, ani e-maila) i nie ma pola ``id`` recenzji:
+    trzeci recenzent ma zobaczyć rozjazd, a nie osoby. Kształt jest budowany od zera, więc
+    dopisanie kiedykolwiek pola do ``ReviewSerializer`` nie przecieknie do tej odpowiedzi.
+    """
+
+    score = serializers.IntegerField(read_only=True)
+    comment_internal = serializers.CharField(read_only=True, allow_blank=True)

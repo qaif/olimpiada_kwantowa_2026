@@ -1,0 +1,68 @@
+{% load static %}<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Platforma Olimpiady{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  {% comment %}
+    Własne komponenty Alpine muszą być zarejestrowane, zanim Alpine wystartuje – stąd ten skrypt
+    jako pierwszy. Wszystkie trzy pliki są zewnętrzne: w projekcie nie ma ani jednego skryptu
+    inline, dzięki czemu CSP nie potrzebuje 'unsafe-inline' dla skryptów.
+  {% endcomment %}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/app.js' %}"></script>
+  <script defer nonce="{{ request.csp_nonce }}"
+          src="https://cdnjs.cloudflare.com/ajax/libs/htmx/2.0.4/htmx.min.js"
+          integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+"
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  {# Build CSP Alpine'a: wyrażenia są nazwami metod/właściwości komponentu, nic nie jest ewaluowane. #}
+  <script defer nonce="{{ request.csp_nonce }}"
+          src="https://cdn.jsdelivr.net/npm/@alpinejs/csp@3.17.1/dist/cdn.min.js"
+          integrity="sha384-G5wzctnFt9mPFTUmWwTFVDhhjNNM9xbWWlFEojfGuOaHs1hXMWEXtyDpepitEomu"
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  {% block head %}{% endblock %}
+</head>
+{% comment %}
+  Token CSRF dla każdego żądania HTMX. Wartość jest alfanumeryczna i przechodzi przez
+  autoescapowanie, więc atrybutu nie da się rozerwać.
+{% endcomment %}
+<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+<header class="topbar">
+  <a class="brand" href="{% url 'web:home' %}">Platforma Olimpiady</a>
+  <nav>
+    {% if user.is_authenticated %}
+      {% if is_participant %}<a href="{% url 'web:me' %}">Mój panel</a>{% endif %}
+      {% if is_reviewer %}<a href="{% url 'web:review-list' %}">Recenzje</a>{% endif %}
+      {% if is_appeals_committee %}<a href="{% url 'web:appeals' %}">Reklamacje</a>{% endif %}
+      {% if is_coordinator %}<a href="{% url 'web:coordinator' %}">Koordynator</a>{% endif %}
+      <span class="who">{{ user.email }}</span>
+      <form method="post" action="{% url 'web:logout' %}" class="inline">
+        {% csrf_token %}
+        <button type="submit" class="link">Wyloguj</button>
+      </form>
+    {% else %}
+      <a href="{% url 'web:login' %}">Zaloguj</a>
+      <a href="{% url 'web:register' %}">Rejestracja</a>
+      <a href="{% url 'web:register-committee' %}">Rejestracja z kodem</a>
+    {% endif %}
+  </nav>
+</header>
+
+{% if messages %}
+  <ul class="messages">
+    {% for message in messages %}
+      <li class="msg msg-{{ message.tags }}">{{ message }}</li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
+<main>
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="footer">
+  <p>Dane osobowe uczestników są przetwarzane zgodnie z zasadą minimalizacji (RODO).</p>
+</footer>
+{% block scripts %}{% endblock %}
+</body>
+</html>
