@@ -53,7 +53,15 @@ class SubmissionQuerySet(models.QuerySet):
         niczego. Relacje ``reviews`` i ``appeals`` są odwrotnymi stronami FK z ``apps.grading``
         i ``apps.appeals`` – celowo przez nazwę, żeby nie robić importu w drugą stronę (te aplikacje
         zależą od submissions, nie odwrotnie).
+
+        Definicja „aktywnego recenzenta” (status ACTIVE **i** grupa ``reviewer``) jest jedna dla
+        całego systemu i mieszka w ``apps.accounts.services.active_reviewer_profile`` – widoczność
+        plików nie może być luźniejsza niż uprawnienie, które wpuszcza do ``/api/grading/reviews/``.
         """
+        # Import lokalny: ``apps.accounts.services`` ciągnie za sobą warstwę serwisową, a ten moduł
+        # jest ładowany podczas rejestrowania aplikacji.
+        from apps.accounts.services import active_reviewer_profile
+
         if not user or not user.is_authenticated or not user.is_active:
             return self.none()
         if user.groups.filter(name=GROUP_COORDINATOR).exists():
@@ -62,12 +70,17 @@ class SubmissionQuerySet(models.QuerySet):
         participant = getattr(user, "participant", None)
         if participant is not None:
             conditions.append(Q(entry__participant=participant))
+        reviewer = active_reviewer_profile(user)
+        if reviewer is not None:
+            conditions.append(Q(reviews__reviewer=reviewer))
         member = getattr(user, "committee_member", None)
-        is_member = member is not None and member.status == CommitteeStatus.ACTIVE
-        if is_member:
-            conditions.append(Q(reviews__reviewer=member))
-            if member.is_appeals_committee:
-                conditions.append(Q(appeals__isnull=False) & ~Q(reviews__reviewer=member))
+        appeals_member = (
+            member
+            if member is not None and member.status == CommitteeStatus.ACTIVE and member.is_appeals_committee
+            else None
+        )
+        if appeals_member is not None:
+            conditions.append(Q(appeals__isnull=False) & ~Q(reviews__reviewer=appeals_member))
         if not conditions:
             return self.none()
         query = conditions[0]
@@ -76,7 +89,9 @@ class SubmissionQuerySet(models.QuerySet):
         queryset = self.filter(query)
         # JOIN po recenzjach i reklamacjach potrafi zwielokrotnić wiersze (dwie recenzje tego samego
         # zgłoszenia w rundach 1 i 2), więc tylko ta gałąź wymaga odsiania duplikatów.
-        return queryset.distinct() if is_member else queryset
+        if reviewer is not None or appeals_member is not None:
+            return queryset.distinct()
+        return queryset
 
 
 class Submission(models.Model):
@@ -114,9 +129,17 @@ class Submission(models.Model):
     def latest_file(self) -> "SubmissionFile | None":
         """Najnowszy plik zgłoszenia. W praktyce jest dokładnie jeden, ale kolejność musi być jawna.
 
-        ``order_by("-id")`` zamiast domyślnego porządku: jeśli kiedykolwiek pojawi się drugi plik,
+        Porządek malejący po ``id`` zamiast domyślnego: jeśli kiedykolwiek pojawi się drugi plik,
         pobranie ma dać ten świeższy, a nie ten, który akurat wypadł pierwszy w ``Meta.ordering``.
+
+        Gdy wywołujący zrobił ``prefetch_related("files")``, sortujemy w Pythonie po gotowej liście.
+        ``order_by(...)`` omijałby cache prefetchu i robił po jednym zapytaniu na każdy wiersz listy
+        (N+1 w ``GET /api/grading/reviews/`` i ``GET /api/appeals/``).
         """
+        cache = getattr(self, "_prefetched_objects_cache", None)
+        if cache is not None and "files" in cache:
+            files = sorted(self.files.all(), key=lambda item: item.pk, reverse=True)
+            return files[0] if files else None
         return self.files.order_by("-id").first()
 
     @property

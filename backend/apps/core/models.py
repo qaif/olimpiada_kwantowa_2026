@@ -7,9 +7,18 @@ Zasady:
 - czas zawsze przez ``django.utils.timezone.now()``.
 """
 
+import ipaddress
+import logging
+from functools import lru_cache
+
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+
+logger = logging.getLogger(__name__)
+
+#: Nagłówek, w którym proxy (Caddy) podaje adres klienta. Czytany wyłącznie od zaufanego nadawcy.
+REAL_IP_HEADER = "HTTP_X_REAL_IP"
 
 
 def default_diff() -> dict:
@@ -45,15 +54,57 @@ class AuditLog(models.Model):
         return f"{self.action} {self.target_type}#{self.target_id}"
 
 
-def client_ip(request) -> str | None:
-    """Adres klienta z żądania. ``REMOTE_ADDR`` jest jedynym źródłem, któremu można ufać.
+@lru_cache(maxsize=8)
+def _parse_networks(entries: tuple[str, ...]) -> tuple:
+    """Parsuje listę adresów/CIDR z ustawień na obiekty ``ip_network``.
 
-    ``X-Forwarded-For`` jest nagłówkiem od klienta – proxy (Caddy) ma go nadpisywać, a nie
-    doklejać, więc nie czytamy go tutaj, żeby nie wpisywać do audytu adresu podanego przez atakującego.
+    Wynik jest memoizowany po *wartości* ustawienia, a nie na stałe – dzięki temu testy podmieniające
+    ``settings.TRUSTED_PROXY_IPS`` widzą nową listę, a produkcja parsuje ją raz.
+    """
+    networks = []
+    for entry in entries:
+        text = (entry or "").strip()
+        if not text:
+            continue
+        try:
+            networks.append(ipaddress.ip_network(text, strict=False))
+        except ValueError:
+            # Zła konfiguracja nie może wywrócić żądania – wpis jest pomijany, ale zostaje w logu.
+            logger.warning("TRUSTED_PROXY_IPS: pomijam nieprawidłowy wpis %r", text)
+    return tuple(networks)
+
+
+def _is_trusted_proxy(address: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    entries = tuple(getattr(settings, "TRUSTED_PROXY_IPS", ()) or ())
+    return any(address in network for network in _parse_networks(entries))
+
+
+def _parse_address(value: str | None):
+    try:
+        return ipaddress.ip_address((value or "").strip())
+    except ValueError:
+        return None
+
+
+def client_ip(request) -> str | None:
+    """Adres klienta z żądania.
+
+    ``REMOTE_ADDR`` jest domyślnym i jedynym bezwarunkowo wiarygodnym źródłem. ``X-Real-IP``
+    (ustawiany przez Caddy na ``{remote_host}``) jest brany pod uwagę **wyłącznie**, gdy samo
+    połączenie przyszło z adresu wymienionego w ``settings.TRUSTED_PROXY_IPS`` – w innym wypadku
+    byłby to adres podany przez klienta, więc atakujący wpisywałby sobie dowolne IP do audytu.
+    Nagłówek o nieprawidłowej treści jest ignorowany (audyt woli adres prawdziwy niż podstawiony).
     """
     if request is None:
         return None
-    return getattr(request, "META", {}).get("REMOTE_ADDR") or None
+    meta = getattr(request, "META", None) or {}
+    remote = _parse_address(meta.get("REMOTE_ADDR"))
+    if remote is None:
+        return None
+    if not _is_trusted_proxy(remote):
+        return str(remote)
+    forwarded = _parse_address(meta.get(REAL_IP_HEADER))
+    return str(forwarded) if forwarded is not None else str(remote)
 
 
 def audit(actor, action: str, obj, diff: dict | None = None, request=None) -> AuditLog:

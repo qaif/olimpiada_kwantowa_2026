@@ -166,7 +166,7 @@ def test_review_cannot_be_submitted_for_graded_submission(stage):
     with pytest.raises(DomainError) as exc:
         submit_review(review, 5, "", "", [])
 
-    assert exc.value.machine_code == "SUBMISSION_NOT_UNDER_REVIEW"
+    assert exc.value.machine_code == "SUBMISSION_NOT_REVIEWABLE"
     assert exc.value.status_code == 409
 
 

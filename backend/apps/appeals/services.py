@@ -18,6 +18,7 @@ from __future__ import annotations
 import logging
 
 from django.db import transaction
+from django.db.models import Prefetch
 from django.utils import timezone
 from rest_framework import status as http
 
@@ -27,7 +28,7 @@ from apps.core.api import DomainError
 from apps.core.models import audit
 from apps.grading.models import ROUND_BLIND, ROUND_TIEBREAK, FinalGrade, GradeMethod, Review
 from apps.grading.services import allowed_scores
-from apps.submissions.models import Submission, SubmissionStatus
+from apps.submissions.models import Submission, SubmissionFile, SubmissionStatus
 
 from .models import (
     DECIDABLE_STATUSES,
@@ -332,7 +333,12 @@ def appeals_queue(member: CommitteeMember | None):
             "submission__final_grade",
             "filed_by",
         )
-        .prefetch_related("submission__reviews", "submission__files")
+        .prefetch_related(
+            "submission__reviews",
+            # Jawny Prefetch z posortowanym querysetem: ``Submission.latest_file`` korzysta wtedy
+            # z cache'u prefetchu zamiast robić własne ``order_by`` per wiersz (N+1 na kolejce).
+            Prefetch("submission__files", queryset=SubmissionFile.objects.order_by("-id")),
+        )
         .order_by("filed_at", "id")
     )
 

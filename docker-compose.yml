@@ -14,6 +14,8 @@ x-app-env: &app-env
   S3_PUBLIC_BUCKET: public-media
   CLAMAV_HOST: clamav
   CLAMAV_PORT: "3310"
+  # Backend honoruje X-Real-IP tylko z tych adresów (sieci compose poniżej mają stałe podsieci).
+  TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-172.30.1.0/24,172.30.2.0/24}
 
 x-app-base: &app-base
   build:
@@ -204,9 +206,15 @@ services:
 networks:
   edge:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.1.0/24
   internal:
     driver: bridge
     internal: true   # brak wyjścia do internetu z usług danych; web ma wyjście przez `edge`
+    ipam:
+      config:
+        - subnet: 172.30.2.0/24
 
 volumes:
   pg_data:

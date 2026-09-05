@@ -36,6 +36,23 @@ INVITATION_CODE_BYTES = 24
 PUBLIC_CODE_MAX_ATTEMPTS = 20
 
 
+def active_reviewer_profile(user) -> CommitteeMember | None:
+    """Profil recenzenta użytkownika, o ile wolno mu recenzować: ACTIVE **i** grupa ``reviewer``.
+
+    Jedna definicja dla całego systemu: używa jej i uprawnienie ``IsActiveReviewer`` (przez
+    ``apps.accounts.permissions``), i widoczność plików (``Submission.objects.for_user``), i serwisy
+    oceniania. Rozjazd między nimi oznaczałby, że ktoś widzi pracę, której nie ma prawa recenzować.
+    """
+    if not user or not user.is_authenticated or not user.is_active:
+        return None
+    member = getattr(user, "committee_member", None)
+    if member is None or member.status != CommitteeStatus.ACTIVE:
+        return None
+    if not user.groups.filter(name=GROUP_REVIEWER).exists():
+        return None
+    return member
+
+
 def _add_to_group(user: User, name: str) -> None:
     group, _ = Group.objects.get_or_create(name=name)
     user.groups.add(group)
@@ -267,6 +284,14 @@ def verify_committee_district(
     if not district:
         raise DomainError("Podaj okręg do potwierdzenia.", "DISTRICT_REQUIRED", status.HTTP_400_BAD_REQUEST)
     member = CommitteeMember.objects.select_for_update().get(pk=member.pk)
+    if member.status != CommitteeStatus.ACTIVE:
+        # Potwierdzony okręg wpuszcza do przydziału na etapie okręgowym. Nadawanie go profilowi
+        # oczekującemu albo zawieszonemu byłoby cichym omijaniem ścieżki zatwierdzania.
+        raise DomainError(
+            "Okręg potwierdza się wyłącznie aktywnemu członkowi komitetu.",
+            "MEMBER_NOT_ACTIVE",
+            status.HTTP_400_BAD_REQUEST,
+        )
     previous = member.district
     member.district = district
     member.district_verified = True

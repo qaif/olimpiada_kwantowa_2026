@@ -84,14 +84,28 @@ class ReviewSubmitSerializer(serializers.Serializer):
 
 
 class AssignReviewersSerializer(serializers.Serializer):
-    """Parametr przydziału. Domyślnie dwóch niezależnych recenzentów na rozwiązanie."""
+    """Parametr przydziału. Domyślnie dwóch niezależnych recenzentów na rozwiązanie.
 
-    per_submission = serializers.IntegerField(required=False, default=2, min_value=1, max_value=10)
+    ``min_value=2``: ocena rundy 1 z jednym recenzentem nie ma jak się rozjechać, więc znikają
+    i konsensus, i moderacja – procedura z PROJEKT.md 2.4 przestaje istnieć. Serwis przyjmuje
+    ``per_submission=1`` (scenariusz awaryjny, wołany z shella), ale API tego nie oferuje.
+    """
+
+    per_submission = serializers.IntegerField(required=False, default=2, min_value=2, max_value=10)
+
+
+class SkippedSubmissionSerializer(serializers.Serializer):
+    """Rozwiązanie pominięte przy przydziale – do ręcznego załatwienia przez koordynatora."""
+
+    submission_id = serializers.IntegerField(read_only=True)
+    public_code = serializers.CharField(read_only=True)
+    reason = serializers.CharField(read_only=True)
 
 
 class AssignmentResultSerializer(serializers.Serializer):
     submissions = serializers.IntegerField(read_only=True)
     assignments = serializers.IntegerField(read_only=True)
+    skipped = SkippedSubmissionSerializer(many=True, read_only=True)
 
 
 class ModerationReviewSerializer(serializers.ModelSerializer):

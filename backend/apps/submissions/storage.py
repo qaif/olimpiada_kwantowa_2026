@@ -59,8 +59,15 @@ class SubmissionStorage(ABC):
         """Zapisuje strumień pod kluczem. Nadpisanie tego samego klucza jest idempotentne."""
 
     @abstractmethod
-    def presigned_get_url(self, key: str, ttl: int | None = None) -> str | None:
-        """URL czasowy do pobrania albo ``None``, gdy backend nie wspiera presigned URL-i."""
+    def presigned_get_url(
+        self, key: str, ttl: int | None = None, *, content_disposition: str | None = None
+    ) -> str | None:
+        """URL czasowy do pobrania albo ``None``, gdy backend nie wspiera presigned URL-i.
+
+        ``content_disposition`` narzuca nagłówek ``Content-Disposition`` odpowiedzi obiektowej –
+        dzięki temu nazwa pliku widziana przez pobierającego jest ustalana przez aplikację, a nie
+        przez metadane obiektu (ocenianie ślepe: recenzent nie może dostać nazwy od uczestnika).
+        """
 
     @abstractmethod
     def open(self, key: str) -> BinaryIO:
@@ -129,11 +136,17 @@ class S3SubmissionStorage(SubmissionStorage):
             fileobj, self.bucket, key, ExtraArgs={"ContentType": content_type or "application/octet-stream"}
         )
 
-    def presigned_get_url(self, key: str, ttl: int | None = None) -> str:
+    def presigned_get_url(
+        self, key: str, ttl: int | None = None, *, content_disposition: str | None = None
+    ) -> str:
         # generate_presigned_url liczy podpis lokalnie – nie wykonuje żadnego żądania sieciowego.
+        params = {"Bucket": self.bucket, "Key": key}
+        if content_disposition:
+            # Parametr wchodzi do podpisu SigV4, więc pobierający nie podmieni nazwy pliku w URL-u.
+            params["ResponseContentDisposition"] = content_disposition
         return self.presign_client.generate_presigned_url(
             "get_object",
-            Params={"Bucket": self.bucket, "Key": key},
+            Params=params,
             ExpiresIn=int(ttl or settings.S3_PRESIGNED_TTL_SECONDS),
         )
 
@@ -179,7 +192,9 @@ class LocalSubmissionStorage(SubmissionStorage):
             for chunk in iter(lambda: fileobj.read(1024 * 1024), b""):
                 target.write(chunk)
 
-    def presigned_get_url(self, key: str, ttl: int | None = None) -> None:
+    def presigned_get_url(
+        self, key: str, ttl: int | None = None, *, content_disposition: str | None = None
+    ) -> None:
         return None
 
     def open(self, key: str) -> BinaryIO:

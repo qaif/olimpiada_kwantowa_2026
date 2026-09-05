@@ -3,7 +3,7 @@
 import factory
 from django.utils import timezone
 
-from apps.accounts.models import GROUP_APPEALS, CommitteeStatus
+from apps.accounts.models import GROUP_APPEALS, GROUP_REVIEWER, CommitteeStatus
 from apps.accounts.tests.factories import CommitteeMemberFactory, ParticipantFactory, UserFactory
 from apps.appeals.models import Appeal, AppealStatus
 from apps.submissions.tests.factories import SubmissionFactory
@@ -18,9 +18,14 @@ SHORT_ARGUMENT = "Za mało punktów."
 
 
 class AppealsCommitteeMemberFactory(CommitteeMemberFactory):
-    """Aktywny członek komisji odwoławczej: grupa ``appeals`` + ``is_appeals_committee``."""
+    """Aktywny członek komisji odwoławczej: grupy ``reviewer`` + ``appeals`` i ``is_appeals_committee``.
 
-    user = factory.SubFactory(UserFactory, groups=[GROUP_APPEALS])
+    Obie grupy, bo dokładnie tak wygląda profil po zatwierdzeniu (``_grant_reviewer_groups``):
+    członek komisji odwoławczej jest jednocześnie recenzentem. Fabryka z samą grupą ``appeals``
+    opisywała stan, którego rejestracja nie potrafi wyprodukować.
+    """
+
+    user = factory.SubFactory(UserFactory, groups=[GROUP_REVIEWER, GROUP_APPEALS])
     status = CommitteeStatus.ACTIVE
     district_verified = True
     is_appeals_committee = True

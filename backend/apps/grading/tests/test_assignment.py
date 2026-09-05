@@ -24,7 +24,7 @@ def test_assign_gives_two_distinct_reviewers_and_is_idempotent(stage):
 
     result = assign_reviewers(stage)
 
-    assert result == {"submissions": 2, "assignments": 4}
+    assert result == {"submissions": 2, "assignments": 4, "skipped": []}
     for submission in (first, second):
         reviewers = set(
             Review.objects.filter(submission=submission, round=ROUND_BLIND).values_list(
@@ -38,7 +38,7 @@ def test_assign_gives_two_distinct_reviewers_and_is_idempotent(stage):
 
     again = assign_reviewers(stage)
 
-    assert again == {"submissions": 0, "assignments": 0}
+    assert again == {"submissions": 0, "assignments": 0, "skipped": []}
     assert Review.objects.count() == 4
 
 
@@ -83,28 +83,58 @@ def test_district_stage_without_enough_reviewers_raises_conflict(district_stage)
     assert Review.objects.count() == 0
 
 
-def test_unverified_reviewer_is_skipped_on_district_but_used_on_elim(stage, district_stage):
-    """T-02: niezweryfikowany okręg = konflikt na DISTRICT, ale nie na ELIM."""
+def test_unverified_reviewer_is_skipped_on_district(district_stage):
+    """T-02: niezweryfikowany okręg = konflikt z każdym okręgiem na etapie okręgowym."""
     unverified = ActiveReviewerFactory(district="pomorski", district_verified=False)
     verified_a = ActiveReviewerFactory(district="małopolski", district_verified=True)
     verified_b = ActiveReviewerFactory(district="lubelski", district_verified=True)
-    district_submission = locked_submission(district_stage, district="mazowiecki")
-    elim_submission = locked_submission(stage, district="mazowiecki")
+    submission = locked_submission(district_stage, district="mazowiecki")
 
     assign_reviewers(district_stage)
+
+    reviewers = set(Review.objects.filter(submission=submission).values_list("reviewer_id", flat=True))
+    assert reviewers == {verified_a.pk, verified_b.pk}
+    assert unverified.pk not in reviewers
+
+
+def test_unverified_reviewer_is_assignable_outside_district_stage(stage):
+    """T-02: poza etapem okręgowym brak potwierdzenia okręgu nie wyklucza recenzenta.
+
+    Pula to dokładnie dwie osoby, więc przydział musi sięgnąć po tę niezweryfikowaną – asercja
+    mówi wtedy coś o regule, a nie tylko o rozmiarze zbioru.
+    """
+    unverified = ActiveReviewerFactory(district="pomorski", district_verified=False)
+    verified = ActiveReviewerFactory(district="małopolski", district_verified=True)
+    submission = locked_submission(stage, district="pomorski")
+
     assign_reviewers(stage)
 
-    district_reviewers = set(
-        Review.objects.filter(submission=district_submission).values_list("reviewer_id", flat=True)
-    )
-    assert district_reviewers == {verified_a.pk, verified_b.pk}
+    reviewers = set(Review.objects.filter(submission=submission).values_list("reviewer_id", flat=True))
+    assert unverified.pk in reviewers
+    assert reviewers == {unverified.pk, verified.pk}
 
-    elim_reviewers = set(
-        Review.objects.filter(submission=elim_submission).values_list("reviewer_id", flat=True)
+
+def test_verify_district_endpoint_makes_reviewer_assignable_on_district(client, district_stage):
+    """Po potwierdzeniu okręgu przez koordynatora recenzent wchodzi do puli etapu okręgowego."""
+    unverified = ActiveReviewerFactory(district="pomorski", district_verified=False)
+    verified = ActiveReviewerFactory(district="małopolski", district_verified=True)
+    submission = locked_submission(district_stage, district="mazowiecki")
+
+    # Przed potwierdzeniem pula ma jedną osobę – nie ma z czego złożyć dwóch recenzji.
+    with pytest.raises(DomainError) as exc:
+        assign_reviewers(district_stage)
+    assert exc.value.machine_code == "NOT_ENOUGH_REVIEWERS"
+
+    client.force_authenticate(CoordinatorFactory())
+    response = client.post(
+        f"/api/auth/committee/{unverified.pk}/verify-district/", {"district": "pomorski"}, format="json"
     )
-    # Poza etapem okręgowym reguła konfliktu okręgu nie obowiązuje – pula jest pełna.
-    assert unverified.pk in elim_reviewers or len(elim_reviewers) == 2
-    assert len(elim_reviewers) == 2
+    assert response.status_code == 200
+
+    assign_reviewers(district_stage)
+
+    reviewers = set(Review.objects.filter(submission=submission).values_list("reviewer_id", flat=True))
+    assert reviewers == {unverified.pk, verified.pk}
 
 
 def test_pending_reviewer_is_not_in_pool(stage):

@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 from collections import Counter
 
-from django.db import transaction
+from django.db import connection, models, transaction
 from django.utils import timezone
 from rest_framework import status as http
 
@@ -26,10 +26,11 @@ from apps.accounts.models import (
     CommitteeMember,
     CommitteeStatus,
 )
+from apps.accounts.services import active_reviewer_profile
 from apps.competitions.models import Stage, StageKind
 from apps.core.api import DomainError
 from apps.core.models import audit
-from apps.submissions.models import Submission, SubmissionStatus
+from apps.submissions.models import Submission, SubmissionFile, SubmissionStatus
 
 from .models import ROUND_BLIND, ROUND_TIEBREAK, FinalGrade, GradeMethod, Review, ReviewStatus
 
@@ -37,6 +38,9 @@ logger = logging.getLogger(__name__)
 
 #: Stany zgłoszenia, w których wolno wystawić ocenę (moderacja obsługuje rundę rozjemczą).
 REVIEWABLE_STATUSES = (SubmissionStatus.IN_REVIEW, SubmissionStatus.MODERATION)
+#: Przestrzeń kluczy blokad doradczych Postgresa dla tego modułu (pg_advisory_xact_lock(int4, int4)).
+#: Stała nie może kolidować z innymi modułami – każdy, kto doda blokadę doradczą, bierze własną.
+ADVISORY_LOCK_NAMESPACE_ASSIGNMENT = 1005
 #: Twarde limity adnotacji – JSON od recenzenta nie może urosnąć w nieskończoność.
 MAX_ANNOTATIONS = 500
 MAX_ANNOTATION_TEXT = 2000
@@ -67,16 +71,24 @@ def is_coordinator(user) -> bool:
     return user.groups.filter(name=GROUP_COORDINATOR).exists()
 
 
-def active_reviewer_profile(user) -> CommitteeMember | None:
-    """Profil recenzenta użytkownika, o ile jest aktywny i w grupie ``reviewer``."""
-    if not user or not user.is_authenticated or not user.is_active:
-        return None
-    member = getattr(user, "committee_member", None)
-    if member is None or member.status != CommitteeStatus.ACTIVE:
-        return None
-    if not user.groups.filter(name=GROUP_REVIEWER).exists():
-        return None
-    return member
+def _lock_stage_for_assignment(stage: Stage) -> None:
+    """Blokada doradcza na czas transakcji przydziału dla jednego etapu.
+
+    Bez niej dwa równoczesne ``POST stages/{id}/assign/`` czytają ten sam obraz świata: każde widzi
+    rozwiązanie bez recenzji i przydziela mu własnych recenzentów. Efektem jest albo czterech
+    recenzentów zamiast dwóch, albo ``IntegrityError`` (500) na unikalności przydziału. Blokada
+    doradcza, a nie ``select_for_update`` na ``Stage``: szeregujemy *operację*, a nie wiersz etapu,
+    który sam się tu nie zmienia. Zwalnia ją koniec transakcji – także przy wyjątku.
+
+    Jedyne surowe SQL w module i jedyne możliwe: to funkcja Postgresa bez odpowiednika w ORM.
+    Parametry idą przez placeholdery sterownika, nie przez formatowanie napisu.
+    """
+    if connection.vendor != "postgresql":
+        return
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT pg_advisory_xact_lock(%s, %s)", [ADVISORY_LOCK_NAMESPACE_ASSIGNMENT, int(stage.pk)]
+        )
 
 
 def reviewer_pool() -> list[CommitteeMember]:
@@ -209,10 +221,17 @@ def assign_reviewers(stage: Stage, per_submission: int = 2, *, actor=None, reque
 
     Równoważenie: kolejny przydział dostaje recenzent z najmniejszą bieżącą liczbą recenzji w tym
     etapie. Idempotentny – rozwiązanie, które ma już komplet recenzentów rundy 1, jest pomijane.
+
+    Rozwiązanie, dla którego nie da się skompletować recenzentów bez konfliktu interesów, **nie**
+    wywraca całego etapu: trafia na listę ``skipped`` (z powodem), a reszta zostaje przydzielona
+    i zacommitowana. Koordynator dostaje wtedy listę spraw do ręcznego załatwienia zamiast
+    komunikatu „nic się nie udało”. Dopiero gdy nie udało się przydzielić **niczego**, leci 409 –
+    wtedy nie ma czego commitować i cisza byłaby myląca.
     """
     if per_submission < 1:
         raise _bad_request("Liczba recenzentów musi być dodatnia.", "INVALID_PER_SUBMISSION")
 
+    _lock_stage_for_assignment(stage)
     submissions = _assignable_submissions(stage)
     pool = reviewer_pool()
     loads: Counter[int] = Counter({member.pk: 0 for member in pool})
@@ -223,11 +242,12 @@ def assign_reviewers(stage: Stage, per_submission: int = 2, *, actor=None, reque
 
     created_total = 0
     touched: list[int] = []
+    skipped: list[dict] = []
     for submission in submissions:
         already = set(
-            Review.objects.filter(submission=submission, round=ROUND_BLIND).values_list(
-                "reviewer_id", flat=True
-            )
+            Review.objects.filter(submission=submission, round=ROUND_BLIND)
+            .exclude(status=ReviewStatus.CANCELLED)
+            .values_list("reviewer_id", flat=True)
         )
         missing = per_submission - len(already)
         if missing <= 0:
@@ -239,9 +259,15 @@ def assign_reviewers(stage: Stage, per_submission: int = 2, *, actor=None, reque
             if member.pk not in already and not has_district_conflict(member, stage, participant_district)
         ]
         if len(eligible) < missing:
-            raise _conflict(
-                "Za mało recenzentów bez konfliktu interesów dla tego etapu.", "NOT_ENOUGH_REVIEWERS"
+            skipped.append(
+                {
+                    "submission_id": submission.pk,
+                    # Pseudonim, nie dane osobowe – koordynator musi wiedzieć, czyją pracę tknąć ręcznie.
+                    "public_code": submission.entry.participant.public_code,
+                    "reason": "NOT_ENOUGH_REVIEWERS",
+                }
             )
+            continue
         chosen = sorted(eligible, key=lambda member: (loads[member.pk], member.pk))[:missing]
         now = timezone.now()
         Review.objects.bulk_create(
@@ -264,15 +290,30 @@ def assign_reviewers(stage: Stage, per_submission: int = 2, *, actor=None, reque
             submission.save(update_fields=["status"])
         touched.append(submission.pk)
 
+    if created_total == 0 and skipped:
+        # Nic nie dało się przydzielić – nie ma czego commitować, więc odpowiadamy błędem domenowym.
+        raise _conflict("Za mało recenzentów bez konfliktu interesów dla tego etapu.", "NOT_ENOUGH_REVIEWERS")
+
     audit(
         actor,
         "review.assigned",
         stage,
-        {"submissions": len(touched), "assignments": created_total, "per_submission": per_submission},
+        {
+            "submissions": len(touched),
+            "assignments": created_total,
+            "per_submission": per_submission,
+            "skipped": [item["submission_id"] for item in skipped],
+        },
         request=request,
     )
-    logger.info("Etap %s: przydzielono %s recenzji dla %s rozwiązań", stage.pk, created_total, len(touched))
-    return {"submissions": len(touched), "assignments": created_total}
+    logger.info(
+        "Etap %s: przydzielono %s recenzji dla %s rozwiązań, pominięto %s",
+        stage.pk,
+        created_total,
+        len(touched),
+        len(skipped),
+    )
+    return {"submissions": len(touched), "assignments": created_total, "skipped": skipped}
 
 
 @transaction.atomic
@@ -314,12 +355,28 @@ def assign_third_reviewer(submission: Submission, reviewer: CommitteeMember, *, 
 # --- wystawianie ocen -------------------------------------------------------------------------
 
 
+def _assert_review_open(review: Review, submission_status: str) -> None:
+    """Wspólna bramka zapisu recenzji: stan recenzji **i** stan zgłoszenia.
+
+    Sam stan recenzji nie wystarcza: po rozstrzygnięciu rozjazdu przez koordynatora albo po
+    finalizacji etapu praca jest zamknięta, a wiszący przydział nie może już do niej niczego dopisać
+    (maszyna stanów PROJEKT.md 2.4). Bez tego szkic zapisywał się do zgłoszenia w stanie FINAL.
+    """
+    if review.status == ReviewStatus.SUBMITTED:
+        raise _conflict("Recenzja została już wystawiona.", "REVIEW_ALREADY_SUBMITTED")
+    if review.status == ReviewStatus.CANCELLED:
+        raise _conflict("Ten przydział został anulowany.", "REVIEW_CANCELLED")
+    if submission_status not in REVIEWABLE_STATUSES:
+        raise _conflict(
+            f"Rozwiązanie w stanie {submission_status} nie przyjmuje ocen.", "SUBMISSION_NOT_REVIEWABLE"
+        )
+
+
 def save_draft(
     review: Review, *, score=None, comment_internal=None, comment_for_participant=None, annotations=None
 ):
     """Zapis szkicu recenzji. Bez walidacji finalnej – ocena może być jeszcze niepełna."""
-    if review.status == ReviewStatus.SUBMITTED:
-        raise _conflict("Recenzja została już wystawiona.", "REVIEW_ALREADY_SUBMITTED")
+    _assert_review_open(review, review.submission.status)
     fields: list[str] = []
     if score is not None:
         review.score = score
@@ -369,13 +426,46 @@ def _create_final_grade(
         {"submission_id": submission.pk, "score": score, "method": method},
         request=request,
     )
+    _cancel_pending_tiebreak(submission, actor=decided_by, request=request)
     return grade
 
 
+def _cancel_pending_tiebreak(submission: Submission, *, actor=None, request=None) -> int:
+    """Anuluje niewystawione recenzje rundy 2 po rozstrzygnięciu rozjazdu.
+
+    Gdy rozjazd rozstrzygnie koordynator, przydział trzeciego recenzenta traci przedmiot. Zostawiony
+    w ASSIGNED wisiałby na jego liście zadań i pozwalał dopisać ocenę do zamkniętej już pracy.
+    Rekord zostaje (ślad po przydziale jest częścią historii), zmienia się tylko status.
+    """
+    pending = list(
+        Review.objects.filter(submission=submission, round=ROUND_TIEBREAK).exclude(
+            status__in=(ReviewStatus.SUBMITTED, ReviewStatus.CANCELLED)
+        )
+    )
+    for review in pending:
+        review.status = ReviewStatus.CANCELLED
+        review.save(update_fields=["status"])
+        audit(
+            actor,
+            "review.cancelled",
+            review,
+            {"submission_id": submission.pk, "round": review.round, "reason": "MODERATION_RESOLVED"},
+            request=request,
+        )
+    return len(pending)
+
+
 def _settle_round_one(submission: Submission, *, request=None) -> None:
-    """Po komplecie ocen rundy 1: zgodne → ``FinalGrade(CONSENSUS)``, różne → moderacja."""
-    reviews = list(Review.objects.filter(submission=submission, round=ROUND_BLIND))
-    if len(reviews) < 2 or not all(review.is_submitted for review in reviews):
+    """Po komplecie ocen rundy 1: zgodne → ``FinalGrade(CONSENSUS)``, różne → moderacja.
+
+    Rozstrzyga faktyczna liczba recenzji rundy 1, a nie założone „dwie”. Przy ``per_submission=1``
+    (przydział awaryjny) jedna wystawiona ocena też domyka sprawę – inaczej praca zostawałaby
+    na zawsze w IN_REVIEW, bo drugiej oceny nie miałby kto wystawić.
+    """
+    reviews = list(
+        Review.objects.filter(submission=submission, round=ROUND_BLIND).exclude(status=ReviewStatus.CANCELLED)
+    )
+    if not reviews or not all(review.is_submitted for review in reviews):
         return
     scores = {review.score for review in reviews}
     if len(scores) == 1:
@@ -385,7 +475,7 @@ def _settle_round_one(submission: Submission, *, request=None) -> None:
             score=scores.pop(),
             method=GradeMethod.CONSENSUS,
             decided_by=None,
-            rationale="Zgodne oceny dwóch niezależnych recenzentów.",
+            rationale=f"Zgodne oceny niezależnych recenzentów ({len(reviews)}).",
             request=request,
         )
         return
@@ -419,12 +509,7 @@ def submit_review(
     submission = _locked_submission(review.submission_id)
     review = Review.objects.select_related("reviewer", "reviewer__user").get(pk=review.pk)
 
-    if review.status == ReviewStatus.SUBMITTED:
-        raise _conflict("Recenzja została już wystawiona.", "REVIEW_ALREADY_SUBMITTED")
-    if submission.status not in REVIEWABLE_STATUSES:
-        raise _conflict(
-            f"Rozwiązanie w stanie {submission.status} nie przyjmuje ocen.", "SUBMISSION_NOT_UNDER_REVIEW"
-        )
+    _assert_review_open(review, submission.status)
     score = _assert_score_in_scale(submission.entry.stage, score)
     cleaned_annotations = validate_annotations(annotations)
 
@@ -476,7 +561,11 @@ def _resolution_method(submission: Submission, actor) -> tuple[str, Review | Non
         return GradeMethod.MODERATION, None
     member = active_reviewer_profile(actor)
     if member is not None:
-        third = Review.objects.filter(submission=submission, reviewer=member, round=ROUND_TIEBREAK).first()
+        third = (
+            Review.objects.filter(submission=submission, reviewer=member, round=ROUND_TIEBREAK)
+            .exclude(status=ReviewStatus.CANCELLED)
+            .first()
+        )
         if third is not None:
             return GradeMethod.THIRD_REVIEW, third
     raise DomainError(
@@ -503,14 +592,13 @@ def resolve_moderation(
         raise _conflict("Rozwiązanie nie jest w moderacji.", "NOT_IN_MODERATION")
     score = _assert_score_in_scale(locked.entry.stage, score)
 
-    if third_review is not None and third_review.status != ReviewStatus.SUBMITTED:
-        # Rozstrzygnięcie trzeciego recenzenta jest jednocześnie jego oceną – recenzja nie może
-        # zostać w stanie ASSIGNED, bo ślad po decyzji byłby niepełny.
-        third_review.score = score
-        third_review.comment_internal = _clean_comment(rationale)
-        third_review.status = ReviewStatus.SUBMITTED
-        third_review.submitted_at = timezone.now()
-        third_review.save(update_fields=["score", "comment_internal", "status", "submitted_at"])
+    if third_review is not None:
+        # Rozstrzygnięcie trzeciego recenzenta *jest* jego oceną, więc idzie tą samą drogą co każda
+        # inna: ``submit_review`` zapisze recenzję, zostawi wpis ``review.submitted`` w audycie
+        # i sam utworzy ``FinalGrade(THIRD_REVIEW)``. Osobna ścieżka dawała tu inny ślad audytowy
+        # dla tej samej czynności, w zależności od wywołanego endpointu.
+        submit_review(third_review, score, _clean_comment(rationale), "", None, request=request)
+        return FinalGrade.objects.get(submission=locked)
 
     return _create_final_grade(
         locked,
@@ -536,7 +624,11 @@ def reviews_for_reviewer(member: CommitteeMember | None):
             "submission__entry__stage",
             "submission__problem",
         )
-        .prefetch_related("submission__files")
+        .prefetch_related(
+            # Jawny Prefetch z posortowanym querysetem: ``Submission.latest_file`` korzysta wtedy
+            # z cache'u prefetchu zamiast robić własne ``order_by`` per wiersz (N+1 na liście).
+            models.Prefetch("submission__files", queryset=SubmissionFile.objects.order_by("-id"))
+        )
         .order_by("submission__entry__stage_id", "submission__problem__number", "id")
     )
 

@@ -36,6 +36,29 @@ def _safe_download_name(name: str) -> str:
     return cleaned.strip() or "rozwiazanie"
 
 
+def _extension(submission_file) -> str:
+    """Rozszerzenie pliku brane z ``object_key`` (klucz jest generowany, więc jest bezpieczny)."""
+    tail = submission_file.object_key.rsplit(".", 1)
+    candidate = tail[1].lower() if len(tail) == 2 else ""
+    if not candidate:
+        original = _safe_download_name(submission_file.original_name).rsplit(".", 1)
+        candidate = original[1].lower() if len(original) == 2 else ""
+    return "".join(char for char in candidate if char.isalnum())[:10] or "dat"
+
+
+def anonymous_download_name(submission, submission_file) -> str:
+    """Nazwa pliku dla każdego, kto nie jest autorem rozwiązania.
+
+    Ocenianie jest ślepe, a ``original_name`` pochodzi od uczestnika i regularnie zawiera nazwisko
+    albo szkołę („Jan_Kowalski_LO5.pdf”). Recenzent, komisja odwoławcza i koordynator dostają więc
+    nazwę zbudowaną wyłącznie z pseudonimu (``public_code``), numeru zadania i wersji.
+    """
+    return (
+        f"{submission.entry.participant.public_code}"
+        f"-z{submission.problem.number}-v{submission.version}.{_extension(submission_file)}"
+    )
+
+
 class SubmissionCreateView(GenericAPIView):
     """Upload rozwiązania konkretnego zadania. Deadline egzekwowany w serwisie, po stronie serwera."""
 
@@ -89,7 +112,9 @@ class SubmissionDownloadView(GenericAPIView):
     serializer_class = SubmissionSerializer
 
     def get_queryset(self):
-        return Submission.objects.for_user(self.request.user).select_related("entry", "entry__participant")
+        return Submission.objects.for_user(self.request.user).select_related(
+            "entry", "entry__participant", "problem"
+        )
 
     @extend_schema(responses={302: OpenApiResponse(description="Przekierowanie na presigned URL")})
     def get(self, request, pk: int):
@@ -105,13 +130,20 @@ class SubmissionDownloadView(GenericAPIView):
                 "FILE_NOT_CLEAN",
                 status.HTTP_403_FORBIDDEN,
             )
+        # Nazwa pliku też jest daną osobową: właściciel dostaje swoją, każdy inny – anonimową.
+        if is_owner:
+            filename = _safe_download_name(submission_file.original_name)
+            disposition = None
+        else:
+            filename = anonymous_download_name(submission, submission_file)
+            disposition = f'attachment; filename="{filename}"'
         storage = get_submission_storage()
-        url = storage.presigned_get_url(submission_file.object_key)
+        url = storage.presigned_get_url(submission_file.object_key, content_disposition=disposition)
         if url:
             return HttpResponseRedirect(url)
         return FileResponse(
             storage.open(submission_file.object_key),
             as_attachment=True,
-            filename=_safe_download_name(submission_file.original_name),
+            filename=filename,
             content_type=submission_file.mime,
         )

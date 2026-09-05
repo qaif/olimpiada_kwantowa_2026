@@ -31,6 +31,10 @@ class ReviewStatus(models.TextChoices):
     ASSIGNED = "ASSIGNED", "przydzielona"
     DRAFT = "DRAFT", "szkic"
     SUBMITTED = "SUBMITTED", "wystawiona"
+    # Recenzja bezprzedmiotowa: rozjazd rozstrzygnął ktoś inny (koordynator na posiedzeniu), więc
+    # wiszący przydział rundy 2 nie może zostać w ASSIGNED – recenzent widziałby zadanie do zrobienia,
+    # którego już nie da się wykonać. Kasowanie odpadło: ślad po przydziale ma zostać.
+    CANCELLED = "CANCELLED", "anulowana"
 
 
 class GradeMethod(models.TextChoices):

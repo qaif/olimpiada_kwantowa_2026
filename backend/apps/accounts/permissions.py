@@ -10,7 +10,6 @@ from .models import (
     GROUP_APPEALS,
     GROUP_COORDINATOR,
     GROUP_PARTICIPANT,
-    GROUP_REVIEWER,
     CommitteeStatus,
 )
 
@@ -41,15 +40,19 @@ class IsParticipant(BasePermission):
 class IsActiveReviewer(BasePermission):
     """Recenzent w grupie ``reviewer`` z profilem ``CommitteeMember`` w statusie ACTIVE.
 
-    Recenzent PENDING lub SUSPENDED dostaje 403 – sama grupa nie wystarcza.
+    Recenzent PENDING lub SUSPENDED dostaje 403 – sama grupa nie wystarcza. Regułę rozstrzyga
+    ``apps.accounts.services.active_reviewer_profile``: ta sama funkcja decyduje o widoczności
+    rozwiązań (``Submission.objects.for_user``) i o przydziałach, więc uprawnienie i widoczność
+    nie mogą się rozjechać.
     """
 
     message = "Wymagany aktywny recenzent."
 
     def has_permission(self, request, view) -> bool:
-        if not _in_group(request.user, GROUP_REVIEWER):
-            return False
-        return _active_committee_member(request.user) is not None
+        # Import lokalny: ``services`` importuje ``permissions`` pośrednio przez warstwę API.
+        from .services import active_reviewer_profile
+
+        return active_reviewer_profile(request.user) is not None
 
 
 class IsAppealsCommittee(BasePermission):
