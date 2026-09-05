@@ -310,6 +310,75 @@ Po migracji treść zadania serwuje wyłącznie widok aplikacji
    k-anonimowości 3; `FULL` – tylko finał, tylko laureaci, tylko za zgodą).
 3. Ponowna publikacja nadpisuje snapshot tego samego etapu i zostawia wpis w audycie.
 
+### 6.6 Import treści starej strony
+
+Treści serwisu WordPress „Olimpiada Kwantowa” są przeniesione do CMS-a dwiema komendami. Obie są
+idempotentne, obie są **narzędziami importującymi**, a nie trybem pracy redakcyjnej: powtórny
+przebieg nadpisuje treść stron tym, co jest w plikach źródłowych, więc kasuje poprawki wpisane
+w międzyczasie w `/cms/`.
+
+```bash
+# Strony, dokumenty, aktualności, hasło i sekcja kroków na stronie głównej, kolejność menu.
+docker compose exec web python manage.py seed_legacy_content
+
+# Edycja „I edycja 2026/2027” z trzema etapami wg harmonogramu starej strony.
+# Bez --make-current edycja NIE staje się bieżąca (na devie bieżąca zostaje edycja z seed_demo).
+docker compose exec web python manage.py seed_edition_kwantowa [--make-current]
+```
+
+Źródła treści leżą w `backend/apps/cms/fixtures/legacy/*.md`; inwentarz i pełne teksty starej
+strony — w `docs/import/`. Import zmienia wyłącznie strukturę (nagłówek → blok `heading`, tabela
+dwukolumnowa → lista definicji, wyróżniona ramka → blok `notice`), nie brzmienie zdań organizatora.
+
+Nazwa serwisu, hasło i dane organizatora (nagłówek, stopka) siedzą w **Ustawienia → Dane serwisu**
+w `/cms/` (`cms.SiteSettings`), a nie w szablonie — zmiana adresu czy numeru telefonu nie wymaga
+wydania aplikacji.
+
+**Szkicami** (`live=False`, adres publiczny odpowiada 404) zostają `/komitety/` i `/partnerzy/`:
+pierwsza strona to szesnaście nazwisk z pliku z lipca 2026, druga sugeruje patronaty, których
+może nie być. Publikuje je redakcja w `/cms/` po potwierdzeniu przez organizatora.
+
+#### Decyzje do podjęcia przez właściciela
+
+Import odtworzył treść, ale nie mógł rozstrzygnąć sprzeczności, które w niej były. Pełne
+uzasadnienie każdego punktu: `docs/import/stara-strona-inwentarz.md`, sekcja 8.
+
+1. **Dwa czy trzy etapy.** Regulamin (§ 1, § 10–13) opisuje konkurs **dwuetapowy** z rozmową
+   kwalifikacyjną; strona publiczna, model portalu (`ELIM`/`DISTRICT`/`FINAL`) i
+   `seed_edition_kwantowa` — **trzy etapy**. Treści regulaminu import nie zmienia. Decyzja
+   przesądza o brzmieniu § 10–13 albo o konfiguracji etapów.
+2. **Skala ocen i łączenie ocen.** Regulamin § 9 opisuje średnią z ≥2 ocen z progiem 20 %;
+   portal ma skalę 0/2/5/6 i konsensus z trzecim recenzentem. Obu naraz utrzymać się nie da.
+3. **Terminy I edycji.** `seed_edition_kwantowa` uzupełnia brakujące terminy stałą regułą
+   (otwarcie 00:00, oddanie 23:59, recenzje +14 dni, okno reklamacji +2/+9 dni po recenzjach),
+   bo stara strona podaje **po jednej dacie na etap**. Godziny i okna wymagają potwierdzenia.
+4. **Zatwierdzenie treści prawnych.** `/rodo/` i `/standardy-ochrony-maloletnich/` są opublikowane
+   z ramką „wersja demonstracyjna” i takim samym statusem w metryce — README starej strony
+   oznacza obie jako wymagające akceptacji prawnej. Przed produkcją: akceptacja albo zdjęcie
+   z publikacji (rejestracja linkuje do nich w treści obowiązkowej zgody).
+5. **Osoby odpowiedzialne za ochronę małoletnich.** § 9 i § 10 standardów wymagają wskazania ich
+   imiennie uchwałą Zarządu i przyjęcia wzoru karty interwencji.
+6. **Skład komitetów.** Potwierdzić 16 nazwisk, dopisać funkcje i afiliacje, rozstrzygnąć podwójne
+   członkostwo dwóch osób i nazewnictwo („Komitet Główny” ze starej strony głównej nie istnieje
+   w regulaminie). Strona jest szkicem do czasu potwierdzenia.
+7. **Partnerzy i patroni.** Czy Ministerstwo Edukacji i Polskie Towarzystwo Fizyczne to realne
+   patronaty (trzecia nazwa, „Uniwersytet Kwantowy”, to instytucja nieistniejąca). Potrzebne
+   logotypy i poziomy sponsoringu. Strona jest szkicem, kafli nie ma na stronie głównej.
+8. **ZOZ (Zasady Organizacji Zawodów).** Regulamin odwołuje się do nich kilkanaście razy,
+   a dokument nie istnieje — bez niego brakuje progów, liczby finalistów i reguł remisów.
+9. **Status prawny olimpiady.** Regulamin zastrzega, że tytuły finalisty i laureata są wewnętrzne
+   i nie dają uprawnień ustawowych. Gdzie portal ma to komunikować?
+10. **Krok 2 na `/jak-zaczac/`.** Tekst mówi „Załóż konto uczestnika w czasie rejestracji”, a portal
+    używa kodów zaproszeń dla komitetu i samodzielnej rejestracji uczestnika — brzmienie do
+    potwierdzenia przez organizatora (import nie redaguje treści).
+11. **Kanały kontaktu.** Jeden adres `contact@qaif.org` obsługuje sprawy ogólne, RODO i zgłoszenia
+    dotyczące bezpieczeństwa małoletnich, rozróżniane tylko tematem wiadomości.
+12. **Aktualności.** Trzy przeniesione wpisy to jednozdaniowe zapowiedzi bez dat (oryginał nie miał
+    `post_date`) — mają datę importu i dopisek „Wpis przeniesiony ze starej strony”. Do decyzji,
+    czy przepisać je z prawdziwymi datami, czy zacząć newsroom od zera.
+13. **Logo, favicon, og:image.** Stara strona nie ma ani jednego pliku graficznego — identyfikację
+    trzeba zaprojektować od zera.
+
 ## 7. Testy i kontrola jakości
 
 ```bash

@@ -127,6 +127,16 @@ def guest_pages(browser) -> None:
     ):
         shoot(page, path, name)
 
+    # Treści przeniesione ze starej strony (``manage.py seed_legacy_content``). Strony ze spisem
+    # sekcji zrzucamy od góry – spis jest tam ``position: sticky``, tak samo jak w regulaminie.
+    for path, name, scroll in (
+        ("/o-olimpiadzie/", "01a-o-olimpiadzie", "top"),
+        ("/kontakt/", "01b-kontakt", "top"),
+        ("/harmonogram/", "01c-harmonogram", "top"),
+        ("/rodo/", "01d-rodo", "top"),
+    ):
+        shoot(page, path, name, scroll=scroll)
+
     # Regulamin (manage.py seed_regulamin): spis rozdziałów jest ``position: sticky``, więc
     # zrzut robimy od góry – inaczej spis wylądowałby na dole obrazu, obok stopki.
     shoot(page, "/regulamin/", "02c-regulamin", scroll="top")
@@ -236,6 +246,8 @@ def mobile_pages(browser) -> None:
     page = context.new_page()
     shoot(page, "/", "m01-strona-glowna-mobile")
     shoot(page, "/login/", "m02-logowanie-mobile")
+    # Menu ma dziewięć pozycji – na 390 px sprawdzamy, jak się zawija.
+    shoot(page, "/o-olimpiadzie/", "m04-o-olimpiadzie-mobile", scroll="top")
     login(page, PARTICIPANT_EMAIL)
     if is_logged_in(page):
         shoot(page, "/me/", "m03-panel-uczestnika-mobile")

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load wagtailcore_tags %}
+{% block title %}{{ page.title }} – {{ settings.cms.SiteSettings.site_name }}{% endblock %}
+{% block description %}{{ page.search_description|default:page.title }} – {{ settings.cms.SiteSettings.site_name }}.{% endblock %}
+{% block content %}
+{% comment %}
+  Ten sam układ, co dokument urzędowy (``doc-layout``): kolumna czytelnicza 68 ch, a spis sekcji
+  przyklejony z boku od 1100 px. Różnica jest jedna – spis pojawia się dopiero przy trzech
+  śródtytułach (``ContentPage.chapters``), bo przy dwóch byłby dłuższy od tego, co spisuje.
+  Bez spisu układ musi wrócić do jednej kolumny, inaczej pusty obszar ``toc`` wciąłby tekst.
+{% endcomment %}
+<div class="doc-layout{% if not page.chapters %} doc-layout--plain{% endif %}">
+
+  <div class="doc-head">
+    <div class="page-head">
+      <h1>{{ page.title }}</h1>
+    </div>
+    {% if page.intro %}<div class="cms-body prose doc-intro">{{ page.intro|richtext }}</div>{% endif %}
+  </div>
+
+  {% if page.chapters %}
+    <nav class="doc-toc" aria-labelledby="spis-sekcji">
+      <h2 class="doc-toc__title" id="spis-sekcji">Na tej stronie</h2>
+      <ol class="doc-toc__list">
+        {% for chapter in page.chapters %}
+          <li><a href="#{{ chapter.anchor }}">{{ chapter.text }}</a></li>
+        {% endfor %}
+      </ol>
+    </nav>
+  {% endif %}
+
+  {# Treść redaktora: każdy blok renderuje własny szablon, RichText przechodzi przez |richtext. #}
+  <div class="doc-body prose">
+    {% for block in page.body %}
+      {% include_block block %}
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}

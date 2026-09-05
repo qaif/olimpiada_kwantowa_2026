@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Platforma Olimpiady{% endblock %}</title>
+  <title>{% block title %}{{ settings.cms.SiteSettings.site_name }}{% endblock %}</title>
   {% comment %}
     Kolor paska przeglądarki dopasowany do nagłówka (granat) i do tła ciemnego wariantu –
     ten sam podział, co w tokenach arkusza (@media prefers-color-scheme).
   {% endcomment %}
   <meta name="theme-color" content="#12233f" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0f1726" media="(prefers-color-scheme: dark)">
-  <meta name="description" content="{% block description %}Serwis olimpiady przedmiotowej: terminy etapów, zadania, wyniki oraz panel uczestnika, recenzenta i komitetu.{% endblock %}">
+  <meta name="description" content="{% block description %}Ogólnopolska olimpiada dla uczniów szkół ponadpodstawowych: terminy etapów, zadania, wyniki oraz panel uczestnika, recenzenta i komitetu.{% endblock %}">
   <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
   {% comment %}
@@ -47,8 +47,12 @@
 <a class="skip-link" href="#tresc">Przejdź do treści</a>
 <header class="topbar">
   <div class="topbar__inner">
+    {% comment %}
+      Nazwa serwisu pochodzi z ``cms.SiteSettings`` (Ustawienia → Dane serwisu w /cms/), nie
+      z szablonu: zmiana nazwy albo danych organizatora nie może wymagać wydania aplikacji.
+    {% endcomment %}
     <a class="brand" href="/">
-      <span class="brand__mark">Olimpiada</span>
+      <span class="brand__mark">{{ settings.cms.SiteSettings.site_name }}</span>
       {% if site_edition_label %}<span class="brand__sub">edycja {{ site_edition_label }}</span>{% endif %}
     </a>
     {% comment %}
@@ -119,16 +123,25 @@
 
 <footer class="footer">
   <div class="footer__inner">
+    {% with site=settings.cms.SiteSettings %}
     <div>
-      <p><strong>Platforma Olimpiady</strong> – serwis komitetu głównego olimpiady przedmiotowej.</p>
+      <p><strong>{{ site.site_name }}</strong>{% if site.tagline %} – {{ site.tagline }}{% endif %}</p>
       <p>Dane osobowe uczestników są przetwarzane zgodnie z zasadą minimalizacji (RODO):
         w publicznych tabelach wyników występuje wyłącznie kod uczestnika, a pełne dane widzi
         jedynie koordynator.</p>
     </div>
     <div>
-      <p class="footer__meta">Wersja aplikacji {{ app_version }}</p>
-      <p class="footer__meta">Wszystkie godziny podajemy w czasie polskim.</p>
+      <p class="footer__meta">Organizator: <strong>{{ site.organizer_name }}</strong></p>
+      {% if site.organizer_address %}<p class="footer__meta">{{ site.organizer_address }}</p>{% endif %}
+      {% if site.organizer_registry %}<p class="footer__meta">{{ site.organizer_registry }}</p>{% endif %}
+      <p class="footer__meta">
+        {% if site.contact_email %}<a href="mailto:{{ site.contact_email }}">{{ site.contact_email }}</a>{% endif %}
+        {% if site.contact_phone %}· <a href="tel:{{ site.contact_phone|cut:' ' }}">{{ site.contact_phone }}</a>{% endif %}
+        {% if site.contact_url %}· <a href="{{ site.contact_url }}">{{ site.contact_url }}</a>{% endif %}
+      </p>
+      <p class="footer__meta">Wersja aplikacji {{ app_version }} · wszystkie godziny podajemy w czasie polskim.</p>
     </div>
+    {% endwith %}
   </div>
 </footer>
 {% block scripts %}{% endblock %}

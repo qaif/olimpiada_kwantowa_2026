@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "django_celery_beat",
     # Wagtail (CMS in-process, PROJEKT.md 1.1). Kolejność jak w dokumentacji Wagtaila:
     # aplikacje contrib przed rdzeniem, rdzeń przed aplikacjami projektu.
+    "wagtail.contrib.settings",
     "wagtail.embeds",
     "wagtail.sites",
     "wagtail.users",
@@ -97,6 +98,10 @@ TEMPLATES = [
                 "apps.web.context_processors.site_chrome",
                 # Menu części informacyjnej (strony Wagtaila oznaczone „pokaż w menu”).
                 "apps.cms.context_processors.cms_menu",
+                # Nazwa serwisu, hasło i dane organizatora – ``cms.SiteSettings`` edytowane
+                # w ``/cms/`` (Ustawienia → Serwis). Szablony czytają je jako
+                # ``settings.cms.SiteSettings``; nic z tego nie jest zaszyte w kodzie.
+                "wagtail.contrib.settings.context_processors.settings",
             ],
         },
     },
@@ -249,7 +254,7 @@ CLAMAV_STREAM_MAX_BYTES = env.int("CLAMAV_STREAM_MAX_BYTES", default=100 * 1024 
 # Domena publiczna serwisu. Migracja ``apps.cms.0002`` ustawia z niej ``wagtailcore.Site``;
 # późniejsze zmiany domeny robi redaktor w ``/cms/`` (Ustawienia → Witryny), nie deploy.
 SITE_DOMAIN = env("SITE_DOMAIN", default="localhost")
-WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", default="Platforma Olimpiady")
+WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", default="Olimpiada Kwantowa")
 WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL", default=f"https://{SITE_DOMAIN}")
 # Whitelist rozszerzeń dokumentów: bez niej redaktor mógłby wrzucić do publicznego bucketu plik
 # wykonywalny albo HTML (XSS z tej samej domeny, gdyby kiedyś serwować go bez pośrednictwa widoku).

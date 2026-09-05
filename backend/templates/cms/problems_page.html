@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load wagtailcore_tags web_extras %}
-{% block title %}{{ page.title }} – Platforma Olimpiady{% endblock %}
+{% block title %}{{ page.title }} – {{ settings.cms.SiteSettings.site_name }}{% endblock %}
 {% block content %}
 <div class="page-head">
   <span class="eyebrow">Zadania</span>

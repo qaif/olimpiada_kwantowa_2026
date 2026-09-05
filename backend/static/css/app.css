@@ -1833,6 +1833,58 @@ td.empty,
   font-weight: 600;
 }
 
+/* 7.1a Sekcja „jak zacząć w 3 krokach” na stronie głównej. Numer kroku rysuje licznik CSS,
+   a nie znacznik w HTML-u: lista jest ``<ol>``, więc czytnik ekranu i tak poda kolejność,
+   a duplikowanie numeru w treści dawałoby „krok 1 1”. */
+.steps {
+  list-style: none;
+  counter-reset: krok;
+  margin: 0 0 var(--sp-6);
+  padding: 0;
+  display: grid;
+  gap: var(--sp-4);
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.steps__item {
+  counter-increment: krok;
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: var(--sp-4);
+}
+
+.steps__item::before {
+  content: counter(krok);
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--accent);
+  margin-bottom: var(--sp-2);
+}
+
+.steps__title {
+  font-family: var(--font-serif);
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin: 0 0 var(--sp-1);
+}
+
+.steps__text {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+}
+
+.steps__cta {
+  margin: 0;
+}
+
 /* 7.1b Dokument urzędowy (regulamin): metryka, załącznik, sticky spis rozdziałów.
    Układ jest jednokolumnowy do 1099 px – spis rozdziałów stoi wtedy nad treścią, tak jak
    w dokumencie drukowanym. Od 1100 px (szerokość kontenera) przechodzi do lewej kolumny
@@ -1976,6 +2028,13 @@ td.empty,
 
   .doc-body {
     grid-area: body;
+  }
+
+  /* Strona treści bez spisu sekcji (mniej niż trzy śródtytuły): pusta kolumna ``toc``
+     wcinałaby tekst o 15 rem bez powodu, więc wracamy do jednej kolumny. */
+  .doc-layout--plain {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "head" "body";
   }
 }
 
@@ -2423,6 +2482,18 @@ fieldset:disabled .score-option {
 
   .nav {
     gap: var(--sp-1) var(--sp-3);
+  }
+
+  /* Menu serwisu ma dziewięć pozycji – na wąskim ekranie zawija się do dwóch–trzech wierszy.
+     Świadomie zostaje pełną listą zamiast chować nadmiar za rozwijaczem: każda pozycja jest
+     wtedy jednym dotknięciem, bez otwierania i bez skryptu. Cena to trochę wyższy nagłówek,
+     więc na tej szerokości zmniejszamy krój i odstępy zamiast ukrywać odnośniki. */
+  .nav--cms .nav__link {
+    font-size: 0.875rem;
+  }
+
+  .nav--cms {
+    column-gap: var(--sp-3);
   }
 
   .nav__who {

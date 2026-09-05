@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load wagtailcore_tags %}
-{% block title %}{{ page.title }} – Platforma Olimpiady{% endblock %}
+{% block title %}{{ page.title }} – {{ settings.cms.SiteSettings.site_name }}{% endblock %}
 {% block description %}{{ page.title }}{% if page.version_label %} (wersja {{ page.version_label }}){% endif %} – dokument Olimpiady do przeczytania online i pobrania.{% endblock %}
 {% block content %}
 <div class="doc-layout">

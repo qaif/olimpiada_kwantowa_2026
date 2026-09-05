@@ -99,6 +99,26 @@ class NoticeBlock(blocks.StructBlock):
         template = "cms/blocks/notice.html"
 
 
+class StepBlock(blocks.StructBlock):
+    """Jeden krok sekcji „Jak zacząć” na stronie głównej: tytuł i jedno zdanie wyjaśnienia."""
+
+    title = blocks.CharBlock(max_length=120, label="tytuł kroku")
+    text = blocks.TextBlock(max_length=300, label="opis")
+
+    class Meta:
+        icon = "list-ol"
+        label = "krok"
+
+
+class StepsStreamBlock(blocks.StreamBlock):
+    """Lista kroków. Bez innych bloków – to sekcja o stałym układzie, nie dowolna treść."""
+
+    step = StepBlock()
+
+    class Meta:
+        required = False
+
+
 class ArticleStreamBlock(blocks.StreamBlock):
     """Treść artykułu: akapit, obraz, dokument, osadzenie."""
 

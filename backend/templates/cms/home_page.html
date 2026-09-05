@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% load wagtailcore_tags web_extras %}
-{% block title %}{{ page.title }} – Platforma Olimpiady{% endblock %}
+{# Strona główna jest witryną – tytuł karty to sama nazwa serwisu, bez powtórzenia. #}
+{% block title %}{{ settings.cms.SiteSettings.site_name }}{% endblock %}
 {% block content %}
 
 <section class="hero">
@@ -89,6 +90,30 @@
         </li>
       {% endfor %}
     </ul>
+  </section>
+{% endif %}
+
+{% comment %}
+  Sekcja „jak zacząć” jest treścią redakcyjną (pola ``steps_title``/``steps``), a nie listą zaszytą
+  w szablonie: kroki opisują procedurę zgłoszenia, która zmienia się razem z regulaminem edycji.
+  CTA prowadzi do rejestracji tylko anonima – zalogowany ma odnośnik do swojego panelu w hero.
+{% endcomment %}
+{% if page.steps_title and page.steps %}
+  <section class="section">
+    <div class="section__head">
+      <h2 class="mt-0">{{ page.steps_title }}</h2>
+    </div>
+    <ol class="steps">
+      {% for block in page.steps %}
+        <li class="steps__item">
+          <p class="steps__title">{{ block.value.title }}</p>
+          <p class="steps__text">{{ block.value.text }}</p>
+        </li>
+      {% endfor %}
+    </ol>
+    {% if not user.is_authenticated %}
+      <p class="steps__cta"><a class="btn btn--accent" href="{% url 'web:register' %}">Zarejestruj się</a></p>
+    {% endif %}
   </section>
 {% endif %}
 

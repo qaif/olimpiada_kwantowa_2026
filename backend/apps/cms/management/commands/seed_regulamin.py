@@ -52,6 +52,7 @@ from wagtail.documents import get_document_model
 from wagtail.models import Collection
 from wagtail.rich_text import RichText
 
+from apps.cms.legacy_markdown import slugify_anchor
 from apps.cms.models import ArchiveIndexPage, DocumentPage, HomePage
 
 #: ``…/apps/cms/management/commands/`` → ``…/apps/cms/fixtures/regulamin/``.
@@ -99,9 +100,6 @@ ROMAN = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100}
 ALLOWED_TAGS = {"p", "ol", "ul", "li", "strong", "em", "a"}
 ALLOWED_ATTRS = {"a": {"href"}}
 
-#: Slugifikacja kotwic sekcji bez numeru („Organizator”, „Zatwierdzenie”).
-TRANSLIT = str.maketrans("ąćęłńóśźżĄĆĘŁŃÓŚŹŻ", "acelnoszzACELNOSZZ")
-
 
 def roman_to_int(value: str) -> int:
     total = 0
@@ -111,11 +109,6 @@ def roman_to_int(value: str) -> int:
         total = total - current if current < previous else total + current
         previous = max(previous, current)
     return total
-
-
-def slugify_anchor(text: str) -> str:
-    ascii_text = text.translate(TRANSLIT).lower()
-    return re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", ascii_text)).strip("-") or "sekcja"
 
 
 # --- mini-DOM ----------------------------------------------------------------------------------

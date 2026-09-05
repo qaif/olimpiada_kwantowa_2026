@@ -26,6 +26,7 @@ from django.db import models
 from django.utils import timezone
 from modelcluster.fields import ParentalKey
 from wagtail.admin.panels import FieldPanel, InlinePanel, MultiFieldPanel
+from wagtail.contrib.settings.models import BaseSiteSetting, register_setting
 from wagtail.fields import RichTextField, StreamField
 from wagtail.models import Orderable, Page
 from wagtail.search import index
@@ -34,7 +35,7 @@ from apps.competitions.models import Edition, Stage
 from apps.competitions.services import current_edition, current_stage
 from apps.results.models import ResultsPublication
 
-from .blocks import RICH_TEXT_FEATURES, ArticleStreamBlock, DocumentStreamBlock
+from .blocks import RICH_TEXT_FEATURES, ArticleStreamBlock, DocumentStreamBlock, StepsStreamBlock
 
 #: Adresy pierwszego segmentu, które należą do aplikacji (``config/urls.py`` + ``apps/web/urls.py``).
 #: Strona CMS z takim slugiem na drugim poziomie drzewa byłaby martwa – patrz docstring modułu.
@@ -63,6 +64,75 @@ RESERVED_SLUGS = frozenset(
 #: Głębokość strony głównej w drzewie treebearda: ``Root`` ma 1, ``HomePage`` 2. Strony o adresie
 #: jednosegmentowym (``/aktualnosci/``) są jej dziećmi, czyli mają ``depth == 3``.
 HOME_PAGE_DEPTH = 2
+
+
+@register_setting(icon="site")
+class SiteSettings(BaseSiteSetting):
+    """Nazwa serwisu, hasło i dane organizatora – jedno miejsce dla nagłówka i stopki.
+
+    Te wartości zmieniają się poza rytmem wydań (zmiana adresu fundacji, numeru KRS, telefonu),
+    więc nie mogą mieszkać w szablonie ani w ``settings.py``: każda taka poprawka byłaby wtedy
+    deployem. Ustawienie jest per-witryna (``BaseSiteSetting``), bo domena publiczna i domena
+    stagingu to w Wagtailu dwa obiekty ``Site``.
+
+    Wartości początkowe ustawia migracja danych ``cms.0006`` – dzięki temu świeża baza ma pełne
+    dane organizatora jeszcze przed pierwszym wejściem redaktora do ``/cms/``.
+    """
+
+    site_name = models.CharField("nazwa serwisu", max_length=100, default="Olimpiada Kwantowa")
+    tagline = models.CharField(
+        "hasło",
+        max_length=200,
+        blank=True,
+        default="Przyszłość ma naturę kwantową.",
+        help_text="Zdanie pod logotypem i w nagłówku strony głównej.",
+    )
+    organizer_name = models.CharField("organizator", max_length=200, default="Fundacja Quantum AI")
+    organizer_address = models.CharField(
+        "adres organizatora", max_length=200, blank=True, default="ul. Sanocka 9/103, 02-110 Warszawa"
+    )
+    organizer_registry = models.CharField(
+        "dane rejestrowe",
+        max_length=200,
+        blank=True,
+        default="KRS 0000808359 · NIP 7010955891 · REGON 384899425",
+    )
+    contact_email = models.EmailField("e-mail kontaktowy", blank=True, default="contact@qaif.org")
+    contact_phone = models.CharField("telefon", max_length=40, blank=True, default="+48 507 982 292")
+    contact_url = models.URLField("strona organizatora", blank=True, default="https://www.qaif.org/")
+
+    panels = [
+        MultiFieldPanel([FieldPanel("site_name"), FieldPanel("tagline")], heading="Serwis"),
+        MultiFieldPanel(
+            [
+                FieldPanel("organizer_name"),
+                FieldPanel("organizer_address"),
+                FieldPanel("organizer_registry"),
+            ],
+            heading="Organizator",
+        ),
+        MultiFieldPanel(
+            [FieldPanel("contact_email"), FieldPanel("contact_phone"), FieldPanel("contact_url")],
+            heading="Kontakt",
+        ),
+    ]
+
+    class Meta:
+        verbose_name = "dane serwisu"
+        verbose_name_plural = "dane serwisu"
+
+
+def body_chapters(body) -> list[dict]:
+    """Spis sekcji: śródtytuły poziomu 2 oznaczone „pokaż w spisie”.
+
+    Liczymy z ``body``, a nie z wyrenderowanego HTML-a – parsowanie własnego wyjścia po to, by
+    znaleźć w nim ``<h2 id=…>``, robiłoby ze spisu treści funkcję szablonu.
+    """
+    return [
+        {"anchor": block.value["anchor"], "text": block.value["text"]}
+        for block in body
+        if block.block_type == "heading" and block.value.get("level") == "2" and block.value.get("in_toc")
+    ]
 
 
 class CMSPage(Page):
@@ -130,11 +200,19 @@ class HomePage(CMSPage):
         default=True,
         help_text="Tabela etapów z terminami i linkami do ogłoszonych wyników.",
     )
+    steps_title = models.CharField(
+        "nagłówek sekcji „jak zacząć”",
+        max_length=200,
+        blank=True,
+        help_text="Puste = sekcja kroków się nie pokazuje.",
+    )
+    steps = StreamField(StepsStreamBlock(), verbose_name="kroki", blank=True)
 
     content_panels = Page.content_panels + [
         FieldPanel("hero_title"),
         FieldPanel("hero_text"),
         FieldPanel("show_timeline"),
+        MultiFieldPanel([FieldPanel("steps_title"), FieldPanel("steps")], heading="Jak zacząć"),
     ]
     search_fields = Page.search_fields + [index.SearchField("hero_title")]
 
@@ -145,6 +223,7 @@ class HomePage(CMSPage):
         "cms.NewsIndexPage",
         "cms.ProblemsPage",
         "cms.DocumentPage",
+        "cms.ContentPage",
         "cms.ArchiveIndexPage",
         "cms.ResultsPage",
     ]
@@ -215,6 +294,61 @@ class NewsPage(CMSPage):
     class Meta:
         verbose_name = "aktualność"
         verbose_name_plural = "aktualności"
+
+
+class ContentPage(CMSPage):
+    """Zwykła strona redakcyjna: „O Olimpiadzie”, „Kontakt”, „Jak zacząć?”.
+
+    Powstała przy imporcie starej strony (``docs/import/stara-strona-inwentarz.md``, punkt 2a):
+    osiem podstron WordPressa to był tekst z nagłówkami, listami i okazjonalną tabelą, czyli coś,
+    czego żaden istniejący typ nie obsługiwał. ``NewsPage`` ma datę i lead (strona „Kontakt” nie
+    jest datowana), a ``DocumentPage`` metrykę wersji i załącznik (strona „Jak zacząć?” nie jest
+    dokumentem, którego wersję ktoś cytuje w piśmie).
+
+    Zestaw bloków jest ten sam, co w dokumencie (``DocumentStreamBlock``) – śródtytuł z jawną
+    kotwicą i ramka informacyjna przydają się tak samo w treści redakcyjnej, a jeden wspólny
+    zestaw oznacza, że przeniesienie akapitu między stroną a dokumentem nie gubi bloku.
+
+    ``show_in_menu`` jest osobnym polem obok wagtailowego ``show_in_menus``: to drugie steruje
+    całym menu Wagtaila, a redaktor pyta wprost „czy ta strona ma być w pasku u góry”. Wartość
+    przepisujemy na ``show_in_menus`` przy zapisie, żeby istniało jedno źródło prawdy dla
+    ``context_processors.cms_menu``.
+    """
+
+    intro = RichTextField("wprowadzenie", features=RICH_TEXT_FEATURES, blank=True)
+    body = StreamField(DocumentStreamBlock(), verbose_name="treść", blank=True)
+    show_in_menu = models.BooleanField(
+        "pokaż w menu głównym",
+        default=False,
+        help_text="Pozycja w pasku nawigacji na górze serwisu.",
+    )
+
+    content_panels = Page.content_panels + [
+        FieldPanel("show_in_menu"),
+        FieldPanel("intro"),
+        FieldPanel("body"),
+    ]
+    search_fields = Page.search_fields + [index.SearchField("intro"), index.SearchField("body")]
+
+    template = "cms/content_page.html"
+    parent_page_types = ["cms.HomePage", "cms.ContentPage"]
+    subpage_types = ["cms.ContentPage"]
+
+    class Meta:
+        verbose_name = "strona treści"
+        verbose_name_plural = "strony treści"
+
+    #: Poniżej tej liczby śródtytułów spis sekcji jest dłuższy od tego, co spisuje.
+    MIN_CHAPTERS_FOR_TOC = 3
+
+    def save(self, *args, **kwargs):
+        self.show_in_menus = self.show_in_menu
+        super().save(*args, **kwargs)
+
+    def chapters(self) -> list[dict]:
+        """Spis sekcji – pusty, dopóki nagłówków jest mniej niż trzy."""
+        chapters = body_chapters(self.body)
+        return chapters if len(chapters) >= self.MIN_CHAPTERS_FOR_TOC else []
 
 
 class ProblemsPage(CMSPage):
@@ -324,16 +458,8 @@ class DocumentPage(CMSPage):
         verbose_name_plural = "dokumenty"
 
     def chapters(self) -> list[dict]:
-        """Spis rozdziałów: śródtytuły poziomu 2 oznaczone „pokaż w spisie”.
-
-        Liczymy z ``body``, a nie z wyrenderowanego HTML-a – parsowanie własnego wyjścia
-        po to, by znaleźć w nim ``<h2 id=…>``, robiłoby ze spisu treści funkcję szablonu.
-        """
-        return [
-            {"anchor": block.value["anchor"], "text": block.value["text"]}
-            for block in self.body
-            if block.block_type == "heading" and block.value.get("level") == "2" and block.value.get("in_toc")
-        ]
+        """Spis rozdziałów – patrz ``body_chapters``. Dokument pokazuje go od pierwszego rozdziału."""
+        return body_chapters(self.body)
 
 
 class ArchiveIndexPage(CMSPage):
