@@ -75,11 +75,11 @@ MENU_TITLES = [
     "Jak zacząć?",
     "Aktualności",
     "Zadania",
-    "Terminarz i harmonogram",
+    "Harmonogram",
     "Dokumenty",
     "Archiwum",
     "Wyniki",
-    "Partnerzy i sponsorzy",
+    "Partnerzy",
     "Kontakt",
 ]
 

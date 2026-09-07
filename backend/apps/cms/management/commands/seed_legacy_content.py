@@ -118,7 +118,7 @@ HOME_STEPS = (
 )
 
 PARTNERS_SLUG = "partnerzy"
-PARTNERS_TITLE = "Partnerzy i sponsorzy"
+PARTNERS_TITLE = "Partnerzy"
 PARTNERS_CTA_TITLE = "Zostań partnerem"
 #: Zaproszenie do współpracy. Ostatnie zdanie nie jest ozdobnikiem: powtarza § 22 ust. 3
 #: Regulaminu (sponsorzy i partnerzy nie mają wpływu na zadania, ocenę ani wyniki), czyli
@@ -224,7 +224,7 @@ PAGES = (
         pdf_title="Skład komitetów Olimpiady Kwantowej (PDF)",
     ),
     LegacyPage(slug="jak-zaczac", title="Jak zacząć?", in_menu=True),
-    LegacyPage(slug="harmonogram", title="Terminarz i harmonogram", in_menu=True),
+    LegacyPage(slug="harmonogram", title="Harmonogram", in_menu=True),
     LegacyPage(slug="kontakt", title="Kontakt", in_menu=True),
     LegacyPage(slug="dla-nauczycieli", title="Dla nauczycieli i materiały"),
     LegacyPage(

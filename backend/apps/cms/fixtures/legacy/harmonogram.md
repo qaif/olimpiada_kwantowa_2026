@@ -1,4 +1,4 @@
-# Terminarz i harmonogram
+# Harmonogram
 
 Poniżej terminy zapowiedziane dla I edycji Olimpiady Kwantowej. Obowiązujące terminy etapów — z godzinami otwarcia, terminami oddania rozwiązań i oknami reklamacji — pokazuje strona główna, która czyta je wprost z systemu zawodów.
 
