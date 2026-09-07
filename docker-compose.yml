@@ -45,6 +45,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "9000:9000"   # publiczny endpoint S3 (S3_PUBLIC_ADDRESS=<domena>:9000), gdy brak rekordu DNS s3.<domena>
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - static_files:/srv/static:ro
@@ -52,6 +53,8 @@ services:
       - caddy_config:/config
     environment:
       SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
+      S3_PUBLIC_ADDRESS: ${S3_PUBLIC_ADDRESS:-s3.${SITE_DOMAIN:-localhost}}
+      ACME_EMAIL: ${ACME_EMAIL:-}
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-25}
     networks: [edge, internal]   # internal: trasa s3.<domena> -> minio
     depends_on:

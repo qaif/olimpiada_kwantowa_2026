@@ -1,6 +1,12 @@
 {
     # API administracyjne wyłącznie z wnętrza kontenera (healthcheck woła 127.0.0.1:2019).
     admin localhost:2019
+    email {$ACME_EMAIL}
+}
+
+# Przekierowanie www -> domena główna (jeden kanoniczny adres, jeden certyfikat w linkach).
+www.{$SITE_DOMAIN} {
+    redir https://{$SITE_DOMAIN}{uri} permanent
 }
 
 {$SITE_DOMAIN} {
@@ -26,9 +32,10 @@
     }
 }
 
-# Publiczny endpoint S3 dla presigned URL (podpis SigV4 obejmuje host, więc osobna nazwa, nie podścieżka).
-# Bucket `submissions` jest prywatny: bez ważnego podpisu MinIO odpowiada 403.
-s3.{$SITE_DOMAIN} {
+# Publiczny endpoint S3 dla presigned URL (podpis SigV4 obejmuje host, więc osobny adres, nie podścieżka).
+# S3_PUBLIC_ADDRESS: `s3.<domena>` (rekord DNS A) albo `<domena>:9000` (ten sam certyfikat, osobny port),
+# spójne z S3_PUBLIC_ENDPOINT_URL w .env. Bucket `submissions` jest prywatny: bez podpisu MinIO odpowiada 403.
+{$S3_PUBLIC_ADDRESS} {
     request_body {
         max_size {$MAX_UPLOAD_MB}MB
     }
