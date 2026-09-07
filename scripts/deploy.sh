@@ -28,14 +28,9 @@ set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 if ! command -v docker >/dev/null 2>&1; then
   apt-get update -qq
-  apt-get install -y -qq ca-certificates curl gnupg ufw >/dev/null
-  install -m 0755 -d /etc/apt/keyrings
-  curl -fsSL https://download.docker.com/linux/$(. /etc/os-release && echo "$ID")/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-  chmod a+r /etc/apt/keyrings/docker.gpg
-  . /etc/os-release
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$ID $VERSION_CODENAME stable" > /etc/apt/sources.list.d/docker.list
-  apt-get update -qq
-  apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-compose-plugin >/dev/null
+  # Pakiety Ubuntu (docker.io + docker-compose-v2): dostępne od razu dla każdego wydania, bez zależności od
+  # tego, czy repozytorium Dockera zna już nazwę kodową systemu (26.04).
+  apt-get install -y -qq ca-certificates curl ufw docker.io docker-compose-v2 >/dev/null
   systemctl enable --now docker
 fi
 docker --version && docker compose version
