@@ -112,7 +112,8 @@ log "6/6 Seedy treści i konto koordynatora"
 "${SSH[@]}" env COORDINATOR_EMAIL="${COORDINATOR_EMAIL:-}" COORDINATOR_PASSWORD="${COORDINATOR_PASSWORD:-}" MAKE_EDITION_CURRENT="${MAKE_EDITION_CURRENT:-0}" REMOTE_DIR="$REMOTE_DIR" bash -s <<'REMOTE'
 set -euo pipefail
 cd "$REMOTE_DIR"
-dc() { docker compose exec -T web "$@"; }
+# </dev/null: exec nie może czytać stdin, bo to strumień tego skryptu (inaczej połknąłby dalsze polecenia).
+dc() { docker compose exec -T web "$@" </dev/null; }
 dc python manage.py seed_cms
 dc python manage.py seed_regulamin
 dc python manage.py seed_legacy_content
@@ -123,7 +124,7 @@ else
 fi
 if [ -n "$COORDINATOR_EMAIL" ] && [ -n "$COORDINATOR_PASSWORD" ]; then
   docker compose exec -T -e COORDINATOR_EMAIL="$COORDINATOR_EMAIL" -e COORDINATOR_PASSWORD="$COORDINATOR_PASSWORD" web \
-    python manage.py bootstrap_coordinator
+    python manage.py bootstrap_coordinator </dev/null
 fi
 docker compose ps --format 'table {{.Service}}\t{{.State}}\t{{.Health}}'
 REMOTE
