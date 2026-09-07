@@ -108,3 +108,17 @@ def local_datetime(value, fmt: str = LOCAL_DATETIME_FORMAT) -> str:
     if value in (None, ""):
         return ""
     return date_format(value, fmt)
+
+
+@register.filter
+def edition_title(value, prefix="Edycja"):
+    """„I edycja 2026/2027” zostaje bez zmian; „XV (2026/2027)” dostaje przedrostek.
+
+    Chodzi o to, żeby nie dublować słowa „edycja” w nagłówku i w hero.
+    """
+    label = str(value or "").strip()
+    if not label:
+        return ""
+    if "edycj" in label.lower():
+        return label
+    return f"{prefix} {label}"

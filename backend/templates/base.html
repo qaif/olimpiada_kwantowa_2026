@@ -1,4 +1,4 @@
-{% load static %}<!doctype html>
+{% load static web_extras %}<!doctype html>
 <html lang="pl">
 <head>
   <meta charset="utf-8">
@@ -64,7 +64,7 @@
            srcset="{% static 'img/logo-olimpiada-kwantowa.png' %} 1x, {% static 'img/logo-olimpiada-kwantowa@2x.png' %} 2x"
            alt="" width="600" height="231"></span>
       <span class="brand__mark visually-hidden">{{ settings.cms.SiteSettings.site_name }}</span>
-      {% if site_edition_label %}<span class="brand__sub">edycja {{ site_edition_label }}</span>{% endif %}
+      {% if site_edition_label %}<span class="brand__sub">{{ site_edition_label|edition_title:"edycja" }}</span>{% endif %}
     </a>
     {% comment %}
       Część informacyjna (Wagtail). Lista pochodzi z drzewa stron – patrz
