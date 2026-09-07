@@ -69,7 +69,7 @@ def shoot(page, path: str, name: str, scroll: str = "bottom") -> bool:
 
     ``scroll`` rozstrzyga, gdzie na zrzucie wyląduje warstwa ``position: sticky`` – patrz niżej.
     Strony z przyklejonym paskiem akcji chcą ``"bottom"``, strony z przyklejonym spisem treści
-    (``/regulamin/``) ``"top"``, bo tam sticky jest nawigacją, a nie stopką.
+    (``/dokumenty/regulamin/``) ``"top"``, bo tam sticky jest nawigacją, a nie stopką.
     """
     response = page.goto(f"{BASE_URL}{path}", wait_until="domcontentloaded")
     status = response.status if response is not None else 0
@@ -89,6 +89,28 @@ def shoot(page, path: str, name: str, scroll: str = "bottom") -> bool:
     page.screenshot(path=str(target), full_page=True)
     LOGGER.info("%-34s %s -> %s", path, status, target.name)
     return 200 <= status < 400
+
+
+def shoot_open_menu(page, name: str) -> None:
+    """Zrzut nagłówka z rozwiniętą pozycją „Dokumenty”.
+
+    Na desktopie lista otwiera się też najechaniem, ale ``hover`` nie utrzymuje się do zrzutu –
+    klikamy więc ``<summary>``, czyli tę samą drogę, którą ma czytelnik klawiatury i dotyku.
+    Zrzut nie jest pełnostronicowy: lista wisi pod nagłówkiem i na pełnej stronie ginęłaby
+    w skali.
+    """
+    page.goto(f"{BASE_URL}/", wait_until="domcontentloaded")
+    summary = page.locator("summary.nav-menu__summary").first
+    if summary.count() == 0:
+        LOGGER.warning("Brak rozwijanej pozycji menu – pomijam zrzut %s.", name)
+        return
+    summary.click()
+    page.wait_for_timeout(400)
+    target = OUTPUT_DIR / f"{name}.png"
+    page.screenshot(
+        path=str(target), clip={"x": 0, "y": 0, "width": page.viewport_size["width"], "height": 520}
+    )
+    LOGGER.info("%-34s %s -> %s", "/ (menu rozwinięte)", 200, target.name)
 
 
 def login(page, email: str, password: str = DEMO_PASSWORD) -> None:
@@ -133,17 +155,22 @@ def guest_pages(browser) -> None:
         ("/o-olimpiadzie/", "01a-o-olimpiadzie", "top"),
         ("/kontakt/", "01b-kontakt", "top"),
         ("/harmonogram/", "01c-harmonogram", "top"),
-        ("/rodo/", "01d-rodo", "top"),
-        # Skład komitetów: strona z kartą „Do pobrania” nad treścią (PDF organizatora).
-        ("/komitety/", "01e-komitety", "top"),
+        ("/dokumenty/rodo/", "01d-rodo", "top"),
+        # Skład komitetów: dokument z kartą „Do pobrania” nad treścią (PDF organizatora).
+        ("/dokumenty/komitety/", "01e-komitety", "top"),
         # Standardy ochrony małoletnich: drugi dokument przepisany z PDF-u organizatora.
-        ("/standardy-ochrony-maloletnich/", "01f-standardy", "top"),
+        ("/dokumenty/standardy-ochrony-maloletnich/", "01f-standardy", "top"),
     ):
         shoot(page, path, name, scroll=scroll)
 
+    # Spis dokumentów organizatora (``DocumentIndexPage``) i rozwinięta pozycja menu, która do
+    # niego prowadzi – razem pokazują całą drogę czytelnika do dokumentu.
+    shoot(page, "/dokumenty/", "02a-dokumenty", scroll="top")
+    shoot_open_menu(page, "02a1-menu-dokumenty")
+
     # Regulamin (manage.py seed_regulamin): spis rozdziałów jest ``position: sticky``, więc
     # zrzut robimy od góry – inaczej spis wylądowałby na dole obrazu, obok stopki.
-    shoot(page, "/regulamin/", "02c-regulamin", scroll="top")
+    shoot(page, "/dokumenty/regulamin/", "02c-regulamin", scroll="top")
 
     # Artykuł: pierwszy wpis z newsroomu, jeśli w ogóle jakiś jest.
     page.goto(f"{BASE_URL}/aktualnosci/", wait_until="domcontentloaded")
@@ -252,6 +279,9 @@ def mobile_pages(browser) -> None:
     shoot(page, "/login/", "m02-logowanie-mobile")
     # Menu ma dziewięć pozycji – na 390 px sprawdzamy, jak się zawija.
     shoot(page, "/o-olimpiadzie/", "m04-o-olimpiadzie-mobile", scroll="top")
+    # Poniżej 900 px lista dokumentów rozwija się w przepływie, a nie jako warstwa nad treścią.
+    shoot(page, "/dokumenty/", "m05-dokumenty-mobile", scroll="top")
+    shoot_open_menu(page, "m06-menu-dokumenty-mobile")
     login(page, PARTICIPANT_EMAIL)
     if is_logged_in(page):
         shoot(page, "/me/", "m03-panel-uczestnika-mobile")

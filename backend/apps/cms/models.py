@@ -21,9 +21,13 @@ Zasady, które te modele mają egzekwować:
 
 from __future__ import annotations
 
+from html import unescape
+
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+from django.utils.html import strip_tags
+from django.utils.text import Truncator
 from modelcluster.fields import ParentalKey
 from wagtail.admin.panels import FieldPanel, InlinePanel, MultiFieldPanel
 from wagtail.contrib.settings.models import BaseSiteSetting, register_setting
@@ -245,10 +249,13 @@ class HomePage(CMSPage):
     template = "cms/home_page.html"
     # Strona główna jest korzeniem witryny – nie wolno jej zagnieżdżać pod inną stroną treści.
     parent_page_types = ["wagtailcore.Page"]
+    # ``DocumentPage`` nie stoi już bezpośrednio pod stroną główną: dokumenty organizatora mieszkają
+    # w sekcji ``/dokumenty/`` (``DocumentIndexPage``), żeby menu miało jedną pozycję zamiast czterech,
+    # a czytelnik – jedno miejsce, w którym leży komplet.
     subpage_types = [
         "cms.NewsIndexPage",
         "cms.ProblemsPage",
-        "cms.DocumentPage",
+        "cms.DocumentIndexPage",
         "cms.ContentPage",
         "cms.ArchiveIndexPage",
         "cms.ResultsPage",
@@ -270,6 +277,9 @@ class HomePage(CMSPage):
                 "stage_rows": _stage_rows(edition, now),
                 "latest_news": NewsPage.objects.live().descendant_of(self).order_by("-date", "-pk")[:3],
                 "downloads": _download_rows(self),
+                # Sekcja „Dokumenty do pobrania” prowadzi do pełnej listy; strona-indeks bywa
+                # nieopublikowana (świeża baza przed seedem), więc szablon pyta o ``None``.
+                "documents_index": DocumentIndexPage.objects.live().child_of(self).first(),
             }
         )
         return context
@@ -432,6 +442,46 @@ class ProblemsPage(CMSPage):
         return context
 
 
+class DocumentIndexPage(CMSPage):
+    """Sekcja ``/dokumenty/``: jedno miejsce na komplet dokumentów organizatora.
+
+    Powstała, bo dokumenty rozeszły się po pasku nawigacji: regulamin stał między „Zadaniami”
+    a „Archiwum”, skład komitetów – zaraz za „O Olimpiadzie”, a polityka RODO i standardy ochrony
+    małoletnich nie były w menu w ogóle (prowadziła do nich tylko strona główna). Czytelnik, który
+    szuka „dokumentów olimpiady”, nie ma wtedy jednego adresu do zapamiętania ani jednej strony
+    do podania w piśmie.
+
+    Strona jest wyłącznie spisem: ``get_context`` czyta opublikowane dzieci wraz z ich plikami
+    (``prefetch_related`` – karta każdego dokumentu pokazuje rozszerzenie i rozmiar załącznika),
+    a kolejność bierze z drzewa, czyli tę samą, którą redaktor widzi w ``/cms/`` i którą pokazuje
+    rozwijana pozycja menu.
+    """
+
+    intro = RichTextField("wprowadzenie", features=RICH_TEXT_FEATURES, blank=True)
+
+    content_panels = Page.content_panels + [FieldPanel("intro")]
+    search_fields = Page.search_fields + [index.SearchField("intro")]
+
+    template = "cms/document_index_page.html"
+    parent_page_types = ["cms.HomePage"]
+    subpage_types = ["cms.DocumentPage"]
+    max_count = 1
+
+    class Meta:
+        verbose_name = "dokumenty"
+        verbose_name_plural = "dokumenty"
+
+    def get_context(self, request, *args, **kwargs):
+        context = super().get_context(request, *args, **kwargs)
+        context["documents"] = (
+            DocumentPage.objects.live()
+            .child_of(self)
+            .order_by("path")
+            .prefetch_related("attachments__document")
+        )
+        return context
+
+
 class DocumentPage(CMSPage):
     """Dokument urzędowy (regulamin, ZOZ) w wersji do czytania w przeglądarce.
 
@@ -480,8 +530,12 @@ class DocumentPage(CMSPage):
     ]
 
     template = "cms/document_page.html"
-    parent_page_types = ["cms.HomePage"]
+    parent_page_types = ["cms.DocumentIndexPage"]
     subpage_types = []
+
+    #: Długość zajawki na karcie w spisie ``/dokumenty/``. Trzy wiersze przy szerokości karty –
+    #: dłuższy fragment zamieniłby spis w kopię wprowadzeń, krótszy nie odróżniłby dokumentów.
+    SUMMARY_WORDS = 28
 
     class Meta:
         verbose_name = "dokument"
@@ -490,6 +544,22 @@ class DocumentPage(CMSPage):
     def chapters(self) -> list[dict]:
         """Spis rozdziałów – patrz ``body_chapters``. Dokument pokazuje go od pierwszego rozdziału."""
         return body_chapters(self.body)
+
+    def summary(self) -> str:
+        """Zajawka na kartę spisu: pierwsze zdania wprowadzenia jako czysty tekst.
+
+        Liczymy ją tu, a nie filtrem w szablonie: ``intro`` jest polem RichText, więc zawiera
+        znaczniki i encje, a spis ma pokazać zdanie, nie kod. Kiedy redaktor nie napisał
+        wprowadzenia, zostaje opis wyszukiwarkowy – jeśli i on jest pusty, karta pokazuje
+        samą metrykę zamiast wymyślonego opisu.
+        """
+        # Spacja przed każdym znacznikiem: ``</p><p>`` bez niej sklejałoby ostatnie słowo akapitu
+        # z pierwszym słowem następnego („…Quantum AIRegulamin…”). Nadmiarowe odstępy zbieramy
+        # niżej, więc do zajawki trafia zwykły tekst z pojedynczymi spacjami.
+        text = " ".join(unescape(strip_tags((self.intro or "").replace("<", " <"))).split())
+        if not text:
+            return self.search_description.strip()
+        return Truncator(text).words(self.SUMMARY_WORDS, truncate="…")
 
     def get_context(self, request, *args, **kwargs):
         context = super().get_context(request, *args, **kwargs)

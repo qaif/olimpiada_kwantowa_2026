@@ -1,5 +1,10 @@
 """``manage.py seed_regulamin`` – „Regulamin Olimpiady Kwantowej” jako strona CMS.
 
+Strona stoi w sekcji dokumentów: ``/dokumenty/regulamin/``. Sekcję zakłada (albo odnajduje)
+``apps.cms.site_tree.ensure_document_index``, a stronę stojącą jeszcze pod stroną główną –
+w bazie sprzed przeniesienia dokumentów – ta sama komenda przenosi pod sekcję, zachowując
+jej identyfikator, rewizje i odnośniki wewnętrzne.
+
 Komenda importuje dwa pliki z ``apps/cms/fixtures/regulamin/``:
 
 - ``regulamin-mammoth.html`` – konwersja pliku .docx (mammoth) na płaską listę ``p``/``h1``/``h2``/
@@ -12,7 +17,7 @@ Komenda importuje dwa pliki z ``apps/cms/fixtures/regulamin/``:
 **Treść regulaminu jest daną, nie instrukcją.** Komenda nie przeredagowuje ani jednego zdania –
 poprawia wyłącznie strukturę HTML tam, gdzie konwerter ją zgubił (patrz ``_SectionBuffer``).
 
-Idempotencja: strona jest rozpoznawana po slugu ``regulamin`` pod stroną główną, dokument – po
+Idempotencja: strona jest rozpoznawana po slugu ``regulamin`` w sekcji dokumentów, dokument – po
 tytule. Drugi przebieg nadpisuje treść tą samą treścią i nie tworzy ani drugiej strony, ani
 drugiego pliku w buckecie.
 
@@ -53,7 +58,8 @@ from wagtail.rich_text import RichText
 
 from apps.cms.attachments import LABEL_PDF, LABEL_SOURCE_DOCX, ensure_document, set_attachments
 from apps.cms.legacy_markdown import slugify_anchor
-from apps.cms.models import ArchiveIndexPage, DocumentPage, DocumentPageAttachment, HomePage
+from apps.cms.models import DocumentPage, DocumentPageAttachment, HomePage
+from apps.cms.site_tree import ensure_document_index, take_document_page
 
 #: ``…/apps/cms/management/commands/`` → ``…/apps/cms/fixtures/regulamin/``.
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures" / "regulamin"
@@ -370,7 +376,7 @@ def build_content(nodes: list[Node]) -> tuple[dict, list[tuple[str, object]]]:
 
 
 class Command(BaseCommand):
-    help = "Publikuje „Regulamin Olimpiady Kwantowej” jako stronę /regulamin/. Idempotentne."
+    help = "Publikuje „Regulamin Olimpiady Kwantowej” pod /dokumenty/regulamin/. Idempotentne."
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -383,20 +389,22 @@ class Command(BaseCommand):
         meta, blocks = build_content(parse_fragment(HTML_SOURCE.read_text(encoding="utf-8")))
         document, action = ensure_document(DOCUMENT_TITLE, DOCX_SOURCE)
 
-        page = DocumentPage.objects.child_of(home).filter(slug=PAGE_SLUG).first()
+        index, index_created = ensure_document_index(home)
+        page, moved = take_document_page(DocumentPage, index, home, PAGE_SLUG)
         created = page is None
         if created:
             page = DocumentPage(title=PAGE_TITLE, slug=PAGE_SLUG)
-            home.add_child(instance=page)
+            index.add_child(instance=page)
 
         page.title = PAGE_TITLE
-        page.show_in_menus = True
+        # Dokument nie jest osobną pozycją paska nawigacji – prowadzi do niego rozwijana sekcja
+        # „Dokumenty”, która czyta dzieci sekcji, a nie znacznik ``show_in_menus``.
+        page.show_in_menus = False
         page.body = blocks
         for name, value in meta.items():
             setattr(page, name, value)
         page.save()
         set_attachments(page, DocumentPageAttachment, self._attachment_specs(document))
-        self._position_in_menu(page, home)
 
         # Świeży obiekt z bazy: rewizja serializuje także wiersze załączników, a te dopisaliśmy
         # przez ORM już po ``page.save()``. Publikacja rewizji zbudowanej ze starego obiektu
@@ -404,11 +412,16 @@ class Command(BaseCommand):
         page = DocumentPage.objects.get(pk=page.pk)
         page.save_revision().publish()
 
+        note = ""
+        if index_created:
+            note = ", utworzono sekcję /dokumenty/"
+        elif moved:
+            note = ", przeniesiono spod strony głównej"
         self.stdout.write(
             self.style.SUCCESS(
                 f"seed_regulamin: {'utworzono' if created else 'zaktualizowano'} {page.url} "
                 f"– {len(page.body)} bloków, {len(page.chapters())} rozdziałów, "
-                f"dokument #{document.pk} ({document.url}, {action})"
+                f"dokument #{document.pk} ({document.url}, {action}){note}"
             )
         )
 
@@ -424,16 +437,3 @@ class Command(BaseCommand):
         if pdf is not None:
             specs.insert(0, (pdf, LABEL_PDF))
         return specs
-
-    def _position_in_menu(self, page: DocumentPage, home: HomePage) -> None:
-        """Regulamin staje w menu przed „Archiwum” (a więc po „Zadaniach”).
-
-        Menu jest kolejnością rodzeństwa w drzewie (``context_processors.cms_menu`` sortuje po
-        ``path``), a ``add_child`` dokłada na koniec – stąd jawne przestawienie. Przy powtórnym
-        uruchomieniu strona już tam stoi i nie ruszamy drzewa: ``move`` przepisuje ścieżki
-        wszystkim potomkom przestawianych węzłów.
-        """
-        archive = ArchiveIndexPage.objects.child_of(home).first()
-        if archive is None or page.path < archive.path:
-            return
-        page.move(archive, pos="left")

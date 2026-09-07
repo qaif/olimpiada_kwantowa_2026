@@ -1,4 +1,5 @@
-"""Strony ``/rodo/`` i ``/standardy-ochrony-maloletnich/`` wobec PDF-ów organizatora.
+"""Dokumenty ``/dokumenty/rodo/`` i ``/dokumenty/standardy-ochrony-maloletnich/``
+wobec PDF-ów organizatora.
 
 Obie strony są **wersją HTML podpisanego dokumentu**, a nie streszczeniem: czytelnik ma dostać
 w przeglądarce to samo, co w pliku, w tej samej kolejności sekcji. Testy pilnują trzech rzeczy,
@@ -23,7 +24,7 @@ import pytest
 from django.core.management import call_command
 from django.utils.html import strip_tags
 
-from apps.cms.models import ContentPage, DocumentPage
+from apps.cms.models import DocumentPage
 
 pytestmark = pytest.mark.django_db
 
@@ -139,7 +140,7 @@ def page_words(page) -> list[str]:
     [("rodo", RODO_SECTIONS), ("standardy-ochrony-maloletnich", STANDARDY_SECTIONS)],
 )
 def test_page_has_every_section_from_pdf(web_client, legacy_content, slug, sections):
-    response = web_client.get(f"/{slug}/")
+    response = web_client.get(f"/dokumenty/{slug}/")
     content = response.content.decode()
 
     assert response.status_code == 200
@@ -157,7 +158,7 @@ def test_chapter_list_has_one_entry_per_section(web_client, legacy_content, slug
     chapters = page.chapters()
 
     assert [chapter["text"] for chapter in chapters] == list(sections)
-    assert '<nav class="doc-toc"' in web_client.get(f"/{slug}/").content.decode()
+    assert '<nav class="doc-toc"' in web_client.get(f"/dokumenty/{slug}/").content.decode()
 
 
 # --- tabela „Cel | Podstawa” --------------------------------------------------------------------
@@ -176,7 +177,7 @@ def test_rodo_renders_purposes_as_definition_list(web_client, legacy_content):
     # Nagłówki kolumn z dokumentu stoją przy każdej parze – bez nich kolejność nic nie mówi.
     assert body.count('<span class="definitions__label">Cel</span>') == RODO_PURPOSE_ROWS
     assert body.count('<span class="definitions__label">Podstawa</span>') == RODO_PURPOSE_ROWS
-    assert '<dl class="definitions">' in web_client.get("/rodo/").content.decode()
+    assert '<dl class="definitions">' in web_client.get("/dokumenty/rodo/").content.decode()
 
 
 @pytest.mark.parametrize(("purpose", "basis"), RODO_PURPOSES)
@@ -190,7 +191,7 @@ def test_rodo_keeps_purpose_next_to_its_legal_basis(web_client, legacy_content, 
     ]
 
     assert (purpose, basis) in pairs
-    assert basis in web_client.get("/rodo/").content.decode()
+    assert basis in web_client.get("/dokumenty/rodo/").content.decode()
 
 
 # --- status treści ------------------------------------------------------------------------------
@@ -198,7 +199,7 @@ def test_rodo_keeps_purpose_next_to_its_legal_basis(web_client, legacy_content, 
 
 @pytest.mark.parametrize("slug", list(DOCUMENTS))
 def test_document_points_at_pdf_instead_of_demo_disclaimer(web_client, legacy_content, slug):
-    content = web_client.get(f"/{slug}/").content.decode()
+    content = web_client.get(f"/dokumenty/{slug}/").content.decode()
 
     assert "demonstracyjn" not in content.lower()
     assert '<aside class="notice notice--info">' in content
@@ -210,7 +211,7 @@ def test_standardy_keeps_short_version_for_students(web_client, legacy_content):
     """Wersja skrócona jest ramką, a nie kolejnym akapitem: to jedyna część pisana do ucznia."""
     page = DocumentPage.objects.get(slug="standardy-ochrony-maloletnich")
     notices = [block.value for block in page.body if block.block_type == "notice"]
-    content = web_client.get("/standardy-ochrony-maloletnich/").content.decode()
+    content = web_client.get("/dokumenty/standardy-ochrony-maloletnich/").content.decode()
 
     assert all(notice["tone"] == "info" for notice in notices)
     assert "Masz prawo czuć się bezpiecznie." in content
@@ -237,12 +238,12 @@ def test_page_keeps_the_words_of_the_pdf(legacy_content, slug, source):
 def test_komitety_repeats_the_pdf_including_contact(web_client, legacy_content):
     """Skład komitetów jest jednostronicowym PDF-em – strona ma powtarzać także jego stopkę.
 
-    Bez porównania liczby słów: ``/komitety/`` jest ``ContentPage``, więc nie ma metryki dokumentu,
-    do której u dokumentów trafia wiersz „Organizator … Data eksportu”, a numery pozycji w listach
-    nazwisk rysuje ``<ol>``, nie tekst. Nazwiska i zakresy sprawdza ``test_legacy_content``.
+    Bez porównania liczby słów: numery pozycji w listach nazwisk rysuje ``<ol>``, a nie tekst,
+    więc licznik słów strony i PDF-u nie może się zgodzić. Nazwiska i zakresy odpowiedzialności
+    sprawdza ``test_legacy_content``.
     """
-    content = web_client.get("/komitety/").content.decode()
-    page_text = " ".join(page_words(ContentPage.objects.get(slug="komitety")))
+    content = web_client.get("/dokumenty/komitety/").content.decode()
+    page_text = " ".join(page_words(DocumentPage.objects.get(slug="komitety")))
 
     assert "Członkowie i zakres odpowiedzialności" in content
     assert "Kontakt z Organizatorem" in content

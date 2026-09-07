@@ -442,6 +442,139 @@ hr {
   font-weight: 600;
 }
 
+/* Rozwijana pozycja menu („Dokumenty”, templates/base.html). Cały mechanizm jest w ``<details>``
+   i w tym arkuszu – żadnego skryptu, więc pozycja działa też przy zablokowanym JavaScripcie.
+
+   Otwarcie ma dwie drogi i obie muszą zadziałać w każdej przeglądarce:
+
+   - kliknięcie/klawisz przełącza atrybut ``open`` – to robi przeglądarka,
+   - najechanie i fokus wewnątrz otwierają listę wizualnie, bez zmiany atrybutu. Silniki chowają
+     zawartość zamkniętego ``<details>`` na dwa różne sposoby: starsze regułą ``display: none``
+     w arkuszu użytkownika (znosi ją reguła na ``.nav-menu__list``), nowsze ``content-visibility``
+     na pseudoelemencie ``::details-content`` (znosi ją reguła niżej). Stąd obie – nadmiarowa
+     w danej przeglądarce nic nie kosztuje, a brakująca zostawiłaby menu bez rozwinięcia. */
+.nav-menu {
+  position: relative;
+  margin: 0;
+}
+
+.nav-menu__summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  cursor: pointer;
+  list-style: none;
+}
+
+/* Domyślny trójkąt ``<summary>`` w dwóch wariantach zapisu; własny znacznik jest niżej. */
+.nav-menu__summary::-webkit-details-marker {
+  display: none;
+}
+
+.nav-menu__summary::marker {
+  content: "";
+}
+
+.nav-menu__summary::after {
+  content: "";
+  width: 0.36rem;
+  height: 0.36rem;
+  margin-bottom: 0.18rem;
+  border-right: 2px solid currentcolor;
+  border-bottom: 2px solid currentcolor;
+  transform: rotate(45deg);
+}
+
+.nav-menu[open] > .nav-menu__summary::after {
+  margin-top: 0.18rem;
+  margin-bottom: 0;
+  transform: rotate(-135deg);
+}
+
+.nav-menu__summary:hover {
+  color: #fff;
+  border-bottom-color: rgba(200, 137, 43, 0.6);
+}
+
+.nav-menu__summary--active {
+  color: #fff;
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+.nav-menu__list {
+  list-style: none;
+  margin: var(--sp-2) 0 0;
+  padding: 0;
+}
+
+.nav-menu__list > li {
+  margin: 0;
+}
+
+.nav-menu__link {
+  display: block;
+  padding: var(--sp-2) var(--sp-3);
+  color: rgba(244, 241, 232, 0.88);
+  text-decoration: none;
+  font-size: 0.9375rem;
+  border-left: 2px solid transparent;
+}
+
+.nav-menu__link:hover {
+  color: #fff;
+  background: rgba(244, 241, 232, 0.08);
+}
+
+.nav-menu__link[aria-current="page"] {
+  color: #fff;
+  border-left-color: var(--accent);
+  font-weight: 600;
+}
+
+/* Odnośnik do samej sekcji stoi nad dokumentami i jest od nich oddzielony kreską – to inny
+   rodzaj celu (lista) niż pozycje pod nim (pojedynczy dokument). */
+.nav-menu__link--all {
+  font-weight: 600;
+}
+
+.nav-menu__list > li:first-child {
+  border-bottom: 1px solid rgba(244, 241, 232, 0.16);
+  margin-bottom: var(--sp-1);
+  padding-bottom: var(--sp-1);
+}
+
+@media (min-width: 900px) {
+  .nav-menu__list {
+    position: absolute;
+    top: calc(100% + var(--sp-3));
+    left: calc(var(--sp-3) * -1);
+    z-index: 40;
+    min-width: 17rem;
+    margin: 0;
+    padding: var(--sp-2) 0;
+    background: var(--brand);
+    border: 1px solid rgba(244, 241, 232, 0.18);
+    border-top: 3px solid var(--accent);
+    border-radius: 0 0 var(--radius) var(--radius);
+    box-shadow: var(--shadow);
+  }
+
+  .nav-menu:not([open]) > .nav-menu__list {
+    display: none;
+  }
+
+  .nav-menu:hover > .nav-menu__list,
+  .nav-menu:focus-within > .nav-menu__list {
+    display: block;
+  }
+
+  .nav-menu:hover::details-content,
+  .nav-menu:focus-within::details-content {
+    content-visibility: visible;
+  }
+}
+
 /* Nawigacja ról trzyma się prawej także wtedy, gdy zawinie się do drugiego wiersza. */
 .nav--roles {
   margin-left: auto;
@@ -2060,6 +2193,49 @@ td.empty,
   margin: 0;
 }
 
+/* Spis dokumentów (templates/cms/document_index_page.html). Karta ma stały układ: tytuł, metryka,
+   zajawka, a przyciski przyklejone do dołu – dzięki temu w siatce o różnych długościach zajawek
+   „Czytaj” stoi w każdej karcie na tej samej wysokości i nie trzeba go szukać. */
+.doc-index .card {
+  display: flex;
+  flex-direction: column;
+}
+
+.doc-card__title {
+  font-size: 1.25rem;
+  margin: 0 0 var(--sp-3);
+}
+
+.doc-card__title a {
+  text-decoration: none;
+}
+
+.doc-card__title a:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+}
+
+/* Metryka na karcie jest wierszem opisu, a nie nagłówkiem strony: bez kreski i bez dużego
+   odstępu, które ma ta sama klasa na stronie dokumentu. */
+.doc-card__meta {
+  gap: var(--sp-2) var(--sp-3);
+  margin-bottom: var(--sp-3);
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.doc-card__lead {
+  margin: 0 0 var(--sp-4);
+  color: var(--ink-soft);
+}
+
+.doc-card .doc-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: auto;
+}
+
 .doc-toc {
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -2620,10 +2796,13 @@ fieldset:disabled .score-option {
     gap: var(--sp-1) var(--sp-3);
   }
 
-  /* Menu serwisu ma dziesięć pozycji – na wąskim ekranie zawija się do trzech wierszy.
+  /* Menu serwisu ma dziewięć pozycji – na wąskim ekranie zawija się do trzech wierszy.
      Świadomie zostaje pełną listą zamiast chować nadmiar za rozwijaczem: każda pozycja jest
-     wtedy jednym dotknięciem, bez otwierania i bez skryptu. Cena to trochę wyższy nagłówek,
-     więc na tej szerokości zmniejszamy krój i odstępy zamiast ukrywać odnośniki. */
+     wtedy jednym dotknięciem, bez otwierania i bez skryptu. Wyjątkiem jest sekcja dokumentów,
+     której lista rozwija się w przepływie (na tej szerokości nie ma dropdownu) – cztery
+     dokumenty w pasku zajęłyby więcej miejsca niż wszystko pozostałe razem. Cena to trochę
+     wyższy nagłówek, więc na tej szerokości zmniejszamy krój i odstępy zamiast ukrywać
+     odnośniki. */
   .nav--cms .nav__link {
     font-size: 0.875rem;
   }

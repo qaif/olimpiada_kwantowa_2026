@@ -5,7 +5,8 @@ Testy pilnują trzech rzeczy, które przy imporcie dokumentu prawnego psują si�
 1. **kompletność** – 10 rozdziałów i wszystkie 24 paragrafy, w kolejności z dokumentu.
    Zgubiony ``§`` na stronie regulaminu to nie literówka, tylko brakujący przepis,
 2. **idempotencja** – komenda bywa uruchamiana przy każdym wdrożeniu dev-a; drugi przebieg nie
-   może dołożyć ani drugiej strony ``/regulamin/``, ani drugiej kopii .docx w buckecie,
+   może dołożyć ani drugiej strony ``/dokumenty/regulamin/``, ani drugiej kopii .docx
+   w buckecie,
 3. **brak surowego HTML-a** – treść idzie do ``RichText``, więc znaczniki mają się renderować,
    a nie wyświetlać jako tekst. Odwrotny błąd (podwójne escapowanie w imporcie) jest widoczny
    dopiero w przeglądarce.
@@ -16,12 +17,16 @@ from django.core.management import call_command
 from wagtail.documents import get_document_model
 
 from apps.cms.management.commands.seed_regulamin import DOCUMENT_TITLE
-from apps.cms.models import DocumentPage
+from apps.cms.models import DocumentIndexPage, DocumentPage
 
 pytestmark = pytest.mark.django_db
 
 CHAPTERS = 10
 PARAGRAPHS = 24
+
+#: Adres strony po wydzieleniu sekcji dokumentów. Stary ``/regulamin/`` żyje jako 301 –
+#: patrz ``apps/cms/tests/test_legacy_content.py``.
+PAGE_PATH = "/dokumenty/regulamin/"
 
 
 @pytest.fixture
@@ -103,7 +108,7 @@ def test_seed_is_idempotent(regulamin):
 
 
 def test_regulamin_page_renders_content_and_download_link(web_client, regulamin):
-    response = web_client.get("/regulamin/")
+    response = web_client.get(PAGE_PATH)
     content = response.content.decode()
 
     assert response.status_code == 200
@@ -118,7 +123,7 @@ def test_regulamin_page_renders_content_and_download_link(web_client, regulamin)
 
 
 def test_regulamin_page_renders_markup_not_escaped_source(web_client, regulamin):
-    content = web_client.get("/regulamin/").content.decode()
+    content = web_client.get(PAGE_PATH).content.decode()
 
     # Podwójne escapowanie w imporcie objawiłoby się „<p>” jako tekstem na stronie.
     assert "&lt;p&gt;" not in content
@@ -129,7 +134,7 @@ def test_regulamin_page_renders_markup_not_escaped_source(web_client, regulamin)
 
 
 def test_regulamin_page_has_anchored_table_of_contents(web_client, regulamin):
-    content = web_client.get("/regulamin/").content.decode()
+    content = web_client.get(PAGE_PATH).content.decode()
 
     assert len(regulamin.chapters()) == CHAPTERS
     for number in range(1, CHAPTERS + 1):
@@ -139,9 +144,13 @@ def test_regulamin_page_has_anchored_table_of_contents(web_client, regulamin):
     assert 'id="par-16"' in content
 
 
-def test_regulamin_appears_in_menu_between_zadania_and_archiwum(web_client, regulamin):
+def test_regulamin_lives_in_the_documents_section_of_the_menu(web_client, regulamin):
+    """Regulamin nie jest już osobną pozycją paska – prowadzi do niego rozwijana „Dokumenty”."""
     content = web_client.get("/").content.decode()
     menu = content.split('class="nav nav--cms"', 1)[1].split("</nav>", 1)[0]
 
-    assert 'href="/regulamin/"' in menu
-    assert menu.index("/zadania/") < menu.index("/regulamin/") < menu.index("/archiwum/")
+    assert regulamin.get_parent().specific_class is DocumentIndexPage
+    assert '<details class="nav-menu">' in menu
+    assert f'href="{PAGE_PATH}"' in menu
+    assert '<a class="nav__link" href="/regulamin/"' not in menu
+    assert menu.index("/zadania/") < menu.index("/dokumenty/") < menu.index("/archiwum/")

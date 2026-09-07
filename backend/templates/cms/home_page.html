@@ -130,7 +130,8 @@
   <section class="section">
     <div class="section__head">
       <h2 class="mt-0">Dokumenty do pobrania</h2>
-      <p class="hint">Oficjalne dokumenty organizatora w wersji do wydruku.</p>
+      <p class="hint">Oficjalne dokumenty organizatora w wersji do wydruku.
+        {% if documents_index %}<a href="{% pageurl documents_index %}">Wszystkie dokumenty</a>{% endif %}</p>
     </div>
     <div class="card doc-download doc-download--home">
       <ul class="doc-files">

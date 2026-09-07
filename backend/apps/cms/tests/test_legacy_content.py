@@ -19,7 +19,7 @@ import pytest
 from django.core.management import call_command
 from wagtail.documents import get_document_model
 
-from apps.cms.models import ContentPage, DocumentPage, HomePage, NewsPage
+from apps.cms.models import ContentPage, DocumentIndexPage, DocumentPage, HomePage, NewsPage
 from apps.competitions.management.commands.seed_edition_kwantowa import EDITION_LABEL, MIN_POINTS
 from apps.competitions.models import Edition, QualificationMode, Stage, StageKind
 from apps.competitions.tests.factories import CurrentEditionFactory
@@ -28,14 +28,22 @@ pytestmark = pytest.mark.django_db
 
 PUBLISHED_CONTENT = (
     "o-olimpiadzie",
-    "komitety",
     "jak-zaczac",
     "harmonogram",
     "kontakt",
     "dla-nauczycieli",
 )
 DRAFT_CONTENT = ("partnerzy",)
-DOCUMENTS = ("rodo", "standardy-ochrony-maloletnich")
+DOCUMENTS = ("rodo", "standardy-ochrony-maloletnich", "komitety")
+
+#: Dokumenty pod ``/dokumenty/`` w kolejności z drzewa – ta sama w menu, w spisie i na stronie głównej.
+DOCUMENT_ORDER = ("regulamin", "rodo", "standardy-ochrony-maloletnich", "komitety")
+DOCUMENT_TITLES = [
+    "Regulamin",
+    "Polityka RODO Olimpiady Kwantowej",
+    "Standardy ochrony małoletnich Olimpiady Kwantowej",
+    "Skład komitetów",
+]
 #: Ramka nad treścią obu dokumentów: skąd jest treść i który plik jest wersją źródłową.
 SOURCE_NOTICE_FRAGMENT = "Wersja do pobrania (PDF) jest wersją źródłową."
 
@@ -47,13 +55,15 @@ PDF_TITLES = {
     "Regulamin Olimpiady Kwantowej v1.0 (PDF)",
 }
 
-MENU_WITHOUT_REGULAMIN = [
+#: Pasek nawigacji po imporcie. Dokumenty mają **jedną** pozycję („Dokumenty”) z listą rozwijaną –
+#: regulamin i skład komitetów nie stoją już osobno między pozostałymi stronami.
+MENU_TITLES = [
     "O Olimpiadzie",
-    "Komitety",
     "Jak zacząć?",
     "Aktualności",
     "Zadania",
     "Terminarz i harmonogram",
+    "Dokumenty",
     "Archiwum",
     "Wyniki",
     "Kontakt",
@@ -62,6 +72,13 @@ MENU_WITHOUT_REGULAMIN = [
 
 @pytest.fixture
 def legacy_content():
+    call_command("seed_legacy_content", verbosity=0)
+
+
+@pytest.fixture
+def full_content():
+    """Komplet treści: regulamin (osobna komenda) plus reszta importu – jak przy wdrożeniu."""
+    call_command("seed_regulamin", verbosity=0)
     call_command("seed_legacy_content", verbosity=0)
 
 
@@ -83,9 +100,11 @@ def test_seed_creates_published_pages_and_drafts(legacy_content):
 def test_seed_marks_only_menu_pages(legacy_content):
     in_menu = ContentPage.objects.filter(show_in_menu=True).values_list("slug", flat=True)
 
-    assert set(in_menu) == {"o-olimpiadzie", "komitety", "jak-zaczac", "harmonogram", "kontakt"}
-    # Dokumenty prawne zostają poza paskiem nawigacji – prowadzi do nich stopka i strona główna.
+    assert set(in_menu) == {"o-olimpiadzie", "jak-zaczac", "harmonogram", "kontakt"}
+    # Żaden dokument nie jest osobną pozycją paska: prowadzi do nich rozwijana sekcja „Dokumenty”,
+    # która czyta dzieci sekcji, a nie znacznik ``show_in_menus``.
     assert not DocumentPage.objects.filter(show_in_menus=True).exists()
+    assert DocumentIndexPage.objects.get(slug="dokumenty").show_in_menus is True
 
 
 def test_seed_is_idempotent(legacy_content):
@@ -113,7 +132,7 @@ def test_seed_uploads_four_official_pdfs(legacy_content):
 def test_seed_attaches_pdf_to_matching_pages(legacy_content):
     rodo = DocumentPage.objects.get(slug="rodo").attachments.get()
     standardy = DocumentPage.objects.get(slug="standardy-ochrony-maloletnich").attachments.get()
-    komitety = ContentPage.objects.get(slug="komitety").attachments.get()
+    komitety = DocumentPage.objects.get(slug="komitety").attachments.get()
 
     assert rodo.document.title == "Polityka RODO Olimpiady Kwantowej (PDF)"
     assert standardy.document.title == "Standardy ochrony małoletnich (PDF)"
@@ -159,9 +178,9 @@ def test_seed_does_not_duplicate_documents_on_second_run(legacy_content):
 @pytest.mark.parametrize(
     ("path", "title"),
     [
-        ("/rodo/", "Polityka RODO Olimpiady Kwantowej (PDF)"),
-        ("/standardy-ochrony-maloletnich/", "Standardy ochrony małoletnich (PDF)"),
-        ("/komitety/", "Skład komitetów Olimpiady Kwantowej (PDF)"),
+        ("/dokumenty/rodo/", "Polityka RODO Olimpiady Kwantowej (PDF)"),
+        ("/dokumenty/standardy-ochrony-maloletnich/", "Standardy ochrony małoletnich (PDF)"),
+        ("/dokumenty/komitety/", "Skład komitetów Olimpiady Kwantowej (PDF)"),
     ],
 )
 def test_pages_link_and_serve_their_pdf(web_client, legacy_content, path, title):
@@ -194,9 +213,9 @@ def test_content_page_body_keeps_structure(legacy_content):
     [
         ("/o-olimpiadzie/", "Fundacja Quantum AI"),
         ("/kontakt/", "contact@qaif.org"),
-        ("/rodo/", SOURCE_NOTICE_FRAGMENT),
+        ("/dokumenty/rodo/", SOURCE_NOTICE_FRAGMENT),
         ("/harmonogram/", "7 listopada 2026"),
-        ("/standardy-ochrony-maloletnich/", SOURCE_NOTICE_FRAGMENT),
+        ("/dokumenty/standardy-ochrony-maloletnich/", SOURCE_NOTICE_FRAGMENT),
     ],
 )
 def test_published_pages_render(web_client, legacy_content, path, fragment):
@@ -212,11 +231,11 @@ def test_draft_pages_are_not_public(web_client, legacy_content):
 
 def test_komitety_is_public_with_scope_from_pdf(web_client, legacy_content):
     """Strona składu komitetów jest publiczna i powtarza zakresy odpowiedzialności z PDF-u."""
-    response = web_client.get("/komitety/")
+    response = web_client.get("/dokumenty/komitety/")
     content = response.content.decode()
 
     assert response.status_code == 200
-    assert ContentPage.objects.get(slug="komitety").live is True
+    assert DocumentPage.objects.get(slug="komitety").live is True
     assert "Zadania, kryteria oceniania, anonimowa ocena prac, kwalifikacja i rozstrzygnięcia Jury" in content
     assert "Rejestracja, komunikacja, obsługa systemu, logistyka, miejsce finału i dokumentacja" in content
     assert "pełni również funkcję Jury" in content
@@ -244,7 +263,7 @@ def test_rodo_keeps_document_metadata(legacy_content):
 def test_menu_has_declared_order(web_client, legacy_content):
     response = web_client.get("/")
 
-    assert [item["title"] for item in response.context["cms_menu"]] == MENU_WITHOUT_REGULAMIN
+    assert [item["title"] for item in response.context["cms_menu"]] == MENU_TITLES
 
 
 def test_header_and_hero_show_branding(web_client, legacy_content):
@@ -274,12 +293,7 @@ def test_home_page_lists_four_documents_to_download(web_client, legacy_content):
     content = response.content.decode()
 
     # Kolejność jest kolejnością z drzewa (ta sama, co w menu), a nie kolejnością wgrywania.
-    assert [row["page"].slug for row in rows] == [
-        "komitety",
-        "regulamin",
-        "rodo",
-        "standardy-ochrony-maloletnich",
-    ]
+    assert [row["page"].slug for row in rows] == list(DOCUMENT_ORDER)
     assert "Dokumenty do pobrania" in content
     for row in rows:
         # Tytuł prowadzi do strony, przycisk – wprost do pliku.
@@ -315,6 +329,189 @@ def test_home_page_keeps_steps(legacy_content):
         "Rozwiąż zadania",
         "Sprawdź wynik",
     ]
+
+
+# --- sekcja /dokumenty/ -------------------------------------------------------------------------
+
+
+def test_seed_moves_documents_under_the_documents_section(full_content):
+    """Wszystkie dokumenty są dziećmi ``/dokumenty/``, w zadeklarowanej kolejności."""
+    index = DocumentIndexPage.objects.get(slug="dokumenty")
+    documents = DocumentPage.objects.child_of(index).order_by("path")
+
+    assert list(documents.values_list("slug", flat=True)) == list(DOCUMENT_ORDER)
+    assert index.get_parent().specific_class is HomePage
+
+
+def test_document_index_lists_every_document(web_client, full_content):
+    response = web_client.get("/dokumenty/")
+    content = response.content.decode()
+
+    assert response.status_code == 200
+    assert [page.slug for page in response.context["documents"]] == list(DOCUMENT_ORDER)
+    assert content.count('class="card doc-card"') == len(DOCUMENT_ORDER)
+    for slug, title in zip(DOCUMENT_ORDER, DOCUMENT_TITLES, strict=True):
+        assert f'href="/dokumenty/{slug}/"' in content
+        assert title in content
+
+
+def test_document_index_links_every_file_directly(web_client, full_content):
+    """Karta ma odnośnik do strony i wprost do plików – czytelnik nie musi wchodzić po PDF."""
+    content = web_client.get("/dokumenty/").content.decode()
+
+    files = [item for page in DocumentPage.objects.all() for item in page.attachments.all()]
+    assert len(files) == len(DOCUMENT_ORDER) + 1  # regulamin ma dwa pliki: PDF i źródłowy .docx
+    for item in files:
+        assert f'href="{item.document.url}"' in content
+
+
+def test_document_index_shows_summaries_not_the_documents_themselves(web_client, full_content):
+    """Spis pokazuje zajawkę wprowadzenia – nazwiska i telefony zostają na stronach dokumentów."""
+    content = web_client.get("/dokumenty/").content.decode()
+
+    for name in ("Rafał Demkowicz-Dobrzański", "Michał Kutwin", "Tomasz Ćwik", "Tomasz Sowiński"):
+        assert name not in content
+    # Numer telefonu zaufania z „Standardów ochrony małoletnich” też jest treścią dokumentu.
+    assert "800 12 12 12" not in content
+    assert "§ 24" not in content
+    assert "Skład komitetów" in content
+
+
+def test_document_summary_reads_as_a_sentence(legacy_content):
+    """Zajawka powstaje ze zdjęcia znaczników z ``intro`` – bez sklejania sąsiednich akapitów."""
+    summary = DocumentPage.objects.get(slug="komitety").summary()
+
+    assert summary.startswith("Członkowie i zakres odpowiedzialności Za przygotowanie zadań")
+    assert "odpowiedzialnościZa" not in summary
+    assert "<" not in summary
+
+
+def test_komitety_is_a_document_with_metadata_and_chapters(web_client, legacy_content):
+    """Skład komitetów ma układ dokumentu: metrykę, ramkę ze źródłem, spis sekcji i PDF."""
+    page = DocumentPage.objects.get(slug="komitety")
+    content = web_client.get("/dokumenty/komitety/").content.decode()
+
+    assert [chapter["text"] for chapter in page.chapters()] == [
+        "Komitet Merytoryczny",
+        "Komitet Organizacyjny",
+        "Kontakt z Organizatorem",
+    ]
+    assert '<nav class="doc-toc"' in content
+    assert 'href="#komitet-merytoryczny"' in content
+    assert 'href="#komitet-organizacyjny"' in content
+    # Metryka opisuje eksport PDF-u organizatora – dokładnie tak, jak przy RODO.
+    assert page.version_label == ""
+    assert page.document_date.isoformat() == "2026-09-07"
+    assert page.status_label == DocumentPage.objects.get(slug="rodo").status_label
+    assert page.body[0].block_type == "notice"
+    assert SOURCE_NOTICE_FRAGMENT in content
+    assert page.attachments.get().document.title == "Skład komitetów Olimpiady Kwantowej (PDF)"
+
+
+# --- menu z listą rozwijaną ---------------------------------------------------------------------
+
+
+def test_menu_documents_item_has_every_document_as_child(web_client, full_content):
+    response = web_client.get("/")
+    item = next(entry for entry in response.context["cms_menu"] if entry["title"] == "Dokumenty")
+
+    assert item["url"] == "/dokumenty/"
+    assert [child["title"] for child in item["children"]] == DOCUMENT_TITLES
+    assert [child["url"] for child in item["children"]] == [f"/dokumenty/{s}/" for s in DOCUMENT_ORDER]
+
+
+def test_menu_renders_documents_as_a_details_element(web_client, full_content):
+    """Rozwijacz działa bez JavaScriptu: ``<details>`` + ``<summary>``, plus link do całej sekcji."""
+    content = web_client.get("/").content.decode()
+    menu = content.split('class="nav nav--cms"', 1)[1].split("</nav>", 1)[0]
+
+    assert '<details class="nav-menu">' in menu
+    assert ">Dokumenty</summary>" in menu
+    assert 'href="/dokumenty/"' in menu
+    assert menu.index("/dokumenty/regulamin/") < menu.index("/dokumenty/komitety/")
+    # Żaden dokument nie jest już osobną pozycją najwyższego poziomu.
+    assert '<a class="nav__link" href="/dokumenty/regulamin/"' not in menu
+
+
+def test_menu_marks_current_document_and_its_section(web_client, full_content):
+    content = web_client.get("/dokumenty/rodo/").content.decode()
+    menu = content.split('class="nav nav--cms"', 1)[1].split("</nav>", 1)[0]
+    link = menu.split('href="/dokumenty/rodo/"', 1)[1].split(">", 1)[0]
+
+    assert 'aria-current="page"' in link
+    # Rodzic jest podświetlony, choć czytelnik nie stoi na ``/dokumenty/``.
+    assert "nav-menu__summary--active" in menu
+
+
+def test_menu_reads_document_children_without_a_query_per_document(
+    django_assert_max_num_queries, rf, full_content
+):
+    """Lista rozwijana kosztuje jedno zapytanie na całe menu, nie jedno na dokument."""
+    from apps.cms.context_processors import cms_menu
+
+    with django_assert_max_num_queries(6):
+        menu = cms_menu(rf.get("/"))["cms_menu"]
+
+    assert [len(item["children"]) for item in menu if item["children"]] == [len(DOCUMENT_ORDER)]
+
+
+# --- przekierowania ze starych adresów ----------------------------------------------------------
+
+
+@pytest.mark.parametrize("slug", DOCUMENT_ORDER)
+def test_old_document_address_redirects_permanently(web_client, full_content, slug):
+    response = web_client.get(f"/{slug}/")
+
+    assert response.status_code == 301
+    assert response["Location"] == f"/dokumenty/{slug}/"
+    assert web_client.get(f"/dokumenty/{slug}/").status_code == 200
+
+
+def test_seed_leaves_exactly_one_redirect_per_old_address(full_content):
+    """Wagtail dokłada własne przekierowanie przy każdym przeniesieniu strony – wpis ma być jeden.
+
+    Bez sprzątania każde wdrożenie zostawiałoby w ``/cms/`` kolejną kopię wiersza dla tego samego
+    adresu (unikalność w bazie obejmuje parę ``old_path`` + witryna), a redaktor nie wiedziałby,
+    który z nich obowiązuje.
+    """
+    from wagtail.contrib.redirects.models import Redirect
+
+    call_command("seed_legacy_content", verbosity=0)
+
+    for slug in DOCUMENT_ORDER:
+        redirects = Redirect.objects.filter(old_path=f"/{slug}")
+        assert redirects.count() == 1, f"/{slug}/ ma {redirects.count()} przekierowań"
+        assert redirects.get().link == f"/dokumenty/{slug}/"
+
+
+def test_seed_migrates_the_old_flat_layout_without_duplicates(web_client, home_page):
+    """Baza sprzed wydzielenia sekcji: dokumenty pod stroną główną, komitety jako strona treści.
+
+    To jest stan produkcji w chwili wdrożenia tej zmiany. Komenda ma przenieść istniejące strony
+    (zachowując ich identyfikatory, a więc rewizje i odnośniki wewnętrzne), przerobić komitety
+    na dokument i nie zostawić ani jednej strony w dwóch egzemplarzach.
+    """
+    rodo = DocumentPage(title="Polityka RODO", slug="rodo")
+    home_page.add_child(instance=rodo)
+    standardy = DocumentPage(title="Standardy", slug="standardy-ochrony-maloletnich")
+    home_page.add_child(instance=standardy)
+    komitety = ContentPage(title="Komitety", slug="komitety", show_in_menu=True)
+    home_page.add_child(instance=komitety)
+    old_pks = {"rodo": rodo.pk, "standardy-ochrony-maloletnich": standardy.pk}
+
+    call_command("seed_regulamin", verbosity=0)
+    call_command("seed_legacy_content", verbosity=0)
+
+    index = DocumentIndexPage.objects.get(slug="dokumenty")
+    slugs = DocumentPage.objects.child_of(index).order_by("path").values_list("slug", flat=True)
+    assert list(slugs) == list(DOCUMENT_ORDER)
+    for slug, pk in old_pks.items():
+        # Przeniesiona, nie utworzona na nowo – inaczej zerwałyby się rewizje i odnośniki.
+        assert DocumentPage.objects.get(slug=slug).pk == pk
+    assert DocumentPage.objects.filter(slug__in=DOCUMENT_ORDER).count() == len(DOCUMENT_ORDER)
+    assert not ContentPage.objects.filter(slug="komitety").exists()
+    assert web_client.get("/dokumenty/komitety/").status_code == 200
+    assert web_client.get("/komitety/").status_code == 301
 
 
 # --- edycja I 2026/2027 -----------------------------------------------------------------------

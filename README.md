@@ -61,7 +61,7 @@ Uwagi:
 - **Krok 6 nie jest ozdobą.** `up -d` wraca, gdy kontenery **wystartowały**, a nie gdy aplikacja
   jest gotowa; migracje robi entrypoint `web`. `seed_demo` uruchomione zbyt wcześnie trafia na
   pustą bazę (`relation "competitions_edition" does not exist`).
-- **Krok 8** publikuje „Regulamin Olimpiady Kwantowej” pod `/regulamin/`: treść z
+- **Krok 8** publikuje „Regulamin Olimpiady Kwantowej” pod `/dokumenty/regulamin/`: treść z
   `apps/cms/fixtures/regulamin/` trafia do strony CMS, oryginał `.docx` do biblioteki dokumentów
   Wagtaila. Komenda jest idempotentna, ale **nadpisuje treść strony** – po redakcji w `/cms/`
   drugi raz jej nie uruchamiamy.
@@ -78,7 +78,8 @@ Uwagi:
 | <http://localhost:8000/coordinator/> | panel koordynatora |
 | <http://localhost:8000/appeals/> | panel komisji odwoławczej |
 | <http://localhost:8000/wyniki/> | publiczne wyniki (strona CMS) |
-| <http://localhost:8000/regulamin/> | regulamin olimpiady (strona CMS + `.docx` do pobrania) |
+| <http://localhost:8000/dokumenty/> | spis dokumentów organizatora (strona CMS) |
+| <http://localhost:8000/dokumenty/regulamin/> | regulamin olimpiady (strona CMS + `.docx` do pobrania) |
 | <http://localhost:8000/cms/> | panel redakcyjny Wagtaila (grupa `coordinator`) |
 | <http://localhost:8000/admin/> | panel Django (`is_staff`) |
 | <http://localhost:8000/api/docs/> | Swagger UI |
@@ -317,8 +318,14 @@ idempotentne, obie są **narzędziami importującymi**, a nie trybem pracy redak
 przebieg nadpisuje treść stron tym, co jest w plikach źródłowych, więc kasuje poprawki wpisane
 w międzyczasie w `/cms/`.
 
+Kolejność przy wdrożeniu: `migrate` → `seed_regulamin` → `seed_legacy_content`. Druga komenda
+zakłada sekcję `/dokumenty/`, przenosi pod nią dokumenty stojące jeszcze pod stroną główną
+(zachowując ich identyfikatory, rewizje i odnośniki wewnętrzne), ustawia kolejność menu i tworzy
+przekierowania ze starych adresów — działa tak samo na świeżej bazie i na produkcyjnej.
+
 ```bash
-# Strony, dokumenty, aktualności, hasło i sekcja kroków na stronie głównej, kolejność menu.
+# Strony, dokumenty, aktualności, hasło i sekcja kroków na stronie głównej, kolejność menu,
+# sekcja /dokumenty/ i przekierowania ze starych adresów dokumentów.
 docker compose exec web python manage.py seed_legacy_content
 
 # Edycja „I edycja 2026/2027” z trzema etapami wg harmonogramu starej strony.
@@ -330,10 +337,17 @@ docker compose exec web python manage.py seed_edition_kwantowa [--make-current]
 strony — w `docs/import/`. Import zmienia wyłącznie strukturę (nagłówek → blok `heading`, tabela
 dwukolumnowa → lista definicji, wyróżniona ramka → blok `notice`), nie brzmienie zdań organizatora.
 
-Trzy strony nie pochodzą już ze starego WordPressa, tylko z **podpisanych PDF-ów organizatora**
-(`backend/apps/cms/fixtures/legacy/pdf/`): `/rodo/`, `/standardy-ochrony-maloletnich/`
-i `/komitety/`. Ich pliki `.md` są przepisane z PDF-u sekcja po sekcji, więc strona jest wersją
-HTML dokumentu, a nie jego streszczeniem — PDF wisi przy niej do pobrania jako wersja źródłowa.
+Wszystkie dokumenty organizatora mieszkają w jednej sekcji: `/dokumenty/` (`DocumentIndexPage`)
+z kartą na dokument i jedną pozycją menu z listą rozwijaną. Stare adresy jednosegmentowe
+(`/regulamin/`, `/rodo/`, `/standardy-ochrony-maloletnich/`, `/komitety/`) odpowiadają trwałym
+przekierowaniem 301 na nowe — przekierowania trzyma `wagtail.contrib.redirects`, więc redakcja
+widzi je i rozszerza w `/cms/`.
+
+Trzy dokumenty nie pochodzą już ze starego WordPressa, tylko z **podpisanych PDF-ów organizatora**
+(`backend/apps/cms/fixtures/legacy/pdf/`): `/dokumenty/rodo/`,
+`/dokumenty/standardy-ochrony-maloletnich/` i `/dokumenty/komitety/`. Ich pliki `.md` są przepisane
+z PDF-u sekcja po sekcji, więc strona jest wersją HTML dokumentu, a nie jego streszczeniem — PDF
+wisi przy niej do pobrania jako wersja źródłowa.
 Wyciąg tekstu z PDF-ów leży obok nich w `fixtures/legacy/pdf-text/`; `apps/cms/tests/test_pdf_content.py`
 porównuje z nim strony (komplet sekcji, spis rozdziałów, liczba słów ≥ 90 % dokumentu).
 
@@ -360,7 +374,8 @@ uzasadnienie każdego punktu: `docs/import/stara-strona-inwentarz.md`, sekcja 8.
    (otwarcie 00:00, oddanie 23:59, recenzje +14 dni, okno reklamacji +2/+9 dni po recenzjach),
    bo stara strona podaje **po jednej dacie na etap**. Godziny i okna wymagają potwierdzenia.
 4. **Zatwierdzenie treści prawnych — rozstrzygnięte co do źródła, otwarte co do decyzji Zarządu.**
-   `/rodo/` i `/standardy-ochrony-maloletnich/` nie są już „wersją demonstracyjną” ze starego
+   `/dokumenty/rodo/` i `/dokumenty/standardy-ochrony-maloletnich/` nie są już „wersją
+   demonstracyjną” ze starego
    WordPressa: treść obu stron jest przepisana z podpisanych PDF-ów organizatora (eksport
    z 7 września 2026), metryka mówi, z jakiego eksportu, a ramka na górze wskazuje PDF jako wersję
    źródłową. Do podjęcia zostaje to, o co proszą same dokumenty: § 11 polityki RODO zapowiada
@@ -368,7 +383,7 @@ uzasadnienie każdego punktu: `docs/import/stara-strona-inwentarz.md`, sekcja 8.
 5. **Osoby odpowiedzialne za ochronę małoletnich.** § 9 i § 10 standardów wymagają wskazania ich
    imiennie uchwałą Zarządu i przyjęcia wzoru karty interwencji.
 6. **Skład komitetów.** Szesnaście nazwisk i zakresy odpowiedzialności potwierdza PDF organizatora,
-   więc strona `/komitety/` jest opublikowana. Do decyzji zostają: funkcje i afiliacje członków,
+   więc dokument `/dokumenty/komitety/` jest opublikowany. Do decyzji zostają: funkcje i afiliacje członków,
    podwójne członkostwo dwóch osób (Paweł Gora, Grzegorz Czelusta figurują w obu komitetach)
    i nazewnictwo — „Komitet Główny” ze starej strony głównej nie istnieje ani w regulaminie,
    ani w PDF-ie.

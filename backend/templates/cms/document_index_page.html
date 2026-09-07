@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% load wagtailcore_tags %}
+{% block title %}{{ page.title }} – {{ settings.cms.SiteSettings.site_name }}{% endblock %}
+{% block description %}Dokumenty Olimpiady: regulamin, polityka RODO, standardy ochrony małoletnich i skład komitetów – do przeczytania na stronie i do pobrania.{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <span class="eyebrow">Organizator</span>
+  <h1>{{ page.title }}</h1>
+  {% if page.intro %}<div class="cms-body prose">{{ page.intro|richtext }}</div>{% endif %}
+</div>
+
+{% comment %}
+  Karta na dokument. Dwa rodzaje odnośników, bo służą dwóm potrzebom: „Czytaj” prowadzi do wersji
+  z kotwicami przy paragrafach (na nią odsyła się w piśmie), przyciski obok pobierają pliki
+  organizatora wprost, bez przechodzenia przez stronę dokumentu.
+
+  Metryka (wersja, data, status) stoi nad zajawką z tego samego powodu, co na stronie dokumentu:
+  przy dokumencie prawnym pierwsze pytanie brzmi „czy to obowiązująca wersja”.
+
+  Lista plików pochodzi z ``attachments.all`` – to bufor ``prefetch_related`` z ``get_context``,
+  więc dwadzieścia dokumentów kosztuje tu tyle samo zapytań, co jeden.
+{% endcomment %}
+<ul class="cards cards--wide doc-index">
+  {% for document in documents %}
+    <li>
+      <article class="card doc-card">
+        <h2 class="doc-card__title"><a href="{% pageurl document %}">{{ document.title }}</a></h2>
+
+        {% if document.version_label or document.document_date or document.status_label %}
+          <p class="article__meta doc-card__meta">
+            {% if document.version_label %}<span class="doc-meta__item">Wersja {{ document.version_label }}</span>{% endif %}
+            {% if document.document_date %}
+              <time class="doc-meta__item" datetime="{{ document.document_date|date:'Y-m-d' }}">{{ document.document_date }}</time>
+            {% endif %}
+            {% if document.status_label %}<span class="tag">{{ document.status_label }}</span>{% endif %}
+          </p>
+        {% endif %}
+
+        {% if document.summary %}<p class="doc-card__lead">{{ document.summary }}</p>{% endif %}
+
+        <div class="card__foot doc-card__actions">
+          <a class="btn btn--small btn--primary" href="{% pageurl document %}">Czytaj</a>
+          {% for item in document.attachments.all %}
+            <a class="btn btn--small btn--secondary" href="{{ item.document.url }}" download
+               title="{{ item.label|default:item.document.title }}">Pobierz {{ item.document.file_extension|upper }}</a>
+          {% endfor %}
+        </div>
+      </article>
+    </li>
+  {% empty %}
+    <li class="empty"><span class="empty__title">Brak dokumentów</span>
+      Nie opublikowano jeszcze żadnego dokumentu w tej sekcji.</li>
+  {% endfor %}
+</ul>
+
+{% endblock %}

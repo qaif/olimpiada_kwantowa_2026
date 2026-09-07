@@ -38,6 +38,9 @@ INSTALLED_APPS = [
     "django_celery_beat",
     # Wagtail (CMS in-process, PROJEKT.md 1.1). Kolejność jak w dokumentacji Wagtaila:
     # aplikacje contrib przed rdzeniem, rdzeń przed aplikacjami projektu.
+    # ``redirects`` trzyma stare adresy stron (np. /regulamin/ po przeniesieniu dokumentów
+    # pod /dokumenty/) w bazie, a nie w urlconfie – redaktor widzi je i rozszerza w /cms/.
+    "wagtail.contrib.redirects",
     "wagtail.contrib.settings",
     "wagtail.embeds",
     "wagtail.sites",
@@ -76,6 +79,10 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Na samym końcu łańcucha: warstwa działa wyłącznie na odpowiedzi 404, więc musi zobaczyć
+    # ostatnie słowo widoków (Wagtail jest catch-allem w korzeniu). Dopiero gdy nikt nie umiał
+    # obsłużyć adresu, sprawdzamy, czy nie jest to adres strony przeniesionej w drzewie.
+    "wagtail.contrib.redirects.middleware.RedirectMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"

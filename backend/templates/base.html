@@ -62,8 +62,31 @@
     {% endcomment %}
     <nav class="nav nav--cms" aria-label="Serwis">
       {% for item in cms_menu %}
-        <a class="nav__link" href="{{ item.url }}"
-           {% if item.url == request.path %}aria-current="page"{% endif %}>{{ item.title }}</a>
+        {% if item.children %}
+          {% comment %}
+            Rozwijana pozycja („Dokumenty”) to ``<details>``, a nie przycisk ze skryptem: otwiera
+            się kliknięciem i klawiszem (Enter/spacja na ``<summary>``), działa przy wyłączonym
+            JavaScripcie i nie potrzebuje ani atrybutów ARIA, ani obsługi fokusu – przeglądarka
+            robi jedno i drugie sama. Od 900 px arkusz otwiera ją dodatkowo najechaniem
+            (``:hover``/``:focus-within``), więc na desktopie kliknięcie nie jest konieczne.
+            Pierwsza pozycja listy prowadzi do samej sekcji: rozwijacz nie może być jedyną drogą
+            do adresu, który da się podać w piśmie.
+          {% endcomment %}
+          <details class="nav-menu">
+            <summary class="nav__link nav-menu__summary{% if item.active %} nav-menu__summary--active{% endif %}">{{ item.title }}</summary>
+            <ul class="nav-menu__list">
+              <li><a class="nav-menu__link nav-menu__link--all" href="{{ item.url }}"
+                     {% if item.url == request.path %}aria-current="page"{% endif %}>Wszystkie dokumenty</a></li>
+              {% for child in item.children %}
+                <li><a class="nav-menu__link" href="{{ child.url }}"
+                       {% if child.active %}aria-current="page"{% endif %}>{{ child.title }}</a></li>
+              {% endfor %}
+            </ul>
+          </details>
+        {% else %}
+          <a class="nav__link" href="{{ item.url }}"
+             {% if item.url == request.path %}aria-current="page"{% endif %}>{{ item.title }}</a>
+        {% endif %}
       {% endfor %}
     </nav>
     <nav class="nav nav--roles" aria-label="Konto">

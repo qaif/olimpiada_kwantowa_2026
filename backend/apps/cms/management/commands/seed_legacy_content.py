@@ -10,18 +10,24 @@ Co powstaje:
 
 - **strony opublikowane** (``ContentPage``): „O Olimpiadzie”, „Jak zacząć?”, „Terminarz
   i harmonogram”, „Kontakt”, „Dla nauczycieli i materiały”,
-- **dokumenty opublikowane** (``DocumentPage``): polityka RODO i standardy ochrony małoletnich.
-  Obie treści są przepisane z podpisanych PDF-ów organizatora (``fixtures/legacy/pdf-text/``), sekcja
-  po sekcji, więc nie są już „wersją demonstracyjną” ze starego WordPressa: metryka mówi, z jakiego
-  eksportu pochodzą, a ramka na górze wskazuje PDF jako wersję źródłową,
+- **sekcja dokumentów** (``DocumentIndexPage`` pod ``/dokumenty/``) z kompletem dokumentów
+  organizatora jako dziećmi. Sekcja jest jedną pozycją menu z listą rozwijaną; stare adresy
+  jednosegmentowe (``/regulamin/``, ``/rodo/``…) zostają jako trwałe przekierowania,
+- **dokumenty opublikowane** (``DocumentPage``): polityka RODO, standardy ochrony małoletnich
+  i skład komitetów. Wszystkie trzy treści są przepisane z podpisanych PDF-ów organizatora
+  (``fixtures/legacy/pdf-text/``), sekcja po sekcji, więc nie są już „wersją demonstracyjną”
+  ze starego WordPressa: metryka mówi, z jakiego eksportu pochodzą, a ramka na górze wskazuje
+  PDF jako wersję źródłową,
 - **PDF-y organizatora** z ``fixtures/legacy/pdf/`` przypięte do właściwych stron: regulamin
   (PDF przed plikiem źródłowym .docx z ``seed_regulamin``), RODO, standardy ochrony małoletnich
   i skład komitetów. To one są wersjami do wydruku i to z nich bierze się sekcja „Dokumenty
   do pobrania” na stronie głównej,
-- **strona „Komitety” jest opublikowana**, bo skład komitetów wyszedł spod pióra organizatora
-  jako podpisany PDF (``Sklad-komitetow-Olimpiady-Kwantowej.pdf``) – lista nazwisk nie jest już
-  roboczą notatką do potwierdzenia, tylko oficjalnym dokumentem, a strona jest jego wersją
-  czytelną w przeglądarce. Treść (nazwiska i zakresy odpowiedzialności) pochodzi z PDF-u,
+- **„Skład komitetów” jest dokumentem, a nie stroną treści**, bo lista nazwisk wyszła spod pióra
+  organizatora jako podpisany PDF (``Sklad-komitetow-Olimpiady-Kwantowej.pdf``) – nie jest roboczą
+  notatką do potwierdzenia, tylko oficjalnym dokumentem, a strona jest jego wersją czytelną
+  w przeglądarce. Treść (nazwiska i zakresy odpowiedzialności) pochodzi z PDF-u. Baza sprzed tej
+  zmiany ma stronę ``ContentPage`` o tym slugu; komenda ją kasuje i tworzy dokument na nowo,
+  bo typu strony nie da się zmienić w miejscu (dwie tabele),
 - **szkic** (``live=False``): „Partnerzy i sponsorzy” – kafle bez logotypów, z nieistniejącym
   „Uniwersytetem Kwantowym”. Szkic jest tu świadomym wyborem: stronę da się obejrzeć w ``/cms/``,
   ale ``/partnerzy/`` odpowiada 404, więc sugerowane patronaty nie trafiają do sieci przez pomyłkę,
@@ -32,15 +38,17 @@ Co powstaje:
 
 Czego komenda **nie** tworzy i dlaczego – strony, które w nowym portalu obsługują istniejące typy
 albo widoki aplikacji: ``biezaca-edycja`` i ``harmonogram`` jako węzeł nadrzędny (terminy trzyma
-``competitions.Stage``), ``dokumenty`` (``DocumentPage`` jest dzieckiem strony głównej),
-``aktualnosci-edycji`` (drugi newsroom bez powodu), ``przepisy`` (jedno zdanie, miejsce w
-regulaminie), ``olimpiady-miedzynarodowe`` (temat bezprzedmiotowy przed I edycją), ``zadania``
+``competitions.Stage``), ``aktualnosci-edycji`` (drugi newsroom bez powodu), ``przepisy``
+(jedno zdanie, miejsce w regulaminie), ``olimpiady-miedzynarodowe`` (temat bezprzedmiotowy
+przed I edycją), ``zadania``
 (``ProblemsPage``), ``poprzednie-edycje`` (``ArchiveIndexPage``), ``wyniki-*`` i
 ``finalisci-laureaci`` (``ResultsPage`` + snapshot publikacji), ``galeria`` (zero zdjęć),
 ``rejestracja``/``panel-*`` (widoki ``apps.web``).
 
-Idempotencja: strony rozpoznajemy po slugu pod stroną główną i aktualizujemy zamiast tworzyć
-duplikaty. Powtórny przebieg nadpisuje treść tą samą treścią – to narzędzie importujące, nie tryb
+Idempotencja: strony rozpoznajemy po slugu (dokumenty – w sekcji ``/dokumenty/``, a gdy ich tam
+jeszcze nie ma, pod stroną główną, skąd je przenosimy) i aktualizujemy zamiast tworzyć duplikaty.
+Komenda daje ten sam wynik na świeżej bazie i na produkcyjnej sprzed wydzielenia sekcji.
+Powtórny przebieg nadpisuje treść tą samą treścią – to narzędzie importujące, nie tryb
 pracy redakcyjnej: poprawki wprowadzone później w ``/cms/`` zostaną skasowane, więc komendy nie
 uruchamia się rutynowo po każdym deployu.
 """
@@ -72,12 +80,14 @@ from apps.cms.management.commands.seed_regulamin import PDF_DOCUMENT_TITLE as RE
 from apps.cms.models import (
     ContentPage,
     ContentPageAttachment,
+    DocumentIndexPage,
     DocumentPage,
     DocumentPageAttachment,
     HomePage,
     NewsIndexPage,
     NewsPage,
 )
+from apps.cms.site_tree import INDEX_SLUG, ensure_document_index, ensure_redirect, take_document_page
 
 #: ``…/apps/cms/management/commands/`` → ``…/apps/cms/fixtures/legacy/``.
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures" / "legacy"
@@ -132,15 +142,34 @@ NEWS = (
 #: ``path``). Slug spoza tej listy zostaje tam, gdzie stoi – menu opisuje tylko strony menu.
 MENU_ORDER = (
     "o-olimpiadzie",
-    "komitety",
     "jak-zaczac",
     "aktualnosci",
     "zadania",
     "harmonogram",
-    "regulamin",
+    INDEX_SLUG,
     "archiwum",
     "wyniki",
     "kontakt",
+)
+
+#: Kolejność dokumentów w sekcji ``/dokumenty/`` – ta sama na stronie-spisie, w rozwijanej pozycji
+#: menu i w sekcji „Dokumenty do pobrania” na stronie głównej (wszystkie trzy sortują po ``path``).
+#: Regulamin pierwszy, bo to on rozstrzyga przebieg zawodów; skład komitetów ostatni, bo jest
+#: informacją o ludziach, a nie zbiorem zasad.
+DOCUMENT_ORDER = (
+    "regulamin",
+    "rodo",
+    "standardy-ochrony-maloletnich",
+    "komitety",
+)
+
+#: Adresy sprzed przeniesienia dokumentów pod ``/dokumenty/``. Wiszą w pismach do szkół i w indeksach
+#: wyszukiwarek, więc zostają jako trwałe (301) przekierowania – patrz ``apps.cms.site_tree``.
+LEGACY_DOCUMENT_PATHS = (
+    "/regulamin/",
+    "/rodo/",
+    "/standardy-ochrony-maloletnich/",
+    "/komitety/",
 )
 
 
@@ -168,8 +197,14 @@ PAGES = (
     LegacyPage(slug="o-olimpiadzie", title="O Olimpiadzie", in_menu=True),
     LegacyPage(
         slug="komitety",
-        title="Komitety",
-        in_menu=True,
+        title="Skład komitetów",
+        document=True,
+        source_notice=True,
+        metadata={
+            "version_label": DOCUMENT_VERSION,
+            "document_date": DOCUMENT_DATE,
+            "status_label": SOURCE_STATUS,
+        },
         pdf="Sklad-komitetow-Olimpiady-Kwantowej.pdf",
         pdf_title="Skład komitetów Olimpiady Kwantowej (PDF)",
     ),
@@ -206,8 +241,8 @@ PAGES = (
     LegacyPage(slug="partnerzy", title="Partnerzy i sponsorzy", publish=False),
 )
 
-#: PDF regulaminu jest osobno: strona ``/regulamin/`` powstaje w ``seed_regulamin`` (treść pochodzi
-#: z konwersji .docx, nie z pliku Markdown), a ta komenda dokłada do niej wyłącznie plik do wydruku.
+#: PDF regulaminu jest osobno: strona ``/dokumenty/regulamin/`` powstaje w ``seed_regulamin`` (treść
+#: pochodzi z konwersji .docx, nie z pliku Markdown), a ta komenda dokłada do niej plik do wydruku.
 REGULAMIN_PDF = "Regulamin-Olimpiady-Kwantowej.pdf"
 
 
@@ -225,19 +260,63 @@ class Command(BaseCommand):
         if not PDF_DIR.is_dir():
             raise CommandError(f"Brak katalogu z PDF-ami organizatora: {PDF_DIR}.")
 
+        index, index_created = ensure_document_index(home)
+        if index_created:
+            self.stdout.write("utworzono sekcję: /dokumenty/")
+
         self._seed_home(home)
+        self._drop_legacy_komitety_page(home)
         for spec in PAGES:
-            self._seed_page(home, spec)
-        self._seed_regulamin_pdf(home)
+            self._seed_page(home, index, spec)
+        self._seed_regulamin_pdf(home, index)
         self._seed_news(home)
-        moved = self._order_menu(home)
+        moved = self._order_children(home, MENU_ORDER)
+        # Przestawienie rodzeństwa strony głównej przepisało ``path`` także sekcji dokumentów,
+        # a ``child_of`` czyta ścieżkę z obiektu – bez odświeżenia szukalibyśmy dzieci pod
+        # adresem, którego już nie ma.
+        index = DocumentIndexPage.objects.get(pk=index.pk)
+        self._order_children(index, DOCUMENT_ORDER)
+        redirects = self._seed_redirects(index)
 
         self.stdout.write(
             self.style.SUCCESS(
                 f"seed_legacy_content: {len(PAGES)} stron, {len(NEWS)} aktualności, "
-                f"menu {'przestawione' if moved else 'bez zmian'}"
+                f"{redirects} przekierowań, menu {'przestawione' if moved else 'bez zmian'}"
             )
         )
+
+    # --- konwersja składu komitetów -------------------------------------------------------
+
+    def _drop_legacy_komitety_page(self, home: HomePage) -> None:
+        """Usuwa „Komitety” w postaci ``ContentPage`` – ten sam slug wraca niżej jako dokument.
+
+        Skład komitetów jest podpisanym PDF-em organizatora, więc należy do sekcji dokumentów
+        i ma mieć ich układ: metrykę, spis sekcji z kotwic i ramkę wskazującą wersję źródłową.
+        ``ContentPage`` i ``DocumentPage`` to dwie różne tabele, więc typu strony nie da się
+        zmienić w miejscu – zostaje skasowanie i utworzenie na nowo pod tym samym slugiem.
+        Treść nie ginie: pochodzi z pliku ``fixtures/legacy/komitety.md``, a PDF zostaje
+        w bibliotece Wagtaila (rozpoznawany po tytule) i wraca na nową stronę.
+        """
+        page = ContentPage.objects.descendant_of(home).filter(slug="komitety").first()
+        if page is None:
+            return
+        page.delete()
+        self.stdout.write("konwersja: „Komitety” przestają być stroną treści, powstaje dokument")
+
+    # --- przekierowania ze starych adresów ------------------------------------------------
+
+    def _seed_redirects(self, index) -> int:
+        """Trwałe przekierowania ``/regulamin/`` → ``/dokumenty/regulamin/`` itd."""
+        created = 0
+        for old_path in LEGACY_DOCUMENT_PATHS:
+            slug = old_path.strip("/")
+            page = DocumentPage.objects.child_of(index).filter(slug=slug).first()
+            if page is None:
+                self.stderr.write(f"brak dokumentu {slug} – pomijam przekierowanie z {old_path}")
+                continue
+            if ensure_redirect(old_path, page):
+                created += 1
+        return created
 
     # --- strona główna --------------------------------------------------------------------
 
@@ -253,7 +332,7 @@ class Command(BaseCommand):
 
     # --- strony treści i dokumenty --------------------------------------------------------
 
-    def _seed_page(self, home: HomePage, spec: LegacyPage) -> None:
+    def _seed_page(self, home: HomePage, index, spec: LegacyPage) -> None:
         source = FIXTURES / f"{spec.slug}.md"
         if not source.exists():
             raise CommandError(f"Brak pliku źródłowego {source}.")
@@ -266,12 +345,20 @@ class Command(BaseCommand):
             # i który plik rozstrzyga, zanim zacznie czytać zapisy dokumentu.
             blocks.insert(0, ("notice", {"tone": "info", "text": RichText(f"<p>{SOURCE_NOTICE}</p>")}))
 
+        # Dokumenty mieszkają w sekcji ``/dokumenty/``, reszta – bezpośrednio pod stroną główną.
+        # ``take_document_page`` przenosi dokument spod strony głównej, jeśli baza pamięta jeszcze
+        # układ sprzed wydzielenia sekcji; na świeżej bazie zwraca ``None`` i strona powstaje niżej.
         model = DocumentPage if spec.document else ContentPage
-        page = model.objects.child_of(home).filter(slug=spec.slug).first()
+        parent = index if spec.document else home
+        moved = False
+        if spec.document:
+            page, moved = take_document_page(model, index, home, spec.slug)
+        else:
+            page = model.objects.child_of(home).filter(slug=spec.slug).first()
         created = page is None
         if created:
             page = model(title=spec.title, slug=spec.slug, live=spec.publish)
-            home.add_child(instance=page)
+            parent.add_child(instance=page)
 
         page.title = spec.title
         page.intro = intro
@@ -279,7 +366,9 @@ class Command(BaseCommand):
         for name, value in spec.metadata.items():
             setattr(page, name, value)
         if spec.document:
-            page.show_in_menus = spec.in_menu
+            # Dokument nie jest osobną pozycją paska nawigacji: rozwijana sekcja „Dokumenty”
+            # czyta dzieci sekcji, a nie znacznik ``show_in_menus``.
+            page.show_in_menus = False
         else:
             page.show_in_menu = spec.in_menu
         page.save()
@@ -293,8 +382,10 @@ class Command(BaseCommand):
         if spec.publish:
             revision.publish()
         status = "opublikowana" if spec.publish else "szkic"
+        if moved:
+            note += ", przeniesiono pod /dokumenty/"
         self.stdout.write(
-            f"{'utworzono' if created else 'zaktualizowano'}: /{spec.slug}/ "
+            f"{'utworzono' if created else 'zaktualizowano'}: {page.url} "
             f"({status}, {len(blocks)} bloków{note})"
         )
 
@@ -312,8 +403,8 @@ class Command(BaseCommand):
         set_attachments(page, model, [(document, LABEL_PDF)])
         return f", PDF #{document.pk} {action}"
 
-    def _seed_regulamin_pdf(self, home: HomePage) -> None:
-        """PDF do wydruku przy stronie ``/regulamin/`` – przed plikiem źródłowym .docx.
+    def _seed_regulamin_pdf(self, home: HomePage, index) -> None:
+        """PDF do wydruku przy stronie regulaminu – przed plikiem źródłowym .docx.
 
         Strona może jeszcze nie istnieć (``seed_regulamin`` bywa uruchamiany później); wtedy plik
         i tak trafia do biblioteki, a ``seed_regulamin._attachment_specs`` postawi go na stronie
@@ -325,7 +416,7 @@ class Command(BaseCommand):
             raise CommandError(f"Brak pliku {source}.")
         pdf, action = ensure_document(REGULAMIN_PDF_TITLE, source)
 
-        page = DocumentPage.objects.child_of(home).filter(slug=REGULAMIN_SLUG).first()
+        page, _ = take_document_page(DocumentPage, index, home, REGULAMIN_SLUG)
         if page is None:
             self.stdout.write(f"regulamin: PDF #{pdf.pk} {action} (strona jeszcze nie istnieje)")
             return
@@ -338,7 +429,7 @@ class Command(BaseCommand):
 
         page = DocumentPage.objects.get(pk=page.pk)
         page.save_revision().publish()
-        self.stdout.write(f"zaktualizowano: /{REGULAMIN_SLUG}/ (PDF #{pdf.pk} {action}, {len(specs)} pliki)")
+        self.stdout.write(f"zaktualizowano: {page.url} (PDF #{pdf.pk} {action}, {len(specs)} pliki)")
 
     # --- aktualności ----------------------------------------------------------------------
 
@@ -360,16 +451,19 @@ class Command(BaseCommand):
             page.save_revision().publish()
             self.stdout.write(f"{'utworzono' if created else 'zaktualizowano'}: aktualność {slug}")
 
-    # --- kolejność menu -------------------------------------------------------------------
+    # --- kolejność rodzeństwa -------------------------------------------------------------
 
-    def _order_menu(self, home: HomePage) -> bool:
-        """Ustawia rodzeństwo strony głównej w kolejności ``MENU_ORDER``. Zwraca, czy ruszyliśmy drzewo.
+    def _order_children(self, parent, order) -> bool:
+        """Ustawia dzieci ``parent`` w kolejności ``order``. Zwraca, czy ruszyliśmy drzewo.
+
+        Kolejność rodzeństwa jest jedynym źródłem kolejności w pasku nawigacji, w rozwijanej
+        sekcji „Dokumenty” i na stronie-spisie – wszystkie trzy sortują po ``path``.
 
         Przestawiamy tylko wtedy, gdy kolejność faktycznie się nie zgadza: ``move`` przepisuje
         ścieżki wszystkim potomkom przenoszonego węzła, a pod newsroomem wiszą aktualności.
         """
-        children = {page.slug: page for page in Page.objects.child_of(home).order_by("path")}
-        wanted = [slug for slug in MENU_ORDER if slug in children]
+        children = {page.slug: page for page in Page.objects.child_of(parent).order_by("path")}
+        wanted = [slug for slug in order if slug in children]
         current = [slug for slug in children if slug in set(wanted)]
         if current == wanted:
             return False
@@ -378,7 +472,7 @@ class Command(BaseCommand):
         for slug in wanted:
             page = Page.objects.get(pk=children[slug].pk)
             if previous is None:
-                page.move(home, pos="first-child")
+                page.move(parent, pos="first-child")
             else:
                 page.move(previous, pos="right")
             previous = Page.objects.get(pk=page.pk)
