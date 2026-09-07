@@ -82,7 +82,7 @@ Typy istniejące w `backend/apps/cms/models.py`: `HomePage`, `NewsIndexPage`, `N
 | O Olimpiadzie | `o-olimpiadzie` | **`ContentPage`** | HomePage | 1:1 |
 | Jak zacząć? | `jak-zaczac` | **`ContentPage`** | HomePage | 1:1, zaktualizować krok 2 (kody zaproszeń) |
 | Kontakt | `kontakt` | **`ContentPage`** | HomePage | 1:1 |
-| Komitety | `komitety` | **`ContentPage`** | HomePage | dane osobowe — potwierdzić skład |
+| Komitety | `komitety` | **`ContentPage`** | HomePage | skład potwierdzony PDF-em organizatora (4.2); strona opublikowana, PDF do pobrania |
 | Partnerzy i sponsorzy | `partnerzy` | **`ContentPage`** | HomePage | treść do napisania od nowa |
 | Dla nauczycieli | `dla-nauczycieli` | **`ContentPage`** | HomePage | |
 | Olimpiady międzynarodowe | `olimpiady-miedzynarodowe` | **`ContentPage`** | HomePage | odłożone |
@@ -213,11 +213,13 @@ Olimpiada Kwantowa”.
 **Media społecznościowe: brak.** W całym repozytorium nie ma ani jednego odnośnika do serwisu
 społecznościowego. Formularza kontaktowego również nie ma.
 
-### 4.2 Komitety — dane osobowe do potwierdzenia
+### 4.2 Komitety — dane osobowe potwierdzone przez organizatora
 
-> Poniższe imiona i nazwiska pochodzą z pliku źródłowego z lipca/sierpnia 2026.
-> **Przed publikacją w nowym portalu skład musi potwierdzić organizator.**
+> **Potwierdzone.** Organizator przekazał podpisany `Sklad-komitetow-Olimpiady-Kwantowej.pdf`
+> (7 września 2026) — obie listy są w nim identyczne z poniższymi, co do osoby i kolejności.
+> Strona `/komitety/` jest od tej chwili opublikowana, a PDF wisi przy niej do pobrania;
 > § 6 ust. 3 regulaminu wymaga publikowania aktualnego składu obu komitetów.
+> PDF dokłada zakresy odpowiedzialności, których stara strona nie miała — patrz niżej.
 
 **Komitet Merytoryczny** (pełni w całości funkcję Jury — § 5 ust. 2): Paweł Gora,
 Grzegorz Czelusta, Michał Krupiński, Rafał Demkowicz-Dobrzański, Krzysztof Pawłowski,
@@ -226,10 +228,16 @@ Krzysztof Kurowski, Piotr Rydlichowski, Adam Wesołowski, Marek Adamczyk, Tomasz
 **Komitet Organizacyjny:** Paweł Gora, Michał Kutwin, Tomasz Ćwik, Marcin Sadowski,
 Michał Szaniewski, Grzegorz Czelusta.
 
-Paweł Gora i Grzegorz Czelusta figurują w obu komitetach — do potwierdzenia, czy to zamierzone
-(§ 6 ust. 2 rozdziela role: Komitet Organizacyjny nie ingeruje w ocenę merytoryczną).
+**Zakresy odpowiedzialności z PDF-u** (stara strona miała w tym miejscu po jednym zdaniu):
+Komitet Merytoryczny — „Zadania, kryteria oceniania, anonimowa ocena prac, kwalifikacja
+i rozstrzygnięcia Jury”; Komitet Organizacyjny — „Rejestracja, komunikacja, obsługa systemu,
+logistyka, miejsce finału i dokumentacja zawodów”.
 
-Brak funkcji (przewodniczący, sekretarz), afiliacji, zdjęć i adresów e-mail — a regulamin
+Paweł Gora i Grzegorz Czelusta figurują w obu komitetach — PDF organizatora powtarza to
+podwójne członkostwo, więc jest zamierzone, ale § 6 ust. 2 rozdziela role (Komitet Organizacyjny
+nie ingeruje w ocenę merytoryczną): **rozbieżność do rozstrzygnięcia z organizatorem.**
+
+Nadal brak funkcji (przewodniczący, sekretarz), afiliacji, zdjęć i adresów e-mail — a regulamin
 odwołuje się do „przewodniczącego Komitetu Merytorycznego” (§ 5 ust. 4).
 
 Uwaga: strona główna kieruje do „Komitetu Głównego”, którego nie ma ani w regulaminie, ani na

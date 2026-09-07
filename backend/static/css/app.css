@@ -1905,22 +1905,115 @@ td.empty,
   border-bottom: 0;
 }
 
+/* Karta „Do pobrania”: lista plików przypiętych do strony (templates/cms/_attachments.html)
+   oraz sekcja dokumentów na stronie głównej. Jeden komponent, bo w obu miejscach czytelnik robi
+   to samo – wybiera plik i klika „Pobierz”. */
 .doc-download {
   max-width: var(--reading);
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-4);
   margin-bottom: var(--sp-6);
 }
 
+/* Na stronie głównej karta jest samodzielną sekcją, a nie akapitem w kolumnie czytelniczej. */
+.doc-download--home {
+  max-width: none;
+}
+
 .doc-download__title {
-  margin: 0 0 var(--sp-1);
+  margin: 0 0 var(--sp-3);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.doc-files {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.doc-files__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-4);
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--line);
+}
+
+.doc-files__item:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.doc-files__item:last-child {
+  padding-bottom: 0;
+}
+
+/* Ikona rodzaju pliku jest znacznikiem tekstowym w ramce, a nie obrazkiem: nie dokłada żądania,
+   czyta się w wariancie ciemnym i na wydruku, a nowy format wymaga jednej reguły niżej, nie
+   nowego pliku SVG. Domyślna treść („PLIK”) obsługuje rozszerzenia bez własnej reguły. */
+.doc-files__item::before {
+  content: "PLIK";
+  flex: 0 0 auto;
+  min-width: 3.25rem;
+  padding: var(--sp-1) var(--sp-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+
+.doc-files__item--pdf::before {
+  content: "PDF";
+  border-color: var(--danger);
+  background: var(--danger-soft);
+  color: var(--danger-ink);
+}
+
+.doc-files__item--doc::before,
+.doc-files__item--docx::before,
+.doc-files__item--odt::before {
+  content: "DOC";
+  border-color: var(--info);
+  background: var(--info-soft);
+  color: var(--info-ink);
+}
+
+.doc-files__item--xls::before,
+.doc-files__item--xlsx::before,
+.doc-files__item--ods::before,
+.doc-files__item--csv::before {
+  content: "XLS";
+  border-color: var(--ok);
+  background: var(--ok-soft);
+  color: var(--ok-ink);
+}
+
+.doc-files__item--zip::before {
+  content: "ZIP";
+}
+
+.doc-files__meta {
+  flex: 1 1 14rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.doc-files__label {
   font-weight: 600;
 }
 
-.doc-download .hint {
+.doc-files__hint {
   margin: 0;
 }
 
@@ -2484,7 +2577,7 @@ fieldset:disabled .score-option {
     gap: var(--sp-1) var(--sp-3);
   }
 
-  /* Menu serwisu ma dziewięć pozycji – na wąskim ekranie zawija się do dwóch–trzech wierszy.
+  /* Menu serwisu ma dziesięć pozycji – na wąskim ekranie zawija się do trzech wierszy.
      Świadomie zostaje pełną listą zamiast chować nadmiar za rozwijaczem: każda pozycja jest
      wtedy jednym dotknięciem, bez otwierania i bez skryptu. Cena to trochę wyższy nagłówek,
      więc na tej szerokości zmniejszamy krój i odstępy zamiast ukrywać odnośniki. */

@@ -167,6 +167,34 @@ def test_restricted_document_is_hidden_from_anonymous_and_served_to_a_member(web
 
     assert allowed.status_code == 200
     assert b"".join(allowed.streaming_content) == b"%PDF-1.4 protokol"
+    # Kolekcja z ograniczeniem widoczności nie może trafić do wspólnego bufora pośrednika.
+    assert "public" not in allowed.headers.get("Cache-Control", "")
+
+
+def test_public_document_is_served_with_a_cache_header(web_client):
+    """Plik z kolekcji bez ograniczeń buforuje się na godzinę – patrz apps/cms/views.py."""
+    from wagtail.documents.models import Document
+    from wagtail.models import Collection
+
+    document = Document.objects.create(
+        title="Regulamin do druku",
+        collection=Collection.get_first_root_node(),
+        file=SimpleUploadedFile("regulamin.pdf", b"%PDF-1.4 regulamin", content_type="application/pdf"),
+    )
+
+    response = web_client.get(f"/documents/{document.pk}/{document.filename}")
+
+    assert response.status_code == 200
+    assert response.headers["Cache-Control"] == "public, max-age=3600"
+    assert response.headers["Content-Type"] == "application/pdf"
+
+
+def test_missing_document_does_not_get_a_cache_header(web_client):
+    """404 ma zostać 404 – nagłówek dokładamy dopiero, gdy plik faktycznie poszedł do czytelnika."""
+    response = web_client.get("/documents/999999/nie-ma-takiego.pdf")
+
+    assert response.status_code == 404
+    assert "Cache-Control" not in response.headers
 
 
 def test_embed_finders_accept_only_youtube_and_vimeo():

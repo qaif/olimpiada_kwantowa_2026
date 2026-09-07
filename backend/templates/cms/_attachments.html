@@ -1,0 +1,37 @@
+{% comment %}
+  Karta „Do pobrania” – wspólna dla dokumentu (``document_page.html``) i strony treści
+  (``content_page.html``). Oczekuje zmiennej ``attachments``: uporządkowanej listy
+  ``PageAttachment`` z dociągniętym ``document`` (patrz ``get_context`` obu modeli).
+
+  Trzy decyzje o kształcie tej karty:
+
+  - **link idzie przez ``/documents/<id>/<nazwa>``**, czyli widok Wagtaila, a nie adres obiektu
+    w buckecie: kontrola dostępu i treść mają iść tą samą drogą (``WAGTAILDOCS_SERVE_METHOD``),
+  - **PDF dostaje przycisk główny, reszta poboczny.** Przy dokumencie urzędowym wersją, którą
+    organizator podpisał i którą się drukuje, jest PDF; .docx jest materiałem redakcyjnym.
+    Gdyby oba przyciski wyglądały tak samo, czytelnik musiałby czytać etykiety, żeby wybrać,
+  - **``get_file_size`` zamiast pola ``file_size``**: dokumenty wgrane komendą mają je puste do
+    pierwszego odczytu, a „0 bajtów” przy regulaminie wygląda na zepsuty link.
+
+  Ikona rodzaju pliku jest w CSS (``.doc-files__item--pdf::before``) – w szablonie zostaje sama
+  klasa z rozszerzenia, więc dołożenie ikony nie wymaga tknięcia tego pliku.
+{% endcomment %}
+{% if attachments %}
+  <div class="card card--accent doc-download">
+    <p class="doc-download__title">Do pobrania</p>
+    <ul class="doc-files">
+      {% for item in attachments %}
+        <li class="doc-files__item doc-files__item--{{ item.document.file_extension|lower }}">
+          <div class="doc-files__meta">
+            <span class="doc-files__label">{{ item.label|default:item.document.title }}</span>
+            <span class="hint doc-files__hint">{{ item.document.filename }}
+              · {{ item.document.file_extension|upper }}
+              · {{ item.document.get_file_size|filesizeformat }}</span>
+          </div>
+          <a class="btn btn--small {% if item.is_pdf %}btn--primary{% else %}btn--secondary{% endif %}"
+             href="{{ item.document.url }}" download>Pobierz {{ item.document.file_extension|upper }}</a>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endif %}

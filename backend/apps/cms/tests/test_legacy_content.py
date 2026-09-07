@@ -1,12 +1,14 @@
 """Import treści starej strony: ``seed_legacy_content`` i ``seed_edition_kwantowa``.
 
-Testy pilnują trzech rzeczy, na których ten import stoi:
+Testy pilnują czterech rzeczy, na których ten import stoi:
 
-- **co jest publiczne, a co nie.** „Komitety” to szesnaście nazwisk niepotwierdzonych przez
-  organizatora, „Partnerzy” sugerują patronaty, których może nie być – obie strony mają zostać
-  szkicem, czyli odpowiadać 404 pod publicznym adresem,
+- **co jest publiczne, a co nie.** „Partnerzy” sugerują patronaty, których może nie być – strona
+  ma zostać szkicem, czyli odpowiadać 404 pod publicznym adresem. „Komitety” odwrotnie: skład
+  komitetów jest podpisanym PDF-em organizatora, więc strona ma być publiczna i w menu,
 - **kolejność menu.** Menu wynika z kolejności rodzeństwa w drzewie, a nie z pola sortującego,
   więc pomyłka w komendzie objawia się dopiero w nagłówku strony,
+- **pliki organizatora.** Cztery PDF-y mają wisieć przy właściwych stronach, dać się pobrać
+  i nie mnożyć kopii w bibliotece przy powtórnym przebiegu komendy,
 - **oś czasu edycji.** Stara strona ma po jednej dacie na etap; reguły uzupełniające resztę są
   zapisane w komendzie i tu sprawdzane, żeby ich cicha zmiana nie przeszła bez śladu.
 """
@@ -15,6 +17,7 @@ from datetime import timedelta
 
 import pytest
 from django.core.management import call_command
+from wagtail.documents import get_document_model
 
 from apps.cms.models import ContentPage, DocumentPage, HomePage, NewsPage
 from apps.competitions.management.commands.seed_edition_kwantowa import EDITION_LABEL, MIN_POINTS
@@ -23,13 +26,29 @@ from apps.competitions.tests.factories import CurrentEditionFactory
 
 pytestmark = pytest.mark.django_db
 
-PUBLISHED_CONTENT = ("o-olimpiadzie", "jak-zaczac", "harmonogram", "kontakt", "dla-nauczycieli")
-DRAFT_CONTENT = ("komitety", "partnerzy")
+PUBLISHED_CONTENT = (
+    "o-olimpiadzie",
+    "komitety",
+    "jak-zaczac",
+    "harmonogram",
+    "kontakt",
+    "dla-nauczycieli",
+)
+DRAFT_CONTENT = ("partnerzy",)
 DOCUMENTS = ("rodo", "standardy-ochrony-maloletnich")
 DEMO_NOTICE_FRAGMENT = "Wersja demonstracyjna"
 
+#: Tytuły PDF-ów organizatora wgrywanych przez komendę – tożsamość pliku w bibliotece Wagtaila.
+PDF_TITLES = {
+    "Polityka RODO Olimpiady Kwantowej (PDF)",
+    "Standardy ochrony małoletnich (PDF)",
+    "Skład komitetów Olimpiady Kwantowej (PDF)",
+    "Regulamin Olimpiady Kwantowej v1.0 (PDF)",
+}
+
 MENU_WITHOUT_REGULAMIN = [
     "O Olimpiadzie",
+    "Komitety",
     "Jak zacząć?",
     "Aktualności",
     "Zadania",
@@ -63,7 +82,7 @@ def test_seed_creates_published_pages_and_drafts(legacy_content):
 def test_seed_marks_only_menu_pages(legacy_content):
     in_menu = ContentPage.objects.filter(show_in_menu=True).values_list("slug", flat=True)
 
-    assert set(in_menu) == {"o-olimpiadzie", "jak-zaczac", "harmonogram", "kontakt"}
+    assert set(in_menu) == {"o-olimpiadzie", "komitety", "jak-zaczac", "harmonogram", "kontakt"}
     # Dokumenty demonstracyjne zostają poza paskiem nawigacji.
     assert not DocumentPage.objects.filter(show_in_menus=True).exists()
 
@@ -74,6 +93,86 @@ def test_seed_is_idempotent(legacy_content):
     call_command("seed_legacy_content", verbosity=0)
 
     assert (ContentPage.objects.count(), DocumentPage.objects.count(), NewsPage.objects.count()) == before
+
+
+# --- pliki organizatora -------------------------------------------------------------------------
+
+
+def test_seed_uploads_four_official_pdfs(legacy_content):
+    documents = get_document_model().objects.filter(title__in=PDF_TITLES)
+
+    assert set(documents.values_list("title", flat=True)) == PDF_TITLES
+    for document in documents:
+        # Rozmiar i skrót są policzone od razu: pierwszy trafia na kartę „Do pobrania”
+        # (bez niego widać „0 bajtów”), drugi – do nagłówka ``ETag`` widoku serwującego.
+        assert document.file_size > 0
+        assert document.file_hash
+
+
+def test_seed_attaches_pdf_to_matching_pages(legacy_content):
+    rodo = DocumentPage.objects.get(slug="rodo").attachments.get()
+    standardy = DocumentPage.objects.get(slug="standardy-ochrony-maloletnich").attachments.get()
+    komitety = ContentPage.objects.get(slug="komitety").attachments.get()
+
+    assert rodo.document.title == "Polityka RODO Olimpiady Kwantowej (PDF)"
+    assert standardy.document.title == "Standardy ochrony małoletnich (PDF)"
+    assert komitety.document.title == "Skład komitetów Olimpiady Kwantowej (PDF)"
+    for item in (rodo, standardy, komitety):
+        assert item.label == "PDF do druku"
+        assert item.is_pdf is True
+        assert item.document.filename.endswith(".pdf")
+
+
+def test_seed_puts_pdf_before_docx_on_regulamin():
+    """Regulamin ma dwa pliki: podpisany PDF (pierwszy) i plik źródłowy .docx (drugi).
+
+    Kolejność komend jest tu odwrotna do naturalnej („najpierw regulamin, potem reszta”) –
+    obie muszą dać ten sam wynik, bo w skrypcie wdrożeniowym mogą stanąć w dowolnym porządku.
+    """
+    call_command("seed_regulamin", verbosity=0)
+    call_command("seed_legacy_content", verbosity=0)
+
+    page = DocumentPage.objects.get(slug="regulamin")
+    assert [(item.label, item.document.file_extension) for item in page.attachments.all()] == [
+        ("PDF do druku", "pdf"),
+        ("Wersja źródłowa (DOCX)", "docx"),
+    ]
+
+    # Powtórny przebieg ``seed_regulamin`` nie może zdjąć PDF-a dołożonego przez drugą komendę.
+    call_command("seed_regulamin", verbosity=0)
+    page = DocumentPage.objects.get(slug="regulamin")
+    assert [item.document.file_extension for item in page.attachments.all()] == ["pdf", "docx"]
+
+
+def test_seed_does_not_duplicate_documents_on_second_run(legacy_content):
+    Document = get_document_model()
+    before = Document.objects.count()
+
+    call_command("seed_legacy_content", verbosity=0)
+
+    assert Document.objects.count() == before
+    for title in PDF_TITLES - {"Regulamin Olimpiady Kwantowej v1.0 (PDF)"}:
+        assert Document.objects.filter(title=title).count() == 1
+
+
+@pytest.mark.parametrize(
+    ("path", "title"),
+    [
+        ("/rodo/", "Polityka RODO Olimpiady Kwantowej (PDF)"),
+        ("/standardy-ochrony-maloletnich/", "Standardy ochrony małoletnich (PDF)"),
+        ("/komitety/", "Skład komitetów Olimpiady Kwantowej (PDF)"),
+    ],
+)
+def test_pages_link_and_serve_their_pdf(web_client, legacy_content, path, title):
+    document = get_document_model().objects.get(title=title)
+
+    page = web_client.get(path)
+    assert page.status_code == 200
+    assert f'href="{document.url}"' in page.content.decode()
+
+    download = web_client.get(document.url)
+    assert download.status_code == 200
+    assert download["Content-Type"] == "application/pdf"
 
 
 def test_content_page_body_keeps_structure(legacy_content):
@@ -106,9 +205,23 @@ def test_published_pages_render(web_client, legacy_content, path, fragment):
     assert fragment in response.content.decode()
 
 
-@pytest.mark.parametrize("path", ["/komitety/", "/partnerzy/"])
-def test_draft_pages_are_not_public(web_client, legacy_content, path):
-    assert web_client.get(path).status_code == 404
+def test_draft_pages_are_not_public(web_client, legacy_content):
+    assert web_client.get("/partnerzy/").status_code == 404
+
+
+def test_komitety_is_public_with_scope_from_pdf(web_client, legacy_content):
+    """Strona składu komitetów jest publiczna i powtarza zakresy odpowiedzialności z PDF-u."""
+    response = web_client.get("/komitety/")
+    content = response.content.decode()
+
+    assert response.status_code == 200
+    assert ContentPage.objects.get(slug="komitety").live is True
+    assert "Zadania, kryteria oceniania, anonimowa ocena prac, kwalifikacja i rozstrzygnięcia Jury" in content
+    assert "Rejestracja, komunikacja, obsługa systemu, logistyka, miejsce finału i dokumentacja" in content
+    assert "pełni również funkcję Jury" in content
+    # Wszystkie szesnaście wpisów z PDF-u (dziesięć + sześć, Paweł Gora i Grzegorz Czelusta w obu).
+    for name in ("Rafał Demkowicz-Dobrzański", "Tomasz Sowiński", "Michał Kutwin", "Tomasz Ćwik"):
+        assert name in content
 
 
 def test_rodo_keeps_document_metadata(legacy_content):
@@ -146,6 +259,48 @@ def test_footer_shows_organizer_from_settings(web_client, legacy_content):
     assert "Fundacja Quantum AI" in content
     assert "KRS 0000808359" in content
     assert 'href="mailto:contact@qaif.org"' in content
+
+
+def test_home_page_lists_four_documents_to_download(web_client, legacy_content):
+    """Sekcja „Dokumenty do pobrania”: regulamin, RODO, standardy i skład komitetów."""
+    call_command("seed_regulamin", verbosity=0)
+    call_command("seed_legacy_content", verbosity=0)
+
+    response = web_client.get("/")
+    rows = response.context["downloads"]
+    content = response.content.decode()
+
+    # Kolejność jest kolejnością z drzewa (ta sama, co w menu), a nie kolejnością wgrywania.
+    assert [row["page"].slug for row in rows] == [
+        "komitety",
+        "regulamin",
+        "rodo",
+        "standardy-ochrony-maloletnich",
+    ]
+    assert "Dokumenty do pobrania" in content
+    for row in rows:
+        # Tytuł prowadzi do strony, przycisk – wprost do pliku.
+        assert f'href="{row["page"].url}"' in content
+        assert f'href="{row["attachment"].document.url}"' in content
+        assert row["attachment"].is_pdf is True
+
+
+def test_home_page_downloads_do_not_query_per_document(django_assert_max_num_queries, legacy_content):
+    """Sekcja rośnie o wiersze, nie o zapytania – ``prefetch_related`` w ``_download_rows``.
+
+    Cztery zapytania na strony i ich pliki (dwa typy stron × strona + załączniki) plus zapas
+    na dociągnięcie samych dokumentów. Bez ``prefetch_related`` samo czytanie tytułów w pętli
+    dokładałoby po dwa zapytania na każdy dokument.
+    """
+    from apps.cms.models import _download_rows
+
+    home = HomePage.objects.get()
+    with django_assert_max_num_queries(6):
+        rows = _download_rows(home)
+        for row in rows:
+            assert row["attachment"].document.title
+
+    assert len(rows) >= 3
 
 
 def test_home_page_keeps_steps(legacy_content):

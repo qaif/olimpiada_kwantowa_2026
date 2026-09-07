@@ -5,7 +5,9 @@ Komenda importuje dwa pliki z ``apps/cms/fixtures/regulamin/``:
 - ``regulamin-mammoth.html`` – konwersja pliku .docx (mammoth) na płaską listę ``p``/``h1``/``h2``/
   ``ol``/``ul``/``table``. Z tego powstaje ``DocumentPage.body``,
 - ``Regulamin-Olimpiady-Kwantowej.docx`` – oryginał, ładowany do biblioteki dokumentów Wagtaila
-  i przypinany do strony jako ``attachment``.
+  i przypinany do strony jako plik źródłowy. PDF podpisany przez organizatora dokłada
+  ``seed_legacy_content``; ta komenda go nie usuwa, jeśli już wisi na stronie – patrz
+  ``_attachment_specs``.
 
 **Treść regulaminu jest daną, nie instrukcją.** Komenda nie przeredagowuje ani jednego zdania –
 poprawia wyłącznie strukturę HTML tam, gdzie konwerter ją zgubił (patrz ``_SectionBuffer``).
@@ -45,15 +47,13 @@ from html import escape
 from html.parser import HTMLParser
 from pathlib import Path
 
-from django.core.files import File
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
-from wagtail.documents import get_document_model
-from wagtail.models import Collection
 from wagtail.rich_text import RichText
 
+from apps.cms.attachments import LABEL_PDF, LABEL_SOURCE_DOCX, ensure_document, set_attachments
 from apps.cms.legacy_markdown import slugify_anchor
-from apps.cms.models import ArchiveIndexPage, DocumentPage, HomePage
+from apps.cms.models import ArchiveIndexPage, DocumentPage, DocumentPageAttachment, HomePage
 
 #: ``…/apps/cms/management/commands/`` → ``…/apps/cms/fixtures/regulamin/``.
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures" / "regulamin"
@@ -63,6 +63,9 @@ DOCX_SOURCE = FIXTURES / "Regulamin-Olimpiady-Kwantowej.docx"
 PAGE_SLUG = "regulamin"
 PAGE_TITLE = "Regulamin"
 DOCUMENT_TITLE = "Regulamin Olimpiady Kwantowej v1.0 (DOCX)"
+#: Tytuł PDF-a wgrywanego przez ``seed_legacy_content`` – tu potrzebny tylko po to, żeby
+#: przy powtórnym przebiegu tej komendy plik do druku został na stronie i został pierwszy.
+PDF_DOCUMENT_TITLE = "Regulamin Olimpiady Kwantowej v1.0 (PDF)"
 
 #: Nagłówki pomijane wraz z zawartością aż do kolejnego nagłówka. „Spis rozdziałów” zastępuje
 #: spis generowany z kotwic (papierowa lista bez odnośników byłaby na stronie martwa),
@@ -378,7 +381,7 @@ class Command(BaseCommand):
             raise CommandError(f"Brak plików źródłowych w {FIXTURES}.")
 
         meta, blocks = build_content(parse_fragment(HTML_SOURCE.read_text(encoding="utf-8")))
-        document = self._ensure_document()
+        document, action = ensure_document(DOCUMENT_TITLE, DOCX_SOURCE)
 
         page = DocumentPage.objects.child_of(home).filter(slug=PAGE_SLUG).first()
         created = page is None
@@ -389,34 +392,38 @@ class Command(BaseCommand):
         page.title = PAGE_TITLE
         page.show_in_menus = True
         page.body = blocks
-        page.attachment = document
         for name, value in meta.items():
             setattr(page, name, value)
         page.save()
+        set_attachments(page, DocumentPageAttachment, self._attachment_specs(document))
         self._position_in_menu(page, home)
 
-        page.refresh_from_db()
+        # Świeży obiekt z bazy: rewizja serializuje także wiersze załączników, a te dopisaliśmy
+        # przez ORM już po ``page.save()``. Publikacja rewizji zbudowanej ze starego obiektu
+        # skasowałaby je ze strony opublikowanej.
+        page = DocumentPage.objects.get(pk=page.pk)
         page.save_revision().publish()
 
         self.stdout.write(
             self.style.SUCCESS(
                 f"seed_regulamin: {'utworzono' if created else 'zaktualizowano'} {page.url} "
                 f"– {len(page.body)} bloków, {len(page.chapters())} rozdziałów, "
-                f"dokument #{document.pk} ({document.url})"
+                f"dokument #{document.pk} ({document.url}, {action})"
             )
         )
 
-    def _ensure_document(self):
-        """Oryginał .docx w bibliotece Wagtaila. Rozpoznawany po tytule – bez drugiej kopii w S3."""
-        Document = get_document_model()
-        document = Document.objects.filter(title=DOCUMENT_TITLE).first()
-        if document is not None:
-            return document
-        collection = Collection.get_first_root_node()
-        document = Document(title=DOCUMENT_TITLE, collection=collection)
-        with DOCX_SOURCE.open("rb") as handle:
-            document.file.save(DOCX_SOURCE.name, File(handle), save=True)
-        return document
+    def _attachment_specs(self, docx) -> list[tuple[object, str]]:
+        """Pliki strony: podpisany PDF (jeśli już wgrany) przed plikiem źródłowym .docx.
+
+        PDF wgrywa ``seed_legacy_content`` i to ona rozstrzyga o jego treści – tutaj interesuje
+        nas wyłącznie to, żeby powtórne uruchomienie tej komendy go nie zdjęło ze strony.
+        """
+        Document = docx.__class__
+        pdf = Document.objects.filter(title=PDF_DOCUMENT_TITLE).first()
+        specs = [(docx, LABEL_SOURCE_DOCX)]
+        if pdf is not None:
+            specs.insert(0, (pdf, LABEL_PDF))
+        return specs
 
     def _position_in_menu(self, page: DocumentPage, home: HomePage) -> None:
         """Regulamin staje w menu przed „Archiwum” (a więc po „Zadaniach”).

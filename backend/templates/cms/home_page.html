@@ -117,4 +117,37 @@
   </section>
 {% endif %}
 
+{% comment %}
+  Dokumenty organizatora zebrane w jednym miejscu: regulamin, RODO, standardy ochrony małoletnich
+  i skład komitetów. Lista pochodzi z ``HomePage.get_context`` (``_download_rows``), czyli
+  z opublikowanych stron, przy których wisi PDF – żadnych slugów zaszytych w szablonie, więc
+  dołożenie dokumentu w ``/cms/`` wystarczy, by pojawił się tutaj.
+
+  Każdy wiersz ma dwa odnośniki, bo służą dwóm różnym potrzebom: tytuł prowadzi do wersji
+  czytelnej w przeglądarce (z kotwicami przy paragrafach), przycisk pobiera podpisany PDF.
+{% endcomment %}
+{% if downloads %}
+  <section class="section">
+    <div class="section__head">
+      <h2 class="mt-0">Dokumenty do pobrania</h2>
+      <p class="hint">Oficjalne dokumenty organizatora w wersji do wydruku.</p>
+    </div>
+    <div class="card doc-download doc-download--home">
+      <ul class="doc-files">
+        {% for row in downloads %}
+          <li class="doc-files__item doc-files__item--{{ row.attachment.document.file_extension|lower }}">
+            <div class="doc-files__meta">
+              <span class="doc-files__label"><a href="{% pageurl row.page %}">{{ row.page.title }}</a></span>
+              <span class="hint doc-files__hint">{{ row.attachment.document.file_extension|upper }}
+                · {{ row.attachment.document.get_file_size|filesizeformat }}</span>
+            </div>
+            <a class="btn btn--small btn--secondary" href="{{ row.attachment.document.url }}"
+               download>Pobierz PDF</a>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </section>
+{% endif %}
+
 {% endblock %}

@@ -1,29 +1,29 @@
 # Komitety
 
-Za przygotowanie zadań i jakość merytoryczną Olimpiady odpowiada Komitet Merytoryczny. Organizację zawodów prowadzi Komitet Organizacyjny.
+Za przygotowanie zadań i jakość merytoryczną Olimpiady odpowiada Komitet Merytoryczny, który pełni również funkcję Jury. Organizację i przebieg zawodów prowadzi Komitet Organizacyjny.
 
 ## Komitet Merytoryczny
 
-Zadania i ocena prac.
+**Zakres odpowiedzialności:** Zadania, kryteria oceniania, anonimowa ocena prac, kwalifikacja i rozstrzygnięcia Jury
 
-- Paweł Gora
-- Grzegorz Czelusta
-- Michał Krupiński
-- Rafał Demkowicz-Dobrzański
-- Krzysztof Pawłowski
-- Krzysztof Kurowski
-- Piotr Rydlichowski
-- Adam Wesołowski
-- Marek Adamczyk
-- Tomasz Sowiński
+1. Paweł Gora
+2. Grzegorz Czelusta
+3. Michał Krupiński
+4. Rafał Demkowicz-Dobrzański
+5. Krzysztof Pawłowski
+6. Krzysztof Kurowski
+7. Piotr Rydlichowski
+8. Adam Wesołowski
+9. Marek Adamczyk
+10. Tomasz Sowiński
 
 ## Komitet Organizacyjny
 
-Przebieg Olimpiady.
+**Zakres odpowiedzialności:** Rejestracja, komunikacja, obsługa systemu, logistyka, miejsce finału i dokumentacja zawodów
 
-- Paweł Gora
-- Michał Kutwin
-- Tomasz Ćwik
-- Marcin Sadowski
-- Michał Szaniewski
-- Grzegorz Czelusta
+1. Paweł Gora
+2. Michał Kutwin
+3. Tomasz Ćwik
+4. Marcin Sadowski
+5. Michał Szaniewski
+6. Grzegorz Czelusta

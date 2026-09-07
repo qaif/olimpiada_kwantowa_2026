@@ -134,6 +134,8 @@ def guest_pages(browser) -> None:
         ("/kontakt/", "01b-kontakt", "top"),
         ("/harmonogram/", "01c-harmonogram", "top"),
         ("/rodo/", "01d-rodo", "top"),
+        # Skład komitetów: strona z kartą „Do pobrania” nad treścią (PDF organizatora).
+        ("/komitety/", "01e-komitety", "top"),
     ):
         shoot(page, path, name, scroll=scroll)
 

@@ -56,9 +56,13 @@ def test_seed_fills_document_metadata_and_attachment(regulamin):
     assert regulamin.version_label == "1.0"
     assert regulamin.document_date.isoformat() == "2026-08-18"
     assert "Projekt do zatwierdzenia uchwałą Zarządu" in regulamin.status_label
-    assert regulamin.attachment is not None
-    assert regulamin.attachment.title == DOCUMENT_TITLE
-    assert regulamin.attachment.filename.endswith(".docx")
+    # Sama ``seed_regulamin`` przypina wyłącznie plik źródłowy; PDF do druku dokłada
+    # ``seed_legacy_content`` – patrz apps/cms/tests/test_legacy_content.py.
+    attachment = regulamin.attachments.get()
+    assert attachment.document.title == DOCUMENT_TITLE
+    assert attachment.document.filename.endswith(".docx")
+    assert attachment.label == "Wersja źródłowa (DOCX)"
+    assert attachment.is_pdf is False
 
 
 def test_seed_keeps_list_numbering_in_one_ordered_list(regulamin):
@@ -109,7 +113,7 @@ def test_regulamin_page_renders_content_and_download_link(web_client, regulamin)
     assert "2026" in content
     assert "Projekt do zatwierdzenia uchwałą Zarządu" in content
     # Załącznik: link do widoku dokumentów Wagtaila, nie do adresu obiektu w buckecie.
-    assert f'href="{regulamin.attachment.url}"' in content
+    assert f'href="{regulamin.attachments.get().document.url}"' in content
     assert "§ 24" in content
 
 

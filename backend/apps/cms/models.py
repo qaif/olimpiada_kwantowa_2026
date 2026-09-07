@@ -190,6 +190,32 @@ def _stage_rows(edition: Edition | None, now=None) -> list[dict]:
     ]
 
 
+def _download_rows(home) -> list[dict]:
+    """Opublikowane strony, przy których wisi PDF – materiał sekcji „Dokumenty do pobrania”.
+
+    Sekcja nie zna ani jednego sluga: pokazuje to, co redakcja faktycznie przypięła do stron,
+    więc dołożenie kolejnego dokumentu w ``/cms/`` nie wymaga wydania aplikacji. Filtr po PDF
+    jest świadomy – na stronie głównej ma stać lista dokumentów urzędowych do wydruku, a nie
+    każdy plik pomocniczy (arkusz, plik źródłowy .docx), który redakcja gdzieś przypięła.
+
+    Zapytań jest tyle, ile typów stron z załącznikami (dwa), plus jedno wspólne dla plików
+    każdego z nich – ``prefetch_related`` zdejmuje N+1 niezależnie od liczby dokumentów.
+    Kolejność bierzemy z drzewa (``path``), czyli tę samą, co w menu serwisu.
+    """
+    pages = [
+        *DocumentPage.objects.live().descendant_of(home).prefetch_related("attachments__document"),
+        *ContentPage.objects.live().descendant_of(home).prefetch_related("attachments__document"),
+    ]
+    rows = [
+        {"page": page, "attachment": pdf}
+        for page in pages
+        # ``attachments.all()`` czyta bufor ``prefetch_related``; ``.filter()`` puściłby zapytanie.
+        if (pdf := next((item for item in page.attachments.all() if item.is_pdf), None)) is not None
+    ]
+    rows.sort(key=lambda row: row["page"].path)
+    return rows
+
+
 class HomePage(CMSPage):
     """Strona główna serwisu (korzeń witryny). Przejmuje ``/`` po widoku ``web:home`` z T-08."""
 
@@ -243,6 +269,7 @@ class HomePage(CMSPage):
                 "current_stage": current_stage(edition, now) if edition else None,
                 "stage_rows": _stage_rows(edition, now),
                 "latest_news": NewsPage.objects.live().descendant_of(self).order_by("-date", "-pk")[:3],
+                "downloads": _download_rows(self),
             }
         )
         return context
@@ -326,6 +353,7 @@ class ContentPage(CMSPage):
     content_panels = Page.content_panels + [
         FieldPanel("show_in_menu"),
         FieldPanel("intro"),
+        InlinePanel("attachments", label="pliki do pobrania"),
         FieldPanel("body"),
     ]
     search_fields = Page.search_fields + [index.SearchField("intro"), index.SearchField("body")]
@@ -349,6 +377,11 @@ class ContentPage(CMSPage):
         """Spis sekcji – pusty, dopóki nagłówków jest mniej niż trzy."""
         chapters = body_chapters(self.body)
         return chapters if len(chapters) >= self.MIN_CHAPTERS_FOR_TOC else []
+
+    def get_context(self, request, *args, **kwargs):
+        context = super().get_context(request, *args, **kwargs)
+        context["attachments"] = self.attachments.select_related("document")
+        return context
 
 
 class ProblemsPage(CMSPage):
@@ -402,11 +435,17 @@ class ProblemsPage(CMSPage):
 class DocumentPage(CMSPage):
     """Dokument urzędowy (regulamin, ZOZ) w wersji do czytania w przeglądarce.
 
-    Strona istnieje obok pliku, a nie zamiast niego: ``attachment`` wskazuje oryginał
+    Strona istnieje obok pliku, a nie zamiast niego: ``attachments`` wskazują oryginały
     w bibliotece Wagtaila, więc czytelnik ma zarówno tekst z linkowalnymi kotwicami
     (``#par-16`` w piśmie do komisji odsyła w konkretne miejsce), jak i dokument, który
     da się wydrukować i podpisać. Treść to **dane**: struktura HTML pochodzi z konwersji
     pliku źródłowego, brzmienie zapisów – wyłącznie z niego.
+
+    Załączników jest wiele i mają kolejność (``DocumentPageAttachment``), bo jeden dokument
+    bywa opublikowany w dwóch postaciach: PDF podpisany przez organizatora (to on jest wersją
+    do druku i do cytowania) oraz plik źródłowy .docx. Pojedyncze pole ``attachment`` zmuszało
+    do wyboru, którą z nich pokazać – a czytelnik szukający „regulaminu do wydruku” i redakcja
+    szukająca źródła to dwie różne potrzeby.
 
     Metadane wersji (``version_label``/``document_date``/``status_label``) są osobnymi polami,
     a nie akapitem treści: przy dokumencie prawnym pierwsze pytanie czytelnika brzmi „czy to
@@ -416,15 +455,6 @@ class DocumentPage(CMSPage):
 
     intro = RichTextField("wprowadzenie", features=RICH_TEXT_FEATURES, blank=True)
     body = StreamField(DocumentStreamBlock(), verbose_name="treść", blank=True)
-    attachment = models.ForeignKey(
-        "wagtaildocs.Document",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="+",
-        verbose_name="plik źródłowy",
-        help_text="Oryginał do pobrania (DOCX/PDF). Usunięcie pliku nie kasuje strony.",
-    )
     version_label = models.CharField("wersja", max_length=50, blank=True)
     document_date = models.DateField("data dokumentu", null=True, blank=True)
     status_label = models.CharField(
@@ -440,7 +470,7 @@ class DocumentPage(CMSPage):
             heading="Metryka dokumentu",
         ),
         FieldPanel("intro"),
-        FieldPanel("attachment"),
+        InlinePanel("attachments", label="pliki do pobrania"),
         FieldPanel("body"),
     ]
     search_fields = Page.search_fields + [
@@ -460,6 +490,68 @@ class DocumentPage(CMSPage):
     def chapters(self) -> list[dict]:
         """Spis rozdziałów – patrz ``body_chapters``. Dokument pokazuje go od pierwszego rozdziału."""
         return body_chapters(self.body)
+
+    def get_context(self, request, *args, **kwargs):
+        context = super().get_context(request, *args, **kwargs)
+        # ``select_related`` – karta „Do pobrania” sięga po ``document.url``, ``filename``
+        # i ``get_file_size`` w każdym wierszu; bez tego dwa pliki to trzy zapytania.
+        context["attachments"] = self.attachments.select_related("document")
+        return context
+
+
+class PageAttachment(Orderable):
+    """Wspólna baza plików do pobrania przy stronie. Abstrakcyjna – nie ma własnej tabeli.
+
+    ``PROTECT`` zamiast ``CASCADE``: usunięcie pliku w bibliotece Wagtaila nie może po cichu
+    zdjąć odnośnika ze strony regulaminu. Redaktor dostaje wtedy komunikat o powiązaniu i musi
+    najpierw odpiąć plik od strony – czyli podjąć tę decyzję świadomie.
+
+    ``label`` jest opisem roli pliku („PDF do druku”, „Wersja źródłowa (DOCX)”), a nie jego
+    nazwą: tytuł dokumentu w bibliotece odpowiada na pytanie „co to za plik”, etykieta –
+    „po co miałbym go pobrać”.
+    """
+
+    document = models.ForeignKey(
+        "wagtaildocs.Document",
+        on_delete=models.PROTECT,
+        related_name="+",
+        verbose_name="plik",
+    )
+    label = models.CharField(
+        "etykieta",
+        max_length=100,
+        blank=True,
+        help_text="Rola pliku, np. „PDF do druku”. Puste = tytuł pliku z biblioteki.",
+    )
+
+    panels = [FieldPanel("document"), FieldPanel("label")]
+
+    class Meta(Orderable.Meta):
+        abstract = True
+
+    def __str__(self) -> str:
+        return self.label or self.document.title
+
+    @property
+    def is_pdf(self) -> bool:
+        """PDF dostaje przycisk główny – to wersja, którą organizator podpisał i drukuje."""
+        return self.document.file_extension.lower() == "pdf"
+
+
+class DocumentPageAttachment(PageAttachment):
+    page = ParentalKey(DocumentPage, on_delete=models.CASCADE, related_name="attachments")
+
+    class Meta(PageAttachment.Meta):
+        verbose_name = "plik dokumentu"
+        verbose_name_plural = "pliki dokumentu"
+
+
+class ContentPageAttachment(PageAttachment):
+    page = ParentalKey(ContentPage, on_delete=models.CASCADE, related_name="attachments")
+
+    class Meta(PageAttachment.Meta):
+        verbose_name = "plik strony"
+        verbose_name_plural = "pliki strony"
 
 
 class ArchiveIndexPage(CMSPage):

@@ -13,7 +13,6 @@ from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView
 from wagtail import urls as wagtail_urls
 from wagtail.admin import urls as wagtailadmin_urls
-from wagtail.documents import urls as wagtaildocs_urls
 
 from apps.web.views.docs import NonceSwaggerView
 
@@ -33,8 +32,10 @@ urlpatterns = [
     path("api/docs/", NonceSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
     # Redakcja części informacyjnej. Dostęp ma wyłącznie grupa `coordinator` (migracja cms.0003).
     path("cms/", include(wagtailadmin_urls)),
-    # Dokumenty Wagtaila serwuje widok aplikacji, a nie bezpośredni URL bucketu.
-    path("documents/", include(wagtaildocs_urls)),
+    # Dokumenty Wagtaila serwuje widok aplikacji, a nie bezpośredni URL bucketu. Wzorce są kopią
+    # ``wagtail.documents.urls`` z jedną zmianą: widok dokłada ``Cache-Control`` plikom z kolekcji
+    # bez ograniczeń widoczności – patrz apps/cms/views.py.
+    path("documents/", include("apps.cms.documents_urls")),
     # Interfejs WWW montowany w korzeniu – zawsze po prefiksach API, żeby nie przechwycił /api/.
     path("", include("apps.web.urls")),
 ]

@@ -12,12 +12,18 @@ Co powstaje:
   i harmonogram”, „Kontakt”, „Dla nauczycieli i materiały”,
 - **dokumenty opublikowane** (``DocumentPage``): RODO i standardy ochrony małoletnich – obie
   treści README starej strony oznacza jako demonstracyjne, więc dostają ramkę ostrzegawczą
-  na górze i status w metryce. Bez załącznika: plików tych dokumentów stara strona nie ma
-  (jedyne pliki binarne to PDF/DOCX regulaminu – ``docs/import/assets.md``),
-- **szkice** (``live=False``): „Komitety” (szesnaście nazwisk do potwierdzenia przez organizatora)
-  i „Partnerzy i sponsorzy” (kafle bez logotypów, z nieistniejącym „Uniwersytetem Kwantowym”).
-  Szkic jest tu świadomym wyborem: obie strony da się obejrzeć w ``/cms/``, ale ``/komitety/``
-  odpowiada 404, więc dane osobowe i sugerowane patronaty nie trafiają do sieci przez pomyłkę,
+  na górze i status w metryce,
+- **PDF-y organizatora** z ``fixtures/legacy/pdf/`` przypięte do właściwych stron: regulamin
+  (PDF przed plikiem źródłowym .docx z ``seed_regulamin``), RODO, standardy ochrony małoletnich
+  i skład komitetów. To one są wersjami do wydruku i to z nich bierze się sekcja „Dokumenty
+  do pobrania” na stronie głównej,
+- **strona „Komitety” jest opublikowana**, bo skład komitetów wyszedł spod pióra organizatora
+  jako podpisany PDF (``Sklad-komitetow-Olimpiady-Kwantowej.pdf``) – lista nazwisk nie jest już
+  roboczą notatką do potwierdzenia, tylko oficjalnym dokumentem, a strona jest jego wersją
+  czytelną w przeglądarce. Treść (nazwiska i zakresy odpowiedzialności) pochodzi z PDF-u,
+- **szkic** (``live=False``): „Partnerzy i sponsorzy” – kafle bez logotypów, z nieistniejącym
+  „Uniwersytetem Kwantowym”. Szkic jest tu świadomym wyborem: stronę da się obejrzeć w ``/cms/``,
+  ale ``/partnerzy/`` odpowiada 404, więc sugerowane patronaty nie trafiają do sieci przez pomyłkę,
 - **trzy aktualności** ze starego seedera – z datą dzisiejszą, bo oryginał nie miał ``post_date``
   (``docs/import/aktualnosci.md``), i z dopiskiem o przeniesieniu na końcu treści,
 - **strona główna**: hasło, opis i sekcja „Jak zacząć w 3 krokach” z ``tresci/strona-glowna.md``.
@@ -47,11 +53,30 @@ from pathlib import Path
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
+from wagtail.documents import get_document_model
 from wagtail.models import Page
 from wagtail.rich_text import RichText
 
+from apps.cms.attachments import (
+    LABEL_PDF,
+    LABEL_SOURCE_DOCX,
+    PDF_DIR,
+    ensure_document,
+    set_attachments,
+)
 from apps.cms.legacy_markdown import parse_markdown
-from apps.cms.models import ContentPage, DocumentPage, HomePage, NewsIndexPage, NewsPage
+from apps.cms.management.commands.seed_regulamin import DOCUMENT_TITLE as REGULAMIN_DOCX_TITLE
+from apps.cms.management.commands.seed_regulamin import PAGE_SLUG as REGULAMIN_SLUG
+from apps.cms.management.commands.seed_regulamin import PDF_DOCUMENT_TITLE as REGULAMIN_PDF_TITLE
+from apps.cms.models import (
+    ContentPage,
+    ContentPageAttachment,
+    DocumentPage,
+    DocumentPageAttachment,
+    HomePage,
+    NewsIndexPage,
+    NewsPage,
+)
 
 #: ``…/apps/cms/management/commands/`` → ``…/apps/cms/fixtures/legacy/``.
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures" / "legacy"
@@ -99,6 +124,7 @@ NEWS = (
 #: ``path``). Slug spoza tej listy zostaje tam, gdzie stoi – menu opisuje tylko strony menu.
 MENU_ORDER = (
     "o-olimpiadzie",
+    "komitety",
     "jak-zaczac",
     "aktualnosci",
     "zadania",
@@ -112,7 +138,12 @@ MENU_ORDER = (
 
 @dataclass(frozen=True)
 class LegacyPage:
-    """Jedna strona do przeniesienia: plik źródłowy, typ docelowy i status publikacji."""
+    """Jedna strona do przeniesienia: plik źródłowy, typ docelowy i status publikacji.
+
+    ``pdf``/``pdf_title`` opisują plik organizatora z ``fixtures/legacy/pdf/``, który ma zawisnąć
+    przy stronie jako wersja do wydruku. Tytuł jest jawny, bo to on – a nie nazwa pliku – jest
+    tożsamością dokumentu w bibliotece Wagtaila (patrz ``apps.cms.attachments``).
+    """
 
     slug: str
     title: str
@@ -121,10 +152,19 @@ class LegacyPage:
     publish: bool = True
     demo_notice: bool = False
     metadata: dict = field(default_factory=dict)
+    pdf: str = ""
+    pdf_title: str = ""
 
 
 PAGES = (
     LegacyPage(slug="o-olimpiadzie", title="O Olimpiadzie", in_menu=True),
+    LegacyPage(
+        slug="komitety",
+        title="Komitety",
+        in_menu=True,
+        pdf="Sklad-komitetow-Olimpiady-Kwantowej.pdf",
+        pdf_title="Skład komitetów Olimpiady Kwantowej (PDF)",
+    ),
     LegacyPage(slug="jak-zaczac", title="Jak zacząć?", in_menu=True),
     LegacyPage(slug="harmonogram", title="Terminarz i harmonogram", in_menu=True),
     LegacyPage(slug="kontakt", title="Kontakt", in_menu=True),
@@ -139,6 +179,8 @@ PAGES = (
             "document_date": DOCUMENT_DATE,
             "status_label": DEMO_STATUS,
         },
+        pdf="Polityka-RODO-Olimpiada-Kwantowa.pdf",
+        pdf_title="Polityka RODO Olimpiady Kwantowej (PDF)",
     ),
     LegacyPage(
         slug="standardy-ochrony-maloletnich",
@@ -150,10 +192,15 @@ PAGES = (
             "document_date": DOCUMENT_DATE,
             "status_label": DEMO_STATUS,
         },
+        pdf="Standardy-ochrony-maloletnich-Olimpiada-Kwantowa.pdf",
+        pdf_title="Standardy ochrony małoletnich (PDF)",
     ),
-    LegacyPage(slug="komitety", title="Komitety", publish=False),
     LegacyPage(slug="partnerzy", title="Partnerzy i sponsorzy", publish=False),
 )
+
+#: PDF regulaminu jest osobno: strona ``/regulamin/`` powstaje w ``seed_regulamin`` (treść pochodzi
+#: z konwersji .docx, nie z pliku Markdown), a ta komenda dokłada do niej wyłącznie plik do wydruku.
+REGULAMIN_PDF = "Regulamin-Olimpiady-Kwantowej.pdf"
 
 
 class Command(BaseCommand):
@@ -167,9 +214,13 @@ class Command(BaseCommand):
         if not FIXTURES.is_dir():
             raise CommandError(f"Brak katalogu z treściami: {FIXTURES}.")
 
+        if not PDF_DIR.is_dir():
+            raise CommandError(f"Brak katalogu z PDF-ami organizatora: {PDF_DIR}.")
+
         self._seed_home(home)
         for spec in PAGES:
             self._seed_page(home, spec)
+        self._seed_regulamin_pdf(home)
         self._seed_news(home)
         moved = self._order_menu(home)
 
@@ -222,13 +273,61 @@ class Command(BaseCommand):
             page.show_in_menu = spec.in_menu
         page.save()
 
+        note = self._seed_attachment(page, spec)
+
+        # Świeży obiekt z bazy: rewizja serializuje także wiersze załączników, a te dopisaliśmy
+        # przez ORM już po ``page.save()`` – rewizja ze starego obiektu zdjęłaby je z publikacji.
+        page = model.objects.get(pk=page.pk)
         revision = page.save_revision()
         if spec.publish:
             revision.publish()
         status = "opublikowana" if spec.publish else "szkic"
         self.stdout.write(
-            f"{'utworzono' if created else 'zaktualizowano'}: /{spec.slug}/ ({status}, {len(blocks)} bloków)"
+            f"{'utworzono' if created else 'zaktualizowano'}: /{spec.slug}/ "
+            f"({status}, {len(blocks)} bloków{note})"
         )
+
+    # --- pliki do pobrania ----------------------------------------------------------------
+
+    def _seed_attachment(self, page, spec: LegacyPage) -> str:
+        """Wgrywa PDF organizatora i przypina go do strony. Zwraca dopisek do komunikatu."""
+        if not spec.pdf:
+            return ""
+        source = PDF_DIR / spec.pdf
+        if not source.exists():
+            raise CommandError(f"Brak pliku {source}.")
+        document, action = ensure_document(spec.pdf_title, source)
+        model = DocumentPageAttachment if spec.document else ContentPageAttachment
+        set_attachments(page, model, [(document, LABEL_PDF)])
+        return f", PDF #{document.pk} {action}"
+
+    def _seed_regulamin_pdf(self, home: HomePage) -> None:
+        """PDF do wydruku przy stronie ``/regulamin/`` – przed plikiem źródłowym .docx.
+
+        Strona może jeszcze nie istnieć (``seed_regulamin`` bywa uruchamiany później); wtedy plik
+        i tak trafia do biblioteki, a ``seed_regulamin._attachment_specs`` postawi go na stronie
+        na pierwszym miejscu. Kolejność „PDF, potem DOCX” jest merytoryczna: podpisany PDF jest
+        wersją, którą się drukuje i cytuje, .docx – materiałem redakcyjnym.
+        """
+        source = PDF_DIR / REGULAMIN_PDF
+        if not source.exists():
+            raise CommandError(f"Brak pliku {source}.")
+        pdf, action = ensure_document(REGULAMIN_PDF_TITLE, source)
+
+        page = DocumentPage.objects.child_of(home).filter(slug=REGULAMIN_SLUG).first()
+        if page is None:
+            self.stdout.write(f"regulamin: PDF #{pdf.pk} {action} (strona jeszcze nie istnieje)")
+            return
+
+        specs = [(pdf, LABEL_PDF)]
+        docx = get_document_model().objects.filter(title=REGULAMIN_DOCX_TITLE).first()
+        if docx is not None:
+            specs.append((docx, LABEL_SOURCE_DOCX))
+        set_attachments(page, DocumentPageAttachment, specs)
+
+        page = DocumentPage.objects.get(pk=page.pk)
+        page.save_revision().publish()
+        self.stdout.write(f"zaktualizowano: /{REGULAMIN_SLUG}/ (PDF #{pdf.pk} {action}, {len(specs)} pliki)")
 
     # --- aktualności ----------------------------------------------------------------------
 

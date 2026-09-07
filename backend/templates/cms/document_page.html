@@ -26,22 +26,7 @@
 
     {% if page.intro %}<div class="cms-body prose doc-intro">{{ page.intro|richtext }}</div>{% endif %}
 
-    {% if page.attachment %}
-      {# Link idzie przez /documents/<id>/<nazwa> – widok Wagtaila, nie adres obiektu w buckecie. #}
-      <div class="card card--accent doc-download">
-        <div>
-          <p class="doc-download__title">Wersja źródłowa do pobrania</p>
-          {% comment %}
-            ``get_file_size`` zamiast pola ``file_size``: dokumenty wgrane komendą mają je puste
-            do pierwszego odczytu, a „0 bajtów” przy regulaminie wygląda na zepsuty link.
-          {% endcomment %}
-          <p class="hint">{{ page.attachment.title }}
-            ({{ page.attachment.file_extension|upper }}, {{ page.attachment.get_file_size|filesizeformat }})</p>
-        </div>
-        <a class="btn btn--primary" href="{{ page.attachment.url }}"
-           download>Pobierz {{ page.attachment.file_extension|upper }}</a>
-      </div>
-    {% endif %}
+    {% include "cms/_attachments.html" %}
   </div>
 
   {% if page.chapters %}

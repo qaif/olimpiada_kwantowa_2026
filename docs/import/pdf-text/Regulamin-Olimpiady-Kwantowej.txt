@@ -1,0 +1,436 @@
+
+
+===== STRONA 1 =====
+FUNDACJA QUANTUM AI
+Regulamin Olimpiady Kwantowej
+Ogólnopolski, dwuetapowy konkurs edukacyjny
+Wersja 1.0
+Data dokumentu 18 sierpnia 2026 r.
+Status Projekt do zatwierdzenia uchwałą Zarządu Fundacji Quantum AI
+WAŻNY STATUS PRAWNY
+Olimpiada Kwantowa w opisanym niżej modelu dwóch etapów jest niezależnym konkursem edukacyjnym. Nie jest 
+olimpiadą trójstopniową przeprowadzaną na podstawie rozporządzenia Ministra Edukacji i nie nadaje ustawowych 
+uprawnień laureata lub finalisty, dopóki nie zostanie formalnie objęta właściwym trybem prawnym, a jej regulamin nie 
+zostanie odpowiednio dostosowany.
+Dokument przygotowany do zatwierdzenia uchwałą Zarządu Organizatora.
+
+===== STRONA 2 =====
+OLIMPIADA KWANTOWA REGULAMIN · WERSJA 1.0
+Fundacja Quantum AI   •   strona 2 z 13
+Spis rozdziałów
+• Rozdział I. Postanowienia ogólne
+• Rozdział II. Uczestnicy
+• Rozdział III. Organy Olimpiady
+• Rozdział IV. Zadania i zasady oceniania
+• Rozdział V. Przebieg zawodów
+• Rozdział VI. Wyniki, tytuły i odwołania
+• Rozdział VII. Uczciwość i bezpieczeństwo
+• Rozdział VIII. Dane, prawa autorskie i dokumentacja
+• Rozdział IX. Finansowanie i sytuacje nadzwyczajne
+• Rozdział X. Postanowienia końcowe
+Dokument obejmuje 24 paragrafy. Numery stron są widoczne w stopce, a pełne tytuły paragrafów znajdują się bezpośrednio w treści.
+
+===== STRONA 3 =====
+OLIMPIADA KWANTOWA REGULAMIN · WERSJA 1.0
+Fundacja Quantum AI   •   strona 3 z 13
+Status dokumentu
+Olimpiada Kwantowa w opisanym niżej modelu dwóch etapów jest niezależnym konkursem edukacyjnym. 
+Nie jest olimpiadą trójstopniową przeprowadzaną na podstawie rozporządzenia Ministra Edukacji i nie 
+nadaje ustawowych uprawnień laureata lub finalisty, dopóki nie zostanie formalnie objęta właściwym 
+trybem prawnym, a jej regulamin nie zostanie odpowiednio dostosowany.
+Organizator
+Nazwa Fundacja Quantum AI
+Adres ul. Sanocka 9/103, 02-110 Warszawa
+Rejestry KRS 0000808359 · NIP 7010955891 · REGON 384899425
+Kontakt contact@qaif.org · https://www.qaif.org/
+Rozdział I. Postanowienia ogólne
+§ 1. Nazwa, charakter i Organizator
+1. Olimpiada Kwantowa, zwana dalej „Olimpiadą”, jest ogólnopolskim, indywidualnym i dwuetapowym 
+konkursem edukacyjnym z zakresu fizyki kwantowej, informacji i informatyki kwantowej oraz ich 
+podstaw matematycznych.
+2. Organizatorem Olimpiady jest Fundacja Quantum AI z siedzibą w Warszawie przy ul. Sanockiej 9/103, 
+02-110 Warszawa, wpisana do Krajowego Rejestru Sądowego pod numerem KRS 0000808359, NIP 
+7010955891, REGON 384899425, zwana dalej „Organizatorem”.
+3. Olimpiada posługuje się nazwą „Olimpiada Kwantowa”, jednak w modelu dwóch etapów pozostaje 
+niezależnym konkursem edukacyjnym i nie nadaje uprawnień przewidzianych dla laureatów i 
+finalistów olimpiad organizowanych na podstawie przepisów oświatowych, chyba że odrębny 
+przepis, decyzja lub komunikat właściwego organu stanowi inaczej.
+4. Niniejszy Regulamin określa stałe zasady Olimpiady. Szczegóły danej edycji, w szczególności 
+harmonogram, formę zadań, wykaz dozwolonych narzędzi, maksymalną liczbę finalistów, progi 
+punktowe, literaturę i program merytoryczny, określają Zasady Organizacji Zawodów danej edycji, 
+zwane dalej „ZOZ”.
+5. Regulamin, ZOZ, program merytoryczny, harmonogram oraz komunikaty są publikowane na stronie 
+internetowej Olimpiady. Sprzeczność ZOZ z Regulaminem rozstrzyga się na korzyść Regulaminu.
+§ 2. Cele Olimpiady
+1. Celami Olimpiady są w szczególności:
+• rozbudzanie zainteresowania fizyką kwantową i technologiami kwantowymi;
+• rozwijanie umiejętności samodzielnego rozumowania, modelowania matematycznego, analizy 
+danych i rozwiązywania problemów;
+
+===== STRONA 4 =====
+OLIMPIADA KWANTOWA REGULAMIN · WERSJA 1.0
+Fundacja Quantum AI   •   strona 4 z 13
+• identyfikowanie i wspieranie uczniów uzdolnionych;
+• tworzenie przestrzeni do uczciwego współzawodnictwa i wymiany wiedzy;
+• upowszechnianie rzetelnej wiedzy o współczesnej nauce i jej zastosowaniach.
+2. Olimpiada realizuje cele przez organizację zawodów, publikację materiałów edukacyjnych, 
+konsultacje naukowe, wydarzenia dla uczniów i nauczycieli oraz współpracę ze środowiskiem 
+akademickim i technologicznym.
+Rozdział II. Uczestnicy
+§ 3. Warunki udziału
+1. Uczestnikami mogą być uczniowie liceów ogólnokształcących, techników, branżowych szkół I i II 
+stopnia oraz innych szkół ponadpodstawowych, którzy zaakceptują Regulamin i prawidłowo 
+zarejestrują się w systemie Olimpiady.
+2. Do udziału mogą zostać dopuszczeni uczniowie szkół podstawowych wykazujący wiedzę i uzdolnienia 
+wykraczające poza program swojej szkoły, jeżeli przedstawią rekomendację szkoły albo opiekuna 
+naukowego i spełnią pozostałe warunki udziału.
+3. Udział jest dobrowolny, indywidualny i bezpłatny. Organizator nie może uzależniać udziału od zakupu 
+towarów lub usług.
+4. Osoba niepełnoletnia uczestniczy za wiedzą i zgodą rodzica albo opiekuna prawnego, w zakresie 
+wymaganym przez prawo i ZOZ.
+5. Uczestnik podaje prawdziwe i aktualne dane, chroni dane dostępowe do konta oraz niezwłocznie 
+informuje Organizatora o ich utracie albo podejrzeniu przejęcia konta.
+6. Organizator zapewnia równe traktowanie uczestników. Na uzasadniony i odpowiednio wczesny 
+wniosek umożliwia racjonalne dostosowanie warunków udziału do potrzeb osoby z 
+niepełnosprawnością lub szczególnymi potrzebami edukacyjnymi, o ile nie zmienia to istoty 
+sprawdzanych umiejętności.
+§ 4. Rejestracja i komunikacja
+1. Rejestracja odbywa się elektronicznie w terminie wskazanym w harmonogramie. Za datę zgłoszenia 
+uważa się chwilę zapisania kompletnego formularza w systemie.
+2. Organizator może zweryfikować status ucznia, tożsamość uczestnika oraz zgodę rodzica lub opiekuna 
+prawnego. Brak uzupełnienia danych w wyznaczonym terminie może skutkować niedopuszczeniem 
+do zawodów.
+3. Podstawowym kanałem komunikacji jest konto uczestnika i adres e-mail podany podczas rejestracji. 
+Uczestnik odpowiada za regularne sprawdzanie wiadomości i komunikatów.
+4. Oświadczenia i zgody związane z udziałem składa uczestnik, a w przypadkach wymaganych prawem 
+także jego rodzic albo opiekun prawny.
+
+===== STRONA 5 =====
+OLIMPIADA KWANTOWA REGULAMIN · WERSJA 1.0
+Fundacja Quantum AI   •   strona 5 z 13
+Rozdział III. Organy Olimpiady
+§ 5. Komitet Merytoryczny i Jury
+1. Organizator powołuje Komitet Merytoryczny spośród osób posiadających wiedzę naukową, 
+dydaktyczną lub praktyczną z zakresu objętego programem Olimpiady.
+2. Komitet Merytoryczny pełni w całości funkcję Jury Olimpiady, zwanego dalej „Jury”. Nie powołuje się 
+odrębnego stałego jury, chyba że Organizator zmieni Regulamin przed rozpoczęciem edycji.
+3. Do zadań Jury należy w szczególności:
+• opracowanie i aktualizacja programu merytorycznego oraz wykazu literatury;
+• przygotowanie, wybór i niezależna weryfikacja zadań oraz kryteriów oceniania;
+• anonimowa ocena prac, ustalanie wyników i list rankingowych;
+• ustalenie progu kwalifikacji do finału oraz wskazanie potencjalnych finalistów;
+• przeprowadzenie rozmów kwalifikacyjnych, jeżeli zachodzą warunki określone w § 12;
+• rozpatrywanie reklamacji i przedstawianie Organizatorowi wniosków w sprawach naruszeń 
+Regulaminu;
+• przyznawanie tytułów, miejsc i wyróżnień zgodnie z Regulaminem.
+4. Jury może tworzyć zespoły zadaniowe i zespoły oceniające. Rozstrzygnięcie podjęte przez taki zespół 
+jest zatwierdzane w trybie ustalonym przez przewodniczącego Komitetu Merytorycznego.
+5. Członek Jury, którego bezstronność może budzić uzasadnione wątpliwości, w szczególności z powodu 
+pokrewieństwa, zależności służbowej albo bezpośredniego przygotowywania uczestnika, ujawnia 
+konflikt interesów i nie bierze udziału w ocenie ani decyzji dotyczącej tej osoby.
+§ 6. Komitet Organizacyjny
+1. Organizator powołuje Komitet Organizacyjny odpowiedzialny za rejestrację, obsługę systemu, 
+komunikację, logistykę, miejsce finału, bezpieczeństwo, dostępność, dokumentację i współpracę z 
+partnerami.
+2. Komitet Organizacyjny nie ingeruje w merytoryczną ocenę prac ani w treść zadań. Może przekazywać 
+Jury informacje o zdarzeniach technicznych i organizacyjnych mających znaczenie dla równego 
+traktowania uczestników.
+3. Aktualny skład obu Komitetów jest publikowany na stronie Olimpiady. Organizator może zmieniać 
+skład w trakcie edycji, jeżeli wymaga tego zapewnienie ciągłości prac, bezstronności lub 
+bezpieczeństwa.
+§ 7. Tryb pracy i poufność
+1. Komitety pracują na posiedzeniach stacjonarnych lub zdalnych. Decyzje Jury zapadają zwykłą 
+większością głosów w obecności co najmniej połowy członków uprawnionych do głosowania; przy 
+równej liczbie głosów rozstrzyga głos przewodniczącego.
+2. Z posiedzeń dotyczących kwalifikacji, wyników, odwołań i sankcji sporządza się protokół.
+3. Osoby mające dostęp do treści zadań, kryteriów, danych uczestników lub nieopublikowanych 
+wyników są zobowiązane do zachowania poufności.
+
+===== STRONA 6 =====
+OLIMPIADA KWANTOWA REGULAMIN · WERSJA 1.0
+Fundacja Quantum AI   •   strona 6 z 13
+4. Organizator może dopuścić ekspertów zewnętrznych do konsultacji bez prawa głosu, po 
+zobowiązaniu ich do poufności i ujawnienia konfliktów interesów.
+Rozdział IV. Zadania i zasady oceniania
+§ 8. Opracowywanie zadań
+1. Zadania powinny być oryginalne, jednoznaczne, zgodne z programem merytorycznym i dostosowane 
+do celu danego etapu.
+2. Każde zadanie przed wykorzystaniem podlega niezależnej weryfikacji merytorycznej i redakcyjnej 
+przez co najmniej jedną osobę inną niż autor, a w miarę możliwości także próbnemu rozwiązaniu.
+3. Wraz z zadaniem Jury przygotowuje model rozwiązania, kryteria i skalę oceniania oraz zasady 
+uwzględniania rozwiązań alternatywnych.
+4. Treść zadania pozostaje poufna do chwili wskazanej przez Organizatora. Naruszenie poufności przez 
+osobę zaangażowaną w przygotowanie zadania wymaga wyłączenia zadania albo zastosowania 
+innego środka przywracającego równość uczestników.
+§ 9. Ocena prac
+1. Prace są oznaczane losowym kodem i oceniane bez ujawniania oceniającym imienia, nazwiska, szkoły 
+ani danych kontaktowych autora.
+2. Za każde zadanie można uzyskać liczbę punktów określoną w jego treści. Kryteria uwzględniają 
+poprawność, kompletność i jakość uzasadnienia, a jeżeli wynika to z zadania także efektywność 
+metody, analizę błędów, interpretację fizyczną, jakość kodu lub opracowanie danych.
+3. Każda praca jest oceniana przez co najmniej dwóch członków Jury, o ile liczba prac i dostępność 
+ekspertów na to pozwala. Wynikiem jest średnia ocen. Jeżeli różnica przekracza 20% maksymalnej 
+liczby punktów za zadanie, pracę ocenia dodatkowy juror, a Jury uzgadnia wynik końcowy.
+4. Błąd techniczny albo oczywista omyłka rachunkowa w ocenie podlega sprostowaniu również z 
+urzędu.
+5. Listę rankingową tworzy się według łącznej liczby punktów, z uwzględnieniem zasad rozstrzygania 
+remisów opublikowanych w ZOZ przed rozpoczęciem etapu.
+Rozdział V. Przebieg zawodów
+§ 10. Struktura Olimpiady
+1. Olimpiada składa się z dwóch etapów: Etapu I przeprowadzanego zdalnie oraz Etapu II będącego 
+stacjonarnym finałem.
+2. Rozmowa kwalifikacyjna, o której mowa w § 12, jest pomocniczą procedurą kwalifikacji po Etapie I i 
+nie stanowi odrębnego etapu Olimpiady.
+3. Zawody mają charakter indywidualny. Współpraca przy rozwiązywaniu zadań, zlecanie rozwiązania 
+innej osobie oraz podszywanie się pod uczestnika są zabronione.
+
+===== STRONA 7 =====
+OLIMPIADA KWANTOWA REGULAMIN · WERSJA 1.0
+Fundacja Quantum AI   •   strona 7 z 13
+4. Harmonogram i istotne warunki zawodów publikuje się przed rozpoczęciem rejestracji. Nie zmienia 
+się ich w trakcie edycji, z wyjątkiem siły wyższej, zagrożenia bezpieczeństwa, awarii lub konieczności 
+ochrony równego traktowania uczestników.
+§ 11. Etap I - zawody zdalne
+1. Etap I ma charakter otwarty dla prawidłowo zarejestrowanych uczestników i odbywa się przez 
+Internet w terminie wskazanym w harmonogramie.
+2. Uczestnik samodzielnie rozwiązuje opublikowane zadania i przesyła rozwiązania w formacie oraz 
+przez system wskazany w ZOZ. O zachowaniu terminu decyduje czas zarejestrowania kompletnego 
+pliku w systemie.
+3. Jeżeli ZOZ nie stanowią inaczej, w Etapie I wolno korzystać z podręczników, publikacji naukowych, 
+własnych notatek, kalkulatora i lokalnych narzędzi obliczeniowych, pod warunkiem samodzielnego 
+opracowania rozwiązania i wskazania wykorzystanych źródeł.
+4. Korzystanie z generatywnej sztucznej inteligencji do wytworzenia treści rozwiązania, z usług osób 
+trzecich, cudzych nieopublikowanych rozwiązań lub wspólnego opracowywania pracy jest 
+zabronione, chyba że treść zadania wyraźnie dopuszcza określone narzędzie i opisuje sposób jego 
+użycia.
+5. Uczestnik odpowiada za czytelność i kompletność pliku. Po wysłaniu powinien sprawdzić 
+potwierdzenie w panelu. Do upływu terminu może zastąpić rozwiązanie nową wersją, jeżeli system 
+udostępnia taką możliwość.
+6. Rozwiązania przesłane po terminie nie podlegają ocenie, chyba że Organizator potwierdzi awarię po 
+swojej stronie i wyznaczy jednolite rozwiązanie dla wszystkich dotkniętych uczestników.
+7. Po ocenie Jury publikuje wyniki wstępne i wskazuje osoby zakwalifikowane do finału albo grupę 
+potencjalnych finalistów kierowanych do rozmowy kwalifikacyjnej.
+§ 12. Rozmowa kwalifikacyjna po Etapie I
+1. Jeżeli liczba uczestników spełniających wstępne kryterium kwalifikacji do finału przekracza 
+maksymalną liczbę miejsc opublikowaną w ZOZ, Jury może przeprowadzić rozmowę kwalifikacyjną z 
+potencjalnymi finalistami.
+2. Potencjalnymi finalistami są uczestnicy, których wynik Etapu I osiągnął próg wskazany przez Jury oraz 
+mieści się w przedziale kwalifikacyjnym ogłoszonym wraz z wynikami wstępnymi. Kryterium doboru 
+grupy musi być jednakowe dla wszystkich.
+3. Informację o rozmowie, jej formie, terminie i sposobie identyfikacji przekazuje się co najmniej 7 dni 
+kalendarzowych wcześniej. Rozmowa może odbyć się zdalnie albo stacjonarnie i trwa co do zasady 
+od 20 do 30 minut.
+4. Zakres rozmowy obejmuje cały program merytoryczny, wykaz wymaganej wiedzy i literaturę 
+ogłoszone dla danej edycji, a nie wyłącznie zagadnienia z zadań Etapu I.
+5. Rozmowę prowadzi komisja co najmniej trzech członków Jury. Pytania dla poszczególnych osób mogą 
+być różne, ale muszą mieć porównywalny zakres i poziom trudności. Komisja sporządza protokół i 
+przyznaje od 0 do 20 punktów według opublikowanych kryteriów: poprawność merytoryczna, tok 
+rozumowania, samodzielność oraz umiejętność obrony wniosków.
+
+===== STRONA 8 =====
+OLIMPIADA KWANTOWA REGULAMIN · WERSJA 1.0
+Fundacja Quantum AI   •   strona 8 z 13
+6. W przypadku przeprowadzenia rozmów końcowy wynik kwalifikacyjny stanowi suma 80% 
+znormalizowanego wyniku Etapu I oraz 20% znormalizowanego wyniku rozmowy. Do finału 
+kwalifikują się osoby z najwyższym wynikiem, do wyczerpania liczby miejsc, z zastosowaniem reguł 
+remisów określonych w ZOZ.
+7. Rozmowa służy wyłącznie ustaleniu listy finalistów i nie jest doliczana do wyniku finału. Uczestnik 
+zachowuje prawo do racjonalnego dostosowania jej warunków.
+8. Nieusprawiedliwiona nieobecność oznacza rezygnację z dalszego udziału. W udokumentowanym 
+przypadku losowym Jury może wyznaczyć termin dodatkowy, o ile nie opóźni to organizacji finału i 
+nie naruszy równego traktowania.
+§ 13. Etap II - finał stacjonarny
+1. Finał odbywa się stacjonarnie w miejscu i terminie wskazanym w harmonogramie, w warunkach 
+kontrolowanej samodzielności.
+2. Do finału dopuszcza się uczestników zakwalifikowanych na podstawie wyniku Etapu I albo 
+końcowego wyniku kwalifikacyjnego po rozmowie. Uczestnik okazuje dokument ze zdjęciem 
+potwierdzający tożsamość i status ucznia.
+3. Finał może obejmować zadania teoretyczne, obliczeniowe, problemowe, programistyczne, analizę 
+danych lub część doświadczalną. Liczbę sesji, czas, wyposażenie i zasady oddawania prac określają 
+ZOZ.
+4. Podczas finału wolno korzystać wyłącznie z materiałów, urządzeń i oprogramowania dopuszczonych 
+przez Organizatora. Telefony, zegarki komunikujące się z siecią, prywatne nośniki danych i 
+komunikacja z innymi osobami są zabronione.
+5. Nadzór organizacyjny sprawuje komisja finałowa powołana przez Organizatora. Komisja 
+dokumentuje spóźnienia, awarie, przerwy, naruszenia i inne zdarzenia mogące wpłynąć na wynik.
+6. W razie awarii niezawinionej przez uczestnika komisja może przedłużyć jego czas o okres faktycznej 
+przerwy albo zastosować inne proporcjonalne rozwiązanie, odnotowane w protokole.
+7. Osoba zakwalifikowana, która przystąpi do finału i odda co najmniej jedną pracę podlegającą ocenie, 
+uzyskuje wewnętrzny tytuł finalisty Olimpiady, chyba że zostanie zdyskwalifikowana.
+Rozdział VI. Wyniki, tytuły i odwołania
+§ 14. Wyniki finału i tytuły
+1. Wynik Olimpiady ustala się wyłącznie na podstawie punktów uzyskanych w finale. Punkty Etapu I i 
+rozmowy kwalifikacyjnej nie są doliczane do klasyfikacji finałowej.
+2. Laureatem może zostać finalista sklasyfikowany w pierwszej połowie uczestników finału, którego 
+wynik Jury uzna za wyróżniający. ZOZ mogą określić dodatkowy minimalny próg punktowy.
+3. Jury może przyznać miejsca, medale, nagrody specjalne i wyróżnienia. Zwycięzcą jest uczestnik z 
+najwyższym końcowym wynikiem; przy remisie tytuł zwycięzcy może otrzymać więcej niż jedna 
+osoba albo stosuje się regułę rozstrzygającą opublikowaną w ZOZ.
+
+===== STRONA 9 =====
+OLIMPIADA KWANTOWA REGULAMIN · WERSJA 1.0
+Fundacja Quantum AI   •   strona 9 z 13
+4. Tytuły finalisty i laureata mają charakter wewnętrzny i potwierdzają wynik w konkursie 
+organizowanym przez Fundację Quantum AI. Nie są równoznaczne z ustawowym tytułem laureata 
+lub finalisty olimpiady przedmiotowej, dopóki właściwe przepisy lub decyzje nie przyznają im takiego 
+skutku.
+5. Organizator wydaje dyplomy lub zaświadczenia według własnego wzoru i może przyznać nagrody 
+rzeczowe, finansowe, stażowe albo edukacyjne. Informację o nagrodach publikuje przed finałem lub 
+wraz z wynikami.
+§ 15. Ogłaszanie wyników
+1. Po każdym etapie uczestnik otrzymuje dostęp do swojej punktacji i, w zakresie możliwym bez 
+ujawnienia poufnych materiałów, informacji o sposobie oceny.
+2. Wyniki wstępne stają się ostateczne po zakończeniu procedury reklamacyjnej i zatwierdzeniu przez 
+Jury.
+3. Listy osób zakwalifikowanych, finalistów, laureatów i wyróżnionych mogą zawierać imię, nazwisko, 
+szkołę, miejscowość, klasę i wynik wyłącznie na podstawie właściwej podstawy prawnej i zgodnie z 
+informacją RODO.
+4. Organizator może sprostować oczywistą omyłkę w opublikowanej liście. Zmiana merytoryczna 
+wyniku wymaga protokołu Jury.
+§ 16. Reklamacje i odwołania
+1. Uczestnik może w terminie 3 dni roboczych od udostępnienia wyniku wstępnego złożyć przez system 
+reklamację dotyczącą błędu w ocenie, nieuwzględnienia części pracy albo nieprawidłowości 
+organizacyjnej mającej wpływ na jego wynik.
+2. Reklamacja wskazuje zadanie lub zdarzenie, kwestionowany element oraz konkretne uzasadnienie. 
+Sama niezgoda z poziomem trudności, modelem rozwiązania lub opublikowanym kryterium nie jest 
+wystarczająca bez wskazania błędu w jego zastosowaniu.
+3. Reklamację rozpoznaje co najmniej dwuosobowy zespół Jury, w którego skład w miarę możliwości 
+nie wchodzą osoby dokonujące pierwotnej oceny. Zespół może podwyższyć, utrzymać albo obniżyć 
+punktację, jeżeli ponowna ocena ujawni błąd.
+4. Odpowiedź wraz z krótkim uzasadnieniem przekazuje się co do zasady w ciągu 7 dni roboczych. 
+Decyzja Jury w sprawie oceny jest ostateczna w toku Olimpiady.
+5. Od decyzji o dyskwalifikacji uczestnik może w terminie 5 dni roboczych odwołać się do Zarządu 
+Fundacji Quantum AI. Odwołanie rozpoznaje osoba, która nie uczestniczyła w wydaniu zaskarżonej 
+decyzji, albo powołany przez Zarząd zespół odwoławczy. Decyzja Zarządu jest ostateczna.
+Rozdział VII. Uczciwość i bezpieczeństwo
+§ 17. Samodzielność i naruszenia
+1. Za naruszenie Regulaminu uważa się w szczególności:
+• plagiat, niedozwoloną współpracę, udostępnienie pracy lub wykorzystanie cudzej pracy;
+
+===== STRONA 10 =====
+OLIMPIADA KWANTOWA REGULAMIN · WERSJA 1.0
+Fundacja Quantum AI   •   strona 10 z 13
+• podszywanie się pod inną osobę albo umożliwienie innej osobie udziału na swoim koncie;
+• użycie niedozwolonych materiałów, urządzeń, oprogramowania lub generatywnej sztucznej 
+inteligencji;
+• próbę uzyskania nieuprawnionego dostępu do zadań, systemu, danych lub kont innych osób;
+• fałszowanie danych, dowodów, wyników lub dokumentów;
+• zakłócanie zawodów, przemoc, nękanie lub naruszenie Standardów ochrony małoletnich.
+2. W razie uzasadnionego podejrzenia Jury może poprosić uczestnika o wyjaśnienie toku rozwiązania 
+lub przeprowadzić rozmowę weryfikującą samodzielność. Taka rozmowa nie jest rozmową 
+kwalifikacyjną z § 12 i nie służy poprawianiu wyniku.
+3. Przed nałożeniem sankcji uczestnik otrzymuje możliwość przedstawienia wyjaśnień, chyba że 
+konieczne jest natychmiastowe działanie dla ochrony bezpieczeństwa lub integralności zawodów.
+4. Sankcje obejmują ostrzeżenie, anulowanie punktów za zadanie, anulowanie wyniku etapu, 
+niedopuszczenie do finału, dyskwalifikację z edycji oraz wykluczenie z kolejnej edycji. Sankcja 
+powinna być proporcjonalna do wagi, skutków i umyślności naruszenia.
+5. Organizator może poinformować szkołę lub rodzica albo opiekuna prawnego o poważnym 
+naruszeniu, z poszanowaniem przepisów o ochronie danych.
+§ 18. Ochrona małoletnich i zasady zachowania
+1. Wszystkie osoby działające w imieniu Organizatora przestrzegają Standardów ochrony małoletnich 
+opublikowanych na stronie Olimpiady.
+2. Uczestnicy są zobowiązani do poszanowania godności, prywatności, bezpieczeństwa i praw innych 
+osób. Zabronione są przemoc, dyskryminacja, molestowanie, hejt i odwet wobec osoby zgłaszającej 
+nieprawidłowość.
+3. Zagrożenie lub podejrzenie krzywdzenia można zgłosić członkowi komisji, Organizatorowi na adres 
+contact@qaif.org albo pod numerem wskazanym w Standardach. W bezpośrednim zagrożeniu życia 
+lub zdrowia należy zadzwonić pod numer 112.
+4. Organizator może usunąć z wydarzenia osobę stwarzającą zagrożenie, niezależnie od dalszego 
+postępowania wyjaśniającego.
+Rozdział VIII. Dane, prawa autorskie i dokumentacja
+§ 19. Dane osobowe
+1. Administratorem danych osobowych jest Fundacja Quantum AI. Szczegółowe cele, podstawy, okresy 
+przechowywania, odbiorców oraz prawa osób określa informacja RODO dostępna na stronie 
+Olimpiady.
+2. Dane są przetwarzane w zakresie niezbędnym do rejestracji, przeprowadzenia i zabezpieczenia 
+zawodów, oceny prac, rozpatrywania reklamacji, wydania dokumentów, publikacji wyników oraz 
+realizacji obowiązków prawnych.
+3. Prace są udostępniane oceniającym pod anonimowym kodem. Dostęp do danych identyfikacyjnych 
+otrzymują wyłącznie osoby upoważnione.
+
+===== STRONA 11 =====
+OLIMPIADA KWANTOWA REGULAMIN · WERSJA 1.0
+Fundacja Quantum AI   •   strona 11 z 13
+4. Jeżeli rozmowa zdalna jest nagrywana dla zapewnienia rozliczalności, uczestnik zostaje o tym 
+wcześniej poinformowany, a nagranie jest przechowywane nie dłużej niż do zakończenia procedury 
+reklamacyjnej, chyba że jest potrzebne do ustalenia lub obrony roszczeń.
+§ 20. Prawa autorskie
+1. Autorskie prawa osobiste i majątkowe do oryginalnego rozwiązania pozostają przy uczestniku, z 
+zastrzeżeniem praw osób trzecich i postanowień niniejszego paragrafu.
+2. Przesyłając pracę, uczestnik udziela Organizatorowi niewyłącznej, nieodpłatnej, terytorialnie 
+nieograniczonej licencji na czas 10 lat na utrwalanie, zwielokrotnianie, przechowywanie, ocenę, 
+archiwizację oraz publikację pracy w celach edukacyjnych i promocyjnych Olimpiady, w całości lub 
+we fragmentach, z oznaczeniem autora albo po anonimizacji.
+3. Publikacja rozwiązania przed zakończeniem etapu, jeśli może naruszyć równość zawodów, jest 
+zabroniona. Po oficjalnym zakończeniu etapu uczestnik może rozpowszechniać własne rozwiązanie, o 
+ile ZOZ nie określą krótkiego okresu poufności koniecznego do przeprowadzenia terminu 
+dodatkowego.
+4. Prawa do zadań, oficjalnych rozwiązań, znaków i materiałów Organizatora przysługują ich twórcom 
+lub Organizatorowi. Korzystanie z nich poza dozwolonym użytkiem wymaga zgody właściwego 
+uprawnionego.
+§ 21. Dokumentacja
+1. Organizator prowadzi dokumentację edycji obejmującą co najmniej Regulamin i ZOZ, program, 
+zadania, modele rozwiązań i kryteria, protokoły, listy wyników, reklamacje, decyzje oraz rejestr 
+wydanych dyplomów.
+2. Prace i dokumentację oceny przechowuje się przez okres wskazany w informacji RODO i polityce 
+retencji, nie krócej jednak niż do prawomocnego zakończenia reklamacji dotyczących danej edycji.
+3. Dokumentacja zawierająca dane osobowe jest zabezpieczona przed dostępem osób 
+nieuprawnionych.
+Rozdział IX. Finansowanie i sytuacje nadzwyczajne
+§ 22. Koszty i nagrody
+1. Organizator pokrywa koszty przygotowania i przeprowadzenia Olimpiady w granicach posiadanych 
+środków, dotacji, darowizn i świadczeń partnerów.
+2. Informację o pokrywaniu kosztów przejazdu, zakwaterowania i wyżywienia finalistów podaje się w 
+ZOZ lub zaproszeniu na finał. Brak takiej informacji oznacza, że Organizator nie zobowiązał się do ich 
+pokrycia.
+3. Sponsorzy i partnerzy nie mają wpływu na treść zadań, ocenę prac ani wyniki, chyba że ich eksperci 
+zostali jawnie powołani do Komitetu Merytorycznego i podlegają zasadom bezstronności.
+
+===== STRONA 12 =====
+OLIMPIADA KWANTOWA REGULAMIN · WERSJA 1.0
+Fundacja Quantum AI   •   strona 12 z 13
+§ 23. Awarie i siła wyższa
+1. W razie awarii systemu, klęski żywiołowej, epidemii, zagrożenia bezpieczeństwa, decyzji władz lub 
+innego zdarzenia niezależnego od Organizatora może on zmienić termin, miejsce, formę albo czas 
+zawodów, zawiesić etap, zarządzić jego powtórzenie lub unieważnić zadanie.
+2. Rozwiązanie powinno w możliwie największym stopniu zachować równość uczestników, 
+proporcjonalność oraz porównywalność wyników. Decyzję wraz z krótkim uzasadnieniem publikuje 
+się niezwłocznie.
+3. Jeżeli zdarzenie dotyczy pojedynczego uczestnika, Organizator może zastosować środek 
+indywidualny tylko wtedy, gdy nie daje mu nieuzasadnionej przewagi i nie narusza praw innych osób.
+Rozdział X. Postanowienia końcowe
+§ 24. Wejście w życie i zmiany
+1. Regulamin wchodzi w życie z dniem zatwierdzenia uchwałą Zarządu Fundacji Quantum AI i ma 
+zastosowanie do edycji wskazanych w uchwale.
+2. Zmiany Regulaminu ogłasza się przed rozpoczęciem rejestracji do danej edycji. Po jej rozpoczęciu 
+dopuszczalne są jedynie zmiany konieczne z powodu prawa, bezpieczeństwa albo zdarzeń 
+nadzwyczajnych, które nie pogarszają w sposób nieproporcjonalny sytuacji uczestników.
+3. W sprawach nieuregulowanych decyzje organizacyjne podejmuje Organizator po zasięgnięciu opinii 
+właściwego Komitetu, z poszanowaniem zasad równości, bezstronności, przejrzystości i dobra 
+małoletnich.
+4. Wersją wiążącą jest wersja polskojęzyczna opublikowana na stronie Olimpiady. Dokumenty danej 
+edycji należy czytać łącznie: Regulamin, ZOZ, program merytoryczny, harmonogram, informację 
+RODO i Standardy ochrony małoletnich.
+5. Kontakt z Organizatorem: contact@qaif.org; adres korespondencyjny: Fundacja Quantum AI, ul. 
+Sanocka 9/103, 02-110 Warszawa.
+
+===== STRONA 13 =====
+OLIMPIADA KWANTOWA REGULAMIN · WERSJA 1.0
+Fundacja Quantum AI   •   strona 13 z 13
+Źródła konstrukcji projektu
+Regulamin jest autorskim opracowaniem przygotowanym dla Olimpiady Kwantowej. Jego strukturę i 
+mechanizmy organizacyjne oparto na następujących materiałach referencyjnych:
+• Regulamin Olimpiady Informatycznej - model organizacji, oceny i odwołań — 
+https://www.oi.edu.pl/l/28oi_regulamin/
+• Rozporządzenie w sprawie organizacji konkursów, turniejów i olimpiad - tekst jednolity — 
+https://eli.gov.pl/api/acts/DU/2020/1036/text.html
+• Ramowy wzór regulaminu olimpiady MEN, konkurs ofert 2025-2028 — 
+https://www.gov.pl/web/edukacja/otwarty-konkurs-ofert-na-realizacje-zadania-publicznego-pn-
+organizacja-i-przeprowadzenie-olimpiad-przedmiotowych-i-interdyscyplinarnych-w-latach-
+szkolnych-20252026-20262027-20272028
+• Dane organizatora - Fundacja Quantum AI — https://www.qaif.org/contact
+Zatwierdzenie
+Do uzupełnienia przy przyjęciu Regulaminu przez Organizatora:
+Numer uchwały ………………………………………………………………
+Data zatwierdzenia ………………………………………………………………
+Podpis / reprezentacja ………………………………………………………………
