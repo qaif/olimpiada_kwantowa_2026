@@ -378,7 +378,8 @@ def test_menu_has_declared_order(web_client, legacy_content):
 def test_header_and_hero_show_branding(web_client, legacy_content):
     content = web_client.get("/").content.decode()
 
-    assert '<span class="brand__mark">Olimpiada Kwantowa</span>' in content
+    assert 'class="brand__logo"' in content  # logotyp graficzny w nagłówku
+    assert '<span class="brand__mark visually-hidden">Olimpiada Kwantowa</span>' in content
     assert "<title>Olimpiada Kwantowa</title>" in content
     assert "Przyszłość ma naturę kwantową." in content
     assert "Jak zacząć w 3 krokach" in content

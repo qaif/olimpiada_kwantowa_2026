@@ -2,7 +2,9 @@
 <!-- Created with Inkscape (http://www.inkscape.org/) -->
 
 <svg
-   width="26.6mm" height="26.15mm" viewBox="0 0 26.6 26.15"
+   width="67.907257mm"
+   height="26.150845mm"
+   viewBox="0 0 67.907257 26.150845"
    id="SVGRoot"
    version="1.1"
    inkscape:version="1.4.4 (dcaf3e7, 2026-05-05)"
@@ -78,7 +80,25 @@
        height="7.0705795"
        x="20.380051"
        y="12.746287"
-       transform="matrix(0.54812841,0,0,0.54812841,3.2290062,7.5853445)" /><path
+       transform="matrix(0.54812841,0,0,0.54812841,3.2290062,7.5853445)" /><text
+       xml:space="preserve"
+       transform="matrix(0.69632048,0,0,0.69632048,-127.10301,-28.690401)"
+       id="text33"
+       style="writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect33);display:inline;fill:#cb6506;fill-opacity:1;stroke:#cb6506;stroke-width:2.26704;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"><tspan
+         x="224.87695"
+         y="78.602261"
+         id="tspan6"><tspan
+           style="font-size:12px;font-family:Calibri;-inkscape-font-specification:'Calibri, Normal';fill:#000000;stroke:none"
+           id="tspan5">OLIMPIADA</tspan></tspan></text><text
+       xml:space="preserve"
+       transform="matrix(0.69632048,0,0,0.69632048,-127.40684,-21.219452)"
+       id="text33-8"
+       style="writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect33-7);display:inline;fill:#8b0404;fill-opacity:1;stroke:#cb6506;stroke-width:2.26772;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"><tspan
+         x="224.87695"
+         y="78.602261"
+         id="tspan8"><tspan
+           style="font-size:12px;font-family:Calibri;-inkscape-font-specification:'Calibri, Normal';stroke:none"
+           id="tspan7">KWANTOWA</tspan></tspan></text><path
        style="fill:#8b0404;fill-opacity:1;stroke:none;stroke-width:0.159436;stroke-linecap:round;stroke-linejoin:round;stroke-dashoffset:1.13386;"
        d="m 18.554555,13.414563 5.575187,0.103344 -2.848561,-4.786658 z"
        id="path3"

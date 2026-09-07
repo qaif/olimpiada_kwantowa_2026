@@ -12,6 +12,12 @@
   <meta name="theme-color" content="#0f1726" media="(prefers-color-scheme: dark)">
   <meta name="description" content="{% block description %}Ogólnopolska olimpiada dla uczniów szkół ponadpodstawowych: terminy etapów, zadania, wyniki oraz panel uczestnika, recenzenta i komitetu.{% endblock %}">
   <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
+  <link rel="icon" href="{% static 'img/logo-mark-512.png' %}" type="image/png" sizes="512x512">
+  <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
+  <meta property="og:site_name" content="{{ settings.cms.SiteSettings.site_name }}">
+  <meta property="og:title" content="{% block og_title %}{{ settings.cms.SiteSettings.site_name }}{% endblock %}">
+  <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'img/og-image.png' %}">
+  <meta property="og:type" content="website">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
   {% comment %}
     Fonty są self-hostowane (static/fonts/*.woff2) – żadnego Google Fonts w runtime, więc CSP
@@ -52,7 +58,12 @@
       z szablonu: zmiana nazwy albo danych organizatora nie może wymagać wydania aplikacji.
     {% endcomment %}
     <a class="brand" href="/">
-      <span class="brand__mark">{{ settings.cms.SiteSettings.site_name }}</span>
+      {% comment %}Logotyp jest projektowany na jasne tło, więc w granatowym nagłówku stoi na jasnej plakietce.
+      Nazwa zostaje w DOM (visually-hidden) jako tekst linku dla czytników ekranu i testów.{% endcomment %}
+      <span class="brand__logo"><img src="{% static 'img/logo-olimpiada-kwantowa.png' %}"
+           srcset="{% static 'img/logo-olimpiada-kwantowa.png' %} 1x, {% static 'img/logo-olimpiada-kwantowa@2x.png' %} 2x"
+           alt="" width="600" height="231"></span>
+      <span class="brand__mark visually-hidden">{{ settings.cms.SiteSettings.site_name }}</span>
       {% if site_edition_label %}<span class="brand__sub">edycja {{ site_edition_label }}</span>{% endif %}
     </a>
     {% comment %}
