@@ -160,6 +160,9 @@ def guest_pages(browser) -> None:
         ("/dokumenty/komitety/", "01e-komitety", "top"),
         # Standardy ochrony małoletnich: drugi dokument przepisany z PDF-u organizatora.
         ("/dokumenty/standardy-ochrony-maloletnich/", "01f-standardy", "top"),
+        # Partnerzy: strona jest opublikowana z pustą listą, więc zrzut pokazuje przede wszystkim
+        # pusty stan i sekcję „Zostań partnerem” – to one są tu całą treścią.
+        ("/partnerzy/", "01g-partnerzy", "top"),
     ):
         shoot(page, path, name, scroll=scroll)
 

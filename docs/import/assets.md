@@ -8,14 +8,48 @@ Stara strona zawiera **dwa unikalne pliki binarne** (regulamin w PDF i DOCX), zd
 w dwóch lokalizacjach. **Nie ma żadnego logotypu, zdjęcia, ikony ani pliku fontu** — cała
 identyfikacja wizualna jest zrobiona w CSS (kółko z kropką jako „atom”, `•` w znaczniku marki).
 
-## Do wgrania
+Oba pliki regulaminu ze starej strony są już **wycofane** — organizator przekazał nowszą wersję
+dokumentu (patrz sekcja niżej).
 
-| Plik źródłowy (ścieżka względna) | Rozmiar | MD5 | Cel w nowym portalu |
+## Regulamin — pliki wycofane ze starej strony
+
+Oba pliki regulaminu ze starej strony (wersja 1.0 z **18 sierpnia 2026**) są **nieaktualne** i nie
+ma ich już w repozytorium. Zastąpiła je wersja 1.0 z **2 września 2026** przekazana przez
+organizatora — inny dokument mimo tego samego numeru wersji (trzy etapy zamiast dwóch, § 12 i § 13
+przepisane, zniknął akapit „WAŻNY STATUS PRAWNY” ze strony tytułowej).
+
+| Plik ze starej strony (ścieżka względna) | Rozmiar | MD5 | Status |
 |---|---|---|---|
-| `wp-content/themes/olimpiada-kwantowa/assets/documents/Regulamin-Olimpiady-Kwantowej.pdf` | 233 536 B | `c804d36993d5cd66c307cee07cbd312f` | `/regulamin/`, plik „PDF do druku” — **wgrywany przez `seed_legacy_content`** |
-| `wp-content/themes/olimpiada-kwantowa/assets/documents/Regulamin-Olimpiady-Kwantowej.docx` | 53 404 B | `5e38389511b369e6c1fe70cdbc427f85` | j.w., „Wersja źródłowa (DOCX)” — **wgrywana przez `seed_regulamin`** |
+| `wp-content/themes/olimpiada-kwantowa/assets/documents/Regulamin-Olimpiady-Kwantowej.pdf` | 233 536 B | `c804d36993d5cd66c307cee07cbd312f` | **wycofany** — usunięty z `fixtures/legacy/pdf/` |
+| `wp-content/themes/olimpiada-kwantowa/assets/documents/Regulamin-Olimpiady-Kwantowej.docx` | 53 404 B | `5e38389511b369e6c1fe70cdbc427f85` | **wycofany** — podmieniony w `fixtures/regulamin/` |
 
-Stan wgrany: kopie w `backend/apps/cms/fixtures/legacy/pdf/` (PDF) i `…/fixtures/regulamin/` (DOCX).
+## Regulamin — obowiązująca wersja (wersja 1.0 z 2 września 2026)
+
+Wszystkie trzy postacie dokumentu leżą w jednym katalogu `backend/apps/cms/fixtures/regulamin/`
+i wgrywa je **jedna** komenda, `manage.py seed_regulamin`. To nie jest kwestia porządku: kiedy PDF
+wgrywała jedna komenda, a treść strony pochodziła z .docx wgrywanego przez drugą, pierwsza
+aktualizacja dokumentu dała stronę z nowym tekstem i plik do pobrania ze starym.
+
+| Plik | Rola |
+|---|---|
+| `Regulamin-Olimpiady-Kwantowej.pdf` | „PDF do druku” — wersja do cytowania, pierwszy plik na stronie |
+| `Regulamin-Olimpiady-Kwantowej.docx` | „Wersja źródłowa (DOCX)” — oryginał redakcyjny organizatora |
+| `regulamin-mammoth.html` | konwersja .docx → HTML (mammoth); z niej powstaje treść strony |
+| `Regulamin-Olimpiady-Kwantowej.txt` | wyciąg tekstu z PDF-u (`pypdf`); wzorzec kompletności w testach |
+
+**PDF powstaje z .docx po przyjęciu zmian śledzonych.** Plik organizatora ma sześć nieprzyjętych
+poprawek (`<w:ins>`/`<w:del>`), w tym podmianę „dwuetapowy” → „trzyetapowy” w podtytule.
+LibreOffice renderuje takie poprawki jako widoczny znacznik korektorski, więc konwersja wprost
+z oryginału dawała na stronie tytułowej „trzy~~dwu~~etapowy”. Procedura:
+
+```bash
+# 1. kopia .docx z przyjętymi zmianami: <w:del> znika w całości, <w:ins> traci opakowanie
+#    (oryginał zostaje nietknięty — to jego wgrywamy jako „wersję źródłową”)
+# 2. konwersja tej kopii:
+"C:/Program Files/LibreOffice/program/soffice.exe" --headless --convert-to pdf \
+    --outdir <katalog> <kopia.docx>
+# 3. wyciąg tekstu (pypdf) do Regulamin-Olimpiady-Kwantowej.txt
+```
 
 ## Dokumenty spoza starej strony (dostarczone przez organizatora)
 
@@ -39,7 +73,7 @@ czytelną w przeglądarce. Treść `fixtures/legacy/komitety.md` przepisano z te
 
 | Ścieżka | Uwaga |
 |---|---|
-| `output/pdf/Regulamin-Olimpiady-Kwantowej.pdf` | wyjście `scripts/build_regulamin.py`, identyczne z plikiem w motywie |
+| `output/pdf/Regulamin-Olimpiady-Kwantowej.pdf` | wyjście `scripts/build_regulamin.py`, identyczne z plikiem w motywie — **wersja z 18 sierpnia, wycofana** |
 | `output/docx/Regulamin-Olimpiady-Kwantowej.docx` | j.w. |
 
 ## Do pominięcia
@@ -55,7 +89,8 @@ czytelną w przeglądarce. Treść `fixtures/legacy/komitety.md` przepisano z te
 ## Czego brakuje, a będzie potrzebne
 
 - **logotyp Olimpiady Kwantowej** — nie istnieje w żadnej formie pliku;
-- **logotypy partnerów i sponsorów** — brak; strona `/partnerzy/` nie wymienia nawet nazw;
+- **logotypy partnerów i sponsorów** — brak; `/partnerzy/` jest opublikowana z pustą listą, a wpis
+  bez logotypu pokazuje kółko z inicjałami nazwy (`PartnerBlock.logo` jest opcjonalny);
 - **zdjęcia do galerii** — brak (strona `/galeria/` to jedno zdanie zapowiedzi);
 - **pliki fontów** — motyw prosi o `Inter` bez wczytywania webfontu, więc w praktyce
   renderuje się systemowym `system-ui`;

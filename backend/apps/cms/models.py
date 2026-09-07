@@ -39,7 +39,14 @@ from apps.competitions.models import Edition, Stage
 from apps.competitions.services import current_edition, current_stage
 from apps.results.models import ResultsPublication
 
-from .blocks import RICH_TEXT_FEATURES, ArticleStreamBlock, DocumentStreamBlock, StepsStreamBlock
+from .blocks import (
+    PARTNER_LEVELS,
+    RICH_TEXT_FEATURES,
+    ArticleStreamBlock,
+    DocumentStreamBlock,
+    PartnersStreamBlock,
+    StepsStreamBlock,
+)
 
 #: Adresy pierwszego segmentu, które należą do aplikacji (``config/urls.py`` + ``apps/web/urls.py``).
 #: Strona CMS z takim slugiem na drugim poziomie drzewa byłaby martwa – patrz docstring modułu.
@@ -220,6 +227,19 @@ def _download_rows(home) -> list[dict]:
     return rows
 
 
+def _partners_with_entries(home):
+    """Opublikowana strona partnerów, **o ile ma choć jeden wpis** – inaczej ``None``.
+
+    Sekcja partnerów na stronie głównej ma się nie pojawić, dopóki organizator nie potwierdzi ani
+    jednego patronatu: pusty pas logotypów albo nagłówek nad niczym czyta się jak awaria szablonu,
+    a wcześniejsza wersja strony sugerowała patronaty, których nie ma (patrz ``PartnersPage``).
+    Warunek jest tutaj, a nie w szablonie, bo ``{% if %}`` nad StreamFieldem ukryłby tylko sekcję,
+    zostawiając zapytanie – a to samo pytanie zadaje sobie i szablon, i test.
+    """
+    page = PartnersPage.objects.live().child_of(home).first()
+    return page if page is not None and len(page.partners) else None
+
+
 class HomePage(CMSPage):
     """Strona główna serwisu (korzeń witryny). Przejmuje ``/`` po widoku ``web:home`` z T-08."""
 
@@ -257,6 +277,7 @@ class HomePage(CMSPage):
         "cms.ProblemsPage",
         "cms.DocumentIndexPage",
         "cms.ContentPage",
+        "cms.PartnersPage",
         "cms.ArchiveIndexPage",
         "cms.ResultsPage",
     ]
@@ -280,6 +301,7 @@ class HomePage(CMSPage):
                 # Sekcja „Dokumenty do pobrania” prowadzi do pełnej listy; strona-indeks bywa
                 # nieopublikowana (świeża baza przed seedem), więc szablon pyta o ``None``.
                 "documents_index": DocumentIndexPage.objects.live().child_of(self).first(),
+                "partners_page": _partners_with_entries(self),
             }
         )
         return context
@@ -392,6 +414,88 @@ class ContentPage(CMSPage):
         context = super().get_context(request, *args, **kwargs)
         context["attachments"] = self.attachments.select_related("document")
         return context
+
+
+class PartnersPage(CMSPage):
+    """Strona ``/partnerzy/``: partnerzy, patroni i sponsorzy pogrupowani po poziomie współpracy.
+
+    Osobny typ zamiast ``ContentPage`` z listą wypunktowaną, bo lista partnerów jest **danymi**,
+    a nie tekstem: każdy wpis ma poziom współpracy (decyduje o grupie i kolejności), logotyp,
+    adres i jedno zdanie opisu. W akapicie redakcyjnym te pola byłyby konwencją zapisu, której
+    nikt nie wyegzekwuje, a strona główna nie miałaby czego pokazać w pasie logotypów.
+
+    Strona jest **opublikowana z pustą listą**. Poprzednia wersja (``ContentPage`` ze starego
+    WordPressa) wymieniała trzy nazwy, z których jedna – „Uniwersytet Kwantowy” – jest instytucją
+    nieistniejącą, a pozostałe dwie nie mają potwierdzonego patronatu; całość stała więc jako
+    szkic i ``/partnerzy/`` odpowiadało 404. Puste zaproszenie do współpracy jest uczciwsze niż
+    404 i nieporównanie uczciwsze niż sugerowanie patronatu, którego nie ma – dlatego lista
+    partnerów startuje pusta, a ``partners_empty`` pilnuje, żeby pustka była komunikatem,
+    a nie dziurą w układzie.
+
+    ``max_count = 1``: „Partnerzy” to pozycja menu, a nie typ treści, którego bywa wiele.
+    """
+
+    intro = RichTextField("wprowadzenie", features=RICH_TEXT_FEATURES, blank=True)
+    partners = StreamField(PartnersStreamBlock(), verbose_name="partnerzy", blank=True)
+    become_partner_title = models.CharField(
+        "nagłówek sekcji „zostań partnerem”",
+        max_length=200,
+        blank=True,
+        default="Zostań partnerem",
+        help_text="Puste = sekcja z zaproszeniem do współpracy się nie pokazuje.",
+    )
+    become_partner_body = RichTextField("zaproszenie do współpracy", features=RICH_TEXT_FEATURES, blank=True)
+    contact_email = models.EmailField(
+        "e-mail w sprawie współpracy",
+        blank=True,
+        help_text="Adres przycisku „Napisz do nas”. Puste = przycisku nie ma.",
+    )
+
+    content_panels = Page.content_panels + [
+        FieldPanel("intro"),
+        FieldPanel("partners"),
+        MultiFieldPanel(
+            [
+                FieldPanel("become_partner_title"),
+                FieldPanel("become_partner_body"),
+                FieldPanel("contact_email"),
+            ],
+            heading="Zostań partnerem",
+        ),
+    ]
+    search_fields = Page.search_fields + [index.SearchField("intro"), index.SearchField("partners")]
+
+    template = "cms/partners_page.html"
+    parent_page_types = ["cms.HomePage"]
+    subpage_types = []
+    max_count = 1
+
+    class Meta:
+        verbose_name = "partnerzy"
+        verbose_name_plural = "partnerzy"
+
+    def groups(self) -> list[dict]:
+        """Partnerzy pogrupowani po poziomie współpracy, w kolejności ``PARTNER_LEVELS``.
+
+        Grupowanie jest tutaj, a nie w szablonie: ``{% regroup %}`` porządkuje po kolejności
+        wystąpienia, więc kolejność grup zależałaby od tego, w jakiej kolejności redaktor dodał
+        wpisy – patron honorowy potrafiłby wylądować pod sponsorem złotym. Grupy puste nie
+        wchodzą do wyniku, więc szablon nie zna ani jednego poziomu z nazwy.
+        """
+        labels = dict(PARTNER_LEVELS)
+        buckets: dict[str, list] = {key: [] for key, _ in PARTNER_LEVELS}
+        for block in self.partners:
+            # Poziom spoza listy (wpis sprzed zmiany słownika) trafia do własnej grupy na końcu,
+            # zamiast zniknąć ze strony bez śladu.
+            buckets.setdefault(block.value["level"], []).append(block.value)
+        return [
+            {"level": key, "label": labels.get(key, key), "partners": entries}
+            for key, entries in buckets.items()
+            if entries
+        ]
+
+    def partners_empty(self) -> bool:
+        return not len(self.partners)
 
 
 class ProblemsPage(CMSPage):

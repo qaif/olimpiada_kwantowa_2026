@@ -2061,6 +2061,119 @@ td.empty,
   margin: 0;
 }
 
+/* 7.1c Partnerzy: karty na /partnerzy/ i pas logotypów na stronie głównej.
+
+   Kółko z inicjałami zastępuje logotyp, którego dla większości partnerów nie ma. Jest tego
+   samego rozmiaru co kadr obrazu, więc siatka nie skacze, kiedy część kart ma plik, a część
+   nie. Karty stoją w tej samej siatce ``.cards``, co aktualności — partner nie jest osobnym
+   gatunkiem treści, tylko kartą o innym nagłówku. */
+.partners__group {
+  margin-bottom: var(--sp-6);
+}
+
+.partner-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.partner-card__mark {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 80px;
+}
+
+.partner-card__logo {
+  max-width: 160px;
+  max-height: 80px;
+  height: auto;
+  object-fit: contain;
+}
+
+.partner-card__initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.partner-card__name {
+  font-family: var(--font-serif);
+  font-size: 1.0625rem;
+  margin: 0;
+}
+
+.partner-card__name a {
+  text-decoration: none;
+}
+
+.partner-card__name a:hover {
+  text-decoration: underline;
+}
+
+.partner-card__text {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+}
+
+.partners-cta {
+  padding: var(--sp-6);
+}
+
+.partners-cta__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+  margin: var(--sp-4) 0 0;
+}
+
+/* Pas logotypów na stronie głównej: jeden wiersz, który zawija się na wąskim ekranie. */
+.partner-strip {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-4);
+  margin: 0;
+  padding: 0;
+}
+
+.partner-strip__item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 64px;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.partner-strip__logo {
+  max-width: 140px;
+  max-height: 56px;
+  height: auto;
+  object-fit: contain;
+}
+
+.partner-strip__name {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
 /* 7.1b Dokument urzędowy (regulamin): metryka, załącznik, sticky spis rozdziałów.
    Układ jest jednokolumnowy do 1099 px – spis rozdziałów stoi wtedy nad treścią, tak jak
    w dokumencie drukowanym. Od 1100 px (szerokość kontenera) przechodzi do lewej kolumny

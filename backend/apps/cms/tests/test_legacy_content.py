@@ -2,9 +2,10 @@
 
 Testy pilnują czterech rzeczy, na których ten import stoi:
 
-- **co jest publiczne, a co nie.** „Partnerzy” sugerują patronaty, których może nie być – strona
-  ma zostać szkicem, czyli odpowiadać 404 pod publicznym adresem. „Komitety” odwrotnie: skład
-  komitetów jest podpisanym PDF-em organizatora, więc strona ma być publiczna i w menu,
+- **co jest publiczne, a co nie.** „Komitety”: skład komitetów jest podpisanym PDF-em
+  organizatora, więc strona ma być publiczna i w menu. „Partnerzy” są publiczni, ale z **pustą**
+  listą – nazwy ze starej strony (w tym nieistniejący „Uniwersytet Kwantowy”) nie mogą wrócić
+  na serwis ani przez import, ani przez sekcję na stronie głównej,
 - **kolejność menu.** Menu wynika z kolejności rodzeństwa w drzewie, a nie z pola sortującego,
   więc pomyłka w komendzie objawia się dopiero w nagłówku strony,
 - **pliki organizatora.** Cztery PDF-y mają wisieć przy właściwych stronach, dać się pobrać
@@ -19,7 +20,14 @@ import pytest
 from django.core.management import call_command
 from wagtail.documents import get_document_model
 
-from apps.cms.models import ContentPage, DocumentIndexPage, DocumentPage, HomePage, NewsPage
+from apps.cms.models import (
+    ContentPage,
+    DocumentIndexPage,
+    DocumentPage,
+    HomePage,
+    NewsPage,
+    PartnersPage,
+)
 from apps.competitions.management.commands.seed_edition_kwantowa import EDITION_LABEL, MIN_POINTS
 from apps.competitions.models import Edition, QualificationMode, Stage, StageKind
 from apps.competitions.tests.factories import CurrentEditionFactory
@@ -33,8 +41,12 @@ PUBLISHED_CONTENT = (
     "kontakt",
     "dla-nauczycieli",
 )
-DRAFT_CONTENT = ("partnerzy",)
 DOCUMENTS = ("rodo", "standardy-ochrony-maloletnich", "komitety")
+
+#: Nazwy z kafli starej strony. Jedna z nich („Uniwersytet Kwantowy”) to instytucja nieistniejąca,
+#: pozostałe dwie nie mają potwierdzonego patronatu – żadna nie może wrócić na serwis.
+INVENTED_PARTNERS = ("Ministerstwo Edukacji", "Uniwersytet Kwantowy", "Polskie Towarzystwo Fizyczne")
+PARTNERS_EMPTY_STATE = "Lista partnerów I edycji zostanie opublikowana wkrótce."
 
 #: Dokumenty pod ``/dokumenty/`` w kolejności z drzewa – ta sama w menu, w spisie i na stronie głównej.
 DOCUMENT_ORDER = ("regulamin", "rodo", "standardy-ochrony-maloletnich", "komitety")
@@ -47,12 +59,13 @@ DOCUMENT_TITLES = [
 #: Ramka nad treścią obu dokumentów: skąd jest treść i który plik jest wersją źródłową.
 SOURCE_NOTICE_FRAGMENT = "Wersja do pobrania (PDF) jest wersją źródłową."
 
-#: Tytuły PDF-ów organizatora wgrywanych przez komendę – tożsamość pliku w bibliotece Wagtaila.
+#: Tytuły PDF-ów organizatora wgrywanych przez tę komendę – tożsamość pliku w bibliotece Wagtaila.
+#: PDF-u regulaminu tu nie ma: wgrywa go ``seed_regulamin`` razem z .docx i treścią strony, bo
+#: wszystkie trzy są tą samą wersją dokumentu (patrz apps/cms/tests/test_document_page.py).
 PDF_TITLES = {
     "Polityka RODO Olimpiady Kwantowej (PDF)",
     "Standardy ochrony małoletnich (PDF)",
     "Skład komitetów Olimpiady Kwantowej (PDF)",
-    "Regulamin Olimpiady Kwantowej v1.0 (PDF)",
 }
 
 #: Pasek nawigacji po imporcie. Dokumenty mają **jedną** pozycję („Dokumenty”) z listą rozwijaną –
@@ -66,6 +79,7 @@ MENU_TITLES = [
     "Dokumenty",
     "Archiwum",
     "Wyniki",
+    "Partnerzy i sponsorzy",
     "Kontakt",
 ]
 
@@ -85,14 +99,11 @@ def full_content():
 # --- strony -----------------------------------------------------------------------------------
 
 
-def test_seed_creates_published_pages_and_drafts(legacy_content):
+def test_seed_creates_published_pages(legacy_content):
     published = ContentPage.objects.filter(slug__in=PUBLISHED_CONTENT)
-    drafts = ContentPage.objects.filter(slug__in=DRAFT_CONTENT)
 
     assert set(published.values_list("slug", flat=True)) == set(PUBLISHED_CONTENT)
     assert all(page.live for page in published)
-    assert set(drafts.values_list("slug", flat=True)) == set(DRAFT_CONTENT)
-    assert not any(page.live for page in drafts)
     assert set(DocumentPage.objects.values_list("slug", flat=True)) >= set(DOCUMENTS)
     assert NewsPage.objects.live().count() == 3
 
@@ -118,7 +129,7 @@ def test_seed_is_idempotent(legacy_content):
 # --- pliki organizatora -------------------------------------------------------------------------
 
 
-def test_seed_uploads_four_official_pdfs(legacy_content):
+def test_seed_uploads_the_official_pdfs(legacy_content):
     documents = get_document_model().objects.filter(title__in=PDF_TITLES)
 
     assert set(documents.values_list("title", flat=True)) == PDF_TITLES
@@ -143,25 +154,23 @@ def test_seed_attaches_pdf_to_matching_pages(legacy_content):
         assert item.document.filename.endswith(".pdf")
 
 
-def test_seed_puts_pdf_before_docx_on_regulamin():
+@pytest.mark.parametrize("reversed_order", [False, True])
+def test_regulamin_keeps_both_files_whatever_the_seed_order(reversed_order):
     """Regulamin ma dwa pliki: podpisany PDF (pierwszy) i plik źródłowy .docx (drugi).
 
-    Kolejność komend jest tu odwrotna do naturalnej („najpierw regulamin, potem reszta”) –
-    obie muszą dać ten sam wynik, bo w skrypcie wdrożeniowym mogą stanąć w dowolnym porządku.
+    Obie komendy dotykają tej samej strony, a w skrypcie wdrożeniowym mogą stanąć w dowolnej
+    kolejności – wynik ma być ten sam. Wcześniej pliki wgrywały dwie różne komendy z dwóch różnych
+    katalogów i przy aktualizacji dokumentu strona dostawała nowy tekst ze starym PDF-em.
     """
-    call_command("seed_regulamin", verbosity=0)
-    call_command("seed_legacy_content", verbosity=0)
+    commands = ["seed_legacy_content", "seed_regulamin"]
+    for name in reversed(commands) if reversed_order else commands:
+        call_command(name, verbosity=0)
 
     page = DocumentPage.objects.get(slug="regulamin")
     assert [(item.label, item.document.file_extension) for item in page.attachments.all()] == [
         ("PDF do druku", "pdf"),
         ("Wersja źródłowa (DOCX)", "docx"),
     ]
-
-    # Powtórny przebieg ``seed_regulamin`` nie może zdjąć PDF-a dołożonego przez drugą komendę.
-    call_command("seed_regulamin", verbosity=0)
-    page = DocumentPage.objects.get(slug="regulamin")
-    assert [item.document.file_extension for item in page.attachments.all()] == ["pdf", "docx"]
 
 
 def test_seed_does_not_duplicate_documents_on_second_run(legacy_content):
@@ -171,7 +180,7 @@ def test_seed_does_not_duplicate_documents_on_second_run(legacy_content):
     call_command("seed_legacy_content", verbosity=0)
 
     assert Document.objects.count() == before
-    for title in PDF_TITLES - {"Regulamin Olimpiady Kwantowej v1.0 (PDF)"}:
+    for title in PDF_TITLES:
         assert Document.objects.filter(title=title).count() == 1
 
 
@@ -225,8 +234,108 @@ def test_published_pages_render(web_client, legacy_content, path, fragment):
     assert fragment in response.content.decode()
 
 
-def test_draft_pages_are_not_public(web_client, legacy_content):
-    assert web_client.get("/partnerzy/").status_code == 404
+# --- partnerzy ----------------------------------------------------------------------------------
+
+
+def test_partners_page_is_public_and_empty(web_client, legacy_content):
+    """``/partnerzy/`` żyje, ale bez ani jednego partnera – lista czeka na podpisane umowy."""
+    page = PartnersPage.objects.get(slug="partnerzy")
+    response = web_client.get("/partnerzy/")
+    content = response.content.decode()
+
+    assert response.status_code == 200
+    assert page.live is True
+    assert page.partners_empty() is True
+    assert page.groups() == []
+    assert PARTNERS_EMPTY_STATE in content
+    assert "Partnerzy instytucjonalni, naukowi oraz sponsorzy" in content
+
+
+def test_partners_page_invites_cooperation(web_client, legacy_content):
+    """Sekcja „Zostań partnerem” jest powodem, dla którego strona nie może być szkicem."""
+    page = PartnersPage.objects.get(slug="partnerzy")
+    content = web_client.get("/partnerzy/").content.decode()
+
+    assert "Zostań partnerem" in content
+    assert "patronat, wsparcie merytoryczne, nagrody dla laureatów i finansowanie finału" in content
+    # Ostatnie zdanie powtarza § 22 ust. 3 Regulaminu – to nie jest ozdobnik, tylko odpowiedź
+    # na pytanie, które przy stronie partnerów zadaje sobie uczestnik.
+    assert "nie mają wpływu na treść zadań, ocenę prac ani wyniki" in content
+    # Adres przychodzi z ustawień serwisu, więc jego zmiana jest jedną poprawką w ``/cms/``.
+    assert page.contact_email == "contact@qaif.org"
+    assert 'href="mailto:contact@qaif.org"' in content
+
+
+@pytest.mark.parametrize("name", INVENTED_PARTNERS)
+def test_seed_does_not_publish_invented_partners(web_client, legacy_content, name):
+    """Nazw z kafli starej strony nie ma ani na ``/partnerzy/``, ani na stronie głównej."""
+    assert name not in web_client.get("/partnerzy/").content.decode()
+    assert name not in web_client.get("/").content.decode()
+    assert name not in str(PartnersPage.objects.get(slug="partnerzy").partners)
+
+
+def test_seed_replaces_the_old_partners_draft(web_client, home_page):
+    """Baza sprzed zmiany ma pod tym slugiem szkic ``ContentPage`` – komenda go zastępuje.
+
+    Typu strony nie da się zmienić w miejscu (dwie tabele), więc szkic jest kasowany, a strona
+    powstaje na nowo. Sprawdzamy też, że nie zostają dwie strony o tym samym slugu.
+    """
+    draft = ContentPage(title="Partnerzy i sponsorzy", slug="partnerzy", live=False)
+    home_page.add_child(instance=draft)
+
+    call_command("seed_legacy_content", verbosity=0)
+
+    assert not ContentPage.objects.filter(slug="partnerzy").exists()
+    assert PartnersPage.objects.filter(slug="partnerzy").count() == 1
+    assert web_client.get("/partnerzy/").status_code == 200
+
+
+def test_home_page_hides_partners_section_until_there_is_one(web_client, legacy_content):
+    """Pas logotypów na stronie głównej pojawia się dopiero z pierwszym wpisem.
+
+    Nagłówek „Partnerzy” nad pustym pasem czytałby się jak awaria szablonu – a wcześniej stały
+    tam kafle z nazwą instytucji, która nie istnieje.
+    """
+    response = web_client.get("/")
+
+    assert response.context["partners_page"] is None
+    assert "partner-strip" not in response.content.decode()
+
+    page = PartnersPage.objects.get(slug="partnerzy")
+    page.partners = [
+        ("partner", {"name": "Instytut Fizyki PAN", "level": "partner-naukowy", "description": ""})
+    ]
+    page.save()
+    page.save_revision().publish()
+
+    response = web_client.get("/")
+    content = response.content.decode()
+    assert response.context["partners_page"] is not None
+    assert "partner-strip" in content
+    assert "Instytut Fizyki PAN" in content
+
+
+def test_partners_page_groups_entries_by_level(web_client, legacy_content):
+    """Grupy stoją w kolejności ``PARTNER_LEVELS``, a nie w kolejności dodawania wpisów."""
+    page = PartnersPage.objects.get(slug="partnerzy")
+    page.partners = [
+        ("partner", {"name": "Firma Kwantowa", "level": "sponsor-zloty", "description": "Nagrody."}),
+        ("partner", {"name": "Instytut Fizyki PAN", "level": "partner-naukowy", "description": ""}),
+        ("partner", {"name": "Uniwersytet Warszawski", "level": "partner-naukowy", "description": ""}),
+    ]
+    page.save()
+    page.save_revision().publish()
+
+    groups = PartnersPage.objects.get(slug="partnerzy").groups()
+    content = web_client.get("/partnerzy/").content.decode()
+
+    assert [group["label"] for group in groups] == ["partner naukowy", "sponsor złoty"]
+    assert [len(group["partners"]) for group in groups] == [2, 1]
+    assert PARTNERS_EMPTY_STATE not in content
+    assert content.index("Instytut Fizyki PAN") < content.index("Firma Kwantowa")
+    # Bez logotypu karta pokazuje inicjały nazwy, a nie pusty kadr obrazu.
+    assert ">IF<" in content
+    assert ">UW<" in content
 
 
 def test_komitety_is_public_with_scope_from_pdf(web_client, legacy_content):

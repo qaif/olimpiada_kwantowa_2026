@@ -322,10 +322,17 @@ Kolejność przy wdrożeniu: `migrate` → `seed_regulamin` → `seed_legacy_con
 zakłada sekcję `/dokumenty/`, przenosi pod nią dokumenty stojące jeszcze pod stroną główną
 (zachowując ich identyfikatory, rewizje i odnośniki wewnętrzne), ustawia kolejność menu i tworzy
 przekierowania ze starych adresów — działa tak samo na świeżej bazie i na produkcyjnej.
+Kolejność ma znaczenie tylko dla przekierowania `/regulamin/` → `/dokumenty/regulamin/`: tworzy je
+`seed_legacy_content`, a wskazuje na stronę, którą zakłada `seed_regulamin`. Uruchomione odwrotnie
+komendy dadzą ten sam serwis, tylko bez tego jednego 301 do następnego przebiegu.
 
 ```bash
+# Regulamin: treść strony /dokumenty/regulamin/ z konwersji .docx plus oba pliki do pobrania
+# (PDF do druku i wersja źródłowa .docx) — wszystko z apps/cms/fixtures/regulamin/.
+docker compose exec web python manage.py seed_regulamin
+
 # Strony, dokumenty, aktualności, hasło i sekcja kroków na stronie głównej, kolejność menu,
-# sekcja /dokumenty/ i przekierowania ze starych adresów dokumentów.
+# sekcja /dokumenty/, strona /partnerzy/ i przekierowania ze starych adresów dokumentów.
 docker compose exec web python manage.py seed_legacy_content
 
 # Edycja „I edycja 2026/2027” z trzema etapami wg harmonogramu starej strony.
@@ -343,6 +350,15 @@ z kartą na dokument i jedną pozycją menu z listą rozwijaną. Stare adresy je
 przekierowaniem 301 na nowe — przekierowania trzyma `wagtail.contrib.redirects`, więc redakcja
 widzi je i rozszerza w `/cms/`.
 
+**Regulamin** (`/dokumenty/regulamin/`) to wersja **1.0 z 2 września 2026 r.** Trzy jego postacie —
+treść strony (z konwersji `.docx`), PDF do druku i plik źródłowy `.docx` — leżą w jednym katalogu
+`backend/apps/cms/fixtures/regulamin/` i wgrywa je jedna komenda, `seed_regulamin`. Wcześniej PDF
+dokładał `seed_legacy_content` z katalogu plików starej strony; przy pierwszej aktualizacji
+dokumentu dało to stronę z nowym tekstem i plik do pobrania ze starym. Wersja z 18 sierpnia 2026
+jest wycofana z repozytorium (patrz `docs/import/assets.md`, w tym procedura budowy PDF-u —
+`.docx` organizatora ma nieprzyjęte zmiany śledzone, które LibreOffice renderuje jako znacznik
+korektorski).
+
 Trzy dokumenty nie pochodzą już ze starego WordPressa, tylko z **podpisanych PDF-ów organizatora**
 (`backend/apps/cms/fixtures/legacy/pdf/`): `/dokumenty/rodo/`,
 `/dokumenty/standardy-ochrony-maloletnich/` i `/dokumenty/komitety/`. Ich pliki `.md` są przepisane
@@ -355,19 +371,31 @@ Nazwa serwisu, hasło i dane organizatora (nagłówek, stopka) siedzą w **Ustaw
 w `/cms/` (`cms.SiteSettings`), a nie w szablonie — zmiana adresu czy numeru telefonu nie wymaga
 wydania aplikacji.
 
-**Szkicem** (`live=False`, adres publiczny odpowiada 404) zostaje `/partnerzy/`: strona sugeruje
-patronaty, których może nie być (trzecia nazwa, „Uniwersytet Kwantowy”, to instytucja
-nieistniejąca). Publikuje ją redakcja w `/cms/` po potwierdzeniu przez organizatora.
+**Partnerzy** (`/partnerzy/`, typ `PartnersPage`, pozycja menu przed „Kontaktem”) są opublikowani
+z **pustą** listą. Stara strona wymieniała trzy nazwy, z których jedna — „Uniwersytet Kwantowy” —
+to instytucja nieistniejąca, a pozostałe dwie nie mają potwierdzonego patronatu; poprzedni import
+zostawiał je w treści i chował całą stronę jako szkic (404). Teraz jest odwrotnie: strona żyje,
+sekcja „Zostań partnerem” jest dostępna, a lista partnerów zaczyna się pusta i wypełnia ją
+redakcja w `/cms/` po podpisaniu umów. Każdy wpis ma poziom współpracy (patronat honorowy,
+partner instytucjonalny/naukowy, sponsor diamentowy/platynowy/złoty, partner medialny), który
+decyduje o grupie na stronie; logotyp i adres są opcjonalne — bez logotypu karta pokazuje kółko
+z inicjałami. **Pas logotypów na stronie głównej pojawia się dopiero z pierwszym wpisem** — przy
+pustej liście nie ma go wcale.
 
 #### Decyzje do podjęcia przez właściciela
 
 Import odtworzył treść, ale nie mógł rozstrzygnąć sprzeczności, które w niej były. Pełne
 uzasadnienie każdego punktu: `docs/import/stara-strona-inwentarz.md`, sekcja 8.
 
-1. **Dwa czy trzy etapy.** Regulamin (§ 1, § 10–13) opisuje konkurs **dwuetapowy** z rozmową
-   kwalifikacyjną; strona publiczna, model portalu (`ELIM`/`DISTRICT`/`FINAL`) i
-   `seed_edition_kwantowa` — **trzy etapy**. Treści regulaminu import nie zmienia. Decyzja
-   przesądza o brzmieniu § 10–13 albo o konfiguracji etapów.
+1. **Dwa czy trzy etapy — rozstrzygnięte: trzy.** Regulamin w wersji 1.0 z 2 września 2026 r.
+   ma podtytuł „Ogólnopolski, **trzyetapowy** konkurs edukacyjny” i trzy paragrafy etapowe:
+   § 11 „Etap I – zawody zdalne”, § 12 „Etap II – rozmowa”, § 13 „Etap III – finał stacjonarny”.
+   Zgadza się to z modelem portalu (`ELIM`/`DISTRICT`/`FINAL`) i z `seed_edition_kwantowa`, więc
+   po stronie kodu nie ma nic do zmiany. **Zostaje redakcyjna sprzeczność w samym dokumencie**,
+   której import nie tknie (nie redagujemy treści organizatora): § 10 ust. 1 i ramka „Status
+   dokumentu” mówią jeszcze o „dwóch etapach”, a § 1 ust. 1 o konkursie „dwuetapowym”. Do
+   poprawienia przy najbliższej wersji regulaminu — na stronie widać to wprost w § 10 i w ramce
+   nad treścią.
 2. **Skala ocen i łączenie ocen.** Regulamin § 9 opisuje średnią z ≥2 ocen z progiem 20 %;
    portal ma skalę 0/2/5/6 i konsensus z trzecim recenzentem. Obu naraz utrzymać się nie da.
 3. **Terminy I edycji.** `seed_edition_kwantowa` uzupełnia brakujące terminy stałą regułą
@@ -387,9 +415,12 @@ uzasadnienie każdego punktu: `docs/import/stara-strona-inwentarz.md`, sekcja 8.
    podwójne członkostwo dwóch osób (Paweł Gora, Grzegorz Czelusta figurują w obu komitetach)
    i nazewnictwo — „Komitet Główny” ze starej strony głównej nie istnieje ani w regulaminie,
    ani w PDF-ie.
-7. **Partnerzy i patroni.** Czy Ministerstwo Edukacji i Polskie Towarzystwo Fizyczne to realne
-   patronaty (trzecia nazwa, „Uniwersytet Kwantowy”, to instytucja nieistniejąca). Potrzebne
-   logotypy i poziomy sponsoringu. Strona jest szkicem, kafli nie ma na stronie głównej.
+7. **Partnerzy i patroni — miejsce gotowe, treść do potwierdzenia.** `/partnerzy/` jest
+   opublikowana z pustą listą i sekcją „Zostań partnerem”; poziomy współpracy są w modelu.
+   Do decyzji zostaje to, czego nie da się wywnioskować: czy Ministerstwo Edukacji i Polskie
+   Towarzystwo Fizyczne to realne patronaty (trzecia nazwa ze starej strony, „Uniwersytet
+   Kwantowy”, to instytucja nieistniejąca) oraz logotypy i progi sponsoringu. Do czasu decyzji
+   ani na `/partnerzy/`, ani na stronie głównej nie ma ani jednej nazwy.
 8. **ZOZ (Zasady Organizacji Zawodów).** Regulamin odwołuje się do nich kilkanaście razy,
    a dokument nie istnieje — bez niego brakuje progów, liczby finalistów i reguł remisów.
 9. **Status prawny olimpiady.** Regulamin zastrzega, że tytuły finalisty i laureata są wewnętrzne

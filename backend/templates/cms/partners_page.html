@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% load wagtailcore_tags wagtailimages_tags %}
+{% block title %}{{ page.title }} – {{ settings.cms.SiteSettings.site_name }}{% endblock %}
+{% block description %}{{ page.search_description|default:page.title }} – {{ settings.cms.SiteSettings.site_name }}.{% endblock %}
+{% block content %}
+{% comment %}
+  Układ jednokolumnowy (bez ``doc-layout``): strona nie jest dokumentem do czytania po kolei,
+  tylko listą kart, więc spis sekcji nie miałby czego spisywać poza nazwami grup widocznymi
+  na ekranie.
+
+  Trzy decyzje o kształcie tej strony:
+
+  - **pusty stan jest treścią, a nie brakiem treści.** Dopóki organizator nie potwierdzi ani
+    jednego patronatu, strona ma powiedzieć wprost, że lista dopiero powstaje. Wcześniej stała
+    jako szkic (404), przez co zaproszenie do współpracy nie było dostępne pod żadnym adresem,
+  - **grupy przychodzą z ``PartnersPage.groups``**, więc ten szablon nie zna ani jednego poziomu
+    współpracy z nazwy – dołożenie „partnera technologicznego” jest zmianą w ``blocks.py``,
+  - **kółko z inicjałami zamiast logotypu.** Organizator nie ma plików logotypów (patrz
+    ``docs/import/assets.md``); pusty kadr obok nazwy wyglądałby na niewczytany obraz.
+{% endcomment %}
+<div class="page-head">
+  <h1>{{ page.title }}</h1>
+</div>
+
+{% if page.intro %}<div class="cms-body prose doc-intro">{{ page.intro|richtext }}</div>{% endif %}
+
+{% if page.partners_empty %}
+  <p class="empty"><span class="empty__title">Lista partnerów I edycji zostanie opublikowana wkrótce.</span>
+    Rozmowy o patronatach i współpracy trwają. Poniżej opisujemy, na czym może polegać.</p>
+{% else %}
+  {% for group in page.groups %}
+    <section class="section partners__group">
+      <div class="section__head">
+        <h2 class="mt-0" id="poziom-{{ group.level }}">{{ group.label|capfirst }}</h2>
+      </div>
+      <ul class="cards partners">
+        {% for partner in group.partners %}
+          <li>
+            <article class="card partner-card">
+              <div class="partner-card__mark">
+                {% if partner.logo %}
+                  {% image partner.logo max-160x80 class="partner-card__logo" %}
+                {% else %}
+                  <span class="partner-card__initials" aria-hidden="true">{{ partner.initials }}</span>
+                {% endif %}
+              </div>
+              <h3 class="partner-card__name">
+                {% if partner.url %}
+                  <a href="{{ partner.url }}" rel="noopener noreferrer">{{ partner.name }}</a>
+                {% else %}
+                  {{ partner.name }}
+                {% endif %}
+              </h3>
+              {% if partner.description %}<p class="partner-card__text">{{ partner.description }}</p>{% endif %}
+            </article>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endfor %}
+{% endif %}
+
+{% if page.become_partner_title and page.become_partner_body %}
+  <section class="section">
+    <div class="card card--accent partners-cta">
+      <h2 class="mt-0">{{ page.become_partner_title }}</h2>
+      <div class="prose">{{ page.become_partner_body|richtext }}</div>
+      {% if page.contact_email %}
+        <p class="partners-cta__actions">
+          <a class="btn btn--accent" href="mailto:{{ page.contact_email }}">Napisz do nas</a>
+          <span class="hint">{{ page.contact_email }}</span>
+        </p>
+      {% endif %}
+    </div>
+  </section>
+{% endif %}
+{% endblock %}

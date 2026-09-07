@@ -14,7 +14,14 @@ seed_order: 12
 > + `DocumentPage`). Poniżej wyłącznie metryka i elementy otoczki, których nie ma w samym
 > pliku regulaminu — pełnych 24 paragrafów tu nie powielamy.
 
-## Metryka (z `regulamin.json`)
+> **Ten plik opisuje wersję ze starej strony (1.0 z 18 sierpnia 2026 r.), która jest wycofana.**
+> Pod `/dokumenty/regulamin/` stoi wersja **1.0 z 2 września 2026 r.** przekazana przez
+> organizatora: trzyetapowa (§ 11–13 zamiast dwóch etapów + rozmowy), bez akapitu „WAŻNY STATUS
+> PRAWNY” na stronie tytułowej — zastrzeżenie prawne stoi w niej wyłącznie w sekcji „Status
+> dokumentu”. Źródłem importu nie jest już `regulamin.json`, tylko `.docx` organizatora
+> (`backend/apps/cms/fixtures/regulamin/`). Poniższy opis zostaje jako zapis stanu zastanego.
+
+## Metryka (z `regulamin.json`, wersja wycofana)
 
 | Pole | Wartość |
 |---|---|

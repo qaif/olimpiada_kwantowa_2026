@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load wagtailcore_tags web_extras %}
+{% load wagtailcore_tags wagtailimages_tags web_extras %}
 {# Strona główna jest witryną – tytuł karty to sama nazwa serwisu, bez powtórzenia. #}
 {% block title %}{{ settings.cms.SiteSettings.site_name }}{% endblock %}
 {% block content %}
@@ -114,6 +114,35 @@
     {% if not user.is_authenticated %}
       <p class="steps__cta"><a class="btn btn--accent" href="{% url 'web:register' %}">Zarejestruj się</a></p>
     {% endif %}
+  </section>
+{% endif %}
+
+{% comment %}
+  Pas partnerów pojawia się **wyłącznie** wtedy, gdy strona ``/partnerzy/`` ma choć jeden wpis
+  (``_partners_with_entries`` w ``apps/cms/models.py``). Wcześniej stara strona pokazywała tu
+  kafle z nazwami, z których jedna była instytucją nieistniejącą – sekcja, która sama znika przy
+  pustej liście, nie pozwala takiej sugestii wrócić przez pomyłkę redakcji.
+
+  Logotyp jest tu jedynym nośnikiem nazwy, więc ``alt`` musi ją nieść; przy braku pliku zostaje
+  sama nazwa jako tekst, a nie puste kółko – pas ma być czytelny także bez ani jednego logotypu.
+{% endcomment %}
+{% if partners_page %}
+  <section class="section">
+    <div class="section__head">
+      <h2 class="mt-0">Partnerzy</h2>
+      <p class="hint"><a href="{% pageurl partners_page %}">Partnerzy i sponsorzy Olimpiady</a></p>
+    </div>
+    <ul class="partner-strip">
+      {% for block in partners_page.partners %}
+        <li class="partner-strip__item">
+          {% if block.value.logo %}
+            {% image block.value.logo max-140x56 alt=block.value.name class="partner-strip__logo" %}
+          {% else %}
+            <span class="partner-strip__name">{{ block.value.name }}</span>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
   </section>
 {% endif %}
 

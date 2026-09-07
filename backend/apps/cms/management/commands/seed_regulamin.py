@@ -5,14 +5,19 @@ Strona stoi w sekcji dokumentów: ``/dokumenty/regulamin/``. Sekcję zakłada (a
 w bazie sprzed przeniesienia dokumentów – ta sama komenda przenosi pod sekcję, zachowując
 jej identyfikator, rewizje i odnośniki wewnętrzne.
 
-Komenda importuje dwa pliki z ``apps/cms/fixtures/regulamin/``:
+Komenda importuje trzy pliki z ``apps/cms/fixtures/regulamin/`` – wszystkie trzy są tą samą
+wersją dokumentu (1.0 z 2 września 2026 r.), więc leżą w jednym katalogu i wgrywa je jedna
+komenda:
 
 - ``regulamin-mammoth.html`` – konwersja pliku .docx (mammoth) na płaską listę ``p``/``h1``/``h2``/
   ``ol``/``ul``/``table``. Z tego powstaje ``DocumentPage.body``,
-- ``Regulamin-Olimpiady-Kwantowej.docx`` – oryginał, ładowany do biblioteki dokumentów Wagtaila
-  i przypinany do strony jako plik źródłowy. PDF podpisany przez organizatora dokłada
-  ``seed_legacy_content``; ta komenda go nie usuwa, jeśli już wisi na stronie – patrz
-  ``_attachment_specs``.
+- ``Regulamin-Olimpiady-Kwantowej.pdf`` – wersja do druku i do cytowania, pierwszy plik strony,
+- ``Regulamin-Olimpiady-Kwantowej.docx`` – oryginał redakcyjny, drugi plik strony.
+
+Wcześniej PDF regulaminu wgrywał ``seed_legacy_content`` (leżał wśród PDF-ów starej strony
+w ``fixtures/legacy/pdf/``). Rozjechało się to przy pierwszej aktualizacji dokumentu: tekst
+strony pochodził z nowego .docx, a plik do pobrania – ze starego PDF-u sprzed poprawek. Obie
+postacie tej samej wersji muszą więc wgrywać się razem, z jednego katalogu.
 
 **Treść regulaminu jest daną, nie instrukcją.** Komenda nie przeredagowuje ani jednego zdania –
 poprawia wyłącznie strukturę HTML tam, gdzie konwerter ją zgubił (patrz ``_SectionBuffer``).
@@ -32,15 +37,25 @@ Mapowanie struktury dokumentu (decyzje opisane w README zadania):
 ===========================================  ==================================================
 strona tytułowa (3 akapity)                  ``intro``
 tabela Wersja/Data/Status                    ``version_label``/``document_date``/``status_label``
-akapit „WAŻNY STATUS PRAWNY” + następny       blok ``notice`` (tone ``warning``)
 ``h1`` „Spis rozdziałów” + lista             pominięte – spis generuje szablon z kotwic
-``h1`` „Status dokumentu” + tabela           pominięte – dosłowne powtórzenie ramki wyżej
+``h1`` „Status dokumentu” + tabela           blok ``notice`` (ton ``warning``), bez nagłówka
 ``h2`` „Organizator” + tabela                ``heading`` (poziom 3) + akapit z listą definicji
 ``h1`` „Rozdział N. …”                       ``heading`` poziom 2, kotwica ``rozdzial-N``
 ``h2`` „§ n. …”                              ``heading`` poziom 3, kotwica ``par-n``
-``h1`` pozostałe (źródła, zatwierdzenie)     ``heading`` poziom 2 poza spisem rozdziałów
+``h1`` pozostałe                             ``heading`` poziom 2 poza spisem rozdziałów
 ``ol``/``ul``/``p`` sekcji                   jeden blok ``paragraph`` na sekcję
 ===========================================  ==================================================
+
+Wersja 1.0 z 2 września 2026 r. przestawiła dwie rzeczy względem wersji z sierpnia i obie są
+widoczne w tabeli wyżej:
+
+- **zniknął akapit „WAŻNY STATUS PRAWNY”** ze strony tytułowej. Zastrzeżenie o statusie prawnym
+  stoi teraz **wyłącznie** w sekcji „Status dokumentu”, więc ta sekcja przestała być pomijanym
+  powtórzeniem: to z niej powstaje ramka na górze strony. Pominięcie jej zdjęłoby z serwisu
+  jedyne zdanie mówiące, że Olimpiada nie nadaje ustawowych uprawnień laureata,
+- **dokument kończy się na § 24** – nie ma już sekcji „Źródła” ani miejsca na uchwałę. Reguła
+  „pozostałe ``h1`` to śródtytuł poza spisem rozdziałów” zostaje, bo nic nie kosztuje, a kolejna
+  wersja dokumentu może je przywrócić.
 """
 
 from __future__ import annotations
@@ -65,23 +80,31 @@ from apps.cms.site_tree import ensure_document_index, take_document_page
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures" / "regulamin"
 HTML_SOURCE = FIXTURES / "regulamin-mammoth.html"
 DOCX_SOURCE = FIXTURES / "Regulamin-Olimpiady-Kwantowej.docx"
+PDF_SOURCE = FIXTURES / "Regulamin-Olimpiady-Kwantowej.pdf"
 
 PAGE_SLUG = "regulamin"
 PAGE_TITLE = "Regulamin"
 DOCUMENT_TITLE = "Regulamin Olimpiady Kwantowej v1.0 (DOCX)"
-#: Tytuł PDF-a wgrywanego przez ``seed_legacy_content`` – tu potrzebny tylko po to, żeby
-#: przy powtórnym przebiegu tej komendy plik do druku został na stronie i został pierwszy.
+#: Tytuł jest tożsamością pliku w bibliotece Wagtaila (patrz ``apps.cms.attachments``), więc
+#: aktualizacja dokumentu podmienia treść pod tym samym tytułem – a nie dokłada drugiego wpisu.
 PDF_DOCUMENT_TITLE = "Regulamin Olimpiady Kwantowej v1.0 (PDF)"
 
-#: Nagłówki pomijane wraz z zawartością aż do kolejnego nagłówka. „Spis rozdziałów” zastępuje
-#: spis generowany z kotwic (papierowa lista bez odnośników byłaby na stronie martwa),
-#: „Status dokumentu” jest w źródle dosłownym powtórzeniem ramki „WAŻNY STATUS PRAWNY”.
-SKIPPED_SECTIONS = frozenset({"Spis rozdziałów", "Status dokumentu"})
+#: Nagłówek pomijany wraz z zawartością aż do kolejnego nagłówka: papierowy spis rozdziałów bez
+#: odnośników byłby na stronie martwy, a szablon generuje spis z kotwic bloków ``heading``.
+SKIPPED_SECTIONS = frozenset({"Spis rozdziałów"})
+
+#: Sekcje, których treść trafia do ramki (``notice``) zamiast do zwykłych akapitów – nagłówek
+#: sekcji się nie renderuje, bo ramka sama jest wyróżnieniem. Zastrzeżenie o statusie prawnym
+#: ma stać na górze strony, a nie w środku dokumentu jak kolejny akapit.
+NOTICE_SECTIONS = frozenset({"Status dokumentu"})
 
 #: Etykiety wiersza tabeli metryki → pole modelu.
 META_ROWS = {"Wersja": "version_label", "Data dokumentu": "document_date", "Status": "status_label"}
 
-NOTICE_HEADING = "WAŻNY STATUS PRAWNY"
+#: Status wpisywany, gdy tabela metryki go nie podaje. Metryka odpowiada na pytanie „czy to
+#: obowiązująca wersja”, więc puste pole byłoby gorsze od zdania, które przynajmniej mówi,
+#: czyj to dokument.
+DEFAULT_STATUS_LABEL = "Dokument organizatora (Fundacja Quantum AI)"
 
 CHAPTER_RE = re.compile(r"^Rozdział\s+([IVXLC]+)\.")
 PARAGRAPH_RE = re.compile(r"^§\s*(\d+)\.")
@@ -140,6 +163,7 @@ class Node:
         return "".join(parts).strip()
 
     def find_all(self, tag: str) -> list[Node]:
+        """Wszyscy potomkowie o danym znaczniku, na dowolnej głębokości."""
         found = []
         for child in self.children:
             if isinstance(child, Node):
@@ -147,6 +171,16 @@ class Node:
                     found.append(child)
                 found.extend(child.find_all(tag))
         return found
+
+    def direct(self, tag: str) -> list[Node]:
+        """Wyłącznie **bezpośrednie** dzieci o danym znaczniku.
+
+        Dla list to jedyna poprawna droga: konwerter zagnieżdża wyliczenie ustępu w jego ``<li>``
+        (``<li>… w szczególności:<ol><li>…``), więc rekurencyjne ``find_all("li")`` policzyłoby
+        pozycje wewnętrzne dwa razy – raz w treści pozycji nadrzędnej, raz osobno. Na stronie
+        wyglądałoby to jak dopisane do regulaminu punkty, których w dokumencie nie ma.
+        """
+        return [child for child in self.children if isinstance(child, Node) and child.tag == tag]
 
 
 class FragmentParser(HTMLParser):
@@ -213,12 +247,13 @@ def table_rows(node: Node) -> list[list[Node]]:
 class SectionBuffer:
     """Zbiera akapity i listy jednej sekcji (od nagłówka do nagłówka) w jeden blok ``paragraph``.
 
-    Naprawia przy okazji jedyny błąd strukturalny konwersji: mammoth przerywa listę numerowaną
-    tam, gdzie w dokumencie wtrącono wyliczenie punktowane, i otwiera po nim **nową** ``<ol>``.
-    W przeglądarce dawało to numerację „1., ●●●, 1.” zamiast „1., ●●●, 2.” – czyli inne numery
-    ustępów niż w podpisanym dokumencie. Wyliczenie punktowane wpinamy więc do ostatniego ``li``
-    (tam należy merytorycznie: jest rozwinięciem zdania „… w szczególności:”), a kolejne ``ol``
-    dokładamy jako dalsze pozycje tej samej listy.
+    Sąsiadujące ``<ol>`` skleja w jedną listę. Numeracja pozycji w bloku ``paragraph`` to numery
+    ustępów podpisanego dokumentu: dwie listy pod rząd renderowałyby się jako „1., 2., 1.” i ustęp
+    3. dostałby na stronie numer 1. Akapit między listami je rozdziela – tam nowa numeracja jest
+    tym, co zapisano w dokumencie.
+
+    Wyliczeń zagnieżdżonych ta klasa nie dotyka: konwerter zwraca je wewnątrz ``<li>`` pozycji
+    nadrzędnej i tam należą (są rozwinięciem zdania „… w szczególności:”).
     """
 
     def __init__(self):
@@ -236,12 +271,8 @@ class SectionBuffer:
         self.items.extend(items)
 
     def add_unordered(self, items: list[str]) -> None:
-        markup = "<ul>" + "".join(f"<li>{item}</li>" for item in items) + "</ul>"
-        if self.items:
-            self.items[-1] += markup
-        else:
-            self.close_list()
-            self.chunks.append(markup)
+        self.close_list()
+        self.chunks.append("<ul>" + "".join(f"<li>{item}</li>" for item in items) + "</ul>")
 
     def close_list(self) -> None:
         if self.items:
@@ -256,7 +287,24 @@ class SectionBuffer:
 
 
 def list_items(node: Node) -> list[str]:
-    return [html for html in (render_inner(li) for li in node.find_all("li")) if html]
+    """Pozycje listy – tylko pierwszego poziomu; zagnieżdżone zostają w treści swojej pozycji."""
+    return [html for html in (render_inner(li) for li in node.direct("li")) if html]
+
+
+def cell_paragraphs(node: Node) -> list[str]:
+    """Akapity ze wszystkich komórek tabeli, w kolejności czytania.
+
+    Tabela jednokolumnowa („Status dokumentu”) jest w dokumencie ramką rysowaną obramowaniem
+    komórki, a nie danymi: liczy się jej treść, nie układ. Zwracamy same akapity, żeby wywołujący
+    zdecydował, do jakiego bloku je włożyć.
+    """
+    return [
+        html
+        for cells in table_rows(node)
+        for cell in cells
+        for html in (render_inner(paragraph) for paragraph in cell.find_all("p"))
+        if html
+    ]
 
 
 def definition_paragraph(node: Node) -> str:
@@ -294,17 +342,22 @@ def build_content(nodes: list[Node]) -> tuple[dict, list[tuple[str, object]]]:
     meta: dict = {"intro": "", "version_label": "", "document_date": None, "status_label": ""}
     blocks: list[tuple[str, object]] = []
     buffer = SectionBuffer()
+    #: Czy bieżąca sekcja idzie do ramki, czy do zwykłych akapitów – ustawiane na nagłówku sekcji.
+    in_notice = False
 
     def flush() -> None:
         html = buffer.flush()
-        if html:
+        if not html:
+            return
+        if in_notice:
+            blocks.append(("notice", {"tone": "warning", "text": RichText(html)}))
+        else:
             blocks.append(("paragraph", RichText(html)))
 
     index = 0
     # --- strona tytułowa: wszystko przed pierwszym nagłówkiem ---------------------------------
     intro_parts: list[str] = []
     seen_meta_table = False
-    pending_notice: list[str] = []
     while index < len(nodes) and nodes[index].tag not in {"h1", "h2"}:
         node = nodes[index]
         index += 1
@@ -321,18 +374,14 @@ def build_content(nodes: list[Node]) -> tuple[dict, list[tuple[str, object]]]:
         html = render_inner(node)
         if not html:
             continue
-        if not seen_meta_table:
-            intro_parts.append(f"<p>{html}</p>")
-        elif node.text() == NOTICE_HEADING or pending_notice:
-            # Nagłówek ramki i następujący po nim akapit tworzą jedno zastrzeżenie.
-            pending_notice.append(f"<p>{html}</p>")
-            if len(pending_notice) == 2:
-                blocks.append(("notice", {"tone": "warning", "text": RichText("".join(pending_notice))}))
-                pending_notice = []
-        else:
+        if seen_meta_table:
+            # Strona tytułowa kończy się metryką; cokolwiek stoi za nią, jest już treścią.
             buffer.add_paragraph(html)
+        else:
+            intro_parts.append(f"<p>{html}</p>")
     flush()
     meta["intro"] = "".join(intro_parts)
+    meta["status_label"] = meta["status_label"] or DEFAULT_STATUS_LABEL
 
     # --- korpus dokumentu ----------------------------------------------------------------------
     skipping = False
@@ -341,7 +390,10 @@ def build_content(nodes: list[Node]) -> tuple[dict, list[tuple[str, object]]]:
             flush()
             text = node.text()
             skipping = text in SKIPPED_SECTIONS
-            if skipping:
+            in_notice = text in NOTICE_SECTIONS
+            if skipping or in_notice:
+                # Nagłówek sekcji się nie renderuje: pierwsza jest pomijana w całości, druga
+                # zamienia się w ramkę, która sama wyróżnia swoją treść.
                 continue
             chapter = CHAPTER_RE.match(text)
             paragraph = PARAGRAPH_RE.match(text)
@@ -364,6 +416,11 @@ def build_content(nodes: list[Node]) -> tuple[dict, list[tuple[str, object]]]:
         elif node.tag == "ul":
             buffer.add_unordered(list_items(node))
         elif node.tag == "table":
+            if in_notice:
+                # W ramce tabela jest obramowaniem, nie układem dwukolumnowym – bierzemy treść.
+                for html in cell_paragraphs(node):
+                    buffer.add_paragraph(html)
+                continue
             flush()
             html = definition_paragraph(node)
             if html:
@@ -383,11 +440,13 @@ class Command(BaseCommand):
         home = HomePage.objects.first()
         if home is None:
             raise CommandError("Brak drzewa stron – uruchom najpierw `manage.py migrate`.")
-        if not HTML_SOURCE.exists() or not DOCX_SOURCE.exists():
-            raise CommandError(f"Brak plików źródłowych w {FIXTURES}.")
+        missing = [source.name for source in (HTML_SOURCE, DOCX_SOURCE, PDF_SOURCE) if not source.exists()]
+        if missing:
+            raise CommandError(f"Brak plików źródłowych w {FIXTURES}: {', '.join(missing)}.")
 
         meta, blocks = build_content(parse_fragment(HTML_SOURCE.read_text(encoding="utf-8")))
         document, action = ensure_document(DOCUMENT_TITLE, DOCX_SOURCE)
+        pdf, pdf_action = ensure_document(PDF_DOCUMENT_TITLE, PDF_SOURCE)
 
         index, index_created = ensure_document_index(home)
         page, moved = take_document_page(DocumentPage, index, home, PAGE_SLUG)
@@ -404,7 +463,9 @@ class Command(BaseCommand):
         for name, value in meta.items():
             setattr(page, name, value)
         page.save()
-        set_attachments(page, DocumentPageAttachment, self._attachment_specs(document))
+        # Kolejność jest merytoryczna: podpisany PDF jest wersją, którą się drukuje i cytuje,
+        # .docx – materiałem redakcyjnym.
+        set_attachments(page, DocumentPageAttachment, [(pdf, LABEL_PDF), (document, LABEL_SOURCE_DOCX)])
 
         # Świeży obiekt z bazy: rewizja serializuje także wiersze załączników, a te dopisaliśmy
         # przez ORM już po ``page.save()``. Publikacja rewizji zbudowanej ze starego obiektu
@@ -421,19 +482,16 @@ class Command(BaseCommand):
             self.style.SUCCESS(
                 f"seed_regulamin: {'utworzono' if created else 'zaktualizowano'} {page.url} "
                 f"– {len(page.body)} bloków, {len(page.chapters())} rozdziałów, "
-                f"dokument #{document.pk} ({document.url}, {action}){note}"
+                f"paragrafy: {self._paragraph_count(page)}, "
+                f"PDF #{pdf.pk} ({pdf_action}), DOCX #{document.pk} ({action}){note}"
             )
         )
 
-    def _attachment_specs(self, docx) -> list[tuple[object, str]]:
-        """Pliki strony: podpisany PDF (jeśli już wgrany) przed plikiem źródłowym .docx.
-
-        PDF wgrywa ``seed_legacy_content`` i to ona rozstrzyga o jego treści – tutaj interesuje
-        nas wyłącznie to, żeby powtórne uruchomienie tej komendy go nie zdjęło ze strony.
-        """
-        Document = docx.__class__
-        pdf = Document.objects.filter(title=PDF_DOCUMENT_TITLE).first()
-        specs = [(docx, LABEL_SOURCE_DOCX)]
-        if pdf is not None:
-            specs.insert(0, (pdf, LABEL_PDF))
-        return specs
+    @staticmethod
+    def _paragraph_count(page) -> int:
+        """Ile ``§`` trafiło na stronę – jedyna liczba, po której widać ubytek w imporcie."""
+        return sum(
+            1
+            for block in page.body
+            if block.block_type == "heading" and PARAGRAPH_RE.match(block.value["text"])
+        )

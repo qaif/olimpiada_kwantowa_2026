@@ -18,23 +18,30 @@ Co powstaje:
   (``fixtures/legacy/pdf-text/``), sekcja po sekcji, więc nie są już „wersją demonstracyjną”
   ze starego WordPressa: metryka mówi, z jakiego eksportu pochodzą, a ramka na górze wskazuje
   PDF jako wersję źródłową,
-- **PDF-y organizatora** z ``fixtures/legacy/pdf/`` przypięte do właściwych stron: regulamin
-  (PDF przed plikiem źródłowym .docx z ``seed_regulamin``), RODO, standardy ochrony małoletnich
-  i skład komitetów. To one są wersjami do wydruku i to z nich bierze się sekcja „Dokumenty
-  do pobrania” na stronie głównej,
+- **PDF-y organizatora** z ``fixtures/legacy/pdf/`` przypięte do właściwych stron: RODO, standardy
+  ochrony małoletnich i skład komitetów. To one są wersjami do wydruku i to z nich bierze się
+  sekcja „Dokumenty do pobrania” na stronie głównej. Regulaminu tu **nie** ma: jego PDF, .docx
+  i tekst strony to trzy postacie jednej wersji dokumentu i wgrywa je razem ``seed_regulamin``
+  (rozdzielenie kończyło się stroną z nowego .docx i plikiem do pobrania ze starego PDF-u),
 - **„Skład komitetów” jest dokumentem, a nie stroną treści**, bo lista nazwisk wyszła spod pióra
   organizatora jako podpisany PDF (``Sklad-komitetow-Olimpiady-Kwantowej.pdf``) – nie jest roboczą
   notatką do potwierdzenia, tylko oficjalnym dokumentem, a strona jest jego wersją czytelną
   w przeglądarce. Treść (nazwiska i zakresy odpowiedzialności) pochodzi z PDF-u. Baza sprzed tej
   zmiany ma stronę ``ContentPage`` o tym slugu; komenda ją kasuje i tworzy dokument na nowo,
   bo typu strony nie da się zmienić w miejscu (dwie tabele),
-- **szkic** (``live=False``): „Partnerzy i sponsorzy” – kafle bez logotypów, z nieistniejącym
-  „Uniwersytetem Kwantowym”. Szkic jest tu świadomym wyborem: stronę da się obejrzeć w ``/cms/``,
-  ale ``/partnerzy/`` odpowiada 404, więc sugerowane patronaty nie trafiają do sieci przez pomyłkę,
+- **strona partnerów** (``PartnersPage`` pod ``/partnerzy/``) – opublikowana, ale z **pustą** listą
+  partnerów. Stara strona wymieniała trzy nazwy: „Ministerstwo Edukacji”, „Uniwersytet Kwantowy”
+  (instytucja nieistniejąca) i „Polskie Towarzystwo Fizyczne”, żadnej z potwierdzonym patronatem.
+  Poprzedni import zostawiał je w treści i chował całą stronę jako szkic (404); to broniło sieci
+  przed zmyśloną nazwą, ale kosztowało zaproszenie do współpracy, którego nie było gdzie
+  przeczytać. Teraz jest odwrotnie: strona żyje, sekcja „Zostań partnerem” działa, a lista
+  partnerów zaczyna się pusta i wypełnia ją redakcja w ``/cms/`` po podpisaniu umów. Nazwy ze
+  starej strony zostają w inwentarzu (``docs/import/tresci/partnerzy.md``) i nigdzie indziej,
 - **trzy aktualności** ze starego seedera – z datą dzisiejszą, bo oryginał nie miał ``post_date``
   (``docs/import/aktualnosci.md``), i z dopiskiem o przeniesieniu na końcu treści,
 - **strona główna**: hasło, opis i sekcja „Jak zacząć w 3 krokach” z ``tresci/strona-glowna.md``.
-  Kafli partnerów świadomie **nie** przenosimy – strona partnerów jest szkicem.
+  Kafli partnerów świadomie **nie** przenosimy: pas logotypów na stronie głównej rysuje się sam
+  z wpisów ``PartnersPage``, więc pojawi się dopiero z pierwszym potwierdzonym partnerem.
 
 Czego komenda **nie** tworzy i dlaczego – strony, które w nowym portalu obsługują istniejące typy
 albo widoki aplikacji: ``biezaca-edycja`` i ``harmonogram`` jako węzeł nadrzędny (terminy trzyma
@@ -62,21 +69,11 @@ from pathlib import Path
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
-from wagtail.documents import get_document_model
 from wagtail.models import Page
 from wagtail.rich_text import RichText
 
-from apps.cms.attachments import (
-    LABEL_PDF,
-    LABEL_SOURCE_DOCX,
-    PDF_DIR,
-    ensure_document,
-    set_attachments,
-)
+from apps.cms.attachments import LABEL_PDF, PDF_DIR, ensure_document, set_attachments
 from apps.cms.legacy_markdown import parse_markdown
-from apps.cms.management.commands.seed_regulamin import DOCUMENT_TITLE as REGULAMIN_DOCX_TITLE
-from apps.cms.management.commands.seed_regulamin import PAGE_SLUG as REGULAMIN_SLUG
-from apps.cms.management.commands.seed_regulamin import PDF_DOCUMENT_TITLE as REGULAMIN_PDF_TITLE
 from apps.cms.models import (
     ContentPage,
     ContentPageAttachment,
@@ -86,6 +83,8 @@ from apps.cms.models import (
     HomePage,
     NewsIndexPage,
     NewsPage,
+    PartnersPage,
+    SiteSettings,
 )
 from apps.cms.site_tree import INDEX_SLUG, ensure_document_index, ensure_redirect, take_document_page
 
@@ -116,6 +115,19 @@ HOME_STEPS = (
     ("Załóż konto", "Wypełnij formularz ucznia i potwierdź swój adres e-mail."),
     ("Rozwiąż zadania", "Pobierz arkusz, przygotuj rozwiązania i prześlij je w systemie."),
     ("Sprawdź wynik", "Oceny są anonimowe, a wynik znajdziesz bezpiecznie na swoim koncie."),
+)
+
+PARTNERS_SLUG = "partnerzy"
+PARTNERS_TITLE = "Partnerzy i sponsorzy"
+PARTNERS_CTA_TITLE = "Zostań partnerem"
+#: Zaproszenie do współpracy. Ostatnie zdanie nie jest ozdobnikiem: powtarza § 22 ust. 3
+#: Regulaminu (sponsorzy i partnerzy nie mają wpływu na zadania, ocenę ani wyniki), czyli
+#: odpowiada na pytanie, które przy stronie partnerów zadaje sobie każdy uczestnik i nauczyciel.
+PARTNERS_CTA_BODY = (
+    "<p>Olimpiadę Kwantową organizuje Fundacja Quantum AI. Zapraszamy uczelnie, instytuty, "
+    "firmy technologiczne i instytucje publiczne do współpracy: patronat, wsparcie merytoryczne, "
+    "nagrody dla laureatów i finansowanie finału. Zgodnie z Regulaminem partnerzy i sponsorzy "
+    "nie mają wpływu na treść zadań, ocenę prac ani wyniki.</p>"
 )
 
 #: Dopisek na końcu każdej przeniesionej aktualności – czytelnik ma wiedzieć, skąd wzięła się treść.
@@ -149,6 +161,9 @@ MENU_ORDER = (
     INDEX_SLUG,
     "archiwum",
     "wyniki",
+    # „Partnerzy” tuż przed „Kontaktem”: obie pozycje odpowiadają na pytanie „kto za tym stoi
+    # i jak się z nimi skontaktować”, a strona partnerów sama kończy się zaproszeniem do pisania.
+    PARTNERS_SLUG,
     "kontakt",
 )
 
@@ -238,12 +253,7 @@ PAGES = (
         pdf="Standardy-ochrony-maloletnich-Olimpiada-Kwantowa.pdf",
         pdf_title="Standardy ochrony małoletnich (PDF)",
     ),
-    LegacyPage(slug="partnerzy", title="Partnerzy i sponsorzy", publish=False),
 )
-
-#: PDF regulaminu jest osobno: strona ``/dokumenty/regulamin/`` powstaje w ``seed_regulamin`` (treść
-#: pochodzi z konwersji .docx, nie z pliku Markdown), a ta komenda dokłada do niej plik do wydruku.
-REGULAMIN_PDF = "Regulamin-Olimpiady-Kwantowej.pdf"
 
 
 class Command(BaseCommand):
@@ -268,7 +278,7 @@ class Command(BaseCommand):
         self._drop_legacy_komitety_page(home)
         for spec in PAGES:
             self._seed_page(home, index, spec)
-        self._seed_regulamin_pdf(home, index)
+        self._seed_partners(home)
         self._seed_news(home)
         moved = self._order_children(home, MENU_ORDER)
         # Przestawienie rodzeństwa strony głównej przepisało ``path`` także sekcji dokumentów,
@@ -280,7 +290,7 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"seed_legacy_content: {len(PAGES)} stron, {len(NEWS)} aktualności, "
+                f"seed_legacy_content: {len(PAGES) + 1} stron, {len(NEWS)} aktualności, "
                 f"{redirects} przekierowań, menu {'przestawione' if moved else 'bez zmian'}"
             )
         )
@@ -403,33 +413,53 @@ class Command(BaseCommand):
         set_attachments(page, model, [(document, LABEL_PDF)])
         return f", PDF #{document.pk} {action}"
 
-    def _seed_regulamin_pdf(self, home: HomePage, index) -> None:
-        """PDF do wydruku przy stronie regulaminu – przed plikiem źródłowym .docx.
+    # --- partnerzy ------------------------------------------------------------------------
 
-        Strona może jeszcze nie istnieć (``seed_regulamin`` bywa uruchamiany później); wtedy plik
-        i tak trafia do biblioteki, a ``seed_regulamin._attachment_specs`` postawi go na stronie
-        na pierwszym miejscu. Kolejność „PDF, potem DOCX” jest merytoryczna: podpisany PDF jest
-        wersją, którą się drukuje i cytuje, .docx – materiałem redakcyjnym.
+    def _seed_partners(self, home: HomePage) -> None:
+        """Strona ``/partnerzy/`` jako ``PartnersPage`` – opublikowana, z pustą listą partnerów.
+
+        Baza sprzed tej zmiany ma pod tym slugiem ``ContentPage`` (szkic z trzema nazwami ze
+        starej strony). ``ContentPage`` i ``PartnersPage`` to dwie różne tabele, więc typu strony
+        nie da się zmienić w miejscu – zostaje skasowanie szkicu i utworzenie strony na nowo, tak
+        samo jak przy „Komitetach”. Nic nie ginie: szkic nigdy nie był publiczny, a jego treść
+        (w tym nazwy, których nie przenosimy) leży w ``docs/import/tresci/partnerzy.md``.
+
+        ``partners`` ustawiamy na pustą listę **przy każdym przebiegu**, tak jak każdą inną treść
+        w tej komendzie: to narzędzie importujące, nie tryb pracy redakcyjnej. Wpisy dodane
+        w ``/cms/`` powtórny przebieg skasuje – dlatego komendy nie uruchamia się po każdym
+        deployu (patrz docstring modułu i README 6.6).
         """
-        source = PDF_DIR / REGULAMIN_PDF
+        draft = ContentPage.objects.child_of(home).filter(slug=PARTNERS_SLUG).first()
+        if draft is not None:
+            draft.delete()
+            self.stdout.write("konwersja: „Partnerzy” przestają być stroną treści, powstaje PartnersPage")
+
+        source = FIXTURES / f"{PARTNERS_SLUG}.md"
         if not source.exists():
-            raise CommandError(f"Brak pliku {source}.")
-        pdf, action = ensure_document(REGULAMIN_PDF_TITLE, source)
+            raise CommandError(f"Brak pliku źródłowego {source}.")
+        intro, _ = parse_markdown(source.read_text(encoding="utf-8"))
 
-        page, _ = take_document_page(DocumentPage, index, home, REGULAMIN_SLUG)
-        if page is None:
-            self.stdout.write(f"regulamin: PDF #{pdf.pk} {action} (strona jeszcze nie istnieje)")
-            return
+        page = PartnersPage.objects.child_of(home).filter(slug=PARTNERS_SLUG).first()
+        created = page is None
+        if created:
+            page = PartnersPage(title=PARTNERS_TITLE, slug=PARTNERS_SLUG)
+            home.add_child(instance=page)
 
-        specs = [(pdf, LABEL_PDF)]
-        docx = get_document_model().objects.filter(title=REGULAMIN_DOCX_TITLE).first()
-        if docx is not None:
-            specs.append((docx, LABEL_SOURCE_DOCX))
-        set_attachments(page, DocumentPageAttachment, specs)
-
-        page = DocumentPage.objects.get(pk=page.pk)
+        page.title = PARTNERS_TITLE
+        page.intro = intro
+        page.partners = []
+        page.become_partner_title = PARTNERS_CTA_TITLE
+        page.become_partner_body = PARTNERS_CTA_BODY
+        # Adres bierzemy z ustawień serwisu, a nie z literału: to ten sam kontakt, co w stopce
+        # i na stronie „Kontakt”, więc jego zmiana ma być jedną poprawką w ``/cms/``.
+        page.contact_email = SiteSettings.for_site(home.get_site()).contact_email
+        page.show_in_menus = True
+        page.save()
         page.save_revision().publish()
-        self.stdout.write(f"zaktualizowano: {page.url} (PDF #{pdf.pk} {action}, {len(specs)} pliki)")
+        self.stdout.write(
+            f"{'utworzono' if created else 'zaktualizowano'}: {page.url} "
+            f"(opublikowana, {len(page.partners)} partnerów, kontakt {page.contact_email})"
+        )
 
     # --- aktualności ----------------------------------------------------------------------
 

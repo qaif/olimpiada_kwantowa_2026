@@ -144,9 +144,26 @@ Harmonogram występuje w dwóch miejscach i **są one zgodne co do dat, ale nie 
 
 Rok szkolny edycji: **I edycja, 2026/2027** (hero strony głównej, strona „Bieżąca edycja”).
 
-### 3.2 Sprzeczność z regulaminem — do rozstrzygnięcia przed konfiguracją edycji
+### 3.2 Sprzeczność z regulaminem — rozstrzygnięta wersją z 2 września 2026
 
-Regulamin (`regulamin.json`, wersja 1.0 z 18 sierpnia 2026) opisuje **zupełnie inny model**:
+> **Aktualizacja.** Organizator przekazał regulamin **1.0 z 2 września 2026 r.** (ten sam numer
+> wersji, inny dokument) i to on stoi pod `/dokumenty/regulamin/`. Rozstrzyga on spór opisany
+> niżej **na rzecz trzech etapów**: podtytuł brzmi „Ogólnopolski, **trzyetapowy** konkurs
+> edukacyjny”, a paragrafy etapowe to § 11 „Etap I – zawody zdalne”, § 12 „Etap II – rozmowa”
+> i § 13 „Etap III – finał stacjonarny”. Rozmowa kwalifikacyjna przestała być procedurą
+> pomocniczą i jest osobnym etapem, po którym kwalifikuje się do finału (80 % wyniku Etapu I
+> + 20 % wyniku Etapu II). Zgadza się to z `StageKind = ELIM | DISTRICT | FINAL` i z
+> `seed_edition_kwantowa`, więc konfiguracji etapów nie ruszamy.
+>
+> **Czego nowa wersja nie naprawiła:** § 1 ust. 1 nadal nazywa Olimpiadę konkursem
+> „dwuetapowym”, § 10 ust. 1 mówi o „dwóch etapach”, a ramka „Status dokumentu” — o „modelu
+> dwóch etapów”. Import nie redaguje treści organizatora, więc te zdania są na stronie takie,
+> jakie są w dokumencie; do poprawienia przy najbliższej wersji regulaminu.
+>
+> Poniższy opis dotyczy **wycofanej** wersji z 18 sierpnia 2026 i zostaje jako zapis stanu
+> zastanego przy inwentaryzacji.
+
+Regulamin (`regulamin.json`, wersja 1.0 z 18 sierpnia 2026) opisywał **zupełnie inny model**:
 
 - § 10 ust. 1: „Olimpiada składa się z **dwóch etapów**: Etapu I przeprowadzanego zdalnie
   oraz Etapu II będącego stacjonarnym finałem.”
@@ -162,6 +179,9 @@ dwie różne olimpiady. Nowy portal ma `StageKind = ELIM | DISTRICT | FINAL`, cz
 trójstopniowy**, zgodny z motywem, a nie z regulaminem.
 
 ### 3.3 Mapowanie na `competitions.Stage`
+
+**Obowiązuje wariant 1.** Regulamin 1.0 z 2 września 2026 r. jest trzyetapowy (3.2), więc wariant 2
+zostaje wyłącznie jako zapis rozważanej alternatywy.
 
 **Wariant 1 — trójstopniowy (zgodny z motywem i z modelem nowego portalu):**
 
@@ -337,9 +357,10 @@ zmiany w regulaminie, a nie w kodzie.
 
 ## 8. Punkty do decyzji dla właściciela
 
-1. **Dwa czy trzy etapy?** Regulamin (dwuetapowy, niezależny konkurs) sprzeczny z modelem portalu
-   i stroną publiczną (trzy etapy: szkolny, okręgowy, finał). Decyzja przesądza o brzmieniu
-   § 1, § 10–13 regulaminu i o konfiguracji `Stage`.
+1. **Dwa czy trzy etapy? — rozstrzygnięte: trzy (3.2).** Regulamin 1.0 z 2 września 2026 r. jest
+   trzyetapowy (§ 11–13) i zgodny z modelem portalu, więc konfiguracji `Stage` nie ruszamy.
+   Zostaje **redakcyjna sprzeczność wewnątrz dokumentu**: § 1 ust. 1, § 10 ust. 1 i ramka „Status
+   dokumentu” nadal mówią o dwóch etapach. Do poprawienia przy najbliższej wersji regulaminu.
 2. **Skala ocen i sposób łączenia ocen.** Regulamin § 9 opisuje średnią z ≥2 ocen z progiem 20%;
    portal ma 0/2/5/6 i konsensus z trzecim recenzentem. Nie da się utrzymać obu.
 3. **Status prawny olimpiady.** Zastrzeżenie z `regulamin.json` mówi, że tytuły finalisty
@@ -348,9 +369,12 @@ zmiany w regulaminie, a nie w kodzie.
 4. **Skład komitetów** — szesnaście nazwisk i zakresy potwierdza PDF organizatora (4.2). Zostaje:
    dopisać funkcje i afiliacje, rozstrzygnąć podwójne członkostwo dwóch osób, ujednolicić
    nazewnictwo („Komitet Główny” ze strony głównej nie istnieje ani w regulaminie, ani w PDF-ie).
-5. **Partnerzy i patroni** — czy Ministerstwo Edukacji i PTF to realne patronaty? Jeśli nie,
-   sekcja znika ze strony głównej do czasu podpisania umów. Potrzebne logotypy i poziomy
-   sponsoringu.
+5. **Partnerzy i patroni — miejsce gotowe, treść do potwierdzenia.** `/partnerzy/` jest
+   opublikowana jako `PartnersPage` z pustą listą i sekcją „Zostań partnerem”; poziomy
+   współpracy (patronat honorowy, partner instytucjonalny/naukowy, sponsor
+   diamentowy/platynowy/złoty, partner medialny) są w modelu. Sekcja na stronie głównej pojawia
+   się dopiero z pierwszym wpisem. Do decyzji: czy Ministerstwo Edukacji i PTF to realne
+   patronaty, oraz logotypy i progi sponsoringu.
 6. **Zatwierdzenie treści prawnych — źródło rozstrzygnięte (5.1).** RODO i standardy ochrony
    małoletnich pochodzą z podpisanych PDF-ów organizatora, więc nie są już „demonstracyjne”.
    Otwarte zostaje to, o co proszą same dokumenty: uchwała Zarządu z punktu 7 i aktualizacja

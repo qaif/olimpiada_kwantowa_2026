@@ -6,6 +6,8 @@ znacznikiem. W szablonach renderujemy je przez ``{% include_block %}`` albo ``|r
 przez ``|safe`` – patrz docstring ``apps/cms/models.py``.
 """
 
+import re
+
 from wagtail import blocks
 from wagtail.documents.blocks import DocumentChooserBlock
 from wagtail.embeds.blocks import EmbedBlock
@@ -155,6 +157,82 @@ class StepsStreamBlock(blocks.StreamBlock):
     """Lista kroków. Bez innych bloków – to sekcja o stałym układzie, nie dowolna treść."""
 
     step = StepBlock()
+
+    class Meta:
+        required = False
+
+
+#: Poziomy współpracy w kolejności, w jakiej mają stać na stronie: najpierw patronat i partnerzy
+#: (wkład merytoryczny i instytucjonalny), potem sponsorzy od najwyższego progu, na końcu patronat
+#: medialny. Klucz jest zapisywany w bazie, więc zmiana etykiety nie unieważnia istniejących wpisów.
+PARTNER_LEVELS = [
+    ("patron-honorowy", "patron honorowy"),
+    ("partner-instytucjonalny", "partner instytucjonalny"),
+    ("partner-naukowy", "partner naukowy"),
+    ("sponsor-diamentowy", "sponsor diamentowy"),
+    ("sponsor-platynowy", "sponsor platynowy"),
+    ("sponsor-zloty", "sponsor złoty"),
+    ("partner-medialny", "partner medialny"),
+]
+
+#: Ile liter inicjału pokazać, gdy partner nie ma jeszcze logotypu.
+INITIALS_LENGTH = 2
+
+
+class PartnerValue(blocks.StructValue):
+    """Wartość bloku ``partner`` z inicjałami liczonymi po stronie Pythona.
+
+    Inicjały zastępują logotyp, którego dla większości partnerów po prostu nie ma (patrz
+    ``docs/import/assets.md``): pusta karta wyglądałaby na błąd wczytywania obrazu. Liczymy je
+    tutaj, a nie filtrem w szablonie, bo „pierwsza litera wyrazu” w nazwie typu „Uniwersytet
+    im. Adama Mickiewicza” wymaga pominięcia skrótów – to reguła, nie formatowanie.
+    """
+
+    #: Wyrazy pomijane przy inicjałach: skróty i spójniki nie identyfikują instytucji.
+    SKIPPED_WORDS = frozenset({"im", "i", "w", "na", "z", "the", "of", "and"})
+
+    @property
+    def initials(self) -> str:
+        words = [word for word in re.split(r"[\s\-–—/,.]+", self.get("name", "")) if word]
+        meaningful = [word for word in words if word.lower() not in self.SKIPPED_WORDS]
+        return "".join(word[0] for word in (meaningful or words)[:INITIALS_LENGTH]).upper()
+
+
+class PartnerBlock(blocks.StructBlock):
+    """Jeden partner albo sponsor Olimpiady.
+
+    ``logo`` i ``url`` są opcjonalne, bo w chwili pisania tej strony organizator nie ma ani
+    jednego logotypu partnera; karta bez nich pokazuje inicjały i samą nazwę. ``description``
+    jest tekstem, nie RichTextem: karta w siatce mieści jedno zdanie, a pole formatowane
+    zachęcałoby do wklejenia noty prasowej.
+    """
+
+    name = blocks.CharBlock(max_length=200, label="nazwa")
+    level = blocks.ChoiceBlock(
+        choices=PARTNER_LEVELS,
+        default=PARTNER_LEVELS[1][0],
+        label="poziom współpracy",
+        help_text="Decyduje o grupie, w której partner stoi na stronie.",
+    )
+    logo = ImageChooserBlock(required=False, label="logotyp")
+    url = blocks.URLBlock(required=False, max_length=300, label="strona partnera")
+    description = blocks.CharBlock(
+        required=False,
+        max_length=300,
+        label="opis",
+        help_text="Jedno zdanie: na czym polega współpraca.",
+    )
+
+    class Meta:
+        icon = "group"
+        label = "partner"
+        value_class = PartnerValue
+
+
+class PartnersStreamBlock(blocks.StreamBlock):
+    """Lista partnerów. Bez innych bloków – to sekcja o stałym układzie, nie dowolna treść."""
+
+    partner = PartnerBlock()
 
     class Meta:
         required = False
