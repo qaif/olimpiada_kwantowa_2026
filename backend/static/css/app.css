@@ -1649,6 +1649,49 @@ td.empty,
   font-variant-numeric: tabular-nums;
 }
 
+/* Lista definicji z bloku ``definitions`` – tabela dwukolumnowa dokumentu („Cel | Podstawa”).
+   Każda para stoi w osobnej karcie, wartość pod etykietą: komórki są tu całymi zdaniami, więc
+   dwie kolumny obok siebie zwężałyby tekst poniżej granicy czytelności na węższych ekranach.
+   Nagłówki kolumn powtarzają się jako drobna etykieta nad każdą częścią pary. */
+.definitions {
+  display: grid;
+  gap: var(--sp-2);
+  margin: var(--sp-4) 0 var(--sp-6);
+}
+
+.definitions__row {
+  display: grid;
+  gap: var(--sp-2);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-3) var(--sp-4);
+}
+
+.definitions dt,
+.definitions dd {
+  margin: 0;
+}
+
+.definitions__term {
+  font-weight: 600;
+}
+
+.definitions__value {
+  color: var(--ink-soft);
+}
+
+.definitions__label {
+  display: block;
+  margin-bottom: var(--sp-1);
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 .doc-list,
 .results-list,
 .plain-list {

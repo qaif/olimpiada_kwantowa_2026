@@ -10,9 +10,10 @@ Co powstaje:
 
 - **strony opublikowane** (``ContentPage``): „O Olimpiadzie”, „Jak zacząć?”, „Terminarz
   i harmonogram”, „Kontakt”, „Dla nauczycieli i materiały”,
-- **dokumenty opublikowane** (``DocumentPage``): RODO i standardy ochrony małoletnich – obie
-  treści README starej strony oznacza jako demonstracyjne, więc dostają ramkę ostrzegawczą
-  na górze i status w metryce,
+- **dokumenty opublikowane** (``DocumentPage``): polityka RODO i standardy ochrony małoletnich.
+  Obie treści są przepisane z podpisanych PDF-ów organizatora (``fixtures/legacy/pdf-text/``), sekcja
+  po sekcji, więc nie są już „wersją demonstracyjną” ze starego WordPressa: metryka mówi, z jakiego
+  eksportu pochodzą, a ramka na górze wskazuje PDF jako wersję źródłową,
 - **PDF-y organizatora** z ``fixtures/legacy/pdf/`` przypięte do właściwych stron: regulamin
   (PDF przed plikiem źródłowym .docx z ``seed_regulamin``), RODO, standardy ochrony małoletnich
   i skład komitetów. To one są wersjami do wydruku i to z nich bierze się sekcja „Dokumenty
@@ -81,11 +82,18 @@ from apps.cms.models import (
 #: ``…/apps/cms/management/commands/`` → ``…/apps/cms/fixtures/legacy/``.
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures" / "legacy"
 
-#: Ramka nad treścią dokumentów, które README starej strony oznacza jako demonstracyjne.
-DEMO_NOTICE = "Wersja demonstracyjna – treść wymaga zatwierdzenia prawnego przed publikacją produkcyjną."
-DEMO_STATUS = "Treść demonstracyjna – do zatwierdzenia prawnego"
-DOCUMENT_VERSION = "1.0"
-DOCUMENT_DATE = date(2026, 7, 22)
+#: Ramka nad treścią dokumentów przepisanych z PDF-u organizatora: skąd wzięła się treść i który
+#: plik rozstrzyga spór o brzmienie. Ton informacyjny, nie ostrzegawczy – to nie jest zastrzeżenie
+#: do treści, tylko wskazanie wersji źródłowej.
+SOURCE_NOTICE = (
+    "Treść odpowiada dokumentowi organizatora z 7 września 2026 r. "
+    "Wersja do pobrania (PDF) jest wersją źródłową."
+)
+SOURCE_STATUS = "Dokument organizatora (Fundacja Quantum AI), eksport z 7 września 2026"
+#: Metryka opisuje **eksport**, a nie wersję dokumentu: numer wersji („1.0 z 22 lipca 2026 r.”)
+#: stoi w ostatniej sekcji obu dokumentów, a data z nagłówka PDF-u to data przekazania pliku.
+DOCUMENT_VERSION = ""  # numer wersji nie występuje w metryce PDF; datę eksportu niesie document_date
+DOCUMENT_DATE = date(2026, 9, 7)
 
 HOME_TITLE = "Olimpiada Kwantowa"
 HOME_HERO_TITLE = "Przyszłość ma naturę kwantową."
@@ -150,7 +158,7 @@ class LegacyPage:
     document: bool = False
     in_menu: bool = False
     publish: bool = True
-    demo_notice: bool = False
+    source_notice: bool = False
     metadata: dict = field(default_factory=dict)
     pdf: str = ""
     pdf_title: str = ""
@@ -171,26 +179,26 @@ PAGES = (
     LegacyPage(slug="dla-nauczycieli", title="Dla nauczycieli i materiały"),
     LegacyPage(
         slug="rodo",
-        title="RODO – klauzula informacyjna",
+        title="Polityka RODO Olimpiady Kwantowej",
         document=True,
-        demo_notice=True,
+        source_notice=True,
         metadata={
             "version_label": DOCUMENT_VERSION,
             "document_date": DOCUMENT_DATE,
-            "status_label": DEMO_STATUS,
+            "status_label": SOURCE_STATUS,
         },
         pdf="Polityka-RODO-Olimpiada-Kwantowa.pdf",
         pdf_title="Polityka RODO Olimpiady Kwantowej (PDF)",
     ),
     LegacyPage(
         slug="standardy-ochrony-maloletnich",
-        title="Standardy ochrony małoletnich",
+        title="Standardy ochrony małoletnich Olimpiady Kwantowej",
         document=True,
-        demo_notice=True,
+        source_notice=True,
         metadata={
             "version_label": DOCUMENT_VERSION,
             "document_date": DOCUMENT_DATE,
-            "status_label": DEMO_STATUS,
+            "status_label": SOURCE_STATUS,
         },
         pdf="Standardy-ochrony-maloletnich-Olimpiada-Kwantowa.pdf",
         pdf_title="Standardy ochrony małoletnich (PDF)",
@@ -249,11 +257,14 @@ class Command(BaseCommand):
         source = FIXTURES / f"{spec.slug}.md"
         if not source.exists():
             raise CommandError(f"Brak pliku źródłowego {source}.")
-        intro, blocks = parse_markdown(source.read_text(encoding="utf-8"))
-        if spec.demo_notice:
-            # Ostrzeżenie stoi nad treścią, a nie w metryce obok wersji: czytelnik ma je zobaczyć,
-            # zanim zacznie czytać zapisy, których nikt jeszcze prawnie nie zatwierdził.
-            blocks.insert(0, ("notice", {"tone": "warning", "text": RichText(f"<p>{DEMO_NOTICE}</p>")}))
+        # Tabela → ``<dl>`` tylko w dokumentach: tam komórki są całymi zdaniami („Cel | Podstawa”
+        # w polityce RODO). Terminarz na stronie treści ma po dwa słowa w komórce i czyta się
+        # lepiej jako akapit „Rejestracja — 1 września…” niż jako karta z nagłówkami kolumn.
+        intro, blocks = parse_markdown(source.read_text(encoding="utf-8"), definition_lists=spec.document)
+        if spec.source_notice:
+            # Ramka stoi nad treścią, a nie w metryce obok wersji: czytelnik ma wiedzieć, co czyta
+            # i który plik rozstrzyga, zanim zacznie czytać zapisy dokumentu.
+            blocks.insert(0, ("notice", {"tone": "info", "text": RichText(f"<p>{SOURCE_NOTICE}</p>")}))
 
         model = DocumentPage if spec.document else ContentPage
         page = model.objects.child_of(home).filter(slug=spec.slug).first()

@@ -21,7 +21,9 @@ Stan wgrany: kopie w `backend/apps/cms/fixtures/legacy/pdf/` (PDF) i `…/fixtur
 
 Trzy PDF-y nie pochodzą z WordPressa — organizator przekazał je osobno, już po inwentaryzacji.
 Leżą w `backend/apps/cms/fixtures/legacy/pdf/`, wgrywa je `manage.py seed_legacy_content`,
-a wyciągnięty z nich tekst (`pypdf`) jest w `docs/import/pdf-text/`.
+a wyciągnięty z nich tekst (`pypdf`) leży obok nich, w `backend/apps/cms/fixtures/legacy/pdf-text/`.
+Nie w `docs/`, bo do kontenera trafia wyłącznie `backend/`, a `apps/cms/tests/test_pdf_content.py`
+porównuje z tym wyciągiem treść stron.
 
 | Plik | Stron | Rozmiar | MD5 | Strona w portalu |
 |---|---|---|---|---|

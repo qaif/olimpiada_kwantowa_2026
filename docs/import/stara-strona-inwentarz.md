@@ -17,6 +17,10 @@ prawnego. Merytorycznie wartościowe są tylko cztery bloki: regulamin (`regulam
 RODO, standardy ochrony małoletnich i dane organizatora. Reszta to jedno- lub dwuzdaniowe
 zaślepki, których przenoszenie 1:1 nie ma sensu.
 
+Trzy z tych bloków przestały być zresztą źródłem: regulamin, RODO i standardy ochrony małoletnich
+mają dziś podpisane pliki organizatora i strony portalu są przepisane **z nich**, a nie z instalatora
+— patrz sekcja 5.1.
+
 Objętość treści źródłowej: ok. **5,4 tys. słów łącznie**, z czego regulamin ok. 2 970 słów
 (importowany osobno), RODO + standardy ochrony małoletnich + „O Olimpiadzie” + „Kontakt”
 ok. 1 975 słów, a **cała reszta serwisu — 21 podstron — ok. 450 słów**.
@@ -93,7 +97,7 @@ Typy istniejące w `backend/apps/cms/models.py`: `HomePage`, `NewsIndexPage`, `N
 | Poprzednie edycje | `poprzednie-edycje` | `ArchiveIndexPage` | HomePage | istnieje |
 | Wyniki I / II etapu, Finaliści | `wyniki-*`, `finalisci-laureaci` | `ResultsPage` | HomePage | jedna strona zamiast trzech; dane z `ResultsPublication` |
 | Regulamin | `regulamin` | `DocumentPage` | HomePage | **import osobny** (`seed_regulamin.py`) |
-| RODO | `rodo` | `DocumentPage` | HomePage | `status_label`: „Treść demonstracyjna — do zatwierdzenia prawnego” |
+| RODO | `rodo` | `DocumentPage` | HomePage | treść **przepisana z PDF-u organizatora** (5.1), nie ze starej strony; `status_label`: „Dokument organizatora (Fundacja Quantum AI)” |
 | Standardy ochrony małoletnich | `standardy-ochrony-maloletnich` | `DocumentPage` | HomePage | j.w. |
 | Dokumenty (węzeł) | `dokumenty` | — | — | zastąpić listą / nawigacją; `DocumentPage` nie może być dzieckiem `ContentPage` |
 | Przepisy | `przepisy` | — | — | scalić z regulaminem |
@@ -233,6 +237,9 @@ Komitet Merytoryczny — „Zadania, kryteria oceniania, anonimowa ocena prac, k
 i rozstrzygnięcia Jury”; Komitet Organizacyjny — „Rejestracja, komunikacja, obsługa systemu,
 logistyka, miejsce finału i dokumentacja zawodów”.
 
+Strona powtarza także podtytuł PDF-u („Członkowie i zakres odpowiedzialności”) i jego stopkę
+„Kontakt z Organizatorem” (adres, e-mail, telefon) — na starej stronie tych dwóch rzeczy nie było.
+
 Paweł Gora i Grzegorz Czelusta figurują w obu komitetach — PDF organizatora powtarza to
 podwójne członkostwo, więc jest zamierzone, ale § 6 ust. 2 rozdziela role (Komitet Organizacyjny
 nie ingeruje w ocenę merytoryczną): **rozbieżność do rozstrzygnięcia z organizatorem.**
@@ -256,12 +263,34 @@ nieistniejąca), **Polskie Towarzystwo Fizyczne**. To wypełnienie demonstracyjn
 | Dokument | Status | Miejsce w nowym portalu |
 |---|---|---|
 | Regulamin Olimpiady Kwantowej, wersja 1.0 z 18.08.2026 | „Projekt do zatwierdzenia uchwałą Zarządu Fundacji Quantum AI”; 10 rozdziałów, 24 §; PDF + DOCX | **importowany osobno** (`seed_regulamin.py` + `DocumentPage`) |
-| RODO (klauzula informacyjna), wersja 1.0 z 22.07.2026 | **demonstracyjny** wg README — wymaga zatwierdzenia prawnego | `DocumentPage`, treść w `tresci/rodo.md` |
-| Standardy ochrony małoletnich, wersja 1.0 z 22.07.2026 | **demonstracyjny** wg README; § 10 wymaga imiennego wskazania osób odpowiedzialnych uchwałą Zarządu | `DocumentPage`, treść w `tresci/standardy-ochrony-maloletnich.md` |
+| RODO (klauzula informacyjna), wersja 1.0 z 22.07.2026 | **PDF organizatora** (eksport z 07.09.2026) — 11 sekcji, tabela „Cel \| Podstawa” | `DocumentPage`, treść w `fixtures/legacy/rodo.md` przepisana z PDF-u (5.1) |
+| Standardy ochrony małoletnich, wersja 1.0 z 22.07.2026 | **PDF organizatora** (eksport z 07.09.2026) — 10 sekcji + wersja skrócona dla uczniów; § 10 wymaga imiennego wskazania osób odpowiedzialnych uchwałą Zarządu | `DocumentPage`, treść w `fixtures/legacy/standardy-ochrony-maloletnich.md` przepisana z PDF-u (5.1) |
 | ZOZ (Zasady Organizacji Zawodów) danej edycji | **nie istnieje** — regulamin odwołuje się do niego w kilkunastu miejscach | do napisania; `DocumentPage` |
 
-Cytat z README (`Przygotowanie produkcyjne`): „Treści regulaminu, RODO i standardów ochrony
-małoletnich są oznaczone jako demonstracyjne i wymagają zatwierdzenia prawnego.”
+### 5.1 Treści prawne przyszły z PDF-ów, a nie ze starej strony
+
+> **Nieaktualne.** README starej strony mówił: „Treści regulaminu, RODO i standardów ochrony
+> małoletnich są oznaczone jako demonstracyjne i wymagają zatwierdzenia prawnego.” Zdanie dotyczyło
+> treści w instalatorze WordPressa. Organizator przekazał wszystkie trzy dokumenty jako podpisane
+> PDF-y (eksport z 7 września 2026 r.), więc strony portalu są przepisane **z PDF-ów**, sekcja po
+> sekcji, i nie noszą już ramki „wersja demonstracyjna”.
+
+Co z tego wynika dla trzech stron:
+
+- `/rodo/` i `/standardy-ochrony-maloletnich/` mają metrykę opisującą eksport („Wersja eksport
+  z 7 września 2026”, status „Dokument organizatora (Fundacja Quantum AI)”) i ramkę informacyjną
+  wskazującą PDF jako wersję źródłową. Numer wersji samego dokumentu („1.0 z 22 lipca 2026 r.”)
+  stoi tam, gdzie postawił go organizator — w ostatniej sekcji treści,
+- `/komitety/` powtarza PDF w całości: podtytuł, zdanie o Komitecie Merytorycznym pełniącym
+  funkcję Jury, oba zakresy odpowiedzialności, szesnaście nazwisk i stopkę „Kontakt
+  z Organizatorem”,
+- brzmienia nie zmieniano ani w jednym zdaniu. Poprawiono wyłącznie łamanie wierszy z ekstrakcji
+  PDF-u; dywiz w roli myślnika („zgoda - art. 6 ust. 1 lit. a”) zostaje taki, jaki jest w PDF-ie
+  i w DOCX-ie regulaminu,
+- wyciąg tekstu z PDF-ów leży w `backend/apps/cms/fixtures/legacy/pdf-text/` (obok samych PDF-ów,
+  bo do kontenera trafia tylko `backend/`). `apps/cms/tests/test_pdf_content.py` porównuje z nim
+  strony: komplet tytułów sekcji, długość spisu rozdziałów, pary „Cel | Podstawa” i liczba słów
+  (≥ 90 % dokumentu).
 
 Plików do wgrania: **2 unikalne** (regulamin PDF + DOCX) — szczegóły w `assets.md`.
 Polityki prywatności / cookies jako osobnego dokumentu nie ma; jej rolę pełni strona RODO.
@@ -316,15 +345,16 @@ zmiany w regulaminie, a nie w kodzie.
 3. **Status prawny olimpiady.** Zastrzeżenie z `regulamin.json` mówi, że tytuły finalisty
    i laureata są „wewnętrzne” i nie dają uprawnień ustawowych. Czy nowy portal ma komunikować
    to samo (i gdzie), czy trwa procedura objęcia trybem MEN?
-4. **Skład komitetów** — potwierdzić 16 nazwisk, dopisać funkcje i afiliacje, rozstrzygnąć
-   podwójne członkostwo dwóch osób, ujednolicić nazewnictwo („Komitet Główny” ze strony głównej
-   nie istnieje w regulaminie).
+4. **Skład komitetów** — szesnaście nazwisk i zakresy potwierdza PDF organizatora (4.2). Zostaje:
+   dopisać funkcje i afiliacje, rozstrzygnąć podwójne członkostwo dwóch osób, ujednolicić
+   nazewnictwo („Komitet Główny” ze strony głównej nie istnieje ani w regulaminie, ani w PDF-ie).
 5. **Partnerzy i patroni** — czy Ministerstwo Edukacji i PTF to realne patronaty? Jeśli nie,
    sekcja znika ze strony głównej do czasu podpisania umów. Potrzebne logotypy i poziomy
    sponsoringu.
-6. **Zatwierdzenie treści prawnych.** RODO i standardy ochrony małoletnich są oznaczone jako
-   demonstracyjne. Bez akceptacji prawnej nie publikować — a strona rejestracji linkuje do nich
-   w treści obowiązkowej zgody.
+6. **Zatwierdzenie treści prawnych — źródło rozstrzygnięte (5.1).** RODO i standardy ochrony
+   małoletnich pochodzą z podpisanych PDF-ów organizatora, więc nie są już „demonstracyjne”.
+   Otwarte zostaje to, o co proszą same dokumenty: uchwała Zarządu z punktu 7 i aktualizacja
+   przy zmianie procesu (§ 11 polityki RODO).
 7. **Osoby odpowiedzialne za ochronę małoletnich** — § 9 i § 10 standardów wymagają wskazania
    ich imiennie uchwałą Zarządu oraz przyjęcia wzoru karty interwencji.
 8. **Daty I edycji.** Czy terminy 7 XI 2026 / 16 I 2027 / 10 IV 2027 są nadal aktualne?

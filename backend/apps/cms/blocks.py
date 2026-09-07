@@ -99,6 +99,47 @@ class NoticeBlock(blocks.StructBlock):
         template = "cms/blocks/notice.html"
 
 
+class DefinitionItemBlock(blocks.StructBlock):
+    """Jedna para etykieta–wartość, czyli jeden wiersz tabeli dwukolumnowej z dokumentu."""
+
+    term = blocks.CharBlock(max_length=500, label="etykieta")
+    description = blocks.CharBlock(max_length=1000, label="wartość")
+
+    class Meta:
+        icon = "list-ul"
+        label = "para"
+
+
+class DefinitionListBlock(blocks.StructBlock):
+    """Tabela dwukolumnowa dokumentu („Cel | Podstawa”) w postaci listy definicji ``<dl>``.
+
+    Dlaczego nie ``<table>``: te tabele są układem, a nie danymi – nie ma czego sortować ani
+    sumować, a wiersz to jedno zdanie w każdej kolumnie. Prawdziwa tabela z takimi komórkami
+    na telefonie zwęża obie kolumny do słupków po dwa słowa; ``<dl>`` układa etykietę nad
+    wartością i czyta się tak samo na każdej szerokości.
+
+    Dlaczego nie akapit „**etykieta** — wartość” (tak robił import wcześniej): przy zdaniach
+    po 150 znaków w obu kolumnach powstaje jedno zlepione zdanie bez widocznej granicy między
+    celem a podstawą prawną. W dokumencie RODO to właśnie ta granica jest treścią.
+
+    ``term_label``/``description_label`` to nagłówki kolumn z dokumentu. Powtarzamy je przy
+    każdej parze jako drobną etykietę: czytelnik ekranu słyszy „Cel … Podstawa …”, a wzrokowo
+    są na tyle małe, że nie konkurują z treścią. Bez nich sama kolejność nie mówi, co jest czym.
+
+    Pola są tekstowe (``CharBlock``): treść tabeli to zdania, a nie formatowany akapit. Szablon
+    autoescapuje – żadnego ``|safe``.
+    """
+
+    term_label = blocks.CharBlock(required=False, max_length=100, label="nagłówek etykiet")
+    description_label = blocks.CharBlock(required=False, max_length=100, label="nagłówek wartości")
+    rows = blocks.ListBlock(DefinitionItemBlock(), label="pary")
+
+    class Meta:
+        icon = "list-ul"
+        label = "lista definicji"
+        template = "cms/blocks/definitions.html"
+
+
 class StepBlock(blocks.StructBlock):
     """Jeden krok sekcji „Jak zacząć” na stronie głównej: tytuł i jedno zdanie wyjaśnienia."""
 
@@ -141,6 +182,7 @@ class DocumentStreamBlock(ArticleStreamBlock):
 
     heading = HeadingBlock()
     notice = NoticeBlock()
+    definitions = DefinitionListBlock()
 
     class Meta:
         required = False

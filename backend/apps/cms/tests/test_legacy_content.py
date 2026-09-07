@@ -36,7 +36,8 @@ PUBLISHED_CONTENT = (
 )
 DRAFT_CONTENT = ("partnerzy",)
 DOCUMENTS = ("rodo", "standardy-ochrony-maloletnich")
-DEMO_NOTICE_FRAGMENT = "Wersja demonstracyjna"
+#: Ramka nad treścią obu dokumentów: skąd jest treść i który plik jest wersją źródłową.
+SOURCE_NOTICE_FRAGMENT = "Wersja do pobrania (PDF) jest wersją źródłową."
 
 #: Tytuły PDF-ów organizatora wgrywanych przez komendę – tożsamość pliku w bibliotece Wagtaila.
 PDF_TITLES = {
@@ -83,7 +84,7 @@ def test_seed_marks_only_menu_pages(legacy_content):
     in_menu = ContentPage.objects.filter(show_in_menu=True).values_list("slug", flat=True)
 
     assert set(in_menu) == {"o-olimpiadzie", "komitety", "jak-zaczac", "harmonogram", "kontakt"}
-    # Dokumenty demonstracyjne zostają poza paskiem nawigacji.
+    # Dokumenty prawne zostają poza paskiem nawigacji – prowadzi do nich stopka i strona główna.
     assert not DocumentPage.objects.filter(show_in_menus=True).exists()
 
 
@@ -193,9 +194,9 @@ def test_content_page_body_keeps_structure(legacy_content):
     [
         ("/o-olimpiadzie/", "Fundacja Quantum AI"),
         ("/kontakt/", "contact@qaif.org"),
-        ("/rodo/", DEMO_NOTICE_FRAGMENT),
+        ("/rodo/", SOURCE_NOTICE_FRAGMENT),
         ("/harmonogram/", "7 listopada 2026"),
-        ("/standardy-ochrony-maloletnich/", DEMO_NOTICE_FRAGMENT),
+        ("/standardy-ochrony-maloletnich/", SOURCE_NOTICE_FRAGMENT),
     ],
 )
 def test_published_pages_render(web_client, legacy_content, path, fragment):
@@ -225,14 +226,16 @@ def test_komitety_is_public_with_scope_from_pdf(web_client, legacy_content):
 
 
 def test_rodo_keeps_document_metadata(legacy_content):
+    """Metryka opisuje eksport PDF-u organizatora, a nie numer wersji z ostatniej sekcji treści."""
     page = DocumentPage.objects.get(slug="rodo")
 
-    assert page.version_label == "1.0"
-    assert page.document_date.isoformat() == "2026-07-22"
-    assert "demonstracyjna" in page.status_label
-    # Ostrzeżenie stoi nad treścią, nie gdzieś w środku dokumentu.
+    assert page.version_label == ""
+    assert "eksport z 7 września 2026" in page.status_label
+    assert page.document_date.isoformat() == "2026-09-07"
+    assert page.status_label.startswith("Dokument organizatora (Fundacja Quantum AI)")
+    # Ramka stoi nad treścią, nie gdzieś w środku dokumentu, i jest informacją, nie ostrzeżeniem.
     assert page.body[0].block_type == "notice"
-    assert page.body[0].value["tone"] == "warning"
+    assert page.body[0].value["tone"] == "info"
 
 
 # --- rama serwisu -----------------------------------------------------------------------------

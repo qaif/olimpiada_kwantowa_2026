@@ -1,5 +1,7 @@
 # Komitety
 
+Członkowie i zakres odpowiedzialności
+
 Za przygotowanie zadań i jakość merytoryczną Olimpiady odpowiada Komitet Merytoryczny, który pełni również funkcję Jury. Organizację i przebieg zawodów prowadzi Komitet Organizacyjny.
 
 ## Komitet Merytoryczny
@@ -27,3 +29,7 @@ Za przygotowanie zadań i jakość merytoryczną Olimpiady odpowiada Komitet Mer
 4. Marcin Sadowski
 5. Michał Szaniewski
 6. Grzegorz Czelusta
+
+## Kontakt z Organizatorem
+
+Fundacja Quantum AI | ul. Sanocka 9/103, 02-110 Warszawa | [contact@qaif.org](mailto:contact@qaif.org) | [+48 507 982 292](tel:+48507982292)

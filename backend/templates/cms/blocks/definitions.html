@@ -1,0 +1,21 @@
+{% comment %}
+  Tabela dwukolumnowa dokumentu jako lista definicji. ``<div>`` między ``<dl>`` a parą ``<dt>``
+  /``<dd>`` jest w HTML-u dozwolone i pozwala obramować parę jedną kartą, nie tracąc semantyki
+  listy definicji. Nagłówki kolumn („Cel”, „Podstawa”) powtarzają się przy każdej parze – to
+  jedyne miejsce, w którym czytelnik dowiaduje się, czym jest dolny wiersz.
+  Wszystkie wartości są tekstem i przechodzą przez autoescapowanie Django.
+{% endcomment %}
+<dl class="definitions">
+  {% for row in value.rows %}
+    <div class="definitions__row">
+      <dt class="definitions__term">
+        {% if value.term_label %}<span class="definitions__label">{{ value.term_label }}</span>{% endif %}
+        {{ row.term }}
+      </dt>
+      <dd class="definitions__value">
+        {% if value.description_label %}<span class="definitions__label">{{ value.description_label }}</span>{% endif %}
+        {{ row.description }}
+      </dd>
+    </div>
+  {% endfor %}
+</dl>

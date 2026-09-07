@@ -330,13 +330,20 @@ docker compose exec web python manage.py seed_edition_kwantowa [--make-current]
 strony — w `docs/import/`. Import zmienia wyłącznie strukturę (nagłówek → blok `heading`, tabela
 dwukolumnowa → lista definicji, wyróżniona ramka → blok `notice`), nie brzmienie zdań organizatora.
 
+Trzy strony nie pochodzą już ze starego WordPressa, tylko z **podpisanych PDF-ów organizatora**
+(`backend/apps/cms/fixtures/legacy/pdf/`): `/rodo/`, `/standardy-ochrony-maloletnich/`
+i `/komitety/`. Ich pliki `.md` są przepisane z PDF-u sekcja po sekcji, więc strona jest wersją
+HTML dokumentu, a nie jego streszczeniem — PDF wisi przy niej do pobrania jako wersja źródłowa.
+Wyciąg tekstu z PDF-ów leży obok nich w `fixtures/legacy/pdf-text/`; `apps/cms/tests/test_pdf_content.py`
+porównuje z nim strony (komplet sekcji, spis rozdziałów, liczba słów ≥ 90 % dokumentu).
+
 Nazwa serwisu, hasło i dane organizatora (nagłówek, stopka) siedzą w **Ustawienia → Dane serwisu**
 w `/cms/` (`cms.SiteSettings`), a nie w szablonie — zmiana adresu czy numeru telefonu nie wymaga
 wydania aplikacji.
 
-**Szkicami** (`live=False`, adres publiczny odpowiada 404) zostają `/komitety/` i `/partnerzy/`:
-pierwsza strona to szesnaście nazwisk z pliku z lipca 2026, druga sugeruje patronaty, których
-może nie być. Publikuje je redakcja w `/cms/` po potwierdzeniu przez organizatora.
+**Szkicem** (`live=False`, adres publiczny odpowiada 404) zostaje `/partnerzy/`: strona sugeruje
+patronaty, których może nie być (trzecia nazwa, „Uniwersytet Kwantowy”, to instytucja
+nieistniejąca). Publikuje ją redakcja w `/cms/` po potwierdzeniu przez organizatora.
 
 #### Decyzje do podjęcia przez właściciela
 
@@ -352,15 +359,19 @@ uzasadnienie każdego punktu: `docs/import/stara-strona-inwentarz.md`, sekcja 8.
 3. **Terminy I edycji.** `seed_edition_kwantowa` uzupełnia brakujące terminy stałą regułą
    (otwarcie 00:00, oddanie 23:59, recenzje +14 dni, okno reklamacji +2/+9 dni po recenzjach),
    bo stara strona podaje **po jednej dacie na etap**. Godziny i okna wymagają potwierdzenia.
-4. **Zatwierdzenie treści prawnych.** `/rodo/` i `/standardy-ochrony-maloletnich/` są opublikowane
-   z ramką „wersja demonstracyjna” i takim samym statusem w metryce — README starej strony
-   oznacza obie jako wymagające akceptacji prawnej. Przed produkcją: akceptacja albo zdjęcie
-   z publikacji (rejestracja linkuje do nich w treści obowiązkowej zgody).
+4. **Zatwierdzenie treści prawnych — rozstrzygnięte co do źródła, otwarte co do decyzji Zarządu.**
+   `/rodo/` i `/standardy-ochrony-maloletnich/` nie są już „wersją demonstracyjną” ze starego
+   WordPressa: treść obu stron jest przepisana z podpisanych PDF-ów organizatora (eksport
+   z 7 września 2026), metryka mówi, z jakiego eksportu, a ramka na górze wskazuje PDF jako wersję
+   źródłową. Do podjęcia zostaje to, o co proszą same dokumenty: § 11 polityki RODO zapowiada
+   aktualizacje przy zmianie procesu, a § 10 standardów wymaga uchwały Zarządu (punkt 5 niżej).
 5. **Osoby odpowiedzialne za ochronę małoletnich.** § 9 i § 10 standardów wymagają wskazania ich
    imiennie uchwałą Zarządu i przyjęcia wzoru karty interwencji.
-6. **Skład komitetów.** Potwierdzić 16 nazwisk, dopisać funkcje i afiliacje, rozstrzygnąć podwójne
-   członkostwo dwóch osób i nazewnictwo („Komitet Główny” ze starej strony głównej nie istnieje
-   w regulaminie). Strona jest szkicem do czasu potwierdzenia.
+6. **Skład komitetów.** Szesnaście nazwisk i zakresy odpowiedzialności potwierdza PDF organizatora,
+   więc strona `/komitety/` jest opublikowana. Do decyzji zostają: funkcje i afiliacje członków,
+   podwójne członkostwo dwóch osób (Paweł Gora, Grzegorz Czelusta figurują w obu komitetach)
+   i nazewnictwo — „Komitet Główny” ze starej strony głównej nie istnieje ani w regulaminie,
+   ani w PDF-ie.
 7. **Partnerzy i patroni.** Czy Ministerstwo Edukacji i Polskie Towarzystwo Fizyczne to realne
    patronaty (trzecia nazwa, „Uniwersytet Kwantowy”, to instytucja nieistniejąca). Potrzebne
    logotypy i poziomy sponsoringu. Strona jest szkicem, kafli nie ma na stronie głównej.

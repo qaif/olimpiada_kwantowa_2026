@@ -1,10 +1,8 @@
-# Standardy ochrony małoletnich
+# Standardy ochrony małoletnich Olimpiady Kwantowej
 
-Standardy określają zasady bezpiecznego udziału dzieci i młodzieży w Olimpiadzie Kwantowej, reagowania na krzywdzenie oraz bezpiecznej komunikacji — stacjonarnie i online.
+Zasady bezpiecznego udziału i reagowania na krzywdzenie
 
-> **Organizator:** Fundacja Quantum AI, ul. Sanocka 9/103, 02-110 Warszawa, KRS 0000808359, NIP 7010955891, REGON 384899425.
-> **Zgłoszenia dotyczące bezpieczeństwa:** [contact@qaif.org](mailto:contact@qaif.org) (temat: „Bezpieczeństwo małoletnich – Olimpiada Kwantowa”), tel. [+48 507 982 292](tel:+48507982292).
-> W bezpośrednim zagrożeniu życia lub zdrowia zadzwoń pod numer **112**.
+Standardy określają zasady bezpiecznego udziału dzieci i młodzieży w Olimpiadzie Kwantowej, reagowania na krzywdzenie oraz bezpiecznej komunikacji - stacjonarnie i online.
 
 ## 1. Zakres i najważniejsze zasady
 
@@ -44,7 +42,7 @@ Przed dopuszczeniem osoby do działalności związanej z wychowaniem, edukacją,
 
 Uczestnicy szanują granice, prywatność, własność i poglądy innych. Zabronione są bójki, groźby, wyzwiska, nękanie, wykluczanie, rozpowszechnianie kompromitujących materiałów, kontakt seksualny naruszający prawo lub granice drugiej osoby oraz namawianie do używek. Konflikty należy zgłosić opiekunowi; odwet wobec osoby zgłaszającej jest niedopuszczalny.
 
-## 5. Internet, system zawodów i wizerunek
+## 5. Internet system zawodów i wizerunek
 
 - Uczestnik nie udostępnia loginu, hasła ani anonimowego kodu pracy i nie przesyła przez system treści niezwiązanych z zadaniami.
 - Personel kontaktuje się przez oficjalne konta i nie prowadzi z dzieckiem tajnych, prywatnych rozmów.
@@ -52,10 +50,10 @@ Uczestnicy szanują granice, prywatność, własność i poglądy innych. Zabron
 - Publikacja rozpoznawalnego wizerunku wymaga właściwej podstawy prawnej; odmowa nie może powodować negatywnych konsekwencji.
 - Dane uczestników i prace są dostępne wyłącznie dla upoważnionych osób; recenzenci co do zasady pracują na anonimowych kodach.
 
-## 6. Jak zgłosić zagrożenie lub krzywdzenie?
+## 6. Jak zgłosić zagrożenie lub krzywdzenie
 
 1. Jeżeli możesz, odejdź w bezpieczne miejsce. Nie konfrontuj samodzielnie osoby stwarzającej zagrożenie.
-2. Powiedz dowolnej zaufanej osobie z Personelu, opiekunowi szkolnemu albo rodzicowi. Możesz też napisać na [contact@qaif.org](mailto:contact@qaif.org) lub zadzwonić pod +48 507 982 292.
+2. Powiedz dowolnej zaufanej osobie z Personelu, opiekunowi szkolnemu albo rodzicowi. Możesz też napisać na [contact@qaif.org](mailto:contact@qaif.org) lub zadzwonić pod [+48 507 982 292](tel:+48507982292).
 3. Podaj tylko tyle informacji, ile potrafisz: co się stało, gdzie, kiedy, kto był obecny i czy zagrożenie nadal trwa. Nie musisz mieć dowodów, aby poprosić o pomoc.
 4. W nagłym zagrożeniu zadzwoń pod 112.
 
@@ -63,7 +61,7 @@ Osoba przyjmująca zgłoszenie zapewnia bezpieczeństwo, wysłuchuje bez ocenian
 
 ## 7. Procedura interwencji
 
-1. **Bezpieczeństwo:** przerwanie zagrożenia, pierwsza pomoc i — jeśli trzeba — wezwanie 112.
+1. **Bezpieczeństwo:** przerwanie zagrożenia, pierwsza pomoc i - jeśli trzeba - wezwanie 112.
 2. **Zawiadomienie:** niezwłoczne poinformowanie osoby wyznaczonej przez Zarząd oraz rodzica lub opiekuna, o ile nie zwiększa to ryzyka dla dziecka.
 3. **Ocena:** ustalenie rodzaju zagrożenia bez prowadzenia przesłuchania dziecka i bez sugerowania odpowiedzi.
 4. **Dalsze działania:** zawiadomienie policji lub prokuratury przy podejrzeniu przestępstwa, sądu rodzinnego przy zagrożeniu dobra dziecka albo właściwego ośrodka pomocy społecznej; w sprawach szkolnych współpraca z dyrekcją szkoły.
@@ -76,7 +74,7 @@ Jeżeli zgłoszenie dotyczy członka Personelu, zostaje on odsunięty od kontakt
 
 Tożsamość dziecka, zgłaszającego i świadków jest chroniona. Informacje są przekazywane wyłącznie osobom i instytucjom uprawnionym. Zakazane są działania odwetowe. Dokumentacja jest przetwarzana zgodnie z RODO i przechowywana przez okres wynikający z prawa oraz potrzeb ochrony dziecka i obrony roszczeń.
 
-## 9. Wdrożenie, dostępność i przegląd
+## 9. Wdrożenie dostępność i przegląd
 
 Standardy są dostępne na stronie Olimpiady oraz w miejscu prowadzenia zawodów. Organizator udostępnia wersję pełną i skróconą, szkoli Personel, prowadzi rejestr interwencji i co najmniej raz na dwa lata ocenia działanie Standardów, a także po każdym poważnym zdarzeniu lub zmianie prawa. Za wdrożenie, przyjmowanie zgłoszeń, prowadzenie interwencji i aktualizację dokumentu odpowiadają osoby wyznaczone uchwałą Zarządu Fundacji.
 
@@ -84,9 +82,9 @@ Standardy są dostępne na stronie Olimpiady oraz w miejscu prowadzenia zawodów
 
 > **Masz prawo czuć się bezpiecznie.** Dorośli mają traktować Cię z szacunkiem, słuchać Cię i chronić Twoją prywatność. Nie wolno im Cię bić, wyśmiewać, straszyć, flirtować z Tobą, prosić o tajemnice dotyczące Waszej relacji ani wysyłać seksualnych treści.
 >
-> Ty również szanuj innych: nie bij, nie wyzywaj, nie wykluczaj, nie publikuj cudzych zdjęć bez zgody i nie udostępniaj haseł. Jeśli coś wzbudza Twój niepokój — nawet gdy nie masz pewności — powiedz zaufanemu dorosłemu albo skontaktuj się z nami.
+> Ty również szanuj innych: nie bij, nie wyzywaj, nie wykluczaj, nie publikuj cudzych zdjęć bez zgody i nie udostępniaj haseł. Jeśli coś wzbudza Twój niepokój - nawet gdy nie masz pewności - powiedz zaufanemu dorosłemu albo skontaktuj się z nami.
 >
-> - **Fundacja Quantum AI:** contact@qaif.org, +48 507 982 292
+> - **Fundacja Quantum AI:** [contact@qaif.org](mailto:contact@qaif.org), [+48 507 982 292](tel:+48507982292)
 > - **Nagłe zagrożenie:** 112
 > - **Telefon zaufania dla dzieci i młodzieży:** 116 111
 > - **Dziecięcy Telefon Zaufania Rzecznika Praw Dziecka:** 800 12 12 12

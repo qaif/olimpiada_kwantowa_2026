@@ -16,7 +16,8 @@ Obsługiwana składnia — i tylko ona:
 akapit                               blok ``paragraph`` (``<p>``)
 ``- pozycja``                        blok ``paragraph`` z ``<ul>``
 ``1. pozycja``                       blok ``paragraph`` z ``<ol>``
-``| a | b |``                        blok ``paragraph``: ``<p><strong>a</strong> — b</p>``
+``| a | b |``                        blok ``definitions`` (``<dl>``) albo – w treściach bez tego
+                                     bloku – ``paragraph``: ``<p><strong>a</strong> — b</p>``
 ``> tekst``                          blok ``notice`` (ton ``info``); wiersz ``>`` dzieli akapity
 ``**pogrubienie**``, ``*kursywa*``   ``<strong>`` / ``<em>``
 ``[tekst](adres)``                   ``<a href="adres">``
@@ -27,10 +28,22 @@ Dwie decyzje warte uzasadnienia:
 - **tabela dwukolumnowa zostaje listą definicji, a nie ``<table>``.** Tabele w tych treściach są
   układem strony (etykieta → wartość), nie danymi tabelarycznymi; lista czyta się w czytniku
   ekranu i na telefonie, a ``<table>`` i tak nie przeszłoby przez whitelistę ``RICH_TEXT_FEATURES``.
-  Łącznikiem jest półpauza, nie dwukropek: etykietą bywa całe zdanie („publikacja zdjęć…”),
-  któremu dopisanie dwukropka zmieniałoby interpunkcję tekstu organizatora,
+  Postacie są dwie i zależą od tego, jak długie są komórki:
+
+  - ``parse_markdown(..., definition_lists=True)`` – blok ``definitions`` (``<dl>``, etykieta nad
+    wartością, nagłówki kolumn przy każdej parze). Tego używają dokumenty urzędowe, w których
+    komórka bywa całym zdaniem („rejestracja, prowadzenie konta…” obok „art. 6 ust. 1 lit. b i e
+    RODO oraz…”); zlepienie ich w jeden akapit gubi granicę, która jest tam całą treścią,
+  - domyślnie – akapit ``<p><strong>etykieta</strong> — wartość</p>``. Wystarcza tabelom
+    z krótkimi komórkami (terminarz: „Rejestracja — 1 września – 15 października 2026”), gdzie
+    karta z nagłówkami kolumn nad każdą wartością byłaby cięższa od samej treści. Łącznikiem jest
+    półpauza, nie dwukropek: etykietą bywa całe zdanie, któremu dopisanie dwukropka zmieniałoby
+    interpunkcję tekstu organizatora,
+
 - **cały tekst jest escapowany**, zanim dołożymy znaczniki. Do ``RichText`` trafia dokładnie to,
-  co było w pliku, i nic, czego nie zna whitelist edytora.
+  co było w pliku, i nic, czego nie zna whitelist edytora. Komórki bloku ``definitions`` idą tam
+  jako czysty tekst (escapuje je szablon), więc formatowanie liniowe w tabeli nie zadziała –
+  w tabelach organizatora go nie ma.
 """
 
 from __future__ import annotations
@@ -71,17 +84,32 @@ def inline(text: str) -> str:
     return ITALIC_RE.sub(r"<em>\1</em>", html)
 
 
-def _table_html(rows: list[str]) -> str:
-    """Wiersze tabeli → akapity „**lewa kolumna** — prawa kolumna”. Wiersz nagłówka odpada."""
-    parsed = []
+def _split_table(rows: list[str]) -> tuple[list[str], list[list[str]]]:
+    """Wiersze tabeli → ``(komórki nagłówka, wiersze danych)``.
+
+    Nagłówkiem jest wiersz stojący bezpośrednio przed separatorem ``|---|---|``; wszystko sprzed
+    separatora przestaje być danymi. Tabela bez separatora nie ma nagłówka – każdy wiersz to dane.
+    """
+    header: list[str] = []
+    parsed: list[list[str]] = []
     for row in rows:
         if TABLE_SEPARATOR_RE.match(row):
-            # Separator oznacza, że wiersz poprzedni był nagłówkiem tabeli, a nie danymi.
+            header = parsed[-1] if parsed else []
             parsed = []
             continue
         cells = [cell.strip() for cell in row.strip().strip("|").split("|")]
         if any(cells):
             parsed.append(cells)
+    return header, parsed
+
+
+def _rest_of_row(cells: list[str]) -> str:
+    """Kolumny od drugiej w jednej wartości. Trzecia kolumna zdarza się tylko przez pomyłkę."""
+    return " · ".join(cell for cell in cells[1:] if cell)
+
+
+def _table_html(parsed: list[list[str]]) -> str:
+    """Wiersze danych → akapity „**lewa kolumna** — prawa kolumna”."""
     parts = []
     for cells in parsed:
         if len(cells) < MIN_TABLE_CELLS:
@@ -90,6 +118,15 @@ def _table_html(rows: list[str]) -> str:
         rest = " · ".join(inline(cell) for cell in cells[1:] if cell)
         parts.append(f"<p><strong>{inline(cells[0])}</strong> — {rest}</p>")
     return "".join(parts)
+
+
+def _definitions_value(header: list[str], parsed: list[list[str]]) -> dict:
+    """Wiersze danych → wartość bloku ``definitions``. Nagłówki kolumn są opcjonalne."""
+    return {
+        "term_label": header[0] if header else "",
+        "description_label": _rest_of_row(header) if len(header) >= MIN_TABLE_CELLS else "",
+        "rows": [{"term": cells[0], "description": _rest_of_row(cells)} for cells in parsed],
+    }
 
 
 def _quote_html(lines: list[str]) -> str:
@@ -125,10 +162,11 @@ def _list_html(items: list[str], *, ordered: bool) -> str:
 class _Builder:
     """Zbiera bloki StreamField oraz wprowadzenie (wszystko przed pierwszym śródtytułem)."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, definition_lists: bool = False) -> None:
         self.intro_parts: list[str] = []
         self.blocks: list[tuple[str, object]] = []
         self.seen_heading = False
+        self.definition_lists = definition_lists
 
     def add_html(self, html: str) -> None:
         if not html:
@@ -142,6 +180,20 @@ class _Builder:
         """Ramka zawsze jest blokiem – także przed pierwszym śródtytułem (``intro`` to zwykły tekst)."""
         if html:
             self.blocks.append(("notice", {"tone": "info", "text": RichText(html)}))
+
+    def add_table(self, rows: list[str]) -> None:
+        """Tabela: blok ``definitions``, a gdy go nie ma – akapity „etykieta — wartość”.
+
+        Przed pierwszym śródtytułem zostają akapity także w dokumentach: wszystko sprzed nagłówka
+        trafia do ``intro``, a to zwykłe pole ``RichTextField`` – blok StreamFielda nie ma tam gdzie
+        stanąć. Tabel we wprowadzeniu w treściach organizatora zresztą nie ma.
+        """
+        header, parsed = _split_table(rows)
+        usable = parsed and all(len(cells) >= MIN_TABLE_CELLS for cells in parsed)
+        if self.definition_lists and self.seen_heading and usable:
+            self.blocks.append(("definitions", _definitions_value(header, parsed)))
+            return
+        self.add_html(_table_html(parsed))
 
     def add_heading(self, text: str, level: int) -> None:
         self.seen_heading = True
@@ -158,9 +210,13 @@ class _Builder:
         )
 
 
-def parse_markdown(text: str) -> tuple[str, list[tuple[str, object]]]:
-    """Zwraca ``(intro_html, bloki_streamfield)``."""
-    builder = _Builder()
+def parse_markdown(text: str, *, definition_lists: bool = False) -> tuple[str, list[tuple[str, object]]]:
+    """Zwraca ``(intro_html, bloki_streamfield)``.
+
+    ``definition_lists`` włącza blok ``definitions`` dla tabel – patrz docstring modułu. Decyzja
+    należy do wywołującego, bo zależy od treści (długie komórki), a nie od typu strony.
+    """
+    builder = _Builder(definition_lists=definition_lists)
     lines = text.replace("\r\n", "\n").split("\n")
     index = 0
     while index < len(lines):
@@ -192,7 +248,7 @@ def parse_markdown(text: str) -> tuple[str, list[tuple[str, object]]]:
             while index < len(lines) and lines[index].strip().startswith("|"):
                 rows.append(lines[index].strip())
                 index += 1
-            builder.add_html(_table_html(rows))
+            builder.add_table(rows)
             continue
 
         ordered = ORDERED_RE.match(stripped)

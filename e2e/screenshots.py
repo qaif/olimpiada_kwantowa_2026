@@ -136,6 +136,8 @@ def guest_pages(browser) -> None:
         ("/rodo/", "01d-rodo", "top"),
         # Skład komitetów: strona z kartą „Do pobrania” nad treścią (PDF organizatora).
         ("/komitety/", "01e-komitety", "top"),
+        # Standardy ochrony małoletnich: drugi dokument przepisany z PDF-u organizatora.
+        ("/standardy-ochrony-maloletnich/", "01f-standardy", "top"),
     ):
         shoot(page, path, name, scroll=scroll)
 
