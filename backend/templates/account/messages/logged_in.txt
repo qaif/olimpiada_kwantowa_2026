@@ -1,0 +1,5 @@
+{% comment %}
+  Celowo pusty komunikat. allauth po zalogowaniu dokłada wiadomość „Successfully signed in as …”;
+  nasze logowanie hasłem (django.contrib.auth) nie pokazuje niczego, więc logowanie przez dostawcę
+  też nie ma. Pusty wynik renderowania = ``add_message`` nic nie dodaje (adapter robi ``.strip()``).
+{% endcomment %}

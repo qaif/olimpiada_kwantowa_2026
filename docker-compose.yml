@@ -207,6 +207,62 @@ services:
       retries: 5
       start_period: 300s   # pierwsze pobranie sygnatur trwa kilka minut
 
+  mail:
+    # Własny MTA wychodzący (send-only relay) – bez zewnętrznego dostawcy poczty transakcyjnej.
+    # Przyjmuje pocztę na 587 wyłącznie z sieci compose i doręcza ją wprost do MX-ów odbiorców
+    # (RELAYHOST pusty). Podpisuje DKIM-em kluczem wygenerowanym przy pierwszym starcie.
+    #
+    # v5.1.0 to ostatnie wydanie z OpenDKIM (v6 przechodzi na rspamd i inne ścieżki kluczy) –
+    # wersja jest przypięta świadomie, bo migracja zmienia lokalizację wolumenu z kluczami.
+    image: boky/postfix:v5.1.0-alpine
+    restart: unless-stopped
+    # HELO/EHLO i myhostname. Musi zgadzać się z rekordem PTR adresu wyjściowego, inaczej
+    # Gmail/Outlook odrzucają połączenie jeszcze przed sprawdzeniem SPF.
+    hostname: mail.${SITE_DOMAIN:-localhost}
+    environment:
+      # Postfix przyjmie kopertę tylko dla nadawcy z tej domeny (nie jest open relayem nawet
+      # dla kogoś, kto trafi do sieci compose).
+      ALLOWED_SENDER_DOMAINS: ${SITE_DOMAIN:-localhost}
+      POSTFIX_myhostname: mail.${SITE_DOMAIN:-localhost}
+      # Klienci SMTP: wyłącznie podsieci compose (edge + internal). Bez SASL – poza tymi
+      # podsieciami port 587 nie jest osiągalny (brak `ports:`), więc hasło niczego by nie dodało.
+      POSTFIX_mynetworks: 127.0.0.0/8,${TRUSTED_PROXY_IPS:-172.30.1.0/24,172.30.2.0/24}
+      # TLS do MX-a odbiorcy oportunistycznie: szyfruj, gdy druga strona ogłosi STARTTLS,
+      # ale nie odrzucaj listu, gdy nie ogłosi (`encrypt` zablokowałby część odbiorców).
+      POSTFIX_smtp_tls_security_level: may
+      # Jedna linia na doręczenie („TLS connection established to …”) – bez tego z logu nie widać,
+      # czy list poszedł szyfrowany, a przy `may` nie ma o tym żadnej innej informacji.
+      POSTFIX_smtp_tls_loglevel: "1"
+      # Aplikacja wysyła wyłącznie krótkie listy transakcyjne; obraz domyślnie nie ma limitu.
+      POSTFIX_message_size_limit: "10485760"
+      # Sieć docker-bridge nie ma IPv6; bez tego Postfix próbuje rekordów AAAA i czeka na timeout.
+      POSTFIX_inet_protocols: ipv4
+      DKIM_AUTOGENERATE: "true"
+      DKIM_SELECTOR: olimpiada
+      TZ: Europe/Warsaw
+    volumes:
+      # Klucz DKIM przeżywa `docker compose down` – inaczej po każdym restarcie trzeba by
+      # aktualizować rekord TXT w DNS-ie.
+      - mail_dkim:/etc/opendkim/keys
+      - mail_spool:/var/spool/postfix
+    # `internal` – tu sięgają web/worker/beat. `edge` – bo `internal` ma internal:true, a doręczenie
+    # wprost do MX-a odbiorcy wymaga wyjścia na świat. Portów nie publikujemy: relay jest widoczny
+    # tylko z sieci compose.
+    networks: [edge, internal]
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    # Minimum dla Postfiksa: master startuje jako root i zrzuca uprawnienia do postfix/opendkim
+    # (SETUID/SETGID), pilnuje właściciela kolejki (CHOWN/FOWNER/DAC_OVERRIDE), wchodzi do chroota
+    # /var/spool/postfix (SYS_CHROOT) i ubija procesy potomne przy reloadzie (KILL).
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID, SYS_CHROOT, KILL]
+    healthcheck:
+      test: ["CMD-SHELL", "/scripts/healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
   mailpit:
     profiles: [dev]
     image: axllent/mailpit:v1.24
@@ -237,6 +293,8 @@ volumes:
   redis_data:
   minio_data:
   clamav_db:
+  mail_dkim:
+  mail_spool:
   static_files:
   caddy_data:
   caddy_config:

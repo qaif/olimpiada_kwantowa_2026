@@ -73,8 +73,36 @@ adres e-mail. Wszystko poniżej pilnują testy z `apps/web/tests/test_password_r
 | 3.1.8 | List bez danych osobowych i bez tokenu w temacie | ✔ | `templates/registration/password_reset_*` – poza adresem odbiorcy (i tak w nagłówku `To:`) nie ma imienia, szkoły ani roli; temat to stałe „Reset hasła – `<nazwa serwisu>`”. Testy: `::test_message_carries_a_link_but_no_password_and_no_token_in_the_subject`, `::test_message_has_a_plain_text_and_an_html_part_without_remote_resources`. |
 | 3.1.9 | Wersja HTML listu bez zasobów zdalnych | ✔ | Style inline, zero `<img>` i zero adresów CDN – obrazek w liście to potwierdzenie odczytu i wyciek adresu IP czytelnika. Test: `::test_message_has_a_plain_text_and_an_html_part_without_remote_resources`. |
 | 3.1.10 | Link `https` za proxy | ✔ | Protokół z `request.is_secure()` + `SECURE_PROXY_SSL_HEADER` (`config/settings/production.py`). Test: `::test_link_uses_https_when_the_request_came_through_the_proxy`. |
-| 3.1.11 | Poświadczenia SMTP wyłącznie w `EMAIL_URL` (env) | ✔ | `config/settings/base.py` (`env.email_url`); produkcja loguje ostrzeżenie, gdy `EMAIL_URL` wskazuje `localhost:25` (brak MTA w kontenerze). Konfiguracja: `README.md` § 4.1. |
+| 3.1.11 | Poświadczenia SMTP wyłącznie w `EMAIL_URL` (env) | ✔ | `config/settings/base.py` (`env.email_url`); produkcja loguje ostrzeżenie, gdy `EMAIL_URL` wskazuje `localhost:25` (brak MTA w kontenerze). Wariant domyślny (`smtp://mail:587`, własny Postfix w sieci compose) żadnych poświadczeń nie ma – patrz 10. Konfiguracja: `README.md` § 4.1. |
 | 3.1.12 | Wysyłka listu jest synchroniczna w żądaniu | ⚠ `low` | `EMAIL_TIMEOUT=10` ogranicza czas zajęcia workera, ale niedostępny SMTP nadal spowalnia POST `/password-reset/`. Przeniesienie na kolejkę `mail` (trasa jest już w `CELERY_TASK_ROUTES`): `BACKLOG.md`. |
+
+### 3.2 Logowanie przez dostawcę zewnętrznego (`/accounts/…`, Google i Facebook)
+
+Funkcja jest opcjonalna: bez kluczy w środowisku żaden dostawca nie jest skonfigurowany i cała
+sekcja sprowadza się do adresów, które nikogo nigdzie nie wpuszczają. Wszystko poniżej pilnują
+testy z `apps/web/tests/test_social_login.py`. Konfiguracja: `README.md` § 4.4.
+
+| # | Pozycja | Status | Gdzie / czym sprawdzone |
+|---|---|---|---|
+| 3.2.1 | Brak drugiej ścieżki logowania i rejestracji hasłem | ✔ | `allauth.account.urls` **nie** jest montowane – `apps/web/social_urls.py` bierze z allauth wyłącznie uścisk dłoni OAuth i dwa widoki komunikatów; `AccountAdapter.is_open_for_signup` zwraca `False`. Gdyby istniały, byłaby to ścieżka poza `apps.web.throttle` i bez zgody RODO. Testy: `::test_allauth_local_account_views_are_not_mounted` (404 dla `/accounts/login/`, `/accounts/signup/`, `/accounts/`), `::test_our_login_form_is_the_only_password_login`. |
+| 3.2.2 | Żadne konto nie powstaje przed zgodą RODO | ✔ | `SOCIALACCOUNT_AUTO_SIGNUP = False` → allauth odsyła na nasz formularz (`/rejestracja/dokoncz/`), a login czeka w sesji; konto zakłada `apps.accounts.services.register_social_participant`, które zaczyna od `_require_gdpr_consent`. `SocialAccountAdapter.save_user` **rzuca wyjątkiem** – bezpiecznik na wypadek włączenia auto-rejestracji. Testy: `::test_new_google_user_is_sent_to_our_signup_form_without_creating_an_account`, `::test_signup_without_gdpr_consent_creates_nothing`. |
+| 3.2.3 | Adres e-mail konta pochodzi od dostawcy, nie z formularza | ✔ | `SocialParticipantSignupForm` nie ma pola `email`; serwis bierze adres z `SocialLogin`. Pole edytowalne pozwalałoby założyć konto na cudzy adres i przejąć je resetem hasła. Test: `::test_signup_form_shows_the_provider_email_and_prefills_the_name`. |
+| 3.2.4 | Konto społecznościowe nie ma użytecznego hasła | ✔ | `set_unusable_password()`; hasło ustawia się dopiero przez „Nie pamiętasz hasła?”, czyli po potwierdzeniu dostępu do skrzynki i przez `AUTH_PASSWORD_VALIDATORS`. Test: `::test_signup_with_consent_creates_participant_linked_to_the_provider`. |
+| 3.2.5 | Automatyczne łączenie z istniejącym kontem **tylko** dla zweryfikowanego adresu z Google | ✔ | `SOCIALACCOUNT_EMAIL_AUTHENTICATION = False` globalnie, `EMAIL_AUTHENTICATION: True` wyłącznie w `SOCIALACCOUNT_PROVIDERS["google"]`; adres jest „zweryfikowany” wtedy i tylko wtedy, gdy Google poda `email_verified` (`VERIFIED_EMAIL: False` – nie ufamy konfiguracji, tylko odpowiedzi dostawcy). Testy: `::test_verified_google_email_connects_to_the_existing_account`, `::test_unverified_google_email_does_not_take_over_an_existing_account`. |
+| 3.2.6 | Facebook nigdy nie przejmuje istniejącego konta | ✔ | `VERIFIED_EMAIL: False` **i** `EMAIL_AUTHENTICATION: False` – Facebook nie potwierdza, że adres należy do logującej się osoby. Adres zajęty kończy się stroną „konto istnieje – zaloguj się hasłem albo zresetuj”, a nie połączeniem kont. Testy: `::test_facebook_never_connects_to_an_existing_account_by_email`, `::test_facebook_can_still_create_a_brand_new_account`. |
+| 3.2.7 | Konto `is_active=False` nie loguje się przez OAuth | ✔ | Odmowa w `SocialAccountAdapter.pre_social_login`, czyli **przed** powiązaniem konta – własna kontrola allauth (`pre_login`) jest dopiero po `_accept_login`, więc wyłączone konto zdążyłoby zmienić stan. Testy: `::test_inactive_account_cannot_log_in_with_a_linked_provider`, `::test_inactive_account_is_not_connected_by_a_verified_email`. |
+| 3.2.8 | Auto-connect czyści hasło konta z niepotwierdzonym adresem | ⚠ świadome (allauth `wipe_password`) | Rejestracji hasłem nie poprzedza weryfikacja adresu, więc ktoś mógł założyć konto na cudzy adres i czekać na właściciela. Po zalogowaniu Google'em hasło napastnika przestaje działać; właściciel ustawia własne przez reset. Cena: uczestnik, który miał hasło i raz zalogował się Google'em, musi je ustawić na nowo. Fakt trafia do audytu. Usunięcie przyczyny (weryfikacja adresu przy rejestracji hasłem) – `BACKLOG.md`. Test: `::test_auto_connect_wipes_the_unverified_accounts_password`. |
+| 3.2.9 | Zmiana sposobu logowania w audycie | ✔ | `login.social_connect` (auto-connect, z flagą `password_wiped`) i `account.social_signup` (nowe konto). W `diff` nie ma adresu e-mail ani nazwiska – wyłącznie identyfikator dostawcy. Testy: `::test_signup_is_audited_without_personal_data`, `::test_verified_google_email_connects_to_the_existing_account`. |
+| 3.2.10 | Konta komitetu nie powstają przez OAuth | ✔ | Formularz dokończenia rejestracji tworzy wyłącznie profil `Participant` w grupie `participant`; rejestracja recenzenta zostaje na kodzie zaproszenia (5.3). Istniejący członek komitetu może się zalogować Google'em i trafia do swojego panelu. Test: `::test_committee_member_lands_in_the_review_panel`. |
+| 3.2.11 | `state` + PKCE, tokeny niezapisywane | ✔ | Parametr `state` trzymany w sesji (allauth `statekit`), `OAUTH_PKCE_ENABLED: True` dla Google – przechwycony kod autoryzacyjny jest bez `code_verifier` bezużyteczny. `SOCIALACCOUNT_STORE_TOKENS = False`: nic nie robimy w imieniu użytkownika, więc token byłby tylko sekretem do wycieku. Odrzucony `state` kończy się stroną błędu bez szczegółów technicznych. |
+| 3.2.12 | Uścisk dłoni rusza wyłącznie POST-em z CSRF | ✔ | `SOCIALACCOUNT_LOGIN_ON_GET = False`; przyciski w `templates/web/_social_auth.html` to formularze POST. GET pokazuje wyłącznie stronę potwierdzenia – bez tego obca strona mogłaby zainicjować logowanie (login CSRF). Test: `::test_provider_login_does_nothing_on_get`. |
+| 3.2.13 | Cel po zalogowaniu bez otwartego przekierowania | ✔ | `next` przechodzi przez `is_safe_url` allauth; bez `next` decyduje rola (`apps.web.views.public.default_panel_url` – ta sama funkcja, co przy logowaniu hasłem). Testy: `::test_next_parameter_wins_over_the_role_panel`, `::test_open_redirect_through_next_is_rejected`. |
+| 3.2.14 | Limit prób na formularzu dokończenia rejestracji | ✔ | `SocialSignupView` ma `ThrottledFormMixin` ze scope'em `register` – tym samym, co rejestracja hasłem (8.2). Sam uścisk dłoni jest ograniczony pośrednio: bez konta u dostawcy nie da się go powtórzyć. |
+| 3.2.15 | Brak `SocialApp` w bazie | ✔ | Klucze wchodzą przez `SOCIALACCOUNT_PROVIDERS[...]["APPS"]` ze zmiennych środowiskowych (`config/settings/base.py`), więc sekret nie leży w bazie, nie wychodzi w `pg_dump` i nie jest edytowalny z panelu admina. Pusta zmienna = dostawcy nie ma, a jego adresy zwracają 404 (`apps/web/social_urls.py::only_if_configured` – bez tego allauth kończy `SocialApp.DoesNotExist`, czyli 500 na publicznym adresie). Testy: `::test_login_page_has_no_provider_buttons_without_keys`, `::test_provider_urls_without_keys_are_404_not_500`. |
+| 3.2.16 | Brak zasobów obcych na stronach logowania | ✔ | Logotypy dostawców są SVG w szablonie (`templates/web/_social_icon.html`), nie obrazkami z serwerów Google/Meta – żaden z nich nie widzi, kto ogląda stronę logowania. Zero JavaScriptu: CSP `script-src` bez zmian. Test: `::test_pages_of_the_social_flow_keep_the_nonce_only_script_policy`. |
+| 3.2.17 | Brak adresu e-mail od dostawcy = brak logowania | ✔ | E-mail jest u nas loginem i jedyną drogą odzyskania konta. `SocialAccountAdapter.pre_social_login` odrzuca login bez adresu stroną z instrukcją. Test: `::test_provider_without_an_email_is_refused`. |
+| 3.2.18 | Strony błędów bez szczegółów technicznych | ✔ | `templates/socialaccount/authentication_error.html` nie renderuje `auth_error` (kod błędu, wyjątek); `refused.html` mówi tylko tyle, ile użytkownik i tak wie o własnym koncie. |
+| 3.2.19 | Zamontowane tylko dwa endpointy dostawcy | ✔ | `apps/web/social_urls.py::provider_paths` – rozpoczęcie logowania i adres powrotny. Moduły dostawców w allauth dokładają jeszcze `login/token/` (logowanie tokenem z SDK w przeglądarce, np. Google One Tap): endpoint przyjmujący poświadczenia, którego nie używamy i nie testujemy. Test: `::test_login_by_token_endpoint_is_not_mounted`. |
 
 ## 4. Czas, terminy, współbieżność
 
@@ -112,6 +140,7 @@ adres e-mail. Wszystko poniżej pilnują testy z `apps/web/tests/test_password_r
 | 6.7 | Nagłówki bezpieczeństwa na proxy | ✔ | `deploy/Caddyfile`: `Strict-Transport-Security max-age=31536000`, `X-Content-Type-Options nosniff`, `Referrer-Policy same-origin`; limit rozmiaru żądania `MAX_UPLOAD_MB`. Django dokłada `X-Frame-Options` (`XFrameOptionsMiddleware`) i `frame-ancestors 'none'` w CSP. ⚠ `low`: brak `Permissions-Policy` i `Permissions-Policy (COOP jest wysyłany)` – do rozważenia po T-10. |
 | 6.8 | Brak `\|safe`/`mark_safe` na treściach od użytkowników | ✔ | `grep -rn "\|safe\|mark_safe" backend/templates` – brak trafień w szablonach `web/` i `cms/`; treści redakcyjne renderują się przez `\|richtext` i `{% include_block %}` (whitelist Wagtaila). |
 | 6.9 | Odpowiedź 429 widoczna w interfejsie (także HTMX) | ✔ | `apps/web/throttle.py::throttled_response` (`HX-Retarget`/`HX-Reswap: beforeend`) + `static/js/app.js` (`htmx:beforeSwap`). Testy: `apps/web/tests/test_throttle.py::test_upload_429_is_retargeted_so_htmx_puts_it_in_the_dom`, `::test_upload_429_ignores_a_target_id_that_is_not_a_plain_identifier`. |
+| 6.10 | `form-action` zawężone do `'self'` i ekranów zgody włączonych dostawców OAuth | ✔ świadome | `apps/web/middleware.py::form_action_sources` dokłada `https://accounts.google.com` / `https://www.facebook.com` **wyłącznie** dla dostawcy, który ma klucze w środowisku. Powód: przycisk logowania to POST na nasz adres, a odpowiedź jest przekierowaniem 302 na ekran zgody – przeglądarki nie są zgodne co do tego, czy `form-action` obowiązuje dla przekierowań po wysłaniu formularza. Instalacja bez OAuth zostaje przy `form-action 'self'`. Testy: `apps/web/tests/test_social_login.py::test_form_action_lists_only_the_enabled_providers`, `::test_form_action_stays_self_without_oauth`. |
 
 ## 7. Dane osobowe, RODO, logi
 
@@ -143,11 +172,31 @@ adres e-mail. Wszystko poniżej pilnują testy z `apps/web/tests/test_password_r
 
 | # | Pozycja | Status | Gdzie / czym sprawdzone |
 |---|---|---|---|
-| 9.1 | Użytkownik nie-root, `read_only`, `no-new-privileges`, `cap_drop: ALL` | ✔ | `docker-compose.yml` (`x-app-base`), `backend/Dockerfile` (multi-stage, użytkownik aplikacyjny). |
-| 9.2 | Usługi danych poza siecią `edge`, bez portów na hoście | ✔ | `docker-compose.yml`: `db`, `redis`, `clamav`, `minio` wyłącznie w `internal` (`internal: true`). Porty pomocnicze wystawia tylko `docker-compose.dev.yml`. |
+| 9.1 | Użytkownik nie-root, `read_only`, `no-new-privileges`, `cap_drop: ALL` | ✔ | `docker-compose.yml` (`x-app-base`), `backend/Dockerfile` (multi-stage, użytkownik aplikacyjny). Wyjątek: `mail` – master Postfiksa startuje jako root i sam zrzuca uprawnienia, więc `cap_drop: ALL` + siedem capabilities zamiast pełnego zrzutu (uzasadnienie w 10.5). |
+| 9.2 | Usługi danych poza siecią `edge`, bez portów na hoście | ✔ | `docker-compose.yml`: `db`, `redis`, `clamav`, `minio` wyłącznie w `internal` (`internal: true`). `mail` jest w `edge` **tylko** po to, żeby doręczyć list do MX-a odbiorcy (`internal` nie ma wyjścia na świat) – bez `ports:`, więc z internetu nieosiągalny (10.1). Porty pomocnicze wystawia tylko `docker-compose.dev.yml`. |
 | 9.3 | Healthcheck każdej usługi + `depends_on: service_healthy` | ✔ | `docker-compose.yml`. |
 | 9.4 | Trusted proxy | ✔ | `TRUSTED_PROXY_IPS` domyślnie zawężone do podsieci compose (`172.30.1.0/24`, `172.30.2.0/24`); Caddy ustawia `X-Real-IP` i `X-Forwarded-Proto`. Patrz 7.9. |
 | 9.5 | Publiczny host S3 pod osobną nazwą | ✔ | `deploy/Caddyfile`: `s3.{$SITE_DOMAIN}` → `minio:9000` (podpis SigV4 obejmuje host, więc podścieżka nie wchodzi w grę); bucket `submissions` bez dostępu anonimowego. |
+
+---
+
+## 10. Poczta wychodząca (usługa `mail`)
+
+Własny Postfix zamiast zewnętrznego dostawcy: relay stoi w sieci compose i doręcza listy wprost do
+serwerów MX odbiorców. Konfiguracja i weryfikacja: `README.md` § 4.1–4.3.
+
+| # | Pozycja | Status | Gdzie / czym sprawdzone |
+|---|---|---|---|
+| 10.1 | Relay nieosiągalny spoza sieci compose | ✔ | `docker-compose.yml`, usługa `mail` bez `ports:` – Docker nie mapuje 587 na host. Sprawdzenie na serwerze: `ss -lntp \| grep -E ':(25\|587)'` nie zwraca nic, `nc -vz <publiczne-IP> 587` → `Connection refused`. |
+| 10.2 | Brak open relaya: obcy nadawca odrzucony | ✔ | `ALLOWED_SENDER_DOMAINS=${SITE_DOMAIN}` → `smtpd_recipient_restrictions = … check_sender_access lmdb:/etc/postfix/allowed_senders, reject`. Sprawdzenie z kontenera `web`: `MAIL FROM:<spam@evil.example>` + `RCPT TO:<ktos@obca.domena>` → `554 5.7.1 … Recipient address rejected: Access denied`; ten sam `RCPT` po `MAIL FROM:<noreply@<domena>>` → `250 2.1.5 Ok`. |
+| 10.3 | Brak open relaya: obcy klient odrzucony | ✔ | `POSTFIX_mynetworks = 127.0.0.0/8` + podsieci compose → `smtpd_client_restrictions = permit_mynetworks,permit_sasl_authenticated,reject`. Poza tymi podsieciami połączenie kończy się odmową jeszcze przed `MAIL FROM` (a z internetu nie ma jak go nawiązać – 10.1). |
+| 10.4 | Podpis DKIM na każdym wychodzącym liście | ✔ | `DKIM_AUTOGENERATE=true`, `DKIM_SELECTOR=olimpiada`, klucz RSA-2048 na wolumenie `mail_dkim` (`/etc/opendkim/keys/<domena>.private`, `chmod 400`, `opendkim:opendkim`). W logu na każdą wiadomość: `opendkim[…]: <id>: DKIM-Signature field added (s=olimpiada, d=<domena>)`. Klucz **nie** jest w repozytorium ani w obrazie – powstaje przy pierwszym starcie usługi. |
+| 10.5 | Minimalne capabilities kontenera | ✔ | `cap_drop: [ALL]` + `CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `SETGID`, `SETUID`, `SYS_CHROOT`, `KILL` (master zrzuca uprawnienia do `postfix`/`opendkim`, pilnuje właściciela kolejki i wchodzi do chroota `/var/spool/postfix`), `security_opt: no-new-privileges:true`. `NET_BIND_SERVICE` **nie** jest potrzebne – obraz nasłuchuje na 587, nie na 25. |
+| 10.6 | TLS do serwera odbiorcy | ⚠ `low` | `smtp_tls_security_level=may` (oportunistyczne STARTTLS): szyfrowanie, gdy odbiorca je ogłosi, bez weryfikacji certyfikatu (`Untrusted TLS connection established … TLSv1.3` w logu). Świadome: `encrypt`/`verify` odcięłoby odbiorców z niepoprawnym TLS-em, a listy resetu hasła nie mogą przepadać. Poufność treści opiera się na tym, że list nie zawiera hasła – tylko jednorazowy token 24 h (3.1.2, 3.1.8). |
+| 10.7 | SPF / DKIM / DMARC / PTR w DNS | ⚠ – **do zrobienia po stronie operatora strefy** | Rekordy wypisuje `scripts/deploy.sh` (krok 7/7) i zapisuje do `<REMOTE_DIR>/mail-dns.txt`; tabela w `README.md` § 4.2. Do czasu ich dodania listy dochodzą, ale bez uwierzytelnienia – trafiają do spamu, a część odbiorców je odrzuci. PTR (`<IP>` → `mail.<domena>`) ustawia się w panelu dostawcy serwera, nie w strefie. |
+| 10.8 | Rozmiar wiadomości ograniczony | ✔ | `POSTFIX_message_size_limit=10485760` (obraz domyślnie nie ma limitu); aplikacja wysyła wyłącznie krótkie listy transakcyjne. |
+| 10.9 | Klucz DKIM przeżywa restart | ✔ | Wolumen `mail_dkim:/etc/opendkim/keys`; przy kolejnym starcie w logu `Key for domain <domena> already exists … Will not overwrite.` Inaczej każdy `up -d --force-recreate` unieważniałby rekord TXT w DNS-ie. |
+| 10.10 | Poczta nie blokuje startu aplikacji | ✔ | `web`/`worker`/`beat` **nie** mają `depends_on` na `mail`; awaria relaya psuje reset hasła, ale nie serwis. `EMAIL_TIMEOUT=10` ogranicza czas zajęcia workera (3.1.12). |
 
 ---
 
@@ -158,4 +207,12 @@ docker compose exec -T web pytest -q            # testy jednostkowe i integracyj
 cd backend && .venv/Scripts/ruff.exe check .    # lint
 ./scripts/e2e.sh                                # scenariusz E2E na czystym środowisku
 MSYS_NO_PATHCONV=1 docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect -s /repo -v
+```
+
+Poczta (na serwerze produkcyjnym, `docker-compose.yml` bez nakładki `dev`):
+
+```bash
+nc -vz "$(hostname -I | awk '{print $1}')" 587        # musi odmówić – relay nie jest publikowany
+docker compose logs mail --tail 30                    # DKIM-Signature field added + status=sent
+docker compose exec mail postqueue -p                 # pusta kolejka = nic nie utknęło
 ```

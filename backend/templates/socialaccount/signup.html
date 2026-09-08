@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Dokończ rejestrację{% endblock %}
+{% block content %}
+<div class="auth">
+  <div class="card">
+    <h1>Dokończ rejestrację</h1>
+    <p class="auth__intro">Logowanie przez {{ provider_name }} się powiodło. Zostały dane, których
+      dostawca nie przekazuje, a które są potrzebne do udziału w olimpiadzie.</p>
+    <p class="hint">Konto powstanie na adres <strong>{{ social_email }}</strong> – ten sam, którego
+      używasz u dostawcy. Adresu nie da się tu zmienić.</p>
+    <form method="post" class="form">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <p class="hint">Zgoda na przetwarzanie danych osobowych jest wymagana. Uczestnik niepełnoletni
+        potrzebuje dodatkowo zgody opiekuna.</p>
+      <button type="submit" class="btn btn--primary btn--block">Załóż konto</button>
+    </form>
+    <p class="auth__alt">Konto założone tą drogą nie ma hasła – logujesz się przyciskiem
+      {{ provider_name }}. Jeśli zechcesz logować się także hasłem, ustawisz je później przez
+      <a href="{% url 'web:password-reset' %}">„Nie pamiętasz hasła?”</a>.</p>
+  </div>
+</div>
+{% endblock %}

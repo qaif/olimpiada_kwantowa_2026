@@ -81,6 +81,20 @@ EMBED_FRAME_SOURCES = (
     "https://player.vimeo.com",
 )
 
+#: Ekrany zgody dostawców OAuth. Trafiają do ``form-action`` **tylko** dla dostawcy, który ma
+#: skonfigurowane klucze (patrz ``provider_form_action_sources``).
+#:
+#: Dlaczego to jest potrzebne, skoro allauth nie wysyła POST-a do dostawcy: przycisk „Kontynuuj
+#: z Google” jest POST-em na nasz adres (``/accounts/google/login/``, CSRF), a ten odpowiada
+#: przekierowaniem 302 na ekran zgody dostawcy. Przeglądarki nie są zgodne co do tego, czy
+#: ``form-action`` obowiązuje także dla przekierowań będących skutkiem wysłania formularza –
+#: Chrome i Safari historycznie sprawdzały cel przekierowania i blokowały je przy ``'self'``.
+#: Rozluźnienie jest wąskie i warunkowe: dwa konkretne originy, wyłącznie gdy dostawca jest włączony.
+PROVIDER_FORM_ACTION_SOURCES = {
+    "google": "https://accounts.google.com",
+    "facebook": "https://www.facebook.com",
+}
+
 #: Nazwy widoków/przestrzeni nazw panelu. ``admin`` to panel Django (ma własną przestrzeń nazw),
 #: ``wagtailadmin_`` to prefiks nazw widoków Wagtaila – ten montuje się **bez** przestrzeni nazw,
 #: więc ``resolver_match.namespace`` dla ``/cms/`` jest pustym stringiem.
@@ -112,6 +126,26 @@ def _with_storage(sources: list[str]) -> str:
     return " ".join([*sources, origin] if origin else sources)
 
 
+def provider_form_action_sources() -> tuple[str, ...]:
+    """Originy ekranów zgody **włączonych** dostawców OAuth (puste, gdy żaden nie ma kluczy).
+
+    Źródłem prawdy jest ta sama konfiguracja, którą czyta allauth: obecność klucza ``APPS``
+    w ``SOCIALACCOUNT_PROVIDERS``. Instalacja bez OAuth ma dokładnie taką politykę, jak przed
+    dodaniem logowania społecznościowego.
+    """
+    providers = getattr(settings, "SOCIALACCOUNT_PROVIDERS", {}) or {}
+    return tuple(
+        origin
+        for name, origin in PROVIDER_FORM_ACTION_SOURCES.items()
+        if (providers.get(name) or {}).get("APPS")
+    )
+
+
+def form_action_sources() -> str:
+    """Wartość dyrektywy ``form-action``: zawsze ``'self'``, plus ekrany zgody dostawców OAuth."""
+    return " ".join(["'self'", *provider_form_action_sources()])
+
+
 def build_policy(nonce: str) -> str:
     """Buduje treść polityki dla jednego żądania (nonce jest jednorazowy)."""
     # Kolejność jest istotna dla starych przeglądarek: nonce i hosty muszą stać przed
@@ -124,7 +158,7 @@ def build_policy(nonce: str) -> str:
         "base-uri 'self'",
         "object-src 'none'",
         "frame-ancestors 'none'",
-        "form-action 'self'",
+        f"form-action {form_action_sources()}",
         # Obrazy i pliki mediów redakcyjnych stoją w publicznym buckecie MinIO i są linkowane
         # bezpośrednio (URL bez podpisu) – jego origin musi być na liście, inaczej produkcja
         # blokuje każdą ilustrację i każdy rendition Wagtaila.

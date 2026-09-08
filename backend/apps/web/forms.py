@@ -43,6 +43,29 @@ class ParticipantRegisterForm(forms.Form):
     guardian_consent = forms.BooleanField(label="Zgoda opiekuna", required=False)
 
 
+class SocialParticipantSignupForm(forms.Form):
+    """Dokończenie rejestracji po zalogowaniu przez Google/Facebooka.
+
+    Czego tu **nie ma** i dlaczego:
+
+    - **adresu e-mail** – przychodzi od dostawcy i jest tylko pokazywany. Edytowalne pole
+      pozwalałoby założyć konto na cudzy adres, a potem przejąć je resetem hasła,
+    - **hasła** – konto zakładane tą drogą nie ma użytecznego hasła; kto chce logować się także
+      hasłem, ustawia je przez „Nie pamiętasz hasła?”.
+
+    Imię i nazwisko przychodzą z profilu u dostawcy jako wartości początkowe i **są edytowalne**:
+    w wynikach olimpiady ma stać nazwisko z legitymacji, a nie pseudonim z konta społecznościowego.
+    """
+
+    first_name = forms.CharField(label="Imię", max_length=150)
+    last_name = forms.CharField(label="Nazwisko", max_length=150)
+    school = forms.CharField(label="Szkoła", max_length=200)
+    district = forms.CharField(label="Okręg", max_length=100)
+    birth_year = forms.IntegerField(label="Rok urodzenia", min_value=1900, max_value=2100)
+    gdpr_consent = forms.BooleanField(label="Zgoda na przetwarzanie danych osobowych", required=False)
+    guardian_consent = forms.BooleanField(label="Zgoda opiekuna", required=False)
+
+
 class CommitteeRegisterForm(forms.Form):
     """Rejestracja członka komitetu na kod zaproszenia."""
 

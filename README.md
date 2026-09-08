@@ -143,7 +143,9 @@ Co trzeba ustawić **zanim** to zadziała:
    `S3_PUBLIC_SECRET_KEY`, `S3_PRIVATE_SECRET_KEY` – losowe, po ≥ 24 znaki. `.env` nie należy do
    repozytorium (jest w `.gitignore`; sprawdzane skanem `gitleaks`).
 7. **Poczta wychodząca (SMTP).** Bez niej nie działa reset hasła („Nie pamiętasz hasła?”) – jedyna
-   droga odzyskania konta dla uczestnika, recenzenta, komisji i koordynatora. Patrz sekcja 4.1.
+   droga odzyskania konta dla uczestnika, recenzenta, komisji i koordynatora. Domyślnie obsługuje ją
+   usługa `mail` (własny Postfix z DKIM) – sekcja 4.1. Sama usługa nie wystarczy: bez rekordów
+   SPF/DKIM/DMARC i PTR listy trafiają do spamu albo są odrzucane – sekcja 4.2.
 
 Certyfikat Let's Encrypt Caddy pobiera sam przy pierwszym starcie – wymaga otwartych portów 80 i 443
 i poprawnego DNS-u dla obu nazw.
@@ -172,47 +174,196 @@ i `environment` w compose; w obrazie nie ma żadnego sekretu.
 | `S3_PUBLIC_ENDPOINT_URL` | `https://s3.<SITE_DOMAIN>` | adres MinIO widziany z przeglądarki |
 | `S3_PRESIGNED_TTL_SECONDS` | `600` | ważność linku do pliku rozwiązania |
 | `TRUSTED_PROXY_IPS` | podsieci compose | komu wolno podać `X-Real-IP` |
-| `EMAIL_URL` | `consolemail://` (dev `.env`: `smtp://mailpit:1025`) | poczta wychodząca; produkcja `smtp+tls://user:haslo@host:587` – patrz 4.1 |
-| `DEFAULT_FROM_EMAIL` | `noreply@localhost` (dev `.env`: `olimpiada@localhost`) | nadawca listów (także `SERVER_EMAIL`); domena musi mieć SPF/DKIM |
+| `EMAIL_URL` | `consolemail://` (dev `.env`: `smtp://mailpit:1025`; produkcja z `deploy.sh`: `smtp://mail:587`) | poczta wychodząca – patrz 4.1 |
+| `DEFAULT_FROM_EMAIL` | `noreply@localhost` (dev `.env`: `olimpiada@localhost`) | nadawca listów (także `SERVER_EMAIL`); domena musi mieć SPF/DKIM – patrz 4.2 |
 | `EMAIL_TIMEOUT` | `10` | limit sekund na połączenie SMTP (wysyłka jest synchroniczna w żądaniu) |
+| `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` | puste | logowanie przez Google; puste = przycisk się nie pokazuje – patrz 4.4 |
+| `FACEBOOK_APP_ID` / `FACEBOOK_APP_SECRET` | puste | logowanie przez Facebooka; puste = przycisk się nie pokazuje – patrz 4.4 |
 | `E2E_MODE` | (nieustawiona) | **tylko dev**: odblokowuje `manage.py e2e_timeline`. W produkcji nigdy |
 
 ### 4.1 Poczta wychodząca (SMTP)
 
-W kontenerze aplikacyjnym **nie ma MTA**, a domyślne ustawienie Django (`localhost:25`) skończyłoby
-się odmową połączenia w środku żądania POST. Konfiguracja jest jedną zmienną:
+Bez działającej poczty nie działa reset hasła – **jedyna** droga odzyskania konta dla uczestnika,
+recenzenta, komisji i koordynatora. W kontenerze aplikacyjnym nie ma MTA, a domyślne ustawienie
+Django (`localhost:25`) skończyłoby się odmową połączenia w środku żądania POST. Są dwa warianty;
+oba sprowadzają się do jednej zmiennej `EMAIL_URL`.
+
+#### Wariant A (domyślny): własny Postfix w compose
+
+Usługa `mail` (`boky/postfix`) jest **send-only relayem**: przyjmuje pocztę z sieci compose na
+porcie 587 i doręcza ją wprost do serwerów MX odbiorców, bez pośrednika. `scripts/deploy.sh`
+ustawia to jako domyślne przy pierwszym wdrożeniu:
 
 ```ini
-# Dostawca poczty transakcyjnej albo firmowy relay. Port 587 + STARTTLS to wariant domyślny;
-# dla implicit TLS na 465 użyj schematu smtps://.
+EMAIL_URL=smtp://mail:587
+DEFAULT_FROM_EMAIL=noreply@olimpiadakwantowa.pl
+EMAIL_TIMEOUT=10
+```
+
+Co robi konfiguracja usługi (`docker-compose.yml`, sekcja `mail`):
+
+| Ustawienie | Wartość | Po co |
+|---|---|---|
+| `image` | `boky/postfix:v5.1.0-alpine` | ostatnie wydanie z backendem OpenDKIM; v6 przechodzi na rspamd i zmienia ścieżkę wolumenu z kluczami |
+| `ALLOWED_SENDER_DOMAINS` | `${SITE_DOMAIN}` | koperta przyjmowana wyłącznie dla nadawcy z domeny serwisu |
+| `POSTFIX_mynetworks` | `127.0.0.0/8` + podsieci compose | klientem SMTP może być tylko kontener z `edge`/`internal` |
+| `RELAYHOST` | (nieustawiony) | doręczanie wprost do MX odbiorcy, bez zewnętrznego dostawcy |
+| `POSTFIX_smtp_tls_security_level` | `may` | STARTTLS, gdy odbiorca go ogłosi; `encrypt` odciąłby część odbiorców |
+| `DKIM_AUTOGENERATE`, `DKIM_SELECTOR` | `true`, `olimpiada` | klucz RSA-2048 generowany przy pierwszym starcie |
+| wolumen `mail_dkim` | `/etc/opendkim/keys` | klucz przeżywa `down`/`up`; inaczej po każdym restarcie trzeba by zmieniać DNS |
+| `hostname`, `POSTFIX_myhostname` | `mail.${SITE_DOMAIN}` | HELO/EHLO; musi zgadzać się z rekordem PTR |
+| brak `ports:` | – | relay nie jest osiągalny spoza sieci compose (sprawdzenie niżej) |
+| `cap_drop: ALL` + 7 capabilities | `CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `SETGID`, `SETUID`, `SYS_CHROOT`, `KILL` | minimum, przy którym master Postfiksa zrzuca uprawnienia i wchodzi do chroota `/var/spool/postfix` |
+
+Sieci: `mail` jest w `internal` (żeby widziały ją `web`, `worker`, `beat`) **i** w `edge` – sieć
+`internal` ma `internal: true`, czyli zero wyjścia na świat, a doręczenie do MX-a odbiorcy tego
+wyjścia wymaga. `edge` nie publikuje portu 587 na hoście, więc z internetu relay jest niewidoczny.
+Aplikacja **nie** ma `depends_on` na `mail`: awaria poczty nie może blokować startu serwisu.
+
+W devie usługa się nie uruchamia – `docker-compose.dev.yml` nadaje jej nieużywany profil `never`,
+a listy podglądamy w `mailpit` (`--profile dev`, <http://localhost:8025/>).
+
+#### Wariant B: zewnętrzny dostawca poczty transakcyjnej
+
+Wystarczy podmienić `EMAIL_URL` w `.env` i zrestartować procesy aplikacji; usługi `mail` można wtedy
+nie uruchamiać.
+
+```ini
+# Port 587 + STARTTLS to wariant domyślny; dla implicit TLS na 465 użyj schematu smtps://.
 EMAIL_URL=smtp+tls://uzytkownik:haslo@smtp.dostawca.example:587
-# Nadawca listów. Musi być adresem w domenie, dla której panujesz nad DNS-em.
 DEFAULT_FROM_EMAIL=olimpiada@olimpiada.example.org
 ```
 
-Obsługiwane schematy `EMAIL_URL` (`django-environ`): `smtp://host:port` (bez szyfrowania – wyłącznie
-dev/mailpit), `smtp+tls://` (STARTTLS), `smtps://` (TLS od pierwszego bajtu), `consolemail://`
-(wypis do logu – wartość domyślna, gdy zmiennej nie ma) i `filemail://`. Hasło z `@` albo `:` trzeba
-zakodować procentowo (`%40`, `%3A`).
+Obsługiwane schematy `EMAIL_URL` (`django-environ`): `smtp://host:port` (bez szyfrowania – mailpit
+albo własny relay w sieci compose), `smtp+tls://` (STARTTLS), `smtps://` (TLS od pierwszego bajtu),
+`consolemail://` (wypis do logu – wartość domyślna, gdy zmiennej nie ma) i `filemail://`. Hasło
+z `@` albo `:` trzeba zakodować procentowo (`%40`, `%3A`).
 
-**Po stronie dostawcy DNS** – bez tego listy trafiają do spamu albo są odrzucane:
+### 4.2 Rekordy DNS dla poczty
 
-- **SPF**: rekord TXT domeny z `include:` dostawcy, np. `v=spf1 include:spf.dostawca.example ~all`,
-- **DKIM**: rekord TXT z selektorem podanym przez dostawcę (`selektor._domainkey.<domena>`),
-- **DMARC** (zalecane): `_dmarc.<domena>` TXT, np. `v=DMARC1; p=quarantine; rua=mailto:…`,
-- adres z `DEFAULT_FROM_EMAIL` musi być w tej samej domenie, co rekordy SPF/DKIM – inaczej
-  uwierzytelnienie nie zadziała mimo poprawnych rekordów.
+Bez nich listy trafiają do spamu albo są odrzucane – i to niezależnie od wariantu. Wartości dla
+własnego Postfiksa wypisuje `scripts/deploy.sh` (krok 7/7) i zapisuje do `/opt/olimpiada/mail-dns.txt`.
+`<IP>` to publiczny adres serwera, `<selektor>` to `DKIM_SELECTOR` (domyślnie `olimpiada`).
 
-Weryfikacja po wdrożeniu: w logu startowym `web` **nie może** być ostrzeżenia
-`EMAIL_URL wskazuje localhost:25` (`config/settings/production.py` – brak SMTP nie blokuje startu,
-ale zostawia ślad). Test ręczny:
+| Typ | Nazwa | Wartość | Uwaga |
+|---|---|---|---|
+| TXT | `<domena>` (korzeń strefy, `@`) | `v=spf1 ip4:<IP> -all` | wariant B: `include:` dostawcy zamiast `ip4:` |
+| TXT | `<selektor>._domainkey.<domena>` | `v=DKIM1; h=sha256; k=rsa; s=email; p=<klucz publiczny>` | odczyt: `docker compose exec mail cat /etc/opendkim/keys/<domena>.txt` (format strefy BIND – wartość trzeba skleić z fragmentów w cudzysłowach) |
+| TXT | `_dmarc.<domena>` | `v=DMARC1; p=quarantine; rua=mailto:<adres raportów>; adkim=r; aspf=r; fo=1` | zacząć od `p=none`, jeśli chcesz najpierw pooglądać raporty |
+| A | `mail.<domena>` | `<IP>` | nazwa z HELO musi się rozwiązywać |
+| PTR | – | `<IP>` → `mail.<domena>` | **nie w strefie domeny**: ustawia się w panelu dostawcy serwera (rDNS). Bez tego Gmail i Outlook odrzucają pocztę mimo poprawnych SPF/DKIM |
+
+Dwie pułapki przy wklejaniu:
+
+- **Rekord DKIM jest dłuższy niż 255 znaków**, czyli więcej, niż mieści jeden ciąg TXT w protokole
+  DNS. Panel operatora ma to podzielić sam – wklejamy jedną, nieprzerwaną wartość (tak, jak
+  wypisuje ją `mail-dns.txt`), bez cudzysłowów, spacji i łamania wierszy w kluczu `p=`.
+- Adres z `DEFAULT_FROM_EMAIL` musi być w tej samej domenie, co rekordy SPF i DKIM – inaczej
+  uwierzytelnienie nie zadziała mimo poprawnych rekordów (wyrównanie DMARC).
+
+### 4.3 Weryfikacja poczty po wdrożeniu
+
+W logu startowym `web` **nie może** być ostrzeżenia `EMAIL_URL wskazuje localhost:25`
+(`config/settings/production.py` – brak SMTP nie blokuje startu, ale zostawia ślad).
 
 ```bash
-docker compose exec web python -c "
-from django.core.mail import send_mail
-send_mail('Test konfiguracji SMTP', 'Treść testowa.', None, ['ty@example.org'])
-"
+# 1. Usługa działa i ma klucz DKIM
+docker compose ps mail
+docker compose exec mail cat /etc/opendkim/keys/"$SITE_DOMAIN".txt
+
+# 2. Wysyłka testowa (</dev/null: `exec` nie może czytać stdin skryptu)
+docker compose exec -T web python manage.py shell -c   "from django.core.mail import send_mail; print(send_mail('Test SMTP', 'Treść testowa.', None, ['ty@example.org']))" </dev/null
+
+# 3. Status doręczenia i podpis DKIM w logu relaya
+docker compose logs mail --tail 30
+#   opendkim[…]: <id>: DKIM-Signature field added (s=olimpiada, d=<domena>)
+#   postfix/smtp[…]: Untrusted TLS connection established to <MX>:25: TLSv1.3 …
+#   postfix/smtp[…]: <id>: to=<…>, relay=<MX>:25, …, status=sent (250 2.0.0 OK …)
+
+# 4. Relay nie jest widoczny z internetu (musi odmówić połączenia)
+nc -vz <publiczne-IP> 587
 ```
+
+Statusy w logu: `status=sent` – MX odbiorcy przyjął list; `status=bounced` – odrzucił na stałe
+(kod 5xx w nawiasie mówi dlaczego, zwykle brak SPF/DKIM/PTR); `status=deferred` – spróbuje ponownie
+(kolejka: `docker compose exec mail postqueue -p`).
+
+### 4.4 Logowanie przez Google i Facebooka (OAuth)
+
+Funkcja jest **opcjonalna i domyślnie wyłączona**. Bez kluczy strony `/login/` i `/register/`
+wyglądają dokładnie tak, jak przed jej dodaniem – nie ma sekcji „Lub kontynuuj z”, a adresy
+`/accounts/…` zwracają 404.
+
+Co daje włączenie:
+
+- uczestnik loguje się kontem Google/Facebooka zamiast hasła; konto założone tą drogą **nie ma
+  hasła** (gdyby chciał logować się także hasłem, ustawia je przez „Nie pamiętasz hasła?”),
+- po pierwszym logowaniu trafia na stronę **dokończenia rejestracji** (`/rejestracja/dokoncz/`):
+  szkoła, okręg, rok urodzenia, zgoda RODO. Bez zgody RODO konto **nie powstaje**,
+- konta komitetu tą drogą **nie powstają** – rejestracja recenzenta zostaje wyłącznie na kod
+  zaproszenia. Istniejący członek komitetu może się natomiast zalogować Google'em.
+
+Adresy powrotne (redirect URI), które trzeba wpisać u dostawcy:
+
+```
+https://<SITE_DOMAIN>/accounts/google/login/callback/
+https://<SITE_DOMAIN>/accounts/facebook/login/callback/
+```
+
+#### Google Cloud Console
+
+1. <https://console.cloud.google.com/> → utwórz projekt (np. „Olimpiada Kwantowa”).
+2. **APIs & Services → OAuth consent screen**: typ **External**, opublikuj („Publish app”), inaczej
+   zalogują się wyłącznie konta dopisane ręcznie jako testerzy. Wypełnij: nazwa aplikacji,
+   e-mail wsparcia, logo, **link do polityki prywatności** `https://<SITE_DOMAIN>/dokumenty/rodo/`,
+   link do regulaminu `https://<SITE_DOMAIN>/regulamin/`, domena autoryzowana `<SITE_DOMAIN>`.
+3. **Zakresy**: wyłącznie `.../auth/userinfo.email`, `.../auth/userinfo.profile` i `openid`.
+   To są zakresy „nieczułe” – aplikacja nie przechodzi wtedy weryfikacji bezpieczeństwa Google.
+4. **Credentials → Create credentials → OAuth client ID**, typ **Web application**:
+   - *Authorized JavaScript origins*: `https://<SITE_DOMAIN>`,
+   - *Authorized redirect URIs*: `https://<SITE_DOMAIN>/accounts/google/login/callback/`.
+5. Skopiuj **Client ID** i **Client secret** do `.env`:
+   `GOOGLE_OAUTH_CLIENT_ID=…`, `GOOGLE_OAUTH_CLIENT_SECRET=…`.
+
+#### Meta for Developers (Facebook)
+
+1. <https://developers.facebook.com/apps/> → **Create app** → przypadek użycia
+   **Authenticate and request data from users with Facebook Login** → typ **Consumer**.
+2. Dodaj produkt **Facebook Login → Settings**:
+   - *Valid OAuth Redirect URIs*: `https://<SITE_DOMAIN>/accounts/facebook/login/callback/`,
+   - *Client OAuth Login*, *Web OAuth Login*: włączone; *Enforce HTTPS*: włączone.
+3. **App settings → Basic**: *App Domains* = `<SITE_DOMAIN>`, *Site URL* = `https://<SITE_DOMAIN>`,
+   **Privacy Policy URL** = `https://<SITE_DOMAIN>/dokumenty/rodo/` (Meta **wymaga** tego adresu do
+   przełączenia aplikacji w tryb Live), *Terms of Service URL* = `https://<SITE_DOMAIN>/regulamin/`,
+   *User data deletion* – adres kontaktowy albo `https://<SITE_DOMAIN>/kontakt/`, kategoria: Education.
+4. **App Review → Permissions and Features**: uprawnienia `email` i `public_profile` są dostępne
+   od razu (Advanced Access bez przeglądu). Innych nie prosimy.
+5. Przełącz aplikację na **Live** (przełącznik u góry panelu). W trybie Development zalogują się
+   wyłącznie osoby dodane w *App roles*.
+6. Skopiuj **App ID** i **App secret** do `.env`: `FACEBOOK_APP_ID=…`, `FACEBOOK_APP_SECRET=…`.
+
+#### Wdrożenie i weryfikacja
+
+```bash
+# Klucze wchodzą przez env_file – wystarczy odtworzyć procesy aplikacji.
+docker compose up -d web worker beat
+
+# Sekcja „Lub kontynuuj z” pojawia się tylko dla dostawcy z kompletem kluczy.
+curl -s https://<SITE_DOMAIN>/login/ | grep -o 'accounts/[a-z]*/login/'
+
+# Nagłówek CSP wymienia ekran zgody włączonego dostawcy w form-action.
+curl -sI https://<SITE_DOMAIN>/login/ | grep -o "form-action [^;]*"
+```
+
+Wyłączenie funkcji: wyczyść zmienne w `.env` i odtwórz procesy. Konta założone przez dostawcę
+zostają – ich właściciele odzyskują dostęp przez „Nie pamiętasz hasła?”, bo adres e-mail konta
+jest ten sam, którego używali u dostawcy.
+
+**Uwaga o Facebooku.** Facebook nie potwierdza, że przekazany adres e-mail należy do osoby, która
+się loguje, więc logowanie przez Facebooka **nigdy** nie łączy się z kontem, które już istnieje
+w serwisie – użytkownik dostaje wtedy stronę „konto istnieje, zaloguj się hasłem albo je zresetuj”.
+Google robi to automatycznie, ale wyłącznie dla adresu oznaczonego przez niego jako zweryfikowany;
+konsekwencje opisuje `docs/SECURITY_CHECKLIST.md` § 3.2.
 
 ## 5. Role i przepływ etapu
 

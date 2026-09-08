@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% comment %}
+  Błąd uścisku dłoni OAuth (odrzucony ``state``, nieudana wymiana kodu, błąd po stronie dostawcy).
+  allauth podaje w kontekście ``auth_error`` z kodem i wyjątkiem – celowo niczego z tego nie
+  pokazujemy: dla użytkownika to szum, a dla atakującego informacja, na którym etapie się zatrzymał.
+  Szczegóły trafiają do logu aplikacji, nie na stronę.
+{% endcomment %}
+{% block title %}Logowanie nie powiodło się{% endblock %}
+{% block content %}
+<div class="auth">
+  <div class="card">
+    <h1>Logowanie nie powiodło się</h1>
+    <p>Nie udało się dokończyć logowania przez dostawcę zewnętrznego. Spróbuj jeszcze raz, a jeśli
+      problem się powtarza – zaloguj się hasłem albo załóż konto.</p>
+    <p class="actions">
+      <a class="btn btn--primary" href="{% url 'web:login' %}">Wróć do logowania</a>
+      <a class="btn btn--secondary" href="{% url 'web:register' %}">Rejestracja z hasłem</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

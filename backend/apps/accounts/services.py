@@ -134,13 +134,66 @@ def register_participant(
     guardian_consent: bool = False,
 ) -> Participant:
     """Rejestracja otwarta uczestnika: User w grupie ``participant`` + profil ``Participant``."""
+    _require_gdpr_consent(gdpr_consent)
+    user = _create_user(email=email, password=password, first_name=first_name, last_name=last_name)
+    _add_to_group(user, GROUP_PARTICIPANT)
+    return create_participant_with_public_code(
+        user=user,
+        school=school,
+        district=district,
+        birth_year=birth_year,
+        gdpr_consent_at=timezone.now(),
+        guardian_consent=guardian_consent,
+    )
+
+
+def _require_gdpr_consent(gdpr_consent: bool) -> None:
     if not gdpr_consent:
         raise DomainError(
             "Zgoda na przetwarzanie danych osobowych jest wymagana.",
             "GDPR_CONSENT_REQUIRED",
             status.HTTP_400_BAD_REQUEST,
         )
-    user = _create_user(email=email, password=password, first_name=first_name, last_name=last_name)
+
+
+@transaction.atomic
+def register_social_participant(
+    *,
+    email: str,
+    first_name: str,
+    last_name: str,
+    school: str,
+    district: str,
+    birth_year: int,
+    gdpr_consent: bool,
+    guardian_consent: bool = False,
+) -> Participant:
+    """Rejestracja uczestnika po zalogowaniu przez dostawcę zewnętrznego (Google/Facebook).
+
+    Różnice wobec ``register_participant`` są dwie i obie są zamierzone:
+
+    - **konto nie ma użytecznego hasła** (``set_unusable_password``). Poświadczeniem jest konto
+      u dostawcy; gdyby uczestnik chciał logować się także hasłem, ustawi je przez „Nie pamiętasz
+      hasła?” – ta ścieżka potwierdza dostęp do skrzynki i podlega walidatorom haseł,
+    - **adres e-mail nie pochodzi z formularza**, tylko z odpowiedzi dostawcy. Wpisywalne pole
+      pozwalałoby zarejestrować konto na cudzy adres i tą drogą przejąć je resetem hasła.
+
+    Zgoda RODO jest sprawdzana **przed** zapisem czegokolwiek – bez niej nie powstaje ani ``User``,
+    ani ``Participant``, ani powiązanie ``SocialAccount`` (to ostatnie zapisuje dopiero widok).
+    """
+    _require_gdpr_consent(gdpr_consent)
+    email = _normalize_email(email)
+    if not email:
+        raise DomainError(
+            "Dostawca nie przekazał adresu e-mail.", "EMAIL_REQUIRED", status.HTTP_400_BAD_REQUEST
+        )
+    if User.objects.filter(email=email).exists():
+        raise DomainError(
+            "Konto z tym adresem e-mail już istnieje.", "EMAIL_TAKEN", status.HTTP_400_BAD_REQUEST
+        )
+    user = User(email=email, first_name=first_name, last_name=last_name)
+    user.set_unusable_password()
+    user.save()
     _add_to_group(user, GROUP_PARTICIPANT)
     return create_participant_with_public_code(
         user=user,

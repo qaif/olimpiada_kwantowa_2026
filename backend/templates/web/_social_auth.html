@@ -1,0 +1,29 @@
+{% comment %}
+  Sekcja „Lub kontynuuj z” na stronie logowania i rejestracji.
+
+  Renderuje się wyłącznie dla dostawców, którzy mają w środowisku komplet kluczy – listę podaje
+  ``apps.web.context_processors.social_providers``. Instalacja bez OAuth nie pokazuje niczego.
+
+  Każdy przycisk jest osobnym formularzem POST z tokenem CSRF (a nie linkiem): logowanie
+  uruchamiane zwykłym GET-em dałoby się wywołać z obcej strony (login CSRF), dlatego allauth ma
+  ``SOCIALACCOUNT_LOGIN_ON_GET = False``, a my wysyłamy POST od razu.
+
+  Ikony są wklejone jako SVG w szablonie – żadnego zasobu z obcego serwera i żadnego skryptu,
+  więc CSP zostaje bez zmian (``img-src`` i ``script-src`` nietknięte).
+{% endcomment %}
+{% if social_providers %}
+  <div class="social-auth">
+    <p class="social-auth__label"><span>Lub kontynuuj z:</span></p>
+    {% for provider in social_providers %}
+      <form method="post" action="{{ provider.login_url }}" class="social-auth__form">
+        {% csrf_token %}
+        {% comment %}Cel po zalogowaniu; allauth sprawdza adres przez ``is_safe_url``.{% endcomment %}
+        <input type="hidden" name="next" value="{{ next|default_if_none:'' }}">
+        <button type="submit" class="btn btn--secondary btn--block social-auth__btn">
+          {% include "web/_social_icon.html" with provider_id=provider.id %}
+          <span>{{ provider.name }}</span>
+        </button>
+      </form>
+    {% endfor %}
+  </div>
+{% endif %}

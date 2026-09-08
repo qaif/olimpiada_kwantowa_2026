@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% comment %}Użytkownik przerwał logowanie na ekranie zgody dostawcy. To nie jest błąd.{% endcomment %}
+{% block title %}Logowanie przerwane{% endblock %}
+{% block content %}
+<div class="auth">
+  <div class="card">
+    <h1>Logowanie przerwane</h1>
+    <p>Zrezygnowałeś z logowania po stronie dostawcy. Żadne dane nie zostały przekazane.</p>
+    <p class="actions">
+      <a class="btn btn--primary" href="{% url 'web:login' %}">Wróć do logowania</a>
+      <a class="btn btn--secondary" href="{% url 'web:register' %}">Rejestracja z hasłem</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

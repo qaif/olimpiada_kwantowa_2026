@@ -62,9 +62,25 @@ INSTALLED_APPS = [
     "apps.appeals",
     "apps.results",
     "apps.web",
+    # Logowanie przez dostawców zewnętrznych (Google, Facebook). ``allauth.account`` jest wymagane
+    # przez ``allauth.socialaccount`` (model ``EmailAddress``, adaptery) – jego **widoki** nie są
+    # montowane, patrz apps/web/social_urls.py. ``django.contrib.sites`` celowo nie ma: allauth
+    # wykrywa jego brak (``SITES_ENABLED``) i buduje migracje bez zależności od witryn, a jedyną
+    # witryną w projekcie jest ``wagtailcore.Site``.
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
+    "allauth.socialaccount.providers.facebook",
 ]
 
 AUTH_USER_MODEL = "accounts.User"
+
+# ``ModelBackend`` zostaje jedynym backendem uwierzytelniania: logowanie hasłem robi nasz
+# ``apps.web.views.public.LoginView`` (z throttlingiem), a social login nie sprawdza haseł – po
+# stronie allauth kończy się wywołaniem ``django.contrib.auth.login``. Backend allauth dołożyłby
+# drugą, nieobjętą naszym limitem ścieżkę logowania hasłem i dlatego go nie ma.
+AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.ModelBackend"]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -79,6 +95,11 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Wymagana przez allauth: ustawia kontekst żądania (``allauth.core.context``), z którego
+    # korzystają adaptery i przepływ social login. Nie montuje żadnego adresu i nie zmienia
+    # obsługi 404 – przekierowanie „/accounts/ → logowanie” włącza się dopiero, gdy istnieje
+    # nazwa ``account_email`` (nie mamy jej, bo widoków allauth nie montujemy).
+    "allauth.account.middleware.AccountMiddleware",
     # Na samym końcu łańcucha: warstwa działa wyłącznie na odpowiedzi 404, więc musi zobaczyć
     # ostatnie słowo widoków (Wagtail jest catch-allem w korzeniu). Dopiero gdy nikt nie umiał
     # obsłużyć adresu, sprawdzamy, czy nie jest to adres strony przeniesionej w drzewie.
@@ -103,6 +124,9 @@ TEMPLATES = [
                 "apps.web.context_processors.roles",
                 # Dane prezentacyjne ramy serwisu: etykieta edycji w logotypie, wersja w stopce.
                 "apps.web.context_processors.site_chrome",
+                # Lista skonfigurowanych dostawców OAuth (Google/Facebook). Przycisk pojawia się
+                # wyłącznie wtedy, gdy dostawca ma w środowisku komplet kluczy.
+                "apps.web.context_processors.social_providers",
                 # Menu części informacyjnej (strony Wagtaila oznaczone „pokaż w menu”).
                 "apps.cms.context_processors.cms_menu",
                 # Nazwa serwisu, hasło i dane organizatora – ``cms.SiteSettings`` edytowane
@@ -329,6 +353,103 @@ WAGTAILEMBEDS_FINDERS = [
 LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "/me/"
 LOGOUT_REDIRECT_URL = "/"
+
+# --- Logowanie przez Google i Facebooka (django-allauth, wyłącznie socialaccount) --------------
+#
+# Zakres użycia allauth jest celowo wąski: bierzemy z niego **tylko** uścisk dłoni OAuth2 i model
+# ``SocialAccount``. Rejestracja hasłem, logowanie hasłem i reset hasła zostają nasze
+# (``apps.web.views.public``), bo tam jest throttling (``apps.web.throttle``) i tam jest audyt.
+# Dlatego ``allauth.account.urls`` **nie** jest montowane, a ``ACCOUNT_ADAPTER`` odmawia rejestracji
+# lokalnej – patrz ``apps.accounts.adapters`` i ``apps.web.social_urls``.
+#
+# Klucze dostawców przychodzą wyłącznie ze środowiska. Pusta wartość = dostawca wyłączony:
+# nie ma go w ``SOCIALACCOUNT_PROVIDERS[...]["APPS"]``, więc allauth go nie zna, a interfejs nie
+# pokazuje przycisku (``apps.web.context_processors.social_providers``). W bazie nie ma ani jednego
+# obiektu ``SocialApp`` – sekret nigdy nie trafia do dumpów bazy ani do panelu admina.
+GOOGLE_OAUTH_CLIENT_ID = env("GOOGLE_OAUTH_CLIENT_ID", default="")
+GOOGLE_OAUTH_CLIENT_SECRET = env("GOOGLE_OAUTH_CLIENT_SECRET", default="")
+FACEBOOK_APP_ID = env("FACEBOOK_APP_ID", default="")
+FACEBOOK_APP_SECRET = env("FACEBOOK_APP_SECRET", default="")
+
+# Uwaga operacyjna: ``SESSION_COOKIE_SAMESITE`` musi zostać przy ``"Lax"`` (domyślne Django).
+# Adres powrotny dostawcy to nawigacja GET z obcej domeny – przy ``"Strict"`` przeglądarka nie
+# wysyła ciasteczka sesji, więc allauth nie znajduje w sesji parametru ``state`` i logowanie kończy
+# się stroną błędu. Biblioteka ma na to obejście (dodatkowe przekierowanie), ale nie ma powodu
+# wchodzić w tę ścieżkę: ``Lax`` i tak nie wysyła ciasteczka przy żądaniach POST z obcej domeny.
+ACCOUNT_ADAPTER = "apps.accounts.adapters.AccountAdapter"
+SOCIALACCOUNT_ADAPTER = "apps.accounts.adapters.SocialAccountAdapter"
+
+# Model konta nie ma pola ``username`` – loginem jest e-mail (``accounts.User.USERNAME_FIELD``).
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*"]
+# Nie prowadzimy weryfikacji adresu przez allauth: konto zakładane społecznościowo ma adres
+# potwierdzony przez dostawcę (Google), a konto zakładane hasłem – nasz własny przepływ bez
+# weryfikacji (świadomy dług, patrz docs/BACKLOG.md). „mandatory” wymagałoby drugiego kanału
+# wysyłki listów obok naszego resetu hasła.
+ACCOUNT_EMAIL_VERIFICATION = "none"
+SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
+# Limity allauth zostają w konfiguracji jako zabezpieczenie na wypadek zamontowania jego widoków;
+# dziś nie są aktywne, bo ``allauth.account.urls`` nie jest w urlconfie. Ścieżkę, którą naprawdę
+# mamy (dokończenie rejestracji), ogranicza nasz ``ThrottledFormMixin`` ze scope'em ``register``.
+ACCOUNT_RATE_LIMITS = {"login": "30/m/ip", "signup": "10/m/ip", "login_failed": "10/m/ip,5/300s/key"}
+
+# Konto **nie** powstaje automatycznie po udanym OAuth: użytkownik trafia najpierw na nasz
+# formularz dokończenia rejestracji (szkoła, okręg, rok urodzenia, zgoda RODO). Dopiero jego
+# zatwierdzenie tworzy ``User`` – bez zgody RODO nie powstaje żaden wiersz.
+SOCIALACCOUNT_AUTO_SIGNUP = False
+# Nie przechowujemy tokenów dostawcy. Nie robimy nic w imieniu użytkownika po zalogowaniu, więc
+# token byłby wyłącznie kolejnym sekretem do wycieku.
+SOCIALACCOUNT_STORE_TOKENS = False
+SOCIALACCOUNT_QUERY_EMAIL = True
+# Przycisk dostawcy jest POST-em z tokenem CSRF (zalecenie allauth): GET otwierałby uścisk dłoni
+# z dowolnej obcej strony (login CSRF). Wartość ``False`` sprawia, że GET pokazuje tylko stronę
+# potwierdzenia (``templates/socialaccount/login.html``).
+SOCIALACCOUNT_LOGIN_ON_GET = False
+# Łączenie loginu społecznościowego z istniejącym kontem po adresie e-mail włączamy **per
+# dostawca**, nie globalnie (patrz ``EMAIL_AUTHENTICATION`` przy Google niżej). Globalne ``True``
+# nadpisałoby ustawienie każdego dostawcy – także tego, któremu nie ufamy w kwestii adresu.
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = False
+# Gdy dostawca, któremu ufamy, poda **zweryfikowany** adres istniejącego konta, allauth zapisuje
+# powiązanie ``SocialAccount`` od razu, bez pytania o hasło. Ryzyko jest udokumentowane
+# w docs/SECURITY_CHECKLIST.md § 3.2: zaufanie do Google zastępuje tu potwierdzenie hasłem.
+SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
+
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "SCOPE": ["profile", "email"],
+        # ``online`` – nie prosimy o refresh token, bo i tak nie przechowujemy tokenów.
+        "AUTH_PARAMS": {"access_type": "online"},
+        # PKCE (RFC 7636) obok parametru ``state``: przechwycony kod autoryzacyjny jest bezużyteczny
+        # bez ``code_verifier``, który nigdy nie opuszcza serwera.
+        "OAUTH_PKCE_ENABLED": True,
+        # Google zwraca ``email_verified``; adres bez tej flagi zostaje nieweryfikowany i wtedy
+        # (patrz niżej) nie łączy się z żadnym istniejącym kontem.
+        "EMAIL_AUTHENTICATION": True,
+        # Nigdy „na słowo”: zaufanie do adresu bierze się z odpowiedzi Google, nie z konfiguracji.
+        "VERIFIED_EMAIL": False,
+    },
+    "facebook": {
+        "METHOD": "oauth2",
+        "SCOPE": ["email", "public_profile"],
+        "FIELDS": ["id", "email", "name", "first_name", "last_name"],
+        # Facebook nie mówi, czy adres jest potwierdzony (pole ``verified`` dotyczy konta, nie
+        # adresu). Dlatego jego adresy zostają **nieweryfikowane**…
+        "VERIFIED_EMAIL": False,
+        # …i dodatkowo wprost odmawiamy logowania po adresie: konto Facebooka nigdy nie przejmie
+        # istniejącego konta w serwisie bez potwierdzenia hasłem albo resetem hasła.
+        "EMAIL_AUTHENTICATION": False,
+    },
+}
+
+if GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET:
+    SOCIALACCOUNT_PROVIDERS["google"]["APPS"] = [
+        {"client_id": GOOGLE_OAUTH_CLIENT_ID, "secret": GOOGLE_OAUTH_CLIENT_SECRET, "key": ""}
+    ]
+if FACEBOOK_APP_ID and FACEBOOK_APP_SECRET:
+    SOCIALACCOUNT_PROVIDERS["facebook"]["APPS"] = [
+        {"client_id": FACEBOOK_APP_ID, "secret": FACEBOOK_APP_SECRET, "key": ""}
+    ]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

@@ -21,6 +21,10 @@ dependencies = [
     "whitenoise>=6.7,<7.0",
     # CMS in-process (PROJEKT.md 1.1). 6.3 to linia LTS zgodna z Django 5.1.
     "wagtail>=6.3,<6.4",
+    # Logowanie przez Google/Facebook. Używamy **wyłącznie** części socialaccount – lokalne
+    # widoki allauth (hasłowe logowanie i rejestracja) nie są montowane, patrz apps/web/social_urls.py.
+    # Ekstra ``socialaccount`` dociąga ``requests``/``requests-oauthlib`` (OAuth2 + PKCE).
+    "django-allauth[socialaccount]>=65.0,<66.0",
 ]
 
 [project.optional-dependencies]

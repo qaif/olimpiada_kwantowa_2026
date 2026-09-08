@@ -38,6 +38,11 @@ urlpatterns = [
     path("documents/", include("apps.cms.documents_urls")),
     # Interfejs WWW montowany w korzeniu – zawsze po prefiksach API, żeby nie przechwycił /api/.
     path("", include("apps.web.urls")),
+    # Logowanie przez Google/Facebooka. **Za** ``apps.web.urls``, bo jest tam wzorzec ``login/``
+    # istniejący wyłącznie po to, żeby ``reverse("account_login")`` allauth dawało ``/login/`` –
+    # samo dopasowanie adresu ma nadal trafiać do ``web:login``. Przed catch-allem Wagtaila,
+    # inaczej ``/accounts/…`` skończyłoby na drzewie stron CMS.
+    path("", include("apps.web.social_urls")),
 ]
 
 if settings.DEBUG:

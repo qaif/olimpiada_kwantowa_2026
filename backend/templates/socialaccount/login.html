@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% comment %}
+  Strona potwierdzenia pokazywana, gdy ktoś wejdzie na adres logowania dostawcy zwykłym GET-em
+  (np. z zakładki albo z obcej strony). ``SOCIALACCOUNT_LOGIN_ON_GET = False`` sprawia, że sam GET
+  niczego nie uruchamia – uścisk dłoni rusza dopiero po POST-cie z tokenem CSRF. Przyciski
+  w interfejsie (``templates/web/_social_auth.html``) wysyłają ten POST od razu, więc normalny
+  użytkownik tej strony nie zobaczy.
+
+  ``provider`` i ``process`` podaje ``allauth.socialaccount.providers.base.utils``.
+{% endcomment %}
+{% block title %}Zaloguj przez {{ provider.name }}{% endblock %}
+{% block content %}
+<div class="auth">
+  <div class="card">
+    <h1>Zaloguj przez {{ provider.name }}</h1>
+    <p class="auth__intro">Za chwilę przejdziesz na stronę dostawcy, żeby potwierdzić logowanie.</p>
+    <form method="post" class="form">
+      {% csrf_token %}
+      {% if process %}<input type="hidden" name="process" value="{{ process }}">{% endif %}
+      <button type="submit" class="btn btn--primary btn--block">Kontynuuj z {{ provider.name }}</button>
+    </form>
+    <p class="auth__alt"><a href="{% url 'web:login' %}">Wróć do logowania hasłem</a></p>
+  </div>
+</div>
+{% endblock %}

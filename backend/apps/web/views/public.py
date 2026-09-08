@@ -40,6 +40,26 @@ from apps.web.forms import (
 from apps.web.throttle import ThrottledFormMixin, reset_for_identity
 
 
+def default_panel_url(request) -> str:
+    """Panel właściwy dla roli zalogowanego użytkownika – domyślny cel po zalogowaniu.
+
+    Bez tego recenzent i koordynator lądowali na panelu uczestnika, czyli od razu na 403. Jedna
+    definicja obsługuje obie drogi wejścia: formularz hasłowy (``LoginView``) i logowanie przez
+    dostawcę zewnętrznego (``apps.accounts.adapters.AccountAdapter``). Rozjazd między nimi
+    oznaczałby, że ta sama osoba trafia gdzie indziej w zależności od tego, jak się zalogowała.
+    """
+    context = roles(request)
+    for flag, name in (
+        ("is_participant", "web:me"),
+        ("is_reviewer", "web:review-list"),
+        ("is_coordinator", "web:coordinator"),
+        ("is_appeals_committee", "web:appeals"),
+    ):
+        if context.get(flag):
+            return str(reverse_lazy(name))
+    return "/"
+
+
 class LoginView(ThrottledFormMixin, DjangoLoginView):
     """Logowanie sesyjne (Django auth). Loginem jest adres e-mail.
 
@@ -64,20 +84,10 @@ class LoginView(ThrottledFormMixin, DjangoLoginView):
     def get_default_redirect_url(self) -> str:
         """Po zalogowaniu bez ``next`` – panel właściwy dla roli, a nie zawsze ``/me/``.
 
-        Bez tego recenzent i koordynator lądowali na panelu uczestnika, czyli od razu na 403.
         Parametr ``next`` (obsługiwany przez ``get_redirect_url``) ma pierwszeństwo i jest
         walidowany przez Django, więc otwarte przekierowanie nie wchodzi w grę.
         """
-        context = roles(self.request)
-        for flag, name in (
-            ("is_participant", "web:me"),
-            ("is_reviewer", "web:review-list"),
-            ("is_coordinator", "web:coordinator"),
-            ("is_appeals_committee", "web:appeals"),
-        ):
-            if context.get(flag):
-                return str(reverse_lazy(name))
-        return "/"
+        return default_panel_url(self.request)
 
 
 class LogoutView(DjangoLogoutView):

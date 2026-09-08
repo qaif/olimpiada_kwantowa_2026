@@ -51,3 +51,8 @@ services:
   mailpit:
     # Jak minio: sieć `internal` ma internal:true, więc UI/API na 8025 wymaga dodatkowo `edge`.
     networks: [internal, edge]
+  mail:
+    # Dev używa mailpit (podgląd na :8025). Własny relay doręczałby listy naprawdę – w devie
+    # nie ma po co, a bez PTR/SPF i tak psułby reputację adresu. Nienazwany profil `never`
+    # wyłącza usługę z `docker compose up` przy tej nakładce.
+    profiles: [never]

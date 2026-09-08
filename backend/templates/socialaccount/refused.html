@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% comment %}
+  Odmowa logowania przez dostawcę. Powód wybiera ``reason`` ustawiane przez
+  ``apps.accounts.adapters`` (i przez widok ``account_inactive``). Strona świadomie nie podaje
+  szczegółów technicznych: ani nazwy błędu OAuth, ani tego, czy konto o danym adresie istnieje
+  w wariantach innych niż ten, w którym użytkownik i tak już wie, że jest jego właścicielem.
+{% endcomment %}
+{% block title %}Nie udało się zalogować{% endblock %}
+{% block content %}
+<div class="auth">
+  <div class="card">
+    {% if reason == "email_taken" %}
+      <h1>Konto z tym adresem już istnieje</h1>
+      <p>W serwisie jest już konto założone na adres e-mail, który przekazał
+        {{ provider_name|default:"dostawca" }}. Ze względów bezpieczeństwa nie łączymy go
+        automatycznie – dostawca nie potwierdza, że adres należy do osoby, która się właśnie
+        logowała.</p>
+      <p>Zaloguj się hasłem, a jeśli go nie pamiętasz – ustaw nowe:</p>
+      <p class="actions">
+        <a class="btn btn--primary" href="{% url 'web:login' %}">Zaloguj się hasłem</a>
+        <a class="btn btn--secondary" href="{% url 'web:password-reset' %}">Ustaw nowe hasło</a>
+      </p>
+    {% elif reason == "inactive" %}
+      <h1>Konto jest nieaktywne</h1>
+      <p>To konto zostało wyłączone i nie można się na nie zalogować – ani hasłem, ani przez
+        dostawcę zewnętrznego.</p>
+      <p>Jeśli uważasz, że to pomyłka, napisz do organizatora:
+        {{ settings.cms.SiteSettings.contact_email }}.</p>
+    {% elif reason == "no_email" %}
+      <h1>Brak adresu e-mail</h1>
+      <p>{{ provider_name|default:"Dostawca" }} nie przekazał adresu e-mail, a jest on u nas
+        loginem i jedyną drogą odzyskania konta.</p>
+      <p>Udostępnij adres w ustawieniach konta u dostawcy i spróbuj ponownie albo załóż konto
+        z hasłem.</p>
+      <p class="actions">
+        <a class="btn btn--primary" href="{% url 'web:register' %}">Rejestracja z hasłem</a>
+      </p>
+    {% else %}
+      <h1>Nie udało się zalogować</h1>
+      <p>Logowanie przez dostawcę zewnętrznego nie doszło do skutku.</p>
+      <p class="actions"><a class="btn btn--primary" href="{% url 'web:login' %}">Wróć do logowania</a></p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

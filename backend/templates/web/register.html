@@ -13,6 +13,7 @@
         potrzebuje dodatkowo zgody opiekuna.</p>
       <button type="submit" class="btn btn--primary btn--block">Załóż konto</button>
     </form>
+    {% include "web/_social_auth.html" %}
     <p class="auth__alt">Masz już konto? <a href="{% url 'web:login' %}">Zaloguj się</a>.</p>
   </div>
 </div>

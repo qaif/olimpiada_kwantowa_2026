@@ -1275,6 +1275,41 @@ form.inline input[type="text"] {
   color: var(--muted);
 }
 
+/* Logowanie przez dostawcę zewnętrznego (sekcja „Lub kontynuuj z” pod formularzem). */
+.social-auth {
+  margin-top: var(--sp-6);
+}
+
+/* Etykieta z kreskami po bokach – bez dodatkowych elementów w DOM. */
+.social-auth__label {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin: 0 0 var(--sp-4);
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.social-auth__label::before,
+.social-auth__label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.social-auth__form {
+  margin: 0 0 var(--sp-3);
+}
+
+.social-auth__form:last-child {
+  margin-bottom: 0;
+}
+
+.social-auth__icon {
+  flex: none;
+}
+
 /* Strefa uploadu – stylowana etykieta na natywnym input[type=file]. */
 .dropzone {
   display: block;
