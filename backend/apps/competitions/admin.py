@@ -13,7 +13,9 @@ from .services import ensure_stage_defaults
 class StageInline(admin.TabularInline):
     model = Stage
     extra = 0
-    fields = ("kind", "opens_at", "deadline_at", "grace_seconds", "results_published_at")
+    # ``location`` stoi obok terminów, a nie na osobnej karcie: dla etapu stacjonarnego miejsce
+    # jest częścią tej samej informacji, co data, i zmienia się razem z nią.
+    fields = ("kind", "location", "opens_at", "deadline_at", "grace_seconds", "results_published_at")
     show_change_link = True
 
 
@@ -54,6 +56,7 @@ class StageAdmin(admin.ModelAdmin):
     list_display = (
         "edition",
         "kind",
+        "location",
         "opens_at",
         "deadline_at",
         "grace_seconds",

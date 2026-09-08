@@ -29,8 +29,10 @@ Co powstaje:
   w przeglądarce. Treść (nazwiska i zakresy odpowiedzialności) pochodzi z PDF-u. Baza sprzed tej
   zmiany ma stronę ``ContentPage`` o tym slugu; komenda ją kasuje i tworzy dokument na nowo,
   bo typu strony nie da się zmienić w miejscu (dwie tabele),
-- **strona partnerów** (``PartnersPage`` pod ``/partnerzy/``) – opublikowana, ale z **pustą** listą
-  partnerów. Stara strona wymieniała trzy nazwy: „Ministerstwo Edukacji”, „Uniwersytet Kwantowy”
+- **strona partnerów** (``PartnersPage`` pod ``/partnerzy/``) – opublikowana; jej lista partnerów
+  startuje pusta i jest **jedyną** treścią, której powtórny przebieg nie nadpisuje (wypełniają ją
+  redakcja w ``/cms/`` i komenda ``seed_partners`` z logotypami organizatora).
+  Stara strona wymieniała trzy nazwy: „Ministerstwo Edukacji”, „Uniwersytet Kwantowy”
   (instytucja nieistniejąca) i „Polskie Towarzystwo Fizyczne”, żadnej z potwierdzonym patronatem.
   Poprzedni import zostawiał je w treści i chował całą stronę jako szkic (404); to broniło sieci
   przed zmyśloną nazwą, ale kosztowało zaproszenie do współpracy, którego nie było gdzie
@@ -424,10 +426,13 @@ class Command(BaseCommand):
         samo jak przy „Komitetach”. Nic nie ginie: szkic nigdy nie był publiczny, a jego treść
         (w tym nazwy, których nie przenosimy) leży w ``docs/import/tresci/partnerzy.md``.
 
-        ``partners`` ustawiamy na pustą listę **przy każdym przebiegu**, tak jak każdą inną treść
-        w tej komendzie: to narzędzie importujące, nie tryb pracy redakcyjnej. Wpisy dodane
-        w ``/cms/`` powtórny przebieg skasuje – dlatego komendy nie uruchamia się po każdym
-        deployu (patrz docstring modułu i README 6.6).
+        ``partners`` to **jedyna** treść, której ta komenda nie nadpisuje. Reszta pochodzi z plików
+        w repozytorium, więc powtórny przebieg odtwarza dokładnie to, co było; lista partnerów rośnie
+        gdzie indziej – w ``/cms/`` razem z podpisywanymi umowami i przez ``seed_partners``, który
+        wgrywa logotypy z ``fixtures/partners/``. Wcześniej stało tu ``page.partners = []``, przez co
+        każdy import treści kasował partnerów dopisanych po ostatnim wdrożeniu, a kolejność obu komend
+        w skrypcie wdrożeniowym decydowała o wyniku. Pustą listę ustawiamy więc wyłącznie przy
+        zakładaniu strony – to ona jest pustym stanem opisanym w ``PartnersPage``.
         """
         draft = ContentPage.objects.child_of(home).filter(slug=PARTNERS_SLUG).first()
         if draft is not None:
@@ -442,12 +447,11 @@ class Command(BaseCommand):
         page = PartnersPage.objects.child_of(home).filter(slug=PARTNERS_SLUG).first()
         created = page is None
         if created:
-            page = PartnersPage(title=PARTNERS_TITLE, slug=PARTNERS_SLUG)
+            page = PartnersPage(title=PARTNERS_TITLE, slug=PARTNERS_SLUG, partners=[])
             home.add_child(instance=page)
 
         page.title = PARTNERS_TITLE
         page.intro = intro
-        page.partners = []
         page.become_partner_title = PARTNERS_CTA_TITLE
         page.become_partner_body = PARTNERS_CTA_BODY
         # Adres bierzemy z ustawień serwisu, a nie z literału: to ten sam kontakt, co w stopce

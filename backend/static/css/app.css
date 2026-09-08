@@ -709,6 +709,31 @@ hr {
   font-variant-numeric: tabular-nums;
 }
 
+/* Znak fundacji obok nazwy organizatora. Plakietka jest tą samą, co pod logotypem w nagłówku:
+   logotyp jest rysowany na biel, a stopka jest granatowa w obu wariantach kolorystycznych. */
+.footer__organizer {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.footer__logo {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  background: #f6f4ee; /* stała: logotyp wymaga jasnego tła także w trybie ciemnym */
+  border-radius: var(--radius-sm, 6px);
+  line-height: 0;
+}
+
+.footer__logo img {
+  height: 40px;
+  width: auto;
+  max-width: 160px;
+  object-fit: contain;
+  display: block;
+}
+
 /* --- 5. Typografia -------------------------------------------------------------------------- */
 
 h1,
@@ -1448,6 +1473,39 @@ form.inline input[type="text"] {
   width: 4.5rem;
 }
 
+/* Przewijanie poziome dotyczy samej tabeli, nie strony: bez tego kontenera szesnastowierszowy
+   harmonogram na telefonie przesuwałby razem z sobą nagłówek i stopkę. ``tabindex`` nadaje
+   przeglądarka (obszar przewijalny jest fokusowalny), więc tabelę da się przewinąć klawiaturą. */
+.table-scroll {
+  overflow-x: auto;
+  margin: 0 0 var(--sp-6);
+}
+
+.table-scroll > .table {
+  margin-bottom: 0;
+}
+
+/* Harmonogram redakcyjny: pierwsza kolumna jest tematem (``<th scope="row">``), więc czyta się jak
+   nazwa wiersza, a nie jak nagłówek tabeli – stąd zdjęcie wersalików i przyklejenia z ``.table th``.
+   Kolumny z datą i godzinami nie łamią się w środku daty. */
+.schedule th[scope="row"] {
+  position: static;
+  background: transparent;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: normal;
+  border-bottom: 1px solid var(--line);
+  padding: var(--sp-3);
+  min-width: 16ch;
+}
+
+.schedule__date,
+.schedule__time {
+  white-space: nowrap;
+}
+
 .table tr.is-qualified {
   background: var(--ok-soft);
 }
@@ -2150,9 +2208,24 @@ td.empty,
   min-height: 80px;
 }
 
+/* Kadr logotypu: stała wysokość i białe tło. Znaki instytucji mają skrajnie różne proporcje
+   (pas PCSS-u 1600×209 obok kwadratowego godła IF PAN), więc bez wspólnego kadru karty w siatce
+   miałyby nazwy na różnych wysokościach. Tło jest jasne także w trybie ciemnym – logotypy są
+   rysowane na biel i na granacie znikałyby razem z konturem. */
+.partner-card__mark--logo {
+  justify-content: center;
+  height: 112px;
+  min-height: 0;
+  padding: var(--sp-3);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm, 6px);
+}
+
 .partner-card__logo {
-  max-width: 160px;
-  max-height: 80px;
+  max-width: 100%;
+  max-height: 96px;
+  width: auto;
   height: auto;
   object-fit: contain;
 }
@@ -2204,32 +2277,53 @@ td.empty,
   margin: var(--sp-4) 0 0;
 }
 
-/* Pas logotypów na stronie głównej: jeden wiersz, który zawija się na wąskim ekranie. */
+/* Pas logotypów na stronie głównej. Siatka o **stałej** liczbie kolumn, a nie zawijający się
+   ``flex``: przy zawijaniu ostatni wiersz miał tyle kafli, ile zostało (cztery i dwa rozciągnięte
+   na pół szerokości), co czytało się jak błąd układu. Trzy kolumny to kompromis wymuszony
+   proporcjami znaków – pas PCSS-u jest ośmiokrotnie szerszy niż wyższy, więc przy sześciu kolumnach
+   miałby siedemnaście pikseli wysokości. Sześciu partnerów układa się w dwa równe wiersze. */
 .partner-strip {
   list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--sp-4);
   margin: 0;
   padding: 0;
 }
 
+@media (min-width: 700px) {
+  .partner-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Kafel ma jedną wysokość dla wszystkich logotypów i rośnie tylko wszerz (``flex: 1 1 auto``
+   z górnym ograniczeniem), więc pas wygląda jak jeden rząd znaków, a nie jak zbiór obrazków
+   o przypadkowych rozmiarach. Tło jest białe – patrz ``.partner-card__mark--logo``. */
 .partner-strip__item {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 64px;
+  height: 104px;
   padding: var(--sp-3) var(--sp-4);
-  background: var(--surface);
+  background: #fff;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
 }
 
+.partner-strip__link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
 .partner-strip__logo {
-  max-width: 140px;
-  max-height: 56px;
+  max-width: 100%;
+  max-height: 72px;
+  width: auto;
   height: auto;
   object-fit: contain;
 }

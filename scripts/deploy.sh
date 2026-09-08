@@ -119,7 +119,7 @@ done
 REMOTE
 
 log "6/7 Seedy treści i konto koordynatora"
-"${SSH[@]}" env COORDINATOR_EMAIL="${COORDINATOR_EMAIL:-}" COORDINATOR_PASSWORD="${COORDINATOR_PASSWORD:-}" MAKE_EDITION_CURRENT="${MAKE_EDITION_CURRENT:-0}" REMOTE_DIR="$REMOTE_DIR" bash -s <<'REMOTE'
+"${SSH[@]}" env COORDINATOR_EMAIL="${COORDINATOR_EMAIL:-}" COORDINATOR_PASSWORD="${COORDINATOR_PASSWORD:-}" MAKE_EDITION_CURRENT="${MAKE_EDITION_CURRENT:-0}" SYNC_STAGE_DATES="${SYNC_STAGE_DATES:-0}" REMOTE_DIR="$REMOTE_DIR" bash -s <<'REMOTE'
 set -euo pipefail
 cd "$REMOTE_DIR"
 # </dev/null: exec nie może czytać stdin, bo to strumień tego skryptu (inaczej połknąłby dalsze polecenia).
@@ -127,11 +127,11 @@ dc() { docker compose exec -T web "$@" </dev/null; }
 dc python manage.py seed_cms
 dc python manage.py seed_regulamin
 dc python manage.py seed_legacy_content
-if [ "$MAKE_EDITION_CURRENT" = "1" ]; then
-  dc python manage.py seed_edition_kwantowa --make-current
-else
-  dc python manage.py seed_edition_kwantowa
-fi
+dc python manage.py seed_partners          # po seed_legacy_content: dopisuje logotypy do /partnerzy/
+EDITION_ARGS=""
+[ "$MAKE_EDITION_CURRENT" = "1" ] && EDITION_ARGS="$EDITION_ARGS --make-current"
+[ "$SYNC_STAGE_DATES" = "1" ] && EDITION_ARGS="$EDITION_ARGS --sync-dates"   # przestawia terminy istniejących etapów
+dc python manage.py seed_edition_kwantowa $EDITION_ARGS
 if [ -n "$COORDINATOR_EMAIL" ] && [ -n "$COORDINATOR_PASSWORD" ]; then
   docker compose exec -T -e COORDINATOR_EMAIL="$COORDINATOR_EMAIL" -e COORDINATOR_PASSWORD="$COORDINATOR_PASSWORD" web \
     python manage.py bootstrap_coordinator </dev/null

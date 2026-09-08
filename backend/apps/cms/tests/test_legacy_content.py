@@ -14,7 +14,8 @@ Testy pilnują czterech rzeczy, na których ten import stoi:
   zapisane w komendzie i tu sprawdzane, żeby ich cicha zmiana nie przeszła bez śladu.
 """
 
-from datetime import timedelta
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 from django.core.management import call_command
@@ -58,6 +59,12 @@ DOCUMENT_TITLES = [
 ]
 #: Ramka nad treścią obu dokumentów: skąd jest treść i który plik jest wersją źródłową.
 SOURCE_NOTICE_FRAGMENT = "Wersja do pobrania (PDF) jest wersją źródłową."
+
+#: Liczba warsztatów przygotowawczych z harmonogramu organizatora (październik 2026 – luty 2027).
+WORKSHOP_COUNT = 16
+
+#: Terminy czytamy w strefie organizatora – w UTC „7 listopada 23:59” wypada dzień wcześniej o 22:59.
+WARSAW = ZoneInfo("Europe/Warsaw")
 
 #: Tytuły PDF-ów organizatora wgrywanych przez tę komendę – tożsamość pliku w bibliotece Wagtaila.
 #: PDF-u regulaminu tu nie ma: wgrywa go ``seed_regulamin`` razem z .docx i treścią strony, bo
@@ -212,6 +219,39 @@ def test_content_page_body_keeps_structure(legacy_content):
     assert "heading" in kinds
     assert "paragraph" in kinds
     assert "1 września – 15 października 2026" in str(page.body)
+
+
+# --- harmonogram: finał w Krakowie i warsztaty ---------------------------------------------------
+
+
+def test_harmonogram_moves_the_final_to_krakow(web_client, legacy_content):
+    """Finał: 4–7 czerwca 2027 w Krakowie. Dawnego terminu nie może być nigdzie na stronie."""
+    content = web_client.get("/harmonogram/").content.decode()
+
+    assert "Kraków" in content
+    assert "4–7 czerwca 2027" in content
+    assert "10 kwietnia 2027" not in content
+    # Terminy dwóch pierwszych etapów zostają bez zmian – to jedyna zmiana w terminarzu.
+    assert "7 listopada 2026" in content
+    assert "16 stycznia 2027" in content
+
+
+def test_harmonogram_lists_every_workshop_as_a_table(web_client, legacy_content):
+    """Szesnaście warsztatów jako ``<table>``, nie jako lista definicji ani sklejone akapity."""
+    page = ContentPage.objects.get(slug="harmonogram")
+    schedule = next(block for block in page.body if block.block_type == "schedule")
+    content = web_client.get("/harmonogram/").content.decode()
+
+    assert len(schedule.value["rows"]) == WORKSHOP_COUNT
+    assert schedule.value.has_time is True
+    assert [schedule.value["topic_label"], schedule.value["date_label"]] == ["Temat", "Termin"]
+    assert content.count('<th scope="row" class="schedule__topic">') == WORKSHOP_COUNT
+    assert "Harmonogram warsztatów" in content
+    for fragment in ("Liczby zespolone", "10 października 2026", "11:00–14:00", "13 lutego 2027"):
+        assert fragment in content
+    # Data przekazana jako 09/01/2027 jest czytana jako 9 stycznia – i jest oznaczona do potwierdzenia.
+    assert "9 stycznia 2027" in content
+    assert "czekają na potwierdzenie organizatora" in content
 
 
 # --- adresy publiczne -------------------------------------------------------------------------
@@ -649,18 +689,82 @@ def test_seed_edition_creates_three_stages_with_full_timeline():
         assert stage.qualification_rule.min_points == MIN_POINTS
 
 
-def test_seed_edition_uses_dates_from_old_site():
+def test_seed_edition_uses_dates_from_the_organiser():
     call_command("seed_edition_kwantowa", verbosity=0)
 
     stages = {stage.kind: stage for stage in Stage.objects.all()}
-    # Daty czytamy w strefie organizatora – w UTC „7 listopada 23:59” wypada 22:59.
-    deadlines = {
-        kind: stage.deadline_at.astimezone(stage.deadline_at.tzinfo).date() for kind, stage in stages.items()
-    }
+    deadlines = {kind: stage.deadline_at.astimezone(WARSAW) for kind, stage in stages.items()}
 
-    assert deadlines[StageKind.ELIM].isoformat() == "2026-11-07"
-    assert deadlines[StageKind.DISTRICT].isoformat() == "2027-01-16"
-    assert deadlines[StageKind.FINAL].isoformat() == "2027-04-10"
+    assert deadlines[StageKind.ELIM].date().isoformat() == "2026-11-07"
+    assert deadlines[StageKind.DISTRICT].date().isoformat() == "2027-01-16"
+    # III etap: zawody stacjonarne 4–7 czerwca 2027 w Krakowie (dawniej 10 kwietnia w Warszawie).
+    final = stages[StageKind.FINAL]
+    assert final.opens_at.astimezone(WARSAW).isoformat() == "2027-06-04T09:00:00+02:00"
+    assert deadlines[StageKind.FINAL].isoformat() == "2027-06-07T18:00:00+02:00"
+    assert final.location == "Kraków"
+    # Etapy zdalne nie mają miejsca – rubryka zostaje pusta, a nie wypełniona słowem „online”.
+    assert stages[StageKind.ELIM].location == ""
+
+
+def test_seed_edition_does_not_touch_existing_dates_without_the_flag():
+    """Domyślnie oś czasu istniejącego etapu należy do koordynatora, a nie do skryptu."""
+    call_command("seed_edition_kwantowa", verbosity=0)
+    final = Stage.objects.get(kind=StageKind.FINAL)
+    final.deadline_at = final.deadline_at + timedelta(days=3)
+    final.review_deadline_at = final.review_deadline_at + timedelta(days=3)
+    final.appeal_window_opens_at = final.appeal_window_opens_at + timedelta(days=3)
+    final.appeal_window_closes_at = final.appeal_window_closes_at + timedelta(days=3)
+    final.location = "Gdańsk"
+    final.save()
+
+    call_command("seed_edition_kwantowa", verbosity=0)
+
+    final.refresh_from_db()
+    assert final.deadline_at.astimezone(WARSAW).date().isoformat() == "2027-06-10"
+    assert final.location == "Gdańsk"
+
+
+def test_seed_edition_sync_dates_moves_existing_stages():
+    """``--sync-dates`` przestawia terminy i miejsce istniejącego etapu na wartości z planu.
+
+    To jest ścieżka, którą finał trafia na produkcję: edycja powstała z terminem 10 kwietnia 2027,
+    a organizator zmienił go już po jej utworzeniu.
+    """
+    call_command("seed_edition_kwantowa", verbosity=0)
+    final = Stage.objects.get(kind=StageKind.FINAL)
+    final.opens_at = datetime(2027, 1, 17, 0, 0, tzinfo=WARSAW)
+    final.deadline_at = datetime(2027, 4, 10, 23, 59, tzinfo=WARSAW)
+    final.review_deadline_at = final.deadline_at + timedelta(days=14)
+    final.appeal_window_opens_at = final.review_deadline_at + timedelta(days=2)
+    final.appeal_window_closes_at = final.review_deadline_at + timedelta(days=9)
+    final.location = ""
+    final.save()
+
+    call_command("seed_edition_kwantowa", "--sync-dates", verbosity=0)
+
+    final.refresh_from_db()
+    assert final.opens_at.astimezone(WARSAW).isoformat() == "2027-06-04T09:00:00+02:00"
+    assert final.deadline_at.astimezone(WARSAW).isoformat() == "2027-06-07T18:00:00+02:00"
+    assert final.location == "Kraków"
+    # Reszta osi czasu przelicza się z tej samej reguły, co przy tworzeniu etapu.
+    assert final.review_deadline_at == final.deadline_at + timedelta(days=14)
+    assert final.appeal_window_opens_at == final.review_deadline_at + timedelta(days=2)
+    assert final.appeal_window_closes_at == final.review_deadline_at + timedelta(days=9)
+    # Etapy, których plan nie rusza, zostają na swoich terminach.
+    assert Stage.objects.get(kind=StageKind.ELIM).deadline_at.astimezone(WARSAW).date().isoformat() == (
+        "2026-11-07"
+    )
+
+
+def test_home_page_shows_the_stage_location(web_client, legacy_content):
+    """Miejsce zawodów stoi na osi czasu strony głównej – ale tylko tam, gdzie jest w bazie."""
+    call_command("seed_edition_kwantowa", "--make-current", verbosity=0)
+
+    content = web_client.get("/").content.decode()
+
+    assert "<dt>Miejsce</dt>" in content
+    assert "Kraków" in content
+    assert content.count("<dt>Miejsce</dt>") == 1  # etapy zdalne rubryki nie mają
 
 
 def test_seed_edition_does_not_steal_current_flag_without_flag():

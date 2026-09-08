@@ -99,6 +99,19 @@ class SiteSettings(BaseSiteSetting):
         help_text="Zdanie pod logotypem i w nagłówku strony głównej.",
     )
     organizer_name = models.CharField("organizator", max_length=200, default="Fundacja Quantum AI")
+    #: Znak fundacji w stopce. Pole, a nie plik w ``static/``: logotyp organizatora zmienia się poza
+    #: rytmem wydań tak samo, jak jego adres i numer KRS, a stopka ma jedno źródło tych danych.
+    #: ``SET_NULL`` – skasowanie obrazu w bibliotece ma zdjąć logotyp ze stopki, a nie wywrócić
+    #: ustawienia serwisu; ``related_name="+"``, bo od obrazu nikt nie pyta o ustawienia.
+    organizer_logo = models.ForeignKey(
+        "wagtailimages.Image",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="logotyp organizatora",
+        help_text="Znak fundacji w stopce serwisu. Wgrywa go `manage.py seed_partners`.",
+    )
     organizer_address = models.CharField(
         "adres organizatora", max_length=200, blank=True, default="ul. Sanocka 9/103, 02-110 Warszawa"
     )
@@ -117,6 +130,7 @@ class SiteSettings(BaseSiteSetting):
         MultiFieldPanel(
             [
                 FieldPanel("organizer_name"),
+                FieldPanel("organizer_logo"),
                 FieldPanel("organizer_address"),
                 FieldPanel("organizer_registry"),
             ],

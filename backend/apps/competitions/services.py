@@ -59,6 +59,7 @@ def create_stage(
     appeal_window_opens_at,
     appeal_window_closes_at,
     grace_seconds: int = 0,
+    location: str = "",
     scoring_values: list[dict] | None = None,
     max_value: int | None = None,
     qualification_mode: str = QualificationMode.MIN_POINTS,
@@ -73,6 +74,7 @@ def create_stage(
     stage = Stage(
         edition=edition,
         kind=kind,
+        location=location,
         opens_at=opens_at,
         deadline_at=deadline_at,
         grace_seconds=grace_seconds,

@@ -45,6 +45,7 @@ $DC up -d --build web worker beat minio-init                                    
 $DC ps                                                                                  # 6 – czekamy na "web ... healthy"
 $DC exec web python manage.py seed_demo && $DC exec web python manage.py seed_cms       # 7
 $DC exec web python manage.py seed_regulamin                                            # 8
+$DC exec web python manage.py seed_legacy_content && $DC exec web python manage.py seed_partners  # 9
 ```
 
 Konto administracyjne poza `seed_demo` (opcjonalnie): `$DC exec web python manage.py createsuperuser`.
@@ -509,7 +510,12 @@ idempotentne, obie są **narzędziami importującymi**, a nie trybem pracy redak
 przebieg nadpisuje treść stron tym, co jest w plikach źródłowych, więc kasuje poprawki wpisane
 w międzyczasie w `/cms/`.
 
-Kolejność przy wdrożeniu: `migrate` → `seed_regulamin` → `seed_legacy_content`. Druga komenda
+Kolejność przy wdrożeniu: `migrate` → `seed_regulamin` → `seed_legacy_content` → `seed_partners`
+→ `seed_edition_kwantowa [--sync-dates]`. `seed_partners` musi stać **po** `seed_legacy_content`,
+bo dopisuje się do strony `/partnerzy/`, którą tamta komenda zakłada; odwrotna kolejność kończy się
+komunikatem o braku strony, a nie połową wgranych logotypów. Odwrotna zależność już nie istnieje:
+`seed_legacy_content` nie zeruje listy partnerów (kiedyś zerowało, więc uruchomione jako ostatnie
+kasowało logotypy). Druga komenda
 zakłada sekcję `/dokumenty/`, przenosi pod nią dokumenty stojące jeszcze pod stroną główną
 (zachowując ich identyfikatory, rewizje i odnośniki wewnętrzne), ustawia kolejność menu i tworzy
 przekierowania ze starych adresów — działa tak samo na świeżej bazie i na produkcyjnej.
@@ -526,9 +532,15 @@ docker compose exec web python manage.py seed_regulamin
 # sekcja /dokumenty/, strona /partnerzy/ i przekierowania ze starych adresów dokumentów.
 docker compose exec web python manage.py seed_legacy_content
 
-# Edycja „I edycja 2026/2027” z trzema etapami wg harmonogramu starej strony.
+# Logotypy partnerów i organizatora z apps/cms/fixtures/partners/ (manifest partners.json):
+# obrazy do biblioteki Wagtaila, wpisy na /partnerzy/, znak fundacji do SiteSettings.
+docker compose exec web python manage.py seed_partners
+
+# Edycja „I edycja 2026/2027” z trzema etapami wg harmonogramu organizatora.
 # Bez --make-current edycja NIE staje się bieżąca (na devie bieżąca zostaje edycja z seed_demo).
-docker compose exec web python manage.py seed_edition_kwantowa [--make-current]
+# --sync-dates przestawia terminy i miejsce ISTNIEJĄCYCH etapów na plan z komendy; bez tej flagi
+# oś czasu utworzonego już etapu należy do koordynatora i komenda jej nie rusza.
+docker compose exec web python manage.py seed_edition_kwantowa [--make-current] [--sync-dates]
 ```
 
 Źródła treści leżą w `backend/apps/cms/fixtures/legacy/*.md`; inwentarz i pełne teksty starej
@@ -562,16 +574,30 @@ Nazwa serwisu, hasło i dane organizatora (nagłówek, stopka) siedzą w **Ustaw
 w `/cms/` (`cms.SiteSettings`), a nie w szablonie — zmiana adresu czy numeru telefonu nie wymaga
 wydania aplikacji.
 
-**Partnerzy** (`/partnerzy/`, typ `PartnersPage`, pozycja menu przed „Kontaktem”) są opublikowani
-z **pustą** listą. Stara strona wymieniała trzy nazwy, z których jedna — „Uniwersytet Kwantowy” —
-to instytucja nieistniejąca, a pozostałe dwie nie mają potwierdzonego patronatu; poprzedni import
-zostawiał je w treści i chował całą stronę jako szkic (404). Teraz jest odwrotnie: strona żyje,
-sekcja „Zostań partnerem” jest dostępna, a lista partnerów zaczyna się pusta i wypełnia ją
-redakcja w `/cms/` po podpisaniu umów. Każdy wpis ma poziom współpracy (patronat honorowy,
-partner instytucjonalny/naukowy, sponsor diamentowy/platynowy/złoty, partner medialny), który
-decyduje o grupie na stronie; logotyp i adres są opcjonalne — bez logotypu karta pokazuje kółko
-z inicjałami. **Pas logotypów na stronie głównej pojawia się dopiero z pierwszym wpisem** — przy
-pustej liście nie ma go wcale.
+**Partnerzy** (`/partnerzy/`, typ `PartnersPage`, pozycja menu przed „Kontaktem”). Strona powstaje
+z pustą listą i **tylko ta jedna treść nie jest nadpisywana przy powtórnym imporcie**: partnerzy
+przybywają razem z podpisywanymi umowami, więc `seed_legacy_content` ich nie kasuje. Stara strona
+wymieniała trzy nazwy, z których jedna — „Uniwersytet Kwantowy” — to instytucja nieistniejąca,
+a pozostałe dwie nie miały potwierdzonego patronatu; poprzedni import zostawiał je w treści
+i chował całą stronę jako szkic (404). Żadna z nich nie wróciła. Każdy wpis ma poziom współpracy
+(patronat honorowy, partner instytucjonalny/naukowy, sponsor diamentowy/platynowy/złoty, partner
+medialny), który decyduje o grupie na stronie; logotyp i adres są opcjonalne — bez logotypu karta
+pokazuje kółko z inicjałami. **Pas logotypów na stronie głównej pojawia się dopiero z pierwszym
+wpisem** — przy pustej liście nie ma go wcale.
+
+Logotypy przekazane przez organizatora wgrywa `seed_partners` z `backend/apps/cms/fixtures/partners/`
+(manifest `partners.json`). Komenda normalizuje pliki przed wgraniem — `apps/cms/images.py`:
+CMYK → RGB (logotyp Wydziału Fizyki UW przyszedł w przestrzeni drukarskiej), obcięcie pustego
+marginesu wokół znaku, ograniczenie szerokości do 1600 px (logotyp PCSS-u miał 8082 px), zapis PNG
+albo JPEG zależnie od kanału alfa. Tożsamość obrazu w bibliotece to jego **tytuł** = nazwa partnera,
+a wpisy na stronie są dopasowywane po nazwie, więc powtórny przebieg nie tworzy duplikatów.
+**Manifest ustawia poziom współpracy i opis tylko przy zakładaniu wpisu** — organizator ich nie
+podał, więc wartości są wstępne (naukowy / instytucjonalny) i **redakcja zmienia poziom, opis
+i kolejność w `/cms/`**; kolejny przebieg komendy tych zmian nie cofnie, odświeży wyłącznie logotyp
+i adres. Jedyne, czego komenda nie umie, to **usunąć** partnera: wpis skasowany w `/cms/` wróci przy
+najbliższym przebiegu, bo manifest opisuje stan docelowy — zakończenie współpracy jest skreśleniem
+wpisu z `partners.json`, czyli zmianą z historią w repozytorium.
+Logotyp organizatora nie jest partnerem: trafia do `SiteSettings.organizer_logo` (stopka).
 
 #### Decyzje do podjęcia przez właściciela
 
@@ -592,6 +618,11 @@ uzasadnienie każdego punktu: `docs/import/stara-strona-inwentarz.md`, sekcja 8.
 3. **Terminy I edycji.** `seed_edition_kwantowa` uzupełnia brakujące terminy stałą regułą
    (otwarcie 00:00, oddanie 23:59, recenzje +14 dni, okno reklamacji +2/+9 dni po recenzjach),
    bo stara strona podaje **po jednej dacie na etap**. Godziny i okna wymagają potwierdzenia.
+   Dotyczy to również **finału**: organizator przesunął III etap na **4–7 czerwca 2027,
+   stacjonarnie w Krakowie** (dawniej 10 kwietnia 2027 w Warszawie) i podał same daty dzienne —
+   komenda przyjmuje 4 czerwca 9:00 jako rozpoczęcie i 7 czerwca 18:00 jako zakończenie.
+   Miejsce trzyma nowe pole `Stage.location`; pokazują je oś czasu na stronie głównej
+   i `/harmonogram/`.
 4. **Zatwierdzenie treści prawnych — rozstrzygnięte co do źródła, otwarte co do decyzji Zarządu.**
    `/dokumenty/rodo/` i `/dokumenty/standardy-ochrony-maloletnich/` nie są już „wersją
    demonstracyjną” ze starego
@@ -606,12 +637,14 @@ uzasadnienie każdego punktu: `docs/import/stara-strona-inwentarz.md`, sekcja 8.
    podwójne członkostwo dwóch osób (Paweł Gora, Grzegorz Czelusta figurują w obu komitetach)
    i nazewnictwo — „Komitet Główny” ze starej strony głównej nie istnieje ani w regulaminie,
    ani w PDF-ie.
-7. **Partnerzy i patroni — miejsce gotowe, treść do potwierdzenia.** `/partnerzy/` jest
-   opublikowana z pustą listą i sekcją „Zostań partnerem”; poziomy współpracy są w modelu.
-   Do decyzji zostaje to, czego nie da się wywnioskować: czy Ministerstwo Edukacji i Polskie
-   Towarzystwo Fizyczne to realne patronaty (trzecia nazwa ze starej strony, „Uniwersytet
-   Kwantowy”, to instytucja nieistniejąca) oraz logotypy i progi sponsoringu. Do czasu decyzji
-   ani na `/partnerzy/`, ani na stronie głównej nie ma ani jednej nazwy.
+7. **Partnerzy — logotypy są, poziomy współpracy do potwierdzenia.** Organizator przekazał sześć
+   logotypów (FUW, PCSS, CFT PAN, IF PAN, Uniwersytet Gdański, AIQLAB Institute) i adresy stron,
+   ale **nie podał poziomu współpracy ani opisu**. `seed_partners` wpisuje wartości wstępne
+   (uczelnie i instytuty jako „partner naukowy”, PCSS i AIQLAB jako „partner instytucjonalny”);
+   ostateczny podział, opisy i kolejność ustawia redakcja w `/cms/` i kolejny przebieg komendy tego
+   nie cofnie. Do decyzji zostają też progi sponsoringu oraz nazwy ze starej strony: czy
+   Ministerstwo Edukacji i Polskie Towarzystwo Fizyczne to realne patronaty (trzecia nazwa,
+   „Uniwersytet Kwantowy”, to instytucja nieistniejąca) — żadnej z nich na serwisie nie ma.
 8. **ZOZ (Zasady Organizacji Zawodów).** Regulamin odwołuje się do nich kilkanaście razy,
    a dokument nie istnieje — bez niego brakuje progów, liczby finalistów i reguł remisów.
 9. **Status prawny olimpiady.** Regulamin zastrzega, że tytuły finalisty i laureata są wewnętrzne
@@ -625,7 +658,16 @@ uzasadnienie każdego punktu: `docs/import/stara-strona-inwentarz.md`, sekcja 8.
     `post_date`) — mają datę importu i dopisek „Wpis przeniesiony ze starej strony”. Do decyzji,
     czy przepisać je z prawdziwymi datami, czy zacząć newsroom od zera.
 13. **Logo, favicon, og:image.** Stara strona nie ma ani jednego pliku graficznego — identyfikację
-    trzeba zaprojektować od zera.
+    trzeba zaprojektować od zera. Logotyp organizatora (Fundacja Quantum AI) jest już w stopce:
+    wgrywa go `seed_partners` do `SiteSettings.organizer_logo`.
+14. **Harmonogram warsztatów.** Szesnaście warsztatów online (`/harmonogram/`) pochodzi z listy
+    organizatora podanej w formacie amerykańskim. Jedna data jest niejednoznaczna: „Podstawy
+    metrologii kwantowej” przyszła jako `09/01/2027`; w ciągu sobotnich terminów pasuje
+    **9 stycznia 2027** i tak jest zapisana, ale wymaga potwierdzenia — podobnie jak godziny tego
+    warsztatu, których organizator nie podał (tabela mówi „do potwierdzenia”). Do akceptacji jest
+    też zdanie wprowadzające („Warsztaty online przygotowujące do zawodów; udział jest bezpłatny.
+    Szczegóły i linki do spotkań ogłosimy w aktualnościach.”) — sformułowaliśmy je sami,
+    nie pochodzi od organizatora.
 
 ## 7. Testy i kontrola jakości
 

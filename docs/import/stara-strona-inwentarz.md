@@ -144,6 +144,21 @@ Harmonogram występuje w dwóch miejscach i **są one zgodne co do dat, ale nie 
 
 Rok szkolny edycji: **I edycja, 2026/2027** (hero strony głównej, strona „Bieżąca edycja”).
 
+> **Aktualizacja (wrzesień 2026): finał zmienił termin i miejsce.** Organizator przekazał
+> **III etap (finał): 4–7 czerwca 2027, stacjonarnie w Krakowie** — zamiast 10 kwietnia 2027
+> w Warszawie. Terminy rejestracji oraz I i II etapu zostają bez zmian. Tabela wyżej jest
+> inwentarzem **starej strony** i dlatego zostaje w brzmieniu, jakie tam było; obowiązujące
+> terminy stoją w `backend/apps/cms/fixtures/legacy/harmonogram.md` (treść strony) oraz
+> w `seed_edition_kwantowa` (`competitions.Stage`, w tym pole `location`). Do potwierdzenia
+> zostają **godziny** finału: organizator podał same daty dzienne, a komenda przyjmuje
+> 4 czerwca 9:00 – 7 czerwca 18:00.
+>
+> Organizator przekazał też **harmonogram szesnastu warsztatów online** (10 października 2026 –
+> 13 lutego 2027), których stara strona nie miała w ogóle. Stoją na `/harmonogram/` jako tabela
+> (blok `schedule`). Jedna pozycja wymaga potwierdzenia: „Podstawy metrologii kwantowej” przyszła
+> jako `09/01/2027` — w ciągu sobotnich terminów pasuje **9 stycznia 2027** i tak jest zapisana,
+> ale zapis jest niejednoznaczny (1 września 2027 wypadałoby poza cyklem), a godzin nie podano.
+
 ### 3.2 Sprzeczność z regulaminem — rozstrzygnięta wersją z 2 września 2026
 
 > **Aktualizacja.** Organizator przekazał regulamin **1.0 z 2 września 2026 r.** (ten sam numer

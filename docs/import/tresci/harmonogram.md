@@ -21,3 +21,8 @@ seed_order: 5
 
 > Strona główna dodaje do tych dat opisy etapów, których nie ma w tabeli:
 > I etap — „zawody szkolne”, II etap — „zawody okręgowe”, Finał — „Warszawa”.
+
+> **To jest zapis treści starej strony, a nie obowiązujący harmonogram.** Organizator zmienił
+> finał na **4–7 czerwca 2027, stacjonarnie w Krakowie** i dołożył harmonogram szesnastu
+> warsztatów online. Obowiązująca treść: `backend/apps/cms/fixtures/legacy/harmonogram.md`;
+> terminy egzekwowane przez system: `competitions.Stage` (`seed_edition_kwantowa`).

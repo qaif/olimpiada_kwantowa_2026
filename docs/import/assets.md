@@ -89,8 +89,12 @@ czytelną w przeglądarce. Treść `fixtures/legacy/komitety.md` przepisano z te
 ## Czego brakuje, a będzie potrzebne
 
 - **logotyp Olimpiady Kwantowej** — nie istnieje w żadnej formie pliku;
-- **logotypy partnerów i sponsorów** — brak; `/partnerzy/` jest opublikowana z pustą listą, a wpis
-  bez logotypu pokazuje kółko z inicjałami nazwy (`PartnerBlock.logo` jest opcjonalny);
+- **logotypy partnerów i sponsorów** — ~~brak~~ **dostarczone przez organizatora poza eksportem
+  WordPressa** (wrzesień 2026): sześć logotypów partnerów plus znak Fundacji Quantum AI leży
+  w `backend/apps/cms/fixtures/partners/` z manifestem `partners.json` i wgrywa je
+  `manage.py seed_partners`. Pliki przyszły w postaci „do druku” — jeden w przestrzeni CMYK,
+  jeden o szerokości 8082 px — więc komenda je normalizuje (`apps/cms/images.py`).
+  `PartnerBlock.logo` zostaje opcjonalny: wpis bez logotypu nadal pokazuje kółko z inicjałami;
 - **zdjęcia do galerii** — brak (strona `/galeria/` to jedno zdanie zapowiedzi);
 - **pliki fontów** — motyw prosi o `Inter` bez wczytywania webfontu, więc w praktyce
   renderuje się systemowym `system-ui`;

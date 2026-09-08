@@ -1,4 +1,4 @@
-{% load static web_extras %}<!doctype html>
+{% load static web_extras wagtailimages_tags %}<!doctype html>
 <html lang="pl">
 <head>
   <meta charset="utf-8">
@@ -165,7 +165,20 @@
         jedynie koordynator.</p>
     </div>
     <div>
-      <p class="footer__meta">Organizator: <strong>{{ site.organizer_name }}</strong></p>
+      {% comment %}
+        Znak fundacji stoi obok nazwy, na jasnej plakietce – tak samo jak logotyp serwisu
+        w granatowym nagłówku, bo oba są projektowane na białe tło i w ciemnym wariancie stopki
+        zniknęłyby. Obraz przychodzi z ``SiteSettings`` (``/cms/`` → Ustawienia → Dane serwisu),
+        więc podmiana logotypu nie jest wydaniem aplikacji; kiedy pola nie ma, zostaje sama nazwa.
+        ``alt`` jest pusty, bo nazwa organizatora stoi tuż obok jako tekst – powtórzony ``alt``
+        czytnik ekranu przeczytałby dwa razy.
+      {% endcomment %}
+      <p class="footer__meta footer__organizer">
+        {% if site.organizer_logo %}
+          <span class="footer__logo">{% image site.organizer_logo max-240x80 alt="" loading="lazy" %}</span>
+        {% endif %}
+        <span>Organizator: <strong>{{ site.organizer_name }}</strong></span>
+      </p>
       {% if site.organizer_address %}<p class="footer__meta">{{ site.organizer_address }}</p>{% endif %}
       {% if site.organizer_registry %}<p class="footer__meta">{{ site.organizer_registry }}</p>{% endif %}
       <p class="footer__meta">

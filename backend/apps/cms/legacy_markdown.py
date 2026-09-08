@@ -18,6 +18,7 @@ akapit                               blok ``paragraph`` (``<p>``)
 ``1. pozycja``                       blok ``paragraph`` z ``<ol>``
 ``| a | b |``                        blok ``definitions`` (``<dl>``) albo – w treściach bez tego
                                      bloku – ``paragraph``: ``<p><strong>a</strong> — b</p>``
+``| a | b | c |``                    blok ``schedule`` (``<table>``) – patrz niżej
 ``> tekst``                          blok ``notice`` (ton ``info``); wiersz ``>`` dzieli akapity
 ``**pogrubienie**``, ``*kursywa*``   ``<strong>`` / ``<em>``
 ``[tekst](adres)``                   ``<a href="adres">``
@@ -39,6 +40,12 @@ Dwie decyzje warte uzasadnienia:
     karta z nagłówkami kolumn nad każdą wartością byłaby cięższa od samej treści. Łącznikiem jest
     półpauza, nie dwukropek: etykietą bywa całe zdanie, któremu dopisanie dwukropka zmieniałoby
     interpunkcję tekstu organizatora,
+
+- **tabela trzykolumnowa zostaje ``<table>`` (blok ``schedule``).** Obie postacie wyżej sklejają
+  wszystko od drugiej kolumny w jedną wartość rozdzieloną „·”, bo obie opisują parę etykieta–wartość.
+  Przy harmonogramie warsztatów (temat, termin, godziny) to sklejenie gubi granicę, po której
+  czytelnik przebiega wzrokiem, a czytnik ekranu traci nagłówek kolumny. Liczba kolumn jest tu dobrym
+  kryterium, bo wynika z treści: tabela, która ma trzecią kolumnę, nie jest już listą definicji,
 
 - **cały tekst jest escapowany**, zanim dołożymy znaczniki. Do ``RichText`` trafia dokładnie to,
   co było w pliku, i nic, czego nie zna whitelist edytora. Komórki bloku ``definitions`` idą tam
@@ -68,6 +75,8 @@ TABLE_SEPARATOR_RE = re.compile(r"^\|[\s|:-]+\|$")
 HEADING_LEVEL_2 = 2
 #: Wiersz tabeli poniżej dwóch komórek to zwykły akapit, nie para etykieta–wartość.
 MIN_TABLE_CELLS = 2
+#: Od trzech kolumn tabela przestaje być parą etykieta–wartość i zostaje blokiem ``schedule``.
+SCHEDULE_CELLS = 3
 
 
 def slugify_anchor(text: str) -> str:
@@ -129,6 +138,21 @@ def _definitions_value(header: list[str], parsed: list[list[str]]) -> dict:
     }
 
 
+def _schedule_value(header: list[str], parsed: list[list[str]]) -> dict:
+    """Wiersze danych → wartość bloku ``schedule`` (temat, termin, godziny)."""
+
+    def cell(cells: list[str], index: int) -> str:
+        return cells[index] if index < len(cells) else ""
+
+    return {
+        "caption": "",
+        "topic_label": cell(header, 0),
+        "date_label": cell(header, 1),
+        "time_label": cell(header, 2),
+        "rows": [{"topic": cells[0], "date": cell(cells, 1), "time": cell(cells, 2)} for cells in parsed],
+    }
+
+
 def _quote_html(lines: list[str]) -> str:
     """Treść ramki. Każdy wiersz to osobny akapit – w źródle jeden wiersz to jeden fakt."""
     parts: list[str] = []
@@ -182,14 +206,26 @@ class _Builder:
             self.blocks.append(("notice", {"tone": "info", "text": RichText(html)}))
 
     def add_table(self, rows: list[str]) -> None:
-        """Tabela: blok ``definitions``, a gdy go nie ma – akapity „etykieta — wartość”.
+        """Tabela: blok ``schedule``, blok ``definitions``, a gdy ich nie ma – akapity.
 
-        Przed pierwszym śródtytułem zostają akapity także w dokumentach: wszystko sprzed nagłówka
-        trafia do ``intro``, a to zwykłe pole ``RichTextField`` – blok StreamFielda nie ma tam gdzie
-        stanąć. Tabel we wprowadzeniu w treściach organizatora zresztą nie ma.
+        O postaci decyduje **liczba kolumn**, bo to ona mówi, czy tabela jest parą etykieta–wartość,
+        czy danymi:
+
+        - **trzy kolumny i więcej → blok ``schedule``** (prawdziwa ``<table>``). Trzeciej kolumny nie
+          da się spłaszczyć: ``_table_html`` i lista definicji sklejają wszystko od drugiej kolumny
+          w jedną wartość rozdzieloną „·”, więc „14 listopada 2026 · 11:00–15:00” traci granicę
+          między terminem a godzinami, a czytnik ekranu – nagłówek kolumny,
+        - **dwie kolumny → lista definicji** (``definition_lists``) albo akapity „etykieta — wartość”.
+
+        Przed pierwszym śródtytułem zostają akapity niezależnie od liczby kolumn: wszystko sprzed
+        nagłówka trafia do ``intro``, a to zwykłe pole ``RichTextField`` – blok StreamFielda nie ma
+        tam gdzie stanąć. Tabel we wprowadzeniu w treściach organizatora zresztą nie ma.
         """
         header, parsed = _split_table(rows)
         usable = parsed and all(len(cells) >= MIN_TABLE_CELLS for cells in parsed)
+        if self.seen_heading and usable and max(len(cells) for cells in parsed) >= SCHEDULE_CELLS:
+            self.blocks.append(("schedule", _schedule_value(header, parsed)))
+            return
         if self.definition_lists and self.seen_heading and usable:
             self.blocks.append(("definitions", _definitions_value(header, parsed)))
             return

@@ -51,6 +51,14 @@
               <span class="badge badge--neutral">nadchodzący</span>
             {% endif %}
             <dl class="timeline__dates">
+              {% comment %}
+                Miejsce stoi nad terminami i tylko wtedy, gdy jest w bazie (``Stage.location``):
+                etapy zdalne go nie mają, a finał jest stacjonarny i uczestnik planuje dojazd
+                w tej samej chwili, w której czyta datę.
+              {% endcomment %}
+              {% if row.stage.location %}
+                <div><dt>Miejsce</dt><dd>{{ row.stage.location }}</dd></div>
+              {% endif %}
               <div><dt>Otwarcie</dt><dd>{{ row.stage.opens_at|local_datetime }}</dd></div>
               <div><dt>Deadline</dt><dd>{{ row.stage.deadline_at|local_datetime }}</dd></div>
               <div><dt>Reklamacje</dt>
@@ -125,6 +133,12 @@
 
   Logotyp jest tu jedynym nośnikiem nazwy, więc ``alt`` musi ją nieść; przy braku pliku zostaje
   sama nazwa jako tekst, a nie puste kółko – pas ma być czytelny także bez ani jednego logotypu.
+
+  Kafle mają jednolitą wysokość, a logotyp stoi w nich wyśrodkowany z ``object-fit: contain``:
+  znaki instytucji mają skrajnie różne proporcje (pas PCSS-u jest ośmiokrotnie szerszy niż wyższy,
+  godło IF PAN jest kwadratem), więc bez wspólnego kadru pas rozjeżdżałby się na kilka wysokości.
+  Rendition ``max-400x160`` jest większy od kadru (72 px wysokości) – to zapas na ekrany o dużej
+  gęstości; ``loading="lazy"``, bo pas stoi w dolnej połowie strony głównej.
 {% endcomment %}
 {% if partners_page %}
   <section class="section">
@@ -135,11 +149,14 @@
     <ul class="partner-strip">
       {% for block in partners_page.partners %}
         <li class="partner-strip__item">
+          {% if block.value.url %}<a class="partner-strip__link" href="{{ block.value.url }}"
+             target="_blank" rel="noopener noreferrer">{% endif %}
           {% if block.value.logo %}
-            {% image block.value.logo max-140x56 alt=block.value.name class="partner-strip__logo" %}
+            {% image block.value.logo max-400x160 alt=block.value.name loading="lazy" class="partner-strip__logo" %}
           {% else %}
             <span class="partner-strip__name">{{ block.value.name }}</span>
           {% endif %}
+          {% if block.value.url %}</a>{% endif %}
         </li>
       {% endfor %}
     </ul>

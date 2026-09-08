@@ -1,0 +1,52 @@
+{
+  "_comment": [
+    "Manifest logotypów przekazanych przez organizatora – czyta go `manage.py seed_partners`.",
+    "Plik opisuje TOŻSAMOŚĆ wpisu (nazwa instytucji, plik logotypu, adres), a nie jego redakcję:",
+    "poziom współpracy i opis są wartościami POCZĄTKOWYMI, bo organizator ich nie podał. Redakcja",
+    "zmienia poziom, opis i kolejność w /cms/ (Strony → Partnerzy) i powtórny przebieg komendy",
+    "tych zmian nie cofa – dopasowuje wpisy po nazwie partnera.",
+    "`level` musi być kluczem z PARTNER_LEVELS (apps/cms/blocks.py)."
+  ],
+  "organizer": {
+    "file": "qaif.png",
+    "title": "Fundacja Quantum AI"
+  },
+  "partners": [
+    {
+      "file": "fuw.jpg",
+      "name": "Wydział Fizyki Uniwersytetu Warszawskiego",
+      "level": "partner-naukowy",
+      "url": "https://www.fuw.edu.pl/"
+    },
+    {
+      "file": "pcss.png",
+      "name": "Poznańskie Centrum Superkomputerowo-Sieciowe",
+      "level": "partner-instytucjonalny",
+      "url": "https://www.pcss.pl/"
+    },
+    {
+      "file": "cft-pan.png",
+      "name": "Centrum Fizyki Teoretycznej PAN",
+      "level": "partner-naukowy",
+      "url": "https://www.cft.edu.pl/"
+    },
+    {
+      "file": "if-pan.jpg",
+      "name": "Instytut Fizyki PAN",
+      "level": "partner-naukowy",
+      "url": "https://www.ifpan.edu.pl/"
+    },
+    {
+      "file": "uniwersytet-gdanski.jpg",
+      "name": "Uniwersytet Gdański",
+      "level": "partner-naukowy",
+      "url": "https://ug.edu.pl/"
+    },
+    {
+      "file": "aiqlab.png",
+      "name": "AIQLAB Institute",
+      "level": "partner-instytucjonalny",
+      "url": ""
+    }
+  ]
+}

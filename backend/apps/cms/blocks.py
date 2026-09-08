@@ -142,6 +142,64 @@ class DefinitionListBlock(blocks.StructBlock):
         template = "cms/blocks/definitions.html"
 
 
+class ScheduleRowBlock(blocks.StructBlock):
+    """Jeden wiersz harmonogramu: co, kiedy i w jakich godzinach."""
+
+    topic = blocks.CharBlock(max_length=250, label="temat")
+    date = blocks.CharBlock(max_length=100, label="termin")
+    time = blocks.CharBlock(required=False, max_length=100, label="godziny")
+
+    class Meta:
+        icon = "time"
+        label = "wiersz harmonogramu"
+
+
+class ScheduleValue(blocks.StructValue):
+    """Wartość bloku ``schedule`` z informacją, czy kolumna godzin ma cokolwiek do pokazania.
+
+    Liczymy to w Pythonie, bo szablon musi znać odpowiedź **przed** pętlą po wierszach: nagłówek
+    ``<th>`` powstaje raz, a ``{% if %}`` po wierszach nie da się z niego wyprowadzić.
+    """
+
+    @property
+    def has_time(self) -> bool:
+        return any((row.get("time") or "").strip() for row in self.get("rows", []))
+
+
+class ScheduleBlock(blocks.StructBlock):
+    """Harmonogram jako **prawdziwa** tabela (``<table>``) – w odróżnieniu od ``DefinitionListBlock``.
+
+    Rozróżnienie nie jest kosmetyczne. Lista definicji obsługuje tabele **dwukolumnowe, w których
+    komórka jest zdaniem** (RODO: „Cel | Podstawa”): tam wiersz czyta się jak akapit, a nagłówki
+    kolumn trzeba powtórzyć przy każdej parze, żeby wiadomo było, co jest czym. Harmonogram
+    warsztatów jest odwrotnością tego przypadku: szesnaście wierszy po trzy krótkie komórki,
+    z których dwie to daty i godziny. Jako ``<dl>`` powstaje z tego pięćdziesiąt bloków tekstu
+    z etykietą „Termin” powtórzoną szesnaście razy — dokument, przez który nie da się przebiec
+    wzrokiem po dacie. Tabela jest tu właściwą semantyką, bo dane **są** tabelaryczne:
+    czytelnik porównuje wiersze między sobą, a czytnik ekranu ma nagłówki kolumn (``<th scope>``)
+    do zapowiedzenia przy każdej komórce.
+
+    Nagłówki kolumn są polami, a nie literałami szablonu: ten sam blok obsłuży harmonogram
+    warsztatów („Temat”) i harmonogram zjazdów („Wydarzenie”). Kolumna godzin bywa pusta – wtedy
+    znika z tabeli w całości, żeby nie zostawiać szesnastu pustych komórek.
+
+    Wszystkie pola są tekstowe: to treść redakcyjna, a nie oś czasu zawodów. Terminy, które
+    egzekwuje serwer, mieszkają w ``competitions.Stage`` i CMS ich nie przepisuje.
+    """
+
+    caption = blocks.CharBlock(required=False, max_length=250, label="podpis tabeli")
+    topic_label = blocks.CharBlock(required=False, max_length=100, label="nagłówek kolumny „temat”")
+    date_label = blocks.CharBlock(required=False, max_length=100, label="nagłówek kolumny „termin”")
+    time_label = blocks.CharBlock(required=False, max_length=100, label="nagłówek kolumny „godziny”")
+    rows = blocks.ListBlock(ScheduleRowBlock(), label="wiersze")
+
+    class Meta:
+        icon = "date"
+        label = "harmonogram"
+        template = "cms/blocks/schedule.html"
+        value_class = ScheduleValue
+
+
 class StepBlock(blocks.StructBlock):
     """Jeden krok sekcji „Jak zacząć” na stronie głównej: tytuł i jedno zdanie wyjaśnienia."""
 
@@ -261,6 +319,7 @@ class DocumentStreamBlock(ArticleStreamBlock):
     heading = HeadingBlock()
     notice = NoticeBlock()
     definitions = DefinitionListBlock()
+    schedule = ScheduleBlock()
 
     class Meta:
         required = False

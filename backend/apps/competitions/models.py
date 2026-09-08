@@ -89,6 +89,12 @@ class Stage(models.Model):
 
     edition = models.ForeignKey(Edition, on_delete=models.CASCADE, related_name="stages")
     kind = models.CharField("rodzaj", max_length=16, choices=StageKind.choices)
+    # Miejsce zawodów – puste dla etapów zdalnych, „Kraków” dla finału stacjonarnego. Pole jest tu,
+    # a nie w treści redakcyjnej, bo miejsce jest częścią tej samej informacji, co termin: uczestnik
+    # planuje dojazd w tej samej chwili, w której czyta datę, a strona główna i harmonogram czytają
+    # oba z jednego źródła. Wolny tekst, nie słownik miast: „Kraków, Wydział Fizyki UJ” i „online”
+    # to ta sama rubryka, a systemowi nie jest do niczego potrzebna postać ustrukturyzowana.
+    location = models.CharField("miejsce", max_length=120, blank=True)
     opens_at = models.DateTimeField("otwarcie")
     deadline_at = models.DateTimeField("deadline oddania")
     grace_seconds = models.PositiveIntegerField("tolerancja po deadline (s)", default=0)

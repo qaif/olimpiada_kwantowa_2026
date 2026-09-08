@@ -15,8 +15,13 @@
     jako szkic (404), przez co zaproszenie do współpracy nie było dostępne pod żadnym adresem,
   - **grupy przychodzą z ``PartnersPage.groups``**, więc ten szablon nie zna ani jednego poziomu
     współpracy z nazwy – dołożenie „partnera technologicznego” jest zmianą w ``blocks.py``,
-  - **kółko z inicjałami zamiast logotypu.** Organizator nie ma plików logotypów (patrz
-    ``docs/import/assets.md``); pusty kadr obok nazwy wyglądałby na niewczytany obraz.
+  - **kółko z inicjałami zamiast logotypu** dla partnerów, których logotypu jeszcze nie mamy;
+    pusty kadr obok nazwy wyglądałby na niewczytany obraz. Logotypy przekazane przez organizatora
+    wgrywa ``manage.py seed_partners`` (``apps/cms/fixtures/partners/``).
+
+  Kadr logotypu ma stałą wysokość i jasne tło: znaki instytucji są rysowane na biel, a proporcje
+  mają skrajnie różne (pas PCSS-u wobec kwadratowego godła IF PAN). ``object-fit: contain`` w tym
+  kadrze sprawia, że karty w siatce mają jedną linię nazwy niezależnie od kształtu znaku.
 {% endcomment %}
 <div class="page-head">
   <h1>{{ page.title }}</h1>
@@ -37,16 +42,16 @@
         {% for partner in group.partners %}
           <li>
             <article class="card partner-card">
-              <div class="partner-card__mark">
+              <div class="partner-card__mark{% if partner.logo %} partner-card__mark--logo{% endif %}">
                 {% if partner.logo %}
-                  {% image partner.logo max-160x80 class="partner-card__logo" %}
+                  {% image partner.logo max-400x160 alt=partner.name loading="lazy" class="partner-card__logo" %}
                 {% else %}
                   <span class="partner-card__initials" aria-hidden="true">{{ partner.initials }}</span>
                 {% endif %}
               </div>
               <h3 class="partner-card__name">
                 {% if partner.url %}
-                  <a href="{{ partner.url }}" rel="noopener noreferrer">{{ partner.name }}</a>
+                  <a href="{{ partner.url }}" target="_blank" rel="noopener noreferrer">{{ partner.name }}</a>
                 {% else %}
                   {{ partner.name }}
                 {% endif %}
