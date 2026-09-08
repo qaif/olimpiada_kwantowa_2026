@@ -14,15 +14,22 @@ tylko po stronie DRF byłby obejściem długości jednego adresu URL.
 
 from __future__ import annotations
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.views import LoginView as DjangoLoginView
 from django.contrib.auth.views import LogoutView as DjangoLogoutView
+from django.contrib.auth.views import PasswordResetCompleteView as DjangoPasswordResetCompleteView
+from django.contrib.auth.views import PasswordResetConfirmView as DjangoPasswordResetConfirmView
+from django.contrib.auth.views import PasswordResetDoneView as DjangoPasswordResetDoneView
+from django.contrib.auth.views import PasswordResetView as DjangoPasswordResetView
 from django.http import Http404
 from django.urls import reverse_lazy
 from django.views.generic import FormView, TemplateView
 
 from apps.accounts.services import register_committee, register_participant
+from apps.cms.models import SiteSettings
 from apps.core.api import DomainError
+from apps.core.models import audit
 from apps.results.services import published_results
 from apps.web.context_processors import roles
 from apps.web.forms import (
@@ -30,7 +37,7 @@ from apps.web.forms import (
     EmailAuthenticationForm,
     ParticipantRegisterForm,
 )
-from apps.web.throttle import ThrottledFormMixin
+from apps.web.throttle import ThrottledFormMixin, reset_for_identity
 
 
 class LoginView(ThrottledFormMixin, DjangoLoginView):
@@ -77,6 +84,108 @@ class LogoutView(DjangoLogoutView):
     """Wylogowanie. Wyłącznie POST – wylogowanie GET-em byłoby podatne na CSRF przez ``<img>``."""
 
     next_page = "/"
+
+
+def service_name(request) -> str:
+    """Nazwa serwisu z ``cms.SiteSettings`` – do tematu wiadomości i do treści listu.
+
+    Fallback na ``WAGTAIL_SITE_NAME`` jest po to, żeby wysyłka nie zależała od tego, czy w Wagtailu
+    istnieje ``Site`` pasujący do hosta żądania (świeża baza, wywołanie z komendy zarządzającej).
+    Temat listu nie jest miejscem, w którym wolno się wywrócić.
+    """
+    try:
+        return SiteSettings.for_request(request).site_name
+    except Exception:  # noqa: BLE001 - brak obiektu Site / brak tabeli przy pierwszej migracji
+        return settings.WAGTAIL_SITE_NAME
+
+
+class PasswordResetView(ThrottledFormMixin, DjangoPasswordResetView):
+    """„Nie pamiętasz hasła?” – wysyłka linku z jednorazowym tokenem.
+
+    Widok jest wspólny dla wszystkich ról: model konta jest jeden (``accounts.User``), loginem
+    zawsze jest e-mail, więc uczestnik, recenzent, komisja i koordynator odzyskują hasło tą samą
+    drogą. Konto ``CommitteeStatus.PENDING`` też ją ma – ono jest zwykłym, aktywnym użytkownikiem,
+    tylko bez uprawnień recenzenta.
+
+    **Bez enumeracji kont.** Odpowiedź jest identyczna dla adresu istniejącego i nieistniejącego –
+    zawsze 302 na ``/password-reset/sent/``. ``PasswordResetForm`` Django szuka konta samo i przy
+    braku dopasowania po prostu nic nie wysyła (dotyczy to też kont ``is_active=False`` oraz kont
+    z nieużywalnym hashem hasła – to domyślne zachowanie ``get_users`` i go nie zmieniamy).
+
+    Limit (scope ``password_reset``) konsumuje **każdy** POST, także udany: inaczej ten formularz
+    byłby wysyłaczem listów na dowolny cudzy adres, ograniczonym wyłącznie cierpliwością nadawcy.
+    """
+
+    template_name = "web/password_reset.html"
+    # Nazwy szablonów listu są jawne, bo domyślne Django (``registration/password_reset_email.html``)
+    # są zajęte przez ``django.contrib.admin`` – tam ten plik jest treścią *tekstową*, mimo nazwy.
+    subject_template_name = "registration/password_reset_subject.txt"
+    email_template_name = "registration/password_reset_email.txt"
+    html_email_template_name = "registration/password_reset_email_body.html"
+    success_url = reverse_lazy("web:password-reset-sent")
+    throttle_scope = "password_reset"
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        # ``PasswordResetForm`` porównuje adres przez ``iexact``, ale konta trzymamy zawsze małymi
+        # literami (``User.save``), więc normalizacja tutaj utrzymuje jeden kształt adresu w całym
+        # przepływie: w kubełku throttlingu, w zapytaniu i w nagłówku ``To:``.
+        data = kwargs.get("data")
+        if data is not None:
+            data = data.copy()
+            data["email"] = (data.get("email") or "").strip().lower()
+            kwargs["data"] = data
+        return kwargs
+
+    def form_valid(self, form):
+        # ``site_name`` w kontekście listu nadpisuje wartość, którą ``PasswordResetForm`` bierze
+        # z ``RequestSite`` (tam jest to nazwa hosta, np. „localhost”). Temat ma nieść nazwę
+        # serwisu z ``/cms/``, a nie domenę.
+        self.extra_email_context = {
+            **(self.extra_email_context or {}),
+            "site_name": service_name(self.request),
+        }
+        return super().form_valid(form)
+
+
+class PasswordResetSentView(DjangoPasswordResetDoneView):
+    """Potwierdzenie wysyłki. Treść jest celowo warunkowa („jeśli konto istnieje”)."""
+
+    template_name = "web/password_reset_sent.html"
+
+
+class PasswordResetConfirmView(DjangoPasswordResetConfirmView):
+    """Formularz nowego hasła spod linku ``/reset/<uidb64>/<token>/``.
+
+    Token jest jednorazowy i ważny ``PASSWORD_RESET_TIMEOUT`` (24 h): ``PasswordResetTokenGenerator``
+    miesza do skrótu hash starego hasła i ``last_login``, więc po zmianie hasła ten sam link nie
+    przechodzi już walidacji i widok pokazuje stronę „link nieważny”.
+
+    Nowe hasło przechodzi przez ``AUTH_PASSWORD_VALIDATORS`` (m.in. minimum 10 znaków) – tak samo,
+    jak przy rejestracji. ``post_reset_login`` zostaje wyłączone: automatyczne zalogowanie
+    zamieniałoby dostęp do skrzynki pocztowej w sesję jednym kliknięciem z listu.
+    """
+
+    template_name = "web/password_reset_confirm.html"
+    success_url = reverse_lazy("web:password-reset-complete")
+    post_reset_login = False
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        user = form.user
+        # Kto zapomniał hasła, zwykle najpierw wyczerpał limit logowania zgadywaniem. Bez tego
+        # zerowania reset „działałby”, a zaraz po nim logowanie odbijałoby się o 429.
+        reset_for_identity("login", self.request, user.email)
+        # Zmiana poświadczeń jest zdarzeniem audytowym. W ``diff`` nie ma ani adresu e-mail, ani
+        # tokenu – wystarczy powód zmiany; kto, mówi ``actor``/``target_id``.
+        audit(user, "password.reset", user, {"via": "email"}, request=self.request)
+        return response
+
+
+class PasswordResetCompleteView(DjangoPasswordResetCompleteView):
+    """Hasło zmienione – jedyne wyjście stąd prowadzi do formularza logowania."""
+
+    template_name = "web/password_reset_complete.html"
 
 
 class ServiceFormView(FormView):

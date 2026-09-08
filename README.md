@@ -142,6 +142,8 @@ Co trzeba ustawić **zanim** to zadziała:
 6. **Sekrety.** `DJANGO_SECRET_KEY`, `POSTGRES_PASSWORD`, `MINIO_ROOT_PASSWORD`,
    `S3_PUBLIC_SECRET_KEY`, `S3_PRIVATE_SECRET_KEY` – losowe, po ≥ 24 znaki. `.env` nie należy do
    repozytorium (jest w `.gitignore`; sprawdzane skanem `gitleaks`).
+7. **Poczta wychodząca (SMTP).** Bez niej nie działa reset hasła („Nie pamiętasz hasła?”) – jedyna
+   droga odzyskania konta dla uczestnika, recenzenta, komisji i koordynatora. Patrz sekcja 4.1.
 
 Certyfikat Let's Encrypt Caddy pobiera sam przy pierwszym starcie – wymaga otwartych portów 80 i 443
 i poprawnego DNS-u dla obu nazw.
@@ -170,9 +172,47 @@ i `environment` w compose; w obrazie nie ma żadnego sekretu.
 | `S3_PUBLIC_ENDPOINT_URL` | `https://s3.<SITE_DOMAIN>` | adres MinIO widziany z przeglądarki |
 | `S3_PRESIGNED_TTL_SECONDS` | `600` | ważność linku do pliku rozwiązania |
 | `TRUSTED_PROXY_IPS` | podsieci compose | komu wolno podać `X-Real-IP` |
-| `EMAIL_URL` | `smtp://mailpit:1025` | zapis w formacie `django-environ` |
-| `DEFAULT_FROM_EMAIL` | `olimpiada@localhost` | nadawca powiadomień |
+| `EMAIL_URL` | `consolemail://` (dev `.env`: `smtp://mailpit:1025`) | poczta wychodząca; produkcja `smtp+tls://user:haslo@host:587` – patrz 4.1 |
+| `DEFAULT_FROM_EMAIL` | `noreply@localhost` (dev `.env`: `olimpiada@localhost`) | nadawca listów (także `SERVER_EMAIL`); domena musi mieć SPF/DKIM |
+| `EMAIL_TIMEOUT` | `10` | limit sekund na połączenie SMTP (wysyłka jest synchroniczna w żądaniu) |
 | `E2E_MODE` | (nieustawiona) | **tylko dev**: odblokowuje `manage.py e2e_timeline`. W produkcji nigdy |
+
+### 4.1 Poczta wychodząca (SMTP)
+
+W kontenerze aplikacyjnym **nie ma MTA**, a domyślne ustawienie Django (`localhost:25`) skończyłoby
+się odmową połączenia w środku żądania POST. Konfiguracja jest jedną zmienną:
+
+```ini
+# Dostawca poczty transakcyjnej albo firmowy relay. Port 587 + STARTTLS to wariant domyślny;
+# dla implicit TLS na 465 użyj schematu smtps://.
+EMAIL_URL=smtp+tls://uzytkownik:haslo@smtp.dostawca.example:587
+# Nadawca listów. Musi być adresem w domenie, dla której panujesz nad DNS-em.
+DEFAULT_FROM_EMAIL=olimpiada@olimpiada.example.org
+```
+
+Obsługiwane schematy `EMAIL_URL` (`django-environ`): `smtp://host:port` (bez szyfrowania – wyłącznie
+dev/mailpit), `smtp+tls://` (STARTTLS), `smtps://` (TLS od pierwszego bajtu), `consolemail://`
+(wypis do logu – wartość domyślna, gdy zmiennej nie ma) i `filemail://`. Hasło z `@` albo `:` trzeba
+zakodować procentowo (`%40`, `%3A`).
+
+**Po stronie dostawcy DNS** – bez tego listy trafiają do spamu albo są odrzucane:
+
+- **SPF**: rekord TXT domeny z `include:` dostawcy, np. `v=spf1 include:spf.dostawca.example ~all`,
+- **DKIM**: rekord TXT z selektorem podanym przez dostawcę (`selektor._domainkey.<domena>`),
+- **DMARC** (zalecane): `_dmarc.<domena>` TXT, np. `v=DMARC1; p=quarantine; rua=mailto:…`,
+- adres z `DEFAULT_FROM_EMAIL` musi być w tej samej domenie, co rekordy SPF/DKIM – inaczej
+  uwierzytelnienie nie zadziała mimo poprawnych rekordów.
+
+Weryfikacja po wdrożeniu: w logu startowym `web` **nie może** być ostrzeżenia
+`EMAIL_URL wskazuje localhost:25` (`config/settings/production.py` – brak SMTP nie blokuje startu,
+ale zostawia ślad). Test ręczny:
+
+```bash
+docker compose exec web python -c "
+from django.core.mail import send_mail
+send_mail('Test konfiguracji SMTP', 'Treść testowa.', None, ['ty@example.org'])
+"
+```
 
 ## 5. Role i przepływ etapu
 

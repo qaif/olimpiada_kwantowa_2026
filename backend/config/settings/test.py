@@ -13,6 +13,9 @@ STORAGES = {
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+# Poczta do ``django.core.mail.outbox``: testy sprawdzają treść wiadomości, a nie to, czy udało się
+# otworzyć gniazdo do mailpita. Backend konsolowy z ``base.py`` niczego by nie zapisał.
+EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 # Testy nie dotykają MinIO ani sieci: pliki rozwiązań lądują pod MEDIA_ROOT (tmp_path per test).
 SUBMISSION_STORAGE_BACKEND = "apps.submissions.storage.LocalSubmissionStorage"
 # Throttling wyłączony w testach dwustopniowo: pusta lista klas zdejmuje throttle domyślny,
@@ -22,5 +25,11 @@ SUBMISSION_STORAGE_BACKEND = "apps.submissions.storage.LocalSubmissionStorage"
 REST_FRAMEWORK = {
     **REST_FRAMEWORK,
     "DEFAULT_THROTTLE_CLASSES": [],
-    "DEFAULT_THROTTLE_RATES": {"anon": None, "register": None, "login": None, "upload": None},
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": None,
+        "register": None,
+        "login": None,
+        "upload": None,
+        "password_reset": None,
+    },
 }

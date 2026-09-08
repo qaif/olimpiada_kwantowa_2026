@@ -100,7 +100,7 @@ Status: `todo` / `in_progress` / `done` / `escalated`.
 | T-09 | **high**: CSP `img-src`/`media-src` bez originu publicznego bucketu – obrazy Wagtaila blokowane w produkcji | zamknięte |
 | T-09 | med: dokumenty Wagtaila serwowane przez redirect (prywatność kolekcji pozorna) → `WAGTAILDOCS_SERVE_METHOD="serve_view"`; wspólne poświadczenia MinIO dla obu bucketów → infra gotowa (`S3_PUBLIC_*`/`S3_PRIVATE_*`, minio-init z politykami), backend ma ich użyć; `EmbedBlock` bez `WAGTAILEMBEDS_FINDERS` i bez `frame-src`; N+1 na `/wyniki/` | zamknięte (backend używa `S3_PUBLIC_*`/`S3_PRIVATE_*`, `serve_view`, YT/Vimeo) |
 | T-09 | low: brak prefetch dokumentów archiwum; migracja `0004` nie przenosi plików; polityka CSP po prefiksie ścieżki; idempotencja drzewa CMS; testowy `private_media` w tym samym katalogu; kolizje slugów z trasami aplikacji; `unsafe-eval` w panelu do weryfikacji | zamknięte poza `unsafe-eval` (do ręcznej weryfikacji w panelu) |
-| T-08 | ~~429 przy uploadzie HTMX nie trafia do DOM~~ zamknięte w T-10 (`HX-Retarget`/`HX-Reswap: beforeend` + `htmx:beforeSwap` w `static/js/app.js`, 3 testy); licznik per konto bez IP; reset licznika przy zmianie hasła | po T-10 |
+| T-08 | ~~429 przy uploadzie HTMX nie trafia do DOM~~ zamknięte w T-10 (`HX-Retarget`/`HX-Reswap: beforeend` + `htmx:beforeSwap` w `static/js/app.js`, 3 testy); ~~reset licznika przy zmianie hasła~~ zamknięte przy resecie hasła (`throttle.reset_for_identity` w `PasswordResetConfirmView`); licznik per konto bez IP | po T-10 |
 | T-09 | rotacja kluczy serwisowych MinIO (minio-init tworzy konto tylko raz) – procedura ręczna opisana w README 6.2, automatyzacja po T-10; `frame-src` panelu `https:`; N+1 `result_links()` w indeksie archiwum; dokumenty Wagtaila w prywatnym buckecie dla materiałów wrażliwych | po T-10 |
 
 ## T-10 – co powstało
@@ -120,6 +120,7 @@ Otwarte pozycje po T-10 (żadna nie jest `high`): limit bajtów dla `.ipynb`, li
 konto niezależny od IP, rotacja kluczy MinIO bez ręcznej procedury, `next_stage_conflicts` w UI,
 `entry_totals` jako osobna tabela, anonimizacja konta członka komitetu, TTL i rotacja tokenu DRF,
 sprzątanie osieroconych obiektów w S3, weryfikacja `unsafe-eval` w polityce CSP panelu.
-| końcowy | Brak powiadomień e‑mail (decyzja reklamacji, wyniki) i generowania PDF wyników – obiecane w pierwotnym projekcie, nie zamówione w T-01..T-10 | osobny task po T-10 (kolejka `mail`, mailpit gotowe) |
+| końcowy | Brak powiadomień e‑mail (decyzja reklamacji, wyniki) i generowania PDF wyników – obiecane w pierwotnym projekcie, nie zamówione w T-01..T-10 | osobny task po T-10 (kolejka `mail`, mailpit gotowe). Konfiguracja poczty (`EMAIL_URL`, `DEFAULT_FROM_EMAIL`) i pierwszy odbiorca – reset hasła – już są |
+| reset hasła | Wysyłka listu jest synchroniczna w żądaniu `POST /password-reset/` (`EMAIL_TIMEOUT=10` ogranicza tylko czas zajęcia workera) | przenieść na kolejkę `mail` razem z resztą powiadomień; trasa `apps.core.tasks.send_mail_task` jest już w `CELERY_TASK_ROUTES`, samego zadania jeszcze nie ma |
 | końcowy | Brak nagłówka `Permissions-Policy`; test flag ciasteczek w `production.py`; `PHASE_OFFSETS` zduplikowane w e2e i komendzie; `EMBED_FRAME_SOURCES` vs `WAGTAILEMBEDS_FINDERS` bez testu równości; `seed_demo` z progiem 0 pkt | drobne, po T-10 |
 | końcowy | zamknięte: admin API Caddy tylko localhost; bezpiecznik `SECRET_KEY`/S3 w `production.py`; flagi Secure w `.env.example` domyślnie bezpieczne | – |

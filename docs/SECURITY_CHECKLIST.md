@@ -56,6 +56,26 @@ Każdy wiersz to test, który sprawdza **odmowę**, a nie zgodę.
 Scenariusz E2E dokłada dwie asercje negatywne na żywym systemie: panel recenzenta nie zawiera
 nazwiska ani adresu e-mail uczestnika, a publiczna tabela wyników – nazwiska ani szkoły.
 
+### 3.1 Reset hasła (`/password-reset/`)
+
+Jeden przepływ dla wszystkich ról – model konta jest jeden (`accounts.User`), loginem zawsze jest
+adres e-mail. Wszystko poniżej pilnują testy z `apps/web/tests/test_password_reset.py`.
+
+| # | Pozycja | Status | Gdzie / czym sprawdzone |
+|---|---|---|---|
+| 3.1.1 | Brak enumeracji kont: adres istniejący i nieistniejący dają tę samą odpowiedź | ✔ | `django.contrib.auth.views.PasswordResetView` zawsze przekierowuje na `/password-reset/sent/`; strona mówi warunkowo („jeśli konto istnieje”). Testy: `::test_unknown_address_looks_exactly_like_a_known_one`, `::test_confirmation_page_speaks_conditionally`, `::test_inactive_account_gets_no_message`. |
+| 3.1.2 | Token jednorazowy, ważny 24 h | ✔ | `PASSWORD_RESET_TIMEOUT = 24*3600`; `PasswordResetTokenGenerator` miesza do skrótu hash hasła, więc po zmianie link przestaje działać. Testy: `::test_token_is_single_use`, `::test_made_up_token_shows_the_invalid_link_page`, `::test_reset_timeout_is_a_day`. |
+| 3.1.3 | Limit żądań na formularzu wysyłki | ✔ | Scope `password_reset` = `5/hour`, konsumowany przez **każdy** POST (nie tylko nieudany) – bez tego formularz jest wysyłaczem listów na cudze skrzynki. Testy: `::test_sixth_request_within_the_window_is_throttled`, `::test_changing_the_target_address_does_not_dodge_the_limit`. |
+| 3.1.4 | Nowe hasło przechodzi przez `AUTH_PASSWORD_VALIDATORS` (min. 10 znaków) | ✔ | `SetPasswordForm` w `PasswordResetConfirmView`. Test: `::test_short_password_is_rejected_by_the_validators`. |
+| 3.1.5 | Reset nie loguje automatycznie | ✔ | `post_reset_login = False` – dostęp do cudzej skrzynki pocztowej nie zamienia się jednym kliknięciem w sesję w panelu. Test: `::test_reset_does_not_log_the_user_in`. |
+| 3.1.6 | Zmiana hasła w audycie | ✔ | `apps.core.models.audit(user, "password.reset", user, {"via": "email"})` – w `diff` nie ma ani adresu e-mail, ani tokenu. Testy: `::test_successful_reset_is_recorded_in_the_audit_log`, `::test_requesting_a_link_alone_is_not_audited_as_a_password_change`. |
+| 3.1.7 | Reset zeruje licznik blokady logowania | ✔ | `apps.web.throttle.reset_for_identity("login", request, user.email)` – inaczej link z listu działa, a logowanie zaraz po nim odbija się o 429. Test: `::test_successful_reset_clears_the_login_lockout`. |
+| 3.1.8 | List bez danych osobowych i bez tokenu w temacie | ✔ | `templates/registration/password_reset_*` – poza adresem odbiorcy (i tak w nagłówku `To:`) nie ma imienia, szkoły ani roli; temat to stałe „Reset hasła – `<nazwa serwisu>`”. Testy: `::test_message_carries_a_link_but_no_password_and_no_token_in_the_subject`, `::test_message_has_a_plain_text_and_an_html_part_without_remote_resources`. |
+| 3.1.9 | Wersja HTML listu bez zasobów zdalnych | ✔ | Style inline, zero `<img>` i zero adresów CDN – obrazek w liście to potwierdzenie odczytu i wyciek adresu IP czytelnika. Test: `::test_message_has_a_plain_text_and_an_html_part_without_remote_resources`. |
+| 3.1.10 | Link `https` za proxy | ✔ | Protokół z `request.is_secure()` + `SECURE_PROXY_SSL_HEADER` (`config/settings/production.py`). Test: `::test_link_uses_https_when_the_request_came_through_the_proxy`. |
+| 3.1.11 | Poświadczenia SMTP wyłącznie w `EMAIL_URL` (env) | ✔ | `config/settings/base.py` (`env.email_url`); produkcja loguje ostrzeżenie, gdy `EMAIL_URL` wskazuje `localhost:25` (brak MTA w kontenerze). Konfiguracja: `README.md` § 4.1. |
+| 3.1.12 | Wysyłka listu jest synchroniczna w żądaniu | ⚠ `low` | `EMAIL_TIMEOUT=10` ogranicza czas zajęcia workera, ale niedostępny SMTP nadal spowalnia POST `/password-reset/`. Przeniesienie na kolejkę `mail` (trasa jest już w `CELERY_TASK_ROUTES`): `BACKLOG.md`. |
+
 ## 4. Czas, terminy, współbieżność
 
 | # | Pozycja | Status | Gdzie / czym sprawdzone |
@@ -111,12 +131,13 @@ nazwiska ani adresu e-mail uczestnika, a publiczna tabela wyników – nazwiska 
 
 | # | Pozycja | Status | Gdzie / czym sprawdzone |
 |---|---|---|---|
-| 8.1 | Limity na API | ✔ | `REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]`: `anon 60/min`, `login 10/min`, `register 10/hour`, `upload 30/hour`. |
+| 8.1 | Limity na API | ✔ | `REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]`: `anon 60/min`, `login 10/min`, `register 10/hour`, `upload 30/hour`, `password_reset 5/hour`. |
 | 8.2 | Te same limity na formularzach HTML | ✔ | `apps/web/throttle.py::ThrottledFormMixin` czyta stawki z `api_settings` – jedno źródło konfiguracji. Testy: `apps/web/tests/test_throttle.py` (m.in. `test_form_rate_reads_the_same_setting_as_the_api`, `test_changing_the_api_rate_moves_the_form_limit_too`). |
 | 8.3 | Dwa kubełki: IP oraz (IP + e-mail); w cache wyłącznie skróty | ✔ | `throttle_keys`, `_digest`. Test: `test_registration_is_throttled_per_client_address`. |
 | 8.4 | Logowanie liczy wyłącznie nieudane próby | ✔ | `LoginView.throttle_on_request = False`. Test: `test_successful_login_does_not_consume_the_limit`. |
 | 8.5 | Licznik per konto niezależny od IP | ⚠ `med` | Udane logowanie zeruje też kubełek IP (jak `django-axes`), więc rozpylanie haseł z jednego adresu jest tańsze niż mówi stawka. Osobny, dłuższy licznik per konto: `BACKLOG.md` (dług T-08). |
-| 8.6 | Enumeracja kont przez `EMAIL_TAKEN` | ⚠ `low`, zaakceptowane | Świadomy kompromis UX + limit 10/h/IP. `BACKLOG.md` (dług T-02). |
+| 8.6 | Enumeracja kont przez `EMAIL_TAKEN` | ⚠ `low`, zaakceptowane | Świadomy kompromis UX + limit 10/h/IP. `BACKLOG.md` (dług T-02). Reset hasła tej dziury **nie** ma – patrz 3.1.1. |
+| 8.7 | Reset hasła: limit konsumowany przez każdy POST | ✔ | Scope `password_reset` = `5/hour`, `throttle_on_request = True` (domyślne). Formularz wysyła list na adres podany przez nadawcę żądania, więc liczenie dopiero „nieudanych” prób nie miałoby sensu. Patrz 3.1.3. |
 
 ## 9. Kontener i sieć
 

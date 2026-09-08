@@ -107,13 +107,18 @@ def posted_identity(request) -> str:
     return ""
 
 
-def throttle_keys(scope: str, request) -> list[str]:
-    """Kubełki dla żądania: adres IP oraz – gdy formularz niesie e-mail – para IP+e-mail."""
+def throttle_keys(scope: str, request, identity: str | None = None) -> list[str]:
+    """Kubełki dla żądania: adres IP oraz – gdy znamy e-mail – para IP+e-mail.
+
+    ``identity`` podaje się jawnie tam, gdzie e-maila nie ma w POST-cie, a mimo to wiadomo, o czyje
+    konto chodzi: formularz nowego hasła (``/reset/<uid>/<token>/``) niesie wyłącznie hasła, a to
+    właśnie tam trzeba wyzerować kubełek logowania właściciela konta.
+    """
     address = client_ip(request) or "unknown"
     keys = [f"{CACHE_PREFIX}:{scope}:ip:{_digest(address)}"]
-    identity = posted_identity(request)
-    if identity:
-        keys.append(f"{CACHE_PREFIX}:{scope}:id:{_digest(f'{address}|{identity}')}")
+    value = posted_identity(request) if identity is None else (identity or "").strip().lower()[:254]
+    if value:
+        keys.append(f"{CACHE_PREFIX}:{scope}:id:{_digest(f'{address}|{value}')}")
     return keys
 
 
@@ -158,6 +163,16 @@ def reset(scope: str, keys: list[str]) -> None:
     if not keys:
         return
     cache.delete_many(keys)
+
+
+def reset_for_identity(scope: str, request, identity: str) -> None:
+    """Zeruje kubełki scope'u dla wskazanego e-maila i adresu żądania.
+
+    Po ustawieniu nowego hasła stare, nieudane próby logowania nie mogą blokować wejścia: człowiek,
+    który zapomniał hasła, zwykle najpierw wyczerpuje limit zgadywaniem, a dopiero potem prosi
+    o reset. Bez tego link z e-maila działałby, a logowanie zaraz po nim – nie.
+    """
+    reset(scope, throttle_keys(scope, request, identity=identity))
 
 
 class ThrottledFormMixin:

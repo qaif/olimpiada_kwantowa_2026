@@ -20,12 +20,16 @@ zabezpieczeniem: z jednym kontem administracyjnym każdy błąd w ścieżce reda
 przychodzą od człowieka) sięgałby także prac uczestników. Klucze ustawia ``minio-init``.
 """
 
+import logging
 from urllib.parse import urlsplit
 
 from django.core.exceptions import ImproperlyConfigured
 
 from .base import *  # noqa: F401,F403
 from .base import (
+    EMAIL_BACKEND,
+    EMAIL_HOST,
+    EMAIL_PORT,
     S3_ENDPOINT_URL,
     S3_PRIVATE_ACCESS_KEY,
     S3_PRIVATE_SECRET_KEY,
@@ -46,6 +50,22 @@ if SECRET_KEY == "insecure-dev-key-change-me" or len(SECRET_KEY) < 50:  # noqa: 
     )
 if not S3_ACCESS_KEY or not S3_SECRET_KEY:
     raise ImproperlyConfigured("MINIO_ROOT_USER/MINIO_ROOT_PASSWORD (lub konta serwisowe S3_*) są wymagane.")
+
+# Poczta: ostrzeżenie, nie wyjątek. Brak SMTP wyłącza wyłącznie reset hasła (reszta systemu nie
+# wysyła listów), więc nie ma powodu, żeby z tego powodu nie dało się wdrożyć aplikacji – ale musi
+# to być widać w logu startowym, bo objawem jest cicho niedziałający formularz „Nie pamiętasz hasła?”.
+# ``localhost:25`` to domyślne ustawienie Django, czyli „nikt tego nie skonfigurował”: w kontenerze
+# aplikacyjnym nie ma MTA i połączenie skończy się odmową.
+if EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend" and (
+    EMAIL_HOST in ("", "localhost", "127.0.0.1", "::1") or EMAIL_PORT == 25
+):
+    logging.getLogger("config.settings").warning(
+        "EMAIL_URL wskazuje %s:%s – w kontenerze aplikacyjnym nie ma MTA, więc reset hasła nie "
+        "wyśle wiadomości. Ustaw EMAIL_URL=smtp+tls://uzytkownik:haslo@host:587 oraz "
+        "DEFAULT_FROM_EMAIL na adres w domenie z rekordami SPF/DKIM.",
+        EMAIL_HOST,
+        EMAIL_PORT,
+    )
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=not DEBUG)

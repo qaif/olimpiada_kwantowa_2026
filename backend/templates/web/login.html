@@ -12,7 +12,8 @@
       <input type="hidden" name="next" value="{{ next }}">
       <button type="submit" class="btn btn--primary btn--block">Zaloguj</button>
     </form>
-    <p class="auth__alt">Nie masz konta? <a href="{% url 'web:register' %}">Zarejestruj się</a>.<br>
+    <p class="auth__alt"><a href="{% url 'web:password-reset' %}">Nie pamiętasz hasła?</a><br>
+      Nie masz konta? <a href="{% url 'web:register' %}">Zarejestruj się</a>.<br>
       Członek komitetu z kodem zaproszenia:
       <a href="{% url 'web:register-committee' %}">rejestracja z kodem</a>.</p>
   </div>

@@ -48,3 +48,6 @@ services:
       web: { condition: service_healthy }
       worker: { condition: service_healthy }
     command: sh -c "pip install -q -r requirements.txt && pytest -q --browser chromium"
+  mailpit:
+    # Jak minio: sieć `internal` ma internal:true, więc UI/API na 8025 wymaga dodatkowo `edge`.
+    networks: [internal, edge]

@@ -146,6 +146,7 @@ def guest_pages(browser) -> None:
         ("/archiwum/", "05-archiwum"),
         ("/login/", "06-logowanie"),
         ("/register/", "07-rejestracja"),
+        ("/password-reset/", "06a-reset-hasla"),
     ):
         shoot(page, path, name)
 

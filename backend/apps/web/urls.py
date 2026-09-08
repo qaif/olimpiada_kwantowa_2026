@@ -12,6 +12,16 @@ urlpatterns = [
     # ``config/urls.py``). Wszystkie pozostałe ścieżki ``apps.web`` są dopasowywane wcześniej.
     path("login/", public.LoginView.as_view(), name="login"),
     path("logout/", public.LogoutView.as_view(), name="logout"),
+    # Reset hasła. Adres formularza nowego hasła jest krótki (``/reset/…``) celowo: token trafia do
+    # listu, a długie adresy bywają łamane przez klienty pocztowe w połowie i przestają być klikalne.
+    path("password-reset/", public.PasswordResetView.as_view(), name="password-reset"),
+    path("password-reset/sent/", public.PasswordResetSentView.as_view(), name="password-reset-sent"),
+    path(
+        "reset/<uidb64>/<token>/",
+        public.PasswordResetConfirmView.as_view(),
+        name="password-reset-confirm",
+    ),
+    path("reset/done/", public.PasswordResetCompleteView.as_view(), name="password-reset-complete"),
     path("register/", public.RegisterParticipantView.as_view(), name="register"),
     path("register/committee/", public.RegisterCommitteeView.as_view(), name="register-committee"),
     path("results/<int:stage_id>/", public.PublicResultsView.as_view(), name="results"),

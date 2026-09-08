@@ -157,6 +157,39 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
+# --- Poczta wychodząca -----------------------------------------------------------------------
+# Jedna zmienna (``EMAIL_URL``) zamiast sześciu: dev ma ``smtp://mailpit:1025``, produkcja
+# ``smtp+tls://user:haslo@host:587``. Domyślną wartością jest **konsola**, a nie SMTP na
+# ``localhost:25``: Django bez konfiguracji próbuje lokalnego MTA, którego w kontenerze nie ma, więc
+# pierwsza wysyłka kończyłaby się ``ConnectionRefusedError`` w środku żądania HTTP. ``consolemail``
+# zawsze „działa”, a brak konfiguracji widać w logu, a nie w błędzie 500.
+_email = env.email_url("EMAIL_URL", default="consolemail://")
+EMAIL_BACKEND = _email["EMAIL_BACKEND"]
+# ``environ`` zwraca ``None`` dla brakujących części adresu; Django oczekuje w tych ustawieniach
+# łańcuchów i liczb, więc normalizujemy je tutaj, a nie w miejscu wysyłki.
+EMAIL_HOST = _email.get("EMAIL_HOST") or "localhost"
+EMAIL_PORT = _email.get("EMAIL_PORT") or 25
+EMAIL_HOST_USER = _email.get("EMAIL_HOST_USER") or ""
+EMAIL_HOST_PASSWORD = _email.get("EMAIL_HOST_PASSWORD") or ""
+EMAIL_USE_TLS = bool(_email.get("EMAIL_USE_TLS"))
+EMAIL_USE_SSL = bool(_email.get("EMAIL_USE_SSL"))
+EMAIL_FILE_PATH = _email.get("EMAIL_FILE_PATH") or ""
+# Bez limitu czasu wysyłka wisi na gnieździe tak długo, jak pozwoli sieć – a robimy ją synchronicznie
+# w żądaniu POST /password-reset/, więc worker gunicorna zostałby zajęty na czas dowolnie długi.
+EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=10)
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@localhost")
+# Nadawca wiadomości systemowych (``mail_admins``, raporty 500). Ten sam adres: MTA odbiorcy i tak
+# sprawdza SPF dla domeny nadawcy, więc drugi, nieskonfigurowany adres tylko psułby dostarczalność.
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+# Dotyczy wyłącznie ``mail_admins``/``mail_managers``. Temat resetu hasła bierze nazwę serwisu
+# z ``cms.SiteSettings`` (patrz ``apps.web.views.public.PasswordResetView``) – redaktor zmienia ją
+# w ``/cms/`` i nie wymaga to wydania aplikacji.
+EMAIL_SUBJECT_PREFIX = "[Olimpiada Kwantowa] "
+
+# Ważność linku resetu hasła. Doba to kompromis: krócej – link umiera, zanim uczestnik zajrzy do
+# skrzynki; dłużej – token leży w cudzej skrzynce pocztowej i jest ważny przez weekend.
+PASSWORD_RESET_TIMEOUT = 24 * 3600
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 10}},
@@ -314,6 +347,11 @@ REST_FRAMEWORK = {
         "register": "10/hour",
         "login": "10/min",
         "upload": "30/hour",
+        # Reset hasła: każdy POST wysyła e-mail na adres podany przez nadawcę żądania, więc bez
+        # limitu formularz byłby wysyłaczem spamu na cudze skrzynki (i tanim sposobem na
+        # sprawdzenie, czy dostawca poczty przyjmuje nasze wiadomości). Stawka jest niska,
+        # bo człowiek prosi o reset raz, a nie pięć razy w godzinie.
+        "password_reset": "5/hour",
     },
     "EXCEPTION_HANDLER": "apps.core.api.exception_handler",
 }
