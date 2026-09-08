@@ -591,6 +591,18 @@ hr {
     box-shadow: var(--shadow);
   }
 
+
+  /* Niewidoczny "mostek" wypełnia odstęp między nagłówkiem a listą: kursor przechodzący przez
+     tę przerwę nadal jest nad potomkiem .nav-menu, więc :hover nie gaśnie i lista nie znika. */
+  .nav-menu__list::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    height: calc(var(--sp-3) + 4px);
+  }
+
   .nav-menu:not([open]) > .nav-menu__list {
     display: none;
   }
