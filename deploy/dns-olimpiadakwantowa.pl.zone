@@ -1,0 +1,31 @@
+; Strefa DNS dla olimpiadakwantowa.pl – komplet rekordów dla portalu Olimpiady Kwantowej
+; Serwer: 169.58.242.197 (Contabo). TTL 3600. Wygenerowano 2026-09-08.
+; Rekordy A dla @ i www już istnieją – pozostałe trzeba dodać.
+
+$ORIGIN olimpiadakwantowa.pl.
+$TTL 3600
+
+; --- WWW / aplikacja (Caddy, TLS Let's Encrypt) ---
+@                    IN A     169.58.242.197
+www                  IN A     169.58.242.197
+
+; --- Pliki (MinIO przez Caddy; po dodaniu tego rekordu portal przełączy się z portu :9000 na subdomenę) ---
+s3                   IN A     169.58.242.197
+
+; --- Poczta wychodząca (Postfix na serwerze; nazwa z HELO i PTR) ---
+mail                 IN A     169.58.242.197
+
+; SPF: tylko serwer portalu wysyła listy z tej domeny
+@                    IN TXT   "v=spf1 ip4:169.58.242.197 -all"
+
+; DKIM: selektor olimpiada (klucz z kontenera mail; jedna nieprzerwana wartość)
+olimpiada._domainkey IN TXT   "v=DKIM1; h=sha256; k=rsa; s=email; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAotteu3GhRRsJajATnJVGe7ThN+Er4hCMcNx6vKIx0hEJeNDVTok4OwaV6yHXaU403ku7YqufNTP9OdpbfpgSrJMI4l3wUB2796NNhA0zJDP7WnLS7juPsPfDYzxZXqtU6oC+PdzkqUcBHz67gCTJzKtU7wU+OPv5be883gYJRduor4OnAv5ZSeaMZ1eUEViQWgcQrpqXMEDhgkUStlHsgXpngQIxsSKF3mPhuAn6G2PxsCR0HGl8gRhk0SwiVc0Ak819do1ItjB0UmJwkV/nufoqyWUppmKEtTgsZp63NaJU3fZfqaRXbwBiS1tpRknvV+OaGkN6hd66uTkiWVGjhwIDAQAB"
+
+; DMARC: kwarantanna dla listów bez SPF/DKIM, raporty na contact@qaif.org
+_dmarc               IN TXT   "v=DMARC1; p=quarantine; rua=mailto:contact@qaif.org; adkim=r; aspf=r; fo=1"
+
+; --- Certyfikaty: tylko Let's Encrypt może wystawiać certyfikaty dla domeny (opcjonalne, zalecane) ---
+@                    IN CAA   0 issue "letsencrypt.org"
+
+; --- Poza strefą (panel Contabo, nie home.pl): PTR / rDNS ---
+; 169.58.242.197  ->  mail.olimpiadakwantowa.pl
