@@ -19,6 +19,7 @@ akapit                               blok ``paragraph`` (``<p>``)
 ``| a | b |``                        blok ``definitions`` (``<dl>``) albo – w treściach bez tego
                                      bloku – ``paragraph``: ``<p><strong>a</strong> — b</p>``
 ``| a | b | c |``                    blok ``schedule`` (``<table>``) – patrz niżej
+``{{stage_timeline}}``               blok ``stage_timeline`` – terminy etapów czytane z bazy
 ``> tekst``                          blok ``notice`` (ton ``info``); wiersz ``>`` dzieli akapity
 ``**pogrubienie**``, ``*kursywa*``   ``<strong>`` / ``<em>``
 ``[tekst](adres)``                   ``<a href="adres">``
@@ -70,6 +71,15 @@ ORDERED_RE = re.compile(r"^\d+\.\s+(.*)$")
 UNORDERED_RE = re.compile(r"^[-*]\s+(.*)$")
 HEADING_RE = re.compile(r"^(#{1,3})\s+(.*)$")
 TABLE_SEPARATOR_RE = re.compile(r"^\|[\s|:-]+\|$")
+#: Znacznik bloku dynamicznego w treści: samodzielny wiersz ``{{nazwa}}``.
+MARKER_RE = re.compile(r"^\{\{\s*([a-z_]+)\s*\}\}$")
+
+#: Znaczniki, które parser zamienia na bloki StreamFielda liczone z bazy. Jedyny dziś to terminy
+#: etapów: harmonogram nie może mieć dat wpisanych w treści, bo wtedy strona i serwer ogłaszają
+#: dwa różne deadline'y (patrz ``apps.cms.blocks.StageTimelineBlock``). Lista jest zamknięta –
+#: nieznany ``{{…}}`` zostaje zwykłym tekstem, więc literówka w pliku jest widoczna na stronie,
+#: a nie znika po cichu.
+DYNAMIC_BLOCKS = {"stage_timeline": {"heading": ""}}
 
 #: Poziom śródtytułu, który trafia do spisu sekcji (``in_toc``).
 HEADING_LEVEL_2 = 2
@@ -231,6 +241,15 @@ class _Builder:
             return
         self.add_html(_table_html(parsed))
 
+    def add_dynamic(self, name: str) -> None:
+        """Blok liczony z bazy (``{{stage_timeline}}``) – zawsze blok, także przed śródtytułem.
+
+        ``intro`` jest zwykłym ``RichTextField``, więc blok StreamFielda nie ma tam gdzie stanąć;
+        znacznik postawiony nad pierwszym nagłówkiem i tak ma sens (terminy przed opisem etapów),
+        więc trafia do treści zamiast znikać.
+        """
+        self.blocks.append((name, dict(DYNAMIC_BLOCKS[name])))
+
     def add_heading(self, text: str, level: int) -> None:
         self.seen_heading = True
         self.blocks.append(
@@ -268,6 +287,12 @@ def parse_markdown(text: str, *, definition_lists: bool = False) -> tuple[str, l
             level = len(heading.group(1))
             if level > 1:
                 builder.add_heading(heading.group(2).strip(), level)
+            index += 1
+            continue
+
+        marker = MARKER_RE.match(stripped)
+        if marker is not None and marker.group(1) in DYNAMIC_BLOCKS:
+            builder.add_dynamic(marker.group(1))
             index += 1
             continue
 

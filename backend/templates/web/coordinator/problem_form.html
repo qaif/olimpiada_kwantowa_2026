@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load web_extras %}
+{% block title %}Zadanie {{ problem.number }} – panel koordynatora{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:coordinator-stage-problems' stage.pk %}">Zadania:
+    {{ stage.get_kind_display }}</a></span>
+  <h1>Zadanie {{ problem.number }}: {{ problem.title }}</h1>
+</div>
+
+{% if stage_has_opened %}
+  <p class="notice">Etap jest otwarty od {{ stage.opens_at|local_time }} – uczestnicy widzą treść
+    tego zadania. Podmiana pliku wymaga zaznaczenia potwierdzenia w formularzu; po podmianie ogłoś
+    erratę w aktualnościach.</p>
+{% endif %}
+
+<div class="card">
+  {% if problem.statement_pdf %}
+    <p class="hint">Obecna treść:
+      <a href="{% url 'competitions:problem-statement' problem.pk %}">podgląd PDF</a></p>
+  {% endif %}
+  <form method="post" enctype="multipart/form-data" class="form form--wide" novalidate>
+    {% csrf_token %}
+    {{ form.as_p }}
+    <div class="actions">
+      <button type="submit" class="btn btn--primary">Zapisz zadanie</button>
+      <a class="btn btn--ghost" href="{% url 'web:coordinator-stage-problems' stage.pk %}">Anuluj</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

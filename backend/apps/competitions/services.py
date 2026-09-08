@@ -4,6 +4,9 @@ Widoki tylko orkiestrują: walidacja reguł biznesowych, tworzenie obiektów zal
 domenowe (``DomainError``) żyją tutaj. Czas zawsze przez ``timezone.now()``.
 """
 
+from datetime import datetime
+
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 from rest_framework import status
@@ -14,6 +17,7 @@ from apps.core.api import DomainError
 from .models import (
     DEFAULT_MAX_VALUE,
     Edition,
+    Problem,
     QualificationMode,
     QualificationRule,
     ScoringScale,
@@ -23,6 +27,34 @@ from .models import (
     StageKind,
     default_scoring_values,
 )
+
+#: Pola osi czasu etapu, którymi koordynator zarządza z panelu. ``results_published_at`` i
+#: ``closed_at`` są **poza** tą listą świadomie: pierwsze nakłada publikacja wyników, drugie –
+#: zamknięcie etapu. Obie wartości są śladem zdarzenia, które już zaszło, a nie planem; ręczne
+#: przestawienie ich w formularzu cofałoby skutek operacji, nie zmieniając niczego, co z niej wynikło.
+STAGE_EDITABLE_FIELDS = (
+    "location",
+    "opens_at",
+    "deadline_at",
+    "grace_seconds",
+    "review_deadline_at",
+    "appeal_window_opens_at",
+    "appeal_window_closes_at",
+)
+
+#: Co wolno zmienić po zamknięciu etapu. Terminy oddania rozwiązań są wtedy faktem historycznym –
+#: upload jest zablokowany, a wersje mają status ``LOCKED``, więc przesunięcie ``opens_at`` czy
+#: ``deadline_at`` opisywałoby przebieg, który się nie wydarzył. Recenzje i okno reklamacji dopiero
+#: przed etapem stoją, a to właśnie one bywają przedłużane (choroba recenzenta, spór o termin).
+STAGE_FIELDS_EDITABLE_AFTER_CLOSE = (
+    "location",
+    "review_deadline_at",
+    "appeal_window_opens_at",
+    "appeal_window_closes_at",
+)
+
+#: Pola zadania, którymi zarządza panel. ``statement_pdf`` idzie osobno – jest plikiem.
+PROBLEM_EDITABLE_FIELDS = ("number", "title", "allowed_formats", "max_file_mb")
 
 
 def current_edition() -> Edition | None:
@@ -162,3 +194,249 @@ def entries_for_user(user):
         .for_user(user)
         .order_by("stage__opens_at", "id")
     )
+
+
+# --- zarządzanie etapami z panelu koordynatora ------------------------------------------------
+
+
+def missing_stage_kinds(edition: Edition) -> list[tuple[str, str]]:
+    """Rodzaje etapów, których edycja jeszcze nie ma – lista wyboru przy dodawaniu etapu.
+
+    Para (edycja, rodzaj) jest unikalna w bazie, więc formularz z pełną listą kończyłby się
+    ``IntegrityError`` na czwartej próbie. Kolejność jest kolejnością z ``StageKind``.
+    """
+    taken = set(Stage.objects.filter(edition=edition).values_list("kind", flat=True))
+    return [(value, label) for value, label in StageKind.choices if value not in taken]
+
+
+def stage_has_submissions(stage: Stage) -> bool:
+    """Czy do etapu wpłynęło choć jedno rozwiązanie (dowolnej wersji i dowolnego statusu).
+
+    Import jest lokalny: ``apps.submissions`` zaciąga ``apps.competitions`` przy starcie, więc
+    zależność w drugą stronę na poziomie modułu byłaby cyklem.
+    """
+    from apps.submissions.models import Submission
+
+    return Submission.objects.filter(entry__stage=stage).exists()
+
+
+def _audit_value(value):
+    """Wartość do wpisu audytowego: daty w ISO, reszta bez zmian (``diff`` jest JSON-em)."""
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return value
+
+
+def _stage_closed_error(fields: list[str]) -> DomainError:
+    return DomainError(
+        "Etap jest zamknięty – można w nim zmienić już tylko termin recenzji, okno reklamacji "
+        f"i miejsce zawodów. Zablokowane pola: {', '.join(fields)}.",
+        "STAGE_CLOSED",
+        status.HTTP_409_CONFLICT,
+    )
+
+
+@transaction.atomic
+def update_stage(stage: Stage, actor, *, request=None, now=None, **fields) -> Stage:
+    """Zmiana osi czasu etapu z panelu koordynatora. Zwraca etap po zapisie.
+
+    Reguły, których nie da się wyrazić w ``Stage.clean()``, bo zależą od stanu innych tabel
+    i od zegara:
+
+    - **etap zamknięty** (``closed_at``) przyjmuje już tylko terminy, które go poprzedzają w czasie:
+      recenzje, okno reklamacji i miejsce (patrz ``STAGE_FIELDS_EDITABLE_AFTER_CLOSE``),
+    - **deadline nie cofa się w przeszłość, gdy są zgłoszenia.** Uczestnik, który oddał pracę
+      zgodnie z ogłoszonym terminem, nie może po fakcie znaleźć się „po deadline”; a gdyby etap
+      zamknął się w tej samej chwili, jego wersje dostałyby ``LOCKED`` z datą, której nie było
+      na stronie w chwili uploadu.
+
+    Kolejność terminów sprawdza ``full_clean()`` – ta sama reguła, co w formularzu i w bazie.
+    Blokada ``select_for_update`` szereguje dwa równoległe zapisy: bez niej druga transakcja
+    czytałaby stan sprzed pierwszej i zapisywała diff względem nieaktualnych wartości.
+    """
+    now = now or timezone.now()
+    unknown = sorted(set(fields) - set(STAGE_EDITABLE_FIELDS))
+    if unknown:  # pragma: no cover - błąd programisty, nie danych
+        raise ValueError(f"Pola spoza zakresu edycji etapu: {', '.join(unknown)}.")
+
+    locked = Stage.objects.select_for_update().get(pk=stage.pk)
+    changed = {name: value for name, value in fields.items() if getattr(locked, name) != value}
+    if not changed:
+        return locked
+
+    if locked.closed_at is not None:
+        blocked = sorted(set(changed) - set(STAGE_FIELDS_EDITABLE_AFTER_CLOSE))
+        if blocked:
+            raise _stage_closed_error(blocked)
+
+    if "deadline_at" in changed and changed["deadline_at"] < now and stage_has_submissions(locked):
+        raise DomainError(
+            "Do etapu wpłynęły już rozwiązania – terminu oddania nie można cofnąć w przeszłość. "
+            "Wybierz termin w przyszłości albo zamknij etap ręcznie.",
+            "STAGE_DEADLINE_IN_PAST",
+            status.HTTP_409_CONFLICT,
+        )
+
+    diff = {
+        name: {"from": _audit_value(getattr(locked, name)), "to": _audit_value(value)}
+        for name, value in changed.items()
+    }
+    for name, value in changed.items():
+        setattr(locked, name, value)
+    locked.full_clean()
+    locked.save(update_fields=list(changed))
+
+    from apps.core.models import audit
+
+    audit(actor, "stage.updated", locked, diff, request=request)
+    for name, value in changed.items():
+        setattr(stage, name, value)
+    return locked
+
+
+# --- zarządzanie zadaniami z panelu koordynatora ----------------------------------------------
+
+
+def _duplicate_number(number) -> DomainError:
+    return DomainError(
+        f"Zadanie o numerze {number} już istnieje w tym etapie.",
+        "PROBLEM_NUMBER_TAKEN",
+        status.HTTP_409_CONFLICT,
+    )
+
+
+def _validation_error(exc: ValidationError) -> DomainError:
+    """``ValidationError`` modelu → błąd domenowy z czytelnym komunikatem dla panelu."""
+    return DomainError("; ".join(exc.messages), "PROBLEM_INVALID", status.HTTP_400_BAD_REQUEST)
+
+
+@transaction.atomic
+def create_problem(*, stage: Stage, actor, statement=None, request=None, **fields) -> Problem:
+    """Nowe zadanie etapu. ``statement`` to plik z formularza albo ``None``."""
+    unknown = sorted(set(fields) - set(PROBLEM_EDITABLE_FIELDS))
+    if unknown:  # pragma: no cover - błąd programisty, nie danych
+        raise ValueError(f"Pola spoza zakresu zadania: {', '.join(unknown)}.")
+
+    problem = Problem(stage=stage, **fields)
+    if statement is not None:
+        problem.statement_pdf = statement
+    try:
+        problem.full_clean()
+    except ValidationError as exc:
+        raise _validation_error(exc) from exc
+    try:
+        # Savepoint: wyścig o ten sam numer nie może unieważnić całej transakcji żądania.
+        with transaction.atomic():
+            problem.save()
+    except IntegrityError as exc:
+        raise _duplicate_number(problem.number) from exc
+
+    from apps.core.models import audit
+
+    audit(
+        actor,
+        "problem.created",
+        problem,
+        {
+            "stage": stage.pk,
+            "number": problem.number,
+            "allowed_formats": list(problem.allowed_formats or []),
+            "max_file_mb": problem.max_file_mb,
+            "has_statement": bool(problem.statement_pdf),
+        },
+        request=request,
+    )
+    return problem
+
+
+@transaction.atomic
+def update_problem(
+    problem: Problem,
+    actor,
+    *,
+    statement=None,
+    confirm_open_stage: bool = False,
+    request=None,
+    now=None,
+    **fields,
+) -> Problem:
+    """Zmiana zadania. Podmiana treści po otwarciu etapu wymaga jawnego potwierdzenia.
+
+    Uczestnik, który pobrał PDF w pierwszej godzinie etapu, rozwiązuje **tę** wersję zadania:
+    cicha podmiana pliku dzieli zawodników na dwie grupy z różnym poleceniem. Potwierdzenie nie
+    zabrania operacji (bywa konieczna – literówka w treści), tylko wymusza świadomą decyzję,
+    po której koordynator ogłasza erratę.
+    """
+    now = now or timezone.now()
+    unknown = sorted(set(fields) - set(PROBLEM_EDITABLE_FIELDS))
+    if unknown:  # pragma: no cover - błąd programisty, nie danych
+        raise ValueError(f"Pola spoza zakresu zadania: {', '.join(unknown)}.")
+
+    locked = Problem.objects.select_for_update().select_related("stage").get(pk=problem.pk)
+    if statement is not None and locked.stage.has_opened(now) and not confirm_open_stage:
+        raise DomainError(
+            "Etap jest już otwarty, a uczestnicy widzą treść tego zadania. Podmiana pliku wymaga "
+            "potwierdzenia w formularzu.",
+            "STATEMENT_CHANGE_NEEDS_CONFIRMATION",
+            status.HTTP_400_BAD_REQUEST,
+        )
+
+    changed = {name: value for name, value in fields.items() if getattr(locked, name) != value}
+    diff = {
+        name: {"from": _audit_value(getattr(locked, name)), "to": _audit_value(value)}
+        for name, value in changed.items()
+    }
+    for name, value in changed.items():
+        setattr(locked, name, value)
+    if statement is not None:
+        # Przypisanie nowego pliku do ``FileField`` zapisuje go pod nową nazwą; stary plik zostaje
+        # w storage (kasowanie jest poza zakresem – w prywatnym buckecie nic go nie wystawia).
+        diff["statement_pdf"] = {"from": locked.statement_pdf.name or "", "to": statement.name}
+        locked.statement_pdf = statement
+    if not diff:
+        return locked
+
+    try:
+        locked.full_clean()
+    except ValidationError as exc:
+        raise _validation_error(exc) from exc
+    try:
+        with transaction.atomic():
+            locked.save()
+    except IntegrityError as exc:
+        raise _duplicate_number(locked.number) from exc
+
+    from apps.core.models import audit
+
+    audit(actor, "problem.updated", locked, diff, request=request)
+    return locked
+
+
+@transaction.atomic
+def delete_problem(problem: Problem, actor, *, request=None) -> None:
+    """Usunięcie zadania. Możliwe wyłącznie, dopóki nikt nie oddał do niego rozwiązania.
+
+    ``Submission.problem`` jest kluczem z ``CASCADE``, więc skasowanie zadania z pracami zabrałoby
+    ze sobą rozwiązania, recenzje i oceny – a te są dowodem przebiegu zawodów.
+    """
+    from apps.submissions.models import Submission
+
+    if Submission.objects.filter(problem=problem).exists():
+        raise DomainError(
+            "Do zadania wpłynęły rozwiązania – nie można go usunąć.",
+            "PROBLEM_HAS_SUBMISSIONS",
+            status.HTTP_409_CONFLICT,
+        )
+
+    from apps.core.models import audit
+
+    # Audyt przed skasowaniem: po ``delete()`` obiekt nie ma już ``pk``, więc wpis wskazywałby
+    # na ``None`` i nie dałoby się go połączyć z historią zadania.
+    audit(
+        actor,
+        "problem.deleted",
+        problem,
+        {"stage": problem.stage_id, "number": problem.number, "title": problem.title},
+        request=request,
+    )
+    problem.delete()

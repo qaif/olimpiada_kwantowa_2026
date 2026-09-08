@@ -1153,6 +1153,10 @@ input[type="email"],
 input[type="password"],
 input[type="number"],
 input[type="date"],
+/* ``datetime-local`` obsługuje panel koordynatora (terminy etapu). Bez tego selektora pole
+   zostawało w domyślnym stylu przeglądarki – w formularzu obok pól tekstowych wyglądało jak
+   element z innego serwisu. */
+input[type="datetime-local"],
 input[type="url"],
 input[type="search"],
 select,
@@ -1518,6 +1522,28 @@ form.inline input[type="text"] {
   white-space: nowrap;
 }
 
+/* Lista zadań w panelu koordynatora: tytuł jest nazwą wiersza (``<th scope="row">``), a nie
+   nagłówkiem tabeli – tak samo, jak temat w harmonogramie warsztatów. Bez tego tytuł zadania
+   szedłby wersalikami w kolorze nagłówka i czytałby się jak etykieta kolumny. */
+.problem-table th[scope="row"] {
+  position: static;
+  background: transparent;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: normal;
+  border-bottom: 1px solid var(--line);
+  padding: var(--sp-3);
+  min-width: 18ch;
+}
+
+/* Ostatni wiersz nie ma kreski pod komórkami (``.table tbody tr:last-child td``) – nagłówek
+   wiersza musi zniknąć razem z nimi, inaczej zostaje urwana kreska pod jedną kolumną. */
+.problem-table tbody tr:last-child th[scope="row"] {
+  border-bottom: 0;
+}
+
 .table tr.is-qualified {
   background: var(--ok-soft);
 }
@@ -1811,6 +1837,13 @@ td.empty,
   margin: 0;
   color: var(--ink-soft);
   text-align: right;
+}
+
+/* Blok „terminy etapów” w treści redakcyjnej (``cms/blocks/stage_timeline.html``). Nagłówek jest
+   opcjonalnym polem bloku, więc bywa pierwszym elementem sekcji – wtedy własny margines górny
+   dublowałby odstęp od śródtytułu stojącego nad blokiem. */
+.stage-timeline__heading {
+  margin-top: 0;
 }
 
 /* 6.9 Odliczanie */
@@ -2992,6 +3025,16 @@ fieldset:disabled .score-option {
 
 .stage-panel__actions label {
   font-size: 0.8125rem;
+}
+
+/* Odnośniki karty etapu (terminy, zadania, admin) – jeden pasek nad blokiem akcji POST-owych,
+   żeby „przejdź do” nie wyglądało jak kolejny przycisk wykonujący operację. */
+.stage-panel__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  margin: 0 0 var(--sp-4);
+  font-size: 0.9375rem;
 }
 
 /* 7.5 Strona 429 */

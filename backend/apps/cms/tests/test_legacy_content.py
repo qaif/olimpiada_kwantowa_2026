@@ -215,21 +215,41 @@ def test_content_page_body_keeps_structure(legacy_content):
     page = ContentPage.objects.get(slug="harmonogram")
     kinds = [block.block_type for block in page.body]
 
-    # Tabela terminów zostaje listą definicji w akapicie, nagłówki – blokami ``heading``.
+    # Nagłówki zostają blokami ``heading``, warsztaty tabelą, a terminy etapów – blokiem czytanym
+    # z bazy zawodów. Żadnej daty etapu nie ma już w treści strony.
     assert "heading" in kinds
     assert "paragraph" in kinds
-    assert "1 września – 15 października 2026" in str(page.body)
+    assert "stage_timeline" in kinds
+    assert "schedule" in kinds
 
 
-# --- harmonogram: finał w Krakowie i warsztaty ---------------------------------------------------
+# --- harmonogram: terminy z systemu i warsztaty --------------------------------------------------
 
 
-def test_harmonogram_moves_the_final_to_krakow(web_client, legacy_content):
-    """Finał: 4–7 czerwca 2027 w Krakowie. Dawnego terminu nie może być nigdzie na stronie."""
+def test_harmonogram_has_no_stage_dates_written_into_the_page(legacy_content):
+    """Plik źródłowy strony nie zawiera ani jednej daty etapu – są w ``competitions.Stage``.
+
+    To jest cała treść tej zmiany: dopóki terminarz był tabelą w treści, każde przesunięcie
+    terminu wymagało poprawki w dwóch miejscach, a rozjazd między nimi objawiał się dopiero
+    wtedy, gdy uczestnik oddawał pracę „na czas” według strony i po terminie według serwera.
+    """
+    body = str(ContentPage.objects.get(slug="harmonogram").body)
+
+    # „16 stycznia 2027” świadomie poza listą: to termin **warsztatu**, czyli treść redakcyjna,
+    # której system zawodów nie zna i której ten blok nie zastępuje.
+    for fragment in ("7 listopada 2026", "4–7 czerwca 2027", "10 kwietnia 2027"):
+        assert fragment not in body
+
+
+def test_harmonogram_shows_the_final_in_krakow_from_the_database(web_client, legacy_content):
+    """Finał: 4–7 czerwca 2027 w Krakowie – z etapów edycji, nie z akapitu w treści."""
+    call_command("seed_edition_kwantowa", "--make-current", verbosity=0)
+
     content = web_client.get("/harmonogram/").content.decode()
 
     assert "Kraków" in content
-    assert "4–7 czerwca 2027" in content
+    assert "4 czerwca 2027" in content
+    assert "7 czerwca 2027" in content
     assert "10 kwietnia 2027" not in content
     # Terminy dwóch pierwszych etapów zostają bez zmian – to jedyna zmiana w terminarzu.
     assert "7 listopada 2026" in content
@@ -263,7 +283,9 @@ def test_harmonogram_lists_every_workshop_as_a_table(web_client, legacy_content)
         ("/o-olimpiadzie/", "Fundacja Quantum AI"),
         ("/kontakt/", "contact@qaif.org"),
         ("/dokumenty/rodo/", SOURCE_NOTICE_FRAGMENT),
-        ("/harmonogram/", "7 listopada 2026"),
+        # Bez bieżącej edycji terminarz pokazuje pusty stan, a nie pustą tabelę – strona nadal
+        # ma się otworzyć i powiedzieć czytelnikowi, czego jeszcze nie ma.
+        ("/harmonogram/", "Terminy zostaną ogłoszone"),
         ("/dokumenty/standardy-ochrony-maloletnich/", SOURCE_NOTICE_FRAGMENT),
     ],
 )

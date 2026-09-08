@@ -43,7 +43,7 @@ Każdy wiersz to test, który sprawdza **odmowę**, a nie zgodę.
 |---|---|---|
 | `/me/`, `/me/stages/…/upload/` | anonim → 302, recenzent/koordynator → 403 | `apps/web/tests/test_access.py::test_anonymous_is_redirected_to_login`, `::test_reviewer_gets_403_outside_review_panel` |
 | `/review/`, `/review/<id>/` | uczestnik → 403; recenzent bez przydziału → 404 | `apps/web/tests/test_access.py::test_participant_gets_403_outside_own_panel`, `apps/grading/tests/test_review_api.py::test_reviewer_cannot_open_someone_elses_review` |
-| `/coordinator/…` | uczestnik i recenzent → 403; superuser bez grupy → 403 | `apps/web/tests/test_access.py`, `apps/accounts/tests/test_permissions.py::test_superuser_nie_jest_automatycznie_koordynatorem` |
+| `/coordinator/…` (w tym `stages/<id>/edit/`, `stages/new/`, `stages/<id>/problems/`, `problems/<id>/edit/`, `problems/<id>/delete/`) | uczestnik i recenzent → 403; superuser bez grupy → 403; anonim → 302 na `/login/` | `apps/web/tests/test_access.py`, `apps/web/tests/test_coordinator_stages.py::test_other_roles_cannot_touch_stage_timeline`, `apps/web/tests/test_coordinator_problems.py::test_other_roles_cannot_manage_problems`, `apps/accounts/tests/test_permissions.py::test_superuser_nie_jest_automatycznie_koordynatorem` |
 | `/appeals/`, `/appeals/<id>/decide/` | recenzent bez roli `appeals` → 403; autor recenzji rundy 1 → sprawy nie widzi (404) | `apps/appeals/tests/test_appeal_api.py::test_reviewer_without_appeals_role_cannot_use_committee_endpoints`, `::test_round_one_reviewer_cannot_decide_and_does_not_see_appeal` |
 | `POST /api/…/submissions/` | uczestnik bez `StageEntry` → 403 `NOT_REGISTERED`; cudzy `entry` → 403 | `apps/submissions/tests/test_upload_api.py` |
 | `GET /api/submissions/<id>/download/` | cudze zgłoszenie → 404; plik przed `CLEAN` dla nie-właściciela → 403; komisja bez reklamacji → 404 | `apps/submissions/tests/test_download_api.py`, `apps/appeals/tests/test_appeal_api.py::test_committee_cannot_download_submission_without_appeal` |
@@ -51,7 +51,7 @@ Każdy wiersz to test, który sprawdza **odmowę**, a nie zgodę.
 | endpointy recenzenta | recenzent `PENDING` / `SUSPENDED` → 403 | `apps/accounts/tests/test_permissions.py::test_kryterium_6_widok_is_active_reviewer_daje_403_dla_pending_i_200_dla_active` |
 | `POST /api/competitions/stages/<id>/register/` | etap okręgowy / finał → 403 `STAGE_NOT_OPEN_FOR_REGISTRATION` | `apps/competitions/tests/test_api.py::test_rejestracja_do_etapu_okregowego_przez_api_daje_403` |
 | `/cms/` (Wagtail) | uczestnik i recenzent → 302/403 | `apps/cms/tests/test_access.py` |
-| `GET /api/competitions/problems/<id>/statement/` | przed `opens_at` → 404 (także anonimowo) | `apps/cms/tests/test_security.py::test_statement_is_served_by_the_view_only_after_opens_at` |
+| `GET /api/competitions/problems/<id>/statement/` | przed `opens_at` → 404 dla anonima, uczestnika i recenzenta. Wyjątkiem jest **koordynator** (grupa `coordinator`, bez eskalacji superusera): to on wgrywa treść z panelu i musi ją obejrzeć przed otwarciem zawodów | `apps/cms/tests/test_security.py::test_statement_is_served_by_the_view_only_after_opens_at`, `apps/web/tests/test_coordinator_problems.py::test_coordinator_sees_the_statement_before_the_stage_opens`, `::test_others_still_get_404_before_the_stage_opens` |
 
 Scenariusz E2E dokłada dwie asercje negatywne na żywym systemie: panel recenzenta nie zawiera
 nazwiska ani adresu e-mail uczestnika, a publiczna tabela wyników – nazwiska ani szkoły.

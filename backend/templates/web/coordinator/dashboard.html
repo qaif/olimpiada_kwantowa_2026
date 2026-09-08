@@ -35,6 +35,10 @@
 <section class="section">
   <div class="section__head">
     <h2 class="mt-0">Etapy {% if edition %}({{ edition.year_label }}){% endif %}</h2>
+    {% if missing_kinds %}
+      <p class="hint"><a class="btn btn--secondary btn--small"
+         href="{% url 'web:coordinator-stage-new' %}">Dodaj etap</a></p>
+    {% endif %}
   </div>
   {% for row in stage_rows %}
     <article class="card stage-panel">
@@ -46,13 +50,30 @@
           <span class="badge badge--ok">otwarty</span>
         {% endif %}
       </div>
+      {% comment %}
+        Podsumowanie terminów to ten sam komplet, który koordynator otwiera do edycji – łącznie
+        z oknem reklamacji i miejscem zawodów. Bez nich karta pokazywała połowę osi czasu, a druga
+        połowa była do sprawdzenia wyłącznie w ``/admin/``.
+      {% endcomment %}
       <dl class="meta-list">
+        <dt>Otwarcie</dt><dd>{{ row.stage.opens_at|local_datetime }}</dd>
         <dt>Deadline oddania</dt><dd>{{ row.stage.submission_deadline|local_datetime }}</dd>
         <dt>Deadline recenzji</dt><dd>{{ row.stage.review_deadline_at|local_datetime }}</dd>
+        <dt>Okno reklamacji</dt>
+        <dd>{{ row.stage.appeal_window_opens_at|local_datetime }} –
+          {{ row.stage.appeal_window_closes_at|local_datetime }}</dd>
+        <dt>Miejsce</dt><dd>{{ row.stage.location|default:"zdalnie" }}</dd>
         {% if row.stage.closed_at %}
           <dt>Zamknięty</dt><dd>{{ row.stage.closed_at|local_datetime }}</dd>
         {% endif %}
       </dl>
+
+      <p class="stage-panel__links">
+        <a href="{% url 'web:coordinator-stage-edit' row.stage.pk %}">Edytuj terminy</a>
+        <a href="{% url 'web:coordinator-stage-problems' row.stage.pk %}">Zadania ({{ row.stage.problem_count }})</a>
+        {# Skala punktacji i próg kwalifikacji zostają w adminie – konfiguracja oceniania, nie kalendarz. #}
+        <a href="{% url 'admin:competitions_stage_change' row.stage.pk %}">Skala i próg (admin)</a>
+      </p>
 
       <div class="stage-panel__actions">
         <form method="post" action="{% url 'web:coordinator-close-stage' row.stage.pk %}">

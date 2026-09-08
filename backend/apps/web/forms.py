@@ -8,12 +8,24 @@ które te formularze wołają. Dublowanie ich tutaj rozjechałoby się z API prz
 from __future__ import annotations
 
 import json
+from datetime import datetime
 
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm
+from django.core.files.uploadedfile import UploadedFile
 
 from apps.appeals.models import MAX_TEXT_LENGTH, MIN_ARGUMENT_LENGTH, AppealStatus
+from apps.competitions.models import (
+    DEFAULT_MAX_FILE_MB,
+    MAX_FILE_MB_LIMIT,
+    SUPPORTED_FILE_FORMATS,
+    Problem,
+    Stage,
+)
+from apps.competitions.services import STAGE_EDITABLE_FIELDS
+from apps.core.api import DomainError
 from apps.results.models import Anonymization
+from apps.submissions.validators import MEGABYTE, validate_pdf
 
 
 class EmailAuthenticationForm(AuthenticationForm):
@@ -193,3 +205,213 @@ class PublishResultsForm(forms.Form):
     """Publikacja wyników etapu wraz z wyborem trybu anonimizacji."""
 
     anonymization = forms.ChoiceField(label="Anonimizacja", choices=Anonymization.choices)
+
+
+# --- etapy i zadania w panelu koordynatora -----------------------------------------------------
+
+#: Format pola ``<input type="datetime-local">`` – jedyny, jaki wysyła przeglądarka. Sekundy są
+#: opcjonalne (Chrome dokłada je, gdy pole ma krok sekundowy), stąd oba warianty.
+LOCAL_DATETIME_FORMATS = ("%Y-%m-%dT%H:%M", "%Y-%m-%dT%H:%M:%S")
+
+#: Górny limit treści zadania. Caddy przepuszcza 25 MB (``MAX_UPLOAD_MB``), więc 20 MB mieści się
+#: z zapasem na narzut wieloczęściowego formularza.
+MAX_STATEMENT_MB = 20
+
+
+def _to_minute(value):
+    """Wartość porównywalna z tym, co potrafi wysłać ``<input type="datetime-local">``."""
+    return value.replace(second=0, microsecond=0) if isinstance(value, datetime) else value
+
+
+#: Górna granica numeru zadania w formularzu. Model dopuszcza cokolwiek dodatniego, ale arkusz
+#: etapu ma kilka zadań – trzycyfrowy numer to zawsze literówka, a nie plan zawodów.
+MAX_PROBLEM_NUMBER = 99
+
+
+class LocalDateTimeField(forms.DateTimeField):
+    """Data i godzina w czasie lokalnym serwisu, wpisywana natywnym ``<input type="datetime-local">``.
+
+    Konwersji stref **nie robimy ręcznie**: ``forms.DateTimeField`` przepuszcza wartość początkową
+    przez ``to_current_timezone`` (czyli ``timezone.localtime``), a wpisaną – przez
+    ``from_current_timezone`` (czyli ``make_aware`` w ``settings.TIME_ZONE``). Koordynator wpisuje
+    więc godzinę polską, a w bazie ląduje UTC – bez ani jednej arytmetyki na godzinach w naszym
+    kodzie, która przy zmianie czasu rozjeżdżałaby się dwa razy w roku.
+
+    Widżet dostaje jawny ``format``: bez niego Django wypisałoby wartość początkową w formacie
+    lokalizacji „pl” („7 listopada 2026 23:59”), którego pole ``datetime-local`` nie rozumie –
+    formularz edycji otwierałby się z pustymi terminami.
+    """
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault("input_formats", LOCAL_DATETIME_FORMATS)
+        kwargs.setdefault(
+            "widget",
+            forms.DateTimeInput(attrs={"type": "datetime-local"}, format=LOCAL_DATETIME_FORMATS[0]),
+        )
+        super().__init__(**kwargs)
+
+    def clean(self, value):
+        """Ucina sekundy: pole ``datetime-local`` i tak ich nie pokazuje.
+
+        Bez tego zapis z panelu zostawiałby w bazie sekundy przepisane z poprzedniej wartości albo
+        wyzerowane zależnie od przeglądarki – a deadline „23:59:37” jest różnicą, której nikt nie
+        ogłosił i której nie widać na żadnym ekranie.
+        """
+        value = super().clean(value)
+        return value.replace(second=0, microsecond=0) if value is not None else value
+
+
+class StageForm(forms.ModelForm):
+    """Oś czasu etapu w panelu koordynatora.
+
+    Kolejność terminów jest sprawdzana przez ``Stage.full_clean()`` – ModelForm woła je w
+    ``_post_clean``, więc komunikaty z ``Stage.clean()`` trafiają pod właściwe pola i nie ma
+    drugiej kopii tej reguły w warstwie WWW. Reguły zależne od stanu bazy (zgłoszenia, zamknięcie
+    etapu) zostają w serwisie ``update_stage`` – formularz ich nie zna.
+
+    Czego tu nie ma: ``kind`` i ``edition`` (tożsamość etapu, zmiana byłaby podmianą obiektu),
+    ``results_published_at`` i ``closed_at`` (ślady zdarzeń, patrz ``STAGE_EDITABLE_FIELDS``)
+    oraz skala punktacji i próg kwalifikacji – te zostają w ``/admin/``, bo są konfiguracją
+    oceniania, a nie kalendarzem.
+    """
+
+    class Meta:
+        model = Stage
+        fields = STAGE_EDITABLE_FIELDS
+        field_classes = {
+            "opens_at": LocalDateTimeField,
+            "deadline_at": LocalDateTimeField,
+            "review_deadline_at": LocalDateTimeField,
+            "appeal_window_opens_at": LocalDateTimeField,
+            "appeal_window_closes_at": LocalDateTimeField,
+        }
+        help_texts = {
+            "location": "Puste dla etapu zdalnego. Np. „Kraków, Wydział Fizyki UJ”.",
+            "grace_seconds": ("Tolerancja po terminie oddania. Upload zamyka się dopiero po jej upływie."),
+        }
+
+    def changed_values(self) -> dict:
+        """Pola, które koordynator **faktycznie** zmienił – w rozdzielczości formularza.
+
+        ``<input type="datetime-local">`` pracuje z dokładnością do minuty, więc otwarcie
+        formularza i zapis bez zmian przepisywałoby każdą datę: sekundy zapisane spoza panelu
+        (admin, seed) zniknęłyby, a w audycie stanąłby wpis o zmianie, której nie było. Gorzej
+        w etapie zamkniętym – zapis samego okna reklamacji wyglądałby wtedy jak próba przesunięcia
+        także otwarcia i deadline'u, czyli kończyłby się odmową.
+
+        Porównanie należy do formularza, a nie do serwisu: to **rozdzielczość pola**, czyli sprawa
+        warstwy prezentacji. ``update_stage`` porównuje wartości dokładnie.
+        """
+        return {
+            name: value
+            for name, value in self.cleaned_data.items()
+            if name in STAGE_EDITABLE_FIELDS and _to_minute(self.initial.get(name)) != _to_minute(value)
+        }
+
+
+class StageCreateForm(StageForm):
+    """Dodanie etapu do bieżącej edycji. ``kind`` wybiera się spośród rodzajów, których brakuje.
+
+    Lista wyboru jest zawężana w widoku (``missing_stage_kinds``), a nie tutaj: to zapytanie do
+    bazy o **konkretną** edycję, a formularz jej nie zna. Para (edycja, rodzaj) jest unikalna
+    w bazie, więc wyścig o ostatni wolny rodzaj kończy się błędem walidacji, nie duplikatem.
+    """
+
+    class Meta(StageForm.Meta):
+        fields = ("kind", *STAGE_EDITABLE_FIELDS)
+
+    def __init__(self, *args, kind_choices=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["kind"].choices = list(kind_choices)
+
+
+class ProblemForm(forms.ModelForm):
+    """Zadanie etapu: numer, tytuł, treść w PDF, dopuszczone formaty rozwiązań i limit rozmiaru.
+
+    ``allowed_formats`` jest w modelu polem JSON (lista), a w formularzu – zestawem pól wyboru:
+    redaktor zaznacza „pdf/ipynb/py”, a nie wpisuje literał JSON, którego literówka objawiłaby się
+    dopiero przy uploadzie uczestnika.
+
+    Treść zadania jest sprawdzana **po zawartości pliku** (``%PDF-``), a nie po rozszerzeniu ani
+    nagłówku ``Content-Type`` – dokładnie tak, jak rozwiązania uczestników
+    (``apps.submissions.validators``). Plik trafia na storage ``private_media``: przed otwarciem
+    etapu nie ma publicznego adresu, spod którego dałoby się go pobrać.
+    """
+
+    number = forms.IntegerField(label="Numer zadania", min_value=1, max_value=MAX_PROBLEM_NUMBER)
+    max_file_mb = forms.IntegerField(
+        label="Limit rozmiaru rozwiązania (MB)",
+        min_value=1,
+        max_value=MAX_FILE_MB_LIMIT,
+        initial=DEFAULT_MAX_FILE_MB,
+        help_text=f"Ile może ważyć plik uczestnika: 1–{MAX_FILE_MB_LIMIT} MB.",
+    )
+    allowed_formats = forms.MultipleChoiceField(
+        label="Dozwolone formaty rozwiązań",
+        choices=[(value, f".{value}") for value in SUPPORTED_FILE_FORMATS],
+        widget=forms.CheckboxSelectMultiple,
+        help_text="Zaznacz co najmniej jeden format.",
+    )
+    statement_pdf = forms.FileField(
+        label="Treść zadania (PDF)",
+        required=False,
+        widget=forms.ClearableFileInput(attrs={"accept": "application/pdf"}),
+        help_text=f"Plik PDF, maksymalnie {MAX_STATEMENT_MB} MB. Nowy plik zastępuje poprzedni.",
+    )
+    confirm_open_stage = forms.BooleanField(
+        label="Rozumiem, że uczestnicy już widzą treść tego zadania",
+        required=False,
+        help_text="Wymagane przy podmianie treści po otwarciu etapu.",
+    )
+
+    class Meta:
+        model = Problem
+        fields = ("number", "title", "statement_pdf", "allowed_formats", "max_file_mb")
+
+    def __init__(self, *args, stage=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.stage = stage if stage is not None else getattr(self.instance, "stage", None)
+        # Pole potwierdzenia ma sens wyłącznie przy edycji zadania w otwartym etapie – przy dodawaniu
+        # nie ma czego podmieniać, a pusty checkbox „rozumiem…” tylko zaciemniałby formularz.
+        if not self._needs_confirmation():
+            del self.fields["confirm_open_stage"]
+
+    def _needs_confirmation(self) -> bool:
+        return bool(self.instance.pk and self.stage is not None and self.stage.has_opened())
+
+    def clean_number(self):
+        """Numer unikalny w etapie – komunikat pod polem, a nie ogólny błąd o unikalności.
+
+        ``unique_together`` z modelu dałoby błąd niezwiązany z żadnym polem („Zadanie z tymi Etap
+        i Numer już istnieje”), czyli w formularzu wylądowałby nad całością, a nie przy tym polu,
+        które trzeba poprawić.
+        """
+        number = self.cleaned_data["number"]
+        if self.stage is None:  # pragma: no cover - widok zawsze podaje etap
+            return number
+        duplicates = Problem.objects.filter(stage=self.stage, number=number).exclude(pk=self.instance.pk)
+        if duplicates.exists():
+            raise forms.ValidationError(f"Zadanie o numerze {number} już jest w tym etapie.")
+        return number
+
+    def clean_statement_pdf(self):
+        """Rozmiar i treść pliku. Wartość niebędąca uploadem to plik, który już jest na storage."""
+        upload = self.cleaned_data.get("statement_pdf")
+        if not isinstance(upload, UploadedFile):
+            return upload
+        if upload.size > MAX_STATEMENT_MB * MEGABYTE:
+            raise forms.ValidationError(
+                f"Plik ma {upload.size} B – limit treści zadania to {MAX_STATEMENT_MB} MB."
+            )
+        if upload.size == 0:
+            raise forms.ValidationError("Plik jest pusty.")
+        try:
+            validate_pdf(upload)
+        except DomainError as exc:
+            raise forms.ValidationError(str(exc.detail)) from exc
+        return upload
+
+    def uploaded_statement(self):
+        """Nowy plik treści albo ``None``. Serwis rozpoznaje po tym, czy podmieniać treść."""
+        upload = self.cleaned_data.get("statement_pdf")
+        return upload if isinstance(upload, UploadedFile) else None

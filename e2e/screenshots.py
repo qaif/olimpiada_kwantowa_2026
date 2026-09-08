@@ -47,6 +47,8 @@ MOBILE = {"width": 390, "height": 844}
 #: Adres pierwszej recenzji wyciągamy z listy przydziałów – identyfikatory zależą od przebiegu E2E.
 REVIEW_LINK = re.compile(r'href="(/review/\d+/)"')
 RESULTS_LINK = re.compile(r'href="(/results/\d+/)"')
+#: Identyfikator etapu z karty na pulpicie koordynatora – ekrany terminów i zadań są pod nim.
+STAGE_EDIT_LINK = re.compile(r'href="/coordinator/stages/(\d+)/edit/"')
 #: Adres konta komisji zakładanego przez ``e2e/test_full_cycle.py`` (losowy sufiks, stałe hasło).
 E2E_COMMITTEE_EMAIL = re.compile(r"komisja-[0-9a-f]+@example\.test")
 E2E_COMMITTEE_PASSWORD = "Komisja-Odwolawcza-2026"  # noqa: S105 - konto testowe z e2e/test_full_cycle.py
@@ -234,6 +236,14 @@ def coordinator_pages(browser) -> None:
         context.close()
         return
     shoot(page, "/coordinator/", "12-panel-koordynatora")
+    # Terminy etapu i zadania: identyfikator bierzemy z karty na pulpicie, bo zależy od seeda.
+    match = STAGE_EDIT_LINK.search(page.content())
+    if match:
+        stage_id = match.group(1)
+        shoot(page, f"/coordinator/stages/{stage_id}/edit/", "12a-terminy-etapu", scroll="top")
+        shoot(page, f"/coordinator/stages/{stage_id}/problems/", "12b-zadania-etapu", scroll="top")
+    else:
+        LOGGER.warning("Pulpit koordynatora nie ma kart etapów – pomijam terminy i zadania.")
     context.close()
 
 

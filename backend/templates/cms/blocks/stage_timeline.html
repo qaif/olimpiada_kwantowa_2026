@@ -1,0 +1,48 @@
+{% load web_extras %}
+{% comment %}
+  Terminy etapów bieżącej edycji. Wiersze przychodzą z ``apps.cms.timeline.stage_rows`` – z bazy
+  zawodów, nie z treści redakcyjnej. Trzy decyzje o tym znaczniku:
+
+  - **karty (``.timeline``), a nie ``<table>``.** Etap ma sześć terminów, a blok stoi w kolumnie
+    czytelniczej szerokiej na 68 znaków (``doc-layout``): tabela o siedmiu kolumnach obcinała tam
+    dwie ostatnie i wymagała przewijania w bok, żeby zobaczyć miejsce zawodów. Karta mieści komplet
+    i zwija się do jednej kolumny na telefonie. To ten sam komponent, co oś czasu na stronie
+    głównej – oba ekrany pokazują to samo, więc mają wyglądać tak samo,
+  - **stan etapu jest odznaką**, a nie kolumną: czytelnik szuka „co teraz”, a nie porównuje statusy,
+  - **puste terminy to komunikat, nie pusta lista.** Przed utworzeniem etapów (albo bez bieżącej
+    edycji) czytelnik ma przeczytać, że terminów jeszcze nie ma.
+
+  Godziny idą przez filtr ``local_datetime`` (czas polski, ``USE_TZ``); strefę podaje raz podpis
+  nad listą. Wszystkie wartości przechodzą przez autoescapowanie – żadnego ``|safe``.
+{% endcomment %}
+{% if value.heading %}<h2 class="stage-timeline__heading">{{ value.heading }}</h2>{% endif %}
+{% if rows %}
+  <p class="hint">Terminy obowiązujące w systemie zawodów. Wszystkie godziny: czas polski.</p>
+  <ol class="timeline">
+    {% for row in rows %}
+      <li class="timeline__item {% if row.is_open %}timeline__item--open{% elif row.has_opened %}timeline__item--done{% else %}timeline__item--next{% endif %}">
+        <p class="timeline__kind">{{ row.stage.get_kind_display }}</p>
+        <span class="{{ row.badge_class }}">{{ row.status_label }}</span>
+        <dl class="timeline__dates">
+          {% if row.stage.location %}
+            <div><dt>Miejsce</dt><dd>{{ row.stage.location }}</dd></div>
+          {% endif %}
+          <div><dt>Otwarcie</dt><dd>{{ row.stage.opens_at|local_datetime }}</dd></div>
+          <div><dt>Oddanie rozwiązań</dt><dd>{{ row.stage.deadline_at|local_datetime }}</dd></div>
+          {% if row.stage.grace_seconds %}
+            {# Tolerancja bywa niezerowa i wtedy to ona, a nie deadline, zamyka upload. #}
+            <div><dt>Upload zamyka się</dt>
+              <dd>{{ row.stage.submission_deadline|local_datetime }}</dd></div>
+          {% endif %}
+          <div><dt>Recenzje do</dt><dd>{{ row.stage.review_deadline_at|local_datetime }}</dd></div>
+          <div><dt>Reklamacje</dt>
+            <dd>{{ row.stage.appeal_window_opens_at|local_datetime }} –
+              {{ row.stage.appeal_window_closes_at|local_datetime }}</dd></div>
+        </dl>
+      </li>
+    {% endfor %}
+  </ol>
+{% else %}
+  <p class="empty"><span class="empty__title">Terminy zostaną ogłoszone</span>
+    Organizator nie wprowadził jeszcze terminów etapów bieżącej edycji.</p>
+{% endif %}

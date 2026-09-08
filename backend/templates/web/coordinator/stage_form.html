@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load web_extras %}
+{% block title %}{% if stage %}Terminy etapu {{ stage.get_kind_display }}{% else %}Nowy etap{% endif %} – panel koordynatora{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
+  {% if stage %}
+    <h1>Terminy etapu: {{ stage.get_kind_display }}</h1>
+    <p class="lead">Edycja {{ stage.edition.year_label }}. Wszystkie godziny podajesz i czytasz
+      w czasie polskim; system przelicza je na UTC.</p>
+  {% else %}
+    <h1>Nowy etap{% if edition %}: {{ edition.year_label }}{% endif %}</h1>
+    <p class="lead">Etap powstaje razem z domyślną skalą punktacji (0/2/5/6) i progiem kwalifikacji.
+      Obie wartości zmienisz później w panelu administracyjnym.</p>
+  {% endif %}
+</div>
+
+{% if stage %}
+  <div class="card card--quiet">
+    <dl class="meta-list">
+      <dt>Stan</dt>
+      <dd>{% if stage.closed_at %}zamknięty {{ stage.closed_at|local_datetime }}{% else %}otwarty{% endif %}</dd>
+      <dt>Zadania</dt>
+      <dd><a href="{% url 'web:coordinator-stage-problems' stage.pk %}">{{ problem_count }}</a></dd>
+      <dt>Rozwiązania</dt>
+      <dd>{% if has_submissions %}etap ma oddane prace{% else %}brak{% endif %}</dd>
+      <dt>Wyniki ogłoszone</dt>
+      <dd>{{ stage.results_published_at|local_datetime|default:"nie" }}</dd>
+    </dl>
+    {% comment %}
+      Trzy reguły, które serwis odrzuci mimo poprawnego formularza. Stoją nad polami, a nie
+      w komunikacie po nieudanym zapisie: koordynator ma je znać, zanim wpisze datę.
+    {% endcomment %}
+    <ul class="hint">
+      <li>Termin oddania nie cofa się w przeszłość, jeżeli do etapu wpłynęły już rozwiązania.</li>
+      <li>W etapie zamkniętym zmienisz już tylko termin recenzji, okno reklamacji i miejsce.</li>
+      <li>Znacznik publikacji wyników zdejmuje i nakłada wyłącznie operacja publikacji.</li>
+    </ul>
+  </div>
+{% endif %}
+
+<div class="card">
+  <form method="post" class="form form--wide" novalidate>
+    {% csrf_token %}
+    {{ form.as_p }}
+    <div class="actions">
+      <button type="submit" class="btn btn--primary">Zapisz terminy</button>
+      <a class="btn btn--ghost" href="{% url 'web:coordinator' %}">Anuluj</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

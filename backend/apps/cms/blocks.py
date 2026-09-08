@@ -200,6 +200,45 @@ class ScheduleBlock(blocks.StructBlock):
         value_class = ScheduleValue
 
 
+class StageTimelineBlock(blocks.StructBlock):
+    """Terminy etapów **bieżącej edycji** czytane wprost z bazy zawodów.
+
+    To jest odpowiedź na to, co robiła stara strona: harmonogram był tabelą wpisaną ręcznie
+    w treści, więc każda zmiana terminu wymagała poprawki w dwóch miejscach – w systemie, który
+    egzekwuje deadline, i w akapicie, który go ogłasza. Rozjazd między nimi jest tylko kwestią
+    czasu, a kosztuje uczestnika pracę oddaną „na czas” według strony i po terminie według serwera.
+    Blok nie ma **ani jednego** pola z datą: redaktor wstawia go tam, gdzie terminy mają stanąć,
+    a treść bierze się z ``competitions.Stage`` – tego samego obiektu, który zamyka upload.
+
+    Jedyne pole to nagłówek sekcji, i to opcjonalny: blok bywa wstawiany pod własnym śródtytułem
+    (``heading``), a dwa nagłówki nad jedną tabelą to szum. ``StaticBlock`` byłby tu wygodniejszy
+    w edytorze, ale nie miałby gdzie trzymać tej jednej wartości.
+
+    Stan etapu (nadchodzący / otwarty / zamknięty / wyniki ogłoszone) liczy ``apps.cms.timeline``
+    z zegara serwera przy każdym żądaniu. Strona nie jest cache'owana, więc zmiana terminu
+    w panelu koordynatora jest widoczna od następnego odświeżenia.
+    """
+
+    heading = blocks.CharBlock(
+        required=False,
+        max_length=200,
+        label="nagłówek sekcji",
+        help_text="Puste = sama tabela terminów, bez nagłówka.",
+    )
+
+    class Meta:
+        icon = "time"
+        label = "terminy etapów (z systemu)"
+        template = "cms/blocks/stage_timeline.html"
+
+    def get_context(self, value, parent_context=None):
+        from .timeline import stage_rows
+
+        context = super().get_context(value, parent_context=parent_context)
+        context["rows"] = stage_rows()
+        return context
+
+
 class StepBlock(blocks.StructBlock):
     """Jeden krok sekcji „Jak zacząć” na stronie głównej: tytuł i jedno zdanie wyjaśnienia."""
 
@@ -320,6 +359,7 @@ class DocumentStreamBlock(ArticleStreamBlock):
     notice = NoticeBlock()
     definitions = DefinitionListBlock()
     schedule = ScheduleBlock()
+    stage_timeline = StageTimelineBlock()
 
     class Meta:
         required = False

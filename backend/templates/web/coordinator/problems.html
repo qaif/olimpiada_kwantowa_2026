@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% load web_extras %}
+{% block title %}Zadania etapu {{ stage.get_kind_display }} – panel koordynatora{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
+  <h1>Zadania: {{ stage.get_kind_display }}</h1>
+  <p class="lead">Edycja {{ stage.edition.year_label }}. Treści zadań są jawne dla uczestników
+    dopiero po otwarciu etapu: {{ stage.opens_at|local_time }}. Koordynator widzi je wcześniej.</p>
+</div>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Lista zadań</h2>
+    <p class="hint"><a href="{% url 'web:coordinator-stage-edit' stage.pk %}">Terminy etapu</a></p>
+  </div>
+  <div class="scroll">
+    <table class="table problem-table">
+      <thead>
+        <tr>
+          <th scope="col">Nr</th>
+          <th scope="col">Tytuł</th>
+          <th scope="col">Treść PDF</th>
+          <th scope="col">Formaty</th>
+          <th scope="col">Limit</th>
+          <th scope="col">Rozwiązania</th>
+          <th scope="col"><span class="visually-hidden">Operacje</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td class="num">{{ row.problem.number }}</td>
+            <th scope="row">{{ row.problem.title }}</th>
+            <td>
+              {% if row.problem.statement_pdf %}
+                {# Podgląd idzie przez widok aplikacji – plik nie ma publicznego adresu w storage. #}
+                <a href="{% url 'competitions:problem-statement' row.problem.pk %}">tak (podgląd)</a>
+              {% else %}
+                <span class="badge badge--warn">brak</span>
+              {% endif %}
+            </td>
+            <td>{% for item in row.problem.allowed_formats %}<span class="tag">.{{ item }}</span> {% endfor %}</td>
+            <td class="num">{{ row.problem.max_file_mb }} MB</td>
+            <td class="num">{{ row.submissions }}</td>
+            <td>
+              <div class="actions">
+                <a class="btn btn--secondary btn--small"
+                   href="{% url 'web:coordinator-problem-edit' row.problem.pk %}">Edytuj</a>
+                {% if not row.submissions %}
+                  <form method="post" action="{% url 'web:coordinator-problem-delete' row.problem.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn--danger btn--small">Usuń</button>
+                  </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="empty">Ten etap nie ma jeszcze zadań.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Dodaj zadanie</h2></div>
+  <div class="card">
+    <form method="post" enctype="multipart/form-data" class="form form--wide" novalidate>
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">Dodaj zadanie</button>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

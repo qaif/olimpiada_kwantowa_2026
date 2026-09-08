@@ -1,23 +1,18 @@
 # Harmonogram
 
-Poniżej terminy zapowiedziane dla I edycji Olimpiady Kwantowej. Obowiązujące terminy etapów — z godzinami otwarcia, terminami oddania rozwiązań i oknami reklamacji — pokazuje strona główna, która czyta je wprost z systemu zawodów.
+Poniżej terminy I edycji Olimpiady Kwantowej. Terminarz pochodzi wprost z systemu zawodów — z tych samych terminów, które zamykają przyjmowanie rozwiązań i otwierają okno reklamacji — więc jest zawsze zgodny z tym, co egzekwuje serwer. Zapisy do eliminacji są otwarte przez cały czas trwania I etapu.
 
 ## Terminarz 2026/2027
 
-| Wydarzenie | Termin |
-|---|---|
-| Rejestracja | 1 września – 15 października 2026 |
-| I etap | 7 listopada 2026 |
-| II etap | 16 stycznia 2027 |
-| III etap (finał) | 4–7 czerwca 2027, Kraków (zawody stacjonarne) |
+{{stage_timeline}}
 
-Terminy I i II etapu pozostają bez zmian. Zmienił się wyłącznie finał: organizator przeniósł go na 4–7 czerwca 2027 i wskazał Kraków jako miejsce zawodów stacjonarnych.
+Terminy ogłasza organizator i to on je zmienia; każda poprawka jest widoczna na tej stronie od razu. O zmianie terminu informujemy dodatkowo w aktualnościach.
 
 ## Etapy
 
-- I etap — zawody szkolne.
-- II etap — zawody okręgowe.
-- III etap (finał) — zawody stacjonarne, Kraków.
+- I etap — zawody szkolne, zdalne.
+- II etap — zawody okręgowe, zdalne.
+- III etap (finał) — zawody stacjonarne; miejsce podaje terminarz powyżej.
 
 ## Harmonogram warsztatów
 

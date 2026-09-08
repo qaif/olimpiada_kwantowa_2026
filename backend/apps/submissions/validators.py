@@ -58,7 +58,11 @@ def _read_all(upload) -> bytes:
     return data
 
 
-def _validate_pdf(upload) -> None:
+def validate_pdf(upload) -> None:
+    """Nagłówek ``%PDF-`` na początku strumienia. Publiczna, bo tej samej reguły używa panel
+    koordynatora dla treści zadania (``apps.web.forms.ProblemForm``): rozszerzenie ``.pdf`` i typ
+    MIME podaje przesyłający, więc o akceptacji decyduje wyłącznie treść pliku.
+    """
     upload.seek(0)
     header = upload.read(HEADER_PROBE_BYTES)
     upload.seek(0)
@@ -131,7 +135,7 @@ def _validate_python(upload) -> None:
 
 
 _CONTENT_VALIDATORS = {
-    "pdf": _validate_pdf,
+    "pdf": validate_pdf,
     "ipynb": _validate_notebook,
     "py": _validate_python,
 }

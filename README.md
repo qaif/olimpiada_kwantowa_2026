@@ -374,6 +374,7 @@ z otwartej rejestracji.
 
 | # | Krok | Kto | Ekran / endpoint |
 |---|---|---|---|
+| 0 | Terminy etapu i arkusz zadań | koordynator | `/coordinator/` → „Edytuj terminy”, „Zadania (n)” – patrz 6.3 |
 | 1 | Rejestracja uczestnika | uczestnik | `/register/` → `POST /api/auth/register/participant/` |
 | 2 | Rejestracja członka komitetu na kod | recenzent / komisja | `/register/committee/`; kod z `manage.py create_invitation` albo z panelu koordynatora |
 | 3 | Zatwierdzenie konta `PENDING` | koordynator | `/coordinator/` → „Komitet – oczekujący na zatwierdzenie” |
@@ -460,7 +461,74 @@ tej procedury jest w [`docs/BACKLOG.md`](docs/BACKLOG.md) (dług T-09).
 Zmiana **konta administracyjnego** (`MINIO_ROOT_*`) wymaga restartu usługi `minio`; backend go nie
 używa (patrz `docs/SECURITY_CHECKLIST.md` 5.5), więc nie ma to wpływu na aplikację.
 
-### 6.3 Zamknięcie etapu
+### 6.3 Zarządzanie etapami i zadaniami
+
+Kalendarz edycji i arkusz zadań prowadzi koordynator z `/coordinator/` — bez wchodzenia do
+`/admin/` i bez przeliczania godzin na UTC.
+
+**Terminy etapu** — `/coordinator/` → karta etapu → **„Edytuj terminy”**
+(`/coordinator/stages/<id>/edit/`):
+
+| Pole | Uwagi |
+|---|---|
+| `opens_at` | Od tej chwili treści zadań są jawne publicznie i wolno oddawać rozwiązania. |
+| `deadline_at` + `grace_seconds` | Upload zamyka się dopiero po `deadline_at + grace_seconds`; to ten moment zamyka etap (`beat`). |
+| `review_deadline_at` | Termin recenzji. |
+| `appeal_window_opens_at` / `appeal_window_closes_at` | Okno reklamacji. Publikacja wyników przed jego zamknięciem kończy się `409 APPEAL_WINDOW_OPEN`. |
+| `location` | Puste = etap zdalny. Trafia na stronę główną i do terminarza na `/harmonogram/`. |
+
+Godziny **podaje się i czyta w czasie polskim** (`Europe/Warsaw`); do bazy idzie UTC. Pola mają
+dokładność do minuty — sekundy zapisane spoza panelu (admin, seed) zostają nietknięte, dopóki
+nie zmienisz danego terminu. Kolejność terminów sprawdza `Stage.full_clean()`; błąd staje pod
+polem i nic się nie zapisuje. Każdy zapis zostawia `stage.updated` w audycie z różnicą pól
+(stara → nowa wartość, daty w ISO).
+
+Trzy blokady, których formularz nie obejdzie:
+
+1. **Termin oddania nie cofa się w przeszłość**, jeżeli do etapu wpłynęło choć jedno rozwiązanie
+   (`409 STAGE_DEADLINE_IN_PAST`). Chcesz zamknąć etap wcześniej — użyj „Zamknij etap” (6.4).
+2. **Etap zamknięty** (`closed_at`) przyjmuje już tylko `review_deadline_at`, okno reklamacji
+   i `location` (`409 STAGE_CLOSED`).
+3. **`results_published_at` jest nieedytowalne** — nakłada je i zdejmuje publikacja wyników (6.6).
+
+**Nowy etap** — `/coordinator/stages/new/` (przycisk „Dodaj etap” przy nagłówku sekcji, widoczny,
+dopóki edycja nie ma wszystkich trzech rodzajów). Etap powstaje przez `create_stage`, więc od razu
+ma domyślną skalę 0/2/5/6 i próg kwalifikacji. **Skalę i próg** zmienia się dalej w
+`/admin/competitions/stage/<id>/change/` (link „Skala i próg (admin)” na karcie etapu) — to
+konfiguracja oceniania, którą rusza się raz na edycję, a nie kalendarz.
+
+**Zadania** — karta etapu → **„Zadania (n)”** (`/coordinator/stages/<id>/problems/`): lista
+z numerem, tytułem, obecnością treści PDF, dopuszczonymi formatami rozwiązania, limitem rozmiaru
+i liczbą oddanych prac, a pod nią formularz dodania.
+
+- `number` jest unikalny w etapie (komunikat pod polem, nie zderzenie z bazą),
+- `statement_pdf`: **PDF do 20 MB**, rozpoznawany po nagłówku `%PDF-`, a nie po rozszerzeniu ani
+  `Content-Type` (Caddy przepuszcza 25 MB, patrz `MAX_UPLOAD_MB`). Plik idzie na storage
+  `private_media` — przed otwarciem etapu nie ma publicznego adresu,
+- `allowed_formats` to pola wyboru `pdf`/`ipynb`/`py` (minimum jedno), `max_file_mb` to 1–100 MB,
+- **podgląd treści przed otwarciem etapu widzi wyłącznie koordynator**
+  (`GET /api/competitions/problems/<id>/statement/`); uczestnik, recenzent i anonim dostają 404,
+- **podmiana treści po `opens_at`** wymaga zaznaczenia „Rozumiem, że uczestnicy już widzą treść”
+  (bez tego 400). Po podmianie ogłoś erratę w aktualnościach — część zawodników rozwiązuje już
+  poprzednią wersję,
+- **usunięcie zadania** jest możliwe tylko, dopóki nie ma do niego rozwiązań (`409
+  PROBLEM_HAS_SUBMISSIONS`); przycisk „Usuń” znika z wiersza, gdy licznik prac jest niezerowy.
+
+Wszystkie operacje na zadaniach zostawiają ślad w audycie (`problem.created`, `problem.updated`
+z różnicą pól, `problem.deleted`).
+
+**Strona `/harmonogram/` czyta terminy z bazy.** Blok `stage_timeline` (StreamField, znacznik
+`{{stage_timeline}}` w `apps/cms/fixtures/legacy/harmonogram.md`) renderuje etapy **bieżącej**
+edycji: rodzaj, otwarcie, termin oddania, termin recenzji, okno reklamacji, miejsce i stan.
+Nie ma tam ani jednej daty wpisanej ręcznie, więc zmiana w panelu jest widoczna od następnego
+odświeżenia strony (żadnego cache). Bez bieżącej edycji lub bez etapów blok pokazuje „Terminy
+zostaną ogłoszone”. Ta sama zasada obowiązuje oś czasu na stronie głównej.
+
+Kolejność przy zakładaniu środowiska: `seed_edition_kwantowa --make-current` (etapy) →
+`seed_legacy_content` (strony, w tym `/harmonogram/`). Odwrotna kolejność też działa — blok czyta
+bazę przy każdym żądaniu, a nie przy imporcie treści.
+
+### 6.4 Zamknięcie etapu
 
 Normalnie robi to `beat` (`apps.submissions.tasks.close_due_stages`, co 60 s) po
 `deadline_at + grace_seconds`: najnowsza wersja każdego zgłoszenia dostaje status `LOCKED`,
@@ -476,11 +544,11 @@ Ręcznie (awaria beata, decyzja komitetu o wcześniejszym zamknięciu):
    z nazwiskiem. Przydział jest szeregowany blokadą doradczą, więc dwa równoległe kliknięcia nie
    dają czterech recenzentów.
 
-Przesunięcie samych terminów robi się w `/admin/competitions/stage/<id>/change/` (z audytem
-Django). Komenda `manage.py e2e_timeline` jest **wyłącznie** dla środowiska testowego i bez
-`E2E_MODE=1` odmawia działania.
+Przesunięcie samych terminów robi się w panelu (6.3), a nie przez zamknięcie etapu. Komenda
+`manage.py e2e_timeline` jest **wyłącznie** dla środowiska testowego i bez `E2E_MODE=1` odmawia
+działania.
 
-### 6.4 Przeniesienie treści zadań na prywatny storage (`migrate_statements`)
+### 6.5 Przeniesienie treści zadań na prywatny storage (`migrate_statements`)
 
 Pliki `Problem.statement_pdf` zapisane przed T-09 leżą na storage `default` (produkcyjnie: publiczny
 bucket `public-media`). Idempotentna komenda przenosi je do `private_media` (prefiks
@@ -494,7 +562,7 @@ docker compose exec web python manage.py migrate_statements             # wykona
 Po migracji treść zadania serwuje wyłącznie widok aplikacji
 (`GET /api/competitions/problems/<id>/statement/`, 404 przed `Stage.opens_at`).
 
-### 6.5 Publikacja wyników
+### 6.6 Publikacja wyników
 
 1. `/coordinator/` → **„Przelicz wyniki (podgląd)”** – pełna tabela z danymi osobowymi, widoczna
    wyłącznie dla koordynatora, niczego nie ogłasza.
@@ -503,7 +571,7 @@ Po migracji treść zadania serwuje wyłącznie widok aplikacji
    k-anonimowości 3; `FULL` – tylko finał, tylko laureaci, tylko za zgodą).
 3. Ponowna publikacja nadpisuje snapshot tego samego etapu i zostawia wpis w audycie.
 
-### 6.6 Import treści starej strony
+### 6.7 Import treści starej strony
 
 Treści serwisu WordPress „Olimpiada Kwantowa” są przeniesione do CMS-a dwiema komendami. Obie są
 idempotentne, obie są **narzędziami importującymi**, a nie trybem pracy redakcyjnej: powtórny

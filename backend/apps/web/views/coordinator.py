@@ -13,6 +13,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 from django.contrib import messages
+from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
 from django.urls import reverse, reverse_lazy
@@ -22,7 +23,7 @@ from django.views.generic import TemplateView, View
 from apps.accounts.models import CommitteeMember, CommitteeStatus, InvitationGrantsStatus
 from apps.accounts.services import approve_committee_member, create_invitation, verify_committee_district
 from apps.competitions.models import Stage
-from apps.competitions.services import current_edition
+from apps.competitions.services import current_edition, missing_stage_kinds
 from apps.core.api import DomainError
 from apps.grading.models import ReviewStatus
 from apps.grading.services import (
@@ -77,7 +78,10 @@ def _counters(stages: list[Stage], moderation: list, pending_members: list) -> d
 def dashboard_context(extra: dict | None = None) -> dict:
     """Wspólny kontekst pulpitu – używany też po przeliczeniu wyników, żeby pokazać podgląd."""
     edition = current_edition()
-    stages = list(Stage.objects.filter(edition=edition).order_by("opens_at", "id")) if edition else []
+    # ``Count`` w zapytaniu, a nie ``stage.problems.count()`` w szablonie: licznik zadań stoi na
+    # każdej karcie etapu, więc pętla w szablonie kosztowałaby jedno zapytanie na etap.
+    stage_qs = Stage.objects.filter(edition=edition).annotate(problem_count=Count("problems"))
+    stages = list(stage_qs.order_by("opens_at", "id")) if edition else []
     published = set(ResultsPublication.objects.filter(stage__in=stages).values_list("stage_id", flat=True))
     moderation = list(moderation_queue())
     pending_members = list(
@@ -89,6 +93,9 @@ def dashboard_context(extra: dict | None = None) -> dict:
         "now": timezone.now(),
         "edition": edition,
         "stage_rows": [{"stage": stage, "has_results": stage.pk in published} for stage in stages],
+        # Przycisk „Dodaj etap” znika, kiedy edycja ma już wszystkie trzy rodzaje: para
+        # (edycja, rodzaj) jest unikalna, więc formularz nie miałby czego zaproponować.
+        "missing_kinds": missing_stage_kinds(edition) if edition else [],
         "moderation": moderation,
         "pending_members": pending_members,
         "counters": _counters(stages, moderation, pending_members),

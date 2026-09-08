@@ -47,6 +47,7 @@ from .blocks import (
     PartnersStreamBlock,
     StepsStreamBlock,
 )
+from .timeline import stage_rows
 
 #: Adresy pierwszego segmentu, które należą do aplikacji (``config/urls.py`` + ``apps/web/urls.py``).
 #: Strona CMS z takim slugiem na drugim poziomie drzewa byłaby martwa – patrz docstring modułu.
@@ -194,27 +195,6 @@ class CMSPage(Page):
             )
 
 
-def _stage_rows(edition: Edition | None, now=None) -> list[dict]:
-    """Oś czasu etapów edycji wraz z informacją, czy wyniki są już ogłoszone.
-
-    Jedno zapytanie o etapy i jedno o publikacje – bez N+1 niezależnie od liczby etapów.
-    """
-    if edition is None:
-        return []
-    now = now or timezone.now()
-    stages = list(edition.stages.order_by("opens_at", "id"))
-    published = set(ResultsPublication.objects.filter(stage__in=stages).values_list("stage_id", flat=True))
-    return [
-        {
-            "stage": stage,
-            "is_open": stage.is_open_for_submissions(now),
-            "has_opened": stage.has_opened(now),
-            "has_results": stage.pk in published,
-        }
-        for stage in stages
-    ]
-
-
 def _download_rows(home) -> list[dict]:
     """Opublikowane strony, przy których wisi PDF – materiał sekcji „Dokumenty do pobrania”.
 
@@ -309,7 +289,7 @@ class HomePage(CMSPage):
                 "now": now,
                 "edition": edition,
                 "current_stage": current_stage(edition, now) if edition else None,
-                "stage_rows": _stage_rows(edition, now),
+                "stage_rows": stage_rows(edition, now),
                 "latest_news": NewsPage.objects.live().descendant_of(self).order_by("-date", "-pk")[:3],
                 "downloads": _download_rows(self),
                 # Sekcja „Dokumenty do pobrania” prowadzi do pełnej listy; strona-indeks bywa

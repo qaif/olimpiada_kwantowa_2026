@@ -14,7 +14,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 
-from apps.accounts.permissions import IsParticipant
+from apps.accounts.permissions import IsCoordinator, IsParticipant
 from apps.core.api import DomainError
 
 from .models import Problem, Stage
@@ -76,6 +76,12 @@ class ProblemStatementView(GenericAPIView):
 
     Plik jest osiągalny wyłącznie po ``opens_at`` etapu; wcześniej odpowiedź to 404 (nie 403),
     żeby nie ujawniać, czy treść już istnieje.
+
+    Jedyny wyjątek to **koordynator**: to on wgrywa treść z panelu i musi ją obejrzeć, zanim etap
+    się otworzy – bez tego jedyną drogą sprawdzenia, czy wgrał właściwy plik, byłoby czekanie do
+    otwarcia zawodów. Wyjątek jest wąski (sama grupa ``coordinator``, bez eskalacji superusera)
+    i nie zmienia reguły dla nikogo innego: uczestnik, recenzent i anonim dostają przed otwarciem
+    to samo 404, co dotąd.
     """
 
     permission_classes = [AllowAny]
@@ -84,7 +90,8 @@ class ProblemStatementView(GenericAPIView):
     @extend_schema(responses={(200, "application/pdf"): bytes})
     def get(self, request, pk: int):
         problem = get_object_or_404(Problem.objects.select_related("stage"), pk=pk)
-        if not problem.stage.has_opened() or not problem.statement_pdf:
+        visible = problem.stage.has_opened() or IsCoordinator().has_permission(request, self)
+        if not visible or not problem.statement_pdf:
             raise Http404
         return FileResponse(
             problem.statement_pdf.open("rb"),

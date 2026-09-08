@@ -2,7 +2,7 @@
 
 from django.urls import path
 
-from .views import appeals, coordinator, participant, public, reviewer
+from .views import appeals, coordinator, coordinator_stages, participant, public, reviewer
 
 app_name = "web"
 
@@ -49,6 +49,33 @@ urlpatterns = [
     path("review/<int:pk>/submit/", reviewer.ReviewSubmitView.as_view(), name="review-submit"),
     # --- koordynator -------------------------------------------------------------------------
     path("coordinator/", coordinator.CoordinatorDashboardView.as_view(), name="coordinator"),
+    # Kalendarz edycji i zadania. ``stages/new/`` stoi **przed** ``stages/<int:stage_id>/…`` tylko
+    # z przyzwyczajenia – ``<int:…>`` i tak nie dopasuje słowa „new”.
+    path(
+        "coordinator/stages/new/",
+        coordinator_stages.StageCreateView.as_view(),
+        name="coordinator-stage-new",
+    ),
+    path(
+        "coordinator/stages/<int:stage_id>/edit/",
+        coordinator_stages.StageEditView.as_view(),
+        name="coordinator-stage-edit",
+    ),
+    path(
+        "coordinator/stages/<int:stage_id>/problems/",
+        coordinator_stages.StageProblemsView.as_view(),
+        name="coordinator-stage-problems",
+    ),
+    path(
+        "coordinator/problems/<int:pk>/edit/",
+        coordinator_stages.ProblemEditView.as_view(),
+        name="coordinator-problem-edit",
+    ),
+    path(
+        "coordinator/problems/<int:pk>/delete/",
+        coordinator_stages.ProblemDeleteView.as_view(),
+        name="coordinator-problem-delete",
+    ),
     path(
         "coordinator/stages/<int:stage_id>/close/",
         coordinator.CloseStageView.as_view(),

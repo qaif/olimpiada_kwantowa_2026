@@ -1,0 +1,251 @@
+"""Terminy etapów w panelu koordynatora (``/coordinator/stages/…``).
+
+Cztery rzeczy, na których ten ekran stoi:
+
+- zapis zmienia ``Stage`` **i** zostawia ślad w audycie z różnicą pól,
+- zła kolejność terminów nie zapisuje niczego, a błąd stoi pod właściwym polem,
+- reguły zależne od stanu zawodów (zgłoszenia, zamknięty etap) odmawiają z kodem 409,
+- ekran należy wyłącznie do koordynatora.
+"""
+
+from datetime import timedelta
+
+import pytest
+from django.utils import timezone
+
+from apps.competitions.models import QualificationMode, Stage, StageKind
+from apps.competitions.tests.factories import ProblemFactory, StageFactory
+from apps.core.models import AuditLog
+from apps.submissions.models import SubmissionStatus
+from apps.submissions.tests.factories import SubmissionFactory
+
+pytestmark = pytest.mark.django_db
+
+WARSAW_FORMAT = "%Y-%m-%dT%H:%M"
+
+
+def form_data(stage: Stage, **overrides) -> dict:
+    """Komplet pól ``StageForm`` w formacie ``<input type="datetime-local">`` (czas polski)."""
+    data = {
+        "location": stage.location,
+        "grace_seconds": stage.grace_seconds,
+        "opens_at": timezone.localtime(stage.opens_at).strftime(WARSAW_FORMAT),
+        "deadline_at": timezone.localtime(stage.deadline_at).strftime(WARSAW_FORMAT),
+        "review_deadline_at": timezone.localtime(stage.review_deadline_at).strftime(WARSAW_FORMAT),
+        "appeal_window_opens_at": timezone.localtime(stage.appeal_window_opens_at).strftime(WARSAW_FORMAT),
+        "appeal_window_closes_at": timezone.localtime(stage.appeal_window_closes_at).strftime(WARSAW_FORMAT),
+    }
+    data.update(overrides)
+    return data
+
+
+def local(dt) -> str:
+    return timezone.localtime(dt).strftime(WARSAW_FORMAT)
+
+
+# --- edycja terminów ----------------------------------------------------------------------------
+
+
+def test_edit_saves_new_deadline_and_writes_audit(web_client, coordinator, elim_stage):
+    web_client.force_login(coordinator)
+    new_deadline = timezone.localtime(elim_stage.deadline_at) + timedelta(days=3)
+
+    response = web_client.post(
+        f"/coordinator/stages/{elim_stage.pk}/edit/",
+        form_data(elim_stage, deadline_at=new_deadline.strftime(WARSAW_FORMAT), location="Kraków"),
+    )
+
+    elim_stage.refresh_from_db()
+    assert response.status_code == 302
+    assert timezone.localtime(elim_stage.deadline_at).strftime(WARSAW_FORMAT) == new_deadline.strftime(
+        WARSAW_FORMAT
+    )
+    assert elim_stage.location == "Kraków"
+
+    entry = AuditLog.objects.get(action="stage.updated", target_id=str(elim_stage.pk))
+    assert entry.actor == coordinator
+    assert set(entry.diff) == {"deadline_at", "location"}
+    # Diff jest czytelny bez zaglądania do bazy: obie wartości, daty w ISO.
+    assert entry.diff["location"] == {"from": "", "to": "Kraków"}
+    assert entry.diff["deadline_at"]["to"].startswith(new_deadline.date().isoformat())
+
+
+def test_edit_form_shows_dates_in_local_time(web_client, coordinator, elim_stage):
+    """Formularz otwiera się z godziną polską – inaczej koordynator poprawiałby UTC z ręki."""
+    web_client.force_login(coordinator)
+
+    content = web_client.get(f"/coordinator/stages/{elim_stage.pk}/edit/").content.decode()
+
+    assert f'value="{local(elim_stage.deadline_at)}"' in content
+    assert 'type="datetime-local"' in content
+
+
+def test_edit_rejects_wrong_order_without_touching_the_stage(web_client, coordinator, elim_stage):
+    """Deadline przed otwarciem: błąd pod polem, żadnego zapisu, żadnego wpisu w audycie."""
+    web_client.force_login(coordinator)
+    before = elim_stage.deadline_at
+    broken = timezone.localtime(elim_stage.opens_at) - timedelta(days=1)
+
+    response = web_client.post(
+        f"/coordinator/stages/{elim_stage.pk}/edit/",
+        form_data(elim_stage, deadline_at=broken.strftime(WARSAW_FORMAT)),
+    )
+
+    elim_stage.refresh_from_db()
+    assert response.status_code == 400
+    assert elim_stage.deadline_at == before
+    assert not AuditLog.objects.filter(action="stage.updated").exists()
+    assert response.context["form"].errors["deadline_at"]
+
+
+def test_edit_refuses_to_move_deadline_into_the_past_with_submissions(
+    web_client, coordinator, elim_stage, entry, problems
+):
+    SubmissionFactory(entry=entry, problem=problems[0], status=SubmissionStatus.SUBMITTED)
+    web_client.force_login(coordinator)
+    before = elim_stage.deadline_at
+    past = timezone.localtime(timezone.now()) - timedelta(hours=1)
+
+    response = web_client.post(
+        f"/coordinator/stages/{elim_stage.pk}/edit/",
+        form_data(elim_stage, deadline_at=past.strftime(WARSAW_FORMAT)),
+    )
+
+    elim_stage.refresh_from_db()
+    assert response.status_code == 409
+    assert elim_stage.deadline_at == before
+    assert "nie można cofnąć w przeszłość" in response.content.decode()
+
+
+def test_edit_of_closed_stage_allows_only_review_and_appeal_window(web_client, coordinator, elim_stage):
+    """Etap zamknięty: okno reklamacji i termin recenzji tak, otwarcie i deadline nie."""
+    Stage.objects.filter(pk=elim_stage.pk).update(closed_at=timezone.now())
+    elim_stage.refresh_from_db()
+    web_client.force_login(coordinator)
+    later = timezone.localtime(elim_stage.appeal_window_closes_at) + timedelta(days=5)
+
+    allowed = web_client.post(
+        f"/coordinator/stages/{elim_stage.pk}/edit/",
+        form_data(elim_stage, appeal_window_closes_at=later.strftime(WARSAW_FORMAT)),
+    )
+    elim_stage.refresh_from_db()
+    assert allowed.status_code == 302
+    assert timezone.localtime(elim_stage.appeal_window_closes_at).strftime(WARSAW_FORMAT) == (
+        later.strftime(WARSAW_FORMAT)
+    )
+
+    opens_before = elim_stage.opens_at
+    moved_opening = timezone.localtime(elim_stage.opens_at) - timedelta(days=1)
+    refused = web_client.post(
+        f"/coordinator/stages/{elim_stage.pk}/edit/",
+        form_data(elim_stage, opens_at=moved_opening.strftime(WARSAW_FORMAT)),
+    )
+
+    elim_stage.refresh_from_db()
+    assert refused.status_code == 409
+    assert elim_stage.opens_at == opens_before
+    assert "Etap jest zamknięty" in refused.content.decode()
+
+
+def test_results_published_at_is_not_editable(web_client, coordinator, elim_stage):
+    """Znacznik publikacji nakłada i zdejmuje wyłącznie operacja publikacji wyników."""
+    web_client.force_login(coordinator)
+    stamp = timezone.now()
+    Stage.objects.filter(pk=elim_stage.pk).update(results_published_at=stamp)
+
+    content = web_client.get(f"/coordinator/stages/{elim_stage.pk}/edit/").content.decode()
+    web_client.post(
+        f"/coordinator/stages/{elim_stage.pk}/edit/",
+        form_data(elim_stage, results_published_at=""),
+    )
+
+    elim_stage.refresh_from_db()
+    assert 'name="results_published_at"' not in content
+    assert elim_stage.results_published_at == stamp
+
+
+# --- dodanie etapu ------------------------------------------------------------------------------
+
+
+def test_new_stage_gets_scale_and_qualification_rule(web_client, coordinator, edition, elim_stage):
+    web_client.force_login(coordinator)
+    opens = timezone.localtime(timezone.now()) + timedelta(days=40)
+    payload = {
+        "kind": StageKind.DISTRICT,
+        "location": "",
+        "grace_seconds": 0,
+        "opens_at": opens.strftime(WARSAW_FORMAT),
+        "deadline_at": (opens + timedelta(days=10)).strftime(WARSAW_FORMAT),
+        "review_deadline_at": (opens + timedelta(days=24)).strftime(WARSAW_FORMAT),
+        "appeal_window_opens_at": (opens + timedelta(days=26)).strftime(WARSAW_FORMAT),
+        "appeal_window_closes_at": (opens + timedelta(days=33)).strftime(WARSAW_FORMAT),
+    }
+
+    response = web_client.post("/coordinator/stages/new/", payload)
+
+    stage = Stage.objects.get(edition=edition, kind=StageKind.DISTRICT)
+    assert response.status_code == 302
+    assert stage.scoring_scale.max_value == 6
+    assert stage.qualification_rule.mode == QualificationMode.MIN_POINTS
+
+
+def test_new_stage_offers_only_the_missing_kinds(web_client, coordinator, edition, elim_stage):
+    web_client.force_login(coordinator)
+
+    content = web_client.get("/coordinator/stages/new/").content.decode()
+
+    assert f'value="{StageKind.DISTRICT}"' in content
+    assert f'value="{StageKind.FINAL}"' in content
+    assert f'value="{StageKind.ELIM}"' not in content
+
+
+# --- dashboard ----------------------------------------------------------------------------------
+
+
+def test_dashboard_links_to_timeline_and_problems(web_client, coordinator, elim_stage, problems):
+    web_client.force_login(coordinator)
+
+    content = web_client.get("/coordinator/").content.decode()
+
+    assert f'href="/coordinator/stages/{elim_stage.pk}/edit/"' in content
+    assert f'href="/coordinator/stages/{elim_stage.pk}/problems/"' in content
+    assert f"Zadania ({len(problems)})" in content
+    # Karta pokazuje pełną oś czasu, nie połowę: okno reklamacji i miejsce też.
+    assert "Okno reklamacji" in content
+    assert "<dt>Miejsce</dt>" in content
+
+
+# --- uprawnienia --------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("role", ["participant", "reviewer"])
+def test_other_roles_cannot_touch_stage_timeline(web_client, participant, reviewer, elim_stage, role):
+    user = participant.user if role == "participant" else reviewer.user
+    web_client.force_login(user)
+
+    assert web_client.get(f"/coordinator/stages/{elim_stage.pk}/edit/").status_code == 403
+    assert web_client.post(f"/coordinator/stages/{elim_stage.pk}/edit/", {}).status_code == 403
+    assert web_client.get("/coordinator/stages/new/").status_code == 403
+
+
+def test_anonymous_is_redirected_to_login(web_client, elim_stage):
+    response = web_client.get(f"/coordinator/stages/{elim_stage.pk}/edit/")
+
+    assert response.status_code == 302
+    assert response["Location"].startswith("/login/")
+
+
+def test_stage_of_another_edition_is_editable_by_id(web_client, coordinator, edition):
+    """Panel edytuje etap wskazany identyfikatorem – także z edycji archiwalnej.
+
+    Terminy edycji zamkniętej bywają poprawiane (błąd w archiwum), a ograniczenie ekranu do
+    edycji bieżącej zamykałoby tę drogę bez powodu: uprawnienie jest rolą, nie edycją.
+    """
+    archived = StageFactory(kind=StageKind.FINAL)
+    ProblemFactory(stage=archived, number=1)
+    web_client.force_login(coordinator)
+
+    response = web_client.get(f"/coordinator/stages/{archived.pk}/edit/")
+
+    assert response.status_code == 200
+    assert archived.edition != edition
