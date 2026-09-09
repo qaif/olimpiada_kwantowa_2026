@@ -20,7 +20,13 @@ from django.utils import timezone
 from django.views.generic import TemplateView, View
 
 from apps.appeals.services import appealable_submissions, appeals_for_participant, file_appeal
-from apps.competitions.models import Problem, Stage, StageEntry, StageKind
+from apps.competitions.interviews import (
+    book_slot,
+    booking_for_participant,
+    cancel_booking,
+    slots_for_participant,
+)
+from apps.competitions.models import InterviewSlot, Problem, Stage, StageEntry, StageKind
 from apps.competitions.services import current_edition, current_stage, register_for_stage
 from apps.core.api import DomainError
 from apps.results.services import results_for_participant
@@ -83,11 +89,28 @@ class MeView(ParticipantRequiredMixin, TemplateView):
                     and stage.is_open_for_submissions(now)
                 ),
                 "stage_opened": stage is not None and stage.has_opened(now),
+                # Etap w formie rozmowy nie ma uploadu w ogóle – nie „zamkniętego”, tylko żadnego
+                # (``submissions.create_submission`` odmawia z ``STAGE_NOT_ACCEPTING_FILES``).
                 "upload_open": (
-                    entry is not None and stage.is_open_for_submissions(now) and stage.closed_at is None
+                    entry is not None
+                    and not stage.is_interview
+                    and stage.is_open_for_submissions(now)
+                    and stage.closed_at is None
                 ),
                 "upload_form": SubmissionUploadForm(),
                 "problem_rows": _problem_rows(user, entry),
+                # Terminy rozmów liczymy tylko dla etapu w formie rozmowy: w pozostałych obie
+                # wartości byłyby pustą listą i ``None``, a zapytania i tak by poszły.
+                "interview_rows": (
+                    slots_for_participant(stage, self.participant, now)
+                    if stage is not None and stage.is_interview
+                    else []
+                ),
+                "interview_booking": (
+                    booking_for_participant(stage, self.participant)
+                    if stage is not None and stage.is_interview
+                    else None
+                ),
                 "results": results_for_participant(user),
                 # Reguła „co podlega reklamacji” mieszka w serwisie reklamacji, nie w widoku –
                 # ten sam predykat obowiązuje w API i przy walidacji w ``file_appeal``.
@@ -108,6 +131,33 @@ class StageRegisterView(ActionViewMixin, ParticipantRequiredMixin, View):
         stage = get_object_or_404(Stage.objects.select_related("edition"), pk=stage_id)
         register_for_stage(self.participant, stage)
         return "Zgłoszenie do etapu zostało przyjęte."
+
+
+class InterviewBookView(ActionViewMixin, ParticipantRequiredMixin, View):
+    """Zapis na termin rozmowy albo zmiana już wybranego (``competitions.interviews.book_slot``).
+
+    Jedna akcja na oba przypadki, bo z punktu widzenia uczestnika to jedno kliknięcie: „chcę ten
+    termin”. Rozstrzygnięcie, czy to nowy zapis, czy przeniesienie, należy do serwisu – razem
+    z blokadą wiersza terminu, bez której dwa równoległe kliknięcia zajęłyby jedno miejsce.
+    """
+
+    success_url = reverse_lazy("web:me")
+
+    def perform(self, request, slot_id: int) -> str:
+        slot = get_object_or_404(InterviewSlot.objects.select_related("stage", "stage__edition"), pk=slot_id)
+        book_slot(self.participant, slot, request=request)
+        return "Termin rozmowy został zapisany. Potwierdzenie wysyłamy e-mailem."
+
+
+class InterviewCancelView(ActionViewMixin, ParticipantRequiredMixin, View):
+    """Rezygnacja z zapisanego terminu rozmowy w etapie."""
+
+    success_url = reverse_lazy("web:me")
+
+    def perform(self, request, stage_id: int) -> str:
+        stage = get_object_or_404(Stage.objects.select_related("edition"), pk=stage_id)
+        cancel_booking(self.participant, stage=stage, request=request)
+        return "Termin rozmowy został odwołany. Możesz wybrać inny."
 
 
 class ProblemUploadView(ParticipantRequiredMixin, ThrottledFormMixin, View):

@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% load web_extras %}
-{% block title %}{% if stage %}Terminy etapu {{ stage.get_kind_display }}{% else %}Nowy etap{% endif %} – panel koordynatora{% endblock %}
+{% block title %}{% if stage %}Terminy etapu {{ stage.display_name }}{% else %}Nowy etap{% endif %} – panel koordynatora{% endblock %}
 {% block content %}
 <div class="page-head">
   <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
   {% if stage %}
-    <h1>Terminy etapu: {{ stage.get_kind_display }}</h1>
+    <h1>Terminy etapu: {{ stage.display_name }}</h1>
     <p class="lead">Edycja {{ stage.edition.year_label }}. Wszystkie godziny podajesz i czytasz
       w czasie polskim; system przelicza je na UTC.</p>
   {% else %}
@@ -20,20 +20,29 @@
     <dl class="meta-list">
       <dt>Stan</dt>
       <dd>{% if stage.closed_at %}zamknięty {{ stage.closed_at|local_datetime }}{% else %}otwarty{% endif %}</dd>
-      <dt>Zadania</dt>
-      <dd><a href="{% url 'web:coordinator-stage-problems' stage.pk %}">{{ problem_count }}</a></dd>
+      <dt>Forma</dt>
+      <dd>{{ stage.get_format_display }}</dd>
+      {% if stage.is_interview %}
+        <dt>Terminy rozmów</dt>
+        <dd><a href="{% url 'web:coordinator-stage-interviews' stage.pk %}">wyznacz terminy rozmów</a></dd>
+      {% else %}
+        <dt>Zadania</dt>
+        <dd><a href="{% url 'web:coordinator-stage-problems' stage.pk %}">{{ problem_count }}</a></dd>
+      {% endif %}
       <dt>Rozwiązania</dt>
       <dd>{% if has_submissions %}etap ma oddane prace{% else %}brak{% endif %}</dd>
       <dt>Wyniki ogłoszone</dt>
       <dd>{{ stage.results_published_at|local_datetime|default:"nie" }}</dd>
     </dl>
     {% comment %}
-      Trzy reguły, które serwis odrzuci mimo poprawnego formularza. Stoją nad polami, a nie
+      Cztery reguły, które serwis odrzuci mimo poprawnego formularza. Stoją nad polami, a nie
       w komunikacie po nieudanym zapisie: koordynator ma je znać, zanim wpisze datę.
     {% endcomment %}
     <ul class="hint">
       <li>Termin oddania nie cofa się w przeszłość, jeżeli do etapu wpłynęły już rozwiązania.</li>
-      <li>W etapie zamkniętym zmienisz już tylko termin recenzji, okno reklamacji i miejsce.</li>
+      <li>W etapie zamkniętym zmienisz już tylko nazwę, termin recenzji, okno reklamacji i miejsce.</li>
+      <li>Formy etapu nie zmienisz, gdy są w nim oddane prace albo zapisy na rozmowy
+        {% if has_bookings %}(ten etap ma już zapisy){% endif %}.</li>
       <li>Znacznik publikacji wyników zdejmuje i nakłada wyłącznie operacja publikacji.</li>
     </ul>
   </div>

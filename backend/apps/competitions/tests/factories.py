@@ -12,6 +12,8 @@ from django.utils import timezone
 from apps.accounts.tests.factories import ParticipantFactory
 from apps.competitions.models import (
     Edition,
+    InterviewBooking,
+    InterviewSlot,
     Problem,
     QualificationMode,
     QualificationRule,
@@ -19,6 +21,7 @@ from apps.competitions.models import (
     Stage,
     StageEntry,
     StageEntryStatus,
+    StageFormat,
     StageKind,
     default_allowed_formats,
     default_scoring_values,
@@ -47,6 +50,8 @@ class StageFactory(factory.django.DjangoModelFactory):
 
     edition = factory.SubFactory(EditionFactory)
     kind = StageKind.ELIM
+    name = ""
+    format = StageFormat.SUBMISSIONS
     opens_at = factory.LazyFunction(lambda: timezone.now() - timedelta(days=1))
     deadline_at = factory.LazyAttribute(lambda obj: obj.opens_at + timedelta(days=14))
     grace_seconds = 0
@@ -94,3 +99,32 @@ class StageEntryFactory(factory.django.DjangoModelFactory):
     participant = factory.SubFactory(ParticipantFactory)
     stage = factory.SubFactory(StageFactory)
     status = StageEntryStatus.REGISTERED
+
+
+class InterviewStageFactory(StageFactory):
+    """Etap okręgowy w formie rozmowy: otwarty od wczoraj, zapisy do deadline'u za 14 dni."""
+
+    kind = StageKind.DISTRICT
+    format = StageFormat.INTERVIEW
+
+
+class InterviewSlotFactory(factory.django.DjangoModelFactory):
+    """Termin jutro o tej samej porze – domyślnie w przyszłości, żeby dało się na niego zapisać."""
+
+    class Meta:
+        model = InterviewSlot
+
+    stage = factory.SubFactory(InterviewStageFactory)
+    starts_at = factory.LazyFunction(lambda: timezone.now() + timedelta(days=1))
+    ends_at = factory.LazyAttribute(lambda obj: obj.starts_at + timedelta(minutes=20))
+    capacity = 1
+    meeting_url = ""
+    note = ""
+
+
+class InterviewBookingFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = InterviewBooking
+
+    slot = factory.SubFactory(InterviewSlotFactory)
+    entry = factory.SubFactory(StageEntryFactory)

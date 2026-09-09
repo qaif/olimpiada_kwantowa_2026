@@ -14,7 +14,7 @@
 {% for table in tables %}
   <section class="results-block section">
     <div class="section__head">
-      <h2 class="mt-0">{{ table.stage.get_kind_display }} – {{ table.stage.edition.year_label }}</h2>
+      <h2 class="mt-0">{{ table.stage.display_name }} – {{ table.stage.edition.year_label }}</h2>
       <p class="hint">Ogłoszone {{ table.publication.published_at|local_time }}, tryb prezentacji:
         {{ table.publication.get_anonymization_display }}.
         <a href="{% url 'web:results' table.stage.pk %}">wersja pełnoekranowa</a></p>
@@ -65,7 +65,7 @@
     {% for item in archive %}
       <li>
         <a href="{% url 'web:results' item.stage.pk %}">{{ item.stage.edition.year_label }} –
-          {{ item.stage.get_kind_display }}</a>
+          {{ item.stage.display_name }}</a>
         <span class="hint">ogłoszone {{ item.publication.published_at|local_time }}</span>
       </li>
     {% endfor %}
@@ -73,7 +73,7 @@
 {% endif %}
 
 {% if not tables and not archive %}
-  <p class="empty"><span class="empty__title">Jeszcze nic</span>
-    Nie ogłoszono jeszcze żadnych wyników.</p>
+  <p class="empty"><span class="empty__title">Wyników jeszcze nie ogłoszono</span>
+    Tabela pojawi się tutaj po ogłoszeniu wyników pierwszego etapu przez koordynatora.</p>
 {% endif %}
 {% endblock %}

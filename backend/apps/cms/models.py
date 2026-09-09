@@ -534,7 +534,10 @@ class ProblemsPage(CMSPage):
                 "stage_has_opened": has_opened,
                 "problems": list(stage.problems.order_by("number")) if has_opened else [],
                 "notice": self.closed_notice
-                or "Treści zadań tego etapu zostaną opublikowane w chwili jego otwarcia.",
+                or (
+                    "Zadań jeszcze nie ogłoszono. Treści zadań tego etapu zostaną opublikowane "
+                    "w chwili jego otwarcia."
+                ),
             }
         )
         return context

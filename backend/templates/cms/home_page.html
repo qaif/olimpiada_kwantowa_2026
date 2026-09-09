@@ -26,7 +26,7 @@
     </div>
 
     {% if current_stage %}
-      <p class="hero__status">Etap bieżący: <strong>{{ current_stage.get_kind_display }}</strong>
+      <p class="hero__status">Etap bieżący: <strong>{{ current_stage.display_name }}</strong>
         · termin oddania rozwiązań {{ current_stage.deadline_at|local_time }}</p>
     {% endif %}
   </div>
@@ -42,7 +42,7 @@
       <ol class="timeline">
         {% for row in stage_rows %}
           <li class="timeline__item {% if row.is_open %}timeline__item--open{% elif row.has_opened %}timeline__item--done{% else %}timeline__item--next{% endif %}">
-            <p class="timeline__kind">{{ row.stage.get_kind_display }}</p>
+            <p class="timeline__kind">{{ row.stage.display_name }}</p>
             {% if row.is_open %}
               <span class="badge badge--accent">etap otwarty</span>
             {% elif row.has_opened %}
@@ -59,8 +59,16 @@
               {% if row.stage.location %}
                 <div><dt>Miejsce</dt><dd>{{ row.stage.location }}</dd></div>
               {% endif %}
+              {# Etap w formie rozmowy: „deadline” jest końcem okna rozmów, nie terminem oddania. #}
+              {% if row.stage.is_interview %}
+                <div><dt>Forma</dt><dd>rozmowa kwalifikacyjna online</dd></div>
+              {% endif %}
               <div><dt>Otwarcie</dt><dd>{{ row.stage.opens_at|local_datetime }}</dd></div>
-              <div><dt>Deadline</dt><dd>{{ row.stage.deadline_at|local_datetime }}</dd></div>
+              {% if row.stage.is_interview %}
+                <div><dt>Rozmowy do</dt><dd>{{ row.stage.deadline_at|local_datetime }}</dd></div>
+              {% else %}
+                <div><dt>Deadline</dt><dd>{{ row.stage.deadline_at|local_datetime }}</dd></div>
+              {% endif %}
               <div><dt>Reklamacje</dt>
                 <dd>{{ row.stage.appeal_window_opens_at|local_datetime }} –
                   {{ row.stage.appeal_window_closes_at|local_datetime }}</dd></div>

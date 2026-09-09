@@ -7,7 +7,7 @@
   <h1>Praca <span class="code-chip">{{ public_code }}</span> · zadanie {{ problem.number }}</h1>
   <p class="lead">{{ problem.title }}</p>
   <p class="row">
-    <span class="badge badge--info">etap: {{ submission.entry.stage.get_kind_display }}</span>
+    <span class="badge badge--info">etap: {{ submission.entry.stage.display_name }}</span>
     <span class="badge badge--neutral">runda {{ review.round }}</span>
     <span class="{{ review.status|badge_class }}">{{ review.get_status_display }}</span>
   </p>

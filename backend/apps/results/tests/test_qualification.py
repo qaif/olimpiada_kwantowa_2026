@@ -5,12 +5,13 @@ from django.db import connection
 from django.test.utils import CaptureQueriesContext
 
 from apps.competitions.models import (
+    InterviewBooking,
     QualificationMode,
     StageEntry,
     StageEntryStatus,
     StageKind,
 )
-from apps.competitions.tests.factories import EditionFactory
+from apps.competitions.tests.factories import EditionFactory, InterviewSlotFactory
 from apps.core.api import DomainError
 from apps.core.models import AuditLog
 from apps.grading.models import FinalGrade
@@ -227,6 +228,28 @@ def test_next_stage_entry_with_a_submission_is_kept_and_reported_as_a_conflict()
     assert summary["removed_entries"] == 0
     assert summary["next_stage_conflicts"] == [entry.participant.public_code]
     assert StageEntry.objects.filter(pk=next_entry.pk).exists()
+
+
+def test_next_stage_entry_with_an_interview_booking_is_kept_and_reported_as_a_conflict():
+    """3 (przegląd). Zapis na rozmowę waży tyle samo, co oddana praca.
+
+    Uczestnik dostał mailem potwierdzenie godziny, a komisja ma go w kalendarzu: ciche skasowanie
+    wpisu po ponownym przeliczeniu zabrałoby jedno i drugie. Dodatkowo ``InterviewBooking.slot``
+    jest z ``PROTECT``, więc kasowanie i tak wywróciłoby całą kwalifikację na ``ProtectedError``.
+    """
+    elimination, district = elimination_with_district()
+    entry = graded_entry(elimination, [6])
+    apply_qualification(elimination)
+    next_entry = StageEntry.objects.get(stage=district, participant=entry.participant)
+    booking = InterviewBooking.objects.create(slot=InterviewSlotFactory(stage=district), entry=next_entry)
+
+    regrade(entry, 2)
+    summary = apply_qualification(elimination)
+
+    assert summary["removed_entries"] == 0
+    assert summary["next_stage_conflicts"] == [entry.participant.public_code]
+    assert StageEntry.objects.filter(pk=next_entry.pk).exists()
+    assert InterviewBooking.objects.filter(pk=booking.pk).exists()
 
 
 def test_next_stage_entries_cost_a_constant_number_of_queries():

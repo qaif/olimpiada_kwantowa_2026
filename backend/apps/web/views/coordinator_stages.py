@@ -24,25 +24,31 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.generic import View
 
-from apps.competitions.models import Problem, Stage
+from apps.competitions.interviews import create_slots, delete_slot, slots_for_coordinator
+from apps.competitions.models import InterviewSlot, Problem, Stage
 from apps.competitions.services import (
     create_problem,
     create_stage,
     current_edition,
     delete_problem,
     missing_stage_kinds,
+    stage_has_interview_bookings,
     stage_has_submissions,
     update_problem,
     update_stage,
 )
 from apps.core.api import DomainError
-from apps.web.forms import ProblemForm, StageCreateForm, StageForm
+from apps.web.forms import InterviewSlotsForm, ProblemForm, StageCreateForm, StageForm
 from apps.web.mixins import CoordinatorRequiredMixin
 
 #: Pola zadania, które widok przekazuje do serwisu. Plik i potwierdzenie idą osobno.
 PROBLEM_FIELDS = ("number", "title", "allowed_formats", "max_file_mb")
 
+#: Pola serii terminów rozmów, które widok przekazuje do serwisu.
+SLOT_FIELDS = ("starts_at", "duration_minutes", "count", "capacity", "meeting_url", "note")
+
 PROBLEMS_TEMPLATE = "web/coordinator/problems.html"
+INTERVIEWS_TEMPLATE = "web/coordinator/interviews.html"
 
 
 def _stage_for_edit(stage_id: int) -> Stage:
@@ -101,7 +107,7 @@ class StageEditView(CoordinatorRequiredMixin, View):
             # ``form.instance``, a strona ma pokazać stan, który faktycznie obowiązuje.
             stage = _stage_for_edit(stage_id)
             return self._render(request, stage, StageForm(instance=stage), status=exc.status_code)
-        messages.success(request, f"Terminy etapu {stage.get_kind_display()} zostały zapisane.")
+        messages.success(request, f"Terminy etapu {stage.display_name} zostały zapisane.")
         return redirect(reverse("web:coordinator"))
 
     def _render(self, request, stage: Stage, form: StageForm, *, status: int = 200):
@@ -111,6 +117,7 @@ class StageEditView(CoordinatorRequiredMixin, View):
             "now": timezone.now(),
             "problem_count": stage.problems.count(),
             "has_submissions": stage_has_submissions(stage),
+            "has_bookings": stage_has_interview_bookings(stage),
         }
         return TemplateResponse(request, self.template_name, context, status=status)
 
@@ -150,7 +157,7 @@ class StageCreateView(CoordinatorRequiredMixin, View):
             return self._render(request, form, status=409)
         messages.success(
             request,
-            f"Etap {stage.get_kind_display()} został dodany razem z domyślną skalą i progiem kwalifikacji.",
+            f"Etap {stage.display_name} został dodany razem z domyślną skalą i progiem kwalifikacji.",
         )
         return redirect(reverse("web:coordinator"))
 
@@ -253,3 +260,65 @@ class ProblemDeleteView(CoordinatorRequiredMixin, View):
             return render_problem_list(request, stage, ProblemForm(stage=stage), status=exc.status_code)
         messages.success(request, f"Zadanie {problem.number} zostało usunięte.")
         return redirect(reverse("web:coordinator-stage-problems", args=[stage.pk]))
+
+
+def render_interview_list(request, stage: Stage, form: InterviewSlotsForm, *, status: int = 200):
+    """Strona terminów rozmów. Wspólna dla dodawania serii i dla nieudanego usunięcia terminu.
+
+    Etap, który **nie** jest rozmową, dostaje tę samą stronę bez formularza i bez tabeli, za to
+    z wyjaśnieniem i odnośnikiem do zmiany formy: 404 byłoby tu mylące (etap istnieje), a 403 –
+    nieprawdziwe (koordynator ma do niego prawo).
+    """
+    context = {
+        "stage": stage,
+        "form": form,
+        "now": timezone.now(),
+        "slots": slots_for_coordinator(stage) if stage.is_interview else [],
+    }
+    return TemplateResponse(request, INTERVIEWS_TEMPLATE, context, status=status)
+
+
+class StageInterviewsView(CoordinatorRequiredMixin, View):
+    """``/coordinator/stages/<id>/interviews/`` – terminy rozmów etapu i formularz dodania serii.
+
+    Jedyny ekran obok podglądu wyników, na którym wolno pokazać dane osobowe: koordynator musi
+    wiedzieć, kto i o której godzinie staje przed komisją. Stąd odznaka „dane osobowe” nad tabelą
+    – ta sama, co przy podglądzie wyników na pulpicie.
+    """
+
+    def get(self, request, stage_id: int):
+        stage = _stage_for_edit(stage_id)
+        return render_interview_list(request, stage, InterviewSlotsForm())
+
+    def post(self, request, stage_id: int):
+        stage = _stage_for_edit(stage_id)
+        form = InterviewSlotsForm(request.POST)
+        if not form.is_valid():
+            return render_interview_list(request, stage, form, status=400)
+        data = {name: form.cleaned_data[name] for name in SLOT_FIELDS}
+        try:
+            slots = create_slots(stage, request.user, request=request, **data)
+        except DomainError as exc:
+            messages.error(request, str(exc.detail))
+            return render_interview_list(request, stage, form, status=exc.status_code)
+        messages.success(request, f"Dodano terminów rozmów: {len(slots)}.")
+        return redirect(reverse("web:coordinator-stage-interviews", args=[stage.pk]))
+
+
+class InterviewSlotDeleteView(CoordinatorRequiredMixin, View):
+    """``POST /coordinator/interview-slots/<id>/delete/`` – usunięcie terminu bez zapisów.
+
+    Odmowa (ktoś jest zapisany) renderuje listę terminów z kodem 409 zamiast przekierowywać –
+    tak samo, jak przy usuwaniu zadania (``ProblemDeleteView``).
+    """
+
+    def post(self, request, pk: int):
+        slot = get_object_or_404(InterviewSlot.objects.select_related("stage", "stage__edition"), pk=pk)
+        stage = slot.stage
+        try:
+            delete_slot(slot, request.user, request=request)
+        except DomainError as exc:
+            messages.error(request, str(exc.detail))
+            return render_interview_list(request, stage, InterviewSlotsForm(), status=exc.status_code)
+        messages.success(request, "Termin rozmowy został usunięty.")
+        return redirect(reverse("web:coordinator-stage-interviews", args=[stage.pk]))

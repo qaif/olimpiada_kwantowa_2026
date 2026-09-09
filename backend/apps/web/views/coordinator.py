@@ -78,9 +78,13 @@ def _counters(stages: list[Stage], moderation: list, pending_members: list) -> d
 def dashboard_context(extra: dict | None = None) -> dict:
     """Wspólny kontekst pulpitu – używany też po przeliczeniu wyników, żeby pokazać podgląd."""
     edition = current_edition()
-    # ``Count`` w zapytaniu, a nie ``stage.problems.count()`` w szablonie: licznik zadań stoi na
-    # każdej karcie etapu, więc pętla w szablonie kosztowałaby jedno zapytanie na etap.
-    stage_qs = Stage.objects.filter(edition=edition).annotate(problem_count=Count("problems"))
+    # ``Count`` w zapytaniu, a nie ``stage.problems.count()`` w szablonie: liczniki zadań i terminów
+    # rozmów stoją na każdej karcie etapu, więc pętla w szablonie kosztowałaby zapytanie na etap.
+    # ``distinct=True`` przy obu, bo dwa ``Count`` na tej samej karcie mnożą wiersze przez siebie.
+    stage_qs = Stage.objects.filter(edition=edition).annotate(
+        problem_count=Count("problems", distinct=True),
+        slot_count=Count("interview_slots", distinct=True),
+    )
     stages = list(stage_qs.order_by("opens_at", "id")) if edition else []
     published = set(ResultsPublication.objects.filter(stage__in=stages).values_list("stage_id", flat=True))
     moderation = list(moderation_queue())

@@ -13,7 +13,7 @@
 {% else %}
   <section class="card card--accent">
     <div class="card__head">
-      <h2 class="mt-0 card__title">{{ stage.get_kind_display }} – {{ stage.edition.year_label }}</h2>
+      <h2 class="mt-0 card__title">{{ stage.display_name }} – {{ stage.edition.year_label }}</h2>
       {% if stage_has_opened %}
         <span class="badge badge--ok">etap otwarty</span>
       {% else %}

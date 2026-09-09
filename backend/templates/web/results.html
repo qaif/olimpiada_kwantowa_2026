@@ -4,7 +4,7 @@
 {% block content %}
 <div class="page-head">
   <span class="eyebrow">Wyniki etapu</span>
-  <h1>{{ stage.get_kind_display }} ({{ stage.edition.year_label }})</h1>
+  <h1>{{ stage.display_name }} ({{ stage.edition.year_label }})</h1>
   <p class="lead">Ogłoszone {{ publication.published_at|local_time }}, tryb prezentacji:
     {{ publication.get_anonymization_display }}.</p>
   <p class="hint">Tabela pochodzi z zamrożonego snapshotu z chwili publikacji – nie jest przeliczana

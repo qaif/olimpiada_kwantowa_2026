@@ -97,6 +97,8 @@ DEFAULT_FROM_EMAIL=noreply@$SITE_DOMAIN
 EMAIL_TIMEOUT=10
 EOF
   chmod 600 .env
+  # Znacznik dla kroku 6/7: seedy treści uruchamiają się same wyłącznie przy pierwszym wdrożeniu.
+  touch .first-deploy
   echo ".env utworzony"
 else
   sed -i "s/^APP_VERSION=.*/APP_VERSION=$APP_VERSION/" .env
@@ -119,15 +121,27 @@ done
 REMOTE
 
 log "6/7 Seedy treści i konto koordynatora"
-"${SSH[@]}" env COORDINATOR_EMAIL="${COORDINATOR_EMAIL:-}" COORDINATOR_PASSWORD="${COORDINATOR_PASSWORD:-}" MAKE_EDITION_CURRENT="${MAKE_EDITION_CURRENT:-0}" SYNC_STAGE_DATES="${SYNC_STAGE_DATES:-0}" REMOTE_DIR="$REMOTE_DIR" bash -s <<'REMOTE'
+# Seedy treści (seed_cms, seed_regulamin, seed_legacy_content, seed_partners) są narzędziami
+# importującymi: każdy przebieg nadpisuje strony CMS treścią z plików repozytorium. Po pierwszym
+# wdrożeniu treść należy do redakcji (/cms/), a terminy etapów do koordynatora (panel), więc
+# kolejne wdrożenia ich nie uruchamiają – chyba że jawnie: RUN_CONTENT_SEEDS=1.
+# ``seed_edition_kwantowa`` bez ``--sync-dates`` tworzy wyłącznie brakujące etapy i nie rusza
+# istniejących terminów, dlatego zostaje w każdym wdrożeniu.
+"${SSH[@]}" env COORDINATOR_EMAIL="${COORDINATOR_EMAIL:-}" COORDINATOR_PASSWORD="${COORDINATOR_PASSWORD:-}" MAKE_EDITION_CURRENT="${MAKE_EDITION_CURRENT:-0}" SYNC_STAGE_DATES="${SYNC_STAGE_DATES:-0}" RUN_CONTENT_SEEDS="${RUN_CONTENT_SEEDS:-auto}" REMOTE_DIR="$REMOTE_DIR" bash -s <<'REMOTE'
 set -euo pipefail
 cd "$REMOTE_DIR"
 # </dev/null: exec nie może czytać stdin, bo to strumień tego skryptu (inaczej połknąłby dalsze polecenia).
 dc() { docker compose exec -T web "$@" </dev/null; }
-dc python manage.py seed_cms
-dc python manage.py seed_regulamin
-dc python manage.py seed_legacy_content
-dc python manage.py seed_partners          # po seed_legacy_content: dopisuje logotypy do /partnerzy/
+# ``auto``: tylko przy pierwszym wdrożeniu (znacznik zostawia krok 3/7 przy tworzeniu .env).
+if [ "$RUN_CONTENT_SEEDS" = "1" ] || { [ "$RUN_CONTENT_SEEDS" = "auto" ] && [ -f .first-deploy ]; }; then
+  dc python manage.py seed_cms
+  dc python manage.py seed_regulamin
+  dc python manage.py seed_legacy_content
+  dc python manage.py seed_partners          # po seed_legacy_content: dopisuje logotypy do /partnerzy/
+  rm -f .first-deploy
+else
+  echo "seedy treści pominięte – strony CMS zostają takie, jak zredagowano na serwerze (RUN_CONTENT_SEEDS=1 wymusza)"
+fi
 EDITION_ARGS=""
 [ "$MAKE_EDITION_CURRENT" = "1" ] && EDITION_ARGS="$EDITION_ARGS --make-current"
 [ "$SYNC_STAGE_DATES" = "1" ] && EDITION_ARGS="$EDITION_ARGS --sync-dates"   # przestawia terminy istniejących etapów

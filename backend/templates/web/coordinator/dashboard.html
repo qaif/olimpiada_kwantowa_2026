@@ -43,7 +43,7 @@
   {% for row in stage_rows %}
     <article class="card stage-panel">
       <div class="card__head">
-        <h3 class="mt-0 card__title">{{ row.stage.get_kind_display }}</h3>
+        <h3 class="mt-0 card__title">{{ row.stage.display_name }}</h3>
         {% if row.stage.closed_at %}
           <span class="badge badge--neutral">zamknięty</span>
         {% else %}
@@ -56,6 +56,7 @@
         połowa była do sprawdzenia wyłącznie w ``/admin/``.
       {% endcomment %}
       <dl class="meta-list">
+        <dt>Forma</dt><dd>{{ row.stage.get_format_display }}</dd>
         <dt>Otwarcie</dt><dd>{{ row.stage.opens_at|local_datetime }}</dd>
         <dt>Deadline oddania</dt><dd>{{ row.stage.submission_deadline|local_datetime }}</dd>
         <dt>Deadline recenzji</dt><dd>{{ row.stage.review_deadline_at|local_datetime }}</dd>
@@ -68,9 +69,18 @@
         {% endif %}
       </dl>
 
+      {% comment %}
+        Etap w formie rozmowy nie ma zadań (``create_problem`` odmawia), więc odnośnik „Zadania”
+        prowadziłby na ekran, na którym nie da się nic zrobić. W jego miejsce staje „Rozmowy”
+        z licznikiem wyznaczonych terminów.
+      {% endcomment %}
       <p class="stage-panel__links">
         <a href="{% url 'web:coordinator-stage-edit' row.stage.pk %}">Edytuj terminy</a>
-        <a href="{% url 'web:coordinator-stage-problems' row.stage.pk %}">Zadania ({{ row.stage.problem_count }})</a>
+        {% if row.stage.is_interview %}
+          <a href="{% url 'web:coordinator-stage-interviews' row.stage.pk %}">Rozmowy ({{ row.stage.slot_count }})</a>
+        {% else %}
+          <a href="{% url 'web:coordinator-stage-problems' row.stage.pk %}">Zadania ({{ row.stage.problem_count }})</a>
+        {% endif %}
         {# Skala punktacji i próg kwalifikacji zostają w adminie – konfiguracja oceniania, nie kalendarz. #}
         <a href="{% url 'admin:competitions_stage_change' row.stage.pk %}">Skala i próg (admin)</a>
       </p>
@@ -111,7 +121,7 @@
 {% if preview %}
   <section class="section">
     <div class="section__head">
-      <h2 class="mt-0">Podgląd wyników etapu {{ preview.stage.get_kind_display }}</h2>
+      <h2 class="mt-0">Podgląd wyników etapu {{ preview.stage.display_name }}</h2>
       <span class="badge badge--danger">dane osobowe</span>
     </div>
     <p class="hint">Widok wyłącznie dla koordynatora – zawiera dane osobowe i nie jest publikacją.</p>

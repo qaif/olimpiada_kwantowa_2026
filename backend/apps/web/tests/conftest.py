@@ -14,7 +14,7 @@ from apps.accounts.tests.factories import (
     ParticipantFactory,
     UserFactory,
 )
-from apps.competitions.models import StageKind
+from apps.competitions.models import StageEntryStatus, StageFormat, StageKind
 from apps.competitions.tests.factories import (
     CurrentEditionFactory,
     ProblemFactory,
@@ -45,6 +45,27 @@ def elim_stage(edition):
     ScoringScaleFactory(stage=stage)
     QualificationRuleFactory(stage=stage, min_points=0)
     return stage
+
+
+@pytest.fixture
+def interview_stage(edition):
+    """Etap okręgowy w formie rozmowy: otwarty od wczoraj, zapisy do terminu za 14 dni.
+
+    Ta sama oś czasu, co ``elim_stage`` – zmienia się wyłącznie forma. Dzięki temu testy różnicy
+    między etapem pisemnym a rozmową nie mieszają się z różnicą terminów.
+    """
+    stage = StageFactory(edition=edition, kind=StageKind.DISTRICT, format=StageFormat.INTERVIEW)
+    ScoringScaleFactory(stage=stage)
+    QualificationRuleFactory(stage=stage, min_points=0)
+    return stage
+
+
+@pytest.fixture
+def interview_entry(participant, interview_stage):
+    """Uczestnik zakwalifikowany do etapu rozmowy (wpis tworzy kwalifikacja, nie rejestracja)."""
+    return StageEntryFactory(
+        participant=participant, stage=interview_stage, status=StageEntryStatus.QUALIFIED
+    )
 
 
 @pytest.fixture

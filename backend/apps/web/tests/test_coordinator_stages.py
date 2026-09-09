@@ -13,7 +13,7 @@ from datetime import timedelta
 import pytest
 from django.utils import timezone
 
-from apps.competitions.models import QualificationMode, Stage, StageKind
+from apps.competitions.models import QualificationMode, Stage, StageFormat, StageKind
 from apps.competitions.tests.factories import ProblemFactory, StageFactory
 from apps.core.models import AuditLog
 from apps.submissions.models import SubmissionStatus
@@ -27,6 +27,8 @@ WARSAW_FORMAT = "%Y-%m-%dT%H:%M"
 def form_data(stage: Stage, **overrides) -> dict:
     """Komplet pól ``StageForm`` w formacie ``<input type="datetime-local">`` (czas polski)."""
     data = {
+        "name": stage.name,
+        "format": stage.format,
         "location": stage.location,
         "grace_seconds": stage.grace_seconds,
         "opens_at": timezone.localtime(stage.opens_at).strftime(WARSAW_FORMAT),
@@ -164,6 +166,102 @@ def test_results_published_at_is_not_editable(web_client, coordinator, elim_stag
     assert elim_stage.results_published_at == stamp
 
 
+# --- nazwa etapu ---------------------------------------------------------------------------------
+
+
+def test_stage_name_falls_back_to_the_kind_label(elim_stage):
+    """Puste pole nazwy nie zostawia etapu bez podpisu – wraca etykieta rodzaju."""
+    assert elim_stage.name == ""
+    assert elim_stage.display_name == elim_stage.get_kind_display()
+
+    elim_stage.name = "Etap I – eliminacje szkolne"
+    assert elim_stage.display_name == "Etap I – eliminacje szkolne"
+
+
+def test_rename_saves_the_name_and_writes_audit(web_client, coordinator, elim_stage):
+    web_client.force_login(coordinator)
+
+    response = web_client.post(
+        f"/coordinator/stages/{elim_stage.pk}/edit/",
+        form_data(elim_stage, name="Etap I – eliminacje"),
+    )
+
+    elim_stage.refresh_from_db()
+    assert response.status_code == 302
+    assert elim_stage.name == "Etap I – eliminacje"
+    entry = AuditLog.objects.get(action="stage.updated", target_id=str(elim_stage.pk))
+    assert entry.diff["name"] == {"from": "", "to": "Etap I – eliminacje"}
+
+
+def test_closed_stage_can_still_be_renamed(web_client, coordinator, elim_stage):
+    """Przemianowanie zamkniętego etapu niczego nie cofa – podpis w archiwum wolno poprawić."""
+    Stage.objects.filter(pk=elim_stage.pk).update(closed_at=timezone.now())
+    elim_stage.refresh_from_db()
+    web_client.force_login(coordinator)
+
+    response = web_client.post(
+        f"/coordinator/stages/{elim_stage.pk}/edit/", form_data(elim_stage, name="Eliminacje 2026")
+    )
+
+    elim_stage.refresh_from_db()
+    assert response.status_code == 302
+    assert elim_stage.name == "Eliminacje 2026"
+
+
+def test_custom_name_replaces_the_kind_label_on_every_screen(
+    web_client, coordinator, participant, entry, elim_stage
+):
+    """Nazwa nadana w panelu stoi wszędzie: pulpit koordynatora, ekran terminów, panel uczestnika.
+
+    Oś czasu na stronach publicznych ma własny test (``apps/cms/tests/test_stage_timeline.py``) –
+    tam jest fixture z zaimportowaną treścią ``/harmonogram/``.
+    """
+    Stage.objects.filter(pk=elim_stage.pk).update(name="Etap I – eliminacje")
+    web_client.force_login(coordinator)
+    assert "Etap I – eliminacje" in web_client.get("/coordinator/").content.decode()
+    edit = web_client.get(f"/coordinator/stages/{elim_stage.pk}/edit/").content.decode()
+    assert "Terminy etapu: Etap I – eliminacje" in edit
+
+    web_client.force_login(participant.user)
+    assert "Etap I – eliminacje" in web_client.get("/me/").content.decode()
+
+
+# --- forma etapu ---------------------------------------------------------------------------------
+
+
+def test_format_can_be_switched_while_the_stage_is_empty(web_client, coordinator, elim_stage):
+    web_client.force_login(coordinator)
+
+    response = web_client.post(
+        f"/coordinator/stages/{elim_stage.pk}/edit/",
+        form_data(elim_stage, format=StageFormat.INTERVIEW),
+    )
+
+    elim_stage.refresh_from_db()
+    assert response.status_code == 302
+    assert elim_stage.format == StageFormat.INTERVIEW
+
+
+def test_format_cannot_be_switched_once_there_are_submissions(
+    web_client, coordinator, elim_stage, entry, problems
+):
+    from apps.submissions.models import SubmissionStatus
+    from apps.submissions.tests.factories import SubmissionFactory
+
+    SubmissionFactory(entry=entry, problem=problems[0], status=SubmissionStatus.SUBMITTED)
+    web_client.force_login(coordinator)
+
+    response = web_client.post(
+        f"/coordinator/stages/{elim_stage.pk}/edit/",
+        form_data(elim_stage, format=StageFormat.INTERVIEW),
+    )
+
+    elim_stage.refresh_from_db()
+    assert response.status_code == 409
+    assert elim_stage.format == StageFormat.SUBMISSIONS
+    assert "formy nie można zmienić" in response.content.decode()
+
+
 # --- dodanie etapu ------------------------------------------------------------------------------
 
 
@@ -172,6 +270,8 @@ def test_new_stage_gets_scale_and_qualification_rule(web_client, coordinator, ed
     opens = timezone.localtime(timezone.now()) + timedelta(days=40)
     payload = {
         "kind": StageKind.DISTRICT,
+        "name": "",
+        "format": StageFormat.SUBMISSIONS,
         "location": "",
         "grace_seconds": 0,
         "opens_at": opens.strftime(WARSAW_FORMAT),

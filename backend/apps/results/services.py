@@ -346,8 +346,12 @@ def _sync_next_stage(following: Stage, candidates: list[dict]) -> tuple[int, int
     - **odkwalifikowani tracą wpis**, ale tylko jeśli jest jeszcze ``REGISTERED`` i pusty. Ponowne
       przeliczenie (np. po decyzji reklamacyjnej, która komuś odebrała punkty) nie może zostawić
       w następnym etapie ludzi, którzy się do niego nie kwalifikują,
-    - wpis z choćby jednym zgłoszeniem **zostaje** i trafia na listę konfliktów. Skasowanie go
-      usunęłoby pracę, którą ktoś naprawdę oddał; to decyzja dla koordynatora, nie dla serwisu.
+    - wpis z choćby jednym zgłoszeniem **albo z zapisem na rozmowę** zostaje i trafia na listę
+      konfliktów. Skasowanie go usunęłoby pracę, którą ktoś naprawdę oddał, albo termin, na który
+      ktoś dostał potwierdzenie mailem; to decyzja dla koordynatora, nie dla serwisu. Zapis na
+      rozmowę liczy się tu tak samo jak praca, bo tak samo jest zobowiązaniem wobec uczestnika –
+      a przy ``InterviewBooking.slot`` z ``PROTECT`` kasowanie wpisu i tak skończyłoby się
+      ``ProtectedError`` w środku przeliczenia.
     """
     qualified = [row for row in candidates if row["qualified"]]
     demoted = {row["participant_id"]: row for row in candidates if not row["qualified"]}
@@ -380,11 +384,16 @@ def _sync_next_stage(following: Stage, candidates: list[dict]) -> tuple[int, int
                 participant_id__in=list(demoted),
                 status=StageEntryStatus.REGISTERED,
             )
-            .annotate(submission_count=Count("submissions"))
+            # ``distinct=True`` przy dwóch licznikach naraz: bez tego złączenie zgłoszeń mnożyłoby
+            # wiersze zapisu na rozmowę (i odwrotnie), a liczniki wyszłyby jako iloczyn.
+            .annotate(
+                submission_count=Count("submissions", distinct=True),
+                booking_count=Count("interview_booking", distinct=True),
+            )
             .only("id", "participant_id")
         )
         for entry in stale:
-            if entry.submission_count:
+            if entry.submission_count or entry.booking_count:
                 conflicts.append(demoted[entry.participant_id]["public_code"])
             else:
                 stale_ids.append(entry.pk)
@@ -719,7 +728,11 @@ def results_for_participant(user) -> list[dict]:
         results.append(
             {
                 "stage_id": stage.pk,
+                # ``stage_kind`` zostaje surowym kodem (zgodność API), a podpis dla człowieka
+                # idzie osobno: panel uczestnika wypisywał dotąd sam kod („DISTRICT”), a od
+                # kiedy koordynator nadaje etapom nazwy, to ta nazwa ma tam stać.
                 "stage_kind": stage.kind,
+                "stage_name": stage.display_name,
                 "edition": stage.edition.year_label,
                 "results_published_at": stage.results_published_at,
                 "status": entry.status,

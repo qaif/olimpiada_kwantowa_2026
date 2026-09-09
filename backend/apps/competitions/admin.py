@@ -6,7 +6,16 @@ odbywa się w jednym formularzu (macierz uprawnień 2.3: wyłącznie koordynator
 
 from django.contrib import admin
 
-from .models import Edition, Problem, QualificationRule, ScoringScale, Stage, StageEntry
+from .models import (
+    Edition,
+    InterviewBooking,
+    InterviewSlot,
+    Problem,
+    QualificationRule,
+    ScoringScale,
+    Stage,
+    StageEntry,
+)
 from .services import ensure_stage_defaults
 
 
@@ -14,8 +23,18 @@ class StageInline(admin.TabularInline):
     model = Stage
     extra = 0
     # ``location`` stoi obok terminów, a nie na osobnej karcie: dla etapu stacjonarnego miejsce
-    # jest częścią tej samej informacji, co data, i zmienia się razem z nią.
-    fields = ("kind", "location", "opens_at", "deadline_at", "grace_seconds", "results_published_at")
+    # jest częścią tej samej informacji, co data, i zmienia się razem z nią. ``name`` i ``format``
+    # otwierają wiersz, bo odpowiadają na pytanie „co to za etap”, zanim padnie pytanie „kiedy”.
+    fields = (
+        "kind",
+        "name",
+        "format",
+        "location",
+        "opens_at",
+        "deadline_at",
+        "grace_seconds",
+        "results_published_at",
+    )
     show_change_link = True
 
 
@@ -56,6 +75,8 @@ class StageAdmin(admin.ModelAdmin):
     list_display = (
         "edition",
         "kind",
+        "name",
+        "format",
         "location",
         "opens_at",
         "deadline_at",
@@ -63,7 +84,7 @@ class StageAdmin(admin.ModelAdmin):
         "review_deadline_at",
         "results_published_at",
     )
-    list_filter = ("edition", "kind")
+    list_filter = ("edition", "kind", "format")
     date_hierarchy = "opens_at"
     inlines = (ScoringScaleInline, QualificationRuleInline, ProblemInline)
 
@@ -90,6 +111,26 @@ class ProblemAdmin(admin.ModelAdmin):
     list_display = ("stage", "number", "title", "max_file_mb")
     list_filter = ("stage__edition", "stage__kind")
     search_fields = ("title",)
+
+
+@admin.register(InterviewSlot)
+class InterviewSlotAdmin(admin.ModelAdmin):
+    """Terminy rozmów. Wyznacza je panel koordynatora – tu jest podgląd i awaryjna korekta."""
+
+    list_display = ("stage", "starts_at", "ends_at", "capacity", "note")
+    list_filter = ("stage__edition", "stage")
+    date_hierarchy = "starts_at"
+    readonly_fields = ("created_at",)
+
+
+@admin.register(InterviewBooking)
+class InterviewBookingAdmin(admin.ModelAdmin):
+    """Zapisy na rozmowy. Zmienia je uczestnik z panelu; tu tylko podgląd."""
+
+    list_display = ("slot", "entry", "created_at")
+    list_filter = ("slot__stage__edition", "slot__stage")
+    search_fields = ("entry__participant__public_code",)
+    readonly_fields = ("created_at",)
 
 
 @admin.register(StageEntry)

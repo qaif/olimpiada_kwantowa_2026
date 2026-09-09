@@ -84,11 +84,36 @@ class StageKind(models.TextChoices):
     FINAL = "FINAL", "Finał"
 
 
+class StageFormat(models.TextChoices):
+    """Jak etap się odbywa – i czym w związku z tym jest „udział” w nim.
+
+    Rodzaj etapu (``StageKind``) mówi, **które** to zawody w kolejności; forma mówi, **co** w nich
+    robi uczestnik. Rozdział jest potrzebny, bo obie osie zmieniają się niezależnie: regulamin
+    I edycji przewiduje etap okręgowy jako rozmowę kwalifikacyjną online, ale nic nie stoi na
+    przeszkodzie, żeby w kolejnej edycji był to znowu arkusz zadań.
+    """
+
+    SUBMISSIONS = "SUBMISSIONS", "rozwiązania pisemne"
+    INTERVIEW = "INTERVIEW", "rozmowa kwalifikacyjna online"
+
+
 class Stage(models.Model):
     """Etap edycji wraz z całą osią czasu: otwarcie, deadline (+grace), recenzje, okno reklamacji."""
 
     edition = models.ForeignKey(Edition, on_delete=models.CASCADE, related_name="stages")
     kind = models.CharField("rodzaj", max_length=16, choices=StageKind.choices)
+    # Własna nazwa etapu. Rodzaj (``kind``) jest tożsamością techniczną i porządkiem w edycji –
+    # zmiana byłaby podmianą obiektu. Nazwa jest natomiast tym, co czyta uczestnik, a organizator
+    # bywa przy niej dokładniejszy niż słownik trzech rodzajów: „Etap II – rozmowy kwalifikacyjne”
+    # zamiast „Okręgowy”. Puste pole oznacza nazwę domyślną (patrz ``display_name``), więc etap
+    # nigdy nie zostaje bez podpisu.
+    name = models.CharField("nazwa", max_length=80, blank=True)
+    # Forma etapu decyduje o tym, co uczestnik w nim robi: oddaje pliki albo zapisuje się na
+    # rozmowę. Pole jest w ``Stage``, a nie osobną tabelą, bo to jedna wartość na etap i czytają
+    # ją wszystkie ekrany osi czasu razem z terminami.
+    format = models.CharField(
+        "forma", max_length=16, choices=StageFormat.choices, default=StageFormat.SUBMISSIONS
+    )
     # Miejsce zawodów – puste dla etapów zdalnych, „Kraków” dla finału stacjonarnego. Pole jest tu,
     # a nie w treści redakcyjnej, bo miejsce jest częścią tej samej informacji, co termin: uczestnik
     # planuje dojazd w tej samej chwili, w której czyta datę, a strona główna i harmonogram czytają
@@ -131,7 +156,22 @@ class Stage(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"{self.edition.year_label} – {self.get_kind_display()}"
+        return f"{self.edition.year_label} – {self.display_name}"
+
+    @property
+    def display_name(self) -> str:
+        """Podpis etapu na każdym ekranie: własna nazwa albo etykieta rodzaju.
+
+        Jedno miejsce, w którym rozstrzyga się „czym podpisać etap” – szablony i serwisy wołają
+        tę właściwość zamiast ``get_kind_display()``, więc zmiana nazwy w panelu jest widoczna
+        wszędzie naraz i nigdzie nie zostaje stara etykieta rodzaju.
+        """
+        return self.name or self.get_kind_display()
+
+    @property
+    def is_interview(self) -> bool:
+        """Czy etap jest rozmową kwalifikacyjną online (brak uploadu, zapisy na terminy)."""
+        return self.format == StageFormat.INTERVIEW
 
     def clean(self) -> None:
         super().clean()
@@ -386,3 +426,77 @@ class StageEntry(models.Model):
 
     def __str__(self) -> str:
         return f"{self.participant.public_code} @ {self.stage_id} ({self.status})"
+
+
+class InterviewSlot(models.Model):
+    """Termin rozmowy kwalifikacyjnej wyznaczony przez koordynatora.
+
+    Terminy są **zasobem etapu**, a nie kalendarzem jednej komisji: kilka komisji może rozmawiać
+    równolegle, więc dwa sloty o tych samych godzinach są w porządku i model ich nie zabrania.
+    Rozróżnia je ``note`` („komisja A”) i ``capacity``.
+
+    ``meeting_url`` jest polem etapu, a nie uczestnika: link do pokoju wideo jest wspólny dla
+    całego slotu. Widzi go wyłącznie osoba zapisana na ten termin (patrz szablon panelu
+    uczestnika) – adres pokoju, do którego wchodzi się bez logowania, jest de facto poświadczeniem.
+    """
+
+    stage = models.ForeignKey(Stage, on_delete=models.CASCADE, related_name="interview_slots")
+    starts_at = models.DateTimeField("początek")
+    ends_at = models.DateTimeField("koniec")
+    capacity = models.PositiveSmallIntegerField("liczba miejsc", default=1)
+    meeting_url = models.URLField("link do rozmowy", blank=True, max_length=500)
+    note = models.CharField("oznaczenie", max_length=200, blank=True)
+    created_at = models.DateTimeField("utworzony", default=timezone.now)
+
+    class Meta:
+        verbose_name = "termin rozmowy"
+        verbose_name_plural = "terminy rozmów"
+        ordering = ("stage", "starts_at", "id")
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(starts_at__lt=F("ends_at")),
+                name="competitions_interviewslot_starts_before_ends",
+            ),
+            models.CheckConstraint(
+                condition=Q(capacity__gte=1), name="competitions_interviewslot_capacity_positive"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.starts_at.isoformat()} – {self.ends_at.isoformat()} ({self.capacity} miejsc)"
+
+    def clean(self) -> None:
+        """Te same reguły, co constrainty – tylko z komunikatem, który da się pokazać w formularzu."""
+        super().clean()
+        errors: dict[str, str] = {}
+        if self.starts_at is not None and self.ends_at is not None and self.starts_at >= self.ends_at:
+            errors["ends_at"] = "Koniec terminu musi być po jego początku."
+        if self.capacity is not None and self.capacity < 1:
+            errors["capacity"] = "Termin musi mieć co najmniej jedno miejsce."
+        if errors:
+            raise ValidationError(errors)
+
+
+class InterviewBooking(models.Model):
+    """Zapis uczestnika na jeden termin rozmowy.
+
+    ``entry`` jest relacją jeden-do-jednego: uczestnik ma w etapie dokładnie jeden termin, a zmiana
+    terminu jest przeniesieniem zapisu, nie drugim zapisem (patrz ``interviews.book_slot``). Dzięki
+    temu „ilu ludzi przyjdzie na rozmowę” liczy się z bazy, a nie z domysłu.
+
+    ``slot`` jest z ``PROTECT``: skasowanie terminu, na który ktoś się zapisał, zabrałoby ze sobą
+    zapis i zostawiło uczestnika bez rozmowy, o czym nikt by się nie dowiedział. Usunięcie terminu
+    z zapisami odmawia (``interviews.delete_slot``).
+    """
+
+    slot = models.ForeignKey(InterviewSlot, on_delete=models.PROTECT, related_name="bookings")
+    entry = models.OneToOneField(StageEntry, on_delete=models.CASCADE, related_name="interview_booking")
+    created_at = models.DateTimeField("utworzony", default=timezone.now)
+
+    class Meta:
+        verbose_name = "zapis na rozmowę"
+        verbose_name_plural = "zapisy na rozmowy"
+        ordering = ("slot", "created_at", "id")
+
+    def __str__(self) -> str:
+        return f"{self.entry_id} → {self.slot_id}"

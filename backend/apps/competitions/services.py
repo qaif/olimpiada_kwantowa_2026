@@ -17,6 +17,8 @@ from apps.core.api import DomainError
 from .models import (
     DEFAULT_MAX_VALUE,
     Edition,
+    InterviewBooking,
+    InterviewSlot,
     Problem,
     QualificationMode,
     QualificationRule,
@@ -24,6 +26,7 @@ from .models import (
     Stage,
     StageEntry,
     StageEntryStatus,
+    StageFormat,
     StageKind,
     default_scoring_values,
 )
@@ -32,7 +35,11 @@ from .models import (
 #: ``closed_at`` są **poza** tą listą świadomie: pierwsze nakłada publikacja wyników, drugie –
 #: zamknięcie etapu. Obie wartości są śladem zdarzenia, które już zaszło, a nie planem; ręczne
 #: przestawienie ich w formularzu cofałoby skutek operacji, nie zmieniając niczego, co z niej wynikło.
+#: ``name`` i ``format`` stoją na początku, bo w takiej kolejności formularz je pokazuje: najpierw
+#: „czym jest ten etap”, potem jego oś czasu.
 STAGE_EDITABLE_FIELDS = (
+    "name",
+    "format",
     "location",
     "opens_at",
     "deadline_at",
@@ -46,7 +53,11 @@ STAGE_EDITABLE_FIELDS = (
 #: upload jest zablokowany, a wersje mają status ``LOCKED``, więc przesunięcie ``opens_at`` czy
 #: ``deadline_at`` opisywałoby przebieg, który się nie wydarzył. Recenzje i okno reklamacji dopiero
 #: przed etapem stoją, a to właśnie one bywają przedłużane (choroba recenzenta, spór o termin).
+#: ``name`` jest na tej liście, a ``format`` nie: przemianowanie zamkniętego etapu niczego nie
+#: cofa (podpis w archiwum wolno poprawić), natomiast zmiana formy opisywałaby inny przebieg
+#: zawodów niż ten, który się odbył.
 STAGE_FIELDS_EDITABLE_AFTER_CLOSE = (
+    "name",
     "location",
     "review_deadline_at",
     "appeal_window_opens_at",
@@ -92,6 +103,8 @@ def create_stage(
     appeal_window_closes_at,
     grace_seconds: int = 0,
     location: str = "",
+    name: str = "",
+    format: str = StageFormat.SUBMISSIONS,
     scoring_values: list[dict] | None = None,
     max_value: int | None = None,
     qualification_mode: str = QualificationMode.MIN_POINTS,
@@ -106,6 +119,8 @@ def create_stage(
     stage = Stage(
         edition=edition,
         kind=kind,
+        name=name,
+        format=format,
         location=location,
         opens_at=opens_at,
         deadline_at=deadline_at,
@@ -220,6 +235,26 @@ def stage_has_submissions(stage: Stage) -> bool:
     return Submission.objects.filter(entry__stage=stage).exists()
 
 
+def stage_has_interview_bookings(stage: Stage) -> bool:
+    """Czy ktokolwiek zapisał się już na rozmowę w tym etapie."""
+    return InterviewBooking.objects.filter(slot__stage=stage).exists()
+
+
+def slots_outside_window(stage: Stage, opens_at, deadline_at) -> bool:
+    """Czy któryś termin rozmowy wypadłby poza oknem ``[opens_at, deadline_at]``.
+
+    Pytanie zadajemy przez negację (``exclude`` warunku „mieści się w całości”), bo termin
+    wystający oknem choćby o minutę – z jednej albo z drugiej strony – jest tak samo zły:
+    ``create_slots`` nie pozwoliłby go założyć, więc przesunięcie okna nie może go po cichu
+    stworzyć.
+    """
+    return (
+        InterviewSlot.objects.filter(stage=stage)
+        .exclude(starts_at__gte=opens_at, ends_at__lte=deadline_at)
+        .exists()
+    )
+
+
 def _audit_value(value):
     """Wartość do wpisu audytowego: daty w ISO, reszta bez zmian (``diff`` jest JSON-em)."""
     if isinstance(value, datetime):
@@ -248,7 +283,15 @@ def update_stage(stage: Stage, actor, *, request=None, now=None, **fields) -> St
     - **deadline nie cofa się w przeszłość, gdy są zgłoszenia.** Uczestnik, który oddał pracę
       zgodnie z ogłoszonym terminem, nie może po fakcie znaleźć się „po deadline”; a gdyby etap
       zamknął się w tej samej chwili, jego wersje dostałyby ``LOCKED`` z datą, której nie było
-      na stronie w chwili uploadu.
+      na stronie w chwili uploadu,
+    - **formy nie zmienia się w etapie, który już się toczy.** Przestawienie „rozwiązania pisemne”
+      na „rozmowa” w etapie z oddanymi pracami unieważniałoby te prace bez śladu, a odwrotna
+      zmiana zostawiałaby zapisy na terminy, których nikt już nie obsłuży. Tak samo blokują
+      **zadania**: etap w formie rozmowy zadań mieć nie może (``create_problem`` odmawia), więc
+      zmiana formy zostawiłaby arkusz-sierotę, niewidoczny w panelu i nieusuwalny z niego,
+    - **okna etapu nie zawęża się pod wyznaczonymi terminami rozmów.** Termin poza oknem etapu to
+      godzina, której nie ma na harmonogramie – a uczestnik zapisany na 9:00 nie dowiedziałby się,
+      że etap „kończy się” o 8:00.
 
     Kolejność terminów sprawdza ``full_clean()`` – ta sama reguła, co w formularzu i w bazie.
     Blokada ``select_for_update`` szereguje dwa równoległe zapisy: bez niej druga transakcja
@@ -276,6 +319,29 @@ def update_stage(stage: Stage, actor, *, request=None, now=None, **fields) -> St
             "STAGE_DEADLINE_IN_PAST",
             status.HTTP_409_CONFLICT,
         )
+
+    if "format" in changed and (
+        stage_has_submissions(locked) or stage_has_interview_bookings(locked) or locked.problems.exists()
+    ):
+        raise DomainError(
+            "Etap ma już oddane rozwiązania, zapisy na rozmowy albo zadania – formy nie można "
+            "zmienić. Utwórz nowy etap, jeżeli zawody mają się odbyć inaczej.",
+            "STAGE_FORMAT_LOCKED",
+            status.HTTP_409_CONFLICT,
+        )
+
+    if locked.is_interview and ("opens_at" in changed or "deadline_at" in changed):
+        new_opens = changed.get("opens_at", locked.opens_at)
+        new_deadline = changed.get("deadline_at", locked.deadline_at)
+        if slots_outside_window(locked, new_opens, new_deadline):
+            raise DomainError(
+                "Etap ma wyznaczone terminy rozmów, które nie zmieściłyby się w nowym oknie "
+                f"({timezone.localtime(new_opens):%Y-%m-%d %H:%M} – "
+                f"{timezone.localtime(new_deadline):%Y-%m-%d %H:%M}, czas polski). Najpierw usuń "
+                "albo przenieś te terminy.",
+                "STAGE_WINDOW_HAS_SLOTS",
+                status.HTTP_409_CONFLICT,
+            )
 
     diff = {
         name: {"from": _audit_value(getattr(locked, name)), "to": _audit_value(value)}
@@ -312,10 +378,23 @@ def _validation_error(exc: ValidationError) -> DomainError:
 
 @transaction.atomic
 def create_problem(*, stage: Stage, actor, statement=None, request=None, **fields) -> Problem:
-    """Nowe zadanie etapu. ``statement`` to plik z formularza albo ``None``."""
+    """Nowe zadanie etapu. ``statement`` to plik z formularza albo ``None``.
+
+    Etap w formie rozmowy zadań nie ma i mieć nie może: nie ma czego oddać, więc arkusz zadań
+    byłby treścią bez odbiorcy, a uczestnik zobaczyłby w panelu upload, którego serwis i tak by
+    nie przyjął (``submissions.create_submission``). Odmowa jest jednym warunkiem – lepsza niż
+    ukrywanie przycisku, bo to samo żądanie wysłane skryptem też musi dostać 409.
+    """
     unknown = sorted(set(fields) - set(PROBLEM_EDITABLE_FIELDS))
     if unknown:  # pragma: no cover - błąd programisty, nie danych
         raise ValueError(f"Pola spoza zakresu zadania: {', '.join(unknown)}.")
+    if stage.is_interview:
+        raise DomainError(
+            "Ten etap ma formę rozmowy kwalifikacyjnej – nie ma w nim zadań do oddania. "
+            "Terminy rozmów wyznaczasz na osobnym ekranie.",
+            "STAGE_NOT_ACCEPTING_PROBLEMS",
+            status.HTTP_409_CONFLICT,
+        )
 
     problem = Problem(stage=stage, **fields)
     if statement is not None:

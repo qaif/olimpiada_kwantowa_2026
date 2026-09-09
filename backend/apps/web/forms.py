@@ -15,6 +15,13 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.core.files.uploadedfile import UploadedFile
 
 from apps.appeals.models import MAX_TEXT_LENGTH, MIN_ARGUMENT_LENGTH, AppealStatus
+from apps.competitions.interviews import (
+    MAX_DURATION_MINUTES,
+    MAX_SLOT_CAPACITY,
+    MAX_SLOT_COUNT,
+    MIN_DURATION_MINUTES,
+    MIN_SLOT_COUNT,
+)
 from apps.competitions.models import (
     DEFAULT_MAX_FILE_MB,
     MAX_FILE_MB_LIMIT,
@@ -219,7 +226,12 @@ MAX_STATEMENT_MB = 20
 
 
 def _to_minute(value):
-    """Wartość porównywalna z tym, co potrafi wysłać ``<input type="datetime-local">``."""
+    """Wartość porównywalna z tym, co potrafi wysłać ``<input type="datetime-local">``.
+
+    Obcinanie dotyczy **wyłącznie** dat: nazwa etapu, forma, miejsce i tolerancja przechodzą bez
+    zmian, bo ich rozdzielczość w formularzu jest dokładnie taka, jak w bazie. Gdyby ta funkcja
+    próbowała „normalizować” także teksty, zmiana nazwy przestałaby być widoczna w porównaniu.
+    """
     return value.replace(second=0, microsecond=0) if isinstance(value, datetime) else value
 
 
@@ -285,7 +297,14 @@ class StageForm(forms.ModelForm):
             "appeal_window_opens_at": LocalDateTimeField,
             "appeal_window_closes_at": LocalDateTimeField,
         }
+        labels = {"name": "Nazwa etapu", "format": "Forma etapu"}
         help_texts = {
+            "name": ("Puste pole = nazwa domyślna dla rodzaju etapu (Eliminacje / Okręgowy / Finał)."),
+            "format": (
+                "Etap w formie rozmowy nie przyjmuje plików: zamiast zadań uczestnicy "
+                "zakwalifikowani do etapu zapisują się na jeden z terminów wyznaczonych przez "
+                "koordynatora. Formy nie zmienisz, gdy etap ma już oddane prace albo zapisy."
+            ),
             "location": "Puste dla etapu zdalnego. Np. „Kraków, Wydział Fizyki UJ”.",
             "grace_seconds": ("Tolerancja po terminie oddania. Upload zamyka się dopiero po jej upływie."),
         }
@@ -415,3 +434,51 @@ class ProblemForm(forms.ModelForm):
         """Nowy plik treści albo ``None``. Serwis rozpoznaje po tym, czy podmieniać treść."""
         upload = self.cleaned_data.get("statement_pdf")
         return upload if isinstance(upload, UploadedFile) else None
+
+
+class InterviewSlotsForm(forms.Form):
+    """Dodanie serii terminów rozmowy kwalifikacyjnej.
+
+    Formularz opisuje **serię**, a nie pojedynczy termin, bo tak wygląda praca koordynatora:
+    „w czwartek od 9:00 dwanaście rozmów po 20 minut, po jednej osobie”. Wpisywanie tego dwanaście
+    razy z ręki byłoby dwunastoma okazjami do pomyłki o godzinę.
+
+    Granice liczbowe są tu powtórzone za serwisem (``competitions.interviews``) świadomie: to
+    kształt danych, więc błąd ma stanąć pod polem, a nie wrócić komunikatem po nieudanym zapisie.
+    Reguły zależne od stanu (okno etapu, forma etapu, terminy w przeszłości) zostają w serwisie.
+    """
+
+    starts_at = LocalDateTimeField(label="Początek pierwszego terminu")
+    duration_minutes = forms.IntegerField(
+        label="Długość jednej rozmowy (min)",
+        min_value=MIN_DURATION_MINUTES,
+        max_value=MAX_DURATION_MINUTES,
+        initial=20,
+    )
+    count = forms.IntegerField(
+        label="Ile terminów po kolei",
+        min_value=MIN_SLOT_COUNT,
+        max_value=MAX_SLOT_COUNT,
+        initial=1,
+        help_text="Terminy powstają jeden po drugim, bez przerw między nimi.",
+    )
+    capacity = forms.IntegerField(
+        label="Miejsc w jednym terminie",
+        min_value=1,
+        max_value=MAX_SLOT_CAPACITY,
+        initial=1,
+        help_text="Ile osób może zapisać się na ten sam termin.",
+    )
+    meeting_url = forms.URLField(
+        label="Link do rozmowy",
+        required=False,
+        max_length=500,
+        assume_scheme="https",
+        help_text="Widoczny wyłącznie dla osób zapisanych na dany termin. Można uzupełnić później.",
+    )
+    note = forms.CharField(
+        label="Oznaczenie",
+        required=False,
+        max_length=200,
+        help_text="Np. „komisja A” – dla uczestnika to podpowiedź, do kogo trafia.",
+    )

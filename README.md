@@ -151,6 +151,19 @@ Co trzeba ustawić **zanim** to zadziała:
 Certyfikat Let's Encrypt Caddy pobiera sam przy pierwszym starcie – wymaga otwartych portów 80 i 443
 i poprawnego DNS-u dla obu nazw.
 
+### Aktualizacja działającej produkcji (`scripts/deploy.sh`)
+
+`SITE_DOMAIN=… ACME_EMAIL=… scripts/deploy.sh root@<host>` wgrywa kod z `git archive HEAD`, buduje
+obraz, uruchamia migracje (entrypoint `web`) i **nie rusza tego, co zmieniono na serwerze**:
+
+- `.env` jest zachowywany (aktualizuje się tylko `APP_VERSION`),
+- terminy i nazwy etapów należą do koordynatora – `seed_edition_kwantowa` tworzy wyłącznie
+  brakujące etapy; przestawienie istniejących terminów wymaga jawnego `SYNC_STAGE_DATES=1`,
+- strony CMS należą do redakcji – seedy treści (`seed_cms`, `seed_regulamin`, `seed_legacy_content`,
+  `seed_partners`) uruchamiają się same **tylko przy pierwszym wdrożeniu** (znacznik `.first-deploy`
+  obok `.env`); ponowny import treści z repozytorium wymaga `RUN_CONTENT_SEEDS=1` i nadpisuje
+  poprawki zrobione w `/cms/`.
+
 ## 4. Zmienne środowiskowe
 
 Pełny szablon: [`.env.example`](.env.example). Wartości wchodzą do kontenerów przez `env_file`
@@ -736,6 +749,61 @@ uzasadnienie każdego punktu: `docs/import/stara-strona-inwentarz.md`, sekcja 8.
     też zdanie wprowadzające („Warsztaty online przygotowujące do zawodów; udział jest bezpłatny.
     Szczegóły i linki do spotkań ogłosimy w aktualnościach.”) — sformułowaliśmy je sami,
     nie pochodzi od organizatora.
+
+### 6.8 Rozmowy kwalifikacyjne (etap w formie rozmowy online)
+
+Etap ma **formę** (`Stage.format`) niezależną od rodzaju: `rozwiązania pisemne` (domyślnie) albo
+`rozmowa kwalifikacyjna online`. W I edycji rozmową jest etap II — tak stanowi regulamin § 10.
+Formę ustawia się w `/coordinator/stages/<id>/edit/` (pole „Forma etapu”) i **nie da się jej
+zmienić**, gdy do etapu wpłynęły już rozwiązania albo są zapisy na rozmowy
+(`409 STAGE_FORMAT_LOCKED`). Tam samo stoi pole „Nazwa etapu”: puste = nazwa domyślna rodzaju
+(Eliminacje / Okręgowy / Finał), wpisana zastępuje ją na każdym ekranie — na harmonogramie,
+stronie głównej, w panelach i w tabelach wyników. Nazwę wolno zmienić także po zamknięciu etapu.
+
+Etap w formie rozmowy **nie ma zadań i nie przyjmuje plików**: `create_problem` odmawia
+(`409 STAGE_NOT_ACCEPTING_PROBLEMS`), a upload — `409 STAGE_NOT_ACCEPTING_FILES`. Na karcie etapu
+w panelu odnośnik „Zadania (n)” zastępuje **„Rozmowy (n)”**.
+
+**Koordynator** — `/coordinator/stages/<id>/interviews/`:
+
+1. Terminy powstają **serią**: „początek pierwszego terminu”, długość jednej rozmowy (1–480 min),
+   ile terminów po kolei (1–50) i ile miejsc w każdym (1–20). Sloty idą jeden po drugim, bez przerw.
+2. **Okno rozmów to okno etapu**: wszystkie terminy muszą się zmieścić między `opens_at`
+   a `deadline_at` (`400 SLOT_OUTSIDE_STAGE`), a początek musi być w przyszłości
+   (`400 SLOT_IN_PAST`). Chcesz rozmawiać w innych dniach — najpierw przesuń terminy etapu (6.3).
+3. **Kolizji terminów nie sprawdzamy świadomie**: kilka komisji rozmawia równolegle. Rozróżnia je
+   pole „Oznaczenie” (np. „komisja A”), a liczbę osób — „Miejsc w jednym terminie”.
+4. **Link do rozmowy** (pole opcjonalne, można uzupełnić później) widzi wyłącznie osoba zapisana na
+   dany termin. Na liście terminów uczestnika go nie ma — adres pokoju wideo, do którego wchodzi się
+   bez logowania, jest de facto poświadczeniem.
+5. Tabela terminów pokazuje **dane osobowe** zapisanych (kod, imię i nazwisko, e-mail) — to obok
+   podglądu wyników jedyny taki ekran w serwisie, stąd odznaka „dane osobowe”.
+6. **Usunięcie terminu** jest możliwe tylko, dopóki nikt się na niego nie zapisał
+   (`409 SLOT_HAS_BOOKINGS`); przycisk „Usuń” znika z wiersza z zapisami.
+
+**Uczestnik** — `/me/`:
+
+1. Zapisać się może **wyłącznie osoba z wpisem w tym etapie**, czyli zakwalifikowana w poprzednim
+   (`403 NOT_QUALIFIED`). Rejestracji otwartej do etapu rozmowy nie ma.
+2. Zamiast odliczania do oddania rozwiązań karta etapu pokazuje okno rozmów, a po zapisie —
+   własny termin z linkiem i przycisk „Zrezygnuj z terminu”.
+3. Uczestnik ma w etapie **jeden** termin. Kliknięcie „Zmień na ten termin” **przenosi** zapis
+   w jednej transakcji (`interview.booking_moved` w audycie) — nie trzeba najpierw rezygnować,
+   więc między dwoma krokami nikt nie zajmie ostatniego wolnego miejsca.
+4. Zapis i rezygnacja są możliwe **do chwili rozpoczęcia** rozmowy (`409 BOOKING_LOCKED`,
+   `409 SLOT_STARTED`); pełny termin odmawia `409 SLOT_FULL`, powtórny zapis na ten sam —
+   `409 ALREADY_BOOKED`.
+5. Po zapisie idzie **e-mail z potwierdzeniem** (temat z nazwą etapu, treść z datą i godziną w
+   czasie polskim oraz linkiem). Wysyłka jest zadaniem Celery `apps.core.tasks.send_mail_task`
+   na kolejce `mail`, kolejkowanym dopiero po zatwierdzeniu transakcji — niedostępny MTA nie
+   zamienia udanego zapisu na błąd.
+
+Wszystkie operacje zostawiają ślad w audycie (`interview.slots_created`, `interview.slot_deleted`,
+`interview.booked`, `interview.booking_moved`, `interview.cancelled`) — w `diff` idą wyłącznie
+identyfikatory i liczniki, nigdy imiona, nazwiska ani adresy.
+
+**Czego jeszcze nie ma:** ocen z rozmowy. Etap w tej formie nie ma ścieżki oceniania w systemie —
+punkty wpisuje koordynator poza nim (`docs/BACKLOG.md`).
 
 ## 7. Testy i kontrola jakości
 

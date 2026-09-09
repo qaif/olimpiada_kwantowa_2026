@@ -242,6 +242,9 @@ def coordinator_pages(browser) -> None:
         stage_id = match.group(1)
         shoot(page, f"/coordinator/stages/{stage_id}/edit/", "12a-terminy-etapu", scroll="top")
         shoot(page, f"/coordinator/stages/{stage_id}/problems/", "12b-zadania-etapu", scroll="top")
+        # Ekran rozmów istnieje dla każdego etapu – dla etapu pisemnego pokazuje wyjaśnienie
+        # zamiast formularza, więc zrzut ma sens niezależnie od tego, co stoi w seedzie.
+        shoot(page, f"/coordinator/stages/{stage_id}/interviews/", "12c-rozmowy-etapu", scroll="top")
     else:
         LOGGER.warning("Pulpit koordynatora nie ma kart etapów – pomijam terminy i zadania.")
     context.close()

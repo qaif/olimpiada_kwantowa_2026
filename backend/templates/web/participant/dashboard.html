@@ -13,26 +13,68 @@
   <section class="section">
     <div class="card card--accent">
       <div class="card__head">
-        <h2 class="mt-0 card__title">{{ stage.get_kind_display }} – {{ edition.year_label }}</h2>
+        <h2 class="mt-0 card__title">{{ stage.display_name }} – {{ edition.year_label }}</h2>
         {% if entry %}
           <span class="{{ entry.status|badge_class }}">{{ entry.get_status_display }}</span>
         {% endif %}
       </div>
 
-      {% comment %}
-        Odliczanie liczone z czasu serwera: obie wartości są w ISO 8601 z jawnym przesunięciem
-        strefy (filtr `date:'c'`), więc `new Date()` czyta je jako moment bezwzględny, a skrypt
-        koryguje o różnicę względem zegara przeglądarki. Zegar klienta nigdy nie decyduje
-        o terminie – deadline i tak egzekwuje serwis uploadu.
-      {% endcomment %}
-      <div class="countdown"
-           x-data="countdown"
-           data-deadline="{{ stage.submission_deadline|date:'c' }}"
-           data-server-now="{{ now|date:'c' }}">
-        <span class="countdown__label">Termin oddania rozwiązań</span>
-        <span class="countdown__deadline">{{ stage.submission_deadline|local_time }}</span>
-        <span class="countdown__value" x-text="label">pozostały czas liczony jest po wczytaniu strony</span>
-      </div>
+      {% if stage.is_interview %}
+        {% comment %}
+          Etap w formie rozmowy nie ma odliczania do „oddania rozwiązań”, bo nie ma czego oddać.
+          W tym miejscu stoi więc okno rozmów (to samo, co na harmonogramie) i – dla osoby już
+          zapisanej – jej własny termin razem z linkiem. Link jest tutaj i **tylko** tutaj:
+          lista terminów niżej go nie niesie, bo adres pokoju wideo, do którego wchodzi się bez
+          logowania, jest de facto poświadczeniem.
+        {% endcomment %}
+        <div class="card card--quiet">
+          <h3 class="mt-0">Rozmowa kwalifikacyjna online</h3>
+          <dl class="meta-list">
+            <dt>Rozmowy odbywają się</dt>
+            <dd>{{ stage.opens_at|local_datetime }} – {{ stage.deadline_at|local_time }}</dd>
+            {% if interview_booking %}
+              <dt>Twój termin</dt>
+              <dd>{{ interview_booking.slot.starts_at|local_datetime }} –
+                {{ interview_booking.slot.ends_at|time:"H:i" }}
+                {% if interview_booking.slot.note %}({{ interview_booking.slot.note }}){% endif %}</dd>
+              <dt>Link do rozmowy</dt>
+              <dd>
+                {% if interview_booking.slot.meeting_url %}
+                  <a href="{{ interview_booking.slot.meeting_url }}" target="_blank"
+                     rel="noopener noreferrer">{{ interview_booking.slot.meeting_url }}</a>
+                {% else %}
+                  <span class="hint">koordynator poda link przed rozmową</span>
+                {% endif %}
+              </dd>
+            {% endif %}
+          </dl>
+          {% if interview_booking %}
+            {% if interview_booking.slot.starts_at > now %}
+              <form method="post" action="{% url 'web:interview-cancel' stage.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn--secondary">Zrezygnuj z terminu</button>
+              </form>
+            {% else %}
+              <p class="hint">Rozmowa już się rozpoczęła – terminu nie można już zmienić.</p>
+            {% endif %}
+          {% endif %}
+        </div>
+      {% else %}
+        {% comment %}
+          Odliczanie liczone z czasu serwera: obie wartości są w ISO 8601 z jawnym przesunięciem
+          strefy (filtr `date:'c'`), więc `new Date()` czyta je jako moment bezwzględny, a skrypt
+          koryguje o różnicę względem zegara przeglądarki. Zegar klienta nigdy nie decyduje
+          o terminie – deadline i tak egzekwuje serwis uploadu.
+        {% endcomment %}
+        <div class="countdown"
+             x-data="countdown"
+             data-deadline="{{ stage.submission_deadline|date:'c' }}"
+             data-server-now="{{ now|date:'c' }}">
+          <span class="countdown__label">Termin oddania rozwiązań</span>
+          <span class="countdown__deadline">{{ stage.submission_deadline|local_time }}</span>
+          <span class="countdown__value" x-text="label">pozostały czas liczony jest po wczytaniu strony</span>
+        </div>
+      {% endif %}
 
       {% if can_register %}
         <form method="post" action="{% url 'web:stage-register' stage.pk %}">
@@ -41,6 +83,9 @@
         </form>
       {% elif entry %}
         <p class="card__meta">Status Twojego udziału: <strong>{{ entry.get_status_display }}</strong>.</p>
+      {% elif stage.is_interview %}
+        <p class="card__meta">Do rozmowy kwalifikacyjnej przystępują wyłącznie osoby zakwalifikowane
+          w poprzednim etapie. Nie ma tu zapisów otwartych.</p>
       {% else %}
         <p class="card__meta">Nie jesteś zapisany do tego etapu. Wpisy do etapu okręgowego i finału
           tworzy kwalifikacja.</p>
@@ -49,23 +94,88 @@
   </section>
 
   {% if entry %}
-    <section class="section">
-      <div class="section__head">
-        <h2 class="mt-0">Zadania</h2>
-        {% if not upload_open %}
-          <span class="badge badge--warn">upload zamknięty</span>
+    {% if stage.is_interview %}
+      <section class="section">
+        <div class="section__head">
+          <h2 class="mt-0">Wybierz termin rozmowy</h2>
+          {% if interview_booking %}
+            <p class="hint">Masz już zapisany termin – wybranie innego przeniesie zapis.</p>
+          {% endif %}
+        </div>
+        {% if interview_rows %}
+          <div class="scroll">
+            <table class="table">
+              <caption>Terminy rozmów. Wszystkie godziny: czas polski.</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Data</th>
+                  <th scope="col">Godziny</th>
+                  <th scope="col">Oznaczenie</th>
+                  <th scope="col">Wolne miejsca</th>
+                  <th scope="col"><span class="visually-hidden">Zapis</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {# Terminy, które się już skończyły, znikają z listy: nie ma po co proponować
+                   rozmowy, której nie da się już odbyć. Trwający termin zostaje z jawnym
+                   „Termin już trwa” – zniknięcie wiersza w trakcie godziny wyglądałoby jak awaria.
+                   Własny termin zostaje zawsze, także po rozmowie. #}
+                {% for row in interview_rows %}
+                  {% if row.slot.ends_at > now or row.is_mine %}
+                    <tr {% if row.is_mine %}class="is-qualified"{% endif %}>
+                      <td>{{ row.slot.starts_at|date:"j E Y" }}</td>
+                      <td>{{ row.slot.starts_at|time:"H:i" }}–{{ row.slot.ends_at|time:"H:i" }}</td>
+                      <td>{{ row.slot.note|default:"—" }}</td>
+                      <td class="num">{{ row.free }} z {{ row.slot.capacity }}</td>
+                      <td>
+                        {% if row.is_mine %}
+                          <span class="badge badge--ok">Twój termin</span>
+                        {% elif row.bookable %}
+                          <form method="post" action="{% url 'web:interview-book' row.slot.pk %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn--primary btn--small">
+                              {% if interview_booking %}Zmień na ten termin{% else %}Zapisz się{% endif %}</button>
+                          </form>
+                        {% else %}
+                          {# Powód odmowy liczy serwis (``slots_for_participant``), a nie szablon:
+                             przycisk ma mówić dokładnie to, co powiedziałby POST na ten termin. #}
+                          <button type="button" class="btn btn--secondary btn--small" disabled>
+                            {% if row.reason == "started" %}Termin już trwa
+                            {% elif row.reason == "locked" %}Zmiana niemożliwa – Twoja rozmowa już trwa
+                            {% elif row.reason == "closed" %}Zapisy zamknięte
+                            {% else %}Brak miejsc{% endif %}</button>
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% endif %}
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="empty"><span class="empty__title">Brak terminów</span>
+            Koordynator nie wyznaczył jeszcze terminów.</p>
         {% endif %}
-      </div>
-      {% if not upload_open %}
-        <p class="msg msg-warning closed">Etap jest zamknięty – nie można już wysyłać rozwiązań.</p>
-      {% endif %}
-      {% for row in problem_rows %}
-        {% include "web/participant/_problem_card.html" with row=row stage=stage entry=entry upload_open=upload_open error=None %}
-      {% empty %}
-        <p class="empty"><span class="empty__title">Brak zadań</span>
-          Ten etap nie ma jeszcze opublikowanych zadań.</p>
-      {% endfor %}
-    </section>
+      </section>
+    {% else %}
+      <section class="section">
+        <div class="section__head">
+          <h2 class="mt-0">Zadania</h2>
+          {% if not upload_open %}
+            <span class="badge badge--warn">upload zamknięty</span>
+          {% endif %}
+        </div>
+        {% if not upload_open %}
+          <p class="msg msg-warning closed">Etap jest zamknięty – nie można już wysyłać rozwiązań.</p>
+        {% endif %}
+        {% for row in problem_rows %}
+          {% include "web/participant/_problem_card.html" with row=row stage=stage entry=entry upload_open=upload_open error=None %}
+        {% empty %}
+          <p class="empty"><span class="empty__title">Brak zadań</span>
+            Ten etap nie ma jeszcze opublikowanych zadań.</p>
+        {% endfor %}
+      </section>
+    {% endif %}
   {% endif %}
 {% else %}
   <p class="notice">Nie ustawiono bieżącej edycji olimpiady.</p>
@@ -76,7 +186,7 @@
   {% for result in results %}
     <article class="card">
       <div class="result-summary">
-        <h3 class="mt-0">{{ result.edition }} – {{ result.stage_kind }}</h3>
+        <h3 class="mt-0">{{ result.edition }} – {{ result.stage_name }}</h3>
         <span class="result-summary__points">{{ result.total_points }} pkt</span>
       </div>
       <div class="scroll">

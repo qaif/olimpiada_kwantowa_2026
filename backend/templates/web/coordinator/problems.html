@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% load web_extras %}
-{% block title %}Zadania etapu {{ stage.get_kind_display }} – panel koordynatora{% endblock %}
+{% block title %}Zadania etapu {{ stage.display_name }} – panel koordynatora{% endblock %}
 {% block content %}
 <div class="page-head">
   <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
-  <h1>Zadania: {{ stage.get_kind_display }}</h1>
+  <h1>Zadania: {{ stage.display_name }}</h1>
   <p class="lead">Edycja {{ stage.edition.year_label }}. Treści zadań są jawne dla uczestników
     dopiero po otwarciu etapu: {{ stage.opens_at|local_time }}. Koordynator widzi je wcześniej.</p>
 </div>

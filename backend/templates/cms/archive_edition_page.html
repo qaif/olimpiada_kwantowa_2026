@@ -31,7 +31,7 @@
   <div class="section__head"><h2 class="mt-0">Wyniki</h2></div>
   <ul class="results-list">
     {% for link in page.result_links %}
-      <li><a href="{% url 'web:results' link.stage.pk %}">{{ link.stage.get_kind_display }} – tabela wyników</a></li>
+      <li><a href="{% url 'web:results' link.stage.pk %}">{{ link.stage.display_name }} – tabela wyników</a></li>
     {% empty %}
       <li class="empty">Dla tej edycji nie ogłoszono tabel wyników.</li>
     {% endfor %}

@@ -9,7 +9,14 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.tests.factories import CoordinatorFactory, ParticipantFactory
-from apps.competitions.models import QualificationRule, ScoringScale, Stage, StageEntry, StageKind
+from apps.competitions.models import (
+    QualificationRule,
+    ScoringScale,
+    Stage,
+    StageEntry,
+    StageFormat,
+    StageKind,
+)
 from apps.competitions.services import ensure_stage_defaults, register_for_stage
 from apps.core.api import DomainError
 
@@ -63,6 +70,8 @@ def test_admin_tworzy_etap_ze_skala_i_progiem(client):
     data = {
         "edition": edition.pk,
         "kind": StageKind.ELIM,
+        "name": "",
+        "format": StageFormat.SUBMISSIONS,
         "opens_at_0": d(0),
         "opens_at_1": t,
         "deadline_at_0": d(1),

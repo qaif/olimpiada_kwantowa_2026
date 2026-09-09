@@ -200,7 +200,7 @@ def test_results_page_ignores_stage_without_publication(web_client, open_stage):
 
     content = web_client.get("/wyniki/").content.decode()
 
-    assert "Nie ogłoszono jeszcze żadnych wyników." in content
+    assert "Wyników jeszcze nie ogłoszono" in content
 
 
 def test_results_page_query_count_does_not_grow_with_publications(

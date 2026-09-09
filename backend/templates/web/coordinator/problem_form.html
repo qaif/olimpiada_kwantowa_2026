@@ -4,7 +4,7 @@
 {% block content %}
 <div class="page-head">
   <span class="eyebrow"><a href="{% url 'web:coordinator-stage-problems' stage.pk %}">Zadania:
-    {{ stage.get_kind_display }}</a></span>
+    {{ stage.display_name }}</a></span>
   <h1>Zadanie {{ problem.number }}: {{ problem.title }}</h1>
 </div>
 

@@ -116,6 +116,9 @@ class MyStageResultSerializer(serializers.Serializer):
 
     stage_id = serializers.IntegerField(read_only=True)
     stage_kind = serializers.CharField(read_only=True)
+    # Podpis etapu gotowy do wyświetlenia (własna nazwa albo etykieta rodzaju). ``stage_kind``
+    # zostaje obok – klienci filtrują po nim etapy.
+    stage_name = serializers.CharField(read_only=True)
     edition = serializers.CharField(read_only=True)
     results_published_at = serializers.DateTimeField(read_only=True)
     status = serializers.CharField(read_only=True)

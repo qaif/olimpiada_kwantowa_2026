@@ -147,7 +147,15 @@ MESSAGE_STORAGE = "django.contrib.messages.storage.session.SessionStorage"
 DATABASES = {
     "default": env.db("DATABASE_URL", default="postgres://olimpiada:olimpiada@localhost:5432/olimpiada")
 }
-DATABASES["default"]["CONN_MAX_AGE"] = 60
+# Bez trwałych połączeń (``CONN_MAX_AGE=0``). Aplikacja chodzi pod ASGI (gunicorn + UvicornWorker),
+# a Django wykonuje synchroniczne widoki w **nowym wątku na żądanie** (``ThreadSensitiveContext``).
+# Trwałe połączenie jest przypięte do wątku i zamyka je tylko ``close_old_connections`` w tym samym
+# wątku – wątek po żądaniu ginie, a jego połączenie zostaje otwarte aż do wygaśnięcia po stronie
+# Pythona. Z ``CONN_MAX_AGE=60`` produkcja po dobie trzymała 92 bezczynne połączenia z ``web``
+# i Postgres odpowiadał „too many clients already” (limit 100) – każda strona dawała 500.
+# Koszt nowego połączenia do bazy w tej samej sieci compose to pojedyncze milisekundy; pula
+# psycopg (``OPTIONS["pool"]``, Django 5.1) wymaga pakietu ``psycopg[pool]`` i jest w BACKLOG-u.
+DATABASES["default"]["CONN_MAX_AGE"] = env.int("DB_CONN_MAX_AGE", default=0)
 DATABASES["default"]["ATOMIC_REQUESTS"] = False
 
 REDIS_URL = env("REDIS_URL", default="redis://localhost:6379/0")

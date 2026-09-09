@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% load web_extras %}
+{% block title %}Rozmowy kwalifikacyjne: {{ stage.display_name }} – panel koordynatora{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
+  <h1>Rozmowy kwalifikacyjne: {{ stage.display_name }}</h1>
+  <p class="lead">Edycja {{ stage.edition.year_label }}. Wszystkie godziny podajesz i czytasz
+    w czasie polskim; system przelicza je na UTC.</p>
+</div>
+
+{% if not stage.is_interview %}
+  {% comment %}
+    Etap, który nie jest rozmową, dostaje wyjaśnienie zamiast formularza – a nie 404. Strona
+    istnieje, koordynator ma do niej prawo, brakuje wyłącznie ustawienia formy etapu, i to jest
+    jedno kliknięcie stąd.
+  {% endcomment %}
+  <div class="card card--quiet">
+    <p>Ten etap ma formę <strong>{{ stage.get_format_display }}</strong>, więc nie ma w nim terminów
+      rozmów. Uczestnicy oddają w nim pliki z rozwiązaniami zadań.</p>
+    <p class="hint">Jeżeli etap ma się odbyć jako rozmowa kwalifikacyjna online, zmień jego formę
+      w <a href="{% url 'web:coordinator-stage-edit' stage.pk %}">terminach etapu</a>. Formy nie da
+      się zmienić, gdy do etapu wpłynęły już rozwiązania albo są zapisy na rozmowy.</p>
+  </div>
+{% else %}
+  <div class="card card--quiet">
+    <dl class="meta-list">
+      <dt>Okno rozmów</dt>
+      <dd>{{ stage.opens_at|local_datetime }} – {{ stage.deadline_at|local_time }}</dd>
+      <dt>Terminy</dt><dd>{{ slots|length }}</dd>
+    </dl>
+    {% comment %}
+      Trzy rzeczy, które decydują o tym, czy zapisy w ogóle ruszą. Stoją nad formularzem, a nie
+      w komunikacie po nieudanym zapisie: koordynator ma je znać, zanim wpisze godzinę.
+    {% endcomment %}
+    <ul class="hint">
+      <li>Okno rozmów to okno etapu – termin musi mieścić się między otwarciem a terminem
+        zamknięcia. Chcesz rozmawiać w innych dniach, przesuń najpierw
+        <a href="{% url 'web:coordinator-stage-edit' stage.pk %}">terminy etapu</a>.</li>
+      <li>Na termin zapisuje się wyłącznie osoba, która ma wpis w tym etapie, czyli została
+        zakwalifikowana w poprzednim. Zapisów otwartych tu nie ma.</li>
+      <li>Link do rozmowy widzi wyłącznie osoba zapisana na dany termin – nie jest publiczny
+        i nie stoi na liście terminów uczestnika.</li>
+    </ul>
+  </div>
+
+  <section class="section">
+    <div class="section__head">
+      <h2 class="mt-0">Wyznaczone terminy</h2>
+      <span class="badge badge--danger">dane osobowe</span>
+    </div>
+    <p class="hint">Widok wyłącznie dla koordynatora – jako jedyny pokazuje, kto staje przed
+      komisją i o której godzinie.</p>
+    <div class="scroll">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Termin</th>
+            <th scope="col">Oznaczenie</th>
+            <th scope="col">Miejsca</th>
+            <th scope="col">Zapisani</th>
+            <th scope="col">Link</th>
+            <th scope="col"><span class="visually-hidden">Operacje</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for slot in slots %}
+            <tr>
+              <th scope="row">{{ slot.starts_at|local_datetime }}–{{ slot.ends_at|time:"H:i" }}</th>
+              <td>{{ slot.note|default:"—" }}</td>
+              <td class="num">{{ slot.taken }} / {{ slot.capacity }}</td>
+              <td>
+                {% for booking in slot.bookings.all %}
+                  <div>
+                    <span class="code-chip">{{ booking.entry.participant.public_code }}</span>
+                    {{ booking.entry.participant.user.first_name }}
+                    {{ booking.entry.participant.user.last_name }}
+                    <span class="hint">{{ booking.entry.participant.user.email }}</span>
+                  </div>
+                {% empty %}
+                  <span class="hint">nikt się jeszcze nie zapisał</span>
+                {% endfor %}
+              </td>
+              <td>
+                {% if slot.meeting_url %}
+                  <a href="{{ slot.meeting_url }}" target="_blank" rel="noopener noreferrer">otwórz</a>
+                {% else %}
+                  <span class="badge badge--warn">brak</span>
+                {% endif %}
+              </td>
+              <td>
+                <div class="actions">
+                  {# Przycisk znika, gdy ktoś jest zapisany: serwis i tak odmówi (409), ale nie ma
+                     powodu proponować operacji, która nie może się udać. #}
+                  {% if not slot.taken %}
+                    <form method="post"
+                          action="{% url 'web:coordinator-interview-slot-delete' slot.pk %}">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn--danger btn--small">Usuń</button>
+                    </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6" class="empty">Ten etap nie ma jeszcze wyznaczonych terminów.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section__head"><h2 class="mt-0">Dodaj terminy</h2></div>
+    <div class="card">
+      <p class="hint">Terminy powstają serią, jeden po drugim: „od 9:00, dwanaście rozmów po
+        20 minut” to jedno wysłanie formularza.</p>
+      <form method="post" class="form form--wide" novalidate>
+        {% csrf_token %}
+        {{ form.as_p }}
+        <div class="actions">
+          <button type="submit" class="btn btn--primary">Dodaj terminy</button>
+        </div>
+      </form>
+    </div>
+  </section>
+{% endif %}
+{% endblock %}

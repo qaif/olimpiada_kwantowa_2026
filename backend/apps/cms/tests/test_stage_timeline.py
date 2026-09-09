@@ -14,7 +14,7 @@ from django.utils import timezone
 
 from apps.cms.models import ContentPage
 from apps.cms.timeline import stage_rows
-from apps.competitions.models import Stage, StageKind
+from apps.competitions.models import Stage, StageFormat, StageKind
 from apps.competitions.tests.factories import StageFactory
 from apps.results.models import Anonymization, ResultsPublication
 
@@ -31,6 +31,8 @@ def harmonogram():
 
 def stage_form_data(stage: Stage, **overrides) -> dict:
     data = {
+        "name": stage.name,
+        "format": stage.format,
         "location": stage.location,
         "grace_seconds": stage.grace_seconds,
         "opens_at": timezone.localtime(stage.opens_at).strftime(WARSAW_FORMAT),
@@ -105,6 +107,8 @@ def test_stage_added_in_the_panel_appears_on_the_page(web_client, harmonogram, c
         "/coordinator/stages/new/",
         {
             "kind": StageKind.ELIM,
+            "name": "",
+            "format": StageFormat.SUBMISSIONS,
             "location": "",
             "grace_seconds": 0,
             "opens_at": opens.strftime(WARSAW_FORMAT),
@@ -119,6 +123,29 @@ def test_stage_added_in_the_panel_appears_on_the_page(web_client, harmonogram, c
     content = web_client.get("/harmonogram/").content.decode()
     assert "Eliminacje" in content
     assert "nadchodzący" in content
+
+
+def test_custom_stage_name_and_interview_format_are_visible_on_the_page(web_client, harmonogram, edition):
+    """Nazwa nadana przez koordynatora zastępuje etykietę rodzaju, a rozmowa – „oddanie rozwiązań”.
+
+    Etap w formie rozmowy nie ma czego oddawać, więc rubryka „Oddanie rozwiązań” opisywałaby
+    czynność, której na tym etapie nie ma; jej miejsce zajmuje koniec okna rozmów.
+    """
+    StageFactory(
+        edition=edition,
+        kind=StageKind.DISTRICT,
+        name="Etap II – rozmowy kwalifikacyjne",
+        format=StageFormat.INTERVIEW,
+    )
+
+    content = web_client.get("/harmonogram/").content.decode()
+
+    assert "Etap II – rozmowy kwalifikacyjne" in content
+    assert "Okręgowy" not in content
+    assert "<dt>Rozmowy do</dt>" in content
+    assert "rozmowa kwalifikacyjna online" in content
+    # Oś czasu strony głównej czyta to samo źródło, więc pokazuje to samo.
+    assert "Etap II – rozmowy kwalifikacyjne" in web_client.get("/").content.decode()
 
 
 # --- stany etapu --------------------------------------------------------------------------------

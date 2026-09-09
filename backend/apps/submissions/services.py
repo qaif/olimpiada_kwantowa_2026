@@ -90,9 +90,25 @@ def _assert_window_open(stage: Stage, now) -> None:
         raise _forbidden("Termin oddania rozwiązań minął.", "DEADLINE_PASSED")
 
 
+def _assert_accepts_files(stage: Stage) -> None:
+    """Etap w formie rozmowy nie przyjmuje plików – niezależnie od zegara.
+
+    Reguła jest tutaj, a nie tylko w szablonie: brak przycisku w panelu nie jest zabezpieczeniem,
+    a to samo żądanie wysłane wprost do API musi dostać odmowę z kodem, a nie utworzyć wersję
+    rozwiązania do zadania, którego w tym etapie nie ma.
+    """
+    if stage.is_interview:
+        raise DomainError(
+            "Ten etap odbywa się w formie rozmowy kwalifikacyjnej – nie przyjmuje plików.",
+            "STAGE_NOT_ACCEPTING_FILES",
+            status.HTTP_409_CONFLICT,
+        )
+
+
 @transaction.atomic
 def create_submission(user, stage: Stage, problem_number: int, upload, *, now=None) -> Submission:
-    """Przyjmuje rozwiązanie: blokada wpisu → deadline → walidacja treści → storage → skan."""
+    """Przyjmuje rozwiązanie: forma etapu → blokada wpisu → deadline → walidacja → storage → skan."""
+    _assert_accepts_files(stage)
     problem = get_problem(stage, problem_number)
     entry = _locked_entry(user, stage)
     now = now or timezone.now()

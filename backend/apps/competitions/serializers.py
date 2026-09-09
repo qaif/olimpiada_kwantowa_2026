@@ -11,13 +11,24 @@ from .models import Edition, Problem, Stage, StageEntry
 
 
 class PublicStageSerializer(serializers.ModelSerializer):
-    """Etap w widoku publicznym: tylko oś czasu, bez danych o uczestnikach i wpisach."""
+    """Etap w widoku publicznym: tylko oś czasu, bez danych o uczestnikach i wpisach.
+
+    ``kind`` zostaje na miejscu (klienci filtrują po nim etapy), a obok dochodzą ``name``
+    (własna nazwa albo pusty tekst) i ``display_name`` – podpis gotowy do wyświetlenia. Klient,
+    który dotąd sam mapował ``kind`` na etykietę, działa bez zmian; nowy bierze ``display_name``
+    i widzi nazwę nadaną przez organizatora.
+    """
+
+    display_name = serializers.CharField(read_only=True)
 
     class Meta:
         model = Stage
         fields = (
             "id",
             "kind",
+            "name",
+            "display_name",
+            "format",
             "opens_at",
             "deadline_at",
             "grace_seconds",

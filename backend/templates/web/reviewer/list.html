@@ -17,7 +17,7 @@
       {% for review in reviews %}
         <tr>
           <td><span class="code-chip">{{ review.submission.entry.participant.public_code }}</span></td>
-          <td>{{ review.submission.entry.stage.get_kind_display }}</td>
+          <td>{{ review.submission.entry.stage.display_name }}</td>
           <td>{{ review.submission.problem.number }}. {{ review.submission.problem.title }}</td>
           <td class="num">{{ review.round }}</td>
           <td><span class="{{ review.status|badge_class }}">{{ review.get_status_display }}</span></td>

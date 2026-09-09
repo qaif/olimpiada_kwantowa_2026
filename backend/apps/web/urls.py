@@ -37,6 +37,19 @@ urlpatterns = [
         participant.ProblemUploadView.as_view(),
         name="problem-upload",
     ),
+    # Rozmowa kwalifikacyjna: zapis idzie po identyfikatorze terminu (uczestnik wybiera termin),
+    # rezygnacja – po identyfikatorze etapu (uczestnik ma w etapie dokładnie jeden zapis, więc
+    # nie musi wiedzieć, który to termin).
+    path(
+        "me/interview-slots/<int:slot_id>/book/",
+        participant.InterviewBookView.as_view(),
+        name="interview-book",
+    ),
+    path(
+        "me/stages/<int:stage_id>/interview/cancel/",
+        participant.InterviewCancelView.as_view(),
+        name="interview-cancel",
+    ),
     path(
         "me/submissions/<int:submission_id>/appeal/",
         participant.AppealCreateView.as_view(),
@@ -65,6 +78,16 @@ urlpatterns = [
         "coordinator/stages/<int:stage_id>/problems/",
         coordinator_stages.StageProblemsView.as_view(),
         name="coordinator-stage-problems",
+    ),
+    path(
+        "coordinator/stages/<int:stage_id>/interviews/",
+        coordinator_stages.StageInterviewsView.as_view(),
+        name="coordinator-stage-interviews",
+    ),
+    path(
+        "coordinator/interview-slots/<int:pk>/delete/",
+        coordinator_stages.InterviewSlotDeleteView.as_view(),
+        name="coordinator-interview-slot-delete",
     ),
     path(
         "coordinator/problems/<int:pk>/edit/",

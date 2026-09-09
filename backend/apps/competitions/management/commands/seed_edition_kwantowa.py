@@ -47,7 +47,7 @@ from zoneinfo import ZoneInfo
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from apps.competitions.models import Edition, Stage, StageKind
+from apps.competitions.models import Edition, Stage, StageFormat, StageKind
 from apps.competitions.services import create_stage
 
 EDITION_LABEL = "I edycja 2026/2027"
@@ -83,13 +83,24 @@ class StagePlan:
     opens_time: tuple[int, int] = DEFAULT_OPENS_TIME
     deadline_time: tuple[int, int] = DEFAULT_DEADLINE_TIME
     location: str = ""
+    format: str = StageFormat.SUBMISSIONS
 
 
 #: Plan etapów I edycji. Terminy I i II etapu pochodzą ze starej strony i pozostają bez zmian;
 #: finał ma termin i miejsce przekazane przez organizatora we wrześniu 2026.
+#:
+#: II etap ma formę **rozmowy kwalifikacyjnej online** – tak opisuje go regulamin (§ 10) i tak
+#: rozstrzygnął organizator. Forma jest tu wyłącznie wartością początkową świeżej instalacji:
+#: ``--sync-dates`` jej nie przestawia, bo po utworzeniu etapu forma należy do koordynatora tak
+#: samo, jak reszta jego parametrów.
 STAGE_PLAN = (
     StagePlan(StageKind.ELIM, (2026, 9, 1), (2026, 11, 7)),
-    StagePlan(StageKind.DISTRICT, (2026, 11, 8), (2027, 1, 16)),
+    StagePlan(
+        StageKind.DISTRICT,
+        (2026, 11, 8),
+        (2027, 1, 16),
+        format=StageFormat.INTERVIEW,
+    ),
     StagePlan(
         StageKind.FINAL,
         opens=(2027, 6, 4),
@@ -180,6 +191,7 @@ class Command(BaseCommand):
             edition=edition,
             kind=plan.kind,
             location=plan.location,
+            format=plan.format,
             min_points=MIN_POINTS,
             **timeline,
         )
@@ -190,6 +202,10 @@ class Command(BaseCommand):
 
     def _sync_stage(self, stage: Stage, plan: StagePlan, timeline: dict) -> None:
         """Przestawia oś czasu i miejsce istniejącego etapu na wartości z planu.
+
+        **Formy etapu ta metoda nie rusza** i nie ma tego robić: forma decyduje o tym, co uczestnik
+        w etapie robi, więc jej przestawienie wdrożeniem unieważniłoby oddane prace albo zapisy na
+        rozmowy. Zmienia ją wyłącznie koordynator z panelu, pod bramką ``STAGE_FORMAT_LOCKED``.
 
         ``full_clean`` przed zapisem, bo przesunięcie jednej daty potrafi odwrócić kolejność
         w łańcuchu (deadline przed otwarciem, okno reklamacji przed recenzjami) – wtedy komenda ma

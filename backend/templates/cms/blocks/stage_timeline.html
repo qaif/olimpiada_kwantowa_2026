@@ -21,18 +21,31 @@
   <ol class="timeline">
     {% for row in rows %}
       <li class="timeline__item {% if row.is_open %}timeline__item--open{% elif row.has_opened %}timeline__item--done{% else %}timeline__item--next{% endif %}">
-        <p class="timeline__kind">{{ row.stage.get_kind_display }}</p>
+        <p class="timeline__kind">{{ row.stage.display_name }}</p>
         <span class="{{ row.badge_class }}">{{ row.status_label }}</span>
         <dl class="timeline__dates">
           {% if row.stage.location %}
             <div><dt>Miejsce</dt><dd>{{ row.stage.location }}</dd></div>
           {% endif %}
+          {% comment %}
+            Etap w formie rozmowy nie ma „oddania rozwiązań” ani tolerancji po terminie: nie ma
+            czego oddać, więc obie rubryki opisywałyby nieistniejącą czynność. Deadline jest tam
+            końcem okna rozmów, a forma stoi osobnym wierszem – czytelnik musi wiedzieć, że na
+            tym etapie nie wysyła pliku, tylko zapisuje się na termin.
+          {% endcomment %}
+          {% if row.stage.is_interview %}
+            <div><dt>Forma</dt><dd>rozmowa kwalifikacyjna online</dd></div>
+          {% endif %}
           <div><dt>Otwarcie</dt><dd>{{ row.stage.opens_at|local_datetime }}</dd></div>
-          <div><dt>Oddanie rozwiązań</dt><dd>{{ row.stage.deadline_at|local_datetime }}</dd></div>
-          {% if row.stage.grace_seconds %}
-            {# Tolerancja bywa niezerowa i wtedy to ona, a nie deadline, zamyka upload. #}
-            <div><dt>Upload zamyka się</dt>
-              <dd>{{ row.stage.submission_deadline|local_datetime }}</dd></div>
+          {% if row.stage.is_interview %}
+            <div><dt>Rozmowy do</dt><dd>{{ row.stage.deadline_at|local_datetime }}</dd></div>
+          {% else %}
+            <div><dt>Oddanie rozwiązań</dt><dd>{{ row.stage.deadline_at|local_datetime }}</dd></div>
+            {% if row.stage.grace_seconds %}
+              {# Tolerancja bywa niezerowa i wtedy to ona, a nie deadline, zamyka upload. #}
+              <div><dt>Upload zamyka się</dt>
+                <dd>{{ row.stage.submission_deadline|local_datetime }}</dd></div>
+            {% endif %}
           {% endif %}
           <div><dt>Recenzje do</dt><dd>{{ row.stage.review_deadline_at|local_datetime }}</dd></div>
           <div><dt>Reklamacje</dt>
