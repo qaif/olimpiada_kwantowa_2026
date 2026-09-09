@@ -37,14 +37,21 @@ log "1/6 Dump bazy z produkcji ($TARGET:$REMOTE_DIR)"
 ls -la "$WORK/prod.dump"
 
 log "2/6 Obiekty MinIO z produkcji ($BUCKETS)"
+# Obraz MinIO nie ma ``tar`` – ``mc mirror`` zrzuca obiekty do katalogu w kontenerze, ``docker compose cp``
+# wyciąga go na hosta, a pakuje dopiero ``tar`` hosta. Wyjście ``cp`` idzie do /dev/null, bo stdout
+# tego polecenia jest strumieniem archiwum.
 "${SSH[@]}" "cd '$REMOTE_DIR' && docker compose exec -T minio sh -c '
   set -e
   mc alias set local http://127.0.0.1:9000 \"\$MINIO_ROOT_USER\" \"\$MINIO_ROOT_PASSWORD\" >/dev/null
   rm -rf /tmp/pull && mkdir -p /tmp/pull
-  for b in $BUCKETS; do mkdir -p /tmp/pull/\$b; mc mirror --quiet local/\$b /tmp/pull/\$b >/dev/null 2>&1 || true; done
-  tar -c -C /tmp/pull .
-  rm -rf /tmp/pull'" > "$WORK/objects.tar"
+  for b in $BUCKETS; do mkdir -p /tmp/pull/\$b; mc mirror --quiet local/\$b /tmp/pull/\$b >/dev/null 2>&1 || true; done' \
+  && rm -rf /tmp/olimpiada-pull \
+  && docker compose cp minio:/tmp/pull /tmp/olimpiada-pull >/dev/null 2>&1 \
+  && docker compose exec -T minio rm -rf /tmp/pull \
+  && tar -c -C /tmp/olimpiada-pull . \
+  && rm -rf /tmp/olimpiada-pull" > "$WORK/objects.tar"
 ls -la "$WORK/objects.tar"
+mkdir -p "$WORK/objects" && tar -x -C "$WORK/objects" -f "$WORK/objects.tar"
 
 log "3/6 Lokalnie: zatrzymanie aplikacji i przywrócenie bazy"
 "${COMPOSE[@]}" stop web worker beat >/dev/null
@@ -76,16 +83,20 @@ echo "users=$(psql_count accounts_user)"
 echo "pages=$(psql_count wagtailcore_page)"
 
 log "5/6 Lokalnie: obiekty MinIO (mirror --remove)"
+# Ta sama droga w drugą stronę: rozpakowane na hoście, wkopiowane ``docker compose cp`` (bez ``tar``
+# w kontenerze). Ścieżka hosta przez ``cygpath -w``: docker.exe pod Windows nie zna /tmp Git Basha.
+HOST_OBJECTS="$(cygpath -w "$WORK/objects" 2>/dev/null || echo "$WORK/objects")"
+"${COMPOSE[@]}" exec -T minio rm -rf /tmp/pull
+"${COMPOSE[@]}" cp "$HOST_OBJECTS" minio:/tmp/pull >/dev/null
 "${COMPOSE[@]}" exec -T minio sh -c '
   set -e
   mc alias set local http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null
-  rm -rf /tmp/pull && mkdir -p /tmp/pull && tar -x -C /tmp/pull
   for b in '"$BUCKETS"'; do
     mkdir -p /tmp/pull/$b
     mc mirror --overwrite --remove --quiet /tmp/pull/$b local/$b >/dev/null 2>&1 || true
     mc du local/$b
   done
-  rm -rf /tmp/pull' < "$WORK/objects.tar"
+  rm -rf /tmp/pull'
 
 log "6/6 Lokalnie: start aplikacji"
 "${COMPOSE[@]}" start web worker beat >/dev/null
