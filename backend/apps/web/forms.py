@@ -56,7 +56,7 @@ class ParticipantRegisterForm(forms.Form):
     first_name = forms.CharField(label="Imię", max_length=150)
     last_name = forms.CharField(label="Nazwisko", max_length=150)
     school = forms.CharField(label="Szkoła", max_length=200)
-    district = forms.CharField(label="Okręg", max_length=100)
+    district = forms.CharField(label="Województwo", max_length=100)
     birth_year = forms.IntegerField(label="Rok urodzenia", min_value=1900, max_value=2100)
     gdpr_consent = forms.BooleanField(label="Zgoda na przetwarzanie danych osobowych", required=False)
     guardian_consent = forms.BooleanField(label="Zgoda opiekuna", required=False)
@@ -79,7 +79,7 @@ class SocialParticipantSignupForm(forms.Form):
     first_name = forms.CharField(label="Imię", max_length=150)
     last_name = forms.CharField(label="Nazwisko", max_length=150)
     school = forms.CharField(label="Szkoła", max_length=200)
-    district = forms.CharField(label="Okręg", max_length=100)
+    district = forms.CharField(label="Województwo", max_length=100)
     birth_year = forms.IntegerField(label="Rok urodzenia", min_value=1900, max_value=2100)
     gdpr_consent = forms.BooleanField(label="Zgoda na przetwarzanie danych osobowych", required=False)
     guardian_consent = forms.BooleanField(label="Zgoda opiekuna", required=False)
@@ -93,7 +93,7 @@ class CommitteeRegisterForm(forms.Form):
     first_name = forms.CharField(label="Imię", max_length=150)
     last_name = forms.CharField(label="Nazwisko", max_length=150)
     invitation_code = forms.CharField(label="Kod zaproszenia", max_length=200)
-    district = forms.CharField(label="Okręg (deklarowany)", max_length=100, required=False)
+    district = forms.CharField(label="Województwo (deklarowane)", max_length=100, required=False)
 
 
 class SubmissionUploadForm(forms.Form):
@@ -195,13 +195,13 @@ class AssignReviewersForm(forms.Form):
 class VerifyDistrictForm(forms.Form):
     """Potwierdzenie okręgu członka komitetu."""
 
-    district = forms.CharField(label="Okręg", max_length=100)
+    district = forms.CharField(label="Województwo", max_length=100)
 
 
 class InvitationForm(forms.Form):
     """Generowanie kodu zaproszenia. Kod jawny jest pokazywany dokładnie raz."""
 
-    district = forms.CharField(label="Okręg (narzucony kodem)", max_length=100, required=False)
+    district = forms.CharField(label="Województwo (narzucone kodem)", max_length=100, required=False)
     valid_days = forms.IntegerField(label="Ważność (dni)", min_value=1, max_value=365, initial=14)
     max_uses = forms.IntegerField(label="Limit użyć", min_value=1, max_value=100, initial=1)
     is_appeals = forms.BooleanField(label="Komisja odwoławcza", required=False)
@@ -299,7 +299,7 @@ class StageForm(forms.ModelForm):
         }
         labels = {"name": "Nazwa etapu", "format": "Forma etapu"}
         help_texts = {
-            "name": ("Puste pole = nazwa domyślna dla rodzaju etapu (Eliminacje / Okręgowy / Finał)."),
+            "name": ("Puste pole = nazwa domyślna dla rodzaju etapu (Eliminacje / Wojewódzki / Finał)."),
             "format": (
                 "Etap w formie rozmowy nie przyjmuje plików: zamiast zadań uczestnicy "
                 "zakwalifikowani do etapu zapisują się na jeden z terminów wyznaczonych przez "

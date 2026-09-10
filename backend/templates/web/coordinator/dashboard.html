@@ -127,7 +127,7 @@
     <p class="hint">Widok wyłącznie dla koordynatora – zawiera dane osobowe i nie jest publikacją.</p>
     <div class="scroll">
       <table class="table table--rank">
-        <thead><tr><th>Miejsce</th><th>Kod</th><th>Imię i nazwisko</th><th>Szkoła</th><th>Okręg</th><th>Razem</th></tr></thead>
+        <thead><tr><th>Miejsce</th><th>Kod</th><th>Imię i nazwisko</th><th>Szkoła</th><th>Województwo</th><th>Razem</th></tr></thead>
         <tbody>
           {% for row in preview.rows %}
             <tr>
@@ -198,7 +198,7 @@
   <div class="section__head"><h2 class="mt-0">Komitet – oczekujący na zatwierdzenie</h2></div>
   <div class="scroll">
     <table class="table">
-      <thead><tr><th>E-mail</th><th>Okręg</th><th>Komisja odwoławcza</th><th></th></tr></thead>
+      <thead><tr><th>E-mail</th><th>Województwo</th><th>Komisja odwoławcza</th><th></th></tr></thead>
       <tbody>
         {% for member in pending_members %}
           <tr>
@@ -223,7 +223,7 @@
   <p class="hint">Bez potwierdzonego okręgu recenzent nie wchodzi do przydziału na etapie okręgowym.</p>
   <div class="scroll">
     <table class="table">
-      <thead><tr><th>E-mail</th><th>Okręg</th><th>Zweryfikowany</th><th></th></tr></thead>
+      <thead><tr><th>E-mail</th><th>Województwo</th><th>Zweryfikowany</th><th></th></tr></thead>
       <tbody>
         {% for member in active_members %}
           <tr>
@@ -239,7 +239,7 @@
             <td>
               <form method="post" action="{% url 'web:coordinator-verify-district' member.pk %}" class="inline">
                 {% csrf_token %}
-                <input type="text" name="district" value="{{ member.district|default:'' }}" aria-label="Okręg">
+                <input type="text" name="district" value="{{ member.district|default:'' }}" aria-label="Województwo">
                 <button type="submit" class="btn btn--secondary btn--small">Potwierdź okręg</button>
               </form>
             </td>

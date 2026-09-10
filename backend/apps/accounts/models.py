@@ -116,7 +116,7 @@ class Participant(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="participant")
     public_code = models.CharField("kod publiczny", max_length=16, unique=True, default=generate_public_code)
     school = models.CharField("szkoła", max_length=200)
-    district = models.CharField("okręg", max_length=100)
+    district = models.CharField("województwo", max_length=100)
     birth_year = models.PositiveSmallIntegerField("rok urodzenia")
     gdpr_consent_at = models.DateTimeField("zgoda RODO z dnia")
     guardian_consent = models.BooleanField("zgoda opiekuna", default=False)
@@ -146,7 +146,7 @@ class CommitteeMember(models.Model):
     # ``True`` dostaje wyłącznie profil z okręgiem narzuconym przez kod zaproszenia albo potwierdzony
     # przez koordynatora (``POST /api/auth/committee/{id}/verify-district/``). Przydział na etapie
     # okręgowym pomija recenzentów niezweryfikowanych – patrz ``apps.grading.services.assign_reviewers``.
-    district_verified = models.BooleanField("okręg zweryfikowany", default=False)
+    district_verified = models.BooleanField("województwo zweryfikowane", default=False)
     status = models.CharField(
         "status", max_length=16, choices=CommitteeStatus.choices, default=CommitteeStatus.PENDING
     )

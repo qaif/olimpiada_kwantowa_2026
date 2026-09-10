@@ -26,7 +26,7 @@ class Command(BaseCommand):
             "--district",
             default=None,
             help=(
-                "Okręg narzucony rejestrowanemu recenzentowi. Nadpisuje deklarację z formularza "
+                "Województwo narzucone rejestrowanemu recenzentowi. Nadpisuje deklarację z formularza "
                 "i nadaje profilowi district_verified=True (wymóg reguły konfliktu interesów)."
             ),
         )

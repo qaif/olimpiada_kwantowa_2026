@@ -335,13 +335,15 @@ def verify_committee_district(
     """
     district = (district or "").strip()
     if not district:
-        raise DomainError("Podaj okręg do potwierdzenia.", "DISTRICT_REQUIRED", status.HTTP_400_BAD_REQUEST)
+        raise DomainError(
+            "Podaj województwo do potwierdzenia.", "DISTRICT_REQUIRED", status.HTTP_400_BAD_REQUEST
+        )
     member = CommitteeMember.objects.select_for_update().get(pk=member.pk)
     if member.status != CommitteeStatus.ACTIVE:
         # Potwierdzony okręg wpuszcza do przydziału na etapie okręgowym. Nadawanie go profilowi
         # oczekującemu albo zawieszonemu byłoby cichym omijaniem ścieżki zatwierdzania.
         raise DomainError(
-            "Okręg potwierdza się wyłącznie aktywnemu członkowi komitetu.",
+            "Województwo potwierdza się wyłącznie aktywnemu członkowi komitetu.",
             "MEMBER_NOT_ACTIVE",
             status.HTTP_400_BAD_REQUEST,
         )

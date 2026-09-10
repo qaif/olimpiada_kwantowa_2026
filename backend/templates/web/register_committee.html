@@ -9,8 +9,8 @@
     <form method="post" class="form">
       {% csrf_token %}
       {{ form.as_p }}
-      <p class="hint">Okręg podany w kodzie zaproszenia jest nadrzędny wobec deklaracji z formularza –
-        tylko taki okręg liczy się przy regule konfliktu interesów.</p>
+      <p class="hint">Województwo podane w kodzie zaproszenia jest nadrzędne wobec deklaracji z formularza –
+        tylko takie województwo liczy się przy regule konfliktu interesów.</p>
       <button type="submit" class="btn btn--primary btn--block">Załóż konto</button>
     </form>
     <p class="auth__alt">Nie masz kodu? <a href="{% url 'web:register' %}">Zarejestruj się jako uczestnik</a>.</p>

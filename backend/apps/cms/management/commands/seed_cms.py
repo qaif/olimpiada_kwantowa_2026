@@ -22,7 +22,7 @@ NEWS = (
     (
         "ruszyla-rejestracja",
         "Ruszyła rejestracja do eliminacji",
-        "Konto zakłada się samodzielnie; do etapu okręgowego wchodzi się z kwalifikacji.",
+        "Konto zakłada się samodzielnie; do etapu wojewódzkiego wchodzi się z kwalifikacji.",
     ),
     (
         "zasady-oceniania",

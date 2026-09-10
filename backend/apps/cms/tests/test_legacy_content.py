@@ -689,6 +689,27 @@ def test_seed_migrates_the_old_flat_layout_without_duplicates(web_client, home_p
 # --- edycja I 2026/2027 -----------------------------------------------------------------------
 
 
+def test_seed_edition_names_stages_like_regulamin():
+    """Regulamin numeruje etapy – portal podpisuje je tak samo, nie słownikiem rodzajów."""
+    call_command("seed_edition_kwantowa", verbosity=0)
+
+    names = {s.kind: s.display_name for s in Edition.objects.get(year_label=EDITION_LABEL).stages.all()}
+    assert names == {StageKind.ELIM: "Etap I", StageKind.DISTRICT: "Etap II", StageKind.FINAL: "Etap III"}
+
+
+def test_seed_edition_keeps_coordinator_stage_name_on_rerun():
+    """Nazwa po utworzeniu należy do koordynatora – ponowny seed (także --sync-dates) jej nie cofa."""
+    call_command("seed_edition_kwantowa", verbosity=0)
+    stage = Edition.objects.get(year_label=EDITION_LABEL).stages.get(kind=StageKind.ELIM)
+    stage.name = "Etap I – zawody zdalne"
+    stage.save(update_fields=["name"])
+
+    call_command("seed_edition_kwantowa", "--sync-dates", verbosity=0)
+
+    stage.refresh_from_db()
+    assert stage.name == "Etap I – zawody zdalne"
+
+
 def test_seed_edition_creates_three_stages_with_full_timeline():
     call_command("seed_edition_kwantowa", verbosity=0)
 

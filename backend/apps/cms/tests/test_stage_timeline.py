@@ -141,7 +141,7 @@ def test_custom_stage_name_and_interview_format_are_visible_on_the_page(web_clie
     content = web_client.get("/harmonogram/").content.decode()
 
     assert "Etap II – rozmowy kwalifikacyjne" in content
-    assert "Okręgowy" not in content
+    assert "Wojewódzki" not in content
     assert "<dt>Rozmowy do</dt>" in content
     assert "rozmowa kwalifikacyjna online" in content
     # Oś czasu strony głównej czyta to samo źródło, więc pokazuje to samo.

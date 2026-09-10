@@ -80,7 +80,7 @@ class Edition(models.Model):
 
 class StageKind(models.TextChoices):
     ELIM = "ELIM", "Eliminacje"
-    DISTRICT = "DISTRICT", "Okręgowy"
+    DISTRICT = "DISTRICT", "Wojewódzki"
     FINAL = "FINAL", "Finał"
 
 
@@ -281,7 +281,7 @@ class ScoringScale(models.Model):
 class QualificationMode(models.TextChoices):
     MIN_POINTS = "MIN_POINTS", "min. punktów"
     TOP_N = "TOP_N", "najlepszych N"
-    TOP_N_PER_DISTRICT = "TOP_N_PER_DISTRICT", "N na okręg"
+    TOP_N_PER_DISTRICT = "TOP_N_PER_DISTRICT", "N na województwo"
     HYBRID = "HYBRID", "min. punktów ORAZ top N"
 
 

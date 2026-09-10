@@ -224,11 +224,11 @@ class VerifyDistrictView(CoordinatorActionView):
         member = get_object_or_404(CommitteeMember.objects.select_related("user"), pk=pk)
         form = VerifyDistrictForm(request.POST)
         if not form.is_valid():
-            raise DomainError("Podaj okręg do potwierdzenia.", "DISTRICT_REQUIRED")
+            raise DomainError("Podaj województwo do potwierdzenia.", "DISTRICT_REQUIRED")
         verify_committee_district(
             member, district=form.cleaned_data["district"], actor=request.user, request=request
         )
-        return "Okręg został potwierdzony."
+        return "Województwo zostało potwierdzone."
 
 
 class CreateInvitationView(CoordinatorActionView):

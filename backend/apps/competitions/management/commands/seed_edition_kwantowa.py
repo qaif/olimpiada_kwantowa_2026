@@ -84,6 +84,10 @@ class StagePlan:
     deadline_time: tuple[int, int] = DEFAULT_DEADLINE_TIME
     location: str = ""
     format: str = StageFormat.SUBMISSIONS
+    # Nazwa, jaką etap dostaje przy utworzeniu. Regulamin numeruje etapy („Etap I/II/III”), więc
+    # portal ma je podpisywać tak samo, a nie słownikowymi „Eliminacje/Okręgowy/Finał”. Po
+    # utworzeniu nazwa należy do koordynatora – ``--sync-dates`` jej nie przestawia.
+    name: str = ""
 
 
 #: Plan etapów I edycji. Terminy I i II etapu pochodzą ze starej strony i pozostają bez zmian;
@@ -94,12 +98,13 @@ class StagePlan:
 #: ``--sync-dates`` jej nie przestawia, bo po utworzeniu etapu forma należy do koordynatora tak
 #: samo, jak reszta jego parametrów.
 STAGE_PLAN = (
-    StagePlan(StageKind.ELIM, (2026, 9, 1), (2026, 11, 7)),
+    StagePlan(StageKind.ELIM, (2026, 9, 1), (2026, 11, 7), name="Etap I"),
     StagePlan(
         StageKind.DISTRICT,
         (2026, 11, 8),
         (2027, 1, 16),
         format=StageFormat.INTERVIEW,
+        name="Etap II",
     ),
     StagePlan(
         StageKind.FINAL,
@@ -108,6 +113,7 @@ STAGE_PLAN = (
         opens_time=(9, 0),
         deadline_time=(18, 0),
         location="Kraków",
+        name="Etap III",
     ),
 )
 
@@ -190,6 +196,7 @@ class Command(BaseCommand):
         stage = create_stage(
             edition=edition,
             kind=plan.kind,
+            name=plan.name,
             location=plan.location,
             format=plan.format,
             min_points=MIN_POINTS,

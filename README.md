@@ -313,7 +313,7 @@ Co daje włączenie:
 - uczestnik loguje się kontem Google/Facebooka zamiast hasła; konto założone tą drogą **nie ma
   hasła** (gdyby chciał logować się także hasłem, ustawia je przez „Nie pamiętasz hasła?”),
 - po pierwszym logowaniu trafia na stronę **dokończenia rejestracji** (`/rejestracja/dokoncz/`):
-  szkoła, okręg, rok urodzenia, zgoda RODO. Bez zgody RODO konto **nie powstaje**,
+  szkoła, województwo, rok urodzenia, zgoda RODO. Bez zgody RODO konto **nie powstaje**,
 - konta komitetu tą drogą **nie powstają** – rejestracja recenzenta zostaje wyłącznie na kod
   zaproszenia. Istniejący członek komitetu może się natomiast zalogować Google'em.
 
@@ -395,7 +395,7 @@ z otwartej rejestracji.
 | 5 | Upload rozwiązania (przed deadline) | uczestnik | `/me/`, karta zadania (HTMX) → `POST /api/stages/<id>/problems/<n>/submissions/` |
 | 6 | Skan antywirusowy | Celery → ClamAV | status pliku w karcie zadania: `oczekuje na skan` → `czysty` |
 | 7 | Zamknięcie etapu | `beat` po `deadline_at + grace_seconds`, albo koordynator ręcznie | `/coordinator/` → „Zamknij etap” |
-| 8 | Przydział 2 recenzentów (ślepy, bez konfliktu okręgu) | koordynator | `/coordinator/` → „Przydziel recenzentów” |
+| 8 | Przydział 2 recenzentów (ślepy, bez konfliktu województwa) | koordynator | `/coordinator/` → „Przydziel recenzentów” |
 | 9 | Dwie niezależne oceny | recenzenci | `/review/`, `/review/<id>/` (podgląd PDF + adnotacje) |
 | 10 | Zgodne oceny → `FinalGrade(CONSENSUS)`; rozjazd → `MODERATION` | system | – |
 | 11 | Rozstrzygnięcie rozjazdu | koordynator (posiedzenie) lub trzeci recenzent | `/coordinator/` → „Moderacja (rozjazdy ocen)” |
@@ -553,7 +553,7 @@ Ręcznie (awaria beata, decyzja komitetu o wcześniejszym zamknięciu):
    `409 STAGE_ALREADY_CLOSED`, a nie ciche „nic się nie stało”. Do audytu trafia
    `stage.closed` z `manual: true`.
 2. Potem **„Przydziel recenzentów”** (domyślnie 2 na pracę). Prace, dla których nie da się
-   skompletować recenzentów bez konfliktu okręgu, są wypisane jako pominięte – z pseudonimem, nie
+   skompletować recenzentów bez konfliktu województwa, są wypisane jako pominięte – z pseudonimem, nie
    z nazwiskiem. Przydział jest szeregowany blokadą doradczą, więc dwa równoległe kliknięcia nie
    dają czterech recenzentów.
 
@@ -757,7 +757,7 @@ Etap ma **formę** (`Stage.format`) niezależną od rodzaju: `rozwiązania pisem
 Formę ustawia się w `/coordinator/stages/<id>/edit/` (pole „Forma etapu”) i **nie da się jej
 zmienić**, gdy do etapu wpłynęły już rozwiązania albo są zapisy na rozmowy
 (`409 STAGE_FORMAT_LOCKED`). Tam samo stoi pole „Nazwa etapu”: puste = nazwa domyślna rodzaju
-(Eliminacje / Okręgowy / Finał), wpisana zastępuje ją na każdym ekranie — na harmonogramie,
+(Eliminacje / Wojewódzki / Finał), wpisana zastępuje ją na każdym ekranie — na harmonogramie,
 stronie głównej, w panelach i w tabelach wyników. Nazwę wolno zmienić także po zamknięciu etapu.
 
 Etap w formie rozmowy **nie ma zadań i nie przyjmuje plików**: `create_problem` odmawia

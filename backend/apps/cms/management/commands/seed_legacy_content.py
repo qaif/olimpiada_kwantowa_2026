@@ -143,7 +143,7 @@ NEWS = (
     (
         "znamy-harmonogram-zawodow",
         "Znamy harmonogram zawodów",
-        "Sprawdź terminy rejestracji, etapów szkolnych, okręgowych i finału.",
+        "Sprawdź terminy rejestracji, etapów szkolnych, wojewódzkich i finału.",
     ),
     (
         "materialy-przygotowawcze",
