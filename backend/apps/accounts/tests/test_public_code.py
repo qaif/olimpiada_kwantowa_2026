@@ -40,7 +40,7 @@ def test_obcy_integrity_error_jest_propagowany():
 
 
 @pytest.mark.django_db
-def test_wyczerpanie_prob_nie_zostawia_osieroconego_usera():
+def test_wyczerpanie_prob_nie_zostawia_osieroconego_usera(open_registration):
     taken = ParticipantFactory().public_code
     with (
         mock.patch.object(services, "generate_public_code", return_value=taken),

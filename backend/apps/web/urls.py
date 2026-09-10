@@ -62,6 +62,12 @@ urlpatterns = [
     path("review/<int:pk>/submit/", reviewer.ReviewSubmitView.as_view(), name="review-submit"),
     # --- koordynator -------------------------------------------------------------------------
     path("coordinator/", coordinator.CoordinatorDashboardView.as_view(), name="coordinator"),
+    # Okno rejestracji uczestników – ustawienie edycji, nie etapu, stąd adres bez identyfikatora.
+    path(
+        "coordinator/registration/",
+        coordinator_stages.RegistrationSettingsView.as_view(),
+        name="coordinator-registration",
+    ),
     # Kalendarz edycji i zadania. ``stages/new/`` stoi **przed** ``stages/<int:stage_id>/…`` tylko
     # z przyzwyczajenia – ``<int:…>`` i tak nie dopasuje słowa „new”.
     path(

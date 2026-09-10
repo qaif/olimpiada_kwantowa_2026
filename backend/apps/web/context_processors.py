@@ -72,6 +72,48 @@ def social_providers(request) -> dict:
     }
 
 
+#: Klucz podręczny na obiekcie żądania. Procesory kontekstu odpalają się **raz na renderowanie
+#: szablonu**, a strona bywa składana z kilku (szablon strony + fragmenty HTMX) – bez tej pamięci
+#: ta sama edycja byłaby czytana z bazy kilka razy w jednym żądaniu.
+_REGISTRATION_CACHE_ATTR = "_registration_status_cache"
+
+
+def registration(request) -> dict:
+    """Stan rejestracji uczestników dla nawigacji, strony głównej i formularza ``/register/``.
+
+    Szablony **nie decydują** o tym, czy rejestracja jest otwarta – decyduje serwis
+    (``apps.competitions.registration.ensure_registration_open``), a to jest wyłącznie to samo
+    rozstrzygnięcie przyniesione do widoku, żeby nie pokazywać przycisku prowadzącego do odmowy
+    i żeby zapowiedź startu („Rejestracja rusza 8 września 2026”) brała datę z bazy, a nie z treści
+    redakcyjnej, która rozjedzie się przy pierwszej zmianie terminu.
+
+    Błąd bazy nie może wywrócić szablonu bazowego – tak samo, jak w ``site_chrome``. Awaryjnym
+    stanem jest „wyłączona”: gdy nie wiadomo, czy rejestracja trwa, lepiej nie zapraszać do
+    formularza, który i tak nie zapisze konta.
+    """
+    from apps.competitions.models import REGISTRATION_DISABLED, RegistrationStatus
+    from apps.competitions.registration import current_registration_status, registration_message
+
+    state = getattr(request, _REGISTRATION_CACHE_ATTR, None)
+    if state is None:
+        try:
+            state = current_registration_status()
+        except DatabaseError:  # pragma: no cover - baza bez migracji tabeli edycji
+            logger.warning("Nie udało się odczytać stanu rejestracji uczestników.")
+            state = RegistrationStatus(False, REGISTRATION_DISABLED)
+        setattr(request, _REGISTRATION_CACHE_ATTR, state)
+    return {
+        "registration": {
+            "is_open": state.is_open,
+            "reason": state.reason,
+            "opens_at": state.opens_at,
+            "closes_at": state.closes_at,
+            # Gotowe zdanie dla użytkownika – jedno źródło treści dla strony, formularza i API.
+            "message": registration_message(state),
+        }
+    }
+
+
 def site_chrome(request) -> dict:
     """Etykieta bieżącej edycji (podtytuł logotypu) i wersja aplikacji (stopka)."""
     from apps.competitions.services import current_edition

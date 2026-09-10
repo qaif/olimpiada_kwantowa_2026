@@ -124,6 +124,9 @@ TEMPLATES = [
                 "apps.web.context_processors.roles",
                 # Dane prezentacyjne ramy serwisu: etykieta edycji w logotypie, wersja w stopce.
                 "apps.web.context_processors.site_chrome",
+                # Stan rejestracji uczestników (okno ustawiane przez koordynatora). Steruje
+                # wyłącznie widocznością i treścią przycisków – regułą jest bramka w serwisie.
+                "apps.web.context_processors.registration",
                 # Lista skonfigurowanych dostawców OAuth (Google/Facebook). Przycisk pojawia się
                 # wyłącznie wtedy, gdy dostawca ma w środowisku komplet kluczy.
                 "apps.web.context_processors.social_providers",

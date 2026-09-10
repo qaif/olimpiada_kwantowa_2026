@@ -27,10 +27,11 @@ from apps.competitions.models import (
     DEFAULT_MAX_FILE_MB,
     MAX_FILE_MB_LIMIT,
     SUPPORTED_FILE_FORMATS,
+    Edition,
     Problem,
     Stage,
 )
-from apps.competitions.services import STAGE_EDITABLE_FIELDS
+from apps.competitions.services import REGISTRATION_EDITABLE_FIELDS, STAGE_EDITABLE_FIELDS
 from apps.core.api import DomainError
 from apps.results.models import Anonymization
 from apps.submissions.validators import MEGABYTE, validate_pdf
@@ -336,6 +337,53 @@ class StageForm(forms.ModelForm):
             name: value
             for name, value in self.cleaned_data.items()
             if name in STAGE_EDITABLE_FIELDS and _to_minute(self.initial.get(name)) != _to_minute(value)
+        }
+
+
+class RegistrationSettingsForm(forms.ModelForm):
+    """Okno rejestracji uczestników w panelu koordynatora.
+
+    Oba terminy są opcjonalne i to jest sedno tego ekranu: puste otwarcie znaczy „od zaraz”, puste
+    zamknięcie – „do odwołania”. Kolejność sprawdza ``Edition.full_clean()`` (ModelForm woła je
+    w ``_post_clean``), więc komunikat staje pod polem „zamknięcie”, a nie w chmurce nad
+    formularzem – i nie ma drugiej kopii tej reguły w warstwie WWW.
+    """
+
+    class Meta:
+        model = Edition
+        fields = REGISTRATION_EDITABLE_FIELDS
+        field_classes = {
+            "registration_opens_at": LocalDateTimeField,
+            "registration_closes_at": LocalDateTimeField,
+        }
+        labels = {
+            "registration_enabled": "Rejestracja włączona",
+            "registration_opens_at": "Otwarcie rejestracji",
+            "registration_closes_at": "Zamknięcie rejestracji",
+        }
+        help_texts = {
+            "registration_enabled": (
+                "Wyłącznik awaryjny. Odznaczenie zamyka rejestrację natychmiast, niezależnie od "
+                "terminów poniżej – i nie kasuje ich, więc po ponownym włączeniu okno wraca."
+            ),
+            "registration_opens_at": (
+                "Puste = rejestracja jest otwarta od zaraz. Data przed terminem jest zapowiedzią: "
+                "strona główna i menu pokazują wtedy „Rejestracja rusza …”."
+            ),
+            "registration_closes_at": "Puste = rejestracja trwa do odwołania.",
+        }
+
+    def changed_values(self) -> dict:
+        """Pola faktycznie zmienione – w rozdzielczości formularza (minuty), jak w ``StageForm``.
+
+        Bez tego samo otwarcie i zapisanie formularza przepisywałoby terminy wpisane spoza panelu
+        (admin, seed) z pominięciem sekund, a w audycie stawałby wpis o zmianie, której nie było.
+        """
+        return {
+            name: value
+            for name, value in self.cleaned_data.items()
+            if name in REGISTRATION_EDITABLE_FIELDS
+            and _to_minute(self.initial.get(name)) != _to_minute(value)
         }
 
 

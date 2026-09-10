@@ -40,8 +40,11 @@ class StageInline(admin.TabularInline):
 
 @admin.register(Edition)
 class EditionAdmin(admin.ModelAdmin):
-    list_display = ("year_label", "is_current", "created_at")
-    list_filter = ("is_current",)
+    # Okno rejestracji jest widoczne na liście, bo to pierwsza rzecz, o którą pyta się przy
+    # edycji („czy przyjmujemy konta?”). Zmienia się je jednak w panelu koordynatora
+    # (``/coordinator/registration/``) – tylko tam zapis zostawia wpis audytowy.
+    list_display = ("year_label", "is_current", "registration_enabled", "registration_opens_at")
+    list_filter = ("is_current", "registration_enabled")
     search_fields = ("year_label",)
     inlines = (StageInline,)
 

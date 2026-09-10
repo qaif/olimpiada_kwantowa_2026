@@ -4,16 +4,31 @@
 <div class="auth">
   <div class="card">
     <h1>Rejestracja uczestnika</h1>
-    <p class="auth__intro">Rejestracja jest otwarta. Po założeniu konta zapiszesz się do etapu
-      eliminacyjnego z panelu uczestnika.</p>
-    <form method="post" class="form">
-      {% csrf_token %}
-      {{ form.as_p }}
-      <p class="hint">Zgoda na przetwarzanie danych osobowych jest wymagana. Uczestnik niepełnoletni
-        potrzebuje dodatkowo zgody opiekuna.</p>
-      <button type="submit" class="btn btn--primary btn--block">Załóż konto</button>
-    </form>
-    {% include "web/_social_auth.html" %}
+    {% comment %}
+      Poza oknem rejestracji strona pokazuje powód zamiast formularza – ale adres zostaje żywy
+      i to jest celowe: menu i strona główna prowadzą tu z zapowiedzią „Rejestracja rusza …”,
+      a odesłanie na 404 zostawiłoby uczestnika bez odpowiedzi na pytanie „to kiedy?”.
+      Regułą jest bramka w ``accounts.services.register_participant``; ten warunek tylko nie każe
+      wypełniać formularza, który i tak skończy się odmową.
+    {% endcomment %}
+    {% if registration.is_open %}
+      <p class="auth__intro">Rejestracja jest otwarta. Po założeniu konta zapiszesz się do etapu
+        eliminacyjnego z panelu uczestnika.</p>
+      <form method="post" class="form">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <p class="hint">Zgoda na przetwarzanie danych osobowych jest wymagana. Uczestnik niepełnoletni
+          potrzebuje dodatkowo zgody opiekuna.</p>
+        <button type="submit" class="btn btn--primary btn--block">Załóż konto</button>
+      </form>
+      {% include "web/_social_auth.html" %}
+    {% else %}
+      <p class="auth__intro">{{ registration.message }}</p>
+      {% if registration.reason == "not_yet" %}
+        <p class="hint">Wróć tu po tej godzinie – konto założysz w kilka minut. Terminy etapów
+          znajdziesz na stronie <a href="/harmonogram/">Harmonogram</a>.</p>
+      {% endif %}
+    {% endif %}
     <p class="auth__alt">Masz już konto? <a href="{% url 'web:login' %}">Zaloguj się</a>.</p>
   </div>
 </div>

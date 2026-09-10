@@ -67,6 +67,15 @@ STAGE_FIELDS_EDITABLE_AFTER_CLOSE = (
 #: Pola zadania, którymi zarządza panel. ``statement_pdf`` idzie osobno – jest plikiem.
 PROBLEM_EDITABLE_FIELDS = ("number", "title", "allowed_formats", "max_file_mb")
 
+#: Okno rejestracji uczestników – jedyne pola ``Edition``, które panel koordynatora zmienia.
+#: ``is_current`` i ``year_label`` zostają w ``/admin/``: przełączenie bieżącej edycji jest
+#: operacją na całym serwisie (etapy, wyniki, harmonogram), a nie ustawieniem rejestracji.
+REGISTRATION_EDITABLE_FIELDS = (
+    "registration_enabled",
+    "registration_opens_at",
+    "registration_closes_at",
+)
+
 
 def current_edition() -> Edition | None:
     """Bieżąca edycja albo ``None``. Unikalność ``is_current`` gwarantuje constraint w bazie."""
@@ -357,6 +366,53 @@ def update_stage(stage: Stage, actor, *, request=None, now=None, **fields) -> St
     audit(actor, "stage.updated", locked, diff, request=request)
     for name, value in changed.items():
         setattr(stage, name, value)
+    return locked
+
+
+# --- okno rejestracji uczestników --------------------------------------------------------------
+
+
+@transaction.atomic
+def update_registration_window(edition: Edition, *, actor, request=None, **fields) -> Edition:
+    """Zmiana okna rejestracji uczestników z panelu koordynatora. Zwraca edycję po zapisie.
+
+    Reguła jest jedna i wyrażalna w modelu (otwarcie przed zamknięciem), więc pilnuje jej
+    ``full_clean()`` – ten sam warunek, co constraint w bazie i co komunikat pod polem formularza.
+    Serwis dokłada do tego trzy rzeczy, których formularz dać nie może: blokadę wiersza (dwa
+    równoległe zapisy nie mogą policzyć różnicy względem nieaktualnego stanu), wpis audytowy
+    z różnicą pól i jedno wejście dla ewentualnych innych wywołujących.
+
+    Wyłączenie rejestracji **nie rusza** zapisanych terminów: koordynator, który zatrzymuje zapisy
+    na godzinę, ma po ponownym włączeniu odzyskać to samo okno, a nie puste pola.
+    """
+    unknown = sorted(set(fields) - set(REGISTRATION_EDITABLE_FIELDS))
+    if unknown:  # pragma: no cover - błąd programisty, nie danych
+        raise ValueError(f"Pola spoza zakresu rejestracji: {', '.join(unknown)}.")
+
+    locked = Edition.objects.select_for_update().get(pk=edition.pk)
+    changed = {name: value for name, value in fields.items() if getattr(locked, name) != value}
+    if not changed:
+        return locked
+
+    diff = {
+        name: {"from": _audit_value(getattr(locked, name)), "to": _audit_value(value)}
+        for name, value in changed.items()
+    }
+    for name, value in changed.items():
+        setattr(locked, name, value)
+    try:
+        locked.full_clean()
+    except ValidationError as exc:
+        raise DomainError(
+            "; ".join(exc.messages), "REGISTRATION_WINDOW_INVALID", status.HTTP_400_BAD_REQUEST
+        ) from exc
+    locked.save(update_fields=list(changed))
+
+    from apps.core.models import audit
+
+    audit(actor, "edition.registration_updated", locked, diff, request=request)
+    for name, value in changed.items():
+        setattr(edition, name, value)
     return locked
 
 

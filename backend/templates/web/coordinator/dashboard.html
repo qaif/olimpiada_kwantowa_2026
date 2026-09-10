@@ -40,6 +40,16 @@
          href="{% url 'web:coordinator-stage-new' %}">Dodaj etap</a></p>
     {% endif %}
   </div>
+  {% comment %}
+    Stan rejestracji uczestników stoi nad listą etapów, bo to pierwsza brama edycji: zanim
+    ktokolwiek zapisze się do etapu, musi mieć konto. Wartość pochodzi z procesora kontekstu
+    ``apps.web.context_processors.registration`` – tego samego, który steruje przyciskiem na
+    stronie głównej, więc pulpit i strona nie mogą pokazać dwóch różnych odpowiedzi.
+  {% endcomment %}
+  <p class="hint">Rejestracja uczestników:
+    <strong>{% if registration.is_open %}otwarta{% if registration.opens_at %} od {{ registration.opens_at|local_datetime }}{% endif %}{% if registration.closes_at %}, do {{ registration.closes_at|local_datetime }}{% endif %}{% elif registration.reason == "not_yet" %}rusza {{ registration.opens_at|local_datetime }}{% elif registration.reason == "closed" %}zamknięta {{ registration.closes_at|local_datetime }}{% else %}wyłączona{% endif %}</strong>
+    <a class="btn btn--secondary btn--small"
+       href="{% url 'web:coordinator-registration' %}">Ustawienia rejestracji</a></p>
   {% for row in stage_rows %}
     <article class="card stage-panel">
       <div class="card__head">

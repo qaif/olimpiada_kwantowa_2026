@@ -134,8 +134,18 @@
         {% url 'web:register-committee' as committee_url %}
         <a class="nav__link" href="{{ login_url }}"
            {% if request.path == login_url %}aria-current="page"{% endif %}>Zaloguj</a>
-        <a class="nav__link" href="{{ register_url }}"
-           {% if request.path == register_url %}aria-current="page"{% endif %}>Rejestracja</a>
+        {% comment %}
+          Poza oknem rejestracji link znika, a przed terminem otwarcia zamienia się w zapowiedź
+          i **nadal prowadzi** na ``/register/`` – tam stoi pełne wyjaśnienie z datą. Nawigacja nie
+          jest tu zabezpieczeniem: rejestrację rozstrzyga bramka w serwisie kont.
+        {% endcomment %}
+        {% if registration.is_open %}
+          <a class="nav__link" href="{{ register_url }}"
+             {% if request.path == register_url %}aria-current="page"{% endif %}>Rejestracja</a>
+        {% elif registration.reason == "not_yet" %}
+          <a class="nav__link" href="{{ register_url }}"
+             {% if request.path == register_url %}aria-current="page"{% endif %}>Rejestracja rusza {{ registration.opens_at|date:"j E Y" }}</a>
+        {% endif %}
         <a class="nav__link" href="{{ committee_url }}"
            {% if request.path == committee_url %}aria-current="page"{% endif %}>Rejestracja z kodem</a>
       {% endif %}

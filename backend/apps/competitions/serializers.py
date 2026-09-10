@@ -58,17 +58,46 @@ class PublicProblemSerializer(serializers.ModelSerializer):
         return request.build_absolute_uri(url) if request is not None else url
 
 
+class RegistrationStatusSerializer(serializers.Serializer):
+    """Stan rejestracji uczestników – kształt odpowiedzi dla ``RegistrationStatus``.
+
+    Wyłącznie odczyt: rejestrację otwiera i zamyka koordynator w panelu, nie klient API. ``reason``
+    jest kodem maszynowym (``open``/``disabled``/``not_yet``/``closed``), a nie zdaniem po polsku –
+    tłumaczenie na komunikat należy do warstwy, która go pokazuje.
+    """
+
+    is_open = serializers.BooleanField(read_only=True)
+    reason = serializers.CharField(read_only=True)
+    opens_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    closes_at = serializers.DateTimeField(read_only=True, allow_null=True)
+
+
 class CurrentEditionSerializer(serializers.ModelSerializer):
     """Bieżąca edycja: wszystkie etapy + zadania etapu bieżącego."""
 
     stages = PublicStageSerializer(many=True, read_only=True)
     current_stage = serializers.SerializerMethodField()
     problems = serializers.SerializerMethodField()
+    # Klient (strona główna, aplikacja mobilna) musi wiedzieć, czy w ogóle pokazywać przycisk
+    # rejestracji – i od kiedy. Bez tego pola jedyną drogą byłaby próba założenia konta i odczyt
+    # kodu 409, czyli zapytanie o stan przez wywołanie skutku ubocznego.
+    registration = serializers.SerializerMethodField()
 
     class Meta:
         model = Edition
-        fields = ("id", "year_label", "is_current", "stages", "current_stage", "problems")
+        fields = (
+            "id",
+            "year_label",
+            "is_current",
+            "registration",
+            "stages",
+            "current_stage",
+            "problems",
+        )
         read_only_fields = fields
+
+    def get_registration(self, obj: Edition) -> dict:
+        return RegistrationStatusSerializer(obj.registration_status(self.context.get("now"))).data
 
     def get_current_stage(self, obj: Edition) -> dict | None:
         stage = self.context.get("stage")

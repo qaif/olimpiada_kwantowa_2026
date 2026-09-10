@@ -80,7 +80,7 @@ def test_kryterium_8_login_zwraca_token_dzialajacy_w_naglowku_authorization(api)
 
 
 @pytest.mark.django_db
-def test_kryterium_8_login_dziala_niezaleznie_od_wielkosci_liter_w_emailu(api):
+def test_kryterium_8_login_dziala_niezaleznie_od_wielkosci_liter_w_emailu(api, open_registration):
     """8. E-mail jest identyfikatorem bez rozróżniania wielkości liter (normalizacja przy rejestracji)."""
     registered = register_participant(
         email="Wielkie@Example.Test",

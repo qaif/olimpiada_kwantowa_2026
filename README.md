@@ -391,7 +391,7 @@ z otwartej rejestracji.
 | # | Krok | Kto | Ekran / endpoint |
 |---|---|---|---|
 | 0 | Terminy etapu i arkusz zadań | koordynator | `/coordinator/` → „Edytuj terminy”, „Zadania (n)” – patrz 6.3 |
-| 1 | Rejestracja uczestnika | uczestnik | `/register/` → `POST /api/auth/register/participant/` |
+| 1 | Rejestracja uczestnika | uczestnik | `/register/` → `POST /api/auth/register/participant/`; okno rejestracji ustawia koordynator — patrz 6.3a |
 | 2 | Rejestracja członka komitetu na kod | recenzent / komisja | `/register/committee/`; kod z `manage.py create_invitation` albo z panelu koordynatora |
 | 3 | Zatwierdzenie konta `PENDING` | koordynator | `/coordinator/` → „Komitet – oczekujący na zatwierdzenie” |
 | 4 | Zapis do eliminacji | uczestnik | `/me/` → „Zgłoś się do etapu eliminacyjnego” |
@@ -512,6 +512,37 @@ dopóki edycja nie ma wszystkich trzech rodzajów). Etap powstaje przez `create_
 ma domyślną skalę 0/2/5/6 i próg kwalifikacji. **Skalę i próg** zmienia się dalej w
 `/admin/competitions/stage/<id>/change/` (link „Skala i próg (admin)” na karcie etapu) — to
 konfiguracja oceniania, którą rusza się raz na edycję, a nie kalendarz.
+
+#### 6.3a Rejestracja uczestników
+
+Kto i kiedy może **założyć konto uczestnika**, ustawia koordynator z `/coordinator/` → **„Ustawienia
+rejestracji”** (`/coordinator/registration/`). Stan („otwarta od … / rusza … / zamknięta … /
+wyłączona”) stoi na pulpicie nad listą etapów.
+
+| Pole | Znaczenie |
+|---|---|
+| `registration_enabled` | Wyłącznik awaryjny. Odznaczenie zamyka rejestrację natychmiast, niezależnie od terminów — i ich nie kasuje, więc po ponownym włączeniu okno wraca. |
+| `registration_opens_at` | Puste = otwarta od zaraz. Data przed terminem jest **zapowiedzią**: strona główna i menu pokazują wtedy „Rejestracja rusza 8 września 2026” i prowadzą na `/register/`, gdzie stoi pełny komunikat z godziną. |
+| `registration_closes_at` | Puste = do odwołania. Musi być po otwarciu (`Edition.full_clean()` + constraint w bazie; komunikat staje pod polem). |
+
+Godziny podaje się i czyta w czasie polskim, dokładność do minuty — tak samo jak terminy etapów.
+Każdy zapis zostawia `edition.registration_updated` w audycie z różnicą pól.
+
+Bramka jest **w serwisie** (`apps.competitions.registration.ensure_registration_open`), więc
+obowiązuje wszystkie trzy drogi naraz: formularz `/register/`, `POST /api/auth/register/participant/`
+i rejestrację przez Google/Facebooka (ta ostatnia wraca na `/register/` z komunikatem i **nie**
+zapisuje powiązania `SocialAccount`). Odmowa to `409 REGISTRATION_CLOSED`. Ukrycie przycisku na
+stronie jest wyłącznie uprzejmością — żądanie wysłane skryptem dostaje ten sam kod. Stan czyta też
+`GET /api/competitions/editions/current/` w polu `registration`
+(`is_open`, `reason` ∈ `open`/`disabled`/`not_yet`/`closed`, `opens_at`, `closes_at`).
+
+Czego to **nie** dotyczy: rejestracji komitetu na kod zaproszenia (`/register/committee/` — tam
+regulatorem jest kod), kont już założonych oraz zapisów do etapów, które mają własne terminy (6.3).
+Brak bieżącej edycji jest traktowany jak rejestracja wyłączona — nie ma wtedy do czego zakładać konta.
+
+`manage.py seed_edition_kwantowa` ustawia przy **tworzeniu** edycji otwarcie na **8 IX 2026, 00:00**
+(stała `REGISTRATION_OPENS`); istniejącej edycji nie rusza — także przy `--sync-dates`, bo po
+pierwszej instalacji okno należy do koordynatora.
 
 **Zadania** — karta etapu → **„Zadania (n)”** (`/coordinator/stages/<id>/problems/`): lista
 z numerem, tytułem, obecnością treści PDF, dopuszczonymi formatami rozwiązania, limitem rozmiaru

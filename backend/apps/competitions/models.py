@@ -7,7 +7,8 @@ Zasady:
 - dostęp do danych wyłącznie przez ORM.
 """
 
-from datetime import timedelta
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -45,12 +46,50 @@ def default_allowed_formats() -> list[str]:
     return list(DEFAULT_ALLOWED_FORMATS)
 
 
+#: Powody, dla których rejestracja uczestników jest zamknięta – oraz jedyny powód, dla którego jest
+#: otwarta. Kod maszynowy, nie komunikat: treść zdania dobiera warstwa, która je pokazuje
+#: (``apps.competitions.registration``), a API oddaje sam kod.
+REGISTRATION_OPEN = "open"
+REGISTRATION_DISABLED = "disabled"
+REGISTRATION_NOT_YET = "not_yet"
+REGISTRATION_CLOSED = "closed"
+
+
+@dataclass(frozen=True)
+class RegistrationStatus:
+    """Stan rejestracji uczestników „na teraz”: czy wolno założyć konto i dlaczego nie.
+
+    Struktura jest zamrożona i bez metod, bo przechodzi przez trzy warstwy naraz (serwis kont,
+    kontekst szablonów, serializer API) i każda z nich ma ją tylko **czytać**. Powód (``reason``)
+    jest osobno od ``is_open``, bo trzy różne „nie” wymagają trzech różnych zdań i trzech różnych
+    zachowań interfejsu: wyłączona rejestracja chowa przycisk, rejestracja przed terminem zamienia
+    go w zapowiedź.
+    """
+
+    is_open: bool
+    reason: str
+    opens_at: datetime | None = None
+    closes_at: datetime | None = None
+
+
 class Edition(models.Model):
     """Edycja olimpiady, np. „XV (2026/2027)”. Bieżąca może być tylko jedna."""
 
     year_label = models.CharField("oznaczenie edycji", max_length=64, unique=True)
     is_current = models.BooleanField("edycja bieżąca", default=False)
     created_at = models.DateTimeField("utworzona", default=timezone.now)
+    # Okno rejestracji uczestników jest w ``Edition``, a nie w etapie eliminacyjnym: konto zakłada
+    # się **do olimpiady**, a nie do etapu (zapis do etapu jest osobną operacją, patrz
+    # ``register_for_stage``). Dopóki tych pól nie było, rejestracja stała otworem od chwili
+    # postawienia serwisu – także wtedy, gdy strona główna zapowiadała start na wrzesień.
+    #
+    # Trzy pola zamiast jednego, bo to trzy różne decyzje: wyłącznik (awaryjny, natychmiastowy),
+    # zapowiedziana data otwarcia (uczestnik ma ją zobaczyć na stronie, zanim nadejdzie) i
+    # opcjonalne zamknięcie. Puste terminy oznaczają „bez ograniczenia z tej strony”, dzięki czemu
+    # edycje sprzed tej zmiany zachowują się dokładnie tak, jak dotąd.
+    registration_enabled = models.BooleanField("rejestracja włączona", default=True)
+    registration_opens_at = models.DateTimeField("otwarcie rejestracji", null=True, blank=True)
+    registration_closes_at = models.DateTimeField("zamknięcie rejestracji", null=True, blank=True)
 
     class Meta:
         verbose_name = "edycja"
@@ -62,6 +101,15 @@ class Edition(models.Model):
                 fields=["is_current"],
                 condition=Q(is_current=True),
                 name="competitions_edition_single_current",
+            ),
+            # Okno rejestracji musi mieć dodatnią długość, o ile w ogóle ma oba końce. Bez tego
+            # dałoby się zapisać okno, które nigdy nie jest otwarte – a strona pokazywałaby wtedy
+            # zapowiedź startu, po którym rejestracja i tak by nie ruszyła.
+            models.CheckConstraint(
+                condition=Q(registration_opens_at__isnull=True)
+                | Q(registration_closes_at__isnull=True)
+                | Q(registration_opens_at__lt=F("registration_closes_at")),
+                name="competitions_edition_registration_window_ordered",
             ),
         ]
 
@@ -76,6 +124,59 @@ class Edition(models.Model):
                 raise ValidationError(
                     {"is_current": "Bieżąca może być tylko jedna edycja. Odznacz poprzednią."}
                 )
+        # Ta sama reguła, co constraint wyżej – tylko z komunikatem, który da się pokazać pod polem.
+        # Błąd jest przypięty do „zamknięcia”, bo to ono jest drugą, dopisywaną datą.
+        if (
+            self.registration_opens_at is not None
+            and self.registration_closes_at is not None
+            and self.registration_opens_at >= self.registration_closes_at
+        ):
+            raise ValidationError(
+                {"registration_closes_at": "Zamknięcie rejestracji musi być po jej otwarciu."}
+            )
+
+    def registration_status(self, now=None) -> RegistrationStatus:
+        """Czy ta edycja przyjmuje **nowe konta uczestników** i dlaczego nie.
+
+        Reguła jest jedna i mieści się w zdaniu: otwarta, gdy włączona i mieści się w oknie, przy
+        czym pusty koniec okna oznacza brak ograniczenia. Kolejność sprawdzeń jest istotna –
+        wyłącznik ma pierwszeństwo przed terminami, bo jest hamulcem awaryjnym: koordynator, który
+        wyłącza rejestrację w trakcie okna, ma zobaczyć „wyłączona”, a nie „otwarta do…”.
+        """
+        now = now or timezone.now()
+        if not self.registration_enabled:
+            return RegistrationStatus(
+                False, REGISTRATION_DISABLED, self.registration_opens_at, self.registration_closes_at
+            )
+        if self.registration_opens_at is not None and now < self.registration_opens_at:
+            return RegistrationStatus(
+                False, REGISTRATION_NOT_YET, self.registration_opens_at, self.registration_closes_at
+            )
+        if self.registration_closes_at is not None and now >= self.registration_closes_at:
+            return RegistrationStatus(
+                False, REGISTRATION_CLOSED, self.registration_opens_at, self.registration_closes_at
+            )
+        return RegistrationStatus(
+            True, REGISTRATION_OPEN, self.registration_opens_at, self.registration_closes_at
+        )
+
+
+def current_registration_status(now=None) -> RegistrationStatus:
+    """Stan rejestracji **bieżącej** edycji – jedno źródło prawdy dla całego serwisu.
+
+    Brak bieżącej edycji to ``disabled``, a nie „otwarta”: nie ma wtedy czego organizować, więc
+    konto założone w takiej chwili nie miałoby do czego należeć (zapis do etapu i tak odmówiłby).
+    Zapytanie jest celowo najtańsze z możliwych – wywołuje je procesor kontekstu, czyli każde
+    renderowanie szablonu bazowego.
+    """
+    edition = (
+        Edition.objects.filter(is_current=True)
+        .only("id", "registration_enabled", "registration_opens_at", "registration_closes_at")
+        .first()
+    )
+    if edition is None:
+        return RegistrationStatus(False, REGISTRATION_DISABLED)
+    return edition.registration_status(now)
 
 
 class StageKind(models.TextChoices):

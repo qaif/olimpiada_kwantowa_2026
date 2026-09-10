@@ -61,7 +61,7 @@ def api():
 
 
 @pytest.mark.django_db
-def test_kryterium_1_rejestracja_uczestnika_tworzy_usera_w_grupie_participant_z_kodem(api):
+def test_kryterium_1_rejestracja_uczestnika_tworzy_usera_w_grupie_participant_z_kodem(api, open_registration):
     """1. Rejestracja uczestnika tworzy User w grupie `participant` i Participant z unikalnym public_code."""
     resp = api.post(REGISTER_PARTICIPANT_URL, participant_payload(), format="json")
 
@@ -83,7 +83,7 @@ def test_kryterium_1_rejestracja_uczestnika_tworzy_usera_w_grupie_participant_z_
 
 
 @pytest.mark.django_db
-def test_kryterium_1_public_code_jest_unikalny_dla_wielu_uczestnikow(api):
+def test_kryterium_1_public_code_jest_unikalny_dla_wielu_uczestnikow(api, open_registration):
     """1. public_code jest unikalny między uczestnikami."""
     for i in range(5):
         resp = api.post(
@@ -95,7 +95,7 @@ def test_kryterium_1_public_code_jest_unikalny_dla_wielu_uczestnikow(api):
 
 
 @pytest.mark.django_db
-def test_kryterium_2_rejestracja_bez_zgody_rodo_zwraca_400_gdpr_consent_required(api):
+def test_kryterium_2_rejestracja_bez_zgody_rodo_zwraca_400_gdpr_consent_required(api, open_registration):
     """2. Rejestracja uczestnika bez zgody RODO → 400 GDPR_CONSENT_REQUIRED."""
     resp = api.post(REGISTER_PARTICIPANT_URL, participant_payload(gdpr_consent=False), format="json")
 
@@ -212,7 +212,7 @@ def test_kod_wielokrotnego_uzytku_zwieksza_used_count_i_wyczerpuje_sie(api):
 
 
 @pytest.mark.django_db
-def test_rejestracja_na_zajety_email_zwraca_400_email_taken(api):
+def test_rejestracja_na_zajety_email_zwraca_400_email_taken(api, open_registration):
     """Nie da się przejąć istniejącego konta przez ponowną rejestrację."""
     api.post(REGISTER_PARTICIPANT_URL, participant_payload(), format="json")
 
@@ -224,7 +224,7 @@ def test_rejestracja_na_zajety_email_zwraca_400_email_taken(api):
 
 
 @pytest.mark.django_db
-def test_slabe_haslo_jest_odrzucane_i_konto_nie_powstaje(api):
+def test_slabe_haslo_jest_odrzucane_i_konto_nie_powstaje(api, open_registration):
     """Walidatory haseł Django obowiązują w rejestracji."""
     resp = api.post(REGISTER_PARTICIPANT_URL, participant_payload(password="abc"), format="json")
 

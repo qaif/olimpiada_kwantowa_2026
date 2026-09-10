@@ -143,7 +143,7 @@ def test_rate_none_disables_the_form_limit(web_client, participant):
 
 
 @override_settings(REST_FRAMEWORK=rest_framework_with(register="3/min"))
-def test_registration_is_throttled_per_client_address(web_client):
+def test_registration_is_throttled_per_client_address(web_client, edition):
     for attempt in range(3):
         response = web_client.post(REGISTER_URL, registration_payload(f"nowy{attempt}@example.test"))
         assert response.status_code == 302, attempt

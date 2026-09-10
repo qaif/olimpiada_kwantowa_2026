@@ -132,7 +132,7 @@ def test_login_page_has_no_provider_buttons_without_keys(web_client):
     assert "/accounts/facebook/login/" not in body
 
 
-def test_login_and_register_pages_show_configured_providers(web_client, google, facebook):
+def test_login_and_register_pages_show_configured_providers(web_client, google, facebook, edition):
     for url in ("/login/", "/register/"):
         body = web_client.get(url).content.decode()
 
@@ -192,7 +192,7 @@ def test_new_google_user_is_sent_to_our_signup_form_without_creating_an_account(
     assert not SocialAccount.objects.exists()
 
 
-def test_signup_form_shows_the_provider_email_and_prefills_the_name(web_client, google):
+def test_signup_form_shows_the_provider_email_and_prefills_the_name(web_client, google, edition):
     social_login(web_client)
 
     body = web_client.get(SIGNUP_URL).content.decode()
@@ -204,7 +204,7 @@ def test_signup_form_shows_the_provider_email_and_prefills_the_name(web_client, 
     assert 'name="email"' not in body
 
 
-def test_signup_without_gdpr_consent_creates_nothing(web_client, google):
+def test_signup_without_gdpr_consent_creates_nothing(web_client, google, edition):
     social_login(web_client)
 
     response = complete_signup(web_client, gdpr_consent="")
@@ -215,7 +215,7 @@ def test_signup_without_gdpr_consent_creates_nothing(web_client, google):
     assert not SocialAccount.objects.exists()
 
 
-def test_signup_without_gdpr_consent_can_be_retried(web_client, google):
+def test_signup_without_gdpr_consent_can_be_retried(web_client, google, edition):
     """Błąd zgody nie może wyrzucić z przepływu – login społecznościowy zostaje w sesji."""
     social_login(web_client)
     complete_signup(web_client, gdpr_consent="")
@@ -226,7 +226,7 @@ def test_signup_without_gdpr_consent_can_be_retried(web_client, google):
     assert User.objects.filter(email=GOOGLE_EMAIL).exists()
 
 
-def test_signup_with_consent_creates_participant_linked_to_the_provider(web_client, google):
+def test_signup_with_consent_creates_participant_linked_to_the_provider(web_client, google, edition):
     social_login(web_client)
 
     response = complete_signup(web_client, school="LO nr 3", district="mazowieckie", birth_year=2009)
@@ -253,7 +253,7 @@ def test_signup_with_consent_creates_participant_linked_to_the_provider(web_clie
     assert account.uid == GOOGLE_PROFILE["id"]
 
 
-def test_signup_is_audited_without_personal_data(web_client, google):
+def test_signup_is_audited_without_personal_data(web_client, google, edition):
     social_login(web_client)
     complete_signup(web_client)
 
@@ -272,7 +272,7 @@ def test_signup_page_is_unreachable_without_a_pending_social_login(web_client):
     assert not User.objects.exists()
 
 
-def test_second_google_login_reuses_the_linked_account(web_client, google):
+def test_second_google_login_reuses_the_linked_account(web_client, google, edition):
     social_login(web_client)
     complete_signup(web_client)
     web_client.post("/logout/")
@@ -353,7 +353,7 @@ def test_facebook_never_connects_to_an_existing_account_by_email(web_client, fac
     assert not AuditLog.objects.filter(action="login.social_connect").exists()
 
 
-def test_facebook_can_still_create_a_brand_new_account(web_client, facebook):
+def test_facebook_can_still_create_a_brand_new_account(web_client, facebook, edition):
     response = social_login(web_client, "facebook")
 
     assert response.headers["Location"] == SIGNUP_URL

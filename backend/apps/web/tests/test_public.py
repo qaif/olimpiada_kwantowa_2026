@@ -83,7 +83,7 @@ def test_login_page_is_public(web_client):
     assert web_client.get("/login/").status_code == 200
 
 
-def test_registration_creates_participant(web_client):
+def test_registration_creates_participant(web_client, edition):
     response = web_client.post(
         "/register/",
         {
@@ -102,7 +102,7 @@ def test_registration_creates_participant(web_client):
     assert response.headers["Location"] == "/login/"
 
 
-def test_registration_without_gdpr_consent_shows_domain_error(web_client):
+def test_registration_without_gdpr_consent_shows_domain_error(web_client, edition):
     response = web_client.post(
         "/register/",
         {

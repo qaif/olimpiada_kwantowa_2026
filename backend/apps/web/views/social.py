@@ -22,11 +22,14 @@ Bez tego zakładanie kont miałoby drugą, nielimitowaną drogę.
 from __future__ import annotations
 
 from allauth.socialaccount.internal import flows
+from django.contrib import messages
 from django.shortcuts import redirect
+from django.urls import reverse
 from django.views.generic import FormView, TemplateView
 
 from apps.accounts.adapters import provider_id, provider_label, sociallogin_email
 from apps.accounts.services import register_social_participant
+from apps.competitions.registration import current_registration_status, registration_message
 from apps.core.api import DomainError
 from apps.core.models import audit
 from apps.web.forms import SocialParticipantSignupForm
@@ -52,6 +55,14 @@ class SocialSignupView(ThrottledFormMixin, FormView):
         sociallogin = flows.signup.get_pending_signup(request)
         if not sociallogin:
             return redirect("web:login")
+        # Zamknięta rejestracja obowiązuje także tę drogę. Odsyłamy na ``/register/``, bo tam stoi
+        # pełne wyjaśnienie z datą – i robimy to **przed** formularzem, żeby nie kazać wypełniać
+        # ekranu, którego serwis i tak nie przyjmie. Login społecznościowy zostaje w sesji
+        # nietknięty: nie powstaje ani konto, ani powiązanie ``SocialAccount``.
+        state = current_registration_status()
+        if not state.is_open:
+            messages.error(request, registration_message(state))
+            return redirect(reverse("web:register"))
         self.sociallogin = sociallogin
         return super().dispatch(request, *args, **kwargs)
 

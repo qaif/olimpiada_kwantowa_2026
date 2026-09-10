@@ -20,7 +20,17 @@
           <a class="btn btn--accent" href="{% url 'web:coordinator' %}">Panel koordynatora</a>
         {% endif %}
       {% else %}
-        <a class="btn btn--accent" href="{% url 'web:register' %}">Zarejestruj się</a>
+        {% comment %}
+          Przycisk rejestracji zależy od okna ustawionego przez koordynatora
+          (``apps.web.context_processors.registration``): przed terminem jest zapowiedzią z datą,
+          poza oknem znika. „Zaloguj się” zostaje zawsze – konta założone wcześniej działają
+          niezależnie od tego, czy przyjmujemy nowe.
+        {% endcomment %}
+        {% if registration.is_open %}
+          <a class="btn btn--accent" href="{% url 'web:register' %}">Zarejestruj się</a>
+        {% elif registration.reason == "not_yet" %}
+          <a class="btn btn--accent" href="{% url 'web:register' %}">Rejestracja rusza {{ registration.opens_at|date:"j E Y" }}</a>
+        {% endif %}
         <a class="btn btn--secondary" href="{% url 'web:login' %}">Zaloguj się</a>
       {% endif %}
     </div>
@@ -128,7 +138,11 @@
       {% endfor %}
     </ol>
     {% if not user.is_authenticated %}
-      <p class="steps__cta"><a class="btn btn--accent" href="{% url 'web:register' %}">Zarejestruj się</a></p>
+      {% if registration.is_open %}
+        <p class="steps__cta"><a class="btn btn--accent" href="{% url 'web:register' %}">Zarejestruj się</a></p>
+      {% elif registration.reason == "not_yet" %}
+        <p class="steps__cta"><a class="btn btn--accent" href="{% url 'web:register' %}">Rejestracja rusza {{ registration.opens_at|date:"j E Y" }}</a></p>
+      {% endif %}
     {% endif %}
   </section>
 {% endif %}

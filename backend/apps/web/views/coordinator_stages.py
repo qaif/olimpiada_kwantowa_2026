@@ -35,10 +35,17 @@ from apps.competitions.services import (
     stage_has_interview_bookings,
     stage_has_submissions,
     update_problem,
+    update_registration_window,
     update_stage,
 )
 from apps.core.api import DomainError
-from apps.web.forms import InterviewSlotsForm, ProblemForm, StageCreateForm, StageForm
+from apps.web.forms import (
+    InterviewSlotsForm,
+    ProblemForm,
+    RegistrationSettingsForm,
+    StageCreateForm,
+    StageForm,
+)
 from apps.web.mixins import CoordinatorRequiredMixin
 
 #: Pola zadania, które widok przekazuje do serwisu. Plik i potwierdzenie idą osobno.
@@ -167,6 +174,65 @@ class StageCreateView(CoordinatorRequiredMixin, View):
 
     def _render(self, request, form, *, status: int = 200):
         context = {"stage": None, "form": form, "edition": self.edition, "now": timezone.now()}
+        return TemplateResponse(request, self.template_name, context, status=status)
+
+
+class RegistrationSettingsView(CoordinatorRequiredMixin, View):
+    """``/coordinator/registration/`` – okno rejestracji uczestników bieżącej edycji.
+
+    Ekran sąsiaduje z terminami etapów, bo jest tą samą czynnością: ustawianiem kalendarza edycji.
+    Różnica jest jedna – ten kalendarz decyduje o tym, kto w ogóle wejdzie do systemu, więc stan
+    „otwarta / rusza … / zamknięta / wyłączona” stoi też na pulpicie, nad listą etapów.
+
+    Rejestracji **komitetu** ten ekran nie dotyczy: tam wstępem jest kod zaproszenia i to on jest
+    regulatorem dostępu.
+    """
+
+    template_name = "web/coordinator/registration_form.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        self.edition = current_edition()
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+        if self.edition is None:
+            return self._no_edition(request)
+        return self._render(request, RegistrationSettingsForm(instance=self.edition))
+
+    def post(self, request):
+        if self.edition is None:
+            return self._no_edition(request)
+        form = RegistrationSettingsForm(request.POST, instance=self.edition)
+        if not form.is_valid():
+            return self._render(request, form, status=400)
+        try:
+            update_registration_window(
+                self.edition, actor=request.user, request=request, **form.changed_values()
+            )
+        except DomainError as exc:
+            messages.error(request, str(exc.detail))
+            # Świeży obiekt z bazy: ``ModelForm`` zdążył już wpisać odrzucone wartości do
+            # ``form.instance``, a strona ma pokazać stan, który faktycznie obowiązuje.
+            self.edition = current_edition()
+            form = RegistrationSettingsForm(instance=self.edition)
+            return self._render(request, form, status=exc.status_code)
+        messages.success(request, "Ustawienia rejestracji uczestników zostały zapisane.")
+        return redirect(reverse("web:coordinator"))
+
+    def _no_edition(self, request):
+        messages.error(request, "Nie ustawiono bieżącej edycji – nie ma do czego przyjmować rejestracji.")
+        return redirect(reverse("web:coordinator"))
+
+    def _render(self, request, form: RegistrationSettingsForm, *, status: int = 200):
+        # Stan liczymy z **bieżącego** obiektu edycji, a nie z procesora kontekstu: po nieudanym
+        # zapisie procesor pamięta wartość sprzed próby, a koordynator ma zobaczyć stan z bazy.
+        edition = current_edition()
+        context = {
+            "edition": edition,
+            "form": form,
+            "now": timezone.now(),
+            "status": edition.registration_status() if edition is not None else None,
+        }
         return TemplateResponse(request, self.template_name, context, status=status)
 
 

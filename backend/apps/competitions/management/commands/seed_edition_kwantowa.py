@@ -66,6 +66,13 @@ APPEAL_CLOSES_AFTER_REVIEW = timedelta(days=9)
 DEFAULT_OPENS_TIME = (0, 0)
 DEFAULT_DEADLINE_TIME = (23, 59)
 
+#: Otwarcie rejestracji uczestników I edycji – 8 września 2026, północ czasu polskiego. Data
+#: pochodzi od organizatora i jest **wartością początkową świeżej instalacji**, dokładnie tak samo
+#: jak nazwy etapów: po utworzeniu edycji okno rejestracji należy do koordynatora, a ``--sync-dates``
+#: go nie rusza (ta flaga dotyczy osi czasu etapów, nie ustawień edycji). Bez tej wartości serwis
+#: postawiony przed wrześniem przyjmowałby konta od pierwszego dnia, choć strona zapowiada start.
+REGISTRATION_OPENS = datetime(2026, 9, 8, 0, 0, tzinfo=WARSAW)
+
 
 @dataclass(frozen=True)
 class StagePlan:
@@ -164,8 +171,15 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
-        edition, created = Edition.objects.get_or_create(year_label=EDITION_LABEL)
+        # ``defaults`` działa wyłącznie przy tworzeniu – istniejąca edycja zachowuje okno
+        # rejestracji ustawione w panelu, nawet jeżeli koordynator przesunął je albo wyłączył.
+        edition, created = Edition.objects.get_or_create(
+            year_label=EDITION_LABEL,
+            defaults={"registration_enabled": True, "registration_opens_at": REGISTRATION_OPENS},
+        )
         self.stdout.write(f"edycja: {edition.year_label} [{'utworzono' if created else 'istnieje'}]")
+        if created:
+            self.stdout.write(f"rejestracja uczestników: otwarcie {REGISTRATION_OPENS.isoformat()}")
 
         for plan in STAGE_PLAN:
             self._ensure_stage(edition, plan, sync_dates=options["sync_dates"])

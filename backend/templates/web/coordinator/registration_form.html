@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load web_extras %}
+{% block title %}Rejestracja uczestników – panel koordynatora{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
+  <h1>Rejestracja uczestników</h1>
+  <p class="lead">Edycja {{ edition.year_label }}. Godziny podajesz i czytasz w czasie polskim;
+    system przelicza je na UTC.</p>
+</div>
+
+<div class="card card--quiet">
+  <dl class="meta-list">
+    <dt>Stan</dt>
+    <dd>
+      {% if status.is_open %}otwarta{% if status.opens_at %} od {{ status.opens_at|local_datetime }}{% endif %}
+      {% elif status.reason == "not_yet" %}rusza {{ status.opens_at|local_datetime }}
+      {% elif status.reason == "closed" %}zamknięta {{ status.closes_at|local_datetime }}
+      {% else %}wyłączona{% endif %}
+    </dd>
+    <dt>Otwarcie</dt><dd>{{ edition.registration_opens_at|local_datetime|default:"od zaraz" }}</dd>
+    <dt>Zamknięcie</dt><dd>{{ edition.registration_closes_at|local_datetime|default:"do odwołania" }}</dd>
+  </dl>
+  {% comment %}
+    Zakres ustawienia stoi nad polami, a nie w komunikacie po zapisie: koordynator ma wiedzieć,
+    czego ten ekran **nie** zamyka, zanim go użyje.
+  {% endcomment %}
+  <ul class="hint">
+    <li>Ustawienie dotyczy wyłącznie rejestracji uczestników: formularza <code>/register/</code>,
+      <code>POST /api/auth/register/participant/</code> i rejestracji przez Google/Facebooka.</li>
+    <li>Rejestracja komitetu na kod zaproszenia (<code>/register/committee/</code>) działa
+      niezależnie – tam wstępem jest kod.</li>
+    <li>Kont już założonych to nie dotyczy: logowanie, zapisy do etapów i oddawanie rozwiązań
+      idą własnymi terminami etapu.</li>
+    <li>Poza oknem rejestracji przycisk „Zarejestruj się” znika ze strony głównej i z menu, a przed
+      terminem otwarcia zamienia się w zapowiedź „Rejestracja rusza …”.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <form method="post" class="form form--wide" novalidate>
+    {% csrf_token %}
+    {{ form.as_p }}
+    <div class="actions">
+      <button type="submit" class="btn btn--primary">Zapisz ustawienia</button>
+      <a class="btn btn--ghost" href="{% url 'web:coordinator' %}">Anuluj</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

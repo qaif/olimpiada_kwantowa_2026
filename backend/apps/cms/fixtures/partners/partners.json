@@ -47,6 +47,12 @@
       "name": "AIQLAB Institute",
       "level": "partner-instytucjonalny",
       "url": ""
+    },
+    {
+      "file": "uj.png",
+      "name": "Uniwersytet Jagielloński",
+      "level": "partner-naukowy",
+      "url": "https://www.uj.edu.pl/"
     }
   ]
 }

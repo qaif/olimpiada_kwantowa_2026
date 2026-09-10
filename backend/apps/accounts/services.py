@@ -156,7 +156,12 @@ def register_participant(
     gdpr_consent: bool,
     guardian_consent: bool = False,
 ) -> Participant:
-    """Rejestracja otwarta uczestnika: User w grupie ``participant`` + profil ``Participant``."""
+    """Rejestracja otwarta uczestnika: User w grupie ``participant`` + profil ``Participant``.
+
+    „Otwarta” znaczy „bez zaproszenia”, a nie „zawsze”: okno rejestracji ustawia koordynator
+    w panelu i pilnuje go ``ensure_registration_open`` (patrz niżej).
+    """
+    _require_registration_open()
     _require_gdpr_consent(gdpr_consent)
     district = _require_voivodeship(district, required=True)
     user = _create_user(email=email, password=password, first_name=first_name, last_name=last_name)
@@ -169,6 +174,23 @@ def register_participant(
         gdpr_consent_at=timezone.now(),
         guardian_consent=guardian_consent,
     )
+
+
+def _require_registration_open() -> None:
+    """Okno rejestracji uczestników – bramka wspólna dla formularza, API i logowania społecznościowego.
+
+    Import jest lokalny, żeby zależność kont od zawodów nie powstawała przy starcie: to
+    ``apps.competitions.models`` importuje ``apps.accounts.models``, a nie odwrotnie. Sprowadzenie
+    tego importu na poziom modułu zamieniłoby jednokierunkową zależność w pętlę czekającą na
+    pierwszą zmianę kolejności ładowania aplikacji.
+
+    Rejestracji **komitetu** ta bramka nie dotyczy i dotyczyć nie ma: tam wstępem jest kod
+    zaproszenia, a recenzentów kompletuje się właśnie wtedy, gdy rejestracja uczestników jeszcze
+    nie ruszyła albo już się zamknęła.
+    """
+    from apps.competitions.registration import ensure_registration_open
+
+    ensure_registration_open()
 
 
 def _require_gdpr_consent(gdpr_consent: bool) -> None:
@@ -204,7 +226,9 @@ def register_social_participant(
 
     Zgoda RODO jest sprawdzana **przed** zapisem czegokolwiek – bez niej nie powstaje ani ``User``,
     ani ``Participant``, ani powiązanie ``SocialAccount`` (to ostatnie zapisuje dopiero widok).
+    Tak samo okno rejestracji: udane logowanie u dostawcy nie jest obejściem zamkniętej rejestracji.
     """
+    _require_registration_open()
     _require_gdpr_consent(gdpr_consent)
     district = _require_voivodeship(district, required=True)
     email = _normalize_email(email)
