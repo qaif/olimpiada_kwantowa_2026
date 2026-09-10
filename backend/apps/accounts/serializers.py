@@ -5,19 +5,37 @@ Hasła i kody zaproszeń są wyłącznie ``write_only`` – nigdy nie pojawiają
 
 from rest_framework import serializers
 
-from .models import CommitteeMember, Participant, User, Voivodeship
+from .models import GRADE_CHOICES, CommitteeMember, Participant, User, Voivodeship
 
 
 class ParticipantRegisterSerializer(serializers.Serializer):
+    """Wejście ``POST /api/auth/register/participant/``.
+
+    Szkoła ma dwie postacie i **żadna nie jest wymagana osobno**: ``school_id`` wskazuje wiersz
+    słownika (``GET /api/schools/``), ``school`` jest wolnym tekstem dla szkoły spoza wykazu.
+    Wymagana jest co najmniej jedna – dzięki temu klient sprzed wprowadzenia słownika, który zna
+    tylko ``school``, działa bez zmian. Podanie obu nie jest błędem: wygrywa ``school_id``, a
+    nazwa i tak zostanie przepisana z rejestru (patrz ``accounts.services._resolve_school``).
+    """
+
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=128)
     first_name = serializers.CharField(max_length=150)
     last_name = serializers.CharField(max_length=150)
-    school = serializers.CharField(max_length=200)
+    school = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
+    school_id = serializers.IntegerField(min_value=1, required=False, allow_null=True, default=None)
+    grade = serializers.ChoiceField(choices=GRADE_CHOICES)
     district = serializers.ChoiceField(choices=Voivodeship.choices)
     birth_year = serializers.IntegerField(min_value=1900, max_value=2200)
     gdpr_consent = serializers.BooleanField()
     guardian_consent = serializers.BooleanField(required=False, default=False)
+
+    def validate(self, attrs):
+        if attrs.get("school_id") is None and not (attrs.get("school") or "").strip():
+            raise serializers.ValidationError(
+                {"school": "Podaj identyfikator szkoły z rejestru (school_id) albo jej nazwę (school)."}
+            )
+        return attrs
 
 
 class ParticipantRegisteredSerializer(serializers.ModelSerializer):
@@ -68,6 +86,11 @@ class ParticipantProfileSerializer(serializers.ModelSerializer):
         fields = (
             "public_code",
             "school",
+            # Identyfikator wiersza słownika albo ``null`` dla szkoły wpisanej ręcznie. ``school``
+            # jest wypełnione zawsze, więc klient, którego słownik nie interesuje, może ten klucz
+            # zignorować i nadal ma nazwę do pokazania.
+            "school_ref",
+            "grade",
             "district",
             "district_label",
             "birth_year",

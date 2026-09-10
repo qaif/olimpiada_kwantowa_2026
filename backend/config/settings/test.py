@@ -31,5 +31,6 @@ REST_FRAMEWORK = {
         "login": None,
         "upload": None,
         "password_reset": None,
+        "schools": None,
     },
 }

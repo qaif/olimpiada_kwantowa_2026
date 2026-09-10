@@ -67,6 +67,7 @@ def test_serializers_reject_a_value_outside_the_list():
         "last_name": "Kowalski",
         "school": "LO nr 1",
         "district": "Atlantyda",
+        "grade": 2,
         "birth_year": 2008,
         "gdpr_consent": True,
     }
@@ -88,8 +89,10 @@ def test_forms_reject_a_value_outside_the_list():
             "password": "Poprawne-Haslo-2026",
             "first_name": "Jan",
             "last_name": "Kowalski",
+            "school_custom": "on",
             "school": "LO nr 1",
             "district": "Atlantyda",
+            "grade": 2,
             "birth_year": 2008,
             "gdpr_consent": True,
         }

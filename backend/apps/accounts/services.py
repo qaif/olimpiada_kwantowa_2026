@@ -22,6 +22,8 @@ from .models import (
     GROUP_COORDINATOR,
     GROUP_PARTICIPANT,
     GROUP_REVIEWER,
+    MAX_GRADE,
+    MIN_GRADE,
     CommitteeMember,
     CommitteeStatus,
     InvitationCode,
@@ -35,6 +37,10 @@ from .models import (
 
 INVITATION_CODE_BYTES = 24
 PUBLIC_CODE_MAX_ATTEMPTS = 20
+
+#: Najkrótsza sensowna nazwa szkoły wpisana ręcznie. „LO” samo w sobie nie identyfikuje niczego,
+#: a puste pole po ``strip()`` zostawiłoby uczestnika bez szkoły w tabeli wyników.
+MIN_SCHOOL_NAME_LENGTH = 3
 
 
 def _require_voivodeship(district: str | None, *, required: bool) -> str | None:
@@ -57,6 +63,61 @@ def _require_voivodeship(district: str | None, *, required: bool) -> str | None:
     if required:
         raise DomainError("Województwo jest wymagane.", "DISTRICT_REQUIRED", status.HTTP_400_BAD_REQUEST)
     return None
+
+
+def _resolve_school(school: str, school_id: int | None):
+    """Zwraca ``(nazwa_do_pokazania, obiekt_School_albo_None)`` dla pary pól z rejestracji.
+
+    Dwie drogi, dokładnie jedna obowiązkowa:
+
+    - **wybór ze słownika** (``school_id``) – nazwa jest przepisywana z rejestru, więc wszyscy
+      uczniowie tej samej szkoły mają w bazie ten sam napis. Dopiero to sprawia, że grupowanie po
+      szkole (próg k-anonimowości w publikacji wyników) cokolwiek znaczy,
+    - **wolny tekst** (``school``) – dla szkół, których w wykazie nie ma: zagranicznych, świeżo
+      założonych, przekształconych po dacie wykazu. Bez tej furtki rejestracja byłaby zamknięta
+      dla ludzi, których jedyną winą jest nieaktualność cudzego rejestru.
+
+    Sprawdzenie siedzi w serwisie, a nie tylko w formularzu i serializerze, bo tych wejść jest
+    kilka (WWW, API, logowanie społecznościowe, seed) – reguła powtórzona w każdym z nich
+    rozjechałaby się przy pierwszej zmianie.
+    """
+    # Import lokalny: ``apps.schools`` zna ``apps.accounts`` (lista województw), więc import
+    # w drugą stronę na poziomie modułu zamknąłby pętlę zależności między aplikacjami.
+    from apps.schools.models import School
+
+    text = (school or "").strip()
+    if school_id is not None:
+        try:
+            chosen = School.objects.get(pk=school_id, is_active=True)
+        except School.DoesNotExist as exc:
+            raise DomainError(
+                "Wybrana szkoła nie istnieje w rejestrze.",
+                "SCHOOL_NOT_FOUND",
+                status.HTTP_400_BAD_REQUEST,
+            ) from exc
+        return chosen.name, chosen
+    if len(text) < MIN_SCHOOL_NAME_LENGTH:
+        raise DomainError(
+            "Wybierz szkołę z listy albo wpisz jej nazwę.",
+            "SCHOOL_REQUIRED",
+            status.HTTP_400_BAD_REQUEST,
+        )
+    return text, None
+
+
+def _require_grade(grade) -> int:
+    """Klasa 1–5. Wymagana od każdego nowego uczestnika (stare profile mają ``None``)."""
+    try:
+        number = int(grade)
+    except (TypeError, ValueError) as exc:
+        raise DomainError(
+            f"Podaj klasę ({MIN_GRADE}–{MAX_GRADE}).", "GRADE_INVALID", status.HTTP_400_BAD_REQUEST
+        ) from exc
+    if not MIN_GRADE <= number <= MAX_GRADE:
+        raise DomainError(
+            f"Podaj klasę ({MIN_GRADE}–{MAX_GRADE}).", "GRADE_INVALID", status.HTTP_400_BAD_REQUEST
+        )
+    return number
 
 
 def active_reviewer_profile(user) -> CommitteeMember | None:
@@ -150,25 +211,36 @@ def register_participant(
     password: str,
     first_name: str,
     last_name: str,
-    school: str,
     district: str,
     birth_year: int,
+    grade: int,
     gdpr_consent: bool,
+    school: str = "",
+    school_id: int | None = None,
     guardian_consent: bool = False,
 ) -> Participant:
     """Rejestracja otwarta uczestnika: User w grupie ``participant`` + profil ``Participant``.
 
     „Otwarta” znaczy „bez zaproszenia”, a nie „zawsze”: okno rejestracji ustawia koordynator
     w panelu i pilnuje go ``ensure_registration_open`` (patrz niżej).
+
+    Szkoła przychodzi jedną z dwóch dróg – ``school_id`` (wybór ze słownika ``apps.schools``) albo
+    ``school`` (wolny tekst dla szkół spoza wykazu); szczegóły w ``_resolve_school``. Kolejność
+    argumentów jest zachowana wstecznie: klient API, który zna wyłącznie tekstowe ``school``,
+    działa dalej bez zmian.
     """
     _require_registration_open()
     _require_gdpr_consent(gdpr_consent)
     district = _require_voivodeship(district, required=True)
+    school_name, school_obj = _resolve_school(school, school_id)
+    grade = _require_grade(grade)
     user = _create_user(email=email, password=password, first_name=first_name, last_name=last_name)
     _add_to_group(user, GROUP_PARTICIPANT)
     return create_participant_with_public_code(
         user=user,
-        school=school,
+        school=school_name,
+        school_ref=school_obj,
+        grade=grade,
         district=district,
         birth_year=birth_year,
         gdpr_consent_at=timezone.now(),
@@ -208,10 +280,12 @@ def register_social_participant(
     email: str,
     first_name: str,
     last_name: str,
-    school: str,
     district: str,
     birth_year: int,
+    grade: int,
     gdpr_consent: bool,
+    school: str = "",
+    school_id: int | None = None,
     guardian_consent: bool = False,
 ) -> Participant:
     """Rejestracja uczestnika po zalogowaniu przez dostawcę zewnętrznego (Google/Facebook).
@@ -231,6 +305,8 @@ def register_social_participant(
     _require_registration_open()
     _require_gdpr_consent(gdpr_consent)
     district = _require_voivodeship(district, required=True)
+    school_name, school_obj = _resolve_school(school, school_id)
+    grade = _require_grade(grade)
     email = _normalize_email(email)
     if not email:
         raise DomainError(
@@ -246,7 +322,9 @@ def register_social_participant(
     _add_to_group(user, GROUP_PARTICIPANT)
     return create_participant_with_public_code(
         user=user,
-        school=school,
+        school=school_name,
+        school_ref=school_obj,
+        grade=grade,
         district=district,
         birth_year=birth_year,
         gdpr_consent_at=timezone.now(),

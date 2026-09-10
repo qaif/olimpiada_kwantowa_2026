@@ -9,13 +9,14 @@ Zasady:
 import hashlib
 import re
 import secrets
-import unicodedata
 
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.models import PermissionsMixin
 from django.db import models
 from django.db.models.functions import Lower
 from django.utils import timezone
+
+from apps.core.text import fold as _fold
 
 # Grupy RBAC tworzone migracją danych (apps/accounts/migrations/0002_rbac_groups.py).
 GROUP_PARTICIPANT = "participant"
@@ -28,6 +29,13 @@ RBAC_GROUPS = (GROUP_PARTICIPANT, GROUP_REVIEWER, GROUP_APPEALS, GROUP_COORDINAT
 PUBLIC_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 PUBLIC_CODE_PREFIX = "OLM-"
 PUBLIC_CODE_RANDOM_LENGTH = 6
+
+# Klasa uczestnika. Pięć roczników, bo tyle trwa najdłuższa szkoła ponadpodstawowa (technikum);
+# liceum kończy się na czwartej, a szkoła branżowa I stopnia na trzeciej – węższych limitów
+# nie narzucamy, bo zależą od typu szkoły, a ten bywa wpisany ręcznie i nie da się go sprawdzić.
+MIN_GRADE = 1
+MAX_GRADE = 5
+GRADE_CHOICES = [(number, str(number)) for number in range(MIN_GRADE, MAX_GRADE + 1)]
 
 
 def generate_public_code() -> str:
@@ -70,17 +78,6 @@ class Voivodeship(models.TextChoices):
 
 # Prefiks „województwo …” / „woj. …” bywa wpisywany razem z nazwą; dla dopasowania jest szumem.
 _VOIVODESHIP_PREFIX_RE = re.compile(r"^(wojewodztwo|woj\.?)\s+")
-
-
-# „ł” jest osobną literą Unicode (l ze skreśleniem), a nie „l” z dokładanym znakiem, więc NFKD go
-# nie rozkłada i „łódzkie” zostałoby bez tego przepisania nierozpoznane.
-_STROKED_L = str.maketrans({"ł": "l", "Ł": "L"})
-
-
-def _fold(text: str) -> str:
-    """Napis bez diakrytyków, małymi literami – wspólna postać porównawcza dla nazw województw."""
-    decomposed = unicodedata.normalize("NFKD", text.translate(_STROKED_L))
-    return "".join(char for char in decomposed if not unicodedata.combining(char)).lower()
 
 
 # Klucz → wartość slug. Etykiety po złożeniu diakrytyków dają dokładnie slug, więc mapa jest
@@ -186,7 +183,27 @@ class Participant(models.Model):
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="participant")
     public_code = models.CharField("kod publiczny", max_length=16, unique=True, default=generate_public_code)
-    school = models.CharField("szkoła", max_length=200)
+    # Nazwa szkoły **do pokazania** – wypełniona zawsze, niezależnie od tego, czy uczestnik wybrał
+    # szkołę ze słownika, czy wpisał ją ręcznie. To ona idzie do snapshotu wyników (grupowanie
+    # k-anonimowe po szkole) i do podglądu koordynatora, więc żadne miejsce w systemie nie musi
+    # wiedzieć, którą drogą uczestnik się zarejestrował. 255 znaków, bo tyle ma najdłuższa nazwa
+    # w wykazie SIO (``apps.schools``).
+    school = models.CharField("szkoła", max_length=255)
+    # Dowiązanie do rejestru – opcjonalne z założenia, a nie z niedoróbki: wykaz SIO nie zna szkół
+    # zagranicznych ani placówek założonych po dacie wykazu, a brak swojej szkoły na liście nie
+    # może zamykać drogi do rejestracji. PROTECT, bo skasowanie wiersza słownika zabrałoby
+    # uczestnikowi informację o szkole; ``seed_schools`` wygasza (``is_active=False``), nie kasuje.
+    school_ref = models.ForeignKey(
+        "schools.School",
+        verbose_name="szkoła z rejestru",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="participants",
+    )
+    # Nullowalna wyłącznie ze względu na profile sprzed wprowadzenia pola – formularz, API
+    # i serwis rejestracji wymagają klasy od każdego nowego uczestnika.
+    grade = models.PositiveSmallIntegerField("klasa", choices=GRADE_CHOICES, null=True, blank=True)
     district = models.CharField("województwo", max_length=100, choices=Voivodeship.choices)
     birth_year = models.PositiveSmallIntegerField("rok urodzenia")
     gdpr_consent_at = models.DateTimeField("zgoda RODO z dnia")

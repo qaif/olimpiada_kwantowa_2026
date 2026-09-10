@@ -14,7 +14,7 @@ from django import forms
 from django.contrib.auth.forms import AuthenticationForm
 from django.core.files.uploadedfile import UploadedFile
 
-from apps.accounts.models import Voivodeship
+from apps.accounts.models import GRADE_CHOICES, Voivodeship
 from apps.appeals.models import MAX_TEXT_LENGTH, MIN_ARGUMENT_LENGTH, AppealStatus
 from apps.competitions.interviews import (
     MAX_DURATION_MINUTES,
@@ -47,6 +47,92 @@ def voivodeship_field(label: str, *, required: bool = True) -> forms.ChoiceField
     return forms.ChoiceField(label=label, choices=VOIVODESHIP_CHOICES, required=required)
 
 
+#: Pola bloku „szkoła” renderowanego ręcznie w szablonie (``web/_school_picker.html``). Reszta
+#: formularza idzie zwykłą pętlą, więc ta krotka jest jedynym miejscem, które trzeba zmienić,
+#: gdyby blok urósł o kolejne pole.
+SCHOOL_FIELD_NAMES = ("school_id", "school_query", "school_custom", "school")
+
+
+class SchoolChoiceMixin(forms.Form):
+    """Wybór szkoły ze słownika SIO albo – świadomą decyzją – wpisanie jej ręcznie.
+
+    Cztery pola zamiast jednego, bo jedno pole tekstowe nie potrafi odróżnić „nie znalazłem swojej
+    szkoły” od „nie chciało mi się szukać”:
+
+    - ``school_query`` – to, co uczestnik widzi i w co pisze. Do serwisu **nie trafia**,
+    - ``school_id`` – ukryty wynik wyboru z podpowiedzi; to on wiąże profil z rejestrem,
+    - ``school_custom`` – jawna deklaracja „mojej szkoły nie ma na liście”. Bez niej brak
+      ``school_id`` byłby nieodróżnialny od pomyłki i albo blokowałby rejestrację ludziom spoza
+      wykazu, albo cicho przepuszczał wolny tekst każdemu, kto nie kliknął podpowiedzi,
+    - ``school`` – nazwa wpisana ręcznie, wymagana wyłącznie w trybie „nie ma na liście”.
+
+    ``clean()`` sprowadza to do dokładnie dwóch kluczy, jakich oczekuje
+    ``accounts.services.register_participant``: ``school`` (tekst) i ``school_id``.
+
+    Atrybuty ``x-ref``/``x-on`` stoją przy widżetach, a nie w szablonie, bo szablon renderuje ten
+    blok dwa razy (rejestracja hasłem i przez dostawcę) – jedna definicja to jedno miejsce, w
+    którym nazwa metody komponentu może się rozjechać z ``static/js/school-picker.js``.
+    """
+
+    school_id = forms.IntegerField(
+        required=False, min_value=1, widget=forms.HiddenInput(attrs={"x-ref": "schoolId"})
+    )
+    school_query = forms.CharField(
+        label="Szkoła",
+        required=False,
+        max_length=255,
+        help_text="Zacznij pisać nazwę lub miejscowość.",
+        widget=forms.TextInput(
+            attrs={
+                "autocomplete": "off",
+                "role": "combobox",
+                "aria-expanded": "false",
+                "aria-autocomplete": "list",
+                "aria-controls": "school-suggestions",
+                "x-ref": "query",
+                "x-on:input": "onInput",
+                "x-on:keydown": "onKeydown",
+                "x-on:focus": "onFocus",
+                "x-on:blur": "onBlur",
+            }
+        ),
+    )
+    school_custom = forms.BooleanField(
+        label="Mojej szkoły nie ma na liście",
+        required=False,
+        widget=forms.CheckboxInput(attrs={"x-ref": "custom", "x-on:change": "onCustomToggle"}),
+    )
+    school = forms.CharField(label="Nazwa szkoły", required=False, max_length=255)
+
+    @property
+    def school_field_names(self) -> tuple[str, ...]:
+        """Nazwy pól bloku „szkoła” – szablon pomija je w zwykłej pętli po polach formularza."""
+        return SCHOOL_FIELD_NAMES
+
+    def clean(self):
+        """Mapuje blok na kwargi serwisu. Dokładnie jedna droga zostaje wypełniona."""
+        cleaned = super().clean()
+        custom = cleaned.get("school_custom")
+        # Pola pomocnicze nie mają prawa dojechać do serwisu – widoki wołają go
+        # ``**form.cleaned_data``, więc każdy nadmiarowy klucz byłby TypeError.
+        cleaned.pop("school_query", None)
+        cleaned.pop("school_custom", None)
+        if custom:
+            # Zaznaczony wyjątek unieważnia wcześniejszy wybór z listy: liczy się ostatnia decyzja
+            # uczestnika, a nie kolejność, w jakiej klikał.
+            cleaned["school_id"] = None
+            if not (cleaned.get("school") or "").strip():
+                self.add_error("school", "Podaj nazwę szkoły.")
+        else:
+            cleaned["school"] = ""
+            if not cleaned.get("school_id"):
+                self.add_error(
+                    "school_query",
+                    "Wybierz szkołę z listy albo zaznacz, że nie ma jej na liście.",
+                )
+        return cleaned
+
+
 class EmailAuthenticationForm(AuthenticationForm):
     """Logowanie adresem e-mail. ``AuthenticationForm`` trzyma login w polu ``username``."""
 
@@ -60,21 +146,51 @@ class EmailAuthenticationForm(AuthenticationForm):
         return (self.cleaned_data.get("username") or "").strip().lower()
 
 
-class ParticipantRegisterForm(forms.Form):
+def grade_field() -> forms.TypedChoiceField:
+    """Klasa uczestnika. Lista zamknięta – rocznik spoza 1–5 nie istnieje w szkole ponadpodstawowej."""
+    return forms.TypedChoiceField(
+        label="Klasa",
+        choices=[("", "— wybierz klasę —"), *((str(value), label) for value, label in GRADE_CHOICES)],
+        coerce=int,
+        empty_value=None,
+    )
+
+
+#: Kolejność pól w formularzach uczestnika. Jawna, bo pola bloku „szkoła” przychodzą z domieszki,
+#: a Django ustawia pola klas bazowych **przed** własnymi – bez tego adres e-mail stanąłby pod
+#: wyborem szkoły. Województwo musi poprzedzać blok szkoły także w DOM: podpowiedzi zawężają się
+#: do wybranego województwa, więc pytanie o nie po wskazaniu szkoły byłoby odwróceniem kolejności.
+PARTICIPANT_FIELD_ORDER = (
+    "email",
+    "password",
+    "first_name",
+    "last_name",
+    "district",
+    *SCHOOL_FIELD_NAMES,
+    "grade",
+    "birth_year",
+    "gdpr_consent",
+    "guardian_consent",
+)
+
+
+class ParticipantRegisterForm(SchoolChoiceMixin):
     """Rejestracja otwarta uczestnika – dane wchodzą prosto do ``register_participant``."""
+
+    field_order = [name for name in PARTICIPANT_FIELD_ORDER]
 
     email = forms.EmailField(label="Adres e-mail", max_length=254)
     password = forms.CharField(label="Hasło", widget=forms.PasswordInput, max_length=200)
     first_name = forms.CharField(label="Imię", max_length=150)
     last_name = forms.CharField(label="Nazwisko", max_length=150)
-    school = forms.CharField(label="Szkoła", max_length=200)
     district = voivodeship_field("Województwo")
+    grade = grade_field()
     birth_year = forms.IntegerField(label="Rok urodzenia", min_value=1900, max_value=2100)
     gdpr_consent = forms.BooleanField(label="Zgoda na przetwarzanie danych osobowych", required=False)
     guardian_consent = forms.BooleanField(label="Zgoda opiekuna", required=False)
 
 
-class SocialParticipantSignupForm(forms.Form):
+class SocialParticipantSignupForm(SchoolChoiceMixin):
     """Dokończenie rejestracji po zalogowaniu przez Google/Facebooka.
 
     Czego tu **nie ma** i dlaczego:
@@ -88,10 +204,12 @@ class SocialParticipantSignupForm(forms.Form):
     w wynikach olimpiady ma stać nazwisko z legitymacji, a nie pseudonim z konta społecznościowego.
     """
 
+    field_order = [name for name in PARTICIPANT_FIELD_ORDER if name not in ("email", "password")]
+
     first_name = forms.CharField(label="Imię", max_length=150)
     last_name = forms.CharField(label="Nazwisko", max_length=150)
-    school = forms.CharField(label="Szkoła", max_length=200)
     district = voivodeship_field("Województwo")
+    grade = grade_field()
     birth_year = forms.IntegerField(label="Rok urodzenia", min_value=1900, max_value=2100)
     gdpr_consent = forms.BooleanField(label="Zgoda na przetwarzanie danych osobowych", required=False)
     guardian_consent = forms.BooleanField(label="Zgoda opiekuna", required=False)

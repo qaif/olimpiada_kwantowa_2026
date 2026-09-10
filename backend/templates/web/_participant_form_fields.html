@@ -1,0 +1,21 @@
+{% comment %}
+  Pola formularza uczestnika. Zamiast ``form.as_p`` jest tu pętla z jednym wyjątkiem: w miejscu,
+  w którym w kolejności pól stoi ``school_id``, renderuje się cały blok wyboru szkoły
+  (``web/_school_picker.html``). Reszta pól idzie w układzie, który dawało ``as_p``, więc żaden
+  inny ekran rejestracji nie zmienia wyglądu.
+
+  Kolejność pól ustala ``field_order`` w apps/web/forms.py – szablon jej nie zna i nie powiela.
+{% endcomment %}
+{{ form.non_field_errors }}
+{% for field in form %}
+  {% if field.name in form.school_field_names %}
+    {% if field.name == "school_id" %}{% include "web/_school_picker.html" %}{% endif %}
+  {% else %}
+    <p>
+      {{ field.errors }}
+      {{ field.label_tag }}
+      {{ field }}
+      {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
+    </p>
+  {% endif %}
+{% endfor %}

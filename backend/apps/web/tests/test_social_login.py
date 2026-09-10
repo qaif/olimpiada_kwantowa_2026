@@ -28,6 +28,7 @@ from apps.accounts.tests.factories import (
     UserFactory,
 )
 from apps.core.models import AuditLog
+from apps.schools.tests.factories import SchoolFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -111,8 +112,10 @@ def complete_signup(client: Client, **overrides):
     data = {
         "first_name": "Anna",
         "last_name": "Nowak",
+        "school_custom": "on",
         "school": "LO nr 3",
         "district": "mazowieckie",
+        "grade": 2,
         "birth_year": 2008,
         "gdpr_consent": "on",
     }
@@ -251,6 +254,20 @@ def test_signup_with_consent_creates_participant_linked_to_the_provider(web_clie
     account = SocialAccount.objects.get(user=user)
     assert account.provider == "google"
     assert account.uid == GOOGLE_PROFILE["id"]
+
+
+def test_signup_can_pick_a_school_from_the_directory(web_client, google, edition):
+    """Ta sama droga co w rejestracji hasłem: wybór ze słownika wiąże profil z rejestrem."""
+    school = SchoolFactory(name="XIV LICEUM OGÓLNOKSZTAŁCĄCE", city="Warszawa")
+    social_login(web_client)
+
+    response = complete_signup(web_client, school_custom="", school="", school_id=str(school.id), grade=4)
+
+    assert response.status_code == 302
+    participant = Participant.objects.get(user__email=GOOGLE_EMAIL)
+    assert participant.school_ref == school
+    assert participant.school == "XIV LICEUM OGÓLNOKSZTAŁCĄCE"
+    assert participant.grade == 4
 
 
 def test_signup_is_audited_without_personal_data(web_client, google, edition):

@@ -89,6 +89,7 @@ def test_kryterium_8_login_dziala_niezaleznie_od_wielkosci_liter_w_emailu(api, o
         last_name="Zielińska",
         school="LO nr 2",
         district="mazowieckie",
+        grade=3,
         birth_year=2007,
         gdpr_consent=True,
     )

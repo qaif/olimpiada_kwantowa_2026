@@ -60,6 +60,8 @@ class ParticipantFactory(factory.django.DjangoModelFactory):
     user = factory.SubFactory(UserFactory, groups=[GROUP_PARTICIPANT])
     public_code = factory.LazyFunction(generate_public_code)
     school = "LO nr 1"
+    # Szkoła wpisana ręcznie (``school_ref`` puste) – wariant, który działa bez słownika.
+    grade = 3
     # Wartość z ``Voivodeship`` – po zamknięciu listy każdy inny zapis odpada na walidacji.
     # Stała, a nie losowana: testy konfliktu okręgu porównują okręgi między obiektami
     # i muszą mieć powtarzalny punkt wyjścia (własny okręg podają jawnie).

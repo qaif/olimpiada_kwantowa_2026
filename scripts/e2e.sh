@@ -82,6 +82,9 @@ if [[ $RESET -eq 1 ]]; then
   echo "==> Dane demonstracyjne"
   "${COMPOSE[@]}" exec -T web python manage.py seed_demo
   "${COMPOSE[@]}" exec -T web python manage.py seed_cms
+  # Słownik szkół: scenariusz rejestruje uczestnika przez wyszukiwarkę szkół, więc bez tego
+  # kroku podpowiedzi byłyby puste i krok 1 nie miałby czego kliknąć.
+  "${COMPOSE[@]}" exec -T web python manage.py seed_schools
 fi
 
 echo "==> Scenariusz E2E (Playwright)"

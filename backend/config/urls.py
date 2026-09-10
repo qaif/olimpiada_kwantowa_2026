@@ -21,6 +21,7 @@ urlpatterns = [
     path("healthz/", include("apps.core.urls")),
     path("api/auth/", include("apps.accounts.urls")),
     path("api/competitions/", include("apps.competitions.urls")),
+    path("api/schools/", include("apps.schools.urls")),
     path("api/", include("apps.submissions.urls")),
     path("api/grading/", include("apps.grading.urls")),
     path("api/", include("apps.appeals.urls")),

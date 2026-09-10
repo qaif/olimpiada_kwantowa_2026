@@ -1,5 +1,9 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Rejestracja uczestnika{% endblock %}
+{% block alpine_components %}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/school-picker.js' %}"></script>
+{% endblock %}
 {% block content %}
 <div class="auth">
   <div class="card">
@@ -16,7 +20,7 @@
         eliminacyjnego z panelu uczestnika.</p>
       <form method="post" class="form">
         {% csrf_token %}
-        {{ form.as_p }}
+        {% include "web/_participant_form_fields.html" %}
         <p class="hint">Zgoda na przetwarzanie danych osobowych jest wymagana. Uczestnik niepełnoletni
           potrzebuje dodatkowo zgody opiekuna.</p>
         <button type="submit" class="btn btn--primary btn--block">Załóż konto</button>

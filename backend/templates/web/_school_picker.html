@@ -1,0 +1,52 @@
+{% comment %}
+  Blok „szkoła” w rejestracji uczestnika: wyszukiwarka słownika SIO + jawny wyjątek dla szkół,
+  których w wykazie nie ma. Renderowany ręcznie (a nie pętlą po polach), bo cztery pola formularza
+  składają się tu na jeden komponent i muszą stać w konkretnym układzie.
+
+  **Strona bez JavaScriptu działa.** Lista podpowiedzi zostaje pusta, pole „Nazwa szkoły” jest
+  widoczne od początku, więc rejestracja idzie drogą „Mojej szkoły nie ma na liście” + wolny tekst.
+  Skrypt (``static/js/school-picker.js``) dokłada podpowiedzi i chowa pole wolnego tekstu, dopóki
+  wyjątek nie jest zaznaczony – czyli poprawia wygodę, a nie warunkuje wysłanie formularza.
+
+  Atrybuty ``x-ref``/``x-on`` przychodzą z widżetów (apps/web/forms.py), bo nazwa metody musi
+  zgadzać się z komponentem Alpine i nie ma prawa istnieć w dwóch kopiach szablonu.
+{% endcomment %}
+<div class="school-picker" x-data="schoolPicker"
+     data-search-url="{% url 'schools:search' %}"
+     data-district-field="{{ form.district.auto_id }}">
+  <p class="school-picker__query">
+    {{ form.school_query.errors }}
+    <label for="{{ form.school_query.id_for_label }}">{{ form.school_query.label }}</label>
+    {% comment %}
+      Lista podpowiedzi jest pozycjonowana **względem samego pola**, a nie względem całego bloku:
+      nad polem potrafi stanąć jeszcze lista błędów, więc każdy odstęp liczony od góry bloku
+      rozjechałby się dokładnie wtedy, gdy formularz wraca z błędem.
+    {% endcomment %}
+    <span class="school-picker__control">
+      {{ form.school_query }}
+      <ul class="school-picker__list" id="school-suggestions" role="listbox"
+          aria-label="Podpowiedzi szkół" x-ref="list" hidden></ul>
+    </span>
+    <span class="helptext">{{ form.school_query.help_text }}</span>
+  </p>
+  {{ form.school_id }}
+  {% comment %}
+    ``aria-live`` mówi czytnikowi ekranu, ile podpowiedzi się pojawiło – bez tego lista zmienia
+    się w ciszy i wiadomo o niej tylko wtedy, gdy się ją widzi.
+  {% endcomment %}
+  <p class="school-picker__status visually-hidden" role="status" aria-live="polite" x-ref="status"></p>
+  {% comment %}
+    Etykieta **przed** kratką – tak samo jak w ``as_p``, bo arkusz odwraca tę parę regułą
+    ``.form p:has(> input[type=checkbox])``. Odwrotna kolejność w HTML-u dałaby tu jedyny
+    checkbox w serwisie z etykietą po lewej.
+  {% endcomment %}
+  <p class="school-picker__custom">
+    <label for="{{ form.school_custom.id_for_label }}">{{ form.school_custom.label }}</label>
+    {{ form.school_custom }}
+  </p>
+  <p class="school-picker__free" x-ref="free">
+    {{ form.school.errors }}
+    <label for="{{ form.school.id_for_label }}">{{ form.school.label }}</label>
+    {{ form.school }}
+  </p>
+</div>

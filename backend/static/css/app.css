@@ -3069,6 +3069,69 @@ fieldset:disabled .score-option {
   padding: var(--sp-2) var(--sp-4);
 }
 
+/* --- 7b. Wyszukiwarka szkół (rejestracja uczestnika) ---------------------------------------- */
+
+/* Blok jest jednym polem formularza złożonym z czterech kontrolek (patrz
+   templates/web/_school_picker.html), więc odstępy w środku są mniejsze niż między polami. */
+.school-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+/* Kotwica listy podpowiedzi: opakowanie samego pola tekstowego, nie całego bloku. */
+.school-picker__control {
+  display: block;
+  position: relative;
+}
+
+.school-picker__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  /* Lista wisi nad formularzem, żeby nie przesuwała pól przy każdym naciśnięciu klawisza. */
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  max-height: 18rem;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+}
+
+.school-picker__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--sp-2) var(--sp-3);
+  cursor: pointer;
+  border-bottom: 1px solid var(--line);
+}
+
+.school-picker__item:last-child {
+  border-bottom: 0;
+}
+
+.school-picker__item:hover,
+.school-picker__item--active {
+  background: var(--brand-soft);
+}
+
+.school-picker__name {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--ink);
+}
+
+.school-picker__meta {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
 /* --- 8. Narzędzia i dostępność -------------------------------------------------------------- */
 
 .visually-hidden {

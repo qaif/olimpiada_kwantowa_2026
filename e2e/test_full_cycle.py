@@ -164,9 +164,19 @@ def test_pelny_cykl_etapu_od_rejestracji_do_publikacji(
     page.fill("#id_password", participant_identity["password"])
     page.fill("#id_first_name", participant_identity["first_name"])
     page.fill("#id_last_name", participant_identity["last_name"])
-    page.fill("#id_school", participant_identity["school"])
     # Województwo jest listą zamkniętą (``Voivodeship``), więc wybór, a nie wpisanie tekstu.
+    # Musi być **przed** szkołą: podpowiedzi zawężają się do wybranego okręgu.
     page.select_option("#id_district", participant_identity["district"])
+    # Szkoła: prawdziwa wyszukiwarka słownika SIO (fetch na /api/schools/, komponent Alpine).
+    # Nazwa, którą zapisze serwer, przychodzi z rejestru – zapamiętujemy ją do asercji
+    # „w publicznej tabeli nie ma danych osobowych” (krok 11).
+    page.fill("#id_school_query", participant_identity["school_query"])
+    podpowiedz = page.locator("#school-suggestions li").first
+    expect(podpowiedz).to_be_visible()
+    participant_identity["school"] = podpowiedz.locator(".school-picker__name").inner_text().strip()
+    podpowiedz.click()
+    expect(page.locator("#id_school_id")).not_to_have_value("")
+    page.select_option("#id_grade", participant_identity["grade"])
     page.fill("#id_birth_year", participant_identity["birth_year"])
     page.check("#id_gdpr_consent")
     page.check("#id_guardian_consent")

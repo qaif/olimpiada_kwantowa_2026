@@ -34,6 +34,14 @@
     inline, dzięki czemu CSP nie potrzebuje 'unsafe-inline' dla skryptów.
   {% endcomment %}
   <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/app.js' %}"></script>
+  {% comment %}
+    Miejsce na komponenty Alpine'a potrzebne tylko na niektórych stronach (np. wyszukiwarka szkół
+    w rejestracji). Blok stoi **przed** znacznikiem Alpine'a i to nie jest kosmetyka: build CDN
+    woła ``Alpine.start()`` w mikrozadaniu tuż po wykonaniu swojego skryptu, a mikrozadania są
+    opróżniane pomiędzy kolejnymi skryptami ``defer``. Rejestracja doklejona w ``{% templatetag openblock %} block head {% templatetag closeblock %}``
+    (czyli poniżej) wykonałaby się już po ``alpine:init`` i komponent nigdy by nie powstał.
+  {% endcomment %}
+  {% block alpine_components %}{% endblock %}
   <script defer nonce="{{ request.csp_nonce }}"
           src="https://cdnjs.cloudflare.com/ajax/libs/htmx/2.0.4/htmx.min.js"
           integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+"

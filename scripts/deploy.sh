@@ -146,6 +146,10 @@ EDITION_ARGS=""
 [ "$MAKE_EDITION_CURRENT" = "1" ] && EDITION_ARGS="$EDITION_ARGS --make-current"
 [ "$SYNC_STAGE_DATES" = "1" ] && EDITION_ARGS="$EDITION_ARGS --sync-dates"   # przestawia terminy istniejących etapów
 dc python manage.py seed_edition_kwantowa $EDITION_ARGS
+# Słownik szkół (SIO/RSPO) – dane referencyjne, nie treść redakcyjna, więc **poza** bramką
+# .first-deploy: nikt go nie edytuje w panelu, a przebieg jest idempotentny (upsert po RSPO,
+# szkoły spoza wykazu tylko wygasza). Bez tego wyszukiwarka w rejestracji nie ma czego pokazać.
+dc python manage.py seed_schools
 if [ -n "$COORDINATOR_EMAIL" ] && [ -n "$COORDINATOR_PASSWORD" ]; then
   docker compose exec -T -e COORDINATOR_EMAIL="$COORDINATOR_EMAIL" -e COORDINATOR_PASSWORD="$COORDINATOR_PASSWORD" web \
     python manage.py bootstrap_coordinator </dev/null

@@ -48,8 +48,10 @@ def registration_payload(email: str) -> dict:
         "password": "Poprawne-Haslo-2026",
         "first_name": "Nowy",
         "last_name": "Uczestnik",
+        "school_custom": "on",
         "school": "LO nr 7",
         "district": "mazowieckie",
+        "grade": 2,
         "birth_year": 2008,
         "gdpr_consent": "on",
     }

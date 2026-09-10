@@ -34,6 +34,7 @@ def participant_payload(**overrides):
         "last_name": "Nowak",
         "school": "LO nr 3",
         "district": "mazowieckie",
+        "grade": 2,
         "birth_year": 2008,
         "gdpr_consent": True,
         "guardian_consent": True,

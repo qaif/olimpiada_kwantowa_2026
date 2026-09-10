@@ -35,6 +35,9 @@ dev = [
     "factory-boy>=3.3",
     "freezegun>=1.5",
     "ruff>=0.6",
+    # Odczyt wykazu SIO (.xlsx) przy budowaniu słownika szkół – ``apps.schools.sio`` i jego testy.
+    # Wagtail i tak ciągnie openpyxl, ale zależność, na której stoi nasz kod, ma być nazwana wprost.
+    "openpyxl>=3.1,<4.0",
 ]
 
 [tool.ruff]

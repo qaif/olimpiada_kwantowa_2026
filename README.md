@@ -46,6 +46,7 @@ $DC ps                                                                          
 $DC exec web python manage.py seed_demo && $DC exec web python manage.py seed_cms       # 7
 $DC exec web python manage.py seed_regulamin                                            # 8
 $DC exec web python manage.py seed_legacy_content && $DC exec web python manage.py seed_partners  # 9
+$DC exec web python manage.py seed_schools                                              # 10
 ```
 
 Konto administracyjne poza `seed_demo` (opcjonalnie): `$DC exec web python manage.py createsuperuser`.
@@ -62,6 +63,9 @@ Uwagi:
 - **Krok 6 nie jest ozdobą.** `up -d` wraca, gdy kontenery **wystartowały**, a nie gdy aplikacja
   jest gotowa; migracje robi entrypoint `web`. `seed_demo` uruchomione zbyt wcześnie trafia na
   pustą bazę (`relation "competitions_edition" does not exist`).
+- **Krok 10** wgrywa słownik szkół ponadpodstawowych (8 118 pozycji z wykazu SIO) – bez niego
+  wyszukiwarka szkół w `/register/` nie ma czego podpowiadać i zostaje sam wolny tekst.
+  Szczegóły i procedura odświeżenia: 6.3b.
 - **Krok 8** publikuje „Regulamin Olimpiady Kwantowej” pod `/dokumenty/regulamin/`: treść z
   `apps/cms/fixtures/regulamin/` trafia do strony CMS, oryginał `.docx` do biblioteki dokumentów
   Wagtaila. Komenda jest idempotentna, ale **nadpisuje treść strony** – po redakcji w `/cms/`
@@ -544,6 +548,48 @@ Brak bieżącej edycji jest traktowany jak rejestracja wyłączona — nie ma wt
 (stała `REGISTRATION_OPENS`); istniejącej edycji nie rusza — także przy `--sync-dates`, bo po
 pierwszej instalacji okno należy do koordynatora.
 
+**Dane zbierane przy rejestracji uczestnika**: adres e-mail, imię i nazwisko, hasło (wyłącznie
+jako hash), województwo, **szkoła** (wybrana ze słownika albo wpisana ręcznie — patrz 6.3b),
+**klasa** (1–5), rok urodzenia, zgoda RODO i — dla niepełnoletnich — zgoda opiekuna. Zasada
+minimalizacji: w publicznych tabelach wyników stoi wyłącznie kod uczestnika (`OLM-XXXXXX`).
+
+#### 6.3b Słownik szkół (SIO/RSPO)
+
+Pole „Szkoła” w `/register/` i w dokończeniu rejestracji przez Google/Facebooka to **wyszukiwarka
+po rejestrze**, a nie wolny tekst. Uczestnik pisze fragment nazwy albo miejscowości, dostaje do
+20 podpowiedzi zawężonych do wybranego województwa (`GET /api/schools/?q=&voivodeship=&limit=`,
+bez logowania, throttle `schools`) i wybiera jedną. Wyszukiwanie jest odporne na diakrytyki –
+„lodz” znajduje „ŁÓDŹ” – i wymaga trafienia **każdym** wpisanym słowem.
+
+Po co: wolny tekst nie grupuje. „II LO w Krakowie”, „2 LO Kraków” i „Liceum nr 2” to dla bazy
+trzy różne szkoły, więc próg k-anonimowości w publikacji wyników (`INITIALS_SCHOOL`, 7.4) nie ma
+czego zliczyć. Wybór ze słownika zapisuje w profilu nazwę **przepisaną z rejestru** oraz
+dowiązanie `Participant.school_ref`.
+
+**Szkoły spoza wykazu są dopuszczone i to jest świadome.** Checkbox „Mojej szkoły nie ma na
+liście” odsłania pole „Nazwa szkoły” (min. 3 znaki) i profil powstaje bez dowiązania. Rejestr
+ministerialny nie zna szkół zagranicznych ani placówek założonych po dacie wykazu, a jego
+nieaktualność nie może zamykać drogi do olimpiady. Strona działa też **bez JavaScriptu**: pole
+wolnego tekstu jest wtedy widoczne od początku.
+
+W API rejestracji (`POST /api/auth/register/participant/`) szkołę podaje się jako `school_id`
+(wiersz słownika) **albo** `school` (nazwa). Klient sprzed wprowadzenia słownika, który zna tylko
+`school`, działa bez zmian.
+
+| Źródło | Wykaz szkół i placówek oświatowych wg stanu bazy SIO na 30.09.2025 — [dane.gov.pl, zbiór 839](https://dane.gov.pl/pl/dataset/839) |
+|---|---|
+| Zakres | licea, technika, szkoły branżowe I i II stopnia, szkoły artystyczne i specjalne przysposabiające do pracy; **bez** szkół dla dorosłych. Rok 2025/2026, **8 118 pozycji** |
+| Plik w repozytorium | `backend/apps/schools/fixtures/szkoly-srednie-sio-2025.json` (≈ 1,9 MB, jeden obiekt na linię) — szczegóły w `fixtures/README.md` |
+| Wgranie do bazy | `manage.py seed_schools` — idempotentne (upsert po numerze RSPO), uruchamiane przy **każdym** wdrożeniu (`scripts/deploy.sh`, krok 6/7), poza bramką `.first-deploy`: to dane referencyjne, a nie treść redakcyjna |
+
+Odświeżenie raz na rok szkolny: pobierz nowy wykaz z dane.gov.pl, uruchom
+`backend/.venv/Scripts/python.exe scripts/build_school_fixture.py Wykaz_szkol.xlsx`, sprawdź diff,
+zacommituj — wdrożenie samo wywoła `seed_schools`. Reguła doboru wierszy siedzi w
+`apps/schools/sio.py` (i tam jest testowana), skrypt jest tylko interfejsem wiersza poleceń.
+Szkoła, której **nie ma** w nowym wykazie, dostaje `is_active=False` i znika z podpowiedzi — ale
+wiersz zostaje, bo mogą na niego wskazywać profile sprzed roku (`on_delete=PROTECT`). Nazwy są
+przepisane dosłownie, wersalikami, tak jak stoją w rejestrze.
+
 **Zadania** — karta etapu → **„Zadania (n)”** (`/coordinator/stages/<id>/problems/`): lista
 z numerem, tytułem, obecnością treści PDF, dopuszczonymi formatami rozwiązania, limitem rozmiaru
 i liczbą oddanych prac, a pod nią formularz dodania.
@@ -656,6 +702,10 @@ docker compose exec web python manage.py seed_partners
 # --sync-dates przestawia terminy i miejsce ISTNIEJĄCYCH etapów na plan z komendy; bez tej flagi
 # oś czasu utworzonego już etapu należy do koordynatora i komenda jej nie rusza.
 docker compose exec web python manage.py seed_edition_kwantowa [--make-current] [--sync-dates]
+
+# Słownik szkół ponadpodstawowych (SIO/RSPO) — dane referencyjne, nie treść redakcyjna, więc
+# wdrożenie uruchamia je ZAWSZE, a nie tylko przy pierwszym. Szczegóły: 6.3b.
+docker compose exec web python manage.py seed_schools
 ```
 
 Źródła treści leżą w `backend/apps/cms/fixtures/legacy/*.md`; inwentarz i pełne teksty starej

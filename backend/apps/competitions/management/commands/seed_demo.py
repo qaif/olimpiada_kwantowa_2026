@@ -146,6 +146,7 @@ class Command(BaseCommand):
                     last_name="Demo",
                     school=f"LO nr {index}",
                     district=Voivodeship.MAZOWIECKIE if index % 2 else Voivodeship.MALOPOLSKIE,
+                    grade=(index % 4) + 1,
                     birth_year=2008,
                     gdpr_consent=True,
                     guardian_consent=True,

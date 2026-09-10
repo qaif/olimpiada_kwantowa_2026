@@ -30,11 +30,23 @@ class UserAdmin(DjangoUserAdmin):
 
 @admin.register(Participant)
 class ParticipantAdmin(admin.ModelAdmin):
-    list_display = ("public_code", "user", "school", "district", "birth_year", "publish_full_name")
-    list_filter = ("district", "guardian_consent", "publish_full_name")
+    list_display = (
+        "public_code",
+        "user",
+        "school",
+        "school_ref",
+        "grade",
+        "district",
+        "birth_year",
+        "publish_full_name",
+    )
+    list_filter = ("district", "grade", "guardian_consent", "publish_full_name")
     search_fields = ("public_code", "user__email", "school")
     readonly_fields = ("public_code", "gdpr_consent_at")
     autocomplete_fields = ("user",)
+    # Słownik ma ponad osiem tysięcy wierszy – zwykły ``<select>`` wysyłałby je wszystkie
+    # do przeglądarki przy każdym otwarciu profilu uczestnika.
+    raw_id_fields = ("school_ref",)
 
 
 @admin.register(CommitteeMember)

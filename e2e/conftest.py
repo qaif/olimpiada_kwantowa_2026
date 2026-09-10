@@ -156,7 +156,11 @@ def participant_identity() -> dict:
         "password": "Olimpiada-Testowa-2026",
         "first_name": "Jan",
         "last_name": f"Kowalski{token[:4].upper()}",
-        "school": "XIV Liceum Ogólnokształcące",
+        # Fragment wpisywany w wyszukiwarkę szkół – pełną nazwę wybiera scenariusz
+        # z podpowiedzi i zapisuje pod kluczem ``school`` (patrz test_full_cycle, krok 1).
+        "school_query": "XIV Liceum",
+        "school": "",
         "district": "mazowieckie",
+        "grade": "3",
         "birth_year": "2008",
     }

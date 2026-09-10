@@ -16,7 +16,7 @@ from .factories import ParticipantFactory, UserFactory
 def _fields(user):
     return {
         "user": user,
-        "school": "LO",
+        "school": "LO nr 1",
         "district": "mazowieckie",
         "birth_year": 2008,
         "gdpr_consent_at": timezone.now(),
@@ -51,8 +51,9 @@ def test_wyczerpanie_prob_nie_zostawia_osieroconego_usera(open_registration):
             password="Silne.Haslo.123",
             first_name="A",
             last_name="B",
-            school="LO",
+            school="LO nr 1",
             district="mazowieckie",
+            grade=2,
             birth_year=2008,
             gdpr_consent=True,
         )

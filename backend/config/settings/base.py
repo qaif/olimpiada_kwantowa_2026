@@ -56,6 +56,9 @@ INSTALLED_APPS = [
     "apps.cms",
     "apps.core",
     "apps.accounts",
+    # Słownik szkół ponadpodstawowych (SIO/RSPO). Po ``apps.accounts``, bo model ``School``
+    # korzysta z zamkniętej listy województw zdefiniowanej przy kontach.
+    "apps.schools",
     "apps.competitions",
     "apps.submissions",
     "apps.grading",
@@ -484,6 +487,10 @@ REST_FRAMEWORK = {
         # sprawdzenie, czy dostawca poczty przyjmuje nasze wiadomości). Stawka jest niska,
         # bo człowiek prosi o reset raz, a nie pięć razy w godzinie.
         "password_reset": "5/hour",
+        # Podpowiedzi szkół w formularzu rejestracji. Limit jest wysoki, bo jedno wypełnienie
+        # formularza to kilkanaście żądań (jedno na przerwę w pisaniu), a dane są jawnym
+        # rejestrem publicznym – chronimy tu koszt zapytania, nie treść.
+        "schools": "120/min",
     },
     "EXCEPTION_HANDLER": "apps.core.api.exception_handler",
 }
