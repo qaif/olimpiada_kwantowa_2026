@@ -117,7 +117,11 @@ def complete_signup(client: Client, **overrides):
         "district": "mazowieckie",
         "grade": 2,
         "birth_year": 2008,
+        "terms_consent": "on",
         "gdpr_consent": "on",
+        # Rocznik 2008 to w 2026 r. osoba „na pewno niepełnoletnia” w rozumieniu
+        # ``accounts.consents.is_minor`` – bez zgody opiekuna formularz jej nie przepuści.
+        "guardian_consent": "on",
     }
     data.update(overrides)
     return client.post(SIGNUP_URL, data)

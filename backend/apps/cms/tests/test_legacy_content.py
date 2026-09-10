@@ -42,7 +42,7 @@ PUBLISHED_CONTENT = (
     "kontakt",
     "dla-nauczycieli",
 )
-DOCUMENTS = ("rodo", "standardy-ochrony-maloletnich", "komitety")
+DOCUMENTS = ("rodo", "zgoda-opiekuna", "standardy-ochrony-maloletnich", "komitety")
 
 #: Nazwy z kafli starej strony. Jedna z nich („Uniwersytet Kwantowy”) to instytucja nieistniejąca,
 #: pozostałe dwie nie mają potwierdzonego patronatu – żadna nie może wrócić na serwis.
@@ -50,13 +50,30 @@ INVENTED_PARTNERS = ("Ministerstwo Edukacji", "Uniwersytet Kwantowy", "Polskie T
 PARTNERS_EMPTY_STATE = "Lista partnerów I edycji zostanie opublikowana wkrótce."
 
 #: Dokumenty pod ``/dokumenty/`` w kolejności z drzewa – ta sama w menu, w spisie i na stronie głównej.
-DOCUMENT_ORDER = ("regulamin", "rodo", "standardy-ochrony-maloletnich", "komitety")
+DOCUMENT_ORDER = (
+    "regulamin",
+    "rodo",
+    "zgoda-opiekuna",
+    "standardy-ochrony-maloletnich",
+    "komitety",
+)
 DOCUMENT_TITLES = [
     "Regulamin",
     "Polityka RODO Olimpiady Kwantowej",
+    "Zgoda rodzica lub opiekuna prawnego",
     "Standardy ochrony małoletnich Olimpiady Kwantowej",
     "Skład komitetów",
 ]
+#: Dokumenty, które miały jednosegmentowy adres przed wydzieleniem sekcji ``/dokumenty/`` – tylko
+#: one mają przekierowanie 301. Wzór zgody opiekuna powstał już w sekcji, więc nie ma skąd
+#: przekierowywać i wpis dla niego byłby wymyślonym adresem.
+REDIRECTED_DOCUMENTS = ("regulamin", "rodo", "standardy-ochrony-maloletnich", "komitety")
+
+#: Dokumenty, przy których wisi plik organizatora. Wzoru zgody opiekuna tu nie ma: organizator
+#: nie przekazał żadnego pliku, bo dokument jest naszym projektem – do wydruku służy sama strona
+#: (przycisk „Drukuj” plus arkusz ``@media print``).
+DOWNLOADABLE_DOCUMENTS = ("regulamin", "rodo", "standardy-ochrony-maloletnich", "komitety")
+
 #: Ramka nad treścią obu dokumentów: skąd jest treść i który plik jest wersją źródłową.
 SOURCE_NOTICE_FRAGMENT = "Wersja do pobrania (PDF) jest wersją źródłową."
 
@@ -431,6 +448,118 @@ def test_rodo_keeps_document_metadata(legacy_content):
 # --- rama serwisu -----------------------------------------------------------------------------
 
 
+# --- wzór zgody opiekuna ------------------------------------------------------------------------
+
+
+def test_guardian_consent_page_is_published_under_documents(web_client, legacy_content):
+    """Wzór zgody opiekuna ma adres, pod który prowadzi etykieta zgody w formularzu rejestracji."""
+    page = DocumentPage.objects.get(slug="zgoda-opiekuna")
+
+    assert page.live is True
+    assert page.url == "/dokumenty/zgoda-opiekuna/"
+    assert web_client.get("/dokumenty/zgoda-opiekuna/").status_code == 200
+
+
+def test_guardian_consent_page_is_marked_as_a_draft_for_the_organiser(web_client, legacy_content):
+    """Ostrzeżenie stoi i w metryce, i w ramce nad treścią – ta druga zostaje także na wydruku."""
+    page = DocumentPage.objects.get(slug="zgoda-opiekuna")
+
+    assert page.status_label == "Wersja robocza do akceptacji organizatora"
+    assert page.version_label == "0.1 (projekt)"
+    assert page.body[0].block_type == "notice"
+
+    content = web_client.get("/dokumenty/zgoda-opiekuna/").content.decode()
+    assert "Wersja robocza do akceptacji organizatora" in content
+
+
+def test_guardian_consent_version_matches_the_consent_set(legacy_content):
+    """Metryka strony i wersja w dowodzie zgody muszą mówić o tym samym dokumencie.
+
+    ``ConsentRecord.document_version`` bierze się z ``apps.accounts.consents``; gdyby rozjechała
+    się ze stroną, dowód wskazywałby wersję, której nigdy nie opublikowano.
+    """
+    from apps.accounts.consents import GUARDIAN_VERSION
+
+    page = DocumentPage.objects.get(slug="zgoda-opiekuna")
+
+    assert GUARDIAN_VERSION.startswith(page.version_label)
+
+
+def test_guardian_consent_page_covers_the_form_sections(web_client, legacy_content):
+    content = web_client.get("/dokumenty/zgoda-opiekuna/").content.decode()
+
+    for fragment in (
+        "Jak dostarczyć podpisany dokument",
+        "Dane uczestnika",
+        "Dane rodzica albo opiekuna prawnego",
+        "Oświadczenie o zgodzie na udział",
+        "Zgoda na przetwarzanie danych osobowych",
+        "Dobrowolność i prawo wycofania zgody",
+        "publikacja imienia i nazwiska",
+        "Miejscowość, data i podpis",
+    ):
+        assert fragment in content, fragment
+    # Kanał dostarczenia i adres organizatora – bez nich formularz jest nie do odesłania.
+    assert "contact@qaif.org" in content
+
+
+def test_guardian_consent_page_is_printable(web_client, legacy_content):
+    """Przycisk „Drukuj” bez skryptu inline – CSP nie potrzebuje ``'unsafe-inline'``."""
+    content = web_client.get("/dokumenty/zgoda-opiekuna/").content.decode()
+
+    assert "data-print" in content
+    assert ">Drukuj<" in content
+    assert "js/print.js" in content
+    assert "onclick=" not in content
+
+
+def test_print_stylesheet_hides_navigation_and_footer():
+    """Na kartce zostaje treść dokumentu, a nie pasek nawigacji i stopka."""
+    from pathlib import Path
+
+    from django.conf import settings
+
+    css = Path(settings.BASE_DIR, "static", "css", "app.css").read_text(encoding="utf-8")
+    assert "@media print {" in css
+    # Reguła jest zapisana jako jedna lista selektorów zakończona ``display: none !important``;
+    # sprawdzamy właśnie ten fragment, żeby test nie przechodził na samej obecności selektora
+    # gdzieś indziej w arkuszu.
+    hidden = css.split("@media print {", 1)[1].split("display: none !important;", 1)[0]
+    for selector in (".topbar", ".footer", ".nav", "[data-print]"):
+        assert selector in hidden, selector
+
+
+def test_guardian_consent_page_is_not_a_separate_menu_item(web_client, legacy_content):
+    """Dokument mieszka w rozwijanej sekcji „Dokumenty”, a nie jako kolejna pozycja paska."""
+    page = DocumentPage.objects.get(slug="zgoda-opiekuna")
+
+    assert page.show_in_menus is False
+
+
+def test_seed_can_add_a_single_document_without_touching_the_rest(web_client, full_content):
+    """``--only`` istnieje dla produkcji: dokłada jedną stronę i nie cofa redakcyjnych poprawek."""
+    edited = DocumentPage.objects.get(slug="rodo")
+    edited.title = "Polityka RODO (poprawiona w /cms/)"
+    edited.save()
+    edited.save_revision().publish()
+    DocumentPage.objects.filter(slug="zgoda-opiekuna").delete()
+
+    call_command("seed_legacy_content", only=["zgoda-opiekuna"], verbosity=0)
+
+    assert DocumentPage.objects.get(slug="zgoda-opiekuna").live is True
+    assert DocumentPage.objects.get(slug="rodo").title == "Polityka RODO (poprawiona w /cms/)"
+    index = DocumentIndexPage.objects.get(slug="dokumenty")
+    slugs = list(DocumentPage.objects.child_of(index).order_by("path").values_list("slug", flat=True))
+    assert slugs == list(DOCUMENT_ORDER)
+
+
+def test_seed_only_refuses_an_unknown_slug(legacy_content):
+    from django.core.management.base import CommandError
+
+    with pytest.raises(CommandError):
+        call_command("seed_legacy_content", only=["nie-ma-takiej-strony"], verbosity=0)
+
+
 def test_menu_has_declared_order(web_client, legacy_content):
     response = web_client.get("/")
 
@@ -465,7 +594,7 @@ def test_home_page_lists_four_documents_to_download(web_client, legacy_content):
     content = response.content.decode()
 
     # Kolejność jest kolejnością z drzewa (ta sama, co w menu), a nie kolejnością wgrywania.
-    assert [row["page"].slug for row in rows] == list(DOCUMENT_ORDER)
+    assert [row["page"].slug for row in rows] == list(DOWNLOADABLE_DOCUMENTS)
     assert "Dokumenty do pobrania" in content
     for row in rows:
         # Tytuł prowadzi do strony, przycisk – wprost do pliku.
@@ -532,7 +661,8 @@ def test_document_index_links_every_file_directly(web_client, full_content):
     content = web_client.get("/dokumenty/").content.decode()
 
     files = [item for page in DocumentPage.objects.all() for item in page.attachments.all()]
-    assert len(files) == len(DOCUMENT_ORDER) + 1  # regulamin ma dwa pliki: PDF i źródłowy .docx
+    # Regulamin ma dwa pliki (PDF i źródłowy .docx); wzór zgody opiekuna – żadnego.
+    assert len(files) == len(DOWNLOADABLE_DOCUMENTS) + 1
     for item in files:
         assert f'href="{item.document.url}"' in content
 
@@ -630,7 +760,7 @@ def test_menu_reads_document_children_without_a_query_per_document(
 # --- przekierowania ze starych adresów ----------------------------------------------------------
 
 
-@pytest.mark.parametrize("slug", DOCUMENT_ORDER)
+@pytest.mark.parametrize("slug", REDIRECTED_DOCUMENTS)
 def test_old_document_address_redirects_permanently(web_client, full_content, slug):
     response = web_client.get(f"/{slug}/")
 
@@ -650,7 +780,7 @@ def test_seed_leaves_exactly_one_redirect_per_old_address(full_content):
 
     call_command("seed_legacy_content", verbosity=0)
 
-    for slug in DOCUMENT_ORDER:
+    for slug in REDIRECTED_DOCUMENTS:
         redirects = Redirect.objects.filter(old_path=f"/{slug}")
         assert redirects.count() == 1, f"/{slug}/ ma {redirects.count()} przekierowań"
         assert redirects.get().link == f"/dokumenty/{slug}/"

@@ -5,7 +5,7 @@ Hasła i kody zaproszeń są wyłącznie ``write_only`` – nigdy nie pojawiają
 
 from rest_framework import serializers
 
-from .models import GRADE_CHOICES, CommitteeMember, Participant, User, Voivodeship
+from .models import GRADE_CHOICES, CommitteeMember, ConsentRecord, Participant, User, Voivodeship
 
 
 class ParticipantRegisterSerializer(serializers.Serializer):
@@ -27,8 +27,14 @@ class ParticipantRegisterSerializer(serializers.Serializer):
     grade = serializers.ChoiceField(choices=GRADE_CHOICES)
     district = serializers.ChoiceField(choices=Voivodeship.choices)
     birth_year = serializers.IntegerField(min_value=1900, max_value=2200)
+    # Zgody. Dwie pierwsze są obowiązkowe dla każdego, ``guardian_consent`` – dla niepełnoletnich
+    # (rozstrzyga ``accounts.services.validate_consents``, bo tam jest znany rocznik i tam ta
+    # reguła obowiązuje wszystkie trzy drogi rejestracji naraz), ``publish_name_consent`` jest
+    # dobrowolna. Treść każdej z nich, wersję dokumentu i adres wydaje ``GET /api/auth/consents/``.
+    terms_consent = serializers.BooleanField()
     gdpr_consent = serializers.BooleanField()
     guardian_consent = serializers.BooleanField(required=False, default=False)
+    publish_name_consent = serializers.BooleanField(required=False, default=False)
 
     def validate(self, attrs):
         if attrs.get("school_id") is None and not (attrs.get("school") or "").strip():
@@ -76,10 +82,38 @@ class TokenSerializer(serializers.Serializer):
     token = serializers.CharField(read_only=True)
 
 
+class ConsentRecordSerializer(serializers.ModelSerializer):
+    """Jeden wpis dowodowy zgody. ``withdrawn_at`` puste znaczy „zgoda obowiązuje”."""
+
+    kind_label = serializers.CharField(source="get_kind_display", read_only=True)
+
+    class Meta:
+        model = ConsentRecord
+        fields = ("kind", "kind_label", "document_version", "given_at", "withdrawn_at", "source")
+
+
+class ConsentDefinitionSerializer(serializers.Serializer):
+    """Opis jednej zgody z zestawu (``GET /api/auth/consents/``) – kontrakt, nie model."""
+
+    kind = serializers.CharField()
+    field = serializers.CharField()
+    label = serializers.CharField()
+    text = serializers.CharField()
+    document_slug = serializers.CharField(allow_blank=True)
+    document_url = serializers.CharField(allow_blank=True)
+    version = serializers.CharField()
+    required = serializers.BooleanField()
+    required_for_minor = serializers.BooleanField()
+    help_text = serializers.CharField(allow_blank=True)
+
+
 class ParticipantProfileSerializer(serializers.ModelSerializer):
     # Wartość ``district`` jest slugiem ASCII (stabilnym dla klientów), etykieta z diakrytykami
     # jedzie obok – żeby front nie musiał utrzymywać własnej kopii słownika województw.
     district_label = serializers.CharField(source="get_district_display", read_only=True)
+    # Pełna historia zgód, nie tylko stan bieżący: pola ``guardian_consent``/``publish_full_name``
+    # mówią „jak jest”, a te wpisy – „co i pod jaką wersją dokumentu zostało oświadczone”.
+    consents = ConsentRecordSerializer(many=True, read_only=True)
 
     class Meta:
         model = Participant
@@ -97,6 +131,8 @@ class ParticipantProfileSerializer(serializers.ModelSerializer):
             "guardian_consent",
             "publish_full_name",
             "gdpr_consent_at",
+            "terms_accepted_at",
+            "consents",
         )
 
 

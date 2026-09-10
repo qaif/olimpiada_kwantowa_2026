@@ -19,6 +19,8 @@ from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.generic import TemplateView, View
 
+from apps.accounts.consents import CONSENTS, ConsentKind, ConsentSource, labels
+from apps.accounts.services import consents_for_participant, set_publish_name_consent
 from apps.appeals.services import appealable_submissions, appeals_for_participant, file_appeal
 from apps.competitions.interviews import (
     book_slot,
@@ -55,6 +57,34 @@ def _problem_rows(user, entry: StageEntry | None) -> list[dict]:
     for submission in submissions_for_user(user).filter(entry=entry):
         versions[submission.problem_id].append(submission)
     return [{"problem": problem, "versions": versions.get(problem.pk, [])} for problem in problems]
+
+
+def _consent_rows(participant) -> list[dict]:
+    """Zgody uczestnika do pokazania w panelu: po jednym wierszu na rodzaj, stan najświeższy.
+
+    Historia w bazie bywa dłuższa niż jeden wpis na rodzaj (zgoda wycofana i wyrażona ponownie),
+    ale panel odpowiada na pytanie „co obowiązuje teraz i od kiedy”. Wpisy przychodzą posortowane
+    malejąco po dacie (``ConsentRecord.Meta.ordering``), więc pierwszy napotkany jest najnowszy.
+
+    Rodzaje bez ani jednego wpisu też są na liście: profil sprzed wprowadzenia zestawu zgód ma
+    tylko projekcje na ``Participant`` i uczestnik ma prawo zobaczyć, że dowodu nie ma, zamiast
+    domyślać się z pustej listy.
+    """
+    latest: dict[str, object] = {}
+    for record in consents_for_participant(participant):
+        latest.setdefault(record.kind, record)
+    texts = labels()
+    return [
+        {
+            "kind": consent.kind,
+            "name": ConsentKind(consent.kind).label,
+            "label": texts[consent.kind],
+            "version": consent.version,
+            "optional": consent.is_optional,
+            "record": latest.get(consent.kind),
+        }
+        for consent in CONSENTS
+    ]
 
 
 def _problem_row(user, entry: StageEntry, problem: Problem) -> dict:
@@ -117,9 +147,33 @@ class MeView(ParticipantRequiredMixin, TemplateView):
                 "appealable": appealable_submissions(user, now),
                 "appeal_form": AppealForm(),
                 "my_appeals": list(appeals_for_participant(user)),
+                "consent_rows": _consent_rows(self.participant),
+                "publish_name_kind": ConsentKind.PUBLISH_NAME,
             }
         )
         return context
+
+
+class ConsentPublishNameView(ActionViewMixin, ParticipantRequiredMixin, View):
+    """Wyrażenie albo wycofanie zgody na publikację imienia i nazwiska w tabelach wyników.
+
+    Jedyna zgoda odwracalna z poziomu portalu – uzasadnienie w
+    ``accounts.services.set_publish_name_consent``. Wartość przychodzi **jawnie** w polu ``given``
+    (``1``/``0``), a nie jako „odwróć bieżący stan”: dwa kliknięcia w tę samą stronę (podwójne
+    wysłanie formularza, powrót „wstecz”) muszą dawać ten sam wynik, a nie przełączać zgodę tam
+    i z powrotem.
+    """
+
+    success_url = reverse_lazy("web:me")
+
+    def perform(self, request) -> str:
+        given = request.POST.get("given") == "1"
+        set_publish_name_consent(self.participant, given=given, source=ConsentSource.PANEL, request=request)
+        return (
+            "Zgoda na publikację imienia i nazwiska została zapisana."
+            if given
+            else "Zgoda na publikację imienia i nazwiska została wycofana."
+        )
 
 
 class StageRegisterView(ActionViewMixin, ParticipantRequiredMixin, View):

@@ -1,15 +1,25 @@
 {% comment %}
-  Pola formularza uczestnika. Zamiast ``form.as_p`` jest tu pętla z jednym wyjątkiem: w miejscu,
-  w którym w kolejności pól stoi ``school_id``, renderuje się cały blok wyboru szkoły
-  (``web/_school_picker.html``). Reszta pól idzie w układzie, który dawało ``as_p``, więc żaden
-  inny ekran rejestracji nie zmienia wyglądu.
+  Pola formularza uczestnika. Zamiast ``form.as_p`` jest tu pętla z dwoma wyjątkami:
 
-  Kolejność pól ustala ``field_order`` w apps/web/forms.py – szablon jej nie zna i nie powiela.
+  - w miejscu, w którym w kolejności pól stoi ``school_id``, renderuje się cały blok wyboru
+    szkoły (``web/_school_picker.html``),
+  - pola zgód (``form.consent_field_names``) wypadają ze zwykłej pętli i wracają niżej jako
+    osobny ``<fieldset class="consents">``. To nie jest kosmetyka: zgoda jest oświadczeniem
+    o znanej treści, a nie kolejnym polem danych, więc ma własny nagłówek i własny blok.
+    Etykiety zawierają odnośniki do dokumentów – buduje je ``ConsentFieldsMixin`` przez
+    ``format_html``, więc przechodzą przez ``{{ field.label_tag }}`` bez escapowania linku
+    i bez ani jednego ``|safe`` w szablonie.
+
+  Reszta pól idzie w układzie, który dawało ``as_p``, więc żaden inny ekran rejestracji nie
+  zmienia wyglądu. Kolejność pól ustala ``field_order`` w apps/web/forms.py – szablon jej nie
+  zna i nie powiela.
 {% endcomment %}
 {{ form.non_field_errors }}
 {% for field in form %}
   {% if field.name in form.school_field_names %}
     {% if field.name == "school_id" %}{% include "web/_school_picker.html" %}{% endif %}
+  {% elif field.name in form.consent_field_names %}
+    {# renderowane niżej, w bloku „Zgody” #}
   {% else %}
     <p>
       {{ field.errors }}
@@ -19,3 +29,22 @@
     </p>
   {% endif %}
 {% endfor %}
+
+<fieldset class="consents">
+  <legend>Zgody</legend>
+  {% for field in form %}
+    {% if field.name in form.consent_field_names %}
+      {% comment %}
+        Kolejność w DOM: pole wyboru, etykieta, błąd, podpowiedź. Arkusz układa to w siatkę
+        „checkbox | tekst”, więc błąd i podpowiedź muszą stać **po** etykiecie – inaczej
+        wylądowałyby w pierwszym wierszu siatki, nad polem, którego dotyczą.
+      {% endcomment %}
+      <p class="consents__item">
+        {{ field }}
+        {{ field.label_tag }}
+        {{ field.errors }}
+        {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
+      </p>
+    {% endif %}
+  {% endfor %}
+</fieldset>

@@ -17,6 +17,14 @@ from rest_framework import status
 from apps.core.api import DomainError
 from apps.core.models import audit
 
+from .consents import (
+    BY_KIND,
+    CONSENTS,
+    ConsentKind,
+    ConsentSource,
+    given_from_fields,
+    required_kinds,
+)
 from .models import (
     GROUP_APPEALS,
     GROUP_COORDINATOR,
@@ -26,6 +34,7 @@ from .models import (
     MIN_GRADE,
     CommitteeMember,
     CommitteeStatus,
+    ConsentRecord,
     InvitationCode,
     InvitationGrantsStatus,
     Participant,
@@ -218,6 +227,10 @@ def register_participant(
     school: str = "",
     school_id: int | None = None,
     guardian_consent: bool = False,
+    terms_consent: bool = False,
+    publish_name_consent: bool = False,
+    source: str = ConsentSource.API,
+    request=None,
 ) -> Participant:
     """Rejestracja otwarta uczestnika: User w grupie ``participant`` + profil ``Participant``.
 
@@ -228,15 +241,31 @@ def register_participant(
     ``school`` (wolny tekst dla szkół spoza wykazu); szczegóły w ``_resolve_school``. Kolejność
     argumentów jest zachowana wstecznie: klient API, który zna wyłącznie tekstowe ``school``,
     działa dalej bez zmian.
+
+    Zgody wchodzą osobnymi argumentami (``terms_consent``, ``gdpr_consent``, ``guardian_consent``,
+    ``publish_name_consent``), a nie słownikiem, bo są zwykłymi polami formularza i serializera –
+    na słownik zamienia je ``given_from_fields`` w jednym miejscu. Nazwy dwóch starych argumentów
+    zostają nietknięte, więc klient sprzed wprowadzenia zestawu zgód nadal trafia w te same pola;
+    zmienia się tylko to, że sam regulamin też trzeba zaakceptować.
     """
     _require_registration_open()
-    _require_gdpr_consent(gdpr_consent)
+    given = given_from_fields(
+        {
+            "terms_consent": terms_consent,
+            "gdpr_consent": gdpr_consent,
+            "guardian_consent": guardian_consent,
+            "publish_name_consent": publish_name_consent,
+        }
+    )
+    # Zgody sprawdzamy przed zapisem czegokolwiek – konto bez kompletu zgód nie ma prawa powstać
+    # nawet na chwilę wewnątrz transakcji.
+    validate_consents(given, birth_year=birth_year)
     district = _require_voivodeship(district, required=True)
     school_name, school_obj = _resolve_school(school, school_id)
     grade = _require_grade(grade)
     user = _create_user(email=email, password=password, first_name=first_name, last_name=last_name)
     _add_to_group(user, GROUP_PARTICIPANT)
-    return create_participant_with_public_code(
+    participant = create_participant_with_public_code(
         user=user,
         school=school_name,
         school_ref=school_obj,
@@ -246,6 +275,8 @@ def register_participant(
         gdpr_consent_at=timezone.now(),
         guardian_consent=guardian_consent,
     )
+    record_consents(participant, given, source=source, request=request)
+    return participant
 
 
 def _require_registration_open() -> None:
@@ -265,13 +296,142 @@ def _require_registration_open() -> None:
     ensure_registration_open()
 
 
-def _require_gdpr_consent(gdpr_consent: bool) -> None:
-    if not gdpr_consent:
-        raise DomainError(
-            "Zgoda na przetwarzanie danych osobowych jest wymagana.",
-            "GDPR_CONSENT_REQUIRED",
-            status.HTTP_400_BAD_REQUEST,
+def validate_consents(given: dict[str, bool], *, birth_year: int | None) -> None:
+    """Sprawdza komplet zgód wymaganych od uczestnika o tym roczniku.
+
+    Reguła siedzi **w serwisie**, a nie w formularzu i serializerze, bo dróg rejestracji są trzy
+    (WWW, API, dostawca zewnętrzny) i każda z nich jest równie dobrym wejściem. Formularz
+    powtarza sprawdzenie zgody opiekuna wyłącznie po to, żeby błąd stanął pod właściwym polem –
+    rozstrzyga to sprawdzenie.
+
+    Woła się je **przed** utworzeniem czegokolwiek: bez kompletu zgód nie powstaje ani ``User``,
+    ani ``Participant``, ani powiązanie ``SocialAccount``.
+    """
+    for kind in required_kinds(birth_year):
+        if not given.get(kind):
+            raise DomainError(
+                BY_KIND[kind].missing_message,
+                "CONSENT_REQUIRED",
+                status.HTTP_400_BAD_REQUEST,
+            )
+
+
+@transaction.atomic
+def record_consents(
+    participant: Participant,
+    given: dict[str, bool],
+    *,
+    source: str,
+    request=None,
+) -> list[ConsentRecord]:
+    """Zapisuje dowody zgód, przepisuje projekcje na profil i zostawia jeden wpis audytowy.
+
+    Trzy rzeczy w jednej transakcji, bo rozejście się którejkolwiek z nich znaczy dowód niezgodny
+    ze stanem:
+
+    1. ``ConsentRecord`` na każdą **wyrażoną** zgodę – z wersją dokumentu obowiązującą teraz
+       (``apps.accounts.consents``) i z drogą, którą wpłynęła. Zgoda niewyrażona nie tworzy
+       wiersza: brak dowodu jest tu poprawnym stanem, a wiersz „nie zgodził się” niczego nie
+       dowodzi i tylko rozmywałby znaczenie tabeli,
+    2. projekcje na ``Participant`` (``terms_accepted_at``, ``gdpr_consent_at``,
+       ``guardian_consent``, ``publish_full_name``) – to po nich pyta reszta systemu,
+    3. **jeden** wpis audytowy na całą operację. Cztery osobne wpisy opisywałyby cztery zdarzenia,
+       a zdarzeniem jest jedno: wypełnienie formularza.
+    """
+    now = timezone.now()
+    validate_consents(given, birth_year=participant.birth_year)
+
+    records = [
+        ConsentRecord(
+            participant=participant,
+            kind=consent.kind,
+            document_version=consent.version,
+            given_at=now,
+            source=source,
         )
+        for consent in CONSENTS
+        if given.get(consent.kind)
+    ]
+    ConsentRecord.objects.bulk_create(records)
+
+    if given.get(ConsentKind.TERMS):
+        participant.terms_accepted_at = now
+    if given.get(ConsentKind.PRIVACY):
+        participant.gdpr_consent_at = now
+    participant.guardian_consent = bool(given.get(ConsentKind.GUARDIAN))
+    participant.publish_full_name = bool(given.get(ConsentKind.PUBLISH_NAME))
+    participant.save(
+        update_fields=["terms_accepted_at", "gdpr_consent_at", "guardian_consent", "publish_full_name"]
+    )
+
+    audit(
+        participant.user,
+        "participant.consents_recorded",
+        participant,
+        {
+            "source": source,
+            **{
+                consent.kind: {"given": bool(given.get(consent.kind)), "version": consent.version}
+                for consent in CONSENTS
+            },
+        },
+        request=request,
+    )
+    return records
+
+
+@transaction.atomic
+def set_publish_name_consent(
+    participant: Participant, *, given: bool, source: str = ConsentSource.PANEL, request=None
+) -> ConsentRecord | None:
+    """Wyrażenie albo wycofanie zgody na publikację nazwiska – jedyna zgoda odwracalna w portalu.
+
+    Pozostałe trzy są warunkiem udziału albo oświadczeniem o zapoznaniu się z dokumentem: ich
+    „wycofanie” znaczy rezygnację z Olimpiady i jest sprawą do organizatora, a nie przełącznikiem
+    w panelu. Ta jedna dotyczy wyłącznie tego, jak uczestnik jest podpisany w publikowanej tabeli,
+    więc musi dać się cofnąć – i to bez utraty śladu, że kiedyś była wyrażona.
+
+    Wycofanie **znaczy wiersze**, a nie ich brak: aktywne wpisy dostają ``withdrawn_at``, więc
+    z historii dalej widać, kiedy zgoda obowiązywała. Ponowne wyrażenie tworzy nowy wpis
+    z aktualną wersją oświadczenia.
+    """
+    now = timezone.now()
+    active = ConsentRecord.objects.filter(
+        participant=participant, kind=ConsentKind.PUBLISH_NAME, withdrawn_at__isnull=True
+    )
+    record = None
+    if given:
+        # Bez podwójnego wpisu: druga zgoda „na to samo” nie jest nowym zdarzeniem, tylko
+        # kliknięciem w przycisk, który i tak był już zaznaczony.
+        record = active.order_by("-given_at", "-id").first()
+        if record is None:
+            record = ConsentRecord.objects.create(
+                participant=participant,
+                kind=ConsentKind.PUBLISH_NAME,
+                document_version=BY_KIND[ConsentKind.PUBLISH_NAME].version,
+                given_at=now,
+                source=source,
+            )
+    else:
+        active.update(withdrawn_at=now)
+
+    if participant.publish_full_name != given:
+        participant.publish_full_name = given
+        participant.save(update_fields=["publish_full_name"])
+
+    audit(
+        participant.user,
+        "participant.consent_publish_name",
+        participant,
+        {"given": given, "source": source, "version": BY_KIND[ConsentKind.PUBLISH_NAME].version},
+        request=request,
+    )
+    return record
+
+
+def consents_for_participant(participant: Participant) -> list[ConsentRecord]:
+    """Historia zgód uczestnika, najnowsza pierwsza – panel ``/me/`` i profil w API."""
+    return list(ConsentRecord.objects.filter(participant=participant))
 
 
 @transaction.atomic
@@ -287,6 +447,10 @@ def register_social_participant(
     school: str = "",
     school_id: int | None = None,
     guardian_consent: bool = False,
+    terms_consent: bool = False,
+    publish_name_consent: bool = False,
+    source: str = ConsentSource.SOCIAL,
+    request=None,
 ) -> Participant:
     """Rejestracja uczestnika po zalogowaniu przez dostawcę zewnętrznego (Google/Facebook).
 
@@ -298,12 +462,21 @@ def register_social_participant(
     - **adres e-mail nie pochodzi z formularza**, tylko z odpowiedzi dostawcy. Wpisywalne pole
       pozwalałoby zarejestrować konto na cudzy adres i tą drogą przejąć je resetem hasła.
 
-    Zgoda RODO jest sprawdzana **przed** zapisem czegokolwiek – bez niej nie powstaje ani ``User``,
-    ani ``Participant``, ani powiązanie ``SocialAccount`` (to ostatnie zapisuje dopiero widok).
-    Tak samo okno rejestracji: udane logowanie u dostawcy nie jest obejściem zamkniętej rejestracji.
+    Komplet zgód jest sprawdzany **przed** zapisem czegokolwiek – bez niego nie powstaje ani
+    ``User``, ani ``Participant``, ani powiązanie ``SocialAccount`` (to ostatnie zapisuje dopiero
+    widok). Tak samo okno rejestracji: udane logowanie u dostawcy nie jest obejściem zamkniętej
+    rejestracji.
     """
     _require_registration_open()
-    _require_gdpr_consent(gdpr_consent)
+    given = given_from_fields(
+        {
+            "terms_consent": terms_consent,
+            "gdpr_consent": gdpr_consent,
+            "guardian_consent": guardian_consent,
+            "publish_name_consent": publish_name_consent,
+        }
+    )
+    validate_consents(given, birth_year=birth_year)
     district = _require_voivodeship(district, required=True)
     school_name, school_obj = _resolve_school(school, school_id)
     grade = _require_grade(grade)
@@ -320,7 +493,7 @@ def register_social_participant(
     user.set_unusable_password()
     user.save()
     _add_to_group(user, GROUP_PARTICIPANT)
-    return create_participant_with_public_code(
+    participant = create_participant_with_public_code(
         user=user,
         school=school_name,
         school_ref=school_obj,
@@ -330,6 +503,8 @@ def register_social_participant(
         gdpr_consent_at=timezone.now(),
         guardian_consent=guardian_consent,
     )
+    record_consents(participant, given, source=source, request=request)
+    return participant
 
 
 @sensitive_variables("plain_code", "invitation_code")

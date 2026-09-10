@@ -18,6 +18,8 @@ from django.utils import timezone
 
 from apps.core.text import fold as _fold
 
+from .consents import ConsentKind, ConsentSource
+
 # Grupy RBAC tworzone migracją danych (apps/accounts/migrations/0002_rbac_groups.py).
 GROUP_PARTICIPANT = "participant"
 GROUP_REVIEWER = "reviewer"
@@ -206,7 +208,15 @@ class Participant(models.Model):
     grade = models.PositiveSmallIntegerField("klasa", choices=GRADE_CHOICES, null=True, blank=True)
     district = models.CharField("województwo", max_length=100, choices=Voivodeship.choices)
     birth_year = models.PositiveSmallIntegerField("rok urodzenia")
+    # Pola zgód są **projekcjami**, a nie dowodem: dowodem jest ``ConsentRecord`` (patrz niżej).
+    # Zostają, bo odpowiadają na pytanie „jak jest teraz” jednym odczytem – publikacja wyników
+    # (``apps.results.services``), panel koordynatora i administracja pytają o stan bieżący
+    # kilkanaście razy na żądanie i nie mają po co przekopywać historii. Zapisuje je wyłącznie
+    # ``apps.accounts.services.record_consents`` – razem z wpisami dowodowymi, jedną transakcją.
     gdpr_consent_at = models.DateTimeField("zgoda RODO z dnia")
+    #: Akceptacja regulaminu. Nullowalne wyłącznie ze względu na profile sprzed wprowadzenia
+    #: zestawu zgód – od tej zmiany żadna droga rejestracji nie przepuszcza pustej wartości.
+    terms_accepted_at = models.DateTimeField("regulamin zaakceptowany", null=True, blank=True)
     guardian_consent = models.BooleanField("zgoda opiekuna", default=False)
     publish_full_name = models.BooleanField("zgoda na publikację pełnych danych", default=False)
 
@@ -217,6 +227,48 @@ class Participant(models.Model):
 
     def __str__(self) -> str:
         return self.public_code
+
+
+class ConsentRecord(models.Model):
+    """Dowód złożenia jednej zgody: co, w jakiej wersji dokumentu, kiedy i którą drogą.
+
+    Model jest **rejestrem zdarzeń, nie stanem**, i dlatego nie ma tu unikalności po parze
+    (uczestnik, rodzaj). Zgodę wolno wycofać i wyrazić ponownie, a dokument, którego dotyczy,
+    wolno znowelizować – w każdym z tych przypadków powstaje nowy wiersz, a poprzedni zostaje
+    nietknięty. Nadpisywanie jednego wiersza „aktualnym stanem” kasowałoby dokładnie tę
+    informację, po którą się do tej tabeli sięga: co obowiązywało w chwili, o którą pyta
+    organ nadzorczy albo uczestnik.
+
+    ``document_version`` jest kopią, a nie kluczem obcym do strony w CMS-ie. Strona żyje dalej
+    (redaktor ją poprawia, organizator wgrywa nową wersję), a dowód ma zamarznąć – wskazanie
+    na żywy obiekt znaczyłoby „zgodziła się na to, co jest tam dzisiaj”.
+
+    ``CASCADE``: skasowanie profilu uczestnika (żądanie usunięcia danych) zabiera też jego
+    zgody – trzymanie dowodu zgody osoby, której danych już nie mamy, nie ma podstawy.
+    """
+
+    participant = models.ForeignKey(
+        Participant, on_delete=models.CASCADE, related_name="consents", verbose_name="uczestnik"
+    )
+    kind = models.CharField("rodzaj", max_length=20, choices=ConsentKind.choices)
+    document_version = models.CharField("wersja dokumentu", max_length=100, blank=True)
+    given_at = models.DateTimeField("wyrażona", default=timezone.now)
+    withdrawn_at = models.DateTimeField("wycofana", null=True, blank=True)
+    source = models.CharField("droga", max_length=16, choices=ConsentSource.choices)
+
+    class Meta:
+        verbose_name = "zgoda uczestnika"
+        verbose_name_plural = "zgody uczestników"
+        ordering = ("-given_at", "-id")
+        indexes = [models.Index(fields=["participant", "kind"], name="accounts_consent_pk_idx")]
+
+    def __str__(self) -> str:
+        state = "wycofana" if self.withdrawn_at else "aktywna"
+        return f"{self.get_kind_display()} ({state})"
+
+    @property
+    def is_active(self) -> bool:
+        return self.withdrawn_at is None
 
 
 class CommitteeStatus(models.TextChoices):

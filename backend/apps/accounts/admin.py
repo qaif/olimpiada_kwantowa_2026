@@ -7,7 +7,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.utils.translation import gettext_lazy as _
 
-from .models import CommitteeMember, InvitationCode, Participant, User
+from .models import CommitteeMember, ConsentRecord, InvitationCode, Participant, User
 
 
 @admin.register(User)
@@ -28,6 +28,25 @@ class UserAdmin(DjangoUserAdmin):
     add_fieldsets = ((None, {"classes": ("wide",), "fields": ("email", "password1", "password2")}),)
 
 
+class ConsentRecordInline(admin.TabularInline):
+    """Historia zgód przy profilu uczestnika – wyłącznie do czytania.
+
+    Wpis dowodowy nie jest polem konfiguracji: poprawiony ręcznie przestaje być dowodem czegokolwiek.
+    Zgody zapisują serwisy (``accounts.services.record_consents`` i ``set_publish_name_consent``),
+    a admin ma je pokazać – po to, żeby przy pytaniu „na co ta osoba się zgodziła” dało się
+    odpowiedzieć bez zaglądania do bazy.
+    """
+
+    model = ConsentRecord
+    extra = 0
+    can_delete = False
+    fields = ("kind", "document_version", "given_at", "withdrawn_at", "source")
+    readonly_fields = fields
+
+    def has_add_permission(self, request, obj=None) -> bool:
+        return False
+
+
 @admin.register(Participant)
 class ParticipantAdmin(admin.ModelAdmin):
     list_display = (
@@ -42,8 +61,9 @@ class ParticipantAdmin(admin.ModelAdmin):
     )
     list_filter = ("district", "grade", "guardian_consent", "publish_full_name")
     search_fields = ("public_code", "user__email", "school")
-    readonly_fields = ("public_code", "gdpr_consent_at")
+    readonly_fields = ("public_code", "gdpr_consent_at", "terms_accepted_at")
     autocomplete_fields = ("user",)
+    inlines = (ConsentRecordInline,)
     # Słownik ma ponad osiem tysięcy wierszy – zwykły ``<select>`` wysyłałby je wszystkie
     # do przeglądarki przy każdym otwarciu profilu uczestnika.
     raw_id_fields = ("school_ref",)

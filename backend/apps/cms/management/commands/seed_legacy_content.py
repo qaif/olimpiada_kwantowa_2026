@@ -13,11 +13,11 @@ Co powstaje:
 - **sekcja dokumentów** (``DocumentIndexPage`` pod ``/dokumenty/``) z kompletem dokumentów
   organizatora jako dziećmi. Sekcja jest jedną pozycją menu z listą rozwijaną; stare adresy
   jednosegmentowe (``/regulamin/``, ``/rodo/``…) zostają jako trwałe przekierowania,
-- **dokumenty opublikowane** (``DocumentPage``): polityka RODO, standardy ochrony małoletnich
-  i skład komitetów. Wszystkie trzy treści są przepisane z podpisanych PDF-ów organizatora
-  (``fixtures/legacy/pdf-text/``), sekcja po sekcji, więc nie są już „wersją demonstracyjną”
-  ze starego WordPressa: metryka mówi, z jakiego eksportu pochodzą, a ramka na górze wskazuje
-  PDF jako wersję źródłową,
+- **dokumenty opublikowane** (``DocumentPage``): polityka RODO, wzór zgody rodzica lub opiekuna
+  prawnego, standardy ochrony małoletnich i skład komitetów. Trzy z nich są przepisane
+  z podpisanych PDF-ów organizatora (``fixtures/legacy/pdf-text/``), sekcja po sekcji, więc nie
+  są już „wersją demonstracyjną” ze starego WordPressa: metryka mówi, z jakiego eksportu
+  pochodzą, a ramka na górze wskazuje PDF jako wersję źródłową,
 - **PDF-y organizatora** z ``fixtures/legacy/pdf/`` przypięte do właściwych stron: RODO, standardy
   ochrony małoletnich i skład komitetów. To one są wersjami do wydruku i to z nich bierze się
   sekcja „Dokumenty do pobrania” na stronie głównej. Regulaminu tu **nie** ma: jego PDF, .docx
@@ -53,6 +53,20 @@ przed I edycją), ``zadania``
 (``ProblemsPage``), ``poprzednie-edycje`` (``ArchiveIndexPage``), ``wyniki-*`` i
 ``finalisci-laureaci`` (``ResultsPage`` + snapshot publikacji), ``galeria`` (zero zdjęć),
 ``rejestracja``/``panel-*`` (widoki ``apps.web``).
+
+- **wzór zgody opiekuna** (``/dokumenty/zgoda-opiekuna/``) jest jedynym dokumentem tej sekcji,
+  który **nie pochodzi od organizatora**: powstał w repozytorium, bo zgoda opiekuna w formularzu
+  rejestracji musi mieć do czego linkować (``apps.accounts.consents``). Dlatego nie ma pliku do
+  pobrania, a metryka i ramka nad treścią mówią wprost, że to wersja robocza do akceptacji –
+  patrz README, „Decyzje do podjęcia przez właściciela”. Wersja w metryce musi zgadzać się
+  z ``apps.accounts.consents.GUARDIAN_VERSION``: to ona trafia do wpisu dowodowego zgody.
+
+``--only <slug>`` seeduje wyłącznie wskazane strony (można podać wielokrotnie). Tryb istnieje dla
+produkcji, na której ta komenda **nie** chodzi po każdym wdrożeniu: pełny przebieg nadpisałby
+treść wszystkich stron plikami z repozytorium, więc dołożenie jednego dokumentu kosztowałoby
+skasowanie każdej poprawki wprowadzonej w ``/cms/`` od ostatniego importu. Kolejność dokumentów
+w sekcji jest ustawiana także w tym trybie – nowa strona musi trafić na swoje miejsce w menu
+i w spisie.
 
 Idempotencja: strony rozpoznajemy po slugu (dokumenty – w sekcji ``/dokumenty/``, a gdy ich tam
 jeszcze nie ma, pod stroną główną, skąd je przenosimy) i aktualizujemy zamiast tworzyć duplikaty.
@@ -105,6 +119,16 @@ SOURCE_STATUS = "Dokument organizatora (Fundacja Quantum AI), eksport z 7 wrześ
 #: stoi w ostatniej sekcji obu dokumentów, a data z nagłówka PDF-u to data przekazania pliku.
 DOCUMENT_VERSION = ""  # numer wersji nie występuje w metryce PDF; datę eksportu niesie document_date
 DOCUMENT_DATE = date(2026, 9, 7)
+
+#: Wzór zgody opiekuna nie pochodzi od organizatora – powstał w repozytorium jako **projekt**
+#: i czeka na akceptację Fundacji oraz radcy prawnego. Metryka mówi to wprost (status), a ramka
+#: nad treścią powtarza to zdanie w pliku źródłowym, żeby ostrzeżenie zostało także w wydruku.
+#: Numer wersji jest ten sam, co w ``apps.accounts.consents.GUARDIAN_VERSION`` – to on trafia do
+#: wpisu dowodowego ``ConsentRecord.document_version``, więc rozjazd znaczyłby dowód wskazujący
+#: na wersję dokumentu, której nigdy nie opublikowano.
+GUARDIAN_CONSENT_VERSION = "0.1 (projekt)"
+GUARDIAN_CONSENT_DATE = date(2026, 9, 10)
+GUARDIAN_CONSENT_STATUS = "Wersja robocza do akceptacji organizatora"
 
 HOME_TITLE = "Olimpiada Kwantowa"
 HOME_HERO_TITLE = "Przyszłość ma naturę kwantową."
@@ -176,6 +200,9 @@ MENU_ORDER = (
 DOCUMENT_ORDER = (
     "regulamin",
     "rodo",
+    # Wzór zgody opiekuna zaraz za polityką RODO: to jej praktyczne przedłużenie (zgoda osoby
+    # uprawnionej na przetwarzanie danych małoletniego), a nie osobny zbiór zasad.
+    "zgoda-opiekuna",
     "standardy-ochrony-maloletnich",
     "komitety",
 )
@@ -243,6 +270,16 @@ PAGES = (
         pdf_title="Polityka RODO Olimpiady Kwantowej (PDF)",
     ),
     LegacyPage(
+        slug="zgoda-opiekuna",
+        title="Zgoda rodzica lub opiekuna prawnego",
+        document=True,
+        metadata={
+            "version_label": GUARDIAN_CONSENT_VERSION,
+            "document_date": GUARDIAN_CONSENT_DATE,
+            "status_label": GUARDIAN_CONSENT_STATUS,
+        },
+    ),
+    LegacyPage(
         slug="standardy-ochrony-maloletnich",
         title="Standardy ochrony małoletnich Olimpiady Kwantowej",
         document=True,
@@ -261,6 +298,19 @@ PAGES = (
 class Command(BaseCommand):
     help = "Przenosi treści starej strony Olimpiady Kwantowej do CMS-a. Idempotentne."
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--only",
+            action="append",
+            default=[],
+            metavar="SLUG",
+            help=(
+                "Zaseeduj wyłącznie stronę o tym slugu (można podać wielokrotnie). Reszta treści "
+                "zostaje nietknięta – tryb do dołożenia pojedynczego dokumentu na działającym "
+                "serwisie, bez cofania redakcyjnych poprawek zrobionych w /cms/."
+            ),
+        )
+
     @transaction.atomic
     def handle(self, *args, **options):
         home = HomePage.objects.first()
@@ -272,27 +322,45 @@ class Command(BaseCommand):
         if not PDF_DIR.is_dir():
             raise CommandError(f"Brak katalogu z PDF-ami organizatora: {PDF_DIR}.")
 
+        # ``--only`` istnieje dla produkcji, na której ta komenda **nie** chodzi po każdym wdrożeniu:
+        # pełny przebieg nadpisuje treść wszystkich stron plikami z repozytorium, więc dołożenie
+        # jednego nowego dokumentu kosztowałoby skasowanie każdej poprawki wprowadzonej w /cms/
+        # od ostatniego importu. Z tą flagą komenda dotyka dokładnie wskazanych stron.
+        only = set(options.get("only") or [])
+        known = {spec.slug for spec in PAGES}
+        unknown = sorted(only - known)
+        if unknown:
+            raise CommandError(f"Nieznane slugi: {', '.join(unknown)}. Dostępne: {', '.join(sorted(known))}.")
+        specs = [spec for spec in PAGES if not only or spec.slug in only]
+
         index, index_created = ensure_document_index(home)
         if index_created:
             self.stdout.write("utworzono sekcję: /dokumenty/")
 
-        self._seed_home(home)
-        self._drop_legacy_komitety_page(home)
-        for spec in PAGES:
+        if not only:
+            self._seed_home(home)
+            self._drop_legacy_komitety_page(home)
+        for spec in specs:
             self._seed_page(home, index, spec)
-        self._seed_partners(home)
-        self._seed_news(home)
-        moved = self._order_children(home, MENU_ORDER)
+        if not only:
+            self._seed_partners(home)
+            self._seed_news(home)
+        moved = self._order_children(home, MENU_ORDER) if not only else False
         # Przestawienie rodzeństwa strony głównej przepisało ``path`` także sekcji dokumentów,
         # a ``child_of`` czyta ścieżkę z obiektu – bez odświeżenia szukalibyśmy dzieci pod
         # adresem, którego już nie ma.
         index = DocumentIndexPage.objects.get(pk=index.pk)
+        # Kolejność dokumentów przestawiamy także przy ``--only``: nowa strona musi trafić na swoje
+        # miejsce w sekcji, w menu i w spisie, a ``_order_children`` rusza drzewo tylko wtedy, gdy
+        # kolejność faktycznie się nie zgadza.
         self._order_children(index, DOCUMENT_ORDER)
-        redirects = self._seed_redirects(index)
+        redirects = self._seed_redirects(index, only=only)
 
+        scope = f" (--only {', '.join(sorted(only))})" if only else ""
         self.stdout.write(
             self.style.SUCCESS(
-                f"seed_legacy_content: {len(PAGES) + 1} stron, {len(NEWS)} aktualności, "
+                f"seed_legacy_content{scope}: {len(specs) + (0 if only else 1)} stron, "
+                f"{0 if only else len(NEWS)} aktualności, "
                 f"{redirects} przekierowań, menu {'przestawione' if moved else 'bez zmian'}"
             )
         )
@@ -317,11 +385,17 @@ class Command(BaseCommand):
 
     # --- przekierowania ze starych adresów ------------------------------------------------
 
-    def _seed_redirects(self, index) -> int:
-        """Trwałe przekierowania ``/regulamin/`` → ``/dokumenty/regulamin/`` itd."""
+    def _seed_redirects(self, index, *, only: set[str] | None = None) -> int:
+        """Trwałe przekierowania ``/regulamin/`` → ``/dokumenty/regulamin/`` itd.
+
+        Przy ``--only`` bierzemy pod uwagę wyłącznie wskazane strony: przebieg dokładający jeden
+        dokument nie ma powodu dotykać przekierowań pozostałych.
+        """
         created = 0
         for old_path in LEGACY_DOCUMENT_PATHS:
             slug = old_path.strip("/")
+            if only and slug not in only:
+                continue
             page = DocumentPage.objects.child_of(index).filter(slug=slug).first()
             if page is None:
                 self.stderr.write(f"brak dokumentu {slug} – pomijam przekierowanie z {old_path}")

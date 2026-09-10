@@ -56,6 +56,7 @@ def registration_payload(email: str = "nowy@example.test") -> dict:
         "district": "mazowieckie",
         "grade": 2,
         "birth_year": 2008,
+        "terms_consent": True,
         "gdpr_consent": True,
         "guardian_consent": True,
     }
@@ -64,6 +65,7 @@ def registration_payload(email: str = "nowy@example.test") -> dict:
 def web_form_payload(email: str = "nowy@example.test") -> dict:
     """To samo, co payload API, w kształcie formularza HTML (pola wyboru jako ``on``)."""
     payload = registration_payload(email)
+    payload["terms_consent"] = "on"
     payload["gdpr_consent"] = "on"
     payload["guardian_consent"] = "on"
     return payload
@@ -301,7 +303,9 @@ def test_social_signup_post_is_refused_too(web_client, google, edition):
             "district": "mazowieckie",
             "grade": 2,
             "birth_year": 2008,
+            "terms_consent": "on",
             "gdpr_consent": "on",
+            "guardian_consent": "on",
         },
     )
 

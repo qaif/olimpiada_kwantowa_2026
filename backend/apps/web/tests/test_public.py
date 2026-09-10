@@ -96,7 +96,9 @@ def test_registration_creates_participant(web_client, edition):
             "district": "mazowieckie",
             "grade": 2,
             "birth_year": 2008,
+            "terms_consent": "on",
             "gdpr_consent": "on",
+            "guardian_consent": "on",
         },
     )
 
@@ -116,7 +118,8 @@ def test_registration_without_gdpr_consent_shows_domain_error(web_client, editio
             "school": "LO nr 7",
             "district": "mazowieckie",
             "grade": 2,
-            "birth_year": 2008,
+            "birth_year": 1990,
+            "terms_consent": "on",
         },
     )
 

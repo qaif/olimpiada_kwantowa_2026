@@ -28,6 +28,7 @@ from django.urls import reverse
 from django.views.generic import FormView, TemplateView
 
 from apps.accounts.adapters import provider_id, provider_label, sociallogin_email
+from apps.accounts.consents import ConsentSource
 from apps.accounts.services import register_social_participant
 from apps.competitions.registration import current_registration_status, registration_message
 from apps.core.api import DomainError
@@ -87,7 +88,10 @@ class SocialSignupView(ThrottledFormMixin, FormView):
         sociallogin = self.sociallogin
         try:
             participant = register_social_participant(
-                email=sociallogin_email(sociallogin), **form.cleaned_data
+                email=sociallogin_email(sociallogin),
+                **form.cleaned_data,
+                source=ConsentSource.SOCIAL,
+                request=request,
             )
         except DomainError as exc:
             form.add_error(None, str(exc.detail))

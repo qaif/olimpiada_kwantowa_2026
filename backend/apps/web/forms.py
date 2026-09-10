@@ -14,6 +14,7 @@ from django import forms
 from django.contrib.auth.forms import AuthenticationForm
 from django.core.files.uploadedfile import UploadedFile
 
+from apps.accounts.consents import BY_KIND, CONSENT_FIELD_NAMES, CONSENTS, ConsentKind, is_minor, labels
 from apps.accounts.models import GRADE_CHOICES, Voivodeship
 from apps.appeals.models import MAX_TEXT_LENGTH, MIN_ARGUMENT_LENGTH, AppealStatus
 from apps.competitions.interviews import (
@@ -133,6 +134,60 @@ class SchoolChoiceMixin(forms.Form):
         return cleaned
 
 
+class ConsentFieldsMixin(forms.Form):
+    """Blok „Zgody” obu formularzy rejestracji uczestnika.
+
+    Pola powstają **w** ``__init__``, a nie jako atrybuty klasy, i to jest sedno: etykieta każdej
+    zgody zawiera odnośnik do dokumentu i nazwę organizatora, a jedno i drugie czyta się z bazy
+    (drzewo stron, ``cms.SiteSettings``). Pole zdefiniowane na poziomie klasy zapamiętałoby te
+    wartości przy imporcie modułu, czyli raz na proces – przeniesienie dokumentu w ``/cms/`` albo
+    zmiana nazwy fundacji objawiłyby się dopiero po restarcie aplikacji.
+
+    Czego ten mixin **nie** robi: nie ustawia ``required=True`` na regulaminie i RODO. Zgody
+    wymagane rozstrzyga serwis (``accounts.services.validate_consents``), bo ta sama reguła
+    obowiązuje API i logowanie społecznościowe; formularz oddaje wtedy komunikat serwisu jako
+    błąd niezwiązany z polem. Wyjątkiem jest zgoda opiekuna – tam błąd **musi** stanąć pod polem,
+    bo wynika z innego pola tego samego formularza (rocznika) i bez wskazania palcem uczestnik
+    nie wie, czego od niego chcą.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        texts = labels()
+        for consent in CONSENTS:
+            self.fields[consent.field_name] = forms.BooleanField(
+                label=texts[consent.kind],
+                required=False,
+                help_text=consent.help_text,
+                # Bez dwukropka: etykietą jest całe zdanie oświadczenia zakończone kropką,
+                # a domyślny ``label_suffix`` dokleiłby do niej „:”.
+                label_suffix="",
+            )
+        # Pola dołożone po ``super().__init__`` stają na końcu ``self.fields`` niezależnie od
+        # ``field_order`` – tam je zresztą chcemy mieć, ale kolejność ma wynikać z deklaracji,
+        # a nie z tego, w którym momencie powstało pole.
+        self.order_fields(self.field_order)
+
+    @property
+    def consent_field_names(self) -> tuple[str, ...]:
+        """Nazwy pól zgód – szablon renderuje je w osobnym ``<fieldset>``, poza zwykłą pętlą."""
+        return CONSENT_FIELD_NAMES
+
+    def clean(self):
+        """Zgoda opiekuna wymagana dla niepełnoletniego – błąd pod polem, nie nad formularzem.
+
+        Rocznik bywa niepoprawny (pole nie przeszło walidacji) – wtedy milczymy i zostawiamy
+        rozstrzygnięcie serwisowi: dopisywanie drugiego błędu do formularza, w którym pierwszy
+        jest oczywisty, tylko zaciemnia, co poprawić.
+        """
+        cleaned = super().clean()
+        birth_year = cleaned.get("birth_year")
+        guardian = BY_KIND[ConsentKind.GUARDIAN]
+        if birth_year and is_minor(birth_year) and not cleaned.get(guardian.field_name):
+            self.add_error(guardian.field_name, guardian.missing_message)
+        return cleaned
+
+
 class EmailAuthenticationForm(AuthenticationForm):
     """Logowanie adresem e-mail. ``AuthenticationForm`` trzyma login w polu ``username``."""
 
@@ -169,12 +224,13 @@ PARTICIPANT_FIELD_ORDER = (
     *SCHOOL_FIELD_NAMES,
     "grade",
     "birth_year",
-    "gdpr_consent",
-    "guardian_consent",
+    # Zgody na końcu i w jednym bloku: to osobne oświadczenia, a nie kolejne dane osobowe –
+    # szablon renderuje je w ``<fieldset class="consents">`` (patrz ``ConsentFieldsMixin``).
+    *CONSENT_FIELD_NAMES,
 )
 
 
-class ParticipantRegisterForm(SchoolChoiceMixin):
+class ParticipantRegisterForm(ConsentFieldsMixin, SchoolChoiceMixin):
     """Rejestracja otwarta uczestnika – dane wchodzą prosto do ``register_participant``."""
 
     field_order = [name for name in PARTICIPANT_FIELD_ORDER]
@@ -186,11 +242,9 @@ class ParticipantRegisterForm(SchoolChoiceMixin):
     district = voivodeship_field("Województwo")
     grade = grade_field()
     birth_year = forms.IntegerField(label="Rok urodzenia", min_value=1900, max_value=2100)
-    gdpr_consent = forms.BooleanField(label="Zgoda na przetwarzanie danych osobowych", required=False)
-    guardian_consent = forms.BooleanField(label="Zgoda opiekuna", required=False)
 
 
-class SocialParticipantSignupForm(SchoolChoiceMixin):
+class SocialParticipantSignupForm(ConsentFieldsMixin, SchoolChoiceMixin):
     """Dokończenie rejestracji po zalogowaniu przez Google/Facebooka.
 
     Czego tu **nie ma** i dlaczego:
@@ -211,8 +265,6 @@ class SocialParticipantSignupForm(SchoolChoiceMixin):
     district = voivodeship_field("Województwo")
     grade = grade_field()
     birth_year = forms.IntegerField(label="Rok urodzenia", min_value=1900, max_value=2100)
-    gdpr_consent = forms.BooleanField(label="Zgoda na przetwarzanie danych osobowych", required=False)
-    guardian_consent = forms.BooleanField(label="Zgoda opiekuna", required=False)
 
 
 class CommitteeRegisterForm(forms.Form):

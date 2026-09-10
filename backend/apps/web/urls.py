@@ -50,6 +50,12 @@ urlpatterns = [
         participant.InterviewCancelView.as_view(),
         name="interview-cancel",
     ),
+    # Zgoda na publikację nazwiska – jedyna zgoda, którą uczestnik zmienia sam w panelu.
+    path(
+        "me/consents/publish-name/",
+        participant.ConsentPublishNameView.as_view(),
+        name="consent-publish-name",
+    ),
     path(
         "me/submissions/<int:submission_id>/appeal/",
         participant.AppealCreateView.as_view(),

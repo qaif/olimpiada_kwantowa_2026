@@ -36,6 +36,9 @@ def participant_payload(**overrides):
         "district": "mazowieckie",
         "grade": 2,
         "birth_year": 2008,
+        # Komplet zgód: regulamin i RODO są wymagane od każdego, zgoda opiekuna – od rocznika
+        # 2008, który w 2026 r. jeszcze mieści się w regule „na pewno niepełnoletni”.
+        "terms_consent": True,
         "gdpr_consent": True,
         "guardian_consent": True,
     }
@@ -96,12 +99,16 @@ def test_kryterium_1_public_code_jest_unikalny_dla_wielu_uczestnikow(api, open_r
 
 
 @pytest.mark.django_db
-def test_kryterium_2_rejestracja_bez_zgody_rodo_zwraca_400_gdpr_consent_required(api, open_registration):
-    """2. Rejestracja uczestnika bez zgody RODO → 400 GDPR_CONSENT_REQUIRED."""
+def test_kryterium_2_rejestracja_bez_zgody_rodo_zwraca_400_consent_required(api, open_registration):
+    """2. Rejestracja uczestnika bez zgody RODO → 400 CONSENT_REQUIRED.
+
+    Kod błędu jest wspólny dla wszystkich zgód wymaganych (regulamin, RODO, opiekun) – rozróżnia
+    je komunikat, bo to on trafia do człowieka; klient maszynowy i tak reaguje tak samo.
+    """
     resp = api.post(REGISTER_PARTICIPANT_URL, participant_payload(gdpr_consent=False), format="json")
 
     assert resp.status_code == 400
-    assert resp.json()["code"] == "GDPR_CONSENT_REQUIRED"
+    assert resp.json()["code"] == "CONSENT_REQUIRED"
     assert not User.objects.filter(email="uczestnik@example.test").exists()
     assert Participant.objects.count() == 0
 

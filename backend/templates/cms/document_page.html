@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load wagtailcore_tags %}
+{% load static wagtailcore_tags %}
 {% block title %}{{ page.title }} – {{ settings.cms.SiteSettings.site_name }}{% endblock %}
 {% block description %}{{ page.title }}{% if page.version_label %} (wersja {{ page.version_label }}){% endif %} – dokument Olimpiady do przeczytania online i pobrania.{% endblock %}
 {% block content %}
@@ -26,6 +26,18 @@
 
     {% if page.intro %}<div class="cms-body prose doc-intro">{{ page.intro|richtext }}</div>{% endif %}
 
+    {% comment %}
+      Wydruk. Dokumenty tej sekcji bywają formularzami do podpisania (zgoda opiekuna) albo
+      pismem, które trzeba dołączyć do dokumentacji – i nie każdy z nich ma PDF do pobrania.
+      Przycisk startuje ukryty i odsłania go ``static/js/print.js``: bez JavaScriptu
+      ``window.print()`` i tak nie zadziała, a arkusz ``@media print`` zdejmuje z kartki
+      nawigację, stopkę i sam przycisk niezależnie od tego, czy wydruk poszedł stąd,
+      czy ze skrótu przeglądarki.
+    {% endcomment %}
+    <p class="doc-print">
+      <button type="button" class="btn btn--small btn--secondary" data-print hidden>Drukuj</button>
+    </p>
+
     {% include "cms/_attachments.html" %}
   </div>
 
@@ -48,4 +60,7 @@
   </div>
 
 </div>
+{% endblock %}
+{% block scripts %}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/print.js' %}"></script>
 {% endblock %}

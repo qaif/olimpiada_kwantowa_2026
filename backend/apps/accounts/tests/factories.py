@@ -68,6 +68,7 @@ class ParticipantFactory(factory.django.DjangoModelFactory):
     district = Voivodeship.MAZOWIECKIE
     birth_year = 2008
     gdpr_consent_at = factory.LazyFunction(timezone.now)
+    terms_accepted_at = factory.LazyFunction(timezone.now)
     guardian_consent = True
 
 

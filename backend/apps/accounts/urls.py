@@ -4,6 +4,7 @@ from .api import (
     CommitteeApproveView,
     CommitteePendingListView,
     CommitteeVerifyDistrictView,
+    ConsentSetView,
     LoginView,
     LogoutView,
     MeView,
@@ -16,6 +17,8 @@ app_name = "accounts"
 urlpatterns = [
     path("register/participant/", RegisterParticipantView.as_view(), name="register-participant"),
     path("register/committee/", RegisterCommitteeView.as_view(), name="register-committee"),
+    # Treść zgód rejestracyjnych – publicznie, żeby klient zewnętrzny pokazał to samo brzmienie.
+    path("consents/", ConsentSetView.as_view(), name="consents"),
     path("login/", LoginView.as_view(), name="login"),
     path("logout/", LogoutView.as_view(), name="logout"),
     path("me/", MeView.as_view(), name="me"),

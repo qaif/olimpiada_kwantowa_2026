@@ -550,8 +550,47 @@ pierwszej instalacji okno należy do koordynatora.
 
 **Dane zbierane przy rejestracji uczestnika**: adres e-mail, imię i nazwisko, hasło (wyłącznie
 jako hash), województwo, **szkoła** (wybrana ze słownika albo wpisana ręcznie — patrz 6.3b),
-**klasa** (1–5), rok urodzenia, zgoda RODO i — dla niepełnoletnich — zgoda opiekuna. Zasada
-minimalizacji: w publicznych tabelach wyników stoi wyłącznie kod uczestnika (`OLM-XXXXXX`).
+**klasa** (1–5), rok urodzenia oraz zgody (niżej). Zasada minimalizacji: w publicznych tabelach
+wyników stoi wyłącznie kod uczestnika (`OLM-XXXXXX`).
+
+**Zgody przy rejestracji.** Zestaw jest jeden dla wszystkich trzech dróg (`/register/`,
+`POST /api/auth/register/participant/`, dokończenie rejestracji przez Google/Facebooka) i opisuje
+go **jeden moduł**: `backend/apps/accounts/consents.py` — treść oświadczenia, dokument, wersja
+i reguła wymagalności w jednym miejscu.
+
+| Zgoda | Wymagana | Dokument | Wersja |
+|---|---|---|---|
+| akceptacja regulaminu (`terms_consent`) | zawsze | `/dokumenty/regulamin/` | 1.0 z 2 września 2026 |
+| przetwarzanie danych osobowych (`gdpr_consent`) | zawsze | `/dokumenty/rodo/` | 1.0 z 22 lipca 2026 |
+| zgoda rodzica lub opiekuna (`guardian_consent`) | gdy `bieżący rok − rocznik ≤ 18` | `/dokumenty/zgoda-opiekuna/` | 0.1 (projekt) |
+| publikacja imienia i nazwiska (`publish_name_consent`) | nie | — | 1.0 |
+
+Etykieta każdej zgody jest **linkiem do dokumentu** (nowa karta, `rel="noopener"`), a nazwa
+organizatora pochodzi z `SiteSettings.organizer_name` — zmiana w `/cms/` przechodzi na formularz
+bez wydania aplikacji. Regułę wieku liczymy po roczniku i zachowawczo: osoba urodzona osiemnaście
+lat temu może mieć jeszcze 17 lat, więc zgoda opiekuna jest od niej wymagana.
+
+**Gdzie mieszka dowód.** Każda wyrażona zgoda to wiersz `accounts.ConsentRecord`
+(uczestnik, rodzaj, **wersja dokumentu**, data, droga: `web`/`api`/`social`/`panel`, ewentualne
+`withdrawn_at`) plus jeden wpis audytowy `participant.consents_recorded`. Pola na profilu
+(`terms_accepted_at`, `gdpr_consent_at`, `guardian_consent`, `publish_full_name`) są **projekcją**
+stanu bieżącego — do szybkiego odczytu, nie do dowodzenia. Historię widać w `/admin/` przy
+profilu uczestnika, w `GET /api/auth/me/` (`participant.consents`) i w panelu uczestnika.
+Odmowa przy braku zgody wymaganej to `400 CONSENT_REQUIRED`.
+
+**Zmiana wersji dokumentu** = zmiana stałej w `apps/accounts/consents.py` (`TERMS_VERSION`,
+`PRIVACY_VERSION`, `GUARDIAN_VERSION`). Od tego momentu nowe zgody zapisują się pod nową wersją,
+a stare wpisy dalej mówią prawdę o tym, co obowiązywało wtedy.
+
+**Wycofanie zgody w portalu** dotyczy dokładnie jednej: publikacji imienia i nazwiska. Uczestnik
+wyraża ją i wycofuje w `/me/` → sekcja **„Twoje zgody”** (`POST /me/consents/publish-name/`);
+wycofanie nie kasuje wiersza, tylko stawia `withdrawn_at`, więc z historii dalej widać, kiedy
+zgoda obowiązywała. Pozostałe trzy są warunkiem udziału albo oświadczeniem o zapoznaniu się
+z dokumentem — ich wycofanie znaczy rezygnację z Olimpiady i jest sprawą do organizatora.
+
+Treść zgód wydaje publicznie `GET /api/auth/consents/` (bez logowania): rodzaj, brzmienie w HTML
+i czystym tekście, adres dokumentu, wersja i reguła wymagalności. Klient zewnętrzny ma dzięki
+temu pokazać **to samo** oświadczenie, a nie własną parafrazę.
 
 #### 6.3b Słownik szkół (SIO/RSPO)
 
@@ -693,6 +732,11 @@ docker compose exec web python manage.py seed_regulamin
 # sekcja /dokumenty/, strona /partnerzy/ i przekierowania ze starych adresów dokumentów.
 docker compose exec web python manage.py seed_legacy_content
 
+# Dołożenie POJEDYNCZEJ strony na działającym serwisie — bez nadpisywania pozostałych treści
+# (pełny przebieg skasowałby poprawki wpisane w /cms/ od ostatniego importu).
+# Tak wgrywa się na produkcję wzór zgody opiekuna:
+docker compose exec web python manage.py seed_legacy_content --only zgoda-opiekuna
+
 # Logotypy partnerów i organizatora z apps/cms/fixtures/partners/ (manifest partners.json):
 # obrazy do biblioteki Wagtaila, wpisy na /partnerzy/, znak fundacji do SiteSettings.
 docker compose exec web python manage.py seed_partners
@@ -795,14 +839,28 @@ uzasadnienie każdego punktu: `docs/import/stara-strona-inwentarz.md`, sekcja 8.
    z 7 września 2026), metryka mówi, z jakiego eksportu, a ramka na górze wskazuje PDF jako wersję
    źródłową. Do podjęcia zostaje to, o co proszą same dokumenty: § 11 polityki RODO zapowiada
    aktualizacje przy zmianie procesu, a § 10 standardów wymaga uchwały Zarządu (punkt 5 niżej).
-5. **Osoby odpowiedzialne za ochronę małoletnich.** § 9 i § 10 standardów wymagają wskazania ich
+5. **Wzór zgody rodzica lub opiekuna prawnego — projekt do akceptacji.**
+   `/dokumenty/zgoda-opiekuna/` (źródło: `backend/apps/cms/fixtures/legacy/zgoda-opiekuna.md`)
+   **nie pochodzi od organizatora** — powstał w repozytorium na podstawie polityki RODO
+   i paragrafów RODO regulaminu (§ 2 ust. 4, § 4 ust. 2, § 19), żeby zgoda opiekuna w formularzu
+   rejestracji miała do czego linkować. Treść wymaga akceptacji Fundacji i sprawdzenia przez
+   radcę prawnego; do tego czasu strona nosi status „Wersja robocza do akceptacji organizatora”,
+   ramkę z tym samym zdaniem nad treścią i wersję **0.1 (projekt)** — dzięki temu zgody zebrane
+   przed zatwierdzeniem są w `ConsentRecord.document_version` odróżnialne od zebranych pod
+   wersją ostateczną. Do rozstrzygnięcia zostają też: czy organizator chce PDF-a do wydruku obok
+   strony, czy skan na `contact@qaif.org` wystarcza jako droga dostarczenia oraz czy podpisany
+   dokument ma być wymagany od wszystkich niepełnoletnich, czy dopiero na etapie stacjonarnym.
+   Po zatwierdzeniu: podmiana pliku źródłowego, `GUARDIAN_VERSION`
+   w `backend/apps/accounts/consents.py` i metryki w `seed_legacy_content`, potem
+   `manage.py seed_legacy_content --only zgoda-opiekuna`.
+6. **Osoby odpowiedzialne za ochronę małoletnich.** § 9 i § 10 standardów wymagają wskazania ich
    imiennie uchwałą Zarządu i przyjęcia wzoru karty interwencji.
-6. **Skład komitetów.** Szesnaście nazwisk i zakresy odpowiedzialności potwierdza PDF organizatora,
+7. **Skład komitetów.** Szesnaście nazwisk i zakresy odpowiedzialności potwierdza PDF organizatora,
    więc dokument `/dokumenty/komitety/` jest opublikowany. Do decyzji zostają: funkcje i afiliacje członków,
    podwójne członkostwo dwóch osób (Paweł Gora, Grzegorz Czelusta figurują w obu komitetach)
    i nazewnictwo — „Komitet Główny” ze starej strony głównej nie istnieje ani w regulaminie,
    ani w PDF-ie.
-7. **Partnerzy — logotypy są, poziomy współpracy do potwierdzenia.** Organizator przekazał sześć
+8. **Partnerzy — logotypy są, poziomy współpracy do potwierdzenia.** Organizator przekazał sześć
    logotypów (FUW, PCSS, CFT PAN, IF PAN, Uniwersytet Gdański, AIQLAB Institute) i adresy stron,
    ale **nie podał poziomu współpracy ani opisu**. `seed_partners` wpisuje wartości wstępne
    (uczelnie i instytuty jako „partner naukowy”, PCSS i AIQLAB jako „partner instytucjonalny”);
@@ -810,22 +868,22 @@ uzasadnienie każdego punktu: `docs/import/stara-strona-inwentarz.md`, sekcja 8.
    nie cofnie. Do decyzji zostają też progi sponsoringu oraz nazwy ze starej strony: czy
    Ministerstwo Edukacji i Polskie Towarzystwo Fizyczne to realne patronaty (trzecia nazwa,
    „Uniwersytet Kwantowy”, to instytucja nieistniejąca) — żadnej z nich na serwisie nie ma.
-8. **ZOZ (Zasady Organizacji Zawodów).** Regulamin odwołuje się do nich kilkanaście razy,
+9. **ZOZ (Zasady Organizacji Zawodów).** Regulamin odwołuje się do nich kilkanaście razy,
    a dokument nie istnieje — bez niego brakuje progów, liczby finalistów i reguł remisów.
-9. **Status prawny olimpiady.** Regulamin zastrzega, że tytuły finalisty i laureata są wewnętrzne
+10. **Status prawny olimpiady.** Regulamin zastrzega, że tytuły finalisty i laureata są wewnętrzne
    i nie dają uprawnień ustawowych. Gdzie portal ma to komunikować?
-10. **Krok 2 na `/jak-zaczac/`.** Tekst mówi „Załóż konto uczestnika w czasie rejestracji”, a portal
+11. **Krok 2 na `/jak-zaczac/`.** Tekst mówi „Załóż konto uczestnika w czasie rejestracji”, a portal
     używa kodów zaproszeń dla komitetu i samodzielnej rejestracji uczestnika — brzmienie do
     potwierdzenia przez organizatora (import nie redaguje treści).
-11. **Kanały kontaktu.** Jeden adres `contact@qaif.org` obsługuje sprawy ogólne, RODO i zgłoszenia
+12. **Kanały kontaktu.** Jeden adres `contact@qaif.org` obsługuje sprawy ogólne, RODO i zgłoszenia
     dotyczące bezpieczeństwa małoletnich, rozróżniane tylko tematem wiadomości.
-12. **Aktualności.** Trzy przeniesione wpisy to jednozdaniowe zapowiedzi bez dat (oryginał nie miał
+13. **Aktualności.** Trzy przeniesione wpisy to jednozdaniowe zapowiedzi bez dat (oryginał nie miał
     `post_date`) — mają datę importu i dopisek „Wpis przeniesiony ze starej strony”. Do decyzji,
     czy przepisać je z prawdziwymi datami, czy zacząć newsroom od zera.
-13. **Logo, favicon, og:image.** Stara strona nie ma ani jednego pliku graficznego — identyfikację
+14. **Logo, favicon, og:image.** Stara strona nie ma ani jednego pliku graficznego — identyfikację
     trzeba zaprojektować od zera. Logotyp organizatora (Fundacja Quantum AI) jest już w stopce:
     wgrywa go `seed_partners` do `SiteSettings.organizer_logo`.
-14. **Harmonogram warsztatów.** Szesnaście warsztatów online (`/harmonogram/`) pochodzi z listy
+15. **Harmonogram warsztatów.** Szesnaście warsztatów online (`/harmonogram/`) pochodzi z listy
     organizatora podanej w formacie amerykańskim. Jedna data jest niejednoznaczna: „Podstawy
     metrologii kwantowej” przyszła jako `09/01/2027`; w ciągu sobotnich terminów pasuje
     **9 stycznia 2027** i tak jest zapisana, ale wymaga potwierdzenia — podobnie jak godziny tego

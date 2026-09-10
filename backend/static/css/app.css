@@ -3218,15 +3218,99 @@ fieldset:disabled .score-option {
   }
 }
 
+/* Wydruk. Dokumenty organizatora (regulamin, polityka RODO, wzór zgody opiekuna) trafiają na
+ * papier: zgodę opiekuna trzeba wydrukować, podpisać i odesłać. Z kartki znika więc wszystko,
+ * co jest nawigacją ekranu, a zostaje sama treść dokumentu. Adresy odnośników dopisujemy przy
+ * treści – na papierze „patrz Regulamin” bez adresu jest odesłaniem donikąd. */
 @media print {
   .topbar,
   .footer,
+  .nav,
+  .messages,
+  .skip-link,
   .actions,
-  .hero__actions {
-    display: none;
+  .hero__actions,
+  .doc-print,
+  [data-print] {
+    display: none !important;
   }
 
   body {
     background: #fff;
+    color: #000;
   }
+
+  .page {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .doc-layout,
+  .doc-body,
+  .doc-head {
+    display: block;
+  }
+
+  /* Nagłówek sekcji nie ma zostawać sam na dole kartki, a tabela – rozjeżdżać się na dwie. */
+  h1,
+  h2,
+  h3 {
+    break-after: avoid-page;
+  }
+
+  table,
+  figure,
+  .card {
+    break-inside: avoid;
+  }
+
+  .prose a[href^="/"]::after,
+  .prose a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.85em;
+    word-break: break-all;
+  }
+}
+
+
+/* --- blok zgód w formularzach rejestracji ---------------------------------------------------
+ * Zgody stoją w osobnym ``<fieldset>``, bo są oświadczeniami o znanej treści, a nie kolejnymi
+ * polami danych. Etykieta bywa dwuzdaniowa i zawiera odnośnik do dokumentu, więc pole wyboru
+ * musi stać obok pierwszego wiersza tekstu, a nie w jego środku – stąd siatka, a nie ``float``.
+ */
+.consents {
+  margin: 1.5rem 0 0;
+  padding: 1rem 1.1rem 0.4rem;
+  border: 1px solid var(--line, #d7dce5);
+  border-radius: 0.5rem;
+}
+
+.consents > legend {
+  padding: 0 0.4rem;
+  font-weight: 600;
+}
+
+.consents__item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.6rem;
+  align-items: start;
+  margin: 0 0 0.9rem;
+}
+
+.consents__item input[type="checkbox"] {
+  margin-top: 0.25rem;
+}
+
+.consents__item label {
+  display: block;
+  font-weight: 400;
+}
+
+/* Podpowiedź i błąd zaczynają się pod etykietą, nie pod polem wyboru. */
+.consents__item .helptext,
+.consents__item ul.errorlist {
+  grid-column: 2;
+  margin: 0;
 }

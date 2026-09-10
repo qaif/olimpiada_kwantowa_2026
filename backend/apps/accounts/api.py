@@ -15,11 +15,13 @@ from rest_framework.throttling import ScopedRateThrottle
 
 from apps.core.api import DomainError
 
+from .consents import ConsentSource, descriptions
 from .models import CommitteeMember, CommitteeStatus
 from .permissions import IsCoordinator
 from .serializers import (
     CommitteeRegisteredSerializer,
     CommitteeRegisterSerializer,
+    ConsentDefinitionSerializer,
     LoginSerializer,
     MeSerializer,
     ParticipantRegisteredSerializer,
@@ -49,8 +51,28 @@ class RegisterParticipantView(GenericAPIView):
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        participant = register_participant(**serializer.validated_data)
+        participant = register_participant(
+            **serializer.validated_data, source=ConsentSource.API, request=request
+        )
         return Response(ParticipantRegisteredSerializer(participant).data, status=status.HTTP_201_CREATED)
+
+
+class ConsentSetView(GenericAPIView):
+    """Treść zgód zbieranych przy rejestracji – publicznie, bez logowania.
+
+    Endpoint istnieje po to, żeby klient zewnętrzny (aplikacja szkoły, integracja organizatora)
+    mógł pokazać **to samo** oświadczenie, które pokazuje formularz na stronie, z odnośnikiem do
+    tego samego dokumentu i pod tą samą wersją. Bez tego każdy klient wymyślałby własne brzmienie,
+    a zgoda zebrana pod cudzą parafrazą nie broni się jako dowód.
+    """
+
+    authentication_classes: list = []
+    permission_classes = [AllowAny]
+    serializer_class = ConsentDefinitionSerializer
+
+    @extend_schema(responses={200: ConsentDefinitionSerializer(many=True)})
+    def get(self, request):
+        return Response(self.get_serializer(descriptions(), many=True).data)
 
 
 class RegisterCommitteeView(GenericAPIView):

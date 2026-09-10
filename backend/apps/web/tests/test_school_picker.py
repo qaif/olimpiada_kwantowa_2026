@@ -23,7 +23,9 @@ def form_data(**overrides) -> dict:
         "district": "mazowieckie",
         "grade": "3",
         "birth_year": 2008,
+        "terms_consent": "on",
         "gdpr_consent": "on",
+        "guardian_consent": "on",
     }
     data.update(overrides)
     return data
@@ -96,7 +98,9 @@ def test_social_form_shares_the_school_block():
             "district": "mazowieckie",
             "grade": "1",
             "birth_year": 2008,
+            "terms_consent": "on",
             "gdpr_consent": "on",
+            "guardian_consent": "on",
             "school_custom": "on",
             "school": "Szkoła Europejska w Brukseli",
         }

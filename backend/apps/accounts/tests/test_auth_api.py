@@ -91,6 +91,7 @@ def test_kryterium_8_login_dziala_niezaleznie_od_wielkosci_liter_w_emailu(api, o
         district="mazowieckie",
         grade=3,
         birth_year=2007,
+        terms_consent=True,
         gdpr_consent=True,
     )
     assert registered.user.email == "wielkie@example.test"

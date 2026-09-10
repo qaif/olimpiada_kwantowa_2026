@@ -26,6 +26,7 @@ from django.http import Http404
 from django.urls import reverse_lazy
 from django.views.generic import FormView, TemplateView
 
+from apps.accounts.consents import ConsentSource
 from apps.accounts.services import register_committee, register_participant
 from apps.cms.models import SiteSettings
 from apps.core.api import DomainError
@@ -228,7 +229,9 @@ class RegisterParticipantView(ThrottledFormMixin, ServiceFormView):
     throttle_scope = "register"
 
     def call_service(self, form):
-        register_participant(**form.cleaned_data)
+        # ``source`` i ``request`` dokładamy tutaj, a nie w formularzu: to fakt o **drodze**
+        # żądania, a nie dana wpisana przez uczestnika – i tak trafia do wpisu dowodowego zgody.
+        register_participant(**form.cleaned_data, source=ConsentSource.WEB, request=self.request)
 
 
 class RegisterCommitteeView(ThrottledFormMixin, ServiceFormView):

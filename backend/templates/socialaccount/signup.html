@@ -15,8 +15,8 @@
     <form method="post" class="form">
       {% csrf_token %}
       {% include "web/_participant_form_fields.html" %}
-      <p class="hint">Zgoda na przetwarzanie danych osobowych jest wymagana. Uczestnik niepełnoletni
-        potrzebuje dodatkowo zgody opiekuna.</p>
+      <p class="hint">Akceptacja Regulaminu i zgoda na przetwarzanie danych osobowych są wymagane.
+        Uczestnik niepełnoletni potrzebuje dodatkowo zgody rodzica lub opiekuna prawnego.</p>
       <button type="submit" class="btn btn--primary btn--block">Załóż konto</button>
     </form>
     <p class="auth__alt">Konto założone tą drogą nie ma hasła – logujesz się przyciskiem

@@ -148,8 +148,13 @@ class Command(BaseCommand):
                     district=Voivodeship.MAZOWIECKIE if index % 2 else Voivodeship.MALOPOLSKIE,
                     grade=(index % 4) + 1,
                     birth_year=2008,
+                    # Komplet zgód – seed przechodzi tą samą bramką, co formularz i API
+                    # (``accounts.services.validate_consents``), więc konto demonstracyjne ma
+                    # też komplet wpisów dowodowych ``ConsentRecord``.
+                    terms_consent=True,
                     gdpr_consent=True,
                     guardian_consent=True,
+                    publish_name_consent=index % 2 == 0,
                 )
                 created = True
             else:

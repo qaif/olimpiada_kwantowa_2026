@@ -261,4 +261,54 @@
     </div>
   {% endif %}
 </section>
+
+<section class="section" id="zgody">
+  <div class="section__head"><h2 class="mt-0">Twoje zgody</h2></div>
+  {% comment %}
+    Lista mówi trzy rzeczy naraz: **co** zostało oświadczone, **pod jaką wersją dokumentu**
+    i **kiedy**. Sama „ptaszka” nie wystarczy: dokumenty są nowelizowane, a zgoda złożona pod
+    wersją sprzed nowelizacji nie jest zgodą na tekst, który wisi na stronie dzisiaj.
+
+    Przełącznik jest dokładnie jeden — publikacja imienia i nazwiska. Pozostałe zgody są
+    warunkiem udziału albo oświadczeniem o zapoznaniu się z dokumentem; ich wycofanie znaczy
+    rezygnację z Olimpiady i jest sprawą do organizatora, a nie przyciskiem w panelu.
+  {% endcomment %}
+  <div class="scroll">
+    <table class="table">
+      <caption>Zgody złożone przy rejestracji i później</caption>
+      <thead><tr><th>Zgoda</th><th>Wersja dokumentu</th><th>Data (czas polski)</th><th>Stan</th></tr></thead>
+      <tbody>
+        {% for row in consent_rows %}
+          <tr>
+            <td>{{ row.name }}{% if row.optional %} <span class="hint">(dobrowolna)</span>{% endif %}</td>
+            <td>{% if row.record %}{{ row.record.document_version|default:"—" }}{% else %}{{ row.version }}{% endif %}</td>
+            <td>{% if row.record %}{{ row.record.given_at|local_datetime }}{% else %}—{% endif %}</td>
+            <td>
+              {% if not row.record %}
+                <span class="hint">brak wpisu</span>
+              {% elif row.record.withdrawn_at %}
+                wycofana {{ row.record.withdrawn_at|local_datetime }}
+              {% else %}
+                obowiązuje
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <form method="post" action="{% url 'web:consent-publish-name' %}" class="inline">
+    {% csrf_token %}
+    {% if user.participant.publish_full_name %}
+      <input type="hidden" name="given" value="0">
+      <button type="submit" class="btn btn--secondary">Wycofaj zgodę na publikację nazwiska</button>
+    {% else %}
+      <input type="hidden" name="given" value="1">
+      <button type="submit" class="btn btn--secondary">Wyraź zgodę na publikację nazwiska</button>
+    {% endif %}
+  </form>
+  <p class="hint">Bez tej zgody w publikowanych tabelach wyników występujesz wyłącznie pod kodem
+    {{ user.participant.public_code }}. Zgodę możesz wyrazić i wycofać w każdej chwili.</p>
+</section>
 {% endblock %}

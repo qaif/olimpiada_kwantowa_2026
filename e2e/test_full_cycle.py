@@ -178,6 +178,10 @@ def test_pelny_cykl_etapu_od_rejestracji_do_publikacji(
     expect(page.locator("#id_school_id")).not_to_have_value("")
     page.select_option("#id_grade", participant_identity["grade"])
     page.fill("#id_birth_year", participant_identity["birth_year"])
+    # Zgody: regulamin i RODO są wymagane od każdego, zgoda opiekuna – od niepełnoletniego
+    # (reguła po roczniku, patrz apps/accounts/consents.py). Etykiety niosą odnośniki do
+    # dokumentów, więc pole zaznaczamy po identyfikatorze, a nie po tekście etykiety.
+    page.check("#id_terms_consent")
     page.check("#id_gdpr_consent")
     page.check("#id_guardian_consent")
     page.get_by_role("button", name="Załóż konto").click()

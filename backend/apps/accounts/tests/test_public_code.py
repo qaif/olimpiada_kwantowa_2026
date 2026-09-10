@@ -55,7 +55,9 @@ def test_wyczerpanie_prob_nie_zostawia_osieroconego_usera(open_registration):
             district="mazowieckie",
             grade=2,
             birth_year=2008,
+            terms_consent=True,
             gdpr_consent=True,
+            guardian_consent=True,
         )
     assert exc.value.machine_code == "PUBLIC_CODE_UNAVAILABLE"
     assert not User.objects.filter(email="sierota@example.test").exists()

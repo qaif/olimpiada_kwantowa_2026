@@ -25,7 +25,9 @@ def kwargs(**overrides) -> dict:
         "district": "mazowieckie",
         "birth_year": 2008,
         "grade": 2,
+        "terms_consent": True,
         "gdpr_consent": True,
+        "guardian_consent": True,
     }
     data.update(overrides)
     return data
@@ -118,7 +120,9 @@ def test_social_registration_follows_the_same_rules(open_registration):
         district="malopolskie",
         birth_year=2008,
         grade=4,
+        terms_consent=True,
         gdpr_consent=True,
+        guardian_consent=True,
         school_id=school.id,
     )
 
@@ -137,7 +141,9 @@ def test_social_registration_refuses_a_missing_school(open_registration):
             district="malopolskie",
             birth_year=2008,
             grade=4,
+            terms_consent=True,
             gdpr_consent=True,
+            guardian_consent=True,
         )
 
     assert exc.value.machine_code == "SCHOOL_REQUIRED"
@@ -161,7 +167,9 @@ def test_api_accepts_school_id(api, open_registration):
             "district": "pomorskie",
             "grade": 1,
             "birth_year": 2009,
+            "terms_consent": True,
             "gdpr_consent": True,
+            "guardian_consent": True,
         },
         format="json",
     )
@@ -186,7 +194,9 @@ def test_api_still_accepts_plain_school_text(api, open_registration):
             "district": "pomorskie",
             "grade": 5,
             "birth_year": 2009,
+            "terms_consent": True,
             "gdpr_consent": True,
+            "guardian_consent": True,
         },
         format="json",
     )
@@ -207,7 +217,9 @@ def test_api_refuses_a_payload_without_any_school(api, open_registration):
             "district": "pomorskie",
             "grade": 1,
             "birth_year": 2009,
+            "terms_consent": True,
             "gdpr_consent": True,
+            "guardian_consent": True,
         },
         format="json",
     )
@@ -228,7 +240,9 @@ def test_api_requires_the_grade(api, open_registration):
             "school": "LO nr 3",
             "district": "pomorskie",
             "birth_year": 2009,
+            "terms_consent": True,
             "gdpr_consent": True,
+            "guardian_consent": True,
         },
         format="json",
     )

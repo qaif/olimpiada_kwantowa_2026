@@ -69,7 +69,9 @@ def test_serializers_reject_a_value_outside_the_list():
         "district": "Atlantyda",
         "grade": 2,
         "birth_year": 2008,
+        "terms_consent": True,
         "gdpr_consent": True,
+        "guardian_consent": True,
     }
     serializer = ParticipantRegisterSerializer(data=payload)
 
@@ -94,7 +96,9 @@ def test_forms_reject_a_value_outside_the_list():
             "district": "Atlantyda",
             "grade": 2,
             "birth_year": 2008,
+            "terms_consent": True,
             "gdpr_consent": True,
+            "guardian_consent": True,
         }
     )
 

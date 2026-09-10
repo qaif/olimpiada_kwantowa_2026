@@ -53,7 +53,9 @@ def registration_payload(email: str) -> dict:
         "district": "mazowieckie",
         "grade": 2,
         "birth_year": 2008,
+        "terms_consent": "on",
         "gdpr_consent": "on",
+        "guardian_consent": "on",
     }
 
 
