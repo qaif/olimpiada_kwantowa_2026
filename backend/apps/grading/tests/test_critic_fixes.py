@@ -126,13 +126,13 @@ def test_assign_endpoint_refuses_a_single_reviewer_per_submission(client, stage)
 
 def test_unassignable_submission_is_skipped_and_the_rest_is_assigned(client, district_stage):
     """Jedna praca bez wolnych recenzentów trafia na listę ``skipped``, druga dostaje komplet."""
-    ActiveReviewerFactory(district="małopolski", district_verified=True)
-    ActiveReviewerFactory(district="małopolski", district_verified=True)
-    ActiveReviewerFactory(district="mazowiecki", district_verified=True)
+    ActiveReviewerFactory(district="malopolskie", district_verified=True)
+    ActiveReviewerFactory(district="malopolskie", district_verified=True)
+    ActiveReviewerFactory(district="mazowieckie", district_verified=True)
     # Uczestnik z okręgu dwóch z trzech recenzentów – po wykluczeniu zostaje jeden, a trzeba dwóch.
-    blocked = locked_submission(district_stage, district="małopolski")
+    blocked = locked_submission(district_stage, district="malopolskie")
     # Ten sam etap, uczestnik z okręgu, w którym nie ma żadnego recenzenta – pula pełna.
-    assignable = locked_submission(district_stage, district="pomorski")
+    assignable = locked_submission(district_stage, district="pomorskie")
 
     client.force_authenticate(CoordinatorFactory())
     response = client.post(f"/api/grading/stages/{district_stage.pk}/assign/", {}, format="json")
@@ -153,9 +153,9 @@ def test_unassignable_submission_is_skipped_and_the_rest_is_assigned(client, dis
 
 def test_nothing_assignable_still_returns_conflict(district_stage):
     """Gdy nie da się przydzielić niczego, zostaje 409 – nie ma czego commitować."""
-    ActiveReviewerFactory(district="mazowiecki", district_verified=True)
-    ActiveReviewerFactory(district="mazowiecki", district_verified=True)
-    locked_submission(district_stage, district="mazowiecki")
+    ActiveReviewerFactory(district="mazowieckie", district_verified=True)
+    ActiveReviewerFactory(district="mazowieckie", district_verified=True)
+    locked_submission(district_stage, district="mazowieckie")
 
     with pytest.raises(DomainError) as exc:
         assign_reviewers(district_stage)

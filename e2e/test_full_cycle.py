@@ -165,7 +165,8 @@ def test_pelny_cykl_etapu_od_rejestracji_do_publikacji(
     page.fill("#id_first_name", participant_identity["first_name"])
     page.fill("#id_last_name", participant_identity["last_name"])
     page.fill("#id_school", participant_identity["school"])
-    page.fill("#id_district", participant_identity["district"])
+    # Województwo jest listą zamkniętą (``Voivodeship``), więc wybór, a nie wpisanie tekstu.
+    page.select_option("#id_district", participant_identity["district"])
     page.fill("#id_birth_year", participant_identity["birth_year"])
     page.check("#id_gdpr_consent")
     page.check("#id_guardian_consent")

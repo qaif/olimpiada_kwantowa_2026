@@ -313,7 +313,10 @@ Co daje włączenie:
 - uczestnik loguje się kontem Google/Facebooka zamiast hasła; konto założone tą drogą **nie ma
   hasła** (gdyby chciał logować się także hasłem, ustawia je przez „Nie pamiętasz hasła?”),
 - po pierwszym logowaniu trafia na stronę **dokończenia rejestracji** (`/rejestracja/dokoncz/`):
-  szkoła, województwo, rok urodzenia, zgoda RODO. Bez zgody RODO konto **nie powstaje**,
+  szkoła, województwo, rok urodzenia, zgoda RODO. Bez zgody RODO konto **nie powstaje**.
+  Województwo jest listą zamkniętą 16 pozycji (ten sam `<select>` co na `/register/`),
+  przechowywaną jako slug ASCII (`mazowieckie`, `lodzkie`) – etykietę z diakrytykami dokłada
+  warstwa prezentacji (`get_district_display`, pole `district_label` w API),
 - konta komitetu tą drogą **nie powstają** – rejestracja recenzenta zostaje wyłącznie na kod
   zaproszenia. Istniejący członek komitetu może się natomiast zalogować Google'em.
 

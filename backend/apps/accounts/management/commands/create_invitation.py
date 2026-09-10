@@ -7,7 +7,13 @@ from datetime import timedelta
 
 from django.core.management.base import BaseCommand, CommandError
 
-from apps.accounts.models import GROUP_COORDINATOR, InvitationGrantsStatus, User
+from apps.accounts.models import (
+    GROUP_COORDINATOR,
+    InvitationGrantsStatus,
+    User,
+    Voivodeship,
+    normalize_voivodeship,
+)
 from apps.accounts.services import create_invitation
 
 
@@ -27,7 +33,8 @@ class Command(BaseCommand):
             default=None,
             help=(
                 "Województwo narzucone rejestrowanemu recenzentowi. Nadpisuje deklarację z formularza "
-                "i nadaje profilowi district_verified=True (wymóg reguły konfliktu interesów)."
+                "i nadaje profilowi district_verified=True (wymóg reguły konfliktu interesów). "
+                f"Dopuszczalne wartości: {', '.join(Voivodeship.values)}."
             ),
         )
         parser.add_argument("--max-uses", type=int, default=1, help="Ile razy kod może zostać użyty.")
@@ -41,6 +48,18 @@ class Command(BaseCommand):
         if not creator.groups.filter(name=GROUP_COORDINATOR).exists():
             raise CommandError("Kody zaproszeń może tworzyć wyłącznie koordynator.")
 
+        # Przyjmujemy też etykietę i formę przymiotnikową („woj. mazowieckie”, „mazowiecki”) –
+        # komendę uruchamia człowiek z terminala, a lista wartości jest zamknięta, więc pomyłkę
+        # w zapisie da się rozstrzygnąć bez zgadywania. Czego nie umiemy przypisać, odrzucamy.
+        district = options["district"]
+        if district is not None:
+            normalized = normalize_voivodeship(district)
+            if normalized is None:
+                raise CommandError(
+                    f"Nieznane województwo {district!r}. Dopuszczalne: {', '.join(Voivodeship.values)}."
+                )
+            district = normalized
+
         grants = InvitationGrantsStatus.PENDING if options["pending"] else InvitationGrantsStatus.ACTIVE
         invitation, plain_code = create_invitation(
             creator,
@@ -48,7 +67,7 @@ class Command(BaseCommand):
             max_uses=options["max_uses"],
             grants_status=grants,
             is_appeals=options["appeals"],
-            district=options["district"],
+            district=district,
         )
         self.stdout.write(
             self.style.SUCCESS(f"Kod zaproszenia (zapisz teraz, nie da się go odtworzyć): {plain_code}")

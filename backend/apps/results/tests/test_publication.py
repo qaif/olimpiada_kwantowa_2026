@@ -39,7 +39,7 @@ def consenting_participant(*, publish_full_name: bool, guardian_consent: bool = 
     return ParticipantFactory(
         user=user,
         school=kwargs.pop("school", SCHOOL),
-        district="mazowiecki",
+        district="mazowieckie",
         birth_year=kwargs.pop("birth_year", minor_year()),
         guardian_consent=guardian_consent,
         publish_full_name=publish_full_name,
@@ -209,7 +209,7 @@ def test_district_is_published_only_next_to_pseudonyms():
     by_initials = publish(stage, Anonymization.INITIALS_SCHOOL).snapshot
     by_name = publish(stage, Anonymization.FULL).snapshot
 
-    assert by_code[0]["district"] == "mazowiecki"
+    assert by_code[0]["district"] == "mazowieckie"
     assert "district" not in by_initials[0]
     assert "district" not in by_name[0]
 

@@ -56,10 +56,10 @@ def test_assignment_is_balanced_between_reviewers(stage):
 
 def test_district_stage_excludes_reviewer_from_participant_district(district_stage):
     """2a. Na etapie okręgowym recenzent z okręgu uczestnika nie dostaje przydziału."""
-    conflicted = ActiveReviewerFactory(district="mazowiecki")
-    ActiveReviewerFactory(district="małopolski")
-    ActiveReviewerFactory(district="pomorski")
-    submission = locked_submission(district_stage, district="mazowiecki")
+    conflicted = ActiveReviewerFactory(district="mazowieckie")
+    ActiveReviewerFactory(district="malopolskie")
+    ActiveReviewerFactory(district="pomorskie")
+    submission = locked_submission(district_stage, district="mazowieckie")
 
     assign_reviewers(district_stage)
 
@@ -70,10 +70,10 @@ def test_district_stage_excludes_reviewer_from_participant_district(district_sta
 
 def test_district_stage_without_enough_reviewers_raises_conflict(district_stage):
     """2b. Gdy po wykluczeniu konfliktów zostaje < 2 recenzentów → NOT_ENOUGH_REVIEWERS (409)."""
-    ActiveReviewerFactory(district="mazowiecki")
-    ActiveReviewerFactory(district="mazowiecki")
-    ActiveReviewerFactory(district="małopolski")
-    locked_submission(district_stage, district="mazowiecki")
+    ActiveReviewerFactory(district="mazowieckie")
+    ActiveReviewerFactory(district="mazowieckie")
+    ActiveReviewerFactory(district="malopolskie")
+    locked_submission(district_stage, district="mazowieckie")
 
     with pytest.raises(DomainError) as exc:
         assign_reviewers(district_stage)
@@ -85,10 +85,10 @@ def test_district_stage_without_enough_reviewers_raises_conflict(district_stage)
 
 def test_unverified_reviewer_is_skipped_on_district(district_stage):
     """T-02: niezweryfikowany okręg = konflikt z każdym okręgiem na etapie okręgowym."""
-    unverified = ActiveReviewerFactory(district="pomorski", district_verified=False)
-    verified_a = ActiveReviewerFactory(district="małopolski", district_verified=True)
-    verified_b = ActiveReviewerFactory(district="lubelski", district_verified=True)
-    submission = locked_submission(district_stage, district="mazowiecki")
+    unverified = ActiveReviewerFactory(district="pomorskie", district_verified=False)
+    verified_a = ActiveReviewerFactory(district="malopolskie", district_verified=True)
+    verified_b = ActiveReviewerFactory(district="lubelskie", district_verified=True)
+    submission = locked_submission(district_stage, district="mazowieckie")
 
     assign_reviewers(district_stage)
 
@@ -103,9 +103,9 @@ def test_unverified_reviewer_is_assignable_outside_district_stage(stage):
     Pula to dokładnie dwie osoby, więc przydział musi sięgnąć po tę niezweryfikowaną – asercja
     mówi wtedy coś o regule, a nie tylko o rozmiarze zbioru.
     """
-    unverified = ActiveReviewerFactory(district="pomorski", district_verified=False)
-    verified = ActiveReviewerFactory(district="małopolski", district_verified=True)
-    submission = locked_submission(stage, district="pomorski")
+    unverified = ActiveReviewerFactory(district="pomorskie", district_verified=False)
+    verified = ActiveReviewerFactory(district="malopolskie", district_verified=True)
+    submission = locked_submission(stage, district="pomorskie")
 
     assign_reviewers(stage)
 
@@ -116,9 +116,9 @@ def test_unverified_reviewer_is_assignable_outside_district_stage(stage):
 
 def test_verify_district_endpoint_makes_reviewer_assignable_on_district(client, district_stage):
     """Po potwierdzeniu okręgu przez koordynatora recenzent wchodzi do puli etapu okręgowego."""
-    unverified = ActiveReviewerFactory(district="pomorski", district_verified=False)
-    verified = ActiveReviewerFactory(district="małopolski", district_verified=True)
-    submission = locked_submission(district_stage, district="mazowiecki")
+    unverified = ActiveReviewerFactory(district="pomorskie", district_verified=False)
+    verified = ActiveReviewerFactory(district="malopolskie", district_verified=True)
+    submission = locked_submission(district_stage, district="mazowieckie")
 
     # Przed potwierdzeniem pula ma jedną osobę – nie ma z czego złożyć dwóch recenzji.
     with pytest.raises(DomainError) as exc:
@@ -127,7 +127,7 @@ def test_verify_district_endpoint_makes_reviewer_assignable_on_district(client, 
 
     client.force_authenticate(CoordinatorFactory())
     response = client.post(
-        f"/api/auth/committee/{unverified.pk}/verify-district/", {"district": "pomorski"}, format="json"
+        f"/api/auth/committee/{unverified.pk}/verify-district/", {"district": "pomorskie"}, format="json"
     )
     assert response.status_code == 200
 

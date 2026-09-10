@@ -123,3 +123,38 @@ def test_invitation_expiry_is_reported_in_local_time(web_client, coordinator):
 
     assert "(czas polski)" in content
     assert " UTC," not in content
+
+
+def test_verify_district_from_the_panel_uses_the_closed_list(web_client, coordinator):
+    """Ścieżka WWW „Potwierdź okręg”: wartość z ``<select>`` idzie do tego samego serwisu."""
+    member = ActiveReviewerFactory(district="mazowieckie", district_verified=False)
+    web_client.force_login(coordinator)
+
+    response = web_client.post(
+        f"/coordinator/committee/{member.pk}/verify-district/", {"district": "podlaskie"}
+    )
+
+    member.refresh_from_db()
+    assert response.status_code == 302
+    assert (member.district, member.district_verified) == ("podlaskie", True)
+
+
+def test_verify_district_panel_renders_a_select_with_the_current_value(web_client, coordinator):
+    """Wolne pole tekstowe wpuszczało tu dowolny zapis – teraz jest lista z 16 pozycjami."""
+    ActiveReviewerFactory(district="podlaskie", district_verified=False)
+    web_client.force_login(coordinator)
+
+    content = web_client.get("/coordinator/").content.decode()
+
+    assert '<select name="district" aria-label="Województwo">' in content
+    assert '<option value="podlaskie" selected>podlaskie</option>' in content
+
+
+def test_verify_district_from_the_panel_rejects_a_value_outside_the_list(web_client, coordinator):
+    member = ActiveReviewerFactory(district="mazowieckie", district_verified=False)
+    web_client.force_login(coordinator)
+
+    web_client.post(f"/coordinator/committee/{member.pk}/verify-district/", {"district": "Atlantyda"})
+
+    member.refresh_from_db()
+    assert (member.district, member.district_verified) == ("mazowieckie", False)

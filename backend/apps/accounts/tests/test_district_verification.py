@@ -65,8 +65,8 @@ def test_invitation_without_district_leaves_profile_unverified():
 def test_create_invitation_service_and_command_carry_district():
     coordinator = CoordinatorFactory()
 
-    invitation, _ = create_invitation(coordinator, district="śląskie")
-    assert invitation.district == "śląskie"
+    invitation, _ = create_invitation(coordinator, district="slaskie")
+    assert invitation.district == "slaskie"
 
     out = StringIO()
     call_command("create_invitation", email=coordinator.email, district="lubelskie", stdout=out)

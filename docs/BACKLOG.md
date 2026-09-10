@@ -68,7 +68,7 @@ Status: `todo` / `in_progress` / `done` / `escalated`.
 
 | Źródło | Finding | Plan |
 |---|---|---|
-| T-02 | `district` członka komitetu jest samodeklarowany; reguła konfliktu interesów (T-05) na nim polega | zamknięte w T-05 (`InvitationCode.district`, `district_verified`, `verify-district`) |
+| T-02 | `district` członka komitetu jest samodeklarowany; reguła konfliktu interesów (T-05) na nim polega | zamknięte w T-05 (`InvitationCode.district`, `district_verified`, `verify-district`); dodatkowo zamknięta lista 16 województw (`accounts.Voivodeship`, slug ASCII) + migracja danych `accounts.0007` – wolny tekst nie ma już jak wejść |
 | T-02 | Token DRF bez TTL i rotacji; jeden token na konto | T-08 (UI używa sesji); rotacja tokenu przy loginie + TTL 30 dni w osobnym tasku po T-10 |
 | T-02 | Enumeracja kont przez `EMAIL_TAKEN` na rejestracji | Zaakceptowane (UX), limit 10/h/IP; do rozważenia flow z e-mailem potwierdzającym |
 | T-02 | Brak testu wyścigu na `redeem_invitation` i testu 429 na `register` | 429 na `register` zamknięte (`apps/web/tests/test_throttle.py`); wyścig `redeem_invitation` (`transaction=True`) – po T-10 |

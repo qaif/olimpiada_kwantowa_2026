@@ -30,10 +30,33 @@ from .models import (
     User,
     generate_public_code,
     hash_invitation_code,
+    normalize_voivodeship,
 )
 
 INVITATION_CODE_BYTES = 24
 PUBLIC_CODE_MAX_ATTEMPTS = 20
+
+
+def _require_voivodeship(district: str | None, *, required: bool) -> str | None:
+    """Sprowadza województwo do wartości z listy albo podnosi błąd domenowy.
+
+    Walidacja jest tutaj, a nie tylko w formularzu i serializerze, bo do serwisów wchodzą też
+    seed, komendy CLI i logowanie społecznościowe – gdyby każda z tych ścieżek pilnowała listy
+    osobno, do bazy trafiłby prędzej czy później zapis spoza słownika i reguła konfliktu
+    interesów (porównanie okręgów) przestałaby być rozstrzygalna.
+    """
+    normalized = normalize_voivodeship(district)
+    if normalized is not None:
+        return normalized
+    if (district or "").strip():
+        raise DomainError(
+            "Nieznane województwo – wybierz jedno z listy.",
+            "DISTRICT_INVALID",
+            status.HTTP_400_BAD_REQUEST,
+        )
+    if required:
+        raise DomainError("Województwo jest wymagane.", "DISTRICT_REQUIRED", status.HTTP_400_BAD_REQUEST)
+    return None
 
 
 def active_reviewer_profile(user) -> CommitteeMember | None:
@@ -135,6 +158,7 @@ def register_participant(
 ) -> Participant:
     """Rejestracja otwarta uczestnika: User w grupie ``participant`` + profil ``Participant``."""
     _require_gdpr_consent(gdpr_consent)
+    district = _require_voivodeship(district, required=True)
     user = _create_user(email=email, password=password, first_name=first_name, last_name=last_name)
     _add_to_group(user, GROUP_PARTICIPANT)
     return create_participant_with_public_code(
@@ -182,6 +206,7 @@ def register_social_participant(
     ani ``Participant``, ani powiązanie ``SocialAccount`` (to ostatnie zapisuje dopiero widok).
     """
     _require_gdpr_consent(gdpr_consent)
+    district = _require_voivodeship(district, required=True)
     email = _normalize_email(email)
     if not email:
         raise DomainError(
@@ -221,6 +246,7 @@ def create_invitation(
     Kod jawny jest zwracany wyłącznie wywołującemu (komenda CLI) i nigdzie nie jest zapisywany.
     ``district`` (o ile podany) narzuca okręg rejestrowanego recenzenta i czyni go zweryfikowanym.
     """
+    district = _require_voivodeship(district, required=False)
     if expires_at is None:
         expires_at = timezone.now() + (valid_for or timedelta(days=14))
     if max_uses < 1:
@@ -233,7 +259,7 @@ def create_invitation(
         max_uses=max_uses,
         grants_status=grants_status,
         is_appeals=is_appeals,
-        district=(district or "").strip() or None,
+        district=district,
     )
     return invitation, plain_code
 
@@ -284,12 +310,15 @@ def register_committee(
     ``district_verified=True``. Kod bez okręgu daje profil samodeklarowany i niezweryfikowany –
     taki recenzent nie jest przydzielany na etapie okręgowym (reguła konfliktu interesów).
     """
+    # Okręg z payloadu sprawdzamy przed zużyciem kodu: nieprawidłowa deklaracja nie ma prawa
+    # skasować jednorazowego zaproszenia (``redeem_invitation`` podnosi ``used_count``).
+    declared = _require_voivodeship(district, required=False)
     invitation = redeem_invitation(invitation_code)
     user = _create_user(email=email, password=password, first_name=first_name, last_name=last_name)
-    from_code = (invitation.district or "").strip()
+    from_code = normalize_voivodeship(invitation.district)
     member = CommitteeMember.objects.create(
         user=user,
-        district=from_code or (district or "").strip() or None,
+        district=from_code or declared,
         district_verified=bool(from_code),
         status=invitation.grants_status,
         is_appeals_committee=invitation.is_appeals,
@@ -333,11 +362,11 @@ def verify_committee_district(
     Dopóki okręg jest samodeklarowany, reguła konfliktu interesów nie ma na czym się oprzeć –
     dlatego przydział na etapie okręgowym pomija profile z ``district_verified=False``.
     """
-    district = (district or "").strip()
-    if not district:
+    if not (district or "").strip():
         raise DomainError(
             "Podaj województwo do potwierdzenia.", "DISTRICT_REQUIRED", status.HTTP_400_BAD_REQUEST
         )
+    district = _require_voivodeship(district, required=True)
     member = CommitteeMember.objects.select_for_update().get(pk=member.pk)
     if member.status != CommitteeStatus.ACTIVE:
         # Potwierdzony okręg wpuszcza do przydziału na etapie okręgowym. Nadawanie go profilowi

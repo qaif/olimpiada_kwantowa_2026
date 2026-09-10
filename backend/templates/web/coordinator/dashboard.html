@@ -182,7 +182,7 @@
           <label for="third-{{ submission.pk }}">Trzeci recenzent</label>
           <select id="third-{{ submission.pk }}" name="reviewer_id">
             {% for member in reviewer_pool %}
-              <option value="{{ member.pk }}">{{ member.user.email }}{% if member.district %} ({{ member.district }}){% endif %}</option>
+              <option value="{{ member.pk }}">{{ member.user.email }}{% if member.district %} ({{ member.get_district_display }}){% endif %}</option>
             {% endfor %}
           </select>
           <button type="submit" class="btn btn--secondary">Wyznacz trzeciego recenzenta</button>
@@ -203,7 +203,7 @@
         {% for member in pending_members %}
           <tr>
             <td>{{ member.user.email }}</td>
-            <td>{{ member.district|default:"—" }}</td>
+            <td>{{ member.get_district_display|default:"—" }}</td>
             <td>{% if member.is_appeals_committee %}tak{% else %}nie{% endif %}</td>
             <td>
               <form method="post" action="{% url 'web:coordinator-approve' member.pk %}">
@@ -228,7 +228,7 @@
         {% for member in active_members %}
           <tr>
             <td>{{ member.user.email }}</td>
-            <td>{{ member.district|default:"—" }}</td>
+            <td>{{ member.get_district_display|default:"—" }}</td>
             <td>
               {% if member.district_verified %}
                 <span class="badge badge--ok">tak</span>
@@ -239,7 +239,11 @@
             <td>
               <form method="post" action="{% url 'web:coordinator-verify-district' member.pk %}" class="inline">
                 {% csrf_token %}
-                <input type="text" name="district" value="{{ member.district|default:'' }}" aria-label="Województwo">
+                <select name="district" aria-label="Województwo">
+                  {% for value, label in voivodeship_choices %}
+                    <option value="{{ value }}"{% if value == member.district %} selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
                 <button type="submit" class="btn btn--secondary btn--small">Potwierdź okręg</button>
               </form>
             </td>

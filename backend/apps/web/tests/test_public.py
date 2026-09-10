@@ -22,7 +22,7 @@ SNAPSHOT = [
     {
         "rank": 2,
         "display": "OLM-BBBBBB",
-        "district": "małopolskie",
+        "district": "malopolskie",
         "points": {"1": 2, "2": 0},
         "total": 2,
         "qualified": False,

@@ -16,6 +16,7 @@ from apps.accounts.models import (
     InvitationGrantsStatus,
     Participant,
     User,
+    Voivodeship,
     generate_public_code,
     hash_invitation_code,
 )
@@ -59,7 +60,10 @@ class ParticipantFactory(factory.django.DjangoModelFactory):
     user = factory.SubFactory(UserFactory, groups=[GROUP_PARTICIPANT])
     public_code = factory.LazyFunction(generate_public_code)
     school = "LO nr 1"
-    district = "mazowiecki"
+    # Wartość z ``Voivodeship`` – po zamknięciu listy każdy inny zapis odpada na walidacji.
+    # Stała, a nie losowana: testy konfliktu okręgu porównują okręgi między obiektami
+    # i muszą mieć powtarzalny punkt wyjścia (własny okręg podają jawnie).
+    district = Voivodeship.MAZOWIECKIE
     birth_year = 2008
     gdpr_consent_at = factory.LazyFunction(timezone.now)
     guardian_consent = True
@@ -70,7 +74,7 @@ class CommitteeMemberFactory(factory.django.DjangoModelFactory):
         model = CommitteeMember
 
     user = factory.SubFactory(UserFactory)
-    district = "mazowiecki"
+    district = Voivodeship.MAZOWIECKIE
     district_verified = False
     status = CommitteeStatus.PENDING
     is_appeals_committee = False

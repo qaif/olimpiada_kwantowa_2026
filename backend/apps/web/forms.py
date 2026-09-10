@@ -14,6 +14,7 @@ from django import forms
 from django.contrib.auth.forms import AuthenticationForm
 from django.core.files.uploadedfile import UploadedFile
 
+from apps.accounts.models import Voivodeship
 from apps.appeals.models import MAX_TEXT_LENGTH, MIN_ARGUMENT_LENGTH, AppealStatus
 from apps.competitions.interviews import (
     MAX_DURATION_MINUTES,
@@ -33,6 +34,16 @@ from apps.competitions.services import STAGE_EDITABLE_FIELDS
 from apps.core.api import DomainError
 from apps.results.models import Anonymization
 from apps.submissions.validators import MEGABYTE, validate_pdf
+
+# Pusta pozycja na początku listy: przeglądarka inaczej wybrałaby pierwsze województwo za
+# rejestrującego się i cichaczem przypisała mu okręg, którego nigdy świadomie nie wskazał.
+EMPTY_VOIVODESHIP_CHOICE = ("", "— wybierz województwo —")
+VOIVODESHIP_CHOICES = (EMPTY_VOIVODESHIP_CHOICE, *Voivodeship.choices)
+
+
+def voivodeship_field(label: str, *, required: bool = True) -> forms.ChoiceField:
+    """Pole wyboru województwa. Lista jest zamknięta – wolny tekst nie ma tu wstępu."""
+    return forms.ChoiceField(label=label, choices=VOIVODESHIP_CHOICES, required=required)
 
 
 class EmailAuthenticationForm(AuthenticationForm):
@@ -56,7 +67,7 @@ class ParticipantRegisterForm(forms.Form):
     first_name = forms.CharField(label="Imię", max_length=150)
     last_name = forms.CharField(label="Nazwisko", max_length=150)
     school = forms.CharField(label="Szkoła", max_length=200)
-    district = forms.CharField(label="Województwo", max_length=100)
+    district = voivodeship_field("Województwo")
     birth_year = forms.IntegerField(label="Rok urodzenia", min_value=1900, max_value=2100)
     gdpr_consent = forms.BooleanField(label="Zgoda na przetwarzanie danych osobowych", required=False)
     guardian_consent = forms.BooleanField(label="Zgoda opiekuna", required=False)
@@ -79,7 +90,7 @@ class SocialParticipantSignupForm(forms.Form):
     first_name = forms.CharField(label="Imię", max_length=150)
     last_name = forms.CharField(label="Nazwisko", max_length=150)
     school = forms.CharField(label="Szkoła", max_length=200)
-    district = forms.CharField(label="Województwo", max_length=100)
+    district = voivodeship_field("Województwo")
     birth_year = forms.IntegerField(label="Rok urodzenia", min_value=1900, max_value=2100)
     gdpr_consent = forms.BooleanField(label="Zgoda na przetwarzanie danych osobowych", required=False)
     guardian_consent = forms.BooleanField(label="Zgoda opiekuna", required=False)
@@ -93,7 +104,7 @@ class CommitteeRegisterForm(forms.Form):
     first_name = forms.CharField(label="Imię", max_length=150)
     last_name = forms.CharField(label="Nazwisko", max_length=150)
     invitation_code = forms.CharField(label="Kod zaproszenia", max_length=200)
-    district = forms.CharField(label="Województwo (deklarowane)", max_length=100, required=False)
+    district = voivodeship_field("Województwo (deklarowane)", required=False)
 
 
 class SubmissionUploadForm(forms.Form):
@@ -195,13 +206,13 @@ class AssignReviewersForm(forms.Form):
 class VerifyDistrictForm(forms.Form):
     """Potwierdzenie okręgu członka komitetu."""
 
-    district = forms.CharField(label="Województwo", max_length=100)
+    district = voivodeship_field("Województwo")
 
 
 class InvitationForm(forms.Form):
     """Generowanie kodu zaproszenia. Kod jawny jest pokazywany dokładnie raz."""
 
-    district = forms.CharField(label="Województwo (narzucone kodem)", max_length=100, required=False)
+    district = voivodeship_field("Województwo (narzucone kodem)", required=False)
     valid_days = forms.IntegerField(label="Ważność (dni)", min_value=1, max_value=365, initial=14)
     max_uses = forms.IntegerField(label="Limit użyć", min_value=1, max_value=100, initial=1)
     is_appeals = forms.BooleanField(label="Komisja odwoławcza", required=False)

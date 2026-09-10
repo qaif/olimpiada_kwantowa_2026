@@ -36,7 +36,7 @@ def district_stage():
     return created
 
 
-def locked_submission(stage, *, district="mazowiecki", problem=None, **participant_kwargs):
+def locked_submission(stage, *, district="mazowieckie", problem=None, **participant_kwargs):
     """Rozwiązanie w stanie LOCKED – dokładnie taki stan zostawia ``close_stage``."""
     participant = ParticipantFactory(district=district, **participant_kwargs)
     entry = StageEntryFactory(stage=stage, participant=participant)

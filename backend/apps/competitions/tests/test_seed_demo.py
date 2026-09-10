@@ -92,7 +92,7 @@ def test_kryterium_9_seed_demo_tworzy_komplet_danych_demonstracyjnych():
     assert reviewers.count() == 3
     assert all(member.status == CommitteeStatus.ACTIVE for member in reviewers)
     assert sorted(reviewers.values_list("district", flat=True)) == sorted(
-        ["mazowieckie", "małopolskie", "mazowieckie"]
+        ["mazowieckie", "malopolskie", "mazowieckie"]
     )
     assert all(member.user.groups.filter(name=GROUP_REVIEWER).exists() for member in reviewers)
 

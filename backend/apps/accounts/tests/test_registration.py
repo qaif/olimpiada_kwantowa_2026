@@ -33,7 +33,7 @@ def participant_payload(**overrides):
         "first_name": "Anna",
         "last_name": "Nowak",
         "school": "LO nr 3",
-        "district": "mazowiecki",
+        "district": "mazowieckie",
         "birth_year": 2008,
         "gdpr_consent": True,
         "guardian_consent": True,
@@ -49,7 +49,7 @@ def committee_payload(**overrides):
         "first_name": "Piotr",
         "last_name": "Wiśniewski",
         "invitation_code": "kod-testowy-0001",
-        "district": "mazowiecki",
+        "district": "mazowieckie",
     }
     payload.update(overrides)
     return payload

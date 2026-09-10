@@ -235,7 +235,10 @@ def compute_stage_results(stage: Stage) -> list[dict]:
                 "first_name": participant.user.first_name,
                 "last_name": participant.user.last_name,
                 "school": participant.school,
-                "district": participant.district,
+                # Etykieta, nie slug: snapshot jest danymi do wyświetlenia (tabela publiczna
+                # i podgląd koordynatora czytają go dosłownie), a grupowanie po ``_district_key``
+                # jest odporne na postać zapisu, bo normalizuje wielkość liter i spacje.
+                "district": participant.get_district_display(),
                 "publish_full_name": participant.publish_full_name,
                 "guardian_consent": participant.guardian_consent,
                 "is_adult": _is_adult(participant.birth_year, current_year),

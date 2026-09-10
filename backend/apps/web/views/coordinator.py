@@ -37,6 +37,7 @@ from apps.results.models import ResultsPublication
 from apps.results.services import compute_stage_results, publish_results
 from apps.submissions.services import close_stage_now
 from apps.web.forms import (
+    VOIVODESHIP_CHOICES,
     AssignReviewersForm,
     AssignThirdReviewerForm,
     InvitationForm,
@@ -113,6 +114,9 @@ def dashboard_context(extra: dict | None = None) -> dict:
         "resolve_form": ResolveModerationForm(),
         "assign_third_form": AssignThirdReviewerForm(),
         "verify_form": VerifyDistrictForm(),
+        # Lista województw dla wbudowanych w tabelę formularzy „Potwierdź okręg”: jeden
+        # ``<select>`` na wiersz, a wierszy jest tyle, ilu aktywnych członków komitetu.
+        "voivodeship_choices": VOIVODESHIP_CHOICES,
         "invitation_form": InvitationForm(),
         "publish_form": PublishResultsForm(),
         "preview": None,

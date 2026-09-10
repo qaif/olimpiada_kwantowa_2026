@@ -5,7 +5,7 @@ Hasła i kody zaproszeń są wyłącznie ``write_only`` – nigdy nie pojawiają
 
 from rest_framework import serializers
 
-from .models import CommitteeMember, Participant, User
+from .models import CommitteeMember, Participant, User, Voivodeship
 
 
 class ParticipantRegisterSerializer(serializers.Serializer):
@@ -14,7 +14,7 @@ class ParticipantRegisterSerializer(serializers.Serializer):
     first_name = serializers.CharField(max_length=150)
     last_name = serializers.CharField(max_length=150)
     school = serializers.CharField(max_length=200)
-    district = serializers.CharField(max_length=100)
+    district = serializers.ChoiceField(choices=Voivodeship.choices)
     birth_year = serializers.IntegerField(min_value=1900, max_value=2200)
     gdpr_consent = serializers.BooleanField()
     guardian_consent = serializers.BooleanField(required=False, default=False)
@@ -35,7 +35,9 @@ class CommitteeRegisterSerializer(serializers.Serializer):
     first_name = serializers.CharField(max_length=150)
     last_name = serializers.CharField(max_length=150)
     invitation_code = serializers.CharField(write_only=True, max_length=128)
-    district = serializers.CharField(max_length=100, required=False, allow_blank=True, allow_null=True)
+    district = serializers.ChoiceField(
+        choices=Voivodeship.choices, required=False, allow_blank=True, allow_null=True
+    )
 
 
 class CommitteeRegisteredSerializer(serializers.ModelSerializer):
@@ -57,12 +59,17 @@ class TokenSerializer(serializers.Serializer):
 
 
 class ParticipantProfileSerializer(serializers.ModelSerializer):
+    # Wartość ``district`` jest slugiem ASCII (stabilnym dla klientów), etykieta z diakrytykami
+    # jedzie obok – żeby front nie musiał utrzymywać własnej kopii słownika województw.
+    district_label = serializers.CharField(source="get_district_display", read_only=True)
+
     class Meta:
         model = Participant
         fields = (
             "public_code",
             "school",
             "district",
+            "district_label",
             "birth_year",
             "guardian_consent",
             "publish_full_name",
@@ -71,15 +78,24 @@ class ParticipantProfileSerializer(serializers.ModelSerializer):
 
 
 class CommitteeProfileSerializer(serializers.ModelSerializer):
+    district_label = serializers.CharField(source="get_district_display", read_only=True)
+
     class Meta:
         model = CommitteeMember
-        fields = ("id", "district", "district_verified", "status", "is_appeals_committee")
+        fields = (
+            "id",
+            "district",
+            "district_label",
+            "district_verified",
+            "status",
+            "is_appeals_committee",
+        )
 
 
 class VerifyDistrictSerializer(serializers.Serializer):
     """Wejście potwierdzenia okręgu przez koordynatora."""
 
-    district = serializers.CharField(max_length=100)
+    district = serializers.ChoiceField(choices=Voivodeship.choices)
 
 
 class MeSerializer(serializers.ModelSerializer):
@@ -107,6 +123,7 @@ class PendingCommitteeMemberSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source="user.email", read_only=True)
     first_name = serializers.CharField(source="user.first_name", read_only=True)
     last_name = serializers.CharField(source="user.last_name", read_only=True)
+    district_label = serializers.CharField(source="get_district_display", read_only=True)
 
     class Meta:
         model = CommitteeMember
@@ -116,6 +133,7 @@ class PendingCommitteeMemberSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "district",
+            "district_label",
             "district_verified",
             "status",
             "is_appeals_committee",

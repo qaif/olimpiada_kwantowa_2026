@@ -195,7 +195,7 @@ def test_public_rows_carry_the_district_only_next_to_pseudonyms(client):
     publish_results(stage, None, Anonymization.INITIALS_SCHOOL)
     with_initials = client.get(public_url(stage)).data["rows"][0]
 
-    assert with_code["district"] == "mazowiecki"
+    assert with_code["district"] == "mazowieckie"
     assert "district" not in with_initials
     assert with_initials["display"] == "J.K., I LO Gdańsk"
 

@@ -12,7 +12,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
-from apps.accounts.models import CommitteeMember, CommitteeStatus, InvitationCode, User
+from apps.accounts.models import CommitteeMember, CommitteeStatus, InvitationCode, User, Voivodeship
 from apps.accounts.services import (
     approve_committee_member,
     create_invitation,
@@ -25,7 +25,11 @@ from apps.competitions.services import create_stage
 DEMO_PASSWORD = "Demo12345!"  # noqa: S105 - konto demonstracyjne, wyłącznie dla środowiska dev
 DEMO_EDITION_LABEL = "XV (2026/2027)"
 DEMO_PARTICIPANT_COUNT = 5
-DEMO_REVIEWER_DISTRICTS = ("mazowieckie", "małopolskie", "mazowieckie")
+DEMO_REVIEWER_DISTRICTS = (
+    Voivodeship.MAZOWIECKIE,
+    Voivodeship.MALOPOLSKIE,
+    Voivodeship.MAZOWIECKIE,
+)
 DEMO_COORDINATOR_EMAIL = "koordynator@example.com"
 
 # Offsety terminów liczone od momentu pierwszego uruchomienia (dni względem `now`).
@@ -141,7 +145,7 @@ class Command(BaseCommand):
                     first_name=f"Uczestnik{index}",
                     last_name="Demo",
                     school=f"LO nr {index}",
-                    district="mazowieckie" if index % 2 else "małopolskie",
+                    district=Voivodeship.MAZOWIECKIE if index % 2 else Voivodeship.MALOPOLSKIE,
                     birth_year=2008,
                     gdpr_consent=True,
                     guardian_consent=True,

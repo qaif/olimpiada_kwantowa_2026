@@ -73,12 +73,12 @@ def test_top_n_mode_admits_the_whole_tie_at_the_cutoff():
 def test_top_n_per_district_mode():
     """2. TOP_N_PER_DISTRICT: próg liczy się osobno w każdym okręgu, remisy jak wyżej."""
     stage = make_stage(problems=1, mode=QualificationMode.TOP_N_PER_DISTRICT, min_points=None, top_n=1)
-    north_tie_one = graded_entry(stage, [6], district="pomorski")
-    north_tie_two = graded_entry(stage, [6], district="pomorski")
-    north_worst = graded_entry(stage, [2], district="pomorski")
+    north_tie_one = graded_entry(stage, [6], district="pomorskie")
+    north_tie_two = graded_entry(stage, [6], district="pomorskie")
+    north_worst = graded_entry(stage, [2], district="pomorskie")
     # Okręg słabszy punktowo, ale i tak wprowadza swojego najlepszego uczestnika.
-    south_best = graded_entry(stage, [5], district="malopolski")
-    south_worst = graded_entry(stage, [0], district="malopolski")
+    south_best = graded_entry(stage, [5], district="malopolskie")
+    south_worst = graded_entry(stage, [0], district="malopolskie")
 
     apply_qualification(stage)
 
