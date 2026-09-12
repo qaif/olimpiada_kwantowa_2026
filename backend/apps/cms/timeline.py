@@ -66,27 +66,15 @@ def format_date_range(start: date, end: date) -> str:
 
 
 def is_onsite_event(stage: Stage) -> bool:
-    """Czy etap jest wydarzeniem stacjonarnym rozłożonym na kilka dni (finał).
+    """Czy etap jest wydarzeniem stacjonarnym ogłaszanym jednym terminem (zjazd), a nie oknem.
 
-    Kryterium jest opisowe, a nie oparte na ``kind == FINAL``: rodzaj etapu mówi, **które** to
-    zawody w kolejności, a nie jak przebiegają. Taki etap nie ma „otwarcia” i „terminu oddania
-    pliku”: ma termin, na który się przyjeżdża, i to jedna informacja, a nie dwie. Kolejna edycja
-    może zrobić tak z innym etapem – i strona zachowa się właściwie bez poprawki w szablonie.
-
-    Wydarzeniem jest etap, który spełnia **którykolwiek** z dwóch warunków:
-
-    - ma wpisane dni wydarzenia (``event_range``) – organizator ogłosił zjazd wprost, więc nie ma
-      czego domyślać się z okna uploadu. To jedyna droga do terminu, który różni się od sesji:
-      finał trwa 4–7 czerwca, a prace przyjmuje się przez kilka godzin 5 czerwca,
-    - albo ma miejsce (``location``) i okno rozłożone na różne dni – dotychczasowa reguła. Zostaje,
-      bo opisuje etapy wprowadzone przed tymi polami: ich terminu nikt nie przepisywał, a strona
-      ma dalej pokazywać jeden zakres, nie dwie godziny.
+    Rozstrzygają **wyłącznie** wpisane dni wydarzenia (``event_range``). Wcześniejsza reguła
+    „miejsce + okno na różne dni” była domysłem i zawiodła na produkcji: organizator wpisał
+    w polu miejsca „Tryb zdalny” przy etapie trwającym trzy miesiące, a strona schowała mu
+    godzinę oddania prac za jednym zakresem dat. Termin zjazdu jest decyzją organizatora
+    i ma być wpisany wprost w panelu (pola „Termin wydarzenia”), a nie wywnioskowany.
     """
-    if stage.event_range is not None:
-        return True
-    if not stage.location:
-        return False
-    return timezone.localtime(stage.opens_at).date() != timezone.localtime(stage.deadline_at).date()
+    return stage.event_range is not None
 
 
 def stage_date_range(stage: Stage) -> str:

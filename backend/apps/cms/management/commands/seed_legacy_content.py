@@ -37,7 +37,9 @@ Co powstaje:
   (rewizje tej komendy nie mają autora), zostaje przy pełnym przebiegu pominięta – z komunikatem.
   Reguła istnieje, bo organizator redaguje harmonogram i skład komitetów bezpośrednio na
   serwerze, a pełny przebieg po wdrożeniu cofałby te poprawki do plików z repozytorium.
-  ``--force`` wyłącza ochronę (świadome przywrócenie treści z plików). Strony wycofane
+  To samo dotyczy stron i aktualności **skasowanych** w /cms/ (wpis dziennika z autorem):
+  komenda ich nie odtwarza. ``--force`` wyłącza obie ochrony (świadome przywrócenie treści
+  z plików). Strony wycofane
   (``OBSOLETE_PAGES``) są kasowane niezależnie od tego, kto je redagował – to decyzja
   organizatora o strukturze serwisu, nie o treści,
 - **strona partnerów** (``PartnersPage`` pod ``/partnerzy/``) – opublikowana; jej lista partnerów
@@ -303,6 +305,19 @@ LEGACY_DOCUMENT_PATHS = (
     "/standardy-ochrony-maloletnich/",
     "/komitety/",
 )
+
+
+def deleted_in_cms(title: str) -> bool:
+    """Czy stronę o tym tytule skasował człowiek w ``/cms/``.
+
+    Kasowanie nie zostawia rewizji, zostawia wpis dziennika (``PageLogEntry``, akcja
+    ``wagtail.delete``) z autorem; wpisy z komend seedujących autora nie mają. Bez tej kontroli
+    komenda odtwarzałaby po każdym przebiegu strony, które organizator świadomie usunął –
+    tak stało się z aktualnościami startowymi na produkcji.
+    """
+    from wagtail.models import PageLogEntry
+
+    return PageLogEntry.objects.filter(action="wagtail.delete", user__isnull=False, label=title).exists()
 
 
 def edited_in_cms(page) -> bool:
@@ -639,6 +654,9 @@ class Command(BaseCommand):
         else:
             page = model.objects.child_of(home).filter(slug=spec.slug).first()
         created = page is None
+        if created and not self.force and deleted_in_cms(spec.title):
+            self.stdout.write(f"pominięto: /{spec.slug}/ (usunięta w /cms/; --force odtworzy)")
+            return
         if not created and not self.force and edited_in_cms(page):
             # Treść redakcji zostaje w całości – także tytuł i załączniki; komenda nie wie, którą
             # część zmieniono, a „pół strony z pliku, pół z panelu” byłoby gorsze niż obie całości.
@@ -756,6 +774,9 @@ class Command(BaseCommand):
         for slug, title, lead in NEWS:
             page = NewsPage.objects.child_of(index).filter(slug=slug).first()
             created = page is None
+            if created and not self.force and deleted_in_cms(title):
+                self.stdout.write(f"pominięto: aktualność {slug} (usunięta w /cms/; --force odtworzy)")
+                continue
             if not created and not self.force and edited_in_cms(page):
                 self.stdout.write(f"pominięto: aktualność {slug} (zredagowana w /cms/)")
                 continue

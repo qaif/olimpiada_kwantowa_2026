@@ -1179,3 +1179,35 @@ def test_partners_intro_edited_in_cms_survives_a_full_seed(web_client, legacy_co
     call_command("seed_legacy_content", verbosity=0)
 
     assert "Wstęp redakcji o partnerach." in web_client.get("/partnerzy/").content.decode()
+
+
+def _editor():
+    from django.contrib.auth import get_user_model
+
+    editor, _ = get_user_model().objects.get_or_create(
+        email="redakcja@example.org", defaults={"is_staff": True, "is_superuser": True}
+    )
+    return editor
+
+
+def test_news_deleted_in_cms_are_not_recreated(legacy_content):
+    """Skasowana aktualność zostaje skasowana – wpis dziennika z autorem chroni przed odtworzeniem."""
+    from apps.cms.models import NewsPage
+
+    page = NewsPage.objects.get(slug="otwieramy-i-edycje")
+    page.delete(user=_editor())
+
+    call_command("seed_legacy_content", verbosity=0)
+
+    assert not NewsPage.objects.filter(slug="otwieramy-i-edycje").exists()
+    call_command("seed_legacy_content", "--force", verbosity=0)
+    assert NewsPage.objects.filter(slug="otwieramy-i-edycje").exists()
+
+
+def test_content_page_deleted_in_cms_is_not_recreated(legacy_content):
+    page = ContentPage.objects.get(slug="dla-nauczycieli")
+    page.delete(user=_editor())
+
+    call_command("seed_legacy_content", verbosity=0)
+
+    assert not ContentPage.objects.filter(slug="dla-nauczycieli").exists()
