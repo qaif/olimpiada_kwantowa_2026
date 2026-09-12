@@ -1167,3 +1167,15 @@ def test_home_hero_edited_in_cms_survives_a_full_seed(web_client, legacy_content
     assert "Hasło redakcji" in content
     assert 'id="o-olimpiadzie"' in content
     assert "Po co powstała Olimpiada?" in content
+
+
+def test_partners_intro_edited_in_cms_survives_a_full_seed(web_client, legacy_content):
+    """Wstęp strony partnerów po redakcji należy do organizatora – tak jak lista partnerów."""
+    from apps.cms.models import PartnersPage
+
+    page = PartnersPage.objects.get(slug="partnerzy")
+    _edit_in_cms(page, intro="<p>Wstęp redakcji o partnerach.</p>")
+
+    call_command("seed_legacy_content", verbosity=0)
+
+    assert "Wstęp redakcji o partnerach." in web_client.get("/partnerzy/").content.decode()

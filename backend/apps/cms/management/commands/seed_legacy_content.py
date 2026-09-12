@@ -722,6 +722,11 @@ class Command(BaseCommand):
 
         page = PartnersPage.objects.child_of(home).filter(slug=PARTNERS_SLUG).first()
         created = page is None
+        if not created and not self.force and edited_in_cms(page):
+            # Ta sama reguła, co dla stron treści: wstęp i wezwanie „zostań partnerem” po
+            # redakcji w /cms/ należą do organizatora, nie do pliku.
+            self.stdout.write(f"pominięto: {page.url} (zredagowana w /cms/; --force nadpisze)")
+            return
         if created:
             page = PartnersPage(title=PARTNERS_TITLE, slug=PARTNERS_SLUG, partners=[])
             home.add_child(instance=page)
@@ -751,6 +756,9 @@ class Command(BaseCommand):
         for slug, title, lead in NEWS:
             page = NewsPage.objects.child_of(index).filter(slug=slug).first()
             created = page is None
+            if not created and not self.force and edited_in_cms(page):
+                self.stdout.write(f"pominięto: aktualność {slug} (zredagowana w /cms/)")
+                continue
             if created:
                 page = NewsPage(title=title, slug=slug, date=timezone.localdate())
                 index.add_child(instance=page)
