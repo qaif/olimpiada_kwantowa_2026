@@ -35,16 +35,27 @@
   {% for field in form %}
     {% if field.name in form.consent_field_names %}
       {% comment %}
-        Kolejność w DOM: pole wyboru, etykieta, błąd, podpowiedź. Arkusz układa to w siatkę
-        „checkbox | tekst”, więc błąd i podpowiedź muszą stać **po** etykiecie – inaczej
-        wylądowałyby w pierwszym wierszu siatki, nad polem, którego dotyczą.
+        Jedna zgoda = jeden wiersz oddzielony kreską. Powód jest praktyczny: etykiety są
+        dwu- i trzyzdaniowe, a przy wiersz-do-wiersza bez odstępu nie było widać, do którego
+        oświadczenia należy które pole wyboru.
+
+        Kolejność w DOM: pole wyboru, etykieta, znacznik wymagalności, błąd, podpowiedź. Arkusz
+        układa to w siatkę „checkbox | tekst”, więc wszystko po etykiecie musi stać **po** niej –
+        inaczej wylądowałoby w pierwszym wierszu siatki, nad polem, którego dotyczy.
+
+        „wymagane” bierze się z ``required_consent_fields``
+        (apps/web/context_processors.py → apps/accounts/consents.py), a nie z listy nazw pól
+        w szablonie: o wymagalności rozstrzyga serwis i szablon ma ją tylko pokazać.
       {% endcomment %}
-      <p class="consents__item">
+      <div class="consents__item">
         {{ field }}
         {{ field.label_tag }}
+        {% if field.name in required_consent_fields %}
+          <span class="consents__required">wymagane</span>
+        {% endif %}
         {{ field.errors }}
-        {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
-      </p>
+        {% if field.help_text %}<span class="helptext consents__note">{{ field.help_text }}</span>{% endif %}
+      </div>
     {% endif %}
   {% endfor %}
 </fieldset>

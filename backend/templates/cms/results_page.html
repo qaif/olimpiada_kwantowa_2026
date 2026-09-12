@@ -57,8 +57,11 @@
   </section>
 {% endfor %}
 
-{# Starsze edycje zostają linkiem: snapshot finału to tysiące wierszy, a sklejanie wszystkich
-   roczników w jeden dokument dawałoby stronę rosnącą z każdą edycją. Patrz apps/cms/models.py. #}
+{% comment %}
+  Starsze edycje zostają linkiem: snapshot ostatniego etapu to tysiące wierszy, a sklejanie
+  wszystkich roczników w jeden dokument dawałoby stronę rosnącą z każdą edycją.
+  Patrz apps/cms/models.py.
+{% endcomment %}
 {% if archive %}
   <h2 class="section-heading">Wcześniejsze edycje</h2>
   <ul class="results-list">

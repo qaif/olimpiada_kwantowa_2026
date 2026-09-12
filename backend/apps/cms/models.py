@@ -48,6 +48,7 @@ from .blocks import (
     StepsStreamBlock,
 )
 from .timeline import stage_rows
+from .workshops import WORKSHOPS_SLUG, upcoming_workshops
 
 #: Adresy pierwszego segmentu, które należą do aplikacji (``config/urls.py`` + ``apps/web/urls.py``).
 #: Strona CMS z takim slugiem na drugim poziomie drzewa byłaby martwa – patrz docstring modułu.
@@ -239,6 +240,20 @@ class HomePage(CMSPage):
 
     hero_title = models.CharField("nagłówek", max_length=200, blank=True)
     hero_text = RichTextField("wprowadzenie", features=RICH_TEXT_FEATURES, blank=True)
+    # „O Olimpiadzie” była osobną pozycją menu i osobną stroną, na którą trafiał co czterdziesty
+    # czytelnik: odpowiedź na „co to jest i kto to organizuje” stała jedno kliknięcie za hasłem,
+    # które tę ciekawość wzbudzało. Treść wraca więc na stronę główną jako sekcja pod kotwicą
+    # ``#o-olimpiadzie`` (stary adres przekierowuje właśnie tam), a nie jako tekst zaszyty
+    # w szablonie – to nadal treść redakcyjna i ma ten sam zestaw bloków, co strona treści,
+    # żeby przeniesienie akapitu w którąkolwiek stronę nie gubiło bloku.
+    about_title = models.CharField(
+        "nagłówek sekcji „O Olimpiadzie”",
+        max_length=200,
+        default="O Olimpiadzie",
+        blank=True,
+        help_text="Puste = sekcja się nie pokazuje.",
+    )
+    about_body = StreamField(DocumentStreamBlock(), verbose_name="O Olimpiadzie", blank=True)
     show_timeline = models.BooleanField(
         "pokaż oś czasu bieżącej edycji",
         default=True,
@@ -255,10 +270,16 @@ class HomePage(CMSPage):
     content_panels = Page.content_panels + [
         FieldPanel("hero_title"),
         FieldPanel("hero_text"),
+        MultiFieldPanel([FieldPanel("about_title"), FieldPanel("about_body")], heading="O Olimpiadzie"),
         FieldPanel("show_timeline"),
         MultiFieldPanel([FieldPanel("steps_title"), FieldPanel("steps")], heading="Jak zacząć"),
     ]
-    search_fields = Page.search_fields + [index.SearchField("hero_title")]
+    search_fields = Page.search_fields + [
+        index.SearchField("hero_title"),
+        # Treść „O Olimpiadzie” nie ma już własnej strony, więc bez tego wpisu przestałaby być
+        # wyszukiwalna – a to ona odpowiada na pytanie „co to za olimpiada”.
+        index.SearchField("about_body"),
+    ]
 
     template = "cms/home_page.html"
     # Strona główna jest korzeniem witryny – nie wolno jej zagnieżdżać pod inną stroną treści.
@@ -298,7 +319,26 @@ class HomePage(CMSPage):
                 "partners_page": _partners_with_entries(self),
             }
         )
+        context.update(self._workshops_context(now))
         return context
+
+    def _workshops_context(self, now) -> dict:
+        """Trzy najbliższe warsztaty online – z tabeli na stronie „Warsztaty”, nie z własnej listy.
+
+        Warsztaty były dotąd tylko tabelą w treści ``/harmonogram/``: kto nie wszedł na tę
+        podstronę, nie dowiadywał się, że w ogóle są, a są bezpłatne i otwarte. Zapowiedź na
+        stronie głównej czyta **tę samą** tabelę (``apps.cms.workshops``), więc redakcja nie
+        utrzymuje drugiej listy i nie ma jak ich rozjechać.
+
+        Parsujemy StreamField przy żądaniu, a nie w polu obok: harmonogram jest treścią
+        redakcyjną, a jedyną kopią prawdy ma być tabela na stronie warsztatów. Koszt to jedno
+        zapytanie o stronę; sama tabela leży w jednym polu JSON.
+        """
+        page = ContentPage.objects.live().child_of(self).filter(slug=WORKSHOPS_SLUG).first()
+        return {
+            "workshops_page": page,
+            "workshops": upcoming_workshops(page, now=now),
+        }
 
 
 class NewsIndexPage(CMSPage):

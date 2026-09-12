@@ -14,12 +14,13 @@ Testy pilnują czterech rzeczy, na których ten import stoi:
   zapisane w komendzie i tu sprawdzane, żeby ich cicha zmiana nie przeszła bez śladu.
 """
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
 from django.core.management import call_command
 from wagtail.documents import get_document_model
+from wagtail.rich_text import RichText
 
 from apps.cms.models import (
     ContentPage,
@@ -36,12 +37,16 @@ from apps.competitions.tests.factories import CurrentEditionFactory
 pytestmark = pytest.mark.django_db
 
 PUBLISHED_CONTENT = (
-    "o-olimpiadzie",
-    "jak-zaczac",
     "harmonogram",
+    "warsztaty",
     "kontakt",
     "dla-nauczycieli",
 )
+
+#: Strony wycofane z serwisu i adres, na który prowadzi ich stary link. „Jak zacząć?” dublowało
+#: sekcję kroków na stronie głównej, a „O Olimpiadzie” wróciło tam jako sekcja ``#o-olimpiadzie``.
+#: Oba adresy wiszą w pismach i w wyszukiwarkach, więc muszą odpowiadać przekierowaniem, a nie 404.
+OBSOLETE_PAGES = {"jak-zaczac": "/", "o-olimpiadzie": "/#o-olimpiadzie"}
 DOCUMENTS = ("rodo", "zgoda-opiekuna", "standardy-ochrony-maloletnich", "komitety")
 
 #: Nazwy z kafli starej strony. Jedna z nich („Uniwersytet Kwantowy”) to instytucja nieistniejąca,
@@ -52,17 +57,21 @@ PARTNERS_EMPTY_STATE = "Lista partnerów I edycji zostanie opublikowana wkrótce
 #: Dokumenty pod ``/dokumenty/`` w kolejności z drzewa – ta sama w menu, w spisie i na stronie głównej.
 DOCUMENT_ORDER = (
     "regulamin",
+    "zoz",
     "rodo",
     "zgoda-opiekuna",
     "standardy-ochrony-maloletnich",
     "komitety",
+    "cookies",
 )
 DOCUMENT_TITLES = [
     "Regulamin",
+    "Zasady Organizacji Zawodów (ZOZ)",
     "Polityka RODO Olimpiady Kwantowej",
     "Zgoda rodzica lub opiekuna prawnego",
     "Standardy ochrony małoletnich Olimpiady Kwantowej",
     "Skład komitetów",
+    "Polityka plików cookie",
 ]
 #: Dokumenty, które miały jednosegmentowy adres przed wydzieleniem sekcji ``/dokumenty/`` – tylko
 #: one mają przekierowanie 301. Wzór zgody opiekuna powstał już w sekcji, więc nie ma skąd
@@ -94,12 +103,13 @@ PDF_TITLES = {
 
 #: Pasek nawigacji po imporcie. Dokumenty mają **jedną** pozycję („Dokumenty”) z listą rozwijaną –
 #: regulamin i skład komitetów nie stoją już osobno między pozostałymi stronami.
+#: „O Olimpiadzie” i „Jak zacząć?” nie są już pozycjami paska – ich treść stoi na stronie głównej.
+#: „Warsztaty” stoją zaraz za „Harmonogramem”: obie pozycje odpowiadają na pytanie „kiedy”.
 MENU_TITLES = [
-    "O Olimpiadzie",
-    "Jak zacząć?",
     "Aktualności",
     "Zadania",
     "Harmonogram",
+    "Warsztaty",
     "Dokumenty",
     "Archiwum",
     "Wyniki",
@@ -135,7 +145,7 @@ def test_seed_creates_published_pages(legacy_content):
 def test_seed_marks_only_menu_pages(legacy_content):
     in_menu = ContentPage.objects.filter(show_in_menu=True).values_list("slug", flat=True)
 
-    assert set(in_menu) == {"o-olimpiadzie", "jak-zaczac", "harmonogram", "kontakt"}
+    assert set(in_menu) == {"harmonogram", "warsztaty", "kontakt"}
     # Żaden dokument nie jest osobną pozycją paska: prowadzi do nich rozwijana sekcja „Dokumenty”,
     # która czyta dzieci sekcji, a nie znacznik ``show_in_menus``.
     assert not DocumentPage.objects.filter(show_in_menus=True).exists()
@@ -232,12 +242,30 @@ def test_content_page_body_keeps_structure(legacy_content):
     page = ContentPage.objects.get(slug="harmonogram")
     kinds = [block.block_type for block in page.body]
 
-    # Nagłówki zostają blokami ``heading``, warsztaty tabelą, a terminy etapów – blokiem czytanym
-    # z bazy zawodów. Żadnej daty etapu nie ma już w treści strony.
+    # Nagłówki zostają blokami ``heading``, a terminy etapów – blokiem czytanym z bazy zawodów.
+    # Żadnej daty etapu nie ma już w treści strony.
     assert "heading" in kinds
     assert "paragraph" in kinds
     assert "stage_timeline" in kinds
-    assert "schedule" in kinds
+    # Tabela warsztatów wyprowadziła się na własną stronę: ``/harmonogram/`` jest o terminach
+    # zawodów i zostawia po niej jeden odnośnik, a nie szesnaście wierszy.
+    assert "schedule" not in kinds
+
+
+def test_workshops_moved_out_of_harmonogram(web_client, legacy_content):
+    """Harmonogram warsztatów jest w serwisie dokładnie raz – na ``/warsztaty/``.
+
+    Dopóki tabela stała w środku ``/harmonogram/``, warsztatów nie widział nikt, kto nie przewinął
+    tej podstrony do końca – a są bezpłatne i otwarte. Rozdzielenie ma sens tylko wtedy, gdy
+    tabela naprawdę się **przenosi**, a nie kopiuje: dwie kopie rozjadą się przy pierwszej zmianie
+    terminu i uczestnik zobaczy inny na każdej z nich.
+    """
+    harmonogram = web_client.get("/harmonogram/").content.decode()
+
+    assert "Liczby zespolone" not in harmonogram
+    assert 'class="table schedule"' not in harmonogram
+    # Zostaje odnośnik – czytelnik szukający warsztatów na stronie z terminami ma gdzie kliknąć.
+    assert 'href="/warsztaty/"' in harmonogram
 
 
 # --- harmonogram: terminy z systemu i warsztaty --------------------------------------------------
@@ -259,25 +287,28 @@ def test_harmonogram_has_no_stage_dates_written_into_the_page(legacy_content):
 
 
 def test_harmonogram_shows_the_final_in_krakow_from_the_database(web_client, legacy_content):
-    """Finał: 4–7 czerwca 2027 w Krakowie – z etapów edycji, nie z akapitu w treści."""
+    """Finał: 4–7 czerwca 2027 w Krakowie – z etapów edycji, nie z akapitu w treści.
+
+    Etap stacjonarny ma **jeden** termin, podany jako zakres dni: na finał się przyjeżdża, a nie
+    „otwiera się go” i „oddaje w nim plik o 18:00”.
+    """
     call_command("seed_edition_kwantowa", "--make-current", verbosity=0)
 
     content = web_client.get("/harmonogram/").content.decode()
 
     assert "Kraków" in content
-    assert "4 czerwca 2027" in content
-    assert "7 czerwca 2027" in content
+    assert "<dt>Termin</dt><dd>4–7 czerwca 2027</dd>" in content
     assert "10 kwietnia 2027" not in content
     # Terminy dwóch pierwszych etapów zostają bez zmian – to jedyna zmiana w terminarzu.
     assert "7 listopada 2026" in content
     assert "16 stycznia 2027" in content
 
 
-def test_harmonogram_lists_every_workshop_as_a_table(web_client, legacy_content):
+def test_warsztaty_lists_every_workshop_as_a_table(web_client, legacy_content):
     """Szesnaście warsztatów jako ``<table>``, nie jako lista definicji ani sklejone akapity."""
-    page = ContentPage.objects.get(slug="harmonogram")
+    page = ContentPage.objects.get(slug="warsztaty")
     schedule = next(block for block in page.body if block.block_type == "schedule")
-    content = web_client.get("/harmonogram/").content.decode()
+    content = web_client.get("/warsztaty/").content.decode()
 
     assert len(schedule.value["rows"]) == WORKSHOP_COUNT
     assert schedule.value.has_time is True
@@ -286,9 +317,39 @@ def test_harmonogram_lists_every_workshop_as_a_table(web_client, legacy_content)
     assert "Harmonogram warsztatów" in content
     for fragment in ("Liczby zespolone", "10 października 2026", "11:00–14:00", "13 lutego 2027"):
         assert fragment in content
-    # Data przekazana jako 09/01/2027 jest czytana jako 9 stycznia – i jest oznaczona do potwierdzenia.
+    # Data przekazana jako 09/01/2027 jest czytana jako 9 stycznia; godziny potwierdził organizator.
     assert "9 stycznia 2027" in content
-    assert "czekają na potwierdzenie organizatora" in content
+    assert "czekają na potwierdzenie" not in content
+    # Prowadzący stoją w rubryce tematu – tak wpisał ich organizator w /cms/ i tak zostało w pliku.
+    assert "prowadzący: Rafał Demkowicz-Dobrzański" in content
+    # Zdanie wprowadzające i odnośnik z powrotem do terminów zawodów zostają na nowej stronie.
+    assert "udział jest bezpłatny" in content
+    assert 'href="/harmonogram/"' in content
+
+
+def test_warsztaty_is_in_the_menu_right_after_harmonogram(web_client, legacy_content):
+    """Kolejność menu to kolejność rodzeństwa w drzewie – „Warsztaty” muszą stać za „Harmonogramem”."""
+    titles = [item["title"] for item in web_client.get("/").context["cms_menu"]]
+
+    assert titles.index("Warsztaty") == titles.index("Harmonogram") + 1
+
+
+def test_workshop_rows_carry_a_machine_readable_date(legacy_content):
+    """Termin trafia do bloku dwa razy: jako tekst organizatora i jako data do porównania z zegarem.
+
+    Bez drugiej postaci zapowiedź „najbliższe warsztaty” na stronie głównej musiałaby parsować
+    polszczyznę przy każdym żądaniu – i zamilkłaby przy pierwszej literówce redaktora.
+    """
+    page = ContentPage.objects.get(slug="warsztaty")
+    schedule = next(block for block in page.body if block.block_type == "schedule")
+    rows = list(schedule.value["rows"])
+
+    assert rows[0]["date"] == "10 października 2026"
+    assert rows[0]["date_value"] == date(2026, 10, 10)
+    metrologia = next(row for row in rows if row["topic"].startswith("Podstawy metrologii kwantowej"))
+    assert metrologia["date_value"] == date(2027, 1, 9)
+    assert metrologia["time"] == "11:00–14:00"
+    assert all(row["date_value"] is not None for row in rows)
 
 
 # --- adresy publiczne -------------------------------------------------------------------------
@@ -297,8 +358,8 @@ def test_harmonogram_lists_every_workshop_as_a_table(web_client, legacy_content)
 @pytest.mark.parametrize(
     ("path", "fragment"),
     [
-        ("/o-olimpiadzie/", "Fundacja Quantum AI"),
         ("/kontakt/", "contact@qaif.org"),
+        ("/warsztaty/", "Liczby zespolone"),
         ("/dokumenty/rodo/", SOURCE_NOTICE_FRAGMENT),
         # Bez bieżącej edycji terminarz pokazuje pusty stan, a nie pustą tabelę – strona nadal
         # ma się otworzyć i powiedzieć czytelnikowi, czego jeszcze nie ma.
@@ -630,6 +691,81 @@ def test_home_page_keeps_steps(legacy_content):
         "Rozwiąż zadania",
         "Sprawdź wynik",
     ]
+
+
+# --- strony wycofane --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("slug", sorted(OBSOLETE_PAGES))
+def test_seed_removes_the_pages_whose_content_moved_to_the_home_page(legacy_content, slug):
+    assert not ContentPage.objects.filter(slug=slug).exists()
+
+
+@pytest.mark.parametrize(("slug", "target"), sorted(OBSOLETE_PAGES.items()))
+def test_old_addresses_of_removed_pages_redirect(web_client, legacy_content, slug, target):
+    """Stary adres nie może odpowiadać 404: wisi w pismach do szkół i w wynikach wyszukiwarek."""
+    response = web_client.get(f"/{slug}/")
+
+    assert response.status_code == 301
+    assert response["Location"] == target
+
+
+def test_seed_deletes_a_page_left_over_from_an_earlier_import(web_client, home_page):
+    """Tak wygląda produkcja: strona stoi jeszcze w drzewie z poprzedniego importu.
+
+    Komenda ma ją skasować, a nie schować jako szkic – szkic zostaje w liście stron redakcji jako
+    pozycja bez wyjaśnienia, dlaczego nie jest opublikowana, choć jej treść **jest** w serwisie.
+    """
+    leftover = ContentPage(title="O Olimpiadzie", slug="o-olimpiadzie", live=True)
+    home_page.add_child(instance=leftover)
+
+    call_command("seed_legacy_content", verbosity=0)
+
+    assert not ContentPage.objects.filter(slug="o-olimpiadzie").exists()
+    assert web_client.get("/o-olimpiadzie/").status_code == 301
+
+
+def test_redirects_of_removed_pages_survive_a_second_run(legacy_content):
+    """Powtórny przebieg nie mnoży wpisów na ten sam adres – jeden 301, nie dwa."""
+    from wagtail.contrib.redirects.models import Redirect
+
+    call_command("seed_legacy_content", verbosity=0)
+
+    for slug in OBSOLETE_PAGES:
+        assert Redirect.objects.filter(old_path=f"/{slug}").count() == 1
+
+
+# --- sekcja „O Olimpiadzie” na stronie głównej -------------------------------------------------
+
+
+def test_about_section_is_seeded_from_the_fixture(web_client, legacy_content):
+    """Treść wycofanej podstrony wraca jako sekcja strony głównej – z tego samego pliku."""
+    home = HomePage.objects.get()
+    content = web_client.get("/").content.decode()
+
+    assert home.about_title == "O Olimpiadzie"
+    assert [block.block_type for block in home.about_body][0] == "heading"
+    assert 'id="o-olimpiadzie"' in content
+    assert "Fundacja Quantum AI" in content
+    assert "Dla uczniów szkół ponadpodstawowych w Polsce" in content
+
+
+def test_about_section_is_not_overwritten_by_a_second_run(legacy_content):
+    """Po pierwszym imporcie sekcja należy do redakcji – tak samo jak lista partnerów.
+
+    Plik w repozytorium jest punktem startowym, nie stanem docelowym: nadpisywanie przy każdym
+    przebiegu kasowałoby poprawki z ``/cms/``, a w zamian przywracało tekst sprzed roku.
+    """
+    home = HomePage.objects.get()
+    home.about_body = [("paragraph", RichText("<p>Tekst dopisany przez redakcję.</p>"))]
+    home.save()
+    home.save_revision().publish()
+
+    call_command("seed_legacy_content", verbosity=0)
+
+    home = HomePage.objects.get()
+    assert "Tekst dopisany przez redakcję." in str(home.about_body)
+    assert "Fundacja Quantum AI" not in str(home.about_body)
 
 
 # --- sekcja /dokumenty/ -------------------------------------------------------------------------
@@ -966,3 +1102,68 @@ def test_seed_edition_is_idempotent():
 
     assert Edition.objects.filter(year_label=EDITION_LABEL).count() == 1
     assert Stage.objects.count() == 3
+
+
+# --- ochrona treści zredagowanej w /cms/ ---------------------------------------------------------
+
+
+def _edit_in_cms(page, *, intro: str):
+    """Symuluje poprawkę redaktora: rewizja z autorem, tak jak zapisuje ją panel Wagtaila."""
+    from django.contrib.auth import get_user_model
+
+    editor, _ = get_user_model().objects.get_or_create(
+        email="redakcja@example.org", defaults={"is_staff": True}
+    )
+    page.intro = intro
+    page.save_revision(user=editor).publish()
+
+
+def test_full_seed_leaves_pages_edited_in_cms_alone(web_client, legacy_content):
+    """Rewizja z autorem chroni stronę: pełny przebieg nie cofa poprawki organizatora."""
+    page = ContentPage.objects.get(slug="harmonogram")
+    _edit_in_cms(page, intro="<p>Poprawka organizatora.</p>")
+
+    call_command("seed_legacy_content", verbosity=0)
+
+    content = web_client.get("/harmonogram/").content.decode()
+    assert "Poprawka organizatora." in content
+
+
+def test_force_restores_pages_from_files(web_client, legacy_content):
+    """``--force`` to świadome przywrócenie treści z repozytorium."""
+    page = ContentPage.objects.get(slug="harmonogram")
+    _edit_in_cms(page, intro="<p>Poprawka organizatora.</p>")
+
+    call_command("seed_legacy_content", "--force", verbosity=0)
+
+    content = web_client.get("/harmonogram/").content.decode()
+    assert "Poprawka organizatora." not in content
+    assert "Poniżej terminy I edycji" in content
+
+
+def test_seed_revisions_carry_no_author_so_they_do_not_lock_pages(legacy_content):
+    """Rewizje komendy nie mają autora – inaczej pierwszy przebieg blokowałby każdy następny."""
+    page = ContentPage.objects.get(slug="harmonogram")
+
+    assert page.revisions.exists()
+    assert not page.revisions.filter(user__isnull=False).exists()
+
+
+def test_home_hero_edited_in_cms_survives_a_full_seed(web_client, legacy_content):
+    """Hasło strony głównej należy do redakcji; sekcja „O Olimpiadzie” nadal dopełnia się, gdy pusta."""
+    home = HomePage.objects.get()
+    home.hero_title = "Hasło redakcji"
+    home.about_body = []
+    from django.contrib.auth import get_user_model
+
+    editor, _ = get_user_model().objects.get_or_create(
+        email="redakcja@example.org", defaults={"is_staff": True}
+    )
+    home.save_revision(user=editor).publish()
+
+    call_command("seed_legacy_content", verbosity=0)
+
+    content = web_client.get("/").content.decode()
+    assert "Hasło redakcji" in content
+    assert 'id="o-olimpiadzie"' in content
+    assert "Po co powstała Olimpiada?" in content

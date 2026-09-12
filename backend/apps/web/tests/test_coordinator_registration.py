@@ -321,7 +321,9 @@ def test_home_and_nav_show_the_button_when_registration_is_open(web_client, edit
     content = web_client.get("/").content.decode()
 
     assert "Zarejestruj się" in content
-    assert ">Rejestracja<" in content
+    # W pasku konta przycisk nazywa się tak samo, jak zaproszenie na stronie głównej („Rejestracja”
+    # było etykietą pozycji menu, której już nie ma – patrz test_chrome_feedback.py).
+    assert 'class="btn btn--small btn--accent account-bar__btn"' in content
 
 
 def test_home_and_nav_announce_the_start_instead_of_the_button(web_client, edition):

@@ -4,7 +4,7 @@ Widoki tylko orkiestrują: walidacja reguł biznesowych, tworzenie obiektów zal
 domenowe (``DomainError``) żyją tutaj. Czas zawsze przez ``timezone.now()``.
 """
 
-from datetime import datetime
+from datetime import date
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
@@ -37,6 +37,8 @@ from .models import (
 #: przestawienie ich w formularzu cofałoby skutek operacji, nie zmieniając niczego, co z niej wynikło.
 #: ``name`` i ``format`` stoją na początku, bo w takiej kolejności formularz je pokazuje: najpierw
 #: „czym jest ten etap”, potem jego oś czasu.
+#: ``event_starts_on``/``event_ends_on`` stoją za oknem oddawania prac, bo opisują **inny** fakt:
+#: dni, na które uczestnik przyjeżdża, a nie godziny, w których serwer przyjmuje pliki.
 STAGE_EDITABLE_FIELDS = (
     "name",
     "format",
@@ -44,6 +46,8 @@ STAGE_EDITABLE_FIELDS = (
     "opens_at",
     "deadline_at",
     "grace_seconds",
+    "event_starts_on",
+    "event_ends_on",
     "review_deadline_at",
     "appeal_window_opens_at",
     "appeal_window_closes_at",
@@ -112,6 +116,8 @@ def create_stage(
     appeal_window_closes_at,
     grace_seconds: int = 0,
     location: str = "",
+    event_starts_on=None,
+    event_ends_on=None,
     name: str = "",
     format: str = StageFormat.SUBMISSIONS,
     scoring_values: list[dict] | None = None,
@@ -134,6 +140,8 @@ def create_stage(
         opens_at=opens_at,
         deadline_at=deadline_at,
         grace_seconds=grace_seconds,
+        event_starts_on=event_starts_on,
+        event_ends_on=event_ends_on,
         review_deadline_at=review_deadline_at,
         appeal_window_opens_at=appeal_window_opens_at,
         appeal_window_closes_at=appeal_window_closes_at,
@@ -265,8 +273,13 @@ def slots_outside_window(stage: Stage, opens_at, deadline_at) -> bool:
 
 
 def _audit_value(value):
-    """Wartość do wpisu audytowego: daty w ISO, reszta bez zmian (``diff`` jest JSON-em)."""
-    if isinstance(value, datetime):
+    """Wartość do wpisu audytowego: daty w ISO, reszta bez zmian (``diff`` jest JSON-em).
+
+    ``date`` łapie się przed ``datetime`` w jednym warunku, bo ``datetime`` jest jego podklasą:
+    oba mają ``isoformat()``, a rozróżnienie i tak wychodzi w zapisie („2027-06-04” kontra
+    „2027-06-04T09:00:00+02:00”). Bez tego dzień wydarzenia wysadzałby serializację ``diff``.
+    """
+    if isinstance(value, date):
         return value.isoformat()
     return value
 

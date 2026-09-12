@@ -148,18 +148,38 @@
 :root {
   color-scheme: light dark;
 
-  /* Paleta bazowa – akademicka: granat, papier, bursztyn. */
+  /* Paleta bazowa – akademicka: granat, papier, czerwień z logotypu. */
   --navy-900: #0b1729;
   --navy-800: #12233f;
   --navy-700: #1b3153;
   --navy-600: #274677;
+
+  /* Czerwień marki jest wzięta z logotypu organizatora (ciemna czerwień #8b0404, stopień 700).
+     Stopnie istnieją dlatego, że jeden odcień nie obsłuży obu tł serwisu:
+     - 600 (#a10f0f) to najjaśniejszy odcień, który trzyma 8.1:1 z białym tekstem – przyciski
+       i plamy na papierze,
+     - 700/800 to obrys i stan „hover” tych przycisków,
+     - 500 jest jeszcze widoczny jako gruba kreska na granacie (3.2:1),
+     - 300 jest jedynym, który jako **tekst** na granacie ma ≥4.5:1 (6.4:1 na --navy-800).
+     Stąd dwie role: ``--accent`` na jasnym tle i ``--accent-on-brand`` w pasku/stopce. */
+  --red-300: #ef8a82;
+  --red-500: #d43228;
+  --red-600: #a10f0f;
+  --red-700: #8b0404;
+  --red-800: #6d0303;
+
+  /* Bursztyn został wyłącznie kolorem statusu „ostrzeżenie” – nie jest już kolorem marki. */
   --amber-600: #c8892b;
   --amber-700: #a06a17;
   --amber-800: #7a4f0c;
   --green-700: #2e7d5b;
   --green-800: #1f5c42;
-  --red-700: #b3413a;
-  --red-800: #8d2f29;
+
+  /* Czerwień sygnałowa (błąd, akcja niszcząca) jest o pół kroku cieplejsza i jaśniejsza od
+     czerwieni marki: „cegła”, a nie „karmazyn”. Bez tego przesunięcia przycisk „Usuń” i przycisk
+     „Zarejestruj się” miałyby ten sam kolor, a to dwa zupełnie różne komunikaty. */
+  --brick-600: #bd3b26;
+  --brick-700: #8f2c16;
 
   /* Role kolorów – wyłącznie tych używamy w komponentach. */
   --bg: #f6f4ee;
@@ -177,9 +197,13 @@
   --brand-ink: #f4f1e8;
   --brand-soft: #e6e9f0;
 
-  --accent: var(--amber-600);
-  --accent-ink: var(--amber-800);
-  --accent-soft: #f7ecd7;
+  --accent: var(--red-600);
+  --accent-ink: var(--red-800);
+  --accent-soft: #f8e5e3;
+  /* Akcent na granatowym tle (pasek nagłówka, stopka, hero): ciemna czerwień byłaby tam plamą
+     nie do odróżnienia od tła, więc tekst i znaczniki biorą stopień 300, a grube kreski 500. */
+  --accent-on-brand: var(--red-300);
+  --accent-rule: var(--red-500);
 
   --ok: var(--green-700);
   --ok-ink: var(--green-800);
@@ -189,9 +213,9 @@
   --warn-ink: var(--amber-800);
   --warn-soft: #f8eed9;
 
-  --danger: var(--red-700);
-  --danger-ink: var(--red-800);
-  --danger-soft: #f7e3e1;
+  --danger: var(--brick-600);
+  --danger-ink: var(--brick-700);
+  --danger-soft: #fbe8e0;
 
   --info: var(--navy-600);
   --info-ink: var(--navy-700);
@@ -202,7 +226,7 @@
 
   --link: #1d4a86;
   --link-hover: #12233f;
-  --focus: #8a5a12;
+  --focus: var(--red-600);
 
   /* Skala odstępów 4/8/12/16/24/32/48. */
   --sp-1: 0.25rem;
@@ -245,9 +269,14 @@
     --brand-ink: #eef1f7;
     --brand-soft: #1d2942;
 
-    --accent: #e2a949;
-    --accent-ink: #f0c579;
-    --accent-soft: #33270f;
+    /* W ciemnym wariancie akcent musi być jaśniejszy od tła, a nie ciemniejszy: ta sama czerwień
+       z logotypu, rozjaśniona do 7.4:1 na tle strony. Rola „na granacie” jest tu tym samym
+       odcieniem – tło strony i pasek nagłówka mają w tym wariancie zbliżoną jasność. */
+    --accent: #ef8a82;
+    --accent-ink: #f6b3ad;
+    --accent-soft: #33100f;
+    --accent-on-brand: #ef8a82;
+    --accent-rule: #d9483c;
 
     --ok: #4cae83;
     --ok-ink: #7fd0aa;
@@ -257,9 +286,11 @@
     --warn-ink: #edc078;
     --warn-soft: #2c2210;
 
-    --danger: #e07a72;
-    --danger-ink: #f0a49d;
-    --danger-soft: #2e1614;
+    /* Błąd zostaje cieplejszy od akcentu także tutaj – inaczej alert i marka byłyby tym samym
+       odcieniem łososia. */
+    --danger: #ec8f6e;
+    --danger-ink: #f3b294;
+    --danger-soft: #2f1a11;
 
     --info: #7ea6e0;
     --info-ink: #a6c4ee;
@@ -270,7 +301,7 @@
 
     --link: #8fb6e8;
     --link-hover: #c3d8f5;
-    --focus: #e2a949;
+    --focus: #ef8a82;
 
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow: 0 2px 6px rgba(0, 0, 0, 0.45), 0 12px 32px rgba(0, 0, 0, 0.35);
@@ -303,7 +334,7 @@ body {
   /* Delikatna „faktura papieru”: dwa bardzo miękkie gradienty, żadnych obrazów do pobrania. */
   background-image:
     radial-gradient(1200px 420px at 50% -180px, rgba(18, 35, 63, 0.07), transparent 70%),
-    radial-gradient(720px 320px at 100% 0, rgba(200, 137, 43, 0.06), transparent 70%);
+    radial-gradient(720px 320px at 100% 0, rgba(161, 15, 15, 0.06), transparent 70%);
   background-repeat: no-repeat;
   -webkit-font-smoothing: antialiased;
 }
@@ -352,8 +383,10 @@ hr {
   left: -9999px;
   top: 0;
   z-index: 100;
-  background: var(--accent);
-  color: #1b1200;
+  /* Stopień 600 wprost, a nie ``--accent``: w ciemnym wariancie akcent jest jasny (kolor tekstu
+     na ciemnym tle) i biała etykieta przestałaby być na nim czytelna. */
+  background: var(--red-600);
+  color: #fff;
   padding: var(--sp-2) var(--sp-4);
   font-weight: 600;
   border-radius: 0 0 var(--radius) 0;
@@ -366,7 +399,7 @@ hr {
 .topbar {
   background: var(--brand);
   color: var(--brand-ink);
-  border-bottom: 3px solid var(--accent);
+  border-bottom: 3px solid var(--accent-rule);
 }
 
 .topbar__inner {
@@ -418,7 +451,7 @@ hr {
 
 .brand:hover .brand__logo,
 .brand:focus-visible .brand__logo {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-on-brand);
   outline-offset: 2px;
 }
 
@@ -431,7 +464,7 @@ hr {
 }
 
 .brand__mark::first-letter {
-  color: var(--accent);
+  color: var(--accent-on-brand);
 }
 
 .brand__sub {
@@ -464,12 +497,12 @@ hr {
 
 .nav__link:hover {
   color: #fff;
-  border-bottom-color: rgba(200, 137, 43, 0.6);
+  border-bottom-color: rgba(239, 138, 130, 0.6);
 }
 
 .nav__link[aria-current="page"] {
   color: #fff;
-  border-bottom-color: var(--accent);
+  border-bottom-color: var(--accent-on-brand);
   font-weight: 600;
 }
 
@@ -524,12 +557,12 @@ hr {
 
 .nav-menu__summary:hover {
   color: #fff;
-  border-bottom-color: rgba(200, 137, 43, 0.6);
+  border-bottom-color: rgba(239, 138, 130, 0.6);
 }
 
 .nav-menu__summary--active {
   color: #fff;
-  border-bottom-color: var(--accent);
+  border-bottom-color: var(--accent-on-brand);
   font-weight: 600;
 }
 
@@ -559,7 +592,7 @@ hr {
 
 .nav-menu__link[aria-current="page"] {
   color: #fff;
-  border-left-color: var(--accent);
+  border-left-color: var(--accent-on-brand);
   font-weight: 600;
 }
 
@@ -586,7 +619,7 @@ hr {
     padding: var(--sp-2) 0;
     background: var(--brand);
     border: 1px solid rgba(244, 241, 232, 0.18);
-    border-top: 3px solid var(--accent);
+    border-top: 3px solid var(--accent-rule);
     border-radius: 0 0 var(--radius) var(--radius);
     box-shadow: var(--shadow);
   }
@@ -618,49 +651,118 @@ hr {
   }
 }
 
-/* Nawigacja ról trzyma się prawej także wtedy, gdy zawinie się do drugiego wiersza. */
-.nav--roles {
-  margin-left: auto;
+/* Pasek konta (templates/base.html). Wcześniej te same odnośniki stały jako ``.nav--roles``
+   dosztukowane z prawej strony nawigacji serwisu – przy dłuższej etykiecie („Rejestracja rusza
+   8 września 2026”) wychodziły poza układ i zawijały się w przypadkowym miejscu. Teraz mają własny
+   wiersz **nad** paskiem głównym: ciemniejszy i niższy, więc hierarchia jest widoczna bez czytania,
+   a logotyp z nawigacją serwisu zostaje w swoim wierszu.
+
+   Zawijanie, nie przewijanie: wiersz jest zwykłym ``flex-wrap``, więc na wąskim ekranie przyciski
+   schodzą niżej i nic nie wystaje poza szerokość okna. */
+.topbar__account {
+  background: rgba(0, 0, 0, 0.18);
+  border-bottom: 1px solid rgba(244, 241, 232, 0.12);
 }
 
-.nav--roles .nav__link {
+.account-bar {
+  max-width: var(--container);
+  margin: 0 auto;
+  padding: var(--sp-2) var(--sp-4);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-2) var(--sp-3);
+}
+
+/* Przycisk nigdy nie jest szerszy od paska: długa etykieta zapowiedzi rejestracji łamie się
+   w środku przycisku, zamiast rozepchać stronę. */
+.account-bar__btn {
+  max-width: 100%;
+}
+
+.account-bar__link {
+  padding: var(--sp-1) 0;
+  color: rgba(244, 241, 232, 0.9);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-bottom: 2px solid transparent;
+}
+
+.account-bar__link:hover {
   color: #fff;
+  border-bottom-color: rgba(239, 138, 130, 0.6);
 }
 
-.nav__sep {
+.account-bar__link[aria-current="page"] {
+  color: #fff;
+  border-bottom-color: var(--accent-on-brand);
+  font-weight: 600;
+}
+
+/* „Rejestracja z kodem” jest drogą dla zaproszonych (komitet, recenzenci), a nie dla uczestnika:
+   zostaje odnośnikiem mniejszym od dwóch przycisków obok, żeby nie konkurowała z rejestracją. */
+.account-bar__link--sub {
+  font-size: 0.8125rem;
+  color: rgba(244, 241, 232, 0.74);
+  text-decoration: underline;
+}
+
+.account-bar__sep {
   width: 1px;
   height: 1.25rem;
   background: rgba(244, 241, 232, 0.24);
 }
 
-.nav__who {
+.account-bar__who {
   font-size: 0.8125rem;
   color: rgba(244, 241, 232, 0.7);
-  max-width: 18ch;
+  max-width: 24ch;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.nav__logout {
+.account-bar__logout {
   display: inline-flex;
   margin: 0;
 }
 
-.topbar .nav__logout button.link {
-  background: none;
-  border: 1px solid rgba(244, 241, 232, 0.3);
-  color: rgba(244, 241, 232, 0.88);
-  border-radius: var(--radius-sm);
-  padding: 0.2rem 0.6rem;
-  font: inherit;
-  font-size: 0.875rem;
-  cursor: pointer;
+/* Na granacie jasny ``.btn--secondary`` byłby plamą w kolorze pola formularza – w pasku konta
+   (tak samo jak w hero) zostaje z niego sam obrys. */
+.account-bar .btn--secondary {
+  background: transparent;
+  border-color: rgba(244, 241, 232, 0.55);
+  color: #f4f1e8;
 }
 
-.topbar .nav__logout button.link:hover {
-  border-color: var(--accent);
+.account-bar .btn--secondary:hover {
+  background: rgba(244, 241, 232, 0.12);
+  border-color: #f4f1e8;
   color: #fff;
+}
+
+/* Obrys fokusu w granatowych pasach: ciemna czerwień akcentu jest tam niewidoczna. */
+.topbar :focus-visible,
+.footer :focus-visible {
+  outline-color: var(--accent-on-brand);
+}
+
+/* Na wąskim ekranie wyrównanie do prawej zostawiałoby poszarpaną kolumnę przycisków – tam pasek
+   zbiera się do środka. */
+@media (max-width: 560px) {
+  .account-bar {
+    justify-content: center;
+  }
+}
+
+/* Nawigacja serwisu trzyma się prawej krawędzi wiersza z logotypem (od szerokości, na której
+   mieści się w jednej linii); niżej zawija się pod logotyp. */
+@media (min-width: 900px) {
+  .nav--cms {
+    margin-left: auto;
+  }
 }
 
 .page {
@@ -689,7 +791,7 @@ hr {
   background: var(--navy-900);
   color: rgba(244, 241, 232, 0.72);
   font-size: 0.875rem;
-  border-top: 3px solid var(--accent);
+  border-top: 3px solid var(--accent-rule);
 }
 
 .footer__inner {
@@ -712,13 +814,28 @@ hr {
 }
 
 .footer a {
-  color: var(--accent);
+  color: var(--accent-on-brand);
 }
 
 .footer__meta {
   font-size: 0.8125rem;
   color: rgba(244, 241, 232, 0.5);
   font-variant-numeric: tabular-nums;
+}
+
+/* Odnośniki do dokumentów formalnych (RODO, cookie, spis dokumentów) w jednym wierszu z kropkami
+   rozdzielającymi – bez listy, bo to nie jest nawigacja serwisu, tylko stopka prawna. */
+.footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-3);
+  font-size: 0.8125rem;
+}
+
+.footer__links a + a::before {
+  content: "·";
+  margin-right: var(--sp-3);
+  color: rgba(244, 241, 232, 0.4);
 }
 
 /* Znak fundacji obok nazwy organizatora. Plakietka jest tą samą, co pod logotypem w nagłówku:
@@ -1018,14 +1135,39 @@ a.btn {
 
 .btn--accent {
   background: var(--accent);
-  border-color: var(--amber-700);
-  color: #1f1400;
+  border-color: var(--red-700);
+  color: #fff;
 }
 
 .btn--accent:hover {
-  background: var(--amber-700);
-  border-color: var(--amber-800);
+  background: var(--red-700);
+  border-color: var(--red-800);
   color: #fff;
+}
+
+/* Ten sam przycisk stoi też na granacie (pasek konta, hero). Ciemna czerwień na granacie jest
+   plamą bez konturu, więc tam obrys bierze jasny stopień akcentu – kształt przycisku jest
+   widoczny, a biały tekst nadal leży na ciemnej czerwieni. */
+.topbar .btn--accent,
+.hero .btn--accent {
+  border-color: var(--accent-on-brand);
+}
+
+/* W ciemnym wariancie ``--accent`` jest jasnym łososiem – dobrym na tekst, złym jako tło pod białe
+   litery (2:1). Przycisk zostaje więc przy ciemnej czerwieni marki w obu wariantach; na ciemnym tle
+   wyodrębnia go jasny obrys, tak samo jak w granatowym pasku. */
+@media (prefers-color-scheme: dark) {
+  .btn--accent {
+    background: var(--red-600);
+    border-color: var(--red-300);
+    color: #fff;
+  }
+
+  .btn--accent:hover {
+    background: var(--red-700);
+    border-color: var(--red-300);
+    color: #fff;
+  }
 }
 
 .btn--secondary {
@@ -1047,8 +1189,8 @@ a.btn {
 }
 
 .btn--danger:hover {
-  background: var(--red-800);
-  border-color: var(--red-800);
+  background: var(--brick-700);
+  border-color: var(--brick-700);
   color: #fff;
 }
 
@@ -1878,7 +2020,7 @@ td.empty,
 .countdown__value {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
-  color: var(--amber-600);
+  color: var(--accent-on-brand);
   margin-left: auto;
 }
 
@@ -2051,7 +2193,7 @@ td.empty,
   width: 320px;
   height: 320px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(200, 137, 43, 0.35), transparent 65%);
+  background: radial-gradient(circle, rgba(212, 50, 40, 0.42), transparent 65%);
   pointer-events: none;
 }
 
@@ -2061,7 +2203,7 @@ td.empty,
 }
 
 .hero .eyebrow {
-  color: var(--amber-600);
+  color: var(--accent-on-brand);
 }
 
 .hero h1 {
@@ -2077,7 +2219,7 @@ td.empty,
 }
 
 .hero__text a {
-  color: var(--amber-600);
+  color: var(--accent-on-brand);
 }
 
 .hero__actions {
@@ -2108,7 +2250,7 @@ td.empty,
   padding: var(--sp-2) var(--sp-4);
   border-radius: var(--radius);
   background: rgba(244, 241, 232, 0.1);
-  border: 1px solid rgba(200, 137, 43, 0.5);
+  border: 1px solid rgba(239, 138, 130, 0.5);
   font-size: 0.875rem;
   color: #f4f1e8;
 }
@@ -2755,8 +2897,8 @@ td.empty,
 
 .pdf-annotations .rect {
   position: absolute;
-  border: 2px solid var(--red-700);
-  background: rgba(179, 65, 58, 0.12);
+  border: 2px solid var(--danger);
+  background: rgba(189, 59, 38, 0.12);
   border-radius: 2px;
 }
 
@@ -3226,6 +3368,7 @@ fieldset:disabled .score-option {
   .topbar,
   .footer,
   .nav,
+  .cookie-notice,
   .messages,
   .skip-link,
   .actions,
@@ -3280,37 +3423,120 @@ fieldset:disabled .score-option {
  * musi stać obok pierwszego wiersza tekstu, a nie w jego środku – stąd siatka, a nie ``float``.
  */
 .consents {
-  margin: 1.5rem 0 0;
-  padding: 1rem 1.1rem 0.4rem;
+  margin: var(--sp-6) 0 0;
+  padding: var(--sp-2) var(--sp-4) 0;
   border: 1px solid var(--line, #d7dce5);
-  border-radius: 0.5rem;
+  border-radius: var(--radius);
+  background: var(--surface-2, #faf8f2);
 }
 
 .consents > legend {
-  padding: 0 0.4rem;
+  padding: 0 var(--sp-2);
   font-weight: 600;
 }
 
+/* Jedna zgoda = jeden wiersz. Etykiety są dwu- i trzyzdaniowe, więc bez wyraźnego odstępu
+   i kreski między wierszami nie było widać, do którego oświadczenia należy które pole wyboru.
+   Kreska jest u góry (a nie u dołu): pierwszy wiersz nie potrzebuje linii pod legendą. */
 .consents__item {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.15rem 0.6rem;
+  grid-template-columns: 1.5rem 1fr;
+  gap: var(--sp-2) var(--sp-3);
   align-items: start;
-  margin: 0 0 0.9rem;
+  margin: 0;
+  padding: var(--sp-4) 0;
+  border-top: 1px solid var(--line);
 }
 
+.consents__item:first-of-type {
+  border-top: 0;
+  padding-top: var(--sp-2);
+}
+
+/* Pole wyboru w zgodzie jest jedyną kontrolką, którą trafia się palcem w treści zdania – stąd
+   powiększona kratka i wyrównanie do pierwszego wiersza tekstu etykiety, nie do jego środka. */
 .consents__item input[type="checkbox"] {
-  margin-top: 0.25rem;
+  width: 1.15rem;
+  height: 1.15rem;
+  margin: 0.2rem 0 0;
+  accent-color: var(--accent);
 }
 
 .consents__item label {
   display: block;
   font-weight: 400;
+  cursor: pointer;
 }
 
-/* Podpowiedź i błąd zaczynają się pod etykietą, nie pod polem wyboru. */
+/* Znacznik wymagalności, podpowiedź i błąd zaczynają się pod etykietą, nie pod polem wyboru. */
+.consents__item .consents__required,
 .consents__item .helptext,
 .consents__item ul.errorlist {
   grid-column: 2;
   margin: 0;
+}
+
+/* „wymagane” jest plakietką, a nie gwiazdką: gwiazdka w bloku, w którym część zgód jest wymagana
+   warunkowo, a część dobrowolna, nie mówi nic bez legendy. */
+.consents__required {
+  justify-self: start;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Podpowiedź („wymagane dla osób niepełnoletnich”, „dobrowolne – …”) stoi pod swoim wierszem
+   i dotyczy tylko jego – dlatego nie ma jej w plakietce obok etykiety. */
+.consents__note {
+  display: block;
+}
+
+/* Pasek informacji o cookie (templates/base.html). Leży nad treścią, bo ma zniknąć po jednym
+   kliknięciu i nie może przy każdym wejściu przesuwać układu strony. Klasa na ``<html>`` pochodzi
+   ze static/js/cookie-notice.js: pasek jest w HTML widoczny, więc informacja dociera także bez
+   JavaScriptu, a po „Rozumiem” nie mignie na kolejnych podstronach. */
+.cookie-notice {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 60;
+  background: var(--navy-900);
+  color: rgba(244, 241, 232, 0.9);
+  border-top: 3px solid var(--accent-rule);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.25);
+  font-size: 0.875rem;
+}
+
+.cookie-notice-ack .cookie-notice {
+  display: none;
+}
+
+.cookie-notice__inner {
+  max-width: var(--container);
+  margin: 0 auto;
+  padding: var(--sp-3) var(--sp-4);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2) var(--sp-4);
+}
+
+.cookie-notice__text {
+  margin: 0;
+  max-width: 80ch;
+}
+
+.cookie-notice__link {
+  color: var(--accent-on-brand);
+  white-space: nowrap;
+}
+
+/* Przycisk nie zwęża się poniżej swojej treści, kiedy tekst zawinie się do dwóch wierszy. */
+.cookie-notice__ok {
+  flex: 0 0 auto;
 }

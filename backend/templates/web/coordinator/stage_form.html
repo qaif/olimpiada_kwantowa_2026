@@ -36,10 +36,15 @@
     </dl>
     {% comment %}
       Cztery reguły, które serwis odrzuci mimo poprawnego formularza. Stoją nad polami, a nie
-      w komunikacie po nieudanym zapisie: koordynator ma je znać, zanim wpisze datę.
+      w komunikacie po nieudanym zapisie: koordynator ma je znać, zanim wpisze datę. Piąty punkt
+      nie jest blokadą, a rozróżnieniem: dwie pary dat w tym formularzu opisują dwie różne rzeczy
+      i pomyłka między nimi kosztuje albo zamknięty upload, albo nieprawdziwy termin na stronie.
     {% endcomment %}
     <ul class="hint">
       <li>Termin oddania nie cofa się w przeszłość, jeżeli do etapu wpłynęły już rozwiązania.</li>
+      <li><strong>Termin wydarzenia</strong> (dni pobytu, np. 4–7 czerwca 2027) jest wyłącznie
+        informacją publiczną – nie zmienia okna, w którym system przyjmuje pliki. Okno oddawania
+        rozwiązań to nadal otwarcie i termin oddania powyżej.</li>
       <li>W etapie zamkniętym zmienisz już tylko nazwę, termin recenzji, okno reklamacji i miejsce.</li>
       <li>Formy etapu nie zmienisz, gdy są w nim oddane prace albo zapisy na rozmowy
         {% if has_bookings %}(ten etap ma już zapisy){% endif %}.</li>

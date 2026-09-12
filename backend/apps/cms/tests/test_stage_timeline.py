@@ -6,14 +6,14 @@ między nimi był kwestią czasu — a kosztuje uczestnika pracę oddaną „na 
 terminie według systemu. Testy sprawdzają więc drogę od panelu koordynatora do strony publicznej.
 """
 
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 
 import pytest
 from django.core.management import call_command
 from django.utils import timezone
 
 from apps.cms.models import ContentPage
-from apps.cms.timeline import stage_rows
+from apps.cms.timeline import format_date_range, is_onsite_event, stage_date_range, stage_rows
 from apps.competitions.models import Stage, StageFormat, StageKind
 from apps.competitions.tests.factories import StageFactory
 from apps.results.models import Anonymization, ResultsPublication
@@ -60,9 +60,9 @@ def test_empty_state_when_there_is_no_current_edition(web_client, harmonogram):
     content = web_client.get("/harmonogram/").content.decode()
 
     assert "Terminy zostaną ogłoszone" in content
-    # Tabela warsztatów zostaje – to treść redakcyjna, której system zawodów nie zna.
-    assert "Harmonogram warsztatów" in content
-    assert "Liczby zespolone" in content
+    # Treść redakcyjna strony zostaje – pusty stan dotyczy samego bloku terminów, nie całej strony.
+    assert "Zapisy do eliminacji są otwarte" in content
+    assert 'href="/warsztaty/"' in content
 
 
 def test_timeline_shows_every_stage_of_the_current_edition(web_client, harmonogram, edition, open_stage):
@@ -74,29 +74,205 @@ def test_timeline_shows_every_stage_of_the_current_edition(web_client, harmonogr
     assert "Terminy zostaną ogłoszone" not in content
 
 
+def test_review_deadline_is_labelled_as_the_results_date(web_client, harmonogram, edition, open_stage):
+    """„Wyniki do”, nie „Recenzje do”: czytelnikiem tej strony jest uczestnik, nie recenzent.
+
+    To ta sama data (``review_deadline_at``). Uczestnik nie ma nic z recenzowania – interesuje go
+    najpóźniejszy moment, w którym dowie się wyniku, i tak ma być podpisany ten wiersz.
+    """
+    content = web_client.get("/harmonogram/").content.decode()
+
+    assert "<dt>Wyniki do</dt>" in content
+    assert "Recenzje do" not in content
+
+
+# --- etap stacjonarny: jeden termin, nie dwie godziny ---------------------------------------------
+
+
+def test_onsite_stage_shows_one_date_range_instead_of_opening_and_deadline(web_client, harmonogram, edition):
+    """Finał trwa cztery dni w jednym miejscu – ma termin, nie „otwarcie” i „oddanie pliku”.
+
+    Dwa wiersze z godzinami sugerowały tam okno na wysyłkę rozwiązania, którego na miejscu nie ma.
+    Zakres wyświetla się w obu miejscach: w bloku na ``/harmonogram/`` i na stronie głównej.
+    """
+    warsaw = timezone.get_current_timezone()
+    StageFactory(
+        edition=edition,
+        kind=StageKind.FINAL,
+        location="Kraków",
+        opens_at=datetime(2027, 6, 4, 9, 0, tzinfo=warsaw),
+        deadline_at=datetime(2027, 6, 7, 18, 0, tzinfo=warsaw),
+    )
+
+    for path in ("/harmonogram/", "/"):
+        content = web_client.get(path).content.decode()
+        assert "<dt>Termin</dt><dd>4–7 czerwca 2027</dd>" in content, path
+        assert "<dt>Miejsce</dt><dd>Kraków</dd>" in content, path
+        assert "Otwarcie" not in content, path
+
+
+def test_remote_stage_keeps_its_opening_and_deadline(web_client, harmonogram, edition, open_stage):
+    """Etap zdalny nie ma miejsca, więc zostaje przy dwóch terminach – zakres go nie dotyczy."""
+    content = web_client.get("/harmonogram/").content.decode()
+
+    assert "<dt>Otwarcie</dt>" in content
+    assert "<dt>Termin</dt>" not in content
+
+
+def test_event_dates_win_over_the_submission_window(web_client, harmonogram, edition):
+    """Finał trwa 4–7 czerwca, a prace przyjmuje się kilka godzin 5 czerwca – strona ogłasza zjazd.
+
+    To jedyny przypadek, w którym oba fakty są w bazie naraz i się różnią: ``event_range`` jest
+    terminem z pisma organizatora, a ``opens_at``/``deadline_at`` sesją, którą egzekwuje serwer.
+    Bez pierwszeństwa strona zapraszałaby na jeden dzień z czterech.
+    """
+    warsaw = timezone.get_current_timezone()
+    StageFactory(
+        edition=edition,
+        kind=StageKind.FINAL,
+        location="Kraków",
+        opens_at=datetime(2027, 6, 5, 9, 0, tzinfo=warsaw),
+        deadline_at=datetime(2027, 6, 5, 14, 0, tzinfo=warsaw),
+        event_starts_on=date(2027, 6, 4),
+        event_ends_on=date(2027, 6, 7),
+    )
+
+    for path in ("/harmonogram/", "/"):
+        content = web_client.get(path).content.decode()
+        assert "<dt>Termin</dt><dd>4–7 czerwca 2027</dd>" in content, path
+        # Godziny sesji nie stają na osi czasu jako termin etapu: rubryk „Otwarcie” i „Oddanie
+        # rozwiązań” tam nie ma (najbliższy termin uploadu strona główna zapowiada osobno).
+        assert "<dt>Otwarcie</dt>" not in content, path
+        assert "<dt>Oddanie rozwiązań</dt>" not in content, path
+
+
+def test_event_dates_make_a_one_day_window_an_event(edition):
+    """Sesja w jednym dniu, a zjazd kilkudniowy: to wpisane dni decydują, że etap jest wydarzeniem.
+
+    Dotychczasowa reguła (miejsce + różne dni okna) nie wystarczy – okno mieści się w jednym dniu.
+    """
+    warsaw = timezone.get_current_timezone()
+    stage = StageFactory(
+        edition=edition,
+        kind=StageKind.FINAL,
+        location="Kraków",
+        opens_at=datetime(2027, 6, 5, 9, 0, tzinfo=warsaw),
+        deadline_at=datetime(2027, 6, 5, 14, 0, tzinfo=warsaw),
+        event_starts_on=date(2027, 6, 4),
+        event_ends_on=date(2027, 6, 7),
+    )
+
+    assert is_onsite_event(stage) is True
+    assert stage_date_range(stage) == "4–7 czerwca 2027"
+    assert stage_rows(edition)[0]["date_range"] == "4–7 czerwca 2027"
+
+
+def test_event_dates_do_not_need_a_location(edition):
+    """Wpisane dni wystarczą: zjazd bez wskazanego miejsca (jeszcze nieznanego) też jest zjazdem."""
+    stage = StageFactory(
+        edition=edition,
+        kind=StageKind.FINAL,
+        location="",
+        event_starts_on=date(2027, 6, 4),
+        event_ends_on=date(2027, 6, 7),
+    )
+
+    assert is_onsite_event(stage) is True
+
+
+def test_seed_gives_the_final_its_event_dates_and_the_page_announces_them(web_client, harmonogram):
+    """``seed_edition_kwantowa`` ustawia dni finału, a harmonogram ogłasza je bez ręcznej poprawki."""
+    call_command("seed_edition_kwantowa", "--make-current", verbosity=0)
+    final = Stage.objects.get(kind=StageKind.FINAL)
+
+    assert final.event_range == (date(2027, 6, 4), date(2027, 6, 7))
+    assert "<dt>Termin</dt><dd>4–7 czerwca 2027</dd>" in web_client.get("/harmonogram/").content.decode()
+
+
+@pytest.mark.parametrize(
+    ("opens", "deadline", "expected"),
+    [
+        # Wspólny miesiąc: zakres jest jednym wyrażeniem, półpauza bez spacji, rok raz.
+        ((2027, 6, 4), (2027, 6, 7), "4–7 czerwca 2027"),
+        # Różne miesiące: po obu stronach półpauzy stoją całe daty, więc spacje je oddzielają.
+        ((2027, 5, 30), (2027, 6, 2), "30 maja – 2 czerwca 2027"),
+        # Przełom roku: rok trzeba powtórzyć, bo zakres go przekracza.
+        ((2026, 12, 30), (2027, 1, 2), "30 grudnia 2026 – 2 stycznia 2027"),
+        # Jeden dzień: nie ma zakresu, jest data.
+        ((2027, 6, 4), (2027, 6, 4), "4 czerwca 2027"),
+    ],
+)
+def test_date_range_formatting(opens, deadline, expected):
+    assert format_date_range(date(*opens), date(*deadline)) == expected
+
+
+def test_single_day_onsite_stage_is_not_an_event_range(edition):
+    """Etap stacjonarny **jednodniowy** zostaje przy otwarciu i deadline'ie.
+
+    Kryterium jest opisowe (miejsce + więcej niż jeden dzień), a nie „rodzaj = finał”: rodzaj mówi,
+    które to zawody w kolejności, a nie jak przebiegają.
+    """
+    warsaw = timezone.get_current_timezone()
+    stage = StageFactory(
+        edition=edition,
+        kind=StageKind.FINAL,
+        location="Kraków",
+        opens_at=datetime(2027, 6, 4, 9, 0, tzinfo=warsaw),
+        deadline_at=datetime(2027, 6, 4, 18, 0, tzinfo=warsaw),
+    )
+
+    assert is_onsite_event(stage) is False
+    assert stage_rows(edition)[0]["date_range"] == ""
+
+
 # --- droga z panelu koordynatora ------------------------------------------------------------------
 
 
 def test_change_in_the_panel_is_visible_on_the_page(web_client, harmonogram, coordinator, edition):
-    """Koordynator przesuwa deadline i wskazuje Kraków – strona pokazuje to od razu, bez seeda."""
+    """Koordynator przesuwa deadline – strona pokazuje nowy termin od razu, bez seeda treści."""
     stage = StageFactory(edition=edition, kind=StageKind.FINAL)
     new_deadline = timezone.localtime(stage.deadline_at) + timedelta(days=9)
     web_client.force_login(coordinator)
 
     response = web_client.post(
         f"/coordinator/stages/{stage.pk}/edit/",
-        stage_form_data(stage, deadline_at=new_deadline.strftime(WARSAW_FORMAT), location="Kraków"),
+        stage_form_data(stage, deadline_at=new_deadline.strftime(WARSAW_FORMAT)),
     )
     assert response.status_code == 302
 
     web_client.logout()
     content = web_client.get("/harmonogram/").content.decode()
 
-    assert "Kraków" in content
     assert f"{new_deadline.day} " in content
     assert new_deadline.strftime("%H:%M") in content
-    # Ta sama zmiana stoi na osi czasu strony głównej – oba ekrany czytają jedno źródło.
-    assert "Kraków" in web_client.get("/").content.decode()
+
+
+def test_location_set_in_the_panel_turns_the_stage_into_a_dated_event(
+    web_client, harmonogram, coordinator, edition
+):
+    """Wskazanie miejsca zamienia dwa terminy w jeden zakres – i to na obu ekranach osi czasu.
+
+    Koordynator nie przestawia żadnego przełącznika „to jest wydarzenie stacjonarne”: wynika to
+    z danych, które i tak wpisuje (miejsce plus terminy w różnych dniach). Rodzaj etapu nie ma tu
+    nic do rzeczy – następna edycja może zrobić zjazd z etapu II i strona zachowa się właściwie.
+    """
+    stage = StageFactory(edition=edition, kind=StageKind.FINAL)
+    expected = format_date_range(
+        timezone.localtime(stage.opens_at).date(), timezone.localtime(stage.deadline_at).date()
+    )
+    web_client.force_login(coordinator)
+
+    response = web_client.post(
+        f"/coordinator/stages/{stage.pk}/edit/", stage_form_data(stage, location="Kraków")
+    )
+    assert response.status_code == 302
+
+    web_client.logout()
+    # Oba ekrany czytają jedno źródło, więc ogłaszają jedno brzmienie terminu.
+    for path in ("/harmonogram/", "/"):
+        content = web_client.get(path).content.decode()
+        assert "Kraków" in content, path
+        assert f"<dt>Termin</dt><dd>{expected}</dd>" in content, path
 
 
 def test_stage_added_in_the_panel_appears_on_the_page(web_client, harmonogram, coordinator, edition):

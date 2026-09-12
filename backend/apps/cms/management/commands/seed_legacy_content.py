@@ -8,8 +8,12 @@ tabela dwukolumnowa → lista definicji, wyróżniona ramka → blok ``notice``)
 
 Co powstaje:
 
-- **strony opublikowane** (``ContentPage``): „O Olimpiadzie”, „Jak zacząć?”, „Terminarz
-  i harmonogram”, „Kontakt”, „Dla nauczycieli i materiały”,
+- **strony opublikowane** (``ContentPage``): „Harmonogram”, „Warsztaty”, „Kontakt”,
+  „Dla nauczycieli i materiały”,
+- **strony wycofane** (``OBSOLETE_PAGES``): „Jak zacząć?” i „O Olimpiadzie” **przestały istnieć**
+  jako podstrony – ich treść stoi na stronie głównej (sekcja kroków i sekcja ``#o-olimpiadzie``),
+  a stare adresy odpowiadają trwałym przekierowaniem. Komenda kasuje je przy każdym pełnym
+  przebiegu, bo baza produkcyjna ma je jeszcze w drzewie,
 - **sekcja dokumentów** (``DocumentIndexPage`` pod ``/dokumenty/``) z kompletem dokumentów
   organizatora jako dziećmi. Sekcja jest jedną pozycją menu z listą rozwijaną; stare adresy
   jednosegmentowe (``/regulamin/``, ``/rodo/``…) zostają jako trwałe przekierowania,
@@ -29,6 +33,13 @@ Co powstaje:
   w przeglądarce. Treść (nazwiska i zakresy odpowiedzialności) pochodzi z PDF-u. Baza sprzed tej
   zmiany ma stronę ``ContentPage`` o tym slugu; komenda ją kasuje i tworzy dokument na nowo,
   bo typu strony nie da się zmienić w miejscu (dwie tabele),
+- **strony zredagowane w /cms/ są nietykalne**: strona, która ma choć jedną rewizję z autorem
+  (rewizje tej komendy nie mają autora), zostaje przy pełnym przebiegu pominięta – z komunikatem.
+  Reguła istnieje, bo organizator redaguje harmonogram i skład komitetów bezpośrednio na
+  serwerze, a pełny przebieg po wdrożeniu cofałby te poprawki do plików z repozytorium.
+  ``--force`` wyłącza ochronę (świadome przywrócenie treści z plików). Strony wycofane
+  (``OBSOLETE_PAGES``) są kasowane niezależnie od tego, kto je redagował – to decyzja
+  organizatora o strukturze serwisu, nie o treści,
 - **strona partnerów** (``PartnersPage`` pod ``/partnerzy/``) – opublikowana; jej lista partnerów
   startuje pusta i jest **jedyną** treścią, której powtórny przebieg nie nadpisuje (wypełniają ją
   redakcja w ``/cms/`` i komenda ``seed_partners`` z logotypami organizatora).
@@ -41,7 +52,9 @@ Co powstaje:
   starej strony zostają w inwentarzu (``docs/import/tresci/partnerzy.md``) i nigdzie indziej,
 - **trzy aktualności** ze starego seedera – z datą dzisiejszą, bo oryginał nie miał ``post_date``
   (``docs/import/aktualnosci.md``), i z dopiskiem o przeniesieniu na końcu treści,
-- **strona główna**: hasło, opis i sekcja „Jak zacząć w 3 krokach” z ``tresci/strona-glowna.md``.
+- **strona główna**: hasło, opis i sekcja „Jak zacząć w 3 krokach” z ``tresci/strona-glowna.md``
+  oraz sekcja „O Olimpiadzie” (``about_body``) z ``o-olimpiadzie.md`` – ta ostatnia **tylko gdy
+  jest pusta**, bo po pierwszym imporcie jej właścicielem jest redakcja (patrz ``_seed_about``).
   Kafli partnerów świadomie **nie** przenosimy: pas logotypów na stronie głównej rysuje się sam
   z wpisów ``PartnersPage``, więc pojawi się dopiero z pierwszym potwierdzonym partnerem.
 
@@ -54,12 +67,28 @@ przed I edycją), ``zadania``
 ``finalisci-laureaci`` (``ResultsPage`` + snapshot publikacji), ``galeria`` (zero zdjęć),
 ``rejestracja``/``panel-*`` (widoki ``apps.web``).
 
-- **wzór zgody opiekuna** (``/dokumenty/zgoda-opiekuna/``) jest jedynym dokumentem tej sekcji,
-  który **nie pochodzi od organizatora**: powstał w repozytorium, bo zgoda opiekuna w formularzu
-  rejestracji musi mieć do czego linkować (``apps.accounts.consents``). Dlatego nie ma pliku do
-  pobrania, a metryka i ramka nad treścią mówią wprost, że to wersja robocza do akceptacji –
-  patrz README, „Decyzje do podjęcia przez właściciela”. Wersja w metryce musi zgadzać się
-  z ``apps.accounts.consents.GUARDIAN_VERSION``: to ona trafia do wpisu dowodowego zgody.
+- **wzór zgody opiekuna** (``/dokumenty/zgoda-opiekuna/``) nie pochodzi od organizatora: powstał
+  w repozytorium, bo zgoda opiekuna w formularzu rejestracji musi mieć do czego linkować
+  (``apps.accounts.consents``). Dlatego nie ma pliku do pobrania, a metryka i ramka nad treścią
+  mówią wprost, że to wersja robocza do akceptacji – patrz README, „Decyzje do podjęcia przez
+  właściciela”. Wersja w metryce musi zgadzać się z ``apps.accounts.consents.GUARDIAN_VERSION``:
+  to ona trafia do wpisu dowodowego zgody.
+
+- **Zasady Organizacji Zawodów** (``/dokumenty/zoz/``) też są nasze, nie organizatora, i też są
+  projektem: Regulamin w § 1 ust. 4 odsyła do ZOZ harmonogram, formę zadań, wykaz narzędzi, progi
+  punktowe i literaturę, a dokumentu o tej nazwie nie było – więc każde z tych odesłań prowadziło
+  w pustkę. Treść jest wyprowadzona z tego, co robi serwis (terminy z ``competitions.Stage``, skala
+  ``ScoringScale``, dwie niezależne recenzje, okno reklamacji ``Stage.appeal_window_*``), a nie
+  wymyślona; terminów **nie powtarza** – odsyła do ``/harmonogram/``, bo dwa źródła terminów to
+  dwie różne odpowiedzi na to samo pytanie. Zapisy, których organizator nie podjął, stoją w ostatniej
+  sekcji dokumentu jako jawna lista decyzji (liczba finalistów, progi, literatura, koszty finału,
+  narzędzia w finale, okres poufności) – patrz README, „Decyzje do podjęcia przez właściciela”.
+
+- **polityka plików cookie** (``/dokumenty/cookies/``) jest nasza, ale – inaczej niż dwa dokumenty
+  powyżej – **obowiązuje**: opisuje stan faktyczny serwisu (``sessionid``, ``csrftoken``,
+  ``wagtail_sidebar_collapsed``, klucz ``cookie-notice-ack`` paska informacyjnego, brak
+  analityki), więc nie ma czego zatwierdzać, jest co utrzymywać w zgodzie z kodem. Zmiana zestawu
+  ciasteczek albo dołożenie zewnętrznego osadzenia jest zmianą tego pliku.
 
 ``--only <slug>`` seeduje wyłącznie wskazane strony (można podać wielokrotnie). Tryb istnieje dla
 produkcji, na której ta komenda **nie** chodzi po każdym wdrożeniu: pełny przebieg nadpisałby
@@ -102,7 +131,14 @@ from apps.cms.models import (
     PartnersPage,
     SiteSettings,
 )
-from apps.cms.site_tree import INDEX_SLUG, ensure_document_index, ensure_redirect, take_document_page
+from apps.cms.site_tree import (
+    INDEX_SLUG,
+    ensure_document_index,
+    ensure_link_redirect,
+    ensure_redirect,
+    take_document_page,
+)
+from apps.cms.workshops import WORKSHOPS_SLUG
 
 #: ``…/apps/cms/management/commands/`` → ``…/apps/cms/fixtures/legacy/``.
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures" / "legacy"
@@ -129,6 +165,25 @@ DOCUMENT_DATE = date(2026, 9, 7)
 GUARDIAN_CONSENT_VERSION = "0.1 (projekt)"
 GUARDIAN_CONSENT_DATE = date(2026, 9, 10)
 GUARDIAN_CONSENT_STATUS = "Wersja robocza do akceptacji organizatora"
+
+#: Zasady Organizacji Zawodów (ZOZ) I edycji – tak samo jak wzór zgody opiekuna **nie pochodzą od
+#: organizatora**: powstały w repozytorium, bo Regulamin (§ 1 ust. 4) odsyła do nich harmonogram,
+#: formę zadań, wykaz narzędzi, progi punktowe i literaturę, a dokumentu o tej nazwie nie było.
+#: Treść jest wyprowadzona z tego, co serwis faktycznie robi (terminy z ``competitions.Stage``,
+#: skala 0/2/5/6, dwie niezależne recenzje, okno reklamacji), a zapisy, których organizator jeszcze
+#: nie podjął, stoją w ostatniej sekcji dokumentu jako jawna lista decyzji – nie jako ogólnikowe
+#: zdanie udające regulację. Dlatego metryka i ramka nad treścią mówią wprost, że to projekt.
+ZOZ_VERSION = "0.1 (projekt)"
+ZOZ_DATE = date(2026, 9, 12)
+ZOZ_STATUS = "projekt do akceptacji organizatora"
+
+#: Polityka plików cookie jest naszym dokumentem, ale – inaczej niż ZOZ – **obowiązuje**: opisuje
+#: stan faktyczny serwisu (trzy pliki niezbędne, jeden klucz ``localStorage`` paska informacyjnego,
+#: brak analityki), a nie propozycję do zatwierdzenia. Wersję trzyma metryka, bo jej pierwszym
+#: czytelnikiem jest ktoś, kto sprawdza, czy czyta wersję aktualną.
+COOKIES_VERSION = "1.0"
+COOKIES_DATE = date(2026, 9, 12)
+COOKIES_STATUS = "obowiązuje"
 
 HOME_TITLE = "Olimpiada Kwantowa"
 HOME_HERO_TITLE = "Przyszłość ma naturę kwantową."
@@ -179,11 +234,12 @@ NEWS = (
 #: Kolejność pozycji w pasku nawigacji = kolejność rodzeństwa w drzewie (``cms_menu`` sortuje po
 #: ``path``). Slug spoza tej listy zostaje tam, gdzie stoi – menu opisuje tylko strony menu.
 MENU_ORDER = (
-    "o-olimpiadzie",
-    "jak-zaczac",
     "aktualnosci",
     "zadania",
     "harmonogram",
+    # „Warsztaty” zaraz za „Harmonogramem”: obie pozycje odpowiadają na pytanie „kiedy”, tylko
+    # jedna o zawodach, a druga o przygotowaniu do nich.
+    WORKSHOPS_SLUG,
     INDEX_SLUG,
     "archiwum",
     "wyniki",
@@ -195,17 +251,49 @@ MENU_ORDER = (
 
 #: Kolejność dokumentów w sekcji ``/dokumenty/`` – ta sama na stronie-spisie, w rozwijanej pozycji
 #: menu i w sekcji „Dokumenty do pobrania” na stronie głównej (wszystkie trzy sortują po ``path``).
-#: Regulamin pierwszy, bo to on rozstrzyga przebieg zawodów; skład komitetów ostatni, bo jest
-#: informacją o ludziach, a nie zbiorem zasad.
+#: Regulamin pierwszy, bo to on rozstrzyga przebieg zawodów; skład komitetów zamyka dokumenty
+#: zawodów, bo jest informacją o ludziach, a nie zbiorem zasad, a polityka plików cookie stoi
+#: całkiem na końcu: dotyczy samego serwisu, nie Olimpiady.
 DOCUMENT_ORDER = (
     "regulamin",
+    # ZOZ zaraz za Regulaminem, bo to jedna para: Regulamin ustala zasady stałe i w § 1 ust. 4
+    # odsyła do ZOZ szczegóły edycji, a przy sprzeczności rozstrzyga na swoją korzyść. Czytelnik,
+    # który sięga po jeden z nich, potrzebuje drugiego w następnym wierszu spisu.
+    "zoz",
     "rodo",
     # Wzór zgody opiekuna zaraz za polityką RODO: to jej praktyczne przedłużenie (zgoda osoby
     # uprawnionej na przetwarzanie danych małoletniego), a nie osobny zbiór zasad.
     "zgoda-opiekuna",
     "standardy-ochrony-maloletnich",
     "komitety",
+    # Polityka plików cookie na końcu: jest dokumentem o **serwisie** (sesja, ochrona formularzy),
+    # a nie o zawodach, więc nie wchodzi między dokumenty, które czyta się przed przystąpieniem
+    # do Olimpiady. Stopka i pasek informacyjny prowadzą do niej wprost, więc jej miejsce w spisie
+    # nie jest jedyną drogą dojścia.
+    "cookies",
 )
+
+#: Strony, które **przestały istnieć**, i adres, na który ma prowadzić ich stary link. Obie miały
+#: pozycję w menu i obie dublowały treść, która stoi już na stronie głównej:
+#:
+#: - ``jak-zaczac`` – pięć kroków uczestnika. Na stronie głównej jest sekcja „Jak zacząć w 3 krokach”
+#:   (pola ``steps_title``/``steps``), czyli ta sama procedura o dwa kliknięcia bliżej. Dwie listy
+#:   kroków w jednym serwisie różniłyby się przy pierwszej zmianie regulaminu,
+#: - ``o-olimpiadzie`` – po co, dla kogo, kto organizuje. Treść wraca na stronę główną jako sekcja
+#:   ``#o-olimpiadzie`` (``HomePage.about_body``), bo to odpowiedź na pierwsze pytanie czytelnika,
+#:   który dopiero zobaczył hasło; jako osobna podstrona była o jedno kliknięcie za daleko.
+#:
+#: Komenda kasuje te strony przy każdym pełnym przebiegu (nie tylko raz): baza produkcyjna ma je
+#: jeszcze w drzewie, a wpis tutaj jest jedynym miejscem, w którym decyzja o ich zniknięciu jest
+#: zapisana. Stare adresy wiszą w pismach i w wyszukiwarkach, więc zostają jako 301.
+OBSOLETE_PAGES = (
+    ("jak-zaczac", "/"),
+    ("o-olimpiadzie", "/#o-olimpiadzie"),
+)
+
+#: Plik, z którego bierze się sekcja „O Olimpiadzie” na stronie głównej. Strony o tym slugu już nie
+#: ma, ale plik zostaje – jest teraz źródłem treści sekcji, a nie podstrony.
+ABOUT_SOURCE = "o-olimpiadzie"
 
 #: Adresy sprzed przeniesienia dokumentów pod ``/dokumenty/``. Wiszą w pismach do szkół i w indeksach
 #: wyszukiwarek, więc zostają jako trwałe (301) przekierowania – patrz ``apps.cms.site_tree``.
@@ -215,6 +303,16 @@ LEGACY_DOCUMENT_PATHS = (
     "/standardy-ochrony-maloletnich/",
     "/komitety/",
 )
+
+
+def edited_in_cms(page) -> bool:
+    """Czy stronę redagował człowiek w ``/cms/``.
+
+    Rozstrzyga autor rewizji: edycja w panelu zapisuje ``Revision.user``, a ``save_revision()``
+    wołane przez komendy seedujące zostawia to pole puste. To jedyny ślad, który odróżnia
+    „treść z pliku, którą wolno odtworzyć” od „treść redakcji, której nie wolno cofnąć”.
+    """
+    return page.revisions.filter(user__isnull=False).exists()
 
 
 @dataclass(frozen=True)
@@ -238,7 +336,19 @@ class LegacyPage:
 
 
 PAGES = (
-    LegacyPage(slug="o-olimpiadzie", title="O Olimpiadzie", in_menu=True),
+    # ZOZ stoi pierwszy wśród dokumentów tej listy, bo pierwszy jest w sekcji ``/dokumenty/``
+    # (zaraz za Regulaminem, którego seeduje osobna komenda ``seed_regulamin``). Pliku do pobrania
+    # nie ma – tak samo jak przy wzorze zgody opiekuna, bo to nasz projekt, a nie plik organizatora.
+    LegacyPage(
+        slug="zoz",
+        title="Zasady Organizacji Zawodów (ZOZ)",
+        document=True,
+        metadata={
+            "version_label": ZOZ_VERSION,
+            "document_date": ZOZ_DATE,
+            "status_label": ZOZ_STATUS,
+        },
+    ),
     LegacyPage(
         slug="komitety",
         title="Skład komitetów",
@@ -252,8 +362,13 @@ PAGES = (
         pdf="Sklad-komitetow-Olimpiady-Kwantowej.pdf",
         pdf_title="Skład komitetów Olimpiady Kwantowej (PDF)",
     ),
-    LegacyPage(slug="jak-zaczac", title="Jak zacząć?", in_menu=True),
     LegacyPage(slug="harmonogram", title="Harmonogram", in_menu=True),
+    # Warsztaty dostały własną pozycję menu, bo wcześniej cały ich harmonogram był tabelą w środku
+    # ``/harmonogram/``: kto nie wszedł na tę podstronę i nie przewinął jej do końca, nie dowiadywał
+    # się, że warsztaty w ogóle są – mimo że są bezpłatne, otwarte i to od nich zaczyna się
+    # przygotowanie. Strona jest też jedynym źródłem zapowiedzi na stronie głównej
+    # (``apps.cms.workshops``), więc harmonogram warsztatów istnieje w serwisie dokładnie raz.
+    LegacyPage(slug=WORKSHOPS_SLUG, title="Warsztaty", in_menu=True),
     LegacyPage(slug="kontakt", title="Kontakt", in_menu=True),
     LegacyPage(slug="dla-nauczycieli", title="Dla nauczycieli i materiały"),
     LegacyPage(
@@ -292,6 +407,18 @@ PAGES = (
         pdf="Standardy-ochrony-maloletnich-Olimpiada-Kwantowa.pdf",
         pdf_title="Standardy ochrony małoletnich (PDF)",
     ),
+    # Polityka plików cookie – ostatnia w sekcji i ostatnia tutaj. Bez PDF-a: dokument opisuje stan
+    # serwisu i zmienia się razem z nim, więc jego wersją źródłową jest ta strona, a nie plik.
+    LegacyPage(
+        slug="cookies",
+        title="Polityka plików cookie",
+        document=True,
+        metadata={
+            "version_label": COOKIES_VERSION,
+            "document_date": COOKIES_DATE,
+            "status_label": COOKIES_STATUS,
+        },
+    ),
 )
 
 
@@ -299,6 +426,14 @@ class Command(BaseCommand):
     help = "Przenosi treści starej strony Olimpiady Kwantowej do CMS-a. Idempotentne."
 
     def add_arguments(self, parser):
+        parser.add_argument(
+            "--force",
+            action="store_true",
+            help=(
+                "Nadpisz także strony zredagowane w /cms/ (te z rewizją z autorem). Bez tej flagi "
+                "pełny przebieg je pomija, żeby nie cofać poprawek organizatora."
+            ),
+        )
         parser.add_argument(
             "--only",
             action="append",
@@ -327,6 +462,7 @@ class Command(BaseCommand):
         # jednego nowego dokumentu kosztowałoby skasowanie każdej poprawki wprowadzonej w /cms/
         # od ostatniego importu. Z tą flagą komenda dotyka dokładnie wskazanych stron.
         only = set(options.get("only") or [])
+        self.force = bool(options.get("force"))
         known = {spec.slug for spec in PAGES}
         unknown = sorted(only - known)
         if unknown:
@@ -340,6 +476,7 @@ class Command(BaseCommand):
         if not only:
             self._seed_home(home)
             self._drop_legacy_komitety_page(home)
+            self._drop_obsolete_pages(home)
         for spec in specs:
             self._seed_page(home, index, spec)
         if not only:
@@ -383,6 +520,30 @@ class Command(BaseCommand):
         page.delete()
         self.stdout.write("konwersja: „Komitety” przestają być stroną treści, powstaje dokument")
 
+    # --- strony wycofane ------------------------------------------------------------------
+
+    def _drop_obsolete_pages(self, home: HomePage) -> None:
+        """Kasuje strony wycofane z serwisu i zostawia po nich trwałe przekierowanie.
+
+        Kasujemy, a nie ukrywamy jako szkic: szkic zostaje w drzewie, w menu ``/cms/`` i w liście
+        stron redakcji jako pozycja bez wyjaśnienia, dlaczego nie jest opublikowana – a treść
+        obu tych stron **jest** w serwisie, tylko w innym miejscu (patrz ``OBSOLETE_PAGES``).
+        Skasowanie nie jest utratą treści: jedynym źródłem jest plik w ``fixtures/legacy/``,
+        a ``o-olimpiadzie.md`` nadal jest w repozytorium – wypełnia teraz sekcję strony głównej.
+
+        Przekierowanie zakładamy **także wtedy, gdy strony już nie było**. Tak wygląda drugie
+        i każde następne uruchomienie na produkcji, a 301 jest potrzebny dokładnie tam, gdzie
+        strony nie ma; wiązanie go z faktem skasowania sprawiłoby, że raz usunięty adres traci
+        przekierowanie przy pierwszym powtórnym przebiegu.
+        """
+        for slug, link in OBSOLETE_PAGES:
+            page = ContentPage.objects.descendant_of(home).filter(slug=slug).first()
+            if page is not None:
+                page.delete()
+                self.stdout.write(f"usunięto stronę: /{slug}/ (treść jest teraz pod {link})")
+            if ensure_link_redirect(f"/{slug}/", link):
+                self.stdout.write(f"przekierowanie: /{slug}/ → {link}")
+
     # --- przekierowania ze starych adresów ------------------------------------------------
 
     def _seed_redirects(self, index, *, only: set[str] | None = None) -> int:
@@ -407,14 +568,50 @@ class Command(BaseCommand):
     # --- strona główna --------------------------------------------------------------------
 
     def _seed_home(self, home: HomePage) -> None:
+        if not self.force and edited_in_cms(home):
+            # Hasło i kroki należą do redakcji; sekcja „O Olimpiadzie” i tak wypełnia się tylko
+            # wtedy, gdy jest pusta, więc jej dołożenie niczego nie cofa.
+            about = self._seed_about(home)
+            if home.about_body:
+                home.save()
+                home.save_revision().publish()
+            self.stdout.write(f"strona główna: pominięto hasło i kroki (zredagowana w /cms/){about}")
+            return
         home.title = HOME_TITLE
         home.hero_title = HOME_HERO_TITLE
         home.hero_text = HOME_HERO_TEXT
         home.steps_title = HOME_STEPS_TITLE
         home.steps = [("step", {"title": title, "text": text}) for title, text in HOME_STEPS]
+        about = self._seed_about(home)
         home.save()
         home.save_revision().publish()
-        self.stdout.write("strona główna: hasło, opis i sekcja kroków")
+        self.stdout.write(f"strona główna: hasło, opis, sekcja kroków{about}")
+
+    def _seed_about(self, home: HomePage) -> str:
+        """Wypełnia sekcję „O Olimpiadzie” na stronie głównej – **tylko gdy jest pusta**.
+
+        To jedyne odstępstwo od reguły „powtórny przebieg nadpisuje treść plikiem z repozytorium”,
+        i z tego samego powodu, co przy liście partnerów: ta treść jest **redakcyjna i skończona**.
+        Plik ``o-olimpiadzie.md`` to kopia starej podstrony, czyli punkt startowy; po pierwszym
+        imporcie właścicielem sekcji jest redakcja w ``/cms/``. Nadpisywanie jej przy każdym
+        przebiegu kasowałoby dopisany akapit o partnerach albo poprawioną nazwę fundacji, a jedyne,
+        co dawałoby w zamian, to powrót do tekstu sprzed roku.
+
+        Treść idzie przez ten sam parser, co strony treści, i do pola o tym samym zestawie bloków –
+        akapit przeniesiony ze strony do sekcji (albo odwrotnie) nie gubi żadnego bloku. Śródtytuły
+        pliku (``## Po co powstała Olimpiada?``) zostają blokami ``heading`` z kotwicami, więc
+        można na nie linkować tak samo jak wcześniej na sekcje podstrony.
+        """
+        if home.about_body:
+            return ", sekcja „O Olimpiadzie” bez zmian (treść redakcji)"
+        source = FIXTURES / f"{ABOUT_SOURCE}.md"
+        if not source.exists():
+            raise CommandError(f"Brak pliku źródłowego {source}.")
+        # ``intro`` zostaje pusty: plik zaczyna się od śródtytułu, a sekcja na stronie głównej nie
+        # ma osobnego pola na wprowadzenie – nagłówek sekcji niesie ``about_title``.
+        _, blocks = parse_markdown(source.read_text(encoding="utf-8"))
+        home.about_body = blocks
+        return f", sekcja „O Olimpiadzie” z {source.name} ({len(blocks)} bloków)"
 
     # --- strony treści i dokumenty --------------------------------------------------------
 
@@ -442,6 +639,11 @@ class Command(BaseCommand):
         else:
             page = model.objects.child_of(home).filter(slug=spec.slug).first()
         created = page is None
+        if not created and not self.force and edited_in_cms(page):
+            # Treść redakcji zostaje w całości – także tytuł i załączniki; komenda nie wie, którą
+            # część zmieniono, a „pół strony z pliku, pół z panelu” byłoby gorsze niż obie całości.
+            self.stdout.write(f"pominięto: {page.url} (zredagowana w /cms/; --force nadpisze)")
+            return
         if created:
             page = model(title=spec.title, slug=spec.slug, live=spec.publish)
             parent.add_child(instance=page)

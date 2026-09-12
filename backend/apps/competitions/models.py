@@ -8,7 +8,7 @@ Zasady:
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -224,6 +224,24 @@ class Stage(models.Model):
     opens_at = models.DateTimeField("otwarcie")
     deadline_at = models.DateTimeField("deadline oddania")
     grace_seconds = models.PositiveIntegerField("tolerancja po deadline (s)", default=0)
+    # Dni wydarzenia – i to jest **inny fakt** niż okno oddawania prac powyżej. Etap stacjonarny
+    # ma jedno i drugie naraz: finał trwa 4–7 czerwca 2027 (uczestnik przyjeżdża na cztery dni),
+    # a sesja egzaminacyjna, w której system przyjmuje pliki, to kilka godzin 5 czerwca. Dopóki
+    # była jedna para dat, strona musiała skłamać w którąś stronę: albo ogłaszała „4–7 czerwca”
+    # i wtedy upload stał otwarty przez cztery dni, albo pilnowała sesji i wtedy na stronie stało
+    # „5 czerwca”, choć organizator zaprasza na cztery. Dlatego:
+    #
+    # - ``event_starts_on`` / ``event_ends_on`` to **dni pobytu**, czyli to, co czyta publiczność
+    #   (oś czasu na stronie głównej i ``/harmonogram/``). Same daty, bez godzin: nikt nie ogłasza
+    #   zjazdu z dokładnością do minuty, a godzina rozpoczęcia bywa w programie, nie w terminie,
+    # - ``opens_at`` / ``deadline_at`` zostają tym, czym były: **oknem, które egzekwuje serwer**
+    #   (upload, zamknięcie etapu, ``LOCKED``). Żadna z tych dat niczego w nim nie zmienia.
+    #
+    # Oba pola są opcjonalne, ale **tylko razem** (patrz ``clean()`` i ``event_range``): sam
+    # początek bez końca nie jest terminem, który dałoby się ogłosić. Etapy zdalne zostawiają je
+    # puste i wtedy publiczna oś czasu zachowuje się dokładnie jak dotąd.
+    event_starts_on = models.DateField("początek wydarzenia", null=True, blank=True)
+    event_ends_on = models.DateField("koniec wydarzenia", null=True, blank=True)
     review_deadline_at = models.DateTimeField("deadline recenzji")
     appeal_window_opens_at = models.DateTimeField("otwarcie okna reklamacji")
     appeal_window_closes_at = models.DateTimeField("zamknięcie okna reklamacji")
@@ -253,6 +271,14 @@ class Stage(models.Model):
             models.CheckConstraint(
                 condition=Q(appeal_window_opens_at__lt=F("appeal_window_closes_at")),
                 name="competitions_stage_appeal_window_ordered",
+            ),
+            # Zakres jednodniowy jest dozwolony (zjazd na jeden dzień), odwrócony – nie. Przy
+            # pustych datach porównanie daje NULL, więc constraint przepuszcza etap zdalny; parę
+            # „tylko jedna z dwóch” odrzuca ``clean()``, bo to reguła o kompletności ogłoszenia,
+            # a nie o kolejności dni.
+            models.CheckConstraint(
+                condition=Q(event_starts_on__lte=F("event_ends_on")),
+                name="competitions_stage_event_dates_ordered",
             ),
         ]
 
@@ -307,8 +333,27 @@ class Stage(models.Model):
                 continue
             if later < earlier or (later == earlier and not allow_equal):
                 errors[field] = message
+        # Termin wydarzenia jest jedną informacją zapisaną w dwóch polach, więc walidacja pilnuje
+        # obu naraz: połowa zakresu nie jest terminem, który dałoby się ogłosić na stronie.
+        if self.event_starts_on and not self.event_ends_on:
+            errors["event_ends_on"] = "Podaj też koniec wydarzenia albo wyczyść oba pola."
+        if self.event_ends_on and not self.event_starts_on:
+            errors["event_starts_on"] = "Podaj też początek wydarzenia albo wyczyść oba pola."
+        if self.event_starts_on and self.event_ends_on and self.event_ends_on < self.event_starts_on:
+            errors["event_ends_on"] = "Koniec wydarzenia nie może być przed jego początkiem."
         if errors:
             raise ValidationError(errors)
+
+    @property
+    def event_range(self) -> tuple[date, date] | None:
+        """Dni wydarzenia jako para ``(początek, koniec)`` albo ``None``, gdy etap ich nie ma.
+
+        Jedno wejście dla wszystkich czytających (oś czasu, panel, pulpit uczestnika): nikt nie
+        sprawdza dwóch pól osobno, więc nigdzie nie powstanie ekran pokazujący pół zakresu.
+        """
+        if self.event_starts_on and self.event_ends_on:
+            return (self.event_starts_on, self.event_ends_on)
+        return None
 
     @property
     def submission_deadline(self):

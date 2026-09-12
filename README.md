@@ -496,6 +496,7 @@ Kalendarz edycji i arkusz zadań prowadzi koordynator z `/coordinator/` — bez 
 | `review_deadline_at` | Termin recenzji. |
 | `appeal_window_opens_at` / `appeal_window_closes_at` | Okno reklamacji. Publikacja wyników przed jego zamknięciem kończy się `409 APPEAL_WINDOW_OPEN`. |
 | `location` | Puste = etap zdalny. Trafia na stronę główną i do terminarza na `/harmonogram/`. |
+| `event_starts_on` / `event_ends_on` | **Dni wydarzenia** etapu stacjonarnego („Termin wydarzenia (od / do)”): dni pobytu, które portal ogłasza publicznie jako jeden zakres („4–7 czerwca 2027”). Wypełnia się je **razem** albo zostawia puste. To **inny fakt** niż `opens_at`/`deadline_at`: wpisanie dni pobytu nie zmienia okna, w którym system przyjmuje pliki (na finale sesja egzaminacyjna bywa kilkugodzinna w środku zjazdu), a okno uploadu nie zmienia terminu na stronie. Gdy dni są wpisane, oś czasu (`/`, `/harmonogram/`) pokazuje właśnie je; pulpit uczestnika i strona zadań pokazują **oba** terminy, bo uczestnik potrzebuje i dnia przyjazdu, i godziny oddania pracy. |
 
 Godziny **podaje się i czyta w czasie polskim** (`Europe/Warsaw`); do bazy idzie UTC. Pola mają
 dokładność do minuty — sekundy zapisane spoza panelu (admin, seed) zostają nietknięte, dopóki
@@ -651,14 +652,42 @@ z różnicą pól, `problem.deleted`).
 
 **Strona `/harmonogram/` czyta terminy z bazy.** Blok `stage_timeline` (StreamField, znacznik
 `{{stage_timeline}}` w `apps/cms/fixtures/legacy/harmonogram.md`) renderuje etapy **bieżącej**
-edycji: rodzaj, otwarcie, termin oddania, termin recenzji, okno reklamacji, miejsce i stan.
+edycji: rodzaj, otwarcie, termin oddania, „Wyniki do”, okno reklamacji, miejsce i stan.
 Nie ma tam ani jednej daty wpisanej ręcznie, więc zmiana w panelu jest widoczna od następnego
 odświeżenia strony (żadnego cache). Bez bieżącej edycji lub bez etapów blok pokazuje „Terminy
 zostaną ogłoszone”. Ta sama zasada obowiązuje oś czasu na stronie głównej.
 
+Dwie rzeczy w podpisach rubryk są decyzją, a nie formatowaniem:
+
+- **„Wyniki do” zamiast „Recenzje do”** (ta sama data, `Stage.review_deadline_at`). Czytelnikiem
+  strony publicznej jest uczestnik, nie recenzent: nie ma wpływu na recenzowanie i nic z niego nie
+  ma, a interesuje go najpóźniejszy moment, w którym dowie się wyniku. W panelu koordynatora
+  i recenzenta ten sam termin pozostaje terminem recenzji, bo tam jest zobowiązaniem.
+- **etap stacjonarny trwający kilka dni ma jeden „Termin”**, podany jako zakres („4–7 czerwca
+  2027”), a nie „Otwarcie” i „Deadline” z godzinami. Na finał się przyjeżdża; dwa wiersze
+  z godzinami sugerowały okno na wysyłkę pliku, którego na miejscu nie ma. Kryterium jest opisowe
+  (`Stage.location` wypełnione **i** terminy w różnych dniach — `apps.cms.timeline.is_onsite_event`),
+  a nie `kind == FINAL`: rodzaj etapu mówi, które to zawody w kolejności, a nie jak przebiegają,
+  więc zjazd na etapie II w kolejnej edycji zachowa się właściwie bez poprawki w szablonie.
+  Formatowanie zakresu ma jedno miejsce (`apps.cms.timeline.format_date_range`), wspólne dla
+  `/harmonogram/` i strony głównej: wspólny miesiąc → „4–7 czerwca 2027”, różne miesiące →
+  „30 maja – 2 czerwca 2027”, przełom roku → „30 grudnia 2026 – 2 stycznia 2027”.
+
 Kolejność przy zakładaniu środowiska: `seed_edition_kwantowa --make-current` (etapy) →
 `seed_legacy_content` (strony, w tym `/harmonogram/`). Odwrotna kolejność też działa — blok czyta
 bazę przy każdym żądaniu, a nie przy imporcie treści.
+
+**Warsztaty online mają własną stronę `/warsztaty/`** (pozycja menu zaraz za „Harmonogramem”,
+źródło: `apps/cms/fixtures/legacy/warsztaty.md`). Wcześniej cały ich harmonogram był tabelą
+w środku `/harmonogram/`: kto tam nie wszedł i nie przewinął strony do końca, nie dowiadywał się,
+że warsztaty w ogóle są — mimo że są bezpłatne, otwarte i od nich zaczyna się przygotowanie.
+Strona główna pokazuje **trzy najbliższe** terminy (sekcja „Warsztaty online” z przyciskiem do
+pełnej tabeli) i czyta je z tej samej tabeli, więc harmonogram warsztatów istnieje w serwisie
+dokładnie raz. Reguła „które są najbliższe” siedzi w `apps/cms/workshops.py`; sekcja znika w całości,
+gdy nie ma już nadchodzących terminów. Żeby dało się je uszeregować bez parsowania polszczyzny przy
+każdym żądaniu, wiersz harmonogramu ma obok tekstowego terminu opcjonalną **datę** (`date_value`
+w `ScheduleRowBlock`, wypełniana przy imporcie przez `legacy_markdown.parse_polish_date`). Termin
+nieostry („do potwierdzenia”) zostaje bez daty: stoi w tabeli, ale nie trafia do zapowiedzi.
 
 ### 6.4 Zamknięcie etapu
 
@@ -728,8 +757,9 @@ komendy dadzą ten sam serwis, tylko bez tego jednego 301 do następnego przebie
 # (PDF do druku i wersja źródłowa .docx) — wszystko z apps/cms/fixtures/regulamin/.
 docker compose exec web python manage.py seed_regulamin
 
-# Strony, dokumenty, aktualności, hasło i sekcja kroków na stronie głównej, kolejność menu,
-# sekcja /dokumenty/, strona /partnerzy/ i przekierowania ze starych adresów dokumentów.
+# Strony, dokumenty, aktualności, hasło, sekcja „O Olimpiadzie” i sekcja kroków na stronie głównej,
+# kolejność menu, sekcja /dokumenty/, strona /partnerzy/, usunięcie stron wycofanych
+# (/jak-zaczac/, /o-olimpiadzie/) i przekierowania ze starych adresów.
 docker compose exec web python manage.py seed_legacy_content
 
 # Dołożenie POJEDYNCZEJ strony na działającym serwisie — bez nadpisywania pozostałych treści
@@ -755,6 +785,31 @@ docker compose exec web python manage.py seed_schools
 Źródła treści leżą w `backend/apps/cms/fixtures/legacy/*.md`; inwentarz i pełne teksty starej
 strony — w `docs/import/`. Import zmienia wyłącznie strukturę (nagłówek → blok `heading`, tabela
 dwukolumnowa → lista definicji, wyróżniona ramka → blok `notice`), nie brzmienie zdań organizatora.
+
+**Pasek nawigacji po imporcie** (kolejność = kolejność rodzeństwa w drzewie, `MENU_ORDER`):
+Aktualności · Zadania · Harmonogram · Warsztaty · Dokumenty (lista rozwijana) · Archiwum · Wyniki ·
+Partnerzy · Kontakt.
+
+**Dwie pozycje menu zniknęły**, bo dublowały treść stojącą na stronie głównej — i obie zostawiły
+po sobie trwałe przekierowanie (`OBSOLETE_PAGES` w komendzie), bo stare adresy wiszą w pismach do
+szkół i w indeksach wyszukiwarek:
+
+- `/jak-zaczac/` → `/`. Pięć kroków uczestnika dublowało sekcję „Jak zacząć w 3 krokach”, która
+  jest na stronie głównej od początku. Dwie listy kroków w jednym serwisie rozjadą się przy
+  pierwszej zmianie regulaminu.
+- `/o-olimpiadzie/` → `/#o-olimpiadzie`. Odpowiedź na „co to jest i kto to organizuje” stała jedno
+  kliknięcie za hasłem, które tę ciekawość wzbudza. Treść jest teraz sekcją strony głównej
+  (pola `HomePage.about_title` i `about_body` — ten sam zestaw bloków, co strona treści), a plik
+  `fixtures/legacy/o-olimpiadzie.md` **zostaje w repozytorium** jako jej źródło.
+
+Komenda kasuje obie strony przy **każdym pełnym** przebiegu (nie tylko pierwszym) i jest w tym
+idempotentna: przekierowanie zakłada także wtedy, gdy strony już nie było. Skasowanie nie jest
+utratą treści — jedynym źródłem obu była zawartość plików w `fixtures/legacy/`.
+
+Sekcja „O Olimpiadzie” na stronie głównej jest — obok listy partnerów — **drugą treścią, której
+powtórny import nie nadpisuje**: plik jest punktem startowym, a po pierwszym imporcie właścicielem
+sekcji jest redakcja w `/cms/`. Nadpisywanie kasowałoby jej poprawki, a w zamian przywracało tekst
+ze starego WordPressa. Żeby zaimportować plik ponownie, trzeba najpierw wyczyścić pole w `/cms/`.
 
 Wszystkie dokumenty organizatora mieszkają w jednej sekcji: `/dokumenty/` (`DocumentIndexPage`)
 z kartą na dokument i jedną pozycją menu z listą rozwijaną. Stare adresy jednosegmentowe
@@ -868,13 +923,34 @@ uzasadnienie każdego punktu: `docs/import/stara-strona-inwentarz.md`, sekcja 8.
    nie cofnie. Do decyzji zostają też progi sponsoringu oraz nazwy ze starej strony: czy
    Ministerstwo Edukacji i Polskie Towarzystwo Fizyczne to realne patronaty (trzecia nazwa,
    „Uniwersytet Kwantowy”, to instytucja nieistniejąca) — żadnej z nich na serwisie nie ma.
-9. **ZOZ (Zasady Organizacji Zawodów).** Regulamin odwołuje się do nich kilkanaście razy,
-   a dokument nie istnieje — bez niego brakuje progów, liczby finalistów i reguł remisów.
+9. **ZOZ (Zasady Organizacji Zawodów) — projekt jest, decyzje organizatora nie.** Regulamin
+   odwołuje się do ZOZ kilkanaście razy (§ 1 ust. 4 przenosi tam harmonogram, formę zadań, wykaz
+   narzędzi, maksymalną liczbę finalistów, progi punktowe, literaturę i program merytoryczny),
+   a dokumentu nie było — każde z tych odesłań prowadziło w pustkę. Powstał więc **projekt**:
+   `/dokumenty/zoz/` (źródło: `backend/apps/cms/fixtures/legacy/zoz.md`), wersja **0.1 (projekt)**,
+   status „projekt do akceptacji organizatora”, z ramką o tym samym brzmieniu nad treścią.
+   Dokument opisuje wyłącznie to, co serwis naprawdę robi — formaty i limity uploadu, liczenie
+   terminu po stronie serwera, skalę 0/2/5/6, dwie niezależne recenzje i rozjemcę, okno reklamacji,
+   remisy *ex aequo*, anonimizację tabel wyników, zapisy na rozmowy Etapu II — i **nie powtarza
+   terminów**: odsyła do `/harmonogram/`, żeby nie powstało drugie źródło dat obok `Stage`.
+   Czego nie rozstrzyga, tego nie udaje: **na końcu dokumentu stoi jawna lista decyzji dla
+   organizatora** (§ 16 ZOZ) — maksymalna liczba finalistów, progi punktowe poza „≥ 1 pkt”,
+   sposób wyliczenia wyniku kwalifikacyjnego 80/20 z § 12 ust. 5 regulaminu, dodatkowy próg dla
+   laureatów, reguła remisów do potwierdzenia, wykaz literatury, dozwolone narzędzia oraz liczba
+   sesji, czas i wyposażenie finału, koszty przejazdu i zakwaterowania finalistów (§ 22 ust. 2:
+   brak informacji = brak zobowiązania), okres poufności rozwiązań po etapie, formaty i limity per
+   zadanie, nagrywanie rozmów oraz dwie sprzeczności regulaminu z punktów 1 i 2 tej listy.
+   Po zatwierdzeniu: podmiana pliku źródłowego, metryki (`ZOZ_VERSION`, `ZOZ_STATUS`)
+   w `seed_legacy_content` i `manage.py seed_legacy_content --only zoz`.
 10. **Status prawny olimpiady.** Regulamin zastrzega, że tytuły finalisty i laureata są wewnętrzne
    i nie dają uprawnień ustawowych. Gdzie portal ma to komunikować?
-11. **Krok 2 na `/jak-zaczac/`.** Tekst mówi „Załóż konto uczestnika w czasie rejestracji”, a portal
-    używa kodów zaproszeń dla komitetu i samodzielnej rejestracji uczestnika — brzmienie do
-    potwierdzenia przez organizatora (import nie redaguje treści).
+11. **Kroki na stronie głównej — rozstrzygnięte co do miejsca, otwarte co do brzmienia.** Podstrony
+    `/jak-zaczac/` już nie ma (dublowała sekcję „Jak zacząć w 3 krokach”, patrz 6.7), więc pięciu
+    kroków ze starej strony nie ma gdzie poprawiać. Zostaje pytanie o brzmienie trzech kroków, które
+    stoją na stronie głównej („Załóż konto”, „Rozwiąż zadania”, „Sprawdź wynik” —
+    `HOME_STEPS` w `seed_legacy_content`): są naszym skrótem procedury, nie tekstem organizatora,
+    a portal używa kodów zaproszeń dla komitetu i samodzielnej rejestracji uczestnika. Kroki są
+    treścią redakcyjną, więc poprawia się je w `/cms/`, bez wydania aplikacji.
 12. **Kanały kontaktu.** Jeden adres `contact@qaif.org` obsługuje sprawy ogólne, RODO i zgłoszenia
     dotyczące bezpieczeństwa małoletnich, rozróżniane tylko tematem wiadomości.
 13. **Aktualności.** Trzy przeniesione wpisy to jednozdaniowe zapowiedzi bez dat (oryginał nie miał
@@ -883,7 +959,7 @@ uzasadnienie każdego punktu: `docs/import/stara-strona-inwentarz.md`, sekcja 8.
 14. **Logo, favicon, og:image.** Stara strona nie ma ani jednego pliku graficznego — identyfikację
     trzeba zaprojektować od zera. Logotyp organizatora (Fundacja Quantum AI) jest już w stopce:
     wgrywa go `seed_partners` do `SiteSettings.organizer_logo`.
-15. **Harmonogram warsztatów.** Szesnaście warsztatów online (`/harmonogram/`) pochodzi z listy
+15. **Harmonogram warsztatów.** Szesnaście warsztatów online (`/warsztaty/`) pochodzi z listy
     organizatora podanej w formacie amerykańskim. Jedna data jest niejednoznaczna: „Podstawy
     metrologii kwantowej” przyszła jako `09/01/2027`; w ciągu sobotnich terminów pasuje
     **9 stycznia 2027** i tak jest zapisana, ale wymaga potwierdzenia — podobnie jak godziny tego

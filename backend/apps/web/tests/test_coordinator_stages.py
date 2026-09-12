@@ -8,7 +8,7 @@ Cztery rzeczy, na których ten ekran stoi:
 - ekran należy wyłącznie do koordynatora.
 """
 
-from datetime import timedelta
+from datetime import date, timedelta
 
 import pytest
 from django.utils import timezone
@@ -164,6 +164,88 @@ def test_results_published_at_is_not_editable(web_client, coordinator, elim_stag
     elim_stage.refresh_from_db()
     assert 'name="results_published_at"' not in content
     assert elim_stage.results_published_at == stamp
+
+
+# --- termin wydarzenia (etap stacjonarny) --------------------------------------------------------
+
+
+def test_event_dates_are_saved_without_touching_the_submission_window(web_client, coordinator, elim_stage):
+    """Koordynator wpisuje dni zjazdu – okno oddawania prac zostaje dokładnie takie, jakie było.
+
+    To sedno tych dwóch pól: na finale sesja egzaminacyjna jest kilkugodzinna, a pobyt trwa cztery
+    dni. Dopóki była jedna para dat, ogłoszenie „4–7 czerwca” wymagało otwarcia uploadu na cztery
+    dni albo skłamania na stronie.
+    """
+    web_client.force_login(coordinator)
+    opens_before, deadline_before = elim_stage.opens_at, elim_stage.deadline_at
+
+    response = web_client.post(
+        f"/coordinator/stages/{elim_stage.pk}/edit/",
+        form_data(
+            elim_stage,
+            location="Kraków",
+            event_starts_on="2027-06-04",
+            event_ends_on="2027-06-07",
+        ),
+    )
+
+    elim_stage.refresh_from_db()
+    assert response.status_code == 302
+    assert elim_stage.event_range == (date(2027, 6, 4), date(2027, 6, 7))
+    assert (elim_stage.opens_at, elim_stage.deadline_at) == (opens_before, deadline_before)
+
+    entry = AuditLog.objects.get(action="stage.updated", target_id=str(elim_stage.pk))
+    assert entry.diff["event_starts_on"] == {"from": None, "to": "2027-06-04"}
+
+
+def test_event_dates_come_back_into_the_form_and_onto_the_dashboard(web_client, coordinator, elim_stage):
+    """Zapisany termin wraca do pola ``date`` i staje na karcie etapu jako jedno wyrażenie."""
+    Stage.objects.filter(pk=elim_stage.pk).update(
+        location="Kraków", event_starts_on=date(2027, 6, 4), event_ends_on=date(2027, 6, 7)
+    )
+    web_client.force_login(coordinator)
+
+    form_page = web_client.get(f"/coordinator/stages/{elim_stage.pk}/edit/").content.decode()
+    dashboard = web_client.get("/coordinator/").content.decode()
+
+    assert 'type="date"' in form_page
+    assert 'value="2027-06-04"' in form_page
+    assert 'value="2027-06-07"' in form_page
+    assert "Wydarzenie" in dashboard
+    assert "4–7 czerwca 2027" in dashboard
+
+
+def test_half_of_the_event_range_is_rejected_under_the_field(web_client, coordinator, elim_stage):
+    """Sam początek bez końca: błąd pod polem, żadnego zapisu, żadnego wpisu w audycie."""
+    web_client.force_login(coordinator)
+
+    response = web_client.post(
+        f"/coordinator/stages/{elim_stage.pk}/edit/",
+        form_data(elim_stage, event_starts_on="2027-06-04"),
+    )
+
+    elim_stage.refresh_from_db()
+    assert response.status_code == 400
+    assert response.context["form"].errors["event_ends_on"]
+    assert elim_stage.event_range is None
+    assert not AuditLog.objects.filter(action="stage.updated").exists()
+
+
+def test_event_dates_can_be_cleared(web_client, coordinator, elim_stage):
+    """Zjazd odwołany albo wpisany omyłkowo – puste pola czyszczą termin, a nie zostawiają połowy."""
+    Stage.objects.filter(pk=elim_stage.pk).update(
+        event_starts_on=date(2027, 6, 4), event_ends_on=date(2027, 6, 7)
+    )
+    web_client.force_login(coordinator)
+
+    response = web_client.post(
+        f"/coordinator/stages/{elim_stage.pk}/edit/",
+        form_data(elim_stage, event_starts_on="", event_ends_on=""),
+    )
+
+    elim_stage.refresh_from_db()
+    assert response.status_code == 302
+    assert elim_stage.event_range is None
 
 
 # --- nazwa etapu ---------------------------------------------------------------------------------

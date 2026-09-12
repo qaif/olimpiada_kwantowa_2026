@@ -90,8 +90,8 @@
               </td>
               <td>
                 <div class="actions">
-                  {# Przycisk znika, gdy ktoś jest zapisany: serwis i tak odmówi (409), ale nie ma
-                     powodu proponować operacji, która nie może się udać. #}
+                  {% comment %} Przycisk znika, gdy ktoś jest zapisany: serwis i tak odmówi (409), ale nie ma
+                     powodu proponować operacji, która nie może się udać. {% endcomment %}
                   {% if not slot.taken %}
                     <form method="post"
                           action="{% url 'web:coordinator-interview-slot-delete' slot.pk %}">

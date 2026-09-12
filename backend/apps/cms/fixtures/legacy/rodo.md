@@ -19,6 +19,8 @@ Zakres zależy od etapu Olimpiady i może obejmować:
 - w dalszych etapach - dane niezbędne do organizacji przejazdu, zakwaterowania, ubezpieczenia lub zapewnienia dostępności;
 - wizerunek i głos utrwalony podczas wydarzeń - wyłącznie w zakresie wynikającym z odrębnej zgody albo dozwolonym przepisami prawa.
 
+Pliki cookie i pamięć przeglądarki opisuje osobno [Polityka plików cookie](/dokumenty/cookies/): serwis zapisuje wyłącznie pliki niezbędne do utrzymania sesji po zalogowaniu i do ochrony formularzy, bez analityki i profilowania.
+
 Nie prosimy o dane szczególnych kategorii, chyba że są one konieczne do zapewnienia bezpieczeństwa lub racjonalnych usprawnień. W takim przypadku poinformujemy osobno o celu, podstawie i zakresie przetwarzania.
 
 ## 3. Cele i podstawy prawne

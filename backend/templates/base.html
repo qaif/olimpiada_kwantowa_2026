@@ -35,6 +35,14 @@
   {% endcomment %}
   <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/app.js' %}"></script>
   {% comment %}
+    Pasek informacji o cookie (na dole strony) startuje **widoczny**, więc informacja dociera też
+    bez JavaScriptu. Ten skrypt jest dlatego jedynym w serwisie bez ``defer``: dopisuje klasę na
+    ``<html>`` jeszcze przed narysowaniem ``<body>``, dzięki czemu komuś, kto już kliknął
+    „Rozumiem”, pasek nie mignie na każdej kolejnej stronie. Plik jest mały i self-hostowany,
+    a CSP zostaje bez ``'unsafe-inline'`` – to nadal skrypt zewnętrzny, z nonce jak pozostałe.
+  {% endcomment %}
+  <script nonce="{{ request.csp_nonce }}" src="{% static 'js/cookie-notice.js' %}"></script>
+  {% comment %}
     Miejsce na komponenty Alpine'a potrzebne tylko na niektórych stronach (np. wyszukiwarka szkół
     w rejestracji). Blok stoi **przed** znacznikiem Alpine'a i to nie jest kosmetyka: build CDN
     woła ``Alpine.start()`` w mikrozadaniu tuż po wykonaniu swojego skryptu, a mikrozadania są
@@ -60,6 +68,66 @@
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
 <a class="skip-link" href="#tresc">Przejdź do treści</a>
 <header class="topbar">
+  {% comment %}
+    Pasek konta stoi **nad** nawigacją serwisu i we własnym wierszu. Wcześniej te same odnośniki
+    były dosztukowane z prawej strony menu informacyjnego: przy dłuższych etykietach
+    („Rejestracja rusza 8 września 2026”) wychodziły poza układ i zawijały się w przypadkowym
+    miejscu. Tu kolejność jest stała i wynika z tego, kto czego szuka: najpierw wejście dla osób,
+    które już mają konto, potem główne zaproszenie (rejestracja uczestnika), a na końcu – jako
+    zwykły odnośnik – droga dla zaproszonych z kodem.
+  {% endcomment %}
+  <div class="topbar__account">
+    <nav class="account-bar" aria-label="Konto">
+      {% if user.is_authenticated %}
+        {% if is_participant %}
+          {% url 'web:me' as me_url %}
+          <a class="account-bar__link" href="{{ me_url }}"
+             {% if request.path == me_url %}aria-current="page"{% endif %}>Mój panel</a>
+        {% endif %}
+        {% if is_reviewer %}
+          {% url 'web:review-list' as review_url %}
+          <a class="account-bar__link" href="{{ review_url }}"
+             {% if request.path == review_url %}aria-current="page"{% endif %}>Recenzje</a>
+        {% endif %}
+        {% if is_appeals_committee %}
+          {% url 'web:appeals' as appeals_url %}
+          <a class="account-bar__link" href="{{ appeals_url }}"
+             {% if request.path == appeals_url %}aria-current="page"{% endif %}>Reklamacje</a>
+        {% endif %}
+        {% if is_coordinator %}
+          {% url 'web:coordinator' as coordinator_url %}
+          <a class="account-bar__link" href="{{ coordinator_url }}"
+             {% if request.path == coordinator_url %}aria-current="page"{% endif %}>Koordynator</a>
+        {% endif %}
+        <span class="account-bar__sep" aria-hidden="true"></span>
+        <span class="account-bar__who who" title="{{ user.email }}">{{ user.email }}</span>
+        <form method="post" action="{% url 'web:logout' %}" class="inline account-bar__logout">
+          {% csrf_token %}
+          <button type="submit" class="btn btn--small btn--secondary account-bar__btn">Wyloguj</button>
+        </form>
+      {% else %}
+        {% url 'web:login' as login_url %}
+        {% url 'web:register' as register_url %}
+        {% url 'web:register-committee' as committee_url %}
+        <a class="btn btn--small btn--secondary account-bar__btn" href="{{ login_url }}"
+           {% if request.path == login_url %}aria-current="page"{% endif %}>Zaloguj się</a>
+        {% comment %}
+          Poza oknem rejestracji przycisk znika, a przed terminem otwarcia zamienia się w zapowiedź
+          i **nadal prowadzi** na ``/register/`` – tam stoi pełne wyjaśnienie z datą. Nawigacja nie
+          jest tu zabezpieczeniem: rejestrację rozstrzyga bramka w serwisie kont.
+        {% endcomment %}
+        {% if registration.is_open %}
+          <a class="btn btn--small btn--accent account-bar__btn" href="{{ register_url }}"
+             {% if request.path == register_url %}aria-current="page"{% endif %}>Zarejestruj się</a>
+        {% elif registration.reason == "not_yet" %}
+          <a class="btn btn--small btn--accent account-bar__btn" href="{{ register_url }}"
+             {% if request.path == register_url %}aria-current="page"{% endif %}>Rejestracja rusza {{ registration.opens_at|date:"j E Y" }}</a>
+        {% endif %}
+        <a class="account-bar__link account-bar__link--sub" href="{{ committee_url }}"
+           {% if request.path == committee_url %}aria-current="page"{% endif %}>Rejestracja z kodem</a>
+      {% endif %}
+    </nav>
+  </div>
   <div class="topbar__inner">
     {% comment %}
       Nazwa serwisu pochodzi z ``cms.SiteSettings`` (Ustawienia → Dane serwisu w /cms/), nie
@@ -108,56 +176,6 @@
         {% endif %}
       {% endfor %}
     </nav>
-    <nav class="nav nav--roles" aria-label="Konto">
-      {% if user.is_authenticated %}
-        {% if is_participant %}
-          {% url 'web:me' as me_url %}
-          <a class="nav__link" href="{{ me_url }}"
-             {% if request.path == me_url %}aria-current="page"{% endif %}>Mój panel</a>
-        {% endif %}
-        {% if is_reviewer %}
-          {% url 'web:review-list' as review_url %}
-          <a class="nav__link" href="{{ review_url }}"
-             {% if request.path == review_url %}aria-current="page"{% endif %}>Recenzje</a>
-        {% endif %}
-        {% if is_appeals_committee %}
-          {% url 'web:appeals' as appeals_url %}
-          <a class="nav__link" href="{{ appeals_url }}"
-             {% if request.path == appeals_url %}aria-current="page"{% endif %}>Reklamacje</a>
-        {% endif %}
-        {% if is_coordinator %}
-          {% url 'web:coordinator' as coordinator_url %}
-          <a class="nav__link" href="{{ coordinator_url }}"
-             {% if request.path == coordinator_url %}aria-current="page"{% endif %}>Koordynator</a>
-        {% endif %}
-        <span class="nav__sep" aria-hidden="true"></span>
-        <span class="nav__who who" title="{{ user.email }}">{{ user.email }}</span>
-        <form method="post" action="{% url 'web:logout' %}" class="inline nav__logout">
-          {% csrf_token %}
-          <button type="submit" class="link">Wyloguj</button>
-        </form>
-      {% else %}
-        {% url 'web:login' as login_url %}
-        {% url 'web:register' as register_url %}
-        {% url 'web:register-committee' as committee_url %}
-        <a class="nav__link" href="{{ login_url }}"
-           {% if request.path == login_url %}aria-current="page"{% endif %}>Zaloguj</a>
-        {% comment %}
-          Poza oknem rejestracji link znika, a przed terminem otwarcia zamienia się w zapowiedź
-          i **nadal prowadzi** na ``/register/`` – tam stoi pełne wyjaśnienie z datą. Nawigacja nie
-          jest tu zabezpieczeniem: rejestrację rozstrzyga bramka w serwisie kont.
-        {% endcomment %}
-        {% if registration.is_open %}
-          <a class="nav__link" href="{{ register_url }}"
-             {% if request.path == register_url %}aria-current="page"{% endif %}>Rejestracja</a>
-        {% elif registration.reason == "not_yet" %}
-          <a class="nav__link" href="{{ register_url }}"
-             {% if request.path == register_url %}aria-current="page"{% endif %}>Rejestracja rusza {{ registration.opens_at|date:"j E Y" }}</a>
-        {% endif %}
-        <a class="nav__link" href="{{ committee_url }}"
-           {% if request.path == committee_url %}aria-current="page"{% endif %}>Rejestracja z kodem</a>
-      {% endif %}
-    </nav>
   </div>
 </header>
 
@@ -181,6 +199,17 @@
       <p>Dane osobowe uczestników są przetwarzane zgodnie z zasadą minimalizacji (RODO):
         w publicznych tabelach wyników występuje wyłącznie kod uczestnika, a pełne dane widzi
         jedynie koordynator.</p>
+      {% comment %}
+        Odnośniki do dokumentów formalnych. Adresy są stałymi ścieżkami stron w drzewie Wagtaila
+        (``/dokumenty/…``), bo stopka musi je pokazywać także wtedy, gdy strona dokumentu jest
+        dopiero w przygotowaniu – przy ``{% templatetag openblock %} url {% templatetag closeblock %}``
+        brak strony wywracałby cały szablon bazowy.
+      {% endcomment %}
+      <p class="footer__links">
+        <a href="/dokumenty/rodo/">Polityka prywatności (RODO)</a>
+        <a href="/dokumenty/cookies/">Polityka plików cookie</a>
+        <a href="/dokumenty/">Dokumenty</a>
+      </p>
     </div>
     <div>
       {% comment %}
@@ -209,6 +238,22 @@
     {% endwith %}
   </div>
 </footer>
+{% comment %}
+  Informacja o cookie, a nie bramka zgody: serwis stawia wyłącznie cookie niezbędne (sesja
+  logowania i token CSRF), więc nie ma czego wstrzymywać do kliknięcia, a pytanie o zgodę na
+  cookie techniczne sugerowałoby, że jest tu wybór, którego nie ma. Potwierdzenie zapisuje
+  ``localStorage`` (static/js/cookie-notice.js), a nie cookie – informacja o cookie nie może
+  dokładać kolejnego cookie. Na wydruku paska nie ma (arkusz, sekcja @media print).
+{% endcomment %}
+<div class="cookie-notice" data-cookie-notice role="region" aria-label="Informacja o plikach cookie">
+  <div class="cookie-notice__inner">
+    <p class="cookie-notice__text">Ten serwis używa wyłącznie niezbędnych plików cookie (sesja
+      logowania, zabezpieczenie formularzy). Nie używamy cookies reklamowych ani analitycznych.
+      <a class="cookie-notice__link" href="/dokumenty/cookies/">Polityka plików cookie</a></p>
+    <button type="button" class="btn btn--small btn--accent cookie-notice__ok"
+            data-cookie-notice-dismiss>Rozumiem</button>
+  </div>
+</div>
 {% block scripts %}{% endblock %}
 </body>
 </html>

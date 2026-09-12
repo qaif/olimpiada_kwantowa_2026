@@ -44,6 +44,7 @@ Menu awaryjne w `functions.php` ma dodatkowo `Dokumenty` na 5. pozycji.
 | 7 | Standardy ochrony małoletnich | `standardy-ochrony-maloletnich` | — | 10 sekcji + wersja skrócona dla uczniów | `tresci/standardy-ochrony-maloletnich.md` |
 | 8 | Jak zacząć? | `jak-zaczac` | 2 | 5 kroków uczestnika | `tresci/jak-zaczac.md` |
 | 9 | Terminarz i harmonogram | `harmonogram` | — | tabela 4 terminów I edycji | `tresci/harmonogram.md` |
+| 9a | Warsztaty | `warsztaty` | — | harmonogram warsztatów wydzielony z `harmonogram` (osobna pozycja menu) | `tresci/harmonogram.md` |
 
 ### Priorytet B — scalić lub odtworzyć, treść jest zaślepką
 
@@ -83,8 +84,8 @@ Typy istniejące w `backend/apps/cms/models.py`: `HomePage`, `NewsIndexPage`, `N
 | Stara podstrona | Slug | Nowy typ | Rodzic | Uwagi |
 |---|---|---|---|---|
 | Strona główna (`front-page.php`) | `/` | `HomePage` | Root | hero_title + hero_text; oś czasu z `show_timeline` zastępuje ręczną sekcję harmonogramu |
-| O Olimpiadzie | `o-olimpiadzie` | **`ContentPage`** | HomePage | 1:1 |
-| Jak zacząć? | `jak-zaczac` | **`ContentPage`** | HomePage | 1:1, zaktualizować krok 2 (kody zaproszeń) |
+| O Olimpiadzie | `o-olimpiadzie` | — (sekcja strony głównej) | — | podstrony **nie ma**: treść jest w `HomePage.about_body`, adres przekierowuje na `/#o-olimpiadzie` (README 6.7) |
+| Jak zacząć? | `jak-zaczac` | — (sekcja strony głównej) | — | podstrony **nie ma**: dublowała „Jak zacząć w 3 krokach”, adres przekierowuje na `/` |
 | Kontakt | `kontakt` | **`ContentPage`** | HomePage | 1:1 |
 | Komitety | `komitety` | **`ContentPage`** | HomePage | skład potwierdzony PDF-em organizatora (4.2); strona opublikowana, PDF do pobrania |
 | Partnerzy i sponsorzy | `partnerzy` | **`ContentPage`** | HomePage | treść do napisania od nowa |

@@ -1,6 +1,6 @@
 """Kryteria 3–4 z T-08: panel uczestnika, upload przez HTMX i zamknięcie po deadline."""
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import pytest
 
@@ -101,3 +101,31 @@ def test_dashboard_shows_the_deadline_in_local_time(web_client, participant, ent
     # 10:00 UTC w lipcu to 12:00 w Europe/Warsaw.
     assert "15 lipca 2027, 12:00 (czas polski)" in content
     assert "(UTC)" not in content
+
+
+def test_dashboard_shows_both_the_event_days_and_the_upload_deadline(
+    web_client, participant, entry, problems
+):
+    """Etap stacjonarny: uczestnik czyta dni pobytu **i** godzinę oddania pracy, nie jedno z dwóch.
+
+    Publiczny harmonogram ogłasza sam zjazd („4–7 czerwca 2027”), bo tego dotyczy zaproszenie.
+    Uczestnik potrzebuje więcej: sesja, w której system przyjmuje plik, jest kilkugodzinna i wypada
+    w środku tych dni – gdyby pulpit pokazał tylko zakres, przyjechałby, nie wiedząc, kiedy oddaje.
+    """
+    Stage.objects.filter(pk=entry.stage_id).update(
+        location="Kraków",
+        event_starts_on=date(2027, 6, 4),
+        event_ends_on=date(2027, 6, 7),
+        deadline_at=datetime(2027, 6, 5, 12, 0, tzinfo=UTC),
+        review_deadline_at=datetime(2027, 6, 20, 10, 0, tzinfo=UTC),
+        appeal_window_opens_at=datetime(2027, 6, 22, 10, 0, tzinfo=UTC),
+        appeal_window_closes_at=datetime(2027, 6, 29, 10, 0, tzinfo=UTC),
+    )
+    web_client.force_login(participant.user)
+
+    content = web_client.get("/me/").content.decode()
+
+    assert "Termin wydarzenia: <strong>4–7 czerwca 2027</strong>" in content
+    assert "Kraków" in content
+    # 12:00 UTC w czerwcu to 14:00 w Europe/Warsaw – okno uploadu zostaje nietknięte.
+    assert "5 czerwca 2027, 14:00 (czas polski)" in content

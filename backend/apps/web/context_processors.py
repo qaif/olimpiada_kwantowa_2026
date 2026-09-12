@@ -20,6 +20,7 @@ from django.conf import settings
 from django.db import DatabaseError
 from django.urls import reverse
 
+from apps.accounts.consents import CONSENTS
 from apps.accounts.models import GROUP_APPEALS, GROUP_COORDINATOR, GROUP_PARTICIPANT
 from apps.accounts.services import active_reviewer_profile
 from apps.appeals.services import appeals_committee_profile
@@ -29,6 +30,12 @@ logger = logging.getLogger(__name__)
 #: Wersja interfejsu pokazywana w stopce. Zmieniana ręcznie razem z wydaniem – nie jest to numer
 #: schematu API (ten mieszka w ``SPECTACULAR_SETTINGS``) ani numer migracji.
 APP_VERSION = "1.0"
+
+#: Nazwy pól zgód wymaganych bezwarunkowo (regulamin, RODO) – liczone raz, z definicji zgód.
+#: Statyczna krotka, więc żadnego zapytania na żądanie.
+REQUIRED_CONSENT_FIELDS: tuple[str, ...] = tuple(
+    consent.field_name for consent in CONSENTS if consent.required
+)
 
 
 def roles(request) -> dict:
@@ -110,7 +117,13 @@ def registration(request) -> dict:
             "closes_at": state.closes_at,
             # Gotowe zdanie dla użytkownika – jedno źródło treści dla strony, formularza i API.
             "message": registration_message(state),
-        }
+        },
+        # Nazwy zgód wymaganych bezwarunkowo. Blok zgód w formularzu rejestracji oznacza nimi
+        # wiersze („wymagane”), a nie robi tego listą nazw pól w szablonie: reguła wymagalności ma
+        # jedno źródło (``apps.accounts.consents``), więc dopisanie zgody nie zostawi wiersza bez
+        # oznaczenia. Zgody warunkowe („wymagane dla osób niepełnoletnich”) i dobrowolne mówią to
+        # same, podpowiedzią pola – tu ich nie ma.
+        "required_consent_fields": REQUIRED_CONSENT_FIELDS,
     }
 
 

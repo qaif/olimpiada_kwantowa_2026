@@ -48,6 +48,11 @@ Dwie decyzje warte uzasadnienia:
   czytelnik przebiega wzrokiem, a czytnik ekranu traci nagłówek kolumny. Liczba kolumn jest tu dobrym
   kryterium, bo wynika z treści: tabela, która ma trzecią kolumnę, nie jest już listą definicji,
 
+- **druga kolumna harmonogramu jest czytana jako data**, o ile brzmi jak data („9 stycznia 2027”).
+  Tekst zostaje nietknięty – dochodzi obok niego ``date_value``, dzięki któremu strona główna umie
+  wybrać najbliższe warsztaty bez parsowania polszczyzny przy każdym żądaniu. Termin nieostry
+  („do potwierdzenia”) zostaje bez daty i po prostu nie trafia do zapowiedzi,
+
 - **cały tekst jest escapowany**, zanim dołożymy znaczniki. Do ``RichText`` trafia dokładnie to,
   co było w pliku, i nic, czego nie zna whitelist edytora. Komórki bloku ``definitions`` idą tam
   jako czysty tekst (escapuje je szablon), więc formatowanie liniowe w tabeli nie zadziała –
@@ -57,6 +62,7 @@ Dwie decyzje warte uzasadnienia:
 from __future__ import annotations
 
 import re
+from datetime import date
 from html import escape
 
 from wagtail.rich_text import RichText
@@ -87,6 +93,48 @@ HEADING_LEVEL_2 = 2
 MIN_TABLE_CELLS = 2
 #: Od trzech kolumn tabela przestaje być parą etykieta–wartość i zostaje blokiem ``schedule``.
 SCHEDULE_CELLS = 3
+
+#: Miesiące w dopełniaczu – w tej postaci daty stoją w plikach organizatora („9 stycznia 2027”).
+#: Słownik jest tu, a nie brany z ``django.utils.dates``, bo tamte nazwy są tłumaczeniami zależnymi
+#: od aktywnego języka: parser czyta pliki repozytorium, których brzmienie nie zmienia się razem
+#: z ``LANGUAGE_CODE``, więc odczyt daty nie może zależeć od locale'u procesu.
+POLISH_MONTHS = {
+    "stycznia": 1,
+    "lutego": 2,
+    "marca": 3,
+    "kwietnia": 4,
+    "maja": 5,
+    "czerwca": 6,
+    "lipca": 7,
+    "sierpnia": 8,
+    "września": 9,
+    "października": 10,
+    "listopada": 11,
+    "grudnia": 12,
+}
+POLISH_DATE_RE = re.compile(r"^(\d{1,2})\s+([a-ząćęłńóśźż]+)\s+(\d{4})$", re.IGNORECASE)
+
+
+def parse_polish_date(text: str) -> date | None:
+    """„9 stycznia 2027” → ``date(2027, 1, 9)``. Cokolwiek innego → ``None``.
+
+    Funkcja jest **tolerancyjna**, a nie walidująca: termin w harmonogramie redakcyjnym bywa
+    nieostry („do potwierdzenia”, „przełom lutego i marca”), a wiersz z takim terminem ma zostać
+    w tabeli, nie wywrócić importu. Brak daty znaczy tylko tyle, że wiersz nie da się uszeregować
+    na osi czasu – patrz ``apps.cms.blocks.ScheduleRowBlock``.
+    """
+    match = POLISH_DATE_RE.match(text.strip())
+    if match is None:
+        return None
+    month = POLISH_MONTHS.get(match.group(2).lower())
+    if month is None:
+        return None
+    try:
+        return date(int(match.group(3)), month, int(match.group(1)))
+    except ValueError:
+        # Dzień poza zakresem miesiąca („31 lutego”) to literówka w pliku, a nie termin. Zostaje
+        # widoczna jako brak wiersza w zapowiedzi; tabela pokazuje tekst tak, jak go wpisano.
+        return None
 
 
 def slugify_anchor(text: str) -> str:
@@ -149,7 +197,13 @@ def _definitions_value(header: list[str], parsed: list[list[str]]) -> dict:
 
 
 def _schedule_value(header: list[str], parsed: list[list[str]]) -> dict:
-    """Wiersze danych → wartość bloku ``schedule`` (temat, termin, godziny)."""
+    """Wiersze danych → wartość bloku ``schedule`` (temat, termin, godziny).
+
+    Kolumna terminu trafia do bloku **dwa razy**: jako tekst (``date``, brzmienie organizatora)
+    i – jeśli da się ją odczytać – jako data (``date_value``). Druga postać istnieje dla zapowiedzi
+    „najbliższe warsztaty” na stronie głównej: bez niej trzeba by parsować polski tekst przy każdym
+    żądaniu. Uzasadnienie rozdziału stoi w ``apps.cms.blocks.ScheduleRowBlock``.
+    """
 
     def cell(cells: list[str], index: int) -> str:
         return cells[index] if index < len(cells) else ""
@@ -159,7 +213,15 @@ def _schedule_value(header: list[str], parsed: list[list[str]]) -> dict:
         "topic_label": cell(header, 0),
         "date_label": cell(header, 1),
         "time_label": cell(header, 2),
-        "rows": [{"topic": cells[0], "date": cell(cells, 1), "time": cell(cells, 2)} for cells in parsed],
+        "rows": [
+            {
+                "topic": cells[0],
+                "date": cell(cells, 1),
+                "date_value": parse_polish_date(cell(cells, 1)),
+                "time": cell(cells, 2),
+            }
+            for cells in parsed
+        ],
     }
 
 

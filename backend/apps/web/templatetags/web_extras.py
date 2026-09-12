@@ -111,6 +111,24 @@ def local_datetime(value, fmt: str = LOCAL_DATETIME_FORMAT) -> str:
 
 
 @register.filter
+def event_dates(stage) -> str:
+    """Dni wydarzenia etapu jako jedno wyrażenie („4–7 czerwca 2027”) albo pusty tekst.
+
+    Filtr, a nie wartość dokładana w widoku, bo o termin wydarzenia pyta kilka niezależnych
+    ekranów (pulpit koordynatora, pulpit uczestnika, strona zadań), a każdy z nich ma inny
+    kontekst. Formatowanie idzie przez ``apps.cms.timeline.format_date_range`` – ten sam, z którego
+    korzysta publiczna oś czasu, żeby termin finału brzmiał jednakowo na całym serwisie.
+
+    Import jest w środku funkcji świadomie: ``apps.cms.timeline`` ciągnie modele zawodów i wyników,
+    a to moduł znaczników ``apps.web`` – ładowany przy renderowaniu dowolnego szablonu.
+    """
+    from apps.cms.timeline import format_date_range
+
+    event_range = getattr(stage, "event_range", None)
+    return format_date_range(*event_range) if event_range else ""
+
+
+@register.filter
 def edition_title(value, prefix="Edycja"):
     """„I edycja 2026/2027” zostaje bez zmian; „XV (2026/2027)” dostaje przedrostek.
 

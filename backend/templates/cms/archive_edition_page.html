@@ -13,8 +13,8 @@
 <section class="section">
   <div class="section__head"><h2 class="mt-0">Materiały</h2></div>
   <ul class="doc-list">
-    {# ``documents`` z get_context, nie ``page.documents.all``: kontekst dociąga plik przez
-       select_related, więc lista materiałów to jedno zapytanie niezależnie od liczby wierszy. #}
+    {% comment %} ``documents`` z get_context, nie ``page.documents.all``: kontekst dociąga plik przez
+       select_related, więc lista materiałów to jedno zapytanie niezależnie od liczby wierszy. {% endcomment %}
     {% for item in documents %}
       <li>
         <span class="tag">{{ item.get_kind_display }}</span>

@@ -155,9 +155,10 @@ def guest_pages(browser) -> None:
     # Treści przeniesione ze starej strony (``manage.py seed_legacy_content``). Strony ze spisem
     # sekcji zrzucamy od góry – spis jest tam ``position: sticky``, tak samo jak w regulaminie.
     for path, name, scroll in (
-        ("/o-olimpiadzie/", "01a-o-olimpiadzie", "top"),
         ("/kontakt/", "01b-kontakt", "top"),
         ("/harmonogram/", "01c-harmonogram", "top"),
+        # Warsztaty: tabela szesnastu terminów, z której strona główna bierze trzy najbliższe.
+        ("/warsztaty/", "01h-warsztaty", "top"),
         ("/dokumenty/rodo/", "01d-rodo", "top"),
         # Skład komitetów: dokument z kartą „Do pobrania” nad treścią (PDF organizatora).
         ("/dokumenty/komitety/", "01e-komitety", "top"),
@@ -295,7 +296,7 @@ def mobile_pages(browser) -> None:
     shoot(page, "/", "m01-strona-glowna-mobile")
     shoot(page, "/login/", "m02-logowanie-mobile")
     # Menu ma dziewięć pozycji – na 390 px sprawdzamy, jak się zawija.
-    shoot(page, "/o-olimpiadzie/", "m04-o-olimpiadzie-mobile", scroll="top")
+    shoot(page, "/warsztaty/", "m04-warsztaty-mobile", scroll="top")
     # Poniżej 900 px lista dokumentów rozwija się w przepływie, a nie jako warstwa nad treścią.
     shoot(page, "/dokumenty/", "m05-dokumenty-mobile", scroll="top")
     shoot_open_menu(page, "m06-menu-dokumenty-mobile")

@@ -455,6 +455,30 @@ class LocalDateTimeField(forms.DateTimeField):
         return value.replace(second=0, microsecond=0) if value is not None else value
 
 
+#: Format pola ``<input type="date">`` – jedyny, jaki wysyła przeglądarka. Polskiego
+#: ``DATE_INPUT_FORMATS`` tu nie użyjemy: nie ma w nim ``%Y-%m-%d``, więc „2027-06-04” z natywnego
+#: pola daty nie przeszłoby walidacji.
+DATE_INPUT_FORMAT = "%Y-%m-%d"
+
+
+class DayField(forms.DateField):
+    """Sam dzień, wpisywany natywnym ``<input type="date">`` – bez godziny i bez strefy.
+
+    Strefy nie ma tu **świadomie**: to nie moment, tylko data z ogłoszenia („4 czerwca 2027”).
+    Gdyby dzień wydarzenia jechał przez ``DateTimeField``, trzeba by mu dopisać godzinę, której
+    organizator nie podał, a potem tę godzinę przeliczać – i zakres potrafiłby przeskoczyć o dzień.
+
+    Widżet dostaje jawny ``format`` z tego samego powodu, co ``LocalDateTimeField``: bez niego
+    Django wypisałoby wartość początkową po polsku („4 czerwca 2027”), czego pole ``date`` nie
+    rozumie, i formularz edycji otwierałby się z pustym terminem wydarzenia.
+    """
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault("input_formats", (DATE_INPUT_FORMAT,))
+        kwargs.setdefault("widget", forms.DateInput(attrs={"type": "date"}, format=DATE_INPUT_FORMAT))
+        super().__init__(**kwargs)
+
+
 class StageForm(forms.ModelForm):
     """Oś czasu etapu w panelu koordynatora.
 
@@ -462,6 +486,11 @@ class StageForm(forms.ModelForm):
     ``_post_clean``, więc komunikaty z ``Stage.clean()`` trafiają pod właściwe pola i nie ma
     drugiej kopii tej reguły w warstwie WWW. Reguły zależne od stanu bazy (zgłoszenia, zamknięcie
     etapu) zostają w serwisie ``update_stage`` – formularz ich nie zna.
+
+    Dwie pary dat w jednym formularzu opisują dwie różne rzeczy i tak są podpisane: okno oddawania
+    prac (``opens_at``/``deadline_at``) egzekwuje serwer, a „termin wydarzenia”
+    (``event_starts_on``/``event_ends_on``) jest tym, co czyta publiczność o etapie stacjonarnym.
+    Wpisanie dni pobytu **nie rusza** uploadu – i odwrotnie.
 
     Czego tu nie ma: ``kind`` i ``edition`` (tożsamość etapu, zmiana byłaby podmianą obiektu),
     ``results_published_at`` i ``closed_at`` (ślady zdarzeń, patrz ``STAGE_EDITABLE_FIELDS``)
@@ -475,11 +504,20 @@ class StageForm(forms.ModelForm):
         field_classes = {
             "opens_at": LocalDateTimeField,
             "deadline_at": LocalDateTimeField,
+            "event_starts_on": DayField,
+            "event_ends_on": DayField,
             "review_deadline_at": LocalDateTimeField,
             "appeal_window_opens_at": LocalDateTimeField,
             "appeal_window_closes_at": LocalDateTimeField,
         }
-        labels = {"name": "Nazwa etapu", "format": "Forma etapu"}
+        labels = {
+            "name": "Nazwa etapu",
+            "format": "Forma etapu",
+            "event_starts_on": "Termin wydarzenia (od / do)",
+            # Drugie pole tej samej rubryki nie powtarza podpisu – to jeden termin w dwóch polach,
+            # a dwa identyczne nagłówki czytałyby się jak dwa osobne terminy.
+            "event_ends_on": "do",
+        }
         help_texts = {
             "name": ("Puste pole = nazwa domyślna dla rodzaju etapu (Eliminacje / Wojewódzki / Finał)."),
             "format": (
@@ -489,6 +527,11 @@ class StageForm(forms.ModelForm):
             ),
             "location": "Puste dla etapu zdalnego. Np. „Kraków, Wydział Fizyki UJ”.",
             "grace_seconds": ("Tolerancja po terminie oddania. Upload zamyka się dopiero po jej upływie."),
+            "event_starts_on": (
+                "Tylko etapy stacjonarne: dni pobytu pokazywane publicznie, np. 4–7 czerwca 2027. "
+                "Okno oddawania prac powyżej pozostaje bez zmian."
+            ),
+            "event_ends_on": "Oba pola wypełnia się razem albo zostawia puste.",
         }
 
     def changed_values(self) -> dict:

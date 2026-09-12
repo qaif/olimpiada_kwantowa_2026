@@ -15,7 +15,9 @@ Trzy decyzje warte uzasadnienia:
   i w wynikach wyszukiwarek. ``wagtail.contrib.redirects`` trzyma go w bazie, a nie w urlconfie,
   więc redaktor widzi listę przekierowań w ``/cms/`` i może ją rozszerzyć bez wydania aplikacji,
 - **przekierowanie wskazuje stronę, a nie adres.** ``redirect_page`` przelicza cel przy każdym
-  żądaniu, więc kolejne przeniesienie dokumentu w drzewie nie zostawia martwego 301.
+  żądaniu, więc kolejne przeniesienie dokumentu w drzewie nie zostawia martwego 301. Wyjątkiem jest
+  ``ensure_link_redirect``: gdy strona przestała istnieć, a jej treść jest **sekcją** innej strony
+  (``/o-olimpiadzie/`` → ``/#o-olimpiadzie``), celem musi być adres, bo kotwica nie jest stroną.
 """
 
 from __future__ import annotations
@@ -84,6 +86,26 @@ def ensure_redirect(old_path: str, page) -> bool:
     obowiązuje. Bierzemy więc pierwszy istniejący wpis dla tej ścieżki, aktualizujemy jego cel,
     a nadmiarowe kasujemy.
     """
+    return _ensure_redirect(old_path, page=page)
+
+
+def ensure_link_redirect(old_path: str, link: str) -> bool:
+    """To samo, ale celem jest **adres**, nie strona w drzewie. Zwraca, czy powstało teraz.
+
+    Potrzebne tam, gdzie strona przestała istnieć, a jej treść mieszka teraz w sekcji innej strony:
+    ``/o-olimpiadzie/`` → ``/#o-olimpiadzie``. Kotwicy nie da się wyrazić przez ``redirect_page``
+    (to dowiązanie do strony, nie do jej fragmentu), a czytelnik, który klika stary odnośnik, ma
+    wylądować na tej treści, nie na górze strony głównej i z pytaniem, gdzie się podziała.
+
+    Cena jest ta, którą ``ensure_redirect`` z premedytacją omija: adres jest tekstem, więc kolejne
+    przestawienie drzewa go nie przeliczy. Dla dwóch adresów wskazujących stronę główną (``/``
+    i jej kotwicę) to nie problem – korzeń witryny się nie przenosi.
+    """
+    return _ensure_redirect(old_path, link=link)
+
+
+def _ensure_redirect(old_path: str, *, page=None, link: str = "") -> bool:
+    """Wspólne ciało obu funkcji: jeden wpis na ścieżkę, nadmiarowe kasowane. Patrz wyżej."""
     from wagtail.contrib.redirects.models import Redirect
 
     normalised = Redirect.normalise_path(old_path)
@@ -94,12 +116,12 @@ def ensure_redirect(old_path: str, page) -> bool:
     if existing:
         redirect = existing[0]
         redirect.redirect_page = page
-        redirect.redirect_link = ""
+        redirect.redirect_link = link
         redirect.is_permanent = True
         redirect.save()
         return False
 
-    Redirect.objects.create(old_path=normalised, redirect_page=page, is_permanent=True)
+    Redirect.objects.create(old_path=normalised, redirect_page=page, redirect_link=link, is_permanent=True)
     return True
 
 

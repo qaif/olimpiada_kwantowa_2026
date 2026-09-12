@@ -143,10 +143,32 @@ class DefinitionListBlock(blocks.StructBlock):
 
 
 class ScheduleRowBlock(blocks.StructBlock):
-    """Jeden wiersz harmonogramu: co, kiedy i w jakich godzinach."""
+    """Jeden wiersz harmonogramu: co, kiedy i w jakich godzinach.
+
+    ``date`` zostaje tekstem, a data maszynowa stoi obok w ``date_value``. Wygląda to na
+    dwukrotny zapis tej samej informacji, ale te pola odpowiadają na dwa różne pytania:
+
+    - ``date`` jest **brzmieniem terminu** tak, jak podał go organizator („9 stycznia 2027”,
+      ale w razie potrzeby też „przełom lutego i marca” albo „do potwierdzenia”). To ono stoi
+      w tabeli i nie wolno go generować z daty, bo nie każdy termin jest jedną datą,
+    - ``date_value`` jest tą samą datą w postaci, którą da się **porównać z zegarem**. Bez niej
+      zapowiedź „najbliższe warsztaty” na stronie głównej musiałaby parsować polski tekst przy
+      każdym żądaniu i milczeć przy pierwszej literówce redaktora.
+
+    Pole jest opcjonalne właśnie dlatego, że termin bywa nieostry: wiersz bez daty zostaje
+    w tabeli, tylko nie pojawia się w zapowiedzi (nie ma czego uszeregować).
+    """
 
     topic = blocks.CharBlock(max_length=250, label="temat")
     date = blocks.CharBlock(max_length=100, label="termin")
+    date_value = blocks.DateBlock(
+        required=False,
+        label="termin (data)",
+        help_text=(
+            "Ta sama data w postaci maszynowej. Decyduje o kolejności i o tym, czy wiersz trafi "
+            "do zapowiedzi na stronie głównej. Puste = wiersz zostaje tylko w tabeli."
+        ),
+    )
     time = blocks.CharBlock(required=False, max_length=100, label="godziny")
 
     class Meta:
@@ -183,8 +205,9 @@ class ScheduleBlock(blocks.StructBlock):
     warsztatów („Temat”) i harmonogram zjazdów („Wydarzenie”). Kolumna godzin bywa pusta – wtedy
     znika z tabeli w całości, żeby nie zostawiać szesnastu pustych komórek.
 
-    Wszystkie pola są tekstowe: to treść redakcyjna, a nie oś czasu zawodów. Terminy, które
-    egzekwuje serwer, mieszkają w ``competitions.Stage`` i CMS ich nie przepisuje.
+    Treść wiersza jest tekstem (poza opcjonalną datą maszynową – patrz ``ScheduleRowBlock``):
+    to harmonogram redakcyjny, a nie oś czasu zawodów. Terminy, które egzekwuje serwer, mieszkają
+    w ``competitions.Stage`` i CMS ich nie przepisuje.
     """
 
     caption = blocks.CharBlock(required=False, max_length=250, label="podpis tabeli")

@@ -76,10 +76,22 @@
         </div>
       {% endif %}
 
+      {% comment %}
+        Etap stacjonarny ma dwa terminy i uczestnik potrzebuje obu: dni, na które przyjeżdża,
+        i godzinę, do której system przyjmuje pracę. Dlatego ten wiersz **dochodzi** do odliczania
+        powyżej, a nie zastępuje go – inaczej ktoś przyjechałby na cztery dni, nie wiedząc, kiedy
+        w ich trakcie oddaje rozwiązanie (na publicznym harmonogramie stoi sam termin zjazdu).
+      {% endcomment %}
+      {% if stage.event_range %}
+        <p class="card__meta">Termin wydarzenia: <strong>{{ stage|event_dates }}</strong>{% if stage.location %},
+          {{ stage.location }}{% endif %}. Godziny oddania rozwiązań powyżej obowiązują niezależnie
+          od dni pobytu.</p>
+      {% endif %}
+
       {% if can_register %}
         <form method="post" action="{% url 'web:stage-register' stage.pk %}">
           {% csrf_token %}
-          <button type="submit" class="btn btn--accent">Zgłoś się do etapu eliminacyjnego</button>
+          <button type="submit" class="btn btn--accent">Zgłoś się do tego etapu</button>
         </form>
       {% elif entry %}
         <p class="card__meta">Status Twojego udziału: <strong>{{ entry.get_status_display }}</strong>.</p>
@@ -87,8 +99,13 @@
         <p class="card__meta">Do rozmowy kwalifikacyjnej przystępują wyłącznie osoby zakwalifikowane
           w poprzednim etapie. Nie ma tu zapisów otwartych.</p>
       {% else %}
-        <p class="card__meta">Nie jesteś zapisany do tego etapu. Wpisy do etapu okręgowego i finału
-          tworzy kwalifikacja.</p>
+        {% comment %}
+          Nazwy etapów („Etap I/II/III”) ustala koordynator, więc komunikat ich nie wymienia –
+          mówi o regule: do dalszych etapów nie ma zapisów, wpis tworzy kwalifikacja z etapu
+          poprzedniego.
+        {% endcomment %}
+        <p class="card__meta">Do tego etapu nie ma zapisów – przechodzą do niego osoby
+          zakwalifikowane w poprzednim etapie.</p>
       {% endif %}
     </div>
   </section>
@@ -116,10 +133,12 @@
                 </tr>
               </thead>
               <tbody>
-                {# Terminy, które się już skończyły, znikają z listy: nie ma po co proponować
-                   rozmowy, której nie da się już odbyć. Trwający termin zostaje z jawnym
-                   „Termin już trwa” – zniknięcie wiersza w trakcie godziny wyglądałoby jak awaria.
-                   Własny termin zostaje zawsze, także po rozmowie. #}
+                {% comment %}
+                  Terminy, które się już skończyły, znikają z listy: nie ma po co proponować
+                  rozmowy, której nie da się już odbyć. Trwający termin zostaje z jawnym
+                  „Termin już trwa” – zniknięcie wiersza w trakcie godziny wyglądałoby jak awaria.
+                  Własny termin zostaje zawsze, także po rozmowie.
+                {% endcomment %}
                 {% for row in interview_rows %}
                   {% if row.slot.ends_at > now or row.is_mine %}
                     <tr {% if row.is_mine %}class="is-qualified"{% endif %}>
@@ -137,8 +156,10 @@
                               {% if interview_booking %}Zmień na ten termin{% else %}Zapisz się{% endif %}</button>
                           </form>
                         {% else %}
-                          {# Powód odmowy liczy serwis (``slots_for_participant``), a nie szablon:
-                             przycisk ma mówić dokładnie to, co powiedziałby POST na ten termin. #}
+                          {% comment %}
+                            Powód odmowy liczy serwis (``slots_for_participant``), a nie szablon:
+                            przycisk ma mówić dokładnie to, co powiedziałby POST na ten termin.
+                          {% endcomment %}
                           <button type="button" class="btn btn--secondary btn--small" disabled>
                             {% if row.reason == "started" %}Termin już trwa
                             {% elif row.reason == "locked" %}Zmiana niemożliwa – Twoja rozmowa już trwa

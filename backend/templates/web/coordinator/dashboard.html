@@ -74,6 +74,14 @@
         <dd>{{ row.stage.appeal_window_opens_at|local_datetime }} –
           {{ row.stage.appeal_window_closes_at|local_datetime }}</dd>
         <dt>Miejsce</dt><dd>{{ row.stage.location|default:"zdalnie" }}</dd>
+        {% comment %}
+          Termin wydarzenia stoi obok miejsca, a nie obok deadline'ów, bo opisuje to samo, co
+          miejsce: dni, na które uczestnik przyjeżdża. Wiersza nie ma, dopóki koordynator dni nie
+          wpisał – etap zdalny nie ma się czym tu tłumaczyć.
+        {% endcomment %}
+        {% if row.stage.event_range %}
+          <dt>Wydarzenie</dt><dd>{{ row.stage|event_dates }}</dd>
+        {% endif %}
         {% if row.stage.closed_at %}
           <dt>Zamknięty</dt><dd>{{ row.stage.closed_at|local_datetime }}</dd>
         {% endif %}

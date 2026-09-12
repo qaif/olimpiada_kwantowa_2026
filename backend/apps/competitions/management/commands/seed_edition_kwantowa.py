@@ -13,9 +13,16 @@ w inwentarzu):
 - okno reklamacji: otwarcie 2 dni po terminie recenzji, zamknięcie 9 dni po nim.
 
 Wyjątkiem jest **III etap (finał)**: organizator podał go jako zawody stacjonarne w Krakowie,
-4–7 czerwca 2027. Etap trwający cztery dni w jednym miejscu nie ma „doby na oddanie pliku”, więc
-jego godziny brzegowe są jawne (rozpoczęcie 4 czerwca o 9:00, zakończenie 7 czerwca o 18:00) i one
-też **wymagają potwierdzenia** – organizator przekazał same daty dzienne.
+4–7 czerwca 2027. Ten etap ma dlatego **dwie różne pary dat** i obie są w planie:
+
+- ``event`` – dni pobytu (4–7 czerwca 2027). To one idą na stronę główną i do harmonogramu, bo to
+  jest termin, na który organizator zaprasza,
+- ``opens``/``deadline`` z godzinami – okno, w którym system przyjmuje prace. Wartość początkowa
+  (4 czerwca 9:00 → 7 czerwca 18:00) obejmuje cały zjazd i **wymaga potwierdzenia**: sesja
+  egzaminacyjna jest krótsza niż pobyt, a jej godziny ustawia koordynator w panelu.
+
+Do tej pory oba fakty musiały zmieścić się w jednej parze dat, więc strona albo ogłaszała okno
+uploadu jako termin zjazdu, albo zapraszała na jeden dzień z czterech.
 
 Model etapów jest trójstopniowy (``ELIM`` → ``DISTRICT`` → ``FINAL``), zgodnie z motywem starej
 strony i z modelem nowego portalu. Regulamin w § 10 opisuje **dwa** etapy plus rozmowę
@@ -41,7 +48,7 @@ decyzją, a nie skutkiem ubocznym wdrożenia.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from django.core.management.base import BaseCommand
@@ -90,6 +97,12 @@ class StagePlan:
     opens_time: tuple[int, int] = DEFAULT_OPENS_TIME
     deadline_time: tuple[int, int] = DEFAULT_DEADLINE_TIME
     location: str = ""
+    # Dni wydarzenia jako para dni („od”, „do”) – wyłącznie dla etapów stacjonarnych. To **nie
+    # jest** okno oddawania prac: finał ogłasza się jako 4–7 czerwca (tyle trwa pobyt w Krakowie),
+    # a sesja, w której system przyjmuje pliki, jest jedną z godzin tych dni i siedzi w ``opens``
+    # / ``deadline``. Dopóki plan miał jedną parę dat, jedna z tych informacji musiała być
+    # nieprawdziwa – patrz komentarz przy ``Stage.event_starts_on``.
+    event: tuple[tuple[int, int, int], tuple[int, int, int]] | None = None
     format: str = StageFormat.SUBMISSIONS
     # Nazwa, jaką etap dostaje przy utworzeniu. Regulamin numeruje etapy („Etap I/II/III”), więc
     # portal ma je podpisywać tak samo, a nie słownikowymi „Eliminacje/Okręgowy/Finał”. Po
@@ -120,6 +133,7 @@ STAGE_PLAN = (
         opens_time=(9, 0),
         deadline_time=(18, 0),
         location="Kraków",
+        event=((2027, 6, 4), (2027, 6, 7)),
         name="Etap III",
     ),
 )
@@ -149,6 +163,19 @@ def _timeline(plan: StagePlan) -> dict:
         "appeal_window_opens_at": review_deadline_at + APPEAL_OPENS_AFTER_REVIEW,
         "appeal_window_closes_at": review_deadline_at + APPEAL_CLOSES_AFTER_REVIEW,
     }
+
+
+def _event_dates(plan: StagePlan) -> dict:
+    """Dni wydarzenia z planu jako pola ``Stage`` – ``None`` dla etapów bez zjazdu.
+
+    Zawsze **oba** pola, także puste: dzięki temu ta sama mapa służy do utworzenia etapu i do
+    porównania z istniejącym, a wyczyszczenie ``event`` w planie faktycznie czyści dni w bazie,
+    a nie zostawia tam poprzedniego zakresu (tak samo zachowuje się ``location``).
+    """
+    if plan.event is None:
+        return {"event_starts_on": None, "event_ends_on": None}
+    starts, ends = plan.event
+    return {"event_starts_on": date(*starts), "event_ends_on": date(*ends)}
 
 
 class Command(BaseCommand):
@@ -214,6 +241,7 @@ class Command(BaseCommand):
             location=plan.location,
             format=plan.format,
             min_points=MIN_POINTS,
+            **_event_dates(plan),
             **timeline,
         )
         self.stdout.write(
@@ -235,6 +263,12 @@ class Command(BaseCommand):
         changes = {name: value for name, value in timeline.items() if getattr(stage, name) != value}
         if stage.location != plan.location:
             changes["location"] = plan.location
+        # Dni wydarzenia jadą tą samą drogą, co miejsce: to informacja z pisma organizatora, więc
+        # jeżeli komenda w ogóle przestawia terminy finału, musi przestawić także zakres, który
+        # portal z nich ogłasza. Inaczej po ``--sync-dates`` strona pokazywałaby poprzedni zjazd.
+        for name, value in _event_dates(plan).items():
+            if getattr(stage, name) != value:
+                changes[name] = value
         if not changes:
             self.stdout.write(f"etap {plan.kind}: terminy już zgodne z planem")
             return

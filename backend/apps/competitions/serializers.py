@@ -32,6 +32,11 @@ class PublicStageSerializer(serializers.ModelSerializer):
             "opens_at",
             "deadline_at",
             "grace_seconds",
+            # Dni wydarzenia są osobnymi polami, a nie gotowym napisem z zakresem: klient API
+            # składa własne zdanie (i własny język), a formatowanie „4–7 czerwca 2027” należy do
+            # warstwy widoku. ``null`` dla etapów zdalnych – tam po prostu nie ma zjazdu.
+            "event_starts_on",
+            "event_ends_on",
             "results_published_at",
         )
         read_only_fields = fields

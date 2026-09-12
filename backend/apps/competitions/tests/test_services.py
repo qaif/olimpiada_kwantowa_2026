@@ -1,6 +1,6 @@
 """T-03, kryteria 5-6: serwis `create_stage` i rejestracja do etapu."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from django.core.exceptions import ValidationError
@@ -17,8 +17,9 @@ from apps.competitions.models import (
     StageEntryStatus,
     StageKind,
 )
-from apps.competitions.services import create_stage, current_stage, register_for_stage
+from apps.competitions.services import create_stage, current_stage, register_for_stage, update_stage
 from apps.core.api import DomainError
+from apps.core.models import AuditLog
 
 from .factories import CurrentEditionFactory, EditionFactory, StageFactory
 
@@ -203,3 +204,59 @@ def test_current_stage_wybiera_etap_otwarty_a_potem_najblizszy_przyszly():
         assert current_stage(edition) == district
     with freeze_time("2030-01-01 09:00:00"):
         assert current_stage(edition) == district
+
+
+# --- dni wydarzenia: create_stage i update_stage ------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_create_stage_zapisuje_dni_wydarzenia_obok_okna_oddawania_prac():
+    """Etap stacjonarny powstaje z dwiema parami dat naraz – zjazd i sesja egzaminacyjna."""
+    stage = create_stage(
+        edition=EditionFactory(),
+        kind=StageKind.FINAL,
+        location="Kraków",
+        opens_at=datetime(2027, 6, 5, 7, 0, tzinfo=UTC),
+        deadline_at=datetime(2027, 6, 5, 12, 0, tzinfo=UTC),
+        event_starts_on=date(2027, 6, 4),
+        event_ends_on=date(2027, 6, 7),
+        review_deadline_at=datetime(2027, 6, 20, 12, 0, tzinfo=UTC),
+        appeal_window_opens_at=datetime(2027, 6, 22, 12, 0, tzinfo=UTC),
+        appeal_window_closes_at=datetime(2027, 6, 29, 12, 0, tzinfo=UTC),
+    )
+
+    stage.refresh_from_db()
+    assert stage.event_range == (date(2027, 6, 4), date(2027, 6, 7))
+    # Okno uploadu zostaje takie, jakie podał koordynator – dni zjazdu go nie rozciągają.
+    assert stage.deadline_at == datetime(2027, 6, 5, 12, 0, tzinfo=UTC)
+
+
+@pytest.mark.django_db
+def test_update_stage_zapisuje_dni_wydarzenia_i_wpisuje_je_do_audytu():
+    """Zmiana terminu zjazdu zostawia ślad w audycie – z datami w ISO, jak reszta pól.
+
+    ``diff`` jest JSON-em, więc same obiekty ``date`` wysadziłyby zapis wpisu. Test pilnuje
+    zarazem zapisu i tego, że różnica jest czytelna dla człowieka czytającego audyt.
+    """
+    stage = StageFactory(kind=StageKind.FINAL, location="Kraków")
+
+    update_stage(stage, None, event_starts_on=date(2027, 6, 4), event_ends_on=date(2027, 6, 7))
+
+    stage.refresh_from_db()
+    assert stage.event_range == (date(2027, 6, 4), date(2027, 6, 7))
+    entry = AuditLog.objects.filter(action="stage.updated", target_id=str(stage.pk)).latest("at")
+    assert entry.diff["event_starts_on"] == {"from": None, "to": "2027-06-04"}
+    assert entry.diff["event_ends_on"] == {"from": None, "to": "2027-06-07"}
+
+
+@pytest.mark.django_db
+def test_update_stage_odrzuca_polowe_terminu_wydarzenia():
+    """Sam początek bez końca nie przechodzi także przez serwis – to ``full_clean()`` modelu."""
+    stage = StageFactory(kind=StageKind.FINAL)
+
+    with pytest.raises(ValidationError) as exc:
+        update_stage(stage, None, event_starts_on=date(2027, 6, 4))
+
+    assert "event_ends_on" in exc.value.message_dict
+    stage.refresh_from_db()
+    assert stage.event_range is None

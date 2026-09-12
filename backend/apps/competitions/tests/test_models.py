@@ -1,6 +1,6 @@
 """T-03, kryteria 1-4: unikalności i walidacje modeli domeny zawodów."""
 
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 
 import pytest
 from django.core.exceptions import ValidationError
@@ -113,6 +113,68 @@ def test_stage_submission_deadline_uwzglednia_grace_i_okno_zgloszen():
     assert stage.is_open_for_submissions(stage.opens_at - timedelta(seconds=1)) is False
     assert stage.is_open_for_submissions(stage.deadline_at + timedelta(seconds=299)) is True
     assert stage.is_open_for_submissions(stage.submission_deadline) is False
+
+
+@pytest.mark.django_db
+def test_stage_dni_wydarzenia_sa_niezalezne_od_okna_oddawania_prac():
+    """Zjazd trwa cztery dni, a sesja egzaminacyjna jest kilkugodzinna – to dwa różne fakty.
+
+    Właśnie dlatego oba zapisują się w jednym etapie bez kolizji: ``event_range`` nie ma wpływu
+    na ``is_open_for_submissions``, a okno uploadu nie ma wpływu na termin, który ogłasza strona.
+    """
+    warsaw = timezone.get_current_timezone()
+    stage = StageFactory(
+        location="Kraków",
+        opens_at=datetime(2027, 6, 5, 9, 0, tzinfo=warsaw),
+        deadline_at=datetime(2027, 6, 5, 14, 0, tzinfo=warsaw),
+        event_starts_on=date(2027, 6, 4),
+        event_ends_on=date(2027, 6, 7),
+    )
+
+    assert stage.event_range == (date(2027, 6, 4), date(2027, 6, 7))
+    assert stage.is_open_for_submissions(datetime(2027, 6, 4, 12, 0, tzinfo=warsaw)) is False
+    assert stage.is_open_for_submissions(datetime(2027, 6, 5, 12, 0, tzinfo=warsaw)) is True
+
+
+@pytest.mark.django_db
+def test_stage_bez_dni_wydarzenia_nie_ma_zakresu():
+    """Etap zdalny zostawia oba pola puste – ``event_range`` jest wtedy ``None``, nie parą pustych."""
+    assert StageFactory().event_range is None
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("starts", "ends", "field"),
+    [
+        # Sam początek albo sam koniec nie jest terminem, który dałoby się ogłosić.
+        (date(2027, 6, 4), None, "event_ends_on"),
+        (None, date(2027, 6, 7), "event_starts_on"),
+        # Zakres odwrócony: „od 7 do 4 czerwca” nie istnieje.
+        (date(2027, 6, 7), date(2027, 6, 4), "event_ends_on"),
+    ],
+)
+def test_stage_polowiczne_i_odwrocone_dni_wydarzenia_nie_przechodza_full_clean(starts, ends, field):
+    stage = StageFactory.build(edition=EditionFactory(), event_starts_on=starts, event_ends_on=ends)
+
+    with pytest.raises(ValidationError) as exc:
+        stage.full_clean()
+
+    assert field in exc.value.message_dict
+
+
+@pytest.mark.django_db
+def test_stage_odwrocone_dni_wydarzenia_lamie_constraint_bazy():
+    """Ta sama reguła w bazie – ostatnia linia obrony przy zapisie z pominięciem ``full_clean()``."""
+    with pytest.raises(IntegrityError), transaction.atomic():
+        StageFactory(event_starts_on=date(2027, 6, 7), event_ends_on=date(2027, 6, 4))
+
+
+@pytest.mark.django_db
+def test_stage_jednodniowe_wydarzenie_jest_dozwolone():
+    """Zjazd na jeden dzień to poprawny zakres (constraint dopuszcza równość)."""
+    stage = StageFactory(event_starts_on=date(2027, 6, 4), event_ends_on=date(2027, 6, 4))
+
+    assert stage.event_range == (date(2027, 6, 4), date(2027, 6, 4))
 
 
 @pytest.mark.django_db

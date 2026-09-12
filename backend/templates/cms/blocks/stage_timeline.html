@@ -28,26 +28,47 @@
             <div><dt>Miejsce</dt><dd>{{ row.stage.location }}</dd></div>
           {% endif %}
           {% comment %}
-            Etap w formie rozmowy nie ma „oddania rozwiązań” ani tolerancji po terminie: nie ma
-            czego oddać, więc obie rubryki opisywałyby nieistniejącą czynność. Deadline jest tam
-            końcem okna rozmów, a forma stoi osobnym wierszem – czytelnik musi wiedzieć, że na
-            tym etapie nie wysyła pliku, tylko zapisuje się na termin.
+            Trzy warianty rubryk terminowych, bo etapy różnią się tym, co uczestnik w nich robi:
+
+            - **wydarzenie stacjonarne na kilka dni** (``row.is_onsite_event``: jest miejsce,
+              a otwarcie i deadline wypadają w różne dni) ma jeden „Termin”. Na finał się
+              przyjeżdża na 4–7 czerwca; „otwarcie 4 czerwca 9:00” i „oddanie 7 czerwca 18:00”
+              opisywały tam okno na wysyłkę pliku, którego na miejscu nie ma,
+            - **rozmowa kwalifikacyjna** nie ma „oddania rozwiązań” ani tolerancji po terminie:
+              nie ma czego oddać, więc obie rubryki opisywałyby nieistniejącą czynność. Deadline
+              jest tam końcem okna rozmów, a forma stoi osobnym wierszem – czytelnik musi
+              wiedzieć, że na tym etapie nie wysyła pliku, tylko zapisuje się na termin,
+            - **rozwiązania pisemne** – otwarcie i termin oddania (plus tolerancja, jeśli jest).
+
+            Zakres dat formatuje ``apps.cms.timeline.format_date_range``, ten sam, co na stronie
+            głównej: termin finału ma mieć jedno brzmienie na całym serwisie.
           {% endcomment %}
-          {% if row.stage.is_interview %}
-            <div><dt>Forma</dt><dd>rozmowa kwalifikacyjna online</dd></div>
-          {% endif %}
-          <div><dt>Otwarcie</dt><dd>{{ row.stage.opens_at|local_datetime }}</dd></div>
-          {% if row.stage.is_interview %}
-            <div><dt>Rozmowy do</dt><dd>{{ row.stage.deadline_at|local_datetime }}</dd></div>
+          {% if row.is_onsite_event %}
+            <div><dt>Termin</dt><dd>{{ row.date_range }}</dd></div>
           {% else %}
-            <div><dt>Oddanie rozwiązań</dt><dd>{{ row.stage.deadline_at|local_datetime }}</dd></div>
-            {% if row.stage.grace_seconds %}
-              {# Tolerancja bywa niezerowa i wtedy to ona, a nie deadline, zamyka upload. #}
-              <div><dt>Upload zamyka się</dt>
-                <dd>{{ row.stage.submission_deadline|local_datetime }}</dd></div>
+            {% if row.stage.is_interview %}
+              <div><dt>Forma</dt><dd>rozmowa kwalifikacyjna online</dd></div>
+            {% endif %}
+            <div><dt>Otwarcie</dt><dd>{{ row.stage.opens_at|local_datetime }}</dd></div>
+            {% if row.stage.is_interview %}
+              <div><dt>Rozmowy do</dt><dd>{{ row.stage.deadline_at|local_datetime }}</dd></div>
+            {% else %}
+              <div><dt>Oddanie rozwiązań</dt><dd>{{ row.stage.deadline_at|local_datetime }}</dd></div>
+              {% if row.stage.grace_seconds %}
+                {# Tolerancja bywa niezerowa i wtedy to ona, a nie deadline, zamyka upload. #}
+                <div><dt>Upload zamyka się</dt>
+                  <dd>{{ row.stage.submission_deadline|local_datetime }}</dd></div>
+              {% endif %}
             {% endif %}
           {% endif %}
-          <div><dt>Recenzje do</dt><dd>{{ row.stage.review_deadline_at|local_datetime }}</dd></div>
+          {% comment %}
+            „Wyniki do”, a nie „Recenzje do”: to ta sama data (``review_deadline_at``), ale
+            czytelnikiem tej strony jest uczestnik, a nie recenzent. Uczestnik nie ma wpływu na
+            recenzowanie i nie ma z niego nic – interesuje go najpóźniejszy moment, w którym
+            dowie się wyniku. Termin egzekwuje serwer wobec recenzentów; tutaj jest obietnicą
+            wobec uczestnika i tak ma być podpisany.
+          {% endcomment %}
+          <div><dt>Wyniki do</dt><dd>{{ row.stage.review_deadline_at|local_datetime }}</dd></div>
           <div><dt>Reklamacje</dt>
             <dd>{{ row.stage.appeal_window_opens_at|local_datetime }} –
               {{ row.stage.appeal_window_closes_at|local_datetime }}</dd></div>

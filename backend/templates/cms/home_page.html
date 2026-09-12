@@ -42,80 +42,30 @@
   </div>
 </section>
 
-{% if page.show_timeline %}
-  {% if edition %}
-    <section class="section">
-      <div class="section__head">
-        <h2 class="mt-0">Przebieg zawodów: {{ edition.year_label|edition_title:"edycja" }}</h2>
-        <p class="hint">Wszystkie godziny: czas polski.</p>
-      </div>
-      <ol class="timeline">
-        {% for row in stage_rows %}
-          <li class="timeline__item {% if row.is_open %}timeline__item--open{% elif row.has_opened %}timeline__item--done{% else %}timeline__item--next{% endif %}">
-            <p class="timeline__kind">{{ row.stage.display_name }}</p>
-            {% if row.is_open %}
-              <span class="badge badge--accent">etap otwarty</span>
-            {% elif row.has_opened %}
-              <span class="badge badge--ok">zakończony</span>
-            {% else %}
-              <span class="badge badge--neutral">nadchodzący</span>
-            {% endif %}
-            <dl class="timeline__dates">
-              {% comment %}
-                Miejsce stoi nad terminami i tylko wtedy, gdy jest w bazie (``Stage.location``):
-                etapy zdalne go nie mają, a finał jest stacjonarny i uczestnik planuje dojazd
-                w tej samej chwili, w której czyta datę.
-              {% endcomment %}
-              {% if row.stage.location %}
-                <div><dt>Miejsce</dt><dd>{{ row.stage.location }}</dd></div>
-              {% endif %}
-              {# Etap w formie rozmowy: „deadline” jest końcem okna rozmów, nie terminem oddania. #}
-              {% if row.stage.is_interview %}
-                <div><dt>Forma</dt><dd>rozmowa kwalifikacyjna online</dd></div>
-              {% endif %}
-              <div><dt>Otwarcie</dt><dd>{{ row.stage.opens_at|local_datetime }}</dd></div>
-              {% if row.stage.is_interview %}
-                <div><dt>Rozmowy do</dt><dd>{{ row.stage.deadline_at|local_datetime }}</dd></div>
-              {% else %}
-                <div><dt>Deadline</dt><dd>{{ row.stage.deadline_at|local_datetime }}</dd></div>
-              {% endif %}
-              <div><dt>Reklamacje</dt>
-                <dd>{{ row.stage.appeal_window_opens_at|local_datetime }} –
-                  {{ row.stage.appeal_window_closes_at|local_datetime }}</dd></div>
-            </dl>
-            {% if row.has_results %}
-              <a class="btn btn--secondary btn--small" href="{% url 'web:results' row.stage.pk %}">Tabela wyników</a>
-            {% else %}
-              <p class="hint mt-0">Wyniki nieogłoszone.</p>
-            {% endif %}
-          </li>
-        {% empty %}
-          <li class="empty"><span class="empty__title">Brak etapów</span>
-            Ta edycja nie ma jeszcze zdefiniowanych etapów.</li>
-        {% endfor %}
-      </ol>
-    </section>
-  {% else %}
-    <p class="notice">Nie ustawiono bieżącej edycji olimpiady.</p>
-  {% endif %}
-{% endif %}
+{% comment %}
+  „O Olimpiadzie” stoi **tu**, zaraz pod hasłem, a nie jako osobna pozycja menu. Kolejność sekcji
+  strony głównej odpowiada kolejności pytań czytelnika, który trafia tu pierwszy raz: co to jest
+  i kto to organizuje (ta sekcja) → co mam zrobić (kroki) → kiedy (terminy) → z czego się
+  przygotować (warsztaty) → co się dzieje (aktualności) → kto za tym stoi (partnerzy).
+  Wcześniej odpowiedź na pierwsze pytanie była jedno kliknięcie dalej, za hasłem, które tę
+  ciekawość wzbudzało.
 
-{% if latest_news %}
-  <section class="section">
+  ``id`` jest kotwicą, na którą przekierowuje stary adres ``/o-olimpiadzie/`` – i dlatego nie
+  wolno go zmienić bez poprawki przekierowania w ``seed_legacy_content``.
+
+  Treść to StreamField (``about_body``), więc każdy blok renderuje własny szablon – śródtytuły
+  z kotwicami, ramki i tabele wyglądają dokładnie tak, jak na stronach treści. Żadnego ``|safe``.
+{% endcomment %}
+{% if page.about_title and page.about_body %}
+  <section class="section" id="o-olimpiadzie">
     <div class="section__head">
-      <h2 class="mt-0">Aktualności</h2>
+      <h2 class="mt-0">{{ page.about_title }}</h2>
     </div>
-    <ul class="cards">
-      {% for item in latest_news %}
-        <li>
-          <article class="card news-card">
-            <span class="news-card__date">{{ item.date }}</span>
-            <h3><a href="{% pageurl item %}">{{ item.title }}</a></h3>
-            {% if item.lead %}<p>{{ item.lead }}</p>{% endif %}
-          </article>
-        </li>
+    <div class="cms-body prose">
+      {% for block in page.about_body %}
+        {% include_block block %}
       {% endfor %}
-    </ul>
+    </div>
   </section>
 {% endif %}
 
@@ -144,6 +94,135 @@
         <p class="steps__cta"><a class="btn btn--accent" href="{% url 'web:register' %}">Rejestracja rusza {{ registration.opens_at|date:"j E Y" }}</a></p>
       {% endif %}
     {% endif %}
+  </section>
+{% endif %}
+
+{% if page.show_timeline %}
+  {% if edition %}
+    <section class="section">
+      <div class="section__head">
+        <h2 class="mt-0">Przebieg zawodów: {{ edition.year_label|edition_title:"edycja" }}</h2>
+        <p class="hint">Wszystkie godziny: czas polski.</p>
+      </div>
+      <ol class="timeline">
+        {% for row in stage_rows %}
+          <li class="timeline__item {% if row.is_open %}timeline__item--open{% elif row.has_opened %}timeline__item--done{% else %}timeline__item--next{% endif %}">
+            <p class="timeline__kind">{{ row.stage.display_name }}</p>
+            {% if row.is_open %}
+              <span class="badge badge--accent">etap otwarty</span>
+            {% elif row.has_opened %}
+              <span class="badge badge--ok">zakończony</span>
+            {% else %}
+              <span class="badge badge--neutral">nadchodzący</span>
+            {% endif %}
+            <dl class="timeline__dates">
+              {% comment %}
+                Miejsce stoi nad terminami i tylko wtedy, gdy jest w bazie (``Stage.location``):
+                etapy zdalne go nie mają, a finał jest stacjonarny i uczestnik planuje dojazd
+                w tej samej chwili, w której czyta datę.
+              {% endcomment %}
+              {% if row.stage.location %}
+                <div><dt>Miejsce</dt><dd>{{ row.stage.location }}</dd></div>
+              {% endif %}
+              {% comment %}
+                Etap stacjonarny trwający kilka dni (``row.is_onsite_event``) ma **jeden** termin,
+                a nie „otwarcie” i „deadline”: na finał się przyjeżdża 4 czerwca i wyjeżdża
+                7 czerwca, a nie „otwiera się go” i „oddaje w nim plik o 18:00”. Dwa wiersze
+                z godzinami sugerowały tam okno na wysyłkę rozwiązania, którego nie ma.
+                Zakres formatuje ``apps.cms.timeline.format_date_range`` – jedno brzmienie
+                dla tego ekranu i dla ``/harmonogram/``.
+              {% endcomment %}
+              {% if row.is_onsite_event %}
+                <div><dt>Termin</dt><dd>{{ row.date_range }}</dd></div>
+              {% else %}
+                {# Etap w formie rozmowy: „deadline” jest końcem okna rozmów, nie terminem oddania. #}
+                {% if row.stage.is_interview %}
+                  <div><dt>Forma</dt><dd>rozmowa kwalifikacyjna online</dd></div>
+                {% endif %}
+                <div><dt>Otwarcie</dt><dd>{{ row.stage.opens_at|local_datetime }}</dd></div>
+                {% if row.stage.is_interview %}
+                  <div><dt>Rozmowy do</dt><dd>{{ row.stage.deadline_at|local_datetime }}</dd></div>
+                {% else %}
+                  <div><dt>Deadline</dt><dd>{{ row.stage.deadline_at|local_datetime }}</dd></div>
+                {% endif %}
+              {% endif %}
+              <div><dt>Reklamacje</dt>
+                <dd>{{ row.stage.appeal_window_opens_at|local_datetime }} –
+                  {{ row.stage.appeal_window_closes_at|local_datetime }}</dd></div>
+            </dl>
+            {% if row.has_results %}
+              <a class="btn btn--secondary btn--small" href="{% url 'web:results' row.stage.pk %}">Tabela wyników</a>
+            {% else %}
+              <p class="hint mt-0">Wyniki nieogłoszone.</p>
+            {% endif %}
+          </li>
+        {% empty %}
+          <li class="empty"><span class="empty__title">Brak etapów</span>
+            Ta edycja nie ma jeszcze zdefiniowanych etapów.</li>
+        {% endfor %}
+      </ol>
+    </section>
+  {% else %}
+    <p class="notice">Nie ustawiono bieżącej edycji olimpiady.</p>
+  {% endif %}
+{% endif %}
+
+{% comment %}
+  Warsztaty online: trzy najbliższe terminy czytane z tabeli na stronie „Warsztaty”
+  (``HomePage._workshops_context`` → ``apps.cms.workshops``). Dotąd cały harmonogram warsztatów
+  był tabelą w środku ``/harmonogram/`` – kto tam nie wszedł, nie dowiadywał się, że warsztaty
+  w ogóle są, mimo że są bezpłatne i otwarte dla każdego.
+
+  Trzy powody, dla których wygląda to tak, a nie inaczej:
+
+  - **zapowiedź, nie kopia tabeli.** Trzy karty odpowiadają na „co najbliżej”; po komplet prowadzi
+    jeden przycisk. Cała szesnastowierszowa tabela na stronie głównej konkurowałaby z terminami
+    zawodów, które są ważniejsze,
+  - **sekcja sama znika**, gdy nie ma nadchodzących warsztatów (koniec cyklu, brak strony,
+    same terminy „do potwierdzenia”). Nagłówek nad pustą listą czytałby się jak awaria,
+  - **żadnej daty nie ma w szablonie.** Redakcja utrzymuje jedną tabelę – tę na stronie warsztatów.
+
+  Godziny są tekstem organizatora („11:00–14:00”, ale też „do potwierdzenia”), więc wiersz bez nich
+  po prostu ich nie pokazuje.
+{% endcomment %}
+{% if workshops %}
+  <section class="section" id="warsztaty">
+    <div class="section__head">
+      <h2 class="mt-0">Warsztaty online</h2>
+      <p class="hint">Bezpłatne spotkania przygotowujące do zawodów. Wszystkie godziny: czas polski.</p>
+    </div>
+    <ul class="cards">
+      {% for item in workshops %}
+        <li>
+          <article class="card">
+            <h3 class="card__title mt-0">{{ item.topic }}</h3>
+            <p class="card__meta">{{ item.date }}{% if item.time %} · {{ item.time }}{% endif %}</p>
+          </article>
+        </li>
+      {% endfor %}
+    </ul>
+    {% if workshops_page %}
+      <p class="steps__cta"><a class="btn btn--secondary" href="{% pageurl workshops_page %}">Zobacz wszystkie warsztaty</a></p>
+    {% endif %}
+  </section>
+{% endif %}
+
+{% if latest_news %}
+  <section class="section">
+    <div class="section__head">
+      <h2 class="mt-0">Aktualności</h2>
+    </div>
+    <ul class="cards">
+      {% for item in latest_news %}
+        <li>
+          <article class="card news-card">
+            <span class="news-card__date">{{ item.date }}</span>
+            <h3><a href="{% pageurl item %}">{{ item.title }}</a></h3>
+            {% if item.lead %}<p>{{ item.lead }}</p>{% endif %}
+          </article>
+        </li>
+      {% endfor %}
+    </ul>
   </section>
 {% endif %}
 

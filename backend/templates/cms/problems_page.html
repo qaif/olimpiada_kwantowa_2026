@@ -20,7 +20,17 @@
         <span class="badge badge--neutral">przed otwarciem</span>
       {% endif %}
     </div>
+    {% comment %}
+      Termin wydarzenia (dni pobytu na etapie stacjonarnym) stoi **obok** otwarcia i terminu
+      oddania, a nie zamiast nich: to strona zadań, więc jej czytelnik potrzebuje dokładnej godziny,
+      do której system przyjmuje plik. Dni zjazdu są tu dlatego, że finał ogłasza się jako „4–7
+      czerwca”, a sesja egzaminacyjna to kilka godzin w środku tego zakresu.
+    {% endcomment %}
     <dl class="meta-list">
+      {% if stage.event_range %}
+        <dt>Termin wydarzenia</dt><dd>{{ stage|event_dates }}</dd>
+      {% endif %}
+      {% if stage.location %}<dt>Miejsce</dt><dd>{{ stage.location }}</dd>{% endif %}
       <dt>Otwarcie</dt><dd>{{ stage.opens_at|local_time }}</dd>
       <dt>Termin oddania</dt><dd>{{ stage.deadline_at|local_time }}</dd>
     </dl>
