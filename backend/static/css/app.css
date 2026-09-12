@@ -318,6 +318,7 @@
 }
 
 html {
+  scroll-padding-top: 4.5rem;
   -webkit-text-size-adjust: 100%;
 }
 
@@ -432,7 +433,7 @@ hr {
 }
 
 .brand__logo img {
-  height: 44px;
+  height: 36px;
   width: auto;
   display: block;
 }
@@ -659,15 +660,36 @@ hr {
 
    Zawijanie, nie przewijanie: wiersz jest zwykłym ``flex-wrap``, więc na wąskim ekranie przyciski
    schodzą niżej i nic nie wystaje poza szerokość okna. */
-.topbar__account {
-  background: rgba(0, 0, 0, 0.18);
-  border-bottom: 1px solid rgba(244, 241, 232, 0.12);
+/* Przyklejony do góry okna: logotyp i wejście do konta zostają widoczne przy przewijaniu długich
+   dokumentów. ``sticky`` siedzi na **zewnętrznym** elemencie, będącym bezpośrednim dzieckiem
+   ``<body>``: element przyklejony trzyma się tylko w granicach swojego rodzica, więc na wewnętrznym
+   ``.topbar__account`` odklejałby się, gdy tylko rodzic wyjedzie poza ekran. Tło musi być kryjące,
+   bo pod paskiem przesuwa się treść. */
+.topbar--account {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  border-bottom: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
 }
 
-.account-bar {
+.topbar__account {
+  background: var(--brand);
+  border-bottom: 1px solid rgba(244, 241, 232, 0.14);
+}
+
+.topbar__account-inner {
   max-width: var(--container);
   margin: 0 auto;
   padding: var(--sp-2) var(--sp-4);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-4);
+}
+
+.account-bar {
+  margin-left: auto;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -752,7 +774,20 @@ hr {
 /* Na wąskim ekranie wyrównanie do prawej zostawiałoby poszarpaną kolumnę przycisków – tam pasek
    zbiera się do środka. */
 @media (max-width: 560px) {
+  /* Na telefonie pasek z logotypem i przyciskami ma trzy wiersze (~140 px) – przyklejony zabierałby
+     jedną szóstą ekranu na każdej stronie dokumentu, więc tam przewija się z treścią. */
+  .topbar--account {
+    position: static;
+    box-shadow: none;
+  }
+
+  .topbar__account-inner {
+    justify-content: center;
+  }
+
   .account-bar {
+    margin-left: 0;
+    width: 100%;
     justify-content: center;
   }
 }
@@ -761,7 +796,7 @@ hr {
    mieści się w jednej linii); niżej zawija się pod logotyp. */
 @media (min-width: 900px) {
   .nav--cms {
-    margin-left: auto;
+    margin-left: 0;
   }
 }
 
@@ -3366,6 +3401,7 @@ fieldset:disabled .score-option {
  * treści – na papierze „patrz Regulamin” bez adresu jest odesłaniem donikąd. */
 @media print {
   .topbar,
+  .topbar--account,
   .footer,
   .nav,
   .cookie-notice,
