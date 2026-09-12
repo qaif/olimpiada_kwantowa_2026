@@ -44,7 +44,8 @@ def check(page, width: int) -> None:
     if width > 560:
         assert top["position"] == "sticky"
         assert top["stuck"] is False and top["navDisplay"] == "none", "na gorze pasek ma byc krotki"
-        assert scrolled["stuck"] is True and scrolled["navDisplay"] == "flex", "po przewinieciu pozycje w pasku"
+        assert scrolled["stuck"] is True, "po przewinieciu pasek przyklejony"
+        assert scrolled["navDisplay"] == "flex", "po przewinieciu pozycje w pasku"
         assert scrolled["barTop"] == 0, "pasek przyklejony u gory"
         assert back["stuck"] is False and back["navDisplay"] == "none", "po powrocie pasek znow krotki"
     else:
