@@ -260,4 +260,7 @@ def test_regulamin_lives_in_the_documents_section_of_the_menu(web_client, regula
     assert '<details class="nav-menu">' in menu
     assert f'href="{PAGE_PATH}"' in menu
     assert '<a class="nav__link" href="/regulamin/"' not in menu
-    assert menu.index("/zadania/") < menu.index("/dokumenty/") < menu.index("/archiwum/")
+    # „Zadania” stoją w przyklejonym pasku (``PRIMARY_MENU_SLUGS``), więc w dolnym menu sekcja
+    # dokumentów jest pierwsza po aktualnościach – przed archiwum.
+    assert menu.index("/aktualnosci/") < menu.index("/dokumenty/") < menu.index("/archiwum/")
+    assert "/zadania/" not in menu

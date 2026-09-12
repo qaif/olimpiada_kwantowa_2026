@@ -22,6 +22,11 @@ from django.db.models import Q
 
 logger = logging.getLogger(__name__)
 
+#: Pozycje, które stoją w **przyklejonym pasku** obok logotypu, a nie w dolnym menu serwisu:
+#: to, czego uczestnik szuka najczęściej i w trakcie pracy z długim dokumentem (zadania, terminy,
+#: warsztaty). Dobór jest po slugu strony, nie po tytule, bo tytuł redakcja może zmienić.
+PRIMARY_MENU_SLUGS = ("zadania", "harmonogram", "warsztaty")
+
 #: Zapasowe menu = dokładnie te ścieżki, które tworzy migracja drzewa stron.
 FALLBACK_MENU = (
     {"title": "Aktualności", "url": "/aktualnosci/"},
@@ -85,10 +90,26 @@ def cms_menu(request) -> dict:
                     # Pozycja rodzica jest podświetlona także wtedy, gdy czytelnik stoi na jej
                     # dziecku – inaczej na stronie regulaminu nagłówek nie wskazywałby niczego.
                     "active": request.path == url or any(kid["active"] for kid in kids),
+                    "primary": page.slug in PRIMARY_MENU_SLUGS,
                 }
             )
     except (DatabaseError, Site.DoesNotExist, AttributeError):  # pragma: no cover - baza bez drzewa
         logger.warning("Menu CMS niedostępne – używam listy zapasowej.")
         items = []
-    fallback = [{**item, "children": [], "active": request.path == item["url"]} for item in FALLBACK_MENU]
-    return {"cms_menu": items or fallback}
+    fallback = [
+        {
+            **item,
+            "children": [],
+            "active": request.path == item["url"],
+            "primary": item["url"].strip("/") in PRIMARY_MENU_SLUGS,
+        }
+        for item in FALLBACK_MENU
+    ]
+    menu = items or fallback
+    # Dwie listy dla szablonu zamiast filtrowania w nim: pasek przyklejony i menu serwisu czytają
+    # to samo źródło i żadna pozycja nie może pojawić się w obu miejscach naraz.
+    return {
+        "cms_menu": menu,
+        "cms_menu_primary": [item for item in menu if item["primary"]],
+        "cms_menu_secondary": [item for item in menu if not item["primary"]],
+    }

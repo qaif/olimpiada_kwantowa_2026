@@ -688,6 +688,20 @@ hr {
   gap: var(--sp-2) var(--sp-4);
 }
 
+/* Najważniejsze pozycje menu w przyklejonym pasku: między logotypem a przyciskami konta,
+   nieco mocniejsze niż odnośniki dolnego menu, bo stoją na tle bez własnego wiersza. */
+.nav--primary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-4);
+  margin-left: var(--sp-2);
+}
+
+.nav__link--primary {
+  font-weight: 600;
+}
+
 .account-bar {
   margin-left: auto;
   display: flex;
@@ -786,6 +800,12 @@ hr {
   }
 
   .account-bar {
+    margin-left: 0;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .nav--primary {
     margin-left: 0;
     width: 100%;
     justify-content: center;

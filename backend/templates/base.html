@@ -95,6 +95,19 @@
       <span class="brand__mark visually-hidden">{{ settings.cms.SiteSettings.site_name }}</span>
       {% if site_edition_label %}<span class="brand__sub">{{ site_edition_label|edition_title:"edycja" }}</span>{% endif %}
     </a>
+    {% comment %}
+      Najważniejsze pozycje serwisu (``PRIMARY_MENU_SLUGS`` w apps/cms/context_processors.py) stoją
+      w przyklejonym pasku obok logotypu: zadania, terminy i warsztaty mają być jedno kliknięcie
+      stąd także w połowie długiego regulaminu. Dolne menu dostaje resztę – bez powtórzeń.
+    {% endcomment %}
+    {% if cms_menu_primary %}
+      <nav class="nav nav--primary" aria-label="Najważniejsze">
+        {% for item in cms_menu_primary %}
+          <a class="nav__link nav__link--primary" href="{{ item.url }}"
+             {% if item.active %}aria-current="page"{% endif %}>{{ item.title }}</a>
+        {% endfor %}
+      </nav>
+    {% endif %}
     <nav class="account-bar" aria-label="Konto">
       {% if user.is_authenticated %}
         {% if is_participant %}
@@ -156,7 +169,7 @@
       ``aria-current`` na aktywnej pozycji: porównujemy adres pozycji ze ścieżką żądania.
     {% endcomment %}
     <nav class="nav nav--cms" aria-label="Serwis">
-      {% for item in cms_menu %}
+      {% for item in cms_menu_secondary %}
         {% if item.children %}
           {% comment %}
             Rozwijana pozycja („Dokumenty”) to ``<details>``, a nie przycisk ze skryptem: otwiera

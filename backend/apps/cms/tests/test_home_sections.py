@@ -219,3 +219,33 @@ def test_about_section_renders_blocks_not_raw_markup(web_client, legacy_content)
 
     assert 'id="po-co"' in content
     assert 'class="notice notice--info"' in content
+
+
+# --- najważniejsze pozycje menu w przyklejonym pasku -------------------------------------------
+
+
+def test_primary_menu_items_sit_in_the_sticky_bar_and_not_in_the_service_menu(web_client, legacy_content):
+    """Zadania, Harmonogram i Warsztaty stoją obok logotypu; dolne menu ich nie powtarza."""
+    content = web_client.get("/").content.decode()
+    sticky_nav = content.split('class="nav nav--primary"', 1)[1].split("</nav>", 1)[0]
+    service_nav = content.split('class="nav nav--cms"', 1)[1].split("</nav>", 1)[0]
+
+    for path in ("/zadania/", "/harmonogram/", "/warsztaty/"):
+        assert f'href="{path}"' in sticky_nav, path
+        assert f'href="{path}"' not in service_nav, path
+    assert 'href="/aktualnosci/"' in service_nav
+    assert 'href="/aktualnosci/"' not in sticky_nav
+    # Kolejność w pasku to kolejność drzewa stron, tak jak w dolnym menu.
+    assert (
+        sticky_nav.index('href="/zadania/"')
+        < sticky_nav.index('href="/harmonogram/"')
+        < sticky_nav.index('href="/warsztaty/"')
+    )
+
+
+def test_primary_item_is_highlighted_on_its_own_page(web_client, legacy_content):
+    content = web_client.get("/harmonogram/").content.decode()
+    sticky_nav = content.split('class="nav nav--primary"', 1)[1].split("</nav>", 1)[0]
+    harmonogram_tag = sticky_nav.split('href="/harmonogram/"', 1)[1].split(">", 1)[0]
+
+    assert 'aria-current="page"' in harmonogram_tag
