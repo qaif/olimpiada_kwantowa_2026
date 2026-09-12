@@ -12,10 +12,12 @@ from datetime import datetime
 
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.uploadedfile import UploadedFile
 
 from apps.accounts.consents import BY_KIND, CONSENT_FIELD_NAMES, CONSENTS, ConsentKind, is_minor, labels
-from apps.accounts.models import GRADE_CHOICES, Voivodeship
+from apps.accounts.models import GRADE_CHOICES, User, Voivodeship
 from apps.appeals.models import MAX_TEXT_LENGTH, MIN_ARGUMENT_LENGTH, AppealStatus
 from apps.competitions.interviews import (
     MAX_DURATION_MINUTES,
@@ -36,6 +38,7 @@ from apps.competitions.services import REGISTRATION_EDITABLE_FIELDS, STAGE_EDITA
 from apps.core.api import DomainError
 from apps.results.models import Anonymization
 from apps.submissions.validators import MEGABYTE, validate_pdf
+from apps.web.captcha import CaptchaFormMixin
 
 # Pusta pozycja na początku listy: przeglądarka inaczej wybrałaby pierwsze województwo za
 # rejestrującego się i cichaczem przypisała mu okręg, którego nigdy świadomie nie wskazał.
@@ -46,6 +49,78 @@ VOIVODESHIP_CHOICES = (EMPTY_VOIVODESHIP_CHOICE, *Voivodeship.choices)
 def voivodeship_field(label: str, *, required: bool = True) -> forms.ChoiceField:
     """Pole wyboru województwa. Lista jest zamknięta – wolny tekst nie ma tu wstępu."""
     return forms.ChoiceField(label=label, choices=VOIVODESHIP_CHOICES, required=required)
+
+
+def phone_field(*, required: bool = True) -> forms.CharField:
+    """Telefon kontaktowy. Kształt numeru sprowadza do jednej postaci ``accounts.phones``.
+
+    Pole jest ``type="tel"``, a nie ``text``: na telefonie otwiera klawiaturę numeryczną, a to
+    właśnie na telefonie ten numer najczęściej się wpisuje. Walidacji kształtu tu nie ma –
+    rozstrzyga ``normalize_phone`` w serwisie, bo ta sama reguła obowiązuje API i rejestrację
+    przez dostawcę zewnętrznego.
+    """
+    return forms.CharField(
+        label="Telefon",
+        max_length=32,
+        required=required,
+        help_text="Do kontaktu w sprawach organizacyjnych, np. +48 600 000 000.",
+        widget=forms.TextInput(attrs={"type": "tel", "autocomplete": "tel"}),
+    )
+
+
+def password_field(label: str = "Hasło") -> forms.CharField:
+    """Pole hasła przy zakładaniu konta.
+
+    ``autocomplete="new-password"`` jest tu istotne: bez niego przeglądarka podstawia **zapisane**
+    hasło do innego konta w tym serwisie, a menedżer haseł nie proponuje wygenerowania nowego.
+    """
+    return forms.CharField(
+        label=label,
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+        max_length=200,
+    )
+
+
+#: Nazwa pola powtórzenia hasła. Do serwisu **nie trafia** – jest zdejmowane w ``clean()``
+#: (widoki wołają serwisy ``**form.cleaned_data``, więc każdy nadmiarowy klucz byłby TypeError).
+PASSWORD_CONFIRM_FIELD = "password2"
+
+PASSWORD_MISMATCH_MESSAGE = "Hasła nie są identyczne."
+
+
+def clean_password_pair(form: forms.Form, cleaned: dict | None) -> dict:
+    """Sprawdza powtórzenie hasła i siłę hasła, zdejmując pole pomocnicze z ``cleaned_data``.
+
+    Dwie rzeczy naraz, obie po to, żeby błąd stanął **pod polem**, a nie w chmurce nad formularzem:
+
+    - zgodność obu pól. Literówka w haśle przy rejestracji jest nieodwracalna w praktyce: konto
+      powstaje z hasłem, którego nikt nie zna, a odzyskanie go wymaga przejścia przez resetem
+      hasła adresu, którego uczestnik jeszcze nie potwierdził,
+    - ``validate_password`` z ``AUTH_PASSWORD_VALIDATORS``. Nie jest to druga definicja reguły:
+      lista walidatorów w ustawieniach jest jedna, a serwis (``accounts.services``) woła ją dalej
+      i pozostaje rozstrzygający dla API. Tutaj wołamy ją wyłącznie po to, żeby „hasło za krótkie”
+      wylądowało przy polu hasła, a nie jako błąd niezwiązany z żadnym polem.
+
+    Sprawdzenie podobieństwa do danych konta (``UserAttributeSimilarityValidator``) dostaje
+    niezapisany ``User`` z tym, co jest w formularzu – tak samo robi ``accounts.services``.
+    """
+    cleaned = cleaned if cleaned is not None else {}
+    password = cleaned.get("password") or ""
+    confirmation = cleaned.pop(PASSWORD_CONFIRM_FIELD, None)
+    if password and confirmation is not None and password != confirmation:
+        form.add_error(PASSWORD_CONFIRM_FIELD, PASSWORD_MISMATCH_MESSAGE)
+        return cleaned
+    if password:
+        candidate = User(
+            email=cleaned.get("email") or "",
+            first_name=cleaned.get("first_name") or "",
+            last_name=cleaned.get("last_name") or "",
+        )
+        try:
+            validate_password(password, user=candidate)
+        except DjangoValidationError as exc:
+            form.add_error("password", exc.messages)
+    return cleaned
 
 
 #: Pola bloku „szkoła” renderowanego ręcznie w szablonie (``web/_school_picker.html``). Reszta
@@ -218,8 +293,12 @@ def grade_field() -> forms.TypedChoiceField:
 PARTICIPANT_FIELD_ORDER = (
     "email",
     "password",
+    # Powtórzenie hasła stoi **bezpośrednio** pod hasłem: para pól ma być czytana jako jedna
+    # rubryka, a cokolwiek między nimi zamieniłoby ją w dwa niezależne pytania o hasło.
+    PASSWORD_CONFIRM_FIELD,
     "first_name",
     "last_name",
+    "phone",
     "district",
     *SCHOOL_FIELD_NAMES,
     "grade",
@@ -230,18 +309,28 @@ PARTICIPANT_FIELD_ORDER = (
 )
 
 
-class ParticipantRegisterForm(ConsentFieldsMixin, SchoolChoiceMixin):
-    """Rejestracja otwarta uczestnika – dane wchodzą prosto do ``register_participant``."""
+class ParticipantRegisterForm(CaptchaFormMixin, ConsentFieldsMixin, SchoolChoiceMixin):
+    """Rejestracja otwarta uczestnika – dane wchodzą prosto do ``register_participant``.
+
+    ``CaptchaFormMixin`` stoi pierwszy: dokłada CAPTCHĘ i pułapki antyspamowe na koniec formularza
+    (patrz apps/web/captcha.py). Formularz społecznościowy poniżej ich **nie** ma – tam rejestracja
+    jest już za zalogowaniem u dostawcy, więc bot musiałby najpierw przejść OAuth Google/Facebooka.
+    """
 
     field_order = [name for name in PARTICIPANT_FIELD_ORDER]
 
     email = forms.EmailField(label="Adres e-mail", max_length=254)
-    password = forms.CharField(label="Hasło", widget=forms.PasswordInput, max_length=200)
+    password = password_field()
+    password2 = password_field("Powtórz hasło")
     first_name = forms.CharField(label="Imię", max_length=150)
     last_name = forms.CharField(label="Nazwisko", max_length=150)
+    phone = phone_field()
     district = voivodeship_field("Województwo")
     grade = grade_field()
     birth_year = forms.IntegerField(label="Rok urodzenia", min_value=1900, max_value=2100)
+
+    def clean(self):
+        return clean_password_pair(self, super().clean())
 
 
 class SocialParticipantSignupForm(ConsentFieldsMixin, SchoolChoiceMixin):
@@ -258,24 +347,156 @@ class SocialParticipantSignupForm(ConsentFieldsMixin, SchoolChoiceMixin):
     w wynikach olimpiady ma stać nazwisko z legitymacji, a nie pseudonim z konta społecznościowego.
     """
 
-    field_order = [name for name in PARTICIPANT_FIELD_ORDER if name not in ("email", "password")]
+    field_order = [
+        name for name in PARTICIPANT_FIELD_ORDER if name not in ("email", "password", PASSWORD_CONFIRM_FIELD)
+    ]
 
     first_name = forms.CharField(label="Imię", max_length=150)
     last_name = forms.CharField(label="Nazwisko", max_length=150)
+    phone = phone_field()
     district = voivodeship_field("Województwo")
     grade = grade_field()
     birth_year = forms.IntegerField(label="Rok urodzenia", min_value=1900, max_value=2100)
 
 
-class CommitteeRegisterForm(forms.Form):
-    """Rejestracja członka komitetu na kod zaproszenia."""
+class CommitteeRegisterForm(CaptchaFormMixin):
+    """Rejestracja członka komitetu na kod zaproszenia.
+
+    CAPTCHA jest tu także po to, żeby kodu zaproszenia nie dało się zgadywać maszynowo – limit
+    prób (scope ``register``) ogranicza liczbę strzałów, a CAPTCHA podnosi koszt każdego z nich.
+    """
+
+    field_order = [
+        "email",
+        "password",
+        PASSWORD_CONFIRM_FIELD,
+        "first_name",
+        "last_name",
+        "invitation_code",
+        "district",
+    ]
 
     email = forms.EmailField(label="Adres e-mail", max_length=254)
-    password = forms.CharField(label="Hasło", widget=forms.PasswordInput, max_length=200)
+    password = password_field()
+    password2 = password_field("Powtórz hasło")
     first_name = forms.CharField(label="Imię", max_length=150)
     last_name = forms.CharField(label="Nazwisko", max_length=150)
     invitation_code = forms.CharField(label="Kod zaproszenia", max_length=200)
     district = voivodeship_field("Województwo (deklarowane)", required=False)
+
+    def clean(self):
+        return clean_password_pair(self, super().clean())
+
+
+#: Kolejność pól edycji własnego profilu. Bez e-maila i hasła: adres zmienia się osobnym
+#: formularzem z potwierdzeniem na nowej skrzynce, hasło – przez „Nie pamiętasz hasła?”.
+PARTICIPANT_PROFILE_FIELD_ORDER = (
+    "first_name",
+    "last_name",
+    "phone",
+    "district",
+    *SCHOOL_FIELD_NAMES,
+    "grade",
+    "birth_year",
+)
+
+
+def participant_profile_initial(participant) -> dict:
+    """Wartości początkowe formularza edycji profilu, łącznie z odtworzeniem stanu bloku „szkoła”.
+
+    Blok szkoły trzyma stan w trzech polach i żadne z nich nie jest w bazie: ``school_query`` jest
+    tym, co widać, a ``school_custom`` – decyzją „mojej szkoły nie ma na liście”. Odtwarzamy je
+    z tego, co w bazie **jest**: pusty ``school_ref`` znaczy szkołę wpisaną ręcznie, więc formularz
+    otwiera się od razu w trybie wolnego tekstu. Bez tego uczestnik, który chce zmienić klasę,
+    musiałby przy każdym zapisie szukać swojej szkoły od nowa.
+    """
+    from_registry = participant.school_ref_id is not None
+    return {
+        "first_name": participant.user.first_name,
+        "last_name": participant.user.last_name,
+        "phone": participant.phone,
+        "district": participant.district,
+        "grade": participant.grade,
+        "birth_year": participant.birth_year,
+        "school_id": participant.school_ref_id,
+        "school_query": participant.school,
+        "school_custom": not from_registry,
+        "school": "" if from_registry else participant.school,
+    }
+
+
+class ParticipantProfileForm(SchoolChoiceMixin):
+    """Edycja własnych danych uczestnika (``/me/profile/``).
+
+    Zakres jest dokładnie taki, jak w rejestracji **minus** poświadczenia i minus zgody: zgody są
+    oświadczeniami z własną historią (``ConsentRecord``) i nie zmienia się ich zapisem formularza
+    danych. ``public_code`` nie jest edytowalny nigdzie – to identyfikator w ogłoszonych tabelach.
+    """
+
+    field_order = [name for name in PARTICIPANT_PROFILE_FIELD_ORDER]
+
+    first_name = forms.CharField(label="Imię", max_length=150)
+    last_name = forms.CharField(label="Nazwisko", max_length=150)
+    phone = phone_field()
+    district = voivodeship_field("Województwo")
+    grade = grade_field()
+    birth_year = forms.IntegerField(label="Rok urodzenia", min_value=1900, max_value=2100)
+
+
+class AccountNamesForm(forms.Form):
+    """Imię i nazwisko dla konta bez profilu uczestnika (``/account/profile/``).
+
+    Województwa członka komitetu tu nie ma **świadomie**: potwierdzony okręg jest podstawą reguły
+    konfliktu interesów przy przydziale recenzji, więc recenzent, który mógłby go sobie przestawić,
+    mógłby też wejść na prace ze swojego okręgu. Zmiana zostaje u koordynatora.
+    """
+
+    first_name = forms.CharField(label="Imię", max_length=150)
+    last_name = forms.CharField(label="Nazwisko", max_length=150)
+
+
+class EmailChangeForm(forms.Form):
+    """Wniosek o zmianę adresu e-mail konta. Adres zmienia się dopiero po kliknięciu w potwierdzenie."""
+
+    new_email = forms.EmailField(
+        label="Nowy adres e-mail",
+        max_length=254,
+        help_text=(
+            "Na ten adres wyślemy link potwierdzający. Do czasu potwierdzenia logujesz się "
+            "dotychczasowym adresem."
+        ),
+    )
+
+
+class ActivationResendForm(forms.Form):
+    """Ponowna wysyłka linku aktywacyjnego. Odpowiedź jest zawsze ta sama – bez enumeracji kont."""
+
+    email = forms.EmailField(label="Adres e-mail", max_length=254)
+
+    def clean_email(self) -> str:
+        return (self.cleaned_data.get("email") or "").strip().lower()
+
+
+class AccountDeleteForm(forms.Form):
+    """Potwierdzenie usunięcia własnego konta.
+
+    Oba pola są opcjonalne **w formularzu**, bo które z nich jest wymagane, zależy od konta:
+    hasło dla konta hasłowego, przepisanie adresu dla konta zakładanego przez Google/Facebooka
+    (ono użytecznego hasła nie ma). Rozstrzyga to serwis
+    (``accounts.profile.verify_self_deletion_credentials``) – tam, gdzie wiadomo, jakie to konto.
+    """
+
+    password = forms.CharField(
+        label="Aktualne hasło",
+        required=False,
+        widget=forms.PasswordInput(attrs={"autocomplete": "current-password"}),
+        max_length=200,
+    )
+    email = forms.CharField(label="Adres e-mail konta", required=False, max_length=254)
+    confirm = forms.BooleanField(
+        label="Rozumiem, że tej operacji nie da się odwrócić.",
+        label_suffix="",
+    )
 
 
 class SubmissionUploadForm(forms.Form):

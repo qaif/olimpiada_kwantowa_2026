@@ -7,6 +7,24 @@
   <h1>Twoje zgłoszenie</h1>
   <p class="lead">Kod publiczny: <span class="code-chip">{{ user.participant.public_code }}</span>
     – pod tym kodem występujesz w ogłaszanych tabelach wyników.</p>
+  {% comment %}
+    Karta konta stoi na samej górze, obok kodu publicznego, bo to jedyne miejsce w panelu, w którym
+    uczestnik zobaczy **swoje** dane – reszta strony mówi o etapie i o pracach. „Usuń konto”
+    prowadzi na stronę z wyjaśnieniem skutków, a nie na akcję: konsekwencje zależą od tego, czy
+    uczestnik brał już udział w zawodach.
+  {% endcomment %}
+  <dl class="meta-list">
+    <dt>Dane kontaktowe</dt>
+    <dd>{{ user.get_full_name|default:user.email }}, {{ user.email }}{% if user.participant.phone %},
+      tel. {{ user.participant.phone }}{% endif %}</dd>
+    <dt>Szkoła i klasa</dt>
+    <dd>{{ user.participant.school }}{% if user.participant.grade %}, klasa
+      {{ user.participant.grade }}{% endif %} ({{ user.participant.get_district_display }})</dd>
+  </dl>
+  <p class="actions">
+    <a class="btn btn--secondary btn--small" href="{% url 'web:profile' %}">Edytuj dane</a>
+    <a class="btn btn--secondary btn--small" href="{% url 'web:account-delete' %}">Usuń konto</a>
+  </p>
 </div>
 
 {% if stage %}
@@ -66,14 +84,27 @@
           koryguje o różnicę względem zegara przeglądarki. Zegar klienta nigdy nie decyduje
           o terminie – deadline i tak egzekwuje serwis uploadu.
         {% endcomment %}
-        <div class="countdown"
-             x-data="countdown"
-             data-deadline="{{ stage.submission_deadline|date:'c' }}"
-             data-server-now="{{ now|date:'c' }}">
-          <span class="countdown__label">Termin oddania rozwiązań</span>
-          <span class="countdown__deadline">{{ stage.submission_deadline|local_time }}</span>
-          <span class="countdown__value" x-text="label">pozostały czas liczony jest po wczytaniu strony</span>
-        </div>
+        {% if stage.has_deadline %}
+          <div class="countdown"
+               x-data="countdown"
+               data-deadline="{{ stage.submission_deadline|date:'c' }}"
+               data-server-now="{{ now|date:'c' }}">
+            <span class="countdown__label">Termin oddania rozwiązań</span>
+            <span class="countdown__deadline">{{ stage.submission_deadline|local_time }}</span>
+            <span class="countdown__value" x-text="label">pozostały czas liczony jest po wczytaniu strony</span>
+          </div>
+        {% else %}
+          {% comment %}
+            Etap bez terminu (dziś: trening). Data z bazy to wartownik z roku 2099, więc odliczanie
+            pokazałoby siedemdziesiąt lat, a „termin oddania: 31.12.2099” byłoby informacją
+            nieprawdziwą. Pytamy o ``has_deadline``, a nie o rodzaj etapu – reguła ma jedno miejsce.
+          {% endcomment %}
+          <div class="countdown">
+            <span class="countdown__label">Termin oddania rozwiązań</span>
+            <span class="countdown__deadline">Bez terminu</span>
+            <span class="countdown__value">rozwiązania przyjmujemy bezterminowo</span>
+          </div>
+        {% endif %}
       {% endif %}
 
       {% comment %}
@@ -91,7 +122,8 @@
       {% if can_register %}
         <form method="post" action="{% url 'web:stage-register' stage.pk %}">
           {% csrf_token %}
-          <button type="submit" class="btn btn--accent">Zgłoś się do tego etapu</button>
+          <button type="submit" class="btn btn--accent">
+            {% if stage.is_training %}Zgłoś się do treningu{% else %}Zgłoś się do tego etapu{% endif %}</button>
         </form>
       {% elif entry %}
         <p class="card__meta">Status Twojego udziału: <strong>{{ entry.get_status_display }}</strong>.</p>
@@ -200,6 +232,55 @@
   {% endif %}
 {% else %}
   <p class="notice">Nie ustawiono bieżącej edycji olimpiady.</p>
+{% endif %}
+
+{% comment %}
+  Trening jest osobną kartą, a nie kolejnym „etapem bieżącym”: jest otwarty bez końca, więc
+  w karcie wyżej zasłaniałby najbliższe zawody. Stoi pod nią, bo to oferta obok zawodów – i poza
+  blokiem `{% if stage %}`, żeby był dostępny także w przerwie między etapami.
+
+  Upload działa tu dokładnie tak, jak w etapie zawodów (ten sam ``_problem_card.html``, ten sam
+  serwis, ta sama historia wersji i skan antywirusowy) – w tym cała wartość piaskownicy: ścieżka
+  „prawie jak prawdziwa” nie nauczyłaby niczego o prawdziwej.
+{% endcomment %}
+{% if training_stage %}
+  <section class="section" id="trening">
+    <div class="card">
+      <div class="card__head">
+        <h2 class="mt-0 card__title">{{ training_stage.display_name }}</h2>
+        {% if training_entry %}
+          <span class="{{ training_entry.status|badge_class }}">{{ training_entry.get_status_display }}</span>
+        {% else %}
+          <span class="badge badge--neutral">trening</span>
+        {% endif %}
+      </div>
+      <p class="card__meta">Bez terminu i poza kwalifikacją – te zadania nie wpływają na wyniki
+        zawodów. Służą do przejścia całej ścieżki: zgłoszenie, pobranie treści, wysłanie
+        rozwiązania i odbiór oceny.</p>
+
+      {% if training_can_register %}
+        <form method="post" action="{% url 'web:stage-register' training_stage.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn--accent">Zgłoś się do treningu</button>
+        </form>
+      {% endif %}
+    </div>
+
+    {% if training_entry %}
+      <div class="section__head">
+        <h3 class="mt-0">Zadania treningowe</h3>
+        {% if not training_upload_open %}
+          <span class="badge badge--warn">upload zamknięty</span>
+        {% endif %}
+      </div>
+      {% for row in training_problem_rows %}
+        {% include "web/participant/_problem_card.html" with row=row stage=training_stage entry=training_entry upload_open=training_upload_open error=None %}
+      {% empty %}
+        <p class="empty"><span class="empty__title">Brak zadań</span>
+          Etap treningowy nie ma jeszcze opublikowanych zadań.</p>
+      {% endfor %}
+    {% endif %}
+  </section>
 {% endif %}
 
 <section class="section">

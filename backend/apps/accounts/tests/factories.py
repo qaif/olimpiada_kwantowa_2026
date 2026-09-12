@@ -23,6 +23,23 @@ from apps.accounts.models import (
 
 DEFAULT_PASSWORD = "Poprawne-Haslo-2026"
 
+#: Numer w postaci, jaką zapisuje ``apps.accounts.phones.normalize_phone`` – testy, które numeru
+#: nie badają, mają go podać raz i o nim zapomnieć.
+DEFAULT_PHONE = "+48600100200"
+
+
+def activate(user):
+    """Przechodzi aktywację konta e-mailem **za** uczestnika.
+
+    Do użytku w testach, których przedmiotem jest cokolwiek **po** rejestracji (logowanie, panel,
+    zgłoszenie do etapu). Konto zakładane serwisem rejestracji jest od tej zmiany nieaktywne
+    i logowanie go nie wpuszcza – helper zdejmuje tę przeszkodę tą samą drogą, którą przechodzi
+    kliknięcie linku z listu, więc test nie osłabia reguły, tylko ją przechodzi.
+    """
+    from apps.accounts.activation import mark_activated
+
+    return mark_activated(user)
+
 
 def _assign_groups(user, create, names):
     if not create or not names:
@@ -40,6 +57,11 @@ class UserFactory(factory.django.DjangoModelFactory):
     email = factory.Sequence(lambda n: f"user{n}@example.test")
     first_name = "Jan"
     last_name = "Kowalski"
+    # Konto z fabryki jest kontem **działającym**: potwierdzony adres e-mail i ``is_active=True``.
+    # Inaczej każdy test logowania zaczynałby się od aktywacji, a kosiarka kont nieaktywowanych
+    # (``apps.accounts.tasks``) traktowałaby te konta jak porzucone rejestracje. Test, którego
+    # przedmiotem jest **aktywacja**, podaje ``email_verified_at=None, is_active=False`` jawnie.
+    email_verified_at = factory.LazyFunction(timezone.now)
 
     @factory.post_generation
     def password(obj, create, extracted, **kwargs):
@@ -67,6 +89,9 @@ class ParticipantFactory(factory.django.DjangoModelFactory):
     # i muszą mieć powtarzalny punkt wyjścia (własny okręg podają jawnie).
     district = Voivodeship.MAZOWIECKIE
     birth_year = 2008
+    # Numer z zakresu testowego w postaci już znormalizowanej – dokładnie takiej, jaką zapisuje
+    # ``apps.accounts.phones.normalize_phone``.
+    phone = "+48600000000"
     gdpr_consent_at = factory.LazyFunction(timezone.now)
     terms_accepted_at = factory.LazyFunction(timezone.now)
     guardian_consent = True

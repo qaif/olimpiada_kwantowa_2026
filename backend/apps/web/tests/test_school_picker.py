@@ -11,18 +11,27 @@ from apps.accounts.models import Participant
 from apps.schools.tests.factories import SchoolFactory
 from apps.web.forms import ParticipantRegisterForm, SocialParticipantSignupForm
 
+from .conftest import captcha_fields, password_fields
+
+# Dostęp do bazy dla **całego** modułu, także dla testów samego formularza: ``CaptchaField.clean``
+# kasuje wygasłe wyzwania i szuka swojego w tabeli ``captcha_captchastore``, więc walidacja
+# formularza uczestnika przestała być operacją w pamięci (patrz apps/web/captcha.py).
+pytestmark = pytest.mark.django_db
+
 REGISTER_URL = "/register/"
 
 
 def form_data(**overrides) -> dict:
     data = {
+        **captcha_fields(),
         "email": "nowy@example.test",
-        "password": "Poprawne-Haslo-2026",
+        **password_fields(),
         "first_name": "Nowy",
         "last_name": "Uczestnik",
         "district": "mazowieckie",
         "grade": "3",
         "birth_year": 2008,
+        "phone": "600 100 200",
         "terms_consent": "on",
         "gdpr_consent": "on",
         "guardian_consent": "on",
@@ -98,6 +107,7 @@ def test_social_form_shares_the_school_block():
             "district": "mazowieckie",
             "grade": "1",
             "birth_year": 2008,
+            "phone": "600 100 200",
             "terms_consent": "on",
             "gdpr_consent": "on",
             "guardian_consent": "on",

@@ -46,6 +46,8 @@ from .models import Anonymization, ResultsPublication
 logger = logging.getLogger(__name__)
 
 #: Kolejność etapów edycji. Kwalifikacja przenosi uczestnika do następnego – finał nie ma następcy.
+#: ``StageKind.TRAINING`` **nie ma** na tej liście i to jest cała reguła „trening jest poza
+#: kwalifikacją”: etap treningowy nie ma następnego etapu i nigdy nie jest niczyim następnym.
 STAGE_ORDER = (StageKind.ELIM, StageKind.DISTRICT, StageKind.FINAL)
 
 #: Stany, w których ocena zgłoszenia jeszcze trwa. Etap z takim zgłoszeniem nie da się przeliczyć:
@@ -92,7 +94,15 @@ def _assert_appeal_window_closed(stage: Stage) -> None:
     otwartym oknie musiałaby zostać cofnięta – a status „zakwalifikowany”, raz ogłoszony, jest
     obietnicą wobec uczestnika. Podgląd (``compute_stage_results``) tej bramy nie ma: to robocza
     tabela koordynatora, która niczego nie ogłasza.
+
+    Etap treningowy jest z tej bramy wyjęty. Jego okno reklamacji to data-wartownik
+    (``TRAINING_DEADLINE``, rok 2099) wpisana tylko po to, żeby oś czasu przeszła walidację – brama
+    czekałaby na nią siedemdziesiąt lat i cała ścieżka „recenzje → wyniki” byłaby w piaskownicy
+    nieprzejezdna. Nie ma tu też czego chronić: trening nikogo nie kwalifikuje (``next_stage_of``
+    zwraca ``None``), a jego tabela jest podpisana odznaką „trening”.
     """
+    if stage.is_training:
+        return
     if stage.appeal_window_closes_at is None:
         return
     now = timezone.now()
@@ -327,7 +337,14 @@ def _district_key(value: str | None) -> str:
 
 
 def next_stage_of(stage: Stage) -> Stage | None:
-    """Następny etap tej samej edycji (ELIM → DISTRICT → FINAL). Finał nie ma następnego."""
+    """Następny etap tej samej edycji (ELIM → DISTRICT → FINAL). Finał nie ma następnego.
+
+    Etap treningowy też nie ma – i nie jest następnym dla żadnego etapu, bo nie ma go
+    w ``STAGE_ORDER``. Sprawdzenie jest jawne, a nie oparte na wyjątku z ``.index()``: „trening
+    nie kwalifikuje” to reguła, którą trzeba przeczytać w kodzie, a nie wywnioskować z braku.
+    """
+    if stage.is_training:
+        return None
     try:
         index = STAGE_ORDER.index(stage.kind)
     except ValueError:  # pragma: no cover - kind pochodzi z choices

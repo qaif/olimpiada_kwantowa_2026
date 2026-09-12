@@ -53,6 +53,11 @@ PDF_BYTES = (
     b"%%EOF\n"
 )
 
+#: Odpowiedź, którą CAPTCHA przyjmuje w trybie testowym. Aplikacja włącza go razem z ``E2E_MODE``
+#: (config/settings/base.py) – w produkcji ta zmienna nie jest ustawiana, więc obrazek trzeba
+#: naprawdę odczytać.
+CAPTCHA_E2E_RESPONSE = "PASSED"
+
 #: Skan antywirusowy idzie przez Celery do ClamAV – kilka sekund przy rozgrzanym demonie,
 #: więcej przy pierwszym pliku po starcie kontenera.
 AV_SCAN_TIMEOUT_S = 180
@@ -162,8 +167,13 @@ def test_pelny_cykl_etapu_od_rejestracji_do_publikacji(
     page = uczestnik.page
     page.fill("#id_email", participant_identity["email"])
     page.fill("#id_password", participant_identity["password"])
+    # Powtórzenie hasła: literówka przy rejestracji jest w praktyce nieodwracalna, bo konto
+    # powstaje z hasłem, którego nikt nie zna, a reset hasła wymaga adresu jeszcze
+    # niepotwierdzonego.
+    page.fill("#id_password2", participant_identity["password"])
     page.fill("#id_first_name", participant_identity["first_name"])
     page.fill("#id_last_name", participant_identity["last_name"])
+    page.fill("#id_phone", participant_identity["phone"])
     # Województwo jest listą zamkniętą (``Voivodeship``), więc wybór, a nie wpisanie tekstu.
     # Musi być **przed** szkołą: podpowiedzi zawężają się do wybranego okręgu.
     page.select_option("#id_district", participant_identity["district"])
@@ -184,10 +194,30 @@ def test_pelny_cykl_etapu_od_rejestracji_do_publikacji(
     page.check("#id_terms_consent")
     page.check("#id_gdpr_consent")
     page.check("#id_guardian_consent")
+    # CAPTCHA jest własna i obrazkowa (apps/web/captcha.py). Przeglądarka testu obrazka nie
+    # odczyta, więc aplikacja uruchomiona z ``E2E_MODE=1`` przyjmuje odpowiedź „PASSED” i nie
+    # pilnuje minimalnego czasu wypełniania. Pole zostaje w scenariuszu **jawnie**: gdyby
+    # zabezpieczenie zniknęło z formularza, ten krok ma się wywalić, a nie cicho przejść.
+    page.fill("#id_captcha_1", CAPTCHA_E2E_RESPONSE)
     page.get_by_role("button", name="Załóż konto").click()
     expect(page).to_have_url(re.compile(r"/login/$"))
-    expect(page.locator("ul.messages")).to_contain_text("Konto uczestnika zostało założone")
+    # Konto powstaje **nieaktywne**: adres e-mail jest loginem i jedyną drogą odzyskania konta,
+    # więc trzeba go potwierdzić. Komunikat musi o tym mówić, inaczej uczestnik idzie prosto na
+    # formularz logowania i dostaje „nieprawidłowy e-mail lub hasło”.
+    expect(page.locator("ul.messages")).to_contain_text("Sprawdź skrzynkę e-mail")
     uczestnik.step("1-rejestracja")
+
+    # --- 1b. Aktywacja konta przez panel koordynatora ------------------------------------------
+    # Scenariusz nie czyta skrzynki pocztowej: klika w to samo obejście, z którego korzysta
+    # organizator, dopóki dostarczalność poczty nie jest pewna (SPF/DKIM, README § 4.2).
+    # Dzięki temu E2E sprawdza także tę ścieżkę, a nie tylko link z listu.
+    login(koordynator, COORDINATOR_EMAIL, DEMO_PASSWORD)
+    koordynator.goto("/coordinator/")
+    oczekujace = koordynator.page.locator("tr", has_text=participant_identity["email"])
+    expect(oczekujace).to_have_count(1)
+    oczekujace.get_by_role("button", name="Aktywuj ręcznie").click()
+    expect(koordynator.page.locator("ul.messages")).to_contain_text("Konto zostało aktywowane")
+    koordynator.step("1b-aktywacja-konta")
 
     # --- 2. Logowanie i zapis do eliminacji ----------------------------------------------------
     login(uczestnik, participant_identity["email"], participant_identity["password"])
@@ -223,7 +253,8 @@ def test_pelny_cykl_etapu_od_rejestracji_do_publikacji(
     uczestnik.step("3-skan-clean")
 
     # --- 4. Koordynator: faza „po deadline”, zamknięcie etapu, przydział ------------------------
-    login(koordynator, COORDINATOR_EMAIL, DEMO_PASSWORD)
+    # Koordynator jest zalogowany od kroku 1b (ręczna aktywacja konta uczestnika) – drugie
+    # logowanie odbiłoby się o ``redirect_authenticated_user`` na ``/login/``.
     set_phase(koordynator, stage_id, PHASE_CLOSED)
 
     koordynator.goto("/coordinator/")
@@ -313,13 +344,23 @@ def test_pelny_cykl_etapu_od_rejestracji_do_publikacji(
     komisja.goto("/register/committee/")
     komisja.page.fill("#id_email", komisja_email)
     komisja.page.fill("#id_password", "Komisja-Odwolawcza-2026")
+    komisja.page.fill("#id_password2", "Komisja-Odwolawcza-2026")
     komisja.page.fill("#id_first_name", "Anna")
     komisja.page.fill("#id_last_name", "Odwolawska")
     komisja.page.fill("#id_invitation_code", invitation_code)
+    komisja.page.fill("#id_captcha_1", CAPTCHA_E2E_RESPONSE)
     komisja.page.get_by_role("button", name="Załóż konto").click()
     expect(komisja.page).to_have_url(re.compile(r"/login/$"))
     expect(komisja.page.locator("ul.messages")).to_contain_text("Konto zostało założone")
     komisja.step("7-rejestracja-komisji")
+
+    # Kod zaproszenia dowodzi zaproszenia, a nie tego, że wpisany adres należy do tej osoby –
+    # konto komisji przechodzi tę samą aktywację co uczestnik.
+    koordynator.goto("/coordinator/")
+    oczekujaca_komisja = koordynator.page.locator("tr", has_text=komisja_email)
+    expect(oczekujaca_komisja).to_have_count(1)
+    oczekujaca_komisja.get_by_role("button", name="Aktywuj ręcznie").click()
+    expect(koordynator.page.locator("ul.messages")).to_contain_text("Konto zostało aktywowane")
 
     # --- 8. Okno reklamacji: uczestnik składa reklamację ---------------------------------------
     set_phase(koordynator, stage_id, PHASE_APPEALS_OPEN)

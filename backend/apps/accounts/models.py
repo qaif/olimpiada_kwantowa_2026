@@ -146,6 +146,13 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField("aktywne", default=True)
     is_staff = models.BooleanField("dostęp do panelu admina", default=False)
     date_joined = models.DateTimeField("data rejestracji", default=timezone.now)
+    # Moment potwierdzenia adresu e-mail kliknięciem w link aktywacyjny (albo ręcznie przez
+    # koordynatora). ``None`` znaczy „adres jeszcze niepotwierdzony” i jest jedynym warunkiem
+    # jednorazowości linku: aktywacja odmawia, gdy pole jest już wypełnione
+    # (``apps.accounts.activation``). Oddzielne od ``is_active``, bo ``is_active=False`` niesie też
+    # inne znaczenie – konto zablokowane przez organizatora, które adres ma potwierdzony dawno.
+    # Domyślnie nullowalne, a nie ``default=now``: pole opisuje zdarzenie, a nie stan początkowy.
+    email_verified_at = models.DateTimeField("adres e-mail potwierdzony", null=True, blank=True)
 
     USERNAME_FIELD = "email"
     EMAIL_FIELD = "email"
@@ -208,6 +215,12 @@ class Participant(models.Model):
     grade = models.PositiveSmallIntegerField("klasa", choices=GRADE_CHOICES, null=True, blank=True)
     district = models.CharField("województwo", max_length=100, choices=Voivodeship.choices)
     birth_year = models.PositiveSmallIntegerField("rok urodzenia")
+    # Telefon kontaktowy. ``blank=True`` w modelu, choć formularz i API wymagają go od każdego
+    # nowego uczestnika: profile sprzed wprowadzenia pola nie mają numeru i nie wolno ich
+    # unieważnić – uczestnik w trakcie edycji zostałby wtedy odcięty od panelu do czasu, aż
+    # uzupełni dane. Kształt numeru pilnuje ``apps.accounts.phones.normalize_phone``; 32 znaki
+    # mieszczą numer międzynarodowy z prefiksem i separatorami z zapasem.
+    phone = models.CharField("telefon", max_length=32, blank=True)
     # Pola zgód są **projekcjami**, a nie dowodem: dowodem jest ``ConsentRecord`` (patrz niżej).
     # Zostają, bo odpowiadają na pytanie „jak jest teraz” jednym odczytem – publikacja wyników
     # (``apps.results.services``), panel koordynatora i administracja pytają o stan bieżący

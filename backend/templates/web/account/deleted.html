@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% comment %}
+  Strona po usunięciu konta. Bez logowania, bo konta, którym dałoby się zalogować, już nie ma –
+  i bez żadnych danych, które właśnie zostały usunięte.
+{% endcomment %}
+{% block title %}Konto zostało usunięte{% endblock %}
+{% block content %}
+<div class="auth">
+  <div class="card">
+    <h1>Konto zostało usunięte</h1>
+    <p class="auth__intro">Twoje dane osobowe zostały usunięte, a sesje zamknięte.</p>
+    <p class="hint">Jeśli brałeś udział w zawodach, Twoje prace i oceny zostają w dokumentacji
+      Olimpiady pod anonimowym kodem – bez imienia, nazwiska, adresu e-mail i szkoły.
+      Szczegóły: <a href="/dokumenty/rodo/">Polityka RODO</a>.</p>
+    <p><a class="btn btn--secondary btn--block" href="/">Wróć na stronę główną</a></p>
+  </div>
+</div>
+{% endblock %}

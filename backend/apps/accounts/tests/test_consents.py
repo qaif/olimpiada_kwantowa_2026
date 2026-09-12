@@ -26,7 +26,7 @@ from apps.accounts.services import (
 )
 from apps.core.models import AuditLog
 
-from .factories import ParticipantFactory
+from .factories import ParticipantFactory, activate
 
 REGISTER_URL = "/api/auth/register/participant/"
 CONSENTS_URL = "/api/auth/consents/"
@@ -43,6 +43,7 @@ def payload(**overrides) -> dict:
         "district": "mazowieckie",
         "grade": 2,
         "birth_year": 1990,
+        "phone": "600 100 200",
         "terms_consent": True,
         "gdpr_consent": True,
     }
@@ -329,6 +330,9 @@ def test_consent_set_endpoint_is_public_and_describes_every_consent(api, db):
 
 def test_profile_exposes_the_consent_history(api, open_registration):
     api.post(REGISTER_URL, payload(birth_year=adult_year()), format="json")
+    # Rejestracja zostawia konto nieaktywne; przedmiotem tego testu jest historia zgód w profilu,
+    # więc aktywację przechodzimy helperem, a nie wyłączamy reguły.
+    activate(User.objects.get(email="zgody@example.test"))
     api.post("/api/auth/login/", {"email": "zgody@example.test", "password": PASSWORD}, format="json")
 
     body = api.get("/api/auth/me/").json()

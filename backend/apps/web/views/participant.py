@@ -28,8 +28,14 @@ from apps.competitions.interviews import (
     cancel_booking,
     slots_for_participant,
 )
-from apps.competitions.models import InterviewSlot, Problem, Stage, StageEntry, StageKind
-from apps.competitions.services import current_edition, current_stage, register_for_stage
+from apps.competitions.models import InterviewSlot, Problem, Stage, StageEntry
+from apps.competitions.services import (
+    SELF_REGISTRATION_KINDS,
+    current_edition,
+    current_stage,
+    register_for_stage,
+    training_stage,
+)
 from apps.core.api import DomainError
 from apps.results.services import results_for_participant
 from apps.submissions.services import create_submission, submissions_for_user
@@ -112,10 +118,14 @@ class MeView(ParticipantRequiredMixin, TemplateView):
                 "edition": edition,
                 "stage": stage,
                 "entry": entry,
+                # Ta sama lista rodzajów, na której stoi ``register_for_stage`` – widok tylko
+                # ukrywa przycisk, którego serwis i tak by nie przyjął. Gdyby powtarzał tu regułę
+                # własnym warunkiem (``kind == ELIM``), dołożenie treningu do zapisów otwartych
+                # zmieniłoby serwis, a przycisk zostałby ukryty.
                 "can_register": (
                     stage is not None
                     and entry is None
-                    and stage.kind == StageKind.ELIM
+                    and stage.kind in SELF_REGISTRATION_KINDS
                     and stage.is_open_for_submissions(now)
                 ),
                 "stage_opened": stage is not None and stage.has_opened(now),
@@ -151,7 +161,35 @@ class MeView(ParticipantRequiredMixin, TemplateView):
                 "publish_name_kind": ConsentKind.PUBLISH_NAME,
             }
         )
+        context.update(self._training_context(user, edition, now))
         return context
+
+    def _training_context(self, user, edition, now) -> dict:
+        """Etap treningowy jako **druga**, niezależna karta pulpitu.
+
+        Trening nie może przyjść z ``current_stage`` (ta funkcja go pomija – inaczej piaskownica
+        bez terminu zostawałaby „etapem bieżącym” w każdej przerwie między zawodami), a jest
+        jedynym miejscem, w którym uczestnik przejdzie całą ścieżkę zgłoszenie → upload → wyniki
+        poza zawodami. Dlatego pulpit liczy dla niego ten sam komplet wartości, co dla etapu
+        zawodów, i renderuje tym samym ``_problem_card.html``: karta uploadu, która zachowuje się
+        „prawie jak prawdziwa”, nie nauczyłaby niczego o tej prawdziwej.
+
+        Rozmów tu nie ma: trening jest z definicji etapem oddawania plików
+        (``StageFormat.SUBMISSIONS``), więc żadnej gałęzi ``is_interview`` ta karta nie potrzebuje.
+        """
+        stage = training_stage(edition)
+        if stage is None:
+            return {"training_stage": None}
+        entry = _entry_for(self.participant, stage)
+        return {
+            "training_stage": stage,
+            "training_entry": entry,
+            "training_can_register": entry is None and stage.is_open_for_submissions(now),
+            "training_upload_open": (
+                entry is not None and stage.is_open_for_submissions(now) and stage.closed_at is None
+            ),
+            "training_problem_rows": _problem_rows(user, entry),
+        }
 
 
 class ConsentPublishNameView(ActionViewMixin, ParticipantRequiredMixin, View):

@@ -17,6 +17,7 @@ from rest_framework import status
 from apps.core.api import DomainError
 from apps.core.models import audit
 
+from .activation import send_activation_email
 from .consents import (
     BY_KIND,
     CONSENTS,
@@ -43,6 +44,7 @@ from .models import (
     hash_invitation_code,
     normalize_voivodeship,
 )
+from .phones import normalize_phone
 
 INVITATION_CODE_BYTES = 24
 PUBLIC_CODE_MAX_ATTEMPTS = 20
@@ -165,7 +167,16 @@ def _validate_password_or_raise(password: str, user: User) -> None:
 
 
 @sensitive_variables()
-def _create_user(*, email: str, password: str, first_name: str, last_name: str) -> User:
+def _create_user(
+    *, email: str, password: str, first_name: str, last_name: str, is_active: bool = True
+) -> User:
+    """Tworzy konto hasłowe. ``is_active=False`` znaczy „czeka na link aktywacyjny”.
+
+    Aktywność jest argumentem, a nie stałą, bo obie drogi rejestracji (uczestnik, komitet na kod)
+    wymagają potwierdzenia adresu, a ``bootstrap_coordinator`` i seed – nie. Konto nieaktywne nie
+    przechodzi przez ``ModelBackend`` (ogólny komunikat „nieprawidłowy e-mail lub hasło”), więc
+    logowanie jest zamknięte samym tym polem, bez drugiej reguły w widoku logowania.
+    """
     email = _normalize_email(email)
     if User.objects.filter(email=email).exists():
         raise DomainError(
@@ -174,7 +185,11 @@ def _create_user(*, email: str, password: str, first_name: str, last_name: str) 
     unsaved = User(email=email, first_name=first_name, last_name=last_name)
     _validate_password_or_raise(password, unsaved)
     return User.objects.create_user(
-        email=email, password=password, first_name=first_name, last_name=last_name
+        email=email,
+        password=password,
+        first_name=first_name,
+        last_name=last_name,
+        is_active=is_active,
     )
 
 
@@ -224,6 +239,7 @@ def register_participant(
     birth_year: int,
     grade: int,
     gdpr_consent: bool,
+    phone: str = "",
     school: str = "",
     school_id: int | None = None,
     guardian_consent: bool = False,
@@ -247,6 +263,11 @@ def register_participant(
     na słownik zamienia je ``given_from_fields`` w jednym miejscu. Nazwy dwóch starych argumentów
     zostają nietknięte, więc klient sprzed wprowadzenia zestawu zgód nadal trafia w te same pola;
     zmienia się tylko to, że sam regulamin też trzeba zaakceptować.
+
+    **Konto powstaje nieaktywne** i czeka na kliknięcie linku z listu
+    (``apps.accounts.activation``). Bez tego adres e-mail – który jest u nas loginem i jedyną drogą
+    odzyskania konta – byłby przyjmowany na słowo: literówka dawałaby konto bez powrotu, a cudzy
+    adres dałby się zająć kontem-widmem.
     """
     _require_registration_open()
     given = given_from_fields(
@@ -263,7 +284,14 @@ def register_participant(
     district = _require_voivodeship(district, required=True)
     school_name, school_obj = _resolve_school(school, school_id)
     grade = _require_grade(grade)
-    user = _create_user(email=email, password=password, first_name=first_name, last_name=last_name)
+    phone = normalize_phone(phone)
+    user = _create_user(
+        email=email,
+        password=password,
+        first_name=first_name,
+        last_name=last_name,
+        is_active=False,
+    )
     _add_to_group(user, GROUP_PARTICIPANT)
     participant = create_participant_with_public_code(
         user=user,
@@ -272,10 +300,12 @@ def register_participant(
         grade=grade,
         district=district,
         birth_year=birth_year,
+        phone=phone,
         gdpr_consent_at=timezone.now(),
         guardian_consent=guardian_consent,
     )
     record_consents(participant, given, source=source, request=request)
+    send_activation_email(user, request=request)
     return participant
 
 
@@ -444,11 +474,13 @@ def register_social_participant(
     birth_year: int,
     grade: int,
     gdpr_consent: bool,
+    phone: str = "",
     school: str = "",
     school_id: int | None = None,
     guardian_consent: bool = False,
     terms_consent: bool = False,
     publish_name_consent: bool = False,
+    email_verified: bool = False,
     source: str = ConsentSource.SOCIAL,
     request=None,
 ) -> Participant:
@@ -466,6 +498,13 @@ def register_social_participant(
     ``User``, ani ``Participant``, ani powiązanie ``SocialAccount`` (to ostatnie zapisuje dopiero
     widok). Tak samo okno rejestracji: udane logowanie u dostawcy nie jest obejściem zamkniętej
     rejestracji.
+
+    ``email_verified`` rozstrzyga, czy konto jest aktywne od razu. Nie jest to konfiguracja, tylko
+    **odpowiedź dostawcy o konkretnym adresie**: Google podaje ``email_verified`` i wtedy drugie
+    potwierdzenie tego samego adresu naszym listem byłoby pytaniem o coś, co już wiemy. Facebook
+    nie potwierdza adresu wcale (``VERIFIED_EMAIL: False``, patrz ``config/settings/base.py``),
+    więc konto zakładane tą drogą przechodzi przez zwykłą aktywację linkiem – inaczej wystarczyłoby
+    wpisać cudzy adres w profilu Facebooka, żeby dostać konto podpisane tym adresem.
     """
     _require_registration_open()
     given = given_from_fields(
@@ -489,7 +528,14 @@ def register_social_participant(
         raise DomainError(
             "Konto z tym adresem e-mail już istnieje.", "EMAIL_TAKEN", status.HTTP_400_BAD_REQUEST
         )
-    user = User(email=email, first_name=first_name, last_name=last_name)
+    phone = normalize_phone(phone)
+    user = User(
+        email=email,
+        first_name=first_name,
+        last_name=last_name,
+        is_active=bool(email_verified),
+        email_verified_at=timezone.now() if email_verified else None,
+    )
     user.set_unusable_password()
     user.save()
     _add_to_group(user, GROUP_PARTICIPANT)
@@ -500,10 +546,13 @@ def register_social_participant(
         grade=grade,
         district=district,
         birth_year=birth_year,
+        phone=phone,
         gdpr_consent_at=timezone.now(),
         guardian_consent=guardian_consent,
     )
     record_consents(participant, given, source=source, request=request)
+    if not email_verified:
+        send_activation_email(user, request=request)
     return participant
 
 
@@ -579,6 +628,7 @@ def register_committee(
     last_name: str,
     invitation_code: str,
     district: str | None = None,
+    request=None,
 ) -> CommitteeMember:
     """Rejestracja członka komitetu na podstawie kodu zaproszenia.
 
@@ -586,12 +636,23 @@ def register_committee(
     przypisał kodowi okręg, pole ``district`` z payloadu jest ignorowane, a profil dostaje
     ``district_verified=True``. Kod bez okręgu daje profil samodeklarowany i niezweryfikowany –
     taki recenzent nie jest przydzielany na etapie okręgowym (reguła konfliktu interesów).
+
+    Aktywacja adresu obowiązuje tu **tak samo**, jak przy rejestracji otwartej: kod zaproszenia
+    dowodzi, że koordynator kogoś zaprosił, a nie że wpisany adres należy do tej osoby. Status
+    ``ACTIVE`` z kodu i aktywacja konta to dwie różne rzeczy – pierwsza daje uprawnienia
+    recenzenta, druga wpuszcza do logowania.
     """
     # Okręg z payloadu sprawdzamy przed zużyciem kodu: nieprawidłowa deklaracja nie ma prawa
     # skasować jednorazowego zaproszenia (``redeem_invitation`` podnosi ``used_count``).
     declared = _require_voivodeship(district, required=False)
     invitation = redeem_invitation(invitation_code)
-    user = _create_user(email=email, password=password, first_name=first_name, last_name=last_name)
+    user = _create_user(
+        email=email,
+        password=password,
+        first_name=first_name,
+        last_name=last_name,
+        is_active=False,
+    )
     from_code = normalize_voivodeship(invitation.district)
     member = CommitteeMember.objects.create(
         user=user,
@@ -604,6 +665,7 @@ def register_committee(
         _grant_reviewer_groups(member)
         member.approved_at = timezone.now()
         member.save(update_fields=["approved_at"])
+    send_activation_email(user, request=request)
     return member
 
 

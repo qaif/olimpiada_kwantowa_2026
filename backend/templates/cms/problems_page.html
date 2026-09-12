@@ -69,6 +69,49 @@
   {% endif %}
 {% endif %}
 
+{% comment %}
+  Zadania treningowe – piaskownica poza zawodami. Sekcja stoi **pod** kartą etapu bieżącego
+  i pokazuje się zawsze, gdy edycja ma etap treningowy: jego treści nie są objęte embargiem
+  do otwarcia zawodów, bo trening żadnych zawodów nie rozstrzyga. Terminu nie ma i nie będzie,
+  więc zamiast daty stoi tu zdanie o tym, gdzie wysyła się rozwiązania.
+{% endcomment %}
+{% if training_stage %}
+  <section class="section" id="zadania-treningowe">
+    <div class="section__head">
+      <h2 class="mt-0">Zadania treningowe</h2>
+      <span class="badge badge--neutral">trening</span>
+    </div>
+    <p class="hint">Bez terminu – rozwiązania wysyłasz z panelu uczestnika po zgłoszeniu się
+      do treningu. Zadania treningowe nie liczą się do kwalifikacji.</p>
+    <div class="scroll">
+      <table class="table">
+        <caption>Arkusz treningowy: {{ training_stage.display_name }}</caption>
+        <thead><tr><th>Nr</th><th>Tytuł</th><th>Treść</th><th>Formaty</th></tr></thead>
+        <tbody>
+          {% for problem in training_problems %}
+            <tr>
+              <td class="num">{{ problem.number }}</td>
+              <td>{{ problem.title }}</td>
+              <td>
+                {% if problem.statement_pdf %}
+                  {# Plik zawsze przez widok aplikacji – nigdy przez URL storage. #}
+                  <a class="btn btn--secondary btn--small"
+                     href="{% url 'competitions:problem-statement' problem.pk %}">PDF</a>
+                {% else %}
+                  <span class="hint">brak pliku</span>
+                {% endif %}
+              </td>
+              <td>{{ problem.allowed_formats|join:", " }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="empty">Arkusz treningowy jest jeszcze pusty.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endif %}
+
 <div class="prose">
   {% for block in page.body %}
     {% include_block block %}

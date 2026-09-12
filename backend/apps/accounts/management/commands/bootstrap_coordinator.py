@@ -11,6 +11,7 @@ import os
 from django.contrib.auth.password_validation import validate_password
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
 from apps.accounts.models import User
@@ -33,8 +34,19 @@ class Command(BaseCommand):
 
         user = User.objects.filter(email=email).first()
         created = user is None
+        # Konto koordynatora nie przechodzi aktywacji e-mailem i nie ma jak przejść: powstaje
+        # z komendy na świeżej instalacji, w której nie ma jeszcze ani działającej poczty, ani
+        # nikogo, kto mógłby ten link odebrać. Adres pochodzi ze zmiennej środowiskowej ustawionej
+        # przez osobę wdrażającą, więc nie jest „podany na słowo” przez anonima z internetu.
+        verified_at = timezone.now()
         if created:
-            user = User(email=email, is_staff=True, is_superuser=True, is_active=True)
+            user = User(
+                email=email,
+                is_staff=True,
+                is_superuser=True,
+                is_active=True,
+                email_verified_at=verified_at,
+            )
             validate_password(password, user)
             user.set_password(password)
             user.save()
@@ -42,6 +54,8 @@ class Command(BaseCommand):
             user.is_staff = True
             user.is_superuser = True
             user.is_active = True
+            if user.email_verified_at is None:
+                user.email_verified_at = verified_at
             if options["reset_password"]:
                 validate_password(password, user)
                 user.set_password(password)

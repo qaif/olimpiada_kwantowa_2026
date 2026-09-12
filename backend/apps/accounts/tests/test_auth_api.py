@@ -7,7 +7,7 @@ from rest_framework.test import APIClient
 from apps.accounts.models import GROUP_PARTICIPANT, GROUP_REVIEWER
 from apps.accounts.services import register_participant
 
-from .factories import DEFAULT_PASSWORD, ActiveReviewerFactory, ParticipantFactory
+from .factories import DEFAULT_PASSWORD, ActiveReviewerFactory, ParticipantFactory, activate
 
 ME_URL = "/api/auth/me/"
 LOGIN_URL = "/api/auth/login/"
@@ -91,10 +91,15 @@ def test_kryterium_8_login_dziala_niezaleznie_od_wielkosci_liter_w_emailu(api, o
         district="mazowieckie",
         grade=3,
         birth_year=2007,
+        phone="600 100 200",
         terms_consent=True,
         gdpr_consent=True,
     )
     assert registered.user.email == "wielkie@example.test"
+    # Konto z rejestracji czeka na link aktywacyjny – tu przedmiotem testu jest normalizacja
+    # adresu przy logowaniu, więc aktywację przechodzimy helperem (tą samą drogą, co kliknięcie
+    # linku z listu).
+    activate(registered.user)
 
     resp = api.post(LOGIN_URL, {"email": "WIELKIE@example.test", "password": DEFAULT_PASSWORD}, format="json")
 

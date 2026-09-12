@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+  Edycja własnych danych. Jeden szablon obsługuje oba widoki (``/me/profile/`` dla uczestnika
+  i ``/account/profile/`` dla pozostałych ról), bo różnią się wyłącznie zestawem pól – a ten
+  przychodzi z formularza. Dwa szablony znaczyłyby dwa miejsca, w których blok „zmiana adresu
+  e-mail” musiałby wyglądać tak samo.
+
+  Blok wyboru szkoły (``web/_school_picker.html``) renderuje się tylko wtedy, gdy formularz go ma:
+  ``form.school_field_names`` istnieje wyłącznie w ``SchoolChoiceMixin``.
+{% endcomment %}
+{% block title %}Edycja danych{% endblock %}
+{% block alpine_components %}
+  {% if form.school_field_names %}
+    <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/school-picker.js' %}"></script>
+  {% endif %}
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">Twoje konto</span>
+  <h1>Edycja danych</h1>
+  <p class="lead">Dane kontaktowe i szkolne, które organizator ma o Tobie w tej edycji.</p>
+</div>
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Dane osobowe</h2>
+    <form method="post" class="form">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      {% for field in form %}
+        {% if form.school_field_names and field.name in form.school_field_names %}
+          {% if field.name == "school_id" %}{% include "web/_school_picker.html" %}{% endif %}
+        {% else %}
+          <p>
+            {{ field.errors }}
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
+          </p>
+        {% endif %}
+      {% endfor %}
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">Zapisz dane</button>
+        <a class="btn btn--secondary" href="{% if participant %}{% url 'web:me' %}{% else %}/{% endif %}">Wróć</a>
+      </div>
+    </form>
+    {% if committee %}
+      {% comment %}
+        Okręg członka komitetu jest tu tylko do odczytu i tak ma zostać: potwierdzony okręg jest
+        podstawą reguły konfliktu interesów przy przydziale recenzji, więc recenzent, który mógłby
+        go sobie przestawić, mógłby też wejść na prace ze swojego województwa.
+      {% endcomment %}
+      <p class="hint">Województwo ({{ committee.get_district_display|default:"—" }}
+        {% if committee.district_verified %}– potwierdzone{% else %}– niepotwierdzone{% endif %})
+        zmienia wyłącznie koordynator: od niego zależy reguła konfliktu interesów w przydziale recenzji.</p>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section" id="email">
+  <div class="card">
+    <h2 class="mt-0">Adres e-mail</h2>
+    <p class="hint">Obecny adres: <strong>{{ user.email }}</strong>. Zmiana wymaga potwierdzenia –
+      wyślemy link na <strong>nowy</strong> adres, a do kliknięcia logujesz się dotychczasowym.</p>
+    <form method="post" action="{% url 'web:email-change' %}" class="form">
+      {% csrf_token %}
+      {{ email_form.as_p }}
+      <button type="submit" class="btn btn--secondary">Wyślij link potwierdzający</button>
+    </form>
+  </div>
+</section>
+
+<section class="section" id="usuniecie">
+  <div class="card">
+    <h2 class="mt-0">Usunięcie konta</h2>
+    <p class="hint">Możesz zażądać usunięcia konta i swoich danych osobowych (art. 17 RODO).
+      Skutki zależą od tego, czy brałeś udział w zawodach – wyjaśniamy je na osobnej stronie.</p>
+    <p><a class="btn btn--secondary" href="{% url 'web:account-delete' %}">Usuń konto</a></p>
+  </div>
+</section>
+{% endblock %}

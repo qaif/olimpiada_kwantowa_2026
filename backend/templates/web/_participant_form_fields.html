@@ -1,5 +1,5 @@
 {% comment %}
-  Pola formularza uczestnika. Zamiast ``form.as_p`` jest tu pętla z dwoma wyjątkami:
+  Pola formularza uczestnika. Zamiast ``form.as_p`` jest tu pętla z trzema wyjątkami:
 
   - w miejscu, w którym w kolejności pól stoi ``school_id``, renderuje się cały blok wyboru
     szkoły (``web/_school_picker.html``),
@@ -8,7 +8,9 @@
     o znanej treści, a nie kolejnym polem danych, więc ma własny nagłówek i własny blok.
     Etykiety zawierają odnośniki do dokumentów – buduje je ``ConsentFieldsMixin`` przez
     ``format_html``, więc przechodzą przez ``{{ field.label_tag }}`` bez escapowania linku
-    i bez ani jednego ``|safe`` w szablonie.
+    i bez ani jednego ``|safe`` w szablonie,
+  - pola antyspamowe (``form.antispam_field_names``) wypadają z pętli i wracają na samym końcu,
+    pod blokiem zgód (``web/_antispam_fields.html``).
 
   Reszta pól idzie w układzie, który dawało ``as_p``, więc żaden inny ekran rejestracji nie
   zmienia wyglądu. Kolejność pól ustala ``field_order`` w apps/web/forms.py – szablon jej nie
@@ -20,6 +22,8 @@
     {% if field.name == "school_id" %}{% include "web/_school_picker.html" %}{% endif %}
   {% elif field.name in form.consent_field_names %}
     {# renderowane niżej, w bloku „Zgody” #}
+  {% elif field.name in form.antispam_field_names %}
+    {# renderowane niżej, w bloku antyspamowym pod zgodami (web/_antispam_fields.html) #}
   {% else %}
     <p>
       {{ field.errors }}
@@ -59,3 +63,10 @@
     {% endif %}
   {% endfor %}
 </fieldset>
+
+{% comment %}
+  CAPTCHA i pułapki antyspamowe stoją **za** zgodami: to ostatnia czynność przed wysłaniem,
+  a nie kolejne oświadczenie. Warunek, bo formularz rejestracji przez dostawcę (Google/Facebook)
+  używa tego samego szablonu, a tam bramką jest już logowanie u dostawcy – patrz apps/web/forms.py.
+{% endcomment %}
+{% if form.antispam_field_names %}{% include "web/_antispam_fields.html" %}{% endif %}

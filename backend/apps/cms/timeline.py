@@ -15,7 +15,7 @@ from datetime import date
 from django.utils import timezone
 from django.utils.formats import date_format
 
-from apps.competitions.models import Edition, Stage
+from apps.competitions.models import Edition, Stage, StageKind
 from apps.competitions.services import current_edition
 from apps.results.models import ResultsPublication
 
@@ -109,13 +109,17 @@ def stage_rows(edition: Edition | None = None, now=None) -> list[dict]:
     Bez argumentu bierze edycję bieżącą – tak woła ją blok w treści redakcyjnej, który nie ma
     skąd znać edycji. Jedno zapytanie o etapy i jedno o publikacje: lista rośnie o wiersze,
     nie o zapytania, niezależnie od liczby etapów.
+
+    Etapu treningowego na tej liście nie ma. Oś czasu ogłasza **harmonogram zawodów**, a trening
+    jest piaskownicą bez terminu (``TRAINING_DEADLINE``): stanąłby na końcu tabeli ze stanem
+    „otwarty” i datą 2099, czyli jako etap, na który wszyscy czekają najdłużej.
     """
     if edition is None:
         edition = current_edition()
     if edition is None:
         return []
     now = now or timezone.now()
-    stages = list(edition.stages.order_by("opens_at", "id"))
+    stages = list(edition.stages.exclude(kind=StageKind.TRAINING).order_by("opens_at", "id"))
     published = set(ResultsPublication.objects.filter(stage__in=stages).values_list("stage_id", flat=True))
     rows = []
     for stage in stages:

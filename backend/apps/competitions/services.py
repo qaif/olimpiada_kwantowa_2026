@@ -90,9 +90,14 @@ def current_stage(edition: Edition, now=None) -> Stage | None:
     """Etap „na teraz”: otwarty, a jeśli żaden nie jest otwarty – najbliższy przyszły, inaczej ostatni.
 
     Kolejność jest wyznaczana po ``opens_at``, nie po rodzaju etapu – terminy są jedynym źródłem prawdy.
+
+    Etap treningowy jest **pomijany**. Jest otwarty bez końca (``TRAINING_DEADLINE``), więc gdyby
+    wchodził do tej listy, przy każdej przerwie między zawodami zostawałby „etapem bieżącym” –
+    strona główna odliczałaby do roku 2099, a pulpit uczestnika pokazywałby trening zamiast
+    najbliższych zawodów. Trening ma własne wejście: ``training_stage``.
     """
     now = now or timezone.now()
-    stages = list(edition.stages.order_by("opens_at", "id"))
+    stages = [stage for stage in edition.stages.order_by("opens_at", "id") if not stage.is_training]
     if not stages:
         return None
     for stage in stages:
@@ -102,6 +107,18 @@ def current_stage(edition: Edition, now=None) -> Stage | None:
     if upcoming:
         return upcoming[0]
     return stages[-1]
+
+
+def training_stage(edition: Edition | None) -> Stage | None:
+    """Etap treningowy edycji albo ``None``. Osobne wejście, bo trening nie jest „etapem bieżącym”.
+
+    Bez argumentu ``now``, w odróżnieniu od ``current_stage``: trening nie ma terminu, więc zegar
+    niczego tu nie rozstrzyga – piaskownica jest otwarta, dopóki koordynator jej nie zamknie.
+    Unikalne (edycja, rodzaj) gwarantuje, że ``first()`` nie ukrywa drugiego etapu.
+    """
+    if edition is None:
+        return None
+    return edition.stages.filter(kind=StageKind.TRAINING).first()
 
 
 @transaction.atomic
@@ -190,15 +207,21 @@ def _already_registered() -> DomainError:
     )
 
 
+#: Etapy, do których uczestnik zapisuje się **sam**. Eliminacje są pierwszym etapem zawodów, a
+#: trening piaskownicą poza zawodami – w obu wypadkach nie ma poprzedniego etapu, z którego mogłaby
+#: przyjść kwalifikacja, więc jedyną drogą wejścia jest własne zgłoszenie.
+SELF_REGISTRATION_KINDS = (StageKind.ELIM, StageKind.TRAINING)
+
+
 @transaction.atomic
 def register_for_stage(participant: Participant, stage: Stage, *, now=None) -> StageEntry:
-    """Samodzielna rejestracja uczestnika do etapu eliminacyjnego.
+    """Samodzielna rejestracja uczestnika do etapu eliminacyjnego albo treningowego.
 
     Do etapu okręgowego i finału wpisy tworzy wyłącznie kwalifikacja (T-07) – ręczna próba
     kończy się ``STAGE_NOT_OPEN_FOR_REGISTRATION``.
     """
     now = now or timezone.now()
-    if stage.kind != StageKind.ELIM:
+    if stage.kind not in SELF_REGISTRATION_KINDS:
         raise DomainError(
             "Do tego etapu wpisy tworzy kwalifikacja, nie rejestracja.",
             "STAGE_NOT_OPEN_FOR_REGISTRATION",
@@ -235,7 +258,8 @@ def missing_stage_kinds(edition: Edition) -> list[tuple[str, str]]:
     """Rodzaje etapów, których edycja jeszcze nie ma – lista wyboru przy dodawaniu etapu.
 
     Para (edycja, rodzaj) jest unikalna w bazie, więc formularz z pełną listą kończyłby się
-    ``IntegrityError`` na czwartej próbie. Kolejność jest kolejnością z ``StageKind``.
+    ``IntegrityError`` przy próbie dołożenia rodzaju, który edycja już ma. Kolejność jest
+    kolejnością z ``StageKind``, więc „Trening” stoi na końcu listy – za etapami zawodów.
     """
     taken = set(Stage.objects.filter(edition=edition).values_list("kind", flat=True))
     return [(value, label) for value, label in StageKind.choices if value not in taken]

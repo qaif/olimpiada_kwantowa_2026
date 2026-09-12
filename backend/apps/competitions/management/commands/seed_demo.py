@@ -120,6 +120,21 @@ class Command(BaseCommand):
 
     # --- konta ----------------------------------------------------------------------------
 
+    @staticmethod
+    def _mark_verified(user: User) -> User:
+        """Konto demonstracyjne ma mieć potwierdzony adres e-mail.
+
+        Bez tego wszystkie konta z seeda wylądowałyby na liście „oczekujące na aktywację”
+        w panelu koordynatora i – po czterech godzinach – pod kosiarką nieaktywowanych kont
+        (``apps.accounts.tasks``). Na devie nie ma skrzynek, do których mógłby dojść link,
+        więc aktywację przechodzimy tu wprost.
+        """
+        if user.email_verified_at is None or not user.is_active:
+            user.email_verified_at = user.email_verified_at or timezone.now()
+            user.is_active = True
+            user.save(update_fields=["email_verified_at", "is_active"])
+        return user
+
     def _ensure_coordinator(self) -> User:
         user = User.objects.filter(email=DEMO_COORDINATOR_EMAIL).first()
         created = user is None
@@ -130,6 +145,7 @@ class Command(BaseCommand):
                 first_name="Koordynator",
                 last_name="Demo",
             )
+        self._mark_verified(user)
         make_coordinator(user)
         self._report("koordynator", DEMO_COORDINATOR_EMAIL, created)
         return user
@@ -148,6 +164,9 @@ class Command(BaseCommand):
                     district=Voivodeship.MAZOWIECKIE if index % 2 else Voivodeship.MALOPOLSKIE,
                     grade=(index % 4) + 1,
                     birth_year=2008,
+                    # Numer z zakresu testowego, różny dla każdego konta – telefon jest od tej
+                    # zmiany wymagany przy rejestracji, a seed przechodzi tą samą ścieżką.
+                    phone=f"+48600{index:06d}",
                     # Komplet zgód – seed przechodzi tą samą bramką, co formularz i API
                     # (``accounts.services.validate_consents``), więc konto demonstracyjne ma
                     # też komplet wpisów dowodowych ``ConsentRecord``.
@@ -160,6 +179,7 @@ class Command(BaseCommand):
             else:
                 participant = user.participant
                 created = False
+            self._mark_verified(participant.user)
             self._report("uczestnik", email, created)
             # Świadomie ``get_or_create`` zamiast ``register_for_stage``: seed musi być idempotentny,
             # a serwis rejestracji z założenia odrzuca powtórne zgłoszenie (ALREADY_REGISTERED).
@@ -179,6 +199,7 @@ class Command(BaseCommand):
                     first_name=f"Recenzent{index}",
                     last_name="Demo",
                 )
+            self._mark_verified(user)
             member, _ = CommitteeMember.objects.get_or_create(
                 user=user, defaults={"district": district, "status": CommitteeStatus.PENDING}
             )

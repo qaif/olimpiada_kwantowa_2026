@@ -18,12 +18,14 @@ from apps.core.api import DomainError
 from .consents import ConsentSource, descriptions
 from .models import CommitteeMember, CommitteeStatus
 from .permissions import IsCoordinator
+from .profile import update_own_names, update_participant_profile
 from .serializers import (
     CommitteeRegisteredSerializer,
     CommitteeRegisterSerializer,
     ConsentDefinitionSerializer,
     LoginSerializer,
     MeSerializer,
+    MeUpdateSerializer,
     ParticipantRegisteredSerializer,
     ParticipantRegisterSerializer,
     PendingCommitteeMemberSerializer,
@@ -88,7 +90,7 @@ class RegisterCommitteeView(GenericAPIView):
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        member = register_committee(**serializer.validated_data)
+        member = register_committee(**serializer.validated_data, request=request)
         return Response(CommitteeRegisteredSerializer(member).data, status=status.HTTP_201_CREATED)
 
 
@@ -130,7 +132,7 @@ class LogoutView(GenericAPIView):
 
 
 class MeView(GenericAPIView):
-    """Profil zalogowanego użytkownika wraz z rolami."""
+    """Profil zalogowanego użytkownika wraz z rolami; ``PATCH`` edytuje własne dane."""
 
     permission_classes = [IsAuthenticated]
     serializer_class = MeSerializer
@@ -138,6 +140,37 @@ class MeView(GenericAPIView):
     @extend_schema(responses={200: MeSerializer})
     def get(self, request):
         return Response(self.get_serializer(request.user).data)
+
+    @extend_schema(request=MeUpdateSerializer, responses={200: MeSerializer})
+    def patch(self, request):
+        """Edycja własnych danych – ten sam serwis, co formularz ``/me/profile/``.
+
+        Pola profilu uczestnika (telefon, szkoła, klasa, rocznik, województwo) przyjmujemy wyłącznie
+        od konta, które ten profil ma. Konto komitetu zmienia tą drogą imię i nazwisko; okręg zostaje
+        u koordynatora, bo potwierdzony okręg jest podstawą reguły konfliktu interesów.
+        """
+        serializer = MeUpdateSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        fields = dict(serializer.validated_data)
+        participant = getattr(request.user, "participant", None)
+        if participant is not None:
+            update_participant_profile(participant, actor=request.user, request=request, **fields)
+        else:
+            unsupported = set(fields) - {"first_name", "last_name"}
+            if unsupported:
+                raise DomainError(
+                    "To konto nie ma profilu uczestnika – zmienić można wyłącznie imię i nazwisko.",
+                    "NOT_A_PARTICIPANT",
+                    status.HTTP_400_BAD_REQUEST,
+                )
+            update_own_names(
+                request.user,
+                first_name=fields.get("first_name", request.user.first_name),
+                last_name=fields.get("last_name", request.user.last_name),
+                request=request,
+            )
+        request.user.refresh_from_db()
+        return Response(MeSerializer(request.user).data)
 
 
 class CommitteePendingListView(GenericAPIView):

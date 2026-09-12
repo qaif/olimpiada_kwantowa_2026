@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% comment %}
+  Link potwierdzający nie zadziałał. Powodów jest kilka (wygasł, adres zajął w tym czasie ktoś inny,
+  adres konta zmienił się jeszcze raz) i wszystkie kończą się tym samym: trzeba zacząć od nowa
+  w panelu. Rozpisywanie, który to był powód, na stronie **bez logowania** powiedziałoby obcej
+  osobie coś o cudzym koncie.
+{% endcomment %}
+{% block title %}Link potwierdzający nie działa{% endblock %}
+{% block content %}
+<div class="auth">
+  <div class="card">
+    <h1>Link potwierdzający nie działa</h1>
+    <p class="auth__intro">{{ error }}</p>
+    <p class="hint">Adres konta pozostał bez zmian. Zaloguj się dotychczasowym adresem i wyślij
+      nowy link z ekranu edycji danych.</p>
+    <p><a class="btn btn--primary btn--block" href="{% url 'web:login' %}">Przejdź do logowania</a></p>
+  </div>
+</div>
+{% endblock %}

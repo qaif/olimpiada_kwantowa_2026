@@ -26,6 +26,13 @@ from django.http import Http404
 from django.urls import reverse_lazy
 from django.views.generic import FormView, TemplateView
 
+from apps.accounts.activation import (
+    ACTIVATION_HOURS,
+    ACTIVATION_REQUIRED_MESSAGE,
+    RESEND_MESSAGE,
+    activate_with_token,
+    resend_activation,
+)
 from apps.accounts.consents import ConsentSource
 from apps.accounts.services import register_committee, register_participant
 from apps.cms.models import SiteSettings
@@ -34,6 +41,7 @@ from apps.core.models import audit
 from apps.results.services import published_results
 from apps.web.context_processors import roles
 from apps.web.forms import (
+    ActivationResendForm,
     CommitteeRegisterForm,
     EmailAuthenticationForm,
     ParticipantRegisterForm,
@@ -224,7 +232,10 @@ class RegisterParticipantView(ThrottledFormMixin, ServiceFormView):
     template_name = "web/register.html"
     form_class = ParticipantRegisterForm
     success_url = reverse_lazy("web:login")
-    success_message = "Konto uczestnika zostało założone. Zaloguj się."
+    # Konto powstaje nieaktywne, więc komunikat **musi** mówić o liście: bez tego uczestnik idzie
+    # prosto na formularz logowania i dostaje „nieprawidłowy e-mail lub hasło”, czyli komunikat,
+    # który każe mu szukać błędu w haśle.
+    success_message = ACTIVATION_REQUIRED_MESSAGE
     # Tu liczy się każdy POST, także udany: limit ma powstrzymać seryjne zakładanie kont.
     throttle_scope = "register"
 
@@ -246,11 +257,79 @@ class RegisterCommitteeView(ThrottledFormMixin, ServiceFormView):
     success_url = reverse_lazy("web:login")
     throttle_scope = "register"
     success_message = (
-        "Konto zostało założone. Jeśli kod wymagał zatwierdzenia, poczekaj na decyzję koordynatora."
+        f"{ACTIVATION_REQUIRED_MESSAGE} "
+        "Jeśli kod wymagał zatwierdzenia, po aktywacji poczekaj jeszcze na decyzję koordynatora."
     )
 
     def call_service(self, form):
-        register_committee(**form.cleaned_data)
+        register_committee(**form.cleaned_data, request=self.request)
+
+
+class ActivateAccountView(TemplateView):
+    """Aktywacja konta spod linku ``/activate/<token>/``.
+
+    **Bez automatycznego zalogowania** – tak samo, jak po resecie hasła (``post_reset_login=False``).
+    Dostęp do skrzynki pocztowej nie ma zamieniać się jednym kliknięciem z listu w sesję w panelu:
+    list bywa przekazywany dalej, a skrzynka bywa otwarta na cudzym komputerze.
+
+    Token zły albo wygasły nie jest błędem 404: kończy się stroną z formularzem „wyślij link
+    ponownie”, bo to jedyna sensowna następna czynność, a po czterech godzinach wygaśnięcie linku
+    jest sytuacją normalną, nie awarią.
+    """
+
+    template_name = "web/activate_done.html"
+    invalid_template_name = "web/activate_invalid.html"
+    #: Ustawiane w ``get``; niepuste znaczy „pokaż stronę z formularzem ponownej wysyłki”.
+    error = ""
+
+    def get(self, request, token: str, *args, **kwargs):
+        try:
+            activate_with_token(token, request=request)
+        except DomainError as exc:
+            self.error = str(exc.detail)
+        return self.render_to_response(self.get_context_data(**kwargs), status=400 if self.error else 200)
+
+    def get_template_names(self) -> list[str]:
+        return [self.invalid_template_name if self.error else self.template_name]
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({"error": self.error, "activation_hours": ACTIVATION_HOURS})
+        if self.error:
+            # Formularz stoi od razu na stronie odmowy: po wygaśnięciu linku jedyną sensowną
+            # następną czynnością jest poproszenie o nowy, a nie szukanie go w menu.
+            context["form"] = ActivationResendForm()
+        return context
+
+
+class ActivationResendView(ThrottledFormMixin, FormView):
+    """„Wyślij link aktywacyjny ponownie” (``/activate/resend/``).
+
+    Dwie rzeczy, które ten widok robi **inaczej** niż zwykły formularz:
+
+    - **odpowiedź nie zależy od stanu konta.** Zawsze ten sam komunikat i to samo przekierowanie,
+      niezależnie od tego, czy konto istnieje, czy jest już aktywne. Inaczej formularz byłby
+      wyszukiwarką adresów zarejestrowanych w serwisie – i to publiczną, bez logowania,
+    - **limit konsumuje każdy POST**, także ten, po którym nic nie zostało wysłane. Scope jest
+      wspólny z resetem hasła (``password_reset``, 5/h): oba formularze wysyłają list na adres
+      podany przez anonima, więc ograniczenie musi być wspólne – inaczej ten sam adres dałoby się
+      zasypać listami przez drugi formularz.
+    """
+
+    template_name = "web/activate_resend.html"
+    form_class = ActivationResendForm
+    success_url = reverse_lazy("web:login")
+    throttle_scope = "password_reset"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["activation_hours"] = ACTIVATION_HOURS
+        return context
+
+    def form_valid(self, form):
+        resend_activation(form.cleaned_data["email"], request=self.request)
+        messages.success(self.request, RESEND_MESSAGE)
+        return super().form_valid(form)
 
 
 class PublicResultsView(TemplateView):

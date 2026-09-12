@@ -31,6 +31,10 @@ urlpatterns = [
     # szablonowi wyłącznie adresy plików, więc podmiana widoku jest jedynym miejscem, w którym
     # da się dołożyć skróty SRI bez rozjazdu z pinowaną wersją w ustawieniach.
     path("api/docs/", NonceSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
+    # Obrazek CAPTCHY publicznych formularzy rejestracji (django-simple-captcha). Adres jest
+    # nasz i dlatego ``img-src 'self'`` z CSP wystarcza – nic tu nie przychodzi z obcej domeny.
+    # Musi stać przed catch-allem Wagtaila, inaczej obrazek szukałby się w drzewie stron.
+    path("captcha/", include("captcha.urls")),
     # Redakcja części informacyjnej. Dostęp ma wyłącznie grupa `coordinator` (migracja cms.0003).
     path("cms/", include(wagtailadmin_urls)),
     # Dokumenty Wagtaila serwuje widok aplikacji, a nie bezpośredni URL bucketu. Wzorce są kopią

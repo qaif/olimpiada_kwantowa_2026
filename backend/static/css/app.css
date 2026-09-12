@@ -3496,6 +3496,61 @@ fieldset:disabled .score-option {
   display: block;
 }
 
+/* --- blok antyspamowy formularzy rejestracji -------------------------------------------------
+ * CAPTCHA jest własna (django-simple-captcha, obrazek spod naszego adresu – patrz
+ * apps/web/captcha.py), więc jej wygląd jest naszą sprawą, a nie stylem wstrzykniętym przez
+ * obcy skrypt. Widżet pakietu renderuje trzy rodzeństwa w jednym akapicie: ``<img class="captcha">``,
+ * ukryte pole z kluczem i pole odpowiedzi – bez własnego kontenera. Siatka układa je bez
+ * dodatkowego znacznika: etykieta, podpowiedź i błąd na całą szerokość, obrazek i pole obok siebie.
+ *
+ * Selektor ``:has()`` łapie też formularz komitetu (renderowany przez ``form.as_p``, bez naszej
+ * klasy); klasa ``.captcha-field`` zostaje dla przeglądarek bez ``:has()`` – dostaną wtedy
+ * obrazek nad polem, czyli układ brzydszy, ale nadal używalny.
+ */
+.form p.captcha-field,
+.form p:has(> img.captcha) {
+  display: grid;
+  grid-template-columns: auto minmax(6rem, 1fr);
+  align-items: center;
+  gap: var(--sp-1) var(--sp-3);
+}
+
+.form p.captcha-field > label,
+.form p.captcha-field > .helptext,
+.form p.captcha-field > ul.errorlist,
+.form p:has(> img.captcha) > label,
+.form p:has(> img.captcha) > .helptext,
+.form p:has(> img.captcha) > ul.errorlist {
+  grid-column: 1 / -1;
+}
+
+/* Obrazek jest bitmapą w kolorach jasnego motywu (CAPTCHA_BACKGROUND_COLOR), więc w motywie
+   ciemnym dostaje ramkę – bez niej biały prostokąt wyglądałby jak dziura w formularzu. */
+img.captcha {
+  display: block;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: #fffefb;
+}
+
+/* Pułapka na boty: pole **jest** w formularzu i **jest** wysyłane, tylko go nie widać. Dlatego
+   przesunięcie poza ekran, a nie ``display: none`` – część botów pomija pola, których
+   przeglądarka nie renderuje, a to jest dokładnie to, czego chcemy uniknąć. */
+.hp-field {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Akapit, w którym została sama pułapka (``form.as_p`` – rejestracja komitetu), nie zostawia
+   po sobie odstępu. Bez tego między polami byłaby niewytłumaczalna dziura. */
+.form p:has(> .hp-field) {
+  display: none;
+}
+
 /* Pasek informacji o cookie (templates/base.html). Leży nad treścią, bo ma zniknąć po jednym
    kliknięciu i nie może przy każdym wejściu przesuwać układu strony. Klasa na ``<html>`` pochodzi
    ze static/js/cookie-notice.js: pasek jest w HTML widoczny, więc informacja dociera także bez

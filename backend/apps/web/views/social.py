@@ -27,7 +27,13 @@ from django.shortcuts import redirect
 from django.urls import reverse
 from django.views.generic import FormView, TemplateView
 
-from apps.accounts.adapters import provider_id, provider_label, sociallogin_email
+from apps.accounts.activation import ACTIVATION_REQUIRED_MESSAGE
+from apps.accounts.adapters import (
+    provider_id,
+    provider_label,
+    sociallogin_email,
+    sociallogin_email_verified,
+)
 from apps.accounts.consents import ConsentSource
 from apps.accounts.services import register_social_participant
 from apps.competitions.registration import current_registration_status, registration_message
@@ -86,10 +92,15 @@ class SocialSignupView(ThrottledFormMixin, FormView):
     def form_valid(self, form):
         request = self.request
         sociallogin = self.sociallogin
+        # Czy konto powstanie aktywne, rozstrzyga **odpowiedź dostawcy o tym adresie**, a nie nasza
+        # konfiguracja: Google potwierdza adres (``email_verified``), Facebook nie potwierdza go
+        # wcale. Szczegóły w ``apps.accounts.adapters.sociallogin_email_verified``.
+        email_verified = sociallogin_email_verified(sociallogin)
         try:
             participant = register_social_participant(
                 email=sociallogin_email(sociallogin),
                 **form.cleaned_data,
+                email_verified=email_verified,
                 source=ConsentSource.SOCIAL,
                 request=request,
             )
@@ -107,9 +118,17 @@ class SocialSignupView(ThrottledFormMixin, FormView):
             participant.user,
             "account.social_signup",
             participant.user,
-            {"provider": provider_id(sociallogin)},
+            {"provider": provider_id(sociallogin), "email_verified": email_verified},
             request=request,
         )
+        if not email_verified:
+            # Konto czeka na link aktywacyjny, więc nie ma czego logować: ``is_active=False``
+            # odbiłoby się o kontrolę allauth i skończyło stroną „konto nieaktywne”, czyli
+            # komunikatem, który brzmi jak blokada, a nie jak „sprawdź skrzynkę”. Powiązanie
+            # ``SocialAccount`` jest już zapisane, więc po aktywacji ten sam przycisk dostawcy
+            # wpuszcza od razu, bez powtarzania formularza.
+            messages.success(request, ACTIVATION_REQUIRED_MESSAGE)
+            return redirect(reverse("web:login"))
         return flows.signup.complete_social_signup(request, sociallogin)
 
 

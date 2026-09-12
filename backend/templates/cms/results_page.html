@@ -14,7 +14,13 @@
 {% for table in tables %}
   <section class="results-block section">
     <div class="section__head">
-      <h2 class="mt-0">{{ table.stage.display_name }} – {{ table.stage.edition.year_label }}</h2>
+      <h2 class="mt-0">{{ table.stage.display_name }} – {{ table.stage.edition.year_label }}
+        {% comment %}
+          Tabela etapu treningowego wygląda dokładnie jak tabela zawodów, a nią nie jest: trening
+          nikogo nie kwalifikuje i jest poza olimpiadą. Odznaka jest jedyną rzeczą, która to mówi,
+          więc stoi w nagłówku, a nie w przypisie.
+        {% endcomment %}
+        {% if table.stage.is_training %}<span class="badge badge--neutral">trening</span>{% endif %}</h2>
       <p class="hint">Ogłoszone {{ table.publication.published_at|local_time }}, tryb prezentacji:
         {{ table.publication.get_anonymization_display }}.
         <a href="{% url 'web:results' table.stage.pk %}">wersja pełnoekranowa</a></p>

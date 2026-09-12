@@ -163,4 +163,7 @@ def participant_identity() -> dict:
         "district": "mazowieckie",
         "grade": "3",
         "birth_year": "2008",
+        # Telefon jest wymagany od każdego nowego uczestnika (kontakt organizacyjny). Numer
+        # z zakresu testowego, w postaci „jak wpisuje człowiek” – serwis go znormalizuje.
+        "phone": "600 100 200",
     }

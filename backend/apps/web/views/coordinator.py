@@ -20,7 +20,13 @@ from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.generic import TemplateView, View
 
-from apps.accounts.models import CommitteeMember, CommitteeStatus, InvitationGrantsStatus
+from apps.accounts.activation import (
+    ACTIVATION_HOURS,
+    ACTIVATION_MAX_AGE,
+    mark_activated,
+    resend_activation,
+)
+from apps.accounts.models import CommitteeMember, CommitteeStatus, InvitationGrantsStatus, User
 from apps.accounts.services import approve_committee_member, create_invitation, verify_committee_district
 from apps.competitions.models import Stage
 from apps.competitions.services import current_edition, missing_stage_kinds
@@ -119,10 +125,51 @@ def dashboard_context(extra: dict | None = None) -> dict:
         "voivodeship_choices": VOIVODESHIP_CHOICES,
         "invitation_form": InvitationForm(),
         "publish_form": PublishResultsForm(),
+        "pending_activation": pending_activation_rows(),
+        "activation_hours": ACTIVATION_HOURS,
         "preview": None,
     }
     context.update(extra or {})
     return context
+
+
+def pending_activation_rows(now=None) -> list[dict]:
+    """Konta, które czekają na potwierdzenie adresu e-mail – z czasem do automatycznego skasowania.
+
+    Ta sekcja jest **obejściem operacyjnym z terminem ważności**: dopóki domena nadawcy nie ma
+    poprawnych rekordów SPF/DKIM (README § 4.2), część listów aktywacyjnych trafia do spamu albo
+    jest odrzucana przez serwer odbiorcy, a uczestnik nie ma jak sam wejść do serwisu. Koordynator
+    potwierdza wtedy adres ręcznie – po kontakcie telefonicznym albo ze szkołą.
+
+    Pozostały czas jest tu, bo bez niego przycisk „Aktywuj ręcznie” jest ruletką: konto starsze niż
+    okno aktywacji zniknie przy najbliższym przebiegu kosiarki (co 15 minut), więc koordynator musi
+    wiedzieć, czy rozmawia o koncie, które jeszcze istnieje. Ujemna wartość znaczy „już po czasie,
+    czeka na skasowanie” – i wtedy nie ma sensu do niego wracać.
+
+    Role czytamy z grup jednym zapytaniem (``prefetch_related``): lista bywa długa, a rola jest tu
+    jedyną podpowiedzią, czy chodzi o uczestnika, czy o zaproszonego recenzenta.
+    """
+    now = now or timezone.now()
+    deadline_offset = timedelta(seconds=ACTIVATION_MAX_AGE)
+    rows = []
+    users = (
+        User.objects.filter(is_active=False, email_verified_at__isnull=True)
+        .prefetch_related("groups")
+        .order_by("date_joined", "id")
+    )
+    for user in users:
+        purge_at = user.date_joined + deadline_offset
+        rows.append(
+            {
+                "user": user,
+                "purge_at": purge_at,
+                # Minuty, nie sekundy: dokładność co do sekundy sugerowałaby, że kosiarka chodzi
+                # w tym rytmie – a chodzi co kwadrans.
+                "minutes_left": int((purge_at - now).total_seconds() // 60),
+                "roles": ", ".join(sorted(group.name for group in user.groups.all())) or "—",
+            }
+        )
+    return rows
 
 
 class CoordinatorDashboardView(CoordinatorRequiredMixin, TemplateView):
@@ -219,6 +266,41 @@ class ApproveCommitteeMemberView(CoordinatorActionView):
         member = get_object_or_404(CommitteeMember.objects.select_related("user"), pk=pk)
         approve_committee_member(member, actor=request.user)
         return "Członek komitetu został zatwierdzony."
+
+
+class ActivateAccountView(CoordinatorActionView):
+    """Ręczna aktywacja konta przez koordynatora – obejście na czas problemów z dostarczalnością.
+
+    Wpis audytowy ma **własną akcję** (``account.activated_by_coordinator``), a nie tę samą, co
+    kliknięcie linku: różnica jest istotna dla każdego, kto później pyta „skąd wiemy, że ten adres
+    należy do tej osoby”. Przy aktywacji linkiem dowodem jest dostęp do skrzynki; tutaj – decyzja
+    człowieka, który sprawdził to inaczej (telefonicznie, przez szkołę).
+    """
+
+    def perform(self, request, pk: int) -> str:
+        user = get_object_or_404(User, pk=pk)
+        if user.email_verified_at is not None:
+            raise DomainError("To konto jest już aktywne.", "ALREADY_ACTIVE")
+        mark_activated(user, actor=request.user, action="account.activated_by_coordinator", request=request)
+        return "Konto zostało aktywowane ręcznie."
+
+
+class ResendActivationView(CoordinatorActionView):
+    """Ponowna wysyłka linku aktywacyjnego z panelu koordynatora.
+
+    Tu, w odróżnieniu od publicznego formularza, komunikat mówi prawdę o stanie konta: koordynator
+    i tak widzi całą listę oczekujących, więc ukrywanie przed nim, że konto jest już aktywne,
+    nie chroniłoby niczego, a utrudniałoby pracę.
+    """
+
+    def perform(self, request, pk: int) -> str:
+        user = get_object_or_404(User, pk=pk)
+        if not resend_activation(user.email, request=request):
+            raise DomainError(
+                "Tego konta nie da się aktywować linkiem – adres jest już potwierdzony.",
+                "NOTHING_TO_SEND",
+            )
+        return "Link aktywacyjny został wysłany ponownie."
 
 
 class VerifyDistrictView(CoordinatorActionView):

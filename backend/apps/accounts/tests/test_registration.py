@@ -36,6 +36,7 @@ def participant_payload(**overrides):
         "district": "mazowieckie",
         "grade": 2,
         "birth_year": 2008,
+        "phone": "600 100 200",
         # Komplet zgód: regulamin i RODO są wymagane od każdego, zgoda opiekuna – od rocznika
         # 2008, który w 2026 r. jeszcze mieści się w regule „na pewno niepełnoletni”.
         "terms_consent": True,
@@ -71,7 +72,10 @@ def test_kryterium_1_rejestracja_uczestnika_tworzy_usera_w_grupie_participant_z_
 
     assert resp.status_code == 201, resp.data
     body = resp.json()
-    assert set(body) == {"id", "email", "public_code"}
+    assert set(body) == {"id", "email", "public_code", "activation_required"}
+    # Konto czeka na link aktywacyjny – klient musi o tym wiedzieć, żeby nie posłać uczestnika
+    # od razu na formularz logowania (tam dostałby „nieprawidłowy e-mail lub hasło”).
+    assert body["activation_required"] is True
     user = User.objects.get(email="uczestnik@example.test")
     assert body["id"] == user.id
     assert user.groups.filter(name=GROUP_PARTICIPANT).exists()
@@ -122,7 +126,9 @@ def test_kryterium_3_kod_active_daje_aktywnego_recenzenta_w_grupie_reviewer(api)
 
     assert resp.status_code == 201, resp.data
     body = resp.json()
-    assert set(body) == {"id", "email", "status"}
+    assert set(body) == {"id", "email", "status", "activation_required"}
+    # Status ACTIVE (uprawnienia z kodu) i aktywacja adresu e-mail to dwie różne rzeczy.
+    assert body["activation_required"] is True
     assert body["status"] == CommitteeStatus.ACTIVE
     member = CommitteeMember.objects.get(user__email="recenzent@example.test")
     assert member.status == CommitteeStatus.ACTIVE

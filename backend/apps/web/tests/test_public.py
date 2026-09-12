@@ -8,6 +8,8 @@ from django.utils import timezone
 
 from apps.results.models import Anonymization, ResultsPublication
 
+from .conftest import captcha_fields, password_fields
+
 pytestmark = pytest.mark.django_db
 
 SNAPSHOT = [
@@ -88,7 +90,7 @@ def test_registration_creates_participant(web_client, edition):
         "/register/",
         {
             "email": "nowy@example.test",
-            "password": "Poprawne-Haslo-2026",
+            **password_fields(),
             "first_name": "Nowy",
             "last_name": "Uczestnik",
             "school_custom": "on",
@@ -99,6 +101,8 @@ def test_registration_creates_participant(web_client, edition):
             "terms_consent": "on",
             "gdpr_consent": "on",
             "guardian_consent": "on",
+            "phone": "600 100 200",
+            **captcha_fields(),
         },
     )
 
@@ -111,7 +115,7 @@ def test_registration_without_gdpr_consent_shows_domain_error(web_client, editio
         "/register/",
         {
             "email": "brak@example.test",
-            "password": "Poprawne-Haslo-2026",
+            **password_fields(),
             "first_name": "Brak",
             "last_name": "Zgody",
             "school_custom": "on",
@@ -120,6 +124,8 @@ def test_registration_without_gdpr_consent_shows_domain_error(web_client, editio
             "grade": 2,
             "birth_year": 1990,
             "terms_consent": "on",
+            "phone": "600 100 200",
+            **captcha_fields(),
         },
     )
 

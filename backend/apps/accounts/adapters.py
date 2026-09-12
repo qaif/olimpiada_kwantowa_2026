@@ -80,6 +80,28 @@ def sociallogin_email(sociallogin) -> str:
     return (getattr(user, "email", "") or "").strip().lower()
 
 
+def sociallogin_email_verified(sociallogin) -> bool:
+    """Czy **dostawca** potwierdził adres, którym zakładamy konto.
+
+    Rozstrzyga to o jednej rzeczy: czy konto powstaje aktywne, czy przechodzi przez nasz link
+    aktywacyjny (``apps.accounts.activation``). Google podaje ``email_verified`` i wtedy drugie
+    potwierdzenie tego samego adresu naszym listem byłoby pytaniem o coś, co już wiemy. Facebook
+    nie potwierdza adresu wcale (``VERIFIED_EMAIL: False`` w ``config/settings/base.py``), więc jego
+    konto przechodzi aktywację – inaczej wystarczyłoby wpisać cudzy adres w profilu Facebooka, żeby
+    dostać w naszym serwisie konto podpisane tym adresem.
+
+    Odpowiedź czytamy z ``sociallogin.email_addresses``, czyli z tego, co allauth wyliczył
+    z odpowiedzi dostawcy – a nie z konfiguracji naszego serwisu. Porównanie po adresie, bo
+    dostawca może podać kilka adresów i potwierdzony bywa inny niż ten, którym zakładamy konto.
+    """
+    chosen = sociallogin_email(sociallogin)
+    return any(
+        bool(getattr(address, "verified", False))
+        for address in sociallogin.email_addresses
+        if (address.email or "").strip().lower() == chosen
+    )
+
+
 def refuse(request, reason: str, sociallogin) -> ImmediateHttpResponse:
     """Buduje wyjątek przerywający logowanie stroną w naszym stylu (HTTP 401)."""
     response = render(

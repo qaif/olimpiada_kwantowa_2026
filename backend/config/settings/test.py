@@ -18,6 +18,17 @@ CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 # Testy nie dotykają MinIO ani sieci: pliki rozwiązań lądują pod MEDIA_ROOT (tmp_path per test).
 SUBMISSION_STORAGE_BACKEND = "apps.submissions.storage.LocalSubmissionStorage"
+# CAPTCHA w trybie testowym: pakiet przyjmuje odpowiedź „PASSED” niezależnie od wyzwania, więc
+# test POST-uje formularz bez rozwiązywania obrazka (helper ``apps/web/tests/conftest.py``).
+# Sama **obecność** pola i odrzucanie złej odpowiedzi są testowane osobno – przez podmianę tej
+# flagi na ``False`` w konkretnym teście (apps/web/tests/test_antispam.py).
+CAPTCHA_TEST_MODE = True
+# Próg minimalnego czasu wypełniania **jawnie**, a nie z ``base.py``: nakładka developerska
+# compose'a ustawia ``E2E_MODE=1`` dla usługi ``web``, a ``base.py`` w tym trybie zeruje próg –
+# testy uruchamiane w tym samym kontenerze przestałyby wtedy sprawdzać tę regułę, nie mówiąc
+# o tym ani słowem. Helper z ``apps/web/tests/conftest.py`` podpisuje znacznik czasu z przeszłości,
+# a test „za szybko” – z teraz.
+ANTISPAM_MIN_FILL_SECONDS = 3
 # Throttling wyłączony w testach dwustopniowo: pusta lista klas zdejmuje throttle domyślny,
 # a stawka ``None`` dla każdego scope'u neutralizuje też widoki z jawnym ``throttle_classes``.
 # ``SimpleRateThrottle.allow_request`` przy ``rate is None`` wychodzi zanim dotknie zegara – dzięki

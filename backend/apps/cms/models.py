@@ -36,7 +36,7 @@ from wagtail.models import Orderable, Page
 from wagtail.search import index
 
 from apps.competitions.models import Edition, Stage
-from apps.competitions.services import current_edition, current_stage
+from apps.competitions.services import current_edition, current_stage, training_stage
 from apps.results.models import ResultsPublication
 
 from .blocks import (
@@ -533,7 +533,14 @@ class PartnersPage(CMSPage):
 
 
 class ProblemsPage(CMSPage):
-    """Zadania bieżącego etapu. Treści PDF pokazujemy dopiero po ``Stage.opens_at``."""
+    """Zadania bieżącego etapu. Treści PDF pokazujemy dopiero po ``Stage.opens_at``.
+
+    Pod kartą etapu bieżącego stoi druga sekcja: **zadania treningowe**. To ten sam mechanizm
+    (etap, zadania, PDF-y spod ``competitions:problem-statement``), tylko etap jest piaskownicą
+    bez terminu (``StageKind.TRAINING``), więc jego treści są jawne od chwili utworzenia i nie
+    znikają po żadnym deadline'u. Sekcja jest tutaj, a nie w treści redakcyjnej, bo lista zadań
+    ma jedno źródło prawdy – bazę – i nie może rozjechać się z tym, co przyjmuje upload.
+    """
 
     intro = RichTextField("wprowadzenie", features=RICH_TEXT_FEATURES, blank=True)
     closed_notice = models.TextField(
@@ -580,7 +587,23 @@ class ProblemsPage(CMSPage):
                 ),
             }
         )
+        context.update(self._training_context(edition, now))
         return context
+
+    def _training_context(self, edition, now) -> dict:
+        """Etap treningowy i jego zadania – druga sekcja strony, niezależna od etapu bieżącego.
+
+        ``has_opened`` sprawdzamy tak samo jak dla etapu zawodów: to ta sama reguła jawności
+        treści, co w ``ProblemStatementView`` (link do PDF-a przed otwarciem etapu i tak dałby 404,
+        więc strona nie może go pokazać). W praktyce trening jest otwarty od chwili posiania,
+        ale reguła ma być jedna, a nie „jedna dla zawodów, druga dla treningu”.
+        """
+        stage = training_stage(edition)
+        has_opened = bool(stage and stage.has_opened(now))
+        return {
+            "training_stage": stage,
+            "training_problems": list(stage.problems.order_by("number")) if has_opened else [],
+        }
 
 
 class DocumentIndexPage(CMSPage):

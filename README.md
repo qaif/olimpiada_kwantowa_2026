@@ -417,6 +417,71 @@ z otwartej rejestracji.
 Publikacja przed zamknięciem okna reklamacji kończy się `409 APPEAL_WINDOW_OPEN`; tryb `FULL`
 (nazwiska) jest dopuszczony wyłącznie w finale, dla laureatów, za zgodą – patrz `PROJEKT.md` 2.4.
 
+### 5.1 Aktywacja konta e-mailem
+
+Każde nowe konto — z otwartej rejestracji, z API, z kodu zaproszenia i z logowania przez dostawcę,
+który adresu **nie** potwierdził (Facebook) — powstaje z `is_active=False` i czeka na kliknięcie
+linku wysłanego na podany adres. Konto z Google jest aktywne od razu, bo Google podaje
+`email_verified`. Powód: adres e-mail jest loginem i jedyną drogą odzyskania konta — literówka
+dawałaby konto bez powrotu, a cudzy adres dałoby się zająć kontem-widmem.
+
+**Link jest ważny 4 godziny i tyle samo żyje nieaktywowane konto.** Po tym czasie
+`apps.accounts.tasks.purge_unactivated_accounts` (beat, co 15 minut) kasuje je razem z profilem,
+więc adres zwalnia się do ponownej rejestracji — inaczej uczeń, który nie doczekał listu,
+odbijałby się na zawsze o „konto z tym adresem już istnieje”. Konta, do których odwołuje się
+dokumentacja zawodów (zgłoszenie, praca, recenzja), nie są kasowane nigdy: trafiają do logu
+workera. Ręcznie: `docker compose exec web python manage.py purge_unactivated_accounts`.
+
+| Co | Gdzie |
+|---|---|
+| Link z listu | `/activate/<token>/` — aktywuje i pokazuje „Konto aktywne – zaloguj się” (bez automatycznego logowania) |
+| Ponowna wysyłka | `/activate/resend/` — link stały na stronie logowania; odpowiedź jest zawsze ta sama (brak enumeracji kont), limit wspólny z resetem hasła (5/h) |
+| Obejście organizatora | `/coordinator/` → „Konta oczekujące na aktywację” → „Aktywuj ręcznie” / „Wyślij link ponownie” |
+
+Sekcja w panelu koordynatora jest **obejściem na czas** problemów z dostarczalnością poczty: dopóki
+domena nadawcy nie ma rekordów SPF/DKIM (§ 4.2), część listów nie dochodzi. Lista pokazuje czas
+pozostały do skasowania konta, a ręczna aktywacja zostawia inny wpis audytowy
+(`account.activated_by_coordinator`) niż kliknięcie linku (`account.activated`) — bo adres został
+potwierdzony czym innym.
+
+Wysyłka idzie przez kolejkę `mail` (`apps.core.tasks.send_mail_task`), po commicie. Link buduje się
+z żądania (`request.build_absolute_uri`), więc za Caddy jest `https`; dla wysyłek spoza żądania
+można ustawić opcjonalne `SITE_URL`.
+
+### 5.2 Własne konto: edycja danych, adres e-mail, usunięcie
+
+| Co | Gdzie | Uwagi |
+|---|---|---|
+| Edycja danych uczestnika | `/me/profile/` (link „Edytuj dane” w panelu) | imię, nazwisko, **telefon**, województwo, szkoła (ta sama wyszukiwarka SIO co w rejestracji), klasa, rocznik; audyt `participant.profile_updated` z listą zmienionych pól |
+| Edycja danych pozostałych ról | `/account/profile/` | wyłącznie imię i nazwisko. Okręg członka komitetu zmienia **tylko** koordynator: to on jest podstawą reguły konfliktu interesów w przydziale recenzji |
+| Zmiana adresu e-mail | `/account/email/` → link z `/account/email/confirm/<token>/` | do potwierdzenia obowiązuje adres dotychczasowy; unikalność sprawdzana bez względu na wielkość liter; stary adres dostaje powiadomienie. Audyt `account.email_changed` |
+| Usunięcie konta | `/account/delete/` (link „Usuń konto” w panelu) | patrz niżej |
+| API | `PATCH /api/auth/me/` | te same pola co formularz; bez adresu e-mail, hasła i `public_code` |
+
+Hasła ten ekran nie zmienia — do tego służy „Nie pamiętasz hasła?” (§ 3.1 checklisty
+bezpieczeństwa), bo ta droga potwierdza dostęp do skrzynki.
+
+**Telefon** jest wymagany od każdego nowego uczestnika (kontakt organizacyjny). Profile sprzed
+wprowadzenia pola numeru nie mają i nie są unieważniane. Zapis jest normalizowany
+(`apps.accounts.phones`): dziewięciocyfrowy numer krajowy dostaje prefiks `+48`, separatory
+i zapis `00` znikają. Numer widać wyłącznie w profilu właściciela i w podglądzie koordynatora —
+do tabeli wyników nie wchodzi.
+
+**Usunięcie konta (art. 17 RODO) ma dwie drogi**, bo prawo do usunięcia własnych danych nie jest
+prawem do usunięcia dokumentacji zawodów:
+
+- konto **ze śladem** w zawodach (zgłoszenie, praca, recenzja) jest **anonimizowane**: e-mail
+  zmienia się na `deleted-<pk>@invalid.olimpiadakwantowa.pl`, imię, nazwisko, telefon, szkoła
+  i rocznik znikają, hasło staje się nieużywalne, powiązania z Google/Facebookiem, tokeny API
+  i sesje są usuwane, zgody dostają `withdrawn_at`. Zostaje `Participant.public_code`, więc
+  ogłoszone tabele wyników dalej mają swój pseudonimowy wiersz. Audyt `account.anonymised`,
+- konto **bez** takiego śladu jest kasowane w całości razem z profilem i zgodami (audyt
+  `account.deleted`, w `diff` wyłącznie identyfikator), a adres zwalnia się do ponownej rejestracji.
+
+POST wymaga aktualnego hasła; konto zakładane przez dostawcę zewnętrznego (bez użytecznego hasła)
+potwierdza operację przepisaniem własnego adresu e-mail. Koordynator i superużytkownik tą drogą nie
+przechodzą — ich konto jest jedynym wejściem do prowadzenia edycji.
+
 ## 6. Procedury operacyjne
 
 ### 6.1 Kopia zapasowa
@@ -593,6 +658,33 @@ Treść zgód wydaje publicznie `GET /api/auth/consents/` (bez logowania): rodza
 i czystym tekście, adres dokumentu, wersja i reguła wymagalności. Klient zewnętrzny ma dzięki
 temu pokazać **to samo** oświadczenie, a nie własną parafrazę.
 
+**Ochrona przed rejestracją maszynową (CAPTCHA, bez usług obcych).** Oba publiczne formularze
+zakładania konta — `/register/` i `/register/committee/` — mają trzy niezależne zabezpieczenia
+(`backend/apps/web/captcha.py`):
+
+| Warstwa | Co robi |
+|---|---|
+| CAPTCHA obrazkowa | Działanie arytmetyczne („7 × 3 =”) rysowane przez Pillow i serwowane spod **naszego** adresu `/captcha/image/<klucz>/` (`django-simple-captcha`). Wyzwanie leży w naszej bazie (`captcha.CaptchaStore`), jest jednorazowe i wygasa po 10 minutach (`CAPTCHA_TIMEOUT`). |
+| Pułapka (honeypot) | Pole `website` ukryte arkuszem stylów (klasa `hp-field`), a **nie** `type="hidden"` — bot wypełniający wszystkie pola odpada, człowiek pola nie widzi i nie dostaje na nim fokusu. |
+| Minimalny czas wypełniania | Ukryty, **podpisany** znacznik czasu (`form_ts`); POST szybszy niż `ANTISPAM_MIN_FILL_SECONDS` (3 s) jest odrzucany. Podpis jest konieczny — niepodpisany znacznik bot przepisałby na dowolną wartość. |
+
+Pułapka i próg czasu odrzucają **jednym, ogólnym** komunikatem: zdanie „wypełniłeś ukryte pole”
+byłoby instrukcją obejścia. Limit prób (`register`, 10/h na adres) działa niezależnie i dalej.
+
+Dlaczego nie reCAPTCHA/hCaptcha/Turnstile: polityka cookie (`/dokumenty/cookies/`) obiecuje brak
+treści od podmiotów trzecich i brak profilowania odwiedzających — każdy z tych dostawców
+wymagałby skryptu z obcej domeny (czyli rozluźnienia CSP) i przekazania mu danych o użytkowniku.
+Tu do CSP nie trzeba było dopisać ani jednego hostu: obrazek mieści się w `img-src 'self'`.
+
+Cena tej decyzji: **nie ma wersji dźwiękowej** wyzwania (`CAPTCHA_FLITE_PATH` nieustawione).
+Podpowiedź pod polem podaje adres `contact@qaif.org` — kto obrazka nie widzi, pisze do
+organizatora i konto jest zakładane ręcznie (`manage.py bootstrap_coordinator` / `/admin/`).
+
+W testach i w scenariuszu E2E CAPTCHA przyjmuje odpowiedź `PASSED`: `CAPTCHA_TEST_MODE` jest
+włączone w `config/settings/test.py` oraz — razem z wyzerowanym progiem czasu — przy `E2E_MODE=1`,
+którego **w produkcji nie ustawia się nigdy** (nakładka `docker-compose.dev.yml` ustawia je dla
+usługi `web`, więc w środowisku developerskim formularz też przyjmie `PASSED`).
+
 #### 6.3b Słownik szkół (SIO/RSPO)
 
 Pole „Szkoła” w `/register/` i w dokończeniu rejestracji przez Google/Facebooka to **wyszukiwarka
@@ -688,6 +780,46 @@ gdy nie ma już nadchodzących terminów. Żeby dało się je uszeregować bez p
 każdym żądaniu, wiersz harmonogramu ma obok tekstowego terminu opcjonalną **datę** (`date_value`
 w `ScheduleRowBlock`, wypełniana przy imporcie przez `legacy_markdown.parse_polish_date`). Termin
 nieostry („do potwierdzenia”) zostaje bez daty: stoi w tabeli, ale nie trafia do zapowiedzi.
+
+#### 6.3c Etap treningowy (`seed_training_problems`)
+
+Do czego jest: żeby przejść **całą** ścieżkę portalu na działającym serwisie — rejestracja →
+zgłoszenie do etapu → upload → dwie recenzje ślepe → konsensus/moderacja → przeliczenie i publikacja
+wyników — na prawdziwych zadaniach, **bez terminu** i **poza zawodami**. To piaskownica, a nie etap
+olimpiady: osobny rodzaj etapu `TRAINING` („Trening”), jeden na edycję.
+
+```bash
+# Na produkcji, RAZ, świadomie (nie ma tego w scripts/deploy.sh):
+docker compose exec -T web python manage.py seed_training_problems
+```
+
+Komenda tworzy etap „Zadania treningowe” na **bieżącej** edycji (bez niej kończy się błędem) i wgrywa
+cztery zadania z `backend/apps/competitions/fixtures/training/`: „Stan kubitu i pomiar (proste)”,
+„Splątanie z dwóch bramek (średnie)”, „Podsłuch w protokole BB84 (trudne)” i „Nierówność CHSH
+i granica Tsirelsona (diabelnie trudne)”. Jest **idempotentna**: drugie uruchomienie nie duplikuje
+ani etapu, ani zadań, a plik PDF podmienia wyłącznie wtedy, gdy zmieniły się jego bajty.
+
+Czym trening różni się od etapu zawodów:
+
+| Rzecz | Zachowanie |
+|---|---|
+| Termin oddania | **Nie ma go.** W bazie stoi data-wartownik `2099-12-31 23:59` (`TRAINING_DEADLINE`), bo oś czasu etapu musi być kompletna i uporządkowana. Interfejs pyta o `Stage.has_deadline` i pisze „bez terminu” — roku 2099 nigdzie nie pokazuje. `beat` nigdy sam tego etapu nie zamknie. |
+| Kwalifikacja | Żadna. Trening nie ma następnego etapu i nie jest następnym etapem dla nikogo (nie ma go w `apps.results.services.STAGE_ORDER`). |
+| Zapisy | Uczestnik zgłasza się **sam**, tak jak do eliminacji (przycisk „Zgłoś się do treningu” w `/me/`). |
+| Publiczna oś czasu | Nie ma go ani na `/`, ani na `/harmonogram/`; „etapem bieżącym” zawsze zostaje etap zawodów. |
+| Treści zadań | Jawne od chwili utworzenia etapu (`opens_at` = „teraz”) — widać je na `/zadania/` w sekcji „Zadania treningowe”. |
+| Wyniki | Wolno przeliczyć i ogłosić: brama „okno reklamacji musi być zamknięte” treningu nie dotyczy (inaczej czekałaby na rok 2099). Tabela dostaje odznakę **„trening”** na `/wyniki/` i `/results/<id>/`. |
+| Odpowiedzi | `fixtures/training/odpowiedzi.pdf` — szkice rozwiązań **dla recenzentów i koordynatora**. Komenda go **nie** wgrywa; rozsyła go organizator. |
+
+Usunięcie piaskownicy po testach: koordynator kasuje zadania z `/coordinator/stages/<id>/problems/`
+(możliwe, dopóki nie ma do nich prac), a sam etap — z `/admin/competitions/stage/`. Kasowanie etapu
+zabiera ze sobą wpisy, zgłoszenia i recenzje treningowe, i o to chodzi.
+
+Zmiana treści zadań: źródłem jest `fixtures/training/zadania.md` (cztery zadania z podpunktami plus
+sekcja odpowiedzi). Po jego edycji złóż PDF-y na nowo i zacommituj wynik —
+`backend/.venv/Scripts/python.exe scripts/build_training_problem_pdfs.py` (potrzebna ekstra `dev`
+z `reportlab`; skład siedzi w `apps/competitions/training_pdf.py`, czcionki DejaVu leżą obok
+w `fixtures/training/fonts/`). Produkcja PDF-ów nie generuje — wgrywa gotowe.
 
 ### 6.4 Zamknięcie etapu
 

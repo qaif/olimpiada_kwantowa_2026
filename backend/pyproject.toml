@@ -25,6 +25,10 @@ dependencies = [
     # widoki allauth (hasłowe logowanie i rejestracja) nie są montowane, patrz apps/web/social_urls.py.
     # Ekstra ``socialaccount`` dociąga ``requests``/``requests-oauthlib`` (OAuth2 + PKCE).
     "django-allauth[socialaccount]>=65.0,<66.0",
+    # CAPTCHA na publicznych formularzach rejestracji. Obrazek generuje Pillow (ten sam, którego
+    # używa Wagtail), wyzwanie leży w naszej bazie, a obrazek jest serwowany spod naszego adresu:
+    # nie ma tu żadnego trzeciego podmiotu ani ciasteczka, czyli polityka cookies zostaje prawdziwa.
+    "django-simple-captcha>=0.6,<0.7",
 ]
 
 [project.optional-dependencies]
@@ -38,6 +42,12 @@ dev = [
     # Odczyt wykazu SIO (.xlsx) przy budowaniu słownika szkół – ``apps.schools.sio`` i jego testy.
     # Wagtail i tak ciągnie openpyxl, ale zależność, na której stoi nasz kod, ma być nazwana wprost.
     "openpyxl>=3.1,<4.0",
+    # Skład PDF-ów zadań treningowych (``apps.competitions.training_pdf`` i wołający go skrypt
+    # ``scripts/build_training_problem_pdfs.py``). Świadomie **tylko** w ekstrze dev: gotowe PDF-y
+    # leżą w repozytorium, a produkcja je wgrywa, więc obraz produkcyjny nie musi umieć składać
+    # dokumentów. Import biblioteki w module jest leniwy, a test generatora sam się pomija
+    # (``pytest.importorskip``), więc brak ekstry dev niczego nie psuje.
+    "reportlab>=4.2,<6.0",
 ]
 
 [tool.ruff]

@@ -9,6 +9,7 @@ Zasady:
 
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -179,10 +180,43 @@ def current_registration_status(now=None) -> RegistrationStatus:
     return edition.registration_status(now)
 
 
+#: Strefa, w której organizator ogłasza wszystkie terminy. Ta sama, co ``settings.TIME_ZONE`` –
+#: wpisana tu wprost, bo ``TRAINING_DEADLINE`` jest stałą modułu i liczy się przy imporcie, kiedy
+#: ustawienia bywają jeszcze nieskonfigurowane (np. w skryptach pomocniczych).
+WARSAW = ZoneInfo("Europe/Warsaw")
+
+#: „Bez terminu” dla etapu treningowego. Etap treningowy ma być otwarty bez końca, ale osi czasu
+#: etapu nie da się zostawić puste: ``opens_at < deadline_at <= review_deadline_at <=
+#: appeal_window_opens_at < appeal_window_closes_at`` jest jednocześnie ``clean()`` i pięcioma
+#: constraintami w bazie. Data-wartownik spełnia więc każdy z tych warunków, a interfejs jej nie
+#: pokazuje: pyta o ``Stage.has_deadline`` i pisze „bez terminu” (rok 2099 na stronie byłby
+#: informacją fałszywą, bo nikt nie zamierza przyjmować prac przez siedemdziesiąt lat).
+TRAINING_DEADLINE = datetime(2099, 12, 31, 23, 59, tzinfo=WARSAW)
+
+
 class StageKind(models.TextChoices):
+    """Które to zawody w kolejności edycji – oraz jeden rodzaj, który zawodami nie jest.
+
+    ``TRAINING`` to **piaskownica**: etap treningowy służy do przejścia całej ścieżki (zgłoszenie →
+    upload → dwie recenzje ślepe → konsensus/moderacja → wyniki) na prawdziwych zadaniach, poza
+    zawodami. Dlatego:
+
+    - jest **otwarty bez końca** (``TRAINING_DEADLINE``) i nigdy nie zamyka się sam,
+    - **nie bierze udziału w kwalifikacji**: nie ma następnego etapu i nie jest następnym etapem
+      dla nikogo (``apps.results.services.STAGE_ORDER``),
+    - **nie ma go na publicznej osi czasu** ani w odliczaniu na stronie głównej („etap bieżący” to
+      zawsze etap zawodów, patrz ``services.current_stage``),
+    - wyniki wolno w nim przeliczyć i ogłosić, ale tabela jest podpisana odznaką „trening”, żeby
+      nikt nie wziął jej za wynik zawodów.
+
+    Ograniczenie „jeden na edycję” wychodzi z istniejącego unikalnego (edycja, rodzaj) – nie ma
+    potrzeby drugiej reguły.
+    """
+
     ELIM = "ELIM", "Eliminacje"
     DISTRICT = "DISTRICT", "Wojewódzki"
     FINAL = "FINAL", "Finał"
+    TRAINING = "TRAINING", "Trening"
 
 
 class StageFormat(models.TextChoices):
@@ -299,6 +333,23 @@ class Stage(models.Model):
     def is_interview(self) -> bool:
         """Czy etap jest rozmową kwalifikacyjną online (brak uploadu, zapisy na terminy)."""
         return self.format == StageFormat.INTERVIEW
+
+    @property
+    def is_training(self) -> bool:
+        """Czy etap jest piaskownicą treningową (poza zawodami, bez terminu) – patrz ``StageKind``."""
+        return self.kind == StageKind.TRAINING
+
+    @property
+    def has_deadline(self) -> bool:
+        """Czy etap ma termin, który wolno ogłosić.
+
+        Jedno pytanie dla wszystkich ekranów pokazujących datę oddania: etap treningowy ma
+        w bazie ``TRAINING_DEADLINE`` (rok 2099), bo inaczej nie przeszedłby walidacji osi czasu,
+        ale ta data nie jest terminem – jest jego brakiem. Szablony pytają **tutaj**, a nie
+        o ``kind``, więc dodanie kiedyś drugiego etapu „bez terminu” nie wymaga obchodzenia
+        wszystkich widoków.
+        """
+        return not self.is_training
 
     def clean(self) -> None:
         super().clean()

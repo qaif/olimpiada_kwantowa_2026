@@ -4,7 +4,9 @@
 {% block content %}
 <div class="page-head">
   <span class="eyebrow">Wyniki etapu</span>
-  <h1>{{ stage.display_name }} ({{ stage.edition.year_label }})</h1>
+  <h1>{{ stage.display_name }} ({{ stage.edition.year_label }})
+    {# Trening ogłasza wyniki tak samo jak zawody, a zawodami nie jest – patrz cms/results_page.html. #}
+    {% if stage.is_training %}<span class="badge badge--neutral">trening</span>{% endif %}</h1>
   <p class="lead">Ogłoszone {{ publication.published_at|local_time }}, tryb prezentacji:
     {{ publication.get_anonymization_display }}.</p>
   <p class="hint">Tabela pochodzi z zamrożonego snapshotu z chwili publikacji – nie jest przeliczana

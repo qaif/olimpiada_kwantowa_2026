@@ -22,6 +22,10 @@ class ParticipantRegisterSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=128)
     first_name = serializers.CharField(max_length=150)
     last_name = serializers.CharField(max_length=150)
+    # Telefon kontaktowy – wymagany od każdego nowego uczestnika. Kształt numeru sprowadza do jednej
+    # postaci ``accounts.phones.normalize_phone`` w serwisie: ta sama reguła obowiązuje formularz
+    # WWW i rejestrację przez dostawcę zewnętrznego, więc nie ma jej tutaj w drugiej kopii.
+    phone = serializers.CharField(max_length=32)
     school = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
     school_id = serializers.IntegerField(min_value=1, required=False, allow_null=True, default=None)
     grade = serializers.ChoiceField(choices=GRADE_CHOICES)
@@ -45,12 +49,24 @@ class ParticipantRegisterSerializer(serializers.Serializer):
 
 
 class ParticipantRegisteredSerializer(serializers.ModelSerializer):
+    """Odpowiedź 201 rejestracji uczestnika.
+
+    ``activation_required`` jest stałą, a nie polem modelu, i jest tu **kontraktem**: konto powstaje
+    nieaktywne i do kliknięcia linku z listu logowanie zwróci „nieprawidłowy e-mail lub hasło”.
+    Klient, który tego nie wie, pokazałby użytkownikowi „zarejestrowano” i od razu ekran logowania,
+    czyli poprowadziłby go prosto na komunikat o złych poświadczeniach.
+    """
+
     id = serializers.IntegerField(source="user.id", read_only=True)
     email = serializers.EmailField(source="user.email", read_only=True)
+    activation_required = serializers.SerializerMethodField()
 
     class Meta:
         model = Participant
-        fields = ("id", "email", "public_code")
+        fields = ("id", "email", "public_code", "activation_required")
+
+    def get_activation_required(self, obj: Participant) -> bool:
+        return obj.user.email_verified_at is None
 
 
 class CommitteeRegisterSerializer(serializers.Serializer):
@@ -65,12 +81,24 @@ class CommitteeRegisterSerializer(serializers.Serializer):
 
 
 class CommitteeRegisteredSerializer(serializers.ModelSerializer):
+    """Odpowiedź 201 rejestracji komitetu. ``status`` i aktywacja to dwie różne rzeczy.
+
+    ``status = ACTIVE`` znaczy „kod nie wymagał zatwierdzenia, uprawnienia recenzenta są nadane”.
+    ``activation_required`` znaczy „adres e-mail jeszcze nie potwierdzony, więc logowanie nie
+    zadziała”. Kod zaproszenia dowodzi, że koordynator kogoś zaprosił – nie że wpisany adres
+    należy do tej osoby.
+    """
+
     id = serializers.IntegerField(source="user.id", read_only=True)
     email = serializers.EmailField(source="user.email", read_only=True)
+    activation_required = serializers.SerializerMethodField()
 
     class Meta:
         model = CommitteeMember
-        fields = ("id", "email", "status")
+        fields = ("id", "email", "status", "activation_required")
+
+    def get_activation_required(self, obj: CommitteeMember) -> bool:
+        return obj.user.email_verified_at is None
 
 
 class LoginSerializer(serializers.Serializer):
@@ -128,6 +156,10 @@ class ParticipantProfileSerializer(serializers.ModelSerializer):
             "district",
             "district_label",
             "birth_year",
+            # Telefon jest w profilu **właściciela konta** (``GET /api/auth/me/``), a nie w żadnym
+            # widoku recenzenta – ci widzą pracę pod pseudonimem i numer kontaktowy nie ma dla nich
+            # zastosowania.
+            "phone",
             "guardian_consent",
             "publish_full_name",
             "gdpr_consent_at",
@@ -176,6 +208,32 @@ class MeSerializer(serializers.ModelSerializer):
     def get_committee(self, obj: User) -> dict | None:
         profile = getattr(obj, "committee_member", None)
         return CommitteeProfileSerializer(profile).data if profile else None
+
+
+class MeUpdateSerializer(serializers.Serializer):
+    """Wejście ``PATCH /api/auth/me/`` – edycja własnych danych.
+
+    Wszystkie pola są opcjonalne, bo to ``PATCH``: klient wysyła to, co zmienia, a pole pominięte
+    zostaje bez zmian (serwis rozpoznaje to po nieobecności klucza, nie po pustej wartości).
+
+    Czego tu **nie ma**: adresu e-mail (zmiana wymaga potwierdzenia na nowej skrzynce – osobny
+    przepływ), hasła (przez „Nie pamiętasz hasła?”), ``public_code`` (identyfikator w ogłoszonych
+    tabelach wyników) oraz zgód (mają własną historię dowodową i własne endpointy).
+    """
+
+    first_name = serializers.CharField(max_length=150, required=False)
+    last_name = serializers.CharField(max_length=150, required=False)
+    phone = serializers.CharField(max_length=32, required=False)
+    school = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    school_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+    grade = serializers.ChoiceField(choices=GRADE_CHOICES, required=False)
+    district = serializers.ChoiceField(choices=Voivodeship.choices, required=False)
+    birth_year = serializers.IntegerField(min_value=1900, max_value=2200, required=False)
+
+    def validate(self, attrs):
+        if not attrs:
+            raise serializers.ValidationError("Podaj co najmniej jedno pole do zmiany.")
+        return attrs
 
 
 class PendingCommitteeMemberSerializer(serializers.ModelSerializer):

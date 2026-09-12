@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% comment %}
+  Osobna strona formularza zmiany adresu istnieje wyłącznie dla ścieżki błędu: sam formularz stoi
+  na stronie edycji danych, a tutaj trafia się tylko wtedy, gdy adres jest zajęty albo taki sam,
+  jak dotychczasowy. Bez tego szablonu widok musiałby przy błędzie odtworzyć cały ekran profilu
+  razem z drugim formularzem.
+{% endcomment %}
+{% block title %}Zmiana adresu e-mail{% endblock %}
+{% block content %}
+<div class="auth">
+  <div class="card">
+    <h1>Zmiana adresu e-mail</h1>
+    <p class="auth__intro">Wyślemy link potwierdzający na <strong>nowy</strong> adres. Do czasu
+      potwierdzenia logujesz się dotychczasowym adresem ({{ user.email }}).</p>
+    <form method="post" class="form">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button type="submit" class="btn btn--primary btn--block">Wyślij link potwierdzający</button>
+    </form>
+    <p class="auth__alt"><a href="{% if user.participant %}{% url 'web:profile' %}{% else %}{% url 'web:account-profile' %}{% endif %}">Wróć do edycji danych</a>.</p>
+  </div>
+</div>
+{% endblock %}

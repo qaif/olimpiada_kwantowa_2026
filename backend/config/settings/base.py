@@ -14,9 +14,11 @@ DEBUG = env.bool("DJANGO_DEBUG", default=False)
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1", "web"])
 CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
 
-# Tryb scenariusza end-to-end. Odblokowuje wyłącznie ``manage.py e2e_timeline`` (przesunięcie osi
-# czasu etapu), żeby test nie musiał czekać tygodnia na otwarcie okna reklamacji. Nie zmienia
-# żadnej reguły domenowej i domyślnie jest wyłączony – w produkcji nie ustawia się go nigdy.
+# Tryb scenariusza end-to-end. Odblokowuje ``manage.py e2e_timeline`` (przesunięcie osi czasu
+# etapu), żeby test nie musiał czekać tygodnia na otwarcie okna reklamacji, oraz tryb testowy
+# CAPTCHY, bo przeglądarka Playwrighta nie odczyta obrazka (patrz sekcja „CAPTCHA” niżej).
+# Nie zmienia żadnej reguły domenowej i domyślnie jest wyłączony – w produkcji nie ustawia się
+# go nigdy; ustawiony **wyłączyłby** ochronę antyspamową publicznej rejestracji.
 E2E_MODE = env.bool("E2E_MODE", default=False)
 
 # Adresy (albo sieci CIDR) proxy, którym wolno podać adres klienta w nagłówku ``X-Real-IP``.
@@ -53,6 +55,10 @@ INSTALLED_APPS = [
     "wagtail",
     "modelcluster",
     "taggit",
+    # CAPTCHA obrazkowa publicznych formularzy rejestracji (django-simple-captcha). Aplikacja
+    # wnosi model ``CaptchaStore`` (wyzwanie + odpowiedź + termin ważności) i widok obrazka –
+    # wszystko w naszym procesie i naszej bazie, patrz sekcja „CAPTCHA” niżej.
+    "captcha",
     "apps.cms",
     "apps.core",
     "apps.accounts",
@@ -192,6 +198,14 @@ CELERY_BEAT_SCHEDULE = {
     "finalize-closed-appeal-windows": {
         "task": "apps.appeals.tasks.finalize_closed_appeal_windows",
         "schedule": 300.0,
+    },
+    # Konta, których adresu e-mail nikt nie potwierdził w oknie aktywacji (4 h), są kasowane –
+    # inaczej blokowałyby ten adres przed ponowną rejestracją (apps/accounts/tasks.py).
+    # Kwadrans, a nie minuta: opóźnienie w skasowaniu konta-widma nikogo nie boli, a przebieg
+    # przegląda tabelę użytkowników.
+    "purge-unactivated-accounts": {
+        "task": "apps.accounts.tasks.purge_unactivated_accounts",
+        "schedule": 900.0,
     },
 }
 
@@ -494,6 +508,55 @@ REST_FRAMEWORK = {
     },
     "EXCEPTION_HANDLER": "apps.core.api.exception_handler",
 }
+
+# --- CAPTCHA publicznych formularzy rejestracji (django-simple-captcha) ------------------------
+# Dlaczego własna, a nie reCAPTCHA/hCaptcha/Turnstile: polityka cookies (``/dokumenty/cookies/``)
+# obiecuje, że serwis nie ładuje treści od podmiotów trzecich i nie stawia ciasteczek
+# analitycznych. Każdy z tych dostawców wymagałby skryptu z obcej domeny (czyli rozluźnienia CSP)
+# i profilowania odwiedzającego przez firmę spoza EOG – obietnicy nie da się wtedy utrzymać.
+# Tutaj obrazek rysuje Pillow, wyzwanie leży w naszej bazie (``captcha.CaptchaStore``), a adres
+# obrazka jest nasz (``/captcha/image/<klucz>/``), więc ``img-src 'self'`` wystarcza.
+#
+# Wyzwaniem jest **działanie arytmetyczne**, a nie losowe litery: uczestnik wpisuje wynik, więc
+# pomyłka „l” z „1” przestaje istnieć, a wyzwanie da się rozwiązać także przy słabym wzroku
+# i na małym ekranie. Ceną jest brak wersji dźwiękowej (patrz ``CAPTCHA_FLITE_PATH``).
+CAPTCHA_CHALLENGE_FUNCT = "captcha.helpers.math_challenge"
+# Znak mnożenia zamiast gwiazdki: „3 × 5 =” czyta się jak z zeszytu, „3 * 5 =” jak z konsoli.
+CAPTCHA_MATH_CHALLENGE_OPERATOR = "×"
+# 10 minut: tyle, żeby spokojnie wypełnić długi formularz uczestnika (szkoła, zgody), i nie
+# więcej – wyzwanie jest jednorazowe, ale im dłużej żyje, tym więcej wart jest jego zapas
+# zebrany przez bota. Po wygaśnięciu formularz wraca z błędem i **nowym** obrazkiem.
+CAPTCHA_TIMEOUT = 10
+# Obrazek dobrany do szerokości formularza (``.form`` ma 34rem). Wysokość z zapasem na ogonki
+# znaku „×” i na obrót liter; szerokość na najdłuższe wyzwanie („10 × 10 =”).
+CAPTCHA_IMAGE_SIZE = (200, 60)
+CAPTCHA_FONT_SIZE = 36
+# Szum: same kropki. Łuki (domyślne) przy czcionce 36 px przechodzą przez środek cyfr i mylą
+# 8 z 9 – a to nie jest utrudnienie dla bota OCR, tylko dla człowieka.
+CAPTCHA_NOISE_FUNCTIONS = ("captcha.helpers.noise_dots",)
+# Obrót ograniczony do ±12°: przy domyślnych ±35° odwrócona „6” jest nieodróżnialna od „9”,
+# czyli uczestnik z dobrym wzrokiem podaje zły wynik dobrze odczytanego działania.
+CAPTCHA_LETTER_ROTATION = (-12, 12)
+# Kolory jasnego motywu na sztywno: obrazek jest bitmapą, więc nie podąża za ``prefers-color-scheme``.
+CAPTCHA_BACKGROUND_COLOR = "#fffefb"
+CAPTCHA_FOREGROUND_COLOR = "#171d27"
+# Bez wersji dźwiękowej: ``flite`` to kolejny binarny pakiet w obrazie, a synteza mowy po
+# angielsku i tak nie pomogłaby polskiemu uczestnikowi. Ograniczenie dostępności jest jawne –
+# formularz podaje adres kontaktowy organizatora (patrz templates/web/_antispam_fields.html)
+# i tą drogą konto zakłada człowiek, a nie automat.
+CAPTCHA_FLITE_PATH = None
+# Minimalny czas wypełniania formularza (sekundy) – patrz apps/web/captcha.py. Człowiek nie
+# wypełni rejestracji w trzy sekundy; skrypt wysyłający POST-a od razu po GET-cie owszem.
+ANTISPAM_MIN_FILL_SECONDS = 3
+
+if E2E_MODE:
+    # Scenariusz end-to-end prowadzi prawdziwą przeglądarkę przez prawdziwy formularz, ale
+    # obrazka nie odczyta – w trybie testowym pakiet przyjmuje odpowiedź „PASSED”. Razem
+    # z wyzerowanym progiem czasu to **jedyne** miejsce, w którym zabezpieczenie da się obejść,
+    # i dlatego wisi na tej samej zmiennej, co przesuwanie osi czasu etapu: ``E2E_MODE`` nie
+    # jest ustawiane w produkcji (patrz komentarz przy jego definicji na początku pliku).
+    CAPTCHA_TEST_MODE = True
+    ANTISPAM_MIN_FILL_SECONDS = 0
 
 # --- Swagger UI (/api/docs/) -----------------------------------------------------------------
 # Wersja pinowana co do łatki i weryfikowana przez SRI. Domyślne ``@latest`` z drf-spectacular

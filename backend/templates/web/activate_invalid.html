@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% comment %}
+  Link aktywacyjny zły, wygasły albo już użyty. Formularz ponownej wysyłki stoi **od razu tutaj**,
+  bo po wygaśnięciu linku jedyną sensowną następną czynnością jest poproszenie o nowy – szukanie
+  go w menu byłoby zadaniem domowym dla kogoś, kto właśnie zobaczył komunikat o błędzie.
+
+  Odpowiedź formularza jest zawsze identyczna (patrz ``apps.web.views.public.ActivationResendView``):
+  strona nie może służyć do sprawdzania, czy pod danym adresem jest konto.
+{% endcomment %}
+{% block title %}Link aktywacyjny nie działa{% endblock %}
+{% block content %}
+<div class="auth">
+  <div class="card">
+    <h1>Link aktywacyjny nie działa</h1>
+    <p class="auth__intro">{{ error }}</p>
+    <p class="hint">Link aktywacyjny jest ważny {{ activation_hours }} godziny. Po tym czasie konto,
+      którego adresu nikt nie potwierdził, jest usuwane – wtedy wystarczy
+      <a href="{% url 'web:register' %}">zarejestrować się ponownie</a> tym samym adresem.</p>
+    <h2>Wyślij link ponownie</h2>
+    <form method="post" action="{% url 'web:activate-resend' %}" class="form">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button type="submit" class="btn btn--primary btn--block">Wyślij link ponownie</button>
+    </form>
+    <p class="auth__alt">Konto masz już aktywne? <a href="{% url 'web:login' %}">Zaloguj się</a>.</p>
+  </div>
+</div>
+{% endblock %}

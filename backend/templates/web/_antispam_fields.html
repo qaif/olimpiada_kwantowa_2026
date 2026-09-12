@@ -1,0 +1,19 @@
+{% comment %}
+  Blok antyspamowy formularza rejestracji: CAPTCHA, pułapka i podpisany znacznik czasu
+  (apps/web/captcha.py). Renderuje się **pod** blokiem zgód, bo jest ostatnią czynnością przed
+  wysłaniem formularza, a nie kolejną daną o uczestniku.
+
+  Pułapka ``website`` jest tu zwykłym polem tekstowym – ukrywa ją arkusz stylów (klasa
+  ``hp-field``), a nie ``type="hidden"``. Pole bez etykiety, więc ``label_tag`` nic nie wypisuje.
+
+  Formularz społecznościowy (``SocialParticipantSignupForm``) tych pól nie ma – stąd warunek po
+  ``antispam_field_names`` w miejscu, z którego ten plik jest włączany.
+{% endcomment %}
+{{ form.website }}
+{{ form.form_ts }}
+<p class="captcha-field">
+  {{ form.captcha.errors }}
+  {{ form.captcha.label_tag }}
+  {{ form.captcha }}
+  <span class="helptext">{{ form.captcha.help_text }}</span>
+</p>

@@ -24,6 +24,7 @@ Pasek informujący o plikach cookie zapisuje w pamięci lokalnej przeglądarki j
 - **Brak reklam i profilowania** – nie zapisujemy plików reklamowych, nie tworzymy profili odwiedzających, nie przekazujemy danych sieciom reklamowym.
 - **Brak wtyczek społecznościowych** – na stronach nie ma przycisków „lubię to”, pikseli ani widżetów serwisów społecznościowych.
 - **Kroje pisma są hostowane u nas** – pliki fontów leżą na serwerze Olimpiady, więc otwarcie strony nie łączy się z Google Fonts ani z innym dostawcą krojów.
+- **Zabezpieczenie antyspamowe jest nasze** – obrazek z działaniem arytmetycznym w formularzach rejestracji rysuje serwer Olimpiady, a nie zewnętrzna usługa (nie używamy reCAPTCHA, hCaptcha ani Cloudflare Turnstile). Nie zapisuje on żadnego pliku cookie i nie wysyła nikomu informacji o odwiedzającym; samo wyzwanie znika z naszej bazy w chwili rozwiązania, a najpóźniej po dziesięciu minutach.
 
 Dwie biblioteki odpowiadające za interaktywność stron (htmx i Alpine.js) są pobierane z publicznych repozytoriów bibliotek (cdnjs, jsDelivr), z kontrolą sumy kontrolnej pliku i bez przekazywania adresu strony, z której nastąpiło wejście. Biblioteki te **nie zapisują żadnych plików cookie**.
 

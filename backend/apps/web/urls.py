@@ -2,7 +2,7 @@
 
 from django.urls import path
 
-from .views import appeals, coordinator, coordinator_stages, participant, public, reviewer
+from .views import account, appeals, coordinator, coordinator_stages, participant, public, reviewer
 
 app_name = "web"
 
@@ -24,7 +24,24 @@ urlpatterns = [
     path("reset/done/", public.PasswordResetCompleteView.as_view(), name="password-reset-complete"),
     path("register/", public.RegisterParticipantView.as_view(), name="register"),
     path("register/committee/", public.RegisterCommitteeView.as_view(), name="register-committee"),
+    # Aktywacja konta. ``resend/`` stoi **przed** wzorcem z tokenem: token jest dowolnym napisem
+    # bez ukośnika, więc bez tej kolejności „resend” dałoby się wziąć za token.
+    path("activate/resend/", public.ActivationResendView.as_view(), name="activate-resend"),
+    path("activate/<str:token>/", public.ActivateAccountView.as_view(), name="activate"),
     path("results/<int:stage_id>/", public.PublicResultsView.as_view(), name="results"),
+    # --- własne konto (wszystkie role) -------------------------------------------------------
+    # ``/me/profile/`` jest przy panelu uczestnika, bo edytuje **profil uczestnika**;
+    # ``/account/…`` obsługuje to, co ma każde konto: nazwisko, adres e-mail, usunięcie konta.
+    path("me/profile/", account.ParticipantProfileView.as_view(), name="profile"),
+    path("account/profile/", account.AccountProfileView.as_view(), name="account-profile"),
+    path("account/email/", account.EmailChangeView.as_view(), name="email-change"),
+    path(
+        "account/email/confirm/<str:token>/",
+        account.EmailChangeConfirmView.as_view(),
+        name="email-change-confirm",
+    ),
+    path("account/delete/", account.AccountDeleteView.as_view(), name="account-delete"),
+    path("account/deleted/", account.AccountDeletedView.as_view(), name="account-deleted"),
     # --- uczestnik ---------------------------------------------------------------------------
     path("me/", participant.MeView.as_view(), name="me"),
     path(
@@ -145,6 +162,17 @@ urlpatterns = [
         "coordinator/invitations/",
         coordinator.CreateInvitationView.as_view(),
         name="coordinator-invitation",
+    ),
+    # Konta oczekujące na aktywację – obejście na czas problemów z dostarczalnością poczty.
+    path(
+        "coordinator/accounts/<int:pk>/activate/",
+        coordinator.ActivateAccountView.as_view(),
+        name="coordinator-account-activate",
+    ),
+    path(
+        "coordinator/accounts/<int:pk>/resend-activation/",
+        coordinator.ResendActivationView.as_view(),
+        name="coordinator-account-resend",
     ),
     path(
         "coordinator/stages/<int:stage_id>/results/compute/",

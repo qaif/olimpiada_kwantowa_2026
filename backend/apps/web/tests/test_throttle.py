@@ -21,6 +21,8 @@ from apps.accounts.tests.factories import DEFAULT_PASSWORD
 from apps.submissions.tests.factories import pdf_upload
 from apps.web.throttle import form_rate, parse_rate
 
+from .conftest import captcha_fields, password_fields
+
 pytestmark = pytest.mark.django_db
 
 LOGIN_URL = "/login/"
@@ -45,7 +47,7 @@ def clean_throttle_cache():
 def registration_payload(email: str) -> dict:
     return {
         "email": email,
-        "password": "Poprawne-Haslo-2026",
+        **password_fields(),
         "first_name": "Nowy",
         "last_name": "Uczestnik",
         "school_custom": "on",
@@ -53,9 +55,13 @@ def registration_payload(email: str) -> dict:
         "district": "mazowieckie",
         "grade": 2,
         "birth_year": 2008,
+        "phone": "600 100 200",
         "terms_consent": "on",
         "gdpr_consent": "on",
         "guardian_consent": "on",
+        # Limit prób i CAPTCHA są niezależnymi warstwami: żeby sprawdzić, że licznik łapie także
+        # **udane** rejestracje, formularz musi przechodzić – stąd komplet pól antyspamowych.
+        **captcha_fields(),
     }
 
 
@@ -168,10 +174,11 @@ def test_committee_registration_shares_the_register_scope(web_client):
     """Rejestracja na kod idzie z tego samego licznika – inaczej limit obchodziłoby się adresem."""
     payload = {
         "email": "komitet@example.test",
-        "password": "Poprawne-Haslo-2026",
+        **password_fields(),
         "first_name": "Komitet",
         "last_name": "Testowy",
         "invitation_code": "kod-ktorego-nie-ma",
+        **captcha_fields(),
     }
     for attempt in range(3):
         assert web_client.post("/register/committee/", payload).status_code == 200, attempt

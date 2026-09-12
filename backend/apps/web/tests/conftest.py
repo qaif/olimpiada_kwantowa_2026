@@ -5,6 +5,8 @@ trzy zadania, uczestnicy zapisani do etapu), ale powstaje z fabryk – test widz
 co zadeklarował, i nie zależy od ``DEBUG``.
 """
 
+import time
+
 import pytest
 from django.test import Client
 
@@ -26,6 +28,62 @@ from apps.competitions.tests.factories import (
 
 #: Nazwisko uczestnika użyte w asercjach „recenzent nie widzi danych osobowych”.
 PARTICIPANT_LAST_NAME = "Nazwiskowski"
+
+#: Odpowiedź, którą ``django-simple-captcha`` przyjmuje przy ``CAPTCHA_TEST_MODE`` (settings/test.py).
+CAPTCHA_TEST_RESPONSE = "PASSED"
+
+
+def captcha_fields(*, elapsed: int = 10, honeypot: str = "") -> dict:
+    """Pola bloku antyspamowego dla POST-a na ``/register/`` i ``/register/committee/``.
+
+    Cztery klucze, bo tyle ich jest w formularzu (patrz apps/web/captcha.py):
+
+    - ``captcha_0`` – klucz wyzwania. W trybie testowym jego treść jest nieistotna, ale **musi**
+      być niepusta: ``MultiValueField`` odrzuca niekompletną wartość, zanim dojdzie do trybu
+      testowego,
+    - ``captcha_1`` – odpowiedź; „PASSED” przechodzi przy ``CAPTCHA_TEST_MODE``,
+    - ``website`` – pułapka. Pusta, czyli tak, jak wysyła ją człowiek,
+    - ``form_ts`` – podpisany znacznik czasu wystawienia formularza. Domyślnie 10 s w przeszłości,
+      czyli powyżej progu ``ANTISPAM_MIN_FILL_SECONDS``. Test „za szybko” podaje ``elapsed=0``.
+
+    Znacznik podpisujemy tą samą funkcją, co formularz – podpisu nie da się tu podrobić literałem,
+    a test z zaszytym ciągiem znaków przestałby cokolwiek sprawdzać po zmianie soli.
+    """
+    from apps.web.captcha import sign_timestamp
+
+    return {
+        "captcha_0": "klucz-nieistotny-w-trybie-testowym",
+        "captcha_1": CAPTCHA_TEST_RESPONSE,
+        "website": honeypot,
+        "form_ts": sign_timestamp(time.time() - elapsed),
+    }
+
+
+#: Hasło używane w POST-ach na formularze rejestracji. To samo, co ``factories.DEFAULT_PASSWORD``,
+#: powtórzone tutaj, żeby testy warstwy WWW nie zależały od fabryk kont.
+WEB_TEST_PASSWORD = "Poprawne-Haslo-2026"
+
+#: Telefon w postaci „jak wpisuje człowiek” – serwis sprowadzi go do ``+48600100200``.
+WEB_TEST_PHONE = "600 100 200"
+
+
+def password_fields(password: str = WEB_TEST_PASSWORD) -> dict:
+    """Hasło **i jego powtórzenie**: oba formularze rejestracji mają od tej zmiany dwa pola.
+
+    Osobny helper, a nie literał w każdym teście: gdy pojawi się trzecie pole poświadczeń,
+    zmienia się jedno miejsce. Test, którego przedmiotem jest sama niezgodność haseł, podaje
+    ``password2`` jawnie i nadpisuje to, co zwraca ten helper.
+    """
+    return {"password": password, "password2": password}
+
+
+def participant_extra_fields(*, phone: str = WEB_TEST_PHONE, **captcha_kwargs) -> dict:
+    """Komplet pól, których POST na ``/register/`` wymaga, a których dany test nie bada.
+
+    Hasło z powtórzeniem, telefon i blok antyspamowy w jednym miejscu – inaczej każde dołożenie
+    pola do formularza rejestracji znaczyłoby obchodzenie kilkunastu testów po kolei.
+    """
+    return {**password_fields(), "phone": phone, **captcha_fields(**captcha_kwargs)}
 
 
 @pytest.fixture

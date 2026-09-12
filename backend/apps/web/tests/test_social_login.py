@@ -117,6 +117,7 @@ def complete_signup(client: Client, **overrides):
         "district": "mazowieckie",
         "grade": 2,
         "birth_year": 2008,
+        "phone": "600 100 200",
         "terms_consent": "on",
         "gdpr_consent": "on",
         # Rocznik 2008 to w 2026 r. osoba „na pewno niepełnoletnia” w rozumieniu
@@ -279,7 +280,9 @@ def test_signup_is_audited_without_personal_data(web_client, google, edition):
     complete_signup(web_client)
 
     entry = AuditLog.objects.get(action="account.social_signup")
-    assert entry.diff == {"provider": "google"}
+    # ``email_verified`` mówi, czy dostawca potwierdził adres – czyli czy konto powstało aktywne,
+    # czy przeszło przez nasz link aktywacyjny. To fakt o **drodze** logowania, nie dana osobowa.
+    assert entry.diff == {"provider": "google", "email_verified": True}
     assert GOOGLE_EMAIL not in str(entry.diff)
 
 

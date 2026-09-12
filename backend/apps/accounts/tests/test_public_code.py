@@ -55,6 +55,7 @@ def test_wyczerpanie_prob_nie_zostawia_osieroconego_usera(open_registration):
             district="mazowieckie",
             grade=2,
             birth_year=2008,
+            phone="600 100 200",
             terms_consent=True,
             gdpr_consent=True,
             guardian_consent=True,

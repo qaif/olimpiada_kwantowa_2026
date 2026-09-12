@@ -26,6 +26,8 @@ from apps.accounts.models import Participant, User
 from apps.competitions.models import Edition
 from apps.core.models import AuditLog
 
+from .conftest import captcha_fields, password_fields
+
 pytestmark = pytest.mark.django_db
 
 REGISTRATION_URL = "/coordinator/registration/"
@@ -48,7 +50,7 @@ def local(value) -> str:
 def registration_payload(email: str = "nowy@example.test") -> dict:
     return {
         "email": email,
-        "password": "Poprawne-Haslo-2026",
+        **password_fields(),
         "first_name": "Anna",
         "last_name": "Nowak",
         "school_custom": "on",
@@ -56,6 +58,7 @@ def registration_payload(email: str = "nowy@example.test") -> dict:
         "district": "mazowieckie",
         "grade": 2,
         "birth_year": 2008,
+        "phone": "600 100 200",
         "terms_consent": True,
         "gdpr_consent": True,
         "guardian_consent": True,
@@ -68,6 +71,9 @@ def web_form_payload(email: str = "nowy@example.test") -> dict:
     payload["terms_consent"] = "on"
     payload["gdpr_consent"] = "on"
     payload["guardian_consent"] = "on"
+    # Blok antyspamowy ma wyłącznie formularz HTML – payload API (wyżej) go nie zna, bo CAPTCHA
+    # jest zabezpieczeniem przeglądarkowego formularza, a nie endpointu z limitem prób.
+    payload.update(captcha_fields())
     return payload
 
 
@@ -303,6 +309,7 @@ def test_social_signup_post_is_refused_too(web_client, google, edition):
             "district": "mazowieckie",
             "grade": 2,
             "birth_year": 2008,
+            "phone": "600 100 200",
             "terms_consent": "on",
             "gdpr_consent": "on",
             "guardian_consent": "on",

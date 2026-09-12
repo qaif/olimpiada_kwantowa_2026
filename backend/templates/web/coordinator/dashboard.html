@@ -68,11 +68,22 @@
       <dl class="meta-list">
         <dt>Forma</dt><dd>{{ row.stage.get_format_display }}</dd>
         <dt>Otwarcie</dt><dd>{{ row.stage.opens_at|local_datetime }}</dd>
-        <dt>Deadline oddania</dt><dd>{{ row.stage.submission_deadline|local_datetime }}</dd>
-        <dt>Deadline recenzji</dt><dd>{{ row.stage.review_deadline_at|local_datetime }}</dd>
-        <dt>Okno reklamacji</dt>
-        <dd>{{ row.stage.appeal_window_opens_at|local_datetime }} –
-          {{ row.stage.appeal_window_closes_at|local_datetime }}</dd>
+        {% comment %}
+          Etap treningowy ma w bazie komplet terminów (inaczej nie przeszedłby walidacji osi czasu),
+          ale wszystkie trzy to ta sama data-wartownik z roku 2099 – wypisana wprost wyglądałaby
+          jak literówka albo jak termin, którego koordynator zapomniał poprawić. ``has_deadline``
+          jest tu jednym pytaniem za wszystkie trzy wiersze, bo bez deadline'u nie ma też terminu
+          recenzji ani okna reklamacji: te liczą się od niego.
+        {% endcomment %}
+        {% if row.stage.has_deadline %}
+          <dt>Deadline oddania</dt><dd>{{ row.stage.submission_deadline|local_datetime }}</dd>
+          <dt>Deadline recenzji</dt><dd>{{ row.stage.review_deadline_at|local_datetime }}</dd>
+          <dt>Okno reklamacji</dt>
+          <dd>{{ row.stage.appeal_window_opens_at|local_datetime }} –
+            {{ row.stage.appeal_window_closes_at|local_datetime }}</dd>
+        {% else %}
+          <dt>Deadline oddania</dt><dd>bez terminu</dd>
+        {% endif %}
         <dt>Miejsce</dt><dd>{{ row.stage.location|default:"zdalnie" }}</dd>
         {% comment %}
           Termin wydarzenia stoi obok miejsca, a nie obok deadline'ów, bo opisuje to samo, co
@@ -210,6 +221,57 @@
   {% empty %}
     <p class="empty"><span class="empty__title">Bez rozjazdów</span>Brak prac w moderacji.</p>
   {% endfor %}
+</section>
+
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Konta oczekujące na aktywację</h2></div>
+  {% comment %}
+    Obejście operacyjne z terminem ważności: dopóki domena nadawcy nie ma poprawnych rekordów
+    SPF/DKIM (README § 4.2), część listów aktywacyjnych trafia do spamu albo jest odrzucana przez
+    serwer odbiorcy – a bez potwierdzenia adresu uczestnik nie wejdzie do serwisu. Koordynator
+    potwierdza wtedy adres ręcznie, po sprawdzeniu innym kanałem (telefon, szkoła). Wpis audytowy
+    ma własną akcję (``account.activated_by_coordinator``), żeby było widać, czym ten adres został
+    potwierdzony.
+
+    Kolumna „do usunięcia” jest tu dlatego, że konto nieaktywowane żyje tylko cztery godziny –
+    potem znika przy najbliższym przebiegu kosiarki (co 15 minut). Bez tej informacji przycisk
+    „Aktywuj ręcznie” byłby ruletką.
+  {% endcomment %}
+  <p class="hint">Konto bez potwierdzonego adresu e-mail nie loguje się w ogóle. Nieaktywowane
+    konto jest usuwane po {{ activation_hours }} h – wtedy adres zwalnia się do ponownej rejestracji.</p>
+  <div class="scroll">
+    <table class="table">
+      <thead><tr><th>E-mail</th><th>Założone (czas polski)</th><th>Rola</th><th>Do usunięcia</th><th></th></tr></thead>
+      <tbody>
+        {% for row in pending_activation %}
+          <tr>
+            <td>{{ row.user.email }}</td>
+            <td>{{ row.user.date_joined|local_datetime }}</td>
+            <td>{{ row.roles }}</td>
+            <td>
+              {% if row.minutes_left > 0 %}
+                za {{ row.minutes_left }} min
+              {% else %}
+                <span class="badge badge--warn">po czasie</span>
+              {% endif %}
+            </td>
+            <td>
+              <form method="post" action="{% url 'web:coordinator-account-activate' row.user.pk %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn--primary btn--small">Aktywuj ręcznie</button>
+              </form>
+              <form method="post" action="{% url 'web:coordinator-account-resend' row.user.pk %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn--secondary btn--small">Wyślij link ponownie</button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="empty">Brak kont oczekujących na aktywację.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </section>
 
 <section class="section">

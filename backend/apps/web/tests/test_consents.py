@@ -20,6 +20,8 @@ from apps.accounts.models import ConsentRecord, Participant, User
 from apps.accounts.services import set_publish_name_consent
 from apps.core.models import AuditLog
 
+from .conftest import captcha_fields, password_fields
+
 pytestmark = pytest.mark.django_db
 
 REGISTER_URL = "/register/"
@@ -38,7 +40,7 @@ def adult_year() -> int:
 def register_payload(**overrides) -> dict:
     data = {
         "email": "zgody-web@example.test",
-        "password": "Poprawne-Haslo-2026",
+        **password_fields(),
         "first_name": "Anna",
         "last_name": "Nowak",
         "school_custom": "on",
@@ -46,8 +48,13 @@ def register_payload(**overrides) -> dict:
         "district": "mazowieckie",
         "grade": 2,
         "birth_year": adult_year(),
+        "phone": "600 100 200",
         "terms_consent": "on",
         "gdpr_consent": "on",
+        # Blok antyspamowy (CAPTCHA w trybie testowym, pusta pułapka, podpisany znacznik czasu).
+        # Bez niego każdy POST na ``/register/`` odbijałby się o formularz, a test zgód badałby
+        # wyłącznie to, że CAPTCHA działa.
+        **captcha_fields(),
     }
     data.update(overrides)
     return data
@@ -164,7 +171,7 @@ def test_consent_fields_do_not_leak_into_the_service_kwargs():
     form = ParticipantRegisterForm(
         data={
             "email": "kwargs@example.test",
-            "password": "Poprawne-Haslo-2026",
+            **password_fields(),
             "first_name": "Anna",
             "last_name": "Nowak",
             "school_custom": "on",
@@ -172,8 +179,12 @@ def test_consent_fields_do_not_leak_into_the_service_kwargs():
             "district": "mazowieckie",
             "grade": 2,
             "birth_year": adult_year(),
+            "phone": "600 100 200",
             "terms_consent": "on",
             "gdpr_consent": "on",
+            # Pola bloku antyspamowego (CAPTCHA, pułapka, znacznik czasu) też nie mają prawa
+            # dojechać do serwisu – ich brak w zbiorze niżej jest częścią tej asercji.
+            **captcha_fields(),
         }
     )
 
@@ -186,6 +197,7 @@ def test_consent_fields_do_not_leak_into_the_service_kwargs():
         "district",
         "grade",
         "birth_year",
+        "phone",
         "school",
         "school_id",
         *CONSENT_FIELD_NAMES,

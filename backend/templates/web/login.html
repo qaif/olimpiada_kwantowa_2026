@@ -13,7 +13,17 @@
       <button type="submit" class="btn btn--primary btn--block">Zaloguj</button>
     </form>
     {% include "web/_social_auth.html" %}
+    {% comment %}
+      Podpowiedź o linku aktywacyjnym stoi tu **na stałe**, a nie warunkowo po nieudanym logowaniu.
+      Formularz logowania nie zdradza, czy konto istnieje i czy jest aktywne (``ModelBackend``
+      odrzuca konto nieaktywne tym samym, ogólnym komunikatem co złe hasło) – i tak ma zostać,
+      bo warunkowa podpowiedź byłaby właśnie tą informacją. Konto czekające na aktywację jest
+      jednak najczęstszym powodem „hasło się nie zgadza”, więc droga wyjścia musi być widoczna
+      zawsze, dla każdego.
+    {% endcomment %}
     <p class="auth__alt"><a href="{% url 'web:password-reset' %}">Nie pamiętasz hasła?</a><br>
+      Nie dostałeś linku aktywacyjnego?
+      <a href="{% url 'web:activate-resend' %}">Wyślij ponownie.</a><br>
       Nie masz konta? <a href="{% url 'web:register' %}">Zarejestruj się</a>.<br>
       Członek komitetu z kodem zaproszenia:
       <a href="{% url 'web:register-committee' %}">rejestracja z kodem</a>.</p>
