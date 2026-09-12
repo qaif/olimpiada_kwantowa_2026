@@ -42,6 +42,7 @@
     a CSP zostaje bez ``'unsafe-inline'`` – to nadal skrypt zewnętrzny, z nonce jak pozostałe.
   {% endcomment %}
   <script nonce="{{ request.csp_nonce }}" src="{% static 'js/cookie-notice.js' %}"></script>
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/sticky-bar.js' %}"></script>
   {% comment %}
     Miejsce na komponenty Alpine'a potrzebne tylko na niektórych stronach (np. wyszukiwarka szkół
     w rejestracji). Blok stoi **przed** znacznikiem Alpine'a i to nie jest kosmetyka: build CDN
@@ -96,12 +97,14 @@
       {% if site_edition_label %}<span class="brand__sub">{{ site_edition_label|edition_title:"edycja" }}</span>{% endif %}
     </a>
     {% comment %}
-      Najważniejsze pozycje serwisu (``PRIMARY_MENU_SLUGS`` w apps/cms/context_processors.py) stoją
-      w przyklejonym pasku obok logotypu: zadania, terminy i warsztaty mają być jedno kliknięcie
-      stąd także w połowie długiego regulaminu. Dolne menu dostaje resztę – bez powtórzeń.
+      Najważniejsze pozycje serwisu (``PRIMARY_MENU_SLUGS`` w apps/cms/context_processors.py)
+      **przeskakują** do paska dopiero wtedy, gdy pasek się przyklei, czyli gdy menu serwisu
+      wyjechało poza ekran (klasa ``is-stuck`` nadawana przez static/js/sticky-bar.js). Na górze
+      strony menu stoi w pełnym składzie na swoim miejscu, a pasek jest krótki. Bez JavaScriptu
+      pozycje w pasku pozostają ukryte – dolne menu ma wszystko.
     {% endcomment %}
     {% if cms_menu_primary %}
-      <nav class="nav nav--primary" aria-label="Najważniejsze">
+      <nav class="nav nav--primary" aria-label="Najważniejsze" data-sticky-nav>
         {% for item in cms_menu_primary %}
           <a class="nav__link nav__link--primary" href="{{ item.url }}"
              {% if item.active %}aria-current="page"{% endif %}>{{ item.title }}</a>
@@ -169,7 +172,7 @@
       ``aria-current`` na aktywnej pozycji: porównujemy adres pozycji ze ścieżką żądania.
     {% endcomment %}
     <nav class="nav nav--cms" aria-label="Serwis">
-      {% for item in cms_menu_secondary %}
+      {% for item in cms_menu %}
         {% if item.children %}
           {% comment %}
             Rozwijana pozycja („Dokumenty”) to ``<details>``, a nie przycisk ze skryptem: otwiera

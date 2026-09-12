@@ -224,17 +224,24 @@ def test_about_section_renders_blocks_not_raw_markup(web_client, legacy_content)
 # --- najważniejsze pozycje menu w przyklejonym pasku -------------------------------------------
 
 
-def test_primary_menu_items_sit_in_the_sticky_bar_and_not_in_the_service_menu(web_client, legacy_content):
-    """Zadania, Harmonogram i Warsztaty stoją obok logotypu; dolne menu ich nie powtarza."""
+def test_primary_menu_items_are_ready_in_the_sticky_bar_and_stay_in_the_service_menu(
+    web_client, legacy_content
+):
+    """Zadania, Harmonogram i Warsztaty są w pasku (ukryte do przyklejenia) **i** w dolnym menu.
+
+    Pasek pokazuje je dopiero po przewinięciu (klasa ``is-stuck`` ze skryptu), więc na górze
+    strony nie ma dwóch takich samych rzędów odnośników jeden pod drugim.
+    """
     content = web_client.get("/").content.decode()
     sticky_nav = content.split('class="nav nav--primary"', 1)[1].split("</nav>", 1)[0]
     service_nav = content.split('class="nav nav--cms"', 1)[1].split("</nav>", 1)[0]
 
     for path in ("/zadania/", "/harmonogram/", "/warsztaty/"):
         assert f'href="{path}"' in sticky_nav, path
-        assert f'href="{path}"' not in service_nav, path
-    assert 'href="/aktualnosci/"' in service_nav
+        assert f'href="{path}"' in service_nav, path
     assert 'href="/aktualnosci/"' not in sticky_nav
+    assert "data-sticky-nav" in content
+    assert 'src="/static/js/sticky-bar.js"' in content
     # Kolejność w pasku to kolejność drzewa stron, tak jak w dolnym menu.
     assert (
         sticky_nav.index('href="/zadania/"')

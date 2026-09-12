@@ -691,11 +691,35 @@ hr {
 /* Najważniejsze pozycje menu w przyklejonym pasku: między logotypem a przyciskami konta,
    nieco mocniejsze niż odnośniki dolnego menu, bo stoją na tle bez własnego wiersza. */
 .nav--primary {
-  display: flex;
+  /* Ukryta, dopóki pasek się nie przyklei (klasa ``is-stuck`` ze static/js/sticky-bar.js): na
+     górze strony te same pozycje stoją w menu serwisu tuż pod paskiem. */
+  display: none;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--sp-1) var(--sp-4);
   margin-left: var(--sp-2);
+}
+
+.topbar--account.is-stuck .nav--primary {
+  display: flex;
+  animation: nav-primary-in 180ms ease-out;
+}
+
+@keyframes nav-primary-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar--account.is-stuck .nav--primary {
+    animation: none;
+  }
 }
 
 .nav__link--primary {

@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 #: Pozycje, które stoją w **przyklejonym pasku** obok logotypu, a nie w dolnym menu serwisu:
 #: to, czego uczestnik szuka najczęściej i w trakcie pracy z długim dokumentem (zadania, terminy,
 #: warsztaty). Dobór jest po slugu strony, nie po tytule, bo tytuł redakcja może zmienić.
-PRIMARY_MENU_SLUGS = ("zadania", "harmonogram", "warsztaty")
+PRIMARY_MENU_SLUGS = ("zadania", "harmonogram", "warsztaty", "kontakt")
 
 #: Zapasowe menu = dokładnie te ścieżki, które tworzy migracja drzewa stron.
 FALLBACK_MENU = (
@@ -106,10 +106,10 @@ def cms_menu(request) -> dict:
         for item in FALLBACK_MENU
     ]
     menu = items or fallback
-    # Dwie listy dla szablonu zamiast filtrowania w nim: pasek przyklejony i menu serwisu czytają
-    # to samo źródło i żadna pozycja nie może pojawić się w obu miejscach naraz.
+    # Osobna lista dla przyklejonego paska zamiast filtrowania w szablonie: pasek i menu serwisu
+    # czytają to samo źródło, a pasek pokazuje swoje pozycje dopiero po przyklejeniu (skrypt
+    # static/js/sticky-bar.js) – dolne menu zostaje w pełnym składzie.
     return {
         "cms_menu": menu,
         "cms_menu_primary": [item for item in menu if item["primary"]],
-        "cms_menu_secondary": [item for item in menu if not item["primary"]],
     }
