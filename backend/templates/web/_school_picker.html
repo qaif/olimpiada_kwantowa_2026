@@ -4,19 +4,27 @@
   składają się tu na jeden komponent i muszą stać w konkretnym układzie.
 
   **Strona bez JavaScriptu działa.** Lista podpowiedzi zostaje pusta, pole „Nazwa szkoły” jest
-  widoczne od początku, więc rejestracja idzie drogą „Mojej szkoły nie ma na liście” + wolny tekst.
-  Skrypt (``static/js/school-picker.js``) dokłada podpowiedzi i chowa pole wolnego tekstu, dopóki
-  wyjątek nie jest zaznaczony – czyli poprawia wygodę, a nie warunkuje wysłanie formularza.
+  widoczne od początku, więc rejestracja idzie wpisaniem nazwy ręcznie. Skrypt
+  (``static/js/school-picker.js``) dokłada podpowiedzi i chowa pole wolnego tekstu, dopóki nie
+  jest potrzebne – czyli poprawia wygodę, a nie warunkuje wysłanie formularza. Skrypt jest
+  self-hostowany i nie używa żadnej biblioteki: wersja na Alpine z CDN padała u każdego, komu
+  firmowe proxy albo wtyczka blokowały jeden zewnętrzny adres.
 
-  Atrybuty ``x-ref``/``x-on`` przychodzą z widżetów (apps/web/forms.py), bo nazwa metody musi
-  zgadzać się z komponentem Alpine i nie ma prawa istnieć w dwóch kopiach szablonu.
+  Punkty zaczepienia to atrybuty ``data-picker`` na widżetach (apps/web/forms.py), bo szablon
+  renderuje ten blok na czterech ekranach i nazwa hooka nie ma prawa istnieć w kilku kopiach.
 {% endcomment %}
-<div class="school-picker" x-data="schoolPicker"
+<div class="school-picker" data-school-picker
      data-search-url="{% url 'schools:search' %}"
      data-district-field="{{ form.district.auto_id }}">
   <p class="school-picker__query">
     {{ form.school_query.errors }}
-    <label for="{{ form.school_query.id_for_label }}">{{ form.school_query.label }}</label>
+    {% comment %}
+      Klasa ``required`` stoi tu ręcznie, a nie z ``required_css_class``: pole ``school_query``
+      jest w Django ``required=False`` (wymagalność rozstrzyga ``SchoolChoiceMixin.clean`` na
+      podstawie całej czwórki pól), więc ``label_tag`` nie dołożyłby gwiazdki – a szkoła jest
+      obowiązkowa i czytelnik ma to widzieć tak samo jak przy pozostałych polach.
+    {% endcomment %}
+    <label class="required" for="{{ form.school_query.id_for_label }}">{{ form.school_query.label }}</label>
     {% comment %}
       Lista podpowiedzi jest pozycjonowana **względem samego pola**, a nie względem całego bloku:
       nad polem potrafi stanąć jeszcze lista błędów, więc każdy odstęp liczony od góry bloku
@@ -25,7 +33,7 @@
     <span class="school-picker__control">
       {{ form.school_query }}
       <ul class="school-picker__list" id="school-suggestions" role="listbox"
-          aria-label="Podpowiedzi szkół" x-ref="list" hidden></ul>
+          aria-label="Podpowiedzi szkół" data-picker="list" hidden></ul>
     </span>
     <span class="helptext">{{ form.school_query.help_text }}</span>
   </p>
@@ -34,7 +42,7 @@
     ``aria-live`` mówi czytnikowi ekranu, ile podpowiedzi się pojawiło – bez tego lista zmienia
     się w ciszy i wiadomo o niej tylko wtedy, gdy się ją widzi.
   {% endcomment %}
-  <p class="school-picker__status visually-hidden" role="status" aria-live="polite" x-ref="status"></p>
+  <p class="school-picker__status visually-hidden" role="status" aria-live="polite" data-picker="status"></p>
   {% comment %}
     Etykieta **przed** kratką – tak samo jak w ``as_p``, bo arkusz odwraca tę parę regułą
     ``.form p:has(> input[type=checkbox])``. Odwrotna kolejność w HTML-u dałaby tu jedyny
@@ -44,7 +52,7 @@
     <label for="{{ form.school_custom.id_for_label }}">{{ form.school_custom.label }}</label>
     {{ form.school_custom }}
   </p>
-  <p class="school-picker__free" x-ref="free">
+  <p class="school-picker__free" data-picker="free">
     {{ form.school.errors }}
     <label for="{{ form.school.id_for_label }}">{{ form.school.label }}</label>
     {{ form.school }}

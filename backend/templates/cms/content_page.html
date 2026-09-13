@@ -36,6 +36,18 @@
     {% for block in page.body %}
       {% include_block block %}
     {% endfor %}
+    {% comment %}
+      Wiersz ikon domyka sekcję „Media społecznościowe” na stronie „Kontakt”. Adresy biorą się
+      z ``SiteSettings``, a nie z treści – tak samo, jak w stopce – bo profil zmienia nazwę poza
+      rytmem wydań i nie może wymagać dwóch zgodnych poprawek w dwóch miejscach. Tekst sekcji
+      (nagłówek i lista z nazwami) zostaje redakcyjny: ikona bez podpisu nie mówi nic ani
+      w czytniku ekranu bez ``aria-label``, ani na wydruku, gdzie arkusz ją ukrywa.
+      Warunek na slug, a nie osobny typ strony: to jedna sekcja jednej strony, a nowy model
+      kosztowałby migrację i pozycję w ``/cms/`` bez żadnego zysku dla redaktora.
+    {% endcomment %}
+    {% if page.slug == "kontakt" %}
+      {% include "cms/_social_links.html" with links=settings.cms.SiteSettings.social_links %}
+    {% endif %}
   </div>
 
 </div>

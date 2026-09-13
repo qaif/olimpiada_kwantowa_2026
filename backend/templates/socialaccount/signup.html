@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 {% block title %}Dokończ rejestrację{% endblock %}
-{% block alpine_components %}
+{% block page_scripts %}
   <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/school-picker.js' %}"></script>
 {% endblock %}
 {% block content %}
@@ -14,6 +14,8 @@
       używasz u dostawcy. Adresu nie da się tu zmienić.</p>
     <form method="post" class="form">
       {% csrf_token %}
+      {# Legenda gwiazdki – marker rysuje arkusz z klasy ``required`` (apps/web/forms.py). #}
+      <p class="form__required-note">Pola oznaczone * są obowiązkowe.</p>
       {% include "web/_participant_form_fields.html" %}
       <p class="hint">Akceptacja Regulaminu i zgoda na przetwarzanie danych osobowych są wymagane.
         Uczestnik niepełnoletni potrzebuje dodatkowo zgody rodzica lub opiekuna prawnego.</p>

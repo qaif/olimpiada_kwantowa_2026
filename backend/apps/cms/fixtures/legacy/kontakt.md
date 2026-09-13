@@ -20,3 +20,10 @@ Strona organizatora: [www.qaif.org](https://www.qaif.org/)
 ## Tytuły wiadomości
 
 W sprawach dotyczących danych osobowych oraz ochrony małoletnich prosimy wpisać odpowiednio „RODO – Olimpiada Kwantowa” albo „Bezpieczeństwo małoletnich – Olimpiada Kwantowa” w tytule wiadomości.
+
+## Media społecznościowe
+
+- [Facebook](https://www.facebook.com/olimpiadakwantowa)
+- [LinkedIn](https://linkedin.com/showcase/olimpiada-kwantowa)
+- [Instagram](https://www.instagram.com/olimpiadakwantowa)
+- [X](https://x.com/olimpiadakwant)

@@ -5,6 +5,8 @@ Sprawdzamy dwie rzeczy: że formularz mapuje cztery pola interfejsu na dwa kwarg
 że wariant bez JavaScriptu (checkbox + wolny tekst) da się wysłać.
 """
 
+from pathlib import Path
+
 import pytest
 
 from apps.accounts.models import Participant
@@ -79,6 +81,16 @@ def test_neither_path_filled_is_a_field_error():
     assert "Wybierz szkołę z listy albo zaznacz, że nie ma jej na liście." in form.errors["school_query"]
 
 
+def test_typing_in_the_search_box_without_choosing_gets_a_pointed_message():
+    """Kto coś wpisał w wyszukiwarkę, jest o krok od celu – komunikat podaje mu obie drogi."""
+    form = ParticipantRegisterForm(form_data(school_query="II Liceum"))
+
+    assert form.is_valid() is False
+    assert form.errors["school_query"] == [
+        "Wybierz szkołę z podpowiedzi albo zaznacz „Mojej szkoły nie ma na liście” i wpisz jej nazwę."
+    ]
+
+
 def test_exception_without_a_name_is_a_field_error():
     form = ParticipantRegisterForm(form_data(school_custom="on", school="   "))
 
@@ -86,12 +98,27 @@ def test_exception_without_a_name_is_a_field_error():
     assert "school" in form.errors
 
 
-def test_free_text_typed_without_ticking_the_box_is_ignored():
-    """Samo wpisanie czegoś w pole wolnego tekstu nie może obchodzić wyboru ze słownika."""
+def test_free_text_without_ticking_the_box_is_accepted():
+    """Zgłoszenie z produkcji: wpisana nazwa szkoły ma wystarczyć, także bez zaznaczonej kratki.
+
+    Kratka odsłania pole wolnego tekstu i tyle – kiedy podpowiedzi nie działają (zablokowany
+    skrypt), uczestnik widzi pole „Nazwa szkoły” od początku i wypełnia je. Odmowa z powodu
+    niezaznaczonej kratki odsyłała go do listy, której akurat u niego nie było.
+    """
     form = ParticipantRegisterForm(form_data(school="Wpisane bez zaznaczenia"))
 
-    assert form.is_valid() is False
-    assert "school_query" in form.errors
+    assert form.is_valid(), form.errors
+    assert form.cleaned_data["school"] == "Wpisane bez zaznaczenia"
+    assert form.cleaned_data["school_id"] is None
+
+
+def test_a_choice_from_the_list_wins_over_leftover_free_text():
+    """Wybór ze słownika ma pierwszeństwo – inaczej w bazie stałyby dwie wersje tej samej szkoły."""
+    form = ParticipantRegisterForm(form_data(school_id="17", school="Resztka po wcześniejszym wpisie"))
+
+    assert form.is_valid(), form.errors
+    assert form.cleaned_data["school_id"] == 17
+    assert form.cleaned_data["school"] == ""
 
 
 def test_grade_is_required_and_bounded():
@@ -138,14 +165,29 @@ def test_field_order_puts_the_voivodeship_before_the_school():
 def test_registration_page_renders_the_picker(web_client, edition):
     body = web_client.get(REGISTER_URL).content.decode()
 
-    assert 'x-data="schoolPicker"' in body
+    assert "data-school-picker" in body
     assert 'data-search-url="/api/schools/"' in body
     assert 'data-district-field="id_district"' in body
-    # Punkty zaczepienia komponentu – nazwy muszą zgadzać się z static/js/school-picker.js.
-    for ref in ("query", "schoolId", "custom", "free", "list", "status"):
-        assert f'x-ref="{ref}"' in body, ref
+    # Punkty zaczepienia skryptu – nazwy muszą zgadzać się z static/js/school-picker.js.
+    for hook in ("query", "school-id", "custom", "free", "free-input", "list", "status"):
+        assert f'data-picker="{hook}"' in body, hook
     assert 'role="listbox"' in body
     assert "Mojej szkoły nie ma na liście" in body
+
+
+@pytest.mark.django_db
+def test_the_picker_does_not_depend_on_alpine(web_client, edition):
+    """Blok nie ma ani jednego atrybutu Alpine'a: skrypt jest czystym JS-em i nie potrzebuje CDN-u.
+
+    To jest sedno poprawki po zgłoszeniu z produkcji – wersja na Alpine padała w całości, gdy
+    proxy albo wtyczka blokowały jeden zewnętrzny adres.
+    """
+    body = web_client.get(REGISTER_URL).content.decode()
+    block = body.split('class="school-picker"')[1].split("</div>")[0]
+
+    assert "x-data" not in block
+    assert "x-ref" not in block
+    assert "x-on:" not in block
 
 
 @pytest.mark.django_db
@@ -155,9 +197,22 @@ def test_registration_page_loads_the_picker_script_with_a_nonce(web_client, edit
     assert "js/school-picker.js" in body
     script = next(line for line in body.splitlines() if "js/school-picker.js" in line)
     assert 'nonce="' in script
-    # Skrypt musi stać przed znacznikiem Alpine'a: build CDN startuje w mikrozadaniu tuż po
-    # swoim wykonaniu, więc rejestracja komponentu doklejona później nigdy by się nie odbyła.
-    assert body.index("js/school-picker.js") < body.index("@alpinejs/csp")
+    # ``defer``, bo skrypt szuka swoich elementów w gotowym dokumencie – i **nie** ``src`` spoza
+    # serwisu: cały sens przepisania na czysty JS polega na tym, że nie ma tu adresu z CDN-u.
+    assert "defer" in script
+    assert "//" not in script.split("src=")[1]
+
+
+def test_the_stylesheet_makes_the_hidden_attribute_win():
+    """Bez tej reguły ``hidden`` w bloku „szkoła” nic nie chowa – i to jest połowa zgłoszenia.
+
+    ``[hidden]`` z arkusza przeglądarki ma zerową swoistość, więc ``.form p { display: flex }``
+    je bije: skrypt ustawiał atrybut, a pole „Nazwa szkoły” stało otwarte, uczestnik je wypełniał
+    i dostawał odmowę. Sprawdzamy arkusz, bo tego jednego nie widać w żadnym teście renderu.
+    """
+    css = (Path(__file__).resolve().parents[3] / "static" / "css" / "app.css").read_text(encoding="utf-8")
+
+    assert "[hidden] {\n  display: none !important;\n}" in css
 
 
 @pytest.mark.django_db

@@ -317,6 +317,16 @@
   box-sizing: border-box;
 }
 
+/* Atrybut ``hidden`` ma chować **naprawdę**. Przeglądarka daje mu tylko ``display: none``
+   z arkusza domyślnego, więc bije go każda nasza reguła z klasą – i tak właśnie było w bloku
+   „szkoła”: ``.form p { display: flex }`` wygrywało z ``[hidden]``, pole „Nazwa szkoły” stało
+   otwarte mimo niezaznaczonej kratki, uczestnik je wypełniał i dostawał od serwera „wybierz
+   szkołę z listy”. To jest połowa zgłoszenia z produkcji (druga połowa siedziała w CDN-ie).
+   Reguła jest globalna i z ``!important``, bo ``hidden`` nie jest sugestią. */
+[hidden] {
+  display: none !important;
+}
+
 html {
   scroll-padding-top: 4.5rem;
   -webkit-text-size-adjust: 100%;
@@ -942,6 +952,44 @@ hr {
   display: block;
 }
 
+/* Odnośniki do profili organizatora – ten sam wiersz w stopce i na stronie „Kontakt”.
+   Lista, a nie ciąg odnośników jak w ``.footer__links``: te cztery pozycje nie mają tekstu, więc
+   czytnik ekranu nie ma po czym poznać, ile ich jest – ``<ul>`` mówi to sam („lista, 4 elementy”).
+   Znak ma 20 px, ale całym odnośnikiem jest kwadrat z ``padding`` – 20 px to za mało na palec
+   (WCAG 2.5.8 chce 24 px), a przy samej ikonie nie ma jak tego pola powiększyć tekstem.
+   Koloru nie ustawiamy: w stopce dziedziczy z ``.footer a``, poza nią z domyślnego odnośnika,
+   dzięki czemu ``fill="currentColor"`` w SVG trzyma się obu wariantów kolorystycznych. */
+.social-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  list-style: none;
+  margin: var(--sp-3) 0 var(--sp-2);
+  padding: 0;
+}
+
+.social-links a {
+  display: inline-flex;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  line-height: 0;
+}
+
+.social-links svg {
+  display: block;
+}
+
+/* Stopka nie zmienia odnośnikom koloru na :hover (``.footer a`` wygrywa z ``a:hover``), a przy
+   ikonie bez tekstu odpada też podkreślenie – bez własnego stanu najechanie nie dałoby żadnego
+   sygnału. Plakietka i rozjaśnienie do bieli ``.footer strong``; obrys :focus-visible zostaje ten
+   z ``.footer :focus-visible``. */
+.footer__social a:hover,
+.footer__social a:focus-visible {
+  color: rgba(244, 241, 232, 0.92);
+  background: rgba(244, 241, 232, 0.1);
+}
+
 /* --- 5. Typografia -------------------------------------------------------------------------- */
 
 h1,
@@ -1367,6 +1415,24 @@ label,
   font-size: 0.9375rem;
   color: var(--ink);
   margin-bottom: var(--sp-1);
+}
+
+/* Gwiazdka przy polu obowiązkowym. Klasę ``required`` dokłada Django z ``required_css_class``
+   (apps/web/forms.py), a znak rysuje arkusz – w HTML-u gwiazdki nie ma ani razu i to jest celowe:
+   czytnik ekranu i tak czyta wymagalność z atrybutu ``required`` na kontrolce, więc przeczytana
+   na głos „gwiazdka” po każdej etykiecie byłaby drugą, gorszą kopią tej samej informacji.
+   Zgłoszenie organizatora: z formularza nie dało się odczytać, co trzeba wypełnić. */
+label.required::after {
+  content: " *";
+  color: var(--accent);
+}
+
+/* Legenda nad formularzem („Pola oznaczone * są obowiązkowe.”). Ta sama waga i kolor, co
+   podpowiedzi pod polami – to objaśnienie znaku, a nie kolejne pole. */
+.form__required-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
 }
 
 input[type="text"],
@@ -2318,6 +2384,16 @@ td.empty,
   background: rgba(244, 241, 232, 0.12);
   border-color: #f4f1e8;
   color: #fff;
+}
+
+/* Zapowiedź startu rejestracji pod przyciskami (``cms.SiteSettings.registration_note``). Zwykły
+   wiersz tekstu, a nie plakietka jak ``hero__status``: to informacja o dacie, a nie stan systemu –
+   wyróżniona ramką konkurowałaby wzrokowo z przyciskiem, pod którym stoi. */
+.hero__note {
+  max-width: 44ch;
+  margin-top: var(--sp-4);
+  font-size: 0.875rem;
+  color: rgba(244, 241, 232, 0.85);
 }
 
 .hero__status {
@@ -3451,6 +3527,10 @@ fieldset:disabled .score-option {
   .cookie-notice,
   .messages,
   .skip-link,
+  /* Ikony serwisów na wydruku są nieczytelne: odnośnik nie ma tekstu, a reguła ``.prose a::after``
+     dopisałaby adres do pustego znaku. Na stronie „Kontakt” te same cztery adresy stoją obok
+     w liście redakcyjnej („Media społecznościowe”) i to ona zostaje na papierze. */
+  .social-links,
   .actions,
   .hero__actions,
   .doc-print,

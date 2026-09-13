@@ -128,6 +128,13 @@ def clean_password_pair(form: forms.Form, cleaned: dict | None) -> dict:
 #: gdyby blok urósł o kolejne pole.
 SCHOOL_FIELD_NAMES = ("school_id", "school_query", "school_custom", "school")
 
+#: Klasa doklejana przez Django do etykiety (i do akapitu ``as_p``) każdego pola wymaganego.
+#: Gwiazdkę dorysowuje arkusz (``label.required::after`` w static/css/app.css) – w HTML-u nie ma
+#: jej ani razu, bo czytnik ekranu i tak dostaje wymagalność z atrybutu ``required`` na kontrolce,
+#: a przeczytana na głos „gwiazdka” po każdej etykiecie byłaby szumem. Stała, a nie napis wpisany
+#: w czterech klasach: formularze rejestracji mają wyglądać tak samo, a nie prawie tak samo.
+REQUIRED_CSS_CLASS = "required"
+
 
 class SchoolChoiceMixin(forms.Form):
     """Wybór szkoły ze słownika SIO albo – świadomą decyzją – wpisanie jej ręcznie.
@@ -137,27 +144,28 @@ class SchoolChoiceMixin(forms.Form):
 
     - ``school_query`` – to, co uczestnik widzi i w co pisze. Do serwisu **nie trafia**,
     - ``school_id`` – ukryty wynik wyboru z podpowiedzi; to on wiąże profil z rejestrem,
-    - ``school_custom`` – jawna deklaracja „mojej szkoły nie ma na liście”. Bez niej brak
-      ``school_id`` byłby nieodróżnialny od pomyłki i albo blokowałby rejestrację ludziom spoza
-      wykazu, albo cicho przepuszczał wolny tekst każdemu, kto nie kliknął podpowiedzi,
-    - ``school`` – nazwa wpisana ręcznie, wymagana wyłącznie w trybie „nie ma na liście”.
+    - ``school_custom`` – kratka „mojej szkoły nie ma na liście”. Jej rolą jest **odsłonić** pole
+      wolnego tekstu (skrypt trzyma je schowane, dopóki nie jest potrzebne), a nie poświadczyć,
+      że wpis jest serio – patrz ``clean()``,
+    - ``school`` – nazwa wpisana ręcznie, dla szkół spoza wykazu.
 
     ``clean()`` sprowadza to do dokładnie dwóch kluczy, jakich oczekuje
     ``accounts.services.register_participant``: ``school`` (tekst) i ``school_id``.
 
-    Atrybuty ``x-ref``/``x-on`` stoją przy widżetach, a nie w szablonie, bo szablon renderuje ten
-    blok dwa razy (rejestracja hasłem i przez dostawcę) – jedna definicja to jedno miejsce, w
-    którym nazwa metody komponentu może się rozjechać z ``static/js/school-picker.js``.
+    Atrybuty ``data-picker`` stoją przy widżetach, a nie w szablonie, bo szablon renderuje ten
+    blok na czterech ekranach (rejestracja hasłem, przez dostawcę, edycja profilu) – jedna
+    definicja to jedno miejsce, w którym punkt zaczepienia może się rozjechać ze skryptem
+    ``static/js/school-picker.js``.
     """
 
     school_id = forms.IntegerField(
-        required=False, min_value=1, widget=forms.HiddenInput(attrs={"x-ref": "schoolId"})
+        required=False, min_value=1, widget=forms.HiddenInput(attrs={"data-picker": "school-id"})
     )
     school_query = forms.CharField(
         label="Szkoła",
         required=False,
         max_length=255,
-        help_text="Zacznij pisać nazwę lub miejscowość.",
+        help_text="Zacznij pisać nazwę lub miejscowość i wybierz szkołę z podpowiedzi.",
         widget=forms.TextInput(
             attrs={
                 "autocomplete": "off",
@@ -165,20 +173,21 @@ class SchoolChoiceMixin(forms.Form):
                 "aria-expanded": "false",
                 "aria-autocomplete": "list",
                 "aria-controls": "school-suggestions",
-                "x-ref": "query",
-                "x-on:input": "onInput",
-                "x-on:keydown": "onKeydown",
-                "x-on:focus": "onFocus",
-                "x-on:blur": "onBlur",
+                "data-picker": "query",
             }
         ),
     )
     school_custom = forms.BooleanField(
         label="Mojej szkoły nie ma na liście",
         required=False,
-        widget=forms.CheckboxInput(attrs={"x-ref": "custom", "x-on:change": "onCustomToggle"}),
+        widget=forms.CheckboxInput(attrs={"data-picker": "custom"}),
     )
-    school = forms.CharField(label="Nazwa szkoły", required=False, max_length=255)
+    school = forms.CharField(
+        label="Nazwa szkoły",
+        required=False,
+        max_length=255,
+        widget=forms.TextInput(attrs={"data-picker": "free-input"}),
+    )
 
     @property
     def school_field_names(self) -> tuple[str, ...]:
@@ -186,26 +195,48 @@ class SchoolChoiceMixin(forms.Form):
         return SCHOOL_FIELD_NAMES
 
     def clean(self):
-        """Mapuje blok na kwargi serwisu. Dokładnie jedna droga zostaje wypełniona."""
+        """Mapuje blok na kwargi serwisu. Dokładnie jedna droga zostaje wypełniona.
+
+        Reguła **nie jest** twardym „albo/albo”, i to jest poprawka po zgłoszeniu z produkcji:
+        uczestnik, któremu nie działały podpowiedzi (zablokowany skrypt), wpisał nazwę szkoły
+        w widoczne pole „Nazwa szkoły”, nie zaznaczył kratki „Mojej szkoły nie ma na liście”
+        i usłyszał od serwera, żeby wybrał szkołę z listy. Wpisany tekst jest jednoznaczną
+        odpowiedzią na pytanie „jaka szkoła” – kratka służy do **odsłonięcia** tego pola, a nie
+        do poświadczenia, że wpis jest serio. Odmowa z powodu niezaznaczonej kratki odsyłała
+        człowieka do listy, której akurat u niego nie było.
+        """
         cleaned = super().clean()
         custom = cleaned.get("school_custom")
+        query = (cleaned.get("school_query") or "").strip()
         # Pola pomocnicze nie mają prawa dojechać do serwisu – widoki wołają go
         # ``**form.cleaned_data``, więc każdy nadmiarowy klucz byłby TypeError.
         cleaned.pop("school_query", None)
         cleaned.pop("school_custom", None)
+        free_text = (cleaned.get("school") or "").strip()
+        cleaned["school"] = free_text
         if custom:
             # Zaznaczony wyjątek unieważnia wcześniejszy wybór z listy: liczy się ostatnia decyzja
             # uczestnika, a nie kolejność, w jakiej klikał.
             cleaned["school_id"] = None
-            if not (cleaned.get("school") or "").strip():
+            if not free_text:
                 self.add_error("school", "Podaj nazwę szkoły.")
-        else:
+        elif cleaned.get("school_id"):
+            # Wybór ze słownika wygrywa: nazwę i tak przepisze ``_resolve_school`` z rejestru,
+            # więc trzymanie obok niej wolnego tekstu dawałoby dwie wersje tej samej szkoły.
             cleaned["school"] = ""
-            if not cleaned.get("school_id"):
-                self.add_error(
-                    "school_query",
-                    "Wybierz szkołę z listy albo zaznacz, że nie ma jej na liście.",
+        elif not free_text:
+            # Nic nie wybrano i nic nie wpisano. Dwa różne komunikaty, bo to dwie różne sytuacje:
+            # ktoś, kto **coś** wpisał w pole wyszukiwarki, jest o krok od celu i trzeba mu podać
+            # obie wyjścia; ktoś, kto nie tknął bloku, potrzebuje zwykłego „to pole jest wymagane”.
+            self.add_error(
+                "school_query",
+                (
+                    "Wybierz szkołę z podpowiedzi albo zaznacz „Mojej szkoły nie ma na liście” "
+                    "i wpisz jej nazwę."
                 )
+                if query
+                else "Wybierz szkołę z listy albo zaznacz, że nie ma jej na liście.",
+            )
         return cleaned
 
 
@@ -317,6 +348,7 @@ class ParticipantRegisterForm(CaptchaFormMixin, ConsentFieldsMixin, SchoolChoice
     jest już za zalogowaniem u dostawcy, więc bot musiałby najpierw przejść OAuth Google/Facebooka.
     """
 
+    required_css_class = REQUIRED_CSS_CLASS
     field_order = [name for name in PARTICIPANT_FIELD_ORDER]
 
     email = forms.EmailField(label="Adres e-mail", max_length=254)
@@ -347,6 +379,7 @@ class SocialParticipantSignupForm(ConsentFieldsMixin, SchoolChoiceMixin):
     w wynikach olimpiady ma stać nazwisko z legitymacji, a nie pseudonim z konta społecznościowego.
     """
 
+    required_css_class = REQUIRED_CSS_CLASS
     field_order = [
         name for name in PARTICIPANT_FIELD_ORDER if name not in ("email", "password", PASSWORD_CONFIRM_FIELD)
     ]
@@ -366,6 +399,7 @@ class CommitteeRegisterForm(CaptchaFormMixin):
     prób (scope ``register``) ogranicza liczbę strzałów, a CAPTCHA podnosi koszt każdego z nich.
     """
 
+    required_css_class = REQUIRED_CSS_CLASS
     field_order = [
         "email",
         "password",
@@ -433,6 +467,7 @@ class ParticipantProfileForm(SchoolChoiceMixin):
     danych. ``public_code`` nie jest edytowalny nigdzie – to identyfikator w ogłoszonych tabelach.
     """
 
+    required_css_class = REQUIRED_CSS_CLASS
     field_order = [name for name in PARTICIPANT_PROFILE_FIELD_ORDER]
 
     first_name = forms.CharField(label="Imię", max_length=150)

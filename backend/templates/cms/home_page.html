@@ -35,6 +35,17 @@
       {% endif %}
     </div>
 
+    {% comment %}
+      Zapowiedź oficjalnego startu rejestracji (``cms.SiteSettings.registration_note``). Stoi pod
+      przyciskami, bo dotyczy tego, do czego prowadzi przycisk – a nie jest kolejnym wezwaniem do
+      działania. To **tylko tekst redakcyjny**: o tym, czy formularz przyjmuje zgłoszenia,
+      rozstrzyga okno rejestracji edycji (panel koordynatora). Rozdział jest celowy, bo organizator
+      trzyma formularz otwarty do testów, zanim ogłoszona data nadejdzie.
+    {% endcomment %}
+    {% if settings.cms.SiteSettings.registration_note %}
+      <p class="hero__note">{{ settings.cms.SiteSettings.registration_note }}</p>
+    {% endif %}
+
     {% if current_stage %}
       <p class="hero__status">Etap bieżący: <strong>{{ current_stage.display_name }}</strong>
         · termin oddania rozwiązań {{ current_stage.deadline_at|local_time }}</p>

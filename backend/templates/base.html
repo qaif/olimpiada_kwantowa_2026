@@ -44,13 +44,17 @@
   <script nonce="{{ request.csp_nonce }}" src="{% static 'js/cookie-notice.js' %}"></script>
   <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/sticky-bar.js' %}"></script>
   {% comment %}
-    Miejsce na komponenty Alpine'a potrzebne tylko na niektórych stronach (np. wyszukiwarka szkół
-    w rejestracji). Blok stoi **przed** znacznikiem Alpine'a i to nie jest kosmetyka: build CDN
-    woła ``Alpine.start()`` w mikrozadaniu tuż po wykonaniu swojego skryptu, a mikrozadania są
-    opróżniane pomiędzy kolejnymi skryptami ``defer``. Rejestracja doklejona w ``{% templatetag openblock %} block head {% templatetag closeblock %}``
+    Miejsce na skrypty potrzebne tylko na niektórych stronach – dziś jest tu wyłącznie
+    wyszukiwarka szkół w rejestracji (``js/school-picker.js``), która **nie** jest już komponentem
+    Alpine'a i niczego spoza serwisu nie potrzebuje.
+
+    Blok stoi mimo to **przed** znacznikiem Alpine'a i to nie jest kosmetyka: gdyby kiedyś trafił
+    tu prawdziwy komponent, musi zdążyć się zarejestrować. Build CDN woła ``Alpine.start()``
+    w mikrozadaniu tuż po wykonaniu swojego skryptu, a mikrozadania są opróżniane pomiędzy
+    kolejnymi skryptami ``defer`` – rejestracja doklejona w ``{% templatetag openblock %} block head {% templatetag closeblock %}``
     (czyli poniżej) wykonałaby się już po ``alpine:init`` i komponent nigdy by nie powstał.
   {% endcomment %}
-  {% block alpine_components %}{% endblock %}
+  {% block page_scripts %}{% endblock %}
   <script defer nonce="{{ request.csp_nonce }}"
           src="https://cdnjs.cloudflare.com/ajax/libs/htmx/2.0.4/htmx.min.js"
           integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+"
@@ -234,6 +238,13 @@
         <a href="/dokumenty/cookies/">Polityka plików cookie</a>
         <a href="/dokumenty/">Dokumenty</a>
       </p>
+      {% comment %}
+        Profile organizatora stoją pod odnośnikami do dokumentów, a nie w kolumnie z danymi
+        rejestrowymi: to zaproszenie („śledź nas”), a nie dana identyfikacyjna fundacji, więc czyta
+        się razem z resztą nawigacji stopki. Adresy przychodzą z ``SiteSettings`` – te same, co
+        na stronie „Kontakt”. Pusty adres = brak ikony, więc wycofanie serwisu jest wpisem w ``/cms/``.
+      {% endcomment %}
+      {% include "cms/_social_links.html" with links=site.social_links css_class="footer__social" %}
     </div>
     <div>
       {% comment %}

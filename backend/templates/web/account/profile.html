@@ -10,7 +10,7 @@
   ``form.school_field_names`` istnieje wyłącznie w ``SchoolChoiceMixin``.
 {% endcomment %}
 {% block title %}Edycja danych{% endblock %}
-{% block alpine_components %}
+{% block page_scripts %}
   {% if form.school_field_names %}
     <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/school-picker.js' %}"></script>
   {% endif %}
@@ -27,6 +27,8 @@
     <h2 class="mt-0">Dane osobowe</h2>
     <form method="post" class="form">
       {% csrf_token %}
+      {# Legenda gwiazdki – marker rysuje arkusz z klasy ``required`` (apps/web/forms.py). #}
+      <p class="form__required-note">Pola oznaczone * są obowiązkowe.</p>
       {{ form.non_field_errors }}
       {% for field in form %}
         {% if form.school_field_names and field.name in form.school_field_names %}

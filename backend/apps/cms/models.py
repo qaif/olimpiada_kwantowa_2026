@@ -127,6 +127,54 @@ class SiteSettings(BaseSiteSetting):
     contact_phone = models.CharField("telefon", max_length=40, blank=True, default="+48 507 982 292")
     contact_url = models.URLField("strona organizatora", blank=True, default="https://www.qaif.org/")
 
+    #: Adresy profili w mediach społecznościowych. Stoją tu, a nie w szablonie, z tego samego
+    #: powodu, co reszta danych organizatora: te same cztery adresy wiszą w dwóch miejscach
+    #: (stopka i strona „Kontakt”), a zmiana nazwy profilu albo wycofanie serwisu zdarza się poza
+    #: rytmem wydań – przy adresie wpisanym w szablonie każda taka poprawka byłaby deployem.
+    #: Puste pole znaczy „nie pokazuj”: wycofanie serwisu jest skasowaniem adresu w ``/cms/``,
+    #: a nie usunięciem znacznika z dwóch plików.
+    facebook_url = models.URLField(
+        "Facebook", blank=True, default="https://www.facebook.com/olimpiadakwantowa"
+    )
+    linkedin_url = models.URLField(
+        "LinkedIn", blank=True, default="https://linkedin.com/showcase/olimpiada-kwantowa"
+    )
+    instagram_url = models.URLField(
+        "Instagram", blank=True, default="https://www.instagram.com/olimpiadakwantowa"
+    )
+    x_url = models.URLField("X (dawniej Twitter)", blank=True, default="https://x.com/olimpiadakwant")
+
+    #: Zdanie o oficjalnym starcie rejestracji. **Nie** rozstrzyga o niczym: o tym, czy formularz
+    #: przyjmuje zgłoszenia, decyduje ``Edition.registration_*`` w panelu koordynatora. Pole istnieje
+    #: dlatego, że organizator trzyma formularz otwarty do testów, ogłaszając jednocześnie datę
+    #: startu – bez tego rozdziału zapowiedź daty wymagałaby zamknięcia rejestracji albo kłamstwa
+    #: w treści. Puste = komunikatu nie ma.
+    registration_note = models.CharField(
+        "komunikat o rejestracji",
+        max_length=200,
+        blank=True,
+        default="Oficjalny start rejestracji: 21 września 2026.",
+    )
+
+    #: Kolejność, etykieta i nazwa znaku graficznego serwisów – jedna lista dla stopki i „Kontaktu”.
+    #: Gdyby o kolejności decydował szablon, dołożenie piątego serwisu wymagałoby zgodnej poprawki
+    #: w dwóch plikach, a rozjechanie się ich nie miałoby jak się ujawnić.
+    SOCIAL_NETWORKS = (
+        ("facebook_url", "Facebook", "facebook"),
+        ("linkedin_url", "LinkedIn", "linkedin"),
+        ("instagram_url", "Instagram", "instagram"),
+        ("x_url", "X", "x"),
+    )
+
+    @property
+    def social_links(self) -> list[dict]:
+        """Niepuste adresy profili jako ``{"url", "label", "icon"}`` – materiał pętli w szablonie."""
+        return [
+            {"url": url, "label": label, "icon": icon}
+            for field, label, icon in self.SOCIAL_NETWORKS
+            if (url := getattr(self, field))
+        ]
+
     panels = [
         MultiFieldPanel([FieldPanel("site_name"), FieldPanel("tagline")], heading="Serwis"),
         MultiFieldPanel(
@@ -142,6 +190,16 @@ class SiteSettings(BaseSiteSetting):
             [FieldPanel("contact_email"), FieldPanel("contact_phone"), FieldPanel("contact_url")],
             heading="Kontakt",
         ),
+        MultiFieldPanel(
+            [
+                FieldPanel("facebook_url"),
+                FieldPanel("linkedin_url"),
+                FieldPanel("instagram_url"),
+                FieldPanel("x_url"),
+            ],
+            heading="Media społecznościowe",
+        ),
+        MultiFieldPanel([FieldPanel("registration_note")], heading="Rejestracja"),
     ]
 
     class Meta:

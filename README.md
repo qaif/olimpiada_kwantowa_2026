@@ -701,8 +701,29 @@ dowiązanie `Participant.school_ref`.
 **Szkoły spoza wykazu są dopuszczone i to jest świadome.** Checkbox „Mojej szkoły nie ma na
 liście” odsłania pole „Nazwa szkoły” (min. 3 znaki) i profil powstaje bez dowiązania. Rejestr
 ministerialny nie zna szkół zagranicznych ani placówek założonych po dacie wykazu, a jego
-nieaktualność nie może zamykać drogi do olimpiady. Strona działa też **bez JavaScriptu**: pole
-wolnego tekstu jest wtedy widoczne od początku.
+nieaktualność nie może zamykać drogi do olimpiady.
+
+**Wyszukiwarka nie zależy od żadnej biblioteki ani od CDN-u.** `backend/static/js/school-picker.js`
+to czysty JavaScript serwowany z własnego adresu (`<script defer nonce=…>`, bez kodu inline, bez
+Alpine). Poprzednia wersja była komponentem Alpine'a ładowanym z `cdn.jsdelivr.net`: uczestnik,
+któremu firmowe proxy albo wtyczka blokowały ten jeden adres, nie dostawał ani jednej podpowiedzi,
+wpisywał nazwę szkoły w widoczne pole i słyszał od serwera „wybierz szkołę z listy”. Punkty
+zaczepienia to atrybuty `data-picker` na widżetach (`apps/web/forms.py::SchoolChoiceMixin`);
+skrypt startuje na `DOMContentLoaded` dla **każdego** `[data-school-picker]` na stronie
+(rejestracja, dokończenie rejestracji przez dostawcę, edycja profilu).
+
+**Reguła serwera nie jest twardym „albo/albo”** (`SchoolChoiceMixin.clean` + `_resolve_school`):
+
+| co przyszło | co się dzieje |
+|---|---|
+| `school_id` wybrany | wygrywa; nazwa przepisana z rejestru, wolny tekst ignorowany |
+| brak `school_id`, wolny tekst niepusty | **przyjęte jako szkoła spoza wykazu — nawet bez zaznaczonego checkboksa** (wpisany tekst jest jednoznaczną odpowiedzią; kratka służy do odsłonięcia pola, a nie do poświadczenia wpisu) |
+| brak jednego i drugiego, ale coś wpisano w wyszukiwarkę | „Wybierz szkołę z podpowiedzi albo zaznacz „Mojej szkoły nie ma na liście” i wpisz jej nazwę.” |
+| wszystko puste | „Wybierz szkołę z listy albo zaznacz, że nie ma jej na liście.” |
+
+Strona działa też **bez JavaScriptu**: pole wolnego tekstu jest wtedy widoczne od początku i sam
+wpis wystarczy. Kontrola w przeglądarce bez okna: `e2e/check_school_picker.py` (podpowiedzi,
+zapis `school_id` po kliknięciu, widoczność pola wolnego tekstu przed i po zaznaczeniu kratki).
 
 W API rejestracji (`POST /api/auth/register/participant/`) szkołę podaje się jako `school_id`
 (wiersz słownika) **albo** `school` (nazwa). Klient sprzed wprowadzenia słownika, który zna tylko

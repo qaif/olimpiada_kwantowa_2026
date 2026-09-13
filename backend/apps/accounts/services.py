@@ -88,6 +88,12 @@ def _resolve_school(school: str, school_id: int | None):
       założonych, przekształconych po dacie wykazu. Bez tej furtki rejestracja byłaby zamknięta
       dla ludzi, których jedyną winą jest nieaktualność cudzego rejestru.
 
+    Pierwszeństwo ma ``school_id``: kiedy przyjdą oba, wolny tekst jest ignorowany, bo nazwa
+    i tak zostaje przepisana z rejestru. Kiedy ``school_id`` nie ma, **wystarczy sam tekst** –
+    serwis nigdy nie widział kratki „mojej szkoły nie ma na liście” i widzieć jej nie ma. To pole
+    interfejsu, które odsłania wolny tekst; warunkowanie nim rejestracji oznaczało (zgłoszenie
+    z produkcji), że uczestnik z zablokowanym skryptem wpisywał nazwę szkoły i dostawał odmowę.
+
     Sprawdzenie siedzi w serwisie, a nie tylko w formularzu i serializerze, bo tych wejść jest
     kilka (WWW, API, logowanie społecznościowe, seed) – reguła powtórzona w każdym z nich
     rozjechałaby się przy pierwszej zmianie.
