@@ -24,6 +24,7 @@ from __future__ import annotations
 from html import unescape
 
 from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 from django.db import models
 from django.utils import timezone
 from django.utils.html import strip_tags
@@ -77,6 +78,21 @@ RESERVED_SLUGS = frozenset(
 #: Głębokość strony głównej w drzewie treebearda: ``Root`` ma 1, ``HomePage`` 2. Strony o adresie
 #: jednosegmentowym (``/aktualnosci/``) są jej dziećmi, czyli mają ``depth == 3``.
 HOME_PAGE_DEPTH = 2
+
+#: Format identyfikatora strumienia danych GA4. Walidator stoi tu, a nie w podpowiedzi pola:
+#: literówka w identyfikatorze nie objawia się niczym widocznym (skrypt Google'a wczytuje się
+#: i milczy), więc jedynym momentem, w którym da się ją złapać, jest zapis ustawienia.
+#: ``UA-…`` (Universal Analytics) celowo **nie** przechodzi – ta usługa nie zbiera już danych,
+#: a wpisanie starego identyfikatora dawałoby banner zgody bez żadnej analityki za nim.
+GA_MEASUREMENT_ID_PATTERN = r"^G-[A-Z0-9]{6,}$"
+validate_ga_measurement_id = RegexValidator(
+    regex=GA_MEASUREMENT_ID_PATTERN,
+    message=(
+        "Identyfikator Google Analytics 4 ma postać „G-” i co najmniej sześciu wielkich liter "
+        "lub cyfr, na przykład G-ABC1234DEF. Znajdziesz go w GA4 w sekcji "
+        "Administracja → Strumienie danych."
+    ),
+)
 
 
 @register_setting(icon="site")
@@ -162,6 +178,26 @@ class SiteSettings(BaseSiteSetting):
         default="Oficjalny start rejestracji: 21 września 2026.",
     )
 
+    #: Identyfikator strumienia danych Google Analytics 4. **Puste pole wyłącza analitykę
+    #: całkowicie**: serwis nie wczytuje wtedy żadnego skryptu Google'a, nie pyta o zgodę
+    #: (pasek cookie zostaje informacyjny, bo nie ma czego wstrzymywać do kliknięcia), a nagłówek
+    #: CSP nie wymienia ani jednego hosta Google'a. To jest jedyny przełącznik tej funkcji –
+    #: instalacja bez identyfikatora zachowuje się dokładnie tak, jak przed jej dodaniem.
+    #:
+    #: Pole, a nie zmienna środowiskowa: założenie usługi GA4 i wklejenie identyfikatora należy do
+    #: organizatora, a nie do wdrożenia – przy zmiennej każde takie wklejenie byłoby deployem.
+    ga_measurement_id = models.CharField(
+        "identyfikator Google Analytics (G-…)",
+        max_length=32,
+        blank=True,
+        validators=[validate_ga_measurement_id],
+        help_text=(
+            "Puste pole = brak analityki: serwis nie wczytuje skryptów Google'a i nie pyta "
+            "o zgodę. Po wpisaniu identyfikatora pasek cookie zamienia się w pytanie o zgodę, "
+            "a statystyki zbierają się dopiero po jej udzieleniu."
+        ),
+    )
+
     #: Kolejność, etykieta i nazwa znaku graficznego serwisów – jedna lista dla stopki i „Kontaktu”.
     #: Gdyby o kolejności decydował szablon, dołożenie piątego serwisu wymagałoby zgodnej poprawki
     #: w dwóch plikach, a rozjechanie się ich nie miałoby jak się ujawnić.
@@ -210,6 +246,7 @@ class SiteSettings(BaseSiteSetting):
             heading="Media społecznościowe",
         ),
         MultiFieldPanel([FieldPanel("registration_note")], heading="Rejestracja"),
+        MultiFieldPanel([FieldPanel("ga_measurement_id")], heading="Analityka"),
     ]
 
     class Meta:

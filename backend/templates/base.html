@@ -20,6 +20,16 @@
   <meta property="og:type" content="website">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
   {% comment %}
+    Identyfikator Google Analytics 4 wypisujemy **tylko wtedy**, gdy organizator wpisał go
+    w /cms/ → Ustawienia → Dane serwisu → Analityka. Znacznik jest jedynym przełącznikiem tej
+    funkcji w dokumencie: jego obecność zamienia pasek cookie w pytanie o zgodę
+    (static/js/consent.js) i pozwala loaderowi (static/js/analytics.js) cokolwiek wczytać.
+    Stoi **przed** skryptami, bo consent.js czyta go zaraz po wykonaniu, jeszcze w ``<head>``.
+  {% endcomment %}
+  {% if settings.cms.SiteSettings.ga_measurement_id %}
+    <meta name="ga-measurement-id" content="{{ settings.cms.SiteSettings.ga_measurement_id }}">
+  {% endif %}
+  {% comment %}
     Fonty są self-hostowane (static/fonts/*.woff2) – żadnego Google Fonts w runtime, więc CSP
     zostaje przy ``font-src 'self' data:``. Preload dotyczy wyłącznie krojów widocznych od razu
     w pierwszym ekranie: tekst podstawowy i nagłówki.
@@ -35,13 +45,21 @@
   {% endcomment %}
   <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/app.js' %}"></script>
   {% comment %}
-    Pasek informacji o cookie (na dole strony) startuje **widoczny**, więc informacja dociera też
-    bez JavaScriptu. Ten skrypt jest dlatego jedynym w serwisie bez ``defer``: dopisuje klasę na
-    ``<html>`` jeszcze przed narysowaniem ``<body>``, dzięki czemu komuś, kto już kliknął
-    „Rozumiem”, pasek nie mignie na każdej kolejnej stronie. Plik jest mały i self-hostowany,
+    Pasek cookie (na dole strony) startuje **widoczny**, więc informacja dociera też bez
+    JavaScriptu. Ten skrypt jest dlatego jedynym w serwisie bez ``defer``: dopisuje klasę na
+    ``<html>`` jeszcze przed narysowaniem ``<body>``, dzięki czemu komuś, kto już odpowiedział,
+    pasek nie mignie na każdej kolejnej stronie. Plik jest mały i self-hostowany,
     a CSP zostaje bez ``'unsafe-inline'`` – to nadal skrypt zewnętrzny, z nonce jak pozostałe.
   {% endcomment %}
-  <script nonce="{{ request.csp_nonce }}" src="{% static 'js/cookie-notice.js' %}"></script>
+  <script nonce="{{ request.csp_nonce }}" src="{% static 'js/consent.js' %}"></script>
+  {% comment %}
+    Loader Google Analytics 4 wchodzi do strony wyłącznie razem z identyfikatorem i sam z siebie
+    niczego nie wysyła: czeka na zgodę zapisaną przez consent.js. ``defer``, bo w odróżnieniu od
+    paska nie ma nic do zrobienia przed narysowaniem strony.
+  {% endcomment %}
+  {% if settings.cms.SiteSettings.ga_measurement_id %}
+    <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/analytics.js' %}"></script>
+  {% endif %}
   <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/sticky-bar.js' %}"></script>
   {% comment %}
     Miejsce na skrypty potrzebne tylko na niektórych stronach – dziś jest tu wyłącznie
@@ -237,6 +255,17 @@
         <a href="/dokumenty/rodo/">Polityka prywatności (RODO)</a>
         <a href="/dokumenty/cookies/">Polityka plików cookie</a>
         <a href="/dokumenty/">Dokumenty</a>
+        {% comment %}
+          „Ustawienia cookies” otwierają pasek ponownie – to jedyna droga **wycofania** zgody
+          bez czyszczenia danych witryny w przeglądarce, a wycofanie musi być tak samo łatwe,
+          jak udzielenie (art. 7 ust. 3 RODO). Przycisk, a nie odnośnik: nie prowadzi pod żaden
+          adres, tylko zmienia stan tej strony. Bez identyfikatora GA nie ma go wcale – nie ma
+          wtedy czego cofać, a bez JavaScriptu pasek i tak nigdy nie znika, więc nie ma też
+          czego przywracać.
+        {% endcomment %}
+        {% if site.ga_measurement_id %}
+          <button type="button" class="footer__link-button" data-cookie-settings>Ustawienia cookies</button>
+        {% endif %}
       </p>
       {% comment %}
         Profile organizatora stoją pod odnośnikami do dokumentów, a nie w kolumnie z danymi
@@ -274,21 +303,46 @@
   </div>
 </footer>
 {% comment %}
-  Informacja o cookie, a nie bramka zgody: serwis stawia wyłącznie cookie niezbędne (sesja
-  logowania i token CSRF), więc nie ma czego wstrzymywać do kliknięcia, a pytanie o zgodę na
-  cookie techniczne sugerowałoby, że jest tu wybór, którego nie ma. Potwierdzenie zapisuje
-  ``localStorage`` (static/js/cookie-notice.js), a nie cookie – informacja o cookie nie może
-  dokładać kolejnego cookie. Na wydruku paska nie ma (arkusz, sekcja @media print).
+  Jeden pasek w dwóch rolach – rozstrzyga o tym identyfikator GA4 w ``cms.SiteSettings``:
+
+  - **bez identyfikatora** to informacja, a nie bramka zgody: serwis stawia wyłącznie cookie
+    niezbędne (sesja logowania i token CSRF), więc nie ma czego wstrzymywać do kliknięcia,
+    a pytanie o zgodę na cookie techniczne sugerowałoby wybór, którego nie ma,
+  - **z identyfikatorem** to pytanie o zgodę, bo cookie analityczne wolno zapisać dopiero po jej
+    udzieleniu. Do tego czasu nie wczytuje się żaden skrypt Google'a (static/js/analytics.js).
+
+  Odpowiedź zapisuje ``localStorage`` (static/js/consent.js), a nie cookie – zapis o zgodzie nie
+  może sam być kolejnym plikiem cookie. Na wydruku paska nie ma (arkusz, sekcja @media print).
 {% endcomment %}
+{% with ga_id=settings.cms.SiteSettings.ga_measurement_id %}
 <div class="cookie-notice" data-cookie-notice role="region" aria-label="Informacja o plikach cookie">
   <div class="cookie-notice__inner">
-    <p class="cookie-notice__text">Ten serwis używa wyłącznie niezbędnych plików cookie (sesja
-      logowania, zabezpieczenie formularzy). Nie używamy cookies reklamowych ani analitycznych.
-      <a class="cookie-notice__link" href="/dokumenty/cookies/">Polityka plików cookie</a></p>
-    <button type="button" class="btn btn--small btn--accent cookie-notice__ok"
-            data-cookie-notice-dismiss>Rozumiem</button>
+    {% if ga_id %}
+      <p class="cookie-notice__text">Używamy plików cookie niezbędnych do działania serwisu oraz –
+        za Twoją zgodą – Google Analytics do statystyk odwiedzin.
+        <a class="cookie-notice__link" href="/dokumenty/cookies/">Polityka plików cookie</a></p>
+      {% comment %}
+        Oba przyciski mają ten sam rozmiar i stoją obok siebie: odmowa nie może być trudniejsza
+        od zgody (motyw 32 RODO i wytyczne EROD 03/2022 o „deceptive design”). Różni je wyłącznie
+        wariant koloru, bo „Akceptuję wszystkie” jest odpowiedzią domyślną dla większości osób,
+        a nie dlatego, że jest korzystniejsza dla serwisu.
+      {% endcomment %}
+      <span class="cookie-notice__actions">
+        <button type="button" class="btn btn--small btn--accent cookie-notice__ok"
+                data-cookie-consent="all">Akceptuję wszystkie</button>
+        <button type="button" class="btn btn--small btn--secondary cookie-notice__ok"
+                data-cookie-consent="necessary">Tylko niezbędne</button>
+      </span>
+    {% else %}
+      <p class="cookie-notice__text">Ten serwis używa wyłącznie niezbędnych plików cookie (sesja
+        logowania, zabezpieczenie formularzy). Nie używamy cookies reklamowych ani analitycznych.
+        <a class="cookie-notice__link" href="/dokumenty/cookies/">Polityka plików cookie</a></p>
+      <button type="button" class="btn btn--small btn--accent cookie-notice__ok"
+              data-cookie-notice-dismiss>Rozumiem</button>
+    {% endif %}
   </div>
 </div>
+{% endwith %}
 {% block scripts %}{% endblock %}
 </body>
 </html>

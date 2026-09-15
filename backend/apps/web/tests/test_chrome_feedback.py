@@ -78,6 +78,7 @@ def test_account_bar_of_logged_in_participant_has_panel_email_and_logout(web_cli
 
 
 def test_cookie_notice_is_informational_and_dismissible(web_client, edition):
+    """Bez identyfikatora GA4 pasek zostaje informacją – tak, jak przed dodaniem analityki."""
     response = web_client.get("/")
     content = response.content.decode()
     text = flat(response)
@@ -96,7 +97,7 @@ def test_cookie_notice_script_is_external_and_carries_the_nonce(web_client, edit
     response = web_client.get("/")
     content = response.content.decode()
 
-    match = re.search(r'<script nonce="([^"]+)" src="([^"]*cookie-notice[^"]*\.js)">', content)
+    match = re.search(r'<script nonce="([^"]+)" src="([^"]*consent[^"]*\.js)">', content)
 
     assert match is not None, "brak skryptu paska cookie z nonce"
     assert f"'nonce-{match.group(1)}'" in response.headers["Content-Security-Policy"]

@@ -88,8 +88,9 @@ przed I edycją), ``zadania``
 
 - **polityka plików cookie** (``/dokumenty/cookies/``) jest nasza, ale – inaczej niż dwa dokumenty
   powyżej – **obowiązuje**: opisuje stan faktyczny serwisu (``sessionid``, ``csrftoken``,
-  ``wagtail_sidebar_collapsed``, klucz ``cookie-notice-ack`` paska informacyjnego, brak
-  analityki), więc nie ma czego zatwierdzać, jest co utrzymywać w zgodzie z kodem. Zmiana zestawu
+  ``wagtail_sidebar_collapsed``, klucze ``cookie-consent``/``cookie-consent-at``/
+  ``cookie-notice-ack`` paska zgody oraz ``_ga``/``_ga_…`` zapisywane dopiero po zgodzie),
+  więc nie ma czego zatwierdzać, jest co utrzymywać w zgodzie z kodem. Zmiana zestawu
   ciasteczek albo dołożenie zewnętrznego osadzenia jest zmianą tego pliku.
 
 ``--only <slug>`` seeduje wyłącznie wskazane strony (można podać wielokrotnie). Tryb istnieje dla
@@ -180,11 +181,12 @@ ZOZ_DATE = date(2026, 9, 12)
 ZOZ_STATUS = "projekt do akceptacji organizatora"
 
 #: Polityka plików cookie jest naszym dokumentem, ale – inaczej niż ZOZ – **obowiązuje**: opisuje
-#: stan faktyczny serwisu (trzy pliki niezbędne, jeden klucz ``localStorage`` paska informacyjnego,
-#: brak analityki), a nie propozycję do zatwierdzenia. Wersję trzyma metryka, bo jej pierwszym
-#: czytelnikiem jest ktoś, kto sprawdza, czy czyta wersję aktualną.
-COOKIES_VERSION = "1.0"
-COOKIES_DATE = date(2026, 9, 12)
+#: stan faktyczny serwisu (trzy pliki niezbędne, klucze ``localStorage`` paska zgody, pliki
+#: analityczne GA4 zapisywane wyłącznie po zgodzie), a nie propozycję do zatwierdzenia. Wersję
+#: trzyma metryka, bo jej pierwszym czytelnikiem jest ktoś, kto sprawdza, czy czyta wersję
+#: aktualną – a treść zmieniła się materialnie (1.0 zapewniała, że analityki nie ma w ogóle).
+COOKIES_VERSION = "1.1"
+COOKIES_DATE = date(2026, 9, 15)
 COOKIES_STATUS = "obowiązuje"
 
 HOME_TITLE = "Olimpiada Kwantowa"

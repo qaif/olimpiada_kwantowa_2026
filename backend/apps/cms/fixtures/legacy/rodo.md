@@ -19,7 +19,7 @@ Zakres zależy od etapu Olimpiady i może obejmować:
 - w dalszych etapach - dane niezbędne do organizacji przejazdu, zakwaterowania, ubezpieczenia lub zapewnienia dostępności;
 - wizerunek i głos utrwalony podczas wydarzeń - wyłącznie w zakresie wynikającym z odrębnej zgody albo dozwolonym przepisami prawa.
 
-Pliki cookie i pamięć przeglądarki opisuje osobno [Polityka plików cookie](/dokumenty/cookies/): serwis zapisuje wyłącznie pliki niezbędne do utrzymania sesji po zalogowaniu i do ochrony formularzy, bez analityki i profilowania.
+Pliki cookie i pamięć przeglądarki opisuje osobno [Polityka plików cookie](/dokumenty/cookies/): serwis zapisuje pliki niezbędne do utrzymania sesji po zalogowaniu i do ochrony formularzy, a za zgodą odwiedzającego – także pliki statystyczne Google Analytics 4. Profilowania i reklamy nie prowadzimy.
 
 Nie prosimy o dane szczególnych kategorii, chyba że są one konieczne do zapewnienia bezpieczeństwa lub racjonalnych usprawnień. W takim przypadku poinformujemy osobno o celu, podstawie i zakresie przetwarzania.
 
@@ -33,6 +33,9 @@ Nie prosimy o dane szczególnych kategorii, chyba że są one konieczne do zapew
 | publikacja list osób zakwalifikowanych, finalistów i laureatów w zakresie określonym regulaminem | art. 6 ust. 1 lit. e RODO, a gdy wymagane - art. 6 ust. 1 lit. a RODO |
 | publikacja zdjęć, nagrań i materiałów promocyjnych wykraczających poza relację z wydarzenia publicznego | dobrowolna zgoda - art. 6 ust. 1 lit. a RODO |
 | odpowiedzi na wiadomości i prowadzenie korespondencji | art. 6 ust. 1 lit. f RODO lub art. 6 ust. 1 lit. b RODO |
+| statystyka odwiedzin serwisu (Google Analytics 4) | dobrowolna zgoda - art. 6 ust. 1 lit. a RODO |
+
+**Statystyka odwiedzin.** Jeżeli wyrazisz zgodę na pasku plików cookie, serwis korzysta z Google Analytics 4, żeby policzyć odwiedziny i sprawdzić, które strony są czytane. Odbiorcą tych danych jest Google Ireland Limited (Dublin, Irlandia); dane mogą zostać przekazane do Stanów Zjednoczonych na podstawie decyzji Komisji Europejskiej z 10 lipca 2023 r. stwierdzającej odpowiedni stopień ochrony (EU-US Data Privacy Framework). Adres IP jest anonimizowany, funkcje reklamowe i Google Signals pozostają wyłączone, a dane zdarzeń są przechowywane w usłudze zgodnie z jej ustawieniem retencji - domyślnie **2 miesiące** (ustawienie do potwierdzenia przez Organizatora). Bez zgody nie jest wczytywany żaden skrypt pomiarowy i nie powstaje żaden plik cookie analityczny. Zgodę można wycofać w każdej chwili odnośnikiem „Ustawienia cookies” w stopce serwisu; wycofanie nie wpływa na zgodność z prawem przetwarzania sprzed wycofania. Szczegóły: [Polityka plików cookie](/dokumenty/cookies/).
 
 Podanie danych oznaczonych jako obowiązkowe jest warunkiem udziału w Olimpiadzie. Brak tych danych uniemożliwi założenie konta lub udział w zawodach. Zgody na działania promocyjne są dobrowolne, można je wycofać bez wpływu na udział w Olimpiadzie.
 

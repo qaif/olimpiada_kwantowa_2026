@@ -93,6 +93,13 @@ RODO_PURPOSES = (
         "z wydarzenia publicznego",
         "dobrowolna zgoda - art. 6 ust. 1 lit. a RODO",
     ),
+    # Jedyny wiersz, który **nie** pochodzi z PDF-a organizatora: dopisany razem z Google
+    # Analytics 4, bo statystyka odwiedzin jest przetwarzaniem, o którym art. 13 RODO każe
+    # poinformować. Patrz README 4.5.
+    (
+        "statystyka odwiedzin serwisu (Google Analytics 4)",
+        "dobrowolna zgoda - art. 6 ust. 1 lit. a RODO",
+    ),
 )
 
 DOCUMENTS = {
@@ -164,8 +171,9 @@ def test_chapter_list_has_one_entry_per_section(web_client, legacy_content, slug
 # --- tabela „Cel | Podstawa” --------------------------------------------------------------------
 
 
-#: Wierszy w tabeli „Cel | Podstawa” jest sześć; ``RODO_PURPOSES`` wymienia cztery z nich.
-RODO_PURPOSE_ROWS = 6
+#: Wierszy w tabeli „Cel | Podstawa” jest siedem (sześć z PDF-a organizatora plus statystyka
+#: odwiedzin dopisana razem z GA4); ``RODO_PURPOSES`` wymienia pięć z nich.
+RODO_PURPOSE_ROWS = 7
 
 
 def test_rodo_renders_purposes_as_definition_list(web_client, legacy_content):

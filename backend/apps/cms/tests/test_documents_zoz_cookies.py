@@ -47,10 +47,22 @@ STAGE_DATES_THAT_MUST_NOT_APPEAR = ("7 listopada 2026", "16 stycznia 2027", "1 w
 
 #: Nazwy, które polityka cookie musi wymienić – dokładnie te, które serwis ustawia.
 COOKIE_NAMES = ("sessionid", "csrftoken", "wagtail_sidebar_collapsed")
-#: Klucz pamięci lokalnej ustawiany przez pasek informujący o ciasteczkach. Musi być dosłownie ten,
-#: który ustawia ``static/js/cookie-notice.js`` – polityka wymieniająca klucz, którego nie ma
-#: w kodzie, jest gorsza niż brak polityki.
+#: Klucze pamięci lokalnej ustawiane przez pasek cookie. Muszą być dosłownie te, które ustawia
+#: ``static/js/consent.js`` – polityka wymieniająca klucz, którego nie ma w kodzie, jest gorsza
+#: niż brak polityki.
 NOTICE_STORAGE_KEY = "cookie-notice-ack"
+CONSENT_STORAGE_KEYS = ("cookie-consent", "cookie-consent-at")
+
+#: Nazwy plików cookie GA4 i elementy sekcji analitycznej, bez których dokument nie spełnia
+#: obowiązku informacyjnego: kto jest dostawcą, jak długo żyją pliki i jak wycofać zgodę.
+ANALYTICS_HEADING = "Cookies analityczne (Google Analytics 4)"
+ANALYTICS_FACTS = (
+    "_ga",
+    "2 lata",
+    "Google Ireland Limited",
+    "Ustawienia cookies",
+    "art. 6 ust. 1 lit. a RODO",
+)
 
 
 @pytest.fixture
@@ -91,8 +103,8 @@ def test_metadata_says_what_the_reader_is_reading(documents):
     assert zoz.document_date == date(2026, 9, 12)
     assert zoz.status_label == "projekt do akceptacji organizatora"
 
-    assert cookies.version_label == "1.0"
-    assert cookies.document_date == date(2026, 9, 12)
+    assert cookies.version_label == "1.1"
+    assert cookies.document_date == date(2026, 9, 15)
     assert cookies.status_label == "obowiązuje"
 
 
@@ -181,6 +193,35 @@ def test_cookie_policy_names_every_cookie_the_service_sets(web_client, documents
     for name in COOKIE_NAMES:
         assert name in content
     assert NOTICE_STORAGE_KEY in content
+    for key in CONSENT_STORAGE_KEYS:
+        assert key in content
+
+
+def test_cookie_policy_describes_the_analytics_cookies(web_client, documents):
+    """Cookie analityczne wolno zapisać dopiero po zgodzie – i dopiero po jej opisaniu.
+
+    Zapowiedź „gdyby serwis zaczął używać plików innych niż niezbędne, poprosimy o zgodę”
+    z wersji 1.0 przestała wystarczać w chwili, w której organizator dostał pole na identyfikator
+    GA4. Dokument musi więc nazwać pliki, dostawcę, czas życia i drogę wycofania zgody.
+    """
+    content = web_client.get(f"/{INDEX_SLUG}/{COOKIES_SLUG}/").content.decode()
+
+    assert ANALYTICS_HEADING in content
+    for fact in ANALYTICS_FACTS:
+        assert fact in content
+    # Zapewnienia z wersji 1.0, które przestały być prawdziwe.
+    assert "Nie prowadzimy analityki" not in content
+    assert "nie używamy Google Analytics" not in content
+
+
+def test_rodo_policy_names_the_purpose_basis_and_recipient_of_the_statistics(web_client, documents):
+    """Polityka RODO wymienia cel, podstawę i odbiorcę – cookie to zapis, RODO to przetwarzanie."""
+    content = web_client.get(f"/{INDEX_SLUG}/rodo/").content.decode()
+
+    assert "statystyka odwiedzin serwisu" in content
+    assert "art. 6 ust. 1 lit. a RODO" in content
+    assert "Google Ireland Limited" in content
+    assert "Data Privacy Framework" in content
 
 
 def test_cookie_policy_is_linked_from_the_rodo_policy(web_client, documents):

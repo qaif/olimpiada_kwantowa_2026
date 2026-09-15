@@ -921,10 +921,24 @@ hr {
   font-size: 0.8125rem;
 }
 
-.footer__links a + a::before {
+.footer__links a + a::before,
+.footer__links a + .footer__link-button::before {
   content: "·";
   margin-right: var(--sp-3);
   color: rgba(244, 241, 232, 0.4);
+}
+
+/* „Ustawienia cookies” – element sterujący, a nie adres, więc w HTML jest to ``<button>``
+   (patrz templates/base.html). Wygląda jak sąsiedzi, bo dla czytelnika stoi w tym samym rzędzie
+   stopki; ``font`` dziedziczymy jawnie, bo przycisk ma własny krój z arkusza przeglądarki. */
+.footer__link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--accent-on-brand);
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 /* Znak fundacji obok nazwy organizatora. Plakietka jest tą samą, co pod logotypem w nagłówku:
@@ -3711,10 +3725,11 @@ img.captcha {
   display: none;
 }
 
-/* Pasek informacji o cookie (templates/base.html). Leży nad treścią, bo ma zniknąć po jednym
-   kliknięciu i nie może przy każdym wejściu przesuwać układu strony. Klasa na ``<html>`` pochodzi
-   ze static/js/cookie-notice.js: pasek jest w HTML widoczny, więc informacja dociera także bez
-   JavaScriptu, a po „Rozumiem” nie mignie na kolejnych podstronach. */
+/* Pasek cookie (templates/base.html) – informacyjny albo pytający o zgodę, zależnie od tego, czy
+   organizator włączył analitykę. Leży nad treścią, bo ma zniknąć po jednym kliknięciu i nie może
+   przy każdym wejściu przesuwać układu strony. Klasa na ``<html>`` pochodzi ze
+   static/js/consent.js: pasek jest w HTML widoczny, więc informacja dociera także bez
+   JavaScriptu, a po odpowiedzi nie mignie na kolejnych podstronach. */
 .cookie-notice {
   position: fixed;
   inset: auto 0 0 0;
@@ -3753,5 +3768,16 @@ img.captcha {
 
 /* Przycisk nie zwęża się poniżej swojej treści, kiedy tekst zawinie się do dwóch wierszy. */
 .cookie-notice__ok {
+  flex: 0 0 auto;
+}
+
+/* Para przycisków w trybie zgody (Akceptuję wszystkie / Tylko niezbędne). Oba są tego samego
+   rozmiaru i stoją w jednym rzędzie – odmowa nie może być trudniejsza od zgody. Na wąskim ekranie
+   zawijają się razem, a nie jeden pod drugi w przypadkowym miejscu. */
+.cookie-notice__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
   flex: 0 0 auto;
 }

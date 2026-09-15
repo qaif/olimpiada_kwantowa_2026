@@ -34,7 +34,14 @@ Decyzje (T-08, „Wymagania bezpieczeństwa”):
 - ``frame-src`` to zamknięta lista dostawców osadzeń (``EmbedBlock``): YouTube i Vimeo, dokładnie
   te same, na które zawężony jest ``WAGTAILEMBEDS_FINDERS``. Nagłówek i finder muszą wymieniać
   te same hosty – finder decyduje, co redaktor może wstawić, CSP, co przeglądarka wykona,
-- ``object-src 'none'``, ``base-uri 'self'``, ``frame-ancestors 'none'`` – standardowa domknięta baza.
+- ``object-src 'none'``, ``base-uri 'self'``, ``frame-ancestors 'none'`` – standardowa domknięta baza,
+- hosty **Google Analytics 4** dochodzą do ``script-src``, ``connect-src`` i ``img-src``
+  **warunkowo**: tylko wtedy, gdy organizator wpisał identyfikator ``G-…`` w ``/cms/``
+  (``cms.SiteSettings.ga_measurement_id``). Serwis bez identyfikatora ma nagłówek co do bajtu
+  taki, jak przed dodaniem analityki – polityka nie wymienia wtedy ani jednego hosta Google'a,
+  bo pozwolenie na coś, czego strona nigdy nie wczyta, jest tylko poszerzeniem powierzchni ataku.
+  Sam odczyt ustawienia nie może kosztować zapytania na żądanie (nagłówek powstaje także dla
+  plików statycznych) – patrz ``apps/cms/analytics.py``.
 
 Nagłówek jest ustawiany na **każdej** odpowiedzi. Dla panelu redakcyjnego (Wagtail) i panelu
 Django obowiązuje jednak **osobna, luźniejsza** polityka:
@@ -80,6 +87,34 @@ EMBED_FRAME_SOURCES = (
     "https://www.youtube-nocookie.com",
     "https://player.vimeo.com",
 )
+
+#: Hosty Google Analytics 4. Dochodzą do polityki **wyłącznie** wtedy, gdy w ``cms.SiteSettings``
+#: stoi identyfikator ``G-…`` (patrz ``apps/cms/analytics.py``). Bez identyfikatora nagłówek jest
+#: co do bajtu taki, jak przed dodaniem analityki – i to jest testowane.
+#:
+#: Skąd te trzy listy:
+#:
+#: - ``script-src``: ``gtag/js`` wczytuje ``static/js/analytics.js``. Nowa przeglądarka przepuści
+#:   go i bez tego wpisu (skrypt wstrzykujący ma nonce, a ``'strict-dynamic'`` przenosi zaufanie
+#:   na ``createElement("script")``), host jest więc fallbackiem dla CSP2 – dokładnie tak samo,
+#:   jak oba CDN-y wyżej,
+#: - ``connect-src``: zdarzenia idą POST-em/``sendBeacon`` na ``*.google-analytics.com``, a przy
+#:   pomiarze po stronie serwera Google'a także na ``*.analytics.google.com``; sam ``gtag/js``
+#:   dociąga z ``googletagmanager.com`` konfigurację strumienia,
+#: - ``img-src``: starszy wariant wysyłki to ``collect`` jako obrazek 1×1 (fallback, gdy
+#:   ``sendBeacon`` jest niedostępny) – bez tego wpisu część odsłon po prostu nie doszłaby.
+#:
+#: Czego tu **nie ma** i nie ma być: hostów reklamowych (``doubleclick.net``,
+#: ``googleadservices.com``). Loader wyłącza Google Signals i personalizację reklam, więc gdyby
+#: kiedyś zaczęły być wołane, znaczyłoby to, że ustawienie usługi rozjechało się z polityką –
+#: i lepiej, żeby przeglądarka je wtedy zablokowała.
+ANALYTICS_SCRIPT_SOURCES = ("https://www.googletagmanager.com",)
+ANALYTICS_CONNECT_SOURCES = (
+    "https://*.google-analytics.com",
+    "https://*.analytics.google.com",
+    "https://www.googletagmanager.com",
+)
+ANALYTICS_IMG_SOURCES = ("https://*.google-analytics.com", "https://www.googletagmanager.com")
 
 #: Ekrany zgody dostawców OAuth. Trafiają do ``form-action`` **tylko** dla dostawcy, który ma
 #: skonfigurowane klucze (patrz ``provider_form_action_sources``).
@@ -146,13 +181,24 @@ def form_action_sources() -> str:
     return " ".join(["'self'", *provider_form_action_sources()])
 
 
-def build_policy(nonce: str) -> str:
-    """Buduje treść polityki dla jednego żądania (nonce jest jednorazowy)."""
+def build_policy(nonce: str, *, analytics: bool = False) -> str:
+    """Buduje treść polityki dla jednego żądania (nonce jest jednorazowy).
+
+    ``analytics`` dokłada hosty Google Analytics 4 – i tylko wtedy, gdy organizator wpisał
+    identyfikator w ``/cms/``. Domyślne ``False`` jest tu świadome: funkcja wołana bez tego
+    argumentu (testy, ewentualny inny kod) zwraca politykę sprzed dodania analityki.
+    """
     # Kolejność jest istotna dla starych przeglądarek: nonce i hosty muszą stać przed
     # 'strict-dynamic', bo CSP2 po prostu pominie nieznane słowo kluczowe i użyje reszty listy.
-    script_src = ["'self'", f"'nonce-{nonce}'", *SCRIPT_CDN_SOURCES, "'strict-dynamic'"]
+    analytics_scripts = ANALYTICS_SCRIPT_SOURCES if analytics else ()
+    script_src = ["'self'", f"'nonce-{nonce}'", *SCRIPT_CDN_SOURCES, *analytics_scripts, "'strict-dynamic'"]
     media_sources = _with_storage(["'self'", "data:", "blob:"])
-    connect_sources = _with_storage(["'self'", *SCRIPT_CDN_SOURCES])
+    # ``img-src`` i ``media-src`` różnią się wyłącznie hostami analityki: piksel pomiarowy jest
+    # obrazkiem, ale żaden plik audio ani wideo nie przychodzi z Google'a.
+    img_sources = _with_storage(["'self'", "data:", "blob:", *(ANALYTICS_IMG_SOURCES if analytics else ())])
+    connect_sources = _with_storage(
+        ["'self'", *SCRIPT_CDN_SOURCES, *(ANALYTICS_CONNECT_SOURCES if analytics else ())]
+    )
     directives = [
         "default-src 'self'",
         "base-uri 'self'",
@@ -162,7 +208,7 @@ def build_policy(nonce: str) -> str:
         # Obrazy i pliki mediów redakcyjnych stoją w publicznym buckecie MinIO i są linkowane
         # bezpośrednio (URL bez podpisu) – jego origin musi być na liście, inaczej produkcja
         # blokuje każdą ilustrację i każdy rendition Wagtaila.
-        f"img-src {media_sources}",
+        f"img-src {img_sources}",
         f"media-src {media_sources}",
         "font-src 'self' data:",
         # Zobacz docstring modułu: wyjątek dotyczy wyłącznie stylów, nigdy skryptów.
@@ -267,5 +313,13 @@ class ContentSecurityPolicyMiddleware:
         request.csp_nonce = nonce
         response = self.get_response(request)
         if self.header not in response:
-            response[self.header] = build_admin_policy() if is_admin_request(request) else build_policy(nonce)
+            if is_admin_request(request):
+                response[self.header] = build_admin_policy()
+            else:
+                # Import w środku: ``apps.cms`` ładuje modele Wagtaila, a middleware powstaje
+                # przy starcie procesu. Odczyt jest pamiętany w module (TTL), więc nie ma tu
+                # zapytania do bazy na każdy plik statyczny – patrz apps/cms/analytics.py.
+                from apps.cms.analytics import analytics_enabled
+
+                response[self.header] = build_policy(nonce, analytics=analytics_enabled())
         return response

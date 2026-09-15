@@ -386,6 +386,57 @@ w serwisie – użytkownik dostaje wtedy stronę „konto istnieje, zaloguj się
 Google robi to automatycznie, ale wyłącznie dla adresu oznaczonego przez niego jako zweryfikowany;
 konsekwencje opisuje `docs/SECURITY_CHECKLIST.md` § 3.2.
 
+### 4.5 Google Analytics 4
+
+Analityki **nie włącza wdrożenie, tylko organizator** — identyfikator strumienia GA4 jest polem
+w CMS-ie, a nie zmienną środowiskową: założenie usługi i wklejenie `G-…` należy do właściciela
+serwisu, a przy zmiennej każde takie wklejenie byłoby deployem.
+
+**Gdzie:** `/cms/` → Ustawienia → Dane serwisu → sekcja **Analityka** → „identyfikator Google
+Analytics (G-…)”. Format jest walidowany (`^G-[A-Z0-9]{6,}$`), więc `UA-…` ani identyfikator
+kontenera Tag Managera (`GTM-…`) nie przejdą — pomyłka objawiłaby się dopiero pustym raportem.
+
+**Puste pole = analityki nie ma w ogóle.** Żaden skrypt Google'a nie wchodzi do strony, pasek
+cookie zostaje informacją z jednym przyciskiem „Rozumiem”, w stopce nie ma „Ustawień cookies”,
+a nagłówek CSP jest co do bajtu taki, jak przed dodaniem tej funkcji (pilnuje tego test
+`apps/web/tests/test_analytics.py`).
+
+**Z identyfikatorem** pasek zamienia się w pytanie o zgodę („Akceptuję wszystkie” / „Tylko
+niezbędne”), bo cookie analityczne wolno zapisać dopiero po zgodzie uprzedniej (art. 173 Prawa
+telekomunikacyjnego — odpowiednio Prawa komunikacji elektronicznej — oraz art. 6 ust. 1 lit. a
+RODO). Do czasu decyzji przeglądarka **nie wysyła do Google'a żadnego żądania**: nie korzystamy
+z wariantu „denied pings” trybu zgody, w którym skrypt ładuje się przed decyzją. Po kliknięciu
+„Akceptuję wszystkie” pomiar startuje od razu, bez przeładowania strony. Decyzja mieszka
+w `localStorage` (`cookie-consent` = `all`/`necessary`, `cookie-consent-at` = znacznik czasu),
+a odnośnik **„Ustawienia cookies”** w stopce otwiera pasek ponownie — wybór „Tylko niezbędne”
+kasuje wtedy pliki `_ga*`. Loader (`backend/static/js/analytics.js`) wyłącza Google Signals
+i personalizację reklam oraz deklaruje anonimizację IP.
+
+**CSP:** hosty `googletagmanager.com`, `*.google-analytics.com` i `*.analytics.google.com`
+dochodzą do `script-src`/`connect-src`/`img-src` **tylko wtedy**, gdy identyfikator jest wpisany
+(`apps/web/middleware.py`). Odpowiedź „czy analityka jest włączona” jest pamiętana w procesie
+przez 30 s (`apps/cms/analytics.py`), bo nagłówek powstaje także dla plików statycznych — zapis
+ustawienia w `/cms/` unieważnia tę pamięć od razu w procesie, który go przyjął, a w pozostałych
+workerach zmiana jest widoczna najpóźniej po pół minuty.
+
+Weryfikacja po wdrożeniu:
+
+```bash
+# Z wpisanym identyfikatorem host Google'a jest w polityce; bez niego nie ma go wcale.
+curl -sI https://<SITE_DOMAIN>/ | grep -o "googletagmanager[^ ;]*" | head -1
+
+# Identyfikator jest w dokumencie, ale adres gtag/js NIE — wstrzykuje go dopiero zgoda.
+curl -s https://<SITE_DOMAIN>/ | grep -c 'meta name="ga-measurement-id"'
+curl -s https://<SITE_DOMAIN>/ | grep -c 'googletagmanager.com/gtag/js'   # musi być 0
+```
+
+Kontrola przeglądarkowa (dev, liczy prawdziwe żądania sieciowe): `e2e/check_consent.py` —
+sposób uruchomienia w docstringu pliku.
+
+**Po stronie usługi GA4 zostają dwie decyzje organizatora** (6.7, „Decyzje do podjęcia przez
+właściciela”, punkt 16): ustawienie retencji danych zdarzeń i akceptacja warunków przetwarzania
+danych Google'a.
+
 ## 5. Role i przepływ etapu
 
 Cztery grupy Django: `participant`, `reviewer`, `appeals`, `coordinator`. Pełna macierz uprawnień –
@@ -1120,6 +1171,30 @@ uzasadnienie każdego punktu: `docs/import/stara-strona-inwentarz.md`, sekcja 8.
     też zdanie wprowadzające („Warsztaty online przygotowujące do zawodów; udział jest bezpłatny.
     Szczegóły i linki do spotkań ogłosimy w aktualnościach.”) — sformułowaliśmy je sami,
     nie pochodzi od organizatora.
+16. **Google Analytics 4 — kod jest, usługa i dwie decyzje należą do właściciela.** Serwis umie
+    zbierać statystykę odwiedzin za zgodą odwiedzającego (4.5), ale **nic się nie włączy, dopóki
+    organizator nie wklei identyfikatora** `G-…` w `/cms/` → Ustawienia → Dane serwisu →
+    Analityka. Po stronie samej usługi GA4 zostają dwie decyzje, których kod nie podejmie:
+    **(a) retencja danych zdarzeń** — GA4 ustawia domyślnie **2 miesiące**, a to jest wartość
+    wpisana do polityki RODO (§ 3, „statystyka odwiedzin serwisu”); wybór 14 miesięcy wymaga
+    poprawienia tego zdania w `backend/apps/cms/fixtures/legacy/rodo.md` i ponownej publikacji;
+    **(b) akceptacja warunków przetwarzania danych Google'a** (Google Ads Data Processing Terms
+    w ustawieniach usługi) — bez niej Fundacja nie ma umowy powierzenia, której wymaga art. 28
+    RODO, a polityki obiecują ją czytelnikowi. Zalecane pozostawienie funkcji reklamowych
+    wyłączonych po stronie usługi: loader wyłącza je po stronie strony, ale dwa źródła prawdy
+    lepiej mieć zgodne.
+    Publikacja obu dokumentów na produkcji po zmianie treści:
+
+    ```bash
+    docker compose exec web python manage.py seed_legacy_content --only cookies --only rodo
+    ```
+
+    Uwaga: `--only` **nadpisuje treść wskazanych stron** plikami z repozytorium. Polityka cookie
+    powstała i żyje w repozytorium, więc to jest jej właściwa droga na produkcję. Strona
+    `/dokumenty/rodo/` bywa natomiast poprawiana w `/cms/` (jej wersją źródłową jest PDF
+    organizatora) — przed przebiegiem sprawdź w panelu, czy nie ma tam zmian redakcyjnych
+    do przeniesienia do pliku źródłowego, albo uruchom komendę z samym `--only cookies`
+    i dopisz akapit o statystyce w `/cms/` ręcznie.
 
 ### 6.8 Rozmowy kwalifikacyjne (etap w formie rozmowy online)
 
