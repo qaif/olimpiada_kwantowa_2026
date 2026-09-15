@@ -624,6 +624,30 @@ class AssignThirdReviewerForm(forms.Form):
     reviewer_id = forms.IntegerField(label="Recenzent", min_value=1)
 
 
+class SetReviewScoreForm(forms.Form):
+    """Korekta punktów pojedynczej recenzji. Zgodność ze skalą etapu rozstrzyga serwis."""
+
+    score = forms.IntegerField(label="Punkty", min_value=0, max_value=1000)
+    rationale = forms.CharField(label="Notatka", required=False, widget=forms.Textarea)
+
+
+class OverrideFinalGradeForm(forms.Form):
+    """Korekta oceny końcowej. Uzasadnienie jest obowiązkowe – minimalną długość pilnuje serwis."""
+
+    score = forms.IntegerField(label="Punkty", min_value=0, max_value=1000)
+    rationale = forms.CharField(label="Uzasadnienie", widget=forms.Textarea)
+
+
+class ReviewerPickForm(forms.Form):
+    """Wskazanie recenzenta z listy – wspólne dla reguły „z góry” i dla przydziału jednej pracy.
+
+    Formularz sprawdza wyłącznie kształt (liczba dodatnia). Czy ta osoba jest aktywnym recenzentem
+    i czy nie jest w konflikcie okręgu, rozstrzyga serwis – ta sama reguła obowiązuje API.
+    """
+
+    reviewer_id = forms.IntegerField(label="Recenzent", min_value=1)
+
+
 class AssignReviewersForm(forms.Form):
     """Parametr przydziału recenzentów. Minimum dwóch – inaczej rozjazd nie ma jak powstać."""
 

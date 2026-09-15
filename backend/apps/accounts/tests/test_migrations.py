@@ -29,10 +29,24 @@ def migrate_to(target):
     return executor.loader.project_state([target]).apps
 
 
+def migrate_to_head() -> None:
+    """Przywraca czoło migracji **wszystkich** aplikacji, nie tylko przewijanej.
+
+    ``migrate_to(AFTER)`` nie wystarcza: cofnięcie jednej aplikacji zdejmuje po drodze każdą
+    migrację z innych aplikacji, która od niej zależy, a powrót do konkretnego celu przywraca
+    wyłącznie jego przodków. Reszta pakietu zastawała wtedy bazę bez tamtych tabel – i wywracała
+    się w zupełnie innym miejscu, kilka minut później.
+    """
+    executor = MigrationExecutor(connection)
+    executor.loader.build_graph()
+    executor.migrate(executor.loader.graph.leaf_nodes())
+    executor.loader.build_graph()
+
+
 @pytest.fixture
 def rewound_apps(transactional_db):  # noqa: ARG001 - fixture bazy, używana przez efekt uboczny
     yield migrate_to(BEFORE)
-    migrate_to(AFTER)
+    migrate_to_head()
 
 
 @pytest.mark.django_db(transaction=True)

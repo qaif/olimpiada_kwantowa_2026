@@ -12,7 +12,7 @@ własną recenzję i nie ma pola z ocenami pozostałych recenzentów.
 from django.urls import reverse
 from rest_framework import serializers
 
-from .models import FinalGrade, Review
+from .models import FinalGrade, ProblemReviewerRule, Review
 
 
 class ReviewSerializer(serializers.ModelSerializer):
@@ -95,11 +95,17 @@ class AssignReviewersSerializer(serializers.Serializer):
 
 
 class SkippedSubmissionSerializer(serializers.Serializer):
-    """Rozwiązanie pominięte przy przydziale – do ręcznego załatwienia przez koordynatora."""
+    """Rozwiązanie pominięte przy przydziale – do ręcznego załatwienia przez koordynatora.
+
+    ``reviewer_id`` jest wypełniony tylko dla ``RULE_REVIEWER_CONFLICT``: wtedy pominięcie dotyczy
+    konkretnej reguły i koordynator musi wiedzieć, której. Przy ``NOT_ENOUGH_REVIEWERS`` nie ma
+    jednej osoby do wskazania – zabrakło ich w ogóle.
+    """
 
     submission_id = serializers.IntegerField(read_only=True)
     public_code = serializers.CharField(read_only=True)
     reason = serializers.CharField(read_only=True)
+    reviewer_id = serializers.IntegerField(read_only=True, allow_null=True)
 
 
 class AssignmentResultSerializer(serializers.Serializer):
@@ -151,6 +157,42 @@ class AssignThirdReviewerSerializer(serializers.Serializer):
     reviewer_id = serializers.IntegerField()
 
 
+class AssignReviewerSerializer(serializers.Serializer):
+    """Ręczny przydział jednej pracy jednemu recenzentowi."""
+
+    reviewer_id = serializers.IntegerField()
+
+
+class ProblemRuleCreateSerializer(serializers.Serializer):
+    """Reguła „to zadanie recenzuje ta osoba”. Etap wynika z adresu, zadanie musi do niego należeć."""
+
+    problem_id = serializers.IntegerField()
+    reviewer_id = serializers.IntegerField()
+
+
+class ProblemReviewerRuleSerializer(serializers.ModelSerializer):
+    """Reguła w widoku koordynatora – z tożsamością recenzenta, bo to jego ekran."""
+
+    problem_id = serializers.IntegerField(read_only=True)
+    problem_number = serializers.IntegerField(source="problem.number", read_only=True)
+    reviewer_id = serializers.IntegerField(read_only=True)
+    reviewer_email = serializers.EmailField(source="reviewer.user.email", read_only=True)
+
+    class Meta:
+        model = ProblemReviewerRule
+        fields = ("id", "problem_id", "problem_number", "reviewer_id", "reviewer_email", "created_at")
+        read_only_fields = fields
+
+
+class ProblemRuleResultSerializer(serializers.Serializer):
+    """Wynik utworzenia reguły: sama reguła plus liczniki zastosowania jej do prac już zablokowanych."""
+
+    rule = ProblemReviewerRuleSerializer(read_only=True)
+    assigned = serializers.IntegerField(read_only=True)
+    conflicts = serializers.IntegerField(read_only=True)
+    already = serializers.IntegerField(read_only=True)
+
+
 class FinalGradeSerializer(serializers.ModelSerializer):
     submission_id = serializers.IntegerField(read_only=True)
 
@@ -170,3 +212,29 @@ class DisputeReviewSerializer(serializers.Serializer):
 
     score = serializers.IntegerField(read_only=True)
     comment_internal = serializers.CharField(read_only=True, allow_blank=True)
+
+
+class SetReviewScoreSerializer(serializers.Serializer):
+    """Korekta punktów pojedynczej recenzji przez koordynatora.
+
+    ``rationale`` jest opcjonalne i **nie** jest uzasadnieniem oceny końcowej – to notatka, która
+    trafia do komentarza wewnętrznego recenzji wpisanej za recenzenta i do audytu.
+    """
+
+    score = serializers.IntegerField()
+    rationale = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class OverrideFinalGradeSerializer(serializers.Serializer):
+    """Korekta oceny końcowej. Uzasadnienie jest obowiązkowe – długość sprawdza serwis."""
+
+    score = serializers.IntegerField()
+    rationale = serializers.CharField()
+
+
+class OverrideResultSerializer(serializers.Serializer):
+    """Wynik korekty: ocena oraz ostrzeżenie, że ogłoszona tabela wyników jest już nieaktualna."""
+
+    grade = FinalGradeSerializer(read_only=True)
+    results_stale = serializers.BooleanField(read_only=True)
+    cancelled_reviews = serializers.IntegerField(read_only=True)

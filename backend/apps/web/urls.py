@@ -139,6 +139,46 @@ urlpatterns = [
         coordinator.AssignReviewersView.as_view(),
         name="coordinator-assign",
     ),
+    # Przydziały ręczne: reguły „zadanie → recenzent” i przydział pojedynczej pracy. Adresy akcji
+    # idą po przedmiocie operacji (zadanie, reguła, praca, recenzja), a nie po etapie – etap wynika
+    # z nich jednoznacznie i to on decyduje, na który ekran wraca przekierowanie.
+    path(
+        "coordinator/stages/<int:stage_id>/assignments/",
+        coordinator.StageAssignmentsView.as_view(),
+        name="coordinator-stage-assignments",
+    ),
+    path(
+        "coordinator/problems/<int:problem_id>/reviewer-rules/",
+        coordinator.AddProblemRuleView.as_view(),
+        name="coordinator-problem-rule-add",
+    ),
+    path(
+        "coordinator/reviewer-rules/<int:pk>/delete/",
+        coordinator.RemoveProblemRuleView.as_view(),
+        name="coordinator-problem-rule-remove",
+    ),
+    path(
+        "coordinator/submissions/<int:submission_id>/assign-reviewer/",
+        coordinator.AssignSubmissionReviewerView.as_view(),
+        name="coordinator-submission-assign",
+    ),
+    path(
+        "coordinator/reviews/<int:pk>/unassign/",
+        coordinator.UnassignReviewView.as_view(),
+        name="coordinator-review-unassign",
+    ),
+    # Korekta ocen: punkty pojedynczej recenzji i ocena końcowa pracy. Obie akcje wracają na ekran
+    # przydziałów i ocen tego etapu, bo tam koordynator widzi skutek zmiany.
+    path(
+        "coordinator/reviews/<int:pk>/score/",
+        coordinator.SetReviewScoreView.as_view(),
+        name="coordinator-review-score",
+    ),
+    path(
+        "coordinator/submissions/<int:submission_id>/final-grade/",
+        coordinator.OverrideFinalGradeView.as_view(),
+        name="coordinator-final-grade",
+    ),
     path(
         "coordinator/moderation/<int:submission_id>/resolve/",
         coordinator.ResolveModerationView.as_view(),

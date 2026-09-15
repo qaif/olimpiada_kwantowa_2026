@@ -455,7 +455,7 @@ z otwartej rejestracji.
 | 5 | Upload rozwiązania (przed deadline) | uczestnik | `/me/`, karta zadania (HTMX) → `POST /api/stages/<id>/problems/<n>/submissions/` |
 | 6 | Skan antywirusowy | Celery → ClamAV | status pliku w karcie zadania: `oczekuje na skan` → `czysty` |
 | 7 | Zamknięcie etapu | `beat` po `deadline_at + grace_seconds`, albo koordynator ręcznie | `/coordinator/` → „Zamknij etap” |
-| 8 | Przydział 2 recenzentów (ślepy, bez konfliktu województwa) | koordynator | `/coordinator/` → „Przydziel recenzentów” |
+| 8 | Przydział 2 recenzentów (ślepy, bez konfliktu województwa) | koordynator | `/coordinator/` → „Przydziel recenzentów”; ręcznie: „Przydziały ręczne” – patrz 6.4 |
 | 9 | Dwie niezależne oceny | recenzenci | `/review/`, `/review/<id>/` (podgląd PDF + adnotacje) |
 | 10 | Zgodne oceny → `FinalGrade(CONSENSUS)`; rozjazd → `MODERATION` | system | – |
 | 11 | Rozstrzygnięcie rozjazdu | koordynator (posiedzenie) lub trzeci recenzent | `/coordinator/` → „Moderacja (rozjazdy ocen)” |
@@ -913,6 +913,59 @@ Ręcznie (awaria beata, decyzja komitetu o wcześniejszym zamknięciu):
 Przesunięcie samych terminów robi się w panelu (6.3), a nie przez zamknięcie etapu. Komenda
 `manage.py e2e_timeline` jest **wyłącznie** dla środowiska testowego i bez `E2E_MODE=1` odmawia
 działania.
+
+#### Przydziały ręczne
+
+Automat równoważy obciążenie, ale nie zna podziału kompetencji w komitecie. Ekran
+`/coordinator/stages/<id>/assignments/` („Przydziały ręczne”, obok „Przydziel recenzentów” na
+karcie etapu) dokłada do niego dwa narzędzia:
+
+1. **Zadania → recenzenci z góry.** Reguła „zadanie 3 sprawdza Kowalski” obowiązuje wszystkie
+   rozwiązania tego zadania: prace już zablokowane dostają recenzenta od razu (w chwili dodania
+   reguły), prace, które wejdą do oceniania później – przy najbliższym „Przydziel recenzentów”.
+   Recenzenci z reguł zajmują miejsca z „recenzentów na pracę”, a automat dobiera wyłącznie resztę;
+   gdy reguł jest więcej niż miejsc, przydzielani są wszyscy (decyzja organizatora wygrywa
+   z liczbą w formularzu). **Usunięcie reguły nie kasuje recenzji**, które już z niej powstały –
+   pojedynczy przydział cofa się przyciskiem „Cofnij”.
+2. **Rozwiązania.** Tabela prac nadających się jeszcze do przydziału (z wyszukiwarką po kodzie
+   uczestnika i po nazwisku) pozwala dać konkretną pracę konkretnej osobie oraz cofnąć przydział,
+   którego recenzent jeszcze nie rozpoczął (`ASSIGNED` → `CANCELLED`; szkic i ocena wystawiona
+   już się nie cofają).
+
+Konflikt interesów obowiązuje w obu narzędziach: recenzent z województwa uczestnika (albo bez
+potwierdzonego województwa) nie dostanie jego pracy na etapie wojewódzkim, nawet gdy wskazuje go reguła –
+taka praca trafia na listę pominiętych z powodem `RULE_REVIEWER_CONFLICT`. Każda czynność zostawia
+wpis w audycie (`review.rule_added`, `review.rule_removed`, `review.assigned_manually`,
+`review.unassigned`). Odpowiedniki w API: `POST /api/grading/stages/<id>/problem-rules/`,
+`DELETE /api/grading/stages/<id>/problem-rules/<rule_id>/`,
+`POST /api/grading/submissions/<id>/assign/`, `POST /api/grading/reviews/<id>/unassign/`.
+
+#### Korekta ocen przez koordynatora
+
+Ten sam ekran („Przydziały i oceny”) pozwala poprawić **każdą** ocenę. Dwa poziomy:
+
+1. **Punkty pojedynczej recenzji** – przy każdym recenzencie stoi lista wartości ze skali etapu
+   i przycisk „Zapisz”. Działa niezależnie od stanu recenzji: koordynator poprawia ocenę już
+   wystawioną i wpisuje ocenę za recenzenta, który jej nie oddał (recenzja przechodzi wtedy
+   w „wystawiona”, a do komentarza wewnętrznego trafia adnotacja `[koordynator]`). Po zapisie
+   system ponownie rozstrzyga rundę 1 – zgodne oceny dają `FinalGrade(CONSENSUS)`, rozjazd kieruje
+   pracę do moderacji. Praca, która ma już ocenę końcową, nie jest przeliczana: tam służy punkt 2.
+2. **Ocena końcowa** – formularz „Ocena końcowa” (punkty + **obowiązkowe** uzasadnienie, min. 10
+   znaków) zapisuje `FinalGrade` w trybie `OVERRIDE` („korekta koordynatora”). Działa także dla
+   pracy, której nikt nie recenzował – wtedy wpisana wartość *jest* oceną końcową, a niedokończone
+   recenzje tej pracy (przydzielone i szkice) zostają anulowane, żeby nie wisiały w kolejkach.
+   Wystawione recenzje zostają jako historia. Praca przechodzi do `GRADED_PROVISIONAL`; praca już
+   `FINAL` finalna zostaje.
+
+**Ogłoszona tabela wyników nie zmienia się sama.** Snapshot publikacji jest dokumentem z chwili
+ogłoszenia, więc korekta po publikacji kończy się ostrzeżeniem „Wyniki tego etapu są już ogłoszone –
+zmiana pojawi się dopiero po ponownym przeliczeniu i publikacji” (API zwraca `results_stale: true`).
+Wejdzie do wyników po „Przelicz wyniki” i „Opublikuj wyniki” (6.6).
+
+Audyt: `review.score_set_by_coordinator` (wartość przed i po) oraz `grade.overridden` (punkty
+i tryb przed zmianą, liczba anulowanych recenzji, flaga nieaktualnych wyników). API:
+`POST /api/grading/reviews/<id>/score/` `{score, rationale?}` i
+`POST /api/grading/submissions/<id>/final-grade/` `{score, rationale}` – oba tylko dla koordynatora.
 
 ### 6.5 Przeniesienie treści zadań na prywatny storage (`migrate_statements`)
 

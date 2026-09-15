@@ -7,7 +7,7 @@ tylko na poziomie uzasadnienia i punktów – każda taka zmiana należy do proc
 
 from django.contrib import admin
 
-from .models import FinalGrade, Review
+from .models import FinalGrade, ProblemReviewerRule, Review
 
 
 @admin.register(Review)
@@ -16,6 +16,23 @@ class ReviewAdmin(admin.ModelAdmin):
     list_filter = ("status", "round", "submission__entry__stage__edition", "submission__entry__stage__kind")
     search_fields = ("submission__uuid", "reviewer__user__email")
     readonly_fields = ("submission", "reviewer", "round", "assigned_at", "submitted_at")
+
+    def has_add_permission(self, request) -> bool:
+        return False
+
+
+@admin.register(ProblemReviewerRule)
+class ProblemReviewerRuleAdmin(admin.ModelAdmin):
+    """Podgląd reguł przydziału. Dodawanie zostaje w panelu koordynatora.
+
+    Reguła utworzona w adminie byłaby martwa do najbliższego przydziału: zastosowanie jej do prac
+    już zablokowanych robi serwis (``add_problem_reviewer_rule``), a ten woła panel, nie admin.
+    """
+
+    list_display = ("id", "problem", "reviewer", "created_by", "created_at")
+    list_filter = ("problem__stage__edition", "problem__stage__kind")
+    search_fields = ("problem__title", "reviewer__user__email")
+    readonly_fields = ("problem", "reviewer", "created_by", "created_at")
 
     def has_add_permission(self, request) -> bool:
         return False

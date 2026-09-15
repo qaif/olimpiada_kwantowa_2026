@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% block title %}Przydziały i oceny: {{ stage.display_name }} – panel koordynatora{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
+  <h1>Przydziały i oceny: {{ stage.display_name }}</h1>
+  <p class="lead">Edycja {{ stage.edition.year_label }}. Ekran uzupełnia automatyczny przydział
+    z pulpitu: tutaj wskazujesz recenzentów sam – dla całego zadania albo dla jednej pracy –
+    oraz poprawiasz punkty, łącznie z oceną końcową.</p>
+</div>
+
+{% comment %}
+  Dwie zasady, które inaczej trzeba by odkrywać po skutkach. Stoją nad tabelami, a nie
+  w komunikacie po kliknięciu: decydują o tym, czy koordynator w ogóle chce użyć reguły.
+{% endcomment %}
+<div class="card card--quiet">
+  <ul class="hint">
+    <li>Reguła zadania obowiązuje <strong>zawsze</strong>: dopisuje recenzenta do prac już
+      zablokowanych od razu, a do prac, które wejdą do oceniania później – przy najbliższym
+      „Przydziel recenzentów”.</li>
+    <li>Konflikt interesów wygrywa z regułą. Recenzent z województwa uczestnika (albo bez potwierdzonego
+      województwa) nie dostanie jego pracy na etapie wojewódzkim, nawet jeśli reguła tak mówi.</li>
+    <li>Recenzenci z reguł zajmują miejsca z „recenzentów na pracę”; automat dobiera tylko resztę.
+      Gdy reguł jest więcej niż miejsc, przydzielani są wszyscy.</li>
+    <li>Punkty w recenzji może poprawić koordynator na każdym etapie jej życia. Po zmianie system
+      ponownie rozstrzyga rundę 1 (zgodne oceny → ocena uzgodniona, rozjazd → moderacja) –
+      o ile praca nie ma jeszcze oceny końcowej.</li>
+    <li>„Ocena końcowa” jest korektą organizatora: zastępuje ocenę ustaloną procedurą, działa też
+      dla pracy bez recenzji i zawsze wymaga uzasadnienia. Niewystawione recenzje takiej pracy
+      są anulowane, żeby nie wisiały w kolejkach recenzentów.</li>
+  </ul>
+</div>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Zadania → recenzenci z góry</h2>
+    <p class="hint"><a href="{% url 'web:coordinator-stage-problems' stage.pk %}">Zadania etapu</a></p>
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Nr</th>
+          <th scope="col">Zadanie</th>
+          <th scope="col">Recenzenci z reguł</th>
+          <th scope="col">Dodaj regułę</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in problem_rows %}
+          <tr>
+            <td class="num">{{ row.problem.number }}</td>
+            <th scope="row">{{ row.problem.title }}</th>
+            <td>
+              {% for rule in row.rules %}
+                <div class="actions">
+                  <span>{{ rule.reviewer.user.email }}{% if rule.reviewer.district %}
+                    ({{ rule.reviewer.get_district_display }}{% if not rule.reviewer.district_verified %}, niepotwierdzone{% endif %}){% endif %}</span>
+                  <form method="post" action="{% url 'web:coordinator-problem-rule-remove' rule.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn--danger btn--small">Usuń</button>
+                  </form>
+                </div>
+              {% empty %}
+                <span class="hint">brak – zadanie idzie wyłącznie przez automat</span>
+              {% endfor %}
+            </td>
+            <td>
+              <form method="post" action="{% url 'web:coordinator-problem-rule-add' row.problem.pk %}">
+                {% csrf_token %}
+                <label class="visually-hidden" for="rule-{{ row.problem.pk }}">Recenzent</label>
+                <select id="rule-{{ row.problem.pk }}" name="reviewer_id">
+                  {% for member in reviewer_pool %}
+                    <option value="{{ member.pk }}">{{ member.user.email }}{% if member.district %} ({{ member.get_district_display }}){% endif %}</option>
+                  {% endfor %}
+                </select>
+                <button type="submit" class="btn btn--secondary btn--small">Dodaj regułę</button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="empty">Ten etap nie ma jeszcze zadań.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Rozwiązania i oceny</h2>
+    <span class="badge badge--danger">dane osobowe</span>
+  </div>
+  <p class="hint">Lista obejmuje prace w obiegu oceniania – od zablokowanych po już ocenione.
+    Nazwisko widzi wyłącznie koordynator – recenzent zobaczy sam kod uczestnika.</p>
+  {% if results_published %}
+    <p class="hint"><span class="badge badge--warn">wyniki ogłoszone</span> Zmiana punktów nie rusza
+      ogłoszonej tabeli. Żeby weszła, przelicz i opublikuj wyniki etapu ponownie.</p>
+  {% endif %}
+
+  <form method="get" class="actions">
+    <label for="q">Szukaj (kod uczestnika lub nazwisko)</label>
+    <input id="q" type="search" name="q" value="{{ query }}" autocomplete="off">
+    <button type="submit" class="btn btn--secondary btn--small">Szukaj</button>
+    {% if query %}
+      <a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-stage-assignments' stage.pk %}">Wyczyść</a>
+    {% endif %}
+  </form>
+
+  <div class="scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Kod</th>
+          <th scope="col">Uczestnik</th>
+          <th scope="col">Zad.</th>
+          <th scope="col">Status</th>
+          <th scope="col">Recenzje i punkty</th>
+          <th scope="col">Ocena końcowa</th>
+          <th scope="col">Przydziel</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in submission_rows %}
+          <tr>
+            <th scope="row">{{ row.submission.entry.participant.public_code }}</th>
+            <td>{{ row.submission.entry.participant.user.get_full_name|default:row.submission.entry.participant.user.email }}</td>
+            <td class="num">{{ row.submission.problem.number }}</td>
+            <td>{{ row.submission.get_status_display }}</td>
+            <td>
+              {% for review in row.reviews %}
+                <div class="actions">
+                  <span>{{ review.reviewer.user.email }} – {{ review.get_status_display }}{% if review.round != 1 %} (runda {{ review.round }}){% endif %}:
+                    <strong>{% if review.score is not None %}{{ review.score }} pkt{% else %}—{% endif %}</strong></span>
+                  {% if scale_values %}
+                    {# Punkty ze skali etapu, nie wolne pole: ocena spoza skali i tak nie przejdzie. #}
+                    <form method="post" action="{% url 'web:coordinator-review-score' review.pk %}">
+                      {% csrf_token %}
+                      <label class="visually-hidden" for="score-{{ review.pk }}">Punkty</label>
+                      <select id="score-{{ review.pk }}" name="score">
+                        {% for value in scale_values %}
+                          <option value="{{ value }}"{% if review.score == value %} selected{% endif %}>{{ value }}</option>
+                        {% endfor %}
+                      </select>
+                      <button type="submit" class="btn btn--secondary btn--small">Zapisz</button>
+                    </form>
+                  {% endif %}
+                  {% if review.status == assigned_status %}
+                    <form method="post" action="{% url 'web:coordinator-review-unassign' review.pk %}">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn--danger btn--small">Cofnij</button>
+                    </form>
+                  {% endif %}
+                </div>
+              {% empty %}
+                <span class="hint">brak recenzentów</span>
+              {% endfor %}
+            </td>
+            <td>
+              {% if row.final_grade %}
+                <p><strong>{{ row.final_grade.score }} pkt</strong> ({{ row.final_grade.get_method_display }})</p>
+              {% else %}
+                <p class="hint">brak oceny końcowej</p>
+              {% endif %}
+              {% if scale_values %}
+                {% comment %}
+                  Formularz stoi w każdym wierszu, także bez recenzji: praca, której nikt nie ocenił,
+                  jest głównym powodem, dla którego ten tryb w ogóle istnieje.
+                {% endcomment %}
+                <form method="post" action="{% url 'web:coordinator-final-grade' row.submission.pk %}" class="stack">
+                  {% csrf_token %}
+                  {% if not row.reviews %}
+                    <span class="hint">Praca bez recenzji – wpisana ocena będzie oceną końcową.</span>
+                  {% endif %}
+                  <label for="final-score-{{ row.submission.pk }}">Punkty</label>
+                  <select id="final-score-{{ row.submission.pk }}" name="score">
+                    {% for value in scale_values %}
+                      <option value="{{ value }}"{% if row.final_grade.score == value %} selected{% endif %}>{{ value }}</option>
+                    {% endfor %}
+                  </select>
+                  <label for="final-why-{{ row.submission.pk }}">Uzasadnienie (wymagane)</label>
+                  <textarea id="final-why-{{ row.submission.pk }}" name="rationale" rows="2" required></textarea>
+                  <button type="submit" class="btn btn--primary btn--small">Zapisz korektę</button>
+                </form>
+              {% else %}
+                <p class="hint">Etap nie ma skali punktacji – ustaw ją w adminie.</p>
+              {% endif %}
+            </td>
+            <td>
+              {% if row.assignable %}
+                <form method="post" action="{% url 'web:coordinator-submission-assign' row.submission.pk %}">
+                  {% csrf_token %}
+                  <label class="visually-hidden" for="assign-{{ row.submission.pk }}">Recenzent</label>
+                  <select id="assign-{{ row.submission.pk }}" name="reviewer_id">
+                    {% for member in reviewer_pool %}
+                      <option value="{{ member.pk }}">{{ member.user.email }}{% if member.district %} ({{ member.get_district_display }}){% endif %}</option>
+                    {% endfor %}
+                  </select>
+                  <button type="submit" class="btn btn--secondary btn--small">Przydziel</button>
+                </form>
+              {% else %}
+                <span class="hint">praca zamknięta dla nowych przydziałów</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="empty">
+            {% if query %}Żadna praca nie pasuje do zapytania „{{ query }}”.
+            {% else %}Ten etap nie ma prac w obiegu oceniania. Zamknij etap, żeby rozwiązania
+              trafiły do oceniania.{% endif %}
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

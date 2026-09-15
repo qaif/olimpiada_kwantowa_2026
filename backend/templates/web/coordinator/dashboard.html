@@ -126,6 +126,10 @@
           <button type="submit" class="btn btn--secondary">Przydziel recenzentów</button>
         </form>
 
+        {# Ręczne przydziały stoją obok automatu, bo są jego uzupełnieniem: reguły „zadanie →
+           recenzent” honoruje ten sam przycisk, a pojedyncze prace załatwia się już tam. #}
+        <a class="btn btn--secondary" href="{% url 'web:coordinator-stage-assignments' row.stage.pk %}">Przydziały ręczne</a>
+
         <form method="post" action="{% url 'web:coordinator-compute' row.stage.pk %}">
           {% csrf_token %}
           <button type="submit" class="btn btn--secondary">Przelicz wyniki (podgląd)</button>
@@ -299,8 +303,8 @@
     </table>
   </div>
 
-  <h3>Weryfikacja okręgu</h3>
-  <p class="hint">Bez potwierdzonego okręgu recenzent nie wchodzi do przydziału na etapie okręgowym.</p>
+  <h3>Weryfikacja województwa</h3>
+  <p class="hint">Bez potwierdzonego województwa recenzent nie wchodzi do przydziału na etapie wojewódzkim.</p>
   <div class="scroll">
     <table class="table">
       <thead><tr><th>E-mail</th><th>Województwo</th><th>Zweryfikowany</th><th></th></tr></thead>
@@ -324,7 +328,7 @@
                     <option value="{{ value }}"{% if value == member.district %} selected{% endif %}>{{ label }}</option>
                   {% endfor %}
                 </select>
-                <button type="submit" class="btn btn--secondary btn--small">Potwierdź okręg</button>
+                <button type="submit" class="btn btn--secondary btn--small">Potwierdź województwo</button>
               </form>
             </td>
           </tr>

@@ -15,6 +15,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from apps.accounts.models import CommitteeMember
+from apps.competitions.models import Problem
 from apps.submissions.models import Submission
 
 #: Runda 1 to ocena ślepa (dwóch niezależnych recenzentów), runda 2 – rozjemcza (trzeci recenzent).
@@ -42,6 +43,11 @@ class GradeMethod(models.TextChoices):
     THIRD_REVIEW = "THIRD_REVIEW", "trzeci recenzent"
     MODERATION = "MODERATION", "posiedzenie komisji"
     APPEAL = "APPEAL", "po reklamacji"
+    # Korekta koordynatora ma **własny** tryb, a nie MODERATION: posiedzenie komisji rozstrzyga
+    # rozjazd dwóch ocen, a to jest jednoosobowa decyzja organizatora – czasem dla pracy, której
+    # nikt nie recenzował. Rozróżnienie jest widoczne w tabeli wyników i w aktach odwoławczych,
+    # więc nie wolno go schować pod istniejącą wartością.
+    COORDINATOR_OVERRIDE = "OVERRIDE", "korekta koordynatora"
 
 
 class ReviewQuerySet(models.QuerySet):
@@ -129,3 +135,49 @@ class FinalGrade(models.Model):
 
     def __str__(self) -> str:
         return f"{self.score} pkt ({self.method}) dla zgł. {self.submission_id}"
+
+
+class ProblemReviewerRule(models.Model):
+    """Reguła „to zadanie recenzuje ta osoba” – przydział z góry, na poziomie całego zadania.
+
+    Powód istnienia: automat równoważy obciążenie, ale nie zna podziału kompetencji w komitecie.
+    Organizator chce móc powiedzieć „zadanie 3 sprawdza Kowalski” raz, zamiast klikać przy każdej
+    pracy z osobna. Reguła jest więc **deklaracją**, a nie jednorazową akcją: obowiązuje zarówno
+    prace już zablokowane (serwis dopisuje recenzje w chwili utworzenia reguły), jak i te, które
+    wejdą do oceniania później (uwzględnia je najbliższy przebieg ``assign_reviewers``).
+
+    Reguła nie unieważnia konfliktu interesów: recenzent w konflikcie z konkretnym uczestnikiem
+    jest dla tej jednej pracy pomijany (``RULE_REVIEWER_CONFLICT``), a nie dopisywany „bo tak
+    kazał organizator”. Kasowanie reguły nie rusza recenzji, które już powstały – przydział, który
+    ktoś zaczął wykonywać, znika wyłącznie przez świadome cofnięcie (``unassign_reviewer``).
+
+    ``on_delete=CASCADE`` po obu stronach: reguła bez zadania albo bez recenzenta nie ma sensu,
+    a ślad po samej deklaracji zostaje w audycie (``review.rule_added`` / ``review.rule_removed``).
+    """
+
+    problem = models.ForeignKey(Problem, on_delete=models.CASCADE, related_name="reviewer_rules")
+    reviewer = models.ForeignKey(CommitteeMember, on_delete=models.CASCADE, related_name="problem_rules")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="problem_reviewer_rules",
+        verbose_name="utworzył",
+    )
+    created_at = models.DateTimeField("utworzona", default=timezone.now)
+
+    class Meta:
+        verbose_name = "reguła przydziału zadania"
+        verbose_name_plural = "reguły przydziału zadań"
+        # Kolejność tworzenia jest częścią semantyki: recenzenci z reguł wchodzą na miejsca
+        # ``per_submission`` w tej właśnie kolejności, więc sortowanie nie może być dowolne.
+        ordering = ("problem", "created_at", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["problem", "reviewer"], name="grading_problem_rule_unique_reviewer"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"zadanie {self.problem_id} → recenzent {self.reviewer_id}"
