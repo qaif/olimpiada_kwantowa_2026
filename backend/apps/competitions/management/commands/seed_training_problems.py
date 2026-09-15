@@ -7,11 +7,10 @@ możliwy, albo kończył się śmieciową pracą w etapie, którego wyniki się 
 jest piaskownicą: bez terminu, poza kwalifikacją i poza publiczną osią czasu (patrz
 ``StageKind.TRAINING``).
 
-Skąd biorą się pliki: PDF-y leżą w ``apps/competitions/fixtures/training/`` i są **wersjonowane
-razem ze źródłem** (``zadania.md``); składa je ``scripts/build_training_problem_pdfs.py``. Ta
-komenda niczego nie generuje – wgrywa gotowe pliki, dzięki czemu ``reportlab`` jest zależnością
-dev, a serwer nie musi umieć składać dokumentów. ``odpowiedzi.pdf`` zostaje **poza** bazą: to
-materiał dla komisji, a zadanie z wgranym kluczem odpowiedzi przestaje być zadaniem.
+Skąd bierze się plik: PDF „Zadania przykładowe” organizatora leży w
+``apps/competitions/fixtures/training/`` i jest wersjonowany w repozytorium. Komenda niczego nie
+generuje – wgrywa gotowy plik jako treść każdego z czterech zadań (patrz ``training.py``, dlaczego
+jeden plik, a nie cztery).
 
 Idempotencja jest tu warunkiem użyteczności, nie ozdobą: organizator uruchamia komendę ręcznie,
 a potem bywa, że drugi raz – po poprawce w treści. Dlatego etap rozpoznajemy po parze (edycja,
@@ -42,7 +41,6 @@ from apps.competitions.services import (
     update_problem,
 )
 from apps.competitions.training import TRAINING_PROBLEMS, TRAINING_STAGE_NAME, statement_file
-from apps.competitions.training_pdf import ANSWERS_FILENAME, TRAINING_DIR
 
 #: Okno reklamacji etapu bez terminu. Musi być niepuste (``appeal_window_opens_at <
 #: appeal_window_closes_at`` jest constraintem w bazie), a jego długość niczego tu nie znaczy –
@@ -109,10 +107,7 @@ class Command(BaseCommand):
             try:
                 wanted = statement_file(spec)
             except FileNotFoundError as exc:
-                raise CommandError(
-                    f"Brak pliku treści {spec.path}. Złóż PDF-y: "
-                    "python scripts/build_training_problem_pdfs.py"
-                ) from exc
+                raise CommandError(f"Brak pliku treści {spec.path} w repozytorium.") from exc
             problem = stage.problems.filter(number=spec.number).first()
 
             if problem is None:
@@ -155,8 +150,6 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Gotowe: {created} utworzonych, {updated} zaktualizowanych, {unchanged} bez zmian. "
-                f"Szkice rozwiązań (poza bazą, dla komisji): "
-                f"{TRAINING_DIR / ANSWERS_FILENAME}"
+                f"Gotowe: {created} utworzonych, {updated} zaktualizowanych, {unchanged} bez zmian."
             )
         )

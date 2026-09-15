@@ -47,7 +47,6 @@ dev = [
     # leżą w repozytorium, a produkcja je wgrywa, więc obraz produkcyjny nie musi umieć składać
     # dokumentów. Import biblioteki w module jest leniwy, a test generatora sam się pomija
     # (``pytest.importorskip``), więc brak ekstry dev niczego nie psuje.
-    "reportlab>=4.2,<6.0",
 ]
 
 [tool.ruff]

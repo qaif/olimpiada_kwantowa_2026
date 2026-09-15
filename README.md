@@ -881,17 +881,16 @@ Czym trening różni się od etapu zawodów:
 | Publiczna oś czasu | Nie ma go ani na `/`, ani na `/harmonogram/`; „etapem bieżącym” zawsze zostaje etap zawodów. |
 | Treści zadań | Jawne od chwili utworzenia etapu (`opens_at` = „teraz”) — widać je na `/zadania/` w sekcji „Zadania treningowe”. |
 | Wyniki | Wolno przeliczyć i ogłosić: brama „okno reklamacji musi być zamknięte” treningu nie dotyczy (inaczej czekałaby na rok 2099). Tabela dostaje odznakę **„trening”** na `/wyniki/` i `/results/<id>/`. |
-| Odpowiedzi | `fixtures/training/odpowiedzi.pdf` — szkice rozwiązań **dla recenzentów i koordynatora**. Komenda go **nie** wgrywa; rozsyła go organizator. |
 
 Usunięcie piaskownicy po testach: koordynator kasuje zadania z `/coordinator/stages/<id>/problems/`
 (możliwe, dopóki nie ma do nich prac), a sam etap — z `/admin/competitions/stage/`. Kasowanie etapu
 zabiera ze sobą wpisy, zgłoszenia i recenzje treningowe, i o to chodzi.
 
-Zmiana treści zadań: źródłem jest `fixtures/training/zadania.md` (cztery zadania z podpunktami plus
-sekcja odpowiedzi). Po jego edycji złóż PDF-y na nowo i zacommituj wynik —
-`backend/.venv/Scripts/python.exe scripts/build_training_problem_pdfs.py` (potrzebna ekstra `dev`
-z `reportlab`; skład siedzi w `apps/competitions/training_pdf.py`, czcionki DejaVu leżą obok
-w `fixtures/training/fonts/`). Produkcja PDF-ów nie generuje — wgrywa gotowe.
+Treść zadań: plik organizatora `fixtures/training/zadania-przykladowe.pdf` („Zadania
+przykładowe”, P1–P4) — jeden PDF wspólny dla czterech zadań, bo rysunki i treści przechodzą między
+stronami. Podmiana pliku w repozytorium plus ponowne uruchomienie komendy wgrywa nową wersję;
+tytuły zadań są w `apps/competitions/training.py` (koordynator może je zmienić w panelu, ale kolejny
+przebieg komendy przywróci te z kodu).
 
 ### 6.4 Zamknięcie etapu
 

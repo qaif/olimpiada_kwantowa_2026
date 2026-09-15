@@ -197,13 +197,11 @@ def test_seed_training_problems_tworzy_etap_i_cztery_zadania():
     assert stage.qualification_rule.min_points == 0
 
     problems = list(stage.problems.order_by("number"))
-    assert [problem.number for problem in problems] == [1, 2, 3, 4, 5, 6, 7, 8]
+    assert [problem.number for problem in problems] == [1, 2, 3, 4]
     assert all(problem.statement_pdf for problem in problems)
-    # 1–4 to zadania organizatora (jeden wspólny PDF), 5–8 – zadania Fabiana podpisane w tytule.
-    assert problems[0].title.startswith("P1.")
-    assert problems[4].title.startswith("Zadanie Fabiana 1")
-    assert "diabelnie trudne" in problems[7].title
-    assert len({problems[i].statement_pdf.read() for i in range(4)}) == 1
+    # Cztery zadania organizatora z jednego wspólnego pliku „Zadania przykładowe”.
+    assert [problem.title[:3] for problem in problems] == ["P1.", "P2.", "P3.", "P4."]
+    assert len({problem.statement_pdf.read() for problem in problems}) == 1
     for problem in problems:
         with problem.statement_pdf.open("rb") as handle:
             assert handle.read(5) == b"%PDF-"
@@ -236,61 +234,3 @@ def test_seed_training_problems_nie_rusza_etapu_zawodow():
     call_command("seed_training_problems", verbosity=0)
 
     assert current_stage(edition) == elim
-
-
-# --- generator PDF-ów ------------------------------------------------------------------------------
-
-
-def test_generator_sklada_piec_plikow(tmp_path):
-    """Pięć plików z ``%PDF-`` na wejściu: cztery treści i szkice rozwiązań.
-
-    ``reportlab`` jest zależnością **dev**, więc bez niego test się pomija zamiast wywracać suitę
-    na obrazie zbudowanym bez ekstry dev.
-    """
-    pytest.importorskip("reportlab")
-    from apps.competitions import training_pdf
-
-    written = training_pdf.build_all(out_dir=tmp_path)
-
-    assert [path.name for path in written] == [
-        "zadanie-1.pdf",
-        "zadanie-2.pdf",
-        "zadanie-3.pdf",
-        "zadanie-4.pdf",
-        "odpowiedzi.pdf",
-    ]
-    for path in written:
-        assert path.read_bytes().startswith(b"%PDF-")
-
-
-def test_generator_odrzuca_znak_spoza_obu_krojow(tmp_path):
-    """Znak, którego nie ma w żadnej z czcionek, przerywa skład – zamiast wyjść jako pusty prostokąt.
-
-    To jest cała wartość ręcznej rezerwy znakowej: reportlab nie ostrzega o braku glifu, więc
-    bez tego sprawdzenia dziura w treści zadania wyszłaby dopiero na wydruku.
-    """
-    pytest.importorskip("reportlab")
-    from apps.competitions import training_pdf
-
-    source = training_pdf.SOURCE.read_text(encoding="utf-8")
-    # U+4E00 (CJK „jeden”) nie ma ani w DejaVuSans, ani w DejaVuMathTeXGyre. Emoji by się tu nie
-    # nadało: DejaVuSans ma kilkadziesiąt emotikon i taki test przechodziłby z fałszywego powodu.
-    broken = tmp_path / "zadania.md"
-    broken.write_text(source.replace("Wyznacz a.", "Wyznacz a 一.", 1), encoding="utf-8")
-
-    with pytest.raises(training_pdf.BuildError, match="nie występuje w żadnej"):
-        training_pdf.build_all(broken, tmp_path)
-
-
-def test_parser_czyta_cztery_zadania_i_komplet_odpowiedzi():
-    """Parser jest sprawdzany osobno od składu – nie potrzebuje reportlaba."""
-    from apps.competitions import training_pdf
-
-    source = training_pdf.parse()
-
-    assert [section.number for section in source.problems] == [1, 2, 3, 4]
-    assert set(source.answers) == {1, 2, 3, 4}
-    assert source.conventions, "sekcja z konwencjami zapisu musi wejść do każdej treści zadania"
-    # Zdanie „odpowiedzi są na końcu strony” jest prawdziwe na stronie, a nie w PDF-ie z zadaniem.
-    assert not any(block.text.startswith("Odpowiedzi i szkice") for block in source.conventions)
-    assert all(section.blocks for section in source.problems)
