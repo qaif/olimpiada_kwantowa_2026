@@ -7,6 +7,7 @@ from .views import (
     appeals,
     coordinator,
     coordinator_accounts,
+    coordinator_events,
     coordinator_stages,
     participant,
     public,
@@ -101,6 +102,28 @@ urlpatterns = [
         "coordinator/registration/",
         coordinator_stages.RegistrationSettingsView.as_view(),
         name="coordinator-registration",
+    ),
+    # Wydarzenia linii czasu. Sąsiadują z kalendarzem etapów, bo to ta sama czynność – układanie
+    # terminów edycji – tylko dla tej części kalendarza, której system nie egzekwuje.
+    path(
+        "coordinator/events/",
+        coordinator_events.EventListView.as_view(),
+        name="coordinator-events",
+    ),
+    path(
+        "coordinator/events/new/",
+        coordinator_events.EventCreateView.as_view(),
+        name="coordinator-event-new",
+    ),
+    path(
+        "coordinator/events/<int:pk>/edit/",
+        coordinator_events.EventEditView.as_view(),
+        name="coordinator-event-edit",
+    ),
+    path(
+        "coordinator/events/<int:pk>/delete/",
+        coordinator_events.EventDeleteView.as_view(),
+        name="coordinator-event-delete",
     ),
     # Kalendarz edycji i zadania. ``stages/new/`` stoi **przed** ``stages/<int:stage_id>/…`` tylko
     # z przyzwyczajenia – ``<int:…>`` i tak nie dopasuje słowa „new”.

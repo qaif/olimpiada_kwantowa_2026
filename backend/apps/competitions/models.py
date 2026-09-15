@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import F, Q
@@ -697,3 +698,77 @@ class InterviewBooking(models.Model):
 
     def __str__(self) -> str:
         return f"{self.entry_id} → {self.slot_id}"
+
+
+class EditionEvent(models.Model):
+    """Wydarzenie edycji dopisywane przez koordynatora – wszystko, czego nie egzekwuje serwer.
+
+    Etapy mają w bazie terminy, bo system ich **pilnuje**: po ``deadline_at`` zamyka upload.
+    Konferencja prasowa, gala, obóz naukowy czy dzień otwarty niczego w systemie nie otwierają
+    ani nie zamykają – a mimo to są częścią kalendarza, który uczestnik czyta w nagłówku. Dopóki
+    tej tabeli nie było, jedyną drogą na linię czasu był etap zawodów; dopisanie gali wymagałoby
+    więc utworzenia fikcyjnego etapu z fikcyjnym oknem oddawania prac.
+
+    Dlaczego to model, a nie treść redakcyjna: linia czasu układa wydarzenia **względem siebie**
+    (pozycja na osi, kolejność, stan „minione/teraz/przed nami”), więc potrzebuje dat jako dat,
+    a nie jako zdania. Redakcja opisuje wydarzenie słowem na swojej stronie i podlinkowuje je
+    z ``url`` – to jest podział pracy, który obowiązuje w projekcie wszędzie.
+
+    ``ends_on`` puste znaczy „jeden dzień”, a nie „bez końca”: kalendarz nie ma pojęcia wydarzenia
+    bez końca, a pusty koniec w formularzu jest najczęstszym przypadkiem (gala, webinar).
+    """
+
+    edition = models.ForeignKey(Edition, on_delete=models.CASCADE, related_name="events")
+    title = models.CharField("nazwa", max_length=80)
+    starts_on = models.DateField("początek")
+    ends_on = models.DateField("koniec", null=True, blank=True)
+    # Krótki dopisek pod nazwą: „online”, „Kraków, ICE”, „dla nauczycieli”. Wolny tekst, bo to
+    # przypis do jednego wiersza kalendarza, a nie dana, po której cokolwiek filtrujemy.
+    note = models.CharField("dopisek", max_length=120, blank=True)
+    # Adres wewnętrzny (``/warsztaty/``) albo zewnętrzny. Walidację postaci robi serwis
+    # (``apps.competitions.events``), bo ``URLField`` nie przyjąłby ścieżki względnej, a to
+    # najczęstszy przypadek: wydarzenie ma zwykle własną stronę w tym samym serwisie.
+    url = models.CharField("odnośnik", max_length=300, blank=True)
+    # Wyłącznik pojedynczego wiersza. Koordynator wpisuje termin, zanim go ogłosi – a skasowanie
+    # i wpisanie go ponownie za tydzień byłoby utratą tego, co już ustalił.
+    show_on_timeline = models.BooleanField("na linii czasu", default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="dodane przez",
+    )
+    created_at = models.DateTimeField("utworzone", default=timezone.now)
+
+    class Meta:
+        verbose_name = "wydarzenie edycji"
+        verbose_name_plural = "wydarzenia edycji"
+        ordering = ("starts_on", "id")
+        constraints = [
+            # Ostatnia linia obrony przed zapisem z pominięciem ``full_clean()``. Pusty koniec
+            # przechodzi, bo znaczy „jeden dzień”.
+            models.CheckConstraint(
+                condition=Q(ends_on__isnull=True) | Q(ends_on__gte=F("starts_on")),
+                name="competitions_editionevent_ends_after_starts",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.title} ({self.starts_on.isoformat()})"
+
+    def clean(self) -> None:
+        """Ta sama reguła, co constraint – z komunikatem, który da się pokazać pod polem."""
+        super().clean()
+        if self.ends_on is not None and self.starts_on is not None and self.ends_on < self.starts_on:
+            raise ValidationError({"ends_on": "Koniec wydarzenia nie może być przed jego początkiem."})
+
+    @property
+    def date_range(self) -> tuple[date, date]:
+        """Termin jako para ``(początek, koniec)``. Puste ``ends_on`` to wydarzenie jednodniowe.
+
+        Jedno wejście dla wszystkich czytających – tak samo jak ``Stage.event_range`` – żeby
+        nigdzie nie powstał ekran liczący „koniec albo początek” po swojemu.
+        """
+        return (self.starts_on, self.ends_on or self.starts_on)

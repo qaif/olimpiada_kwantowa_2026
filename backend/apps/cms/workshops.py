@@ -62,6 +62,32 @@ def upcoming_workshops(page, *, now=None, limit: int = UPCOMING_LIMIT) -> list[d
     return rows[:limit]
 
 
+def workshop_rows(page) -> list[dict]:
+    """**Wszystkie** warsztaty z odczytaną datą, od najwcześniejszego – dla paska w nagłówku.
+
+    Różnica wobec ``upcoming_workshops`` jest jedna i wynika z pytania, na które odpowiada każda
+    z funkcji. Zapowiedź na stronie głównej pyta „co dalej”, więc odcina przeszłość i kończy na
+    trzech wierszach. Linia czasu w nagłówku pyta „jak wygląda cała edycja” – minione warsztaty
+    są w niej tak samo potrzebne, jak minione etapy, bo to one pokazują, ile drogi już za nami.
+
+    Daty nie parsujemy tutaj: robi to import treści (``legacy_markdown.parse_polish_date``) i to
+    on jest miejscem, w którym polszczyzna zamienia się w ``date``. Wiersz z terminem nieostrym
+    („do potwierdzenia”) nie ma ``date_value`` i po prostu nie trafia na oś – w tabeli na stronie
+    „Warsztaty” stoi normalnie, bo tam jest tekstem, a nie punktem na osi.
+    """
+    if page is None:
+        return []
+    rows = [
+        {"topic": row.get("topic", ""), "date_value": row["date_value"]}
+        for block in page.body
+        if block.block_type == "schedule"
+        for row in block.value.get("rows", [])
+        if isinstance(row.get("date_value"), date)
+    ]
+    rows.sort(key=lambda row: row["date_value"])
+    return rows
+
+
 def _today(now=None) -> date:
     """Dzisiejszy dzień w strefie serwisu. ``now`` (aware albo naive) dla testów bez freezegunu."""
     if now is None:

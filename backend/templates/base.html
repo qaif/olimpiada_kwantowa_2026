@@ -1,4 +1,4 @@
-{% load static web_extras wagtailimages_tags %}<!doctype html>
+{% load static web_extras cms_extras wagtailimages_tags %}<!doctype html>
 <html lang="pl"{% if settings.cms.SiteSettings.ga_measurement_id %} data-ga-id="{{ settings.cms.SiteSettings.ga_measurement_id }}"{% endif %}>
 <head>
   {% comment %}
@@ -66,6 +66,12 @@
   {% endcomment %}
   <script nonce="{{ request.csp_nonce }}" src="{% static 'js/consent.js' %}"></script>
   <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/sticky-bar.js' %}"></script>
+  {% comment %}
+    Linia czasu w nagłówku jest kompletna bez tego skryptu – serwer rysuje pasek, podpisy i
+    głowicę. Skrypt dokłada dwie rzeczy, których serwer dać nie może: przesuwa głowicę w karcie
+    zostawionej otwartej (bez przeładowania) i rysuje warstwę „pomiaru” pod kursorem.
+  {% endcomment %}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/timeline-strip.js' %}"></script>
   {% comment %}
     Miejsce na skrypty potrzebne tylko na niektórych stronach – dziś jest tu wyłącznie
     wyszukiwarka szkół w rejestracji (``js/school-picker.js``), która **nie** jest już komponentem
@@ -228,6 +234,15 @@
       {% endfor %}
     </nav>
   </div>
+  {% comment %}
+    Linia czasu edycji – pod wierszem menu serwisu i **poza** przyklejonym paskiem konta.
+    Poza nim celowo: pasek konta przykleja się do krawędzi okna i ma zostać krótki, a linia czasu
+    jest kalendarzem do przeczytania raz, a nie skrótem trzymanym pod ręką przez całą stronę.
+    Nagłówek renderuje się na każdej stronie serwisu (żaden szablon go nie nadpisuje), więc blok
+    jest tu jedynym wyłącznikiem: szablon, któremu pasek przeszkadza, nadpisuje ``timeline_strip``
+    pustką. Bez bieżącej edycji znacznik nie rysuje niczego.
+  {% endcomment %}
+  {% block timeline_strip %}{% timeline_strip_block %}{% endblock %}
 </header>
 
 {% if messages %}

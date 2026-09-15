@@ -8,6 +8,7 @@ from django.contrib import admin
 
 from .models import (
     Edition,
+    EditionEvent,
     InterviewBooking,
     InterviewSlot,
     Problem,
@@ -95,6 +96,22 @@ class StageAdmin(admin.ModelAdmin):
         """Etap z admina ma zawsze skalę i próg – tak jak etap z ``create_stage``."""
         super().save_related(request, form, formsets, change)
         ensure_stage_defaults(form.instance)
+
+
+@admin.register(EditionEvent)
+class EditionEventAdmin(admin.ModelAdmin):
+    """Wydarzenia linii czasu. Dopisuje je koordynator w panelu – tu podgląd i awaryjna korekta.
+
+    Zapis stąd **nie zostawia** wpisu audytowego i nie czyści bufora linii czasu (robi to serwis
+    ``apps.competitions.events``), więc zmiana zrobiona tędy pokaże się w nagłówku dopiero po
+    wygaśnięciu bufora. To jest powód, dla którego ten ekran jest awaryjny, a nie codzienny.
+    """
+
+    list_display = ("edition", "title", "starts_on", "ends_on", "show_on_timeline", "created_by")
+    list_filter = ("edition", "show_on_timeline")
+    search_fields = ("title", "note")
+    date_hierarchy = "starts_on"
+    readonly_fields = ("created_at",)
 
 
 @admin.register(ScoringScale)

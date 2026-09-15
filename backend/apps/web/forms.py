@@ -24,6 +24,7 @@ from apps.accounts.services import (
     parse_email_list,
 )
 from apps.appeals.models import MAX_TEXT_LENGTH, MIN_ARGUMENT_LENGTH, AppealStatus
+from apps.competitions.events import EVENT_EDITABLE_FIELDS
 from apps.competitions.interviews import (
     MAX_DURATION_MINUTES,
     MAX_SLOT_CAPACITY,
@@ -36,6 +37,7 @@ from apps.competitions.models import (
     MAX_FILE_MB_LIMIT,
     SUPPORTED_FILE_FORMATS,
     Edition,
+    EditionEvent,
     Problem,
     Stage,
 )
@@ -1030,6 +1032,64 @@ class StageCreateForm(StageForm):
     def __init__(self, *args, kind_choices=(), **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["kind"].choices = list(kind_choices)
+
+
+class EditionEventForm(forms.ModelForm):
+    """Wydarzenie edycji na linii czasu w nagłówku – dodawane i zmieniane przez koordynatora.
+
+    Formularz jest celowo ubogi: nazwa, dwie daty, dopisek, odnośnik i wyłącznik. Wszystko, co
+    system **egzekwuje** (okno uploadu, terminy recenzji, okno reklamacji), zostaje w ``StageForm``
+    – tutaj wpisuje się kalendarz, o którym serwis tylko informuje, i dlatego nie ma tu ani jednej
+    godziny. Gala zaczyna się „12 czerwca”, a nie „12 czerwca o 17:00 czasu polskiego”; godzina
+    jest treścią zaproszenia, a nie punktem na osi.
+
+    Kolejność dat pilnuje ``EditionEvent.full_clean()`` (ModelForm woła je w ``_post_clean``), więc
+    komunikat staje pod polem „koniec”, a nie w chmurce nad formularzem – i nie ma drugiej kopii
+    tej reguły w warstwie WWW. Postać odnośnika sprawdza serwis (``apps.competitions.events``):
+    to reguła bezpieczeństwa, a nie formatowania pola, więc musi obowiązywać każdego wywołującego.
+    """
+
+    class Meta:
+        model = EditionEvent
+        fields = EVENT_EDITABLE_FIELDS
+        field_classes = {"starts_on": DayField, "ends_on": DayField}
+        labels = {
+            "title": "Nazwa wydarzenia",
+            "starts_on": "Termin (od / do)",
+            # Drugie pole tej samej rubryki nie powtarza podpisu – to jeden termin w dwóch polach,
+            # tak samo jak „Termin wydarzenia” w formularzu etapu.
+            "ends_on": "do",
+            "note": "Dopisek",
+            "url": "Odnośnik",
+            "show_on_timeline": "Pokazuj na linii czasu",
+        }
+        help_texts = {
+            "title": "Krótko – ta nazwa staje nad paskiem w nagłówku, np. „Gala finałowa”.",
+            "starts_on": "Dzień, w którym wydarzenie się zaczyna.",
+            "ends_on": "Puste = wydarzenie jednodniowe.",
+            "note": "Miejsce albo tryb, np. „online”, „Kraków, ICE”. Widoczny w liście pod paskiem.",
+            "url": (
+                "Adres strony wydarzenia: ścieżka w tym serwisie („/warsztaty/”) albo pełny adres "
+                "„https://…”. Puste = nazwa nie będzie odnośnikiem."
+            ),
+            "show_on_timeline": (
+                "Odznacz, żeby przygotować termin, zanim go ogłosisz. Wydarzenie zostaje na tej "
+                "liście, ale nie pokazuje się w nagłówku serwisu."
+            ),
+        }
+
+    def changed_values(self) -> dict:
+        """Pola, które koordynator faktycznie zmienił – żeby audyt nie notował pustych zapisów.
+
+        Bez tego samo otwarcie formularza i kliknięcie „Zapisz” zostawiałoby w historii wpis
+        o zmianie sześciu pól, z których żadne się nie zmieniło. Porównanie jest proste (daty
+        z pola ``date`` nie mają rozdzielczości do uzgodnienia, inaczej niż terminy etapu).
+        """
+        return {
+            name: value
+            for name, value in self.cleaned_data.items()
+            if name in EVENT_EDITABLE_FIELDS and self.initial.get(name) != value
+        }
 
 
 class ProblemForm(forms.ModelForm):

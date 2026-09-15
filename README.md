@@ -944,6 +944,58 @@ każdym żądaniu, wiersz harmonogramu ma obok tekstowego terminu opcjonalną **
 w `ScheduleRowBlock`, wypełniana przy imporcie przez `legacy_markdown.parse_polish_date`). Termin
 nieostry („do potwierdzenia”) zostaje bez daty: stoi w tabeli, ale nie trafia do zapowiedzi.
 
+#### 6.3b Linia czasu w nagłówku (pasek „terminalowy”)
+
+Pod menu serwisu, na **każdej** stronie, stoi wąski pasek wzorowany na nagłówku `oi.edu.pl`: dwa
+wiersze „kodu” (`rok_szkolny(2026, 2027);`, `edycja(XV);`) i bracketowany wykres postępu edycji
+`[|===>...............|......]`. `=` to czas miniony, `>` — dzisiaj, `.` — to, co przed nami.
+Kolory znaczą stan: **niebieski** = minione, **czerwony** = trwa, **zielony** = przed nami.
+
+**Skąd biorą się terminy.** Pasek scala **cztery** źródła (`apps.cms.timeline.timeline_events`),
+bo tyle jest w tej olimpiadzie rodzajów terminu i każdy mieszka gdzie indziej:
+
+| źródło | co trafia na pasek |
+| --- | --- |
+| `competitions.Stage` | etapy zawodów bez treningowego; termin = dni wydarzenia (`event_range`), a bez nich okno `opens_at`…`deadline_at`. Odnośnik pojawia się dopiero po ogłoszeniu wyników |
+| `competitions.EditionEvent` | wydarzenia dopisane przez koordynatora (patrz niżej) |
+| `Edition.registration_opens_at` / `…closes_at` | „Rejestracja uczestników”, o ile rejestracja jest włączona i ma datę otwarcia |
+| tabela na `/warsztaty/` | warsztaty **zgrupowane po miesiącu** („Warsztaty (3)”), żeby kilkanaście terminów nie zamieniło osi w grzebień. Pełna lista terminów jest w zwiniętym kalendarzu i w `aria-label` znacznika; wiersz bez odczytanej daty jest pomijany |
+
+Oś idzie od najwcześniejszego początku do najpóźniejszego końca; edycja z mniej niż dwoma
+terminami dostaje zamiast tego cały rok szkolny (1 IX – 31 VIII), bo oś długości jednego
+wydarzenia nie niosłaby żadnej informacji.
+
+**Jak to jest zbudowane.** Wszystko liczy serwer — strona z wyłączonym JavaScriptem ma komplet
+terminów, właściwie ustawioną głowicę i działające dymki. Wydarzenia stoją **na** linii jako
+kreski `|`; nazwa i termin pokazują się po najechaniu albo po wejściu klawiszem, jako **nakładka**
+(`position: absolute`), więc pojawienie się dymka nie zmienia ani szerokości, ani wysokości paska.
+Szerokość wykresu wynika wyłącznie z kontenera (`container-type: inline-size` + `cqw`), nigdy
+z treści. Poniżej 640 px wykres znika, a kalendarz zostaje **zwiniętym** `<details>` z jednym
+zdaniem („co teraz”) — rozwinięta lista zajmowałaby pół pierwszego ekranu na każdej stronie.
+
+`static/js/timeline-strip.js` dokłada dwie rzeczy, których serwer dać nie może: co minutę
+przesuwa głowicę (z `data-axis-start`/`data-axis-end`), żeby karta zostawiona otwartą przez noc
+nie pokazywała wczorajszego stanu, i rysuje pod kursorem warstwę „pomiaru” — paczkę falową, która
+po najechaniu na wydarzenie zapada się w pik nad nim (`|ψ|²`, ~30 kl./s, tylko pod kursorem).
+Animacja wejścia, migający kursor i warstwa „pomiaru” znikają przy `prefers-reduced-motion:
+reduce` i na ekranach dotykowych.
+
+**Bufor: 5 minut.** Pasek renderuje się przy każdym żądaniu HTML i kosztuje cztery zapytania, więc
+wynik siedzi w `django.core.cache` pod kluczem `cms:timeline-strip:<edycja>`. Zapis z panelu
+koordynatora **czyści go od razu** (`apps.competitions.events` → `invalidate_timeline_cache`),
+więc dopisane wydarzenie widać natychmiast. Pięć minut opóźnienia dotyczy wyłącznie zmian robionych
+inną drogą: terminów etapu, okna rejestracji i treści strony warsztatów.
+
+**Koordynator dodaje wydarzenia** w `/coordinator/events/` (odnośnik „Wydarzenia (linia czasu)”
+obok „Dodaj etap” na pulpicie). Wydarzenie ma nazwę, dzień początku, opcjonalny dzień końca
+(pusty = jednodniowe), dopisek („online”, „Kraków, ICE”), opcjonalny odnośnik i wyłącznik
+„Pokazuj na linii czasu” (wiersz schowany zostaje na liście koordynatora — inaczej nie dałoby się
+go odsłonić). Godzin się tu nie podaje: to kalendarz **ogłaszany**, a nie egzekwowany — wydarzenie
+niczego w systemie nie otwiera ani nie zamyka. Odnośnik musi być adresem `http(s)://…` albo ścieżką
+w tym serwisie (`/warsztaty/`); `javascript:` i `//obcy.host/` są odrzucane, bo w ten odnośnik
+klika publiczność. Każda operacja zostawia wpis audytowy (`event.created` / `event.updated`
+z różnicą pól / `event.deleted` z pełną treścią skasowanego terminu).
+
 #### 6.3c Etap treningowy (`seed_training_problems`)
 
 Do czego jest: żeby przejść **całą** ścieżkę portalu na działającym serwisie — rejestracja →

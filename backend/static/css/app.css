@@ -854,6 +854,341 @@ hr {
   }
 }
 
+/* --- Linia czasu edycji (pasek „terminalowy” w nagłówku) ------------------------------------- */
+/*
+   Pasek jest jedną linijką znaków monospace i **nie wolno mu rozepchnąć kolumny treści**.
+   Pierwsza wersja miała nad i pod wykresem wiersze podpisów wyliczone w spacjach; to one
+   decydowały o szerokości i to one rozciągały nagłówek. Teraz wydarzenia stoją na linii jako
+   kreski, a nazwa i termin są **nakładką** (``.tl__tip``, ``position: absolute``): pojawiają się
+   i znikają, nie zmieniając ani szerokości, ani wysokości paska.
+
+   Szerokość wykresu wynika wyłącznie z kontenera, nigdy z treści. ``.timeline-strip`` jest
+   kontenerem zapytań (``container-type: inline-size``), a krój skaluje się jednostką ``cqw``.
+   Dzielnik wzięliśmy z pomiaru, nie z metryki kroju: 102 znaki (klamry plus sto komórek) zajmują
+   w przeglądarce ok. 0,69 em każdy, czyli ok. 70 em razem, a przy małych rozmiarach krok znaku
+   jeszcze rośnie przez zaokrąglanie. Dzielnik 76 zostawia na to ok. 8% zapasu; górne 15 px to
+   granica, powyżej której wykres i tak nie zmieściłby się w kolumnie treści. Deklaracja ``vw``
+   nad nią jest awaryjna – przeglądarka bez zapytań kontenerowych po prostu jej nie nadpisze.
+
+   Trzy kolory stanu stoją na granacie nagłówka, więc żaden nie jest tym samym odcieniem, co
+   w treści strony: niebieski i zielony są rozjaśnione do kontrastu ≥ 4.5:1 z ``--brand``,
+   a „teraz” bierze gotową rolę ``--accent-on-brand`` (czerwień 300) – jedyną czerwień
+   w serwisie czytelną na granacie.
+
+   Poniżej 640 px wykres znika i zostaje z niego lista zdaniami (``.tl-list``): na telefonie nie
+   ma najechania, więc dymek nigdy by się nie pokazał, a 102 znaki miałyby wysokość dwóch pikseli.
+   Obie postacie są rozłączne (``display: none``), więc czytnik ekranu nigdy nie czyta ich obu. */
+
+.timeline-strip {
+  position: relative;
+  container-type: inline-size;
+  max-width: var(--container);
+  margin: 0 auto;
+  /* Dolny odstęp jest miejscem, w które wchodzi dymek – rezerwujemy je na stałe, żeby pojawienie
+     się dymka nie przesuwało niczego pod nagłówkiem. */
+  padding: 0 var(--sp-4) 2.25rem;
+
+  --tl-past: #8fb4e6;
+  --tl-current: var(--accent-on-brand);
+  --tl-upcoming: #7fd0aa;
+  --tl-idle: rgba(244, 241, 232, 0.58);
+  --tl-ink: rgba(244, 241, 232, 0.88);
+}
+
+.tl {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  max-width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: clamp(0.4rem, 1vw, 0.8rem);
+  font-size: clamp(6px, calc(100cqw / 76), 15px);
+  /* Twarda granica na wypadek kroju o szerszym kroku, niż zakłada dzielnik wyżej: wykres zostaje
+     przycięty, zamiast rozepchnąć stronę. ``clip`` zamiast ``hidden`` **tylko w poziomie**, bo
+     dymek jest nakładką wychodzącą w dół i nie wolno go uciąć. */
+  overflow-x: clip;
+  overflow-y: visible;
+  line-height: 1.5;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--tl-idle);
+  white-space: pre;
+}
+
+.tl__code {
+  color: rgba(244, 241, 232, 0.6);
+  font-weight: 400;
+}
+
+/* Opakowanie samego wykresu. Istnieje po to, żeby animacja wejścia (``clip-path``) przycinała
+   **wykres**, a nie cały blok: przy przycinaniu ``<pre>`` znikały razem z nim wiersze „kodu”,
+   a w karcie w tle, gdzie przeglądarka wstrzymuje animacje, pasek zostawał ucięty w połowie. */
+.tl__bar {
+  display: inline-block;
+}
+
+.tl__bracket {
+  color: rgba(244, 241, 232, 0.5);
+}
+
+.tl__c--past {
+  color: var(--tl-past);
+}
+
+.tl__c--current {
+  color: var(--tl-current);
+}
+
+.tl__c--upcoming {
+  color: var(--tl-upcoming);
+}
+
+.tl__head {
+  color: #fff;
+  animation: tl-caret 1.1s steps(1, end) infinite;
+}
+
+/* Znacznik wydarzenia: kreska na linii, która jest odnośnikiem albo przyciskiem. Reset przycisku
+   jest tu konieczny – bez niego natywne tło, obrys i krój rozerwałyby siatkę znaków. */
+.tl__mark {
+  position: relative;
+  appearance: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  color: var(--tl-ink);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.tl__mark:hover,
+.tl__mark:focus-visible {
+  color: #fff;
+}
+
+/* Dymek: nakładka nad paskiem, poza przepływem. Nie ma go w drzewie dostępności (``aria-hidden``)
+   – czytnik ekranu czyta ``aria-label`` znacznika, czyli tę samą treść dokładnie raz. */
+.tl__tip {
+  position: absolute;
+  top: 1.7em;
+  z-index: 3;
+  display: block;
+  min-width: max-content;
+  padding: var(--sp-1) var(--sp-2);
+  border: 1px solid rgba(244, 241, 232, 0.22);
+  border-radius: var(--radius-sm);
+  background: var(--navy-900);
+  color: #f4f1e8;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: normal;
+  line-height: 1.5;
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 140ms ease-out;
+}
+
+/* Przy krawędziach dymek przykleja się do znacznika zamiast być nad nim wyśrodkowany – inaczej
+   wystawałby poza kolumnę treści. Klasę dobiera serwer z numeru komórki (``timeline._tip_class``),
+   bo ma to działać także bez JavaScriptu. */
+.tl__tip--mid {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.tl__tip--start {
+  left: 0;
+}
+
+.tl__tip--end {
+  right: 0;
+}
+
+.tl__mark:hover .tl__tip,
+.tl__mark:focus .tl__tip,
+.tl__mark:focus-visible .tl__tip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.tl__tip-row {
+  display: block;
+}
+
+.tl__tip-title {
+  font-weight: 600;
+}
+
+/* Odstępy między nazwą, terminem i dopiskiem robi arkusz, a nie spacja w szablonie: dymek stoi
+   w bloku ``{% spaceless %}``, który spacje między znacznikami usuwa – i ma je usuwać, bo w
+   ``<pre>`` każda z nich byłaby widocznym znakiem paska. */
+.tl__tip-dates {
+  margin-left: 0.45em;
+  color: rgba(244, 241, 232, 0.72);
+  font-variant-numeric: tabular-nums;
+}
+
+.tl__tip-note {
+  margin-left: 0.45em;
+  color: rgba(244, 241, 232, 0.6);
+  font-style: italic;
+}
+
+/* Warstwa „pomiaru”: paczka falowa rysowana przez static/js/timeline-strip.js wyłącznie pod
+   kursorem. Leży pod paskiem i nie łapie zdarzeń myszy – gdyby je łapała, nie dałoby się
+   najechać na znacznik, który jest pod nią. Bez skryptu płótno ma rozmiar 0×0. */
+.tl__quantum {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 240ms ease-out;
+}
+
+.timeline-strip.is-measuring .tl__quantum {
+  opacity: 1;
+}
+
+/* Na dotyku nie ma stanu „najechania”: warstwa nigdy by się nie pokazała, a płótno kosztowałoby
+   pamięć na każdej stronie. */
+@media (hover: none) {
+  .tl__quantum {
+    display: none;
+  }
+}
+
+/* Zwinięty kalendarz: postać paska na telefonie. Na szerokim ekranie nie ma go wcale (``display:
+   none`` wyjmuje go także z drzewa dostępności), bo tam informację niosą znaczniki i ich dymki. */
+.tl-list {
+  display: none;
+}
+
+.tl-list__summary {
+  padding: var(--sp-1) 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: rgba(244, 241, 232, 0.82);
+  cursor: pointer;
+}
+
+.tl-list__items {
+  margin: 0 0 var(--sp-1);
+  padding: 0;
+  list-style: none;
+}
+
+.tl-list__item {
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: rgba(244, 241, 232, 0.82);
+}
+
+.tl-list__mark {
+  color: rgba(244, 241, 232, 0.5);
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+.tl-list__item--past .tl-list__mark {
+  color: var(--tl-past);
+}
+
+.tl-list__item--current .tl-list__mark {
+  color: var(--tl-current);
+}
+
+.tl-list__item--upcoming .tl-list__mark {
+  color: var(--tl-upcoming);
+}
+
+.tl-list__title {
+  color: #f4f1e8;
+  font-weight: 600;
+}
+
+.tl-list__item--current .tl-list__title {
+  color: var(--tl-current);
+}
+
+.tl-list__dates {
+  color: rgba(244, 241, 232, 0.66);
+  font-variant-numeric: tabular-nums;
+}
+
+.tl-list__note {
+  color: rgba(244, 241, 232, 0.55);
+  font-style: italic;
+}
+
+.tl-list__children {
+  margin: 0 0 0 var(--sp-4);
+  padding: 0;
+  list-style: none;
+  color: rgba(244, 241, 232, 0.66);
+}
+
+@media (max-width: 639px) {
+  .tl {
+    display: none;
+  }
+
+  .tl-list {
+    display: block;
+  }
+
+  .timeline-strip {
+    padding-bottom: var(--sp-3);
+  }
+}
+
+/* Animacje. Klasę ``is-animated`` nadaje skrypt po wczytaniu strony, więc bez JavaScriptu pasek
+   jest po prostu narysowany – nic nie „dojeżdża”. Kursor terminala miga z samego arkusza, bo to
+   jedna reguła i nie ma czego degradować. */
+@keyframes tl-caret {
+  0%,
+  49% {
+    opacity: 1;
+  }
+
+  50%,
+  100% {
+    opacity: 0.2;
+  }
+}
+
+@keyframes tl-draw {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+.timeline-strip.is-animated .tl__bar {
+  animation: tl-draw 1.2s steps(34, end);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tl__head,
+  .timeline-strip.is-animated .tl__bar {
+    animation: none;
+  }
+
+  .tl__quantum {
+    display: none;
+  }
+}
+
 .page {
   flex: 1 0 auto;
   width: 100%;
@@ -1363,8 +1698,10 @@ a.btn {
   cursor: not-allowed;
 }
 
-/* Przyciski poza systemem klas (fallback dla formularzy Django). */
-button:not(.btn):not(.link) {
+/* Przyciski poza systemem klas (fallback dla formularzy Django). Znacznik linii czasu
+   (``.tl__mark``) jest z tego wyjęty razem z ``.link``: to nie jest przycisk formularza, tylko
+   jeden znak w siatce monospace – tło, obrys i minimalna wysokość rozerwałyby pasek. */
+button:not(.btn):not(.link):not(.tl__mark) {
   font: inherit;
   font-size: 0.9375rem;
   font-weight: 600;

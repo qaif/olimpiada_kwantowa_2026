@@ -10,14 +10,19 @@ niż ten, który egzekwuje serwer.
 
 from __future__ import annotations
 
+import re
 from datetime import date
 
+from django.core.cache import cache
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.formats import date_format
 
 from apps.competitions.models import Edition, Stage, StageKind
 from apps.competitions.services import current_edition
 from apps.results.models import ResultsPublication
+
+from .workshops import WORKSHOPS_SLUG, workshop_rows
 
 #: Stan etapu na osi czasu. Klucz jest maszynowy (klasa CSS, test), etykieta – dla czytelnika.
 #: Kolejność jest kolejnością rozstrzygania: ogłoszone wyniki wygrywają z „zamknięty”, bo to
@@ -142,3 +147,530 @@ def stage_rows(edition: Edition | None = None, now=None) -> list[dict]:
             }
         )
     return rows
+
+
+# --- pasek linii czasu w nagłówku ---------------------------------------------------------------
+#
+# Dalsza część modułu obsługuje **drugą** oś czasu w serwisie: wąski pasek „terminalowy” stojący
+# w nagłówku każdej strony (wzorowany na oi.edu.pl). Stoi tu, a nie w osobnym module, bo pyta
+# dokładnie o to samo, co ``stage_rows`` – „co się w tej edycji dzieje i kiedy” – i musi
+# odpowiadać tak samo. Różnica jest w zakresie i w postaci: strona główna opisuje **etapy**
+# w tabeli, a pasek składa **cały kalendarz edycji** (etapy, wydarzenia koordynatora, warsztaty,
+# okno rejestracji) w jedną linijkę znaków.
+
+#: Ile komórek ma pasek. Setka jest wygodna dwa razy: ułamek upływu osi to wprost numer komórki,
+#: a cały pasek (102 znaki z klamrami) mieści się w jednym wierszu monospace w rozmiarze, który
+#: na desktopie jest jeszcze czytelny. Skalowanie do szerokości okna robi arkusz (``clamp``),
+#: a nie ta liczba – inaczej ta sama strona miałaby różną treść na różnych ekranach.
+BAR_SIZE = 100
+
+#: Stan wydarzenia na pasku. Trzy, a nie cztery jak w tabeli etapów: pasek nie ma miejsca na
+#: rozróżnienie „zamknięty” od „wyniki ogłoszone”, a odpowiada na pytanie „gdzie jesteśmy”.
+TL_PAST = "past"
+TL_CURRENT = "current"
+TL_UPCOMING = "upcoming"
+
+#: Pierwszeństwo przy nakładaniu się wydarzeń na tej samej komórce. „Teraz” wygrywa zawsze:
+#: czerwony odcinek jest jedyną informacją, dla której czytelnik w ogóle patrzy na pasek, więc
+#: nie może go przykryć sąsiad, który akurat zaczyna się tego samego dnia.
+_STATUS_PRIORITY = {TL_PAST: 0, TL_UPCOMING: 1, TL_CURRENT: 2}
+
+#: Od której komórki dymek przestaje być wyśrodkowany nad znacznikiem i przykleja się do jego
+#: lewej (albo prawej) krawędzi. Bez tego dymek pierwszego i ostatniego wydarzenia wystawałby
+#: poza pasek – a pasek stoi w kolumnie treści nagłówka i nie wolno mu jej rozepchnąć.
+TIP_EDGE_CELLS = 20
+
+#: Klucz i czas życia bufora. Pięć minut to kompromis: pasek renderuje się na **każdej** stronie,
+#: a kalendarz edycji zmienia się kilka razy w roku. Wydarzenia koordynatora czyszczą bufor same
+#: (``invalidate_timeline_cache``), więc pięć minut dotyczy wyłącznie zmian robionych inną drogą
+#: (etapy z panelu, treść strony warsztatów, okno rejestracji).
+CACHE_PREFIX = "cms:timeline-strip"
+CACHE_TTL_SECONDS = 300
+
+#: „I edycja 2026/2027”, „XV (2026/2027)” – z obu wyjmujemy rocznik szkolny i numer edycji.
+#: Czytamy ``year_label``, bo to jedyne miejsce, w którym numer edycji w ogóle istnieje; brak
+#: dopasowania nie jest awarią, tylko brakiem nagłówka nad paskiem.
+SCHOOL_YEAR_RE = re.compile(r"(\d{4})\s*/\s*(\d{4})")
+EDITION_NUMBER_RE = re.compile(r"^\s*([IVXLCDM]+|\d+)(?=[\s.)]|$)")
+
+#: Pierwszy i ostatni dzień roku szkolnego – oś zapasowa dla edycji, która ma mniej niż dwa
+#: wydarzenia. Bez niej oś miałaby zerową długość i cały pasek byłby jedną komórką.
+SCHOOL_YEAR_START = (9, 1)
+SCHOOL_YEAR_END = (8, 31)
+
+#: Ile wydarzeń musi mieć edycja, żeby oś dało się policzyć z nich samych.
+MIN_ITEMS_FOR_AXIS = 2
+
+
+def format_compact_range(start: date, end: date) -> str:
+    """Termin w postaci, która mieści się pod komórką paska: „20.11.2026”, „12.10 – 16.11.2026”.
+
+    Osobno od ``format_date_range``, bo to inny nośnik, a nie inny gust: tam jest zdanie
+    ogłoszenia („4–7 czerwca 2027”) czytane w akapicie, tutaj – podpis w siatce znaków, w której
+    „30 maja – 2 czerwca 2027” zajmuje jedną piątą całej osi i zasłania sąsiadów. Liczby są
+    dwucyfrowe, żeby podpisy dwóch wydarzeń miały tę samą szerokość i kolumny się nie rozjeżdżały.
+    """
+    if start == end:
+        return f"{start.day:02d}.{start.month:02d}.{start.year}"
+    if start.year == end.year:
+        return f"{start.day:02d}.{start.month:02d} {DASH} {end.day:02d}.{end.month:02d}.{end.year}"
+    return f"{start.day:02d}.{start.month:02d}.{start.year} {DASH} {end.day:02d}.{end.month:02d}.{end.year}"
+
+
+def _localdate(now=None) -> date:
+    """Dzisiejszy dzień w strefie serwisu. ``now`` (aware albo naive) dla testów bez freezegunu."""
+    if now is None:
+        return timezone.localdate()
+    if timezone.is_aware(now):
+        return timezone.localtime(now).date()
+    return now.date()
+
+
+def _status_for(start: date, end: date, today: date) -> str:
+    """Stan wydarzenia względem dzisiaj. „Teraz” obejmuje oba końce zakresu.
+
+    Granicą jest **dzień**, a nie godzina, i to jest świadome: pasek ogłasza kalendarz, a nie
+    okno uploadu. Etap, którego deadline mija dziś o 23:59, przez cały dzień jest „teraz” –
+    inaczej od rana wyglądałby na miniony.
+    """
+    if end < today:
+        return TL_PAST
+    if start > today:
+        return TL_UPCOMING
+    return TL_CURRENT
+
+
+def _stage_items(edition: Edition, today: date) -> list[dict]:
+    """Etapy zawodów jako wydarzenia paska – bez treningowego, jak wszędzie na osi czasu.
+
+    Termin bierzemy stąd, skąd bierze go reszta serwisu: wpisane dni wydarzenia mają
+    pierwszeństwo przed oknem oddawania prac (patrz ``stage_date_range``). Odnośnik pojawia się
+    dopiero z ogłoszonymi wynikami – wcześniej nie ma dokąd prowadzić, a link do pustej tabeli
+    byłby obietnicą bez pokrycia.
+    """
+    stages = list(edition.stages.exclude(kind=StageKind.TRAINING).order_by("opens_at", "id"))
+    published = set(ResultsPublication.objects.filter(stage__in=stages).values_list("stage_id", flat=True))
+    items = []
+    for stage in stages:
+        event_range = stage.event_range
+        if event_range is not None:
+            start, end = event_range
+        else:
+            start = timezone.localtime(stage.opens_at).date()
+            end = timezone.localtime(stage.deadline_at).date()
+        items.append(
+            _item(
+                kind="stage",
+                title=stage.display_name,
+                start=start,
+                end=end,
+                today=today,
+                url=reverse("web:results", args=[stage.pk]) if stage.pk in published else "",
+                note=stage.location,
+            )
+        )
+    return items
+
+
+def _event_items(edition: Edition, today: date) -> list[dict]:
+    """Wydarzenia dopisane przez koordynatora (``competitions.EditionEvent``)."""
+    events = edition.events.filter(show_on_timeline=True).order_by("starts_on", "id")
+    return [
+        _item(
+            kind="event",
+            title=event.title,
+            start=event.date_range[0],
+            end=event.date_range[1],
+            today=today,
+            url=event.url,
+            note=event.note,
+        )
+        for event in events
+    ]
+
+
+def _registration_item(edition: Edition, today: date) -> list[dict]:
+    """Okno rejestracji uczestników jako jedno wydarzenie – o ile w ogóle jest oknem.
+
+    Wyłączona rejestracja nie trafia na pasek nawet z wpisanymi terminami: pasek ogłaszałby
+    wtedy termin, pod którym stoi formularz odmawiający założenia konta. Bez daty otwarcia też
+    nie ma czego ogłaszać – „od zaraz do odwołania” nie jest odcinkiem na osi.
+    """
+    if not edition.registration_enabled or edition.registration_opens_at is None:
+        return []
+    start = timezone.localtime(edition.registration_opens_at).date()
+    end = (
+        timezone.localtime(edition.registration_closes_at).date()
+        if edition.registration_closes_at is not None
+        else start
+    )
+    return [
+        _item(
+            kind="registration",
+            title="Rejestracja uczestników",
+            start=start,
+            end=end,
+            today=today,
+            url=reverse("web:register"),
+            note="",
+        )
+    ]
+
+
+def _workshop_items(today: date) -> list[dict]:
+    """Warsztaty z tabeli na ``/warsztaty/`` – zgrupowane po miesiącu, żeby nie zjadły osi.
+
+    Warsztatów jest w edycji kilkanaście: każdy jako osobna komórka zamieniłby pasek w grzebień,
+    w którym nie widać ani etapów, ani tego, gdzie jesteśmy. Miesiąc jest dobrym krokiem
+    grupowania, bo tak wygląda sam harmonogram organizatora (jeden–dwa warsztaty na miesiąc)
+    i tak czyta się go na głos („warsztaty listopadowe”). Pełna lista terminów nie ginie:
+    idzie do ``children`` i stoi w liście pod paskiem, czytanej też przez czytnik ekranu.
+
+    Wiersz bez odczytanej daty jest pomijany – dokładnie tak, jak w zapowiedzi na stronie
+    głównej (``upcoming_workshops``): pasek umie ustawić tylko to, co da się porównać z zegarem.
+
+    Import modelu jest w środku funkcji, bo ``apps.cms.models`` importuje ten moduł – na poziomie
+    pliku byłby to cykl. To ta sama droga, którą chodzi audyt w serwisach domenowych.
+    """
+    from .models import ContentPage
+
+    page = ContentPage.objects.live().filter(slug=WORKSHOPS_SLUG).first()
+    rows = workshop_rows(page)
+    if not rows:
+        return []
+
+    groups: dict[tuple[int, int], list[dict]] = {}
+    for row in rows:
+        groups.setdefault((row["date_value"].year, row["date_value"].month), []).append(row)
+
+    items = []
+    for _month, members in sorted(groups.items()):
+        days = [row["date_value"] for row in members]
+        title = f"Warsztaty: {members[0]['topic']}" if len(members) == 1 else f"Warsztaty ({len(members)})"
+        items.append(
+            _item(
+                kind="workshop",
+                title=title,
+                start=min(days),
+                end=max(days),
+                today=today,
+                url=f"/{WORKSHOPS_SLUG}/",
+                note="online",
+                children=[
+                    {
+                        "title": row["topic"],
+                        "dates": format_compact_range(row["date_value"], row["date_value"]),
+                    }
+                    for row in sorted(members, key=lambda row: row["date_value"])
+                ],
+            )
+        )
+    return items
+
+
+def _item(
+    *,
+    kind: str,
+    title: str,
+    start: date,
+    end: date,
+    today: date,
+    url: str = "",
+    note: str = "",
+    children: list[dict] | None = None,
+) -> dict:
+    """Jeden wiersz kalendarza w postaci, którą rozumie i szablon, i upakowanie etykiet."""
+    return {
+        "kind": kind,
+        "title": title,
+        "start": start,
+        "end": end,
+        "status": _status_for(start, end, today),
+        "dates": format_compact_range(start, end),
+        "url": url or "",
+        "note": note or "",
+        "children": children or [],
+    }
+
+
+def timeline_events(edition: Edition | None = None, now=None) -> list[dict]:
+    """Cały kalendarz edycji w jednej liście, uporządkowany po dacie początku.
+
+    Cztery źródła, bo tyle jest rodzajów terminu w tej olimpiadzie i każdy mieszka gdzie indziej:
+    etapy i okno rejestracji w ``competitions`` (serwer ich pilnuje), warsztaty w treści
+    redakcyjnej (nikt ich nie egzekwuje), a wydarzenia koordynatora we własnej tabeli. Pasek ma
+    być **jednym** kalendarzem, więc scalanie jest tutaj – gdyby robił je szablon, każdy ekran
+    składałby inny zestaw.
+
+    Każda pozycja niesie już swój stan (``past``/``current``/``upcoming``) policzony względem
+    **dnia** w strefie serwisu; pozycji na osi tu nie ma, bo osi jeszcze nie znamy – dokłada ją
+    ``timeline_strip``, kiedy zna już komplet wydarzeń.
+    """
+    if edition is None:
+        edition = current_edition()
+    if edition is None:
+        return []
+    today = _localdate(now)
+    items = [
+        *_stage_items(edition, today),
+        *_event_items(edition, today),
+        *_registration_item(edition, today),
+        *_workshop_items(today),
+    ]
+    items.sort(key=lambda item: (item["start"], item["end"], item["title"]))
+    return items
+
+
+def _school_year(edition: Edition, today: date) -> tuple[int, int]:
+    """Rocznik szkolny edycji: z ``year_label``, a w ostateczności z kalendarza.
+
+    Zapasowe liczenie z dzisiejszej daty nie jest zgadywaniem na ślepo – rok szkolny zaczyna się
+    we wrześniu i tylko to trzeba wiedzieć. Edycja testowa albo etykieta bez rocznika dostaje
+    dzięki temu sensowną oś zamiast wyjątku w środku nagłówka strony.
+    """
+    match = SCHOOL_YEAR_RE.search(edition.year_label or "")
+    if match:
+        return (int(match.group(1)), int(match.group(2)))
+    if today.month >= SCHOOL_YEAR_START[0]:
+        return (today.year, today.year + 1)
+    return (today.year - 1, today.year)
+
+
+def _edition_number(edition: Edition) -> str:
+    """Numer edycji z początku etykiety („I edycja 2026/2027” → „I”). Brak – pusty napis."""
+    match = EDITION_NUMBER_RE.match(edition.year_label or "")
+    return match.group(1) if match else ""
+
+
+def _axis(items: list[dict], edition: Edition, today: date) -> tuple[date, date]:
+    """Oś: od najwcześniejszego początku do najpóźniejszego końca, albo cały rok szkolny.
+
+    Próg przy dwóch wydarzeniach, a nie przy zerze: jedno wydarzenie dałoby oś długości tego
+    wydarzenia, czyli pasek wypełniony w całości od pierwszego dnia i „miniony” od ostatniego –
+    wykres bez żadnej informacji. Rok szkolny jest wtedy uczciwszym tłem.
+    """
+    if len(items) >= MIN_ITEMS_FOR_AXIS:
+        start = min(item["start"] for item in items)
+        end = max(item["end"] for item in items)
+        if start < end:
+            return (start, end)
+    first_year, last_year = _school_year(edition, today)
+    return (date(first_year, *SCHOOL_YEAR_START), date(last_year, *SCHOOL_YEAR_END))
+
+
+def _fraction(day: date, axis_start: date, total_days: int) -> float:
+    return min(max((day - axis_start).days / total_days, 0.0), 1.0)
+
+
+def _place_items(items: list[dict], axis_start: date, total_days: int) -> None:
+    """Dokłada każdej pozycji ułamek położenia i długości oraz zakres komórek paska.
+
+    Zakres jest półotwarty (``cell_from`` włącznie, ``cell_to`` wyłącznie) i ma co najmniej jedną
+    komórkę: wydarzenie jednodniowe na rocznej osi to 1/365 paska, czyli zero komórek po
+    zaokrągleniu – a gala, której nie widać, nie jest na pasku obecna.
+    """
+    for item in items:
+        position = _fraction(item["start"], axis_start, total_days)
+        length = max((item["end"] - item["start"]).days, 1) / total_days
+        cell_from = min(round(position * BAR_SIZE), BAR_SIZE - 1)
+        cell_to = min(max(cell_from + round(length * BAR_SIZE), cell_from + 1), BAR_SIZE)
+        item["position"] = position
+        item["span"] = min(length, 1.0)
+        item["cell_from"] = cell_from
+        item["cell_to"] = cell_to
+
+
+def _cell_statuses(items: list[dict]) -> list[str]:
+    """Kolor każdej komórki paska. Nakładające się wydarzenia rozstrzyga ``_STATUS_PRIORITY``."""
+    statuses = [""] * BAR_SIZE
+    for item in items:
+        for index in range(item["cell_from"], item["cell_to"]):
+            current = statuses[index]
+            if not current or _STATUS_PRIORITY[item["status"]] > _STATUS_PRIORITY[current]:
+                statuses[index] = item["status"]
+    return statuses
+
+
+def cell_char(index: int, head: int, marks: set[int]) -> str:
+    """Znak w komórce paska. **Ta sama reguła jest w static/js/timeline-strip.js.**
+
+    Duplikat jest świadomy i pilnowany testem: serwer musi narysować pasek kompletny bez
+    JavaScriptu (inaczej strona bez skryptów nie ma kalendarza), a skrypt musi umieć przesunąć
+    głowicę w karcie zostawionej otwartej przez noc – czyli narysować dokładnie to samo.
+    """
+    if index == head:
+        return ">"
+    if index in marks:
+        return "|"
+    return "=" if index < head else "."
+
+
+def _tip_class(index: int) -> str:
+    """Do której krawędzi znacznika przykleić dymek, żeby nie wyszedł poza pasek.
+
+    Dymek jest **nakładką** (``position: absolute``): pojawia się i znika, nie ruszając ani
+    szerokości, ani wysokości paska. Cena nakładki jest taka, że przy krawędziach wystawałaby
+    poza kolumnę treści – więc dymek pierwszych i ostatnich komórek nie jest centrowany nad
+    znacznikiem, tylko wyrównany do jego lewej albo prawej krawędzi. Rozstrzyga o tym serwer
+    klasą CSS, a nie skrypt pomiarem: to jedyna droga, przy której dymek stoi właściwie także
+    wtedy, gdy JavaScript nie działa.
+    """
+    if index <= TIP_EDGE_CELLS:
+        return "tl__tip--start"
+    if index >= BAR_SIZE - TIP_EDGE_CELLS:
+        return "tl__tip--end"
+    return "tl__tip--mid"
+
+
+def _markers(items: list[dict]) -> dict[int, list[dict]]:
+    """Wydarzenia przypięte do komórki, w której się zaczynają.
+
+    Kilka wydarzeń bywa w jednej komórce (na rocznej osi jedna komórka to blisko cztery dni),
+    więc znacznik jest jeden, a dymek wylicza wszystkie – zamiast dwóch kresek jedna na drugiej
+    albo dwóch sąsiednich, które rozjechałyby siatkę o znak.
+    """
+    markers: dict[int, list[dict]] = {}
+    for item in items:
+        markers.setdefault(item["cell_from"], []).append(item)
+    return markers
+
+
+def _bar_cells(items: list[dict], statuses: list[str], head: int) -> list[dict]:
+    """Pasek komórka po komórce – każda jako osobny element, bo każda może zmienić znak.
+
+    Sto elementów zamiast kilkunastu ciągów jest świadomym wyborem i kosztuje po kompresji
+    kilkaset bajtów. W zamian skrypt, który przesuwa głowicę w karcie zostawionej otwartej przez
+    noc, podmienia **tekst** w gotowych elementach, zamiast przebudowywać kod paska – a w pasku
+    stoją odnośniki i dymki, których przebudowa kasowałaby fokus i przerywałaby najechanie.
+
+    Znaczniki wydarzeń (``|``) są elementami aktywnymi: odnośnikiem, gdy wydarzenie ma dokąd
+    prowadzić, a przyciskiem, gdy nie ma. Oba są osiągalne klawiszem, więc dymek pokazuje się
+    także bez myszy – to jedyny powód, dla którego znacznik bez adresu w ogóle jest przyciskiem.
+    """
+    markers = _markers(items)
+    cells = []
+    for index in range(BAR_SIZE):
+        group = markers.get(index)
+        char = cell_char(index, head, set(markers))
+        classes = ["tl__c"]
+        if statuses[index]:
+            classes.append(f"tl__c--{statuses[index]}")
+        if index == head:
+            classes.append("tl__head")
+        if group:
+            classes.append("tl__mark")
+        cells.append(
+            {
+                "index": index,
+                "char": char,
+                "status": statuses[index],
+                "is_head": index == head,
+                "css_class": " ".join(classes),
+                "items": group or [],
+                # Nazwa dostępna znacznika. Czytnik ekranu czyta ją zamiast kreski, więc niesie
+                # dokładnie to, co widzi w dymku osoba używająca myszy.
+                "label": "; ".join(f"{item['title']}, {item['dates']}" for item in group or []),
+                "url": group[0]["url"] if group and len(group) == 1 else "",
+                "tip_class": _tip_class(index),
+            }
+        )
+    return cells
+
+
+def _header_lines(edition: Edition, today: date) -> list[str]:
+    """Dwa wiersze „kodu” nad paskiem: rocznik szkolny i numer edycji – jak w nagłówku OI.
+
+    Wyśrodkowane nad paskiem, bo pasek jest symetryczny i wyrównanie do lewej zostawiałoby po
+    prawej pustą połowę nagłówka. Wiersz z numerem edycji znika, kiedy etykieta go nie niesie –
+    ``edycja();`` byłoby wywołaniem bez argumentu, czyli widoczną usterką.
+    """
+    first_year, last_year = _school_year(edition, today)
+    lines = [f"rok_szkolny({first_year}, {last_year});"]
+    number = _edition_number(edition)
+    if number:
+        lines.append(f"edycja({number});")
+    width = BAR_SIZE + 2
+    return [" " * max((width - len(line)) // 2, 0) + line for line in lines]
+
+
+def _lead_item(items: list[dict]) -> dict | None:
+    """Wydarzenie, którym podpisujemy pasek na telefonie: to, co trwa – a jeśli nic, to co najbliżej.
+
+    Na wąskim ekranie kalendarz jest zwinięty (``<details>``), bo rozwinięty zajmowałby połowę
+    pierwszego ekranu na **każdej** stronie serwisu. W zwiniętym stanie widać jedno zdanie, więc
+    musi to być zdanie, po które czytelnik tu przyszedł: „gdzie teraz jesteśmy”. Kolejność
+    szukania jest kolejnością przydatności – trwa, zaraz będzie, właśnie się skończyło.
+    """
+    for status in (TL_CURRENT, TL_UPCOMING):
+        found = next((item for item in items if item["status"] == status), None)
+        if found is not None:
+            return found
+    return items[-1] if items else None
+
+
+def _cache_key(edition_id: int) -> str:
+    """Klucz bufora: sama edycja.
+
+    Daty w kluczu **nie ma** i to jest świadome, mimo że cały pasek policzono względem dzisiaj.
+    Wpis żyje pięć minut, więc zmiana doby unieważnia go sama – i to szybciej, niż ktokolwiek
+    zdąży zauważyć, że głowica stoi na wczorajszej komórce. Data w kluczu dokładałaby za to
+    problem prawdziwy: zdjęcie bufora (``invalidate_timeline_cache``) musiałoby zgadnąć,
+    dla którego dnia policzono wpis, który ma skasować.
+    """
+    return f"{CACHE_PREFIX}:{edition_id}"
+
+
+def invalidate_timeline_cache(edition_id: int) -> None:
+    """Zdejmuje pasek z bufora – woła to serwis wydarzeń po każdym zapisie.
+
+    Bez tego koordynator dopisywałby wydarzenie i przez pięć minut nie widział go w nagłówku,
+    czyli sprawdzałby swoją pracę na ekranie, który jeszcze o niej nie wie.
+    """
+    cache.delete(_cache_key(edition_id))
+
+
+def timeline_strip(edition: Edition | None = None, now=None) -> dict | None:
+    """Komplet danych paska w nagłówku: wiersze „kodu”, komórki paska i lista dla telefonu.
+
+    Zwraca ``None``, kiedy nie ma bieżącej edycji – szablon nie rysuje wtedy niczego. Pasek bez
+    kalendarza byłby pustą ramką zajmującą wiersz na każdej stronie serwisu.
+
+    Wynik idzie do bufora na pięć minut, bo ta funkcja wykonuje się przy **każdym** żądaniu
+    strony HTML, a jej koszt to cztery zapytania (etapy, publikacje wyników, wydarzenia, strona
+    warsztatów) i trochę arytmetyki. Zmiana zrobiona przez koordynatora czyści bufor od razu
+    (``invalidate_timeline_cache``); pięć minut opóźnienia dotyczy wyłącznie zmian robionych
+    inną drogą – terminów etapu, okna rejestracji i treści strony warsztatów.
+    """
+    if edition is None:
+        edition = current_edition()
+    if edition is None:
+        return None
+    today = _localdate(now)
+    key = _cache_key(edition.pk)
+    cached = cache.get(key)
+    if cached is not None:
+        return cached
+
+    items = timeline_events(edition, now)
+    axis_start, axis_end = _axis(items, edition, today)
+    total_days = max((axis_end - axis_start).days, 1)
+    _place_items(items, axis_start, total_days)
+
+    progress = _fraction(today, axis_start, total_days)
+    head = min(round(progress * BAR_SIZE), BAR_SIZE - 1)
+    statuses = _cell_statuses(items)
+
+    strip = {
+        "edition": edition.year_label,
+        "header_lines": _header_lines(edition, today),
+        "items": items,
+        "axis_start": axis_start,
+        "axis_end": axis_end,
+        "progress": progress,
+        "head": head,
+        "size": BAR_SIZE,
+        "lead": _lead_item(items),
+        "cells": _bar_cells(items, statuses, head),
+    }
+    cache.set(key, strip, CACHE_TTL_SECONDS)
+    return strip

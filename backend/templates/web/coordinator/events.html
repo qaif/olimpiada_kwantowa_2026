@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Wydarzenia linii czasu – panel koordynatora{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
+  <h1>Wydarzenia linii czasu{% if edition %}: {{ edition.year_label }}{% endif %}</h1>
+  <p class="lead">Kalendarz, którego system nie egzekwuje: gala, dzień otwarty, konferencja,
+    obóz. Terminy etapów i okno rejestracji trafiają na linię czasu automatycznie – tutaj
+    dopisujesz to, o czym serwis tylko informuje.</p>
+</div>
+
+{% if edition %}
+  <p class="hint"><a class="btn btn--primary btn--small"
+     href="{% url 'web:coordinator-event-new' %}">Dodaj wydarzenie</a></p>
+
+  {% if events %}
+    <div class="scroll">
+      <table class="table">
+        <caption class="visually-hidden">Wydarzenia edycji {{ edition.year_label }}</caption>
+        <thead>
+          <tr>
+            <th scope="col">Wydarzenie</th>
+            <th scope="col">Termin</th>
+            <th scope="col">Dopisek</th>
+            <th scope="col">Na linii czasu</th>
+            <th scope="col"><span class="visually-hidden">Operacje</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for event in events %}
+            <tr>
+              <th scope="row">
+                {% if event.url %}<a href="{{ event.url }}">{{ event.title }}</a>{% else %}{{ event.title }}{% endif %}
+              </th>
+              <td>{{ event.starts_on|date:"j E Y" }}{% if event.ends_on and event.ends_on != event.starts_on %} – {{ event.ends_on|date:"j E Y" }}{% endif %}</td>
+              <td>{{ event.note|default:"—" }}</td>
+              <td>
+                {% if event.show_on_timeline %}
+                  <span class="badge badge--ok">tak</span>
+                {% else %}
+                  <span class="badge badge--neutral">nie</span>
+                {% endif %}
+              </td>
+              <td class="actions">
+                <a class="btn btn--secondary btn--small"
+                   href="{% url 'web:coordinator-event-edit' event.pk %}">Edytuj</a>
+                {% comment %}
+                  Usunięcie jest POST-em z tokenem, a nie odnośnikiem: kasowanie kliknięciem
+                  w link wykonałby za koordynatora dowolny podgląd odnośników w jego skrzynce.
+                {% endcomment %}
+                <form method="post" action="{% url 'web:coordinator-event-delete' event.pk %}" class="inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--danger btn--small">Usuń</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="hint">Ta edycja nie ma jeszcze dopisanych wydarzeń. Linia czasu w nagłówku pokazuje
+      na razie same etapy, warsztaty i okno rejestracji.</p>
+  {% endif %}
+{% else %}
+  <p class="hint">Nie ustawiono bieżącej edycji – wydarzenie nie ma do czego należeć.</p>
+{% endif %}
+{% endblock %}
