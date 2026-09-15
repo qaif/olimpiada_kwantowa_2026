@@ -204,6 +204,22 @@ urlpatterns = [
         coordinator.CreateInvitationView.as_view(),
         name="coordinator-invitation",
     ),
+    # Zaproszenia e-mailem: jeden jednorazowy kod na adres, wysyłany listem zamiast dyktowany.
+    path(
+        "coordinator/invitations/send/",
+        coordinator.SendInvitationsView.as_view(),
+        name="coordinator-invitations-send",
+    ),
+    path(
+        "coordinator/invitations/<int:pk>/resend/",
+        coordinator.ResendInvitationView.as_view(),
+        name="coordinator-invitation-resend",
+    ),
+    path(
+        "coordinator/invitations/<int:pk>/revoke/",
+        coordinator.RevokeInvitationView.as_view(),
+        name="coordinator-invitation-revoke",
+    ),
     # Konta oczekujące na aktywację – obejście na czas problemów z dostarczalnością poczty.
     path(
         "coordinator/accounts/<int:pk>/activate/",

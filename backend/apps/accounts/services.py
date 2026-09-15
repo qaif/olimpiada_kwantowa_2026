@@ -3,13 +3,16 @@
 Widoki nie tworzą obiektów samodzielnie – cała logika i wszystkie błędy domenowe są tutaj.
 """
 
+import re
 import secrets
 from datetime import timedelta
 
 from django.contrib.auth.models import Group
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.validators import EmailValidator
 from django.db import IntegrityError, transaction
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 from rest_framework import status
@@ -17,7 +20,7 @@ from rest_framework import status
 from apps.core.api import DomainError
 from apps.core.models import audit
 
-from .activation import send_activation_email
+from .activation import absolute_url, queue_mail, send_activation_email
 from .consents import (
     BY_KIND,
     CONSENTS,
@@ -40,6 +43,7 @@ from .models import (
     InvitationGrantsStatus,
     Participant,
     User,
+    Voivodeship,
     generate_public_code,
     hash_invitation_code,
     normalize_voivodeship,
@@ -617,11 +621,362 @@ def redeem_invitation(plain_code: str) -> InvitationCode:
         )
     except InvitationCode.DoesNotExist as exc:
         raise _invalid_invitation() from exc
+    # ``is_usable`` rozstrzyga tu wszystkie trzy powody odmowy naraz: minął termin, wyczerpał się
+    # limit użyć albo koordynator kod **unieważnił** (``revoked_at``). Ostatni jest tu istotny:
+    # zaproszenie wysłane pod zły adres musi dać się odebrać, zanim ktoś obcy założy na nie konto
+    # komitetu – a jedynym momentem, w którym da się to jeszcze zatrzymać, jest właśnie ta funkcja.
     if not invitation.is_usable():
         raise _invalid_invitation()
     invitation.used_count += 1
     invitation.save(update_fields=["used_count"])
     return invitation
+
+
+# --- zaproszenia wysyłane e-mailem -------------------------------------------------------------
+
+#: Ile adresów przyjmujemy w jednym wklejeniu. Limit jest po to, żeby przypadkowe wklejenie całej
+#: książki adresowej nie zamieniło jednego kliknięcia w kilka tysięcy listów wysłanych z naszej
+#: domeny w jednej minucie – dostawcy poczty czytają taki ruch jako spam i obniżają reputację
+#: nadawcy, przez co przestają dochodzić także listy aktywacyjne uczestników.
+MAX_INVITATION_EMAILS = 200
+
+#: Separatory listy adresów: koordynator wkleja ją z arkusza (nowe wiersze), z pola „Do:”
+#: (przecinki, średniki) albo przepisuje ręcznie (spacje). Rozdzielanie po każdym z nich naraz
+#: jest tańsze niż tłumaczenie człowiekowi, w jakim formacie ma tę listę przygotować.
+EMAIL_SEPARATORS = re.compile(r"[\s,;]+")
+
+INVITATION_SUBJECT = "Zaproszenie do komitetu Olimpiady Kwantowej"
+
+#: Górna długość osobistej dopiski koordynatora. Pole jest dla jednego zdania („piszemy po
+#: rozmowie na konferencji”), a nie dla okólnika – długi tekst i tak zginie pod kodem.
+MAX_INVITATION_NOTE_LENGTH = 500
+
+
+def parse_email_list(raw: str) -> tuple[list[str], list[str]]:
+    """Rozbija wklejoną listę adresów na ``(poprawne, odrzucone)`` – bez powtórzeń.
+
+    Parser stoi w serwisie, a nie w formularzu, bo tę samą listę przyjmuje formularz panelu
+    i (docelowo) każdy inny wołający ``send_invitations``; gdyby każdy rozbijał ją po swojemu,
+    „Jan@Example.test” raz byłby duplikatem „jan@example.test”, a raz drugim zaproszeniem.
+
+    Adres sprowadzamy do małych liter tą samą funkcją, co rejestracja (``_normalize_email``):
+    porównujemy go zaraz potem z ``User.email``, który ma indeks bez rozróżniania wielkości liter.
+    Odrzucone zwracamy w postaci **wpisanej przez człowieka**, żeby w komunikacie o błędzie dało
+    się odnaleźć wiersz do poprawienia.
+    """
+    validator = EmailValidator()
+    valid: list[str] = []
+    invalid: list[str] = []
+    seen: set[str] = set()
+    for token in EMAIL_SEPARATORS.split(raw or ""):
+        candidate = token.strip()
+        if not candidate:
+            continue
+        normalized = _normalize_email(candidate)
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        try:
+            validator(normalized)
+        except DjangoValidationError:
+            invalid.append(candidate)
+        else:
+            valid.append(normalized)
+    return valid, invalid
+
+
+@sensitive_variables("plain_code")
+def invitation_message(
+    plain_code: str,
+    *,
+    link: str,
+    expires_at,
+    district: str | None = None,
+    is_appeals: bool = False,
+    note: str = "",
+) -> str:
+    """Treść zaproszenia. Poza adresem odbiorcy (i tak w nagłówku ``To:``) zero danych osobowych.
+
+    Kod jawny jest **wyłącznie tutaj**: w bazie zostaje sha256, w audycie nie ma go wcale, a list
+    jest jedynym egzemplarzem. Stąd zdanie o jednorazowości i o tym, że kodu nie wolno przekazywać
+    dalej – z drugiej strony nie ma nikogo, kto mógłby odtworzyć kod komuś, kto go zgubił.
+
+    Termin ważności podajemy w czasie polskim, tak jak potwierdzenie terminu rozmowy
+    (``apps.competitions.interviews._confirmation_message``): odbiorca ma go przeczytać, a nie
+    przeliczać z UTC.
+    """
+    expires_local = timezone.localtime(expires_at)
+    lines = [
+        "Komitet Olimpiady Kwantowej zaprasza Cię do prac komitetu zawodów.",
+        "",
+    ]
+    if note:
+        lines += [note, ""]
+    lines += [
+        f"Twój kod zaproszenia: {plain_code}",
+        "",
+        "Kod wpisuje się przy zakładaniu konta pod adresem:",
+        link,
+        "",
+        f"Kod jest ważny do {expires_local:%d.%m.%Y, %H:%M} (czas polski).",
+    ]
+    if district:
+        lines.append(f"Województwo przypisane do kodu: {Voivodeship(district).label}.")
+    if is_appeals:
+        lines.append("Kod uprawnia do prac komisji odwoławczej.")
+    lines += [
+        "",
+        "Kod jest jednorazowy i osobisty – działa dla jednego konta i został wysłany wyłącznie "
+        "na ten adres. Prosimy go nie przekazywać dalej; osobie, która także ma dołączyć do "
+        "komitetu, koordynator wyśle własne zaproszenie.",
+        "",
+        "Jeśli nie spodziewasz się tego zaproszenia – zignoruj tę wiadomość. Bez wpisania kodu "
+        "nic się nie wydarzy.",
+        "",
+        "--",
+        "Olimpiada Kwantowa",
+        "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać.",
+    ]
+    return "\n".join(lines)
+
+
+@sensitive_variables("plain_code")
+def _issue_invitation(
+    *,
+    created_by: User,
+    email: str,
+    expires_at,
+    grants_status: str,
+    is_appeals: bool,
+    district: str | None,
+    note: str,
+    link: str,
+    action: str,
+    actor: User,
+    request=None,
+) -> InvitationCode:
+    """Jeden kod dla jednego adresu: zapis, wpis audytowy i list zakolejkowany po commicie.
+
+    Wspólny środek wysyłki masowej i ponowienia – obie drogi muszą zapisać dokładnie ten sam
+    komplet pól, bo inaczej kod z ponowienia nie miałby ``sent_at`` i wypadłby z listy w panelu.
+
+    W audycie jest adres (to własne pole wiersza, więc nie jest to żaden dodatkowy wyciek),
+    termin i parametry kodu – **nigdy** kod jawny ani treść listu: log audytowy czyta później
+    więcej osób niż skrzynka odbiorcy, a kod jest poświadczeniem dostępu do komitetu.
+    """
+    invitation, plain_code = create_invitation(
+        created_by,
+        expires_at=expires_at,
+        max_uses=1,
+        grants_status=grants_status,
+        is_appeals=is_appeals,
+        district=district,
+    )
+    invitation.email = email
+    invitation.sent_at = timezone.now()
+    invitation.save(update_fields=["email", "sent_at"])
+    audit(
+        actor,
+        action,
+        invitation,
+        {
+            "email": email,
+            "district": district,
+            "is_appeals": is_appeals,
+            "grants_status": grants_status,
+            "expires_at": invitation.expires_at.isoformat(),
+        },
+        request=request,
+    )
+    queue_mail(
+        INVITATION_SUBJECT,
+        invitation_message(
+            plain_code,
+            link=link,
+            expires_at=invitation.expires_at,
+            district=district,
+            is_appeals=is_appeals,
+            note=note,
+        ),
+        email,
+    )
+    return invitation
+
+
+def _committee_registration_link(request=None) -> str:
+    """Bezwzględny adres formularza „załóż konto komitetu” – ten sam helper, co listy aktywacyjne."""
+    return absolute_url(reverse("web:register-committee"), request)
+
+
+def _emails_with_committee_account(emails: list[str]) -> set[str]:
+    """Adresy, które mają już konto z profilem komitetu – jednym zapytaniem, nie po jednym."""
+    return set(
+        User.objects.filter(email__in=emails, committee_member__isnull=False).values_list("email", flat=True)
+    )
+
+
+@transaction.atomic
+def send_invitations(
+    created_by: User,
+    emails,
+    *,
+    district: str | None = None,
+    valid_for=None,
+    grants_status: str = InvitationGrantsStatus.ACTIVE,
+    is_appeals: bool = False,
+    note: str = "",
+    request=None,
+) -> dict:
+    """Wysyła **osobny, jednorazowy** kod na każdy z podanych adresów.
+
+    Osobny kod na adres, a nie jeden kod o ``max_uses=N``, jest tu całą różnicą: kod wspólny
+    krąży potem po korespondencji i każdy, kto go zobaczy, zakłada sobie konto komitetu, dopóki
+    limit się nie wyczerpie. Kod indywidualny da się unieważnić pojedynczo, a po fakcie wiadomo,
+    kto z zaproszenia skorzystał – bez zaglądania komukolwiek do skrzynki.
+
+    Termin ważności liczymy **raz** dla całej wysyłki: adresaci z jednej listy dostają zaproszenia
+    z tą samą datą, więc koordynator ma jeden termin do zapamiętania, a nie dwieście.
+
+    Adresy, które mają już konto z profilem komitetu, pomijamy. Kod nic by im nie dał –
+    rejestracja odbiłaby się o „konto z tym adresem e-mail już istnieje” – a wysłany list
+    wyglądałby jak zaproszenie do serwisu, w którym ta osoba od dawna pracuje.
+
+    Transakcja obejmuje całą wysyłkę, a listy idą przez ``transaction.on_commit``: jeśli
+    którykolwiek zapis się nie powiedzie, nie wyjdzie **żaden** list z kodem do bazy, której
+    ostatecznie nie ma.
+    """
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for raw in emails or []:
+        email = _normalize_email(str(raw))
+        if email and email not in seen:
+            seen.add(email)
+            normalized.append(email)
+    if not normalized:
+        raise DomainError(
+            "Podaj co najmniej jeden adres e-mail.", "NO_RECIPIENTS", status.HTTP_400_BAD_REQUEST
+        )
+    if len(normalized) > MAX_INVITATION_EMAILS:
+        raise DomainError(
+            f"Na raz można wysłać najwyżej {MAX_INVITATION_EMAILS} zaproszeń "
+            f"(podano {len(normalized)}). Podziel listę na części.",
+            "TOO_MANY_RECIPIENTS",
+            status.HTTP_400_BAD_REQUEST,
+        )
+    district = _require_voivodeship(district, required=False)
+    expires_at = timezone.now() + (valid_for or timedelta(days=14))
+    link = _committee_registration_link(request)
+    taken = _emails_with_committee_account(normalized)
+
+    sent: list[str] = []
+    skipped: list[dict] = []
+    for email in normalized:
+        if email in taken:
+            skipped.append({"email": email, "reason": "ma już konto komisji"})
+            continue
+        _issue_invitation(
+            created_by=created_by,
+            email=email,
+            expires_at=expires_at,
+            grants_status=grants_status,
+            is_appeals=is_appeals,
+            district=district,
+            note=note,
+            link=link,
+            action="invitation.sent",
+            actor=created_by,
+            request=request,
+        )
+        sent.append(email)
+    return {
+        "sent": sent,
+        "skipped": skipped,
+        "sent_count": len(sent),
+        "skipped_count": len(skipped),
+        "expires_at": expires_at,
+    }
+
+
+def _invitation_already_used() -> DomainError:
+    """Kod, na który ktoś już założył konto, jest faktem – nie ma czego cofać ani powtarzać."""
+    return DomainError(
+        "To zaproszenie zostało już wykorzystane – konto na tym kodzie istnieje.",
+        "INVITATION_USED",
+        status.HTTP_409_CONFLICT,
+    )
+
+
+@transaction.atomic
+def revoke_invitation(code: InvitationCode, *, actor: User, request=None) -> InvitationCode:
+    """Unieważnia kod: od tej chwili rejestracja go nie przyjmie (``InvitationCode.is_usable``).
+
+    Wiersz zostaje, znika tylko możliwość użycia kodu. Skasowanie zaproszenia zabrałoby jedyną
+    odpowiedź na pytanie „dlaczego ten adres dostał od nas list” – a to pytanie pada właśnie
+    wtedy, gdy zaproszenie poszło pod zły adres.
+    """
+    locked = InvitationCode.objects.select_for_update().get(pk=code.pk)
+    if locked.used_count:
+        raise _invitation_already_used()
+    if locked.revoked_at is not None:
+        raise DomainError(
+            "To zaproszenie jest już unieważnione.", "ALREADY_REVOKED", status.HTTP_409_CONFLICT
+        )
+    locked.revoked_at = timezone.now()
+    locked.save(update_fields=["revoked_at"])
+    audit(actor, "invitation.revoked", locked, {"email": locked.email, "revoked": True}, request=request)
+    return locked
+
+
+@transaction.atomic
+def resend_invitation(code: InvitationCode, *, actor: User, request=None) -> InvitationCode:
+    """Unieważnia stary kod i wysyła pod ten sam adres **nowy**, z tymi samymi parametrami.
+
+    Powtórzenie tego samego kodu nie jest możliwe – w bazie jest wyłącznie sha256 – więc „wyślij
+    ponownie” zawsze znaczy „wystaw nowy”. Stary od razu przestaje działać: gdyby żył dalej,
+    jedna osoba miałaby dwa ważne zaproszenia, a wysłany wcześniej list (ten, który zaginął
+    w spamie i bywa, że jednak dojdzie) pozostałby ważnym poświadczeniem.
+
+    Ważność liczymy od nowa, ale **tyle samo**, ile dostał kod pierwotny: ponowienie ma naprawić
+    niedostarczony list, a nie po cichu skracać albo wydłużać termin ustalony przez koordynatora.
+    """
+    locked = InvitationCode.objects.select_for_update().get(pk=code.pk)
+    if locked.used_count:
+        raise _invitation_already_used()
+    if not locked.email:
+        raise DomainError(
+            "Ten kod nie był wysyłany listem – nie wiadomo, pod jaki adres go powtórzyć.",
+            "INVITATION_WITHOUT_EMAIL",
+            status.HTTP_400_BAD_REQUEST,
+        )
+    if _emails_with_committee_account([locked.email]):
+        raise DomainError(
+            "Ten adres ma już konto komisji – nowy kod nie byłby do niczego potrzebny.",
+            "ALREADY_COMMITTEE",
+            status.HTTP_409_CONFLICT,
+        )
+    if locked.revoked_at is None:
+        locked.revoked_at = timezone.now()
+        locked.save(update_fields=["revoked_at"])
+    audit(
+        actor,
+        "invitation.revoked",
+        locked,
+        {"email": locked.email, "revoked": True, "reason": "resend"},
+        request=request,
+    )
+    return _issue_invitation(
+        created_by=locked.created_by,
+        email=locked.email,
+        expires_at=timezone.now() + (locked.expires_at - locked.created_at),
+        grants_status=locked.grants_status,
+        is_appeals=locked.is_appeals,
+        district=locked.district,
+        note="",
+        link=_committee_registration_link(request),
+        action="invitation.resent",
+        actor=actor,
+        request=request,
+    )
 
 
 @sensitive_variables()

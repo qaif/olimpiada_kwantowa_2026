@@ -26,8 +26,21 @@ from apps.accounts.activation import (
     mark_activated,
     resend_activation,
 )
-from apps.accounts.models import CommitteeMember, CommitteeStatus, InvitationGrantsStatus, User
-from apps.accounts.services import approve_committee_member, create_invitation, verify_committee_district
+from apps.accounts.models import (
+    CommitteeMember,
+    CommitteeStatus,
+    InvitationCode,
+    InvitationGrantsStatus,
+    User,
+)
+from apps.accounts.services import (
+    approve_committee_member,
+    create_invitation,
+    resend_invitation,
+    revoke_invitation,
+    send_invitations,
+    verify_committee_district,
+)
 from apps.competitions.models import Stage
 from apps.competitions.services import current_edition, missing_stage_kinds
 from apps.core.api import DomainError
@@ -55,6 +68,7 @@ from apps.web.forms import (
     VOIVODESHIP_CHOICES,
     AssignReviewersForm,
     AssignThirdReviewerForm,
+    BulkInvitationForm,
     InvitationForm,
     OverrideFinalGradeForm,
     PublishResultsForm,
@@ -135,6 +149,8 @@ def dashboard_context(extra: dict | None = None) -> dict:
         # ``<select>`` na wiersz, a wierszy jest tyle, ilu aktywnych członków komitetu.
         "voivodeship_choices": VOIVODESHIP_CHOICES,
         "invitation_form": InvitationForm(),
+        "bulk_invitation_form": BulkInvitationForm(),
+        "sent_invitations": sent_invitation_rows(),
         "publish_form": PublishResultsForm(),
         "pending_activation": pending_activation_rows(),
         "activation_hours": ACTIVATION_HOURS,
@@ -142,6 +158,27 @@ def dashboard_context(extra: dict | None = None) -> dict:
     }
     context.update(extra or {})
     return context
+
+
+#: Ile wysłanych zaproszeń pokazujemy w panelu. Tabela jest narzędziem do pytania „czy ta osoba
+#: dostała kod i co się z nim stało”, a nie archiwum – pełną historię ma audyt (``invitation.*``).
+SENT_INVITATIONS_LIMIT = 100
+
+
+def sent_invitation_rows(limit: int = SENT_INVITATIONS_LIMIT) -> list[InvitationCode]:
+    """Zaproszenia **wysłane listem**, od najnowszego.
+
+    Kody bez adresu (komenda CLI, sekcja „Kod zaproszenia”) do tej tabeli nie wchodzą: nie ma przy
+    nich czego ponawiać ani komu unieważniać – kod przekazał człowiek i tylko on wie komu.
+
+    Sortowanie po ``sent_at``, a nie po ``created_at``: ponowienie wystawia nowy kod, a interesuje
+    nas kolejność listów, które wyszły.
+    """
+    return list(
+        InvitationCode.objects.filter(email__isnull=False)
+        .exclude(email="")
+        .order_by("-sent_at", "-id")[:limit]
+    )
 
 
 def pending_activation_rows(now=None) -> list[dict]:
@@ -552,6 +589,71 @@ class CreateInvitationView(CoordinatorActionView):
             f"Kod ważny do {expires_local:%Y-%m-%d %H:%M} ({LOCAL_TIME_LABEL}), "
             f"limit użyć: {invitation.max_uses}."
         )
+
+
+class SendInvitationsView(CoordinatorActionView):
+    """Wysyłka zaproszeń e-mailem: jeden jednorazowy kod na adres, list z kodem i linkiem.
+
+    Kod jawny nie idzie tu do komunikatu (inaczej niż w sekcji „Kod zaproszenia”): wysyłamy ich
+    naraz kilkadziesiąt, a jedyny egzemplarz każdego z nich ma być w skrzynce **tej** osoby.
+    Wypisanie ich koordynatorowi na ekran zamieniłoby zaproszenia indywidualne we wspólną listę
+    poświadczeń – w dodatku widoczną każdemu, kto zajrzy mu przez ramię.
+    """
+
+    def perform(self, request) -> str:
+        form = BulkInvitationForm(request.POST)
+        if not form.is_valid():
+            # Błędy formularza (w tym wypisane z nazwy błędne adresy) muszą dojść do człowieka –
+            # ogólne „nieprawidłowe parametry” zostawiłoby go z listą stu adresów i bez wskazówki.
+            raise DomainError(
+                " ".join(message for values in form.errors.values() for message in values),
+                "INVALID_INVITATION_PARAMS",
+            )
+        data = form.cleaned_data
+        result = send_invitations(
+            request.user,
+            data["emails"],
+            district=data["district"] or None,
+            valid_for=timedelta(days=data["valid_days"]),
+            grants_status=(
+                InvitationGrantsStatus.PENDING if data["requires_approval"] else InvitationGrantsStatus.ACTIVE
+            ),
+            is_appeals=data["is_appeals"],
+            note=data["note"],
+            request=request,
+        )
+        if result["skipped"]:
+            listed = ", ".join(f"{row['email']} ({row['reason']})" for row in result["skipped"])
+            messages.warning(request, f"Pominięto {result['skipped_count']} adresów: {listed}.")
+        if not result["sent_count"]:
+            # Sama prawda: „Wysłano 0 zaproszeń” brzmiałoby jak sukces, a nie wyszedł ani jeden list.
+            raise DomainError(
+                "Nie wysłano żadnego zaproszenia – wszystkie adresy zostały pominięte.",
+                "NOTHING_SENT",
+            )
+        expires_local = timezone.localtime(result["expires_at"])
+        return (
+            f"Wysłano {result['sent_count']} zaproszeń. Kody są ważne do "
+            f"{expires_local:%Y-%m-%d %H:%M} ({LOCAL_TIME_LABEL})."
+        )
+
+
+class ResendInvitationView(CoordinatorActionView):
+    """„Wyślij ponownie”: stary kod przestaje działać, pod ten sam adres idzie nowy."""
+
+    def perform(self, request, pk: int) -> str:
+        invitation = get_object_or_404(InvitationCode, pk=pk)
+        fresh = resend_invitation(invitation, actor=request.user, request=request)
+        return f"Nowe zaproszenie wysłane na {fresh.email}. Poprzedni kod został unieważniony."
+
+
+class RevokeInvitationView(CoordinatorActionView):
+    """„Unieważnij”: kod przestaje być przyjmowany przy rejestracji, wiersz zostaje w tabeli."""
+
+    def perform(self, request, pk: int) -> str:
+        invitation = get_object_or_404(InvitationCode, pk=pk)
+        revoked = revoke_invitation(invitation, actor=request.user, request=request)
+        return f"Zaproszenie dla {revoked.email} zostało unieważnione."
 
 
 class ComputeResultsView(CoordinatorRequiredMixin, View):

@@ -18,6 +18,11 @@ from django.core.files.uploadedfile import UploadedFile
 
 from apps.accounts.consents import BY_KIND, CONSENT_FIELD_NAMES, CONSENTS, ConsentKind, is_minor, labels
 from apps.accounts.models import GRADE_CHOICES, User, Voivodeship
+from apps.accounts.services import (
+    MAX_INVITATION_EMAILS,
+    MAX_INVITATION_NOTE_LENGTH,
+    parse_email_list,
+)
 from apps.appeals.models import MAX_TEXT_LENGTH, MIN_ARGUMENT_LENGTH, AppealStatus
 from apps.competitions.interviews import (
     MAX_DURATION_MINUTES,
@@ -668,6 +673,59 @@ class InvitationForm(forms.Form):
     max_uses = forms.IntegerField(label="Limit użyć", min_value=1, max_value=100, initial=1)
     is_appeals = forms.BooleanField(label="Komisja odwoławcza", required=False)
     requires_approval = forms.BooleanField(label="Wymaga zatwierdzenia (PENDING)", required=False)
+
+
+class BulkInvitationForm(forms.Form):
+    """Zaproszenia e-mailem: lista adresów i te same parametry, co przy pojedynczym kodzie.
+
+    Czego tu **nie ma**: limitu użyć. Każdy adres dostaje własny kod jednorazowy i to jest cały
+    sens tej sekcji – kod wspólny dla listy osób nie dałby się unieważnić pojedynczo ani powiedzieć
+    po fakcie, kto z niego skorzystał.
+
+    Adresy rozbija ``accounts.services.parse_email_list`` – ten sam parser, który dostaje serwis,
+    więc formularz i wysyłka nie mogą policzyć dwóch różnych list. Błędne adresy zatrzymują
+    **całą** wysyłkę i są wypisane z nazwy: przy częściowej wysyłce koordynator nie miałby jak
+    stwierdzić, do kogo kod poszedł, a do kogo nie – kodów nie da się odtworzyć i porównać.
+    """
+
+    emails = forms.CharField(
+        label="Adresy e-mail",
+        widget=forms.Textarea(attrs={"rows": 6, "autocomplete": "off"}),
+        help_text=(
+            "Jeden adres na wiersz; dopuszczalne są też przecinki, średniki i spacje. "
+            f"Najwyżej {MAX_INVITATION_EMAILS} adresów na raz."
+        ),
+    )
+    district = voivodeship_field("Województwo (narzucone kodem)", required=False)
+    valid_days = forms.IntegerField(label="Ważność (dni)", min_value=1, max_value=365, initial=14)
+    is_appeals = forms.BooleanField(label="Komisja odwoławcza", required=False)
+    requires_approval = forms.BooleanField(label="Wymaga zatwierdzenia (PENDING)", required=False)
+    note = forms.CharField(
+        label="Dopisek do listu (opcjonalnie)",
+        required=False,
+        max_length=MAX_INVITATION_NOTE_LENGTH,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Jedno zdanie od koordynatora, np. okoliczności zaproszenia. Trafia do treści listu.",
+    )
+
+    def clean_emails(self) -> list[str]:
+        """Zwraca **listę** adresów – sprawdzoną, bez powtórzeń i bez różnic wielkości liter."""
+        valid, invalid = parse_email_list(self.cleaned_data["emails"])
+        if invalid:
+            raise DjangoValidationError(
+                "Te adresy nie wyglądają na poprawne: {}. Popraw je albo usuń – "
+                "dopóki na liście jest błędny adres, nie wysyłamy żadnego zaproszenia.".format(
+                    ", ".join(invalid)
+                )
+            )
+        if not valid:
+            raise DjangoValidationError("Podaj co najmniej jeden adres e-mail.")
+        if len(valid) > MAX_INVITATION_EMAILS:
+            raise DjangoValidationError(
+                f"Najwyżej {MAX_INVITATION_EMAILS} adresów na raz (podano {len(valid)}). "
+                "Podziel listę na części."
+            )
+        return valid
 
 
 class PublishResultsForm(forms.Form):

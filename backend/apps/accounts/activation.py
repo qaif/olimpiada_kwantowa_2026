@@ -194,7 +194,7 @@ def email_changed_notice(new_email: str) -> str:
     )
 
 
-def _queue_mail(subject: str, message: str, recipient: str) -> None:
+def queue_mail(subject: str, message: str, recipient: str) -> None:
     """Kolejkuje list **po commicie** – wzorzec z ``apps.competitions.interviews._send_confirmation``.
 
     Wysyłka jest skutkiem ubocznym rejestracji, a nie jej warunkiem: niedostępny MTA nie może
@@ -215,18 +215,18 @@ def _queue_mail(subject: str, message: str, recipient: str) -> None:
 def send_activation_email(user: User, *, request=None) -> None:
     """Kolejkuje list z linkiem aktywacyjnym dla konta."""
     link = absolute_url(reverse("web:activate", args=[make_activation_token(user)]), request)
-    _queue_mail(ACTIVATION_SUBJECT, activation_message(link), user.email)
+    queue_mail(ACTIVATION_SUBJECT, activation_message(link), user.email)
 
 
 def send_email_change_confirmation(user: User, new_email: str, *, request=None) -> None:
     """List potwierdzający na nowy adres. Stary adres dostaje osobne powiadomienie po zmianie."""
     token = make_email_change_token(user, new_email)
     link = absolute_url(reverse("web:email-change-confirm", args=[token]), request)
-    _queue_mail(EMAIL_CHANGE_SUBJECT, email_change_message(link, new_email), new_email)
+    queue_mail(EMAIL_CHANGE_SUBJECT, email_change_message(link, new_email), new_email)
 
 
 def send_email_changed_notice(old_email: str, new_email: str) -> None:
-    _queue_mail(EMAIL_CHANGED_NOTICE_SUBJECT, email_changed_notice(new_email), old_email)
+    queue_mail(EMAIL_CHANGED_NOTICE_SUBJECT, email_changed_notice(new_email), old_email)
 
 
 def is_pending_activation(user: User) -> bool:

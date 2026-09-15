@@ -113,7 +113,8 @@ docker compose exec web python manage.py create_invitation \
   --email koordynator@example.com --appeals --max-uses 1
 ```
 
-Kod wpisuje się na `/register/committee/`.
+Kod wpisuje się na `/register/committee/`. Zapraszanie większej grupy naraz — bez przepisywania
+kodów ręcznie — opisuje § 5.3.
 
 ## 3. Uruchomienie produkcyjne
 
@@ -449,7 +450,7 @@ z otwartej rejestracji.
 |---|---|---|---|
 | 0 | Terminy etapu i arkusz zadań | koordynator | `/coordinator/` → „Edytuj terminy”, „Zadania (n)” – patrz 6.3 |
 | 1 | Rejestracja uczestnika | uczestnik | `/register/` → `POST /api/auth/register/participant/`; okno rejestracji ustawia koordynator — patrz 6.3a |
-| 2 | Rejestracja członka komitetu na kod | recenzent / komisja | `/register/committee/`; kod z `manage.py create_invitation` albo z panelu koordynatora |
+| 2 | Rejestracja członka komitetu na kod | recenzent / komisja | `/register/committee/`; kod z `manage.py create_invitation`, z panelu koordynatora albo z zaproszenia wysłanego e-mailem — patrz 5.3 |
 | 3 | Zatwierdzenie konta `PENDING` | koordynator | `/coordinator/` → „Komitet – oczekujący na zatwierdzenie” |
 | 4 | Zapis do eliminacji | uczestnik | `/me/` → „Zgłoś się do etapu eliminacyjnego” |
 | 5 | Upload rozwiązania (przed deadline) | uczestnik | `/me/`, karta zadania (HTMX) → `POST /api/stages/<id>/problems/<n>/submissions/` |
@@ -534,6 +535,42 @@ prawem do usunięcia dokumentacji zawodów:
 POST wymaga aktualnego hasła; konto zakładane przez dostawcę zewnętrznego (bez użytecznego hasła)
 potwierdza operację przepisaniem własnego adresu e-mail. Koordynator i superużytkownik tą drogą nie
 przechodzą — ich konto jest jedynym wejściem do prowadzenia edycji.
+
+### 5.3 Zaproszenia do komitetu e-mailem
+
+Kod zaproszenia można rozdać dwiema drogami — obie prowadzą do tego samego formularza
+`/register/committee/`:
+
+| Droga | Gdzie | Co dostaje zapraszany |
+|---|---|---|
+| Pojedynczy kod „do ręki” | `/coordinator/` → „Kod zaproszenia” (albo `manage.py create_invitation`) | kod pokazany koordynatorowi **raz**, do przekazania własnym kanałem; może mieć `max_uses > 1` |
+| Wysyłka listem | `/coordinator/` → „Zaproszenia e-mailem” | **własny, jednorazowy** kod w liście z linkiem, terminem ważności i opcjonalną dopiską koordynatora |
+
+Koordynator wkleja listę adresów (nowe wiersze, przecinki, średniki albo spacje — parser przyjmuje
+każdy z nich), najwyżej 200 na raz. Adresy są sprowadzane do małych liter i odsiewane z powtórzeń;
+**błędny adres zatrzymuje całą wysyłkę** i jest wypisany z nazwy, bo przy częściowej wysyłce nie
+dałoby się już stwierdzić, do kogo kod poszedł. Adresy, które mają już konto z profilem komitetu,
+są pomijane z powodem („ma już konto komisji”).
+
+Co zostaje w bazie: adres (`InvitationCode.email`), chwila wysyłki (`sent_at`), termin (`expires_at`),
+parametry kodu i — jak dotąd — **wyłącznie sha256 kodu**. Kod jawny istnieje tylko w wysłanej
+wiadomości; nikt, także organizator, nie odtworzy go z bazy ani z audytu (wpisy `invitation.sent`,
+`invitation.resent`, `invitation.revoked` mają adres i parametry, nigdy kod ani treść listu).
+
+Stąd semantyka przycisków w tabeli „Wysłane zaproszenia”:
+
+- **Wyślij ponownie** — nie powtarza starego kodu (nie ma skąd), tylko **unieważnia go** i wystawia
+  nowy, z tymi samymi parametrami i tak samo długą ważnością, liczoną od nowa. Dzięki temu list,
+  który jednak dotarł po czasie, nie zostaje drugim ważnym poświadczeniem,
+- **Unieważnij** — ustawia `revoked_at`; od tej chwili rejestracja kodu nie przyjmuje. Wiersz
+  zostaje, bo to jedyna odpowiedź na pytanie „dlaczego ten adres dostał od nas list”.
+
+Obu odmawiamy (409), gdy kod został już użyty — konta założonego na kod nie cofa się
+unieważnieniem, tylko zawieszeniem członka komitetu. Stan w tabeli jest wyliczany, nie zapisany,
+w kolejności: **użyte → unieważnione → wygasłe → wysłane**.
+
+Wysyłka idzie tą samą drogą, co listy aktywacyjne: zadanie na kolejce `mail`, kolejkowane po
+commicie (`transaction.on_commit`), adres bezwzględny z żądania albo z `SITE_URL`.
 
 ## 6. Procedury operacyjne
 

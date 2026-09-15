@@ -354,4 +354,70 @@
     </form>
   </div>
 </section>
+
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Zaproszenia e-mailem</h2></div>
+  <div class="card">
+    <p class="hint">Każdy adres dostaje <strong>własny, jednorazowy</strong> kod w liście z linkiem do
+      rejestracji. Kod jawny istnieje wyłącznie w tej wiadomości – tutaj zostaje adres, termin
+      i stan zaproszenia. Kod wysłany pod zły adres unieważnij; kod, który nie doszedł, wyślij ponownie
+      (stary przestaje wtedy działać).</p>
+    <form method="post" action="{% url 'web:coordinator-invitations-send' %}" class="form">
+      {% csrf_token %}
+      {{ bulk_invitation_form.as_p }}
+      <div class="actions">
+        <button type="submit" class="btn btn--accent">Wyślij zaproszenia</button>
+      </div>
+    </form>
+  </div>
+
+  <h3>Wysłane zaproszenia</h3>
+  <div class="scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Adres</th><th>Województwo</th><th>Komisja odwoławcza</th>
+          <th>Wysłano (czas polski)</th><th>Ważne do (czas polski)</th>
+          <th>Stan</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for invitation in sent_invitations %}
+          <tr>
+            <td>{{ invitation.email }}</td>
+            <td>{{ invitation.get_district_display|default:"—" }}</td>
+            <td>{% if invitation.is_appeals %}tak{% else %}nie{% endif %}</td>
+            <td>{{ invitation.sent_at|local_datetime }}</td>
+            <td>{{ invitation.expires_at|local_datetime }}</td>
+            <td>
+              {% if invitation.status == "used" %}
+                <span class="badge badge--ok">{{ invitation.status_label }}</span>
+              {% elif invitation.status == "pending" %}
+                <span class="badge badge--neutral">{{ invitation.status_label }}</span>
+              {% else %}
+                <span class="badge badge--warn">{{ invitation.status_label }}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if invitation.status != "used" %}
+                <form method="post" action="{% url 'web:coordinator-invitation-resend' invitation.pk %}" class="inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--secondary btn--small">Wyślij ponownie</button>
+                </form>
+                {% if not invitation.is_revoked %}
+                  <form method="post" action="{% url 'web:coordinator-invitation-revoke' invitation.pk %}" class="inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn--secondary btn--small">Unieważnij</button>
+                  </form>
+                {% endif %}
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="empty">Nie wysłano jeszcze żadnego zaproszenia e-mailem.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
 {% endblock %}

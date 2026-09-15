@@ -330,6 +330,20 @@ class InvitationGrantsStatus(models.TextChoices):
     PENDING = CommitteeStatus.PENDING.value, "wymaga zatwierdzenia"
 
 
+class InvitationStatus(models.TextChoices):
+    """Stan zaproszenia **wyliczany** z pól kodu – nie ma go w bazie i nie da się go ustawić ręcznie.
+
+    Osobne pole statusu musiałoby być utrzymywane w zgodzie z ``used_count``, ``expires_at``
+    i ``revoked_at`` przy każdej ścieżce zapisu (rejestracja, panel, komenda CLI, upływ czasu),
+    a upływu czasu żaden zapis i tak nie zauważy. Wyliczanie z faktów nie może się rozjechać.
+    """
+
+    USED = "used", "użyte"
+    REVOKED = "revoked", "unieważnione"
+    EXPIRED = "expired", "wygasłe"
+    PENDING = "pending", "wysłane"
+
+
 class InvitationCode(models.Model):
     """Kod zaproszenia do komitetu. W bazie wyłącznie sha256 – kodu nie da się odtworzyć."""
 
@@ -351,6 +365,17 @@ class InvitationCode(models.Model):
     district = models.CharField(  # noqa: DJ001
         "województwo", max_length=100, null=True, blank=True, choices=Voivodeship.choices
     )
+    # Adres, na który kod pojechał listem. Puste dla kodów wygenerowanych „do ręki” (komenda CLI,
+    # sekcja „Kod zaproszenia” w panelu) – tam kod przekazuje człowiek i serwis nie wie komu.
+    # Adres jest tu jedyną wskazówką, kogo dotyczy wiersz „unieważnij / wyślij ponownie”; bez niego
+    # koordynator miałby przed sobą listę skrótów sha256.
+    email = models.EmailField(  # noqa: DJ001
+        "adres, na który wysłano", null=True, blank=True, db_index=True
+    )
+    sent_at = models.DateTimeField("wysłano", null=True, blank=True)
+    # Unieważnienie jest znacznikiem, a nie skasowaniem wiersza: po pomyłkowym zaproszeniu musi
+    # zostać ślad, że kod istniał i został odebrany, inaczej audyt nie tłumaczy własnych wpisów.
+    revoked_at = models.DateTimeField("unieważniono", null=True, blank=True)
 
     class Meta:
         verbose_name = "kod zaproszenia"
@@ -361,5 +386,37 @@ class InvitationCode(models.Model):
         return f"zaproszenie {self.code_hash[:8]}… ({self.used_count}/{self.max_uses})"
 
     def is_usable(self, now=None) -> bool:
+        """Czy kod wolno jeszcze zużyć. Jedyne miejsce, w którym ta reguła jest zapisana.
+
+        ``revoked_at`` wchodzi tu razem z terminem i limitem użyć, a nie osobnym warunkiem
+        w ``redeem_invitation``: gdyby unieważnienie sprawdzała wyłącznie rejestracja, każdy
+        następny czytelnik kodu (panel, admin, przyszłe API) musiałby pamiętać o dopisaniu go
+        po swojej stronie – a pierwszy, który zapomni, wpuści unieważniony kod.
+        """
         now = now or timezone.now()
-        return self.expires_at > now and self.used_count < self.max_uses
+        return self.revoked_at is None and self.expires_at > now and self.used_count < self.max_uses
+
+    @property
+    def is_revoked(self) -> bool:
+        return self.revoked_at is not None
+
+    def status(self, now=None) -> str:
+        """Stan kodu w kolejności rozstrzygania: użyte → unieważnione → wygasłe → wysłane.
+
+        Kolejność nie jest dowolna. Kod **zużyty** opisuje fakt, który już się wydarzył (ktoś
+        założył na niego konto), więc wygrywa z każdym późniejszym unieważnieniem i z upływem
+        terminu – po tych dwóch nie da się konta cofnąć. Unieważnienie wyprzedza wygaśnięcie,
+        bo mówi o decyzji człowieka, a nie o tym, że minął czas.
+        """
+        if self.used_count >= self.max_uses:
+            return InvitationStatus.USED
+        if self.revoked_at is not None:
+            return InvitationStatus.REVOKED
+        if self.expires_at <= (now or timezone.now()):
+            return InvitationStatus.EXPIRED
+        return InvitationStatus.PENDING
+
+    @property
+    def status_label(self) -> str:
+        """Etykieta stanu dla szablonu – ``status`` jest wyliczany, więc nie ma ``get_..._display``."""
+        return InvitationStatus(self.status()).label

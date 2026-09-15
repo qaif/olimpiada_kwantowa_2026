@@ -84,17 +84,22 @@ class InvitationCodeAdmin(admin.ModelAdmin):
 
     list_display = (
         "code_hash_short",
+        "email",
         "created_by",
         "grants_status",
         "is_appeals",
         "district",
         "used_count",
         "max_uses",
+        "sent_at",
         "expires_at",
+        "revoked_at",
     )
     list_filter = ("grants_status", "is_appeals", "district")
-    search_fields = ("code_hash",)
-    readonly_fields = ("code_hash", "created_by", "created_at", "used_count")
+    # Adres wysyłki jest tu jedynym sposobem, żeby odpowiedzieć na pytanie „czy ta osoba dostała
+    # od nas kod” – skrótu sha256 nie da się wyszukać po niczym, co człowiek ma w ręku.
+    search_fields = ("code_hash", "email")
+    readonly_fields = ("code_hash", "created_by", "created_at", "used_count", "sent_at")
 
     @admin.display(description="sha256 kodu")
     def code_hash_short(self, obj: InvitationCode) -> str:
