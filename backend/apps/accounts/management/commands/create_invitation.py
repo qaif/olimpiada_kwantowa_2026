@@ -33,7 +33,8 @@ class Command(BaseCommand):
             default=None,
             help=(
                 "Województwo narzucone rejestrowanemu recenzentowi. Nadpisuje deklarację z formularza "
-                "i nadaje profilowi district_verified=True (wymóg reguły konfliktu interesów). "
+                "i nadaje profilowi district_verified=True. Pole jest opcjonalne – kod bez "
+                "województwa daje recenzenta oceniającego prace ze wszystkich województw. "
                 f"Dopuszczalne wartości: {', '.join(Voivodeship.values)}."
             ),
         )

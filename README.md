@@ -507,7 +507,7 @@ można ustawić opcjonalne `SITE_URL`.
 | Co | Gdzie | Uwagi |
 |---|---|---|
 | Edycja danych uczestnika | `/me/profile/` (link „Edytuj dane” w panelu) | imię, nazwisko, **telefon**, województwo, szkoła (ta sama wyszukiwarka SIO co w rejestracji), klasa, rocznik; audyt `participant.profile_updated` z listą zmienionych pól |
-| Edycja danych pozostałych ról | `/account/profile/` | wyłącznie imię i nazwisko. Okręg członka komitetu zmienia **tylko** koordynator: to on jest podstawą reguły konfliktu interesów w przydziale recenzji |
+| Edycja danych pozostałych ról | `/account/profile/` | wyłącznie imię i nazwisko. Województwo członka komitetu (opcjonalne) zmienia **tylko** koordynator: to na nim opiera się reguła konfliktu interesów w przydziale recenzji |
 | Zmiana adresu e-mail | `/account/email/` → link z `/account/email/confirm/<token>/` | do potwierdzenia obowiązuje adres dotychczasowy; unikalność sprawdzana bez względu na wielkość liter; stary adres dostaje powiadomienie. Audyt `account.email_changed` |
 | Usunięcie konta | `/account/delete/` (link „Usuń konto” w panelu) | patrz niżej |
 | API | `PATCH /api/auth/me/` | te same pola co formularz; bez adresu e-mail, hasła i `public_code` |
@@ -969,9 +969,10 @@ karcie etapu) dokłada do niego dwa narzędzia:
    którego recenzent jeszcze nie rozpoczął (`ASSIGNED` → `CANCELLED`; szkic i ocena wystawiona
    już się nie cofają).
 
-Konflikt interesów obowiązuje w obu narzędziach: recenzent z województwa uczestnika (albo bez
-potwierdzonego województwa) nie dostanie jego pracy na etapie wojewódzkim, nawet gdy wskazuje go reguła –
-taka praca trafia na listę pominiętych z powodem `RULE_REVIEWER_CONFLICT`. Każda czynność zostawia
+Konflikt interesów obowiązuje w obu narzędziach: recenzent z województwa uczestnika nie dostanie jego
+pracy na etapie wojewódzkim, nawet gdy wskazuje go reguła – taka praca trafia na listę pominiętych
+z powodem `RULE_REVIEWER_CONFLICT`. Województwo członka komitetu jest opcjonalne: recenzent, który go
+nie ma, może oceniać prace ze wszystkich województw. Każda czynność zostawia
 wpis w audycie (`review.rule_added`, `review.rule_removed`, `review.assigned_manually`,
 `review.unassigned`). Odpowiedniki w API: `POST /api/grading/stages/<id>/problem-rules/`,
 `DELETE /api/grading/stages/<id>/problem-rules/<rule_id>/`,

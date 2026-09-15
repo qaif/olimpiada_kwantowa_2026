@@ -145,8 +145,10 @@ def dashboard_context(extra: dict | None = None) -> dict:
         "resolve_form": ResolveModerationForm(),
         "assign_third_form": AssignThirdReviewerForm(),
         "verify_form": VerifyDistrictForm(),
-        # Lista województw dla wbudowanych w tabelę formularzy „Potwierdź okręg”: jeden
-        # ``<select>`` na wiersz, a wierszy jest tyle, ilu aktywnych członków komitetu.
+        # Lista województw dla wbudowanych w tabelę formularzy „Województwa członków komitetu”:
+        # jeden ``<select>`` na wiersz, a wierszy jest tyle, ilu aktywnych członków komitetu.
+        # Pustą pozycję szablon renderuje sam („— brak —”), bo tutaj znaczy ona „usuń”,
+        # a nie „jeszcze nie wybrano”.
         "voivodeship_choices": VOIVODESHIP_CHOICES,
         "invitation_form": InvitationForm(),
         "bulk_invitation_form": BulkInvitationForm(),
@@ -547,17 +549,26 @@ class ResendActivationView(CoordinatorActionView):
 
 
 class VerifyDistrictView(CoordinatorActionView):
-    """Potwierdzenie okręgu – bez tego recenzent nie wchodzi do przydziału na etapie okręgowym."""
+    """Województwo członka komitetu: ustalenie albo usunięcie (pozycja „— brak —”).
+
+    Województwo jest opcjonalne i wpływa wyłącznie na konflikt interesów na etapie wojewódzkim,
+    więc pusta wartość jest tu decyzją koordynatora, a nie niewypełnionym polem.
+    """
 
     def perform(self, request, pk: int) -> str:
         member = get_object_or_404(CommitteeMember.objects.select_related("user"), pk=pk)
         form = VerifyDistrictForm(request.POST)
         if not form.is_valid():
-            raise DomainError("Podaj województwo do potwierdzenia.", "DISTRICT_REQUIRED")
-        verify_committee_district(
-            member, district=form.cleaned_data["district"], actor=request.user, request=request
+            raise DomainError("Wybierz województwo z listy albo „— brak —”.", "DISTRICT_INVALID")
+        member = verify_committee_district(
+            member,
+            district=form.cleaned_data["district"] or None,
+            actor=request.user,
+            request=request,
         )
-        return "Województwo zostało potwierdzone."
+        if not member.district:
+            return "Województwo zostało usunięte – ten członek komitetu ocenia prace z całego kraju."
+        return f"Województwo zostało zapisane: {member.get_district_display()}."
 
 
 class CreateInvitationView(CoordinatorActionView):

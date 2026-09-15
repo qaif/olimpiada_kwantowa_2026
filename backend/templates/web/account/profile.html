@@ -49,13 +49,13 @@
     </form>
     {% if committee %}
       {% comment %}
-        Okręg członka komitetu jest tu tylko do odczytu i tak ma zostać: potwierdzony okręg jest
-        podstawą reguły konfliktu interesów przy przydziale recenzji, więc recenzent, który mógłby
-        go sobie przestawić, mógłby też wejść na prace ze swojego województwa.
+        Województwo członka komitetu jest tu tylko do odczytu i tak ma zostać: to na nim opiera się
+        reguła konfliktu interesów przy przydziale recenzji, więc recenzent, który mógłby je sobie
+        przestawić, mógłby też wejść na prace ze swojego województwa.
       {% endcomment %}
-      <p class="hint">Województwo ({{ committee.get_district_display|default:"—" }}
-        {% if committee.district_verified %}– potwierdzone{% else %}– niepotwierdzone{% endif %})
-        zmienia wyłącznie koordynator: od niego zależy reguła konfliktu interesów w przydziale recenzji.</p>
+      <p class="hint">Województwo ({{ committee.get_district_display|default:"— brak —" }})
+        zmienia wyłącznie koordynator. Jest opcjonalne i służy jedynie do wykluczenia konfliktu
+        interesów na etapie wojewódzkim – bez województwa oceniasz prace ze wszystkich województw.</p>
     {% endif %}
   </div>
 </section>

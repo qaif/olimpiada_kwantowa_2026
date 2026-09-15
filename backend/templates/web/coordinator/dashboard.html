@@ -303,32 +303,39 @@
     </table>
   </div>
 
-  <h3>Weryfikacja województwa</h3>
-  <p class="hint">Bez potwierdzonego województwa recenzent nie wchodzi do przydziału na etapie wojewódzkim.</p>
+  <h3>Województwa członków komitetu</h3>
+  <p class="hint">Województwo jest opcjonalne. Służy wyłącznie do wykluczenia konfliktu interesów na
+    etapie wojewódzkim: członek komitetu z tym samym województwem co uczestnik nie ocenia jego pracy.
+    Członek bez województwa ocenia prace ze wszystkich województw.</p>
   <div class="scroll">
     <table class="table">
-      <thead><tr><th>E-mail</th><th>Województwo</th><th>Zweryfikowany</th><th></th></tr></thead>
+      <thead><tr><th>E-mail</th><th>Województwo</th><th>Skąd</th><th></th></tr></thead>
       <tbody>
         {% for member in active_members %}
           <tr>
             <td>{{ member.user.email }}</td>
             <td>{{ member.get_district_display|default:"—" }}</td>
             <td>
-              {% if member.district_verified %}
-                <span class="badge badge--ok">tak</span>
+              {% if not member.district %}
+                —
+              {% elif member.district_verified %}
+                ustalone przez organizatora
               {% else %}
-                <span class="badge badge--warn">nie</span>
+                zadeklarowane przy rejestracji
               {% endif %}
             </td>
             <td>
               <form method="post" action="{% url 'web:coordinator-verify-district' member.pk %}" class="inline">
                 {% csrf_token %}
                 <select name="district" aria-label="Województwo">
+                  <option value=""{% if not member.district %} selected{% endif %}>— brak —</option>
                   {% for value, label in voivodeship_choices %}
-                    <option value="{{ value }}"{% if value == member.district %} selected{% endif %}>{{ label }}</option>
+                    {% if value %}
+                      <option value="{{ value }}"{% if value == member.district %} selected{% endif %}>{{ label }}</option>
+                    {% endif %}
                   {% endfor %}
                 </select>
-                <button type="submit" class="btn btn--secondary btn--small">Potwierdź województwo</button>
+                <button type="submit" class="btn btn--secondary btn--small">Zapisz</button>
               </form>
             </td>
           </tr>

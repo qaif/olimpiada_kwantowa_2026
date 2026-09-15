@@ -225,7 +225,7 @@ class AuditLog(models.Model):
 ```
 
 Reguły integralności egzekwowane w bazie/serwisie:
-- `Review.reviewer` nie może być z tego samego `district` co `Participant` na etapie okręgowym (konflikt interesów). Walidacja w serwisie przydziału.
+- `Review.reviewer` nie może być z tego samego `district` co `Participant` na etapie okręgowym (konflikt interesów). Walidacja w serwisie przydziału. `district` członka komitetu jest opcjonalny (decyzja organizatora): jego brak nie wyklucza z oceniania niczego.
 - `Review.score ∈ ScoringScale.values`. Walidacja w `clean()` i w serwisie zapisu.
 - `FinalGrade` może powstać tylko, gdy istnieją ≥2 `Review` ze statusem `SUBMITTED` w rundzie 1.
 - Recenzent widzi `public_code`, nigdy imię/nazwisko (ocenianie ślepe). Koordynator widzi wszystko. Każda zmiana oceny trafia do `AuditLog`.

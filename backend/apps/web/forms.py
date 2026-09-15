@@ -486,9 +486,9 @@ class ParticipantProfileForm(SchoolChoiceMixin):
 class AccountNamesForm(forms.Form):
     """Imię i nazwisko dla konta bez profilu uczestnika (``/account/profile/``).
 
-    Województwa członka komitetu tu nie ma **świadomie**: potwierdzony okręg jest podstawą reguły
-    konfliktu interesów przy przydziale recenzji, więc recenzent, który mógłby go sobie przestawić,
-    mógłby też wejść na prace ze swojego okręgu. Zmiana zostaje u koordynatora.
+    Województwa członka komitetu tu nie ma **świadomie**: to na nim opiera się reguła konfliktu
+    interesów przy przydziale recenzji, więc recenzent, który mógłby je sobie przestawić, mógłby też
+    wejść na prace ze swojego województwa. Zmiana (i usunięcie) zostaje u koordynatora.
     """
 
     first_name = forms.CharField(label="Imię", max_length=150)
@@ -647,7 +647,7 @@ class ReviewerPickForm(forms.Form):
     """Wskazanie recenzenta z listy – wspólne dla reguły „z góry” i dla przydziału jednej pracy.
 
     Formularz sprawdza wyłącznie kształt (liczba dodatnia). Czy ta osoba jest aktywnym recenzentem
-    i czy nie jest w konflikcie okręgu, rozstrzyga serwis – ta sama reguła obowiązuje API.
+    i czy nie jest w konflikcie województwa, rozstrzyga serwis – ta sama reguła obowiązuje API.
     """
 
     reviewer_id = forms.IntegerField(label="Recenzent", min_value=1)
@@ -660,9 +660,13 @@ class AssignReviewersForm(forms.Form):
 
 
 class VerifyDistrictForm(forms.Form):
-    """Potwierdzenie okręgu członka komitetu."""
+    """Województwo członka komitetu ustalane przez koordynatora.
 
-    district = voivodeship_field("Województwo")
+    Pole jest nieobowiązkowe, bo województwo członka komitetu jest opcjonalne: pusta pozycja
+    („— brak —”) usuwa je, a nie jest błędem formularza.
+    """
+
+    district = voivodeship_field("Województwo", required=False)
 
 
 class InvitationForm(forms.Form):

@@ -126,7 +126,7 @@ def test_invitation_expiry_is_reported_in_local_time(web_client, coordinator):
 
 
 def test_verify_district_from_the_panel_uses_the_closed_list(web_client, coordinator):
-    """Ścieżka WWW „Potwierdź okręg”: wartość z ``<select>`` idzie do tego samego serwisu."""
+    """Ścieżka WWW „Województwa członków komitetu”: wartość z ``<select>`` idzie do tego serwisu."""
     member = ActiveReviewerFactory(district="mazowieckie", district_verified=False)
     web_client.force_login(coordinator)
 
@@ -139,6 +139,21 @@ def test_verify_district_from_the_panel_uses_the_closed_list(web_client, coordin
     assert (member.district, member.district_verified) == ("podlaskie", True)
 
 
+def test_verify_district_from_the_panel_clears_the_district(web_client, coordinator):
+    """Pozycja „— brak —” usuwa województwo: pole jest opcjonalne, więc pomyłka jest odwracalna."""
+    member = ActiveReviewerFactory(district="mazowieckie", district_verified=True)
+    web_client.force_login(coordinator)
+
+    response = web_client.post(
+        f"/coordinator/committee/{member.pk}/verify-district/", {"district": ""}, follow=True
+    )
+
+    member.refresh_from_db()
+    assert response.status_code == 200
+    assert (member.district, member.district_verified) == (None, False)
+    assert "Województwo zostało usunięte" in response.content.decode()
+
+
 def test_verify_district_panel_renders_a_select_with_the_current_value(web_client, coordinator):
     """Wolne pole tekstowe wpuszczało tu dowolny zapis – teraz jest lista z 16 pozycjami."""
     ActiveReviewerFactory(district="podlaskie", district_verified=False)
@@ -148,6 +163,17 @@ def test_verify_district_panel_renders_a_select_with_the_current_value(web_clien
 
     assert '<select name="district" aria-label="Województwo">' in content
     assert '<option value="podlaskie" selected>podlaskie</option>' in content
+    assert "— brak —" in content
+
+
+def test_verify_district_panel_preselects_the_empty_option_without_a_district(web_client, coordinator):
+    """Członek bez województwa ma wybrane „— brak —”, a nie pierwsze województwo z listy."""
+    ActiveReviewerFactory(district=None, district_verified=False)
+    web_client.force_login(coordinator)
+
+    content = web_client.get("/coordinator/").content.decode()
+
+    assert '<option value="" selected>— brak —</option>' in content
 
 
 def test_verify_district_from_the_panel_rejects_a_value_outside_the_list(web_client, coordinator):

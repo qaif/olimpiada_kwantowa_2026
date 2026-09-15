@@ -297,10 +297,12 @@ class CommitteeMember(models.Model):
     district = models.CharField(  # noqa: DJ001
         "województwo", max_length=100, null=True, blank=True, choices=Voivodeship.choices
     )
-    # Okręg samodeklarowany przy rejestracji nie jest podstawą do wykluczania konfliktu interesów.
-    # ``True`` dostaje wyłącznie profil z okręgiem narzuconym przez kod zaproszenia albo potwierdzony
-    # przez koordynatora (``POST /api/auth/committee/{id}/verify-district/``). Przydział na etapie
-    # okręgowym pomija recenzentów niezweryfikowanych – patrz ``apps.grading.services.assign_reviewers``.
+    # Flaga mówi wyłącznie, skąd wzięła się wartość pola ``district``: ``True`` dostaje profil
+    # z województwem narzuconym przez kod zaproszenia albo ustalonym przez koordynatora
+    # (``POST /api/auth/committee/{id}/verify-district/``), ``False`` – deklarację z rejestracji.
+    # Przydziału nie bramkuje: województwo członka komitetu jest opcjonalne (decyzja organizatora),
+    # a reguła konfliktu interesów porównuje samo ``district`` – patrz
+    # ``apps.grading.services.has_district_conflict``.
     district_verified = models.BooleanField("województwo zweryfikowane", default=False)
     status = models.CharField(
         "status", max_length=16, choices=CommitteeStatus.choices, default=CommitteeStatus.PENDING

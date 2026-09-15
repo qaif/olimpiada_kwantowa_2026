@@ -85,8 +85,8 @@ class ParticipantFactory(factory.django.DjangoModelFactory):
     # Szkoła wpisana ręcznie (``school_ref`` puste) – wariant, który działa bez słownika.
     grade = 3
     # Wartość z ``Voivodeship`` – po zamknięciu listy każdy inny zapis odpada na walidacji.
-    # Stała, a nie losowana: testy konfliktu okręgu porównują okręgi między obiektami
-    # i muszą mieć powtarzalny punkt wyjścia (własny okręg podają jawnie).
+    # Stała, a nie losowana: testy konfliktu interesów porównują województwa między obiektami
+    # i muszą mieć powtarzalny punkt wyjścia (własne województwo podają jawnie).
     district = Voivodeship.MAZOWIECKIE
     birth_year = 2008
     # Numer z zakresu testowego w postaci już znormalizowanej – dokładnie takiej, jaką zapisuje
@@ -111,9 +111,10 @@ class CommitteeMemberFactory(factory.django.DjangoModelFactory):
 class ActiveReviewerFactory(CommitteeMemberFactory):
     """Recenzent aktywny: status ACTIVE + grupa ``reviewer`` (tak jak po zatwierdzeniu).
 
-    Okręg jest zweryfikowany, bo to przypadek domyślny po wdrożeniu długu T-02 (kod zaproszenia
-    z okręgiem). Test konfliktu interesów jawnie podaje ``district_verified=False``, gdy bada
-    ścieżkę niezweryfikowaną.
+    Województwo jest oznaczone jako pochodzące od organizatora (``district_verified=True``), bo to
+    przypadek domyślny: kod zaproszenia z województwem. Flaga nie wpływa na przydział – reguła
+    konfliktu interesów patrzy wyłącznie na samo ``district`` – więc test, który bada województwo
+    samodeklarowane albo puste, podaje wartości jawnie.
     """
 
     user = factory.SubFactory(UserFactory, groups=[GROUP_REVIEWER])

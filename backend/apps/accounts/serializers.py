@@ -184,9 +184,20 @@ class CommitteeProfileSerializer(serializers.ModelSerializer):
 
 
 class VerifyDistrictSerializer(serializers.Serializer):
-    """Wejście potwierdzenia okręgu przez koordynatora."""
+    """Wejście ustalenia województwa członka komitetu przez koordynatora.
 
-    district = serializers.ChoiceField(choices=Voivodeship.choices)
+    Wartość pusta (``""``, ``null`` albo brak klucza) jest poprawna i **usuwa** województwo:
+    pole jest opcjonalne, więc musi istnieć droga powrotna po pomyłkowym wpisie.
+    """
+
+    district = serializers.ChoiceField(
+        choices=Voivodeship.choices,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        default=None,
+        help_text="Województwo z zamkniętej listy; pusta wartość usuwa województwo.",
+    )
 
 
 class MeSerializer(serializers.ModelSerializer):

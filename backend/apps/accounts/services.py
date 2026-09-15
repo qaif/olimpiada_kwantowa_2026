@@ -64,7 +64,7 @@ def _require_voivodeship(district: str | None, *, required: bool) -> str | None:
     Walidacja jest tutaj, a nie tylko w formularzu i serializerze, bo do serwisów wchodzą też
     seed, komendy CLI i logowanie społecznościowe – gdyby każda z tych ścieżek pilnowała listy
     osobno, do bazy trafiłby prędzej czy później zapis spoza słownika i reguła konfliktu
-    interesów (porównanie okręgów) przestałaby być rozstrzygalna.
+    interesów (porównanie województw) przestałaby być rozstrzygalna.
     """
     normalized = normalize_voivodeship(district)
     if normalized is not None:
@@ -580,7 +580,8 @@ def create_invitation(
     """Tworzy kod zaproszenia i zwraca ``(obiekt, kod_jawny)``.
 
     Kod jawny jest zwracany wyłącznie wywołującemu (komenda CLI) i nigdzie nie jest zapisywany.
-    ``district`` (o ile podany) narzuca okręg rejestrowanego recenzenta i czyni go zweryfikowanym.
+    ``district`` (o ile podany) narzuca województwo rejestrowanego recenzenta i oznacza je jako
+    pochodzące od organizatora (``district_verified``).
     """
     district = _require_voivodeship(district, required=False)
     if expires_at is None:
@@ -993,17 +994,18 @@ def register_committee(
 ) -> CommitteeMember:
     """Rejestracja członka komitetu na podstawie kodu zaproszenia.
 
-    Okręg z kodu zaproszenia jest nadrzędny wobec deklaracji z formularza: jeśli koordynator
-    przypisał kodowi okręg, pole ``district`` z payloadu jest ignorowane, a profil dostaje
-    ``district_verified=True``. Kod bez okręgu daje profil samodeklarowany i niezweryfikowany –
-    taki recenzent nie jest przydzielany na etapie okręgowym (reguła konfliktu interesów).
+    Województwo z kodu zaproszenia jest nadrzędne wobec deklaracji z formularza: jeśli koordynator
+    przypisał kodowi województwo, pole ``district`` z payloadu jest ignorowane, a profil dostaje
+    ``district_verified=True``. Kod bez województwa daje profil samodeklarowany – w niczym to
+    recenzenta nie ogranicza, bo województwo członka komitetu jest opcjonalne i decyduje wyłącznie
+    o konflikcie interesów na etapie wojewódzkim.
 
     Aktywacja adresu obowiązuje tu **tak samo**, jak przy rejestracji otwartej: kod zaproszenia
     dowodzi, że koordynator kogoś zaprosił, a nie że wpisany adres należy do tej osoby. Status
     ``ACTIVE`` z kodu i aktywacja konta to dwie różne rzeczy – pierwsza daje uprawnienia
     recenzenta, druga wpuszcza do logowania.
     """
-    # Okręg z payloadu sprawdzamy przed zużyciem kodu: nieprawidłowa deklaracja nie ma prawa
+    # Województwo z payloadu sprawdzamy przed zużyciem kodu: nieprawidłowa deklaracja nie ma prawa
     # skasować jednorazowego zaproszenia (``redeem_invitation`` podnosi ``used_count``).
     declared = _require_voivodeship(district, required=False)
     invitation = redeem_invitation(invitation_code)
@@ -1055,36 +1057,38 @@ def approve_committee_member(member: CommitteeMember, *, actor: User) -> Committ
 
 @transaction.atomic
 def verify_committee_district(
-    member: CommitteeMember, *, district: str, actor: User, request=None
+    member: CommitteeMember, *, district: str | None, actor: User, request=None
 ) -> CommitteeMember:
-    """Koordynator potwierdza okręg członka komitetu (dług techniczny T-02).
+    """Koordynator ustala województwo członka komitetu – albo je usuwa.
 
-    Dopóki okręg jest samodeklarowany, reguła konfliktu interesów nie ma na czym się oprzeć –
-    dlatego przydział na etapie okręgowym pomija profile z ``district_verified=False``.
+    Województwo członka komitetu jest opcjonalne i służy wyłącznie regule konfliktu interesów na
+    etapie wojewódzkim (recenzent nie ocenia prac ze swojego województwa). Dlatego pusta wartość
+    jest tu poprawnym wejściem: czyści pole i zdejmuje ``district_verified``, bo nie ma już czego
+    potwierdzać – bez tego koordynator nie miałby jak cofnąć województwa wpisanego pomyłkowo.
     """
-    if not (district or "").strip():
-        raise DomainError(
-            "Podaj województwo do potwierdzenia.", "DISTRICT_REQUIRED", status.HTTP_400_BAD_REQUEST
-        )
-    district = _require_voivodeship(district, required=True)
+    district = _require_voivodeship(district, required=False)
     member = CommitteeMember.objects.select_for_update().get(pk=member.pk)
     if member.status != CommitteeStatus.ACTIVE:
-        # Potwierdzony okręg wpuszcza do przydziału na etapie okręgowym. Nadawanie go profilowi
-        # oczekującemu albo zawieszonemu byłoby cichym omijaniem ścieżki zatwierdzania.
+        # Województwo ma znaczenie tylko dla kogoś, kto realnie ocenia prace. Ustawianie go
+        # profilowi oczekującemu albo zawieszonemu sugerowałoby, że jest on już w puli recenzentów.
         raise DomainError(
-            "Województwo potwierdza się wyłącznie aktywnemu członkowi komitetu.",
+            "Województwo ustala się wyłącznie aktywnemu członkowi komitetu.",
             "MEMBER_NOT_ACTIVE",
             status.HTTP_400_BAD_REQUEST,
         )
     previous = member.district
+    previously_verified = member.district_verified
     member.district = district
-    member.district_verified = True
+    member.district_verified = district is not None
     member.save(update_fields=["district", "district_verified"])
     audit(
         actor,
         "committee.district_verified",
         member,
-        {"district": {"from": previous, "to": district}, "district_verified": {"from": False, "to": True}},
+        {
+            "district": {"from": previous, "to": district},
+            "district_verified": {"from": previously_verified, "to": member.district_verified},
+        },
         request=request,
     )
     return member

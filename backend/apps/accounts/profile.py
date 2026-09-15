@@ -144,10 +144,10 @@ def update_participant_profile(
 def update_own_names(user: User, *, first_name: str, last_name: str, request=None) -> User:
     """Imię i nazwisko dla konta **bez** profilu uczestnika (komitet, koordynator).
 
-    Okręg członka komitetu nie jest tu edytowalny i to jest sedno tego ekranu: potwierdzony okręg
-    (``district_verified``) jest podstawą reguły konfliktu interesów w przydziale recenzji, więc
-    recenzent, który mógłby go sobie przestawić, mógłby też wejść na prace z własnego okręgu.
-    Zmiana okręgu zostaje u koordynatora (``POST /api/auth/committee/{id}/verify-district/``).
+    Województwo członka komitetu nie jest tu edytowalne i to jest sedno tego ekranu: na nim opiera
+    się reguła konfliktu interesów w przydziale recenzji, więc recenzent, który mógłby je sobie
+    przestawić, mógłby też wejść na prace z własnego województwa. Zmiana (i usunięcie – pole jest
+    opcjonalne) zostaje u koordynatora (``POST /api/auth/committee/{id}/verify-district/``).
     """
     diff: dict = {}
     _changed(diff, "first_name", user.first_name, (first_name or "").strip())

@@ -167,7 +167,7 @@ def test_committee_member_edits_only_the_names(web_client, reviewer):
 
 
 def test_the_committee_district_is_read_only_on_that_page(web_client, reviewer):
-    """Potwierdzony okręg jest podstawą reguły konfliktu interesów – recenzent go nie przestawia."""
+    """Na województwie opiera się reguła konfliktu interesów – recenzent go sobie nie przestawia."""
     web_client.force_login(reviewer.user)
 
     body = web_client.get(ACCOUNT_PROFILE_URL).content.decode()

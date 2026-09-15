@@ -1,7 +1,8 @@
-"""Dług techniczny T-02: okręg członka komitetu przestaje być samodeklarowany.
+"""Województwo członka komitetu: skąd się bierze i kto je zmienia.
 
-Kryteria: kod zaproszenia z okręgiem nadpisuje payload rejestracji, a koordynator może potwierdzić
-okręg profilu zarejestrowanego bez kodu okręgowego.
+Kod zaproszenia z województwem nadpisuje payload rejestracji, a koordynator ustala województwo
+profilu zarejestrowanego na kod bez województwa – albo je usuwa, bo pole jest opcjonalne
+(decyzja organizatora: „województwo nie ma znaczenia w przypadku członków komitetu”).
 """
 
 from io import StringIO
@@ -14,6 +15,7 @@ from apps.accounts.models import CommitteeMember, InvitationCode
 from apps.accounts.services import create_invitation, register_committee
 from apps.accounts.tests.factories import (
     ActiveReviewerFactory,
+    CommitteeMemberFactory,
     CoordinatorFactory,
     InvitationCodeFactory,
     ParticipantFactory,
@@ -29,7 +31,7 @@ def client() -> APIClient:
 
 
 def test_invitation_district_overrides_registration_payload():
-    """Kod z okręgiem wygrywa z deklaracją z formularza i nadaje district_verified=True."""
+    """Kod z województwem wygrywa z deklaracją z formularza i nadaje district_verified=True."""
     InvitationCodeFactory(plain_code="kod-z-okregiem", district="pomorskie")
 
     member = register_committee(
@@ -46,7 +48,7 @@ def test_invitation_district_overrides_registration_payload():
 
 
 def test_invitation_without_district_leaves_profile_unverified():
-    """Kod bez okręgu → profil samodeklarowany, district_verified=False."""
+    """Kod bez województwa → profil samodeklarowany, district_verified=False."""
     InvitationCodeFactory(plain_code="kod-bez-okregu", district=None)
 
     member = register_committee(
@@ -112,8 +114,29 @@ def test_verify_district_is_coordinator_only(client):
     assert not CommitteeMember.objects.filter(district="podlaskie").exists()
 
 
-def test_verify_district_rejects_blank_value(client):
-    member = ActiveReviewerFactory(district_verified=False)
+def test_verify_district_with_an_empty_value_clears_the_district(client):
+    """Pusta wartość usuwa województwo – bez tego pomyłki nie dałoby się cofnąć."""
+    member = ActiveReviewerFactory(district="mazowieckie", district_verified=True)
+    coordinator = CoordinatorFactory()
+    client.force_authenticate(coordinator)
+
+    response = client.post(
+        f"/api/auth/committee/{member.pk}/verify-district/", {"district": ""}, format="json"
+    )
+
+    assert response.status_code == 200
+    assert response.data["district"] is None
+    assert response.data["district_verified"] is False
+    member.refresh_from_db()
+    assert (member.district, member.district_verified) == (None, False)
+    entry = AuditLog.objects.get(action="committee.district_verified", target_id=str(member.pk))
+    assert entry.diff["district"] == {"from": "mazowieckie", "to": None}
+    assert entry.diff["district_verified"] == {"from": True, "to": False}
+
+
+def test_verify_district_rejects_a_value_outside_the_list(client):
+    """Wolny tekst nie jest „pustą wartością” – lista województw pozostaje zamknięta."""
+    member = ActiveReviewerFactory(district="mazowieckie", district_verified=True)
     client.force_authenticate(CoordinatorFactory())
 
     response = client.post(
@@ -122,4 +145,19 @@ def test_verify_district_rejects_blank_value(client):
 
     assert response.status_code == 400
     member.refresh_from_db()
-    assert member.district_verified is False
+    assert (member.district, member.district_verified) == ("mazowieckie", True)
+
+
+def test_verify_district_is_refused_for_a_member_who_is_not_active(client):
+    """Województwo ustala się wyłącznie aktywnemu członkowi komitetu – także przy czyszczeniu."""
+    member = CommitteeMemberFactory(district="mazowieckie", district_verified=True)
+    client.force_authenticate(CoordinatorFactory())
+    url = f"/api/auth/committee/{member.pk}/verify-district/"
+
+    assert client.post(url, {"district": "podlaskie"}, format="json").status_code == 400
+    response = client.post(url, {"district": ""}, format="json")
+
+    assert response.status_code == 400
+    assert response.data["code"] == "MEMBER_NOT_ACTIVE"
+    member.refresh_from_db()
+    assert (member.district, member.district_verified) == ("mazowieckie", True)

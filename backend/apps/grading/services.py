@@ -5,9 +5,10 @@ Widoki tylko orkiestrują. Zasady wspólne dla całego modułu:
 - każda zmiana stanu ``Submission`` idzie pod blokadą ``SELECT ... FOR UPDATE`` na tym zgłoszeniu.
   To jedyny punkt szeregowania: dwa równoczesne ``submit_review`` nie mogą utworzyć dwóch
   ``FinalGrade`` (relacja jeden-do-jednego w bazie jest dopiero drugą linią obrony),
-- konflikt interesów na etapie okręgowym liczy się z ``CommitteeMember.district``, ale wyłącznie
-  gdy okręg jest potwierdzony (``district_verified``). Okręg samodeklarowany nie jest dowodem
-  braku konfliktu, więc taki recenzent nie dostaje przydziału na etapie okręgowym (dług T-02),
+- konflikt interesów na etapie wojewódzkim liczy się wyłącznie z ``CommitteeMember.district``:
+  recenzent z województwa uczestnika nie dostaje jego pracy. Województwo członka komitetu jest
+  opcjonalne (decyzja organizatora), więc jego brak nikogo nie wyklucza, a ``district_verified``
+  jest tylko informacją dla koordynatora i niczego nie bramkuje,
 - czas zawsze przez ``timezone.now()``.
 """
 
@@ -114,17 +115,21 @@ def reviewer_pool() -> list[CommitteeMember]:
 
 
 def has_district_conflict(member: CommitteeMember, stage: Stage, participant_district: str | None) -> bool:
-    """Czy recenzent jest w konflikcie okręgu dla tego uczestnika na tym etapie.
+    """Czy recenzent jest w konflikcie województwa dla tego uczestnika na tym etapie.
 
-    Poza etapem okręgowym konfliktu nie ma. Na etapie okręgowym konfliktowy jest recenzent z okręgu
-    uczestnika, a także **każdy** recenzent z okręgiem niepotwierdzonym lub pustym: dopóki
-    koordynator nie potwierdzi okręgu, nie da się wykazać, że konfliktu nie ma (dług T-02).
+    Poza etapem wojewódzkim konfliktu nie ma. Na etapie wojewódzkim konfliktowy jest wyłącznie
+    recenzent z **tym samym** województwem co uczestnik. Województwo członka komitetu jest
+    opcjonalne (decyzja organizatora): kto go nie ma, ocenia prace ze wszystkich województw.
+    ``district_verified`` nie bierze tu udziału – województwo niepotwierdzone, ale równe
+    województwu uczestnika, jest konfliktem, bo to bezpieczniejszy kierunek niż wpuszczenie
+    recenzenta na pracę z jego własnego województwa.
     """
     if stage.kind != StageKind.DISTRICT:
         return False
-    if not member.district_verified or not _norm_district(member.district):
-        return True
-    return _norm_district(member.district) == _norm_district(participant_district)
+    member_district = _norm_district(member.district)
+    if not member_district:
+        return False
+    return member_district == _norm_district(participant_district)
 
 
 def _assert_reviewer_eligible(reviewer: CommitteeMember) -> None:
@@ -452,7 +457,7 @@ def add_problem_reviewer_rule(problem, reviewer: CommitteeMember, *, actor=None,
     koordynator, który dodaje ją po zamknięciu etapu, zobaczyłby „zapisano” i żadnej zmiany na
     liście przydziałów. Dlatego serwis od razu dopisuje recenzje do wszystkich prac tego zadania,
     które nadaje się jeszcze przydzielać, i zwraca liczniki – ile dopisano, ile pominięto z powodu
-    konfliktu okręgu i ile miało tego recenzenta już wcześniej.
+    konfliktu województwa i ile miało tego recenzenta już wcześniej.
     """
     _assert_reviewer_eligible(reviewer)
     if ProblemReviewerRule.objects.filter(problem=problem, reviewer=reviewer).exists():

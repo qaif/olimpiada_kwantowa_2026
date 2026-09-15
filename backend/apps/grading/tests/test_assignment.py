@@ -1,4 +1,9 @@
-"""Kryteria 1–2 T-05 oraz wymóg z długu technicznego T-02 (weryfikacja okręgu recenzenta)."""
+"""Kryteria 1–2 T-05 oraz reguła konfliktu interesów oparta na województwie recenzenta.
+
+Województwo członka komitetu jest opcjonalne (decyzja organizatora): konfliktem jest wyłącznie
+województwo **równe** województwu uczestnika na etapie wojewódzkim, a ``district_verified``
+niczego nie bramkuje.
+"""
 
 import pytest
 
@@ -55,7 +60,7 @@ def test_assignment_is_balanced_between_reviewers(stage):
 
 
 def test_district_stage_excludes_reviewer_from_participant_district(district_stage):
-    """2a. Na etapie okręgowym recenzent z okręgu uczestnika nie dostaje przydziału."""
+    """2a. Na etapie wojewódzkim recenzent z województwa uczestnika nie dostaje przydziału."""
     conflicted = ActiveReviewerFactory(district="mazowieckie")
     ActiveReviewerFactory(district="malopolskie")
     ActiveReviewerFactory(district="pomorskie")
@@ -83,26 +88,42 @@ def test_district_stage_without_enough_reviewers_raises_conflict(district_stage)
     assert Review.objects.count() == 0
 
 
-def test_unverified_reviewer_is_skipped_on_district(district_stage):
-    """T-02: niezweryfikowany okręg = konflikt z każdym okręgiem na etapie okręgowym."""
-    unverified = ActiveReviewerFactory(district="pomorskie", district_verified=False)
-    verified_a = ActiveReviewerFactory(district="malopolskie", district_verified=True)
-    verified_b = ActiveReviewerFactory(district="lubelskie", district_verified=True)
+def test_unverified_but_equal_district_is_still_a_conflict(district_stage):
+    """Niepotwierdzone województwo **równe** województwu uczestnika nadal wyklucza.
+
+    To bezpieczniejszy kierunek błędu: samodeklaracja nie jest dowodem, że konfliktu nie ma,
+    więc dopóki recenzent deklaruje województwo uczestnika, prac stamtąd nie dostaje.
+    """
+    conflicted = ActiveReviewerFactory(district="mazowieckie", district_verified=False)
+    first = ActiveReviewerFactory(district="malopolskie")
+    second = ActiveReviewerFactory(district="lubelskie")
     submission = locked_submission(district_stage, district="mazowieckie")
 
     assign_reviewers(district_stage)
 
     reviewers = set(Review.objects.filter(submission=submission).values_list("reviewer_id", flat=True))
-    assert reviewers == {verified_a.pk, verified_b.pk}
-    assert unverified.pk not in reviewers
+    assert reviewers == {first.pk, second.pk}
+    assert conflicted.pk not in reviewers
+
+
+def test_member_without_district_is_assignable_on_district_stage(district_stage):
+    """Województwo członka komitetu jest opcjonalne: jego brak nie jest konfliktem z niczym.
+
+    Pula to dokładnie dwie osoby, w tym jedna bez województwa, więc przydział musi po nią sięgnąć –
+    asercja mówi wtedy coś o regule, a nie tylko o rozmiarze zbioru.
+    """
+    without_district = ActiveReviewerFactory(district=None, district_verified=False)
+    other = ActiveReviewerFactory(district="malopolskie")
+    submission = locked_submission(district_stage, district="mazowieckie")
+
+    assign_reviewers(district_stage)
+
+    reviewers = set(Review.objects.filter(submission=submission).values_list("reviewer_id", flat=True))
+    assert reviewers == {without_district.pk, other.pk}
 
 
 def test_unverified_reviewer_is_assignable_outside_district_stage(stage):
-    """T-02: poza etapem okręgowym brak potwierdzenia okręgu nie wyklucza recenzenta.
-
-    Pula to dokładnie dwie osoby, więc przydział musi sięgnąć po tę niezweryfikowaną – asercja
-    mówi wtedy coś o regule, a nie tylko o rozmiarze zbioru.
-    """
+    """Poza etapem wojewódzkim województwo nie wyklucza nikogo – nawet zgodne z uczestnikiem."""
     unverified = ActiveReviewerFactory(district="pomorskie", district_verified=False)
     verified = ActiveReviewerFactory(district="malopolskie", district_verified=True)
     submission = locked_submission(stage, district="pomorskie")
@@ -114,27 +135,46 @@ def test_unverified_reviewer_is_assignable_outside_district_stage(stage):
     assert reviewers == {unverified.pk, verified.pk}
 
 
-def test_verify_district_endpoint_makes_reviewer_assignable_on_district(client, district_stage):
-    """Po potwierdzeniu okręgu przez koordynatora recenzent wchodzi do puli etapu okręgowego."""
-    unverified = ActiveReviewerFactory(district="pomorskie", district_verified=False)
-    verified = ActiveReviewerFactory(district="malopolskie", district_verified=True)
+def test_verify_district_endpoint_moves_reviewer_out_of_the_conflict(client, district_stage):
+    """Zmiana województwa przez koordynatora wypuszcza recenzenta z konfliktu na etapie wojewódzkim."""
+    conflicted = ActiveReviewerFactory(district="mazowieckie")
+    other = ActiveReviewerFactory(district="malopolskie")
     submission = locked_submission(district_stage, district="mazowieckie")
 
-    # Przed potwierdzeniem pula ma jedną osobę – nie ma z czego złożyć dwóch recenzji.
+    # Przed zmianą pula ma jedną osobę – nie ma z czego złożyć dwóch recenzji.
     with pytest.raises(DomainError) as exc:
         assign_reviewers(district_stage)
     assert exc.value.machine_code == "NOT_ENOUGH_REVIEWERS"
 
     client.force_authenticate(CoordinatorFactory())
     response = client.post(
-        f"/api/auth/committee/{unverified.pk}/verify-district/", {"district": "pomorskie"}, format="json"
+        f"/api/auth/committee/{conflicted.pk}/verify-district/", {"district": "pomorskie"}, format="json"
     )
     assert response.status_code == 200
 
     assign_reviewers(district_stage)
 
     reviewers = set(Review.objects.filter(submission=submission).values_list("reviewer_id", flat=True))
-    assert reviewers == {unverified.pk, verified.pk}
+    assert reviewers == {conflicted.pk, other.pk}
+
+
+def test_clearing_the_district_makes_the_reviewer_assignable_everywhere(client, district_stage):
+    """Usunięcie województwa („— brak —”) też zdejmuje konflikt: pole jest opcjonalne."""
+    conflicted = ActiveReviewerFactory(district="mazowieckie")
+    other = ActiveReviewerFactory(district="malopolskie")
+    submission = locked_submission(district_stage, district="mazowieckie")
+
+    client.force_authenticate(CoordinatorFactory())
+    response = client.post(
+        f"/api/auth/committee/{conflicted.pk}/verify-district/", {"district": ""}, format="json"
+    )
+    assert response.status_code == 200
+    assert response.data["district"] is None
+
+    assign_reviewers(district_stage)
+
+    reviewers = set(Review.objects.filter(submission=submission).values_list("reviewer_id", flat=True))
+    assert reviewers == {conflicted.pk, other.pk}
 
 
 def test_pending_reviewer_is_not_in_pool(stage):

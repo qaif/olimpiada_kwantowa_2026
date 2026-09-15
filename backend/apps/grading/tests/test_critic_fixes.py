@@ -129,9 +129,9 @@ def test_unassignable_submission_is_skipped_and_the_rest_is_assigned(client, dis
     ActiveReviewerFactory(district="malopolskie", district_verified=True)
     ActiveReviewerFactory(district="malopolskie", district_verified=True)
     ActiveReviewerFactory(district="mazowieckie", district_verified=True)
-    # Uczestnik z okręgu dwóch z trzech recenzentów – po wykluczeniu zostaje jeden, a trzeba dwóch.
+    # Uczestnik z województwa dwóch z trzech recenzentów – po wykluczeniu zostaje jeden, a trzeba dwóch.
     blocked = locked_submission(district_stage, district="malopolskie")
-    # Ten sam etap, uczestnik z okręgu, w którym nie ma żadnego recenzenta – pula pełna.
+    # Ten sam etap, uczestnik z województwa, w którym nie ma żadnego recenzenta – pula pełna.
     assignable = locked_submission(district_stage, district="pomorskie")
 
     client.force_authenticate(CoordinatorFactory())

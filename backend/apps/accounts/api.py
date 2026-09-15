@@ -146,8 +146,8 @@ class MeView(GenericAPIView):
         """Edycja własnych danych – ten sam serwis, co formularz ``/me/profile/``.
 
         Pola profilu uczestnika (telefon, szkoła, klasa, rocznik, województwo) przyjmujemy wyłącznie
-        od konta, które ten profil ma. Konto komitetu zmienia tą drogą imię i nazwisko; okręg zostaje
-        u koordynatora, bo potwierdzony okręg jest podstawą reguły konfliktu interesów.
+        od konta, które ten profil ma. Konto komitetu zmienia tą drogą imię i nazwisko; województwo
+        zostaje u koordynatora, bo to na nim opiera się reguła konfliktu interesów.
         """
         serializer = MeUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -201,23 +201,33 @@ class CommitteeApproveView(GenericAPIView):
 
 
 class CommitteeVerifyDistrictView(GenericAPIView):
-    """Potwierdzenie okręgu członka komitetu – tylko koordynator (dług techniczny T-02).
+    """Ustalenie województwa członka komitetu – tylko koordynator.
 
-    Do czasu potwierdzenia okręg jest samodeklarowany, więc recenzent nie jest przydzielany
-    na etapie okręgowym: reguła konfliktu interesów opiera się na tym polu.
+    Województwo jest opcjonalne i decyduje wyłącznie o konflikcie interesów na etapie
+    wojewódzkim: członek bez województwa ocenia prace ze wszystkich województw.
     """
 
     permission_classes = [IsCoordinator]
     serializer_class = VerifyDistrictSerializer
 
-    @extend_schema(request=VerifyDistrictSerializer, responses={200: PendingCommitteeMemberSerializer})
+    @extend_schema(
+        request=VerifyDistrictSerializer,
+        responses={200: PendingCommitteeMemberSerializer},
+        description=(
+            "Ustala województwo aktywnego członka komitetu. Województwo jest opcjonalne: pusta "
+            'wartość (`""`, `null` lub brak pola) usuwa je i zdejmuje `district_verified`. '
+            "Reguła konfliktu interesów wyklucza z oceniania pracy tylko członka, którego "
+            "województwo jest **równe** województwu uczestnika, i tylko na etapie wojewódzkim; "
+            "członek bez województwa ocenia prace ze wszystkich województw."
+        ),
+    )
     def post(self, request, pk: int):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         member = get_object_or_404(CommitteeMember.objects.select_related("user"), pk=pk)
         member = verify_committee_district(
             member,
-            district=serializer.validated_data["district"],
+            district=serializer.validated_data.get("district") or None,
             actor=request.user,
             request=request,
         )

@@ -138,7 +138,7 @@ def test_rules_exceeding_per_submission_are_all_assigned(stage):
 
 
 def test_rule_reviewer_in_conflict_is_skipped_with_reason(district_stage):
-    """Konflikt okręgu wygrywa z regułą: praca trafia do ``skipped`` z ``RULE_REVIEWER_CONFLICT``."""
+    """Konflikt województwa wygrywa z regułą: praca trafia do ``skipped`` z ``RULE_REVIEWER_CONFLICT``."""
     conflicted = ActiveReviewerFactory(district="mazowieckie")
     ActiveReviewerFactory(district="malopolskie")
     ActiveReviewerFactory(district="pomorskie")
@@ -229,8 +229,12 @@ def test_manual_assignment_refuses_duplicate(stage):
 
 
 def test_manual_assignment_refuses_conflict_of_interest(district_stage):
-    """Ręczne wskazanie nie zwalnia z procedury – konflikt okręgu odmawia tak samo, jak automat."""
-    conflicted = ActiveReviewerFactory(district="mazowieckie")
+    """Ręczne wskazanie nie zwalnia z procedury – konflikt województwa odmawia tak jak automatowi.
+
+    Także wtedy, gdy województwo jest samodeklarowane: równe województwo zostaje konfliktem,
+    bo to bezpieczniejszy kierunek błędu.
+    """
+    conflicted = ActiveReviewerFactory(district="mazowieckie", district_verified=False)
     submission = locked_submission(district_stage, district="mazowieckie")
 
     with pytest.raises(DomainError) as exc:
@@ -239,6 +243,17 @@ def test_manual_assignment_refuses_conflict_of_interest(district_stage):
     assert exc.value.machine_code == "REVIEWER_CONFLICT_OF_INTEREST"
     assert exc.value.status_code == 409
     assert not Review.objects.exists()
+
+
+def test_manual_assignment_accepts_a_member_without_a_district(district_stage):
+    """Województwo jest opcjonalne: bez niego recenzent bierze prace z każdego województwa."""
+    without_district = ActiveReviewerFactory(district=None, district_verified=False)
+    submission = locked_submission(district_stage, district="mazowieckie")
+
+    review = assign_reviewer_to_submission(submission, without_district)
+
+    assert review.reviewer == without_district
+    assert review.status == ReviewStatus.ASSIGNED
 
 
 def test_manual_assignment_refuses_inactive_reviewer(stage):
