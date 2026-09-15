@@ -13,6 +13,9 @@ SECRET_KEY = env("DJANGO_SECRET_KEY", default="insecure-dev-key-change-me")  # n
 DEBUG = env.bool("DJANGO_DEBUG", default=False)
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1", "web"])
 CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
+# Czytelna strona zamiast surowego „Weryfikacja CSRF nie powiodła się”: najczęstszy powód to
+# zalogowanie się na inne konto w drugiej karcie (Django wymienia wtedy token) – apps/web/views/errors.py.
+CSRF_FAILURE_VIEW = "apps.web.views.errors.csrf_failure"
 
 # Tryb scenariusza end-to-end. Odblokowuje ``manage.py e2e_timeline`` (przesunięcie osi czasu
 # etapu), żeby test nie musiał czekać tygodnia na otwarcie okna reklamacji, oraz tryb testowy

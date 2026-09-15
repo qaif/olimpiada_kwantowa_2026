@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% comment %}
+  Odmowa po nieudanej weryfikacji CSRF (apps/web/views/errors.py). Zamiast „Weryfikacja CSRF nie
+  powiodła się” czytelnik dostaje powód po polsku i jedno działanie: otworzyć formularz jeszcze raz.
+  Dane z wysłanego formularza przepadają – tego nie da się uczciwie obejść, bo właśnie odrzucenie
+  takiego żądania jest sensem zabezpieczenia.
+{% endcomment %}
+{% block title %}Formularz wymaga odświeżenia{% endblock %}
+{% block content %}
+<div class="auth">
+  <div class="card">
+    <h1>Formularz wymaga odświeżenia</h1>
+    <p class="auth__intro">Nie mogliśmy przyjąć tego żądania, bo zabezpieczenie formularza
+      (token CSRF) nie zgadzało się z Twoją bieżącą sesją.</p>
+    <p class="notice">{{ hint }}</p>
+    <p class="hint">Otwórz formularz ponownie i wyślij go jeszcze raz. Jeśli masz otwartych kilka
+      kart tego serwisu, odśwież każdą z nich po zalogowaniu lub wylogowaniu.</p>
+    <p class="actions">
+      <a class="btn btn--primary" href="{{ retry_url }}">Otwórz formularz ponownie</a>
+      <a class="btn btn--secondary" href="/">Strona główna</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

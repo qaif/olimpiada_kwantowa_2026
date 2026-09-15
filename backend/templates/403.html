@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Brak dostępu{% endblock %}
+{% block content %}
+<div class="auth">
+  <div class="card">
+    <h1>Brak dostępu</h1>
+    <p class="auth__intro">Ta strona jest dostępna tylko dla uprawnionej roli (uczestnika, członka
+      komisji albo koordynatora). Jeśli masz kilka kont, zaloguj się na właściwe.</p>
+    <p class="actions">
+      <a class="btn btn--primary" href="{% url 'web:login' %}">Zaloguj się</a>
+      <a class="btn btn--secondary" href="/">Strona główna</a>
+    </p>
+  </div>
+</div>
+{% endblock %}
