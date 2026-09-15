@@ -1175,9 +1175,11 @@ uzasadnienie każdego punktu: `docs/import/stara-strona-inwentarz.md`, sekcja 8.
     zbierać statystykę odwiedzin za zgodą odwiedzającego (4.5), ale **nic się nie włączy, dopóki
     organizator nie wklei identyfikatora** `G-…` w `/cms/` → Ustawienia → Dane serwisu →
     Analityka. Po stronie samej usługi GA4 zostają dwie decyzje, których kod nie podejmie:
-    **(a) retencja danych zdarzeń** — GA4 ustawia domyślnie **2 miesiące**, a to jest wartość
-    wpisana do polityki RODO (§ 3, „statystyka odwiedzin serwisu”); wybór 14 miesięcy wymaga
-    poprawienia tego zdania w `backend/apps/cms/fixtures/legacy/rodo.md` i ponownej publikacji;
+    **(a) retencja danych zdarzeń** — organizator wybrał **14 miesięcy** (decyzja z 15 września
+    2026) i tyle stoi w polityce RODO (§ 3, „statystyka odwiedzin serwisu”); ustawienie trzeba
+    przestawić ręcznie w usłudze GA4 (Administracja → Ustawienia danych → Przechowywanie danych),
+    a każda zmiana wymaga poprawki tego zdania w `backend/apps/cms/fixtures/legacy/rodo.md`
+    i ponownej publikacji;
     **(b) akceptacja warunków przetwarzania danych Google'a** (Google Ads Data Processing Terms
     w ustawieniach usługi) — bez niej Fundacja nie ma umowy powierzenia, której wymaga art. 28
     RODO, a polityki obiecują ją czytelnikowi. Zalecane pozostawienie funkcji reklamowych
