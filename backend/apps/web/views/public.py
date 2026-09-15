@@ -22,7 +22,7 @@ from django.contrib.auth.views import PasswordResetCompleteView as DjangoPasswor
 from django.contrib.auth.views import PasswordResetConfirmView as DjangoPasswordResetConfirmView
 from django.contrib.auth.views import PasswordResetDoneView as DjangoPasswordResetDoneView
 from django.contrib.auth.views import PasswordResetView as DjangoPasswordResetView
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.views.generic import FormView, TemplateView
@@ -392,3 +392,17 @@ class PublicResultsView(TemplateView):
             }
         )
         return context
+
+
+#: Znaczniki własności domeny wydawane przez usługi zewnętrzne. Adres ``/<token>.html`` ma zwracać
+#: dokładnie treść ``google-site-verification: <token>.html`` – Google porównuje ją bajt po bajcie.
+#: Token nie jest tajemnicą (każdy może pobrać ten plik), więc może stać w kodzie; nowy dopisuje się
+#: tutaj, a nie przez wgrywanie pliku na serwer, żeby przetrwał każde wdrożenie.
+SITE_VERIFICATION_TOKENS = frozenset({"google13608a204a115889"})
+
+
+def site_verification(request, token: str) -> HttpResponse:
+    """Plik weryfikacyjny Google Search Console pod ``/google….html``; obcy token to zwykłe 404."""
+    if token not in SITE_VERIFICATION_TOKENS:
+        raise Http404
+    return HttpResponse(f"google-site-verification: {token}.html", content_type="text/html; charset=utf-8")

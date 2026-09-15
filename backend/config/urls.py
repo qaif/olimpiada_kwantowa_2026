@@ -15,6 +15,7 @@ from wagtail import urls as wagtail_urls
 from wagtail.admin import urls as wagtailadmin_urls
 
 from apps.web.views.docs import NonceSwaggerView
+from apps.web.views.public import site_verification
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -35,6 +36,9 @@ urlpatterns = [
     # nasz i dlatego ``img-src 'self'`` z CSP wystarcza – nic tu nie przychodzi z obcej domeny.
     # Musi stać przed catch-allem Wagtaila, inaczej obrazek szukałby się w drzewie stron.
     path("captcha/", include("captcha.urls")),
+    # Pliki potwierdzające własność domeny (Google Search Console). Przed trasami Wagtaila, bo te
+    # zjadłyby adres jako nieistniejącą stronę i odpowiedziały 404.
+    path("<str:token>.html", site_verification, name="site-verification"),
     # Redakcja części informacyjnej. Dostęp ma wyłącznie grupa `coordinator` (migracja cms.0003).
     path("cms/", include(wagtailadmin_urls)),
     # Dokumenty Wagtaila serwuje widok aplikacji, a nie bezpośredni URL bucketu. Wzorce są kopią
