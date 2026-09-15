@@ -107,7 +107,7 @@ def test_registration_creates_participant(web_client, edition):
     )
 
     assert response.status_code == 302
-    assert response.headers["Location"] == "/login/"
+    assert response.headers["Location"] == "/register/done/"
 
 
 def test_registration_without_gdpr_consent_shows_domain_error(web_client, edition):

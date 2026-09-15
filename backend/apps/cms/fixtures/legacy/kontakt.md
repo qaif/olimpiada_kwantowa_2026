@@ -27,3 +27,5 @@ W sprawach dotyczących danych osobowych oraz ochrony małoletnich prosimy wpisa
 - [LinkedIn](https://linkedin.com/showcase/olimpiada-kwantowa)
 - [Instagram](https://www.instagram.com/olimpiadakwantowa)
 - [X](https://x.com/olimpiadakwant)
+- [TikTok](https://www.tiktok.com/@olimpiadakwantowa)
+- [YouTube](https://www.youtube.com/@OlimpiadaKwantowa)

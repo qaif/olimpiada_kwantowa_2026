@@ -4,35 +4,49 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('cms', '0013_home_about_section'),
+        ("cms", "0013_home_about_section"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='sitesettings',
-            name='facebook_url',
-            field=models.URLField(blank=True, default='https://www.facebook.com/olimpiadakwantowa', verbose_name='Facebook'),
+            model_name="sitesettings",
+            name="facebook_url",
+            field=models.URLField(
+                blank=True, default="https://www.facebook.com/olimpiadakwantowa", verbose_name="Facebook"
+            ),
         ),
         migrations.AddField(
-            model_name='sitesettings',
-            name='instagram_url',
-            field=models.URLField(blank=True, default='https://www.instagram.com/olimpiadakwantowa', verbose_name='Instagram'),
+            model_name="sitesettings",
+            name="instagram_url",
+            field=models.URLField(
+                blank=True, default="https://www.instagram.com/olimpiadakwantowa", verbose_name="Instagram"
+            ),
         ),
         migrations.AddField(
-            model_name='sitesettings',
-            name='linkedin_url',
-            field=models.URLField(blank=True, default='https://linkedin.com/showcase/olimpiada-kwantowa', verbose_name='LinkedIn'),
+            model_name="sitesettings",
+            name="linkedin_url",
+            field=models.URLField(
+                blank=True,
+                default="https://linkedin.com/showcase/olimpiada-kwantowa",
+                verbose_name="LinkedIn",
+            ),
         ),
         migrations.AddField(
-            model_name='sitesettings',
-            name='registration_note',
-            field=models.CharField(blank=True, default='Oficjalny start rejestracji: 21 września 2026.', max_length=200, verbose_name='komunikat o rejestracji'),
+            model_name="sitesettings",
+            name="registration_note",
+            field=models.CharField(
+                blank=True,
+                default="Oficjalny start rejestracji: 21 września 2026.",
+                max_length=200,
+                verbose_name="komunikat o rejestracji",
+            ),
         ),
         migrations.AddField(
-            model_name='sitesettings',
-            name='x_url',
-            field=models.URLField(blank=True, default='https://x.com/olimpiadakwant', verbose_name='X (dawniej Twitter)'),
+            model_name="sitesettings",
+            name="x_url",
+            field=models.URLField(
+                blank=True, default="https://x.com/olimpiadakwant", verbose_name="X (dawniej Twitter)"
+            ),
         ),
     ]

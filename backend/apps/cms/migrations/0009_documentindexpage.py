@@ -6,23 +6,32 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('cms', '0008_alter_contentpage_body_alter_documentpage_body'),
-        ('wagtailcore', '0094_alter_page_locale'),
+        ("cms", "0008_alter_contentpage_body_alter_documentpage_body"),
+        ("wagtailcore", "0094_alter_page_locale"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='DocumentIndexPage',
+            name="DocumentIndexPage",
             fields=[
-                ('page_ptr', models.OneToOneField(auto_created=True, on_delete=django.db.models.deletion.CASCADE, parent_link=True, primary_key=True, serialize=False, to='wagtailcore.page')),
-                ('intro', wagtail.fields.RichTextField(blank=True, verbose_name='wprowadzenie')),
+                (
+                    "page_ptr",
+                    models.OneToOneField(
+                        auto_created=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        parent_link=True,
+                        primary_key=True,
+                        serialize=False,
+                        to="wagtailcore.page",
+                    ),
+                ),
+                ("intro", wagtail.fields.RichTextField(blank=True, verbose_name="wprowadzenie")),
             ],
             options={
-                'verbose_name': 'dokumenty',
-                'verbose_name_plural': 'dokumenty',
+                "verbose_name": "dokumenty",
+                "verbose_name_plural": "dokumenty",
             },
-            bases=('wagtailcore.page',),
+            bases=("wagtailcore.page",),
         ),
     ]

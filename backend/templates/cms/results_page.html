@@ -6,11 +6,8 @@
   <span class="eyebrow">Wyniki</span>
   <h1>{{ page.title }}</h1>
   {% if page.intro %}<div class="lead">{{ page.intro|richtext }}</div>{% endif %}
-  <p class="hint">Tabele pochodzą z zamrożonych snapshotów z chwili publikacji – nie są przeliczane
-    w locie, więc późniejsze decyzje komisji nie zmieniają ich po cichu.</p>
 </div>
 
-{% if edition %}<h2 class="section-heading">Edycja {{ edition.year_label }}</h2>{% endif %}
 {% for table in tables %}
   <section class="results-block section">
     <div class="section__head">

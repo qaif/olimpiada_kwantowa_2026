@@ -53,60 +53,7 @@
   </div>
 </section>
 
-{% comment %}
-  „O Olimpiadzie” stoi **tu**, zaraz pod hasłem, a nie jako osobna pozycja menu. Kolejność sekcji
-  strony głównej odpowiada kolejności pytań czytelnika, który trafia tu pierwszy raz: co to jest
-  i kto to organizuje (ta sekcja) → co mam zrobić (kroki) → kiedy (terminy) → z czego się
-  przygotować (warsztaty) → co się dzieje (aktualności) → kto za tym stoi (partnerzy).
-  Wcześniej odpowiedź na pierwsze pytanie była jedno kliknięcie dalej, za hasłem, które tę
-  ciekawość wzbudzało.
 
-  ``id`` jest kotwicą, na którą przekierowuje stary adres ``/o-olimpiadzie/`` – i dlatego nie
-  wolno go zmienić bez poprawki przekierowania w ``seed_legacy_content``.
-
-  Treść to StreamField (``about_body``), więc każdy blok renderuje własny szablon – śródtytuły
-  z kotwicami, ramki i tabele wyglądają dokładnie tak, jak na stronach treści. Żadnego ``|safe``.
-{% endcomment %}
-{% if page.about_title and page.about_body %}
-  <section class="section" id="o-olimpiadzie">
-    <div class="section__head">
-      <h2 class="mt-0">{{ page.about_title }}</h2>
-    </div>
-    <div class="cms-body prose">
-      {% for block in page.about_body %}
-        {% include_block block %}
-      {% endfor %}
-    </div>
-  </section>
-{% endif %}
-
-{% comment %}
-  Sekcja „jak zacząć” jest treścią redakcyjną (pola ``steps_title``/``steps``), a nie listą zaszytą
-  w szablonie: kroki opisują procedurę zgłoszenia, która zmienia się razem z regulaminem edycji.
-  CTA prowadzi do rejestracji tylko anonima – zalogowany ma odnośnik do swojego panelu w hero.
-{% endcomment %}
-{% if page.steps_title and page.steps %}
-  <section class="section">
-    <div class="section__head">
-      <h2 class="mt-0">{{ page.steps_title }}</h2>
-    </div>
-    <ol class="steps">
-      {% for block in page.steps %}
-        <li class="steps__item">
-          <p class="steps__title">{{ block.value.title }}</p>
-          <p class="steps__text">{{ block.value.text }}</p>
-        </li>
-      {% endfor %}
-    </ol>
-    {% if not user.is_authenticated %}
-      {% if registration.is_open %}
-        <p class="steps__cta"><a class="btn btn--accent" href="{% url 'web:register' %}">Zarejestruj się</a></p>
-      {% elif registration.reason == "not_yet" %}
-        <p class="steps__cta"><a class="btn btn--accent" href="{% url 'web:register' %}">Rejestracja rusza {{ registration.opens_at|date:"j E Y" }}</a></p>
-      {% endif %}
-    {% endif %}
-  </section>
-{% endif %}
 
 {% if page.show_timeline %}
   {% if edition %}
@@ -179,6 +126,34 @@
 {% endif %}
 
 {% comment %}
+  Sekcja „jak zacząć” jest treścią redakcyjną (pola ``steps_title``/``steps``), a nie listą zaszytą
+  w szablonie: kroki opisują procedurę zgłoszenia, która zmienia się razem z regulaminem edycji.
+  CTA prowadzi do rejestracji tylko anonima – zalogowany ma odnośnik do swojego panelu w hero.
+{% endcomment %}
+{% if page.steps_title and page.steps %}
+  <section class="section">
+    <div class="section__head">
+      <h2 class="mt-0">{{ page.steps_title }}</h2>
+    </div>
+    <ol class="steps">
+      {% for block in page.steps %}
+        <li class="steps__item">
+          <p class="steps__title">{{ block.value.title }}</p>
+          <p class="steps__text">{{ block.value.text }}</p>
+        </li>
+      {% endfor %}
+    </ol>
+    {% if not user.is_authenticated %}
+      {% if registration.is_open %}
+        <p class="steps__cta"><a class="btn btn--accent" href="{% url 'web:register' %}">Zarejestruj się</a></p>
+      {% elif registration.reason == "not_yet" %}
+        <p class="steps__cta"><a class="btn btn--accent" href="{% url 'web:register' %}">Rejestracja rusza {{ registration.opens_at|date:"j E Y" }}</a></p>
+      {% endif %}
+    {% endif %}
+  </section>
+{% endif %}
+
+{% comment %}
   Warsztaty online: trzy najbliższe terminy czytane z tabeli na stronie „Warsztaty”
   (``HomePage._workshops_context`` → ``apps.cms.workshops``). Dotąd cały harmonogram warsztatów
   był tabelą w środku ``/harmonogram/`` – kto tam nie wszedł, nie dowiadywał się, że warsztaty
@@ -215,6 +190,33 @@
     {% if workshops_page %}
       <p class="steps__cta"><a class="btn btn--secondary" href="{% pageurl workshops_page %}">Zobacz wszystkie warsztaty</a></p>
     {% endif %}
+
+{% comment %}
+  „O Olimpiadzie” stoi **tu**, zaraz pod hasłem, a nie jako osobna pozycja menu. Kolejność sekcji
+  strony głównej odpowiada kolejności pytań czytelnika, który trafia tu pierwszy raz: co to jest
+  i kto to organizuje (ta sekcja) → co mam zrobić (kroki) → kiedy (terminy) → z czego się
+  przygotować (warsztaty) → co się dzieje (aktualności) → kto za tym stoi (partnerzy).
+  Wcześniej odpowiedź na pierwsze pytanie była jedno kliknięcie dalej, za hasłem, które tę
+  ciekawość wzbudzało.
+
+  ``id`` jest kotwicą, na którą przekierowuje stary adres ``/o-olimpiadzie/`` – i dlatego nie
+  wolno go zmienić bez poprawki przekierowania w ``seed_legacy_content``.
+
+  Treść to StreamField (``about_body``), więc każdy blok renderuje własny szablon – śródtytuły
+  z kotwicami, ramki i tabele wyglądają dokładnie tak, jak na stronach treści. Żadnego ``|safe``.
+{% endcomment %}
+{% if page.about_title and page.about_body %}
+  <section class="section" id="o-olimpiadzie">
+    <div class="section__head">
+      <h2 class="mt-0">{{ page.about_title }}</h2>
+    </div>
+    <div class="cms-body prose">
+      {% for block in page.about_body %}
+        {% include_block block %}
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}
   </section>
 {% endif %}
 

@@ -26,6 +26,8 @@ SOCIAL_URLS = (
     "https://linkedin.com/showcase/olimpiada-kwantowa",
     "https://www.instagram.com/olimpiadakwantowa",
     "https://x.com/olimpiadakwant",
+    "https://www.tiktok.com/@olimpiadakwantowa",
+    "https://www.youtube.com/@OlimpiadaKwantowa",
 )
 
 
@@ -54,6 +56,8 @@ def test_migration_defaults_fill_social_urls(site_settings):
         "LinkedIn",
         "Instagram",
         "X",
+        "TikTok",
+        "YouTube",
     ]
 
 

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% comment %}
+  Strona po udanym zgłoszeniu z formularza rejestracji (uczestnik albo członek komitetu).
+  Jedno miejsce z całą instrukcją aktywacji: dokąd poszedł list, co zrobić, gdy nie dotarł
+  (spam, ponowna wysyłka), i ile czasu jest na kliknięcie. Wcześniej te zdania były rozrzucone
+  między komunikat nad formularzem logowania a treść samego listu – organizator poprosił, żeby
+  stały tutaj, po poprawnym wysłaniu danych.
+{% endcomment %}
+{% block title %}Sprawdź skrzynkę e-mail{% endblock %}
+{% block content %}
+<div class="auth">
+  <div class="card">
+    <h1>Konto zostało założone</h1>
+    <p class="auth__intro">Wysłaliśmy link aktywacyjny na adres <strong>{{ email }}</strong>.
+      Kliknij go, aby aktywować konto – bez tego logowanie nie zadziała.</p>
+    <p class="notice">Jeśli list nie dotarł do skrzynki głównej, sprawdź folder ze spamem.</p>
+    <p class="hint">Link jest ważny {{ activation_hours }} godziny – po tym czasie konto zostanie
+      usunięte i trzeba będzie zarejestrować się ponownie.</p>
+    {% if is_committee %}
+      <p class="hint">Jeśli kod zaproszenia wymagał zatwierdzenia, po aktywacji poczekaj jeszcze
+        na decyzję koordynatora.</p>
+    {% endif %}
+    <p class="auth__alt">Nie dostałeś listu? <a href="{% url 'web:activate-resend' %}">Wyślij link ponownie</a>.<br>
+      Masz już aktywne konto? <a href="{% url 'web:login' %}">Zaloguj się</a>.</p>
+  </div>
+</div>
+{% endblock %}

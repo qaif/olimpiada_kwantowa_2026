@@ -143,6 +143,12 @@ class SiteSettings(BaseSiteSetting):
         "Instagram", blank=True, default="https://www.instagram.com/olimpiadakwantowa"
     )
     x_url = models.URLField("X (dawniej Twitter)", blank=True, default="https://x.com/olimpiadakwant")
+    tiktok_url = models.URLField(
+        "X (dawniej Twitter)", blank=True, default="https://www.tiktok.com/@olimpiadakwantowa"
+    )
+    youtube_url = models.URLField(
+        "X (dawniej Twitter)", blank=True, default="https://www.youtube.com/@OlimpiadaKwantowa"
+    )
 
     #: Zdanie o oficjalnym starcie rejestracji. **Nie** rozstrzyga o niczym: o tym, czy formularz
     #: przyjmuje zgłoszenia, decyduje ``Edition.registration_*`` w panelu koordynatora. Pole istnieje
@@ -164,6 +170,8 @@ class SiteSettings(BaseSiteSetting):
         ("linkedin_url", "LinkedIn", "linkedin"),
         ("instagram_url", "Instagram", "instagram"),
         ("x_url", "X", "x"),
+        ("tiktok_url", "TikTok", "tiktok"),
+        ("youtube_url", "YouTube", "youtube"),
     )
 
     @property
@@ -196,6 +204,8 @@ class SiteSettings(BaseSiteSetting):
                 FieldPanel("linkedin_url"),
                 FieldPanel("instagram_url"),
                 FieldPanel("x_url"),
+                FieldPanel("tiktok_url"),
+                FieldPanel("youtube_url"),
             ],
             heading="Media społecznościowe",
         ),

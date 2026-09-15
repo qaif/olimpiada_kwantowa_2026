@@ -142,8 +142,6 @@ def activation_message(link: str) -> str:
             f"Link jest ważny {ACTIVATION_HOURS} godziny. Po tym czasie konto zostanie usunięte "
             "i rejestrację trzeba będzie powtórzyć.",
             "",
-            "Jeśli list nie dotarł do skrzynki głównej, sprawdź folder ze spamem.",
-            "",
             "Jeśli to nie Ty zakładałeś konto – zignoruj tę wiadomość. Bez kliknięcia w link konto "
             "nie zostanie aktywowane i zniknie samo.",
             "",

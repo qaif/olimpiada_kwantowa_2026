@@ -6,27 +6,108 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('cms', '0009_documentindexpage'),
-        ('wagtailcore', '0094_alter_page_locale'),
+        ("cms", "0009_documentindexpage"),
+        ("wagtailcore", "0094_alter_page_locale"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='PartnersPage',
+            name="PartnersPage",
             fields=[
-                ('page_ptr', models.OneToOneField(auto_created=True, on_delete=django.db.models.deletion.CASCADE, parent_link=True, primary_key=True, serialize=False, to='wagtailcore.page')),
-                ('intro', wagtail.fields.RichTextField(blank=True, verbose_name='wprowadzenie')),
-                ('partners', wagtail.fields.StreamField([('partner', 5)], blank=True, block_lookup={0: ('wagtail.blocks.CharBlock', (), {'label': 'nazwa', 'max_length': 200}), 1: ('wagtail.blocks.ChoiceBlock', [], {'choices': [('patron-honorowy', 'patron honorowy'), ('partner-instytucjonalny', 'partner instytucjonalny'), ('partner-naukowy', 'partner naukowy'), ('sponsor-diamentowy', 'sponsor diamentowy'), ('sponsor-platynowy', 'sponsor platynowy'), ('sponsor-zloty', 'sponsor złoty'), ('partner-medialny', 'partner medialny')], 'help_text': 'Decyduje o grupie, w której partner stoi na stronie.', 'label': 'poziom współpracy'}), 2: ('wagtail.images.blocks.ImageChooserBlock', (), {'label': 'logotyp', 'required': False}), 3: ('wagtail.blocks.URLBlock', (), {'label': 'strona partnera', 'max_length': 300, 'required': False}), 4: ('wagtail.blocks.CharBlock', (), {'help_text': 'Jedno zdanie: na czym polega współpraca.', 'label': 'opis', 'max_length': 300, 'required': False}), 5: ('wagtail.blocks.StructBlock', [[('name', 0), ('level', 1), ('logo', 2), ('url', 3), ('description', 4)]], {})}, verbose_name='partnerzy')),
-                ('become_partner_title', models.CharField(blank=True, default='Zostań partnerem', help_text='Puste = sekcja z zaproszeniem do współpracy się nie pokazuje.', max_length=200, verbose_name='nagłówek sekcji „zostań partnerem”')),
-                ('become_partner_body', wagtail.fields.RichTextField(blank=True, verbose_name='zaproszenie do współpracy')),
-                ('contact_email', models.EmailField(blank=True, help_text='Adres przycisku „Napisz do nas”. Puste = przycisku nie ma.', max_length=254, verbose_name='e-mail w sprawie współpracy')),
+                (
+                    "page_ptr",
+                    models.OneToOneField(
+                        auto_created=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        parent_link=True,
+                        primary_key=True,
+                        serialize=False,
+                        to="wagtailcore.page",
+                    ),
+                ),
+                ("intro", wagtail.fields.RichTextField(blank=True, verbose_name="wprowadzenie")),
+                (
+                    "partners",
+                    wagtail.fields.StreamField(
+                        [("partner", 5)],
+                        blank=True,
+                        block_lookup={
+                            0: ("wagtail.blocks.CharBlock", (), {"label": "nazwa", "max_length": 200}),
+                            1: (
+                                "wagtail.blocks.ChoiceBlock",
+                                [],
+                                {
+                                    "choices": [
+                                        ("patron-honorowy", "patron honorowy"),
+                                        ("partner-instytucjonalny", "partner instytucjonalny"),
+                                        ("partner-naukowy", "partner naukowy"),
+                                        ("sponsor-diamentowy", "sponsor diamentowy"),
+                                        ("sponsor-platynowy", "sponsor platynowy"),
+                                        ("sponsor-zloty", "sponsor złoty"),
+                                        ("partner-medialny", "partner medialny"),
+                                    ],
+                                    "help_text": "Decyduje o grupie, w której partner stoi na stronie.",
+                                    "label": "poziom współpracy",
+                                },
+                            ),
+                            2: (
+                                "wagtail.images.blocks.ImageChooserBlock",
+                                (),
+                                {"label": "logotyp", "required": False},
+                            ),
+                            3: (
+                                "wagtail.blocks.URLBlock",
+                                (),
+                                {"label": "strona partnera", "max_length": 300, "required": False},
+                            ),
+                            4: (
+                                "wagtail.blocks.CharBlock",
+                                (),
+                                {
+                                    "help_text": "Jedno zdanie: na czym polega współpraca.",
+                                    "label": "opis",
+                                    "max_length": 300,
+                                    "required": False,
+                                },
+                            ),
+                            5: (
+                                "wagtail.blocks.StructBlock",
+                                [[("name", 0), ("level", 1), ("logo", 2), ("url", 3), ("description", 4)]],
+                                {},
+                            ),
+                        },
+                        verbose_name="partnerzy",
+                    ),
+                ),
+                (
+                    "become_partner_title",
+                    models.CharField(
+                        blank=True,
+                        default="Zostań partnerem",
+                        help_text="Puste = sekcja z zaproszeniem do współpracy się nie pokazuje.",
+                        max_length=200,
+                        verbose_name="nagłówek sekcji „zostań partnerem”",
+                    ),
+                ),
+                (
+                    "become_partner_body",
+                    wagtail.fields.RichTextField(blank=True, verbose_name="zaproszenie do współpracy"),
+                ),
+                (
+                    "contact_email",
+                    models.EmailField(
+                        blank=True,
+                        help_text="Adres przycisku „Napisz do nas”. Puste = przycisku nie ma.",
+                        max_length=254,
+                        verbose_name="e-mail w sprawie współpracy",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'partnerzy',
-                'verbose_name_plural': 'partnerzy',
+                "verbose_name": "partnerzy",
+                "verbose_name_plural": "partnerzy",
             },
-            bases=('wagtailcore.page',),
+            bases=("wagtailcore.page",),
         ),
     ]

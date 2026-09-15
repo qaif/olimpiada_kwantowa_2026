@@ -6,29 +6,173 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('cms', '0003_coordinator_permissions'),
-        ('wagtailcore', '0094_alter_page_locale'),
-        ('wagtaildocs', '0014_alter_document_file_size'),
+        ("cms", "0003_coordinator_permissions"),
+        ("wagtailcore", "0094_alter_page_locale"),
+        ("wagtaildocs", "0014_alter_document_file_size"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='DocumentPage',
+            name="DocumentPage",
             fields=[
-                ('page_ptr', models.OneToOneField(auto_created=True, on_delete=django.db.models.deletion.CASCADE, parent_link=True, primary_key=True, serialize=False, to='wagtailcore.page')),
-                ('intro', wagtail.fields.RichTextField(blank=True, verbose_name='wprowadzenie')),
-                ('body', wagtail.fields.StreamField([('paragraph', 0), ('image', 3), ('document', 6), ('embed', 7), ('heading', 12), ('notice', 15)], blank=True, block_lookup={0: ('wagtail.blocks.RichTextBlock', (), {'features': ['h2', 'h3', 'h4', 'bold', 'italic', 'ol', 'ul', 'hr', 'link', 'document-link', 'superscript', 'subscript', 'blockquote'], 'label': 'akapit'}), 1: ('wagtail.images.blocks.ImageChooserBlock', (), {'label': 'obraz'}), 2: ('wagtail.blocks.CharBlock', (), {'label': 'podpis', 'max_length': 250, 'required': False}), 3: ('wagtail.blocks.StructBlock', [[('image', 1), ('caption', 2)]], {}), 4: ('wagtail.documents.blocks.DocumentChooserBlock', (), {'label': 'dokument'}), 5: ('wagtail.blocks.CharBlock', (), {'label': 'etykieta linku', 'max_length': 250, 'required': False}), 6: ('wagtail.blocks.StructBlock', [[('document', 4), ('label', 5)]], {}), 7: ('wagtail.embeds.blocks.EmbedBlock', (), {'label': 'osadzenie (film, prezentacja)'}), 8: ('wagtail.blocks.CharBlock', (), {'label': 'tekst', 'max_length': 250}), 9: ('wagtail.blocks.ChoiceBlock', [], {'choices': [('2', 'rozdział (H2)'), ('3', 'paragraf (H3)')], 'label': 'poziom'}), 10: ('wagtail.blocks.CharBlock', (), {'help_text': 'Fragment adresu po „#”, np. „rozdzial-3”. Zmiana psuje istniejące odnośniki.', 'label': 'kotwica', 'max_length': 100}), 11: ('wagtail.blocks.BooleanBlock', (), {'default': True, 'label': 'pokaż w spisie rozdziałów', 'required': False}), 12: ('wagtail.blocks.StructBlock', [[('text', 8), ('level', 9), ('anchor', 10), ('in_toc', 11)]], {}), 13: ('wagtail.blocks.ChoiceBlock', [], {'choices': [('info', 'informacja'), ('warning', 'ostrzeżenie')], 'label': 'ton'}), 14: ('wagtail.blocks.RichTextBlock', (), {'features': ['h2', 'h3', 'h4', 'bold', 'italic', 'ol', 'ul', 'hr', 'link', 'document-link', 'superscript', 'subscript', 'blockquote'], 'label': 'treść'}), 15: ('wagtail.blocks.StructBlock', [[('tone', 13), ('text', 14)]], {})}, verbose_name='treść')),
-                ('version_label', models.CharField(blank=True, max_length=50, verbose_name='wersja')),
-                ('document_date', models.DateField(blank=True, null=True, verbose_name='data dokumentu')),
-                ('status_label', models.CharField(blank=True, help_text='Np. „Projekt do zatwierdzenia uchwałą Zarządu”.', max_length=200, verbose_name='status')),
-                ('attachment', models.ForeignKey(blank=True, help_text='Oryginał do pobrania (DOCX/PDF). Usunięcie pliku nie kasuje strony.', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to='wagtaildocs.document', verbose_name='plik źródłowy')),
+                (
+                    "page_ptr",
+                    models.OneToOneField(
+                        auto_created=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        parent_link=True,
+                        primary_key=True,
+                        serialize=False,
+                        to="wagtailcore.page",
+                    ),
+                ),
+                ("intro", wagtail.fields.RichTextField(blank=True, verbose_name="wprowadzenie")),
+                (
+                    "body",
+                    wagtail.fields.StreamField(
+                        [
+                            ("paragraph", 0),
+                            ("image", 3),
+                            ("document", 6),
+                            ("embed", 7),
+                            ("heading", 12),
+                            ("notice", 15),
+                        ],
+                        blank=True,
+                        block_lookup={
+                            0: (
+                                "wagtail.blocks.RichTextBlock",
+                                (),
+                                {
+                                    "features": [
+                                        "h2",
+                                        "h3",
+                                        "h4",
+                                        "bold",
+                                        "italic",
+                                        "ol",
+                                        "ul",
+                                        "hr",
+                                        "link",
+                                        "document-link",
+                                        "superscript",
+                                        "subscript",
+                                        "blockquote",
+                                    ],
+                                    "label": "akapit",
+                                },
+                            ),
+                            1: ("wagtail.images.blocks.ImageChooserBlock", (), {"label": "obraz"}),
+                            2: (
+                                "wagtail.blocks.CharBlock",
+                                (),
+                                {"label": "podpis", "max_length": 250, "required": False},
+                            ),
+                            3: ("wagtail.blocks.StructBlock", [[("image", 1), ("caption", 2)]], {}),
+                            4: ("wagtail.documents.blocks.DocumentChooserBlock", (), {"label": "dokument"}),
+                            5: (
+                                "wagtail.blocks.CharBlock",
+                                (),
+                                {"label": "etykieta linku", "max_length": 250, "required": False},
+                            ),
+                            6: ("wagtail.blocks.StructBlock", [[("document", 4), ("label", 5)]], {}),
+                            7: (
+                                "wagtail.embeds.blocks.EmbedBlock",
+                                (),
+                                {"label": "osadzenie (film, prezentacja)"},
+                            ),
+                            8: ("wagtail.blocks.CharBlock", (), {"label": "tekst", "max_length": 250}),
+                            9: (
+                                "wagtail.blocks.ChoiceBlock",
+                                [],
+                                {
+                                    "choices": [("2", "rozdział (H2)"), ("3", "paragraf (H3)")],
+                                    "label": "poziom",
+                                },
+                            ),
+                            10: (
+                                "wagtail.blocks.CharBlock",
+                                (),
+                                {
+                                    "help_text": "Fragment adresu po „#”, np. „rozdzial-3”. Zmiana psuje istniejące odnośniki.",
+                                    "label": "kotwica",
+                                    "max_length": 100,
+                                },
+                            ),
+                            11: (
+                                "wagtail.blocks.BooleanBlock",
+                                (),
+                                {"default": True, "label": "pokaż w spisie rozdziałów", "required": False},
+                            ),
+                            12: (
+                                "wagtail.blocks.StructBlock",
+                                [[("text", 8), ("level", 9), ("anchor", 10), ("in_toc", 11)]],
+                                {},
+                            ),
+                            13: (
+                                "wagtail.blocks.ChoiceBlock",
+                                [],
+                                {
+                                    "choices": [("info", "informacja"), ("warning", "ostrzeżenie")],
+                                    "label": "ton",
+                                },
+                            ),
+                            14: (
+                                "wagtail.blocks.RichTextBlock",
+                                (),
+                                {
+                                    "features": [
+                                        "h2",
+                                        "h3",
+                                        "h4",
+                                        "bold",
+                                        "italic",
+                                        "ol",
+                                        "ul",
+                                        "hr",
+                                        "link",
+                                        "document-link",
+                                        "superscript",
+                                        "subscript",
+                                        "blockquote",
+                                    ],
+                                    "label": "treść",
+                                },
+                            ),
+                            15: ("wagtail.blocks.StructBlock", [[("tone", 13), ("text", 14)]], {}),
+                        },
+                        verbose_name="treść",
+                    ),
+                ),
+                ("version_label", models.CharField(blank=True, max_length=50, verbose_name="wersja")),
+                ("document_date", models.DateField(blank=True, null=True, verbose_name="data dokumentu")),
+                (
+                    "status_label",
+                    models.CharField(
+                        blank=True,
+                        help_text="Np. „Projekt do zatwierdzenia uchwałą Zarządu”.",
+                        max_length=200,
+                        verbose_name="status",
+                    ),
+                ),
+                (
+                    "attachment",
+                    models.ForeignKey(
+                        blank=True,
+                        help_text="Oryginał do pobrania (DOCX/PDF). Usunięcie pliku nie kasuje strony.",
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="+",
+                        to="wagtaildocs.document",
+                        verbose_name="plik źródłowy",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'dokument',
-                'verbose_name_plural': 'dokumenty',
+                "verbose_name": "dokument",
+                "verbose_name_plural": "dokumenty",
             },
-            bases=('wagtailcore.page',),
+            bases=("wagtailcore.page",),
         ),
     ]

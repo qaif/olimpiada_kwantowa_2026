@@ -174,17 +174,18 @@ def test_home_page_hides_the_section_when_the_workshops_page_is_a_draft(web_clie
 def test_sections_stand_in_the_order_of_the_readers_questions(web_client, legacy_content, edition):
     """Kolejność sekcji jest kolejnością pytań czytelnika, który trafia tu pierwszy raz.
 
-    Co to jest (sekcja „O Olimpiadzie”) → co mam zrobić (kroki) → kiedy (terminy) → z czego się
-    przygotować (warsztaty) → co się dzieje (aktualności). Fragmenty są brane z nagłówków sekcji,
-    a nie z samych słów: te same słowa stoją w pasku nawigacji, czyli nad całą stroną.
+    Kiedy (terminy) → co mam zrobić (kroki) → z czego się przygotować (warsztaty) → co to jest
+    (sekcja „O Olimpiadzie”, na życzenie organizatora niżej) → co się dzieje (aktualności).
+    Fragmenty są brane z nagłówków sekcji, a nie z samych słów: te same słowa stoją w pasku
+    nawigacji, czyli nad całą stroną.
     """
     content = web_client.get("/").content.decode()
     order = [
         "Przyszłość ma naturę kwantową.",  # hero
-        'id="o-olimpiadzie"',
-        '<h2 class="mt-0">Jak zacząć w 3 krokach</h2>',
         '<h2 class="mt-0">Przebieg zawodów',
+        '<h2 class="mt-0">Jak zacząć w 3 krokach</h2>',
         '<h2 class="mt-0">Warsztaty online</h2>',
+        'id="o-olimpiadzie"',
         '<h2 class="mt-0">Aktualności</h2>',
     ]
 

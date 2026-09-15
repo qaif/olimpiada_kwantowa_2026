@@ -23,12 +23,12 @@ from django.contrib.auth.views import PasswordResetConfirmView as DjangoPassword
 from django.contrib.auth.views import PasswordResetDoneView as DjangoPasswordResetDoneView
 from django.contrib.auth.views import PasswordResetView as DjangoPasswordResetView
 from django.http import Http404
+from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.views.generic import FormView, TemplateView
 
 from apps.accounts.activation import (
     ACTIVATION_HOURS,
-    ACTIVATION_REQUIRED_MESSAGE,
     RESEND_MESSAGE,
     activate_with_token,
     resend_activation,
@@ -231,18 +231,52 @@ class RegisterParticipantView(ThrottledFormMixin, ServiceFormView):
 
     template_name = "web/register.html"
     form_class = ParticipantRegisterForm
-    success_url = reverse_lazy("web:login")
-    # Konto powstaje nieaktywne, więc komunikat **musi** mówić o liście: bez tego uczestnik idzie
-    # prosto na formularz logowania i dostaje „nieprawidłowy e-mail lub hasło”, czyli komunikat,
-    # który każe mu szukać błędu w haśle.
-    success_message = ACTIVATION_REQUIRED_MESSAGE
+    # Po udanym zgłoszeniu uczestnik ląduje na osobnej stronie „sprawdź skrzynkę”, a nie na
+    # formularzu logowania z komunikatem: konto jest nieaktywne, więc logowanie i tak by się nie
+    # udało, a strona ma miejsce na całą instrukcję (adres, na który poszedł list, spam, 4 godziny).
+    success_url = reverse_lazy("web:register-done")
+    success_message = ""
     # Tu liczy się każdy POST, także udany: limit ma powstrzymać seryjne zakładanie kont.
     throttle_scope = "register"
+    registration_kind = "participant"
 
     def call_service(self, form):
         # ``source`` i ``request`` dokładamy tutaj, a nie w formularzu: to fakt o **drodze**
         # żądania, a nie dana wpisana przez uczestnika – i tak trafia do wpisu dowodowego zgody.
         register_participant(**form.cleaned_data, source=ConsentSource.WEB, request=self.request)
+        remember_registration(self.request, form.cleaned_data["email"], self.registration_kind)
+
+
+#: Klucze sesji, którymi strona „sprawdź skrzynkę” dowiaduje się, komu i po co wysłano list.
+#: Sesja, a nie parametr w adresie: adres e-mail w URL-u trafiałby do historii i logów proxy.
+REGISTRATION_EMAIL_SESSION_KEY = "registration_email"
+REGISTRATION_KIND_SESSION_KEY = "registration_kind"
+
+
+def remember_registration(request, email: str, kind: str) -> None:
+    request.session[REGISTRATION_EMAIL_SESSION_KEY] = email
+    request.session[REGISTRATION_KIND_SESSION_KEY] = kind
+
+
+class RegisterDoneView(TemplateView):
+    """Strona po udanej rejestracji: dokąd poszedł link aktywacyjny i co zrobić, gdy nie dotarł.
+
+    Zdanie o folderze ze spamem stoi **tu**, a nie w treści listu: kto czyta list, ten go już
+    dostał. Adres czytamy z sesji jednorazowo (``pop``) – odświeżenie strony po chwili prowadzi
+    z powrotem do formularza, a nie pokazuje cudzego adresu na współdzielonym komputerze.
+    """
+
+    template_name = "web/register_done.html"
+
+    def get(self, request, *args, **kwargs):
+        email = request.session.pop(REGISTRATION_EMAIL_SESSION_KEY, "")
+        kind = request.session.pop(REGISTRATION_KIND_SESSION_KEY, "participant")
+        if not email:
+            return redirect("web:register")
+        context = self.get_context_data(
+            email=email, is_committee=kind == "committee", activation_hours=ACTIVATION_HOURS
+        )
+        return self.render_to_response(context)
 
 
 class RegisterCommitteeView(ThrottledFormMixin, ServiceFormView):
@@ -254,12 +288,10 @@ class RegisterCommitteeView(ThrottledFormMixin, ServiceFormView):
 
     template_name = "web/register_committee.html"
     form_class = CommitteeRegisterForm
-    success_url = reverse_lazy("web:login")
+    success_url = reverse_lazy("web:register-done")
     throttle_scope = "register"
-    success_message = (
-        f"{ACTIVATION_REQUIRED_MESSAGE} "
-        "Jeśli kod wymagał zatwierdzenia, po aktywacji poczekaj jeszcze na decyzję koordynatora."
-    )
+    success_message = ""
+    registration_kind = "committee"
 
     def call_service(self, form):
         register_committee(**form.cleaned_data, request=self.request)

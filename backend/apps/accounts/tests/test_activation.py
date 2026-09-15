@@ -93,7 +93,8 @@ def test_registration_creates_an_inactive_account_and_sends_the_link(
     assert message.to == ["aktywacja@example.test"]
     assert "/activate/" in message.body
     # List mówi o spamie i o oknie ważności – bez tego uczestnik nie wie, gdzie szukać i ile ma czasu.
-    assert "spam" in message.body
+    # Zdanie o spamie stoi na stronie po rejestracji, nie w liście (kto go czyta, ten go dostał).
+    assert "spam" not in message.body
     assert "4 godziny" in message.body
     # Poza adresem odbiorcy (i tak w nagłówku ``To:``) w liście nie ma danych osobowych.
     assert "Nowak" not in message.body

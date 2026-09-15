@@ -8,119 +8,345 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
-        ('competitions', '0004_alter_problem_statement_pdf'),
-        ('wagtailcore', '0094_alter_page_locale'),
-        ('wagtaildocs', '0014_alter_document_file_size'),
+        ("competitions", "0004_alter_problem_statement_pdf"),
+        ("wagtailcore", "0094_alter_page_locale"),
+        ("wagtaildocs", "0014_alter_document_file_size"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='ArchiveIndexPage',
+            name="ArchiveIndexPage",
             fields=[
-                ('page_ptr', models.OneToOneField(auto_created=True, on_delete=django.db.models.deletion.CASCADE, parent_link=True, primary_key=True, serialize=False, to='wagtailcore.page')),
-                ('intro', wagtail.fields.RichTextField(blank=True, verbose_name='wprowadzenie')),
+                (
+                    "page_ptr",
+                    models.OneToOneField(
+                        auto_created=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        parent_link=True,
+                        primary_key=True,
+                        serialize=False,
+                        to="wagtailcore.page",
+                    ),
+                ),
+                ("intro", wagtail.fields.RichTextField(blank=True, verbose_name="wprowadzenie")),
             ],
             options={
-                'verbose_name': 'archiwum',
+                "verbose_name": "archiwum",
             },
-            bases=('wagtailcore.page',),
+            bases=("wagtailcore.page",),
         ),
         migrations.CreateModel(
-            name='HomePage',
+            name="HomePage",
             fields=[
-                ('page_ptr', models.OneToOneField(auto_created=True, on_delete=django.db.models.deletion.CASCADE, parent_link=True, primary_key=True, serialize=False, to='wagtailcore.page')),
-                ('hero_title', models.CharField(blank=True, max_length=200, verbose_name='nagłówek')),
-                ('hero_text', wagtail.fields.RichTextField(blank=True, verbose_name='wprowadzenie')),
-                ('show_timeline', models.BooleanField(default=True, help_text='Tabela etapów z terminami i linkami do ogłoszonych wyników.', verbose_name='pokaż oś czasu bieżącej edycji')),
+                (
+                    "page_ptr",
+                    models.OneToOneField(
+                        auto_created=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        parent_link=True,
+                        primary_key=True,
+                        serialize=False,
+                        to="wagtailcore.page",
+                    ),
+                ),
+                ("hero_title", models.CharField(blank=True, max_length=200, verbose_name="nagłówek")),
+                ("hero_text", wagtail.fields.RichTextField(blank=True, verbose_name="wprowadzenie")),
+                (
+                    "show_timeline",
+                    models.BooleanField(
+                        default=True,
+                        help_text="Tabela etapów z terminami i linkami do ogłoszonych wyników.",
+                        verbose_name="pokaż oś czasu bieżącej edycji",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'strona główna',
+                "verbose_name": "strona główna",
             },
-            bases=('wagtailcore.page',),
+            bases=("wagtailcore.page",),
         ),
         migrations.CreateModel(
-            name='NewsIndexPage',
+            name="NewsIndexPage",
             fields=[
-                ('page_ptr', models.OneToOneField(auto_created=True, on_delete=django.db.models.deletion.CASCADE, parent_link=True, primary_key=True, serialize=False, to='wagtailcore.page')),
-                ('intro', wagtail.fields.RichTextField(blank=True, verbose_name='wprowadzenie')),
+                (
+                    "page_ptr",
+                    models.OneToOneField(
+                        auto_created=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        parent_link=True,
+                        primary_key=True,
+                        serialize=False,
+                        to="wagtailcore.page",
+                    ),
+                ),
+                ("intro", wagtail.fields.RichTextField(blank=True, verbose_name="wprowadzenie")),
             ],
             options={
-                'verbose_name': 'aktualności',
+                "verbose_name": "aktualności",
             },
-            bases=('wagtailcore.page',),
+            bases=("wagtailcore.page",),
         ),
         migrations.CreateModel(
-            name='NewsPage',
+            name="NewsPage",
             fields=[
-                ('page_ptr', models.OneToOneField(auto_created=True, on_delete=django.db.models.deletion.CASCADE, parent_link=True, primary_key=True, serialize=False, to='wagtailcore.page')),
-                ('date', models.DateField(default=django.utils.timezone.localdate, verbose_name='data publikacji')),
-                ('lead', models.TextField(blank=True, max_length=500, verbose_name='lead')),
-                ('body', wagtail.fields.StreamField([('paragraph', 0), ('image', 3), ('document', 6), ('embed', 7)], blank=True, block_lookup={0: ('wagtail.blocks.RichTextBlock', (), {'features': ['h2', 'h3', 'h4', 'bold', 'italic', 'ol', 'ul', 'hr', 'link', 'document-link', 'superscript', 'subscript', 'blockquote'], 'label': 'akapit'}), 1: ('wagtail.images.blocks.ImageChooserBlock', (), {'label': 'obraz'}), 2: ('wagtail.blocks.CharBlock', (), {'label': 'podpis', 'max_length': 250, 'required': False}), 3: ('wagtail.blocks.StructBlock', [[('image', 1), ('caption', 2)]], {}), 4: ('wagtail.documents.blocks.DocumentChooserBlock', (), {'label': 'dokument'}), 5: ('wagtail.blocks.CharBlock', (), {'label': 'etykieta linku', 'max_length': 250, 'required': False}), 6: ('wagtail.blocks.StructBlock', [[('document', 4), ('label', 5)]], {}), 7: ('wagtail.embeds.blocks.EmbedBlock', (), {'label': 'osadzenie (film, prezentacja)'})}, verbose_name='treść')),
+                (
+                    "page_ptr",
+                    models.OneToOneField(
+                        auto_created=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        parent_link=True,
+                        primary_key=True,
+                        serialize=False,
+                        to="wagtailcore.page",
+                    ),
+                ),
+                (
+                    "date",
+                    models.DateField(default=django.utils.timezone.localdate, verbose_name="data publikacji"),
+                ),
+                ("lead", models.TextField(blank=True, max_length=500, verbose_name="lead")),
+                (
+                    "body",
+                    wagtail.fields.StreamField(
+                        [("paragraph", 0), ("image", 3), ("document", 6), ("embed", 7)],
+                        blank=True,
+                        block_lookup={
+                            0: (
+                                "wagtail.blocks.RichTextBlock",
+                                (),
+                                {
+                                    "features": [
+                                        "h2",
+                                        "h3",
+                                        "h4",
+                                        "bold",
+                                        "italic",
+                                        "ol",
+                                        "ul",
+                                        "hr",
+                                        "link",
+                                        "document-link",
+                                        "superscript",
+                                        "subscript",
+                                        "blockquote",
+                                    ],
+                                    "label": "akapit",
+                                },
+                            ),
+                            1: ("wagtail.images.blocks.ImageChooserBlock", (), {"label": "obraz"}),
+                            2: (
+                                "wagtail.blocks.CharBlock",
+                                (),
+                                {"label": "podpis", "max_length": 250, "required": False},
+                            ),
+                            3: ("wagtail.blocks.StructBlock", [[("image", 1), ("caption", 2)]], {}),
+                            4: ("wagtail.documents.blocks.DocumentChooserBlock", (), {"label": "dokument"}),
+                            5: (
+                                "wagtail.blocks.CharBlock",
+                                (),
+                                {"label": "etykieta linku", "max_length": 250, "required": False},
+                            ),
+                            6: ("wagtail.blocks.StructBlock", [[("document", 4), ("label", 5)]], {}),
+                            7: (
+                                "wagtail.embeds.blocks.EmbedBlock",
+                                (),
+                                {"label": "osadzenie (film, prezentacja)"},
+                            ),
+                        },
+                        verbose_name="treść",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'aktualność',
-                'verbose_name_plural': 'aktualności',
+                "verbose_name": "aktualność",
+                "verbose_name_plural": "aktualności",
             },
-            bases=('wagtailcore.page',),
+            bases=("wagtailcore.page",),
         ),
         migrations.CreateModel(
-            name='ProblemsPage',
+            name="ProblemsPage",
             fields=[
-                ('page_ptr', models.OneToOneField(auto_created=True, on_delete=django.db.models.deletion.CASCADE, parent_link=True, primary_key=True, serialize=False, to='wagtailcore.page')),
-                ('intro', wagtail.fields.RichTextField(blank=True, verbose_name='wprowadzenie')),
-                ('closed_notice', models.TextField(blank=True, help_text='Wyświetlany, dopóki etap się nie rozpocznie. Domyślnie komunikat systemowy.', max_length=500, verbose_name='komunikat przed otwarciem etapu')),
-                ('body', wagtail.fields.StreamField([('paragraph', 0), ('image', 3), ('document', 6), ('embed', 7)], blank=True, block_lookup={0: ('wagtail.blocks.RichTextBlock', (), {'features': ['h2', 'h3', 'h4', 'bold', 'italic', 'ol', 'ul', 'hr', 'link', 'document-link', 'superscript', 'subscript', 'blockquote'], 'label': 'akapit'}), 1: ('wagtail.images.blocks.ImageChooserBlock', (), {'label': 'obraz'}), 2: ('wagtail.blocks.CharBlock', (), {'label': 'podpis', 'max_length': 250, 'required': False}), 3: ('wagtail.blocks.StructBlock', [[('image', 1), ('caption', 2)]], {}), 4: ('wagtail.documents.blocks.DocumentChooserBlock', (), {'label': 'dokument'}), 5: ('wagtail.blocks.CharBlock', (), {'label': 'etykieta linku', 'max_length': 250, 'required': False}), 6: ('wagtail.blocks.StructBlock', [[('document', 4), ('label', 5)]], {}), 7: ('wagtail.embeds.blocks.EmbedBlock', (), {'label': 'osadzenie (film, prezentacja)'})}, verbose_name='treści dodatkowe')),
+                (
+                    "page_ptr",
+                    models.OneToOneField(
+                        auto_created=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        parent_link=True,
+                        primary_key=True,
+                        serialize=False,
+                        to="wagtailcore.page",
+                    ),
+                ),
+                ("intro", wagtail.fields.RichTextField(blank=True, verbose_name="wprowadzenie")),
+                (
+                    "closed_notice",
+                    models.TextField(
+                        blank=True,
+                        help_text="Wyświetlany, dopóki etap się nie rozpocznie. Domyślnie komunikat systemowy.",
+                        max_length=500,
+                        verbose_name="komunikat przed otwarciem etapu",
+                    ),
+                ),
+                (
+                    "body",
+                    wagtail.fields.StreamField(
+                        [("paragraph", 0), ("image", 3), ("document", 6), ("embed", 7)],
+                        blank=True,
+                        block_lookup={
+                            0: (
+                                "wagtail.blocks.RichTextBlock",
+                                (),
+                                {
+                                    "features": [
+                                        "h2",
+                                        "h3",
+                                        "h4",
+                                        "bold",
+                                        "italic",
+                                        "ol",
+                                        "ul",
+                                        "hr",
+                                        "link",
+                                        "document-link",
+                                        "superscript",
+                                        "subscript",
+                                        "blockquote",
+                                    ],
+                                    "label": "akapit",
+                                },
+                            ),
+                            1: ("wagtail.images.blocks.ImageChooserBlock", (), {"label": "obraz"}),
+                            2: (
+                                "wagtail.blocks.CharBlock",
+                                (),
+                                {"label": "podpis", "max_length": 250, "required": False},
+                            ),
+                            3: ("wagtail.blocks.StructBlock", [[("image", 1), ("caption", 2)]], {}),
+                            4: ("wagtail.documents.blocks.DocumentChooserBlock", (), {"label": "dokument"}),
+                            5: (
+                                "wagtail.blocks.CharBlock",
+                                (),
+                                {"label": "etykieta linku", "max_length": 250, "required": False},
+                            ),
+                            6: ("wagtail.blocks.StructBlock", [[("document", 4), ("label", 5)]], {}),
+                            7: (
+                                "wagtail.embeds.blocks.EmbedBlock",
+                                (),
+                                {"label": "osadzenie (film, prezentacja)"},
+                            ),
+                        },
+                        verbose_name="treści dodatkowe",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'zadania',
-                'verbose_name_plural': 'zadania',
+                "verbose_name": "zadania",
+                "verbose_name_plural": "zadania",
             },
-            bases=('wagtailcore.page',),
+            bases=("wagtailcore.page",),
         ),
         migrations.CreateModel(
-            name='ResultsPage',
+            name="ResultsPage",
             fields=[
-                ('page_ptr', models.OneToOneField(auto_created=True, on_delete=django.db.models.deletion.CASCADE, parent_link=True, primary_key=True, serialize=False, to='wagtailcore.page')),
-                ('intro', wagtail.fields.RichTextField(blank=True, verbose_name='wprowadzenie')),
+                (
+                    "page_ptr",
+                    models.OneToOneField(
+                        auto_created=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        parent_link=True,
+                        primary_key=True,
+                        serialize=False,
+                        to="wagtailcore.page",
+                    ),
+                ),
+                ("intro", wagtail.fields.RichTextField(blank=True, verbose_name="wprowadzenie")),
             ],
             options={
-                'verbose_name': 'wyniki',
-                'verbose_name_plural': 'wyniki',
+                "verbose_name": "wyniki",
+                "verbose_name_plural": "wyniki",
             },
-            bases=('wagtailcore.page',),
+            bases=("wagtailcore.page",),
         ),
         migrations.CreateModel(
-            name='ArchiveEditionPage',
+            name="ArchiveEditionPage",
             fields=[
-                ('page_ptr', models.OneToOneField(auto_created=True, on_delete=django.db.models.deletion.CASCADE, parent_link=True, primary_key=True, serialize=False, to='wagtailcore.page')),
-                ('summary', wagtail.fields.RichTextField(blank=True, verbose_name='podsumowanie')),
-                ('edition', models.ForeignKey(blank=True, help_text='Powiązanie z edycją w bazie: stąd biorą się etapy i linki do wyników.', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='archive_pages', to='competitions.edition', verbose_name='edycja')),
+                (
+                    "page_ptr",
+                    models.OneToOneField(
+                        auto_created=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        parent_link=True,
+                        primary_key=True,
+                        serialize=False,
+                        to="wagtailcore.page",
+                    ),
+                ),
+                ("summary", wagtail.fields.RichTextField(blank=True, verbose_name="podsumowanie")),
+                (
+                    "edition",
+                    models.ForeignKey(
+                        blank=True,
+                        help_text="Powiązanie z edycją w bazie: stąd biorą się etapy i linki do wyników.",
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="archive_pages",
+                        to="competitions.edition",
+                        verbose_name="edycja",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'edycja w archiwum',
-                'verbose_name_plural': 'edycje w archiwum',
+                "verbose_name": "edycja w archiwum",
+                "verbose_name_plural": "edycje w archiwum",
             },
-            bases=('wagtailcore.page',),
+            bases=("wagtailcore.page",),
         ),
         migrations.CreateModel(
-            name='ArchiveDocument',
+            name="ArchiveDocument",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('sort_order', models.IntegerField(blank=True, editable=False, null=True)),
-                ('kind', models.CharField(choices=[('PROBLEMS', 'zadania'), ('SOLUTIONS', 'rozwiązania'), ('OTHER', 'inne')], default='PROBLEMS', max_length=16, verbose_name='rodzaj')),
-                ('title', models.CharField(max_length=200, verbose_name='etykieta')),
-                ('document', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='+', to='wagtaildocs.document', verbose_name='plik')),
-                ('page', modelcluster.fields.ParentalKey(on_delete=django.db.models.deletion.CASCADE, related_name='documents', to='cms.archiveeditionpage')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("sort_order", models.IntegerField(blank=True, editable=False, null=True)),
+                (
+                    "kind",
+                    models.CharField(
+                        choices=[("PROBLEMS", "zadania"), ("SOLUTIONS", "rozwiązania"), ("OTHER", "inne")],
+                        default="PROBLEMS",
+                        max_length=16,
+                        verbose_name="rodzaj",
+                    ),
+                ),
+                ("title", models.CharField(max_length=200, verbose_name="etykieta")),
+                (
+                    "document",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="+",
+                        to="wagtaildocs.document",
+                        verbose_name="plik",
+                    ),
+                ),
+                (
+                    "page",
+                    modelcluster.fields.ParentalKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="documents",
+                        to="cms.archiveeditionpage",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'dokument archiwum',
-                'verbose_name_plural': 'dokumenty archiwum',
-                'ordering': ['sort_order'],
-                'abstract': False,
+                "verbose_name": "dokument archiwum",
+                "verbose_name_plural": "dokumenty archiwum",
+                "ordering": ["sort_order"],
+                "abstract": False,
             },
         ),
     ]

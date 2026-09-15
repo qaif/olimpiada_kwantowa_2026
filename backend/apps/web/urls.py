@@ -24,6 +24,7 @@ urlpatterns = [
     path("reset/done/", public.PasswordResetCompleteView.as_view(), name="password-reset-complete"),
     path("register/", public.RegisterParticipantView.as_view(), name="register"),
     path("register/committee/", public.RegisterCommitteeView.as_view(), name="register-committee"),
+    path("register/done/", public.RegisterDoneView.as_view(), name="register-done"),
     # Aktywacja konta. ``resend/`` stoi **przed** wzorcem z tokenem: token jest dowolnym napisem
     # bez ukośnika, więc bez tej kolejności „resend” dałoby się wziąć za token.
     path("activate/resend/", public.ActivationResendView.as_view(), name="activate-resend"),

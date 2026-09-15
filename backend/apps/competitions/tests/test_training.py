@@ -35,6 +35,7 @@ from apps.competitions.services import (
     register_for_stage,
     training_stage,
 )
+from apps.competitions.training import TRAINING_PROBLEMS
 from apps.core.api import DomainError
 from apps.results.services import STAGE_ORDER, next_stage_of
 
@@ -196,9 +197,13 @@ def test_seed_training_problems_tworzy_etap_i_cztery_zadania():
     assert stage.qualification_rule.min_points == 0
 
     problems = list(stage.problems.order_by("number"))
-    assert [problem.number for problem in problems] == [1, 2, 3, 4]
+    assert [problem.number for problem in problems] == [1, 2, 3, 4, 5, 6, 7, 8]
     assert all(problem.statement_pdf for problem in problems)
-    assert "diabelnie trudne" in problems[3].title
+    # 1–4 to zadania organizatora (jeden wspólny PDF), 5–8 – zadania Fabiana podpisane w tytule.
+    assert problems[0].title.startswith("P1.")
+    assert problems[4].title.startswith("Zadanie Fabiana 1")
+    assert "diabelnie trudne" in problems[7].title
+    assert len({problems[i].statement_pdf.read() for i in range(4)}) == 1
     for problem in problems:
         with problem.statement_pdf.open("rb") as handle:
             assert handle.read(5) == b"%PDF-"
@@ -218,7 +223,7 @@ def test_seed_training_problems_jest_idempotentna():
     call_command("seed_training_problems", verbosity=0)
 
     assert Stage.objects.filter(edition=edition, kind=StageKind.TRAINING).count() == 1
-    assert Problem.objects.filter(stage=stage).count() == 4
+    assert Problem.objects.filter(stage=stage).count() == len(TRAINING_PROBLEMS)
     after = {problem.number: problem.statement_pdf.name for problem in stage.problems.all()}
     assert after == before
 
