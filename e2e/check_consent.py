@@ -1,13 +1,14 @@
-"""Kontrola bramki zgody: czy przed kliknięciem naprawdę nic nie leci do Google'a.
+"""Kontrola trybu zgody Google Analytics: cookie i identyfikatory dopiero po kliknięciu.
 
-Tego jednego nie sprawdzi pytest: cała obietnica polityki cookie („zanim klikniesz, przeglądarka
-nie wysyła do Google'a żadnego żądania”) jest zdaniem o **przeglądarce**, a nie o odpowiedzi
-serwera. Szablon może być bez zarzutu, a jedno nieuważne ``async`` w loaderze zamieni bramkę
-w ozdobnik. Dlatego liczymy tu żądania sieciowe, a nie znaczniki w HTML-u.
+Tego jednego nie sprawdzi pytest: obietnica polityki cookie („zanim klikniesz, nie powstaje żaden
+plik cookie analityczny ani identyfikator”) jest zdaniem o **przeglądarce**, a nie o odpowiedzi
+serwera. Tag Google jest na stronie od razu (tak każe instrukcja GA), więc pilnujemy stanu trybu
+zgody w ``dataLayer`` i listy cookie ``_ga*``, a nie samej obecności skryptu.
 
 Trzy stany, trzy asercje:
 
-1. **wejście bez decyzji** – pasek widoczny, zero żądań do ``googletagmanager.com``,
+1. **wejście bez decyzji** – pasek widoczny, tag ``gtag/js`` w dokumencie, ``consent default``
+   z ``analytics_storage = denied`` i zero cookie ``_ga*``,
 2. **„Akceptuję wszystkie”** – żądanie do ``googletagmanager.com/gtag/js`` **wychodzi od razu**,
    bez przeładowania strony, a w ``localStorage`` stoi ``cookie-consent = "all"``. Sprawdzamy, że
    żądanie zostało **wystawione**, a nie że się powiodło: kontener e2e nie ma wyjścia do internetu
@@ -47,6 +48,13 @@ CONSENT_STATE = """(() => {
     metaId: (document.querySelector('meta[name="ga-measurement-id"]') || {}).content || null,
     loaderPresent: [...document.scripts].some(s => s.src.includes('analytics.js')),
     googleScripts: [...document.scripts].map(s => s.src).filter(s => s.includes('googletagmanager')),
+    // Stan trybu zgody odczytany z kolejki dataLayer: ostatnie wywołanie consent default/update.
+    consentMode: (() => {
+      const calls = (window.dataLayer || []).filter(a => a && a[0] === 'consent');
+      const last = calls[calls.length - 1];
+      return last ? { kind: last[1], analytics: last[2] && last[2].analytics_storage } : null;
+    })(),
+    gaCookies: document.cookie.split(';').map(c => c.trim()).filter(c => c.startsWith('_ga')),
   };
 })()"""
 
@@ -85,7 +93,11 @@ def main() -> None:
         assert state["loaderPresent"], "szablon nie dolaczyl static/js/analytics.js"
         assert state["barVisible"], "pasek zgody ma byc widoczny przed decyzja"
         assert state["consent"] is None, "decyzja nie moze istniec przed klknieciem"
-        assert google_requests(requests) == [], f"zadanie do Google przed zgoda: {google_requests(requests)}"
+        # Tag Google jest na stronie od razu (jak kaze instrukcja), ale w trybie zgody odrzuconej:
+        # zadne cookie _ga nie moze powstac przed decyzja.
+        assert state["googleScripts"], "brak tagu gtag/js w dokumencie"
+        assert state["consentMode"] == {"kind": "default", "analytics": "denied"}, state["consentMode"]
+        assert state["gaCookies"] == [], f"cookie _ga przed zgoda: {state['gaCookies']}"
 
         # --- 2. „Akceptuję wszystkie” --------------------------------------------------------
         page.click('[data-cookie-consent="all"]')
@@ -98,9 +110,10 @@ def main() -> None:
         assert after["consentAt"], "brak znacznika czasu decyzji"
         assert after["barVisible"] is False, "po decyzji pasek ma zniknac"
         loaded = [url for url in google_requests(requests) if "gtag/js" in url]
-        # Bez przeładowania strony: pierwsza odsłona też ma być policzona.
-        assert loaded, "po zgodzie nie wyszlo zadanie do googletagmanager.com/gtag/js"
+        assert loaded, "brak zadania do googletagmanager.com/gtag/js"
         assert after["metaId"] in loaded[0], "adres gtag/js nie niesie identyfikatora z ustawien"
+        # Bez przeładowania strony: zgoda przechodzi do biblioteki jako consent update.
+        assert after["consentMode"] == {"kind": "update", "analytics": "granted"}, after["consentMode"]
         context.close()
 
         # --- 3. „Tylko niezbędne” w świeżej przeglądarce -------------------------------------
@@ -115,7 +128,8 @@ def main() -> None:
         print("po odmowie:", refused)
         assert refused["consent"] == "necessary", "odmowa nie zapisala sie w localStorage"
         assert refused["barVisible"] is False, "po decyzji pasek ma zniknac"
-        assert google_requests(requests) == [], f"zadanie do Google mimo odmowy: {google_requests(requests)}"
+        assert refused["consentMode"] == {"kind": "update", "analytics": "denied"}, refused["consentMode"]
+        assert refused["gaCookies"] == [], f"cookie _ga mimo odmowy: {refused['gaCookies']}"
 
         # Wycofanie zgody: „Ustawienia cookies” w stopce otwiera pasek ponownie.
         page.click("[data-cookie-settings]")

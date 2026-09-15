@@ -404,8 +404,11 @@ a nagłówek CSP jest co do bajtu taki, jak przed dodaniem tej funkcji (pilnuje 
 **Z identyfikatorem** pasek zamienia się w pytanie o zgodę („Akceptuję wszystkie” / „Tylko
 niezbędne”), bo cookie analityczne wolno zapisać dopiero po zgodzie uprzedniej (art. 173 Prawa
 telekomunikacyjnego — odpowiednio Prawa komunikacji elektronicznej — oraz art. 6 ust. 1 lit. a
-RODO). Do czasu decyzji przeglądarka **nie wysyła do Google'a żadnego żądania**: nie korzystamy
-z wariantu „denied pings” trybu zgody, w którym skrypt ładuje się przed decyzją. Po kliknięciu
+RODO). Tag Google stoi w `<head>` każdej strony dokładnie tak, jak każe instrukcja GA (decyzja
+organizatora z 15 września 2026 – weryfikacja instalacji i raporty widzą tag na każdej odsłonie),
+ale w **trybie zgody** (Consent Mode v2): do czasu decyzji `analytics_storage` jest `denied`, więc
+biblioteka nie zapisuje cookie ani identyfikatorów i wysyła wyłącznie bezcookie'owe sygnały
+techniczne. Po kliknięciu
 „Akceptuję wszystkie” pomiar startuje od razu, bez przeładowania strony. Decyzja mieszka
 w `localStorage` (`cookie-consent` = `all`/`necessary`, `cookie-consent-at` = znacznik czasu),
 a odnośnik **„Ustawienia cookies”** w stopce otwiera pasek ponownie — wybór „Tylko niezbędne”
@@ -425,9 +428,8 @@ Weryfikacja po wdrożeniu:
 # Z wpisanym identyfikatorem host Google'a jest w polityce; bez niego nie ma go wcale.
 curl -sI https://<SITE_DOMAIN>/ | grep -o "googletagmanager[^ ;]*" | head -1
 
-# Identyfikator jest w dokumencie, ale adres gtag/js NIE — wstrzykuje go dopiero zgoda.
-curl -s https://<SITE_DOMAIN>/ | grep -c 'meta name="ga-measurement-id"'
-curl -s https://<SITE_DOMAIN>/ | grep -c 'googletagmanager.com/gtag/js'   # musi być 0
+# Tag Google stoi w <head> (z nonce), a identyfikator na <html data-ga-id> i w <meta>.
+curl -s https://<SITE_DOMAIN>/ | grep -c 'googletagmanager.com/gtag/js'   # 1 z identyfikatorem, 0 bez
 ```
 
 Kontrola przeglądarkowa (dev, liczy prawdziwe żądania sieciowe): `e2e/check_consent.py` —

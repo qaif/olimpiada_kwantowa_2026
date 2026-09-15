@@ -1,6 +1,22 @@
 {% load static web_extras wagtailimages_tags %}<!doctype html>
-<html lang="pl">
+<html lang="pl"{% if settings.cms.SiteSettings.ga_measurement_id %} data-ga-id="{{ settings.cms.SiteSettings.ga_measurement_id }}"{% endif %}>
 <head>
+  {% comment %}
+    Tag Google (gtag.js) – dokładnie tam, gdzie każe go wkleić instrukcja Google Analytics:
+    bezpośrednio po ``<head>``, na każdej stronie, jeden. Pierwszy znacznik jest tym z instrukcji
+    (z nonce, żeby przeszedł przez CSP bez wyjątku). Drugim w instrukcji jest skrypt inline
+    z ``dataLayer``/``gtag('config')`` – u nas to static/js/analytics.js, bo polityka
+    bezpieczeństwa nie dopuszcza kodu inline; robi to samo i dokłada tryb zgody (Consent Mode
+    v2): bez kliknięcia „Akceptuję wszystkie” biblioteka nie zapisuje cookie ani identyfikatora.
+    Oba znaczniki istnieją tylko z identyfikatorem wpisanym w /cms/ → Ustawienia → Dane serwisu
+    → Analityka; identyfikator jedzie w ``data-ga-id`` na ``<html>``, bo skrypt czyta go zanim
+    parser dojdzie do jakiegokolwiek ``<meta>``.
+  {% endcomment %}
+  {% if settings.cms.SiteSettings.ga_measurement_id %}
+    <!-- Google tag (gtag.js) -->
+    <script async nonce="{{ request.csp_nonce }}" src="https://www.googletagmanager.com/gtag/js?id={{ settings.cms.SiteSettings.ga_measurement_id }}"></script>
+    <script nonce="{{ request.csp_nonce }}" src="{% static 'js/analytics.js' %}"></script>
+  {% endif %}
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ settings.cms.SiteSettings.site_name }}{% endblock %}</title>
@@ -20,11 +36,8 @@
   <meta property="og:type" content="website">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
   {% comment %}
-    Identyfikator Google Analytics 4 wypisujemy **tylko wtedy**, gdy organizator wpisał go
-    w /cms/ → Ustawienia → Dane serwisu → Analityka. Znacznik jest jedynym przełącznikiem tej
-    funkcji w dokumencie: jego obecność zamienia pasek cookie w pytanie o zgodę
-    (static/js/consent.js) i pozwala loaderowi (static/js/analytics.js) cokolwiek wczytać.
-    Stoi **przed** skryptami, bo consent.js czyta go zaraz po wykonaniu, jeszcze w ``<head>``.
+    Ten sam identyfikator jeszcze raz, jako ``<meta>``: czyta go pasek zgody (static/js/consent.js)
+    i to jego obecność zamienia pasek informacyjny w pytanie o zgodę.
   {% endcomment %}
   {% if settings.cms.SiteSettings.ga_measurement_id %}
     <meta name="ga-measurement-id" content="{{ settings.cms.SiteSettings.ga_measurement_id }}">
@@ -52,14 +65,6 @@
     a CSP zostaje bez ``'unsafe-inline'`` – to nadal skrypt zewnętrzny, z nonce jak pozostałe.
   {% endcomment %}
   <script nonce="{{ request.csp_nonce }}" src="{% static 'js/consent.js' %}"></script>
-  {% comment %}
-    Loader Google Analytics 4 wchodzi do strony wyłącznie razem z identyfikatorem i sam z siebie
-    niczego nie wysyła: czeka na zgodę zapisaną przez consent.js. ``defer``, bo w odróżnieniu od
-    paska nie ma nic do zrobienia przed narysowaniem strony.
-  {% endcomment %}
-  {% if settings.cms.SiteSettings.ga_measurement_id %}
-    <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/analytics.js' %}"></script>
-  {% endif %}
   <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/sticky-bar.js' %}"></script>
   {% comment %}
     Miejsce na skrypty potrzebne tylko na niektórych stronach – dziś jest tu wyłącznie
@@ -309,7 +314,8 @@
     niezbędne (sesja logowania i token CSRF), więc nie ma czego wstrzymywać do kliknięcia,
     a pytanie o zgodę na cookie techniczne sugerowałoby wybór, którego nie ma,
   - **z identyfikatorem** to pytanie o zgodę, bo cookie analityczne wolno zapisać dopiero po jej
-    udzieleniu. Do tego czasu nie wczytuje się żaden skrypt Google'a (static/js/analytics.js).
+    udzieleniu. Do tego czasu tag Google działa w trybie zgody „odrzucona”: bez cookie
+    i identyfikatorów (static/js/analytics.js).
 
   Odpowiedź zapisuje ``localStorage`` (static/js/consent.js), a nie cookie – zapis o zgodzie nie
   może sam być kolejnym plikiem cookie. Na wydruku paska nie ma (arkusz, sekcja @media print).

@@ -2,7 +2,7 @@
 
 Serwis Olimpiady Kwantowej używa **plików cookie niezbędnych** do działania strony (utrzymanie sesji po zalogowaniu, ochrona formularzy) oraz – **wyłącznie za Twoją zgodą** – plików analitycznych Google Analytics 4, z których powstaje statystyka odwiedzin. Nie wyświetlamy reklam, nie profilujemy odwiedzających i nie przekazujemy danych sieciom reklamowym.
 
-Pliki niezbędne zapisujemy zawsze, bo bez nich usługa nie działa. Pliki analityczne zapisujemy dopiero wtedy, gdy klikniesz **„Akceptuję wszystkie”** na pasku na dole strony. Po kliknięciu **„Tylko niezbędne”** nie powstaje żaden plik analityczny i nie wysyłamy nikomu żadnego żądania. Zgodę można w każdej chwili wycofać odnośnikiem **„Ustawienia cookies”** w stopce.
+Pliki niezbędne zapisujemy zawsze, bo bez nich usługa nie działa. Pliki analityczne zapisujemy dopiero wtedy, gdy klikniesz **„Akceptuję wszystkie”** na pasku na dole strony. Po kliknięciu **„Tylko niezbędne”** nie powstaje żaden plik analityczny ani identyfikator. Zgodę można w każdej chwili wycofać odnośnikiem **„Ustawienia cookies”** w stopce.
 
 Jeśli pasek na dole strony ma tylko przycisk **„Rozumiem”**, a nie pyta o zgodę – analityka jest w tym momencie **wyłączona** i serwis zapisuje wyłącznie pliki niezbędne wymienione w tabeli poniżej.
 
@@ -30,7 +30,7 @@ Statystykę odwiedzin prowadzimy w usłudze Google Analytics 4. Służy ona wył
 Szczegóły, które mają znaczenie:
 
 - **Dostawca:** Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irlandia. Dane mogą zostać przekazane do Stanów Zjednoczonych – podstawą jest decyzja wykonawcza Komisji Europejskiej z 10 lipca 2023 r. stwierdzająca odpowiedni stopień ochrony (EU–US Data Privacy Framework), a Google LLC figuruje na liście podmiotów uczestniczących w tym programie.
-- **Zapisujemy je dopiero po zgodzie.** Zanim klikniesz „Akceptuję wszystkie”, przeglądarka nie wysyła do Google'a **żadnego** żądania: skrypt pomiarowy nie jest wtedy w ogóle wczytywany. Nie korzystamy z wariantu, w którym narzędzie wysyła „sygnały bez cookie” przed decyzją.
+- **Zapisujemy je dopiero po zgodzie.** Skrypt Google Analytics wczytuje się na każdej stronie (tak wymaga Google), ale w **trybie zgody** (Consent Mode v2): zanim klikniesz „Akceptuję wszystkie”, nie zapisuje żadnego pliku cookie ani identyfikatora użytkownika. Do Google'a trafiają wtedy wyłącznie sygnały techniczne bez identyfikatora – adres oglądanej strony, typ przeglądarki i przybliżona lokalizacja z adresu IP (adres IP jest anonimizowany) – które nie pozwalają rozpoznać Cię przy kolejnej wizycie.
 - **Anonimizacja adresu IP.** Adres IP jest skracany, zanim trafi do raportów; nie przechowujemy go w usłudze w pełnej postaci.
 - **Bez funkcji reklamowych.** W konfiguracji wyłączone są Google Signals, personalizacja reklam i przekazywanie danych do remarketingu – zgoda przekazywana do narzędzia dotyczy wyłącznie statystyki (pozostałe kategorie pozostają odmówione).
 - **Jak wycofać zgodę:** odnośnik **„Ustawienia cookies”** w stopce otwiera pasek ponownie. Kliknięcie „Tylko niezbędne” usuwa pliki `_ga` i `_ga_…` z przeglądarki i od tej chwili nic nie jest zbierane. Wycofanie zgody jest równie proste jak jej udzielenie i nie pociąga za sobą żadnych konsekwencji – serwis działa tak samo.

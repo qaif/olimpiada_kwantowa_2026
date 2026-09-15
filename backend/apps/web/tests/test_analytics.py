@@ -122,13 +122,19 @@ def test_with_a_measurement_id_the_page_carries_the_id_and_the_loader(web_client
     content = response.content.decode()
 
     assert f'<meta name="ga-measurement-id" content="{MEASUREMENT_ID}">' in content
-    match = re.search(r'<script defer nonce="([^"]+)" src="([^"]*analytics[^"]*\.js)">', content)
-    assert match is not None, "brak loadera analityki z nonce"
+    assert f'<html lang="pl" data-ga-id="{MEASUREMENT_ID}">' in content
+    # Tag Google „jak każe instrukcja”: zaraz po <head>, z nonce (CSP bez wyjątku), a za nim nasz
+    # odpowiednik snippetu inline – synchroniczny, bez ``defer`` (consent default przed biblioteką).
+    head = content.split("</head>", 1)[0]
+    gtag_src = re.escape(f"https://www.googletagmanager.com/gtag/js?id={MEASUREMENT_ID}")
+    tag = re.search(r'<script async nonce="([^"]+)" src="' + gtag_src + '">', head)
+    assert tag is not None, "brak tagu Google w <head>"
+    match = re.search(r'<script nonce="([^"]+)" src="([^"]*analytics[^"]*\.js)">', head)
+    assert match is not None, "brak skryptu analityki z nonce"
+    assert head.index("gtag/js") < head.index("analytics") < head.index('<meta charset="utf-8">')
     # Nonce z tej samej odpowiedzi – jest jednorazowy, więc drugie żądanie miałoby już inny.
     assert f"'nonce-{match.group(1)}'" in response.headers["Content-Security-Policy"]
-    # Identyfikator jest w dokumencie, ale samego skryptu Google'a w nim nie ma: wstrzykuje go
-    # loader dopiero po zgodzie. Gdyby adres wyciekł do szablonu, zgoda przestałaby cokolwiek znaczyć.
-    assert "googletagmanager.com" not in content
+    assert tag.group(1) == match.group(1)
 
 
 def test_with_a_measurement_id_the_bar_asks_instead_of_informing(web_client, edition, analytics_on):
