@@ -2,7 +2,16 @@
 
 from django.urls import path
 
-from .views import account, appeals, coordinator, coordinator_stages, participant, public, reviewer
+from .views import (
+    account,
+    appeals,
+    coordinator,
+    coordinator_accounts,
+    coordinator_stages,
+    participant,
+    public,
+    reviewer,
+)
 
 app_name = "web"
 
@@ -84,6 +93,7 @@ urlpatterns = [
     path("review/<int:pk>/", reviewer.ReviewDetailView.as_view(), name="review-detail"),
     path("review/<int:pk>/draft/", reviewer.ReviewDraftView.as_view(), name="review-draft"),
     path("review/<int:pk>/submit/", reviewer.ReviewSubmitView.as_view(), name="review-submit"),
+    path("review/<int:pk>/revise/", reviewer.ReviewReviseView.as_view(), name="review-revise"),
     # --- koordynator -------------------------------------------------------------------------
     path("coordinator/", coordinator.CoordinatorDashboardView.as_view(), name="coordinator"),
     # Okno rejestracji uczestników – ustawienie edycji, nie etapu, stąd adres bez identyfikatora.
@@ -219,6 +229,24 @@ urlpatterns = [
         "coordinator/invitations/<int:pk>/revoke/",
         coordinator.RevokeInvitationView.as_view(),
         name="coordinator-invitation-revoke",
+    ),
+    # Konta wszystkich ról: lista, edycja, blokada, usunięcie. Adres bez identyfikatora stoi przed
+    # adresami szczegółowymi wyłącznie dla czytelności – ``<int:pk>`` i tak nie dopasuje pustego
+    # segmentu.
+    path(
+        "coordinator/accounts/",
+        coordinator_accounts.CoordinatorAccountsView.as_view(),
+        name="coordinator-accounts",
+    ),
+    path(
+        "coordinator/accounts/<int:pk>/",
+        coordinator_accounts.CoordinatorAccountEditView.as_view(),
+        name="coordinator-account-edit",
+    ),
+    path(
+        "coordinator/accounts/<int:pk>/delete/",
+        coordinator_accounts.CoordinatorAccountDeleteView.as_view(),
+        name="coordinator-account-delete",
     ),
     # Konta oczekujące na aktywację – obejście na czas problemów z dostarczalnością poczty.
     path(

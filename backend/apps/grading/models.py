@@ -73,6 +73,10 @@ class Review(models.Model):
     )
     assigned_at = models.DateTimeField("przydzielona", default=timezone.now)
     submitted_at = models.DateTimeField("wystawiona", null=True, blank=True)
+    # Osobne pole, a nie nadpisanie ``submitted_at``: chwila pierwszego wystawienia oceny jest
+    # faktem procesowym (czy recenzent zdążył przed terminem recenzji) i poprawka nie może jej
+    # zacierać. ``None`` znaczy „nie poprawiano”.
+    revised_at = models.DateTimeField("poprawiona", null=True, blank=True)
 
     objects = ReviewQuerySet.as_manager()
 

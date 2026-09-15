@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% load static %}
+{% load web_extras %}
+{% comment %}
+  Edycja jednego konta przez koordynatora. Trzy bloki w **jednym** formularzu (konto, profil
+  uczestnika, profil komitetu), bo to jedno zdarzenie: „koordynator poprawił dane tego konta”,
+  z jednym wpisem audytowym. Bloki profili renderują się tylko wtedy, gdy konto ma dany profil –
+  pusty blok „dane uczestnika” przy koncie recenzenta sugerowałby, że da się go tam dopisać.
+
+  Nazwy pól nie zderzają się mimo powtórzonego ``district``, bo każdy formularz ma prefiks
+  (apps/web/views/coordinator_accounts.py). Blok wyboru szkoły jest ten sam, co w rejestracji
+  (``web/_school_picker.html`` + zewnętrzny skrypt) – nazwa szkoły ma trafiać do bazy w jednym
+  brzmieniu niezależnie od tego, kto ją wpisuje.
+{% endcomment %}
+{% block title %}Konto {{ account.email }} – panel koordynatora{% endblock %}
+{% block page_scripts %}
+  {% if participant_form %}
+    <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/school-picker.js' %}"></script>
+  {% endif %}
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:coordinator-accounts' %}">Konta</a></span>
+  <h1>{{ account.email }}</h1>
+  <p class="lead">{{ role }} · konto {{ status_label }} · założone {{ account.date_joined|local_datetime }}
+    {% if participant %} · kod publiczny {{ participant.public_code }}{% endif %}</p>
+</div>
+
+{% if protected %}
+  {% comment %}
+    Konto koordynatora (albo superużytkownika) jest tu tylko do odczytu i tak ma zostać: to jedyne
+    wejście do prowadzenia edycji, a dwóch koordynatorów mogłoby się nawzajem zablokować jednym
+    kliknięciem. Odmowę wydaje serwis (``COORDINATOR_PROTECTED``) – tutaj znika sam formularz,
+    żeby nie stawiać przycisku, który i tak nie zapisze.
+  {% endcomment %}
+  <div class="card card--quiet">
+    <p class="notice">Konto koordynatora – dane zmienia administrator w /admin/.</p>
+    <dl class="meta-list">
+      <dt>Imię i nazwisko</dt>
+      <dd>{{ account.get_full_name|default:"—" }}</dd>
+      <dt>Adres e-mail</dt>
+      <dd>{{ account.email }}</dd>
+      <dt>Stan</dt>
+      <dd>{{ status_label }}</dd>
+    </dl>
+    <p class="hint">Własne imię i nazwisko zmienisz w swoim profilu:
+      <a href="{% url 'web:account-profile' %}">/account/profile/</a>.</p>
+  </div>
+{% else %}
+  <form method="post" class="form form--wide" novalidate>
+    {% csrf_token %}
+
+    <section class="section">
+      <div class="card">
+        <h2 class="mt-0">Konto</h2>
+        {{ account_form.non_field_errors }}
+        {% for field in account_form %}
+          <p>
+            {{ field.errors }}
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
+          </p>
+        {% endfor %}
+      </div>
+    </section>
+
+    {% if participant_form %}
+      <section class="section">
+        <div class="card">
+          <h2 class="mt-0">Dane uczestnika</h2>
+          <p class="hint">Kod publiczny ({{ participant.public_code }}) jest niezmienny – pod nim
+            uczestnik stoi w ogłoszonych tabelach wyników.</p>
+          {{ participant_form.non_field_errors }}
+          {% for field in participant_form %}
+            {% if field.name in participant_form.school_field_names %}
+              {% if field.name == "school_id" %}
+                {% include "web/_school_picker.html" with form=participant_form %}
+              {% endif %}
+            {% else %}
+              <p>
+                {{ field.errors }}
+                {{ field.label_tag }}
+                {{ field }}
+                {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
+              </p>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+
+    {% if committee_form %}
+      <section class="section">
+        <div class="card">
+          <h2 class="mt-0">Członek komitetu</h2>
+          <p class="hint">Województwo jest opcjonalne: bez niego recenzent ocenia prace z całego
+            kraju, z nim – wypada z prac swojego województwa (konflikt interesów). Ustawienie
+            statusu „aktywny” nadaje konto grupom recenzenta (i komisji odwoławczej, jeśli pole
+            niżej jest zaznaczone).</p>
+          {{ committee_form.non_field_errors }}
+          {% for field in committee_form %}
+            <p>
+              {{ field.errors }}
+              {{ field.label_tag }}
+              {{ field }}
+              {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
+            </p>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+
+    <div class="actions">
+      <button type="submit" class="btn btn--primary">Zapisz dane</button>
+      <a class="btn btn--ghost" href="{% url 'web:coordinator-accounts' %}">Anuluj</a>
+      <a class="btn btn--danger" href="{% url 'web:coordinator-account-delete' account.pk %}">Usuń konto</a>
+    </div>
+  </form>
+{% endif %}
+{% endblock %}

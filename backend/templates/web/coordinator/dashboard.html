@@ -228,7 +228,16 @@
 </section>
 
 <section class="section">
-  <div class="section__head"><h2 class="mt-0">Konta oczekujące na aktywację</h2></div>
+  <div class="section__head">
+    <h2 class="mt-0">Konta oczekujące na aktywację</h2>
+    {% comment %}
+      Odnośnik do pełnej listy kont stoi przy tej sekcji, bo to ta sama sprawa widziana szerzej:
+      tutaj są konta, które nie dokończyły rejestracji, tam – wszystkie, z edycją danych, blokadą
+      logowania i usunięciem.
+    {% endcomment %}
+    <p class="hint"><a class="btn btn--secondary btn--small"
+       href="{% url 'web:coordinator-accounts' %}">Konta (wszystkie)</a></p>
+  </div>
   {% comment %}
     Obejście operacyjne z terminem ważności: dopóki domena nadawcy nie ma poprawnych rekordów
     SPF/DKIM (README § 4.2), część listów aktywacyjnych trafia do spamu albo jest odrzucana przez

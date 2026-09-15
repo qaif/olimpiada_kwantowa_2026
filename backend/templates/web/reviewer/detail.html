@@ -85,19 +85,29 @@
 
   <section class="form-pane" aria-label="Ocena">
     <h2 class="mt-0">Ocena</h2>
-    {% if not editable %}
-      <p class="msg msg-warning closed">Ta recenzja jest zamknięta ({{ review.get_status_display }})
-        – formularz jest wyłączony.</p>
+    {% if withdrawn %}
+      {% comment %}
+        Praca odebrana przez koordynatora: żadnego formularza, bo nie ma czego zapisać. Komunikat
+        mówi wprost, co się stało – „recenzja anulowana” nie tłumaczyłoby recenzentowi niczego.
+      {% endcomment %}
+      <p class="msg msg-warning closed">Koordynator odebrał Ci tę pracę. Twoja ocena nie liczy się
+        już do oceny końcowej i nie można jej zmienić.</p>
+    {% else %}
+    {% if revision_allowed %}
+      <p class="hint">Ocenę masz już wystawioną, ale możesz ją poprawić – formularz jest wypełniony
+        Twoimi punktami i komentarzami. Po zapisaniu rundę 1 rozstrzygamy od nowa.</p>
+    {% elif revision_hint %}
+      <p class="msg msg-warning closed">{{ revision_hint }}</p>
     {% endif %}
     <form method="post"
-          action="{% url 'web:review-submit' review.pk %}"
+          action="{% if revision_allowed %}{% url 'web:review-revise' review.pk %}{% else %}{% url 'web:review-submit' review.pk %}{% endif %}"
           class="form form--wide"
           id="review-form"
           x-data="confirmSubmit"
           x-on:submit="check"
-          data-confirm="Wystawić ocenę? Po wysłaniu nie da się jej zmienić.">
+          data-confirm="{% if revision_allowed %}Zapisać poprawioną ocenę? Wcześniejsze rozstrzygnięcie rundy zostanie przeliczone od nowa.{% else %}Wystawić ocenę? Poprawić ją będzie można, dopóki koordynator nie odbierze Ci pracy.{% endif %}">
       {% csrf_token %}
-      <fieldset {% if not editable %}disabled{% endif %}>
+      <fieldset {% if not editable and not revision_allowed %}disabled{% endif %}>
         <legend>Punkty (skala etapu)</legend>
         <div class="scale">
           {% for option in scale_options %}
@@ -127,17 +137,22 @@
         <input type="hidden" id="id_annotations" name="annotations" value="{{ annotations_json }}">
 
         <div class="actions actions--sticky">
-          <button type="button"
-                  class="btn btn--secondary"
-                  hx-post="{% url 'web:review-draft' review.pk %}"
-                  hx-include="#review-form"
-                  hx-target="#draft-status"
-                  hx-swap="outerHTML">Zapisz szkic</button>
-          <button type="submit" class="btn btn--primary">Wyślij ocenę</button>
+          {% if editable %}
+            {# Szkic istnieje tylko przed wystawieniem oceny – poprawka zapisuje się od razu. #}
+            <button type="button"
+                    class="btn btn--secondary"
+                    hx-post="{% url 'web:review-draft' review.pk %}"
+                    hx-include="#review-form"
+                    hx-target="#draft-status"
+                    hx-swap="outerHTML">Zapisz szkic</button>
+          {% endif %}
+          <button type="submit" class="btn btn--primary">
+            {% if revision_allowed %}Popraw ocenę{% else %}Wyślij ocenę{% endif %}</button>
         </div>
       </fieldset>
     </form>
     <div id="draft-status" role="status"></div>
+    {% endif %}
   </section>
 </div>
 {% endblock %}

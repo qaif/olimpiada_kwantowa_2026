@@ -572,26 +572,53 @@ def assign_reviewer_to_submission(
 
 @transaction.atomic
 def unassign_reviewer(review: Review, *, actor=None, request=None) -> Review:
-    """Cofa przydział, którego recenzent jeszcze nie tknął (ASSIGNED → CANCELLED).
+    """Koordynator odbiera recenzentowi pracę – na każdym etapie jej życia (→ CANCELLED).
 
-    Tylko ``ASSIGNED``: szkic znaczy, że ktoś już zaczął czytać pracę, a recenzja wystawiona jest
-    częścią rozstrzygnięcia. Rekord zostaje (ślad po przydziale jest częścią historii) – zmienia
-    się wyłącznie status, dokładnie jak przy anulowaniu wiszącej rundy rozjemczej.
+    Organizator prosił wprost: „koordynator może odebrać członkowi komitetu zadanie”. Dotyczy to
+    także recenzji rozpoczętej (szkic) i **wystawionej** – bo to jest właśnie ten przypadek,
+    w którym odebranie ma sens: ocena okazała się nie do utrzymania (konflikt interesów wyszedł
+    po fakcie, praca oceniona pobieżnie), a recenzent nie ma już jej poprawiać (``revise_review``).
+
+    Rekord zostaje – ślad po przydziale i wystawione punkty są częścią historii. Zmienia się status,
+    a ``_settle_round_one`` przestaje taką recenzję liczyć. Odebranie recenzji wystawionej zdejmuje
+    też ocenę uzgodnioną konsensusem: skoro jedna z dwóch zgodnych ocen wypadła, podstawa konsensusu
+    zniknęła i praca wraca do oceniania.
+
+    Bramki są te same, co przy poprawianiu własnej oceny (``withdrawal_block_reason``): ogłoszonych
+    wyników, pracy zamkniętej ani oceny rozstrzygniętej przez człowieka to narzędzie nie rusza –
+    od zmiany takiej oceny jest ``override_final_grade`` z obowiązkowym uzasadnieniem.
     """
-    if review.status != ReviewStatus.ASSIGNED:
-        raise _conflict(
-            "Cofnąć można wyłącznie przydział, którego recenzent jeszcze nie rozpoczął.",
-            "REVIEW_NOT_ASSIGNED",
-        )
+    submission = _locked_submission(review.submission_id)
+    review = Review.objects.select_related("reviewer", "reviewer__user").get(pk=review.pk)
+    review.submission = submission
+
+    reason = withdrawal_block_reason(review)
+    if reason is not None:
+        raise _conflict(GRADE_CHANGE_BLOCK_MESSAGES[reason], reason)
+
+    previous_status = review.status
+    was_submitted = previous_status == ReviewStatus.SUBMITTED
+    started = previous_status != ReviewStatus.ASSIGNED
     review.status = ReviewStatus.CANCELLED
     review.save(update_fields=["status"])
-    audit(
-        actor,
-        "review.unassigned",
-        review,
-        {"submission_id": review.submission_id, "reviewer_id": review.reviewer_id},
-        request=request,
-    )
+
+    diff = {"submission_id": submission.pk, "reviewer_id": review.reviewer_id}
+    if started:
+        diff |= {"round": review.round, "from_status": previous_status, "score": review.score}
+    # Dwie nazwy dla dwóch różnych zdarzeń: „cofnięto przydział, którego nikt nie tknął” to nie to
+    # samo, co „odebrano komuś rozpoczętą albo wystawioną recenzję”. Historia musi je rozróżniać,
+    # a istniejące raporty szukają cofniętych przydziałów po ``review.unassigned``.
+    audit(actor, "review.withdrawn" if started else "review.unassigned", review, diff, request=request)
+
+    if was_submitted and review.round == ROUND_BLIND:
+        _withdraw_consensus_grade(submission, reason="REVIEW_WITHDRAWN", actor=actor, request=request)
+        # Świadome odstępstwo od „po prostu przelicz rundę jeszcze raz”: z jedną pozostałą recenzją
+        # ``_settle_round_one`` utworzyłby ocenę uzgodnioną z jednego głosu, a praca w
+        # GRADED_PROVISIONAL nie przyjmuje już żadnego przydziału – koordynator nie miałby jak dać
+        # jej następnemu recenzentowi. Zostaje więc w IN_REVIEW i czeka na zastępstwo.
+        if len(_round_one_reviews(submission)) > 1:
+            _settle_round_one(submission, request=request)
+    review.submission = submission
     return review
 
 
@@ -706,12 +733,18 @@ def _create_final_grade(
     return grade
 
 
-def _cancel_pending_tiebreak(submission: Submission, *, actor=None, request=None) -> int:
-    """Anuluje niewystawione recenzje rundy 2 po rozstrzygnięciu rozjazdu.
+def _cancel_pending_tiebreak(
+    submission: Submission, *, reason: str = "MODERATION_RESOLVED", actor=None, request=None
+) -> int:
+    """Anuluje niewystawione recenzje rundy 2, gdy rozjazd przestał istnieć.
 
     Gdy rozjazd rozstrzygnie koordynator, przydział trzeciego recenzenta traci przedmiot. Zostawiony
     w ASSIGNED wisiałby na jego liście zadań i pozwalał dopisać ocenę do zamkniętej już pracy.
     Rekord zostaje (ślad po przydziale jest częścią historii), zmienia się tylko status.
+
+    ``reason`` idzie do audytu, bo powody bywają różne i rozjemca ma prawo wiedzieć, dlaczego
+    zadanie zniknęło mu z listy: rozstrzygnięcie moderacji to nie to samo, co poprawiona recenzja
+    rundy 1, po której oceny znów są zgodne.
     """
     pending = list(
         Review.objects.filter(submission=submission, round=ROUND_TIEBREAK).exclude(
@@ -725,10 +758,30 @@ def _cancel_pending_tiebreak(submission: Submission, *, actor=None, request=None
             actor,
             "review.cancelled",
             review,
-            {"submission_id": submission.pk, "round": review.round, "reason": "MODERATION_RESOLVED"},
+            {"submission_id": submission.pk, "round": review.round, "reason": reason},
             request=request,
         )
     return len(pending)
+
+
+def _round_one_reviews(submission: Submission) -> list[Review]:
+    """Recenzje rundy 1, które liczą się do rozstrzygnięcia – bez anulowanych (odebranych)."""
+    return list(
+        Review.objects.filter(submission=submission, round=ROUND_BLIND).exclude(status=ReviewStatus.CANCELLED)
+    )
+
+
+def _consensus_score(reviews: list[Review]) -> int | None:
+    """Wspólna ocena kompletnej rundy 1 albo ``None`` (runda niekompletna lub oceny różne).
+
+    Wydzielone z ``_settle_round_one``, bo o zgodność ocen pyta też poprawka recenzji: zanim
+    powstanie ocena uzgodniona, trzeba zdjąć wiszący przydział rozjemczy z własnym powodem
+    w audycie.
+    """
+    if not reviews or not all(review.is_submitted for review in reviews):
+        return None
+    scores = {review.score for review in reviews}
+    return scores.pop() if len(scores) == 1 else None
 
 
 def _settle_round_one(submission: Submission, *, request=None) -> None:
@@ -738,23 +791,22 @@ def _settle_round_one(submission: Submission, *, request=None) -> None:
     (przydział awaryjny) jedna wystawiona ocena też domyka sprawę – inaczej praca zostawałaby
     na zawsze w IN_REVIEW, bo drugiej oceny nie miałby kto wystawić.
     """
-    reviews = list(
-        Review.objects.filter(submission=submission, round=ROUND_BLIND).exclude(status=ReviewStatus.CANCELLED)
-    )
-    if not reviews or not all(review.is_submitted for review in reviews):
-        return
-    scores = {review.score for review in reviews}
-    if len(scores) == 1:
+    reviews = _round_one_reviews(submission)
+    agreed = _consensus_score(reviews)
+    if agreed is not None:
         # Konsensus nie ma człowieka rozstrzygającego – decyduje reguła, stąd decided_by=None.
         _create_final_grade(
             submission,
-            score=scores.pop(),
+            score=agreed,
             method=GradeMethod.CONSENSUS,
             decided_by=None,
             rationale=f"Zgodne oceny niezależnych recenzentów ({len(reviews)}).",
             request=request,
         )
         return
+    if not reviews or not all(review.is_submitted for review in reviews):
+        return
+    scores = {review.score for review in reviews}
     if submission.status != SubmissionStatus.MODERATION:
         submission.status = SubmissionStatus.MODERATION
         submission.save(update_fields=["status"])
@@ -830,6 +882,212 @@ def submit_review(
             request=request,
         )
     else:
+        _settle_round_one(submission, request=request)
+    review.submission = submission
+    return review
+
+
+# --- poprawa własnej oceny i odebranie pracy ----------------------------------------------------
+
+#: Komunikaty odmowy dla poprawiania własnej recenzji (recenzent) i odbierania pracy (koordynator).
+#: Jeden słownik na oba tryby, bo powody są te same: to ta sama praca i ta sama ocena, tylko raz
+#: pyta o nią autor recenzji, a raz organizator. Widok czyta stąd podpowiedź, serwis – treść 409.
+GRADE_CHANGE_BLOCK_MESSAGES = {
+    "REVIEW_CANCELLED": "Koordynator odebrał Ci tę pracę – recenzji nie można już zmienić.",
+    "REVIEW_NOT_SUBMITTED": "Ta recenzja nie została jeszcze wystawiona – wyślij ocenę zwykłą drogą.",
+    "ALREADY_CANCELLED": "Ta recenzja została już odebrana.",
+    "RESULTS_PUBLISHED": "Wyniki tego etapu są już ogłoszone – oceny nie da się zmienić.",
+    "SUBMISSION_CLOSED": "Ta praca jest zamknięta – oceny nie da się już zmienić.",
+    "GRADE_DECIDED": "Ocenę tej pracy rozstrzygnął już koordynator albo trzeci recenzent.",
+}
+
+
+def _stage_and_submission_block(review: Review) -> str | None:
+    """Bramka wspólna obu trybom: ogłoszone wyniki etapu i stan pracy.
+
+    Ogłoszona tabela jest dokumentem z chwili publikacji – cicha zmiana oceny rozjeżdżałaby akta
+    z tym, co ludzie już przeczytali. Praca w reklamacji należy do komisji odwoławczej, a praca
+    finalna ma etap dawno za sobą; w obu przypadkach od zmiany oceny jest procedura odwoławcza
+    albo korekta koordynatora, a nie recenzent wracający do swojego formularza.
+    """
+    submission = review.submission
+    if _results_published(submission.entry.stage):
+        return "RESULTS_PUBLISHED"
+    if submission.status in (SubmissionStatus.FINAL, SubmissionStatus.APPEALED):
+        return "SUBMISSION_CLOSED"
+    return None
+
+
+def revision_block_reason(review: Review) -> str | None:
+    """Kod powodu, dla którego recenzent nie może już poprawić tej recenzji (albo ``None``).
+
+    Ta sama funkcja odpowiada widokowi („pokazać formularz poprawki czy podpowiedź, dlaczego nie”)
+    i serwisowi („czym odmówić”) – inaczej ekran obiecywałby coś, czego zapis nie przyjmie.
+
+    Oceny rozstrzygniętej przez człowieka – moderacja, trzeci recenzent, korekta koordynatora,
+    decyzja reklamacyjna – recenzent rundy 1 już nie rusza: jego punkty przestały być podstawą
+    oceny końcowej, a cicha zmiana w tle podważałaby cudze rozstrzygnięcie. Inaczej w rundzie 2:
+    tam ocena końcowa *jest* tą recenzją, więc poprawiać ją wolno dokładnie tak długo, jak długo
+    w aktach stoi ocena wystawiona przez tego recenzenta (``THIRD_REVIEW``).
+    """
+    if review.status == ReviewStatus.CANCELLED:
+        return "REVIEW_CANCELLED"
+    if review.status != ReviewStatus.SUBMITTED:
+        return "REVIEW_NOT_SUBMITTED"
+    blocked = _stage_and_submission_block(review)
+    if blocked is not None:
+        return blocked
+    grade = FinalGrade.objects.filter(submission_id=review.submission_id).first()
+    if review.round == ROUND_TIEBREAK:
+        if grade is None or grade.method != GradeMethod.THIRD_REVIEW:
+            return "GRADE_DECIDED"
+        return None
+    if grade is not None and grade.method != GradeMethod.CONSENSUS:
+        return "GRADE_DECIDED"
+    return None
+
+
+def withdrawal_block_reason(review: Review) -> str | None:
+    """Kod powodu, dla którego koordynator nie może już odebrać tej recenzji (albo ``None``).
+
+    Odebrać wolno recenzję w każdym stanie poza anulowaną – przydzieloną, szkic i wystawioną.
+    Blokuje dopiero rozstrzygnięcie stojące ponad recenzją: ogłoszone wyniki, praca zamknięta
+    i ocena końcowa ustalona przez człowieka. Jeden warunek na ocenę wystarcza na oba przypadki
+    z prośby organizatora: ocena konsensusu jest pochodną recenzji (odebranie jednej z nich ją
+    znosi), a każda inna – łącznie z oceną trzeciego recenzenta (``THIRD_REVIEW``) – jest czyjąś
+    decyzją i zmienia się wyłącznie przez ``override_final_grade``, z uzasadnieniem w aktach.
+    """
+    if review.status == ReviewStatus.CANCELLED:
+        return "ALREADY_CANCELLED"
+    blocked = _stage_and_submission_block(review)
+    if blocked is not None:
+        return blocked
+    grade = FinalGrade.objects.filter(submission_id=review.submission_id).first()
+    if grade is not None and grade.method != GradeMethod.CONSENSUS:
+        return "GRADE_DECIDED"
+    return None
+
+
+def _withdraw_consensus_grade(submission: Submission, *, reason: str, actor=None, request=None) -> bool:
+    """Zdejmuje ocenę uzgodnioną konsensusem i zawraca pracę do oceniania (IN_REVIEW).
+
+    Konsensus nie jest niczyją decyzją, tylko skutkiem zgodności dwóch ocen. Gdy jedna z nich się
+    zmieniła albo wypadła, podstawa zniknęła – zostawienie oceny byłoby trzymaniem wyniku, którego
+    nic już nie potwierdza. Kasujemy więc wiersz (a nie „poprawiamy” go w miejscu), bo zaraz po tym
+    ``_settle_round_one`` policzy rundę od nowa i utworzy ocenę zgodną z bieżącym stanem.
+
+    Ślad zostaje w audycie ``grade.withdrawn`` – z punktami i powodem, bo skasowanego wiersza nie
+    da się już o nic zapytać. Celem wpisu jest zgłoszenie, nie skasowana ocena.
+    """
+    grade = FinalGrade.objects.filter(submission=submission, method=GradeMethod.CONSENSUS).first()
+    if grade is None:
+        return False
+    score = grade.score
+    grade.delete()
+    submission.status = SubmissionStatus.IN_REVIEW
+    submission.save(update_fields=["status"])
+    audit(
+        actor,
+        "grade.withdrawn",
+        submission,
+        {"submission_id": submission.pk, "score": score, "method": GradeMethod.CONSENSUS, "reason": reason},
+        request=request,
+    )
+    return True
+
+
+def _update_tiebreak_grade(submission: Submission, review: Review, score: int, *, request=None) -> None:
+    """Poprawka rozjemcy przepisuje ocenę końcową w miejscu – to wciąż to samo rozstrzygnięcie.
+
+    Kasowanie i tworzenie oceny od nowa byłoby tu nieuczciwe wobec historii: tryb, autor i powód
+    się nie zmieniają, zmienia się liczba punktów. Stan pracy zostaje (``GRADED_PROVISIONAL``),
+    bo rozjazd jest nadal rozstrzygnięty.
+    """
+    grade = FinalGrade.objects.get(submission=submission)
+    previous = grade.score
+    grade.score = score
+    grade.decided_at = timezone.now()
+    grade.rationale = _clean_comment(review.comment_internal)
+    grade.save(update_fields=["score", "decided_at", "rationale"])
+    audit(
+        review.reviewer.user,
+        "grade.updated",
+        grade,
+        {"submission_id": submission.pk, "from": previous, "to": score, "method": grade.method},
+        request=request,
+    )
+
+
+@transaction.atomic
+def revise_review(
+    review: Review,
+    score,
+    comment_internal: str = "",
+    comment_for_participant: str = "",
+    annotations=None,
+    *,
+    request=None,
+) -> Review:
+    """Recenzent poprawia własną, już wystawioną ocenę (prośba organizatora, PROJEKT.md 2.4).
+
+    Wystawiona recenzja przestała być nieodwracalna: dopóki nikt nie zbudował na niej
+    rozstrzygnięcia, jej autor może ją zmienić. Granicę wyznacza ``revision_block_reason`` –
+    w szczególności praca odebrana przez koordynatora (``CANCELLED``) jest poza zasięgiem.
+
+    Kolejność blokad jak w ``submit_review``: najpierw ``Submission``, potem recenzja. Rundę 1
+    serwis przelicza od nowa, bo poprawka zmienia właśnie to, z czego liczy się konsensus:
+    ocena uzgodniona konsensusem znika, praca wraca do IN_REVIEW i dopiero wtedy
+    ``_settle_round_one`` rozstrzyga ją zgodnie z nowym stanem (znów zgodne → konsensus,
+    rozjazd → moderacja). ``submitted_at`` zostaje nietknięte – chwila pierwszego wystawienia
+    oceny jest faktem, poprawka dopisuje ``revised_at``.
+    """
+    submission = _locked_submission(review.submission_id)
+    review = Review.objects.select_related("reviewer", "reviewer__user").get(pk=review.pk)
+    review.submission = submission
+
+    reason = revision_block_reason(review)
+    if reason is not None:
+        raise _conflict(GRADE_CHANGE_BLOCK_MESSAGES[reason], reason)
+    score = _assert_score_in_scale(submission.entry.stage, score)
+    cleaned_annotations = validate_annotations(annotations)
+
+    previous = review.score
+    review.score = score
+    review.comment_internal = _clean_comment(comment_internal)
+    review.comment_for_participant = _clean_comment(comment_for_participant)
+    review.annotations = cleaned_annotations
+    review.revised_at = timezone.now()
+    review.save(
+        update_fields=[
+            "score",
+            "comment_internal",
+            "comment_for_participant",
+            "annotations",
+            "revised_at",
+        ]
+    )
+    audit(
+        review.reviewer.user,
+        "review.revised",
+        review,
+        {"submission_id": submission.pk, "round": review.round, "from": previous, "to": score},
+        request=request,
+    )
+
+    if review.round == ROUND_TIEBREAK:
+        _update_tiebreak_grade(submission, review, score, request=request)
+    else:
+        _withdraw_consensus_grade(
+            submission, reason="REVIEW_REVISED", actor=review.reviewer.user, request=request
+        )
+        if _consensus_score(_round_one_reviews(submission)) is not None:
+            # Rozjazd zniknął wraz z poprawką, więc wiszący przydział rozjemczy traci przedmiot
+            # jeszcze **przed** utworzeniem oceny uzgodnionej. Inaczej anulowałby go
+            # ``_create_final_grade`` z powodem „rozstrzygnięta moderacja”, a rozjemca ma w aktach
+            # zobaczyć prawdziwą przyczynę: recenzent poprawił swoją ocenę.
+            _cancel_pending_tiebreak(
+                submission, reason="REVIEW_REVISED", actor=review.reviewer.user, request=request
+            )
         _settle_round_one(submission, request=request)
     review.submission = submission
     return review

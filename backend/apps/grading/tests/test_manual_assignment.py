@@ -305,16 +305,29 @@ def test_unassign_cancels_untouched_assignment(stage):
     assert AuditLog.objects.filter(action="review.unassigned").count() == 1
 
 
-def test_unassign_refuses_started_review(stage):
-    """Szkic znaczy, że ktoś już czyta pracę – cofnąć się nie da."""
+def test_unassign_takes_away_a_started_review(stage):
+    """Szkic też się odbiera (prośba organizatora) – w audycie ``review.withdrawn``, nie ``unassigned``."""
     review = assign_reviewer_to_submission(locked_submission(stage), ActiveReviewerFactory())
     review.status = ReviewStatus.DRAFT
     review.save(update_fields=["status"])
 
+    unassign_reviewer(review, actor=CoordinatorFactory())
+
+    review.refresh_from_db()
+    assert review.status == ReviewStatus.CANCELLED
+    assert AuditLog.objects.filter(action="review.withdrawn").count() == 1
+    assert not AuditLog.objects.filter(action="review.unassigned").exists()
+
+
+def test_unassign_refuses_already_cancelled_review(stage):
+    """Odebranie odebranej pracy nie jest już żadną zmianą – niech leci jawna odmowa."""
+    review = assign_reviewer_to_submission(locked_submission(stage), ActiveReviewerFactory())
+    unassign_reviewer(review)
+
     with pytest.raises(DomainError) as exc:
         unassign_reviewer(review)
 
-    assert exc.value.machine_code == "REVIEW_NOT_ASSIGNED"
+    assert exc.value.machine_code == "ALREADY_CANCELLED"
 
 
 def test_reassignment_after_unassign_reuses_the_cancelled_row(stage):

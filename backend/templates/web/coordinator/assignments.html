@@ -26,6 +26,11 @@
     <li>Punkty w recenzji może poprawić koordynator na każdym etapie jej życia. Po zmianie system
       ponownie rozstrzyga rundę 1 (zgodne oceny → ocena uzgodniona, rozjazd → moderacja) –
       o ile praca nie ma jeszcze oceny końcowej.</li>
+    <li>„Odbierz” zabiera recenzentowi pracę – także wtedy, gdy ocenę już wystawił. Odebrana
+      recenzja nie liczy się do oceny końcowej i recenzent nie może jej już zmienić (dopóki jej
+      nie odbierzesz, wolno mu poprawić własną ocenę). Ocena uzgodniona zgodnością recenzji jest
+      wtedy zdejmowana, a praca wraca do oceniania; oceny rozstrzygniętej przez człowieka
+      (moderacja, trzeci recenzent, korekta) to narzędzie nie rusza – tam służy „Ocena końcowa”.</li>
     <li>„Ocena końcowa” jest korektą organizatora: zastępuje ocenę ustaloną procedurą, działa też
       dla pracy bez recenzji i zawsze wymaga uzasadnienia. Niewystawione recenzje takiej pracy
       są anulowane, żeby nie wisiały w kolejkach recenzentów.</li>
@@ -146,10 +151,15 @@
                       <button type="submit" class="btn btn--secondary btn--small">Zapisz</button>
                     </form>
                   {% endif %}
-                  {% if review.status == assigned_status %}
+                  {% if review.status in withdrawable_statuses %}
                     <form method="post" action="{% url 'web:coordinator-review-unassign' review.pk %}">
                       {% csrf_token %}
-                      <button type="submit" class="btn btn--danger btn--small">Cofnij</button>
+                      {% comment %}
+                        Dwie nazwy dla dwóch różnych rzeczy: nietknięty przydział się „cofa”,
+                        rozpoczętą albo wystawioną recenzję „odbiera się” recenzentowi.
+                      {% endcomment %}
+                      <button type="submit" class="btn btn--danger btn--small">
+                        {% if review.status == assigned_status %}Cofnij{% else %}Odbierz{% endif %}</button>
                     </form>
                   {% endif %}
                 </div>

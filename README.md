@@ -511,6 +511,7 @@ można ustawić opcjonalne `SITE_URL`.
 | Zmiana adresu e-mail | `/account/email/` → link z `/account/email/confirm/<token>/` | do potwierdzenia obowiązuje adres dotychczasowy; unikalność sprawdzana bez względu na wielkość liter; stary adres dostaje powiadomienie. Audyt `account.email_changed` |
 | Usunięcie konta | `/account/delete/` (link „Usuń konto” w panelu) | patrz niżej |
 | API | `PATCH /api/auth/me/` | te same pola co formularz; bez adresu e-mail, hasła i `public_code` |
+| Cudze konto (organizator) | `/coordinator/accounts/` | koordynator poprawia dane, blokuje logowanie i usuwa dowolne konto poza kontami koordynatorów — patrz 5.4 |
 
 Hasła ten ekran nie zmienia — do tego służy „Nie pamiętasz hasła?” (§ 3.1 checklisty
 bezpieczeństwa), bo ta droga potwierdza dostęp do skrzynki.
@@ -571,6 +572,57 @@ w kolejności: **użyte → unieważnione → wygasłe → wysłane**.
 
 Wysyłka idzie tą samą drogą, co listy aktywacyjne: zadanie na kolejce `mail`, kolejkowane po
 commicie (`transaction.on_commit`), adres bezwzględny z żądania albo z `SITE_URL`.
+
+### 5.4 Konta w panelu koordynatora (`/coordinator/accounts/`)
+
+Odnośnik **„Konta (wszystkie)”** stoi przy sekcji „Konta oczekujące na aktywację” na pulpicie.
+Sekcja pulpitu zostaje bez zmian i dotyczy wyłącznie kont, które nie dokończyły rejestracji
+(„Aktywuj ręcznie”, „Wyślij link ponownie” — § 5.1); ten ekran obejmuje **wszystkie** konta.
+
+Po co, skoro jest `/admin/`: panel administracyjny nie zna reguł tej domeny. Zmiana adresu e-mail
+nie sprząta tam wpisów `allauth`, skasowanie konta uczestnika zabiera kaskadą jego zgłoszenia,
+prace i recenzje (czyli protokół zawodów), a po żadnej z tych operacji nie zostaje wpis w audycie
+razem z resztą historii sprawy.
+
+| Co | Gdzie | Uwagi |
+|---|---|---|
+| Lista kont | `/coordinator/accounts/` | rola (uczestnik / członek komitetu / komisja odwoławcza / koordynator / bez roli), e-mail, imię i nazwisko, kod publiczny, stan, data założenia; wyszukiwarka `?q=` (e-mail, imię, nazwisko, kod publiczny), filtr `?role=` (`participant` / `committee` / `other`), 50 kont na stronę |
+| Edycja konta | `/coordinator/accounts/<id>/` | imię, nazwisko, adres e-mail, „Konto aktywne”; dla uczestnika dodatkowo telefon, województwo, szkoła (ta sama wyszukiwarka SIO co w rejestracji), klasa, rocznik; dla członka komitetu status, komisja odwoławcza i województwo |
+| Usunięcie konta | `/coordinator/accounts/<id>/delete/` | strona potwierdzenia mówi, co się stanie: anonimizacja albo skasowanie wiersza |
+
+Trzy rzeczy, które ten ekran robi inaczej niż samoobsługa (§ 5.2):
+
+- **adres e-mail zmienia się od razu**, bez listu potwierdzającego — dowodem jest decyzja
+  organizatora, który zwykle właśnie dzwoni do uczestnika, bo do skrzynki z literówką nic nie
+  dochodzi. Wpisy `allauth` ze starym adresem są kasowane tak samo jak przy potwierdzeniu, żeby
+  konta nie dało się dalej połączyć z Google po adresie, który zaraz może należeć do kogoś innego.
+  `email_verified_at` zostaje nietknięte — wyzerowanie wstawiłoby konto pod kosiarkę
+  nieaktywowanych rejestracji (§ 5.1),
+- **„Konto aktywne”** to wyłącznik logowania (`is_active`), odwracalny i nieniszczący: dane, prace
+  i recenzje zostają. To pierwsze narzędzie przy sporze — usunięcia cofnąć się nie da,
+- **status członka komitetu** ustawiony na „aktywny” przechodzi tą samą drogą, co przycisk
+  „Zatwierdź” na pulpicie (`approve_committee_member`): status, data, kto zatwierdził i grupy
+  `reviewer`/`appeals`. Zawieszenie grup nie zdejmuje — prawo do recenzowania rozstrzyga status
+  profilu. Województwo jest opcjonalne; wartość od koordynatora dostaje `district_verified=True`,
+  wyczyszczenie pola zdejmuje tę flagę (jak w „Województwa członków komitetu”).
+
+**Konta koordynatora i superużytkownika są chronione**: widać je na liście z odznaką „chronione”,
+ale otwierają się tylko do odczytu i nie mają przycisku usunięcia (serwis odmawia kodem
+`COORDINATOR_PROTECTED`). Dwóch koordynatorów mogłoby się inaczej nawzajem zablokować jednym
+kliknięciem, a `InvitationCode.created_by` jest na nich `PROTECT`. Własne imię i nazwisko
+koordynator zmienia w `/account/profile/`, resztę — administrator w `/admin/`. Własnego konta nie
+usunie też z tego ekranu (`SELF_DELETE`); do tego służy `/account/delete/` z potwierdzeniem
+tożsamości.
+
+Usunięcie ma **te same dwie drogi**, co żądanie właściciela (§ 5.2): konto ze śladem w zawodach
+(zgłoszenie, praca, recenzja) jest anonimizowane, konto bez takiego śladu znika w całości, a adres
+zwalnia się do ponownej rejestracji.
+
+Audyt: `account.updated_by_coordinator` (jeden wpis na zapis formularza, w `diff` **nazwy**
+zmienionych pól — dane osobowe wchodzą tam jako samo „zmienione”, bez wartości; zmiana adresu
+dokłada `email_changed_without_confirmation`), `account.deleted_by_coordinator`
+(`{result, had_footprint}`, bez danych osobowych) oraz — z rdzenia usuwania — `account.anonymised`
+albo `account.deleted`, tym razem z koordynatorem jako wykonawcą.
 
 ## 6. Procedury operacyjne
 
@@ -965,18 +1017,63 @@ karcie etapu) dokłada do niego dwa narzędzia:
    z liczbą w formularzu). **Usunięcie reguły nie kasuje recenzji**, które już z niej powstały –
    pojedynczy przydział cofa się przyciskiem „Cofnij”.
 2. **Rozwiązania.** Tabela prac nadających się jeszcze do przydziału (z wyszukiwarką po kodzie
-   uczestnika i po nazwisku) pozwala dać konkretną pracę konkretnej osobie oraz cofnąć przydział,
-   którego recenzent jeszcze nie rozpoczął (`ASSIGNED` → `CANCELLED`; szkic i ocena wystawiona
-   już się nie cofają).
+   uczestnika i po nazwisku) pozwala dać konkretną pracę konkretnej osobie oraz **odebrać** ją
+   recenzentowi — patrz „Odbierz” niżej.
 
 Konflikt interesów obowiązuje w obu narzędziach: recenzent z województwa uczestnika nie dostanie jego
 pracy na etapie wojewódzkim, nawet gdy wskazuje go reguła – taka praca trafia na listę pominiętych
 z powodem `RULE_REVIEWER_CONFLICT`. Województwo członka komitetu jest opcjonalne: recenzent, który go
 nie ma, może oceniać prace ze wszystkich województw. Każda czynność zostawia
 wpis w audycie (`review.rule_added`, `review.rule_removed`, `review.assigned_manually`,
-`review.unassigned`). Odpowiedniki w API: `POST /api/grading/stages/<id>/problem-rules/`,
+`review.unassigned`, `review.withdrawn`). Odpowiedniki w API: `POST /api/grading/stages/<id>/problem-rules/`,
 `DELETE /api/grading/stages/<id>/problem-rules/<rule_id>/`,
 `POST /api/grading/submissions/<id>/assign/`, `POST /api/grading/reviews/<id>/unassign/`.
+
+#### „Odbierz”: koordynator zabiera recenzentowi pracę
+
+Przycisk przy każdej recenzji („Cofnij” dla nietkniętego przydziału, „Odbierz” dla szkicu i dla
+oceny już wystawionej) przestawia recenzję w `CANCELLED`. Rekord zostaje — punkty i komentarze są
+historią — ale **przestaje się liczyć**: `_settle_round_one` pomija recenzje anulowane, a recenzent
+nie może już swojej oceny poprawić (widzi komunikat „Koordynator odebrał Ci tę pracę”).
+
+Odebranie **wystawionej** oceny rundy 1 zdejmuje ocenę uzgodnioną konsensusem (audyt
+`grade.withdrawn`, powód `REVIEW_WITHDRAWN`) i zawraca pracę do `IN_REVIEW`, żeby dało się
+przydzielić kogoś na miejsce odebranego recenzenta. Runda 1 jest wtedy rozstrzygana od nowa
+**tylko wtedy, gdy zostają co najmniej dwie recenzje**: z jedną pozostałą powstałaby „ocena
+uzgodniona” z jednego głosu, a praca w `GRADED_PROVISIONAL` nie przyjmuje już żadnego przydziału —
+koordynator nie miałby jak dać jej następnej osobie.
+
+Czego „Odbierz” nie ruszy (odmowa z kodem i komunikatem): etapu z **ogłoszonymi wynikami**
+(`RESULTS_PUBLISHED`), pracy w reklamacji albo finalnej (`SUBMISSION_CLOSED`) oraz oceny końcowej
+rozstrzygniętej przez człowieka — moderacja, trzeci recenzent, korekta koordynatora, decyzja
+reklamacyjna (`GRADE_DECIDED`). Takie oceny zmienia się formularzem „Ocena końcowa”, z obowiązkowym
+uzasadnieniem. Ponowne odebranie tej samej recenzji to `ALREADY_CANCELLED`.
+
+#### Poprawienie własnej oceny (recenzent)
+
+Wystawiona recenzja nie jest już nieodwracalna. W `/review/<id>/` recenzent, który oddał ocenę,
+widzi formularz wypełniony swoimi punktami i komentarzami oraz przycisk **„Popraw ocenę”**
+(`POST /review/<id>/revise/`, w API `POST /api/grading/reviews/<id>/revise/` z tym samym ładunkiem,
+co `submit/`). `submitted_at` zostaje nietknięte — chwila pierwszego wystawienia oceny jest faktem
+procesowym — a poprawka dopisuje `revised_at` i wpis `review.revised` (wartość przed i po).
+
+Po poprawce runda 1 jest rozstrzygana **od nowa**: ocena uzgodniona konsensusem znika
+(`grade.withdrawn`, powód `REVIEW_REVISED`), praca wraca do `IN_REVIEW` i dopiero wtedy zapada
+rozstrzygnięcie zgodne z nowym stanem — znów zgodne oceny dają `FinalGrade(CONSENSUS)`, rozjazd
+kieruje pracę do moderacji. Gdy poprawka **kończy** rozjazd, wiszący przydział trzeciego recenzenta
+jest anulowany (`review.cancelled`, powód `REVIEW_REVISED`), żeby nie wisiał w jego kolejce.
+Poprawka oceny rundy 2 (rozjemczej) przepisuje ocenę końcową w miejscu — tryb i autor się nie
+zmieniają, zmieniają się punkty i uzasadnienie (`grade.updated`).
+
+Poprawić **nie wolno** — ekran pokazuje wtedy powód zamiast formularza:
+
+| Sytuacja | Kod |
+| --- | --- |
+| koordynator odebrał pracę (recenzja `CANCELLED`) | `REVIEW_CANCELLED` |
+| ocena nie została jeszcze wystawiona (jest zwykła ścieżka) | `REVIEW_NOT_SUBMITTED` |
+| wyniki etapu są ogłoszone | `RESULTS_PUBLISHED` |
+| praca w reklamacji albo finalna | `SUBMISSION_CLOSED` |
+| ocenę rozstrzygnął człowiek: moderacja, trzeci recenzent, korekta, reklamacja | `GRADE_DECIDED` |
 
 #### Korekta ocen przez koordynatora
 

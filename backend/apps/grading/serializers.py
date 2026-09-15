@@ -51,6 +51,9 @@ class ReviewSerializer(serializers.ModelSerializer):
             "annotations",
             "assigned_at",
             "submitted_at",
+            # ``revised_at`` obok ``submitted_at``, a nie zamiast niego: recenzent i koordynator
+            # muszą widzieć, że ocena była poprawiana, bez zaglądania do audytu.
+            "revised_at",
             "download_url",
             "file_available",
         )

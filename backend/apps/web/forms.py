@@ -17,7 +17,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.uploadedfile import UploadedFile
 
 from apps.accounts.consents import BY_KIND, CONSENT_FIELD_NAMES, CONSENTS, ConsentKind, is_minor, labels
-from apps.accounts.models import GRADE_CHOICES, User, Voivodeship
+from apps.accounts.models import GRADE_CHOICES, CommitteeStatus, User, Voivodeship
 from apps.accounts.services import (
     MAX_INVITATION_EMAILS,
     MAX_INVITATION_NOTE_LENGTH,
@@ -667,6 +667,80 @@ class VerifyDistrictForm(forms.Form):
     """
 
     district = voivodeship_field("Województwo", required=False)
+
+
+# --- konta w panelu koordynatora ---------------------------------------------------------------
+#
+# Trzy formularze, a nie jeden, bo opisują trzy różne obiekty: konto, profil uczestnika i profil
+# członka komitetu. Konto bez profilu roli nie ma dwóch ostatnich wcale, a pole ``district`` znaczy
+# w każdym z profili co innego (województwo uczestnika decyduje o etapie wojewódzkim, województwo
+# recenzenta – o konflikcie interesów). Na jednej stronie stoją z prefiksami, więc nazwy pól się
+# nie zderzają, a widok przekazuje do serwisu trzy osobne słowniki.
+
+
+class CoordinatorAccountForm(forms.Form):
+    """Dane samego konta zmieniane przez koordynatora: nazwisko, adres e-mail, blokada logowania.
+
+    Imię i nazwisko są **nieobowiązkowe**, choć rejestracja ich wymaga: konta zakładane komendą
+    CLI i część kont z dostawcy zewnętrznego mają te pola puste, a ekran naprawczy nie może żądać
+    uzupełnienia danych, po które organizator akurat nie dzwoni.
+
+    ``is_active`` jest tu wyłącznikiem logowania, a nie znacznikiem aktywacji adresu: konto
+    zablokowane zostaje w bazie razem ze swoją dokumentacją, więc zablokowanie jest odwracalne –
+    inaczej niż usunięcie. Potwierdzenie adresu e-mail (``email_verified_at``) to osobna sprawa
+    i ten formularz go nie rusza.
+    """
+
+    required_css_class = REQUIRED_CSS_CLASS
+
+    first_name = forms.CharField(label="Imię", max_length=150, required=False)
+    last_name = forms.CharField(label="Nazwisko", max_length=150, required=False)
+    email = forms.EmailField(
+        label="Adres e-mail",
+        max_length=254,
+        help_text=(
+            "Zmiana wchodzi od razu, bez listu potwierdzającego – od tej chwili to jest login tego konta."
+        ),
+    )
+    is_active = forms.BooleanField(
+        label="Konto aktywne",
+        required=False,
+        help_text="Odznaczenie blokuje logowanie. Dane i prace zostają – to nie jest usunięcie konta.",
+    )
+
+
+class CoordinatorParticipantForm(SchoolChoiceMixin):
+    """Dane profilu uczestnika w panelu koordynatora – ten sam zakres, co ``/me/profile/``.
+
+    Imienia i nazwiska tu nie ma, bo są polami **konta**, a nie profilu (patrz formularz wyżej);
+    ``public_code`` nie jest edytowalny nigdzie – to identyfikator w ogłoszonych tabelach wyników.
+    Szkołę wybiera się tą samą wyszukiwarką SIO, co przy rejestracji, żeby uczniowie jednej szkoły
+    mieli w bazie jeden napis (od tego zależy próg k-anonimowości przy publikacji).
+    """
+
+    required_css_class = REQUIRED_CSS_CLASS
+    field_order = ["phone", "district", *SCHOOL_FIELD_NAMES, "grade", "birth_year"]
+
+    phone = phone_field()
+    district = voivodeship_field("Województwo")
+    grade = grade_field()
+    birth_year = forms.IntegerField(label="Rok urodzenia", min_value=1900, max_value=2100)
+
+
+class CoordinatorCommitteeForm(forms.Form):
+    """Profil członka komitetu w panelu koordynatora: status, komisja odwoławcza, województwo.
+
+    Województwo jest nieobowiązkowe (pozycja „— wybierz województwo —” znaczy „brak”, czyli praca
+    z całego kraju) – dokładnie jak w sekcji „Województwa członków komitetu” na pulpicie.
+    Status ma zamkniętą listę z modelu: ustawienie ``ACTIVE`` przechodzi w serwisie tą samą drogą,
+    co przycisk „Zatwierdź”, więc konto dostaje komplet grup, a nie sam napis w kolumnie.
+    """
+
+    required_css_class = REQUIRED_CSS_CLASS
+
+    status = forms.ChoiceField(label="Status", choices=CommitteeStatus.choices)
+    district = voivodeship_field("Województwo", required=False)
+    is_appeals_committee = forms.BooleanField(label="Komisja odwoławcza", required=False)
 
 
 class InvitationForm(forms.Form):

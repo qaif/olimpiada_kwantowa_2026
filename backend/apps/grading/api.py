@@ -48,6 +48,7 @@ from .services import (
     remove_problem_reviewer_rule,
     resolve_moderation,
     reviews_for_reviewer,
+    revise_review,
     save_draft,
     set_review_score,
     submit_review,
@@ -106,6 +107,33 @@ class ReviewSubmitView(ReviewerScopedMixin, GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         review = submit_review(
+            review,
+            serializer.validated_data["score"],
+            serializer.validated_data["comment_internal"],
+            serializer.validated_data["comment_for_participant"],
+            serializer.validated_data["annotations"],
+            request=request,
+        )
+        return Response(ReviewSerializer(review).data)
+
+
+class ReviewReviseView(ReviewerScopedMixin, GenericAPIView):
+    """Poprawienie własnej, już wystawionej oceny – ten sam ładunek, co przy wystawieniu.
+
+    Osobny adres od ``submit/``: tamten zakłada recenzję jeszcze niewystawioną i odmawia
+    (``REVIEW_ALREADY_SUBMITTED``), a tu odmowa znaczy coś innego – pracę odebrano, wyniki
+    ogłoszono albo ocenę rozstrzygnął ktoś inny. Kto może poprawiać, rozstrzyga queryset
+    (cudza recenzja to 404), a co wolno zmienić – serwis.
+    """
+
+    serializer_class = ReviewSubmitSerializer
+
+    @extend_schema(request=ReviewSubmitSerializer, responses={200: ReviewSerializer})
+    def post(self, request, pk: int):
+        review = self.get_review(pk)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        review = revise_review(
             review,
             serializer.validated_data["score"],
             serializer.validated_data["comment_internal"],
@@ -196,7 +224,11 @@ class SubmissionAssignReviewerView(GenericAPIView):
 
 
 class ReviewUnassignView(GenericAPIView):
-    """Cofnięcie nierozpoczętego przydziału (ASSIGNED → CANCELLED) – tylko koordynator."""
+    """Odebranie recenzentowi pracy (→ CANCELLED) – tylko koordynator.
+
+    Działa na przydziale nietkniętym, na szkicu i na recenzji wystawionej. Co blokuje odebranie
+    (ogłoszone wyniki, praca zamknięta, ocena rozstrzygnięta przez człowieka) – decyduje serwis.
+    """
 
     permission_classes = [IsCoordinator]
     serializer_class = ReviewSerializer

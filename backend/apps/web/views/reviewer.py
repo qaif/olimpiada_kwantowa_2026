@@ -22,7 +22,15 @@ from django.views.generic import TemplateView, View
 
 from apps.core.api import DomainError
 from apps.grading.models import ROUND_TIEBREAK, ReviewStatus
-from apps.grading.services import dispute_context, reviews_for_reviewer, save_draft, submit_review
+from apps.grading.services import (
+    GRADE_CHANGE_BLOCK_MESSAGES,
+    dispute_context,
+    reviews_for_reviewer,
+    revise_review,
+    revision_block_reason,
+    save_draft,
+    submit_review,
+)
 from apps.web.forms import ReviewDraftForm, ReviewSubmitForm
 from apps.web.mixins import ReviewerRequiredMixin
 
@@ -38,13 +46,20 @@ class ReviewerScopedMixin(ReviewerRequiredMixin):
 
 
 class ReviewListView(ReviewerScopedMixin, TemplateView):
-    """Lista przydziałów recenzenta ze statusem każdej recenzji."""
+    """Lista przydziałów recenzenta ze statusem każdej recenzji.
+
+    Prace odebrane przez koordynatora stoją osobno, a nie w jednej tabeli z resztą: nie ma już przy
+    nich nic do zrobienia, a wymieszane z bieżącymi wyglądałyby jak zaległość. Ukrycie ich odpadło –
+    recenzent, któremu praca zniknęła z listy bez śladu, ma prawo sądzić, że to awaria.
+    """
 
     template_name = "web/reviewer/list.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["reviews"] = list(self.get_queryset())
+        reviews = list(self.get_queryset())
+        context["reviews"] = [item for item in reviews if item.status != ReviewStatus.CANCELLED]
+        context["withdrawn_reviews"] = [item for item in reviews if item.status == ReviewStatus.CANCELLED]
         context["open_statuses"] = (ReviewStatus.ASSIGNED, ReviewStatus.DRAFT)
         return context
 
@@ -62,7 +77,13 @@ def _scale_options(review) -> list[dict]:
 
 
 class ReviewDetailView(ReviewerScopedMixin, TemplateView):
-    """Formularz oceny jednej pracy wraz z podglądem PDF i warstwą adnotacji."""
+    """Formularz oceny jednej pracy wraz z podglądem PDF i warstwą adnotacji.
+
+    Ten sam ekran obsługuje trzy sytuacje: ocenę jeszcze niewystawioną (``editable``), poprawkę
+    oceny już wystawionej (``revision_allowed``) i recenzję, przy której nic już nie zrobisz.
+    O tej ostatniej mówi ``revision_hint`` – powód bierze się z ``revision_block_reason``, czyli
+    z tej samej reguły, którą zastosuje zapis. Ekran nie może obiecywać więcej niż serwis przyjmie.
+    """
 
     template_name = "web/reviewer/detail.html"
 
@@ -70,6 +91,8 @@ class ReviewDetailView(ReviewerScopedMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         review = self.get_review(pk)
         submission_file = review.submission.latest_file
+        editable = review.status in (ReviewStatus.ASSIGNED, ReviewStatus.DRAFT)
+        block_reason = None if editable else revision_block_reason(review)
         context.update(
             {
                 "review": review,
@@ -85,7 +108,12 @@ class ReviewDetailView(ReviewerScopedMixin, TemplateView):
                     "submissions:submission-download", kwargs={"pk": review.submission_id}
                 ),
                 "annotations_url": reverse("grading:review-detail", kwargs={"pk": review.pk}),
-                "editable": review.status in (ReviewStatus.ASSIGNED, ReviewStatus.DRAFT),
+                "editable": editable,
+                "revision_allowed": not editable and block_reason is None,
+                # Recenzję odebraną pokazujemy osobnym komunikatem, a nie podpowiedzią przy
+                # formularzu: formularza tam w ogóle nie ma.
+                "withdrawn": review.status == ReviewStatus.CANCELLED,
+                "revision_hint": GRADE_CHANGE_BLOCK_MESSAGES.get(block_reason) if block_reason else None,
                 # Panel sporu istnieje tylko w rundzie rozjemczej. Ten sam serwis obsługuje
                 # ``GET /api/grading/reviews/{id}/dispute/`` – jedna reguła, dwie prezentacje.
                 "dispute_rows": dispute_context(review) if review.round == ROUND_TIEBREAK else None,
@@ -149,4 +177,37 @@ class ReviewSubmitView(ReviewerScopedMixin, View):
             messages.error(request, str(exc.detail))
             return redirect(reverse("web:review-detail", kwargs={"pk": pk}))
         messages.success(request, "Ocena została wystawiona.")
+        return redirect(reverse("web:review-list"))
+
+
+class ReviewReviseView(ReviewerScopedMixin, View):
+    """Poprawienie własnej, już wystawionej oceny – bliźniak ``ReviewSubmitView``.
+
+    Osobny widok, a nie gałąź w tamtym: obie czynności mają własną bramkę w serwisie i własny
+    komunikat, a wspólny kod sprowadzałby się do jednego ``if``. Adnotacje traktujemy tak samo –
+    brak pola znaczy „nie przysłano”, nie „skasuj”.
+    """
+
+    def post(self, request, pk: int):
+        review = self.get_review(pk)
+        form = ReviewSubmitForm(request.POST)
+        if not form.is_valid():
+            messages.error(request, "Wybierz ocenę ze skali przed wysłaniem.")
+            return redirect(reverse("web:review-detail", kwargs={"pk": pk}))
+        annotations = form.cleaned_data["annotations"]
+        if annotations is None:
+            annotations = review.annotations
+        try:
+            revise_review(
+                review,
+                form.cleaned_data["score"],
+                form.cleaned_data["comment_internal"],
+                form.cleaned_data["comment_for_participant"],
+                annotations,
+                request=request,
+            )
+        except DomainError as exc:
+            messages.error(request, str(exc.detail))
+            return redirect(reverse("web:review-detail", kwargs={"pk": pk}))
+        messages.success(request, "Poprawiona ocena została zapisana.")
         return redirect(reverse("web:review-list"))

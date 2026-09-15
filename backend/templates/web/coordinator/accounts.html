@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% load web_extras %}
+{% comment %}
+  Lista wszystkich kont w serwisie. Jedyny ekran poza ``/admin/``, z którego organizator poprawia
+  cudze dane i kasuje konta – dlatego wiersz prowadzi do osobnej strony edycji, a nie do formularza
+  wbudowanego w tabelę: przy dwudziestu polach w wierszu nie da się powiedzieć, co dokładnie
+  zapisuje przycisk.
+
+  Stronicowanie jest zwykłe (Django Paginator, zwykłe odnośniki, zero skryptu): lista służy do
+  odnalezienia **jednego** konta wyszukiwarką, a nie do przeglądania bazy po kolei.
+{% endcomment %}
+{% block title %}Konta – panel koordynatora{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
+  <h1>Konta</h1>
+  <p class="lead">Wszystkie konta w serwisie: dane, blokada logowania i usunięcie. Konta
+    koordynatorów są tu widoczne, ale ich dane zmienia administrator w panelu /admin/.</p>
+</div>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Szukaj</h2>
+    <p class="hint">Znalezionych kont: {{ paginator.count }}</p>
+  </div>
+  <div class="card">
+    {% comment %}
+      Formularz GET, a nie POST: wynik wyszukiwania ma dać się odświeżyć, wysłać odnośnikiem
+      i wrócić do niego przyciskiem „wstecz”. Filtr roli jedzie w tym samym żądaniu ukrytym polem,
+      żeby zawężenie nie gubiło się po wpisaniu frazy.
+    {% endcomment %}
+    <form method="get" class="form">
+      <p>
+        <label for="account-search">Adres e-mail, imię, nazwisko albo kod publiczny</label>
+        <input id="account-search" type="search" name="q" value="{{ query }}" autocomplete="off">
+      </p>
+      {% if role %}<input type="hidden" name="role" value="{{ role }}">{% endif %}
+      <div class="actions">
+        <button type="submit" class="btn btn--secondary">Szukaj</button>
+        {% if query or role %}
+          <a class="btn btn--ghost" href="{% url 'web:coordinator-accounts' %}">Wyczyść</a>
+        {% endif %}
+      </div>
+    </form>
+    <p class="hint">Rola:
+      {% for value, label in role_choices %}
+        {% if value == role %}
+          <strong>{{ label }}</strong>
+        {% else %}
+          <a href="?{% if value %}role={{ value }}{% endif %}{% if query %}{% if value %}&amp;{% endif %}q={{ query|urlencode }}{% endif %}">{{ label }}</a>
+        {% endif %}
+        {% if not forloop.last %}·{% endif %}
+      {% endfor %}
+    </p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">E-mail</th>
+          <th scope="col">Imię i nazwisko</th>
+          <th scope="col">Rola</th>
+          <th scope="col">Kod publiczny</th>
+          <th scope="col">Stan</th>
+          <th scope="col">Założone</th>
+          <th scope="col"><span class="visually-hidden">Operacje</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <th scope="row"><a href="{% url 'web:coordinator-account-edit' row.user.pk %}">{{ row.user.email }}</a></th>
+            <td>{{ row.user.get_full_name|default:"—" }}</td>
+            <td>{{ row.role }}{% if row.protected %} <span class="badge badge--neutral">chronione</span>{% endif %}</td>
+            <td>{{ row.public_code|default:"—" }}</td>
+            <td>{{ row.status }}</td>
+            <td>{{ row.user.date_joined|local_datetime }}</td>
+            <td>
+              <a class="btn btn--secondary btn--small"
+                 href="{% url 'web:coordinator-account-edit' row.user.pk %}">{% if row.protected %}Podgląd{% else %}Edytuj{% endif %}</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="empty">Żadne konto nie pasuje do tych warunków.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if page_obj.has_other_pages %}
+    <p class="hint">
+      {% if page_obj.has_previous %}
+        <a class="btn btn--secondary btn--small"
+           href="?{% if filter_query %}{{ filter_query }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">Poprzednia</a>
+      {% endif %}
+      Strona {{ page_obj.number }} z {{ paginator.num_pages }}
+      {% if page_obj.has_next %}
+        <a class="btn btn--secondary btn--small"
+           href="?{% if filter_query %}{{ filter_query }}&amp;{% endif %}page={{ page_obj.next_page_number }}">Następna</a>
+      {% endif %}
+    </p>
+  {% endif %}
+</section>
+{% endblock %}

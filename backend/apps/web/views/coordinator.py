@@ -309,6 +309,14 @@ class StageAssignmentsView(CoordinatorRequiredMixin, TemplateView):
                 "submission_rows": stage_assignment_rows(stage, query),
                 "reviewer_pool": reviewer_pool(),
                 "assigned_status": ReviewStatus.ASSIGNED,
+                # Odebrać można recenzję w każdym stanie poza anulowaną – także wystawioną.
+                # Czy w tej konkretnej sprawie wolno (ogłoszone wyniki, rozstrzygnięta ocena),
+                # rozstrzyga dopiero serwis: ekran nie powiela reguły, tylko nie chowa przycisku.
+                "withdrawable_statuses": (
+                    ReviewStatus.ASSIGNED,
+                    ReviewStatus.DRAFT,
+                    ReviewStatus.SUBMITTED,
+                ),
                 "scale_values": scores,
                 "results_published": ResultsPublication.objects.filter(stage=stage).exists(),
             }
@@ -370,7 +378,7 @@ class RemoveProblemRuleView(StageAssignmentActionView):
         remove_problem_reviewer_rule(rule, actor=request.user, request=request)
         return (
             f"Reguła usunięta (zadanie {number}, {email}). Przydziały, które już z niej powstały, "
-            "zostają – cofnij je osobno przyciskiem „Cofnij”."
+            "zostają – zdejmij je osobno przyciskiem „Cofnij” albo „Odbierz”."
         )
 
 
@@ -398,7 +406,7 @@ class AssignSubmissionReviewerView(StageAssignmentActionView):
 
 
 class UnassignReviewView(StageAssignmentActionView):
-    """Cofnięcie nierozpoczętego przydziału."""
+    """Odebranie recenzentowi pracy – przydziału nietkniętego, szkicu albo wystawionej oceny."""
 
     def perform(self, request, pk: int) -> str:
         review = get_object_or_404(
@@ -406,7 +414,15 @@ class UnassignReviewView(StageAssignmentActionView):
             pk=pk,
         )
         self.stage_id = review.submission.entry.stage_id
+        # Stan sprzed operacji, bo komunikat ma opisywać to, co się właśnie stało: cofnięcie
+        # nietkniętego przydziału to inna wiadomość niż odebranie gotowej oceny.
+        was_started = review.status != ReviewStatus.ASSIGNED
         unassign_reviewer(review, actor=request.user, request=request)
+        if was_started:
+            return (
+                f"Praca została odebrana recenzentowi {review.reviewer.user.email}. "
+                "Jego ocena nie liczy się już do oceny końcowej."
+            )
         return f"Przydział dla {review.reviewer.user.email} został cofnięty."
 
 

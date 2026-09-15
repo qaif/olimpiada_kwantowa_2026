@@ -7,6 +7,7 @@ from .api import (
     MyReviewsView,
     ReviewDetailView,
     ReviewDisputeView,
+    ReviewReviseView,
     ReviewScoreView,
     ReviewSubmitView,
     ReviewUnassignView,
@@ -23,9 +24,13 @@ urlpatterns = [
     path("reviews/", MyReviewsView.as_view(), name="review-list"),
     path("reviews/<int:pk>/", ReviewDetailView.as_view(), name="review-detail"),
     path("reviews/<int:pk>/submit/", ReviewSubmitView.as_view(), name="review-submit"),
+    # Poprawka własnej oceny stoi obok wystawienia, a nie zamiast niego: to dwie różne czynności
+    # z różnymi bramkami, więc i dwa adresy – inaczej odmowa nie mówiłaby, czego dotyczy.
+    path("reviews/<int:pk>/revise/", ReviewReviseView.as_view(), name="review-revise"),
     path("reviews/<int:pk>/dispute/", ReviewDisputeView.as_view(), name="review-dispute"),
-    # Cofnięcie przydziału jest czynnością koordynatora, mimo adresu w gałęzi ``reviews/`` –
-    # przedmiotem operacji jest recenzja, a nie praca, i po niej koordynator ją odnajduje.
+    # Odebranie pracy (dawniej: cofnięcie przydziału) jest czynnością koordynatora, mimo adresu
+    # w gałęzi ``reviews/`` – przedmiotem operacji jest recenzja, a nie praca, i po niej
+    # koordynator ją odnajduje.
     path("reviews/<int:pk>/unassign/", ReviewUnassignView.as_view(), name="review-unassign"),
     # Korekta ocen przez koordynatora: punkty pojedynczej recenzji i ocena końcowa pracy.
     path("reviews/<int:pk>/score/", ReviewScoreView.as_view(), name="review-score"),
