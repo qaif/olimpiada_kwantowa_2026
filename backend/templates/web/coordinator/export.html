@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+  Spis eksportów. Strona jest wyłącznie listą odnośników – plik buduje dopiero widok pobrania,
+  bo policzenie tabeli wyników etapu trwa tyle, ile trwa, a spis ma się otwierać natychmiast.
+
+  Każdy odnośnik jest zwykłym ``<a>`` z metodą GET: plik ma dać się pobrać ponownie odświeżeniem
+  i wkleić w wiadomości do reszty zespołu. Pobranie nie zmienia niczego w systemie – zostawia
+  wyłącznie wpis w audycie (``export.generated``) z rodzajem eksportu i liczbą wierszy.
+{% endcomment %}
+{% block title %}Eksport danych – panel koordynatora{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
+  <h1>Eksport danych</h1>
+  <p class="lead">Arkusze z danymi edycji. Każde pobranie zostaje w audycie razem z liczbą
+    wierszy – plik z danymi osobowymi nie może wyjść z systemu bez śladu.</p>
+</div>
+
+{% if not edition %}
+  <p class="empty"><span class="empty__title">Brak bieżącej edycji</span>
+    Bez bieżącej edycji nie ma czego eksportować.</p>
+{% else %}
+  <section class="section">
+    <div class="section__head">
+      <h2 class="mt-0">Uczestnicy edycji {{ edition.year_label }}</h2>
+      <span class="badge badge--danger">dane osobowe</span>
+    </div>
+    <div class="card">
+      <p>Kod publiczny, imię i nazwisko, adres e-mail, szkoła, klasa, województwo, rok urodzenia,
+        telefon, stan konta oraz komplet zgód wraz z wersją dokumentu i datą.</p>
+      <p class="hint">Uczestnikiem edycji jest ten, kto ma wpis do któregokolwiek z jej etapów.</p>
+      <p class="actions">
+        {% for fmt in formats %}
+          <a class="btn btn--secondary"
+             href="{% url 'web:coordinator-export-download' 'participants' fmt %}">Pobierz {{ fmt|upper }}</a>
+        {% endfor %}
+      </p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section__head">
+      <h2 class="mt-0">Etapy</h2>
+      <span class="badge badge--danger">dane osobowe</span>
+    </div>
+    {% for stage in stages %}
+      <article class="card">
+        <div class="card__head">
+          <h3 class="mt-0 card__title">{{ stage.display_name }}</h3>
+        </div>
+        <dl class="meta-list">
+          <dt>Wyniki</dt>
+          <dd>Miejsce, kod, imię i nazwisko, szkoła, województwo, punkty za zadania, suma
+            i kwalifikacja. Liczone na danych bieżących – praca bez oceny liczy się jako 0 punktów.</dd>
+          <dt>Recenzje</dt>
+          <dd>Identyfikator recenzji, kod uczestnika, zadanie, runda, adres recenzenta, stan,
+            punkty i daty. Uczestnik wyłącznie pod kodem – ocenianie jest ślepe.</dd>
+        </dl>
+        <p class="actions">
+          {% for fmt in formats %}
+            <a class="btn btn--secondary"
+               href="{% url 'web:coordinator-export-download' 'results' fmt %}?stage={{ stage.pk }}">Wyniki {{ fmt|upper }}</a>
+          {% endfor %}
+          {% for fmt in formats %}
+            <a class="btn btn--secondary"
+               href="{% url 'web:coordinator-export-download' 'reviews' fmt %}?stage={{ stage.pk }}">Recenzje {{ fmt|upper }}</a>
+          {% endfor %}
+        </p>
+      </article>
+    {% empty %}
+      <p class="empty"><span class="empty__title">Brak etapów</span>
+        Bieżąca edycja nie ma jeszcze zdefiniowanych etapów.</p>
+    {% endfor %}
+  </section>
+{% endif %}
+{% endblock %}

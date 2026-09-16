@@ -79,6 +79,8 @@ def test_admin_tworzy_etap_ze_skala_i_progiem(client):
         "grace_seconds": 0,
         "review_deadline_at_0": d(2),
         "review_deadline_at_1": t,
+        # Dni na jedną recenzję – pole etapu wprowadzone razem z terminami pojedynczych recenzji.
+        "review_deadline_days": 14,
         "appeal_window_opens_at_0": d(3),
         "appeal_window_opens_at_1": t,
         "appeal_window_closes_at_0": d(4),

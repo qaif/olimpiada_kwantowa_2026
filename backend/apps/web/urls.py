@@ -8,10 +8,14 @@ from .views import (
     coordinator,
     coordinator_accounts,
     coordinator_events,
+    coordinator_messages,
+    coordinator_reports,
     coordinator_stages,
     participant,
+    participant_tools,
     public,
     reviewer,
+    reviewer_tools,
 )
 
 app_name = "web"
@@ -89,12 +93,43 @@ urlpatterns = [
         participant.AppealCreateView.as_view(),
         name="appeal-create",
     ),
+    # Ekrany panelu wyłącznie do odczytu: informacja zwrotna po publikacji, kalendarz osobisty
+    # (także jako plik ``.ics``) i archiwum materiałów. ``me/calendar.ics`` jest osobnym adresem,
+    # a nie parametrem ``?format=``: kalendarze subskrybują adres, a nie zapytanie z parametrem,
+    # i część z nich rozpoznaje plik po rozszerzeniu, zanim spojrzy na nagłówek typu.
+    path(
+        "me/stages/<int:stage_id>/feedback/",
+        participant_tools.ParticipantFeedbackView.as_view(),
+        name="participant-feedback",
+    ),
+    path("me/calendar/", participant_tools.ParticipantCalendarView.as_view(), name="participant-calendar"),
+    path(
+        "me/calendar.ics",
+        participant_tools.ParticipantCalendarIcsView.as_view(),
+        name="participant-calendar-ics",
+    ),
+    path("me/archive/", participant_tools.ParticipantArchiveView.as_view(), name="participant-archive"),
     # --- recenzent ---------------------------------------------------------------------------
     path("review/", reviewer.ReviewListView.as_view(), name="review-list"),
+    # Paczka ZIP z własnymi pracami. Stoi przed adresem szczegółowym dla czytelności –
+    # ``<int:pk>`` i tak nie dopasuje słowa „download”.
+    path("review/download/", reviewer.ReviewQueueDownloadView.as_view(), name="review-download"),
     path("review/<int:pk>/", reviewer.ReviewDetailView.as_view(), name="review-detail"),
     path("review/<int:pk>/draft/", reviewer.ReviewDraftView.as_view(), name="review-draft"),
     path("review/<int:pk>/submit/", reviewer.ReviewSubmitView.as_view(), name="review-submit"),
     path("review/<int:pk>/revise/", reviewer.ReviewReviseView.as_view(), name="review-revise"),
+    # Porównanie ocen po odsłonięciu i wątek notatek przy pracy. Adresy idą po recenzji, a nie po
+    # pracy: recenzent ma dostęp do **swojego przydziału**, więc cudza praca jest 404 z tego samego
+    # queryseta, co reszta panelu.
+    path("review/<int:pk>/compare/", reviewer_tools.ReviewCompareView.as_view(), name="review-compare"),
+    path("review/<int:pk>/notes/", reviewer_tools.ReviewNoteCreateView.as_view(), name="review-note-add"),
+    # Wzorcówka zadania stoi w gałęzi ``review/``, choć dotyczy zadania: czyta ją komitet, a nie
+    # publiczność, i to jest jedyna droga do tego pliku (prywatny storage, bez publicznego adresu).
+    path(
+        "review/problems/<int:pk>/model-solution/",
+        reviewer_tools.ProblemModelSolutionView.as_view(),
+        name="problem-model-solution",
+    ),
     # --- koordynator -------------------------------------------------------------------------
     path("coordinator/", coordinator.CoordinatorDashboardView.as_view(), name="coordinator"),
     # Okno rejestracji uczestników – ustawienie edycji, nie etapu, stąd adres bez identyfikatora.
@@ -138,9 +173,21 @@ urlpatterns = [
         name="coordinator-stage-edit",
     ),
     path(
+        "coordinator/stages/<int:stage_id>/scale/",
+        coordinator_stages.StageScaleView.as_view(),
+        name="coordinator-stage-scale",
+    ),
+    path(
         "coordinator/stages/<int:stage_id>/problems/",
         coordinator_stages.StageProblemsView.as_view(),
         name="coordinator-stage-problems",
+    ),
+    # Paczka ZIP z pracami etapu: GET – całość albo jedno zadanie (``?problem=``), POST – wiersze
+    # zaznaczone w tabeli przydziałów. Jeden adres, bo to jedna czynność w trzech rozmiarach.
+    path(
+        "coordinator/stages/<int:stage_id>/download/",
+        coordinator.StageDownloadView.as_view(),
+        name="coordinator-stage-download",
     ),
     path(
         "coordinator/stages/<int:stage_id>/interviews/",
@@ -303,6 +350,50 @@ urlpatterns = [
         "coordinator/stages/<int:stage_id>/results/publish/",
         coordinator.PublishResultsView.as_view(),
         name="coordinator-publish",
+    ),
+    # --- narzędzia koordynatora ---------------------------------------------------------------
+    # Cztery ekrany odczytu (postęp, eksport, audyt, symulacja) i jeden z wysyłką komunikatów.
+    # Adresy etapowe stoją przy etapie, a nie w osobnej gałęzi ``/coordinator/tools/…``: „postęp
+    # oceniania” i „symulacja” są pytaniami o konkretny etap i wraca się do nich z jego karty.
+    path(
+        "coordinator/stages/<int:stage_id>/progress/",
+        coordinator_reports.StageProgressView.as_view(),
+        name="coordinator-stage-progress",
+    ),
+    path(
+        "coordinator/stages/<int:stage_id>/progress/remind/",
+        coordinator_reports.RemindReviewersView.as_view(),
+        name="coordinator-remind-reviewers",
+    ),
+    path(
+        "coordinator/stages/<int:stage_id>/simulation/",
+        coordinator_reports.StageSimulationView.as_view(),
+        name="coordinator-stage-simulation",
+    ),
+    path(
+        "coordinator/stages/<int:stage_id>/simulation/apply/",
+        coordinator_reports.ApplyQualificationRuleView.as_view(),
+        name="coordinator-stage-rule-apply",
+    ),
+    path(
+        "coordinator/messages/",
+        coordinator_messages.CoordinatorMessagesView.as_view(),
+        name="coordinator-messages",
+    ),
+    path(
+        "coordinator/audit/",
+        coordinator_reports.AuditBrowserView.as_view(),
+        name="coordinator-audit",
+    ),
+    # Spis eksportów i sam plik. Rodzaj i format są segmentami adresu, a nie parametrami zapytania:
+    # adres pliku ma dać się zapisać i powtórzyć, a obie wartości pochodzą z zamkniętych list
+    # (nieznana daje 404). Etap dla eksportów etapowych jedzie jako ``?stage=<id>``, bo ten sam
+    # widok obsługuje też eksport całej edycji, który etapu nie ma.
+    path("coordinator/export/", coordinator_reports.ExportIndexView.as_view(), name="coordinator-export"),
+    path(
+        "coordinator/export/<str:kind>/<str:fmt>/",
+        coordinator_reports.ExportDownloadView.as_view(),
+        name="coordinator-export-download",
     ),
     # --- komisja odwoławcza ------------------------------------------------------------------
     path("appeals/", appeals.AppealsQueueView.as_view(), name="appeals"),

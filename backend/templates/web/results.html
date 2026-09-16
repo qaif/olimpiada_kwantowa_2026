@@ -11,6 +11,18 @@
     {{ publication.get_anonymization_display }}.</p>
   <p class="hint">Tabela pochodzi z zamrożonego snapshotu z chwili publikacji – nie jest przeliczana
     w locie, więc późniejsze decyzje komisji nie zmieniają jej po cichu.</p>
+  {% comment %}
+    Wiersze tabeli są anonimowe i takie zostają – uczestnik nie odnajdzie w niej siebie po nazwie.
+    Odnośnik prowadzi go tam, gdzie jego wynik jest podpisany: na własną stronę z punktami,
+    miejscem i komentarzami recenzentów. Widoczny wyłącznie dla zalogowanego uczestnika; komu
+    etap nie dotyczy, ten dostanie pod tym adresem 404 (patrz ``ParticipantFeedbackView``).
+  {% endcomment %}
+  {% if is_participant %}
+    <p class="actions">
+      <a class="btn btn--primary btn--small"
+         href="{% url 'web:participant-feedback' stage.pk %}">Twoje punkty i komentarze</a>
+    </p>
+  {% endif %}
 </div>
 
 <div class="scroll">

@@ -38,6 +38,8 @@ def stage_form_data(stage: Stage, **overrides) -> dict:
         "opens_at": timezone.localtime(stage.opens_at).strftime(WARSAW_FORMAT),
         "deadline_at": timezone.localtime(stage.deadline_at).strftime(WARSAW_FORMAT),
         "review_deadline_at": timezone.localtime(stage.review_deadline_at).strftime(WARSAW_FORMAT),
+        # Dni na jedną recenzję są polem formularza etapu (termin osobisty recenzenta).
+        "review_deadline_days": stage.review_deadline_days,
         "appeal_window_opens_at": timezone.localtime(stage.appeal_window_opens_at).strftime(WARSAW_FORMAT),
         "appeal_window_closes_at": timezone.localtime(stage.appeal_window_closes_at).strftime(WARSAW_FORMAT),
     }
@@ -320,6 +322,7 @@ def test_stage_added_in_the_panel_appears_on_the_page(web_client, harmonogram, c
             "opens_at": opens.strftime(WARSAW_FORMAT),
             "deadline_at": (opens + timedelta(days=10)).strftime(WARSAW_FORMAT),
             "review_deadline_at": (opens + timedelta(days=24)).strftime(WARSAW_FORMAT),
+            "review_deadline_days": 14,
             "appeal_window_opens_at": (opens + timedelta(days=26)).strftime(WARSAW_FORMAT),
             "appeal_window_closes_at": (opens + timedelta(days=33)).strftime(WARSAW_FORMAT),
         },

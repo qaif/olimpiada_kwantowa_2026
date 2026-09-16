@@ -14,6 +14,20 @@
     erratę w aktualnościach.</p>
 {% endif %}
 
+{% comment %}
+  Skala zadania jest nadpisaniem skali etapu, więc trzeba powiedzieć, co znaczy puste pole i czego
+  nie wolno zmienić. Bez tego jedynym źródłem tej wiedzy byłaby odmowa zapisu.
+{% endcomment %}
+<div class="card card--quiet">
+  <ul class="hint">
+    <li>Puste pola skali zadania = zadanie punktuje
+      <a href="{% url 'web:coordinator-stage-scale' stage.pk %}">skala etapu</a>.</li>
+    <li>Wartości, którą ktoś już wystawił w recenzji albo w ocenie końcowej tego zadania, nie da się
+      ze skali usunąć (odmowa <code>SCALE_LOCKED</code>) – dotyczy to także wyczyszczenia skali
+      zadania, bo wtedy obowiązuje skala etapu.</li>
+  </ul>
+</div>
+
 <div class="card">
   {% if problem.statement_pdf %}
     <p class="hint">Obecna treść:

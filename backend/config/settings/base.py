@@ -188,6 +188,10 @@ CELERY_TASK_DEFAULT_QUEUE = "default"
 CELERY_TASK_ROUTES = {
     "apps.submissions.tasks.scan_submission_file": {"queue": "scan"},
     "apps.core.tasks.send_mail_task": {"queue": "mail"},
+    # Porcje komunikatu organizatora. Ta sama kolejka co pojedynczy list, bo to ta sama praca:
+    # zadanie rozbija porcję na koperty i oddaje je ``send_mail_task``. Na kolejce ``default``
+    # kilkadziesiąt porcji zablokowałoby workerowi resztę zadań serwisu.
+    "apps.accounts.messaging.send_broadcast_chunk": {"queue": "mail"},
 }
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_TIMEZONE = "UTC"
@@ -209,6 +213,14 @@ CELERY_BEAT_SCHEDULE = {
     "purge-unactivated-accounts": {
         "task": "apps.accounts.tasks.purge_unactivated_accounts",
         "schedule": 900.0,
+    },
+    # Przypomnienia o terminach recenzji (apps/grading/tasks.py). Raz na dobę, a nie co godzinę:
+    # recenzent ma dostać jeden list dziennie, a nie dwadzieścia cztery – częstotliwość przebiegu
+    # jest tu zarazem regułą wysyłki. Godzina przebiegu wynika z momentu startu beatu; dokładna
+    # pora nie ma znaczenia, bo recenzje mają terminy dzienne, nie godzinowe.
+    "remind-overdue-reviews": {
+        "task": "apps.grading.tasks.remind_overdue_reviews",
+        "schedule": 86400.0,
     },
 }
 

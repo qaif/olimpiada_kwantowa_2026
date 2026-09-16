@@ -4140,3 +4140,161 @@ img.captcha {
   gap: var(--sp-2);
   flex: 0 0 auto;
 }
+
+/* --- Ścieżka oceniania pracy (karta zadania w panelu uczestnika) ---------------------------- */
+/* Cztery kroki procedury w jednym wierszu. Kolor nie jest jedynym nośnikiem stanu: krok miniony
+   ma wypełnioną kropkę, bieżący – obwódkę i pogrubienie, przyszły – kropkę pustą. Wymóg WCAG
+   1.4.1, ale też zwykła czytelność na wydruku i w trybie wysokiego kontrastu. */
+
+.status-track-box {
+  margin: var(--sp-3) 0 var(--sp-4);
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.status-track__caption {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: var(--sp-2);
+}
+
+.status-track {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Kreska łącząca kroki rysuje się jako tło wiersza, a nie osobny element – dzięki temu zawinięcie
+   na wąskim ekranie nie zostawia w powietrzu kreski prowadzącej donikąd. */
+.status-track__step {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.status-track__dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 2px solid var(--line-strong);
+  background: transparent;
+}
+
+.status-track__step--done {
+  color: var(--ok-ink);
+}
+
+.status-track__step--done .status-track__dot {
+  border-color: var(--ok);
+  background: var(--ok);
+}
+
+.status-track__step--current {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.status-track__step--current .status-track__dot {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.status-track__step--failed {
+  color: var(--danger-ink);
+  font-weight: 600;
+}
+
+.status-track__step--failed .status-track__dot {
+  border-color: var(--danger);
+  background: var(--danger);
+}
+
+.status-track__note {
+  margin: var(--sp-3) 0 0;
+  font-size: 0.95rem;
+  color: var(--ink-soft);
+}
+
+.status-track__note--warn {
+  color: var(--danger-ink);
+}
+
+/* --- Karta informacji zwrotnej (/me/stages/<id>/feedback/) ---------------------------------- */
+/* Komentarze recenzentów stoją jeden pod drugim i są oddzielone odstępem, a nie linią: każdy
+   z nich jest już ramką (.feedback), a druga ramka wokół nich robiłaby z karty tabelę. */
+
+.feedback-card .feedback + .feedback {
+  margin-top: var(--sp-3);
+}
+
+/* --- Rubryka oceniania i wątek notatek recenzentów (panel recenzenta) ----------------------- */
+/* Kryteria stoją jedno pod drugim jako osobne bloki, a nie w tabeli: każde ma tytuł, opis, pole
+   punktów i komentarz, więc wiersz tabeli i tak musiałby się złamać na telefonie. */
+
+.rubric__item {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-3);
+  margin: 0 0 var(--sp-3);
+}
+
+.rubric__item legend {
+  font-weight: 600;
+  padding: 0 var(--sp-2);
+}
+
+.rubric__item input[type="number"] {
+  max-width: 8rem;
+}
+
+.notes {
+  list-style: none;
+  margin: 0 0 var(--sp-4);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.notes__item {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line-strong);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: var(--sp-2) var(--sp-3);
+  overflow-wrap: anywhere;
+}
+
+/* Własny wpis jest wyróżniony akcentem – w wątku bez nazwisk to jedyny sposób, żeby recenzent
+   od razu widział, które zdania są jego. */
+.notes__item--own {
+  border-left-color: var(--accent);
+}
+
+.notes__author {
+  font-weight: 600;
+}
+
+.notes__time {
+  margin-left: var(--sp-2);
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.notes__text {
+  margin: var(--sp-1) 0 0;
+  white-space: pre-wrap;
+}

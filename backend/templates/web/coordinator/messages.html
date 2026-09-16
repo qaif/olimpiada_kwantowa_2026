@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% load static web_extras %}
+{% comment %}
+  Wysyłka komunikatu do grupy odbiorców. Ekran jest dwustopniowy: pierwszy przycisk („Podgląd”)
+  pokazuje liczbę odbiorców i treść tak, jak pójdzie w liście, drugi („Wyślij”) wysyła naprawdę.
+  Oba są zwykłym POST-em tego samego formularza – różni je pole ``action``, więc nie ma tu stanu
+  w sesji i nie da się wysłać czegoś innego, niż się obejrzało.
+
+  Adresów odbiorców ekran **nie pokazuje**, i to nie z oszczędności miejsca: lista kilku tysięcy
+  adresów wyświetlona bez żadnej potrzeby byłaby wyciągiem z bazy kontaktów. Koordynator sprawdza
+  tu rząd wielkości („trzy tysiące, a nie trzydzieści”), a nie pojedyncze wpisy.
+{% endcomment %}
+{% block title %}Komunikaty – panel koordynatora{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
+  <h1>Komunikaty</h1>
+  <p class="lead">List do grupy uczestników albo do komitetu. Każdy odbiorca dostaje osobną
+    kopertę – w nagłówku listu nie ma adresów pozostałych osób.</p>
+</div>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Nowy komunikat</h2>
+    {% if edition %}<p class="hint">Bieżąca edycja: {{ edition.year_label }}</p>{% endif %}
+  </div>
+  <div class="card">
+    <form method="post" class="form">
+      {% csrf_token %}
+      {{ form.as_p }}
+      {% comment %}
+        Konta nieaktywne i te bez potwierdzonego adresu są z wysyłki wyłączone (apps/accounts/
+        messaging.py). Zdanie stoi przy formularzu, bo inaczej różnica między liczbą uczestników
+        w panelu a liczbą odbiorców w podglądzie wyglądałaby jak błąd.
+      {% endcomment %}
+      <p class="hint">Z wysyłki wypadają konta zablokowane i te, których adresu nikt nie potwierdził
+        linkiem aktywacyjnym.</p>
+      <div class="actions">
+        <button type="submit" name="action" value="preview" class="btn btn--secondary">Podgląd</button>
+        {% if preview %}
+          <button type="submit" name="action" value="send" class="btn btn--primary">Wyślij</button>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</section>
+
+{% if preview %}
+  <section class="section">
+    <div class="section__head">
+      <h2 class="mt-0">Podgląd</h2>
+      <span class="badge {% if preview.count %}badge--ok{% else %}badge--danger{% endif %}">{{ preview.count }} odbiorców</span>
+    </div>
+    <div class="card">
+      <p><strong>Temat:</strong> {{ form.cleaned_data.subject }}</p>
+      <pre class="mail-preview">{{ form.cleaned_data.body }}</pre>
+      {% if not preview.count %}
+        <p class="hint">Ta grupa nie ma ani jednego odbiorcy – przycisk „Wyślij” nic nie zrobi.</p>
+      {% endif %}
+    </div>
+  </section>
+{% endif %}
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Wysłane komunikaty</h2>
+    <p class="hint">„Przekazana do wysyłki” znaczy, że listy trafiły do kolejki – o doręczeniu
+      rozstrzyga serwer odbiorcy.</p>
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Kiedy</th>
+          <th scope="col">Temat</th>
+          <th scope="col">Grupa</th>
+          <th scope="col">Odbiorców</th>
+          <th scope="col">W kolejce</th>
+          <th scope="col">Stan</th>
+          <th scope="col">Wysłał</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in broadcasts %}
+          <tr>
+            <td class="audit-when">{{ row.created_at|local_datetime }}</td>
+            <th scope="row">{{ row.subject }}</th>
+            <td>{{ row.get_group_display }}</td>
+            <td class="num">{{ row.recipient_count }}</td>
+            <td class="num">{{ row.sent_count }}</td>
+            <td>{{ row.get_status_display }}</td>
+            <td>{{ row.created_by.email|default:"—" }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="empty">Nie wysłano jeszcze żadnego komunikatu.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

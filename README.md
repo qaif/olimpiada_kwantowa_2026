@@ -466,7 +466,7 @@ z otwartej rejestracji.
 | 15 | Zamknięcie okna → `GRADED_PROVISIONAL` → `FINAL` | `beat` | – |
 | 16 | Przeliczenie progów i publikacja | koordynator | `/coordinator/` → „Przelicz wyniki (podgląd)”, potem „Opublikuj wyniki” |
 | 17 | Ogłoszona tabela | wszyscy, bez logowania | `/results/<stage_id>/` oraz strona CMS `/wyniki/` |
-| 18 | Własny wynik i informacja zwrotna | uczestnik | `/me/` → „Moje wyniki” |
+| 18 | Własny wynik i informacja zwrotna | uczestnik | `/me/` → „Moje wyniki”, `/me/stages/<id>/feedback/` – patrz 5.5 |
 
 Publikacja przed zamknięciem okna reklamacji kończy się `409 APPEAL_WINDOW_OPEN`; tryb `FULL`
 (nazwiska) jest dopuszczony wyłącznie w finale, dla laureatów, za zgodą – patrz `PROJEKT.md` 2.4.
@@ -624,6 +624,100 @@ dokłada `email_changed_without_confirmation`), `account.deleted_by_coordinator`
 (`{result, had_footprint}`, bez danych osobowych) oraz — z rdzenia usuwania — `account.anonymised`
 albo `account.deleted`, tym razem z koordynatorem jako wykonawcą.
 
+### 5.5 Panel uczestnika: status pracy, informacja zwrotna, kalendarz, archiwum
+
+Pięć rzeczy, które uczestnik dostaje poza samym uploadem. Wszystkie są **tylko do odczytu** (poza
+powiadomieniami, które nic nie wyświetlają) i wszystkie stoją na regułach opisanych wyżej — żaden
+z tych ekranów nie rozluźnia widoczności ani o krok.
+
+**1. Status oceniania pracy** — karta zadania w `/me/` niesie ścieżkę czterech kroków:
+`oddane → w ocenie → oceniona → wyniki`. Krok bierze się ze stanu ostatniej wersji pracy
+(`SUBMITTED`/`SCANNING` → oddane, `LOCKED`/`IN_REVIEW`/`MODERATION` → w ocenie,
+`GRADED_PROVISIONAL`/`APPEALED`/`FINAL` → oceniona), a ostatni zapala dopiero **publikacja wyników
+etapu**. Reguła mieszka w `apps/submissions/status_track.py` i nigdzie się nie powtarza.
+
+- **ścieżka nigdy nie pokazuje punktów.** Liczba należy do uczestnika dopiero po ogłoszeniu
+  wyników i idzie osobną drogą (niżej); gdyby stała w karcie, każdy ekran renderujący kartę
+  musiałby powtarzać bramę publikacji,
+- `APPEALED` **nie cofa** pracy o krok: reklamację składa się na wystawioną ocenę,
+- wersja odrzucona przez antywirusa kończy na pierwszym kroku, z jawnym „wyślij plik ponownie”,
+- pod ścieżką stoi **„Ogłoszenie wyników: …”**. Po publikacji jest to jej data; przed publikacją —
+  otwarcie okna reklamacji, podpisane jako *termin planowany*. `Stage` nie ma osobnego pola
+  „planowane wyniki” (`results_published_at` nakłada dopiero publikacja), a okno reklamacji jest
+  pierwszym momentem osi czasu, w którym uczestnik zna już ocenę. Etap treningowy nie dostaje
+  żadnej daty — w bazie stoi tam wartownik z roku 2099.
+
+**2. Komentarze i miejsce po publikacji** — `GET /me/stages/<id>/feedback/`, z odnośnikami z `/me/`
+(sekcja „Moje wyniki”) i z ogłoszonej tabeli `/results/<id>/` (widoczny wyłącznie dla zalogowanego
+uczestnika). Strona pokazuje punkty za każde zadanie, komentarze recenzentów, miejsce w tabeli oraz
+próg kwalifikacji i decyzję.
+
+- **przed publikacją adres zwraca 404**, nie 403 i nie pustą stronę: odpowiedź nie może
+  potwierdzać, że wynik jest już policzony i czeka na ogłoszenie. To samo 404 dostaje ktoś, kto
+  w tym etapie nie brał udziału,
+- **recenzenci są anonimowi**: wychodzi `Review.comment_for_participant` i adnotacje z
+  `public=True`, podpisane „Recenzent A/B” w kolejności wystąpienia. `comment_internal` nie
+  opuszcza `apps/results/feedback.py` w żadnej postaci, tożsamość recenzenta również,
+- **miejsce pochodzi z zamrożonego snapshotu**, a nie z przeliczenia na żywo — to samo miejsce,
+  które widzi publiczność. Wiersze snapshotu są anonimowe, więc dowiązanie idzie przez
+  `ResultsPublication.entry_totals` (mapa `{wpis: suma}` z chwili publikacji), a miejsce odczytuje
+  się z wiersza o tej samej sumie (remisy mają ten sam `rank`),
+- **punkty liczymy na żywo** z `FinalGrade`. Gdy komisja zmieniła ocenę po publikacji, strona
+  pokazuje obie liczby i mówi wprost, która obowiązuje.
+
+**3. Powiadomienia e-mail** (`apps/submissions/notifications.py`) — cztery listy, wszystkie przez
+`apps.core.tasks.send_mail_task` kolejkowane **po commicie**, więc wycofana operacja nie wysyła
+nic:
+
+| Rodzaj (audyt `notification.sent`) | Kiedy | Co niesie |
+|---|---|---|
+| `submission.received` | po przyjęciu pliku (`create_submission`) | numer zadania, wersja, sha256, czas |
+| `submission.infected` | gdy skan odrzuci plik | co odrzucono i „wyślij ponownie” (bez sygnatury wirusa) |
+| `results.published` | `publish_results`, do każdego uczestnika etapu | odnośnik do tabeli i do własnej informacji zwrotnej |
+| `appeal.decided` | `decide_appeal` | rozstrzygnięcie i uzasadnienie komisji |
+
+- **czysty skan jest cichy.** Gdyby szedł po nim list, każda wysyłka dawałaby dwie wiadomości,
+  a pierwsza przestałaby cokolwiek znaczyć,
+- **w liście nie ma punktów.** Skrzynka pocztowa nie jest kanałem zabezpieczonym, a wiadomość
+  zostaje w niej na lata — wynik jest w serwisie,
+- **konto nieaktywne nie dostaje poczty** (`User.is_active`): nieaktywowana rejestracja i konto
+  zablokowane przez koordynatora nie są adresem, pod którym ktoś czeka,
+- w audycie zostaje **sam rodzaj** powiadomienia. Ogłoszenie wyników zostawia jeden wpis na całą
+  publikację, a nie wpis na uczestnika — tysiąc wierszy różniących się adresatem wskazywałoby
+  tysiąc konkretnych osób.
+
+**4. Kalendarz osobisty** — `GET /me/calendar/` oraz `GET /me/calendar.ics`. Terminy pochodzą
+z `apps.cms.timeline.timeline_events`, czyli z tego samego złożenia, na którym stoi pasek linii
+czasu w nagłówku (etapy, wydarzenia koordynatora, okno rejestracji, warsztaty); kalendarz dokłada
+do nich dokładnie jedną pozycję prywatną — **własny termin rozmowy kwalifikacyjnej**.
+
+- **adresu pokoju wideo w pliku nie ma.** Link, pod którym wchodzi się bez logowania, jest de
+  facto poświadczeniem, a `.ics` bywa synchronizowany do cudzych usług; link jest wyłącznie
+  w `/me/`,
+- plik `.ics` powstaje ręcznie (`apps/cms/calendar.py`, bez nowej zależności) i trzyma się
+  RFC 5545: `CRLF`, zawijanie wierszy do 75 **oktetów** liczonych w UTF-8, cytowanie `\`, `;`, `,`
+  i złamań wiersza, `PRODID`, wydarzenia całodniowe jako `VALUE=DATE` z **wyłącznym** `DTEND`,
+  rozmowa w UTC z sufiksem `Z`,
+- **`UID` jest stabilny między pobraniami** (skrót rodzaju, tytułu i dat), więc subskrypcja
+  aktualizuje wpisy zamiast dokładać ich kopie. Klucza głównego użyć się nie da: warsztaty
+  pochodzą z treści redakcyjnej, a okno rejestracji jest polem edycji,
+- odpowiedź ma `Content-Type: text/calendar` i `Content-Disposition: attachment`.
+
+**5. Materiały i zadania archiwalne** — `GET /me/archive/`: zadania **zakończonych edycji**
+z treścią PDF, arkusz treningowy oraz harmonogram warsztatów.
+
+- archiwum pokazuje wyłącznie etapy, które **już się otwarły** — tę samą bramę (`opens_at`)
+  egzekwuje widok pliku `competitions:problem-statement`, a odnośnik do 404 też jest usterką,
+- bieżąca edycja archiwum **nie jest**: zadania trwających zawodów mieszkają w `/me/`, razem
+  z uploadem i terminem,
+- zadania treningowe mają przycisk „Oddaj rozwiązanie na sucho”, który prowadzi na kartę
+  treningową pulpitu (`/me/#trening`). Archiwum nie powiela formularza wysyłki — drugie miejsce
+  z uploadem byłoby drugim miejscem, w którym trzeba pilnować skanu i terminu,
+- warsztaty są **treścią redakcyjną** (blok `schedule` na `/warsztaty/`) i model nie ma w nich
+  pola na załącznik, więc archiwum wypisuje terminy i odsyła na tamtą stronę, zamiast udawać
+  listę plików. Gdy warsztat dostanie kiedyś własny załącznik, zmienia się jedna funkcja
+  (`workshop_materials` w `apps/web/views/participant_tools.py`).
+
 ## 6. Procedury operacyjne
 
 ### 6.1 Kopia zapasowa
@@ -721,9 +815,52 @@ Trzy blokady, których formularz nie obejdzie:
 
 **Nowy etap** — `/coordinator/stages/new/` (przycisk „Dodaj etap” przy nagłówku sekcji, widoczny,
 dopóki edycja nie ma wszystkich trzech rodzajów). Etap powstaje przez `create_stage`, więc od razu
-ma domyślną skalę 0/2/5/6 i próg kwalifikacji. **Skalę i próg** zmienia się dalej w
-`/admin/competitions/stage/<id>/change/` (link „Skala i próg (admin)” na karcie etapu) — to
-konfiguracja oceniania, którą rusza się raz na edycję, a nie kalendarz.
+ma domyślną skalę 0/2/5/6 i próg kwalifikacji. **Skalę** zmienia się dalej na własnym ekranie
+(6.3c), **próg kwalifikacji** — w `/admin/competitions/stage/<id>/change/` (link „Próg kwalifikacji
+(admin)” na karcie etapu).
+
+#### 6.3c Skala punktacji (etap i nadpisanie w zadaniu)
+
+Ile punktów wolno wystawić i co która wartość znaczy, ustawia koordynator — bez `/admin/`.
+
+**Skala etapu** — `/coordinator/` → karta etapu → **„Skala punktacji”**
+(`/coordinator/stages/<id>/scale/`). Wartości wpisuje się w jednym polu tekstowym, po jednej
+pozycji w wierszu, w postaci `wartość;opis`:
+
+```text
+0;brak istotnego postępu
+2;istotny postęp, rozwiązanie niepełne
+5;rozwiązanie pełne z drobnymi usterkami
+6;rozwiązanie pełne i poprawne
+```
+
+Obok stoi **maksimum punktów** — osobne pole, które musi być równe największej wartości skali
+(niezgodność to błąd pod polem, a nie ciche wyliczenie). Skala musi zawierać **0**, wartości muszą
+być unikalne i rosnące (`ScoringScale.clean()`). Etap, któremu skali brakuje, dostaje ją z tego
+ekranu — formularz startuje wtedy z domyślną 0/2/5/6. Pod formularzem jest podgląd: tak zobaczy
+skalę recenzent. Każdy zapis zostawia `stage.scale_updated` w audycie z pełną skalą przed i po.
+
+**Skala zadania** (nadpisanie) — formularz zadania (`/coordinator/problems/<id>/edit/`) ma te same
+dwa pola: „Skala punktacji tego zadania” i „Maksimum punktów tego zadania”. **Puste = zadanie
+punktuje skala etapu.** Wypełnia się je razem albo wcale. Pierwszeństwo ma zadanie:
+`grading.services.allowed_scores(stage, problem)` pyta najpierw o `Problem.scoring_values`, a dopiero
+w ich braku o `ScoringScale` etapu — i tę samą kolejność stosują wszystkie zapisy ocen
+(`submit_review`, `revise_review`, `set_review_score`, `resolve_moderation`, `override_final_grade`,
+decyzja reklamacyjna) oraz listy wyboru punktów w panelu recenzenta i na ekranie przydziałów.
+
+**Reguła blokady (`409 SCALE_LOCKED`).** Dokładanie wartości i poprawianie opisów jest wolne
+zawsze. **Usunięcie wartości, którą ktoś już wystawił** w recenzji (także anulowanej) albo w ocenie
+końcowej — nie. Inaczej w bazie zostałyby oceny spoza skali: tabela wyników liczyłaby się z nich
+dalej, a w formularzu nie dałoby się już wybrać tego, co faktycznie stoi w recenzji. Blokada
+obowiązuje w obie strony: skala etapu patrzy na oceny zadań, które ją **dziedziczą** (zadania
+z własną skalą jej nie blokują), a wyczyszczenie skali zadania jest sprawdzane względem skali
+etapu, która wtedy zaczyna obowiązywać.
+
+**Czego to nie zmienia:** przeliczanie wyników (`apps/results/services.py`) sumuje `FinalGrade.score`
+i **nie używa** ani `ScoringScale.max_value`, ani `Problem.max_points` — maksimum jest deklaracją dla
+ludzi i walidacją skali, a nie dzielnikiem w normalizacji. Progi kwalifikacji podaje się w punktach
+bezwzględnych (`QualificationRule.min_points`), więc zmiana skali **nie przelicza** ich automatycznie
+— po zmianie skali sprawdź próg.
 
 #### 6.3a Rejestracja uczestników
 
@@ -893,7 +1030,13 @@ i liczbą oddanych prac, a pod nią formularz dodania.
 - `statement_pdf`: **PDF do 20 MB**, rozpoznawany po nagłówku `%PDF-`, a nie po rozszerzeniu ani
   `Content-Type` (Caddy przepuszcza 25 MB, patrz `MAX_UPLOAD_MB`). Plik idzie na storage
   `private_media` — przed otwarciem etapu nie ma publicznego adresu,
-- `allowed_formats` to pola wyboru `pdf`/`ipynb`/`py` (minimum jedno), `max_file_mb` to 1–100 MB,
+- `allowed_formats` to pola wyboru `pdf`/`ipynb`/`py`/**`jpg` („JPEG (zdjęcie rozwiązania)”)**
+  — minimum jeden; `max_file_mb` to 1–100 MB. JPEG jest dla uczestnika bez skanera: fotografuje
+  kartkę telefonem. Uczestnik może wysłać plik z rozszerzeniem `.jpg` **albo** `.jpeg` — serwer
+  sprowadza je do jednej nazwy formatu (`jpg`), a o przyjęciu decyduje sygnatura `FF D8 FF`, nie
+  nazwa ani `Content-Type` (PDF przemianowany na `.jpg` odpada z `400 INVALID_FILE_TYPE`). Limit
+  rozmiaru jest ten sam, co dla PDF-a (`max_file_mb`). Recenzent dostaje wtedy w panelu podgląd
+  zdjęcia zamiast pdf.js — z tą samą warstwą adnotacji (zdjęcie jest „stroną 1”),
 - **podgląd treści przed otwarciem etapu widzi wyłącznie koordynator**
   (`GET /api/competitions/problems/<id>/statement/`); uczestnik, recenzent i anonim dostają 404,
 - **podmiana treści po `opens_at`** wymaga zaznaczenia „Rozumiem, że uczestnicy już widzą treść”
@@ -1181,6 +1324,76 @@ Poprawić **nie wolno** — ekran pokazuje wtedy powód zamiast formularza:
 | wyniki etapu są ogłoszone | `RESULTS_PUBLISHED` |
 | praca w reklamacji albo finalna | `SUBMISSION_CLOSED` |
 | ocenę rozstrzygnął człowiek: moderacja, trzeci recenzent, korekta, reklamacja | `GRADE_DECIDED` |
+
+#### Warsztat recenzenta: rubryka, wzorcówka, porównanie ocen, serie prac i terminy
+
+Pięć rzeczy, o które prosił organizator. Wszystkie działają bez JavaScriptu (strict CSP) i żadna
+nie zmienia tego, co widzi uczestnik.
+
+**1. Rubryka oceniania (kryteria zadania).** Koordynator wpisuje kryteria przy zadaniu
+(`/coordinator/problems/<id>/edit/`, pole „Rubryka oceniania”) — po jednym w wierszu, w postaci
+`punkty;tytuł;opis` (opis nieobowiązkowy):
+
+```text
+2;Pomysł;jak uczestnik podszedł do zadania
+4;Wykonanie;staranność rachunków i uzasadnień
+```
+
+Zadanie z rubryką pokazuje recenzentowi w `/review/<id>/` po jednym polu punktów (0…maksimum
+kryterium) i komentarzu na kryterium — **zamiast** listy ocen ze skali. Sumę liczy serwer i to ona
+trafia do `Review.score` (źródło prawdy zostaje jedno); punkty cząstkowe lądują w `Review.rubric`
+(lista `{criterion_id, points, comment}`). Suma **musi** należeć do skali zadania (albo etapu, gdy
+zadanie nie ma własnej): 4 punkty przy skali 0/2/5/6 kończą się odmową
+`RUBRIC_TOTAL_NOT_IN_SCALE` z listą dopuszczalnych wartości — system **nie zaokrągla**, bo to
+byłaby zmiana decyzji recenzenta. Szkic przyjmuje rubrykę niekompletną; ocena — nie
+(`RUBRIC_INCOMPLETE`). Poprawienie tytułu kryterium nie zrywa powiązania z zapisanymi punktami
+(kryteria są aktualizowane w miejscu, nie kasowane i tworzone od nowa). W API rubryka jest polem
+`rubric` w `ReviewSerializer` oraz w ładunku `PATCH /api/grading/reviews/<id>/`,
+`POST …/submit/` i `POST …/revise/`; jej brak znaczy „bez rubryki”, więc starsi klienci działają
+bez zmian. Zadanie bez kryteriów ocenia się dokładnie jak dotąd.
+
+**2. Rozwiązanie wzorcowe i uwagi dla recenzentów.** Ten sam ekran zadania ma pola „Rozwiązanie
+wzorcowe (PDF)” (`Problem.model_solution_pdf`) i „Uwagi dla recenzentów”
+(`Problem.reviewer_notes`). Plik leży na **prywatnym** storage (jak treść zadania) i nie ma
+publicznego adresu: wydaje go wyłącznie `GET /review/problems/<id>/model-solution/` aktywnemu
+członkowi komitetu albo koordynatorowi. Uczestnik dostaje 403 — i w odróżnieniu od treści zadania
+wzorcówka **nie staje się jawna po `opens_at`**. W panelu recenzenta jest zwinięta w `<details>`
+„Rozwiązanie wzorcowe i uwagi dla recenzentów”.
+
+**3. Porównanie ocen po odsłonięciu.** Dopóki komplet ocen rundy 1 nie jest wystawiony, recenzent
+nie widzi cudzych punktów (ocena ślepa). Gdy wszystkie są wystawione — albo praca jest
+w moderacji/oceniona — na stronie oceny pojawia się sekcja **„Porównanie ocen”**: punkty drugiej
+strony, komentarz dla uczestnika i różnica ze znakiem. Tożsamość zostaje ukryta („Recenzent B”,
+litery nadawane po `(punkty, id)`, tak jak w materiale rozjemczym rundy 2). Pod spodem jest wątek
+krótkich notatek (`grading.ReviewNote`, do 1000 znaków): piszą w nim **recenzenci tej pracy**,
+czytają oni i koordynator (pulpit, sekcja „Moderacja”). Wątek zamyka się razem ze sprawą — praca
+`FINAL` albo etap z ogłoszonymi wynikami to `SUBMISSION_FINAL` / `RESULTS_PUBLISHED`, a przed
+odsłonięciem ocen `NOT_REVEALED`. Osobna strona z tym samym materiałem: `/review/<id>/compare/`;
+dopisanie notatki — `POST /review/<id>/notes/` (audyt `review.note_added`, w `diff` sama długość).
+
+**4. Prace jednego zadania seriami.** Strona oceny ma odnośniki **„← Poprzednia praca”** /
+**„Następna praca →”** i licznik „5 z 18 w tym zadaniu”. Seria to własne otwarte recenzje
+(`ASSIGNED`/`DRAFT`) **tego samego zadania**, uporządkowane po identyfikatorze przydziału; bieżąca
+recenzja zostaje w serii także po wystawieniu oceny, żeby po powrocie było widać, co dalej. Lista
+`/review/` jest pogrupowana po etapie i zadaniu, z licznikiem „6 z 12 do zrobienia”.
+
+**5. Terminy recenzji i przypomnienia.** Etap ma pole **„Dni na jedną recenzję”**
+(`Stage.review_deadline_days`, domyślnie 14, edytowalne także po zamknięciu etapu — bo ocenianie
+zaczyna się właśnie wtedy). Przy przydziale recenzja dostaje własny termin `Review.due_at`:
+
+> chwila przydziału + `review_deadline_days`, **przycięte** do `review_deadline_at` etapu, jeżeli
+> ten wypada wcześniej — ale nigdy w przeszłość: praca przydzielona po terminie etapu (dosyłka,
+> zastępstwo) dostaje pełne okno, bo termin „wczoraj” nie jest terminem. Sufit obejmuje zarazem
+> okno reklamacji, bo `review_deadline_at ≤ appeal_window_opens_at` pilnuje constraint w bazie.
+
+Termin jest **zapisywany**, a nie liczony przy każdym odczycie: późniejsza zmiana ustawień etapu nie
+przesuwa terminów już przyznanych. Cały przebieg „Przydziel recenzentów” dostaje jeden termin, a
+komunikat po przydziale podaje go wprost („Termin recenzji: …”). Lista recenzenta pokazuje terminy
+i odznacza wiersze **„po terminie”**. Beat `apps.grading.tasks.remind_overdue_reviews` (raz na dobę,
+`CELERY_BEAT_SCHEDULE`) wysyła **jeden list dziennie na recenzenta** z pracami po terminie i tymi
+z terminem w ciągu 2 dni (kody publiczne prac, bez danych osobowych); powtórkom zapobiega
+`Review.reminded_at`, a do audytu trafia `review.reminder_sent` z samym licznikiem. Prace, które
+wyszły z oceniania, nie są przypominane.
 
 #### Korekta ocen przez koordynatora
 
@@ -1548,6 +1761,159 @@ identyfikatory i liczniki, nigdy imiona, nazwiska ani adresy.
 
 **Czego jeszcze nie ma:** ocen z rozmowy. Etap w tej formie nie ma ścieżki oceniania w systemie —
 punkty wpisuje koordynator poza nim (`docs/BACKLOG.md`).
+
+### 6.9 Pobieranie prac (odnośniki i paczki ZIP)
+
+Kto co pobiera i pod jaką nazwą — reguła jest jedna dla wszystkich dróg
+(`apps/submissions/packaging.py`).
+
+| Kto | Skąd | Co dostaje |
+|---|---|---|
+| Uczestnik | `/me/` → karta zadania → kolumna **„Plik”** → „Pobierz” | własną wersję, **pod własną nazwą pliku**; także wersję przed skanem antywirusowym (to jego plik) |
+| Koordynator | `/coordinator/stages/<id>/assignments/` → kolumna **„Plik”** | pojedynczą pracę; przy pliku bez skanu stoi podpowiedź „skan w toku”, a nie odnośnik |
+| Koordynator | karta etapu na `/coordinator/` albo nagłówek ekranu przydziałów → **„Pobierz wszystkie prace (ZIP)”** | `GET /coordinator/stages/<id>/download/` — po jednej, najnowszej przeskanowanej wersji każdej pary (wpis, zadanie) |
+| Koordynator | tabela „Zadania → recenzenci z góry” → **„Pobierz ZIP zadania N”** | to samo, zawężone do jednego zadania (`?problem=<id>`) |
+| Koordynator | kratki w tabeli prac → **„Pobierz zaznaczone (ZIP)”** | `POST /coordinator/stages/<id>/download/` z `submission_ids`; identyfikator spoza etapu nie wchodzi do paczki, puste zaznaczenie wraca z komunikatem „Nie zaznaczono żadnej pracy.” |
+| Recenzent | `/review/` → **„Pobierz moje prace (ZIP)”** (`GET /review/download/`) oraz `GET /api/grading/reviews/download/` | wszystkie prace z jego **nieanulowanymi** recenzjami (`ASSIGNED`, `DRAFT`, `SUBMITTED`) |
+
+**Nazwy plików w paczce są anonimowe** — także dla koordynatora: `<kod uczestnika>_zad<numer>_v<wersja>.<rozszerzenie>`
+(np. `OLM-7PE5K2_zad2_v1.pdf`). `original_name` od uczestnika regularnie zawiera nazwisko albo
+szkołę, a paczka wędruje dalej do komitetu i nikt jej po drodze nie przepakowuje. W archiwum jest
+`README.txt` ze spisem treści: u koordynatora sama lista plików, u recenzenta wiersze
+`recenzja <id> → <plik>`, po których odnajduje pracę w panelu. Nazwisk nie ma w żadnym z nich.
+
+**Do paczki wchodzi wyłącznie plik po skanie** (`av_status=CLEAN`). Gdy najnowsza wersja skanu
+jeszcze nie przeszła (albo jest zainfekowana), paczka etapu bierze **ostatnią wcześniejszą czystą**
+wersję — tak samo jak przeliczanie wyników. Praca bez ani jednej czystej wersji jest pomijana bez
+komunikatu; stan skanu widać przy pojedynczym wierszu. Pusty zakres to **404** z powodem
+(„Brak prac do pobrania w tym zakresie.”, u recenzenta „Brak przydzielonych prac do pobrania.”),
+a nie archiwum z samym spisem treści.
+
+Archiwum jest budowane w pliku tymczasowym, bez kompresji (`ZIP_STORED` — PDF i `.ipynb` są już
+skompresowane), a treść przechodzi ze storage do archiwum kawałkami, więc pamięć procesu nie rośnie
+z liczbą prac. Audyt: `stage.downloaded_zip` (`{count, scope, problem}`) i `review.downloaded_zip`
+(`{count}`) — same liczby i identyfikatory, nigdy nazwy plików ani pseudonimy.
+
+Zaznaczanie wierszy działa **bez JavaScriptu**: kratki należą do formularza pobierania przez atrybut
+`form="stage-zip"` (formularzy nie wolno zagnieżdżać, a w tabeli stoją już formularze ocen).
+`static/js/select-all.js` dokłada wyłącznie kratkę „zaznacz wszystkie” w nagłówku tabeli — z nonce,
+bo polityka CSP nie dopuszcza skryptów inline.
+
+### 6.9 Narzędzia koordynatora
+
+Pięć ekranów poza rytmem prowadzenia zawodów. Wszystkie są dostępne **wyłącznie dla koordynatora**
+(`CoordinatorRequiredMixin`; każda inna zalogowana rola dostaje 403) i wszystkie działają bez
+JavaScriptu: filtry i parametry jadą zwykłym formularzem GET, stronicowanie zwykłymi odnośnikami,
+a rozwijane bloki to `<details>`. Wejście na pulpit: sekcja **Narzędzia** (komunikaty, eksport,
+audyt) oraz odnośniki **Postęp oceniania** i **Symulacja kwalifikacji** na karcie etapu.
+
+#### Postęp oceniania — `/coordinator/stages/<id>/progress/`
+
+Odpowiada na dwa pytania zadawane w trakcie oceniania codziennie: „jak daleko jesteśmy” i „na kogo
+czekamy”. Górna część to pasek segmentowy z liczbami: oddane, zablokowane, przydzielone,
+w moderacji, reklamacja, ocenione, odrzucone przez antywirusa. Segmenty są **rozłączne i sumują się
+do liczby wszystkich prac** — pasek, którego kawałki się nakładają, kłamałby o postępie. Obok stoją
+liczby, które rozłączne nie są: prace z oceną końcową (praca po reklamacji ma ocenę, ale nie jest
+w segmencie „ocenione”) oraz reklamacje.
+
+Pasek jest rysowany **samym arkuszem stylów** (`static/css/coordinator-tools.css`): polityka
+bezpieczeństwa nie dopuszcza stylu w atrybucie, więc szerokość segmentu jest klasą z zamkniętej
+listy i skacze co 5 %. Dokładne liczby stoją pod paskiem i to one są odpowiedzią.
+
+Niżej tabela aktywnych recenzentów: przydzielone / szkice / wystawione / po terminie, posortowana
+zalegającymi do góry. **Definicja „po terminie” jest wybierana w czasie działania**: jeśli model
+recenzji ma własny termin (`Review.due_at`), liczy się po nim; jeśli nie — „przydzielona ponad
+7 dni temu i wciąż niewystawiona”. Ekran pisze wprost, której definicji użył, żeby nikt nie wziął
+przybliżenia za termin regulaminowy.
+
+Dwa przyciski wysyłają przypomnienia: **Przypomnij e-mailem** (jedna osoba) i **Przypomnij
+wszystkim zaległym**. List jest kolejkowany po commicie (`apps.core.tasks.send_mail_task`) i nie
+zawiera **ani pseudonimów prac, ani tytułów zadań** — recenzent widzi komplet po zalogowaniu,
+a lista przydziałów w skrzynce byłaby wyciekiem tego, co ocenianie ślepe ma chronić. Osoba bez
+niedokończonych recenzji listu nie dostaje. Audyt: `reviewer.reminded` z licznikami
+(`{stage_id, reviewers, reviews, overdue, scope}`), nigdy z adresami.
+
+Dane liczy `apps/grading/reports.py` — trzy zapytania agregujące na cały ekran, niezależnie od
+liczby prac i recenzentów.
+
+#### Komunikaty — `/coordinator/messages/`
+
+List do grupy odbiorców. Grupy: uczestnicy bieżącej edycji, zapisani do etapu, zakwalifikowani do
+etapu, członkowie komitetu, komitet jednego województwa, wklejona lista adresów. „Uczestnik edycji”
+znaczy „ktoś z wpisem do któregokolwiek jej etapu”, a nie „ktoś, kto kiedykolwiek założył konto”.
+**Z wysyłki wypadają konta zablokowane i te bez potwierdzonego adresu** (patrz 5.1).
+
+Ekran jest **dwustopniowy**: „Podgląd” pokazuje liczbę odbiorców i treść tak, jak pójdzie w liście,
+i dopiero „Wyślij” wysyła. To jedyny moment, w którym pomyłkę („uczestnicy edycji” zamiast
+„zapisani do etapu”) da się jeszcze cofnąć. Adresów ekran nie pokazuje — koordynator sprawdza rząd
+wielkości, a nie pojedyncze wpisy.
+
+Każdy odbiorca dostaje **osobną kopertę**: lista adresów w `To:` pokazałaby każdemu uczestnikowi
+adresy wszystkich pozostałych. Wysyłka idzie porcjami po 50 adresów (`apps.accounts.messaging`,
+zadanie `send_broadcast_chunk` na kolejce `mail`), więc awaria jednej porcji nie kasuje reszty.
+
+Każda wysyłka zostaje w rejestrze `accounts.MessageBroadcast` (autor, data, grupa, temat, treść,
+liczba odbiorców, liczba listów przekazanych do kolejki, stan) i jest wypisana na tej samej stronie.
+**Rejestr nie trzyma adresów.** Stan „przekazana do wysyłki” znaczy, że listy trafiły do kolejki —
+o doręczeniu rozstrzyga serwer odbiorcy. Audyt: `broadcast.sent` z `{group, recipients, chunks}`.
+
+#### Eksport danych — `/coordinator/export/`
+
+Trzy zestawienia, każde w CSV i XLSX:
+
+- **uczestnicy edycji** — kod publiczny, imię, nazwisko, e-mail, szkoła, klasa, województwo, rok
+  urodzenia, telefon, stan konta oraz komplet zgód: stan, **wersja dokumentu** i data. Zgody idą
+  z dowodów (`ConsentRecord`), a nie z projekcji na profilu — arkusz ma odpowiadać na pytanie „na
+  co ta osoba się zgodziła i w jakiej wersji dokumentu”,
+- **wyniki etapu** — miejsce, kod, imię i nazwisko, szkoła, województwo, punkty za każde zadanie,
+  suma, status wpisu, kwalifikacja. Liczone na danych **bieżących** w trybie podglądu, więc eksport
+  działa także w trakcie oceniania: praca bez oceny liczy się wtedy jako 0 punktów,
+- **recenzje etapu** — id recenzji, kod uczestnika, zadanie, runda, adres recenzenta, stan, punkty,
+  daty. Uczestnik wyłącznie pod kodem: ocenianie jest ślepe i zestawienie recenzji tego nie znosi.
+
+CSV wychodzi strumieniem (`StreamingHttpResponse`), ze znacznikiem BOM i średnikiem jako
+separatorem — tak, żeby polski Excel otworzył go bez kreatora importu. XLSX składa `openpyxl`
+w trybie `write_only`. Audyt: `export.generated` z `{kind, format, rows}` — sam rodzaj eksportu
+i liczba wierszy, **nigdy dane**. Wpis powstaje przed oddaniem pliku.
+
+`openpyxl` jest od tej zmiany zwykłą zależnością w `backend/pyproject.toml`, a nie ekstrą `dev`:
+wcześniej czytał go wyłącznie ręczny import słownika szkół, a eksport działa na produkcji.
+
+#### Audyt — `/coordinator/audit/`
+
+Stronicowana lista wpisów `core.AuditLog` (100 na stronę, od najnowszego) z filtrami: fragment
+adresu e-mail wykonawcy, akcja (lista wyboru budowana **z danych**, nie ze spisu w kodzie), typ
+obiektu, przedział dat. Przedział jest obustronnie domknięty — „do 14 marca” obejmuje cały ten
+dzień. Nieparsowalna data jest traktowana jak brak filtra: adres z literówką ma pokazać listę,
+a nie stronę błędu.
+
+Wiersz pokazuje czas, wykonawcę, akcję, obiekt (`app.model#id`) i `diff` schowany pod `<details>`.
+Ekran **nie dokłada ani jednej informacji spoza wpisu** — `diff` z założenia nie zawiera danych
+osobowych (patrz `backend/apps/core/models.py`), a doklejenie nazwiska „dla czytelności”
+zamieniłoby ślad techniczny w wyciąg z bazy osobowej. Wpisów nie da się zmienić ani usunąć.
+
+#### Symulacja kwalifikacji — `/coordinator/stages/<id>/simulation/`
+
+„Co by było, gdyby próg wyglądał tak”. Formularz z trybem (`MIN_POINTS`, `TOP_N`,
+`TOP_N_PER_DISTRICT`, `HYBRID`) i jego liczbami; parametry jadą w adresie, więc wynik da się
+odświeżyć, zapisać w zakładkach i wkleić w wiadomości do reszty komitetu. Bez parametrów ekran
+pokazuje próg aktualnie zapisany przy etapie.
+
+Wynik: liczba zakwalifikowanych, liczba poza progiem, **punkt odcięcia** (najniższa suma, która
+jeszcze się kwalifikuje), rozkład po województwach (startujący / zakwalifikowani) i pełna tabela
+z odznaką „kwalifikuje się”. Przy trybie „N na województwo” progów jest tyle, ile województw —
+pokazany jest najniższy z nich i strona mówi o tym wprost.
+
+Symulacja **niczego nie zapisuje**: żądanie GET nie zmienia statusów wpisów, nie zakłada wpisów
+w następnym etapie i nie dotyka progu. Logika nie jest powielona — wiersze liczy
+`results.services.compute_stage_results(preview=True)`, a próg rozstrzyga ta sama funkcja, którą
+wywoła późniejsze `apply_qualification`. Tryb `preview` wyłącza bramę „ocenianie zakończone”
+(symulacja z definicji biegnie w trakcie oceniania) **i** zapis `StageEntry.total_points`. Praca bez
+oceny liczy się wtedy jako 0 punktów i ekran pisze, ilu prac jeszcze nie rozliczono.
+
+Przycisk **Zastosuj tę regułę do etapu** (POST) zapisuje `QualificationRule` i nic poza tym:
+nikogo nie kwalifikuje i niczego nie ogłasza. Wyniki przelicza się osobno, po zamknięciu okna
+reklamacji (6.6). Audyt: `stage.rule_updated` z parametrami przed i po.
 
 ## 7. Testy i kontrola jakości
 

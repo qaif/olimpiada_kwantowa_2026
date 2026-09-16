@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+  Symulacja progu kwalifikacji. Parametry jadą formularzem GET, więc wynik da się odświeżyć,
+  zapisać w zakładkach i wkleić w wiadomości do reszty komitetu – a dokładnie tak ustala się próg.
+
+  Samo wejście na stronę niczego nie zapisuje: tabela powstaje w trybie podglądu, a reguła jest
+  obiektem, którego nie ma w bazie. Stan etapu zmienia wyłącznie osobny przycisk „Zastosuj tę
+  regułę do etapu”, który jest POST-em i zostawia wpis w audycie.
+{% endcomment %}
+{% block title %}Symulacja kwalifikacji – {{ stage.display_name }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
+  <h1>Symulacja kwalifikacji: {{ stage.display_name }}</h1>
+  <p class="lead">Podgląd skutków progu, zanim ktokolwiek go ogłosi. Ta strona nie zmienia
+    statusów uczestników i nie zakłada wpisów w następnym etapie.</p>
+</div>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Próg</h2>
+    <p class="hint">
+      {% if rule %}Obecnie zapisany: <strong>{{ rule }}</strong>{% else %}Etap nie ma jeszcze zapisanego progu.{% endif %}
+    </p>
+  </div>
+  <div class="card">
+    {% comment %}
+      Każdy tryb potrzebuje innej pary liczb (minimum punktów, N, albo obu), więc oba pola stoją
+      zawsze, a komplet sprawdza dopiero serwis – tą samą walidacją modelu, którą przechodzi zapis.
+      Dzięki temu nie da się obejrzeć podglądu reguły, której potem nie da się zastosować.
+    {% endcomment %}
+    <form method="get" class="form">
+      {{ form.as_p }}
+      <div class="actions">
+        <button type="submit" class="btn btn--secondary">Przelicz podgląd</button>
+      </div>
+    </form>
+    {% if error %}<p class="msg msg-error">{{ error }}</p>{% endif %}
+  </div>
+</section>
+
+{% if result %}
+  <ul class="kpi">
+    <li class="kpi__item">
+      <span class="kpi__value">{{ result.qualified }}</span>
+      <span class="kpi__label">Zakwalifikowanych</span>
+    </li>
+    <li class="kpi__item">
+      <span class="kpi__value">{{ result.not_qualified }}</span>
+      <span class="kpi__label">Poza progiem</span>
+    </li>
+    <li class="kpi__item">
+      <span class="kpi__value">{% if result.cutoff is not None %}{{ result.cutoff }}{% else %}—{% endif %}</span>
+      <span class="kpi__label">Punkt odcięcia</span>
+    </li>
+    <li class="kpi__item{% if result.ungraded %} kpi__item--attention{% endif %}">
+      <span class="kpi__value">{{ result.ungraded }}</span>
+      <span class="kpi__label">Prac bez oceny</span>
+    </li>
+  </ul>
+
+  {% if result.ungraded %}
+    {% comment %}
+      Ostrzeżenie jest obowiązkowe: podgląd liczy pracę bez oceny jako zero punktów, więc przy
+      niedokończonym ocenianiu tabela pokazuje wynik, który jeszcze się zmieni. Bez tego zdania
+      liczba „zakwalifikowanych” wyglądałaby na ostateczną.
+    {% endcomment %}
+    <p class="msg msg-warning">Ocenianie nie jest skończone: {{ result.ungraded }} prac nie ma
+      jeszcze oceny końcowej i liczy się w tej tabeli jako 0 punktów.</p>
+  {% endif %}
+
+  <section class="section">
+    <div class="section__head">
+      <h2 class="mt-0">Województwa</h2>
+      <p class="hint">Punkt odcięcia to najniższa suma, która jeszcze się kwalifikuje. Przy trybie
+        „N na województwo” progów jest tyle, ile województw – powyżej stoi najniższy z nich.</p>
+    </div>
+    <div class="scroll">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Województwo</th>
+            <th scope="col">Startujących</th>
+            <th scope="col">Zakwalifikowanych</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in result.districts %}
+            <tr>
+              <th scope="row">{{ row.district }}</th>
+              <td class="num">{{ row.entered }}</td>
+              <td class="num total">{{ row.qualified }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="3" class="empty">Przy tym progu nikt się nie kwalifikuje.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section__head">
+      <h2 class="mt-0">Tabela</h2>
+      <span class="badge badge--danger">dane osobowe</span>
+    </div>
+    <div class="scroll">
+      <table class="table table--rank">
+        <thead>
+          <tr>
+            <th scope="col">Miejsce</th>
+            <th scope="col">Kod</th>
+            <th scope="col">Imię i nazwisko</th>
+            <th scope="col">Województwo</th>
+            <th scope="col">Razem</th>
+            <th scope="col">Kwalifikacja</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in result.rows %}
+            <tr>
+              <td>{{ row.rank }}</td>
+              <td><span class="code-chip">{{ row.public_code }}</span></td>
+              <td>{{ row.first_name }} {{ row.last_name }}</td>
+              <td>{{ row.district }}</td>
+              <td class="num total">{{ row.total }}</td>
+              <td>
+                {% if row.qualified %}
+                  <span class="badge badge--ok">kwalifikuje się</span>
+                {% else %}
+                  <span class="badge badge--neutral">nie</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6" class="empty">W tym etapie nie ma ani jednego wpisu.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {% if applied %}
+    <section class="section">
+      <div class="card">
+        <p>Zapisanie progu ustawia wyłącznie parametr etapu. Nikogo nie kwalifikuje i niczego nie
+          ogłasza – wyniki przelicza się osobno, po zamknięciu okna reklamacji.</p>
+        <form method="post" action="{% url 'web:coordinator-stage-rule-apply' stage.pk %}">
+          {% csrf_token %}
+          <input type="hidden" name="mode" value="{{ applied.mode }}">
+          <input type="hidden" name="min_points" value="{{ applied.min_points|default_if_none:'' }}">
+          <input type="hidden" name="top_n" value="{{ applied.top_n|default_if_none:'' }}">
+          <button type="submit" class="btn btn--primary">Zastosuj tę regułę do etapu</button>
+        </form>
+      </div>
+    </section>
+  {% endif %}
+{% endif %}
+{% endblock %}

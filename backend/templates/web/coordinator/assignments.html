@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Przydziały i oceny: {{ stage.display_name }} – panel koordynatora{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -7,6 +8,15 @@
   <p class="lead">Edycja {{ stage.edition.year_label }}. Ekran uzupełnia automatyczny przydział
     z pulpitu: tutaj wskazujesz recenzentów sam – dla całego zadania albo dla jednej pracy –
     oraz poprawiasz punkty, łącznie z oceną końcową.</p>
+  {% comment %}
+    Pobranie całego etapu stoi w nagłówku, bo jest czynnością nad całą stroną, a nie nad jednym
+    wierszem. Zakres węższy (zadanie, zaznaczone prace) jest przy odpowiednich tabelach niżej.
+  {% endcomment %}
+  <p class="actions">
+    <a class="btn btn--secondary" href="{% url 'web:coordinator-stage-download' stage.pk %}">Pobierz wszystkie prace (ZIP)</a>
+    <span class="hint">Po jednej, najnowszej przeskanowanej wersji każdej pracy. Nazwy plików
+      w archiwum są anonimowe: <code>kod_zadN_vM</code>.</span>
+  </p>
 </div>
 
 {% comment %}
@@ -55,6 +65,7 @@
           <th scope="col">Zadanie</th>
           <th scope="col">Recenzenci z reguł</th>
           <th scope="col">Dodaj regułę</th>
+          <th scope="col">Paczka</th>
         </tr>
       </thead>
       <tbody>
@@ -88,9 +99,19 @@
                 <button type="submit" class="btn btn--secondary btn--small">Dodaj regułę</button>
               </form>
             </td>
+            <td>
+              {% comment %}
+                Paczka jednego zadania: tyle, ile komisja czyta za jednym posiedzeniem. To drugi
+                sposób na „zaznacz zadania” – szybszy niż odklikiwanie wierszy, gdy chodzi o całe
+                zadanie.
+              {% endcomment %}
+              <a class="btn btn--secondary btn--small"
+                 href="{% url 'web:coordinator-stage-download' stage.pk %}?problem={{ row.problem.pk }}">
+                Pobierz ZIP zadania {{ row.problem.number }}</a>
+            </td>
           </tr>
         {% empty %}
-          <tr><td colspan="4" class="empty">Ten etap nie ma jeszcze zadań.</td></tr>
+          <tr><td colspan="5" class="empty">Ten etap nie ma jeszcze zadań.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -118,14 +139,34 @@
     {% endif %}
   </form>
 
+  {% comment %}
+    Formularz pobierania stoi **poza** tabelą, a kratki wierszy należą do niego przez atrybut
+    ``form``: w tabeli są już formularze ocen i przydziału, a formularzy nie wolno zagnieżdżać.
+    Skutek uboczny jest korzystny – zaznaczanie działa bez JavaScriptu, a skrypt dokłada wyłącznie
+    kratkę „zaznacz wszystkie”.
+  {% endcomment %}
+  <form id="stage-zip" method="post" action="{% url 'web:coordinator-stage-download' stage.pk %}"
+        class="actions">
+    {% csrf_token %}
+    <button type="submit" class="btn btn--secondary btn--small">Pobierz zaznaczone (ZIP)</button>
+    <span class="hint">Zaznacz prace w tabeli poniżej. Bez zaznaczenia użyj „Pobierz wszystkie
+      prace (ZIP)” u góry strony.</span>
+  </form>
+
   <div class="scroll">
     <table class="table">
       <thead>
         <tr>
+          <th scope="col">
+            <input type="checkbox" hidden data-select-all="stage-zip" id="select-all-stage-zip">
+            <label class="visually-hidden" hidden data-select-all-label="stage-zip"
+                   for="select-all-stage-zip">Zaznacz wszystkie prace</label>
+          </th>
           <th scope="col">Kod</th>
           <th scope="col">Uczestnik</th>
           <th scope="col">Zad.</th>
           <th scope="col">Status</th>
+          <th scope="col">Plik</th>
           <th scope="col">Recenzje i punkty</th>
           <th scope="col">Ocena końcowa</th>
           <th scope="col">Przydziel</th>
@@ -134,22 +175,45 @@
       <tbody>
         {% for row in submission_rows %}
           <tr>
+            <td>
+              <input type="checkbox" form="stage-zip" name="submission_ids"
+                     value="{{ row.submission.pk }}" id="pick-{{ row.submission.pk }}">
+              <label class="visually-hidden" for="pick-{{ row.submission.pk }}">Zaznacz pracę
+                {{ row.submission.entry.participant.public_code }}, zadanie
+                {{ row.submission.problem.number }}</label>
+            </td>
             <th scope="row">{{ row.submission.entry.participant.public_code }}</th>
             <td>{{ row.submission.entry.participant.user.get_full_name|default:row.submission.entry.participant.user.email }}</td>
             <td class="num">{{ row.submission.problem.number }}</td>
             <td>{{ row.submission.get_status_display }}</td>
             <td>
+              {% comment %}
+                Pobranie pojedynczej pracy: nazwa pliku jest anonimowa także dla koordynatora,
+                bo ``original_name`` od uczestnika bywa jego nazwiskiem. Plik przed skanem
+                antywirusowym pobiera wyłącznie jego autor – stąd sama podpowiedź zamiast odnośnika.
+              {% endcomment %}
+              {% if row.downloadable %}
+                <a class="btn btn--secondary btn--small"
+                   href="{% url 'submissions:submission-download' row.submission.pk %}">Pobierz</a>
+              {% elif row.scan_pending %}
+                <span class="hint">skan w toku</span>
+              {% else %}
+                <span class="hint">brak pliku</span>
+              {% endif %}
+            </td>
+            <td>
               {% for review in row.reviews %}
                 <div class="actions">
                   <span>{{ review.reviewer.user.email }} – {{ review.get_status_display }}{% if review.round != 1 %} (runda {{ review.round }}){% endif %}:
                     <strong>{% if review.score is not None %}{{ review.score }} pkt{% else %}—{% endif %}</strong></span>
-                  {% if scale_values %}
-                    {# Punkty ze skali etapu, nie wolne pole: ocena spoza skali i tak nie przejdzie. #}
+                  {% if row.scale_values %}
+                    {# Punkty ze skali **zadania** (a w jej braku – etapu), nie wolne pole:
+                       ocena spoza skali i tak nie przejdzie przez serwis. #}
                     <form method="post" action="{% url 'web:coordinator-review-score' review.pk %}">
                       {% csrf_token %}
                       <label class="visually-hidden" for="score-{{ review.pk }}">Punkty</label>
                       <select id="score-{{ review.pk }}" name="score">
-                        {% for value in scale_values %}
+                        {% for value in row.scale_values %}
                           <option value="{{ value }}"{% if review.score == value %} selected{% endif %}>{{ value }}</option>
                         {% endfor %}
                       </select>
@@ -185,7 +249,7 @@
                   której nikt już nie przeczyta. Formularz więc nie stoi, a hint mówi, czego brakuje.
                 {% endcomment %}
                 <p class="hint">Praca nie jest jeszcze w ocenie – najpierw „Zablokuj do oceny”.</p>
-              {% elif scale_values %}
+              {% elif row.scale_values %}
                 {% comment %}
                   Formularz stoi w każdym wierszu, także bez recenzji: praca, której nikt nie ocenił,
                   jest głównym powodem, dla którego ten tryb w ogóle istnieje.
@@ -197,7 +261,7 @@
                   {% endif %}
                   <label for="final-score-{{ row.submission.pk }}">Punkty</label>
                   <select id="final-score-{{ row.submission.pk }}" name="score">
-                    {% for value in scale_values %}
+                    {% for value in row.scale_values %}
                       <option value="{{ value }}"{% if row.final_grade.score == value %} selected{% endif %}>{{ value }}</option>
                     {% endfor %}
                   </select>
@@ -206,7 +270,9 @@
                   <button type="submit" class="btn btn--primary btn--small">Zapisz korektę</button>
                 </form>
               {% else %}
-                <p class="hint">Etap nie ma skali punktacji – ustaw ją w adminie.</p>
+                <p class="hint">To zadanie nie ma skali punktacji –
+                  <a href="{% url 'web:coordinator-stage-scale' stage.pk %}">ustaw skalę etapu</a>
+                  albo skalę zadania w jego formularzu.</p>
               {% endif %}
             </td>
             <td>
@@ -236,7 +302,7 @@
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="7" class="empty">
+          <tr><td colspan="9" class="empty">
             {% if query %}Żadna praca nie pasuje do zapytania „{{ query }}”.
             {% else %}Ten etap nie ma jeszcze oddanych prac. Kiedy się pojawią, wciągnij je do
               oceniania przyciskiem „Zablokuj do oceny” albo zamknij etap.{% endif %}
@@ -246,4 +312,12 @@
     </table>
   </div>
 </section>
+{% endblock %}
+
+{% comment %}
+  Jedyny skrypt tej strony: odsłania i obsługuje kratkę „zaznacz wszystkie”. Z nonce, bo polityka
+  CSP nie dopuszcza skryptów inline – a bez niego strona działa, tylko zaznacza się po jednym.
+{% endcomment %}
+{% block page_scripts %}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/select-all.js' %}"></script>
 {% endblock %}

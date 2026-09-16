@@ -29,6 +29,14 @@ dependencies = [
     # używa Wagtail), wyzwanie leży w naszej bazie, a obrazek jest serwowany spod naszego adresu:
     # nie ma tu żadnego trzeciego podmiotu ani ciasteczka, czyli polityka cookies zostaje prawdziwa.
     "django-simple-captcha>=0.6,<0.7",
+    # Arkusze .xlsx w obie strony: odczyt wykazu SIO przy budowaniu słownika szkół
+    # (``apps.schools.sio``) i zapis eksportów koordynatora (``apps.core.exports``). Zależność
+    # była wcześniej w ekstrze ``dev``, bo czytał ją wyłącznie import słownika uruchamiany ręcznie.
+    # Eksport działa w panelu, czyli na produkcji – biblioteka musi więc być w zwykłych
+    # zależnościach, a nie tylko tam, gdzie akurat instaluje się także narzędzia deweloperskie.
+    # (Wagtail ciągnie openpyxl tranzytywnie, ale zależność, na której stoi nasz kod, ma być
+    # nazwana wprost – inaczej usunięcie jej z Wagtaila wywróciłoby eksport bez ostrzeżenia.)
+    "openpyxl>=3.1,<4.0",
 ]
 
 [project.optional-dependencies]
@@ -39,9 +47,6 @@ dev = [
     "factory-boy>=3.3",
     "freezegun>=1.5",
     "ruff>=0.6",
-    # Odczyt wykazu SIO (.xlsx) przy budowaniu słownika szkół – ``apps.schools.sio`` i jego testy.
-    # Wagtail i tak ciągnie openpyxl, ale zależność, na której stoi nasz kod, ma być nazwana wprost.
-    "openpyxl>=3.1,<4.0",
     # Skład PDF-ów zadań treningowych (``apps.competitions.training_pdf`` i wołający go skrypt
     # ``scripts/build_training_problem_pdfs.py``). Świadomie **tylko** w ekstrze dev: gotowe PDF-y
     # leżą w repozytorium, a produkcja je wgrywa, więc obraz produkcyjny nie musi umieć składać

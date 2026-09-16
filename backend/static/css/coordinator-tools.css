@@ -1,0 +1,157 @@
+/* =================================================================================================
+   Narzędzia koordynatora: pasek postępu oceniania, podgląd komunikatu i tabela audytu.
+
+   Osobny arkusz od ``app.css``, a nie kolejna sekcja w nim, z dwóch powodów:
+
+   - te reguły obowiązują na pięciu ekranach panelu i nigdzie indziej, a ``app.css`` jedzie
+     na każdej stronie serwisu – łącznie ze stroną główną, którą otwiera kilkanaście tysięcy osób,
+   - lista klas szerokości segmentu (``--w0`` … ``--w100``) to kilkanaście reguł, które w arkuszu
+     ogólnym wyglądałyby jak śmieć, a tutaj mają obok siebie wyjaśnienie, po co istnieją.
+
+   Skąd w ogóle klasy szerokości zamiast ``style="width: 42%"``: polityka bezpieczeństwa serwisu
+   nie dopuszcza stylu wpisanego w dokument. Szerokość segmentu musi więc być nazwą z zamkniętej
+   listy, a lista skacze co 5% – dokładne liczby stoją obok paska i to one są odpowiedzią.
+   Pasek pokazuje proporcje, nie wynik pomiaru.
+
+   Tokeny (kolory, odstępy, promienie) pochodzą z ``app.css`` i nie są tu ani razu powtarzane,
+   więc ciemny wariant działa bez jednej dodatkowej reguły.
+   ============================================================================================== */
+
+/* --- pasek postępu oceniania ------------------------------------------------------------------ */
+
+.progress {
+  display: flex;
+  width: 100%;
+  height: 1.5rem;
+  margin: var(--sp-3) 0 var(--sp-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface-inset);
+  overflow: hidden;
+}
+
+.progress__seg {
+  /* ``flex-shrink`` pozwala segmentom zmieścić się nawet wtedy, gdy zaokrąglenia dadzą sumę
+     minimalnie ponad 100% – pasek nie może rozepchnąć karty. */
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* Segmenty w kolejności drogi pracy przez system: od „dopiero oddane” (neutralny) przez
+   „w ocenie” (informacja) do „ocenione” (sukces). Moderacja i reklamacja są ostrzeżeniem,
+   bo obie znaczą „ktoś musi usiąść i rozstrzygnąć”. */
+.progress__seg--submitted { background: var(--neutral-soft); }
+.progress__seg--locked { background: var(--info-soft); }
+.progress__seg--assigned { background: var(--info); }
+.progress__seg--moderation { background: var(--warn); }
+.progress__seg--appealed { background: var(--danger); }
+.progress__seg--graded { background: var(--ok); }
+.progress__seg--rejected { background: var(--line-strong); }
+
+/* Szerokości co 5%. Zero znaczy „tego stanu nie ma” – segment znika całkowicie, żeby nie
+   zostawiać włosowej kreski, którą dałoby się wziąć za jedną pracę. */
+.progress__seg--w0 { display: none; }
+.progress__seg--w5 { width: 5%; }
+.progress__seg--w10 { width: 10%; }
+.progress__seg--w15 { width: 15%; }
+.progress__seg--w20 { width: 20%; }
+.progress__seg--w25 { width: 25%; }
+.progress__seg--w30 { width: 30%; }
+.progress__seg--w35 { width: 35%; }
+.progress__seg--w40 { width: 40%; }
+.progress__seg--w45 { width: 45%; }
+.progress__seg--w50 { width: 50%; }
+.progress__seg--w55 { width: 55%; }
+.progress__seg--w60 { width: 60%; }
+.progress__seg--w65 { width: 65%; }
+.progress__seg--w70 { width: 70%; }
+.progress__seg--w75 { width: 75%; }
+.progress__seg--w80 { width: 80%; }
+.progress__seg--w85 { width: 85%; }
+.progress__seg--w90 { width: 90%; }
+.progress__seg--w95 { width: 95%; }
+.progress__seg--w100 { width: 100%; }
+
+/* Legenda pod paskiem: kwadrat w kolorze segmentu, etykieta i liczba. Lista, a nie tabela,
+   bo to podpis obrazka – tabela z liczbami stoi osobno i jest właściwą odpowiedzią. */
+.progress-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  margin: 0 0 var(--sp-4);
+  padding: 0;
+  list-style: none;
+}
+
+.progress-legend__item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+
+.progress-legend__swatch {
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  /* Kwadrat jest wyłącznie ozdobą: etykieta obok niego niesie tę samą informację słowem,
+     więc czytnik ekranu nie musi go w ogóle widzieć (``aria-hidden`` w szablonie). */
+  flex: 0 0 auto;
+  align-self: center;
+}
+
+.progress-legend__count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* --- podgląd komunikatu ----------------------------------------------------------------------- */
+
+/* Treść listu w podglądzie: czcionka o stałej szerokości i zachowane łamanie wierszy, bo dokładnie
+   tak zobaczy ją odbiorca w kliencie pocztowym (list jest tekstowy). Proporcjonalny krój
+   zacierałby to, jak układa się lista terminów albo wcięcie pod podpisem. */
+.mail-preview {
+  margin: 0;
+  padding: var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* --- tabela audytu ---------------------------------------------------------------------------- */
+
+/* ``diff`` wpisu audytowego jest strukturą techniczną i bywa długi. Pod ``<details>`` zajmuje
+   jeden wiersz, dopóki ktoś go nie otworzy – i to jest cała mechanika, bez jednej linii skryptu. */
+.audit-diff {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.audit-diff__summary {
+  cursor: pointer;
+  color: var(--link);
+}
+
+.audit-diff__body {
+  margin: var(--sp-2) 0 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-inset);
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Kolumna czasu nie może się łamać – „2026-03-14 08:12” w dwóch wierszach rozjeżdża całą tabelę. */
+.audit-when {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}

@@ -18,6 +18,15 @@
     <span>Limit pliku: <strong>{{ row.problem.max_file_mb }} MB</strong></span>
   </p>
 
+  {% comment %}
+    Ścieżka oceniania stoi nad uploadem, a nie pod historią wersji: odpowiada na pytanie, które
+    uczestnik zadaje **przed** kliknięciem („czy moja praca jest już czytana?”), a nie po nim.
+    Punktów nie niesie – te są dostępne dopiero po ogłoszeniu wyników etapu.
+  {% endcomment %}
+  {% if row.track %}
+    {% include "web/participant/_status_track.html" with track=row.track %}
+  {% endif %}
+
   {% if error %}<p class="msg msg-error">{{ error }}</p>{% endif %}
 
   {% if upload_open %}
@@ -47,7 +56,13 @@
         <label class="dropzone__label" for="file-{{ row.problem.pk }}">Plik rozwiązania</label>
         <span class="dropzone__hint">Każda wysyłka tworzy nową wersję – poprzednie zostają
           w historii poniżej.</span>
+        {% comment %}
+          ``accept`` zawęża okno wyboru pliku do formatów zadania (zdjęcie ma dwa rozszerzenia:
+          ``.jpg`` i ``.jpeg``). To uprzejmość, nie zabezpieczenie – o przyjęciu pliku decyduje
+          jego treść po stronie serwera (``submissions.validators``).
+        {% endcomment %}
         <input type="file" name="file" id="file-{{ row.problem.pk }}" required
+               accept="{{ row.problem.accept_attribute }}"
                aria-label="Plik rozwiązania zadania {{ row.problem.number }}">
         <button type="submit" class="btn btn--primary">Wyślij rozwiązanie</button>
       </div>
@@ -60,7 +75,7 @@
     <table class="table versions">
       <caption>Wysłane wersje</caption>
       <thead>
-        <tr><th>Wersja</th><th>Wysłano (czas polski)</th><th>Status pracy</th><th>Skan antywirusowy</th></tr>
+        <tr><th>Wersja</th><th>Wysłano (czas polski)</th><th>Status pracy</th><th>Skan antywirusowy</th><th>Plik</th></tr>
       </thead>
       <tbody>
         {% for submission in row.versions %}
@@ -69,18 +84,32 @@
               <span class="badge badge--warn">po terminie</span>{% endif %}</td>
             <td>{{ submission.submitted_at|local_datetime }}</td>
             <td><span class="{{ submission.status|badge_class }}">{{ submission.get_status_display }}</span></td>
-            <td>
-              {% with file=submission.latest_file %}
+            {% with file=submission.latest_file %}
+              <td>
                 {% if file %}
                   <span class="{{ file.av_status|badge_class }}">{{ file.get_av_status_display }}</span>
                 {% else %}
                   <span class="hint">brak pliku</span>
                 {% endif %}
-              {% endwith %}
-            </td>
+              </td>
+              <td>
+                {% comment %}
+                  Uczestnik pobiera **każdą** swoją wersję, także tę jeszcze nieprzeskanowaną:
+                  to jego plik, a wstrzymanie go do końca skanu nikogo by nie chroniło (serwer
+                  decyduje o tym tak samo – patrz ``SubmissionDownloadView``). Nazwa pliku wraca
+                  ta, którą uczestnik wysłał; anonimowa jest dopiero dla pozostałych ról.
+                {% endcomment %}
+                {% if file %}
+                  <a class="btn btn--secondary btn--small"
+                     href="{% url 'submissions:submission-download' submission.pk %}">Pobierz</a>
+                {% else %}
+                  <span class="hint">—</span>
+                {% endif %}
+              </td>
+            {% endwith %}
           </tr>
         {% empty %}
-          <tr><td colspan="4" class="empty">Brak wysłanych wersji.</td></tr>
+          <tr><td colspan="5" class="empty">Brak wysłanych wersji.</td></tr>
         {% endfor %}
       </tbody>
     </table>

@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% load web_extras %}
+{% block title %}Materiały i zadania archiwalne{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">Panel uczestnika</span>
+  <h1>Materiały i zadania archiwalne</h1>
+  <p class="lead">Zadania z zakończonych edycji, arkusz treningowy i harmonogram warsztatów.
+    Ta strona jest wyłącznie do czytania – jedyne miejsce, w którym można jeszcze oddać
+    rozwiązanie, to etap treningowy.</p>
+  <p class="actions">
+    <a class="btn btn--secondary btn--small" href="{% url 'web:me' %}">Wróć do panelu</a>
+  </p>
+</div>
+
+{% comment %}
+  Arkusz treningowy stoi na górze, bo jest jedyną częścią archiwum, z którą da się coś zrobić:
+  te same zadania wolno rozwiązać „na sucho” i przejść na nich całą ścieżkę oceniania. Upload
+  mieszka na karcie treningowej pulpitu i archiwum go nie powiela – powielona karta uploadu
+  byłaby drugim miejscem, w którym trzeba pilnować deadline'u i skanu.
+{% endcomment %}
+{% if training_stage %}
+  <section class="section" id="trening">
+    <div class="section__head">
+      <h2 class="mt-0">{{ training_stage.display_name }}</h2>
+      <span class="badge badge--neutral">poza zawodami</span>
+    </div>
+    <p class="hint">Zadania treningowe nie wpływają na wyniki zawodów. Rozwiązanie wysyła się
+      na karcie treningowej w panelu.</p>
+    {% if training_problems %}
+      <div class="scroll">
+        <table class="table">
+          <caption>Zadania treningowe</caption>
+          <thead>
+            <tr><th scope="col">Zadanie</th><th scope="col">Treść</th><th scope="col">Rozwiązanie</th></tr>
+          </thead>
+          <tbody>
+            {% for row in training_problems %}
+              <tr>
+                <td>{{ row.problem.number }}. {{ row.problem.title }}</td>
+                <td>
+                  {% if row.has_statement %}
+                    <a class="btn btn--secondary btn--small"
+                       href="{% url 'competitions:problem-statement' row.problem.pk %}">Pobierz PDF</a>
+                  {% else %}
+                    <span class="hint">brak pliku</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if training_entry %}
+                    <a class="btn btn--primary btn--small"
+                       href="{% url 'web:me' %}#trening">Oddaj rozwiązanie na sucho</a>
+                  {% else %}
+                    <a class="btn btn--secondary btn--small"
+                       href="{% url 'web:me' %}#trening">Zgłoś się do treningu</a>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="empty"><span class="empty__title">Brak zadań</span>
+        Etap treningowy nie ma jeszcze opublikowanych zadań.</p>
+    {% endif %}
+  </section>
+{% endif %}
+
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Zadania z poprzednich edycji</h2></div>
+  {% comment %}
+    Treść zadania jest jawna dopiero po otwarciu etapu i pilnuje tego widok pliku
+    (``competitions.ProblemStatementView``). Lista poniżej powtarza ten warunek wyłącznie po to,
+    żeby nie proponować odnośnika, który i tak odpowie 404.
+  {% endcomment %}
+  {% for row in editions %}
+    <article class="card">
+      <h3 class="mt-0">{{ row.edition.year_label }}</h3>
+      {% for stage_row in row.stages %}
+        <h4>{{ stage_row.stage.display_name }}</h4>
+        <ul class="plain-list">
+          {% for problem_row in stage_row.problems %}
+            <li>
+              {{ problem_row.problem.number }}. {{ problem_row.problem.title }} –
+              {% if problem_row.has_statement %}
+                <a href="{% url 'competitions:problem-statement' problem_row.problem.pk %}">treść (PDF)</a>
+              {% else %}
+                <span class="hint">treść niedostępna</span>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% endfor %}
+    </article>
+  {% empty %}
+    <p class="empty"><span class="empty__title">Archiwum jest puste</span>
+      Nie ma jeszcze zakończonych edycji z opublikowanymi zadaniami.</p>
+  {% endfor %}
+</section>
+
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Warsztaty</h2></div>
+  {% comment %}
+    Harmonogram warsztatów jest treścią redakcyjną i nie ma w modelu pola na załącznik –
+    materiały redakcja publikuje w akapitach strony „Warsztaty”. Archiwum wypisuje więc terminy
+    i odsyła tam, zamiast udawać listę plików, której nie ma.
+  {% endcomment %}
+  {% if workshops %}
+    <div class="scroll">
+      <table class="table">
+        <caption>Warsztaty online – materiały i zapisy na stronie „Warsztaty”.</caption>
+        <thead><tr><th scope="col">Termin</th><th scope="col">Temat</th></tr></thead>
+        <tbody>
+          {% for workshop in workshops %}
+            <tr>
+              <td>{{ workshop.date_value|date:"j E Y" }}</td>
+              <td><a href="{{ workshop.url }}">{{ workshop.topic|default:"Warsztaty" }}</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="empty"><span class="empty__title">Brak warsztatów</span>
+      Harmonogram warsztatów nie jest jeszcze opublikowany.</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -11,7 +11,7 @@ import hashlib
 import logging
 
 from django.db import transaction
-from django.db.models import Max
+from django.db.models import Max, Prefetch
 from django.utils import timezone
 from rest_framework import status
 
@@ -19,6 +19,8 @@ from apps.competitions.models import Problem, Stage, StageEntry, StageEntryStatu
 from apps.core.api import DomainError
 
 from .models import AvStatus, Submission, SubmissionFile, SubmissionStatus
+from .notifications import notify_submission_infected, notify_submission_received
+from .packaging import ZipPackage, build_zip
 from .storage import build_object_key, get_submission_storage
 from .validators import validate_upload
 
@@ -169,6 +171,9 @@ def create_submission(
         scan_submission_file.delay(file_id)
 
     transaction.on_commit(_enqueue_scan)
+    # Potwierdzenie przyjęcia pracy. Treść listu należy do ``notifications``, a nie tutaj – ten
+    # serwis ma wiedzieć, **że** uczestnik dostaje potwierdzenie, a nie co w nim stoi.
+    notify_submission_received(submission, submission_file)
     return submission
 
 
@@ -362,6 +367,116 @@ def review_counters(stage: Stage) -> dict:
     }
 
 
+# --- paczka ZIP dla koordynatora ---------------------------------------------------------------
+
+
+def _with_files(queryset):
+    """Zgłoszenia z doczytanym plikiem – ``latest_file`` czyta wtedy cache prefetchu, nie bazę."""
+    return queryset.select_related("entry", "entry__participant", "problem").prefetch_related(
+        Prefetch("files", queryset=SubmissionFile.objects.order_by("-id"))
+    )
+
+
+def downloadable_submissions(stage: Stage, *, problem: Problem | None = None) -> list[Submission]:
+    """Po jednej pracy na parę (wpis, zadanie): **najnowsza wersja z czystym plikiem**.
+
+    Reguła jest ta sama, co przy przeliczaniu wyników (``results.services._latest_submissions``):
+    wersja odrzucona przez antywirusa nigdy nie weszła do oceniania, więc liczy się ostatnia
+    wersja przed nią. Gdyby paczka brała bezwarunkowo wersję najnowszą, jeden zainfekowany plik
+    zabierałby komitetowi całą pracę uczestnika – a ocenia się właśnie tę wcześniejszą.
+
+    Praca, która nie ma ani jednej czystej wersji (trwa skan), nie trafia do paczki. Stan skanu
+    widać przy pojedynczym wierszu w panelu, więc paczka nie musi się z tego tłumaczyć.
+    """
+    rows = _with_files(
+        Submission.objects.filter(entry__stage=stage).exclude(status=SubmissionStatus.REJECTED_INFECTED)
+    ).order_by("entry_id", "problem_id", "-version")
+    if problem is not None:
+        rows = rows.filter(problem=problem)
+    best: dict[tuple[int, int], Submission] = {}
+    for submission in rows:
+        key = (submission.entry_id, submission.problem_id)
+        if key in best:
+            continue
+        submission_file = submission.latest_file
+        if submission_file is None or not submission_file.is_clean:
+            continue  # schodzimy do wcześniejszej wersji tej samej pracy
+        best[key] = submission
+    return sorted(best.values(), key=lambda item: (item.entry.participant.public_code, item.problem.number))
+
+
+def selected_submissions(stage: Stage, submission_ids) -> list[Submission]:
+    """Zaznaczone wiersze tabeli przydziałów, zawężone do etapu.
+
+    Zawężenie po ``entry__stage`` **jest** walidacją: identyfikator z cudzego etapu po prostu nie
+    wchodzi do wyniku. Nie ma tu innej drogi – lista identyfikatorów przychodzi z formularza, więc
+    musi być traktowana jak dane od klienta, a nie jak zbiór, który sami wyliczyliśmy.
+
+    Zaznaczenia **nie** zwijamy do jednej wersji na zadanie: koordynator wskazał konkretne wiersze
+    i paczka ma zawierać dokładnie je, a nie ich starsze wersje.
+    """
+    wanted = [int(value) for value in submission_ids]
+    rows = _with_files(Submission.objects.filter(entry__stage=stage, pk__in=wanted))
+    return sorted(rows, key=lambda item: (item.entry.participant.public_code, item.problem.number))
+
+
+def stage_zip_filename(stage: Stage, *, problem: Problem | None = None, selected: bool = False) -> str:
+    """Nazwa pobieranego archiwum. Sama mówi, co jest w środku – bez otwierania go."""
+    if selected:
+        return f"etap-{stage.pk}-zaznaczone.zip"
+    if problem is not None:
+        return f"etap-{stage.pk}-zadanie-{problem.number}.zip"
+    return f"etap-{stage.pk}-rozwiazania.zip"
+
+
+def build_stage_zip(
+    stage: Stage,
+    *,
+    actor=None,
+    request=None,
+    problem: Problem | None = None,
+    submission_ids=None,
+) -> ZipPackage:
+    """Paczka prac etapu dla koordynatora: całość, jedno zadanie albo zaznaczone wiersze.
+
+    Trzy zakresy, jeden serwis i jedna nazwa pliku w archiwum – inaczej ta sama praca pobrana
+    dwiema drogami miałaby dwie różne nazwy i nie dałoby się ich zestawić.
+
+    Audyt (``stage.downloaded_zip``) notuje **liczbę** prac, zakres i ewentualne zadanie. Nazw
+    plików tam nie ma: pseudonim uczestnika w zestawieniu z etapem i zadaniem jest już informacją
+    o konkretnej osobie, a wpisy audytu czyta także ktoś, kto nie ma prawa do danych uczestników.
+    """
+    from apps.core.models import audit
+
+    if submission_ids is not None:
+        submissions = selected_submissions(stage, submission_ids)
+        scope = "selected"
+    else:
+        submissions = downloadable_submissions(stage, problem=problem)
+        scope = "problem" if problem is not None else "stage"
+    package = build_zip(
+        submissions,
+        header=(
+            f"Rozwiązania etapu: {stage.display_name}"
+            + (f", zadanie {problem.number}" if problem is not None else "")
+            + ". Nazwy plików są anonimowe: <kod uczestnika>_zad<numer>_v<wersja>."
+        ),
+    )
+    if package.count == 0:
+        package.stream.close()
+        raise DomainError(
+            "Brak prac do pobrania w tym zakresie.", "NO_SUBMISSIONS", status.HTTP_404_NOT_FOUND
+        )
+    audit(
+        actor,
+        "stage.downloaded_zip",
+        stage,
+        {"count": package.count, "scope": scope, "problem": problem.pk if problem is not None else None},
+        request=request,
+    )
+    return package
+
+
 @transaction.atomic
 def close_stage_now(stage: Stage, *, actor=None, request=None) -> int:
     """Ręczne zamknięcie etapu przez koordynatora (panel WWW, T-08).
@@ -468,6 +583,9 @@ def apply_scan_verdict(submission_file: SubmissionFile, verdict: str, signature:
             submission.save(update_fields=["status"])
             if stage_closed:
                 _lock_fallback_version(submission)
+            # Werdykt „czysty” jest cichy, odrzucenie – nie: uczestnik musi się dowiedzieć, że
+            # jego wersja nie wejdzie do oceniania, póki etap jest jeszcze otwarty.
+            notify_submission_infected(submission, locked)
         elif submission.status == SubmissionStatus.SCANNING:
             # CLEAN wraca do SUBMITTED (albo od razu do LOCKED, jeśli etap zdążył się zamknąć);
             # statusów dalszych w cyklu życia skan nie cofa.

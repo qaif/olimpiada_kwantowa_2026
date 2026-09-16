@@ -11,7 +11,7 @@
   {% else %}
     <h1>Nowy etap{% if edition %}: {{ edition.year_label }}{% endif %}</h1>
     <p class="lead">Etap powstaje razem z domyślną skalą punktacji (0/2/5/6) i progiem kwalifikacji.
-      Obie wartości zmienisz później w panelu administracyjnym.</p>
+      Skalę zmienisz później na ekranie „Skala punktacji”, próg – w panelu administracyjnym.</p>
   {% endif %}
 </div>
 
@@ -31,6 +31,8 @@
       {% endif %}
       <dt>Rozwiązania</dt>
       <dd>{% if has_submissions %}etap ma oddane prace{% else %}brak{% endif %}</dd>
+      <dt>Skala punktacji</dt>
+      <dd><a href="{% url 'web:coordinator-stage-scale' stage.pk %}">zmień skalę punktacji etapu</a></dd>
       <dt>Wyniki ogłoszone</dt>
       <dd>{{ stage.results_published_at|local_datetime|default:"nie" }}</dd>
     </dl>

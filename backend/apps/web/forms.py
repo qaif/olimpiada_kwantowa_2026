@@ -43,6 +43,7 @@ from apps.competitions.models import (
 )
 from apps.competitions.services import REGISTRATION_EDITABLE_FIELDS, STAGE_EDITABLE_FIELDS
 from apps.core.api import DomainError
+from apps.grading.rubric import criteria_for, format_criteria_lines, parse_criteria_lines
 from apps.results.models import Anonymization
 from apps.submissions.validators import MEGABYTE, validate_pdf
 from apps.web.captcha import CaptchaFormMixin
@@ -839,6 +840,91 @@ def _to_minute(value):
 #: etapu ma kilka zadań – trzycyfrowy numer to zawsze literówka, a nie plan zawodów.
 MAX_PROBLEM_NUMBER = 99
 
+#: Górna granica pojedynczej oceny w formularzach skali. Ta sama, co przy wpisywaniu punktów.
+MAX_SCALE_VALUE = 1000
+
+#: Podpisy formatów rozwiązań w formularzu zadania. Domyślnie wystarcza samo rozszerzenie, ale
+#: „.jpg” nie mówi koordynatorowi, **po co** ten format istnieje – a jest nim zdjęcie kartki
+#: zrobione telefonem przez uczestnika bez skanera.
+FORMAT_LABELS = {"jpg": "JPEG (zdjęcie rozwiązania)"}
+
+#: Podpowiedź pod polem skali. Jedna dla etapu i dla zadania – to ten sam zapis.
+SCALE_HELP_TEXT = (
+    "Po jednej pozycji w wierszu, w postaci „wartość;opis”, wartości rosnąco i koniecznie z zerem, "
+    "np. „0;brak istotnego postępu”. Opis widzi recenzent przy wyborze oceny."
+)
+
+
+def parse_scale_lines(text: str) -> list[dict]:
+    """Zamienia tekst „wartość;opis” (po jednej pozycji w wierszu) na listę pozycji skali.
+
+    Textarea zamiast formsetu, bo skala ma kilka pozycji i wpisuje się ją raz na edycję – formset
+    kosztowałby JavaScript (dodawanie i usuwanie wierszy), a strict CSP nie ma tu miejsca na wyspę
+    skryptu dla czynności, którą da się zrobić jednym polem tekstowym.
+
+    Numer wiersza wchodzi do komunikatu, bo przy ośmiu pozycjach „zła wartość” bez wskazania,
+    której, jest zagadką. Sensu skali (zero, kolejność, unikalność, zgodność z maksimum) ta funkcja
+    **nie** sprawdza – to reguła domenowa i stoi w ``competitions.models.validate_scoring_values``,
+    wołanej przez ``full_clean()`` przy zapisie.
+    """
+    values: list[dict] = []
+    for number, raw in enumerate(text.splitlines(), start=1):
+        line = raw.strip()
+        if not line:
+            continue
+        head, separator, label = line.partition(";")
+        if not separator:
+            raise forms.ValidationError(
+                f"Wiersz {number}: brakuje średnika. Zapis to „wartość;opis”, np. „2;istotny postęp”."
+            )
+        try:
+            value = int(head.strip())
+        except ValueError as exc:
+            raise forms.ValidationError(
+                f"Wiersz {number}: „{head.strip()}” nie jest liczbą całkowitą."
+            ) from exc
+        if not 0 <= value <= MAX_SCALE_VALUE:
+            raise forms.ValidationError(f"Wiersz {number}: wartość musi mieścić się w 0–{MAX_SCALE_VALUE}.")
+        if not label.strip():
+            raise forms.ValidationError(f"Wiersz {number}: brakuje opisu po średniku.")
+        values.append({"value": value, "label": label.strip()})
+    if not values:
+        raise forms.ValidationError("Skala musi mieć co najmniej jedną pozycję.")
+    return values
+
+
+def format_scale_lines(values) -> str:
+    """Odwrotność ``parse_scale_lines`` – skala z bazy w postaci, w jakiej wraca do formularza."""
+    return "\n".join(
+        f"{item['value']};{item.get('label', '')}"
+        for item in values or []
+        if isinstance(item, dict) and "value" in item
+    )
+
+
+class ScoringScaleForm(forms.Form):
+    """Skala punktacji etapu: wartości jako tekst i maksimum osobnym polem.
+
+    Maksimum jest polem, a nie liczbą wyprowadzoną z ostatniego wiersza, bo to **osobna** deklaracja
+    i jej niezgodność ze skalą jest błędem, o którym koordynator ma się dowiedzieć (``full_clean``
+    modelu). Wyliczanie jej po cichu zamieniałoby literówkę w wartości na milczącą zmianę maksimum.
+    """
+
+    values = forms.CharField(
+        label="Wartości skali",
+        widget=forms.Textarea(attrs={"rows": 8}),
+        help_text=SCALE_HELP_TEXT,
+    )
+    max_value = forms.IntegerField(
+        label="Maksimum punktów",
+        min_value=0,
+        max_value=MAX_SCALE_VALUE,
+        help_text="Musi być równe największej wartości skali.",
+    )
+
+    def clean_values(self):
+        return parse_scale_lines(self.cleaned_data["values"])
+
 
 class LocalDateTimeField(forms.DateTimeField):
     """Data i godzina w czasie lokalnym serwisu, wpisywana natywnym ``<input type="datetime-local">``.
@@ -935,6 +1021,7 @@ class StageForm(forms.ModelForm):
             # Drugie pole tej samej rubryki nie powtarza podpisu – to jeden termin w dwóch polach,
             # a dwa identyczne nagłówki czytałyby się jak dwa osobne terminy.
             "event_ends_on": "do",
+            "review_deadline_days": "Dni na jedną recenzję",
         }
         help_texts = {
             "name": ("Puste pole = nazwa domyślna dla rodzaju etapu (Eliminacje / Wojewódzki / Finał)."),
@@ -950,6 +1037,12 @@ class StageForm(forms.ModelForm):
                 "Okno oddawania prac powyżej pozostaje bez zmian."
             ),
             "event_ends_on": "Oba pola wypełnia się razem albo zostawia puste.",
+            "review_deadline_days": (
+                "Ile dni ma recenzent od chwili przydziału pracy. Termin jest osobisty – prace "
+                "przydzielane później dostają go liczonego od swojego dnia, nie od zamknięcia "
+                "etapu. Nigdy nie wypada po terminie recenzji całego etapu (powyżej). Zmiana "
+                "dotyczy przydziałów przyszłych; terminy już przyznane zostają bez zmian."
+            ),
         }
 
     def changed_values(self) -> dict:
@@ -1115,7 +1208,7 @@ class ProblemForm(forms.ModelForm):
     )
     allowed_formats = forms.MultipleChoiceField(
         label="Dozwolone formaty rozwiązań",
-        choices=[(value, f".{value}") for value in SUPPORTED_FILE_FORMATS],
+        choices=[(value, FORMAT_LABELS.get(value, f".{value}")) for value in SUPPORTED_FILE_FORMATS],
         widget=forms.CheckboxSelectMultiple,
         help_text="Zaznacz co najmniej jeden format.",
     )
@@ -1130,14 +1223,75 @@ class ProblemForm(forms.ModelForm):
         required=False,
         help_text="Wymagane przy podmianie treści po otwarciu etapu.",
     )
+    # Nadpisanie skali etapu. Oba pola są opcjonalne i działają **razem**: puste znaczy „punktuj
+    # tak, jak cały etap”. Pola są poza ``Meta.fields`` świadomie – w modelu skala jest listą JSON,
+    # a tutaj tekstem, więc ``construct_instance`` nie ma czego przepisywać; wartość wchodzi do
+    # zadania przez serwis ``update_problem``, tą samą drogą co reszta pól.
+    scoring_values = forms.CharField(
+        label="Skala punktacji tego zadania",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 6}),
+        help_text=f"Puste = zadanie punktuje skala etapu. {SCALE_HELP_TEXT}",
+    )
+    max_points = forms.IntegerField(
+        label="Maksimum punktów tego zadania",
+        required=False,
+        min_value=0,
+        max_value=MAX_SCALE_VALUE,
+        help_text="Wypełnij razem ze skalą zadania; musi być równe jej największej wartości.",
+    )
+    # Materiały dla oceniających. Wzorcówka jest plikiem (jak treść zadania), rubryka – tekstem
+    # (jak skala), bo kryteria poprawia się w trakcie oceniania i zmiana ma działać od razu.
+    model_solution_pdf = forms.FileField(
+        label="Rozwiązanie wzorcowe (PDF)",
+        required=False,
+        widget=forms.ClearableFileInput(attrs={"accept": "application/pdf"}),
+        help_text=(
+            f"Widzą je wyłącznie recenzenci i koordynator – nigdy uczestnicy. "
+            f"Plik PDF, maksymalnie {MAX_STATEMENT_MB} MB. Nowy plik zastępuje poprzedni."
+        ),
+    )
+    rubric = forms.CharField(
+        label="Rubryka oceniania",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 6}),
+        help_text=(
+            "Puste = zadanie bez rubryki (recenzent wybiera ocenę wprost ze skali). Po jednym "
+            "kryterium w wierszu, w postaci „punkty;tytuł;opis”, np. „2;Poprawność rachunków;"
+            "liczy się wynik i jednostki”. Opis jest opcjonalny. Suma punktów z kryteriów musi "
+            "dać wartość ze skali tego zadania – inaczej recenzent dostanie błąd przy wysyłce."
+        ),
+    )
 
     class Meta:
         model = Problem
-        fields = ("number", "title", "statement_pdf", "allowed_formats", "max_file_mb")
+        fields = (
+            "number",
+            "title",
+            "statement_pdf",
+            "allowed_formats",
+            "max_file_mb",
+            "reviewer_notes",
+        )
+        labels = {"reviewer_notes": "Uwagi dla recenzentów"}
+        help_texts = {
+            "reviewer_notes": (
+                "Czego nie widać we wzorcówce, a rozstrzyga o punktach. Tekst widoczny wyłącznie "
+                "w panelu recenzenta."
+            )
+        }
+        widgets = {"reviewer_notes": forms.Textarea(attrs={"rows": 5})}
 
     def __init__(self, *args, stage=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.stage = stage if stage is not None else getattr(self.instance, "stage", None)
+        # Skala zadania nie jest w ``Meta.fields``, więc ``ModelForm`` nie wypełni jej z instancji.
+        if self.instance.pk and not self.is_bound:
+            self.initial.setdefault("scoring_values", format_scale_lines(self.instance.scoring_values))
+            self.initial.setdefault("max_points", self.instance.max_points)
+            # Rubryka też stoi poza ``Meta.fields``: w bazie jest osobnym modelem
+            # (``grading.RubricCriterion``), a tutaj jednym polem tekstowym.
+            self.initial.setdefault("rubric", format_criteria_lines(criteria_for(self.instance)))
         # Pole potwierdzenia ma sens wyłącznie przy edycji zadania w otwartym etapie – przy dodawaniu
         # nie ma czego podmieniać, a pusty checkbox „rozumiem…” tylko zaciemniałby formularz.
         if not self._needs_confirmation():
@@ -1178,9 +1332,61 @@ class ProblemForm(forms.ModelForm):
             raise forms.ValidationError(str(exc.detail)) from exc
         return upload
 
+    def clean_model_solution_pdf(self):
+        """Wzorcówka przechodzi dokładnie tę samą kontrolę, co treść zadania – to też PDF."""
+        upload = self.cleaned_data.get("model_solution_pdf")
+        if not isinstance(upload, UploadedFile):
+            return upload
+        if upload.size > MAX_STATEMENT_MB * MEGABYTE:
+            raise forms.ValidationError(
+                f"Plik ma {upload.size} B – limit rozwiązania wzorcowego to {MAX_STATEMENT_MB} MB."
+            )
+        if upload.size == 0:
+            raise forms.ValidationError("Plik jest pusty.")
+        try:
+            validate_pdf(upload)
+        except DomainError as exc:
+            raise forms.ValidationError(str(exc.detail)) from exc
+        return upload
+
+    def clean_rubric(self):
+        """Tekst rubryki → lista kryteriów. Pusty tekst to pusta lista, czyli „zadanie bez rubryki”.
+
+        Reguła zapisu jest w ``apps.grading.rubric``; tutaj wyłącznie tłumaczenie jej wyjątku na
+        błąd pod polem formularza – żeby literówka w jednym wierszu nie wyglądała jak awaria.
+        """
+        text = (self.cleaned_data.get("rubric") or "").strip()
+        if not text:
+            return []
+        try:
+            return parse_criteria_lines(text)
+        except ValueError as exc:
+            raise forms.ValidationError(str(exc)) from exc
+
+    def clean_scoring_values(self):
+        """Pusty tekst to ``None`` („dziedzicz po etapie”), a nie pusta skala."""
+        text = (self.cleaned_data.get("scoring_values") or "").strip()
+        return parse_scale_lines(text) if text else None
+
+    def clean(self):
+        """Skala zadania i jego maksimum są jedną deklaracją – wypełnia się je razem albo wcale."""
+        cleaned = super().clean()
+        values = cleaned.get("scoring_values")
+        max_points = cleaned.get("max_points")
+        if values and max_points is None:
+            self.add_error("max_points", "Podaj maksimum punktów dla skali tego zadania.")
+        if not values and max_points is not None:
+            self.add_error("scoring_values", "Podaj skalę zadania albo wyczyść maksimum punktów.")
+        return cleaned
+
     def uploaded_statement(self):
         """Nowy plik treści albo ``None``. Serwis rozpoznaje po tym, czy podmieniać treść."""
         upload = self.cleaned_data.get("statement_pdf")
+        return upload if isinstance(upload, UploadedFile) else None
+
+    def uploaded_model_solution(self):
+        """Nowa wzorcówka albo ``None`` – ta sama umowa z serwisem, co przy treści zadania."""
+        upload = self.cleaned_data.get("model_solution_pdf")
         return upload if isinstance(upload, UploadedFile) else None
 
 

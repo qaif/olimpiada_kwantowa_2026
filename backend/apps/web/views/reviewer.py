@@ -15,21 +15,28 @@ from __future__ import annotations
 import json
 
 from django.contrib import messages
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.views.generic import TemplateView, View
 
 from apps.core.api import DomainError
+from apps.grading.comparison import comparison_context
 from apps.grading.models import ROUND_TIEBREAK, ReviewStatus
+from apps.grading.navigation import group_by_problem, queue_position
+from apps.grading.rubric import rubric_from_post, rubric_rows
 from apps.grading.services import (
     GRADE_CHANGE_BLOCK_MESSAGES,
+    REVIEWER_ZIP_FILENAME,
+    build_reviewer_zip,
     cancel_message,
     dispute_context,
     reviews_for_reviewer,
     revise_review,
     revision_block_reason,
     save_draft,
+    scale_items,
     submit_review,
 )
 from apps.web.forms import ReviewDraftForm, ReviewSubmitForm
@@ -53,6 +60,10 @@ class ReviewListView(ReviewerScopedMixin, TemplateView):
     zrobienia, a wymieszane z bieżącymi wyglądałyby jak zaległość. Ukrycie ich odpadło – recenzent,
     któremu praca zniknęła z listy bez śladu, ma prawo sądzić, że to awaria. Każdy wiersz niesie
     powód: odebranie pracy przez koordynatora to co innego niż nowa wersja od uczestnika.
+
+    Bieżące przydziały są pogrupowane po etapie i zadaniu (``grading.navigation``), bo tak wygląda
+    praca recenzenta: ocenia jedno zadanie w wielu pracach. Licznik przy grupie („6 z 12 do
+    zrobienia”) odpowiada na pytanie, które przy płaskiej liście trzeba było liczyć palcem.
     """
 
     template_name = "web/reviewer/list.html"
@@ -60,7 +71,9 @@ class ReviewListView(ReviewerScopedMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         reviews = list(self.get_queryset())
-        context["reviews"] = [item for item in reviews if item.status != ReviewStatus.CANCELLED]
+        open_reviews = [item for item in reviews if item.status != ReviewStatus.CANCELLED]
+        context["reviews"] = open_reviews
+        context["groups"] = group_by_problem(open_reviews)
         context["cancelled_rows"] = [
             {"review": item, "reason": cancel_message(item)}
             for item in reviews
@@ -70,16 +83,50 @@ class ReviewListView(ReviewerScopedMixin, TemplateView):
         return context
 
 
+class ReviewQueueDownloadView(ReviewerScopedMixin, View):
+    """``GET /review/download/`` – wszystkie własne prace w jednym archiwum ZIP.
+
+    Odpowiednik ``GET /api/grading/reviews/download/``: cała reguła (zakres, nazwy plików, audyt)
+    jest w ``build_reviewer_zip``, więc panel i API nie mogą się rozjechać. Pusta kolejka kończy
+    się stroną 404 z powodem, a nie przekierowaniem – żądanie wysłane skryptem ma dostać kod,
+    po którym widać, że pliku nie ma.
+    """
+
+    def get(self, request):
+        try:
+            package = build_reviewer_zip(self.reviewer, actor=request.user, request=request)
+        except DomainError as exc:
+            return TemplateResponse(request, "404.html", {"reason": str(exc.detail)}, status=404)
+        return FileResponse(
+            package.stream,
+            as_attachment=True,
+            filename=REVIEWER_ZIP_FILENAME,
+            content_type="application/zip",
+        )
+
+
+#: Typy MIME pokazywane w panelu jako zdjęcie, a nie jako dokument dla pdf.js.
+IMAGE_PREVIEW_MIMES = ("image/jpeg",)
+
+
+def _preview_kind(submission_file) -> str:
+    """Czym jest podgląd pracy: dokumentem (pdf.js) czy zdjęciem (``<img>``).
+
+    Rozstrzyga typ MIME wyliczony **przez serwer** przy uploadzie (``validate_upload``), a nie
+    rozszerzenie z nazwy od uczestnika: nazwę kontroluje przesyłający, a typ potwierdziła treść.
+    """
+    mime = (getattr(submission_file, "mime", "") or "").lower()
+    return "image" if mime in IMAGE_PREVIEW_MIMES else "pdf"
+
+
 def _scale_options(review) -> list[dict]:
-    """Pozycje skali punktowej etapu – radio z etykietami, nie wolne pole liczbowe."""
-    scale = getattr(review.submission.entry.stage, "scoring_scale", None)
-    if scale is None:
-        return []
-    options = []
-    for item in scale.values or []:
-        if isinstance(item, dict) and isinstance(item.get("value"), int):
-            options.append({"value": item["value"], "label": item.get("label", "")})
-    return options
+    """Pozycje obowiązującej skali – radio z etykietami, nie wolne pole liczbowe.
+
+    Skala bierze się z ``grading.services.scale_items``, więc zadanie z własną skalą pokazuje
+    recenzentowi swoje wartości, a nie wartości etapu. Ekran nie może oferować oceny, której
+    ``submit_review`` by nie przyjął.
+    """
+    return scale_items(review.submission.entry.stage, review.submission.problem)
 
 
 class ReviewDetailView(ReviewerScopedMixin, TemplateView):
@@ -110,6 +157,9 @@ class ReviewDetailView(ReviewerScopedMixin, TemplateView):
                 "public_code": review.submission.entry.participant.public_code,
                 "scale_options": _scale_options(review),
                 "file_available": submission_file is not None and submission_file.is_clean,
+                # Zdjęcie rozwiązania (JPEG) ma ten sam ekran, co PDF: inny jest wyłącznie sposób
+                # narysowania strony. Warstwa adnotacji zostaje – obrazek jest jedną stroną.
+                "preview_kind": _preview_kind(submission_file),
                 "download_url": reverse(
                     "submissions:submission-download", kwargs={"pk": review.submission_id}
                 ),
@@ -128,9 +178,39 @@ class ReviewDetailView(ReviewerScopedMixin, TemplateView):
                 # Panel sporu istnieje tylko w rundzie rozjemczej. Ten sam serwis obsługuje
                 # ``GET /api/grading/reviews/{id}/dispute/`` – jedna reguła, dwie prezentacje.
                 "dispute_rows": dispute_context(review) if review.round == ROUND_TIEBREAK else None,
+                # Rubryka zadania. Pusta lista znaczy „zadanie bez kryteriów” i wtedy ekran pokazuje
+                # zwykły wybór oceny ze skali – dokładnie jak dotąd.
+                "rubric_rows": rubric_rows(review),
+                # Porównanie ocen jest ``None``, dopóki oceny nie są odsłonięte (patrz
+                # ``grading.comparison``) – szablon nie ma wtedy czego pokazać i sekcja nie istnieje.
+                "comparison": comparison_context(review),
+                # Seria prac tego samego zadania: „5 z 18” oraz sąsiedzi do przeskoczenia.
+                "queue": queue_position(review),
+                # Wzorcówka i uwagi dla recenzentów – materiał komitetu, nigdy dla uczestnika.
+                "model_solution_url": (
+                    reverse("web:problem-model-solution", kwargs={"pk": review.submission.problem_id})
+                    if review.submission.problem.model_solution_pdf
+                    else None
+                ),
             }
         )
         return context
+
+
+def _score_form_and_rubric(request, problem):
+    """Formularz oceny dobrany do zadania plus rubryka odczytana z żądania.
+
+    Zadanie z rubryką nie ma na ekranie pola „punkty”: sumę liczy serwer z punktów cząstkowych
+    (``submit_review``). Formularz wymagający oceny odrzucałby wtedy poprawne zgłoszenie
+    komunikatem „Wybierz ocenę ze skali”, choć recenzent wypełnił wszystko, o co go poproszono –
+    stąd przy rubryce wchodzi wariant z opcjonalnym ``score``.
+
+    Błąd odczytu rubryki (punkty nie są liczbą) wychodzi stąd jako ``DomainError``, czyli tą samą
+    drogą, co odmowy serwisu – widok ma jeden sposób pokazywania takich rzeczy.
+    """
+    rubric = rubric_from_post(problem, request.POST)
+    form_class = ReviewSubmitForm if rubric is None else ReviewDraftForm
+    return form_class(request.POST), rubric
 
 
 class ReviewDraftView(ReviewerScopedMixin, View):
@@ -150,6 +230,8 @@ class ReviewDraftView(ReviewerScopedMixin, View):
                     comment_internal=form.cleaned_data["comment_internal"],
                     comment_for_participant=form.cleaned_data["comment_for_participant"],
                     annotations=form.cleaned_data["annotations"],
+                    # Szkic przyjmuje rubrykę niekompletną – recenzent zapisuje robotę w połowie.
+                    rubric=rubric_from_post(review.submission.problem, request.POST),
                 )
             except DomainError as exc:
                 error = str(exc.detail)
@@ -165,7 +247,11 @@ class ReviewSubmitView(ReviewerScopedMixin, View):
 
     def post(self, request, pk: int):
         review = self.get_review(pk)
-        form = ReviewSubmitForm(request.POST)
+        try:
+            form, rubric = _score_form_and_rubric(request, review.submission.problem)
+        except DomainError as exc:
+            messages.error(request, str(exc.detail))
+            return redirect(reverse("web:review-detail", kwargs={"pk": pk}))
         if not form.is_valid():
             messages.error(request, "Wybierz ocenę ze skali przed wysłaniem.")
             return redirect(reverse("web:review-detail", kwargs={"pk": pk}))
@@ -182,6 +268,7 @@ class ReviewSubmitView(ReviewerScopedMixin, View):
                 form.cleaned_data["comment_internal"],
                 form.cleaned_data["comment_for_participant"],
                 annotations,
+                rubric=rubric,
                 request=request,
             )
         except DomainError as exc:
@@ -201,7 +288,11 @@ class ReviewReviseView(ReviewerScopedMixin, View):
 
     def post(self, request, pk: int):
         review = self.get_review(pk)
-        form = ReviewSubmitForm(request.POST)
+        try:
+            form, rubric = _score_form_and_rubric(request, review.submission.problem)
+        except DomainError as exc:
+            messages.error(request, str(exc.detail))
+            return redirect(reverse("web:review-detail", kwargs={"pk": pk}))
         if not form.is_valid():
             messages.error(request, "Wybierz ocenę ze skali przed wysłaniem.")
             return redirect(reverse("web:review-detail", kwargs={"pk": pk}))
@@ -215,6 +306,7 @@ class ReviewReviseView(ReviewerScopedMixin, View):
                 form.cleaned_data["comment_internal"],
                 form.cleaned_data["comment_for_participant"],
                 annotations,
+                rubric=rubric,
                 request=request,
             )
         except DomainError as exc:

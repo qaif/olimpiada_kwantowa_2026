@@ -10,8 +10,45 @@
     <span class="badge badge--info">etap: {{ submission.entry.stage.display_name }}</span>
     <span class="badge badge--neutral">runda {{ review.round }}</span>
     <span class="{{ review.status|badge_class }}">{{ review.get_status_display }}</span>
+    {% if review.due_at %}
+      <span class="badge badge--neutral">termin: {{ review.due_at|local_datetime }}</span>
+    {% endif %}
   </p>
+  {% comment %}
+    Seria prac tego samego zadania. Linki są zwykłymi adresami (bez JS), a licznik „5 z 18” mówi,
+    ile zostało – to jedyna informacja, po którą recenzent wracał dotąd na listę po każdej ocenie.
+  {% endcomment %}
+  {% if queue.total > 1 %}
+    <nav class="row" aria-label="Prace tego zadania">
+      {% if queue.previous %}
+        <a class="btn btn--secondary btn--small" href="{% url 'web:review-detail' queue.previous %}">← Poprzednia praca</a>
+      {% endif %}
+      <span class="hint">{{ queue.position }} z {{ queue.total }} w tym zadaniu</span>
+      {% if queue.next %}
+        <a class="btn btn--secondary btn--small" href="{% url 'web:review-detail' queue.next %}">Następna praca →</a>
+      {% endif %}
+    </nav>
+  {% endif %}
 </div>
+
+{% if model_solution_url or problem.reviewer_notes %}
+  {% comment %}
+    Materiał komitetu: wzorcówka i uwagi koordynatora. Zwinięty ``<details>``, bo recenzent ma
+    najpierw przeczytać pracę, a nie klucz – ale po dwóch pracach zwykle chce zajrzeć.
+    Uczestnik nie ma do tego dostępu żadną drogą (patrz ``ProblemModelSolutionView``).
+  {% endcomment %}
+  <details class="card">
+    <summary><strong>Rozwiązanie wzorcowe i uwagi dla recenzentów</strong></summary>
+    {% if model_solution_url %}
+      <p><a class="btn btn--secondary btn--small" href="{{ model_solution_url }}">Pobierz rozwiązanie wzorcowe (PDF)</a></p>
+    {% endif %}
+    {% if problem.reviewer_notes %}
+      <p class="quote">{{ problem.reviewer_notes }}</p>
+    {% endif %}
+    <p class="hint">Materiał wyłącznie dla komitetu – nie cytuj go w komentarzu dla uczestnika
+      w częściach, których organizator nie ogłosił.</p>
+  </details>
+{% endif %}
 
 {% if dispute_rows is not None %}
   <section class="dispute card card--accent">
@@ -46,24 +83,41 @@
       {% comment %}Jedyna wyspa JS – parametry idą atrybutami data-*, bez skryptu inline.{% endcomment %}
       <div id="pdf-viewer"
            class="pdf-viewer"
+           data-preview-kind="{{ preview_kind }}"
            data-pdf-url="{{ download_url }}"
            data-review-url="{{ annotations_url }}"
            data-annotations="{{ annotations_json }}"
            data-annotations-input="id_annotations"
            data-annotations-list="annotation-list">
         <div class="pdf-toolbar">
-          <button type="button" class="btn btn--secondary btn--small" data-pdf-prev>Poprzednia</button>
-          <span data-pdf-pageinfo>—</span>
-          <button type="button" class="btn btn--secondary btn--small" data-pdf-next>Następna</button>
+          {% comment %}
+            Zdjęcie jest jedną stroną, więc przewijanie stron nie ma tam czego przewijać – przyciski
+            po prostu nie stoją. Adnotacje działają tak samo: prostokąt na obrazku zapisuje się jako
+            strona 1, we współrzędnych ułamkowych, czyli dokładnie jak na stronie PDF-u.
+          {% endcomment %}
+          {% if preview_kind == "pdf" %}
+            <button type="button" class="btn btn--secondary btn--small" data-pdf-prev>Poprzednia</button>
+            <span data-pdf-pageinfo>—</span>
+            <button type="button" class="btn btn--secondary btn--small" data-pdf-next>Następna</button>
+          {% else %}
+            <span data-pdf-pageinfo>—</span>
+          {% endif %}
           <button type="button" class="btn btn--secondary btn--small" data-pdf-save>Zapisz adnotacje</button>
           <span data-pdf-status role="status"></span>
         </div>
         <div class="pdf-stage" data-pdf-stage>
-          <canvas data-pdf-canvas></canvas>
+          {% if preview_kind == "pdf" %}
+            <canvas data-pdf-canvas></canvas>
+          {% else %}
+            {# ``src`` ustawia skrypt po wczytaniu, żeby znać wymiary własne zdjęcia przed skalowaniem. #}
+            <img data-preview-image alt="Zdjęcie rozwiązania pracy {{ public_code }}">
+          {% endif %}
           <div class="pdf-annotations" data-pdf-layer></div>
         </div>
       </div>
-      <p class="hint">Zaznacz prostokąt na stronie, aby dodać adnotację; treść podasz w okienku.</p>
+      <p class="hint">Zaznacz prostokąt na
+        {% if preview_kind == "pdf" %}stronie{% else %}zdjęciu{% endif %}, aby dodać adnotację;
+        treść podasz w okienku.</p>
     {% else %}
       <p class="msg msg-warning closed">Plik nie jest jeszcze dostępny (trwa skan antywirusowy
         albo praca nie ma pliku).</p>
@@ -109,6 +163,14 @@
           data-confirm="{% if revision_allowed %}Zapisać poprawioną ocenę? Wcześniejsze rozstrzygnięcie rundy zostanie przeliczone od nowa.{% else %}Wystawić ocenę? Poprawić ją będzie można, dopóki koordynator nie odbierze Ci pracy.{% endif %}">
       {% csrf_token %}
       <fieldset {% if not editable and not revision_allowed %}disabled{% endif %}>
+        {% if rubric_rows %}
+          {% comment %}
+            Zadanie z rubryką nie ma listy ocen do wyboru: punktujesz kryteria, a sumę wylicza
+            serwer. Dwa sposoby wystawienia tej samej oceny na jednym ekranie byłyby zaproszeniem
+            do rozjazdu między rubryką a zaznaczonym radiem.
+          {% endcomment %}
+          {% include "web/reviewer/_rubric.html" %}
+        {% else %}
         <legend>Punkty (skala etapu)</legend>
         <div class="scale">
           {% for option in scale_options %}
@@ -122,6 +184,7 @@
             <p class="msg msg-error">Etap nie ma skali punktacji – zgłoś to koordynatorowi.</p>
           {% endfor %}
         </div>
+        {% endif %}
 
         <p class="field">
           <label for="id_comment_internal">Komentarz wewnętrzny (dla komitetu)</label>
@@ -156,6 +219,10 @@
     {% endif %}
   </section>
 </div>
+
+{% if comparison %}
+  {% include "web/reviewer/_comparison.html" with note_form_source="detail" %}
+{% endif %}
 {% endblock %}
 
 {% block scripts %}

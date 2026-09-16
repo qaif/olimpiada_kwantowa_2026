@@ -24,6 +24,7 @@ from apps.competitions.models import Stage
 from apps.core.api import DomainError
 
 from .models import Submission
+from .packaging import anonymous_download_name, safe_download_name
 from .serializers import (
     LockForReviewResultSerializer,
     SubmissionGroupSerializer,
@@ -37,36 +38,6 @@ from .services import (
     lock_submission_for_review,
 )
 from .storage import get_submission_storage
-
-
-def _safe_download_name(name: str) -> str:
-    """Nazwa do ``Content-Disposition``: sam plik, bez ścieżek i bez znaków łamiących nagłówek."""
-    base = (name or "rozwiazanie").replace("\\", "/").rsplit("/", 1)[-1]
-    cleaned = "".join(char for char in base if char.isprintable() and char not in '"\r\n')
-    return cleaned.strip() or "rozwiazanie"
-
-
-def _extension(submission_file) -> str:
-    """Rozszerzenie pliku brane z ``object_key`` (klucz jest generowany, więc jest bezpieczny)."""
-    tail = submission_file.object_key.rsplit(".", 1)
-    candidate = tail[1].lower() if len(tail) == 2 else ""
-    if not candidate:
-        original = _safe_download_name(submission_file.original_name).rsplit(".", 1)
-        candidate = original[1].lower() if len(original) == 2 else ""
-    return "".join(char for char in candidate if char.isalnum())[:10] or "dat"
-
-
-def anonymous_download_name(submission, submission_file) -> str:
-    """Nazwa pliku dla każdego, kto nie jest autorem rozwiązania.
-
-    Ocenianie jest ślepe, a ``original_name`` pochodzi od uczestnika i regularnie zawiera nazwisko
-    albo szkołę („Jan_Kowalski_LO5.pdf”). Recenzent, komisja odwoławcza i koordynator dostają więc
-    nazwę zbudowaną wyłącznie z pseudonimu (``public_code``), numeru zadania i wersji.
-    """
-    return (
-        f"{submission.entry.participant.public_code}"
-        f"-z{submission.problem.number}-v{submission.version}.{_extension(submission_file)}"
-    )
 
 
 class SubmissionCreateView(GenericAPIView):
@@ -179,7 +150,7 @@ class SubmissionDownloadView(GenericAPIView):
             )
         # Nazwa pliku też jest daną osobową: właściciel dostaje swoją, każdy inny – anonimową.
         if is_owner:
-            filename = _safe_download_name(submission_file.original_name)
+            filename = safe_download_name(submission_file.original_name)
             disposition = None
         else:
             filename = anonymous_download_name(submission, submission_file)

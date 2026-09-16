@@ -16,6 +16,7 @@ from apps.core.api import DomainError
 
 from .models import (
     DEFAULT_MAX_VALUE,
+    DEFAULT_REVIEW_DEADLINE_DAYS,
     Edition,
     InterviewBooking,
     InterviewSlot,
@@ -49,6 +50,10 @@ STAGE_EDITABLE_FIELDS = (
     "event_starts_on",
     "event_ends_on",
     "review_deadline_at",
+    # Dni na jedną recenzję stoją przy deadline recenzji, bo opisują tę samą sprawę z dwóch stron:
+    # tamto jest terminem całego etapu, to – terminem osobistym każdego recenzenta, liczonym od
+    # chwili przydziału (``apps.grading.deadlines``).
+    "review_deadline_days",
     "appeal_window_opens_at",
     "appeal_window_closes_at",
 )
@@ -64,12 +69,27 @@ STAGE_FIELDS_EDITABLE_AFTER_CLOSE = (
     "name",
     "location",
     "review_deadline_at",
+    # Ocenianie zaczyna się **po** zamknięciu etapu, więc liczba dni na recenzję jest wtedy
+    # najbardziej potrzebna: to po zamknięciu wychodzi, że komisja potrzebuje tygodnia więcej.
+    # Zmiana dotyczy przydziałów przyszłych – terminy już przyznane zostają w ``Review.due_at``.
+    "review_deadline_days",
     "appeal_window_opens_at",
     "appeal_window_closes_at",
 )
 
 #: Pola zadania, którymi zarządza panel. ``statement_pdf`` idzie osobno – jest plikiem.
-PROBLEM_EDITABLE_FIELDS = ("number", "title", "allowed_formats", "max_file_mb")
+#: ``scoring_values``/``max_points`` to nadpisanie skali etapu; puste znaczy „dziedzicz”.
+PROBLEM_EDITABLE_FIELDS = (
+    "number",
+    "title",
+    "allowed_formats",
+    "max_file_mb",
+    "scoring_values",
+    "max_points",
+    # Uwagi dla recenzentów są zwykłym polem tekstowym (wzorcówka, jako plik, idzie osobno –
+    # parametrem ``model_solution`` – dokładnie tak, jak treść zadania).
+    "reviewer_notes",
+)
 
 #: Okno rejestracji uczestników – jedyne pola ``Edition``, które panel koordynatora zmienia.
 #: ``is_current`` i ``year_label`` zostają w ``/admin/``: przełączenie bieżącej edycji jest
@@ -131,6 +151,9 @@ def create_stage(
     review_deadline_at,
     appeal_window_opens_at,
     appeal_window_closes_at,
+    # Domyślne dwa tygodnie na jedną recenzję. Wartość jest tu **jawna**, a nie brana z modelu:
+    # formularz etapu przysyła to pole zawsze, a wywołania z shella mają widzieć, co ustawiają.
+    review_deadline_days: int = DEFAULT_REVIEW_DEADLINE_DAYS,
     grace_seconds: int = 0,
     location: str = "",
     event_starts_on=None,
@@ -160,6 +183,7 @@ def create_stage(
         event_starts_on=event_starts_on,
         event_ends_on=event_ends_on,
         review_deadline_at=review_deadline_at,
+        review_deadline_days=review_deadline_days,
         appeal_window_opens_at=appeal_window_opens_at,
         appeal_window_closes_at=appeal_window_closes_at,
     )
@@ -189,6 +213,103 @@ def ensure_stage_defaults(stage: Stage) -> None:
     QualificationRule.objects.get_or_create(
         stage=stage, defaults={"mode": QualificationMode.MIN_POINTS, "min_points": 0}
     )
+
+
+# --- skala punktacji --------------------------------------------------------------------------
+
+
+def _stage_allowed_values(stage: Stage) -> set[int]:
+    """Oceny dopuszczalne przez skalę etapu albo pusty zbiór, gdy etap skali nie ma."""
+    scale = getattr(stage, "scoring_scale", None)
+    return scale.allowed_values() if scale is not None else set()
+
+
+def scores_in_use(stage: Stage, *, problem: Problem | None = None) -> set[int]:
+    """Oceny, które **już padły** w tym etapie: punkty recenzji i oceny końcowe.
+
+    Bez ``problem`` pytamy wyłącznie o zadania **dziedziczące** skalę etapu – zadanie z własną
+    skalą nie jest przez skalę etapu rządzone, więc jego oceny nie mogą blokować zmiany w etapie.
+    Z ``problem`` pytamy o to jedno zadanie.
+
+    Recenzje anulowane też się liczą. Ich punkty nie wchodzą do oceny końcowej, ale zostają
+    w tabeli przydziałów jako historia – wartość spoza skali wyglądałaby tam na uszkodzone dane,
+    a koordynator nie ma jak jej poprawić (recenzji anulowanej się nie edytuje).
+
+    Import jest lokalny: ``apps.grading`` zależy od ``apps.competitions``, więc zależność w drugą
+    stronę na poziomie modułu byłaby cyklem przy starcie aplikacji.
+    """
+    from apps.grading.models import FinalGrade, Review
+
+    reviews = Review.objects.filter(submission__entry__stage=stage, score__isnull=False)
+    grades = FinalGrade.objects.filter(submission__entry__stage=stage)
+    if problem is not None:
+        reviews = reviews.filter(submission__problem=problem)
+        grades = grades.filter(submission__problem=problem)
+    else:
+        reviews = reviews.filter(submission__problem__scoring_values__isnull=True)
+        grades = grades.filter(submission__problem__scoring_values__isnull=True)
+    return set(reviews.values_list("score", flat=True)) | set(grades.values_list("score", flat=True))
+
+
+def assert_scale_covers_existing_scores(used: set[int], allowed: set[int], *, subject: str) -> None:
+    """Odmawia zdjęcia ze skali wartości, którą ktoś już komuś wystawił.
+
+    Dokładanie wartości i zmiana etykiet są zawsze wolne – nic nie unieważniają. Usunięcie
+    wartości już wystawionej zostawiłoby w bazie oceny spoza skali: tabela wyników liczyłaby się
+    z nich dalej, a koordynator zobaczyłby w formularzu listę bez tej wartości i nie miałby jak
+    wybrać tego, co faktycznie stoi w recenzji. Dlatego jest to ``409``, a nie ostrzeżenie.
+    """
+    orphaned = sorted(used - allowed)
+    if orphaned:
+        raise DomainError(
+            f"Wartości {', '.join(str(value) for value in orphaned)} są już wystawione w ocenach "
+            f"({subject}) – nie można ich usunąć ze skali. Najpierw popraw te oceny.",
+            "SCALE_LOCKED",
+            status.HTTP_409_CONFLICT,
+        )
+
+
+@transaction.atomic
+def set_scoring_scale(stage: Stage, values, max_value, *, actor, request=None) -> ScoringScale:
+    """Zapisuje skalę punktacji etapu – tworząc ją, jeśli etapu jeszcze jej nie ma.
+
+    Etap bez skali jest stanem do naprawienia (nie da się w nim ocenić ani jednej pracy), więc
+    ekran „Skala punktacji” musi umieć go naprawić, a nie tylko odmówić edycji.
+
+    Audyt (``stage.scale_updated``) notuje pełną skalę przed i po. To jedyne dane, po których da
+    się później odtworzyć, według jakiej skali zapadły oceny z danego dnia – a skala nie zawiera
+    niczego osobowego, więc wchodzi do ``diff`` w całości.
+    """
+    from apps.core.models import audit
+
+    scale = ScoringScale.objects.select_for_update().filter(stage=stage).first()
+    before = (
+        {"values": scale.values, "max_value": scale.max_value}
+        if scale is not None
+        else {"values": None, "max_value": None}
+    )
+    if scale is None:
+        scale = ScoringScale(stage=stage)
+    scale.values = values
+    scale.max_value = max_value
+    try:
+        scale.full_clean()
+    except ValidationError as exc:
+        raise DomainError(
+            "; ".join(exc.messages), "SCORING_SCALE_INVALID", status.HTTP_400_BAD_REQUEST
+        ) from exc
+    assert_scale_covers_existing_scores(
+        scores_in_use(stage), scale.allowed_values(), subject=f"etap {stage.display_name}"
+    )
+    scale.save()
+    audit(
+        actor,
+        "stage.scale_updated",
+        stage,
+        {"from": before, "to": {"values": scale.values, "max_value": scale.max_value}},
+        request=request,
+    )
+    return scale
 
 
 def _registration_closed() -> DomainError:
@@ -470,8 +591,10 @@ def _validation_error(exc: ValidationError) -> DomainError:
 
 
 @transaction.atomic
-def create_problem(*, stage: Stage, actor, statement=None, request=None, **fields) -> Problem:
-    """Nowe zadanie etapu. ``statement`` to plik z formularza albo ``None``.
+def create_problem(
+    *, stage: Stage, actor, statement=None, model_solution=None, request=None, **fields
+) -> Problem:
+    """Nowe zadanie etapu. ``statement`` i ``model_solution`` to pliki z formularza albo ``None``.
 
     Etap w formie rozmowy zadań nie ma i mieć nie może: nie ma czego oddać, więc arkusz zadań
     byłby treścią bez odbiorcy, a uczestnik zobaczyłby w panelu upload, którego serwis i tak by
@@ -492,6 +615,10 @@ def create_problem(*, stage: Stage, actor, statement=None, request=None, **field
     problem = Problem(stage=stage, **fields)
     if statement is not None:
         problem.statement_pdf = statement
+    if model_solution is not None:
+        # Wzorcówka nie ma żadnej bramki czasowej (w przeciwieństwie do treści): nie staje się
+        # jawna nigdy, więc wgranie jej przed otwarciem etapu i po nim jest tą samą czynnością.
+        problem.model_solution_pdf = model_solution
     try:
         problem.full_clean()
     except ValidationError as exc:
@@ -515,6 +642,7 @@ def create_problem(*, stage: Stage, actor, statement=None, request=None, **field
             "allowed_formats": list(problem.allowed_formats or []),
             "max_file_mb": problem.max_file_mb,
             "has_statement": bool(problem.statement_pdf),
+            "has_model_solution": bool(problem.model_solution_pdf),
         },
         request=request,
     )
@@ -527,6 +655,7 @@ def update_problem(
     actor,
     *,
     statement=None,
+    model_solution=None,
     confirm_open_stage: bool = False,
     request=None,
     now=None,
@@ -565,6 +694,14 @@ def update_problem(
         # w storage (kasowanie jest poza zakresem – w prywatnym buckecie nic go nie wystawia).
         diff["statement_pdf"] = {"from": locked.statement_pdf.name or "", "to": statement.name}
         locked.statement_pdf = statement
+    if model_solution is not None:
+        # Podmiana wzorcówki **nie** wymaga potwierdzenia jak podmiana treści: uczestnik nigdy jej
+        # nie widział, więc nowa wersja nie dzieli zawodników na dwie grupy. Ślad zostaje w audycie.
+        diff["model_solution_pdf"] = {
+            "from": locked.model_solution_pdf.name or "",
+            "to": model_solution.name,
+        }
+        locked.model_solution_pdf = model_solution
     if not diff:
         return locked
 
@@ -572,6 +709,16 @@ def update_problem(
         locked.full_clean()
     except ValidationError as exc:
         raise _validation_error(exc) from exc
+    if "scoring_values" in diff or "max_points" in diff:
+        # Ta sama reguła, co przy skali etapu: wolno dokładać wartości i zmieniać etykiety, nie
+        # wolno zdjąć wartości, którą ktoś już wystawił. Dotyczy też wyczyszczenia nadpisania –
+        # po powrocie do skali etapu oceny zadania muszą się w niej mieścić.
+        allowed = locked.allowed_values() or _stage_allowed_values(locked.stage)
+        assert_scale_covers_existing_scores(
+            scores_in_use(locked.stage, problem=locked),
+            allowed,
+            subject=f"zadanie {locked.number}",
+        )
     try:
         with transaction.atomic():
             locked.save()

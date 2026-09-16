@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load web_extras %}
+{% block title %}Porównanie ocen pracy {{ public_code }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:review-detail' review.pk %}">Wróć do oceny pracy</a></span>
+  <h1>Porównanie ocen <span class="code-chip">{{ public_code }}</span> · zadanie {{ problem.number }}</h1>
+  <p class="lead">{{ problem.title }}</p>
+</div>
+
+{% if comparison %}
+  {% include "web/reviewer/_comparison.html" with note_form_source="compare" %}
+{% else %}
+  {% comment %}
+    Strona istnieje, ale jeszcze nie ma czego pokazać. Przekierowanie na listę byłoby gorsze:
+    recenzent nie dowiedziałby się, że taka sekcja w ogóle jest przewidziana, i wracałby tu
+    co chwilę, sprawdzając „czy już”.
+  {% endcomment %}
+  <p class="msg msg-warning closed">Oceny tej pracy nie są jeszcze odsłonięte. Porównanie i notatki
+    otwierają się, gdy wszystkie recenzje rundy 1 zostaną wystawione – do tego czasu ocenianie
+    pozostaje ślepe.</p>
+{% endif %}
+{% endblock %}

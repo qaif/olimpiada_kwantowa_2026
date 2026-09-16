@@ -5,6 +5,7 @@ sprawdzenia w ciele metody: recenzent operuje wyłącznie na ``reviews_for_revie
 więc cudza recenzja to 404, a nie 403 – odpowiedź nie może potwierdzać, że dany przydział istnieje.
 """
 
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status as http
@@ -37,11 +38,13 @@ from .serializers import (
     SetReviewScoreSerializer,
 )
 from .services import (
+    REVIEWER_ZIP_FILENAME,
     active_reviewer_profile,
     add_problem_reviewer_rule,
     assign_reviewer_to_submission,
     assign_reviewers,
     assign_third_reviewer,
+    build_reviewer_zip,
     dispute_context,
     moderation_queue,
     override_final_grade,
@@ -78,6 +81,29 @@ class MyReviewsView(ReviewerScopedMixin, GenericAPIView):
         return Response(self.get_serializer(self.get_queryset(), many=True).data)
 
 
+class MyReviewsDownloadView(ReviewerScopedMixin, GenericAPIView):
+    """Paczka ZIP ze wszystkimi pracami przydzielonymi zalogowanemu recenzentowi.
+
+    Bliźniak ``GET /review/download/`` z panelu: ta sama reguła zakresu, te same nazwy plików i ten
+    sam wpis audytowy – różni się wyłącznie tym, że odpowiedź nie przechodzi przez przeglądarkę
+    zalogowaną sesją. Pusta kolejka to ``404 NO_ASSIGNED_SUBMISSIONS``.
+    """
+
+    serializer_class = ReviewSerializer
+
+    @extend_schema(responses={(200, "application/zip"): bytes})
+    def get(self, request):
+        package = build_reviewer_zip(
+            active_reviewer_profile(request.user), actor=request.user, request=request
+        )
+        return FileResponse(
+            package.stream,
+            as_attachment=True,
+            filename=REVIEWER_ZIP_FILENAME,
+            content_type="application/zip",
+        )
+
+
 class ReviewDetailView(ReviewerScopedMixin, GenericAPIView):
     """Podgląd i zapis szkicu jednej recenzji. W rundzie 1 nie ma tu cudzych ocen."""
 
@@ -112,6 +138,8 @@ class ReviewSubmitView(ReviewerScopedMixin, GenericAPIView):
             serializer.validated_data["comment_internal"],
             serializer.validated_data["comment_for_participant"],
             serializer.validated_data["annotations"],
+            # ``.get`` zamiast indeksu: brak pola znaczy „bez rubryki”, a nie „pusta rubryka”.
+            rubric=serializer.validated_data.get("rubric"),
             request=request,
         )
         return Response(ReviewSerializer(review).data)
@@ -139,6 +167,7 @@ class ReviewReviseView(ReviewerScopedMixin, GenericAPIView):
             serializer.validated_data["comment_internal"],
             serializer.validated_data["comment_for_participant"],
             serializer.validated_data["annotations"],
+            rubric=serializer.validated_data.get("rubric"),
             request=request,
         )
         return Response(ReviewSerializer(review).data)

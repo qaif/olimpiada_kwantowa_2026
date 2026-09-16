@@ -12,6 +12,12 @@ from apps.submissions.models import AvStatus, Submission, SubmissionFile, Submis
 # Minimalny, ale prawdziwy PDF: liczy się nagłówek %PDF- (walidator patrzy na treść, nie na nazwę).
 PDF_BYTES = b"%PDF-1.7\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF\n"
 ZIP_BYTES = b"PK\x03\x04\x14\x00\x00\x00\x08\x00" + b"\xff\xfe\x00\x01" * 64
+# Minimalny, ale prawdziwy JPEG: SOI + segment APP0/JFIF + EOI. Walidator sprawdza sygnaturę
+# ``FF D8 FF`` i nie dekoduje obrazu, więc kilkadziesiąt bajtów wystarcza do odróżnienia zdjęcia
+# od pliku, który tylko nazywa się ``.jpg``.
+JPEG_BYTES = (
+    b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00" + b"\x00" * 32 + b"\xff\xd9"
+)
 
 
 def notebook_bytes(output_text: str = "wynik") -> bytes:
@@ -77,6 +83,10 @@ def upload(name: str, content: bytes, content_type: str = "application/octet-str
 
 def pdf_upload(name: str = "rozwiazanie.pdf") -> SimpleUploadedFile:
     return upload(name, PDF_BYTES, "application/pdf")
+
+
+def jpeg_upload(name: str = "zdjecie.jpg") -> SimpleUploadedFile:
+    return upload(name, JPEG_BYTES, "image/jpeg")
 
 
 class SubmissionFactory(factory.django.DjangoModelFactory):

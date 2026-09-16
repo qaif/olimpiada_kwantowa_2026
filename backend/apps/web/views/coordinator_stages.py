@@ -9,8 +9,9 @@ Dlaczego terminy w ogóle wychodzą z ``/admin/``: kalendarz edycji jest **codzi
 koordynatora, a nie czynnością administratora bazy. Panel dokłada do surowego formularza admina
 trzy rzeczy, których tam nie ma i mieć nie może: godziny w czasie polskim zamiast UTC, blokady
 zależne od stanu zawodów (zgłoszenia, zamknięcie etapu) oraz wpis audytowy z różnicą pól, czytelny
-razem z resztą historii etapu. Skala punktacji i próg kwalifikacji zostają w ``/admin/`` – to
-konfiguracja oceniania, którą rusza się raz na edycję.
+razem z resztą historii etapu. Tą samą drogą wyszła z ``/admin/`` **skala punktacji** (prośba
+organizatora): panel pilnuje przy niej reguły, której surowy formularz admina nie zna – wartości
+już wystawionej w ocenach nie wolno ze skali zdjąć. Próg kwalifikacji zostaje w ``/admin/``.
 """
 
 from __future__ import annotations
@@ -25,13 +26,20 @@ from django.utils import timezone
 from django.views.generic import View
 
 from apps.competitions.interviews import create_slots, delete_slot, slots_for_coordinator
-from apps.competitions.models import InterviewSlot, Problem, Stage
+from apps.competitions.models import (
+    DEFAULT_MAX_VALUE,
+    InterviewSlot,
+    Problem,
+    Stage,
+    default_scoring_values,
+)
 from apps.competitions.services import (
     create_problem,
     create_stage,
     current_edition,
     delete_problem,
     missing_stage_kinds,
+    set_scoring_scale,
     stage_has_interview_bookings,
     stage_has_submissions,
     update_problem,
@@ -39,17 +47,29 @@ from apps.competitions.services import (
     update_stage,
 )
 from apps.core.api import DomainError
+from apps.grading.rubric import set_criteria
 from apps.web.forms import (
     InterviewSlotsForm,
     ProblemForm,
     RegistrationSettingsForm,
+    ScoringScaleForm,
     StageCreateForm,
     StageForm,
+    format_scale_lines,
 )
 from apps.web.mixins import CoordinatorRequiredMixin
 
-#: Pola zadania, które widok przekazuje do serwisu. Plik i potwierdzenie idą osobno.
-PROBLEM_FIELDS = ("number", "title", "allowed_formats", "max_file_mb")
+#: Pola zadania, które widok przekazuje do serwisu. Pliki (treść, wzorcówka), potwierdzenie
+#: podmiany treści i rubryka idą osobno – rubryka dlatego, że jest osobnym modelem.
+PROBLEM_FIELDS = (
+    "number",
+    "title",
+    "allowed_formats",
+    "max_file_mb",
+    "scoring_values",
+    "max_points",
+    "reviewer_notes",
+)
 
 #: Pola serii terminów rozmów, które widok przekazuje do serwisu.
 SLOT_FIELDS = ("starts_at", "duration_minutes", "count", "capacity", "meeting_url", "note")
@@ -127,6 +147,77 @@ class StageEditView(CoordinatorRequiredMixin, View):
             "has_bookings": stage_has_interview_bookings(stage),
         }
         return TemplateResponse(request, self.template_name, context, status=status)
+
+
+class StageScaleView(CoordinatorRequiredMixin, View):
+    """``/coordinator/stages/<id>/scale/`` – skala punktacji etapu.
+
+    Etap bez skali nie jest tu błędem, tylko stanem do naprawienia: formularz staje wtedy wypełniony
+    skalą domyślną (0/2/5/6), a zapis skalę **tworzy**. Inaczej jedyną drogą naprawienia etapu,
+    któremu ktoś skasował skalę, byłby ``/admin/``.
+
+    Odmowa serwisu (``409 SCALE_LOCKED``) wraca z własnym kodem, a nie jako 302 z komunikatem –
+    to samo żądanie wysłane skryptem ma dostać kod, po którym widać, że zmiana nie weszła.
+    """
+
+    template_name = "web/coordinator/stage_scale.html"
+
+    def get(self, request, stage_id: int):
+        stage = _stage_for_edit(stage_id)
+        return self._render(request, stage, ScoringScaleForm(initial=_scale_initial(stage)))
+
+    def post(self, request, stage_id: int):
+        stage = _stage_for_edit(stage_id)
+        form = ScoringScaleForm(request.POST)
+        if not form.is_valid():
+            return self._render(request, stage, form, status=400)
+        try:
+            set_scoring_scale(
+                stage,
+                form.cleaned_data["values"],
+                form.cleaned_data["max_value"],
+                actor=request.user,
+                request=request,
+            )
+        except DomainError as exc:
+            messages.error(request, str(exc.detail))
+            return self._render(request, stage, form, status=exc.status_code)
+        messages.success(request, f"Skala punktacji etapu {stage.display_name} została zapisana.")
+        return redirect(reverse("web:coordinator"))
+
+    def _render(self, request, stage: Stage, form: ScoringScaleForm, *, status: int = 200):
+        context = {
+            "stage": stage,
+            "form": form,
+            "now": timezone.now(),
+            # Podgląd pokazuje skalę **po zapisie**, a nie tę z bazy: koordynator ma zobaczyć skutek
+            # tego, co wpisał, zanim kliknie „Zapisz” drugi raz po odmowie.
+            "preview": _scale_preview(stage, form),
+            # Zadania z własną skalą – bo dla nich zmiana na tym ekranie niczego nie znaczy.
+            "overrides": [
+                problem for problem in stage.problems.order_by("number", "id") if problem.has_own_scale
+            ],
+        }
+        return TemplateResponse(request, self.template_name, context, status=status)
+
+
+def _scale_initial(stage: Stage) -> dict:
+    """Wartości startowe formularza: skala etapu albo domyślna 0/2/5/6, gdy etap jej nie ma."""
+    scale = getattr(stage, "scoring_scale", None)
+    if scale is None:
+        return {
+            "values": format_scale_lines(default_scoring_values()),
+            "max_value": DEFAULT_MAX_VALUE,
+        }
+    return {"values": format_scale_lines(scale.values), "max_value": scale.max_value}
+
+
+def _scale_preview(stage: Stage, form: ScoringScaleForm) -> list[dict]:
+    """Pozycje skali do pokazania pod formularzem – wpisane, a gdy ich nie ma, te z bazy."""
+    if form.is_bound and form.is_valid():
+        return form.cleaned_data["values"]
+    scale = getattr(stage, "scoring_scale", None)
+    return list(scale.values or []) if scale is not None else default_scoring_values()
 
 
 class StageCreateView(CoordinatorRequiredMixin, View):
@@ -254,12 +345,16 @@ class StageProblemsView(CoordinatorRequiredMixin, View):
                 stage=stage,
                 actor=request.user,
                 statement=form.uploaded_statement(),
+                model_solution=form.uploaded_model_solution(),
                 request=request,
                 **data,
             )
         except DomainError as exc:
             messages.error(request, str(exc.detail))
             return render_problem_list(request, stage, form, status=exc.status_code)
+        # Rubryka jest osobnym modelem, więc zapisuje się osobno – dopiero gdy zadanie istnieje
+        # i ma identyfikator, do którego kryteria się przypną.
+        set_criteria(problem, form.cleaned_data["rubric"], actor=request.user, request=request)
         messages.success(request, f"Dodano zadanie {problem.number}: {problem.title}.")
         return redirect(reverse("web:coordinator-stage-problems", args=[stage.pk]))
 
@@ -284,6 +379,7 @@ class ProblemEditView(CoordinatorRequiredMixin, View):
                 problem,
                 request.user,
                 statement=form.uploaded_statement(),
+                model_solution=form.uploaded_model_solution(),
                 confirm_open_stage=bool(form.cleaned_data.get("confirm_open_stage")),
                 request=request,
                 **data,
@@ -292,6 +388,7 @@ class ProblemEditView(CoordinatorRequiredMixin, View):
             messages.error(request, str(exc.detail))
             problem = self._problem(pk)
             return self._render(request, problem, form, status=exc.status_code)
+        set_criteria(problem, form.cleaned_data["rubric"], actor=request.user, request=request)
         messages.success(request, f"Zapisano zadanie {data['number']}.")
         return redirect(reverse("web:coordinator-stage-problems", args=[problem.stage_id]))
 

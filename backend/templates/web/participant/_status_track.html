@@ -1,0 +1,38 @@
+{% load web_extras %}{% comment %}
+  Ścieżka oceniania jednej pracy: „oddane → w ocenie → oceniona → wyniki”.
+
+  Fragment dostaje gotową strukturę (``track``) z ``apps.submissions.status_track`` i nie liczy
+  w nim niczego sam – mapowanie statusu zgłoszenia na krok jest regułą domenową, a nie układem
+  strony. Punktów tu nie ma i nie może być: liczbę uczestnik poznaje dopiero po publikacji
+  wyników etapu, osobną drogą (``/me/stages/<id>/feedback/``).
+
+  Lista jest uporządkowana (``<ol>``), bo to jest kolejność kroków procedury, a nie zbiór odznak –
+  czytnik ekranu ma ją przeczytać jako „krok 2 z 4”.
+{% endcomment %}
+<div class="status-track-box">
+  <span class="status-track__caption" id="track-{{ row.problem.pk }}">Status oceniania</span>
+  <ol class="status-track" aria-labelledby="track-{{ row.problem.pk }}">
+    {% for step in track.steps %}
+      <li class="{{ step.css_class }}">
+        <span class="status-track__dot" aria-hidden="true"></span>
+        <span class="status-track__label">{{ step.label }}</span>
+        {% if step.state == "current" %}<span class="visually-hidden">(krok bieżący)</span>{% endif %}
+        {% if step.state == "failed" %}<span class="visually-hidden">(zakończone odrzuceniem)</span>{% endif %}
+      </li>
+    {% endfor %}
+  </ol>
+  {% if track.rejected %}
+    <p class="status-track__note status-track__note--warn">Ostatnia wersja została odrzucona przez
+      skan antywirusowy i nie wejdzie do oceniania. Wyślij plik ponownie, póki etap jest otwarty.</p>
+  {% endif %}
+  {% if track.results_at %}
+    {% comment %}
+      Etap nie ma pola „planowane ogłoszenie wyników”: ``results_published_at`` nakłada dopiero
+      publikacja. Dopóki jej nie ma, zapowiedzią jest otwarcie okna reklamacji – pierwszy moment,
+      w którym uczestnik zna już ocenę. Szablon musi więc powiedzieć, którą z dwóch rzeczy pokazuje.
+    {% endcomment %}
+    <p class="status-track__note">Ogłoszenie wyników:
+      <strong>{{ track.results_at|local_datetime }}</strong>{% if not track.results_published %}
+      <span class="hint">(termin planowany)</span>{% endif %}</p>
+  {% endif %}
+</div>

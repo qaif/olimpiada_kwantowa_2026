@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% load static web_extras %}
+{% comment %}
+  Przeglądarka śladu audytowego. Filtr jest formularzem GET, a stronicowanie zwykłymi odnośnikami:
+  wynik ma dać się odświeżyć, zapisać w zakładkach i wkleić w wiadomości – a tego zwykle chce
+  ktoś, kto właśnie znalazł w audycie odpowiedź na czyjeś pytanie.
+
+  ``diff`` stoi pod ``<details>``, czyli rozwija się bez jednej linii skryptu. Schowany jest
+  dlatego, że jest techniczny i przy stu wierszach zabiłby czytelność listy – nie dlatego, że jest
+  wrażliwy: wpisy audytowe z założenia nie niosą danych osobowych (apps/core/models.py).
+{% endcomment %}
+{% block title %}Audyt – panel koordynatora{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
+  <h1>Audyt</h1>
+  <p class="lead">Kto, co i na czym zrobił. Wpisów nie da się zmienić ani usunąć – także stąd.</p>
+</div>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Filtr</h2>
+    <p class="hint">Znalezionych wpisów: {{ paginator.count }}</p>
+  </div>
+  <div class="card">
+    {% comment %}
+      Nazwy parametrów w adresie są krótsze niż nazwy pól formularza (``from``/``to`` zamiast
+      ``date_from``/``date_to``), bo to one stoją w odnośniku, który ktoś wkleja do wiadomości.
+      Formularz jest tu wyłącznie interfejsem – zawężenie robi apps/core/audit_browser.py,
+      czytając surowe parametry.
+    {% endcomment %}
+    <form method="get" class="form">
+      <p>
+        <label for="{{ form.actor.id_for_label }}">{{ form.actor.label }}</label>
+        {{ form.actor }}
+      </p>
+      <p>
+        <label for="{{ form.action.id_for_label }}">{{ form.action.label }}</label>
+        {{ form.action }}
+      </p>
+      <p>
+        <label for="{{ form.target_type.id_for_label }}">{{ form.target_type.label }}</label>
+        {{ form.target_type }}
+      </p>
+      <p>
+        <label for="id_from">Od</label>
+        <input id="id_from" type="date" name="from" value="{{ request.GET.from|default:'' }}">
+      </p>
+      <p>
+        <label for="id_to">Do</label>
+        <input id="id_to" type="date" name="to" value="{{ request.GET.to|default:'' }}">
+      </p>
+      <div class="actions">
+        <button type="submit" class="btn btn--secondary">Filtruj</button>
+        {% if has_filters %}
+          <a class="btn btn--ghost" href="{% url 'web:coordinator-audit' %}">Wyczyść</a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="section">
+  <div class="scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Kiedy</th>
+          <th scope="col">Wykonawca</th>
+          <th scope="col">Akcja</th>
+          <th scope="col">Obiekt</th>
+          <th scope="col">Zmiana</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td class="audit-when">{{ row.at|local_datetime }}</td>
+            <td>{{ row.actor.email|default:"system" }}</td>
+            <th scope="row">{{ row.action }}</th>
+            <td>{{ row.target_type }}#{{ row.target_id }}</td>
+            <td>
+              {% if row.diff %}
+                <details class="audit-diff">
+                  <summary class="audit-diff__summary">pokaż</summary>
+                  <pre class="audit-diff__body">{{ row.diff }}</pre>
+                </details>
+              {% else %}
+                —
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="empty">Żaden wpis nie pasuje do tych warunków.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if page_obj.has_other_pages %}
+    <p class="hint">
+      {% if page_obj.has_previous %}
+        <a class="btn btn--secondary btn--small"
+           href="?{% if filter_query %}{{ filter_query }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">Poprzednia</a>
+      {% endif %}
+      Strona {{ page_obj.number }} z {{ paginator.num_pages }}
+      {% if page_obj.has_next %}
+        <a class="btn btn--secondary btn--small"
+           href="?{% if filter_query %}{{ filter_query }}&amp;{% endif %}page={{ page_obj.next_page_number }}">Następna</a>
+      {% endif %}
+    </p>
+  {% endif %}
+</section>
+{% endblock %}

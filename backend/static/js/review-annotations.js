@@ -1,4 +1,11 @@
-/* Wyspa JS panelu recenzenta: podgląd PDF (pdf.js) i warstwa adnotacji jako prostokąty.
+/* Wyspa JS panelu recenzenta: podgląd pracy i warstwa adnotacji jako prostokąty.
+ *
+ * Dwa rodzaje podglądu, jedna warstwa adnotacji. ``data-preview-kind`` mówi, czy plik jest
+ * dokumentem (pdf.js rysuje stronę na ``<canvas>``), czy zdjęciem rozwiązania (JPEG – zwykły
+ * ``<img>``). Adnotacje nie zależą od tego wyboru: prostokąty zapisujemy we współrzędnych
+ * ułamkowych względem widocznego obszaru, a zdjęcie jest po prostu „stroną 1 z 1”. Dzięki temu
+ * recenzent zaznacza fragment kartki sfotografowanej telefonem tak samo, jak fragment PDF-u,
+ * a serwer (``validate_annotations``) nie musi wiedzieć, co było źródłem.
  *
  * Zasady bezpieczeństwa tego pliku:
  * - treść adnotacji (tekst od recenzenta) trafia do DOM **wyłącznie** przez ``textContent``.
@@ -36,7 +43,9 @@ function csrfToken() {
 }
 
 function start() {
+  const previewKind = root.dataset.previewKind === "image" ? "image" : "pdf";
   const canvas = root.querySelector("[data-pdf-canvas]");
+  const previewImage = root.querySelector("[data-preview-image]");
   const layer = root.querySelector("[data-pdf-layer]");
   const pageInfo = root.querySelector("[data-pdf-pageinfo]");
   const hiddenInput = document.getElementById(root.dataset.annotationsInput);
@@ -101,6 +110,41 @@ function start() {
         box.style.height = rect[3] * viewport.height + "px";
         layer.appendChild(box);
       });
+  }
+
+  /* Zdjęcie skalujemy tą samą regułą, co stronę PDF-u (do 1.5×, nie szerzej niż kolumna), a potem
+   * przypinamy warstwę adnotacji do jego rzeczywistych wymiarów. Bez jawnych ``width``/``height``
+   * obrazek zmieniałby rozmiar razem z oknem i prostokąty rozjeżdżałyby się z tym, co zaznaczono. */
+  function renderImage() {
+    return new Promise(function (resolve, reject) {
+      previewImage.addEventListener(
+        "load",
+        function () {
+          const natural = previewImage.naturalWidth || 1;
+          const scale = Math.min(1.5, (root.clientWidth || 800) / natural);
+          const factor = scale > 0 ? scale : 1;
+          previewImage.width = Math.floor(natural * factor);
+          previewImage.height = Math.floor((previewImage.naturalHeight || 1) * factor);
+          viewport = { width: previewImage.width, height: previewImage.height };
+          layer.style.width = previewImage.width + "px";
+          layer.style.height = previewImage.height + "px";
+          if (pageInfo) pageInfo.textContent = "Zdjęcie rozwiązania";
+          renderRects();
+          resolve();
+        },
+        { once: true }
+      );
+      previewImage.addEventListener(
+        "error",
+        function () {
+          reject(new Error("Nie udało się wczytać zdjęcia."));
+        },
+        { once: true }
+      );
+      /* Adres wskazuje na endpoint pobrania, który przekierowuje na presigned URL. Ciasteczko
+       * sesji leci z żądaniem obrazka automatycznie – nie ma tu czego ustawiać. */
+      previewImage.src = root.dataset.pdfUrl;
+    });
   }
 
   async function renderPage() {
@@ -183,18 +227,25 @@ function start() {
     }
   }
 
-  root.querySelector("[data-pdf-prev]").addEventListener("click", function () {
-    if (pdfDocument && pageNumber > 1) {
-      pageNumber -= 1;
-      renderPage();
-    }
-  });
-  root.querySelector("[data-pdf-next]").addEventListener("click", function () {
-    if (pdfDocument && pageNumber < pdfDocument.numPages) {
-      pageNumber += 1;
-      renderPage();
-    }
-  });
+  /* Przyciski stron istnieją tylko przy dokumencie – przy zdjęciu szablon ich nie renderuje. */
+  const prevButton = root.querySelector("[data-pdf-prev]");
+  const nextButton = root.querySelector("[data-pdf-next]");
+  if (prevButton) {
+    prevButton.addEventListener("click", function () {
+      if (pdfDocument && pageNumber > 1) {
+        pageNumber -= 1;
+        renderPage();
+      }
+    });
+  }
+  if (nextButton) {
+    nextButton.addEventListener("click", function () {
+      if (pdfDocument && pageNumber < pdfDocument.numPages) {
+        pageNumber += 1;
+        renderPage();
+      }
+    });
+  }
   root.querySelector("[data-pdf-save]").addEventListener("click", save);
 
   syncField();
@@ -204,6 +255,11 @@ function start() {
   (async function load() {
     setStatus("Wczytywanie pliku…");
     try {
+      if (previewKind === "image") {
+        await renderImage();
+        setStatus("");
+        return;
+      }
       const pdfjs = await import(PDFJS_BASE + "/pdf.min.mjs");
       pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_BASE + "/pdf.worker.min.mjs";
       pdfDocument = await pdfjs.getDocument({ url: root.dataset.pdfUrl, withCredentials: true }).promise;
@@ -212,7 +268,7 @@ function start() {
     } catch (error) {
       /* Podgląd jest wygodą, nie warunkiem oceny: przy braku CDN-u albo pliku recenzent nadal
        * ma link „Pobierz plik” i pełny formularz oceny. */
-      setStatus("Podgląd PDF jest niedostępny – pobierz plik, aby go otworzyć.");
+      setStatus("Podgląd pliku jest niedostępny – pobierz go, aby otworzyć.");
     }
   })();
 }

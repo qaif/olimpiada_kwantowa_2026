@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% load web_extras %}
+{% block title %}Komentarze i miejsce – {{ feedback.stage.display_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">Panel uczestnika</span>
+  <h1>{{ feedback.stage.display_name }} – Twoja informacja zwrotna</h1>
+  <p class="lead">{{ feedback.stage.edition.year_label }}. Wyniki ogłoszono
+    {{ feedback.publication.published_at|local_datetime }}.</p>
+  <p class="actions">
+    <a class="btn btn--secondary btn--small" href="{% url 'web:me' %}">Wróć do panelu</a>
+    <a class="btn btn--secondary btn--small"
+       href="{% url 'web:results' feedback.stage.pk %}">Pełna tabela wyników</a>
+  </p>
+</div>
+
+<section class="section">
+  <div class="card card--accent">
+    <div class="card__head">
+      <h2 class="mt-0 card__title">Twój wynik</h2>
+      <span class="{% if feedback.qualified %}badge badge--ok{% else %}badge badge--neutral{% endif %}">
+        {{ feedback.status_label }}</span>
+    </div>
+    <dl class="meta-list">
+      <dt>Suma punktów</dt>
+      <dd>{{ feedback.total }} pkt</dd>
+      <dt>Miejsce w ogłoszonej tabeli</dt>
+      <dd>{% if feedback.rank %}{{ feedback.rank }} z {{ feedback.rank_of }}{% else %}
+        <span class="hint">nie ustalono – Twojego wyniku nie ma w ogłoszonej tabeli</span>{% endif %}</dd>
+      {% if feedback.threshold %}
+        <dt>Próg kwalifikacji</dt>
+        <dd>{{ feedback.threshold }}{% if feedback.cutoff_total is not None %}; najniższy wynik
+          wśród zakwalifikowanych w tej tabeli: {{ feedback.cutoff_total }} pkt{% endif %}</dd>
+      {% endif %}
+    </dl>
+    {% comment %}
+      Ogłoszona tabela jest zamrożona, a punkty liczymy na żywo z ``FinalGrade`` – po późnej
+      decyzji komisji obie liczby bywają różne. Milczące pokazanie jednej z nich byłoby gorsze
+      niż pokazanie obu (PROJEKT.md 2.4).
+    {% endcomment %}
+    {% if feedback.differs_from_published %}
+      <p class="msg msg-warning">W ogłoszonej tabeli masz {{ feedback.published_total }} pkt.
+        Różnica wynika z decyzji podjętej po publikacji – obowiązuje wynik bieżący
+        ({{ feedback.total }} pkt), a tabela pozostaje taka, jaką ogłoszono.</p>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Zadania i komentarze recenzentów</h2></div>
+  {% comment %}
+    Recenzenci są anonimowi i pozostają nimi tutaj: podpis „Recenzent A/B” liczy warstwa danych
+    (``apps.results.feedback``), a szablon nie ma dostępu do niczego, po czym dałoby się ich
+    rozpoznać. Komentarz wewnętrzny komitetu nie opuszcza tamtego modułu w żadnej postaci.
+  {% endcomment %}
+  {% for problem in feedback.problems %}
+    <article class="card feedback-card">
+      <div class="card__head">
+        <h3 class="mt-0 card__title">Zadanie {{ problem.number }}: {{ problem.title }}</h3>
+        <span class="result-summary__points">{{ problem.score }} pkt</span>
+      </div>
+      {% if problem.missing %}
+        <p class="hint">Nie oddałeś rozwiązania tego zadania.</p>
+      {% elif not problem.has_comments %}
+        <p class="hint">Recenzenci nie zostawili komentarza do tego zadania.</p>
+      {% endif %}
+      {% for review in problem.reviews %}
+        <div class="feedback">
+          <span class="feedback__title">{{ review.label }}</span>
+          {% if review.comment %}<p>{{ review.comment }}</p>{% endif %}
+          {% for annotation in review.annotations %}
+            <p class="annotation">str. {{ annotation.page }}: {{ annotation.text }}</p>
+          {% endfor %}
+        </div>
+      {% endfor %}
+    </article>
+  {% empty %}
+    <p class="empty"><span class="empty__title">Brak zadań</span>
+      Ten etap nie ma zadań do wypisania.</p>
+  {% endfor %}
+</section>
+{% endblock %}

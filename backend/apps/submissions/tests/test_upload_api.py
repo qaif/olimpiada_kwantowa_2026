@@ -56,7 +56,11 @@ def test_upload_pdf_creates_first_version(client, scenario, clamd, django_captur
 
     submission = Submission.objects.get(pk=response.data["id"])
     assert (submission.entry, submission.problem, submission.is_late) == (entry, problem, False)
-    assert len(callbacks) == 1, "skan musi być kolejkowany dokładnie raz, po commicie"
+    # Po commicie stoi w kolejce skan i potwierdzenie przyjęcia pracy (apps.submissions.notifications),
+    # więc liczymy **skany**, a nie wszystkie zadania: przedmiotem tej asercji jest to, że plik nie
+    # trafia do ClamAV dwa razy, a nie to, ile skutków ubocznych ma w ogóle przyjęcie rozwiązania.
+    scans = [item for item in callbacks if item.__qualname__.startswith("create_submission")]
+    assert len(scans) == 1, "skan musi być kolejkowany dokładnie raz, po commicie"
 
     submission_file = SubmissionFile.objects.get(submission=submission)
     submission_file.refresh_from_db()

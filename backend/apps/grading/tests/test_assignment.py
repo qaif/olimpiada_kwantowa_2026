@@ -29,7 +29,11 @@ def test_assign_gives_two_distinct_reviewers_and_is_idempotent(stage):
 
     result = assign_reviewers(stage)
 
-    assert result == {"submissions": 2, "assignments": 4, "skipped": []}
+    # ``due_at`` jest w wyniku od czasu terminów recenzji – porównujemy pozycje, które opisują
+    # sam przydział, a termin sprawdza ``test_deadlines.py``.
+    assert result["submissions"] == 2
+    assert result["assignments"] == 4
+    assert result["skipped"] == []
     for submission in (first, second):
         reviewers = set(
             Review.objects.filter(submission=submission, round=ROUND_BLIND).values_list(
@@ -43,7 +47,7 @@ def test_assign_gives_two_distinct_reviewers_and_is_idempotent(stage):
 
     again = assign_reviewers(stage)
 
-    assert again == {"submissions": 0, "assignments": 0, "skipped": []}
+    assert (again["submissions"], again["assignments"], again["skipped"]) == (0, 0, [])
     assert Review.objects.count() == 4
 
 

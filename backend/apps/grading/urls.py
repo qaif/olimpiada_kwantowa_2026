@@ -4,6 +4,7 @@ from .api import (
     ModerationAssignThirdView,
     ModerationListView,
     ModerationResolveView,
+    MyReviewsDownloadView,
     MyReviewsView,
     ReviewDetailView,
     ReviewDisputeView,
@@ -22,6 +23,9 @@ app_name = "grading"
 
 urlpatterns = [
     path("reviews/", MyReviewsView.as_view(), name="review-list"),
+    # Paczka ZIP stoi **przed** ``reviews/<int:pk>/`` wyłącznie dla czytelności – ``<int:…>``
+    # i tak nie dopasuje słowa „download”.
+    path("reviews/download/", MyReviewsDownloadView.as_view(), name="review-download"),
     path("reviews/<int:pk>/", ReviewDetailView.as_view(), name="review-detail"),
     path("reviews/<int:pk>/submit/", ReviewSubmitView.as_view(), name="review-submit"),
     # Poprawka własnej oceny stoi obok wystawienia, a nie zamiast niego: to dwie różne czynności

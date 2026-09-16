@@ -14,6 +14,7 @@ from datetime import timedelta
 
 from django.contrib import messages
 from django.db.models import Count
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
 from django.urls import reverse, reverse_lazy
@@ -41,9 +42,10 @@ from apps.accounts.services import (
     send_invitations,
     verify_committee_district,
 )
-from apps.competitions.models import Stage
+from apps.competitions.models import Problem, Stage
 from apps.competitions.services import current_edition, missing_stage_kinds
 from apps.core.api import DomainError
+from apps.grading.comparison import notes_by_submission
 from apps.grading.models import ProblemReviewerRule, Review, ReviewStatus
 from apps.grading.services import (
     add_problem_reviewer_rule,
@@ -64,10 +66,12 @@ from apps.grading.services import (
 from apps.results.models import ResultsPublication
 from apps.results.services import compute_stage_results, publish_results
 from apps.submissions.services import (
+    build_stage_zip,
     close_stage_now,
     lock_for_review,
     lock_submission_for_review,
     review_counters,
+    stage_zip_filename,
 )
 from apps.web.forms import (
     VOIVODESHIP_CHOICES,
@@ -83,7 +87,7 @@ from apps.web.forms import (
     VerifyDistrictForm,
 )
 from apps.web.mixins import ActionViewMixin, CoordinatorRequiredMixin
-from apps.web.templatetags.web_extras import LOCAL_TIME_LABEL
+from apps.web.templatetags.web_extras import LOCAL_TIME_LABEL, local_time
 
 DASHBOARD_URL = reverse_lazy("web:coordinator")
 
@@ -148,6 +152,10 @@ def dashboard_context(extra: dict | None = None) -> dict:
         # (edycja, rodzaj) jest unikalna, więc formularz nie miałby czego zaproponować.
         "missing_kinds": missing_stage_kinds(edition) if edition else [],
         "moderation": moderation,
+        # Notatki recenzentów przy pracach w moderacji – jedno zapytanie na cały ekran
+        # (``grading.comparison.notes_by_submission``). Koordynator czyta tu, czy recenzenci zdążyli
+        # się dogadać, zanim wyznaczy trzeciego albo zwoła posiedzenie.
+        "moderation_notes": notes_by_submission(moderation),
         "pending_members": pending_members,
         "counters": _counters(stages, moderation, pending_members),
         "active_members": list(
@@ -300,7 +308,86 @@ class AssignReviewersView(CoordinatorActionView):
                 request,
                 f"Pominięto {len(result['skipped'])} prac (brak recenzentów bez konfliktu): {codes}.",
             )
-        return f"Przydzielono {result['assignments']} recenzji dla {result['submissions']} rozwiązań."
+        # Termin w komunikacie, bo to pierwsze pytanie po przydziale („do kiedy mają czas?”),
+        # a odpowiedź na nie zna serwis: liczy ją z ``Stage.review_deadline_days`` i deadline'u
+        # recenzji etapu (``apps.grading.deadlines``).
+        due_at = result.get("due_at")
+        # ``localtime`` jawnie: filtr ``local_time`` dostaje konwersję strefy od Django wyłącznie
+        # w szablonie (``expects_localtime``), a wołany z Pythona sformatowałby UTC z etykietą
+        # czasu polskiego – czyli godzinę o dwie za wcześnie, bez żadnego sygnału, że coś nie gra.
+        deadline = f" Termin recenzji: {local_time(timezone.localtime(due_at))}." if due_at else ""
+        assigned = f"Przydzielono {result['assignments']} recenzji"
+        return f"{assigned} dla {result['submissions']} rozwiązań.{deadline}"
+
+
+def _attach_problem_scales(stage: Stage, rows: list[dict], *, fallback: list[int]) -> None:
+    """Dokłada do każdego wiersza skalę **jego zadania** – listy wyboru punktów muszą się zgadzać.
+
+    Skala bywa nadpisana per zadanie, więc jedna lista dla całego ekranu pokazywałaby przy części
+    prac wartości, których zapis by nie przyjął. Liczymy ją raz na zadanie, a nie raz na wiersz:
+    etap finału ma tysiące prac i kilka zadań.
+    """
+    scales: dict[int, list[int]] = {}
+    for problem in stage.problems.order_by("number", "id"):
+        try:
+            scales[problem.pk] = sorted(allowed_scores(stage, problem))
+        except DomainError:
+            scales[problem.pk] = []
+    for row in rows:
+        row["scale_values"] = scales.get(row["submission"].problem_id, fallback)
+
+
+class StageDownloadView(CoordinatorRequiredMixin, View):
+    """``GET|POST /coordinator/stages/<id>/download/`` – prace etapu w jednym archiwum ZIP.
+
+    Trzy zakresy jednym adresem, bo to jedna czynność w trzech rozmiarach:
+
+    - ``GET`` – wszystkie prace etapu (po jednej, najnowszej czystej wersji na parę wpis-zadanie),
+    - ``GET ?problem=<id>`` – jedno zadanie, czyli tyle, ile komisja czyta za jednym posiedzeniem,
+    - ``POST`` z ``submission_ids`` – wiersze zaznaczone w tabeli przydziałów.
+
+    ``POST`` przy pobieraniu nie jest zmianą stanu, tylko konsekwencją długości adresu: lista kilkuset
+    identyfikatorów nie mieści się w URL-u, a formularz z checkboxami i tak wysyła je ciałem żądania.
+
+    Nazwy plików w paczce są anonimowe (``<kod>_zad<numer>_v<wersja>``) także dla koordynatora,
+    choć on jedyny widzi nazwiska: paczka wędruje do komitetu i po drodze nikt jej nie przepakowuje.
+    """
+
+    def get(self, request, stage_id: int):
+        stage = get_object_or_404(Stage.objects.select_related("edition"), pk=stage_id)
+        raw = (request.GET.get("problem") or "").strip()
+        problem = None
+        if raw:
+            problem = get_object_or_404(Problem, pk=raw if raw.isdigit() else 0, stage=stage)
+        return self._zip(request, stage, problem=problem)
+
+    def post(self, request, stage_id: int):
+        stage = get_object_or_404(Stage.objects.select_related("edition"), pk=stage_id)
+        selected = [value for value in request.POST.getlist("submission_ids") if value.isdigit()]
+        if not selected:
+            messages.error(request, "Nie zaznaczono żadnej pracy.")
+            return redirect(reverse("web:coordinator-stage-assignments", args=[stage.pk]))
+        return self._zip(request, stage, submission_ids=selected)
+
+    def _zip(self, request, stage: Stage, *, problem=None, submission_ids=None):
+        try:
+            package = build_stage_zip(
+                stage,
+                actor=request.user,
+                request=request,
+                problem=problem,
+                submission_ids=submission_ids,
+            )
+        except DomainError as exc:
+            # 404 ze zdaniem o powodzie, a nie przekierowanie: pobranie, które nie ma czego oddać,
+            # musi się odróżniać od pobrania udanego także dla klienta bez przeglądarki.
+            return TemplateResponse(request, "404.html", {"reason": str(exc.detail)}, status=404)
+        return FileResponse(
+            package.stream,
+            as_attachment=True,
+            filename=stage_zip_filename(stage, problem=problem, selected=submission_ids is not None),
+            content_type="application/zip",
+        )
 
 
 class StageAssignmentsView(CoordinatorRequiredMixin, TemplateView):
@@ -329,16 +416,19 @@ class StageAssignmentsView(CoordinatorRequiredMixin, TemplateView):
         try:
             scores = sorted(allowed_scores(stage))
         except DomainError:
-            # Etap bez skali punktacji to stan do naprawienia w adminie, a nie powód, żeby odciąć
-            # koordynatora od przydziałów. Ekran stoi, znika tylko to, czego nie da się wypełnić.
+            # Etap bez skali punktacji to stan do naprawienia na ekranie „Skala punktacji”, a nie
+            # powód, żeby odciąć koordynatora od przydziałów. Ekran stoi, znika tylko to, czego
+            # nie da się wypełnić.
             scores = []
+        rows = stage_assignment_rows(stage, query)
+        _attach_problem_scales(stage, rows, fallback=scores)
         context.update(
             {
                 "stage": stage,
                 "now": timezone.now(),
                 "query": query,
                 "problem_rows": stage_problem_rules(stage),
-                "submission_rows": stage_assignment_rows(stage, query),
+                "submission_rows": rows,
                 "reviewer_pool": reviewer_pool(),
                 "assigned_status": ReviewStatus.ASSIGNED,
                 # Odebrać można recenzję w każdym stanie poza anulowaną – także wystawioną.
@@ -375,8 +465,6 @@ class AddProblemRuleView(StageAssignmentActionView):
     """Dodanie reguły „to zadanie recenzuje ta osoba” – działa też na prace już zablokowane."""
 
     def perform(self, request, problem_id: int) -> str:
-        from apps.competitions.models import Problem
-
         problem = get_object_or_404(Problem.objects.select_related("stage"), pk=problem_id)
         self.stage_id = problem.stage_id
         form = ReviewerPickForm(request.POST)

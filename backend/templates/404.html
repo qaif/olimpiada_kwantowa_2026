@@ -4,6 +4,12 @@
 <div class="auth">
   <div class="card">
     <h1>Nie znaleziono strony</h1>
+    {% comment %}
+      Powód stoi nad zdaniem ogólnym tylko wtedy, gdy widok go poda. Część odpowiedzi 404 nie jest
+      literówką w adresie, ale prawdziwą odpowiedzią („nie ma czego pobrać”) – i wtedy zdanie
+      o przeniesionej stronie jest myląco nie na temat.
+    {% endcomment %}
+    {% if reason %}<p class="msg msg-warning">{{ reason }}</p>{% endif %}
     <p class="auth__intro">Pod tym adresem nic nie ma – strona mogła zostać przeniesiona albo adres
       zawiera literówkę.</p>
     <p class="actions">

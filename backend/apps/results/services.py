@@ -40,6 +40,7 @@ from apps.core.api import DomainError
 from apps.core.models import audit
 from apps.grading.models import Review, ReviewStatus
 from apps.submissions.models import Submission, SubmissionStatus
+from apps.submissions.notifications import notify_results_published
 
 from .models import Anonymization, ResultsPublication
 
@@ -199,7 +200,7 @@ def _is_adult(birth_year: int | None, current_year: int) -> bool:
     return current_year - int(birth_year) >= ADULT_AGE
 
 
-def compute_stage_results(stage: Stage) -> list[dict]:
+def compute_stage_results(stage: Stage, *, preview: bool = False) -> list[dict]:
     """Tabela wyników etapu: suma ``FinalGrade.score`` po najnowszych wersjach zgłoszeń.
 
     Brak zgłoszenia do zadania = 0 punktów. Zwraca wiersze **pełne** (z danymi osobowymi) – to
@@ -208,6 +209,14 @@ def compute_stage_results(stage: Stage) -> list[dict]:
 
     Rzuca ``STAGE_NOT_FINALIZED`` (409), gdy którakolwiek najnowsza wersja jest jeszcze
     w ocenianiu – z listą pseudonimów prac do dokończenia.
+
+    ``preview=True`` wyłącza **obie** te rzeczy naraz i jest przeznaczone dla symulacji progu
+    (``apps.results.simulation``), która odpowiada na pytanie „co by było, gdyby”. Wyłączenie jest
+    wspólne z rozmysłem: symulacja z definicji biegnie w trakcie oceniania, więc brama
+    „ocenianie zakończone” zamknęłaby ją przez cały czas, kiedy jest potrzebna, a zapis
+    ``StageEntry.total_points`` byłby skutkiem ubocznym zwykłego wejścia na stronę (żądanie GET).
+    Praca bez oceny liczy się wtedy jako 0 punktów – i dlatego ekran symulacji **musi** napisać,
+    ilu prac jeszcze nie rozliczono. Publikacja i kwalifikacja nigdy z tego trybu nie korzystają.
     """
     problems = list(stage.problems.order_by("number", "id"))
     entries = list(
@@ -257,6 +266,9 @@ def compute_stage_results(stage: Stage) -> list[dict]:
                 "total": total,
             }
         )
+
+    if preview:
+        return _rank_rows(rows)
 
     _assert_finalized(pending_codes)
 
@@ -628,6 +640,11 @@ def publish_results(stage: Stage, actor, anonymization: str, *, request=None) ->
     )
     stage.results_published_at = now
     stage.save(update_fields=["results_published_at"])
+    # Powiadomienie uczestników. Treść i krąg odbiorców należą do ``submissions.notifications``
+    # (jedno miejsce na całą pocztę do uczestnika); listy idą po commicie, więc wycofana
+    # publikacja nie ogłasza tabeli, której nie ma.
+    publication.stage = stage
+    notify_results_published(publication, request=request)
 
     audit(
         actor,

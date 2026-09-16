@@ -32,6 +32,21 @@
   </li>
 </ul>
 
+{% comment %}
+  Narzędzia obejmujące całą edycję – w odróżnieniu od „Postępu oceniania” i „Symulacji”, które
+  dotyczą jednego etapu i dlatego stoją na jego karcie. Sekcja jest wysoko, bo to pierwsze
+  miejsce, do którego sięga się poza rytmem zawodów: kiedy trzeba coś ogłosić, coś wyeksportować
+  albo sprawdzić, kto i kiedy coś zmienił.
+{% endcomment %}
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Narzędzia</h2></div>
+  <p class="stage-panel__links">
+    <a href="{% url 'web:coordinator-messages' %}">Komunikaty</a>
+    <a href="{% url 'web:coordinator-export' %}">Eksport danych</a>
+    <a href="{% url 'web:coordinator-audit' %}">Audyt</a>
+  </p>
+</section>
+
 <section class="section">
   <div class="section__head">
     <h2 class="mt-0">Etapy {% if edition %}({{ edition.year_label }}){% endif %}</h2>
@@ -127,8 +142,17 @@
         {% else %}
           <a href="{% url 'web:coordinator-stage-problems' row.stage.pk %}">Zadania ({{ row.stage.problem_count }})</a>
         {% endif %}
-        {# Skala punktacji i próg kwalifikacji zostają w adminie – konfiguracja oceniania, nie kalendarz. #}
-        <a href="{% url 'admin:competitions_stage_change' row.stage.pk %}">Skala i próg (admin)</a>
+        {# Skala punktacji wyszła z adminu: panel pilnuje przy niej reguły, której admin nie zna –
+           wartości już wystawionej w ocenach nie wolno usunąć. Próg kwalifikacji zostaje. #}
+        <a href="{% url 'web:coordinator-stage-scale' row.stage.pk %}">Skala punktacji</a>
+        <a href="{% url 'admin:competitions_stage_change' row.stage.pk %}">Próg kwalifikacji (admin)</a>
+        {% comment %}
+          Dwa odnośniki do narzędzi tego etapu. „Postęp oceniania” odpowiada na pytanie „jak
+          daleko jesteśmy i na kogo czekamy”, „Symulacja kwalifikacji” – „co da ten próg”.
+          Oba są wyłącznie odczytem, dlatego stoją wśród odnośników, a nie wśród przycisków akcji.
+        {% endcomment %}
+        <a href="{% url 'web:coordinator-stage-progress' row.stage.pk %}">Postęp oceniania</a>
+        <a href="{% url 'web:coordinator-stage-simulation' row.stage.pk %}">Symulacja kwalifikacji</a>
       </p>
 
       <div class="stage-panel__actions">
@@ -157,6 +181,14 @@
         {# Ręczne przydziały stoją obok automatu, bo są jego uzupełnieniem: reguły „zadanie →
            recenzent” honoruje ten sam przycisk, a pojedyncze prace załatwia się już tam. #}
         <a class="btn btn--secondary" href="{% url 'web:coordinator-stage-assignments' row.stage.pk %}">Przydziały ręczne</a>
+
+        {% comment %}
+          Etap w formie rozmowy nie ma prac do pobrania, więc przycisku tam nie ma. W archiwum
+          jest po jednej, najnowszej przeskanowanej wersji każdej pracy; nazwy plików są anonimowe.
+        {% endcomment %}
+        {% if not row.stage.is_interview %}
+          <a class="btn btn--secondary" href="{% url 'web:coordinator-stage-download' row.stage.pk %}">Pobierz wszystkie prace (ZIP)</a>
+        {% endif %}
 
         <form method="post" action="{% url 'web:coordinator-compute' row.stage.pk %}">
           {% csrf_token %}
@@ -230,6 +262,26 @@
           </tbody>
         </table>
       </div>
+
+      {% comment %}
+        Notatki recenzentów przy tej pracy. Podpisy są literowe (tak, jak widzą je sami recenzenci),
+        choć koordynator zna tożsamości z tabeli wyżej: wątek jest ich rozmową o pracy i tak ma się
+        czytać. Brak notatek nie jest tu wart ani jednej linijki – sekcja po prostu się nie pojawia.
+      {% endcomment %}
+      {% with notes=moderation_notes|dict_get:submission.pk %}
+        {% if notes %}
+          <h4>Notatki recenzentów</h4>
+          <ul class="notes">
+            {% for note in notes %}
+              <li class="notes__item">
+                <span class="notes__author">{{ note.label }}</span>
+                <span class="notes__time">{{ note.created_at|local_time }}</span>
+                <p class="notes__text">{{ note.text }}</p>
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endwith %}
 
       <div class="stage-panel__actions">
         <form method="post" action="{% url 'web:coordinator-resolve' submission.pk %}">

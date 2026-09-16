@@ -16,6 +16,10 @@ from apps.core.api import DomainError
 
 MEGABYTE = 1024 * 1024
 PDF_MAGIC = b"%PDF-"
+#: Nagłówek JPEG: ``SOI`` (``FF D8``) plus pierwszy znacznik (``FF``). Wspólny dla JFIF i Exif,
+#: więc rozpoznaje i zdjęcie z telefonu, i plik z edytora – a nie przepuszcza PNG ani PDF-a
+#: przemianowanego na ``.jpg``.
+JPEG_MAGIC = b"\xff\xd8\xff"
 MAX_NOTEBOOK_OUTPUTS_BYTES = 2 * MEGABYTE
 MIN_NOTEBOOK_FORMAT = 4
 MAX_PYTHON_BYTES = 1 * MEGABYTE
@@ -25,7 +29,17 @@ MIME_BY_FORMAT = {
     "pdf": "application/pdf",
     "ipynb": "application/x-ipynb+json",
     "py": "text/x-python",
+    "jpg": "image/jpeg",
 }
+
+#: Rozszerzenia sprowadzane do jednej nazwy formatu. Aparat zapisze ``.jpeg``, telefon ``.JPG``,
+#: a zadanie ma w ``allowed_formats`` jedną wartość – bez tej normalizacji ten sam plik byłby raz
+#: przyjmowany, raz odrzucany zależnie od tego, co wpisał producent sprzętu.
+EXTENSION_ALIASES = {"jpeg": "jpg"}
+
+#: Lista formatów w komunikacie odmowy. Trzymana obok ``MIME_BY_FORMAT``, żeby dopisanie formatu
+#: nie zostawiało nieaktualnego zdania w jedynym miejscu, w którym uczestnik je przeczyta.
+SUPPORTED_FORMATS_HINT = "Rozpoznawane są wyłącznie pliki .pdf, .ipynb, .py i .jpg (.jpeg)."
 
 
 def _too_large(detail: str) -> DomainError:
@@ -45,10 +59,16 @@ def _format_not_allowed(ext: str, allowed_formats) -> DomainError:
 
 
 def declared_extension(name: str | None) -> str:
-    """Rozszerzenie z nazwy pliku – wyłącznie jako wskazówka, który walidator treści uruchomić."""
+    """Rozszerzenie z nazwy pliku – wyłącznie jako wskazówka, który walidator treści uruchomić.
+
+    Wynik jest **znormalizowany** (``EXTENSION_ALIASES``): ``zdjecie.JPEG`` i ``zdjecie.jpg`` dają
+    tę samą nazwę formatu, więc dalej – w dopuszczalnych formatach zadania, w kluczu obiektu
+    i w nazwie pliku w paczce ZIP – istnieje już tylko jedna.
+    """
     if not name or "." not in name:
         return ""
-    return name.rsplit(".", 1)[-1].strip().lower()
+    ext = name.rsplit(".", 1)[-1].strip().lower()
+    return EXTENSION_ALIASES.get(ext, ext)
 
 
 def _read_all(upload) -> bytes:
@@ -122,6 +142,20 @@ def _validate_notebook(upload) -> None:
         raise _invalid_type("Sumaryczny rozmiar outputów w notatniku przekracza 2 MB.")
 
 
+def _validate_jpeg(upload) -> None:
+    """Sygnatura ``FF D8 FF`` na początku strumienia.
+
+    Rozmiaru nie sprawdzamy osobno: zdjęcie mieści się w limicie zadania (``max_file_mb``), tak
+    samo jak PDF, a drugi limit tylko po to, żeby był, byłby regułą nie do wytłumaczenia
+    uczestnikowi stojącemu nad telefonem.
+    """
+    upload.seek(0)
+    header = upload.read(HEADER_PROBE_BYTES)
+    upload.seek(0)
+    if not header.startswith(JPEG_MAGIC):
+        raise _invalid_type("Treść pliku nie jest zdjęciem JPEG (brak sygnatury FF D8 FF).")
+
+
 def _validate_python(upload) -> None:
     raw = _read_all(upload)
     if len(raw) > MAX_PYTHON_BYTES:
@@ -138,6 +172,7 @@ _CONTENT_VALIDATORS = {
     "pdf": validate_pdf,
     "ipynb": _validate_notebook,
     "py": _validate_python,
+    "jpg": _validate_jpeg,
 }
 
 
@@ -160,7 +195,7 @@ def validate_upload(upload, allowed_formats, max_file_mb: int) -> tuple[str, str
 
     ext = declared_extension(getattr(upload, "name", ""))
     if ext not in SUPPORTED_FILE_FORMATS:
-        raise _invalid_type("Rozpoznawane są wyłącznie pliki .pdf, .ipynb i .py.")
+        raise _invalid_type(SUPPORTED_FORMATS_HINT)
     allowed = list(allowed_formats or [])
     if ext not in allowed:
         raise _format_not_allowed(ext, allowed)

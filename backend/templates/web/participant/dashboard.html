@@ -25,6 +25,14 @@
     <a class="btn btn--secondary btn--small" href="{% url 'web:profile' %}">Edytuj dane</a>
     <a class="btn btn--secondary btn--small" href="{% url 'web:account-delete' %}">Usuń konto</a>
   </p>
+  {% comment %}
+    Nawigacja panelu. Osobny wiersz od akcji na koncie powyżej, bo to inna sprawa: tamte
+    zmieniają dane uczestnika, te wyłącznie prowadzą do ekranów do czytania.
+  {% endcomment %}
+  <p class="actions">
+    <a class="btn btn--secondary btn--small" href="{% url 'web:participant-calendar' %}">Kalendarz</a>
+    <a class="btn btn--secondary btn--small" href="{% url 'web:participant-archive' %}">Archiwum</a>
+  </p>
 </div>
 
 {% if stage %}
@@ -291,6 +299,15 @@
         <h3 class="mt-0">{{ result.edition }} – {{ result.stage_name }}</h3>
         <span class="result-summary__points">{{ result.total_points }} pkt</span>
       </div>
+      {% comment %}
+        Tabela poniżej mieści punkty i komentarze, ale nie mieści miejsca ani progu kwalifikacji –
+        te wynikają z ogłoszonej tabeli całego etapu. Stąd odnośnik na osobną stronę, a nie
+        kolejna kolumna: jest tam jedna liczba na etap, a nie jedna na zadanie.
+      {% endcomment %}
+      <p class="actions">
+        <a class="btn btn--secondary btn--small"
+           href="{% url 'web:participant-feedback' result.stage_id %}">Komentarze i miejsce</a>
+      </p>
       <div class="scroll">
         <table class="table">
           <thead><tr><th>Zadanie</th><th>Punkty</th><th>Informacja zwrotna</th></tr></thead>

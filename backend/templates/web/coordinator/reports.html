@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+  Pulpit postępu oceniania jednego etapu. Dwa pytania, dwie sekcje: „jak daleko jesteśmy”
+  (pasek segmentowy plus tabela liczb) i „na kogo czekamy” (tabela recenzentów z przypomnieniem).
+
+  Pasek jest ilustracją proporcji – szerokości skaczą co 5%, bo polityka bezpieczeństwa nie
+  dopuszcza stylu w atrybucie i klasa musi pochodzić z zamkniętej listy (static/css/
+  coordinator-tools.css). Liczby pod nim są dokładne i to one są odpowiedzią; sam pasek jest
+  ``aria-hidden``, żeby czytnik ekranu nie odczytywał siedmiu pustych elementów zamiast tabeli.
+{% endcomment %}
+{% block title %}Postęp oceniania – {{ stage.display_name }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
+  <h1>Postęp oceniania: {{ stage.display_name }}</h1>
+  <p class="lead">Ile prac jest w którym stanie i którzy recenzenci mają jeszcze zaległości.
+    Ekran niczego nie zmienia – poza przyciskami przypomnienia.</p>
+</div>
+
+<ul class="kpi">
+  <li class="kpi__item">
+    <span class="kpi__value">{{ progress.total }}</span>
+    <span class="kpi__label">Prac w etapie</span>
+  </li>
+  <li class="kpi__item">
+    <span class="kpi__value">{{ progress.with_final_grade }}</span>
+    <span class="kpi__label">Z oceną końcową</span>
+  </li>
+  <li class="kpi__item{% if progress.open_appeals %} kpi__item--attention{% endif %}">
+    <span class="kpi__value">{{ progress.open_appeals }}</span>
+    <span class="kpi__label">Otwartych reklamacji</span>
+  </li>
+  <li class="kpi__item">
+    <span class="kpi__value">{{ progress.appeals }}</span>
+    <span class="kpi__label">Reklamacji łącznie</span>
+  </li>
+</ul>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Stan prac</h2>
+    <p class="hint">
+      <a class="btn btn--secondary btn--small"
+         href="{% url 'web:coordinator-stage-assignments' stage.pk %}">Przydziały ręczne</a>
+      <a class="btn btn--secondary btn--small"
+         href="{% url 'web:coordinator-stage-simulation' stage.pk %}">Symulacja kwalifikacji</a>
+    </p>
+  </div>
+  {% if progress.total %}
+    <div class="progress" aria-hidden="true">
+      {% for segment in progress.segments %}
+        <span class="progress__seg progress__seg--{{ segment.key }} progress__seg--w{{ segment.share }}"></span>
+      {% endfor %}
+    </div>
+    <ul class="progress-legend">
+      {% for segment in progress.segments %}
+        <li class="progress-legend__item">
+          <span class="progress-legend__swatch progress__seg--{{ segment.key }}" aria-hidden="true"></span>
+          {{ segment.label }}
+          <span class="progress-legend__count">{{ segment.count }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+    <div class="scroll">
+      <table class="table">
+        <caption class="visually-hidden">Liczba prac etapu w poszczególnych stanach</caption>
+        <thead>
+          <tr><th scope="col">Stan pracy</th><th scope="col">Prac</th></tr>
+        </thead>
+        <tbody>
+          {% for segment in progress.segments %}
+            <tr>
+              <th scope="row">{{ segment.label }}</th>
+              <td class="num total">{{ segment.count }}</td>
+            </tr>
+          {% endfor %}
+          <tr>
+            <th scope="row">Razem</th>
+            <td class="num total">{{ progress.total }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="empty"><span class="empty__title">Brak prac</span>
+      W tym etapie nie ma jeszcze ani jednego oddanego rozwiązania.</p>
+  {% endif %}
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Recenzenci</h2>
+    <form method="post" action="{% url 'web:coordinator-remind-reviewers' stage.pk %}" class="inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn--primary btn--small">Przypomnij wszystkim zaległym</button>
+    </form>
+  </div>
+  {% comment %}
+    Zdanie o definicji zaległości jest obowiązkowe, a nie ozdobne: dopóki recenzje nie mają
+    własnego terminu, „po terminie” jest przybliżeniem liczonym od chwili przydziału. Liczba bez
+    tego zastrzeżenia zostałaby wzięta za termin regulaminowy – i za jej pomocą ktoś rozliczałby
+    komitet z terminu, którego nigdy nie ogłoszono.
+  {% endcomment %}
+  <p class="hint">
+    {% if has_due_at %}
+      „Po terminie” liczymy po terminie zapisanym przy recenzji.
+    {% else %}
+      Recenzje nie mają jeszcze własnego terminu, więc „po terminie” znaczy tutaj:
+      <strong>przydzielona ponad {{ fallback_days }} dni temu i wciąż niewystawiona</strong>.
+    {% endif %}
+  </p>
+  <div class="scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Recenzent</th>
+          <th scope="col">Województwo</th>
+          <th scope="col">Przydzielone</th>
+          <th scope="col">Szkice</th>
+          <th scope="col">Wystawione</th>
+          <th scope="col">Po terminie</th>
+          <th scope="col"><span class="visually-hidden">Operacje</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in reviewers %}
+          <tr>
+            <th scope="row">{{ row.member.user.email }}</th>
+            <td>{{ row.member.get_district_display|default:"—" }}</td>
+            <td class="num">{{ row.assigned }}</td>
+            <td class="num">{{ row.draft }}</td>
+            <td class="num">{{ row.submitted }}</td>
+            <td class="num total">
+              {% if row.overdue %}<span class="badge badge--danger">{{ row.overdue }}</span>{% else %}0{% endif %}
+            </td>
+            <td>
+              {% comment %}
+                Przycisk stoi przy każdym wierszu, także bez zaległości: koordynator czasem
+                przypomina o robocie, która terminu jeszcze nie przekroczyła. Serwis odmówi
+                wysyłki komuś, kto nie ma nic do zrobienia, i powie o tym komunikatem.
+              {% endcomment %}
+              <form method="post" action="{% url 'web:coordinator-remind-reviewers' stage.pk %}" class="inline">
+                {% csrf_token %}
+                <input type="hidden" name="reviewer_id" value="{{ row.member.pk }}">
+                <button type="submit" class="btn btn--secondary btn--small">Przypomnij e-mailem</button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="empty">Nie ma ani jednego aktywnego recenzenta.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

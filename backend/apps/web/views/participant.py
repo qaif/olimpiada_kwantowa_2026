@@ -37,12 +37,13 @@ from apps.competitions.services import (
     training_stage,
 )
 from apps.core.api import DomainError
-from apps.results.services import results_for_participant
+from apps.results.services import published_results, results_for_participant
 from apps.submissions.services import (
     UNDER_REVIEW_STATUSES,
     create_submission,
     submissions_for_user,
 )
+from apps.submissions.status_track import status_track
 from apps.web.forms import AppealForm, SubmissionUploadForm
 from apps.web.mixins import ActionViewMixin, ParticipantRequiredMixin
 from apps.web.throttle import ThrottledFormMixin
@@ -81,14 +82,28 @@ def _problem_rows(user, entry: StageEntry | None) -> list[dict]:
     versions: dict[int, list] = defaultdict(list)
     for submission in submissions_for_user(user).filter(entry=entry):
         versions[submission.problem_id].append(submission)
+    # Publikacja etapu jest jedna na całą listę zadań, więc czytamy ją **raz**: w środku pętli
+    # byłaby jednym zapytaniem na zadanie, czyli N+1 na każdym wejściu do panelu.
+    publication = published_results(entry.stage_id)
     return [
         {
             "problem": problem,
             "versions": versions.get(problem.pk, []),
             "under_review": _under_review(versions.get(problem.pk, [])),
+            "track": _track_for(versions.get(problem.pk, []), entry.stage, publication),
         }
         for problem in problems
     ]
+
+
+def _track_for(versions: list, stage: Stage, publication) -> object:
+    """Ścieżka „oddane → w ocenie → oceniona → wyniki” dla **najnowszej** wersji pracy.
+
+    Lista wersji przychodzi posortowana malejąco (``submissions_for_user``), więc pierwsza jest
+    najnowsza – i to ona wyznacza status, bo tylko ona idzie do oceniania. Regułę mapowania
+    trzyma ``apps.submissions.status_track``; tutaj zostaje samo wybranie wersji.
+    """
+    return status_track(submission=versions[0] if versions else None, stage=stage, publication=publication)
 
 
 def _consent_rows(participant) -> list[dict]:
@@ -120,8 +135,18 @@ def _consent_rows(participant) -> list[dict]:
 
 
 def _problem_row(user, entry: StageEntry, problem: Problem) -> dict:
+    """Jedna karta zadania – odpowiedź HTMX po uploadzie. Kształt musi być ten sam, co w pulpicie.
+
+    Ścieżka oceniania jest tu liczona tak samo jak w ``_problem_rows``: karta wracająca po
+    wysyłce ma pokazać krok „oddane” od razu, a nie dopiero po przeładowaniu całej strony.
+    """
     versions = list(submissions_for_user(user).filter(entry=entry, problem=problem))
-    return {"problem": problem, "versions": versions, "under_review": _under_review(versions)}
+    return {
+        "problem": problem,
+        "versions": versions,
+        "under_review": _under_review(versions),
+        "track": _track_for(versions, entry.stage, published_results(entry.stage_id)),
+    }
 
 
 class MeView(ParticipantRequiredMixin, TemplateView):

@@ -1,0 +1,43 @@
+{% comment %}
+  Rubryka oceniania jednej pracy: po jednym polu punktów i jednym komentarzu na kryterium zadania.
+
+  Sumy **nie liczymy w przeglądarce**: policzy ją serwer (``grading.rubric``), a wynik musi trafić
+  w skalę zadania. Licznik w JavaScripcie byłby drugą implementacją tej samej reguły – i tą, której
+  nikt nie testuje. Zamiast tego pod spodem stoi lista dopuszczalnych sum: recenzent widzi, w co
+  ma trafić, zanim wyśle.
+
+  Nazwy pól (``rubric-<id>-points``) czyta ``apps.grading.rubric.rubric_from_post``.
+{% endcomment %}
+<div class="rubric">
+  <h3>Rubryka oceniania</h3>
+  <p class="hint">Punkty przyznajesz kryterium po kryterium. Ocenę pracy wylicza system jako sumę –
+    musi ona należeć do skali tego zadania{% if scale_options %}:
+    {% for option in scale_options %}{{ option.value }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}.
+    Jeżeli suma wypadnie poza skalę, zapis się nie uda i poprawisz punkty przy kryteriach.</p>
+
+  {% for row in rubric_rows %}
+    <fieldset class="rubric__item">
+      <legend>{{ row.criterion.title }} <span class="hint">(0–{{ row.criterion.max_points }} pkt)</span></legend>
+      {% if row.criterion.description %}<p class="hint">{{ row.criterion.description }}</p>{% endif %}
+      <p class="field">
+        <label for="id_rubric_{{ row.criterion.pk }}_points">Punkty</label>
+        <input type="number"
+               id="id_rubric_{{ row.criterion.pk }}_points"
+               name="rubric-{{ row.criterion.pk }}-points"
+               min="0"
+               max="{{ row.criterion.max_points }}"
+               step="1"
+               value="{% if row.points is not None %}{{ row.points }}{% endif %}">
+      </p>
+      <p class="field">
+        <label for="id_rubric_{{ row.criterion.pk }}_comment">Komentarz do kryterium</label>
+        <textarea id="id_rubric_{{ row.criterion.pk }}_comment"
+                  name="rubric-{{ row.criterion.pk }}-comment"
+                  rows="2">{{ row.comment }}</textarea>
+      </p>
+    </fieldset>
+  {% endfor %}
+
+  <p class="hint">Zapisana ocena tej recenzji:
+    <strong>{% if review.score is not None %}{{ review.score }} pkt{% else %}jeszcze nie wystawiona{% endif %}</strong>.</p>
+</div>

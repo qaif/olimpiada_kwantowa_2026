@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% load web_extras %}
+{% block title %}Kalendarz uczestnika{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">Panel uczestnika</span>
+  <h1>Twój kalendarz</h1>
+  {% if edition %}
+    <p class="lead">Terminy edycji {{ edition.year_label }} wraz z Twoimi własnymi – w jednym miejscu.</p>
+  {% endif %}
+  <p class="actions">
+    <a class="btn btn--secondary btn--small" href="{% url 'web:me' %}">Wróć do panelu</a>
+    {% comment %}
+      Plik ``.ics`` jest tym samym kalendarzem w postaci, którą rozumie każdy program pocztowy
+      i telefon. Adres da się też zasubskrybować – identyfikatory wydarzeń są stabilne, więc
+      kolejne pobranie aktualizuje wpisy, zamiast dokładać ich kopie.
+    {% endcomment %}
+    <a class="btn btn--primary btn--small" href="{% url 'web:participant-calendar-ics' %}"
+       download>Pobierz kalendarz (.ics)</a>
+  </p>
+</div>
+
+<section class="section">
+  {% if items %}
+    <div class="scroll">
+      <table class="table">
+        <caption>Terminy edycji. Wszystkie godziny: czas polski.</caption>
+        <thead>
+          <tr>
+            <th scope="col">Termin</th>
+            <th scope="col">Wydarzenie</th>
+            <th scope="col">Rodzaj</th>
+            <th scope="col">Stan</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+            {% comment %}
+              Własny termin rozmowy jest jedyną pozycją prywatną w tej tabeli i dlatego jest
+              wyróżniony. Adresu pokoju wideo tu nie ma – jest wyłącznie na pulpicie, bo link,
+              pod którym wchodzi się bez logowania, jest de facto poświadczeniem.
+            {% endcomment %}
+            <tr {% if item.kind == "interview" %}class="is-qualified"{% endif %}>
+              <td>{{ item.dates }}</td>
+              <td>
+                {% if item.url %}
+                  <a href="{{ item.url }}">{{ item.title }}</a>
+                {% else %}
+                  {{ item.title }}
+                {% endif %}
+                {% if item.note %}<span class="hint">{{ item.note }}</span>{% endif %}
+              </td>
+              <td>{{ item.kind_label }}</td>
+              <td>
+                {% if item.status == "current" %}
+                  <span class="badge badge--accent">trwa</span>
+                {% elif item.is_past %}
+                  <span class="badge badge--neutral">minione</span>
+                {% else %}
+                  <span class="badge badge--info">przed nami</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="empty"><span class="empty__title">Kalendarz jest pusty</span>
+      Nie ustawiono bieżącej edycji albo nie wpisano jeszcze żadnych terminów.</p>
+  {% endif %}
+</section>
+{% endblock %}

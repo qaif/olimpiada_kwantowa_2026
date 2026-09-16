@@ -422,3 +422,83 @@ class InvitationCode(models.Model):
     def status_label(self) -> str:
         """Etykieta stanu dla szablonu – ``status`` jest wyliczany, więc nie ma ``get_..._display``."""
         return InvitationStatus(self.status()).label
+
+
+class BroadcastGroup(models.TextChoices):
+    """Grupy odbiorców komunikatu organizatora.
+
+    Lista jest zamknięta z premedytacją. Pole „wpisz zapytanie do bazy” dawałoby koordynatorowi
+    możliwość wysłania listu do dowolnego zbioru osób, a każda taka wysyłka jest przetwarzaniem
+    danych kontaktowych w celu, który trzeba umieć nazwać. Tutaj cel jest nazwany etykietą grupy
+    i to on trafia do ``MessageBroadcast.group``, czyli do rejestru wysyłek.
+
+    ``CUSTOM`` (wklejona lista adresów) jest wyjątkiem świadomym: organizator musi móc odpisać
+    grupie osób, której system nie zna (opiekunowie, patroni, dziennikarze). Adresy z tej listy
+    **nie są nigdzie zapisywane** – jadą prosto do zadania wysyłkowego.
+    """
+
+    EDITION_PARTICIPANTS = "EDITION_PARTICIPANTS", "uczestnicy bieżącej edycji"
+    STAGE_REGISTERED = "STAGE_REGISTERED", "zapisani do etapu"
+    STAGE_QUALIFIED = "STAGE_QUALIFIED", "zakwalifikowani do etapu"
+    COMMITTEE = "COMMITTEE", "członkowie komitetu"
+    COMMITTEE_DISTRICT = "COMMITTEE_DISTRICT", "komitet jednego województwa"
+    CUSTOM = "CUSTOM", "wklejona lista adresów"
+
+
+class BroadcastStatus(models.TextChoices):
+    """Stan wysyłki. ``SENT`` znaczy „wszystkie listy trafiły do kolejki”, nie „doręczono”.
+
+    Doręczenia ta tabela nie zna i znać nie może: o tym, czy list dotarł, rozstrzyga serwer
+    odbiorcy, a my dostajemy najwyżej zwrotkę do skrzynki organizatora. Rozróżnienie jest
+    w etykietach, żeby nikt nie wziął „wysłana” za dowód doręczenia.
+    """
+
+    QUEUED = "QUEUED", "w kolejce"
+    SENT = "SENT", "przekazana do wysyłki"
+    FAILED = "FAILED", "nieudana"
+
+
+class MessageBroadcast(models.Model):
+    """Rejestr komunikatów rozesłanych przez organizatora (jeden wiersz = jedna wysyłka).
+
+    Po co w ogóle zapis, skoro listy i tak wychodzą: bez niego nie da się odpowiedzieć na pytanie
+    „czy uczestnicy dostali informację o przesunięciu terminu i kiedy”. Audyt odnotowuje sam fakt
+    (``broadcast.sent`` z licznikami), ale nie trzyma treści – a to treść jest tu przedmiotem
+    sporu, gdy ktoś twierdzi, że nic nie dostał albo że dostał co innego.
+
+    Czego w tabeli **nie ma**: listy odbiorców. Wiersz niesie grupę i liczbę adresatów, nigdy
+    adresy. Grupę da się odtworzyć zapytaniem, gdyby kiedyś trzeba było sprawdzić, kto się w niej
+    mieścił, a przechowywanie kopii adresów przy każdym komunikacie mnożyłoby zbiory danych
+    kontaktowych bez żadnego pożytku.
+
+    ``sent_count`` rośnie w miarę jak kolejne porcje trafiają do kolejki wysyłkowej; przy
+    wysyłce, która padła w połowie, różnica względem ``recipient_count`` mówi, ile listów nie
+    wyszło. ``SET_NULL`` przy autorze, bo skasowanie konta koordynatora nie może wymazać historii
+    komunikatów wysłanych do tysięcy osób.
+    """
+
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="broadcasts",
+        verbose_name="wysłał",
+    )
+    created_at = models.DateTimeField("wysłana", default=timezone.now, db_index=True)
+    group = models.CharField("grupa odbiorców", max_length=32, choices=BroadcastGroup.choices)
+    subject = models.CharField("temat", max_length=200)
+    body = models.TextField("treść")
+    recipient_count = models.PositiveIntegerField("liczba odbiorców", default=0)
+    sent_count = models.PositiveIntegerField("przekazanych do wysyłki", default=0)
+    status = models.CharField(
+        "stan", max_length=16, choices=BroadcastStatus.choices, default=BroadcastStatus.QUEUED
+    )
+
+    class Meta:
+        verbose_name = "komunikat"
+        verbose_name_plural = "komunikaty"
+        ordering = ("-created_at", "-id")
+
+    def __str__(self) -> str:
+        return f"{self.subject} → {self.recipient_count} odbiorców"

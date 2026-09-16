@@ -28,11 +28,12 @@ from apps.accounts.models import (
     CommitteeStatus,
 )
 from apps.accounts.services import active_reviewer_profile
-from apps.competitions.models import Stage, StageKind
+from apps.competitions.models import Problem, Stage, StageKind
 from apps.core.api import DomainError
 from apps.core.models import audit
 from apps.submissions.models import Submission, SubmissionFile, SubmissionStatus
 
+from .deadlines import review_due_at
 from .models import (
     ROUND_BLIND,
     ROUND_TIEBREAK,
@@ -43,6 +44,7 @@ from .models import (
     ReviewCancelReason,
     ReviewStatus,
 )
+from .rubric import assert_total_in_scale, is_complete, validate_rubric
 
 logger = logging.getLogger(__name__)
 
@@ -241,7 +243,24 @@ def _clean_comment(value: str | None) -> str:
     return (value or "")[:MAX_COMMENT_LENGTH]
 
 
-def allowed_scores(stage: Stage) -> set[int]:
+def allowed_scores(stage: Stage, problem: Problem | None = None) -> set[int]:
+    """Dopuszczalne oceny: skala **zadania**, jeśli je ma, w przeciwnym razie skala etapu.
+
+    Pierwszeństwo zadania jest całą regułą „skala punktacji zadań” (prośba organizatora): etap
+    niesie skalę domyślną, a pojedyncze zadanie wolno punktować inaczej – np. zadanie otwarte
+    w skali 0–10 obok zadań 0/2/5/6. Puste ``Problem.scoring_values`` znaczy „dziedzicz po etapie”,
+    a nie „brak skali”: dzięki temu dodanie zadania nie wymaga przepisywania skali etapu, a zmiana
+    skali etapu obejmuje wszystkie zadania, które własnej nie mają.
+
+    ``problem`` jest opcjonalny wyłącznie dla wywołań, które pytają o skalę etapu jako całości
+    (ekran koordynatora, walidacja reklamacji bez pracy). Każde miejsce, które zna zgłoszenie,
+    **musi** podać jego zadanie – inaczej ocena przechodząca walidację nie musiałaby należeć do
+    skali, według której praca jest oceniana.
+    """
+    if problem is not None:
+        values = problem.allowed_values()
+        if values:
+            return values
     scale = getattr(stage, "scoring_scale", None)
     if scale is None:
         raise _conflict("Etap nie ma skali punktacji.", "SCORING_SCALE_MISSING")
@@ -251,11 +270,33 @@ def allowed_scores(stage: Stage) -> set[int]:
     return values
 
 
-def _assert_score_in_scale(stage: Stage, score) -> int:
-    if not isinstance(score, int) or isinstance(score, bool) or score not in allowed_scores(stage):
-        raise _bad_request(
-            f"Ocena {score} nie należy do skali {sorted(allowed_scores(stage))}.", "SCORE_NOT_IN_SCALE"
-        )
+def scale_items(stage: Stage, problem: Problem | None = None) -> list[dict]:
+    """Pozycje obowiązującej skali jako ``[{"value": int, "label": str}]`` – z zadania albo z etapu.
+
+    Bliźniak ``allowed_scores`` dla ekranów: recenzent i koordynator wybierają ocenę z listy
+    **z etykietami** („2 – istotny postęp”), a nie z gołych liczb. Pierwszeństwo jest to samo, więc
+    lista wyboru nie może pokazać wartości, której zapis by nie przyjął.
+
+    Brak skali to pusta lista, a nie wyjątek: ekran ma stanąć także dla etapu, którego skalę ktoś
+    skasował – znika z niego wtedy sam formularz oceny, a nie cała strona.
+    """
+    raw = (problem.scoring_values if problem is not None else None) or None
+    if raw is None:
+        scale = getattr(stage, "scoring_scale", None)
+        raw = scale.values if scale is not None else []
+    return [
+        {"value": item["value"], "label": item.get("label", "")}
+        for item in raw or []
+        if isinstance(item, dict)
+        and isinstance(item.get("value"), int)
+        and not isinstance(item.get("value"), bool)
+    ]
+
+
+def _assert_score_in_scale(stage: Stage, score, problem: Problem | None = None) -> int:
+    values = allowed_scores(stage, problem)
+    if not isinstance(score, int) or isinstance(score, bool) or score not in values:
+        raise _bad_request(f"Ocena {score} nie należy do skali {sorted(values)}.", "SCORE_NOT_IN_SCALE")
     return score
 
 
@@ -263,7 +304,15 @@ def _locked_submission(submission_id: int) -> Submission:
     """Zgłoszenie pod blokadą wiersza – jedyny punkt szeregowania zapisów oceniania."""
     return (
         Submission.objects.select_for_update(of=("self",))
-        .select_related("entry", "entry__participant", "entry__stage", "entry__stage__scoring_scale")
+        .select_related(
+            "entry",
+            "entry__participant",
+            "entry__stage",
+            "entry__stage__scoring_scale",
+            # ``problem`` wchodzi do zapytania, bo od skali per zadanie każda walidacja oceny
+            # potrzebuje zadania – bez tego byłoby jedno zapytanie na każdy zapis recenzji.
+            "problem",
+        )
         .get(pk=submission_id)
     )
 
@@ -379,6 +428,11 @@ def assign_reviewers(stage: Stage, per_submission: int = 2, *, actor=None, reque
     created_total = 0
     touched: list[int] = []
     skipped: list[dict] = []
+    # Jedna chwila przydziału i jeden termin na cały przebieg: to jest **ta sama fala** prac, więc
+    # recenzenci mają dostać ten sam termin co do sekundy. Liczenie ``now`` osobno przy każdej pracy
+    # dawałoby terminy różniące się milisekundami i komunikat koordynatora nie mógłby podać jednej daty.
+    now = timezone.now()
+    due_at = review_due_at(stage, now)
     for submission in submissions:
         already = set(
             Review.objects.filter(submission=submission, round=ROUND_BLIND)
@@ -415,7 +469,6 @@ def assign_reviewers(stage: Stage, per_submission: int = 2, *, actor=None, reque
 
         if not chosen:
             continue
-        now = timezone.now()
         Review.objects.bulk_create(
             [
                 Review(
@@ -424,6 +477,7 @@ def assign_reviewers(stage: Stage, per_submission: int = 2, *, actor=None, reque
                     round=ROUND_BLIND,
                     status=ReviewStatus.ASSIGNED,
                     assigned_at=now,
+                    due_at=due_at,
                 )
                 for member in chosen
             ]
@@ -451,6 +505,7 @@ def assign_reviewers(stage: Stage, per_submission: int = 2, *, actor=None, reque
             "submissions": len(touched),
             "assignments": created_total,
             "per_submission": per_submission,
+            "due_at": due_at.isoformat() if due_at else None,
             "skipped": [item["submission_id"] for item in skipped],
         },
         request=request,
@@ -462,7 +517,15 @@ def assign_reviewers(stage: Stage, per_submission: int = 2, *, actor=None, reque
         len(touched),
         len(skipped),
     )
-    return {"submissions": len(touched), "assignments": created_total, "skipped": skipped}
+    # ``due_at`` jest w wyniku, bo komunikat po przydziale ma powiedzieć koordynatorowi, do kiedy
+    # recenzenci mają czas – to najczęstsze pytanie tuż po kliknięciu „Przydziel recenzentów”,
+    # a odpowiedź na nie zna w tej chwili wyłącznie serwis.
+    return {
+        "submissions": len(touched),
+        "assignments": created_total,
+        "due_at": due_at,
+        "skipped": skipped,
+    }
 
 
 # --- przydział ręczny -------------------------------------------------------------------------
@@ -476,6 +539,11 @@ def _create_blind_assignment(submission: Submission, reviewer: CommitteeMember) 
     się ``IntegrityError`` (500) zamiast zwykłym ponownym przydziałem. Anulowany rekord wraca więc
     do ``ASSIGNED`` ze świeżą datą – historia zmian zostaje w audycie, nie w duplikacie wiersza.
     """
+    now = timezone.now()
+    # Termin liczy się od **tego** przydziału, a nie od pierwotnego: praca wraca do kogoś nowego
+    # (albo do tej samej osoby po odebraniu i oddaniu), więc odziedziczony termin sprzed dwóch
+    # tygodni znaczyłby „po terminie od pierwszej sekundy”.
+    due_at = review_due_at(submission.entry.stage, now)
     existing = Review.objects.filter(
         submission=submission, reviewer=reviewer, round=ROUND_BLIND, status=ReviewStatus.CANCELLED
     ).first()
@@ -484,15 +552,20 @@ def _create_blind_assignment(submission: Submission, reviewer: CommitteeMember) 
         # Powód anulowania znika razem z anulowaniem: przydział znów jest do zrobienia, a stary
         # powód wyświetlałby się przy recenzji, która nie jest już anulowana.
         existing.cancel_reason = ""
-        existing.assigned_at = timezone.now()
-        existing.save(update_fields=["status", "cancel_reason", "assigned_at"])
+        existing.assigned_at = now
+        existing.due_at = due_at
+        # Przypomnienia zaczynają się od nowa razem z terminem – inaczej wskrzeszony przydział
+        # czekałby na pierwszy list do jutra, bo „już przypominaliśmy” (sprzed anulowania).
+        existing.reminded_at = None
+        existing.save(update_fields=["status", "cancel_reason", "assigned_at", "due_at", "reminded_at"])
         return existing
     return Review.objects.create(
         submission=submission,
         reviewer=reviewer,
         round=ROUND_BLIND,
         status=ReviewStatus.ASSIGNED,
-        assigned_at=timezone.now(),
+        assigned_at=now,
+        due_at=due_at,
     )
 
 
@@ -691,12 +764,17 @@ def assign_third_reviewer(submission: Submission, reviewer: CommitteeMember, *, 
     if Review.objects.filter(submission=locked, round=ROUND_TIEBREAK).exists():
         raise _conflict("Trzeci recenzent jest już wyznaczony.", "THIRD_REVIEWER_ALREADY_ASSIGNED")
 
+    now = timezone.now()
     review = Review.objects.create(
         submission=locked,
         reviewer=reviewer,
         round=ROUND_TIEBREAK,
         status=ReviewStatus.ASSIGNED,
-        assigned_at=timezone.now(),
+        assigned_at=now,
+        # Rozjemca dostaje termin liczony tak samo jak każdy inny recenzent – od chwili, w której
+        # dostał pracę. Runda 2 zaczyna się zwykle po deadline recenzji etapu, więc sufit z
+        # ``review_due_at`` zwykle jej nie dotyczy (patrz reguła w ``apps.grading.deadlines``).
+        due_at=review_due_at(locked.entry.stage, now),
     )
     audit(
         actor,
@@ -729,11 +807,29 @@ def _assert_review_open(review: Review, submission_status: str) -> None:
 
 
 def save_draft(
-    review: Review, *, score=None, comment_internal=None, comment_for_participant=None, annotations=None
+    review: Review,
+    *,
+    score=None,
+    comment_internal=None,
+    comment_for_participant=None,
+    annotations=None,
+    rubric=None,
 ):
-    """Zapis szkicu recenzji. Bez walidacji finalnej – ocena może być jeszcze niepełna."""
+    """Zapis szkicu recenzji. Bez walidacji finalnej – ocena może być jeszcze niepełna.
+
+    Rubryka w szkicu jest przyjmowana **częściowo** (``partial=True``): recenzent zapisuje robotę
+    w połowie zadania i kryteria, do których nie doszedł, zostają puste. Suma ląduje w ``score``
+    dopiero, gdy wypełnione są wszystkie kryteria – i nawet wtedy szkic nie sprawdza jej zgodności
+    ze skalą, bo to jest właśnie ta decyzja, którą recenzent domyka przy wystawianiu oceny.
+    """
     _assert_review_open(review, review.submission.status)
     fields: list[str] = []
+    if rubric is not None:
+        items, total = validate_rubric(review.submission.problem, rubric, partial=True)
+        review.rubric = items
+        fields.append("rubric")
+        if is_complete(items):
+            score = total
     if score is not None:
         review.score = score
         fields.append("score")
@@ -871,6 +967,25 @@ def _settle_round_one(submission: Submission, *, request=None) -> None:
         )
 
 
+def _score_from_rubric(submission: Submission, score, rubric) -> tuple[int, list[dict] | None]:
+    """Uzgadnia ocenę z rubryką: gdy rubryka przyszła, **ona** wyznacza punkty.
+
+    Zwraca ``(score, items)``; ``items`` to ``None``, gdy rubryki nie przysłano albo zadanie jej
+    nie ma – wtedy zapis przebiega dokładnie jak dotąd, a stary klient API nie przestaje działać.
+
+    Suma jest sprawdzana względem skali **przed** zapisem i bez zaokrąglania: recenzent, którego
+    kryteria zsumowały się do 4 przy skali 0/2/5/6, dostaje listę dopuszczalnych wartości i sam
+    rozstrzyga, gdzie ocenił za wysoko. Cicha korekta byłaby zmianą jego decyzji, a nie literówki.
+    """
+    if rubric is None:
+        return score, None
+    items, total = validate_rubric(submission.problem, rubric)
+    if not items:
+        return score, None
+    assert_total_in_scale(total, allowed_scores(submission.entry.stage, submission.problem))
+    return total, items
+
+
 @transaction.atomic
 def submit_review(
     review: Review,
@@ -879,18 +994,24 @@ def submit_review(
     comment_for_participant: str = "",
     annotations=None,
     *,
+    rubric=None,
     request=None,
 ) -> Review:
     """Wystawia ocenę i rozstrzyga dalszy los zgłoszenia (PROJEKT.md 2.4).
 
     Kolejność blokad jest stała: najpierw ``Submission`` (``select_for_update``), potem recenzja.
     Dzięki temu dwa równoczesne wystawienia ocen szeregują się i tylko jedno z nich domyka rundę.
+
+    ``rubric`` (punkty cząstkowe za kryteria zadania) jest opcjonalna: zadanie bez rubryki i klient,
+    który jej nie przysyła, zachowują się jak dotąd. Gdy przyjdzie – to ona wyznacza ``score``,
+    a przysłana ocena jest ignorowana, bo suma liczy się po stronie serwera.
     """
     submission = _locked_submission(review.submission_id)
     review = Review.objects.select_related("reviewer", "reviewer__user").get(pk=review.pk)
 
     _assert_review_open(review, submission.status)
-    score = _assert_score_in_scale(submission.entry.stage, score)
+    score, rubric_items = _score_from_rubric(submission, score, rubric)
+    score = _assert_score_in_scale(submission.entry.stage, score, submission.problem)
     cleaned_annotations = validate_annotations(annotations)
 
     review.score = score
@@ -899,16 +1020,18 @@ def submit_review(
     review.annotations = cleaned_annotations
     review.status = ReviewStatus.SUBMITTED
     review.submitted_at = timezone.now()
-    review.save(
-        update_fields=[
-            "score",
-            "comment_internal",
-            "comment_for_participant",
-            "annotations",
-            "status",
-            "submitted_at",
-        ]
-    )
+    update_fields = [
+        "score",
+        "comment_internal",
+        "comment_for_participant",
+        "annotations",
+        "status",
+        "submitted_at",
+    ]
+    if rubric_items is not None:
+        review.rubric = rubric_items
+        update_fields.append("rubric")
+    review.save(update_fields=update_fields)
     audit(
         review.reviewer.user,
         "review.submitted",
@@ -1078,6 +1201,7 @@ def revise_review(
     comment_for_participant: str = "",
     annotations=None,
     *,
+    rubric=None,
     request=None,
 ) -> Review:
     """Recenzent poprawia własną, już wystawioną ocenę (prośba organizatora, PROJEKT.md 2.4).
@@ -1100,7 +1224,8 @@ def revise_review(
     reason = revision_block_reason(review)
     if reason is not None:
         raise _conflict(GRADE_CHANGE_BLOCK_MESSAGES[reason], reason)
-    score = _assert_score_in_scale(submission.entry.stage, score)
+    score, rubric_items = _score_from_rubric(submission, score, rubric)
+    score = _assert_score_in_scale(submission.entry.stage, score, submission.problem)
     cleaned_annotations = validate_annotations(annotations)
 
     previous = review.score
@@ -1109,15 +1234,17 @@ def revise_review(
     review.comment_for_participant = _clean_comment(comment_for_participant)
     review.annotations = cleaned_annotations
     review.revised_at = timezone.now()
-    review.save(
-        update_fields=[
-            "score",
-            "comment_internal",
-            "comment_for_participant",
-            "annotations",
-            "revised_at",
-        ]
-    )
+    update_fields = [
+        "score",
+        "comment_internal",
+        "comment_for_participant",
+        "annotations",
+        "revised_at",
+    ]
+    if rubric_items is not None:
+        review.rubric = rubric_items
+        update_fields.append("rubric")
+    review.save(update_fields=update_fields)
     audit(
         review.reviewer.user,
         "review.revised",
@@ -1219,7 +1346,7 @@ def set_review_score(review: Review, score, *, actor=None, request=None, rationa
     """
     submission = _locked_submission(review.submission_id)
     review = Review.objects.select_related("reviewer", "reviewer__user").get(pk=review.pk)
-    score = _assert_score_in_scale(submission.entry.stage, score)
+    score = _assert_score_in_scale(submission.entry.stage, score, submission.problem)
 
     previous = review.score
     fields = ["score"]
@@ -1285,7 +1412,7 @@ def override_final_grade(submission: Submission, score, *, rationale: str, actor
             f"Rozwiązanie w stanie {locked.status} nie przyjmuje oceny końcowej.",
             "SUBMISSION_NOT_GRADABLE",
         )
-    score = _assert_score_in_scale(stage, score)
+    score = _assert_score_in_scale(stage, score, locked.problem)
 
     grade = FinalGrade.objects.filter(submission=locked).first()
     previous = grade.score if grade is not None else None
@@ -1494,7 +1621,7 @@ def resolve_moderation(
         )
     if locked.status != SubmissionStatus.MODERATION:
         raise _conflict("Rozwiązanie nie jest w moderacji.", "NOT_IN_MODERATION")
-    score = _assert_score_in_scale(locked.entry.stage, score)
+    score = _assert_score_in_scale(locked.entry.stage, score, locked.problem)
 
     if third_review is not None:
         # Rozstrzygnięcie trzeciego recenzenta *jest* jego oceną, więc idzie tą samą drogą co każda
@@ -1537,6 +1664,53 @@ def reviews_for_reviewer(member: CommitteeMember | None):
     )
 
 
+#: Nazwa pliku, pod którą recenzent dostaje swoją paczkę. Jedna dla panelu i dla API – recenzent,
+#: który pobrał ją raz stamtąd, a raz stąd, ma mieć w katalogu ten sam plik, a nie dwa różne.
+REVIEWER_ZIP_FILENAME = "moje-prace.zip"
+
+
+def build_reviewer_zip(member: CommitteeMember | None, *, actor=None, request=None):
+    """Paczka ZIP ze wszystkimi pracami przydzielonymi recenzentowi (prośba organizatora).
+
+    Zakres to dokładnie to, co recenzent widzi w panelu jako „do zrobienia i zrobione”: recenzje
+    poza stanem ``CANCELLED``. Praca odebrana przez koordynatora albo unieważniona nową wersją
+    rozwiązania nie wchodzi – recenzent nie ma już przy niej nic do zrobienia, a pobranie pliku,
+    którego nie wolno mu ocenić, byłoby dostępem bez podstawy.
+
+    Nazwy plików są anonimowe (``<kod>_zad<numer>_v<wersja>``), bo ocenianie jest ślepe.
+    ``README.txt`` wiąże numer recenzji z plikiem: bez tego recenzent z kilkunastoma pracami nie
+    ma jak odnaleźć w panelu tej, którą właśnie przeczytał.
+
+    Pusta kolejka to 404, a nie pusty plik ZIP: „nie mam co pobierać” jest odpowiedzią, a archiwum
+    z samym spisem treści wyglądałoby jak awaria pobierania.
+    """
+    from apps.submissions.packaging import build_zip
+
+    reviews = list(reviews_for_reviewer(member).exclude(status=ReviewStatus.CANCELLED))
+    submissions: list[Submission] = []
+    review_ids: dict[int, list[int]] = {}
+    for review in reviews:
+        if review.submission_id not in review_ids:
+            review_ids[review.submission_id] = []
+            submissions.append(review.submission)
+        review_ids[review.submission_id].append(review.pk)
+
+    package = build_zip(
+        submissions,
+        readme_lines=lambda submission, name: (
+            f"recenzja {', '.join(str(value) for value in review_ids[submission.pk])} → {name}"
+        ),
+        header="Prace przydzielone do oceny. Nazwy plików są anonimowe – ocenianie jest ślepe.",
+    )
+    if package.count == 0:
+        package.stream.close()
+        raise DomainError(
+            "Brak przydzielonych prac do pobrania.", "NO_ASSIGNED_SUBMISSIONS", http.HTTP_404_NOT_FOUND
+        )
+    audit(actor, "review.downloaded_zip", member, {"count": package.count}, request=request)
+    return package
+
+
 def stage_problem_rules(stage: Stage) -> list[dict]:
     """Zadania etapu razem z regułami „z góry” – materiał na tabelę w panelu koordynatora."""
     rules: dict[int, list[ProblemReviewerRule]] = {}
@@ -1550,6 +1724,12 @@ def stage_problem_rules(stage: Stage) -> list[dict]:
         {"problem": problem, "rules": rules.get(problem.pk, [])}
         for problem in stage.problems.order_by("number", "id")
     ]
+
+
+def _is_clean(submission: Submission) -> bool:
+    """Czy najnowszy plik pracy przeszedł skan – jedyne kryterium pobrania dla nie-właściciela."""
+    submission_file = submission.latest_file
+    return submission_file is not None and submission_file.is_clean
 
 
 def stage_assignment_rows(stage: Stage, query: str = "") -> list[dict]:
@@ -1584,6 +1764,9 @@ def stage_assignment_rows(stage: Stage, query: str = "") -> list[dict]:
             ),
         )
         .select_related("entry", "entry__participant", "entry__participant__user", "problem")
+        # Plik doczytujemy razem z pracą: w każdym wierszu stoi odnośnik „Pobierz”, więc bez
+        # prefetchu tabela robiłaby jedno zapytanie na wiersz (``Submission.latest_file``).
+        .prefetch_related(models.Prefetch("files", queryset=SubmissionFile.objects.order_by("-id")))
         .order_by("entry_id", "problem_id", "-version")
     )
     # Po jednej, najnowszej wersji na (wpis, zadanie) – ta sama zasada, co przy przydziale: starsza
@@ -1618,6 +1801,11 @@ def stage_assignment_rows(stage: Stage, query: str = "") -> list[dict]:
             "submission": submission,
             "reviews": reviews.get(submission.pk, []),
             "final_grade": grades.get(submission.pk),
+            # Plik wolno pobrać dopiero po skanie antywirusowym – ta sama reguła, co w
+            # ``SubmissionDownloadView``. Ekran nie powiela jej warunku, tylko czyta ten sam stan,
+            # żeby odnośnik nie obiecywał pobrania, które i tak skończyłoby się odmową.
+            "downloadable": _is_clean(submission),
+            "scan_pending": submission.latest_file is not None and not _is_clean(submission),
             # Bez zapytania na wiersz: ``best`` trzyma już najnowszą wersję pracy, więc wystarczy
             # sam stan – nowszej wersji w LOCKED/IN_REVIEW z definicji nie ma.
             "assignable": submission.status in (SubmissionStatus.LOCKED, SubmissionStatus.IN_REVIEW),

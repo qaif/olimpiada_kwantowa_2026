@@ -29,6 +29,7 @@ from apps.core.models import audit
 from apps.grading.models import ROUND_BLIND, FinalGrade, GradeMethod, Review
 from apps.grading.services import allowed_scores
 from apps.submissions.models import Submission, SubmissionFile, SubmissionStatus
+from apps.submissions.notifications import notify_appeal_decided
 
 from .models import (
     CONFLICTING_ROUNDS,
@@ -88,7 +89,14 @@ def _locked_submission(submission_id: int) -> Submission:
     """Zgłoszenie pod blokadą wiersza – jedyny punkt szeregowania zapisów reklamacji."""
     return (
         Submission.objects.select_for_update(of=("self",))
-        .select_related("entry", "entry__participant", "entry__stage", "entry__stage__scoring_scale")
+        .select_related(
+            "entry",
+            "entry__participant",
+            "entry__stage",
+            "entry__stage__scoring_scale",
+            # ``problem`` niesie własną skalę punktacji, gdy zadanie ją ma – patrz ``allowed_scores``.
+            "problem",
+        )
         .get(pk=submission_id)
     )
 
@@ -174,9 +182,14 @@ def file_appeal(user, submission: Submission, argument: str, *, request=None) ->
 
 
 def _validate_decision(
-    stage: Stage, decision_status: str, new_score, current_score: int | None
+    stage: Stage, decision_status: str, new_score, current_score: int | None, problem=None
 ) -> int | None:
-    """Sprawdza spójność rozstrzygnięcia z punktacją. Zwraca ``new_score`` po walidacji."""
+    """Sprawdza spójność rozstrzygnięcia z punktacją. Zwraca ``new_score`` po walidacji.
+
+    Skala bierze się z zadania, a dopiero w jego braku z etapu (``grading.services.allowed_scores``):
+    komisja odwoławcza wpisuje punkty do tej samej ``FinalGrade``, co recenzent, więc nie może mieć
+    szerszego zakresu niż on.
+    """
     if decision_status not in DECIDABLE_STATUSES:
         raise _bad_request(
             f"Nieznane rozstrzygnięcie reklamacji: {decision_status}.", "INVALID_APPEAL_STATUS"
@@ -187,7 +200,7 @@ def _validate_decision(
         return None
     if new_score is None:
         raise _bad_request("Uwzględnienie reklamacji wymaga podania nowej punktacji.", "NEW_SCORE_REQUIRED")
-    values = allowed_scores(stage)
+    values = allowed_scores(stage, problem)
     if not isinstance(new_score, int) or isinstance(new_score, bool) or new_score not in values:
         raise _bad_request(f"Ocena {new_score} nie należy do skali {sorted(values)}.", "SCORE_NOT_IN_SCALE")
     if new_score == current_score:
@@ -232,7 +245,9 @@ def decide_appeal(
 
     grade = FinalGrade.objects.filter(submission=locked).first()
     current_score = grade.score if grade is not None else None
-    new_score = _validate_decision(locked.entry.stage, decision_status, new_score, current_score)
+    new_score = _validate_decision(
+        locked.entry.stage, decision_status, new_score, current_score, locked.problem
+    )
     cleaned_justification = _clean_text(
         justification, label="Uzasadnienie decyzji", code="JUSTIFICATION_TOO_LONG"
     )
@@ -264,6 +279,10 @@ def decide_appeal(
     # Reklamacja jest ostatnim krokiem procedury – także odrzucona domyka rozwiązanie.
     locked.status = SubmissionStatus.FINAL
     locked.save(update_fields=["status"])
+    # Uczestnik dowiaduje się o decyzji listem, a nie z panelu przy najbliższym zalogowaniu:
+    # reklamacja jest ostatnim krokiem procedury i nie ma po niej na co czekać.
+    appeal.submission = locked
+    notify_appeal_decided(appeal, decision, request=request)
 
     audit(
         actor_member.user,

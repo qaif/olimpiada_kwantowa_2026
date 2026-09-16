@@ -31,9 +31,26 @@ DEFAULT_SCORING_VALUES: list[dict] = [
 DEFAULT_MAX_VALUE = 6
 
 # Formaty, jakie w ogóle wolno dopuścić dla zadania (twarda lista – walidacja uploadu w T-04).
-SUPPORTED_FILE_FORMATS = ("pdf", "ipynb", "py")
+# ``jpg`` jest zdjęciem rozwiązania pisanego ręcznie (prośba organizatora): uczestnik bez skanera
+# fotografuje kartkę telefonem. Kanoniczna nazwa formatu jest jedna – ``jpg`` – a rozszerzenie
+# ``.jpeg`` jest do niej sprowadzane przy uploadzie (``submissions.validators``), żeby dozwolone
+# formaty zadania, klucz obiektu w storage i nazwa w paczce ZIP nie rozjeżdżały się z powodu
+# tego, jak aparat nazwał plik.
+SUPPORTED_FILE_FORMATS = ("pdf", "ipynb", "py", "jpg")
+#: Rozszerzenia, które przeglądarka ma proponować w oknie wyboru pliku dla danego formatu.
+FILE_ACCEPT_EXTENSIONS = {
+    "pdf": (".pdf",),
+    "ipynb": (".ipynb",),
+    "py": (".py",),
+    "jpg": (".jpg", ".jpeg"),
+}
+# Zadanie dodane bez wskazania formatów przyjmuje sam PDF – to nadal domyślna forma rozwiązania,
+# a zdjęcie jest wyborem koordynatora, nie stanem wyjściowym.
 DEFAULT_ALLOWED_FORMATS = ["pdf"]
 DEFAULT_MAX_FILE_MB = 20
+# Domyślne okno na jedną recenzję (``Stage.review_deadline_days``). Dwa tygodnie to termin, którym
+# organizator posługiwał się nieformalnie, zanim system zaczął go pilnować.
+DEFAULT_REVIEW_DEADLINE_DAYS = 14
 # Górna granica limitu na zadanie. Powyżej 100 MB plik i tak nie przeszedłby skanu: to
 # ``StreamMaxLength`` clamd (``CLAMAV_STREAM_MAX_BYTES``), więc zgłoszenie utknęłoby bez werdyktu.
 MAX_FILE_MB_LIMIT = 100
@@ -42,6 +59,53 @@ MAX_FILE_MB_LIMIT = 100
 def default_scoring_values() -> list[dict]:
     """Kopia domyślnej skali – ``default`` JSONField musi być wywoływalny i zwracać nowy obiekt."""
     return [dict(item) for item in DEFAULT_SCORING_VALUES]
+
+
+def scoring_allowed_values(values) -> set[int]:
+    """Zbiór ocen z listy pozycji skali. Wartości niebędące liczbami całkowitymi są pomijane.
+
+    ``bool`` jest podklasą ``int``, więc ``True``/``False`` odpadają jawnie – inaczej „ocena True”
+    przechodziłaby walidację jako jedynka.
+    """
+    result: set[int] = set()
+    for item in values or []:
+        value = item.get("value") if isinstance(item, dict) else None
+        if isinstance(value, int) and not isinstance(value, bool):
+            result.add(value)
+    return result
+
+
+def validate_scoring_values(values, max_value, *, values_field: str, max_field: str) -> None:
+    """Reguły skali punktowej – wspólne dla skali etapu i dla nadpisania w zadaniu.
+
+    Jedna definicja, bo to jest ta sama skala: zadanie z własnymi wartościami musi spełniać
+    dokładnie te same warunki, co etap (0 w zestawie, wartości unikalne i rosnące, maksimum równe
+    największej wartości). Dwie kopie tych reguł rozjechałyby się przy pierwszej zmianie, a skutek
+    byłby widoczny dopiero przy wystawianiu oceny.
+
+    Nazwy pól są parametrem, żeby komunikat stanął pod właściwym polem formularza – w etapie jest
+    to ``values``/``max_value``, w zadaniu ``scoring_values``/``max_points``.
+    """
+    if not isinstance(values, list) or not values:
+        raise ValidationError({values_field: "Skala musi być niepustą listą pozycji {value, label}."})
+    numbers: list[int] = []
+    for item in values:
+        if not isinstance(item, dict) or "value" not in item or "label" not in item:
+            raise ValidationError({values_field: "Każda pozycja skali wymaga pól 'value' i 'label'."})
+        value = item["value"]
+        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+            raise ValidationError({values_field: "Pole 'value' musi być nieujemną liczbą całkowitą."})
+        if not isinstance(item["label"], str) or not item["label"].strip():
+            raise ValidationError({values_field: "Pole 'label' musi być niepustym tekstem."})
+        numbers.append(value)
+    if len(set(numbers)) != len(numbers):
+        raise ValidationError({values_field: "Wartości skali muszą być unikalne."})
+    if numbers != sorted(numbers):
+        raise ValidationError({values_field: "Wartości skali muszą być uporządkowane rosnąco."})
+    if 0 not in numbers:
+        raise ValidationError({values_field: "Skala musi zawierać wartość 0."})
+    if max_value != max(numbers):
+        raise ValidationError({max_field: f"{max_field} musi być równe największej wartości skali."})
 
 
 def default_allowed_formats() -> list[str]:
@@ -278,6 +342,15 @@ class Stage(models.Model):
     event_starts_on = models.DateField("początek wydarzenia", null=True, blank=True)
     event_ends_on = models.DateField("koniec wydarzenia", null=True, blank=True)
     review_deadline_at = models.DateTimeField("deadline recenzji")
+    # Ile dni ma recenzent **od chwili przydziału** na oddanie jednej recenzji. To co innego niż
+    # ``review_deadline_at``: tamto jest terminem całego etapu (do kiedy komplet ocen ma być
+    # gotowy), a to jest terminem osobistym, liczonym każdemu od dnia, w którym dostał pracę.
+    # Prace przydzielane są falami (zamknięcie etapu, potem dosyłki i zastępstwa), więc jeden
+    # termin dla wszystkich dawałby ostatnim recenzentom dwa dni, a pierwszym trzy tygodnie.
+    # Wynik wyliczenia ląduje w ``Review.due_at`` – reguła stoi w ``apps.grading.deadlines``.
+    review_deadline_days = models.PositiveSmallIntegerField(
+        "dni na recenzję", default=DEFAULT_REVIEW_DEADLINE_DAYS
+    )
     appeal_window_opens_at = models.DateTimeField("otwarcie okna reklamacji")
     appeal_window_closes_at = models.DateTimeField("zamknięcie okna reklamacji")
     results_published_at = models.DateTimeField("wyniki opublikowane", null=True, blank=True)
@@ -314,6 +387,12 @@ class Stage(models.Model):
             models.CheckConstraint(
                 condition=Q(event_starts_on__lte=F("event_ends_on")),
                 name="competitions_stage_event_dates_ordered",
+            ),
+            # Zero dni na recenzję znaczyłoby „termin minął w chwili przydziału”, czyli każda nowa
+            # recenzja rodziłaby się po terminie i natychmiast szłaby do przypominajki.
+            models.CheckConstraint(
+                condition=Q(review_deadline_days__gte=1),
+                name="competitions_stage_review_days_positive",
             ),
         ]
 
@@ -443,37 +522,11 @@ class ScoringScale(models.Model):
 
     def allowed_values(self) -> set[int]:
         """Zbiór dopuszczalnych ocen. Używany przy walidacji ``Review.score`` (T-05)."""
-        result: set[int] = set()
-        for item in self.values or []:
-            value = item.get("value") if isinstance(item, dict) else None
-            # bool jest podklasą int – True/False nie są ocenami (spójnie z clean()).
-            if isinstance(value, int) and not isinstance(value, bool):
-                result.add(value)
-        return result
+        return scoring_allowed_values(self.values)
 
     def clean(self) -> None:
         super().clean()
-        raw = self.values
-        if not isinstance(raw, list) or not raw:
-            raise ValidationError({"values": "Skala musi być niepustą listą pozycji {value, label}."})
-        numbers: list[int] = []
-        for item in raw:
-            if not isinstance(item, dict) or "value" not in item or "label" not in item:
-                raise ValidationError({"values": "Każda pozycja skali wymaga pól 'value' i 'label'."})
-            value = item["value"]
-            if not isinstance(value, int) or isinstance(value, bool) or value < 0:
-                raise ValidationError({"values": "Pole 'value' musi być nieujemną liczbą całkowitą."})
-            if not isinstance(item["label"], str) or not item["label"].strip():
-                raise ValidationError({"values": "Pole 'label' musi być niepustym tekstem."})
-            numbers.append(value)
-        if len(set(numbers)) != len(numbers):
-            raise ValidationError({"values": "Wartości skali muszą być unikalne."})
-        if numbers != sorted(numbers):
-            raise ValidationError({"values": "Wartości skali muszą być uporządkowane rosnąco."})
-        if 0 not in numbers:
-            raise ValidationError({"values": "Skala musi zawierać wartość 0."})
-        if self.max_value != max(numbers):
-            raise ValidationError({"max_value": "max_value musi być równe największej wartości skali."})
+        validate_scoring_values(self.values, self.max_value, values_field="values", max_field="max_value")
 
 
 class QualificationMode(models.TextChoices):
@@ -539,8 +592,33 @@ class Problem(models.Model):
         blank=True,
         storage=private_media_storage,
     )
+    # Rozwiązanie wzorcowe i klucz odpowiedzi – materiał **wyłącznie** dla oceniających. Ten sam
+    # prywatny storage, co treść zadania, ale wydawany zupełnie inną drogą: treść staje się jawna
+    # po ``opens_at`` (``ProblemStatementView``), a wzorcówka nie staje się jawna nigdy –
+    # pobiera ją tylko aktywny członek komitetu albo koordynator
+    # (``apps.web.views.reviewer_tools.ProblemModelSolutionView``). Gdyby leżała na tym samym
+    # polu co treść, jedna pomyłka w warunku widoczności rozdawałaby uczestnikom klucz w trakcie
+    # zawodów.
+    model_solution_pdf = models.FileField(
+        "rozwiązanie wzorcowe (PDF)",
+        upload_to="problems/model-solutions/",
+        blank=True,
+        storage=private_media_storage,
+    )
+    # Uwagi dla recenzentów: czego nie widać we wzorcówce, a rozstrzyga o punktach („uznajemy
+    # dowód przez indukcję bez podstawy, jeśli…”). Tekst, a nie plik, bo to kilka zdań, które
+    # koordynator poprawia w trakcie oceniania – i wtedy zmiana ma być widoczna od razu, bez
+    # wgrywania nowej wersji PDF-a.
+    reviewer_notes = models.TextField("uwagi dla recenzentów", blank=True)
     allowed_formats = models.JSONField("dozwolone formaty", default=default_allowed_formats)
     max_file_mb = models.PositiveSmallIntegerField("limit rozmiaru pliku (MB)", default=DEFAULT_MAX_FILE_MB)
+    # Nadpisanie skali etapu dla tego jednego zadania. ``null`` znaczy „dziedzicz po etapie”, a nie
+    # „brak skali”: organizator punktuje zwykle wszystkie zadania tak samo, a wyjątkiem bywa jedno
+    # (np. zadanie otwarte 0–10 obok zadań 0/2/5/6). Domyślnej wartości tu **nie ma** świadomie –
+    # kopia skali etapu w każdym zadaniu zamroziłaby ją w chwili dodania zadania i zmiana skali
+    # etapu przestałaby cokolwiek znaczyć.
+    scoring_values = models.JSONField("skala punktacji zadania", null=True, blank=True)
+    max_points = models.PositiveSmallIntegerField("maksimum punktów", null=True, blank=True)
 
     class Meta:
         verbose_name = "zadanie"
@@ -561,6 +639,33 @@ class Problem(models.Model):
     def __str__(self) -> str:
         return f"Zadanie {self.number}: {self.title}"
 
+    @property
+    def accept_attribute(self) -> str:
+        """Wartość atrybutu ``accept`` dla pola wyboru pliku, np. ``.pdf,.jpg,.jpeg``.
+
+        Atrybut jest **uprzejmością**, a nie zabezpieczeniem – filtruje okno wyboru pliku, a nie
+        żądanie. O przyjęciu pliku decyduje ``submissions.validators.validate_upload``, która patrzy
+        na treść. Lista jest tu, a nie w szablonie, bo zdjęcie ma dwa rozszerzenia (``.jpg``
+        i ``.jpeg``) i rozwijanie tego w szablonie kończyłoby się drugą definicją tej zależności.
+        """
+        extensions: list[str] = []
+        for item in self.allowed_formats or []:
+            extensions.extend(FILE_ACCEPT_EXTENSIONS.get(item, ()))
+        return ",".join(extensions)
+
+    @property
+    def has_own_scale(self) -> bool:
+        """Czy zadanie ma własną skalę. Puste nadpisanie znaczy „dziedzicz po etapie”."""
+        return bool(self.scoring_values)
+
+    def allowed_values(self) -> set[int]:
+        """Oceny dopuszczalne dla **tego zadania** albo pusty zbiór, gdy skala jest etapowa.
+
+        Pusty zbiór jest tu odpowiedzią „pytaj etapu”, a nie „nic nie wolno” – rozstrzyga o tym
+        ``grading.services.allowed_scores``, jedyne miejsce, w którym stoi reguła pierwszeństwa.
+        """
+        return scoring_allowed_values(self.scoring_values)
+
     def clean(self) -> None:
         super().clean()
         formats = self.allowed_formats
@@ -577,6 +682,20 @@ class Problem(models.Model):
             raise ValidationError(
                 {"max_file_mb": f"Limit rozmiaru musi mieścić się w 1–{MAX_FILE_MB_LIMIT} MB."}
             )
+        # Skala i jej maksimum są jedną informacją zapisaną w dwóch polach – tak samo jak w etapie.
+        # Puste **oba** znaczą „dziedzicz po etapie”; wypełnione jedno byłoby nadpisaniem bez treści.
+        if not self.scoring_values and self.max_points is None:
+            return
+        if not self.scoring_values:
+            raise ValidationError(
+                {"scoring_values": "Podaj wartości skali zadania albo wyczyść maksimum punktów."}
+            )
+        validate_scoring_values(
+            self.scoring_values,
+            self.max_points,
+            values_field="scoring_values",
+            max_field="max_points",
+        )
 
 
 class StageEntryStatus(models.TextChoices):

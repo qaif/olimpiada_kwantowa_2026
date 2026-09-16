@@ -53,7 +53,14 @@ class ReviewSerializer(serializers.ModelSerializer):
             "comment_internal",
             "comment_for_participant",
             "annotations",
+            # Punkty cząstkowe za kryteria zadania. Pusta lista dla zadań bez rubryki i dla ocen
+            # sprzed jej wprowadzenia – klient nie musi rozróżniać tych dwóch sytuacji, bo w obu
+            # ocena jest w ``score``, który pozostaje źródłem prawdy.
+            "rubric",
             "assigned_at",
+            # Termin **tej** recenzji, wyliczony przy przydziale (apps.grading.deadlines).
+            # ``null`` dla przydziałów sprzed wprowadzenia terminów.
+            "due_at",
             "submitted_at",
             # ``revised_at`` obok ``submitted_at``, a nie zamiast niego: recenzent i koordynator
             # muszą widzieć, że ocena była poprawiana, bez zaglądania do audytu.
@@ -79,15 +86,25 @@ class ReviewDraftSerializer(serializers.Serializer):
     comment_internal = serializers.CharField(required=False, allow_blank=True)
     comment_for_participant = serializers.CharField(required=False, allow_blank=True)
     annotations = serializers.ListField(child=serializers.DictField(), required=False)
+    # Rubryka bez ``default``: brak pola znaczy „nie ruszaj”, a nie „wyczyść” – dokładnie jak przy
+    # adnotacjach. Kształt pozycji sprawdza ``apps.grading.rubric.validate_rubric``, bo to reguła
+    # domenowa (kryteria tego zadania), a nie kwestia typów w ładunku.
+    rubric = serializers.ListField(child=serializers.DictField(), required=False)
 
 
 class ReviewSubmitSerializer(serializers.Serializer):
-    """Wystawienie oceny. ``score`` jest obowiązkowy – zgodność ze skalą sprawdza serwis."""
+    """Wystawienie oceny. ``score`` jest obowiązkowy – zgodność ze skalą sprawdza serwis.
+
+    ``score`` zostaje obowiązkowy także przy rubryce: zadanie bez kryteriów ocenia się wyłącznie
+    nim, a gdy rubryka przyjdzie, serwis i tak liczy sumę sam (przysłana ocena jest wtedy
+    ignorowana – patrz ``services._score_from_rubric``).
+    """
 
     score = serializers.IntegerField()
     comment_internal = serializers.CharField(required=False, allow_blank=True, default="")
     comment_for_participant = serializers.CharField(required=False, allow_blank=True, default="")
     annotations = serializers.ListField(child=serializers.DictField(), required=False, default=list)
+    rubric = serializers.ListField(child=serializers.DictField(), required=False)
 
 
 class AssignReviewersSerializer(serializers.Serializer):
@@ -118,6 +135,9 @@ class SkippedSubmissionSerializer(serializers.Serializer):
 class AssignmentResultSerializer(serializers.Serializer):
     submissions = serializers.IntegerField(read_only=True)
     assignments = serializers.IntegerField(read_only=True)
+    # Termin, który dostały wszystkie recenzje z tego przebiegu – najczęstsze pytanie koordynatora
+    # tuż po przydziale („do kiedy mają czas?”), a odpowiedź zna wyłącznie serwis.
+    due_at = serializers.DateTimeField(read_only=True, allow_null=True)
     skipped = SkippedSubmissionSerializer(many=True, read_only=True)
 
 

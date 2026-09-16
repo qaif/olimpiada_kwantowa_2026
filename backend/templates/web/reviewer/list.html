@@ -6,36 +6,67 @@
   <span class="eyebrow">Panel recenzenta</span>
   <h1>Moje przydziały</h1>
   <p class="lead">Ocenianie jest ślepe: prace są identyfikowane kodem publicznym uczestnika.</p>
+  {% comment %}
+    Paczka ZIP obok listy, a nie w każdym wierszu osobno: recenzent czyta prace poza panelem
+    (czytnik, druk, podróż), więc pobiera je raz, wszystkie. Nazwy plików w archiwum są takie
+    same jak kody na tej liście, a README wiąże je z numerem recenzji.
+  {% endcomment %}
+  {% if reviews %}
+    <p class="actions">
+      <a class="btn btn--secondary" href="{% url 'web:review-download' %}">Pobierz moje prace (ZIP)</a>
+      <span class="hint">Wszystkie przydzielone prace w jednym archiwum. Pliki są anonimowe.</span>
+    </p>
+  {% endif %}
 </div>
 
-<div class="scroll">
-  <table class="table">
-    <thead>
-      <tr><th>Praca</th><th>Etap</th><th>Zadanie</th><th>Runda</th><th>Status</th><th>Punkty</th><th></th></tr>
-    </thead>
-    <tbody>
-      {% for review in reviews %}
-        <tr>
-          <td><span class="code-chip">{{ review.submission.entry.participant.public_code }}</span></td>
-          <td>{{ review.submission.entry.stage.display_name }}</td>
-          <td>{{ review.submission.problem.number }}. {{ review.submission.problem.title }}</td>
-          <td class="num">{{ review.round }}</td>
-          <td><span class="{{ review.status|badge_class }}">{{ review.get_status_display }}</span></td>
-          <td class="num total">{% if review.score is not None %}{{ review.score }}{% else %}—{% endif %}</td>
-          <td>
-            <a class="btn btn--secondary btn--small" href="{% url 'web:review-detail' review.pk %}">otwórz</a>
-          </td>
-        </tr>
-      {% empty %}
-        <tr><td colspan="7" class="empty">
-          <span class="empty__title">Brak przydziałów</span>
-          Nie masz jeszcze przydzielonych prac. Przydziału dokonuje koordynator, gdy prace trafią
-          do oceniania – czasem jeszcze przed zamknięciem etapu.
-        </td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
+{% comment %}
+  Prace pogrupowane po etapie i zadaniu: recenzent ocenia jedno zadanie w wielu pracach, więc tak
+  wygląda jego robota. Licznik przy nagłówku grupy odpowiada na pytanie „ile mi zostało”, a przy
+  samych wierszach stoją terminy – recenzja po terminie ma własną odznakę, bo to jedyna rzecz na
+  tej liście, którą trzeba zrobić natychmiast.
+{% endcomment %}
+{% for group in groups %}
+  <section class="section">
+    <div class="section__head">
+      <h2 class="mt-0">{{ group.stage.display_name }} · zadanie {{ group.problem.number }}:
+        {{ group.problem.title }}</h2>
+      <p class="row">
+        <span class="badge badge--info">{{ group.open }} z {{ group.rows|length }} do zrobienia</span>
+        {% if group.overdue %}<span class="badge badge--danger">{{ group.overdue }} po terminie</span>{% endif %}
+      </p>
+    </div>
+    <div class="scroll">
+      <table class="table">
+        <thead>
+          <tr><th>Praca</th><th>Runda</th><th>Status</th><th>Termin</th><th>Punkty</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for row in group.rows %}
+            <tr>
+              <td><span class="code-chip">{{ row.review.submission.entry.participant.public_code }}</span></td>
+              <td class="num">{{ row.review.round }}</td>
+              <td><span class="{{ row.review.status|badge_class }}">{{ row.review.get_status_display }}</span></td>
+              <td>
+                {% if row.review.due_at %}{{ row.review.due_at|local_datetime }}{% else %}—{% endif %}
+                {% if row.overdue %}<span class="badge badge--danger">po terminie</span>{% endif %}
+              </td>
+              <td class="num total">{% if row.review.score is not None %}{{ row.review.score }}{% else %}—{% endif %}</td>
+              <td>
+                <a class="btn btn--secondary btn--small" href="{% url 'web:review-detail' row.review.pk %}">otwórz</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% empty %}
+  <p class="empty">
+    <span class="empty__title">Brak przydziałów</span>
+    Nie masz jeszcze przydzielonych prac. Przydziału dokonuje koordynator, gdy prace trafią
+    do oceniania – czasem jeszcze przed zamknięciem etapu.
+  </p>
+{% endfor %}
 
 {% if cancelled_rows %}
   {% comment %}
