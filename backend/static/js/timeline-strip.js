@@ -1,11 +1,11 @@
 /* Linia czasu edycji w nagłówku (templates/cms/_timeline_strip.html): głowica i warstwa „pomiaru”.
  *
- * Czego ten skrypt **nie** robi: nie rysuje paska i nie obsługuje dymków. Pasek, znaczniki
- * wydarzeń i położenie głowicy policzył serwer (apps/cms/timeline.py), a dymek pokazuje się
- * czystym CSS-em (``:hover`` i ``:focus`` na znaczniku). Strona z wyłączonym JavaScriptem ma
- * więc kompletny kalendarz i działające podpowiedzi – nic tu nie jest warunkiem działania.
+ * Czego ten skrypt **nie** robi: nie rysuje paska i nie rozwija panelu. Pasek, znaczniki wydarzeń,
+ * legenda i położenie głowicy są w kodzie strony (apps/cms/timeline.py), a panel rozwija czysty
+ * CSS (``:hover`` i ``:focus-within`` na pasku). Strona z wyłączonym JavaScriptem ma więc
+ * kompletny kalendarz i działające rozwijanie – nic tu nie jest warunkiem działania.
  *
- * Skrypt dokłada dwie rzeczy, których serwer dać nie może:
+ * Skrypt dokłada trzy rzeczy, których serwer i arkusz dać nie mogą:
  *
  * 1. **Przesuwa głowicę w karcie zostawionej otwartej.** Strona wyrenderowana w poniedziałek
  *    pokazywałaby poniedziałkowy stan także w czwartek. Co minutę liczymy dzisiejszy ułamek osi
@@ -24,6 +24,10 @@
  *    Pętla ``requestAnimationFrame`` chodzi **wyłącznie** pod kursorem i jest ograniczona do
  *    ~30 klatek na sekundę; na dotyku i przy ``prefers-reduced-motion: reduce`` nie startuje
  *    w ogóle, bo tam nie ma ani najechania, ani zgody na ruch.
+ *
+ * 3. **Wiąże kreskę z chipem legendy** – podświetla parę, bo kreska i chip stoją w różnych
+ *    gałęziach drzewa i selektor ich nie połączy. Na ekranie bez najechania ten sam kawałek
+ *    obsługuje dotknięcie kreski, które panel otwiera.
  */
 (function () {
   "use strict";
@@ -74,8 +78,8 @@
     for (var order = 0; order < cells.length; order += 1) {
       var cell = cells[order];
       var index = parseInt(cell.getAttribute("data-tl-cell"), 10);
-      /* Pierwsze dziecko znacznika jest **węzłem tekstowym** ze znakiem, a dymek stoi za nim.
-         Podmieniamy więc sam tekst, a nie ``textContent``, który zabrałby ze sobą dymek. */
+      /* Podmieniamy węzeł tekstowy, a nie ``textContent``: znacznik bywa odnośnikiem
+         z atrybutami, a przypisanie do ``textContent`` przebudowałoby jego zawartość. */
       if (cell.firstChild && cell.firstChild.nodeType === 3) {
         cell.firstChild.nodeValue = cellChar(index, at, cell.hasAttribute("data-tl-mark"));
       }
@@ -100,6 +104,83 @@
   /* Klasa animacji pada dopiero tutaj, więc bez JavaScriptu pasek jest po prostu narysowany:
      nic nie „dojeżdża”. */
   strip.classList.add("is-animated");
+
+  /* --- kreska ↔ chip legendy ------------------------------------------------------------------ */
+  /*
+   * Rozwijanie panelu robi sam arkusz (``:hover``, ``:focus-within``), więc bez JavaScriptu
+   * legenda działa. Skrypt dokłada dwie rzeczy, których selektorem nie da się wyrazić: parowanie
+   * kreski z jej chipem (są w różnych gałęziach drzewa, a ``~`` sięga tylko rodzeństwa) i –
+   * na ekranie bez najechania – dotknięcie, które panel otwiera.
+   */
+
+  var marks = strip.querySelectorAll("[data-tl-mark]");
+  var ACTIVE = "is-active";
+
+  function chipsOf(mark) {
+    return (mark.getAttribute("data-tl-items") || "")
+      .split(",")
+      .map(function (number) {
+        return strip.querySelector('[data-tl-chip="' + number + '"]');
+      })
+      .filter(Boolean);
+  }
+
+  function highlight(mark, on) {
+    mark.classList.toggle(ACTIVE, on);
+    chipsOf(mark).forEach(function (chip) {
+      chip.classList.toggle(ACTIVE, on);
+    });
+  }
+
+  /* Dotyk: brak najechania, więc panel otwiera dotknięcie kreski. Pierwsze dotknięcie **tylko**
+     otwiera (odnośnik by nawigował, zanim ktokolwiek zobaczyłby legendę), drugie – w tę samą
+     kreskę – idzie już zwykłą drogą. To ten sam wzorzec, co w rozwijanych menu na telefonie. */
+  var touch = window.matchMedia && !window.matchMedia("(hover: hover)").matches;
+  var opened = null;
+
+  Array.prototype.forEach.call(marks, function (mark) {
+    mark.addEventListener("mouseenter", function () {
+      highlight(mark, true);
+    });
+    mark.addEventListener("mouseleave", function () {
+      highlight(mark, false);
+    });
+    mark.addEventListener("focus", function () {
+      highlight(mark, true);
+    });
+    mark.addEventListener("blur", function () {
+      highlight(mark, false);
+    });
+    if (!touch) {
+      return;
+    }
+    mark.addEventListener("click", function (event) {
+      if (opened === mark) {
+        return;
+      }
+      event.preventDefault();
+      if (opened) {
+        highlight(opened, false);
+      }
+      opened = mark;
+      highlight(mark, true);
+      strip.classList.add("is-open");
+    });
+  });
+
+  if (touch) {
+    /* Dotknięcie poza paskiem zamyka panel – inaczej zostawałby otwarty na resztę wizyty. */
+    document.addEventListener("click", function (event) {
+      if (strip.contains(event.target)) {
+        return;
+      }
+      if (opened) {
+        highlight(opened, false);
+        opened = null;
+      }
+      strip.classList.remove("is-open");
+    });
+  }
 
   /* --- warstwa „pomiaru” --------------------------------------------------------------------- */
 
@@ -171,6 +252,12 @@
   }
 
   function draw(time) {
+    /* Panel rozwija się w dół przez ćwierć sekundy, więc pasek rośnie **w trakcie** rysowania:
+       płótno zmierzone w chwili najechania byłoby przez cały ten czas za niskie. Porównanie
+       wysokości jest tańsze niż przeliczanie płótna w każdej klatce na zapas. */
+    if (Math.round(strip.getBoundingClientRect().height) !== height) {
+      resize();
+    }
     context.clearRect(0, 0, width, height);
     var base = height - 2;
     var reach = height * 0.62;

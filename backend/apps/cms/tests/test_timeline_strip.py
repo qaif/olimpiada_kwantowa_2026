@@ -178,11 +178,15 @@ def test_results_link_appears_only_after_publication(edition, coordinator):
     assert timeline_events(edition, TODAY)[0]["url"] == f"/results/{elim.pk}/"
 
 
-# --- warsztaty: grupowanie po miesiącu ----------------------------------------------------------
+# --- warsztaty ------------------------------------------------------------------------------------
 
 
-def test_workshops_in_one_month_become_one_item_with_every_date_in_children(edition, home_page):
-    """Kilkanaście warsztatów jako osobne komórki zamieniłoby oś w grzebień – grupujemy miesiącami."""
+def test_every_workshop_is_its_own_item(edition, home_page):
+    """Warsztat jest osobnym wydarzeniem, na które zapisuje się osobno – i tak ma stać na osi.
+
+    Grupowanie po miesiącu („Warsztaty (3)”) było tu wcześniej i zostało wycofane: zbiorczy
+    podpis odbierał warsztatowi temat, czyli jedyną informację, po której czytelnik go rozpoznaje.
+    """
     workshops_page(
         home_page,
         [
@@ -195,12 +199,15 @@ def test_workshops_in_one_month_become_one_item_with_every_date_in_children(edit
 
     items = timeline_events(edition, TODAY)
 
-    assert titles(items) == ["Warsztaty (3)", "Warsztaty: Algorytm Shora"]
-    grouped = items[0]
-    assert (grouped["start"], grouped["end"]) == (date(2026, 11, 7), date(2026, 11, 28))
-    # Lista pod paskiem (i czytnik ekranu) dostaje każdy termin z osobna – nic nie ginie.
-    assert [child["title"] for child in grouped["children"]] == ["Kubity", "Splątanie", "Dekoherencja"]
-    assert grouped["url"] == "/warsztaty/"
+    assert titles(items) == [
+        "Warsztaty: Kubity",
+        "Warsztaty: Splątanie",
+        "Warsztaty: Dekoherencja",
+        "Warsztaty: Algorytm Shora",
+    ]
+    # Każdy jest terminem jednodniowym i prowadzi na wspólną stronę warsztatów.
+    assert all(item["start"] == item["end"] for item in items)
+    assert {item["url"] for item in items} == {"/warsztaty/"}
 
 
 def test_workshop_rows_without_a_date_are_skipped(edition, home_page):
@@ -352,7 +359,7 @@ def test_marker_carries_the_whole_label_for_the_screen_reader(edition):
 
     gala = next(cell for cell in marks(timeline_strip(edition, TODAY)) if cell["url"])
 
-    # Pełna nazwa, bez skracania: dymek jest nakładką, więc długość podpisu niczego nie rozpycha.
+    # Pełna nazwa, bez skracania: podpis stoi w chipie legendy, więc jego długość nic nie rozpycha.
     assert gala["label"] == "Konferencja podsumowująca edycję i rozdanie nagród, 12.06.2027"
     assert gala["url"] == "/aktualnosci/"
 
@@ -372,17 +379,20 @@ def test_events_sharing_a_cell_share_one_marker(edition):
     assert together[0]["url"] == ""
 
 
-def test_tip_sticks_to_the_edge_instead_of_leaving_the_bar(edition):
-    """Dymek jest nakładką, więc przy krawędzi wystawałby poza kolumnę treści – stąd trzy warianty."""
-    stage(edition, StageKind.ELIM, (2026, 9, 1), (2027, 6, 30))
-    EditionEvent.objects.create(edition=edition, title="Środek", starts_on=date(2027, 2, 1))
-    EditionEvent.objects.create(edition=edition, title="Koniec", starts_on=date(2027, 6, 29))
+def test_marker_points_at_the_legend_chips_of_its_events(edition):
+    """Kreska i chip legendy stoją w różnych gałęziach drzewa – wiąże je numer wydarzenia."""
+    stage(edition, StageKind.ELIM, (2026, 9, 10), (2027, 6, 10))
+    EditionEvent.objects.create(edition=edition, title="Gala", starts_on=date(2027, 6, 12))
+    EditionEvent.objects.create(edition=edition, title="Bankiet", starts_on=date(2027, 6, 12))
 
-    cells = timeline_strip(edition, TODAY)["cells"]
+    strip = timeline_strip(edition, TODAY)
+    numbers = {item["title"]: item["index"] for item in strip["items"]}
+    together = next(cell for cell in marks(strip) if len(cell["items"]) > 1)
 
-    assert cells[0]["tip_class"] == "tl__tip--start"
-    assert cells[BAR_SIZE // 2]["tip_class"] == "tl__tip--mid"
-    assert cells[BAR_SIZE - 1]["tip_class"] == "tl__tip--end"
+    assert together["indexes"] == f"{numbers['Bankiet']},{numbers['Gala']}"
+    # Numery są kolejnymi pozycjami listy, więc chip legendy da się znaleźć bez szukania po tytule
+    # (ten sam tytuł bywa na osi dwa razy: „Warsztaty: …” z powtórzonym tematem).
+    assert sorted(numbers.values()) == list(range(len(strip["items"])))
 
 
 def test_header_lines_carry_the_school_year_and_the_edition_number(edition):
@@ -492,11 +502,39 @@ def test_strip_renders_on_the_home_page_and_on_login(web_client, edition):
         # skryptem – strona bez JavaScriptu ma mieć kompletny kalendarz.
         assert "tl__head" in content, path
         assert "tl__mark" in content, path
-        # Podpis jest w kodzie strony **zawsze**: raz jako nazwa dostępna znacznika, raz w dymku,
-        # który arkusz trzyma schowany do najechania. Przeglądarka nie musi o niego pytać serwera.
+        # Podpis jest w kodzie strony **zawsze**: raz jako nazwa dostępna kreski, raz jako chip
+        # legendy w panelu, który arkusz trzyma zwinięty. Przeglądarka nie pyta o niego serwera.
         assert 'aria-label="Gala finałowa,' in content, path
-        assert "tl__tip" in content, path
+        assert "tl-legend__chip" in content, path
+        assert "tl-panel" in content, path
 
 
 def test_strip_is_absent_without_a_current_edition(web_client):
     assert "data-timeline-strip" not in web_client.get("/login/").content.decode()
+
+
+def test_at_rest_the_header_holds_only_the_bar(web_client, edition):
+    """W spoczynku pasek jest **jedną linią**: reszta siedzi w panelu zwiniętym do zera wysokości.
+
+    Wysokości nie da się zmierzyć w pytest, ale da się sprawdzić to, co o niej decyduje: że
+    wiersze „kodu” i legenda stoją **wewnątrz** ``.tl-panel``, a poza nim jest wyłącznie wykres.
+    Gdyby którekolwiek z nich wypadło z panelu, nagłówek serwisu urósłby na każdej stronie –
+    i to jest dokładnie ta usterka, którą zgłosił organizator.
+    """
+    StageFactory(edition=edition, kind=StageKind.ELIM)
+    EditionEvent.objects.create(
+        edition=edition, title="Gala finałowa", starts_on=timezone.localdate() + timedelta(days=120)
+    )
+
+    content = web_client.get("/login/").content.decode()
+    bar = content.split('<pre class="tl tl--bar">')[1].split("</pre>")[0]
+    panel = content.split('<div class="tl-panel"')[1].split('<details class="tl-list"')[0]
+
+    # Poza panelem: sam wykres, bez nagłówka „kodu” i bez podpisów.
+    assert "rok_szkolny(" not in bar
+    assert "tl-legend" not in bar
+    assert bar.count("[") and bar.count("]")
+    # W panelu: nagłówek „kodu” i komplet chipów – obecne w kodzie strony, ale zwinięte arkuszem.
+    assert "rok_szkolny(" in panel
+    assert "Gala finałowa" in panel
+    assert panel.count('class="tl-legend__chip') == len(timeline_strip(edition)["items"])

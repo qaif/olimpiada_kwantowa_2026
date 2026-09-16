@@ -856,37 +856,37 @@ hr {
 
 /* --- Linia czasu edycji (pasek „terminalowy” w nagłówku) ------------------------------------- */
 /*
-   Pasek jest jedną linijką znaków monospace i **nie wolno mu rozepchnąć kolumny treści**.
-   Pierwsza wersja miała nad i pod wykresem wiersze podpisów wyliczone w spacjach; to one
-   decydowały o szerokości i to one rozciągały nagłówek. Teraz wydarzenia stoją na linii jako
-   kreski, a nazwa i termin są **nakładką** (``.tl__tip``, ``position: absolute``): pojawiają się
-   i znikają, nie zmieniając ani szerokości, ani wysokości paska.
+   Trzy reguły, na których stoi cały ten blok:
 
-   Szerokość wykresu wynika wyłącznie z kontenera, nigdy z treści. ``.timeline-strip`` jest
-   kontenerem zapytań (``container-type: inline-size``), a krój skaluje się jednostką ``cqw``.
-   Dzielnik wzięliśmy z pomiaru, nie z metryki kroju: 102 znaki (klamry plus sto komórek) zajmują
-   w przeglądarce ok. 0,69 em każdy, czyli ok. 70 em razem, a przy małych rozmiarach krok znaku
-   jeszcze rośnie przez zaokrąglanie. Dzielnik 76 zostawia na to ok. 8% zapasu; górne 15 px to
-   granica, powyżej której wykres i tak nie zmieściłby się w kolumnie treści. Deklaracja ``vw``
-   nad nią jest awaryjna – przeglądarka bez zapytań kontenerowych po prostu jej nie nadpisze.
+   1. **W spoczynku pasek jest jedną linią.** Nagłówek serwisu ma zachować swoją wysokość, więc
+      poza kursorem widać wyłącznie wykres: żadnych wierszy „kodu”, żadnej legendy, żadnego
+      dymka. Wysokość w spoczynku to jeden wiersz monospace (``line-height: 1.2`` przy kroju
+      najwyżej 14 px), czyli ok. 17 px – tyle, ile dokłada do nagłówka cienka kreska.
+   2. **Rozwija się w dół.** Panel z wierszami „kodu” i legendą stoi **pod** wykresem i jest
+      zwinięty do zera wysokości (``grid-template-rows: 0fr`` → ``1fr``; ``overflow: hidden``
+      na wewnętrznym pudełku). Dzięki temu rozwinięcie nie rusza samego wykresu – linia zostaje
+      tam, gdzie była – i przesuwa wyłącznie to, co jest pod nagłówkiem.
+   3. **Szerokość nie zmienia się nigdy.** Wykres ma 102 znaki i skaluje się jednostką ``cqw``
+      (``.timeline-strip`` jest kontenerem zapytań), a legenda jest zwykłym zawijanym rzędem
+      chipów w tej samej kolumnie. Nic tu nie jest pozycjonowane procentowo i nic nie wystaje.
 
    Trzy kolory stanu stoją na granacie nagłówka, więc żaden nie jest tym samym odcieniem, co
    w treści strony: niebieski i zielony są rozjaśnione do kontrastu ≥ 4.5:1 z ``--brand``,
    a „teraz” bierze gotową rolę ``--accent-on-brand`` (czerwień 300) – jedyną czerwień
    w serwisie czytelną na granacie.
 
-   Poniżej 640 px wykres znika i zostaje z niego lista zdaniami (``.tl-list``): na telefonie nie
-   ma najechania, więc dymek nigdy by się nie pokazał, a 102 znaki miałyby wysokość dwóch pikseli.
-   Obie postacie są rozłączne (``display: none``), więc czytnik ekranu nigdy nie czyta ich obu. */
+   Poniżej 640 px wykres znika i zostaje z niego zwinięty kalendarz (``.tl-list``): 102 znaki
+   miałyby tam wysokość dwóch pikseli. Obie postacie są rozłączne (``display: none``), więc
+   czytnik ekranu nigdy nie czyta ich obu. */
 
 .timeline-strip {
   position: relative;
   container-type: inline-size;
   max-width: var(--container);
   margin: 0 auto;
-  /* Dolny odstęp jest miejscem, w które wchodzi dymek – rezerwujemy je na stałe, żeby pojawienie
-     się dymka nie przesuwało niczego pod nagłówkiem. */
-  padding: 0 var(--sp-4) 2.25rem;
+  /* Zero odstępu w pionie: w spoczynku pasek ma być wysoki na jedną linię i ani piksela więcej.
+     Oddech rozwiniętego panelu jest **w środku** panelu, czyli zwija się razem z nim. */
+  padding: 0 var(--sp-4);
 
   --tl-past: #8fb4e6;
   --tl-current: var(--accent-on-brand);
@@ -901,28 +901,31 @@ hr {
   margin: 0;
   max-width: 100%;
   font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
-  font-size: clamp(0.4rem, 1vw, 0.8rem);
-  font-size: clamp(6px, calc(100cqw / 76), 15px);
-  /* Twarda granica na wypadek kroju o szerszym kroku, niż zakłada dzielnik wyżej: wykres zostaje
-     przycięty, zamiast rozepchnąć stronę. ``clip`` zamiast ``hidden`` **tylko w poziomie**, bo
-     dymek jest nakładką wychodzącą w dół i nie wolno go uciąć. */
-  overflow-x: clip;
-  overflow-y: visible;
-  line-height: 1.5;
+  /* Dzielnik wzięty z pomiaru, nie z metryki kroju: 102 znaki (klamry plus sto komórek) zajmują
+     w przeglądarce ok. 0,69 em każdy, a przy małych rozmiarach krok znaku jeszcze rośnie przez
+     zaokrąglanie. Dzielnik 76 zostawia ok. 8% zapasu. Górne 14 px wynika z reguły 1: przy
+     ``line-height: 1.2`` daje to wiersz wysoki na 17 px. Deklaracja ``vw`` nad nią jest awaryjna
+     – przeglądarka bez zapytań kontenerowych po prostu jej nie nadpisze. */
+  font-size: clamp(0.4rem, 1vw, 0.75rem);
+  font-size: clamp(6px, calc(100cqw / 76), 14px);
+  line-height: 1.2;
   font-weight: 700;
   letter-spacing: 0.05em;
   color: var(--tl-idle);
   white-space: pre;
+  /* Twarda granica na wypadek kroju o szerszym kroku, niż zakłada dzielnik wyżej: wykres zostaje
+     przycięty, zamiast rozepchnąć stronę. */
+  overflow-x: clip;
+  overflow-y: visible;
 }
 
-.tl__code {
+.tl--code {
   color: rgba(244, 241, 232, 0.6);
   font-weight: 400;
 }
 
 /* Opakowanie samego wykresu. Istnieje po to, żeby animacja wejścia (``clip-path``) przycinała
-   **wykres**, a nie cały blok: przy przycinaniu ``<pre>`` znikały razem z nim wiersze „kodu”,
-   a w karcie w tle, gdzie przeglądarka wstrzymuje animacje, pasek zostawał ucięty w połowie. */
+   **wykres**, a nie cały blok. */
 .tl__bar {
   display: inline-block;
 }
@@ -965,84 +968,104 @@ hr {
 }
 
 .tl__mark:hover,
-.tl__mark:focus-visible {
+.tl__mark:focus-visible,
+.tl__mark.is-active {
   color: #fff;
 }
 
-/* Dymek: nakładka nad paskiem, poza przepływem. Nie ma go w drzewie dostępności (``aria-hidden``)
-   – czytnik ekranu czyta ``aria-label`` znacznika, czyli tę samą treść dokładnie raz. */
-.tl__tip {
-  position: absolute;
-  top: 1.7em;
-  z-index: 3;
-  display: block;
-  min-width: max-content;
-  padding: var(--sp-1) var(--sp-2);
-  border: 1px solid rgba(244, 241, 232, 0.22);
-  border-radius: var(--radius-sm);
-  background: var(--navy-900);
-  color: #f4f1e8;
-  font-family: var(--font-sans);
+/* --- panel rozwijany w dół ------------------------------------------------------------------- */
+/*
+   ``grid-template-rows: 0fr → 1fr`` to jedyny sposób na **płynną** zmianę wysokości do rozmiaru
+   treści bez mierzenia jej skryptem: ``height: auto`` się nie animuje, a ``max-height`` z magiczną
+   liczbą albo ucina legendę, albo zostawia pustkę. Przeglądarka bez tej animacji (starsza niż
+   Chrome 107 / Firefox 120) po prostu przeskoczy – panel nadal działa. */
+.tl-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 250ms ease;
+}
+
+.tl-panel__inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.timeline-strip:hover .tl-panel,
+.timeline-strip:focus-within .tl-panel,
+.timeline-strip.is-open .tl-panel {
+  grid-template-rows: 1fr;
+}
+
+/* Oddech rozwiniętego panelu jest w środku pudełka z ``overflow: hidden``, więc w spoczynku
+   zwija się razem z treścią i nie dokłada nagłówkowi ani piksela. */
+.tl-panel__inner > :first-child {
+  margin-top: var(--sp-1);
+}
+
+.tl-panel__inner > :last-child {
+  margin-bottom: var(--sp-2);
+}
+
+.tl-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tl-legend__chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35em;
+  padding: 1px var(--sp-2);
+  border: 1px solid rgba(244, 241, 232, 0.16);
+  border-radius: 999px;
+  background: rgba(244, 241, 232, 0.05);
   font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: normal;
-  line-height: 1.5;
-  white-space: nowrap;
-  box-shadow: var(--shadow-sm);
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 140ms ease-out;
+  line-height: 1.6;
+  color: rgba(244, 241, 232, 0.8);
+  /* Chip podświetla się, kiedy kursor stoi na jego kresce (i odwrotnie) – parowanie robi
+     static/js/timeline-strip.js po numerze wydarzenia w ``data-tl-chip``. */
+  transition: background-color 120ms ease-out, border-color 120ms ease-out;
 }
 
-/* Przy krawędziach dymek przykleja się do znacznika zamiast być nad nim wyśrodkowany – inaczej
-   wystawałby poza kolumnę treści. Klasę dobiera serwer z numeru komórki (``timeline._tip_class``),
-   bo ma to działać także bez JavaScriptu. */
-.tl__tip--mid {
-  left: 50%;
-  transform: translateX(-50%);
+.tl-legend__chip.is-active {
+  border-color: rgba(244, 241, 232, 0.55);
+  background: rgba(244, 241, 232, 0.16);
+  color: #fff;
 }
 
-.tl__tip--start {
-  left: 0;
-}
-
-.tl__tip--end {
-  right: 0;
-}
-
-.tl__mark:hover .tl__tip,
-.tl__mark:focus .tl__tip,
-.tl__mark:focus-visible .tl__tip {
-  opacity: 1;
-  visibility: visible;
-}
-
-.tl__tip-row {
-  display: block;
-}
-
-.tl__tip-title {
+.tl-legend__title {
   font-weight: 600;
 }
 
-/* Odstępy między nazwą, terminem i dopiskiem robi arkusz, a nie spacja w szablonie: dymek stoi
-   w bloku ``{% spaceless %}``, który spacje między znacznikami usuwa – i ma je usuwać, bo w
-   ``<pre>`` każda z nich byłaby widocznym znakiem paska. */
-.tl__tip-dates {
-  margin-left: 0.45em;
-  color: rgba(244, 241, 232, 0.72);
+.tl-legend__chip--past .tl-legend__title {
+  color: var(--tl-past);
+}
+
+.tl-legend__chip--current .tl-legend__title {
+  color: var(--tl-current);
+}
+
+.tl-legend__chip--upcoming .tl-legend__title {
+  color: var(--tl-upcoming);
+}
+
+.tl-legend__dates {
+  color: rgba(244, 241, 232, 0.66);
   font-variant-numeric: tabular-nums;
 }
 
-.tl__tip-note {
-  margin-left: 0.45em;
-  color: rgba(244, 241, 232, 0.6);
+.tl-legend__note {
+  color: rgba(244, 241, 232, 0.55);
   font-style: italic;
 }
 
 /* Warstwa „pomiaru”: paczka falowa rysowana przez static/js/timeline-strip.js wyłącznie pod
    kursorem. Leży pod paskiem i nie łapie zdarzeń myszy – gdyby je łapała, nie dałoby się
-   najechać na znacznik, który jest pod nią. Bez skryptu płótno ma rozmiar 0×0. */
+   najechać na kreskę, która jest pod nią. Bez skryptu płótno ma rozmiar 0×0. */
 .tl__quantum {
   position: absolute;
   inset: 0;
@@ -1059,7 +1082,7 @@ hr {
 }
 
 /* Na dotyku nie ma stanu „najechania”: warstwa nigdy by się nie pokazała, a płótno kosztowałoby
-   pamięć na każdej stronie. */
+   pamięć na każdej stronie. Panel rozwija tam dotknięcie kreski (klasa ``is-open``). */
 @media (hover: none) {
   .tl__quantum {
     display: none;
@@ -1067,7 +1090,7 @@ hr {
 }
 
 /* Zwinięty kalendarz: postać paska na telefonie. Na szerokim ekranie nie ma go wcale (``display:
-   none`` wyjmuje go także z drzewa dostępności), bo tam informację niosą znaczniki i ich dymki. */
+   none`` wyjmuje go także z drzewa dostępności), bo tam informację niosą kreski i legenda. */
 .tl-list {
   display: none;
 }
@@ -1097,15 +1120,18 @@ hr {
   font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
 }
 
-.tl-list__item--past .tl-list__mark {
+.tl-list__item--past .tl-list__mark,
+.tl-list__mark--past {
   color: var(--tl-past);
 }
 
-.tl-list__item--current .tl-list__mark {
+.tl-list__item--current .tl-list__mark,
+.tl-list__mark--current {
   color: var(--tl-current);
 }
 
-.tl-list__item--upcoming .tl-list__mark {
+.tl-list__item--upcoming .tl-list__mark,
+.tl-list__mark--upcoming {
   color: var(--tl-upcoming);
 }
 
@@ -1128,24 +1154,14 @@ hr {
   font-style: italic;
 }
 
-.tl-list__children {
-  margin: 0 0 0 var(--sp-4);
-  padding: 0;
-  list-style: none;
-  color: rgba(244, 241, 232, 0.66);
-}
-
 @media (max-width: 639px) {
-  .tl {
+  .tl,
+  .tl-panel {
     display: none;
   }
 
   .tl-list {
     display: block;
-  }
-
-  .timeline-strip {
-    padding-bottom: var(--sp-3);
   }
 }
 
@@ -1182,6 +1198,12 @@ hr {
   .tl__head,
   .timeline-strip.is-animated .tl__bar {
     animation: none;
+  }
+
+  /* Rozwinięcie panelu zostaje – to treść, a nie ozdoba – ale dzieje się natychmiast. */
+  .tl-panel,
+  .tl-legend__chip {
+    transition: none;
   }
 
   .tl__quantum {

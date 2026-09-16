@@ -946,10 +946,15 @@ nieostry („do potwierdzenia”) zostaje bez daty: stoi w tabeli, ale nie trafi
 
 #### 6.3b Linia czasu w nagłówku (pasek „terminalowy”)
 
-Pod menu serwisu, na **każdej** stronie, stoi wąski pasek wzorowany na nagłówku `oi.edu.pl`: dwa
-wiersze „kodu” (`rok_szkolny(2026, 2027);`, `edycja(XV);`) i bracketowany wykres postępu edycji
-`[|===>...............|......]`. `=` to czas miniony, `>` — dzisiaj, `.` — to, co przed nami.
-Kolory znaczą stan: **niebieski** = minione, **czerwony** = trwa, **zielony** = przed nami.
+Pod menu serwisu, na **każdej** stronie, stoi wąski pasek wzorowany na nagłówku `oi.edu.pl`:
+bracketowany wykres postępu edycji `[|===>...............|......]`. `=` to czas miniony, `>` —
+dzisiaj, `.` — to, co przed nami, a `|` to wydarzenie. Kolory znaczą stan: **niebieski** = minione,
+**czerwony** = trwa, **zielony** = przed nami.
+
+**W spoczynku to jedna linia i nic więcej** — pasek dokłada nagłówkowi 17 px (zmierzone: nagłówek
+61 px bez paska, 78 px z paskiem przy oknie 1280 px), więc blok menu zachowuje swoją wysokość.
+Wiersze „kodu” (`rok_szkolny(2026, 2027);`, `edycja(XV);`) i legenda terminów siedzą w panelu
+zwiniętym do zera wysokości.
 
 **Skąd biorą się terminy.** Pasek scala **cztery** źródła (`apps.cms.timeline.timeline_events`),
 bo tyle jest w tej olimpiadzie rodzajów terminu i każdy mieszka gdzie indziej:
@@ -959,26 +964,37 @@ bo tyle jest w tej olimpiadzie rodzajów terminu i każdy mieszka gdzie indziej:
 | `competitions.Stage` | etapy zawodów bez treningowego; termin = dni wydarzenia (`event_range`), a bez nich okno `opens_at`…`deadline_at`. Odnośnik pojawia się dopiero po ogłoszeniu wyników |
 | `competitions.EditionEvent` | wydarzenia dopisane przez koordynatora (patrz niżej) |
 | `Edition.registration_opens_at` / `…closes_at` | „Rejestracja uczestników”, o ile rejestracja jest włączona i ma datę otwarcia |
-| tabela na `/warsztaty/` | warsztaty **zgrupowane po miesiącu** („Warsztaty (3)”), żeby kilkanaście terminów nie zamieniło osi w grzebień. Pełna lista terminów jest w zwiniętym kalendarzu i w `aria-label` znacznika; wiersz bez odczytanej daty jest pomijany |
+| tabela na `/warsztaty/` | **każdy warsztat osobno** („Warsztaty: Kubity”), bo warsztat jest osobnym wydarzeniem, na które zapisuje się osobno. Wiersz bez odczytanej daty jest pomijany |
 
 Oś idzie od najwcześniejszego początku do najpóźniejszego końca; edycja z mniej niż dwoma
 terminami dostaje zamiast tego cały rok szkolny (1 IX – 31 VIII), bo oś długości jednego
 wydarzenia nie niosłaby żadnej informacji.
 
-**Jak to jest zbudowane.** Wszystko liczy serwer — strona z wyłączonym JavaScriptem ma komplet
-terminów, właściwie ustawioną głowicę i działające dymki. Wydarzenia stoją **na** linii jako
-kreski `|`; nazwa i termin pokazują się po najechaniu albo po wejściu klawiszem, jako **nakładka**
-(`position: absolute`), więc pojawienie się dymka nie zmienia ani szerokości, ani wysokości paska.
-Szerokość wykresu wynika wyłącznie z kontenera (`container-type: inline-size` + `cqw`), nigdy
-z treści. Poniżej 640 px wykres znika, a kalendarz zostaje **zwiniętym** `<details>` z jednym
-zdaniem („co teraz”) — rozwinięta lista zajmowałaby pół pierwszego ekranu na każdej stronie.
+**Rozwija się w dół.** Najechanie na pasek, wejście w niego klawiszem (`:focus-within`) albo —
+na ekranie bez najechania — dotknięcie kreski rozwija pod wykresem panel (`grid-template-rows:
+0fr → 1fr`, ~250 ms; przy `prefers-reduced-motion: reduce` natychmiast). W panelu są wiersze
+„kodu”, warstwa „pomiaru” i **legenda**: zawijany rząd chipów z nazwą i terminem każdego
+wydarzenia, w kolejności chronologicznej. Najechanie na kreskę podświetla jej chip i odwrotnie;
+kreska, na której schodzi się kilka wydarzeń (na rocznej osi jedna komórka to blisko cztery dni),
+podświetla wszystkie swoje chipy i niesie je wszystkie w `aria-label`.
 
-`static/js/timeline-strip.js` dokłada dwie rzeczy, których serwer dać nie może: co minutę
-przesuwa głowicę (z `data-axis-start`/`data-axis-end`), żeby karta zostawiona otwartą przez noc
-nie pokazywała wczorajszego stanu, i rysuje pod kursorem warstwę „pomiaru” — paczkę falową, która
-po najechaniu na wydarzenie zapada się w pik nad nim (`|ψ|²`, ~30 kl./s, tylko pod kursorem).
-Animacja wejścia, migający kursor i warstwa „pomiaru” znikają przy `prefers-reduced-motion:
-reduce` i na ekranach dotykowych.
+Panel stoi **pod** wykresem, więc rozwinięcie nie rusza samej linii, a szerokość nie zmienia się
+nigdy: wykres skaluje się jednostką `cqw` w kontenerze zapytań (`container-type: inline-size`),
+a legenda jest zwykłym zawijanym rzędem w tej samej kolumnie. Poprzednia wersja pokazywała nazwy
+w dymkach przypiętych do kresek — przy kilkunastu warsztatach trzeba było najechać na każdą
+z osobna, więc dymki zastąpiła legenda. Poniżej 640 px wykres znika (102 znaki miałyby tam
+wysokość dwóch pikseli), a kalendarz zostaje **zwiniętym** `<details>` z jednym zdaniem
+(„co teraz”).
+
+Wszystko liczy serwer — strona z wyłączonym JavaScriptem ma komplet terminów, właściwie ustawioną
+głowicę i działające rozwijanie (robi je sam CSS). `static/js/timeline-strip.js` dokłada trzy
+rzeczy: co minutę przesuwa głowicę (z `data-axis-start`/`data-axis-end`), żeby karta zostawiona
+otwartą przez noc nie pokazywała wczorajszego stanu; rysuje pod kursorem warstwę „pomiaru” —
+paczkę falową, która po najechaniu na wydarzenie zapada się w pik nad nim (`|ψ|²`, ~30 kl./s,
+tylko pod kursorem); i wiąże kreskę z chipem legendy (są w różnych gałęziach drzewa, więc
+selektor ich nie połączy). Na ekranie dotykowym ten sam kawałek obsługuje dotknięcie: pierwsze
+otwiera panel, drugie w tę samą kreskę idzie już odnośnikiem. Animacja wejścia, migający kursor
+i warstwa „pomiaru” znikają przy `prefers-reduced-motion: reduce` i na ekranach dotykowych.
 
 **Bufor: 5 minut.** Pasek renderuje się przy każdym żądaniu HTML i kosztuje cztery zapytania, więc
 wynik siedzi w `django.core.cache` pod kluczem `cms:timeline-strip:<edycja>`. Zapis z panelu

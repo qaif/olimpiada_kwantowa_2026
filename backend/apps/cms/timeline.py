@@ -175,11 +175,6 @@ TL_UPCOMING = "upcoming"
 #: nie może go przykryć sąsiad, który akurat zaczyna się tego samego dnia.
 _STATUS_PRIORITY = {TL_PAST: 0, TL_UPCOMING: 1, TL_CURRENT: 2}
 
-#: Od której komórki dymek przestaje być wyśrodkowany nad znacznikiem i przykleja się do jego
-#: lewej (albo prawej) krawędzi. Bez tego dymek pierwszego i ostatniego wydarzenia wystawałby
-#: poza pasek – a pasek stoi w kolumnie treści nagłówka i nie wolno mu jej rozepchnąć.
-TIP_EDGE_CELLS = 20
-
 #: Klucz i czas życia bufora. Pięć minut to kompromis: pasek renderuje się na **każdej** stronie,
 #: a kalendarz edycji zmienia się kilka razy w roku. Wydarzenia koordynatora czyszczą bufor same
 #: (``invalidate_timeline_cache``), więc pięć minut dotyczy wyłącznie zmian robionych inną drogą
@@ -318,13 +313,13 @@ def _registration_item(edition: Edition, today: date) -> list[dict]:
 
 
 def _workshop_items(today: date) -> list[dict]:
-    """Warsztaty z tabeli na ``/warsztaty/`` – zgrupowane po miesiącu, żeby nie zjadły osi.
+    """Warsztaty z tabeli na ``/warsztaty/`` – **każdy osobno**, jeden wiersz tabeli = jeden termin.
 
-    Warsztatów jest w edycji kilkanaście: każdy jako osobna komórka zamieniłby pasek w grzebień,
-    w którym nie widać ani etapów, ani tego, gdzie jesteśmy. Miesiąc jest dobrym krokiem
-    grupowania, bo tak wygląda sam harmonogram organizatora (jeden–dwa warsztaty na miesiąc)
-    i tak czyta się go na głos („warsztaty listopadowe”). Pełna lista terminów nie ginie:
-    idzie do ``children`` i stoi w liście pod paskiem, czytanej też przez czytnik ekranu.
+    Grupowanie po miesiącu („Warsztaty (3)”) było tu wcześniej i zostało wycofane na wyraźną
+    prośbę organizatora: warsztat jest osobnym wydarzeniem, na które zapisuje się osobno, więc
+    zbiorczy podpis odbierał mu tożsamość i kazał czytelnikowi szukać tematu gdzie indziej.
+    Znaczniki, które wypadają na tej samej komórce, po prostu się schodzą – komórka pokazuje
+    wtedy jedną kreskę, a rozwinięty panel wylicza wszystkie jej wydarzenia po kolei.
 
     Wiersz bez odczytanej daty jest pomijany – dokładnie tak, jak w zapowiedzi na stronie
     głównej (``upcoming_workshops``): pasek umie ustawić tylko to, co da się porównać z zegarem.
@@ -335,37 +330,18 @@ def _workshop_items(today: date) -> list[dict]:
     from .models import ContentPage
 
     page = ContentPage.objects.live().filter(slug=WORKSHOPS_SLUG).first()
-    rows = workshop_rows(page)
-    if not rows:
-        return []
-
-    groups: dict[tuple[int, int], list[dict]] = {}
-    for row in rows:
-        groups.setdefault((row["date_value"].year, row["date_value"].month), []).append(row)
-
-    items = []
-    for _month, members in sorted(groups.items()):
-        days = [row["date_value"] for row in members]
-        title = f"Warsztaty: {members[0]['topic']}" if len(members) == 1 else f"Warsztaty ({len(members)})"
-        items.append(
-            _item(
-                kind="workshop",
-                title=title,
-                start=min(days),
-                end=max(days),
-                today=today,
-                url=f"/{WORKSHOPS_SLUG}/",
-                note="online",
-                children=[
-                    {
-                        "title": row["topic"],
-                        "dates": format_compact_range(row["date_value"], row["date_value"]),
-                    }
-                    for row in sorted(members, key=lambda row: row["date_value"])
-                ],
-            )
+    return [
+        _item(
+            kind="workshop",
+            title=f"Warsztaty: {row['topic']}" if row["topic"] else "Warsztaty",
+            start=row["date_value"],
+            end=row["date_value"],
+            today=today,
+            url=f"/{WORKSHOPS_SLUG}/",
+            note="online",
         )
-    return items
+        for row in workshop_rows(page)
+    ]
 
 
 def _item(
@@ -377,9 +353,8 @@ def _item(
     today: date,
     url: str = "",
     note: str = "",
-    children: list[dict] | None = None,
 ) -> dict:
-    """Jeden wiersz kalendarza w postaci, którą rozumie i szablon, i upakowanie etykiet."""
+    """Jeden wiersz kalendarza – w postaci, którą rozumie i znacznik na pasku, i chip w legendzie."""
     return {
         "kind": kind,
         "title": title,
@@ -389,7 +364,6 @@ def _item(
         "dates": format_compact_range(start, end),
         "url": url or "",
         "note": note or "",
-        "children": children or [],
     }
 
 
@@ -469,7 +443,10 @@ def _place_items(items: list[dict], axis_start: date, total_days: int) -> None:
     komórkę: wydarzenie jednodniowe na rocznej osi to 1/365 paska, czyli zero komórek po
     zaokrągleniu – a gala, której nie widać, nie jest na pasku obecna.
     """
-    for item in items:
+    for number, item in enumerate(items):
+        # Numer w liście jest jedynym powiązaniem między kreską na pasku a chipem w legendzie:
+        # skrypt podświetla parę po tej liczbie, a nie po tytule, który bywa ten sam dwa razy.
+        item["index"] = number
         position = _fraction(item["start"], axis_start, total_days)
         length = max((item["end"] - item["start"]).days, 1) / total_days
         cell_from = min(round(position * BAR_SIZE), BAR_SIZE - 1)
@@ -505,29 +482,14 @@ def cell_char(index: int, head: int, marks: set[int]) -> str:
     return "=" if index < head else "."
 
 
-def _tip_class(index: int) -> str:
-    """Do której krawędzi znacznika przykleić dymek, żeby nie wyszedł poza pasek.
-
-    Dymek jest **nakładką** (``position: absolute``): pojawia się i znika, nie ruszając ani
-    szerokości, ani wysokości paska. Cena nakładki jest taka, że przy krawędziach wystawałaby
-    poza kolumnę treści – więc dymek pierwszych i ostatnich komórek nie jest centrowany nad
-    znacznikiem, tylko wyrównany do jego lewej albo prawej krawędzi. Rozstrzyga o tym serwer
-    klasą CSS, a nie skrypt pomiarem: to jedyna droga, przy której dymek stoi właściwie także
-    wtedy, gdy JavaScript nie działa.
-    """
-    if index <= TIP_EDGE_CELLS:
-        return "tl__tip--start"
-    if index >= BAR_SIZE - TIP_EDGE_CELLS:
-        return "tl__tip--end"
-    return "tl__tip--mid"
-
-
 def _markers(items: list[dict]) -> dict[int, list[dict]]:
     """Wydarzenia przypięte do komórki, w której się zaczynają.
 
     Kilka wydarzeń bywa w jednej komórce (na rocznej osi jedna komórka to blisko cztery dni),
-    więc znacznik jest jeden, a dymek wylicza wszystkie – zamiast dwóch kresek jedna na drugiej
-    albo dwóch sąsiednich, które rozjechałyby siatkę o znak.
+    więc znacznik jest jeden i wskazuje wszystkie – zamiast dwóch kresek jedna na drugiej albo
+    dwóch sąsiednich, które rozjechałyby siatkę o znak. Od czasu, gdy każdy warsztat jest osobnym
+    wydarzeniem, jest to sytuacja **normalna**, a nie skraj: dwa terminy w tym samym tygodniu
+    wypadają na tej samej komórce rocznej osi.
     """
     markers: dict[int, list[dict]] = {}
     for item in items:
@@ -544,8 +506,9 @@ def _bar_cells(items: list[dict], statuses: list[str], head: int) -> list[dict]:
     stoją odnośniki i dymki, których przebudowa kasowałaby fokus i przerywałaby najechanie.
 
     Znaczniki wydarzeń (``|``) są elementami aktywnymi: odnośnikiem, gdy wydarzenie ma dokąd
-    prowadzić, a przyciskiem, gdy nie ma. Oba są osiągalne klawiszem, więc dymek pokazuje się
-    także bez myszy – to jedyny powód, dla którego znacznik bez adresu w ogóle jest przyciskiem.
+    prowadzić, a przyciskiem, gdy nie ma. Oba są osiągalne klawiszem – i to jest jedyny powód,
+    dla którego znacznik bez adresu w ogóle jest przyciskiem: fokus na nim rozwija panel
+    (``:focus-within``), więc legenda działa także bez myszy.
     """
     markers = _markers(items)
     cells = []
@@ -568,21 +531,28 @@ def _bar_cells(items: list[dict], statuses: list[str], head: int) -> list[dict]:
                 "css_class": " ".join(classes),
                 "items": group or [],
                 # Nazwa dostępna znacznika. Czytnik ekranu czyta ją zamiast kreski, więc niesie
-                # dokładnie to, co widzi w dymku osoba używająca myszy.
+                # dokładnie to, co w legendzie widzi osoba używająca myszy.
                 "label": "; ".join(f"{item['title']}, {item['dates']}" for item in group or []),
                 "url": group[0]["url"] if group and len(group) == 1 else "",
-                "tip_class": _tip_class(index),
+                # Numery wydarzeń tej komórki, w jednym atrybucie ``data-``: po nich skrypt
+                # podświetla chipy legendy, kiedy kursor stoi na kresce (i odwrotnie).
+                "indexes": ",".join(str(item["index"]) for item in group or []),
             }
         )
     return cells
 
 
 def _header_lines(edition: Edition, today: date) -> list[str]:
-    """Dwa wiersze „kodu” nad paskiem: rocznik szkolny i numer edycji – jak w nagłówku OI.
+    """Dwa wiersze „kodu” z rocznikiem i numerem edycji – jak w nagłówku OI.
 
-    Wyśrodkowane nad paskiem, bo pasek jest symetryczny i wyrównanie do lewej zostawiałoby po
-    prawej pustą połowę nagłówka. Wiersz z numerem edycji znika, kiedy etykieta go nie niesie –
-    ``edycja();`` byłoby wywołaniem bez argumentu, czyli widoczną usterką.
+    Stoją **pod** paskiem i wyłącznie w rozwiniętym panelu. Nad paskiem byłyby dwoma wierszami,
+    które w stanie spoczynku podnoszą nagłówek serwisu o trzydzieści kilka pikseli na każdej
+    stronie – a pasek ma być w spoczynku jedną linią i niczym więcej. Pod paskiem mają też tę
+    zaletę, że rozwinięcie panelu nie przesuwa samego wykresu: linia zostaje tam, gdzie była.
+
+    Wyśrodkowane, bo pasek jest symetryczny i wyrównanie do lewej zostawiałoby po prawej pustą
+    połowę. Wiersz z numerem edycji znika, kiedy etykieta go nie niesie – ``edycja();`` byłoby
+    wywołaniem bez argumentu, czyli widoczną usterką.
     """
     first_year, last_year = _school_year(edition, today)
     lines = [f"rok_szkolny({first_year}, {last_year});"]

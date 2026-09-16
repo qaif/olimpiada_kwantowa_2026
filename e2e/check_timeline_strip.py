@@ -10,9 +10,10 @@ Pięć rzeczy, których nie sprawdzi pytest, bo dzieją się w przeglądarce:
    przelicza jej pozycję z ``data-axis-start``/``data-axis-end``. Liczymy ułamek osi z tych
    samych atrybutów – dopuszczając jedną komórkę różnicy, bo Python zaokrągla połówki do
    parzystych, a JavaScript w górę.
-3. **Dymek pokazuje się po najechaniu i po wejściu klawiszem, i nie rusza układu.** Mierzymy
-   wysokość i szerokość paska przed pokazaniem dymka i po – muszą być identyczne, bo dymek jest
-   nakładką. Sprawdzamy też, że nie wychodzi poza pasek.
+3. **W spoczynku pasek jest jedną linią, a po najechaniu rozwija się w dół.** Mierzymy wysokość
+   nagłówka z paskiem i bez niego (delta ma być rzędu kilkunastu pikseli), a potem wysokość
+   przed najechaniem i po – panel ma rosnąć, wykres ma zostać na swoim miejscu, a szerokość ma
+   się nie zmienić ani o piksel. To samo sprawdzamy dla fokusu klawiatury (``:focus-within``).
 4. **Warstwa „pomiaru” zapala się pod kursorem i gaśnie poza nim.** Płótno jest ozdobą
    (``aria-hidden``, ``pointer-events: none``), więc jedyne, co da się o nim orzec, to że
    pojawia się i znika – oraz że nie przechwytuje najechania na znacznik.
@@ -32,6 +33,10 @@ from playwright.sync_api import sync_playwright
 
 BASE = os.environ.get("E2E_BASE_URL", "http://web:8000")
 PATH = "/login/"
+
+#: Ile pikseli wolno paskowi dołożyć do nagłówka w spoczynku. Jeden wiersz monospace przy kroju
+#: 14 px i ``line-height: 1.2`` to 17 px; limit z zapasem na zaokrąglenia i inny krój systemowy.
+RESTING_DELTA_MAX = 22
 
 #: Komplet stanu paska, czytany jednym wywołaniem: atrybuty osi, narysowane komórki, wymiary
 #: i to, czy warstwa „pomiaru” jest widoczna. Jedno ``evaluate`` zamiast ośmiu – każde kosztuje
@@ -60,11 +65,12 @@ STATE = """() => {
     canvasEvents: canvas ? getComputedStyle(canvas).pointerEvents : null,
     marks: marks.length,
     labels: marks.map((node) => node.getAttribute('aria-label')),
-    tips: marks.map((node) => {
-      const tip = node.querySelector('.tl__tip');
-      const r = tip.getBoundingClientRect();
-      return { left: Math.round(r.left - box.left), right: Math.round(r.right - box.left) };
-    }),
+    chips: strip.querySelectorAll('.tl-legend__chip').length,
+    activeChips: strip.querySelectorAll('.tl-legend__chip.is-active').length,
+    panelHeight: Math.round(strip.querySelector('.tl-panel').getBoundingClientRect().height),
+    barTop: pre ? Math.round(pre.getBoundingClientRect().top) : 0,
+    barWidth: pre ? Math.round(pre.getBoundingClientRect().width) : 0,
+    headerHeight: Math.round(document.querySelector('header.topbar').getBoundingClientRect().height),
     preDisplay: pre ? getComputedStyle(pre).display : null,
     listDisplay: getComputedStyle(strip.querySelector('.tl-list')).display,
     listItems: strip.querySelectorAll('.tl-list__item').length,
@@ -115,29 +121,57 @@ def check_width(page) -> None:
     page.set_viewport_size({"width": 1280, "height": 800})
 
 
-def check_tooltip(page) -> None:
-    """Dymek jest nakładką: pojawia się po najechaniu i po fokusie, nie ruszając wymiarów paska."""
+def check_resting_height(page) -> None:
+    """W spoczynku pasek dokłada nagłówkowi jedną linię – kilkanaście pikseli, nie kilkadziesiąt."""
     page.goto(BASE + PATH, wait_until="networkidle")
-    before = page.evaluate(STATE)
+    with_strip = page.evaluate(STATE)
+    delta = page.evaluate(
+        """() => {
+          const header = document.querySelector('header.topbar');
+          const strip = document.querySelector('[data-timeline-strip]');
+          const before = header.getBoundingClientRect().height;
+          strip.style.display = 'none';
+          const after = header.getBoundingClientRect().height;
+          strip.style.display = '';
+          return Math.round(before - after);
+        }"""
+    )
+    print(f"naglowek rosnie o {delta}px; panel w spoczynku {with_strip['panelHeight']}px")
+    assert with_strip["panelHeight"] == 0, "panel w spoczynku ma zerowa wysokosc"
+    assert delta <= RESTING_DELTA_MAX, f"pasek dokłada naglowkowi {delta}px, limit {RESTING_DELTA_MAX}"
+    assert with_strip["chips"], "legenda jest w kodzie strony takze wtedy, gdy jest zwinieta"
+
+
+def check_expansion(page) -> None:
+    """Najechanie i fokus rozwijają panel **w dół**: wykres nie drgnie, szerokość się nie zmieni."""
+    page.goto(BASE + PATH, wait_until="networkidle")
+    closed = page.evaluate(STATE)
     mark = page.locator("[data-tl-mark]").first
     mark.hover()
-    page.wait_for_timeout(300)
-    during = page.evaluate(STATE)
-    tip = page.locator("[data-tl-mark] .tl__tip").first
-    print(f"dymek po najechaniu: widoczny={tip.is_visible()} wysokosc paska {during['stripHeight']}")
-    assert tip.is_visible(), "dymek pokazuje sie po najechaniu"
-    assert during["stripHeight"] == before["stripHeight"], "dymek nie moze zmieniac wysokosci paska"
-    assert during["stripWidth"] == before["stripWidth"], "dymek nie moze zmieniac szerokosci paska"
-    assert during["pageOverflow"] is False, "dymek nie moze przewijac strony"
-    for spot in during["tips"]:
-        assert spot["left"] >= 0, "dymek nie wychodzi poza lewa krawedz paska"
-        assert spot["right"] <= during["stripWidth"], "dymek nie wychodzi poza prawa krawedz paska"
+    page.wait_for_timeout(500)
+    opened = page.evaluate(STATE)
+    print(
+        f"panel: {closed['panelHeight']}px → {opened['panelHeight']}px, naglowek "
+        f"{closed['headerHeight']} → {opened['headerHeight']}"
+    )
+    assert opened["panelHeight"] > closed["panelHeight"], "panel rozwija sie po najechaniu"
+    assert opened["headerHeight"] > closed["headerHeight"], "naglowek rosnie w dol"
+    assert opened["barTop"] == closed["barTop"], "wykres nie moze sie przesunac"
+    assert opened["barWidth"] == closed["barWidth"], "szerokosc nie moze sie zmienic"
+    assert opened["pageOverflow"] is False, "rozwiniety panel nie przewija strony"
+    assert opened["activeChips"], "najechanie na kreske podswietla jej chip w legendzie"
 
-    # Klawiatura: znacznik jest odnośnikiem albo przyciskiem, więc dymek działa też bez myszy.
     page.mouse.move(10, 700)
+    page.wait_for_timeout(500)
+    left = page.evaluate(STATE)
+    assert left["panelHeight"] == 0, "panel zwija sie po zjechaniu kursorem"
+    assert left["activeChips"] == 0, "podswietlenie gasnie razem z panelem"
+
+    # Klawiatura: fokus na kresce rozwija panel przez ``:focus-within``, bez udziału skryptu.
     mark.focus()
-    page.wait_for_timeout(300)
-    assert tip.is_visible(), "dymek pokazuje sie takze po wejsciu klawiszem"
+    page.wait_for_timeout(500)
+    focused = page.evaluate(STATE)
+    assert focused["panelHeight"] > 0, "fokus klawiatury rozwija panel"
 
 
 def check_measurement(page) -> None:
@@ -174,9 +208,7 @@ def check_narrow_screen(page) -> None:
 
 def check_reduced_motion(browser) -> None:
     """Tryb ograniczonego ruchu: pasek kompletny, warstwy „pomiaru” nie ma wcale."""
-    context = browser.new_context(
-        viewport={"width": 1280, "height": 800}, reduced_motion="reduce"
-    )
+    context = browser.new_context(viewport={"width": 1280, "height": 800}, reduced_motion="reduce")
     page = context.new_page()
     page.goto(BASE + PATH, wait_until="networkidle")
     state = page.evaluate(STATE)
@@ -190,7 +222,10 @@ def check_reduced_motion(browser) -> None:
     hovered = page.evaluate(STATE)
     assert hovered["measuring"] is False, "przy reduced-motion pomiar nie startuje"
     # Dymek nie jest animacją, tylko treścią – on ma działać zawsze.
-    assert page.locator("[data-tl-mark] .tl__tip").first.is_visible(), "dymek dziala zawsze"
+    # Rozwijanie panelu to treść, a nie ozdoba: ma działać także przy ograniczonym ruchu.
+    page.locator("[data-tl-mark]").first.hover()
+    page.wait_for_timeout(200)
+    assert page.evaluate(STATE)["panelHeight"] > 0, "panel rozwija sie takze przy reduced-motion"
     context.close()
 
 
@@ -199,7 +234,8 @@ with sync_playwright() as playwright:
     page = browser.new_page(viewport={"width": 1280, "height": 800})
     check_rendering(page)
     check_width(page)
-    check_tooltip(page)
+    check_resting_height(page)
+    check_expansion(page)
     check_measurement(page)
     check_narrow_screen(page)
     check_reduced_motion(browser)
