@@ -3,6 +3,9 @@
 Sprawdzamy to, czego nie widać w testach serwisów: że strona pokazuje wszystkie trzy narzędzia
 (reguły zadań, przydział pojedynczej pracy, korekta punktów), że każda akcja wraca na ten sam
 ekran (a nie na pulpit) i że nikt poza koordynatorem tu nie wejdzie.
+
+Filtry, stronicowanie, czynności zbiorcze i historia wiersza mają własny plik
+(``test_coordinator_assignments_ux.py``): tamten opisuje obsługę tabeli, ten – same czynności.
 """
 
 import pytest
@@ -49,6 +52,13 @@ def test_page_lists_rules_and_submissions(web_client, coordinator, elim_stage, p
     assert locked.entry.participant.public_code in content
     # Koordynator jest jedyną rolą, która widzi nazwisko obok kodu publicznego.
     assert PARTICIPANT_LAST_NAME in content
+    # Przebudowany układ: kod uczestnika, zadanie i recenzent prowadzą do swoich kart, a status
+    # pracy jest odznaką, a nie samym napisem w komórce.
+    assert f"/coordinator/participants/{locked.entry.participant.pk}/" in content
+    assert f"/coordinator/problems/{problems[0].pk}/" in content
+    assert f"/coordinator/members/{reviewer.pk}/" in content
+    # Reguła zadania przydzieliła recenzenta zablokowanej pracy, więc jest już „w ocenie”.
+    assert "asg-status--in_review" in content
 
 
 def test_search_filters_by_public_code_and_surname(web_client, coordinator, elim_stage, locked):
@@ -161,6 +171,9 @@ def test_page_shows_scale_and_final_grade_forms(web_client, coordinator, elim_st
     assert "Przydziały i oceny" in content
     assert f"/coordinator/submissions/{locked.pk}/final-grade/" in content
     assert "Zapisz korektę" in content
+    # Oba formularze poprawek siedzą w ``<details>`` – rozwijane natywnie, bez linijki skryptu.
+    assert "Zmień punkty" in content
+    assert '<summary class="asg-edit__summary">Ocena końcowa</summary>' in content
 
 
 def test_set_review_score_from_panel(web_client, coordinator, elim_stage, locked):

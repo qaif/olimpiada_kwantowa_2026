@@ -215,7 +215,7 @@ def test_coordinator_sees_the_notes_on_the_moderation_queue(web_client, coordina
     add_review_note(review.submission, review.reviewer, "Proponuję 5.")
     web_client.force_login(coordinator)
 
-    content = web_client.get("/coordinator/").content.decode()
+    content = web_client.get("/coordinator/moderation/").content.decode()
 
     assert "Notatki recenzentów" in content
     assert "Proponuję 5." in content

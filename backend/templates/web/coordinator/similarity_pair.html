@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "web/coordinator/base.html" %}
 {% load static %}
 {% comment %}
   Porównanie dwóch prac linia po linii. Treść rozwiązań jest tu pokazywana **bez** normalizacji
@@ -11,20 +11,18 @@
   dlatego nie używamy ``HtmlDiff.make_file``, który wkleja własny blok ``<style>``.
 {% endcomment %}
 {% block title %}Porównanie prac – {{ stage.display_name }}{% endblock %}
-{% block head %}
+{% block panel_head %}
   <link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">
   <link rel="stylesheet" href="{% static 'css/similarity-diff.css' %}">
 {% endblock %}
-{% block content %}
-<div class="page-head">
-  <span class="eyebrow">
-    <a href="{% url 'web:coordinator-stage-similarity' stage.pk %}">Podobieństwo rozwiązań</a>
-  </span>
-  <h1>Porównanie: {{ left_code }} ↔ {{ right_code }}</h1>
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-stage-similarity' stage.pk %}">Podobieństwo rozwiązań</a>{% endblock %}
+{% block panel_title %}Porównanie: {{ left_code }} ↔ {{ right_code }}{% endblock %}
+{% block panel_lead %}
   <p class="lead">Zadanie {{ pair.problem.number }}, zmierzone podobieństwo
     <strong>{{ pair.percent }}%</strong>. Wynik jest przesłanką, a nie rozstrzygnięciem –
     dwie uczciwe prace też bywają podobne.</p>
-</div>
+{% endblock %}
+{% block panel_content %}
 
 <section class="section">
   <dl class="meta-list">

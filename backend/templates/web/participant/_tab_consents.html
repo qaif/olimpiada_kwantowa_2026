@@ -1,0 +1,75 @@
+{% load i18n web_extras %}{% comment %}
+  Zakładka „Zgody”: co jeszcze trzeba zrobić (zgoda opiekuna), co obowiązuje (tabela) i jedyny
+  przełącznik, który uczestnik ma w panelu (publikacja imienia i nazwiska).
+{% endcomment %}
+<section class="section" id="zgody">
+  <div class="section__head"><h2 class="mt-0">{% translate "Twoje zgody" %}</h2></div>
+
+  {% comment %}
+    Zgoda opiekuna stoi **nad** tabelą zgód, bo jako jedyna bywa niezałatwiona i jako jedyna
+    wymaga tu czynności. Tabela poniżej odpowiada na pytanie „co obowiązuje”, ten blok – na
+    pytanie „co jeszcze trzeba zrobić”.
+  {% endcomment %}
+  {% if guardian.state != "not_required" %}
+    {% include "web/participant/_guardian_consent.html" with guardian=guardian %}
+  {% endif %}
+
+  {% comment %}
+    Lista mówi trzy rzeczy naraz: **co** zostało oświadczone, **pod jaką wersją dokumentu**
+    i **kiedy**. Sama „ptaszka” nie wystarczy: dokumenty są nowelizowane, a zgoda złożona pod
+    wersją sprzed nowelizacji nie jest zgodą na tekst, który wisi na stronie dzisiaj.
+
+    Przełącznik jest dokładnie jeden — publikacja imienia i nazwiska. Pozostałe zgody są
+    warunkiem udziału albo oświadczeniem o zapoznaniu się z dokumentem; ich wycofanie znaczy
+    rezygnację z Olimpiady i jest sprawą do organizatora, a nie przyciskiem w panelu.
+  {% endcomment %}
+  <div class="scroll">
+    <table class="table">
+      <caption>{% translate "Zgody złożone przy rejestracji i później" %}</caption>
+      <thead><tr>
+        <th>{% translate "Zgoda" %}</th>
+        <th>{% translate "Wersja dokumentu" %}</th>
+        <th>{% translate "Data (czas polski)" %}</th>
+        <th>{% translate "Stan" %}</th>
+      </tr></thead>
+      <tbody>
+        {% for row in consent_rows %}
+          <tr>
+            <td>{{ row.name }}{% if row.optional %} <span class="hint">{% translate "(dobrowolna)" %}</span>{% endif %}</td>
+            <td>{% if row.record %}{{ row.record.document_version|default:"—" }}{% else %}{{ row.version }}{% endif %}</td>
+            <td>{% if row.record %}{{ row.record.given_at|local_datetime }}{% else %}—{% endif %}</td>
+            <td>
+              {% if not row.record %}
+                <span class="hint">{% translate "brak wpisu" %}</span>
+              {% elif row.record.withdrawn_at %}
+                {% blocktranslate trimmed with when=row.record.withdrawn_at|local_datetime %}
+                  wycofana {{ when }}
+                {% endblocktranslate %}
+              {% else %}
+                {% translate "obowiązuje" %}
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card card--quiet">
+    <h3 class="mt-0">{% translate "Publikacja imienia i nazwiska" %}</h3>
+    <p class="hint">{% blocktranslate trimmed with code=user.participant.public_code %}
+      Bez tej zgody w publikowanych tabelach wyników występujesz wyłącznie pod kodem {{ code }}.
+      Zgodę możesz wyrazić i wycofać w każdej chwili.
+    {% endblocktranslate %}</p>
+    <form method="post" action="{% url 'web:consent-publish-name' %}" class="inline">
+      {% csrf_token %}
+      {% if user.participant.publish_full_name %}
+        <input type="hidden" name="given" value="0">
+        <button type="submit" class="btn btn--secondary">{% translate "Wycofaj zgodę na publikację nazwiska" %}</button>
+      {% else %}
+        <input type="hidden" name="given" value="1">
+        <button type="submit" class="btn btn--secondary">{% translate "Wyraź zgodę na publikację nazwiska" %}</button>
+      {% endif %}
+    </form>
+  </div>
+</section>

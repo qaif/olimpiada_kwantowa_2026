@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "web/coordinator/base.html" %}
 {% load static %}
 {% comment %}
   Wystawianie dyplomów i zaświadczeń dla jednego etapu.
@@ -12,14 +12,13 @@
   wystawia się je raz.
 {% endcomment %}
 {% block title %}Dyplomy – {{ stage.display_name }}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
-{% block content %}
-<div class="page-head">
-  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
-  <h1>Dyplomy i zaświadczenia: {{ stage.display_name }}</h1>
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block panel_title %}Dyplomy i zaświadczenia: {{ stage.display_name }}{% endblock %}
+{% block panel_lead %}
   <p class="lead">Dokument powstaje przy każdym pobraniu, a w bazie zostaje jego <strong>numer
     i kod weryfikacyjny</strong>. Powtórne „Wystaw” nie mnoży dyplomów – oddaje ten sam numer.</p>
-</div>
+{% endblock %}
+{% block panel_content %}
 
 <section class="section">
   <div class="card">

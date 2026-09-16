@@ -8,12 +8,19 @@ from .views import (
     certificates,
     coordinator,
     coordinator_accounts,
+    coordinator_announcements,
     coordinator_events,
     coordinator_issues,
+    coordinator_members,
     coordinator_messages,
+    coordinator_pages,
+    coordinator_participants,
+    coordinator_problem_detail,
     coordinator_quality,
     coordinator_reports,
+    coordinator_rodo,
     coordinator_stages,
+    coordinator_support,
     guardian,
     participant,
     participant_extras,
@@ -23,6 +30,7 @@ from .views import (
     reviewer_extras,
     reviewer_tools,
     supervisor,
+    support,
 )
 
 app_name = "web"
@@ -72,6 +80,9 @@ urlpatterns = [
         account.EmailChangeConfirmView.as_view(),
         name="email-change-confirm",
     ),
+    # Paczka z własnymi danymi (art. 20 RODO). GET, bo niczego nie zmienia – to odczyt własnych
+    # danych; limit częstotliwości jest przy eksporcie (``apps.accounts.data_export``).
+    path("account/export/", account.AccountExportView.as_view(), name="account-export"),
     path("account/delete/", account.AccountDeleteView.as_view(), name="account-delete"),
     path("account/deleted/", account.AccountDeletedView.as_view(), name="account-deleted"),
     # Język interfejsu i tryb wysokiego kontrastu. Bez logowania, bo to ustawienie
@@ -82,6 +93,13 @@ urlpatterns = [
         participant_extras.PreferencesView.as_view(),
         name="account-preferences",
     ),
+    # --- zgłoszenia i pomoc (wszystkie role, także bez konta) --------------------------------
+    # ``new/`` i ``sent/`` stoją **przed** wzorcem z identyfikatorem – ``<int:pk>`` i tak nie
+    # dopasuje słowa, ale kolejność mówi, co jest wejściem, a co szczegółem.
+    path("support/new/", support.SupportTicketCreateView.as_view(), name="support-new"),
+    path("support/sent/", support.SupportTicketSentView.as_view(), name="support-sent"),
+    path("support/", support.SupportTicketListView.as_view(), name="support"),
+    path("support/<int:pk>/", support.SupportTicketDetailView.as_view(), name="support-detail"),
     # --- uczestnik ---------------------------------------------------------------------------
     path("me/", participant.MeView.as_view(), name="me"),
     path(
@@ -101,6 +119,14 @@ urlpatterns = [
         "me/interview-slots/<int:slot_id>/book/",
         participant.InterviewBookView.as_view(),
         name="interview-book",
+    ),
+    # Ten sam zapis wywołany z **listy wyboru** w panelu: jeden formularz, termin w polu
+    # ``slot_id``. Adres z identyfikatorem w ścieżce (powyżej) zostaje – jest w linkach
+    # wysyłanych z listu, a zmiana kształtu ekranu nie może ich unieważnić.
+    path(
+        "me/interview/choose/",
+        participant.InterviewChooseView.as_view(),
+        name="interview-choose",
     ),
     path(
         "me/stages/<int:stage_id>/interview/cancel/",
@@ -217,6 +243,30 @@ urlpatterns = [
     ),
     # --- koordynator -------------------------------------------------------------------------
     path("coordinator/", coordinator.CoordinatorDashboardView.as_view(), name="coordinator"),
+    # Wyszukiwarka panelu: jedno pole na uczestników, komisję, zadania, etapy i zgłoszenia.
+    # Stoi w menu, więc jest dostępna z każdego ekranu panelu.
+    path(
+        "coordinator/search/",
+        coordinator_pages.CoordinatorSearchView.as_view(),
+        name="coordinator-search",
+    ),
+    # Trzy ekrany, które wyprowadziły się z pulpitu (apps/web/views/coordinator_pages.py).
+    # Czynności zostały tam, gdzie były – te adresy wyłącznie pokazują.
+    path(
+        "coordinator/committee/",
+        coordinator_pages.CoordinatorCommitteeView.as_view(),
+        name="coordinator-committee",
+    ),
+    path(
+        "coordinator/activations/",
+        coordinator_pages.CoordinatorActivationsView.as_view(),
+        name="coordinator-activations",
+    ),
+    path(
+        "coordinator/moderation/",
+        coordinator_pages.CoordinatorModerationView.as_view(),
+        name="coordinator-moderation",
+    ),
     # Okno rejestracji uczestników – ustawienie edycji, nie etapu, stąd adres bez identyfikatora.
     path(
         "coordinator/registration/",
@@ -284,6 +334,14 @@ urlpatterns = [
         coordinator_stages.InterviewSlotDeleteView.as_view(),
         name="coordinator-interview-slot-delete",
     ),
+    # Karta zadania: wszystko o jednym zadaniu (treść, skala, rubryka, reguły, prace, statystyki)
+    # i czynności, które z tego wynikają. Adres bez przyrostka jest kartą, bo to ekran **główny**
+    # zadania – ``edit/`` i ``delete/`` są jego czynnościami, a nie odwrotnie.
+    path(
+        "coordinator/problems/<int:pk>/",
+        coordinator_problem_detail.ProblemCardView.as_view(),
+        name="coordinator-problem",
+    ),
     path(
         "coordinator/problems/<int:pk>/edit/",
         coordinator_stages.ProblemEditView.as_view(),
@@ -318,6 +376,13 @@ urlpatterns = [
         "coordinator/stages/<int:stage_id>/assignments/",
         coordinator.StageAssignmentsView.as_view(),
         name="coordinator-stage-assignments",
+    ),
+    # Czynności zbiorcze idą po **etapie**, a nie po pracy: przedmiotem operacji jest zaznaczenie
+    # w tabeli etapu, a listy identyfikatorów i tak nie da się zapisać w adresie.
+    path(
+        "coordinator/stages/<int:stage_id>/assignments/bulk/",
+        coordinator.BulkAssignmentActionView.as_view(),
+        name="coordinator-assignments-bulk",
     ),
     path(
         "coordinator/problems/<int:problem_id>/reviewer-rules/",
@@ -366,6 +431,21 @@ urlpatterns = [
         coordinator.AssignThirdReviewerView.as_view(),
         name="coordinator-assign-third",
     ),
+    # Komisja: spis ludzi, którzy pracują, i karta jednej osoby. Gałąź jest ``members/``, a nie
+    # ``committee/``, bo ``committee/`` zajmują od dawna **czynności** na członku (zatwierdzenie,
+    # województwo) – lista pod tym samym korzeniem sugerowałaby, że jest ich stroną nadrzędną.
+    # Adres bez identyfikatora stoi przed adresem karty wyłącznie dla czytelności: ``<int:pk>``
+    # i tak nie dopasuje pustego segmentu.
+    path(
+        "coordinator/members/",
+        coordinator_members.CommitteeMembersView.as_view(),
+        name="coordinator-members",
+    ),
+    path(
+        "coordinator/members/<int:pk>/",
+        coordinator_members.CommitteeMemberCardView.as_view(),
+        name="coordinator-member",
+    ),
     path(
         "coordinator/committee/<int:pk>/approve/",
         coordinator.ApproveCommitteeMemberView.as_view(),
@@ -397,6 +477,15 @@ urlpatterns = [
         coordinator.RevokeInvitationView.as_view(),
         name="coordinator-invitation-revoke",
     ),
+    # Karta uczestnika: wszystko o jednej osobie w jednym miejscu (dane, zgody, etapy, prace,
+    # oceny, wyniki, reklamacje, audyt) plus czynności celujące w istniejące widoki-akcje.
+    # Klucz jest kluczem **profilu uczestnika**, a nie konta: karta opisuje udział w zawodach,
+    # a konto bez profilu (recenzent, opiekun) żadnego udziału nie ma.
+    path(
+        "coordinator/participants/<int:pk>/",
+        coordinator_participants.CoordinatorParticipantView.as_view(),
+        name="coordinator-participant",
+    ),
     # Konta wszystkich ról: lista, edycja, blokada, usunięcie. Adres bez identyfikatora stoi przed
     # adresami szczegółowymi wyłącznie dla czytelności – ``<int:pk>`` i tak nie dopasuje pustego
     # segmentu.
@@ -415,6 +504,14 @@ urlpatterns = [
         coordinator_accounts.CoordinatorAccountDeleteView.as_view(),
         name="coordinator-account-delete",
     ),
+    # Paczka z danymi cudzego konta (art. 20 RODO wykonany rękami organizatora – uczestnik prosi
+    # listem albo przez telefon). POST, a nie GET jak przy własnym eksporcie: wydanie cudzych
+    # danych jest decyzją, a nie odczytem, i ma zostawić ślad zrobiony świadomie.
+    path(
+        "coordinator/accounts/<int:pk>/export/",
+        coordinator_accounts.CoordinatorAccountExportView.as_view(),
+        name="coordinator-account-export",
+    ),
     # Konta oczekujące na aktywację – obejście na czas problemów z dostarczalnością poczty.
     path(
         "coordinator/accounts/<int:pk>/activate/",
@@ -425,6 +522,13 @@ urlpatterns = [
         "coordinator/accounts/<int:pk>/resend-activation/",
         coordinator.ResendActivationView.as_view(),
         name="coordinator-account-resend",
+    ),
+    # Wyniki etapu: stan publikacji plus dwa przyciski. Wejście na adres niczego nie przelicza –
+    # przeliczenie zapisuje sumy punktów wpisów, więc jest czynnością (POST), a nie otwarciem strony.
+    path(
+        "coordinator/stages/<int:stage_id>/results/",
+        coordinator_pages.CoordinatorStageResultsView.as_view(),
+        name="coordinator-stage-results",
     ),
     path(
         "coordinator/stages/<int:stage_id>/results/compute/",
@@ -527,6 +631,38 @@ urlpatterns = [
         "coordinator/audit/",
         coordinator_reports.AuditBrowserView.as_view(),
         name="coordinator-audit",
+    ),
+    # Kolejka zgłoszeń od uczestników i recenzentów. Adres bez identyfikatora stoi przed adresem
+    # szczegółowym wyłącznie dla czytelności – ``<int:pk>`` nie dopasuje pustego segmentu.
+    path(
+        "coordinator/support/",
+        coordinator_support.CoordinatorSupportView.as_view(),
+        name="coordinator-support",
+    ),
+    path(
+        "coordinator/support/<int:pk>/",
+        coordinator_support.CoordinatorSupportDetailView.as_view(),
+        name="coordinator-support-detail",
+    ),
+    # Komunikaty organizatora (baner na każdej stronie serwisu). Jeden adres na listę, dodanie
+    # i edycję: komunikat ma sześć pól, a pisze się go wtedy, gdy liczy się czas.
+    path(
+        "coordinator/announcements/",
+        coordinator_announcements.CoordinatorAnnouncementsView.as_view(),
+        name="coordinator-announcements",
+    ),
+    # --- RODO ---------------------------------------------------------------------------------
+    # Retencja danych (plan i ręczne uruchomienie) oraz rejestr czynności przetwarzania.
+    # Oba ekrany są bez identyfikatora: dotyczą całego serwisu, a nie pojedynczej edycji.
+    path(
+        "coordinator/retention/",
+        coordinator_rodo.RetentionView.as_view(),
+        name="coordinator-retention",
+    ),
+    path(
+        "coordinator/processing-register/",
+        coordinator_rodo.ProcessingRegisterView.as_view(),
+        name="coordinator-processing-register",
     ),
     # Zgłoszenia problemów z pracami. Adres jest bez etapu, bo ekran obejmuje całą edycję, a etap
     # jest filtrem (``?stage=<id>``) – problem z pracą nie czeka na to, aż koordynator trafi na

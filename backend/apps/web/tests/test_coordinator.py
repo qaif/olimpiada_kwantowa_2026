@@ -79,7 +79,8 @@ def test_invitation_code_is_shown_once_in_messages(web_client, coordinator):
     assert "Kod zaproszenia" in content
 
     # Komunikat sesyjny znika po odczytaniu – kod nie da się odtworzyć z bazy (jest tam sha256).
-    assert "Kod zaproszenia (widoczny tylko teraz" not in web_client.get("/coordinator/").content.decode()
+    committee = web_client.get("/coordinator/committee/").content.decode()
+    assert "Kod zaproszenia (widoczny tylko teraz" not in committee
 
 
 def test_compute_results_preview_is_rendered(web_client, coordinator, elim_stage, entry):
@@ -159,7 +160,7 @@ def test_verify_district_panel_renders_a_select_with_the_current_value(web_clien
     ActiveReviewerFactory(district="podlaskie", district_verified=False)
     web_client.force_login(coordinator)
 
-    content = web_client.get("/coordinator/").content.decode()
+    content = web_client.get("/coordinator/committee/").content.decode()
 
     assert '<select name="district" aria-label="Województwo">' in content
     assert '<option value="podlaskie" selected>podlaskie</option>' in content
@@ -171,7 +172,7 @@ def test_verify_district_panel_preselects_the_empty_option_without_a_district(we
     ActiveReviewerFactory(district=None, district_verified=False)
     web_client.force_login(coordinator)
 
-    content = web_client.get("/coordinator/").content.decode()
+    content = web_client.get("/coordinator/committee/").content.decode()
 
     assert '<option value="" selected>— brak —</option>' in content
 

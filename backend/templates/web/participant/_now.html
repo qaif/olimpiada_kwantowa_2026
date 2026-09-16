@@ -1,0 +1,72 @@
+{% load i18n web_extras %}{% comment %}
+  Nagłówek „Co teraz”: stan etapu, jedna czynność, najbliższy termin i znaczniki stanu konta.
+
+  Treść składa funkcja czysta ``apps.web.participant_now.now_panel`` – tutaj nie zapada ani jedna
+  decyzja o tym, co jest ważniejsze. Szablon rysuje to, co dostał, i nic nie liczy.
+
+  Odliczanie jest wypisane przez **serwer** (``now_panel.deadline.remaining``). Skrypt
+  ``static/js/participant.js`` przelicza je co minutę z czasu serwera podanego w ``data-*``,
+  ale strona bez JavaScriptu niesie prawdziwą liczbę – po prostu z chwili wczytania.
+  Słowa odliczania jadą w atrybutach, bo przeglądarka nie ma katalogu tłumaczeń: w angielskim
+  interfejsie skrypt ma po minucie napisać „in 3 days”, a nie „za 3 dni”.
+{% endcomment %}
+<section class="now" id="co-teraz" aria-labelledby="co-teraz-tytul">
+  <div class="now__head">
+    <h2 class="now__title" id="co-teraz-tytul">{% translate "Co teraz" %}</h2>
+    {% if now_panel.stage_name %}
+      <p class="now__stage">
+        <span class="now__stage-name">{{ now_panel.stage_name }}</span>
+        <span class="{{ now_panel.state_tone }}">{{ now_panel.state_label }}</span>
+      </p>
+    {% endif %}
+  </div>
+
+  <div class="now__body">
+    <div class="now__action">
+      {% if now_panel.action %}
+        {% comment %}
+          Czynność jest **odnośnikiem**, a nie drugim przyciskiem wysyłającym formularz: formularz
+          stoi jeden, na swojej zakładce, i to on jest źródłem prawdy o tym, co wolno wysłać.
+          Dwa przyciski robiące to samo rozjeżdżają się przy pierwszej zmianie reguły.
+        {% endcomment %}
+        <a class="btn btn--accent now__cta" href="{{ now_panel.action.url }}"
+           data-action="{{ now_panel.action.key }}">{{ now_panel.action.label }}</a>
+      {% else %}
+        {% comment %}
+          „Nic do zrobienia” jest normalnym stanem przez większą część roku i musi być napisane
+          wprost: pusty nagłówek czyta się jak awaria, a nie jak spokój.
+        {% endcomment %}
+        <p class="now__idle">{% translate "Na teraz nic nie musisz robić – czekaj na kolejny termin." %}</p>
+      {% endif %}
+    </div>
+
+    {% if now_panel.deadline %}
+      <p class="now__deadline"
+         data-countdown
+         data-deadline="{{ now_panel.deadline.at|date:'c' }}"
+         data-server-now="{{ now|date:'c' }}"
+         data-word-prefix="{{ countdown_words.prefix }}"
+         data-word-day="{{ countdown_words.day }}"
+         data-word-days="{{ countdown_words.days }}"
+         data-word-hours="{{ countdown_words.hours }}"
+         data-word-minutes="{{ countdown_words.minutes }}"
+         data-word-passed="{{ countdown_words.passed }}"
+         data-word-soon="{{ countdown_words.soon }}">
+        <span class="now__deadline-label">{{ now_panel.deadline.label }}</span>
+        <span class="now__deadline-at">{{ now_panel.deadline.at|local_time }}</span>
+        <span class="now__remaining{% if now_panel.deadline.passed %} now__remaining--passed{% endif %}"
+              data-countdown-value>{{ now_panel.deadline.remaining }}</span>
+      </p>
+    {% endif %}
+  </div>
+
+  {% comment %}
+    Znaczniki stanu konta. Kolor nie jest jedynym nośnikiem znaczenia – podpis mówi to samo
+    słowami („brak zgody opiekuna”), więc czyta się je także na wydruku i w trybie kontrastu.
+  {% endcomment %}
+  <ul class="now__chips">
+    {% for chip in now_panel.chips %}
+      <li><span class="{{ chip.tone }}" data-chip="{{ chip.key }}">{{ chip.label }}</span></li>
+    {% endfor %}
+  </ul>
+</section>

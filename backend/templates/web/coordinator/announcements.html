@@ -1,0 +1,105 @@
+{% extends "web/coordinator/base.html" %}
+{% load web_extras %}
+{% comment %}
+  Komunikaty organizatora: lista i formularz na jednym ekranie. Komunikat ma sześć pól i pisze się
+  go w minutę – rozbicie tego na osobne strony „dodaj” i „edytuj” kosztowałoby dwa przeładowania
+  w sytuacji, w której liczy się czas (awaria, przesunięty termin).
+
+  Formularz stoi **nad** listą, a nie pod nią: wchodzi się tu po to, żeby coś ogłosić, a lista
+  jest kontekstem tej decyzji („czy to już nie wisi?”).
+{% endcomment %}
+{% block title %}Komunikaty – panel koordynatora{% endblock %}
+{% block panel_title %}Komunikaty{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Pasek pod nagłówkiem, widoczny na <strong>każdej</strong> stronie serwisu –
+    także dla osób niezalogowanych. Do ogłaszania przerw technicznych, przesunięć terminu
+    i awarii; dłuższa wiadomość jest aktualnością i ma własną stronę.</p>
+{% endblock %}
+{% block panel_content %}
+
+<div class="card">
+  <h2 class="mt-0">{% if edited %}Zmiana komunikatu{% else %}Nowy komunikat{% endif %}</h2>
+  <form method="post" class="form" novalidate>
+    {% csrf_token %}
+    {% if edited %}<input type="hidden" name="edit" value="{{ edited.pk }}">{% endif %}
+    <p class="form__required-note">Pola oznaczone * są obowiązkowe.</p>
+    {{ form.non_field_errors }}
+    {% for field in form %}
+      <p>
+        {{ field.errors }}
+        {{ field.label_tag }}
+        {{ field }}
+        {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
+      </p>
+    {% endfor %}
+    <div class="actions">
+      <button type="submit" class="btn btn--primary">{% if edited %}Zapisz zmiany{% else %}Ogłoś komunikat{% endif %}</button>
+      {% if edited %}
+        <a class="btn btn--ghost" href="{% url 'web:coordinator-announcements' %}">Anuluj</a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Komunikaty w serwisie</h2></div>
+  <p class="hint">„Na antenie” znaczy: włączony i mieszczący się w swoim oknie czasowym.
+    Komunikat poza oknem zostaje w bazie i wróci sam, kiedy nadejdzie jego termin.</p>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th scope="col">Treść</th>
+        <th scope="col">Waga</th>
+        <th scope="col">Okno</th>
+        <th scope="col">Stan</th>
+        <th scope="col">Działania</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>
+          <td>{{ row.announcement.text|truncatechars:120 }}</td>
+          <td>{{ row.announcement.get_level_display }}</td>
+          <td>
+            {{ row.announcement.starts_at|local_datetime }}
+            – {% if row.announcement.ends_at %}{{ row.announcement.ends_at|local_datetime }}{% else %}do wyłączenia{% endif %}
+          </td>
+          <td>
+            {% if row.live %}
+              <span class="badge badge--ok">na antenie</span>
+            {% elif not row.announcement.is_active %}
+              <span class="badge badge--neutral">wyłączony</span>
+            {% else %}
+              <span class="badge badge--neutral">poza oknem</span>
+            {% endif %}
+            {% if not row.announcement.dismissible %}<span class="badge badge--warn">nie do zamknięcia</span>{% endif %}
+          </td>
+          <td>
+            <a class="btn btn--ghost btn--small"
+               href="{% url 'web:coordinator-announcements' %}?edit={{ row.announcement.pk }}">Zmień</a>
+            {% comment %}
+              Skasowanie jest twarde i nieodwracalne, stąd potwierdzenie (``confirmSubmit``,
+              Alpine – bez kodu inline). Do zdjęcia komunikatu z serwisu bez kasowania służy
+              pole „Włączony”.
+            {% endcomment %}
+            <form method="post" class="inline"
+                  x-data="confirmSubmit" x-on:submit="check"
+                  data-confirm="Usunąć ten komunikat? Do samego zdjęcia go z serwisu wystarczy odznaczenie „Włączony”.">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="delete">
+              <input type="hidden" name="pk" value="{{ row.announcement.pk }}">
+              <button type="submit" class="btn btn--ghost btn--small">Usuń</button>
+            </form>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5">Nie ma jeszcze żadnych komunikatów.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<p class="hint">Stan usług serwisu (baza, kolejka zadań, storage) widać na publicznej stronie
+  <a href="{% url 'status' %}">/status/</a> – razem z komunikatami z tej listy.</p>
+{% endblock %}

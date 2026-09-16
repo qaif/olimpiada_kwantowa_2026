@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "web/coordinator/base.html" %}
 {% load static web_extras %}
 {% comment %}
   Wysyłka komunikatu do grupy odbiorców. Ekran jest dwustopniowy: pierwszy przycisk („Podgląd”)
@@ -11,14 +11,13 @@
   tu rząd wielkości („trzy tysiące, a nie trzydzieści”), a nie pojedyncze wpisy.
 {% endcomment %}
 {% block title %}Komunikaty – panel koordynatora{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
-{% block content %}
-<div class="page-head">
-  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
-  <h1>Komunikaty</h1>
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block panel_title %}Komunikaty{% endblock %}
+{% block panel_lead %}
   <p class="lead">List do grupy uczestników albo do komitetu. Każdy odbiorca dostaje osobną
     kopertę – w nagłówku listu nie ma adresów pozostałych osób.</p>
-</div>
+{% endblock %}
+{% block panel_content %}
 
 <section class="section">
   <div class="section__head">

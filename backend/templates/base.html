@@ -78,6 +78,14 @@
   {% endcomment %}
   <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/timeline-strip.js' %}"></script>
   {% comment %}
+    Baner komunikatów organizatora jest kompletny bez tego skryptu – rysuje go serwer, a komunikat
+    o awarii ma dojść także do kogoś z wyłączonym JavaScriptem. Skrypt dokłada wyłącznie przycisk
+    zamknięcia (w HTML-u ma ``hidden``, bo bez niego byłby atrapą) i pamięć o zamkniętych
+    komunikatach w ``localStorage``. ``defer``, bo baner stoi w ``<body>`` i niczego nie zmienia
+    przed jego narysowaniem.
+  {% endcomment %}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/announcements.js' %}"></script>
+  {% comment %}
     Miejsce na skrypty potrzebne tylko na niektórych stronach – dziś jest tu wyłącznie
     wyszukiwarka szkół w rejestracji (``js/school-picker.js``), która **nie** jest już komponentem
     Alpine'a i niczego spoza serwisu nie potrzebuje.
@@ -207,6 +215,16 @@
           <a class="account-bar__link" href="{{ coordinator_url }}"
              {% if request.path == coordinator_url %}aria-current="page"{% endif %}>Koordynator</a>
         {% endif %}
+        {% comment %}
+          „Zgłoś problem” stoi przy pozycjach konta, a nie w stopce, i to jest cała jego wartość:
+          człowiek, któremu coś właśnie nie zadziałało, ma drogę do organizatora **z tej strony,
+          na której utknął** – a adres tej strony jedzie razem ze zgłoszeniem. Pozycja jest dla
+          każdej roli, bo utknąć potrafi tak samo uczestnik przy wysyłce pracy, jak recenzent
+          przy otwieraniu cudzego PDF-a.
+        {% endcomment %}
+        {% url 'web:support' as support_url %}
+        <a class="account-bar__link" href="{{ support_url }}"
+           {% if request.path == support_url %}aria-current="page"{% endif %}>{% translate "Zgłoś problem" %}</a>
         <span class="account-bar__sep" aria-hidden="true"></span>
         <span class="account-bar__who who" title="{{ user.email }}">{{ user.email }}</span>
         <form method="post" action="{% url 'web:logout' %}" class="inline account-bar__logout">
@@ -286,6 +304,18 @@
   {% block timeline_strip %}{% timeline_strip_block %}{% endblock %}
 </header>
 
+{% comment %}
+  Baner komunikatów organizatora – **pod** nagłówkiem i **nad** komunikatami sesyjnymi
+  (``messages``). Kolejność nie jest dowolna: ``messages`` mówi o skutku czynności, którą
+  użytkownik właśnie wykonał („dane zapisane”), a baner o stanie całego serwisu („wysyłka prac
+  nie działa”). To drugie jest kontekstem dla pierwszego, więc stoi wyżej.
+
+  Lista przychodzi z procesora kontekstu ``apps.cms.announcements.announcements`` (zapytanie
+  z pamięcią podręczną na minutę, panel redakcyjny wyłączony). Pusta lista = fragment nie rysuje
+  ani jednego znacznika.
+{% endcomment %}
+{% include "cms/_announcements.html" %}
+
 {% if messages %}
   <ul class="messages">
     {% for message in messages %}
@@ -314,6 +344,16 @@
         <a href="/dokumenty/rodo/">{% translate "Polityka prywatności (RODO)" %}</a>
         <a href="/dokumenty/cookies/">{% translate "Polityka plików cookie" %}</a>
         <a href="/dokumenty/">{% translate "Dokumenty" %}</a>
+        {% comment %}
+          FAQ i formularz pomocy w stopce, a **nie** w przyklejonym pasku nawigacji: pasek jest
+          krótki i trzyma to, czego uczestnik szuka w trakcie zawodów (zadania, terminy). Pytania
+          i zgłoszenia czyta się wtedy, gdy coś już nie wyszło – a wtedy szuka się ich na dole
+          strony, razem z kontaktem i dokumentami. Adres ``/faq/`` jest stałą ścieżką strony
+          w drzewie Wagtaila z tego samego powodu, co dokumenty wyżej: strona bywa jeszcze
+          nieopublikowana, a brak strony nie może wywrócić szablonu bazowego.
+        {% endcomment %}
+        <a href="/faq/">{% translate "Najczęstsze pytania" %}</a>
+        <a href="{% url 'web:support-new' %}">{% translate "Zgłoś problem" %}</a>
         {% comment %}
           Statystyki ogłoszonych etapów. Adres jest wzorcem w ``config/urls.py`` (a nie stroną
           w drzewie CMS-a), więc tu wolno użyć ``{% templatetag openblock %} url {% templatetag closeblock %}``

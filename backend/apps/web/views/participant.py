@@ -6,6 +6,19 @@ antywirusa, własne wyniki po publikacji oraz reklamacja w oknie odwoławczym.
 
 Wszystkie reguły (deadline, okno reklamacji, widoczność wyników) są egzekwowane w serwisach –
 tutaj są wyłącznie po to, żeby nie pokazywać formularza, którego serwis i tak by nie przyjął.
+
+**Zakładki zamiast jednej długiej strony.** Pulpit odpowiadał dotąd na wszystkie pytania naraz
+(etap, zadania, wyniki, reklamacje, zgody) w jednym przewijanym dokumencie – i liczył je wszystkie
+przy każdym wejściu, także te, których nikt w danej chwili nie czyta. Od tej zmiany sekcje są
+zakładkami rozstrzyganymi **po stronie serwera** (``/me/?tab=…``), a widok liczy wyłącznie to,
+co renderuje: zakładka „Zadania” nie dotyka ani wyników, ani reklamacji. Zakładki są zwykłymi
+odnośnikami (``aria-current``), więc działają bez JavaScriptu, dają się otworzyć w nowej karcie
+i zapisać w zakładkach przeglądarki – czego panel z przełącznikiem w JS by nie dał.
+
+Nagłówek „Co teraz” stoi **nad** zakładkami i jest na każdej z nich, bo odpowiada na pytanie,
+z którym uczestnik wchodzi do panelu, a nie na pytanie o wybraną sekcję. Tabela decyzyjna („co
+jest teraz najważniejsze”) mieszka w ``apps.web.participant_now`` – funkcji czystej, testowanej
+bez stawiania edycji i etapu.
 """
 
 from __future__ import annotations
@@ -15,11 +28,14 @@ from collections import defaultdict
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
-from django.urls import reverse, reverse_lazy
+from django.urls import NoReverseMatch, reverse, reverse_lazy
 from django.utils import timezone
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
 from django.views.generic import TemplateView, View
+from rest_framework.status import HTTP_400_BAD_REQUEST
 
-from apps.accounts.consents import CONSENTS, ConsentKind, ConsentSource, labels
+from apps.accounts.consents import CONSENTS, ConsentKind, ConsentSource, labels, required_kinds
 from apps.accounts.guardian import guardian_status
 from apps.accounts.services import consents_for_participant, set_publish_name_consent
 from apps.appeals.services import appealable_submissions, appeals_for_participant, file_appeal
@@ -46,10 +62,39 @@ from apps.submissions.services import (
     create_submission,
     submissions_for_user,
 )
-from apps.submissions.status_track import status_track
+from apps.submissions.status_track import STATE_CURRENT, STATE_FAILED, status_track
 from apps.web.forms import AppealForm, SubmissionUploadForm
 from apps.web.mixins import ActionViewMixin, ParticipantRequiredMixin
+from apps.web.participant_now import countdown_words, now_panel
 from apps.web.throttle import ThrottledFormMixin
+
+#: Zakładki pulpitu. Klucz jest w adresie (``/me/?tab=wyniki``), więc jest po polsku i bez odmiany –
+#: adres panelu bywa przesyłany dalej i ma być czytelny. Pierwsza jest domyślna: wejście na ``/me/``
+#: bez parametru ma pokazać to, po co uczestnik przychodzi najczęściej, czyli zadania.
+TAB_TASKS = "zadania"
+TAB_RESULTS = "wyniki"
+TAB_APPEALS = "reklamacje"
+TAB_CONSENTS = "zgody"
+
+#: Kolejność zakładek i ich podpisy. Podpisy są leniwe – moduł ładuje się przy starcie procesu.
+PANEL_TABS: tuple[tuple[str, object], ...] = (
+    (TAB_TASKS, gettext_lazy("Zadania")),
+    (TAB_RESULTS, gettext_lazy("Wyniki")),
+    (TAB_APPEALS, gettext_lazy("Reklamacje")),
+    (TAB_CONSENTS, gettext_lazy("Zgody")),
+)
+
+#: Ekrany panelu, które są osobnymi adresami, a nie zakładkami pulpitu: mają własną treść i własne
+#: zapytania, a odwiedza się je rzadziej. Stoją w tym samym pasku, bo z punktu widzenia uczestnika
+#: to dalszy ciąg tej samej nawigacji. ``participant-certificates`` przechodzi przez ``reverse``
+#: w bloku ``try``: dyplomy są młodszą częścią panelu i pasek nie może się wywrócić tam, gdzie
+#: tego adresu (jeszcze) nie ma.
+PANEL_LINKS: tuple[tuple[str, object], ...] = (
+    ("web:participant-calendar", gettext_lazy("Kalendarz")),
+    ("web:participant-archive", gettext_lazy("Archiwum")),
+    ("web:participant-certificates", gettext_lazy("Dyplomy")),
+    ("web:profile", gettext_lazy("Profil")),
+)
 
 
 def _entry_for(participant, stage: Stage | None) -> StageEntry | None:
@@ -88,16 +133,59 @@ def _problem_rows(user, entry: StageEntry | None) -> list[dict]:
     # Publikacja etapu jest jedna na całą listę zadań, więc czytamy ją **raz**: w środku pętli
     # byłaby jednym zapytaniem na zadanie, czyli N+1 na każdym wejściu do panelu.
     publication = published_results(entry.stage_id)
-    return [
-        {
-            "problem": problem,
-            "versions": versions.get(problem.pk, []),
-            "under_review": _under_review(versions.get(problem.pk, [])),
-            "track": _track_for(versions.get(problem.pk, []), entry.stage, publication),
-            "preview": _preview_of(versions.get(problem.pk, [])),
-        }
-        for problem in problems
-    ]
+    return [_row(problem, versions.get(problem.pk, []), entry.stage, publication) for problem in problems]
+
+
+def _row(problem: Problem, versions: list, stage: Stage, publication) -> dict:
+    """Jedna karta zadania. Kształt jest wspólny dla pulpitu i dla odpowiedzi HTMX po uploadzie."""
+    track = _track_for(versions, stage, publication)
+    return {
+        "problem": problem,
+        "versions": versions,
+        "under_review": _under_review(versions),
+        "track": track,
+        "state": _card_state(versions, track),
+        "preview": _preview_of(versions),
+    }
+
+
+def _card_state(versions: list, track) -> dict:
+    """Stan pracy **jednym słowem** – odznaka w nagłówku karty zadania.
+
+    Ścieżka oceniania poniżej mówi to samo dokładniej, ale czyta się ją dopiero wtedy, gdy się na
+    nią spojrzy; odznaka ma odpowiedzieć z odległości metra, zanim uczestnik zacznie czytać kartę.
+    Bierze etykietę z tej samej ścieżki (``apps.submissions.status_track``), więc jedno i drugie
+    nie może powiedzieć dwóch różnych rzeczy.
+
+    Brak wersji jest tu osobnym przypadkiem, a nie pierwszym krokiem ścieżki: krok „oddane” jako
+    bieżący znaczy „to teraz”, ale w nagłówku karty wyglądałby jak „oddane” – czyli dokładnie
+    odwrotnie niż jest.
+    """
+    if not versions:
+        return {"label": _("brak rozwiązania"), "tone": "badge badge--warn"}
+    tones = {
+        STATE_FAILED: "badge badge--danger",
+        STATE_CURRENT: "badge badge--info",
+    }
+    for step in track.steps:
+        if step.state in tones:
+            return {"label": step.label, "tone": tones[step.state]}
+    # Wszystkie kroki zaliczone – praca przeszła całą drogę aż do ogłoszonych wyników.
+    return {"label": track.steps[-1].label, "tone": "badge badge--ok"}
+
+
+def _visible_slots(rows: list[dict], now) -> list[dict]:
+    """Terminy rozmów, które warto jeszcze pokazać.
+
+    Termin, który się skończył, znika z listy: nie ma po co proponować rozmowy, której nie da się
+    już odbyć. Trwający zostaje (z podpisem „Termin już trwa”) – zniknięcie wiersza w trakcie
+    godziny wyglądałoby jak awaria. Własny termin zostaje zawsze, także po rozmowie.
+
+    Odsiew jest tutaj, a nie w szablonie, bo lista jest grupowana po dniach
+    (``{% templatetag openblock %} regroup {% templatetag closeblock %}``), a grupowanie nie umie
+    pomijać wierszy: dzień złożony z samych minionych terminów zostałby pustym nagłówkiem.
+    """
+    return [row for row in rows if row["slot"].ends_at > now or row["is_mine"]]
 
 
 def _preview_of(versions: list) -> dict | None:
@@ -122,7 +210,7 @@ def _track_for(versions: list, stage: Stage, publication) -> object:
     return status_track(submission=versions[0] if versions else None, stage=stage, publication=publication)
 
 
-def _consent_rows(participant) -> list[dict]:
+def _consent_rows(records) -> list[dict]:
     """Zgody uczestnika do pokazania w panelu: po jednym wierszu na rodzaj, stan najświeższy.
 
     Historia w bazie bywa dłuższa niż jeden wpis na rodzaj (zgoda wycofana i wyrażona ponownie),
@@ -132,9 +220,12 @@ def _consent_rows(participant) -> list[dict]:
     Rodzaje bez ani jednego wpisu też są na liście: profil sprzed wprowadzenia zestawu zgód ma
     tylko projekcje na ``Participant`` i uczestnik ma prawo zobaczyć, że dowodu nie ma, zamiast
     domyślać się z pustej listy.
+
+    Argumentem są **wpisy**, a nie uczestnik: tę samą listę czyta znacznik „zgody kompletne”
+    w nagłówku panelu i drugi odczyt tej samej tabeli w jednym żądaniu byłby zapytaniem po nic.
     """
     latest: dict[str, object] = {}
-    for record in consents_for_participant(participant):
+    for record in records:
         latest.setdefault(record.kind, record)
     texts = labels()
     return [
@@ -157,19 +248,82 @@ def _problem_row(user, entry: StageEntry, problem: Problem) -> dict:
     wysyłce ma pokazać krok „oddane” od razu, a nie dopiero po przeładowaniu całej strony.
     """
     versions = list(submissions_for_user(user).filter(entry=entry, problem=problem))
-    return {
-        "problem": problem,
-        "versions": versions,
-        "under_review": _under_review(versions),
-        "track": _track_for(versions, entry.stage, published_results(entry.stage_id)),
-        "preview": _preview_of(versions),
-    }
+    return _row(problem, versions, entry.stage, published_results(entry.stage_id))
+
+
+def _consents_complete(participant, records=None) -> bool:
+    """Czy uczestnik ma komplet **wymaganych od niego** zgód – znacznik w nagłówku „Co teraz”.
+
+    Regułę „które zgody są wymagane” trzyma ``accounts.consents.required_kinds`` (zależy od
+    rocznika), a nie ten widok: inaczej znacznik mówiłby „brakuje zgody” pełnoletniemu, od którego
+    zgody opiekuna nie wymagamy wcale. Wpis wycofany nie liczy się jako zgoda obowiązująca.
+
+    Zgoda opiekuna jest z tego rachunku **wyjęta**, choć bywa wymagana. Ma własny znacznik i własny,
+    surowszy stan (``accounts.guardian``: liczy się wyłącznie potwierdzenie przysłane z adresu
+    opiekuna, a nie oświadczenie dziecka złożone przy rejestracji). Liczona tu podwójnie dawałaby
+    w jednym rzędzie „zgody kompletne” obok „brak zgody opiekuna” – dwa znaczniki mówiące
+    o tej samej rzeczy dwie różne rzeczy.
+
+    ``records`` przyjmujemy z zewnątrz, bo zakładka zgód i tak je wczytuje – bez tego ten sam
+    odczyt szedłby do bazy dwa razy na jedno żądanie.
+    """
+    required = set(required_kinds(participant.birth_year)) - {ConsentKind.GUARDIAN}
+    if not required:
+        return True
+    if records is None:
+        records = consents_for_participant(participant)
+    active = {record.kind for record in records if record.withdrawn_at is None}
+    return required <= active
+
+
+def _missing_numbers(user, entry, rows=None) -> tuple[int, ...]:
+    """Numery zadań bez ani jednej wysłanej wersji – podstawa podpowiedzi „wyślij zadanie N”.
+
+    Na zakładce zadań karty są już policzone, więc bierzemy je stamtąd; na pozostałych zakładkach
+    idzie jedno zapytanie zamiast całego kompletu kart z podglądami i historią wersji.
+    """
+    if entry is None:
+        return ()
+    if rows is not None:
+        return tuple(row["problem"].number for row in rows if not row["versions"])
+    sent = set(submissions_for_user(user).filter(entry=entry).values_list("problem_id", flat=True))
+    return tuple(
+        problem.number
+        for problem in Problem.objects.filter(stage=entry.stage).order_by("number", "id")
+        if problem.pk not in sent
+    )
+
+
+def _panel_links() -> list[dict]:
+    """Ekrany panelu wystawione w pasku zakładek jako zwykłe odnośniki."""
+    links = []
+    for name, label in PANEL_LINKS:
+        try:
+            url = reverse(name)
+        except NoReverseMatch:  # pragma: no cover - adres dołożony później albo wyłączony
+            continue
+        links.append({"url": url, "label": label})
+    return links
 
 
 class MeView(ParticipantRequiredMixin, TemplateView):
-    """Pulpit uczestnika."""
+    """Pulpit uczestnika: nagłówek „Co teraz” i jedna z czterech zakładek.
+
+    Widok liczy **wyłącznie** to, co renderuje wybrana zakładka. Wspólny jest sam nagłówek, więc
+    jego fakty są tanie z założenia (stan zgód, stan zgody opiekuna, numer pierwszego zadania bez
+    rozwiązania) – nigdy komplet wyników ani kolejka reklamacji.
+    """
 
     template_name = "web/participant/dashboard.html"
+
+    def active_tab(self) -> str:
+        """Zakładka z adresu. Nieznana wartość to zakładka domyślna, a nie 404.
+
+        Parametr w adresie jest danymi od nadawcy żądania i bywa uszkodzony przez skrócenie linku
+        albo autokorektę w komunikatorze. Panel ma się wtedy otworzyć, a nie odmówić.
+        """
+        requested = self.request.GET.get("tab") or TAB_TASKS
+        return requested if requested in dict(PANEL_TABS) else TAB_TASKS
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -178,37 +332,50 @@ class MeView(ParticipantRequiredMixin, TemplateView):
         edition = current_edition()
         stage = current_stage(edition, now) if edition else None
         entry = _entry_for(self.participant, stage)
+        tab = self.active_tab()
+        # Ta sama lista rodzajów, na której stoi ``register_for_stage`` – widok tylko ukrywa
+        # przycisk, którego serwis i tak by nie przyjął. Gdyby powtarzał tu regułę własnym
+        # warunkiem (``kind == ELIM``), dołożenie treningu do zapisów otwartych zmieniłoby serwis,
+        # a przycisk zostałby ukryty.
+        can_register = (
+            stage is not None
+            and entry is None
+            and stage.kind in SELF_REGISTRATION_KINDS
+            and stage.is_open_for_submissions(now)
+        )
+        # Etap w formie rozmowy nie ma uploadu w ogóle – nie „zamkniętego”, tylko żadnego
+        # (``submissions.create_submission`` odmawia z ``STAGE_NOT_ACCEPTING_FILES``).
+        upload_open = (
+            entry is not None
+            and not stage.is_interview
+            and stage.is_open_for_submissions(now)
+            and stage.closed_at is None
+        )
         context.update(
             {
                 "now": now,
                 "edition": edition,
                 "stage": stage,
                 "entry": entry,
-                # Ta sama lista rodzajów, na której stoi ``register_for_stage`` – widok tylko
-                # ukrywa przycisk, którego serwis i tak by nie przyjął. Gdyby powtarzał tu regułę
-                # własnym warunkiem (``kind == ELIM``), dołożenie treningu do zapisów otwartych
-                # zmieniłoby serwis, a przycisk zostałby ukryty.
-                "can_register": (
-                    stage is not None
-                    and entry is None
-                    and stage.kind in SELF_REGISTRATION_KINDS
-                    and stage.is_open_for_submissions(now)
-                ),
+                "tab": tab,
+                "tabs": [
+                    {
+                        "key": key,
+                        "label": label,
+                        "url": reverse("web:me") if key == TAB_TASKS else f"{reverse('web:me')}?tab={key}",
+                        "current": key == tab,
+                    }
+                    for key, label in PANEL_TABS
+                ],
+                "panel_links": _panel_links(),
+                "can_register": can_register,
                 "stage_opened": stage is not None and stage.has_opened(now),
-                # Etap w formie rozmowy nie ma uploadu w ogóle – nie „zamkniętego”, tylko żadnego
-                # (``submissions.create_submission`` odmawia z ``STAGE_NOT_ACCEPTING_FILES``).
-                "upload_open": (
-                    entry is not None
-                    and not stage.is_interview
-                    and stage.is_open_for_submissions(now)
-                    and stage.closed_at is None
-                ),
-                "upload_form": SubmissionUploadForm(),
-                "problem_rows": _problem_rows(user, entry),
+                "upload_open": upload_open,
                 # Terminy rozmów liczymy tylko dla etapu w formie rozmowy: w pozostałych obie
-                # wartości byłyby pustą listą i ``None``, a zapytania i tak by poszły.
+                # wartości byłyby pustą listą i ``None``, a zapytania i tak by poszły. Liczymy je
+                # na każdej zakładce, bo o „zapisz się na rozmowę” pyta też nagłówek „Co teraz”.
                 "interview_rows": (
-                    slots_for_participant(stage, self.participant, now)
+                    _visible_slots(slots_for_participant(stage, self.participant, now), now)
                     if stage is not None and stage.is_interview
                     else []
                 ),
@@ -220,22 +387,78 @@ class MeView(ParticipantRequiredMixin, TemplateView):
                 # Instrukcja „co zrobić przed rozmową” w jednym brzmieniu dla panelu i dla listu –
                 # patrz ``apps.competitions.video.PRECHECK_TEXT``.
                 "interview_precheck_text": PRECHECK_TEXT,
-                "results": results_for_participant(user),
+                # Słowa odliczania jadą do przeglądarki w atrybutach ``data-*``: skrypt odświeżający
+                # licznik nie ma katalogu tłumaczeń i nie może mieć własnych napisów.
+                "countdown_words": countdown_words(),
+            }
+        )
+        context.update(self._tab_context(tab, user, edition, now, stage, entry, upload_open))
+        context["now_panel"] = self._now_panel(context, now, stage, entry, can_register, upload_open)
+        return context
+
+    def _tab_context(self, tab, user, edition, now, stage, entry, upload_open) -> dict:
+        """Dane **tylko** wybranej zakładki. Każda gałąź odpowiada jednemu ekranowi."""
+        if tab == TAB_RESULTS:
+            return {"results": results_for_participant(user)}
+        if tab == TAB_APPEALS:
+            return {
                 # Reguła „co podlega reklamacji” mieszka w serwisie reklamacji, nie w widoku –
                 # ten sam predykat obowiązuje w API i przy walidacji w ``file_appeal``.
                 "appealable": appealable_submissions(user, now),
                 "appeal_form": AppealForm(),
                 "my_appeals": list(appeals_for_participant(user)),
-                "consent_rows": _consent_rows(self.participant),
+            }
+        if tab == TAB_CONSENTS:
+            records = consents_for_participant(self.participant)
+            return {
+                "consent_records": records,
+                "consent_rows": _consent_rows(records),
                 # Stan zgody opiekuna liczy serwis (``apps.accounts.guardian``): wiek uczestnika,
                 # wysłana prośba i wpis dowodowy to trzy fakty z trzech miejsc i szablon nie ma
                 # ich składać samodzielnie.
                 "guardian": guardian_status(self.participant),
                 "publish_name_kind": ConsentKind.PUBLISH_NAME,
             }
-        )
+        context = {
+            "upload_form": SubmissionUploadForm(),
+            "problem_rows": _problem_rows(user, entry),
+        }
         context.update(self._training_context(user, edition, now))
         return context
+
+    def _now_panel(self, context, now, stage, entry, can_register, upload_open):
+        """Nagłówek „Co teraz” – fakty zbierane tak, żeby nie powtarzać zapytań zakładki."""
+        guardian = context.get("guardian") or guardian_status(self.participant)
+        booking = context.get("interview_booking")
+        return now_panel(
+            now=now,
+            stage=stage,
+            entry=entry,
+            can_register=can_register,
+            upload_open=upload_open,
+            missing_numbers=_missing_numbers(self.request.user, entry, context.get("problem_rows")),
+            interview_booked=booking is not None,
+            interview_bookable=any(row["bookable"] for row in context.get("interview_rows", [])),
+            booked_slot_at=booking.slot.starts_at if booking is not None else None,
+            guardian_state=guardian["state"],
+            consents_complete=_consents_complete(self.participant, context.get("consent_records")),
+            account_active=self.request.user.is_active,
+            results_ready=self._results_ready(context),
+        )
+
+    def _results_ready(self, context) -> bool:
+        """Czy jakikolwiek etap ma już ogłoszone wyniki tego uczestnika.
+
+        Na zakładce wyników odpowiedź jest darmowa (lista już policzona); poza nią idzie jedno
+        zapytanie o istnienie wpisu, a **nie** komplet punktów i komentarzy – nagłówek pyta
+        „czy jest co czytać”, a nie „ile jest punktów”.
+        """
+        results = context.get("results")
+        if results is not None:
+            return bool(results)
+        return StageEntry.objects.filter(
+            participant=self.participant, stage__results_published_at__isnull=False
+        ).exists()
 
     def _training_context(self, user, edition, now) -> dict:
         """Etap treningowy jako **druga**, niezależna karta pulpitu.
@@ -277,6 +500,15 @@ class ConsentPublishNameView(ActionViewMixin, ParticipantRequiredMixin, View):
 
     success_url = reverse_lazy("web:me")
 
+    def get_success_url(self, *args, **kwargs) -> str:
+        """Powrót na **tę samą zakładkę**, z której poszło kliknięcie.
+
+        Odesłanie na domyślną zakładkę („Zadania”) po przestawieniu zgody kazałoby uczestnikowi
+        szukać wiersza, który właśnie zmienił – a komunikat o zapisaniu zgody wisiałby nad
+        zupełnie inną treścią.
+        """
+        return f"{reverse('web:me')}?tab={TAB_CONSENTS}"
+
     def perform(self, request) -> str:
         given = request.POST.get("given") == "1"
         set_publish_name_consent(self.participant, given=given, source=ConsentSource.PANEL, request=request)
@@ -310,6 +542,32 @@ class InterviewBookView(ActionViewMixin, ParticipantRequiredMixin, View):
 
     def perform(self, request, slot_id: int) -> str:
         slot = get_object_or_404(InterviewSlot.objects.select_related("stage", "stage__edition"), pk=slot_id)
+        book_slot(self.participant, slot, request=request)
+        return "Termin rozmowy został zapisany. Potwierdzenie wysyłamy e-mailem."
+
+
+class InterviewChooseView(ActionViewMixin, ParticipantRequiredMixin, View):
+    """Zapis na termin wybrany z **listy wyboru** (jeden formularz, pole ``slot_id``).
+
+    Osobny adres od ``interview-book``, choć czynność jest ta sama. Powód jest w interfejsie:
+    lista terminów jest listą pól wyboru z jednym przyciskiem „Zapisz się na wybrany termin”,
+    a formularz HTML ma jeden adres docelowy – identyfikator terminu przychodzi więc w polu,
+    a nie w ścieżce. Adres z identyfikatorem w ścieżce zostaje nietknięty: jest w API panelu
+    i w linkach wysyłanych z listu, a zmiana kształtu ekranu nie może ich unieważnić.
+
+    Reguły (wolne miejsca, przeniesienie zapisu, blokada wiersza) zostają w ``book_slot`` –
+    tutaj jest wyłącznie odczytanie pola i ten sam komunikat, co przy zapisie ze ścieżki.
+    """
+
+    success_url = reverse_lazy("web:me")
+
+    def perform(self, request) -> str:
+        slot_id = (request.POST.get("slot_id") or "").strip()
+        if not slot_id.isdigit():
+            raise DomainError("Wybierz termin rozmowy z listy.", "INVALID_INPUT", HTTP_400_BAD_REQUEST)
+        slot = get_object_or_404(
+            InterviewSlot.objects.select_related("stage", "stage__edition"), pk=int(slot_id)
+        )
         book_slot(self.participant, slot, request=request)
         return "Termin rozmowy został zapisany. Potwierdzenie wysyłamy e-mailem."
 
@@ -356,8 +614,6 @@ class ProblemUploadView(ParticipantRequiredMixin, ThrottledFormMixin, View):
                 )
             except DomainError as exc:
                 error = str(exc.detail)
-        else:
-            error = " ".join(message for messages_ in form.errors.values() for message in messages_)
         now = timezone.now()
         context = {
             "row": _problem_row(request.user, entry, problem),
@@ -365,25 +621,35 @@ class ProblemUploadView(ParticipantRequiredMixin, ThrottledFormMixin, View):
             "entry": entry,
             "now": now,
             "upload_open": stage.is_open_for_submissions(now) and stage.closed_at is None,
-            "upload_form": SubmissionUploadForm(),
+            # Formularz wraca **związany**, gdy odmowa dotyczy pola: karta ma wtedy pokazać błąd
+            # przy tym polu, którego dotyczy („zaznacz potwierdzenie” stoi przy polu wyboru,
+            # a nie w komunikacie nad całą kartą, gdzie nie widać, co poprawić). Po udanej wysyłce
+            # i po odmowie serwisu (deadline, format, rozmiar) formularz jest czysty – tam błąd
+            # dotyczy całej czynności, a nie jednego pola.
+            "upload_form": form if form.errors else SubmissionUploadForm(),
             "error": error,
         }
         return TemplateResponse(request, self.template_name, context)
 
 
 class AppealCreateView(ParticipantRequiredMixin, View):
-    """Złożenie reklamacji na własne rozwiązanie (``appeals.services.file_appeal``)."""
+    """Złożenie reklamacji na własne rozwiązanie (``appeals.services.file_appeal``).
+
+    Powrót idzie na zakładkę reklamacji, a nie na domyślną: to tam stoi formularz, z którego
+    przyszło żądanie, i tam jest lista, na której zaraz widać nowy wiersz.
+    """
 
     def post(self, request, submission_id: int):
         submission = get_object_or_404(submissions_for_user(request.user), pk=submission_id)
+        target = f"{reverse('web:me')}?tab={TAB_APPEALS}"
         form = AppealForm(request.POST)
         if not form.is_valid():
             messages.error(request, " ".join(form.errors.get("argument", ["Nieprawidłowe uzasadnienie."])))
-            return redirect(reverse("web:me"))
+            return redirect(target)
         try:
             file_appeal(request.user, submission, form.cleaned_data["argument"], request=request)
         except DomainError as exc:
             messages.error(request, str(exc.detail))
         else:
             messages.success(request, "Reklamacja została złożona.")
-        return redirect(reverse("web:me"))
+        return redirect(target)

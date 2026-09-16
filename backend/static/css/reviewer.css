@@ -1,0 +1,430 @@
+/* =================================================================================================
+   Panel recenzenta – arkusz dołączany wyłącznie na ekranach ``/review/``.
+
+   Dlaczego osobny plik, a nie dopisek do app.css: te reguły dotyczą trzech szablonów oglądanych
+   przez kilkadziesiąt osób z komitetu, a app.css ładuje każdy uczestnik przy każdej podstronie
+   serwisu. Wzorzec jest w projekcie ustalony (coordinator.css, coordinator-tools.css, statistics.css)
+   i zachowuje jedną zasadę: **żadnego koloru z ręki**. Wszystko poniżej sięga po tokeny z :root
+   w app.css, więc tryb ciemny i tryb wysokiego kontrastu działają tu bez ani jednej dodatkowej
+   reguły – kolory zmieniają się razem z tokenami.
+
+   Arkusz dokłada się do ``app.css`` i miejscami go nadpisuje (proporcje kolumn, przyklejony panel
+   oceny). Nadpisania są wypisane jawnie i opatrzone powodem – ciche „wygrywam specyficznością”
+   jest tym, co zamienia arkusze w kłębek.
+
+   Kolejność sekcji:
+     1. kolejka recenzenta (``list.html``)
+     2. strona oceny: układ dwukolumnowy i przyklejony panel (``detail.html``)
+     3. pasek adnotacji i lista adnotacji
+     4. panel oceny: nagłówek, szablony komentarzy, rubryka, narzędzia
+     5. wejście do panelu oceny na wąskim ekranie
+   ============================================================================================== */
+
+/* --- 1. Kolejka recenzenta -------------------------------------------------------------------- */
+
+/* Pasek podsumowania: trzy liczby, po które recenzent przewijał dotąd całą stronę. Stoi nad
+   zakładkami, bo odpowiada na pytanie zadawane **przed** wyborem zakładki („czy mam dziś co
+   robić”), a nie po nim. */
+.queue-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: var(--sp-4) var(--sp-6);
+  margin-bottom: var(--sp-6);
+}
+
+.queue-summary__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-8);
+}
+
+.queue-summary__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+  margin: 0;
+}
+
+.queue-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin: 0;
+}
+
+.queue-stat__value {
+  font-family: var(--font-serif);
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--brand);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Termin i suma czasu to zdania, nie liczby – w rozmiarze licznika („12”) zawijałyby się
+   w przypadkowym miejscu i rozpychały pasek na trzy wiersze. */
+.queue-stat__value--text {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.queue-stat__label {
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+@media (prefers-color-scheme: dark) {
+  .queue-stat__value {
+    color: var(--accent);
+  }
+}
+
+/* Krótka pomoc dla osoby oceniającej po raz pierwszy. */
+.how-to {
+  margin: var(--sp-3) 0 0;
+  padding-left: var(--sp-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  max-width: var(--reading);
+  color: var(--ink-soft);
+}
+
+/* Zakładki. Bez JavaScriptu są zwykłymi odnośnikami do sekcji niżej i wtedy wyglądają jak spis
+   treści – dlatego mają wygląd „przycisków”, a nie kart z podciętą krawędzią, która obiecywałaby
+   przełączanie także tam, gdzie go nie ma. */
+.queue-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  border-bottom: 2px solid var(--line);
+  padding-bottom: var(--sp-2);
+  margin-bottom: var(--sp-6);
+}
+
+.queue-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: var(--surface-2);
+  color: var(--ink-soft);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  text-decoration: none;
+}
+
+.queue-tab:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.queue-tab:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.queue-tab.is-active {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--brand-ink);
+}
+
+.queue-tab__count {
+  min-width: 1.5rem;
+  padding: 0 var(--sp-1);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  font-size: 0.8125rem;
+}
+
+/* Nagłówek panelu powtarza etykietę zakładki: bez skryptu jest tytułem sekcji, ze skryptem –
+   zbędnym powtórzeniem tuż pod klikniętą zakładką. Zostaje w drzewie dostępności (czytnik ekranu
+   nadal wie, gdzie jest), znika tylko z ekranu. Klasę ``is-tabbed`` nadaje reviewer-layout.js. */
+.is-tabbed .queue-panel__title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.queue-group + .queue-group {
+  margin-top: var(--sp-6);
+}
+
+/* Termin w wierszu: data i odznaka „za ile” stoją jedno pod drugim, bo w jednym wierszu
+   rozpychały kolumnę na szerokość, przy której reszta tabeli zaczynała się zawijać.
+
+   Łamanie robi ``display: block`` na samej dacie, a nie flexbox na komórce: ``display: flex``
+   wyjmuje ``<td>`` z układu tabeli i rozjeżdża szerokości kolumn w pozostałych wierszach. */
+.queue-due {
+  white-space: nowrap;
+}
+
+.queue-due__date {
+  display: block;
+  margin-bottom: var(--sp-1);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- 2. Strona oceny: układ i przyklejony panel ----------------------------------------------- */
+
+/* Nadpisanie proporcji z app.css (6fr/4fr): rozwiązanie jest tym, na co recenzent patrzy przez
+   większość czasu, a panel oceny musi zmieścić skalę i dwa pola tekstowe – nie więcej. */
+.review-layout {
+  grid-template-columns: minmax(0, 65fr) minmax(0, 35fr);
+}
+
+/* Odstęp od góry przy przyklejaniu: pasek konta w base.html też jest ``sticky``, więc panel
+   dosunięty do zera wjeżdżałby pod niego. */
+:root {
+  --review-sticky-top: 4.5rem;
+}
+
+/* Panel oceny zostaje na widoku przy przewijaniu rozwiązania. To jest **cała** korzyść z układu
+   dwukolumnowego: przy ośmiostronicowym PDF-ie formularz oceny był dotąd tam, gdzie recenzent już
+   dawno nie patrzył, i wracało się do niego przewijaniem. Własny pasek przewijania w panelu jest
+   ceną, którą się za to płaci – bez niego rubryka z ośmioma kryteriami wystawałaby poza ekran
+   i nie dałoby się jej doczytać. */
+@media (min-width: 1001px) {
+  .review-panel {
+    position: sticky;
+    top: var(--review-sticky-top);
+    max-height: calc(100vh - var(--review-sticky-top) - var(--sp-4));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+.review-panel__head {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+
+.review-panel__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+  margin: var(--sp-2) 0 0;
+}
+
+.review-panel__series {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+  justify-content: space-between;
+  margin: var(--sp-3) 0 0;
+}
+
+/* Nagłówek strony oceny jest skrócony do tytułu: fakty o pracy powtarzają się w nagłówku panelu,
+   który zostaje na widoku. Pełny ``page-head`` odpychał podgląd rozwiązania o pół ekranu w dół. */
+.page-head--tight {
+  margin-bottom: var(--sp-4);
+}
+
+/* --- 3. Pasek adnotacji i lista adnotacji ----------------------------------------------------- */
+
+.annot-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+  margin-bottom: var(--sp-3);
+}
+
+.annot-toolbar__filter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: 0.875rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+.annot-toolbar__filter select {
+  min-height: 2rem;
+  padding: 0.15rem var(--sp-2);
+  font-size: 0.8125rem;
+}
+
+/* Wyłączone zaznaczanie: kursor przestaje obiecywać, że przeciągnięcie coś zrobi. */
+.pdf-annotations.is-idle {
+  cursor: default;
+}
+
+/* Lista adnotacji, uwag do linii i szablonów komentarzy bywa na jednym ekranie trzy razy –
+   w rozstawie z app.css zajmowała wtedy więcej miejsca niż sama praca. */
+.annotations--compact li {
+  padding: var(--sp-2);
+  font-size: 0.875rem;
+}
+
+.annotations--compact {
+  gap: var(--sp-1);
+  max-height: 22rem;
+  overflow-y: auto;
+}
+
+/* Przycisk „przejdź” dopisywany przez warstwę adnotacji. W app.css wszystkie przyciski w tej
+   liście mają kolor usuwania – tu jest ich dwa i tylko jeden coś kasuje. */
+.annotations li button.annotations__goto {
+  color: var(--link);
+}
+
+.annotations li button.annotations__goto:hover {
+  border-color: var(--link);
+  background: var(--surface-2);
+}
+
+/* --- 4. Panel oceny: szablony, rubryka, narzędzia --------------------------------------------- */
+
+/* Szablony komentarzy stoją **przy** polu komentarza, nie pod formularzem: to podpowiedź do tego
+   pola, a nie kolejny krok oceniania. Wygląd „dymka” (obramowanie, wcięcie) mówi to samo bez
+   napisu. */
+.snippets {
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  padding: var(--sp-2) var(--sp-3);
+  margin: calc(-1 * var(--sp-2)) 0 var(--sp-4);
+  font-size: 0.9375rem;
+}
+
+.snippets > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--link);
+}
+
+.snippets > summary:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Podgląd sumy rubryki. Kolor jest sygnałem, ale nie jedynym: werdykt stoi obok słowami, bo
+   „czerwone tło” nie mówi, ile brakuje. */
+.rubric__total {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: baseline;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--brand);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--surface-2);
+  padding: var(--sp-2) var(--sp-3);
+  margin: var(--sp-3) 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.rubric__total [data-rubric-verdict].is-invalid {
+  color: var(--danger-ink);
+  font-weight: 600;
+}
+
+/* Wszystko, co nie jest wystawianiem oceny, stoi pod formularzem i jest zwinięte. */
+.review-tools {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin-top: var(--sp-6);
+}
+
+.comparison--compact {
+  margin: 0;
+}
+
+.comparison--compact .table {
+  font-size: 0.875rem;
+}
+
+.shortcuts {
+  list-style: none;
+  margin: var(--sp-2) 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.shortcuts kbd {
+  display: inline-block;
+  min-width: 1.5rem;
+  padding: 0.1rem var(--sp-2);
+  border: 1px solid var(--line-strong);
+  border-bottom-width: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-inset);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* --- 5. Wejście do panelu oceny na wąskim ekranie --------------------------------------------- */
+
+/* Poniżej 1000 px kolumny układają się jedna pod drugą i panel oceny ląduje pod rozwiązaniem –
+   czyli po ośmiu stronach przewijania. Ten pasek jest jedyną drogą do niego bez przewijania całej
+   pracy. To zwykły odnośnik do kotwicy: działa bez JavaScriptu, a na szerokim ekranie w ogóle nie
+   istnieje, bo panel stoi tam i tak obok. */
+.review-jump {
+  display: none;
+}
+
+@media (max-width: 1000px) {
+  .review-jump {
+    display: block;
+    position: fixed;
+    left: 50%;
+    bottom: var(--sp-4);
+    transform: translateX(-50%);
+    z-index: 30;
+    padding: var(--sp-3) var(--sp-8);
+    border-radius: var(--radius-lg);
+    background: var(--brand);
+    color: var(--brand-ink);
+    font-weight: 600;
+    text-decoration: none;
+    box-shadow: var(--shadow);
+  }
+
+  .review-jump:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 3px;
+  }
+
+  /* Miejsce na pasek, żeby nie przykrywał ostatniego wiersza panelu. */
+  .review-layout {
+    padding-bottom: var(--sp-12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .review-jump {
+    transition: none;
+  }
+}

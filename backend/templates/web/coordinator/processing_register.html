@@ -1,0 +1,73 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Rejestr czynności przetwarzania (art. 30 ust. 1 RODO). Strona nie ma ani jednego zdania
+  własnego: cała treść pochodzi z ``apps.accounts.processing_register``, czyli z danych
+  wersjonowanych razem z kodem. Dzięki temu zmiana w systemie, która zmienia przetwarzanie,
+  jest zmianą w tym samym repozytorium i przechodzi przez tę samą recenzję.
+
+  Dane administratora dokłada widok z ``cms.SiteSettings`` – organizator zmienia adres i numer
+  KRS w /cms/, bez wydania aplikacji.
+{% endcomment %}
+{% block title %}Rejestr czynności przetwarzania – panel koordynatora{% endblock %}
+{% block panel_title %}Rejestr czynności przetwarzania{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Dokument wymagany art. 30 ust. 1 RODO. Wersja {{ version }} z {{ register_date }}.
+    Treść jest generowana z kodu aplikacji, więc opisuje to, co system faktycznie robi – a nie to,
+    co kiedyś zadeklarowano w arkuszu.</p>
+{% endblock %}
+{% block panel_content %}
+
+<div class="card card--quiet">
+  <h2 class="mt-0">Administrator danych</h2>
+  <dl class="meta-list">
+    <dt>Administrator</dt>
+    <dd>{{ site_settings.organizer_name }}</dd>
+    {% if site_settings.organizer_address %}
+      <dt>Adres</dt>
+      <dd>{{ site_settings.organizer_address }}</dd>
+    {% endif %}
+    {% if site_settings.organizer_registry %}
+      <dt>Dane rejestrowe</dt>
+      <dd>{{ site_settings.organizer_registry }}</dd>
+    {% endif %}
+    {% if site_settings.contact_email %}
+      <dt>Kontakt w sprawach danych osobowych</dt>
+      <dd><a href="mailto:{{ site_settings.contact_email }}">{{ site_settings.contact_email }}</a></dd>
+    {% endif %}
+  </dl>
+  <p class="hint">Dane kontaktowe pochodzą z ustawień serwisu (/cms/ → Ustawienia → Dane serwisu),
+    a nie z treści rejestru – jedno źródło dla stopki, strony „Kontakt” i tego dokumentu.</p>
+  <p><a class="btn btn--secondary" href="?format=csv">Pobierz rejestr (CSV)</a></p>
+</div>
+
+{% for activity in activities %}
+  <article class="card" id="czynnosc-{{ activity.key }}">
+    <h2 class="mt-0">{{ forloop.counter }}. {{ activity.name }}</h2>
+    <dl class="meta-list">
+      <dt>Cel przetwarzania</dt>
+      <dd>{{ activity.purpose }}</dd>
+      <dt>Podstawa prawna</dt>
+      <dd>{{ activity.legal_basis }}</dd>
+      <dt>Kategorie osób, których dane dotyczą</dt>
+      <dd>{{ activity.subjects }}</dd>
+      <dt>Kategorie danych</dt>
+      <dd>
+        <ul>{% for item in activity.categories %}<li>{{ item }}</li>{% endfor %}</ul>
+      </dd>
+      <dt>Odbiorcy danych</dt>
+      <dd>
+        <ul>{% for item in activity.recipients %}<li>{{ item }}</li>{% endfor %}</ul>
+      </dd>
+      <dt>Planowany termin usunięcia</dt>
+      <dd>{{ activity.retention }}</dd>
+      <dt>Środki techniczne i organizacyjne (art. 32 RODO)</dt>
+      <dd>
+        <ul>{% for item in activity.measures %}<li>{{ item }}</li>{% endfor %}</ul>
+      </dd>
+    </dl>
+  </article>
+{% endfor %}
+
+<p class="hint">Terminy usunięcia danych konkretnych edycji – wraz z listą kont, których dotyczą –
+  są na stronie <a href="{% url 'web:coordinator-retention' %}">Retencja danych</a>.</p>
+{% endblock %}

@@ -11,4 +11,8 @@ class CmsConfig(AppConfig):
         # Import dla efektu ubocznego: podpina odbiornik czyszczący pamięć podręczną odpowiedzi
         # „czy analityka jest włączona” (apps/cms/analytics.py). Bez tego zmiana identyfikatora
         # GA4 w /cms/ dochodziłaby do nagłówka CSP dopiero po upływie TTL.
-        from . import analytics  # noqa: F401
+        # Drugi import z tego samego powodu: odbiorniki czyszczące pamięć podręczną aktywnych
+        # komunikatów po zapisie i skasowaniu (apps/cms/announcements.py). Bez niego baner
+        # pokazywałby stan sprzed minuty także zaraz po kliknięciu „Ogłoś” – a komunikat o awarii
+        # ogłasza się właśnie po to, żeby był od razu.
+        from . import analytics, announcements  # noqa: F401

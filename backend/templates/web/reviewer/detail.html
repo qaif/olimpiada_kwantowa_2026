@@ -1,77 +1,21 @@
 {% extends "base.html" %}
 {% load i18n static web_extras %}
 {% block title %}{% blocktranslate trimmed with code=public_code %}Ocena pracy {{ code }}{% endblocktranslate %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/reviewer.css' %}">{% endblock %}
 {% block content %}
-<div class="page-head">
-  <span class="eyebrow">{% translate "Ocena pracy" %}</span>
+{% comment %}
+  Ekran oceny jest dwukolumnowy i to nie jest kosmetyka: recenzent czyta pracę i wypełnia formularz
+  **równocześnie**, przeskakując między nimi kilkanaście razy przy jednej pracy. Nagłówek strony
+  jest tu dlatego krótki – wszystko, co potrzebne przy ocenianiu (kod, zadanie, wersja, termin,
+  miejsce w serii), powtarza się w nagłówku panelu oceny, który na dużym ekranie jest przyklejony
+  i zostaje na widoku przy przewijaniu rozwiązania.
+{% endcomment %}
+<div class="page-head page-head--tight">
+  <span class="eyebrow"><a href="{% url 'web:review-list' %}">{% translate "Panel recenzenta" %}</a></span>
   <h1>{% translate "Praca" %} <span class="code-chip">{{ public_code }}</span> ·
     {% blocktranslate trimmed with number=problem.number %}zadanie {{ number }}{% endblocktranslate %}</h1>
   <p class="lead">{{ problem.display_title }}</p>
-  <p class="row">
-    <span class="badge badge--info">{% blocktranslate trimmed with stage=submission.entry.stage.display_name %}
-      etap: {{ stage }}
-    {% endblocktranslate %}</span>
-    <span class="badge badge--neutral">{% blocktranslate trimmed with round=review.round %}
-      runda {{ round }}
-    {% endblocktranslate %}</span>
-    <span class="{{ review.status|badge_class }}">{{ review.get_status_display }}</span>
-    {% if review.due_at %}
-      <span class="badge badge--neutral">{% blocktranslate trimmed with due=review.due_at|local_datetime %}
-        termin: {{ due }}
-      {% endblocktranslate %}</span>
-    {% endif %}
-    {% comment %}
-      Zmierzony czas pracy nad tą recenzją. Licznik mierzy wyłącznie czas – nie zapisuje ani tego,
-      co recenzent pisał, ani gdzie klikał (patrz ``apps.grading.worklog`` i README). Wartość
-      odświeża bez przeładowania ``static/js/review-worklog.js``; bez JavaScriptu stoi tu suma
-      z poprzednich wejść.
-    {% endcomment %}
-    <span class="badge badge--neutral"
-          data-worklog-label
-          data-worklog-url="{% url 'web:review-heartbeat' review.pk %}"
-          data-worklog-active="{% if editable or revision_allowed %}1{% else %}0{% endif %}">
-      {# Podpis i wartość muszą zostać w jednym wierszu wyniku („Czas pracy: 1 min”). #}
-      {% translate "Czas pracy:" %} {% if worklog_seconds %}{{ worklog_label }}{% else %}{% translate "brak pomiaru" %}{% endif %}</span>
-  </p>
-  {% comment %}
-    Seria prac tego samego zadania. Linki są zwykłymi adresami (bez JS), a licznik „5 z 18” mówi,
-    ile zostało – to jedyna informacja, po którą recenzent wracał dotąd na listę po każdej ocenie.
-  {% endcomment %}
-  {% if queue.total > 1 %}
-    <nav class="row" aria-label="{% translate 'Prace tego zadania' %}">
-      {% if queue.previous %}
-        <a class="btn btn--secondary btn--small"
-           href="{% url 'web:review-detail' queue.previous %}">← {% translate "Poprzednia praca" %}</a>
-      {% endif %}
-      <span class="hint">{% blocktranslate trimmed with position=queue.position total=queue.total %}
-        {{ position }} z {{ total }} w tym zadaniu
-      {% endblocktranslate %}</span>
-      {% if queue.next %}
-        <a class="btn btn--secondary btn--small"
-           href="{% url 'web:review-detail' queue.next %}">{% translate "Następna praca" %} →</a>
-      {% endif %}
-    </nav>
-  {% endif %}
 </div>
-
-{% if model_solution_url or problem.reviewer_notes %}
-  {% comment %}
-    Materiał komitetu: wzorcówka i uwagi koordynatora. Zwinięty ``<details>``, bo recenzent ma
-    najpierw przeczytać pracę, a nie klucz – ale po dwóch pracach zwykle chce zajrzeć.
-    Uczestnik nie ma do tego dostępu żadną drogą (patrz ``ProblemModelSolutionView``).
-  {% endcomment %}
-  <details class="card">
-    <summary><strong>{% translate "Rozwiązanie wzorcowe i uwagi dla recenzentów" %}</strong></summary>
-    {% if model_solution_url %}
-      <p><a class="btn btn--secondary btn--small"
-            href="{{ model_solution_url }}">{% translate "Pobierz rozwiązanie wzorcowe (PDF)" %}</a></p>
-    {% endif %}
-    {% if problem.reviewer_notes %}
-      <p class="quote">{{ problem.reviewer_notes }}</p>
-    {% endif %}
-    <p class="hint">{% translate "Materiał wyłącznie dla komitetu – nie cytuj go w komentarzu dla uczestnika w częściach, których organizator nie ogłosił." %}</p>
-  </details>
-{% endif %}
 
 {% if dispute_rows is not None %}
   <section class="dispute card card--accent">
@@ -105,6 +49,29 @@
     </div>
 
     {% if file_available %}
+      {% comment %}
+        Pasek adnotacji stoi **nad** podglądem, bo dotyczy tego, co recenzent zaraz zrobi na
+        stronie, a nie tego, co już zrobił. Trzy przełączniki, każdy odpowiadający na pytanie
+        zadawane przy ocenianiu: „czy moje zaznaczenie coś zepsuje” (tryb zaznaczania da się
+        wyłączyć), „co jest pod tym prostokątem” (adnotacje da się schować) i „co z tego zobaczy
+        uczestnik” (filtr publiczne/wewnętrzne). Wszystkie trzy obsługuje
+        ``static/js/review-annotations.js`` – bez skryptu nie ma też podglądu, więc pasek jest
+        ukryty razem z nim.
+      {% endcomment %}
+      <div class="annot-toolbar" role="group" aria-label="{% translate 'Adnotacje' %}">
+        <button type="button" class="btn btn--secondary btn--small"
+                data-annotate-mode aria-pressed="true">{% translate "Dodaj zaznaczenie" %}</button>
+        <button type="button" class="btn btn--ghost btn--small"
+                data-annotations-toggle aria-pressed="true">{% translate "Ukryj adnotacje" %}</button>
+        <label class="annot-toolbar__filter" for="id_annotation_filter">{% translate "Pokaż:" %}
+          <select id="id_annotation_filter" data-annotations-filter>
+            <option value="all">{% translate "wszystkie" %}</option>
+            <option value="public">{% translate "tylko publiczne" %}</option>
+            <option value="internal">{% translate "tylko wewnętrzne" %}</option>
+          </select>
+        </label>
+      </div>
+
       {% comment %}Jedyna wyspa JS – parametry idą atrybutami data-*, bez skryptu inline.{% endcomment %}
       <div id="pdf-viewer"
            class="pdf-viewer"
@@ -157,9 +124,11 @@
     <h3>{% translate "Adnotacje" %}</h3>
     {% comment %}
       Lista renderowana po stronie serwera z autoescapowaniem; warstwa JS dopisuje pozycje przez
-      textContent. Nigdzie nie ma innerHTML na treści od recenzenta.
+      textContent. Nigdzie nie ma innerHTML na treści od recenzenta. Odnośnik „przejdź” przy każdej
+      pozycji dokłada skrypt: przewija podgląd na właściwą stronę i podświetla prostokąt, bo przy
+      ośmiostronicowym rozwiązaniu sama informacja „str. 6” nie skraca szukania.
     {% endcomment %}
-    <ul id="annotation-list" class="annotations">
+    <ul id="annotation-list" class="annotations annotations--compact">
       {% for annotation in review.annotations %}
         <li>{% blocktranslate trimmed with page=annotation.page %}str. {{ page }}{% endblocktranslate %}{% if annotation.public %}
           {% translate "(publiczna)" %}{% endif %}: {{ annotation.text }}</li>
@@ -178,9 +147,71 @@
     {% endif %}
   </section>
 
-  <section class="form-pane" aria-label="{% translate 'Ocena' %}">
-    <h2 class="mt-0">{% translate "Ocena" %}</h2>
-    {% include "web/reviewer/_issue.html" %}
+  <section class="form-pane review-panel" id="review-panel" aria-label="{% translate 'Ocena' %}">
+    {% comment %}
+      Nagłówek panelu: wszystko, czego recenzent potrzebuje **wystawiając ocenę**, i nic poza tym.
+      Seria prac tego samego zadania („5 z 18”) stoi tutaj, a nie na górze strony, bo do następnej
+      pracy przechodzi się po zapisaniu oceny, czyli z dołu tej kolumny.
+    {% endcomment %}
+    <div class="review-panel__head">
+      <h2 class="mt-0">{% translate "Ocena" %}</h2>
+      <p class="row review-panel__facts">
+        <span class="code-chip">{{ public_code }}</span>
+        <span class="badge badge--info">{% blocktranslate trimmed with stage=submission.entry.stage.display_name %}
+          etap: {{ stage }}
+        {% endblocktranslate %}</span>
+        <span class="badge badge--neutral">{% blocktranslate trimmed with round=review.round %}
+          runda {{ round }}
+        {% endblocktranslate %}</span>
+        <span class="badge badge--neutral">{% blocktranslate trimmed with version=submission.version %}
+          wersja {{ version }}
+        {% endblocktranslate %}</span>
+        <span class="{{ review.status|badge_class }}">{{ review.get_status_display }}</span>
+        {% if review.due_at %}
+          <span class="badge {% if due_days is not None and due_days < 0 %}badge--danger{% else %}badge--neutral{% endif %}">
+            {% blocktranslate trimmed with due=review.due_at|local_datetime %}
+              termin: {{ due }}
+            {% endblocktranslate %}</span>
+        {% endif %}
+      </p>
+      {% if queue.total > 1 %}
+        <nav class="row review-panel__series" aria-label="{% translate 'Prace tego zadania' %}">
+          {% if queue.previous %}
+            <a class="btn btn--secondary btn--small" data-shortcut="prev"
+               href="{% url 'web:review-detail' queue.previous %}">← {% translate "Poprzednia praca" %}</a>
+          {% endif %}
+          <span class="hint">{% blocktranslate trimmed with position=queue.position total=queue.total %}
+            {{ position }} z {{ total }} w tym zadaniu
+          {% endblocktranslate %}</span>
+          {% if queue.next %}
+            <a class="btn btn--secondary btn--small" data-shortcut="next"
+               href="{% url 'web:review-detail' queue.next %}">{% translate "Następna praca" %} →</a>
+          {% endif %}
+        </nav>
+      {% endif %}
+    </div>
+
+    {% if model_solution_url or problem.reviewer_notes %}
+      {% comment %}
+        Materiał komitetu: wzorcówka i uwagi koordynatora. Zwinięty ``<details>``, bo recenzent ma
+        najpierw przeczytać pracę, a nie klucz – ale po dwóch pracach zwykle chce zajrzeć.
+        Uczestnik nie ma do tego dostępu żadną drogą (patrz ``ProblemModelSolutionView``).
+      {% endcomment %}
+      <details class="card card--quiet">
+        <summary><strong>{% translate "Rozwiązanie wzorcowe i uwagi dla recenzentów" %}</strong></summary>
+        {% if model_solution_url %}
+          <p><a class="btn btn--secondary btn--small"
+                href="{{ model_solution_url }}">{% translate "Pobierz rozwiązanie wzorcowe (PDF)" %}</a></p>
+        {% endif %}
+        {% if problem.reviewer_notes %}
+          <p class="quote">{{ problem.reviewer_notes }}</p>
+        {% endif %}
+        <p class="hint">{% translate "Materiał wyłącznie dla komitetu – nie cytuj go w komentarzu dla uczestnika w częściach, których organizator nie ogłosił." %}</p>
+      </details>
+    {% endif %}
+
+    {% include "web/reviewer/_issue_banner.html" %}
+
     {% if withdrawn %}
       {% comment %}
         Recenzja anulowana: żadnego formularza, bo nie ma czego zapisać. Pierwsze zdanie mówi
@@ -193,6 +224,11 @@
     {% if revision_allowed %}
       <p class="hint">{% translate "Ocenę masz już wystawioną, ale możesz ją poprawić – formularz jest wypełniony Twoimi punktami i komentarzami. Po zapisaniu rundę 1 rozstrzygamy od nowa." %}</p>
     {% elif revision_hint %}
+      {% comment %}
+        Formularz zostaje na ekranie, ale wyłączony: recenzent ma widzieć **co** wystawił, a zdanie
+        nad nim mówi, dlaczego nic się już nie da zmienić. Sam znikający formularz wyglądałby jak
+        usterka i kończył się telefonem do koordynatora.
+      {% endcomment %}
       <p class="msg msg-warning closed">{{ revision_hint }}</p>
     {% endif %}
     <form method="post"
@@ -213,6 +249,7 @@
           {% include "web/reviewer/_rubric.html" %}
         {% else %}
         <legend>{% translate "Punkty (skala etapu)" %}</legend>
+        <p class="helptext">{% translate "Skala etapu: wolno wystawić wyłącznie jedną z poniższych wartości. Skalę ustala koordynator przy etapie albo przy zadaniu." %}</p>
         <div class="scale">
           {% for option in scale_options %}
             <label class="score-option">
@@ -227,16 +264,23 @@
         </div>
         {% endif %}
 
-        <p class="field">
-          <label for="id_comment_internal">{% translate "Komentarz wewnętrzny (dla komitetu)" %}</label>
-          <textarea id="id_comment_internal" name="comment_internal" rows="5">{{ review.comment_internal }}</textarea>
-          <span class="helptext">{% translate "Widzą go koordynator i komisja odwoławcza – uczestnik nie." %}</span>
-        </p>
-
+        {% comment %}
+          Komentarz dla uczestnika stoi **przed** wewnętrznym, bo to on jest częścią oceny, a nie
+          notatką obok niej: to jedyne zdanie, które uczestnik dostanie od komitetu. Szablony
+          komentarzy są tuż pod polem – są podpowiedzią do niego, a nie kolejnym krokiem oceniania.
+        {% endcomment %}
         <p class="field">
           <label for="id_comment_for_participant">{% translate "Komentarz dla uczestnika" %}</label>
           <textarea id="id_comment_for_participant" name="comment_for_participant" rows="5">{{ review.comment_for_participant }}</textarea>
-          <span class="helptext">{% translate "Trafia do panelu uczestnika po ogłoszeniu wyników etapu." %}</span>
+          <span class="helptext">{% translate "Trafia do panelu uczestnika po ogłoszeniu wyników etapu. Pisz tak, żeby dało się z tego czegoś nauczyć bez wglądu w pracę." %}</span>
+        </p>
+
+        {% include "web/reviewer/_snippets.html" %}
+
+        <p class="field">
+          <label for="id_comment_internal">{% translate "Komentarz wewnętrzny (dla komitetu)" %}</label>
+          <textarea id="id_comment_internal" name="comment_internal" rows="5">{{ review.comment_internal }}</textarea>
+          <span class="helptext">{% translate "„Wewnętrzny” znaczy: widzą go koordynator, drugi recenzent po odsłonięciu ocen i komisja odwoławcza – uczestnik nigdy." %}</span>
         </p>
 
         <input type="hidden" id="id_annotations" name="annotations" value="{{ annotations_json }}">
@@ -246,30 +290,81 @@
             {# Szkic istnieje tylko przed wystawieniem oceny – poprawka zapisuje się od razu. #}
             <button type="button"
                     class="btn btn--secondary"
+                    data-shortcut="draft"
                     hx-post="{% url 'web:review-draft' review.pk %}"
                     hx-include="#review-form"
                     hx-target="#draft-status"
                     hx-swap="outerHTML">{% translate "Zapisz szkic" %}</button>
           {% endif %}
           <button type="submit" class="btn btn--primary">
-            {% if revision_allowed %}{% translate "Popraw ocenę" %}{% else %}{% translate "Wyślij ocenę" %}{% endif %}</button>
+            {% if revision_allowed %}{% translate "Popraw ocenę" %}{% else %}{% translate "Wystaw ocenę" %}{% endif %}</button>
         </div>
       </fieldset>
     </form>
     <div id="draft-status" role="status"></div>
-    {% comment %}
-      Szablony komentarzy stoją **pod** formularzem, a nie nad nim: to podpowiedź do pola
-      „Komentarz dla uczestnika”, a nie kolejny krok oceniania. Sekcja jest zwinięta i działa bez
-      JavaScriptu (treść do skopiowania); przycisk „Wstaw” dokłada ``review-snippets.js``.
-    {% endcomment %}
-    {% include "web/reviewer/_snippets.html" %}
     {% endif %}
+
+    {% comment %}
+      Wszystko, co nie jest wystawianiem oceny, stoi pod formularzem i jest zwinięte. Każda z tych
+      czterech rzeczy bywa potrzebna przy jednej pracy na dwadzieścia, a rozwinięte zabierały
+      recenzentowi ekran przy każdej pozostałej dziewiętnastu.
+    {% endcomment %}
+    <div class="review-tools">
+      {% if comparison %}
+        <details class="card card--quiet">
+          <summary><strong>{% translate "Porównanie ocen" %}</strong></summary>
+          {% include "web/reviewer/_comparison.html" with note_form_source="detail" compact=True %}
+        </details>
+      {% endif %}
+
+      {% include "web/reviewer/_issue.html" %}
+
+      {% if not withdrawn %}
+        {% include "web/reviewer/_snippet_manage.html" %}
+      {% endif %}
+
+      <details class="card card--quiet">
+        <summary><strong>{% translate "Czas pracy nad tą recenzją" %}</strong></summary>
+        {% comment %}
+          Licznik mierzy wyłącznie czas – nie zapisuje ani tego, co recenzent pisał, ani gdzie
+          klikał (patrz ``apps.grading.worklog`` i README). Wartość odświeża bez przeładowania
+          ``static/js/review-worklog.js``; bez JavaScriptu stoi tu suma z poprzednich wejść.
+        {% endcomment %}
+        <p class="row">
+          <span class="badge badge--neutral"
+                data-worklog-label
+                data-worklog-url="{% url 'web:review-heartbeat' review.pk %}"
+                data-worklog-active="{% if editable or revision_allowed %}1{% else %}0{% endif %}">
+            {# Podpis i wartość muszą zostać w jednym wierszu wyniku („Czas pracy: 1 min”). #}
+            {% translate "Czas pracy:" %} {% if worklog_seconds %}{{ worklog_label }}{% else %}{% translate "brak pomiaru" %}{% endif %}</span>
+        </p>
+        <p class="hint">{% translate "Licznik służy do planowania obciążenia komitetu: koordynator widzi sumę godzin na zadanie, a nie to, co i kiedy robiłeś." %}</p>
+      </details>
+
+      {% comment %}
+        Skróty są udokumentowane tam, gdzie działają, a nie w osobnej pomocy: skrót, o którym nikt
+        nie wie, jest kodem, który nikomu nie służy. Obsługuje je ``static/js/reviewer-layout.js``
+        i nie działają w trakcie pisania w polu tekstowym.
+      {% endcomment %}
+      <details class="card card--quiet">
+        <summary><strong>{% translate "Skróty klawiaturowe" %}</strong></summary>
+        <ul class="shortcuts">
+          <li><kbd>n</kbd> — {% translate "następna praca w tym zadaniu" %}</li>
+          <li><kbd>p</kbd> — {% translate "poprzednia praca w tym zadaniu" %}</li>
+          <li><kbd>s</kbd> — {% translate "zapisz szkic oceny" %}</li>
+        </ul>
+        <p class="hint">{% translate "Skróty milczą, gdy piszesz w polu tekstowym – „s” w komentarzu zostaje literą." %}</p>
+      </details>
+    </div>
   </section>
 </div>
 
-{% if comparison %}
-  {% include "web/reviewer/_comparison.html" with note_form_source="detail" %}
-{% endif %}
+{% comment %}
+  Poniżej 1000 px kolumny układają się jedna pod drugą i panel oceny ląduje pod rozwiązaniem.
+  Ten pasek jest jedyną drogą do niego bez przewijania całej pracy. Zwykły odnośnik do kotwicy,
+  bez JavaScriptu; na szerokim ekranie arkusz go nie pokazuje, bo panel stoi i tak obok.
+{% endcomment %}
+<a class="review-jump" href="#review-panel">{% translate "Oceń" %}</a>
 {% endblock %}
 
 {% block scripts %}
@@ -277,11 +372,12 @@
     <script type="module" nonce="{{ request.csp_nonce }}" src="{% static 'js/review-annotations.js' %}"></script>
   {% endif %}
   {% comment %}
-    Trzy małe wyspy JS, każda z nonce i bez ani jednego atrybutu zdarzenia w HTML-u (strict CSP).
+    Cztery małe wyspy JS, każda z nonce i bez ani jednego atrybutu zdarzenia w HTML-u (strict CSP).
     Wszystkie są **dokładkami**: bez nich strona oceny działa w całości, tylko mniej wygodnie.
     Licznik czasu startuje wyłącznie przy recenzji, którą wolno jeszcze zapisać – mierzenie czasu
     oglądania recenzji zamkniętej nie jest mierzeniem pracy.
   {% endcomment %}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/reviewer-layout.js' %}"></script>
   <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/review-snippets.js' %}"></script>
   {% if editable or revision_allowed %}
     <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/review-worklog.js' %}"></script>

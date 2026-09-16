@@ -149,7 +149,9 @@ def test_participant_can_move_and_cancel_the_booking(
     web_client.force_login(participant.user)
     web_client.post(f"/me/interview-slots/{first.pk}/book/")
 
-    assert "Zmień na ten termin" in web_client.get("/me/").content.decode()
+    # Lista terminów jest listą wyboru z jednym przyciskiem, a nie tabelą z przyciskiem w każdym
+    # wierszu – podpis mówi więc o „wybranym terminie”, a nie o „tym”.
+    assert "Zmień na wybrany termin" in web_client.get("/me/").content.decode()
     web_client.post(f"/me/interview-slots/{second.pk}/book/")
     assert InterviewBooking.objects.get().slot_id == second.pk
 
@@ -168,6 +170,45 @@ def test_participant_without_an_entry_gets_an_explanation(web_client, participan
     assert "Zapisz się" not in content
     # Etap w formie rozmowy nie ma uploadu ani zgłoszenia otwartego.
     assert "Zgłoś się do etapu eliminacyjnego" not in content
+
+
+def test_slots_are_a_radio_list_grouped_by_day(web_client, participant, interview_stage, interview_entry):
+    """Wybór terminu to jedna decyzja, więc jest jednym formularzem, a nie przyciskiem w wierszu."""
+    morning = InterviewSlotFactory(stage=interview_stage, starts_at=_tomorrow(9))
+    afternoon = InterviewSlotFactory(stage=interview_stage, starts_at=_tomorrow(15))
+    web_client.force_login(participant.user)
+
+    content = web_client.get("/me/").content.decode()
+
+    assert 'action="/me/interview/choose/"' in content
+    assert f'name="slot_id" value="{morning.pk}"' in content
+    assert f'name="slot_id" value="{afternoon.pk}"' in content
+    # Oba terminy są tego samego dnia, więc grupa jest jedna – nagłówek dnia raz.
+    assert content.count("<legend") == 1
+
+
+def test_participant_books_the_slot_chosen_from_the_list(
+    web_client, participant, interview_stage, interview_entry
+):
+    slot = InterviewSlotFactory(stage=interview_stage, starts_at=_tomorrow())
+    web_client.force_login(participant.user)
+
+    response = web_client.post("/me/interview/choose/", {"slot_id": str(slot.pk)})
+
+    assert response.status_code == 302
+    assert InterviewBooking.objects.filter(slot=slot, entry=interview_entry).exists()
+
+
+def test_choosing_nothing_is_a_message_not_a_crash(web_client, participant, interview_stage, interview_entry):
+    """Formularz wysłany bez zaznaczonego terminu (klawiatura, wyłączone skrypty) ma odpowiedzieć."""
+    InterviewSlotFactory(stage=interview_stage, starts_at=_tomorrow())
+    web_client.force_login(participant.user)
+
+    response = web_client.post("/me/interview/choose/", {}, follow=True)
+
+    assert response.redirect_chain == [("/me/", 302)]
+    assert "Wybierz termin rozmowy z listy" in response.content.decode()
+    assert not InterviewBooking.objects.exists()
 
 
 def test_stage_without_slots_shows_the_empty_message(

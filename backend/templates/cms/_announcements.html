@@ -1,0 +1,37 @@
+{% comment %}
+  Baner komunikatów organizatora – pod nagłówkiem, nad treścią strony, na każdej stronie serwisu.
+
+  Trzy rzeczy, które ten fragment musi zrobić dobrze:
+
+  - **działać bez JavaScriptu.** Serwer renderuje komunikat od razu; skrypt (static/js/announcements.js)
+    dokłada wyłącznie pamięć o zamknięciu. Bez niego baner jest widoczny i czytelny, a przycisk
+    zamknięcia po prostu nic nie robi – dlatego renderuje się dopiero wtedy, gdy skrypt go włączy
+    (atrybut ``hidden``), inaczej byłby przyciskiem-atrapą,
+  - **nie renderować HTML-u od redaktora.** ``{{ item.text }}`` przechodzi przez autoescapowanie,
+    a odnośnik jest osobną parą pól (adres + etykieta), nie znacznikiem w treści. Baner stoi na
+    każdej stronie serwisu, więc nie ma powodu otwierać tu powierzchni na cudzy znacznik,
+  - **mówić czytnikowi ekranu, co się zmieniło.** ``role="region"`` z podpisem, a przy awarii
+    dodatkowo ``role="alert"``: komunikat o niedziałającej wysyłce ma zostać przeczytany, a nie
+    czekać na to, aż ktoś dojedzie do niego tabulatorem.
+
+  Identyfikator komunikatu jedzie w ``data-announcement`` – to po nim skrypt pamięta zamknięcie
+  w ``localStorage`` przeglądarki (nie w cookie i nie na koncie: to preferencja widoku).
+{% endcomment %}
+{% if announcements %}
+  <div class="announcements">
+    {% for item in announcements %}
+      <div class="announcement announcement--{{ item.level }}"
+           data-announcement="{{ item.pk }}"
+           {% if item.dismissible %}data-announcement-dismissible{% endif %}
+           role="{% if item.level == 'danger' %}alert{% else %}region{% endif %}"
+           aria-label="{% if item.level == 'danger' %}Komunikat o awarii{% else %}Komunikat organizatora{% endif %}">
+        <p class="announcement__text">{{ item.text }}{% if item.has_link %}
+          <a class="announcement__link" href="{{ item.link_url }}">{{ item.link_label }}</a>{% endif %}</p>
+        {% if item.dismissible %}
+          <button type="button" class="announcement__close" data-announcement-close hidden
+                  aria-label="Zamknij komunikat">×</button>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}

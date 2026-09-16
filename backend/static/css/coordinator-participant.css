@@ -1,0 +1,111 @@
+/* Karta uczestnika (/coordinator/participants/<id>/).
+ *
+ * Osobny arkusz, a nie dopisek do app.css albo coordinator.css: te dwa mają innych właścicieli,
+ * a wszystko poniżej dotyczy wyłącznie jednej strony. Arkusz dokłada się do nich (szablon ładuje
+ * go po nich w bloku ``head``), więc korzysta z ich zmiennych i niczego nie nadpisuje globalnie.
+ *
+ * Wszystkie reguły są zawężone własnymi klasami ``participant-*`` albo listą faktów ``card-facts``
+ * – żadnego selektora na goły znacznik, bo ten arkusz jedzie na stronie razem z arkuszem całego
+ * serwisu i nie może zmienić wyglądu niczego poza kartą.
+ */
+
+/* Lista faktów „etykieta → wartość”. Dwie kolumny na szerokim ekranie, jedna na wąskim: pary
+ * takie jak „Adres e-mail → potwierdzony” mają stać obok siebie, ale nie kosztem zawijania
+ * długiego adresu w kolumnę o szerokości trzech znaków. */
+.card-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.35rem 1.25rem;
+  margin: 0;
+}
+
+.card-facts > dt {
+  font-weight: 600;
+  /* Etykieta jest opisem, a nie treścią – stąd stopień mniejszy i wyciszony kolor. */
+  font-size: 0.92em;
+  opacity: 0.75;
+}
+
+.card-facts > dd {
+  margin: 0;
+  /* Adresy e-mail i nazwy szkół bywają dłuższe niż kolumna; łamiemy je zamiast rozpychać stronę
+   * poziomym paskiem przewijania. */
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 40rem) {
+  .card-facts {
+    grid-template-columns: 1fr;
+    gap: 0.1rem;
+  }
+
+  .card-facts > dd {
+    margin-bottom: 0.6rem;
+  }
+}
+
+/* Karta jednego etapu. Odstęp między kolejnymi etapami jest większy niż wewnątrz etapu, żeby
+ * granica „tu kończy się jeden etap” była widoczna bez czytania nagłówków. */
+.participant-stage + .participant-stage {
+  margin-top: 1.5rem;
+}
+
+/* Jedno zadanie w obrębie etapu. Pionowa kreska po lewej zamiast ramki: blok jest zagnieżdżony
+ * w karcie etapu i druga ramka robiłaby z niego osobną kartę, czyli sugerowała ten sam poziom. */
+.participant-problem {
+  margin-top: 1.25rem;
+  padding-left: 1rem;
+  border-left: 3px solid currentColor;
+  /* Kreska ma być podziałką, a nie akcentem – stąd mocne wyciszenie samego koloru ramki. */
+  border-left-color: color-mix(in srgb, currentColor 20%, transparent);
+}
+
+.participant-problem > h4 {
+  margin-top: 0;
+}
+
+/* Rozwijane bloki (wersje pracy, korekta oceny, uzasadnienia). ``<details>`` zamiast chowania
+ * skryptem, bo polityka CSP nie dopuszcza skryptów inline, a strona ma działać bez JavaScriptu. */
+.participant-versions,
+.participant-override {
+  margin: 0.75rem 0;
+}
+
+.participant-versions > summary,
+.participant-override > summary {
+  cursor: pointer;
+  font-weight: 600;
+  /* Powiększone pole kliknięcia: podsumowanie jest jedynym przełącznikiem tej sekcji. */
+  padding: 0.25rem 0;
+}
+
+.participant-grade {
+  margin-top: 0.75rem;
+}
+
+.participant-grade > p {
+  margin: 0.25rem 0;
+}
+
+.participant-appeals,
+.participant-tickets {
+  margin: 0.75rem 0 0;
+  padding-left: 1.1rem;
+}
+
+.participant-appeals > li,
+.participant-tickets > li {
+  margin-bottom: 0.3rem;
+}
+
+/* Zrzut „zmiany” z wpisu audytowego. Zawija się i przewija w poziomie tylko wewnątrz swojej
+ * komórki – bez tego jeden długi słownik rozpychałby całą tabelę. */
+.participant-diff {
+  margin: 0.4rem 0 0;
+  max-width: 40rem;
+  max-height: 14rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.85em;
+}

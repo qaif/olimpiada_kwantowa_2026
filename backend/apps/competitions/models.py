@@ -116,6 +116,12 @@ def default_allowed_formats() -> list[str]:
 #: Powody, dla których rejestracja uczestników jest zamknięta – oraz jedyny powód, dla którego jest
 #: otwarta. Kod maszynowy, nie komunikat: treść zdania dobiera warstwa, która je pokazuje
 #: (``apps.competitions.registration``), a API oddaje sam kod.
+#: Domyślny okres retencji danych osobowych uczestników edycji (miesiące). Decyzja organizatora:
+#: dwa lata liczone od ostatniego deadline'u etapu. Tyle wystarcza na rozstrzygnięcie reklamacji,
+#: wydanie duplikatu dyplomu i pytanie o kwalifikację do edycji następnej; dłuższe trzymanie
+#: danych nie ma już podstawy w art. 5 ust. 1 lit. e RODO.
+DEFAULT_RETENTION_MONTHS = 24
+
 REGISTRATION_OPEN = "open"
 REGISTRATION_DISABLED = "disabled"
 REGISTRATION_NOT_YET = "not_yet"
@@ -157,6 +163,24 @@ class Edition(models.Model):
     registration_enabled = models.BooleanField("rejestracja włączona", default=True)
     registration_opens_at = models.DateTimeField("otwarcie rejestracji", null=True, blank=True)
     registration_closes_at = models.DateTimeField("zamknięcie rejestracji", null=True, blank=True)
+    # Okres retencji danych osobowych uczestników tej edycji, liczony **od ostatniego deadline'u
+    # etapu** (art. 5 ust. 1 lit. e RODO – ograniczenie przechowywania). Po jego upływie konta,
+    # które nie wystartowały w żadnej późniejszej edycji, anonimizuje zadanie okresowe
+    # (``apps.accounts.retention``): dane osobowe znikają, a pseudonimowy wiersz z kodem
+    # publicznym i dokumentacja zawodów zostają.
+    #
+    # Pole jest w edycji, a nie w ustawieniach serwisu, bo to decyzja o **jednym roczniku**:
+    # edycja, wokół której toczy się spór albo postępowanie, zostaje dłużej, a reszta nie czeka
+    # na nią bez powodu. Dwa lata są wartością domyślną organizatora – tyle, żeby zmieściło się
+    # odwołanie, wydanie duplikatu dyplomu i pytanie o kwalifikację do edycji następnej.
+    data_retention_months = models.PositiveSmallIntegerField(
+        "retencja danych (miesiące)",
+        default=DEFAULT_RETENTION_MONTHS,
+        help_text=(
+            "Po ilu miesiącach od ostatniego deadline'u etapu anonimizować konta uczestników "
+            "tej edycji. Zero wyłącza automatyczną anonimizację."
+        ),
+    )
 
     class Meta:
         verbose_name = "edycja"

@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "web/coordinator/base.html" %}
 {% load static %}
 {% comment %}
   Kalibracja recenzentów jednego etapu. Ekran jest wyłącznie odczytem: nie zmienia ocen, nie
@@ -9,15 +9,14 @@
   w wiadomości do reszty komitetu, a strona działa także wtedy, gdy skrypt się nie wczytał.
 {% endcomment %}
 {% block title %}Kalibracja recenzentów – {{ stage.display_name }}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
-{% block content %}
-<div class="page-head">
-  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
-  <h1>Kalibracja recenzentów: {{ stage.display_name }}</h1>
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block panel_title %}Kalibracja recenzentów: {{ stage.display_name }}{% endblock %}
+{% block panel_lead %}
   <p class="lead">Czy któryś recenzent punktuje systematycznie surowiej albo łagodniej od reszty
     komisji. Materiał do rozmowy i do instruktażu przed kolejną edycją – nie ocena pracy
     recenzenta i nie podstawa do zmiany czyjejkolwiek oceny.</p>
-</div>
+{% endblock %}
+{% block panel_content %}
 
 <section class="section">
   <div class="card">

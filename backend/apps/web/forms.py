@@ -15,6 +15,7 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.uploadedfile import UploadedFile
+from django.utils import timezone
 from django.utils.translation import gettext_lazy
 
 from apps.accounts.consents import BY_KIND, CONSENT_FIELD_NAMES, CONSENTS, ConsentKind, is_minor, labels
@@ -25,6 +26,7 @@ from apps.accounts.services import (
     parse_email_list,
 )
 from apps.appeals.models import MAX_TEXT_LENGTH, MIN_ARGUMENT_LENGTH, AppealStatus
+from apps.cms.models import Announcement
 from apps.competitions.events import EVENT_EDITABLE_FIELDS
 from apps.competitions.interviews import (
     MAX_DURATION_MINUTES,
@@ -42,7 +44,7 @@ from apps.competitions.models import (
     Problem,
     Stage,
 )
-from apps.competitions.services import REGISTRATION_EDITABLE_FIELDS, STAGE_EDITABLE_FIELDS
+from apps.competitions.services import EDITION_EDITABLE_FIELDS, STAGE_EDITABLE_FIELDS
 from apps.competitions.video import DEFAULT_VIDEO_BASE_URL, VideoProvider
 from apps.core.api import DomainError
 from apps.grading.rubric import criteria_for, format_criteria_lines, parse_criteria_lines
@@ -1145,17 +1147,22 @@ class StageForm(forms.ModelForm):
 
 
 class RegistrationSettingsForm(forms.ModelForm):
-    """Okno rejestracji uczestników w panelu koordynatora.
+    """Ramy czasowe edycji w panelu koordynatora: okno rejestracji i okres retencji danych.
 
     Oba terminy są opcjonalne i to jest sedno tego ekranu: puste otwarcie znaczy „od zaraz”, puste
     zamknięcie – „do odwołania”. Kolejność sprawdza ``Edition.full_clean()`` (ModelForm woła je
     w ``_post_clean``), więc komunikat staje pod polem „zamknięcie”, a nie w chmurce nad
     formularzem – i nie ma drugiej kopii tej reguły w warstwie WWW.
+
+    Retencja stoi tu, a nie na osobnym ekranie, bo odpowiada na drugą połowę tego samego pytania:
+    od kiedy wolno zbierać dane uczestników i do kiedy wolno je trzymać. Samo zapisanie liczby
+    niczego nie kasuje – anonimizuje zadanie okresowe (``apps.accounts.retention``), a koordynator
+    widzi jego plan na ``/coordinator/retention/``.
     """
 
     class Meta:
         model = Edition
-        fields = REGISTRATION_EDITABLE_FIELDS
+        fields = EDITION_EDITABLE_FIELDS
         field_classes = {
             "registration_opens_at": LocalDateTimeField,
             "registration_closes_at": LocalDateTimeField,
@@ -1164,6 +1171,7 @@ class RegistrationSettingsForm(forms.ModelForm):
             "registration_enabled": "Rejestracja włączona",
             "registration_opens_at": "Otwarcie rejestracji",
             "registration_closes_at": "Zamknięcie rejestracji",
+            "data_retention_months": "Retencja danych (miesiące)",
         }
         help_texts = {
             "registration_enabled": (
@@ -1175,6 +1183,11 @@ class RegistrationSettingsForm(forms.ModelForm):
                 "strona główna i menu pokazują wtedy „Rejestracja rusza …”."
             ),
             "registration_closes_at": "Puste = rejestracja trwa do odwołania.",
+            "data_retention_months": (
+                "Liczone od ostatniego deadline'u etapu tej edycji. Po tym czasie konta "
+                "uczestników, którzy nie startują w późniejszej edycji, są anonimizowane. "
+                "Zero wyłącza anonimizację – plan widać na stronie „Retencja danych”."
+            ),
         }
 
     def changed_values(self) -> dict:
@@ -1186,8 +1199,7 @@ class RegistrationSettingsForm(forms.ModelForm):
         return {
             name: value
             for name, value in self.cleaned_data.items()
-            if name in REGISTRATION_EDITABLE_FIELDS
-            and _to_minute(self.initial.get(name)) != _to_minute(value)
+            if name in EDITION_EDITABLE_FIELDS and _to_minute(self.initial.get(name)) != _to_minute(value)
         }
 
 
@@ -1577,3 +1589,65 @@ class InterviewSlotsForm(forms.Form):
         max_length=200,
         help_text="Np. „komisja A” – dla uczestnika to podpowiedź, do kogo trafia.",
     )
+
+
+class AnnouncementForm(forms.ModelForm):
+    """Komunikat organizatora pokazywany w banerze na każdej stronie serwisu.
+
+    ``ModelForm``, a nie zwykły formularz z sześcioma polami: reguła okna czasowego (początek
+    przed końcem) jest wyrażalna w modelu i pilnuje jej ``Announcement.full_clean()`` – ten sam
+    warunek, co constraint w bazie. Powtórzona w warstwie WWW rozjechałaby się z nim przy
+    pierwszej zmianie, a skutek byłby widoczny dopiero przy zapisie, który baza odrzuca.
+
+    Terminy są opcjonalne z dwóch różnych powodów: pusty koniec znaczy „do wyłączenia”, a początek
+    domyślnie jest **teraz** (``Announcement.starts_at``), czyli komunikat zaczyna obowiązywać
+    w chwili zapisania. Komunikat pisze się w pośpiechu – domyślne „od zaraz” jest tym, czego
+    organizator chce w dziewięciu przypadkach na dziesięć.
+    """
+
+    required_css_class = REQUIRED_CSS_CLASS
+
+    class Meta:
+        model = Announcement
+        fields = (
+            "text",
+            "level",
+            "link_url",
+            "link_label",
+            "starts_at",
+            "ends_at",
+            "is_active",
+            "dismissible",
+        )
+        field_classes = {"starts_at": LocalDateTimeField, "ends_at": LocalDateTimeField}
+        widgets = {"text": forms.Textarea(attrs={"rows": 3})}
+        labels = {
+            "text": "Treść komunikatu",
+            "level": "Waga",
+            "link_url": "Adres odnośnika",
+            "link_label": "Etykieta odnośnika",
+            "starts_at": "Od",
+            "ends_at": "Do",
+            "is_active": "Włączony",
+            "dismissible": "Czytelnik może zamknąć",
+        }
+        help_texts = {
+            "text": (
+                "Zwykły tekst, najwyżej 500 znaków. Znaczniki HTML nie zadziałają – odnośnik "
+                "wpisuje się w dwa pola poniżej."
+            ),
+            "level": "„Awaria” jest czytana przez czytniki ekranu od razu, bez przewijania strony.",
+            "ends_at": "Puste = komunikat wisi do wyłączenia.",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # „Od” nie jest w formularzu obowiązkowe, choć w modelu jest (``default=timezone.now``):
+        # organizator ogłaszający awarię nie ma przepisywać bieżącej godziny z zegarka. Wartość
+        # domyślną wstawia ``clean_starts_at`` niżej. Ustawienie ``blank=True`` na modelu dałoby
+        # to samo w formularzu, ale zdjęłoby walidację także z zapisów spoza panelu.
+        self.fields["starts_at"].required = False
+
+    def clean_starts_at(self):
+        """Puste „od” znaczy „od zaraz”, a nie brak wartości."""
+        return self.cleaned_data.get("starts_at") or timezone.now()

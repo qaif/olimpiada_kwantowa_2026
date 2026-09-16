@@ -1919,6 +1919,54 @@ ul.errorlist.nonfield {
   margin-bottom: var(--sp-3);
 }
 
+/* Pola pisane ręcznie (nie przez ``form.as_p``) mają wyglądać dokładnie tak samo, więc podpowiedź
+   i błąd dostają te same reguły, co ``.helptext`` i ``ul.errorlist``. Bez tego panel pisany
+   w szablonie różniłby się od formularza renderowanego przez Django – w tym samym serwisie. */
+.field__hint {
+  display: block;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.field__error {
+  display: block;
+  margin: 0 0 var(--sp-1);
+  padding: var(--sp-2) var(--sp-3);
+  border-left: 3px solid var(--danger);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--danger-soft);
+  color: var(--danger-ink);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* Pole z błędem: obrys, nie tylko czerwony tekst pod spodem. Selektor łapie ``aria-invalid``
+   **przede wszystkim** – to ten atrybut niesie informację do czytnika ekranu, więc jeżeli jest
+   postawiony poprawnie, klasa jest już niepotrzebna. ``.field--invalid`` zostaje dla szablonów,
+   które stawiają samą klasę; wtedy brakuje im ``aria-invalid`` i to jest błąd do poprawienia. */
+:is(input, select, textarea)[aria-invalid="true"],
+.field--invalid :is(input, select, textarea) {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+:is(input, select, textarea)[aria-invalid="true"]:focus,
+.field--invalid :is(input, select, textarea):focus {
+  border-color: var(--danger);
+}
+
+/* Kratka (albo przełącznik) i etykieta w jednym wierszu. Domyślny ``.field`` jest kolumną, bo
+   etykieta stoi nad polem – przy polu wyboru kolumna wyglądałaby jak błąd renderowania. */
+.field--inline {
+  flex-direction: row;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+
+.field--inline label {
+  font-weight: 400;
+}
+
 fieldset {
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -2080,6 +2128,34 @@ form.inline input[type="text"] {
 .scroll .grid {
   border: 0;
   margin: 0;
+}
+
+/* Przyklejony nagłówek tabeli działa dopiero wtedy, gdy jest **do czego** go przykleić: ``th``
+   ma ``position: sticky; top: 0``, ale kontener bez ograniczonej wysokości jest dokładnie tak
+   wysoki jak tabela i nigdy się nie przewija w pionie. Stąd osobny wariant zamiast wysokości na
+   ``.scroll`` – krótka tabela w ramce z ``max-height`` miałaby na dole niepotrzebną dziurę.
+   70vh, a nie 100vh: nad tabelą stoi nagłówek widoku, a pod nią bywa pasek zaznaczenia. */
+.scroll--tall {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+/* Tabela robocza (lista plików, log operacji, wyniki wyszukiwania): ten sam komponent, gęstszy
+   wiersz. Przy trzydziestu wierszach to różnica między jednym ekranem a dwoma. */
+.table--compact td,
+.table--compact th {
+  padding: var(--sp-1) var(--sp-2);
+}
+
+.table--compact {
+  font-size: 0.875rem;
+}
+
+/* Kody uczestników, adresy e-mail i nazwy plików nie mają spacji, a bywają długie: bez tego
+   jedna komórka rozpycha tabelę szerzej niż ekran, a suwak dostaje cała strona zamiast ramki. */
+.table td,
+.grid td {
+  overflow-wrap: anywhere;
 }
 
 .table,
@@ -2289,6 +2365,16 @@ form.inline input[type="text"] {
   border-color: var(--line-strong);
 }
 
+/* Odznaka z samą liczbą („3 nowe”, „12”). Kropka przed liczbą nic nie znaczy i tylko zwęża pole
+   na cyfry, więc znika; ``tabular-nums`` trzyma szerokość przy zmianie 9 → 10. */
+.badge--count {
+  font-variant-numeric: tabular-nums;
+}
+
+.badge--count::before {
+  display: none;
+}
+
 .tag {
   display: inline-block;
   font-size: 0.75rem;
@@ -2423,6 +2509,23 @@ span.msg {
   font-size: 1.0625rem;
   color: var(--ink-soft);
   margin-bottom: var(--sp-1);
+}
+
+/* Pusty stan ma odpowiedzieć na dwa pytania: „dlaczego tu nic nie ma” i „co mam z tym zrobić”.
+   Samo „Brak danych” wygląda jak awaria i generuje zgłoszenie do organizatora. */
+.empty__text {
+  /* Wyśrodkowany blok o czytelnej długości wiersza: pusty stan stoi na całej szerokości karty,
+     a zdanie rozciągnięte na 120 znaków czyta się gorzej niż złamane. */
+  max-width: 52ch;
+  margin: 0 auto;
+}
+
+.empty__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-2);
+  margin: var(--sp-4) 0 0;
 }
 
 td.empty,
@@ -2592,6 +2695,38 @@ td.empty,
   color: var(--accent-ink);
 }
 
+/* Trzeci wiersz kafelka: zmiana, próg, termin („+3 od wczoraj”). Drobniejszy od etykiety, żeby
+   liczba została najgłośniejszym elementem kafelka. */
+.kpi__hint {
+  display: block;
+  margin-top: var(--sp-1);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* Kafelek, który prowadzi do listy stojącej za liczbą. Cały kafelek jest polem kliknięcia
+   (a nie sama liczba), więc odnośnik rozpycha się na całą jego powierzchnię. */
+.kpi__item--link {
+  padding: 0;
+}
+
+.kpi__item--link > a {
+  display: block;
+  padding: var(--sp-4);
+  color: inherit;
+  text-decoration: none;
+  border-radius: inherit;
+}
+
+.kpi__item--link > a:hover {
+  background: var(--surface-2);
+}
+
+.kpi__item--link > a:hover .kpi__label {
+  color: var(--ink-soft);
+  text-decoration: underline;
+}
+
 /* 6.11 Listy z definicjami / metadane */
 .meta-list {
   display: grid;
@@ -2688,6 +2823,396 @@ td.empty,
 
 .link-list a {
   font-weight: 600;
+}
+
+/* 6.12 Czipy – filtr, wybór, etykieta -------------------------------------------------------- */
+/*
+ * Czip a odznaka: czip jest **kontrolką** (klika się go, żeby zawęzić listę), odznaka **opisuje**
+ * stan wiersza. Wyglądają podobnie, więc różnicę musi nieść zachowanie, a nie tylko kolor – stąd
+ * osobny komponent zamiast wariantu ``.badge``: czip ma pole dotyku, kursor i stan „wybrany”.
+ *
+ * Stan wybrany czytamy z ``aria-current="page"`` (odnośnik zmieniający adres) albo
+ * ``aria-pressed="true"`` (przycisk przełączający). Świadomie **nie** ma klasy ``.chip--active``:
+ * jedno źródło prawdy znaczy, że nie da się zrobić czipa, który wygląda na włączony, a dla
+ * czytnika ekranu jest wyłączony. Taki rozjazd jest w panelach najczęstszym błędem dostępności.
+ */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin: 0 0 var(--sp-4);
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  /* 2.25 rem = 36 px: pole dotyku ponad zalecanym minimum (WCAG 2.5.8 – 24 px), bez robienia
+     z paska filtrów drugiego rzędu przycisków. */
+  min-height: 2.25rem;
+  padding: 0.25rem var(--sp-3);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.chip:hover {
+  border-color: var(--brand);
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+/* Wybrany czip ma i tło, i grubszy obrys, i pogrubienie – trzy sygnały zamiast jednego koloru,
+   bo pasek filtrów bywa czytany w słońcu, na tanim ekranie i z deuteranopią. */
+.chip[aria-current],
+.chip[aria-pressed="true"] {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--brand-ink);
+}
+
+.chip[aria-current]:hover,
+.chip[aria-pressed="true"]:hover {
+  background: var(--navy-700);
+  border-color: var(--navy-700);
+  color: var(--brand-ink);
+}
+
+/* Licznik przy nazwie filtru („Nowe 7”). Cyfry tabelaryczne, żeby pasek nie drgał przy
+   odświeżeniu listy, i własne tło – liczba jest dopowiedzeniem, nie częścią etykiety. */
+.chip__count {
+  padding: 0 0.4em;
+  border-radius: 999px;
+  background: var(--surface-inset);
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.chip[aria-current] .chip__count,
+.chip[aria-pressed="true"] .chip__count {
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--brand-ink);
+}
+
+/* Czip, który nie jest kontrolką (etykieta na karcie): bez kursora i bez stanu najechania –
+   inaczej obiecywałby kliknięcie, którego nie ma. */
+.chip--static {
+  cursor: default;
+  background: var(--surface-2);
+  font-weight: 500;
+}
+
+.chip--static:hover {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+  color: var(--ink-soft);
+}
+
+/* 6.13 Zakładki widoku ----------------------------------------------------------------------- */
+/*
+ * Zakładki są **odnośnikami**: przełączają widok przez adres, więc da się je skopiować, otworzyć
+ * w nowej karcie i cofnąć przyciskiem przeglądarki. Wariant ``role="tab"`` (przełączanie bez
+ * przeładowania) dostaje te same reguły – stan bierzemy z ``aria-selected``, nie z klasy.
+ *
+ * ``.tab--active`` zostaje jako dopisek dla szablonów, które i tak stawiają ``aria-current``:
+ * klasa i atrybut mają wyglądać identycznie, żeby dwa panele pisane osobno nie rozjechały się.
+ */
+.tabs {
+  display: flex;
+  gap: var(--sp-1);
+  margin: 0 0 var(--sp-6);
+  border-bottom: 1px solid var(--line);
+  /* Na wąskim ekranie pas przewija się w poziomie zamiast zawijać do drugiego wiersza: zawinięta
+     zakładka stoi nad kreską, która jej nie dotyczy, i wygląda jak inny komponent. */
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.tab {
+  flex: 0 0 auto;
+  padding: var(--sp-2) var(--sp-4);
+  /* Podkreślenie aktywnej zakładki jest kreską pod spodem, ale rezerwujemy je na każdej – bez
+     tego kliknięcie przesuwałoby zawartość o 3 px. */
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  background: none;
+  cursor: pointer;
+}
+
+.tab:hover {
+  color: var(--ink);
+  border-bottom-color: var(--line-strong);
+}
+
+.tab--active,
+.tab[aria-current],
+.tab[aria-selected="true"] {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+}
+
+/* 6.14 Rozwijana sekcja ---------------------------------------------------------------------- */
+/*
+ * Natywne ``<details>``: otwiera się myszą i klawiaturą, zna ``aria-expanded`` bez naszej pomocy
+ * i działa przy wyłączonym JavaScripcie. Każdy własny „akordeon” ze skryptem jest w porównaniu
+ * z tym regresem – i tak właśnie działa rozwijane menu dokumentów w nagłówku.
+ */
+.details {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  margin: 0 0 var(--sp-4);
+}
+
+.details__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  color: var(--ink);
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+/* Domyślny trójkąt w dwóch zapisach (WebKit i reszta) – własny znacznik jest niżej. */
+.details__summary::-webkit-details-marker {
+  display: none;
+}
+
+.details__summary::marker {
+  content: "";
+}
+
+/* Znacznik rysuje ramka obrócona o 45° – jeden element mniej w DOM i zero żądań na ikonę.
+   Obrót ma przejście, więc gasi go globalna reguła ``prefers-reduced-motion``. */
+.details__summary::after {
+  content: "";
+  flex: none;
+  width: 0.5em;
+  height: 0.5em;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-0.15em) rotate(45deg);
+  transition: transform 0.15s ease;
+}
+
+.details[open] > .details__summary::after {
+  transform: translateY(0.1em) rotate(225deg);
+}
+
+.details__summary:hover {
+  background: var(--surface-2);
+}
+
+/* Oddech treści jest w środku, a nie marginesem na ``<details>``: zwinięta sekcja ma wtedy
+   wysokość samego nagłówka i sąsiednie sekcje stoją równo. */
+.details__body {
+  padding: var(--sp-4);
+  border-top: 1px solid var(--line);
+}
+
+.details__body > :first-child {
+  margin-top: 0;
+}
+
+.details__body > :last-child {
+  margin-bottom: 0;
+}
+
+/* 6.15 Układ dwukolumnowy z przyklejoną kolumną boczną ---------------------------------------- */
+/*
+ * ``minmax(0, 1fr)``, a nie ``1fr``: domyślne ``min-width: auto`` elementu siatki liczy się od
+ * **zawartości**, więc jedna szeroka tabela rozepchnęłaby kolumnę i cała strona dostałaby poziomy
+ * suwak. To jest najczęstsza przyczyna „strona się przewija w bok na telefonie”.
+ *
+ * Kolumna boczna przykleja się dopiero tam, gdzie jest obok treści. Na wąskim ekranie stoi pod
+ * treścią i przyklejona być nie może – zasłaniałaby to, co czytamy.
+ */
+.layout-2col {
+  display: grid;
+  gap: var(--sp-6);
+  align-items: start;
+  margin: 0 0 var(--sp-8);
+}
+
+.layout-2col__main {
+  min-width: 0;
+}
+
+.layout-2col__aside {
+  min-width: 0;
+}
+
+@media (min-width: 1000px) {
+  .layout-2col {
+    grid-template-columns: minmax(0, 1fr) 20rem;
+  }
+
+  /* Kolumna boczna jest po prawej także wtedy, gdy w DOM stoi przed treścią – kolejność czytania
+     (najpierw treść, potem skróty) nie musi być kolejnością na ekranie. */
+  .layout-2col--aside-first {
+    grid-template-columns: 20rem minmax(0, 1fr);
+  }
+
+  .layout-2col__aside {
+    position: sticky;
+    /* Pasek konta przykleja się do góry okna i ma ok. 4.5 rem – kolumna boczna zaczyna się pod
+       nim, a nie za nim. Ten sam odstęp, co ``html { scroll-padding-top }``. */
+    top: 5rem;
+    max-height: calc(100vh - 6rem);
+    overflow-y: auto;
+  }
+}
+
+/* 6.16 Powłoka panelu ------------------------------------------------------------------------ */
+/*
+ * Wspólny szkielet dla panelu koordynatora, uczestnika i recenzenta: pionowa nawigacja sekcji
+ * plus treść. Osobno od ``.layout-2col``, bo to nie jest „treść i dodatek” – nawigacja panelu
+ * jest stałym elementem sterującym i ma swoje ``<nav aria-label>``.
+ */
+.panel {
+  display: grid;
+  gap: var(--sp-6);
+  align-items: start;
+  margin: 0 0 var(--sp-8);
+}
+
+.panel__main {
+  min-width: 0;
+}
+
+/*
+ * Uwaga na zasięg: układ samego pasa nawigacji dostaje **wyłącznie** ta ``.panel__nav``, której
+ * bezpośrednimi dziećmi są ``.panel__nav-link`` – czyli ta zbudowana z tego systemu. Panel
+ * koordynatora ma w tym samym miejscu własne menu w ``<details>`` (``coordinator.css``): gdyby
+ * złapała je reguła ``display: flex; overflow-x: auto``, rozwinięta lista przycięłaby się do
+ * wysokości paska. ``:has()`` jest tu tańsze niż druga nazwa klasy dla tego samego miejsca
+ * w układzie – powłoka ``.panel`` zostaje wspólna, a wypełnienie jest sprawą panelu.
+ */
+.panel__nav:has(> .panel__nav-link) {
+  display: flex;
+  /* Na wąskim ekranie pozycje stoją w jednym przewijalnym pasie. Nie chowamy ich za rozwijaczem:
+     osiem sekcji za „Menu” to osiem dotknięć zamiast jednego, a pas przewija się kciukiem. */
+  gap: var(--sp-1);
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding-bottom: var(--sp-1);
+  border-bottom: 1px solid var(--line);
+}
+
+.panel__nav-link {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: 0 0 auto;
+  min-height: 2.25rem;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-sm);
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.panel__nav-link:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+/* Stan aktywny wyłącznie z ``aria-current`` – patrz komentarz przy czipach. Kreska po lewej
+   (na szerokim ekranie) i tło: kolor nie jest jedynym nośnikiem. */
+.panel__nav-link[aria-current] {
+  background: var(--brand-soft);
+  color: var(--brand);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.panel__nav-count {
+  margin-left: auto;
+  padding: 0 0.4em;
+  border-radius: 999px;
+  background: var(--surface-inset);
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 900px) {
+  .panel {
+    grid-template-columns: 15rem minmax(0, 1fr);
+  }
+
+  .panel__nav:has(> .panel__nav-link) {
+    flex-direction: column;
+    overflow-x: visible;
+    border-bottom: 0;
+    padding-bottom: 0;
+    position: sticky;
+    /* Pod przyklejonym paskiem konta – ta sama wartość, co ``scroll-padding-top`` dokumentu. */
+    top: 5rem;
+  }
+
+  .panel__nav-link {
+    justify-content: flex-start;
+  }
+}
+
+/* 6.17 Pasek zaznaczenia --------------------------------------------------------------------- */
+/*
+ * Akcje grupowe („zaznacz wiersze i zrób z nimi X”) należą do dołu ekranu, a nie nad tabelę:
+ * zaznacza się przewijając listę, a przycisk musi być pod ręką w chwili, w której się skończyło.
+ * Pasek stoi w tym samym ``<form>``, co tabela, i dopóki nic nie jest zaznaczone – ma ``hidden``.
+ *
+ * Licznik potrzebuje ``aria-live="polite"``: zmiana zaznaczenia jest jedyną informacją zwrotną,
+ * a bez tego atrybutu nie dociera do nikogo, kto nie patrzy na pasek.
+ */
+.bulk-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin: var(--sp-4) 0 0;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.bulk-bar__count {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.9375rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.bulk-bar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
 }
 
 /* --- 7. Widoki ------------------------------------------------------------------------------ */
@@ -3739,6 +4264,97 @@ fieldset:disabled .score-option {
   padding: var(--sp-2) var(--sp-4);
 }
 
+/* --- Baner komunikatów organizatora ---------------------------------------------------------
+   Pasek pod nagłówkiem, na każdej stronie serwisu. Kolory biorą się z tych samych tokenów, co
+   plakietki stanu (``--info``/``--warn``/``--danger``), więc „awaria” w banerze wygląda tak samo,
+   jak „awaria” w tabeli – czytelnik uczy się jednego kodu kolorów, a nie dwóch.
+   Na wydruku banera nie ma: to komunikat o stanie serwisu „teraz”, a nie treść dokumentu. */
+.announcements {
+  max-width: var(--container);
+  margin: var(--sp-3) auto 0;
+  padding: 0 var(--sp-4);
+}
+
+.announcement {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-2);
+  border-radius: var(--radius);
+  /* Gruba kreska z lewej zamiast obramowania dookoła: baner ma być odróżnialny od karty treści,
+     a nie wyglądać jak kolejna karta. */
+  border-left: 4px solid var(--info);
+  background: var(--info-soft);
+  color: var(--ink);
+}
+
+.announcement--warning {
+  border-left-color: var(--warn);
+  background: var(--warn-soft);
+}
+
+.announcement--danger {
+  border-left-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.announcement__text {
+  margin: 0;
+  flex: 1 1 auto;
+}
+
+.announcement__link {
+  margin-left: var(--sp-2);
+  white-space: nowrap;
+}
+
+.announcement__close {
+  flex: 0 0 auto;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 0 var(--sp-1);
+  color: inherit;
+}
+
+.announcement__close:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media print {
+  .announcements {
+    display: none;
+  }
+}
+
+/* --- Najczęstsze pytania (/faq/) ------------------------------------------------------------
+   Pytanie jest elementem <summary>, czyli natywnym rozwijaczem przeglądarki: działa klawiaturą
+   i bez JavaScriptu, a przy polityce CSP bez kodu inline to jedyne rozwiązanie, które nie
+   wymaga własnego pliku skryptu. Stąd wyłącznie kosmetyka: kursor, znacznik listy i odstępy. */
+.faq__item {
+  margin-bottom: 0.75rem;
+}
+
+.faq__question {
+  cursor: pointer;
+  font-weight: 600;
+  /* Domyślny trójkąt zostaje – to on mówi czytelnikowi, że pozycja się rozwija. */
+  list-style-position: outside;
+}
+
+.faq__question:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.faq__answer {
+  margin-top: 0.75rem;
+}
+
 /* --- 7b. Wyszukiwarka szkół (rejestracja uczestnika) ---------------------------------------- */
 
 /* Blok jest jednym polem formularza złożonym z czterech kontrolek (patrz
@@ -3816,6 +4432,14 @@ fieldset:disabled .score-option {
   border: 0;
 }
 
+/* Para do sekcji ``@media print``: ``.print-only`` widać wyłącznie na papierze (nagłówek z datą
+   wydruku i adresem strony), ``.no-print`` wyłącznie na ekranie. Bez ``!important`` – element
+   ma być normalnie ukryty, a nie ukryty wbrew regułom układu; ``@media print`` odkrywa go
+   regułą o tej samej swoistości, ale w bloku stojącym niżej. */
+.print-only {
+  display: none;
+}
+
 .stack-gap {
   display: flex;
   flex-direction: column;
@@ -3872,8 +4496,45 @@ fieldset:disabled .score-option {
     column-gap: var(--sp-3);
   }
 
-  .nav__who {
+  /* Adres e-mail skraca się wielokropkiem – pełny jest w ``title`` i w panelu konta. Reguła
+     celuje w ``.account-bar__who``; do v0.16.0 stała tu nieużywana klasa ``.nav__who``, pamiątka
+     po pasku sprzed wydzielenia paska konta (grep po ``templates/`` nie znajdował jej nigdzie),
+     więc e-mail na 360 px rozpychał pasek na trzy wiersze. */
+  .account-bar__who {
     max-width: 12ch;
+  }
+}
+
+/* Ekrany najwęższe z tych, które obsługujemy (iPhone SE i podobne: 360 px CSS). Nie ma tu nowego
+   układu – są trzy zabezpieczenia przed poziomym suwakiem na **całej** stronie. Poziomo przewija
+   się w tym serwisie wyłącznie to, co ma własną ramkę: tabela w ``.scroll``, pas zakładek,
+   nawigacja panelu. */
+@media (max-width: 400px) {
+  .page {
+    padding-left: var(--sp-2);
+    padding-right: var(--sp-2);
+  }
+
+  /* Przyciski w rzędzie akcji rozkładają się na całą szerokość, zamiast zostawiać sierotę
+     w drugim wierszu. */
+  .actions > .btn {
+    flex: 1 1 auto;
+  }
+
+  /* Długi kod, adres lub nazwa pliku w treści karty łamie się zamiast rozpychać kartę. */
+  .card,
+  .empty,
+  .notice,
+  .msg {
+    overflow-wrap: anywhere;
+  }
+
+  .kpi {
+    grid-template-columns: 1fr;
+  }
+
+  .account-bar {
+    gap: var(--sp-1) var(--sp-2);
   }
 }
 
@@ -3907,6 +4568,14 @@ fieldset:disabled .score-option {
   .actions,
   .hero__actions,
   .doc-print,
+  /* Elementy sterujące paneli. Na papierze filtr, zakładka i pasek zaznaczenia są kłamstwem:
+     wyglądają jak treść, a nic nie robią – a pas zakładek dodatkowo sugeruje, że wydruk zawiera
+     wszystkie widoki, podczas gdy zawiera jeden. */
+  .chips,
+  .tabs,
+  .panel__nav,
+  .bulk-bar,
+  .no-print,
   [data-print] {
     display: none !important;
   }
@@ -3946,6 +4615,125 @@ fieldset:disabled .score-option {
     content: " (" attr(href) ")";
     font-size: 0.85em;
     word-break: break-all;
+  }
+
+  /* --- Tabela wyników na papierze -------------------------------------------------------------
+   * Tabela wyników etapu jest drukowana i wieszana w szkole – to jest jej normalne życie, a nie
+   * przypadek. Na ekranie mieszka w ``.scroll`` z przyklejonym nagłówkiem; na papierze jedno
+   * i drugie szkodzi: ramka przewijalna obcina wiersze na krawędzi kartki, a ``position: sticky``
+   * wyrzuca nagłówek na pierwszą stronę i zostawia kolejne bez opisu kolumn. */
+  .scroll,
+  .scroll--tall,
+  .table-scroll {
+    overflow: visible !important;
+    max-height: none !important;
+    border: 0;
+  }
+
+  .table,
+  .grid {
+    border-color: #000;
+    font-size: 0.8125rem;
+  }
+
+  /* Nagłówek powtarza się na każdej kartce – bez tego druga strona rankingu to kolumna liczb
+     bez wyjaśnienia, czego dotyczą. */
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+  tr {
+    break-inside: avoid;
+  }
+
+  .table th,
+  .grid th {
+    position: static;
+    background: transparent;
+    border-bottom: 2px solid #000;
+    color: #000;
+  }
+
+  .table td,
+  .grid td {
+    border-bottom: 1px solid #999;
+    color: #000;
+  }
+
+  /* Zebra i podświetlenie wiersza są sygnałem ekranowym. Na papierze zżerają toner, a na wydruku
+     czarno-białym zamieniają się w szarą kratę, przez którą gorzej widać liczby. */
+  .table tbody tr:nth-child(even),
+  .grid tbody tr:nth-child(even),
+  .table tr.is-qualified,
+  .table tbody tr:hover {
+    background: transparent !important;
+  }
+
+  /* Wiersz zakwalifikowany traci tło, więc musi odzyskać znaczenie kształtem: gruba kreska przy
+     lewej krawędzi i pogrubienie. Kolor nigdy nie jest jedynym nośnikiem – także na papierze. */
+  .table tr.is-qualified td,
+  .table tr.is-qualified th {
+    font-weight: 700;
+  }
+
+  .table tr.is-qualified td:first-child {
+    border-left: 3px solid #000;
+  }
+
+  /* Odznaka drukuje się jako ramka z tekstem: tła drukarka i tak zgubi albo zamaże, a słowo
+     („zakwalifikowany”, „trening”) niesie całą informację. */
+  .badge,
+  .tag,
+  .chip--static {
+    background: transparent !important;
+    color: #000 !important;
+    border: 1px solid #000 !important;
+  }
+
+  .badge::before {
+    display: none;
+  }
+
+  /* --- Weryfikacja dokumentu ------------------------------------------------------------------
+   * Wydruk potwierdzenia bywa załącznikiem do papierowej teczki, więc metryka ma być listą
+   * „termin: wartość”, a nie siatką, która na kartce rozjedzie się na dwie kolumny. */
+  .meta-list,
+  .definitions {
+    display: block;
+  }
+
+  .meta-list dt,
+  .definitions dt {
+    font-weight: 700;
+    margin-top: var(--sp-2);
+  }
+
+  .meta-list dd,
+  .definitions dd {
+    margin: 0 0 var(--sp-1);
+  }
+
+  .card,
+  .section,
+  .empty {
+    border: 1px solid #000;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  .page-head {
+    border-bottom: 2px solid #000;
+    margin-bottom: var(--sp-4);
+  }
+
+  /* Element, który **istnieje tylko na papierze**: nagłówek z adresem strony i datą wydruku.
+     Na ekranie byłby szumem, na kartce jest jedyną informacją o tym, skąd ta kartka pochodzi. */
+  .print-only {
+    display: block !important;
   }
 }
 
@@ -4492,3 +5280,81 @@ img.captcha {
 /* Obrazki i wykresy zostają bez zmian – ale słupki statystyk i pasek postępu biorą kolor z tokenów,
    więc w tym trybie stają się białe na czarnym torze z białą ramką. To jest zamierzone: wykres
    ma pokazywać proporcję, a liczba stoi obok niego i to ona jest odpowiedzią. */
+
+/* --- komponenty paneli w trybie wysokiego kontrastu ------------------------------------------
+ *
+ * Komponenty z sekcji 6.12–6.17 biorą kolory z tokenów, więc kolorystycznie są tu obsłużone same
+ * z siebie. Zostaje to, czego token nie załatwia: **stan wybrany**. Czip, zakładka i pozycja
+ * nawigacji panelu rozróżniają się na ekranie tłem i odcieniem – po sprowadzeniu palety do czerni
+ * i bieli oba stany stałyby się identyczne. W tym trybie różnicę niesie więc kształt: odwrócenie
+ * (żółte tło, czarne pismo) i grubsza krawędź. Ta sama zasada, co w całym serwisie: kolor jest
+ * wzmocnieniem, nie komunikatem.
+ */
+:root[data-contrast="high"] :where(.chip, .tab, .panel__nav-link, .details, .bulk-bar, .kpi__item) {
+  border: 2px solid currentColor;
+  background: #000;
+  color: #fff;
+  box-shadow: none;
+}
+
+/* Stan wybrany = odwrócenie kontrastu. Jest to jedyny sposób odróżnienia dwóch czipów, który
+   przetrwa monochromatyczny ekran i ustawienie „odwróć kolory” w systemie. */
+:root[data-contrast="high"] :where(.chip[aria-current], .chip[aria-pressed="true"],
+.panel__nav-link[aria-current]) {
+  background: #ffe500;
+  color: #000;
+  border-color: #ffe500;
+  box-shadow: none;
+}
+
+:root[data-contrast="high"] :where(.chip[aria-current], .chip[aria-pressed="true"]) .chip__count,
+:root[data-contrast="high"] .panel__nav-link[aria-current] .panel__nav-count {
+  background: #000;
+  color: #ffe500;
+}
+
+/* Zakładka aktywna: gruba żółta kreska pod spodem zamiast subtelnego akcentu, plus żółte pismo.
+   Sama kreska 3 px na czerni bywa zjadana przez skalowanie ekranu, stąd oba sygnały naraz. */
+:root[data-contrast="high"] :where(.tab--active, .tab[aria-current], .tab[aria-selected="true"]) {
+  color: #ffe500;
+  border-bottom: 4px solid #ffe500;
+}
+
+/* Liczba KPI jest w tym trybie żółta, bo to jedyna treść kafelka, którą czyta się z odległości;
+   etykieta zostaje biała, żeby żółć nie straciła roli „tu patrz”. */
+:root[data-contrast="high"] .kpi__value {
+  color: #ffe500;
+}
+
+:root[data-contrast="high"] .kpi__label,
+:root[data-contrast="high"] .kpi__hint {
+  color: #fff;
+}
+
+/* Pusty stan i błąd pola: kreska przerywana i cienki pasek boczny giną na czerni, więc jedno
+   i drugie dostaje pełną ramkę. Błąd zostaje żółty – to ostrzeżenie, a nie treść. */
+:root[data-contrast="high"] .empty {
+  border-style: solid;
+}
+
+:root[data-contrast="high"] .field__error {
+  border: 2px solid #ffe500;
+  border-radius: var(--radius-sm);
+  background: #000;
+  color: #ffe500;
+}
+
+/* Pole odrzucone przez walidację: obrys 2 px w żółci zamiast czerwonawego tła, którego w tej
+   palecie nie ma. ``:where`` trzyma swoistość na zerze, żeby reguła ``:disabled`` nadal wygrała. */
+:root[data-contrast="high"] :where(input, select, textarea)[aria-invalid="true"] {
+  border: 2px solid #ffe500;
+  background: #000;
+  color: #fff;
+}
+
+/* Znacznik rozwinięcia ``<details>`` rysują dwie krawędzie ``currentColor`` – w tym trybie
+   dziedziczą biel z nagłówka, więc wystarczy zadbać, żeby nagłówek nie miał własnego tła. */
+:root[data-contrast="high"] .details__summary:hover {
+  background: #000;
+  text-decoration: underline;
+}

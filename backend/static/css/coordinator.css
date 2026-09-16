@@ -1,0 +1,400 @@
+/* Panel koordynatora: menu boczne, kafelki „co wymaga uwagi”, karty etapów, wyniki wyszukiwania.
+
+   Arkusz dokłada się do app.css i **niczego w nim nie nadpisuje** poza szerokością kolumny
+   treści: panel z menu bocznym nie mieści się w 1100 px serwisu informacyjnego. Kolory biorą
+   role z tokenów (``--surface``, ``--line``, ``--accent``…), więc tryb ciemny i tryb wysokiego
+   kontrastu działają tu bez ani jednej dodatkowej reguły.
+
+   Zero JavaScriptu: rozwijane menu na wąskim ekranie i sekcje „Więcej” na kartach etapów są
+   elementami ``<details>``. Polityka CSP nie dopuszcza skryptów inline, a panel ma działać
+   także wtedy, gdy skrypty się nie wczytały.
+   ------------------------------------------------------------------------------------------- */
+
+/* Szerokość panelu. ``.page`` centruje kolumnę 1100 px; panel wychodzi poza nią symetrycznie,
+   bo menu zjadłoby jedną czwartą miejsca przeznaczonego na tabele z przydziałami. */
+.panel--coordinator {
+  --panel-width: min(100vw - 2rem, 1440px);
+}
+
+@media (min-width: 900px) {
+  .panel--coordinator {
+    display: grid;
+    grid-template-columns: 16.5rem minmax(0, 1fr);
+    gap: var(--sp-8);
+    align-items: start;
+    width: var(--panel-width);
+    margin-left: calc(50% - var(--panel-width) / 2);
+  }
+
+  /* Menu jedzie z treścią do momentu, w którym mieści się na ekranie, a potem stoi. Własny
+     pasek przewijania, bo przy trzech etapach lista pozycji bywa dłuższa niż okno. */
+  .panel__nav {
+    position: sticky;
+    top: var(--sp-4);
+    max-height: calc(100vh - var(--sp-8));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+.panel__main {
+  min-width: 0;
+}
+
+/* Pusty blok akcji nie ma zostawiać po sobie odstępu: nie każdy ekran panelu ma akcję główną. */
+.panel__main .page-head .actions:empty {
+  display: none;
+}
+
+/* ---------------------------------------------------------------------------- MENU BOCZNE -- */
+
+.panel-nav {
+  margin: 0 0 var(--sp-6);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.panel-nav__summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.panel-nav__summary::-webkit-details-marker {
+  display: none;
+}
+
+.panel-nav__summary::marker {
+  content: "";
+}
+
+.panel-nav__summary::after {
+  content: "";
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-bottom: 0.2rem;
+  border-right: 2px solid currentcolor;
+  border-bottom: 2px solid currentcolor;
+  transform: rotate(45deg);
+}
+
+.panel-nav[open] > .panel-nav__summary::after {
+  margin-top: 0.2rem;
+  margin-bottom: 0;
+  transform: rotate(-135deg);
+}
+
+.panel-nav__body {
+  padding: var(--sp-3) 0 var(--sp-4);
+  border-top: 1px solid var(--line);
+}
+
+.panel-nav__search {
+  display: flex;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-3) var(--sp-3);
+}
+
+.panel-nav__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--sp-2);
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--ink);
+  background: var(--surface-inset);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+}
+
+.panel-nav__go {
+  flex: 0 0 auto;
+}
+
+.panel-nav__group + .panel-nav__group {
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+}
+
+.panel-nav__heading {
+  margin: 0 0 var(--sp-1);
+  padding: 0 var(--sp-4);
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.panel-nav__list,
+.panel-nav__sublist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.panel-nav__link,
+.panel-nav__sublink {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+  text-decoration: none;
+  /* Kreska po lewej jest miejscem na znacznik pozycji aktywnej – rezerwujemy ją zawsze,
+     żeby podświetlenie nie przesuwało tekstu o dwa piksele. */
+  border-left: 3px solid transparent;
+}
+
+.panel-nav__link:hover,
+.panel-nav__sublink:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.panel-nav__link--active,
+.panel-nav__sublink--active {
+  color: var(--ink);
+  font-weight: 600;
+  background: var(--brand-soft);
+  border-left-color: var(--accent);
+}
+
+.panel-nav__sublist {
+  margin-bottom: var(--sp-2);
+}
+
+.panel-nav__sublink {
+  padding-left: calc(var(--sp-4) + var(--sp-4));
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.panel-nav__badge {
+  flex: 0 0 auto;
+  min-width: 1.5rem;
+  padding: 0 var(--sp-1);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.5rem;
+  text-align: center;
+  color: #fff;
+  background: var(--accent);
+  border-radius: 999px;
+}
+
+/* Poniżej 900 px menu jest rozwijanym „Menu panelu” na górze strony; od 900 px – stałą kolumną.
+   Otwarcie bez atrybutu ``open`` wymaga dwóch reguł, bo silniki chowają zawartość zamkniętego
+   ``<details>`` na dwa sposoby: starsze ``display: none`` na zawartości, nowsze
+   ``content-visibility`` na pseudoelemencie ``::details-content``. Ta sama para stoi w app.css
+   przy rozwijanym „Dokumenty” w nagłówku serwisu. */
+@media (min-width: 900px) {
+  .panel-nav > .panel-nav__summary {
+    display: none;
+  }
+
+  .panel-nav > .panel-nav__body {
+    display: block;
+    border-top: 0;
+  }
+
+  .panel-nav::details-content {
+    content-visibility: visible;
+    block-size: auto;
+  }
+}
+
+/* ------------------------------------------------------------------ CO WYMAGA UWAGI (PULPIT) */
+
+/* Kafelki spraw czekających na koordynatora. Każdy jest odnośnikiem w całości: jedyne, co się
+   z taką liczbą robi, to przejście do kolejki – osobny przycisk obok byłby tym samym
+   kliknięciem drugi raz. */
+.attention {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--sp-3);
+  margin: 0 0 var(--sp-8);
+  padding: 0;
+  list-style: none;
+}
+
+.attention__item {
+  margin: 0;
+}
+
+.attention__link {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  height: 100%;
+  padding: var(--sp-4);
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.attention__link:hover {
+  border-color: var(--brand);
+  border-left-color: var(--accent);
+  text-decoration: none;
+}
+
+/* Kafelek z niezerową liczbą jest jedyną rzeczą, która ma na tym ekranie krzyczeć. */
+.attention__item--due .attention__link {
+  border-left-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.attention__value {
+  font-family: var(--font-serif);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.attention__label {
+  font-weight: 600;
+}
+
+.attention__hint {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+/* ----------------------------------------------------------------------- SZYBKIE SKRÓTY ---- */
+
+.shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shortcuts li {
+  margin: 0;
+}
+
+/* ------------------------------------------------------------------------- KARTY ETAPÓW ---- */
+
+.stage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  gap: var(--sp-4);
+}
+
+.stage-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.stage-card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin: 0;
+}
+
+.stage-card__title {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.stage-card__title a {
+  color: inherit;
+}
+
+.stage-card__facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--sp-1) var(--sp-3);
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.stage-card__facts dt {
+  color: var(--muted);
+}
+
+.stage-card__facts dd {
+  margin: 0;
+}
+
+.stage-card__primary {
+  margin: 0;
+}
+
+.stage-card__more > summary {
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--link);
+}
+
+.stage-card__more[open] > summary {
+  margin-bottom: var(--sp-2);
+}
+
+.stage-card__more .stage-panel__links,
+.stage-card__more .stage-panel__actions {
+  margin-top: var(--sp-2);
+}
+
+/* ------------------------------------------------------------------------- WYSZUKIWARKA ---- */
+
+.search-group + .search-group {
+  margin-top: var(--sp-8);
+}
+
+.search-group__count {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.search-hit__meta {
+  display: block;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+/* Jednolita „pusta tabela”: wiersz z wyjaśnieniem, a nie znikająca sekcja – ekran ma powiedzieć,
+   czego na nim nie ma i dlaczego. */
+.table td.empty,
+.panel__main .empty {
+  color: var(--muted);
+}
+
+@media print {
+  .panel__nav {
+    display: none;
+  }
+
+  .panel--coordinator {
+    display: block;
+    width: auto;
+    margin-left: 0;
+  }
+}

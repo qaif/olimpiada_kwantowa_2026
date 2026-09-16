@@ -1,43 +1,66 @@
+{% load i18n %}
 {% comment %}
   Rubryka oceniania jednej pracy: po jednym polu punktów i jednym komentarzu na kryterium zadania.
 
-  Sumy **nie liczymy w przeglądarce**: policzy ją serwer (``grading.rubric``), a wynik musi trafić
-  w skalę zadania. Licznik w JavaScripcie byłby drugą implementacją tej samej reguły – i tą, której
-  nikt nie testuje. Zamiast tego pod spodem stoi lista dopuszczalnych sum: recenzent widzi, w co
-  ma trafić, zanim wyśle.
+  Sumę **rozstrzyga serwer** (``grading.rubric``) i to się nie zmieniło: zapis, który nie trafi
+  w skalę zadania, zostaje odrzucony niezależnie od tego, co pokazała przeglądarka. Licznik pod
+  kryteriami jest wyłącznie podglądem – mówi „masz 5 pkt, to wartość ze skali” albo „masz 4 pkt,
+  takiej oceny nie ma”, zanim recenzent wyśle formularz i wróci na tę samą stronę z komunikatem
+  o błędzie. Dlatego stoi tu ``aria-live``, a nie ukryta walidacja: wynik ma być widoczny, a nie
+  blokować przycisk.
+
+  Bez JavaScriptu licznik po prostu nie liczy, a lista dopuszczalnych sum stoi w zdaniu nad
+  kryteriami tak, jak stała dotąd.
 
   Nazwy pól (``rubric-<id>-points``) czyta ``apps.grading.rubric.rubric_from_post``.
 {% endcomment %}
-<div class="rubric">
-  <h3>Rubryka oceniania</h3>
-  <p class="hint">Punkty przyznajesz kryterium po kryterium. Ocenę pracy wylicza system jako sumę –
-    musi ona należeć do skali tego zadania{% if scale_options %}:
+<div class="rubric" data-rubric
+     data-rubric-scale="{% for option in scale_options %}{{ option.value }}{% if not forloop.last %},{% endif %}{% endfor %}">
+  <h3>{% translate "Rubryka oceniania" %}</h3>
+  <p class="hint">{% translate "Punkty przyznajesz kryterium po kryterium. Ocenę pracy wylicza system jako sumę – musi ona należeć do skali tego zadania" %}{% if scale_options %}:
     {% for option in scale_options %}{{ option.value }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}.
-    Jeżeli suma wypadnie poza skalę, zapis się nie uda i poprawisz punkty przy kryteriach.</p>
+    {% translate "Jeżeli suma wypadnie poza skalę, zapis się nie uda i poprawisz punkty przy kryteriach." %}</p>
 
   {% for row in rubric_rows %}
     <fieldset class="rubric__item">
-      <legend>{{ row.criterion.title }} <span class="hint">(0–{{ row.criterion.max_points }} pkt)</span></legend>
+      <legend>{{ row.criterion.title }}
+        <span class="hint">{% blocktranslate trimmed with max=row.criterion.max_points %}
+          (0–{{ max }} pkt)
+        {% endblocktranslate %}</span></legend>
       {% if row.criterion.description %}<p class="hint">{{ row.criterion.description }}</p>{% endif %}
       <p class="field">
-        <label for="id_rubric_{{ row.criterion.pk }}_points">Punkty</label>
+        <label for="id_rubric_{{ row.criterion.pk }}_points">{% translate "Punkty" %}</label>
         <input type="number"
                id="id_rubric_{{ row.criterion.pk }}_points"
                name="rubric-{{ row.criterion.pk }}-points"
                min="0"
                max="{{ row.criterion.max_points }}"
                step="1"
+               data-rubric-points
                value="{% if row.points is not None %}{{ row.points }}{% endif %}">
       </p>
       <p class="field">
-        <label for="id_rubric_{{ row.criterion.pk }}_comment">Komentarz do kryterium</label>
+        <label for="id_rubric_{{ row.criterion.pk }}_comment">{% translate "Komentarz do kryterium" %}</label>
         <textarea id="id_rubric_{{ row.criterion.pk }}_comment"
                   name="rubric-{{ row.criterion.pk }}-comment"
                   rows="2">{{ row.comment }}</textarea>
+        <span class="helptext">{% translate "Uzasadnienie dla komitetu i dla Ciebie przy poprawianiu oceny – uczestnik widzi wyłącznie komentarz z pola poniżej." %}</span>
       </p>
     </fieldset>
   {% endfor %}
 
-  <p class="hint">Zapisana ocena tej recenzji:
-    <strong>{% if review.score is not None %}{{ review.score }} pkt{% else %}jeszcze nie wystawiona{% endif %}</strong>.</p>
+  {% comment %}
+    Licznik wypełnia ``static/js/reviewer-layout.js``. Bez skryptu zostaje myślnik, czyli to samo,
+    co widać przed wpisaniem pierwszej liczby – nic nie obiecuje i niczego nie udaje.
+  {% endcomment %}
+  <p class="rubric__total" data-rubric-total-line role="status" aria-live="polite">
+    {% translate "Suma z kryteriów:" %}
+    <strong data-rubric-total>—</strong>
+    <span class="hint" data-rubric-verdict></span>
+  </p>
+
+  <p class="hint">{% translate "Zapisana ocena tej recenzji:" %}
+    <strong>{% if review.score is not None %}{% blocktranslate trimmed with score=review.score %}
+      {{ score }} pkt
+    {% endblocktranslate %}{% else %}{% translate "jeszcze nie wystawiona" %}{% endif %}</strong>.</p>
 </div>

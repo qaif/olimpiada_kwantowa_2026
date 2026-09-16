@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "web/coordinator/base.html" %}
 {% load static %}
 {% comment %}
   Spis eksportów. Strona jest wyłącznie listą odnośników – plik buduje dopiero widok pobrania,
@@ -9,14 +9,13 @@
   wyłącznie wpis w audycie (``export.generated``) z rodzajem eksportu i liczbą wierszy.
 {% endcomment %}
 {% block title %}Eksport danych – panel koordynatora{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
-{% block content %}
-<div class="page-head">
-  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
-  <h1>Eksport danych</h1>
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block panel_title %}Eksport danych{% endblock %}
+{% block panel_lead %}
   <p class="lead">Arkusze z danymi edycji. Każde pobranie zostaje w audycie razem z liczbą
     wierszy – plik z danymi osobowymi nie może wyjść z systemu bez śladu.</p>
-</div>
+{% endblock %}
+{% block panel_content %}
 
 {% if not edition %}
   <p class="empty"><span class="empty__title">Brak bieżącej edycji</span>

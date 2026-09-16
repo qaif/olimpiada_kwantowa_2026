@@ -1,0 +1,110 @@
+"""Komisja w panelu koordynatora: lista członków i karta jednej osoby.
+
+Dwa ekrany **wyłącznie do odczytu**: wszystko, co da się tu zrobić, idzie przez adresy akcji,
+które już istnieją (zatwierdzenie, województwo, odebranie recenzji, korekta punktów, przydział,
+reguły, przypomnienie). Karta nie ma ani jednej własnej reguły domenowej – zbiera dane
+(``apps.accounts.member_card``) i stawia obok nich formularze cudzych, sprawdzonych endpointów.
+
+Dlaczego to nie jest ten sam ekran, co „Komitet” w menu: tamten jest kolejką spraw do załatwienia
+(zaproszenia, wnioski o zatwierdzenie), a ten – spisem ludzi, którzy już pracują. Zaproszeń tu
+świadomie nie ma, żeby nie było dwóch miejsc, w których wysyła się kod.
+"""
+
+from __future__ import annotations
+
+from django.shortcuts import get_object_or_404
+from django.views.generic import TemplateView
+
+from apps.accounts.member_card import member_card, member_list_rows
+from apps.accounts.models import CommitteeMember, CommitteeStatus
+from apps.competitions.services import current_edition
+from apps.grading.models import ReviewStatus
+from apps.web.forms import VOIVODESHIP_CHOICES
+from apps.web.mixins import CoordinatorRequiredMixin
+
+MEMBERS_TEMPLATE = "web/coordinator/members.html"
+MEMBER_DETAIL_TEMPLATE = "web/coordinator/member_detail.html"
+
+
+class CommitteeMembersView(CoordinatorRequiredMixin, TemplateView):
+    """``/coordinator/members/`` – wszyscy członkowie komisji z obciążeniem i stanem konta.
+
+    Filtry jadą w adresie (GET), a nie w sesji: zawężona lista („zawieszeni”, „etap finału”) ma dać
+    się odświeżyć, wysłać odnośnikiem do reszty komitetu i wrócić do niej przyciskiem „wstecz”.
+
+    Stronicowania tu nie ma świadomie. Komisja olimpiady liczy kilkadziesiąt osób i cała mieści się
+    na jednej stronie; podział na strony kosztowałby możliwość przejrzenia obciążenia jednym rzutem
+    oka, czyli dokładnie to, po co ten ekran istnieje.
+    """
+
+    template_name = MEMBERS_TEMPLATE
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        params = self.request.GET
+        status = params.get("status", "")
+        if status not in dict(CommitteeStatus.choices):
+            # Nieznana wartość znaczy „bez filtra”, a nie 404: parametr pochodzi z adresu, który
+            # ktoś mógł skrócić ręcznie, a lista bez zawężenia jest poprawną odpowiedzią.
+            status = ""
+        edition = current_edition()
+        stages = list(edition.stages.order_by("opens_at", "id")) if edition else []
+        stage_id = _int_or_none(params.get("stage"))
+        if stage_id is not None and stage_id not in {stage.pk for stage in stages}:
+            stage_id = None
+        context.update(
+            {
+                "rows": member_list_rows(status=status, stage_id=stage_id),
+                "status": status,
+                "status_choices": CommitteeStatus.choices,
+                "stages": stages,
+                "stage_id": stage_id,
+                "edition": edition,
+            }
+        )
+        return context
+
+
+class CommitteeMemberCardView(CoordinatorRequiredMixin, TemplateView):
+    """``/coordinator/members/<pk>/`` – karta jednego członka komisji.
+
+    Wszystko o tej osobie i wszystko, co wolno z nią zrobić, na jednej stronie: dane konta,
+    obciążenie w rozbiciu na etapy, tabela recenzji z korektą punktów i odebraniem pracy, przydział
+    nowej pracy, reguły zadań, kalibracja, zgłoszenia i ślad audytowy.
+    """
+
+    template_name = MEMBER_DETAIL_TEMPLATE
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        member = get_object_or_404(
+            CommitteeMember.objects.select_related("user", "approved_by"), pk=self.kwargs["pk"]
+        )
+        context.update(member_card(member))
+        context.update(
+            {
+                "voivodeship_choices": VOIVODESHIP_CHOICES,
+                "pending_status": CommitteeStatus.PENDING,
+                # Odebrać wolno recenzję w każdym stanie poza anulowaną – także wystawioną.
+                # Czy w tej konkretnej sprawie wolno (ogłoszone wyniki, ocena rozstrzygnięta przez
+                # człowieka), rozstrzyga serwis: karta nie powiela reguły, tylko nie chowa przycisku.
+                "withdrawable_statuses": (
+                    ReviewStatus.ASSIGNED,
+                    ReviewStatus.DRAFT,
+                    ReviewStatus.SUBMITTED,
+                ),
+                # Telefonu członek komisji w modelu nie ma (ma go uczestnik i opiekun szkolny),
+                # ale karta czyta pole przez ``getattr``: gdy pojawi się, sekcja „Dane” pokaże je
+                # bez zmiany szablonu, a dopóki go nie ma – po prostu nie stoi tam pusta rubryka.
+                "phone": getattr(member, "phone", "") or getattr(member.user, "phone", ""),
+            }
+        )
+        return context
+
+
+def _int_or_none(raw) -> int | None:
+    """Parametr zapytania jako liczba albo ``None``. Śmieci w adresie nie są błędem użytkownika."""
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None

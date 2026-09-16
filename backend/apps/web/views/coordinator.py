@@ -10,11 +10,14 @@ wyłącznie sha256, więc odtworzenie go nie jest możliwe (``accounts.services.
 
 from __future__ import annotations
 
+from collections import Counter
 from datetime import timedelta
+from urllib.parse import urlencode, urlsplit, urlunsplit
 
 from django.contrib import messages
-from django.db.models import Count
-from django.http import FileResponse
+from django.core.paginator import Paginator
+from django.db.models import Count, Q
+from django.http import FileResponse, QueryDict
 from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
 from django.urls import reverse, reverse_lazy
@@ -22,14 +25,12 @@ from django.utils import timezone
 from django.views.generic import TemplateView, View
 
 from apps.accounts.activation import (
-    ACTIVATION_HOURS,
     ACTIVATION_MAX_AGE,
     mark_activated,
     resend_activation,
 )
 from apps.accounts.models import (
     CommitteeMember,
-    CommitteeStatus,
     InvitationCode,
     InvitationGrantsStatus,
     User,
@@ -45,15 +46,15 @@ from apps.accounts.services import (
 from apps.competitions.models import Problem, Stage
 from apps.competitions.services import current_edition, missing_stage_kinds
 from apps.core.api import DomainError
-from apps.grading.comparison import notes_by_submission
+from apps.core.models import AuditLog
 from apps.grading.models import ProblemReviewerRule, Review, ReviewStatus
 from apps.grading.services import (
+    ASSIGNMENT_STATUS_FILTERS,
     add_problem_reviewer_rule,
     allowed_scores,
     assign_reviewer_to_submission,
     assign_reviewers,
     assign_third_reviewer,
-    moderation_queue,
     override_final_grade,
     remove_problem_reviewer_rule,
     resolve_moderation,
@@ -74,7 +75,6 @@ from apps.submissions.services import (
     stage_zip_filename,
 )
 from apps.web.forms import (
-    VOIVODESHIP_CHOICES,
     AssignReviewersForm,
     AssignThirdReviewerForm,
     BulkInvitationForm,
@@ -92,37 +92,17 @@ from apps.web.templatetags.web_extras import LOCAL_TIME_LABEL, local_time
 DASHBOARD_URL = reverse_lazy("web:coordinator")
 
 
-def _counters(stages: list[Stage], moderation: list, pending_members: list) -> dict:
-    """Liczniki na kafelki KPI. Wyłącznie prezentacja – żadnej reguły domenowej.
-
-    Import modeli jest lokalny z tego samego powodu, co w akcjach niżej: moduł widoków ładuje się
-    przy starcie urlconfa, a ``apps.submissions``/``apps.grading`` zaciągają wtedy własne serwisy.
-    """
-    from apps.appeals.models import Appeal, AppealStatus
-    from apps.grading.issues import open_issue_count
-    from apps.submissions.models import Submission
-
-    stage_ids = [stage.pk for stage in stages]
-    return {
-        "submissions": Submission.objects.filter(entry__stage_id__in=stage_ids).count(),
-        "pending_reviews": Review.objects.filter(
-            submission__entry__stage_id__in=stage_ids,
-            status__in=(ReviewStatus.ASSIGNED, ReviewStatus.DRAFT),
-        ).count(),
-        "moderation": len(moderation),
-        "open_appeals": Appeal.objects.filter(
-            submission__entry__stage_id__in=stage_ids, status=AppealStatus.OPEN
-        ).count(),
-        "pending_members": len(pending_members),
-        # Zgłoszenia recenzentów („z tą pracą jest coś nie tak”). Zakres to etapy bieżącej edycji,
-        # bo taki jest zakres ekranu, na który prowadzi kafelek – licznik obejmujący zeszłoroczne
-        # sprawy wskazywałby liczbę, której po kliknięciu nie widać.
-        "open_issues": open_issue_count(stage_ids),
-    }
-
-
 def dashboard_context(extra: dict | None = None) -> dict:
-    """Wspólny kontekst pulpitu – używany też po przeliczeniu wyników, żeby pokazać podgląd."""
+    """Kontekst pulpitu: „co wymaga uwagi” plus karty etapów.
+
+    Pulpit odpowiada dziś na **jedno** pytanie – czym trzeba się zająć – i pokazuje kalendarz
+    edycji. Kolejki (moderacja, aktywacje, komitet, zaproszenia, podgląd wyników) mają własne
+    adresy w ``coordinator_pages.py``; tutaj zostaje z nich sama liczba na kafelku. Dzięki temu
+    wejście na pulpit kosztuje kilkanaście zapytań, a nie kilkadziesiąt, i da się z niego
+    cokolwiek wyczytać bez przewijania.
+    """
+    from apps.web.views.coordinator_pages import attention_rows
+
     edition = current_edition()
     # ``Count`` w zapytaniu, a nie ``stage.problems.count()`` w szablonie: liczniki zadań i terminów
     # rozmów stoją na każdej karcie etapu, więc pętla w szablonie kosztowałaby zapytanie na etap.
@@ -133,12 +113,6 @@ def dashboard_context(extra: dict | None = None) -> dict:
     )
     stages = list(stage_qs.order_by("opens_at", "id")) if edition else []
     published = set(ResultsPublication.objects.filter(stage__in=stages).values_list("stage_id", flat=True))
-    moderation = list(moderation_queue())
-    pending_members = list(
-        CommitteeMember.objects.select_related("user")
-        .filter(status=CommitteeStatus.PENDING)
-        .order_by("created_at", "id")
-    )
     context = {
         "now": timezone.now(),
         "edition": edition,
@@ -156,35 +130,10 @@ def dashboard_context(extra: dict | None = None) -> dict:
         # Przycisk „Dodaj etap” znika, kiedy edycja ma już wszystkie trzy rodzaje: para
         # (edycja, rodzaj) jest unikalna, więc formularz nie miałby czego zaproponować.
         "missing_kinds": missing_stage_kinds(edition) if edition else [],
-        "moderation": moderation,
-        # Notatki recenzentów przy pracach w moderacji – jedno zapytanie na cały ekran
-        # (``grading.comparison.notes_by_submission``). Koordynator czyta tu, czy recenzenci zdążyli
-        # się dogadać, zanim wyznaczy trzeciego albo zwoła posiedzenie.
-        "moderation_notes": notes_by_submission(moderation),
-        "pending_members": pending_members,
-        "counters": _counters(stages, moderation, pending_members),
-        "active_members": list(
-            CommitteeMember.objects.select_related("user")
-            .filter(status=CommitteeStatus.ACTIVE)
-            .order_by("user__email")
-        ),
-        "reviewer_pool": reviewer_pool(),
+        # Kafelki „co wymaga uwagi” – liczby te same, co badge w menu (jedno źródło, jedna minuta
+        # pamięci podręcznej). Kolejki, do których prowadzą, mieszkają w ``coordinator_pages.py``.
+        "attention": attention_rows(),
         "assign_form": AssignReviewersForm(),
-        "resolve_form": ResolveModerationForm(),
-        "assign_third_form": AssignThirdReviewerForm(),
-        "verify_form": VerifyDistrictForm(),
-        # Lista województw dla wbudowanych w tabelę formularzy „Województwa członków komitetu”:
-        # jeden ``<select>`` na wiersz, a wierszy jest tyle, ilu aktywnych członków komitetu.
-        # Pustą pozycję szablon renderuje sam („— brak —”), bo tutaj znaczy ona „usuń”,
-        # a nie „jeszcze nie wybrano”.
-        "voivodeship_choices": VOIVODESHIP_CHOICES,
-        "invitation_form": InvitationForm(),
-        "bulk_invitation_form": BulkInvitationForm(),
-        "sent_invitations": sent_invitation_rows(),
-        "publish_form": PublishResultsForm(),
-        "pending_activation": pending_activation_rows(),
-        "activation_hours": ACTIVATION_HOURS,
-        "preview": None,
     }
     context.update(extra or {})
     return context
@@ -261,10 +210,44 @@ class CoordinatorDashboardView(CoordinatorRequiredMixin, TemplateView):
         return context
 
 
+def panel_referer(request) -> str | None:
+    """Adres, z którego przyszło żądanie – **tylko** gdy jest ekranem panelu koordynatora.
+
+    Czynności koordynatora mają dziś kilka miejsc wywołania: ta sama „Zatwierdź” stoi na ekranie
+    komitetu i na karcie członka komisji, a „Aktywuj ręcznie” – w kolejce aktywacji i na karcie
+    konta. Powrót na sztywno wyznaczony pulpit wyrzucałby człowieka z listy, którą właśnie
+    przechodzi wiersz po wierszu.
+
+    ``Referer`` pochodzi od nadawcy żądania, więc jest sprawdzany jak każde dane wejściowe:
+    musi być adresem **tego** serwera (albo adresem względnym) i zaczynać się od ``/coordinator/``.
+    Schemat i host są odcinane – do przekierowania wraca sama ścieżka z parametrami, żeby nawet
+    poprawny adres nie mógł przemycić innego portu ani poświadczeń w ``user:hasło@``.
+    """
+    raw = (request.META.get("HTTP_REFERER") or "").strip()
+    if not raw:
+        return None
+    parts = urlsplit(raw)
+    if parts.scheme and parts.scheme not in ("http", "https"):
+        return None
+    if parts.netloc and parts.netloc != request.get_host():
+        return None
+    if not parts.path.startswith("/coordinator/"):
+        return None
+    return urlunsplit(("", "", parts.path, parts.query, ""))
+
+
 class CoordinatorActionView(ActionViewMixin, CoordinatorRequiredMixin, View):
-    """Baza akcji koordynatora: POST → serwis → komunikat → powrót na pulpit."""
+    """Baza akcji koordynatora: POST → serwis → komunikat → powrót na stronę, z której przyszła.
+
+    Powrotem jest ekran wywołujący (``panel_referer``), a pulpit – wariantem zapasowym: żądanie
+    bez nagłówka ``Referer`` (formularz wysłany z narzędzia, przeglądarka z wyciętym nagłówkiem)
+    ma dokąd wrócić, a nie kończyć się pustą stroną.
+    """
 
     success_url = DASHBOARD_URL
+
+    def get_success_url(self, *args, **kwargs) -> str:
+        return panel_referer(self.request) or str(self.success_url)
 
 
 class CloseStageView(CoordinatorActionView):
@@ -342,6 +325,148 @@ def _attach_problem_scales(stage: Stage, rows: list[dict], *, fallback: list[int
         row["scale_values"] = scales.get(row["submission"].problem_id, fallback)
 
 
+#: Ile wierszy na stronę ekranu przydziałów. Sto, bo tyle prac komisja przerabia za jednym
+#: posiedzeniem, a każdy wiersz niesie kilka formularzy i rozwijaną historię – tysiąc takich
+#: wierszy to strona, która długo się składa i w której nic się nie znajduje.
+ASSIGNMENTS_PAGE_SIZE = 100
+
+#: Ile wpisów audytu pokazuje „Historia” jednego wiersza. Dwadzieścia wystarcza na całe życie
+#: jednej pracy (blokada, przydziały, oceny, korekty); dłuższa lista przestaje być odpowiedzią
+#: na pytanie „co się z tym stało”, a staje się drugą przeglądarką audytu.
+HISTORY_LIMIT = 20
+
+#: Parametry adresu, które ekran przydziałów uznaje za swoje. Lista jest domknięta, bo to ona
+#: decyduje, co wolno przepisać z powrotem do adresu po akcji POST – przepisywanie dowolnego
+#: ciągu z żądania byłoby otwartą furtką na doklejanie obcych parametrów do przekierowania.
+ASSIGNMENT_FILTER_PARAMS = ("q", "problem", "status", "reviewer", "page")
+
+
+def _int_param(value: str | None) -> int | None:
+    """Parametr adresu jako dodatnia liczba albo ``None`` – literówka w URL-u ma nie wywracać strony."""
+    text = (value or "").strip()
+    return int(text) if text.isdigit() and int(text) > 0 else None
+
+
+def _filter_query(params, *, with_page: bool = False) -> str:
+    """Filtry ekranu przepisane z powrotem do postaci ``a=1&b=2``, z pominięciem obcych kluczy.
+
+    Służy dwóm rzeczom naraz: odnośnikom stronicowania (filtr musi przeżyć „Następna”, więc numer
+    strony jest wtedy doklejany osobno i tu go nie ma) oraz powrotowi po akcji POST, gdzie numer
+    strony jest częścią miejsca, do którego się wraca – koordynator poprawiający punkty na trzeciej
+    stronie ma po zapisie zobaczyć trzecią stronę, a nie pierwszą.
+    """
+    wanted = [
+        (name, (params.get(name) or "").strip())
+        for name in ASSIGNMENT_FILTER_PARAMS
+        if (with_page or name != "page") and (params.get(name) or "").strip()
+    ]
+    return urlencode(wanted)
+
+
+def _stage_counters(stage: Stage) -> list[dict]:
+    """Liczniki kroków obiegu do nagłówka ekranu – jedno zapytanie, bez ładowania wierszy.
+
+    Liczą to samo, co pokazuje tabela: **po jednej, najnowszej wersji** na parę (wpis, zadanie).
+    Zwykłe ``GROUP BY status`` dawałoby liczby większe od listy, bo starsze wersje prac zostają
+    w bazie ze statusem ``SUBMITTED`` – koordynator zobaczyłby „oddane: 40” nad tabelą czterech
+    prac. Wiersze czytamy jako ``values_list``, więc cena to jedno zapytanie po trzech kolumnach.
+
+    Liczniki opisują **cały etap**, a nie wynik filtrów: są punktem odniesienia („z 40 oddanych
+    widzę teraz 12”), a nie podsumowaniem tego, co akurat widać.
+    """
+    from apps.submissions.models import Submission
+
+    tracked = tuple(status for _, statuses in ASSIGNMENT_STATUS_FILTERS.values() for status in statuses)
+    latest: dict[tuple[int, int], str] = {}
+    for entry_id, problem_id, status in (
+        Submission.objects.filter(entry__stage=stage, status__in=tracked)
+        .order_by("entry_id", "problem_id", "-version")
+        .values_list("entry_id", "problem_id", "status")
+    ):
+        latest.setdefault((entry_id, problem_id), status)
+    counts = Counter(latest.values())
+    return [
+        {"key": key, "label": label, "count": sum(counts[status] for status in statuses)}
+        for key, (label, statuses) in ASSIGNMENT_STATUS_FILTERS.items()
+    ]
+
+
+def _counter_links(counters: list[dict], params, *, active: str) -> list[dict]:
+    """Zamienia liczniki w przełączniki filtra statusu – jedno kliknięcie zamiast listy wyboru.
+
+    Licznik i filtr są tą samą informacją widzianą z dwóch stron („jest 12 prac w ocenie” / „pokaż
+    prace w ocenie”), więc rozdzielanie ich na odznakę i osobne pole formularza kazałoby czytać
+    liczbę w jednym miejscu, a klikać w drugim. Kliknięcie licznika **już włączonego** zdejmuje
+    filtr, bo to jedyny naturalny sposób wyjścia z niego bez szukania „Wyczyść”.
+
+    Pozostałe filtry przechodzą do adresu bez zmian: przełączenie statusu nie może po cichu
+    kasować wpisanego przed chwilą nazwiska.
+    """
+    keep = [
+        (name, (params.get(name) or "").strip())
+        for name in ("q", "problem", "reviewer")
+        if (params.get(name) or "").strip()
+    ]
+    for counter in counters:
+        picked = list(keep)
+        if counter["key"] != active:
+            picked.append(("status", counter["key"]))
+        counter["query"] = urlencode(picked)
+        counter["active"] = counter["key"] == active
+    return counters
+
+
+def _attach_history(rows: list[dict]) -> None:
+    """Dokłada do każdego wiersza ślad audytowy pracy **i jej recenzji** – jednym zapytaniem.
+
+    Historia stoi przy wierszu, a nie w osobnej przeglądarce audytu, bo pytanie „dlaczego ta praca
+    ma tyle punktów” pada nad tą właśnie tabelą, a odpowiedź („koordynator odebrał recenzję X,
+    potem wpisał korektę”) jest ciągiem zdarzeń z dwóch typów obiektów naraz.
+
+    Zapytanie jest jedno na całą stronę, a nie jedno na wiersz: przy stu wierszach i dwóch
+    recenzentach na pracę wariant naiwny kosztowałby trzysta zapytań. Wpisy zbieramy po
+    ``(target_type, target_id)`` – klucz jest tekstowy, bo taki jest w ``AuditLog``.
+
+    Audyt z założenia nie zawiera danych osobowych (patrz ``apps.core.models``), więc kto co zrobił,
+    czytamy z ``actor`` – jedynej osoby, którą wpis nazywa.
+    """
+    if not rows:
+        return
+    owners: dict[tuple[str, str], int] = {}
+    for row in rows:
+        submission_id = row["submission"].pk
+        owners[("submissions.submission", str(submission_id))] = submission_id
+        for review in row["reviews"]:
+            owners[("grading.review", str(review.pk))] = submission_id
+        row["history"] = []
+    entries = (
+        AuditLog.objects.filter(
+            Q(
+                target_type="submissions.submission",
+                target_id__in=[key[1] for key in owners if key[0] == "submissions.submission"],
+            )
+            | Q(
+                target_type="grading.review",
+                target_id__in=[key[1] for key in owners if key[0] == "grading.review"],
+            )
+        )
+        .select_related("actor")
+        .order_by("-at", "-id")
+    )
+    by_submission: dict[int, list[AuditLog]] = {}
+    for entry in entries:
+        owner = owners.get((entry.target_type, entry.target_id))
+        if owner is None:
+            continue
+        bucket = by_submission.setdefault(owner, [])
+        # Ucinamy przy zbieraniu, a nie po: wpisy idą od najnowszego, więc dwudziesty pierwszy
+        # i każdy następny jest z definicji starszy niż to, co i tak już mamy.
+        if len(bucket) < HISTORY_LIMIT:
+            bucket.append(entry)
+    for row in rows:
+        row["history"] = by_submission.get(row["submission"].pk, [])
+
+
 class StageDownloadView(CoordinatorRequiredMixin, View):
     """``GET|POST /coordinator/stages/<id>/download/`` – prace etapu w jednym archiwum ZIP.
 
@@ -408,8 +533,11 @@ class StageAssignmentsView(CoordinatorRequiredMixin, TemplateView):
     skali i tak zostałaby odrzucona przez serwis, a lista wyboru mówi koordynatorowi wprost, czym
     dysponuje. Etap bez skali nie przewraca ekranu – formularze ocen po prostu na nim nie stoją.
 
-    Strona jest w całości renderowana po stronie serwera – przy skali zawodów treningowych lista
-    prac etapu mieści się na jednym ekranie, a stronicowanie byłoby kosztem bez pożytku.
+    Strona jest w całości renderowana po stronie serwera, a zmiany idą zwykłymi POST-ami: skrypt
+    (``assignments.js``) dokłada wyłącznie skróty (pasek akcji zbiorczych, wysyłka listy wyboru bez
+    klikania „Przydziel”), więc ekran działa w całości bez JavaScriptu. Wierszy jest po sto na
+    stronę – filtry i strony przenoszą się przez adres, więc przefiltrowaną tabelę da się wysłać
+    komuś odnośnikiem.
     """
 
     template_name = "web/coordinator/assignments.html"
@@ -417,7 +545,13 @@ class StageAssignmentsView(CoordinatorRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         stage = get_object_or_404(Stage.objects.select_related("edition"), pk=self.kwargs["stage_id"])
-        query = self.request.GET.get("q", "")
+        params = self.request.GET
+        query = params.get("q", "")
+        problem_id = _int_param(params.get("problem"))
+        # Nieznany klucz statusu traktujemy jak brak filtra: adres z literówką ma pokazać listę,
+        # a nie pustą tabelę bez wyjaśnienia.
+        status = params.get("status", "") if params.get("status") in ASSIGNMENT_STATUS_FILTERS else ""
+        reviewer_id = _int_param(params.get("reviewer"))
         try:
             scores = sorted(allowed_scores(stage))
         except DomainError:
@@ -425,17 +559,38 @@ class StageAssignmentsView(CoordinatorRequiredMixin, TemplateView):
             # powód, żeby odciąć koordynatora od przydziałów. Ekran stoi, znika tylko to, czego
             # nie da się wypełnić.
             scores = []
-        rows = stage_assignment_rows(stage, query)
-        _attach_problem_scales(stage, rows, fallback=scores)
+        rows = stage_assignment_rows(
+            stage, query, problem_id=problem_id, status=status, reviewer_id=reviewer_id
+        )
+        paginator = Paginator(rows, ASSIGNMENTS_PAGE_SIZE)
+        page = paginator.get_page(params.get("page"))
+        page_rows = list(page.object_list)
+        # Skale i historia liczą się dla **strony**, a nie dla całego wyniku: to one kosztują,
+        # a koordynator i tak czyta tylko to, co widzi.
+        _attach_problem_scales(stage, page_rows, fallback=scores)
+        _attach_history(page_rows)
         context.update(
             {
                 "stage": stage,
                 "now": timezone.now(),
                 "query": query,
+                "problem_id": problem_id,
+                "status": status,
+                "reviewer_id": reviewer_id,
+                "status_filters": ASSIGNMENT_STATUS_FILTERS,
+                "counters": _counter_links(_stage_counters(stage), params, active=status),
+                "stage_problems": list(stage.problems.order_by("number", "id")),
+                "filter_query": _filter_query(params),
+                # To samo zapytanie **z numerem strony** – jedzie w ukrytym polu każdego formularza
+                # tabeli, żeby akcja wróciła dokładnie tam, gdzie ją kliknięto.
+                "return_query": _filter_query(params, with_page=True),
+                "page_obj": page,
+                "paginator": paginator,
                 "problem_rows": stage_problem_rules(stage),
-                "submission_rows": rows,
+                "submission_rows": page_rows,
                 "reviewer_pool": reviewer_pool(),
                 "assigned_status": ReviewStatus.ASSIGNED,
+                "cancelled_status": ReviewStatus.CANCELLED,
                 # Odebrać można recenzję w każdym stanie poza anulowaną – także wystawioną.
                 # Czy w tej konkretnej sprawie wolno (ogłoszone wyniki, rozstrzygnięta ocena),
                 # rozstrzyga dopiero serwis: ekran nie powiela reguły, tylko nie chowa przycisku.
@@ -448,6 +603,9 @@ class StageAssignmentsView(CoordinatorRequiredMixin, TemplateView):
                 "results_published": ResultsPublication.objects.filter(stage=stage).exists(),
             }
         )
+        # Licznik reguł do podsumowania zwiniętego panelu: bez niego koordynator musiałby rozwinąć
+        # panel, żeby się dowiedzieć, czy w ogóle jest co rozwijać.
+        context["rules_count"] = sum(len(row["rules"]) for row in context["problem_rows"])
         return context
 
 
@@ -457,13 +615,21 @@ class StageAssignmentActionView(CoordinatorActionView):
     Etap ustala ``perform`` (wynika z zadania, pracy albo recenzji, nie z adresu), więc powrót
     czyta ``self.stage_id``. Gdy akcja odpadła, zanim udało się go ustalić – wracamy na pulpit,
     bo nie wiadomo, na który ekran.
+
+    Filtry wracają razem z ekranem. Każdy formularz w tabeli niesie ukryte pole ``filters``
+    z bieżącym zapytaniem; bez tego koordynator, który zawęził listę do jednego zadania i poprawił
+    w niej punkty, lądowałby po zapisie na pełnej liście etapu i musiał filtrować od nowa.
+    Przepisujemy **tylko znane klucze** (``ASSIGNMENT_FILTER_PARAMS``), więc do przekierowania nie
+    da się tędy dokleić niczego z zewnątrz.
     """
 
     def get_success_url(self, *args, **kwargs) -> str:
         stage_id = getattr(self, "stage_id", None)
         if stage_id is None:
             return str(DASHBOARD_URL)
-        return reverse("web:coordinator-stage-assignments", args=[stage_id])
+        url = reverse("web:coordinator-stage-assignments", args=[stage_id])
+        filters = _filter_query(QueryDict(self.request.POST.get("filters", "")), with_page=True)
+        return f"{url}?{filters}" if filters else url
 
 
 class AddProblemRuleView(StageAssignmentActionView):
@@ -556,20 +722,27 @@ class UnassignReviewView(StageAssignmentActionView):
 
     def perform(self, request, pk: int) -> str:
         review = get_object_or_404(
-            Review.objects.select_related("submission", "submission__entry", "reviewer", "reviewer__user"),
+            Review.objects.select_related(
+                "submission",
+                "submission__entry",
+                "submission__entry__participant",
+                "reviewer",
+                "reviewer__user",
+            ),
             pk=pk,
         )
         self.stage_id = review.submission.entry.stage_id
         # Stan sprzed operacji, bo komunikat ma opisywać to, co się właśnie stało: cofnięcie
         # nietkniętego przydziału to inna wiadomość niż odebranie gotowej oceny.
         was_started = review.status != ReviewStatus.ASSIGNED
+        code = review.submission.entry.participant.public_code
         unassign_reviewer(review, actor=request.user, request=request)
         if was_started:
             return (
-                f"Praca została odebrana recenzentowi {review.reviewer.user.email}. "
+                f"Praca {code} odebrana recenzentowi {review.reviewer.user.email}. "
                 "Jego ocena nie liczy się już do oceny końcowej."
             )
-        return f"Przydział dla {review.reviewer.user.email} został cofnięty."
+        return f"Przydział pracy {code} dla {review.reviewer.user.email} został cofnięty."
 
 
 class SetReviewScoreView(StageAssignmentActionView):
@@ -577,7 +750,13 @@ class SetReviewScoreView(StageAssignmentActionView):
 
     def perform(self, request, pk: int) -> str:
         review = get_object_or_404(
-            Review.objects.select_related("submission", "submission__entry", "reviewer", "reviewer__user"),
+            Review.objects.select_related(
+                "submission",
+                "submission__entry",
+                "submission__entry__participant",
+                "reviewer",
+                "reviewer__user",
+            ),
             pk=pk,
         )
         self.stage_id = review.submission.entry.stage_id
@@ -591,7 +770,10 @@ class SetReviewScoreView(StageAssignmentActionView):
             request=request,
             rationale=form.cleaned_data["rationale"],
         )
-        return f"Zapisano {form.cleaned_data['score']} pkt w recenzji {review.reviewer.user.email}."
+        return (
+            f"Praca {review.submission.entry.participant.public_code}: "
+            f"{form.cleaned_data['score']} pkt w recenzji {review.reviewer.user.email}."
+        )
 
 
 class OverrideFinalGradeView(StageAssignmentActionView):
@@ -626,6 +808,102 @@ class OverrideFinalGradeView(StageAssignmentActionView):
             f"Ocena końcowa pracy {submission.entry.participant.public_code}: "
             f"{result['grade'].score} pkt (korekta koordynatora)."
         )
+
+
+class BulkAssignmentActionView(StageAssignmentActionView):
+    """``POST /coordinator/stages/<id>/assignments/bulk/`` – jedna czynność na zaznaczonych pracach.
+
+    Po co zbiorczo: komitet dzieli prace pakietami („te trzydzieści bierze Kowalski”), a klikanie
+    trzydziestu list wyboru po kolei jest tą samą decyzją rozbitą na trzydzieści okazji do pomyłki.
+
+    Trzy czynności, bo tyle jest sensownych na wielu pracach naraz:
+
+    - ``assign`` – dopisz wskazanego recenzenta do każdej zaznaczonej pracy,
+    - ``unassign`` – odbierz mu każdą z nich (wskazanie recenzenta jest wymagane także tutaj:
+      „odbierz wszystkim” skasowałoby cudzą pracę jednym kliknięciem, a tego nikt nie chce zrobić
+      hurtem),
+    - ``lock`` – wciągnij zaznaczone prace do oceniania, bez zamykania etapu.
+
+    Każda praca idzie przez **ten sam serwis**, co pojedynczy wiersz: reguły domenowe (konflikt
+    województwa, praca zamknięta, ogłoszone wyniki) obowiązują identycznie, a zbiorcza akcja nie
+    ma własnej ścieżki, którą dałoby się je obejść. Odmowa dotycząca jednej pracy nie przerywa
+    reszty – ląduje na liście pominiętych z powodem, bo pakiet prac z jedną kolizją ma się
+    wykonać w 29/30, a nie w 0/30.
+
+    Formularz jest zwykły: kratki wierszy należą do niego przez atrybut ``form``, więc pasek akcji
+    zbiorczych działa bez JavaScriptu. Skrypt dokłada wyłącznie kratkę „zaznacz wszystkie”
+    i licznik zaznaczenia.
+    """
+
+    #: Etykiety czynności w komunikacie – w formie, w jakiej stoją na przycisku.
+    ACTIONS = {"assign": "przydzielono", "unassign": "odebrano", "lock": "zablokowano do oceny"}
+
+    def perform(self, request, stage_id: int) -> str:
+        from apps.submissions.models import Submission
+
+        stage = get_object_or_404(Stage.objects.select_related("edition"), pk=stage_id)
+        self.stage_id = stage.pk
+        action = (request.POST.get("action") or "").strip()
+        if action not in self.ACTIONS:
+            raise DomainError("Wybierz czynność zbiorczą.", "BULK_ACTION_REQUIRED")
+        selected = [value for value in request.POST.getlist("submission_ids") if value.isdigit()]
+        if not selected:
+            raise DomainError("Nie zaznaczono żadnej pracy.", "NOTHING_SELECTED")
+        submissions = list(
+            Submission.objects.filter(pk__in=selected, entry__stage=stage)
+            .select_related("entry", "entry__participant")
+            .order_by("entry__participant__public_code", "problem__number", "pk")
+        )
+        reviewer = None
+        if action in ("assign", "unassign"):
+            form = ReviewerPickForm(request.POST)
+            if not form.is_valid():
+                raise DomainError("Wskaż recenzenta.", "REVIEWER_REQUIRED")
+            reviewer = get_object_or_404(
+                CommitteeMember.objects.select_related("user"), pk=form.cleaned_data["reviewer_id"]
+            )
+        done = 0
+        # Powód → kody prac. Grupowanie po powodzie, a nie lista „praca: powód”, bo pominięcia
+        # w pakiecie są zwykle jednego rodzaju („recenzent z tego województwa”) i koordynator ma
+        # zobaczyć jedną przyczynę z listą kodów, a nie trzydzieści razy to samo zdanie.
+        skipped: dict[str, list[str]] = {}
+        for submission in submissions:
+            code = submission.entry.participant.public_code
+            try:
+                self._apply(request, action, submission, reviewer)
+            except DomainError as exc:
+                skipped.setdefault(str(exc.detail), []).append(code)
+            else:
+                done += 1
+        return self._summary(action, reviewer, done=done, skipped=skipped)
+
+    def _apply(self, request, action: str, submission, reviewer) -> None:
+        """Jedna praca, jedna czynność – wyłącznie wołanie serwisu."""
+        if action == "assign":
+            assign_reviewer_to_submission(submission, reviewer, actor=request.user, request=request)
+            return
+        if action == "lock":
+            lock_submission_for_review(submission, actor=request.user, request=request)
+            return
+        review = (
+            Review.objects.filter(submission=submission, reviewer=reviewer)
+            .exclude(status=ReviewStatus.CANCELLED)
+            .order_by("round", "id")
+            .first()
+        )
+        if review is None:
+            raise DomainError("Ten recenzent nie ma tej pracy w ręku.", "NO_ACTIVE_REVIEW")
+        unassign_reviewer(review, actor=request.user, request=request)
+
+    def _summary(self, action: str, reviewer, *, done: int, skipped: dict[str, list[str]]) -> str:
+        """Jedno zdanie o tym, co weszło, i jedno o tym, co nie – z kodami prac i powodem."""
+        who = f" recenzentowi {reviewer.user.email}" if reviewer else ""
+        head = f"Zbiorczo {self.ACTIONS[action]}{who}: {done} prac."
+        if not skipped:
+            return head
+        details = "; ".join(f"{reason} ({', '.join(codes)})" for reason, codes in skipped.items())
+        total = sum(len(codes) for codes in skipped.values())
+        return f"{head} Pominięto {total}: {details}"
 
 
 class ResolveModerationView(CoordinatorActionView):
@@ -830,19 +1108,25 @@ class RevokeInvitationView(CoordinatorActionView):
 
 
 class ComputeResultsView(CoordinatorRequiredMixin, View):
-    """Podgląd pełnej tabeli wyników etapu bez publikacji (dane osobowe – tylko koordynator)."""
+    """Podgląd pełnej tabeli wyników etapu bez publikacji (dane osobowe – tylko koordynator).
 
-    template_name = "web/coordinator/dashboard.html"
+    Odpowiedź jest **ekranem wyników tego etapu**, a nie pulpitem: podgląd bywa długi na kilkaset
+    wierszy, a po przeliczeniu robi się przy nim dokładnie jedną rzecz – publikuje albo wraca do
+    oceniania. Odmowa (praca wciąż w ocenianiu) wraca na ten sam adres z komunikatem.
+    """
+
+    template_name = "web/coordinator/results.html"
 
     def post(self, request, stage_id: int):
+        from apps.web.views.coordinator_pages import stage_results_context
+
         stage = get_object_or_404(Stage.objects.select_related("edition", "qualification_rule"), pk=stage_id)
         try:
             rows = compute_stage_results(stage)
         except DomainError as exc:
             messages.error(request, str(exc.detail))
-            return redirect(reverse("web:coordinator"))
-        context = dashboard_context({"preview": {"stage": stage, "rows": rows}})
-        return TemplateResponse(request, self.template_name, context)
+            return redirect(reverse("web:coordinator-stage-results", args=[stage.pk]))
+        return TemplateResponse(request, self.template_name, stage_results_context(stage, rows))
 
 
 class PublishResultsView(CoordinatorActionView):

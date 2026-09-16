@@ -1,13 +1,12 @@
-{% extends "base.html" %}
+{% extends "web/coordinator/base.html" %}
 {% load web_extras %}
 {% block title %}Rozmowy kwalifikacyjne: {{ stage.display_name }} – panel koordynatora{% endblock %}
-{% block content %}
-<div class="page-head">
-  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
-  <h1>Rozmowy kwalifikacyjne: {{ stage.display_name }}</h1>
+{% block panel_title %}Rozmowy kwalifikacyjne: {{ stage.display_name }}{% endblock %}
+{% block panel_lead %}
   <p class="lead">Edycja {{ stage.edition.year_label }}. Wszystkie godziny podajesz i czytasz
     w czasie polskim; system przelicza je na UTC.</p>
-</div>
+{% endblock %}
+{% block panel_content %}
 
 {% if not stage.is_interview %}
   {% comment %}

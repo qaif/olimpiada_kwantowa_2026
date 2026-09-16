@@ -115,6 +115,10 @@ MENU_TITLES = [
     "Wyniki",
     "Partnerzy",
     "Kontakt",
+    # FAQ zamyka menu: to nie jest treść, po którą sięga się przed przystąpieniem do zawodów,
+    # tylko ta, po którą sięga się, kiedy coś już nie wyszło – czyli z tego samego odruchu,
+    # co po adres kontaktowy. W przyklejonym pasku nawigacji go nie ma (``PRIMARY_MENU_SLUGS``).
+    "Najczęstsze pytania",
 ]
 
 

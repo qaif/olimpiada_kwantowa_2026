@@ -1,134 +1,241 @@
 {% extends "base.html" %}
-{% load i18n web_extras %}
+{% load i18n static web_extras %}
 {% block title %}{% translate "Moje recenzje" %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/reviewer.css' %}">{% endblock %}
 {% block content %}
 <div class="page-head">
   <span class="eyebrow">{% translate "Panel recenzenta" %}</span>
   <h1>{% translate "Moje przydziały" %}</h1>
   <p class="lead">{% translate "Ocenianie jest ślepe: prace są identyfikowane kodem publicznym uczestnika." %}</p>
-  {% comment %}
-    Paczka ZIP obok listy, a nie w każdym wierszu osobno: recenzent czyta prace poza panelem
-    (czytnik, druk, podróż), więc pobiera je raz, wszystkie. Nazwy plików w archiwum są takie
-    same jak kody na tej liście, a README wiąże je z numerem recenzji.
-  {% endcomment %}
+</div>
+
+{% comment %}
+  Pasek podsumowania stoi nad kolejką, bo odpowiada na trzy pytania, po które recenzent dotąd
+  przewijał całą stronę i liczył palcem: ile mi zostało, na kiedy najbliższa rzecz i ile mnie to
+  dotąd kosztowało. Paczka ZIP jest tu, a nie w każdym wierszu osobno: recenzent czyta prace poza
+  panelem (czytnik, druk, podróż), więc pobiera je raz, wszystkie. Nazwy plików w archiwum są takie
+  same jak kody w tej kolejce, a README wiąże je z numerem recenzji.
+{% endcomment %}
+<section class="queue-summary" aria-label="{% translate 'Podsumowanie kolejki' %}">
+  <div class="queue-summary__stats">
+    <p class="queue-stat">
+      <span class="queue-stat__value">{{ summary.todo }}</span>
+      <span class="queue-stat__label">{% translate "do zrobienia" %}</span>
+      {% if summary.overdue %}
+        <span class="badge badge--danger">{% blocktranslate trimmed with count=summary.overdue %}
+          {{ count }} po terminie
+        {% endblocktranslate %}</span>
+      {% endif %}
+    </p>
+    <p class="queue-stat">
+      <span class="queue-stat__value queue-stat__value--text">
+        {% if summary.next_due %}{{ summary.next_due|local_datetime }}{% else %}—{% endif %}</span>
+      <span class="queue-stat__label">{% translate "najbliższy termin" %}</span>
+    </p>
+    <p class="queue-stat">
+      <span class="queue-stat__value queue-stat__value--text">{{ summary.worklog_label }}</span>
+      <span class="queue-stat__label">{% translate "czas pracy łącznie" %}</span>
+    </p>
+  </div>
   {% if reviews %}
-    <p class="actions">
+    <p class="queue-summary__actions">
       <a class="btn btn--secondary" href="{% url 'web:review-download' %}">{% translate "Pobierz moje prace (ZIP)" %}</a>
       <span class="hint">{% translate "Wszystkie przydzielone prace w jednym archiwum. Pliki są anonimowe." %}</span>
     </p>
   {% endif %}
-</div>
+</section>
 
 {% comment %}
-  Prace pogrupowane po etapie i zadaniu: recenzent ocenia jedno zadanie w wielu pracach, więc tak
-  wygląda jego robota. Licznik przy nagłówku grupy odpowiada na pytanie „ile mi zostało”, a przy
-  samych wierszach stoją terminy – recenzja po terminie ma własną odznakę, bo to jedyna rzecz na
-  tej liście, którą trzeba zrobić natychmiast.
+  Pierwsza pomoc dla osoby, która ocenia po raz pierwszy. Zwinięta, bo przy dwudziestej pracy jest
+  już tylko przeszkodą, i krótka – pięć zdań, z których każde odpowiada na pytanie zadawane
+  koordynatorowi przez telefon.
 {% endcomment %}
-{% for group in groups %}
-  <section class="section">
-    <div class="section__head">
-      <h2 class="mt-0">{{ group.stage.display_name }} ·
-        {% blocktranslate trimmed with number=group.problem.number title=group.problem.display_title %}
-          zadanie {{ number }}: {{ title }}
-        {% endblocktranslate %}</h2>
-      <p class="row">
-        <span class="badge badge--info">{% blocktranslate trimmed with open=group.open total=group.rows|length %}
-          {{ open }} z {{ total }} do zrobienia
-        {% endblocktranslate %}</span>
-        {% if group.overdue %}<span class="badge badge--danger">{% blocktranslate trimmed with count=group.overdue %}
-          {{ count }} po terminie
-        {% endblocktranslate %}</span>{% endif %}
-      </p>
-    </div>
-    <div class="scroll">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>{% translate "Praca" %}</th>
-            <th>{% translate "Runda" %}</th>
-            <th>{% translate "Status" %}</th>
-            <th>{% translate "Termin" %}</th>
-            <th>{% translate "Punkty" %}</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in group.rows %}
-            <tr>
-              <td>
-                <span class="code-chip">{{ row.review.submission.entry.participant.public_code }}</span>
-                {% comment %}
-                  Marker zgłoszonego problemu. Nie jest ostrzeżeniem przed ocenianiem – zgłoszenie
-                  nie blokuje oceny (patrz ``apps.grading.issues``) – tylko przypomnieniem, że przy
-                  tej pracy czeka sprawa u koordynatora.
-                {% endcomment %}
-                {% if row.review.pk in open_issues %}
-                  <span class="badge badge--warn"
-                        title="{% translate 'Zgłoszony problem czeka na koordynatora' %}">
-                    {% translate "zgłoszony problem" %}</span>
-                {% endif %}
-              </td>
-              <td class="num">{{ row.review.round }}</td>
-              <td><span class="{{ row.review.status|badge_class }}">{{ row.review.get_status_display }}</span></td>
-              <td>
-                {% if row.review.due_at %}{{ row.review.due_at|local_datetime }}{% else %}—{% endif %}
-                {% if row.overdue %}<span class="badge badge--danger">{% translate "po terminie" %}</span>{% endif %}
-              </td>
-              <td class="num total">{% if row.review.score is not None %}{{ row.review.score }}{% else %}—{% endif %}</td>
-              <td>
-                <a class="btn btn--secondary btn--small"
-                   href="{% url 'web:review-detail' row.review.pk %}">{% translate "otwórz" %}</a>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </section>
-{% empty %}
-  <p class="empty">
-    <span class="empty__title">{% translate "Brak przydziałów" %}</span>
-    {% translate "Nie masz jeszcze przydzielonych prac. Przydziału dokonuje koordynator, gdy prace trafią do oceniania – czasem jeszcze przed zamknięciem etapu." %}
-  </p>
-{% endfor %}
+<details class="card card--quiet" id="how-to-review">
+  <summary><strong>{% translate "Jak oceniać – w pięciu zdaniach" %}</strong></summary>
+  <ol class="how-to">
+    <li>{% translate "Otwórz pracę: po lewej stoi rozwiązanie, po prawej panel oceny – nie musisz nic pobierać." %}</li>
+    <li>{% translate "Zaznacz myszą fragment strony, żeby dopisać adnotację; publiczne zobaczy uczestnik po ogłoszeniu wyników, wewnętrzne tylko komitet." %}</li>
+    <li>{% translate "Punkty wybierasz ze skali etapu albo wypełniasz rubrykę – sumę wylicza system i musi trafić w skalę." %}</li>
+    <li>{% translate "„Zapisz szkic” możesz kliknąć w każdej chwili; ocena idzie dopiero przyciskiem „Wystaw ocenę”." %}</li>
+    <li>{% translate "Coś jest nie tak z pracą (nieczytelny skan, inne zadanie)? Zgłoś problem – to nie wstrzymuje oceniania." %}</li>
+  </ol>
+</details>
 
-{% if cancelled_rows %}
-  {% comment %}
-    Recenzje anulowane stoją osobno, bo nie ma przy nich nic do zrobienia. Wymieszane z bieżącymi
-    wyglądałyby jak zaległość, a ukryte – jak awaria panelu. Kolumna „Powód” jest tu najważniejsza:
-    odebranie pracy przez koordynatora to co innego niż nowa wersja rozwiązania od uczestnika.
-  {% endcomment %}
-  <section class="section">
-    <h2>{% translate "Recenzje anulowane" %}</h2>
-    <p class="hint">{% translate "Te oceny nie liczą się do oceny końcowej i nie można ich już zmienić." %}</p>
-    <div class="scroll">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>{% translate "Praca" %}</th>
-            <th>{% translate "Etap" %}</th>
-            <th>{% translate "Zadanie" %}</th>
-            <th>{% translate "Runda" %}</th>
-            <th>{% translate "Punkty" %}</th>
-            <th>{% translate "Powód" %}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in cancelled_rows %}
-            <tr>
-              <td><span class="code-chip">{{ row.review.submission.entry.participant.public_code }}</span></td>
-              <td>{{ row.review.submission.entry.stage.display_name }}</td>
-              <td>{{ row.review.submission.problem.number }}.
-                {{ row.review.submission.problem.display_title }}</td>
-              <td class="num">{{ row.review.round }}</td>
-              <td class="num">{% if row.review.score is not None %}{{ row.review.score }}{% else %}—{% endif %}</td>
-              <td>{{ row.reason }}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+{% comment %}
+  Zakładki. Wszystkie cztery panele renderuje serwer, a ``static/js/reviewer-layout.js`` chowa
+  nieaktywne i dokłada role ARIA. Bez JavaScriptu odnośniki są zwykłymi skokami do sekcji, a cała
+  kolejka stoi na stronie – „zakładka”, która bez skryptu nie pokazuje treści, byłaby ukryciem
+  danych, a nie uporządkowaniem ich.
+{% endcomment %}
+<nav class="queue-tabs" aria-label="{% translate 'Stan recenzji' %}"
+     data-queue-tabs data-queue-active="{{ active_tab }}">
+  {% for tab in tabs %}
+    <a class="queue-tab" id="queue-tab-{{ tab.key }}" href="#queue-panel-{{ tab.key }}"
+       data-queue-tab="{{ tab.key }}">{{ tab.label }}
+      <span class="queue-tab__count">{{ tab.count }}</span></a>
+  {% endfor %}
+</nav>
+
+{% for tab in tabs %}
+  <section class="queue-panel" id="queue-panel-{{ tab.key }}"
+           data-queue-panel="{{ tab.key }}" aria-labelledby="queue-tab-{{ tab.key }}">
+    {% comment %}
+      Nagłówek panelu powtarza etykietę zakładki i to jest celowe: bez JavaScriptu zakładek nie ma,
+      są cztery sekcje jedna pod drugą i każda musi mieć własny tytuł. Z działającym skryptem
+      nagłówek zostaje w drzewie dostępności, ale znika z ekranu (``is-tabbed`` w reviewer.css) –
+      napis „Do zrobienia” tuż pod klikniętą zakładką „Do zrobienia” nic nie dodaje.
+    {% endcomment %}
+    <h2 class="queue-panel__title">{{ tab.label }} <span class="badge badge--neutral">{{ tab.count }}</span></h2>
+    {% if tab.key == "cancelled" and tab.count %}
+      <p class="hint">{% translate "Te oceny nie liczą się do oceny końcowej i nie można ich już zmienić." %}</p>
+    {% endif %}
+
+    {% comment %}
+      Grupa = jedno zadanie w jednym etapie, czyli dokładnie jedna porcja roboty. Licznik przy
+      nagłówku odpowiada na pytanie „ile mi zostało z tego zadania”, które przy płaskiej liście
+      trzeba było liczyć ręcznie.
+    {% endcomment %}
+    {% for group in tab.groups %}
+      <section class="section queue-group">
+        <div class="section__head">
+          <h3 class="mt-0">{{ group.stage.display_name }} ·
+            {% blocktranslate trimmed with number=group.problem.number title=group.problem.display_title %}
+              zadanie {{ number }}: {{ title }}
+            {% endblocktranslate %}</h3>
+          <p class="row">
+            {% if tab.with_deadline %}
+              <span class="badge badge--info">{% blocktranslate trimmed with open=group.open total=group.rows|length %}
+                {{ open }} z {{ total }} do zrobienia
+              {% endblocktranslate %}</span>
+              {% if group.overdue %}<span class="badge badge--danger">{% blocktranslate trimmed with count=group.overdue %}
+                {{ count }} po terminie
+              {% endblocktranslate %}</span>{% endif %}
+            {% else %}
+              {% comment %}
+                Liczba bez odmiany („prace: 5”), bo polska liczba mnoga ma trzy formy, a katalog
+                tłumaczeń celuje w angielski z dwiema – „5 prace” byłoby ceną za odmienianie
+                w szablonie.
+              {% endcomment %}
+              <span class="badge badge--neutral">{% blocktranslate trimmed with count=group.rows|length %}
+                prace: {{ count }}
+              {% endblocktranslate %}</span>
+            {% endif %}
+          </p>
+        </div>
+        <div class="scroll">
+          <table class="table queue-table">
+            <thead>
+              <tr>
+                <th>{% translate "Praca" %}</th>
+                <th>{% translate "Runda" %}</th>
+                {% if tab.with_deadline %}
+                  <th>{% translate "Termin" %}</th>
+                  <th>{% translate "Postęp" %}</th>
+                {% else %}
+                  <th>{% translate "Status" %}</th>
+                {% endif %}
+                <th>{% translate "Punkty" %}</th>
+                <th>{% if tab.key == "cancelled" %}{% translate "Powód" %}{% endif %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in group.rows %}
+                <tr>
+                  <td>
+                    <span class="code-chip">{{ row.review.submission.entry.participant.public_code }}</span>
+                    {% comment %}
+                      Marker zgłoszonego problemu. Nie jest ostrzeżeniem przed ocenianiem –
+                      zgłoszenie nie blokuje oceny (patrz ``apps.grading.issues``) – tylko
+                      przypomnieniem, że przy tej pracy czeka sprawa u koordynatora.
+                    {% endcomment %}
+                    {% if row.review.pk in open_issues %}
+                      <span class="badge badge--warn"
+                            title="{% translate 'Zgłoszony problem czeka na koordynatora' %}">
+                        {% translate "zgłoszony problem" %}</span>
+                    {% endif %}
+                  </td>
+                  <td class="num">{{ row.review.round }}</td>
+                  {% if tab.with_deadline %}
+                    <td class="queue-due">
+                      {% if row.review.due_at %}
+                        <span class="queue-due__date">{{ row.review.due_at|local_datetime }}</span>
+                        {% if row.overdue %}
+                          <span class="badge badge--danger">{% translate "po terminie" %}</span>
+                        {% elif row.due_days == 0 %}
+                          <span class="badge badge--warn">{% translate "dziś" %}</span>
+                        {% else %}
+                          <span class="badge badge--neutral">{% blocktranslate trimmed count counter=row.due_days %}
+                            za {{ counter }} dzień
+                          {% plural %}
+                            za {{ counter }} dni
+                          {% endblocktranslate %}</span>
+                        {% endif %}
+                      {% else %}—{% endif %}
+                    </td>
+                    <td>
+                      {% comment %}
+                        „Postęp” znaczy tu jedno: czy recenzent już przy tej pracy siedział.
+                        ``Review`` nie ma znacznika zapisu szkicu, więc jedynym śladem jest ostatni
+                        sygnał licznika czasu (``apps.grading.worklog``).
+                      {% endcomment %}
+                      <span class="{{ row.review.status|badge_class }}">{{ row.review.get_status_display }}</span>
+                      {% if row.review.status in open_statuses and row.review.score is not None %}
+                        <span class="badge badge--info">{% translate "szkic z punktami" %}</span>
+                      {% elif row.last_seen_at %}
+                        <span class="hint">{% blocktranslate trimmed with when=row.last_seen_at|local_datetime %}
+                          otwarta {{ when }}
+                        {% endblocktranslate %}</span>
+                      {% else %}
+                        <span class="hint">{% translate "nie zaczęta" %}</span>
+                      {% endif %}
+                    </td>
+                  {% else %}
+                    <td><span class="{{ row.review.status|badge_class }}">{{ row.review.get_status_display }}</span></td>
+                  {% endif %}
+                  <td class="num total">{% if row.review.score is not None %}{{ row.review.score }}{% else %}—{% endif %}</td>
+                  <td>
+                    {% if tab.key == "cancelled" %}
+                      <span class="hint">{{ row.reason }}</span>
+                    {% else %}
+                      <a class="btn btn--secondary btn--small"
+                         href="{% url 'web:review-detail' row.review.pk %}">{% translate "Otwórz" %}</a>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    {% empty %}
+      {% comment %}
+        Pusta zakładka mówi, czego w niej nie ma i skąd się tam bierze treść. „Brak wyników” byłby
+        w każdej z czterech zakładek tym samym zdaniem o czterech różnych znaczeniach.
+      {% endcomment %}
+      <p class="empty">
+        {% if tab.key == "todo" %}
+          <span class="empty__title">{% translate "Brak przydziałów" %}</span>
+          {% translate "Nie masz jeszcze przydzielonych prac. Przydziału dokonuje koordynator, gdy prace trafią do oceniania – czasem jeszcze przed zamknięciem etapu." %}
+        {% elif tab.key == "draft" %}
+          <span class="empty__title">{% translate "Nic nie jest w toku" %}</span>
+          {% translate "Praca trafia tutaj, gdy zapiszesz przy niej szkic oceny." %}
+        {% elif tab.key == "submitted" %}
+          <span class="empty__title">{% translate "Brak wystawionych ocen" %}</span>
+          {% translate "Oceny, które wyślesz, zostają tu do wglądu – razem z komentarzami, które napisałeś." %}
+        {% else %}
+          <span class="empty__title">{% translate "Nic nie zostało anulowane" %}</span>
+          {% translate "Trafia tu praca odebrana przez koordynatora i praca, do której uczestnik przysłał nową wersję." %}
+        {% endif %}
+      </p>
+    {% endfor %}
   </section>
-{% endif %}
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+  {% comment %}
+    Zakładki i skróty klawiaturowe. Dokładka, nie warunek działania: bez tego pliku wszystkie
+    cztery panele stoją na stronie jeden pod drugim, a odnośniki zakładek są skokami do nich.
+  {% endcomment %}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/reviewer-layout.js' %}"></script>
 {% endblock %}

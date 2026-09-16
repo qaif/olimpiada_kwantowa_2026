@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Podziękowanie po zgłoszeniu **bez konta**. Osobna strona, bo ktoś bez konta nie ma panelu,
+  do którego dałoby się go odesłać – a przekierowanie na stronę główną bez ani jednego zdania
+  wyglądałoby jak zgubiony formularz.
+{% endcomment %}
+{% block title %}{% translate "Zgłoszenie wysłane" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Pomoc" %}</span>
+  <h1>{% translate "Zgłoszenie wysłane" %}</h1>
+</div>
+
+<div class="card">
+  <p>{% translate "Dziękujemy. Organizator odpowie na podany adres e-mail." %}</p>
+  <p class="hint">{% translate "Jeśli odpowiedź nie dotrze w ciągu kilku dni, sprawdź folder ze spamem – odpowiadamy z adresu serwisu." %}</p>
+  <p class="actions">
+    <a class="btn btn--secondary" href="/">{% translate "Wróć na stronę główną" %}</a>
+    <a class="btn btn--ghost" href="/faq/">{% translate "Najczęstsze pytania" %}</a>
+  </p>
+</div>
+{% endblock %}

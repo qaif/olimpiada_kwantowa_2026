@@ -1,0 +1,177 @@
+/* =================================================================================================
+   Karty panelu koordynatora: karta członka komisji (/coordinator/members/<id>/) i karta zadania
+   (/coordinator/problems/<id>/).
+
+   Osobny arkusz od ``app.css`` i od ``coordinator.css`` z tego samego powodu, co przy narzędziach
+   koordynatora: te reguły obowiązują na trzech ekranach jednej roli, a ``app.css`` jedzie na każdej
+   stronie serwisu – łącznie ze stroną główną. Arkusz jest dokładany blokiem ``panel_head``, więc
+   panel nie traci własnego arkusza (``coordinator.css``), tylko dostaje drugi.
+
+   Skąd klasy szerokości (``--w0`` … ``--w100``) zamiast ``style="width: 42%"``: polityka
+   bezpieczeństwa serwisu nie dopuszcza stylu wpisanego w dokument (CSP bez ``'unsafe-inline'``),
+   więc szerokość słupka musi być nazwą z zamkniętej listy. Lista skacze co 5%, a dokładna liczba
+   stoi obok słupka i to ona jest odpowiedzią – słupek pokazuje proporcję, nie wynik pomiaru.
+   Ta sama decyzja i ta sama siatka, co w ``coordinator-tools.css`` i ``statistics.css``.
+
+   Tokeny (kolory, odstępy, promienie) pochodzą z ``app.css`` i nie są tu ani razu powtórzone,
+   więc ciemny wariant i tryb wysokiego kontrastu działają bez jednej dodatkowej reguły.
+   ============================================================================================== */
+
+/* --- rubryki „nazwa → wartość” ---------------------------------------------------------------- */
+
+/* Dane osoby i ustawienia zadania są listą definicji, a nie tabelą: to pary „nazwa – wartość”,
+   a nie wiersze do porównywania między sobą. Siatka sama się zawija, więc na telefonie jest jedna
+   kolumna, a na desktopie trzy–cztery, bez ani jednego media query.
+
+   Własna nazwa klasy (``fact-list``, nie ``card-facts``) jest świadoma: karta uczestnika ma
+   w swoim arkuszu rubrykę o tej samej roli, ale o innym układzie znaczników. Dwie definicje tej
+   samej nazwy w dwóch arkuszach panelu byłyby pułapką na każdego, kto je kiedyś zobaczy obok
+   siebie – nawet jeśli dziś żadna strona nie ładuje obu naraz. */
+.fact-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--sp-3);
+  margin: 0;
+}
+
+.fact-list > dt {
+  margin: 0;
+  padding: var(--sp-3) var(--sp-3) 0;
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: var(--surface-2);
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.fact-list > dd {
+  margin: 0;
+  padding: var(--sp-1) var(--sp-3) var(--sp-3);
+  border: 1px solid var(--line);
+  border-top: 0;
+  border-radius: 0 0 var(--radius) var(--radius);
+  background: var(--surface-2);
+  overflow-wrap: anywhere;
+}
+
+/* --- liczniki obciążenia ---------------------------------------------------------------------- */
+
+/* Liczby są tabelaryczne, żeby kolumna „zaległe” dała się czytać pionowo bez skakania cyfr. */
+.fact-list > dd strong,
+.workload-num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- rozkład ocen (karta zadania) ------------------------------------------------------------- */
+
+/* Lista, a nie tabela: to jest wykres z podpisami, a nie zestawienie do porównywania kolumn.
+   Dokładne liczby stoją w tym samym wierszu, więc czytający nie musi mierzyć słupka wzrokiem. */
+.score-bars {
+  list-style: none;
+  margin: var(--sp-3) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.score-bars li {
+  display: grid;
+  grid-template-columns: 4rem 1fr 7rem;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.score-bars__label,
+.score-bars__count {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
+}
+
+.score-bars__count {
+  color: var(--ink-soft);
+}
+
+.score-bars__track {
+  height: 1rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface-inset);
+  overflow: hidden;
+}
+
+.score-bars__fill {
+  display: block;
+  height: 100%;
+  background: var(--info);
+}
+
+/* Szerokości co 5%. Zero znaczy „tej oceny nie dostał nikt” – słupek znika całkowicie, żeby nie
+   zostawiać włosowej kreski, którą dałoby się wziąć za jedną pracę. */
+.score-bars__fill--w0 { display: none; }
+.score-bars__fill--w5 { width: 5%; }
+.score-bars__fill--w10 { width: 10%; }
+.score-bars__fill--w15 { width: 15%; }
+.score-bars__fill--w20 { width: 20%; }
+.score-bars__fill--w25 { width: 25%; }
+.score-bars__fill--w30 { width: 30%; }
+.score-bars__fill--w35 { width: 35%; }
+.score-bars__fill--w40 { width: 40%; }
+.score-bars__fill--w45 { width: 45%; }
+.score-bars__fill--w50 { width: 50%; }
+.score-bars__fill--w55 { width: 55%; }
+.score-bars__fill--w60 { width: 60%; }
+.score-bars__fill--w65 { width: 65%; }
+.score-bars__fill--w70 { width: 70%; }
+.score-bars__fill--w75 { width: 75%; }
+.score-bars__fill--w80 { width: 80%; }
+.score-bars__fill--w85 { width: 85%; }
+.score-bars__fill--w90 { width: 90%; }
+.score-bars__fill--w95 { width: 95%; }
+.score-bars__fill--w100 { width: 100%; }
+
+/* --- ślad audytowy na karcie ------------------------------------------------------------------ */
+
+/* Historia jest listą zdarzeń, a nie tabelą: wiersz to jedno zdanie („kto, co, kiedy”), a techniczny
+   ``diff`` chowa się pod ``<details>``, bo przy pięćdziesięciu wpisach zabiłby czytelność. */
+.card-history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.card-history li {
+  padding: var(--sp-2) var(--sp-3);
+  border-left: 3px solid var(--line-strong);
+  background: var(--surface-2);
+}
+
+.card-history time {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.card-history pre {
+  margin: var(--sp-2) 0 0;
+  overflow-x: auto;
+  font-size: 0.85rem;
+}
+
+/* --- formularze w wierszach tabel -------------------------------------------------------------- */
+
+/* Formularz wpisany w komórkę tabeli (korekta punktów, przydział) ma zostać jedną linią i nie
+   rozpychać kolumny na szerokość listy adresów e-mail. */
+.cell-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.cell-form select {
+  max-width: 16rem;
+}

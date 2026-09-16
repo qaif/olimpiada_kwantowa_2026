@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "web/coordinator/base.html" %}
 {% load static %}
 {% comment %}
   Pulpit postępu oceniania jednego etapu. Dwa pytania, dwie sekcje: „jak daleko jesteśmy”
@@ -10,14 +10,13 @@
   ``aria-hidden``, żeby czytnik ekranu nie odczytywał siedmiu pustych elementów zamiast tabeli.
 {% endcomment %}
 {% block title %}Postęp oceniania – {{ stage.display_name }}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
-{% block content %}
-<div class="page-head">
-  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
-  <h1>Postęp oceniania: {{ stage.display_name }}</h1>
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block panel_title %}Postęp oceniania: {{ stage.display_name }}{% endblock %}
+{% block panel_lead %}
   <p class="lead">Ile prac jest w którym stanie i którzy recenzenci mają jeszcze zaległości.
     Ekran niczego nie zmienia – poza przyciskami przypomnienia.</p>
-</div>
+{% endblock %}
+{% block panel_content %}
 
 <ul class="kpi">
   <li class="kpi__item">

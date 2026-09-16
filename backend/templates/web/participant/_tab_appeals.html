@@ -1,0 +1,73 @@
+{% load i18n web_extras %}{% comment %}
+  Zakładka „Reklamacje”: prace, na które wolno złożyć reklamację, i historia własnych zgłoszeń.
+
+  Formularz stoi **przy pracy**, której dotyczy, a nie jeden na całą zakładkę z listą wyboru:
+  reklamacja dotyczy jednej oceny i to ona ma być widoczna w chwili pisania uzasadnienia.
+  Regułę „co podlega reklamacji” (ocena wstępna + otwarte okno odwoławcze) trzyma
+  ``appeals.services.appealable_submissions``; ten szablon nie zna ani jednego z tych warunków.
+{% endcomment %}
+<section class="section" id="reklamacje">
+  <div class="section__head"><h2 class="mt-0">{% translate "Reklamacje" %}</h2></div>
+
+  {% for submission in appealable %}
+    <article class="card">
+      <div class="card__head">
+        <h3 class="mt-0 card__title">{% blocktranslate trimmed with number=submission.problem.number title=submission.problem.display_title %}
+          Zadanie {{ number }}: {{ title }}
+        {% endblocktranslate %}</h3>
+        <span class="badge badge--info">{% translate "można reklamować" %}</span>
+      </div>
+      <form method="post" action="{% url 'web:appeal-create' submission.pk %}" class="form form--wide">
+        {% csrf_token %}
+        <p>
+          <label for="argument-{{ submission.pk }}">{{ appeal_form.argument.label }}</label>
+          {% comment %}
+            Błąd wraca komunikatem po przekierowaniu (widok nie renderuje formularza ponownie),
+            więc tu stoi wyłącznie podpowiedź o dolnym limicie długości – tym, o który najczęściej
+            rozbija się pierwsza próba.
+          {% endcomment %}
+          <textarea name="argument" id="argument-{{ submission.pk }}" rows="5" required
+                    minlength="{{ appeal_form.argument.field.min_length }}"
+                    maxlength="{{ appeal_form.argument.field.max_length }}"></textarea>
+          <span class="helptext">{% blocktranslate trimmed with minimum=appeal_form.argument.field.min_length %}
+            Napisz, co w ocenie pominięto – co najmniej {{ minimum }} znaków.
+          {% endblocktranslate %}</span>
+        </p>
+        <div class="actions">
+          <button type="submit" class="btn btn--primary">{% translate "Złóż reklamację" %}</button>
+        </div>
+      </form>
+    </article>
+  {% empty %}
+    <p class="empty"><span class="empty__title">{% translate "Nie ma czego reklamować" %}</span>
+      {% translate "Reklamację składa się na wystawioną ocenę wstępną i tylko w oknie odwoławczym etapu. Gdy oba warunki będą spełnione, formularz pojawi się tutaj." %}</p>
+  {% endfor %}
+
+  <div class="section__head"><h3 class="mt-0">{% translate "Złożone reklamacje" %}</h3></div>
+  {% if my_appeals %}
+    <div class="scroll">
+      <table class="table">
+        <caption>{% translate "Złożone reklamacje" %}</caption>
+        <thead><tr>
+          <th>{% translate "Zadanie" %}</th>
+          <th>{% translate "Złożona (czas polski)" %}</th>
+          <th>{% translate "Status" %}</th>
+          <th>{% translate "Uzasadnienie decyzji" %}</th>
+        </tr></thead>
+        <tbody>
+          {% for appeal in my_appeals %}
+            <tr>
+              <td class="num">{{ appeal.submission.problem.number }}</td>
+              <td>{{ appeal.filed_at|local_datetime }}</td>
+              <td><span class="{{ appeal.status|badge_class }}">{{ appeal.get_status_display }}</span></td>
+              <td>{% if appeal.decision %}{{ appeal.decision.justification }}{% else %}—{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="empty"><span class="empty__title">{% translate "Nie złożyłeś jeszcze żadnej reklamacji" %}</span>
+      {% translate "Tu pojawi się status każdej złożonej reklamacji razem z uzasadnieniem decyzji komisji." %}</p>
+  {% endif %}
+</section>

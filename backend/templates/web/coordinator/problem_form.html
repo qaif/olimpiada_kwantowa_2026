@@ -1,12 +1,14 @@
-{% extends "base.html" %}
+{% extends "web/coordinator/base.html" %}
 {% load web_extras %}
 {% block title %}Zadanie {{ problem.number }} – panel koordynatora{% endblock %}
-{% block content %}
-<div class="page-head">
-  <span class="eyebrow"><a href="{% url 'web:coordinator-stage-problems' stage.pk %}">Zadania:
-    {{ stage.display_name }}</a></span>
-  <h1>Zadanie {{ problem.number }}: {{ problem.title }}</h1>
-</div>
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-stage-problems' stage.pk %}">Zadania:
+    {{ stage.display_name }}</a>{% endblock %}
+{% block panel_title %}Zadanie {{ problem.number }}: {{ problem.title }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Treść zadania, jego skala punktacji i rubryka oceniania. Etap:
+    {{ stage.display_name }}.</p>
+{% endblock %}
+{% block panel_content %}
 
 {% if stage_has_opened %}
   <p class="notice">Etap jest otwarty od {{ stage.opens_at|local_time }} – uczestnicy widzą treść

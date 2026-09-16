@@ -1,0 +1,99 @@
+{% extends "web/coordinator/base.html" %}
+{% load web_extras %}
+{% comment %}
+  Plan retencji danych. Strona jest z założenia **dry-runem**: pokazuje, co zrobi automat, zanim
+  to zrobi. Anonimizacja jest nieodwracalna, więc lista kont wstrzymanych jest tu równie ważna,
+  co lista kont do anonimizacji – to z niej koordynator dowiaduje się, że jakaś sprawa jest
+  jeszcze otwarta.
+
+  Konta identyfikuje kod publiczny, a nie adres e-mail. Ta strona jest wykazem osób, których dane
+  mają zniknąć; wypisanie ich adresów robiłoby z niej listę mailingową dokładnie tych ludzi.
+{% endcomment %}
+{% block title %}Retencja danych – panel koordynatora{% endblock %}
+{% block panel_title %}Retencja danych{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Dane osobowe uczestników wolno trzymać tak długo, jak wymaga tego przeprowadzenie
+    zawodów (art. 5 ust. 1 lit. e RODO). Termin liczymy od <strong>ostatniego deadline'u etapu</strong>
+    edycji plus okres retencji ustawiony na
+    <a href="{% url 'web:coordinator-registration' %}">ekranie ustawień edycji</a>.</p>
+{% endblock %}
+{% block panel_content %}
+
+<p class="hint">Anonimizację wykonuje codzienne zadanie automatyczne. Poniższa tabela pokazuje, co
+  zrobiłoby ono <strong>teraz</strong> – ta strona sama niczego nie zmienia. Anonimizacja kasuje
+  imię, nazwisko, adres e-mail, telefon, szkołę i rocznik; zostaje pseudonimowy kod uczestnika,
+  województwo oraz cała dokumentacja zawodów (prace, oceny, ogłoszone tabele).</p>
+
+<div class="row">
+  <span class="badge badge--warn">do anonimizacji: {{ total_due }}</span>
+  <span class="badge badge--neutral">wstrzymanych: {{ total_blocked }}</span>
+  <span class="badge badge--info">stan na {{ now|local_datetime }}</span>
+</div>
+
+{% for item in plans %}
+  <article class="card">
+    <div class="card__head">
+      <h2 class="mt-0">{{ item.edition.year_label }}</h2>
+      <p class="row">
+        <span class="badge badge--neutral">termin retencji: {% if item.deadline %}{{ item.deadline|local_datetime }}{% else %}—{% endif %}</span>
+        <span class="badge badge--neutral">{{ item.edition.data_retention_months }} mies. od ostatniego etapu</span>
+      </p>
+    </div>
+
+    {% if item.due %}
+      <h3>Do anonimizacji ({{ item.due|length }})</h3>
+      <p class="row">
+        {% for candidate in item.due %}
+          <span class="code-chip">{{ candidate.participant.public_code }}</span>
+        {% endfor %}
+      </p>
+    {% else %}
+      <p class="hint">W tej edycji nie ma kont, które automat mógłby teraz zanonimizować.</p>
+    {% endif %}
+
+    {% if item.blocked %}
+      <h3>Zostają ({{ item.blocked|length }})</h3>
+      <table class="table">
+        <thead><tr><th scope="col">Kod uczestnika</th><th scope="col">Powód</th></tr></thead>
+        <tbody>
+          {% for candidate in item.blocked %}
+            <tr>
+              <td><span class="code-chip">{{ candidate.participant.public_code }}</span></td>
+              <td>{{ candidate.reason }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  </article>
+{% empty %}
+  <p class="empty">
+    <span class="empty__title">Żadnej edycji nie upłynął okres retencji</span>
+    Edycja bieżąca nigdy nie wchodzi do tego zestawienia – nawet gdyby jej okres retencji był
+    krótszy niż jej własny kalendarz.
+  </p>
+{% endfor %}
+
+{% if total_due %}
+  {% comment %}
+    Przycisk uruchamia dokładnie tę samą funkcję, co zadanie okresowe, i robi to synchronicznie:
+    operacja jest nieodwracalna, więc jej wynik ma wrócić w odpowiedzi na kliknięcie, a nie
+    trafić do logu workera. Potwierdzenie przez ``confirmSubmit`` (Alpine, bez kodu inline).
+  {% endcomment %}
+  <div class="card card--accent">
+    <h2 class="mt-0">Wykonaj teraz</h2>
+    <p class="hint">Zanonimizuje {{ total_due }} kont wymienionych wyżej. Tej operacji
+      <strong>nie da się cofnąć</strong> – po niej nie ma z czego odtworzyć imienia, nazwiska ani
+      adresu e-mail uczestnika. Jeśli nic nie klikniesz, zrobi to codzienne zadanie automatyczne.</p>
+    <form method="post" class="inline"
+          x-data="confirmSubmit" x-on:submit="check"
+          data-confirm="Zanonimizować {{ total_due }} kont uczestników? Tej operacji nie da się cofnąć.">
+      {% csrf_token %}
+      <button type="submit" class="btn btn--danger">Wykonaj teraz</button>
+    </form>
+  </div>
+{% endif %}
+
+<p class="hint">Rejestr czynności przetwarzania (art. 30 RODO) jest pod adresem
+  <a href="{% url 'web:coordinator-processing-register' %}">/coordinator/processing-register/</a>.</p>
+{% endblock %}

@@ -1,13 +1,12 @@
-{% extends "base.html" %}
+{% extends "web/coordinator/base.html" %}
 {% block title %}Wydarzenia linii czasu – panel koordynatora{% endblock %}
-{% block content %}
-<div class="page-head">
-  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
-  <h1>Wydarzenia linii czasu{% if edition %}: {{ edition.year_label }}{% endif %}</h1>
+{% block panel_title %}Wydarzenia linii czasu{% if edition %}: {{ edition.year_label }}{% endif %}{% endblock %}
+{% block panel_lead %}
   <p class="lead">Kalendarz, którego system nie egzekwuje: gala, dzień otwarty, konferencja,
     obóz. Terminy etapów i okno rejestracji trafiają na linię czasu automatycznie – tutaj
     dopisujesz to, o czym serwis tylko informuje.</p>
-</div>
+{% endblock %}
+{% block panel_content %}
 
 {% if edition %}
   <p class="hint"><a class="btn btn--primary btn--small"

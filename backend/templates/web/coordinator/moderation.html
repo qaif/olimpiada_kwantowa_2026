@@ -1,0 +1,89 @@
+{% extends "web/coordinator/base.html" %}
+{% load web_extras %}
+{% comment %}
+  Kolejka rozjazdów ocen. Ekran jest **jedynym** w serwisie, na którym obok siebie stoją: punkty
+  obu recenzentów, ich tożsamość i komentarze wewnętrzne – tak stanowi macierz uprawnień
+  (PROJEKT.md 2.3), bo bez tego rozstrzygnięcie rozjazdu byłoby losowaniem.
+
+  Dwie drogi wyjścia z rozjazdu stoją obok siebie, bo wybór między nimi jest decyzją komisji:
+  rozstrzygnięcie na posiedzeniu (punkty plus uzasadnienie) albo trzeci recenzent (runda
+  rozjemcza). Ekran żadnej z nich nie podpowiada.
+{% endcomment %}
+{% block title %}Moderacja – panel koordynatora{% endblock %}
+{% block panel_title %}Moderacja (rozjazdy ocen){% endblock %}
+{% block panel_lead %}
+  <p class="lead">Prace, w których oceny dwóch recenzentów rozjechały się na tyle, że system nie
+    wylicza oceny końcowej sam. Każdą trzeba albo rozstrzygnąć, albo skierować do trzeciego
+    recenzenta.</p>
+{% endblock %}
+{% block panel_content %}
+{% for submission in moderation %}
+  <article class="card" id="praca-{{ submission.pk }}">
+    <div class="card__head">
+      <h2 class="mt-0 card__title"><span class="code-chip">{{ submission.entry.participant.public_code }}</span>
+        · zadanie {{ submission.problem.number }}</h2>
+      <span class="{{ submission.status|badge_class }}">{{ submission.get_status_display }}</span>
+    </div>
+    <p class="hint">{{ submission.entry.stage.display_name }}</p>
+    <div class="scroll">
+      <table class="table">
+        <thead><tr><th>Recenzent</th><th>Runda</th><th>Punkty</th><th>Komentarz wewnętrzny</th></tr></thead>
+        <tbody>
+          {% for review in submission.reviews.all %}
+            <tr>
+              <td>{{ review.reviewer.user.email }}</td>
+              <td class="num">{{ review.round }}</td>
+              <td class="num total">{% if review.score is not None %}{{ review.score }}{% else %}—{% endif %}</td>
+              <td>{{ review.comment_internal }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="empty">Ta praca nie ma jeszcze ani jednej oceny.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% comment %}
+      Notatki recenzentów przy tej pracy. Podpisy są literowe (tak, jak widzą je sami recenzenci),
+      choć koordynator zna tożsamości z tabeli wyżej: wątek jest ich rozmową o pracy i tak ma się
+      czytać. Brak notatek nie jest tu wart ani jednej linijki – sekcja po prostu się nie pojawia.
+    {% endcomment %}
+    {% with notes=moderation_notes|dict_get:submission.pk %}
+      {% if notes %}
+        <h3>Notatki recenzentów</h3>
+        <ul class="notes">
+          {% for note in notes %}
+            <li class="notes__item">
+              <span class="notes__author">{{ note.label }}</span>
+              <span class="notes__time">{{ note.created_at|local_time }}</span>
+              <p class="notes__text">{{ note.text }}</p>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    <div class="stage-panel__actions">
+      <form method="post" action="{% url 'web:coordinator-resolve' submission.pk %}">
+        {% csrf_token %}
+        {{ resolve_form.as_p }}
+        <button type="submit" class="btn btn--primary">Rozstrzygnij (posiedzenie komisji)</button>
+      </form>
+
+      <form method="post" action="{% url 'web:coordinator-assign-third' submission.pk %}">
+        {% csrf_token %}
+        <label for="third-{{ submission.pk }}">Trzeci recenzent</label>
+        <select id="third-{{ submission.pk }}" name="reviewer_id">
+          {% for member in reviewer_pool %}
+            <option value="{{ member.pk }}">{{ member.user.email }}{% if member.district %} ({{ member.get_district_display }}){% endif %}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn--secondary">Wyznacz trzeciego recenzenta</button>
+      </form>
+    </div>
+  </article>
+{% empty %}
+  <p class="empty"><span class="empty__title">Bez rozjazdów</span>Żadna praca nie czeka na
+    rozstrzygnięcie – oceny recenzentów mieszczą się w dopuszczalnej różnicy.</p>
+{% endfor %}
+{% endblock %}

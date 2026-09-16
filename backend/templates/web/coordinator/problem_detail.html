@@ -1,0 +1,443 @@
+{% extends "web/coordinator/base.html" %}
+{% load static %}
+{% load web_extras %}
+{% comment %}
+  Karta zadania: treść i ustawienia, obowiązująca skala z rubryką, reguły przydziału, wzorcówka,
+  prace z ocenami, paczka ZIP, podobieństwa i rozkład punktów – w jednym miejscu, bo tak wygląda
+  posiedzenie komisji nad jednym zadaniem.
+
+  Wszystkie formularze celują w **istniejące** adresy akcji koordynatora (blokada pracy do oceny,
+  przydział recenzenta, korekta punktów i oceny końcowej, reguły zadania). Karta nie powiela ani
+  jednej reguły domenowej: nie chowa przycisku „na wszelki wypadek”, tylko pozwala serwisowi
+  odmówić z komunikatem, jeśli w danej sprawie nie wolno.
+
+  Wykres rozkładu ocen jest rysowany samym arkuszem stylów – klasami szerokości z zamkniętej listy,
+  bo polityka CSP nie dopuszcza stylu wpisanego w dokument. Dokładne liczby stoją obok słupków
+  i to one są odpowiedzią.
+{% endcomment %}
+{% block title %}Zadanie {{ problem.number }}: {{ problem.title }} – panel koordynatora{% endblock %}
+
+{% block panel_head %}
+  <link rel="stylesheet" href="{% static 'css/coordinator-cards.css' %}">
+{% endblock %}
+
+{% block panel_title %}Zadanie {{ problem.number }}: {{ problem.title }}{% endblock %}
+
+{% block panel_lead %}
+  <p class="lead">{{ stage.display_name }} · edycja {{ stage.edition.year_label }}.
+    Treść jest jawna dla uczestników dopiero po otwarciu etapu ({{ stage.opens_at|local_time }});
+    komitet widzi ją wcześniej.</p>
+  {% if results_published %}
+    <p class="hint"><span class="badge badge--warn">wyniki ogłoszone</span> Zmiana punktów nie rusza
+      ogłoszonej tabeli. Żeby weszła, przelicz i opublikuj wyniki etapu ponownie.</p>
+  {% endif %}
+{% endblock %}
+
+{% block panel_actions %}
+  <a class="btn btn--secondary" href="{% url 'web:coordinator-problem-edit' problem.pk %}">Edytuj zadanie</a>
+  <a class="btn btn--secondary" href="{% url 'web:coordinator-stage-problems' stage.pk %}">Zadania etapu</a>
+  <a class="btn btn--secondary" href="{% url 'web:coordinator-stage-assignments' stage.pk %}">Przydziały etapu</a>
+  <a class="btn btn--secondary"
+     href="{% url 'web:coordinator-stage-download' stage.pk %}?problem={{ problem.pk }}">Pobierz ZIP zadania</a>
+{% endblock %}
+
+{% block panel_content %}
+
+{# --- 1. Treść i ustawienia ------------------------------------------------------------------- #}
+<section class="section" id="tresc">
+  <div class="card">
+    <h2 class="mt-0">Treść i ustawienia</h2>
+    <dl class="fact-list">
+      <dt>Numer w etapie</dt>
+      <dd class="workload-num">{{ problem.number }}</dd>
+      <dt>Tytuł</dt>
+      <dd>{{ problem.title }}</dd>
+      {% if problem.title_en %}
+        {% comment %}
+          Tytuł angielski jest treścią merytoryczną, a nie napisem interfejsu: tłumaczy go komitet
+          w panelu, a nie tłumacz przy wydaniu aplikacji. Pusty znaczy „nie ma” i wtedy angielski
+          interfejs pokazuje tytuł polski.
+        {% endcomment %}
+        <dt>Tytuł (EN)</dt>
+        <dd>{{ problem.title_en }}</dd>
+      {% endif %}
+      <dt>Treść (PDF)</dt>
+      <dd>
+        {% if problem.statement_pdf %}
+          {# Plik nie ma publicznego adresu w storage – podgląd idzie przez widok aplikacji. #}
+          <a href="{% url 'competitions:problem-statement' problem.pk %}">Otwórz podgląd</a>
+        {% else %}
+          <span class="badge badge--warn">brak</span>
+        {% endif %}
+      </dd>
+      {% if problem.statement_pdf_en %}
+        <dt>Treść (PDF, EN)</dt>
+        <dd><span class="badge badge--ok">wgrana</span></dd>
+      {% endif %}
+      <dt>Dozwolone formaty</dt>
+      <dd>{% for item in problem.allowed_formats %}<span class="tag">.{{ item }}</span> {% empty %}<span class="hint">brak</span>{% endfor %}</dd>
+      <dt>Limit rozmiaru pliku</dt>
+      <dd class="workload-num">{{ problem.max_file_mb }} MB</dd>
+      {% if problem.reviewer_notes %}
+        <dt>Uwagi dla recenzentów</dt>
+        <dd>{{ problem.reviewer_notes|linebreaksbr }}</dd>
+      {% endif %}
+    </dl>
+  </div>
+</section>
+
+{# --- 2. Skala i rubryka ---------------------------------------------------------------------- #}
+<section class="section" id="skala">
+  <div class="section__head">
+    <h2 class="mt-0">Skala i rubryka</h2>
+    <p class="hint"><a href="{% url 'web:coordinator-stage-scale' stage.pk %}">Skala punktacji etapu</a></p>
+  </div>
+  <div class="card">
+    {% comment %}
+      Najważniejsze zdanie tej sekcji to „skąd wzięły się te liczby”: puste nadpisanie przy zadaniu
+      znaczy „dziedzicz po etapie”, więc zmiana skali etapu obejmie to zadanie – albo nie obejmie,
+      bo ma własną. Bez tego rozróżnienia trzeba by je odgadywać po skutkach.
+    {% endcomment %}
+    {% if scale.source == "problem" %}
+      <p><span class="badge badge--info">skala własna zadania</span> Zmiana skali etapu
+        <strong>nie</strong> ruszy tego zadania.</p>
+    {% else %}
+      <p><span class="badge badge--neutral">skala etapu</span> To zadanie dziedziczy skalę po etapie
+        – zmiana skali etapu obejmie je automatycznie.</p>
+    {% endif %}
+    {% if scale.items %}
+      <ul class="plain-list">
+        {% for item in scale.items %}
+          <li><strong class="workload-num">{{ item.value }}</strong> – {{ item.label }}</li>
+        {% endfor %}
+      </ul>
+      {% if scale.max_points %}<p class="hint">Maksimum: {{ scale.max_points }} pkt.</p>{% endif %}
+    {% else %}
+      <p class="hint">Ani zadanie, ani etap nie mają skali punktacji – formularze ocen przy pracach
+        nie stoją, dopóki jej nie ustawisz.</p>
+    {% endif %}
+
+    {% if rubric is not None %}
+      <h3>Rubryka</h3>
+      {% if rubric %}
+        <p class="hint">Recenzent wypełnia rubrykę kryterium po kryterium; źródłem prawdy o ocenie
+          zostaje suma punktów, a rubryka jest jej uzasadnieniem.</p>
+        <div class="scroll">
+          <table class="table">
+            <thead>
+              <tr>
+                <th scope="col">Nr</th>
+                <th scope="col">Kryterium</th>
+                <th scope="col">Opis</th>
+                <th scope="col">Maksimum</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for criterion in rubric %}
+                <tr>
+                  <td class="num">{{ criterion.order }}</td>
+                  <th scope="row">{{ criterion.title }}</th>
+                  <td>{{ criterion.description|default:"—" }}</td>
+                  <td class="num workload-num">{{ criterion.max_points }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="hint">To zadanie nie ma kryteriów – ocenia się je tak, jak przed wprowadzeniem
+          rubryk, samą liczbą punktów. Kryteria dodaje się w
+          <a href="{% url 'web:coordinator-problem-edit' problem.pk %}">formularzu zadania</a>.</p>
+      {% endif %}
+    {% endif %}
+
+    {% if snippets is not None and snippets %}
+      <h3>Szablony komentarzy</h3>
+      <p class="hint">Wspólne szablony komitetu przypięte do tego zadania. Prywatnych szablonów
+        recenzenta nie widzi nikt poza nim – także koordynator.</p>
+      <ul class="plain-list">
+        {% for snippet in snippets %}
+          <li><strong>{{ snippet.title }}</strong> — {{ snippet.text }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </div>
+</section>
+
+{# --- 3. Reguły przydziału -------------------------------------------------------------------- #}
+<section class="section" id="reguly">
+  <div class="section__head">
+    <h2 class="mt-0">Reguły przydziału</h2>
+  </div>
+  <div class="card">
+    <p class="hint">Reguła obowiązuje zawsze: dopisuje recenzenta do prac już zablokowanych od razu,
+      a do prac, które wejdą do oceniania później – przy najbliższym przydziale automatycznym.
+      Konflikt interesów wygrywa z regułą. Usunięcie reguły nie rusza recenzji, które z niej powstały.</p>
+    <div class="scroll">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Recenzent</th>
+            <th scope="col">Województwo</th>
+            <th scope="col">Reguła od</th>
+            <th scope="col"><span class="visually-hidden">Operacje</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rule in rules.rows %}
+            <tr>
+              <th scope="row">
+                <a href="{% url 'web:coordinator-member' rule.reviewer.pk %}">{{ rule.reviewer.user.email }}</a>
+              </th>
+              <td>
+                {% if rule.reviewer.district %}
+                  {{ rule.reviewer.get_district_display }}{% if not rule.reviewer.district_verified %}
+                    <span class="badge badge--warn">niepotwierdzone</span>{% endif %}
+                {% else %}
+                  <span class="hint">cały kraj</span>
+                {% endif %}
+              </td>
+              <td>{{ rule.created_at|local_datetime }}</td>
+              <td>
+                <form method="post" action="{% url 'web:coordinator-problem-rule-remove' rule.pk %}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--danger btn--small">Usuń</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="empty">Brak reguł – zadanie idzie wyłącznie przez automat.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if rules.candidates %}
+      <form method="post" action="{% url 'web:coordinator-problem-rule-add' problem.pk %}" class="cell-form">
+        {% csrf_token %}
+        <label for="rule-reviewer">Dodaj recenzenta z góry</label>
+        <select id="rule-reviewer" name="reviewer_id">
+          {% for member in rules.candidates %}
+            <option value="{{ member.pk }}">{{ member.user.email }}{% if member.district %} ({{ member.get_district_display }}){% endif %}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn--secondary btn--small">Dodaj regułę</button>
+      </form>
+    {% else %}
+      <p class="hint">Wszyscy aktywni recenzenci mają już regułę do tego zadania.</p>
+    {% endif %}
+  </div>
+</section>
+
+{# --- 4. Wzorcówka ---------------------------------------------------------------------------- #}
+<section class="section" id="wzorcowka">
+  <div class="card">
+    <h2 class="mt-0">Wzorcówka</h2>
+    {% comment %}
+      Rozwiązanie wzorcowe nie staje się jawne nigdy – nawet po otwarciu etapu. Pobiera je wyłącznie
+      aktywny członek komitetu albo koordynator, przez widok panelu; plik nie ma publicznego adresu.
+    {% endcomment %}
+    {% if model_solution_url %}
+      <p><a class="btn btn--secondary" href="{{ model_solution_url }}">Pobierz rozwiązanie wzorcowe (PDF)</a></p>
+      <p class="hint">Materiał wyłącznie dla oceniających. Plik nie ma publicznego adresu i nie
+        staje się jawny po otwarciu etapu.</p>
+    {% else %}
+      <p class="hint">To zadanie nie ma wgranej wzorcówki. Dodasz ją w
+        <a href="{% url 'web:coordinator-problem-edit' problem.pk %}">formularzu zadania</a>.</p>
+    {% endif %}
+  </div>
+</section>
+
+{# --- 5. Prace -------------------------------------------------------------------------------- #}
+<section class="section" id="prace">
+  <div class="section__head">
+    <h2 class="mt-0">Prace</h2>
+    <span class="badge badge--danger">dane osobowe</span>
+  </div>
+  <p class="hint">Po jednej, najnowszej wersji każdej pracy. Nazwisko obok kodu widzi wyłącznie
+    koordynator – recenzent zobaczy sam kod uczestnika.</p>
+
+  <form method="get" class="actions">
+    <label for="q">Szukaj (kod uczestnika lub nazwisko)</label>
+    <input id="q" type="search" name="q" value="{{ query }}" autocomplete="off">
+    <button type="submit" class="btn btn--secondary btn--small">Szukaj</button>
+    {% if query %}
+      <a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-problem' problem.pk %}">Wyczyść</a>
+    {% endif %}
+  </form>
+
+  <div class="scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Kod</th>
+          <th scope="col">Uczestnik</th>
+          <th scope="col">Wersja</th>
+          <th scope="col">Status</th>
+          <th scope="col">Plik</th>
+          <th scope="col">Recenzje i punkty</th>
+          <th scope="col">Ocena końcowa</th>
+          <th scope="col">Przydziel</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <th scope="row">
+              {% if row.participant_url %}
+                <a href="{{ row.participant_url }}">{{ row.submission.entry.participant.public_code }}</a>
+              {% else %}
+                {{ row.submission.entry.participant.public_code }}
+              {% endif %}
+            </th>
+            <td>{{ row.submission.entry.participant.user.get_full_name|default:row.submission.entry.participant.user.email }}</td>
+            <td class="num workload-num">{{ row.submission.version }}</td>
+            <td>{{ row.submission.get_status_display }}</td>
+            <td>
+              {% if row.downloadable %}
+                <a class="btn btn--secondary btn--small"
+                   href="{% url 'submissions:submission-download' row.submission.pk %}">Pobierz</a>
+              {% elif row.scan_pending %}
+                <span class="hint">skan w toku</span>
+              {% else %}
+                <span class="hint">brak pliku</span>
+              {% endif %}
+            </td>
+            <td>
+              {% for review in row.reviews %}
+                <div class="cell-form">
+                  <span>
+                    <a href="{% url 'web:coordinator-member' review.reviewer.pk %}">{{ review.reviewer.user.email }}</a>
+                    – {{ review.get_status_display }}{% if review.round != 1 %} (runda {{ review.round }}){% endif %}:
+                    <strong class="workload-num">{% if review.score is not None %}{{ review.score }} pkt{% else %}—{% endif %}</strong>
+                  </span>
+                  {% if row.scale_values %}
+                    <form method="post" action="{% url 'web:coordinator-review-score' review.pk %}" class="cell-form">
+                      {% csrf_token %}
+                      <label class="visually-hidden" for="score-{{ review.pk }}">Punkty</label>
+                      <select id="score-{{ review.pk }}" name="score">
+                        {% for value in row.scale_values %}
+                          <option value="{{ value }}"{% if review.score == value %} selected{% endif %}>{{ value }}</option>
+                        {% endfor %}
+                      </select>
+                      <button type="submit" class="btn btn--secondary btn--small">Zapisz</button>
+                    </form>
+                  {% endif %}
+                  {% if review.status in withdrawable_statuses %}
+                    <form method="post" action="{% url 'web:coordinator-review-unassign' review.pk %}" class="cell-form">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn--danger btn--small">
+                        {% if review.status == assigned_status %}Cofnij{% else %}Odbierz{% endif %}</button>
+                    </form>
+                  {% endif %}
+                </div>
+              {% empty %}
+                <span class="hint">brak recenzentów</span>
+              {% endfor %}
+            </td>
+            <td>
+              {% if row.final_grade %}
+                <p><strong class="workload-num">{{ row.final_grade.score }} pkt</strong>
+                  ({{ row.final_grade.get_method_display }})</p>
+              {% else %}
+                <p class="hint">brak oceny końcowej</p>
+              {% endif %}
+              {% if row.lockable %}
+                <p class="hint">Praca nie jest jeszcze w ocenie – najpierw „Zablokuj do oceny”.</p>
+              {% elif row.scale_values %}
+                <form method="post" action="{% url 'web:coordinator-final-grade' row.submission.pk %}" class="stack">
+                  {% csrf_token %}
+                  <label for="final-score-{{ row.submission.pk }}">Punkty</label>
+                  <select id="final-score-{{ row.submission.pk }}" name="score">
+                    {% for value in row.scale_values %}
+                      <option value="{{ value }}"{% if row.final_grade.score == value %} selected{% endif %}>{{ value }}</option>
+                    {% endfor %}
+                  </select>
+                  <label for="final-why-{{ row.submission.pk }}">Uzasadnienie (wymagane)</label>
+                  <textarea id="final-why-{{ row.submission.pk }}" name="rationale" rows="2" required></textarea>
+                  <button type="submit" class="btn btn--primary btn--small">Zapisz korektę</button>
+                </form>
+              {% else %}
+                <p class="hint">To zadanie nie ma skali punktacji.</p>
+              {% endif %}
+            </td>
+            <td>
+              {% if row.lockable %}
+                <form method="post" action="{% url 'web:coordinator-submission-lock' row.submission.pk %}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--secondary btn--small">Zablokuj do oceny</button>
+                </form>
+              {% elif row.assignable %}
+                <form method="post" action="{% url 'web:coordinator-submission-assign' row.submission.pk %}" class="cell-form">
+                  {% csrf_token %}
+                  <label class="visually-hidden" for="assign-{{ row.submission.pk }}">Recenzent</label>
+                  <select id="assign-{{ row.submission.pk }}" name="reviewer_id">
+                    {% for member in reviewer_pool %}
+                      <option value="{{ member.pk }}">{{ member.user.email }}{% if member.district %} ({{ member.get_district_display }}){% endif %}</option>
+                    {% endfor %}
+                  </select>
+                  <button type="submit" class="btn btn--secondary btn--small">Przydziel</button>
+                </form>
+              {% else %}
+                <span class="hint">praca zamknięta dla nowych przydziałów</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="8" class="empty">
+            {% if query %}Żadna praca nie pasuje do zapytania „{{ query }}”.
+            {% else %}Do tego zadania nikt jeszcze nie oddał pracy.{% endif %}
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{# --- 6. Pobierz i podobieństwa ---------------------------------------------------------------- #}
+<section class="section" id="pobierz">
+  <div class="card">
+    <h2 class="mt-0">Pobierz</h2>
+    <p><a class="btn btn--secondary"
+          href="{% url 'web:coordinator-stage-download' stage.pk %}?problem={{ problem.pk }}">Pobierz ZIP zadania</a></p>
+    <p class="hint">Po jednej, najnowszej przeskanowanej wersji każdej pracy. Nazwy plików
+      w archiwum są anonimowe (<code>kod_zadN_vM</code>) także dla koordynatora: paczka wędruje do
+      komitetu i po drodze nikt jej nie przepakowuje.</p>
+    {% if similarity_url %}
+      <h3>Podobieństwa</h3>
+      <p><a href="{{ similarity_url }}">Pary prac o wysokim podobieństwie w tym etapie</a></p>
+      <p class="hint">Porównanie obejmuje cały etap, bo podobieństwo powstaje między pracami, a nie
+        w jednej z nich. Dotyczy wyłącznie zadań oddawanych jako kod.</p>
+    {% endif %}
+  </div>
+</section>
+
+{# --- 7. Statystyki ---------------------------------------------------------------------------- #}
+<section class="section" id="statystyki">
+  <div class="section__head">
+    <h2 class="mt-0">Statystyki</h2>
+    <p class="hint">Ocen końcowych: {{ distribution.total }}{% if distribution.mean is not None %} ·
+      średnia {{ distribution.mean }} pkt{% endif %}</p>
+  </div>
+  <div class="card">
+    {% if distribution.total %}
+      <ul class="score-bars">
+        {% for bar in distribution.bars %}
+          <li>
+            <span class="score-bars__label">{{ bar.value }} pkt</span>
+            <span class="score-bars__track">
+              <span class="score-bars__fill score-bars__fill--w{{ bar.width }}"></span>
+            </span>
+            <span class="score-bars__count">{{ bar.count }} ({{ bar.share }}%)</span>
+          </li>
+        {% endfor %}
+      </ul>
+      <p class="hint">Szerokość słupka jest zaokrąglona do pełnych 5% – dokładne liczby stoją obok
+        i to one są odpowiedzią. Rozkład liczy się z ocen końcowych, więc prace w trakcie oceniania
+        jeszcze się w nim nie pojawiają.</p>
+    {% else %}
+      <p class="hint">Żadna praca z tego zadania nie ma jeszcze oceny końcowej.</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

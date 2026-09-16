@@ -1,0 +1,502 @@
+{% extends "web/coordinator/base.html" %}
+{% load static %}
+{% load web_extras %}
+{% comment %}
+  Karta członka komisji: wszystko o jednej osobie i wszystko, co wolno z nią zrobić, na jednej
+  stronie. Sekcje idą w kolejności pytań, które koordynator zadaje sobie, sięgając po słuchawkę:
+  kim ta osoba jest (dane), ile ma na głowie (obciążenie), co dokładnie (recenzje), co jej dołożyć
+  (przydział, reguły), jak ocenia (kalibracja), co zgłosiła (problemy z pracami), co się z nią
+  działo (historia) i jak ją ponaglić (przypomnienie).
+
+  Żaden formularz na tej stronie nie prowadzi do nowego adresu zapisu: wszystkie celują
+  w istniejące widoki-akcje koordynatora, więc reguły domenowe zostają w serwisach, a karta ich
+  nie powiela. Po zapisie akcja wraca tam, gdzie wraca zawsze (ekran przydziałów etapu albo
+  pulpit) – karta nie narzuca własnego powrotu.
+
+  Sekcje długie są w ``<details>``, a nie chowane skryptem: polityka CSP nie dopuszcza skryptów
+  ani stylów inline, a strona ma działać także z wyłączonym JavaScriptem.
+{% endcomment %}
+{% block title %}Karta członka komisji {{ user.email }} – panel koordynatora{% endblock %}
+
+{% block panel_head %}
+  <link rel="stylesheet" href="{% static 'css/coordinator-cards.css' %}">
+{% endblock %}
+
+{% block panel_title %}{{ user.get_full_name|default:user.email }}{% endblock %}
+
+{% block panel_lead %}
+  <p class="lead">Członek komitetu ·
+    <span class="{{ member.status|badge_class }}">{{ member.get_status_display }}</span>
+    {% if member.district %}· {{ member.get_district_display }}{% else %}· prace z całego kraju{% endif %}
+    {% if member.is_appeals_committee %}· <span class="badge badge--info">komisja odwoławcza</span>{% endif %}
+  </p>
+  <p class="hint"><span class="badge badge--danger">dane osobowe</span> Tę stronę widzi wyłącznie
+    koordynator. Recenzent nie zna nawet nazwisk uczestników, których prace ocenia.</p>
+{% endblock %}
+
+{% block panel_actions %}
+  <a class="btn btn--secondary" href="{% url 'web:coordinator-members' %}">Wszyscy członkowie</a>
+  <a class="btn btn--secondary" href="{% url 'web:coordinator-account-edit' user.pk %}">Edytuj konto</a>
+  {% if member.status == pending_status %}
+    {% comment %}
+      Zatwierdzenie stoi w nagłówku tylko dla profilu oczekującego: to jedyna czynność, po której
+      ta osoba w ogóle zaczyna dostawać prace, więc przy niej karta jest najczęściej otwierana.
+    {% endcomment %}
+    <form method="post" action="{% url 'web:coordinator-approve' member.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn--primary">Zatwierdź do komitetu</button>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block panel_content %}
+
+{# --- 1. Dane ------------------------------------------------------------------------------ #}
+<section class="section" id="dane">
+  <div class="card">
+    <h2 class="mt-0">Dane</h2>
+    <dl class="fact-list">
+      <dt>Imię i nazwisko</dt>
+      <dd>{{ user.get_full_name|default:"—" }}</dd>
+      <dt>Adres e-mail</dt>
+      <dd><a href="mailto:{{ user.email }}">{{ user.email }}</a></dd>
+      <dt>Aktywacja konta</dt>
+      <dd>
+        {% if user.email_verified_at %}
+          <span class="badge badge--ok">potwierdzone</span> {{ user.email_verified_at|local_datetime }}
+        {% else %}
+          <span class="badge badge--warn">adres niepotwierdzony</span>
+        {% endif %}
+        {% if not user.is_active %}<span class="badge badge--danger">logowanie zablokowane</span>{% endif %}
+      </dd>
+      {% if phone %}
+        <dt>Telefon</dt>
+        <dd>{{ phone }}</dd>
+      {% endif %}
+      <dt>Status w komitecie</dt>
+      <dd>
+        <span class="{{ member.status|badge_class }}">{{ member.get_status_display }}</span>
+        {% if member.approved_at %}
+          <span class="hint">zatwierdzony {{ member.approved_at|local_datetime }}{% if member.approved_by %} przez {{ member.approved_by.email }}{% endif %}</span>
+        {% endif %}
+        {% if member.status == pending_status %}
+          <form method="post" action="{% url 'web:coordinator-approve' member.pk %}" class="cell-form">
+            {% csrf_token %}
+            <button type="submit" class="btn btn--primary btn--small">Zatwierdź</button>
+          </form>
+        {% endif %}
+      </dd>
+      <dt>Komisja odwoławcza</dt>
+      <dd>{% if member.is_appeals_committee %}<span class="badge badge--info">tak</span>{% else %}nie{% endif %}</dd>
+      <dt>Grupy uprawnień</dt>
+      <dd>{% for name in groups %}<span class="tag">{{ name }}</span> {% empty %}<span class="hint">brak</span>{% endfor %}</dd>
+      <dt>Konto założone</dt>
+      <dd>{{ user.date_joined|local_datetime }}</dd>
+    </dl>
+
+    <h3>Województwo</h3>
+    {% comment %}
+      Województwo członka komitetu jest **opcjonalne** i decyduje wyłącznie o konflikcie interesów
+      na etapie wojewódzkim. Dlatego pusta pozycja („— brak —”) jest tu decyzją koordynatora,
+      a nie niewypełnionym polem, a formularz stoi na karcie zamiast odsyłać na pulpit.
+    {% endcomment %}
+    <p>
+      {% if member.district %}
+        Obecnie: <strong>{{ member.get_district_display }}</strong>
+        {% if member.district_verified %}
+          <span class="badge badge--ok">ustalone przez organizatora</span>
+        {% else %}
+          <span class="badge badge--warn">deklaracja z rejestracji</span>
+        {% endif %}
+      {% else %}
+        Obecnie: <strong>brak</strong> – ta osoba może oceniać prace ze wszystkich województw.
+      {% endif %}
+    </p>
+    <form method="post" action="{% url 'web:coordinator-verify-district' member.pk %}" class="cell-form">
+      {% csrf_token %}
+      <label for="member-district">Województwo</label>
+      <select id="member-district" name="district">
+        {% for value, label in voivodeship_choices %}
+          <option value="{{ value }}"{% if value == member.district %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn--secondary btn--small">Zapisz województwo</button>
+    </form>
+  </div>
+</section>
+
+{# --- 2. Obciążenie ------------------------------------------------------------------------ #}
+<section class="section" id="obciazenie">
+  <div class="section__head">
+    <h2 class="mt-0">Obciążenie</h2>
+    <p class="hint">Razem: {{ totals.assigned }} przydzielonych, {{ totals.draft }} szkiców,
+      {{ totals.submitted }} wystawionych{% if totals.overdue %}, <strong>{{ totals.overdue }} po terminie</strong>{% endif %}{% if total_work_time %}
+      · zmierzony czas pracy: {{ total_work_time }}{% endif %}.</p>
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Etap</th>
+          <th scope="col">Przydzielone</th>
+          <th scope="col">Szkice</th>
+          <th scope="col">Wystawione</th>
+          <th scope="col">Anulowane</th>
+          <th scope="col">Po terminie</th>
+          <th scope="col">Czas pracy</th>
+          <th scope="col"><span class="visually-hidden">Operacje</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in workload %}
+          <tr>
+            <th scope="row">{{ row.stage.display_name }}
+              <span class="hint">{{ row.stage.edition.year_label }}</span></th>
+            <td class="num workload-num">{{ row.assigned }}</td>
+            <td class="num workload-num">{{ row.draft }}</td>
+            <td class="num workload-num">{{ row.submitted }}</td>
+            <td class="num workload-num">{{ row.cancelled }}</td>
+            <td class="num workload-num">
+              {% if row.overdue %}<span class="badge badge--danger">{{ row.overdue }}</span>{% else %}0{% endif %}
+            </td>
+            {% comment %}
+              Czas pracy jest **pomiarem przybliżonym** (sufit doliczenia, wykrywanie bezczynności),
+              więc pusta komórka znaczy „nie mierzono”, a nie „pracował zero minut”.
+            {% endcomment %}
+            <td>{{ row.work_time|default:"—" }}</td>
+            <td>
+              <a class="btn btn--secondary btn--small"
+                 href="{% url 'web:coordinator-stage-assignments' row.stage.pk %}">Przydziały etapu</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="8" class="empty">Ta osoba nie ma jeszcze ani jednej recenzji.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{# --- 3. Recenzje -------------------------------------------------------------------------- #}
+<section class="section" id="recenzje">
+  <div class="section__head">
+    <h2 class="mt-0">Recenzje</h2>
+    <span class="badge badge--danger">dane osobowe</span>
+  </div>
+  <p class="hint">„Odbierz” zabiera pracę także wtedy, gdy ocena jest już wystawiona – odebrana
+    recenzja nie liczy się do oceny końcowej. Punkty wybiera się ze skali zadania (a w jej braku –
+    etapu): ocena spoza skali i tak nie przeszłaby przez serwis.</p>
+  <div class="scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Etap</th>
+          <th scope="col">Zadanie</th>
+          <th scope="col">Uczestnik</th>
+          <th scope="col">Status</th>
+          <th scope="col">Punkty</th>
+          <th scope="col">Termin</th>
+          <th scope="col">Poprawiona</th>
+          <th scope="col">Operacje</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in reviews %}
+          <tr>
+            <td>{{ row.stage.display_name }}</td>
+            <td class="num">{{ row.problem.number }}. {{ row.problem.title }}</td>
+            <td>
+              {% comment %}
+                Kod publiczny, a nie nazwisko: ta tabela mówi o pracy recenzenta, a nie o uczestniku.
+                Odnośnik do karty uczestnika pojawia się tylko wtedy, gdy taki ekran w tej instalacji
+                istnieje – inaczej zostaje sam kod.
+              {% endcomment %}
+              {% if row.participant_url %}
+                <a href="{{ row.participant_url }}">{{ row.public_code }}</a>
+              {% else %}
+                {{ row.public_code }}
+              {% endif %}
+            </td>
+            <td>
+              <span class="{{ row.review.status|badge_class }}">{{ row.review.get_status_display }}</span>
+              {% if row.review.round != 1 %}<span class="hint">runda {{ row.review.round }}</span>{% endif %}
+              {% if row.review.cancel_reason %}<span class="hint">{{ row.review.get_cancel_reason_display }}</span>{% endif %}
+            </td>
+            <td class="num workload-num">
+              {% if row.review.score is not None %}{{ row.review.score }} pkt{% else %}—{% endif %}
+            </td>
+            <td>
+              {% if row.review.due_at %}{{ row.review.due_at|local_datetime }}{% else %}<span class="hint">bez terminu</span>{% endif %}
+              {% if row.overdue %}<span class="badge badge--danger">po terminie</span>{% endif %}
+            </td>
+            <td>{% if row.review.revised_at %}{{ row.review.revised_at|local_datetime }}{% else %}—{% endif %}</td>
+            <td>
+              {% if row.scale_values %}
+                <form method="post" action="{% url 'web:coordinator-review-score' row.review.pk %}" class="cell-form">
+                  {% csrf_token %}
+                  <label class="visually-hidden" for="score-{{ row.review.pk }}">Punkty</label>
+                  <select id="score-{{ row.review.pk }}" name="score">
+                    {% for value in row.scale_values %}
+                      <option value="{{ value }}"{% if row.review.score == value %} selected{% endif %}>{{ value }}</option>
+                    {% endfor %}
+                  </select>
+                  <button type="submit" class="btn btn--secondary btn--small">Zmień punkty</button>
+                </form>
+              {% endif %}
+              {% if row.review.status in withdrawable_statuses %}
+                <form method="post" action="{% url 'web:coordinator-review-unassign' row.review.pk %}" class="cell-form">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--danger btn--small">Odbierz</button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="8" class="empty">Ta osoba nie ma jeszcze ani jednej recenzji.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{# --- 4. Przydziel pracę ------------------------------------------------------------------- #}
+<section class="section" id="przydziel">
+  <div class="section__head">
+    <h2 class="mt-0">Przydziel pracę</h2>
+    <p class="hint">Prace bieżącej edycji, które są w ocenianiu i których ta osoba jeszcze nie ma.</p>
+  </div>
+  {% comment %}
+    Każda praca ma własny formularz, bo istniejący adres przydziału niesie identyfikator pracy
+    w ścieżce (``/coordinator/submissions/<id>/assign-reviewer/``). Recenzent jest tu stały – jedzie
+    ukrytym polem ``reviewer_id``, dokładnie tym samym, które wysyła lista wyboru na ekranie
+    przydziałów etapu. Konflikt interesów rozstrzyga serwis: karta nie chowa przycisku, tylko
+    pozwala serwisowi odmówić z komunikatem.
+  {% endcomment %}
+  {% for form in assignment_forms %}
+    <details class="card">
+      <summary><strong>{{ form.stage.display_name }}</strong> – prac do przydzielenia:
+        {{ form.submissions|length }}{% if form.hidden %} (pokazano pierwsze){% endif %}</summary>
+      <div class="scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Praca</th>
+              <th scope="col">Status</th>
+              <th scope="col"><span class="visually-hidden">Operacje</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in form.submissions %}
+              <tr>
+                <th scope="row">{{ item.label }}</th>
+                <td>{{ item.submission.get_status_display }}</td>
+                <td>
+                  <form method="post"
+                        action="{% url 'web:coordinator-submission-assign' item.submission.pk %}"
+                        class="cell-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="reviewer_id" value="{{ member.pk }}">
+                    <button type="submit" class="btn btn--secondary btn--small">Przydziel</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if form.hidden %}
+        <p class="hint">Pozostałych prac tego etapu ({{ form.hidden }}) nie wypisujemy na karcie –
+          komplet i przydział hurtowy są na ekranie
+          <a href="{% url 'web:coordinator-stage-assignments' form.stage.pk %}">przydziałów etapu</a>.</p>
+      {% endif %}
+    </details>
+  {% empty %}
+    <p class="hint">W bieżącej edycji nie ma prac, które dałoby się teraz przydzielić tej osobie.
+      Prace wchodzą do oceniania po zamknięciu etapu albo przyciskiem „Zablokuj do oceny”.</p>
+  {% endfor %}
+</section>
+
+{# --- 5. Reguły przydziału ------------------------------------------------------------------ #}
+<section class="section" id="reguly">
+  <div class="section__head">
+    <h2 class="mt-0">Reguły</h2>
+    <p class="hint">„To zadanie recenzuje ta osoba” – deklaracja, a nie jednorazowy przydział.</p>
+  </div>
+  <div class="card">
+    <p class="hint">Reguła dopisuje recenzje do prac już zablokowanych od razu, a do prac, które
+      wejdą do oceniania później – przy najbliższym przydziale automatycznym. Usunięcie reguły nie
+      rusza recenzji, które z niej powstały.</p>
+    <div class="scroll">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Etap</th>
+            <th scope="col">Zadanie</th>
+            <th scope="col">Utworzona</th>
+            <th scope="col"><span class="visually-hidden">Operacje</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rule in rules.rows %}
+            <tr>
+              <td>{{ rule.problem.stage.display_name }}</td>
+              <th scope="row">
+                <a href="{% url 'web:coordinator-problem' rule.problem.pk %}">{{ rule.problem.number }}. {{ rule.problem.title }}</a>
+              </th>
+              <td>{{ rule.created_at|local_datetime }}</td>
+              <td>
+                <form method="post" action="{% url 'web:coordinator-problem-rule-remove' rule.pk %}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--danger btn--small">Usuń regułę</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="empty">Ta osoba nie ma żadnej reguły – prace dostaje wyłącznie z automatu.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if rules.candidates %}
+      <h3>Dodaj regułę</h3>
+      {% comment %}
+        Kandydatami są zadania etapów **niezamkniętych** bieżącej edycji: w etapie zamkniętym nie ma
+        czego dopisywać. Każde zadanie ma własny formularz, bo adres reguły niesie identyfikator
+        zadania w ścieżce.
+      {% endcomment %}
+      <ul class="plain-list">
+        {% for problem in rules.candidates %}
+          <li class="cell-form">
+            <span>{{ problem.stage.display_name }} · zadanie {{ problem.number }}: {{ problem.title }}</span>
+            <form method="post" action="{% url 'web:coordinator-problem-rule-add' problem.pk %}" class="cell-form">
+              {% csrf_token %}
+              <input type="hidden" name="reviewer_id" value="{{ member.pk }}">
+              <button type="submit" class="btn btn--secondary btn--small">Dodaj regułę</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </div>
+</section>
+
+{# --- 6. Kalibracja -------------------------------------------------------------------------- #}
+{% if calibration %}
+  <section class="section" id="kalibracja">
+    <div class="section__head">
+      <h2 class="mt-0">Kalibracja</h2>
+      <p class="hint"><a href="{% url 'web:coordinator-stage-calibration' calibration.stage.pk %}">Pełne zestawienie etapu</a></p>
+    </div>
+    <div class="card">
+      <p class="hint">Liczby dotyczą etapu <strong>{{ calibration.stage.display_name }}</strong> –
+        najnowszego, w którym ta osoba wystawiła oceny. Kalibrację liczy się dla całego etapu naraz,
+        więc karta pokazuje jeden etap, a nie wszystkie.</p>
+      <dl class="fact-list">
+        <dt>Wystawione oceny (runda 1)</dt>
+        <dd>{{ calibration.row.reviews }}</dd>
+        <dt>Odchylenie od drugiego recenzenta</dt>
+        <dd>{% if calibration.row.mean_vs_peer is not None %}{{ calibration.row.mean_vs_peer|floatformat:2 }} pkt{% else %}<span class="hint">brak porównania</span>{% endif %}</dd>
+        <dt>Odchylenie od oceny uzgodnionej</dt>
+        <dd>{% if calibration.row.mean_vs_final is not None %}{{ calibration.row.mean_vs_final|floatformat:2 }} pkt{% else %}<span class="hint">brak porównania</span>{% endif %}</dd>
+        <dt>Tendencja</dt>
+        <dd>{{ calibration.row.tendency }}</dd>
+        <dt>Rozjazdy</dt>
+        <dd>{{ calibration.row.disagreements }} z {{ calibration.row.comparable }} porównywalnych</dd>
+      </dl>
+    </div>
+  </section>
+{% endif %}
+
+{# --- 7. Zgłoszone problemy z pracami --------------------------------------------------------- #}
+{% if issues is not None %}
+  <section class="section" id="zgloszenia">
+    <div class="section__head">
+      <h2 class="mt-0">Zgłoszone problemy</h2>
+      <p class="hint"><a href="{% url 'web:coordinator-issues' %}">Wszystkie zgłoszenia</a></p>
+    </div>
+    <div class="scroll">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Zgłoszone</th>
+            <th scope="col">Rodzaj</th>
+            <th scope="col">Praca</th>
+            <th scope="col">Status</th>
+            <th scope="col">Opis</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for issue in issues %}
+            <tr>
+              <td>{{ issue.created_at|local_datetime }}</td>
+              <td>{{ issue.get_kind_display }}</td>
+              <td class="num">zad. {{ issue.submission.problem.number }}</td>
+              <td><span class="{{ issue.status|badge_class }}">{{ issue.get_status_display }}</span></td>
+              <td>{{ issue.text }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="empty">Ta osoba nie zgłosiła żadnego problemu z pracą.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endif %}
+
+{# --- 8. Przypomnij e-mailem ------------------------------------------------------------------ #}
+{% if reminder_stages %}
+  <section class="section" id="przypomnienie">
+    <div class="section__head">
+      <h2 class="mt-0">Przypomnij e-mailem</h2>
+    </div>
+    <div class="card">
+      <p class="hint">List zawiera wyłącznie liczby („masz N recenzji, w tym M po terminie”) –
+        ani pseudonimów prac, ani tytułów zadań. Przycisk stoi tylko przy etapach, w których jest
+        o czym przypominać; po wysyłce wracasz na ekran postępu tego etapu.</p>
+      <ul class="plain-list">
+        {% for row in reminder_stages %}
+          <li class="cell-form">
+            <span>{{ row.stage.display_name }}: {{ row.assigned }} przydzielonych,
+              {{ row.draft }} szkiców{% if row.overdue %}, <strong>{{ row.overdue }} po terminie</strong>{% endif %}</span>
+            <form method="post" action="{% url 'web:coordinator-remind-reviewers' row.stage.pk %}" class="cell-form">
+              {% csrf_token %}
+              <input type="hidden" name="reviewer_id" value="{{ member.pk }}">
+              <button type="submit" class="btn btn--secondary btn--small">Wyślij przypomnienie</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </section>
+{% endif %}
+
+{# --- 9. Historia ----------------------------------------------------------------------------- #}
+<section class="section" id="historia">
+  <div class="section__head">
+    <h2 class="mt-0">Historia</h2>
+    <p class="hint"><a href="{% url 'web:coordinator-audit' %}">Pełny ślad audytowy</a></p>
+  </div>
+  <div class="card">
+    <p class="hint">Ostatnie decyzje zapisane o tym koncie i o tym profilu. Wpisy o pojedynczych
+      pracach tu nie wchodzą – dotyczą prac, a nie człowieka, i zasłoniłyby to, co o nim samym
+      postanowiono. Techniczny opis zmiany jest schowany, bo przy pięćdziesięciu wpisach zabiłby
+      czytelność listy.</p>
+    <ul class="card-history">
+      {% for entry in audit_entries %}
+        <li>
+          <time datetime="{{ entry.at|date:'c' }}">{{ entry.at|local_datetime }}</time>
+          <strong>{{ entry.action }}</strong>
+          — {% if entry.actor %}{{ entry.actor.email }}{% else %}system{% endif %}
+          <span class="hint">{{ entry.target_type }}#{{ entry.target_id }}</span>
+          {% if entry.diff %}
+            <details><summary>Szczegóły</summary><pre>{{ entry.diff }}</pre></details>
+          {% endif %}
+        </li>
+      {% empty %}
+        <li>O tym koncie nie zapisano jeszcze żadnej decyzji.</li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+{% endblock %}

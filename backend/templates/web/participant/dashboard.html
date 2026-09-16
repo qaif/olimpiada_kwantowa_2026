@@ -1,495 +1,95 @@
 {% extends "base.html" %}
 {% load i18n static web_extras %}
+{% comment %}
+  Pulpit uczestnika: nagłówek „Co teraz”, pasek zakładek i **jedna** sekcja.
+
+  Do tej zmiany była to jedna strona z pięcioma sekcjami jedna pod drugą. Uczestnik wchodzi na nią
+  po jedną informację („czy zdążę”, „czy praca doszła”, „ile mam punktów”), a dostawał komplet
+  wszystkich – w tym sekcje, które akurat nic nie znaczą (pusta lista reklamacji, wyniki sprzed
+  ogłoszenia). Teraz sekcje są zakładkami rozstrzyganymi po stronie serwera, a widok liczy
+  wyłącznie tę, którą renderuje (``apps.web.views.participant.MeView``).
+
+  Nagłówek „Co teraz” stoi **nad** zakładkami i jest na każdej: odpowiada na pytanie, z którym
+  się tu wchodzi, a nie na pytanie o wybraną sekcję.
+{% endcomment %}
 {% block title %}{% translate "Panel uczestnika" %}{% endblock %}
 {% block head %}
-  {# Style podglądu wysłanego pliku – tylko ten ekran, więc poza ``app.css`` (jak narzędzia koordynatora). #}
-  <link rel="stylesheet" href="{% static 'css/upload-preview.css' %}">
+  {# Style panelu uczestnika – tylko te ekrany, więc poza ``app.css`` (jak narzędzia koordynatora). #}
+  <link rel="stylesheet" href="{% static 'css/participant.css' %}">
+  {% if tab == "zadania" %}
+    {# Podgląd wysłanego pliku jest wyłącznie na zakładce zadań – arkusz jedzie razem z nią. #}
+    <link rel="stylesheet" href="{% static 'css/upload-preview.css' %}">
+  {% endif %}
 {% endblock %}
 {% block content %}
-<div class="page-head">
+<div class="page-head page-head--panel">
   <span class="eyebrow">{% translate "Panel uczestnika" %}</span>
   <h1>{% translate "Twoje zgłoszenie" %}</h1>
   <p class="lead">{% translate "Kod publiczny:" %}
-    <span class="code-chip">{{ user.participant.public_code }}</span>
+    <strong class="code-chip">{{ user.participant.public_code }}</strong>
     – {% translate "pod tym kodem występujesz w ogłaszanych tabelach wyników." %}</p>
   {% comment %}
-    Karta konta stoi na samej górze, obok kodu publicznego, bo to jedyne miejsce w panelu, w którym
-    uczestnik zobaczy **swoje** dane – reszta strony mówi o etapie i o pracach. „Usuń konto”
-    prowadzi na stronę z wyjaśnieniem skutków, a nie na akcję: konsekwencje zależą od tego, czy
-    uczestnik brał już udział w zawodach.
+    Dane konta są **zwinięte**. To jedyne miejsce w panelu, w którym uczestnik zobaczy swoje dane,
+    ale zagląda tu raz na edycję – a rozwinięte zabierały pierwszy ekran nagłówkowi „Co teraz”,
+    czyli tej jednej rzeczy, po którą się na pulpit wchodzi. ``<details>`` zamiast skryptu:
+    działa bez JavaScriptu i z klawiatury, a przeglądarka sama obsługuje fokus i stan.
+    „Usuń konto” prowadzi na stronę z wyjaśnieniem skutków, a nie na akcję: konsekwencje zależą
+    od tego, czy uczestnik brał już udział w zawodach.
   {% endcomment %}
-  <dl class="meta-list">
-    <dt>{% translate "Dane kontaktowe" %}</dt>
-    <dd>{{ user.get_full_name|default:user.email }}, {{ user.email }}{% if user.participant.phone %},
-      tel. {{ user.participant.phone }}{% endif %}</dd>
-    <dt>{% translate "Szkoła i klasa" %}</dt>
-    <dd>{{ user.participant.school }}{% if user.participant.grade %},
-      {% blocktranslate trimmed with grade=user.participant.grade %}klasa {{ grade }}{% endblocktranslate %}{% endif %}
-      ({{ user.participant.get_district_display }})</dd>
-  </dl>
-  <p class="actions">
-    <a class="btn btn--secondary btn--small" href="{% url 'web:profile' %}">{% translate "Edytuj dane" %}</a>
-    <a class="btn btn--secondary btn--small" href="{% url 'web:account-delete' %}">{% translate "Usuń konto" %}</a>
-  </p>
-  {% comment %}
-    Nawigacja panelu. Osobny wiersz od akcji na koncie powyżej, bo to inna sprawa: tamte
-    zmieniają dane uczestnika, te wyłącznie prowadzą do ekranów do czytania.
-  {% endcomment %}
-  <p class="actions">
-    <a class="btn btn--secondary btn--small" href="{% url 'web:participant-calendar' %}">{% translate "Kalendarz" %}</a>
-    <a class="btn btn--secondary btn--small" href="{% url 'web:participant-archive' %}">{% translate "Archiwum" %}</a>
-    {# Dyplomy i zaświadczenia wystawione przez komitet – lista pusta, dopóki nic nie wystawiono. #}
-    <a class="btn btn--secondary btn--small" href="{% url 'web:participant-certificates' %}">{% translate "Dyplomy" %}</a>
-  </p>
+  <details class="p-identity">
+    <summary class="p-identity__summary">{% translate "Twoje dane i ustawienia konta" %}</summary>
+    <dl class="meta-list">
+      <dt>{% translate "Dane kontaktowe" %}</dt>
+      <dd>{{ user.get_full_name|default:user.email }}, {{ user.email }}{% if user.participant.phone %},
+        tel. {{ user.participant.phone }}{% endif %}</dd>
+      <dt>{% translate "Szkoła i klasa" %}</dt>
+      <dd>{{ user.participant.school }}{% if user.participant.grade %},
+        {% blocktranslate trimmed with grade=user.participant.grade %}klasa {{ grade }}{% endblocktranslate %}{% endif %}
+        ({{ user.participant.get_district_display }})</dd>
+    </dl>
+    <p class="actions">
+      <a class="btn btn--secondary btn--small" href="{% url 'web:profile' %}">{% translate "Edytuj dane" %}</a>
+      <a class="btn btn--secondary btn--small" href="{% url 'web:account-delete' %}">{% translate "Usuń konto" %}</a>
+    </p>
+  </details>
 </div>
 
-{% if stage %}
-  <section class="section">
-    <div class="card card--accent">
-      <div class="card__head">
-        <h2 class="mt-0 card__title">{{ stage.display_name }} – {{ edition.year_label }}</h2>
-        {% if entry %}
-          <span class="{{ entry.status|badge_class }}">{{ entry.get_status_display }}</span>
-        {% endif %}
-      </div>
-
-      {% if stage.is_interview %}
-        {% comment %}
-          Etap w formie rozmowy nie ma odliczania do „oddania rozwiązań”, bo nie ma czego oddać.
-          W tym miejscu stoi więc okno rozmów (to samo, co na harmonogramie) i – dla osoby już
-          zapisanej – jej własny termin razem z linkiem. Link jest tutaj i **tylko** tutaj:
-          lista terminów niżej go nie niesie, bo adres pokoju wideo, do którego wchodzi się bez
-          logowania, jest de facto poświadczeniem.
-        {% endcomment %}
-        <div class="card card--quiet">
-          <h3 class="mt-0">{% translate "Rozmowa kwalifikacyjna online" %}</h3>
-          <dl class="meta-list">
-            <dt>{% translate "Rozmowy odbywają się" %}</dt>
-            <dd>{{ stage.opens_at|local_datetime }} – {{ stage.deadline_at|local_time }}</dd>
-            {% if interview_booking %}
-              <dt>{% translate "Twój termin" %}</dt>
-              <dd>{{ interview_booking.slot.starts_at|local_datetime }} –
-                {{ interview_booking.slot.ends_at|time:"H:i" }}
-                {% if interview_booking.slot.note %}({{ interview_booking.slot.note }}){% endif %}</dd>
-              {% comment %}
-                Adres pokoju bierzemy z **zapisu**, a nie z terminu: od wprowadzenia pokoi
-                generowanych automatycznie (``apps.competitions.video``) to zapis niesie ten
-                adres, który uczestnik dostał w liście potwierdzającym. Odwrót na pole terminu
-                zostaje dla zapisów sprzed tej zmiany i dla linków wpisanych ręcznie.
-              {% endcomment %}
-              {% with meeting_url=interview_booking.meeting_url|default:interview_booking.slot.meeting_url %}
-                <dt>{% translate "Link do rozmowy" %}</dt>
-                <dd>
-                  {% if meeting_url %}
-                    <a href="{{ meeting_url }}" target="_blank"
-                       rel="noopener noreferrer">{{ meeting_url }}</a>
-                  {% else %}
-                    <span class="hint">{% translate "koordynator poda link przed rozmową" %}</span>
-                  {% endif %}
-                </dd>
-                {% if meeting_url %}
-                  <dt>{% translate "Przed rozmową" %}</dt>
-                  <dd>
-                    <a href="{{ meeting_url|precheck_link }}" target="_blank"
-                       rel="noopener noreferrer">{% translate "Sprawdź kamerę i mikrofon" %}</a>
-                    <span class="hint">{{ interview_precheck_text }}</span>
-                  </dd>
-                {% endif %}
-              {% endwith %}
-            {% endif %}
-          </dl>
-          {% if interview_booking %}
-            {% if interview_booking.slot.starts_at > now %}
-              <form method="post" action="{% url 'web:interview-cancel' stage.pk %}">
-                {% csrf_token %}
-                <button type="submit" class="btn btn--secondary">{% translate "Zrezygnuj z terminu" %}</button>
-              </form>
-            {% else %}
-              <p class="hint">{% translate "Rozmowa już się rozpoczęła – terminu nie można już zmienić." %}</p>
-            {% endif %}
-          {% endif %}
-        </div>
-      {% else %}
-        {% comment %}
-          Odliczanie liczone z czasu serwera: obie wartości są w ISO 8601 z jawnym przesunięciem
-          strefy (filtr `date:'c'`), więc `new Date()` czyta je jako moment bezwzględny, a skrypt
-          koryguje o różnicę względem zegara przeglądarki. Zegar klienta nigdy nie decyduje
-          o terminie – deadline i tak egzekwuje serwis uploadu.
-        {% endcomment %}
-        {% if stage.has_deadline %}
-          <div class="countdown"
-               x-data="countdown"
-               data-deadline="{{ stage.submission_deadline|date:'c' }}"
-               data-server-now="{{ now|date:'c' }}">
-            <span class="countdown__label">{% translate "Termin oddania rozwiązań" %}</span>
-            <span class="countdown__deadline">{{ stage.submission_deadline|local_time }}</span>
-            <span class="countdown__value" x-text="label">{% translate "pozostały czas liczony jest po wczytaniu strony" %}</span>
-          </div>
-        {% else %}
-          {% comment %}
-            Etap bez terminu (dziś: trening). Data z bazy to wartownik z roku 2099, więc odliczanie
-            pokazałoby siedemdziesiąt lat, a „termin oddania: 31.12.2099” byłoby informacją
-            nieprawdziwą. Pytamy o ``has_deadline``, a nie o rodzaj etapu – reguła ma jedno miejsce.
-          {% endcomment %}
-          <div class="countdown">
-            <span class="countdown__label">{% translate "Termin oddania rozwiązań" %}</span>
-            <span class="countdown__deadline">{% translate "Bez terminu" %}</span>
-            <span class="countdown__value">{% translate "rozwiązania przyjmujemy bezterminowo" %}</span>
-          </div>
-        {% endif %}
-      {% endif %}
-
-      {% comment %}
-        Etap stacjonarny ma dwa terminy i uczestnik potrzebuje obu: dni, na które przyjeżdża,
-        i godzinę, do której system przyjmuje pracę. Dlatego ten wiersz **dochodzi** do odliczania
-        powyżej, a nie zastępuje go – inaczej ktoś przyjechałby na cztery dni, nie wiedząc, kiedy
-        w ich trakcie oddaje rozwiązanie (na publicznym harmonogramie stoi sam termin zjazdu).
-      {% endcomment %}
-      {% if stage.event_range %}
-        {% comment %}
-          Podpis i data muszą zostać w **jednym** wierszu wyniku („Termin wydarzenia: <strong>…”):
-          złamanie szablonu wstawiłoby między nie wcięcie, a to jest zdanie, nie lista.
-        {% endcomment %}
-        <p class="card__meta">{% translate "Termin wydarzenia:" %} <strong>{{ stage|event_dates }}</strong>{% if stage.location %}, {{ stage.location }}{% endif %}.
-          {% translate "Godziny oddania rozwiązań powyżej obowiązują niezależnie od dni pobytu." %}</p>
-      {% endif %}
-
-      {% if can_register %}
-        <form method="post" action="{% url 'web:stage-register' stage.pk %}">
-          {% csrf_token %}
-          <button type="submit" class="btn btn--accent">
-            {% if stage.is_training %}{% translate "Zgłoś się do treningu" %}{% else %}{% translate "Zgłoś się do tego etapu" %}{% endif %}</button>
-        </form>
-      {% elif entry %}
-        <p class="card__meta">{% translate "Status Twojego udziału:" %}
-          <strong>{{ entry.get_status_display }}</strong>.</p>
-      {% elif stage.is_interview %}
-        <p class="card__meta">{% translate "Do rozmowy kwalifikacyjnej przystępują wyłącznie osoby zakwalifikowane w poprzednim etapie. Nie ma tu zapisów otwartych." %}</p>
-      {% else %}
-        {% comment %}
-          Nazwy etapów („Etap I/II/III”) ustala koordynator, więc komunikat ich nie wymienia –
-          mówi o regule: do dalszych etapów nie ma zapisów, wpis tworzy kwalifikacja z etapu
-          poprzedniego.
-        {% endcomment %}
-        <p class="card__meta">{% translate "Do tego etapu nie ma zapisów – przechodzą do niego osoby zakwalifikowane w poprzednim etapie." %}</p>
-      {% endif %}
-    </div>
-  </section>
-
-  {% if entry %}
-    {% if stage.is_interview %}
-      <section class="section">
-        <div class="section__head">
-          <h2 class="mt-0">{% translate "Wybierz termin rozmowy" %}</h2>
-          {% if interview_booking %}
-            <p class="hint">{% translate "Masz już zapisany termin – wybranie innego przeniesie zapis." %}</p>
-          {% endif %}
-        </div>
-        {% if interview_rows %}
-          <div class="scroll">
-            <table class="table">
-              <caption>{% translate "Terminy rozmów. Wszystkie godziny: czas polski." %}</caption>
-              <thead>
-                <tr>
-                  <th scope="col">{% translate "Data" %}</th>
-                  <th scope="col">{% translate "Godziny" %}</th>
-                  <th scope="col">{% translate "Oznaczenie" %}</th>
-                  <th scope="col">{% translate "Wolne miejsca" %}</th>
-                  <th scope="col"><span class="visually-hidden">{% translate "Zapis" %}</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                {% comment %}
-                  Terminy, które się już skończyły, znikają z listy: nie ma po co proponować
-                  rozmowy, której nie da się już odbyć. Trwający termin zostaje z jawnym
-                  „Termin już trwa” – zniknięcie wiersza w trakcie godziny wyglądałoby jak awaria.
-                  Własny termin zostaje zawsze, także po rozmowie.
-                {% endcomment %}
-                {% for row in interview_rows %}
-                  {% if row.slot.ends_at > now or row.is_mine %}
-                    <tr {% if row.is_mine %}class="is-qualified"{% endif %}>
-                      <td>{{ row.slot.starts_at|date:"j E Y" }}</td>
-                      <td>{{ row.slot.starts_at|time:"H:i" }}–{{ row.slot.ends_at|time:"H:i" }}</td>
-                      <td>{{ row.slot.note|default:"—" }}</td>
-                      <td class="num">{% blocktranslate trimmed with free=row.free capacity=row.slot.capacity %}{{ free }} z {{ capacity }}{% endblocktranslate %}</td>
-                      <td>
-                        {% if row.is_mine %}
-                          <span class="badge badge--ok">{% translate "Twój termin" %}</span>
-                        {% elif row.bookable %}
-                          <form method="post" action="{% url 'web:interview-book' row.slot.pk %}">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn--primary btn--small">
-                              {% if interview_booking %}{% translate "Zmień na ten termin" %}{% else %}{% translate "Zapisz się" %}{% endif %}</button>
-                          </form>
-                        {% else %}
-                          {% comment %}
-                            Powód odmowy liczy serwis (``slots_for_participant``), a nie szablon:
-                            przycisk ma mówić dokładnie to, co powiedziałby POST na ten termin.
-                          {% endcomment %}
-                          <button type="button" class="btn btn--secondary btn--small" disabled>
-                            {% if row.reason == "started" %}{% translate "Termin już trwa" %}
-                            {% elif row.reason == "locked" %}{% translate "Zmiana niemożliwa – Twoja rozmowa już trwa" %}
-                            {% elif row.reason == "closed" %}{% translate "Zapisy zamknięte" %}
-                            {% else %}{% translate "Brak miejsc" %}{% endif %}</button>
-                        {% endif %}
-                      </td>
-                    </tr>
-                  {% endif %}
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        {% else %}
-          <p class="empty"><span class="empty__title">{% translate "Brak terminów" %}</span>
-            {% translate "Koordynator nie wyznaczył jeszcze terminów." %}</p>
-        {% endif %}
-      </section>
-    {% else %}
-      <section class="section">
-        <div class="section__head">
-          <h2 class="mt-0">{% translate "Zadania" %}</h2>
-          {% if not upload_open %}
-            <span class="badge badge--warn">{% translate "upload zamknięty" %}</span>
-          {% endif %}
-        </div>
-        {% if not upload_open %}
-          <p class="msg msg-warning closed">{% translate "Etap jest zamknięty – nie można już wysyłać rozwiązań." %}</p>
-        {% endif %}
-        {% for row in problem_rows %}
-          {% include "web/participant/_problem_card.html" with row=row stage=stage entry=entry upload_open=upload_open error=None %}
-        {% empty %}
-          <p class="empty"><span class="empty__title">{% translate "Brak zadań" %}</span>
-            {% translate "Ten etap nie ma jeszcze opublikowanych zadań." %}</p>
-        {% endfor %}
-      </section>
-    {% endif %}
-  {% endif %}
-{% else %}
-  <p class="notice">{% translate "Nie ustawiono bieżącej edycji olimpiady." %}</p>
-{% endif %}
+{% include "web/participant/_now.html" %}
+{% include "web/participant/_tabs.html" %}
 
 {% comment %}
-  Trening jest osobną kartą, a nie kolejnym „etapem bieżącym”: jest otwarty bez końca, więc
-  w karcie wyżej zasłaniałby najbliższe zawody. Stoi pod nią, bo to oferta obok zawodów – i poza
-  blokiem `{% if stage %}`, żeby był dostępny także w przerwie między etapami.
-
-  Upload działa tu dokładnie tak, jak w etapie zawodów (ten sam ``_problem_card.html``, ten sam
-  serwis, ta sama historia wersji i skan antywirusowy) – w tym cała wartość piaskownicy: ścieżka
-  „prawie jak prawdziwa” nie nauczyłaby niczego o prawdziwej.
+  Sekcja zakładki. ``id`` jest celem odnośników z nagłówka „Co teraz” (np. „Sprawdź wyniki”
+  prowadzi na ``/me/?tab=wyniki``) – po przeładowaniu strony przeglądarka stawia widok na tej
+  treści, a nie na początku dokumentu.
 {% endcomment %}
-{% if training_stage %}
-  <section class="section" id="trening">
-    <div class="card">
-      <div class="card__head">
-        <h2 class="mt-0 card__title">{{ training_stage.display_name }}</h2>
-        {% if training_entry %}
-          <span class="{{ training_entry.status|badge_class }}">{{ training_entry.get_status_display }}</span>
-        {% else %}
-          <span class="badge badge--neutral">{% translate "trening" %}</span>
-        {% endif %}
-      </div>
-      <p class="card__meta">{% translate "Bez terminu i poza kwalifikacją – te zadania nie wpływają na wyniki zawodów. Służą do przejścia całej ścieżki: zgłoszenie, pobranie treści, wysłanie rozwiązania i odbiór oceny." %}</p>
-
-      {% if training_can_register %}
-        <form method="post" action="{% url 'web:stage-register' training_stage.pk %}">
-          {% csrf_token %}
-          <button type="submit" class="btn btn--accent">{% translate "Zgłoś się do treningu" %}</button>
-        </form>
-      {% endif %}
-    </div>
-
-    {% if training_entry %}
-      <div class="section__head">
-        <h3 class="mt-0">{% translate "Zadania treningowe" %}</h3>
-        {% if not training_upload_open %}
-          <span class="badge badge--warn">{% translate "upload zamknięty" %}</span>
-        {% endif %}
-      </div>
-      {% for row in training_problem_rows %}
-        {% include "web/participant/_problem_card.html" with row=row stage=training_stage entry=training_entry upload_open=training_upload_open error=None %}
-      {% empty %}
-        <p class="empty"><span class="empty__title">{% translate "Brak zadań" %}</span>
-          {% translate "Etap treningowy nie ma jeszcze opublikowanych zadań." %}</p>
-      {% endfor %}
-    {% endif %}
-  </section>
-{% endif %}
-
-<section class="section">
-  <div class="section__head"><h2 class="mt-0">{% translate "Moje wyniki" %}</h2></div>
-  {% for result in results %}
-    <article class="card">
-      <div class="result-summary">
-        <h3 class="mt-0">{{ result.edition }} – {{ result.stage_name }}</h3>
-        <span class="result-summary__points">{% blocktranslate trimmed with points=result.total_points %}{{ points }} pkt{% endblocktranslate %}</span>
-      </div>
-      {% comment %}
-        Tabela poniżej mieści punkty i komentarze, ale nie mieści miejsca ani progu kwalifikacji –
-        te wynikają z ogłoszonej tabeli całego etapu. Stąd odnośnik na osobną stronę, a nie
-        kolejna kolumna: jest tam jedna liczba na etap, a nie jedna na zadanie.
-      {% endcomment %}
-      <p class="actions">
-        <a class="btn btn--secondary btn--small"
-           href="{% url 'web:participant-feedback' result.stage_id %}">{% translate "Komentarze i miejsce" %}</a>
-      </p>
-      <div class="scroll">
-        <table class="table">
-          <thead><tr>
-            <th>{% translate "Zadanie" %}</th>
-            <th>{% translate "Punkty" %}</th>
-            <th>{% translate "Informacja zwrotna" %}</th>
-          </tr></thead>
-          <tbody>
-            {% for problem in result.problems %}
-              <tr>
-                <td>{{ problem.number }}. {{ problem.title }}</td>
-                <td class="num total">{{ problem.score }}</td>
-                <td>
-                  {% for item in problem.feedback %}
-                    {% if item.comment_for_participant or item.annotations %}
-                      <div class="feedback">
-                        <span class="feedback__title">{% translate "Od recenzenta" %}</span>
-                        {% if item.comment_for_participant %}<p>{{ item.comment_for_participant }}</p>{% endif %}
-                        {% for annotation in item.annotations %}
-                          <p class="annotation">{% blocktranslate trimmed with page=annotation.page text=annotation.text %}str. {{ page }}: {{ text }}{% endblocktranslate %}</p>
-                        {% endfor %}
-                      </div>
-                    {% endif %}
-                  {% empty %}
-                    <span class="hint">{% translate "brak" %}</span>
-                  {% endfor %}
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </article>
-  {% empty %}
-    <p class="empty"><span class="empty__title">{% translate "Wyniki jeszcze przed nami" %}</span>
-      {% translate "Żaden etap nie ma jeszcze ogłoszonych wyników." %}</p>
-  {% endfor %}
-</section>
-
-<section class="section">
-  <div class="section__head"><h2 class="mt-0">{% translate "Reklamacje" %}</h2></div>
-  {% for submission in appealable %}
-    <article class="card">
-      <h3 class="mt-0">{% blocktranslate trimmed with number=submission.problem.number title=submission.problem.display_title %}
-        Zadanie {{ number }}: {{ title }}
-      {% endblocktranslate %}</h3>
-      <form method="post" action="{% url 'web:appeal-create' submission.pk %}" class="form form--wide">
-        {% csrf_token %}
-        {{ appeal_form.as_p }}
-        <div class="actions">
-          <button type="submit" class="btn btn--primary">{% translate "Złóż reklamację" %}</button>
-        </div>
-      </form>
-    </article>
-  {% empty %}
-    <p class="hint">{% translate "Obecnie nie ma pracy, na którą można złożyć reklamację (potrzebna jest ocena wstępna i otwarte okno odwoławcze)." %}</p>
-  {% endfor %}
-
-  {% if my_appeals %}
-    <div class="scroll">
-      <table class="table">
-        <caption>{% translate "Złożone reklamacje" %}</caption>
-        <thead><tr>
-          <th>{% translate "Zadanie" %}</th>
-          <th>{% translate "Złożona (czas polski)" %}</th>
-          <th>{% translate "Status" %}</th>
-          <th>{% translate "Uzasadnienie decyzji" %}</th>
-        </tr></thead>
-        <tbody>
-          {% for appeal in my_appeals %}
-            <tr>
-              <td class="num">{{ appeal.submission.problem.number }}</td>
-              <td>{{ appeal.filed_at|local_datetime }}</td>
-              <td><span class="{{ appeal.status|badge_class }}">{{ appeal.get_status_display }}</span></td>
-              <td>{% if appeal.decision %}{{ appeal.decision.justification }}{% else %}—{% endif %}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+<div class="p-panel" id="sekcja">
+  {% if tab == "wyniki" %}
+    {% include "web/participant/_tab_results.html" %}
+  {% elif tab == "reklamacje" %}
+    {% include "web/participant/_tab_appeals.html" %}
+  {% elif tab == "zgody" %}
+    {% include "web/participant/_tab_consents.html" %}
+  {% else %}
+    {% include "web/participant/_tab_tasks.html" %}
   {% endif %}
-</section>
-
-<section class="section" id="zgody">
-  <div class="section__head"><h2 class="mt-0">{% translate "Twoje zgody" %}</h2></div>
-  {% comment %}
-    Zgoda opiekuna stoi **nad** tabelą zgód, bo jako jedyna bywa niezałatwiona i jako jedyna
-    wymaga tu czynności. Tabela poniżej odpowiada na pytanie „co obowiązuje”, ten blok – na
-    pytanie „co jeszcze trzeba zrobić”.
-  {% endcomment %}
-  {% if guardian.state != "not_required" %}
-    {% include "web/participant/_guardian_consent.html" with guardian=guardian %}
-  {% endif %}
-  {% comment %}
-    Lista mówi trzy rzeczy naraz: **co** zostało oświadczone, **pod jaką wersją dokumentu**
-    i **kiedy**. Sama „ptaszka” nie wystarczy: dokumenty są nowelizowane, a zgoda złożona pod
-    wersją sprzed nowelizacji nie jest zgodą na tekst, który wisi na stronie dzisiaj.
-
-    Przełącznik jest dokładnie jeden — publikacja imienia i nazwiska. Pozostałe zgody są
-    warunkiem udziału albo oświadczeniem o zapoznaniu się z dokumentem; ich wycofanie znaczy
-    rezygnację z Olimpiady i jest sprawą do organizatora, a nie przyciskiem w panelu.
-  {% endcomment %}
-  <div class="scroll">
-    <table class="table">
-      <caption>{% translate "Zgody złożone przy rejestracji i później" %}</caption>
-      <thead><tr>
-        <th>{% translate "Zgoda" %}</th>
-        <th>{% translate "Wersja dokumentu" %}</th>
-        <th>{% translate "Data (czas polski)" %}</th>
-        <th>{% translate "Stan" %}</th>
-      </tr></thead>
-      <tbody>
-        {% for row in consent_rows %}
-          <tr>
-            <td>{{ row.name }}{% if row.optional %} <span class="hint">{% translate "(dobrowolna)" %}</span>{% endif %}</td>
-            <td>{% if row.record %}{{ row.record.document_version|default:"—" }}{% else %}{{ row.version }}{% endif %}</td>
-            <td>{% if row.record %}{{ row.record.given_at|local_datetime }}{% else %}—{% endif %}</td>
-            <td>
-              {% if not row.record %}
-                <span class="hint">{% translate "brak wpisu" %}</span>
-              {% elif row.record.withdrawn_at %}
-                {% blocktranslate trimmed with when=row.record.withdrawn_at|local_datetime %}
-                  wycofana {{ when }}
-                {% endblocktranslate %}
-              {% else %}
-                {% translate "obowiązuje" %}
-              {% endif %}
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
-  <form method="post" action="{% url 'web:consent-publish-name' %}" class="inline">
-    {% csrf_token %}
-    {% if user.participant.publish_full_name %}
-      <input type="hidden" name="given" value="0">
-      <button type="submit" class="btn btn--secondary">{% translate "Wycofaj zgodę na publikację nazwiska" %}</button>
-    {% else %}
-      <input type="hidden" name="given" value="1">
-      <button type="submit" class="btn btn--secondary">{% translate "Wyraź zgodę na publikację nazwiska" %}</button>
-    {% endif %}
-  </form>
-  <p class="hint">{% blocktranslate trimmed with code=user.participant.public_code %}
-    Bez tej zgody w publikowanych tabelach wyników występujesz wyłącznie pod kodem {{ code }}.
-    Zgodę możesz wyrazić i wycofać w każdej chwili.
-  {% endblocktranslate %}</p>
-</section>
+</div>
 {% endblock %}
 
 {% block scripts %}
   {% comment %}
-    Podgląd pierwszej strony wysłanego PDF-a. Moduł (``type="module"``), bo dociąga pdf.js
-    dynamicznym ``import()`` – to ta sama droga, co w panelu recenzenta, i tylko dla niej
-    ``'strict-dynamic'`` z CSP przenosi zaufanie na import. Strona jest kompletna bez tego
-    skryptu: metryki pliku liczy serwer, a plik i tak jest do pobrania.
+    Odświeżanie odliczania co minutę. Strona jest kompletna bez tego skryptu: liczbę („za 3 dni,
+    14 godz.”) rysuje serwer, a termin i tak egzekwuje serwis uploadu. Skrypt dokłada jedno:
+    w karcie zostawionej otwartej licznik nie zostaje na wartości sprzed godziny.
   {% endcomment %}
-  <script type="module" nonce="{{ request.csp_nonce }}"
-          src="{% static 'js/upload-preview.js' %}"></script>
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/participant.js' %}"></script>
+  {% if tab == "zadania" %}
+    {% comment %}
+      Podgląd pierwszej strony wysłanego PDF-a. Moduł (``type="module"``), bo dociąga pdf.js
+      dynamicznym ``import()`` – to ta sama droga, co w panelu recenzenta, i tylko dla niej
+      ``'strict-dynamic'`` z CSP przenosi zaufanie na import. Strona jest kompletna bez tego
+      skryptu: metryki pliku liczy serwer, a plik i tak jest do pobrania.
+    {% endcomment %}
+    <script type="module" nonce="{{ request.csp_nonce }}"
+            src="{% static 'js/upload-preview.js' %}"></script>
+  {% endif %}
 {% endblock %}

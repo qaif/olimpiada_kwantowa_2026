@@ -1,0 +1,142 @@
+{% load i18n web_extras %}{% comment %}
+  Rozmowa kwalifikacyjna: własny termin (z linkiem i próbą techniczną) albo wybór terminu z listy.
+
+  Lista jest **listą wyboru pogrupowaną po dniach**, a nie tabelą z przyciskiem w każdym wierszu.
+  Powód jest prosty: wybór terminu to jedna decyzja, a nie kilkanaście osobnych czynności –
+  tabela z dwudziestoma przyciskami „Zapisz się” kazała czytać dwadzieścia razy to samo słowo
+  i nie dawało się jej ogarnąć wzrokiem na telefonie. Zapis idzie jednym POST-em na
+  ``web:interview-choose`` z identyfikatorem terminu w polu formularza.
+
+  Adres pokoju wideo stoi **wyłącznie** przy własnym terminie: wejście do pokoju nie wymaga
+  logowania, więc sam adres jest de facto poświadczeniem i lista pokazywana wszystkim
+  zakwalifikowanym nie może go nieść.
+{% endcomment %}
+<section class="section" id="rozmowa">
+  <div class="section__head">
+    <h2 class="mt-0">{% translate "Rozmowa kwalifikacyjna online" %}</h2>
+    <p class="hint">{% translate "Rozmowy odbywają się" %}
+      {{ stage.opens_at|local_datetime }} – {{ stage.deadline_at|local_time }}</p>
+  </div>
+
+  {% if interview_booking %}
+    <div class="card card--accent">
+      <div class="card__head">
+        <h3 class="mt-0 card__title">{% translate "Twój termin" %}</h3>
+        <span class="badge badge--ok">{% translate "zapisano" %}</span>
+      </div>
+      <dl class="meta-list">
+        <dt>{% translate "Termin" %}</dt>
+        <dd>{{ interview_booking.slot.starts_at|local_datetime }} –
+          {{ interview_booking.slot.ends_at|time:"H:i" }}
+          {% if interview_booking.slot.note %}({{ interview_booking.slot.note }}){% endif %}</dd>
+        {% comment %}
+          Adres pokoju bierzemy z **zapisu**, a nie z terminu: od wprowadzenia pokoi generowanych
+          automatycznie (``apps.competitions.video``) to zapis niesie ten adres, który uczestnik
+          dostał w liście potwierdzającym. Odwrót na pole terminu zostaje dla zapisów sprzed tej
+          zmiany i dla linków wpisanych ręcznie.
+        {% endcomment %}
+        {% with meeting_url=interview_booking.meeting_url|default:interview_booking.slot.meeting_url %}
+          <dt>{% translate "Link do rozmowy" %}</dt>
+          <dd>
+            {% if meeting_url %}
+              <a href="{{ meeting_url }}" target="_blank" rel="noopener noreferrer">{{ meeting_url }}</a>
+            {% else %}
+              <span class="hint">{% translate "koordynator poda link przed rozmową" %}</span>
+            {% endif %}
+          </dd>
+          {% if meeting_url %}
+            <dt>{% translate "Przed rozmową" %}</dt>
+            <dd>
+              <a class="btn btn--secondary btn--small" href="{{ meeting_url|precheck_link }}"
+                 target="_blank" rel="noopener noreferrer">{% translate "Sprawdź kamerę i mikrofon" %}</a>
+              <span class="hint">{{ interview_precheck_text }}</span>
+            </dd>
+          {% endif %}
+        {% endwith %}
+      </dl>
+      {% if interview_booking.slot.starts_at > now %}
+        {% comment %}
+          Rezygnacja jest nieodwracalna w praktyce: zwolnione miejsce wraca do puli i może je zająć
+          ktoś inny, zanim uczestnik zdąży kliknąć ponownie. Stąd pytanie przed wysłaniem –
+          komponentem Alpine (``confirmSubmit``), bo w serwisie nie ma ani jednego skryptu inline.
+        {% endcomment %}
+        <form method="post" action="{% url 'web:interview-cancel' stage.pk %}"
+              x-data="confirmSubmit" x-on:submit="check"
+              data-confirm="{% translate 'Odwołać zapisany termin? Zwolnione miejsce może zająć ktoś inny.' %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn--secondary">{% translate "Zrezygnuj z terminu" %}</button>
+        </form>
+      {% else %}
+        <p class="hint">{% translate "Rozmowa już się rozpoczęła – terminu nie można już zmienić." %}</p>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="card__head">
+      <h3 class="mt-0 card__title">{% translate "Wybierz termin rozmowy" %}</h3>
+      {% if interview_booking %}
+        <span class="hint">{% translate "Masz już zapisany termin – wybranie innego przeniesie zapis." %}</span>
+      {% endif %}
+    </div>
+    {% if interview_rows %}
+      <form method="post" action="{% url 'web:interview-choose' %}" class="slot-picker">
+        {% csrf_token %}
+        {% comment %}
+          Grupowanie po dniu robi ``{% templatetag openblock %} regroup {% templatetag closeblock %}``:
+          terminy przychodzą z serwisu posortowane po godzinie rozpoczęcia, więc grupy wychodzą
+          w kolejności kalendarzowej i nie trzeba ich układać w widoku. Terminy, które już się
+          skończyły, odsiewa widok – nie ma po co proponować rozmowy, której nie da się odbyć.
+        {% endcomment %}
+        {% regroup interview_rows by slot.starts_at|date:"l, j E Y" as slot_days %}
+        {% for day in slot_days %}
+          <fieldset class="slot-day">
+            <legend class="slot-day__legend">{{ day.grouper }}</legend>
+            <ul class="slot-list">
+              {% for row in day.list %}
+                <li class="slot{% if row.is_mine %} slot--mine{% endif %}">
+                  {% if row.bookable %}
+                    <input type="radio" name="slot_id" value="{{ row.slot.pk }}"
+                           id="slot-{{ row.slot.pk }}" class="slot__radio" required>
+                    <label class="slot__label" for="slot-{{ row.slot.pk }}">
+                      <span class="slot__time">{{ row.slot.starts_at|time:"H:i" }}–{{ row.slot.ends_at|time:"H:i" }}</span>
+                      {% if row.slot.note %}<span class="slot__note">{{ row.slot.note }}</span>{% endif %}
+                      <span class="slot__free">{% blocktranslate trimmed with free=row.free capacity=row.slot.capacity %}
+                        wolne {{ free }} z {{ capacity }}
+                      {% endblocktranslate %}</span>
+                    </label>
+                  {% else %}
+                    <span class="slot__label slot__label--off">
+                      <span class="slot__time">{{ row.slot.starts_at|time:"H:i" }}–{{ row.slot.ends_at|time:"H:i" }}</span>
+                      {% if row.slot.note %}<span class="slot__note">{{ row.slot.note }}</span>{% endif %}
+                      {% comment %}
+                        Powód odmowy liczy serwis (``slots_for_participant``), a nie szablon:
+                        wiersz ma mówić dokładnie to, co powiedziałby POST na ten termin.
+                      {% endcomment %}
+                      <span class="slot__reason">
+                        {% if row.is_mine %}<span class="badge badge--ok">{% translate "Twój termin" %}</span>
+                        {% elif row.reason == "started" %}{% translate "Termin już trwa" %}
+                        {% elif row.reason == "locked" %}{% translate "Zmiana niemożliwa – Twoja rozmowa już trwa" %}
+                        {% elif row.reason == "closed" %}{% translate "Zapisy zamknięte" %}
+                        {% else %}{% translate "Brak miejsc" %}{% endif %}
+                      </span>
+                    </span>
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+          </fieldset>
+        {% endfor %}
+        <div class="actions">
+          <button type="submit" class="btn btn--primary">
+            {% if interview_booking %}{% translate "Zmień na wybrany termin" %}
+            {% else %}{% translate "Zapisz się na wybrany termin" %}{% endif %}</button>
+        </div>
+        <p class="hint">{% translate "Wszystkie godziny: czas polski." %}</p>
+      </form>
+    {% else %}
+      <p class="empty"><span class="empty__title">{% translate "Brak terminów" %}</span>
+        {% translate "Koordynator nie wyznaczył jeszcze terminów." %}</p>
+    {% endif %}
+  </div>
+</section>

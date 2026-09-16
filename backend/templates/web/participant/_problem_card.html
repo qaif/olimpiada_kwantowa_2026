@@ -1,6 +1,18 @@
 {% load i18n web_extras %}{% comment %}
-  Karta jednego zadania: treść, upload i historia wersji. Ten sam fragment renderuje pulpit
-  i odpowiedź HTMX po uploadzie, więc lista wersji nie może rozjechać się między nimi.
+  Karta jednego zadania: treść, stan pracy, upload i historia wersji. Ten sam fragment renderuje
+  pulpit i odpowiedź HTMX po uploadzie, więc jedno i drugie musi mówić to samo.
+
+  Hierarchia karty odpowiada kolejności pytań, które uczestnik zadaje:
+
+  1. **co to za zadanie i jak stoi moja praca** – tytuł, odznaka stanu, treść w PDF,
+  2. **co mam zrobić** – formularz wysyłki, a przy nim (nie nad stroną) ostrzeżenie, że nowa
+     wersja unieważnia rozpoczętą ocenę,
+  3. **czy doszło to, co chciałem wysłać** – podgląd ostatniej wersji,
+  4. **co wysyłałem wcześniej** – historia wersji, zwinięta w ``<details>``: jest potrzebna raz
+     na kilkanaście wejść, a rozwinięta była najdłuższym elementem karty.
+
+  Ostatnia wersja i jej skan antywirusowy stoją **poza** zwijaną historią: to jedyny wiersz,
+  o który uczestnik pyta zaraz po wysyłce („czy plik przeszedł skan”), i nie może być schowany.
 {% endcomment %}
 <article class="problem-card" id="problem-{{ row.problem.pk }}">
   <div class="problem-card__head">
@@ -11,19 +23,28 @@
     <h3>{% blocktranslate trimmed with number=row.problem.number title=row.problem.display_title %}
       Zadanie {{ number }}: {{ title }}
     {% endblocktranslate %}</h3>
+    {% if row.state %}
+      <span class="{{ row.state.tone }}">{{ row.state.label }}</span>
+    {% endif %}
+  </div>
+
+  <p class="problem-card__specs">
+    {% if stage.has_deadline %}
+      <span>{% translate "Termin:" %}
+        <strong>{{ stage.submission_deadline|local_datetime }}</strong></span>
+    {% else %}
+      <span>{% translate "Termin:" %} <strong>{% translate "bez terminu" %}</strong></span>
+    {% endif %}
+    <span>{% translate "Dozwolone formaty:" %}
+      <strong>{{ row.problem.allowed_formats|join:", " }}</strong></span>
+    <span>{% translate "Limit pliku:" %}
+      <strong>{{ row.problem.max_file_mb }} MB</strong></span>
     {% if row.problem.statement_pdf %}
       <a class="btn btn--secondary btn--small"
          href="{% url 'competitions:problem-statement' row.problem.pk %}">{% translate "Treść zadania (PDF)" %}</a>
     {% else %}
       <span class="badge badge--neutral">{% translate "treść jeszcze nieopublikowana" %}</span>
     {% endif %}
-  </div>
-
-  <p class="problem-card__specs">
-    <span>{% translate "Dozwolone formaty:" %}
-      <strong>{{ row.problem.allowed_formats|join:", " }}</strong></span>
-    <span>{% translate "Limit pliku:" %}
-      <strong>{{ row.problem.max_file_mb }} MB</strong></span>
   </p>
 
   {% comment %}
@@ -38,14 +59,6 @@
   {% if error %}<p class="msg msg-error">{{ error }}</p>{% endif %}
 
   {% if upload_open %}
-    {% comment %}
-      Komitet może zacząć oceniać przed zamknięciem etapu, więc uczestnik z otwartym uploadem bywa
-      pracą już czytaną. Wysyłka nadal wolna – ale ostrzeżenie stoi przy przycisku, a nie w
-      komunikacie po fakcie: to jest moment, w którym decyzja zapada.
-    {% endcomment %}
-    {% if row.under_review %}
-      <p class="msg msg-warning">{% translate "Ta praca jest już w ocenie. Wysłanie nowej wersji anuluje dotychczasową ocenę – zostanie oceniona od nowa." %}</p>
-    {% endif %}
     <form class="upload"
           method="post"
           enctype="multipart/form-data"
@@ -55,6 +68,15 @@
           hx-target="#problem-{{ row.problem.pk }}"
           hx-swap="outerHTML">
       {% csrf_token %}
+      {% comment %}
+        Komitet może zacząć oceniać przed zamknięciem etapu, więc uczestnik z otwartym uploadem
+        bywa pracą już czytaną. Wysyłka nadal wolna – ale ostrzeżenie stoi **wewnątrz** formularza,
+        tuż nad polem pliku: to jest moment i miejsce, w którym decyzja zapada. Nad stroną
+        przeczytałby je ktoś, kto właśnie przewija do swojej karty, i zapomniałby dwie karty niżej.
+      {% endcomment %}
+      {% if row.under_review %}
+        <p class="msg msg-warning upload__warning">{% translate "Ta praca jest już w ocenie. Wysłanie nowej wersji anuluje dotychczasową ocenę – zostanie oceniona od nowa." %}</p>
+      {% endif %}
       {% comment %}
         „Dropzone” jest wyłącznie warstwą stylu na natywnym ``input[type=file]`` – bez JS, więc
         wysyłka działa tak samo z klawiatury i przy wyłączonych skryptach.
@@ -71,6 +93,14 @@
                accept="{{ row.problem.accept_attribute }}"
                aria-label="{% blocktranslate trimmed with number=row.problem.number %}Plik rozwiązania zadania {{ number }}{% endblocktranslate %}">
         {% comment %}
+          Błąd pola stoi **przy polu**, a nie w komunikacie nad kartą: „wybierz plik” nad kartą
+          z trzema polami nie mówi, które z nich poprawić. Formularz wraca związany wyłącznie
+          wtedy, gdy odmowa dotyczy pola (patrz ``ProblemUploadView``).
+        {% endcomment %}
+        {% for message in upload_form.file.errors %}
+          <span class="field-error" role="alert">{{ message }}</span>
+        {% endfor %}
+        {% comment %}
           Lista kontrolna sprowadzona do jednego zdania. ``required`` w HTML jest wygodą –
           o przyjęciu wysyłki decyduje ``SubmissionUploadForm.confirmed`` po stronie serwera,
           bo formularz da się wysłać także bez przeglądarki. Numer zadania jest w treści
@@ -83,20 +113,73 @@
             Potwierdzam, że to rozwiązanie zadania {{ number }} i plik jest czytelny.
           {% endblocktranslate %}</label>
         </p>
-        <button type="submit" class="btn btn--primary">{% translate "Wyślij rozwiązanie" %}</button>
+        {% for message in upload_form.confirmed.errors %}
+          <span class="field-error" role="alert">{{ message }}</span>
+        {% endfor %}
+        <button type="submit" class="btn btn--primary upload__submit">{% translate "Wyślij rozwiązanie" %}</button>
       </div>
     </form>
   {% else %}
     <p class="msg msg-warning closed">{% translate "Termin oddania rozwiązań minął – upload jest zamknięty." %}</p>
   {% endif %}
 
+  {% if row.versions %}
+    {% with latest=row.versions.0 %}
+      {% comment %}
+        Wiersz ostatniej wersji: numer, godzina i werdykt skanu antywirusowego. Poza zwijaną
+        historią, bo to jedyna wersja, która idzie do oceny, i jedyna, o którą ktokolwiek pyta
+        zaraz po wysyłce.
+      {% endcomment %}
+      <p class="problem-card__latest">
+        <span>{% blocktranslate trimmed with version=latest.version %}wersja {{ version }}{% endblocktranslate %},
+          {{ latest.submitted_at|local_datetime }}</span>
+        {% if latest.is_late %}<span class="badge badge--warn">{% translate "po terminie" %}</span>{% endif %}
+        {% with file=latest.latest_file %}
+          {% if file %}
+            <span>{% translate "Skan antywirusowy:" %}
+              <span class="{{ file.av_status|badge_class }}">{{ file.get_av_status_display }}</span></span>
+            {% comment %}
+              Uczestnik pobiera **każdą** swoją wersję, także tę jeszcze nieprzeskanowaną: to jego
+              plik, a wstrzymanie go do końca skanu nikogo by nie chroniło (serwer decyduje o tym
+              tak samo – patrz ``SubmissionDownloadView``). Nazwa pliku wraca ta, którą uczestnik
+              wysłał; anonimowa jest dopiero dla pozostałych ról.
+            {% endcomment %}
+            <a class="btn btn--secondary btn--small"
+               href="{% url 'submissions:submission-download' latest.pk %}">{% translate "Pobierz" %}</a>
+          {% else %}
+            <span class="hint">{% translate "brak pliku" %}</span>
+          {% endif %}
+        {% endwith %}
+      </p>
+    {% endwith %}
+  {% else %}
+    {% comment %}
+      Pusta karta mówi, co zrobić i do kiedy – „brak wersji” bez tego zdania czyta się jak stan
+      systemu, a nie jak zadanie do wykonania.
+    {% endcomment %}
+    <p class="empty"><span class="empty__title">{% translate "Nie masz jeszcze wysłanego rozwiązania" %}</span>
+      {% if upload_open %}
+        {% if stage.has_deadline %}
+          {% blocktranslate trimmed with number=row.problem.number deadline=stage.submission_deadline|local_datetime %}
+            Wyślij rozwiązanie zadania {{ number }} do {{ deadline }}.
+          {% endblocktranslate %}
+        {% else %}
+          {% blocktranslate trimmed with number=row.problem.number %}
+            Wyślij rozwiązanie zadania {{ number }} – ten etap nie ma terminu.
+          {% endblocktranslate %}
+        {% endif %}
+      {% else %}
+        {% translate "Termin minął, a w tym zadaniu nie ma Twojej pracy." %}
+      {% endif %}</p>
+  {% endif %}
+
   {% comment %}
     Podgląd dotyczy **wyłącznie najnowszej** wersji – tej, która pójdzie do oceny. Stoi pod
-    formularzem, a nad historią wersji, bo odpowiada na pytanie zadawane zaraz po kliknięciu
-    „Wyślij”: „czy w systemie leży to, co chciałem wysłać”. Metryki (liczba stron, wymiary
-    zdjęcia, pierwsze wiersze kodu) liczy serwer – patrz ``apps.submissions.preview``; pierwszą
-    stronę PDF-a rysuje w przeglądarce ``static/js/upload-preview.js``, bo to własny plik
-    uczestnika i serwer nie ma po co składać z niego obrazka.
+    formularzem, bo odpowiada na pytanie zadawane zaraz po kliknięciu „Wyślij”: „czy w systemie
+    leży to, co chciałem wysłać”. Metryki (liczba stron, wymiary zdjęcia, pierwsze wiersze kodu)
+    liczy serwer – patrz ``apps.submissions.preview``; pierwszą stronę PDF-a rysuje w przeglądarce
+    ``static/js/upload-preview.js``, bo to własny plik uczestnika i serwer nie ma po co składać
+    z niego obrazka.
   {% endcomment %}
   {% if row.preview %}
     {% with latest=row.versions.0 %}
@@ -137,53 +220,59 @@
     {% endwith %}
   {% endif %}
 
-  <div class="scroll">
-    <table class="table versions">
-      <caption>{% translate "Wysłane wersje" %}</caption>
-      <thead>
-        <tr>
-          <th>{% translate "Wersja" %}</th>
-          <th>{% translate "Wysłano (czas polski)" %}</th>
-          <th>{% translate "Status pracy" %}</th>
-          <th>{% translate "Skan antywirusowy" %}</th>
-          <th>{% translate "Plik" %}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for submission in row.versions %}
-          <tr>
-            <td>{% blocktranslate trimmed with version=submission.version %}wersja {{ version }}{% endblocktranslate %}{% if submission.is_late %}
-              <span class="badge badge--warn">{% translate "po terminie" %}</span>{% endif %}</td>
-            <td>{{ submission.submitted_at|local_datetime }}</td>
-            <td><span class="{{ submission.status|badge_class }}">{{ submission.get_status_display }}</span></td>
-            {% with file=submission.latest_file %}
-              <td>
-                {% if file %}
-                  <span class="{{ file.av_status|badge_class }}">{{ file.get_av_status_display }}</span>
-                {% else %}
-                  <span class="hint">{% translate "brak pliku" %}</span>
-                {% endif %}
-              </td>
-              <td>
-                {% comment %}
-                  Uczestnik pobiera **każdą** swoją wersję, także tę jeszcze nieprzeskanowaną:
-                  to jego plik, a wstrzymanie go do końca skanu nikogo by nie chroniło (serwer
-                  decyduje o tym tak samo – patrz ``SubmissionDownloadView``). Nazwa pliku wraca
-                  ta, którą uczestnik wysłał; anonimowa jest dopiero dla pozostałych ról.
-                {% endcomment %}
-                {% if file %}
-                  <a class="btn btn--secondary btn--small"
-                     href="{% url 'submissions:submission-download' submission.pk %}">{% translate "Pobierz" %}</a>
-                {% else %}
-                  <span class="hint">—</span>
-                {% endif %}
-              </td>
-            {% endwith %}
-          </tr>
-        {% empty %}
-          <tr><td colspan="5" class="empty">{% translate "Brak wysłanych wersji." %}</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+  {% if row.versions|length > 1 %}
+    {% comment %}
+      Historia wersji jest zwinięta, bo odpowiada na pytanie zadawane rzadko („co wysyłałem
+      wcześniej”), a rozwinięta była najdłuższym elementem karty – przy trzech zadaniach robiła
+      z pulpitu tabelę na trzy ekrany. Zwijacz to ``<details>``, więc działa bez JavaScriptu
+      i z klawiatury. Najnowsza wersja jest pierwsza (``submissions_for_user`` sortuje malejąco)
+      i jest już wypisana nad zwijaczem.
+    {% endcomment %}
+    <details class="p-details">
+      <summary class="p-details__summary">{% blocktranslate trimmed with counter=row.versions|length %}
+        Historia wysyłek ({{ counter }} wersje)
+      {% endblocktranslate %}</summary>
+      <div class="scroll">
+        <table class="table versions">
+          <caption>{% translate "Wysłane wersje" %}</caption>
+          <thead>
+            <tr>
+              <th>{% translate "Wersja" %}</th>
+              <th>{% translate "Wysłano (czas polski)" %}</th>
+              <th>{% translate "Status pracy" %}</th>
+              <th>{% translate "Skan antywirusowy" %}</th>
+              <th>{% translate "Plik" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for submission in row.versions %}
+              <tr>
+                <td>{% blocktranslate trimmed with version=submission.version %}wersja {{ version }}{% endblocktranslate %}{% if submission.is_late %}
+                  <span class="badge badge--warn">{% translate "po terminie" %}</span>{% endif %}</td>
+                <td>{{ submission.submitted_at|local_datetime }}</td>
+                <td><span class="{{ submission.status|badge_class }}">{{ submission.get_status_display }}</span></td>
+                {% with file=submission.latest_file %}
+                  <td>
+                    {% if file %}
+                      <span class="{{ file.av_status|badge_class }}">{{ file.get_av_status_display }}</span>
+                    {% else %}
+                      <span class="hint">{% translate "brak pliku" %}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if file %}
+                      <a class="btn btn--secondary btn--small"
+                         href="{% url 'submissions:submission-download' submission.pk %}">{% translate "Pobierz" %}</a>
+                    {% else %}
+                      <span class="hint">—</span>
+                    {% endif %}
+                  </td>
+                {% endwith %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  {% endif %}
 </article>

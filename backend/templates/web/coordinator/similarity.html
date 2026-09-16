@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "web/coordinator/base.html" %}
 {% load static %}
 {% comment %}
   Podobieństwo rozwiązań w etapie. Ekran jest odczytem; liczenie uruchamia osobny przycisk,
@@ -9,15 +9,14 @@
   2.3) i to on zwołuje komitet; kolumna jest jawnie oznaczona jako dane osobowe.
 {% endcomment %}
 {% block title %}Podobieństwo rozwiązań – {{ stage.display_name }}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
-{% block content %}
-<div class="page-head">
-  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
-  <h1>Podobieństwo rozwiązań: {{ stage.display_name }}</h1>
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block panel_title %}Podobieństwo rozwiązań: {{ stage.display_name }}{% endblock %}
+{% block panel_lead %}
   <p class="lead">Porównanie każdej pary prac w zadaniach oddawanych jako kod. Wysoki wynik jest
     <strong>przesłanką, nie dowodem</strong>: przy zadaniu z jednym oczywistym algorytmem dwie
     uczciwe prace potrafią wyjść bardzo podobnie. Rozstrzyga komitet, patrząc na porównanie.</p>
-</div>
+{% endblock %}
+{% block panel_content %}
 
 <section class="section">
   <div class="card">

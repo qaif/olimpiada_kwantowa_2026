@@ -73,6 +73,10 @@ INSTALLED_APPS = [
     "apps.grading",
     "apps.appeals",
     "apps.results",
+    # Zgłoszenia do organizatora (support desk). Osobna aplikacja, a nie model w ``apps.core``:
+    # ma własny model, własne reguły i własną pocztę, a z domeną zawodów łączy ją wyłącznie
+    # kontekst zgłoszenia – czyli odczyt, nigdy zapis.
+    "apps.support",
     "apps.web",
     # Logowanie przez dostawców zewnętrznych (Google, Facebook). ``allauth.account`` jest wymagane
     # przez ``allauth.socialaccount`` (model ``EmailAddress``, adaptery) – jego **widoki** nie są
@@ -155,6 +159,10 @@ TEMPLATES = [
                 "apps.web.context_processors.social_providers",
                 # Menu części informacyjnej (strony Wagtaila oznaczone „pokaż w menu”).
                 "apps.cms.context_processors.cms_menu",
+                # Baner komunikatów organizatora pod nagłówkiem – na każdej stronie serwisu.
+                # Odczyt jest z pamięci podręcznej (60 s, unieważnianej przy zapisie), bo inaczej
+                # każda odsłona kosztowałaby zapytanie; panel redakcyjny baneru nie dostaje.
+                "apps.cms.announcements.announcements",
                 # Nazwa serwisu, hasło i dane organizatora – ``cms.SiteSettings`` edytowane
                 # w ``/cms/`` (Ustawienia → Serwis). Szablony czytają je jako
                 # ``settings.cms.SiteSettings``; nic z tego nie jest zaszyte w kodzie.
@@ -240,6 +248,21 @@ CELERY_BEAT_SCHEDULE = {
     "remind-interviews": {
         "task": "apps.competitions.tasks.remind_interviews",
         "schedule": 86400.0,
+    },
+    # Retencja danych osobowych (art. 5 ust. 1 lit. e RODO): konta uczestników edycji, której
+    # upłynął okres retencji, są anonimizowane (apps/accounts/retention.py). Raz na dobę, bo
+    # termin jest liczony w miesiącach – częstszy przebieg przesuwałby moment anonimizacji
+    # o minuty i nie zmieniał niczego poza obciążeniem bazy.
+    "anonymise-expired-editions": {
+        "task": "apps.accounts.retention.anonymise_expired_editions",
+        "schedule": 86400.0,
+    },
+    # Puls workera zapisywany w cache'u – z niego strona ``/status/`` czyta, czy kolejka zadań
+    # w ogóle żyje (apps/core/tasks.py). Co minutę, bo próg „brak pulsu” na stronie statusu jest
+    # liczony w minutach; rzadszy przebieg zamieniłby zdrowy system w okresowo „niedostępny”.
+    "heartbeat": {
+        "task": "apps.core.tasks.heartbeat",
+        "schedule": 60.0,
     },
 }
 
@@ -547,6 +570,11 @@ REST_FRAMEWORK = {
         # sprawdzenie, czy dostawca poczty przyjmuje nasze wiadomości). Stawka jest niska,
         # bo człowiek prosi o reset raz, a nie pięć razy w godzinie.
         "password_reset": "5/hour",
+        # Zgłoszenia do organizatora (``/support/new/``). Każde wysyła list na adres organizatora,
+        # więc bez limitu publiczny formularz byłby wysyłaczem spamu – tak samo jak reset hasła.
+        # Stawka jest wyższa niż przy rejestracji: człowiek, któremu coś nie działa, pisze czasem
+        # drugie zgłoszenie w tej samej sprawie, a odbicie go limitem byłoby karą za problem.
+        "support": "10/hour",
         # Podpowiedzi szkół w formularzu rejestracji. Limit jest wysoki, bo jedno wypełnienie
         # formularza to kilkanaście żądań (jedno na przerwę w pisaniu), a dane są jawnym
         # rejestrem publicznym – chronimy tu koszt zapytania, nie treść.

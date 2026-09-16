@@ -42,7 +42,9 @@ def appeals_member():
 
 def test_participant_files_appeal_from_dashboard(web_client, participant, graded_submission):
     web_client.force_login(participant.user)
-    content = web_client.get("/me/").content.decode()
+    # Reklamacje są zakładką pulpitu, a nie sekcją jednej długiej strony – formularz stoi pod
+    # własnym adresem (``MeView``), a zakładka domyślna („Zadania”) go nie renderuje.
+    content = web_client.get("/me/?tab=reklamacje").content.decode()
     assert f"/me/submissions/{graded_submission.pk}/appeal/" in content
 
     response = web_client.post(f"/me/submissions/{graded_submission.pk}/appeal/", {"argument": ARGUMENT})

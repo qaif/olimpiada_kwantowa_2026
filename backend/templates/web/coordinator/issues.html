@@ -1,13 +1,12 @@
-{% extends "base.html" %}
+{% extends "web/coordinator/base.html" %}
 {% load web_extras %}
 {% block title %}Zgłoszone problemy z pracami – panel koordynatora{% endblock %}
-{% block content %}
-<div class="page-head">
-  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
-  <h1>Zgłoszone problemy z pracami</h1>
+{% block panel_title %}Zgłoszone problemy z pracami{% endblock %}
+{% block panel_lead %}
   <p class="lead">Sprawy, których nie rozwiąże ocena: nieczytelny skan, rozwiązanie innego zadania,
     podejrzenie niesamodzielności. Zgłasza je recenzent z ekranu oceny.</p>
-</div>
+{% endblock %}
+{% block panel_content %}
 
 {% comment %}
   Filtr etapu jest zwykłym parametrem adresu (``?stage=<id>``), a nie formularzem POST: adres

@@ -13,7 +13,7 @@ from __future__ import annotations
 from django import forms
 from django.conf import settings
 from django.http import HttpResponseRedirect
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy
 from django.views.generic import View
@@ -54,9 +54,15 @@ class GuardianRequestView(ActionViewMixin, ParticipantRequiredMixin, View):
     Jeden adres na dwa przypadki (pierwsza prośba i „wyślij ponownie”), bo z punktu widzenia
     uczestnika to jedna czynność: „poproś opiekuna”. Powtórna wysyłka jest zamierzona i nie jest
     błędem – list ginie w spamie częściej, niż ktokolwiek chciałby przyznać.
+
+    Powrót idzie na **zakładkę zgód** pulpitu, czyli tam, skąd przyszło kliknięcie: odesłanie na
+    zakładkę domyślną kazałoby uczestnikowi szukać bloku, który właśnie zmienił stan.
     """
 
     success_url = reverse_lazy("web:me")
+
+    def get_success_url(self, *args, **kwargs) -> str:
+        return f"{reverse('web:me')}?tab=zgody"
 
     def perform(self, request) -> str:
         form = GuardianEmailForm(request.POST)

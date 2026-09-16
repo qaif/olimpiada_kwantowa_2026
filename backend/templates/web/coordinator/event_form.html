@@ -1,18 +1,17 @@
-{% extends "base.html" %}
+{% extends "web/coordinator/base.html" %}
 {% block title %}{% if event %}Wydarzenie: {{ event.title }}{% else %}Nowe wydarzenie{% endif %} – panel koordynatora{% endblock %}
-{% block content %}
-<div class="page-head">
-  <span class="eyebrow"><a href="{% url 'web:coordinator-events' %}">Wydarzenia linii czasu</a></span>
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-events' %}">Wydarzenia linii czasu</a>{% endblock %}
+{% block panel_title %}{% if event %}Wydarzenie: {{ event.title }}{% else %}Nowe wydarzenie{% if edition %}: {{ edition.year_label }}{% endif %}{% endif %}{% endblock %}
+{% block panel_lead %}
   {% if event %}
-    <h1>Wydarzenie: {{ event.title }}</h1>
     <p class="lead">Edycja {{ edition.year_label }}. Zmiana jest widoczna w nagłówku serwisu
       od razu – linia czasu przelicza się po każdym zapisie.</p>
   {% else %}
-    <h1>Nowe wydarzenie{% if edition %}: {{ edition.year_label }}{% endif %}</h1>
     <p class="lead">Wydarzenie staje na linii czasu w nagłówku każdej strony, między terminami
       etapów. Godzin się tu nie podaje – linia czasu liczy dniami.</p>
   {% endif %}
-</div>
+{% endblock %}
+{% block panel_content %}
 
 <div class="card card--quiet">
   {% comment %}

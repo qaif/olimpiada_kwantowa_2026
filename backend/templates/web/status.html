@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% load i18n web_extras %}
+{% comment %}
+  Publiczna strona statusu. Odpowiada na pytanie, które uczestnik zadaje o 23:40 przed deadline'em:
+  „nie mogę wysłać pracy – to u was, czy u mnie?”. Dlatego jest **bez logowania** i dlatego stan
+  usług jest pierwszy, przed czasem serwera i przed kalendarzem etapu.
+
+  Czego na tej stronie nie ma i nie będzie: nazw hostów, wersji bibliotek, treści błędów – jedyną
+  informacją o infrastrukturze jest binarne „działa / nie działa”. Wersja aplikacji stoi, bo i tak
+  jest w stopce każdej strony serwisu.
+
+  Komunikaty organizatora renderuje szablon bazowy (baner pod nagłówkiem), więc nie powtarzamy ich
+  tutaj drugi raz – z wyjątkiem informacji, że są: ktoś, kto trafił tu z monitoringu, ma wiedzieć,
+  że wyjaśnienie stoi wyżej.
+{% endcomment %}
+{% block title %}{% translate "Status serwisu" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{% translate "Status serwisu" %}</h1>
+  <p class="lead">
+    {% if all_ok %}
+      {% translate "Wszystkie usługi serwisu odpowiadają." %}
+    {% else %}
+      {% translate "Część usług serwisu nie odpowiada. Pracujemy nad tym – jeśli sprawa dotyczy terminu oddania pracy, napisz do organizatora." %}
+    {% endif %}
+  </p>
+</div>
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">{% translate "Usługi" %}</h2>
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">{% translate "Usługa" %}</th>
+          <th scope="col">{% translate "Stan" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for service in services %}
+          <tr>
+            <td>
+              {% comment %}
+                Nazwy kodowe podsystemów tłumaczy szablon, a nie moduł: kod (``database``,
+                ``queue``) jest kontraktem wariantu JSON i ma zostać stały, a zdanie dla człowieka
+                zmienia się razem z językiem interfejsu.
+              {% endcomment %}
+              {% if service.name == "database" %}{% translate "Baza danych" %}
+              {% elif service.name == "cache" %}{% translate "Sesje i pamięć podręczna" %}
+              {% elif service.name == "storage" %}{% translate "Magazyn wgranych prac" %}
+              {% elif service.name == "queue" %}{% translate "Kolejka zadań (poczta, skan plików)" %}
+              {% else %}{{ service.name }}{% endif %}
+            </td>
+            <td>
+              {% if service.ok %}
+                <span class="badge badge--ok">{% translate "działa" %}</span>
+              {% else %}
+                <span class="badge badge--warn">{% translate "nie odpowiada" %}</span>
+              {% endif %}
+              {% if service.detail %}<span class="hint">{{ service.detail }}</span>{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">{% translate "Zawody" %}</h2>
+    <dl class="meta-list">
+      {% comment %}
+        Czas serwera jest tu najważniejszą liczbą i dlatego stoi pierwszy: to on rozstrzyga
+        o przyjęciu pracy przed deadline'em, a nie zegarek na telefonie uczestnika.
+      {% endcomment %}
+      <dt>{% translate "Czas na serwerze (czas polski)" %}</dt>
+      <dd>{{ now|local_datetime }}</dd>
+      {% if competition.edition %}
+        <dt>{% translate "Edycja" %}</dt>
+        <dd>{{ competition.edition }}</dd>
+      {% endif %}
+      <dt>{% translate "Rejestracja uczestników" %}</dt>
+      <dd>{{ competition.registration_message }}</dd>
+      {% if competition.stage %}
+        <dt>{% translate "Etap bieżący" %}</dt>
+        <dd>{{ competition.stage }}</dd>
+        {% if competition.stage_deadline %}
+          <dt>{% translate "Termin oddania prac" %}</dt>
+          <dd>{{ competition.stage_deadline|local_datetime }}</dd>
+        {% endif %}
+      {% endif %}
+      <dt>{% translate "Wersja aplikacji" %}</dt>
+      <dd>{{ version }}</dd>
+    </dl>
+    {% if announcements %}
+      <p class="hint">{% translate "Komunikaty organizatora są w pasku nad tą stroną." %}</p>
+    {% endif %}
+  </div>
+</section>
+
+<p class="hint">{% blocktranslate trimmed %}
+  Ta strona jest odświeżana co pół minuty. Wariant maszynowy dla monitoringu:
+  <a href="/status.json">/status.json</a>. Jeśli coś nie działa, a strona tego nie pokazuje –
+  <a href="/support/new/">zgłoś problem</a>.
+{% endblocktranslate %}</p>
+{% endblock %}

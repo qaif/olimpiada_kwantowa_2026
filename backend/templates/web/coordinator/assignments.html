@@ -1,62 +1,105 @@
-{% extends "base.html" %}
+{% extends "web/coordinator/base.html" %}
 {% load static %}
+{% load web_extras %}
+{% load coordinator_extras %}
+{% comment %}
+  Ekran „Przydziały i oceny”. Jedna tabela, w której da się **zmienić** to, co się w niej widzi:
+  recenzenta, punkty recenzji i ocenę końcową. Stąd trzy decyzje układu:
+
+  1. Każda zmiana jest zwykłym formularzem POST na istniejący adres akcji, a nie żądaniem w tle.
+     Ekran działa bez JavaScriptu (strict CSP i tak nie dopuszcza skryptów inline), a skrypt
+     dokłada wyłącznie skróty: kratkę „zaznacz wszystkie” i licznik zaznaczenia.
+  2. Formularze, które rzadziej są potrzebne (punkty recenzji, ocena końcowa, historia), siedzą
+     w ``<details>``. Rozwijanie jest natywne, obsługiwane klawiaturą i nie kosztuje ani bajta
+     skryptu – a tabela bez nich mieści w wierszu to, co się w nim czyta, a nie to, co się w nim
+     czasem poprawia.
+  3. Zaznaczenie wierszy jest **jedno** i obsługuje dwie rzeczy: paczkę ZIP i czynności zbiorcze.
+     Przyciski różnią się atrybutem ``formaction``, więc nie ma dwóch list kratek do pilnowania
+     (i nie ma zagnieżdżonych formularzy, których HTML nie dopuszcza).
+{% endcomment %}
 {% block title %}Przydziały i oceny: {{ stage.display_name }} – panel koordynatora{% endblock %}
-{% block content %}
-<div class="page-head">
-  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
-  <h1>Przydziały i oceny: {{ stage.display_name }}</h1>
+
+{# ``panel_head`` – hak szkieletu panelu na arkusze jednego ekranu; ``head`` zostaje nietknięty,
+   więc ``coordinator.css`` ładuje się dalej tam, gdzie ustawił je szkielet. #}
+{% block panel_head %}
+  <link rel="stylesheet" href="{% static 'css/assignments.css' %}">
+{% endblock %}
+
+{% block panel_title %}Przydziały i oceny: {{ stage.display_name }}{% endblock %}
+
+{% block panel_lead %}
   <p class="lead">Edycja {{ stage.edition.year_label }}. Ekran uzupełnia automatyczny przydział
     z pulpitu: tutaj wskazujesz recenzentów sam – dla całego zadania albo dla jednej pracy –
     oraz poprawiasz punkty, łącznie z oceną końcową.</p>
-  {% comment %}
-    Pobranie całego etapu stoi w nagłówku, bo jest czynnością nad całą stroną, a nie nad jednym
-    wierszem. Zakres węższy (zadanie, zaznaczone prace) jest przy odpowiednich tabelach niżej.
-  {% endcomment %}
-  <p class="actions">
-    <a class="btn btn--secondary" href="{% url 'web:coordinator-stage-download' stage.pk %}">Pobierz wszystkie prace (ZIP)</a>
-    <span class="hint">Po jednej, najnowszej przeskanowanej wersji każdej pracy. Nazwy plików
-      w archiwum są anonimowe: <code>kod_zadN_vM</code>.</span>
+  <p class="row asg-state">
+    {% if stage.closed_at %}
+      <span class="badge badge--neutral">etap zamknięty {{ stage.closed_at|local_datetime }}</span>
+    {% elif stage.is_open_for_submissions %}
+      <span class="badge badge--info">etap otwarty na zgłoszenia</span>
+    {% else %}
+      <span class="badge badge--warn">po terminie zgłoszeń, etap niezamknięty</span>
+    {% endif %}
+    {% if results_published %}
+      <span class="badge badge--warn">wyniki ogłoszone</span>
+    {% endif %}
   </p>
-</div>
+{% endblock %}
+
+{% block panel_actions %}
+  {% comment %}
+    Trzy czynności nad **całym etapem**: wciągnięcie oddanych prac do oceniania, automatyczny
+    przydział i paczka ze wszystkimi pracami. Zakres węższy (zadanie, zaznaczone wiersze) stoi
+    przy tabelach niżej – tam, gdzie widać, czego dotyczy.
+  {% endcomment %}
+  <form method="post" action="{% url 'web:coordinator-lock-for-review' stage.pk %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn--secondary btn--small">Zablokuj oddane do oceny</button>
+  </form>
+  <form method="post" action="{% url 'web:coordinator-assign' stage.pk %}" class="asg-assign-all">
+    {% csrf_token %}
+    <label for="per-submission">Recenzentów na pracę</label>
+    <input id="per-submission" type="number" name="per_submission" value="2" min="2" max="10"
+           inputmode="numeric">
+    <button type="submit" class="btn btn--primary btn--small">Przydziel recenzentów</button>
+  </form>
+  <a class="btn btn--secondary btn--small"
+     href="{% url 'web:coordinator-stage-download' stage.pk %}">Pobierz wszystkie prace (ZIP)</a>
+{% endblock %}
+
+{% block panel_content %}
 
 {% comment %}
-  Dwie zasady, które inaczej trzeba by odkrywać po skutkach. Stoją nad tabelami, a nie
-  w komunikacie po kliknięciu: decydują o tym, czy koordynator w ogóle chce użyć reguły.
+  Liczniki są zarazem filtrem statusu: liczba i „pokaż mi te” to ta sama myśl. Kliknięcie
+  włączonego licznika zdejmuje filtr.
 {% endcomment %}
-<div class="card card--quiet">
+<nav class="asg-counters" aria-label="Prace etapu według kroku obiegu">
+  {% for counter in counters %}
+    <a class="asg-counter{% if counter.active %} asg-counter--active{% endif %}"
+       {% if counter.active %}aria-current="true"{% endif %}
+       href="?{{ counter.query }}">
+      <span class="asg-counter__value">{{ counter.count }}</span>
+      <span class="asg-counter__label">{{ counter.label }}</span>
+    </a>
+  {% endfor %}
+</nav>
+
+<details class="card asg-rules"{% if not problem_rows %} open{% endif %}>
+  <summary class="asg-rules__summary">
+    Zadania → recenzenci z góry
+    <span class="badge badge--neutral">reguł: {{ rules_count }}</span>
+  </summary>
+  {% comment %}
+    Reguły są zwinięte, bo ustawia się je raz na etap, a tabelę prac czyta się codziennie.
+    Podsumowanie niesie licznik, więc rozwijanie „na wszelki wypadek” nie jest potrzebne.
+  {% endcomment %}
   <ul class="hint">
     <li>Reguła zadania obowiązuje <strong>zawsze</strong>: dopisuje recenzenta do prac już
       zablokowanych od razu, a do prac, które wejdą do oceniania później – przy najbliższym
       „Przydziel recenzentów”.</li>
-    <li>Konflikt interesów wygrywa z regułą. Recenzent z województwa uczestnika nie dostanie jego pracy
-      na etapie wojewódzkim, nawet jeśli reguła tak mówi. Recenzent bez województwa (jest ono
-      opcjonalne) może oceniać każdą pracę.</li>
-    <li>Recenzenci z reguł zajmują miejsca z „recenzentów na pracę”; automat dobiera tylko resztę.
-      Gdy reguł jest więcej niż miejsc, przydzielani są wszyscy.</li>
-    <li>Punkty w recenzji może poprawić koordynator na każdym etapie jej życia. Po zmianie system
-      ponownie rozstrzyga rundę 1 (zgodne oceny → ocena uzgodniona, rozjazd → moderacja) –
-      o ile praca nie ma jeszcze oceny końcowej.</li>
-    <li>„Odbierz” zabiera recenzentowi pracę – także wtedy, gdy ocenę już wystawił. Odebrana
-      recenzja nie liczy się do oceny końcowej i recenzent nie może jej już zmienić (dopóki jej
-      nie odbierzesz, wolno mu poprawić własną ocenę). Ocena uzgodniona zgodnością recenzji jest
-      wtedy zdejmowana, a praca wraca do oceniania; oceny rozstrzygniętej przez człowieka
-      (moderacja, trzeci recenzent, korekta) to narzędzie nie rusza – tam służy „Ocena końcowa”.</li>
-    <li>„Ocena końcowa” jest korektą organizatora: zastępuje ocenę ustaloną procedurą, działa też
-      dla pracy bez recenzji i zawsze wymaga uzasadnienia. Niewystawione recenzje takiej pracy
-      są anulowane, żeby nie wisiały w kolejkach recenzentów.</li>
-    <li>Oceniać można <strong>przed zamknięciem etapu</strong>. Pracę ze statusem „oddane” wciąga do
-      oceniania przycisk „Zablokuj do oceny” (albo „Zablokuj oddane prace do oceny” na karcie etapu –
-      dla wszystkich naraz). Etap zostaje otwarty, więc uczestnik może wysłać nową wersję: wtedy
-      recenzje poprzedniej są anulowane, jej ocena końcowa znika, a praca wraca do kolejki i jest
-      oceniana od nowa. Recenzent widzi w panelu powód anulowania.</li>
+    <li>Konflikt interesów wygrywa z regułą. Recenzent z województwa uczestnika nie dostanie jego
+      pracy na etapie wojewódzkim, nawet jeśli reguła tak mówi.</li>
+    <li>Recenzenci z reguł zajmują miejsca z „recenzentów na pracę”; automat dobiera tylko resztę.</li>
   </ul>
-</div>
-
-<section class="section">
-  <div class="section__head">
-    <h2 class="mt-0">Zadania → recenzenci z góry</h2>
-    <p class="hint"><a href="{% url 'web:coordinator-stage-problems' stage.pk %}">Zadania etapu</a></p>
-  </div>
   <div class="scroll">
     <table class="table">
       <thead>
@@ -72,14 +115,17 @@
         {% for row in problem_rows %}
           <tr>
             <td class="num">{{ row.problem.number }}</td>
-            <th scope="row">{{ row.problem.title }}</th>
+            <th scope="row">
+              <a href="{% url 'web:coordinator-problem' row.problem.pk %}">{{ row.problem.title }}</a>
+            </th>
             <td>
               {% for rule in row.rules %}
                 <div class="actions">
-                  <span>{{ rule.reviewer.user.email }}{% if rule.reviewer.district %}
-                    ({{ rule.reviewer.get_district_display }}{% if not rule.reviewer.district_verified %}, niepotwierdzone{% endif %}){% endif %}</span>
+                  <a href="{% url 'web:coordinator-member' rule.reviewer.pk %}">{{ rule.reviewer.user.email }}</a>{% if rule.reviewer.district %}
+                    <span class="hint">({{ rule.reviewer.get_district_display }}{% if not rule.reviewer.district_verified %}, niepotwierdzone{% endif %})</span>{% endif %}
                   <form method="post" action="{% url 'web:coordinator-problem-rule-remove' rule.pk %}">
                     {% csrf_token %}
+                    <input type="hidden" name="filters" value="{{ return_query }}">
                     <button type="submit" class="btn btn--danger btn--small">Usuń</button>
                   </form>
                 </div>
@@ -90,6 +136,7 @@
             <td>
               <form method="post" action="{% url 'web:coordinator-problem-rule-add' row.problem.pk %}">
                 {% csrf_token %}
+                <input type="hidden" name="filters" value="{{ return_query }}">
                 <label class="visually-hidden" for="rule-{{ row.problem.pk }}">Recenzent</label>
                 <select id="rule-{{ row.problem.pk }}" name="reviewer_id">
                   {% for member in reviewer_pool %}
@@ -100,11 +147,6 @@
               </form>
             </td>
             <td>
-              {% comment %}
-                Paczka jednego zadania: tyle, ile komisja czyta za jednym posiedzeniem. To drugi
-                sposób na „zaznacz zadania” – szybszy niż odklikiwanie wierszy, gdy chodzi o całe
-                zadanie.
-              {% endcomment %}
               <a class="btn btn--secondary btn--small"
                  href="{% url 'web:coordinator-stage-download' stage.pk %}?problem={{ row.problem.pk }}">
                 Pobierz ZIP zadania {{ row.problem.number }}</a>
@@ -116,85 +158,149 @@
       </tbody>
     </table>
   </div>
-</section>
+</details>
 
 <section class="section">
   <div class="section__head">
     <h2 class="mt-0">Rozwiązania i oceny</h2>
     <span class="badge badge--danger">dane osobowe</span>
   </div>
-  <p class="hint">Lista obejmuje prace oddane i te w obiegu oceniania – od zablokowanych po już
-    ocenione. Nazwisko widzi wyłącznie koordynator – recenzent zobaczy sam kod uczestnika.</p>
-  {% if results_published %}
-    <p class="hint"><span class="badge badge--warn">wyniki ogłoszone</span> Zmiana punktów nie rusza
-      ogłoszonej tabeli. Żeby weszła, przelicz i opublikuj wyniki etapu ponownie.</p>
-  {% endif %}
+  <p class="hint">Nazwisko widzi wyłącznie koordynator – recenzent zobaczy sam kod uczestnika.
+    {% if results_published %}Zmiana punktów nie rusza ogłoszonej tabeli: żeby weszła, przelicz
+      i opublikuj wyniki etapu ponownie.{% endif %}</p>
 
-  <form method="get" class="actions">
-    <label for="q">Szukaj (kod uczestnika lub nazwisko)</label>
-    <input id="q" type="search" name="q" value="{{ query }}" autocomplete="off">
-    <button type="submit" class="btn btn--secondary btn--small">Szukaj</button>
-    {% if query %}
-      <a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-stage-assignments' stage.pk %}">Wyczyść</a>
-    {% endif %}
+  <form method="get" class="asg-filters" role="search">
+    <div class="asg-filters__field">
+      <label for="q">Kod uczestnika lub nazwisko</label>
+      <input id="q" type="search" name="q" value="{{ query }}" autocomplete="off">
+    </div>
+    <div class="asg-filters__field">
+      <label for="filter-problem">Zadanie</label>
+      <select id="filter-problem" name="problem">
+        <option value="">wszystkie</option>
+        {% for problem in stage_problems %}
+          <option value="{{ problem.pk }}"{% if problem.pk == problem_id %} selected{% endif %}>
+            {{ problem.number }}. {{ problem.title }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="asg-filters__field">
+      <label for="filter-status">Status</label>
+      <select id="filter-status" name="status">
+        <option value="">wszystkie</option>
+        {% for key, item in status_filters.items %}
+          <option value="{{ key }}"{% if key == status %} selected{% endif %}>{{ item.0 }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="asg-filters__field">
+      <label for="filter-reviewer">Recenzent</label>
+      <select id="filter-reviewer" name="reviewer">
+        <option value="">wszyscy</option>
+        {% for member in reviewer_pool %}
+          <option value="{{ member.pk }}"{% if member.pk == reviewer_id %} selected{% endif %}>{{ member.user.email }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="asg-filters__actions">
+      <button type="submit" class="btn btn--secondary btn--small">Filtruj</button>
+      {% if filter_query %}
+        <a class="btn btn--secondary btn--small"
+           href="{% url 'web:coordinator-stage-assignments' stage.pk %}">Wyczyść</a>
+      {% endif %}
+    </div>
   </form>
 
   {% comment %}
-    Formularz pobierania stoi **poza** tabelą, a kratki wierszy należą do niego przez atrybut
+    Pasek czynności zbiorczych stoi **poza** tabelą, a kratki wierszy należą do niego przez atrybut
     ``form``: w tabeli są już formularze ocen i przydziału, a formularzy nie wolno zagnieżdżać.
-    Skutek uboczny jest korzystny – zaznaczanie działa bez JavaScriptu, a skrypt dokłada wyłącznie
-    kratkę „zaznacz wszystkie”.
+    Przyciski wskazują cel atrybutem ``formaction`` – dzięki temu jedno zaznaczenie obsługuje
+    i paczkę ZIP, i czynności zbiorcze.
   {% endcomment %}
-  <form id="stage-zip" method="post" action="{% url 'web:coordinator-stage-download' stage.pk %}"
-        class="actions">
+  <form id="stage-rows" method="post" class="asg-bulk"
+        action="{% url 'web:coordinator-assignments-bulk' stage.pk %}">
     {% csrf_token %}
-    <button type="submit" class="btn btn--secondary btn--small">Pobierz zaznaczone (ZIP)</button>
-    <span class="hint">Zaznacz prace w tabeli poniżej. Bez zaznaczenia użyj „Pobierz wszystkie
-      prace (ZIP)” u góry strony.</span>
+    <input type="hidden" name="filters" value="{{ return_query }}">
+    <p class="asg-bulk__head">
+      Zaznaczone prace
+      <output class="asg-bulk__count" data-selection-count="stage-rows" for="stage-rows"></output>
+    </p>
+    <div class="asg-bulk__row">
+      <label class="visually-hidden" for="bulk-reviewer">Recenzent czynności zbiorczej</label>
+      <select id="bulk-reviewer" name="reviewer_id">
+        {% for member in reviewer_pool %}
+          <option value="{{ member.pk }}">{{ member.user.email }}{% if member.district %} ({{ member.get_district_display }}){% endif %}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" name="action" value="assign" class="btn btn--primary btn--small">
+        Przydziel zaznaczone</button>
+      <button type="submit" name="action" value="unassign" class="btn btn--danger btn--small">
+        Odbierz zaznaczone</button>
+      <button type="submit" name="action" value="lock" class="btn btn--secondary btn--small">
+        Zablokuj zaznaczone do oceny</button>
+      <button type="submit" class="btn btn--secondary btn--small"
+              formaction="{% url 'web:coordinator-stage-download' stage.pk %}">
+        Pobierz zaznaczone (ZIP)</button>
+    </div>
+    <p class="hint">„Przydziel” i „Odbierz” dotyczą recenzenta wybranego z listy obok. Praca, której
+      czynność nie obejmie (konflikt województwa, praca zamknięta, brak takiej recenzji), trafia do
+      komunikatu z powodem – reszta pakietu i tak przechodzi.</p>
   </form>
 
   <div class="scroll">
-    <table class="table">
+    <table class="table asg-table">
       <thead>
         <tr>
           <th scope="col">
-            <input type="checkbox" hidden data-select-all="stage-zip" id="select-all-stage-zip">
-            <label class="visually-hidden" hidden data-select-all-label="stage-zip"
-                   for="select-all-stage-zip">Zaznacz wszystkie prace</label>
+            <input type="checkbox" hidden data-select-all="stage-rows" id="select-all-stage-rows">
+            <label class="visually-hidden" hidden data-select-all-label="stage-rows"
+                   for="select-all-stage-rows">Zaznacz wszystkie prace</label>
           </th>
-          <th scope="col">Kod</th>
           <th scope="col">Uczestnik</th>
-          <th scope="col">Zad.</th>
+          <th scope="col">Zadanie</th>
+          <th scope="col">Wersja i plik</th>
           <th scope="col">Status</th>
-          <th scope="col">Plik</th>
-          <th scope="col">Recenzje i punkty</th>
+          <th scope="col">Recenzenci</th>
           <th scope="col">Ocena końcowa</th>
-          <th scope="col">Przydziel</th>
+          <th scope="col">Akcje</th>
         </tr>
       </thead>
       <tbody>
         {% for row in submission_rows %}
+          {% with submission=row.submission participant=row.submission.entry.participant %}
           <tr>
             <td>
-              <input type="checkbox" form="stage-zip" name="submission_ids"
-                     value="{{ row.submission.pk }}" id="pick-{{ row.submission.pk }}">
-              <label class="visually-hidden" for="pick-{{ row.submission.pk }}">Zaznacz pracę
-                {{ row.submission.entry.participant.public_code }}, zadanie
-                {{ row.submission.problem.number }}</label>
+              <input type="checkbox" form="stage-rows" name="submission_ids"
+                     value="{{ submission.pk }}" id="pick-{{ submission.pk }}">
+              <label class="visually-hidden" for="pick-{{ submission.pk }}">Zaznacz pracę
+                {{ participant.public_code }}, zadanie {{ submission.problem.number }}</label>
             </td>
-            <th scope="row">{{ row.submission.entry.participant.public_code }}</th>
-            <td>{{ row.submission.entry.participant.user.get_full_name|default:row.submission.entry.participant.user.email }}</td>
-            <td class="num">{{ row.submission.problem.number }}</td>
-            <td>{{ row.submission.get_status_display }}</td>
+            <th scope="row" class="asg-who">
+              {% participant_card_url participant as card_url %}
+              {% if card_url %}
+                <a class="code-chip" href="{{ card_url }}">{{ participant.public_code }}</a>
+              {% else %}
+                <span class="code-chip">{{ participant.public_code }}</span>
+              {% endif %}
+              <span class="asg-who__name">{{ participant.user.get_full_name|default:participant.user.email }}</span>
+            </th>
             <td>
+              <a href="{% url 'web:coordinator-problem' submission.problem.pk %}">
+                {{ submission.problem.number }}. {{ submission.problem.title }}</a>
+            </td>
+            <td class="asg-file">
               {% comment %}
-                Pobranie pojedynczej pracy: nazwa pliku jest anonimowa także dla koordynatora,
-                bo ``original_name`` od uczestnika bywa jego nazwiskiem. Plik przed skanem
-                antywirusowym pobiera wyłącznie jego autor – stąd sama podpowiedź zamiast odnośnika.
+                Nazwa pliku jest anonimowa także dla koordynatora, bo ``original_name`` od uczestnika
+                bywa jego nazwiskiem. Plik przed skanem antywirusowym pobiera wyłącznie jego autor –
+                stąd sama podpowiedź zamiast odnośnika.
               {% endcomment %}
+              <span class="hint">wersja {{ submission.version }}</span>
               {% if row.downloadable %}
                 <a class="btn btn--secondary btn--small"
-                   href="{% url 'submissions:submission-download' row.submission.pk %}">Pobierz</a>
+                   href="{% url 'submissions:submission-download' submission.pk %}">Pobierz</a>
+                {% if submission.latest_file.page_count %}
+                  <span class="hint">{{ submission.latest_file.page_count }} s.</span>
+                {% endif %}
               {% elif row.scan_pending %}
                 <span class="hint">skan w toku</span>
               {% else %}
@@ -202,43 +308,68 @@
               {% endif %}
             </td>
             <td>
+              <span class="asg-status asg-status--{{ submission.status|lower }}">
+                {{ submission.get_status_display }}</span>
+            </td>
+            <td class="asg-reviews">
               {% for review in row.reviews %}
-                <div class="actions">
-                  <span>{{ review.reviewer.user.email }} – {{ review.get_status_display }}{% if review.round != 1 %} (runda {{ review.round }}){% endif %}:
-                    <strong>{% if review.score is not None %}{{ review.score }} pkt{% else %}—{% endif %}</strong></span>
-                  {% if row.scale_values %}
-                    {# Punkty ze skali **zadania** (a w jej braku – etapu), nie wolne pole:
-                       ocena spoza skali i tak nie przejdzie przez serwis. #}
-                    <form method="post" action="{% url 'web:coordinator-review-score' review.pk %}">
-                      {% csrf_token %}
-                      <label class="visually-hidden" for="score-{{ review.pk }}">Punkty</label>
-                      <select id="score-{{ review.pk }}" name="score">
-                        {% for value in row.scale_values %}
-                          <option value="{{ value }}"{% if review.score == value %} selected{% endif %}>{{ value }}</option>
-                        {% endfor %}
-                      </select>
-                      <button type="submit" class="btn btn--secondary btn--small">Zapisz</button>
-                    </form>
+                <div class="asg-chip{% if review.status == cancelled_status %} asg-chip--off{% endif %}">
+                  <a class="asg-chip__who"
+                     href="{% url 'web:coordinator-member' review.reviewer.pk %}">{{ review.reviewer.user.email }}</a>
+                  <span class="asg-chip__status">{{ review.get_status_display }}{% if review.round != 1 %} · runda {{ review.round }}{% endif %}</span>
+                  <span class="asg-chip__score">{% if review.score is not None %}{{ review.score }} pkt{% else %}— pkt{% endif %}</span>
+                  {% if review.due_at and review.status != cancelled_status %}
+                    {% if review.due_at < now and not review.submitted_at %}
+                      <span class="badge badge--danger">po terminie {{ review.due_at|local_datetime }}</span>
+                    {% else %}
+                      <span class="hint">termin {{ review.due_at|local_datetime }}</span>
+                    {% endif %}
                   {% endif %}
-                  {% if review.status in withdrawable_statuses %}
-                    <form method="post" action="{% url 'web:coordinator-review-unassign' review.pk %}">
-                      {% csrf_token %}
-                      {% comment %}
-                        Dwie nazwy dla dwóch różnych rzeczy: nietknięty przydział się „cofa”,
-                        rozpoczętą albo wystawioną recenzję „odbiera się” recenzentowi.
-                      {% endcomment %}
-                      <button type="submit" class="btn btn--danger btn--small">
-                        {% if review.status == assigned_status %}Cofnij{% else %}Odbierz{% endif %}</button>
-                    </form>
-                  {% endif %}
+                  <span class="asg-chip__actions">
+                    {% if row.scale_values %}
+                      {# Punkty ze skali **zadania** (a w jej braku – etapu), nie wolne pole:
+                         ocena spoza skali i tak nie przejdzie przez serwis. #}
+                      <details class="asg-edit">
+                        <summary class="asg-edit__summary">Zmień punkty</summary>
+                        <form method="post" action="{% url 'web:coordinator-review-score' review.pk %}"
+                              class="asg-edit__form">
+                          {% csrf_token %}
+                          <input type="hidden" name="filters" value="{{ return_query }}">
+                          <label class="visually-hidden" for="score-{{ review.pk }}">Punkty</label>
+                          <select id="score-{{ review.pk }}" name="score">
+                            {% for value in row.scale_values %}
+                              <option value="{{ value }}"{% if review.score == value %} selected{% endif %}>{{ value }}</option>
+                            {% endfor %}
+                          </select>
+                          <label class="visually-hidden" for="score-why-{{ review.pk }}">Notatka</label>
+                          <input id="score-why-{{ review.pk }}" type="text" name="rationale"
+                                 placeholder="Notatka (opcjonalnie)">
+                          <button type="submit" class="btn btn--primary btn--small">Zapisz</button>
+                        </form>
+                      </details>
+                    {% endif %}
+                    {% if review.status in withdrawable_statuses %}
+                      <form method="post" action="{% url 'web:coordinator-review-unassign' review.pk %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="filters" value="{{ return_query }}">
+                        {% comment %}
+                          Dwie nazwy dla dwóch różnych rzeczy: nietknięty przydział się „cofa”,
+                          rozpoczętą albo wystawioną recenzję „odbiera się” recenzentowi.
+                        {% endcomment %}
+                        <button type="submit" class="btn btn--danger btn--small">
+                          {% if review.status == assigned_status %}Cofnij{% else %}Odbierz{% endif %}</button>
+                      </form>
+                    {% endif %}
+                  </span>
                 </div>
               {% empty %}
                 <span class="hint">brak recenzentów</span>
               {% endfor %}
             </td>
-            <td>
+            <td class="asg-final">
               {% if row.final_grade %}
-                <p><strong>{{ row.final_grade.score }} pkt</strong> ({{ row.final_grade.get_method_display }})</p>
+                <p class="asg-final__score"><strong>{{ row.final_grade.score }} pkt</strong><br>
+                  <span class="hint">{{ row.final_grade.get_method_display }}</span></p>
               {% else %}
                 <p class="hint">brak oceny końcowej</p>
               {% endif %}
@@ -246,50 +377,57 @@
                 {% comment %}
                   Praca oddana nie przyjmuje jeszcze oceny końcowej (``GRADABLE_STATUSES``):
                   uczestnik może podmienić plik, więc wpisana teraz ocena dotyczyłaby wersji,
-                  której nikt już nie przeczyta. Formularz więc nie stoi, a hint mówi, czego brakuje.
+                  której nikt już nie przeczyta.
                 {% endcomment %}
-                <p class="hint">Praca nie jest jeszcze w ocenie – najpierw „Zablokuj do oceny”.</p>
+                <p class="hint">Najpierw „Zablokuj do oceny”.</p>
               {% elif row.scale_values %}
-                {% comment %}
-                  Formularz stoi w każdym wierszu, także bez recenzji: praca, której nikt nie ocenił,
-                  jest głównym powodem, dla którego ten tryb w ogóle istnieje.
-                {% endcomment %}
-                <form method="post" action="{% url 'web:coordinator-final-grade' row.submission.pk %}" class="stack">
-                  {% csrf_token %}
-                  {% if not row.reviews %}
-                    <span class="hint">Praca bez recenzji – wpisana ocena będzie oceną końcową.</span>
-                  {% endif %}
-                  <label for="final-score-{{ row.submission.pk }}">Punkty</label>
-                  <select id="final-score-{{ row.submission.pk }}" name="score">
-                    {% for value in row.scale_values %}
-                      <option value="{{ value }}"{% if row.final_grade.score == value %} selected{% endif %}>{{ value }}</option>
-                    {% endfor %}
-                  </select>
-                  <label for="final-why-{{ row.submission.pk }}">Uzasadnienie (wymagane)</label>
-                  <textarea id="final-why-{{ row.submission.pk }}" name="rationale" rows="2" required></textarea>
-                  <button type="submit" class="btn btn--primary btn--small">Zapisz korektę</button>
-                </form>
+                <details class="asg-edit">
+                  <summary class="asg-edit__summary">Ocena końcowa</summary>
+                  {% comment %}
+                    Formularz stoi w każdym wierszu, także bez recenzji: praca, której nikt nie
+                    ocenił, jest głównym powodem, dla którego ten tryb w ogóle istnieje.
+                  {% endcomment %}
+                  <form method="post" action="{% url 'web:coordinator-final-grade' submission.pk %}"
+                        class="asg-edit__form stack">
+                    {% csrf_token %}
+                    <input type="hidden" name="filters" value="{{ return_query }}">
+                    {% if not row.reviews %}
+                      <span class="hint">Praca bez recenzji – wpisana ocena będzie oceną końcową.</span>
+                    {% endif %}
+                    <label for="final-score-{{ submission.pk }}">Punkty</label>
+                    <select id="final-score-{{ submission.pk }}" name="score">
+                      {% for value in row.scale_values %}
+                        <option value="{{ value }}"{% if row.final_grade.score == value %} selected{% endif %}>{{ value }}</option>
+                      {% endfor %}
+                    </select>
+                    <label for="final-why-{{ submission.pk }}">Uzasadnienie (wymagane)</label>
+                    <textarea id="final-why-{{ submission.pk }}" name="rationale" rows="2" required></textarea>
+                    <button type="submit" class="btn btn--primary btn--small">Zapisz korektę</button>
+                  </form>
+                </details>
               {% else %}
-                <p class="hint">To zadanie nie ma skali punktacji –
-                  <a href="{% url 'web:coordinator-stage-scale' stage.pk %}">ustaw skalę etapu</a>
-                  albo skalę zadania w jego formularzu.</p>
+                <p class="hint">Zadanie bez skali punktacji –
+                  <a href="{% url 'web:coordinator-stage-scale' stage.pk %}">ustaw skalę etapu</a>.</p>
               {% endif %}
             </td>
-            <td>
+            <td class="asg-actions">
               {% if row.lockable %}
                 {% comment %}
                   Praca oddana, jeszcze niezablokowana: recenzenta nie da się jej przydzielić,
                   więc w miejsce formularza wchodzi jedno kliknięcie, które wciąga ją do oceniania.
                 {% endcomment %}
-                <form method="post" action="{% url 'web:coordinator-submission-lock' row.submission.pk %}">
+                <form method="post" action="{% url 'web:coordinator-submission-lock' submission.pk %}">
                   {% csrf_token %}
+                  <input type="hidden" name="filters" value="{{ return_query }}">
                   <button type="submit" class="btn btn--secondary btn--small">Zablokuj do oceny</button>
                 </form>
               {% elif row.assignable %}
-                <form method="post" action="{% url 'web:coordinator-submission-assign' row.submission.pk %}">
+                <form method="post" action="{% url 'web:coordinator-submission-assign' submission.pk %}"
+                      class="asg-assign" data-confirm-submit="Przydzielić tę pracę wybranemu recenzentowi?">
                   {% csrf_token %}
-                  <label class="visually-hidden" for="assign-{{ row.submission.pk }}">Recenzent</label>
-                  <select id="assign-{{ row.submission.pk }}" name="reviewer_id">
+                  <input type="hidden" name="filters" value="{{ return_query }}">
+                  <label class="visually-hidden" for="assign-{{ submission.pk }}">Recenzent</label>
+                  <select id="assign-{{ submission.pk }}" name="reviewer_id" data-submit-on-change>
                     {% for member in reviewer_pool %}
                       <option value="{{ member.pk }}">{{ member.user.email }}{% if member.district %} ({{ member.get_district_display }}){% endif %}</option>
                     {% endfor %}
@@ -299,11 +437,35 @@
               {% else %}
                 <span class="hint">praca zamknięta dla nowych przydziałów</span>
               {% endif %}
+              {% comment %}
+                Historia wiersza: wpisy audytu pracy **i jej recenzji** w jednym ciągu. Odpowiada na
+                pytanie „dlaczego ta praca ma tyle punktów”, które pada nad tą tabelą, a nie
+                w osobnej przeglądarce audytu. Audyt nie zawiera danych osobowych – jedyną osobą we
+                wpisie jest wykonawca.
+              {% endcomment %}
+              <details class="asg-history">
+                <summary class="asg-history__summary">Historia ({{ row.history|length }})</summary>
+                {% if row.history %}
+                  <ol class="asg-history__list">
+                    {% for item in row.history %}
+                      <li>
+                        <span class="hint">{{ item.at|local_datetime }}</span>
+                        <strong>{{ item.action }}</strong>
+                        <span class="hint">{{ item.actor.email|default:"system" }}</span>
+                        {% if item.diff %}<code class="asg-history__diff">{{ item.diff }}</code>{% endif %}
+                      </li>
+                    {% endfor %}
+                  </ol>
+                {% else %}
+                  <p class="hint">Brak wpisów audytu dla tej pracy.</p>
+                {% endif %}
+              </details>
             </td>
           </tr>
+          {% endwith %}
         {% empty %}
-          <tr><td colspan="9" class="empty">
-            {% if query %}Żadna praca nie pasuje do zapytania „{{ query }}”.
+          <tr><td colspan="8" class="empty">
+            {% if filter_query %}Żadna praca nie pasuje do wybranych filtrów.
             {% else %}Ten etap nie ma jeszcze oddanych prac. Kiedy się pojawią, wciągnij je do
               oceniania przyciskiem „Zablokuj do oceny” albo zamknij etap.{% endif %}
           </td></tr>
@@ -311,13 +473,30 @@
       </tbody>
     </table>
   </div>
+
+  {% if page_obj.has_other_pages %}
+    <p class="hint">
+      {% if page_obj.has_previous %}
+        <a class="btn btn--secondary btn--small"
+           href="?{% if filter_query %}{{ filter_query }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">Poprzednia</a>
+      {% endif %}
+      Strona {{ page_obj.number }} z {{ paginator.num_pages }} ({{ paginator.count }} prac)
+      {% if page_obj.has_next %}
+        <a class="btn btn--secondary btn--small"
+           href="?{% if filter_query %}{{ filter_query }}&amp;{% endif %}page={{ page_obj.next_page_number }}">Następna</a>
+      {% endif %}
+    </p>
+  {% endif %}
 </section>
 {% endblock %}
 
 {% comment %}
-  Jedyny skrypt tej strony: odsłania i obsługuje kratkę „zaznacz wszystkie”. Z nonce, bo polityka
-  CSP nie dopuszcza skryptów inline – a bez niego strona działa, tylko zaznacza się po jednym.
+  Dwa skrypty, oba z nonce (strict CSP nie dopuszcza skryptów inline) i oba wyłącznie jako skrót:
+  ``select-all.js`` odsłania kratkę „zaznacz wszystkie”, ``assignments.js`` dokłada licznik
+  zaznaczenia i wysyłkę przydziału zaraz po wyborze recenzenta z listy. Bez nich ekran działa
+  w całości – trzeba tylko klikać po jednym.
 {% endcomment %}
 {% block page_scripts %}
   <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/select-all.js' %}"></script>
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/assignments.js' %}"></script>
 {% endblock %}

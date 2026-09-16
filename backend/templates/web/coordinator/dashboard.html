@@ -1,61 +1,49 @@
-{% extends "base.html" %}
+{% extends "web/coordinator/base.html" %}
 {% load web_extras %}
+{% comment %}
+  Pulpit odpowiada na **jedno** pytanie: czym trzeba się teraz zająć. Wszystko, co jest kolejką
+  albo formularzem (moderacja, aktywacje, komitet, zaproszenia, podgląd wyników), wyprowadziło się
+  na własne adresy (apps/web/views/coordinator_pages.py) – tutaj zostaje z nich sama liczba.
+
+  Karta etapu pokazuje stan, najbliższy termin, dwie liczby i **jedną** akcję główną wynikającą ze
+  stanu etapu; reszta narzędzi tego etapu stoi pod „Więcej”. Wcześniej każda karta miała
+  jedenaście odnośników i sześć przycisków obok siebie, przez co żaden z nich nie był ważniejszy
+  od pozostałych – a w danym tygodniu sensowny jest zwykle dokładnie jeden.
+{% endcomment %}
 {% block title %}Panel koordynatora{% endblock %}
-{% block content %}
-<div class="page-head">
-  <span class="eyebrow">Panel koordynatora</span>
-  <h1>Prowadzenie edycji{% if edition %} {{ edition.year_label }}{% endif %}</h1>
+{% block panel_title %}Prowadzenie edycji{% if edition %} {{ edition.year_label }}{% endif %}{% endblock %}
+{% block panel_lead %}
   <p class="lead">Jedyny widok w serwisie, w którym widoczne są dane osobowe uczestników
     i tożsamość recenzentów.</p>
-</div>
+{% endblock %}
+{% block panel_content %}
 
-<ul class="kpi">
-  <li class="kpi__item">
-    <span class="kpi__value">{{ counters.submissions }}</span>
-    <span class="kpi__label">Oddanych rozwiązań</span>
-  </li>
-  <li class="kpi__item{% if counters.pending_reviews %} kpi__item--attention{% endif %}">
-    <span class="kpi__value">{{ counters.pending_reviews }}</span>
-    <span class="kpi__label">Recenzji w toku</span>
-  </li>
-  <li class="kpi__item{% if counters.moderation %} kpi__item--alert{% endif %}">
-    <span class="kpi__value">{{ counters.moderation }}</span>
-    <span class="kpi__label">Prac w moderacji</span>
-  </li>
-  <li class="kpi__item{% if counters.open_appeals %} kpi__item--attention{% endif %}">
-    <span class="kpi__value">{{ counters.open_appeals }}</span>
-    <span class="kpi__label">Otwartych reklamacji</span>
-  </li>
-  <li class="kpi__item{% if counters.pending_members %} kpi__item--attention{% endif %}">
-    <span class="kpi__value">{{ counters.pending_members }}</span>
-    <span class="kpi__label">Zgłoszeń do komitetu</span>
-  </li>
-  {% comment %}
-    Zgłoszenia recenzentów o problemach z pracami (nieczytelny skan, rozwiązanie innego zadania,
-    podejrzenie niesamodzielności). Kafelek jest odnośnikiem, bo jedyne, co się z tą liczbą robi,
-    to przejście do kolejki – a osobny przycisk obok licznika byłby tym samym kliknięciem dwa razy.
-  {% endcomment %}
-  <li class="kpi__item{% if counters.open_issues %} kpi__item--alert{% endif %}">
-    <a href="{% url 'web:coordinator-issues' %}">
-      <span class="kpi__value">{{ counters.open_issues }}</span>
-      <span class="kpi__label">Zgłoszone problemy</span>
-    </a>
-  </li>
-</ul>
-
-{% comment %}
-  Narzędzia obejmujące całą edycję – w odróżnieniu od „Postępu oceniania” i „Symulacji”, które
-  dotyczą jednego etapu i dlatego stoją na jego karcie. Sekcja jest wysoko, bo to pierwsze
-  miejsce, do którego sięga się poza rytmem zawodów: kiedy trzeba coś ogłosić, coś wyeksportować
-  albo sprawdzić, kto i kiedy coś zmienił.
-{% endcomment %}
 <section class="section">
-  <div class="section__head"><h2 class="mt-0">Narzędzia</h2></div>
-  <p class="stage-panel__links">
-    <a href="{% url 'web:coordinator-messages' %}">Komunikaty</a>
-    <a href="{% url 'web:coordinator-export' %}">Eksport danych</a>
-    <a href="{% url 'web:coordinator-audit' %}">Audyt</a>
-  </p>
+  <div class="section__head"><h2 class="mt-0">Co wymaga uwagi</h2></div>
+  {% comment %}
+    Kafelek z niezerową liczbą jest wyróżniony i jest odnośnikiem w całości: jedyne, co się z tą
+    liczbą robi, to przejście do kolejki. Kafelek bez adresu (ekranu jeszcze nie ma) zostaje samą
+    liczbą, zamiast prowadzić donikąd.
+  {% endcomment %}
+  <ul class="attention">
+    {% for row in attention %}
+      <li class="attention__item{% if row.value %} attention__item--due{% endif %}">
+        {% if row.url %}
+          <a class="attention__link" href="{{ row.url }}">
+            <span class="attention__value">{{ row.value }}</span>
+            <span class="attention__label">{{ row.label }}</span>
+            <span class="attention__hint">{{ row.hint }}</span>
+          </a>
+        {% else %}
+          <span class="attention__link">
+            <span class="attention__value">{{ row.value }}</span>
+            <span class="attention__label">{{ row.label }}</span>
+            <span class="attention__hint">{{ row.hint }}</span>
+          </span>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
 </section>
 
 <section class="section">
@@ -66,14 +54,6 @@
         <a class="btn btn--secondary btn--small"
            href="{% url 'web:coordinator-stage-new' %}">Dodaj etap</a>
       {% endif %}
-      {% comment %}
-        Wydarzenia linii czasu stoją obok „Dodaj etap”, bo to ta sama czynność – układanie
-        kalendarza edycji – tylko dla tej jego części, której system nie egzekwuje (gala, dzień
-        otwarty, konferencja). Odnośnik jest tu, a nie w osobnej sekcji, żeby koordynator
-        szukający terminu miał oba kalendarze w jednym miejscu.
-      {% endcomment %}
-      <a class="btn btn--secondary btn--small"
-         href="{% url 'web:coordinator-events' %}">Wydarzenia (linia czasu)</a>
     </p>
   </div>
   {% comment %}
@@ -84,457 +64,167 @@
   {% endcomment %}
   <p class="hint">Rejestracja uczestników:
     <strong>{% if registration.is_open %}otwarta{% if registration.opens_at %} od {{ registration.opens_at|local_datetime }}{% endif %}{% if registration.closes_at %}, do {{ registration.closes_at|local_datetime }}{% endif %}{% elif registration.reason == "not_yet" %}rusza {{ registration.opens_at|local_datetime }}{% elif registration.reason == "closed" %}zamknięta {{ registration.closes_at|local_datetime }}{% else %}wyłączona{% endif %}</strong>
-    <a class="btn btn--secondary btn--small"
-       href="{% url 'web:coordinator-registration' %}">Ustawienia rejestracji</a></p>
-  {% for row in stage_rows %}
-    <article class="card stage-panel">
-      <div class="card__head">
-        <h3 class="mt-0 card__title">{{ row.stage.display_name }}</h3>
-        {% if row.stage.closed_at %}
-          <span class="badge badge--neutral">zamknięty</span>
-        {% else %}
-          <span class="badge badge--ok">otwarty</span>
-        {% endif %}
-      </div>
-      {% comment %}
-        Podsumowanie terminów to ten sam komplet, który koordynator otwiera do edycji – łącznie
-        z oknem reklamacji i miejscem zawodów. Bez nich karta pokazywała połowę osi czasu, a druga
-        połowa była do sprawdzenia wyłącznie w ``/admin/``.
-      {% endcomment %}
-      <dl class="meta-list">
-        <dt>Forma</dt><dd>{{ row.stage.get_format_display }}</dd>
-        <dt>Otwarcie</dt><dd>{{ row.stage.opens_at|local_datetime }}</dd>
-        {% comment %}
-          Etap treningowy ma w bazie komplet terminów (inaczej nie przeszedłby walidacji osi czasu),
-          ale wszystkie trzy to ta sama data-wartownik z roku 2099 – wypisana wprost wyglądałaby
-          jak literówka albo jak termin, którego koordynator zapomniał poprawić. ``has_deadline``
-          jest tu jednym pytaniem za wszystkie trzy wiersze, bo bez deadline'u nie ma też terminu
-          recenzji ani okna reklamacji: te liczą się od niego.
-        {% endcomment %}
-        {% if row.stage.has_deadline %}
-          <dt>Deadline oddania</dt><dd>{{ row.stage.submission_deadline|local_datetime }}</dd>
-          <dt>Deadline recenzji</dt><dd>{{ row.stage.review_deadline_at|local_datetime }}</dd>
-          <dt>Okno reklamacji</dt>
-          <dd>{{ row.stage.appeal_window_opens_at|local_datetime }} –
-            {{ row.stage.appeal_window_closes_at|local_datetime }}</dd>
-        {% else %}
-          <dt>Deadline oddania</dt><dd>bez terminu</dd>
-        {% endif %}
-        <dt>Miejsce</dt><dd>{{ row.stage.location|default:"zdalnie" }}</dd>
-        {% comment %}
-          Termin wydarzenia stoi obok miejsca, a nie obok deadline'ów, bo opisuje to samo, co
-          miejsce: dni, na które uczestnik przyjeżdża. Wiersza nie ma, dopóki koordynator dni nie
-          wpisał – etap zdalny nie ma się czym tu tłumaczyć.
-        {% endcomment %}
-        {% if row.stage.event_range %}
-          <dt>Wydarzenie</dt><dd>{{ row.stage|event_dates }}</dd>
-        {% endif %}
-        {% if row.stage.closed_at %}
-          <dt>Zamknięty</dt><dd>{{ row.stage.closed_at|local_datetime }}</dd>
-        {% endif %}
-        {% comment %}
-          Dwie liczby, po których widać, czy jest co blokować: „oddane” to prace, które przycisk
-          niżej wciągnie do oceniania (po jednej, najnowszej wersji na zadanie), „w ocenie” –
-          te, które są tam już teraz.
-        {% endcomment %}
-        <dt>Oddane (niezablokowane)</dt><dd>{{ row.counters.submitted }}</dd>
-        <dt>W ocenie</dt><dd>{{ row.counters.under_review }}</dd>
-      </dl>
+    <a href="{% url 'web:coordinator-registration' %}">Ustawienia rejestracji</a></p>
 
-      {% comment %}
-        Etap w formie rozmowy nie ma zadań (``create_problem`` odmawia), więc odnośnik „Zadania”
-        prowadziłby na ekran, na którym nie da się nic zrobić. W jego miejsce staje „Rozmowy”
-        z licznikiem wyznaczonych terminów.
-      {% endcomment %}
-      <p class="stage-panel__links">
-        <a href="{% url 'web:coordinator-stage-edit' row.stage.pk %}">Edytuj terminy</a>
-        {% if row.stage.is_interview %}
-          <a href="{% url 'web:coordinator-stage-interviews' row.stage.pk %}">Rozmowy ({{ row.stage.slot_count }})</a>
-        {% else %}
-          <a href="{% url 'web:coordinator-stage-problems' row.stage.pk %}">Zadania ({{ row.stage.problem_count }})</a>
-        {% endif %}
-        {# Skala punktacji wyszła z adminu: panel pilnuje przy niej reguły, której admin nie zna –
-           wartości już wystawionej w ocenach nie wolno usunąć. Próg kwalifikacji zostaje. #}
-        <a href="{% url 'web:coordinator-stage-scale' row.stage.pk %}">Skala punktacji</a>
-        <a href="{% url 'admin:competitions_stage_change' row.stage.pk %}">Próg kwalifikacji (admin)</a>
-        {% comment %}
-          Dwa odnośniki do narzędzi tego etapu. „Postęp oceniania” odpowiada na pytanie „jak
-          daleko jesteśmy i na kogo czekamy”, „Symulacja kwalifikacji” – „co da ten próg”.
-          Oba są wyłącznie odczytem, dlatego stoją wśród odnośników, a nie wśród przycisków akcji.
-        {% endcomment %}
-        <a href="{% url 'web:coordinator-stage-progress' row.stage.pk %}">Postęp oceniania</a>
-        <a href="{% url 'web:coordinator-stage-simulation' row.stage.pk %}">Symulacja kwalifikacji</a>
-        {% comment %}
-          Trzy narzędzia czytane **po** ocenianiu, przed posiedzeniem komitetu: czy któryś
-          recenzent odstaje, czy któreś dwie prace są tą samą pracą i co wystawić na papierze.
-          Też wyłącznie odczyt (poza przyciskami na samych ekranach), więc stoją tutaj.
-        {% endcomment %}
-        <a href="{% url 'web:coordinator-stage-calibration' row.stage.pk %}">Kalibracja recenzentów</a>
-        {% if not row.stage.is_interview %}
-          <a href="{% url 'web:coordinator-stage-similarity' row.stage.pk %}">Podobieństwo rozwiązań</a>
-        {% endif %}
-        <a href="{% url 'web:coordinator-stage-certificates' row.stage.pk %}">Dyplomy</a>
-      </p>
-
-      <div class="stage-panel__actions">
-        {% comment %}
-          „Zablokuj oddane prace do oceny” stoi przed „Zamknij etap”, bo to ten sam ruch w wersji
-          odwracalnej: prace wchodzą do oceniania, a uczestnik ma nadal otwarte okno uploadu.
-          Nowa wersja unieważnia wtedy rozpoczętą ocenę – stąd zdanie pod przyciskiem.
-        {% endcomment %}
-        <form method="post" action="{% url 'web:coordinator-lock-for-review' row.stage.pk %}">
-          {% csrf_token %}
-          <button type="submit" class="btn btn--secondary">Zablokuj oddane prace do oceny</button>
-          <span class="hint">Etap zostaje otwarty. Nowa wersja pracy anuluje jej ocenę.</span>
-        </form>
-
-        <form method="post" action="{% url 'web:coordinator-close-stage' row.stage.pk %}">
-          {% csrf_token %}
-          <button type="submit" class="btn btn--secondary">Zamknij etap</button>
-        </form>
-
-        <form method="post" action="{% url 'web:coordinator-assign' row.stage.pk %}">
-          {% csrf_token %}
-          {{ assign_form.as_p }}
-          <button type="submit" class="btn btn--secondary">Przydziel recenzentów</button>
-        </form>
-
-        {# Ręczne przydziały stoją obok automatu, bo są jego uzupełnieniem: reguły „zadanie →
-           recenzent” honoruje ten sam przycisk, a pojedyncze prace załatwia się już tam. #}
-        <a class="btn btn--secondary" href="{% url 'web:coordinator-stage-assignments' row.stage.pk %}">Przydziały ręczne</a>
+  <div class="stage-grid">
+    {% for row in stage_rows %}
+      <article class="card stage-card">
+        <div class="stage-card__head">
+          <h3 class="mt-0 stage-card__title">
+            <a href="{% url 'web:coordinator-stage-edit' row.stage.pk %}">{{ row.stage.display_name }}</a>
+          </h3>
+          {% if row.stage.closed_at %}
+            <span class="badge badge--neutral">zamknięty</span>
+          {% else %}
+            <span class="badge badge--ok">otwarty</span>
+          {% endif %}
+        </div>
+        <dl class="stage-card__facts">
+          <dt>Forma</dt><dd>{{ row.stage.get_format_display }}</dd>
+          {% comment %}
+            Etap treningowy ma w bazie komplet terminów (inaczej nie przeszedłby walidacji osi
+            czasu), ale wszystkie trzy to ta sama data-wartownik z roku 2099 – wypisana wprost
+            wyglądałaby jak literówka albo jak termin, którego koordynator zapomniał poprawić.
+          {% endcomment %}
+          {% if row.stage.has_deadline %}
+            <dt>Deadline oddania</dt><dd>{{ row.stage.submission_deadline|local_datetime }}</dd>
+            <dt>Deadline recenzji</dt><dd>{{ row.stage.review_deadline_at|local_datetime }}</dd>
+          {% else %}
+            <dt>Deadline oddania</dt><dd>bez terminu</dd>
+          {% endif %}
+          <dt>Oddane (niezablokowane)</dt><dd>{{ row.counters.submitted }}</dd>
+          <dt>W ocenie</dt><dd>{{ row.counters.under_review }}</dd>
+        </dl>
 
         {% comment %}
-          Etap w formie rozmowy nie ma prac do pobrania, więc przycisku tam nie ma. W archiwum
-          jest po jednej, najnowszej przeskanowanej wersji każdej pracy; nazwy plików są anonimowe.
+          Jedna akcja główna, wybrana **ze stanu etapu**. Kolejność warunków jest kolejnością
+          rytmu zawodów: dopóki nic nie wpłynęło, etap się przygotowuje (zadania albo terminy
+          rozmów); kiedy prace są – wciąga się je do oceniania; kiedy są w ocenie – pilnuje się
+          przydziałów; po ocenieniu zostają wyniki, a po ogłoszeniu – gotowa tabela. Reszta
+          narzędzi etapu stoi pod „Więcej”, bo w danym tygodniu sensowne jest zwykle jedno.
         {% endcomment %}
-        {% if not row.stage.is_interview %}
-          <a class="btn btn--secondary" href="{% url 'web:coordinator-stage-download' row.stage.pk %}">Pobierz wszystkie prace (ZIP)</a>
-        {% endif %}
+        <div class="stage-card__primary">
+          {% if row.has_results %}
+            <a class="btn btn--secondary" href="{% url 'web:results' row.stage.pk %}">Ogłoszona tabela wyników</a>
+          {% elif not row.stage.closed_at and row.counters.submitted %}
+            <form method="post" action="{% url 'web:coordinator-lock-for-review' row.stage.pk %}">
+              {% csrf_token %}
+              <button type="submit" class="btn btn--primary">Zablokuj oddane prace do oceny</button>
+              <span class="hint">Etap zostaje otwarty. Nowa wersja pracy anuluje jej ocenę.</span>
+            </form>
+          {% elif row.counters.under_review %}
+            <a class="btn btn--primary" href="{% url 'web:coordinator-stage-assignments' row.stage.pk %}">Przydziały i oceny</a>
+          {% elif not row.stage.closed_at %}
+            {% if row.stage.is_interview %}
+              <a class="btn btn--primary" href="{% url 'web:coordinator-stage-interviews' row.stage.pk %}">Terminy rozmów ({{ row.stage.slot_count }})</a>
+            {% else %}
+              <a class="btn btn--primary" href="{% url 'web:coordinator-stage-problems' row.stage.pk %}">Zadania ({{ row.stage.problem_count }})</a>
+            {% endif %}
+          {% else %}
+            <a class="btn btn--primary" href="{% url 'web:coordinator-stage-results' row.stage.pk %}">Wyniki etapu</a>
+          {% endif %}
+        </div>
 
-        <form method="post" action="{% url 'web:coordinator-compute' row.stage.pk %}">
-          {% csrf_token %}
-          <button type="submit" class="btn btn--secondary">Przelicz wyniki (podgląd)</button>
-        </form>
-
-        <form method="post" action="{% url 'web:coordinator-publish' row.stage.pk %}">
-          {% csrf_token %}
-          {{ publish_form.as_p }}
-          <button type="submit" class="btn btn--primary">Opublikuj wyniki</button>
-        </form>
-      </div>
-      {% if row.has_results %}
-        <p class="card__foot"><a href="{% url 'web:results' row.stage.pk %}">Ogłoszona tabela wyników</a></p>
-      {% endif %}
-    </article>
-  {% empty %}
-    <p class="empty"><span class="empty__title">Brak etapów</span>
-      Bieżąca edycja nie ma jeszcze zdefiniowanych etapów.</p>
-  {% endfor %}
+        <details class="stage-card__more">
+          <summary>Więcej</summary>
+          {% comment %}
+            Reszta osi czasu i narzędzia etapu. Schowane, a nie usunięte: pełny kalendarz etapu
+            (otwarcie, okno reklamacji, miejsce, dni wydarzenia) jest do sprawdzenia raz na kilka
+            tygodni, a na karcie zajmował tyle samo miejsca, co dwie liczby czytane codziennie.
+          {% endcomment %}
+          <dl class="stage-card__facts">
+            <dt>Otwarcie</dt><dd>{{ row.stage.opens_at|local_datetime }}</dd>
+            {% if row.stage.has_deadline %}
+              <dt>Okno reklamacji</dt>
+              <dd>{{ row.stage.appeal_window_opens_at|local_datetime }} –
+                {{ row.stage.appeal_window_closes_at|local_datetime }}</dd>
+            {% endif %}
+            <dt>Miejsce</dt><dd>{{ row.stage.location|default:"zdalnie" }}</dd>
+            {% comment %}
+              Wiersza „Wydarzenie” nie ma, dopóki koordynator dni nie wpisał – etap zdalny nie ma
+              się czym tu tłumaczyć.
+            {% endcomment %}
+            {% if row.stage.event_range %}
+              <dt>Wydarzenie</dt><dd>{{ row.stage|event_dates }}</dd>
+            {% endif %}
+            {% if row.stage.closed_at %}
+              <dt>Zamknięty</dt><dd>{{ row.stage.closed_at|local_datetime }}</dd>
+            {% endif %}
+          </dl>
+          <p class="stage-panel__links">
+            <a href="{% url 'web:coordinator-stage-edit' row.stage.pk %}">Edytuj terminy</a>
+            {% comment %}
+              Etap w formie rozmowy nie ma zadań (``create_problem`` odmawia), więc odnośnik
+              „Zadania” prowadziłby na ekran, na którym nie da się nic zrobić. W jego miejsce
+              staje „Rozmowy” z licznikiem wyznaczonych terminów.
+            {% endcomment %}
+            {% if row.stage.is_interview %}
+              <a href="{% url 'web:coordinator-stage-interviews' row.stage.pk %}">Rozmowy ({{ row.stage.slot_count }})</a>
+            {% else %}
+              <a href="{% url 'web:coordinator-stage-problems' row.stage.pk %}">Zadania ({{ row.stage.problem_count }})</a>
+            {% endif %}
+            {# Skala punktacji wyszła z adminu: panel pilnuje przy niej reguły, której admin nie zna –
+               wartości już wystawionej w ocenach nie wolno usunąć. Próg kwalifikacji zostaje. #}
+            <a href="{% url 'web:coordinator-stage-scale' row.stage.pk %}">Skala punktacji</a>
+            <a href="{% url 'admin:competitions_stage_change' row.stage.pk %}">Próg kwalifikacji (admin)</a>
+            <a href="{% url 'web:coordinator-stage-assignments' row.stage.pk %}">Przydziały i oceny</a>
+            <a href="{% url 'web:coordinator-stage-progress' row.stage.pk %}">Postęp oceniania</a>
+            <a href="{% url 'web:coordinator-stage-simulation' row.stage.pk %}">Symulacja kwalifikacji</a>
+            <a href="{% url 'web:coordinator-stage-calibration' row.stage.pk %}">Kalibracja recenzentów</a>
+            {% if not row.stage.is_interview %}
+              <a href="{% url 'web:coordinator-stage-similarity' row.stage.pk %}">Podobieństwo rozwiązań</a>
+            {% endif %}
+            <a href="{% url 'web:coordinator-stage-certificates' row.stage.pk %}">Dyplomy</a>
+            <a href="{% url 'web:coordinator-stage-results' row.stage.pk %}">Wyniki etapu</a>
+            {% comment %}
+              Etap w formie rozmowy nie ma prac do pobrania. W archiwum jest po jednej, najnowszej
+              przeskanowanej wersji każdej pracy; nazwy plików są anonimowe.
+            {% endcomment %}
+            {% if not row.stage.is_interview %}
+              <a href="{% url 'web:coordinator-stage-download' row.stage.pk %}">Pobierz wszystkie prace (ZIP)</a>
+            {% endif %}
+          </p>
+          <div class="stage-panel__actions">
+            <form method="post" action="{% url 'web:coordinator-assign' row.stage.pk %}">
+              {% csrf_token %}
+              {{ assign_form.as_p }}
+              <button type="submit" class="btn btn--secondary">Przydziel recenzentów</button>
+            </form>
+            {% if not row.stage.closed_at %}
+              <form method="post" action="{% url 'web:coordinator-close-stage' row.stage.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn--secondary">Zamknij etap</button>
+              </form>
+            {% endif %}
+          </div>
+        </details>
+      </article>
+    {% empty %}
+      <p class="empty"><span class="empty__title">Brak etapów</span>
+        Bieżąca edycja nie ma jeszcze zdefiniowanych etapów – zacznij od „Dodaj etap”.</p>
+    {% endfor %}
+  </div>
 </section>
 
-{% if preview %}
-  <section class="section">
-    <div class="section__head">
-      <h2 class="mt-0">Podgląd wyników etapu {{ preview.stage.display_name }}</h2>
-      <span class="badge badge--danger">dane osobowe</span>
-    </div>
-    <p class="hint">Widok wyłącznie dla koordynatora – zawiera dane osobowe i nie jest publikacją.</p>
-    <div class="scroll">
-      <table class="table table--rank">
-        <thead><tr><th>Miejsce</th><th>Kod</th><th>Imię i nazwisko</th><th>Szkoła</th><th>Województwo</th><th>Razem</th></tr></thead>
-        <tbody>
-          {% for row in preview.rows %}
-            <tr>
-              <td>{{ row.rank }}</td>
-              <td><span class="code-chip">{{ row.public_code }}</span></td>
-              <td>{{ row.first_name }} {{ row.last_name }}</td>
-              <td>{{ row.school }}</td>
-              <td>{{ row.district }}</td>
-              <td class="num total">{{ row.total }}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </section>
-{% endif %}
-
+{% comment %}
+  Skróty do narzędzi obejmujących całą edycję – w odróżnieniu od narzędzi etapu, które stoją na
+  jego karcie. To samo, co w menu bocznym, ale pod ręką na wąskim ekranie, gdzie menu jest zwinięte.
+{% endcomment %}
 <section class="section">
-  <div class="section__head"><h2 class="mt-0">Moderacja (rozjazdy ocen)</h2></div>
-  {% for submission in moderation %}
-    <article class="card">
-      <div class="card__head">
-        <h3 class="mt-0 card__title"><span class="code-chip">{{ submission.entry.participant.public_code }}</span>
-          · zadanie {{ submission.problem.number }}</h3>
-        <span class="{{ submission.status|badge_class }}">{{ submission.get_status_display }}</span>
-      </div>
-      <div class="scroll">
-        <table class="table">
-          <thead><tr><th>Recenzent</th><th>Runda</th><th>Punkty</th><th>Komentarz wewnętrzny</th></tr></thead>
-          <tbody>
-            {% for review in submission.reviews.all %}
-              <tr>
-                <td>{{ review.reviewer.user.email }}</td>
-                <td class="num">{{ review.round }}</td>
-                <td class="num total">{% if review.score is not None %}{{ review.score }}{% else %}—{% endif %}</td>
-                <td>{{ review.comment_internal }}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-
-      {% comment %}
-        Notatki recenzentów przy tej pracy. Podpisy są literowe (tak, jak widzą je sami recenzenci),
-        choć koordynator zna tożsamości z tabeli wyżej: wątek jest ich rozmową o pracy i tak ma się
-        czytać. Brak notatek nie jest tu wart ani jednej linijki – sekcja po prostu się nie pojawia.
-      {% endcomment %}
-      {% with notes=moderation_notes|dict_get:submission.pk %}
-        {% if notes %}
-          <h4>Notatki recenzentów</h4>
-          <ul class="notes">
-            {% for note in notes %}
-              <li class="notes__item">
-                <span class="notes__author">{{ note.label }}</span>
-                <span class="notes__time">{{ note.created_at|local_time }}</span>
-                <p class="notes__text">{{ note.text }}</p>
-              </li>
-            {% endfor %}
-          </ul>
-        {% endif %}
-      {% endwith %}
-
-      <div class="stage-panel__actions">
-        <form method="post" action="{% url 'web:coordinator-resolve' submission.pk %}">
-          {% csrf_token %}
-          {{ resolve_form.as_p }}
-          <button type="submit" class="btn btn--primary">Rozstrzygnij (posiedzenie komisji)</button>
-        </form>
-
-        <form method="post" action="{% url 'web:coordinator-assign-third' submission.pk %}">
-          {% csrf_token %}
-          <label for="third-{{ submission.pk }}">Trzeci recenzent</label>
-          <select id="third-{{ submission.pk }}" name="reviewer_id">
-            {% for member in reviewer_pool %}
-              <option value="{{ member.pk }}">{{ member.user.email }}{% if member.district %} ({{ member.get_district_display }}){% endif %}</option>
-            {% endfor %}
-          </select>
-          <button type="submit" class="btn btn--secondary">Wyznacz trzeciego recenzenta</button>
-        </form>
-      </div>
-    </article>
-  {% empty %}
-    <p class="empty"><span class="empty__title">Bez rozjazdów</span>Brak prac w moderacji.</p>
-  {% endfor %}
-</section>
-
-<section class="section">
-  <div class="section__head">
-    <h2 class="mt-0">Konta oczekujące na aktywację</h2>
+  <div class="section__head"><h2 class="mt-0">Szybkie skróty</h2></div>
+  <ul class="shortcuts">
+    <li><a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-accounts' %}">Konta</a></li>
+    <li><a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-committee' %}">Komitet</a></li>
+    <li><a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-messages' %}">Komunikaty</a></li>
+    <li><a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-events' %}">Wydarzenia (linia czasu)</a></li>
+    <li><a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-export' %}">Eksport danych</a></li>
+    <li><a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-audit' %}">Audyt</a></li>
     {% comment %}
-      Odnośnik do pełnej listy kont stoi przy tej sekcji, bo to ta sama sprawa widziana szerzej:
-      tutaj są konta, które nie dokończyły rejestracji, tam – wszystkie, z edycją danych, blokadą
-      logowania i usunięciem.
+      Dwa ekrany RODO stoją wśród skrótów, a nie w osobnej sekcji: sięga się po nie dokładnie
+      wtedy, co po audyt – gdy ktoś z zewnątrz zadaje pytanie o dane, a nie o zawody.
     {% endcomment %}
-    <p class="hint"><a class="btn btn--secondary btn--small"
-       href="{% url 'web:coordinator-accounts' %}">Konta (wszystkie)</a></p>
-  </div>
-  {% comment %}
-    Obejście operacyjne z terminem ważności: dopóki domena nadawcy nie ma poprawnych rekordów
-    SPF/DKIM (README § 4.2), część listów aktywacyjnych trafia do spamu albo jest odrzucana przez
-    serwer odbiorcy – a bez potwierdzenia adresu uczestnik nie wejdzie do serwisu. Koordynator
-    potwierdza wtedy adres ręcznie, po sprawdzeniu innym kanałem (telefon, szkoła). Wpis audytowy
-    ma własną akcję (``account.activated_by_coordinator``), żeby było widać, czym ten adres został
-    potwierdzony.
-
-    Kolumna „do usunięcia” jest tu dlatego, że konto nieaktywowane żyje tylko cztery godziny –
-    potem znika przy najbliższym przebiegu kosiarki (co 15 minut). Bez tej informacji przycisk
-    „Aktywuj ręcznie” byłby ruletką.
-  {% endcomment %}
-  <p class="hint">Konto bez potwierdzonego adresu e-mail nie loguje się w ogóle. Nieaktywowane
-    konto jest usuwane po {{ activation_hours }} h – wtedy adres zwalnia się do ponownej rejestracji.</p>
-  <div class="scroll">
-    <table class="table">
-      <thead><tr><th>E-mail</th><th>Założone (czas polski)</th><th>Rola</th><th>Do usunięcia</th><th></th></tr></thead>
-      <tbody>
-        {% for row in pending_activation %}
-          <tr>
-            <td>{{ row.user.email }}</td>
-            <td>{{ row.user.date_joined|local_datetime }}</td>
-            <td>{{ row.roles }}</td>
-            <td>
-              {% if row.minutes_left > 0 %}
-                za {{ row.minutes_left }} min
-              {% else %}
-                <span class="badge badge--warn">po czasie</span>
-              {% endif %}
-            </td>
-            <td>
-              <form method="post" action="{% url 'web:coordinator-account-activate' row.user.pk %}" class="inline">
-                {% csrf_token %}
-                <button type="submit" class="btn btn--primary btn--small">Aktywuj ręcznie</button>
-              </form>
-              <form method="post" action="{% url 'web:coordinator-account-resend' row.user.pk %}" class="inline">
-                {% csrf_token %}
-                <button type="submit" class="btn btn--secondary btn--small">Wyślij link ponownie</button>
-              </form>
-            </td>
-          </tr>
-        {% empty %}
-          <tr><td colspan="5" class="empty">Brak kont oczekujących na aktywację.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</section>
-
-<section class="section">
-  <div class="section__head"><h2 class="mt-0">Komitet – oczekujący na zatwierdzenie</h2></div>
-  <div class="scroll">
-    <table class="table">
-      <thead><tr><th>E-mail</th><th>Województwo</th><th>Komisja odwoławcza</th><th></th></tr></thead>
-      <tbody>
-        {% for member in pending_members %}
-          <tr>
-            <td>{{ member.user.email }}</td>
-            <td>{{ member.get_district_display|default:"—" }}</td>
-            <td>{% if member.is_appeals_committee %}tak{% else %}nie{% endif %}</td>
-            <td>
-              <form method="post" action="{% url 'web:coordinator-approve' member.pk %}">
-                {% csrf_token %}
-                <button type="submit" class="btn btn--primary btn--small">Zatwierdź</button>
-              </form>
-            </td>
-          </tr>
-        {% empty %}
-          <tr><td colspan="4" class="empty">Brak zgłoszeń oczekujących.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
-  <h3>Województwa członków komitetu</h3>
-  <p class="hint">Województwo jest opcjonalne. Służy wyłącznie do wykluczenia konfliktu interesów na
-    etapie wojewódzkim: członek komitetu z tym samym województwem co uczestnik nie ocenia jego pracy.
-    Członek bez województwa ocenia prace ze wszystkich województw.</p>
-  <div class="scroll">
-    <table class="table">
-      <thead><tr><th>E-mail</th><th>Województwo</th><th>Skąd</th><th></th></tr></thead>
-      <tbody>
-        {% for member in active_members %}
-          <tr>
-            <td>{{ member.user.email }}</td>
-            <td>{{ member.get_district_display|default:"—" }}</td>
-            <td>
-              {% if not member.district %}
-                —
-              {% elif member.district_verified %}
-                ustalone przez organizatora
-              {% else %}
-                zadeklarowane przy rejestracji
-              {% endif %}
-            </td>
-            <td>
-              <form method="post" action="{% url 'web:coordinator-verify-district' member.pk %}" class="inline">
-                {% csrf_token %}
-                <select name="district" aria-label="Województwo">
-                  <option value=""{% if not member.district %} selected{% endif %}>— brak —</option>
-                  {% for value, label in voivodeship_choices %}
-                    {% if value %}
-                      <option value="{{ value }}"{% if value == member.district %} selected{% endif %}>{{ label }}</option>
-                    {% endif %}
-                  {% endfor %}
-                </select>
-                <button type="submit" class="btn btn--secondary btn--small">Zapisz</button>
-              </form>
-            </td>
-          </tr>
-        {% empty %}
-          <tr><td colspan="4" class="empty">Brak aktywnych członków komitetu.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</section>
-
-<section class="section">
-  <div class="section__head"><h2 class="mt-0">Kod zaproszenia</h2></div>
-  <div class="card">
-    <p class="hint">W bazie zapisujemy wyłącznie sha256 kodu – po zamknięciu tego komunikatu kodu nie
-      da się odtworzyć. Trzeba wygenerować nowy.</p>
-    <form method="post" action="{% url 'web:coordinator-invitation' %}" class="form">
-      {% csrf_token %}
-      {{ invitation_form.as_p }}
-      <div class="actions">
-        <button type="submit" class="btn btn--accent">Wygeneruj kod</button>
-      </div>
-    </form>
-  </div>
-</section>
-
-<section class="section">
-  <div class="section__head"><h2 class="mt-0">Zaproszenia e-mailem</h2></div>
-  <div class="card">
-    <p class="hint">Każdy adres dostaje <strong>własny, jednorazowy</strong> kod w liście z linkiem do
-      rejestracji. Kod jawny istnieje wyłącznie w tej wiadomości – tutaj zostaje adres, termin
-      i stan zaproszenia. Kod wysłany pod zły adres unieważnij; kod, który nie doszedł, wyślij ponownie
-      (stary przestaje wtedy działać).</p>
-    <form method="post" action="{% url 'web:coordinator-invitations-send' %}" class="form">
-      {% csrf_token %}
-      {{ bulk_invitation_form.as_p }}
-      <div class="actions">
-        <button type="submit" class="btn btn--accent">Wyślij zaproszenia</button>
-      </div>
-    </form>
-  </div>
-
-  <h3>Wysłane zaproszenia</h3>
-  <div class="scroll">
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Adres</th><th>Województwo</th><th>Komisja odwoławcza</th>
-          <th>Wysłano (czas polski)</th><th>Ważne do (czas polski)</th>
-          <th>Stan</th><th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for invitation in sent_invitations %}
-          <tr>
-            <td>{{ invitation.email }}</td>
-            <td>{{ invitation.get_district_display|default:"—" }}</td>
-            <td>{% if invitation.is_appeals %}tak{% else %}nie{% endif %}</td>
-            <td>{{ invitation.sent_at|local_datetime }}</td>
-            <td>{{ invitation.expires_at|local_datetime }}</td>
-            <td>
-              {% if invitation.status == "used" %}
-                <span class="badge badge--ok">{{ invitation.status_label }}</span>
-              {% elif invitation.status == "pending" %}
-                <span class="badge badge--neutral">{{ invitation.status_label }}</span>
-              {% else %}
-                <span class="badge badge--warn">{{ invitation.status_label }}</span>
-              {% endif %}
-            </td>
-            <td>
-              {% if invitation.status != "used" %}
-                <form method="post" action="{% url 'web:coordinator-invitation-resend' invitation.pk %}" class="inline">
-                  {% csrf_token %}
-                  <button type="submit" class="btn btn--secondary btn--small">Wyślij ponownie</button>
-                </form>
-                {% if not invitation.is_revoked %}
-                  <form method="post" action="{% url 'web:coordinator-invitation-revoke' invitation.pk %}" class="inline">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn--secondary btn--small">Unieważnij</button>
-                  </form>
-                {% endif %}
-              {% endif %}
-            </td>
-          </tr>
-        {% empty %}
-          <tr><td colspan="7" class="empty">Nie wysłano jeszcze żadnego zaproszenia e-mailem.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+    <li><a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-retention' %}">Retencja danych</a></li>
+    <li><a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-processing-register' %}">Rejestr czynności</a></li>
+  </ul>
 </section>
 {% endblock %}

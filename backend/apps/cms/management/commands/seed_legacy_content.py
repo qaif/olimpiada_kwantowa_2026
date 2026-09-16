@@ -52,6 +52,10 @@ Co powstaje:
   przeczytać. Teraz jest odwrotnie: strona żyje, sekcja „Zostań partnerem” działa, a lista
   partnerów zaczyna się pusta i wypełnia ją redakcja w ``/cms/`` po podpisaniu umów. Nazwy ze
   starej strony zostają w inwentarzu (``docs/import/tresci/partnerzy.md``) i nigdzie indziej,
+- **najczęstsze pytania** (``FAQPage`` pod ``/faq/``) – opublikowane, z kompletem pytań z listy
+  ``FAQ_ENTRIES``. Treść nie pochodzi ze starej strony (tamta nie miała FAQ): odpowiada miejscom,
+  w których uczestnik faktycznie utyka, i jest opisana w README. Podlega tym samym regułom
+  ochrony, co strony treści – strona zredagowana albo skasowana w ``/cms/`` zostaje nietknięta,
 - **trzy aktualności** ze starego seedera – z datą dzisiejszą, bo oryginał nie miał ``post_date``
   (``docs/import/aktualnosci.md``), i z dopiskiem o przeniesieniu na końcu treści,
 - **strona główna**: hasło, opis i sekcja „Jak zacząć w 3 krokach” z ``tresci/strona-glowna.md``
@@ -128,6 +132,8 @@ from apps.cms.models import (
     DocumentIndexPage,
     DocumentPage,
     DocumentPageAttachment,
+    FAQEntry,
+    FAQPage,
     HomePage,
     NewsIndexPage,
     NewsPage,
@@ -215,6 +221,105 @@ PARTNERS_CTA_BODY = (
     "nie mają wpływu na treść zadań, ocenę prac ani wyniki.</p>"
 )
 
+FAQ_SLUG = "faq"
+FAQ_TITLE = "Najczęstsze pytania"
+FAQ_INTRO = (
+    "<p>Odpowiedzi na pytania, które organizator dostaje najczęściej. Jeśli nie znajdziesz tu "
+    "swojej sprawy – napisz do nas przez formularz zgłoszenia; odpowiedź przyjdzie e-mailem.</p>"
+)
+
+#: Treść FAQ: trójki ``(sekcja, pytanie, odpowiedź)``. Kolejność wierszy jest kolejnością na
+#: stronie, a pierwsze wystąpienie sekcji wyznacza kolejność grup (patrz ``FAQPage.sections``).
+#:
+#: Pytania nie są wymyślone: każde odpowiada miejscu, w którym uczestnik faktycznie utyka i po
+#: którym zostaje ślad w README albo w regułach serwisu – brak listu aktywacyjnego (cztery godziny
+#: ważności i kosiarka kont), formaty plików razem z JPEG-iem dopuszczonym dla zdjęć rozwiązań
+#: pisanych ręcznie, nowa wersja pracy zastępująca poprzednią w ocenianiu, ogłoszenie wyników
+#: i okno reklamacji, zgoda opiekuna dla osób niepełnoletnich oraz rola opiekuna szkolnego.
+#: Treść jest **redakcyjna** i po pierwszym imporcie należy do organizatora – dlatego seed
+#: przestrzega tych samych reguł, co reszta importu („zredagowane w /cms/” zostaje nietknięte).
+FAQ_ENTRIES = (
+    (
+        "Konto i rejestracja",
+        "Nie dostałem listu aktywacyjnego. Co zrobić?",
+        "<p>Sprawdź folder ze spamem – list przychodzi z adresu serwisu i bywa tam filtrowany. "
+        "Link jest ważny <strong>cztery godziny</strong>; po tym czasie konto, którego adresu "
+        "nikt nie potwierdził, jest kasowane, a adres wraca do ponownej rejestracji. Jeśli listu "
+        "nie ma, użyj strony „Wyślij link ponownie” albo zgłoś sprawę organizatorowi.</p>",
+    ),
+    (
+        "Konto i rejestracja",
+        "Zarejestrowałem się z literówką w adresie e-mail.",
+        "<p>Adres e-mail jest loginem, więc konto z literówką jest nieosiągalne – nie dojdzie do "
+        "niego ani link aktywacyjny, ani reset hasła. Zgłoś to organizatorowi: poprawi adres "
+        "w panelu. Konta niepotwierdzonego nie trzeba kasować samodzielnie, znika samo po czterech "
+        "godzinach.</p>",
+    ),
+    (
+        "Konto i rejestracja",
+        "Mam mniej niż 18 lat. Czy potrzebuję zgody rodzica?",
+        "<p>Tak. Przy rejestracji podajesz adres e-mail rodzica lub opiekuna prawnego, a my "
+        "wysyłamy na niego prośbę o zgodę z jednorazowym odnośnikiem. Opiekun nie zakłada konta – "
+        "wystarczy, że otworzy link i potwierdzi. Stan zgody widzisz w swoim panelu i możesz "
+        "wysłać prośbę ponownie, jeśli pierwsza nie doszła.</p>",
+    ),
+    (
+        "Wysyłka rozwiązań",
+        "Jakie formaty plików przyjmuje system?",
+        "<p>To zależy od zadania – dopuszczalne formaty widać przy każdym z nich. Zwykle jest to "
+        "PDF, a przy zadaniach obliczeniowych także notatnik Jupytera (<code>.ipynb</code>) albo "
+        "plik <code>.py</code>. Rozwiązania pisane ręcznie wolno wysłać jako <strong>zdjęcie "
+        "JPEG</strong> – wystarczy telefon, skaner nie jest potrzebny. Zadbaj tylko o to, żeby "
+        "zdjęcie było ostre i czytelne w całości.</p>",
+    ),
+    (
+        "Wysyłka rozwiązań",
+        "Wysłałem złą wersję pracy. Mogę ją poprawić?",
+        "<p>Tak, dopóki etap jest otwarty. Wgraj plik jeszcze raz – powstanie kolejna wersja, "
+        "a <strong>do oceny idzie zawsze najnowsza</strong>. Poprzednie wersje zostają w systemie "
+        "jako historia, ale recenzent ich nie ocenia. Po zamknięciu etapu okno wysyłki się zamyka "
+        "i wersji nie da się już dołożyć.</p>",
+    ),
+    (
+        "Wysyłka rozwiązań",
+        "Wgrałem plik, ale przy pracy jest informacja o skanowaniu.",
+        "<p>Każdy plik przechodzi skan antywirusowy, zanim trafi do komitetu. Zwykle trwa to "
+        "kilkanaście sekund. Praca jest już oddana – liczy się moment wysyłki, a nie moment "
+        "zakończenia skanu. Jeśli plik zostanie odrzucony, zobaczysz to przy pracy i możesz wgrać "
+        "go ponownie.</p>",
+    ),
+    (
+        "Wyniki i reklamacje",
+        "Kiedy poznam wyniki i gdzie ich szukać?",
+        "<p>Wyniki ogłasza organizator po zakończeniu oceniania – tabela pojawia się na stronie "
+        "„Wyniki”, a w Twoim panelu dochodzi informacja zwrotna: punkty za każde zadanie, "
+        "komentarze recenzentów napisane do Ciebie i Twoje miejsce w ogłoszonej tabeli. "
+        "W publicznej tabeli występujesz pod swoim kodem uczestnika, a nie pod nazwiskiem.</p>",
+    ),
+    (
+        "Wyniki i reklamacje",
+        "Nie zgadzam się z oceną. Co mogę zrobić?",
+        "<p>Po ogłoszeniu wyników otwiera się <strong>okno reklamacji</strong> – jego termin widać "
+        "przy etapie. W tym czasie możesz złożyć reklamację do konkretnej pracy razem "
+        "z uzasadnieniem; rozpatruje ją komisja odwoławcza, w której nie ma autorów ocenianych "
+        "recenzji. Decyzję z uzasadnieniem zobaczysz w panelu.</p>",
+    ),
+    (
+        "Wyniki i reklamacje",
+        "Dlaczego w tabeli wyników nie ma mojego nazwiska?",
+        "<p>Bo tabela nie podaje nazwisk: każdy uczestnik występuje w niej pod swoim kodem. "
+        "Wyjątkiem jest finał, w którym nazwisko laureata może być ogłoszone – ale wyłącznie "
+        "po Twojej odrębnej zgodzie, którą włączasz i wyłączasz w panelu.</p>",
+    ),
+    (
+        "Szkoła i opiekun",
+        "Czy mój nauczyciel może widzieć moje wyniki?",
+        "<p>Tylko jeśli sam wpiszesz jego adres e-mail w swoim profilu jako opiekuna szkolnego. "
+        "Opiekun zakłada własne konto i widzi wyłącznie tych uczniów, którzy wskazali jego adres – "
+        "sam nikogo nie dopisze. Adres możesz w każdej chwili zmienić albo usunąć.</p>",
+    ),
+)
+
 #: Dopisek na końcu każdej przeniesionej aktualności – czytelnik ma wiedzieć, skąd wzięła się treść.
 NEWS_FOOTNOTE = "<p><em>Wpis przeniesiony ze starej strony.</em></p>"
 NEWS = (
@@ -251,6 +356,11 @@ MENU_ORDER = (
     # i jak się z nimi skontaktować”, a strona partnerów sama kończy się zaproszeniem do pisania.
     PARTNERS_SLUG,
     "kontakt",
+    # FAQ na końcu menu, tuż za „Kontaktem”: to nie jest treść, po którą sięga się przed
+    # przystąpieniem do zawodów, tylko ta, po którą sięga się, kiedy coś już nie wyszło – czyli
+    # z tego samego odruchu, co po adres kontaktowy. W przyklejonym pasku nawigacji go **nie ma**
+    # (patrz ``PRIMARY_MENU_SLUGS``): pasek trzyma zadania, terminy i warsztaty.
+    FAQ_SLUG,
 )
 
 #: Kolejność dokumentów w sekcji ``/dokumenty/`` – ta sama na stronie-spisie, w rozwijanej pozycji
@@ -498,6 +608,7 @@ class Command(BaseCommand):
             self._seed_page(home, index, spec)
         if not only:
             self._seed_partners(home)
+            self._seed_faq(home)
             self._seed_news(home)
         moved = self._order_children(home, MENU_ORDER) if not only else False
         # Przestawienie rodzeństwa strony głównej przepisało ``path`` także sekcji dokumentów,
@@ -710,6 +821,52 @@ class Command(BaseCommand):
         model = DocumentPageAttachment if spec.document else ContentPageAttachment
         set_attachments(page, model, [(document, LABEL_PDF)])
         return f", PDF #{document.pk} {action}"
+
+    # --- najczęstsze pytania ---------------------------------------------------------------
+
+    def _seed_faq(self, home: HomePage) -> None:
+        """Strona ``/faq/`` z kompletem pytań. Te same reguły ochrony, co przy stronach treści.
+
+        Pytania są **nadpisywane** przy pełnym przebiegu – tak samo jak treść dokumentów – bo ich
+        źródłem jest ten plik. Ochrona jest ta sama i wystarcza: strona zredagowana w ``/cms/``
+        (rewizja z autorem) albo skasowana przez człowieka zostaje nietknięta, więc organizator,
+        który dopisze własne pytanie, nie straci go przy następnym wdrożeniu.
+
+        Wiersze podmieniamy w całości (``delete()`` i zapis od nowa), a nie dopasowujemy po
+        pytaniu: pytanie jest tekstem redakcyjnym i zmienia się razem z odpowiedzią, więc
+        „dopasowanie po treści” gubiłoby wpis przy pierwszej poprawce sformułowania i zostawiało
+        obok niego duplikat.
+        """
+        page = FAQPage.objects.child_of(home).filter(slug=FAQ_SLUG).first()
+        created = page is None
+        if created and not self.force and deleted_in_cms(FAQ_TITLE):
+            self.stdout.write(f"pominięto: /{FAQ_SLUG}/ (usunięta w /cms/; --force odtworzy)")
+            return
+        if not created and not self.force and edited_in_cms(page):
+            self.stdout.write(f"pominięto: {page.url} (zredagowana w /cms/; --force nadpisze)")
+            return
+        if created:
+            page = FAQPage(title=FAQ_TITLE, slug=FAQ_SLUG)
+            home.add_child(instance=page)
+
+        page.title = FAQ_TITLE
+        page.intro = FAQ_INTRO
+        page.show_in_menus = True
+        page.save()
+        page.entries.all().delete()
+        for order, (section, question, answer) in enumerate(FAQ_ENTRIES):
+            FAQEntry.objects.create(
+                page=page, sort_order=order, section=section, question=question, answer=answer
+            )
+
+        # Świeży obiekt z bazy: rewizja serializuje także wiersze pytań, a te dopisaliśmy przez
+        # ORM już po ``page.save()`` – rewizja ze starego obiektu opublikowałaby stronę bez nich.
+        page = FAQPage.objects.get(pk=page.pk)
+        page.save_revision().publish()
+        self.stdout.write(
+            f"{'utworzono' if created else 'zaktualizowano'}: {page.url} "
+            f"(opublikowana, {len(FAQ_ENTRIES)} pytań)"
+        )
 
     # --- partnerzy ------------------------------------------------------------------------
 

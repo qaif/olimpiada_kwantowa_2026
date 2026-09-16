@@ -470,20 +470,20 @@ założeniem dostępu do niczyich danych, patrz 5.6).
 | 0 | Terminy etapu i arkusz zadań | koordynator | `/coordinator/` → „Edytuj terminy”, „Zadania (n)” – patrz 6.3 |
 | 1 | Rejestracja uczestnika | uczestnik | `/register/` → `POST /api/auth/register/participant/`; okno rejestracji ustawia koordynator — patrz 6.3a |
 | 2 | Rejestracja członka komitetu na kod | recenzent / komisja | `/register/committee/`; kod z `manage.py create_invitation`, z panelu koordynatora albo z zaproszenia wysłanego e-mailem — patrz 5.3 |
-| 3 | Zatwierdzenie konta `PENDING` | koordynator | `/coordinator/` → „Komitet – oczekujący na zatwierdzenie” |
+| 3 | Zatwierdzenie konta `PENDING` | koordynator | `/coordinator/committee/` → „Oczekujący na zatwierdzenie” |
 | 4 | Zapis do eliminacji | uczestnik | `/me/` → „Zgłoś się do etapu eliminacyjnego” |
 | 5 | Upload rozwiązania (przed deadline) | uczestnik | `/me/`, karta zadania (HTMX) → `POST /api/stages/<id>/problems/<n>/submissions/` |
 | 6 | Skan antywirusowy | Celery → ClamAV | status pliku w karcie zadania: `oczekuje na skan` → `czysty` |
-| 7 | Zamknięcie etapu | `beat` po `deadline_at + grace_seconds`, albo koordynator ręcznie | `/coordinator/` → „Zamknij etap” |
-| 8 | Przydział 2 recenzentów (ślepy, bez konfliktu województwa) | koordynator | `/coordinator/` → „Przydziel recenzentów”; ręcznie: „Przydziały ręczne” – patrz 6.4 |
+| 7 | Zamknięcie etapu | `beat` po `deadline_at + grace_seconds`, albo koordynator ręcznie | `/coordinator/` → karta etapu → „Więcej” → „Zamknij etap” |
+| 8 | Przydział 2 recenzentów (ślepy, bez konfliktu województwa) | koordynator | `/coordinator/` → karta etapu → „Więcej” → „Przydziel recenzentów”; ręcznie: „Przydziały i oceny” – patrz 6.4 |
 | 9 | Dwie niezależne oceny | recenzenci | `/review/`, `/review/<id>/` (podgląd PDF + adnotacje) |
 | 10 | Zgodne oceny → `FinalGrade(CONSENSUS)`; rozjazd → `MODERATION` | system | – |
-| 11 | Rozstrzygnięcie rozjazdu | koordynator (posiedzenie) lub trzeci recenzent | `/coordinator/` → „Moderacja (rozjazdy ocen)” |
+| 11 | Rozstrzygnięcie rozjazdu | koordynator (posiedzenie) lub trzeci recenzent | `/coordinator/moderation/` |
 | 12 | Otwarcie okna reklamacji | `beat` wg `appeal_window_opens_at` | – |
 | 13 | Reklamacja na własną pracę | uczestnik | `/me/` → „Reklamacje” |
 | 14 | Decyzja odwoławcza (bez autorów recenzji rundy 1) | komisja odwoławcza | `/appeals/` |
 | 15 | Zamknięcie okna → `GRADED_PROVISIONAL` → `FINAL` | `beat` | – |
-| 16 | Przeliczenie progów i publikacja | koordynator | `/coordinator/` → „Przelicz wyniki (podgląd)”, potem „Opublikuj wyniki” |
+| 16 | Przeliczenie progów i publikacja | koordynator | `/coordinator/stages/<id>/results/` → „Przelicz wyniki (podgląd)”, potem „Opublikuj wyniki” |
 | 17 | Ogłoszona tabela | wszyscy, bez logowania | `/results/<stage_id>/` oraz strona CMS `/wyniki/` |
 | 18 | Własny wynik i informacja zwrotna | uczestnik | `/me/` → „Moje wyniki”, `/me/stages/<id>/feedback/` – patrz 5.5 |
 
@@ -509,7 +509,7 @@ workera. Ręcznie: `docker compose exec web python manage.py purge_unactivated_a
 |---|---|
 | Link z listu | `/activate/<token>/` — aktywuje i pokazuje „Konto aktywne – zaloguj się” (bez automatycznego logowania) |
 | Ponowna wysyłka | `/activate/resend/` — link stały na stronie logowania; odpowiedź jest zawsze ta sama (brak enumeracji kont), limit wspólny z resetem hasła (5/h) |
-| Obejście organizatora | `/coordinator/` → „Konta oczekujące na aktywację” → „Aktywuj ręcznie” / „Wyślij link ponownie” |
+| Obejście organizatora | `/coordinator/activations/` → „Aktywuj ręcznie” / „Wyślij link ponownie” |
 
 Sekcja w panelu koordynatora jest **obejściem na czas** problemów z dostarczalnością poczty: dopóki
 domena nadawcy nie ma rekordów SPF/DKIM (§ 4.2), część listów nie dochodzi. Lista pokazuje czas
@@ -529,6 +529,7 @@ można ustawić opcjonalne `SITE_URL`.
 | Edycja danych pozostałych ról | `/account/profile/` | wyłącznie imię i nazwisko. Województwo członka komitetu (opcjonalne) zmienia **tylko** koordynator: to na nim opiera się reguła konfliktu interesów w przydziale recenzji |
 | Zmiana adresu e-mail | `/account/email/` → link z `/account/email/confirm/<token>/` | do potwierdzenia obowiązuje adres dotychczasowy; unikalność sprawdzana bez względu na wielkość liter; stary adres dostaje powiadomienie. Audyt `account.email_changed` |
 | Usunięcie konta | `/account/delete/` (link „Usuń konto” w panelu) | patrz niżej |
+| Pobranie swoich danych (art. 20 RODO) | `/account/export/` (przycisk „Pobierz moje dane” w profilu) | paczka ZIP z `dane.json` i wgranymi plikami; jedna na 10 minut. Patrz 6.14 |
 | API | `PATCH /api/auth/me/` | te same pola co formularz; bez adresu e-mail, hasła i `public_code` |
 | Cudze konto (organizator) | `/coordinator/accounts/` | koordynator poprawia dane, blokuje logowanie i usuwa dowolne konto poza kontami koordynatorów — patrz 5.4 |
 
@@ -563,8 +564,8 @@ Kod zaproszenia można rozdać dwiema drogami — obie prowadzą do tego samego 
 
 | Droga | Gdzie | Co dostaje zapraszany |
 |---|---|---|
-| Pojedynczy kod „do ręki” | `/coordinator/` → „Kod zaproszenia” (albo `manage.py create_invitation`) | kod pokazany koordynatorowi **raz**, do przekazania własnym kanałem; może mieć `max_uses > 1` |
-| Wysyłka listem | `/coordinator/` → „Zaproszenia e-mailem” | **własny, jednorazowy** kod w liście z linkiem, terminem ważności i opcjonalną dopiską koordynatora |
+| Pojedynczy kod „do ręki” | `/coordinator/committee/` → „Kod zaproszenia” (albo `manage.py create_invitation`) | kod pokazany koordynatorowi **raz**, do przekazania własnym kanałem; może mieć `max_uses > 1` |
+| Wysyłka listem | `/coordinator/committee/` → „Zaproszenia e-mailem” | **własny, jednorazowy** kod w liście z linkiem, terminem ważności i opcjonalną dopiską koordynatora |
 
 Koordynator wkleja listę adresów (nowe wiersze, przecinki, średniki albo spacje — parser przyjmuje
 każdy z nich), najwyżej 200 na raz. Adresy są sprowadzane do małych liter i odsiewane z powtórzeń;
@@ -594,7 +595,7 @@ commicie (`transaction.on_commit`), adres bezwzględny z żądania albo z `SITE_
 
 ### 5.4 Konta w panelu koordynatora (`/coordinator/accounts/`)
 
-Odnośnik **„Konta (wszystkie)”** stoi przy sekcji „Konta oczekujące na aktywację” na pulpicie.
+Odnośnik **„Wszystkie konta”** stoi w menu panelu i w nagłówku kolejki `/coordinator/activations/`.
 Sekcja pulpitu zostaje bez zmian i dotyczy wyłącznie kont, które nie dokończyły rejestracji
 („Aktywuj ręcznie”, „Wyślij link ponownie” — § 5.1); ten ekran obejmuje **wszystkie** konta.
 
@@ -643,7 +644,133 @@ dokłada `email_changed_without_confirmation`), `account.deleted_by_coordinator`
 (`{result, had_footprint}`, bez danych osobowych) oraz — z rdzenia usuwania — `account.anonymised`
 albo `account.deleted`, tym razem z koordynatorem jako wykonawcą.
 
-### 5.5 Panel uczestnika: status pracy, informacja zwrotna, kalendarz, archiwum
+**Karta uczestnika** (`/coordinator/participants/<id>/`, odnośnik „Karta” przy wierszu listy kont
+i przycisk w nagłówku edycji konta) jest drugą stroną tej samej osoby: tamten ekran poprawia
+**dane konta**, ten odpowiada na pytania o **przebieg zawodów**. W jednym miejscu stoją: dane
+i stan konta razem ze zgodą opiekuna, rejestr zgód (`ConsentRecord` — co, w jakiej wersji
+dokumentu, kiedy, którą drogą), etapy z progiem kwalifikacji i decyzją komitetu wraz
+z uzasadnieniem, zapis na rozmowę kwalifikacyjną, każda wersja każdej pracy (data oddania, status
+skanu, liczba stron, pobranie), recenzje najnowszej wersji z punktami i terminem, ocena końcowa
+z trybem ustalenia, reklamacje z rozstrzygnięciem, wiersz z **ogłoszonej** tabeli wyników (miejsce
+i suma zamrożone w chwili publikacji, nie bieżące), wystawione dyplomy, zgłoszenia do organizatora
+oraz pięćdziesiąt ostatnich wpisów audytu, w których ta osoba jest wykonawcą albo przedmiotem.
+
+Karta jest **wyłącznie odczytem i nie ma ani jednego własnego adresu zapisu**: przydział
+recenzenta, korekta punktów recenzji, „Cofnij”/„Odbierz”, blokada pracy do oceny, korekta oceny
+końcowej, aktywacja konta, eksport danych i usunięcie konta celują w istniejące widoki-akcje
+koordynatora — te same, które obsługują ekran przydziałów etapu i listę kont. Po zapisie akcja
+wraca tam, gdzie wraca zawsze (ekran przydziałów etapu albo pulpit), bo baza akcji nie czyta
+`?next=` ani nagłówka `Referer`. Dane składa `apps.accounts.participant_card` w stałej liczbie
+zapytań — niezależnej od liczby prac, wersji i recenzji (pilnuje tego test równościowy).
+
+Sekcja „Zgłoszenia” renderuje się tylko wtedy, gdy aplikacja `apps.support` jest zainstalowana;
+brak modułu znaczy „nie ma takiej funkcji” i różni się od pustej listy, która znaczy „ta osoba
+niczego nie zgłaszała”. Inne ekrany panelu dowiązują kartę znacznikiem
+`{% participant_card_url participant %}` z `apps.web.templatetags.coordinator_extras` — dla wiersza
+bez uczestnika zwraca pusty napis, więc odnośnik po prostu znika.
+
+**Karta członka komisji** (`/coordinator/members/<id>/`) jest odpowiednikiem karty uczestnika po
+drugiej stronie stołu: zbiera w jednym miejscu to, co dotąd trzeba było pozbierać z pięciu ekranów
+(konta, przydziały, postęp, kalibracja, zgłoszenia), i dokłada czynności, które z tej odpowiedzi
+wynikają. Sekcje: **Dane** (nazwisko, adres, aktywacja konta, status w komitecie z przyciskiem
+zatwierdzenia, województwo z formularzem ustalenia lub usunięcia, flaga komisji odwoławczej, grupy
+uprawnień), **Obciążenie** (przydzielone / szkice / wystawione / anulowane / po terminie w rozbiciu
+na etapy, razem ze zmierzonym czasem pracy, gdy licznik coś zmierzył), **Recenzje** (każda recenzja
+tej osoby: etap, zadanie, kod uczestnika, status, punkty, termin z odznaką zaległości, data
+poprawki, „Zmień punkty” i „Odbierz”), **Przydziel pracę** (prace bieżącej edycji będące w ocenianiu,
+których ta osoba jeszcze nie ma — po jednym przycisku na pracę, do trzydziestu na etap; komplet
+i przydział hurtowy zostają na ekranie przydziałów etapu), **Reguły** (reguły „to zadanie recenzuje
+ta osoba” z usunięciem oraz dodanie reguły dla zadania etapu jeszcze niezamkniętego),
+**Kalibracja** (wiersz tej osoby z zestawienia najnowszego etapu, w którym wystawiła oceny),
+**Zgłoszone problemy** (jej `WorkIssue`), **Przypomnij e-mailem** (przycisk stoi tylko przy etapach,
+w których jest o czym przypominać) i **Historia** (pięćdziesiąt ostatnich wpisów audytu o tym koncie
+i o tym profilu).
+
+Lista wszystkich członków stoi pod `/coordinator/members/`: status, województwo z odznaką
+„niepotwierdzone”, flaga komisji odwoławczej, obciążenie, ostatnia aktywność i odnośnik do karty.
+Wiersz dostaje **każdy** profil, także bez ani jednej recenzji — zero przydziałów jest informacją
+o rozkładzie pracy. Kolejność jest kolejnością pilności (najpierw zalegający, potem najbardziej
+obciążeni), a filtry (`?status=`, `?stage=`) jadą w adresie; etap zawęża **liczniki**, a nie listę
+osób. Zaproszeń tu nie ma — wysyłka kodów została na ekranie „Komitet”, żeby nie było dwóch miejsc
+do tej samej czynności.
+
+Karta jest **wyłącznie odczytem i nie ma ani jednego własnego adresu zapisu**: zatwierdzenie,
+województwo, „Odbierz”, korekta punktów, przydział pracy, reguły i przypomnienie celują
+w istniejące widoki-akcje koordynatora, więc reguły domenowe (konflikt interesów, skala punktacji,
+ogłoszone wyniki) obowiązują identycznie jak na ekranie przydziałów etapu. Dane składa
+`apps.accounts.member_card` z **jednego** pobrania recenzji tej osoby — obciążenie, czas pracy,
+zaległości i tabela recenzji to cztery widoki na ten sam zbiór, a nie cztery pytania do bazy
+(pilnuje tego test równościowy). Sekcje „Kalibracja”, „Zgłoszone problemy”, czas pracy
+i przypomnienie są zależne od obecności modułów `apps.grading.calibration`, `WorkIssue`,
+`apps.grading.worklog` i `apps.grading.reports`: brak modułu znaczy „nie ma takiej funkcji” i sekcja
+po prostu nie stoi, zamiast wywracać stronę.
+
+### 5.5 Panel uczestnika: układ, status pracy, informacja zwrotna, kalendarz, archiwum
+
+#### Układ `/me/`: nagłówek „Co teraz” i zakładki
+
+Panel odpowiada na kilkanaście pytań (etap, zadania, wyniki, reklamacje, zgody), ale **pytanie,
+z którym się na niego wchodzi, jest jedno**: co mam teraz zrobić i ile mam na to czasu. Stąd
+podział na dwie warstwy.
+
+**Nagłówek „Co teraz”** stoi nad zakładkami i jest na każdej z nich. Niesie cztery rzeczy: nazwę
+i stan bieżącego etapu, **jedną** czynność do zrobienia, najbliższy termin z odliczaniem oraz
+znaczniki stanu konta (*konto aktywne*, *zgody kompletne*, *opiekun potwierdził*). Tabela decyzyjna
+mieszka w `apps/web/participant_now.py` — funkcji **czystej**, testowanej bez stawiania edycji,
+etapu i zgłoszenia (`apps/web/tests/test_participant_ux.py`).
+
+Kolejność czynności (pierwsza pasująca wygrywa) i jej uzasadnienie:
+
+| # | Czynność | Kiedy | Dlaczego tutaj |
+|---|---|---|---|
+| 1 | podaj adres opiekuna | `guardian_state == missing` | jedyna rzecz, której uczestnik nie załatwi sam — po drugiej stronie jest dorosły czytający pocztę raz na kilka dni |
+| 2 | zgłoś się do etapu | zapisy otwarte, brak wpisu | bez wpisu nie ma ani zadań, ani uploadu |
+| 3 | wyślij rozwiązanie zadania *N* | upload otwarty, zadanie bez wersji | czynność, dla której ten panel istnieje |
+| 4 | zapisz się na rozmowę | etap-rozmowa, brak zapisu | to samo, tylko w innej formie etapu |
+| 5 | sprawdź ocenę (reklamacja) | okno odwoławcze otwarte | też się zamyka, ale dotyczy rzeczy już zrobionej |
+| 6 | sprawdź wyniki | jakikolwiek etap ogłoszony | do przeczytania, nie do zrobienia |
+
+Brak czynności jest **normalnym** stanem przez większą część roku i panel mówi to wprost („Na teraz
+nic nie musisz robić”) — pusty nagłówek czytałby się jak awaria.
+
+**Odliczanie** („za 3 dni, 14 godz.”) liczy i renderuje **serwer**, z czasu serwera, więc strona
+niesie prawdziwą liczbę także bez JavaScriptu. `static/js/participant.js` odświeża ją co minutę,
+korygując o różnicę zegara przeglądarki (`data-server-now`). Słowa („dni”, „godz.”, „termin minął”)
+jadą do skryptu w atrybutach `data-word-*`: przeglądarka nie ma katalogu tłumaczeń, więc inaczej
+angielski interfejs po minucie pisałby po polsku. Skład tekstu jest ten sam po obu stronach
+(`participant_now.remaining_text` i `remainingText` w skrypcie).
+
+**Zakładki** są rozstrzygane po stronie serwera i są zwykłymi odnośnikami z `aria-current`:
+
+| Adres | Zawartość |
+|---|---|
+| `/me/` | **Zadania** (domyślna): karta etapu, zapis, karty zadań z uploadem albo wybór terminu rozmowy, trening |
+| `/me/?tab=wyniki` | punkty, kwalifikacja i komentarze recenzentów po publikacji |
+| `/me/?tab=reklamacje` | formularz przy pracy podlegającej reklamacji i lista własnych zgłoszeń |
+| `/me/?tab=zgody` | zgoda opiekuna, historia zgód i przełącznik publikacji nazwiska |
+
+Obok nich w tym samym pasku stoją ekrany, które mają własne adresy: `Kalendarz`, `Archiwum`,
+`Dyplomy`, `Profil`.
+
+- **widok liczy wyłącznie to, co renderuje.** Zakładka „Zadania” nie dotyka ani wyników, ani
+  kolejki reklamacji; pilnuje tego test porównujący koszt żądania przed ogłoszeniem wyników i po
+  nim (`test_tasks_tab_does_not_pay_for_results_and_appeals`),
+- **zakładka ma adres**, więc da się ją otworzyć w nowej karcie, wysłać komuś i wrócić do niej
+  przyciskiem „wstecz”; przełącznik w JavaScripcie i tak musiałby pójść po treść na serwer,
+- nieznana wartość `?tab=` otwiera zakładkę domyślną, a nie 404: parametr bywa uszkodzony przez
+  skrócenie linku albo autokorektę w komunikatorze,
+- role ARIA `tab`/`tablist` **nie** są użyte świadomie — opisują panele przełączane bez
+  przeładowania i obiecują obsługę strzałkami, której zwykłe odnośniki nie dają. To jest nawigacja
+  po stronach i tak się przedstawia (`<nav>` + `aria-current="page"`),
+- **karta zadania** ma hierarchię odpowiadającą kolejności pytań: tytuł i odznaka stanu → termin,
+  formaty i limit → ścieżka oceniania → formularz wysyłki (ostrzeżenie „praca jest już w ocenie”
+  stoi **w formularzu**, nad polem pliku, a błąd pola — przy tym polu) → ostatnia wersja ze
+  skanem antywirusowym → zwinięta w `<details>` historia wysyłek (dopiero od drugiej wersji),
+- **wybór terminu rozmowy** jest listą pól wyboru pogrupowaną po dniach z jednym przyciskiem
+  (`POST /me/interview/choose/`, termin w polu `slot_id`). Adres z identyfikatorem w ścieżce
+  (`/me/interview-slots/<id>/book/`) zostaje nietknięty — jest w API i w linkach z listów.
+
+#### Pięć rzeczy poza uploadem
 
 Pięć rzeczy, które uczestnik dostaje poza samym uploadem. Wszystkie są **tylko do odczytu** (poza
 powiadomieniami, które nic nie wyświetlają) i wszystkie stoją na regułach opisanych wyżej — żaden
@@ -916,6 +1043,62 @@ docker compose build web   # obraz produkcyjny kompiluje katalog sam
 
 Migracja: `accounts.0016_user_interface_preferences` (`UserPreference`).
 
+### 5.10 Panel koordynatora: układ, menu boczne i wyszukiwarka
+
+Każdy ekran pod `/coordinator/` stoi w tej samej ramie (`templates/web/coordinator/base.html`):
+menu boczne po lewej, nagłówek z jednym zdaniem „po co jest ta strona” i akcją główną, treść pod
+spodem. Poniżej 900 px menu zwija się do rozwijanego **„Menu panelu”** na górze strony — całość
+jest elementem `<details>` i nie ma w niej ani jednej linii JavaScriptu (polityka CSP nie
+dopuszcza skryptów inline).
+
+Menu opisuje `apps/web/coordinator_nav.py`, a nie szablon. Adres każdej pozycji jest **listą
+kandydatów** rozwiązywaną przez `reverse()`: pozycja, której ekranu nie ma jeszcze w urlconfie,
+po prostu znika z menu, zamiast wywracać wszystkie strony panelu. Pozycja aktywna wynika z nazwy
+widoku (`request.resolver_match.url_name`), więc „Konta” świeci się także na ekranie edycji
+jednego konta.
+
+| Sekcja menu | Co w niej jest |
+|---|---|
+| Pulpit | „Co wymaga uwagi” — kafelki spraw czekających na decyzję |
+| Etapy | jeden wpis na etap bieżącej edycji, a pod nim: zadania (albo rozmowy), przydziały i oceny, postęp, wyniki |
+| Ocenianie | moderacja, zgłoszone problemy, kalibracja i podobieństwo (dla etapu, w którym trwa praca) |
+| Uczestnicy i konta | uczestnicy, wszystkie konta, opiekunowie szkolni, aktywacje |
+| Komitet | członkowie, zatwierdzenia, zaproszenia, województwa |
+| Komunikacja | komunikaty, zgłoszenia, ogłoszenia |
+| Raporty | eksport, audyt, symulacja, dyplomy, retencja, rejestr czynności |
+| Ustawienia | rejestracja uczestników, wydarzenia linii czasu, skala punktacji |
+
+Przy czterech pozycjach stoją **liczniki** (moderacja, aktywacje, komitet, zgłoszenia). Każdy to
+jedno zapytanie agregujące, wszystkie razem trzymane w pamięci podręcznej przez 60 s i wspólne dla
+menu oraz kafelków pulpitu — panel nie może pokazywać dwóch różnych odpowiedzi na to samo pytanie.
+Zero nie rysuje badge'a: kropka przy pozycji, pod którą nic nie czeka, uczyłaby ignorować kropki.
+
+**Wyszukiwarka** — pole na górze menu, wyniki pod `/coordinator/search/?q=`. Jedno pole na pięć
+rodzajów obiektów, pogrupowane w wyniku: uczestnicy (kod publiczny, nazwisko, imię, e-mail,
+szkoła), członkowie komisji, zadania (tytuł albo numer), etapy bieżącej edycji i zgłoszenia po
+numerze. Po 20 trafień na grupę, jedno zapytanie na grupę, fraza krótsza niż dwa znaki nie szuka
+niczego. Odnośnik prowadzi na kartę obiektu, a gdy karty nie ma — na ekran edycji.
+
+**Pulpit** (`/coordinator/`) odpowiada na jedno pytanie: czym trzeba się teraz zająć. Kolejki
+i formularze, które dotąd stały na nim jedna pod drugą, mają własne adresy:
+
+| Ekran | Adres |
+|---|---|
+| Moderacja (rozjazdy ocen) | `/coordinator/moderation/` |
+| Konta oczekujące na aktywację | `/coordinator/activations/` |
+| Komitet: zatwierdzenia, województwa, zaproszenia | `/coordinator/committee/` |
+| Wyniki etapu: przeliczenie i publikacja | `/coordinator/stages/<id>/results/` |
+
+Czynności (POST) zostały na swoich dotychczasowych adresach; zmienił się wyłącznie powrót po nich.
+`CoordinatorActionView` wraca na stronę, z której przyszło żądanie — pod warunkiem, że nagłówek
+`Referer` wskazuje **ten sam serwer** i ścieżkę zaczynającą się od `/coordinator/`; w każdym innym
+przypadku (także bez nagłówka) powrotem zostaje pulpit. Dzięki temu zatwierdzenie członka komisji
+z listy nie wyrzuca z listy, a obcy adres w nagłówku nie jest drogą na inną stronę.
+
+Karta etapu na pulpicie pokazuje stan, terminy, dwie liczby i **jedną** akcję główną wynikającą ze
+stanu etapu (przygotowanie zadań → zablokowanie prac do oceny → przydziały → wyniki → ogłoszona
+tabela). Reszta narzędzi etapu siedzi pod „Więcej”.
+
 ## 6. Procedury operacyjne
 
 ### 6.1 Kopia zapasowa
@@ -1016,6 +1199,45 @@ dopóki edycja nie ma wszystkich trzech rodzajów). Etap powstaje przez `create_
 ma domyślną skalę 0/2/5/6 i próg kwalifikacji. **Skalę** zmienia się dalej na własnym ekranie
 (6.3c), **próg kwalifikacji** — w `/admin/competitions/stage/<id>/change/` (link „Próg kwalifikacji
 (admin)” na karcie etapu).
+
+#### Karta zadania — `/coordinator/problems/<id>/`
+
+Strona główna jednego zadania: wchodzi się na nią tytułem zadania z listy zadań etapu, z wiersza
+tabeli przydziałów i z wyszukiwarki panelu. „Edytuj” jest jedną z czynności wykonywanych **z** tej
+karty, a nie osobnym wejściem do zadania.
+
+Sekcje:
+
+- **Treść i ustawienia** — numer, tytuł (z wersją angielską, gdy jest), podgląd treści PDF, dozwolone
+  formaty, limit rozmiaru pliku i uwagi dla recenzentów.
+- **Skala i rubryka** — skala **obowiązująca** to zadanie razem z odpowiedzią na pytanie, skąd się
+  wzięła: własne nadpisanie zadania albo skala odziedziczona po etapie (a więc: czy zmiana skali
+  etapu to zadanie ruszy). Obok stoją kryteria rubryki i wspólne szablony komentarzy przypięte do
+  zadania — prywatnych szablonów recenzenta nie widzi tu nikt.
+- **Reguły przydziału** — reguły „to zadanie recenzuje ta osoba” z usunięciem i listą wyboru do
+  dodania kolejnej (osoby, które regułę już mają, z listy wypadają).
+- **Wzorcówka** — odnośnik do rozwiązania wzorcowego. Plik nie ma publicznego adresu i **nie staje
+  się jawny po otwarciu etapu**: pobiera go wyłącznie komitet, przez widok panelu.
+- **Prace** — po jednej, najnowszej wersji każdej pracy: kod uczestnika (odnośnik do jego karty),
+  nazwisko, wersja, status, plik, recenzje z punktami i ocena końcowa. Czynności w wierszu:
+  „Zablokuj do oceny”, „Przydziel”, „Zmień punkty”, „Cofnij”/„Odbierz” i korekta oceny końcowej
+  z uzasadnieniem. Wyszukiwarka `?q=` działa po kodzie **i** po nazwisku.
+- **Pobierz** — „Pobierz ZIP zadania” (`/coordinator/stages/<id>/download/?problem=<id>`), czyli tyle,
+  ile komisja czyta za jednym posiedzeniem; nazwy plików w paczce są anonimowe (`kod_zadN_vM`).
+  Obok stoi odnośnik do podobieństw rozwiązań — te liczą się dla **całego etapu**, bo podobieństwo
+  powstaje między pracami, a nie w jednej z nich.
+- **Statystyki** — rozkład ocen końcowych tego zadania jako słupki rysowane samym arkuszem stylów
+  (strict CSP nie dopuszcza stylu w atrybucie, więc szerokość jest klasą z zamkniętej listy, skok co
+  5%; dokładne liczby stoją obok i to one są odpowiedzią). Oś powstaje ze skali, więc wartość, której
+  nie dostał nikt, zostaje na wykresie — „nikt nie dostał 6” jest informacją, a nie dziurą.
+
+Karta, tak jak karta uczestnika i karta członka komisji, jest **wyłącznie odczytem**: wszystkie
+formularze celują w istniejące widoki-akcje koordynatora, więc po zapisie wraca się tam, gdzie
+akcja wraca zawsze (ekran przydziałów etapu). Dane składa `apps.competitions.problem_card`, a wiersze
+prac — ten sam `stage_assignment_rows`, co ekran przydziałów, żeby dwa ekrany nie odpowiadały dwoma
+warunkami na to samo pytanie „co wolno z tą pracą zrobić”. Liczba zapytań nie zależy od liczby prac
+(pilnuje tego test równościowy), a sekcje „Rubryka” i „Szablony komentarzy” znikają, gdy odpowiednich
+modułów w instalacji nie ma.
 
 #### 6.3c Skala punktacji (etap i nadpisanie w zadaniu)
 
@@ -1464,9 +1686,41 @@ karcie etapu) dokłada do niego dwa narzędzia:
    gdy reguł jest więcej niż miejsc, przydzielani są wszyscy (decyzja organizatora wygrywa
    z liczbą w formularzu). **Usunięcie reguły nie kasuje recenzji**, które już z niej powstały –
    pojedynczy przydział cofa się przyciskiem „Cofnij”.
-2. **Rozwiązania.** Tabela prac nadających się jeszcze do przydziału (z wyszukiwarką po kodzie
-   uczestnika i po nazwisku) pozwala dać konkretną pracę konkretnej osobie oraz **odebrać** ją
-   recenzentowi — patrz „Odbierz” niżej.
+2. **Rozwiązania.** Tabela prac w obiegu oceniania: w jednym wierszu stoi uczestnik (kod i nazwisko,
+   odnośnik do karty uczestnika), zadanie (odnośnik do karty zadania), wersja z plikiem i liczbą
+   stron, status, recenzenci, ocena końcowa i czynności. Wszystko zmienia się **w wierszu**: punkty
+   recenzji i ocena końcowa pod rozwijanym „Zmień punkty” / „Ocena końcowa”, recenzent listą wyboru
+   z przyciskiem „Przydziel”, praca oddana przyciskiem „Zablokuj do oceny”, a odebranie – „Cofnij”
+   albo „Odbierz” (patrz niżej).
+
+Panel reguł stoi na górze **zwinięty**, z licznikiem w podsumowaniu: ustawia się je raz na etap,
+a tabelę prac czyta się codziennie.
+
+**Filtry i strony.** Nad tabelą stoją liczniki kroków obiegu (oddane / do przydziału / w ocenie /
+moderacja / ocenione) policzone dla **całego etapu** – po jednej, najnowszej wersji na parę
+(uczestnik, zadanie), tak jak liczy je tabela. Każdy licznik jest zarazem przełącznikiem filtra;
+kliknięcie licznika już włączonego zdejmuje filtr. Filtry składają się ze sobą i są w adresie, więc
+przefiltrowaną tabelę da się wysłać odnośnikiem: `?q=` (kod uczestnika albo nazwisko), `?problem=`,
+`?status=` (`submitted`, `to_assign`, `in_review`, `moderation`, `graded`), `?reviewer=`
+(prace, które ta osoba trzyma w ręku – recenzja nieanulowana), `?page=`. Wierszy jest **100 na
+stronę**; filtr i numer strony wracają też po każdej akcji, więc poprawka punktów nie wyrzuca
+z przefiltrowanej listy.
+
+**Czynności zbiorcze.** Zaznaczenie wierszy jest jedno i obsługuje dwie rzeczy: paczkę ZIP
+(„Pobierz zaznaczone”) i pasek czynności `POST /coordinator/stages/<id>/assignments/bulk/` z polem
+`action`: `assign` i `unassign` (dla recenzenta wybranego z listy obok) oraz `lock`. Każda praca idzie
+przez ten sam serwis, co pojedynczy wiersz, więc reguły domenowe obowiązują identycznie, a odmowa
+dotycząca jednej pracy **nie przerywa reszty** – ląduje w komunikacie jako powód z listą kodów
+(„Pominięto 3: …”). Pasek jest zwykłym formularzem: działa bez JavaScriptu.
+
+**Historia przy wierszu.** Rozwijane „Historia” pokazuje ostatnie 20 wpisów audytu tej pracy **i jej
+recenzji** w jednym ciągu – odpowiedź na pytanie „dlaczego ta praca ma tyle punktów” bez
+przechodzenia do przeglądarki audytu. Wpisy dla całej strony pobiera jedno zapytanie; audyt z zasady
+nie zawiera danych osobowych, więc jedyną osobą we wpisie jest wykonawca.
+
+Ekran działa w całości **bez JavaScriptu** (strict CSP nie dopuszcza skryptów inline): `assignments.js`
+dokłada wyłącznie licznik zaznaczenia i wysyłkę przydziału zaraz po wyborze recenzenta (z pytaniem
+o potwierdzenie), a `select-all.js` – kratkę „zaznacz wszystkie”.
 
 Konflikt interesów obowiązuje w obu narzędziach: recenzent z województwa uczestnika nie dostanie jego
 pracy na etapie wojewódzkim, nawet gdy wskazuje go reguła – taka praca trafia na listę pominiętych
@@ -1523,6 +1777,56 @@ Poprawić **nie wolno** — ekran pokazuje wtedy powód zamiast formularza:
 | praca w reklamacji albo finalna | `SUBMISSION_CLOSED` |
 | ocenę rozstrzygnął człowiek: moderacja, trzeci recenzent, korekta, reklamacja | `GRADE_DECIDED` |
 
+#### Panel recenzenta: kolejka pracy i ekran oceny
+
+Panel ma dwa ekrany i każdy odpowiada na inne pytanie. `/review/` odpowiada na „co mam dziś
+zrobić”, `/review/<id>/` — na „ile punktów ma ta praca”. Oba są kompletne **bez JavaScriptu**
+(strict CSP, żadnego skryptu inline); skrypty dokładają wygodę, nigdy treść.
+
+**Kolejka (`/review/`)** jest kolejką roboczą, a nie tabelą wszystkiego. Nad nią stoi pasek
+podsumowania z trzema liczbami — **ile zostało**, **najbliższy termin** i **łączny czas pracy** —
+oraz przycisk „Pobierz moje prace (ZIP)”. Niżej są cztery zakładki po stanie recenzji:
+**„Do zrobienia”** (`ASSIGNED`), **„W toku”** (`DRAFT`), **„Wystawione”** (`SUBMITTED`)
+i **„Anulowane”** (`CANCELLED`). Wewnątrz zakładki prace są dalej pogrupowane po etapie i zadaniu
+z licznikiem „6 z 12 do zrobienia” — bo tak wygląda robota: jedno zadanie w wielu pracach.
+Porządek wierszy idzie **po terminie**, a nie po chwili przydziału: zaczyna się od tego, co
+przepadnie najwcześniej. Wiersz niesie kod pracy, odznakę terminu („po terminie”, „dziś”,
+„za 3 dni”), postęp („nie zaczęta”, „szkic z punktami”, „otwarta …”), marker zgłoszonego problemu
+i przycisk „Otwórz”; w zakładce „Anulowane” zamiast przycisku stoi **powód** i to jest tam
+najważniejsza kolumna (odebranie pracy przez koordynatora to co innego niż nowa wersja od
+uczestnika). Zwinięte „Jak oceniać — w pięciu zdaniach” jest pierwszą pomocą dla osoby, która
+ocenia po raz pierwszy.
+
+Wszystkie cztery zakładki wypełnia **serwer**; `static/js/reviewer-layout.js` chowa nieaktywne
+i dokłada role `tab`/`tabpanel` (przełączanie strzałkami). Bez skryptu strona jest listą czterech
+sekcji z odnośnikami do nich — nic nie znika. „Zakładka”, która bez JavaScriptu nie pokazuje
+treści, byłaby ukryciem danych, a nie uporządkowaniem ich.
+
+**Ekran oceny (`/review/<id>/`)** jest dwiema kolumnami: po lewej (≈65 %) rozwiązanie, po prawej
+(≈35 %) panel oceny. Panel jest powyżej 1000 px **przyklejony** (`position: sticky`) i to jest cała
+korzyść z tego układu — przy ośmiostronicowym PDF-ie formularz był dotąd tam, gdzie recenzent już
+dawno nie patrzył. Kolejność w panelu odpowiada kolejności czynności: nagłówek (kod, etap, runda,
+wersja, termin, „5 z 18 w tym zadaniu” z odnośnikami do sąsiednich prac) → wzorcówka w `<details>`
+→ rubryka albo skala → komentarz dla uczestnika (z szablonami tuż pod polem) → komentarz wewnętrzny
+→ **„Zapisz szkic”** i **„Wystaw ocenę”**. Wszystko, co nie jest wystawianiem oceny — porównanie
+ocen, zgłoszenie problemu, własne szablony, czas pracy, skróty — stoi pod formularzem, zwinięte.
+Poniżej 1000 px kolumny układają się jedna pod drugą, a do panelu prowadzi przyklejony u dołu
+odnośnik **„Oceń”** (zwykła kotwica, działa bez skryptu).
+
+Nad podglądem stoi pasek adnotacji: **„Dodaj zaznaczenie”** (da się wyłączyć, gdy recenzent chce
+tylko czytać), **„Ukryj adnotacje”** i filtr **publiczne / wewnętrzne**. Lista adnotacji pod
+podglądem ma przy każdej pozycji „przejdź” (przewija podgląd na jej stronę) i „usuń”. Skróty
+klawiaturowe są udokumentowane tam, gdzie działają — w `<details>` „Skróty klawiaturowe”:
+<kbd>n</kbd> / <kbd>p</kbd> to następna i poprzednia praca w serii, <kbd>s</kbd> zapisuje szkic.
+Skróty milczą w trakcie pisania w polu tekstowym.
+
+Przy rubryce `reviewer-layout.js` pokazuje **podgląd sumy** z kryteriów i mówi, czy mieści się
+w skali zadania. Autorytetem zostaje serwer (`apps.grading.rubric`) — licznik tylko mówi to samo
+wcześniej, żeby recenzent nie dowiadywał się o wyjściu poza skalę dopiero z komunikatu po wysłaniu
+formularza. Arkusz obu ekranów to `backend/static/css/reviewer.css` (dołączany tylko na
+`/review/…`, bez ani jednego koloru spoza tokenów `app.css`, więc tryb ciemny i wysoki kontrast
+działają bez dodatkowych reguł).
+
 #### Warsztat recenzenta: rubryka, wzorcówka, porównanie ocen, serie prac i terminy
 
 Pięć rzeczy, o które prosił organizator. Wszystkie działają bez JavaScriptu (strict CSP) i żadna
@@ -1572,8 +1876,10 @@ dopisanie notatki — `POST /review/<id>/notes/` (audyt `review.note_added`, w `
 **4. Prace jednego zadania seriami.** Strona oceny ma odnośniki **„← Poprzednia praca”** /
 **„Następna praca →”** i licznik „5 z 18 w tym zadaniu”. Seria to własne otwarte recenzje
 (`ASSIGNED`/`DRAFT`) **tego samego zadania**, uporządkowane po identyfikatorze przydziału; bieżąca
-recenzja zostaje w serii także po wystawieniu oceny, żeby po powrocie było widać, co dalej. Lista
-`/review/` jest pogrupowana po etapie i zadaniu, z licznikiem „6 z 12 do zrobienia”.
+recenzja zostaje w serii także po wystawieniu oceny, żeby po powrocie było widać, co dalej.
+Odnośniki stoją w nagłówku panelu oceny, czyli tam, skąd się do następnej pracy przechodzi —
+po zapisaniu oceny, z dołu prawej kolumny. Kolejka `/review/` jest pogrupowana po etapie i zadaniu
+wewnątrz zakładek, z licznikiem „6 z 12 do zrobienia”.
 
 **5. Terminy recenzji i przypomnienia.** Etap ma pole **„Dni na jedną recenzję”**
 (`Stage.review_deadline_days`, domyślnie 14, edytowalne także po zamknięciu etapu — bo ocenianie
@@ -1586,8 +1892,9 @@ zaczyna się właśnie wtedy). Przy przydziale recenzja dostaje własny termin `
 
 Termin jest **zapisywany**, a nie liczony przy każdym odczycie: późniejsza zmiana ustawień etapu nie
 przesuwa terminów już przyznanych. Cały przebieg „Przydziel recenzentów” dostaje jeden termin, a
-komunikat po przydziale podaje go wprost („Termin recenzji: …”). Lista recenzenta pokazuje terminy
-i odznacza wiersze **„po terminie”**. Beat `apps.grading.tasks.remind_overdue_reviews` (raz na dobę,
+komunikat po przydziale podaje go wprost („Termin recenzji: …”). Kolejka recenzenta sortuje prace
+po terminie i odznacza wiersze **„po terminie”**, **„dziś”** albo **„za N dni”**, a pasek
+podsumowania podaje najbliższy termin z całej kolejki. Beat `apps.grading.tasks.remind_overdue_reviews` (raz na dobę,
 `CELERY_BEAT_SCHEDULE`) wysyła **jeden list dziennie na recenzenta** z pracami po terminie i tymi
 z terminem w ciągu 2 dni (kody publiczne prac, bez danych osobowych); powtórkom zapobiega
 `Review.reminded_at`, a do audytu trafia `review.reminder_sent` z samym licznikiem. Prace, które
@@ -1617,10 +1924,17 @@ w miejscu i **nie rusza** prywatnych notatników recenzentów (`owner IS NULL` w
 Widoczność: wspólne komitetu **przed** własnymi; cudzego prywatnego szablonu nie widzi nikt — ani
 inny recenzent, ani koordynator, a próba skasowania go kończy się 404, nie 403.
 
-Na stronie oceny sekcja „Szablony komentarzy” działa **bez JavaScriptu**: treść każdego szablonu
-stoi na ekranie do skopiowania. `static/js/review-snippets.js` (nonce, delegacja zdarzeń, dane
-w `data-*`) dokłada przycisk **„Wstaw”**, który dopisuje treść na końcu pola „Komentarz dla
-uczestnika” — nigdy nie nadpisuje tego, co tam jest. Audyt: `snippet.problem_set` (tylko przy
+Na ekranie oceny szablony stoją w **dwóch** miejscach i to nie jest powtórzenie. Zwinięte
+„Szablony komentarzy (N)” tuż pod polem „Komentarz dla uczestnika” jest podpowiedzią **do tego
+pola**: lista tytułów, treści i przycisk „Wstaw”. Zakładanie i kasowanie własnych szablonów jest
+niżej, pod formularzem, w „Moje szablony komentarzy” — wstawienie zdania dotyczy **tej** pracy,
+a założenie szablonu dwudziestu następnych. Rozdział ma też twardy powód techniczny: popover stoi
+wewnątrz formularza oceny, a formularza nie wolno zagnieżdżać w formularzu.
+
+Obie sekcje działają **bez JavaScriptu**: treść każdego szablonu stoi na ekranie do skopiowania.
+`static/js/review-snippets.js` (nonce, delegacja zdarzeń, dane w `data-*`) dokłada przycisk
+**„Wstaw”**, który dopisuje treść na końcu pola „Komentarz dla uczestnika” — nigdy nie nadpisuje
+tego, co tam jest. Audyt: `snippet.problem_set` (tylko przy
 faktycznej zmianie), `snippet.added`, `snippet.deleted` — w `diff` tytuł i długość, nigdy treść.
 
 #### Czas pracy nad recenzją
@@ -2426,6 +2740,230 @@ dziennikarz), musiał przeliczyć kilkaset wierszy ręcznie albo napisać do org
   a policzenie jej to przejście po kilkuset wierszach JSON-a na etap. Ponowna publikacja wyników
   nie unieważnia wpisu natychmiast — dziesięć minut rozbieżności kosztuje mniej niż liczenie
   na każde wejście.
+
+### 6.14 RODO: retencja danych, rejestr czynności, eksport danych
+
+Trzy narzędzia odpowiadające na trzy pytania, które organizatorowi zadaje ktoś z zewnątrz:
+„jak długo trzymacie moje dane”, „proszę o rejestr czynności przetwarzania” i „proszę o kopię
+moich danych”. Wszystkie trzy istnieją po to, żeby odpowiedź nie była robiona ręcznie.
+
+#### Retencja danych — `/coordinator/retention/`
+
+Okres retencji jest **ustawieniem edycji** (`Edition.data_retention_months`, domyślnie 24 miesiące)
+i zmienia się go na ekranie ustawień edycji (`/coordinator/registration/`, obok okna rejestracji).
+Termin liczy się od **ostatniego deadline'u etapu tej edycji** plus ten okres — nie od daty
+utworzenia edycji (bo edycja żyje rok) i nie od publikacji wyników (bo tę się przesuwa i cofa).
+Zero miesięcy wyłącza automat dla rocznika.
+
+Po upływie terminu zadanie okresowe `apps.accounts.retention.anonymise_expired_editions`
+(raz na dobę, wpis `anonymise-expired-editions` w `CELERY_BEAT_SCHEDULE`) anonimizuje konta
+uczestników tej edycji **tą samą funkcją**, co żądanie z art. 17 (`anonymise_account`): imię,
+nazwisko, adres e-mail, telefon, szkoła i rocznik znikają, zostaje pseudonimowy `public_code`,
+województwo i cała dokumentacja zawodów. Wykonawcą jest `None` (nikt tego nie żądał — upłynął
+termin), a każde konto dostaje wpis `account.anonymised_by_retention` z identyfikatorem edycji:
+bez niego w aktach zostawałby sam skutek, bez powodu.
+
+**Czego automat nie rusza** (te przypadki widać na ekranie razem z powodem):
+
+| Powód | Znaczenie |
+|---|---|
+| `later_edition` | uczestnik startuje w edycji, której retencja jeszcze nie minęła (także bieżącej) |
+| `open_appeal` | reklamacja w toku — sprawa jest sama w sobie podstawą przetwarzania |
+| `unpublished_results` | etap bez `results_published_at`: zawody nie zostały domknięte |
+| `already_anonymised` | konto przeszło już anonimizację (adres w domenie `.invalid`) |
+
+Edycja **bieżąca** nie wchodzi do przebiegu bezwarunkowo, a nie przez sam termin: pomyłka
+w ustawieniu (retencja krótsza niż kalendarz rocznika) nie może anonimizować startujących.
+Konta komitetu i koordynatora są poza zakresem — to konta funkcyjne, żyją między edycjami.
+
+**Dry-run przed skutkiem.** Anonimizacja jest nieodwracalna, więc obie drogi pokazują plan, zanim
+cokolwiek zrobią:
+
+```bash
+docker compose exec web python manage.py retention_report   # nic nie zmienia, nie ma flagi, która by to zmieniła
+```
+
+Raport wypisuje **kody publiczne**, nigdy adresów e-mail: to wykaz osób, których dane mają
+zniknąć, a lista ich adresów byłaby dokładnie tą daną, którą retencja usuwa. Ekran
+`/coordinator/retention/` pokazuje to samo (jedna funkcja `retention.plan` zasila oba) i dokłada
+przycisk **„Wykonaj teraz”** — ten sam przebieg, synchronicznie, z potwierdzeniem: operacja jest
+nieodwracalna, więc jej wynik ma wrócić w odpowiedzi na kliknięcie, a nie do logu workera.
+
+#### Rejestr czynności przetwarzania — `/coordinator/processing-register/`
+
+Dokument wymagany art. 30 ust. 1 RODO, prowadzony **jako dane w kodzie**
+(`apps/accounts/processing_register.py`), a nie jako arkusz. Konsekwencje są dwie i to one są
+powodem tej decyzji: zmiana w systemie, która zmienia przetwarzanie (nowy odbiorca, nowa kategoria
+danych, inny okres retencji), jest zmianą w tym pliku i przechodzi przez tę samą recenzję co kod —
+a treść rejestru da się sprawdzić testem (`apps/accounts/tests/test_processing_register.py`
+pilnuje, żeby żaden wiersz nie zgubił elementu wymaganego przepisem).
+
+Rejestr obejmuje dziewięć czynności: konta uczestników, dowody zgód, przyjmowanie i ocenianie prac,
+ogłaszanie wyników i dokumenty, reklamacje, rozmowy kwalifikacyjne, konta komitetu, zgłoszenia
+i pomoc oraz utrzymanie serwisu. Odbiorcy są wymienieni wprost: hosting (Contabo, Niemcy), dostawca
+poczty wychodzącej, Google Analytics **wyłącznie po zgodzie** i — przy rozmowach — informacja, że
+odbiorcy zewnętrznego nie ma, bo Jitsi Meet stoi na własnym serwerze.
+
+Dane administratora (nazwa, adres, KRS, kontakt) **nie** są w treści rejestru: dokłada je widok
+z `cms.SiteSettings`, czyli z tego samego miejsca, co stopka i strona „Kontakt”. `?format=csv`
+oddaje ten sam dokument jako plik (BOM UTF-8, średnik — otwiera się w polskim Excelu).
+
+Polityka RODO (`/dokumenty/rodo/`, sekcja 8) wskazuje rejestr jako dostępny od organizatora na
+żądanie.
+
+#### Eksport danych uczestnika — `/account/export/`
+
+Prawo do przenoszenia danych (art. 20 RODO) w postaci paczki ZIP: `dane.json` plus katalog
+`pliki/` z rozwiązaniami, które ta osoba wgrała. JSON, bo jest odczytywalny maszynowo i zarazem
+czytelny dla człowieka bez narzędzi; ZIP, bo dane bez plików nie byłyby kompletem.
+
+W `dane.json` są: konto (bez hasła), profil uczestnika / komitetu / opiekuna szkolnego, **zgody
+razem z wersjami dokumentów** i datami wyrażenia oraz wycofania, stan zgody opiekuna, zgłoszenia
+do etapów wraz z pracami i metryką plików (`sha256`, rozmiar, typ, wynik skanu, numer wersji),
+ogłoszone wyniki (własny wiersz tabeli: suma, miejsce, decyzja), oceny końcowe z komentarzami
+recenzentów napisanymi do uczestnika oraz ustawienia interfejsu.
+
+Trzy granice, których paczka nie przekracza:
+
+- **nigdy cudze dane** — ogłoszona tabela jest sprowadzona do własnego wiersza; cała jest jawna
+  pod własnym adresem i nie ma powodu, żeby wyjeżdżała z prośby jednej osoby,
+- **nigdy komentarze wewnętrzne komitetu** — do paczki wchodzi wyłącznie to, co uczestnik widzi
+  w panelu (`apps.results.feedback`), a recenzenci zostają podpisani „Recenzent A/B”,
+- **nigdy poświadczenia** — ani hasła (nawet w postaci skrótu), ani tokenów, ani powiązań OAuth.
+
+Limit: **jedna paczka na 10 minut na konto** (nie na adres IP — cała pracownia szkolna wychodzi
+spod jednego adresu). Przekroczenie kończy się 429 z `Retry-After`. Audyt: `account.exported`
+z samymi liczbami, bez treści.
+
+Koordynator wydaje tę samą paczkę dowolnego konta przyciskiem na `/coordinator/accounts/<pk>/`
+(wniosek z art. 20 przychodzi też listem — od osoby, która akurat nie może się zalogować).
+Zakres danych jest identyczny; różni się wyłącznie akcja w audycie:
+`account.exported_by_coordinator`.
+
+### 6.15 Zgłoszenia i pomoc (support desk) oraz FAQ
+
+Na dole każdej strony stoi adres organizatora, ale poczta gubi kontekst i gubi sprawę: uczestnik
+pisze „nie mogę wysłać pracy”, a organizator nie wie ani kim jest nadawca (adres prywatny bywa
+inny niż adres konta), ani w którym etapie jest zapisany, ani co robił minutę wcześniej — i musi
+to odpytać zwrotnie. Dwa dni później nikt nie pamięta, czy odpowiedź poszła.
+
+| Kto | Gdzie | Co |
+|---|---|---|
+| Każdy zalogowany | „Zgłoś problem” w pasku konta → `/support/` | lista własnych spraw |
+| Każdy zalogowany | `/support/new/` | nowe zgłoszenie (bez CAPTCHY — konto jest już tym kosztem) |
+| **Bez konta** | `/support/new/` (odnośnik w stopce) | to samo plus pole adresu e-mail i blok antyspamowy rejestracji |
+| Zgłaszający | `/support/<id>/` | wątek sprawy z formularzem dopisku |
+| Koordynator | `/coordinator/support/` | kolejka: otwarte na górze, w obrębie stanu od najstarszego; filtry `?status=`, `?category=` |
+| Koordynator | `/coordinator/support/<id>/` | wątek, odpowiedź (z opcją zamknięcia) i „Zamknij bez odpowiedzi” |
+
+Kategorie: konto i logowanie, wysyłka pracy, wyniki, rejestracja, inne. Stany: **otwarte →
+odpowiedziane → zamknięte**, przy czym dopisek zgłaszającego **wraca sprawę do „otwarte”** — bez
+tej reguły sprawa, do której ktoś napisał „to nadal nie działa”, znikałaby z kolejki na zawsze.
+Zgłoszenie zamknięte nie przyjmuje już wypowiedzi z żadnej strony: zamknięcie jest decyzją
+organizatora i ma zostać decyzją.
+
+**Kontekst techniczny** zbiera się automatycznie i jest widoczny **tylko dla organizatora**: adres
+strony, z której przyszło zgłoszenie, nazwa przeglądarki, język interfejsu, kod publiczny
+uczestnika, identyfikatory etapów, w których jest zapisany, oraz **nazwa** ostatniej czynności
+z dziennika zdarzeń z ostatnich 10 minut. Nie wchodzą tam: ciasteczka, nagłówki uwierzytelnienia,
+tokeny, zawartość formularzy ani treść wpisu audytowego. Formularz mówi o tym wprost — zbieramy
+dane, o które nikt nas nie prosił.
+
+**Poczta.** Nowe zgłoszenie idzie powiadomieniem na adres kontaktowy organizatora z
+`cms.SiteSettings` (Ustawienia → Dane serwisu; `DEFAULT_FROM_EMAIL` jest adresem **nadawcy**
+`noreply@…`, więc list lądowałby w skrzynce, której nikt nie czyta). Odpowiedź organizatora idzie
+na adres zgłaszającego. **Żaden z tych listów nie niesie treści** — tylko informację, że sprawa
+albo odpowiedź jest, i odnośnik: zgłoszenie bywa opisem cudzego problemu z danymi, a skrzynka nie
+jest miejscem na jego kopię. Obie wysyłki jadą przez `queue_mail` (po commicie), więc niedostępny
+MTA nie zamienia zgłoszonej sprawy w błąd 500.
+
+Audyt: `ticket.opened` (kategoria, długość opisu, czy anonimowe), `ticket.answered` (długość),
+`ticket.closed` (kategoria) — nigdy treść. Pulpit koordynatora ma licznik otwartych zgłoszeń;
+jest **bez zakresu edycji**, bo najdłużej czeka zwykle ktoś, kto nie ma jeszcze ani konta, ani
+wpisu w żadnym etapie.
+
+Skasowanie konta w całości (art. 17, konto bez śladu w zawodach) zabiera jego zgłoszenia
+(`CASCADE`) — to jego korespondencja, nie dokument zawodów. Anonimizacja ich nie rusza: wiersz
+konta zostaje, tylko bez danych osobowych.
+
+#### FAQ — `/faq/`
+
+Typ strony Wagtaila (`cms.FAQPage`) z listą pytań pogrupowanych w sekcje. Każde pytanie jest
+elementem `<details>` z **trwałą kotwicą** (`#pytanie-<id>`, z identyfikatora wiersza, nie
+z treści), więc odpowiedź na zgłoszenie może odesłać do konkretnego pytania, a odnośnik przeżyje
+poprawkę sformułowania. Rozwijanie działa klawiaturą i bez JavaScriptu — przy polityce CSP bez
+kodu inline to jedyne rozwiązanie, które nie wymaga własnego pliku skryptu.
+
+Treść zakłada `manage.py seed_legacy_content` (dziesięć pytań: aktywacja i spam, literówka
+w adresie, zgoda opiekuna, formaty plików razem z JPEG-iem dla zdjęć rozwiązań pisanych ręcznie,
+nowa wersja pracy zastępująca poprzednią w ocenianiu, skan antywirusowy, terminy wyników,
+reklamacje, brak nazwisk w tabeli, rola opiekuna szkolnego). Obowiązują te same reguły ochrony,
+co przy stronach treści: strona **zredagowana** albo **skasowana w /cms/** zostaje nietknięta,
+a `--force` je wyłącza. Redakcja dopisuje pytania w `/cms/`.
+
+FAQ jest w pełnym menu serwisu i w stopce, ale **nie** w przyklejonym pasku nawigacji
+(`PRIMARY_MENU_SLUGS`): pasek trzyma to, czego szuka się w trakcie zawodów. Formularz zgłoszenia
+zaczyna się od odnośnika „Zanim zgłosisz: FAQ”.
+
+### 6.16 Baner komunikatów i strona statusu
+
+#### Komunikaty — `/coordinator/announcements/`
+
+Pasek pod nagłówkiem, na **każdej** stronie serwisu, także dla niezalogowanych. To inna wiadomość
+niż aktualność: aktualność czyta ten, kto wejdzie na `/aktualnosci/`, a komunikat („przedłużamy
+termin do piątku”, „logowanie przez Google nie działa”) musi zobaczyć każdy, kto jest w serwisie.
+
+Komunikat to ≤ 500 znaków **zwykłego tekstu** (autoescapowanego) plus opcjonalny odnośnik jako
+**para pól** (adres + etykieta; sam adres bez etykiety się nie pokazuje). Trzy wagi: `info`,
+`warning`, `danger` — ta ostatnia dostaje `role="alert"`, więc czytnik ekranu przeczyta ją od razu.
+Widoczność wyznacza okno czasowe (`starts_at` / `ends_at`, puste „do” = do wyłączenia) oraz
+wyłącznik `is_active` jako hamulec awaryjny. Puste „od” znaczy „od zaraz”.
+
+`dismissible` decyduje, czy czytelnik może baner zamknąć; wybór pamięta `localStorage`
+(`static/js/announcements.js`, klucz per identyfikator komunikatu), a nie cookie ani konto — to
+preferencja widoku na tym urządzeniu. **Bez JavaScriptu baner jest w pełni sprawny**: serwer rysuje
+go od razu, a przycisk zamknięcia ma w HTML-u `hidden` i odsłania go dopiero skrypt (przycisk,
+który nic nie robi, byłby atrapą). Komunikat niezamykalny przycisku nie dostaje w ogóle.
+
+Odczyt jest pamiętany **60 sekund** (`django.core.cache`) — baner renderuje się na każdej stronie —
+a zapis i skasowanie unieważniają tę pamięć sygnałem, więc ogłoszenie jest widoczne natychmiast.
+Panel redakcyjny (`/cms/`) i panel Django baneru nie dostają: mają własną ramę. Model jest też
+zarejestrowany jako snippet Wagtaila (`/cms/` → Komunikaty) — redakcja bywa kimś innym niż
+organizator zawodów. Audyt: `announcement.created` / `announcement.updated` /
+`announcement.deleted` z wagą i stanem, nigdy z treścią.
+
+#### Strona statusu — `/status/` i `/status.json`
+
+Publiczna, bez logowania, buforowana 30 sekund. Odpowiada na pytanie zadawane o 23:40 przed
+deadline'em: „nie mogę wysłać pracy — to u was, czy u mnie?”. To co innego niż `/healthz/`, które
+odpowiada **orkiestratorowi** kodem HTTP; tu odpowiedź jest dla człowieka i ma treść.
+
+Pokazuje: stan czterech podsystemów, **czas na serwerze w czasie polskim** (to on rozstrzyga
+o przyjęciu pliku, a nie zegarek na telefonie), stan rejestracji, bieżący etap z terminem oddania
+oraz komunikaty organizatora.
+
+| Podsystem | Sprawdzenie |
+|---|---|
+| Baza danych | `SELECT 1` |
+| Sesje i pamięć podręczna | zapis i natychmiastowy odczyt klucza kontrolnego |
+| Magazyn wgranych prac | `HeadBucket` na S3/MinIO (lokalnie: istnienie katalogu) |
+| Kolejka zadań | wiek pulsu z `apps.core.tasks.heartbeat` (beat co minutę, próg 3 minuty) |
+
+Kolejka jest sprawdzana **pulsem**, a nie synchronicznym `inspect ping`: takie pytanie czeka na
+odpowiedź, więc strona wisiałaby dokładnie wtedy, gdy worker nie żyje — czyli w jedynym przypadku,
+dla którego istnieje. Zadanie `heartbeat` (wpis `heartbeat` w `CELERY_BEAT_SCHEDULE`) zapisuje
+znacznik czasu w cache'u; żeby wpis powstał, musi zadziałać **cała** droga: beat → broker → worker
+→ cache.
+
+Na stronie **nie ma** nazw hostów, wersji bibliotek ani treści błędów — jedyną informacją
+o infrastrukturze jest binarne „działa / nie działa”. Werdykt ogólny wymaga **wszystkich**
+podsystemów: uczestnikowi z niedziałającym magazynem nie pomaga to, że baza ma się dobrze.
+
+`/status.json` oddaje ten sam stan dla monitoringu zewnętrznego (jedna funkcja `snapshot`, dwa
+renderery — rozjazd znaczyłby, że jedno z dwojga kłamie). Kod odpowiedzi jest **zawsze 200**,
+a werdykt niesie pole `status` (`ok` / `degraded`): monitor, który dostaje 503, uznaje zwykle, że
+niedostępna jest sama strona statusu, i przestaje czytać jej treść. Osobny adres, a nie
+`?format=json`, bo monitory konfiguruje się adresem — ten sam powód, co przy `/me/calendar.ics`.
 
 ## 7. Testy i kontrola jakości
 

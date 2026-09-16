@@ -1,5 +1,6 @@
-{% extends "base.html" %}
+{% extends "web/coordinator/base.html" %}
 {% load web_extras %}
+{% load coordinator_extras %}
 {% comment %}
   Lista wszystkich kont w serwisie. Jedyny ekran poza ``/admin/``, z którego organizator poprawia
   cudze dane i kasuje konta – dlatego wiersz prowadzi do osobnej strony edycji, a nie do formularza
@@ -10,13 +11,12 @@
   odnalezienia **jednego** konta wyszukiwarką, a nie do przeglądania bazy po kolei.
 {% endcomment %}
 {% block title %}Konta – panel koordynatora{% endblock %}
-{% block content %}
-<div class="page-head">
-  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
-  <h1>Konta</h1>
+{% block panel_title %}Konta{% endblock %}
+{% block panel_lead %}
   <p class="lead">Wszystkie konta w serwisie: dane, blokada logowania i usunięcie. Konta
     koordynatorów są tu widoczne, ale ich dane zmienia administrator w panelu /admin/.</p>
-</div>
+{% endblock %}
+{% block panel_content %}
 
 <section class="section">
   <div class="section__head">
@@ -81,6 +81,16 @@
             <td>
               <a class="btn btn--secondary btn--small"
                  href="{% url 'web:coordinator-account-edit' row.user.pk %}">{% if row.protected %}Podgląd{% else %}Edytuj{% endif %}</a>
+              {% comment %}
+                „Karta” stoi obok „Edytuj”, bo to dwie różne sprawy przy tym samym wierszu:
+                formularz poprawia dane konta, karta odpowiada na pytanie o przebieg zawodów
+                (prace, oceny, wyniki, reklamacje). Odnośnik pojawia się wyłącznie przy koncie
+                z profilem uczestnika – konto recenzenta ani opiekuna żadnej karty nie ma.
+              {% endcomment %}
+              {% participant_card_url row.user.participant as card_url %}
+              {% if card_url %}
+                <a class="btn btn--secondary btn--small" href="{{ card_url }}">Karta</a>
+              {% endif %}
             </td>
           </tr>
         {% empty %}

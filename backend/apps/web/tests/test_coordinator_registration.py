@@ -23,7 +23,7 @@ from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from django.utils import timezone
 
 from apps.accounts.models import Participant, User
-from apps.competitions.models import Edition
+from apps.competitions.models import DEFAULT_RETENTION_MONTHS, Edition
 from apps.core.models import AuditLog
 
 from .conftest import captcha_fields, password_fields
@@ -37,8 +37,19 @@ WARSAW_FORMAT = "%Y-%m-%dT%H:%M"
 
 
 def form_data(**overrides) -> dict:
-    """Komplet pól ``RegistrationSettingsForm``. Puste pole daty = „bez ograniczenia”."""
-    data = {"registration_enabled": "on", "registration_opens_at": "", "registration_closes_at": ""}
+    """Komplet pól ``RegistrationSettingsForm``. Puste pole daty = „bez ograniczenia”.
+
+    ``data_retention_months`` jest w tym samym formularzu, bo odpowiada na drugą połowę tego samego
+    pytania o ramy czasowe edycji: od kiedy wolno zbierać dane uczestników i do kiedy wolno je
+    trzymać. Testy okna rejestracji przepisują tu wartość domyślną i o niej zapominają – retencji
+    pilnuje ``apps/accounts/tests/test_retention.py``.
+    """
+    data = {
+        "registration_enabled": "on",
+        "registration_opens_at": "",
+        "registration_closes_at": "",
+        "data_retention_months": str(DEFAULT_RETENTION_MONTHS),
+    }
     data.update(overrides)
     return {name: value for name, value in data.items() if value is not None}
 

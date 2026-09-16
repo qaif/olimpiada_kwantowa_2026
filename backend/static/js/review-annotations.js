@@ -56,32 +56,71 @@ function start() {
   let pageNumber = 1;
   let viewport = null;
 
+  /* Stan paska nad podglądem. Trzy przełączniki odpowiadają na trzy pytania zadawane przy
+   * ocenianiu: czy zaznaczanie myszą ma być teraz aktywne (recenzent chce czasem tylko czytać),
+   * czy prostokąty mają zasłaniać stronę i co z tych adnotacji zobaczy uczestnik. Stan jest
+   * wyłącznie w przeglądarce – nic z tego nie jedzie na serwer, bo nie jest treścią oceny. */
+  let annotatingEnabled = true;
+  let annotationsVisible = true;
+  let filterMode = "all";
+
+  function matchesFilter(item) {
+    if (filterMode === "public") return Boolean(item.public);
+    if (filterMode === "internal") return !item.public;
+    return true;
+  }
+
   /* Lista adnotacji budowana wyłącznie z węzłów tekstowych – żadnego HTML-a ze stringa. */
   function renderList() {
     if (!list) return;
     list.textContent = "";
-    if (annotations.length === 0) {
+    const shown = annotations.filter(matchesFilter);
+    if (shown.length === 0) {
       const empty = document.createElement("li");
       empty.className = "hint";
-      empty.textContent = "Brak adnotacji.";
+      empty.textContent =
+        annotations.length === 0 ? "Brak adnotacji." : "Żadna adnotacja nie pasuje do filtru.";
       list.appendChild(empty);
       return;
     }
-    annotations.forEach(function (item, index) {
+    shown.forEach(function (item) {
       const li = document.createElement("li");
       const label = document.createElement("span");
       label.textContent =
         "str. " + item.page + (item.public ? " (publiczna)" : "") + ": " + (item.text || "");
+      /* „Przejdź” przewija podgląd na stronę z adnotacją. Przy ośmiostronicowym rozwiązaniu sama
+         informacja „str. 6” nie skraca szukania – trzeba ją jeszcze na tej stronie znaleźć. */
+      const goTo = document.createElement("button");
+      goTo.type = "button";
+      /* Klasa, bo arkusz maluje przyciski w liście adnotacji na kolor „usuwania” – a „przejdź”
+         nie kasuje niczego i nie może tak wyglądać (static/css/reviewer.css). */
+      goTo.className = "annotations__goto";
+      goTo.textContent = "przejdź";
+      goTo.addEventListener("click", function () {
+        const page = Number(item.page) || 1;
+        if (pdfDocument && page !== pageNumber && page >= 1 && page <= pdfDocument.numPages) {
+          pageNumber = page;
+          renderPage();
+        }
+        const stage = root.querySelector("[data-pdf-stage]");
+        if (stage) stage.scrollIntoView({ block: "center" });
+      });
       const remove = document.createElement("button");
       remove.type = "button";
       remove.textContent = "usuń";
       remove.addEventListener("click", function () {
+        /* Indeks liczony w chwili kliknięcia, a nie przy budowaniu listy: przy włączonym filtrze
+           pozycja na ekranie i pozycja w tablicy to dwie różne liczby. */
+        const index = annotations.indexOf(item);
+        if (index === -1) return;
         annotations.splice(index, 1);
         syncField();
         renderList();
         renderRects();
       });
       li.appendChild(label);
+      li.appendChild(document.createTextNode(" "));
+      li.appendChild(goTo);
       li.appendChild(document.createTextNode(" "));
       li.appendChild(remove);
       list.appendChild(li);
@@ -94,10 +133,10 @@ function start() {
 
   function renderRects() {
     layer.textContent = "";
-    if (!viewport) return;
+    if (!viewport || !annotationsVisible) return;
     annotations
       .filter(function (item) {
-        return Number(item.page) === pageNumber;
+        return Number(item.page) === pageNumber && matchesFilter(item);
       })
       .forEach(function (item) {
         const rect = item.rect || [0, 0, 0, 0];
@@ -172,6 +211,11 @@ function start() {
     });
     layer.addEventListener("mouseup", function (event) {
       if (startX === null) return;
+      if (!annotatingEnabled) {
+        startX = null;
+        startY = null;
+        return;
+      }
       const bounds = layer.getBoundingClientRect();
       const endX = event.clientX - bounds.left;
       const endY = event.clientY - bounds.top;
@@ -247,6 +291,39 @@ function start() {
     });
   }
   root.querySelector("[data-pdf-save]").addEventListener("click", save);
+
+  /* Pasek nad podglądem. Szablon rysuje go w tym samym ``{% if file_available %}``, co podgląd,
+   * więc jeżeli któregoś z przycisków nie ma, po prostu go tu nie wiążemy – nic nie zakładamy
+   * o kształcie HTML-u poza nazwami atrybutów ``data-*``. */
+  const modeButton = document.querySelector("[data-annotate-mode]");
+  const toggleButton = document.querySelector("[data-annotations-toggle]");
+  const filterSelect = document.querySelector("[data-annotations-filter]");
+
+  if (modeButton) {
+    modeButton.addEventListener("click", function () {
+      annotatingEnabled = !annotatingEnabled;
+      modeButton.setAttribute("aria-pressed", annotatingEnabled ? "true" : "false");
+      modeButton.textContent = annotatingEnabled ? "Dodaj zaznaczenie" : "Zaznaczanie wyłączone";
+      layer.classList.toggle("is-idle", !annotatingEnabled);
+    });
+  }
+
+  if (toggleButton) {
+    toggleButton.addEventListener("click", function () {
+      annotationsVisible = !annotationsVisible;
+      toggleButton.setAttribute("aria-pressed", annotationsVisible ? "true" : "false");
+      toggleButton.textContent = annotationsVisible ? "Ukryj adnotacje" : "Pokaż adnotacje";
+      renderRects();
+    });
+  }
+
+  if (filterSelect) {
+    filterSelect.addEventListener("change", function () {
+      filterMode = filterSelect.value || "all";
+      renderList();
+      renderRects();
+    });
+  }
 
   syncField();
   renderList();

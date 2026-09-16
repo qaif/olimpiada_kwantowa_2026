@@ -178,7 +178,7 @@ def test_coordinator_sees_the_waiting_accounts_with_the_time_left(web_client, co
     waiting_user(email="czeka@example.test", groups=["participant"])
     web_client.force_login(coordinator)
 
-    body = web_client.get(reverse("web:coordinator")).content.decode()
+    body = web_client.get(reverse("web:coordinator-activations")).content.decode()
 
     assert "Konta oczekujące na aktywację" in body
     assert "czeka@example.test" in body

@@ -126,7 +126,9 @@ def test_reviewer_list_shows_the_reason_per_row(web_client, cancelled_review):
 
     content = web_client.get("/review/").content.decode()
 
-    assert "Recenzje anulowane" in content
+    # Powód stoi w wierszu zakładki „Anulowane” – odebranie pracy przez koordynatora to co innego
+    # niż unieważnienie recenzji nową wersją rozwiązania.
+    assert 'data-queue-panel="cancelled"' in content
     assert "Uczestnik wysłał nową wersję rozwiązania" in content
 
 

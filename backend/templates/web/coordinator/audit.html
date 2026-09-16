@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "web/coordinator/base.html" %}
 {% load static web_extras %}
 {% comment %}
   Przeglądarka śladu audytowego. Filtr jest formularzem GET, a stronicowanie zwykłymi odnośnikami:
@@ -10,13 +10,12 @@
   wrażliwy: wpisy audytowe z założenia nie niosą danych osobowych (apps/core/models.py).
 {% endcomment %}
 {% block title %}Audyt – panel koordynatora{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
-{% block content %}
-<div class="page-head">
-  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
-  <h1>Audyt</h1>
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block panel_title %}Audyt{% endblock %}
+{% block panel_lead %}
   <p class="lead">Kto, co i na czym zrobił. Wpisów nie da się zmienić ani usunąć – także stąd.</p>
-</div>
+{% endblock %}
+{% block panel_content %}
 
 <section class="section">
   <div class="section__head">

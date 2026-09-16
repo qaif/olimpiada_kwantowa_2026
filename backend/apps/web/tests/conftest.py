@@ -86,6 +86,22 @@ def participant_extra_fields(*, phone: str = WEB_TEST_PHONE, **captcha_kwargs) -
     return {**password_fields(), "phone": phone, **captcha_fields(**captcha_kwargs)}
 
 
+@pytest.fixture(autouse=True)
+def _reset_panel_counters():
+    """Liczniki menu koordynatora liczone od nowa w każdym teście.
+
+    Badge przy pozycjach menu mają wspólną, minutową pamięć podręczną (``coordinator_nav``), a ta
+    w testach żyje w pamięci procesu – czyli **przechodzi między testami**. Bez tego sprzątania
+    liczba zapytań na dowolnym ekranie panelu zależałaby od tego, który test biegł wcześniej,
+    a asercje „koszt nie rośnie z danymi” stawałyby się losowe.
+    """
+    from apps.web.coordinator_nav import invalidate_counters
+
+    invalidate_counters()
+    yield
+    invalidate_counters()
+
+
 @pytest.fixture
 def web_client() -> Client:
     return Client()

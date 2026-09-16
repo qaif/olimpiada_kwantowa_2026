@@ -1,19 +1,17 @@
-{% extends "base.html" %}
+{% extends "web/coordinator/base.html" %}
 {% load web_extras %}
 {% block title %}{% if stage %}Terminy etapu {{ stage.display_name }}{% else %}Nowy etap{% endif %} – panel koordynatora{% endblock %}
-{% block content %}
-<div class="page-head">
-  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
+{% block panel_title %}{% if stage %}Terminy etapu: {{ stage.display_name }}{% else %}Nowy etap{% if edition %}: {{ edition.year_label }}{% endif %}{% endif %}{% endblock %}
+{% block panel_lead %}
   {% if stage %}
-    <h1>Terminy etapu: {{ stage.display_name }}</h1>
     <p class="lead">Edycja {{ stage.edition.year_label }}. Wszystkie godziny podajesz i czytasz
       w czasie polskim; system przelicza je na UTC.</p>
   {% else %}
-    <h1>Nowy etap{% if edition %}: {{ edition.year_label }}{% endif %}</h1>
     <p class="lead">Etap powstaje razem z domyślną skalą punktacji (0/2/5/6) i progiem kwalifikacji.
       Skalę zmienisz później na ekranie „Skala punktacji”, próg – w panelu administracyjnym.</p>
   {% endif %}
-</div>
+{% endblock %}
+{% block panel_content %}
 
 {% if stage %}
   <div class="card card--quiet">

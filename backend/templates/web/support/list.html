@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% load i18n web_extras %}
+{% comment %}
+  Lista własnych zgłoszeń. Bez stronicowania: uczestnik ma ich kilka, a nie kilkaset – ta strona
+  jest przypomnieniem „o co pytałem i czy dostałem odpowiedź”, a nie archiwum do przeglądania.
+{% endcomment %}
+{% block title %}{% translate "Moje zgłoszenia" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Pomoc" %}</span>
+  <h1>{% translate "Moje zgłoszenia" %}</h1>
+  <p class="lead">{% translate "Sprawy zgłoszone organizatorowi razem z odpowiedziami." %}</p>
+</div>
+
+<p class="actions">
+  <a class="btn btn--primary" href="{% url 'web:support-new' %}">{% translate "Zgłoś problem" %}</a>
+  <a class="btn btn--ghost" href="/faq/">{% translate "Najczęstsze pytania" %}</a>
+</p>
+
+{% for ticket in tickets %}
+  <article class="card {% if ticket.is_open %}card--accent{% else %}card--quiet{% endif %}">
+    <div class="card__head">
+      <h2 class="mt-0"><a href="{% url 'web:support-detail' ticket.pk %}">{{ ticket.subject }}</a></h2>
+      <p class="row">
+        <span class="badge {% if ticket.is_open %}badge--warn{% elif ticket.is_closed %}badge--neutral{% else %}badge--ok{% endif %}">
+          {{ ticket.get_status_display }}</span>
+        <span class="badge badge--info">{{ ticket.get_category_display }}</span>
+        <span class="badge badge--neutral">{% translate "zgłoszone:" %} {{ ticket.created_at|local_datetime }}</span>
+      </p>
+    </div>
+  </article>
+{% empty %}
+  <p class="empty">
+    <span class="empty__title">{% translate "Nie masz jeszcze żadnych zgłoszeń" %}</span>
+    {% translate "Gdy coś nie zadziała, napisz do organizatora – odpowiedź trafi tutaj i na Twój adres e-mail." %}
+  </p>
+{% endfor %}
+{% endblock %}

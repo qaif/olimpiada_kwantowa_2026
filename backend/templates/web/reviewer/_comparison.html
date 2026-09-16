@@ -1,4 +1,4 @@
-{% load web_extras %}
+{% load i18n web_extras %}
 {% comment %}
   Porównanie ocen po odsłonięciu rundy 1 oraz wątek krótkich notatek recenzentów przy tej pracy.
 
@@ -7,19 +7,25 @@
   pierwszej zmianie. Kontekst przygotowuje ``apps.grading.comparison.comparison_context``;
   tożsamości recenzentów tu nie ma i być nie może (podpisy literowe).
 
-  ``note_form_source`` mówi widokowi notatki, dokąd wrócić po zapisie.
+  ``note_form_source`` mówi widokowi notatki, dokąd wrócić po zapisie. ``compact`` znaczy „jesteś
+  w środku rozwijanej sekcji, która ma już swój tytuł” – powtórzony nagłówek czytałby się wtedy
+  jak druga, zagnieżdżona sekcja o tej samej nazwie.
 {% endcomment %}
-<section class="section card">
-  <h2 class="mt-0">Porównanie ocen</h2>
-  <p class="hint">Oceny tej pracy są już wystawione, więc widzisz punkty pozostałych recenzentów.
-    Tożsamość nie jest ujawniana – rozmawiacie o pracy, nie o sobie.</p>
+<section class="{% if compact %}comparison comparison--compact{% else %}section card{% endif %}">
+  {% if not compact %}<h2 class="mt-0">{% translate "Porównanie ocen" %}</h2>{% endif %}
+  <p class="hint">{% translate "Oceny tej pracy są już wystawione, więc widzisz punkty pozostałych recenzentów. Tożsamość nie jest ujawniana – rozmawiacie o pracy, nie o sobie." %}</p>
 
   <div class="scroll">
     <table class="table">
-      <thead><tr><th>Recenzent</th><th>Punkty</th><th>Różnica</th><th>Komentarz dla uczestnika</th></tr></thead>
+      <thead><tr>
+        <th>{% translate "Recenzent" %}</th>
+        <th>{% translate "Punkty" %}</th>
+        <th>{% translate "Różnica" %}</th>
+        <th>{% translate "Komentarz dla uczestnika" %}</th>
+      </tr></thead>
       <tbody>
         <tr>
-          <td><strong>Ty</strong></td>
+          <td><strong>{% translate "Ty" %}</strong></td>
           <td class="num total">{% if comparison.own_score is not None %}{{ comparison.own_score }}{% else %}—{% endif %}</td>
           <td class="num">—</td>
           <td>{{ review.comment_for_participant }}</td>
@@ -32,26 +38,26 @@
             <td>{{ row.comment_for_participant }}</td>
           </tr>
         {% empty %}
-          <tr><td colspan="4" class="empty">Brak innych wystawionych ocen tej pracy.</td></tr>
+          <tr><td colspan="4" class="empty">{% translate "Brak innych wystawionych ocen tej pracy." %}</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 
   {% if comparison.agreed %}
-    <p class="msg msg-success">Oceny są zgodne – praca nie idzie do moderacji.</p>
+    <p class="msg msg-success">{% translate "Oceny są zgodne – praca nie idzie do moderacji." %}</p>
   {% endif %}
 
-  <h3>Notatki recenzentów</h3>
+  <h3>{% translate "Notatki recenzentów" %}</h3>
   <ul class="notes">
     {% for note in comparison.notes %}
       <li class="notes__item{% if note.own %} notes__item--own{% endif %}">
-        <span class="notes__author">{% if note.own %}Ty{% else %}{{ note.label }}{% endif %}</span>
+        <span class="notes__author">{% if note.own %}{% translate "Ty" %}{% else %}{{ note.label }}{% endif %}</span>
         <span class="notes__time">{{ note.created_at|local_time }}</span>
         <p class="notes__text">{{ note.text }}</p>
       </li>
     {% empty %}
-      <li class="hint">Brak notatek przy tej pracy.</li>
+      <li class="hint">{% translate "Brak notatek przy tej pracy." %}</li>
     {% endfor %}
   </ul>
 
@@ -60,13 +66,14 @@
       {% csrf_token %}
       <input type="hidden" name="from" value="{{ note_form_source|default:'detail' }}">
       <p class="field">
-        <label for="id_note_text">Nowa notatka</label>
-        <textarea id="id_note_text" name="text" rows="3" maxlength="{{ comparison.max_note_length }}"></textarea>
-        <span class="helptext">Widzą ją pozostali recenzenci tej pracy i koordynator – nie uczestnik.
-          Najwyżej {{ comparison.max_note_length }} znaków.</span>
+        <label for="id_review_note_text">{% translate "Nowa notatka" %}</label>
+        <textarea id="id_review_note_text" name="text" rows="3" maxlength="{{ comparison.max_note_length }}"></textarea>
+        <span class="helptext">{% blocktranslate trimmed with limit=comparison.max_note_length %}
+          Widzą ją pozostali recenzenci tej pracy i koordynator – nie uczestnik. Najwyżej {{ limit }} znaków.
+        {% endblocktranslate %}</span>
       </p>
       <div class="actions">
-        <button type="submit" class="btn btn--secondary">Dopisz notatkę</button>
+        <button type="submit" class="btn btn--secondary">{% translate "Dopisz notatkę" %}</button>
       </div>
     </form>
   {% elif comparison.note_block_message %}

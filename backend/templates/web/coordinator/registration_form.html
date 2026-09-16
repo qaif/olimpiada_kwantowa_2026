@@ -1,13 +1,12 @@
-{% extends "base.html" %}
+{% extends "web/coordinator/base.html" %}
 {% load web_extras %}
 {% block title %}Rejestracja uczestników – panel koordynatora{% endblock %}
-{% block content %}
-<div class="page-head">
-  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
-  <h1>Rejestracja uczestników</h1>
+{% block panel_title %}Rejestracja uczestników{% endblock %}
+{% block panel_lead %}
   <p class="lead">Edycja {{ edition.year_label }}. Godziny podajesz i czytasz w czasie polskim;
     system przelicza je na UTC.</p>
-</div>
+{% endblock %}
+{% block panel_content %}
 
 <div class="card card--quiet">
   <dl class="meta-list">
@@ -20,6 +19,14 @@
     </dd>
     <dt>Otwarcie</dt><dd>{{ edition.registration_opens_at|local_datetime|default:"od zaraz" }}</dd>
     <dt>Zamknięcie</dt><dd>{{ edition.registration_closes_at|local_datetime|default:"do odwołania" }}</dd>
+    {% comment %}
+      Retencja jest drugą połową tego samego pytania o ramy czasowe edycji: od kiedy wolno zbierać
+      dane uczestników i do kiedy wolno je trzymać. Sam zapis liczby niczego nie kasuje – plan
+      anonimizacji, razem z listą kont, stoi na osobnym ekranie.
+    {% endcomment %}
+    <dt>Retencja danych</dt>
+    <dd>{{ edition.data_retention_months }} mies. od ostatniego deadline'u etapu ·
+      <a href="{% url 'web:coordinator-retention' %}">plan anonimizacji</a></dd>
   </dl>
   {% comment %}
     Zakres ustawienia stoi nad polami, a nie w komunikacie po zapisie: koordynator ma wiedzieć,

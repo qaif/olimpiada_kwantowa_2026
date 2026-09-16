@@ -17,6 +17,7 @@ from wagtail.admin import urls as wagtailadmin_urls
 from apps.web.views.docs import NonceSwaggerView
 from apps.web.views.public import site_verification
 from apps.web.views.statistics import StatisticsView
+from apps.web.views.status import StatusJsonView, StatusView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -48,6 +49,13 @@ urlpatterns = [
     # wyliczana z publikacji wyników, a redaktor nie ma w niej niczego do napisania. Musi stać
     # przed catch-allem Wagtaila – tak samo, jak ``/results/<id>/`` w ``apps.web.urls``.
     path("statystyki/", StatisticsView.as_view(), name="statistics"),
+    # Strona statusu serwisu i jej wariant maszynowy. Publiczne, buforowane na 30 sekund.
+    # Osobny adres dla JSON-a, a nie ``?format=json``: monitory zewnętrzne konfiguruje się
+    # adresem, a część z nich rozpoznaje typ odpowiedzi po rozszerzeniu. Oba wzorce muszą stać
+    # **przed** catch-allem Wagtaila – inaczej skończyłyby na drzewie stron jako 404. To co innego
+    # niż ``/healthz/``: tamto odpowiada orkiestratorowi kodem HTTP, to – człowiekowi treścią.
+    path("status/", StatusView.as_view(), name="status"),
+    path("status.json", StatusJsonView.as_view(), name="status-json"),
     # Redakcja części informacyjnej. Dostęp ma wyłącznie grupa `coordinator` (migracja cms.0003).
     path("cms/", include(wagtailadmin_urls)),
     # Dokumenty Wagtaila serwuje widok aplikacji, a nie bezpośredni URL bucketu. Wzorce są kopią

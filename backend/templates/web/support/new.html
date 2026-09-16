@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Formularz zgłoszenia. Jeden szablon dla zalogowanych i dla gości – różnicę robi formularz
+  (``form.antispam_field_names`` istnieje wyłącznie w wariancie bez konta, bo tylko on ma
+  CAPTCHĘ i pułapkę; patrz apps/web/captcha.py).
+
+  „Zanim zgłosisz: FAQ” stoi **nad** formularzem i to nie jest grzeczność: połowa zgłoszeń
+  dotyczy rzeczy, które są opisane (list aktywacyjny w spamie, formaty plików, nowa wersja pracy).
+  Adres ``/faq/`` jest stałą ścieżką strony w drzewie Wagtaila, a nie ``{% templatetag openblock %} url {% templatetag closeblock %}``:
+  strona bywa nieopublikowana na świeżej bazie, a brak strony nie może wywrócić formularza pomocy.
+{% endcomment %}
+{% block title %}{% translate "Zgłoś problem" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Pomoc" %}</span>
+  <h1>{% translate "Zgłoś problem" %}</h1>
+  <p class="lead">{% translate "Napisz do organizatora. Odpowiedź dostaniesz e-mailem, a cała sprawa – razem z odpowiedzią – zostaje w serwisie." %}</p>
+</div>
+
+<div class="card card--quiet">
+  <p class="hint">{% blocktranslate trimmed %}
+    Zanim zgłosisz: sprawdź <a href="/faq/">najczęstsze pytania (FAQ)</a>. Opisaliśmy tam między
+    innymi brakujący list aktywacyjny, dopuszczalne formaty plików, poprawianie oddanej pracy
+    i tryb reklamacji.
+  {% endblocktranslate %}</p>
+</div>
+
+<section class="section">
+  <div class="card">
+    <form method="post" class="form" novalidate>
+      {% csrf_token %}
+      <p class="form__required-note">{% translate "Pola oznaczone * są obowiązkowe." %}</p>
+      {{ form.non_field_errors }}
+      {% for field in form %}
+        {% if field.name == "page_url" %}
+          {# Adres strony, z której przyszło zgłoszenie – wypełniany przez serwer, nie przez człowieka. #}
+          <input type="hidden" name="{{ field.html_name }}" value="{{ page_url }}">
+        {% elif form.antispam_field_names and field.name in form.antispam_field_names %}
+          {# Blok antyspamowy renderuje się razem, na końcu formularza – patrz niżej. #}
+        {% else %}
+          <p>
+            {{ field.errors }}
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
+          </p>
+        {% endif %}
+      {% endfor %}
+      {% if form.antispam_field_names %}{% include "web/_antispam_fields.html" %}{% endif %}
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">{% translate "Wyślij zgłoszenie" %}</button>
+        {% if user.is_authenticated %}
+          <a class="btn btn--ghost" href="{% url 'web:support' %}">{% translate "Moje zgłoszenia" %}</a>
+        {% endif %}
+      </div>
+    </form>
+    {% comment %}
+      Zdanie o kontekście technicznym jest obowiązkiem informacyjnym, a nie przypisem: zbieramy
+      dane, o które nikt nas nie prosił, więc trzeba powiedzieć jakie i po co.
+    {% endcomment %}
+    <p class="hint">{% translate "Do zgłoszenia dołączamy automatycznie: adres strony, z której je wysyłasz, nazwę przeglądarki, język interfejsu, Twój kod uczestnika i nazwę ostatniej czynności w serwisie. Nie zbieramy haseł ani zawartości formularzy." %}</p>
+  </div>
+</section>
+{% endblock %}

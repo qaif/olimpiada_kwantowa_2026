@@ -23,9 +23,11 @@ from __future__ import annotations
 
 from html import unescape
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
+from django.db.models import F, Q
 from django.utils import timezone
 from django.utils.html import strip_tags
 from django.utils.text import Truncator
@@ -72,6 +74,10 @@ RESERVED_SLUGS = frozenset(
         "results",
         "review",
         "static",
+        # Strona statusu serwisu i zgłoszenia do organizatora – oba adresy obsługuje aplikacja
+        # (``config/urls.py`` i ``apps/web/urls.py``), więc strona CMS o takim slugu byłaby martwa.
+        "status",
+        "support",
     }
 )
 
@@ -400,6 +406,10 @@ class HomePage(CMSPage):
         "cms.PartnersPage",
         "cms.ArchiveIndexPage",
         "cms.ResultsPage",
+        # Najczęstsze pytania. Pod stroną główną, a nie w sekcji dokumentów: FAQ nie jest
+        # dokumentem organizatora, tylko odpowiedzią na pytania o obsługę serwisu, i ma krótki
+        # adres, bo trafia do listów i do formularza pomocy.
+        "cms.FAQPage",
     ]
     max_count = 1
 
@@ -1055,3 +1065,202 @@ class ResultsPage(CMSPage):
                 archive.append({"stage": stage, "publication": publication})
         context.update({"edition": edition, "tables": tables, "archive": archive})
         return context
+
+
+class FAQPage(CMSPage):
+    """Najczęstsze pytania (``/faq/``) – pytania pogrupowane w sekcje.
+
+    Osobny typ zamiast ``ContentPage`` z listą nagłówków, bo pytanie i odpowiedź są **danymi**,
+    a nie tekstem: każde pytanie ma własną kotwicę (żeby dało się je przesłać odnośnikiem w
+    odpowiedzi na zgłoszenie), własną sekcję i własny stan „rozwinięte / zwinięte”. W akapicie
+    redakcyjnym byłaby to konwencja zapisu, której nikt nie wyegzekwuje, a formularz zgłoszenia
+    nie miałby dokąd odesłać czytelnika przed napisaniem sprawy.
+
+    ``InlinePanel`` zamiast ``StreamField``: wpisy mają zawsze ten sam kształt (sekcja, pytanie,
+    odpowiedź), a redakcja przestawia je kolejnością wierszy. StreamField z jednym typem bloku
+    dawałby to samo, tylko z dodatkową warstwą wyboru „jaki blok wstawić”, w której wybór jest
+    jeden.
+
+    Grupowanie liczy ``sections()``, a nie ``{% regroup %}`` w szablonie: znacznik grupuje po
+    **kolejności wystąpienia**, więc wpis dopisany na końcu do sekcji z początku listy zakładałby
+    drugą sekcję o tej samej nazwie. Tutaj sekcja powstaje raz, w kolejności pierwszego wystąpienia.
+    """
+
+    intro = RichTextField("wprowadzenie", features=RICH_TEXT_FEATURES, blank=True)
+
+    content_panels = Page.content_panels + [
+        FieldPanel("intro"),
+        InlinePanel("entries", label="pytania"),
+    ]
+    search_fields = Page.search_fields + [index.SearchField("intro")]
+
+    template = "cms/faq_page.html"
+    parent_page_types = ["cms.HomePage"]
+    subpage_types = []
+    max_count = 1
+
+    class Meta:
+        verbose_name = "najczęstsze pytania"
+        verbose_name_plural = "najczęstsze pytania"
+
+    def sections(self) -> list[dict]:
+        """Wpisy pogrupowane w sekcje, w kolejności pierwszego wystąpienia sekcji.
+
+        Wpis bez sekcji trafia do grupy o pustej nazwie – szablon rysuje ją wtedy bez nagłówka,
+        zamiast wymyślać podpis („Pozostałe”), którego redakcja nie napisała.
+        """
+        groups: dict[str, dict] = {}
+        for entry in self.entries.all():
+            group = groups.setdefault(entry.section, {"section": entry.section, "entries": []})
+            group["entries"].append(entry)
+        return list(groups.values())
+
+
+class FAQEntry(Orderable):
+    """Jedno pytanie z odpowiedzią.
+
+    ``anchor`` jest wyliczany, a nie wpisywany: redakcja pisze pytanie, a nie identyfikator HTML,
+    a kotwica wpisana ręcznie rozjeżdżałaby się z treścią przy pierwszej poprawce. Podstawą jest
+    identyfikator wiersza, bo on **nie zmienia się** przy przeredagowaniu pytania – odnośnik
+    wysłany w odpowiedzi na zgłoszenie ma działać także po tym, jak ktoś poprawi w pytaniu literówkę.
+    """
+
+    page = ParentalKey(FAQPage, on_delete=models.CASCADE, related_name="entries")
+    section = models.CharField(
+        "sekcja",
+        max_length=100,
+        blank=True,
+        help_text="Nagłówek grupy, np. „Konto i rejestracja”. Puste = pytanie bez sekcji.",
+    )
+    question = models.CharField("pytanie", max_length=250)
+    answer = RichTextField("odpowiedź", features=RICH_TEXT_FEATURES)
+
+    panels = [FieldPanel("section"), FieldPanel("question"), FieldPanel("answer")]
+
+    class Meta(Orderable.Meta):
+        verbose_name = "pytanie"
+        verbose_name_plural = "pytania"
+
+    def __str__(self) -> str:
+        return self.question
+
+    @property
+    def anchor(self) -> str:
+        """Kotwica pytania: ``pytanie-<id>``. Stała w czasie, niezależna od brzmienia pytania."""
+        return f"pytanie-{self.pk}"
+
+
+#: Limit długości komunikatu w banerze. Pięćset znaków to około trzech zdań – tyle, ile da się
+#: przeczytać w pasku nad treścią, zanim czytelnik przewinie stronę. Dłuższa wiadomość jest
+#: aktualnością i ma własny typ strony.
+ANNOUNCEMENT_MAX_TEXT_LENGTH = 500
+
+
+class AnnouncementLevel(models.TextChoices):
+    """Waga komunikatu. Trzy poziomy, bo tyle jest różnych reakcji czytelnika.
+
+    ``INFO`` – wiadomość do przeczytania („ruszyły zapisy na warsztaty”). ``WARNING`` – coś, co
+    zmienia plan czytelnika („termin przesunięty”). ``DANGER`` – coś, co właśnie nie działa
+    („wysyłka plików jest niedostępna”). Czwarty poziom („sukces”) świadomie nie istnieje: pasek
+    nad treścią całego serwisu nie jest miejscem na gratulacje.
+    """
+
+    INFO = "info", "informacja"
+    WARNING = "warning", "ostrzeżenie"
+    DANGER = "danger", "awaria"
+
+
+class Announcement(models.Model):
+    """Komunikat organizatora wyświetlany pod nagłówkiem na **każdej** stronie serwisu.
+
+    Po co osobny model, skoro jest newsroom: bo to jest inna wiadomość. Aktualność czyta ten, kto
+    wejdzie na ``/aktualnosci/``; komunikat („przedłużamy termin do piątku”, „logowanie przez
+    Google nie działa”) musi zobaczyć każdy, kto jest w serwisie – łącznie z uczestnikiem, który
+    właśnie próbuje wysłać pracę i nigdzie indziej nie zagląda.
+
+    Reguły wyświetlania, pamięć podręczna i procesor kontekstu są w ``apps.cms.announcements``.
+    """
+
+    text = models.TextField("treść", max_length=ANNOUNCEMENT_MAX_TEXT_LENGTH)
+    # Odnośnik jest **parą pól**, a nie znacznikiem w treści: baner renderuje zwykły tekst
+    # (autoescapowany), więc adres wpisany w treść byłby napisem, a nie linkiem – a pozwolenie
+    # na HTML w komunikacie widocznym na całym serwisie otwierałoby powierzchnię bez potrzeby.
+    link_url = models.URLField("adres odnośnika", max_length=300, blank=True)
+    link_label = models.CharField(
+        "etykieta odnośnika",
+        max_length=80,
+        blank=True,
+        help_text="Puste = odnośnik się nie pokazuje, nawet gdy adres jest wpisany.",
+    )
+    level = models.CharField(
+        "waga", max_length=16, choices=AnnouncementLevel.choices, default=AnnouncementLevel.INFO
+    )
+    # Okno czasowe zamiast ręcznego gaszenia: komunikat o przerwie technicznej znika sam.
+    # Wyłącznik ``is_active`` zostaje obok jako hamulec awaryjny, bo „zdejmij to natychmiast”
+    # jest osobną potrzebą od „to obowiązuje do piątku”.
+    starts_at = models.DateTimeField("od", default=timezone.now)
+    ends_at = models.DateTimeField(
+        "do", null=True, blank=True, help_text="Puste = komunikat wisi do wyłączenia."
+    )
+    is_active = models.BooleanField(
+        "włączony",
+        default=True,
+        help_text="Wyłącznik awaryjny. Odznaczenie zdejmuje komunikat natychmiast, niezależnie od dat.",
+    )
+    # Czy czytelnik może baner zamknąć. Wybór zapamiętuje ``localStorage`` przeglądarki
+    # (``static/js/announcements.js``), a nie cookie ani konto – to preferencja widoku, a nie
+    # dana o osobie. Komunikat niezamykalny (awaria, termin) zostaje na ekranie i tak ma być.
+    dismissible = models.BooleanField(
+        "można zamknąć",
+        default=True,
+        help_text=(
+            "Czytelnik może schować komunikat w swojej przeglądarce. Odznacz dla komunikatów "
+            "o awarii i terminach – te mają zostać na ekranie."
+        ),
+    )
+    # ``SET_NULL``: skasowanie konta koordynatora nie może zdjąć ogłoszonego komunikatu. Bez autora
+    # zostaje sama treść i data, czyli nadal ogłoszenie.
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="announcements",
+        verbose_name="utworzył",
+    )
+    created_at = models.DateTimeField("utworzony", default=timezone.now)
+
+    class Meta:
+        verbose_name = "komunikat"
+        verbose_name_plural = "komunikaty"
+        ordering = ("-starts_at", "-id")
+        constraints = [
+            # Okno o niedodatniej długości nigdy nie jest otwarte, więc komunikat z takim oknem
+            # byłby ogłoszeniem, którego nikt nigdy nie zobaczy.
+            models.CheckConstraint(
+                condition=Q(ends_at__isnull=True) | Q(starts_at__lt=F("ends_at")),
+                name="cms_announcement_window_ordered",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.text[:60]
+
+    def clean(self) -> None:
+        super().clean()
+        # Ta sama reguła, co constraint wyżej – tylko z komunikatem, który da się pokazać pod
+        # polem formularza. Błąd jest przypięty do „do”, bo to ono jest drugą, dopisywaną datą.
+        if self.ends_at is not None and self.starts_at is not None and self.starts_at >= self.ends_at:
+            raise ValidationError({"ends_at": "Koniec komunikatu musi być po jego początku."})
+
+    @property
+    def has_link(self) -> bool:
+        """Odnośnik pokazuje się wyłącznie z **obydwoma** polami – adres bez etykiety to goły URL."""
+        return bool(self.link_url and self.link_label)
+
+    def is_live(self, now=None) -> bool:
+        """Czy komunikat obowiązuje „na teraz”. Ta sama reguła, co zapytanie ``active_announcements``."""
+        now = now or timezone.now()
+        if not self.is_active or self.starts_at > now:
+            return False
+        return self.ends_at is None or self.ends_at > now

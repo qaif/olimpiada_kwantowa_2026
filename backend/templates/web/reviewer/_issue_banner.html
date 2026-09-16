@@ -1,0 +1,19 @@
+{% load i18n %}
+{% comment %}
+  Baner otwartego zgłoszenia problemu z pracą.
+
+  Stoi wysoko w panelu oceny, nad formularzem, bo to kontekst do oceniania: przy tej pracy czeka
+  sprawa u koordynatora. Nie jest bramką – zgłoszenie **nie blokuje oceniania** i baner mówi to
+  wprost. Gdyby blokowało, komitet omijałby je pocztą do koordynatora, czyli robił dokładnie to,
+  co narzędzie ma zastąpić (patrz ``apps.grading.issues``).
+
+  Sam formularz nowego zgłoszenia jest osobno (``_issue.html``), niżej i zwinięty: to czynność
+  rzadka, przy zdecydowanej większości prac nie ma czego zgłaszać.
+{% endcomment %}
+{% if open_issue %}
+  <div class="msg msg-warning closed" role="status">
+    <strong>{% translate "Zgłosiłeś problem z tą pracą:" %}</strong> {{ open_issue.get_kind_display }}.
+    <span class="quote">{{ open_issue.text }}</span>
+    {% translate "Koordynator jeszcze go nie rozstrzygnął. Ocenę możesz wystawić mimo zgłoszenia." %}
+  </div>
+{% endif %}

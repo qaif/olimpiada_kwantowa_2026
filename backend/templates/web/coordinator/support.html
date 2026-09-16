@@ -1,0 +1,77 @@
+{% extends "web/coordinator/base.html" %}
+{% load web_extras %}
+{% comment %}
+  Kolejka zgłoszeń. Filtry są zwykłymi parametrami adresu, a nie formularzem POST: adres
+  z filtrem ma dać się zapisać w zakładkach i przesłać drugiej osobie – tak samo jak przy
+  zgłoszeniach problemów z pracami.
+
+  Kolejność jest regułą, nie ustawieniem sortowania: otwarte na górze, w obrębie stanu od
+  najstarszego. Najdłużej czekająca sprawa ma stać pierwsza, także (a właściwie zwłaszcza) wtedy,
+  gdy ruch rośnie.
+{% endcomment %}
+{% block title %}Zgłoszenia – panel koordynatora{% endblock %}
+{% block panel_title %}Zgłoszenia{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Sprawy zgłoszone przez uczestników, recenzentów i opiekunów – oraz przez osoby
+    bez konta, z publicznego formularza pomocy.</p>
+{% endblock %}
+{% block panel_content %}
+
+<nav class="row" aria-label="Filtr stanu">
+  <a class="btn btn--small {% if not status %}btn--primary{% else %}btn--ghost{% endif %}"
+     href="{% url 'web:coordinator-support' %}">Wszystkie</a>
+  {% for value, label in status_choices %}
+    <a class="btn btn--small {% if status == value %}btn--primary{% else %}btn--ghost{% endif %}"
+       href="{% url 'web:coordinator-support' %}?status={{ value }}{% if category %}&amp;category={{ category }}{% endif %}">{{ label }}</a>
+  {% endfor %}
+</nav>
+
+<nav class="row" aria-label="Filtr kategorii">
+  <a class="btn btn--small {% if not category %}btn--primary{% else %}btn--ghost{% endif %}"
+     href="{% url 'web:coordinator-support' %}{% if status %}?status={{ status }}{% endif %}">Każda kategoria</a>
+  {% for value, label in category_choices %}
+    <a class="btn btn--small {% if category == value %}btn--primary{% else %}btn--ghost{% endif %}"
+       href="{% url 'web:coordinator-support' %}?category={{ value }}{% if status %}&amp;status={{ status }}{% endif %}">{{ label }}</a>
+  {% endfor %}
+</nav>
+
+<p class="hint">Otwartych zgłoszeń w serwisie: <strong>{{ open_count }}</strong>. Odpowiedź
+  organizatora przestawia sprawę na „odpowiedziane”, a dopisek zgłaszającego wraca ją do kolejki.</p>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th scope="col">#</th>
+      <th scope="col">Temat</th>
+      <th scope="col">Kategoria</th>
+      <th scope="col">Zgłaszający</th>
+      <th scope="col">Stan</th>
+      <th scope="col">Zgłoszone</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for ticket in tickets %}
+      <tr>
+        <td><a href="{% url 'web:coordinator-support-detail' ticket.pk %}">{{ ticket.pk }}</a></td>
+        <td><a href="{% url 'web:coordinator-support-detail' ticket.pk %}">{{ ticket.subject }}</a></td>
+        <td>{{ ticket.get_category_display }}</td>
+        <td>
+          {% comment %}
+            Adres zgłaszającego jest tu jawny i tak ma być: to jedyny ekran, na którym organizator
+            ma z kim wyjaśnić sprawę. Rola jest ta z chwili zgłoszenia, nie dzisiejsza.
+          {% endcomment %}
+          {% if ticket.user %}{{ ticket.user.email }}{% else %}{{ ticket.email }} <span class="badge badge--neutral">bez konta</span>{% endif %}
+          {% if ticket.role_snapshot %}<span class="hint">{{ ticket.role_snapshot }}</span>{% endif %}
+        </td>
+        <td>
+          <span class="badge {% if ticket.is_open %}badge--warn{% elif ticket.is_closed %}badge--neutral{% else %}badge--ok{% endif %}">
+            {{ ticket.get_status_display }}</span>
+        </td>
+        <td>{{ ticket.created_at|local_datetime }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="6">Brak zgłoszeń w tym zestawieniu.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "web/coordinator/base.html" %}
 {% load static %}
 {% comment %}
   Symulacja progu kwalifikacji. Parametry jadą formularzem GET, więc wynik da się odświeżyć,
@@ -9,14 +9,13 @@
   regułę do etapu”, który jest POST-em i zostawia wpis w audycie.
 {% endcomment %}
 {% block title %}Symulacja kwalifikacji – {{ stage.display_name }}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
-{% block content %}
-<div class="page-head">
-  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
-  <h1>Symulacja kwalifikacji: {{ stage.display_name }}</h1>
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block panel_title %}Symulacja kwalifikacji: {{ stage.display_name }}{% endblock %}
+{% block panel_lead %}
   <p class="lead">Podgląd skutków progu, zanim ktokolwiek go ogłosi. Ta strona nie zmienia
     statusów uczestników i nie zakłada wpisów w następnym etapie.</p>
-</div>
+{% endblock %}
+{% block panel_content %}
 
 <section class="section">
   <div class="section__head">

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load static coordinator_shell %}
+{% comment %}
+  Szkielet panelu koordynatora: stałe menu boczne + kolumna treści. Każdy ekran panelu rozszerza
+  ten szablon i wypełnia:
+
+  - ``panel_title`` – nagłówek ``<h1>`` strony (samo zdanie, bez znacznika),
+  - ``panel_lead`` – akapit „po co jest ta strona”. Obowiązkowy: ekran bez jednego zdania
+    wyjaśnienia jest tabelą, o którą trzeba dopytać autora,
+  - ``panel_actions`` – przyciski akcji głównej (stoją w nagłówku, nie na dole strony),
+  - ``panel_content`` – treść,
+  - ``panel_eyebrow`` – nadrzędny ekran nad nagłówkiem. Domyślnie pulpit; ekran, do którego wchodzi
+    się z listy (konto, zadanie, para prac), podmienia go na tę listę,
+  - ``panel_head`` – dodatkowy arkusz strony (np. ``coordinator-tools.css``). Osobny blok, a nie
+    ``head``: nadpisanie ``head`` zabrałoby panelowi jego własny arkusz.
+
+  ``eyebrow`` prowadzi na pulpit, czyli o jeden poziom wyżej – zostaje także na wąskim ekranie,
+  gdzie menu jest zwinięte.
+{% endcomment %}
+{% block title %}Panel koordynatora{% endblock %}
+{% block head %}{{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/coordinator.css' %}">
+  {% block panel_head %}{% endblock %}
+{% endblock %}
+{% block content %}
+<div class="panel panel--coordinator">
+  <nav class="panel__nav" aria-label="Menu panelu koordynatora">
+    {% coordinator_nav %}
+  </nav>
+  <div class="panel__main">
+    <div class="page-head">
+      <span class="eyebrow">{% block panel_eyebrow %}<a href="{% url 'web:coordinator' %}">Panel koordynatora</a>{% endblock %}</span>
+      <h1>{% block panel_title %}{% endblock %}</h1>
+      {% block panel_lead %}{% endblock %}
+      <div class="actions">{% block panel_actions %}{% endblock %}</div>
+    </div>
+    {% block panel_content %}{% endblock %}
+  </div>
+</div>
+{% endblock %}

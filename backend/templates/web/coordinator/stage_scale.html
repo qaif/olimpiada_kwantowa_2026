@@ -1,12 +1,11 @@
-{% extends "base.html" %}
+{% extends "web/coordinator/base.html" %}
 {% block title %}Skala punktacji: {{ stage.display_name }} – panel koordynatora{% endblock %}
-{% block content %}
-<div class="page-head">
-  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
-  <h1>Skala punktacji: {{ stage.display_name }}</h1>
+{% block panel_title %}Skala punktacji: {{ stage.display_name }}{% endblock %}
+{% block panel_lead %}
   <p class="lead">Edycja {{ stage.edition.year_label }}. Skala obowiązuje wszystkie zadania etapu,
     poza tymi, którym wpisano własną – tę zmienia się przy zadaniu.</p>
-</div>
+{% endblock %}
+{% block panel_content %}
 
 <div class="card card--quiet">
   {% comment %}

@@ -93,7 +93,7 @@ def messages_text(page) -> str:
 
 def problem_card(page, number: int):
     """Karta zadania o danym numerze – w panelu uczestnika i w odpowiedzi HTMX po uploadzie."""
-    return page.locator("article.card").filter(
+    return page.locator("article.problem-card").filter(
         has=page.locator("h3", has_text=re.compile(rf"^Zadanie {number}:"))
     )
 
@@ -212,7 +212,7 @@ def test_pelny_cykl_etapu_od_rejestracji_do_publikacji(
     # organizator, dopóki dostarczalność poczty nie jest pewna (SPF/DKIM, README § 4.2).
     # Dzięki temu E2E sprawdza także tę ścieżkę, a nie tylko link z listu.
     login(koordynator, COORDINATOR_EMAIL, DEMO_PASSWORD)
-    koordynator.goto("/coordinator/")
+    koordynator.goto("/coordinator/activations/")
     oczekujace = koordynator.page.locator("tr", has_text=participant_identity["email"])
     expect(oczekujace).to_have_count(1)
     oczekujace.get_by_role("button", name="Aktywuj ręcznie").click()
@@ -226,7 +226,7 @@ def test_pelny_cykl_etapu_od_rejestracji_do_publikacji(
     assert public_code.startswith("OLM-"), f"Nieoczekiwany kod publiczny: {public_code!r}"
     LOGGER.info("Kod publiczny uczestnika: %s", public_code)
 
-    page.get_by_role("button", name="Zgłoś się do etapu eliminacyjnego").click()
+    page.get_by_role("button", name="Zgłoś się do tego etapu").click()
     expect(page.locator("ul.messages")).to_contain_text("Zgłoszenie do etapu zostało przyjęte")
     expect(page.locator("main")).to_contain_text("Status Twojego udziału: zarejestrowany")
     uczestnik.step("2-zapis-do-elim")
@@ -262,6 +262,9 @@ def test_pelny_cykl_etapu_od_rejestracji_do_publikacji(
 
     koordynator.goto("/coordinator/")
     elim = stage_card(koordynator.page, "Eliminacje")
+    # Karta etapu pokazuje jedną akcję główną, a resztę narzędzi trzyma pod „Więcej” – zamknięcie
+    # etapu i przydział recenzentów są właśnie tam, więc scenariusz najpierw rozwija ten blok.
+    elim.locator("details.stage-card__more > summary").click()
     elim.get_by_role("button", name="Zamknij etap").click()
     # Beat (``close_due_stages``, co 60 s) może zamknąć etap w tej samej minucie – wtedy przycisk
     # odpowiada ``STAGE_ALREADY_CLOSED``. Liczy się stan etapu, nie to, kto zdążył pierwszy.
@@ -272,6 +275,7 @@ def test_pelny_cykl_etapu_od_rejestracji_do_publikacji(
     koordynator.step("4-etap-zamkniety")
 
     elim = stage_card(koordynator.page, "Eliminacje")
+    elim.locator("details.stage-card__more > summary").click()
     elim.locator("input[name=per_submission]").fill("2")
     elim.get_by_role("button", name="Przydziel recenzentów").click()
     expect(koordynator.page.locator("ul.messages")).to_contain_text("Przydzielono 2 recenzji dla 1 rozwiązań")
@@ -305,7 +309,7 @@ def test_pelny_cykl_etapu_od_rejestracji_do_publikacji(
         detail.locator(f"input[name=score][value='{score}']").check()
         detail.fill("#id_comment_internal", f"Ocena robocza {score}/6 (E2E).")
         detail.fill("#id_comment_for_participant", feedback)
-        detail.get_by_role("button", name="Wyślij ocenę").click()
+        detail.get_by_role("button", name="Wystaw ocenę").click()
         expect(detail).to_have_url(re.compile(r"/review/$"))
         expect(detail.locator("ul.messages")).to_contain_text("Ocena została wystawiona")
         expect(detail.locator("tr", has_text=public_code)).to_contain_text("wystawiona")
@@ -319,7 +323,7 @@ def test_pelny_cykl_etapu_od_rejestracji_do_publikacji(
             LOGGER.info("Pobranie pliku przez recenzenta: %s bajtów", len(content))
 
     # --- 6. Koordynator rozstrzyga rozjazd na 5 ------------------------------------------------
-    koordynator.goto("/coordinator/")
+    koordynator.goto("/coordinator/moderation/")
     moderacja = code_card(koordynator.page, public_code)
     expect(moderacja).to_contain_text("zadanie 1")
     koordynator.step("6-moderacja")
@@ -329,11 +333,11 @@ def test_pelny_cykl_etapu_od_rejestracji_do_publikacji(
     )
     moderacja.get_by_role("button", name="Rozstrzygnij (posiedzenie komisji)").click()
     expect(koordynator.page.locator("ul.messages")).to_contain_text("Rozjazd rozstrzygnięty")
-    expect(koordynator.page.locator("main")).to_contain_text("Brak prac w moderacji")
+    expect(koordynator.page.locator("main")).to_contain_text("Bez rozjazdów")
     koordynator.step("6-rozjazd-rozstrzygniety")
 
     # --- 7. Konto komisji odwoławczej na kod zaproszenia ---------------------------------------
-    koordynator.goto("/coordinator/")
+    koordynator.goto("/coordinator/committee/")
     koordynator.page.check("#id_is_appeals")
     koordynator.page.get_by_role("button", name="Wygeneruj kod").click()
     expect(koordynator.page.locator("ul.messages")).to_contain_text("Kod zaproszenia")
@@ -359,7 +363,7 @@ def test_pelny_cykl_etapu_od_rejestracji_do_publikacji(
 
     # Kod zaproszenia dowodzi zaproszenia, a nie tego, że wpisany adres należy do tej osoby –
     # konto komisji przechodzi tę samą aktywację co uczestnik.
-    koordynator.goto("/coordinator/")
+    koordynator.goto("/coordinator/activations/")
     oczekujaca_komisja = koordynator.page.locator("tr", has_text=komisja_email)
     expect(oczekujaca_komisja).to_have_count(1)
     oczekujaca_komisja.get_by_role("button", name="Aktywuj ręcznie").click()
@@ -368,13 +372,17 @@ def test_pelny_cykl_etapu_od_rejestracji_do_publikacji(
     # --- 8. Okno reklamacji: uczestnik składa reklamację ---------------------------------------
     set_phase(koordynator, stage_id, PHASE_APPEALS_OPEN)
 
-    uczestnik.goto("/me/")
-    appeal_form = page.locator("form").filter(has=page.locator("h3", has_text="Zadanie 1:"))
+    # Reklamacje są zakładką panelu (``/me/?tab=reklamacje``) – formularz stoi przy karcie pracy,
+    # której dotyczy, a nie na wspólnej, przewijanej stronie.
+    uczestnik.goto("/me/?tab=reklamacje")
+    appeal_form = (
+        page.locator("article.card").filter(has=page.locator("h3", has_text="Zadanie 1:")).locator("form")
+    )
     expect(appeal_form).to_have_count(1)
     appeal_form.locator("textarea[name=argument]").fill(APPEAL_ARGUMENT)
     appeal_form.get_by_role("button", name="Złóż reklamację").click()
     expect(page.locator("ul.messages")).to_contain_text("Reklamacja została złożona")
-    expect(page.locator("table.grid", has_text="Złożone reklamacje")).to_contain_text("złożona")
+    expect(page.locator("table", has_text="Złożone reklamacje")).to_contain_text("złożona")
     uczestnik.step("8-reklamacja-zlozona")
 
     # --- 9. Komisja odwoławcza przyznaje 6 -----------------------------------------------------
@@ -402,10 +410,13 @@ def test_pelny_cykl_etapu_od_rejestracji_do_publikacji(
     # --- 10. Publikacja wyników ----------------------------------------------------------------
     set_phase(koordynator, stage_id, PHASE_APPEALS_CLOSED)
 
-    koordynator.goto("/coordinator/")
-    elim = stage_card(koordynator.page, "Eliminacje")
-    elim.locator("select[name=anonymization]").select_option("CODE")
-    elim.get_by_role("button", name="Opublikuj wyniki").click()
+    # Przeliczenie i publikacja mają własny ekran etapu: wejście na niego niczego nie liczy,
+    # a obie czynności stoją obok siebie, bo robi się je jedna po drugiej.
+    koordynator.goto(f"/coordinator/stages/{stage_id}/results/")
+    koordynator.page.get_by_role("button", name="Przelicz wyniki (podgląd)").click()
+    expect(koordynator.page.locator("main")).to_contain_text("Podgląd wyników etapu")
+    koordynator.page.locator("select[name=anonymization]").select_option("CODE")
+    koordynator.page.get_by_role("button", name="Opublikuj wyniki").click()
     expect(koordynator.page.locator("ul.messages")).to_contain_text("Opublikowano wyniki etapu")
     koordynator.step("10-publikacja")
 
@@ -431,7 +442,7 @@ def test_pelny_cykl_etapu_od_rejestracji_do_publikacji(
     gosc.step("11-wyniki-cms")
 
     # --- 12. Uczestnik widzi 6 i komentarz recenzenta ------------------------------------------
-    uczestnik.goto("/me/")
+    uczestnik.goto("/me/?tab=wyniki")
     wyniki = page.locator("section", has=page.get_by_role("heading", name="Moje wyniki"))
     expect(wyniki).to_contain_text("razem 6 pkt")
     expect(wyniki).to_contain_text(REVIEWER_1_FEEDBACK)

@@ -1,0 +1,64 @@
+{% extends "web/coordinator/base.html" %}
+{% load web_extras %}
+{% comment %}
+  Kolejka kont, które nie potwierdziły adresu e-mail.
+
+  Obejście operacyjne z terminem ważności: dopóki domena nadawcy nie ma poprawnych rekordów
+  SPF/DKIM (README § 4.2), część listów aktywacyjnych trafia do spamu albo jest odrzucana przez
+  serwer odbiorcy – a bez potwierdzenia adresu uczestnik nie wejdzie do serwisu. Koordynator
+  potwierdza wtedy adres ręcznie, po sprawdzeniu innym kanałem (telefon, szkoła). Wpis audytowy
+  ma własną akcję (``account.activated_by_coordinator``), żeby było widać, czym ten adres został
+  potwierdzony.
+
+  Kolumna „do usunięcia” jest tu dlatego, że konto nieaktywowane żyje kilka godzin – potem znika
+  przy najbliższym przebiegu kosiarki (co 15 minut). Bez tej informacji przycisk „Aktywuj ręcznie”
+  byłby ruletką.
+{% endcomment %}
+{% block title %}Aktywacje kont – panel koordynatora{% endblock %}
+{% block panel_title %}Konta oczekujące na aktywację{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Konto bez potwierdzonego adresu e-mail nie loguje się w ogóle. Nieaktywowane
+    konto jest usuwane po {{ activation_hours }} h – wtedy adres zwalnia się do ponownej
+    rejestracji.</p>
+{% endblock %}
+{% block panel_actions %}
+  <a class="btn btn--secondary" href="{% url 'web:coordinator-accounts' %}">Wszystkie konta</a>
+{% endblock %}
+{% block panel_content %}
+<section class="section">
+  <div class="scroll">
+    <table class="table">
+      <thead><tr><th>E-mail</th><th>Założone (czas polski)</th><th>Rola</th><th>Do usunięcia</th><th></th></tr></thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>{{ row.user.email }}</td>
+            <td>{{ row.user.date_joined|local_datetime }}</td>
+            <td>{{ row.roles }}</td>
+            <td>
+              {% if row.minutes_left > 0 %}
+                za {{ row.minutes_left }} min
+              {% else %}
+                <span class="badge badge--warn">po czasie</span>
+              {% endif %}
+            </td>
+            <td>
+              <form method="post" action="{% url 'web:coordinator-account-activate' row.user.pk %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn--primary btn--small">Aktywuj ręcznie</button>
+              </form>
+              <form method="post" action="{% url 'web:coordinator-account-resend' row.user.pk %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn--secondary btn--small">Wyślij link ponownie</button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="empty">Brak kont oczekujących na aktywację – każdy, kto się
+            zarejestrował, potwierdził swój adres.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

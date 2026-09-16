@@ -1,4 +1,4 @@
-"""Własne konto: edycja danych, zmiana adresu e-mail, usunięcie konta (RODO).
+"""Własne konto: edycja danych, zmiana adresu e-mail, eksport danych i usunięcie konta (RODO).
 
 Podział na dwa adresy jest celowy i wynika z tego, co dane **znaczą**:
 
@@ -10,8 +10,9 @@ Podział na dwa adresy jest celowy i wynika z tego, co dane **znaczą**:
   konfliktu interesów przy przydziale recenzji, więc jego samoobsługowa zmiana byłaby obejściem tej
   reguły.
 
-Zmiana adresu e-mail i usunięcie konta są wspólne dla wszystkich ról – adres jest loginem
-niezależnie od roli, a prawo do usunięcia danych nie zależy od tego, kim ktoś jest w zawodach.
+Zmiana adresu e-mail, eksport danych i usunięcie konta są wspólne dla wszystkich ról – adres jest
+loginem niezależnie od roli, a prawa z art. 15, 17 i 20 RODO nie zależą od tego, kim ktoś jest
+w zawodach.
 
 Reguł domenowych w tym module nie ma ani jednej: wszystkie są w ``apps.accounts.profile``, bo te
 same operacje wołają ``PATCH /api/auth/me/`` i (w przyszłości) komendy zarządzające.
@@ -22,10 +23,18 @@ from __future__ import annotations
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import FileResponse
 from django.shortcuts import redirect
 from django.urls import reverse, reverse_lazy
-from django.views.generic import FormView, TemplateView
+from django.views.generic import FormView, TemplateView, View
 
+from apps.accounts.data_export import (
+    audit_export,
+    build_export_zip,
+    export_filename,
+    export_wait_seconds,
+    mark_exported,
+)
 from apps.accounts.profile import (
     competition_footprint,
     confirm_email_change,
@@ -178,6 +187,47 @@ class EmailChangeConfirmView(TemplateView):
         context = super().get_context_data(**kwargs)
         context["error"] = self.error
         return context
+
+
+def send_export(request, user, *, actor=None) -> FileResponse:
+    """Buduje paczkę danych konta, zostawia wpis audytowy i oddaje ją jako plik do pobrania.
+
+    Wspólna dla obu wejść (właściciel konta i koordynator), bo to jedna czynność: różni je
+    wyłącznie wykonawca, a ten rozstrzyga o **akcji w audycie**, nie o zawartości paczki. Gdyby
+    każde wejście budowało paczkę po swojemu, eksport koordynatora mógłby z czasem zacząć
+    zawierać co innego niż eksport uczestnika – czyli przestać być odpowiedzią na art. 20.
+
+    ``as_attachment``: paczka ma się **zapisać**, a nie otworzyć w karcie. ``FileResponse`` zamyka
+    strumień po wysłaniu, więc plik tymczasowy znika także wtedy, gdy klient zerwie połączenie.
+    """
+    archive = build_export_zip(user)
+    audit_export(user, archive, actor=actor or user, request=request)
+    return FileResponse(archive.stream, as_attachment=True, filename=export_filename(user))
+
+
+class AccountExportView(LoginRequiredMixin, ThrottledFormMixin, View):
+    """``/account/export/`` – paczka z własnymi danymi (art. 20 RODO).
+
+    Żądanie jest GET-em, bo niczego nie zmienia: to odczyt własnych danych, a nie operacja na
+    koncie. Odnośnik z profilu ma dać się kliknąć raz, bez formularza pośredniego.
+
+    Limit jest liczony **per konto**, a nie per adres IP jak w ``ThrottledFormMixin``: budowa
+    paczki czyta cały storage uczestnika, więc kosztem jest praca serwera przypisana do jednego
+    konta, a nie liczba żądań z jednej sieci (cała pracownia szkolna wychodzi spod jednego
+    adresu). Z mixinu bierzemy samą **odpowiedź** 429 z ``Retry-After`` – tę, którą użytkownik
+    zna z formularzy – zostawiając ``throttle_scope`` pusty, żeby jego własny licznik się nie
+    włączał. Odstęp i licznik mieszkają przy eksporcie (``apps.accounts.data_export``).
+    """
+
+    def get(self, request):
+        wait = export_wait_seconds(request.user)
+        if wait:
+            return self.throttled_response(request, wait)
+        response = send_export(request, request.user)
+        # Znacznik dopiero po zbudowaniu paczki: wyjątek w środku nie może zablokować kolejnej
+        # próby na dziesięć minut.
+        mark_exported(request.user)
+        return response
 
 
 class AccountDeleteView(LoginRequiredMixin, ServiceFormMixin, FormView):

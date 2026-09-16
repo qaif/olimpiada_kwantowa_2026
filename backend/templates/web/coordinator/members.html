@@ -1,0 +1,129 @@
+{% extends "web/coordinator/base.html" %}
+{% load static %}
+{% load web_extras %}
+{% comment %}
+  Lista członków komisji: kto jest w komitecie, w jakim stanie i ile ma na głowie. Ekran odpowiada
+  na jedno pytanie – „do kogo zadzwonić i komu dołożyć pracy” – więc kolejność wierszy jest
+  kolejnością pilności (najpierw zalegający, potem najbardziej obciążeni), a nie alfabetem.
+
+  Zaproszeń tu świadomie nie ma. Wysyłka kodów mieszka na ekranie „Komitet” i dwa miejsca do tej
+  samej czynności znaczyłyby dwa miejsca, w których trzeba sprawdzić, czy kod już poszedł.
+
+  Filtry jadą w adresie (GET), więc zawężona lista daje się odświeżyć, wysłać odnośnikiem
+  i wrócić do niej przyciskiem „wstecz”.
+{% endcomment %}
+{% block title %}Członkowie komisji – panel koordynatora{% endblock %}
+
+{% block panel_head %}
+  <link rel="stylesheet" href="{% static 'css/coordinator-cards.css' %}">
+{% endblock %}
+
+{% block panel_title %}Członkowie komisji{% endblock %}
+
+{% block panel_lead %}
+  <p class="lead">Wszyscy, którzy mają profil członka komitetu – razem z tymi, którzy w tej edycji
+    nie dostali jeszcze ani jednej pracy. Zero przydziałów jest informacją o rozkładzie obciążenia,
+    a nie brakiem wiersza.</p>
+  <p class="hint"><span class="badge badge--danger">dane osobowe</span> Tę stronę widzi wyłącznie
+    koordynator.</p>
+{% endblock %}
+
+{% block panel_content %}
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Zawężenie</h2>
+    <p class="hint">Osób na liście: {{ rows|length }}</p>
+  </div>
+  <div class="card">
+    <form method="get" class="form">
+      <p>
+        <label for="member-status">Status</label>
+        <select id="member-status" name="status">
+          <option value="">— wszystkie —</option>
+          {% for value, label in status_choices %}
+            <option value="{{ value }}"{% if value == status %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </p>
+      <p>
+        {% comment %}
+          Etap zawęża **liczniki**, a nie listę osób: pytanie brzmi „ile ta osoba ma w tym etapie”,
+          a odpowiedź „zero” jest właśnie tym, czego szuka się, planując dosyłkę prac.
+        {% endcomment %}
+        <label for="member-stage">Etap (liczniki)</label>
+        <select id="member-stage" name="stage">
+          <option value="">— cała historia —</option>
+          {% for stage in stages %}
+            <option value="{{ stage.pk }}"{% if stage.pk == stage_id %} selected{% endif %}>{{ stage.display_name }}</option>
+          {% endfor %}
+        </select>
+      </p>
+      <div class="actions">
+        <button type="submit" class="btn btn--secondary">Pokaż</button>
+        {% if status or stage_id %}
+          <a class="btn btn--ghost" href="{% url 'web:coordinator-members' %}">Wyczyść</a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="section">
+  <div class="scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Osoba</th>
+          <th scope="col">Status</th>
+          <th scope="col">Województwo</th>
+          <th scope="col">Odwołania</th>
+          <th scope="col">Przydzielone</th>
+          <th scope="col">Szkice</th>
+          <th scope="col">Wystawione</th>
+          <th scope="col">Po terminie</th>
+          <th scope="col">Ostatnia aktywność</th>
+          <th scope="col"><span class="visually-hidden">Operacje</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <th scope="row">
+              <a href="{% url 'web:coordinator-member' row.member.pk %}">{{ row.member.user.get_full_name|default:row.member.user.email }}</a>
+              <span class="hint">{{ row.member.user.email }}</span>
+            </th>
+            <td>
+              <span class="{{ row.member.status|badge_class }}">{{ row.member.get_status_display }}</span>
+              {% if not row.member.user.is_active %}<span class="badge badge--danger">konto zablokowane</span>{% endif %}
+            </td>
+            <td>
+              {% if row.member.district %}
+                {{ row.member.get_district_display }}
+                {% if not row.member.district_verified %}<span class="badge badge--warn">niepotwierdzone</span>{% endif %}
+              {% else %}
+                {# Brak województwa nie jest brakiem danych: recenzent bez niego ocenia prace z całego kraju. #}
+                <span class="hint">cały kraj</span>
+              {% endif %}
+            </td>
+            <td>{% if row.member.is_appeals_committee %}<span class="badge badge--info">tak</span>{% else %}—{% endif %}</td>
+            <td class="num workload-num">{{ row.assigned }}</td>
+            <td class="num workload-num">{{ row.draft }}</td>
+            <td class="num workload-num">{{ row.submitted }}</td>
+            <td class="num workload-num">
+              {% if row.overdue %}<span class="badge badge--danger">{{ row.overdue }}</span>{% else %}0{% endif %}
+            </td>
+            <td>{% if row.last_activity %}{{ row.last_activity|local_datetime }}{% else %}<span class="hint">brak</span>{% endif %}</td>
+            <td>
+              <a class="btn btn--secondary btn--small"
+                 href="{% url 'web:coordinator-member' row.member.pk %}">Karta</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="10" class="empty">Żaden profil członka komisji nie pasuje do tych warunków.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

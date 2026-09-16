@@ -38,6 +38,10 @@ pytestmark = pytest.mark.django_db
 
 GUARDIAN_EMAIL = "rodzic@example.test"
 
+#: Zakładka zgód w panelu uczestnika. Pulpit jest podzielony na zakładki rozstrzygane po stronie
+#: serwera (``apps.web.views.participant.MeView``), a blok zgody opiekuna stoi na tej jednej.
+CONSENTS_TAB = "/me/?tab=zgody"
+
 
 @pytest.fixture
 def minor():
@@ -205,24 +209,25 @@ def test_panel_walks_through_missing_pending_confirmed(client, minor):
     assert guardian_status(minor)["state"] == "missing"
 
     client.force_login(minor.user)
-    content = client.get("/me/").content.decode()
+    # Zgody są zakładką panelu, a nie sekcją jednej długiej strony (``MeView``).
+    content = client.get(CONSENTS_TAB).content.decode()
     assert "Zgoda rodzica lub opiekuna prawnego" in content
     assert "Wyślij prośbę o zgodę" in content
 
     client.post("/me/guardian/", {"guardian_email": GUARDIAN_EMAIL})
     minor.refresh_from_db()
     assert guardian_status(minor)["state"] == "pending"
-    assert "Wyślij ponownie" in client.get("/me/").content.decode()
+    assert "Wyślij ponownie" in client.get(CONSENTS_TAB).content.decode()
 
     confirm_consent(minor)
     minor.refresh_from_db()
     state = guardian_status(minor)
     assert state["state"] == "confirmed"
     assert state["email"] == GUARDIAN_EMAIL
-    assert "potwierdzona" in client.get("/me/").content.decode()
+    assert "potwierdzona" in client.get(CONSENTS_TAB).content.decode()
 
 
 def test_adult_panel_has_no_guardian_section(client, adult):
     client.force_login(adult.user)
 
-    assert "Wyślij prośbę o zgodę" not in client.get("/me/").content.decode()
+    assert "Wyślij prośbę o zgodę" not in client.get(CONSENTS_TAB).content.decode()

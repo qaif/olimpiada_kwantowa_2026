@@ -1,7 +1,8 @@
 """Zadania Celery wspólne dla całego systemu.
 
-Na razie jedno: wysyłka listu. Idzie na kolejkę ``mail`` (``CELERY_TASK_ROUTES``
-w ``config/settings/base.py``), którą worker konsumuje razem z ``default`` i ``scan``.
+Dwa: wysyłka listu i puls kolejki. Pierwsze idzie na kolejkę ``mail`` (``CELERY_TASK_ROUTES``
+w ``config/settings/base.py``), którą worker konsumuje razem z ``default`` i ``scan``; drugie
+na kolejkę domyślną, bo jego sensem jest właśnie sprawdzenie tej domyślnej drogi.
 
 Dlaczego poczta w ogóle jest zadaniem, a nie ``send_mail`` w środku żądania: MTA bywa wolny albo
 nieosiągalny, a wysyłka w żądaniu HTTP zamienia wtedy udaną operację (zapis na rozmowę) w błąd
@@ -18,9 +19,21 @@ import logging
 
 from celery import shared_task
 from django.conf import settings
+from django.core.cache import cache
 from django.core.mail import send_mail
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
+
+#: Klucz w cache'u, pod którym worker zostawia ślad ostatniego przebiegu. Czyta go strona
+#: ``/status/`` – to jedyna droga, którą proces WWW może się dowiedzieć, czy kolejka zadań żyje:
+#: sam broker odpowiada „jestem”, także wtedy, gdy po drugiej stronie nikt nie konsumuje zadań.
+HEARTBEAT_CACHE_KEY = "core:worker-heartbeat"
+
+#: Ile żyje wpis pulsu. Trzykrotność częstotliwości przebiegu (co minutę, ``CELERY_BEAT_SCHEDULE``):
+#: jedna zgubiona minuta to jeszcze nie awaria, a po trzech nieudanych przebiegach wpis znika sam
+#: i strona statusu mówi „brak pulsu” zamiast pokazywać znacznik sprzed doby.
+HEARTBEAT_TTL_SECONDS = 180
 
 #: Ile razy ponawiamy wysyłkę, zanim uznamy ją za przegraną. Cztery próby z rosnącym odstępem
 #: przykrywają typową awarię MTA (restart, chwilowy brak DNS, greylisting u odbiorcy); dalsze
@@ -68,3 +81,27 @@ def send_mail_task(self, subject: str, message: str, recipient_list: list[str]) 
         self.request.retries + 1,
     )
     return sent
+
+
+@shared_task(name="apps.core.tasks.heartbeat")
+def heartbeat() -> str:
+    """Zostawia w cache'u znacznik czasu ostatniego przebiegu workera. Zwraca go w ISO 8601.
+
+    Po co osobne zadanie, skoro Celery ma ``inspect ping``: tamto pyta workera **synchronicznie**
+    przez broker i czeka na odpowiedź, więc strona statusu wisiałaby dokładnie wtedy, gdy worker
+    nie żyje – czyli w jedynym przypadku, dla którego ta strona istnieje. Tutaj jest odwrotnie:
+    zapis robi worker, a strona wyłącznie czyta gotową wartość z Redisa i porównuje ją z zegarem.
+
+    Ten sam mechanizm sprawdza przy okazji dwie rzeczy naraz, i to jest jego zaletą: żeby wpis
+    powstał, musi zadziałać **cała** droga – beat wystawia zadanie, broker je przenosi, worker je
+    wykonuje, a cache przyjmuje zapis. Brak pulsu nie mówi, które z tych ogniw padło, ale mówi
+    prawdę o tym, co interesuje uczestnika: że oddana praca nie zostanie zeskanowana, a list nie
+    wyjdzie.
+
+    Zwracana wartość jest po to, żeby dało się ją zobaczyć w logu workera i w teście – nikt jej
+    nie odbiera przez backend wyników (``CELERY_RESULT_BACKEND`` jest wyłączony).
+    """
+    stamp = timezone.now().isoformat()
+    cache.set(HEARTBEAT_CACHE_KEY, stamp, HEARTBEAT_TTL_SECONDS)
+    logger.debug("Puls workera: %s", stamp)
+    return stamp

@@ -66,7 +66,7 @@ def test_wyslanie_zaproszen_tworzy_kody_i_melduje_liczbe(
     assert response.status_code == 302
     assert InvitationCode.objects.filter(sent_at__isnull=False).count() == 2
     assert len(mail.outbox) == 2
-    content = web_client.get("/coordinator/").content.decode()
+    content = web_client.get("/coordinator/committee/").content.decode()
     assert "Wysłano 2 zaproszeń." in content
     # Kod jawny nie ma prawa trafić na ekran – jego jedynym egzemplarzem jest list.
     assert "Kod zaproszenia (widoczny tylko teraz" not in content
@@ -79,7 +79,7 @@ def test_pominiete_adresy_sa_wypisane_z_powodem(web_client, coordinator, django_
     with django_capture_on_commit_callbacks(execute=True):
         web_client.post(SEND_URL, form_data(f"{member.user.email}\nnowy@example.test"))
 
-    content = web_client.get("/coordinator/").content.decode()
+    content = web_client.get("/coordinator/committee/").content.decode()
     assert "Pominięto 1 adresów: recenzent@example.test (ma już konto komisji)." in content
     assert "Wysłano 1 zaproszeń." in content
 
@@ -103,7 +103,7 @@ def test_tabela_pokazuje_adres_i_stan_zaproszenia(web_client, coordinator):
     InvitationCodeFactory(plain_code="kod-4")
     web_client.force_login(coordinator)
 
-    content = web_client.get("/coordinator/").content.decode()
+    content = web_client.get("/coordinator/committee/").content.decode()
 
     assert "Zaproszenia e-mailem" in content
     for email, label in [

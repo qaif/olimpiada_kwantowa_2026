@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% load i18n web_extras %}
+{% comment %}
+  Wątek jednej sprawy. Wypowiedzi idą chronologicznie, a strona organizatora jest odróżniona
+  klasą, nie samym podpisem: przy czytaniu na telefonie podpis pod akapitem gubi się szybciej
+  niż tło karty.
+
+  Kontekstu technicznego uczestnik tu **nie** widzi. Nie dlatego, że to tajemnica – to jego własne
+  dane – tylko dlatego, że nie jest treścią rozmowy: sprawa ma się czytać jak rozmowa, a nie jak
+  zgłoszenie błędu. Pełny kontekst jest w paczce z eksportem danych konta.
+{% endcomment %}
+{% block title %}{{ ticket.subject }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:support' %}">{% translate "Moje zgłoszenia" %}</a></span>
+  <h1>{{ ticket.subject }}</h1>
+  <p class="row">
+    <span class="badge {% if ticket.is_open %}badge--warn{% elif ticket.is_closed %}badge--neutral{% else %}badge--ok{% endif %}">
+      {{ ticket.get_status_display }}</span>
+    <span class="badge badge--info">{{ ticket.get_category_display }}</span>
+    <span class="badge badge--neutral">{% translate "zgłoszone:" %} {{ ticket.created_at|local_datetime }}</span>
+  </p>
+</div>
+
+{% for message in thread %}
+  <article class="card {% if message.from_coordinator %}card--accent{% else %}card--quiet{% endif %}">
+    <p class="hint">
+      {% if message.from_coordinator %}{% translate "Organizator" %}{% else %}{% translate "Ty" %}{% endif %}
+      · {{ message.created_at|local_datetime }}
+    </p>
+    <p class="quote">{{ message.body|linebreaksbr }}</p>
+  </article>
+{% endfor %}
+
+{% if ticket.is_closed %}
+  <p class="hint">{% translate "To zgłoszenie jest zamknięte. Jeśli sprawa wróciła, załóż nowe – w nim będzie od razu widać, że to nowa historia." %}
+    <a href="{% url 'web:support-new' %}">{% translate "Zgłoś problem" %}</a></p>
+{% else %}
+  <section class="section">
+    <div class="card">
+      <h2 class="mt-0">{% translate "Dopisz coś do sprawy" %}</h2>
+      <form method="post" class="form" novalidate>
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        <p>
+          {{ form.body.errors }}
+          {{ form.body.label_tag }}
+          {{ form.body }}
+        </p>
+        <div class="actions">
+          <button type="submit" class="btn btn--primary">{% translate "Wyślij" %}</button>
+        </div>
+      </form>
+    </div>
+  </section>
+{% endif %}
+{% endblock %}

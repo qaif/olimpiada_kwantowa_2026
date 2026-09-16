@@ -1,0 +1,406 @@
+/* =================================================================================================
+   Panel uczestnika – warstwa nad ``app.css``.
+
+   Osobny arkusz, a nie kolejna sekcja arkusza głównego: te reguły dotyczą czterech szablonów
+   (pulpit i jego zakładki) i nie ma po co wozić ich na stronie startowej ani w panelu recenzenta.
+   Ten sam podział, co przy narzędziach koordynatora i podglądzie wysyłki.
+
+   Tokenów nie definiujemy tu ani jednego – wszystkie kolory, odstępy, promienie i cienie
+   przychodzą z ``:root`` w ``app.css``, razem z wariantem ciemnym i trybem wysokiego kontrastu.
+   Dzięki temu panel nie może „wypaść z palety” po zmianie motywu.
+
+   Kolejność:
+     1. nagłówek panelu i zwijane dane konta
+     2. „Co teraz” (stan etapu, czynność, odliczanie, znaczniki)
+     3. pasek zakładek
+     4. karta zadania: wiersz ostatniej wersji, błędy pól, zwijana historia
+     5. wybór terminu rozmowy
+     6. telefon (≤ 640 px) i wydruk
+   ============================================================================================== */
+
+/* --- 1. Nagłówek panelu ---------------------------------------------------------------------- */
+
+.page-head--panel {
+  margin-bottom: var(--sp-4);
+}
+
+/* Dane konta są zwinięte, więc zwijacz musi wyglądać na klikalny i mieć własny stan fokusu –
+   inaczej byłby jedynym elementem sterującym na stronie bez widocznego zaczepienia. */
+.p-identity {
+  margin-top: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  padding: var(--sp-2) var(--sp-4);
+}
+
+.p-identity__summary,
+.p-details__summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--link);
+  padding: var(--sp-2) 0;
+}
+
+.p-identity__summary:focus-visible,
+.p-details__summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.p-identity[open] {
+  padding-bottom: var(--sp-4);
+}
+
+.p-details {
+  margin: var(--sp-3) 0 0;
+  border-top: 1px solid var(--line);
+}
+
+/* --- 2. „Co teraz” --------------------------------------------------------------------------- */
+
+/* Nagłówek panelu w kolorach marki – ten sam granat, co pasek odliczania w arkuszu głównym.
+   Plama koloru jest tu funkcją, a nie ozdobą: to jedyny element strony, który ma być przeczytany
+   zawsze, więc musi się odróżniać od kart poniżej. */
+.now {
+  background: var(--navy-800);
+  color: #f4f1e8;
+  border-radius: var(--radius-lg);
+  border-left: 4px solid var(--accent-rule);
+  padding: var(--sp-4) var(--sp-6);
+  margin: 0 0 var(--sp-4);
+  box-shadow: var(--shadow-sm);
+}
+
+.now__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2) var(--sp-4);
+}
+
+.now__title {
+  margin: 0;
+  font-size: 0.8125rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(244, 241, 232, 0.72);
+}
+
+.now__stage {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.now__stage-name {
+  font-family: var(--font-serif);
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.now__body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3) var(--sp-6);
+  margin-top: var(--sp-3);
+}
+
+.now__action {
+  flex: 1 1 18rem;
+}
+
+.now__cta {
+  max-width: 100%;
+}
+
+.now__idle {
+  margin: 0;
+  color: rgba(244, 241, 232, 0.85);
+}
+
+.now__deadline {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  text-align: right;
+}
+
+.now__deadline-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(244, 241, 232, 0.7);
+}
+
+.now__deadline-at {
+  font-family: var(--font-serif);
+  font-weight: 700;
+}
+
+/* Liczba zmienia się co minutę, więc cyfry muszą mieć stałą szerokość – inaczej cały wiersz
+   „skakałby” przy każdym odświeżeniu. */
+.now__remaining {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--accent-on-brand);
+}
+
+.now__remaining--passed {
+  color: rgba(244, 241, 232, 0.7);
+  font-weight: 400;
+}
+
+.now__chips {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin: var(--sp-4) 0 0;
+  padding: 0;
+}
+
+/* --- 3. Pasek zakładek ----------------------------------------------------------------------- */
+
+.p-tabs {
+  margin: 0 0 var(--sp-6);
+  border-bottom: 2px solid var(--line);
+}
+
+/* Na wąskim ekranie zakładki przewijają się **w poziomie**, a nie zawijają do drugiego wiersza:
+   pasek ma zostać jednym pasmem, żeby było widać, że to jedna oś nawigacji. Przewijanie dotyczy
+   samego paska, więc strona nie dostaje poziomego suwaka. */
+.p-tabs__list {
+  list-style: none;
+  display: flex;
+  gap: var(--sp-1);
+  margin: 0;
+  padding: 0;
+  overflow-x: auto;
+  /* ``overflow-y`` **musi** być podany jawnie: przy jednej osi ustawionej na ``auto`` druga
+     przestaje być ``visible`` i przeglądarka dorysowuje pionowy pasek przewijania obok zakładek. */
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
+.p-tabs__item {
+  flex: 0 0 auto;
+}
+
+/* Odstęp przed ekranami, które są osobnymi adresami, a nie zakładkami pulpitu. */
+.p-tabs__item--aside:first-of-type {
+  margin-left: auto;
+  padding-left: var(--sp-4);
+}
+
+.p-tabs__link {
+  display: block;
+  padding: var(--sp-3) var(--sp-4);
+  color: var(--ink-soft);
+  text-decoration: none;
+  font-weight: 600;
+  white-space: nowrap;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+}
+
+.p-tabs__link:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+
+.p-tabs__link:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+/* Zakładka bieżąca jest oznaczona **podkreśleniem i grubością**, a nie samym kolorem –
+   kolor nie może być jedynym nośnikiem informacji (WCAG 1.4.1). */
+.p-tabs__link[aria-current="page"] {
+  color: var(--accent-ink);
+  border-bottom-color: var(--accent);
+}
+
+.p-tabs__link--aside {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+/* --- 4. Karta zadania ------------------------------------------------------------------------ */
+
+.problem-card__latest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+  margin: var(--sp-4) 0 0;
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-size: 0.9375rem;
+}
+
+/* Ostrzeżenie „praca jest w ocenie” stoi w formularzu, tuż nad polem pliku – ma się czytać
+   razem z przyciskiem, a nie jako komunikat o stanie strony. */
+.upload__warning {
+  margin: 0 0 var(--sp-3);
+}
+
+/* Błąd pola: czerwień sygnałowa i własny wiersz pod polem, którego dotyczy. */
+.field-error {
+  display: block;
+  margin-top: var(--sp-1);
+  color: var(--danger-ink);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* --- 5. Wybór terminu rozmowy ---------------------------------------------------------------- */
+
+.slot-picker {
+  margin: 0;
+}
+
+.slot-day {
+  border: 0;
+  padding: 0;
+  margin: 0 0 var(--sp-4);
+}
+
+.slot-day__legend {
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: var(--muted);
+  text-transform: capitalize;
+  padding: 0 0 var(--sp-2);
+}
+
+.slot-list {
+  list-style: none;
+  display: grid;
+  gap: var(--sp-2);
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  margin: 0;
+  padding: 0;
+}
+
+.slot__label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-1) var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+/* Pole wyboru zostaje w drzewie (obsługa klawiaturą i czytnikiem), ale rysujemy stan na etykiecie:
+   cała kafelkowa powierzchnia jest celem kliknięcia, a nie sam kwadracik o boku 13 px. */
+.slot__radio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.slot__radio:checked + .slot__label {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 2px var(--accent-soft);
+  background: var(--accent-soft);
+}
+
+.slot__radio:focus-visible + .slot__label {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.slot__label--off {
+  cursor: default;
+  background: var(--surface-inset);
+  color: var(--muted);
+}
+
+.slot__time {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.slot__note,
+.slot__free,
+.slot__reason {
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.slot--mine .slot__label {
+  border-color: var(--ok);
+}
+
+/* --- 6. Telefon i wydruk --------------------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  .now {
+    padding: var(--sp-4);
+  }
+
+  /* Na telefonie odliczanie wraca pod czynność i wyrównuje się do lewej: wyrównanie do prawej
+     przy zawiniętym układzie zostawiało liczbę w przypadkowym miejscu wiersza. */
+  .now__body {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  /* W kolumnie ``flex-basis`` dotyczy **wysokości**, więc podstawa 18rem z układu poziomego
+     zostawiała pod przyciskiem trzysta pikseli pustego granatu. */
+  .now__action {
+    flex: 0 0 auto;
+  }
+
+  .now__deadline {
+    text-align: left;
+  }
+
+  /* Przycisk czynności i przycisk wysyłki zajmują całą szerokość – na dotyku cel ma być duży
+     i przewidywalny, a nie dopasowany do długości napisu. */
+  .now__cta,
+  .upload__submit {
+    display: block;
+    width: 100%;
+    text-align: center;
+  }
+
+  .slot-list {
+    grid-template-columns: 1fr;
+  }
+
+  .problem-card__latest {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media print {
+  /* Na wydruku nie ma po co drukować nawigacji ani zachęty do kliknięcia; zwijacze drukują się
+     rozwinięte, bo na papierze nie da się ich otworzyć. */
+  .p-tabs,
+  .now__cta {
+    display: none;
+  }
+
+  .p-details > *,
+  .p-identity > * {
+    display: revert;
+  }
+}

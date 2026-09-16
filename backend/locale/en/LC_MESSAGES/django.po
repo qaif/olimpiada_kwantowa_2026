@@ -2261,3 +2261,906 @@ msgid ""
 msgstr ""
 "No stage has announced results. The statistics appear together with the "
 "first publication."
+
+# --- Panel recenzenta: kolejka, strona oceny i jej fragmenty. Dopisane ręcznie,
+# bez przebiegu makemessages, żeby nie przenumerować odwołań w całym pliku. ---
+
+#: templates/web/reviewer/_code.html
+msgid "Kod rozwiązania"
+msgstr "Solution code"
+
+#: templates/web/reviewer/_code.html
+msgid "notatnik Jupyter"
+msgstr "Jupyter notebook"
+
+#: templates/web/reviewer/_code.html
+msgid "Python"
+msgstr "Python"
+
+#: templates/web/reviewer/_code.html
+msgid "Podgląd obcięty – plik jest większy niż limit podglądu. Pobierz plik, aby zobaczyć całość."
+msgstr "Preview truncated – the file is larger than the preview limit. Download the file to see all of it."
+
+#: templates/web/reviewer/_code.html
+msgid "Notatnik pokazujemy jako same komórki kodu, rozdzielone nagłówkami „# --- komórka N ---”. Komórki tekstowe i wyniki poprzednich uruchomień są pominięte – oceniasz rozwiązanie, a nie zrzut z ostatniego uruchomienia."
+msgstr "We show the notebook as code cells only, separated by “# --- komórka N ---” headers. Text cells and the output of earlier runs are skipped – you are marking the solution, not a dump of the last run."
+
+#: templates/web/reviewer/_code.html
+#, python-format
+msgid "Uwaga do linii %(number)s"
+msgstr "Note on line %(number)s"
+
+#: templates/web/reviewer/_code.html
+msgid "Plik jest pusty."
+msgstr "The file is empty."
+
+#: templates/web/reviewer/_code.html
+msgid "Uwagi do linii"
+msgstr "Line notes"
+
+#: templates/web/reviewer/_code.html
+#, python-format
+msgid "linia %(number)s"
+msgstr "line %(number)s"
+
+#: templates/web/reviewer/_code.html
+msgid "Brak uwag do linii."
+msgstr "No line notes."
+
+#: templates/web/reviewer/_code.html
+msgid "Numer linii"
+msgstr "Line number"
+
+#: templates/web/reviewer/_code.html
+msgid "Kliknięcie numeru w listingu powyżej wpisuje go tutaj."
+msgstr "Clicking a number in the listing above fills it in here."
+
+#: templates/web/reviewer/_code.html
+msgid "Uwaga do linii"
+msgstr "Line note"
+
+#: templates/web/reviewer/_code.html
+msgid "Pokaż uczestnikowi po ogłoszeniu wyników"
+msgstr "Show to the participant once the results are announced"
+
+#: templates/web/reviewer/_code.html
+msgid "Niezaznaczone = uwaga robocza, widoczna wyłącznie dla komitetu."
+msgstr "Unchecked = a working note, visible to the committee only."
+
+#: templates/web/reviewer/_code.html
+msgid "Dodaj uwagę do linii"
+msgstr "Add a line note"
+
+#: templates/web/reviewer/_comparison.html
+msgid "Porównanie ocen"
+msgstr "Comparison of marks"
+
+#: templates/web/reviewer/_comparison.html
+msgid "Oceny tej pracy są już wystawione, więc widzisz punkty pozostałych recenzentów. Tożsamość nie jest ujawniana – rozmawiacie o pracy, nie o sobie."
+msgstr "The marks for this solution are already in, so you can see the other reviewers' scores. No identity is revealed – you are discussing the solution, not each other."
+
+#: templates/web/reviewer/_comparison.html
+msgid "Recenzent"
+msgstr "Reviewer"
+
+#: templates/web/reviewer/_comparison.html
+msgid "Różnica"
+msgstr "Difference"
+
+#: templates/web/reviewer/_comparison.html
+msgid "Ty"
+msgstr "You"
+
+#: templates/web/reviewer/_comparison.html
+msgid "Brak innych wystawionych ocen tej pracy."
+msgstr "No other marks have been submitted for this solution."
+
+#: templates/web/reviewer/_comparison.html
+msgid "Oceny są zgodne – praca nie idzie do moderacji."
+msgstr "The marks agree – the solution does not go to moderation."
+
+#: templates/web/reviewer/_comparison.html
+msgid "Notatki recenzentów"
+msgstr "Reviewer notes"
+
+#: templates/web/reviewer/_comparison.html
+msgid "Brak notatek przy tej pracy."
+msgstr "No notes on this solution."
+
+#: templates/web/reviewer/_comparison.html
+msgid "Nowa notatka"
+msgstr "New note"
+
+#: templates/web/reviewer/_comparison.html
+#, python-format
+msgid "Widzą ją pozostali recenzenci tej pracy i koordynator – nie uczestnik. Najwyżej %(limit)s znaków."
+msgstr "The other reviewers of this solution and the coordinator can see it – the participant cannot. At most %(limit)s characters."
+
+#: templates/web/reviewer/_comparison.html
+msgid "Dopisz notatkę"
+msgstr "Add a note"
+
+#: templates/web/reviewer/_draft_status.html
+#, python-format
+msgid "Szkic zapisany (status: %(status)s)."
+msgstr "Draft saved (status: %(status)s)."
+
+#: templates/web/reviewer/_issue.html
+msgid "Zgłoś problem z pracą"
+msgstr "Report a problem with this solution"
+
+#: templates/web/reviewer/_issue.html
+msgid "Dla spraw, których nie rozwiąże ocena: nieczytelny skan, rozwiązanie innego zadania, podejrzenie niesamodzielności. Zgłoszenie trafia do koordynatora i nie wstrzymuje oceniania – jeżeli da się wystawić ocenę, wystaw ją."
+msgstr "For matters a mark will not settle: an unreadable scan, a solution to a different problem, a suspicion of plagiarism. The report goes to the coordinator and does not hold up marking – if you can give a mark, give it."
+
+#: templates/web/reviewer/_issue.html
+msgid "Rodzaj problemu"
+msgstr "Kind of problem"
+
+#: templates/web/reviewer/_issue.html
+msgid "Rodzaj decyduje o tym, do kogo koordynator kieruje sprawę – podejrzenie niesamodzielności idzie inną drogą niż nieczytelny skan."
+msgstr "The kind decides where the coordinator sends the matter – a suspicion of plagiarism takes a different route than an unreadable scan."
+
+#: templates/web/reviewer/_issue.html
+msgid "Opis"
+msgstr "Description"
+
+#: templates/web/reviewer/_issue.html
+msgid "Jedno–dwa zdania. Koordynator czyta to razem z pracą, więc nie musisz jej opisywać od początku."
+msgstr "One or two sentences. The coordinator reads this together with the solution, so you do not have to describe it from scratch."
+
+#: templates/web/reviewer/_issue.html
+msgid "Zgłoś problem"
+msgstr "Report the problem"
+
+#: templates/web/reviewer/_issue_banner.html
+msgid "Zgłosiłeś problem z tą pracą:"
+msgstr "You reported a problem with this solution:"
+
+#: templates/web/reviewer/_issue_banner.html
+msgid "Koordynator jeszcze go nie rozstrzygnął. Ocenę możesz wystawić mimo zgłoszenia."
+msgstr "The coordinator has not settled it yet. You can still give a mark despite the report."
+
+#: templates/web/reviewer/_rubric.html
+msgid "Rubryka oceniania"
+msgstr "Marking rubric"
+
+#: templates/web/reviewer/_rubric.html
+msgid "Punkty przyznajesz kryterium po kryterium. Ocenę pracy wylicza system jako sumę – musi ona należeć do skali tego zadania"
+msgstr "You award points criterion by criterion. The system computes the mark as their total – it has to belong to this problem's scale"
+
+#: templates/web/reviewer/_rubric.html
+msgid "Jeżeli suma wypadnie poza skalę, zapis się nie uda i poprawisz punkty przy kryteriach."
+msgstr "If the total falls outside the scale the save is refused and you correct the points on the criteria."
+
+#: templates/web/reviewer/_rubric.html
+#, python-format
+msgid "(0–%(max)s pkt)"
+msgstr "(0–%(max)s pts)"
+
+#: templates/web/reviewer/_rubric.html
+msgid "Komentarz do kryterium"
+msgstr "Comment on the criterion"
+
+#: templates/web/reviewer/_rubric.html
+msgid "Uzasadnienie dla komitetu i dla Ciebie przy poprawianiu oceny – uczestnik widzi wyłącznie komentarz z pola poniżej."
+msgstr "A justification for the committee and for you when revising the mark – the participant only sees the comment from the field below."
+
+#: templates/web/reviewer/_rubric.html
+msgid "Suma z kryteriów:"
+msgstr "Total from the criteria:"
+
+#: templates/web/reviewer/_rubric.html
+msgid "Zapisana ocena tej recenzji:"
+msgstr "The mark saved on this review:"
+
+#: templates/web/reviewer/_rubric.html
+#, python-format
+msgid "%(score)s pkt"
+msgstr "%(score)s pts"
+
+#: templates/web/reviewer/_rubric.html
+msgid "jeszcze nie wystawiona"
+msgstr "not submitted yet"
+
+#: templates/web/reviewer/_snippet_manage.html
+msgid "Moje szablony komentarzy"
+msgstr "My comment templates"
+
+#: templates/web/reviewer/_snippet_manage.html
+msgid "to zadanie"
+msgstr "this problem"
+
+#: templates/web/reviewer/_snippet_manage.html
+msgid "Usuń"
+msgstr "Delete"
+
+#: templates/web/reviewer/_snippet_manage.html
+msgid "Nie masz jeszcze własnych szablonów."
+msgstr "You have no templates of your own yet."
+
+#: templates/web/reviewer/_snippet_manage.html
+msgid "Tytuł nowego szablonu"
+msgstr "Title of the new template"
+
+#: templates/web/reviewer/_snippet_manage.html
+msgid "Krótko, żeby dało się go rozpoznać na liście – np. „Brak jednostek”."
+msgstr "Keep it short so you can recognise it on the list – e.g. “Missing units”."
+
+#: templates/web/reviewer/_snippet_manage.html
+#, python-format
+msgid "Tylko dla zadania %(number)s"
+msgstr "Only for problem %(number)s"
+
+#: templates/web/reviewer/_snippet_manage.html
+msgid "Niezaznaczone = szablon ogólny, dostępny przy każdej pracy."
+msgstr "Unchecked = a general template, available with every solution."
+
+#: templates/web/reviewer/_snippet_manage.html
+msgid "Zapisz szablon"
+msgstr "Save the template"
+
+#: templates/web/reviewer/_snippets.html
+#, python-format
+msgid "Szablony komentarzy (%(count)s)"
+msgstr "Comment templates (%(count)s)"
+
+#: templates/web/reviewer/_snippets.html
+msgid "„Wstaw” dopisuje treść na końcu pola powyżej – tekst możesz potem dowolnie poprawić. Szablony wspólne przygotowuje koordynator przy zadaniu; Twoich własnych nie widzi nikt poza Tobą."
+msgstr "“Insert” appends the text at the end of the field above – you can then edit it freely. Shared templates are prepared by the coordinator with the problem; nobody but you sees your own."
+
+#: templates/web/reviewer/_snippets.html
+msgid "wspólny"
+msgstr "shared"
+
+#: templates/web/reviewer/_snippets.html
+msgid "własny"
+msgstr "own"
+
+#: templates/web/reviewer/_snippets.html
+msgid "Wstaw"
+msgstr "Insert"
+
+#: templates/web/reviewer/_snippets.html
+msgid "Nie ma jeszcze żadnego szablonu. Wspólne dla zadania dodaje koordynator na stronie zadania; własny dopiszesz pod formularzem, w „Moje szablony komentarzy”."
+msgstr "There are no templates yet. Shared ones are added by the coordinator on the problem page; you add your own below the form, under “My comment templates”."
+
+#: templates/web/reviewer/compare.html
+#, python-format
+msgid "Porównanie ocen pracy %(code)s"
+msgstr "Comparison of marks for solution %(code)s"
+
+#: templates/web/reviewer/compare.html
+msgid "Wróć do oceny pracy"
+msgstr "Back to marking the solution"
+
+#: templates/web/reviewer/compare.html
+msgid "Oceny tej pracy nie są jeszcze odsłonięte. Porównanie i notatki otwierają się, gdy wszystkie recenzje rundy 1 zostaną wystawione – do tego czasu ocenianie pozostaje ślepe."
+msgstr "The marks for this solution are not revealed yet. The comparison and the notes open once every round 1 review has been submitted – until then marking stays blind."
+
+#: templates/web/reviewer/detail.html
+msgid "Dodaj zaznaczenie"
+msgstr "Add a selection"
+
+#: templates/web/reviewer/detail.html
+msgid "Ukryj adnotacje"
+msgstr "Hide annotations"
+
+#: templates/web/reviewer/detail.html
+msgid "Pokaż:"
+msgstr "Show:"
+
+#: templates/web/reviewer/detail.html
+msgid "wszystkie"
+msgstr "all"
+
+#: templates/web/reviewer/detail.html
+msgid "tylko publiczne"
+msgstr "public only"
+
+#: templates/web/reviewer/detail.html
+msgid "tylko wewnętrzne"
+msgstr "internal only"
+
+#: templates/web/reviewer/detail.html
+msgid "Skala etapu: wolno wystawić wyłącznie jedną z poniższych wartości. Skalę ustala koordynator przy etapie albo przy zadaniu."
+msgstr "The stage scale: only one of the values below may be given. The coordinator sets the scale on the stage or on the problem."
+
+#: templates/web/reviewer/detail.html
+msgid "Trafia do panelu uczestnika po ogłoszeniu wyników etapu. Pisz tak, żeby dało się z tego czegoś nauczyć bez wglądu w pracę."
+msgstr "It reaches the participant panel once the stage results are announced. Write it so that one can learn something from it without seeing the solution."
+
+#: templates/web/reviewer/detail.html
+msgid "„Wewnętrzny” znaczy: widzą go koordynator, drugi recenzent po odsłonięciu ocen i komisja odwoławcza – uczestnik nigdy."
+msgstr "“Internal” means: the coordinator, the second reviewer once the marks are revealed and the appeals committee see it – the participant never does."
+
+#: templates/web/reviewer/detail.html
+msgid "Wystaw ocenę"
+msgstr "Submit the mark"
+
+#: templates/web/reviewer/detail.html
+msgid "Czas pracy nad tą recenzją"
+msgstr "Time spent on this review"
+
+#: templates/web/reviewer/detail.html
+msgid "Licznik służy do planowania obciążenia komitetu: koordynator widzi sumę godzin na zadanie, a nie to, co i kiedy robiłeś."
+msgstr "The counter is for planning the committee's workload: the coordinator sees the total hours per problem, not what you did and when."
+
+#: templates/web/reviewer/detail.html
+msgid "Skróty klawiaturowe"
+msgstr "Keyboard shortcuts"
+
+#: templates/web/reviewer/detail.html
+msgid "następna praca w tym zadaniu"
+msgstr "next solution in this problem"
+
+#: templates/web/reviewer/detail.html
+msgid "poprzednia praca w tym zadaniu"
+msgstr "previous solution in this problem"
+
+#: templates/web/reviewer/detail.html
+msgid "zapisz szkic oceny"
+msgstr "save the draft mark"
+
+#: templates/web/reviewer/detail.html
+msgid "Skróty milczą, gdy piszesz w polu tekstowym – „s” w komentarzu zostaje literą."
+msgstr "The shortcuts stay silent while you are typing in a text field – “s” in a comment remains a letter."
+
+#: templates/web/reviewer/detail.html
+msgid "Oceń"
+msgstr "Mark it"
+
+#: templates/web/reviewer/list.html
+msgid "Podsumowanie kolejki"
+msgstr "Queue summary"
+
+#: templates/web/reviewer/list.html
+msgid "do zrobienia"
+msgstr "to do"
+
+#: templates/web/reviewer/list.html
+msgid "najbliższy termin"
+msgstr "nearest deadline"
+
+#: templates/web/reviewer/list.html
+msgid "czas pracy łącznie"
+msgstr "total time spent"
+
+#: templates/web/reviewer/list.html
+msgid "Jak oceniać – w pięciu zdaniach"
+msgstr "How to mark – in five sentences"
+
+#: templates/web/reviewer/list.html
+msgid "Otwórz pracę: po lewej stoi rozwiązanie, po prawej panel oceny – nie musisz nic pobierać."
+msgstr "Open a solution: the solution is on the left, the grading panel on the right – you do not have to download anything."
+
+#: templates/web/reviewer/list.html
+msgid "Zaznacz myszą fragment strony, żeby dopisać adnotację; publiczne zobaczy uczestnik po ogłoszeniu wyników, wewnętrzne tylko komitet."
+msgstr "Drag over a part of the page with the mouse to add an annotation; the participant sees the public ones once the results are announced, the committee sees the internal ones."
+
+#: templates/web/reviewer/list.html
+msgid "Punkty wybierasz ze skali etapu albo wypełniasz rubrykę – sumę wylicza system i musi trafić w skalę."
+msgstr "You pick the points from the stage scale or fill in the rubric – the system computes the total and it has to land on the scale."
+
+#: templates/web/reviewer/list.html
+msgid "„Zapisz szkic” możesz kliknąć w każdej chwili; ocena idzie dopiero przyciskiem „Wystaw ocenę”."
+msgstr "You can click “Save draft” at any time; the mark is only sent by the “Submit the mark” button."
+
+#: templates/web/reviewer/list.html
+msgid "Coś jest nie tak z pracą (nieczytelny skan, inne zadanie)? Zgłoś problem – to nie wstrzymuje oceniania."
+msgstr "Something wrong with the solution (an unreadable scan, a different problem)? Report it – that does not hold up marking."
+
+#: templates/web/reviewer/list.html
+msgid "Stan recenzji"
+msgstr "Review state"
+
+#: templates/web/reviewer/list.html
+#, python-format
+msgid "prace: %(count)s"
+msgstr "solutions: %(count)s"
+
+#: templates/web/reviewer/list.html
+msgid "Postęp"
+msgstr "Progress"
+
+#: templates/web/reviewer/list.html
+msgid "dziś"
+msgstr "today"
+
+#: templates/web/reviewer/list.html
+msgid "szkic z punktami"
+msgstr "draft with points"
+
+#: templates/web/reviewer/list.html
+#, python-format
+msgid "otwarta %(when)s"
+msgstr "opened %(when)s"
+
+#: templates/web/reviewer/list.html
+msgid "nie zaczęta"
+msgstr "not started"
+
+#: templates/web/reviewer/list.html
+msgid "Otwórz"
+msgstr "Open"
+
+#: templates/web/reviewer/list.html
+msgid "Nic nie jest w toku"
+msgstr "Nothing is in progress"
+
+#: templates/web/reviewer/list.html
+msgid "Praca trafia tutaj, gdy zapiszesz przy niej szkic oceny."
+msgstr "A solution lands here once you save a draft mark on it."
+
+#: templates/web/reviewer/list.html
+msgid "Brak wystawionych ocen"
+msgstr "No marks submitted"
+
+#: templates/web/reviewer/list.html
+msgid "Oceny, które wyślesz, zostają tu do wglądu – razem z komentarzami, które napisałeś."
+msgstr "The marks you submit stay here for reference – together with the comments you wrote."
+
+#: templates/web/reviewer/list.html
+msgid "Nic nie zostało anulowane"
+msgstr "Nothing has been cancelled"
+
+#: templates/web/reviewer/list.html
+msgid "Trafia tu praca odebrana przez koordynatora i praca, do której uczestnik przysłał nową wersję."
+msgstr "A solution taken away by the coordinator and a solution the participant sent a new version of both land here."
+
+#: apps/web/views/reviewer.py
+msgid "Do zrobienia"
+msgstr "To do"
+
+#: apps/web/views/reviewer.py
+msgid "W toku"
+msgstr "In progress"
+
+#: apps/web/views/reviewer.py
+msgid "Wystawione"
+msgstr "Submitted"
+
+#: apps/web/views/reviewer.py
+msgid "Anulowane"
+msgstr "Cancelled"
+
+#: templates/web/reviewer/list.html
+#, python-format
+msgid "za %(counter)s dzień"
+msgid_plural "za %(counter)s dni"
+msgstr[0] "in %(counter)s day"
+msgstr[1] "in %(counter)s days"
+
+# --- Panel uczestnika: naglowek „Co teraz”, zakladki i karta zadania ---
+
+#: apps/web/participant_now.py:118
+msgid "za"
+msgstr "in"
+
+#: apps/web/participant_now.py:119
+msgid "dzień"
+msgstr "day"
+
+#: apps/web/participant_now.py:120
+msgid "dni"
+msgstr "days"
+
+#: apps/web/participant_now.py:121
+msgid "godz."
+msgstr "hrs"
+
+#: apps/web/participant_now.py:122
+msgid "min."
+msgstr "min"
+
+#: apps/web/participant_now.py:123
+msgid "termin minął"
+msgstr "deadline passed"
+
+#: apps/web/participant_now.py:124
+msgid "za chwilę"
+msgstr "in a moment"
+
+#: apps/web/participant_now.py:178
+msgid "jeszcze się nie zaczął"
+msgstr "not started yet"
+
+#: apps/web/participant_now.py:180
+msgid "zamknięty – trwa ocenianie"
+msgstr "closed – grading in progress"
+
+#: apps/web/participant_now.py:181
+msgid "wyniki ogłoszone"
+msgstr "results announced"
+
+#: apps/web/participant_now.py:183
+msgid "brak bieżącego etapu"
+msgstr "no current stage"
+
+#: apps/web/participant_now.py:219
+msgid "Podaj adres e-mail opiekuna – bez jego zgody udział jest niekompletny"
+msgstr "Give your guardian's e-mail address – without their consent your entry is incomplete"
+
+#: apps/web/participant_now.py:223
+msgid "Zgłoś się do etapu"
+msgstr "Enter the stage"
+
+#: apps/web/participant_now.py:228
+#, python-format
+msgid "Wyślij rozwiązanie zadania %(number)s"
+msgstr "Send your solution to problem %(number)s"
+
+#: apps/web/participant_now.py:234
+msgid "Zapisz się na termin rozmowy"
+msgstr "Book an interview slot"
+
+#: apps/web/participant_now.py:240
+msgid "Sprawdź ocenę – okno reklamacji jest otwarte"
+msgstr "Check your score – the appeal window is open"
+
+#: apps/web/participant_now.py:244
+msgid "Sprawdź wyniki"
+msgstr "Check your results"
+
+#: apps/web/participant_now.py:262
+msgid "Start etapu"
+msgstr "Stage opens"
+
+#: apps/web/participant_now.py:265
+msgid "Twoja rozmowa"
+msgstr "Your interview"
+
+#: apps/web/participant_now.py:267
+msgid "Koniec rozmów"
+msgstr "Interviews end"
+
+#: apps/web/participant_now.py:273 apps/web/participant_now.py:278
+msgid "Koniec okna reklamacji"
+msgstr "Appeal window closes"
+
+#: apps/web/participant_now.py:276
+msgid "Ogłoszenie wyników (planowane)"
+msgstr "Results announcement (planned)"
+
+#: apps/web/participant_now.py:300
+msgid "konto aktywne"
+msgstr "account active"
+
+#: apps/web/participant_now.py:300
+msgid "konto nieaktywne"
+msgstr "account inactive"
+
+#: apps/web/participant_now.py:305
+msgid "zgody kompletne"
+msgstr "consents complete"
+
+#: apps/web/participant_now.py:305
+msgid "brakuje zgody"
+msgstr "a consent is missing"
+
+#: apps/web/participant_now.py:310
+msgid "opiekun potwierdził"
+msgstr "guardian confirmed"
+
+#: apps/web/participant_now.py:311
+msgid "czekamy na opiekuna"
+msgstr "waiting for the guardian"
+
+#: apps/web/participant_now.py:312
+msgid "brak zgody opiekuna"
+msgstr "no guardian consent"
+
+#: apps/web/views/participant.py:82
+msgid "Wyniki"
+msgstr "Results"
+
+#: apps/web/views/participant.py:84
+msgid "Zgody"
+msgstr "Consents"
+
+#: apps/web/views/participant.py:96
+msgid "Profil"
+msgstr "Profile"
+
+#: apps/web/views/participant.py:165
+msgid "brak rozwiązania"
+msgstr "no solution"
+
+#: templates/web/participant/_interview.html:25
+msgid "zapisano"
+msgstr "booked"
+
+#: templates/web/participant/_interview.html:67
+msgid "Odwołać zapisany termin? Zwolnione miejsce może zająć ktoś inny."
+msgstr "Cancel your booked slot? Someone else may take the freed place."
+
+#: templates/web/participant/_interview.html:107
+#, python-format
+msgid "wolne %(free)s z %(capacity)s"
+msgstr "%(free)s of %(capacity)s free"
+
+#: templates/web/participant/_interview.html:136
+msgid "Zmień na wybrany termin"
+msgstr "Move to the selected slot"
+
+#: templates/web/participant/_interview.html:137
+msgid "Zapisz się na wybrany termin"
+msgstr "Book the selected slot"
+
+#: templates/web/participant/_interview.html:139
+msgid "Wszystkie godziny: czas polski."
+msgstr "All times are Polish time."
+
+#: templates/web/participant/_now.html:15
+msgid "Co teraz"
+msgstr "What now"
+
+#: templates/web/participant/_now.html:41
+msgid "Na teraz nic nie musisz robić – czekaj na kolejny termin."
+msgstr "Nothing to do right now – wait for the next date."
+
+#: templates/web/participant/_problem_card.html:34
+#: templates/web/participant/_problem_card.html:37
+msgid "Termin:"
+msgstr "Deadline:"
+
+#: templates/web/participant/_problem_card.html:37
+msgid "bez terminu"
+msgstr "no deadline"
+
+#: templates/web/participant/_problem_card.html:147
+msgid "Skan antywirusowy:"
+msgstr "Antivirus scan:"
+
+#: templates/web/participant/_problem_card.html:170
+msgid "Nie masz jeszcze wysłanego rozwiązania"
+msgstr "You have not sent a solution yet"
+
+#: templates/web/participant/_problem_card.html:173
+#, python-format
+msgid "Wyślij rozwiązanie zadania %(number)s do %(deadline)s."
+msgstr "Send your solution to problem %(number)s by %(deadline)s."
+
+#: templates/web/participant/_problem_card.html:177
+#, python-format
+msgid "Wyślij rozwiązanie zadania %(number)s – ten etap nie ma terminu."
+msgstr "Send your solution to problem %(number)s – this stage has no deadline."
+
+#: templates/web/participant/_problem_card.html:182
+msgid "Termin minął, a w tym zadaniu nie ma Twojej pracy."
+msgstr "The deadline has passed and there is no work of yours for this problem."
+
+#: templates/web/participant/_problem_card.html:244
+#, python-format
+msgid "Historia wysyłek (%(counter)s wersje)"
+msgstr "Upload history (%(counter)s versions)"
+
+#: templates/web/participant/_tab_appeals.html:18
+msgid "można reklamować"
+msgstr "can be appealed"
+
+#: templates/web/participant/_tab_appeals.html:33
+#, python-format
+msgid "Napisz, co w ocenie pominięto – co najmniej %(minimum)s znaków."
+msgstr "Write what the assessment missed – at least %(minimum)s characters."
+
+#: templates/web/participant/_tab_appeals.html:43
+msgid "Nie ma czego reklamować"
+msgstr "Nothing to appeal"
+
+#: templates/web/participant/_tab_appeals.html:44
+msgid "Reklamację składa się na wystawioną ocenę wstępną i tylko w oknie odwoławczym etapu. Gdy oba warunki będą spełnione, formularz pojawi się tutaj."
+msgstr "An appeal is filed against a provisional score and only within the stage's appeal window. Once both conditions are met, the form will appear here."
+
+#: templates/web/participant/_tab_appeals.html:71
+msgid "Nie złożyłeś jeszcze żadnej reklamacji"
+msgstr "You have not filed any appeal yet"
+
+#: templates/web/participant/_tab_appeals.html:72
+msgid "Tu pojawi się status każdej złożonej reklamacji razem z uzasadnieniem decyzji komisji."
+msgstr "The status of every appeal you file will appear here, together with the committee's reasons."
+
+#: templates/web/participant/_tab_consents.html:61
+msgid "Publikacja imienia i nazwiska"
+msgstr "Publishing your full name"
+
+#: templates/web/participant/_tab_results.html:16
+msgid "zakwalifikowany"
+msgstr "qualified"
+
+#: templates/web/participant/_tab_results.html:16
+msgid "bez kwalifikacji"
+msgstr "not qualified"
+
+#: templates/web/participant/_tab_results.html:19
+#, python-format
+msgid "razem %(points)s pkt"
+msgstr "%(points)s pts in total"
+
+#: templates/web/participant/_tab_results.html:32
+#, python-format
+msgid "W ogłoszonej tabeli masz %(published)s pkt. Obowiązuje wynik bieżący (%(current)s pkt) – różnica wynika z decyzji podjętej po publikacji."
+msgstr "The published table shows %(published)s pts for you. The current result (%(current)s pts) is the one in force – the difference comes from a decision taken after publication."
+
+#: templates/web/participant/_tab_results.html:38
+msgid "Punkty za zadania i komentarze recenzentów"
+msgstr "Points per problem and reviewers' comments"
+
+#: templates/web/participant/_tab_results.html:75
+msgid "Żaden etap nie ma jeszcze ogłoszonych wyników. Gdy komitet je ogłosi, znajdziesz tu punkty, kwalifikację i komentarze recenzentów."
+msgstr "No stage has announced results yet. Once the committee announces them, you will find your points, qualification and reviewers' comments here."
+
+#: templates/web/participant/_tabs.html:17
+msgid "Sekcje panelu uczestnika"
+msgstr "Participant panel sections"
+
+#: templates/web/participant/dashboard.html:41
+msgid "Twoje dane i ustawienia konta"
+msgstr "Your details and account settings"
+
+# --- Eksport danych konta (art. 20 RODO), zgłoszenia i pomoc oraz strona statusu.
+# Dopisane ręcznie, bez przebiegu makemessages, żeby nie przenumerować odwołań w całym pliku. ---
+
+#: templates/base.html
+msgid "Najczęstsze pytania"
+msgstr "Frequently asked questions"
+
+#: templates/web/account/profile.html
+msgid "Pobranie swoich danych"
+msgstr "Download your data"
+
+#: templates/web/account/profile.html
+msgid "Paczka ZIP z plikiem dane.json (konto, zgody wraz z wersjami dokumentów, zgłoszenia do etapów, metryka prac, ogłoszone wyniki i komentarze recenzentów napisane do Ciebie) oraz z rozwiązaniami, które wgrałeś. Paczkę można pobrać raz na 10 minut."
+msgstr "A ZIP archive with a dane.json file (your account, consents together with document versions, stage entries, submission metadata, announced results and the reviewers' comments written to you) and the solutions you uploaded. One archive every 10 minutes."
+
+#: templates/web/account/profile.html
+msgid "Pobierz moje dane"
+msgstr "Download my data"
+
+#: templates/web/support/new.html
+msgid "Pomoc"
+msgstr "Help"
+
+#: templates/web/support/new.html
+msgid "Napisz do organizatora. Odpowiedź dostaniesz e-mailem, a cała sprawa – razem z odpowiedzią – zostaje w serwisie."
+msgstr "Write to the organiser. You get the answer by e-mail, and the whole case – the answer included – stays on the site."
+
+#: templates/web/support/new.html
+msgid "Wyślij zgłoszenie"
+msgstr "Send the report"
+
+#: templates/web/support/new.html
+msgid "Moje zgłoszenia"
+msgstr "My reports"
+
+#: templates/web/support/new.html
+msgid "Do zgłoszenia dołączamy automatycznie: adres strony, z której je wysyłasz, nazwę przeglądarki, język interfejsu, Twój kod uczestnika i nazwę ostatniej czynności w serwisie. Nie zbieramy haseł ani zawartości formularzy."
+msgstr "We attach automatically: the address of the page you are writing from, your browser name, the interface language, your participant code and the name of your last action on the site. We do not collect passwords or the contents of forms."
+
+#: templates/web/support/sent.html
+msgid "Zgłoszenie wysłane"
+msgstr "Report sent"
+
+#: templates/web/support/sent.html
+msgid "Dziękujemy. Organizator odpowie na podany adres e-mail."
+msgstr "Thank you. The organiser will answer at the e-mail address you gave."
+
+#: templates/web/support/sent.html
+msgid "Jeśli odpowiedź nie dotrze w ciągu kilku dni, sprawdź folder ze spamem – odpowiadamy z adresu serwisu."
+msgstr "If the answer does not arrive within a few days, check your spam folder – we reply from the site's address."
+
+#: templates/web/support/list.html
+msgid "Sprawy zgłoszone organizatorowi razem z odpowiedziami."
+msgstr "Cases you reported to the organiser, together with the answers."
+
+#: templates/web/support/list.html
+msgid "zgłoszone:"
+msgstr "reported:"
+
+#: templates/web/support/list.html
+msgid "Nie masz jeszcze żadnych zgłoszeń"
+msgstr "You have not reported anything yet"
+
+#: templates/web/support/list.html
+msgid "Gdy coś nie zadziała, napisz do organizatora – odpowiedź trafi tutaj i na Twój adres e-mail."
+msgstr "When something does not work, write to the organiser – the answer lands here and in your mailbox."
+
+#: templates/web/support/detail.html
+msgid "Organizator"
+msgstr "Organiser"
+
+#: templates/web/support/detail.html
+msgid "To zgłoszenie jest zamknięte. Jeśli sprawa wróciła, załóż nowe – w nim będzie od razu widać, że to nowa historia."
+msgstr "This report is closed. If the problem came back, open a new one – it will be clear from the start that this is a new story."
+
+#: templates/web/support/detail.html
+msgid "Dopisz coś do sprawy"
+msgstr "Add something to the case"
+
+#: templates/web/support/detail.html
+msgid "Wyślij"
+msgstr "Send"
+
+#: templates/web/status.html
+msgid "Status serwisu"
+msgstr "Service status"
+
+#: templates/web/status.html
+msgid "Wszystkie usługi serwisu odpowiadają."
+msgstr "All services of the site are responding."
+
+#: templates/web/status.html
+msgid "Część usług serwisu nie odpowiada. Pracujemy nad tym – jeśli sprawa dotyczy terminu oddania pracy, napisz do organizatora."
+msgstr "Some services of the site are not responding. We are working on it – if this affects a submission deadline, write to the organiser."
+
+#: templates/web/status.html
+msgid "Usługi"
+msgstr "Services"
+
+#: templates/web/status.html
+msgid "Usługa"
+msgstr "Service"
+
+#: templates/web/status.html
+msgid "Baza danych"
+msgstr "Database"
+
+#: templates/web/status.html
+msgid "Sesje i pamięć podręczna"
+msgstr "Sessions and cache"
+
+#: templates/web/status.html
+msgid "Magazyn wgranych prac"
+msgstr "Storage of uploaded solutions"
+
+#: templates/web/status.html
+msgid "Kolejka zadań (poczta, skan plików)"
+msgstr "Task queue (e-mail, file scanning)"
+
+#: templates/web/status.html
+msgid "działa"
+msgstr "working"
+
+#: templates/web/status.html
+msgid "nie odpowiada"
+msgstr "not responding"
+
+#: templates/web/status.html
+msgid "Zawody"
+msgstr "Competition"
+
+#: templates/web/status.html
+msgid "Czas na serwerze (czas polski)"
+msgstr "Time on the server (Polish time)"
+
+#: templates/web/status.html
+msgid "Edycja"
+msgstr "Edition"
+
+#: templates/web/status.html
+msgid "Rejestracja uczestników"
+msgstr "Participant registration"
+
+#: templates/web/status.html
+msgid "Etap bieżący"
+msgstr "Current stage"
+
+#: templates/web/status.html
+msgid "Termin oddania prac"
+msgstr "Submission deadline"
+
+#: templates/web/status.html
+msgid "Wersja aplikacji"
+msgstr "Application version"
+
+#: templates/web/status.html
+msgid "Komunikaty organizatora są w pasku nad tą stroną."
+msgstr "The organiser's announcements are in the bar above this page."
+
+#: templates/web/support/new.html
+msgid "Zanim zgłosisz: sprawdź <a href=\"/faq/\">najczęstsze pytania (FAQ)</a>. Opisaliśmy tam między innymi brakujący list aktywacyjny, dopuszczalne formaty plików, poprawianie oddanej pracy i tryb reklamacji."
+msgstr "Before you report: check the <a href=\"/faq/\">frequently asked questions (FAQ)</a>. They cover, among other things, a missing activation e-mail, the accepted file formats, correcting a submitted solution and the appeal procedure."
+
+#: templates/web/status.html
+msgid "Ta strona jest odświeżana co pół minuty. Wariant maszynowy dla monitoringu: <a href=\"/status.json\">/status.json</a>. Jeśli coś nie działa, a strona tego nie pokazuje – <a href=\"/support/new/\">zgłoś problem</a>."
+msgstr "This page is refreshed every half a minute. Machine-readable variant for monitoring: <a href=\"/status.json\">/status.json</a>. If something is broken and this page does not show it – <a href=\"/support/new/\">report a problem</a>."

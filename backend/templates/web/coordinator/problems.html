@@ -1,13 +1,12 @@
-{% extends "base.html" %}
+{% extends "web/coordinator/base.html" %}
 {% load web_extras %}
 {% block title %}Zadania etapu {{ stage.display_name }} – panel koordynatora{% endblock %}
-{% block content %}
-<div class="page-head">
-  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
-  <h1>Zadania: {{ stage.display_name }}</h1>
+{% block panel_title %}Zadania: {{ stage.display_name }}{% endblock %}
+{% block panel_lead %}
   <p class="lead">Edycja {{ stage.edition.year_label }}. Treści zadań są jawne dla uczestników
     dopiero po otwarciu etapu: {{ stage.opens_at|local_time }}. Koordynator widzi je wcześniej.</p>
-</div>
+{% endblock %}
+{% block panel_content %}
 
 <section class="section">
   <div class="section__head">
@@ -31,7 +30,9 @@
         {% for row in rows %}
           <tr>
             <td class="num">{{ row.problem.number }}</td>
-            <th scope="row">{{ row.problem.title }}</th>
+            {# Tytuł prowadzi na kartę zadania: to ona jest jego stroną główną, a „Edytuj” –
+               jedną z czynności, które się z niej wykonuje. #}
+            <th scope="row"><a href="{% url 'web:coordinator-problem' row.problem.pk %}">{{ row.problem.title }}</a></th>
             <td>
               {% if row.problem.statement_pdf %}
                 {# Podgląd idzie przez widok aplikacji – plik nie ma publicznego adresu w storage. #}

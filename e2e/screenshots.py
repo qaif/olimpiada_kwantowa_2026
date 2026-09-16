@@ -248,6 +248,9 @@ def coordinator_pages(browser) -> None:
         shoot(page, f"/coordinator/stages/{stage_id}/interviews/", "12c-rozmowy-etapu", scroll="top")
     else:
         LOGGER.warning("Pulpit koordynatora nie ma kart etapów – pomijam terminy i zadania.")
+    # Ekrany, które zeszły z pulpitu na własne adresy (README § 5.10).
+    shoot(page, "/coordinator/committee/", "12d-komitet", scroll="top")
+    shoot(page, "/coordinator/moderation/", "12e-moderacja", scroll="top")
     context.close()
 
 
@@ -264,7 +267,8 @@ def find_e2e_committee_account(browser) -> tuple[str, str] | None:
         login(page, COORDINATOR_EMAIL)
         if not is_logged_in(page):
             return None
-        page.goto(f"{BASE_URL}/coordinator/", wait_until="domcontentloaded")
+        # Lista członków komitetu zeszła z pulpitu na własny ekran (README § 5.10).
+        page.goto(f"{BASE_URL}/coordinator/committee/", wait_until="domcontentloaded")
         match = E2E_COMMITTEE_EMAIL.search(page.content())
         return (match.group(0), E2E_COMMITTEE_PASSWORD) if match else None
     finally:

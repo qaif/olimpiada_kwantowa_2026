@@ -77,6 +77,19 @@
   </div>
 </section>
 
+{% comment %}
+  Eksport danych (art. 20 RODO) stoi **przed** usunięciem konta i to nie jest kolejność
+  przypadkowa: kto chce odejść z serwisu, najczęściej chce najpierw zabrać ze sobą swoje prace.
+  Odnośnik, a nie formularz: żądanie niczego nie zmienia, więc GET jest tu prawdą.
+{% endcomment %}
+<section class="section" id="eksport">
+  <div class="card">
+    <h2 class="mt-0">{% translate "Pobranie swoich danych" %}</h2>
+    <p class="hint">{% translate "Paczka ZIP z plikiem dane.json (konto, zgody wraz z wersjami dokumentów, zgłoszenia do etapów, metryka prac, ogłoszone wyniki i komentarze recenzentów napisane do Ciebie) oraz z rozwiązaniami, które wgrałeś. Paczkę można pobrać raz na 10 minut." %}</p>
+    <p><a class="btn btn--secondary" href="{% url 'web:account-export' %}">{% translate "Pobierz moje dane" %}</a></p>
+  </div>
+</section>
+
 <section class="section" id="usuniecie">
   <div class="card">
     <h2 class="mt-0">{% translate "Usunięcie konta" %}</h2>

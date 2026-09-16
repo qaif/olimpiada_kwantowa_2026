@@ -1,0 +1,76 @@
+{% load i18n web_extras %}{% comment %}
+  Zakładka „Wyniki”: jedna karta na etap z ogłoszonymi wynikami.
+
+  Karta zaczyna się od tego, po co się na nią wchodzi: suma punktów, kwalifikacja, a dopiero potem
+  rozbicie na zadania i komentarze. Miejsca w tabeli tu nie ma i nie może być policzone z tych
+  danych – liczy je ``apps.results.feedback`` razem z progiem kwalifikacji, stąd odnośnik na
+  osobną stronę zamiast kolejnej kolumny.
+{% endcomment %}
+<section class="section" id="wyniki">
+  <div class="section__head"><h2 class="mt-0">{% translate "Moje wyniki" %}</h2></div>
+  {% for result in results %}
+    <article class="card">
+      <div class="card__head">
+        <h3 class="mt-0 card__title">{{ result.edition }} – {{ result.stage_name }}</h3>
+        <span class="{% if result.qualified %}badge badge--ok{% else %}badge badge--neutral{% endif %}">
+          {% if result.qualified %}{% translate "zakwalifikowany" %}{% else %}{% translate "bez kwalifikacji" %}{% endif %}</span>
+      </div>
+      <p class="result-summary">
+        <span class="result-summary__points">{% blocktranslate trimmed with points=result.total_points %}
+          razem {{ points }} pkt
+        {% endblocktranslate %}</span>
+        <a class="btn btn--secondary btn--small"
+           href="{% url 'web:participant-feedback' result.stage_id %}">{% translate "Komentarze i miejsce" %}</a>
+      </p>
+      {% comment %}
+        Ogłoszona tabela jest zamrożona, a punkty liczymy na żywo z ``FinalGrade`` – po późnej
+        decyzji komisji obie liczby bywają różne. Milczące pokazanie jednej z nich byłoby gorsze
+        niż pokazanie obu (PROJEKT.md 2.4).
+      {% endcomment %}
+      {% if result.differs_from_published %}
+        <p class="msg msg-warning">{% blocktranslate trimmed with published=result.published_total current=result.total_points %}
+          W ogłoszonej tabeli masz {{ published }} pkt. Obowiązuje wynik bieżący ({{ current }} pkt) –
+          różnica wynika z decyzji podjętej po publikacji.
+        {% endblocktranslate %}</p>
+      {% endif %}
+      <details class="p-details">
+        <summary class="p-details__summary">{% translate "Punkty za zadania i komentarze recenzentów" %}</summary>
+        <div class="scroll">
+          <table class="table">
+            <thead><tr>
+              <th>{% translate "Zadanie" %}</th>
+              <th>{% translate "Punkty" %}</th>
+              <th>{% translate "Informacja zwrotna" %}</th>
+            </tr></thead>
+            <tbody>
+              {% for problem in result.problems %}
+                <tr>
+                  <td>{{ problem.number }}. {{ problem.title }}</td>
+                  <td class="num total">{{ problem.score }}</td>
+                  <td>
+                    {% for item in problem.feedback %}
+                      {% if item.comment_for_participant or item.annotations %}
+                        <div class="feedback">
+                          <span class="feedback__title">{% translate "Od recenzenta" %}</span>
+                          {% if item.comment_for_participant %}<p>{{ item.comment_for_participant }}</p>{% endif %}
+                          {% for annotation in item.annotations %}
+                            <p class="annotation">{% blocktranslate trimmed with page=annotation.page text=annotation.text %}str. {{ page }}: {{ text }}{% endblocktranslate %}</p>
+                          {% endfor %}
+                        </div>
+                      {% endif %}
+                    {% empty %}
+                      <span class="hint">{% translate "brak" %}</span>
+                    {% endfor %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </article>
+  {% empty %}
+    <p class="empty"><span class="empty__title">{% translate "Wyniki jeszcze przed nami" %}</span>
+      {% translate "Żaden etap nie ma jeszcze ogłoszonych wyników. Gdy komitet je ogłosi, znajdziesz tu punkty, kwalifikację i komentarze recenzentów." %}</p>
+  {% endfor %}
+</section>

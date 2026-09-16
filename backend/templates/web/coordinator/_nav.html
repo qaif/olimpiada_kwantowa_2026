@@ -1,0 +1,66 @@
+{% comment %}
+  Menu boczne panelu koordynatora. Treść (sekcje, adresy, liczniki) przychodzi ze znacznika
+  ``{% templatetag openblock %} coordinator_nav {% templatetag closeblock %}``
+  (apps/web/coordinator_nav.py) – szablon niczego nie rozstrzyga i nie woła ani jednego ``{% templatetag openblock %} url {% templatetag closeblock %}``:
+  adresy ekranów budowanych równolegle bywają jeszcze nieobecne w urlconfie, a brak wpisu
+  wywracałby **każdą** stronę panelu.
+
+  Całość stoi w ``<details>``, bo poniżej 900 px menu jest rozwijanym „Menu panelu” na górze
+  strony, a od 900 px – stałą kolumną (arkusz otwiera je wtedy bez atrybutu ``open``, tą samą
+  parą reguł, co rozwijane „Dokumenty” w nagłówku serwisu). Zero JavaScriptu, więc menu działa
+  też przy zablokowanych skryptach i nie potrzebuje wyjątku w polityce CSP.
+{% endcomment %}
+<details class="panel-nav">
+  <summary class="panel-nav__summary">Menu panelu</summary>
+  <div class="panel-nav__body">
+    {% if nav_search_url %}
+      {% comment %}
+        Wyszukiwarka stoi na samej górze menu, bo jest najkrótszą drogą do wszystkiego, co ma
+        nazwisko, kod albo numer: uczestnika, członka komisji, zadania, etapu i zgłoszenia.
+        Formularz GET – wynik ma dać się odświeżyć, wkleić w wiadomości i cofnąć przyciskiem
+        „wstecz”.
+      {% endcomment %}
+      <form class="panel-nav__search" method="get" action="{{ nav_search_url }}" role="search">
+        <label class="visually-hidden" for="panel-search">Szukaj w panelu koordynatora</label>
+        <input class="panel-nav__input" id="panel-search" type="search" name="q"
+               value="{{ nav_query }}" placeholder="Kod, nazwisko, e-mail, zadanie…"
+               autocomplete="off">
+        <button type="submit" class="btn btn--small btn--secondary panel-nav__go">Szukaj</button>
+      </form>
+    {% endif %}
+    {% for group in nav_groups %}
+      <div class="panel-nav__group">
+        <h2 class="panel-nav__heading">{{ group.label }}</h2>
+        <ul class="panel-nav__list">
+          {% for item in group.items %}
+            <li class="panel-nav__item">
+              <a class="panel-nav__link{% if item.active %} panel-nav__link--active{% endif %}"
+                 href="{{ item.url }}"{% if item.active %} aria-current="page"{% endif %}>
+                <span class="panel-nav__label">{{ item.label }}</span>
+                {% comment %}
+                  Badge pojawia się wyłącznie przy liczbie większej od zera – kropka przy pozycji,
+                  pod którą nic nie czeka, uczyłaby ignorować kropki. Liczba sama w sobie nic nie
+                  znaczy dla czytnika ekranu, stąd dopowiedzenie w tekście ukrytym wizualnie.
+                {% endcomment %}
+                {% if item.badge %}
+                  <span class="panel-nav__badge">{{ item.badge }}<span class="visually-hidden">
+                    spraw czeka</span></span>
+                {% endif %}
+              </a>
+              {% if item.children %}
+                <ul class="panel-nav__sublist">
+                  {% for child in item.children %}
+                    <li>
+                      <a class="panel-nav__sublink{% if child.active %} panel-nav__sublink--active{% endif %}"
+                         href="{{ child.url }}"{% if child.active %} aria-current="page"{% endif %}>{{ child.label }}</a>
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endfor %}
+  </div>
+</details>

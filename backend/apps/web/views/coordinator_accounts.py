@@ -291,6 +291,30 @@ class CoordinatorAccountEditView(CoordinatorRequiredMixin, View):
         return TemplateResponse(request, EDIT_TEMPLATE, context, status=status)
 
 
+class CoordinatorAccountExportView(CoordinatorRequiredMixin, View):
+    """``/coordinator/accounts/<pk>/export/`` – paczka z danymi cudzego konta (art. 20 RODO).
+
+    Istnieje, bo żądanie przenoszenia danych przychodzi też **poza serwisem**: listem, mailem albo
+    przez telefon, od osoby, która akurat nie może się zalogować (a to bywa właśnie treścią jej
+    sprawy). Bez tego wejścia organizator odpowiadałby na wniosek z art. 20 zrzutem z bazy robionym
+    ręcznie – czyli czymś, czego zakresu nikt nie sprawdza.
+
+    Paczkę buduje ta sama funkcja, co przy własnym eksporcie (``account.send_export``), więc
+    zakres danych jest identyczny: ani szerszy, bo koordynator prosi, ani węższy. Różnica jest
+    jedna i jest w audycie – ``account.exported_by_coordinator`` zamiast ``account.exported``.
+
+    POST, a nie GET: wydanie cudzych danych jest decyzją organizatora, a nie odczytem strony.
+    Limitu częstotliwości tu nie ma i to jest świadome – ogranicza go człowiek, który musi
+    kliknąć, a jego kliknięcie zostaje w aktach pod własną nazwą.
+    """
+
+    def post(self, request, pk: int):
+        from apps.web.views.account import send_export
+
+        user = _account(pk)
+        return send_export(request, user, actor=request.user)
+
+
 class CoordinatorAccountDeleteView(CoordinatorRequiredMixin, View):
     """``/coordinator/accounts/<pk>/delete/`` – potwierdzenie i usunięcie cudzego konta.
 

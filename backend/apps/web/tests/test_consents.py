@@ -28,6 +28,10 @@ REGISTER_URL = "/register/"
 SIGNUP_URL = "/rejestracja/dokoncz/"
 TOGGLE_URL = "/me/consents/publish-name/"
 
+#: Zgody są zakładką pulpitu, a nie sekcją jednej długiej strony (``MeView``), więc panel czyta
+#: się pod adresem z parametrem. Adres domyślny (``/me/``) otwiera zakładkę „Zadania”.
+CONSENTS_TAB_URL = "/me/?tab=zgody"
+
 
 def minor_year() -> int:
     return timezone.localdate().year - MINOR_MAX_AGE
@@ -222,7 +226,7 @@ def test_dashboard_lists_the_consents_with_version_and_date(logged_in, participa
         source=ConsentSource.WEB,
     )
 
-    body = logged_in.get("/me/").content.decode()
+    body = logged_in.get(CONSENTS_TAB_URL).content.decode()
 
     assert "Twoje zgody" in body
     assert "1.0 z 2 września 2026" in body
@@ -233,7 +237,7 @@ def test_dashboard_offers_the_publish_name_toggle(logged_in, participant, editio
     participant.publish_full_name = False
     participant.save(update_fields=["publish_full_name"])
 
-    body = logged_in.get("/me/").content.decode()
+    body = logged_in.get(CONSENTS_TAB_URL).content.decode()
 
     assert TOGGLE_URL in body
     assert "Wyraź zgodę na publikację nazwiska" in body

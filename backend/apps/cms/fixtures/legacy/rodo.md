@@ -63,7 +63,7 @@ Podstawowa dokumentacja Olimpiady powinna być przechowywana w Europejskim Obsza
 - dane oparte na zgodzie - do jej wycofania lub osiągnięcia celu, chyba że dalsze przechowanie jest konieczne do obrony roszczeń;
 - dzienniki bezpieczeństwa - przez okres konieczny do wykrywania nadużyć i zapewnienia bezpieczeństwa systemu.
 
-Szczegółowy harmonogram retencji zatwierdza Organizator przed rozpoczęciem przyjmowania zgłoszeń.
+Szczegółowy harmonogram retencji zatwierdza Organizator przed rozpoczęciem przyjmowania zgłoszeń. Rejestr czynności przetwarzania (art. 30 RODO), wraz z terminami usunięcia danych dla poszczególnych czynności, prowadzi Organizator i udostępnia go na żądanie pod adresem [contact@qaif.org](mailto:contact@qaif.org).
 
 ## 9. Twoje prawa
 

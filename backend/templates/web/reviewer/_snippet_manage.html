@@ -1,0 +1,61 @@
+{% load i18n %}
+{% comment %}
+  Notatnik własnych szablonów komentarza: dopisanie nowego i skasowanie istniejącego.
+
+  Osobno od popoveru przy polu komentarza (``_snippets.html``) z dwóch powodów. Pierwszy jest
+  techniczny i twardy: popover stoi **wewnątrz** formularza oceny, a formularza nie wolno zagnieżdżać
+  w formularzu. Drugi jest o robocie: wstawienie gotowego zdania do komentarza to czynność przy
+  **tej** pracy, a zakładanie szablonu – przy dwudziestu następnych. To dwie różne rzeczy i stoją
+  w dwóch różnych miejscach ekranu.
+
+  Szablon wspólny (koordynatora) nie ma tu przycisku „Usuń”: należy do zadania i kasuje go
+  koordynator. Próba skasowania go tędy kończy się 404 (patrz ``SnippetDeleteView``).
+{% endcomment %}
+<details class="card card--quiet" id="snippet-manage">
+  <summary><strong>{% translate "Moje szablony komentarzy" %}</strong></summary>
+
+  <ul class="annotations annotations--compact">
+    {% for snippet in snippets %}
+      {% if not snippet.is_shared %}
+        <li>
+          <span class="row">
+            <strong>{{ snippet.title }}</strong>
+            {% if snippet.problem_id %}<span class="badge badge--neutral">{% translate "to zadanie" %}</span>{% endif %}
+            <form method="post" action="{% url 'web:review-snippet-delete' snippet.pk %}" class="inline">
+              {% csrf_token %}
+              <input type="hidden" name="review" value="{{ review.pk }}">
+              <button type="submit" class="btn btn--ghost btn--small">{% translate "Usuń" %}</button>
+            </form>
+          </span>
+          <p class="quote">{{ snippet.text }}</p>
+        </li>
+      {% endif %}
+    {% empty %}
+      <li class="hint">{% translate "Nie masz jeszcze własnych szablonów." %}</li>
+    {% endfor %}
+  </ul>
+
+  <form method="post" action="{% url 'web:review-snippet-add' %}" class="form">
+    {% csrf_token %}
+    <input type="hidden" name="review" value="{{ review.pk }}">
+    <p class="field">
+      <label for="id_snippet_title">{% translate "Tytuł nowego szablonu" %}</label>
+      <input type="text" id="id_snippet_title" name="title" maxlength="200" required>
+      <span class="helptext">{% translate "Krótko, żeby dało się go rozpoznać na liście – np. „Brak jednostek”." %}</span>
+    </p>
+    <p class="field">
+      <label for="id_snippet_text">{% translate "Treść" %}</label>
+      <textarea id="id_snippet_text" name="text" rows="3" required></textarea>
+    </p>
+    <p class="field">
+      <input type="checkbox" name="scope" value="problem" id="id_snippet_scope">
+      <label for="id_snippet_scope">{% blocktranslate trimmed with number=problem.number %}
+        Tylko dla zadania {{ number }}
+      {% endblocktranslate %}</label>
+      <span class="helptext">{% translate "Niezaznaczone = szablon ogólny, dostępny przy każdej pracy." %}</span>
+    </p>
+    <div class="actions">
+      <button type="submit" class="btn btn--secondary">{% translate "Zapisz szablon" %}</button>
+    </div>
+  </form>
+</details>

@@ -1,0 +1,362 @@
+"""Rejestr czynności przetwarzania (art. 30 ust. 1 RODO) – jako dane w kodzie, nie jako dokument.
+
+Administrator ma obowiązek prowadzić rejestr czynności przetwarzania i okazać go organowi
+nadzorczemu na żądanie. Zwykle jest to arkusz, który ktoś kiedyś wypełnił i który rozjeżdża się
+z systemem przy pierwszej zmianie – bo nic nie łączy wiersza „czas przechowywania” z tym, co
+naprawdę robi kod.
+
+Dlatego rejestr stoi **tutaj**: jest zwykłą strukturą pythonową, wersjonowaną razem z aplikacją.
+Konsekwencje są dwie i to one są powodem tej decyzji:
+
+- zmiana w systemie, która zmienia przetwarzanie (nowy odbiorca, nowa kategoria danych, inny okres
+  retencji), jest zmianą **w tym pliku** i przechodzi przez tę samą recenzję, co kod,
+- treść rejestru da się sprawdzić testem – a okres przechowywania czyta się z tego samego miejsca,
+  z którego bierze go automat retencji (``apps.accounts.retention``), więc nie ma dwóch odpowiedzi
+  na pytanie „jak długo trzymacie te dane”.
+
+Czego tu **nie** ma: danych kontaktowych administratora i inspektora ochrony danych. Te stoją
+w ``cms.SiteSettings`` (organizator zmienia je w ``/cms/`` bez wydania aplikacji) i dokłada je
+widok, który rejestr renderuje – wpisane tutaj byłyby drugą, rozjeżdżającą się kopią.
+
+Wersja rejestru (``REGISTER_VERSION``) rośnie przy każdej **materialnej** zmianie treści, a nie
+przy poprawce literówki: to ona odpowiada na pytanie „czy czytam wersję aktualną” i to ona stoi
+w nagłówku eksportu CSV.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import date
+
+from apps.competitions.models import DEFAULT_RETENTION_MONTHS
+
+#: Wersja treści rejestru i data jej przyjęcia. Zmieniane ręcznie, razem z treścią niżej.
+REGISTER_VERSION = "1.0"
+REGISTER_DATE = date(2026, 9, 16)
+
+#: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
+#: domyślna wartość ``Edition.data_retention_months`` – gdyby organizator zmienił ją dla rocznika,
+#: rejestr mówi o zasadzie, a ekran ``/coordinator/retention/`` o terminach konkretnych edycji.
+PARTICIPANT_RETENTION = (
+    f"{DEFAULT_RETENTION_MONTHS} miesięcy od ostatniego deadline'u etapu edycji (ustawienie "
+    "edycji, art. 5 ust. 1 lit. e RODO). Po tym terminie konto jest anonimizowane automatycznie: "
+    "dane osobowe znikają, zostaje pseudonimowy kod uczestnika i dokumentacja zawodów."
+)
+
+#: Odbiorcy wspólni dla większości czynności: dostawca hostingu i poczta wychodząca. Wypisane raz,
+#: bo powtórzone w każdym wierszu rozjechałyby się przy zmianie dostawcy.
+HOSTING_RECIPIENT = "Contabo GmbH (hosting serwera w Niemczech) – podmiot przetwarzający"
+MAIL_RECIPIENT = "dostawca poczty wychodzącej (SMTP) – podmiot przetwarzający"
+ANALYTICS_RECIPIENT = (
+    "Google Ireland Ltd. (Google Analytics 4) – wyłącznie po zgodzie odwiedzającego; bez zgody "
+    "tag działa w trybie odmowy i nie zapisuje identyfikatorów"
+)
+JITSI_RECIPIENT = (
+    "brak odbiorcy zewnętrznego – pokoje wideo działają na własnej instancji Jitsi Meet "
+    "organizatora, na tym samym serwerze"
+)
+
+
+@dataclass(frozen=True)
+class ProcessingActivity:
+    """Jedna czynność przetwarzania w układzie art. 30 ust. 1 RODO.
+
+    Struktura jest zamrożona, bo rejestr jest **dokumentem**: czyta go widok HTML, eksport CSV
+    i test, a żaden z nich nie ma prawa go zmienić w locie. Pola odpowiadają literom przepisu,
+    a nie wygodzie szablonu – kolumna „kategorie osób” musi dać się wskazać palcem w ustawie.
+    """
+
+    key: str
+    name: str
+    purpose: str
+    legal_basis: str
+    subjects: str
+    categories: list[str] = field(default_factory=list)
+    recipients: list[str] = field(default_factory=list)
+    retention: str = ""
+    measures: list[str] = field(default_factory=list)
+
+
+#: Środki techniczne wspólne dla całego systemu (art. 32 RODO). Wypisane raz i doklejane do każdej
+#: czynności, bo nie są właściwością pojedynczego przetwarzania – tak działa cała platforma.
+COMMON_MEASURES = (
+    "szyfrowanie transportu (HTTPS/TLS, HSTS), ruch wyłącznie przez odwrotne proxy",
+    "hasła w postaci skrótu (Django PBKDF2), brak przechowywania tokenów dostawców OAuth",
+    "kontrola dostępu oparta na rolach (uczestnik, komitet, komisja odwoławcza, koordynator)",
+    "niezmienny dziennik zdarzeń (audit log) bez danych osobowych w treści wpisu",
+    "kopia zapasowa bazy i storage'u, odtwarzanie sprawdzane procedurą z README",
+)
+
+
+def _activity(**kwargs) -> ProcessingActivity:
+    """Czynność ze wspólnymi środkami technicznymi doklejonymi na końcu jej własnych."""
+    measures = [*kwargs.pop("measures", []), *COMMON_MEASURES]
+    return ProcessingActivity(measures=measures, **kwargs)
+
+
+#: Treść rejestru. Kolejność jest kolejnością cyklu życia sprawy uczestnika: konto, zawody, ocena,
+#: wyniki i dokumenty, sprawy sporne, a na końcu to, co dotyczy serwisu, a nie zawodów.
+ACTIVITIES: tuple[ProcessingActivity, ...] = (
+    _activity(
+        key="konta",
+        name="Prowadzenie kont uczestników olimpiady",
+        purpose=(
+            "Rejestracja uczestnika w zawodach, potwierdzenie tożsamości szkolnej, kontakt "
+            "w sprawach organizacyjnych i umożliwienie logowania do panelu."
+        ),
+        legal_basis=(
+            "art. 6 ust. 1 lit. b RODO (wykonanie umowy – udział w zawodach na zasadach "
+            "Regulaminu) oraz art. 6 ust. 1 lit. a RODO dla zgód dobrowolnych"
+        ),
+        subjects="uczniowie szkół ponadpodstawowych zgłaszający się do olimpiady",
+        categories=[
+            "imię i nazwisko",
+            "adres e-mail (jest zarazem loginem)",
+            "numer telefonu (opcjonalnie)",
+            "nazwa szkoły i województwo",
+            "klasa i rok urodzenia (bez daty dziennej – zasada minimalizacji)",
+            "adres e-mail opiekuna szkolnego (opcjonalnie)",
+            "kod publiczny uczestnika (pseudonim nadawany przez system)",
+        ],
+        recipients=[HOSTING_RECIPIENT, MAIL_RECIPIENT],
+        retention=PARTICIPANT_RETENTION,
+        measures=[
+            "aktywacja konta linkiem e-mail; konto niepotwierdzone jest kasowane po 4 godzinach",
+            "limit prób logowania i rejestracji (throttling po adresie IP i po tożsamości)",
+        ],
+    ),
+    _activity(
+        key="zgody",
+        name="Dowody zgód i zgoda opiekuna osoby małoletniej",
+        purpose=(
+            "Wykazanie, na co i pod jaką wersją dokumentu uczestnik (albo jego opiekun prawny) "
+            "wyraził zgodę – art. 7 ust. 1 RODO."
+        ),
+        legal_basis="art. 6 ust. 1 lit. c RODO (obowiązek rozliczalności, art. 5 ust. 2 RODO)",
+        subjects="uczestnicy oraz rodzice i opiekunowie prawni uczestników małoletnich",
+        categories=[
+            "rodzaj zgody i wersja dokumentu, którego dotyczy",
+            "data wyrażenia i data wycofania",
+            "adres e-mail, z którego potwierdzono zgodę opiekuna",
+            "adres IP w chwili złożenia oświadczenia",
+        ],
+        recipients=[HOSTING_RECIPIENT, MAIL_RECIPIENT],
+        retention=(
+            "przez czas obowiązywania zgody, a po jej wycofaniu – jako dowód rozliczalności "
+            "do końca okresu retencji edycji, której dotyczy"
+        ),
+        measures=[
+            "zgoda opiekuna składana pod jednorazowym podpisanym odnośnikiem, bez zakładania konta",
+            "wycofanie zgody jest równie proste, co jej udzielenie (art. 7 ust. 3 RODO)",
+        ],
+    ),
+    _activity(
+        key="prace",
+        name="Przyjmowanie i ocenianie prac konkursowych",
+        purpose=(
+            "Przeprowadzenie zawodów: przyjęcie rozwiązań, dwie niezależne recenzje, ustalenie "
+            "oceny końcowej i kwalifikacji do etapu następnego."
+        ),
+        legal_basis="art. 6 ust. 1 lit. b RODO (wykonanie umowy – udział w zawodach)",
+        subjects="uczestnicy zapisani do etapu",
+        categories=[
+            "pliki rozwiązań wraz z ich skrótem SHA-256 i numerem wersji",
+            "data i godzina oddania pracy, znacznik oddania w tolerancji po deadline",
+            "punktacja recenzji, komentarze recenzentów i ocena końcowa",
+        ],
+        recipients=[
+            HOSTING_RECIPIENT,
+            "członkowie komitetu oceniającego – ocenianie jest ślepe: recenzent widzi kod "
+            "uczestnika, nigdy jego nazwiska",
+        ],
+        retention=PARTICIPANT_RETENTION,
+        measures=[
+            "prace w prywatnym storage'u (bucket bez dostępu anonimowego), odnośniki podpisane i wygasające",
+            "skan antywirusowy każdego pliku przed udostępnieniem go komitetowi",
+            "nazwy plików budowane z kodu uczestnika – nazwisko z nazwy pliku nie przechodzi dalej",
+        ],
+    ),
+    _activity(
+        key="wyniki",
+        name="Ogłaszanie wyników i wystawianie dokumentów",
+        purpose=(
+            "Publikacja tabeli wyników etapu oraz wystawianie dyplomów i zaświadczeń wraz z ich "
+            "publiczną weryfikacją po kodzie z dokumentu."
+        ),
+        legal_basis=(
+            "art. 6 ust. 1 lit. b RODO (wykonanie umowy) oraz art. 6 ust. 1 lit. a RODO "
+            "dla publikacji imienia i nazwiska – wyłącznie za odrębną zgodą"
+        ),
+        subjects="uczestnicy, którym ogłoszono wynik, oraz opiekunowie szkolni otrzymujący podziękowania",
+        categories=[
+            "kod publiczny uczestnika, punktacja, informacja o kwalifikacji",
+            "imię i nazwisko – wyłącznie w finale i wyłącznie przy aktywnej zgodzie na publikację",
+            "numer i kod weryfikacyjny wystawionego dokumentu",
+        ],
+        recipients=[HOSTING_RECIPIENT, "publiczność serwisu (tabela wyników jest jawna)"],
+        retention=(
+            "ogłoszona tabela wyników jest zamrożonym dokumentem zawodów i zostaje bezterminowo "
+            "w postaci pseudonimowej; anonimizacja konta jej nie zmienia"
+        ),
+        measures=[
+            "tabela wyników pochodzi wyłącznie z zamrożonego snapshotu, nie z bieżących danych",
+            "strona weryfikacji dokumentu nie podaje nazwiska bez aktywnej zgody na publikację",
+        ],
+    ),
+    _activity(
+        key="reklamacje",
+        name="Reklamacje i odwołania od oceny",
+        purpose="Rozpatrzenie zastrzeżeń uczestnika do oceny pracy przez komisję odwoławczą.",
+        legal_basis="art. 6 ust. 1 lit. b RODO (wykonanie umowy – tryb odwoławczy z Regulaminu)",
+        subjects="uczestnicy składający reklamację",
+        categories=[
+            "treść reklamacji i jej uzasadnienie",
+            "rozstrzygnięcie komisji wraz z uzasadnieniem i ewentualną nową punktacją",
+            "skład komisji rozpatrującej sprawę",
+        ],
+        recipients=[HOSTING_RECIPIENT, "członkowie komisji odwoławczej"],
+        retention=(
+            "do końca okresu retencji edycji; konto z nierozstrzygniętą reklamacją nie jest "
+            "anonimizowane, dopóki sprawa się nie zakończy"
+        ),
+        measures=[
+            "reguła konfliktu interesów: reklamacji nie rozpatruje autor ocenianej recenzji",
+        ],
+    ),
+    _activity(
+        key="rozmowy",
+        name="Rozmowy kwalifikacyjne online",
+        purpose="Przeprowadzenie etapu w formie rozmowy: zapis na termin i spotkanie wideo.",
+        legal_basis="art. 6 ust. 1 lit. b RODO (wykonanie umowy – udział w zawodach)",
+        subjects="uczestnicy zakwalifikowani do etapu prowadzonego w formie rozmowy",
+        categories=[
+            "wybrany termin rozmowy i adres pokoju spotkania",
+            "wizerunek i głos w czasie rozmowy (transmisja, bez nagrywania)",
+        ],
+        recipients=[HOSTING_RECIPIENT, JITSI_RECIPIENT],
+        retention=(
+            "zapis na termin – do końca okresu retencji edycji; sama rozmowa nie jest nagrywana, "
+            "więc nie powstaje żaden plik do przechowywania"
+        ),
+        measures=[
+            "własna instancja Jitsi Meet organizatora – transmisja nie wychodzi do dostawcy obcego",
+            "adres pokoju budowany z identyfikatora terminu, nie z danych uczestnika",
+        ],
+    ),
+    _activity(
+        key="komitet",
+        name="Prowadzenie kont komitetu i komisji odwoławczej",
+        purpose=(
+            "Powołanie recenzentów i członków komisji odwoławczej, przydział prac do oceny "
+            "z wykluczeniem konfliktu interesów."
+        ),
+        legal_basis=(
+            "art. 6 ust. 1 lit. b RODO (współpraca przy organizacji zawodów) oraz art. 6 ust. 1 "
+            "lit. f RODO (prawnie uzasadniony interes – rzetelność oceniania)"
+        ),
+        subjects="członkowie komitetu oceniającego i komisji odwoławczej",
+        categories=[
+            "imię, nazwisko i adres e-mail",
+            "województwo (podstawa reguły konfliktu interesów)",
+            "status członkostwa i data zatwierdzenia",
+        ],
+        recipients=[HOSTING_RECIPIENT, MAIL_RECIPIENT],
+        retention=(
+            "przez czas pełnienia funkcji i okres rozliczalności zawodów; konta komitetu nie "
+            "podlegają automatycznej retencji uczestników"
+        ),
+        measures=[
+            "wejście do komitetu wyłącznie z jednorazowego kodu zaproszenia (w bazie sam skrót)",
+        ],
+    ),
+    _activity(
+        key="zgloszenia",
+        name="Obsługa zgłoszeń i pomocy technicznej",
+        purpose=(
+            "Udzielenie odpowiedzi na zgłoszony problem z kontem, wysyłką pracy, wynikami albo rejestracją."
+        ),
+        legal_basis=(
+            "art. 6 ust. 1 lit. b RODO dla zgłoszeń od uczestników oraz art. 6 ust. 1 lit. f RODO "
+            "(prawnie uzasadniony interes – obsługa pytań od osób bez konta)"
+        ),
+        subjects="osoby korzystające z serwisu, w tym osoby bez konta piszące z formularza kontaktowego",
+        categories=[
+            "treść zgłoszenia i odpowiedzi",
+            "adres e-mail nadawcy (przy zgłoszeniu bez konta)",
+            "kontekst techniczny: adres strony, przeglądarka, język, kod uczestnika",
+        ],
+        recipients=[HOSTING_RECIPIENT, MAIL_RECIPIENT],
+        retention=(
+            "do zakończenia sprawy i przez okres retencji edycji, której dotyczy; zgłoszenia "
+            "powiązane z kontem znikają razem z jego anonimizacją"
+        ),
+        measures=[
+            "kontekst techniczny zbierany automatycznie nie zawiera haseł, tokenów ani cookie",
+            "zgłoszenie anonimowe chronione tą samą CAPTCHĄ, co formularz rejestracji",
+        ],
+    ),
+    _activity(
+        key="serwis",
+        name="Utrzymanie serwisu, bezpieczeństwo i statystyka odwiedzin",
+        purpose=(
+            "Zapewnienie działania i bezpieczeństwa serwisu (dziennik zdarzeń, ochrona przed "
+            "nadużyciem formularzy) oraz – za zgodą – statystyka odwiedzin."
+        ),
+        legal_basis=(
+            "art. 6 ust. 1 lit. f RODO (prawnie uzasadniony interes – bezpieczeństwo systemu) "
+            "oraz art. 6 ust. 1 lit. a RODO dla analityki"
+        ),
+        subjects="wszystkie osoby odwiedzające serwis",
+        categories=[
+            "adres IP i czas zdarzenia w dzienniku audytowym",
+            "identyfikatory sesji i tokeny ochrony formularzy (cookie niezbędne)",
+            "dane statystyki odwiedzin Google Analytics 4 – wyłącznie po zgodzie",
+        ],
+        recipients=[HOSTING_RECIPIENT, ANALYTICS_RECIPIENT],
+        retention=(
+            "dziennik zdarzeń – bezterminowo w postaci bez danych osobowych w treści wpisu; "
+            "dane analityczne – zgodnie z ustawieniem usługi Google Analytics 4"
+        ),
+        measures=[
+            "analityka domyślnie wyłączona: bez identyfikatora w ustawieniach serwisu nie wczytuje "
+            "się ani jeden skrypt podmiotu trzeciego",
+            "tryb zgody (Consent Mode v2): przed kliknięciem zgody nie powstaje cookie analityczne",
+            "polityka Content-Security-Policy bez kodu inline, zamknięta lista dostawców osadzeń",
+        ],
+    ),
+)
+
+#: Nagłówki eksportu CSV. Kolejność i brzmienie są kontraktem tego pliku – rejestr bywa wklejany
+#: do dokumentacji organizatora i do korespondencji z organem nadzorczym.
+CSV_HEADERS = (
+    "Czynność przetwarzania",
+    "Cel",
+    "Podstawa prawna",
+    "Kategorie osób",
+    "Kategorie danych",
+    "Odbiorcy",
+    "Okres przechowywania",
+    "Środki techniczne i organizacyjne",
+)
+
+
+def as_rows() -> list[list[str]]:
+    """Rejestr jako wiersze tekstu – materiał eksportu CSV.
+
+    Listy wieloelementowe sklejamy średnikiem, a nie nową linią: plik CSV z wieloliniowymi
+    komórkami otwiera się poprawnie w arkuszu, ale przestaje się czytać w terminalu i w diffie,
+    a to jest drugi sposób, w jaki ten rejestr bywa oglądany.
+    """
+    return [
+        [
+            activity.name,
+            activity.purpose,
+            activity.legal_basis,
+            activity.subjects,
+            "; ".join(activity.categories),
+            "; ".join(activity.recipients),
+            activity.retention,
+            "; ".join(activity.measures),
+        ]
+        for activity in ACTIVITIES
+    ]

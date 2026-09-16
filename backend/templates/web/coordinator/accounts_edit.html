@@ -1,6 +1,7 @@
-{% extends "base.html" %}
+{% extends "web/coordinator/base.html" %}
 {% load static %}
 {% load web_extras %}
+{% load coordinator_extras %}
 {% comment %}
   Edycja jednego konta przez koordynatora. Trzy bloki w **jednym** formularzu (konto, profil
   uczestnika, profil komitetu), bo to jedno zdarzenie: „koordynator poprawił dane tego konta”,
@@ -18,13 +19,24 @@
     <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/school-picker.js' %}"></script>
   {% endif %}
 {% endblock %}
-{% block content %}
-<div class="page-head">
-  <span class="eyebrow"><a href="{% url 'web:coordinator-accounts' %}">Konta</a></span>
-  <h1>{{ account.email }}</h1>
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-accounts' %}">Konta</a>{% endblock %}
+{% block panel_title %}{{ account.email }}{% endblock %}
+{% block panel_lead %}
   <p class="lead">{{ role }} · konto {{ status_label }} · założone {{ account.date_joined|local_datetime }}
     {% if participant %} · kod publiczny {{ participant.public_code }}{% endif %}</p>
-</div>
+{% endblock %}
+{% block panel_actions %}
+  {% comment %}
+    Ten ekran poprawia **dane konta** i tyle. Pytania o przebieg zawodów (czy praca doszła, kto
+    ją ocenia, co ogłoszono, czy jest reklamacja) mają własną stronę – stąd odnośnik w nagłówku,
+    a nie doklejanie kolejnych tabel do formularza, w którym łatwo przypadkiem coś zapisać.
+  {% endcomment %}
+  {% participant_card_url participant as card_url %}
+  {% if card_url %}
+    <a class="btn btn--secondary" href="{{ card_url }}">Karta uczestnika</a>
+  {% endif %}
+{% endblock %}
+{% block panel_content %}
 
 {% if protected %}
   {% comment %}
@@ -141,4 +153,27 @@
     </div>
   </form>
 {% endif %}
+
+{% comment %}
+  Eksport danych konta (art. 20 RODO) stoi **poza** formularzem edycji i tak musi zostać:
+  formularzy nie da się zagnieżdżać, a to jest inna czynność – wydanie kopii danych, a nie ich
+  zmiana. Jest dostępny także dla konta chronionego: prawo do przenoszenia danych ma każdy,
+  niezależnie od tego, czy jego dane wolno z tego ekranu edytować.
+
+  Paczka jest dokładnie tą samą, którą uczestnik pobiera sam spod ``/account/export/`` –
+  koordynator nie dostaje ani jednego pola więcej. W aktach zostaje jego nazwisko przy akcji
+  ``account.exported_by_coordinator``.
+{% endcomment %}
+<section class="section">
+  <div class="card card--quiet">
+    <h2 class="mt-0">Eksport danych (art. 20 RODO)</h2>
+    <p class="hint">Paczka ZIP z plikiem <code>dane.json</code> i rozwiązaniami wgranymi przez tę
+      osobę. Ten sam zakres, który właściciel konta pobiera sam ze swojego profilu – bez
+      komentarzy wewnętrznych komitetu i bez cudzych danych. Wydanie paczki zostaje w audycie.</p>
+    <form method="post" action="{% url 'web:coordinator-account-export' account.pk %}" class="inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn--secondary">Pobierz dane konta</button>
+    </form>
+  </div>
+</section>
 {% endblock %}

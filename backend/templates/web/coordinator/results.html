@@ -1,0 +1,84 @@
+{% extends "web/coordinator/base.html" %}
+{% load web_extras %}
+{% comment %}
+  Wyniki jednego etapu: przeliczenie (podgląd) i publikacja.
+
+  Wejście na stronę **niczego nie liczy** – przeliczenie zapisuje sumy punktów wpisów i odmawia,
+  gdy któraś praca jest jeszcze w ocenianiu, więc jest decyzją, a nie skutkiem ubocznym otwarcia
+  adresu. Podgląd pojawia się dopiero po kliknięciu i zawiera dane osobowe: to materiał dla
+  koordynatora, nigdy publikacja.
+{% endcomment %}
+{% block title %}Wyniki: {{ stage.display_name }} – panel koordynatora{% endblock %}
+{% block panel_title %}Wyniki: {{ stage.display_name }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Edycja {{ stage.edition.year_label }}. Najpierw przeliczenie – żeby zobaczyć
+    tabelę i próg – potem publikacja, która zamraża wersję zanonimizowaną dla wszystkich.</p>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Stan</h2>
+    <dl class="meta-list">
+      <dt>Etap</dt><dd>{% if stage.closed_at %}zamknięty {{ stage.closed_at|local_datetime }}{% else %}otwarty{% endif %}</dd>
+      <dt>Okno reklamacji</dt>
+      <dd>{{ stage.appeal_window_opens_at|local_datetime }} – {{ stage.appeal_window_closes_at|local_datetime }}</dd>
+      <dt>Publikacja</dt>
+      <dd>
+        {% if publication %}
+          ogłoszona {{ publication.published_at|local_datetime }} ({{ publication.rows|length }} wierszy)
+        {% else %}
+          wyniki nie są jeszcze ogłoszone
+        {% endif %}
+      </dd>
+    </dl>
+    <div class="stage-panel__actions">
+      <form method="post" action="{% url 'web:coordinator-compute' stage.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn--secondary">Przelicz wyniki (podgląd)</button>
+        <span class="hint">Nie ogłasza niczego. Odmawia, dopóki którakolwiek praca jest w ocenianiu.</span>
+      </form>
+      <form method="post" action="{% url 'web:coordinator-publish' stage.pk %}">
+        {% csrf_token %}
+        {{ publish_form.as_p }}
+        <button type="submit" class="btn btn--primary">Opublikuj wyniki</button>
+      </form>
+    </div>
+    {% if publication %}
+      <p class="card__foot"><a href="{% url 'web:results' stage.pk %}">Ogłoszona tabela wyników</a></p>
+    {% endif %}
+  </div>
+</section>
+
+{% if preview %}
+  <section class="section">
+    <div class="section__head">
+      <h2 class="mt-0">Podgląd wyników etapu {{ preview.stage.display_name }}</h2>
+      <span class="badge badge--danger">dane osobowe</span>
+    </div>
+    <p class="hint">Widok wyłącznie dla koordynatora – zawiera dane osobowe i nie jest publikacją.</p>
+    <div class="scroll">
+      <table class="table table--rank">
+        <thead><tr><th>Miejsce</th><th>Kod</th><th>Imię i nazwisko</th><th>Szkoła</th><th>Województwo</th><th>Razem</th></tr></thead>
+        <tbody>
+          {% for row in preview.rows %}
+            <tr>
+              <td>{{ row.rank }}</td>
+              <td><span class="code-chip">{{ row.public_code }}</span></td>
+              <td>{{ row.first_name }} {{ row.last_name }}</td>
+              <td>{{ row.school }}</td>
+              <td>{{ row.district }}</td>
+              <td class="num total">{{ row.total }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6" class="empty">Do tego etapu nikt się nie zapisał – nie ma czego
+              przeliczać.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% else %}
+  <p class="hint">Tabela pojawi się po kliknięciu „Przelicz wyniki (podgląd)”.</p>
+{% endif %}
+{% endblock %}

@@ -1763,7 +1763,34 @@ def _is_clean(submission: Submission) -> bool:
     return submission_file is not None and submission_file.is_clean
 
 
-def stage_assignment_rows(stage: Stage, query: str = "") -> list[dict]:
+#: Filtry statusu ekranu „Przydziały i oceny”: klucz adresu → (etykieta, statusy pracy).
+#:
+#: Grupy, a nie surowe statusy z modelu, bo koordynator myśli krokami obiegu („co czeka na
+#: przydział”, „co już ocenione”), a nie nazwami stanów: „ocenione” to trzy różne stany
+#: dokumentacji tej samej pracy (wstępna, w reklamacji, ostateczna) i rozbicie ich na trzy pozycje
+#: filtra kazałoby klikać trzy razy, żeby zobaczyć jedną rzecz.
+ASSIGNMENT_STATUS_FILTERS: dict[str, tuple[str, tuple[str, ...]]] = {
+    "submitted": ("oddane", (SubmissionStatus.SUBMITTED,)),
+    # „Do przydziału” to dokładnie ``LOCKED``: pierwszy przydział przestawia pracę na ``IN_REVIEW``,
+    # więc praca zablokowana bez recenzenta nie ma innego stanu, w którym mogłaby czekać.
+    "to_assign": ("do przydziału", (SubmissionStatus.LOCKED,)),
+    "in_review": ("w ocenie", (SubmissionStatus.IN_REVIEW,)),
+    "moderation": ("moderacja", (SubmissionStatus.MODERATION,)),
+    "graded": (
+        "ocenione",
+        (SubmissionStatus.GRADED_PROVISIONAL, SubmissionStatus.APPEALED, SubmissionStatus.FINAL),
+    ),
+}
+
+
+def stage_assignment_rows(
+    stage: Stage,
+    query: str = "",
+    *,
+    problem_id: int | None = None,
+    status: str = "",
+    reviewer_id: int | None = None,
+) -> list[dict]:
     """Prace etapu w obiegu oceniania: recenzenci, oceny cząstkowe i ocena końcowa w jednym wierszu.
 
     Lista jest szersza niż sam przydział (``_assignable_submissions``) i celowo: ekran odpowiada
@@ -1783,6 +1810,16 @@ def stage_assignment_rows(stage: Stage, query: str = "") -> list[dict]:
     zamknięciem etapu: koordynator musi widzieć, co czeka na wciągnięcie do oceny, i móc wciągnąć
     pojedynczą pracę (``lockable``) bez blokowania całego etapu. Przydziału ani oceny końcowej
     taki wiersz nie przyjmuje – najpierw blokada, potem recenzenci.
+
+    Pozostałe filtry zawężają tę samą listę i składają się ze sobą (są koniunkcją, nie alternatywą):
+    ``problem_id`` – jedno zadanie, ``status`` – krok obiegu z ``ASSIGNMENT_STATUS_FILTERS``,
+    ``reviewer_id`` – prace, które ta osoba ma **w ręku** (recenzja nieanulowana; odebraną pracę
+    widać w historii wiersza, ale nie w kolejce recenzenta).
+
+    Status i recenzent są dobierane **po** wyborze najnowszej wersji pracy, a nie w zapytaniu:
+    filtr w SQL wyciągnąłby starszą wersję o pasującym statusie i postawił ją w tabeli zamiast tej,
+    którą naprawdę się ocenia. ``problem_id`` może iść do zapytania, bo zadanie jest częścią klucza,
+    po którym wybieramy wersję.
     """
     rows_qs = (
         Submission.objects.filter(
@@ -1800,12 +1837,18 @@ def stage_assignment_rows(stage: Stage, query: str = "") -> list[dict]:
         .prefetch_related(models.Prefetch("files", queryset=SubmissionFile.objects.order_by("-id")))
         .order_by("entry_id", "problem_id", "-version")
     )
+    if problem_id:
+        rows_qs = rows_qs.filter(problem_id=problem_id)
     # Po jednej, najnowszej wersji na (wpis, zadanie) – ta sama zasada, co przy przydziale: starsza
     # wersja nie może stanąć w tabeli obok nowszej i kusić do wpisania oceny nie tam, gdzie trzeba.
     best: dict[tuple[int, int], Submission] = {}
     for submission in rows_qs:
         best.setdefault((submission.entry_id, submission.problem_id), submission)
     submissions = list(best.values())
+
+    wanted = ASSIGNMENT_STATUS_FILTERS.get((status or "").strip())
+    if wanted:
+        submissions = [item for item in submissions if item.status in wanted[1]]
 
     text = (query or "").strip()
     if text:
@@ -1824,6 +1867,16 @@ def stage_assignment_rows(stage: Stage, query: str = "") -> list[dict]:
         .order_by("round", "id")
     ):
         reviews.setdefault(review.submission_id, []).append(review)
+    if reviewer_id:
+        submissions = [
+            submission
+            for submission in submissions
+            if any(
+                review.reviewer_id == reviewer_id and review.status != ReviewStatus.CANCELLED
+                for review in reviews.get(submission.pk, ())
+            )
+        ]
+        submission_ids = [item.pk for item in submissions]
     grades = {
         grade.submission_id: grade for grade in FinalGrade.objects.filter(submission_id__in=submission_ids)
     }

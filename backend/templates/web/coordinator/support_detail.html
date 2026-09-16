@@ -1,0 +1,92 @@
+{% extends "web/coordinator/base.html" %}
+{% load web_extras %}
+{% comment %}
+  Wątek jednej sprawy widziany przez organizatora. Różni się od wersji uczestnika jedną rzeczą:
+  jest tu kontekst techniczny zebrany w chwili zgłoszenia. To on odpowiada na pytania, które
+  koordynator musiałby inaczej zadać zwrotnie („z której strony pisałeś”, „w jakiej przeglądarce”,
+  „co robiłeś przed chwilą”) i dzięki któremu pierwsza odpowiedź bywa już odpowiedzią.
+{% endcomment %}
+{% block title %}Zgłoszenie #{{ ticket.pk }} – panel koordynatora{% endblock %}
+{# Ekran, na który wchodzi się z kolejki – nadrzędnym ekranem jest ona, a nie pulpit. #}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-support' %}">Zgłoszenia</a>{% endblock %}
+{% block panel_title %}#{{ ticket.pk }} {{ ticket.subject }}{% endblock %}
+{% block panel_lead %}
+  <p class="row">
+    <span class="badge {% if ticket.is_open %}badge--warn{% elif ticket.is_closed %}badge--neutral{% else %}badge--ok{% endif %}">
+      {{ ticket.get_status_display }}</span>
+    <span class="badge badge--info">{{ ticket.get_category_display }}</span>
+    <span class="badge badge--neutral">zgłoszone: {{ ticket.created_at|local_datetime }}</span>
+    {% if ticket.answered_at %}<span class="badge badge--neutral">odpowiedź: {{ ticket.answered_at|local_datetime }}</span>{% endif %}
+  </p>
+  <p class="hint">
+    {% if ticket.user %}{{ ticket.user.email }}{% else %}{{ ticket.email }} (zgłoszenie bez konta){% endif %}
+    {% if ticket.role_snapshot %} · rola w chwili zgłoszenia: {{ ticket.role_snapshot }}{% endif %}
+  </p>
+{% endblock %}
+{% block panel_content %}
+
+<div class="card card--quiet">
+  <h2 class="mt-0">Kontekst techniczny</h2>
+  <p class="hint">Zebrany automatycznie w chwili zgłoszenia. Bez haseł, ciasteczek i zawartości
+    formularzy – „ostatnia czynność” to sama nazwa akcji z dziennika zdarzeń, nie jej treść.
+    Adres strony pochodzi od przeglądarki zgłaszającego, więc jest wskazówką, a nie dowodem.</p>
+  <dl class="meta-list">
+    {% for key, value in context_rows %}
+      <dt>{{ key }}</dt>
+      <dd>{% if value %}{{ value }}{% else %}—{% endif %}</dd>
+    {% empty %}
+      <dt>—</dt><dd>zgłoszenie bez kontekstu (starsze albo wysłane spoza formularza)</dd>
+    {% endfor %}
+  </dl>
+</div>
+
+{% for message in thread %}
+  <article class="card {% if message.from_coordinator %}card--accent{% else %}card--quiet{% endif %}">
+    <p class="hint">
+      {% if message.from_coordinator %}Organizator{% else %}Zgłaszający{% endif %}
+      {% if message.author %}({{ message.author.email }}){% endif %} · {{ message.created_at|local_datetime }}
+    </p>
+    <p class="quote">{{ message.body|linebreaksbr }}</p>
+  </article>
+{% endfor %}
+
+{% if ticket.is_closed %}
+  <p class="hint">Zgłoszenie jest zamknięte{% if ticket.closed_at %} od {{ ticket.closed_at|local_datetime }}{% endif %}.
+    Zamknięta sprawa nie przyjmuje już wypowiedzi – z żadnej strony.</p>
+{% else %}
+  <section class="section">
+    <div class="card">
+      <h2 class="mt-0">Odpowiedz</h2>
+      <p class="hint">Odpowiedź trafia do wątku i idzie powiadomieniem na adres zgłaszającego.
+        Sam list nie niesie treści odpowiedzi – tylko informację, że jest, i odnośnik do wątku.</p>
+      <form method="post" class="form" novalidate>
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        <p>
+          {{ form.body.errors }}
+          {{ form.body.label_tag }}
+          {{ form.body }}
+        </p>
+        <p>
+          {{ form.close }} {{ form.close.label_tag }}
+        </p>
+        <div class="actions">
+          <button type="submit" class="btn btn--primary">Wyślij odpowiedź</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  {% comment %}
+    Zamknięcie bez odpowiedzi jest osobnym formularzem, bo jest osobną decyzją: zgłoszenie bywa
+    duplikatem albo pomyłką, a wymuszanie na to zdania byłoby wymuszaniem pustego zdania.
+  {% endcomment %}
+  <form method="post" class="inline"
+        x-data="confirmSubmit" x-on:submit="check"
+        data-confirm="Zamknąć zgłoszenie bez odpowiedzi? Zgłaszający nie dostanie powiadomienia.">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="close">
+    <button type="submit" class="btn btn--ghost btn--small">Zamknij bez odpowiedzi</button>
+  </form>
+{% endif %}
+{% endblock %}

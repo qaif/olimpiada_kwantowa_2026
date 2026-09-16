@@ -1,0 +1,124 @@
+{% load i18n web_extras %}{% comment %}
+  Zakładka „Zadania”: karta etapu, zapis, rozwiązania (albo rozmowa) i piaskownica treningowa.
+  Domyślna zakładka pulpitu – to po nią uczestnik przychodzi najczęściej.
+
+  Odliczania tu nie ma: stoi w nagłówku „Co teraz”, jedno na cały panel. Dwa liczniki tej samej
+  daty na jednym ekranie to nie jest podkreślenie terminu, tylko dwa miejsca, które mogą się
+  rozjechać.
+{% endcomment %}
+{% if stage %}
+  <section class="section" id="etap">
+    <div class="card card--accent">
+      <div class="card__head">
+        <h2 class="mt-0 card__title">{{ stage.display_name }} – {{ edition.year_label }}</h2>
+        {% if entry %}
+          <span class="{{ entry.status|badge_class }}">{{ entry.get_status_display }}</span>
+        {% endif %}
+      </div>
+
+      {% comment %}
+        Etap stacjonarny ma dwa terminy i uczestnik potrzebuje obu: dni, na które przyjeżdża,
+        i godzinę, do której system przyjmuje pracę (ta druga jest w nagłówku „Co teraz”).
+        Podpis i data muszą zostać w **jednym** wierszu wyniku („Termin wydarzenia: <strong>…”):
+        złamanie szablonu wstawiłoby między nie wcięcie, a to jest zdanie, nie lista.
+      {% endcomment %}
+      {% if stage.event_range %}
+        <p class="card__meta">{% translate "Termin wydarzenia:" %} <strong>{{ stage|event_dates }}</strong>{% if stage.location %}, {{ stage.location }}{% endif %}.
+          {% translate "Godziny oddania rozwiązań powyżej obowiązują niezależnie od dni pobytu." %}</p>
+      {% endif %}
+
+      {% if can_register %}
+        <form method="post" action="{% url 'web:stage-register' stage.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn--accent">
+            {% if stage.is_training %}{% translate "Zgłoś się do treningu" %}{% else %}{% translate "Zgłoś się do tego etapu" %}{% endif %}</button>
+        </form>
+      {% elif entry %}
+        <p class="card__meta">{% translate "Status Twojego udziału:" %}
+          <strong>{{ entry.get_status_display }}</strong>.</p>
+      {% elif stage.is_interview %}
+        <p class="card__meta">{% translate "Do rozmowy kwalifikacyjnej przystępują wyłącznie osoby zakwalifikowane w poprzednim etapie. Nie ma tu zapisów otwartych." %}</p>
+      {% else %}
+        {% comment %}
+          Nazwy etapów („Etap I/II/III”) ustala koordynator, więc komunikat ich nie wymienia –
+          mówi o regule: do dalszych etapów nie ma zapisów, wpis tworzy kwalifikacja z etapu
+          poprzedniego.
+        {% endcomment %}
+        <p class="card__meta">{% translate "Do tego etapu nie ma zapisów – przechodzą do niego osoby zakwalifikowane w poprzednim etapie." %}</p>
+      {% endif %}
+    </div>
+  </section>
+
+  {% if entry %}
+    {% if stage.is_interview %}
+      {% include "web/participant/_interview.html" %}
+    {% else %}
+      <section class="section" id="zadania">
+        <div class="section__head">
+          <h2 class="mt-0">{% translate "Zadania" %}</h2>
+          {% if not upload_open %}
+            <span class="badge badge--warn">{% translate "upload zamknięty" %}</span>
+          {% endif %}
+        </div>
+        {% if not upload_open %}
+          <p class="msg msg-warning closed">{% translate "Etap jest zamknięty – nie można już wysyłać rozwiązań." %}</p>
+        {% endif %}
+        {% for row in problem_rows %}
+          {% include "web/participant/_problem_card.html" with row=row stage=stage entry=entry upload_open=upload_open error=None %}
+        {% empty %}
+          <p class="empty"><span class="empty__title">{% translate "Brak zadań" %}</span>
+            {% translate "Ten etap nie ma jeszcze opublikowanych zadań." %}</p>
+        {% endfor %}
+      </section>
+    {% endif %}
+  {% endif %}
+{% else %}
+  <p class="notice">{% translate "Nie ustawiono bieżącej edycji olimpiady." %}</p>
+{% endif %}
+
+{% comment %}
+  Trening jest osobną kartą, a nie kolejnym „etapem bieżącym”: jest otwarty bez końca, więc
+  w karcie wyżej zasłaniałby najbliższe zawody. Stoi pod nią, bo to oferta obok zawodów – i poza
+  blokiem `{% if stage %}`, żeby był dostępny także w przerwie między etapami.
+
+  Upload działa tu dokładnie tak, jak w etapie zawodów (ten sam ``_problem_card.html``, ten sam
+  serwis, ta sama historia wersji i skan antywirusowy) – w tym cała wartość piaskownicy: ścieżka
+  „prawie jak prawdziwa” nie nauczyłaby niczego o prawdziwej.
+{% endcomment %}
+{% if training_stage %}
+  <section class="section" id="trening">
+    <div class="card">
+      <div class="card__head">
+        <h2 class="mt-0 card__title">{{ training_stage.display_name }}</h2>
+        {% if training_entry %}
+          <span class="{{ training_entry.status|badge_class }}">{{ training_entry.get_status_display }}</span>
+        {% else %}
+          <span class="badge badge--neutral">{% translate "trening" %}</span>
+        {% endif %}
+      </div>
+      <p class="card__meta">{% translate "Bez terminu i poza kwalifikacją – te zadania nie wpływają na wyniki zawodów. Służą do przejścia całej ścieżki: zgłoszenie, pobranie treści, wysłanie rozwiązania i odbiór oceny." %}</p>
+
+      {% if training_can_register %}
+        <form method="post" action="{% url 'web:stage-register' training_stage.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn--accent">{% translate "Zgłoś się do treningu" %}</button>
+        </form>
+      {% endif %}
+    </div>
+
+    {% if training_entry %}
+      <div class="section__head">
+        <h3 class="mt-0">{% translate "Zadania treningowe" %}</h3>
+        {% if not training_upload_open %}
+          <span class="badge badge--warn">{% translate "upload zamknięty" %}</span>
+        {% endif %}
+      </div>
+      {% for row in training_problem_rows %}
+        {% include "web/participant/_problem_card.html" with row=row stage=training_stage entry=training_entry upload_open=training_upload_open error=None %}
+      {% empty %}
+        <p class="empty"><span class="empty__title">{% translate "Brak zadań" %}</span>
+          {% translate "Etap treningowy nie ma jeszcze opublikowanych zadań." %}</p>
+      {% endfor %}
+    {% endif %}
+  </section>
+{% endif %}

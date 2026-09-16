@@ -77,6 +77,24 @@ class SubmissionStorage(ABC):
     def exists(self, key: str) -> bool:
         """Czy obiekt istnieje. Używane w smoke testach i w adminie."""
 
+    def healthy(self) -> bool:
+        """Czy storage w ogóle odpowiada. Dla strony statusu (``/status/``), nie dla domeny.
+
+        Osobno od ``exists``, bo to inne pytanie: ``exists`` pyta o **obiekt** i fałsz znaczy tam
+        „nie ma takiego pliku”, a na stronie statusu fałsz ma znaczyć „magazyn nie odpowiada”.
+        Sklejenie obu dawałoby stronę, która przy pustym buckecie melduje awarię.
+
+        Domyślna implementacja jest najtańszym pytaniem, jakie da się zadać przez ten interfejs:
+        pytamy o klucz, którego na pewno nie ma. Odpowiedź (jakakolwiek) znaczy, że magazyn żyje;
+        wyjątek – że nie. Backendy, które potrafią zapytać taniej albo dokładniej, nadpisują tę
+        metodę.
+        """
+        try:
+            self.exists("healthz/nieistniejacy-klucz")
+        except Exception:  # noqa: BLE001 - strona statusu ma pokazać „nie działa”, a nie 500
+            return False
+        return True
+
 
 @lru_cache(maxsize=4)
 def _s3_client(endpoint_url: str, access_key: str, secret_key: str, region: str):
@@ -172,6 +190,19 @@ class S3SubmissionStorage(SubmissionStorage):
         try:
             self.client.head_object(Bucket=self.bucket, Key=key)
         except ClientError:
+            return False
+        return True
+
+    def healthy(self) -> bool:
+        """``HeadBucket`` – jedno żądanie bez treści, sprawdzające i połączenie, i poświadczenia.
+
+        Domyślna implementacja (pytanie o nieistniejący klucz) też by zadziałała, ale ``HeadBucket``
+        odpowiada wprost na pytanie strony statusu: „czy ten bucket jest dla nas osiągalny”.
+        Odmowa dostępu jest tu równie ważna, co brak połączenia – rozwiązania i tak nie dojdą.
+        """
+        try:
+            self.client.head_bucket(Bucket=self.bucket)
+        except Exception:  # noqa: BLE001 - strona statusu ma pokazać „nie działa”, a nie 500
             return False
         return True
 

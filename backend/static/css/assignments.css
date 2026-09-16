@@ -1,0 +1,331 @@
+/* Ekran „Przydziały i oceny” panelu koordynatora.
+ *
+ * Osobny arkusz, a nie dopiski do ``app.css`` (wspólny dla całego serwisu) ani do
+ * ``coordinator.css`` (szkielet panelu): te style opisują **jedną tabelę** i mają sens wyłącznie
+ * na niej. Strona publiczna nie musi ich pobierać, a zmiana tutaj nie może ruszyć niczego indziej.
+ *
+ * Wszystkie kolory i odstępy pochodzą ze zmiennych ``app.css`` – wysokokontrastowy motyw
+ * i ewentualny tryb ciemny przestawiają je w jednym miejscu, więc ten plik nie zna ani jednej
+ * wartości heksadecymalnej.
+ *
+ * Prefiks ``asg-`` na każdej klasie: na tej stronie stoją obok siebie klasy trzech właścicieli
+ * (``app.css``, ``coordinator.css`` i ten plik), a prefiks jest jedyną gwarancją, że nazwa
+ * ``.chip`` dołożona kiedyś przez kogoś innego nie przemaluje recenzentów w tabeli.
+ */
+
+/* --- nagłówek: stan etapu i liczniki ---------------------------------------------------------- */
+
+.asg-state {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+.asg-assign-all {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.asg-assign-all input[type="number"] {
+  width: 4.5rem;
+}
+
+/* Liczniki są odnośnikami filtra, więc muszą wyglądać na klikalne i pokazywać, który jest
+   włączony – samo pogrubienie liczby nie odróżnia stanu „12 prac” od „pokazuję 12 prac”. */
+.asg-counters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin: var(--sp-4) 0;
+}
+
+.asg-counter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 7rem;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.asg-counter:hover,
+.asg-counter:focus-visible {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+
+.asg-counter--active {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+
+.asg-counter__value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.asg-counter__label {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+/* --- reguły zadań (zwinięte) ------------------------------------------------------------------ */
+
+.asg-rules {
+  margin-bottom: var(--sp-6);
+}
+
+.asg-rules__summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* --- filtry ----------------------------------------------------------------------------------- */
+
+.asg-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  align-items: flex-end;
+  margin: var(--sp-4) 0;
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.asg-filters__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.asg-filters__field label {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.asg-filters__actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+/* --- pasek czynności zbiorczych ---------------------------------------------------------------- */
+
+.asg-bulk {
+  margin: var(--sp-4) 0;
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--brand);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.asg-bulk__head {
+  margin: 0 0 var(--sp-2);
+  font-weight: 600;
+}
+
+.asg-bulk__count {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.asg-bulk__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+/* --- tabela prac -------------------------------------------------------------------------------- */
+
+.asg-table td,
+.asg-table th {
+  vertical-align: top;
+}
+
+.asg-who {
+  white-space: nowrap;
+}
+
+.asg-who__name {
+  display: block;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.asg-file {
+  white-space: nowrap;
+}
+
+/* Status pracy jako odznaka o tonie kroku obiegu: „oddane” i „ocenione” muszą się różnić z odległości
+   ekranu, bo to po nich koordynator skanuje kolumnę, a nie po treści napisu. */
+.asg-status {
+  display: inline-block;
+  padding: 0.1rem var(--sp-2);
+  border-radius: var(--radius-sm);
+  background: var(--neutral-soft);
+  color: var(--neutral-ink);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.asg-status--submitted {
+  background: var(--info-soft);
+  color: var(--info-ink);
+}
+
+.asg-status--locked,
+.asg-status--in_review {
+  background: var(--warn-soft);
+  color: var(--warn-ink);
+}
+
+.asg-status--moderation {
+  background: var(--danger-soft);
+  color: var(--danger-ink);
+}
+
+.asg-status--graded_provisional,
+.asg-status--final {
+  background: var(--ok-soft);
+  color: var(--ok-ink);
+}
+
+/* --- recenzenci jako „chipy” --------------------------------------------------------------------- */
+
+.asg-reviews {
+  min-width: 22rem;
+}
+
+.asg-chip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-2);
+  align-items: baseline;
+  margin-bottom: var(--sp-2);
+  padding: var(--sp-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+/* Recenzja anulowana zostaje w wierszu jako informacja („próbowaliśmy, cofnięto”), ale nie może
+   konkurować wzrokowo z recenzjami, które się liczą. */
+.asg-chip--off {
+  opacity: 0.65;
+}
+
+.asg-chip__who {
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.asg-chip__status {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.asg-chip__score {
+  font-weight: 700;
+}
+
+.asg-chip__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+  margin-left: auto;
+}
+
+/* --- formularze rozwijane ------------------------------------------------------------------------ */
+
+.asg-edit__summary,
+.asg-history__summary {
+  cursor: pointer;
+  color: var(--link);
+  font-size: 0.8125rem;
+}
+
+.asg-edit__summary:hover,
+.asg-history__summary:hover {
+  color: var(--link-hover);
+}
+
+.asg-edit__form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+  margin-top: var(--sp-2);
+  padding: var(--sp-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.asg-edit__form.stack {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.asg-final__score {
+  margin: 0 0 var(--sp-2);
+}
+
+.asg-actions {
+  min-width: 14rem;
+}
+
+.asg-assign {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+  margin-bottom: var(--sp-2);
+}
+
+/* --- historia wiersza ---------------------------------------------------------------------------- */
+
+.asg-history__list {
+  margin: var(--sp-2) 0 0;
+  padding-left: var(--sp-4);
+  font-size: 0.8125rem;
+}
+
+.asg-history__list li {
+  margin-bottom: var(--sp-1);
+}
+
+/* Wpis audytu bywa długim JSON-em. Łamiemy go, zamiast pozwolić mu rozepchnąć tabelę w bok –
+   pozioma przewijarka całej tabeli ma służyć kolumnom, a nie jednemu polu ``diff``. */
+.asg-history__diff {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+}
+
+/* --- wąskie ekrany ------------------------------------------------------------------------------- */
+
+@media (max-width: 60rem) {
+  .asg-reviews,
+  .asg-actions {
+    min-width: 0;
+  }
+
+  .asg-chip__actions {
+    margin-left: 0;
+  }
+}

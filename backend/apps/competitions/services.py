@@ -109,6 +109,14 @@ REGISTRATION_EDITABLE_FIELDS = (
     "registration_closes_at",
 )
 
+#: Okres retencji danych osobowych. Stoi na tym samym ekranie, co okno rejestracji, bo obie
+#: wartości odpowiadają na to samo pytanie o **ramy czasowe edycji**: od kiedy wolno zbierać dane
+#: i do kiedy wolno je trzymać. Osobna stała, bo to nie jest ustawienie rejestracji – wskazuje ją
+#: wprost ``EDITION_EDITABLE_FIELDS``, czyli pełna lista pól, które panel koordynatora zmienia.
+RETENTION_EDITABLE_FIELDS = ("data_retention_months",)
+
+EDITION_EDITABLE_FIELDS = (*REGISTRATION_EDITABLE_FIELDS, *RETENTION_EDITABLE_FIELDS)
+
 
 def current_edition() -> Edition | None:
     """Bieżąca edycja albo ``None``. Unikalność ``is_current`` gwarantuje constraint w bazie."""
@@ -543,12 +551,12 @@ def update_stage(stage: Stage, actor, *, request=None, now=None, **fields) -> St
     return locked
 
 
-# --- okno rejestracji uczestników --------------------------------------------------------------
+# --- ramy czasowe edycji: okno rejestracji i retencja danych ------------------------------------
 
 
 @transaction.atomic
 def update_registration_window(edition: Edition, *, actor, request=None, **fields) -> Edition:
-    """Zmiana okna rejestracji uczestników z panelu koordynatora. Zwraca edycję po zapisie.
+    """Zmiana ram czasowych edycji z panelu koordynatora. Zwraca edycję po zapisie.
 
     Reguła jest jedna i wyrażalna w modelu (otwarcie przed zamknięciem), więc pilnuje jej
     ``full_clean()`` – ten sam warunek, co constraint w bazie i co komunikat pod polem formularza.
@@ -558,10 +566,15 @@ def update_registration_window(edition: Edition, *, actor, request=None, **field
 
     Wyłączenie rejestracji **nie rusza** zapisanych terminów: koordynator, który zatrzymuje zapisy
     na godzinę, ma po ponownym włączeniu odzyskać to samo okno, a nie puste pola.
+
+    Zakres pól to ``EDITION_EDITABLE_FIELDS``, czyli okno rejestracji **i** okres retencji danych.
+    Retencja jedzie tą samą drogą, bo jest tą samą decyzją o ramach czasowych edycji i ma zostawić
+    taki sam ślad w audycie – osobny serwis dla jednej liczby byłby drugą kopią blokady wiersza,
+    walidacji i wpisu audytowego.
     """
-    unknown = sorted(set(fields) - set(REGISTRATION_EDITABLE_FIELDS))
+    unknown = sorted(set(fields) - set(EDITION_EDITABLE_FIELDS))
     if unknown:  # pragma: no cover - błąd programisty, nie danych
-        raise ValueError(f"Pola spoza zakresu rejestracji: {', '.join(unknown)}.")
+        raise ValueError(f"Pola spoza zakresu ustawień edycji: {', '.join(unknown)}.")
 
     locked = Edition.objects.select_for_update().get(pk=edition.pk)
     changed = {name: value for name, value in fields.items() if getattr(locked, name) != value}

@@ -1,0 +1,47 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Wyniki wyszukiwania w panelu. Pole stoi w menu, więc ten ekran jest jedną odpowiedzią na
+  pytanie zadane z dowolnego miejsca panelu.
+
+  Wyniki są pogrupowane po rodzaju obiektu, bo ta sama fraza („Kowalski”, „3”) trafia zwykle
+  w kilka rodzajów naraz, a szukający wie, którego chce. Grupa bez trafień nie pojawia się wcale –
+  pusta sekcja „Zadania” przy szukaniu nazwiska byłaby wyłącznie szumem.
+{% endcomment %}
+{% block title %}Szukaj – panel koordynatora{% endblock %}
+{% block panel_title %}Wyniki wyszukiwania{% endblock %}
+{% block panel_lead %}
+  {% if query %}
+    <p class="lead">Fraza „{{ query }}” – znalezionych pozycji: {{ total }}.</p>
+  {% else %}
+    <p class="lead">Jedno pole na uczestników, członków komisji, zadania, etapy i zgłoszenia.
+      Szukaj po kodzie uczestnika, nazwisku, adresie e-mail, nazwie szkoły, tytule albo numerze
+      zadania.</p>
+  {% endif %}
+{% endblock %}
+{% block panel_content %}
+{% if too_short %}
+  <p class="empty"><span class="empty__title">Za krótka fraza</span>
+    Podaj co najmniej {{ min_length }} znaki – jedna litera pasuje do połowy bazy.</p>
+{% elif query and not groups %}
+  <p class="empty"><span class="empty__title">Nic nie znaleziono</span>
+    Nic nie pasuje do frazy „{{ query }}”. Spróbuj fragmentu nazwiska, kodu uczestnika albo
+    numeru zadania.</p>
+{% endif %}
+
+{% for group in groups %}
+  <section class="section search-group" id="grupa-{{ group.key }}">
+    <div class="section__head">
+      <h2 class="mt-0">{{ group.label }}</h2>
+      <p class="hint search-group__count">trafień: {{ group.hits|length }}</p>
+    </div>
+    <ul class="list">
+      {% for hit in group.hits %}
+        <li>
+          <a href="{{ hit.url }}">{{ hit.label }}</a>
+          <span class="search-hit__meta">{{ hit.meta }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endfor %}
+{% endblock %}

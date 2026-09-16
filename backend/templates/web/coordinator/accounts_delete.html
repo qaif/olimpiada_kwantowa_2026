@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "web/coordinator/base.html" %}
 {% comment %}
   Potwierdzenie usunięcia **cudzego** konta przez koordynatora. Treść jest warunkowa wobec historii
   konta, bo skutek jest różny: konto ze śladem w zawodach dostaje anonimizację (dane osobowe
@@ -7,12 +7,12 @@
   się o niej od uczestnika, którego właśnie wypisał z ogłoszonej tabeli.
 {% endcomment %}
 {% block title %}Usunięcie konta {{ account.email }} – panel koordynatora{% endblock %}
-{% block content %}
-<div class="page-head">
-  <span class="eyebrow"><a href="{% url 'web:coordinator-accounts' %}">Konta</a></span>
-  <h1>Usunięcie konta {{ account.email }}</h1>
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-accounts' %}">Konta</a>{% endblock %}
+{% block panel_title %}Usunięcie konta {{ account.email }}{% endblock %}
+{% block panel_lead %}
   <p class="lead">{{ role }}. Operacji nie da się odwrócić.</p>
-</div>
+{% endblock %}
+{% block panel_content %}
 
 <section class="section">
   <div class="card">

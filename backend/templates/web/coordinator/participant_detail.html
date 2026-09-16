@@ -1,0 +1,616 @@
+{% extends "web/coordinator/base.html" %}
+{% load static %}
+{% load web_extras %}
+{% comment %}
+  Karta uczestnika: akta jednej osoby na jednej stronie. Sekcje idą w kolejności, w jakiej
+  koordynator zadaje pytania przez telefon: kim jest (dane), na co się zgodziła (zgody), co
+  oddała i jak to oceniono (etapy i prace), co ogłoszono (wyniki), co zakwestionowała
+  (reklamacje), co się z tą sprawą działo (audyt).
+
+  Sekcje długie są w ``<details>``, a nie chowane skryptem: polityka CSP nie dopuszcza skryptów
+  inline, a strona ma działać także bez JavaScriptu. ``<details>` otwiera się kliknięciem
+  przeglądarki, więc drukowanie i wyszukiwanie w karcie zostaje po stronie przeglądarki.
+
+  Żaden formularz na tej stronie nie prowadzi do nowego adresu zapisu: wszystkie celują
+  w istniejące widoki-akcje koordynatora. Po zapisie akcja wraca tam, gdzie wraca zawsze
+  (ekran przydziałów etapu albo pulpit) – karta nie narzuca własnego powrotu.
+{% endcomment %}
+{% block title %}Karta uczestnika {{ participant.public_code }} – panel koordynatora{% endblock %}
+{% comment %}
+  Arkusz tej strony idzie przez ``panel_head``, a nie przez nadpisanie ``head``: to blok, który
+  szkielet panelu wystawia właśnie w tym celu, i tylko on nie zabiera panelowi własnego
+  ``coordinator.css``.
+{% endcomment %}
+{% block panel_head %}
+  <link rel="stylesheet" href="{% static 'css/coordinator-participant.css' %}">
+{% endblock %}
+
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-accounts' %}">Konta</a>{% endblock %}
+{% block panel_title %}Karta uczestnika {{ participant.public_code }}{% endblock %}
+
+{% block panel_lead %}
+  <p class="lead">{{ account.get_full_name|default:account.email }} ·
+    {{ participant.school }} ·
+    {% if participant.grade %}klasa {{ participant.grade }} · {% endif %}
+    {{ participant.get_district_display }}</p>
+  <p class="hint"><span class="badge badge--danger">dane osobowe</span> Tę stronę widzi wyłącznie
+    koordynator. Recenzent zobaczy w swoim panelu sam kod uczestnika.</p>
+{% endblock %}
+
+{% block panel_actions %}
+  <a class="btn btn--secondary" href="{% url 'web:coordinator-account-edit' account.pk %}">Edytuj dane</a>
+  {% comment %}
+    Aktywacja i ponowny list to dwie różne czynności dla dwóch różnych stanów konta, więc każdy
+    przycisk stoi tylko wtedy, gdy ma co zrobić: konto z potwierdzonym adresem nie ma czego
+    aktywować, a konto zablokowane przez organizatora nie czeka na link, tylko na odblokowanie
+    w formularzu edycji.
+  {% endcomment %}
+  {% if not account.email_verified_at %}
+    <form method="post" action="{% url 'web:coordinator-account-activate' account.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn--secondary">Aktywuj konto</button>
+    </form>
+    <form method="post" action="{% url 'web:coordinator-account-resend' account.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn--secondary">Wyślij link aktywacyjny</button>
+    </form>
+  {% endif %}
+  <form method="post" action="{% url 'web:coordinator-account-export' account.pk %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn--secondary">Eksportuj dane</button>
+  </form>
+  <a class="btn btn--danger" href="{% url 'web:coordinator-account-delete' account.pk %}">Usuń konto</a>
+{% endblock %}
+
+{% block panel_content %}
+
+<section class="section" id="dane">
+  <div class="card">
+    <h2 class="mt-0">Dane</h2>
+    <dl class="card-facts">
+      <dt>Imię i nazwisko</dt>
+      <dd>{{ account.get_full_name|default:"—" }}</dd>
+      <dt>Adres e-mail</dt>
+      <dd>{{ account.email }}
+        {% if account.email_verified_at %}
+          <span class="badge badge--ok">potwierdzony {{ account.email_verified_at|local_datetime }}</span>
+        {% else %}
+          <span class="badge badge--warn">niepotwierdzony</span>
+        {% endif %}
+        {% if not account.is_active %}<span class="badge badge--danger">logowanie zablokowane</span>{% endif %}
+      </dd>
+      <dt>Telefon</dt>
+      <dd>{{ participant.phone|default:"—" }}</dd>
+      <dt>Szkoła</dt>
+      <dd>{{ participant.school }}
+        {% if participant.school_ref %}
+          <span class="badge badge--neutral">z wykazu SIO</span>
+        {% else %}
+          {# Szkoła wpisana ręcznie nie jest błędem (wykaz nie zna placówek zagranicznych ani
+             najnowszych), ale koordynator ma prawo wiedzieć, że nikt jej nie sprawdził. #}
+          <span class="badge badge--warn">wpisana ręcznie</span>
+        {% endif %}
+      </dd>
+      <dt>Klasa</dt>
+      <dd>{{ participant.grade|default:"—" }}</dd>
+      <dt>Województwo</dt>
+      <dd>{{ participant.get_district_display }}</dd>
+      <dt>Rok urodzenia</dt>
+      <dd>{{ participant.birth_year }}</dd>
+      <dt>Kod publiczny</dt>
+      <dd><code>{{ participant.public_code }}</code></dd>
+      <dt>Konto założone</dt>
+      <dd>{{ account.date_joined|local_datetime }}</dd>
+      <dt>Zgoda opiekuna</dt>
+      <dd>
+        {% if guardian.state == "not_required" %}
+          <span class="hint">niewymagana (uczestnik pełnoletni)</span>
+        {% elif guardian.state == "confirmed" %}
+          <span class="badge badge--ok">potwierdzona</span>
+          {{ guardian.email }}{% if guardian.record %} · {{ guardian.record.given_at|local_datetime }}{% endif %}
+        {% elif guardian.state == "pending" %}
+          <span class="badge badge--warn">prośba wysłana</span> {{ guardian.email }}
+        {% else %}
+          <span class="badge badge--danger">brak adresu opiekuna</span>
+        {% endif %}
+      </dd>
+      <dt>Opiekun szkolny</dt>
+      <dd>{{ participant.supervisor_email|default:"—" }}</dd>
+      <dt>Publikacja pełnych danych</dt>
+      <dd>{% if participant.publish_full_name %}zgoda{% else %}bez zgody{% endif %}</dd>
+    </dl>
+  </div>
+</section>
+
+<section class="section" id="zgody">
+  <div class="card">
+    <h2 class="mt-0">Zgody</h2>
+    <p class="hint">Rejestr zdarzeń, nie stan bieżący: wycofanie i ponowne wyrażenie zgody to dwa
+      osobne wiersze, a nie nadpisanie jednego. Wersja dokumentu jest kopią z chwili złożenia.</p>
+    <div class="scroll">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Rodzaj</th>
+            <th scope="col">Wersja dokumentu</th>
+            <th scope="col">Wyrażona</th>
+            <th scope="col">Wycofana</th>
+            <th scope="col">Droga</th>
+            <th scope="col">Potwierdzona z adresu</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for consent in consents %}
+            <tr>
+              <th scope="row">{{ consent.get_kind_display }}</th>
+              <td>{{ consent.document_version|default:"—" }}</td>
+              <td>{{ consent.given_at|local_datetime }}</td>
+              <td>{% if consent.withdrawn_at %}{{ consent.withdrawn_at|local_datetime }}{% else %}
+                <span class="badge badge--ok">aktywna</span>{% endif %}</td>
+              <td>{{ consent.get_source_display }}</td>
+              <td>{{ consent.given_by_email|default:"—" }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6" class="empty">Brak zapisanych zgód. Konto sprzed wprowadzenia
+              rejestru dowodowego ma wyłącznie projekcje w profilu (data zgody RODO powyżej).</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="etapy">
+  <h2>Etapy i prace</h2>
+  {% for block in stages %}
+    <div class="card participant-stage">
+      <div class="card__head">
+        <h3 class="mt-0">{{ block.stage.display_name }}
+          <span class="{{ block.entry.status|badge_class }}">{{ block.entry.get_status_display }}</span></h3>
+        <p class="hint">Edycja {{ block.stage.edition.year_label }} ·
+          <a href="{% url 'web:coordinator-stage-assignments' block.stage.pk %}">przydziały etapu</a></p>
+      </div>
+
+      <dl class="card-facts">
+        <dt>Suma punktów (bieżąca)</dt>
+        <dd>{% if block.entry.total_points is not None %}{{ block.entry.total_points }} pkt
+          {% else %}<span class="hint">jeszcze nieliczona</span>{% endif %}</dd>
+        <dt>Próg kwalifikacji</dt>
+        <dd>
+          {% if block.rule %}
+            {{ block.rule.get_mode_display }}{% if block.rule.min_points is not None %},
+              minimum {{ block.rule.min_points }} pkt{% endif %}{% if block.rule.top_n %},
+              pierwszych {{ block.rule.top_n }}{% endif %}
+          {% else %}
+            <span class="hint">etap nie ma jeszcze reguły kwalifikacji</span>
+          {% endif %}
+        </dd>
+        <dt>Decyzja komitetu</dt>
+        <dd>
+          {% comment %}
+            Decyzja ręczna wygrywa z progiem punktowym przy każdym przeliczeniu, więc stoi obok
+            reguły, a nie w osobnym miejscu: dopiero para „reguła + decyzja” tłumaczy status wpisu.
+          {% endcomment %}
+          {% if block.entry.has_manual_qualification %}
+            <strong>{{ block.entry.get_manual_qualification_display }}</strong>
+            {% if block.entry.manual_qualified_at %} · {{ block.entry.manual_qualified_at|local_datetime }}{% endif %}
+            {% if block.entry.manual_qualified_by %} · {{ block.entry.manual_qualified_by.email }}{% endif %}
+            <p class="quote">{{ block.entry.manual_qualification_reason }}</p>
+          {% else %}
+            <span class="hint">brak – rozstrzyga próg punktowy</span>
+          {% endif %}
+        </dd>
+        {% if block.booking %}
+          <dt>Rozmowa kwalifikacyjna</dt>
+          <dd>{{ block.booking.slot.starts_at|local_time }} – {{ block.booking.slot.ends_at|local_datetime }}
+            {% if block.booking.slot.note %} · {{ block.booking.slot.note }}{% endif %}
+            {% if block.booking.meeting_url %}
+              · <a href="{{ block.booking.meeting_url }}">link do rozmowy</a>
+            {% elif block.booking.slot.meeting_url %}
+              · <a href="{{ block.booking.slot.meeting_url }}">link do rozmowy</a>
+            {% endif %}
+            {% if block.booking.reminder_sent_at %}
+              · <span class="hint">przypomnienie wysłane {{ block.booking.reminder_sent_at|local_datetime }}</span>
+            {% endif %}
+          </dd>
+        {% endif %}
+      </dl>
+
+      {% for problem in block.problems %}
+        <div class="participant-problem">
+          <h4>Zadanie {{ problem.problem.number }}. {{ problem.problem.title }}
+            <span class="{{ problem.latest.status|badge_class }}">{{ problem.latest.get_status_display }}</span>
+            {% if problem.latest.is_late %}<span class="badge badge--warn">po deadline</span>{% endif %}
+          </h4>
+
+          {% comment %}
+            Wersje w ``<details>``, bo najczęściej liczy się tylko najnowsza – ale historia oddań
+            jest jedyną odpowiedzią na „przecież wysłałem to na czas”, więc musi być na tej stronie,
+            a nie w innym narzędziu.
+          {% endcomment %}
+          <details class="participant-versions">
+            <summary>Wersje pracy ({{ problem.versions|length }})</summary>
+            <div class="scroll">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th scope="col">Wersja</th>
+                    <th scope="col">Oddana</th>
+                    <th scope="col">Skan</th>
+                    <th scope="col">Stron</th>
+                    <th scope="col">Plik</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in problem.versions %}
+                    <tr>
+                      <th scope="row" class="num">v{{ row.submission.version }}</th>
+                      <td>{{ row.submission.submitted_at|local_datetime }}
+                        {% if row.submission.is_late %}<span class="badge badge--warn">po deadline</span>{% endif %}</td>
+                      <td>{% if row.file %}
+                          <span class="{{ row.file.av_status|badge_class }}">{{ row.file.get_av_status_display }}</span>
+                        {% else %}<span class="hint">brak pliku</span>{% endif %}</td>
+                      <td class="num">{{ row.file.page_count|default:"—" }}</td>
+                      <td>
+                        {% comment %}
+                          Nazwa pliku w pobraniu jest anonimowa także dla koordynatora, bo nazwa od
+                          uczestnika bywa jego nazwiskiem. Plik przed czystym skanem antywirusowym
+                          pobiera wyłącznie autor – stąd sama podpowiedź zamiast odnośnika.
+                        {% endcomment %}
+                        {% if row.downloadable %}
+                          <a class="btn btn--secondary btn--small"
+                             href="{% url 'submissions:submission-download' row.submission.pk %}">Pobierz</a>
+                        {% elif row.scan_pending %}
+                          <span class="hint">skan w toku</span>
+                        {% else %}
+                          <span class="hint">brak pliku</span>
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </details>
+
+          <div class="scroll">
+            <table class="table">
+              <caption>Ocena najnowszej wersji (v{{ problem.latest.version }})</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Recenzent</th>
+                  <th scope="col">Stan</th>
+                  <th scope="col">Punkty</th>
+                  <th scope="col">Termin</th>
+                  <th scope="col">Zmień</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for review in problem.reviews %}
+                  <tr>
+                    <th scope="row">{{ review.reviewer.user.email }}{% if review.round != 1 %}
+                      <span class="badge badge--neutral">runda {{ review.round }}</span>{% endif %}</th>
+                    <td><span class="{{ review.status|badge_class }}">{{ review.get_status_display }}</span>
+                      {% if review.cancel_reason %}
+                        <span class="hint">{{ review.get_cancel_reason_display }}</span>
+                      {% endif %}</td>
+                    <td class="num">{% if review.score is not None %}{{ review.score }}{% else %}—{% endif %}</td>
+                    <td>{{ review.due_at|local_datetime|default:"—" }}</td>
+                    <td>
+                      <div class="actions">
+                        {% if problem.scale_items %}
+                          {# Punkty ze skali **zadania** (a w jej braku – etapu), nie wolne pole:
+                             ocena spoza skali i tak nie przeszłaby przez serwis. #}
+                          <form method="post" action="{% url 'web:coordinator-review-score' review.pk %}">
+                            {% csrf_token %}
+                            <label class="visually-hidden" for="score-{{ review.pk }}">Punkty recenzji</label>
+                            <select id="score-{{ review.pk }}" name="score">
+                              {% for item in problem.scale_items %}
+                                <option value="{{ item.value }}"{% if review.score == item.value %} selected{% endif %}>
+                                  {{ item.value }}{% if item.label %} – {{ item.label }}{% endif %}</option>
+                              {% endfor %}
+                            </select>
+                            <button type="submit" class="btn btn--secondary btn--small">Zapisz</button>
+                          </form>
+                        {% endif %}
+                        {% if review.status in withdrawable_statuses %}
+                          <form method="post" action="{% url 'web:coordinator-review-unassign' review.pk %}">
+                            {% csrf_token %}
+                            {# Dwie nazwy dla dwóch różnych rzeczy: nietknięty przydział się „cofa”,
+                               rozpoczętą albo wystawioną recenzję „odbiera się” recenzentowi. #}
+                            <button type="submit" class="btn btn--danger btn--small">
+                              {% if review.status == assigned_status %}Cofnij{% else %}Odbierz{% endif %}</button>
+                          </form>
+                        {% endif %}
+                      </div>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="5" class="empty">Żaden recenzent nie dostał jeszcze tej pracy.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="participant-grade">
+            <p>
+              <strong>Ocena końcowa:</strong>
+              {% if problem.final_grade %}
+                {{ problem.final_grade.score }} pkt ({{ problem.final_grade.get_method_display }}){% if problem.final_grade.decided_at %},
+                {{ problem.final_grade.decided_at|local_datetime }}{% endif %}{% if problem.final_grade.decided_by %},
+                {{ problem.final_grade.decided_by.email }}{% endif %}
+              {% else %}
+                <span class="hint">brak</span>
+              {% endif %}
+            </p>
+            {% if problem.final_grade.rationale %}
+              <p class="quote">{{ problem.final_grade.rationale }}</p>
+            {% endif %}
+
+            <div class="actions">
+              {% if problem.lockable %}
+                {% comment %}
+                  Praca oddana, jeszcze niezablokowana: recenzenta nie da się do niej przydzielić,
+                  a wpisana teraz ocena dotyczyłaby wersji, którą uczestnik może jeszcze podmienić.
+                  W miejsce formularzy wchodzi więc jedno kliknięcie, które wciąga ją do oceniania.
+                {% endcomment %}
+                <form method="post" action="{% url 'web:coordinator-submission-lock' problem.latest.pk %}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--secondary btn--small">Zablokuj do oceny</button>
+                </form>
+                <span class="hint">Etap zostaje otwarty – nowa wersja od uczestnika zacznie ocenę od nowa.</span>
+              {% elif problem.assignable %}
+                <form method="post" action="{% url 'web:coordinator-submission-assign' problem.latest.pk %}">
+                  {% csrf_token %}
+                  <label class="visually-hidden" for="assign-{{ problem.latest.pk }}">Recenzent</label>
+                  <select id="assign-{{ problem.latest.pk }}" name="reviewer_id">
+                    {% for member in reviewer_pool %}
+                      <option value="{{ member.pk }}">{{ member.user.email }}{% if member.district %}
+                        ({{ member.get_district_display }}){% endif %}</option>
+                    {% endfor %}
+                  </select>
+                  <button type="submit" class="btn btn--secondary btn--small">Przydziel</button>
+                </form>
+              {% else %}
+                <span class="hint">Praca zamknięta dla nowych przydziałów.</span>
+              {% endif %}
+            </div>
+
+            {% if not problem.lockable and problem.scale_items %}
+              <details class="participant-override">
+                <summary>Korekta oceny końcowej</summary>
+                <form method="post" action="{% url 'web:coordinator-final-grade' problem.latest.pk %}" class="stack">
+                  {% csrf_token %}
+                  <p class="hint">Korekta organizatora zastępuje ocenę ustaloną procedurą i działa
+                    także dla pracy bez recenzji. Niewystawione recenzje zostaną anulowane.</p>
+                  <p>
+                    <label for="final-score-{{ problem.latest.pk }}">Punkty</label>
+                    <select id="final-score-{{ problem.latest.pk }}" name="score">
+                      {% for item in problem.scale_items %}
+                        <option value="{{ item.value }}"{% if problem.final_grade.score == item.value %} selected{% endif %}>
+                          {{ item.value }}{% if item.label %} – {{ item.label }}{% endif %}</option>
+                      {% endfor %}
+                    </select>
+                  </p>
+                  <p>
+                    <label for="final-why-{{ problem.latest.pk }}">Uzasadnienie (wymagane)</label>
+                    <textarea id="final-why-{{ problem.latest.pk }}" name="rationale" rows="2" required></textarea>
+                  </p>
+                  <button type="submit" class="btn btn--primary btn--small">Zapisz korektę</button>
+                </form>
+              </details>
+            {% endif %}
+          </div>
+
+          {% if problem.appeals %}
+            <ul class="participant-appeals">
+              {% for appeal in problem.appeals %}
+                <li>
+                  <span class="{{ appeal.status|badge_class }}">{{ appeal.get_status_display }}</span>
+                  reklamacja z {{ appeal.filed_at|local_datetime }}
+                  {% if appeal.decision %}
+                    – rozstrzygnięta {{ appeal.decision.decided_at|local_datetime }}{% if appeal.decision.new_score is not None %},
+                    nowa punktacja {{ appeal.decision.new_score }} pkt{% endif %}
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+      {% empty %}
+        <p class="hint">Uczestnik nie oddał na tym etapie żadnej pracy.</p>
+      {% endfor %}
+    </div>
+  {% empty %}
+    <div class="card card--quiet">
+      <p class="empty">Uczestnik nie ma jeszcze wpisu do żadnego etapu. Wpis do eliminacji powstaje
+        przy rejestracji, do kolejnych etapów – przy kwalifikacji.</p>
+    </div>
+  {% endfor %}
+</section>
+
+<section class="section" id="wyniki">
+  <div class="card">
+    <h2 class="mt-0">Wyniki</h2>
+    <p class="hint">Suma i miejsce pochodzą z <strong>ogłoszonej tabeli</strong>, czyli ze stanu
+      zamrożonego w chwili publikacji. Korekta punktów po ogłoszeniu zmienia sumę bieżącą (widoczną
+      wyżej przy etapie), ale wchodzi do tabeli dopiero po ponownym przeliczeniu i publikacji.</p>
+    <div class="scroll">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Etap</th>
+            <th scope="col">Ogłoszone</th>
+            <th scope="col">Miejsce</th>
+            <th scope="col">Suma</th>
+            <th scope="col">Kwalifikacja</th>
+            <th scope="col">Dyplomy</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for block in stages %}
+            <tr>
+              <th scope="row">{{ block.stage.display_name }}</th>
+              {% if block.result %}
+                <td>{{ block.result.publication.published_at|local_datetime }}</td>
+                {% if block.result.in_table %}
+                  <td class="num">{{ block.result.rank|default:"—" }}</td>
+                  <td class="num">{{ block.result.total }}</td>
+                {% else %}
+                  {% comment %}
+                    Wpisu nie było w ogłoszonej tabeli: albo powstał po publikacji (kwalifikacja
+                    do kolejnego etapu), albo został z niej wyłączony (dyskwalifikacja). Puste
+                    komórki mówiłyby „zero punktów”, więc mówimy to wprost.
+                  {% endcomment %}
+                  <td colspan="2" class="hint">wpisu nie ma w ogłoszonej tabeli</td>
+                {% endif %}
+                <td>{% if block.result.qualified %}
+                    <span class="badge badge--ok">zakwalifikowany</span>
+                  {% else %}
+                    <span class="{{ block.entry.status|badge_class }}">{{ block.entry.get_status_display }}</span>
+                  {% endif %}</td>
+              {% else %}
+                <td colspan="4" class="hint">wyniki tego etapu nie są jeszcze ogłoszone</td>
+              {% endif %}
+              <td>
+                {% for certificate in block.certificates %}
+                  <a href="{% url 'web:coordinator-certificate-download' certificate.pk %}">
+                    {{ certificate.get_kind_display }} {{ certificate.number }}</a>{% if not forloop.last %}<br>{% endif %}
+                {% empty %}
+                  <span class="hint">—</span>
+                {% endfor %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6" class="empty">Brak wpisów do etapów.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="reklamacje">
+  <div class="card">
+    <h2 class="mt-0">Reklamacje</h2>
+    <div class="scroll">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Złożona</th>
+            <th scope="col">Etap i zadanie</th>
+            <th scope="col">Status</th>
+            <th scope="col">Rozstrzygnięcie</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for appeal in appeals %}
+            <tr>
+              <th scope="row">{{ appeal.filed_at|local_datetime }}</th>
+              <td>{{ appeal.submission.entry.stage.display_name }}, zadanie {{ appeal.submission.problem.number }}</td>
+              <td><span class="{{ appeal.status|badge_class }}">{{ appeal.get_status_display }}</span></td>
+              <td>
+                {% if appeal.decision %}
+                  {{ appeal.decision.decided_at|local_datetime }}{% if appeal.decision.new_score is not None %} ·
+                    nowa punktacja {{ appeal.decision.new_score }} pkt{% endif %}
+                  <details>
+                    <summary>Uzasadnienie</summary>
+                    <p class="quote">{{ appeal.decision.justification }}</p>
+                  </details>
+                {% else %}
+                  <span class="hint">czeka na komisję</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="empty">Uczestnik nie złożył żadnej reklamacji.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+{% if tickets is not None %}
+  {% comment %}
+    Sekcja istnieje dopiero wtedy, gdy istnieje aplikacja zgłoszeń. ``None`` znaczy „nie ma takiej
+    funkcji”, pusta lista – „ta osoba niczego nie zgłaszała”; nagłówek „Zgłoszenia: brak” przy
+    nieistniejącym module obiecywałby to drugie.
+  {% endcomment %}
+  <section class="section" id="zgloszenia">
+    <div class="card">
+      <h2 class="mt-0">Zgłoszenia</h2>
+      <ul class="participant-tickets">
+        {% for row in tickets %}
+          <li>
+            <span class="{{ row.ticket.status|badge_class }}">{{ row.ticket.get_status_display }}</span>
+            {% if row.url %}
+              <a href="{{ row.url }}">{{ row.ticket.subject }}</a>
+            {% else %}
+              {{ row.ticket.subject }}
+            {% endif %}
+            · {{ row.ticket.get_category_display }} · {{ row.ticket.created_at|local_datetime }}
+          </li>
+        {% empty %}
+          <li class="empty">Uczestnik nie wysłał żadnego zgłoszenia.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </section>
+{% endif %}
+
+<section class="section" id="audyt">
+  <div class="card">
+    <div class="card__head">
+      <h2 class="mt-0">Historia (audyt)</h2>
+      {% comment %}
+        Filtr po wykonawcy, bo tyle da się przekazać adresem przeglądarki audytu: zawęża ona listę
+        po adresie e-mail wykonawcy, nie po przedmiocie zdarzenia. Karta pokazuje obie strony
+        (czynności tej osoby i czynności na niej), przeglądarka – pełną historię jej własnych.
+      {% endcomment %}
+      <p class="hint"><a href="{% url 'web:coordinator-audit' %}?actor={{ account.email|urlencode }}">
+        Pełna historia w przeglądarce audytu</a></p>
+    </div>
+    <p class="hint">Ostatnie zdarzenia, w których ta osoba jest wykonawcą albo przedmiotem:
+      jej konto, profil uczestnika i jej prace. Wpis audytowy nie zawiera danych osobowych –
+      w „zmianie” są wyłącznie nazwy pól i wartości techniczne.</p>
+    <div class="scroll">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Kiedy</th>
+            <th scope="col">Akcja</th>
+            <th scope="col">Obiekt</th>
+            <th scope="col">Wykonawca</th>
+            <th scope="col">Zmiana</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in audit_entries %}
+            <tr>
+              <th scope="row">{{ entry.at|local_datetime }}</th>
+              <td><code>{{ entry.action }}</code></td>
+              <td><code>{{ entry.target_type }}#{{ entry.target_id }}</code></td>
+              <td>{% if entry.actor %}{{ entry.actor.email }}{% else %}
+                <span class="hint">system</span>{% endif %}</td>
+              <td>
+                {% if entry.diff %}
+                  <details>
+                    <summary>szczegóły</summary>
+                    <pre class="participant-diff">{{ entry.diff }}</pre>
+                  </details>
+                {% else %}
+                  <span class="hint">—</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="empty">Brak wpisów audytu dotyczących tej osoby.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

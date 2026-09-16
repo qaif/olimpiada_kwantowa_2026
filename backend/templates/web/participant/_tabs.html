@@ -1,0 +1,31 @@
+{% load i18n %}{% comment %}
+  Pasek zakładek panelu.
+
+  Zwykłe odnośniki, a nie przełącznik w JavaScripcie, i to nie jest ustępstwo: zakładka ma własny
+  adres, więc da się ją otworzyć w nowej karcie, zapisać w zakładkach przeglądarki, wysłać komuś
+  i cofnąć się do niej przyciskiem „wstecz”. Serwer renderuje wyłącznie wybraną sekcję, więc
+  przełącznik w przeglądarce i tak musiałby po nią pójść.
+
+  Rola ``tab``/``tablist`` **nie** jest tu użyta świadomie: wzorzec ARIA opisuje panele
+  przełączane bez przeładowania strony i obiecuje czytnikowi ekranu obsługę strzałkami, której
+  zwykłe odnośniki nie dają. To jest nawigacja po stronach – i tak się przedstawia
+  (``<nav>`` + ``aria-current="page"``).
+
+  Za zakładkami stoją ekrany panelu, które mają własne adresy (kalendarz, archiwum, dyplomy,
+  profil). Inny wariant graficzny, bo to inna rzecz: wyjście z pulpitu, a nie jego sekcja.
+{% endcomment %}
+<nav class="p-tabs" aria-label="{% translate 'Sekcje panelu uczestnika' %}">
+  <ul class="p-tabs__list">
+    {% for item in tabs %}
+      <li class="p-tabs__item">
+        <a class="p-tabs__link" href="{{ item.url }}"
+           {% if item.current %}aria-current="page"{% endif %}>{{ item.label }}</a>
+      </li>
+    {% endfor %}
+    {% for link in panel_links %}
+      <li class="p-tabs__item p-tabs__item--aside">
+        <a class="p-tabs__link p-tabs__link--aside" href="{{ link.url }}">{{ link.label }}</a>
+      </li>
+    {% endfor %}
+  </ul>
+</nav>

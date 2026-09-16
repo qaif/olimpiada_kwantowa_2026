@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load wagtailcore_tags %}
+{% comment %}
+  Najczęstsze pytania. Każde pytanie jest elementem ``<details>``, a nie przyciskiem ze skryptem –
+  dokładnie z tego samego powodu, co rozwijana pozycja menu w szablonie bazowym: otwiera się
+  kliknięciem i klawiaturą, działa przy wyłączonym JavaScripcie i nie potrzebuje ani atrybutów
+  ARIA, ani obsługi fokusu. Przy strict CSP (bez kodu inline) to jedyne rozwiązanie, które nie
+  wymaga własnego pliku skryptu dla dwudziestu akapitów tekstu.
+
+  Kotwica (``id`` na ``<details>``) jest po to, żeby odpowiedź na zgłoszenie mogła odesłać do
+  **konkretnego** pytania. Identyfikator pochodzi z wiersza w bazie, więc przeredagowanie pytania
+  nie unieważnia odnośnika wysłanego miesiąc wcześniej.
+
+  Treść odpowiedzi idzie przez ``|richtext`` (Wagtail sanityzuje ją whitelistą) – w szablonach
+  ``cms/`` nie ma ani jednego ``|safe``.
+{% endcomment %}
+{% block title %}{{ page.title }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ page.title }}</h1>
+  {% if page.intro %}<div class="lead">{{ page.intro|richtext }}</div>{% endif %}
+</div>
+
+{% for group in page.sections %}
+  <section class="section">
+    {% if group.section %}<h2>{{ group.section }}</h2>{% endif %}
+    {% for entry in group.entries %}
+      <details class="card faq__item" id="{{ entry.anchor }}">
+        <summary class="faq__question">{{ entry.question }}</summary>
+        <div class="faq__answer">{{ entry.answer|richtext }}</div>
+      </details>
+    {% endfor %}
+  </section>
+{% empty %}
+  <p class="empty">
+    <span class="empty__title">Nie ma jeszcze żadnych pytań</span>
+    Redakcja dopisuje je w panelu treści.
+  </p>
+{% endfor %}
+
+{% comment %}
+  Droga dalej. Stoi na dole, a nie na górze: kto przewinął całą stronę i nie znalazł odpowiedzi,
+  jest dokładnie tą osobą, która powinna napisać do organizatora.
+{% endcomment %}
+<div class="card card--quiet">
+  <p>Nie znalazłeś odpowiedzi? <a href="{% url 'web:support-new' %}">Zgłoś problem organizatorowi</a> –
+    opiszemy sprawę wspólnie, a odpowiedź dostaniesz e-mailem.</p>
+</div>
+{% endblock %}

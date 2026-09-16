@@ -15,17 +15,27 @@ from __future__ import annotations
 import json
 
 from django.contrib import messages
+from django.db.models import Sum
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
 from django.urls import reverse
+from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from django.views.generic import TemplateView, View
 
 from apps.core.api import DomainError
 from apps.grading.code_view import code_listing, line_notes
 from apps.grading.comparison import comparison_context
+from apps.grading.deadlines import due_in_days
 from apps.grading.issues import open_issues_for_reviewer
-from apps.grading.models import ROUND_TIEBREAK, ReviewStatus, WorkIssueKind, WorkIssueStatus
+from apps.grading.models import (
+    ROUND_TIEBREAK,
+    ReviewStatus,
+    ReviewWorkLog,
+    WorkIssueKind,
+    WorkIssueStatus,
+)
 from apps.grading.navigation import group_by_problem, queue_position
 from apps.grading.rubric import rubric_from_post, rubric_rows
 from apps.grading.services import (
@@ -57,32 +67,119 @@ class ReviewerScopedMixin(ReviewerRequiredMixin):
         return get_object_or_404(self.get_queryset(), pk=pk)
 
 
+#: Zakładki kolejki w kolejności, w jakiej recenzent ich używa: najpierw to, co czeka na robotę,
+#: potem to, co zaczął, dalej to, co skończył, a na końcu to, przy czym nie ma już nic do zrobienia.
+#: Zakładka „Anulowane” jest w tej krotce, a nie doklejona osobno, właśnie po to, żeby recenzje
+#: odebrane nie zniknęły z panelu bez śladu – recenzent, któremu praca zniknęła, ma prawo sądzić,
+#: że to awaria (i pisze wtedy do koordynatora zamiast oceniać).
+REVIEW_TABS = (
+    ("todo", ReviewStatus.ASSIGNED, _("Do zrobienia")),
+    ("draft", ReviewStatus.DRAFT, _("W toku")),
+    ("submitted", ReviewStatus.SUBMITTED, _("Wystawione")),
+    ("cancelled", ReviewStatus.CANCELLED, _("Anulowane")),
+)
+
+#: Zakładki, w których wiersz niesie termin i postęp. W „Wystawionych” i „Anulowanych” nie ma już
+#: czego pilnować, więc odznaka terminu byłaby tam wyrzutem sumienia bez żadnej możliwej reakcji.
+TABS_WITH_DEADLINE = ("todo", "draft")
+
+
+def _queue_order(reviews, now):
+    """Kolejka posortowana tak, jak recenzent ją przerabia: najpilniejsze najpierw.
+
+    Klucz jest trójdzielny, bo samo ``due_at`` nie wystarcza: recenzja bez terminu (etap sprzed
+    wprowadzenia terminów, praca przydzielona ręcznie) nie może wypaść na początek kolejki tylko
+    dlatego, że ``None`` porównuje się dziwnie – stąd pierwszy element pary. ``pk`` na końcu robi
+    z tego porządek **stały**: dwie prace z tym samym terminem mają stać w tej samej kolejności
+    przy każdym wejściu, bo inaczej „następna” znaczyłaby co chwilę co innego.
+    """
+    return sorted(reviews, key=lambda review: (review.due_at is None, review.due_at or now, review.pk))
+
+
+def _decorate(groups, *, now, with_reason):
+    """Dokłada do wierszy grupy to, czego nie wie ``group_by_problem``: ile dni do terminu i postęp.
+
+    Liczenie dni w szablonie (przez filtr ``timeuntil``) dawałoby napis „2 dni, 3 godziny”, czyli
+    dokładność, której nikt na liście nie potrzebuje – potrzebna jest odpowiedź „dziś czy jeszcze
+    nie”. ``last_seen_at`` z licznika czasu jest jedynym śladem, że recenzent już przy tej pracy
+    siedział: ``Review`` nie ma znacznika zapisu szkicu (patrz ``apps.grading.models``).
+    """
+    for group in groups:
+        for row in group["rows"]:
+            review = row["review"]
+            row["due_days"] = due_in_days(review, now)
+            log = getattr(review, "work_log", None)
+            row["last_seen_at"] = log.last_seen_at if log is not None else None
+            if with_reason:
+                row["reason"] = cancel_message(review)
+    return groups
+
+
 class ReviewListView(ReviewerScopedMixin, TemplateView):
-    """Lista przydziałów recenzenta ze statusem każdej recenzji.
+    """Kolejka pracy recenzenta: cztery zakładki po stanie recenzji, w każdej grupy po zadaniu.
 
-    Recenzje anulowane stoją osobno, a nie w jednej tabeli z resztą: nie ma już przy nich nic do
-    zrobienia, a wymieszane z bieżącymi wyglądałyby jak zaległość. Ukrycie ich odpadło – recenzent,
-    któremu praca zniknęła z listy bez śladu, ma prawo sądzić, że to awaria. Każdy wiersz niesie
-    powód: odebranie pracy przez koordynatora to co innego niż nowa wersja od uczestnika.
+    Dlaczego zakładki, a nie jedna długa lista. Recenzent wchodzi tu po jedno: „co mam dziś zrobić”.
+    Odpowiedź ginęła w tabeli, w której recenzje wystawione, anulowane i czekające stały obok
+    siebie i różniły się jedną odznaką w trzeciej kolumnie. Zakładki („Do zrobienia”, „W toku”,
+    „Wystawione”, „Anulowane”) rozdzielają te cztery stany, a pasek podsumowania nad nimi odpowiada
+    na pytanie, po które dotąd trzeba było przewijać całą stronę: ile zostało, na kiedy i ile już
+    to zajęło.
 
-    Bieżące przydziały są pogrupowane po etapie i zadaniu (``grading.navigation``), bo tak wygląda
-    praca recenzenta: ocenia jedno zadanie w wielu pracach. Licznik przy grupie („6 z 12 do
-    zrobienia”) odpowiada na pytanie, które przy płaskiej liście trzeba było liczyć palcem.
+    Wszystkie cztery zakładki są **wypełnione przez serwer**, a ``static/js/reviewer-layout.js``
+    tylko chowa te nieaktywne. Bez JavaScriptu strona jest kompletną listą z czterema nagłówkami
+    i odnośnikami do nich – nic nie znika, a „zakładka”, która bez skryptu nie pokazuje treści,
+    byłaby ukryciem danych, a nie uporządkowaniem ich.
+
+    Kolejność wewnątrz zakładki idzie po terminie (``_queue_order``), a nie po chwili przydziału:
+    recenzent ma zacząć od tego, co przepadnie najwcześniej. Grupowanie po etapie i zadaniu zostaje
+    (``grading.navigation``), bo tak wygląda sama robota: jedno zadanie w wielu pracach.
     """
 
     template_name = "web/reviewer/list.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        reviews = list(self.get_queryset())
-        open_reviews = [item for item in reviews if item.status != ReviewStatus.CANCELLED]
-        context["reviews"] = open_reviews
-        context["groups"] = group_by_problem(open_reviews)
-        context["cancelled_rows"] = [
-            {"review": item, "reason": cancel_message(item)}
-            for item in reviews
-            if item.status == ReviewStatus.CANCELLED
-        ]
+        now = timezone.now()
+        # ``work_log`` dociągamy tu, a nie w ``reviews_for_reviewer``: postęp („ostatnio otwarta”)
+        # jest potrzebny wyłącznie tej liście, a serwis obsługuje też API i paczkę ZIP.
+        reviews = _queue_order(self.get_queryset().select_related("work_log"), now)
+        by_status: dict[str, list] = {}
+        for review in reviews:
+            by_status.setdefault(review.status, []).append(review)
+
+        tabs = []
+        for key, status, label in REVIEW_TABS:
+            rows = by_status.get(status, [])
+            tabs.append(
+                {
+                    "key": key,
+                    "label": label,
+                    "count": len(rows),
+                    "groups": _decorate(group_by_problem(rows, now), now=now, with_reason=key == "cancelled"),
+                    "with_deadline": key in TABS_WITH_DEADLINE,
+                }
+            )
+        context["tabs"] = tabs
+        # Zakładka otwierana przy wejściu: pierwsza niepusta, czyli zwykle „Do zrobienia”.
+        # Otwieranie pustej zakładki tylko dlatego, że stoi pierwsza, pokazywałoby recenzentowi
+        # komunikat „nic tu nie ma” nad listą, w której coś jest.
+        context["active_tab"] = next((tab["key"] for tab in tabs if tab["count"]), "todo")
+
+        open_reviews = by_status.get(ReviewStatus.ASSIGNED, []) + by_status.get(ReviewStatus.DRAFT, [])
+        context["reviews"] = [item for item in reviews if item.status != ReviewStatus.CANCELLED]
+        context["summary"] = {
+            "todo": len(open_reviews),
+            "overdue": sum(1 for item in open_reviews if item.due_at and item.due_at < now),
+            "next_due": min((item.due_at for item in open_reviews if item.due_at), default=None),
+            # Jedna suma na cały panel zamiast ``review_seconds`` w pętli: przydziałów bywa kilkaset,
+            # a pasek podsumowania potrzebuje wyłącznie łącznej liczby.
+            "worklog_label": format_duration(
+                ReviewWorkLog.objects.filter(review__reviewer=self.reviewer).aggregate(total=Sum("seconds"))[
+                    "total"
+                ]
+                or 0
+            ),
+        }
         context["open_statuses"] = (ReviewStatus.ASSIGNED, ReviewStatus.DRAFT)
         # Zgłoszone problemy z pracami – jedno zapytanie na całą listę, bo marker stoi przy
         # wierszach, a przydziałów bywa kilkaset. Szablon pyta o pojedynczy wiersz, stąd słownik.
@@ -172,6 +269,10 @@ class ReviewDetailView(ReviewerScopedMixin, TemplateView):
                 ),
                 "annotations_url": reverse("grading:review-detail", kwargs={"pk": review.pk}),
                 "editable": editable,
+                # Ile dni do terminu – dla odznaki w nagłówku panelu oceny. Filtr ``timeuntil``
+                # dałby tu „2 dni, 3 godziny”, czyli dokładność, której recenzent nie potrzebuje:
+                # pytanie brzmi „czy zdążę”, a nie „ile dokładnie mam czasu”.
+                "due_days": due_in_days(review),
                 "revision_allowed": not editable and block_reason is None,
                 # Recenzję anulowaną pokazujemy osobnym komunikatem, a nie podpowiedzią przy
                 # formularzu: formularza tam w ogóle nie ma. Powód bierze się z ``cancel_reason``,

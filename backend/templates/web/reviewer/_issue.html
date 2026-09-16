@@ -1,42 +1,36 @@
+{% load i18n %}
 {% comment %}
-  Zgłoszenie problemu z pracą: baner otwartej sprawy plus formularz nowego zgłoszenia.
+  Formularz zgłoszenia problemu z pracą. Baner już otwartego zgłoszenia stoi osobno i wyżej
+  (``_issue_banner.html``) – to kontekst do oceniania, a nie czynność.
 
   Zgłoszenie **nie blokuje oceniania** i sekcja mówi to wprost. Gdyby blokowało, komitet omijałby
   je pocztą do koordynatora – czyli robił dokładnie to, co narzędzie ma zastąpić (patrz
   ``apps.grading.issues``). Formularz jest zwinięty w ``<details>``, bo to czynność rzadka: przy
   zdecydowanej większości prac nie ma czego zgłaszać.
 {% endcomment %}
-{% if open_issue %}
-  <div class="msg msg-warning closed" role="status">
-    <strong>Zgłosiłeś problem z tą pracą:</strong> {{ open_issue.get_kind_display }}.
-    <span class="quote">{{ open_issue.text }}</span>
-    Koordynator jeszcze go nie rozstrzygnął. Ocenę możesz wystawić mimo zgłoszenia.
-  </div>
-{% elif editable or revision_allowed %}
+{% if not open_issue %}{% if editable or revision_allowed %}
   <details class="card card--quiet">
-    <summary><strong>Zgłoś problem z pracą</strong></summary>
-    <p class="hint">Dla spraw, których nie rozwiąże ocena: nieczytelny skan, rozwiązanie innego
-      zadania, podejrzenie niesamodzielności. Zgłoszenie trafia do koordynatora i <strong>nie
-      wstrzymuje oceniania</strong> – jeżeli da się wystawić ocenę, wystaw ją.</p>
+    <summary><strong>{% translate "Zgłoś problem z pracą" %}</strong></summary>
+    <p class="hint">{% translate "Dla spraw, których nie rozwiąże ocena: nieczytelny skan, rozwiązanie innego zadania, podejrzenie niesamodzielności. Zgłoszenie trafia do koordynatora i nie wstrzymuje oceniania – jeżeli da się wystawić ocenę, wystaw ją." %}</p>
     <form method="post" action="{% url 'web:review-issue-add' review.pk %}" class="form">
       {% csrf_token %}
       <p class="field">
-        <label for="id_issue_kind">Rodzaj problemu</label>
+        <label for="id_issue_kind">{% translate "Rodzaj problemu" %}</label>
         <select id="id_issue_kind" name="kind" required>
           {% for value, label in issue_kinds %}
             <option value="{{ value }}">{{ label }}</option>
           {% endfor %}
         </select>
+        <span class="helptext">{% translate "Rodzaj decyduje o tym, do kogo koordynator kieruje sprawę – podejrzenie niesamodzielności idzie inną drogą niż nieczytelny skan." %}</span>
       </p>
       <p class="field">
-        <label for="id_issue_text">Opis</label>
+        <label for="id_issue_text">{% translate "Opis" %}</label>
         <textarea id="id_issue_text" name="text" rows="3" required></textarea>
-        <span class="helptext">Jedno–dwa zdania. Koordynator czyta to razem z pracą, więc nie musisz
-          jej opisywać od początku.</span>
+        <span class="helptext">{% translate "Jedno–dwa zdania. Koordynator czyta to razem z pracą, więc nie musisz jej opisywać od początku." %}</span>
       </p>
       <div class="actions">
-        <button type="submit" class="btn btn--secondary">Zgłoś problem</button>
+        <button type="submit" class="btn btn--secondary">{% translate "Zgłoś problem" %}</button>
       </div>
     </form>
   </details>
-{% endif %}
+{% endif %}{% endif %}
