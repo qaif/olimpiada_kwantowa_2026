@@ -257,6 +257,11 @@ stateDiagram-v2
     SCANNING --> REJECTED_INFECTED: wirus
     SCANNING --> SUBMITTED: CLEAN (nowa wersja zastepuje aktywna)
     SUBMITTED --> LOCKED: beat - deadline_at + grace
+    SUBMITTED --> LOCKED: koordynator - lock_for_review (etap nadal otwarty)
+    LOCKED --> SUBMITTED: nowa wersja - supersede_earlier_versions
+    IN_REVIEW --> SUBMITTED: nowa wersja - supersede_earlier_versions
+    MODERATION --> SUBMITTED: nowa wersja - supersede_earlier_versions
+    GRADED_PROVISIONAL --> SUBMITTED: nowa wersja - supersede_earlier_versions
     LOCKED --> IN_REVIEW: przydzial 2 recenzentow (slepy, bez konfliktu okregu)
     IN_REVIEW --> IN_REVIEW: Review 1 i Review 2 niezaleznie
     IN_REVIEW --> GRADED_PROVISIONAL: oceny zgodne - FinalGrade(CONSENSUS)
@@ -269,6 +274,9 @@ stateDiagram-v2
 ```
 
 Zasady punktacji:
+- **Ocenianie nie wymaga zamknięcia etapu.** Koordynator może wciągnąć oddane prace do oceniania w dowolnej chwili (`submissions.services.lock_for_review` dla etapu, `lock_submission_for_review` dla jednej pracy): najnowsza nadająca się do oceny wersja dostaje `LOCKED`, a `closed_at` **nie** jest ustawiane — okno uploadu zostaje otwarte. Wybór wersji jest wspólny z `close_stage` (`lockable_submission_ids`), więc obie drogi zawsze wskazują tę samą wersję. Wersji `SCANNING` blokada nie dotyka: `_status_after_scan` patrzy wyłącznie na `closed_at`, więc skan kończący się w otwartym etapie zwraca pracę do `SUBMITTED`, a do oceniania wciąga ją dopiero następne kliknięcie.
+- **Nowa wersja unieważnia rozpoczętą ocenę** (`grading.services.supersede_earlier_versions`, wołane z `create_submission`). Każda wcześniejsza wersja w `LOCKED`, `IN_REVIEW`, `MODERATION` albo `GRADED_PROVISIONAL` traci recenzje (wszystkie nieanulowane, także wystawione → `CANCELLED` z `cancel_reason=SUPERSEDED`), traci `FinalGrade` (`grade.withdrawn`, powód `SUPERSEDED`) i wraca do `SUBMITTED` — zostaje jako historia, ale przestaje się liczyć, bo blokada i przydział i tak wybierają najnowszą wersję. Audyt: `submission.superseded` z `{old_id, new_id, cancelled_reviews, grade_withdrawn}`. Praca `FINAL`, `APPEALED` albo w etapie z ogłoszonymi wynikami jest wyłączona: upload kończy się `409 SUBMISSION_FINALISED` zamiast cichego skasowania rozstrzygnięcia, które ludzie już znają.
+- Powód anulowania recenzji jest zapisany (`Review.cancel_reason`: `COORDINATOR`, `SUPERSEDED`, `OVERRIDE`, `MODERATION_RESOLVED`, `REVISED`) i pokazywany recenzentowi. „Zniknęło mi zadanie” ma mieć odpowiedź w panelu, a nie w audycie.
 - Przydział recenzentów do zgłoszenia jest atomowy (komplet recenzji rundy 1 powstaje w jednej transakcji). Runda 1 domyka się, gdy wszystkie istniejące recenzje rundy 1 są SUBMITTED, więc dokładanie kolejnego recenzenta po pierwszej wystawionej ocenie nie jest możliwe; brakujący recenzent oznacza pominięcie zgłoszenia (`skipped`) i ponowny przydział przed pierwszą oceną.
 - Wystawiona recenzja **nie jest** nieodwracalna. Jej autor może ją poprawić (`revise_review`), dopóki nikt nie zbudował na niej rozstrzygnięcia: blokują ogłoszone wyniki etapu, praca w reklamacji albo finalna oraz ocena końcowa ustalona przez człowieka (moderacja, trzeci recenzent, korekta koordynatora, decyzja reklamacyjna). Poprawka nie rusza `submitted_at` (dopisuje `revised_at`) i przelicza rundę 1 od nowa: ocena uzgodniona konsensusem jest zdejmowana, praca wraca do `IN_REVIEW` i dopiero wtedy zapada rozstrzygnięcie zgodne z nowym stanem. Poprawka oceny rundy 2 przepisuje `FinalGrade(THIRD_REVIEW)` w miejscu.
 - Koordynator może **odebrać** recenzentowi pracę (`unassign_reviewer`) w każdym stanie recenzji poza anulowanym — łącznie z oceną już wystawioną. Recenzja przechodzi w `CANCELLED`, zostaje w bazie jako historia, przestaje się liczyć do rozstrzygnięcia i przestaje być dla recenzenta edytowalna. Odebranie wystawionej oceny rundy 1 zdejmuje ocenę konsensusu i zawraca pracę do `IN_REVIEW`; runda jest rozstrzygana ponownie tylko wtedy, gdy zostają co najmniej dwie recenzje (inaczej praca zamknęłaby się na jednym głosie i nie dałoby się przydzielić zastępstwa). Bramki odmowy są te same, co przy poprawianiu oceny.

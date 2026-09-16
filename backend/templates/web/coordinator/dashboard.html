@@ -106,6 +106,13 @@
         {% if row.stage.closed_at %}
           <dt>Zamknięty</dt><dd>{{ row.stage.closed_at|local_datetime }}</dd>
         {% endif %}
+        {% comment %}
+          Dwie liczby, po których widać, czy jest co blokować: „oddane” to prace, które przycisk
+          niżej wciągnie do oceniania (po jednej, najnowszej wersji na zadanie), „w ocenie” –
+          te, które są tam już teraz.
+        {% endcomment %}
+        <dt>Oddane (niezablokowane)</dt><dd>{{ row.counters.submitted }}</dd>
+        <dt>W ocenie</dt><dd>{{ row.counters.under_review }}</dd>
       </dl>
 
       {% comment %}
@@ -125,6 +132,17 @@
       </p>
 
       <div class="stage-panel__actions">
+        {% comment %}
+          „Zablokuj oddane prace do oceny” stoi przed „Zamknij etap”, bo to ten sam ruch w wersji
+          odwracalnej: prace wchodzą do oceniania, a uczestnik ma nadal otwarte okno uploadu.
+          Nowa wersja unieważnia wtedy rozpoczętą ocenę – stąd zdanie pod przyciskiem.
+        {% endcomment %}
+        <form method="post" action="{% url 'web:coordinator-lock-for-review' row.stage.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn--secondary">Zablokuj oddane prace do oceny</button>
+          <span class="hint">Etap zostaje otwarty. Nowa wersja pracy anuluje jej ocenę.</span>
+        </form>
+
         <form method="post" action="{% url 'web:coordinator-close-stage' row.stage.pk %}">
           {% csrf_token %}
           <button type="submit" class="btn btn--secondary">Zamknij etap</button>

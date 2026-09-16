@@ -38,6 +38,23 @@ class ReviewStatus(models.TextChoices):
     CANCELLED = "CANCELLED", "anulowana"
 
 
+class ReviewCancelReason(models.TextChoices):
+    """Dlaczego recenzja przestała być aktualna – powód widoczny dla recenzenta, nie tylko w audycie.
+
+    Anulowanie wygląda z panelu recenzenta tak samo w każdym przypadku: zadanie znika z listy.
+    Powody są jednak zupełnie różne i recenzent ma prawo je rozróżnić – „koordynator odebrał Ci tę
+    pracę” jest informacją o decyzji organizatora, a „uczestnik wysłał nową wersję” o tym, że jego
+    praca nie zniknęła, tylko czeka na ocenę od nowa. Pusta wartość znaczy „recenzja anulowana przed
+    wprowadzeniem tego pola” (wiersze sprzed migracji) – wtedy panel pokazuje treść ogólną.
+    """
+
+    COORDINATOR = "COORDINATOR", "koordynator odebrał pracę"
+    SUPERSEDED = "SUPERSEDED", "nowa wersja rozwiązania"
+    OVERRIDE = "OVERRIDE", "korekta oceny przez koordynatora"
+    MODERATION_RESOLVED = "MODERATION_RESOLVED", "rozjazd rozstrzygnięty"
+    REVISED = "REVISED", "recenzent poprawił ocenę"
+
+
 class GradeMethod(models.TextChoices):
     CONSENSUS = "CONSENSUS", "zgodne oceny"
     THIRD_REVIEW = "THIRD_REVIEW", "trzeci recenzent"
@@ -70,6 +87,16 @@ class Review(models.Model):
     annotations = models.JSONField("adnotacje", default=default_annotations, blank=True)
     status = models.CharField(
         "status", max_length=16, choices=ReviewStatus.choices, default=ReviewStatus.ASSIGNED
+    )
+    # Powód anulowania jest osobnym polem, a nie kolejną wartością ``status``: stan recenzji
+    # („anulowana”) i przyczyna („bo przyszła nowa wersja pracy”) to dwie niezależne informacje,
+    # a rozbicie statusu na pięć wartości zmusiłoby każdy filtr po CANCELLED do wyliczania ich listy.
+    cancel_reason = models.CharField(
+        "powód anulowania",
+        max_length=24,
+        choices=ReviewCancelReason.choices,
+        blank=True,
+        default="",
     )
     assigned_at = models.DateTimeField("przydzielona", default=timezone.now)
     submitted_at = models.DateTimeField("wystawiona", null=True, blank=True)

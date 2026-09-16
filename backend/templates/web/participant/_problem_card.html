@@ -21,6 +21,15 @@
   {% if error %}<p class="msg msg-error">{{ error }}</p>{% endif %}
 
   {% if upload_open %}
+    {% comment %}
+      Komitet może zacząć oceniać przed zamknięciem etapu, więc uczestnik z otwartym uploadem bywa
+      pracą już czytaną. Wysyłka nadal wolna – ale ostrzeżenie stoi przy przycisku, a nie w
+      komunikacie po fakcie: to jest moment, w którym decyzja zapada.
+    {% endcomment %}
+    {% if row.under_review %}
+      <p class="msg msg-warning">Ta praca jest już w ocenie. Wysłanie nowej wersji anuluje
+        dotychczasową ocenę – zostanie oceniona od nowa.</p>
+    {% endif %}
     <form class="upload"
           method="post"
           enctype="multipart/form-data"

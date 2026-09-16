@@ -38,7 +38,11 @@ from apps.competitions.services import (
 )
 from apps.core.api import DomainError
 from apps.results.services import results_for_participant
-from apps.submissions.services import create_submission, submissions_for_user
+from apps.submissions.services import (
+    UNDER_REVIEW_STATUSES,
+    create_submission,
+    submissions_for_user,
+)
 from apps.web.forms import AppealForm, SubmissionUploadForm
 from apps.web.mixins import ActionViewMixin, ParticipantRequiredMixin
 from apps.web.throttle import ThrottledFormMixin
@@ -48,6 +52,21 @@ def _entry_for(participant, stage: Stage | None) -> StageEntry | None:
     if stage is None:
         return None
     return StageEntry.objects.filter(participant=participant, stage=stage).first()
+
+
+def _under_review(versions: list) -> bool:
+    """Czy najnowsza wersja pracy jest już w ocenie – podstawa ostrzeżenia przy uploadzie.
+
+    Odkąd koordynator może wciągnąć prace do oceniania przed zamknięciem etapu
+    (``submissions.services.lock_for_review``), uczestnik z otwartym oknem uploadu może mieć pracę
+    już czytaną przez komitet. Wysłanie nowej wersji jest wtedy nadal dozwolone, ale kasuje
+    dotychczasową ocenę – i to musi być widoczne **przed** kliknięciem, a nie dopiero w historii.
+
+    Lista wersji przychodzi posortowana malejąco (``submissions_for_user``), więc pierwsza jest
+    najnowsza. Stany bierzemy z jednej listy w serwisie, żeby panel i reguła unieważniania
+    (``grading.services.supersede_earlier_versions``) nie mogły się rozjechać.
+    """
+    return bool(versions) and versions[0].status in UNDER_REVIEW_STATUSES
 
 
 def _problem_rows(user, entry: StageEntry | None) -> list[dict]:
@@ -62,7 +81,14 @@ def _problem_rows(user, entry: StageEntry | None) -> list[dict]:
     versions: dict[int, list] = defaultdict(list)
     for submission in submissions_for_user(user).filter(entry=entry):
         versions[submission.problem_id].append(submission)
-    return [{"problem": problem, "versions": versions.get(problem.pk, [])} for problem in problems]
+    return [
+        {
+            "problem": problem,
+            "versions": versions.get(problem.pk, []),
+            "under_review": _under_review(versions.get(problem.pk, [])),
+        }
+        for problem in problems
+    ]
 
 
 def _consent_rows(participant) -> list[dict]:
@@ -94,10 +120,8 @@ def _consent_rows(participant) -> list[dict]:
 
 
 def _problem_row(user, entry: StageEntry, problem: Problem) -> dict:
-    return {
-        "problem": problem,
-        "versions": list(submissions_for_user(user).filter(entry=entry, problem=problem)),
-    }
+    versions = list(submissions_for_user(user).filter(entry=entry, problem=problem))
+    return {"problem": problem, "versions": versions, "under_review": _under_review(versions)}
 
 
 class MeView(ParticipantRequiredMixin, TemplateView):
@@ -279,6 +303,7 @@ class ProblemUploadView(ParticipantRequiredMixin, ThrottledFormMixin, View):
                     stage=stage,
                     problem_number=number,
                     upload=form.cleaned_data["file"],
+                    request=request,
                 )
             except DomainError as exc:
                 error = str(exc.detail)

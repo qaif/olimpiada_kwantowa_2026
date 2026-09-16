@@ -1071,6 +1071,45 @@ Przesunięcie samych terminów robi się w panelu (6.3), a nie przez zamknięcie
 `manage.py e2e_timeline` jest **wyłącznie** dla środowiska testowego i bez `E2E_MODE=1` odmawia
 działania.
 
+#### Ocenianie przed zamknięciem etapu
+
+Komitet nie musi czekać na deadline. Karta etapu ma obok „Zamknij etap” przycisk **„Zablokuj oddane
+prace do oceny”** (`POST /coordinator/stages/<id>/lock-for-review/`, w API
+`POST /api/submissions/stages/<id>/lock-for-review/`): najnowsza oddana wersja każdej pary
+(uczestnik, zadanie) dostaje `LOCKED` i wchodzi do przydziału recenzentów, a etap **zostaje
+otwarty** — `closed_at` się nie pojawia, okno uploadu działa dalej. Reguła wyboru wersji jest ta
+sama, co przy zamknięciu etapu (`lockable_submission_ids`), więc oba przyciski nigdy nie wybiorą
+innego zbioru prac: wersja odrzucona przez antywirusa jest pomijana na rzecz wcześniejszej, a wersja
+w trakcie skanu zostaje skanowi. Operacja jest idempotentna (`locked: 0`, nie błąd) i na etapie już
+zamkniętym nie ma po prostu czego robić. Audyt: `stage.locked_for_review` z licznikiem.
+
+Na karcie etapu stoją dwa liczniki, po których widać, czy jest co blokować: **oddane
+(niezablokowane)** i **w ocenie**. Pojedynczą pracę wciąga do oceniania przycisk **„Zablokuj do
+oceny”** w tabeli „Rozwiązania i oceny” (`POST /coordinator/submissions/<id>/lock-for-review/`,
+w API `POST /api/submissions/<id>/lock-for-review/`, audyt `submission.locked_for_review`). Odmowy
+mają kody: `NOT_LATEST_VERSION` (jest nowsza wersja — do oceniania wchodzi wyłącznie najnowsza)
+i `SUBMISSION_NOT_LOCKABLE` (praca nie jest „oddana”: trwa skan albo jest już w ocenie).
+
+**Nowa wersja unieważnia rozpoczętą ocenę.** Skoro okno uploadu zostaje otwarte, uczestnik może
+wysłać poprawkę pracy, którą komitet już czyta — i wtedy wygrywa uczestnik. Przy przyjęciu nowej
+wersji (`grading.services.supersede_earlier_versions`) każda wcześniejsza wersja w stanie `LOCKED`,
+`IN_REVIEW`, `MODERATION` albo `GRADED_PROVISIONAL`:
+
+1. traci recenzje — wszystkie nieanulowane, **także wystawione**, przechodzą w `CANCELLED` z powodem
+   `SUPERSEDED` (`Review.cancel_reason`); punkty i komentarze zostają jako historia,
+2. traci ocenę końcową — `FinalGrade` jest kasowany (audyt `grade.withdrawn`, powód `SUPERSEDED`),
+3. wraca do `SUBMITTED` — wiersz zostaje w historii, ale przestaje się liczyć; do oceniania wchodzi
+   nowa wersja, którą trzeba zablokować ponownie.
+
+Audyt całości: `submission.superseded` z `{old_id, new_id, cancelled_reviews, grade_withdrawn}`.
+Uczestnik widzi przy uploadzie ostrzeżenie „Ta praca jest już w ocenie. Wysłanie nowej wersji
+anuluje dotychczasową ocenę – zostanie oceniona od nowa”, a recenzent w panelu (sekcja „Recenzje
+anulowane” i ekran recenzji) powód: „Uczestnik wysłał nową wersję rozwiązania…” zamiast
+„Koordynator odebrał Ci tę pracę”. Praca **finalna, w reklamacji albo z ogłoszonymi wynikami** jest
+poza zasięgiem tej reguły: upload kończy się wtedy `409 SUBMISSION_FINALISED`, zamiast po cichu
+skasować rozstrzygnięcie, które uczestnik i komisja odwoławcza już znają (stan nieosiągalny przy
+otwartym etapie — warunek jest bezpiecznikiem).
+
 #### Przydziały ręczne
 
 Automat równoważy obciążenie, ale nie zna podziału kompetencji w komitecie. Ekran

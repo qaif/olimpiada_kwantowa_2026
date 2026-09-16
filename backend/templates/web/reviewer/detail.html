@@ -87,10 +87,11 @@
     <h2 class="mt-0">Ocena</h2>
     {% if withdrawn %}
       {% comment %}
-        Praca odebrana przez koordynatora: żadnego formularza, bo nie ma czego zapisać. Komunikat
-        mówi wprost, co się stało – „recenzja anulowana” nie tłumaczyłoby recenzentowi niczego.
+        Recenzja anulowana: żadnego formularza, bo nie ma czego zapisać. Pierwsze zdanie mówi
+        wprost, co się stało (koordynator odebrał pracę, uczestnik wysłał nową wersję) – samo
+        „recenzja anulowana” nie tłumaczyłoby recenzentowi niczego.
       {% endcomment %}
-      <p class="msg msg-warning closed">Koordynator odebrał Ci tę pracę. Twoja ocena nie liczy się
+      <p class="msg msg-warning closed">{{ cancel_message }} Twoja ocena nie liczy się
         już do oceny końcowej i nie można jej zmienić.</p>
     {% else %}
     {% if revision_allowed %}

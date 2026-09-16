@@ -45,6 +45,10 @@ class ReviewSerializer(serializers.ModelSerializer):
             "submission_status",
             "round",
             "status",
+            # Powód anulowania obok statusu: „anulowana” znaczy co innego dla pracy odebranej przez
+            # koordynatora, a co innego dla pracy, której uczestnik wysłał nową wersję. Pusty napis
+            # dla recenzji nieanulowanych i dla tych sprzed wprowadzenia pola.
+            "cancel_reason",
             "score",
             "comment_internal",
             "comment_for_participant",

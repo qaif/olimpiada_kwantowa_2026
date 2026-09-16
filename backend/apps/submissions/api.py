@@ -24,8 +24,18 @@ from apps.competitions.models import Stage
 from apps.core.api import DomainError
 
 from .models import Submission
-from .serializers import SubmissionGroupSerializer, SubmissionSerializer, SubmissionUploadSerializer
-from .services import create_submission, grouped_submissions_for_user
+from .serializers import (
+    LockForReviewResultSerializer,
+    SubmissionGroupSerializer,
+    SubmissionSerializer,
+    SubmissionUploadSerializer,
+)
+from .services import (
+    create_submission,
+    grouped_submissions_for_user,
+    lock_for_review,
+    lock_submission_for_review,
+)
 from .storage import get_submission_storage
 
 
@@ -79,6 +89,7 @@ class SubmissionCreateView(GenericAPIView):
             stage=stage,
             problem_number=number,
             upload=serializer.validated_data["file"],
+            request=request,
         )
         return Response(SubmissionSerializer(submission).data, status=status.HTTP_201_CREATED)
 
@@ -93,6 +104,42 @@ class MySubmissionsView(GenericAPIView):
     def get(self, request):
         groups = grouped_submissions_for_user(request.user)
         return Response(self.get_serializer(groups, many=True).data)
+
+
+class StageLockForReviewView(GenericAPIView):
+    """Blokada oddanych prac etapu do oceny **bez** zamykania etapu – tylko koordynator.
+
+    Odpowiednik przycisku „Zablokuj oddane prace do oceny” z panelu. Idempotentny: powtórzenie
+    zwraca ``locked: 0``, bo nie ma już czego blokować. Zamknięcie etapu jest osobną czynnością
+    (i osobnym przyciskiem) – tutaj okno uploadu zostaje otwarte.
+    """
+
+    permission_classes = [IsCoordinator]
+    serializer_class = LockForReviewResultSerializer
+
+    @extend_schema(request=None, responses={200: LockForReviewResultSerializer})
+    def post(self, request, stage_id: int):
+        stage = get_object_or_404(Stage.objects.select_related("edition"), pk=stage_id)
+        locked = lock_for_review(stage, actor=request.user, request=request)
+        return Response(LockForReviewResultSerializer({"locked": locked}).data)
+
+
+class SubmissionLockForReviewView(GenericAPIView):
+    """Blokada jednej wskazanej pracy do oceny – tylko koordynator.
+
+    Odmowy mają kody maszynowe: ``NOT_LATEST_VERSION`` (jest nowsza wersja tej pracy) oraz
+    ``SUBMISSION_NOT_LOCKABLE`` (praca nie jest w stanie „oddane” – np. trwa skan albo jest już
+    w ocenie). Rozstrzyga o nich serwis, nie ten widok.
+    """
+
+    permission_classes = [IsCoordinator]
+    serializer_class = SubmissionSerializer
+
+    @extend_schema(request=None, responses={200: SubmissionSerializer})
+    def post(self, request, pk: int):
+        submission = get_object_or_404(Submission, pk=pk)
+        locked = lock_submission_for_review(submission, actor=request.user, request=request)
+        return Response(SubmissionSerializer(locked).data)
 
 
 class SubmissionDownloadView(GenericAPIView):

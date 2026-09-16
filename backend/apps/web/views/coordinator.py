@@ -63,7 +63,12 @@ from apps.grading.services import (
 )
 from apps.results.models import ResultsPublication
 from apps.results.services import compute_stage_results, publish_results
-from apps.submissions.services import close_stage_now
+from apps.submissions.services import (
+    close_stage_now,
+    lock_for_review,
+    lock_submission_for_review,
+    review_counters,
+)
 from apps.web.forms import (
     VOIVODESHIP_CHOICES,
     AssignReviewersForm,
@@ -128,7 +133,17 @@ def dashboard_context(extra: dict | None = None) -> dict:
     context = {
         "now": timezone.now(),
         "edition": edition,
-        "stage_rows": [{"stage": stage, "has_results": stage.pk in published} for stage in stages],
+        # Liczniki „oddane (niezablokowane)” i „w ocenie” stoją na karcie etapu, bo to jedyne dwie
+        # liczby, po których widać, czy „Zablokuj oddane prace do oceny” ma jeszcze co robić.
+        # Jedno zapytanie na etap, a etapów w edycji są trzy – stronicowania nie ma czego chronić.
+        "stage_rows": [
+            {
+                "stage": stage,
+                "has_results": stage.pk in published,
+                "counters": review_counters(stage),
+            }
+            for stage in stages
+        ],
         # Przycisk „Dodaj etap” znika, kiedy edycja ma już wszystkie trzy rodzaje: para
         # (edycja, rodzaj) jest unikalna, więc formularz nie miałby czego zaproponować.
         "missing_kinds": missing_stage_kinds(edition) if edition else [],
@@ -246,6 +261,23 @@ class CloseStageView(CoordinatorActionView):
         stage = get_object_or_404(Stage, pk=stage_id)
         locked = close_stage_now(stage, actor=request.user, request=request)
         return f"Etap zamknięty. Zablokowanych rozwiązań: {locked}."
+
+
+class LockStageForReviewView(CoordinatorActionView):
+    """Wciągnięcie oddanych prac do oceniania **bez** zamykania etapu (prośba organizatora).
+
+    Osobny przycisk, a nie wariant „Zamknij etap”: różnica jest widoczna dla uczestnika, bo okno
+    uploadu zostaje otwarte, a wysłanie nowej wersji unieważnia rozpoczętą ocenę. Komunikat mówi
+    o tym wprost – inaczej koordynator miałby prawo sądzić, że praca jest już nietykalna.
+    """
+
+    def perform(self, request, stage_id: int) -> str:
+        stage = get_object_or_404(Stage, pk=stage_id)
+        locked = lock_for_review(stage, actor=request.user, request=request)
+        return (
+            f"Zablokowano {locked} prac do oceny. Etap pozostaje otwarty – uczestnicy mogą nadal "
+            "wysyłać nowe wersje."
+        )
 
 
 class AssignReviewersView(CoordinatorActionView):
@@ -402,6 +434,27 @@ class AssignSubmissionReviewerView(StageAssignmentActionView):
         return (
             f"Przydzielono pracę {submission.entry.participant.public_code} "
             f"recenzentowi {reviewer.user.email}."
+        )
+
+
+class LockSubmissionForReviewView(StageAssignmentActionView):
+    """Wciągnięcie do oceniania jednej wskazanej pracy – przed zamknięciem etapu.
+
+    Odpowiednik przycisku z karty etapu, ale dla pojedynczego wiersza: komitet bierze do oceny
+    konkretną pracę (np. tę, na którą czeka recenzent gotowy zacząć), a reszta etapu zostaje.
+    """
+
+    def perform(self, request, submission_id: int) -> str:
+        from apps.submissions.models import Submission
+
+        submission = get_object_or_404(
+            Submission.objects.select_related("entry", "entry__participant"), pk=submission_id
+        )
+        self.stage_id = submission.entry.stage_id
+        lock_submission_for_review(submission, actor=request.user, request=request)
+        return (
+            f"Praca {submission.entry.participant.public_code} została zablokowana do oceny. "
+            "Uczestnik może nadal wysłać nową wersję – wtedy ocena zacznie się od nowa."
         )
 
 

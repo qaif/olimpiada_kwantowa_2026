@@ -24,6 +24,7 @@ from apps.core.api import DomainError
 from apps.grading.models import ROUND_TIEBREAK, ReviewStatus
 from apps.grading.services import (
     GRADE_CHANGE_BLOCK_MESSAGES,
+    cancel_message,
     dispute_context,
     reviews_for_reviewer,
     revise_review,
@@ -48,9 +49,10 @@ class ReviewerScopedMixin(ReviewerRequiredMixin):
 class ReviewListView(ReviewerScopedMixin, TemplateView):
     """Lista przydziałów recenzenta ze statusem każdej recenzji.
 
-    Prace odebrane przez koordynatora stoją osobno, a nie w jednej tabeli z resztą: nie ma już przy
-    nich nic do zrobienia, a wymieszane z bieżącymi wyglądałyby jak zaległość. Ukrycie ich odpadło –
-    recenzent, któremu praca zniknęła z listy bez śladu, ma prawo sądzić, że to awaria.
+    Recenzje anulowane stoją osobno, a nie w jednej tabeli z resztą: nie ma już przy nich nic do
+    zrobienia, a wymieszane z bieżącymi wyglądałyby jak zaległość. Ukrycie ich odpadło – recenzent,
+    któremu praca zniknęła z listy bez śladu, ma prawo sądzić, że to awaria. Każdy wiersz niesie
+    powód: odebranie pracy przez koordynatora to co innego niż nowa wersja od uczestnika.
     """
 
     template_name = "web/reviewer/list.html"
@@ -59,7 +61,11 @@ class ReviewListView(ReviewerScopedMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         reviews = list(self.get_queryset())
         context["reviews"] = [item for item in reviews if item.status != ReviewStatus.CANCELLED]
-        context["withdrawn_reviews"] = [item for item in reviews if item.status == ReviewStatus.CANCELLED]
+        context["cancelled_rows"] = [
+            {"review": item, "reason": cancel_message(item)}
+            for item in reviews
+            if item.status == ReviewStatus.CANCELLED
+        ]
         context["open_statuses"] = (ReviewStatus.ASSIGNED, ReviewStatus.DRAFT)
         return context
 
@@ -110,9 +116,14 @@ class ReviewDetailView(ReviewerScopedMixin, TemplateView):
                 "annotations_url": reverse("grading:review-detail", kwargs={"pk": review.pk}),
                 "editable": editable,
                 "revision_allowed": not editable and block_reason is None,
-                # Recenzję odebraną pokazujemy osobnym komunikatem, a nie podpowiedzią przy
-                # formularzu: formularza tam w ogóle nie ma.
+                # Recenzję anulowaną pokazujemy osobnym komunikatem, a nie podpowiedzią przy
+                # formularzu: formularza tam w ogóle nie ma. Powód bierze się z ``cancel_reason``,
+                # bo „anulowana” znaczy co innego dla pracy odebranej przez koordynatora, a co
+                # innego dla pracy, której uczestnik wysłał nową wersję.
                 "withdrawn": review.status == ReviewStatus.CANCELLED,
+                "cancel_message": (
+                    cancel_message(review) if review.status == ReviewStatus.CANCELLED else None
+                ),
                 "revision_hint": GRADE_CHANGE_BLOCK_MESSAGES.get(block_reason) if block_reason else None,
                 # Panel sporu istnieje tylko w rundzie rozjemczej. Ten sam serwis obsługuje
                 # ``GET /api/grading/reviews/{id}/dispute/`` – jedna reguła, dwie prezentacje.

@@ -167,6 +167,13 @@ urlpatterns = [
         coordinator.CloseStageView.as_view(),
         name="coordinator-close-stage",
     ),
+    # Blokada do oceny stoi obok zamknięcia etapu, bo to jego łagodniejszy wariant: prace wchodzą
+    # do oceniania, a okno uploadu zostaje otwarte.
+    path(
+        "coordinator/stages/<int:stage_id>/lock-for-review/",
+        coordinator.LockStageForReviewView.as_view(),
+        name="coordinator-lock-for-review",
+    ),
     path(
         "coordinator/stages/<int:stage_id>/assign/",
         coordinator.AssignReviewersView.as_view(),
@@ -189,6 +196,11 @@ urlpatterns = [
         "coordinator/reviewer-rules/<int:pk>/delete/",
         coordinator.RemoveProblemRuleView.as_view(),
         name="coordinator-problem-rule-remove",
+    ),
+    path(
+        "coordinator/submissions/<int:submission_id>/lock-for-review/",
+        coordinator.LockSubmissionForReviewView.as_view(),
+        name="coordinator-submission-lock",
     ),
     path(
         "coordinator/submissions/<int:submission_id>/assign-reviewer/",

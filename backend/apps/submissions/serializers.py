@@ -130,6 +130,16 @@ class SubmissionUploadSerializer(serializers.Serializer):
     file = serializers.FileField(write_only=True)
 
 
+class LockForReviewResultSerializer(serializers.Serializer):
+    """Wynik blokady prac do oceny: ile wersji faktycznie przeszło w ``LOCKED``.
+
+    Zero jest poprawną odpowiedzią, a nie błędem – etap zamknięty albo już zablokowany nie ma tu
+    nic do zrobienia, a operacja jest idempotentna.
+    """
+
+    locked = serializers.IntegerField(read_only=True)
+
+
 class SubmissionGroupSerializer(serializers.Serializer):
     """Rozwiązania jednego zadania: najnowsza wersja i historia starszych wersji."""
 

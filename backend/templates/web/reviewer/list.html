@@ -29,34 +29,37 @@
       {% empty %}
         <tr><td colspan="7" class="empty">
           <span class="empty__title">Brak przydziałów</span>
-          Nie masz jeszcze przydzielonych prac. Przydziału dokonuje koordynator po zamknięciu etapu.
+          Nie masz jeszcze przydzielonych prac. Przydziału dokonuje koordynator, gdy prace trafią
+          do oceniania – czasem jeszcze przed zamknięciem etapu.
         </td></tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
 
-{% if withdrawn_reviews %}
+{% if cancelled_rows %}
   {% comment %}
-    Prace odebrane stoją osobno, bo nie ma przy nich nic do zrobienia. Wymieszane z bieżącymi
-    wyglądałyby jak zaległość, a ukryte – jak awaria panelu.
+    Recenzje anulowane stoją osobno, bo nie ma przy nich nic do zrobienia. Wymieszane z bieżącymi
+    wyglądałyby jak zaległość, a ukryte – jak awaria panelu. Kolumna „Powód” jest tu najważniejsza:
+    odebranie pracy przez koordynatora to co innego niż nowa wersja rozwiązania od uczestnika.
   {% endcomment %}
   <section class="section">
-    <h2>Prace odebrane przez koordynatora</h2>
+    <h2>Recenzje anulowane</h2>
     <p class="hint">Te oceny nie liczą się do oceny końcowej i nie można ich już zmienić.</p>
     <div class="scroll">
       <table class="table">
         <thead>
-          <tr><th>Praca</th><th>Etap</th><th>Zadanie</th><th>Runda</th><th>Punkty</th></tr>
+          <tr><th>Praca</th><th>Etap</th><th>Zadanie</th><th>Runda</th><th>Punkty</th><th>Powód</th></tr>
         </thead>
         <tbody>
-          {% for review in withdrawn_reviews %}
+          {% for row in cancelled_rows %}
             <tr>
-              <td><span class="code-chip">{{ review.submission.entry.participant.public_code }}</span></td>
-              <td>{{ review.submission.entry.stage.display_name }}</td>
-              <td>{{ review.submission.problem.number }}. {{ review.submission.problem.title }}</td>
-              <td class="num">{{ review.round }}</td>
-              <td class="num">{% if review.score is not None %}{{ review.score }}{% else %}—{% endif %}</td>
+              <td><span class="code-chip">{{ row.review.submission.entry.participant.public_code }}</span></td>
+              <td>{{ row.review.submission.entry.stage.display_name }}</td>
+              <td>{{ row.review.submission.problem.number }}. {{ row.review.submission.problem.title }}</td>
+              <td class="num">{{ row.review.round }}</td>
+              <td class="num">{% if row.review.score is not None %}{{ row.review.score }}{% else %}—{% endif %}</td>
+              <td>{{ row.reason }}</td>
             </tr>
           {% endfor %}
         </tbody>

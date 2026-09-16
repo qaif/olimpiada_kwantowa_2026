@@ -40,6 +40,7 @@ from .models import (
     GradeMethod,
     ProblemReviewerRule,
     Review,
+    ReviewCancelReason,
     ReviewStatus,
 )
 
@@ -47,6 +48,35 @@ logger = logging.getLogger(__name__)
 
 #: Stany zgłoszenia, w których wolno wystawić ocenę (moderacja obsługuje rundę rozjemczą).
 REVIEWABLE_STATUSES = (SubmissionStatus.IN_REVIEW, SubmissionStatus.MODERATION)
+#: Powód anulowania zapisywany w recenzji dla każdego powodu wpisywanego do audytu.
+#:
+#: Dwa słowniki, bo mają dwóch czytelników. W audycie stoją nazwy historyczne (``REVIEW_REVISED``,
+#: ``COORDINATOR_OVERRIDE``) – szukają po nich istniejące raporty i ich zmiana zerwałaby ciągłość
+#: akt. W recenzji stoi wartość z ``ReviewCancelReason``, z której panel robi jedno zdanie dla
+#: recenzenta. Mapa trzyma oba zbiory w zgodzie zamiast powtarzać wartość przy każdym wywołaniu.
+#: Wartość domyślna to decyzja koordynatora: pozostałe anulowania robi on ręcznie.
+AUDIT_REASON_TO_CANCEL_REASON = {
+    "MODERATION_RESOLVED": ReviewCancelReason.MODERATION_RESOLVED,
+    "REVIEW_REVISED": ReviewCancelReason.REVISED,
+    "COORDINATOR_OVERRIDE": ReviewCancelReason.OVERRIDE,
+    "SUPERSEDED": ReviewCancelReason.SUPERSEDED,
+}
+#: Komunikat dla recenzenta, którego przydział został anulowany.
+REVIEW_CANCEL_MESSAGES = {
+    ReviewCancelReason.COORDINATOR: "Koordynator odebrał Ci tę pracę.",
+    ReviewCancelReason.SUPERSEDED: (
+        "Uczestnik wysłał nową wersję rozwiązania – ta recenzja została anulowana."
+    ),
+    ReviewCancelReason.OVERRIDE: "Koordynator wpisał ocenę końcową tej pracy.",
+    ReviewCancelReason.MODERATION_RESOLVED: "Rozjazd ocen rozstrzygnął już ktoś inny.",
+    ReviewCancelReason.REVISED: "Recenzent rundy 1 poprawił ocenę i rozjazd zniknął.",
+}
+#: Treść dla recenzji anulowanej bez zapisanego powodu, czyli sprzed wprowadzenia ``cancel_reason``.
+#: To samo zdanie, które panel pokazywał wtedy każdej anulowanej recenzji – i prawdziwe dla
+#: zdecydowanej większości tamtych wierszy, bo jedyną drogą do anulowania recenzji rundy 1 było
+#: odebranie pracy przez koordynatora. Wartość ogólna („przydział anulowano”) byłaby formalnie
+#: ostrożniejsza, ale odbierałaby informację komuś, kto czyta swoją starą historię.
+REVIEW_CANCELLED_UNKNOWN_MESSAGE = REVIEW_CANCEL_MESSAGES[ReviewCancelReason.COORDINATOR]
 #: Przestrzeń kluczy blokad doradczych Postgresa dla tego modułu (pg_advisory_xact_lock(int4, int4)).
 #: Stała nie może kolidować z innymi modułami – każdy, kto doda blokadę doradczą, bierze własną.
 ADVISORY_LOCK_NAMESPACE_ASSIGNMENT = 1005
@@ -72,6 +102,27 @@ def _bad_request(detail: str, code: str) -> DomainError:
 
 def _norm_district(value: str | None) -> str:
     return (value or "").strip().casefold()
+
+
+def cancel_message(review: Review) -> str:
+    """Zdanie, którym panel recenzenta tłumaczy anulowany przydział.
+
+    Jedna funkcja dla listy i dla szczegółów recenzji: oba ekrany mówią o tym samym zdarzeniu,
+    a dwie kopie słownika rozjechałyby się przy pierwszym nowym powodzie anulowania.
+    """
+    return REVIEW_CANCEL_MESSAGES.get(review.cancel_reason, REVIEW_CANCELLED_UNKNOWN_MESSAGE)
+
+
+def _cancel_review(review: Review, *, reason: str) -> None:
+    """Przestawia recenzję w ``CANCELLED`` razem z powodem widocznym dla recenzenta.
+
+    ``reason`` jest powodem *audytowym* – na powód zapisywany w recenzji tłumaczy go
+    ``AUDIT_REASON_TO_CANCEL_REASON``, żeby żadna ścieżka anulowania nie zostawiła recenzentowi
+    pustego pola i pytania „dlaczego zniknęło mi zadanie”.
+    """
+    review.status = ReviewStatus.CANCELLED
+    review.cancel_reason = AUDIT_REASON_TO_CANCEL_REASON.get(reason, ReviewCancelReason.COORDINATOR)
+    review.save(update_fields=["status", "cancel_reason"])
 
 
 def is_coordinator(user) -> bool:
@@ -430,8 +481,11 @@ def _create_blind_assignment(submission: Submission, reviewer: CommitteeMember) 
     ).first()
     if existing is not None:
         existing.status = ReviewStatus.ASSIGNED
+        # Powód anulowania znika razem z anulowaniem: przydział znów jest do zrobienia, a stary
+        # powód wyświetlałby się przy recenzji, która nie jest już anulowana.
+        existing.cancel_reason = ""
         existing.assigned_at = timezone.now()
-        existing.save(update_fields=["status", "assigned_at"])
+        existing.save(update_fields=["status", "cancel_reason", "assigned_at"])
         return existing
     return Review.objects.create(
         submission=submission,
@@ -599,8 +653,7 @@ def unassign_reviewer(review: Review, *, actor=None, request=None) -> Review:
     previous_status = review.status
     was_submitted = previous_status == ReviewStatus.SUBMITTED
     started = previous_status != ReviewStatus.ASSIGNED
-    review.status = ReviewStatus.CANCELLED
-    review.save(update_fields=["status"])
+    _cancel_review(review, reason="COORDINATOR")
 
     diff = {"submission_id": submission.pk, "reviewer_id": review.reviewer_id}
     if started:
@@ -752,8 +805,7 @@ def _cancel_pending_tiebreak(
         )
     )
     for review in pending:
-        review.status = ReviewStatus.CANCELLED
-        review.save(update_fields=["status"])
+        _cancel_review(review, reason=reason)
         audit(
             actor,
             "review.cancelled",
@@ -1124,8 +1176,7 @@ def _cancel_pending_reviews(submission: Submission, *, reason: str, actor=None, 
         )
     )
     for review in pending:
-        review.status = ReviewStatus.CANCELLED
-        review.save(update_fields=["status"])
+        _cancel_review(review, reason=reason)
         audit(
             actor,
             "review.cancelled",
@@ -1280,6 +1331,131 @@ def override_final_grade(submission: Submission, score, *, rationale: str, actor
     return {"grade": grade, "results_stale": results_stale, "cancelled_reviews": cancelled}
 
 
+# --- nowa wersja pracy unieważnia rozpoczętą ocenę ----------------------------------------------
+
+#: Stany starszej wersji, które nowa wersja unieważnia: praca była już w obiegu oceniania.
+SUPERSEDABLE_STATUSES = (
+    SubmissionStatus.LOCKED,
+    SubmissionStatus.IN_REVIEW,
+    SubmissionStatus.MODERATION,
+    SubmissionStatus.GRADED_PROVISIONAL,
+)
+#: Stany, w których praca ma etap za sobą i unieważnienie jej oceny nie wchodzi w grę.
+FINALISED_STATUSES = (SubmissionStatus.APPEALED, SubmissionStatus.FINAL)
+
+
+@transaction.atomic
+def supersede_earlier_versions(entry, problem, new_submission: Submission, *, request=None) -> dict:
+    """Nowa wersja rozwiązania unieważnia ocenę rozpoczętą na wersjach wcześniejszych.
+
+    Reguła powstała razem z ocenianiem przed zamknięciem etapu (``submissions.lock_for_review``).
+    Skoro komitet zaczyna czytać prace, zanim minie deadline, a uczestnik do deadline'u może
+    wysyłać kolejne wersje, muszą istnieć obie rzeczy naraz: rozpoczęta ocena i otwarte okno
+    uploadu. Rozstrzygnięcie jest po stronie uczestnika – nowa wersja kasuje dotychczasową ocenę,
+    a praca wraca do kolejki i zostanie oceniona od nowa.
+
+    Dla każdej wcześniejszej wersji w stanie z ``SUPERSEDABLE_STATUSES``:
+
+    - nieanulowane recenzje (także **wystawione**) przechodzą w ``CANCELLED`` z powodem
+      ``SUPERSEDED`` – recenzent zobaczy w panelu, co się stało, zamiast pustego miejsca,
+    - ``FinalGrade`` znika (``grade.withdrawn``, powód ``SUPERSEDED``): ocena wystawiona wersji,
+      której nikt już nie czyta, nie może wejść do tabeli wyników,
+    - wersja wraca do ``SUBMITTED``. Wiersz zostaje jako historia, ale przestaje się liczyć –
+      ``close_stage``, ``lockable_submission_ids`` i ``_assignable_submissions`` i tak wybierają
+      najnowszą wersję, więc do oceniania wejdzie nowa.
+
+    Praca **finalna, w reklamacji albo z ogłoszonymi wynikami** jest poza zasięgiem: takiej oceny
+    nie da się cicho unieważnić, bo uczestnik i komisja odwoławcza już ją znają. Stan ten nie może
+    powstać przy otwartym etapie (wyniki ogłasza się po zamknięciu reklamacji, a zamknięty etap nie
+    przyjmuje uploadu), więc warunek jest wyłącznie bezpiecznikiem – ale odmawia jawnie,
+    ``SUBMISSION_FINALISED``, zamiast po cichu skasować rozstrzygnięcie.
+
+    Aktorem wpisów audytowych jest uczestnik: to jego wysyłka spowodowała unieważnienie, a wpis bez
+    aktora sugerowałby decyzję systemu albo koordynatora.
+    """
+    earlier = list(
+        Submission.objects.select_for_update(of=("self",))
+        .filter(entry=entry, problem=problem, version__lt=new_submission.version)
+        .order_by("version")
+    )
+    finalised = [item for item in earlier if item.status in FINALISED_STATUSES]
+    touched = [item for item in earlier if item.status in SUPERSEDABLE_STATUSES]
+    if not finalised and not touched:
+        # Najczęstszy przypadek (poprzednie wersje zwyczajnie czekają na blokadę) kończy się tutaj,
+        # bez dodatkowego pytania o publikację wyników.
+        return {"superseded": 0, "cancelled_reviews": 0, "grades_withdrawn": 0}
+    if finalised or _results_published(entry.stage):
+        raise _conflict(
+            "Ta praca ma już ocenę ostateczną – nowej wersji nie da się przyjąć.",
+            "SUBMISSION_FINALISED",
+        )
+
+    actor = entry.participant.user
+    cancelled_total = 0
+    withdrawn_total = 0
+    for submission in touched:
+        cancelled = 0
+        pending = Review.objects.filter(submission=submission).exclude(status=ReviewStatus.CANCELLED)
+        for review in pending:
+            _cancel_review(review, reason="SUPERSEDED")
+            audit(
+                actor,
+                "review.cancelled",
+                review,
+                {"submission_id": submission.pk, "round": review.round, "reason": "SUPERSEDED"},
+                request=request,
+            )
+            cancelled += 1
+        grade = FinalGrade.objects.filter(submission=submission).first()
+        grade_withdrawn = grade is not None
+        if grade is not None:
+            score, method = grade.score, grade.method
+            grade.delete()
+            # Celem wpisu jest zgłoszenie, a nie skasowana ocena: po ``delete()`` jej identyfikator
+            # nie wskazuje już niczego, a punkty muszą zostać w aktach.
+            audit(
+                actor,
+                "grade.withdrawn",
+                submission,
+                {
+                    "submission_id": submission.pk,
+                    "score": score,
+                    "method": method,
+                    "reason": "SUPERSEDED",
+                },
+                request=request,
+            )
+        submission.status = SubmissionStatus.SUBMITTED
+        submission.save(update_fields=["status"])
+        audit(
+            actor,
+            "submission.superseded",
+            submission,
+            {
+                "old_id": submission.pk,
+                "new_id": new_submission.pk,
+                "cancelled_reviews": cancelled,
+                "grade_withdrawn": grade_withdrawn,
+            },
+            request=request,
+        )
+        cancelled_total += cancelled
+        withdrawn_total += int(grade_withdrawn)
+
+    logger.info(
+        "Zgłoszenie %s zastąpiło %s wcześniejszych wersji (anulowane recenzje: %s, zdjęte oceny: %s)",
+        new_submission.pk,
+        len(touched),
+        cancelled_total,
+        withdrawn_total,
+    )
+    return {
+        "superseded": len(touched),
+        "cancelled_reviews": cancelled_total,
+        "grades_withdrawn": withdrawn_total,
+    }
+
+
 # --- moderacja --------------------------------------------------------------------------------
 
 
@@ -1391,11 +1567,17 @@ def stage_assignment_rows(stage: Stage, query: str = "") -> list[dict]:
 
     Recenzje ``CANCELLED`` są w wierszu widoczne: cofnięty przydział jest informacją („próbowaliśmy,
     cofnięto”), a nie stanem do ukrycia.
+
+    Prace jeszcze **oddane** (``SUBMITTED``) też tu stoją, odkąd ocenianie może ruszyć przed
+    zamknięciem etapu: koordynator musi widzieć, co czeka na wciągnięcie do oceny, i móc wciągnąć
+    pojedynczą pracę (``lockable``) bez blokowania całego etapu. Przydziału ani oceny końcowej
+    taki wiersz nie przyjmuje – najpierw blokada, potem recenzenci.
     """
     rows_qs = (
         Submission.objects.filter(
             entry__stage=stage,
             status__in=(
+                SubmissionStatus.SUBMITTED,
                 SubmissionStatus.LOCKED,
                 SubmissionStatus.IN_REVIEW,
                 *GRADABLE_STATUSES,
@@ -1439,6 +1621,9 @@ def stage_assignment_rows(stage: Stage, query: str = "") -> list[dict]:
             # Bez zapytania na wiersz: ``best`` trzyma już najnowszą wersję pracy, więc wystarczy
             # sam stan – nowszej wersji w LOCKED/IN_REVIEW z definicji nie ma.
             "assignable": submission.status in (SubmissionStatus.LOCKED, SubmissionStatus.IN_REVIEW),
+            # Ten sam skrót: wiersz niesie najnowszą wersję, więc oddana praca jest tą, którą
+            # ``lock_submission_for_review`` wciągnie do oceniania.
+            "lockable": submission.status == SubmissionStatus.SUBMITTED,
         }
         for submission in submissions
     ]

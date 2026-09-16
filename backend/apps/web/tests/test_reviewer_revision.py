@@ -113,6 +113,8 @@ def test_list_keeps_withdrawn_reviews_in_a_separate_group(web_client, submission
 
     content = web_client.get("/review/").content.decode()
 
-    assert "Prace odebrane przez koordynatora" in content
+    # Sekcja obejmuje każde anulowanie, nie tylko odebranie pracy przez koordynatora: od kiedy
+    # ocenianie rusza przed zamknięciem etapu, trafia tu też recenzja unieważniona nową wersją.
+    assert "Recenzje anulowane" in content
     assert f'href="/review/{open_review.pk}/"' in content
     assert f'href="/review/{withdrawn.pk}/"' not in content
