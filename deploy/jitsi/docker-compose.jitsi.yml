@@ -1,0 +1,136 @@
+# Własna instancja Jitsi Meet dla rozmów kwalifikacyjnych (meet.<domena>).
+#
+# Osobny projekt compose (`-p olimpiada-jitsi`), żeby główny `docker compose up` portalu nie
+# restartował rozmów i odwrotnie. TLS kończy Caddy portalu (blok `meet.{$SITE_DOMAIN}` w
+# deploy/Caddyfile): kontener `jitsi-web` wchodzi do zewnętrznej sieci `edge` portalu pod nazwą
+# `jitsi-web`, a sam serwuje zwykły HTTP. Media (JVB) idą bezpośrednio po UDP 10000 – to jedyny
+# port publikowany na hoście; wymaga reguły `ufw allow 10000/udp` (robi ją scripts/deploy_jitsi.sh).
+#
+# Pokoje są otwarte (bez logowania), ale nazwy losowe generuje portal przy zapisie na termin –
+# adres pokoju jest sekretem znanym uczestnikowi i komisji. Poczekalnia (lobby) i strona
+# „przed wejściem” są włączone, więc obcy z linkiem i tak nie wejdzie bez wpuszczenia.
+#
+# Uruchomienie: scripts/deploy_jitsi.sh user@host (tworzy .env z sekretami, otwiera port, startuje).
+
+services:
+  jitsi-web:
+    image: jitsi/web:${JITSI_IMAGE_VERSION:-stable}
+    restart: unless-stopped
+    volumes:
+      - jitsi-web-config:/config
+      - jitsi-web-crontabs:/var/spool/cron/crontabs
+      - jitsi-web-transcripts:/usr/share/jitsi-meet/transcripts
+    environment:
+      - PUBLIC_URL=${PUBLIC_URL}
+      - TZ=${TZ:-Europe/Warsaw}
+      - DISABLE_HTTPS=1
+      - ENABLE_LETSENCRYPT=0
+      - ENABLE_HTTP_REDIRECT=0
+      - HTTP_PORT=80
+      - ENABLE_XMPP_WEBSOCKET=1
+      - ENABLE_PREJOIN_PAGE=1
+      - ENABLE_LOBBY=1
+      - ENABLE_WELCOME_PAGE=0
+      - ENABLE_RECORDING=0
+      - ENABLE_TRANSCRIPTIONS=0
+      - DEFAULT_LANGUAGE=pl
+      - XMPP_DOMAIN=${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_AUTH_DOMAIN=auth.${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_BOSH_URL_BASE=http://xmpp.${XMPP_DOMAIN:-meet.jitsi}:5280
+      - XMPP_GUEST_DOMAIN=guest.${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_MUC_DOMAIN=muc.${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_RECORDER_DOMAIN=recorder.${XMPP_DOMAIN:-meet.jitsi}
+      - JICOFO_AUTH_USER=focus
+    networks:
+      meet.jitsi:
+      edge:
+        aliases: [jitsi-web]
+    depends_on: [prosody]
+
+  prosody:
+    image: jitsi/prosody:${JITSI_IMAGE_VERSION:-stable}
+    restart: unless-stopped
+    expose: ["5222", "5347", "5280"]
+    volumes:
+      - jitsi-prosody-config:/config
+      - jitsi-prosody-plugins:/prosody-plugins-custom
+    environment:
+      - PUBLIC_URL=${PUBLIC_URL}
+      - TZ=${TZ:-Europe/Warsaw}
+      - ENABLE_AUTH=0
+      - ENABLE_GUESTS=1
+      - ENABLE_LOBBY=1
+      - ENABLE_XMPP_WEBSOCKET=1
+      - XMPP_DOMAIN=${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_AUTH_DOMAIN=auth.${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_GUEST_DOMAIN=guest.${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_MUC_DOMAIN=muc.${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_INTERNAL_MUC_DOMAIN=internal-muc.${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_RECORDER_DOMAIN=recorder.${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_MODULES=
+      - XMPP_MUC_MODULES=
+      - XMPP_INTERNAL_MUC_MODULES=
+      - JICOFO_AUTH_USER=focus
+      - JICOFO_AUTH_PASSWORD=${JICOFO_AUTH_PASSWORD}
+      - JVB_AUTH_USER=jvb
+      - JVB_AUTH_PASSWORD=${JVB_AUTH_PASSWORD}
+    networks:
+      meet.jitsi:
+        aliases: [xmpp.${XMPP_DOMAIN:-meet.jitsi}]
+
+  jicofo:
+    image: jitsi/jicofo:${JITSI_IMAGE_VERSION:-stable}
+    restart: unless-stopped
+    volumes:
+      - jitsi-jicofo-config:/config
+    environment:
+      - TZ=${TZ:-Europe/Warsaw}
+      - XMPP_DOMAIN=${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_AUTH_DOMAIN=auth.${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_INTERNAL_MUC_DOMAIN=internal-muc.${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_MUC_DOMAIN=muc.${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_SERVER=xmpp.${XMPP_DOMAIN:-meet.jitsi}
+      - JICOFO_AUTH_USER=focus
+      - JICOFO_AUTH_PASSWORD=${JICOFO_AUTH_PASSWORD}
+      - JVB_BREWERY_MUC=jvbbrewery
+    networks:
+      meet.jitsi:
+    depends_on: [prosody]
+
+  jvb:
+    image: jitsi/jvb:${JITSI_IMAGE_VERSION:-stable}
+    restart: unless-stopped
+    ports:
+      - "${JVB_PORT:-10000}:${JVB_PORT:-10000}/udp"
+    volumes:
+      - jitsi-jvb-config:/config
+    environment:
+      - TZ=${TZ:-Europe/Warsaw}
+      - XMPP_AUTH_DOMAIN=auth.${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_INTERNAL_MUC_DOMAIN=internal-muc.${XMPP_DOMAIN:-meet.jitsi}
+      - XMPP_SERVER=xmpp.${XMPP_DOMAIN:-meet.jitsi}
+      - JVB_AUTH_USER=jvb
+      - JVB_AUTH_PASSWORD=${JVB_AUTH_PASSWORD}
+      - JVB_BREWERY_MUC=jvbbrewery
+      - JVB_PORT=${JVB_PORT:-10000}
+      - JVB_ADVERTISE_IPS=${JVB_ADVERTISE_IPS}
+      - JVB_TCP_HARVESTER_DISABLED=true
+    networks:
+      meet.jitsi:
+    depends_on: [prosody]
+
+volumes:
+  jitsi-web-config:
+  jitsi-web-crontabs:
+  jitsi-web-transcripts:
+  jitsi-prosody-config:
+  jitsi-prosody-plugins:
+  jitsi-jicofo-config:
+  jitsi-jvb-config:
+
+networks:
+  meet.jitsi:
+    driver: bridge
+  edge:
+    external: true
+    name: ${EDGE_NETWORK:-olimpiada_edge}

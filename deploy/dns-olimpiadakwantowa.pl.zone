@@ -12,6 +12,9 @@ www                  IN A     169.58.242.197
 ; --- Pliki (MinIO przez Caddy; po dodaniu tego rekordu portal przełączy się z portu :9000 na subdomenę) ---
 s3                   IN A     169.58.242.197
 
+; --- Własne Jitsi Meet do rozmów kwalifikacyjnych (scripts/deploy_jitsi.sh; TLS przez Caddy) ---
+meet                 IN A     169.58.242.197
+
 ; --- Poczta wychodząca (Postfix na serwerze; nazwa z HELO i PTR) ---
 mail                 IN A     169.58.242.197
 

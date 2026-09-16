@@ -8,6 +8,7 @@ Wartości 1:1 z `deploy/dns-olimpiadakwantowa.pl.zone`. TTL: 3600 (domyślny). R
 | A | `www` | `169.58.242.197` | przekierowanie na domenę główną (istnieje) |
 | A | `s3` | `169.58.242.197` | pliki (presigned URL) przez `s3.olimpiadakwantowa.pl` zamiast `:9000` |
 | A | `mail` | `169.58.242.197` | nazwa serwera poczty (HELO) |
+| A | `meet` | `169.58.242.197` | własne Jitsi Meet do rozmów kwalifikacyjnych (`scripts/deploy_jitsi.sh`) |
 | TXT | `@` | `v=spf1 ip4:169.58.242.197 -all` | SPF |
 | TXT | `olimpiada._domainkey` | `v=DKIM1; h=sha256; k=rsa; s=email; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAotteu3GhRRsJajATnJVGe7ThN+Er4hCMcNx6vKIx0hEJeNDVTok4OwaV6yHXaU403ku7YqufNTP9OdpbfpgSrJMI4l3wUB2796NNhA0zJDP7WnLS7juPsPfDYzxZXqtU6oC+PdzkqUcBHz67gCTJzKtU7wU+OPv5be883gYJRduor4OnAv5ZSeaMZ1eUEViQWgcQrpqXMEDhgkUStlHsgXpngQIxsSKF3mPhuAn6G2PxsCR0HGl8gRhk0SwiVc0Ak819do1ItjB0UmJwkV/nufoqyWUppmKEtTgsZp63NaJU3fZfqaRXbwBiS1tpRknvV+OaGkN6hd66uTkiWVGjhwIDAQAB` | DKIM |
 | TXT | `_dmarc` | `v=DMARC1; p=quarantine; rua=mailto:contact@qaif.org; adkim=r; aspf=r; fo=1` | DMARC |

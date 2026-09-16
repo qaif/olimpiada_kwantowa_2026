@@ -41,3 +41,17 @@ www.{$SITE_DOMAIN} {
     }
     reverse_proxy minio:9000
 }
+
+# Własne Jitsi Meet (rozmowy kwalifikacyjne): osobny projekt compose (deploy/jitsi, scripts/deploy_jitsi.sh);
+# kontener `jitsi-web` dołącza do sieci `edge` pod tą nazwą. WebSocket (XMPP) przechodzi przez reverse_proxy
+# bez dodatkowej konfiguracji. Dopóki nie ma rekordu DNS `meet.<domena>`, ten blok tylko czeka na certyfikat.
+meet.{$SITE_DOMAIN} {
+    encode gzip zstd
+    reverse_proxy jitsi-web:80 {
+        header_up X-Forwarded-Proto {scheme}
+    }
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        X-Content-Type-Options "nosniff"
+    }
+}

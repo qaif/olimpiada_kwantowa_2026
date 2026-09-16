@@ -169,6 +169,24 @@ obraz, uruchamia migracje (entrypoint `web`) i **nie rusza tego, co zmieniono na
   obok `.env`); ponowny import treści z repozytorium wymaga `RUN_CONTENT_SEEDS=1` i nadpisuje
   poprawki zrobione w `/cms/`.
 
+### Własne Jitsi Meet do rozmów kwalifikacyjnych (`scripts/deploy_jitsi.sh`)
+
+Rozmowy kwalifikacyjne mogą iść przez własną instancję Jitsi Meet pod `meet.<domena>` zamiast przez
+publiczny `meet.jit.si` – dane rozmów nie opuszczają wtedy serwera organizatora. Instancja to osobny
+projekt compose (`deploy/jitsi/docker-compose.jitsi.yml`: kontenery `jitsi/web`, `prosody`, `jicofo`,
+`jvb`), uruchamiany po zwykłym wdrożeniu:
+
+```bash
+scripts/deploy_jitsi.sh root@169.58.242.197
+```
+
+Skrypt kopiuje pliki, tworzy jednorazowo `/opt/olimpiada/jitsi/.env` z sekretami, otwiera UDP 10000
+(media), startuje kontenery i restartuje Caddy, który ma blok `meet.{$SITE_DOMAIN}` (`deploy/Caddyfile`)
+i sam wystawi certyfikat, gdy tylko istnieje rekord DNS A `meet.<domena>` → adres serwera
+(`deploy/dns-olimpiadakwantowa.pl.md`). Pokoje są otwarte, ale ich nazwy generuje portal losowo przy
+zapisie na termin; włączona jest poczekalnia i strona „przed wejściem”. Po uruchomieniu ustaw w etapie
+z rozmowami dostawcę wideo na własny serwer z adresem `https://meet.<domena>/`.
+
 ## 4. Zmienne środowiskowe
 
 Pełny szablon: [`.env.example`](.env.example). Wartości wchodzą do kontenerów przez `env_file`
