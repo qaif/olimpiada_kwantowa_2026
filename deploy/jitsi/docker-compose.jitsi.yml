@@ -44,7 +44,8 @@ services:
     networks:
       meet.jitsi:
       edge:
-        aliases: [jitsi-web]
+        aliases:
+          - jitsi-web
     depends_on: [prosody]
 
   prosody:
@@ -76,7 +77,8 @@ services:
       - JVB_AUTH_PASSWORD=${JVB_AUTH_PASSWORD}
     networks:
       meet.jitsi:
-        aliases: [xmpp.${XMPP_DOMAIN:-meet.jitsi}]
+        aliases:
+          - xmpp.${XMPP_DOMAIN:-meet.jitsi}
 
   jicofo:
     image: jitsi/jicofo:${JITSI_IMAGE_VERSION:-stable}
