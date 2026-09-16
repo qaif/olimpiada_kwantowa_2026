@@ -15,6 +15,7 @@ pojawić się dla dostawcy, którego allauth nie zna – kliknięcie kończyłob
 """
 
 import logging
+import os
 
 from django.conf import settings
 from django.db import DatabaseError
@@ -28,9 +29,11 @@ from apps.appeals.services import appeals_committee_profile
 
 logger = logging.getLogger(__name__)
 
-#: Wersja interfejsu pokazywana w stopce. Zmieniana ręcznie razem z wydaniem – nie jest to numer
-#: schematu API (ten mieszka w ``SPECTACULAR_SETTINGS``) ani numer migracji.
-APP_VERSION = "1.0"
+#: Wersja pokazywana w stopce i na ``/status/``. Pochodzi z wydania (``APP_VERSION`` ustawia
+#: ``scripts/deploy.sh`` z ``git describe`` i przekazuje do kontenera przez compose), a nie z ręcznie
+#: podbijanej stałej – ta rozjeżdżała się z tagiem już po drugim wydaniu. Poza wdrożeniem (dev,
+#: testy) jest to „dev”. Nie jest to numer schematu API (``SPECTACULAR_SETTINGS``) ani migracji.
+APP_VERSION = os.environ.get("APP_VERSION", "dev")
 
 #: Nazwy pól zgód wymaganych bezwarunkowo (regulamin, RODO) – liczone raz, z definicji zgód.
 #: Statyczna krotka, więc żadnego zapytania na żądanie.
