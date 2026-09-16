@@ -33,8 +33,9 @@ from apps.core import audit_browser, exports
 from apps.core.api import DomainError
 from apps.core.models import audit
 from apps.grading.reports import FALLBACK_OVERDUE_DAYS, review_has_due_at, reviewer_rows, stage_progress
+from apps.grading.worklog import format_duration, reviewer_seconds
 from apps.results.simulation import apply_rule, simulate
-from apps.web.coordinator_forms import AuditFilterForm, SimulationForm
+from apps.web.coordinator_forms import AuditFilterForm, ManualQualificationForm, SimulationForm
 from apps.web.mixins import ActionViewMixin, CoordinatorRequiredMixin
 
 PROGRESS_TEMPLATE = "web/coordinator/reports.html"
@@ -68,11 +69,20 @@ class StageProgressView(CoordinatorRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         stage = _stage(self.kwargs["stage_id"])
+        rows = reviewer_rows(stage)
+        # Zmierzony czas pracy dokładamy do gotowych wierszy jednym agregatem (``reviewer_seconds``),
+        # a nie pytaniem na wiersz: tabela ma tyle pozycji, ilu jest aktywnych recenzentów. Brak
+        # pomiaru zostaje pustym napisem, a nie zerem – „0 min” sugerowałoby zmierzone zero.
+        seconds = reviewer_seconds(stage)
+        for row in rows:
+            measured = seconds.get(row["member"].pk, 0)
+            row["worklog_seconds"] = measured
+            row["worklog_label"] = format_duration(measured) if measured else ""
         context.update(
             {
                 "stage": stage,
                 "progress": stage_progress(stage),
-                "reviewers": reviewer_rows(stage),
+                "reviewers": rows,
                 "has_due_at": review_has_due_at(),
                 "fallback_days": FALLBACK_OVERDUE_DAYS,
             }
@@ -280,6 +290,10 @@ class StageSimulationView(CoordinatorRequiredMixin, TemplateView):
                 # Parametry, które przycisk „Zastosuj” ma zapisać – dokładnie te, które właśnie
                 # obejrzano. Bez nich zapis mógłby dotyczyć innej reguły niż pokazana tabela.
                 "applied": form.cleaned_data if (form.is_bound and form.is_valid()) else None,
+                # Formularz decyzji komitetu powtarzany w każdym wierszu tabeli. Jedna instancja
+                # na cały ekran wystarcza: pola są niezwiązane, a nazwy identyczne w każdym
+                # wierszu – rozróżnia je adres akcji, który niesie identyfikator wpisu.
+                "manual_form": ManualQualificationForm(),
             }
         )
         return context

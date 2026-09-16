@@ -1,21 +1,29 @@
-{% load web_extras %}{% comment %}
+{% load i18n web_extras %}{% comment %}
   Karta jednego zadania: treść, upload i historia wersji. Ten sam fragment renderuje pulpit
   i odpowiedź HTMX po uploadzie, więc lista wersji nie może rozjechać się między nimi.
 {% endcomment %}
 <article class="problem-card" id="problem-{{ row.problem.pk }}">
   <div class="problem-card__head">
-    <h3>Zadanie {{ row.problem.number }}: {{ row.problem.title }}</h3>
+    {% comment %}
+      Tytuł idzie przez ``display_title``: w angielskim interfejsie pokazuje wersję angielską,
+      jeśli komitet ją wpisał, a w każdym innym przypadku polską (``competitions.Problem``).
+    {% endcomment %}
+    <h3>{% blocktranslate trimmed with number=row.problem.number title=row.problem.display_title %}
+      Zadanie {{ number }}: {{ title }}
+    {% endblocktranslate %}</h3>
     {% if row.problem.statement_pdf %}
       <a class="btn btn--secondary btn--small"
-         href="{% url 'competitions:problem-statement' row.problem.pk %}">Treść zadania (PDF)</a>
+         href="{% url 'competitions:problem-statement' row.problem.pk %}">{% translate "Treść zadania (PDF)" %}</a>
     {% else %}
-      <span class="badge badge--neutral">treść jeszcze nieopublikowana</span>
+      <span class="badge badge--neutral">{% translate "treść jeszcze nieopublikowana" %}</span>
     {% endif %}
   </div>
 
   <p class="problem-card__specs">
-    <span>Dozwolone formaty: <strong>{{ row.problem.allowed_formats|join:", " }}</strong></span>
-    <span>Limit pliku: <strong>{{ row.problem.max_file_mb }} MB</strong></span>
+    <span>{% translate "Dozwolone formaty:" %}
+      <strong>{{ row.problem.allowed_formats|join:", " }}</strong></span>
+    <span>{% translate "Limit pliku:" %}
+      <strong>{{ row.problem.max_file_mb }} MB</strong></span>
   </p>
 
   {% comment %}
@@ -36,8 +44,7 @@
       komunikacie po fakcie: to jest moment, w którym decyzja zapada.
     {% endcomment %}
     {% if row.under_review %}
-      <p class="msg msg-warning">Ta praca jest już w ocenie. Wysłanie nowej wersji anuluje
-        dotychczasową ocenę – zostanie oceniona od nowa.</p>
+      <p class="msg msg-warning">{% translate "Ta praca jest już w ocenie. Wysłanie nowej wersji anuluje dotychczasową ocenę – zostanie oceniona od nowa." %}</p>
     {% endif %}
     <form class="upload"
           method="post"
@@ -53,9 +60,8 @@
         wysyłka działa tak samo z klawiatury i przy wyłączonych skryptach.
       {% endcomment %}
       <div class="dropzone">
-        <label class="dropzone__label" for="file-{{ row.problem.pk }}">Plik rozwiązania</label>
-        <span class="dropzone__hint">Każda wysyłka tworzy nową wersję – poprzednie zostają
-          w historii poniżej.</span>
+        <label class="dropzone__label" for="file-{{ row.problem.pk }}">{% translate "Plik rozwiązania" %}</label>
+        <span class="dropzone__hint">{% translate "Każda wysyłka tworzy nową wersję – poprzednie zostają w historii poniżej." %}</span>
         {% comment %}
           ``accept`` zawęża okno wyboru pliku do formatów zadania (zdjęcie ma dwa rozszerzenia:
           ``.jpg`` i ``.jpeg``). To uprzejmość, nie zabezpieczenie – o przyjęciu pliku decyduje
@@ -63,25 +69,91 @@
         {% endcomment %}
         <input type="file" name="file" id="file-{{ row.problem.pk }}" required
                accept="{{ row.problem.accept_attribute }}"
-               aria-label="Plik rozwiązania zadania {{ row.problem.number }}">
-        <button type="submit" class="btn btn--primary">Wyślij rozwiązanie</button>
+               aria-label="{% blocktranslate trimmed with number=row.problem.number %}Plik rozwiązania zadania {{ number }}{% endblocktranslate %}">
+        {% comment %}
+          Lista kontrolna sprowadzona do jednego zdania. ``required`` w HTML jest wygodą –
+          o przyjęciu wysyłki decyduje ``SubmissionUploadForm.confirmed`` po stronie serwera,
+          bo formularz da się wysłać także bez przeglądarki. Numer zadania jest w treści
+          potwierdzenia celowo: najczęstsza pomyłka to plik wysłany pod zadanie obok.
+        {% endcomment %}
+        <p class="dropzone__confirm">
+          <input type="checkbox" name="confirmed" value="1" required
+                 id="confirm-{{ row.problem.pk }}">
+          <label for="confirm-{{ row.problem.pk }}">{% blocktranslate trimmed with number=row.problem.number %}
+            Potwierdzam, że to rozwiązanie zadania {{ number }} i plik jest czytelny.
+          {% endblocktranslate %}</label>
+        </p>
+        <button type="submit" class="btn btn--primary">{% translate "Wyślij rozwiązanie" %}</button>
       </div>
     </form>
   {% else %}
-    <p class="msg msg-warning closed">Termin oddania rozwiązań minął – upload jest zamknięty.</p>
+    <p class="msg msg-warning closed">{% translate "Termin oddania rozwiązań minął – upload jest zamknięty." %}</p>
+  {% endif %}
+
+  {% comment %}
+    Podgląd dotyczy **wyłącznie najnowszej** wersji – tej, która pójdzie do oceny. Stoi pod
+    formularzem, a nad historią wersji, bo odpowiada na pytanie zadawane zaraz po kliknięciu
+    „Wyślij”: „czy w systemie leży to, co chciałem wysłać”. Metryki (liczba stron, wymiary
+    zdjęcia, pierwsze wiersze kodu) liczy serwer – patrz ``apps.submissions.preview``; pierwszą
+    stronę PDF-a rysuje w przeglądarce ``static/js/upload-preview.js``, bo to własny plik
+    uczestnika i serwer nie ma po co składać z niego obrazka.
+  {% endcomment %}
+  {% if row.preview %}
+    {% with latest=row.versions.0 %}
+      <section class="upload-preview" aria-label="{% translate 'Podgląd ostatniej wersji' %}">
+        <h4 class="upload-preview__title">{% translate "Podgląd ostatniej wersji" %}</h4>
+        {% if row.preview.pending_scan %}
+          <p class="hint">{% translate "Podgląd pojawi się po zakończeniu skanu antywirusowego." %}</p>
+        {% else %}
+          {% if row.preview.page_count or row.preview.width %}
+            <p class="upload-preview__facts">
+              {% if row.preview.page_count %}
+                <span>{% translate "Liczba stron:" %}
+                  <strong>{{ row.preview.page_count }}</strong></span>
+              {% endif %}
+              {% if row.preview.width %}
+                <span>{% translate "Wymiary zdjęcia:" %}
+                  <strong>{{ row.preview.width }} × {{ row.preview.height }} px</strong></span>
+              {% endif %}
+            </p>
+          {% endif %}
+          {% if row.preview.kind == "image" %}
+            <img class="upload-preview__image"
+                 src="{% url 'submissions:submission-download' latest.pk %}"
+                 alt="{% blocktranslate trimmed with number=row.problem.number %}Zdjęcie rozwiązania zadania {{ number }}{% endblocktranslate %}" loading="lazy">
+          {% elif row.preview.kind == "document" %}
+            <div class="upload-preview__doc" data-upload-preview
+                 data-pdf-url="{% url 'submissions:submission-download' latest.pk %}">
+              <canvas class="upload-preview__canvas" data-preview-canvas
+                      aria-label="{% translate 'Pierwsza strona wysłanego dokumentu' %}"></canvas>
+              <p class="hint" data-preview-status>{% translate "Pierwsza strona rysuje się po wczytaniu strony." %}</p>
+            </div>
+          {% elif row.preview.kind == "text" and row.preview.text %}
+            <pre class="upload-preview__text">{{ row.preview.text }}</pre>
+            <p class="hint">{% translate "Pierwsze wiersze wysłanego pliku." %}</p>
+          {% endif %}
+        {% endif %}
+      </section>
+    {% endwith %}
   {% endif %}
 
   <div class="scroll">
     <table class="table versions">
-      <caption>Wysłane wersje</caption>
+      <caption>{% translate "Wysłane wersje" %}</caption>
       <thead>
-        <tr><th>Wersja</th><th>Wysłano (czas polski)</th><th>Status pracy</th><th>Skan antywirusowy</th><th>Plik</th></tr>
+        <tr>
+          <th>{% translate "Wersja" %}</th>
+          <th>{% translate "Wysłano (czas polski)" %}</th>
+          <th>{% translate "Status pracy" %}</th>
+          <th>{% translate "Skan antywirusowy" %}</th>
+          <th>{% translate "Plik" %}</th>
+        </tr>
       </thead>
       <tbody>
         {% for submission in row.versions %}
           <tr>
-            <td>wersja {{ submission.version }}{% if submission.is_late %}
-              <span class="badge badge--warn">po terminie</span>{% endif %}</td>
+            <td>{% blocktranslate trimmed with version=submission.version %}wersja {{ version }}{% endblocktranslate %}{% if submission.is_late %}
+              <span class="badge badge--warn">{% translate "po terminie" %}</span>{% endif %}</td>
             <td>{{ submission.submitted_at|local_datetime }}</td>
             <td><span class="{{ submission.status|badge_class }}">{{ submission.get_status_display }}</span></td>
             {% with file=submission.latest_file %}
@@ -89,7 +161,7 @@
                 {% if file %}
                   <span class="{{ file.av_status|badge_class }}">{{ file.get_av_status_display }}</span>
                 {% else %}
-                  <span class="hint">brak pliku</span>
+                  <span class="hint">{% translate "brak pliku" %}</span>
                 {% endif %}
               </td>
               <td>
@@ -101,7 +173,7 @@
                 {% endcomment %}
                 {% if file %}
                   <a class="btn btn--secondary btn--small"
-                     href="{% url 'submissions:submission-download' submission.pk %}">Pobierz</a>
+                     href="{% url 'submissions:submission-download' submission.pk %}">{% translate "Pobierz" %}</a>
                 {% else %}
                   <span class="hint">—</span>
                 {% endif %}
@@ -109,7 +181,7 @@
             {% endwith %}
           </tr>
         {% empty %}
-          <tr><td colspan="5" class="empty">Brak wysłanych wersji.</td></tr>
+          <tr><td colspan="5" class="empty">{% translate "Brak wysłanych wersji." %}</td></tr>
         {% endfor %}
       </tbody>
     </table>

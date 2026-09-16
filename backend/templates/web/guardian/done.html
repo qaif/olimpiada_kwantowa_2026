@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Ekran po potwierdzeniu. Bez tokenu w adresie: niczego już nie identyfikuje, więc nie ma powodu,
+  żeby zostawał w historii przeglądarki ani w logach proxy.
+{% endcomment %}
+{% block title %}{% translate "Zgoda została zapisana" %}{% endblock %}
+{% block timeline_strip %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Zgoda opiekuna" %}</span>
+  <h1>{% translate "Dziękujemy – zgoda została zapisana" %}</h1>
+  <p class="lead">{% translate "Uczestnik dostanie o tym wiadomość e-mail. Tę stronę można zamknąć." %}</p>
+  <p class="hint">
+    {% translate "Zgodę można wycofać, pisząc do organizatora – dane kontaktowe są w stopce strony." %}
+  </p>
+</div>
+{% endblock %}

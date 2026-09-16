@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% load static i18n web_extras %}
+{% comment %}
+  Statystyki ogłoszonych etapów. Wykresy są **wyłącznie CSS-em**: słupek to ``<div>`` z klasą
+  szerokości z zamkniętej listy (``static/css/statistics.css``), bo polityka bezpieczeństwa serwisu
+  nie dopuszcza stylu wpisanego w dokument, a wykres rysowany skryptem znikałby przy wyłączonym
+  JavaScripcie. Przy każdym słupku stoi liczba – to ona jest odpowiedzią, słupek pokazuje proporcję.
+
+  Każdy wykres ma obok **tabelę z tymi samymi liczbami**: czytnik ekranu nie odczyta szerokości
+  ``<div>``-a, a strona ma być użyteczna bez patrzenia na nią.
+{% endcomment %}
+{% block title %}{% translate "Statystyki olimpiady" %}{% endblock %}
+{% block description %}{% translate "Liczby o ogłoszonych etapach Olimpiady Kwantowej: rozkład punktów, mediana, progi kwalifikacji i uczestnicy według województw." %}{% endblock %}
+{% block head %}
+  <link rel="stylesheet" href="{% static 'css/statistics.css' %}">
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Statystyki" %}</span>
+  <h1>{% translate "Olimpiada w liczbach" %}</h1>
+  <p class="lead">{% translate "Wszystkie liczby pochodzą z ogłoszonych tabel wyników i dotyczą etapów, nie osób." %}</p>
+  <p class="hint">{% translate "Nie ma tu żadnych danych osobowych ani rozbicia poniżej województwa. Tabele obliczane są z zamrożonych publikacji, więc zgadzają się co do sztuki z ogłoszonymi wynikami." %}</p>
+</div>
+
+{% for stage in stages %}
+  <section class="section">
+    <div class="card">
+      <div class="card__head">
+        <h2 class="mt-0 card__title">{{ stage.stage_name }} – {{ stage.edition }}
+          {% if stage.is_training %}<span class="badge badge--neutral">{% translate "trening" %}</span>{% endif %}</h2>
+        <a class="btn btn--secondary btn--small"
+           href="{% url 'web:results' stage.stage_id %}">{% translate "Pełna tabela" %}</a>
+      </div>
+      <p class="card__meta">{% blocktranslate trimmed with when=stage.published_at|local_time %}
+        Wyniki ogłoszone {{ when }}.
+      {% endblocktranslate %}</p>
+
+      <dl class="stat-facts">
+        <div><dt>{% translate "Uczestnicy w tabeli" %}</dt><dd>{{ stage.participants }}</dd></div>
+        <div><dt>{% translate "Średnia punktów" %}</dt><dd>{{ stage.mean|default_if_none:"—" }}</dd></div>
+        <div><dt>{% translate "Mediana punktów" %}</dt><dd>{{ stage.median|default_if_none:"—" }}</dd></div>
+        <div><dt>{% translate "Najwyższy wynik" %}</dt><dd>{{ stage.max_total|default_if_none:"—" }}</dd></div>
+        <div><dt>{% translate "Zakwalifikowani" %}</dt><dd>{{ stage.qualified }}</dd></div>
+        {% comment %}
+          Próg jest liczony z tabeli („najsłabszy zakwalifikowany miał tyle punktów”), a nie
+          z reguły kwalifikacji – wyjaśnienie w ``apps.results.statistics``. Podpis mówi wprost,
+          co ta liczba znaczy, żeby nikt nie wziął jej za zapowiedź progu następnej edycji.
+        {% endcomment %}
+        <div>
+          <dt>{% translate "Próg kwalifikacji" %}</dt>
+          <dd>{{ stage.threshold|default_if_none:"—" }}
+            <span class="hint">{% translate "najniższy wynik wśród zakwalifikowanych" %}</span></dd>
+        </div>
+      </dl>
+
+      {% for problem in stage.problems %}
+        <div class="stat-block">
+          <h3 class="stat-block__title">{% blocktranslate trimmed with number=problem.number %}
+            Zadanie {{ number }} – rozkład punktów
+          {% endblocktranslate %}</h3>
+          <table class="table stat-table">
+            <caption class="visually-hidden">{% blocktranslate trimmed with number=problem.number %}
+              Liczba prac według liczby punktów w zadaniu {{ number }}.
+            {% endblocktranslate %}</caption>
+            <thead>
+              <tr>
+                <th scope="col">{% translate "Punkty" %}</th>
+                <th scope="col">{% translate "Prace" %}</th>
+                <th scope="col">{% translate "Udział" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for bar in problem.bars %}
+                <tr>
+                  <th scope="row" class="num">{{ bar.value }}</th>
+                  <td class="num">{{ bar.count }}</td>
+                  <td>
+                    {# Słupek jest ozdobą liczby obok – dlatego ``aria-hidden``. #}
+                    <span class="stat-bar" aria-hidden="true">
+                      <span class="stat-bar__fill stat-bar__fill--{{ bar.width }}"></span>
+                    </span>
+                    <span class="stat-bar__value">{{ bar.share }}%</span>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% empty %}
+        <p class="hint">{% translate "Ten etap nie ma punktów w rozbiciu na zadania." %}</p>
+      {% endfor %}
+
+      {% if stage.districts %}
+        <div class="stat-block">
+          <h3 class="stat-block__title">{% translate "Uczestnicy według województw" %}</h3>
+          <table class="table stat-table">
+            <caption class="visually-hidden">{% translate "Liczba uczestników w tabeli wyników według województwa." %}</caption>
+            <thead>
+              <tr>
+                <th scope="col">{% translate "Województwo" %}</th>
+                <th scope="col">{% translate "Uczestnicy" %}</th>
+                <th scope="col">{% translate "Udział" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in stage.districts %}
+                <tr>
+                  <th scope="row">{{ row.label }}</th>
+                  <td class="num">{{ row.count }}</td>
+                  <td>
+                    <span class="stat-bar" aria-hidden="true">
+                      <span class="stat-bar__fill stat-bar__fill--{{ row.width }}"></span>
+                    </span>
+                    <span class="stat-bar__value">{{ row.share }}%</span>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        {% comment %}
+          Brak sekcji województw nie jest awarią: okręg stoi w zamrożonej tabeli wyłącznie przy
+          anonimizacji „kod uczestnika”. Przy inicjałach ze szkołą i przy pełnych nazwiskach wypada
+          z niej celowo (mnożyłby cechy quasi-identyfikujące) i statystyka nie ma prawa odtwarzać go
+          z innych tabel.
+        {% endcomment %}
+        <p class="hint">{% translate "Dla tego etapu nie publikujemy rozbicia na województwa – ogłoszona tabela go nie zawiera." %}</p>
+      {% endif %}
+    </div>
+  </section>
+{% empty %}
+  <p class="empty"><span class="empty__title">{% translate "Jeszcze nie ma liczb" %}</span>
+    {% translate "Żaden etap nie ma ogłoszonych wyników. Statystyki pojawią się razem z pierwszą publikacją." %}</p>
+{% endfor %}
+{% endblock %}

@@ -28,6 +28,7 @@ from django.urls import reverse
 from django.utils.http import urlencode
 from django.views.generic import View
 
+from apps.accounts.guardian import guardian_status
 from apps.accounts.models import GROUP_COORDINATOR, User
 from apps.accounts.profile import (
     competition_footprint,
@@ -52,14 +53,17 @@ DELETE_TEMPLATE = "web/coordinator/accounts_delete.html"
 #: całej bazy po kolei.
 ACCOUNTS_PER_PAGE = 50
 
-#: Filtr roli w adresie → zawężenie zapytania. Trzy pozycje, bo tylko te trzy da się rozstrzygnąć
+#: Filtr roli w adresie → zawężenie zapytania. Cztery pozycje, bo tyle da się rozstrzygnąć
 #: bez zaglądania w grupy każdego wiersza z osobna: uczestnik ma profil uczestnika, członek
-#: komitetu – profil komitetu, „pozostałe” nie mają żadnego (konta koordynatorów i konta, które
-#: nie dokończyły rejestracji).
+#: komitetu – profil komitetu, opiekun szkolny – profil opiekuna, a „pozostałe” nie mają żadnego
+#: (konta koordynatorów i konta, które nie dokończyły rejestracji).
 ROLE_FILTERS = {
     "participant": lambda qs: qs.filter(participant__isnull=False),
     "committee": lambda qs: qs.filter(committee_member__isnull=False),
-    "other": lambda qs: qs.filter(participant__isnull=True, committee_member__isnull=True),
+    "supervisor": lambda qs: qs.filter(school_supervisor__isnull=False),
+    "other": lambda qs: qs.filter(
+        participant__isnull=True, committee_member__isnull=True, school_supervisor__isnull=True
+    ),
 }
 
 #: Etykiety filtra – kolejność ma znaczenie, bo w tej kolejności stoją odnośniki nad tabelą.
@@ -67,6 +71,7 @@ ROLE_CHOICES = (
     ("", "wszystkie"),
     ("participant", "uczestnicy"),
     ("committee", "komitet"),
+    ("supervisor", "opiekunowie"),
     ("other", "pozostałe"),
 )
 
@@ -74,6 +79,7 @@ ROLE_COORDINATOR = "koordynator"
 ROLE_APPEALS = "komisja odwoławcza"
 ROLE_COMMITTEE = "członek komitetu"
 ROLE_PARTICIPANT = "uczestnik"
+ROLE_SUPERVISOR = "opiekun szkolny"
 ROLE_NONE = "bez roli"
 
 STATUS_PENDING_ACTIVATION = "nieaktywowane"
@@ -106,6 +112,10 @@ def account_role(user: User) -> str:
         return ROLE_APPEALS if member.is_appeals_committee else ROLE_COMMITTEE
     if getattr(user, "participant", None) is not None:
         return ROLE_PARTICIPANT
+    # Opiekun szkolny na końcu, bo jego rola jest najsłabsza: nie ocenia, nie startuje i widzi
+    # wyłącznie tych uczniów, którzy sami wskazali jego adres.
+    if getattr(user, "school_supervisor", None) is not None:
+        return ROLE_SUPERVISOR
     return ROLE_NONE
 
 
@@ -147,7 +157,7 @@ class CoordinatorAccountsView(CoordinatorRequiredMixin, View):
         # ``select_related`` na obu profilach i ``prefetch_related`` na grupach: rola i kod
         # publiczny stoją w każdym wierszu, więc bez tego strona robiłaby trzy zapytania na konto.
         users = (
-            User.objects.select_related("participant", "committee_member")
+            User.objects.select_related("participant", "committee_member", "school_supervisor")
             .prefetch_related("groups")
             .order_by("email")
         )
@@ -181,7 +191,9 @@ class CoordinatorAccountsView(CoordinatorRequiredMixin, View):
 
 
 def _account(pk: int) -> User:
-    return get_object_or_404(User.objects.select_related("participant", "committee_member"), pk=pk)
+    return get_object_or_404(
+        User.objects.select_related("participant", "committee_member", "school_supervisor"), pk=pk
+    )
 
 
 class CoordinatorAccountEditView(CoordinatorRequiredMixin, View):
@@ -259,12 +271,18 @@ class CoordinatorAccountEditView(CoordinatorRequiredMixin, View):
         return forms
 
     def _render(self, request, user: User, forms: dict, *, status: int = 200):
+        participant = getattr(user, "participant", None)
         context = {
             "account": user,
             "role": account_role(user),
             "status_label": account_status(user),
             "protected": is_protected(user),
-            "participant": getattr(user, "participant", None),
+            # Stan zgody opiekuna – do odczytu. Reguła jest jedna dla panelu uczestnika
+            # i dla tego ekranu (``apps.accounts.guardian.guardian_status``).
+            "guardian": (
+                guardian_status(participant) if participant is not None else {"state": "not_required"}
+            ),
+            "participant": participant,
             "committee": getattr(user, "committee_member", None),
             "account_form": forms.get("account"),
             "participant_form": forms.get("participant"),

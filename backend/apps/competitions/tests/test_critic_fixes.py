@@ -18,6 +18,7 @@ from apps.competitions.models import (
     StageKind,
 )
 from apps.competitions.services import ensure_stage_defaults, register_for_stage
+from apps.competitions.video import VideoProvider
 from apps.core.api import DomainError
 
 from .factories import CurrentEditionFactory, EditionFactory, ProblemFactory, StageEntryFactory, StageFactory
@@ -85,6 +86,10 @@ def test_admin_tworzy_etap_ze_skala_i_progiem(client):
         "appeal_window_opens_at_1": t,
         "appeal_window_closes_at_0": d(4),
         "appeal_window_closes_at_1": t,
+        # Pokój wideo rozmowy kwalifikacyjnej. W adminie pole jest wymagane jak każde inne
+        # z zamkniętą listą – panel koordynatora przyjmuje je jako opcjonalne (patrz StageForm).
+        "video_provider": VideoProvider.NONE,
+        "video_base_url": "",
     }
     # puste formsety inline – prefiksy odczytane z formularza GET, żeby nie zgadywać nazw
     get = client.get("/admin/competitions/stage/add/")

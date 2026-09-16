@@ -1,22 +1,24 @@
 {% extends "base.html" %}
-{% load web_extras %}
-{% block title %}Kalendarz uczestnika{% endblock %}
+{% load i18n web_extras %}
+{% block title %}{% translate "Kalendarz uczestnika" %}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <span class="eyebrow">Panel uczestnika</span>
-  <h1>Twój kalendarz</h1>
+  <span class="eyebrow">{% translate "Panel uczestnika" %}</span>
+  <h1>{% translate "Twój kalendarz" %}</h1>
   {% if edition %}
-    <p class="lead">Terminy edycji {{ edition.year_label }} wraz z Twoimi własnymi – w jednym miejscu.</p>
+    <p class="lead">{% blocktranslate trimmed with edition=edition.year_label %}
+      Terminy edycji {{ edition }} wraz z Twoimi własnymi – w jednym miejscu.
+    {% endblocktranslate %}</p>
   {% endif %}
   <p class="actions">
-    <a class="btn btn--secondary btn--small" href="{% url 'web:me' %}">Wróć do panelu</a>
+    <a class="btn btn--secondary btn--small" href="{% url 'web:me' %}">{% translate "Wróć do panelu" %}</a>
     {% comment %}
       Plik ``.ics`` jest tym samym kalendarzem w postaci, którą rozumie każdy program pocztowy
       i telefon. Adres da się też zasubskrybować – identyfikatory wydarzeń są stabilne, więc
       kolejne pobranie aktualizuje wpisy, zamiast dokładać ich kopie.
     {% endcomment %}
     <a class="btn btn--primary btn--small" href="{% url 'web:participant-calendar-ics' %}"
-       download>Pobierz kalendarz (.ics)</a>
+       download>{% translate "Pobierz kalendarz (.ics)" %}</a>
   </p>
 </div>
 
@@ -24,13 +26,13 @@
   {% if items %}
     <div class="scroll">
       <table class="table">
-        <caption>Terminy edycji. Wszystkie godziny: czas polski.</caption>
+        <caption>{% translate "Terminy edycji. Wszystkie godziny: czas polski." %}</caption>
         <thead>
           <tr>
-            <th scope="col">Termin</th>
-            <th scope="col">Wydarzenie</th>
-            <th scope="col">Rodzaj</th>
-            <th scope="col">Stan</th>
+            <th scope="col">{% translate "Termin" %}</th>
+            <th scope="col">{% translate "Wydarzenie" %}</th>
+            <th scope="col">{% translate "Rodzaj" %}</th>
+            <th scope="col">{% translate "Stan" %}</th>
           </tr>
         </thead>
         <tbody>
@@ -53,11 +55,11 @@
               <td>{{ item.kind_label }}</td>
               <td>
                 {% if item.status == "current" %}
-                  <span class="badge badge--accent">trwa</span>
+                  <span class="badge badge--accent">{% translate "trwa" %}</span>
                 {% elif item.is_past %}
-                  <span class="badge badge--neutral">minione</span>
+                  <span class="badge badge--neutral">{% translate "minione" %}</span>
                 {% else %}
-                  <span class="badge badge--info">przed nami</span>
+                  <span class="badge badge--info">{% translate "przed nami" %}</span>
                 {% endif %}
               </td>
             </tr>
@@ -66,8 +68,8 @@
       </table>
     </div>
   {% else %}
-    <p class="empty"><span class="empty__title">Kalendarz jest pusty</span>
-      Nie ustawiono bieżącej edycji albo nie wpisano jeszcze żadnych terminów.</p>
+    <p class="empty"><span class="empty__title">{% translate "Kalendarz jest pusty" %}</span>
+      {% translate "Nie ustawiono bieżącej edycji albo nie wpisano jeszcze żadnych terminów." %}</p>
   {% endif %}
 </section>
 {% endblock %}

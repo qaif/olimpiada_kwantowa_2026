@@ -1,36 +1,40 @@
 {% extends "base.html" %}
-{% load web_extras %}
-{% block title %}Komentarze i miejsce – {{ feedback.stage.display_name }}{% endblock %}
+{% load i18n web_extras %}
+{% block title %}{% translate "Komentarze i miejsce" %} – {{ feedback.stage.display_name }}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <span class="eyebrow">Panel uczestnika</span>
-  <h1>{{ feedback.stage.display_name }} – Twoja informacja zwrotna</h1>
-  <p class="lead">{{ feedback.stage.edition.year_label }}. Wyniki ogłoszono
-    {{ feedback.publication.published_at|local_datetime }}.</p>
+  <span class="eyebrow">{% translate "Panel uczestnika" %}</span>
+  <h1>{{ feedback.stage.display_name }} – {% translate "Twoja informacja zwrotna" %}</h1>
+  <p class="lead">{{ feedback.stage.edition.year_label }}.
+    {% blocktranslate trimmed with when=feedback.publication.published_at|local_datetime %}
+      Wyniki ogłoszono {{ when }}.
+    {% endblocktranslate %}</p>
   <p class="actions">
-    <a class="btn btn--secondary btn--small" href="{% url 'web:me' %}">Wróć do panelu</a>
+    <a class="btn btn--secondary btn--small" href="{% url 'web:me' %}">{% translate "Wróć do panelu" %}</a>
     <a class="btn btn--secondary btn--small"
-       href="{% url 'web:results' feedback.stage.pk %}">Pełna tabela wyników</a>
+       href="{% url 'web:results' feedback.stage.pk %}">{% translate "Pełna tabela wyników" %}</a>
   </p>
 </div>
 
 <section class="section">
   <div class="card card--accent">
     <div class="card__head">
-      <h2 class="mt-0 card__title">Twój wynik</h2>
+      <h2 class="mt-0 card__title">{% translate "Twój wynik" %}</h2>
       <span class="{% if feedback.qualified %}badge badge--ok{% else %}badge badge--neutral{% endif %}">
         {{ feedback.status_label }}</span>
     </div>
     <dl class="meta-list">
-      <dt>Suma punktów</dt>
-      <dd>{{ feedback.total }} pkt</dd>
-      <dt>Miejsce w ogłoszonej tabeli</dt>
-      <dd>{% if feedback.rank %}{{ feedback.rank }} z {{ feedback.rank_of }}{% else %}
-        <span class="hint">nie ustalono – Twojego wyniku nie ma w ogłoszonej tabeli</span>{% endif %}</dd>
+      <dt>{% translate "Suma punktów" %}</dt>
+      <dd>{% blocktranslate trimmed with points=feedback.total %}{{ points }} pkt{% endblocktranslate %}</dd>
+      <dt>{% translate "Miejsce w ogłoszonej tabeli" %}</dt>
+      <dd>{% if feedback.rank %}{% blocktranslate trimmed with rank=feedback.rank total=feedback.rank_of %}{{ rank }} z {{ total }}{% endblocktranslate %}{% else %}
+        <span class="hint">{% translate "nie ustalono – Twojego wyniku nie ma w ogłoszonej tabeli" %}</span>{% endif %}</dd>
       {% if feedback.threshold %}
-        <dt>Próg kwalifikacji</dt>
-        <dd>{{ feedback.threshold }}{% if feedback.cutoff_total is not None %}; najniższy wynik
-          wśród zakwalifikowanych w tej tabeli: {{ feedback.cutoff_total }} pkt{% endif %}</dd>
+        <dt>{% translate "Próg kwalifikacji" %}</dt>
+        <dd>{{ feedback.threshold }}{% if feedback.cutoff_total is not None %};
+          {% blocktranslate trimmed with cutoff=feedback.cutoff_total %}
+            najniższy wynik wśród zakwalifikowanych w tej tabeli: {{ cutoff }} pkt
+          {% endblocktranslate %}{% endif %}</dd>
       {% endif %}
     </dl>
     {% comment %}
@@ -39,15 +43,17 @@
       niż pokazanie obu (PROJEKT.md 2.4).
     {% endcomment %}
     {% if feedback.differs_from_published %}
-      <p class="msg msg-warning">W ogłoszonej tabeli masz {{ feedback.published_total }} pkt.
-        Różnica wynika z decyzji podjętej po publikacji – obowiązuje wynik bieżący
-        ({{ feedback.total }} pkt), a tabela pozostaje taka, jaką ogłoszono.</p>
+      <p class="msg msg-warning">{% blocktranslate trimmed with published=feedback.published_total current=feedback.total %}
+        W ogłoszonej tabeli masz {{ published }} pkt. Różnica wynika z decyzji podjętej po
+        publikacji – obowiązuje wynik bieżący ({{ current }} pkt), a tabela pozostaje taka,
+        jaką ogłoszono.
+      {% endblocktranslate %}</p>
     {% endif %}
   </div>
 </section>
 
 <section class="section">
-  <div class="section__head"><h2 class="mt-0">Zadania i komentarze recenzentów</h2></div>
+  <div class="section__head"><h2 class="mt-0">{% translate "Zadania i komentarze recenzentów" %}</h2></div>
   {% comment %}
     Recenzenci są anonimowi i pozostają nimi tutaj: podpis „Recenzent A/B” liczy warstwa danych
     (``apps.results.feedback``), a szablon nie ma dostępu do niczego, po czym dałoby się ich
@@ -56,27 +62,37 @@
   {% for problem in feedback.problems %}
     <article class="card feedback-card">
       <div class="card__head">
-        <h3 class="mt-0 card__title">Zadanie {{ problem.number }}: {{ problem.title }}</h3>
-        <span class="result-summary__points">{{ problem.score }} pkt</span>
+        <h3 class="mt-0 card__title">{% blocktranslate trimmed with number=problem.number title=problem.title %}
+          Zadanie {{ number }}: {{ title }}
+        {% endblocktranslate %}</h3>
+        <span class="result-summary__points">{% blocktranslate trimmed with points=problem.score %}{{ points }} pkt{% endblocktranslate %}</span>
       </div>
       {% if problem.missing %}
-        <p class="hint">Nie oddałeś rozwiązania tego zadania.</p>
+        <p class="hint">{% translate "Nie oddałeś rozwiązania tego zadania." %}</p>
       {% elif not problem.has_comments %}
-        <p class="hint">Recenzenci nie zostawili komentarza do tego zadania.</p>
+        <p class="hint">{% translate "Recenzenci nie zostawili komentarza do tego zadania." %}</p>
       {% endif %}
       {% for review in problem.reviews %}
         <div class="feedback">
           <span class="feedback__title">{{ review.label }}</span>
           {% if review.comment %}<p>{{ review.comment }}</p>{% endif %}
           {% for annotation in review.annotations %}
-            <p class="annotation">str. {{ annotation.page }}: {{ annotation.text }}</p>
+            <p class="annotation">{% blocktranslate trimmed with page=annotation.page text=annotation.text %}str. {{ page }}: {{ text }}{% endblocktranslate %}</p>
+          {% endfor %}
+          {% comment %}
+            Uwagi do linii dotyczą rozwiązań oddanych jako kod (``.py``, ``.ipynb``). Numer linii
+            odnosi się do pliku tak, jak go wysłałeś – w notatniku liczonego po sklejeniu samych
+            komórek kodu, dokładnie tak, jak widział go recenzent.
+          {% endcomment %}
+          {% for note in review.line_notes %}
+            <p class="annotation">{% blocktranslate trimmed with line=note.line text=note.text %}linia {{ line }}: {{ text }}{% endblocktranslate %}</p>
           {% endfor %}
         </div>
       {% endfor %}
     </article>
   {% empty %}
-    <p class="empty"><span class="empty__title">Brak zadań</span>
-      Ten etap nie ma zadań do wypisania.</p>
+    <p class="empty"><span class="empty__title">{% translate "Brak zadań" %}</span>
+      {% translate "Ten etap nie ma zadań do wypisania." %}</p>
   {% endfor %}
 </section>
 {% endblock %}

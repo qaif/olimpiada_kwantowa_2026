@@ -23,6 +23,7 @@ from django.urls import reverse
 from apps.accounts.consents import CONSENTS
 from apps.accounts.models import GROUP_APPEALS, GROUP_COORDINATOR, GROUP_PARTICIPANT
 from apps.accounts.services import active_reviewer_profile
+from apps.accounts.supervisors import supervisor_profile
 from apps.appeals.services import appeals_committee_profile
 
 logger = logging.getLogger(__name__)
@@ -46,6 +47,7 @@ def roles(request) -> dict:
             "is_reviewer": False,
             "is_coordinator": False,
             "is_appeals_committee": False,
+            "is_supervisor": False,
         }
     names = set(user.groups.values_list("name", flat=True))
     return {
@@ -53,6 +55,9 @@ def roles(request) -> dict:
         "is_reviewer": active_reviewer_profile(user) is not None,
         "is_coordinator": GROUP_COORDINATOR in names,
         "is_appeals_committee": GROUP_APPEALS in names and appeals_committee_profile(user) is not None,
+        # Opiekun szkolny – ta sama definicja, co w mixinie widoku i w przekierowaniu po
+        # zalogowaniu (``apps.accounts.supervisors.supervisor_profile``).
+        "is_supervisor": supervisor_profile(user) is not None,
     }
 
 

@@ -1,19 +1,19 @@
 {% extends "base.html" %}
+{% load i18n %}
 {% comment %}
   Nowy adres potwierdzony. Strona jest osiągalna bez logowania (link klika się w skrzynce, często
   na innym urządzeniu), więc nie pokazuje **żadnych** danych konta – ani starego, ani nowego adresu.
   Kto kliknął, i tak wie, jaki adres potwierdzał; kto trafił tu przypadkiem, nie dowiaduje się
   z tej strony niczego o cudzym koncie.
 {% endcomment %}
-{% block title %}Adres e-mail zmieniony{% endblock %}
+{% block title %}{% translate "Adres e-mail zmieniony" %}{% endblock %}
 {% block content %}
 <div class="auth">
   <div class="card">
-    <h1>Adres e-mail został zmieniony</h1>
-    <p class="auth__intro">Od teraz logujesz się nowym adresem. Hasło pozostaje bez zmian.</p>
-    <p><a class="btn btn--primary btn--block" href="{% url 'web:login' %}">Przejdź do logowania</a></p>
-    <p class="hint">O zmianie powiadomiliśmy także poprzedni adres. Jeśli to nie Ty prosiłeś
-      o zmianę, skontaktuj się z organizatorem.</p>
+    <h1>{% translate "Adres e-mail został zmieniony" %}</h1>
+    <p class="auth__intro">{% translate "Od teraz logujesz się nowym adresem. Hasło pozostaje bez zmian." %}</p>
+    <p><a class="btn btn--primary btn--block" href="{% url 'web:login' %}">{% translate "Przejdź do logowania" %}</a></p>
+    <p class="hint">{% translate "O zmianie powiadomiliśmy także poprzedni adres. Jeśli to nie Ty prosiłeś o zmianę, skontaktuj się z organizatorem." %}</p>
   </div>
 </div>
 {% endblock %}

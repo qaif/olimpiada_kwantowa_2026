@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% load web_extras %}
+{% block title %}Zgłoszone problemy z pracami – panel koordynatora{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
+  <h1>Zgłoszone problemy z pracami</h1>
+  <p class="lead">Sprawy, których nie rozwiąże ocena: nieczytelny skan, rozwiązanie innego zadania,
+    podejrzenie niesamodzielności. Zgłasza je recenzent z ekranu oceny.</p>
+</div>
+
+{% comment %}
+  Filtr etapu jest zwykłym parametrem adresu (``?stage=<id>``), a nie formularzem POST: adres
+  z filtrem ma dać się zapisać w zakładkach i wysłać drugiej osobie. Domyślnie widać całą edycję –
+  problem z pracą nie czeka na to, aż koordynator trafi na właściwą kartę etapu.
+{% endcomment %}
+<nav class="row" aria-label="Filtr etapu">
+  <a class="btn btn--small {% if not selected_stage %}btn--primary{% else %}btn--ghost{% endif %}"
+     href="{% url 'web:coordinator-issues' %}">Cała edycja</a>
+  {% for stage in stages %}
+    <a class="btn btn--small {% if selected_stage and selected_stage.pk == stage.pk %}btn--primary{% else %}btn--ghost{% endif %}"
+       href="{% url 'web:coordinator-issues' %}?stage={{ stage.pk }}">{{ stage.display_name }}</a>
+  {% endfor %}
+</nav>
+
+<p class="hint">Otwartych zgłoszeń na tej liście: <strong>{{ open_count }}</strong>.
+  Zgłoszenie <strong>nie wstrzymuje oceniania</strong> – recenzent mógł wystawić ocenę mimo niego,
+  a „Odbierz pracę” jest decyzją osobną od rozstrzygnięcia sprawy.</p>
+
+{% for issue in rows %}
+  <article class="card {% if issue.is_open %}card--accent{% else %}card--quiet{% endif %}">
+    <div class="card__head">
+      <h2 class="mt-0">
+        <span class="code-chip">{{ issue.submission.entry.participant.public_code }}</span>
+        · zadanie {{ issue.submission.problem.number }}: {{ issue.submission.problem.title }}
+      </h2>
+      <p class="row">
+        <span class="badge {% if issue.is_open %}badge--warn{% else %}badge--ok{% endif %}">
+          {{ issue.get_status_display }}</span>
+        <span class="badge badge--info">{{ issue.get_kind_display }}</span>
+        <span class="badge badge--neutral">{{ issue.submission.entry.stage.display_name }}</span>
+        <span class="badge badge--neutral">zgłoszone: {{ issue.created_at|local_datetime }}</span>
+      </p>
+    </div>
+
+    <p class="quote">{{ issue.text }}</p>
+    {% comment %}
+      Tożsamość recenzenta jest tu jawna i tak ma być: to jedyny ekran, na którym koordynator ma
+      z kim wyjaśnić sprawę. Ocenianie pozostaje ślepe w drugą stronę – pracę identyfikuje kod.
+    {% endcomment %}
+    <p class="hint">Zgłosił: {{ issue.review.reviewer.user.email }} (recenzja {{ issue.review.pk }},
+      runda {{ issue.review.round }}, status: {{ issue.review.get_status_display }}).</p>
+
+    {% if issue.is_open %}
+      <div class="row">
+        <a class="btn btn--secondary btn--small"
+           href="{% url 'web:coordinator-stage-assignments' issue.submission.entry.stage_id %}">Przydziały etapu</a>
+        {% comment %}
+          Skrót do istniejącego ``unassign_reviewer`` – te same bramki i ten sam wpis audytowy, co
+          na ekranie przydziałów. Zgłoszenie zostaje otwarte: odebranie pracy jest czynnością,
+          a nie rozstrzygnięciem sprawy.
+        {% endcomment %}
+        <form method="post" action="{% url 'web:coordinator-issue-unassign' issue.pk %}" class="inline"
+              x-data="confirmSubmit" x-on:submit="check"
+              data-confirm="Odebrać recenzentowi tę pracę? Jego ocena przestanie się liczyć.">
+          {% csrf_token %}
+          <input type="hidden" name="stage" value="{% if selected_stage %}{{ selected_stage.pk }}{% endif %}">
+          <button type="submit" class="btn btn--ghost btn--small">Odbierz pracę</button>
+        </form>
+      </div>
+
+      <form method="post" action="{% url 'web:coordinator-issue-resolve' issue.pk %}" class="form">
+        {% csrf_token %}
+        <input type="hidden" name="stage" value="{% if selected_stage %}{{ selected_stage.pk }}{% endif %}">
+        <p class="field">
+          <label for="id_resolution_{{ issue.pk }}">Jak sprawa została załatwiona</label>
+          <textarea id="id_resolution_{{ issue.pk }}" name="resolution" rows="2" required></textarea>
+          <span class="helptext">Jedno zdanie wystarczy („poprosiliśmy o nowy skan”, „praca
+            odebrana i przydzielona komu innemu”). Zamknięcie bez uzasadnienia nie jest możliwe –
+            z pustego wpisu nie wynika w aktach, co się z pracą stało.</span>
+        </p>
+        <div class="actions">
+          <button type="submit" class="btn btn--primary btn--small">Rozwiąż</button>
+        </div>
+      </form>
+    {% else %}
+      <p><strong>Rozstrzygnięcie:</strong> {{ issue.resolution }}</p>
+      <p class="hint">
+        {% if issue.resolved_by %}{{ issue.resolved_by.email }}{% else %}—{% endif %},
+        {{ issue.resolved_at|local_datetime }}
+      </p>
+    {% endif %}
+  </article>
+{% empty %}
+  <p class="empty">
+    <span class="empty__title">Brak zgłoszeń</span>
+    {% if selected_stage %}W tym etapie nikt niczego nie zgłosił.{% else %}Nikt niczego nie
+    zgłosił w tej edycji.{% endif %}
+  </p>
+{% endfor %}
+{% endblock %}

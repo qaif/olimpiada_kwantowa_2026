@@ -460,9 +460,10 @@ danych Google'a.
 
 ## 5. Role i przepływ etapu
 
-Cztery grupy Django: `participant`, `reviewer`, `appeals`, `coordinator`. Pełna macierz uprawnień –
-`docs/PROJEKT.md` 2.3. Konto komitetu powstaje wyłącznie na kod zaproszenia; konto uczestnika –
-z otwartej rejestracji.
+Pięć grup Django: `participant`, `reviewer`, `appeals`, `coordinator`, `supervisor`. Pełna macierz
+uprawnień – `docs/PROJEKT.md` 2.3. Konto komitetu powstaje wyłącznie na kod zaproszenia; konto
+uczestnika i konto opiekuna szkolnego – z otwartej rejestracji (`supervisor` nie daje samym
+założeniem dostępu do niczyich danych, patrz 5.6).
 
 | # | Krok | Kto | Ekran / endpoint |
 |---|---|---|---|
@@ -735,6 +736,185 @@ z treścią PDF, arkusz treningowy oraz harmonogram warsztatów.
   pola na załącznik, więc archiwum wypisuje terminy i odsyła na tamtą stronę, zamiast udawać
   listę plików. Gdy warsztat dostanie kiedyś własny załącznik, zmienia się jedna funkcja
   (`workshop_materials` w `apps/web/views/participant_tools.py`).
+
+### 5.6 Panel opiekuna szkolnego (`/supervisor/`)
+
+Nauczyciel, który prowadzi uczniów do olimpiady, zakłada konto pod `/register/supervisor/` —
+rejestracja jest **otwarta**, bez kodu zaproszenia, z tym samym blokiem antyspamowym, limitem
+żądań i aktywacją adresu, co pozostałe. Samo konto nie daje wglądu w niczyje dane: pusty panel
+zobaczy każdy, kogo żaden uczeń nie wskazał.
+
+**Uprawnienie pochodzi od ucznia.** Uczestnik wpisuje adres opiekuna w swoim profilu
+(`/me/profile/` → „Adres e-mail opiekuna szkolnego”, pole opcjonalne) i w każdej chwili może je
+wyczyścić. Nie ma tu ani zatwierdzania przez koordynatora, ani przypisywania po nazwie szkoły —
+oba wyglądają porządniej, ale oba znaczyłyby, że nauczyciel dostaje dostęp do danych ucznia bez
+jego udziału. Dopasowanie idzie po **znormalizowanym** adresie (małe litery, bez spacji), bo
+uczeń przepisuje go ze słuchu albo z tablicy.
+
+Panel pokazuje: kod publiczny, imię i nazwisko, szkołę i klasę ucznia oraz — dla każdego etapu
+bieżącej edycji — **ścieżkę statusu** „oddane → w ocenie → oceniona → wyniki”
+(`apps/submissions/status_track.py`). Wiersz etapu podpisuje ta praca, która jest najdalej w tyle:
+jedna w ocenie i dwie ocenione znaczą „w ocenie”.
+
+Czego opiekun **nie** widzi: punktów przed ogłoszeniem wyników etapu (po publikacji jest to ta
+sama liczba, którą każdy widzi w tabeli publicznej), prac, komentarzy recenzentów ani niczego
+o uczniach, którzy go nie wskazali. Reguła stoi w serwisie `apps/accounts/supervisors.py`, nie
+w szablonie.
+
+**„Potwierdzam udział szkoły”** jest oświadczeniem o nauczycielu, nie o uczniach: niczyjego startu
+nie warunkuje, ale to na jego podstawie organizator wystawia zaświadczenia dla opiekunów (6.12).
+Jedno kliknięcie ustawia je dla bieżącej edycji, drugie wycofuje; oba są w audycie
+(`school.participation_confirmed` / `…_withdrawn`). Własne zaświadczenie opiekun pobiera na dole
+panelu.
+
+Koordynator widzi opiekunów na liście kont (`/coordinator/accounts/?role=supervisor`) i w tabeli
+wystawiania dokumentów.
+
+### 5.7 Lista kontrolna i podgląd wysłanego pliku
+
+Dwie rzeczy na karcie zadania w `/me/`, obie odpowiadające na to samo pytanie z dwóch stron:
+**przed** kliknięciem „czy wysyłam to, co trzeba”, a **po** — „czy w systemie leży to, co
+wysłałem”.
+
+**Potwierdzenie przed wysyłką.** Nad przyciskiem stoi jedno wymagane pole wyboru: *„Potwierdzam,
+że to rozwiązanie zadania N i plik jest czytelny”*. Numer zadania jest w treści celowo — najczęstsza
+pomyłka to plik wysłany pod zadanie obok, a druga to nieczytelny skan.
+
+- bramką jest **serwer** (`SubmissionUploadForm.confirmed`), nie atrybut `required` w HTML: ten
+  sam formularz da się wysłać bez przeglądarki. Bez pola karta wraca z komunikatem i nie powstaje
+  żadna wersja,
+- `POST /api/submissions/` (API) tego pola **nie ma**: tam po drugiej stronie jest klient
+  programistyczny, a nie człowiek stojący nad telefonem.
+
+**Podgląd ostatniej wersji.** Pod formularzem, nad historią wersji, i wyłącznie dla wersji
+najnowszej — to ona pójdzie do oceny.
+
+| Format | Co widać | Kto to liczy |
+|---|---|---|
+| PDF | liczba stron + pierwsza strona narysowana w przeglądarce | strony: `pypdf` po stronie serwera; obraz: pdf.js (`static/js/upload-preview.js`) |
+| JPEG | wymiary w pikselach + samo zdjęcie | Pillow (ten sam, którego używa Wagtail) |
+| `.py`, `.ipynb` | pierwsze 40 wierszy pliku | serwer (`apps/submissions/preview.py`) |
+
+- **plik czytamy dopiero po czystym skanie antywirusowym.** Plik świeżo wgrany jest danymi od
+  nieznanego nadawcy; parsowanie go tą samą biblioteką, którą potem zobaczy recenzent, byłoby
+  wykonaniem roboty za napastnika. Do czasu werdyktu karta pisze „Podgląd pojawi się po
+  zakończeniu skanu”, a plik odrzucony nie dostaje podglądu w ogóle,
+- **liczba stron jest kolumną w bazie** (`SubmissionFile.page_count`, migracja
+  `submissions.0004`). To jedyna metryka wymagająca przeczytania **całego** dokumentu (tablica
+  stron leży na jego końcu), a czyta ją panel przy każdym wejściu — liczenie jej w locie znaczyłoby
+  pobranie pliku z S3 na każde odświeżenie. Wypełnia ją `apply_scan_verdict` zaraz po werdykcie
+  `CLEAN`; `NULL` znaczy „nie wiadomo” (inny format, plik sprzed wprowadzenia pola, dokument,
+  którego biblioteka nie umiała otworzyć),
+- **reszta metryk jedzie przez `django.core.cache`** pod kluczem z sumy `sha256` pliku. Suma jest
+  naturalnym kluczem: zmiana treści to nowy plik i nowy klucz, więc wpis nie ma jak skłamać,
+- **pierwszej strony PDF-a nie renderuje serwer.** Rysuje ją pdf.js w przeglądarce uczestnika —
+  to jego własny plik, więc nie ma powodu, żeby serwer składał z niego obrazek i trzymał go
+  w kolejnym buckecie. Biblioteka jedzie z pinowanej wersji na cdnjs, tą samą drogą co w panelu
+  recenzenta (moduł z `nonce` + `import()`, `'strict-dynamic'` w CSP),
+- **podgląd nigdy nie jest warunkiem niczego**: brak CDN-u, uszkodzony nagłówek albo niedostępny
+  storage kończą się zdaniem w miejscu obrazka, a praca i tak jest już przyjęta.
+
+Nowa zależność: `pypdf>=4,<6` w zwykłych zależnościach (`backend/pyproject.toml`) — liczbę stron
+pokazuje panel, czyli produkcja. Po jej dodaniu: `docker compose build web`.
+
+### 5.8 Zgoda opiekuna online (`/zgoda/<token>/`)
+
+Zgoda rodzica albo opiekuna prawnego przestaje być **oświadczeniem dziecka o cudzej woli**
+(pole wyboru w rejestracji) i wydrukiem do podpisania. Normalną drogą jest teraz podpisany link:
+
+1. uczestnik niepełnoletni podaje w `/me/` (sekcja „Twoje zgody”) adres e-mail opiekuna —
+   `Participant.guardian_email`,
+2. system wysyła **na ten adres** list z linkiem podpisanym `django.core.signing`, ważnym
+   **14 dni**,
+3. opiekun otwiera `/zgoda/<token>/` — **bez logowania** — czyta treść zgody w obowiązującej
+   wersji (`apps/accounts/consents.py`, ta sama, którą zapisuje dowód), widzi **imię dziecka
+   i szkołę**, zaznacza pole i potwierdza,
+4. powstaje `ConsentRecord` rodzaju `GUARDIAN` z `given_by_email`, `ip_address` i znacznikiem
+   czasu; `Participant.guardian_consent` idzie na `True`,
+5. uczestnik dostaje list, że zgoda wpłynęła.
+
+- **dlaczego token, a nie konto dla opiekuna**: opiekun ma w systemie jedną sprawę, a zakładanie
+  mu konta (z hasłem, aktywacją i prawem do usunięcia danych) byłoby zebraniem większego zbioru
+  danych niż ten, po który przyszedł,
+- **zmiana adresu unieważnia poprzedni link** — adres jest częścią podpisanej treści. To jedyna
+  droga „odwołania” wysłanej prośby,
+- **druga wizyta pod tym samym linkiem nic nie dokłada**: przy istniejącej aktywnej zgodzie serwis
+  zwraca ten sam wpis. Rejestr zgód jest rejestrem zdarzeń, ale „kliknąłem dwa razy” zdarzeniem
+  nie jest,
+- **uczestnik nie może być własnym opiekunem** (`400 GUARDIAN_EMAIL_IS_OWN`), a od pełnoletniego
+  zgody nie zbieramy w ogóle (`409 GUARDIAN_NOT_REQUIRED`; granicę wyznacza `consents.is_minor`,
+  czyli sam rocznik),
+- **w liście do opiekuna nie ma nazwiska** — imię i nazwa szkoły w zupełności wystarczają do
+  rozpoznania własnego dziecka, a list bywa wysłany pod adres z literówką,
+- w audycie zostają dwa wpisy: `participant.guardian_consent_requested` (bez adresu opiekuna —
+  audyt czytają osoby, które nie muszą znać danych kontaktowych rodziny) i
+  `participant.guardian_consent_confirmed`. Ten drugi ma aktora `None`: potwierdzenie składa osoba
+  spoza systemu i podpisanie go kontem uczestnika byłoby nieprawdą.
+
+Panel uczestnika pokazuje stan **brak / oczekuje / potwierdzona `<data>`** wraz z przyciskiem
+„Wyślij ponownie” (ten sam adres, `POST /me/guardian/` — powtórna wysyłka jest zamierzona, bo listy
+giną w spamie). Koordynator widzi ten sam stan, **tylko do odczytu**, na ekranie edycji konta
+(`/coordinator/accounts/<id>/`): dowodem jest potwierdzenie z podpisanego linku, a nie kliknięcie
+w panelu organizatora.
+
+Migracja: `accounts.0015_guardian_consent_online` (`Participant.guardian_email`,
+`ConsentRecord.given_by_email`, `ConsentRecord.ip_address`).
+
+### 5.9 Język interfejsu i tryb wysokiego kontrastu
+
+W pasku konta — na każdej stronie, także dla gościa — stoją dwa przełączniki: **EN / PL**
+i **Kontrast**. Oba są formularzami `POST` na `/account/preferences/`; adres powrotu (`next`)
+jest sprawdzany po stronie serwera, bo przełącznik z otwartym przekierowaniem byłby gotowym
+narzędziem do phishingu.
+
+Gdzie mieszka wybór (`apps/accounts/preferences.py`):
+
+| Kto | Gdzie zapisujemy | Dlaczego |
+|---|---|---|
+| konto zalogowane | `accounts.UserPreference` (język + kontrast) | ustawienie jedzie za człowiekiem na drugie urządzenie |
+| gość | ciasteczko języka + sesja (kontrast) | konta nie ma, a prawo do dużego kontrastu owszem |
+| nikt nic nie ustawił | nagłówek `Accept-Language` | to ustawienie systemu, a nie zgadywanka serwera |
+
+- **kolejność warstw pośrednich jest kontraktem**: `LocaleMiddleware` (za sesją, przed
+  `CommonMiddleware`) rozstrzyga język z ciasteczka i nagłówka, a `PreferencesMiddleware` stoi
+  **za** `AuthenticationMiddleware` i tylko nadpisuje to rozstrzygnięcie zapisem z konta. Odwrotna
+  kolejność znaczyłaby, że wybór zalogowanego przegrywa z ustawieniem przeglądarki,
+- **`i18n_patterns` świadomie nie ma.** Adresy trafiają do listów, do regulaminu i do pism
+  (`/me/`, `/results/12/`, `/zgoda/<token>/`); prefiks języka zrobiłby z każdego z nich dwa adresy,
+  z których jeden zawsze byłby wklejony nie tam, gdzie trzeba,
+- **zakres tłumaczenia jest wąski z wyboru**: panel uczestnika, logowanie i rejestracja, ekrany
+  konta, pasek konta i stopka, strona statystyk oraz listy do uczestników. Ekrany koordynatora
+  zostają po polsku — to narzędzie pracy polskiego organizatora. Treść redakcyjna w `/cms/` ma
+  własną drogę: redaktor pisze ją w edytorze, a nie w pliku `.po`,
+- **listy składane poza żądaniem odbiorcy** (ogłoszenie wyników, nocne przypomnienie o rozmowie)
+  idą przez `preferences.language_for(user)` — inaczej byłyby w języku koordynatora albo serwera.
+
+**Treść zadań to nie interfejs.** `Problem.title_en` i `Problem.statement_pdf_en` wypełnia komitet
+w formularzu zadania (`/coordinator/problems/<id>/edit/`); angielski interfejs pokazuje je, gdy są,
+a w przeciwnym razie wydaje wersję polską — zadanie bez tłumaczenia ma być czytelne, a nie puste.
+Bramka czasowa treści (`opens_at`) nie zmienia się ani na jotę: to ten sam dokument w drugim języku.
+
+**Tryb wysokiego kontrastu** dokłada `data-contrast="high"` na `<html>`, a arkusz (`app.css`)
+nadpisuje **tokeny**, nie komponenty — dzięki temu obejmuje też arkusze dokładane per ekran.
+Paleta to czerń, biel i żółć (trzy kolory, nie dwadzieścia: każdy następny to kolejna para do
+sprawdzenia, a żółć na czerni jest jedynym ostrzeżeniem czytelnym także przy deuteranopii),
+obramowania idą na 2 px, cienie znikają, a fokus dostaje gruby żółty pierścień. To **nie** jest
+drugi wariant ciemny: ciemny motyw odpowiada na pytanie „jakie mam światło w pokoju”, a ten — „czy
+w ogóle widzę tę krawędź”.
+
+**Katalogi tłumaczeń.** Źródło jest w `backend/locale/en/LC_MESSAGES/django.po` (w repozytorium,
+bo tylko ono daje się czytać w diffie), a Django czyta wyłącznie skompilowane `.mo`. Kompiluje je
+**budowanie obrazu** (`msgfmt` w `backend/Dockerfile`, pakiet `gettext` w warstwie apt), więc plik
+binarny nie może rozjechać się ze źródłem. Po zmianie napisów:
+
+```bash
+docker compose exec web python manage.py makemessages -l en -i 'staticfiles/*' -i '.venv/*'
+# uzupełnij msgstr w backend/locale/en/LC_MESSAGES/django.po, potem:
+docker compose exec web python manage.py compilemessages
+docker compose build web   # obraz produkcyjny kompiluje katalog sam
+```
+
+Migracja: `accounts.0016_user_interface_preferences` (`UserPreference`).
 
 ## 6. Procedury operacyjne
 
@@ -1413,6 +1593,130 @@ z terminem w ciągu 2 dni (kody publiczne prac, bez danych osobowych); powtórko
 `Review.reminded_at`, a do audytu trafia `review.reminder_sent` z samym licznikiem. Prace, które
 wyszły z oceniania, nie są przypominane.
 
+#### Szablony komentarzy
+
+Ocena trzydziestu prac z jednego zadania to w praktyce trzydzieści razy te same trzy zdania.
+Szablon (`grading.CommentSnippet`) jest gotowym akapitem **do wstawienia i poprawienia** — system
+nigdy nie wstawia go sam i nigdy nie zmienia tego, co recenzent już napisał.
+
+Dwie drogi, jeden model. **Koordynator** wpisuje szablony wspólne przy zadaniu
+(`/coordinator/problems/<id>/edit/`, pole „Szablony komentarzy dla recenzentów”) — po jednym
+w wierszu, w postaci `tytuł;treść`, tak samo jak rubrykę:
+
+```text
+Brak jednostek;Wynik jest poprawny, ale nie podałeś jednostek.
+Uzasadnienie;Brakuje uzasadnienia przejścia granicznego — bez niego wynik jest przypadkowy.
+```
+
+Średnik rozdziela **raz**, więc treść wolno pisać ze średnikami. Zapis aktualizuje szablony
+w miejscu i **nie rusza** prywatnych notatników recenzentów (`owner IS NULL` w filtrze).
+
+**Recenzent** dopisuje własne szablony wprost z ekranu oceny (`POST /review/snippets/`, kasowanie
+`POST /review/snippets/<id>/delete/`) — z zaznaczeniem „tylko dla tego zadania” albo bez niego
+(szablon ogólny, dostępny przy każdej pracy). Limit to 50 własnych pozycji (`SNIPPET_LIMIT`).
+Widoczność: wspólne komitetu **przed** własnymi; cudzego prywatnego szablonu nie widzi nikt — ani
+inny recenzent, ani koordynator, a próba skasowania go kończy się 404, nie 403.
+
+Na stronie oceny sekcja „Szablony komentarzy” działa **bez JavaScriptu**: treść każdego szablonu
+stoi na ekranie do skopiowania. `static/js/review-snippets.js` (nonce, delegacja zdarzeń, dane
+w `data-*`) dokłada przycisk **„Wstaw”**, który dopisuje treść na końcu pola „Komentarz dla
+uczestnika” — nigdy nie nadpisuje tego, co tam jest. Audyt: `snippet.problem_set` (tylko przy
+faktycznej zmianie), `snippet.added`, `snippet.deleted` — w `diff` tytuł i długość, nigdy treść.
+
+#### Czas pracy nad recenzją
+
+Planowanie obciążenia komitetu opierało się dotąd na wyczuciu („zadanie 3 idzie wolno”). Licznik
+(`grading.ReviewWorkLog`) zamienia je w liczbę: **„Czas pracy: 1 h 12 min”** przy recenzji
+(`/review/<id>/`) i kolumna „Czas pracy” przy recenzencie na ekranie postępu etapu
+(`/coordinator/stages/<id>/progress/`).
+
+> **Prywatność.** Cel pomiaru to **planowanie obciążenia** komitetu — nic więcej. W bazie są trzy
+> znaczniki czasu i jedna suma sekund. Nie zapisujemy ani tego, co recenzent pisał, ani gdzie
+> klikał, ani kiedy dokładnie przerywał: ruch myszy i naciśnięcia klawiszy są wyłącznie sygnałem
+> „ktoś jeszcze pracuje”, nie opuszczają przeglądarki i nigdzie nie są przechowywane. To wystarczy
+> na pytanie „ile godzin zajmuje ocena zadania 3” i jest za mało na ocenę człowieka.
+
+Jak liczy się czas. `static/js/review-worklog.js` wysyła pusty sygnał życia co **60 s** na
+`POST /review/<id>/heartbeat/` (`fetch` z tokenem CSRF z ciasteczka; `navigator.sendBeacon` przy
+chowaniu karty, żeby ostatnie minuty nie ginęły przy zamknięciu zakładki). Po **5 minutach** bez
+ruchu myszy i klawiatury skrypt przestaje wysyłać cokolwiek. Serwer **nie przyjmuje od klienta
+żadnej długości** — dolicza `min(czas od ostatniego sygnału, 90 s)`. Sufit jest sednem pomiaru:
+bez niego karta zostawiona na noc dopisałaby osiem godzin, a przeglądarka ze zwolnionym timerem
+w karcie w tle gubiłaby minuty. Pierwszy sygnał zakłada licznik i **nic nie dolicza** (nie wiadomo
+jeszcze, od kiedy trwa praca); sygnał „z przeszłości” (przestawiony zegar, spóźniony `sendBeacon`)
+nie odejmuje czasu. Cudza recenzja to 404. Licznik startuje wyłącznie przy recenzji, którą wolno
+jeszcze zapisać — mierzenie czasu oglądania recenzji zamkniętej nie jest mierzeniem pracy.
+
+Brak pomiaru (recenzja sprzed wprowadzenia licznika, ocena zrobiona z wydruku, wyłączony
+JavaScript) jest pokazywany jako **„brak pomiaru”**, a nie jako „0 min” — zmierzone zero to co
+innego niż brak pomiaru. Suma na ekranie postępu obejmuje **wszystkie** recenzje etapu, także
+anulowane: czas nad pracą, którą koordynator potem odebrał, też był czasem pracy.
+
+#### Adnotacje na obrazach i w kodzie
+
+Rozwiązania w PDF-ie i **zdjęcia** (JPEG) mają warstwę prostokątów: `static/js/review-annotations.js`
+rysuje stronę na `<canvas>` (pdf.js) albo zdjęcie w `<img>` — o wyborze decyduje typ MIME wyliczony
+przez serwer przy uploadzie, nie rozszerzenie nazwy od uczestnika. Adnotacja jest w obu przypadkach
+tym samym wpisem `{page, rect, text, public}` we współrzędnych ułamkowych; zdjęcie jest „stroną 1 z 1”.
+
+Rozwiązania oddane jako **kod** (`.py`, `.ipynb`) nie mają czego zaznaczać prostokątem — recenzent
+mówi o nich „linia 42”. Ekran oceny pokazuje więc listing renderowany **po stronie serwera**
+(`apps.grading.code_view`): ponumerowane wiersze w `<pre>`, podświetlone tam, gdzie wisi uwaga.
+Notatnik jest czytany jako JSON (bez `nbformat`/`nbconvert`), a jego **komórki kodu** są sklejane
+nagłówkami `# --- komórka N ---`; komórki tekstowe i wyniki poprzednich uruchomień są pomijane.
+Odczyt jest ograniczony do **400 kB** (nadmiar jest obcinany z widoczną adnotacją w listingu)
+i dekodowany jako UTF-8 z podmianą znaków, więc plik w cp1250 jest czytelny zamiast pustej strony.
+
+> **Kodu uczestnika nie uruchamiamy.** Plik jest odczytywany jako bajty, dekodowany i wypisywany
+> jako tekst — nigdy importowany, nigdy wykonywany, nigdy przekazywany do podprocesu. Żadnej
+> piaskownicy w systemie nie ma i nie jest przewidziana.
+
+Uwagi do linii są drugim dopuszczalnym kształtem wpisu w `Review.annotations`: `{line, text, public}`
+obok istniejącego `{page, rect, text, public}`. O kształcie rozstrzyga obecność klucza `line`, więc
+adnotacje zapisane wcześniej i klienci API, którzy o uwagach do linii nie wiedzą, działają bez zmian.
+Dopisanie idzie na `POST /review/<id>/line-note/` i przechodzi przez `save_draft`, czyli przez tę
+samą bramkę, co szkic (`_assert_review_open`): do recenzji wystawionej, anulowanej ani do pracy poza
+ocenianiem nie dopisze się tędy nic. Audyt: `review.line_note_added` (numer linii, jawność, długość —
+nigdy treść). `static/js/review-code-notes.js` wpisuje numer klikniętej linii do formularza; bez
+skryptu numer wpisuje się ręcznie i wszystko działa tak samo.
+
+Uwaga oznaczona **„Pokaż uczestnikowi”** trafia po ogłoszeniu wyników na stronę informacji zwrotnej
+(`/me/stages/<id>/feedback/`) jako „linia N: treść”, obok komentarza recenzenta. Numer linii odnosi
+się do pliku tak, jak uczestnik go wysłał — w notatniku liczonego po sklejeniu samych komórek kodu,
+dokładnie tak, jak widział go recenzent.
+
+#### Zgłoszenie problemu z pracą
+
+Recenzent, któremu trafi się skan nie do odczytania albo rozwiązanie zupełnie innego zadania, miał
+dotąd jedną drogę: pocztę do koordynatora. Zgłoszenie (`grading.WorkIssue`) jest drogą **wewnątrz
+systemu** — koordynator widzi je na własnym ekranie, z pracą i etapem w ręku, a ślad decyzji zostaje
+przy recenzji, a nie w cudzej skrzynce.
+
+Przycisk **„Zgłoś problem”** stoi na stronie oceny (`POST /review/<id>/issues/`). Rodzaje: praca
+nieczytelna, rozwiązanie innego zadania, podejrzenie niesamodzielności, inne — plus obowiązkowy
+opis (także przy „inne”). Jeden recenzent nie może mieć dwóch **otwartych** zgłoszeń do tej samej
+recenzji (`ISSUE_ALREADY_OPEN`); po rozstrzygnięciu wolno zgłosić ponownie — to już inna sprawa.
+
+**Zgłoszenie nie blokuje oceniania** i to jest decyzja, nie przeoczenie. Recenzent może uważać pracę
+za nieczytelną i mimo to wystawić ocenę, jaką da się obronić; zablokowanie formularza zamieniłoby
+sygnał w ultimatum i wypchnęło część komitetu z powrotem do poczty. Panel pokazuje więc baner
+z otwartym zgłoszeniem, a lista `/review/` — marker „zgłoszony problem” przy wierszu.
+
+Koordynator obsługuje kolejkę na `/coordinator/issues/`: otwarte na górze, filtr etapu jako
+`?stage=<id>` (adres z filtrem ma dać się zapisać i wysłać dalej), domyślnie cała edycja. Przy
+każdym otwartym zgłoszeniu stoją **skróty** do tego, co się po nim zwykle robi: odnośnik do
+przydziałów etapu i **„Odbierz pracę”** (`POST /coordinator/issues/<id>/unassign/`), które woła
+istniejące `unassign_reviewer` — te same bramki i ten sam wpis audytowy, co przycisk na ekranie
+przydziałów. Odebranie pracy **nie zamyka** zgłoszenia: to czynność, a nie rozstrzygnięcie sprawy.
+
+**„Rozwiąż”** (`POST /coordinator/issues/<id>/resolve/`) wymaga zdania uzasadnienia
+(`ISSUE_RESOLUTION_REQUIRED`) — zamknięte zgłoszenie bez ani jednego słowa nie mówi w aktach nic
+poza tym, że ktoś kliknął przycisk. Powtórne rozstrzygnięcie to `ISSUE_ALREADY_RESOLVED`, żeby
+drugi koordynator nie nadpisał cudzego uzasadnienia własnym. Pulpit ma kafelek **„Zgłoszone
+problemy: N”** prowadzący do kolejki (licznik obejmuje etapy bieżącej edycji, czyli zakres ekranu,
+na który prowadzi). Audyt: `issue.opened` i `issue.resolved` — rodzaj, praca i długość opisu,
+nigdy jego treść.
+
 #### Korekta ocen przez koordynatora
 
 Ten sam ekran („Przydziały i oceny”) pozwala poprawić **każdą** ocenę. Dwa poziomy:
@@ -1777,6 +2081,38 @@ Wszystkie operacje zostawiają ślad w audycie (`interview.slots_created`, `inte
 `interview.booked`, `interview.booking_moved`, `interview.cancelled`) — w `diff` idą wyłącznie
 identyfikatory i liczniki, nigdy imiona, nazwiska ani adresy.
 
+**Pokój wideo powstaje sam, w chwili zapisu** (`apps/competitions/video.py`). Etap ma dwa pola:
+`Stage.video_provider` (`bez wideo` / `Jitsi Meet` / `własna instancja`) i `Stage.video_base_url`
+(domyślnie `https://meet.jit.si/`) — oba w formularzu terminów etapu. Nazwa pokoju to
+`olimpiada-<edycja>-<identyfikator terminu>-<6 losowych znaków>`, a adres ląduje na **zapisie**
+(`InterviewBooking.meeting_url`, migracja `competitions.0016`).
+
+- **sześć losowych znaków to jedyna część, która czyni pokój prywatnym.** Publiczna instancja
+  Jitsi nie wymaga logowania, więc nazwa pokoju *jest* poświadczeniem; przewidywalna
+  („olimpiada-2027-12”) byłaby zaproszeniem dla każdego, kto potrafi liczyć. Dlatego adres nadal
+  nie stoi na wspólnej liście terminów, tylko przy własnym zapisie uczestnika,
+- **edycja i termin są w nazwie dla człowieka**: adres bywa dyktowany przez telefon,
+- **jeden pokój na termin, nie na osobę** — termin może mieć kilka miejsc, a komisja musi zastać
+  wszystkich w tym samym miejscu. Pierwszeństwa: ręczny link przy terminie → pokój już przypisany
+  sąsiadowi z tego samego terminu → nowy adres od dostawcy etapu,
+- **adres zapisujemy na zapisie, a nie czytamy z terminu**: uczestnik ma widzieć ten adres, który
+  dostał w liście, także wtedy, gdy koordynator zmienił później pole przy terminie. Przeniesienie
+  zapisu na inny termin daje inny pokój,
+- **„Sprawdź kamerę i mikrofon”** prowadzi do pustego pokoju o tej samej nazwie z sufiksem
+  `-test`. Dostawcy wideo nie mają osobnej „strony testu sprzętu” — testem jest ekran powitalny
+  pokoju, na którym przeglądarka pyta o kamerę i mikrofon, a użytkownik widzi własny podgląd.
+  Zamiast linkować cudzą stronę pomocy, otwieramy pokój, w którym na pewno nikogo nie ma,
+- **wideo jest wyłącznie linkiem.** Osadzenia na naszej stronie nie ma i nie będzie: ramka z obcej
+  domeny wymagałaby rozluźnienia `frame-src` w CSP, a wideo w `<iframe>` prosi przeglądarkę
+  o kamerę i mikrofon **w kontekście naszej domeny**.
+
+**Przypomnienie dzień wcześniej** — zadanie beat `remind_interviews`
+(`apps/competitions/tasks.py`, harmonogram w `config/settings/base.py`) wysyła raz na dobę list do
+każdego, kogo rozmowa zaczyna się w ciągu najbliższych 24 godzin: termin, link do pokoju, link
+testowy i krótka instrukcja („wejdź z komputera, w Chrome/Edge/Firefox…”). Drugi list blokuje
+`InterviewBooking.reminder_sent_at`, stawiany **przed** kolejkowaniem — przy padzie workera wolimy
+jedno przypomnienie mniej niż dwa te same. Treść składa się w języku odbiorcy (5.9).
+
 **Czego jeszcze nie ma:** ocen z rozmowy. Etap w tej formie nie ma ścieżki oceniania w systemie —
 punkty wpisuje koordynator poza nim (`docs/BACKLOG.md`).
 
@@ -1932,6 +2268,164 @@ oceny liczy się wtedy jako 0 punktów i ekran pisze, ilu prac jeszcze nie rozli
 Przycisk **Zastosuj tę regułę do etapu** (POST) zapisuje `QualificationRule` i nic poza tym:
 nikogo nie kwalifikuje i niczego nie ogłasza. Wyniki przelicza się osobno, po zamknięciu okna
 reklamacji (6.6). Audyt: `stage.rule_updated` z parametrami przed i po.
+
+W tabeli symulacji stoi też **kolumna „Decyzja komitetu”** — kwalifikacja ręczna z uzasadnieniem,
+opisana w 6.11.
+
+### 6.10 Kalibracja recenzentów — `/coordinator/stages/<id>/calibration/`
+
+Ekran czytany **po ocenianiu**, przy przygotowaniu instruktażu na kolejną edycję. Pojedynczy
+rozjazd dwóch ocen nie mówi nic o żadnym z recenzentów — dwie osoby mogą w dobrej wierze
+przeczytać rozwiązanie inaczej. Informacją jest dopiero rozkład rozjazdów po wszystkich pracach
+jednej osoby.
+
+Wiersz na recenzenta: liczba wystawionych recenzji rundy 1, **średnie odchylenie ze znakiem** od
+oceny drugiego recenzenta tej samej pracy, to samo wobec oceny uzgodnionej, udział rozjazdów
+(prac, które trafiły do moderacji) i podpis „surowy / łagodny / zgodny z komisją”. Znak jest tu
+całą istotą: średnia z wartości bezwzględnych zrównałaby recenzenta chaotycznego (raz +2, raz −2)
+z konsekwentnie surowym (za każdym razem −2), a to są dwie różne rozmowy.
+
+Co **nie** wchodzi do rachunku: szkice, recenzje anulowane (odebrane albo unieważnione nową wersją
+pracy) i cała runda rozjemcza — trzeci recenzent wie już, że poprzednicy się nie zgodzili, więc
+jego ocena nie jest niezależna. Tendencji nie przypisujemy poniżej 5 recenzji i przy odchyleniu
+mniejszym niż 0,5 punktu; wtedy tabela pisze „za mało danych”.
+
+Sortowanie: `?sort=<kolumna>` (`reviewer`, `reviews`, `vs_peer`, `vs_final`, `disagreements`),
+minus odwraca kierunek. Nieznana nazwa cicho wraca do porządku domyślnego. Puste odchylenia
+(„etap jeszcze się ocenia”) sortują się zawsze na koniec — wiersz bez danych nie jest ani
+najlepszy, ani najgorszy.
+
+Ekran jest **wyłącznie odczytem**: nie zmienia ocen i nie wystawia recenzentom not. Dane liczy
+`apps/grading/calibration.py` — trzy zapytania na cały ekran, niezależnie od liczby prac.
+Odnośnik: karta etapu na pulpicie oraz stopka ekranu „Postęp oceniania”.
+
+### 6.11 Podobieństwo rozwiązań i kwalifikacja ręczna
+
+#### Podobieństwo — `/coordinator/stages/<id>/similarity/`
+
+Dotyczy **wyłącznie zadań oddawanych jako kod** (`py`, `ipynb`). Przy dowodzie w PDF-ie plagiat
+widać gołym okiem; przy programie wystarczy zmienić nazwy zmiennych i dopisać komentarze, żeby
+dwa pliki przestały być podobne dla człowieka, a pozostały tym samym rozwiązaniem.
+
+Jak liczymy: z pliku zostaje ciąg tokenów (komentarze znikają, napisy i liczby stają się jednym
+symbolem, każdy identyfikator — symbolem `ID`; notatnik sklejamy z samych komórek kodu), a wynik
+pary to **większa** z dwóch miar — Jaccarda na 5-gramach tokenów (widzi przestawione bloki)
+i `difflib` (widzi dopisany albo usunięty fragment). Porównujemy każdą parę najnowszych, czystych
+prac w zadaniu.
+
+Przycisk **Przelicz** zleca zadanie Celery na kolejce domyślnej (`recompute_similarity`) — przy
+komplecie prac finału liczenie idzie w tysiącach par i nie może blokować żądania. Plik każdej
+pracy czytamy **raz**, strumieniem, z limitem 2 MB, i natychmiast zamieniamy na tokeny; w pamięci
+nigdy nie ma kompletu plików zadania. Na jedno zadanie porównujemy najwyżej **5000 par** — po
+przekroczeniu limitu przeliczenie przerywa się dla tego zadania i mówi o tym w podsumowaniu,
+zamiast po cichu oddać niekompletną listę.
+
+W bazie (`submissions.SubmissionSimilarity`) lądują pary od **0,6** w górę; tabela pokazuje te
+powyżej progu z pola `?threshold=` (domyślnie **0,8**). Kolejne przeliczenie zastępuje wyniki
+zadania, ale **przenosi znacznik „zgłoszone do komitetu”** — to decyzja człowieka, a nie wynik
+obliczenia.
+
+`…/similarity/<pair_id>/` pokazuje obie prace obok siebie (`difflib.HtmlDiff`). Treść pliku od
+uczestnika przechodzi przez dwie bariery: escapowanie w bibliotece i białą listę znaczników
+(`sanitise_html`). Styl tabeli jest w osobnym arkuszu (`static/css/similarity-diff.css`), bo
+polityka bezpieczeństwa nie dopuszcza stylów inline — dlatego nie używamy `HtmlDiff.make_file`.
+
+Przycisk **Zgłoś do komitetu** jest zakładką na parze do obejrzenia na posiedzeniu; da się go
+cofnąć, a oba kliknięcia zostają w audycie (`similarity.reported`, `similarity.report_withdrawn`).
+Wysoki wynik jest **przesłanką, nie dowodem** — przy zadaniu z jednym oczywistym algorytmem dwie
+uczciwe prace potrafią wyjść bardzo podobnie. Audyt przeliczenia (`similarity.recomputed`) niesie
+wyłącznie liczniki.
+
+#### Kwalifikacja ręczna — `POST /coordinator/entries/<id>/manual-qualification/`
+
+Regulamin zna sytuacje, których próg punktowy nie opisuje: zerwane łącze w trakcie rozmowy
+kwalifikacyjnej, praca oddana poza systemem na polecenie organizatora, wynik unieważniony za
+naruszenie zasad mimo wysokiej sumy. Dopóki tej drogi nie było, jedynym wyjściem było majstrowanie
+przy punktach — czyli wpisanie do protokołu nieprawdy o tym, jak pracę oceniono.
+
+Formularz stoi **w wierszu tabeli symulacji progu** (decyzja zapada, patrząc na te same liczby):
+decyzja (`QUALIFIED` / `NOT_QUALIFIED` / pusta) plus uzasadnienie. **Uzasadnienie jest obowiązkowe
+i musi mieć co najmniej 10 znaków** — pilnuje tego serwis `apps/results/manual.py` oraz constraint
+w bazie. Pusta decyzja znaczy „niech rozstrzyga próg” i uzasadnienia nie wymaga.
+
+Decyzja **bije regułę punktową** przy każdym przeliczeniu i w symulacji (`qualified_with_manual`),
+ale **nie podnosi zdyskwalifikowanego** — dyskwalifikacja jest osobną decyzją i wymaga cofnięcia,
+a nie obejścia drugą decyzją. W ogłoszonej tabeli wiersz dostaje odznakę **„kwalifikacja decyzją
+komitetu”** (`snapshot[*].manual`): wynik niezgodny z progiem, którego nie widać, wygląda z zewnątrz
+jak błąd rachunkowy albo jak protekcja.
+
+Jeśli wyniki etapu są już ogłoszone, panel ostrzega, że zmiana wejdzie do tabeli dopiero po
+ponownym przeliczeniu i publikacji — ten sam wzorzec, co przy korekcie oceny końcowej. Audyt:
+`entry.manual_qualification` z decyzją przed i po oraz **długością** uzasadnienia (nigdy jego
+treścią — bywa opisem zdarzenia z życia konkretnego ucznia).
+
+### 6.12 Dyplomy i zaświadczenia — `/coordinator/stages/<id>/certificates/`
+
+Cztery rodzaje dokumentów: **laureat**, **finalista**, **uczestnik** i **opiekun**. Rodzaju nie
+wyliczamy z punktów — o tym, kto jest laureatem, rozstrzyga komitet, a próg tytułu bywa inny niż
+próg kwalifikacji.
+
+W bazie (`results.Certificate`) jest **rejestr, nie plik**: edycja, odbiorca (wpis do etapu albo
+opiekun — dokładnie jeden z nich), rodzaj, numer `OK/<rok>/<kolejny>`, losowy kod weryfikacyjny,
+data i wystawiający. PDF powstaje **przy każdym pobraniu** (`apps/results/certificates.py`,
+`reportlab`), bo cała jego treść wynika z tych faktów; kopia binarna znaczyłaby jedynie tyle, że
+poprawka szablonu nie dotyczy dokumentów już wystawionych.
+
+Kroje **DejaVu Sans** leżą w repozytorium (`backend/static/fonts/DejaVuSans.ttf`,
+`DejaVuSans-Bold.ttf` wraz z `DejaVu-LICENSE.txt`). Wbudowane w `reportlab` fonty Type1 obsługują
+WinAnsi, czyli nie mają `ą`, `ę`, `ł`, `ś`, `ż`, `ź` ani `ń` — dyplom dla Łucji Śniadeckiej
+składałby się częściowo z pustych prostokątów.
+
+Przyciski: **Wystaw** przy wierszu (rodzaj z listy) i **Wystaw wszystkim (ZIP)** dla całego etapu.
+Obie drogi są **idempotentne**: wpis, który ma już dokument tego rodzaju, zachowuje swój numer —
+uczestnik z dwoma numerami na ten sam tytuł miałby problem przy pierwszej rekrutacji, w której
+trzeba ten numer podać. Nazwy plików w paczce to numery dokumentów, nigdy nazwiska.
+
+Sekcja **Opiekunowie szkolni** wymienia wyłącznie tych, którzy potwierdzili udział szkoły w edycji
+(5.6) — sam adres wpisany przez ucznia jest przesłanką, a nie oświadczeniem nauczyciela.
+
+Uczestnik widzi swoje dokumenty w `/me/certificates/` (link „Dyplomy” w panelu) i pobiera je stamtąd;
+opiekun — na dole swojego panelu. Każdy dokument da się sprawdzić **bez logowania** pod
+`/dyplomy/<kod>/`: strona potwierdza rodzaj, edycję, numer i datę, a **imienia i nazwiska nie
+pokazuje**, dopóki odbiorca nie wyraził zgody na publikację pełnych danych (sprawdzany jest aktywny
+`ConsentRecord`, nie samo pole profilu). Zaświadczenie opiekuna nie pokazuje nazwiska nigdy —
+opiekun nie przechodzi przez blok zgód uczestnika, a milczenie nie jest zgodą. Nieznany kod nie
+daje 404: strona wygląda tak samo i mówi „takiego dokumentu nie ma”, bo rozróżnienie kodem HTTP
+zamieniłoby ten adres w narzędzie do sprawdzania kodów maszynowo.
+
+### 6.13 Statystyki edycji (`/statystyki/`)
+
+Publiczna strona z liczbami o **ogłoszonych** etapach: liczba uczestników w tabeli, rozkład punktów
+w każdym zadaniu, średnia i mediana sumy, najwyższy wynik, liczba zakwalifikowanych, próg
+kwalifikacji i rozbicie na województwa. Odnośnik stoi w stopce każdej strony.
+
+Odpowiada na pytanie, którego tabela wyników nie obsługuje: tamta mówi „jak wypadłem ja”, ta —
+„jak wypadła olimpiada”. Dotąd każdy, kto chciał to wiedzieć (uczeń przed zgłoszeniem, nauczyciel,
+dziennikarz), musiał przeliczyć kilkaset wierszy ręcznie albo napisać do organizatora.
+
+- **dane pochodzą wyłącznie z zamrożonego snapshotu** (`ResultsPublication.snapshot`), z tego
+  samego JSON-a, który czyta publiczna tabela. Nie z `FinalGrade` i nie ze `StageEntry`. Powody:
+  snapshot jest już zanonimizowany i **z definicji** nie zawiera nic, czego nie wolno pokazać;
+  liczby zgadzają się z tabelą co do sztuki; etap bez publikacji nie ma tu ani jednego wiersza,
+- **próg kwalifikacji liczymy z tabeli**, jako najniższą sumę wśród zakwalifikowanych — nie
+  z `QualificationRule`. Reguła bywa hybrydowa („min. 20 pkt **oraz** najlepszych 200”), bywa
+  zmieniana po przeliczeniu, a przy trybie „N na województwo” nie ma jednej liczby. Z ogłoszonej
+  tabeli wynika natomiast zdanie zrozumiałe bez znajomości regulaminu,
+- **województwa pojawiają się tylko przy anonimizacji „kod uczestnika”** — bo tylko wtedy niesie
+  je snapshot. Przy inicjałach ze szkołą i przy pełnych nazwiskach okręg celowo z tabeli wypada
+  (mnożyłby cechy quasi-identyfikujące), a statystyka nie ma prawa odtwarzać go z innych tabel:
+  strona pisze wtedy wprost, że tego rozbicia nie publikuje,
+- **wykresy są CSS-em, bez jednej linii JavaScriptu.** Słupek to `<div>` z klasą szerokości
+  z zamkniętej listy (skok co 5 %), bo polityka bezpieczeństwa nie dopuszcza `style="width: …"`
+  w dokumencie — ten sam zabieg, co przy pasku postępu koordynatora. Obok każdego słupka stoi
+  liczba i ta sama tabela z liczbami: czytnik ekranu nie odczyta szerokości `<div>`-a,
+- **widok jest wzorcem w `config/urls.py`**, a nie stroną w drzewie CMS-a (tak samo jak
+  `/results/<id>/`): treść jest w całości wyliczana, a redaktor nie ma w niej niczego do napisania.
+  Adres nie może zależeć od tego, czy ktoś tę stronę utworzył i gdzie ją przeniósł,
+- wynik jest **pamiętany przez 10 minut** (`django.core.cache`). Strona bywa linkowana z mediów,
+  a policzenie jej to przejście po kilkuset wierszach JSON-a na etap. Ponowna publikacja wyników
+  nie unieważnia wpisu natychmiast — dziesięć minut rozbieżności kosztuje mniej niż liczenie
+  na każde wejście.
 
 ## 7. Testy i kontrola jakości
 

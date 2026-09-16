@@ -1,0 +1,75 @@
+{% comment %}
+  Szablony komentarzy: gotowe akapity do wstawienia w komentarzu dla uczestnika.
+
+  Sekcja jest kompletna **bez JavaScriptu**: treść każdego szablonu stoi na ekranie i da się ją
+  zaznaczyć oraz skopiować. Przycisk „Wstaw” jest wygodą, którą dokłada
+  ``static/js/review-snippets.js`` – dopisuje treść na końcu pola komentarza. Żadnego atrybutu
+  ``onclick``: skrypt nasłuchuje na całej liście i czyta dane z atrybutów ``data-*`` (strict CSP).
+
+  Kolejność bierze się z serwera („najpierw wspólne, potem własne”, patrz ``snippets_for``), więc
+  szablon niczego nie sortuje – przestawianie po swojemu rozjeżdżałoby listę z tym, co zwraca API.
+{% endcomment %}
+<details class="card" id="comment-snippets">
+  <summary><strong>Szablony komentarzy</strong> ({{ snippets|length }})</summary>
+
+  <p class="hint">Gotowe zdania do komentarza dla uczestnika. „Wstaw” dopisuje treść na końcu pola –
+    tekst możesz potem dowolnie poprawić. Szablony wspólne przygotowuje koordynator przy zadaniu;
+    Twoich własnych nie widzi nikt poza Tobą.</p>
+
+  <ul class="annotations" data-snippet-list data-snippet-target="id_comment_for_participant">
+    {% for snippet in snippets %}
+      <li>
+        <span class="row">
+          <strong>{{ snippet.title }}</strong>
+          {% if snippet.is_shared %}
+            <span class="badge badge--info">wspólny</span>
+          {% else %}
+            <span class="badge badge--neutral">własny</span>
+          {% endif %}
+          {% if snippet.problem_id %}<span class="badge badge--neutral">to zadanie</span>{% endif %}
+        </span>
+        <p class="quote">{{ snippet.text }}</p>
+        <span class="row">
+          {# Treść jedzie atrybutem ``data-*`` – Django ją autoescapuje, a skrypt czyta przez ``dataset``. #}
+          <button type="button"
+                  class="btn btn--secondary btn--small"
+                  data-snippet-insert
+                  data-snippet-text="{{ snippet.text }}"
+                  hidden>Wstaw</button>
+          {% if not snippet.is_shared %}
+            <form method="post" action="{% url 'web:review-snippet-delete' snippet.pk %}" class="inline">
+              {% csrf_token %}
+              <input type="hidden" name="review" value="{{ review.pk }}">
+              <button type="submit" class="btn btn--ghost btn--small">Usuń</button>
+            </form>
+          {% endif %}
+        </span>
+      </li>
+    {% empty %}
+      <li class="hint">Nie ma jeszcze żadnego szablonu. Wspólne dla zadania dodaje koordynator
+        na stronie zadania; poniżej możesz dopisać własny.</li>
+    {% endfor %}
+  </ul>
+
+  <form method="post" action="{% url 'web:review-snippet-add' %}" class="form">
+    {% csrf_token %}
+    <input type="hidden" name="review" value="{{ review.pk }}">
+    <p class="field">
+      <label for="id_snippet_title">Tytuł nowego szablonu</label>
+      <input type="text" id="id_snippet_title" name="title" maxlength="200" required>
+      <span class="helptext">Krótko, żeby dało się go rozpoznać na liście – np. „Brak jednostek”.</span>
+    </p>
+    <p class="field">
+      <label for="id_snippet_text">Treść</label>
+      <textarea id="id_snippet_text" name="text" rows="3" required></textarea>
+    </p>
+    <p class="field">
+      <input type="checkbox" name="scope" value="problem" id="id_snippet_scope">
+      <label for="id_snippet_scope">Tylko dla zadania {{ problem.number }}</label>
+      <span class="helptext">Niezaznaczone = szablon ogólny, dostępny przy każdej pracy.</span>
+    </p>
+    <div class="actions">
+      <button type="submit" class="btn btn--secondary">Zapisz szablon</button>
+    </div>
+  </form>
+</details>

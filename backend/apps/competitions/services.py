@@ -31,6 +31,7 @@ from .models import (
     StageKind,
     default_scoring_values,
 )
+from .video import DEFAULT_VIDEO_BASE_URL, VideoProvider
 
 #: Pola osi czasu etapu, którymi koordynator zarządza z panelu. ``results_published_at`` i
 #: ``closed_at`` są **poza** tą listą świadomie: pierwsze nakłada publikacja wyników, drugie –
@@ -56,6 +57,11 @@ STAGE_EDITABLE_FIELDS = (
     "review_deadline_days",
     "appeal_window_opens_at",
     "appeal_window_closes_at",
+    # Pokój wideo rozmowy kwalifikacyjnej (``apps.competitions.video``). Stoi przy formie etapu,
+    # bo ma sens wyłącznie dla ``StageFormat.INTERVIEW`` – i tak samo jak ona opisuje sposób,
+    # w jaki odbywają się zawody, a nie ich terminy.
+    "video_provider",
+    "video_base_url",
 )
 
 #: Co wolno zmienić po zamknięciu etapu. Terminy oddania rozwiązań są wtedy faktem historycznym –
@@ -82,6 +88,9 @@ STAGE_FIELDS_EDITABLE_AFTER_CLOSE = (
 PROBLEM_EDITABLE_FIELDS = (
     "number",
     "title",
+    # Angielski tytuł jest zwykłym polem tekstowym, więc idzie tędy; angielska treść, jako plik,
+    # osobno – dokładnie tak samo jak treść polska.
+    "title_en",
     "allowed_formats",
     "max_file_mb",
     "scoring_values",
@@ -160,6 +169,11 @@ def create_stage(
     event_ends_on=None,
     name: str = "",
     format: str = StageFormat.SUBMISSIONS,
+    # Pokój wideo rozmowy kwalifikacyjnej (``apps.competitions.video``). Domyślne „bez wideo”
+    # i domyślny serwer, bo etap pisemny żadnego pokoju nie potrzebuje – ustawia to koordynator
+    # dopiero wtedy, gdy nadaje etapowi formę rozmowy.
+    video_provider: str = VideoProvider.NONE,
+    video_base_url: str = DEFAULT_VIDEO_BASE_URL,
     scoring_values: list[dict] | None = None,
     max_value: int | None = None,
     qualification_mode: str = QualificationMode.MIN_POINTS,
@@ -186,6 +200,8 @@ def create_stage(
         review_deadline_days=review_deadline_days,
         appeal_window_opens_at=appeal_window_opens_at,
         appeal_window_closes_at=appeal_window_closes_at,
+        video_provider=video_provider or VideoProvider.NONE,
+        video_base_url=video_base_url or DEFAULT_VIDEO_BASE_URL,
     )
     stage.full_clean()
     stage.save()
@@ -592,7 +608,7 @@ def _validation_error(exc: ValidationError) -> DomainError:
 
 @transaction.atomic
 def create_problem(
-    *, stage: Stage, actor, statement=None, model_solution=None, request=None, **fields
+    *, stage: Stage, actor, statement=None, statement_en=None, model_solution=None, request=None, **fields
 ) -> Problem:
     """Nowe zadanie etapu. ``statement`` i ``model_solution`` to pliki z formularza albo ``None``.
 
@@ -615,6 +631,10 @@ def create_problem(
     problem = Problem(stage=stage, **fields)
     if statement is not None:
         problem.statement_pdf = statement
+    if statement_en is not None:
+        # Angielska treść nie ma własnej bramki – to ten sam dokument w drugim języku i podlega
+        # dokładnie tej samej regule widoczności (``opens_at``), co wersja polska.
+        problem.statement_pdf_en = statement_en
     if model_solution is not None:
         # Wzorcówka nie ma żadnej bramki czasowej (w przeciwieństwie do treści): nie staje się
         # jawna nigdy, więc wgranie jej przed otwarciem etapu i po nim jest tą samą czynnością.
@@ -655,6 +675,7 @@ def update_problem(
     actor,
     *,
     statement=None,
+    statement_en=None,
     model_solution=None,
     confirm_open_stage: bool = False,
     request=None,
@@ -694,6 +715,12 @@ def update_problem(
         # w storage (kasowanie jest poza zakresem – w prywatnym buckecie nic go nie wystawia).
         diff["statement_pdf"] = {"from": locked.statement_pdf.name or "", "to": statement.name}
         locked.statement_pdf = statement
+    if statement_en is not None:
+        # To samo potwierdzenie, co przy treści polskiej, **nie** jest tu wymagane: angielska
+        # wersja jest tłumaczeniem dokładanym zwykle po otwarciu etapu, a wgranie jej nie zmienia
+        # polecenia, które uczestnicy już mają. Ślad zostaje w audycie.
+        diff["statement_pdf_en"] = {"from": locked.statement_pdf_en.name or "", "to": statement_en.name}
+        locked.statement_pdf_en = statement_en
     if model_solution is not None:
         # Podmiana wzorcówki **nie** wymaga potwierdzenia jak podmiana treści: uczestnik nigdy jej
         # nie widział, więc nowa wersja nie dzieli zawodników na dwie grupy. Ślad zostaje w audycie.

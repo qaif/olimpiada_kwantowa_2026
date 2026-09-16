@@ -1,12 +1,17 @@
 {% extends "base.html" %}
-{% load web_extras %}
-{% block title %}Panel uczestnika{% endblock %}
+{% load i18n static web_extras %}
+{% block title %}{% translate "Panel uczestnika" %}{% endblock %}
+{% block head %}
+  {# Style podglądu wysłanego pliku – tylko ten ekran, więc poza ``app.css`` (jak narzędzia koordynatora). #}
+  <link rel="stylesheet" href="{% static 'css/upload-preview.css' %}">
+{% endblock %}
 {% block content %}
 <div class="page-head">
-  <span class="eyebrow">Panel uczestnika</span>
-  <h1>Twoje zgłoszenie</h1>
-  <p class="lead">Kod publiczny: <span class="code-chip">{{ user.participant.public_code }}</span>
-    – pod tym kodem występujesz w ogłaszanych tabelach wyników.</p>
+  <span class="eyebrow">{% translate "Panel uczestnika" %}</span>
+  <h1>{% translate "Twoje zgłoszenie" %}</h1>
+  <p class="lead">{% translate "Kod publiczny:" %}
+    <span class="code-chip">{{ user.participant.public_code }}</span>
+    – {% translate "pod tym kodem występujesz w ogłaszanych tabelach wyników." %}</p>
   {% comment %}
     Karta konta stoi na samej górze, obok kodu publicznego, bo to jedyne miejsce w panelu, w którym
     uczestnik zobaczy **swoje** dane – reszta strony mówi o etapie i o pracach. „Usuń konto”
@@ -14,24 +19,27 @@
     uczestnik brał już udział w zawodach.
   {% endcomment %}
   <dl class="meta-list">
-    <dt>Dane kontaktowe</dt>
+    <dt>{% translate "Dane kontaktowe" %}</dt>
     <dd>{{ user.get_full_name|default:user.email }}, {{ user.email }}{% if user.participant.phone %},
       tel. {{ user.participant.phone }}{% endif %}</dd>
-    <dt>Szkoła i klasa</dt>
-    <dd>{{ user.participant.school }}{% if user.participant.grade %}, klasa
-      {{ user.participant.grade }}{% endif %} ({{ user.participant.get_district_display }})</dd>
+    <dt>{% translate "Szkoła i klasa" %}</dt>
+    <dd>{{ user.participant.school }}{% if user.participant.grade %},
+      {% blocktranslate trimmed with grade=user.participant.grade %}klasa {{ grade }}{% endblocktranslate %}{% endif %}
+      ({{ user.participant.get_district_display }})</dd>
   </dl>
   <p class="actions">
-    <a class="btn btn--secondary btn--small" href="{% url 'web:profile' %}">Edytuj dane</a>
-    <a class="btn btn--secondary btn--small" href="{% url 'web:account-delete' %}">Usuń konto</a>
+    <a class="btn btn--secondary btn--small" href="{% url 'web:profile' %}">{% translate "Edytuj dane" %}</a>
+    <a class="btn btn--secondary btn--small" href="{% url 'web:account-delete' %}">{% translate "Usuń konto" %}</a>
   </p>
   {% comment %}
     Nawigacja panelu. Osobny wiersz od akcji na koncie powyżej, bo to inna sprawa: tamte
     zmieniają dane uczestnika, te wyłącznie prowadzą do ekranów do czytania.
   {% endcomment %}
   <p class="actions">
-    <a class="btn btn--secondary btn--small" href="{% url 'web:participant-calendar' %}">Kalendarz</a>
-    <a class="btn btn--secondary btn--small" href="{% url 'web:participant-archive' %}">Archiwum</a>
+    <a class="btn btn--secondary btn--small" href="{% url 'web:participant-calendar' %}">{% translate "Kalendarz" %}</a>
+    <a class="btn btn--secondary btn--small" href="{% url 'web:participant-archive' %}">{% translate "Archiwum" %}</a>
+    {# Dyplomy i zaświadczenia wystawione przez komitet – lista pusta, dopóki nic nie wystawiono. #}
+    <a class="btn btn--secondary btn--small" href="{% url 'web:participant-certificates' %}">{% translate "Dyplomy" %}</a>
   </p>
 </div>
 
@@ -54,34 +62,50 @@
           logowania, jest de facto poświadczeniem.
         {% endcomment %}
         <div class="card card--quiet">
-          <h3 class="mt-0">Rozmowa kwalifikacyjna online</h3>
+          <h3 class="mt-0">{% translate "Rozmowa kwalifikacyjna online" %}</h3>
           <dl class="meta-list">
-            <dt>Rozmowy odbywają się</dt>
+            <dt>{% translate "Rozmowy odbywają się" %}</dt>
             <dd>{{ stage.opens_at|local_datetime }} – {{ stage.deadline_at|local_time }}</dd>
             {% if interview_booking %}
-              <dt>Twój termin</dt>
+              <dt>{% translate "Twój termin" %}</dt>
               <dd>{{ interview_booking.slot.starts_at|local_datetime }} –
                 {{ interview_booking.slot.ends_at|time:"H:i" }}
                 {% if interview_booking.slot.note %}({{ interview_booking.slot.note }}){% endif %}</dd>
-              <dt>Link do rozmowy</dt>
-              <dd>
-                {% if interview_booking.slot.meeting_url %}
-                  <a href="{{ interview_booking.slot.meeting_url }}" target="_blank"
-                     rel="noopener noreferrer">{{ interview_booking.slot.meeting_url }}</a>
-                {% else %}
-                  <span class="hint">koordynator poda link przed rozmową</span>
+              {% comment %}
+                Adres pokoju bierzemy z **zapisu**, a nie z terminu: od wprowadzenia pokoi
+                generowanych automatycznie (``apps.competitions.video``) to zapis niesie ten
+                adres, który uczestnik dostał w liście potwierdzającym. Odwrót na pole terminu
+                zostaje dla zapisów sprzed tej zmiany i dla linków wpisanych ręcznie.
+              {% endcomment %}
+              {% with meeting_url=interview_booking.meeting_url|default:interview_booking.slot.meeting_url %}
+                <dt>{% translate "Link do rozmowy" %}</dt>
+                <dd>
+                  {% if meeting_url %}
+                    <a href="{{ meeting_url }}" target="_blank"
+                       rel="noopener noreferrer">{{ meeting_url }}</a>
+                  {% else %}
+                    <span class="hint">{% translate "koordynator poda link przed rozmową" %}</span>
+                  {% endif %}
+                </dd>
+                {% if meeting_url %}
+                  <dt>{% translate "Przed rozmową" %}</dt>
+                  <dd>
+                    <a href="{{ meeting_url|precheck_link }}" target="_blank"
+                       rel="noopener noreferrer">{% translate "Sprawdź kamerę i mikrofon" %}</a>
+                    <span class="hint">{{ interview_precheck_text }}</span>
+                  </dd>
                 {% endif %}
-              </dd>
+              {% endwith %}
             {% endif %}
           </dl>
           {% if interview_booking %}
             {% if interview_booking.slot.starts_at > now %}
               <form method="post" action="{% url 'web:interview-cancel' stage.pk %}">
                 {% csrf_token %}
-                <button type="submit" class="btn btn--secondary">Zrezygnuj z terminu</button>
+                <button type="submit" class="btn btn--secondary">{% translate "Zrezygnuj z terminu" %}</button>
               </form>
             {% else %}
-              <p class="hint">Rozmowa już się rozpoczęła – terminu nie można już zmienić.</p>
+              <p class="hint">{% translate "Rozmowa już się rozpoczęła – terminu nie można już zmienić." %}</p>
             {% endif %}
           {% endif %}
         </div>
@@ -97,9 +121,9 @@
                x-data="countdown"
                data-deadline="{{ stage.submission_deadline|date:'c' }}"
                data-server-now="{{ now|date:'c' }}">
-            <span class="countdown__label">Termin oddania rozwiązań</span>
+            <span class="countdown__label">{% translate "Termin oddania rozwiązań" %}</span>
             <span class="countdown__deadline">{{ stage.submission_deadline|local_time }}</span>
-            <span class="countdown__value" x-text="label">pozostały czas liczony jest po wczytaniu strony</span>
+            <span class="countdown__value" x-text="label">{% translate "pozostały czas liczony jest po wczytaniu strony" %}</span>
           </div>
         {% else %}
           {% comment %}
@@ -108,9 +132,9 @@
             nieprawdziwą. Pytamy o ``has_deadline``, a nie o rodzaj etapu – reguła ma jedno miejsce.
           {% endcomment %}
           <div class="countdown">
-            <span class="countdown__label">Termin oddania rozwiązań</span>
-            <span class="countdown__deadline">Bez terminu</span>
-            <span class="countdown__value">rozwiązania przyjmujemy bezterminowo</span>
+            <span class="countdown__label">{% translate "Termin oddania rozwiązań" %}</span>
+            <span class="countdown__deadline">{% translate "Bez terminu" %}</span>
+            <span class="countdown__value">{% translate "rozwiązania przyjmujemy bezterminowo" %}</span>
           </div>
         {% endif %}
       {% endif %}
@@ -122,30 +146,32 @@
         w ich trakcie oddaje rozwiązanie (na publicznym harmonogramie stoi sam termin zjazdu).
       {% endcomment %}
       {% if stage.event_range %}
-        <p class="card__meta">Termin wydarzenia: <strong>{{ stage|event_dates }}</strong>{% if stage.location %},
-          {{ stage.location }}{% endif %}. Godziny oddania rozwiązań powyżej obowiązują niezależnie
-          od dni pobytu.</p>
+        {% comment %}
+          Podpis i data muszą zostać w **jednym** wierszu wyniku („Termin wydarzenia: <strong>…”):
+          złamanie szablonu wstawiłoby między nie wcięcie, a to jest zdanie, nie lista.
+        {% endcomment %}
+        <p class="card__meta">{% translate "Termin wydarzenia:" %} <strong>{{ stage|event_dates }}</strong>{% if stage.location %}, {{ stage.location }}{% endif %}.
+          {% translate "Godziny oddania rozwiązań powyżej obowiązują niezależnie od dni pobytu." %}</p>
       {% endif %}
 
       {% if can_register %}
         <form method="post" action="{% url 'web:stage-register' stage.pk %}">
           {% csrf_token %}
           <button type="submit" class="btn btn--accent">
-            {% if stage.is_training %}Zgłoś się do treningu{% else %}Zgłoś się do tego etapu{% endif %}</button>
+            {% if stage.is_training %}{% translate "Zgłoś się do treningu" %}{% else %}{% translate "Zgłoś się do tego etapu" %}{% endif %}</button>
         </form>
       {% elif entry %}
-        <p class="card__meta">Status Twojego udziału: <strong>{{ entry.get_status_display }}</strong>.</p>
+        <p class="card__meta">{% translate "Status Twojego udziału:" %}
+          <strong>{{ entry.get_status_display }}</strong>.</p>
       {% elif stage.is_interview %}
-        <p class="card__meta">Do rozmowy kwalifikacyjnej przystępują wyłącznie osoby zakwalifikowane
-          w poprzednim etapie. Nie ma tu zapisów otwartych.</p>
+        <p class="card__meta">{% translate "Do rozmowy kwalifikacyjnej przystępują wyłącznie osoby zakwalifikowane w poprzednim etapie. Nie ma tu zapisów otwartych." %}</p>
       {% else %}
         {% comment %}
           Nazwy etapów („Etap I/II/III”) ustala koordynator, więc komunikat ich nie wymienia –
           mówi o regule: do dalszych etapów nie ma zapisów, wpis tworzy kwalifikacja z etapu
           poprzedniego.
         {% endcomment %}
-        <p class="card__meta">Do tego etapu nie ma zapisów – przechodzą do niego osoby
-          zakwalifikowane w poprzednim etapie.</p>
+        <p class="card__meta">{% translate "Do tego etapu nie ma zapisów – przechodzą do niego osoby zakwalifikowane w poprzednim etapie." %}</p>
       {% endif %}
     </div>
   </section>
@@ -154,22 +180,22 @@
     {% if stage.is_interview %}
       <section class="section">
         <div class="section__head">
-          <h2 class="mt-0">Wybierz termin rozmowy</h2>
+          <h2 class="mt-0">{% translate "Wybierz termin rozmowy" %}</h2>
           {% if interview_booking %}
-            <p class="hint">Masz już zapisany termin – wybranie innego przeniesie zapis.</p>
+            <p class="hint">{% translate "Masz już zapisany termin – wybranie innego przeniesie zapis." %}</p>
           {% endif %}
         </div>
         {% if interview_rows %}
           <div class="scroll">
             <table class="table">
-              <caption>Terminy rozmów. Wszystkie godziny: czas polski.</caption>
+              <caption>{% translate "Terminy rozmów. Wszystkie godziny: czas polski." %}</caption>
               <thead>
                 <tr>
-                  <th scope="col">Data</th>
-                  <th scope="col">Godziny</th>
-                  <th scope="col">Oznaczenie</th>
-                  <th scope="col">Wolne miejsca</th>
-                  <th scope="col"><span class="visually-hidden">Zapis</span></th>
+                  <th scope="col">{% translate "Data" %}</th>
+                  <th scope="col">{% translate "Godziny" %}</th>
+                  <th scope="col">{% translate "Oznaczenie" %}</th>
+                  <th scope="col">{% translate "Wolne miejsca" %}</th>
+                  <th scope="col"><span class="visually-hidden">{% translate "Zapis" %}</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -185,15 +211,15 @@
                       <td>{{ row.slot.starts_at|date:"j E Y" }}</td>
                       <td>{{ row.slot.starts_at|time:"H:i" }}–{{ row.slot.ends_at|time:"H:i" }}</td>
                       <td>{{ row.slot.note|default:"—" }}</td>
-                      <td class="num">{{ row.free }} z {{ row.slot.capacity }}</td>
+                      <td class="num">{% blocktranslate trimmed with free=row.free capacity=row.slot.capacity %}{{ free }} z {{ capacity }}{% endblocktranslate %}</td>
                       <td>
                         {% if row.is_mine %}
-                          <span class="badge badge--ok">Twój termin</span>
+                          <span class="badge badge--ok">{% translate "Twój termin" %}</span>
                         {% elif row.bookable %}
                           <form method="post" action="{% url 'web:interview-book' row.slot.pk %}">
                             {% csrf_token %}
                             <button type="submit" class="btn btn--primary btn--small">
-                              {% if interview_booking %}Zmień na ten termin{% else %}Zapisz się{% endif %}</button>
+                              {% if interview_booking %}{% translate "Zmień na ten termin" %}{% else %}{% translate "Zapisz się" %}{% endif %}</button>
                           </form>
                         {% else %}
                           {% comment %}
@@ -201,10 +227,10 @@
                             przycisk ma mówić dokładnie to, co powiedziałby POST na ten termin.
                           {% endcomment %}
                           <button type="button" class="btn btn--secondary btn--small" disabled>
-                            {% if row.reason == "started" %}Termin już trwa
-                            {% elif row.reason == "locked" %}Zmiana niemożliwa – Twoja rozmowa już trwa
-                            {% elif row.reason == "closed" %}Zapisy zamknięte
-                            {% else %}Brak miejsc{% endif %}</button>
+                            {% if row.reason == "started" %}{% translate "Termin już trwa" %}
+                            {% elif row.reason == "locked" %}{% translate "Zmiana niemożliwa – Twoja rozmowa już trwa" %}
+                            {% elif row.reason == "closed" %}{% translate "Zapisy zamknięte" %}
+                            {% else %}{% translate "Brak miejsc" %}{% endif %}</button>
                         {% endif %}
                       </td>
                     </tr>
@@ -214,32 +240,32 @@
             </table>
           </div>
         {% else %}
-          <p class="empty"><span class="empty__title">Brak terminów</span>
-            Koordynator nie wyznaczył jeszcze terminów.</p>
+          <p class="empty"><span class="empty__title">{% translate "Brak terminów" %}</span>
+            {% translate "Koordynator nie wyznaczył jeszcze terminów." %}</p>
         {% endif %}
       </section>
     {% else %}
       <section class="section">
         <div class="section__head">
-          <h2 class="mt-0">Zadania</h2>
+          <h2 class="mt-0">{% translate "Zadania" %}</h2>
           {% if not upload_open %}
-            <span class="badge badge--warn">upload zamknięty</span>
+            <span class="badge badge--warn">{% translate "upload zamknięty" %}</span>
           {% endif %}
         </div>
         {% if not upload_open %}
-          <p class="msg msg-warning closed">Etap jest zamknięty – nie można już wysyłać rozwiązań.</p>
+          <p class="msg msg-warning closed">{% translate "Etap jest zamknięty – nie można już wysyłać rozwiązań." %}</p>
         {% endif %}
         {% for row in problem_rows %}
           {% include "web/participant/_problem_card.html" with row=row stage=stage entry=entry upload_open=upload_open error=None %}
         {% empty %}
-          <p class="empty"><span class="empty__title">Brak zadań</span>
-            Ten etap nie ma jeszcze opublikowanych zadań.</p>
+          <p class="empty"><span class="empty__title">{% translate "Brak zadań" %}</span>
+            {% translate "Ten etap nie ma jeszcze opublikowanych zadań." %}</p>
         {% endfor %}
       </section>
     {% endif %}
   {% endif %}
 {% else %}
-  <p class="notice">Nie ustawiono bieżącej edycji olimpiady.</p>
+  <p class="notice">{% translate "Nie ustawiono bieżącej edycji olimpiady." %}</p>
 {% endif %}
 
 {% comment %}
@@ -259,45 +285,43 @@
         {% if training_entry %}
           <span class="{{ training_entry.status|badge_class }}">{{ training_entry.get_status_display }}</span>
         {% else %}
-          <span class="badge badge--neutral">trening</span>
+          <span class="badge badge--neutral">{% translate "trening" %}</span>
         {% endif %}
       </div>
-      <p class="card__meta">Bez terminu i poza kwalifikacją – te zadania nie wpływają na wyniki
-        zawodów. Służą do przejścia całej ścieżki: zgłoszenie, pobranie treści, wysłanie
-        rozwiązania i odbiór oceny.</p>
+      <p class="card__meta">{% translate "Bez terminu i poza kwalifikacją – te zadania nie wpływają na wyniki zawodów. Służą do przejścia całej ścieżki: zgłoszenie, pobranie treści, wysłanie rozwiązania i odbiór oceny." %}</p>
 
       {% if training_can_register %}
         <form method="post" action="{% url 'web:stage-register' training_stage.pk %}">
           {% csrf_token %}
-          <button type="submit" class="btn btn--accent">Zgłoś się do treningu</button>
+          <button type="submit" class="btn btn--accent">{% translate "Zgłoś się do treningu" %}</button>
         </form>
       {% endif %}
     </div>
 
     {% if training_entry %}
       <div class="section__head">
-        <h3 class="mt-0">Zadania treningowe</h3>
+        <h3 class="mt-0">{% translate "Zadania treningowe" %}</h3>
         {% if not training_upload_open %}
-          <span class="badge badge--warn">upload zamknięty</span>
+          <span class="badge badge--warn">{% translate "upload zamknięty" %}</span>
         {% endif %}
       </div>
       {% for row in training_problem_rows %}
         {% include "web/participant/_problem_card.html" with row=row stage=training_stage entry=training_entry upload_open=training_upload_open error=None %}
       {% empty %}
-        <p class="empty"><span class="empty__title">Brak zadań</span>
-          Etap treningowy nie ma jeszcze opublikowanych zadań.</p>
+        <p class="empty"><span class="empty__title">{% translate "Brak zadań" %}</span>
+          {% translate "Etap treningowy nie ma jeszcze opublikowanych zadań." %}</p>
       {% endfor %}
     {% endif %}
   </section>
 {% endif %}
 
 <section class="section">
-  <div class="section__head"><h2 class="mt-0">Moje wyniki</h2></div>
+  <div class="section__head"><h2 class="mt-0">{% translate "Moje wyniki" %}</h2></div>
   {% for result in results %}
     <article class="card">
       <div class="result-summary">
         <h3 class="mt-0">{{ result.edition }} – {{ result.stage_name }}</h3>
-        <span class="result-summary__points">{{ result.total_points }} pkt</span>
+        <span class="result-summary__points">{% blocktranslate trimmed with points=result.total_points %}{{ points }} pkt{% endblocktranslate %}</span>
       </div>
       {% comment %}
         Tabela poniżej mieści punkty i komentarze, ale nie mieści miejsca ani progu kwalifikacji –
@@ -306,11 +330,15 @@
       {% endcomment %}
       <p class="actions">
         <a class="btn btn--secondary btn--small"
-           href="{% url 'web:participant-feedback' result.stage_id %}">Komentarze i miejsce</a>
+           href="{% url 'web:participant-feedback' result.stage_id %}">{% translate "Komentarze i miejsce" %}</a>
       </p>
       <div class="scroll">
         <table class="table">
-          <thead><tr><th>Zadanie</th><th>Punkty</th><th>Informacja zwrotna</th></tr></thead>
+          <thead><tr>
+            <th>{% translate "Zadanie" %}</th>
+            <th>{% translate "Punkty" %}</th>
+            <th>{% translate "Informacja zwrotna" %}</th>
+          </tr></thead>
           <tbody>
             {% for problem in result.problems %}
               <tr>
@@ -320,15 +348,15 @@
                   {% for item in problem.feedback %}
                     {% if item.comment_for_participant or item.annotations %}
                       <div class="feedback">
-                        <span class="feedback__title">Od recenzenta</span>
+                        <span class="feedback__title">{% translate "Od recenzenta" %}</span>
                         {% if item.comment_for_participant %}<p>{{ item.comment_for_participant }}</p>{% endif %}
                         {% for annotation in item.annotations %}
-                          <p class="annotation">str. {{ annotation.page }}: {{ annotation.text }}</p>
+                          <p class="annotation">{% blocktranslate trimmed with page=annotation.page text=annotation.text %}str. {{ page }}: {{ text }}{% endblocktranslate %}</p>
                         {% endfor %}
                       </div>
                     {% endif %}
                   {% empty %}
-                    <span class="hint">brak</span>
+                    <span class="hint">{% translate "brak" %}</span>
                   {% endfor %}
                 </td>
               </tr>
@@ -338,34 +366,40 @@
       </div>
     </article>
   {% empty %}
-    <p class="empty"><span class="empty__title">Wyniki jeszcze przed nami</span>
-      Żaden etap nie ma jeszcze ogłoszonych wyników.</p>
+    <p class="empty"><span class="empty__title">{% translate "Wyniki jeszcze przed nami" %}</span>
+      {% translate "Żaden etap nie ma jeszcze ogłoszonych wyników." %}</p>
   {% endfor %}
 </section>
 
 <section class="section">
-  <div class="section__head"><h2 class="mt-0">Reklamacje</h2></div>
+  <div class="section__head"><h2 class="mt-0">{% translate "Reklamacje" %}</h2></div>
   {% for submission in appealable %}
     <article class="card">
-      <h3 class="mt-0">Zadanie {{ submission.problem.number }}: {{ submission.problem.title }}</h3>
+      <h3 class="mt-0">{% blocktranslate trimmed with number=submission.problem.number title=submission.problem.display_title %}
+        Zadanie {{ number }}: {{ title }}
+      {% endblocktranslate %}</h3>
       <form method="post" action="{% url 'web:appeal-create' submission.pk %}" class="form form--wide">
         {% csrf_token %}
         {{ appeal_form.as_p }}
         <div class="actions">
-          <button type="submit" class="btn btn--primary">Złóż reklamację</button>
+          <button type="submit" class="btn btn--primary">{% translate "Złóż reklamację" %}</button>
         </div>
       </form>
     </article>
   {% empty %}
-    <p class="hint">Obecnie nie ma pracy, na którą można złożyć reklamację (potrzebna jest ocena
-      wstępna i otwarte okno odwoławcze).</p>
+    <p class="hint">{% translate "Obecnie nie ma pracy, na którą można złożyć reklamację (potrzebna jest ocena wstępna i otwarte okno odwoławcze)." %}</p>
   {% endfor %}
 
   {% if my_appeals %}
     <div class="scroll">
       <table class="table">
-        <caption>Złożone reklamacje</caption>
-        <thead><tr><th>Zadanie</th><th>Złożona (czas polski)</th><th>Status</th><th>Uzasadnienie decyzji</th></tr></thead>
+        <caption>{% translate "Złożone reklamacje" %}</caption>
+        <thead><tr>
+          <th>{% translate "Zadanie" %}</th>
+          <th>{% translate "Złożona (czas polski)" %}</th>
+          <th>{% translate "Status" %}</th>
+          <th>{% translate "Uzasadnienie decyzji" %}</th>
+        </tr></thead>
         <tbody>
           {% for appeal in my_appeals %}
             <tr>
@@ -382,7 +416,15 @@
 </section>
 
 <section class="section" id="zgody">
-  <div class="section__head"><h2 class="mt-0">Twoje zgody</h2></div>
+  <div class="section__head"><h2 class="mt-0">{% translate "Twoje zgody" %}</h2></div>
+  {% comment %}
+    Zgoda opiekuna stoi **nad** tabelą zgód, bo jako jedyna bywa niezałatwiona i jako jedyna
+    wymaga tu czynności. Tabela poniżej odpowiada na pytanie „co obowiązuje”, ten blok – na
+    pytanie „co jeszcze trzeba zrobić”.
+  {% endcomment %}
+  {% if guardian.state != "not_required" %}
+    {% include "web/participant/_guardian_consent.html" with guardian=guardian %}
+  {% endif %}
   {% comment %}
     Lista mówi trzy rzeczy naraz: **co** zostało oświadczone, **pod jaką wersją dokumentu**
     i **kiedy**. Sama „ptaszka” nie wystarczy: dokumenty są nowelizowane, a zgoda złożona pod
@@ -394,21 +436,28 @@
   {% endcomment %}
   <div class="scroll">
     <table class="table">
-      <caption>Zgody złożone przy rejestracji i później</caption>
-      <thead><tr><th>Zgoda</th><th>Wersja dokumentu</th><th>Data (czas polski)</th><th>Stan</th></tr></thead>
+      <caption>{% translate "Zgody złożone przy rejestracji i później" %}</caption>
+      <thead><tr>
+        <th>{% translate "Zgoda" %}</th>
+        <th>{% translate "Wersja dokumentu" %}</th>
+        <th>{% translate "Data (czas polski)" %}</th>
+        <th>{% translate "Stan" %}</th>
+      </tr></thead>
       <tbody>
         {% for row in consent_rows %}
           <tr>
-            <td>{{ row.name }}{% if row.optional %} <span class="hint">(dobrowolna)</span>{% endif %}</td>
+            <td>{{ row.name }}{% if row.optional %} <span class="hint">{% translate "(dobrowolna)" %}</span>{% endif %}</td>
             <td>{% if row.record %}{{ row.record.document_version|default:"—" }}{% else %}{{ row.version }}{% endif %}</td>
             <td>{% if row.record %}{{ row.record.given_at|local_datetime }}{% else %}—{% endif %}</td>
             <td>
               {% if not row.record %}
-                <span class="hint">brak wpisu</span>
+                <span class="hint">{% translate "brak wpisu" %}</span>
               {% elif row.record.withdrawn_at %}
-                wycofana {{ row.record.withdrawn_at|local_datetime }}
+                {% blocktranslate trimmed with when=row.record.withdrawn_at|local_datetime %}
+                  wycofana {{ when }}
+                {% endblocktranslate %}
               {% else %}
-                obowiązuje
+                {% translate "obowiązuje" %}
               {% endif %}
             </td>
           </tr>
@@ -421,13 +470,26 @@
     {% csrf_token %}
     {% if user.participant.publish_full_name %}
       <input type="hidden" name="given" value="0">
-      <button type="submit" class="btn btn--secondary">Wycofaj zgodę na publikację nazwiska</button>
+      <button type="submit" class="btn btn--secondary">{% translate "Wycofaj zgodę na publikację nazwiska" %}</button>
     {% else %}
       <input type="hidden" name="given" value="1">
-      <button type="submit" class="btn btn--secondary">Wyraź zgodę na publikację nazwiska</button>
+      <button type="submit" class="btn btn--secondary">{% translate "Wyraź zgodę na publikację nazwiska" %}</button>
     {% endif %}
   </form>
-  <p class="hint">Bez tej zgody w publikowanych tabelach wyników występujesz wyłącznie pod kodem
-    {{ user.participant.public_code }}. Zgodę możesz wyrazić i wycofać w każdej chwili.</p>
+  <p class="hint">{% blocktranslate trimmed with code=user.participant.public_code %}
+    Bez tej zgody w publikowanych tabelach wyników występujesz wyłącznie pod kodem {{ code }}.
+    Zgodę możesz wyrazić i wycofać w każdej chwili.
+  {% endblocktranslate %}</p>
 </section>
+{% endblock %}
+
+{% block scripts %}
+  {% comment %}
+    Podgląd pierwszej strony wysłanego PDF-a. Moduł (``type="module"``), bo dociąga pdf.js
+    dynamicznym ``import()`` – to ta sama droga, co w panelu recenzenta, i tylko dla niej
+    ``'strict-dynamic'`` z CSP przenosi zaufanie na import. Strona jest kompletna bez tego
+    skryptu: metryki pliku liczy serwer, a plik i tak jest do pobrania.
+  {% endcomment %}
+  <script type="module" nonce="{{ request.csp_nonce }}"
+          src="{% static 'js/upload-preview.js' %}"></script>
 {% endblock %}

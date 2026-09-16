@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+  Panel opiekuna szkolnego: uczniowie, którzy wskazali ten adres e-mail, i stan ich prac.
+
+  Czego na tej stronie nie ma i nie będzie: punktów przed ogłoszeniem wyników etapu, treści prac
+  i komentarzy recenzentów. Panel jest listą stanów, a nie drugim wejściem do akt oceniania.
+  Regułę egzekwuje serwis (``apps.accounts.supervisors.student_rows``) – szablon nie miałby jak
+  jej obejść, nawet przez dopisanie kolumny.
+
+  Ścieżka statusu jest tu rozpisana na miejscu, a nie przez fragment panelu uczestnika: tamten
+  opisuje **jedną pracę** i wiąże podpis z identyfikatorem zadania, a tutaj jeden wiersz mówi
+  o całym etapie ucznia (najmniej zaawansowana z jego prac).
+{% endcomment %}
+{% block title %}Moi uczniowie{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">Panel opiekuna szkolnego</span>
+  <h1>Moi uczniowie</h1>
+  <p class="lead">Lista powstaje z decyzji uczniów: widzisz tych, którzy wpisali Twój adres
+    ({{ supervisor.user.email }}) w swoim profilu. Każdy z nich może ją w każdej chwili cofnąć.</p>
+</div>
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Udział szkoły{% if edition %} w edycji {{ edition.year_label }}{% endif %}</h2>
+    {% if edition %}
+      <p>
+        {% if confirmed %}
+          Udział szkoły jest potwierdzony. Na tej podstawie organizator wystawia zaświadczenia
+          dla opiekunów.
+        {% else %}
+          Potwierdzenie jest oświadczeniem o Tobie, a nie o uczniach: nie warunkuje niczyjego
+          startu, ale bez niego nie wystawimy Ci zaświadczenia dla opiekuna.
+        {% endif %}
+      </p>
+      <form method="post" action="{% url 'web:supervisor-participation' %}">
+        {% csrf_token %}
+        {% if confirmed %}
+          <button type="submit" class="btn btn--secondary">Wycofaj potwierdzenie</button>
+        {% else %}
+          <button type="submit" class="btn btn--primary">Potwierdzam udział szkoły</button>
+        {% endif %}
+      </form>
+    {% else %}
+      <p class="hint">Nie ma teraz bieżącej edycji olimpiady – nie ma czego potwierdzać.</p>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Uczniowie</h2>
+    <p class="hint">Punkty pojawiają się wyłącznie przy etapach z <strong>ogłoszonymi</strong>
+      wynikami i są tą samą liczbą, którą widzi każdy w tabeli publicznej.</p>
+  </div>
+  {% for row in rows %}
+    <article class="card">
+      <div class="card__head">
+        <h3 class="mt-0 card__title">{{ row.participant.user.get_full_name }}</h3>
+        <span class="code-chip">{{ row.participant.public_code }}</span>
+      </div>
+      <p class="hint">{{ row.participant.school }}{% if row.participant.grade %}, klasa
+        {{ row.participant.grade }}{% endif %}</p>
+      {% for item in row.stages %}
+        <div class="status-track-box">
+          <span class="status-track__caption" id="track-{{ row.participant.pk }}-{{ item.stage.pk }}">
+            {{ item.stage.display_name }}</span>
+          <ol class="status-track"
+              aria-labelledby="track-{{ row.participant.pk }}-{{ item.stage.pk }}">
+            {% for step in item.track.steps %}
+              <li class="{{ step.css_class }}">
+                <span class="status-track__dot" aria-hidden="true"></span>
+                <span class="status-track__label">{{ step.label }}</span>
+              </li>
+            {% endfor %}
+          </ol>
+          {% if item.published %}
+            <p class="status-track__note">Wyniki ogłoszone. Suma punktów:
+              <strong>{% if item.total_points is not None %}{{ item.total_points }}{% else %}—{% endif %}</strong>,
+              status: {{ item.entry.get_status_display }}.</p>
+          {% endif %}
+        </div>
+      {% empty %}
+        <p class="hint">Ten uczeń nie jest jeszcze zapisany do żadnego etapu bieżącej edycji.</p>
+      {% endfor %}
+    </article>
+  {% empty %}
+    <div class="card">
+      <p class="empty">Nikt jeszcze nie wskazał Twojego adresu. Podaj uczniom adres
+        <strong>{{ supervisor.user.email }}</strong> – wpisują go w swoim profilu
+        („Edytuj dane” → „Adres e-mail opiekuna szkolnego”).</p>
+    </div>
+  {% endfor %}
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Moje zaświadczenia</h2>
+  </div>
+  <div class="card">
+    {% if certificates %}
+      <ul>
+        {% for certificate in certificates %}
+          <li>
+            <a href="{% url 'web:supervisor-certificate-download' certificate.pk %}">
+              {{ certificate.number }}</a> – {{ certificate.get_kind_display }},
+            edycja {{ certificate.edition.year_label }}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty">Nie masz jeszcze żadnego zaświadczenia. Wystawia je organizator po
+        zakończeniu edycji.</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

@@ -42,7 +42,9 @@ from .phones import normalize_phone
 #: ``apps.core.models`` stawia warunek wprost: w ``diff`` nie ma imion, nazwisk, e-maili ani szkół,
 #: bo wpisy audytowe czytają też osoby bez prawa do danych osobowych uczestnika. „Co się zmieniło”
 #: wystarcza do odtworzenia przebiegu sprawy; „na co” jest w profilu, dla tych, którzy mają dostęp.
-PERSONAL_FIELDS = frozenset({"first_name", "last_name", "phone", "school", "email"})
+#: ``supervisor_email`` jest tu, choć nie jest daną **uczestnika**: to adres osoby trzeciej
+#: (nauczyciela), więc do audytu ma iść wyłącznie „zmienił” – tak samo jak przy telefonie.
+PERSONAL_FIELDS = frozenset({"first_name", "last_name", "phone", "school", "email", "supervisor_email"})
 
 #: Domena adresów po anonimizacji. ``.invalid`` jest zarezerwowana przez RFC 2606 – list na taki
 #: adres nie wyjdzie nawet przez pomyłkę, a wiersz nadal spełnia unikalność i format ``EmailField``.
@@ -99,6 +101,13 @@ def _participant_values(fields: dict) -> dict:
         values["grade"] = _require_grade(fields["grade"])
     if "birth_year" in fields:
         values["birth_year"] = int(fields["birth_year"])
+    if "supervisor_email" in fields:
+        # Adres opiekuna szkolnego. Normalizacja jest ta sama, którą stosuje panel opiekuna przy
+        # szukaniu swoich uczniów – inaczej adres wpisany wielkimi literami cicho nie dopasowałby
+        # się do żadnego konta. Pusty napis jest poprawną wartością i znaczy „nie mam opiekuna”.
+        from .supervisors import normalize_supervisor_email
+
+        values["supervisor_email"] = normalize_supervisor_email(fields["supervisor_email"])
     if "school" in fields or "school_id" in fields:
         name, school_obj = _resolve_school(fields.get("school", ""), fields.get("school_id"))
         values["school"] = name
@@ -122,7 +131,11 @@ def _save_participant_values(participant: Participant, values: dict) -> dict:
     if user_updates:
         user.save(update_fields=user_updates)
 
-    updates = [name for name in ("phone", "district", "grade", "birth_year", "school") if name in values]
+    updates = [
+        name
+        for name in ("phone", "district", "grade", "birth_year", "school", "supervisor_email")
+        if name in values
+    ]
     for name in updates:
         _changed(diff, name, getattr(participant, name), values[name])
         setattr(participant, name, values[name])

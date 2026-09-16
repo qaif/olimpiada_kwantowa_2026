@@ -121,6 +121,12 @@
           <th scope="col">Szkice</th>
           <th scope="col">Wystawione</th>
           <th scope="col">Po terminie</th>
+          {% comment %}
+            Zmierzony czas pracy. Kolumna odpowiada na pytanie „ile ta robota naprawdę zajmuje”,
+            zadawane przy planowaniu następnego etapu. Pomiar obejmuje wyłącznie czas – nie ma tu
+            ani treści, ani przebiegu czynności (patrz README, „Czas pracy nad recenzją”).
+          {% endcomment %}
+          <th scope="col">Czas pracy</th>
           <th scope="col"><span class="visually-hidden">Operacje</span></th>
         </tr>
       </thead>
@@ -135,6 +141,7 @@
             <td class="num total">
               {% if row.overdue %}<span class="badge badge--danger">{{ row.overdue }}</span>{% else %}0{% endif %}
             </td>
+            <td>{% if row.worklog_label %}{{ row.worklog_label }}{% else %}<span class="hint">brak pomiaru</span>{% endif %}</td>
             <td>
               {% comment %}
                 Przycisk stoi przy każdym wierszu, także bez zaległości: koordynator czasem
@@ -149,10 +156,20 @@
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="7" class="empty">Nie ma ani jednego aktywnego recenzenta.</td></tr>
+          <tr><td colspan="8" class="empty">Nie ma ani jednego aktywnego recenzenta.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </section>
+
+{% comment %}
+  Odnośnik do kalibracji stoi pod tabelą recenzentów, bo to jej naturalne przedłużenie: ta tabela
+  odpowiada na pytanie „kto zalega”, tamta – „kto punktuje inaczej niż reszta”. Oba ekrany są
+  wyłącznie odczytem i oba dotyczą tego samego etapu.
+{% endcomment %}
+<p class="actions">
+  <a class="btn btn--secondary btn--small"
+     href="{% url 'web:coordinator-stage-calibration' stage.pk %}">Kalibracja recenzentów</a>
+</p>
 {% endblock %}

@@ -81,12 +81,23 @@
                   <span class="hint">nikt się jeszcze nie zapisał</span>
                 {% endfor %}
               </td>
+              {% comment %}
+                Pokój wideo: ręcznie wpisany przy terminie wygrywa, w przeciwnym razie ten, który
+                dostał pierwszy zapis (``apps.competitions.video`` – jeden pokój na termin, żeby
+                komisja zastała wszystkich w tym samym miejscu). „Brak” jest ostrzeżeniem tylko
+                wtedy, gdy nie ma ani jednego z nich.
+              {% endcomment %}
               <td>
-                {% if slot.meeting_url %}
-                  <a href="{{ slot.meeting_url }}" target="_blank" rel="noopener noreferrer">otwórz</a>
-                {% else %}
-                  <span class="badge badge--warn">brak</span>
-                {% endif %}
+                {% with link=slot.meeting_url|default:slot.bookings.all.0.meeting_url %}
+                  {% if link %}
+                    <a href="{{ link }}" target="_blank" rel="noopener noreferrer">otwórz</a>
+                    <span class="hint">
+                      <a href="{{ link|precheck_link }}" target="_blank"
+                         rel="noopener noreferrer">test sprzętu</a></span>
+                  {% else %}
+                    <span class="badge badge--warn">brak</span>
+                  {% endif %}
+                {% endwith %}
               </td>
               <td>
                 <div class="actions">

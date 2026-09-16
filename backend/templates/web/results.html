@@ -51,6 +51,15 @@
           {% else %}
             <span class="badge badge--neutral">nie</span>
           {% endif %}
+          {% comment %}
+            Odznaka decyzji komitetu stoi obok wyniku kwalifikacji, a nie zamiast niego: wiersz,
+            w którym punkty nie zgadzają się z progiem, bez tej informacji wygląda na błąd
+            rachunkowy. Powodu decyzji tabela nie podaje – to sprawa między komitetem
+            a uczestnikiem, a tabela jest publiczna.
+          {% endcomment %}
+          {% if row.manual %}
+            <span class="badge badge--warn">kwalifikacja decyzją komitetu</span>
+          {% endif %}
         </td>
       </tr>
     {% empty %}

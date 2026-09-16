@@ -139,7 +139,9 @@ def test_htmx_upload_response_carries_the_track(web_client, participant, entry, 
     web_client.force_login(participant.user)
     url = f"/me/stages/{entry.stage_id}/problems/1/upload/"
 
-    content = web_client.post(url, {"file": pdf_upload()}, HTTP_HX_REQUEST="true").content.decode()
+    content = web_client.post(
+        url, {"file": pdf_upload(), "confirmed": "1"}, HTTP_HX_REQUEST="true"
+    ).content.decode()
 
     assert 'class="status-track"' in content
     assert "status-track__step--done" in content

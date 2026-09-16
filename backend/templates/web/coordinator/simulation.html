@@ -116,6 +116,13 @@
             <th scope="col">Województwo</th>
             <th scope="col">Razem</th>
             <th scope="col">Kwalifikacja</th>
+            {% comment %}
+              Decyzja komitetu stoi w tej samej tabeli co próg, bo zapada patrząc na te same
+              liczby. Jest **wyjątkiem od reguły punktowej** i dlatego zawsze wymaga uzasadnienia
+              (pilnuje tego serwis ``apps.results.manual``), a wynik jest widoczny w ogłoszonej
+              tabeli jako osobna odznaka.
+            {% endcomment %}
+            <th scope="col">Decyzja komitetu</th>
           </tr>
         </thead>
         <tbody>
@@ -132,10 +139,35 @@
                 {% else %}
                   <span class="badge badge--neutral">nie</span>
                 {% endif %}
+                {% if row.manual_qualification %}
+                  <span class="badge badge--warn">decyzja komitetu</span>
+                {% endif %}
+              </td>
+              <td>
+                {% comment %}
+                  Pola renderujemy ręcznie, a nie przez ``{{ manual_form }}``: ten sam formularz
+                  stoi w każdym wierszu tabeli, a widżety Django nadałyby wszystkim ten sam
+                  atrybut ``id`` – etykiety i czytniki ekranu wskazywałyby wtedy zawsze pierwszy
+                  wiersz. Rozróżnia je adres akcji, który niesie identyfikator wpisu.
+                {% endcomment %}
+                <form method="post"
+                      action="{% url 'web:coordinator-manual-qualification' row.entry_id %}">
+                  {% csrf_token %}
+                  <select name="decision" aria-label="Decyzja komitetu dla {{ row.public_code }}">
+                    {% for value, label in manual_form.fields.decision.choices %}
+                      <option value="{{ value }}"
+                              {% if value == row.manual_qualification %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                  <textarea name="reason" rows="2"
+                            aria-label="Uzasadnienie decyzji dla {{ row.public_code }}"
+                            placeholder="Uzasadnienie (min. 10 znaków)"></textarea>
+                  <button type="submit" class="btn btn--small btn--secondary">Zapisz</button>
+                </form>
               </td>
             </tr>
           {% empty %}
-            <tr><td colspan="6" class="empty">W tym etapie nie ma ani jednego wpisu.</td></tr>
+            <tr><td colspan="7" class="empty">W tym etapie nie ma ani jednego wpisu.</td></tr>
           {% endfor %}
         </tbody>
       </table>

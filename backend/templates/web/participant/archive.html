@@ -1,15 +1,13 @@
 {% extends "base.html" %}
-{% load web_extras %}
-{% block title %}Materiały i zadania archiwalne{% endblock %}
+{% load i18n web_extras %}
+{% block title %}{% translate "Materiały i zadania archiwalne" %}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <span class="eyebrow">Panel uczestnika</span>
-  <h1>Materiały i zadania archiwalne</h1>
-  <p class="lead">Zadania z zakończonych edycji, arkusz treningowy i harmonogram warsztatów.
-    Ta strona jest wyłącznie do czytania – jedyne miejsce, w którym można jeszcze oddać
-    rozwiązanie, to etap treningowy.</p>
+  <span class="eyebrow">{% translate "Panel uczestnika" %}</span>
+  <h1>{% translate "Materiały i zadania archiwalne" %}</h1>
+  <p class="lead">{% translate "Zadania z zakończonych edycji, arkusz treningowy i harmonogram warsztatów. Ta strona jest wyłącznie do czytania – jedyne miejsce, w którym można jeszcze oddać rozwiązanie, to etap treningowy." %}</p>
   <p class="actions">
-    <a class="btn btn--secondary btn--small" href="{% url 'web:me' %}">Wróć do panelu</a>
+    <a class="btn btn--secondary btn--small" href="{% url 'web:me' %}">{% translate "Wróć do panelu" %}</a>
   </p>
 </div>
 
@@ -23,36 +21,39 @@
   <section class="section" id="trening">
     <div class="section__head">
       <h2 class="mt-0">{{ training_stage.display_name }}</h2>
-      <span class="badge badge--neutral">poza zawodami</span>
+      <span class="badge badge--neutral">{% translate "poza zawodami" %}</span>
     </div>
-    <p class="hint">Zadania treningowe nie wpływają na wyniki zawodów. Rozwiązanie wysyła się
-      na karcie treningowej w panelu.</p>
+    <p class="hint">{% translate "Zadania treningowe nie wpływają na wyniki zawodów. Rozwiązanie wysyła się na karcie treningowej w panelu." %}</p>
     {% if training_problems %}
       <div class="scroll">
         <table class="table">
-          <caption>Zadania treningowe</caption>
+          <caption>{% translate "Zadania treningowe" %}</caption>
           <thead>
-            <tr><th scope="col">Zadanie</th><th scope="col">Treść</th><th scope="col">Rozwiązanie</th></tr>
+            <tr>
+              <th scope="col">{% translate "Zadanie" %}</th>
+              <th scope="col">{% translate "Treść" %}</th>
+              <th scope="col">{% translate "Rozwiązanie" %}</th>
+            </tr>
           </thead>
           <tbody>
             {% for row in training_problems %}
               <tr>
-                <td>{{ row.problem.number }}. {{ row.problem.title }}</td>
+                <td>{{ row.problem.number }}. {{ row.problem.display_title }}</td>
                 <td>
                   {% if row.has_statement %}
                     <a class="btn btn--secondary btn--small"
-                       href="{% url 'competitions:problem-statement' row.problem.pk %}">Pobierz PDF</a>
+                       href="{% url 'competitions:problem-statement' row.problem.pk %}">{% translate "Pobierz PDF" %}</a>
                   {% else %}
-                    <span class="hint">brak pliku</span>
+                    <span class="hint">{% translate "brak pliku" %}</span>
                   {% endif %}
                 </td>
                 <td>
                   {% if training_entry %}
                     <a class="btn btn--primary btn--small"
-                       href="{% url 'web:me' %}#trening">Oddaj rozwiązanie na sucho</a>
+                       href="{% url 'web:me' %}#trening">{% translate "Oddaj rozwiązanie na sucho" %}</a>
                   {% else %}
                     <a class="btn btn--secondary btn--small"
-                       href="{% url 'web:me' %}#trening">Zgłoś się do treningu</a>
+                       href="{% url 'web:me' %}#trening">{% translate "Zgłoś się do treningu" %}</a>
                   {% endif %}
                 </td>
               </tr>
@@ -61,14 +62,14 @@
         </table>
       </div>
     {% else %}
-      <p class="empty"><span class="empty__title">Brak zadań</span>
-        Etap treningowy nie ma jeszcze opublikowanych zadań.</p>
+      <p class="empty"><span class="empty__title">{% translate "Brak zadań" %}</span>
+        {% translate "Etap treningowy nie ma jeszcze opublikowanych zadań." %}</p>
     {% endif %}
   </section>
 {% endif %}
 
 <section class="section">
-  <div class="section__head"><h2 class="mt-0">Zadania z poprzednich edycji</h2></div>
+  <div class="section__head"><h2 class="mt-0">{% translate "Zadania z poprzednich edycji" %}</h2></div>
   {% comment %}
     Treść zadania jest jawna dopiero po otwarciu etapu i pilnuje tego widok pliku
     (``competitions.ProblemStatementView``). Lista poniżej powtarza ten warunek wyłącznie po to,
@@ -82,11 +83,11 @@
         <ul class="plain-list">
           {% for problem_row in stage_row.problems %}
             <li>
-              {{ problem_row.problem.number }}. {{ problem_row.problem.title }} –
+              {{ problem_row.problem.number }}. {{ problem_row.problem.display_title }} –
               {% if problem_row.has_statement %}
-                <a href="{% url 'competitions:problem-statement' problem_row.problem.pk %}">treść (PDF)</a>
+                <a href="{% url 'competitions:problem-statement' problem_row.problem.pk %}">{% translate "treść (PDF)" %}</a>
               {% else %}
-                <span class="hint">treść niedostępna</span>
+                <span class="hint">{% translate "treść niedostępna" %}</span>
               {% endif %}
             </li>
           {% endfor %}
@@ -94,13 +95,13 @@
       {% endfor %}
     </article>
   {% empty %}
-    <p class="empty"><span class="empty__title">Archiwum jest puste</span>
-      Nie ma jeszcze zakończonych edycji z opublikowanymi zadaniami.</p>
+    <p class="empty"><span class="empty__title">{% translate "Archiwum jest puste" %}</span>
+      {% translate "Nie ma jeszcze zakończonych edycji z opublikowanymi zadaniami." %}</p>
   {% endfor %}
 </section>
 
 <section class="section">
-  <div class="section__head"><h2 class="mt-0">Warsztaty</h2></div>
+  <div class="section__head"><h2 class="mt-0">{% translate "Warsztaty" %}</h2></div>
   {% comment %}
     Harmonogram warsztatów jest treścią redakcyjną i nie ma w modelu pola na załącznik –
     materiały redakcja publikuje w akapitach strony „Warsztaty”. Archiwum wypisuje więc terminy
@@ -109,8 +110,11 @@
   {% if workshops %}
     <div class="scroll">
       <table class="table">
-        <caption>Warsztaty online – materiały i zapisy na stronie „Warsztaty”.</caption>
-        <thead><tr><th scope="col">Termin</th><th scope="col">Temat</th></tr></thead>
+        <caption>{% translate "Warsztaty online – materiały i zapisy na stronie „Warsztaty”." %}</caption>
+        <thead><tr>
+          <th scope="col">{% translate "Termin" %}</th>
+          <th scope="col">{% translate "Temat" %}</th>
+        </tr></thead>
         <tbody>
           {% for workshop in workshops %}
             <tr>
@@ -122,8 +126,8 @@
       </table>
     </div>
   {% else %}
-    <p class="empty"><span class="empty__title">Brak warsztatów</span>
-      Harmonogram warsztatów nie jest jeszcze opublikowany.</p>
+    <p class="empty"><span class="empty__title">{% translate "Brak warsztatów" %}</span>
+      {% translate "Harmonogram warsztatów nie jest jeszcze opublikowany." %}</p>
   {% endif %}
 </section>
 {% endblock %}

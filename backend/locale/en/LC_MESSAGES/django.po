@@ -1,0 +1,2263 @@
+# Angielska wersja interfejsu uczestnika i recenzenta. Zakres tlumaczenia opisuje
+# ``apps/accounts/preferences``: panel uczestnika, ekrany logowania i rejestracji, ekrany
+# konta, pasek konta i stopka, strona statystyk, lista i szczegoly recenzji oraz listy
+# wysylane do uczestnikow.
+# Ekrany koordynatora zostaja po polsku - to narzedzie pracy polskiego organizatora.
+#
+# Plik ``.mo`` powstaje z tego zrodla: ``django-admin compilemessages`` (obraz ma gettext).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-09-16 21:39+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: apps/accounts/activation.py:70
+msgid "Aktywuj konto – Olimpiada Kwantowa"
+msgstr "Activate your account – Quantum Olympiad"
+
+#: apps/accounts/activation.py:71
+msgid "Potwierdź nowy adres e-mail – Olimpiada Kwantowa"
+msgstr "Confirm your new e-mail address – Quantum Olympiad"
+
+#: apps/accounts/activation.py:72
+msgid "Adres e-mail konta został zmieniony – Olimpiada Kwantowa"
+msgstr "Account e-mail address changed – Quantum Olympiad"
+
+#: apps/accounts/activation.py:141
+msgid ""
+"Ktoś – prawdopodobnie Ty – założył konto w serwisie Olimpiady Kwantowej."
+msgstr ""
+"Someone – most likely you – created an account on the Quantum Olympiad "
+"website."
+
+#: apps/accounts/activation.py:143
+msgid "Aby aktywować konto i móc się zalogować, otwórz poniższy adres:"
+msgstr ""
+"To activate the account and be able to sign in, open the address below:"
+
+#: apps/accounts/activation.py:148
+#, python-format
+msgid ""
+"Link jest ważny %(hours)s godziny. Po tym czasie konto zostanie usunięte i "
+"rejestrację trzeba będzie powtórzyć."
+msgstr ""
+"The link is valid for %(hours)s hours. After that the account is deleted and "
+"registration has to be repeated."
+
+#: apps/accounts/activation.py:154
+msgid ""
+"Jeśli to nie Ty zakładałeś konto – zignoruj tę wiadomość. Bez kliknięcia w "
+"link konto nie zostanie aktywowane i zniknie samo."
+msgstr ""
+"If you did not create this account, simply ignore this message. Without "
+"clicking the link the account is never activated and disappears on its own."
+
+#: apps/accounts/activation.py:159 apps/accounts/activation.py:182
+#: apps/accounts/activation.py:205 apps/accounts/guardian.py:193
+#: apps/accounts/guardian.py:212 apps/competitions/video.py:208
+#: apps/submissions/notifications.py:63
+msgid "Olimpiada Kwantowa"
+msgstr "Quantum Olympiad"
+
+#: apps/accounts/activation.py:160 apps/accounts/activation.py:183
+#: apps/accounts/activation.py:206 apps/accounts/guardian.py:194
+#: apps/accounts/guardian.py:213 apps/competitions/video.py:209
+#: apps/submissions/notifications.py:64
+msgid "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać."
+msgstr "This message was sent automatically; please do not reply to it."
+
+#: apps/accounts/activation.py:169
+#, python-format
+msgid ""
+"Poproszono o zmianę adresu e-mail konta w serwisie Olimpiady Kwantowej na "
+"%(email)s."
+msgstr ""
+"A request was made to change the e-mail address of your Quantum Olympiad "
+"account to %(email)s."
+
+#: apps/accounts/activation.py:172
+msgid "Aby potwierdzić nowy adres, otwórz poniższy adres:"
+msgstr "To confirm the new address, open the link below:"
+
+#: apps/accounts/activation.py:176
+msgid ""
+"Do potwierdzenia obowiązuje dotychczasowy adres – logowanie działa bez zmian."
+msgstr ""
+"Until you confirm, the current address remains in force – signing in works "
+"as before."
+
+#: apps/accounts/activation.py:177
+msgid "Link jest ważny 24 godziny."
+msgstr "The link is valid for 24 hours."
+
+#: apps/accounts/activation.py:179
+msgid "Jeśli to nie Ty prosiłeś o zmianę – zignoruj tę wiadomość."
+msgstr "If you did not request the change, simply ignore this message."
+
+#: apps/accounts/activation.py:197
+#, python-format
+msgid ""
+"Adres e-mail konta w serwisie Olimpiady Kwantowej został zmieniony na "
+"%(email)s. Logowanie tym adresem przestaje działać."
+msgstr ""
+"The e-mail address of your Quantum Olympiad account has been changed to "
+"%(email)s. Signing in with the previous address no longer works."
+
+#: apps/accounts/activation.py:202
+msgid ""
+"Jeśli to nie Ty dokonałeś zmiany, natychmiast skontaktuj się z organizatorem."
+msgstr "If you did not make this change, contact the organiser immediately."
+
+#: apps/accounts/admin.py:21
+msgid "Personal info"
+msgstr ""
+
+#: apps/accounts/admin.py:23
+msgid "Permissions"
+msgstr ""
+
+#: apps/accounts/admin.py:26
+msgid "Important dates"
+msgstr ""
+
+#: apps/accounts/guardian.py:60
+msgid "Prośba o zgodę opiekuna – Olimpiada Kwantowa"
+msgstr "Request for guardian consent – Quantum Olympiad"
+
+#: apps/accounts/guardian.py:61
+msgid "Zgoda opiekuna została potwierdzona – Olimpiada Kwantowa"
+msgstr "Guardian consent confirmed – Quantum Olympiad"
+
+#: apps/accounts/guardian.py:63
+msgid "Link do formularza zgody jest nieprawidłowy albo wygasł."
+msgstr "The link to the consent form is invalid or has expired."
+
+#: apps/accounts/guardian.py:172
+msgid ""
+"Uczennica lub uczeń podał ten adres jako kontakt do rodzica albo opiekuna "
+"prawnego w zgłoszeniu do Olimpiady Kwantowej."
+msgstr ""
+"A student gave this address as the contact for a parent or legal guardian in "
+"their Quantum Olympiad entry."
+
+#: apps/accounts/guardian.py:176
+#, python-format
+msgid "Zgłoszenie dotyczy: %(name)s (%(school)s)."
+msgstr "The entry concerns: %(name)s (%(school)s)."
+
+#: apps/accounts/guardian.py:179
+msgid ""
+"Udział osoby niepełnoletniej wymaga zgody opiekuna. Treść zgody i formularz "
+"potwierdzenia znajdują się pod poniższym adresem:"
+msgstr ""
+"Participation by a minor requires guardian consent. The wording of the "
+"consent and the confirmation form are at the address below:"
+
+#: apps/accounts/guardian.py:185
+#, python-format
+msgid "Link jest ważny %(days)s dni."
+msgstr "The link is valid for %(days)s days."
+
+#: apps/accounts/guardian.py:188
+msgid ""
+"Jeśli nie jesteś opiekunem tej osoby albo nie wyrażasz zgody – zignoruj tę "
+"wiadomość. Bez potwierdzenia zgoda nie zostanie zapisana."
+msgstr ""
+"If you are not this person's guardian, or you do not consent, simply ignore "
+"this message. Without confirmation no consent is recorded."
+
+#: apps/accounts/guardian.py:204
+#, python-format
+msgid ""
+"Zgoda rodzica lub opiekuna prawnego na Twój udział w Olimpiadzie Kwantowej "
+"została potwierdzona z adresu %(email)s."
+msgstr ""
+"Consent of a parent or legal guardian to your participation in the Quantum "
+"Olympiad has been confirmed from %(email)s."
+
+#: apps/accounts/guardian.py:209
+msgid "Stan zgód widzisz po zalogowaniu w panelu uczestnika."
+msgstr ""
+"You can see the status of your consents after signing in to the participant "
+"panel."
+
+#: apps/competitions/interviews.py:269
+#, python-format
+msgid "Termin rozmowy kwalifikacyjnej: %(stage)s"
+msgstr "Interview slot: %(stage)s"
+
+#: apps/competitions/interviews.py:271
+#, python-format
+msgid "Etap: %(stage)s (%(edition)s)."
+msgstr "Stage: %(stage)s (%(edition)s)."
+
+#: apps/competitions/interviews.py:273
+#, python-format
+msgid "Termin rozmowy: %(from)s – %(to)s (czas polski)."
+msgstr "Interview time: %(from)s – %(to)s (Polish time)."
+
+#: apps/competitions/interviews.py:277 apps/competitions/video.py:199
+#, python-format
+msgid "Oznaczenie: %(note)s"
+msgstr "Label: %(note)s"
+
+#: apps/competitions/interviews.py:280 apps/competitions/video.py:201
+#, python-format
+msgid "Link do rozmowy: %(url)s"
+msgstr "Interview link: %(url)s"
+
+#: apps/competitions/interviews.py:283 apps/competitions/video.py:202
+#, python-format
+msgid "Sprawdź kamerę i mikrofon: %(url)s"
+msgstr "Check your camera and microphone: %(url)s"
+
+#: apps/competitions/interviews.py:288
+msgid ""
+"Ten sam termin i link znajdziesz po zalogowaniu w panelu uczestnika. Termin "
+"możesz zmienić lub odwołać do chwili jego rozpoczęcia."
+msgstr ""
+"You will find the same slot and link in the participant panel after signing "
+"in. You can change or cancel the slot until it starts."
+
+#: apps/competitions/video.py:180
+msgid ""
+"Wejdź na rozmowę z komputera, w przeglądarce Chrome, Edge albo Firefox. Na "
+"kilka minut przed terminem otwórz link testowy i pozwól przeglądarce na "
+"dostęp do kamery i mikrofonu – to ten sam ekran, który zobaczysz przed "
+"wejściem do pokoju rozmowy."
+msgstr ""
+"Join the interview from a computer, using Chrome, Edge or Firefox. A few "
+"minutes before your slot, open the test link and allow the browser to use "
+"your camera and microphone – it is the very same screen you will see before "
+"entering the interview room."
+
+#: apps/competitions/video.py:190
+#, python-format
+msgid "Jutro rozmowa kwalifikacyjna: %(stage)s"
+msgstr "Your interview is tomorrow: %(stage)s"
+
+#: apps/competitions/video.py:192
+#, python-format
+msgid ""
+"Przypominamy o jutrzejszej rozmowie kwalifikacyjnej (%(stage)s, %(edition)s)."
+msgstr "A reminder about your interview tomorrow (%(stage)s, %(edition)s)."
+
+#: apps/competitions/video.py:195
+#, python-format
+msgid "Termin: %(from)s – %(to)s (czas polski)."
+msgstr "Time: %(from)s – %(to)s (Polish time)."
+
+#: apps/submissions/notifications.py:48
+msgid "Rozwiązanie przyjęte – Olimpiada Kwantowa"
+msgstr "Solution accepted – Quantum Olympiad"
+
+#: apps/submissions/notifications.py:49
+msgid "Plik odrzucony przez skan antywirusowy – Olimpiada Kwantowa"
+msgstr "File rejected by the antivirus scan – Quantum Olympiad"
+
+#: apps/submissions/notifications.py:50
+msgid "Wyniki etapu ogłoszone – Olimpiada Kwantowa"
+msgstr "Stage results announced – Quantum Olympiad"
+
+#: apps/submissions/notifications.py:51
+msgid "Decyzja w sprawie reklamacji – Olimpiada Kwantowa"
+msgstr "Decision on your appeal – Quantum Olympiad"
+
+#: apps/submissions/notifications.py:108
+#, python-format
+msgid ""
+"Twoje rozwiązanie zostało przyjęte przez serwis Olimpiady Kwantowej "
+"(%(stage)s)."
+msgstr ""
+"Your solution has been accepted by the Quantum Olympiad website (%(stage)s)."
+
+#: apps/submissions/notifications.py:111 apps/submissions/notifications.py:150
+#, python-format
+msgid "Zadanie: %(number)s. %(title)s"
+msgstr "Problem: %(number)s. %(title)s"
+
+#: apps/submissions/notifications.py:113 apps/submissions/notifications.py:152
+#, python-format
+msgid "Wersja: %(version)s"
+msgstr "Version: %(version)s"
+
+#: apps/submissions/notifications.py:114
+#, python-format
+msgid "Czas przyjęcia (UTC): %(when)s"
+msgstr "Time received (UTC): %(when)s"
+
+#: apps/submissions/notifications.py:115 apps/submissions/notifications.py:153
+#, python-format
+msgid "Suma kontrolna pliku (sha256): %(sha)s"
+msgstr "File checksum (sha256): %(sha)s"
+
+#: apps/submissions/notifications.py:118
+msgid ""
+"Plik trafił na skan antywirusowy. Jeśli skan go odrzuci, dostaniesz osobną "
+"wiadomość – w przeciwnym razie nie piszemy nic więcej i ta wersja idzie do "
+"oceny."
+msgstr ""
+"The file has been queued for an antivirus scan. If the scan rejects it you "
+"will get a separate message – otherwise we write nothing more and this "
+"version goes to grading."
+
+#: apps/submissions/notifications.py:122
+msgid "Każda kolejna wysyłka tworzy nową wersję; oceniana jest ostatnia."
+msgstr ""
+"Every further upload creates a new version; the last one is the one graded."
+
+#: apps/submissions/notifications.py:145
+msgid ""
+"Plik, który wysłałeś do serwisu Olimpiady Kwantowej, został odrzucony przez "
+"skan antywirusowy i nie wejdzie do oceniania."
+msgstr ""
+"The file you uploaded to the Quantum Olympiad website was rejected by the "
+"antivirus scan and will not enter grading."
+
+#: apps/submissions/notifications.py:149
+#, python-format
+msgid "Etap: %(stage)s"
+msgstr "Stage: %(stage)s"
+
+#: apps/submissions/notifications.py:156
+msgid ""
+"Najczęstszą przyczyną jest zainfekowany komputer albo plik pobrany z "
+"nieznanego źródła, a nie treść samego rozwiązania."
+msgstr ""
+"The most common cause is an infected computer or a file downloaded from an "
+"unknown source, not the content of the solution itself."
+
+#: apps/submissions/notifications.py:161
+msgid ""
+"Co zrobić: sprawdź komputer programem antywirusowym, wygeneruj plik ponownie "
+"i wyślij go jeszcze raz w panelu uczestnika. Liczy się ostatnia wersja "
+"przyjęta przed terminem."
+msgstr ""
+"What to do: scan your computer with antivirus software, generate the file "
+"again and upload it once more in the participant panel. What counts is the "
+"last version accepted before the deadline."
+
+#: apps/submissions/status_track.py:54
+msgid "oddane"
+msgstr "submitted"
+
+#: apps/submissions/status_track.py:55
+msgid "w ocenie"
+msgstr "in review"
+
+#: apps/submissions/status_track.py:56
+msgid "oceniona"
+msgstr "graded"
+
+#: apps/submissions/status_track.py:57
+msgid "wyniki"
+msgstr "results"
+
+#: apps/web/forms.py:579
+msgid ""
+"Zaznacz potwierdzenie, że wysyłasz rozwiązanie właściwego zadania i że plik "
+"jest czytelny."
+msgstr ""
+"Tick the confirmation that you are uploading the solution to the right "
+"problem and that the file is legible."
+
+#: apps/web/views/guardian.py:46
+msgid "Wyrażam zgodę na udział mojego dziecka w Olimpiadzie Kwantowej."
+msgstr "I consent to my child taking part in the Quantum Olympiad."
+
+#: apps/web/views/guardian.py:47
+msgid "Zaznacz pole zgody, żeby ją potwierdzić."
+msgstr "Tick the consent box to confirm it."
+
+#: apps/web/views/participant_extras.py:46
+#: templates/web/participant/_guardian_consent.html:33
+msgid "Adres e-mail rodzica lub opiekuna prawnego"
+msgstr "E-mail address of a parent or legal guardian"
+
+#: apps/web/views/participant_extras.py:47
+msgid "Podaj adres e-mail rodzica lub opiekuna prawnego."
+msgstr "Enter the e-mail address of a parent or legal guardian."
+
+#: apps/web/views/participant_extras.py:70
+#, python-format
+msgid "Prośba o zgodę została wysłana na adres %(email)s."
+msgstr "The consent request has been sent to %(email)s."
+
+#: templates/base.html:116
+msgid "Przejdź do treści"
+msgstr "Skip to content"
+
+#: templates/base.html:164
+msgid "Konto"
+msgstr "Account"
+
+#: templates/base.html:194
+msgid "Kontrast"
+msgstr "Contrast"
+
+#: templates/base.html:201
+msgid "Mój panel"
+msgstr "My panel"
+
+#: templates/base.html:206
+msgid "Recenzje"
+msgstr "Reviews"
+
+#: templates/base.html:211 templates/web/participant/dashboard.html:387
+msgid "Reklamacje"
+msgstr "Appeals"
+
+#: templates/base.html:227
+msgid "Wyloguj"
+msgstr "Sign out"
+
+#: templates/base.html:234 templates/web/register.html:51
+#: templates/web/register_done.html:30
+msgid "Zaloguj się"
+msgstr "Sign in"
+
+#: templates/base.html:243 templates/web/login.html:30
+msgid "Zarejestruj się"
+msgstr "Sign up"
+
+#: templates/base.html:246
+#, python-format
+msgid "Rejestracja rusza %(opens)s"
+msgstr "Registration opens %(opens)s"
+
+#: templates/base.html:249
+msgid "Rejestracja z kodem"
+msgstr "Sign up with a code"
+
+#: templates/base.html:323
+msgid ""
+"Dane osobowe uczestników są przetwarzane zgodnie z zasadą minimalizacji "
+"(RODO): w publicznych tabelach wyników występuje wyłącznie kod uczestnika, a "
+"pełne dane widzi jedynie koordynator."
+msgstr ""
+"Participants' personal data is processed under the data minimisation "
+"principle (GDPR): public result tables show only the participant code, and "
+"full data is visible to the coordinator alone."
+
+#: templates/base.html:332
+msgid "Polityka prywatności (RODO)"
+msgstr "Privacy policy (GDPR)"
+
+#: templates/base.html:333
+msgid "Polityka plików cookie"
+msgstr "Cookie policy"
+
+#: templates/base.html:334
+msgid "Dokumenty"
+msgstr "Documents"
+
+#: templates/base.html:341 templates/web/statistics.html:19
+msgid "Statystyki"
+msgstr "Statistics"
+
+#: templates/base.html:352
+msgid "Ustawienia cookies"
+msgstr "Cookie settings"
+
+#: templates/base.html:378
+msgid "Organizator:"
+msgstr "Organiser:"
+
+#: templates/base.html:387
+#, python-format
+msgid ""
+"Wersja aplikacji %(version)s · wszystkie godziny podajemy w czasie polskim."
+msgstr "Application version %(version)s · all times are given in Polish time."
+
+#: templates/web/account/delete.html:13 templates/web/account/delete.html:17
+#: templates/web/account/profile.html:83
+msgid "Usunięcie konta"
+msgstr "Deleting your account"
+
+#: templates/web/account/delete.html:16 templates/web/account/profile.html:20
+msgid "Twoje konto"
+msgstr "Your account"
+
+#: templates/web/account/delete.html:18
+msgid "Operacji nie da się odwrócić."
+msgstr "This cannot be undone."
+
+#: templates/web/account/delete.html:24
+msgid "Co się stanie z Twoimi danymi"
+msgstr "What happens to your data"
+
+#: templates/web/account/delete.html:25
+#, python-format
+msgid ""
+"Brałeś udział w zawodach (%(entries)s zgłoszeń, %(submissions)s oddanych "
+"prac, %(reviews)s wystawionych recenzji), więc <strong>usuniemy Twoje dane "
+"osobowe</strong>, ale zostawimy anonimowy ślad udziału:"
+msgstr ""
+"You have taken part in the competition (%(entries)s entries, %(submissions)s "
+"submitted solutions, %(reviews)s reviews written), so <strong>we will delete "
+"your personal data</strong> but keep an anonymous trace of your "
+"participation:"
+
+#: templates/web/account/delete.html:31
+msgid ""
+"znikają: imię, nazwisko, adres e-mail, telefon, nazwa szkoły, rok urodzenia, "
+"hasło, powiązania z kontami Google i Facebooka oraz wszystkie Twoje sesje;"
+msgstr ""
+"removed: first name, surname, e-mail address, phone number, school name, "
+"year of birth, password, links to Google and Facebook accounts and all of "
+"your sessions;"
+
+#: templates/web/account/delete.html:32
+msgid "zostają: kod publiczny"
+msgstr "kept: the public code"
+
+#: templates/web/account/delete.html:34
+msgid "wraz z pracami, ocenami i wierszami w ogłoszonych tabelach wyników."
+msgstr ""
+"together with your solutions, marks and rows in the published result tables."
+
+#: templates/web/account/delete.html:36
+msgid ""
+"Dlaczego tak: ogłoszone wyniki i protokoły recenzji są dokumentacją zawodów, "
+"na której opierają się kwalifikacje innych uczestników. Skasowanie ich razem "
+"z kontem wyrwałoby kartę z protokołu i przesunęłoby progi kwalifikacyjne."
+msgstr ""
+"Why: published results and review records are the documentation of the "
+"competition, and other participants' qualification rests on them. Deleting "
+"them together with the account would tear a page out of the record and shift "
+"the qualification thresholds."
+
+#: templates/web/account/delete.html:38
+msgid "Co się stanie z Twoim kontem"
+msgstr "What happens to your account"
+
+#: templates/web/account/delete.html:39
+msgid ""
+"Twoje konto nie ma powiązanych zgłoszeń, prac ani recenzji, więc zostanie "
+"<strong>usunięte w całości</strong> – razem z profilem, zgodami i wszystkimi "
+"danymi osobowymi. Adres e-mail zwolni się do ponownej rejestracji."
+msgstr ""
+"Your account has no entries, solutions or reviews attached, so it will be "
+"<strong>deleted in full</strong> – together with the profile, consents and "
+"all personal data. The e-mail address becomes free for registration again."
+
+#: templates/web/account/delete.html:60
+#, python-format
+msgid ""
+"Twoje konto nie ma hasła (logujesz się przez dostawcę zewnętrznego). "
+"Przepisz adres <strong>%(address)s</strong>, żeby potwierdzić."
+msgstr ""
+"Your account has no password (you sign in through an external provider). "
+"Retype the address <strong>%(address)s</strong> to confirm."
+
+#: templates/web/account/delete.html:72
+msgid "Usuń konto na zawsze"
+msgstr "Delete the account permanently"
+
+#: templates/web/account/delete.html:74
+msgid "Anuluj"
+msgstr "Cancel"
+
+#: templates/web/account/deleted.html:7 templates/web/account/deleted.html:11
+msgid "Konto zostało usunięte"
+msgstr "The account has been deleted"
+
+#: templates/web/account/deleted.html:12
+msgid "Twoje dane osobowe zostały usunięte, a sesje zamknięte."
+msgstr "Your personal data has been deleted and your sessions closed."
+
+#: templates/web/account/deleted.html:13
+msgid ""
+"Jeśli brałeś udział w zawodach, Twoje prace i oceny zostają w dokumentacji "
+"Olimpiady pod anonimowym kodem – bez imienia, nazwiska, adresu e-mail i "
+"szkoły. Szczegóły: <a href=\"/dokumenty/rodo/\">Polityka RODO</a>."
+msgstr ""
+"If you took part in the competition, your solutions and marks remain in the "
+"Olympiad records under an anonymous code – without your name, surname, e-"
+"mail address or school. Details: <a href=\"/dokumenty/rodo/\">GDPR policy</"
+"a>."
+
+#: templates/web/account/deleted.html:18
+msgid "Wróć na stronę główną"
+msgstr "Back to the home page"
+
+#: templates/web/account/email_change.html:9
+#: templates/web/account/email_change.html:13
+msgid "Zmiana adresu e-mail"
+msgstr "Changing your e-mail address"
+
+#: templates/web/account/email_change.html:14
+#, python-format
+msgid ""
+"Wyślemy link potwierdzający na <strong>nowy</strong> adres. Do czasu "
+"potwierdzenia logujesz się dotychczasowym adresem (%(address)s)."
+msgstr ""
+"We will send a confirmation link to the <strong>new</strong> address. Until "
+"you confirm, you sign in with the current address (%(address)s)."
+
+#: templates/web/account/email_change.html:21
+#: templates/web/account/profile.html:76
+msgid "Wyślij link potwierdzający"
+msgstr "Send the confirmation link"
+
+#: templates/web/account/email_change.html:23
+msgid "Wróć do edycji danych"
+msgstr "Back to editing your details"
+
+#: templates/web/account/email_change_invalid.html:9
+#: templates/web/account/email_change_invalid.html:13
+msgid "Link potwierdzający nie działa"
+msgstr "The confirmation link does not work"
+
+#: templates/web/account/email_change_invalid.html:15
+msgid ""
+"Adres konta pozostał bez zmian. Zaloguj się dotychczasowym adresem i wyślij "
+"nowy link z ekranu edycji danych."
+msgstr ""
+"The account address is unchanged. Sign in with the current address and send "
+"a new link from the details screen."
+
+#: templates/web/account/email_change_invalid.html:16
+#: templates/web/account/email_changed.html:15
+msgid "Przejdź do logowania"
+msgstr "Go to sign-in"
+
+#: templates/web/account/email_changed.html:9
+msgid "Adres e-mail zmieniony"
+msgstr "E-mail address changed"
+
+#: templates/web/account/email_changed.html:13
+msgid "Adres e-mail został zmieniony"
+msgstr "The e-mail address has been changed"
+
+#: templates/web/account/email_changed.html:14
+msgid "Od teraz logujesz się nowym adresem. Hasło pozostaje bez zmian."
+msgstr ""
+"From now on you sign in with the new address. Your password stays the same."
+
+#: templates/web/account/email_changed.html:16
+msgid ""
+"O zmianie powiadomiliśmy także poprzedni adres. Jeśli to nie Ty prosiłeś o "
+"zmianę, skontaktuj się z organizatorem."
+msgstr ""
+"We have also notified the previous address about the change. If you did not "
+"request it, contact the organiser."
+
+#: templates/web/account/profile.html:12 templates/web/account/profile.html:21
+msgid "Edycja danych"
+msgstr "Edit your details"
+
+#: templates/web/account/profile.html:22
+msgid "Dane kontaktowe i szkolne, które organizator ma o Tobie w tej edycji."
+msgstr ""
+"The contact and school details the organiser holds about you in this edition."
+
+#: templates/web/account/profile.html:27
+msgid "Dane osobowe"
+msgstr "Personal details"
+
+#: templates/web/account/profile.html:31 templates/web/register.html:35
+#: templates/web/register_committee.html:12
+msgid "Pola oznaczone * są obowiązkowe."
+msgstr "Fields marked * are required."
+
+#: templates/web/account/profile.html:46
+msgid "Zapisz dane"
+msgstr "Save details"
+
+#: templates/web/account/profile.html:47
+msgid "Wróć"
+msgstr "Back"
+
+#: templates/web/account/profile.html:57
+#, python-format
+msgid ""
+"Województwo (%(district)s) zmienia wyłącznie koordynator. Jest opcjonalne i "
+"służy jedynie do wykluczenia konfliktu interesów na etapie wojewódzkim – bez "
+"województwa oceniasz prace ze wszystkich województw."
+msgstr ""
+"Only the coordinator can change the voivodeship (%(district)s). It is "
+"optional and serves solely to rule out a conflict of interest at the "
+"regional stage – without it you review solutions from every voivodeship."
+
+#: templates/web/account/profile.html:68
+msgid "Adres e-mail"
+msgstr "E-mail address"
+
+#: templates/web/account/profile.html:69
+#, python-format
+msgid ""
+"Obecny adres: <strong>%(address)s</strong>. Zmiana wymaga potwierdzenia – "
+"wyślemy link na <strong>nowy</strong> adres, a do kliknięcia logujesz się "
+"dotychczasowym."
+msgstr ""
+"Current address: <strong>%(address)s</strong>. A change needs confirmation – "
+"we send a link to the <strong>new</strong> address, and until you click it "
+"you sign in with the current one."
+
+#: templates/web/account/profile.html:84
+msgid ""
+"Możesz zażądać usunięcia konta i swoich danych osobowych (art. 17 RODO). "
+"Skutki zależą od tego, czy brałeś udział w zawodach – wyjaśniamy je na "
+"osobnej stronie."
+msgstr ""
+"You can request deletion of your account and personal data (art. 17 GDPR). "
+"The consequences depend on whether you took part in the competition – we "
+"explain them on a separate page."
+
+#: templates/web/account/profile.html:85
+#: templates/web/participant/dashboard.html:33
+msgid "Usuń konto"
+msgstr "Delete account"
+
+#: templates/web/guardian/consent.html:8
+#: templates/web/participant/_guardian_consent.html:12
+msgid "Zgoda rodzica lub opiekuna prawnego"
+msgstr "Consent of a parent or legal guardian"
+
+#: templates/web/guardian/consent.html:12 templates/web/guardian/done.html:11
+#: templates/web/guardian/invalid.html:11
+msgid "Zgoda opiekuna"
+msgstr "Guardian consent"
+
+#: templates/web/guardian/consent.html:13
+msgid "Zgoda na udział w Olimpiadzie Kwantowej"
+msgstr "Consent to take part in the Quantum Olympiad"
+
+#: templates/web/guardian/consent.html:15
+#, python-format
+msgid "Zgłoszenie dotyczy uczestnika: <strong>%(name)s</strong>, %(school)s."
+msgstr "The entry concerns: <strong>%(name)s</strong>, %(school)s."
+
+#: templates/web/guardian/consent.html:23
+msgid "Treść oświadczenia"
+msgstr "Wording of the statement"
+
+#: templates/web/guardian/consent.html:31
+#, python-format
+msgid "Wersja dokumentu: %(version)s."
+msgstr "Document version: %(version)s."
+
+#: templates/web/guardian/consent.html:45
+msgid "Potwierdzam"
+msgstr "I confirm"
+
+#: templates/web/guardian/consent.html:50
+#, python-format
+msgid ""
+"Link jest ważny %(days)s dni. Jeśli nie jesteś opiekunem tej osoby albo nie "
+"wyrażasz zgody – po prostu zamknij tę stronę; bez potwierdzenia nic nie "
+"zostanie zapisane."
+msgstr ""
+"The link is valid for %(days)s days. If you are not this person's guardian, "
+"or you do not consent, simply close this page; without confirmation nothing "
+"is recorded."
+
+#: templates/web/guardian/done.html:7
+msgid "Zgoda została zapisana"
+msgstr "The consent has been recorded"
+
+#: templates/web/guardian/done.html:12
+msgid "Dziękujemy – zgoda została zapisana"
+msgstr "Thank you – the consent has been recorded"
+
+#: templates/web/guardian/done.html:13
+msgid "Uczestnik dostanie o tym wiadomość e-mail. Tę stronę można zamknąć."
+msgstr "The participant will be notified by e-mail. You can close this page."
+
+#: templates/web/guardian/done.html:15
+msgid ""
+"Zgodę można wycofać, pisząc do organizatora – dane kontaktowe są w stopce "
+"strony."
+msgstr ""
+"Consent can be withdrawn by writing to the organiser – contact details are "
+"in the page footer."
+
+#: templates/web/guardian/invalid.html:7
+msgid "Link jest nieprawidłowy"
+msgstr "The link is invalid"
+
+#: templates/web/guardian/invalid.html:12
+msgid "Ten link nie działa"
+msgstr "This link does not work"
+
+#: templates/web/guardian/invalid.html:15
+msgid ""
+"Poproś uczestnika o wysłanie prośby jeszcze raz – nowy link przyjdzie na ten "
+"sam adres."
+msgstr ""
+"Ask the participant to send the request again – a new link will arrive at "
+"the same address."
+
+#: templates/web/login.html:3 templates/web/login.html:7
+msgid "Logowanie"
+msgstr "Sign in"
+
+#: templates/web/login.html:8
+msgid ""
+"Panel uczestnika, członka komisji i koordynatora. Loginem jest adres e-mail "
+"podany przy rejestracji."
+msgstr ""
+"The panel for participants, committee members and the coordinator. Your "
+"login is the e-mail address given at registration."
+
+#: templates/web/login.html:13
+msgid "Zaloguj"
+msgstr "Sign in"
+
+#: templates/web/login.html:26
+msgid "Nie pamiętasz hasła?"
+msgstr "Forgotten your password?"
+
+#: templates/web/login.html:27
+msgid "Nie dostałeś linku aktywacyjnego?"
+msgstr "Did not get the activation link?"
+
+#: templates/web/login.html:28
+msgid "Wyślij ponownie."
+msgstr "Send it again."
+
+#: templates/web/login.html:29
+msgid "Nie masz konta?"
+msgstr "No account yet?"
+
+#: templates/web/login.html:31
+msgid "Członek komitetu z kodem zaproszenia:"
+msgstr "Committee member with an invitation code:"
+
+#: templates/web/login.html:32
+msgid "rejestracja z kodem"
+msgstr "sign up with a code"
+
+#: templates/web/participant/_guardian_consent.html:15
+msgid "potwierdzona"
+msgstr "confirmed"
+
+#: templates/web/participant/_guardian_consent.html:16
+#, python-format
+msgid "Zgoda wpłynęła %(when)s z adresu %(email)s."
+msgstr "The consent arrived on %(when)s from %(email)s."
+
+#: templates/web/participant/_guardian_consent.html:21
+msgid "oczekuje"
+msgstr "pending"
+
+#: templates/web/participant/_guardian_consent.html:22
+#, python-format
+msgid "Prośba o zgodę poszła na adres %(email)s. Czekamy na potwierdzenie."
+msgstr ""
+"The consent request was sent to %(email)s. We are waiting for confirmation."
+
+#: templates/web/participant/_guardian_consent.html:26
+#: templates/web/participant/dashboard.html:371
+msgid "brak"
+msgstr "none"
+
+#: templates/web/participant/_guardian_consent.html:27
+msgid ""
+"Udział osoby niepełnoletniej wymaga zgody opiekuna. Podaj jego adres e-mail "
+"– wyślemy tam link do formularza zgody."
+msgstr ""
+"Participation by a minor requires guardian consent. Give their e-mail "
+"address – we will send a link to the consent form there."
+
+#: templates/web/participant/_guardian_consent.html:39
+msgid "Wyślij ponownie"
+msgstr "Send again"
+
+#: templates/web/participant/_guardian_consent.html:40
+msgid "Wyślij prośbę o zgodę"
+msgstr "Send the consent request"
+
+#: templates/web/participant/_guardian_consent.html:44
+msgid ""
+"Link w liście jest ważny 14 dni. Zmiana adresu unieważnia poprzednio wysłany "
+"link."
+msgstr ""
+"The link in the message is valid for 14 days. Changing the address "
+"invalidates the link sent earlier."
+
+#: templates/web/participant/_problem_card.html:12
+#: templates/web/participant/dashboard.html:390
+#: templates/web/participant/feedback.html:67
+#, python-format
+msgid "Zadanie %(number)s: %(title)s"
+msgstr "Problem %(number)s: %(title)s"
+
+#: templates/web/participant/_problem_card.html:17
+msgid "Treść zadania (PDF)"
+msgstr "Problem statement (PDF)"
+
+#: templates/web/participant/_problem_card.html:19
+msgid "treść jeszcze nieopublikowana"
+msgstr "statement not published yet"
+
+#: templates/web/participant/_problem_card.html:24
+msgid "Dozwolone formaty:"
+msgstr "Allowed formats:"
+
+#: templates/web/participant/_problem_card.html:26
+msgid "Limit pliku:"
+msgstr "File size limit:"
+
+#: templates/web/participant/_problem_card.html:50
+msgid ""
+"Ta praca jest już w ocenie. Wysłanie nowej wersji anuluje dotychczasową "
+"ocenę – zostanie oceniona od nowa."
+msgstr ""
+"This solution is already being reviewed. Uploading a new version cancels the "
+"current marking – it will be graded from scratch."
+
+#: templates/web/participant/_problem_card.html:67
+msgid "Plik rozwiązania"
+msgstr "Solution file"
+
+#: templates/web/participant/_problem_card.html:68
+msgid ""
+"Każda wysyłka tworzy nową wersję – poprzednie zostają w historii poniżej."
+msgstr ""
+"Every upload creates a new version – earlier ones stay in the history below."
+
+#: templates/web/participant/_problem_card.html:77
+#, python-format
+msgid "Plik rozwiązania zadania %(number)s"
+msgstr "Solution file for problem %(number)s"
+
+#: templates/web/participant/_problem_card.html:88
+#, python-format
+msgid "Potwierdzam, że to rozwiązanie zadania %(number)s i plik jest czytelny."
+msgstr ""
+"I confirm that this is the solution to problem %(number)s and that the file "
+"is legible."
+
+#: templates/web/participant/_problem_card.html:92
+msgid "Wyślij rozwiązanie"
+msgstr "Upload solution"
+
+#: templates/web/participant/_problem_card.html:96
+msgid "Termin oddania rozwiązań minął – upload jest zamknięty."
+msgstr "The submission deadline has passed – uploads are closed."
+
+#: templates/web/participant/_problem_card.html:110
+#: templates/web/participant/_problem_card.html:111
+msgid "Podgląd ostatniej wersji"
+msgstr "Preview of the latest version"
+
+#: templates/web/participant/_problem_card.html:113
+msgid "Podgląd pojawi się po zakończeniu skanu antywirusowego."
+msgstr "The preview appears once the antivirus scan finishes."
+
+#: templates/web/participant/_problem_card.html:118
+msgid "Liczba stron:"
+msgstr "Page count:"
+
+#: templates/web/participant/_problem_card.html:122
+msgid "Wymiary zdjęcia:"
+msgstr "Photo dimensions:"
+
+#: templates/web/participant/_problem_card.html:130
+#, python-format
+msgid "Zdjęcie rozwiązania zadania %(number)s"
+msgstr "Photo of the solution to problem %(number)s"
+
+#: templates/web/participant/_problem_card.html:135
+msgid "Pierwsza strona wysłanego dokumentu"
+msgstr "First page of the uploaded document"
+
+#: templates/web/participant/_problem_card.html:136
+msgid "Pierwsza strona rysuje się po wczytaniu strony."
+msgstr "The first page is drawn once the page has loaded."
+
+#: templates/web/participant/_problem_card.html:140
+msgid "Pierwsze wiersze wysłanego pliku."
+msgstr "The first lines of the uploaded file."
+
+#: templates/web/participant/_problem_card.html:149
+msgid "Wysłane wersje"
+msgstr "Uploaded versions"
+
+#: templates/web/participant/_problem_card.html:152
+msgid "Wersja"
+msgstr "Version"
+
+#: templates/web/participant/_problem_card.html:153
+msgid "Wysłano (czas polski)"
+msgstr "Uploaded (Polish time)"
+
+#: templates/web/participant/_problem_card.html:154
+msgid "Status pracy"
+msgstr "Solution status"
+
+#: templates/web/participant/_problem_card.html:155
+msgid "Skan antywirusowy"
+msgstr "Antivirus scan"
+
+#: templates/web/participant/_problem_card.html:156
+msgid "Plik"
+msgstr "File"
+
+#: templates/web/participant/_problem_card.html:162
+#, python-format
+msgid "wersja %(version)s"
+msgstr "version %(version)s"
+
+#: templates/web/participant/_problem_card.html:163
+#: templates/web/reviewer/list.html:78
+msgid "po terminie"
+msgstr "late"
+
+#: templates/web/participant/_problem_card.html:171
+#: templates/web/participant/archive.html:47
+msgid "brak pliku"
+msgstr "no file"
+
+#: templates/web/participant/_problem_card.html:184
+msgid "Pobierz"
+msgstr "Download"
+
+#: templates/web/participant/_problem_card.html:192
+msgid "Brak wysłanych wersji."
+msgstr "No versions uploaded."
+
+#: templates/web/participant/_status_track.html:13
+msgid "Status oceniania"
+msgstr "Grading status"
+
+#: templates/web/participant/_status_track.html:19
+msgid "(krok bieżący)"
+msgstr "(current step)"
+
+#: templates/web/participant/_status_track.html:20
+msgid "(zakończone odrzuceniem)"
+msgstr "(ended in rejection)"
+
+#: templates/web/participant/_status_track.html:25
+msgid ""
+"Ostatnia wersja została odrzucona przez skan antywirusowy i nie wejdzie do "
+"oceniania. Wyślij plik ponownie, póki etap jest otwarty."
+msgstr ""
+"The latest version was rejected by the antivirus scan and will not enter "
+"grading. Upload the file again while the stage is still open."
+
+#: templates/web/participant/_status_track.html:34
+msgid "Ogłoszenie wyników:"
+msgstr "Results announced:"
+
+#: templates/web/participant/_status_track.html:36
+msgid "(termin planowany)"
+msgstr "(planned date)"
+
+#: templates/web/participant/archive.html:3
+#: templates/web/participant/archive.html:7
+msgid "Materiały i zadania archiwalne"
+msgstr "Archive of problems and materials"
+
+#: templates/web/participant/archive.html:6
+#: templates/web/participant/calendar.html:6
+#: templates/web/participant/dashboard.html:3
+#: templates/web/participant/dashboard.html:10
+#: templates/web/participant/feedback.html:6
+msgid "Panel uczestnika"
+msgstr "Participant panel"
+
+#: templates/web/participant/archive.html:8
+msgid ""
+"Zadania z zakończonych edycji, arkusz treningowy i harmonogram warsztatów. "
+"Ta strona jest wyłącznie do czytania – jedyne miejsce, w którym można "
+"jeszcze oddać rozwiązanie, to etap treningowy."
+msgstr ""
+"Problems from finished editions, the practice paper and the workshop "
+"schedule. This page is read-only – the only place where you can still submit "
+"a solution is the practice stage."
+
+#: templates/web/participant/archive.html:10
+#: templates/web/participant/calendar.html:14
+#: templates/web/participant/feedback.html:13
+msgid "Wróć do panelu"
+msgstr "Back to the panel"
+
+#: templates/web/participant/archive.html:24
+msgid "poza zawodami"
+msgstr "outside the competition"
+
+#: templates/web/participant/archive.html:26
+msgid ""
+"Zadania treningowe nie wpływają na wyniki zawodów. Rozwiązanie wysyła się na "
+"karcie treningowej w panelu."
+msgstr ""
+"Practice problems do not affect competition results. Solutions are uploaded "
+"on the practice card in the panel."
+
+#: templates/web/participant/archive.html:30
+#: templates/web/participant/dashboard.html:314
+msgid "Zadania treningowe"
+msgstr "Practice problems"
+
+#: templates/web/participant/archive.html:33
+#: templates/web/participant/dashboard.html:350
+#: templates/web/participant/dashboard.html:410
+#: templates/web/reviewer/list.html:114
+msgid "Zadanie"
+msgstr "Problem"
+
+#: templates/web/participant/archive.html:34
+msgid "Treść"
+msgstr "Statement"
+
+#: templates/web/participant/archive.html:35
+#: templates/web/reviewer/detail.html:102
+#: templates/web/reviewer/detail.html:104
+msgid "Rozwiązanie"
+msgstr "Solution"
+
+#: templates/web/participant/archive.html:45
+msgid "Pobierz PDF"
+msgstr "Download PDF"
+
+#: templates/web/participant/archive.html:53
+msgid "Oddaj rozwiązanie na sucho"
+msgstr "Submit a practice solution"
+
+#: templates/web/participant/archive.html:56
+#: templates/web/participant/dashboard.html:169
+#: templates/web/participant/dashboard.html:307
+msgid "Zgłoś się do treningu"
+msgstr "Join the practice stage"
+
+#: templates/web/participant/archive.html:65
+#: templates/web/participant/dashboard.html:272
+#: templates/web/participant/dashboard.html:322
+#: templates/web/participant/feedback.html:97
+msgid "Brak zadań"
+msgstr "No problems"
+
+#: templates/web/participant/archive.html:66
+#: templates/web/participant/dashboard.html:323
+msgid "Etap treningowy nie ma jeszcze opublikowanych zadań."
+msgstr "The practice stage has no published problems yet."
+
+#: templates/web/participant/archive.html:72
+msgid "Zadania z poprzednich edycji"
+msgstr "Problems from previous editions"
+
+#: templates/web/participant/archive.html:89
+msgid "treść (PDF)"
+msgstr "statement (PDF)"
+
+#: templates/web/participant/archive.html:91
+msgid "treść niedostępna"
+msgstr "statement unavailable"
+
+#: templates/web/participant/archive.html:99
+msgid "Archiwum jest puste"
+msgstr "The archive is empty"
+
+#: templates/web/participant/archive.html:100
+msgid "Nie ma jeszcze zakończonych edycji z opublikowanymi zadaniami."
+msgstr "There are no finished editions with published problems yet."
+
+#: templates/web/participant/archive.html:105
+msgid "Warsztaty"
+msgstr "Workshops"
+
+#: templates/web/participant/archive.html:115
+msgid "Warsztaty online – materiały i zapisy na stronie „Warsztaty”."
+msgstr "Online workshops – materials and sign-up on the “Workshops” page."
+
+#: templates/web/participant/archive.html:117
+#: templates/web/participant/calendar.html:33
+#: templates/web/reviewer/list.html:52
+msgid "Termin"
+msgstr "Date"
+
+#: templates/web/participant/archive.html:118
+msgid "Temat"
+msgstr "Topic"
+
+#: templates/web/participant/archive.html:131
+msgid "Brak warsztatów"
+msgstr "No workshops"
+
+#: templates/web/participant/archive.html:132
+msgid "Harmonogram warsztatów nie jest jeszcze opublikowany."
+msgstr "The workshop schedule has not been published yet."
+
+#: templates/web/participant/calendar.html:3
+msgid "Kalendarz uczestnika"
+msgstr "Participant calendar"
+
+#: templates/web/participant/calendar.html:7
+msgid "Twój kalendarz"
+msgstr "Your calendar"
+
+#: templates/web/participant/calendar.html:9
+#, python-format
+msgid "Terminy edycji %(edition)s wraz z Twoimi własnymi – w jednym miejscu."
+msgstr ""
+"Dates of the %(edition)s edition together with your own – in one place."
+
+#: templates/web/participant/calendar.html:22
+msgid "Pobierz kalendarz (.ics)"
+msgstr "Download the calendar (.ics)"
+
+#: templates/web/participant/calendar.html:30
+msgid "Terminy edycji. Wszystkie godziny: czas polski."
+msgstr "Edition dates. All times are Polish time."
+
+#: templates/web/participant/calendar.html:34
+msgid "Wydarzenie"
+msgstr "Event"
+
+#: templates/web/participant/calendar.html:35
+msgid "Rodzaj"
+msgstr "Kind"
+
+#: templates/web/participant/calendar.html:36
+#: templates/web/participant/dashboard.html:458
+msgid "Stan"
+msgstr "State"
+
+#: templates/web/participant/calendar.html:60
+msgid "trwa"
+msgstr "in progress"
+
+#: templates/web/participant/calendar.html:62
+msgid "minione"
+msgstr "past"
+
+#: templates/web/participant/calendar.html:64
+msgid "przed nami"
+msgstr "upcoming"
+
+#: templates/web/participant/calendar.html:73
+msgid "Kalendarz jest pusty"
+msgstr "The calendar is empty"
+
+#: templates/web/participant/calendar.html:74
+msgid ""
+"Nie ustawiono bieżącej edycji albo nie wpisano jeszcze żadnych terminów."
+msgstr "No current edition has been set, or no dates have been entered yet."
+
+#: templates/web/participant/dashboard.html:11
+msgid "Twoje zgłoszenie"
+msgstr "Your entry"
+
+#: templates/web/participant/dashboard.html:12
+msgid "Kod publiczny:"
+msgstr "Public code:"
+
+#: templates/web/participant/dashboard.html:14
+msgid "pod tym kodem występujesz w ogłaszanych tabelach wyników."
+msgstr "this is the code you appear under in published result tables."
+
+#: templates/web/participant/dashboard.html:23
+msgid "Dane kontaktowe"
+msgstr "Contact details"
+
+#: templates/web/participant/dashboard.html:26
+msgid "Szkoła i klasa"
+msgstr "School and year"
+
+#: templates/web/participant/dashboard.html:28
+#, python-format
+msgid "klasa %(grade)s"
+msgstr "year %(grade)s"
+
+#: templates/web/participant/dashboard.html:32
+msgid "Edytuj dane"
+msgstr "Edit details"
+
+#: templates/web/participant/dashboard.html:41
+msgid "Kalendarz"
+msgstr "Calendar"
+
+#: templates/web/participant/dashboard.html:42
+msgid "Archiwum"
+msgstr "Archive"
+
+#: templates/web/participant/dashboard.html:44
+msgid "Dyplomy"
+msgstr "Certificates"
+
+#: templates/web/participant/dashboard.html:68
+msgid "Rozmowa kwalifikacyjna online"
+msgstr "Online qualifying interview"
+
+#: templates/web/participant/dashboard.html:70
+msgid "Rozmowy odbywają się"
+msgstr "Interviews take place"
+
+#: templates/web/participant/dashboard.html:73
+#: templates/web/participant/dashboard.html:227
+msgid "Twój termin"
+msgstr "Your slot"
+
+#: templates/web/participant/dashboard.html:85
+msgid "Link do rozmowy"
+msgstr "Interview link"
+
+#: templates/web/participant/dashboard.html:91
+msgid "koordynator poda link przed rozmową"
+msgstr "the coordinator will give the link before the interview"
+
+#: templates/web/participant/dashboard.html:95
+msgid "Przed rozmową"
+msgstr "Before the interview"
+
+#: templates/web/participant/dashboard.html:98
+msgid "Sprawdź kamerę i mikrofon"
+msgstr "Check your camera and microphone"
+
+#: templates/web/participant/dashboard.html:109
+msgid "Zrezygnuj z terminu"
+msgstr "Give up this slot"
+
+#: templates/web/participant/dashboard.html:112
+msgid "Rozmowa już się rozpoczęła – terminu nie można już zmienić."
+msgstr "The interview has already started – the slot can no longer be changed."
+
+#: templates/web/participant/dashboard.html:129
+#: templates/web/participant/dashboard.html:141
+msgid "Termin oddania rozwiązań"
+msgstr "Submission deadline"
+
+#: templates/web/participant/dashboard.html:131
+msgid "pozostały czas liczony jest po wczytaniu strony"
+msgstr "the remaining time is counted once the page has loaded"
+
+#: templates/web/participant/dashboard.html:142
+msgid "Bez terminu"
+msgstr "No deadline"
+
+#: templates/web/participant/dashboard.html:143
+msgid "rozwiązania przyjmujemy bezterminowo"
+msgstr "we accept solutions with no time limit"
+
+#: templates/web/participant/dashboard.html:161
+msgid "Termin wydarzenia:"
+msgstr "Event dates:"
+
+#: templates/web/participant/dashboard.html:162
+msgid "Godziny oddania rozwiązań powyżej obowiązują niezależnie od dni pobytu."
+msgstr ""
+"The submission hours above apply regardless of the days you are on site."
+
+#: templates/web/participant/dashboard.html:169
+msgid "Zgłoś się do tego etapu"
+msgstr "Enter this stage"
+
+#: templates/web/participant/dashboard.html:172
+msgid "Status Twojego udziału:"
+msgstr "Status of your participation:"
+
+#: templates/web/participant/dashboard.html:175
+msgid ""
+"Do rozmowy kwalifikacyjnej przystępują wyłącznie osoby zakwalifikowane w "
+"poprzednim etapie. Nie ma tu zapisów otwartych."
+msgstr ""
+"Only those who qualified in the previous stage take the qualifying "
+"interview. There is no open sign-up here."
+
+#: templates/web/participant/dashboard.html:183
+msgid ""
+"Do tego etapu nie ma zapisów – przechodzą do niego osoby zakwalifikowane w "
+"poprzednim etapie."
+msgstr ""
+"There is no sign-up for this stage – it is entered by those who qualified in "
+"the previous one."
+
+#: templates/web/participant/dashboard.html:192
+msgid "Wybierz termin rozmowy"
+msgstr "Choose an interview slot"
+
+#: templates/web/participant/dashboard.html:194
+msgid "Masz już zapisany termin – wybranie innego przeniesie zapis."
+msgstr "You already have a slot – choosing another one moves your booking."
+
+#: templates/web/participant/dashboard.html:200
+msgid "Terminy rozmów. Wszystkie godziny: czas polski."
+msgstr "Interview slots. All times are Polish time."
+
+#: templates/web/participant/dashboard.html:203
+msgid "Data"
+msgstr "Date"
+
+#: templates/web/participant/dashboard.html:204
+msgid "Godziny"
+msgstr "Hours"
+
+#: templates/web/participant/dashboard.html:205
+msgid "Oznaczenie"
+msgstr "Label"
+
+#: templates/web/participant/dashboard.html:206
+msgid "Wolne miejsca"
+msgstr "Free places"
+
+#: templates/web/participant/dashboard.html:207
+msgid "Zapis"
+msgstr "Booking"
+
+#: templates/web/participant/dashboard.html:224
+#, python-format
+msgid "%(free)s z %(capacity)s"
+msgstr "%(free)s of %(capacity)s"
+
+#: templates/web/participant/dashboard.html:232
+msgid "Zmień na ten termin"
+msgstr "Move to this slot"
+
+#: templates/web/participant/dashboard.html:232
+msgid "Zapisz się"
+msgstr "Book"
+
+#: templates/web/participant/dashboard.html:241
+msgid "Termin już trwa"
+msgstr "This slot is under way"
+
+#: templates/web/participant/dashboard.html:242
+msgid "Zmiana niemożliwa – Twoja rozmowa już trwa"
+msgstr "Cannot change – your interview is under way"
+
+#: templates/web/participant/dashboard.html:243
+msgid "Zapisy zamknięte"
+msgstr "Bookings closed"
+
+#: templates/web/participant/dashboard.html:244
+msgid "Brak miejsc"
+msgstr "No places left"
+
+#: templates/web/participant/dashboard.html:254
+msgid "Brak terminów"
+msgstr "No slots"
+
+#: templates/web/participant/dashboard.html:255
+msgid "Koordynator nie wyznaczył jeszcze terminów."
+msgstr "The coordinator has not set any slots yet."
+
+#: templates/web/participant/dashboard.html:261
+msgid "Zadania"
+msgstr "Problems"
+
+#: templates/web/participant/dashboard.html:263
+#: templates/web/participant/dashboard.html:316
+msgid "upload zamknięty"
+msgstr "uploads closed"
+
+#: templates/web/participant/dashboard.html:267
+msgid "Etap jest zamknięty – nie można już wysyłać rozwiązań."
+msgstr "The stage is closed – solutions can no longer be uploaded."
+
+#: templates/web/participant/dashboard.html:273
+msgid "Ten etap nie ma jeszcze opublikowanych zadań."
+msgstr "This stage has no published problems yet."
+
+#: templates/web/participant/dashboard.html:279
+msgid "Nie ustawiono bieżącej edycji olimpiady."
+msgstr "No current edition of the Olympiad has been set."
+
+#: templates/web/participant/dashboard.html:299
+#: templates/web/statistics.html:30
+msgid "trening"
+msgstr "practice"
+
+#: templates/web/participant/dashboard.html:302
+msgid ""
+"Bez terminu i poza kwalifikacją – te zadania nie wpływają na wyniki zawodów. "
+"Służą do przejścia całej ścieżki: zgłoszenie, pobranie treści, wysłanie "
+"rozwiązania i odbiór oceny."
+msgstr ""
+"No deadline and outside qualification – these problems do not affect "
+"competition results. They exist so you can walk the whole path: entry, "
+"downloading the statement, uploading a solution and receiving a mark."
+
+#: templates/web/participant/dashboard.html:330
+msgid "Moje wyniki"
+msgstr "My results"
+
+#: templates/web/participant/dashboard.html:335
+#: templates/web/participant/feedback.html:28
+#: templates/web/participant/feedback.html:70
+#, python-format
+msgid "%(points)s pkt"
+msgstr "%(points)s pts"
+
+#: templates/web/participant/dashboard.html:345
+#: templates/web/participant/feedback.html:3
+msgid "Komentarze i miejsce"
+msgstr "Comments and rank"
+
+#: templates/web/participant/dashboard.html:351
+#: templates/web/reviewer/detail.html:86 templates/web/reviewer/list.html:53
+#: templates/web/reviewer/list.html:116 templates/web/statistics.html:68
+msgid "Punkty"
+msgstr "Points"
+
+#: templates/web/participant/dashboard.html:352
+msgid "Informacja zwrotna"
+msgstr "Feedback"
+
+#: templates/web/participant/dashboard.html:363
+msgid "Od recenzenta"
+msgstr "From a reviewer"
+
+#: templates/web/participant/dashboard.html:366
+#: templates/web/participant/feedback.html:82
+#, python-format
+msgid "str. %(page)s: %(text)s"
+msgstr "p. %(page)s: %(text)s"
+
+#: templates/web/participant/dashboard.html:381
+msgid "Wyniki jeszcze przed nami"
+msgstr "Results are still ahead"
+
+#: templates/web/participant/dashboard.html:382
+msgid "Żaden etap nie ma jeszcze ogłoszonych wyników."
+msgstr "No stage has announced results yet."
+
+#: templates/web/participant/dashboard.html:397
+msgid "Złóż reklamację"
+msgstr "File an appeal"
+
+#: templates/web/participant/dashboard.html:402
+msgid ""
+"Obecnie nie ma pracy, na którą można złożyć reklamację (potrzebna jest ocena "
+"wstępna i otwarte okno odwoławcze)."
+msgstr ""
+"There is currently no solution you can appeal against (a provisional mark "
+"and an open appeal window are needed)."
+
+#: templates/web/participant/dashboard.html:408
+msgid "Złożone reklamacje"
+msgstr "Appeals filed"
+
+#: templates/web/participant/dashboard.html:411
+msgid "Złożona (czas polski)"
+msgstr "Filed (Polish time)"
+
+#: templates/web/participant/dashboard.html:412
+#: templates/web/reviewer/list.html:51
+msgid "Status"
+msgstr "Status"
+
+#: templates/web/participant/dashboard.html:413
+msgid "Uzasadnienie decyzji"
+msgstr "Reasons for the decision"
+
+#: templates/web/participant/dashboard.html:431
+msgid "Twoje zgody"
+msgstr "Your consents"
+
+#: templates/web/participant/dashboard.html:453
+msgid "Zgody złożone przy rejestracji i później"
+msgstr "Consents given at registration and later"
+
+#: templates/web/participant/dashboard.html:455
+msgid "Zgoda"
+msgstr "Consent"
+
+#: templates/web/participant/dashboard.html:456
+msgid "Wersja dokumentu"
+msgstr "Document version"
+
+#: templates/web/participant/dashboard.html:457
+msgid "Data (czas polski)"
+msgstr "Date (Polish time)"
+
+#: templates/web/participant/dashboard.html:463
+msgid "(dobrowolna)"
+msgstr "(optional)"
+
+#: templates/web/participant/dashboard.html:468
+msgid "brak wpisu"
+msgstr "no record"
+
+#: templates/web/participant/dashboard.html:470
+#, python-format
+msgid "wycofana %(when)s"
+msgstr "withdrawn %(when)s"
+
+#: templates/web/participant/dashboard.html:474
+msgid "obowiązuje"
+msgstr "in force"
+
+#: templates/web/participant/dashboard.html:487
+msgid "Wycofaj zgodę na publikację nazwiska"
+msgstr "Withdraw consent to publishing your name"
+
+#: templates/web/participant/dashboard.html:490
+msgid "Wyraź zgodę na publikację nazwiska"
+msgstr "Give consent to publishing your name"
+
+#: templates/web/participant/dashboard.html:493
+#, python-format
+msgid ""
+"Bez tej zgody w publikowanych tabelach wyników występujesz wyłącznie pod "
+"kodem %(code)s. Zgodę możesz wyrazić i wycofać w każdej chwili."
+msgstr ""
+"Without this consent you appear in published result tables only under the "
+"code %(code)s. You can give and withdraw the consent at any time."
+
+#: templates/web/participant/feedback.html:7
+msgid "Twoja informacja zwrotna"
+msgstr "Your feedback"
+
+#: templates/web/participant/feedback.html:9
+#, python-format
+msgid "Wyniki ogłoszono %(when)s."
+msgstr "Results announced on %(when)s."
+
+#: templates/web/participant/feedback.html:15
+msgid "Pełna tabela wyników"
+msgstr "Full result table"
+
+#: templates/web/participant/feedback.html:22
+msgid "Twój wynik"
+msgstr "Your result"
+
+#: templates/web/participant/feedback.html:27
+msgid "Suma punktów"
+msgstr "Total points"
+
+#: templates/web/participant/feedback.html:29
+msgid "Miejsce w ogłoszonej tabeli"
+msgstr "Rank in the published table"
+
+#: templates/web/participant/feedback.html:30
+#, python-format
+msgid "%(rank)s z %(total)s"
+msgstr "%(rank)s of %(total)s"
+
+#: templates/web/participant/feedback.html:31
+msgid "nie ustalono – Twojego wyniku nie ma w ogłoszonej tabeli"
+msgstr "not determined – your result is not in the published table"
+
+#: templates/web/participant/feedback.html:33 templates/web/statistics.html:51
+msgid "Próg kwalifikacji"
+msgstr "Qualification threshold"
+
+#: templates/web/participant/feedback.html:35
+#, python-format
+msgid "najniższy wynik wśród zakwalifikowanych w tej tabeli: %(cutoff)s pkt"
+msgstr ""
+"the lowest score among those who qualified in this table: %(cutoff)s pts"
+
+#: templates/web/participant/feedback.html:47
+#, python-format
+msgid ""
+"W ogłoszonej tabeli masz %(published)s pkt. Różnica wynika z decyzji "
+"podjętej po publikacji – obowiązuje wynik bieżący (%(current)s pkt), a "
+"tabela pozostaje taka, jaką ogłoszono."
+msgstr ""
+"The published table shows %(published)s pts for you. The difference comes "
+"from a decision taken after publication – the current result (%(current)s "
+"pts) is the one in force, and the table stays as it was announced."
+
+#: templates/web/participant/feedback.html:57
+msgid "Zadania i komentarze recenzentów"
+msgstr "Problems and reviewers' comments"
+
+#: templates/web/participant/feedback.html:73
+msgid "Nie oddałeś rozwiązania tego zadania."
+msgstr "You did not submit a solution to this problem."
+
+#: templates/web/participant/feedback.html:75
+msgid "Recenzenci nie zostawili komentarza do tego zadania."
+msgstr "The reviewers left no comment on this problem."
+
+#: templates/web/participant/feedback.html:91
+#, python-format
+msgid "linia %(line)s: %(text)s"
+msgstr "line %(line)s: %(text)s"
+
+#: templates/web/participant/feedback.html:98
+msgid "Ten etap nie ma zadań do wypisania."
+msgstr "This stage has no problems to list."
+
+#: templates/web/register.html:3 templates/web/register.html:10
+msgid "Rejestracja uczestnika"
+msgstr "Participant registration"
+
+#: templates/web/register.html:31
+msgid ""
+"Rejestracja jest otwarta. Po założeniu konta zapiszesz się do etapu "
+"eliminacyjnego z panelu uczestnika."
+msgstr ""
+"Registration is open. Once your account exists, you enter the qualifying "
+"stage from the participant panel."
+
+#: templates/web/register.html:37
+msgid ""
+"Akceptacja Regulaminu i zgoda na przetwarzanie danych osobowych są wymagane. "
+"Uczestnik niepełnoletni potrzebuje dodatkowo zgody rodzica lub opiekuna "
+"prawnego. Zgodę na publikację imienia i nazwiska możesz wyrazić lub wycofać "
+"później w panelu uczestnika."
+msgstr ""
+"Accepting the Rules and consenting to personal data processing are required. "
+"A participant who is a minor also needs the consent of a parent or legal "
+"guardian. Consent to publishing your name can be given or withdrawn later in "
+"the participant panel."
+
+#: templates/web/register.html:38 templates/web/register_committee.html:15
+msgid "Załóż konto"
+msgstr "Create account"
+
+#: templates/web/register.html:44
+msgid ""
+"Wróć tu po tej godzinie – konto założysz w kilka minut. Terminy etapów "
+"znajdziesz na stronie <a href=\"/harmonogram/\">Harmonogram</a>."
+msgstr ""
+"Come back after that time – creating an account takes a few minutes. Stage "
+"dates are on the <a href=\"/harmonogram/\">Schedule</a> page."
+
+#: templates/web/register.html:50
+msgid "Masz już konto?"
+msgstr "Already have an account?"
+
+#: templates/web/register_committee.html:3
+#: templates/web/register_committee.html:7
+msgid "Rejestracja członka komitetu"
+msgstr "Committee member registration"
+
+#: templates/web/register_committee.html:8
+msgid ""
+"Konto recenzenta lub członka komisji odwoławczej zakłada się na kod "
+"zaproszenia wydany przez koordynatora."
+msgstr ""
+"A reviewer or appeals committee account is created with an invitation code "
+"issued by the coordinator."
+
+#: templates/web/register_committee.html:14
+msgid ""
+"Województwo podane w kodzie zaproszenia jest nadrzędne wobec deklaracji z "
+"formularza – tylko takie województwo liczy się przy regule konfliktu "
+"interesów."
+msgstr ""
+"The voivodeship carried by the invitation code overrides the one declared in "
+"the form – only that voivodeship counts for the conflict of interest rule."
+
+#: templates/web/register_committee.html:17
+msgid "Nie masz kodu?"
+msgstr "No code?"
+
+#: templates/web/register_committee.html:18
+msgid "Zarejestruj się jako uczestnik"
+msgstr "Sign up as a participant"
+
+#: templates/web/register_done.html:10
+msgid "Sprawdź skrzynkę e-mail"
+msgstr "Check your mailbox"
+
+#: templates/web/register_done.html:14
+msgid "Konto zostało założone"
+msgstr "The account has been created"
+
+#: templates/web/register_done.html:15
+#, python-format
+msgid ""
+"Wysłaliśmy link aktywacyjny na adres <strong>%(address)s</strong>. Kliknij "
+"go, aby aktywować konto – bez tego logowanie nie zadziała."
+msgstr ""
+"We have sent an activation link to <strong>%(address)s</strong>. Click it to "
+"activate the account – without that, signing in will not work."
+
+#: templates/web/register_done.html:19
+msgid "Jeśli list nie dotarł do skrzynki głównej, sprawdź folder ze spamem."
+msgstr "If the message has not reached your inbox, check the spam folder."
+
+#: templates/web/register_done.html:20
+#, python-format
+msgid ""
+"Link jest ważny %(hours)s godziny – po tym czasie konto zostanie usunięte i "
+"trzeba będzie zarejestrować się ponownie."
+msgstr ""
+"The link is valid for %(hours)s hours – after that the account is deleted "
+"and you have to register again."
+
+#: templates/web/register_done.html:25
+msgid ""
+"Jeśli kod zaproszenia wymagał zatwierdzenia, po aktywacji poczekaj jeszcze "
+"na decyzję koordynatora."
+msgstr ""
+"If the invitation code required approval, wait for the coordinator's "
+"decision after activation."
+
+#: templates/web/register_done.html:27
+msgid "Nie dostałeś listu?"
+msgstr "Did not get the message?"
+
+#: templates/web/register_done.html:28
+msgid "Wyślij link ponownie"
+msgstr "Send the link again"
+
+#: templates/web/register_done.html:29
+msgid "Masz już aktywne konto?"
+msgstr "Already have an active account?"
+
+#: templates/web/reviewer/detail.html:3
+#, python-format
+msgid "Ocena pracy %(code)s"
+msgstr "Reviewing solution %(code)s"
+
+#: templates/web/reviewer/detail.html:6
+#, fuzzy
+#| msgid "Status pracy"
+msgid "Ocena pracy"
+msgstr "Solution status"
+
+#: templates/web/reviewer/detail.html:7 templates/web/reviewer/list.html:49
+#: templates/web/reviewer/list.html:112
+#, fuzzy
+#| msgid "Prace"
+msgid "Praca"
+msgstr "Solutions"
+
+#: templates/web/reviewer/detail.html:8
+#, fuzzy, python-format
+#| msgid "Zadanie %(number)s: %(title)s"
+msgid "zadanie %(number)s"
+msgstr "Problem %(number)s: %(title)s"
+
+#: templates/web/reviewer/detail.html:11
+#, fuzzy, python-format
+#| msgid "Etap: %(stage)s"
+msgid "etap: %(stage)s"
+msgstr "Stage: %(stage)s"
+
+#: templates/web/reviewer/detail.html:14
+#, fuzzy, python-format
+#| msgid "wersja %(version)s"
+msgid "runda %(round)s"
+msgstr "version %(version)s"
+
+#: templates/web/reviewer/detail.html:19
+#, python-format
+msgid "termin: %(due)s"
+msgstr "due: %(due)s"
+
+#: templates/web/reviewer/detail.html:34
+#, fuzzy
+#| msgid "Status pracy"
+msgid "Czas pracy:"
+msgstr "Solution status"
+
+#: templates/web/reviewer/detail.html:35
+#, fuzzy
+#| msgid "brak pliku"
+msgid "brak pomiaru"
+msgstr "no file"
+
+#: templates/web/reviewer/detail.html:43
+msgid "Prace tego zadania"
+msgstr "Solutions to this problem"
+
+#: templates/web/reviewer/detail.html:46
+msgid "Poprzednia praca"
+msgstr "Previous solution"
+
+#: templates/web/reviewer/detail.html:48
+#, python-format
+msgid "%(position)s z %(total)s w tym zadaniu"
+msgstr "%(position)s of %(total)s in this problem"
+
+#: templates/web/reviewer/detail.html:53
+msgid "Następna praca"
+msgstr "Next solution"
+
+#: templates/web/reviewer/detail.html:67
+msgid "Rozwiązanie wzorcowe i uwagi dla recenzentów"
+msgstr "Model solution and notes for reviewers"
+
+#: templates/web/reviewer/detail.html:70
+msgid "Pobierz rozwiązanie wzorcowe (PDF)"
+msgstr "Download the model solution (PDF)"
+
+#: templates/web/reviewer/detail.html:75
+msgid ""
+"Materiał wyłącznie dla komitetu – nie cytuj go w komentarzu dla uczestnika w "
+"częściach, których organizator nie ogłosił."
+msgstr "Committee material only – do not quote it in a comment to the participant in parts the organiser has not published."
+
+#: templates/web/reviewer/detail.html:81
+msgid "Materiał rozjemczy (runda 2)"
+msgstr "Arbitration material (round 2)"
+
+#: templates/web/reviewer/detail.html:82
+msgid ""
+"Punkty i argumentacja obu recenzji rundy 1. Tożsamość recenzentów nie jest "
+"ujawniana – rozstrzygasz spór o pracę, nie między osobami."
+msgstr "The scores and reasoning of both round 1 reviews. Reviewer identities are not disclosed – you are settling a dispute about a solution, not between people."
+
+#: templates/web/reviewer/detail.html:87
+msgid "Komentarz wewnętrzny"
+msgstr "Internal comment"
+
+#: templates/web/reviewer/detail.html:93
+#, fuzzy
+#| msgid "Brak wysłanych wersji."
+msgid "Brak wystawionych ocen rundy 1."
+msgstr "No versions uploaded."
+
+#: templates/web/reviewer/detail.html:106
+#, fuzzy
+#| msgid "Pobierz"
+msgid "Pobierz plik"
+msgstr "Download"
+
+#: templates/web/reviewer/detail.html:130
+#, fuzzy
+#| msgid "przed nami"
+msgid "Poprzednia"
+msgstr "upcoming"
+
+#: templates/web/reviewer/detail.html:133
+msgid "Następna"
+msgstr "Next"
+
+#: templates/web/reviewer/detail.html:138
+#, fuzzy
+#| msgid "Zapisz dane"
+msgid "Zapisz adnotacje"
+msgstr "Save details"
+
+#: templates/web/reviewer/detail.html:147
+#, fuzzy, python-format
+#| msgid "Zdjęcie rozwiązania zadania %(number)s"
+msgid "Zdjęcie rozwiązania pracy %(code)s"
+msgstr "Photo of the solution to problem %(number)s"
+
+#: templates/web/reviewer/detail.html:154
+msgid ""
+"Zaznacz prostokąt na stronie, aby dodać adnotację; treść podasz w okienku."
+msgstr "Drag a rectangle on the page to add an annotation; you type the text in the dialog."
+
+#: templates/web/reviewer/detail.html:156
+msgid ""
+"Zaznacz prostokąt na zdjęciu, aby dodać adnotację; treść podasz w okienku."
+msgstr "Drag a rectangle on the photo to add an annotation; you type the text in the dialog."
+
+#: templates/web/reviewer/detail.html:159
+msgid ""
+"Plik nie jest jeszcze dostępny (trwa skan antywirusowy albo praca nie ma "
+"pliku)."
+msgstr "The file is not available yet (the antivirus scan is running, or the solution has no file)."
+
+#: templates/web/reviewer/detail.html:162
+msgid "Adnotacje"
+msgstr "Annotations"
+
+#: templates/web/reviewer/detail.html:170
+#, fuzzy, python-format
+#| msgid "str. %(page)s: %(text)s"
+msgid "str. %(page)s"
+msgstr "p. %(page)s: %(text)s"
+
+#: templates/web/reviewer/detail.html:171
+#, fuzzy
+#| msgid "Kod publiczny:"
+msgid "(publiczna)"
+msgstr "Public code:"
+
+#: templates/web/reviewer/detail.html:173
+#, fuzzy
+#| msgid "Brak zadań"
+msgid "Brak adnotacji."
+msgstr "No problems"
+
+#: templates/web/reviewer/detail.html:188
+#: templates/web/reviewer/detail.html:189
+msgid "Ocena"
+msgstr "Marking"
+
+#: templates/web/reviewer/detail.html:199
+msgid ""
+"Twoja ocena nie liczy się już do oceny końcowej i nie można jej zmienić."
+msgstr "Your mark no longer counts towards the final grade and cannot be changed."
+
+#: templates/web/reviewer/detail.html:202
+msgid ""
+"Ocenę masz już wystawioną, ale możesz ją poprawić – formularz jest "
+"wypełniony Twoimi punktami i komentarzami. Po zapisaniu rundę 1 rozstrzygamy "
+"od nowa."
+msgstr "Your mark is already in, but you can revise it – the form is filled in with your score and comments. Once saved, round 1 is settled again from scratch."
+
+#: templates/web/reviewer/detail.html:212
+msgid ""
+"Zapisać poprawioną ocenę? Wcześniejsze rozstrzygnięcie rundy zostanie "
+"przeliczone od nowa."
+msgstr "Save the revised mark? The earlier outcome of the round will be recomputed."
+
+#: templates/web/reviewer/detail.html:212
+msgid ""
+"Wystawić ocenę? Poprawić ją będzie można, dopóki koordynator nie odbierze Ci "
+"pracy."
+msgstr "Submit the mark? You can revise it until the coordinator takes the solution away from you."
+
+#: templates/web/reviewer/detail.html:224
+msgid "Punkty (skala etapu)"
+msgstr "Score (stage scale)"
+
+#: templates/web/reviewer/detail.html:234
+msgid "Etap nie ma skali punktacji – zgłoś to koordynatorowi."
+msgstr "The stage has no scoring scale – report this to the coordinator."
+
+#: templates/web/reviewer/detail.html:240
+msgid "Komentarz wewnętrzny (dla komitetu)"
+msgstr "Internal comment (for the committee)"
+
+#: templates/web/reviewer/detail.html:242
+msgid "Widzą go koordynator i komisja odwoławcza – uczestnik nie."
+msgstr "The coordinator and the appeals committee see it – the participant does not."
+
+#: templates/web/reviewer/detail.html:246
+#, fuzzy
+#| msgid "Kalendarz uczestnika"
+msgid "Komentarz dla uczestnika"
+msgstr "Participant calendar"
+
+#: templates/web/reviewer/detail.html:248
+msgid "Trafia do panelu uczestnika po ogłoszeniu wyników etapu."
+msgstr "It reaches the participant panel once the stage results are announced."
+
+#: templates/web/reviewer/detail.html:261
+#, fuzzy
+#| msgid "Zapisz się"
+msgid "Zapisz szkic"
+msgstr "Book"
+
+#: templates/web/reviewer/detail.html:264
+msgid "Popraw ocenę"
+msgstr "Revise the mark"
+
+#: templates/web/reviewer/detail.html:264
+#, fuzzy
+#| msgid "Wyślij ponownie"
+msgid "Wyślij ocenę"
+msgstr "Send again"
+
+#: templates/web/reviewer/list.html:3
+#, fuzzy
+#| msgid "Recenzje"
+msgid "Moje recenzje"
+msgstr "Reviews"
+
+#: templates/web/reviewer/list.html:6
+#, fuzzy
+#| msgid "Od recenzenta"
+msgid "Panel recenzenta"
+msgstr "From a reviewer"
+
+#: templates/web/reviewer/list.html:7
+msgid "Moje przydziały"
+msgstr "My assignments"
+
+#: templates/web/reviewer/list.html:8
+msgid ""
+"Ocenianie jest ślepe: prace są identyfikowane kodem publicznym uczestnika."
+msgstr "Marking is blind: solutions are identified by the participant's public code."
+
+#: templates/web/reviewer/list.html:17
+msgid "Pobierz moje prace (ZIP)"
+msgstr "Download my solutions (ZIP)"
+
+#: templates/web/reviewer/list.html:18
+msgid "Wszystkie przydzielone prace w jednym archiwum. Pliki są anonimowe."
+msgstr "All assigned solutions in one archive. The files are anonymous."
+
+#: templates/web/reviewer/list.html:33
+#, fuzzy, python-format
+#| msgid "Zadanie %(number)s: %(title)s"
+msgid "zadanie %(number)s: %(title)s"
+msgstr "Problem %(number)s: %(title)s"
+
+#: templates/web/reviewer/list.html:37
+#, fuzzy, python-format
+#| msgid "%(rank)s z %(total)s"
+msgid "%(open)s z %(total)s do zrobienia"
+msgstr "%(rank)s of %(total)s"
+
+#: templates/web/reviewer/list.html:40
+#, fuzzy, python-format
+#| msgid "po terminie"
+msgid "%(count)s po terminie"
+msgstr "late"
+
+#: templates/web/reviewer/list.html:50 templates/web/reviewer/list.html:115
+msgid "Runda"
+msgstr "Round"
+
+#: templates/web/reviewer/list.html:70
+msgid "Zgłoszony problem czeka na koordynatora"
+msgstr "A reported problem is waiting for the coordinator"
+
+#: templates/web/reviewer/list.html:71
+msgid "zgłoszony problem"
+msgstr "reported problem"
+
+#: templates/web/reviewer/list.html:83
+msgid "otwórz"
+msgstr "open"
+
+#: templates/web/reviewer/list.html:93
+#, fuzzy
+#| msgid "Brak warsztatów"
+msgid "Brak przydziałów"
+msgstr "No workshops"
+
+#: templates/web/reviewer/list.html:94
+msgid ""
+"Nie masz jeszcze przydzielonych prac. Przydziału dokonuje koordynator, gdy "
+"prace trafią do oceniania – czasem jeszcze przed zamknięciem etapu."
+msgstr "You have no solutions assigned yet. The coordinator assigns them once solutions enter grading – sometimes even before the stage closes."
+
+#: templates/web/reviewer/list.html:106
+#, fuzzy
+#| msgid "Recenzje"
+msgid "Recenzje anulowane"
+msgstr "Reviews"
+
+#: templates/web/reviewer/list.html:107
+msgid "Te oceny nie liczą się do oceny końcowej i nie można ich już zmienić."
+msgstr "These marks do not count towards the final grade and can no longer be changed."
+
+#: templates/web/reviewer/list.html:113
+msgid "Etap"
+msgstr "Stage"
+
+#: templates/web/reviewer/list.html:117
+msgid "Powód"
+msgstr "Reason"
+
+#: templates/web/statistics.html:12
+msgid "Statystyki olimpiady"
+msgstr "Olympiad statistics"
+
+#: templates/web/statistics.html:13
+msgid ""
+"Liczby o ogłoszonych etapach Olimpiady Kwantowej: rozkład punktów, mediana, "
+"progi kwalifikacji i uczestnicy według województw."
+msgstr ""
+"Numbers on announced stages of the Quantum Olympiad: score distribution, "
+"median, qualification thresholds and participants by voivodeship."
+
+#: templates/web/statistics.html:20
+msgid "Olimpiada w liczbach"
+msgstr "The Olympiad in numbers"
+
+#: templates/web/statistics.html:21
+msgid ""
+"Wszystkie liczby pochodzą z ogłoszonych tabel wyników i dotyczą etapów, nie "
+"osób."
+msgstr ""
+"All the numbers come from published result tables and describe stages, not "
+"people."
+
+#: templates/web/statistics.html:22
+msgid ""
+"Nie ma tu żadnych danych osobowych ani rozbicia poniżej województwa. Tabele "
+"obliczane są z zamrożonych publikacji, więc zgadzają się co do sztuki z "
+"ogłoszonymi wynikami."
+msgstr ""
+"There is no personal data here and no breakdown below voivodeship level. The "
+"tables are computed from frozen publications, so they match the announced "
+"results exactly."
+
+#: templates/web/statistics.html:32
+msgid "Pełna tabela"
+msgstr "Full table"
+
+#: templates/web/statistics.html:34
+#, python-format
+msgid "Wyniki ogłoszone %(when)s."
+msgstr "Results announced on %(when)s."
+
+#: templates/web/statistics.html:39
+msgid "Uczestnicy w tabeli"
+msgstr "Participants in the table"
+
+#: templates/web/statistics.html:40
+msgid "Średnia punktów"
+msgstr "Mean score"
+
+#: templates/web/statistics.html:41
+msgid "Mediana punktów"
+msgstr "Median score"
+
+#: templates/web/statistics.html:42
+msgid "Najwyższy wynik"
+msgstr "Highest score"
+
+#: templates/web/statistics.html:43
+msgid "Zakwalifikowani"
+msgstr "Qualified"
+
+#: templates/web/statistics.html:53
+msgid "najniższy wynik wśród zakwalifikowanych"
+msgstr "the lowest score among those who qualified"
+
+#: templates/web/statistics.html:59
+#, python-format
+msgid "Zadanie %(number)s – rozkład punktów"
+msgstr "Problem %(number)s – score distribution"
+
+#: templates/web/statistics.html:63
+#, python-format
+msgid "Liczba prac według liczby punktów w zadaniu %(number)s."
+msgstr "Number of solutions by score in problem %(number)s."
+
+#: templates/web/statistics.html:69
+msgid "Prace"
+msgstr "Solutions"
+
+#: templates/web/statistics.html:70 templates/web/statistics.html:103
+msgid "Udział"
+msgstr "Share"
+
+#: templates/web/statistics.html:91
+msgid "Ten etap nie ma punktów w rozbiciu na zadania."
+msgstr "This stage has no per-problem scores."
+
+#: templates/web/statistics.html:96
+msgid "Uczestnicy według województw"
+msgstr "Participants by voivodeship"
+
+#: templates/web/statistics.html:98
+msgid "Liczba uczestników w tabeli wyników według województwa."
+msgstr "Number of participants in the result table by voivodeship."
+
+#: templates/web/statistics.html:101
+msgid "Województwo"
+msgstr "Voivodeship"
+
+#: templates/web/statistics.html:102
+msgid "Uczestnicy"
+msgstr "Participants"
+
+#: templates/web/statistics.html:130
+msgid ""
+"Dla tego etapu nie publikujemy rozbicia na województwa – ogłoszona tabela go "
+"nie zawiera."
+msgstr ""
+"We do not publish a voivodeship breakdown for this stage – the announced "
+"table does not contain one."
+
+#: templates/web/statistics.html:135
+msgid "Jeszcze nie ma liczb"
+msgstr "No numbers yet"
+
+#: templates/web/statistics.html:136
+msgid ""
+"Żaden etap nie ma ogłoszonych wyników. Statystyki pojawią się razem z "
+"pierwszą publikacją."
+msgstr ""
+"No stage has announced results. The statistics appear together with the "
+"first publication."

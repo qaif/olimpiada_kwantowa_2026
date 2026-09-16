@@ -21,6 +21,7 @@ from apps.core.api import DomainError
 from .models import AvStatus, Submission, SubmissionFile, SubmissionStatus
 from .notifications import notify_submission_infected, notify_submission_received
 from .packaging import ZipPackage, build_zip
+from .preview import store_page_count
 from .storage import build_object_key, get_submission_storage
 from .validators import validate_upload
 
@@ -591,6 +592,11 @@ def apply_scan_verdict(submission_file: SubmissionFile, verdict: str, signature:
             # statusów dalszych w cyklu życia skan nie cofa.
             submission.status = _status_after_scan(submission)
             submission.save(update_fields=["status"])
+    if not infected:
+        # Metryki podglądu (liczba stron PDF-a) liczymy **poza** transakcją i wyłącznie dla pliku
+        # uznanego za czysty: to pierwsza chwila, w której wolno przeczytać jego treść, a odczyt
+        # idzie do S3 i nie ma po co trzymać na niego otwartej transakcji bazodanowej.
+        store_page_count(locked)
     return locked
 
 

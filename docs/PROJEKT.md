@@ -234,20 +234,34 @@ Reguły integralności egzekwowane w bazie/serwisie:
 
 ### 2.3 Macierz uprawnień (RBAC)
 
-| Akcja | Uczestnik | Recenzent (ACTIVE) | Recenzent odwoławczy | Koordynator |
-|---|---|---|---|---|
-| Rejestracja otwarta | ✔ | – | – | – |
-| Rejestracja z kodem / oczekiwanie na zatwierdzenie | – | ✔ | ✔ | zatwierdza |
-| Upload rozwiązania (przed deadline) | własne | – | – | w imieniu (audyt) |
-| Podgląd rozwiązań | własne | przydzielone | reklamowane | wszystkie |
-| Wystawienie oceny (runda 1) | – | przydzielone | – | – |
-| Rozstrzyganie rozjazdów (runda 2 / moderacja) | – | wyznaczony trzeci | – | ✔ |
-| Złożenie reklamacji | własne, w oknie | – | – | – |
-| Decyzja o reklamacji | – | – | ✔ | ✔ |
-| Parametryzacja skali/progów/terminów | – | – | – | ✔ |
-| Publikacja wyników, newsroom, archiwum | – | – | – | ✔ (Wagtail: rola Editor/Moderator) |
+| Akcja | Uczestnik | Recenzent (ACTIVE) | Recenzent odwoławczy | Opiekun szkolny | Koordynator |
+|---|---|---|---|---|---|
+| Rejestracja otwarta | ✔ | – | – | ✔ | – |
+| Rejestracja z kodem / oczekiwanie na zatwierdzenie | – | ✔ | ✔ | – | zatwierdza |
+| Upload rozwiązania (przed deadline) | własne | – | – | – | w imieniu (audyt) |
+| Podgląd rozwiązań | własne | przydzielone | reklamowane | – | wszystkie |
+| Wystawienie oceny (runda 1) | – | przydzielone | – | – | – |
+| Rozstrzyganie rozjazdów (runda 2 / moderacja) | – | wyznaczony trzeci | – | – | ✔ |
+| Złożenie reklamacji | własne, w oknie | – | – | – | – |
+| Decyzja o reklamacji | – | – | ✔ | – | ✔ |
+| Status prac ucznia (ścieżka, bez punktów przed publikacją) | własne | – | – | uczniów, którzy go wskazali | wszystkie |
+| Potwierdzenie udziału szkoły w edycji | – | – | – | ✔ | – |
+| Parametryzacja skali/progów/terminów | – | – | – | – | ✔ |
+| Kwalifikacja ręczna z uzasadnieniem | – | – | – | – | ✔ |
+| Wystawianie dyplomów i zaświadczeń | – | – | – | – | ✔ |
+| Publikacja wyników, newsroom, archiwum | – | – | – | – | ✔ (Wagtail: rola Editor/Moderator) |
 
-Implementacja: grupy Django `participant`, `reviewer`, `appeals`, `coordinator` + klasy uprawnień DRF (`IsParticipantOfEntry`, `IsAssignedReviewer`, `IsAppealsCommittee`, `IsCoordinator`) + filtrowanie querysetów per rola w jednym miejscu (`for_user(user)` na managerach).
+Implementacja: grupy Django `participant`, `reviewer`, `appeals`, `coordinator`, `supervisor` + klasy uprawnień DRF (`IsParticipantOfEntry`, `IsAssignedReviewer`, `IsAppealsCommittee`, `IsCoordinator`) + filtrowanie querysetów per rola w jednym miejscu (`for_user(user)` na managerach).
+
+**Opiekun szkolny (`supervisor`)** jest rolą wyłącznie do odczytu i jedyną, której uprawnienie
+nadaje **uczestnik, a nie organizator**: nauczyciel widzi tych uczniów, którzy sami wpisali jego
+adres e-mail w swoim profilu (`Participant.supervisor_email`), i tylko ich ścieżkę statusu — nigdy
+prac, komentarzy recenzentów ani punktów przed ogłoszeniem wyników etapu. Uczestnik cofa ten
+dostęp, czyszcząc pole. Rejestracja opiekuna jest otwarta, bo samo konto nie daje wglądu w niczyje
+dane; jedyny zapis, jaki opiekun wykonuje, to oświadczenie o udziale własnej szkoły w edycji
+(`accounts.SchoolParticipation`), które jest podstawą wystawienia mu zaświadczenia. Definicja roli
+ma jedno miejsce: `apps.accounts.supervisors.supervisor_profile` (grupa **i** profil
+`SchoolSupervisor`), wołane przez mixin widoku, nawigację i przekierowanie po zalogowaniu.
 
 ### 2.4 Workflow oceniania (wzorowany na OM)
 

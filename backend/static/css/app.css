@@ -4298,3 +4298,197 @@ img.captcha {
   margin: var(--sp-1) 0 0;
   white-space: pre-wrap;
 }
+
+/* --- Podgląd kodu w panelu recenzenta ----------------------------------------------------------
+   Listing rozwiązania oddanego jako ``.py``/``.ipynb``: ponumerowane wiersze i podświetlenie
+   tych, do których recenzent przypiął uwagę. Wysokość jest ograniczona, bo listing stoi w tej
+   samej kolumnie, co podgląd pliku – rozwiązanie na tysiąc wierszy nie może zepchnąć formularza
+   oceny poza ekran. */
+.code-listing {
+  max-height: 60vh;
+  overflow: auto;
+  margin: 0;
+  padding: var(--sp-2) 0;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.code-line {
+  display: flex;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-2);
+}
+
+/* Wiersz z uwagą ma ten sam akcent, co własny wpis w wątku notatek – jeden język wyróżnienia
+   w całym panelu recenzenta. */
+.code-line--noted {
+  background: var(--warn-soft);
+  box-shadow: inset 3px 0 0 var(--warn);
+}
+
+/* Numer linii jest przyciskiem (wpisuje linię do formularza uwagi), ale ma wyglądać jak numer:
+   bez ramki, bez tła, w kolorze tekstu drugoplanowego. Stała szerokość utrzymuje kod w jednej
+   kolumnie niezależnie od tego, czy plik ma dziewięć wierszy, czy dziewięćset. */
+.code-line__no {
+  flex: 0 0 4ch;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  text-align: right;
+  cursor: pointer;
+  user-select: none;
+}
+
+.code-line__text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* --- przełączniki języka i kontrastu w pasku konta -------------------------------------------- */
+
+/* Dwa jednoprzyciskowe formularze POST (a nie odnośniki – zmieniają stan po stronie serwera).
+   Mają wyglądać jak reszta paska, więc nie wnoszą własnego marginesu ani tła; ``inline`` z
+   komponentu formularzy zdejmuje domyślny odstęp ``<form>``. */
+.account-bar__prefs {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+/* Kod języka („EN”, „PL”) jest krótki i ma nie skakać przy zmianie – stała szerokość minimalna
+   i cyfrowa przestrzeń liter trzymają pasek w jednym miejscu. */
+.account-bar__prefs button {
+  min-width: 2.5rem;
+}
+
+/* =================================================================================================
+   TRYB WYSOKIEGO KONTRASTU  ``<html data-contrast="high">``
+   =================================================================================================
+
+   Włącza go człowiek przełącznikiem „Kontrast” w pasku konta; atrybut na ``<html>`` stawia
+   ``apps.accounts.preferences`` (dla konta zapisany w ``UserPreference``, dla gościa w sesji).
+
+   Dlaczego osobny tryb, skoro jest wariant ciemny: ciemny motyw odpowiada na pytanie „jakie
+   światło mam w pokoju”, a ten na pytanie „czy w ogóle widzę tę krawędź”. Paleta serwisu jest
+   ciepła i niskokontrastowa z premedytacją (papier, granat, ceglany akcent) – ładna, ale przy
+   słabym wzroku, na tanim ekranie i w słońcu granica karty po prostu znika.
+
+   Trzy zasady tego trybu:
+
+   - **czerń, biel i żółć**. Trzy kolory zamiast dwudziestu: każdy dodatkowy odcień to kolejna para,
+     której kontrast trzeba sprawdzić, a żółć na czerni jest jedynym ostrzeżeniem czytelnym także
+     przy deuteranopii (najczęstszej wadzie rozpoznawania barw). Znaczenie niesie **kształt
+     i słowo**, kolor jest wzmocnieniem, nie komunikatem – odznaki mają swoje etykiety tekstowe,
+   - **każda krawędź jest widoczna**: obramowania idą na 2 px i na kolor tekstu, a cienie znikają.
+     Cień jest miękką sugestią granicy i w tym trybie nie niesie nic poza rozmyciem,
+   - **fokus widać z drugiego końca pokoju**: gruby, żółty pierścień z czarnym podkładem, ten sam
+     na każdym elemencie sterującym. To jest jedyna informacja o tym, gdzie jest klawiatura.
+
+   Nadpisujemy **tokeny**, a nie poszczególne komponenty: dzięki temu tryb obejmuje też arkusze
+   dokładane per ekran (``coordinator-tools.css``, ``statistics.css``, ``upload-preview.css``),
+   które żadnego własnego koloru nie definiują. Selektor ``:where()`` przy regułach
+   komponentowych trzyma ich swoistość nisko, żeby nie wygrywały z regułami stanu (``:disabled``).
+   ============================================================================================== */
+
+:root[data-contrast="high"] {
+  --bg: #000;
+  --bg-muted: #000;
+  --surface: #000;
+  --surface-2: #000;
+  --surface-inset: #1a1a1a;
+  --ink: #fff;
+  --ink-soft: #fff;
+  --muted: #f2f2f2;
+  --line: #fff;
+  --line-strong: #fff;
+
+  --brand: #000;
+  --brand-ink: #fff;
+  --brand-soft: #1a1a1a;
+
+  /* Żółć jest w tym trybie jedynym akcentem i jedyną barwą „uwagi”. Na czerni daje kontrast
+     ponad 15:1, czyli z zapasem ponad wymaganie AAA (7:1) dla tekstu. */
+  --accent: #ffe500;
+  --accent-ink: #ffe500;
+  --accent-soft: #000;
+  --accent-on-brand: #ffe500;
+  --accent-rule: #ffe500;
+
+  --ok: #fff;
+  --ok-ink: #fff;
+  --ok-soft: #000;
+  --warn: #ffe500;
+  --warn-ink: #ffe500;
+  --warn-soft: #000;
+  --danger: #ffe500;
+  --danger-ink: #ffe500;
+  --danger-soft: #000;
+  --info: #fff;
+  --info-ink: #fff;
+  --info-soft: #000;
+  --neutral-ink: #fff;
+  --neutral-soft: #000;
+
+  --link: #ffe500;
+  --link-hover: #fff;
+  --focus: #ffe500;
+
+  /* Cień jest miękką sugestią granicy – w tym trybie granicę niesie obramowanie, a rozmycie
+     tylko zjadałoby kontrast krawędzi. */
+  --shadow-sm: none;
+  --shadow: none;
+  --shadow-inset: none;
+}
+
+/* Tło dokumentu i tekst wprost, bo część elementów dziedziczy je z ``body``, a nie z tokenu. */
+:root[data-contrast="high"] body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+/* Każda krawędź na 2 px i w kolorze tekstu. ``:where`` trzyma swoistość na zerze, więc reguły
+   stanu (``:disabled``, ``aria-current``) nadal wygrywają. */
+:root[data-contrast="high"] :where(.card, .table, .table td, .table th, .btn, .form input,
+.form select, .form textarea, input, select, textarea, .badge, .msg, .notice, .empty) {
+  border: 2px solid currentColor;
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+
+/* Odnośniki zawsze podkreślone: w tym trybie kolor nie może być jedyną różnicą między odnośnikiem
+   a tekstem (WCAG 1.4.1 – „użycie koloru”). */
+:root[data-contrast="high"] a {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+/* Jeden pierścień fokusu dla wszystkiego, co da się kliknąć albo w co da się wpisać. ``:focus``
+   obok ``:focus-visible``, bo niektóre przeglądarki nie uznają kliknięcia myszą w pole tekstowe
+   za „visible” – a w tym trybie widoczny kursor klawiatury jest ważniejszy niż estetyka. */
+:root[data-contrast="high"] :is(a, button, input, select, textarea, summary, [tabindex]):is(:focus, :focus-visible) {
+  outline: 4px solid var(--focus);
+  outline-offset: 2px;
+  background: #000;
+  color: #fff;
+}
+
+/* Odznaki i komunikaty: znaczenie niesie tekst, więc tło znika, a zostaje ramka i kolor pisma.
+   Żółć rezerwujemy dla ostrzeżeń, odmów i akcentu – reszta jest biała. */
+:root[data-contrast="high"] :where(.badge, .msg) {
+  background: #000;
+  color: #fff;
+}
+
+:root[data-contrast="high"] :where(.badge--warn, .badge--danger, .msg-error, .msg-warning) {
+  color: #ffe500;
+}
+
+/* Obrazki i wykresy zostają bez zmian – ale słupki statystyk i pasek postępu biorą kolor z tokenów,
+   więc w tym trybie stają się białe na czarnym torze z białą ramką. To jest zamierzone: wykres
+   ma pokazywać proporcję, a liczba stoi obok niego i to ona jest odpowiedzią. */

@@ -1,0 +1,83 @@
+{% comment %}
+  Podgląd rozwiązania oddanego jako kod (``.py``, ``.ipynb``) i uwagi przypięte do linii.
+
+  Listing renderuje **serwer** (``apps.grading.code_view``), więc strona działa bez JavaScriptu:
+  numery linii, treść i podświetlenie wierszy z uwagami są w HTML-u. Treść pliku przechodzi przez
+  autoescapowanie Django – nigdzie w tej ścieżce nie ma ``mark_safe``.
+
+  Skrypt ``static/js/review-code-notes.js`` dokłada jedno udogodnienie: kliknięcie numeru linii
+  wpisuje ją do formularza uwagi. Bez skryptu numer wpisuje się ręcznie i formularz działa tak samo.
+
+  Kodu uczestnika **nie uruchamiamy** – plik jest odczytywany jako tekst i wypisywany. Notatnik
+  jest czytany jako JSON, bez ``nbformat``/``nbconvert``.
+{% endcomment %}
+<section class="card" aria-label="Kod rozwiązania" id="code-view">
+  <div class="card__head">
+    <h3 class="mt-0">Kod rozwiązania
+      <span class="badge badge--neutral">{% if code_listing.kind == "ipynb" %}notatnik Jupyter{% else %}Python{% endif %}</span>
+    </h3>
+  </div>
+
+  {% if code_listing.error %}
+    <p class="msg msg-warning closed">{{ code_listing.error }}</p>
+  {% else %}
+    {% if code_listing.truncated %}
+      <p class="msg msg-warning closed">Podgląd obcięty – plik jest większy niż limit podglądu.
+        Pobierz plik, aby zobaczyć całość.</p>
+    {% endif %}
+    {% if code_listing.kind == "ipynb" %}
+      <p class="hint">Notatnik pokazujemy jako same komórki kodu, rozdzielone nagłówkami
+        <code># --- komórka N ---</code>. Komórki tekstowe i wyniki poprzednich uruchomień są
+        pominięte – oceniasz rozwiązanie, a nie zrzut z ostatniego uruchomienia.</p>
+    {% endif %}
+
+    {% comment %}
+      Numer linii jest przyciskiem, a nie samym tekstem: z działającym skryptem wpisuje ten numer
+      do formularza uwagi, a bez skryptu jest nieczynny i nic nie obiecuje – numer i tak widać,
+      a do pola wpisuje się go ręcznie. Przycisk zamiast ``<span>`` dlatego, że tę czynność musi
+      dać się wykonać z klawiatury.
+    {% endcomment %}
+    <div class="scroll">
+      <pre class="code-listing" data-code-listing><code>{% spaceless %}
+        {% for line in code_listing.lines %}<span class="code-line{% if line.noted %} code-line--noted{% endif %}"><button type="button" class="code-line__no" data-code-line="{{ line.number }}" aria-label="Uwaga do linii {{ line.number }}">{{ line.number }}</button><span class="code-line__text">{{ line.text }}</span></span>
+        {% empty %}<span class="hint">Plik jest pusty.</span>{% endfor %}
+      {% endspaceless %}</code></pre>
+    </div>
+  {% endif %}
+
+  <h4>Uwagi do linii</h4>
+  <ul class="annotations">
+    {% for note in line_notes %}
+      <li>linia {{ note.line }}{% if note.public %} (publiczna){% endif %}: {{ note.text }}</li>
+    {% empty %}
+      <li class="hint">Brak uwag do linii.</li>
+    {% endfor %}
+  </ul>
+
+  {% if editable %}
+    {% comment %}
+      Formularz stoi wyłącznie przy recenzji, którą wolno jeszcze zmieniać. Serwis i tak odmówi
+      zapisu do recenzji wystawionej albo anulowanej (``_assert_review_open``), ale pokazywanie
+      pola, które zawsze skończy się odmową, byłoby obietnicą bez pokrycia.
+    {% endcomment %}
+    <form method="post" action="{% url 'web:review-line-note' review.pk %}" class="form">
+      {% csrf_token %}
+      <p class="field">
+        <label for="id_note_line">Numer linii</label>
+        <input type="number" id="id_note_line" name="line" min="1" required data-code-line-input>
+      </p>
+      <p class="field">
+        <label for="id_note_text">Uwaga do linii</label>
+        <textarea id="id_note_text" name="text" rows="3" required></textarea>
+      </p>
+      <p class="field">
+        <input type="checkbox" name="public" value="1" id="id_note_public">
+        <label for="id_note_public">Pokaż uczestnikowi po ogłoszeniu wyników</label>
+        <span class="helptext">Niezaznaczone = uwaga robocza, widoczna wyłącznie dla komitetu.</span>
+      </p>
+      <div class="actions">
+        <button type="submit" class="btn btn--secondary">Dodaj uwagę do linii</button>
+      </div>
+    </form>
+  {% endif %}
+</section>

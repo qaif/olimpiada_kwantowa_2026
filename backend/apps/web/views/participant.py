@@ -20,6 +20,7 @@ from django.utils import timezone
 from django.views.generic import TemplateView, View
 
 from apps.accounts.consents import CONSENTS, ConsentKind, ConsentSource, labels
+from apps.accounts.guardian import guardian_status
 from apps.accounts.services import consents_for_participant, set_publish_name_consent
 from apps.appeals.services import appealable_submissions, appeals_for_participant, file_appeal
 from apps.competitions.interviews import (
@@ -36,8 +37,10 @@ from apps.competitions.services import (
     register_for_stage,
     training_stage,
 )
+from apps.competitions.video import PRECHECK_TEXT
 from apps.core.api import DomainError
 from apps.results.services import published_results, results_for_participant
+from apps.submissions.preview import preview_for
 from apps.submissions.services import (
     UNDER_REVIEW_STATUSES,
     create_submission,
@@ -91,9 +94,22 @@ def _problem_rows(user, entry: StageEntry | None) -> list[dict]:
             "versions": versions.get(problem.pk, []),
             "under_review": _under_review(versions.get(problem.pk, [])),
             "track": _track_for(versions.get(problem.pk, []), entry.stage, publication),
+            "preview": _preview_of(versions.get(problem.pk, [])),
         }
         for problem in problems
     ]
+
+
+def _preview_of(versions: list) -> dict | None:
+    """Podgląd **najnowszej** wersji pracy albo ``None``.
+
+    Tylko najnowsza, bo to ona pójdzie do oceny – miniatury wszystkich wersji naraz kosztowałyby
+    tyle samo pobrań ze storage, ile jest wierszy w historii, a odpowiadałyby na pytanie, którego
+    nikt nie zadaje. Regułę „co da się pokazać” trzyma ``apps.submissions.preview``.
+    """
+    if not versions:
+        return None
+    return preview_for(versions[0].latest_file)
 
 
 def _track_for(versions: list, stage: Stage, publication) -> object:
@@ -146,6 +162,7 @@ def _problem_row(user, entry: StageEntry, problem: Problem) -> dict:
         "versions": versions,
         "under_review": _under_review(versions),
         "track": _track_for(versions, entry.stage, published_results(entry.stage_id)),
+        "preview": _preview_of(versions),
     }
 
 
@@ -200,6 +217,9 @@ class MeView(ParticipantRequiredMixin, TemplateView):
                     if stage is not None and stage.is_interview
                     else None
                 ),
+                # Instrukcja „co zrobić przed rozmową” w jednym brzmieniu dla panelu i dla listu –
+                # patrz ``apps.competitions.video.PRECHECK_TEXT``.
+                "interview_precheck_text": PRECHECK_TEXT,
                 "results": results_for_participant(user),
                 # Reguła „co podlega reklamacji” mieszka w serwisie reklamacji, nie w widoku –
                 # ten sam predykat obowiązuje w API i przy walidacji w ``file_appeal``.
@@ -207,6 +227,10 @@ class MeView(ParticipantRequiredMixin, TemplateView):
                 "appeal_form": AppealForm(),
                 "my_appeals": list(appeals_for_participant(user)),
                 "consent_rows": _consent_rows(self.participant),
+                # Stan zgody opiekuna liczy serwis (``apps.accounts.guardian``): wiek uczestnika,
+                # wysłana prośba i wpis dowodowy to trzy fakty z trzech miejsc i szablon nie ma
+                # ich składać samodzielnie.
+                "guardian": guardian_status(self.participant),
                 "publish_name_kind": ConsentKind.PUBLISH_NAME,
             }
         )

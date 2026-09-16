@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% comment %}
+  Własne dyplomy i zaświadczenia uczestnika: lista i pobranie, nic więcej.
+
+  Dokument powstaje przy każdym pobraniu (w bazie jest wyłącznie jego numer i kod), więc na tej
+  stronie nie ma stanu „plik gotowy / plik w przygotowaniu” – jest albo wystawiony dokument,
+  albo go nie ma.
+{% endcomment %}
+{% block title %}Moje dyplomy{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:me' %}">Mój panel</a></span>
+  <h1>Dyplomy i zaświadczenia</h1>
+  <p class="lead">Dokumenty wystawione przez komitet. Każdy ma numer i kod weryfikacyjny –
+    po kodzie każdy może sprawdzić jego ważność bez logowania.</p>
+</div>
+
+<section class="section">
+  <div class="card">
+    {% if certificates %}
+      <div class="scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Numer</th>
+              <th scope="col">Rodzaj</th>
+              <th scope="col">Edycja</th>
+              <th scope="col">Kod weryfikacyjny</th>
+              <th scope="col">Plik</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for certificate in certificates %}
+              <tr>
+                <th scope="row">{{ certificate.number }}</th>
+                <td>{{ certificate.get_kind_display }}</td>
+                <td>{{ certificate.edition.year_label }}</td>
+                <td>
+                  <a href="{% url 'web:certificate-verify' certificate.code %}">
+                    <span class="code-chip">{{ certificate.code }}</span></a>
+                </td>
+                <td>
+                  <a class="btn btn--small btn--secondary"
+                     href="{% url 'web:participant-certificate-download' certificate.pk %}">Pobierz PDF</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="empty">Nie masz jeszcze żadnego dokumentu. Dyplomy i zaświadczenia komitet
+        wystawia po zakończeniu zawodów – to normalne, że przez większą część roku ta lista
+        jest pusta.</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

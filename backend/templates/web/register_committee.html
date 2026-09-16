@@ -1,21 +1,21 @@
 {% extends "base.html" %}
-{% block title %}Rejestracja członka komitetu{% endblock %}
+{% load i18n %}
+{% block title %}{% translate "Rejestracja członka komitetu" %}{% endblock %}
 {% block content %}
 <div class="auth">
   <div class="card">
-    <h1>Rejestracja członka komitetu</h1>
-    <p class="auth__intro">Konto recenzenta lub członka komisji odwoławczej zakłada się na kod
-      zaproszenia wydany przez koordynatora.</p>
+    <h1>{% translate "Rejestracja członka komitetu" %}</h1>
+    <p class="auth__intro">{% translate "Konto recenzenta lub członka komisji odwoławczej zakłada się na kod zaproszenia wydany przez koordynatora." %}</p>
     <form method="post" class="form">
       {% csrf_token %}
       {# Legenda gwiazdki – marker rysuje arkusz z klasy ``required`` (apps/web/forms.py). #}
-      <p class="form__required-note">Pola oznaczone * są obowiązkowe.</p>
+      <p class="form__required-note">{% translate "Pola oznaczone * są obowiązkowe." %}</p>
       {{ form.as_p }}
-      <p class="hint">Województwo podane w kodzie zaproszenia jest nadrzędne wobec deklaracji z formularza –
-        tylko takie województwo liczy się przy regule konfliktu interesów.</p>
-      <button type="submit" class="btn btn--primary btn--block">Załóż konto</button>
+      <p class="hint">{% translate "Województwo podane w kodzie zaproszenia jest nadrzędne wobec deklaracji z formularza – tylko takie województwo liczy się przy regule konfliktu interesów." %}</p>
+      <button type="submit" class="btn btn--primary btn--block">{% translate "Załóż konto" %}</button>
     </form>
-    <p class="auth__alt">Nie masz kodu? <a href="{% url 'web:register' %}">Zarejestruj się jako uczestnik</a>.</p>
+    <p class="auth__alt">{% translate "Nie masz kodu?" %}
+      <a href="{% url 'web:register' %}">{% translate "Zarejestruj się jako uczestnik" %}</a>.</p>
   </div>
 </div>
 {% endblock %}

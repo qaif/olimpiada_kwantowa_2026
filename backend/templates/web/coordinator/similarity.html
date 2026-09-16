@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+  Podobieństwo rozwiązań w etapie. Ekran jest odczytem; liczenie uruchamia osobny przycisk,
+  bo przy komplecie prac trwa ono minuty i idzie zadaniem w tle.
+
+  Tabela stoi na kodach uczestników – to one są tożsamością pracy w całym ocenianiu. Imiona
+  i nazwiska są obok, bo ten ekran ogląda wyłącznie koordynator (macierz uprawnień, PROJEKT.md
+  2.3) i to on zwołuje komitet; kolumna jest jawnie oznaczona jako dane osobowe.
+{% endcomment %}
+{% block title %}Podobieństwo rozwiązań – {{ stage.display_name }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
+  <h1>Podobieństwo rozwiązań: {{ stage.display_name }}</h1>
+  <p class="lead">Porównanie każdej pary prac w zadaniach oddawanych jako kod. Wysoki wynik jest
+    <strong>przesłanką, nie dowodem</strong>: przy zadaniu z jednym oczywistym algorytmem dwie
+    uczciwe prace potrafią wyjść bardzo podobnie. Rozstrzyga komitet, patrząc na porównanie.</p>
+</div>
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Jak to jest liczone</h2>
+    <p>Z pliku zostaje ciąg tokenów: komentarze znikają, napisy i liczby stają się jednym
+      symbolem, a każda nazwa zmiennej i funkcji – symbolem <code>ID</code>. Porównujemy więc
+      <strong>kształt rozwiązania</strong>, a nie nazwy, które łatwo podmienić. Notatnik przed
+      porównaniem sklejamy z samych komórek kodu.</p>
+    <p class="hint">W bazie zapisujemy pary od {{ store_threshold }} w górę; tabela pokazuje te
+      powyżej progu z pola obok. Na jedno zadanie porównujemy najwyżej {{ max_pairs }} par –
+      po przekroczeniu limitu przeliczenie przerywa się dla tego zadania i mówi o tym wprost
+      w komunikacie, zamiast po cichu oddać niekompletną listę.</p>
+    {% if problems %}
+      <p>Zadania objęte porównaniem:
+        {% for problem in problems %}<strong>{{ problem.number }}</strong>{% if not forloop.last %}, {% endif %}{% endfor %}.</p>
+    {% else %}
+      <p class="msg msg-warning">W tym etapie nie ma zadań przyjmujących <code>py</code> ani
+        <code>ipynb</code> – nie ma czego porównywać.</p>
+    {% endif %}
+    <form method="post" action="{% url 'web:coordinator-similarity-recompute' stage.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn--primary">Przelicz</button>
+      <span class="hint">Liczenie idzie w tle. Odśwież tę stronę za chwilę.</span>
+    </form>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Próg pokazywania</h2>
+  </div>
+  <div class="card">
+    <form method="get" class="form">
+      {{ form.as_p }}
+      <div class="actions">
+        <button type="submit" class="btn btn--secondary">Pokaż</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Pary powyżej {{ threshold }}</h2>
+    <span class="badge badge--danger">dane osobowe</span>
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Podobieństwo</th>
+          <th scope="col">Zadanie</th>
+          <th scope="col">Praca A</th>
+          <th scope="col">Praca B</th>
+          <th scope="col">Zgłoszenie</th>
+          <th scope="col">Porównanie</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pair in pairs %}
+          <tr>
+            <td class="num total">{{ pair.percent }}%</td>
+            <td>{{ pair.problem.number }}</td>
+            <td>
+              <span class="code-chip">{{ pair.submission_a.entry.participant.public_code }}</span>
+              <span class="hint">{{ pair.submission_a.entry.participant.user.get_full_name }}</span>
+            </td>
+            <td>
+              <span class="code-chip">{{ pair.submission_b.entry.participant.public_code }}</span>
+              <span class="hint">{{ pair.submission_b.entry.participant.user.get_full_name }}</span>
+            </td>
+            <td>
+              <form method="post"
+                    action="{% url 'web:coordinator-similarity-report' stage.pk pair.pk %}">
+                {% csrf_token %}
+                {% if pair.is_reported %}
+                  <span class="badge badge--warn">zgłoszona</span>
+                  <button type="submit" class="btn btn--small btn--secondary">Cofnij</button>
+                {% else %}
+                  <button type="submit" class="btn btn--small btn--secondary">Zgłoś do komitetu</button>
+                {% endif %}
+              </form>
+            </td>
+            <td>
+              <a href="{% url 'web:coordinator-similarity-pair' stage.pk pair.pk %}">Obejrzyj</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="empty">Nie ma par powyżej tego progu. Jeśli porównania jeszcze
+            nie uruchomiono, kliknij „Przelicz”.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

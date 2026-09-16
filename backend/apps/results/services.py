@@ -29,6 +29,7 @@ from django.utils import timezone
 from rest_framework import status as http
 
 from apps.competitions.models import (
+    ManualQualification,
     Problem,
     QualificationMode,
     Stage,
@@ -262,6 +263,10 @@ def compute_stage_results(stage: Stage, *, preview: bool = False) -> list[dict]:
                 "guardian_consent": participant.guardian_consent,
                 "is_adult": _is_adult(participant.birth_year, current_year),
                 "status": entry.status,
+                # Decyzja komitetu o kwalifikacji wbrew progowi (pusta = rozstrzyga próg).
+                # Wędruje w wierszu, bo czytają ją trzy różne warstwy: kwalifikacja
+                # (``manual_qualified``), snapshot (odznaka w ogłoszonej tabeli) i symulacja.
+                "manual_qualification": entry.manual_qualification,
                 "points": points,
                 "total": total,
             }
@@ -341,6 +346,24 @@ def _qualified_entry_ids(rows: list[dict], rule) -> set[int]:
             return set()
         return {row["entry_id"] for row in rows if row["total"] >= cutoff and row["total"] >= rule.min_points}
     raise _conflict(f"Nieznany tryb progu kwalifikacji: {mode}.", "QUALIFICATION_RULE_INVALID")
+
+
+def qualified_with_manual(row: dict, rule_says: bool) -> bool:
+    """Ostateczna odpowiedź „czy się kwalifikuje”: decyzja komitetu bije próg punktowy.
+
+    Jedno miejsce dla obu czytelników – przeliczenia (``apply_qualification``) i symulacji
+    (``apps.results.simulation``) – bo rozjazd między nimi znaczyłby, że ekran, na którym
+    koordynator dobiera próg, pokazuje inny wynik niż późniejsze ogłoszenie.
+
+    Pusta decyzja (najczęstszy przypadek) oddaje wynik reguły bez zmiany, więc dopisanie tej
+    funkcji nie zmienia zachowania żadnego etapu, w którym komitet niczego nie rozstrzygał.
+    """
+    decision = row.get("manual_qualification") or ManualQualification.NONE
+    if decision == ManualQualification.QUALIFIED:
+        return True
+    if decision == ManualQualification.NOT_QUALIFIED:
+        return False
+    return rule_says
 
 
 def _district_key(value: str | None) -> str:
@@ -463,7 +486,7 @@ def apply_qualification(stage: Stage, *, actor=None, request=None) -> dict:
     changed: list[StageEntry] = []
     for row in candidates:
         entry = entries[row["entry_id"]]
-        row["qualified"] = entry.pk in qualified_ids
+        row["qualified"] = qualified_with_manual(row, entry.pk in qualified_ids)
         target = StageEntryStatus.QUALIFIED if row["qualified"] else StageEntryStatus.NOT_QUALIFIED
         if entry.status != target:
             entry.status = target
@@ -572,8 +595,8 @@ def _display_name(row: dict, anonymization: str, school_sizes: dict[str, int]) -
 
 
 def build_snapshot(rows: list[dict], anonymization: str) -> list[dict]:
-    """Zamrożona tabela: ``rank``, ``display``, ``points``, ``total``, ``qualified`` i – wyłącznie
-    przy ``CODE`` – ``district``.
+    """Zamrożona tabela: ``rank``, ``display``, ``points``, ``total``, ``qualified``, ``manual``
+    i – wyłącznie przy ``CODE`` – ``district``.
 
     Kształt jest budowany od zera z jawnie wypisanych pól, a nie przez usuwanie kluczy z wiersza
     roboczego – dopisanie kiedyś kolumny z danymi osobowymi do ``compute_stage_results`` nie może
@@ -592,6 +615,11 @@ def build_snapshot(rows: list[dict], anonymization: str) -> list[dict]:
             "points": dict(row["points"]),
             "total": row["total"],
             "qualified": bool(row.get("qualified")),
+            # Czy o tym wierszu rozstrzygnęła decyzja komitetu, a nie próg. Sama flaga, bez
+            # uzasadnienia i bez rodzaju decyzji: ogłoszona tabela ma powiedzieć, że wynik nie
+            # wynika z punktów (inaczej wygląda na błąd rachunkowy), a nie opowiedzieć, co się
+            # przydarzyło konkretnemu uczestnikowi.
+            "manual": bool(row.get("manual_qualification")),
         }
         if anonymization == Anonymization.CODE:
             item["district"] = row["district"]

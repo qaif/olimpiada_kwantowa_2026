@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load i18n static %}
 {% comment %}
   Edycja własnych danych. Jeden szablon obsługuje oba widoki (``/me/profile/`` dla uczestnika
   i ``/account/profile/`` dla pozostałych ról), bo różnią się wyłącznie zestawem pól – a ten
@@ -9,7 +9,7 @@
   Blok wyboru szkoły (``web/_school_picker.html``) renderuje się tylko wtedy, gdy formularz go ma:
   ``form.school_field_names`` istnieje wyłącznie w ``SchoolChoiceMixin``.
 {% endcomment %}
-{% block title %}Edycja danych{% endblock %}
+{% block title %}{% translate "Edycja danych" %}{% endblock %}
 {% block page_scripts %}
   {% if form.school_field_names %}
     <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/school-picker.js' %}"></script>
@@ -17,18 +17,18 @@
 {% endblock %}
 {% block content %}
 <div class="page-head">
-  <span class="eyebrow">Twoje konto</span>
-  <h1>Edycja danych</h1>
-  <p class="lead">Dane kontaktowe i szkolne, które organizator ma o Tobie w tej edycji.</p>
+  <span class="eyebrow">{% translate "Twoje konto" %}</span>
+  <h1>{% translate "Edycja danych" %}</h1>
+  <p class="lead">{% translate "Dane kontaktowe i szkolne, które organizator ma o Tobie w tej edycji." %}</p>
 </div>
 
 <section class="section">
   <div class="card">
-    <h2 class="mt-0">Dane osobowe</h2>
+    <h2 class="mt-0">{% translate "Dane osobowe" %}</h2>
     <form method="post" class="form">
       {% csrf_token %}
       {# Legenda gwiazdki – marker rysuje arkusz z klasy ``required`` (apps/web/forms.py). #}
-      <p class="form__required-note">Pola oznaczone * są obowiązkowe.</p>
+      <p class="form__required-note">{% translate "Pola oznaczone * są obowiązkowe." %}</p>
       {{ form.non_field_errors }}
       {% for field in form %}
         {% if form.school_field_names and field.name in form.school_field_names %}
@@ -43,8 +43,8 @@
         {% endif %}
       {% endfor %}
       <div class="actions">
-        <button type="submit" class="btn btn--primary">Zapisz dane</button>
-        <a class="btn btn--secondary" href="{% if participant %}{% url 'web:me' %}{% else %}/{% endif %}">Wróć</a>
+        <button type="submit" class="btn btn--primary">{% translate "Zapisz dane" %}</button>
+        <a class="btn btn--secondary" href="{% if participant %}{% url 'web:me' %}{% else %}/{% endif %}">{% translate "Wróć" %}</a>
       </div>
     </form>
     {% if committee %}
@@ -53,32 +53,35 @@
         reguła konfliktu interesów przy przydziale recenzji, więc recenzent, który mógłby je sobie
         przestawić, mógłby też wejść na prace ze swojego województwa.
       {% endcomment %}
-      <p class="hint">Województwo ({{ committee.get_district_display|default:"— brak —" }})
-        zmienia wyłącznie koordynator. Jest opcjonalne i służy jedynie do wykluczenia konfliktu
-        interesów na etapie wojewódzkim – bez województwa oceniasz prace ze wszystkich województw.</p>
+      <p class="hint">{% blocktranslate trimmed with district=committee.get_district_display|default:"—" %}
+        Województwo ({{ district }}) zmienia wyłącznie koordynator. Jest opcjonalne i służy jedynie
+        do wykluczenia konfliktu interesów na etapie wojewódzkim – bez województwa oceniasz prace
+        ze wszystkich województw.
+      {% endblocktranslate %}</p>
     {% endif %}
   </div>
 </section>
 
 <section class="section" id="email">
   <div class="card">
-    <h2 class="mt-0">Adres e-mail</h2>
-    <p class="hint">Obecny adres: <strong>{{ user.email }}</strong>. Zmiana wymaga potwierdzenia –
-      wyślemy link na <strong>nowy</strong> adres, a do kliknięcia logujesz się dotychczasowym.</p>
+    <h2 class="mt-0">{% translate "Adres e-mail" %}</h2>
+    <p class="hint">{% blocktranslate trimmed with address=user.email %}
+      Obecny adres: <strong>{{ address }}</strong>. Zmiana wymaga potwierdzenia – wyślemy link na
+      <strong>nowy</strong> adres, a do kliknięcia logujesz się dotychczasowym.
+    {% endblocktranslate %}</p>
     <form method="post" action="{% url 'web:email-change' %}" class="form">
       {% csrf_token %}
       {{ email_form.as_p }}
-      <button type="submit" class="btn btn--secondary">Wyślij link potwierdzający</button>
+      <button type="submit" class="btn btn--secondary">{% translate "Wyślij link potwierdzający" %}</button>
     </form>
   </div>
 </section>
 
 <section class="section" id="usuniecie">
   <div class="card">
-    <h2 class="mt-0">Usunięcie konta</h2>
-    <p class="hint">Możesz zażądać usunięcia konta i swoich danych osobowych (art. 17 RODO).
-      Skutki zależą od tego, czy brałeś udział w zawodach – wyjaśniamy je na osobnej stronie.</p>
-    <p><a class="btn btn--secondary" href="{% url 'web:account-delete' %}">Usuń konto</a></p>
+    <h2 class="mt-0">{% translate "Usunięcie konta" %}</h2>
+    <p class="hint">{% translate "Możesz zażądać usunięcia konta i swoich danych osobowych (art. 17 RODO). Skutki zależą od tego, czy brałeś udział w zawodach – wyjaśniamy je na osobnej stronie." %}</p>
+    <p><a class="btn btn--secondary" href="{% url 'web:account-delete' %}">{% translate "Usuń konto" %}</a></p>
   </div>
 </section>
 {% endblock %}

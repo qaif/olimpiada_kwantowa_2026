@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Rejestracja opiekuna szkolnego{% endblock %}
+{% block content %}
+<div class="auth">
+  <div class="card">
+    <h1>Rejestracja opiekuna szkolnego</h1>
+    {% comment %}
+      Rejestracja jest otwarta (bez kodu zaproszenia), bo samo konto nie daje wglądu w niczyje
+      dane: panel pokazuje wyłącznie tych uczniów, którzy sami wpisali ten adres w swoim profilu.
+      Dlatego intro mówi wprost, od czego zależy zawartość panelu – inaczej pierwszą reakcją po
+      założeniu konta byłoby pytanie „dlaczego mam pustą listę”.
+    {% endcomment %}
+    <p class="auth__intro">Konto dla nauczyciela, który prowadzi uczniów do olimpiady. Zobaczysz
+      w nim tych uczestników, którzy wpiszą Twój adres e-mail w swoim profilu – ich kod, imię,
+      nazwisko i to, na jakim etapie procedury są ich prace.</p>
+    <p class="hint">Panel <strong>nie</strong> pokazuje prac, komentarzy recenzentów ani punktów
+      przed ogłoszeniem wyników etapu.</p>
+    <form method="post" class="form">
+      {% csrf_token %}
+      {# Legenda gwiazdki – marker rysuje arkusz z klasy ``required`` (apps/web/forms.py). #}
+      <p class="form__required-note">Pola oznaczone * są obowiązkowe.</p>
+      {{ form.as_p }}
+      <button type="submit" class="btn btn--primary btn--block">Załóż konto</button>
+    </form>
+    <p class="auth__alt">Jesteś uczniem? <a href="{% url 'web:register' %}">Zarejestruj się jako
+      uczestnik</a>.</p>
+  </div>
+</div>
+{% endblock %}

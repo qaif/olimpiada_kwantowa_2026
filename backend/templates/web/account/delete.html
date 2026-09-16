@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load i18n %}
 {% comment %}
   Strona potwierdzenia usunięcia konta. Treść jest **warunkowa wobec historii konta**, bo skutek
   jest różny: uczestnik, który brał udział w zawodach, dostaje anonimizację (dane osobowe znikają,
@@ -9,36 +10,37 @@
   hasła nie ma – o przepisanie własnego adresu e-mail. Rozstrzyga o tym serwis; szablon pokazuje
   tylko to pole, które w tym koncie ma sens.
 {% endcomment %}
-{% block title %}Usunięcie konta{% endblock %}
+{% block title %}{% translate "Usunięcie konta" %}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <span class="eyebrow">Twoje konto</span>
-  <h1>Usunięcie konta</h1>
-  <p class="lead">Operacji nie da się odwrócić.</p>
+  <span class="eyebrow">{% translate "Twoje konto" %}</span>
+  <h1>{% translate "Usunięcie konta" %}</h1>
+  <p class="lead">{% translate "Operacji nie da się odwrócić." %}</p>
 </div>
 
 <section class="section">
   <div class="card">
     {% if keeps_pseudonymous_row %}
-      <h2 class="mt-0">Co się stanie z Twoimi danymi</h2>
-      <p>Brałeś udział w zawodach ({{ footprint.entries }} zgłoszeń,
-        {{ footprint.submissions }} oddanych prac, {{ footprint.reviews }} wystawionych recenzji),
-        więc <strong>usuniemy Twoje dane osobowe</strong>, ale zostawimy anonimowy ślad udziału:</p>
+      <h2 class="mt-0">{% translate "Co się stanie z Twoimi danymi" %}</h2>
+      <p>{% blocktranslate trimmed with entries=footprint.entries submissions=footprint.submissions reviews=footprint.reviews %}
+        Brałeś udział w zawodach ({{ entries }} zgłoszeń, {{ submissions }} oddanych prac,
+        {{ reviews }} wystawionych recenzji), więc <strong>usuniemy Twoje dane osobowe</strong>,
+        ale zostawimy anonimowy ślad udziału:
+      {% endblocktranslate %}</p>
       <ul>
-        <li>znikają: imię, nazwisko, adres e-mail, telefon, nazwa szkoły, rok urodzenia, hasło,
-          powiązania z kontami Google i Facebooka oraz wszystkie Twoje sesje;</li>
-        <li>zostają: kod publiczny
+        <li>{% translate "znikają: imię, nazwisko, adres e-mail, telefon, nazwa szkoły, rok urodzenia, hasło, powiązania z kontami Google i Facebooka oraz wszystkie Twoje sesje;" %}</li>
+        <li>{% translate "zostają: kod publiczny" %}
           {% if user.participant %}<span class="code-chip">{{ user.participant.public_code }}</span>{% endif %}
-          wraz z pracami, ocenami i wierszami w ogłoszonych tabelach wyników.</li>
+          {% translate "wraz z pracami, ocenami i wierszami w ogłoszonych tabelach wyników." %}</li>
       </ul>
-      <p class="hint">Dlaczego tak: ogłoszone wyniki i protokoły recenzji są dokumentacją zawodów,
-        na której opierają się kwalifikacje innych uczestników. Skasowanie ich razem z kontem
-        wyrwałoby kartę z protokołu i przesunęłoby progi kwalifikacyjne.</p>
+      <p class="hint">{% translate "Dlaczego tak: ogłoszone wyniki i protokoły recenzji są dokumentacją zawodów, na której opierają się kwalifikacje innych uczestników. Skasowanie ich razem z kontem wyrwałoby kartę z protokołu i przesunęłoby progi kwalifikacyjne." %}</p>
     {% else %}
-      <h2 class="mt-0">Co się stanie z Twoim kontem</h2>
-      <p>Twoje konto nie ma powiązanych zgłoszeń, prac ani recenzji, więc zostanie
+      <h2 class="mt-0">{% translate "Co się stanie z Twoim kontem" %}</h2>
+      <p>{% blocktranslate trimmed %}
+        Twoje konto nie ma powiązanych zgłoszeń, prac ani recenzji, więc zostanie
         <strong>usunięte w całości</strong> – razem z profilem, zgodami i wszystkimi danymi
-        osobowymi. Adres e-mail zwolni się do ponownej rejestracji.</p>
+        osobowymi. Adres e-mail zwolni się do ponownej rejestracji.
+      {% endblocktranslate %}</p>
     {% endif %}
 
     <form method="post" class="form">
@@ -55,8 +57,10 @@
           {{ form.email.errors }}
           {{ form.email.label_tag }}
           {{ form.email }}
-          <span class="helptext">Twoje konto nie ma hasła (logujesz się przez dostawcę
-            zewnętrznego). Przepisz adres <strong>{{ account_email }}</strong>, żeby potwierdzić.</span>
+          <span class="helptext">{% blocktranslate trimmed with address=account_email %}
+            Twoje konto nie ma hasła (logujesz się przez dostawcę zewnętrznego).
+            Przepisz adres <strong>{{ address }}</strong>, żeby potwierdzić.
+          {% endblocktranslate %}</span>
         </p>
       {% endif %}
       <p>
@@ -65,9 +69,9 @@
         {{ form.confirm.label_tag }}
       </p>
       <div class="actions">
-        <button type="submit" class="btn btn--primary">Usuń konto na zawsze</button>
+        <button type="submit" class="btn btn--primary">{% translate "Usuń konto na zawsze" %}</button>
         <a class="btn btn--secondary"
-           href="{% if user.participant %}{% url 'web:profile' %}{% else %}{% url 'web:account-profile' %}{% endif %}">Anuluj</a>
+           href="{% if user.participant %}{% url 'web:profile' %}{% else %}{% url 'web:account-profile' %}{% endif %}">{% translate "Anuluj" %}</a>
       </div>
     </form>
   </div>

@@ -63,6 +63,9 @@ def default_panel_url(request) -> str:
         ("is_reviewer", "web:review-list"),
         ("is_coordinator", "web:coordinator"),
         ("is_appeals_committee", "web:appeals"),
+        # Opiekun szkolny na końcu listy: jego panel jest jedynym, jaki ma, ale konto opiekuna
+        # nie wyklucza żadnej innej roli, a tamte prowadzą do pracy przy zawodach.
+        ("is_supervisor", "web:supervisor"),
     ):
         if context.get(flag):
             return str(reverse_lazy(name))

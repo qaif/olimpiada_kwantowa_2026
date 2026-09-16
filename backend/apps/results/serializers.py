@@ -30,6 +30,10 @@ class PublicResultRowSerializer(serializers.Serializer):
     points = serializers.DictField(child=serializers.IntegerField(), read_only=True)
     total = serializers.IntegerField(read_only=True)
     qualified = serializers.BooleanField(read_only=True)
+    # Czy o wierszu rozstrzygnęła decyzja komitetu, a nie próg punktowy. ``required=False``
+    # i domyślne ``False``, bo snapshoty zapisane przed wprowadzeniem kwalifikacji ręcznej
+    # tego klucza nie mają – a publikacja jest zamrożona i nikt jej wstecz nie uzupełnia.
+    manual = serializers.BooleanField(read_only=True, required=False, default=False)
 
 
 class PublicResultsSerializer(serializers.ModelSerializer):

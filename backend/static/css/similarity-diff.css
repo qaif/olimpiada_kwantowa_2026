@@ -1,0 +1,69 @@
+/*
+ * Styl tabeli porównania dwóch rozwiązań (``difflib.HtmlDiff``).
+ *
+ * Osobny arkusz, a nie dopisek do ``coordinator-tools.css``: te reguły obsługują klasy
+ * generowane przez bibliotekę standardową (``diff_add``, ``diff_sub``, ``diff_chg``,
+ * ``diff_header``, ``diff_next``) i istnieją wyłącznie na jednym ekranie. Trzymanie ich obok
+ * stylów paneli zmuszałoby każdego czytelnika tamtego pliku do rozstrzygania, skąd te nazwy.
+ *
+ * Kolory są tokenami motywu z ``app.css`` – tabela ma wyglądać tak samo w wariancie jasnym
+ * i ciemnym, a ``HtmlDiff`` nie wie nic o żadnym z nich.
+ */
+
+.diff-wrap table {
+  border-collapse: collapse;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  width: 100%;
+}
+
+/* Numery linii: wąska, nieklikalna kolumna – ma być czytelna, ale nie ma przyciągać wzroku. */
+.diff-wrap td.diff_header,
+.diff-wrap th.diff_header {
+  color: var(--muted, #6b7280);
+  padding: 0 0.5rem;
+  text-align: right;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.diff-wrap td {
+  padding: 0 0.35rem;
+  vertical-align: top;
+  /* Kod ma zawijać się razem z tabelą: pozioma belka przewijania przy każdej długiej linii
+     uniemożliwiałaby czytanie obu stron naraz, a o to na tym ekranie chodzi. */
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Trzy rodzaje zmiany, trzy tła. Różnica jest też w kolorze tekstu, bo samo tło nie wystarcza
+   osobom nierozróżniającym barw (WCAG 1.4.1). */
+.diff-wrap .diff_add {
+  background: rgba(22, 163, 74, 0.16);
+  color: var(--text, inherit);
+}
+
+.diff-wrap .diff_sub {
+  background: rgba(220, 38, 38, 0.16);
+  color: var(--text, inherit);
+  text-decoration: line-through;
+}
+
+.diff-wrap .diff_chg {
+  background: rgba(202, 138, 4, 0.2);
+  color: var(--text, inherit);
+  font-weight: 600;
+}
+
+/* Kotwice „następna zmiana” generowane przez bibliotekę. Zostają klikalne, ale wtapiają się
+   w numerację – są nawigacją, a nie treścią. */
+.diff-wrap .diff_next a {
+  color: var(--muted, #6b7280);
+  text-decoration: none;
+}
+
+.diff-wrap .diff_next a:hover,
+.diff-wrap .diff_next a:focus-visible {
+  text-decoration: underline;
+}

@@ -48,6 +48,7 @@ from apps.competitions.services import (
 )
 from apps.core.api import DomainError
 from apps.grading.rubric import set_criteria
+from apps.grading.snippets import set_problem_snippets
 from apps.web.forms import (
     InterviewSlotsForm,
     ProblemForm,
@@ -345,6 +346,7 @@ class StageProblemsView(CoordinatorRequiredMixin, View):
                 stage=stage,
                 actor=request.user,
                 statement=form.uploaded_statement(),
+                statement_en=form.uploaded_statement_en(),
                 model_solution=form.uploaded_model_solution(),
                 request=request,
                 **data,
@@ -355,6 +357,9 @@ class StageProblemsView(CoordinatorRequiredMixin, View):
         # Rubryka jest osobnym modelem, więc zapisuje się osobno – dopiero gdy zadanie istnieje
         # i ma identyfikator, do którego kryteria się przypną.
         set_criteria(problem, form.cleaned_data["rubric"], actor=request.user, request=request)
+        set_problem_snippets(
+            problem, form.cleaned_data["comment_snippets"], actor=request.user, request=request
+        )
         messages.success(request, f"Dodano zadanie {problem.number}: {problem.title}.")
         return redirect(reverse("web:coordinator-stage-problems", args=[stage.pk]))
 
@@ -379,6 +384,7 @@ class ProblemEditView(CoordinatorRequiredMixin, View):
                 problem,
                 request.user,
                 statement=form.uploaded_statement(),
+                statement_en=form.uploaded_statement_en(),
                 model_solution=form.uploaded_model_solution(),
                 confirm_open_stage=bool(form.cleaned_data.get("confirm_open_stage")),
                 request=request,
@@ -389,6 +395,12 @@ class ProblemEditView(CoordinatorRequiredMixin, View):
             problem = self._problem(pk)
             return self._render(request, problem, form, status=exc.status_code)
         set_criteria(problem, form.cleaned_data["rubric"], actor=request.user, request=request)
+        # Szablony komentarzy, tak jak rubryka, są osobnym modelem i zapisują się osobno. Funkcja
+        # rusza wyłącznie szablony **wspólne** (``owner IS NULL``) – prywatnych notatników
+        # recenzentów zapis zadania nie dotyka.
+        set_problem_snippets(
+            problem, form.cleaned_data["comment_snippets"], actor=request.user, request=request
+        )
         messages.success(request, f"Zapisano zadanie {data['number']}.")
         return redirect(reverse("web:coordinator-stage-problems", args=[problem.stage_id]))
 

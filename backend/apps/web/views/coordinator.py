@@ -99,6 +99,7 @@ def _counters(stages: list[Stage], moderation: list, pending_members: list) -> d
     przy starcie urlconfa, a ``apps.submissions``/``apps.grading`` zaciągają wtedy własne serwisy.
     """
     from apps.appeals.models import Appeal, AppealStatus
+    from apps.grading.issues import open_issue_count
     from apps.submissions.models import Submission
 
     stage_ids = [stage.pk for stage in stages]
@@ -113,6 +114,10 @@ def _counters(stages: list[Stage], moderation: list, pending_members: list) -> d
             submission__entry__stage_id__in=stage_ids, status=AppealStatus.OPEN
         ).count(),
         "pending_members": len(pending_members),
+        # Zgłoszenia recenzentów („z tą pracą jest coś nie tak”). Zakres to etapy bieżącej edycji,
+        # bo taki jest zakres ekranu, na który prowadzi kafelek – licznik obejmujący zeszłoroczne
+        # sprawy wskazywałby liczbę, której po kliknięciu nie widać.
+        "open_issues": open_issue_count(stage_ids),
     }
 
 

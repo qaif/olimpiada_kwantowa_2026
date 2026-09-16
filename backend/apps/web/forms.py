@@ -15,6 +15,7 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.uploadedfile import UploadedFile
+from django.utils.translation import gettext_lazy
 
 from apps.accounts.consents import BY_KIND, CONSENT_FIELD_NAMES, CONSENTS, ConsentKind, is_minor, labels
 from apps.accounts.models import GRADE_CHOICES, CommitteeStatus, User, Voivodeship
@@ -42,8 +43,10 @@ from apps.competitions.models import (
     Stage,
 )
 from apps.competitions.services import REGISTRATION_EDITABLE_FIELDS, STAGE_EDITABLE_FIELDS
+from apps.competitions.video import DEFAULT_VIDEO_BASE_URL, VideoProvider
 from apps.core.api import DomainError
 from apps.grading.rubric import criteria_for, format_criteria_lines, parse_criteria_lines
+from apps.grading.snippets import format_snippet_lines, parse_snippet_lines, problem_snippets
 from apps.results.models import Anonymization
 from apps.submissions.validators import MEGABYTE, validate_pdf
 from apps.web.captcha import CaptchaFormMixin
@@ -440,6 +443,9 @@ PARTICIPANT_PROFILE_FIELD_ORDER = (
     *SCHOOL_FIELD_NAMES,
     "grade",
     "birth_year",
+    # Adres opiekuna szkolnego stoi na końcu, bo jest jedynym polem tego formularza, które nie
+    # opisuje uczestnika, tylko **nadaje komuś wgląd** w jego przebieg w zawodach.
+    "supervisor_email",
 )
 
 
@@ -464,6 +470,7 @@ def participant_profile_initial(participant) -> dict:
         "school_query": participant.school,
         "school_custom": not from_registry,
         "school": "" if from_registry else participant.school,
+        "supervisor_email": participant.supervisor_email,
     }
 
 
@@ -484,6 +491,18 @@ class ParticipantProfileForm(SchoolChoiceMixin):
     district = voivodeship_field("Województwo")
     grade = grade_field()
     birth_year = forms.IntegerField(label="Rok urodzenia", min_value=1900, max_value=2100)
+    # Opcjonalne i odwracalne jednym wyczyszczeniem pola: to uczestnik decyduje, czy nauczyciel
+    # ma widzieć jego postęp, i tylko on może tę decyzję cofnąć (patrz ``apps.accounts.supervisors``).
+    supervisor_email = forms.EmailField(
+        label="Adres e-mail opiekuna szkolnego",
+        max_length=254,
+        required=False,
+        help_text=(
+            "Opcjonalnie. Opiekun z kontem w serwisie zobaczy Twój kod, imię, nazwisko i to, "
+            "na jakim etapie procedury są Twoje prace – nigdy punktów przed ogłoszeniem wyników "
+            "ani samych prac. Puste pole znaczy „nie mam opiekuna”."
+        ),
+    )
 
 
 class AccountNamesForm(forms.Form):
@@ -543,9 +562,24 @@ class AccountDeleteForm(forms.Form):
 
 
 class SubmissionUploadForm(forms.Form):
-    """Upload rozwiązania. Formaty, rozmiar i magic bytes sprawdza walidator z ``apps.submissions``."""
+    """Upload rozwiązania. Formaty, rozmiar i magic bytes sprawdza walidator z ``apps.submissions``.
+
+    ``confirmed`` jest listą kontrolną sprowadzoną do jednego zdania i jest **wymagane po stronie
+    serwera**, a nie tylko atrybutem ``required`` w HTML. Powód jest prozaiczny: najczęstsza
+    reklamacja po etapie brzmi „wysłałem nie ten plik” albo „skan wyszedł nieczytelny”, a jedyną
+    chwilą, w której da się to tanio zatrzymać, jest kliknięcie „Wyślij”. Numer zadania wstawia
+    szablon (etykieta jest per karta), więc formularz trzyma samo pole i komunikat odmowy.
+    """
 
     file = forms.FileField(label="Plik rozwiązania")
+    confirmed = forms.BooleanField(
+        label="Potwierdzam, że to rozwiązanie właściwego zadania i plik jest czytelny",
+        error_messages={
+            "required": gettext_lazy(
+                "Zaznacz potwierdzenie, że wysyłasz rozwiązanie właściwego zadania i że plik jest czytelny."
+            )
+        },
+    )
 
 
 class AnnotationsField(forms.CharField):
@@ -983,6 +1017,35 @@ class DayField(forms.DateField):
         super().__init__(**kwargs)
 
 
+def _relax_video_fields(form: forms.ModelForm) -> None:
+    """Pola pokoju wideo są w formularzu etapu **opcjonalne** – i to jest decyzja, nie niedopatrzenie.
+
+    Dotyczą wyłącznie etapu w formie rozmowy, a takich jest w edycji najwyżej jeden. Wymaganie ich
+    od każdego etapu znaczyłoby, że koordynator przesuwający deadline eliminacji musi po drodze
+    odpowiedzieć na pytanie o dostawcę wideo – i że każdy klient wysyłający ten formularz bez tych
+    pól (skrypt, test, starsza zakładka) dostaje 400 zamiast zapisu.
+    """
+    for name in ("video_provider", "video_base_url"):
+        if name in form.fields:
+            form.fields[name].required = False
+
+
+def _clean_video_provider(form: forms.ModelForm) -> str:
+    """Puste pole dostawcy znaczy „bez wideo”, a nie pustą wartość w kolumnie z zamkniętą listą."""
+    return form.cleaned_data.get("video_provider") or VideoProvider.NONE
+
+
+def _clean_video_base_url(form: forms.ModelForm) -> str:
+    """Puste pole adresu serwera znaczy „publiczna instancja Jitsi”, czyli wartość domyślną.
+
+    Normalizacja jest tu potrzebna także po to, żeby formularz wysłany **bez** tego pola nie
+    wyglądał jak zmiana: ``changed_values`` porównuje z wartością początkową, a pusty napis
+    różniłby się od domyślnego adresu i lądował w audycie jako edycja, której nikt nie zrobił
+    (a w etapie zamkniętym – jako odmowa zapisu).
+    """
+    return form.cleaned_data.get("video_base_url") or DEFAULT_VIDEO_BASE_URL
+
+
 class StageForm(forms.ModelForm):
     """Oś czasu etapu w panelu koordynatora.
 
@@ -1043,7 +1106,24 @@ class StageForm(forms.ModelForm):
                 "etapu. Nigdy nie wypada po terminie recenzji całego etapu (powyżej). Zmiana "
                 "dotyczy przydziałów przyszłych; terminy już przyznane zostają bez zmian."
             ),
+            "video_provider": (
+                "Dotyczy wyłącznie etapu w formie rozmowy. Adres pokoju powstaje wtedy sam przy "
+                "zapisie uczestnika; ręczny link wpisany przy terminie zawsze go przebija."
+            ),
+            "video_base_url": (
+                "Korzeń adresu pokoju. Puste = publiczna instancja Jitsi (https://meet.jit.si/)."
+            ),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        _relax_video_fields(self)
+
+    def clean_video_provider(self):
+        return _clean_video_provider(self)
+
+    def clean_video_base_url(self):
+        return _clean_video_base_url(self)
 
     def changed_values(self) -> dict:
         """Pola, które koordynator **faktycznie** zmienił – w rozdzielczości formularza.
@@ -1262,13 +1342,33 @@ class ProblemForm(forms.ModelForm):
             "dać wartość ze skali tego zadania – inaczej recenzent dostanie błąd przy wysyłce."
         ),
     )
+    # Szablony komentarzy: ta sama konwencja zapisu, co rubryka (textarea, jedna pozycja w wierszu),
+    # bo oba pola stoją na tym samym formularzu i koordynator nie ma powodu uczyć się dwóch składni.
+    # Pole jest poza ``Meta.fields`` – w bazie to osobny model (``grading.CommentSnippet``).
+    comment_snippets = forms.CharField(
+        label="Szablony komentarzy dla recenzentów",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 6}),
+        help_text=(
+            "Gotowe zdania, które recenzent wstawia jednym kliknięciem do komentarza dla "
+            "uczestnika. Po jednym szablonie w wierszu, w postaci „tytuł;treść”, np. „Brak "
+            "jednostek;Wynik jest poprawny, ale nie podałeś jednostek.”. Szablony są podpowiedzią, "
+            "nie automatem – recenzent poprawia wstawiony tekst. Własnych szablonów recenzentów "
+            "to pole nie rusza."
+        ),
+    )
 
     class Meta:
         model = Problem
         fields = (
             "number",
             "title",
+            # Wersja angielska tytułu i treści stoi zaraz przy polskiej, a nie w osobnej sekcji:
+            # to ten sam dokument w drugim języku i wypełnia się go w tej samej chwili. Oba pola
+            # są opcjonalne – bez nich angielski interfejs wydaje wersję polską (``Problem``).
+            "title_en",
             "statement_pdf",
+            "statement_pdf_en",
             "allowed_formats",
             "max_file_mb",
             "reviewer_notes",
@@ -1278,7 +1378,11 @@ class ProblemForm(forms.ModelForm):
             "reviewer_notes": (
                 "Czego nie widać we wzorcówce, a rozstrzyga o punktach. Tekst widoczny wyłącznie "
                 "w panelu recenzenta."
-            )
+            ),
+            "title_en": "Opcjonalnie. Bez tłumaczenia angielski interfejs pokazuje tytuł polski.",
+            "statement_pdf_en": (
+                "Opcjonalnie. Bez tłumaczenia angielski interfejs wydaje polski plik treści."
+            ),
         }
         widgets = {"reviewer_notes": forms.Textarea(attrs={"rows": 5})}
 
@@ -1292,6 +1396,7 @@ class ProblemForm(forms.ModelForm):
             # Rubryka też stoi poza ``Meta.fields``: w bazie jest osobnym modelem
             # (``grading.RubricCriterion``), a tutaj jednym polem tekstowym.
             self.initial.setdefault("rubric", format_criteria_lines(criteria_for(self.instance)))
+            self.initial.setdefault("comment_snippets", format_snippet_lines(problem_snippets(self.instance)))
         # Pole potwierdzenia ma sens wyłącznie przy edycji zadania w otwartym etapie – przy dodawaniu
         # nie ma czego podmieniać, a pusty checkbox „rozumiem…” tylko zaciemniałby formularz.
         if not self._needs_confirmation():
@@ -1318,6 +1423,23 @@ class ProblemForm(forms.ModelForm):
     def clean_statement_pdf(self):
         """Rozmiar i treść pliku. Wartość niebędąca uploadem to plik, który już jest na storage."""
         upload = self.cleaned_data.get("statement_pdf")
+        if not isinstance(upload, UploadedFile):
+            return upload
+        if upload.size > MAX_STATEMENT_MB * MEGABYTE:
+            raise forms.ValidationError(
+                f"Plik ma {upload.size} B – limit treści zadania to {MAX_STATEMENT_MB} MB."
+            )
+        if upload.size == 0:
+            raise forms.ValidationError("Plik jest pusty.")
+        try:
+            validate_pdf(upload)
+        except DomainError as exc:
+            raise forms.ValidationError(str(exc.detail)) from exc
+        return upload
+
+    def clean_statement_pdf_en(self):
+        """Angielska treść przechodzi dokładnie tę samą kontrolę, co polska – to ten sam dokument."""
+        upload = self.cleaned_data.get("statement_pdf_en")
         if not isinstance(upload, UploadedFile):
             return upload
         if upload.size > MAX_STATEMENT_MB * MEGABYTE:
@@ -1363,6 +1485,20 @@ class ProblemForm(forms.ModelForm):
         except ValueError as exc:
             raise forms.ValidationError(str(exc)) from exc
 
+    def clean_comment_snippets(self):
+        """Tekst szablonów → lista pozycji. Pusty tekst to pusta lista, czyli „zadanie bez szablonów”.
+
+        Reguła zapisu jest w ``apps.grading.snippets``; tutaj wyłącznie tłumaczenie jej wyjątku na
+        błąd pod polem – tak samo jak przy rubryce.
+        """
+        text = (self.cleaned_data.get("comment_snippets") or "").strip()
+        if not text:
+            return []
+        try:
+            return parse_snippet_lines(text)
+        except ValueError as exc:
+            raise forms.ValidationError(str(exc)) from exc
+
     def clean_scoring_values(self):
         """Pusty tekst to ``None`` („dziedzicz po etapie”), a nie pusta skala."""
         text = (self.cleaned_data.get("scoring_values") or "").strip()
@@ -1382,6 +1518,11 @@ class ProblemForm(forms.ModelForm):
     def uploaded_statement(self):
         """Nowy plik treści albo ``None``. Serwis rozpoznaje po tym, czy podmieniać treść."""
         upload = self.cleaned_data.get("statement_pdf")
+        return upload if isinstance(upload, UploadedFile) else None
+
+    def uploaded_statement_en(self):
+        """Nowa treść angielska albo ``None`` – ta sama umowa z serwisem, co przy treści polskiej."""
+        upload = self.cleaned_data.get("statement_pdf_en")
         return upload if isinstance(upload, UploadedFile) else None
 
     def uploaded_model_solution(self):

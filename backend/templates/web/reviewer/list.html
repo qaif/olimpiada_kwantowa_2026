@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% load web_extras %}
-{% block title %}Moje recenzje{% endblock %}
+{% load i18n web_extras %}
+{% block title %}{% translate "Moje recenzje" %}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <span class="eyebrow">Panel recenzenta</span>
-  <h1>Moje przydziały</h1>
-  <p class="lead">Ocenianie jest ślepe: prace są identyfikowane kodem publicznym uczestnika.</p>
+  <span class="eyebrow">{% translate "Panel recenzenta" %}</span>
+  <h1>{% translate "Moje przydziały" %}</h1>
+  <p class="lead">{% translate "Ocenianie jest ślepe: prace są identyfikowane kodem publicznym uczestnika." %}</p>
   {% comment %}
     Paczka ZIP obok listy, a nie w każdym wierszu osobno: recenzent czyta prace poza panelem
     (czytnik, druk, podróż), więc pobiera je raz, wszystkie. Nazwy plików w archiwum są takie
@@ -13,8 +13,8 @@
   {% endcomment %}
   {% if reviews %}
     <p class="actions">
-      <a class="btn btn--secondary" href="{% url 'web:review-download' %}">Pobierz moje prace (ZIP)</a>
-      <span class="hint">Wszystkie przydzielone prace w jednym archiwum. Pliki są anonimowe.</span>
+      <a class="btn btn--secondary" href="{% url 'web:review-download' %}">{% translate "Pobierz moje prace (ZIP)" %}</a>
+      <span class="hint">{% translate "Wszystkie przydzielone prace w jednym archiwum. Pliki są anonimowe." %}</span>
     </p>
   {% endif %}
 </div>
@@ -28,31 +28,57 @@
 {% for group in groups %}
   <section class="section">
     <div class="section__head">
-      <h2 class="mt-0">{{ group.stage.display_name }} · zadanie {{ group.problem.number }}:
-        {{ group.problem.title }}</h2>
+      <h2 class="mt-0">{{ group.stage.display_name }} ·
+        {% blocktranslate trimmed with number=group.problem.number title=group.problem.display_title %}
+          zadanie {{ number }}: {{ title }}
+        {% endblocktranslate %}</h2>
       <p class="row">
-        <span class="badge badge--info">{{ group.open }} z {{ group.rows|length }} do zrobienia</span>
-        {% if group.overdue %}<span class="badge badge--danger">{{ group.overdue }} po terminie</span>{% endif %}
+        <span class="badge badge--info">{% blocktranslate trimmed with open=group.open total=group.rows|length %}
+          {{ open }} z {{ total }} do zrobienia
+        {% endblocktranslate %}</span>
+        {% if group.overdue %}<span class="badge badge--danger">{% blocktranslate trimmed with count=group.overdue %}
+          {{ count }} po terminie
+        {% endblocktranslate %}</span>{% endif %}
       </p>
     </div>
     <div class="scroll">
       <table class="table">
         <thead>
-          <tr><th>Praca</th><th>Runda</th><th>Status</th><th>Termin</th><th>Punkty</th><th></th></tr>
+          <tr>
+            <th>{% translate "Praca" %}</th>
+            <th>{% translate "Runda" %}</th>
+            <th>{% translate "Status" %}</th>
+            <th>{% translate "Termin" %}</th>
+            <th>{% translate "Punkty" %}</th>
+            <th></th>
+          </tr>
         </thead>
         <tbody>
           {% for row in group.rows %}
             <tr>
-              <td><span class="code-chip">{{ row.review.submission.entry.participant.public_code }}</span></td>
+              <td>
+                <span class="code-chip">{{ row.review.submission.entry.participant.public_code }}</span>
+                {% comment %}
+                  Marker zgłoszonego problemu. Nie jest ostrzeżeniem przed ocenianiem – zgłoszenie
+                  nie blokuje oceny (patrz ``apps.grading.issues``) – tylko przypomnieniem, że przy
+                  tej pracy czeka sprawa u koordynatora.
+                {% endcomment %}
+                {% if row.review.pk in open_issues %}
+                  <span class="badge badge--warn"
+                        title="{% translate 'Zgłoszony problem czeka na koordynatora' %}">
+                    {% translate "zgłoszony problem" %}</span>
+                {% endif %}
+              </td>
               <td class="num">{{ row.review.round }}</td>
               <td><span class="{{ row.review.status|badge_class }}">{{ row.review.get_status_display }}</span></td>
               <td>
                 {% if row.review.due_at %}{{ row.review.due_at|local_datetime }}{% else %}—{% endif %}
-                {% if row.overdue %}<span class="badge badge--danger">po terminie</span>{% endif %}
+                {% if row.overdue %}<span class="badge badge--danger">{% translate "po terminie" %}</span>{% endif %}
               </td>
               <td class="num total">{% if row.review.score is not None %}{{ row.review.score }}{% else %}—{% endif %}</td>
               <td>
-                <a class="btn btn--secondary btn--small" href="{% url 'web:review-detail' row.review.pk %}">otwórz</a>
+                <a class="btn btn--secondary btn--small"
+                   href="{% url 'web:review-detail' row.review.pk %}">{% translate "otwórz" %}</a>
               </td>
             </tr>
           {% endfor %}
@@ -62,9 +88,8 @@
   </section>
 {% empty %}
   <p class="empty">
-    <span class="empty__title">Brak przydziałów</span>
-    Nie masz jeszcze przydzielonych prac. Przydziału dokonuje koordynator, gdy prace trafią
-    do oceniania – czasem jeszcze przed zamknięciem etapu.
+    <span class="empty__title">{% translate "Brak przydziałów" %}</span>
+    {% translate "Nie masz jeszcze przydzielonych prac. Przydziału dokonuje koordynator, gdy prace trafią do oceniania – czasem jeszcze przed zamknięciem etapu." %}
   </p>
 {% endfor %}
 
@@ -75,19 +100,27 @@
     odebranie pracy przez koordynatora to co innego niż nowa wersja rozwiązania od uczestnika.
   {% endcomment %}
   <section class="section">
-    <h2>Recenzje anulowane</h2>
-    <p class="hint">Te oceny nie liczą się do oceny końcowej i nie można ich już zmienić.</p>
+    <h2>{% translate "Recenzje anulowane" %}</h2>
+    <p class="hint">{% translate "Te oceny nie liczą się do oceny końcowej i nie można ich już zmienić." %}</p>
     <div class="scroll">
       <table class="table">
         <thead>
-          <tr><th>Praca</th><th>Etap</th><th>Zadanie</th><th>Runda</th><th>Punkty</th><th>Powód</th></tr>
+          <tr>
+            <th>{% translate "Praca" %}</th>
+            <th>{% translate "Etap" %}</th>
+            <th>{% translate "Zadanie" %}</th>
+            <th>{% translate "Runda" %}</th>
+            <th>{% translate "Punkty" %}</th>
+            <th>{% translate "Powód" %}</th>
+          </tr>
         </thead>
         <tbody>
           {% for row in cancelled_rows %}
             <tr>
               <td><span class="code-chip">{{ row.review.submission.entry.participant.public_code }}</span></td>
               <td>{{ row.review.submission.entry.stage.display_name }}</td>
-              <td>{{ row.review.submission.problem.number }}. {{ row.review.submission.problem.title }}</td>
+              <td>{{ row.review.submission.problem.number }}.
+                {{ row.review.submission.problem.display_title }}</td>
               <td class="num">{{ row.review.round }}</td>
               <td class="num">{% if row.review.score is not None %}{{ row.review.score }}{% else %}—{% endif %}</td>
               <td>{{ row.reason }}</td>

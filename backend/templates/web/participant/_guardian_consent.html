@@ -1,0 +1,47 @@
+{% load i18n web_extras %}{% comment %}
+  Stan zgody opiekuna w panelu uczestnika. Fragment renderuje się **wyłącznie** dla osób, od
+  których tej zgody wymagamy (rocznik małoletni) – stan ``not_required`` nie ma tu żadnej gałęzi,
+  bo pytanie o zgodę opiekuna osoby pełnoletniej byłoby po prostu nieprawdziwe.
+
+  Trzy stany i trzy różne rzeczy do zrobienia: podaj adres, poczekaj (albo wyślij ponownie),
+  nic – jest załatwione. Formularz adresu stoi w dwóch pierwszych, bo literówka w adresie jest
+  najczęstszym powodem, dla którego nic nie przychodzi, a poprawienie jej musi być możliwe bez
+  pisania do organizatora.
+{% endcomment %}
+<div class="card card--quiet" id="zgoda-opiekuna">
+  <h3 class="mt-0">{% translate "Zgoda rodzica lub opiekuna prawnego" %}</h3>
+
+  {% if guardian.state == "confirmed" %}
+    <p><span class="badge badge--ok">{% translate "potwierdzona" %}</span>
+      {% blocktranslate trimmed with when=guardian.record.given_at|local_datetime email=guardian.email %}
+        Zgoda wpłynęła {{ when }} z adresu {{ email }}.
+      {% endblocktranslate %}</p>
+  {% else %}
+    {% if guardian.state == "pending" %}
+      <p><span class="badge badge--warn">{% translate "oczekuje" %}</span>
+        {% blocktranslate trimmed with email=guardian.email %}
+          Prośba o zgodę poszła na adres {{ email }}. Czekamy na potwierdzenie.
+        {% endblocktranslate %}</p>
+    {% else %}
+      <p><span class="badge badge--neutral">{% translate "brak" %}</span>
+        {% translate "Udział osoby niepełnoletniej wymaga zgody opiekuna. Podaj jego adres e-mail – wyślemy tam link do formularza zgody." %}</p>
+    {% endif %}
+
+    <form method="post" action="{% url 'web:guardian-request' %}" class="form">
+      {% csrf_token %}
+      <p>
+        <label for="guardian-email">{% translate "Adres e-mail rodzica lub opiekuna prawnego" %}</label>
+        <input type="email" name="guardian_email" id="guardian-email" required
+               autocomplete="email" value="{{ guardian.email }}">
+      </p>
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">
+          {% if guardian.state == "pending" %}{% translate "Wyślij ponownie" %}
+          {% else %}{% translate "Wyślij prośbę o zgodę" %}{% endif %}</button>
+      </div>
+    </form>
+    <p class="hint">
+      {% translate "Link w liście jest ważny 14 dni. Zmiana adresu unieważnia poprzednio wysłany link." %}
+    </p>
+  {% endif %}
+</div>

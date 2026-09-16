@@ -37,6 +37,17 @@ dependencies = [
     # (Wagtail ciągnie openpyxl tranzytywnie, ale zależność, na której stoi nasz kod, ma być
     # nazwana wprost – inaczej usunięcie jej z Wagtaila wywróciłoby eksport bez ostrzeżenia.)
     "openpyxl>=3.1,<4.0",
+    # Skład dyplomów i zaświadczeń (``apps.results.certificates``). Zależność zwykła, a nie dev:
+    # dokument wystawia koordynator w panelu na produkcji, a uczestnik pobiera go ze swojego
+    # panelu. Kroje DejaVu są w repozytorium (``backend/static/fonts/``) razem z licencją –
+    # wbudowane w reportlab fonty Type1 nie mają polskich znaków diakrytycznych, więc bez nich
+    # „Zaświadczenie dla Łucji Śniadeckiej” składałoby się z czarnych prostokątów.
+    "reportlab>=4,<5",
+    # Liczba stron PDF-a oddanego przez uczestnika (``apps.submissions.preview``). Czytamy
+    # **wyłącznie** tablicę stron – biblioteka niczego nie renderuje i nie wykonuje, a sam odczyt
+    # idzie dopiero po czystym skanie antywirusowym. W zwykłych zależnościach, a nie w ekstrze
+    # dev, bo liczbę stron pokazuje panel uczestnika, czyli produkcja.
+    "pypdf>=4,<6",
 ]
 
 [project.optional-dependencies]

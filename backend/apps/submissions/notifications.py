@@ -28,6 +28,8 @@ from __future__ import annotations
 import logging
 
 from django.urls import reverse
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
 
 from apps.accounts.activation import absolute_url, queue_mail
 from apps.core.models import audit
@@ -41,22 +43,31 @@ TYPE_SUBMISSION_INFECTED = "submission.infected"
 TYPE_RESULTS_PUBLISHED = "results.published"
 TYPE_APPEAL_DECIDED = "appeal.decided"
 
-SUBMISSION_RECEIVED_SUBJECT = "Rozwiązanie przyjęte – Olimpiada Kwantowa"
-SUBMISSION_INFECTED_SUBJECT = "Plik odrzucony przez skan antywirusowy – Olimpiada Kwantowa"
-RESULTS_PUBLISHED_SUBJECT = "Wyniki etapu ogłoszone – Olimpiada Kwantowa"
-APPEAL_DECIDED_SUBJECT = "Decyzja w sprawie reklamacji – Olimpiada Kwantowa"
+#: Tematy listów. Leniwe (``gettext_lazy``), bo moduł ładuje się przy starcie procesu –
+#: do napisu sprowadza je ``queue_mail`` tuż przed kolejkowaniem zadania.
+SUBMISSION_RECEIVED_SUBJECT = gettext_lazy("Rozwiązanie przyjęte – Olimpiada Kwantowa")
+SUBMISSION_INFECTED_SUBJECT = gettext_lazy("Plik odrzucony przez skan antywirusowy – Olimpiada Kwantowa")
+RESULTS_PUBLISHED_SUBJECT = gettext_lazy("Wyniki etapu ogłoszone – Olimpiada Kwantowa")
+APPEAL_DECIDED_SUBJECT = gettext_lazy("Decyzja w sprawie reklamacji – Olimpiada Kwantowa")
 
-#: Stopka każdego listu. Jedna, bo to ten sam nadawca i ta sama skrzynka bez odbioru.
-SIGNATURE = (
-    "--",
-    "Olimpiada Kwantowa",
-    "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać.",
-)
+
+def _signature() -> tuple[str, ...]:
+    """Stopka każdego listu – jedna, bo to ten sam nadawca i ta sama skrzynka bez odbioru.
+
+    Funkcja, a nie stała: od wprowadzenia angielskiej wersji serwisu napis ma się przetłumaczyć
+    w chwili składania listu, a moduł ładuje się przy starcie procesu, zanim jakikolwiek język
+    jest aktywny.
+    """
+    return (
+        "--",
+        _("Olimpiada Kwantowa"),
+        _("Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać."),
+    )
 
 
 def _message(*lines: str) -> str:
     """Składa treść listu razem ze stopką – żeby żaden list nie wyszedł bez podpisu."""
-    return "\n".join([*lines, "", *SIGNATURE])
+    return "\n".join([*lines, "", *_signature()])
 
 
 def _recipient(user) -> str:
@@ -94,17 +105,21 @@ def submission_received_message(submission, submission_file) -> str:
     """
     stage = submission.entry.stage
     return _message(
-        f"Twoje rozwiązanie zostało przyjęte przez serwis Olimpiady Kwantowej ({stage.display_name}).",
+        _("Twoje rozwiązanie zostało przyjęte przez serwis Olimpiady Kwantowej (%(stage)s).")
+        % {"stage": stage.display_name},
         "",
-        f"Zadanie: {submission.problem.number}. {submission.problem.title}",
-        f"Wersja: {submission.version}",
-        f"Czas przyjęcia (UTC): {submission.submitted_at.isoformat()}",
-        f"Suma kontrolna pliku (sha256): {submission_file.sha256}",
+        _("Zadanie: %(number)s. %(title)s")
+        % {"number": submission.problem.number, "title": submission.problem.title},
+        _("Wersja: %(version)s") % {"version": submission.version},
+        _("Czas przyjęcia (UTC): %(when)s") % {"when": submission.submitted_at.isoformat()},
+        _("Suma kontrolna pliku (sha256): %(sha)s") % {"sha": submission_file.sha256},
         "",
-        "Plik trafił na skan antywirusowy. Jeśli skan go odrzuci, dostaniesz osobną wiadomość –"
-        " w przeciwnym razie nie piszemy nic więcej i ta wersja idzie do oceny.",
+        _(
+            "Plik trafił na skan antywirusowy. Jeśli skan go odrzuci, dostaniesz osobną wiadomość – "
+            "w przeciwnym razie nie piszemy nic więcej i ta wersja idzie do oceny."
+        ),
         "",
-        "Każda kolejna wysyłka tworzy nową wersję; oceniana jest ostatnia.",
+        _("Każda kolejna wysyłka tworzy nową wersję; oceniana jest ostatnia."),
     )
 
 
@@ -126,19 +141,26 @@ def submission_infected_message(submission, submission_file) -> str:
     """Treść listu o odrzuconym pliku – z jawnym „oddaj jeszcze raz”, póki etap jest otwarty."""
     stage = submission.entry.stage
     return _message(
-        "Plik, który wysłałeś do serwisu Olimpiady Kwantowej, został odrzucony przez skan "
-        "antywirusowy i nie wejdzie do oceniania.",
+        _(
+            "Plik, który wysłałeś do serwisu Olimpiady Kwantowej, został odrzucony przez skan "
+            "antywirusowy i nie wejdzie do oceniania."
+        ),
         "",
-        f"Etap: {stage.display_name}",
-        f"Zadanie: {submission.problem.number}. {submission.problem.title}",
-        f"Wersja: {submission.version}",
-        f"Suma kontrolna pliku (sha256): {submission_file.sha256}",
+        _("Etap: %(stage)s") % {"stage": stage.display_name},
+        _("Zadanie: %(number)s. %(title)s")
+        % {"number": submission.problem.number, "title": submission.problem.title},
+        _("Wersja: %(version)s") % {"version": submission.version},
+        _("Suma kontrolna pliku (sha256): %(sha)s") % {"sha": submission_file.sha256},
         "",
-        "Najczęstszą przyczyną jest zainfekowany komputer albo plik pobrany z nieznanego źródła, "
-        "a nie treść samego rozwiązania.",
+        _(
+            "Najczęstszą przyczyną jest zainfekowany komputer albo plik pobrany z nieznanego "
+            "źródła, a nie treść samego rozwiązania."
+        ),
         "",
-        "Co zrobić: sprawdź komputer programem antywirusowym, wygeneruj plik ponownie i wyślij "
-        "go jeszcze raz w panelu uczestnika. Liczy się ostatnia wersja przyjęta przed terminem.",
+        _(
+            "Co zrobić: sprawdź komputer programem antywirusowym, wygeneruj plik ponownie i wyślij "
+            "go jeszcze raz w panelu uczestnika. Liczy się ostatnia wersja przyjęta przed terminem."
+        ),
     )
 
 
@@ -189,19 +211,27 @@ def notify_results_published(publication, *, request=None) -> int:
     """
     # Import lokalny: ``apps.competitions`` nie zależy od ``apps.submissions``, ale ten moduł
     # ładuje się przy rejestracji aplikacji i nie ma po co ciągnąć modeli zawodów na starcie.
+    from apps.accounts.preferences import language_for
     from apps.competitions.models import StageEntry
 
     stage = publication.stage
     link = absolute_url(reverse("web:results", args=[stage.pk]), request)
     feedback_link = absolute_url(reverse("web:participant-feedback", args=[stage.pk]), request)
-    message = results_published_message(stage, link, feedback_link)
     sent = 0
     for entry in StageEntry.objects.filter(stage=stage).select_related("participant__user"):
         user = entry.participant.user
         recipient = _recipient(user)
         if not recipient:
             continue
-        queue_mail(RESULTS_PUBLISHED_SUBJECT, message, recipient)
+        # Treść składa się **per odbiorca**, bo każdy może mieć inny język interfejsu. Koszt to
+        # kilkanaście operacji na napisach na uczestnika – nieporównanie mniej niż jedno zapytanie
+        # do bazy, a alternatywą byłby list w języku koordynatora dla wszystkich.
+        with language_for(user):
+            queue_mail(
+                RESULTS_PUBLISHED_SUBJECT,
+                results_published_message(stage, link, feedback_link),
+                recipient,
+            )
         sent += 1
     if sent:
         audit(None, "notification.sent", publication, {"type": TYPE_RESULTS_PUBLISHED})

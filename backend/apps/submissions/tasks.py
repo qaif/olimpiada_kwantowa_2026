@@ -110,3 +110,29 @@ def scan_submission_file(self, file_id: int) -> str:
 def close_due_stages() -> list[int]:
     """Beat co 60 s: etapy po ``deadline_at + grace_seconds`` dostają LOCKED i znacznik ``closed_at``."""
     return close_due_stages_service(now=timezone.now())
+
+
+@shared_task
+def recompute_similarity(stage_id: int, actor_id: int | None = None) -> dict:
+    """Przelicza podobieństwa rozwiązań w etapie (kolejka domyślna, uruchamiane przyciskiem).
+
+    Zadanie, a nie synchroniczne żądanie, bo przy komplecie prac finału porównanie idzie
+    w tysiącach par: przeglądarka odpadłaby na timeoucie, a koordynator nie miałby jak
+    stwierdzić, czy przeliczenie trwa, czy padło. Kolejka jest domyślna – to praca rzadka
+    i ręcznie wywołana, więc nie zasługuje na własnego workera, ale nie może też zająć
+    kolejki skanów antywirusowych, od której zależy przyjmowanie prac.
+
+    ``actor_id``, a nie obiekt użytkownika: argumenty zadania jadą przez brokera jako JSON,
+    a wpis audytowy i tak potrzebuje wyłącznie tego, kto kliknął.
+    """
+    from apps.accounts.models import User
+    from apps.competitions.models import Stage
+
+    from .similarity import recompute_stage
+
+    stage = Stage.objects.filter(pk=stage_id).first()
+    if stage is None:
+        logger.warning("Przeliczenie podobieństw pominięte: etap %s już nie istnieje.", stage_id)
+        return {"stage_id": stage_id, "problems": 0, "compared": 0, "stored": 0, "truncated": []}
+    actor = User.objects.filter(pk=actor_id).first() if actor_id else None
+    return recompute_stage(stage, actor=actor)

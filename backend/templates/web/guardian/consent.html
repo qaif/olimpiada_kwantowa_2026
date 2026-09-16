@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Formularz zgody opiekuna. Jedyny ekran serwisu otwierany przez osobę bez konta – uprawnieniem
+  jest podpisany token w adresie. Strona celowo nie ma nawigacji do panelu ani zaproszenia do
+  rejestracji: opiekun przyszedł po jedną czynność i nie jest tu użytkownikiem do pozyskania.
+{% endcomment %}
+{% block title %}{% translate "Zgoda rodzica lub opiekuna prawnego" %}{% endblock %}
+{% block timeline_strip %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Zgoda opiekuna" %}</span>
+  <h1>{% translate "Zgoda na udział w Olimpiadzie Kwantowej" %}</h1>
+  <p class="lead">
+    {% blocktranslate trimmed with name=first_name school=school %}
+      Zgłoszenie dotyczy uczestnika: <strong>{{ name }}</strong>, {{ school }}.
+    {% endblocktranslate %}
+  </p>
+</div>
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">{% translate "Treść oświadczenia" %}</h2>
+    {% comment %}
+      Treść pochodzi z ``apps.accounts.consents`` – z tego samego miejsca, z którego bierze ją wpis
+      dowodowy. Wersja stoi pod tekstem, bo to ona trafia do ``ConsentRecord.document_version``
+      i to ona odpowiada po latach na pytanie „na co ta osoba się zgodziła”.
+    {% endcomment %}
+    <p>{{ consent_text }}</p>
+    <p class="hint">{% blocktranslate trimmed with version=consent_version %}
+      Wersja dokumentu: {{ version }}.
+    {% endblocktranslate %}</p>
+
+    <form method="post" class="form">
+      {% csrf_token %}
+      {% if form.agree.errors %}
+        <p class="msg msg-error">{{ form.agree.errors.0 }}</p>
+      {% endif %}
+      <p class="dropzone__confirm">
+        <input type="checkbox" name="agree" value="1" id="agree" required>
+        <label for="agree">{{ form.agree.label }}</label>
+      </p>
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">{% translate "Potwierdzam" %}</button>
+      </div>
+    </form>
+
+    <p class="hint">
+      {% blocktranslate trimmed with days=valid_days %}
+        Link jest ważny {{ days }} dni. Jeśli nie jesteś opiekunem tej osoby albo nie wyrażasz
+        zgody – po prostu zamknij tę stronę; bez potwierdzenia nic nie zostanie zapisane.
+      {% endblocktranslate %}
+    </p>
+  </div>
+</section>
+{% endblock %}

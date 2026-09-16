@@ -16,6 +16,7 @@ from wagtail.admin import urls as wagtailadmin_urls
 
 from apps.web.views.docs import NonceSwaggerView
 from apps.web.views.public import site_verification
+from apps.web.views.statistics import StatisticsView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -39,6 +40,14 @@ urlpatterns = [
     # Pliki potwierdzające własność domeny (Google Search Console). Przed trasami Wagtaila, bo te
     # zjadłyby adres jako nieistniejącą stronę i odpowiedziały 404.
     path("<str:token>.html", site_verification, name="site-verification"),
+    # Przełącznik języka Django (``/i18n/setlang/``). Zamontowany dla zgodności z biblioteką
+    # i dla klientów, które go znają; własny formularz w pasku konta idzie na
+    # ``/account/preferences/``, bo zapisuje **dwie** rzeczy naraz (język i kontrast).
+    path("i18n/", include("django.conf.urls.i18n")),
+    # Statystyki ogłoszonych etapów. Widok aplikacji, nie strona w CMS-ie: treść jest w całości
+    # wyliczana z publikacji wyników, a redaktor nie ma w niej niczego do napisania. Musi stać
+    # przed catch-allem Wagtaila – tak samo, jak ``/results/<id>/`` w ``apps.web.urls``.
+    path("statystyki/", StatisticsView.as_view(), name="statistics"),
     # Redakcja części informacyjnej. Dostęp ma wyłącznie grupa `coordinator` (migracja cms.0003).
     path("cms/", include(wagtailadmin_urls)),
     # Dokumenty Wagtaila serwuje widok aplikacji, a nie bezpośredni URL bucketu. Wzorce są kopią

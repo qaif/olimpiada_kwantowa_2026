@@ -22,8 +22,10 @@ from django.urls import reverse
 from django.views.generic import TemplateView, View
 
 from apps.core.api import DomainError
+from apps.grading.code_view import code_listing, line_notes
 from apps.grading.comparison import comparison_context
-from apps.grading.models import ROUND_TIEBREAK, ReviewStatus
+from apps.grading.issues import open_issues_for_reviewer
+from apps.grading.models import ROUND_TIEBREAK, ReviewStatus, WorkIssueKind, WorkIssueStatus
 from apps.grading.navigation import group_by_problem, queue_position
 from apps.grading.rubric import rubric_from_post, rubric_rows
 from apps.grading.services import (
@@ -39,6 +41,8 @@ from apps.grading.services import (
     scale_items,
     submit_review,
 )
+from apps.grading.snippets import snippets_for
+from apps.grading.worklog import format_duration, review_seconds
 from apps.web.forms import ReviewDraftForm, ReviewSubmitForm
 from apps.web.mixins import ReviewerRequiredMixin
 
@@ -80,6 +84,9 @@ class ReviewListView(ReviewerScopedMixin, TemplateView):
             if item.status == ReviewStatus.CANCELLED
         ]
         context["open_statuses"] = (ReviewStatus.ASSIGNED, ReviewStatus.DRAFT)
+        # Zgłoszone problemy z pracami – jedno zapytanie na całą listę, bo marker stoi przy
+        # wierszach, a przydziałów bywa kilkaset. Szablon pyta o pojedynczy wiersz, stąd słownik.
+        context["open_issues"] = open_issues_for_reviewer(self.reviewer)
         return context
 
 
@@ -192,6 +199,26 @@ class ReviewDetailView(ReviewerScopedMixin, TemplateView):
                     if review.submission.problem.model_solution_pdf
                     else None
                 ),
+                # Szablony komentarzy: wspólne komitetu przed prywatnymi recenzenta. Lista jest
+                # czytelna także bez JavaScriptu – treść stoi na ekranie do skopiowania, a przycisk
+                # „Wstaw” jest wygodą, którą dokłada ``static/js/review-snippets.js``.
+                "snippets": snippets_for(review.submission.problem, self.reviewer),
+                # Zmierzony czas pracy nad tą recenzją. Zero znaczy „nie mierzono” (recenzja sprzed
+                # wprowadzenia licznika albo ocena zrobiona z wydruku) – szablon mówi to wprost.
+                "worklog_seconds": review_seconds(review),
+                "worklog_label": format_duration(review_seconds(review)),
+                # Podgląd rozwiązania oddanego jako kod. ``None`` dla PDF-u i zdjęcia – tam
+                # obowiązuje warstwa prostokątów i sekcja listingu w ogóle nie powstaje.
+                "code_listing": (
+                    code_listing(submission_file, review.annotations)
+                    if submission_file is not None and submission_file.is_clean
+                    else None
+                ),
+                "line_notes": line_notes(review),
+                # Otwarte zgłoszenie problemu z tą pracą. Baner, a nie bramka: ocenianie zostaje
+                # dozwolone (patrz ``apps.grading.issues``).
+                "open_issue": review.issues.filter(status=WorkIssueStatus.OPEN).first(),
+                "issue_kinds": WorkIssueKind.choices,
             }
         )
         return context

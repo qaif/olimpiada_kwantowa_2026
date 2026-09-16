@@ -86,6 +86,29 @@
               </p>
             {% endif %}
           {% endfor %}
+          {% comment %}
+            Stan zgody opiekuna – do odczytu, nie do edycji. Koordynator musi wiedzieć, czy
+            małoletni uczestnik ma zgodę i z jakiego adresu wpłynęła (najczęstsze pytanie przed
+            dopuszczeniem do etapu), ale ustawić jej za opiekuna nie może: dowodem jest
+            potwierdzenie z podpisanego linku, a nie kliknięcie w panelu organizatora.
+          {% endcomment %}
+          {% if guardian.state != "not_required" %}
+            <dl class="meta-list">
+              <dt>Zgoda opiekuna</dt>
+              <dd>
+                {% if guardian.state == "confirmed" %}
+                  <span class="badge badge--ok">potwierdzona</span>
+                  {{ guardian.record.given_at|local_datetime }}, z adresu {{ guardian.email }}
+                {% elif guardian.state == "pending" %}
+                  <span class="badge badge--warn">oczekuje</span>
+                  prośba wysłana na {{ guardian.email }}
+                {% else %}
+                  <span class="badge badge--neutral">brak</span>
+                  uczestnik nie podał jeszcze adresu opiekuna
+                {% endif %}
+              </dd>
+            </dl>
+          {% endif %}
         </div>
       </section>
     {% endif %}

@@ -49,6 +49,10 @@
                 {% else %}
                   <span class="badge badge--neutral">nie</span>
                 {% endif %}
+                {# Decyzja komitetu wbrew progowi musi być widoczna – patrz templates/web/results.html. #}
+                {% if row.manual %}
+                  <span class="badge badge--warn">kwalifikacja decyzją komitetu</span>
+                {% endif %}
               </td>
             </tr>
           {% empty %}

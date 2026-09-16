@@ -18,6 +18,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+from django.utils.translation import gettext_lazy
+
 from .models import SubmissionStatus
 
 #: Stan kroku na ścieżce. ``failed`` dotyczy wyłącznie pracy odrzuconej przez antywirusa: ta nie
@@ -45,12 +47,14 @@ GRADED_STATUSES = frozenset(
 )
 
 #: Podpisy kroków – w kolejności, w jakiej stoją na ścieżce. Klucz jest maszynowy (klasa CSS,
-#: asercja w teście), etykieta jest tym, co czyta uczestnik.
-STEPS: tuple[tuple[str, str], ...] = (
-    ("submitted", "oddane"),
-    ("review", "w ocenie"),
-    ("graded", "oceniona"),
-    ("results", "wyniki"),
+#: asercja w teście), etykieta jest tym, co czyta uczestnik – i dlatego przechodzi przez
+#: ``gettext_lazy``: ścieżka stoi na panelu uczestnika, czyli na ekranie objętym tłumaczeniem.
+#: Leniwie, bo moduł ładuje się przy starcie procesu, zanim jakikolwiek język jest aktywny.
+STEPS: tuple[tuple[str, object], ...] = (
+    ("submitted", gettext_lazy("oddane")),
+    ("review", gettext_lazy("w ocenie")),
+    ("graded", gettext_lazy("oceniona")),
+    ("results", gettext_lazy("wyniki")),
 )
 
 #: Numer kroku „wyniki”. Osiąga go wyłącznie publikacja wyników etapu, nigdy status pracy.
@@ -62,7 +66,7 @@ class TrackStep:
     """Jeden krok ścieżki: klucz maszynowy, podpis i stan względem miejsca, w którym stoi praca."""
 
     key: str
-    label: str
+    label: object
     state: str
 
     @property

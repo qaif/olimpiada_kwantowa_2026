@@ -37,6 +37,8 @@ from django.core import signing
 from django.db import transaction
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
 from rest_framework import status
 
 from apps.core.api import DomainError
@@ -62,9 +64,12 @@ EMAIL_CHANGE_MAX_AGE = 24 * 3600
 #: z ustawieniem, na które patrzy kod.
 ACTIVATION_HOURS = ACTIVATION_MAX_AGE // 3600
 
-ACTIVATION_SUBJECT = "Aktywuj konto – Olimpiada Kwantowa"
-EMAIL_CHANGE_SUBJECT = "Potwierdź nowy adres e-mail – Olimpiada Kwantowa"
-EMAIL_CHANGED_NOTICE_SUBJECT = "Adres e-mail konta został zmieniony – Olimpiada Kwantowa"
+#: Tematy listów do uczestnika. Leniwe, bo moduł ładuje się przy starcie procesu, zanim
+#: jakikolwiek język jest aktywny; ``queue_mail`` sprowadza je do napisu tuż przed kolejkowaniem
+#: (argumenty zadania Celery jadą przez JSON i obiektu leniwego by nie przeniosły).
+ACTIVATION_SUBJECT = gettext_lazy("Aktywuj konto – Olimpiada Kwantowa")
+EMAIL_CHANGE_SUBJECT = gettext_lazy("Potwierdź nowy adres e-mail – Olimpiada Kwantowa")
+EMAIL_CHANGED_NOTICE_SUBJECT = gettext_lazy("Adres e-mail konta został zmieniony – Olimpiada Kwantowa")
 
 #: Komunikat po rejestracji. W jednym miejscu, bo wychodzi z trzech ścieżek (formularz WWW,
 #: rejestracja komitetu, dokończenie rejestracji społecznościowej bez potwierdzonego adresu).
@@ -133,21 +138,26 @@ def activation_message(link: str) -> str:
     """Treść listu aktywacyjnego. Poza adresem odbiorcy (i tak w nagłówku ``To:``) zero danych osobowych."""
     return "\n".join(
         [
-            "Ktoś – prawdopodobnie Ty – założył konto w serwisie Olimpiady Kwantowej.",
+            _("Ktoś – prawdopodobnie Ty – założył konto w serwisie Olimpiady Kwantowej."),
             "",
-            "Aby aktywować konto i móc się zalogować, otwórz poniższy adres:",
+            _("Aby aktywować konto i móc się zalogować, otwórz poniższy adres:"),
             "",
             link,
             "",
-            f"Link jest ważny {ACTIVATION_HOURS} godziny. Po tym czasie konto zostanie usunięte "
-            "i rejestrację trzeba będzie powtórzyć.",
+            _(
+                "Link jest ważny %(hours)s godziny. Po tym czasie konto zostanie usunięte "
+                "i rejestrację trzeba będzie powtórzyć."
+            )
+            % {"hours": ACTIVATION_HOURS},
             "",
-            "Jeśli to nie Ty zakładałeś konto – zignoruj tę wiadomość. Bez kliknięcia w link konto "
-            "nie zostanie aktywowane i zniknie samo.",
+            _(
+                "Jeśli to nie Ty zakładałeś konto – zignoruj tę wiadomość. Bez kliknięcia w link "
+                "konto nie zostanie aktywowane i zniknie samo."
+            ),
             "",
             "--",
-            "Olimpiada Kwantowa",
-            "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać.",
+            _("Olimpiada Kwantowa"),
+            _("Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać."),
         ]
     )
 
@@ -156,20 +166,21 @@ def email_change_message(link: str, new_email: str) -> str:
     """Treść listu na **nowy** adres: dopiero kliknięcie zmienia adres konta."""
     return "\n".join(
         [
-            f"Poproszono o zmianę adresu e-mail konta w serwisie Olimpiady Kwantowej na {new_email}.",
+            _("Poproszono o zmianę adresu e-mail konta w serwisie Olimpiady Kwantowej na %(email)s.")
+            % {"email": new_email},
             "",
-            "Aby potwierdzić nowy adres, otwórz poniższy adres:",
+            _("Aby potwierdzić nowy adres, otwórz poniższy adres:"),
             "",
             link,
             "",
-            "Do potwierdzenia obowiązuje dotychczasowy adres – logowanie działa bez zmian.",
-            "Link jest ważny 24 godziny.",
+            _("Do potwierdzenia obowiązuje dotychczasowy adres – logowanie działa bez zmian."),
+            _("Link jest ważny 24 godziny."),
             "",
-            "Jeśli to nie Ty prosiłeś o zmianę – zignoruj tę wiadomość.",
+            _("Jeśli to nie Ty prosiłeś o zmianę – zignoruj tę wiadomość."),
             "",
             "--",
-            "Olimpiada Kwantowa",
-            "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać.",
+            _("Olimpiada Kwantowa"),
+            _("Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać."),
         ]
     )
 
@@ -182,14 +193,17 @@ def email_changed_notice(new_email: str) -> str:
     """
     return "\n".join(
         [
-            "Adres e-mail konta w serwisie Olimpiady Kwantowej został zmieniony "
-            f"na {new_email}. Logowanie tym adresem przestaje działać.",
+            _(
+                "Adres e-mail konta w serwisie Olimpiady Kwantowej został zmieniony na %(email)s. "
+                "Logowanie tym adresem przestaje działać."
+            )
+            % {"email": new_email},
             "",
-            "Jeśli to nie Ty dokonałeś zmiany, natychmiast skontaktuj się z organizatorem.",
+            _("Jeśli to nie Ty dokonałeś zmiany, natychmiast skontaktuj się z organizatorem."),
             "",
             "--",
-            "Olimpiada Kwantowa",
-            "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać.",
+            _("Olimpiada Kwantowa"),
+            _("Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać."),
         ]
     )
 
@@ -204,10 +218,17 @@ def queue_mail(subject: str, message: str, recipient: str) -> None:
     if not recipient:
         return
 
+    # ``str(...)`` **tuż przed** kolejkowaniem: temat bywa obiektem leniwego tłumaczenia
+    # (``gettext_lazy``), a argumenty zadania Celery jadą przez JSON – leniwy obiekt nie
+    # przeszedłby przez serializację. Sprowadzenie do napisu tutaj utrwala też język, który
+    # obowiązywał w chwili operacji, a nie ten, który akurat będzie aktywny w workerze.
+    subject_text = str(subject)
+    message_text = str(message)
+
     def _enqueue() -> None:
         from apps.core.tasks import send_mail_task
 
-        send_mail_task.delay(subject, message, [recipient])
+        send_mail_task.delay(subject_text, message_text, [recipient])
 
     transaction.on_commit(_enqueue)
 

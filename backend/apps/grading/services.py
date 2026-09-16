@@ -198,8 +198,36 @@ def _assert_reviewer_eligible(reviewer: CommitteeMember) -> None:
         raise _bad_request("Wskazana osoba nie jest recenzentem.", "REVIEWER_NOT_ELIGIBLE")
 
 
+def _validate_line_note(item: dict) -> dict:
+    """Uwaga przypięta do linii kodu: ``{line, text, public}``.
+
+    Drugi dopuszczalny kształt wpisu w ``Review.annotations``, obok prostokąta na stronie. Powód
+    rozdzielenia: rozwiązanie oddane jako ``.py`` albo ``.ipynb`` nie ma stron ani współrzędnych,
+    a recenzent mówi o nim „linia 42”. Wspólne pole, a nie osobna tabela, bo to nadal ta sama
+    rzecz – uwaga recenzenta do fragmentu pracy, z tą samą regułą jawności (``public``) i tym
+    samym limitem długości. Rozpoznanie kształtu idzie po obecności klucza ``line``
+    (patrz ``validate_annotations``), więc stare wpisy są nadal poprawne i nietknięte.
+    """
+    line = item.get("line")
+    text = item.get("text", "")
+    public = item.get("public", False)
+    if not isinstance(line, int) or isinstance(line, bool) or line < 1:
+        raise _bad_request("Uwaga do kodu wymaga numeru linii (line >= 1).", "INVALID_ANNOTATIONS")
+    if not isinstance(text, str):
+        raise _bad_request("Treść adnotacji musi być tekstem.", "INVALID_ANNOTATIONS")
+    if not isinstance(public, bool):
+        raise _bad_request("Pole 'public' musi być logiczne.", "INVALID_ANNOTATIONS")
+    return {"line": line, "text": text[:MAX_ANNOTATION_TEXT], "public": public}
+
+
 def validate_annotations(raw) -> list[dict]:
-    """Sprowadza adnotacje do kanonicznego kształtu ``{page, rect[4], text, public}``.
+    """Sprowadza adnotacje do jednego z dwóch kanonicznych kształtów.
+
+    ``{page, rect[4], text, public}`` – prostokąt na stronie PDF-u albo na zdjęciu rozwiązania;
+    ``{line, text, public}`` – uwaga do linii kodu (``.py``, ``.ipynb``). O tym, który kształt
+    obowiązuje dany wpis, rozstrzyga obecność klucza ``line``: dzięki temu adnotacje zapisane przed
+    wprowadzeniem podglądu kodu przechodzą tę funkcję bez zmiany, a klient, który nie wie o uwagach
+    do linii, nigdy ich przypadkiem nie utworzy.
 
     JSON przychodzi od recenzenta, więc jest walidowany strukturalnie i przycinany – nie trafia
     do bazy „jak leci”.
@@ -214,6 +242,9 @@ def validate_annotations(raw) -> list[dict]:
     for item in raw:
         if not isinstance(item, dict):
             raise _bad_request("Adnotacja musi być obiektem.", "INVALID_ANNOTATIONS")
+        if "line" in item:
+            cleaned.append(_validate_line_note(item))
+            continue
         page = item.get("page")
         rect = item.get("rect")
         text = item.get("text", "")

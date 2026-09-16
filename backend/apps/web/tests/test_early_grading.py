@@ -163,7 +163,7 @@ def test_warning_appears_in_the_htmx_card_after_upload(web_client, participant, 
 
     response = web_client.post(
         f"/me/stages/{entry.stage_id}/problems/1/upload/",
-        {"file": pdf_upload()},
+        {"file": pdf_upload(), "confirmed": "1"},
         HTTP_HX_REQUEST="true",
     )
 

@@ -30,6 +30,17 @@
     <span class="kpi__value">{{ counters.pending_members }}</span>
     <span class="kpi__label">Zgłoszeń do komitetu</span>
   </li>
+  {% comment %}
+    Zgłoszenia recenzentów o problemach z pracami (nieczytelny skan, rozwiązanie innego zadania,
+    podejrzenie niesamodzielności). Kafelek jest odnośnikiem, bo jedyne, co się z tą liczbą robi,
+    to przejście do kolejki – a osobny przycisk obok licznika byłby tym samym kliknięciem dwa razy.
+  {% endcomment %}
+  <li class="kpi__item{% if counters.open_issues %} kpi__item--alert{% endif %}">
+    <a href="{% url 'web:coordinator-issues' %}">
+      <span class="kpi__value">{{ counters.open_issues }}</span>
+      <span class="kpi__label">Zgłoszone problemy</span>
+    </a>
+  </li>
 </ul>
 
 {% comment %}
@@ -153,6 +164,16 @@
         {% endcomment %}
         <a href="{% url 'web:coordinator-stage-progress' row.stage.pk %}">Postęp oceniania</a>
         <a href="{% url 'web:coordinator-stage-simulation' row.stage.pk %}">Symulacja kwalifikacji</a>
+        {% comment %}
+          Trzy narzędzia czytane **po** ocenianiu, przed posiedzeniem komitetu: czy któryś
+          recenzent odstaje, czy któreś dwie prace są tą samą pracą i co wystawić na papierze.
+          Też wyłącznie odczyt (poza przyciskami na samych ekranach), więc stoją tutaj.
+        {% endcomment %}
+        <a href="{% url 'web:coordinator-stage-calibration' row.stage.pk %}">Kalibracja recenzentów</a>
+        {% if not row.stage.is_interview %}
+          <a href="{% url 'web:coordinator-stage-similarity' row.stage.pk %}">Podobieństwo rozwiązań</a>
+        {% endif %}
+        <a href="{% url 'web:coordinator-stage-certificates' row.stage.pk %}">Dyplomy</a>
       </p>
 
       <div class="stage-panel__actions">

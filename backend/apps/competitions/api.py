@@ -93,8 +93,13 @@ class ProblemStatementView(GenericAPIView):
         visible = problem.stage.has_opened() or IsCoordinator().has_permission(request, self)
         if not visible or not problem.statement_pdf:
             raise Http404
+        # Wersja językowa wybiera się sama: ``statement_file`` oddaje plik angielski, gdy jest
+        # i gdy język interfejsu jest angielski, a w każdym innym przypadku polski. Bramka
+        # widoczności zostaje przy wersji polskiej – bez niej etap nie ma treści w żadnym języku,
+        # więc to ona rozstrzyga, czy zadanie w ogóle istnieje dla świata.
+        statement = problem.statement_file
         return FileResponse(
-            problem.statement_pdf.open("rb"),
+            statement.open("rb"),
             content_type="application/pdf",
             as_attachment=False,
             filename=f"zadanie-{problem.number}.pdf",

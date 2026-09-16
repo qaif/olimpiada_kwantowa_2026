@@ -24,6 +24,7 @@ from datetime import timedelta
 from django.db import transaction
 from django.db.models import Count, Prefetch, ProtectedError
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from rest_framework import status
 
 from apps.core.api import DomainError
@@ -35,6 +36,7 @@ from .models import (
     StageEntry,
     StageEntryStatus,
 )
+from .video import PRECHECK_TEXT, meeting_url_for_slot, precheck_url
 
 logger = logging.getLogger(__name__)
 
@@ -250,38 +252,53 @@ def _assert_bookable(stage: Stage) -> None:
     _assert_stage_open(stage)
 
 
-def _confirmation_message(stage: Stage, slot: InterviewSlot) -> tuple[str, str]:
+def _confirmation_message(stage: Stage, slot: InterviewSlot, meeting_url: str = "") -> tuple[str, str]:
     """Treść listu potwierdzającego. Bez danych osobowych – adresat i tak wie, kim jest.
 
     Godziny idą w czasie polskim: uczestnik ma przepisać je do kalendarza, a nie przeliczać
     z UTC. Link do rozmowy jest w liście **i** w panelu; gdyby list zaginął w spamie, termin
     nadal jest osiągalny po zalogowaniu.
+
+    ``meeting_url`` przychodzi z zapisu (``InterviewBooking.meeting_url``), a nie z terminu:
+    od wprowadzenia pokoi generowanych automatycznie (``apps.competitions.video``) to zapis niesie
+    adres, który uczestnik dostał, i ten sam adres ma stać w liście. Domyślna pustka zostawia
+    zachowanie sprzed tej zmiany dla wołających, którzy adresu nie znają.
     """
     starts = timezone.localtime(slot.starts_at)
     ends = timezone.localtime(slot.ends_at)
-    subject = f"Termin rozmowy kwalifikacyjnej: {stage.display_name}"
+    subject = _("Termin rozmowy kwalifikacyjnej: %(stage)s") % {"stage": stage.display_name}
     lines = [
-        f"Etap: {stage.display_name} ({stage.edition.year_label}).",
-        f"Termin rozmowy: {starts:%d.%m.%Y, %H:%M} – {ends:%H:%M} (czas polski).",
+        _("Etap: %(stage)s (%(edition)s).")
+        % {"stage": stage.display_name, "edition": stage.edition.year_label},
+        _("Termin rozmowy: %(from)s – %(to)s (czas polski).")
+        % {"from": f"{starts:%d.%m.%Y, %H:%M}", "to": f"{ends:%H:%M}"},
     ]
     if slot.note:
-        lines.append(f"Oznaczenie: {slot.note}")
-    if slot.meeting_url:
-        lines.append(f"Link do rozmowy: {slot.meeting_url}")
+        lines.append(_("Oznaczenie: %(note)s") % {"note": slot.note})
+    link = meeting_url or slot.meeting_url
+    if link:
+        lines.append(_("Link do rozmowy: %(url)s") % {"url": link})
+        # Test sprzętu tuż pod linkiem do rozmowy, a nie w osobnym akapicie: to jedna czynność
+        # rozłożona na dwa dni („sprawdź dziś, wejdź jutro”), a nie dwie różne sprawy.
+        lines.append(_("Sprawdź kamerę i mikrofon: %(url)s") % {"url": precheck_url(link)})
+        lines.append("")
+        lines.append(str(PRECHECK_TEXT))
     lines.append(
-        "Ten sam termin i link znajdziesz po zalogowaniu w panelu uczestnika. Termin możesz "
-        "zmienić lub odwołać do chwili jego rozpoczęcia."
+        _(
+            "Ten sam termin i link znajdziesz po zalogowaniu w panelu uczestnika. Termin możesz "
+            "zmienić lub odwołać do chwili jego rozpoczęcia."
+        )
     )
     return subject, "\n".join(lines)
 
 
-def _send_confirmation(entry: StageEntry, stage: Stage, slot: InterviewSlot) -> None:
+def _send_confirmation(entry: StageEntry, stage: Stage, slot: InterviewSlot, meeting_url: str = "") -> None:
     """Kolejkuje potwierdzenie **po commicie** – worker nie może czytać stanu, którego nie ma.
 
     Wysyłka jest zadaniem na kolejce ``mail``, a nie ``send_mail`` w środku żądania: niedostępny
     MTA nie może zamienić udanego zapisu na błąd 500 ani zająć workera gunicorna na czas timeoutu.
     """
-    subject, message = _confirmation_message(stage, slot)
+    subject, message = _confirmation_message(stage, slot, meeting_url)
     recipient = entry.participant.user.email
 
     def _enqueue() -> None:
@@ -334,22 +351,27 @@ def book_slot(participant, slot: InterviewSlot, *, now=None, request=None) -> In
 
     from apps.core.models import audit
 
+    # Adres pokoju wyznaczamy **przed** utworzeniem zapisu, bo jest jego częścią. Reguła
+    # pierwszeństwa (ręczny link terminu → pokój współdzielony z sąsiadem → nowy) siedzi
+    # w ``apps.competitions.video``; tutaj zostaje samo wywołanie.
+    meeting_url = meeting_url_for_slot(stage, locked)
+
     if existing is not None:
         previous_slot_id = existing.slot_id
         existing.delete()
-        booking = InterviewBooking.objects.create(slot=locked, entry=entry)
+        booking = InterviewBooking.objects.create(slot=locked, entry=entry, meeting_url=meeting_url)
         action, diff = (
             "interview.booking_moved",
             {"from_slot": previous_slot_id, "to_slot": locked.pk},
         )
     else:
-        booking = InterviewBooking.objects.create(slot=locked, entry=entry)
+        booking = InterviewBooking.objects.create(slot=locked, entry=entry, meeting_url=meeting_url)
         action, diff = "interview.booked", {"slot": locked.pk}
 
     # Cel wpisu to ``StageEntry``, a nie uczestnik: historia zapisu należy do udziału w etapie
     # i czyta się ją razem z resztą jego przebiegu. W ``diff`` idą wyłącznie identyfikatory.
     audit(participant.user, action, entry, diff, request=request)
-    _send_confirmation(entry, stage, locked)
+    _send_confirmation(entry, stage, locked, meeting_url)
     return booking
 
 

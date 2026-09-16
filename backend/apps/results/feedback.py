@@ -34,6 +34,7 @@ from apps.competitions.models import (
     StageEntry,
     StageEntryStatus,
 )
+from apps.grading.code_view import public_line_notes
 from apps.grading.models import Review, ReviewStatus
 from apps.submissions.models import Submission, SubmissionStatus
 
@@ -59,6 +60,10 @@ class ReviewFeedback:
     label: str
     comment: str
     annotations: list[dict] = field(default_factory=list)
+    #: Uwagi przypięte do linii kodu (``{line, text}``) – osobne pole, a nie kolejne pozycje
+    #: ``annotations``, bo czyta się je inaczej: „linia 42”, a nie „strona 2”. Oba kształty
+    #: mieszkają w tym samym polu JSON recenzji i rozdziela je ``grading.code_view``.
+    line_notes: list[dict] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -197,10 +202,16 @@ def _reviews_of(submission: Submission | None) -> list[ReviewFeedback]:
             continue
         comment = (review.comment_for_participant or "").strip()
         annotations = review.public_annotations()
-        if not comment and not annotations:
+        notes = public_line_notes(review)
+        if not comment and not annotations and not notes:
             continue
         items.append(
-            ReviewFeedback(label=reviewer_label(len(items)), comment=comment, annotations=annotations)
+            ReviewFeedback(
+                label=reviewer_label(len(items)),
+                comment=comment,
+                annotations=annotations,
+                line_notes=notes,
+            )
         )
     return items
 

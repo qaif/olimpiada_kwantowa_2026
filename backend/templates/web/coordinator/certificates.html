@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+  Wystawianie dyplomów i zaświadczeń dla jednego etapu.
+
+  Tabela stoi na podglądzie wyników, bo dyplom wystawia się, patrząc na punkty i kolejność –
+  a podgląd jest jedyną drogą do tej tabeli, która niczego nie zapisuje przy wejściu na stronę.
+  Rodzaj dokumentu wybiera człowiek: o tym, kto jest laureatem, a kto finalistą, rozstrzyga
+  komitet, a próg tytułu bywa inny niż próg kwalifikacji.
+
+  Opiekunowie mają osobną sekcję, bo ich zaświadczenie dotyczy **edycji**, a nie etapu, i
+  wystawia się je raz.
+{% endcomment %}
+{% block title %}Dyplomy – {{ stage.display_name }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
+  <h1>Dyplomy i zaświadczenia: {{ stage.display_name }}</h1>
+  <p class="lead">Dokument powstaje przy każdym pobraniu, a w bazie zostaje jego <strong>numer
+    i kod weryfikacyjny</strong>. Powtórne „Wystaw” nie mnoży dyplomów – oddaje ten sam numer.</p>
+</div>
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Wystaw wszystkim</h2>
+    <p>Jeden rodzaj dla całego etapu i paczka ZIP z kompletem. Wpis, który ma już dokument tego
+      rodzaju, zachowuje swój numer.</p>
+    <form method="post" action="{% url 'web:coordinator-certificates-all' stage.pk %}">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button type="submit" class="btn btn--primary">Wystaw wszystkim (ZIP)</button>
+    </form>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Uczestnicy</h2>
+    <span class="badge badge--danger">dane osobowe</span>
+  </div>
+  <div class="scroll">
+    <table class="table table--rank">
+      <thead>
+        <tr>
+          <th scope="col">Miejsce</th>
+          <th scope="col">Kod</th>
+          <th scope="col">Imię i nazwisko</th>
+          <th scope="col">Razem</th>
+          <th scope="col">Wystawione</th>
+          <th scope="col">Wystaw</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>{{ row.rank }}</td>
+            <td><span class="code-chip">{{ row.public_code }}</span></td>
+            <td>{{ row.first_name }} {{ row.last_name }}</td>
+            <td class="num total">{{ row.total }}</td>
+            <td>
+              {% for certificate in row.certificates %}
+                <a href="{% url 'web:coordinator-certificate-download' certificate.pk %}">
+                  {{ certificate.number }}</a> ({{ certificate.get_kind_display }})<br>
+              {% empty %}—{% endfor %}
+            </td>
+            <td>
+              <form method="post" action="{% url 'web:coordinator-certificate-issue' stage.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="entry" value="{{ row.entry_id }}">
+                <select name="kind" aria-label="Rodzaj dokumentu dla {{ row.public_code }}">
+                  {% for value, label in kinds %}
+                    <option value="{{ value }}">{{ label }}</option>
+                  {% endfor %}
+                </select>
+                <button type="submit" class="btn btn--small btn--secondary">Wystaw</button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="empty">W tym etapie nie ma ani jednego wpisu.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Opiekunowie szkolni</h2>
+    <p class="hint">Na liście są wyłącznie opiekunowie, którzy potwierdzili udział szkoły w tej
+      edycji – sam adres wpisany przez ucznia jest przesłanką, a nie oświadczeniem nauczyciela.</p>
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Opiekun</th>
+          <th scope="col">Szkoła</th>
+          <th scope="col">Zaświadczenie</th>
+          <th scope="col">Wystaw</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in supervisor_rows %}
+          <tr>
+            <th scope="row">{{ row.supervisor.user.get_full_name|default:row.supervisor.user.email }}</th>
+            <td>{{ row.supervisor.display_school }}</td>
+            <td>
+              {% if row.certificate %}
+                <a href="{% url 'web:coordinator-certificate-download' row.certificate.pk %}">
+                  {{ row.certificate.number }}</a>
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              {% if not row.certificate %}
+                <form method="post" action="{% url 'web:coordinator-certificate-issue' stage.pk %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="supervisor" value="{{ row.supervisor.pk }}">
+                  <input type="hidden" name="kind" value="OPIEKUN">
+                  <button type="submit" class="btn btn--small btn--secondary">Wystaw</button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="empty">Żaden opiekun nie potwierdził jeszcze udziału szkoły
+            w tej edycji.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

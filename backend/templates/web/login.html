@@ -1,16 +1,16 @@
 {% extends "base.html" %}
-{% block title %}Logowanie{% endblock %}
+{% load i18n %}
+{% block title %}{% translate "Logowanie" %}{% endblock %}
 {% block content %}
 <div class="auth">
   <div class="card">
-    <h1>Logowanie</h1>
-    <p class="auth__intro">Panel uczestnika, członka komisji i koordynatora. Loginem jest
-      adres e-mail podany przy rejestracji.</p>
+    <h1>{% translate "Logowanie" %}</h1>
+    <p class="auth__intro">{% translate "Panel uczestnika, członka komisji i koordynatora. Loginem jest adres e-mail podany przy rejestracji." %}</p>
     <form method="post" class="form">
       {% csrf_token %}
       {{ form.as_p }}
       <input type="hidden" name="next" value="{{ next }}">
-      <button type="submit" class="btn btn--primary btn--block">Zaloguj</button>
+      <button type="submit" class="btn btn--primary btn--block">{% translate "Zaloguj" %}</button>
     </form>
     {% include "web/_social_auth.html" %}
     {% comment %}
@@ -21,12 +21,14 @@
       jednak najczęstszym powodem „hasło się nie zgadza”, więc droga wyjścia musi być widoczna
       zawsze, dla każdego.
     {% endcomment %}
-    <p class="auth__alt"><a href="{% url 'web:password-reset' %}">Nie pamiętasz hasła?</a><br>
-      Nie dostałeś linku aktywacyjnego?
-      <a href="{% url 'web:activate-resend' %}">Wyślij ponownie.</a><br>
-      Nie masz konta? <a href="{% url 'web:register' %}">Zarejestruj się</a>.<br>
-      Członek komitetu z kodem zaproszenia:
-      <a href="{% url 'web:register-committee' %}">rejestracja z kodem</a>.</p>
+    <p class="auth__alt">
+      <a href="{% url 'web:password-reset' %}">{% translate "Nie pamiętasz hasła?" %}</a><br>
+      {% translate "Nie dostałeś linku aktywacyjnego?" %}
+      <a href="{% url 'web:activate-resend' %}">{% translate "Wyślij ponownie." %}</a><br>
+      {% translate "Nie masz konta?" %}
+      <a href="{% url 'web:register' %}">{% translate "Zarejestruj się" %}</a>.<br>
+      {% translate "Członek komitetu z kodem zaproszenia:" %}
+      <a href="{% url 'web:register-committee' %}">{% translate "rejestracja z kodem" %}</a>.</p>
   </div>
 </div>
 {% endblock %}

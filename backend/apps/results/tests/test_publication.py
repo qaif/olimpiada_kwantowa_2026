@@ -80,6 +80,10 @@ def test_code_snapshot_has_no_personal_data():
         "points",
         "total",
         "qualified",
+        # Odznaka „kwalifikacja decyzją komitetu”. Sama flaga, bez uzasadnienia i bez rodzaju
+        # decyzji – wiersz ma się wytłumaczyć z rozbieżności z progiem, a nie opowiedzieć,
+        # co przydarzyło się konkretnemu uczestnikowi.
+        "manual",
     }
 
 

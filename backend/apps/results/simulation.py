@@ -32,7 +32,7 @@ from apps.core.api import DomainError
 from apps.core.models import audit
 from apps.submissions.models import Submission, SubmissionStatus
 
-from .services import _district_key, _qualified_entry_ids, compute_stage_results
+from .services import _district_key, _qualified_entry_ids, compute_stage_results, qualified_with_manual
 
 logger = logging.getLogger(__name__)
 
@@ -110,8 +110,16 @@ def simulate(stage: Stage, mode: str, min_points: int | None, top_n: int | None)
     rows = compute_stage_results(stage, preview=True)
     candidates = [row for row in rows if row["status"] != StageEntryStatus.DISQUALIFIED]
     qualified_ids = _qualified_entry_ids(candidates, rule)
+    disqualified_ids = {row["entry_id"] for row in rows} - {row["entry_id"] for row in candidates}
     for row in rows:
-        row["qualified"] = row["entry_id"] in qualified_ids
+        # Decyzja komitetu bije próg także w podglądzie – inaczej symulacja pokazywałaby inny
+        # skład niż późniejsze przeliczenie, a to jest ekran, na którym próg się dobiera.
+        # Zdyskwalifikowanego nie podnosi nawet ona: dyskwalifikacja jest osobną decyzją i to
+        # ona wymaga cofnięcia, a nie obejścia drugą decyzją (tak samo w ``apply_qualification``).
+        if row["entry_id"] in disqualified_ids:
+            row["qualified"] = False
+            continue
+        row["qualified"] = qualified_with_manual(row, row["entry_id"] in qualified_ids)
 
     qualified_rows = [row for row in rows if row["qualified"]]
     totals = [row["total"] for row in qualified_rows]

@@ -194,10 +194,10 @@ def test_upload_from_the_panel_is_throttled(web_client, participant, entry, prob
     web_client.force_login(participant.user)
     url = f"/me/stages/{entry.stage_id}/problems/1/upload/"
     for attempt in range(3):
-        response = web_client.post(url, {"file": pdf_upload()}, HTTP_HX_REQUEST="true")
+        response = web_client.post(url, {"file": pdf_upload(), "confirmed": "1"}, HTTP_HX_REQUEST="true")
         assert response.status_code == 200, attempt
 
-    blocked = web_client.post(url, {"file": pdf_upload()}, HTTP_HX_REQUEST="true")
+    blocked = web_client.post(url, {"file": pdf_upload(), "confirmed": "1"}, HTTP_HX_REQUEST="true")
 
     assert blocked.status_code == 429
     assert blocked.headers["Retry-After"]
@@ -220,9 +220,13 @@ def test_upload_429_is_retargeted_so_htmx_puts_it_in_the_dom(web_client, partici
     url = f"/me/stages/{entry.stage_id}/problems/1/upload/"
     target = f"problem-{problems[0].pk}"
     for _ in range(3):
-        web_client.post(url, {"file": pdf_upload()}, HTTP_HX_REQUEST="true", HTTP_HX_TARGET=target)
+        web_client.post(
+            url, {"file": pdf_upload(), "confirmed": "1"}, HTTP_HX_REQUEST="true", HTTP_HX_TARGET=target
+        )
 
-    blocked = web_client.post(url, {"file": pdf_upload()}, HTTP_HX_REQUEST="true", HTTP_HX_TARGET=target)
+    blocked = web_client.post(
+        url, {"file": pdf_upload(), "confirmed": "1"}, HTTP_HX_REQUEST="true", HTTP_HX_TARGET=target
+    )
 
     assert blocked.status_code == 429
     assert blocked.headers["HX-Reswap"] == "beforeend"
@@ -238,9 +242,13 @@ def test_upload_429_ignores_a_target_id_that_is_not_a_plain_identifier(
     url = f"/me/stages/{entry.stage_id}/problems/1/upload/"
     hostile = "x, body"
     for _ in range(3):
-        web_client.post(url, {"file": pdf_upload()}, HTTP_HX_REQUEST="true", HTTP_HX_TARGET=hostile)
+        web_client.post(
+            url, {"file": pdf_upload(), "confirmed": "1"}, HTTP_HX_REQUEST="true", HTTP_HX_TARGET=hostile
+        )
 
-    blocked = web_client.post(url, {"file": pdf_upload()}, HTTP_HX_REQUEST="true", HTTP_HX_TARGET=hostile)
+    blocked = web_client.post(
+        url, {"file": pdf_upload(), "confirmed": "1"}, HTTP_HX_REQUEST="true", HTTP_HX_TARGET=hostile
+    )
 
     assert blocked.status_code == 429
     assert "HX-Retarget" not in blocked.headers
@@ -267,6 +275,6 @@ def test_upload_throttle_does_not_fire_before_the_role_check(web_client, entry, 
     url = f"/me/stages/{entry.stage_id}/problems/1/upload/"
 
     for _ in range(5):
-        response = web_client.post(url, {"file": pdf_upload()})
+        response = web_client.post(url, {"file": pdf_upload(), "confirmed": "1"})
         assert response.status_code == 302
         assert response.headers["Location"].startswith("/login/")

@@ -82,7 +82,7 @@ def test_training_upload_creates_submission(
 
     response = web_client.post(
         f"/me/stages/{training_stage.pk}/problems/1/upload/",
-        {"file": pdf_upload()},
+        {"file": pdf_upload(), "confirmed": "1"},
         HTTP_HX_REQUEST="true",
     )
 

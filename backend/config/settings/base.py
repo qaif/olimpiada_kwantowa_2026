@@ -102,9 +102,17 @@ MIDDLEWARE = [
     "apps.web.middleware.ContentSecurityPolicyMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    # Język z ciasteczka albo z nagłówka ``Accept-Language``. Za sesją (czyta ją) i przed
+    # ``CommonMiddleware`` (to ono przekierowuje na adres z ukośnikiem i musi już znać język) –
+    # dokładnie tak, jak każe dokumentacja Django.
+    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Jawny wybór człowieka: język zapisany na koncie i tryb wysokiego kontrastu. **Za**
+    # ``AuthenticationMiddleware`` (czyta ``request.user``) i za ``LocaleMiddleware``, którego
+    # rozstrzygnięcie ma prawo nadpisać – ustawienie konta wygrywa z ustawieniem przeglądarki.
+    "apps.accounts.preferences.PreferencesMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     # Wymagana przez allauth: ustawia kontekst żądania (``allauth.core.context``), z którego
@@ -132,6 +140,9 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                # Język interfejsu i tryb wysokiego kontrastu – atrybut ``data-contrast`` na
+                # ``<html>`` i przełącznik „EN / PL” w pasku konta (apps/accounts/preferences.py).
+                "apps.accounts.preferences.interface",
                 # Role do nawigacji (nie do autoryzacji – ta jest w mixinach i uprawnieniach DRF).
                 "apps.web.context_processors.roles",
                 # Dane prezentacyjne ramy serwisu: etykieta edycji w logotypie, wersja w stopce.
@@ -222,6 +233,14 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.grading.tasks.remind_overdue_reviews",
         "schedule": 86400.0,
     },
+    # Przypomnienie o jutrzejszej rozmowie kwalifikacyjnej razem z linkiem do pokoju i do testu
+    # kamery (apps/competitions/tasks.py). Raz na dobę z tego samego powodu, co wyżej: częstotliwość
+    # przebiegu jest tu zarazem regułą wysyłki, a uczestnik ma dostać jeden list, nie dwadzieścia
+    # cztery. Drugi list temu samemu odbiorcy blokuje ``InterviewBooking.reminder_sent_at``.
+    "remind-interviews": {
+        "task": "apps.competitions.tasks.remind_interviews",
+        "schedule": 86400.0,
+    },
 }
 
 # --- Poczta wychodząca -----------------------------------------------------------------------
@@ -267,6 +286,18 @@ AUTH_PASSWORD_VALIDATORS = [
 LANGUAGE_CODE = "pl"
 TIME_ZONE = "Europe/Warsaw"
 USE_I18N = True
+# Dwa języki interfejsu. Polski jest podstawowy (olimpiada jest polska, organizator jest polski
+# i takie są dokumenty formalne), angielski dochodzi dla uczestników szkół z programem
+# międzynarodowym i dla opiekunów spoza kraju. Etykiety są **natywne**: kto szuka swojego języka
+# na liście, szuka go zapisanego po swojemu, a nie w tłumaczeniu na cudzy.
+LANGUAGES = [("pl", "polski"), ("en", "English")]
+# Katalogi tłumaczeń projektu (źródła ``.po`` w repozytorium, skompilowane ``.mo`` obok nich).
+# Obraz ma ``gettext``, więc ``django-admin compilemessages`` działa w kontenerze – patrz README.
+LOCALE_PATHS = [BASE_DIR / "locale"]
+# ``i18n_patterns`` świadomie **nie** jest używane: adresy serwisu trafiają do listów, do regulaminu
+# i do pism (``/me/``, ``/results/12/``, ``/zgoda/<token>/``), a prefiks języka zrobiłby z każdego
+# z nich dwa adresy. Język wybiera człowiek, a wybór jedzie ciasteczkiem, sesją i – dla konta –
+# wierszem ``accounts.UserPreference`` (patrz ``apps.accounts.preferences``).
 USE_TZ = True  # wszystkie DateTimeField w UTC; deadline'y porównywane przez timezone.now()
 
 STATIC_URL = "/static/"

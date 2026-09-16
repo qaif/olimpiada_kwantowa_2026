@@ -9,12 +9,13 @@ Zasady:
 
 import uuid
 
+from django.conf import settings
 from django.db import models
-from django.db.models import Q
+from django.db.models import F, Q
 from django.utils import timezone
 
 from apps.accounts.models import GROUP_COORDINATOR, CommitteeStatus
-from apps.competitions.models import Problem, StageEntry
+from apps.competitions.models import Problem, Stage, StageEntry
 
 
 class SubmissionStatus(models.TextChoices):
@@ -182,6 +183,13 @@ class SubmissionFile(models.Model):
     av_signature = models.CharField("sygnatura wirusa", max_length=200, blank=True)
     created_at = models.DateTimeField("utworzony", default=timezone.now)
     scanned_at = models.DateTimeField("zeskanowany", null=True, blank=True)
+    # Liczba stron dokumentu PDF, policzona **po** czystym skanie antywirusowym
+    # (``apps.submissions.preview.store_page_count`` wołane z ``apply_scan_verdict``). ``None``
+    # znaczy „nie wiadomo”, a nie „zero”: tak wygląda plik innego formatu, plik sprzed
+    # wprowadzenia pola i dokument, którego pypdf nie umiał otworzyć. Kolumna istnieje, bo tablica
+    # stron leży na końcu pliku – policzenie jej wymaga przeczytania całego dokumentu ze storage,
+    # a czyta tę liczbę panel uczestnika przy każdym wejściu.
+    page_count = models.PositiveIntegerField("liczba stron", null=True, blank=True)
 
     class Meta:
         verbose_name = "plik rozwiązania"
@@ -194,3 +202,94 @@ class SubmissionFile(models.Model):
     @property
     def is_clean(self) -> bool:
         return self.av_status == AvStatus.CLEAN
+
+
+#: Próg, poniżej którego para w ogóle nie trafia do bazy. Wynik 0,6 dla dwóch niezależnych
+#: rozwiązań tego samego zadania jest zwykłym zbiegiem okoliczności (ten sam import, ta sama
+#: pętla, ta sama nazwa funkcji z treści zadania), a zapisanie każdej takiej pary zamieniłoby
+#: tabelę w iloczyn kartezjański etapu. Próg **pokazywania** jest osobny i wyższy (parametr
+#: strony), bo to decyzja czytelnika, a nie reguła przechowywania.
+SIMILARITY_STORE_THRESHOLD = 0.6
+
+
+class SubmissionSimilarity(models.Model):
+    """Zmierzone podobieństwo dwóch rozwiązań tego samego zadania – **przesłanka, nie werdykt**.
+
+    Po co w ogóle: przy zadaniach oddawanych jako kod (``py``, ``ipynb``) plagiat wygląda inaczej
+    niż przy dowodzie w PDF-ie – wystarczy zmienić nazwy zmiennych i wciąć inaczej, żeby dwa pliki
+    przestały być podobne „na oko”, a pozostały identyczne co do struktury. Porównanie maszynowe
+    robi to, czego żaden recenzent nie zrobi: zestawia **każdą parę** prac w zadaniu.
+
+    Czego ten wiersz **nie** znaczy: że ktoś ściągał. Wysoki wynik bywa skutkiem wspólnego
+    szkieletu z treści zadania albo jednego oczywistego rozwiązania. Dlatego model nie ma pola
+    „plagiat”, a jedynie ``reported_at`` – ślad świadomej decyzji koordynatora, że para idzie do
+    komitetu. Rozstrzygnięcie zapada poza systemem i wraca do niego jako dyskwalifikacja albo
+    korekta oceny, każda z własnym uzasadnieniem.
+
+    Para jest **nieuporządkowana**, ale w bazie zapisujemy ją uporządkowaną po identyfikatorze
+    (``submission_a_id < submission_b_id`` – patrz constraint). Bez tego ta sama para zapisana
+    dwa razy w odwrotnej kolejności byłaby dla unikalności dwoma różnymi wierszami, a strona
+    pokazywałaby ją dwukrotnie.
+
+    ``stage`` jest zdenormalizowany (wynika z ``problem.stage_id``), bo cała strona filtruje po
+    etapie, a złączenie do zadania przy każdym odczycie byłoby kosztem bez pożytku. Spójność
+    pilnuje serwis, który jako jedyny te wiersze tworzy (``apps.submissions.similarity``).
+    """
+
+    stage = models.ForeignKey(Stage, on_delete=models.CASCADE, related_name="similarities")
+    problem = models.ForeignKey(Problem, on_delete=models.CASCADE, related_name="similarities")
+    submission_a = models.ForeignKey(
+        Submission, on_delete=models.CASCADE, related_name="similarities_as_a", verbose_name="praca A"
+    )
+    submission_b = models.ForeignKey(
+        Submission, on_delete=models.CASCADE, related_name="similarities_as_b", verbose_name="praca B"
+    )
+    # ``FloatField`` w zakresie 0–1, a nie procent całkowity: wynik jest wypadkową dwóch miar
+    # (Jaccard na shinglach tokenów i ``difflib``), a zaokrąglanie go już przy zapisie zabrałoby
+    # możliwość zmiany progu pokazywania bez przeliczania całego etapu.
+    score = models.FloatField("podobieństwo")
+    computed_at = models.DateTimeField("policzone", default=timezone.now)
+    # Zgłoszenie do komitetu. Znacznik czasu, a nie ``BooleanField``: „kiedy” jest tu częścią
+    # informacji – para zgłoszona po ogłoszeniu wyników to zupełnie inna sprawa proceduralna niż
+    # zgłoszona w trakcie oceniania.
+    reported_at = models.DateTimeField("zgłoszona do komitetu", null=True, blank=True)
+    reported_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reported_similarities",
+        verbose_name="zgłosił",
+    )
+
+    class Meta:
+        verbose_name = "podobieństwo rozwiązań"
+        verbose_name_plural = "podobieństwa rozwiązań"
+        # Najbardziej podobne na górze – tabela jest listą spraw do obejrzenia, a nie archiwum.
+        ordering = ("-score", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["problem", "submission_a", "submission_b"],
+                name="submissions_similarity_unique_pair",
+            ),
+            models.CheckConstraint(
+                condition=Q(submission_a__lt=F("submission_b")),
+                name="submissions_similarity_ordered_pair",
+            ),
+            models.CheckConstraint(
+                condition=Q(score__gte=0) & Q(score__lte=1),
+                name="submissions_similarity_score_range",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.submission_a_id}↔{self.submission_b_id}: {self.score:.2f}"
+
+    @property
+    def percent(self) -> int:
+        """Wynik w procentach – jedyna postać, w jakiej liczba trafia na ekran."""
+        return round(self.score * 100)
+
+    @property
+    def is_reported(self) -> bool:
+        return self.reported_at is not None

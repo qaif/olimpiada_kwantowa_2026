@@ -20,6 +20,7 @@ from django.utils import timezone
 from apps.accounts.models import GROUP_COORDINATOR, Participant
 
 from .storage import private_media_storage
+from .video import DEFAULT_VIDEO_BASE_URL, VideoProvider
 
 # Domyślna skala Olimpiady Matematycznej. Kolejność rosnąca jest częścią kontraktu (walidacja niżej).
 DEFAULT_SCORING_VALUES: list[dict] = [
@@ -357,6 +358,18 @@ class Stage(models.Model):
     # Ustawiany przez beat (``apps.submissions.tasks.close_due_stages``) po ``submission_deadline``.
     # Znacznik pełni też rolę bezpiecznika idempotencji: etap zamykamy dokładnie raz.
     closed_at = models.DateTimeField("etap zamknięty", null=True, blank=True)
+    # Dostawca pokoju wideo dla etapu w formie rozmowy. ``none`` zachowuje się dokładnie tak, jak
+    # przed wprowadzeniem pola: link wpisuje koordynator przy terminie albo nie ma go wcale.
+    # Reguła budowania adresu i cała reszta uzasadnienia: ``apps.competitions.video``.
+    video_provider = models.CharField(
+        "dostawca wideo", max_length=16, choices=VideoProvider.choices, default=VideoProvider.NONE
+    )
+    # Korzeń adresu pokoju. Domyślnie publiczna instancja Jitsi; własna instytucjonalna instancja
+    # wpisuje się tutaj razem z ``video_provider = custom``. Pole jest w etapie, a nie w ustawieniach
+    # serwisu, bo to etap decyduje o formie zawodów – finał potrafi mieć inny kanał niż okręgowy.
+    video_base_url = models.URLField(
+        "adres serwera wideo", max_length=200, blank=True, default=DEFAULT_VIDEO_BASE_URL
+    )
 
     class Meta:
         verbose_name = "etap"
@@ -584,11 +597,26 @@ class Problem(models.Model):
     stage = models.ForeignKey(Stage, on_delete=models.CASCADE, related_name="problems")
     number = models.PositiveSmallIntegerField("numer")
     title = models.CharField("tytuł", max_length=300)
+    # Wersja angielska tytułu. Puste znaczy „nie ma” i wtedy angielski interfejs pokazuje tytuł
+    # polski – zadanie bez tłumaczenia ma być czytelne, a nie puste. Treść zadania jest **treścią
+    # merytoryczną**, a nie napisem interfejsu, więc nie idzie przez gettext: tłumaczy ją komitet
+    # w panelu, a nie tłumacz przy wydaniu aplikacji.
+    title_en = models.CharField("tytuł (EN)", max_length=300, blank=True)
     # Storage jawnie prywatny (patrz apps.competitions.storage): ``default`` jest w produkcji
     # publicznym bucketem Wagtaila, a treść zadania przed ``opens_at`` musi być nieosiągalna.
     statement_pdf = models.FileField(
         "treść (PDF)",
         upload_to="problems/statements/",
+        blank=True,
+        storage=private_media_storage,
+    )
+    # Angielska wersja treści. Ten sam prywatny storage i ta sama bramka czasowa (``opens_at``) –
+    # to jest ten sam dokument w drugim języku, a nie materiał o innej wrażliwości. Brak pliku
+    # znaczy „nie ma tłumaczenia” i wtedy również angielski interfejs wydaje wersję polską: lepszy
+    # arkusz po polsku niż komunikat „treść niedostępna” w trakcie zawodów.
+    statement_pdf_en = models.FileField(
+        "treść (PDF, EN)",
+        upload_to="problems/statements-en/",
         blank=True,
         storage=private_media_storage,
     )
@@ -654,6 +682,34 @@ class Problem(models.Model):
         return ",".join(extensions)
 
     @property
+    def display_title(self) -> str:
+        """Tytuł w języku, który uczestnik ma właśnie włączony – z odwrotem na polski.
+
+        Jedno miejsce dla szablonów, eksportów i listów, żeby „a w tym widoku pokazuje się po
+        polsku” nie było pytaniem do zadania trzy razy. Odwrót jest świadomy: zadanie bez
+        tłumaczenia ma być czytelne, a nie puste.
+        """
+        from django.utils.translation import get_language
+
+        if (get_language() or "").split("-")[0] == "en" and self.title_en:
+            return self.title_en
+        return self.title
+
+    @property
+    def statement_file(self):
+        """Plik treści dla aktywnego języka – angielski, gdy jest, w przeciwnym razie polski.
+
+        Zwraca obiekt ``FieldFile`` (a nie ścieżkę), bo wołający wydaje go przez widok, tak samo
+        jak dotąd. Bramka czasowa (``stage.opens_at``) nie zmienia się ani na jotę: to ten sam
+        dokument w drugim języku, nie materiał o innej wrażliwości.
+        """
+        from django.utils.translation import get_language
+
+        if (get_language() or "").split("-")[0] == "en" and self.statement_pdf_en:
+            return self.statement_pdf_en
+        return self.statement_pdf
+
+    @property
     def has_own_scale(self) -> bool:
         """Czy zadanie ma własną skalę. Puste nadpisanie znaczy „dziedzicz po etapie”."""
         return bool(self.scoring_values)
@@ -705,6 +761,30 @@ class StageEntryStatus(models.TextChoices):
     DISQUALIFIED = "DISQUALIFIED", "zdyskwalifikowany"
 
 
+class ManualQualification(models.TextChoices):
+    """Decyzja komitetu o kwalifikacji **wbrew regule punktowej** – albo jej brak.
+
+    Wartość pusta (``NONE``) znaczy „rozstrzyga próg”, a nie „komitet odmówił”: to stan domyślny
+    każdego wpisu i dlatego jest zwykłym pustym napisem, a nie osobnym kodem. Dzięki temu pytanie
+    „czy ktoś tu ingerował” sprowadza się do sprawdzenia, czy pole jest niepuste.
+
+    Po co w ogóle: regulamin przewiduje sytuacje, których próg punktowy nie opisuje – awaria
+    łącza w trakcie rozmowy kwalifikacyjnej, praca oddana poza systemem na wyraźne polecenie
+    organizatora, dyskwalifikacja za naruszenie zasad mimo wysokiego wyniku. Bez tego pola
+    jedyną drogą byłoby majstrowanie przy punktach, czyli zapisanie w protokole nieprawdy.
+    """
+
+    NONE = "", "bez decyzji komitetu"
+    QUALIFIED = "QUALIFIED", "zakwalifikowany decyzją komitetu"
+    NOT_QUALIFIED = "NOT_QUALIFIED", "niezakwalifikowany decyzją komitetu"
+
+
+#: Minimalna długość uzasadnienia decyzji ręcznej. Decyzja wbrew regule jest wyjątkiem, który
+#: ktoś kiedyś będzie musiał wytłumaczyć uczestnikowi albo organowi odwoławczemu – „ok” w polu
+#: uzasadnienia nie jest wtedy żadną odpowiedzią.
+MIN_MANUAL_QUALIFICATION_REASON = 10
+
+
 class StageEntryQuerySet(models.QuerySet):
     def for_user(self, user):
         """Filtr per rola w jednym miejscu (PROJEKT.md 2.3): uczestnik widzi wyłącznie swoje wpisy."""
@@ -728,6 +808,29 @@ class StageEntry(models.Model):
     )
     total_points = models.PositiveIntegerField("suma punktów", null=True, blank=True)
     created_at = models.DateTimeField("utworzony", default=timezone.now)
+    # Kwalifikacja ręczna: decyzja komitetu, która **wygrywa z progiem punktowym** przy każdym
+    # przeliczeniu wyników (patrz ``apps.results.services``). Pole jest przy wpisie, a nie przy
+    # uczestniku, bo dotyczy jednego etapu – ktoś dopuszczony wyjątkowo do etapu wojewódzkiego
+    # nie ma przez to żadnych praw w finale.
+    manual_qualification = models.CharField(
+        "kwalifikacja ręczna",
+        max_length=16,
+        choices=ManualQualification.choices,
+        blank=True,
+        default=ManualQualification.NONE,
+    )
+    manual_qualification_reason = models.TextField("uzasadnienie decyzji", blank=True)
+    # Kto i kiedy. ``SET_NULL``, bo skasowanie konta koordynatora nie może wymazać tego, że
+    # decyzja w ogóle zapadła – bez autora zostaje data i uzasadnienie, czyli nadal dokument.
+    manual_qualified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="manual_qualifications",
+        verbose_name="decyzję podjął",
+    )
+    manual_qualified_at = models.DateTimeField("decyzja z dnia", null=True, blank=True)
 
     objects = StageEntryQuerySet.as_manager()
 
@@ -739,10 +842,27 @@ class StageEntry(models.Model):
             models.UniqueConstraint(
                 fields=["participant", "stage"], name="competitions_stageentry_unique_participant"
             ),
+            # Decyzja bez uzasadnienia nie jest decyzją, tylko przestawionym polem. Ostatnia linia
+            # obrony przed zapisem z pominięciem serwisu (``apps.results.manual``): pusta decyzja
+            # przechodzi, każda inna wymaga niepustego tekstu.
+            models.CheckConstraint(
+                condition=Q(manual_qualification="") | ~Q(manual_qualification_reason=""),
+                name="competitions_stageentry_manual_reason_required",
+            ),
         ]
 
     def __str__(self) -> str:
         return f"{self.participant.public_code} @ {self.stage_id} ({self.status})"
+
+    @property
+    def has_manual_qualification(self) -> bool:
+        """Czy o tym wpisie rozstrzygnęła decyzja komitetu, a nie próg punktowy.
+
+        Jedno pytanie dla wszystkich czytelników (przeliczenie wyników, tabela publiczna, panel),
+        żeby nigdzie nie powstało porównanie z literałem – pusta wartość znaczy „rozstrzyga próg”
+        i to jest jedyne miejsce, w którym ta reguła jest zapisana.
+        """
+        return self.manual_qualification != ManualQualification.NONE
 
 
 class InterviewSlot(models.Model):
@@ -809,6 +929,13 @@ class InterviewBooking(models.Model):
     slot = models.ForeignKey(InterviewSlot, on_delete=models.PROTECT, related_name="bookings")
     entry = models.OneToOneField(StageEntry, on_delete=models.CASCADE, related_name="interview_booking")
     created_at = models.DateTimeField("utworzony", default=timezone.now)
+    # Adres pokoju wideo wyznaczony w chwili zapisu (``apps.competitions.video``). Kopia, a nie
+    # odczyt z terminu, i to jest celowe: uczestnik ma widzieć **ten** adres, który dostał w liście,
+    # także wtedy, gdy koordynator zmienił później pole przy terminie. Pusty dla etapów bez wideo.
+    meeting_url = models.URLField("link do rozmowy", blank=True, max_length=500)
+    # Kiedy poszło przypomnienie o jutrzejszej rozmowie. Jedyny bezpiecznik przed drugim listem –
+    # patrz ``apps.competitions.tasks.remind_interviews``.
+    reminder_sent_at = models.DateTimeField("przypomnienie wysłane", null=True, blank=True)
 
     class Meta:
         verbose_name = "zapis na rozmowę"

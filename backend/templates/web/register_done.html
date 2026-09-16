@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load i18n %}
 {% comment %}
   Strona po udanym zgłoszeniu z formularza rejestracji (uczestnik albo członek komitetu).
   Jedno miejsce z całą instrukcją aktywacji: dokąd poszedł list, co zrobić, gdy nie dotarł
@@ -6,22 +7,27 @@
   między komunikat nad formularzem logowania a treść samego listu – organizator poprosił, żeby
   stały tutaj, po poprawnym wysłaniu danych.
 {% endcomment %}
-{% block title %}Sprawdź skrzynkę e-mail{% endblock %}
+{% block title %}{% translate "Sprawdź skrzynkę e-mail" %}{% endblock %}
 {% block content %}
 <div class="auth">
   <div class="card">
-    <h1>Konto zostało założone</h1>
-    <p class="auth__intro">Wysłaliśmy link aktywacyjny na adres <strong>{{ email }}</strong>.
-      Kliknij go, aby aktywować konto – bez tego logowanie nie zadziała.</p>
-    <p class="notice">Jeśli list nie dotarł do skrzynki głównej, sprawdź folder ze spamem.</p>
-    <p class="hint">Link jest ważny {{ activation_hours }} godziny – po tym czasie konto zostanie
-      usunięte i trzeba będzie zarejestrować się ponownie.</p>
+    <h1>{% translate "Konto zostało założone" %}</h1>
+    <p class="auth__intro">{% blocktranslate trimmed with address=email %}
+      Wysłaliśmy link aktywacyjny na adres <strong>{{ address }}</strong>.
+      Kliknij go, aby aktywować konto – bez tego logowanie nie zadziała.
+    {% endblocktranslate %}</p>
+    <p class="notice">{% translate "Jeśli list nie dotarł do skrzynki głównej, sprawdź folder ze spamem." %}</p>
+    <p class="hint">{% blocktranslate trimmed with hours=activation_hours %}
+      Link jest ważny {{ hours }} godziny – po tym czasie konto zostanie usunięte
+      i trzeba będzie zarejestrować się ponownie.
+    {% endblocktranslate %}</p>
     {% if is_committee %}
-      <p class="hint">Jeśli kod zaproszenia wymagał zatwierdzenia, po aktywacji poczekaj jeszcze
-        na decyzję koordynatora.</p>
+      <p class="hint">{% translate "Jeśli kod zaproszenia wymagał zatwierdzenia, po aktywacji poczekaj jeszcze na decyzję koordynatora." %}</p>
     {% endif %}
-    <p class="auth__alt">Nie dostałeś listu? <a href="{% url 'web:activate-resend' %}">Wyślij link ponownie</a>.<br>
-      Masz już aktywne konto? <a href="{% url 'web:login' %}">Zaloguj się</a>.</p>
+    <p class="auth__alt">{% translate "Nie dostałeś listu?" %}
+      <a href="{% url 'web:activate-resend' %}">{% translate "Wyślij link ponownie" %}</a>.<br>
+      {% translate "Masz już aktywne konto?" %}
+      <a href="{% url 'web:login' %}">{% translate "Zaloguj się" %}</a>.</p>
   </div>
 </div>
 {% endblock %}

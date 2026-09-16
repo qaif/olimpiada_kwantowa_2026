@@ -1,0 +1,103 @@
+/* =================================================================================================
+   Podgląd wysłanego rozwiązania w panelu uczestnika (karta zadania).
+
+   Osobny arkusz od ``app.css``, tak samo jak ``coordinator-tools.css``: te reguły obowiązują na
+   jednym ekranie za logowaniem, a ``app.css`` jedzie na każdej stronie serwisu – łącznie ze stroną
+   główną. Wczytuje go ``templates/web/participant/dashboard.html``.
+
+   Tokeny (kolory, odstępy, promienie) pochodzą z ``app.css`` i nie są tu powtórzone, więc ciemny
+   wariant i tryb wysokiego kontrastu działają bez jednej dodatkowej reguły.
+   ============================================================================================== */
+
+/* --- potwierdzenie przed wysyłką --------------------------------------------------------------- */
+
+/* Pole wyboru i jego etykieta w jednym wierszu, z etykietą wyrównaną do pierwszej linii tekstu:
+   zdanie bywa dwuwierszowe i „ptaszek” ma stać przy jego początku, a nie pośrodku bloku. */
+.dropzone__confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin: var(--sp-3) 0 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.dropzone__confirm input[type="checkbox"] {
+  /* Powiększone pole trafienia: to jedyna bramka przed wysyłką i ma dać się kliknąć na telefonie. */
+  width: 1.15rem;
+  height: 1.15rem;
+  margin-top: 0.15rem;
+  flex: 0 0 auto;
+}
+
+.dropzone__confirm label {
+  cursor: pointer;
+}
+
+/* --- podgląd ostatniej wersji ------------------------------------------------------------------ */
+
+.upload-preview {
+  margin: var(--sp-4) 0;
+  padding: var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.upload-preview__title {
+  margin: 0 0 var(--sp-2);
+  font-size: 1rem;
+}
+
+/* Metryki obok siebie, z zawijaniem – na telefonie schodzą do kolumny same, bez media query. */
+.upload-preview__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  margin: 0 0 var(--sp-3);
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+
+.upload-preview__facts strong {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Zdjęcie i strona dokumentu dostają ten sam limit szerokości i tę samą ramkę: to dwa warianty
+   jednej odpowiedzi („tak wygląda plik, który leży w systemie”), więc nie mają wyglądać inaczej. */
+.upload-preview__image,
+.upload-preview__canvas {
+  display: block;
+  max-width: min(100%, 520px);
+  height: auto;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: #fff;
+}
+
+/* Podgląd tekstu: czcionka o stałej szerokości i zachowane wcięcia, bo to kod. Wysokość jest
+   ograniczona – czterdzieści wierszy ma się mieścić pod kartą, a nie zepchnąć historii wersji
+   poza ekran; resztę pliku uczestnik ma pod przyciskiem „Pobierz”. */
+.upload-preview__text {
+  max-height: 22rem;
+  margin: 0;
+  padding: var(--sp-3);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-inset);
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  white-space: pre;
+  tab-size: 4;
+}
+
+/* Na wydruku podgląd znika: kartka ma nieść historię wersji i statusy, a nie zrzut pliku,
+   który drukujący i tak ma u siebie. */
+@media print {
+  .upload-preview {
+    display: none;
+  }
+}

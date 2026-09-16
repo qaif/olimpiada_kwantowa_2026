@@ -5,17 +5,24 @@ from django.urls import path
 from .views import (
     account,
     appeals,
+    certificates,
     coordinator,
     coordinator_accounts,
     coordinator_events,
+    coordinator_issues,
     coordinator_messages,
+    coordinator_quality,
     coordinator_reports,
     coordinator_stages,
+    guardian,
     participant,
+    participant_extras,
     participant_tools,
     public,
     reviewer,
+    reviewer_extras,
     reviewer_tools,
+    supervisor,
 )
 
 app_name = "web"
@@ -38,12 +45,22 @@ urlpatterns = [
     path("reset/done/", public.PasswordResetCompleteView.as_view(), name="password-reset-complete"),
     path("register/", public.RegisterParticipantView.as_view(), name="register"),
     path("register/committee/", public.RegisterCommitteeView.as_view(), name="register-committee"),
+    # Rejestracja opiekuna szkolnego jest **otwarta** (bez kodu zaproszenia): samo konto nie daje
+    # wglądu w niczyje dane – panel pokazuje wyłącznie uczniów, którzy sami wpisali ten adres.
+    path("register/supervisor/", supervisor.RegisterSupervisorView.as_view(), name="register-supervisor"),
     path("register/done/", public.RegisterDoneView.as_view(), name="register-done"),
     # Aktywacja konta. ``resend/`` stoi **przed** wzorcem z tokenem: token jest dowolnym napisem
     # bez ukośnika, więc bez tej kolejności „resend” dałoby się wziąć za token.
     path("activate/resend/", public.ActivationResendView.as_view(), name="activate-resend"),
     path("activate/<str:token>/", public.ActivateAccountView.as_view(), name="activate"),
     path("results/<int:stage_id>/", public.PublicResultsView.as_view(), name="results"),
+    # Zgoda opiekuna składana bez konta – uprawnieniem jest podpisany token w adresie
+    # (``apps.accounts.guardian``). Adres jest krótki i polski, bo trafia do listu, który czyta
+    # rodzic, a nie do nawigacji serwisu. Ekran podziękowania stoi **przed** wzorcem z tokenem:
+    # token jest dowolnym napisem bez ukośnika, więc bez tej kolejności „dziekujemy” dałoby się
+    # wziąć za token (ta sama pułapka, co przy ``activate/resend/`` wyżej).
+    path("zgoda/dziekujemy/", guardian.GuardianConsentDoneView.as_view(), name="guardian-consent-done"),
+    path("zgoda/<str:token>/", guardian.GuardianConsentView.as_view(), name="guardian-consent"),
     # --- własne konto (wszystkie role) -------------------------------------------------------
     # ``/me/profile/`` jest przy panelu uczestnika, bo edytuje **profil uczestnika**;
     # ``/account/…`` obsługuje to, co ma każde konto: nazwisko, adres e-mail, usunięcie konta.
@@ -57,6 +74,14 @@ urlpatterns = [
     ),
     path("account/delete/", account.AccountDeleteView.as_view(), name="account-delete"),
     path("account/deleted/", account.AccountDeletedView.as_view(), name="account-deleted"),
+    # Język interfejsu i tryb wysokiego kontrastu. Bez logowania, bo to ustawienie
+    # **przeglądającego**, a nie uprawnienie konta – gość czytający regulamin ma prawo włączyć
+    # kontrast tak samo jak zalogowany uczestnik (``apps.accounts.preferences``).
+    path(
+        "account/preferences/",
+        participant_extras.PreferencesView.as_view(),
+        name="account-preferences",
+    ),
     # --- uczestnik ---------------------------------------------------------------------------
     path("me/", participant.MeView.as_view(), name="me"),
     path(
@@ -88,6 +113,12 @@ urlpatterns = [
         participant.ConsentPublishNameView.as_view(),
         name="consent-publish-name",
     ),
+    # Prośba o zgodę opiekuna (pierwsza i każda następna – „wyślij ponownie” to ta sama czynność).
+    path(
+        "me/guardian/",
+        participant_extras.GuardianRequestView.as_view(),
+        name="guardian-request",
+    ),
     path(
         "me/submissions/<int:submission_id>/appeal/",
         participant.AppealCreateView.as_view(),
@@ -109,11 +140,47 @@ urlpatterns = [
         name="participant-calendar-ics",
     ),
     path("me/archive/", participant_tools.ParticipantArchiveView.as_view(), name="participant-archive"),
+    # Własne dyplomy i zaświadczenia. Lista i pobranie, nic więcej – dokumenty wystawia komitet.
+    path(
+        "me/certificates/",
+        certificates.ParticipantCertificatesView.as_view(),
+        name="participant-certificates",
+    ),
+    path(
+        "me/certificates/<int:pk>/",
+        certificates.ParticipantCertificateDownloadView.as_view(),
+        name="participant-certificate-download",
+    ),
+    # --- opiekun szkolny ---------------------------------------------------------------------
+    # Panel jest wyłącznie do czytania; jedyny zapis to oświadczenie o udziale szkoły w edycji.
+    path("supervisor/", supervisor.SupervisorDashboardView.as_view(), name="supervisor"),
+    path(
+        "supervisor/participation/",
+        supervisor.ConfirmParticipationView.as_view(),
+        name="supervisor-participation",
+    ),
+    path(
+        "supervisor/certificates/<int:pk>/",
+        supervisor.SupervisorCertificateDownloadView.as_view(),
+        name="supervisor-certificate-download",
+    ),
+    # Publiczna weryfikacja dokumentu po kodzie z papieru. Adres jest po polsku i krótki, bo
+    # bywa przepisywany z dyplomu ręcznie; nie wydaje danych osobowych bez zgody na publikację.
+    path("dyplomy/<str:code>/", certificates.CertificateVerifyView.as_view(), name="certificate-verify"),
     # --- recenzent ---------------------------------------------------------------------------
     path("review/", reviewer.ReviewListView.as_view(), name="review-list"),
     # Paczka ZIP z własnymi pracami. Stoi przed adresem szczegółowym dla czytelności –
     # ``<int:pk>`` i tak nie dopasuje słowa „download”.
     path("review/download/", reviewer.ReviewQueueDownloadView.as_view(), name="review-download"),
+    # Szablony komentarzy recenzenta. Adresy są **bez** identyfikatora recenzji, bo szablon nie
+    # należy do pracy: pisze się go przy jednej, a używa przy dwudziestu następnych. Stoją przed
+    # ``review/<int:pk>/`` dla czytelności – ``<int:pk>`` i tak nie dopasuje słowa „snippets”.
+    path("review/snippets/", reviewer_extras.SnippetCreateView.as_view(), name="review-snippet-add"),
+    path(
+        "review/snippets/<int:pk>/delete/",
+        reviewer_extras.SnippetDeleteView.as_view(),
+        name="review-snippet-delete",
+    ),
     path("review/<int:pk>/", reviewer.ReviewDetailView.as_view(), name="review-detail"),
     path("review/<int:pk>/draft/", reviewer.ReviewDraftView.as_view(), name="review-draft"),
     path("review/<int:pk>/submit/", reviewer.ReviewSubmitView.as_view(), name="review-submit"),
@@ -123,6 +190,24 @@ urlpatterns = [
     # queryseta, co reszta panelu.
     path("review/<int:pk>/compare/", reviewer_tools.ReviewCompareView.as_view(), name="review-compare"),
     path("review/<int:pk>/notes/", reviewer_tools.ReviewNoteCreateView.as_view(), name="review-note-add"),
+    # Pomiar czasu pracy, uwaga do linii kodu i zgłoszenie problemu z pracą – trzy narzędzia, z
+    # których żadne nie zmienia oceny, wszystkie po identyfikatorze **recenzji** (czyli po własnym
+    # przydziale: cudza recenzja jest 404 z tego samego queryseta, co reszta panelu).
+    path(
+        "review/<int:pk>/heartbeat/",
+        reviewer_extras.ReviewHeartbeatView.as_view(),
+        name="review-heartbeat",
+    ),
+    path(
+        "review/<int:pk>/line-note/",
+        reviewer_extras.ReviewLineNoteView.as_view(),
+        name="review-line-note",
+    ),
+    path(
+        "review/<int:pk>/issues/",
+        reviewer_extras.ReviewIssueCreateView.as_view(),
+        name="review-issue-add",
+    ),
     # Wzorcówka zadania stoi w gałęzi ``review/``, choć dotyczy zadania: czyta ją komitet, a nie
     # publiczność, i to jest jedyna droga do tego pliku (prywatny storage, bez publicznego adresu).
     path(
@@ -375,6 +460,64 @@ urlpatterns = [
         coordinator_reports.ApplyQualificationRuleView.as_view(),
         name="coordinator-stage-rule-apply",
     ),
+    # --- jakość oceniania i dokumenty --------------------------------------------------------
+    # Trzy ekrany etapu czytane po ocenianiu, przed posiedzeniem komitetu: kalibracja recenzentów,
+    # podobieństwa rozwiązań i wystawianie dyplomów. Stoją przy etapie, tak samo jak postęp
+    # i symulacja, bo każdy z nich jest pytaniem o **ten** etap.
+    path(
+        "coordinator/stages/<int:stage_id>/calibration/",
+        coordinator_quality.StageCalibrationView.as_view(),
+        name="coordinator-stage-calibration",
+    ),
+    path(
+        "coordinator/stages/<int:stage_id>/similarity/",
+        coordinator_quality.StageSimilarityView.as_view(),
+        name="coordinator-stage-similarity",
+    ),
+    # ``recompute`` stoi przed wzorcem z identyfikatorem pary wyłącznie dla czytelności –
+    # ``<int:pair_id>`` i tak nie dopasuje słowa.
+    path(
+        "coordinator/stages/<int:stage_id>/similarity/recompute/",
+        coordinator_quality.RecomputeSimilarityView.as_view(),
+        name="coordinator-similarity-recompute",
+    ),
+    path(
+        "coordinator/stages/<int:stage_id>/similarity/<int:pair_id>/",
+        coordinator_quality.SimilarityPairView.as_view(),
+        name="coordinator-similarity-pair",
+    ),
+    path(
+        "coordinator/stages/<int:stage_id>/similarity/<int:pair_id>/report/",
+        coordinator_quality.ReportSimilarityView.as_view(),
+        name="coordinator-similarity-report",
+    ),
+    # Kwalifikacja ręczna idzie po identyfikatorze **wpisu**, a nie etapu: decyzja dotyczy jednego
+    # uczestnika w jednym etapie, a etap wynika z wpisu jednoznacznie.
+    path(
+        "coordinator/entries/<int:entry_id>/manual-qualification/",
+        coordinator_quality.ManualQualificationView.as_view(),
+        name="coordinator-manual-qualification",
+    ),
+    path(
+        "coordinator/stages/<int:stage_id>/certificates/",
+        coordinator_quality.StageCertificatesView.as_view(),
+        name="coordinator-stage-certificates",
+    ),
+    path(
+        "coordinator/stages/<int:stage_id>/certificates/issue/",
+        coordinator_quality.IssueCertificateView.as_view(),
+        name="coordinator-certificate-issue",
+    ),
+    path(
+        "coordinator/stages/<int:stage_id>/certificates/issue-all/",
+        coordinator_quality.IssueAllCertificatesView.as_view(),
+        name="coordinator-certificates-all",
+    ),
+    path(
+        "coordinator/certificates/<int:pk>/download/",
+        coordinator_quality.CertificateDownloadView.as_view(),
+        name="coordinator-certificate-download",
+    ),
     path(
         "coordinator/messages/",
         coordinator_messages.CoordinatorMessagesView.as_view(),
@@ -384,6 +527,24 @@ urlpatterns = [
         "coordinator/audit/",
         coordinator_reports.AuditBrowserView.as_view(),
         name="coordinator-audit",
+    ),
+    # Zgłoszenia problemów z pracami. Adres jest bez etapu, bo ekran obejmuje całą edycję, a etap
+    # jest filtrem (``?stage=<id>``) – problem z pracą nie czeka na to, aż koordynator trafi na
+    # właściwą kartę. Akcje idą po identyfikatorze zgłoszenia, czyli po przedmiocie operacji.
+    path(
+        "coordinator/issues/",
+        coordinator_issues.CoordinatorIssuesView.as_view(),
+        name="coordinator-issues",
+    ),
+    path(
+        "coordinator/issues/<int:pk>/resolve/",
+        coordinator_issues.ResolveIssueView.as_view(),
+        name="coordinator-issue-resolve",
+    ),
+    path(
+        "coordinator/issues/<int:pk>/unassign/",
+        coordinator_issues.IssueUnassignView.as_view(),
+        name="coordinator-issue-unassign",
     ),
     # Spis eksportów i sam plik. Rodzaj i format są segmentami adresu, a nie parametrami zapytania:
     # adres pliku ma dać się zapisać i powtórzyć, a obie wartości pochodzą z zamkniętych list

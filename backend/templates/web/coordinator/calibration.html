@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+  Kalibracja recenzentów jednego etapu. Ekran jest wyłącznie odczytem: nie zmienia ocen, nie
+  ocenia recenzentów i niczego nikomu nie wysyła.
+
+  Sortowanie jedzie parametrem ``?sort=`` w adresie – zwykłe odnośniki w nagłówkach kolumn, bez
+  ani jednej linijki JavaScriptu. Dzięki temu stan ekranu mieści się w adresie i da się go wkleić
+  w wiadomości do reszty komitetu, a strona działa także wtedy, gdy skrypt się nie wczytał.
+{% endcomment %}
+{% block title %}Kalibracja recenzentów – {{ stage.display_name }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:coordinator' %}">Panel koordynatora</a></span>
+  <h1>Kalibracja recenzentów: {{ stage.display_name }}</h1>
+  <p class="lead">Czy któryś recenzent punktuje systematycznie surowiej albo łagodniej od reszty
+    komisji. Materiał do rozmowy i do instruktażu przed kolejną edycją – nie ocena pracy
+    recenzenta i nie podstawa do zmiany czyjejkolwiek oceny.</p>
+</div>
+
+<section class="section">
+  <div class="card">
+    {% comment %}
+      Wyjaśnienie stoi nad tabelą, a nie pod nią, i jest obowiązkowe: liczby ze znakiem są
+      czytelne tylko wtedy, gdy wiadomo, co znaczy znak i wobec czego liczone jest odchylenie.
+      Bez tego akapitu „−1,4” przy nazwisku wygląda jak zarzut.
+    {% endcomment %}
+    <h2 class="mt-0">Jak czytać tę tabelę</h2>
+    <ul>
+      <li><strong>Odchylenie od drugiego recenzenta</strong> – średnia różnica „moje punkty minus
+        punkty drugiego recenzenta tej samej pracy”. Wartość ujemna znaczy, że ta osoba dawała
+        mniej punktów niż jej para.</li>
+      <li><strong>Odchylenie od oceny uzgodnionej</strong> – to samo wobec oceny, która ostatecznie
+        weszła do wyników. To ona jest punktem odniesienia „jak oceniła komisja”.</li>
+      <li><strong>Rozjazdy</strong> – udział prac, w których oceny rundy 1 nie były zgodne, czyli
+        praca trafiła do moderacji. Liczony wyłącznie z prac, które miały dwie oceny.</li>
+      <li><strong>Tendencja</strong> – podpis nadawany od odchylenia {{ threshold }} punktu wobec
+        oceny uzgodnionej i dopiero przy co najmniej {{ min_reviews }} recenzjach. Poniżej tego
+        progu tabela pisze „za mało danych”, bo średnia z trzech prac jest opowieścią o trzech
+        pracach, a nie o recenzencie.</li>
+    </ul>
+    <p class="hint">Liczone są wyłącznie <strong>wystawione</strong> recenzje rundy 1 (ślepej).
+      Runda rozjemcza nie wchodzi: trzeci recenzent wie już, że poprzednicy się nie zgodzili,
+      więc jego ocena nie jest niezależna. W tym etapie ocenę uzgodnioną ma {{ graded }}
+      z {{ reviewed }} recenzowanych prac – dopóki ocenianie trwa, kolumna odchyleń od komisji
+      bywa pusta.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col"><a href="?sort={{ sort_links.reviewer }}">Recenzent</a></th>
+          <th scope="col"><a href="?sort={{ sort_links.reviews }}">Recenzji</a></th>
+          <th scope="col"><a href="?sort={{ sort_links.vs_peer }}">Odchylenie od drugiego</a></th>
+          <th scope="col"><a href="?sort={{ sort_links.vs_final }}">Odchylenie od komisji</a></th>
+          <th scope="col"><a href="?sort={{ sort_links.disagreements }}">Rozjazdy</a></th>
+          <th scope="col">Tendencja</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <th scope="row">{{ row.reviewer.user.get_full_name|default:row.reviewer.user.email }}</th>
+            <td class="num">{{ row.reviews }}</td>
+            <td class="num">
+              {% if row.mean_vs_peer is not None %}{{ row.mean_vs_peer|floatformat:2 }}{% else %}—{% endif %}
+            </td>
+            <td class="num total">
+              {% if row.mean_vs_final is not None %}{{ row.mean_vs_final|floatformat:2 }}{% else %}—{% endif %}
+            </td>
+            <td class="num">
+              {% if row.disagreement_share is not None %}
+                {{ row.disagreement_share|floatformat:2 }} ({{ row.disagreements }}/{{ row.comparable }})
+              {% else %}—{% endif %}
+            </td>
+            <td><span class="badge badge--neutral">{{ row.tendency }}</span></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="empty">W tym etapie nikt jeszcze nie wystawił recenzji.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<p class="actions">
+  <a class="btn btn--secondary btn--small"
+     href="{% url 'web:coordinator-stage-progress' stage.pk %}">Postęp oceniania</a>
+  <a class="btn btn--secondary btn--small"
+     href="{% url 'web:coordinator-stage-similarity' stage.pk %}">Podobieństwo rozwiązań</a>
+</p>
+{% endblock %}

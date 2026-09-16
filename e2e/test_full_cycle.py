@@ -242,6 +242,9 @@ def test_pelny_cykl_etapu_od_rejestracji_do_publikacji(
     card.locator("input[type=file]").set_input_files(
         files=[{"name": "rozwiazanie.pdf", "mimeType": "application/pdf", "buffer": PDF_BYTES}]
     )
+    # Lista kontrolna przed wysyłką: pole jest wymagane także po stronie serwera
+    # (``apps.web.forms.SubmissionUploadForm.confirmed``), więc scenariusz musi je zaznaczyć.
+    card.locator("input[name=confirmed]").check()
     card.get_by_role("button", name="Wyślij rozwiązanie").click()
     # Odpowiedź HTMX podmienia kartę zadania – nowa wersja pojawia się w tabeli „Wysłane wersje”.
     expect(problem_card(page, 1)).to_contain_text("wersja 1")

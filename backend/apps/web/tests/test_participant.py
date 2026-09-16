@@ -42,14 +42,14 @@ def test_upload_returns_new_version_row(web_client, participant, entry, problems
     web_client.force_login(participant.user)
     url = f"/me/stages/{entry.stage_id}/problems/1/upload/"
 
-    response = web_client.post(url, {"file": pdf_upload()}, HTTP_HX_REQUEST="true")
+    response = web_client.post(url, {"file": pdf_upload(), "confirmed": "1"}, HTTP_HX_REQUEST="true")
     content = response.content.decode()
 
     assert response.status_code == 200
     assert "wersja 1" in content
     assert Submission.objects.filter(entry=entry, problem=problems[0]).count() == 1
 
-    second = web_client.post(url, {"file": pdf_upload()}, HTTP_HX_REQUEST="true")
+    second = web_client.post(url, {"file": pdf_upload(), "confirmed": "1"}, HTTP_HX_REQUEST="true")
     assert "wersja 2" in second.content.decode()
     assert Submission.objects.filter(entry=entry, problem=problems[0]).count() == 2
 
@@ -60,7 +60,7 @@ def test_upload_after_deadline_is_refused_with_message(web_client, participant, 
 
     response = web_client.post(
         f"/me/stages/{entry.stage_id}/problems/1/upload/",
-        {"file": pdf_upload()},
+        {"file": pdf_upload(), "confirmed": "1"},
         HTTP_HX_REQUEST="true",
     )
 

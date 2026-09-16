@@ -140,3 +140,16 @@ def edition_title(value, prefix="Edycja"):
     if "edycj" in label.lower():
         return label
     return f"{prefix} {label}"
+
+
+@register.filter
+def precheck_link(meeting_url):
+    """Adres pustego pokoju „na próbę” dla danego linku rozmowy (``apps.competitions.video``).
+
+    Filtr, a nie wartość w kontekście, bo ten sam link jest potrzebny na dwóch ekranach (panel
+    uczestnika i terminy rozmów u koordynatora) i w liście – a reguła jego budowania ma zostać
+    w jednym miejscu, w module wideo.
+    """
+    from apps.competitions.video import precheck_url
+
+    return precheck_url(meeting_url)

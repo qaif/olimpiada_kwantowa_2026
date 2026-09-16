@@ -25,7 +25,17 @@ GROUP_PARTICIPANT = "participant"
 GROUP_REVIEWER = "reviewer"
 GROUP_APPEALS = "appeals"
 GROUP_COORDINATOR = "coordinator"
-RBAC_GROUPS = (GROUP_PARTICIPANT, GROUP_REVIEWER, GROUP_APPEALS, GROUP_COORDINATOR)
+#: Opiekun szkolny – nauczyciel, który zgłosił swoich uczniów i śledzi ich przebieg w zawodach.
+#: Rola jest **wyłącznie do odczytu**: opiekun nie ocenia, nie widzi punktów przed publikacją
+#: i niczego nie zmienia poza własnym potwierdzeniem udziału szkoły.
+GROUP_SUPERVISOR = "supervisor"
+RBAC_GROUPS = (
+    GROUP_PARTICIPANT,
+    GROUP_REVIEWER,
+    GROUP_APPEALS,
+    GROUP_COORDINATOR,
+    GROUP_SUPERVISOR,
+)
 
 # Alfabet bez znaków mylących (0/O, 1/I/L) – kod bywa przepisywany ręcznie z listy wyników.
 PUBLIC_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
@@ -187,6 +197,38 @@ class User(AbstractBaseUser, PermissionsMixin):
         return sorted(self.groups.values_list("name", flat=True))
 
 
+class UserPreference(models.Model):
+    """Jak ten człowiek chce widzieć serwis: język interfejsu i tryb wysokiego kontrastu.
+
+    Osobna tabela, a nie kolumny w ``User``: to są ustawienia **prezentacji**, a nie dane konta.
+    Konto bez wiersza zachowuje się dokładnie tak, jak przed wprowadzeniem tej funkcji (język
+    z przeglądarki, kontrast wyłączony), więc migracja niczego nikomu nie zmienia, a wiersz
+    powstaje dopiero wtedy, gdy ktoś świadomie coś przestawi.
+
+    Dlaczego po stronie konta, a nie tylko w ciasteczku: ustawienie ma jechać za człowiekiem na
+    drugie urządzenie. Uczeń, który włączył wysoki kontrast na szkolnym komputerze, nie ma go
+    włączać jeszcze raz na telefonie w dniu zawodów. Gość, który konta nie ma, dostaje to samo
+    w sesji i w ciasteczku języka (``apps.accounts.preferences``).
+
+    ``language`` **nie ma** listy wartości w bazie i to jest świadome: zbiór języków serwisu stoi
+    w ``settings.LANGUAGES`` i bywa poszerzany, a ``choices`` w modelu znaczyłoby migrację przy
+    każdym dołożonym języku. Wartość sprawdza warstwa zapisu wobec ustawień; pusta znaczy „nie
+    wybierałem, idź za przeglądarką”, a nie „polski”.
+    """
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="preference")
+    language = models.CharField("język interfejsu", max_length=8, blank=True)
+    high_contrast = models.BooleanField("tryb wysokiego kontrastu", default=False)
+    updated_at = models.DateTimeField("zmienione", auto_now=True)
+
+    class Meta:
+        verbose_name = "ustawienia interfejsu"
+        verbose_name_plural = "ustawienia interfejsu"
+
+    def __str__(self) -> str:
+        return f"{self.user_id}: {self.language or 'auto'}{', kontrast' if self.high_contrast else ''}"
+
+
 class Participant(models.Model):
     """Profil uczestnika. ``public_code`` jest jedynym identyfikatorem w publikowanych wynikach."""
 
@@ -231,7 +273,20 @@ class Participant(models.Model):
     #: zestawu zgód – od tej zmiany żadna droga rejestracji nie przepuszcza pustej wartości.
     terms_accepted_at = models.DateTimeField("regulamin zaakceptowany", null=True, blank=True)
     guardian_consent = models.BooleanField("zgoda opiekuna", default=False)
+    # Adres rodzica albo opiekuna prawnego, na który idzie prośba o zgodę online
+    # (``apps.accounts.guardian``). Puste znaczy „uczestnik jeszcze go nie podał”, a nie „nie ma
+    # opiekuna”: pole wypełnia sam uczestnik w panelu i wyłącznie wtedy, gdy zgoda jest wymagana
+    # (rocznik małoletni). Adres jest częścią podpisanego tokenu, więc jego zmiana unieważnia
+    # wysłany wcześniej link – to jedyna droga odwołania prośby.
+    guardian_email = models.EmailField("adres e-mail opiekuna", blank=True)
     publish_full_name = models.BooleanField("zgoda na publikację pełnych danych", default=False)
+    # Adres opiekuna szkolnego wskazany przez uczestnika – **deklaracja**, a nie klucz obcy.
+    # Wiązanie po adresie jest tu celowe i wynika z kolejności zdarzeń: uczeń rejestruje się we
+    # wrześniu, a nauczyciel zakłada konto (jeśli w ogóle) w listopadzie. Klucz obcy wymagałby
+    # istniejącego konta w chwili rejestracji, czyli zamieniłby opiekuna z udogodnienia w warunek
+    # startu. Panel opiekuna dopasowuje uczniów po znormalizowanym adresie
+    # (``apps.accounts.supervisors``), a pusty adres nie wiąże z nikim.
+    supervisor_email = models.EmailField("adres opiekuna szkolnego", blank=True, db_index=True)
 
     class Meta:
         verbose_name = "uczestnik"
@@ -268,6 +323,17 @@ class ConsentRecord(models.Model):
     given_at = models.DateTimeField("wyrażona", default=timezone.now)
     withdrawn_at = models.DateTimeField("wycofana", null=True, blank=True)
     source = models.CharField("droga", max_length=16, choices=ConsentSource.choices)
+    # Adres, z którego zgodę złożyła **inna osoba niż uczestnik** – dziś wyłącznie opiekun
+    # potwierdzający zgodę podpisanym linkiem (``apps.accounts.guardian``). Puste znaczy „złożył
+    # sam uczestnik” i tak wygląda każdy wpis sprzed wprowadzenia zgód opiekuna online. To pole
+    # odróżnia dowód woli opiekuna od oświadczenia dziecka o tej woli – bez niego obie postacie
+    # byłyby w tabeli nieodróżnialne.
+    given_by_email = models.EmailField("potwierdzone z adresu", blank=True)
+    # Adres IP w chwili złożenia zgody. Część dowodu, tak samo jak wersja dokumentu i czas:
+    # „kiedy i skąd” jest pierwszym pytaniem przy sporze o to, czy zgoda w ogóle padła.
+    # Nullowalne, bo wpisy sprzed wprowadzenia pola adresu nie mają, a ``client_ip`` zwraca
+    # ``None``, gdy żądania nie da się zidentyfikować (komenda zarządzająca, zadanie w tle).
+    ip_address = models.GenericIPAddressField("adres IP", null=True, blank=True)
 
     class Meta:
         verbose_name = "zgoda uczestnika"
@@ -325,6 +391,91 @@ class CommitteeMember(models.Model):
     @property
     def is_active_reviewer(self) -> bool:
         return self.status == CommitteeStatus.ACTIVE
+
+
+class SchoolSupervisor(models.Model):
+    """Profil opiekuna szkolnego: nauczyciela, który prowadzi uczniów do olimpiady.
+
+    Po co osobna rola, skoro opiekun nie ma żadnych uprawnień do prac: bo dziś jedyną drogą do
+    informacji „czy mój uczeń oddał pracę i czy przeszedł dalej” jest zapytanie ucznia. Szkoła
+    planuje wyjazd na finał, zwolnienia z lekcji i sprawozdanie do dyrekcji – a robi to na
+    podstawie SMS-ów od nastolatków. Panel opiekuna zamienia to w jedną listę, i **tylko** w nią:
+    nie ma tu prac, punktów przed publikacją ani żadnej czynności, która zmieniałaby przebieg
+    zawodów.
+
+    Dowiązanie do szkoły jest podwójne z tego samego powodu, co u uczestnika: wykaz SIO nie zna
+    wszystkich placówek, więc ``school`` (wolny tekst) jest wypełniony zawsze, a ``school_ref``
+    tylko wtedy, gdy nauczyciel wybrał szkołę z listy. ``PROTECT`` po stronie rejestru, bo
+    wygaszony wiersz słownika nie może zabrać profilowi informacji o szkole.
+
+    ``verified`` jest **oświadczeniem sprawdzonym przez organizatora**, a nie stanem konta:
+    każdy może wpisać, że uczy w XIV LO. Flaga nie bramkuje panelu (opiekun widzi wyłącznie
+    uczniów, którzy sami podali jego adres – to oni są tu źródłem uprawnienia), ale rozstrzyga
+    o tym, czy organizator wystawi tej osobie zaświadczenie dla opiekuna.
+    """
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="school_supervisor")
+    school = models.CharField("szkoła", max_length=255, blank=True)
+    school_ref = models.ForeignKey(
+        "schools.School",
+        verbose_name="szkoła z rejestru",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="supervisors",
+    )
+    phone = models.CharField("telefon", max_length=32, blank=True)
+    verified = models.BooleanField("dane szkoły zweryfikowane", default=False)
+    created_at = models.DateTimeField("utworzony", default=timezone.now)
+
+    class Meta:
+        verbose_name = "opiekun szkolny"
+        verbose_name_plural = "opiekunowie szkolni"
+        ordering = ("created_at", "id")
+
+    def __str__(self) -> str:
+        return f"{self.user.email} ({self.school or 'bez szkoły'})"
+
+    @property
+    def display_school(self) -> str:
+        """Nazwa szkoły do pokazania – pusty wpis ma swoją etykietę, a nie pustą komórkę."""
+        return self.school or "— nie podano —"
+
+
+class SchoolParticipation(models.Model):
+    """Potwierdzenie opiekuna, że szkoła bierze udział w danej edycji.
+
+    Jest to **oświadczenie**, nie zgoda i nie warunek startu ucznia: uczestnik zapisuje się sam
+    i nikt tego potwierdzenia nie sprawdza, zanim przyjmie jego pracę. Organizator potrzebuje go
+    do czego innego – do policzenia szkół, które świadomie prowadzą uczniów, i do wystawienia
+    zaświadczeń dla opiekunów (bez tego trzeba by uznać za opiekuna każdy adres wpisany przez
+    ucznia w formularzu rejestracji).
+
+    Jeden wiersz na parę (opiekun, edycja): potwierdzenie dotyczy konkretnego rocznika zawodów,
+    a nie „w ogóle”. Nauczyciel, który w tym roku nie prowadzi nikogo, po prostu nie potwierdza.
+
+    Odwołanie potwierdzenia jest skasowaniem wiersza, a nie znacznikiem: oświadczenie „szkoła
+    bierze udział” albo obowiązuje, albo nie – historia jego zmian mieszka w audycie.
+    """
+
+    supervisor = models.ForeignKey(SchoolSupervisor, on_delete=models.CASCADE, related_name="participations")
+    edition = models.ForeignKey(
+        "competitions.Edition", on_delete=models.CASCADE, related_name="school_participations"
+    )
+    confirmed_at = models.DateTimeField("potwierdzone", default=timezone.now)
+
+    class Meta:
+        verbose_name = "udział szkoły w edycji"
+        verbose_name_plural = "udziały szkół w edycjach"
+        ordering = ("-confirmed_at", "-id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["supervisor", "edition"], name="accounts_school_participation_unique"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.supervisor_id} @ {self.edition_id}"
 
 
 class InvitationGrantsStatus(models.TextChoices):

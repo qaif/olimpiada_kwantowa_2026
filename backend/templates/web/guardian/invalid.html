@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Link zły, wygasły albo wystawiony na inny adres opiekuna. Jeden komunikat na wszystkie trzy
+  powody – rozróżnienie zamieniłoby stronę w narzędzie do sprawdzania, czy dany token istniał.
+{% endcomment %}
+{% block title %}{% translate "Link jest nieprawidłowy" %}{% endblock %}
+{% block timeline_strip %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Zgoda opiekuna" %}</span>
+  <h1>{% translate "Ten link nie działa" %}</h1>
+  <p class="lead">{{ detail }}</p>
+  <p class="hint">
+    {% translate "Poproś uczestnika o wysłanie prośby jeszcze raz – nowy link przyjdzie na ten sam adres." %}
+  </p>
+</div>
+{% endblock %}

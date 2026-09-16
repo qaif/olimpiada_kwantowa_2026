@@ -162,8 +162,19 @@ class Review(models.Model):
         return self.submission.entry.participant.public_code
 
     def public_annotations(self) -> list:
-        """Adnotacje oznaczone ``public`` – tylko te trafiają kiedyś do uczestnika (T-07)."""
-        return [item for item in (self.annotations or []) if isinstance(item, dict) and item.get("public")]
+        """Adnotacje **prostokątne** oznaczone ``public`` – tylko te trafiają do uczestnika (T-07).
+
+        Warunek ``rect`` nie jest ozdobą: od czasu uwag do linii kodu (``apps.grading.code_view``)
+        w tym samym polu JSON mieszkają dwa kształty wpisu – prostokąt na stronie (``page``,
+        ``rect``) i uwaga przypięta do numeru linii (``line``). Każdy czytelnik tej listy wypisuje
+        adnotację jako „str. N: treść”, więc uwaga do linii wpadłaby tam jako „str. : treść”.
+        Uwagi do linii mają własne wejście (``code_view.public_line_notes``) i własną prezentację.
+        """
+        return [
+            item
+            for item in (self.annotations or [])
+            if isinstance(item, dict) and item.get("public") and item.get("rect") is not None
+        ]
 
 
 class FinalGrade(models.Model):
@@ -318,3 +329,167 @@ class ReviewNote(models.Model):
 
     def __str__(self) -> str:
         return f"notatka {self.pk} (zgł. {self.submission_id})"
+
+
+#: Limit długości szablonu komentarza. Szablon jest gotowym akapitem („brakuje uzasadnienia
+#: przejścia granicznego”), a nie całą recenzją – dłuższy tekst przestaje być czymś, co da się
+#: wstawić i doprecyzować, a zaczyna być komentarzem napisanym za recenzenta.
+MAX_SNIPPET_LENGTH = 2000
+
+
+class CommentSnippet(models.Model):
+    """Gotowy fragment komentarza do wstawienia w recenzji – „szablon komentarza”.
+
+    Po co (prośba organizatora): przy trzydziestu pracach z jednego zadania te same trzy zdania
+    („brakuje uzasadnienia przejścia granicznego”, „wynik poprawny, ale bez jednostek”) recenzent
+    przepisuje trzydzieści razy. Szablon jest tekstem **do wstawienia i poprawienia**, a nie
+    automatem: system nic nie wstawia sam, a wstawiony tekst wolno w polu komentarza edytować.
+
+    Dwa niezależne wymiary, oba wyrażone dopuszczeniem ``NULL``:
+
+    - ``problem`` – szablon zadania. ``None`` znaczy „nie dotyczy jednego zadania”, czyli szablon
+      ogólny, dostępny przy każdej pracy. Wiązanie z etapem zamiast z zadaniem odpadło: kryteria
+      różnią się między zadaniami, a nie między etapami, i to zadanie jest tym, co recenzent widzi
+      w kolejce („zadanie 3 w wielu pracach”),
+    - ``owner`` – właściciel. ``None`` znaczy „szablon wspólny”, przygotowany przez koordynatora
+      dla całego komitetu; wartość wskazuje recenzenta, który stworzył go dla siebie. Cudzych
+      prywatnych szablonów nie widzi nikt – ani inny recenzent, ani koordynator w panelu.
+
+    ``CASCADE`` po obu stronach: szablon bez zadania albo bez autora nie ma do czego należeć,
+    a wstawione już do recenzji zdania są zwykłym tekstem w ``Review.comment_for_participant``
+    i skasowanie szablonu nigdy ich nie rusza.
+    """
+
+    problem = models.ForeignKey(
+        Problem,
+        on_delete=models.CASCADE,
+        related_name="comment_snippets",
+        null=True,
+        blank=True,
+        verbose_name="zadanie",
+    )
+    owner = models.ForeignKey(
+        CommitteeMember,
+        on_delete=models.CASCADE,
+        related_name="comment_snippets",
+        null=True,
+        blank=True,
+        verbose_name="właściciel",
+    )
+    title = models.CharField("tytuł", max_length=200)
+    text = models.TextField("treść", max_length=MAX_SNIPPET_LENGTH)
+    # Kolejność ustala autor listy (koordynator wierszami w textarei, recenzent kolejnością
+    # dopisywania). Bez własnego pola porządek wynikałby z identyfikatorów, więc poprawienie
+    # jednego szablonu przenosiłoby go na koniec – a lista jest czytana z góry na dół.
+    order = models.PositiveSmallIntegerField("kolejność", default=1)
+    created_at = models.DateTimeField("utworzony", default=timezone.now)
+
+    class Meta:
+        verbose_name = "szablon komentarza"
+        verbose_name_plural = "szablony komentarzy"
+        ordering = ("order", "id")
+
+    def __str__(self) -> str:
+        return self.title
+
+    @property
+    def is_shared(self) -> bool:
+        """Czy szablon jest wspólny dla komitetu (koordynatora), a nie prywatny recenzenta."""
+        return self.owner_id is None
+
+
+class ReviewWorkLog(models.Model):
+    """Zmierzony czas pracy nad jedną recenzją – suma sekund, nigdy przebieg czynności.
+
+    Po co (prośba organizatora): planowanie obciążenia komitetu opiera się dziś na wyczuciu
+    („zadanie 3 idzie wolno”). Licznik zamienia to wyczucie w liczbę, którą widać przy recenzji
+    i przy recenzencie na ekranie postępu etapu.
+
+    Czego ten model **nie** zapisuje i zapisywać nie będzie: co recenzent pisał, gdzie klikał, ani
+    kiedy dokładnie przerywał. W bazie są trzy znaczniki czasu i jedna suma sekund – tyle wystarczy
+    na pytanie „ile godzin zajmuje ocena zadania 3” i za mało na jakąkolwiek ocenę człowieka.
+
+    Relacja jeden-do-jednego, bo licznik jest **narastający**: recenzent wraca do pracy wiele razy,
+    a interesuje nas suma, nie lista posiedzeń. ``started_at`` to pierwsze wejście w recenzję,
+    ``last_seen_at`` – ostatni odebrany sygnał życia; różnica między nimi bywa dniami i właśnie
+    dlatego ``seconds`` nie da się z nich wyliczyć (patrz ``apps.grading.worklog``).
+    """
+
+    review = models.OneToOneField(Review, on_delete=models.CASCADE, related_name="work_log")
+    started_at = models.DateTimeField("początek pracy", default=timezone.now)
+    last_seen_at = models.DateTimeField("ostatni sygnał", default=timezone.now)
+    seconds = models.PositiveIntegerField("zmierzony czas (s)", default=0)
+
+    class Meta:
+        verbose_name = "czas pracy nad recenzją"
+        verbose_name_plural = "czasy pracy nad recenzjami"
+        ordering = ("review", "id")
+
+    def __str__(self) -> str:
+        return f"recenzja {self.review_id}: {self.seconds} s"
+
+
+class WorkIssueKind(models.TextChoices):
+    """Co jest nie tak z pracą. Lista zamknięta, bo od opisu słownego jest pole ``text``."""
+
+    UNREADABLE = "UNREADABLE", "praca nieczytelna"
+    WRONG_PROBLEM = "WRONG_PROBLEM", "rozwiązanie innego zadania"
+    PLAGIARISM_SUSPECTED = "PLAGIARISM", "podejrzenie niesamodzielności"
+    OTHER = "OTHER", "inne"
+
+
+class WorkIssueStatus(models.TextChoices):
+    OPEN = "OPEN", "otwarte"
+    RESOLVED = "RESOLVED", "rozwiązane"
+
+
+class WorkIssue(models.Model):
+    """Zgłoszenie recenzenta: „z tą pracą jest coś nie tak” – sygnał do koordynatora.
+
+    Po co (prośba organizatora): recenzent, któremu trafi się skan nie do odczytania albo
+    rozwiązanie zupełnie innego zadania, nie ma dziś dokąd z tym pójść poza pocztą. Zgłoszenie jest
+    drogą **wewnątrz systemu**: koordynator widzi je na własnym ekranie, z pracą i etapem w ręku,
+    a rozstrzygnięcie zostaje przy recenzji, a nie w cudzej skrzynce.
+
+    Zgłoszenie **nie blokuje oceniania** i to jest świadoma decyzja. Recenzent może uważać pracę za
+    nieczytelną i mimo to wystawić ocenę, jaką da się obronić; zablokowanie formularza zamieniłoby
+    sygnał w ultimatum i zmusiłoby część komitetu do omijania go pocztą – czyli dokładnie do tego,
+    po co ten model powstał. Panel pokazuje więc otwarte zgłoszenie jako baner, a nie jako bramkę.
+
+    Praca jest tu zapisana **osobno**, choć wynika z recenzji: koordynator filtruje zgłoszenia po
+    etapie, a ekran zgłoszeń ma działać także dla recenzji, której dotyczą dwa różne zgłoszenia od
+    dwóch recenzentów tej samej pracy. ``CASCADE`` po obu stronach – zgłoszenie bez pracy nie ma
+    przedmiotu, a ślad decyzji zostaje w audycie (``issue.opened`` / ``issue.resolved``).
+    """
+
+    review = models.ForeignKey(Review, on_delete=models.CASCADE, related_name="issues")
+    submission = models.ForeignKey(Submission, on_delete=models.CASCADE, related_name="work_issues")
+    kind = models.CharField("rodzaj", max_length=24, choices=WorkIssueKind.choices)
+    text = models.TextField("opis", max_length=MAX_NOTE_LENGTH)
+    status = models.CharField(
+        "status", max_length=16, choices=WorkIssueStatus.choices, default=WorkIssueStatus.OPEN
+    )
+    created_at = models.DateTimeField("zgłoszone", default=timezone.now)
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="resolved_work_issues",
+        verbose_name="rozwiązał",
+    )
+    resolved_at = models.DateTimeField("rozwiązane", null=True, blank=True)
+    resolution = models.TextField("rozstrzygnięcie", blank=True)
+
+    class Meta:
+        verbose_name = "zgłoszenie problemu z pracą"
+        verbose_name_plural = "zgłoszenia problemów z pracami"
+        # Najnowsze na górze: ekran koordynatora jest kolejką do obsłużenia, a nie archiwum.
+        ordering = ("-created_at", "-id")
+
+    def __str__(self) -> str:
+        return f"zgłoszenie {self.pk} ({self.kind}, zgł. {self.submission_id})"
+
+    @property
+    def is_open(self) -> bool:
+        return self.status == WorkIssueStatus.OPEN

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+  Porównanie dwóch prac linia po linii. Treść rozwiązań jest tu pokazywana **bez** normalizacji
+  do tokenów – tę oglądał algorytm, a stronę ogląda człowiek, a to na nazwach zmiennych
+  i komentarzach najczęściej widać, że jedna praca powstała z drugiej.
+
+  Tabela pochodzi z ``difflib.HtmlDiff`` i przechodzi przez dwie bariery, zanim trafi na stronę:
+  escapowanie w bibliotece i białą listę znaczników (``apps.submissions.similarity.sanitise_html``).
+  Styl jest w osobnym arkuszu, bo polityka bezpieczeństwa nie dopuszcza stylów w atrybutach –
+  dlatego nie używamy ``HtmlDiff.make_file``, który wkleja własny blok ``<style>``.
+{% endcomment %}
+{% block title %}Porównanie prac – {{ stage.display_name }}{% endblock %}
+{% block head %}
+  <link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">
+  <link rel="stylesheet" href="{% static 'css/similarity-diff.css' %}">
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">
+    <a href="{% url 'web:coordinator-stage-similarity' stage.pk %}">Podobieństwo rozwiązań</a>
+  </span>
+  <h1>Porównanie: {{ left_code }} ↔ {{ right_code }}</h1>
+  <p class="lead">Zadanie {{ pair.problem.number }}, zmierzone podobieństwo
+    <strong>{{ pair.percent }}%</strong>. Wynik jest przesłanką, a nie rozstrzygnięciem –
+    dwie uczciwe prace też bywają podobne.</p>
+</div>
+
+<section class="section">
+  <dl class="meta-list">
+    <dt>{{ left_code }}</dt>
+    <dd>{{ left_participant.user.get_full_name }} ({{ left_participant.school }})</dd>
+    <dt>{{ right_code }}</dt>
+    <dd>{{ right_participant.user.get_full_name }} ({{ right_participant.school }})</dd>
+    <dt>Policzono</dt>
+    <dd>{{ pair.computed_at }}</dd>
+  </dl>
+  <form method="post" action="{% url 'web:coordinator-similarity-report' stage.pk pair.pk %}">
+    {% csrf_token %}
+    {% if pair.is_reported %}
+      <button type="submit" class="btn btn--secondary">Cofnij zgłoszenie do komitetu</button>
+    {% else %}
+      <button type="submit" class="btn btn--primary">Zgłoś do komitetu</button>
+    {% endif %}
+  </form>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Kod obok siebie</h2>
+    <span class="badge badge--danger">treść prac</span>
+  </div>
+  <div class="scroll diff-wrap">{{ diff }}</div>
+</section>
+{% endblock %}

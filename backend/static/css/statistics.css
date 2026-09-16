@@ -1,0 +1,136 @@
+/* =================================================================================================
+   Statystyki edycji (/statystyki/) – wykresy słupkowe **bez jednej linii JavaScriptu**.
+
+   Skąd klasy szerokości zamiast ``style="width: 42%"``: dokładnie ten sam powód, co przy pasku
+   postępu koordynatora (``coordinator-tools.css``) – polityka bezpieczeństwa serwisu nie dopuszcza
+   stylu wpisanego w dokument, więc szerokość musi być nazwą z zamkniętej listy. Lista skacze co
+   5 %, a dokładna liczba stoi obok słupka i to ona jest odpowiedzią; słupek pokazuje proporcję.
+
+   Dlaczego nie biblioteka wykresów: to strona publiczna, linkowana z materiałów prasowych i
+   czytana na telefonie w słabym zasięgu. Sto kilobajtów skryptu po to, żeby narysować dwanaście
+   prostokątów, byłoby złym interesem – a przy wyłączonym JavaScripcie nie byłoby ich wcale.
+
+   Tokeny (kolory, odstępy, promienie) pochodzą z ``app.css`` i nie są tu powtórzone, więc ciemny
+   wariant i tryb wysokiego kontrastu działają bez jednej dodatkowej reguły.
+   ============================================================================================== */
+
+/* --- kafelki z liczbami ----------------------------------------------------------------------- */
+
+/* Siatka, która sama się zawija: na telefonie jedna kolumna, na desktopie cztery–pięć. Bez media
+   query, bo ``auto-fit`` z ``minmax`` odpowiada dokładnie na pytanie „ile się zmieści”. */
+.stat-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--sp-3);
+  margin: var(--sp-4) 0;
+}
+
+.stat-facts > div {
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.stat-facts dt {
+  margin: 0 0 var(--sp-1);
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.stat-facts dd {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+/* Podpis pod liczbą (np. „najniższy wynik wśród zakwalifikowanych”) wraca do rozmiaru tekstu –
+   inaczej wyjaśnienie byłoby większe od tego, co wyjaśnia. */
+.stat-facts dd .hint {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+/* --- wykres słupkowy w tabeli ----------------------------------------------------------------- */
+
+.stat-block {
+  margin: var(--sp-5) 0 0;
+}
+
+.stat-block__title {
+  margin: 0 0 var(--sp-2);
+  font-size: 1.05rem;
+}
+
+/* Kolumna ze słupkiem ma zająć całą wolną szerokość; dwie pierwsze (punkty, liczba prac) są wąskie
+   i nie mają się rozjeżdżać między wierszami. */
+.stat-table td:last-child {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.stat-table .num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tor słupka. ``inline-flex`` i szerokość względna, żeby liczba procentowa stała w tym samym
+   wierszu co słupek – podpis oddzielony od wykresu byłby dwa razy dłuższą tabelą. */
+.stat-bar {
+  display: inline-block;
+  width: min(60%, 22rem);
+  height: 0.9rem;
+  margin-right: var(--sp-2);
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-inset);
+  vertical-align: middle;
+}
+
+.stat-bar__fill {
+  display: block;
+  height: 100%;
+  background: var(--info);
+}
+
+.stat-bar__value {
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-soft);
+}
+
+/* Szerokości co 5 % – zamknięta lista nazw, jedyna dopuszczalna droga do szerokości bez stylu
+   inline. ``w0`` znaczy „tej wartości nie ma” i słupek znika całkowicie, żeby nie zostawiać
+   włosowej kreski, którą dałoby się wziąć za jedną pracę. */
+.stat-bar__fill--w0 { display: none; }
+.stat-bar__fill--w5 { width: 5%; }
+.stat-bar__fill--w10 { width: 10%; }
+.stat-bar__fill--w15 { width: 15%; }
+.stat-bar__fill--w20 { width: 20%; }
+.stat-bar__fill--w25 { width: 25%; }
+.stat-bar__fill--w30 { width: 30%; }
+.stat-bar__fill--w35 { width: 35%; }
+.stat-bar__fill--w40 { width: 40%; }
+.stat-bar__fill--w45 { width: 45%; }
+.stat-bar__fill--w50 { width: 50%; }
+.stat-bar__fill--w55 { width: 55%; }
+.stat-bar__fill--w60 { width: 60%; }
+.stat-bar__fill--w65 { width: 65%; }
+.stat-bar__fill--w70 { width: 70%; }
+.stat-bar__fill--w75 { width: 75%; }
+.stat-bar__fill--w80 { width: 80%; }
+.stat-bar__fill--w85 { width: 85%; }
+.stat-bar__fill--w90 { width: 90%; }
+.stat-bar__fill--w95 { width: 95%; }
+.stat-bar__fill--w100 { width: 100%; }
+
+/* Na wydruku słupki znikają, a zostają tabele: kartka ma nieść liczby, a nie szare prostokąty,
+   które w druku czarno-białym i tak byłyby nieodróżnialne od siebie. */
+@media print {
+  .stat-bar {
+    display: none;
+  }
+}

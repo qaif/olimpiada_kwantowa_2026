@@ -1,5 +1,10 @@
-{% load static web_extras cms_extras wagtailimages_tags %}<!doctype html>
-<html lang="pl"{% if settings.cms.SiteSettings.ga_measurement_id %} data-ga-id="{{ settings.cms.SiteSettings.ga_measurement_id }}"{% endif %}>
+{% load static i18n web_extras cms_extras wagtailimages_tags %}<!doctype html>
+{% comment %}
+  ``lang`` idzie z aktywnego języka, a ``data-contrast`` pojawia się **tylko** w trybie wysokiego
+  kontrastu (pusty atrybut znaczyłby „tryb domyślny”, a arkusz zaczepia się o samą jego obecność).
+  Oba przychodzą z ``apps.accounts.preferences``.
+{% endcomment %}
+<html lang="{{ interface_language|default:'pl' }}"{% if interface_contrast %} data-contrast="{{ interface_contrast }}"{% endif %}{% if settings.cms.SiteSettings.ga_measurement_id %} data-ga-id="{{ settings.cms.SiteSettings.ga_measurement_id }}"{% endif %}>
 <head>
   {% comment %}
     Tag Google (gtag.js) – dokładnie tam, gdzie każe go wkleić instrukcja Google Analytics:
@@ -100,7 +105,7 @@
   autoescapowanie, więc atrybutu nie da się rozerwać.
 {% endcomment %}
 <body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
-<a class="skip-link" href="#tresc">Przejdź do treści</a>
+<a class="skip-link" href="#tresc">{% translate "Przejdź do treści" %}</a>
 <div class="topbar topbar--account">
   {% comment %}
     Pasek konta stoi **nad** nawigacją serwisu, we własnym wierszu i **przykleja się** do górnej
@@ -144,22 +149,58 @@
         {% endfor %}
       </nav>
     {% endif %}
-    <nav class="account-bar" aria-label="Konto">
+    <nav class="account-bar" aria-label="{% translate 'Konto' %}">
+      {% comment %}
+        Język i kontrast stoją **przed** pozycjami konta i są widoczne także dla gościa: to
+        ustawienie przeglądającego, a nie uprawnienie. Oba przełączniki są formularzami POST,
+        a nie odnośnikami – zmieniają stan po stronie serwera, a nie prowadzą pod adres, więc GET
+        byłby tu nieprawdą (i dałby się wywołać obcą stroną przez podstawiony obrazek).
+        Pole ``next`` wraca na tę samą stronę; adres jest sprawdzany po stronie serwera
+        (``apps.accounts.preferences.safe_next_url``), bo pochodzi od nadawcy żądania.
+      {% endcomment %}
+      <form method="post" action="{% url 'web:account-preferences' %}" class="inline account-bar__prefs">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <input type="hidden" name="high_contrast" value="{% if interface_high_contrast %}1{% else %}0{% endif %}">
+        {% for item in interface_languages %}
+          {% if item.code != interface_language %}
+            <button type="submit" name="language" value="{{ item.code }}"
+                    class="btn btn--small btn--ghost account-bar__btn"
+                    lang="{{ item.code }}"
+                    title="{{ item.label }}">{{ item.code|upper }}</button>
+          {% endif %}
+        {% endfor %}
+      </form>
+      <form method="post" action="{% url 'web:account-preferences' %}" class="inline account-bar__prefs">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <input type="hidden" name="language" value="{{ interface_language }}">
+        <button type="submit" name="high_contrast" value="{% if interface_high_contrast %}0{% else %}1{% endif %}"
+                class="btn btn--small btn--ghost account-bar__btn"
+                aria-pressed="{% if interface_high_contrast %}true{% else %}false{% endif %}">
+          {% translate "Kontrast" %}</button>
+      </form>
+      <span class="account-bar__sep" aria-hidden="true"></span>
       {% if user.is_authenticated %}
         {% if is_participant %}
           {% url 'web:me' as me_url %}
           <a class="account-bar__link" href="{{ me_url }}"
-             {% if request.path == me_url %}aria-current="page"{% endif %}>Mój panel</a>
+             {% if request.path == me_url %}aria-current="page"{% endif %}>{% translate "Mój panel" %}</a>
         {% endif %}
         {% if is_reviewer %}
           {% url 'web:review-list' as review_url %}
           <a class="account-bar__link" href="{{ review_url }}"
-             {% if request.path == review_url %}aria-current="page"{% endif %}>Recenzje</a>
+             {% if request.path == review_url %}aria-current="page"{% endif %}>{% translate "Recenzje" %}</a>
         {% endif %}
         {% if is_appeals_committee %}
           {% url 'web:appeals' as appeals_url %}
           <a class="account-bar__link" href="{{ appeals_url }}"
-             {% if request.path == appeals_url %}aria-current="page"{% endif %}>Reklamacje</a>
+             {% if request.path == appeals_url %}aria-current="page"{% endif %}>{% translate "Reklamacje" %}</a>
+        {% endif %}
+        {% if is_supervisor %}
+          {% url 'web:supervisor' as supervisor_url %}
+          <a class="account-bar__link" href="{{ supervisor_url }}"
+             {% if request.path == supervisor_url %}aria-current="page"{% endif %}>Moi uczniowie</a>
         {% endif %}
         {% if is_coordinator %}
           {% url 'web:coordinator' as coordinator_url %}
@@ -170,14 +211,14 @@
         <span class="account-bar__who who" title="{{ user.email }}">{{ user.email }}</span>
         <form method="post" action="{% url 'web:logout' %}" class="inline account-bar__logout">
           {% csrf_token %}
-          <button type="submit" class="btn btn--small btn--secondary account-bar__btn">Wyloguj</button>
+          <button type="submit" class="btn btn--small btn--secondary account-bar__btn">{% translate "Wyloguj" %}</button>
         </form>
       {% else %}
         {% url 'web:login' as login_url %}
         {% url 'web:register' as register_url %}
         {% url 'web:register-committee' as committee_url %}
         <a class="btn btn--small btn--secondary account-bar__btn" href="{{ login_url }}"
-           {% if request.path == login_url %}aria-current="page"{% endif %}>Zaloguj się</a>
+           {% if request.path == login_url %}aria-current="page"{% endif %}>{% translate "Zaloguj się" %}</a>
         {% comment %}
           Poza oknem rejestracji przycisk znika, a przed terminem otwarcia zamienia się w zapowiedź
           i **nadal prowadzi** na ``/register/`` – tam stoi pełne wyjaśnienie z datą. Nawigacja nie
@@ -185,13 +226,13 @@
         {% endcomment %}
         {% if registration.is_open %}
           <a class="btn btn--small btn--accent account-bar__btn" href="{{ register_url }}"
-             {% if request.path == register_url %}aria-current="page"{% endif %}>Zarejestruj się</a>
+             {% if request.path == register_url %}aria-current="page"{% endif %}>{% translate "Zarejestruj się" %}</a>
         {% elif registration.reason == "not_yet" %}
           <a class="btn btn--small btn--accent account-bar__btn" href="{{ register_url }}"
-             {% if request.path == register_url %}aria-current="page"{% endif %}>Rejestracja rusza {{ registration.opens_at|date:"j E Y" }}</a>
+             {% if request.path == register_url %}aria-current="page"{% endif %}>{% blocktranslate trimmed with opens=registration.opens_at|date:"j E Y" %}Rejestracja rusza {{ opens }}{% endblocktranslate %}</a>
         {% endif %}
         <a class="account-bar__link account-bar__link--sub" href="{{ committee_url }}"
-           {% if request.path == committee_url %}aria-current="page"{% endif %}>Rejestracja z kodem</a>
+           {% if request.path == committee_url %}aria-current="page"{% endif %}>{% translate "Rejestracja z kodem" %}</a>
       {% endif %}
     </nav>
     </div>
@@ -262,9 +303,7 @@
     {% with site=settings.cms.SiteSettings %}
     <div>
       <p><strong>{{ site.site_name }}</strong>{% if site.tagline %} – {{ site.tagline }}{% endif %}</p>
-      <p>Dane osobowe uczestników są przetwarzane zgodnie z zasadą minimalizacji (RODO):
-        w publicznych tabelach wyników występuje wyłącznie kod uczestnika, a pełne dane widzi
-        jedynie koordynator.</p>
+      <p>{% translate "Dane osobowe uczestników są przetwarzane zgodnie z zasadą minimalizacji (RODO): w publicznych tabelach wyników występuje wyłącznie kod uczestnika, a pełne dane widzi jedynie koordynator." %}</p>
       {% comment %}
         Odnośniki do dokumentów formalnych. Adresy są stałymi ścieżkami stron w drzewie Wagtaila
         (``/dokumenty/…``), bo stopka musi je pokazywać także wtedy, gdy strona dokumentu jest
@@ -272,9 +311,15 @@
         brak strony wywracałby cały szablon bazowy.
       {% endcomment %}
       <p class="footer__links">
-        <a href="/dokumenty/rodo/">Polityka prywatności (RODO)</a>
-        <a href="/dokumenty/cookies/">Polityka plików cookie</a>
-        <a href="/dokumenty/">Dokumenty</a>
+        <a href="/dokumenty/rodo/">{% translate "Polityka prywatności (RODO)" %}</a>
+        <a href="/dokumenty/cookies/">{% translate "Polityka plików cookie" %}</a>
+        <a href="/dokumenty/">{% translate "Dokumenty" %}</a>
+        {% comment %}
+          Statystyki ogłoszonych etapów. Adres jest wzorcem w ``config/urls.py`` (a nie stroną
+          w drzewie CMS-a), więc tu wolno użyć ``{% templatetag openblock %} url {% templatetag closeblock %}``
+          – w odróżnieniu od dokumentów wyżej nic go nie przeniesie ani nie skasuje.
+        {% endcomment %}
+        <a href="{% url 'statistics' %}">{% translate "Statystyki" %}</a>
         {% comment %}
           „Ustawienia cookies” otwierają pasek ponownie – to jedyna droga **wycofania** zgody
           bez czyszczenia danych witryny w przeglądarce, a wycofanie musi być tak samo łatwe,
@@ -284,7 +329,7 @@
           czego przywracać.
         {% endcomment %}
         {% if site.ga_measurement_id %}
-          <button type="button" class="footer__link-button" data-cookie-settings>Ustawienia cookies</button>
+          <button type="button" class="footer__link-button" data-cookie-settings>{% translate "Ustawienia cookies" %}</button>
         {% endif %}
       </p>
       {% comment %}
@@ -308,7 +353,7 @@
         {% if site.organizer_logo %}
           <span class="footer__logo">{% image site.organizer_logo max-240x80 alt="" loading="lazy" %}</span>
         {% endif %}
-        <span>Organizator: <strong>{{ site.organizer_name }}</strong></span>
+        <span>{% translate "Organizator:" %} <strong>{{ site.organizer_name }}</strong></span>
       </p>
       {% if site.organizer_address %}<p class="footer__meta">{{ site.organizer_address }}</p>{% endif %}
       {% if site.organizer_registry %}<p class="footer__meta">{{ site.organizer_registry }}</p>{% endif %}
@@ -317,7 +362,7 @@
         {% if site.contact_phone %}· <a href="tel:{{ site.contact_phone|cut:' ' }}">{{ site.contact_phone }}</a>{% endif %}
         {% if site.contact_url %}· <a href="{{ site.contact_url }}">{{ site.contact_url }}</a>{% endif %}
       </p>
-      <p class="footer__meta">Wersja aplikacji {{ app_version }} · wszystkie godziny podajemy w czasie polskim.</p>
+      <p class="footer__meta">{% blocktranslate trimmed with version=app_version %}Wersja aplikacji {{ version }} · wszystkie godziny podajemy w czasie polskim.{% endblocktranslate %}</p>
     </div>
     {% endwith %}
   </div>

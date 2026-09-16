@@ -1,10 +1,11 @@
-"""Formularze narzędzi koordynatora: komunikaty, filtr audytu i symulacja progu.
+"""Formularze narzędzi koordynatora: komunikaty, filtr audytu, symulacja progu, jakość i dyplomy.
 
 Osobny moduł od ``apps.web.forms`` z jednego powodu: tamten plik zbiera formularze, które mają
 w serwisie po kilku czytelników (rejestracja, profil, oceny, etapy) i są częścią kontraktu
-z API. Te trzy obsługują po jednym ekranie każdy, nie mają odpowiednika w API i nigdy nie będą
-wołane spoza ``apps.web.views.coordinator_reports`` i ``…coordinator_messages`` – trzymanie ich
-razem z formularzem rejestracji utrudniałoby czytanie obu.
+z API. Te obsługują po jednym ekranie każdy, nie mają odpowiednika w API i nigdy nie będą
+wołane spoza ``apps.web.views.coordinator_reports``, ``…coordinator_messages``
+i ``…coordinator_quality`` – trzymanie ich razem z formularzem rejestracji utrudniałoby
+czytanie obu.
 
 Wspólna zasada: formularz sprawdza **kształt** danych (czy pole jest wypełnione, czy wartość
 należy do zamkniętej listy, czy liczba jest dodatnia). Reguła domenowa – kto jest odbiorcą
@@ -17,7 +18,8 @@ from __future__ import annotations
 from django import forms
 
 from apps.accounts.models import BroadcastGroup
-from apps.competitions.models import QualificationMode, Stage
+from apps.competitions.models import ManualQualification, QualificationMode, Stage
+from apps.results.models import CertificateKind
 
 from .forms import VOIVODESHIP_CHOICES
 
@@ -131,3 +133,50 @@ class SimulationForm(forms.Form):
     mode = forms.ChoiceField(label="Tryb progu", choices=QualificationMode.choices)
     min_points = forms.IntegerField(label="Minimum punktów", required=False, min_value=0)
     top_n = forms.IntegerField(label="Liczba kwalifikowanych (N)", required=False, min_value=1)
+
+
+class ManualQualificationForm(forms.Form):
+    """Decyzja komitetu o kwalifikacji jednego wpisu: co i dlaczego.
+
+    Oba pola są tu „miękkie” (``required=False``) z rozmysłem: pusta decyzja znaczy „zdejmij
+    decyzję, niech rozstrzyga próg” i jest poprawnym żądaniem, a wymagalność uzasadnienia zależy
+    od decyzji. Regułę „decyzja wymaga uzasadnienia o długości co najmniej N” trzyma serwis
+    (``apps.results.manual``), bo to jest reguła domenowa, a nie kształt formularza – i musi
+    obowiązywać także wejście, które kiedyś przyjdzie inną drogą.
+    """
+
+    decision = forms.ChoiceField(label="Decyzja", choices=ManualQualification.choices, required=False)
+    reason = forms.CharField(
+        label="Uzasadnienie",
+        required=False,
+        max_length=2000,
+        widget=forms.Textarea(attrs={"rows": 2}),
+    )
+
+
+class CertificateIssueForm(forms.Form):
+    """Rodzaj wystawianego dokumentu.
+
+    Rodzaju **nie** wyliczamy z punktów: o tym, kto jest laureatem, a kto finalistą, rozstrzyga
+    komitet na posiedzeniu, a próg tytułu bywa inny niż próg kwalifikacji. Lista jest zamknięta
+    wartościami z modelu, więc do bazy nie trafi tytuł, którego dokument nie umie złożyć.
+    """
+
+    kind = forms.ChoiceField(label="Rodzaj dokumentu", choices=CertificateKind.choices)
+
+
+class SimilarityFilterForm(forms.Form):
+    """Próg pokazywania par na ekranie podobieństw.
+
+    Ułamek, a nie procent, bo taką wartość niesie model i taka jedzie w adresie – ekran, który
+    przyjmowałby „85”, a zapisywał 0,85, wymagałby przeliczania w dwie strony przy każdym
+    odnośniku. Procent pokazujemy dopiero w tabeli.
+    """
+
+    threshold = forms.FloatField(
+        label="Próg podobieństwa",
+        required=False,
+        min_value=0,
+        max_value=1,
+        help_text="Ułamek z zakresu 0–1. Domyślnie 0,8.",
+    )
