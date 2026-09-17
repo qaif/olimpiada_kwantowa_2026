@@ -61,7 +61,10 @@ class ReviewerScopedMixin(ReviewerRequiredMixin):
     """Wspólny queryset panelu: wyłącznie własne przydziały zalogowanego recenzenta."""
 
     def get_queryset(self):
-        return reviews_for_reviewer(self.reviewer)
+        # Kolejność z § 3.5: najpierw konkurs (własność), potem recenzent (rola). Serwis robi
+        # jedno i drugie w tej kolejności, więc ta sama osoba recenzująca w dwóch olimpiadach
+        # widzi tu wyłącznie przydziały spod domeny, na której właśnie jest.
+        return reviews_for_reviewer(self.reviewer, self.competition)
 
     def get_review(self, pk: int):
         return get_object_or_404(self.get_queryset(), pk=pk)
@@ -174,9 +177,9 @@ class ReviewListView(ReviewerScopedMixin, TemplateView):
             # Jedna suma na cały panel zamiast ``review_seconds`` w pętli: przydziałów bywa kilkaset,
             # a pasek podsumowania potrzebuje wyłącznie łącznej liczby.
             "worklog_label": format_duration(
-                ReviewWorkLog.objects.filter(review__reviewer=self.reviewer).aggregate(total=Sum("seconds"))[
-                    "total"
-                ]
+                ReviewWorkLog.objects.for_competition(self.competition)
+                .filter(review__reviewer=self.reviewer)
+                .aggregate(total=Sum("seconds"))["total"]
                 or 0
             ),
         }

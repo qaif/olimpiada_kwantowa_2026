@@ -30,6 +30,36 @@ WORKSHOPS_SLUG = "warsztaty"
 UPCOMING_LIMIT = 3
 
 
+def workshops_page(competition=None):
+    """Strona „Warsztaty” **tego** konkursu albo ``None``.
+
+    Jedno wejście dla wszystkich, którzy tej strony szukają po slugu: linii czasu w nagłówku,
+    zaświadczeń o obecności i panelu koordynatora. Bez tego każdy z nich pisał
+    ``ContentPage.objects.live().filter(slug=WORKSHOPS_SLUG).first()``, czyli pytał o „jakąkolwiek
+    stronę o tym slugu w tej bazie” – a w instalacji wielokonkursowej „jakakolwiek” bywa cudza
+    i pasek jednej olimpiady wyliczałby warsztaty drugiej.
+
+    Zawężenie idzie przez **drzewo stron**, a nie przez klucz obcy: strona należy do konkursu przez
+    witrynę, w której poddrzewie stoi (``Competition.site``), i drugiej drogi do tej prawdy nie ma.
+    Warunek na ``path`` jest indeksowany (treebeard trzyma ścieżkę materializowaną), więc kosztuje
+    tyle samo, co dotychczasowy filtr po slugu.
+
+    Konkurs bez witryny, konkurs ``None`` i baza bez konkursów zachowują się tak, jak przed
+    wielokonkursowością: pytanie zostaje globalne. To jest jedyny wariant, w którym może oddać
+    cudzą stronę, i dotyczy wyłącznie instalacji, w której cudzej nie ma.
+
+    Import modelu jest w środku funkcji – ``apps.cms.models`` importuje ten moduł, więc na poziomie
+    pliku byłby to cykl. Tą samą drogą chodzi tu ``attended_workshops``.
+    """
+    from .models import ContentPage
+
+    pages = ContentPage.objects.live().filter(slug=WORKSHOPS_SLUG)
+    root = getattr(getattr(competition, "site", None), "root_page", None)
+    if root is not None:
+        pages = pages.descendant_of(root, inclusive=True)
+    return pages.first()
+
+
 def upcoming_workshops(page, *, now=None, limit: int = UPCOMING_LIMIT) -> list[dict]:
     """Najbliższe warsztaty z bloków ``schedule`` w treści strony, od najwcześniejszego.
 
@@ -85,7 +115,7 @@ def workshop_key(topic: str, date_value: date) -> str:
     return f"{date_value.isoformat()}-{slugify(topic)}"[:WORKSHOP_KEY_LENGTH]
 
 
-def attended_workshops(participant) -> list[dict]:
+def attended_workshops(participant, competition=None) -> list[dict]:
     """Warsztaty, na których ten uczestnik był – w kolejności kalendarza.
 
     Przecięcie dwóch źródeł: odhaczonych kluczy (``cms.WorkshopAttendance``) i bieżącego
@@ -93,18 +123,25 @@ def attended_workshops(participant) -> list[dict]:
     zajęcia odwołano), zaświadczenie **nie** wymienia: dokument ma wyliczać zajęcia, o których
     da się dziś powiedzieć, kiedy się odbyły i czego dotyczyły, a nie sam klucz z bazy.
 
+    Harmonogram bierzemy ze strony **konkursu uczestnika** (``workshops_page``), a nie
+    z jakiejkolwiek strony o slugu ``warsztaty``: zaświadczenie wystawia konkretny organizator
+    i ma wyliczać zajęcia, które sam prowadził. Bez wskazania konkursu wchodzi odwrót „konkurs
+    na teraz”, czyli w instalacji jednokonkursowej dokładnie dzisiejsze zachowanie.
+
     Import modeli jest wewnątrz funkcji – ``apps.cms.models`` importuje ten moduł, więc na
     poziomie pliku byłby to cykl. Tą samą drogą chodzi tu ``apps.cms.timeline``.
     """
-    from .models import ContentPage, WorkshopAttendance
+    from .models import WorkshopAttendance
+    from .tenancy import resolve_competition
 
     keys = set(
         WorkshopAttendance.objects.filter(participant=participant).values_list("workshop_key", flat=True)
     )
     if not keys:
         return []
-    page = ContentPage.objects.live().filter(slug=WORKSHOPS_SLUG).first()
-    return [row for row in workshop_rows(page) if row["key"] in keys]
+    return [
+        row for row in workshop_rows(workshops_page(resolve_competition(competition))) if row["key"] in keys
+    ]
 
 
 def workshop_rows(page) -> list[dict]:

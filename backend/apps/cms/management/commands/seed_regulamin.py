@@ -73,8 +73,8 @@ from wagtail.rich_text import RichText
 
 from apps.cms.attachments import LABEL_PDF, LABEL_SOURCE_DOCX, ensure_document, set_attachments
 from apps.cms.legacy_markdown import slugify_anchor
-from apps.cms.models import DocumentPage, DocumentPageAttachment, HomePage
-from apps.cms.site_tree import ensure_document_index, take_document_page
+from apps.cms.models import DocumentPage, DocumentPageAttachment
+from apps.cms.site_tree import ensure_document_index, home_page, take_document_page
 
 #: ``…/apps/cms/management/commands/`` → ``…/apps/cms/fixtures/regulamin/``.
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures" / "regulamin"
@@ -437,7 +437,8 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
-        home = HomePage.objects.first()
+        # Strona główna **witryny domyślnej** – patrz ``apps.cms.site_tree.home_page``.
+        home = home_page()
         if home is None:
             raise CommandError("Brak drzewa stron – uruchom najpierw `manage.py migrate`.")
         missing = [source.name for source in (HTML_SOURCE, DOCX_SOURCE, PDF_SOURCE) if not source.exists()]

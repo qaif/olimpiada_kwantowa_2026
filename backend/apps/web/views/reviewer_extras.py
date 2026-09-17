@@ -34,7 +34,7 @@ class ReviewerScopedMixin(ReviewerRequiredMixin):
     """Własne przydziały zalogowanego recenzenta – cudza recenzja to 404, nie 403."""
 
     def get_review(self, pk: int):
-        return get_object_or_404(reviews_for_reviewer(self.reviewer), pk=pk)
+        return get_object_or_404(reviews_for_reviewer(self.reviewer, self.competition), pk=pk)
 
 
 def _back_to_review(pk) -> str:
@@ -60,7 +60,7 @@ class SnippetCreateView(ReviewerRequiredMixin, View):
         review_id = (request.POST.get("review") or "").strip()
         review = None
         if review_id:
-            review = get_object_or_404(reviews_for_reviewer(self.reviewer), pk=review_id)
+            review = get_object_or_404(reviews_for_reviewer(self.reviewer, self.competition), pk=review_id)
         problem = review.submission.problem if review is not None else None
         try:
             add_own_snippet(

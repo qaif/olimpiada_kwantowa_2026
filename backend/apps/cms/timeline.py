@@ -22,7 +22,7 @@ from apps.competitions.models import Edition, Stage, StageKind
 from apps.competitions.services import current_edition
 from apps.results.models import ResultsPublication
 
-from .workshops import WORKSHOPS_SLUG, workshop_rows
+from .workshops import WORKSHOPS_SLUG, workshop_rows, workshops_page
 
 #: Stan etapu na osi czasu. Klucz jest maszynowy (klasa CSS, test), etykieta – dla czytelnika.
 #: Kolejność jest kolejnością rozstrzygania: ogłoszone wyniki wygrywają z „zamknięty”, bo to
@@ -108,19 +108,24 @@ def _status(stage: Stage, *, has_results: bool, now) -> tuple[str, str]:
     return STATUS_UPCOMING
 
 
-def stage_rows(edition: Edition | None = None, now=None) -> list[dict]:
+def stage_rows(edition: Edition | None = None, now=None, *, competition=None) -> list[dict]:
     """Etapy edycji uporządkowane po ``opens_at`` wraz ze stanem i informacją o wynikach.
 
-    Bez argumentu bierze edycję bieżącą – tak woła ją blok w treści redakcyjnej, który nie ma
-    skąd znać edycji. Jedno zapytanie o etapy i jedno o publikacje: lista rośnie o wiersze,
-    nie o zapytania, niezależnie od liczby etapów.
+    Bez edycji bierze bieżącą edycję **wskazanego konkursu** – tak woła ją blok w treści
+    redakcyjnej, który edycji nie zna, ale stronę (a więc i konkurs) zna. Bez konkursu wchodzi
+    odwrót z ``current_edition``: konkurs z kontekstu żądania, a w instalacji jednokonkursowej –
+    ten jedyny. ``None`` na wyjściu znaczy „nie wiadomo, czyj harmonogram” i daje pustą tabelę,
+    a nie cudzą.
+
+    Jedno zapytanie o etapy i jedno o publikacje: lista rośnie o wiersze, nie o zapytania,
+    niezależnie od liczby etapów.
 
     Etapu treningowego na tej liście nie ma. Oś czasu ogłasza **harmonogram zawodów**, a trening
     jest piaskownicą bez terminu (``TRAINING_DEADLINE``): stanąłby na końcu tabeli ze stanem
     „otwarty” i datą 2099, czyli jako etap, na który wszyscy czekają najdłużej.
     """
     if edition is None:
-        edition = current_edition()
+        edition = current_edition(competition)
     if edition is None:
         return []
     now = now or timezone.now()
@@ -312,8 +317,8 @@ def _registration_item(edition: Edition, today: date) -> list[dict]:
     ]
 
 
-def _workshop_items(today: date) -> list[dict]:
-    """Warsztaty z tabeli na ``/warsztaty/`` – **każdy osobno**, jeden wiersz tabeli = jeden termin.
+def _workshop_items(today: date, competition=None) -> list[dict]:
+    """Warsztaty z tabeli na ``/warsztaty/`` **tego konkursu** – każdy osobno, wiersz = termin.
 
     Grupowanie po miesiącu („Warsztaty (3)”) było tu wcześniej i zostało wycofane na wyraźną
     prośbę organizatora: warsztat jest osobnym wydarzeniem, na które zapisuje się osobno, więc
@@ -324,12 +329,10 @@ def _workshop_items(today: date) -> list[dict]:
     Wiersz bez odczytanej daty jest pomijany – dokładnie tak, jak w zapowiedzi na stronie
     głównej (``upcoming_workshops``): pasek umie ustawić tylko to, co da się porównać z zegarem.
 
-    Import modelu jest w środku funkcji, bo ``apps.cms.models`` importuje ten moduł – na poziomie
-    pliku byłby to cykl. To ta sama droga, którą chodzi audyt w serwisach domenowych.
+    Strony szukamy przez ``workshops_page``, a nie samym slugiem: w instalacji wielokonkursowej
+    stron o slugu ``warsztaty`` jest tyle, co konkursów, a na pasek ma trafić ta z **tego** drzewa.
     """
-    from .models import ContentPage
-
-    page = ContentPage.objects.live().filter(slug=WORKSHOPS_SLUG).first()
+    page = workshops_page(competition)
     return [
         _item(
             kind="workshop",
@@ -367,7 +370,23 @@ def _item(
     }
 
 
-def timeline_events(edition: Edition | None = None, now=None) -> list[dict]:
+def _competition_of(edition: Edition):
+    """Właściciel edycji, bez zapytania tam, gdzie i tak wyszłoby ``None``.
+
+    ``competition_id`` jest kolumną wiersza edycji, więc sprawdzenie „czy w ogóle ma właściciela”
+    jest darmowe; dopiero odczyt samego obiektu kosztuje zapytanie. Różnica ma znaczenie, bo ta
+    funkcja stoi na drodze paska w nagłówku, czyli kodu wołanego przy każdej odsłonie serwisu,
+    a w wydaniu C kolumna jest jeszcze nullowalna (§ 4.1).
+
+    Wołający, który konkurs **zna** (żądanie, strona), podaje go argumentem i tu nie zagląda –
+    patrz ``timeline_events`` i ``timeline_strip``.
+    """
+    if edition is None or edition.competition_id is None:
+        return None
+    return edition.competition
+
+
+def timeline_events(edition: Edition | None = None, now=None, *, competition=None) -> list[dict]:
     """Cały kalendarz edycji w jednej liście, uporządkowany po dacie początku.
 
     Cztery źródła, bo tyle jest rodzajów terminu w tej olimpiadzie i każdy mieszka gdzie indziej:
@@ -379,9 +398,16 @@ def timeline_events(edition: Edition | None = None, now=None) -> list[dict]:
     Każda pozycja niesie już swój stan (``past``/``current``/``upcoming``) policzony względem
     **dnia** w strefie serwisu; pozycji na osi tu nie ma, bo osi jeszcze nie znamy – dokłada ją
     ``timeline_strip``, kiedy zna już komplet wydarzeń.
+
+    Trzy z czterech źródeł są zakresowane **przez edycję** (etapy, wydarzenia, okno rejestracji):
+    edycja należy do konkursu (``Edition.competition``), więc nie mają czego filtrować drugi raz.
+    Czwarte – warsztaty – mieszka w drzewie stron, czyli poza domeną zawodów, i jako jedyne
+    potrzebuje konkursu wprost. Bierzemy go z edycji, żeby pasek nie mógł złożyć harmonogramu
+    jednego konkursu z warsztatami drugiego, a argument ``competition`` zostaje dla wołającego,
+    który edycji nie ma.
     """
     if edition is None:
-        edition = current_edition()
+        edition = current_edition(competition)
     if edition is None:
         return []
     today = _localdate(now)
@@ -389,7 +415,7 @@ def timeline_events(edition: Edition | None = None, now=None) -> list[dict]:
         *_stage_items(edition, today),
         *_event_items(edition, today),
         *_registration_item(edition, today),
-        *_workshop_items(today),
+        *_workshop_items(today, competition if competition is not None else _competition_of(edition)),
     ]
     items.sort(key=lambda item: (item["start"], item["end"], item["title"]))
     return items
@@ -578,8 +604,14 @@ def _lead_item(items: list[dict]) -> dict | None:
     return items[-1] if items else None
 
 
-def _cache_key(edition_id: int) -> str:
-    """Klucz bufora: sama edycja.
+def _cache_key(edition_id: int, competition_id: int | None) -> str:
+    """Klucz bufora: konkurs i jego edycja.
+
+    Konkurs w kluczu jest **nadmiarowy i ma taki zostać**. Edycja należy do dokładnie jednego
+    konkursu (``Edition.competition``), więc jej identyfikator sam w sobie wystarcza – ale w wydaniu
+    C kolumna właściciela jest jeszcze nullowalna, a pasek wisi na **każdej** stronie serwisu.
+    Nazwanie właściciela wprost w kluczu kosztuje kilkanaście znaków, a kupuje to, że wpis policzony
+    dla edycji bez właściciela (``none``) nigdy nie trafi się edycji, która właściciela już dostała.
 
     Daty w kluczu **nie ma** i to jest świadome, mimo że cały pasek policzono względem dzisiaj.
     Wpis żyje pięć minut, więc zmiana doby unieważnia go sama – i to szybciej, niż ktokolwiek
@@ -587,7 +619,7 @@ def _cache_key(edition_id: int) -> str:
     problem prawdziwy: zdjęcie bufora (``invalidate_timeline_cache``) musiałoby zgadnąć,
     dla którego dnia policzono wpis, który ma skasować.
     """
-    return f"{CACHE_PREFIX}:{edition_id}"
+    return f"{CACHE_PREFIX}:{competition_id or 'none'}:{edition_id}"
 
 
 def invalidate_timeline_cache(edition_id: int) -> None:
@@ -595,15 +627,27 @@ def invalidate_timeline_cache(edition_id: int) -> None:
 
     Bez tego koordynator dopisywałby wydarzenie i przez pięć minut nie widział go w nagłówku,
     czyli sprawdzałby swoją pracę na ekranie, który jeszcze o niej nie wie.
+
+    Sygnatura zostaje przy **samym identyfikatorze edycji**: woła tę funkcję
+    ``apps.competitions.events`` i woła ją z ``transaction.on_commit``, czyli z miejsca, w którym
+    obiektu edycji już nie ma pod ręką. Konkurs do klucza dobieramy więc jednym ``values_list``
+    – zapytanie wykonuje się przy zapisie wydarzenia (rzadko), a nie przy odsłonie strony.
     """
-    cache.delete(_cache_key(edition_id))
+    competition_id = Edition.objects.filter(pk=edition_id).values_list("competition_id", flat=True).first()
+    cache.delete(_cache_key(edition_id, competition_id))
 
 
-def timeline_strip(edition: Edition | None = None, now=None) -> dict | None:
+def timeline_strip(edition: Edition | None = None, now=None, *, competition=None) -> dict | None:
     """Komplet danych paska w nagłówku: wiersze „kodu”, komórki paska i lista dla telefonu.
 
     Zwraca ``None``, kiedy nie ma bieżącej edycji – szablon nie rysuje wtedy niczego. Pasek bez
-    kalendarza byłby pustą ramką zajmującą wiersz na każdej stronie serwisu.
+    kalendarza byłby pustą ramką zajmującą wiersz na każdej stronie serwisu. To samo dotyczy
+    żądania spod hosta bez konkursu: „nie wiadomo, czyj to harmonogram” jest odpowiedzią pustą,
+    a nie zaproszeniem do pokazania pierwszego z brzegu.
+
+    ``competition`` podaje wołający, który konkurs zna bez zapytania – znacznik szablonu bierze
+    go z ``request.competition``. Dzięki temu warsztaty (jedyne źródło paska spoza domeny zawodów)
+    odnajdują się w drzewie **tej** witryny, a odczyt właściciela edycji nie dokłada zapytania.
 
     Wynik idzie do bufora na pięć minut, bo ta funkcja wykonuje się przy **każdym** żądaniu
     strony HTML, a jej koszt to cztery zapytania (etapy, publikacje wyników, wydarzenia, strona
@@ -612,16 +656,16 @@ def timeline_strip(edition: Edition | None = None, now=None) -> dict | None:
     inną drogą – terminów etapu, okna rejestracji i treści strony warsztatów.
     """
     if edition is None:
-        edition = current_edition()
+        edition = current_edition(competition)
     if edition is None:
         return None
     today = _localdate(now)
-    key = _cache_key(edition.pk)
+    key = _cache_key(edition.pk, edition.competition_id)
     cached = cache.get(key)
     if cached is not None:
         return cached
 
-    items = timeline_events(edition, now)
+    items = timeline_events(edition, now, competition=competition)
     axis_start, axis_end = _axis(items, edition, today)
     total_days = max((axis_end - axis_start).days, 1)
     _place_items(items, axis_start, total_days)

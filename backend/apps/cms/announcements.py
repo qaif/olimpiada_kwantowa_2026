@@ -20,6 +20,12 @@ Trzy decyzje:
   konto – to preferencja widoku, a nie dana o osobie. Komunikat **niezamykalny** (awaria, termin)
   zostaje na ekranie i tak ma być.
 
+Czwarta decyzja doszła razem z wielokonkursowością: **komunikat ma właściciela**
+(``Announcement.competition``, ``docs/UNIWERSALNY-ETAP-1.md`` § 3.7). Baner wisi na każdej stronie
+serwisu, więc komunikat globalny dla instalacji znaczyłby, że organizator konkursu A ogłasza
+przerwę techniczną na stronie konkursu B – i to bez żadnej możliwości zdjęcia jej przez tego,
+kogo dotyczy. Zawężone jest jedno i drugie: zapytanie i pamięć podręczna.
+
 Bez JavaScriptu baner jest w pełni sprawny: serwer renderuje go od razu, a znika wyłącznie
 przycisk zamknięcia. To jest ta sama zasada, co przy pasku cookie.
 
@@ -38,13 +44,18 @@ from django.dispatch import receiver
 from django.utils import timezone
 
 from .models import Announcement, AnnouncementLevel
+from .tenancy import competition_for_request, resolve_competition
 
-#: Klucz i czas życia pamięci podręcznej aktywnych komunikatów. Baner renderuje się na **każdej**
-#: stronie serwisu, więc bez tego każda odsłona kosztowałaby zapytanie do bazy. Minuta jest
-#: kompromisem: redaktor, który ogłasza przerwę techniczną, nie czeka dłużej niż minutę, a przy
+#: Przedrostek i czas życia pamięci podręcznej aktywnych komunikatów. Baner renderuje się na
+#: **każdej** stronie serwisu, więc bez tego każda odsłona kosztowałaby zapytanie do bazy. Minuta
+#: jest kompromisem: redaktor, który ogłasza przerwę techniczną, nie czeka dłużej niż minutę, a przy
 #: krótszym TTL pamięć przestaje cokolwiek oszczędzać. Zapis i skasowanie komunikatu i tak czyszczą
 #: ją od razu (sygnały niżej) – TTL jest wyłącznie zabezpieczeniem dla pozostałych procesów.
-CACHE_KEY = "cms:announcements:active"
+#:
+#: Klucz jest **per konkurs** i to jest sedno tej zmiany: jeden wspólny wpis znaczyłby, że baner
+#: zbuforowany przy odsłonie konkursu A wyświetli się czytelnikowi konkursu B przez całą minutę –
+#: czyli że izolacja zależy od tego, kto pierwszy wszedł na serwis.
+CACHE_PREFIX = "cms:announcements:active"
 CACHE_TTL_SECONDS = 60
 
 
@@ -53,22 +64,39 @@ CACHE_TTL_SECONDS = 60
 LEVEL_ORDER = (AnnouncementLevel.DANGER, AnnouncementLevel.WARNING, AnnouncementLevel.INFO)
 
 
-def active_announcements(now=None) -> list[Announcement]:
-    """Komunikaty obowiązujące „na teraz”, od najważniejszego. Bez pamięci podręcznej.
+def cache_key(competition) -> str:
+    """Klucz wpisu dla konkursu. ``None`` ma własny klucz, a nie wspólny z kimkolwiek.
 
-    Warunek jest ten sam, co w ``Announcement.is_live``, tylko wyrażony zapytaniem: włączony,
+    Osobny klucz dla „nie wiadomo, o który konkurs chodzi” jest tu istotny: pod tym kluczem leży
+    **pusta** lista (zawężenie do ``None`` niczego nie widzi), a dzielenie go z jakimkolwiek
+    konkursem znaczyłoby, że żądanie spod nieznanego hosta czyści albo zatruwa cudzy baner.
+    """
+    return f"{CACHE_PREFIX}:{getattr(competition, 'pk', None) or 'none'}"
+
+
+def active_announcements(competition=None, now=None) -> list[Announcement]:
+    """Komunikaty konkursu obowiązujące „na teraz”, od najważniejszego. Bez pamięci podręcznej.
+
+    Warunek czasu jest ten sam, co w ``Announcement.is_live``, tylko wyrażony zapytaniem: włączony,
     po dacie startu i przed datą końca (pusta data końca = bez ograniczenia).
+
+    Bez argumentu bierze konkurs „na teraz” (``apps.cms.tenancy.resolve_competition``) – tak wołają
+    ją komendy i testy, które konkursu nie mają skąd podać. Zawężenie robi ``for_competition``
+    z managera, a nie ``filter`` wpisany tutaj: droga modelu do konkursu jest własnością modelu,
+    a nie decyzją wołającego (§ 3.5).
     """
     now = now or timezone.now()
-    rows = Announcement.objects.filter(is_active=True, starts_at__lte=now).filter(
-        Q(ends_at__isnull=True) | Q(ends_at__gt=now)
+    rows = (
+        Announcement.objects.for_competition(resolve_competition(competition))
+        .filter(is_active=True, starts_at__lte=now)
+        .filter(Q(ends_at__isnull=True) | Q(ends_at__gt=now))
     )
     order = {value: index for index, value in enumerate(LEVEL_ORDER)}
     return sorted(rows, key=lambda item: (order.get(item.level, len(order)), -item.pk))
 
 
-def cached_announcements(now=None) -> list[Announcement]:
-    """Aktywne komunikaty z pamięcią podręczną (60 s), unieważnianą przy zapisie.
+def cached_announcements(competition=None, now=None) -> list[Announcement]:
+    """Aktywne komunikaty konkursu z pamięcią podręczną (60 s), unieważnianą przy zapisie.
 
     Baner renderuje się na każdej stronie serwisu, więc odczyt musi być tani. Błąd bazy nie może
     wywrócić szablonu bazowego – tak samo, jak w ``site_chrome`` i w menu CMS-a – więc kończy się
@@ -81,20 +109,46 @@ def cached_announcements(now=None) -> list[Announcement]:
     końca TTL. Baner nie jest zegarem – minuta opóźnienia przy komunikacie, który i tak wisiał
     kilka godzin, jest ceną bez znaczenia.
     """
-    cached = cache.get(CACHE_KEY)
+    competition = resolve_competition(competition)
+    key = cache_key(competition)
+    cached = cache.get(key)
     if cached is not None:
         return cached
     try:
-        rows = active_announcements(now)
+        rows = active_announcements(competition, now)
     except DatabaseError:  # pragma: no cover - baza bez migracji tabeli komunikatów
         return []
-    cache.set(CACHE_KEY, rows, CACHE_TTL_SECONDS)
+    cache.set(key, rows, CACHE_TTL_SECONDS)
     return rows
 
 
 def reset_cache(**_kwargs) -> None:
-    """Zapomina zapamiętaną listę. Wołają to sygnały zapisu i skasowania oraz testy."""
-    cache.delete(CACHE_KEY)
+    """Zapomina zapamiętane listy **wszystkich** konkursów. Wołają to sygnały i testy.
+
+    Czyszczenie hurtem, a nie klucza jednego konkursu, mimo że sygnał zna zapisany wiersz. Powód:
+    komunikat da się przenieść między konkursami (``/admin/`` pozwala zmienić klucz obcy), a wtedy
+    unieważnienie „po nowym właścicielu” zostawiłoby go na banerze starego aż do wygaśnięcia TTL.
+    Zapis komunikatu jest rzadki, więc jedno zapytanie o listę konkursów jest tu ceną bez znaczenia
+    – a odczyt banera, który wykonuje się przy każdej odsłonie, nie płaci za to nic.
+    """
+    cache.delete_many(_all_cache_keys())
+
+
+def _all_cache_keys() -> list[str]:
+    """Klucze wszystkich konkursów plus klucz „bez konkursu”.
+
+    Import lokalny i osłona na błąd bazy, bo tę funkcję wywołuje sygnał ``post_save`` – ten sam,
+    który chodzi w migracjach danych i w testach przewijających bazę, czyli w chwilach, w których
+    tabela konkursów bywa jeszcze (albo już) nieosiągalna.
+    """
+    from apps.tenancy.models import Competition
+
+    keys = [cache_key(None)]
+    try:
+        keys += [f"{CACHE_PREFIX}:{pk}" for pk in Competition.objects.values_list("pk", flat=True)]
+    except DatabaseError:  # pragma: no cover - baza bez migracji tabeli konkursów
+        pass
+    return keys
 
 
 @receiver(post_save, sender=Announcement, dispatch_uid="cms.announcements.reset_on_save")
@@ -110,7 +164,12 @@ def _reset_on_change(sender, **kwargs) -> None:
 
 
 def announcements(request) -> dict:
-    """Procesor kontekstu: aktywne komunikaty dla szablonu bazowego.
+    """Procesor kontekstu: aktywne komunikaty **tego** konkursu dla szablonu bazowego.
+
+    Konkurs bierzemy z żądania (``request.competition``, ustawia je ``CompetitionMiddleware``),
+    a przy jego braku – z kontekstu. Nie z „pierwszego w bazie”: baner wisi na każdej stronie
+    serwisu, więc pomyłka tutaj jest ogłoszeniem jednego organizatora na stronie drugiego,
+    widocznym dla wszystkich jego czytelników naraz.
 
     Panel redakcyjny i panel administracyjny baneru **nie** dostają: mają własną ramę (Wagtail,
     Django admin) i własny system powiadomień, a pasek organizatora wstrzyknięty w cudzy layout
@@ -121,4 +180,4 @@ def announcements(request) -> dict:
 
     if is_admin_path(request.path):
         return {"announcements": []}
-    return {"announcements": cached_announcements()}
+    return {"announcements": cached_announcements(competition_for_request(request))}

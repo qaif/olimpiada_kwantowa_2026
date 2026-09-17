@@ -79,8 +79,16 @@ PROBLEMS_TEMPLATE = "web/coordinator/problems.html"
 INTERVIEWS_TEMPLATE = "web/coordinator/interviews.html"
 
 
-def _stage_for_edit(stage_id: int) -> Stage:
-    return get_object_or_404(Stage.objects.select_related("edition"), pk=stage_id)
+def _stage_for_edit(competition, stage_id: int) -> Stage:
+    """Etap **tego konkursu** albo 404.
+
+    Jedno wejście dla wszystkich ekranów tego modułu (oś czasu, zadania, skala, rozmowy), żeby
+    zakres nie był dopisywany osobno przy każdym z nich – a więc żeby nie dało się go przy którymś
+    pominąć. 404, a nie 403: istnienie cudzego etapu nie jest informacją tego koordynatora (§ 3.6).
+    """
+    return get_object_or_404(
+        Stage.objects.for_competition(competition).select_related("edition"), pk=stage_id
+    )
 
 
 def _problem_counts(stage: Stage) -> dict[int, int]:
@@ -119,11 +127,11 @@ class StageEditView(CoordinatorRequiredMixin, View):
     template_name = "web/coordinator/stage_form.html"
 
     def get(self, request, stage_id: int):
-        stage = _stage_for_edit(stage_id)
+        stage = _stage_for_edit(request.competition, stage_id)
         return self._render(request, stage, StageForm(instance=stage))
 
     def post(self, request, stage_id: int):
-        stage = _stage_for_edit(stage_id)
+        stage = _stage_for_edit(request.competition, stage_id)
         form = StageForm(request.POST, instance=stage)
         if not form.is_valid():
             return self._render(request, stage, form, status=400)
@@ -133,7 +141,7 @@ class StageEditView(CoordinatorRequiredMixin, View):
             messages.error(request, str(exc.detail))
             # Świeży obiekt z bazy: ``ModelForm`` zdążył już wpisać odrzucone wartości do
             # ``form.instance``, a strona ma pokazać stan, który faktycznie obowiązuje.
-            stage = _stage_for_edit(stage_id)
+            stage = _stage_for_edit(request.competition, stage_id)
             return self._render(request, stage, StageForm(instance=stage), status=exc.status_code)
         messages.success(request, f"Terminy etapu {stage.display_name} zostały zapisane.")
         return redirect(reverse("web:coordinator"))
@@ -164,11 +172,11 @@ class StageScaleView(CoordinatorRequiredMixin, View):
     template_name = "web/coordinator/stage_scale.html"
 
     def get(self, request, stage_id: int):
-        stage = _stage_for_edit(stage_id)
+        stage = _stage_for_edit(request.competition, stage_id)
         return self._render(request, stage, ScoringScaleForm(initial=_scale_initial(stage)))
 
     def post(self, request, stage_id: int):
-        stage = _stage_for_edit(stage_id)
+        stage = _stage_for_edit(request.competition, stage_id)
         form = ScoringScaleForm(request.POST)
         if not form.is_valid():
             return self._render(request, stage, form, status=400)
@@ -232,7 +240,7 @@ class StageCreateView(CoordinatorRequiredMixin, View):
     template_name = "web/coordinator/stage_form.html"
 
     def dispatch(self, request, *args, **kwargs):
-        self.edition = current_edition()
+        self.edition = current_edition(request.competition)
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request):
@@ -283,7 +291,7 @@ class RegistrationSettingsView(CoordinatorRequiredMixin, View):
     template_name = "web/coordinator/registration_form.html"
 
     def dispatch(self, request, *args, **kwargs):
-        self.edition = current_edition()
+        self.edition = current_edition(request.competition)
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request):
@@ -305,7 +313,7 @@ class RegistrationSettingsView(CoordinatorRequiredMixin, View):
             messages.error(request, str(exc.detail))
             # Świeży obiekt z bazy: ``ModelForm`` zdążył już wpisać odrzucone wartości do
             # ``form.instance``, a strona ma pokazać stan, który faktycznie obowiązuje.
-            self.edition = current_edition()
+            self.edition = current_edition(request.competition)
             form = RegistrationSettingsForm(instance=self.edition)
             return self._render(request, form, status=exc.status_code)
         messages.success(request, "Ustawienia rejestracji uczestników zostały zapisane.")
@@ -318,7 +326,7 @@ class RegistrationSettingsView(CoordinatorRequiredMixin, View):
     def _render(self, request, form: RegistrationSettingsForm, *, status: int = 200):
         # Stan liczymy z **bieżącego** obiektu edycji, a nie z procesora kontekstu: po nieudanym
         # zapisie procesor pamięta wartość sprzed próby, a koordynator ma zobaczyć stan z bazy.
-        edition = current_edition()
+        edition = current_edition(request.competition)
         context = {
             "edition": edition,
             "form": form,
@@ -332,11 +340,11 @@ class StageProblemsView(CoordinatorRequiredMixin, View):
     """``/coordinator/stages/<id>/problems/`` – lista zadań etapu i formularz dodania."""
 
     def get(self, request, stage_id: int):
-        stage = _stage_for_edit(stage_id)
+        stage = _stage_for_edit(request.competition, stage_id)
         return render_problem_list(request, stage, ProblemForm(stage=stage))
 
     def post(self, request, stage_id: int):
-        stage = _stage_for_edit(stage_id)
+        stage = _stage_for_edit(request.competition, stage_id)
         form = ProblemForm(request.POST, request.FILES, stage=stage)
         if not form.is_valid():
             return render_problem_list(request, stage, form, status=400)
@@ -405,7 +413,12 @@ class ProblemEditView(CoordinatorRequiredMixin, View):
         return redirect(reverse("web:coordinator-stage-problems", args=[problem.stage_id]))
 
     def _problem(self, pk: int) -> Problem:
-        return get_object_or_404(Problem.objects.select_related("stage", "stage__edition"), pk=pk)
+        return get_object_or_404(
+            Problem.objects.for_competition(self.request.competition).select_related(
+                "stage", "stage__edition"
+            ),
+            pk=pk,
+        )
 
     def _render(self, request, problem: Problem, form: ProblemForm, *, status: int = 200):
         context = {
@@ -426,7 +439,9 @@ class ProblemDeleteView(CoordinatorRequiredMixin, View):
     """
 
     def post(self, request, pk: int):
-        problem = get_object_or_404(Problem.objects.select_related("stage"), pk=pk)
+        problem = get_object_or_404(
+            Problem.objects.for_competition(request.competition).select_related("stage"), pk=pk
+        )
         stage = problem.stage
         try:
             delete_problem(problem, request.user, request=request)
@@ -462,11 +477,11 @@ class StageInterviewsView(CoordinatorRequiredMixin, View):
     """
 
     def get(self, request, stage_id: int):
-        stage = _stage_for_edit(stage_id)
+        stage = _stage_for_edit(request.competition, stage_id)
         return render_interview_list(request, stage, InterviewSlotsForm())
 
     def post(self, request, stage_id: int):
-        stage = _stage_for_edit(stage_id)
+        stage = _stage_for_edit(request.competition, stage_id)
         form = InterviewSlotsForm(request.POST)
         if not form.is_valid():
             return render_interview_list(request, stage, form, status=400)
@@ -488,7 +503,12 @@ class InterviewSlotDeleteView(CoordinatorRequiredMixin, View):
     """
 
     def post(self, request, pk: int):
-        slot = get_object_or_404(InterviewSlot.objects.select_related("stage", "stage__edition"), pk=pk)
+        slot = get_object_or_404(
+            InterviewSlot.objects.for_competition(request.competition).select_related(
+                "stage", "stage__edition"
+            ),
+            pk=pk,
+        )
         stage = slot.stage
         try:
             delete_slot(slot, request.user, request=request)

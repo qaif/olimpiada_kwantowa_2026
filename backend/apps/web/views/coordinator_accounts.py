@@ -88,6 +88,42 @@ STATUS_BLOCKED = "nieaktywne"
 STATUS_ACTIVE = "aktywne"
 
 
+def users_for_competition(competition):
+    """Konta, które ten koordynator w ogóle widzi: **jego członkowie i konta niczyje**.
+
+    ``accounts.User`` jest kontem platformy i celowo nie ma kolumny konkursu (§ 3.4): jedna osoba
+    startuje w dwóch olimpiadach jednym hasłem i jednym resetem hasła. Drogą do konkursu jest więc
+    ``Membership`` – wiersz zapisywany przez ``apps.accounts.services.grant_role`` przy każdej
+    drodze nadania roli (rejestracja, import zbiorczy, zaproszenie do komitetu, rejestracja
+    opiekuna), czyli przy każdym koncie, które w tym konkursie cokolwiek robi.
+
+    Reguła jest **wykluczeniem**, a nie dopuszczeniem, i to jest jej sedno: chowamy konto wtedy
+    i tylko wtedy, gdy należy ono do **innego** konkursu. Konto bez ani jednego członkostwa
+    („niczyje”) zostaje widoczne dla każdego koordynatora.
+
+    Dlaczego tak, a nie „tylko moi członkowie”. Konto bez członkostwa jest w tej bazie stanem
+    realnym i niepustym: konto operatora platformy, konto założone w ``/admin/``, konto po
+    odebraniu wszystkich ról, konto sprzed backfillu z T2 (który wstawia członkostwa z
+    ``auth_user_groups``, więc konta **bez grupy** nie dostają żadnego). Każde z nich koordynator
+    Olimpiady Kwantowej widzi dziś na swojej liście, a znikanie kont z listy po wdrożeniu byłoby
+    zmianą widoczną i niezamówioną (§ 0). Cena – w instalacji wielokonkursowej takie konto widzą
+    obaj koordynatorzy – jest jawna i znika razem z ``Membership`` dla każdego konta.
+
+    Co z listy **wypada**: konto należące do cudzego konkursu. Koordynator nie ma go zmieniać,
+    blokować ani kasować – to nie są jego dane osobowe do administrowania (§ 8, D5), a lista kont
+    jest ekranem, z którego te trzy czynności wychodzą.
+
+    ``__in`` z podzapytaniem, a nie ``JOIN`` przez ``memberships``: osoba z dwiema rolami
+    w jednym konkursie (recenzent i członek komisji odwoławczej) pojawiłaby się przy złączeniu
+    dwa razy, a ``distinct()`` na liście ze stronicowaniem kosztuje sortowanie całego wyniku.
+    """
+    from apps.accounts.models import Membership
+
+    mine = Membership.objects.for_competition(competition).values("user_id")
+    claimed_by_anyone = Membership.objects.values("user_id")
+    return User.objects.filter(Q(pk__in=mine) | ~Q(pk__in=claimed_by_anyone))
+
+
 def is_protected(user: User) -> bool:
     """Czy tego konta nie wolno zmieniać z panelu. Ta sama reguła, co w ``accounts.profile``.
 
@@ -185,7 +221,8 @@ class CoordinatorAccountsView(CoordinatorRequiredMixin, View):
         # ``select_related`` na obu profilach i ``prefetch_related`` na grupach: rola i kod
         # publiczny stoją w każdym wierszu, więc bez tego strona robiłaby trzy zapytania na konto.
         users = (
-            User.objects.select_related("participant", "committee_member", "school_supervisor")
+            users_for_competition(request.competition)
+            .select_related("participant", "committee_member", "school_supervisor")
             .prefetch_related("groups")
             .order_by("email")
         )
@@ -218,9 +255,19 @@ class CoordinatorAccountsView(CoordinatorRequiredMixin, View):
         return TemplateResponse(request, LIST_TEMPLATE, context)
 
 
-def _account(pk: int) -> User:
+def _account(competition, pk: int) -> User:
+    """Konto z tego konkursu albo 404.
+
+    404, a nie 403: konto cudzego organizatora **nie istnieje** dla tego koordynatora, a kod
+    odpowiedzi nie ma prawa potwierdzać, że ktoś o takim identyfikatorze się gdziekolwiek zapisał
+    (§ 3.6). Zawężenie idzie z querysetu, więc żaden z pięciu ekranów tego modułu nie może go
+    pominąć – wszystkie wołają tę funkcję.
+    """
     return get_object_or_404(
-        User.objects.select_related("participant", "committee_member", "school_supervisor"), pk=pk
+        users_for_competition(competition).select_related(
+            "participant", "committee_member", "school_supervisor"
+        ),
+        pk=pk,
     )
 
 
@@ -236,11 +283,11 @@ class CoordinatorAccountEditView(CoordinatorRequiredMixin, View):
     """
 
     def get(self, request, pk: int):
-        user = _account(pk)
+        user = _account(request.competition, pk)
         return self._render(request, user, self._forms(user))
 
     def post(self, request, pk: int):
-        user = _account(pk)
+        user = _account(request.competition, pk)
         forms = self._forms(user, data=request.POST)
         # ``all(...)`` po liście, a nie w generatorze z krótkim spięciem: każdy formularz ma zostać
         # sprawdzony, żeby błędy stanęły pod polami **wszystkich** bloków naraz.
@@ -259,7 +306,7 @@ class CoordinatorAccountEditView(CoordinatorRequiredMixin, View):
             messages.error(request, str(exc.detail))
             # Świeży obiekt i świeże formularze: strona ma pokazać stan, który faktycznie
             # obowiązuje, a nie odrzucone wartości z żądania.
-            fresh = _account(pk)
+            fresh = _account(request.competition, pk)
             return self._render(request, fresh, self._forms(fresh), status=exc.status_code)
         messages.success(request, f"Dane konta {user.email} zostały zapisane.")
         return redirect(reverse("web:coordinator-accounts"))
@@ -345,7 +392,7 @@ class CoordinatorAccountExportView(CoordinatorRequiredMixin, View):
     def post(self, request, pk: int):
         from apps.web.views.account import send_export
 
-        user = _account(pk)
+        user = _account(request.competition, pk)
         return send_export(request, user, actor=request.user)
 
 
@@ -375,7 +422,7 @@ class CoordinatorTwoFactorResetView(CoordinatorRequiredMixin, View):
         if not two_factor_feature():
             raise Http404("Logowanie dwuskładnikowe jest wyłączone na tej instalacji.")
 
-        user = _account(pk)
+        user = _account(request.competition, pk)
         if reset_by_coordinator(user, actor=request.user, request=request):
             messages.success(
                 request,
@@ -398,16 +445,16 @@ class CoordinatorAccountDeleteView(CoordinatorRequiredMixin, View):
     """
 
     def get(self, request, pk: int):
-        return self._render(request, _account(pk))
+        return self._render(request, _account(request.competition, pk))
 
     def post(self, request, pk: int):
-        user = _account(pk)
+        user = _account(request.competition, pk)
         email = user.email
         try:
             result = delete_account_by_coordinator(user, actor=request.user, request=request)
         except DomainError as exc:
             messages.error(request, str(exc.detail))
-            return self._render(request, _account(pk), status=exc.status_code)
+            return self._render(request, _account(request.competition, pk), status=exc.status_code)
         if result == "anonymised":
             messages.success(
                 request,

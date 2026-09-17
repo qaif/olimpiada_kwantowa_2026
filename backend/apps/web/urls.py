@@ -10,6 +10,7 @@ from .views import (
     coordinator_accounts,
     coordinator_announcements,
     coordinator_certificates,
+    coordinator_competition,
     coordinator_events,
     coordinator_integrations,
     coordinator_issues,
@@ -315,6 +316,14 @@ urlpatterns = [
         "coordinator/moderation/",
         coordinator_pages.CoordinatorModerationView.as_view(),
         name="coordinator-moderation",
+    ),
+    # Ustawienia **konkursu** (marka, organizator, przełączniki) – w odróżnieniu od ustawień
+    # jego rocznika niżej. Adres bez identyfikatora, bo konkurs wskazuje domena żądania: nie ma
+    # tu adresu, pod którym dałoby się otworzyć cudzy konkurs.
+    path(
+        "coordinator/competition/",
+        coordinator_competition.CompetitionSettingsView.as_view(),
+        name="coordinator-competition",
     ),
     # Okno rejestracji uczestników – ustawienie edycji, nie etapu, stąd adres bez identyfikatora.
     path(

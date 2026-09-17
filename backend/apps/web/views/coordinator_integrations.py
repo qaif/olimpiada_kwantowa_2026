@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from django import forms
 from django.contrib import messages
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
 from django.urls import reverse
@@ -45,7 +46,6 @@ from apps.integrations.services import (
     create_api_key,
     create_endpoint,
     delete_endpoint,
-    deliveries_for_panel,
     resend_delivery,
     revoke_api_key,
     send_test_delivery,
@@ -55,18 +55,38 @@ from apps.web.mixins import CoordinatorRequiredMixin
 
 TEMPLATE = "web/coordinator/integrations.html"
 
+#: Ile doręczeń pokazuje dziennik. Ta sama liczba, co domyślna w
+#: ``apps.integrations.services.deliveries_for_panel`` – dziennik rośnie z każdym zdarzeniem
+#: razy liczba odbiorców, a ekran odpowiada na pytanie „czy ostatnie rzeczy doszły”.
+DELIVERY_LIMIT = 50
+
 #: Klucz w sesji, pod którym czeka świeżo wystawiony klucz API – do jednorazowego pokazania.
 PLAIN_KEY_SESSION = "integrations_plain_key"
 
 
 def _edition_field(label: str) -> forms.ModelChoiceField:
-    """Pole wyboru edycji wspólne dla obu formularzy. Puste = „wszystkie edycje”."""
+    """Pole wyboru edycji wspólne dla obu formularzy. Puste = „wszystkie edycje”.
+
+    Queryset jest tu pusty z rozmysłu i wypełnia go dopiero widok (``_bind_editions``):
+    pole powstaje przy imporcie modułu, czyli zanim istnieje jakiekolwiek żądanie, a lista
+    edycji jest **zakresowana konkursem**. Domyślne „wszystkie edycje instalacji” byłoby
+    listą, z której da się wybrać cudzą – a ``ModelChoiceField`` jest tu realną bramką
+    zapisu, nie ozdobą ekranu.
+    """
     return forms.ModelChoiceField(
-        queryset=Edition.objects.order_by("-created_at", "-id"),
+        queryset=Edition.objects.none(),
         required=False,
         label=label,
         empty_label="wszystkie edycje",
     )
+
+
+def _bind_editions(form, competition):
+    """Wpisuje do formularza edycje **tego** konkursu i oddaje ten sam formularz."""
+    form.fields["edition"].queryset = Edition.objects.for_competition(competition).order_by(
+        "-created_at", "-id"
+    )
+    return form
 
 
 class ApiKeyForm(forms.Form):
@@ -101,19 +121,48 @@ def _redirect():
     return redirect(reverse("web:coordinator-integrations"))
 
 
-def _endpoint(pk: int) -> WebhookEndpoint:
-    return get_object_or_404(WebhookEndpoint.objects.select_related("edition"), pk=pk)
+def _scoped(queryset, competition, path: str = "edition"):
+    """Wiersze integracji tego konkursu **oraz** wiersze bez edycji.
+
+    ``ApiKey.edition`` i ``WebhookEndpoint.edition`` bywają puste i to jest ich cecha, nie
+    brak: puste znaczy „wszystkie edycje” i tak wygląda klucz partnera, który pyta o każdy
+    rocznik. Dopóki modele integracji nie mają własnego klucza obcego do konkursu
+    (``apps/integrations/`` nie należy do żadnego z zadań T1–T7 – patrz raport), zakresem
+    jest **edycja**: wiersz z edycją tego konkursu albo wiersz bez edycji.
+
+    Cena jest odnotowana: klucz „na wszystkie edycje” zostaje wspólny dla instalacji. Przy
+    jednym konkursie to stan zerowy, a domknięcie należy do wydania D razem z kolumną
+    ``ApiKey.competition``.
+    """
+    if competition is None:
+        return queryset.none()
+    editions = Edition.objects.for_competition(competition)
+    return queryset.filter(Q(**{f"{path}__in": editions}) | Q(**{f"{path}__isnull": True}))
 
 
-def _page_context(*, key_form=None, webhook_form=None, plain_key=None) -> dict:
+def _endpoint(competition, pk: int) -> WebhookEndpoint:
+    """Odbiorca webhooków widoczny w tym konkursie albo 404."""
+    return get_object_or_404(_scoped(WebhookEndpoint.objects.select_related("edition"), competition), pk=pk)
+
+
+def _page_context(competition, *, key_form=None, webhook_form=None, plain_key=None) -> dict:
     """Komplet danych ekranu. Jedno miejsce, bo ten sam ekran renderuje wejście i nieudany formularz."""
+    allowed_keys = set(_scoped(ApiKey.objects.all(), competition).values_list("pk", flat=True))
     return {
-        "edition": current_edition(),
-        "keys": api_keys_for_panel(),
-        "endpoints": list(WebhookEndpoint.objects.select_related("edition", "created_by")),
-        "deliveries": deliveries_for_panel(),
-        "key_form": key_form or ApiKeyForm(),
-        "webhook_form": webhook_form or WebhookForm(),
+        "edition": current_edition(competition),
+        # Listę kluczy składa serwis integracji (jedna definicja „co widać w panelu”),
+        # a zakres konkursu dokładamy do jego wyniku – tak samo jak przy puli recenzentów.
+        "keys": [key for key in api_keys_for_panel() if key.pk in allowed_keys],
+        "endpoints": list(
+            _scoped(WebhookEndpoint.objects.select_related("edition", "created_by"), competition)
+        ),
+        "deliveries": list(
+            _scoped(WebhookDelivery.objects.select_related("endpoint"), competition, "endpoint__edition")[
+                :DELIVERY_LIMIT
+            ]
+        ),
+        "key_form": _bind_editions(key_form or ApiKeyForm(), competition),
+        "webhook_form": _bind_editions(webhook_form or WebhookForm(), competition),
         "plain_key": plain_key,
         "scopes": SCOPES,
         "events": WEBHOOK_EVENTS,
@@ -127,7 +176,7 @@ class IntegrationsView(CoordinatorRequiredMixin, View):
         # ``pop`` zamiast ``get``: klucz w postaci jawnej pokazuje się dokładnie raz, a odświeżenie
         # strony ma go już nie pokazać. Inaczej zostawałby w sesji do wylogowania.
         plain_key = request.session.pop(PLAIN_KEY_SESSION, None)
-        return TemplateResponse(request, TEMPLATE, _page_context(plain_key=plain_key))
+        return TemplateResponse(request, TEMPLATE, _page_context(request.competition, plain_key=plain_key))
 
 
 class ApiKeyCreateView(CoordinatorRequiredMixin, View):
@@ -139,7 +188,7 @@ class ApiKeyCreateView(CoordinatorRequiredMixin, View):
     """
 
     def post(self, request):
-        form = ApiKeyForm(request.POST)
+        form = _bind_editions(ApiKeyForm(request.POST), request.competition)
         if not form.is_valid():
             return self._render(request, form, status=400)
         data = form.cleaned_data
@@ -164,14 +213,16 @@ class ApiKeyCreateView(CoordinatorRequiredMixin, View):
         return _redirect()
 
     def _render(self, request, form: ApiKeyForm, *, status: int):
-        return TemplateResponse(request, TEMPLATE, _page_context(key_form=form), status=status)
+        return TemplateResponse(
+            request, TEMPLATE, _page_context(request.competition, key_form=form), status=status
+        )
 
 
 class ApiKeyRevokeView(CoordinatorRequiredMixin, View):
     """``POST /coordinator/integrations/keys/<id>/revoke/`` – unieważnienie klucza."""
 
     def post(self, request, pk: int):
-        key = get_object_or_404(ApiKey, pk=pk)
+        key = get_object_or_404(_scoped(ApiKey.objects.all(), request.competition), pk=pk)
         try:
             revoke_api_key(key, actor=request.user, request=request)
         except DomainError as exc:
@@ -185,7 +236,7 @@ class WebhookCreateView(CoordinatorRequiredMixin, View):
     """``POST /coordinator/integrations/webhooks/`` – dodanie odbiorcy."""
 
     def post(self, request):
-        form = WebhookForm(request.POST)
+        form = _bind_editions(WebhookForm(request.POST), request.competition)
         if not form.is_valid():
             for error in form.errors.values():
                 messages.error(request, " ".join(error))
@@ -215,7 +266,7 @@ class WebhookUpdateView(CoordinatorRequiredMixin, View):
     """
 
     def post(self, request, pk: int):
-        endpoint = _endpoint(pk)
+        endpoint = _endpoint(request.competition, pk)
         fields: dict = {}
         if "url" in request.POST:
             fields["url"] = request.POST.get("url", "")
@@ -236,7 +287,7 @@ class WebhookDeleteView(CoordinatorRequiredMixin, View):
     """``POST /coordinator/integrations/webhooks/<id>/delete/`` – usunięcie odbiorcy."""
 
     def post(self, request, pk: int):
-        endpoint = _endpoint(pk)
+        endpoint = _endpoint(request.competition, pk)
         url = endpoint.url
         delete_endpoint(endpoint, actor=request.user, request=request)
         messages.success(request, f"Odbiorca {url} został usunięty.")
@@ -247,7 +298,7 @@ class WebhookTestView(CoordinatorRequiredMixin, View):
     """``POST /coordinator/integrations/webhooks/<id>/test/`` – doręczenie próbne (``ping``)."""
 
     def post(self, request, pk: int):
-        endpoint = _endpoint(pk)
+        endpoint = _endpoint(request.competition, pk)
         send_test_delivery(endpoint, actor=request.user, request=request)
         messages.success(
             request,
@@ -260,7 +311,14 @@ class DeliveryResendView(CoordinatorRequiredMixin, View):
     """``POST /coordinator/integrations/deliveries/<id>/resend/`` – ponowienie z dziennika."""
 
     def post(self, request, pk: int):
-        delivery = get_object_or_404(WebhookDelivery.objects.select_related("endpoint"), pk=pk)
+        delivery = get_object_or_404(
+            _scoped(
+                WebhookDelivery.objects.select_related("endpoint"),
+                request.competition,
+                "endpoint__edition",
+            ),
+            pk=pk,
+        )
         try:
             resend_delivery(delivery, actor=request.user, request=request)
         except DomainError as exc:
@@ -288,7 +346,10 @@ def _stage_from_query(request):
     raw = (request.GET.get("stage") or "").strip()
     if not raw.isdigit():
         raise Http404("Eksport etapu wymaga parametru ?stage=<id>.")
-    return get_object_or_404(Stage.objects.select_related("edition", "qualification_rule"), pk=int(raw))
+    return get_object_or_404(
+        Stage.objects.for_competition(request.competition).select_related("edition", "qualification_rule"),
+        pk=int(raw),
+    )
 
 
 class KuratoriumExportView(CoordinatorRequiredMixin, View):
@@ -358,9 +419,9 @@ class EditionJsonExportView(CoordinatorRequiredMixin, View):
 
         raw = (request.GET.get("edition") or "").strip()
         if raw.isdigit():
-            edition = get_object_or_404(Edition, pk=int(raw))
+            edition = get_object_or_404(Edition.objects.for_competition(request.competition), pk=int(raw))
         else:
-            edition = current_edition()
+            edition = current_edition(request.competition)
             if edition is None:
                 raise Http404("Brak bieżącej edycji.")
         payload = edition_export(edition)

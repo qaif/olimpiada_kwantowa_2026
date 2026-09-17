@@ -24,7 +24,7 @@ from apps.accounts.activation import ACTIVATION_HOURS
 from apps.accounts.models import CommitteeMember, CommitteeStatus
 from apps.competitions.models import Stage
 from apps.grading.comparison import notes_by_submission
-from apps.grading.services import moderation_queue, reviewer_pool
+from apps.grading.services import moderation_queue
 from apps.results.models import ResultsPublication
 from apps.web.coordinator_nav import attention_counters, current_stages, focus_stage, resolve
 from apps.web.coordinator_search import MIN_QUERY_LENGTH, search
@@ -38,6 +38,7 @@ from apps.web.forms import (
     VerifyDistrictForm,
 )
 from apps.web.mixins import CoordinatorRequiredMixin
+from apps.web.scoping import reviewer_pool_for
 
 
 class CoordinatorSearchView(CoordinatorRequiredMixin, TemplateView):
@@ -53,7 +54,7 @@ class CoordinatorSearchView(CoordinatorRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         query = (self.request.GET.get("q") or "").strip()
-        groups = search(query)
+        groups = search(query, self.request.competition)
         context.update(
             {
                 "query": query,
@@ -83,15 +84,18 @@ class CoordinatorCommitteeView(CoordinatorRequiredMixin, TemplateView):
         from apps.web.views.coordinator import sent_invitation_rows
 
         context = super().get_context_data(**kwargs)
+        competition = self.competition
         context.update(
             {
                 "pending_members": list(
-                    CommitteeMember.objects.select_related("user")
+                    CommitteeMember.objects.for_competition(competition)
+                    .select_related("user")
                     .filter(status=CommitteeStatus.PENDING)
                     .order_by("created_at", "id")
                 ),
                 "active_members": list(
-                    CommitteeMember.objects.select_related("user")
+                    CommitteeMember.objects.for_competition(competition)
+                    .select_related("user")
                     .filter(status=CommitteeStatus.ACTIVE)
                     .order_by("user__email")
                 ),
@@ -99,7 +103,7 @@ class CoordinatorCommitteeView(CoordinatorRequiredMixin, TemplateView):
                 "verify_form": VerifyDistrictForm(),
                 "invitation_form": InvitationForm(),
                 "bulk_invitation_form": BulkInvitationForm(),
-                "sent_invitations": sent_invitation_rows(),
+                "sent_invitations": sent_invitation_rows(competition),
             }
         )
         return context
@@ -120,7 +124,12 @@ class CoordinatorActivationsView(CoordinatorRequiredMixin, TemplateView):
         from apps.web.views.coordinator import pending_activation_rows
 
         context = super().get_context_data(**kwargs)
-        context.update({"rows": pending_activation_rows(), "activation_hours": ACTIVATION_HOURS})
+        context.update(
+            {
+                "rows": pending_activation_rows(self.competition),
+                "activation_hours": ACTIVATION_HOURS,
+            }
+        )
         return context
 
 
@@ -136,14 +145,14 @@ class CoordinatorModerationView(CoordinatorRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        queue = list(moderation_queue())
+        queue = list(moderation_queue(self.competition))
         context.update(
             {
                 "moderation": queue,
                 # Notatki recenzentów jednym zapytaniem na cały ekran – przy pracy w moderacji
                 # są materiałem do decyzji, a nie ciekawostką.
                 "moderation_notes": notes_by_submission(queue),
-                "reviewer_pool": reviewer_pool(),
+                "reviewer_pool": reviewer_pool_for(self.competition),
                 "resolve_form": ResolveModerationForm(),
                 "assign_third_form": AssignThirdReviewerForm(),
             }
@@ -166,7 +175,8 @@ class CoordinatorStageResultsView(CoordinatorRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         stage = get_object_or_404(
-            Stage.objects.select_related("edition", "qualification_rule"), pk=self.kwargs["stage_id"]
+            Stage.objects.for_competition(self.competition).select_related("edition", "qualification_rule"),
+            pk=self.kwargs["stage_id"],
         )
         context.update(stage_results_context(stage))
         return context
@@ -184,8 +194,8 @@ def stage_results_context(stage: Stage, rows: list[dict] | None = None) -> dict:
     }
 
 
-def attention_rows() -> list[dict]:
-    """Kafelki „co wymaga uwagi” na pulpicie: liczba, podpis i adres kolejki.
+def attention_rows(competition) -> list[dict]:
+    """Kafelki „co wymaga uwagi” na pulpicie **jednego konkursu**: liczba, podpis i adres kolejki.
 
     Źródłem liczb jest ten sam moduł, co dla badge'ów w menu (``coordinator_nav``) – pulpit
     i menu nie mogą pokazać dwóch różnych odpowiedzi na to samo pytanie, a liczniki są liczone
@@ -204,18 +214,24 @@ def attention_rows() -> list[dict]:
     from apps.appeals.models import Appeal, AppealStatus
     from apps.grading.models import Review, ReviewStatus
 
-    counters = attention_counters()
-    stages = current_stages()
+    counters = attention_counters(competition=competition)
+    stages = current_stages(competition)
     stage_ids = [stage.pk for stage in stages]
     progress = focus_stage(stages)
-    overdue_reviews = Review.objects.filter(
-        submission__entry__stage_id__in=stage_ids,
-        status__in=(ReviewStatus.ASSIGNED, ReviewStatus.DRAFT),
-        due_at__lt=timezone.now(),
-    ).count()
-    open_appeals = Appeal.objects.filter(
-        submission__entry__stage_id__in=stage_ids, status=AppealStatus.OPEN
-    ).count()
+    overdue_reviews = (
+        Review.objects.for_competition(competition)
+        .filter(
+            submission__entry__stage_id__in=stage_ids,
+            status__in=(ReviewStatus.ASSIGNED, ReviewStatus.DRAFT),
+            due_at__lt=timezone.now(),
+        )
+        .count()
+    )
+    open_appeals = (
+        Appeal.objects.for_competition(competition)
+        .filter(submission__entry__stage_id__in=stage_ids, status=AppealStatus.OPEN)
+        .count()
+    )
     rows = [
         {
             "key": "moderation",

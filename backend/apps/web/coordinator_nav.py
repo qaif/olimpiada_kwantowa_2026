@@ -25,11 +25,25 @@ from django.db import DatabaseError
 from django.urls import NoReverseMatch, reverse
 from django.utils.text import slugify
 
-#: Wspólny klucz i czas życia liczników. Minuta, bo to rytm pracy koordynatora: badge ma
+#: Wspólny przedrostek i czas życia liczników. Minuta, bo to rytm pracy koordynatora: badge ma
 #: powiedzieć „jest tu coś do zrobienia”, a nie służyć za zegar. Krótszy czas zamieniłby każde
 #: wejście na dowolny ekran panelu w cztery zapytania agregujące.
 COUNTERS_CACHE_KEY = "web:coordinator-nav-counters"
 COUNTERS_CACHE_SECONDS = 60
+
+
+def counters_cache_key(competition) -> str:
+    """Klucz pamięci podręcznej liczników – **z identyfikatorem konkursu**.
+
+    Jeden klucz dla całej instalacji byłby tu wyciekiem, i to najbrzydszego rodzaju: koordynator
+    konkursu A, który wszedł do panelu pierwszy, zapisywałby swoje liczby na minutę dla
+    koordynatora konkursu B. Nikt by tego nie zauważył (badge to sama liczba), a po kliknięciu
+    kolejka byłaby pusta – czyli objawem byłoby „licznik kłamie”, a przyczyną cudze dane.
+
+    ``None`` (host bez konkursu) dostaje własny kubełek, a nie kubełek pierwszego z brzegu.
+    """
+    return f"{COUNTERS_CACHE_KEY}:{getattr(competition, 'pk', None) or 'none'}"
+
 
 #: Puste liczniki – wartość awaryjna, gdy baza nie odpowiada. Menu ma się wtedy narysować bez
 #: badge'ów, a nie wywrócić stronę, na którą koordynator wszedł właśnie po to, żeby coś naprawić.
@@ -84,56 +98,93 @@ def resolve(names: tuple[str, ...], args: tuple = ()) -> str | None:
     return None
 
 
-def attention_counters(stage_ids: list[int] | None = None) -> dict[str, int]:
+def attention_counters(stage_ids: list[int] | None = None, competition=None) -> dict[str, int]:
     """Cztery liczby „czeka na koordynatora”, po jednym zapytaniu agregującym na każdą.
 
-    Wartość jest wspólna dla całego panelu i żyje 60 s (``COUNTERS_CACHE_KEY``): te same liczby
-    stoją w menu na każdej stronie i na kafelkach pulpitu, więc liczenie ich przy każdym
-    renderowaniu byłoby czterema zapytaniami za każde kliknięcie w panelu.
+    Wartość jest wspólna dla całego panelu **jednego konkursu** i żyje 60 s
+    (``counters_cache_key``): te same liczby stoją w menu na każdej stronie i na kafelkach
+    pulpitu, więc liczenie ich przy każdym renderowaniu byłoby czterema zapytaniami za każde
+    kliknięcie w panelu.
 
     Zakresem zgłoszeń o pracach i moderacji jest **bieżąca edycja**: ekrany, na które prowadzą
     badge, też pokazują bieżącą edycję, a licznik obejmujący zeszłoroczne sprawy wskazywałby
     liczbę, której po kliknięciu nie widać. Zgłoszenia do organizatora (``tickets``) są jedynym
     wyjątkiem – przychodzą także od osób bez konta i bez wpisu w jakimkolwiek etapie.
+
+    Licznik aktywacji liczy konta widoczne na liście kont – jedna definicja „czyje to konto”
+    dla badge'a, kafelka i kolejki (``apps.web.views.coordinator_accounts.users_for_competition``).
+    Dwie definicje znaczyłyby badge prowadzący do kolejki z inną liczbą wierszy.
+
+    ``competition=None`` znaczy „konkurs z kontekstu” – ta sama reguła i ta sama funkcja, co
+    w ``current_edition`` (``apps.competitions.scoping.resolve_competition``). Widok podaje
+    konkurs wprost (``request.competition``); odwrót jest dla wołających spoza żądania.
     """
-    cached = cache.get(COUNTERS_CACHE_KEY)
+    from apps.competitions.scoping import resolve_competition
+
+    try:
+        competition = resolve_competition(competition)
+    except DatabaseError:  # pragma: no cover - baza bez migracji tabeli konkursów
+        return dict(EMPTY_COUNTERS)
+    key = counters_cache_key(competition)
+    cached = cache.get(key)
     if cached is not None:
         return cached
-    from apps.accounts.models import CommitteeMember, CommitteeStatus, User
+    from apps.accounts.models import CommitteeMember, CommitteeStatus
     from apps.grading.issues import open_issue_count
     from apps.submissions.models import Submission, SubmissionStatus
     from apps.support.services import open_ticket_count
+    from apps.web.views.coordinator_accounts import users_for_competition
 
     if stage_ids is None:
-        stage_ids = [stage.pk for stage in current_stages()]
+        stage_ids = [stage.pk for stage in current_stages(competition)]
     try:
         counters = {
-            "moderation": Submission.objects.filter(
-                status=SubmissionStatus.MODERATION, entry__stage_id__in=stage_ids
-            ).count(),
-            "activations": User.objects.filter(is_active=False, email_verified_at__isnull=True).count(),
-            "committee": CommitteeMember.objects.filter(status=CommitteeStatus.PENDING).count(),
+            "moderation": Submission.objects.for_competition(competition)
+            .filter(status=SubmissionStatus.MODERATION, entry__stage_id__in=stage_ids)
+            .count(),
+            "activations": users_for_competition(competition)
+            .filter(is_active=False, email_verified_at__isnull=True)
+            .count(),
+            "committee": CommitteeMember.objects.for_competition(competition)
+            .filter(status=CommitteeStatus.PENDING)
+            .count(),
             "issues": open_issue_count(stage_ids),
             "tickets": open_ticket_count(),
         }
     except DatabaseError:  # pragma: no cover - baza bez migracji
         return dict(EMPTY_COUNTERS)
-    cache.set(COUNTERS_CACHE_KEY, counters, COUNTERS_CACHE_SECONDS)
+    cache.set(key, counters, COUNTERS_CACHE_SECONDS)
     return counters
 
 
-def invalidate_counters() -> None:
-    """Zapomnij liczniki. Wołane w testach i wszędzie tam, gdzie minuta opóźnienia przeszkadza."""
-    cache.delete(COUNTERS_CACHE_KEY)
+def invalidate_counters(competition=None) -> None:
+    """Zapomnij liczniki. Wołane w testach i wszędzie tam, gdzie minuta opóźnienia przeszkadza.
+
+    Bez argumentu czyści kubełek konkursu z kontekstu **oraz** kubełek „bez konkursu”. Wołający
+    (test, akcja panelu) zwykle nie wie, ilu konkursów dotyczy jego zmiana, a nadmiarowe
+    unieważnienie kosztuje jedno przeliczenie liczników – przeoczone kosztowałoby minutę
+    kłamiącego badge'a.
+    """
+    if competition is not None:
+        cache.delete(counters_cache_key(competition))
+        return
+    from apps.competitions.scoping import resolve_competition
+
+    cache.delete_many([counters_cache_key(None), counters_cache_key(resolve_competition(None))])
 
 
-def current_stages() -> list:
-    """Etapy bieżącej edycji w kolejności kalendarza. Pusta lista, gdy edycji nie ma."""
+def current_stages(competition=None) -> list:
+    """Etapy bieżącej edycji **tego konkursu** w kolejności kalendarza.
+
+    Pusta lista, gdy edycji nie ma – i tak samo, gdy nie wiadomo, o który konkurs chodzi:
+    ``current_edition`` oddaje wtedy ``None``, bo w bazie wielokonkursowej pierwsza edycja
+    z brzegu jest cudza.
+    """
     from apps.competitions.models import Stage
     from apps.competitions.services import current_edition
 
     try:
-        edition = current_edition()
+        edition = current_edition(competition)
         if edition is None:
             return []
         return list(Stage.objects.filter(edition=edition).order_by("opens_at", "id"))
@@ -219,7 +270,7 @@ def stage_items(stages: list) -> tuple[Item, ...]:
     return tuple(items)
 
 
-def groups(stages: list) -> list[Group]:
+def groups(stages: list, competition=None) -> list[Group]:
     """Pełna struktura menu – jedyne miejsce, w którym zapisany jest podział panelu na sekcje."""
     stage = focus_stage(stages)
     stage_args = (stage.pk,) if stage is not None else ()
@@ -258,7 +309,21 @@ def groups(stages: list) -> list[Group]:
         ),
         Item("Audyt", ("web:coordinator-audit",), match=("coordinator-audit",)),
     )
-    settings_items: tuple[Item, ...] = (
+    settings_items: tuple[Item, ...] = ()
+    if competition is not None and competition.has_feature("competition_settings_page"):
+        # Pierwsza pozycja sekcji, bo opisuje **konkurs**, a reszta sekcji – jego rocznik.
+        # Za przełącznikiem z tego samego powodu, co sam ekran: konkurs z domyślnymi flagami ma
+        # mieć menu **bajt w bajt** takie, jak przed wielokonkursowością (§ 0.5, § 6 T5 –
+        # „czego nie wolno zmienić: rozwijanych sekcji nawigacji”). Pozycja prowadząca do 404
+        # byłaby zresztą gorsza niż jej brak.
+        settings_items += (
+            Item(
+                "Ustawienia konkursu",
+                ("web:coordinator-competition",),
+                match=("coordinator-competition",),
+            ),
+        )
+    settings_items += (
         Item(
             "Rejestracja uczestników",
             ("web:coordinator-registration",),
@@ -460,10 +525,11 @@ def navigation(request) -> dict:
     match = getattr(request, "resolver_match", None)
     url_name = getattr(match, "url_name", "") or ""
     url_kwargs = getattr(match, "kwargs", None) or {}
-    stages = current_stages()
-    counters = attention_counters([stage.pk for stage in stages])
+    competition = getattr(request, "competition", None)
+    stages = current_stages(competition)
+    counters = attention_counters([stage.pk for stage in stages], competition)
     rendered = []
-    for group in groups(stages):
+    for group in groups(stages, competition):
         items = [
             item
             for raw in group.items

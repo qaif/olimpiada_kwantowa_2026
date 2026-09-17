@@ -1,0 +1,62 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Ustawienia konkursu: marka, organizator, poczta i przełączniki funkcji.
+
+  Formularz jest jeden, ale renderowany w **dwóch** częściach: pola modelu przez ``as_p`` (tak
+  samo, jak na pozostałych ekranach panelu) i przełączniki osobno, bo każdy z nich ma zdanie
+  wyjaśniające, co się stanie po jego przestawieniu. Zdanie stoi pod polem, a nie w podpowiedzi
+  po najechaniu: to jest decyzja o zachowaniu całego serwisu, a nie podpowiedź do wpisania danych.
+
+  Ostrzeżenie przy „Role z członkostw w konkursie” jest wypisane osobno, nad sekcją: wyłączenie
+  tego przełącznika otwiera panele konkursu przed osobami spoza niego, więc nie może być jednym
+  z sześciu jednakowo wyglądających pól wyboru.
+
+  Bez JavaScriptu i bez stylów w atrybutach – panel chodzi pod ścisłą polityką CSP.
+{% endcomment %}
+{% block title %}Ustawienia konkursu – panel koordynatora{% endblock %}
+{% block panel_title %}Ustawienia konkursu{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Nazwa, znak i dane organizatora {{ competition.genitive }}. Ustawienia dotyczą
+    <strong>całego konkursu</strong>, a nie pojedynczej edycji – terminy, rejestrację i retencję
+    zmienia się przy edycji.</p>
+{% endblock %}
+{% block panel_content %}
+
+<div class="card card--quiet">
+  <h2>Ustawia operator platformy</h2>
+  <p class="hint">Zmiana któregokolwiek z tych pól wymaga zgodnej zmiany na serwerze (Caddy,
+    lista dozwolonych hostów, certyfikat), więc nie da się jej wykonać z panelu.</p>
+  <dl class="meta-list">
+    {% for label, value in readonly_rows %}
+      <dt>{{ label }}</dt><dd>{{ value }}</dd>
+    {% endfor %}
+  </dl>
+</div>
+
+<div class="card">
+  <form method="post" class="form form--wide" novalidate>
+    {% csrf_token %}
+    <p class="form__required-note">Pola oznaczone * są obowiązkowe.</p>
+    {{ form.as_p }}
+
+    <h2>Funkcje konkursu</h2>
+    <p class="hint">Każdy przełącznik zmienia zachowanie serwisu dla wszystkich – uczestników,
+      recenzentów i opiekunów. Zapisane wartości obowiązują od razu.</p>
+    <div class="form__fieldset">
+      {% for field in form.flag_fields %}
+        <div class="form__check">
+          {{ field }}
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {% if field.help_text %}<p class="hint">{{ field.help_text|safe }}</p>{% endif %}
+          {% if field.errors %}<ul class="errorlist">{% for error in field.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="actions">
+      <button type="submit" class="btn btn--primary">Zapisz ustawienia</button>
+      <a class="btn btn--ghost" href="{% url 'web:coordinator' %}">Anuluj</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -54,7 +54,9 @@ class ProblemModelSolutionView(CommitteeMaterialsMixin, View):
     """
 
     def get(self, request, pk: int):
-        problem = get_object_or_404(Problem.objects.select_related("stage"), pk=pk)
+        problem = get_object_or_404(
+            Problem.objects.for_competition(request.competition).select_related("stage"), pk=pk
+        )
         if not problem.model_solution_pdf:
             raise Http404("Zadanie nie ma rozwiązania wzorcowego.")
         return FileResponse(
@@ -69,7 +71,7 @@ class ReviewerScopedMixin(ReviewerRequiredMixin):
     """Własne przydziały zalogowanego recenzenta – cudza recenzja to 404, nie 403."""
 
     def get_review(self, pk: int):
-        return get_object_or_404(reviews_for_reviewer(self.reviewer), pk=pk)
+        return get_object_or_404(reviews_for_reviewer(self.reviewer, self.competition), pk=pk)
 
 
 class ReviewCompareView(ReviewerScopedMixin, View):

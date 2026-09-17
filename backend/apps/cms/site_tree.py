@@ -22,9 +22,9 @@ Trzy decyzje warte uzasadnienia:
 
 from __future__ import annotations
 
-from wagtail.models import Page
+from wagtail.models import Page, Site
 
-from .models import ArchiveIndexPage, DocumentIndexPage
+from .models import ArchiveIndexPage, DocumentIndexPage, HomePage
 
 INDEX_SLUG = "dokumenty"
 INDEX_TITLE = "Dokumenty"
@@ -33,6 +33,30 @@ INDEX_INTRO = (
     "ochrony małoletnich i skład komitetów. Każdy dokument można przeczytać na stronie "
     "(z odnośnikami do paragrafów) albo pobrać w wersji podpisanej przez organizatora.</p>"
 )
+
+
+def home_page(site=None) -> HomePage | None:
+    """Strona główna wskazanej witryny; bez argumentu – witryny **domyślnej**.
+
+    Jedno wejście dla seedów i dla komendy zakładającej konkurs. Dotąd każda z nich pisała
+    ``HomePage.objects.first()``, czyli „jakakolwiek strona główna w tej bazie” – co w instalacji
+    jednokonkursowej jest tą właściwą, a w wielokonkursowej bywa cudzą. Skutek byłby cichy
+    i nieodwracalny: ``seed_legacy_content`` nadpisuje treść stron, więc uruchomiony „nie na tej”
+    witrynie przepisałby serwis jednego organizatora treścią drugiego.
+
+    Domyślna witryna, a nie „pierwsza”: seedy są narzędziami importu treści Olimpiady Kwantowej
+    (§ 4.5) i mają dalej trafiać dokładnie tam, gdzie trafiały – Konkurs #1 stoi na witrynie
+    domyślnej i to się w tym etapie nie zmienia.
+
+    ``inclusive=True``, bo korzeniem witryny **jest** strona główna (tak ustawia to migracja
+    ``cms.0002``), a nie jej rodzic. ``None`` znaczy „ta witryna nie ma strony głównej” i jest
+    odpowiedzią poprawną dla świeżej bazy przed migracją drzewa – wołający wypisuje wtedy
+    komunikat, zamiast się wywracać.
+    """
+    site = site or Site.objects.filter(is_default_site=True).first()
+    if site is None:
+        return None
+    return HomePage.objects.descendant_of(site.root_page, inclusive=True).first()
 
 
 def ensure_document_index(home) -> tuple[DocumentIndexPage, bool]:
@@ -75,8 +99,14 @@ def take_document_page(model, index, home, slug: str) -> tuple[object | None, bo
     return model.objects.get(pk=legacy.pk), True
 
 
-def ensure_redirect(old_path: str, page) -> bool:
+def ensure_redirect(old_path: str, page, site=None) -> bool:
     """Trwałe (301) przekierowanie ze starego adresu na stronę. Zwraca, czy powstało teraz.
+
+    ``site=None`` znaczy „wpis wspólny dla wszystkich witryn” i jest **zachowaniem dzisiejszym**:
+    tak stoją w produkcyjnej bazie przekierowania Konkursu #1 i tak mają zostać (§ 0). Argument
+    jest dla komendy zakładającej **kolejny** konkurs: jego ``/regulamin/`` to inny dokument niż
+    nasz, więc jego przekierowanie musi być dowiązane do jego witryny – wpis wspólny przejąłby
+    ten adres w całej instalacji.
 
     Adres może mieć już przekierowanie, którego ta komenda nie zakładała: Wagtail tworzy je sam
     przy każdym przeniesieniu strony w drzewie (``WAGTAILREDIRECTS_AUTO_CREATE``), i to
@@ -86,10 +116,10 @@ def ensure_redirect(old_path: str, page) -> bool:
     obowiązuje. Bierzemy więc pierwszy istniejący wpis dla tej ścieżki, aktualizujemy jego cel,
     a nadmiarowe kasujemy.
     """
-    return _ensure_redirect(old_path, page=page)
+    return _ensure_redirect(old_path, page=page, site=site)
 
 
-def ensure_link_redirect(old_path: str, link: str) -> bool:
+def ensure_link_redirect(old_path: str, link: str, site=None) -> bool:
     """To samo, ale celem jest **adres**, nie strona w drzewie. Zwraca, czy powstało teraz.
 
     Potrzebne tam, gdzie strona przestała istnieć, a jej treść mieszka teraz w sekcji innej strony:
@@ -100,16 +130,28 @@ def ensure_link_redirect(old_path: str, link: str) -> bool:
     Cena jest ta, którą ``ensure_redirect`` z premedytacją omija: adres jest tekstem, więc kolejne
     przestawienie drzewa go nie przeliczy. Dla dwóch adresów wskazujących stronę główną (``/``
     i jej kotwicę) to nie problem – korzeń witryny się nie przenosi.
+
+    ``site`` znaczy to samo, co w ``ensure_redirect``.
     """
-    return _ensure_redirect(old_path, link=link)
+    return _ensure_redirect(old_path, link=link, site=site)
 
 
-def _ensure_redirect(old_path: str, *, page=None, link: str = "") -> bool:
-    """Wspólne ciało obu funkcji: jeden wpis na ścieżkę, nadmiarowe kasowane. Patrz wyżej."""
+def _ensure_redirect(old_path: str, *, page=None, link: str = "", site=None) -> bool:
+    """Wspólne ciało obu funkcji: jeden wpis na ścieżkę, nadmiarowe kasowane. Patrz wyżej.
+
+    Zakres szukania duplikatów idzie za ``site``: bez witryny pytamy o **wszystkie** wpisy dla tej
+    ścieżki (tak było i tak ma zostać dla Konkursu #1 – to ta reguła sprząta po automatycznych
+    przekierowaniach Wagtaila), a z witryną – wyłącznie o jej własne. Inaczej założenie
+    przekierowania dla drugiego konkursu kasowałoby przekierowanie pierwszego, bo ścieżka
+    ``/regulamin/`` jest u obu ta sama.
+    """
     from wagtail.contrib.redirects.models import Redirect
 
     normalised = Redirect.normalise_path(old_path)
-    existing = list(Redirect.objects.filter(old_path=normalised).order_by("pk"))
+    rows = Redirect.objects.filter(old_path=normalised)
+    if site is not None:
+        rows = rows.filter(site=site)
+    existing = list(rows.order_by("pk"))
     for duplicate in existing[1:]:
         duplicate.delete()
 
@@ -121,7 +163,9 @@ def _ensure_redirect(old_path: str, *, page=None, link: str = "") -> bool:
         redirect.save()
         return False
 
-    Redirect.objects.create(old_path=normalised, redirect_page=page, redirect_link=link, is_permanent=True)
+    Redirect.objects.create(
+        old_path=normalised, site=site, redirect_page=page, redirect_link=link, is_permanent=True
+    )
     return True
 
 

@@ -33,7 +33,9 @@ class ProblemCardView(CoordinatorRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         problem = get_object_or_404(
-            Problem.objects.select_related("stage", "stage__edition", "stage__scoring_scale"),
+            Problem.objects.for_competition(self.competition).select_related(
+                "stage", "stage__edition", "stage__scoring_scale"
+            ),
             pk=self.kwargs["pk"],
         )
         context.update(problem_card(problem, query=self.request.GET.get("q", "")))

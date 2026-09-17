@@ -51,6 +51,7 @@ from django.db import transaction
 from apps.cms.blocks import PARTNER_LEVELS
 from apps.cms.images import PARTNERS_DIR, ensure_image
 from apps.cms.models import HomePage, PartnersPage, SiteSettings
+from apps.cms.site_tree import home_page
 
 MANIFEST = PARTNERS_DIR / "partners.json"
 
@@ -95,7 +96,8 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
-        home = HomePage.objects.first()
+        # Strona główna **witryny domyślnej** – patrz ``apps.cms.site_tree.home_page``.
+        home = home_page()
         if home is None:
             raise CommandError("Brak drzewa stron – uruchom najpierw `manage.py migrate`.")
         page = PartnersPage.objects.child_of(home).first()

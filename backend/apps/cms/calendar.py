@@ -167,7 +167,7 @@ def _interview_items(participant, edition, now) -> list[CalendarItem]:
     return items
 
 
-def _timeline_items(edition, now) -> list[CalendarItem]:
+def _timeline_items(edition, now, competition=None) -> list[CalendarItem]:
     """Kalendarz edycji z linii czasu, przepisany na pozycje całodniowe."""
     return [
         CalendarItem(
@@ -179,23 +179,31 @@ def _timeline_items(edition, now) -> list[CalendarItem]:
             url=item["url"],
             status=item["status"],
         )
-        for item in timeline_events(edition, now)
+        for item in timeline_events(edition, now, competition=competition)
     ]
 
 
-def participant_calendar(participant, *, edition=None, now=None) -> list[CalendarItem]:
-    """Terminy uczestnika w bieżącej edycji, uporządkowane od najwcześniejszego.
+def participant_calendar(participant, *, edition=None, competition=None, now=None) -> list[CalendarItem]:
+    """Terminy uczestnika w bieżącej edycji jego konkursu, uporządkowane od najwcześniejszego.
 
     Kalendarz jest **kompletny**, a nie zawężony do etapów, w których uczestnik ma wpis: on sam
     najlepiej wie, co go dotyczy, a ukrycie terminu etapu, do którego jeszcze się nie
     zakwalifikował, odebrałoby mu informację, po którą tu przyszedł. Prywatna jest dokładnie
     jedna pozycja – własny termin rozmowy – i tylko ona zależy od tego, kto pyta.
+
+    ``competition`` służy wyłącznie do **znalezienia edycji** (i warsztatów) wtedy, gdy wołający
+    edycji nie podał. Podana edycja rozstrzyga sama: należy do konkursu, więc drugi argument nie
+    ma czego poprawiać – a plik ``.ics`` uczestnika ma wyliczać terminy tej olimpiady, w której
+    on startuje, a nie tej, spod której domeny akurat kliknął.
     """
     if edition is None:
-        edition = current_edition()
+        edition = current_edition(competition)
     if edition is None:
         return []
-    items = [*_timeline_items(edition, now), *_interview_items(participant, edition, now)]
+    items = [
+        *_timeline_items(edition, now, competition),
+        *_interview_items(participant, edition, now),
+    ]
     items.sort(key=lambda item: (item.start, item.end, item.title))
     return items
 

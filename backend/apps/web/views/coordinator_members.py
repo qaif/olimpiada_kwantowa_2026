@@ -47,14 +47,20 @@ class CommitteeMembersView(CoordinatorRequiredMixin, TemplateView):
             # Nieznana wartość znaczy „bez filtra”, a nie 404: parametr pochodzi z adresu, który
             # ktoś mógł skrócić ręcznie, a lista bez zawężenia jest poprawną odpowiedzią.
             status = ""
-        edition = current_edition()
+        edition = current_edition(self.competition)
         stages = list(edition.stages.order_by("opens_at", "id")) if edition else []
         stage_id = _int_or_none(params.get("stage"))
         if stage_id is not None and stage_id not in {stage.pk for stage in stages}:
             stage_id = None
         context.update(
             {
-                "rows": member_list_rows(status=status, stage_id=stage_id),
+                # Wiersze przychodzą z serwisu kont (jedna definicja obciążenia dla panelu
+                # i dla przydziału), a zawężenie do konkursu robimy **na wyniku**: ``CommitteeMember``
+                # ma własny klucz obcy, więc pytanie „czyj to członek komisji” ma tu jedną,
+                # tanią odpowiedź – bez drugiej kopii reguły „aktywny recenzent” w panelu.
+                "rows": _rows_of_competition(
+                    member_list_rows(status=status, stage_id=stage_id), self.competition
+                ),
                 "status": status,
                 "status_choices": CommitteeStatus.choices,
                 "stages": stages,
@@ -78,7 +84,8 @@ class CommitteeMemberCardView(CoordinatorRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         member = get_object_or_404(
-            CommitteeMember.objects.select_related("user", "approved_by"), pk=self.kwargs["pk"]
+            CommitteeMember.objects.for_competition(self.competition).select_related("user", "approved_by"),
+            pk=self.kwargs["pk"],
         )
         context.update(member_card(member))
         context.update(
@@ -100,6 +107,18 @@ class CommitteeMemberCardView(CoordinatorRequiredMixin, TemplateView):
             }
         )
         return context
+
+
+def _rows_of_competition(rows: list[dict], competition) -> list[dict]:
+    """Zostawia wiersze członków **tego** konkursu, w zastanej kolejności.
+
+    Wiersze bez konkursu (``competition_id IS NULL``) zostają i to jest świadome przez jedno
+    wydanie – ta sama reguła, co w ``apps.accounts.services.participant_for``: w wydaniu B
+    kolumna dopiero powstaje, a wydanie D zamyka ją na ``NOT NULL`` i ta gałąź znika sama.
+    """
+    if competition is None:
+        return []
+    return [row for row in rows if getattr(row["member"], "competition_id", None) in (None, competition.pk)]
 
 
 def _int_or_none(raw) -> int | None:

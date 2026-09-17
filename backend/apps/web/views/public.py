@@ -38,7 +38,7 @@ from apps.accounts.services import register_committee, register_participant
 from apps.cms.models import SiteSettings
 from apps.core.api import DomainError
 from apps.core.models import audit
-from apps.results.services import published_results
+from apps.results.models import ResultsPublication
 from apps.web.context_processors import roles
 from apps.web.forms import (
     ActivationResendForm,
@@ -378,7 +378,16 @@ class PublicResultsView(TemplateView):
 
     def get_context_data(self, stage_id: int, **kwargs):
         context = super().get_context_data(**kwargs)
-        publication = published_results(stage_id)
+        # To samo zapytanie, co ``apps.results.services.published_results``, plus zakres konkursu.
+        # Zawężenie jest **tutaj**, a nie w serwisie, bo serwis woła też panel uczestnika, gdzie
+        # etap przychodzi już z jego wpisu. Bez niego ten adres byłby najtańszą drogą do cudzych
+        # wyników: nie wymaga logowania, a identyfikatory etapów są kolejne.
+        publication = (
+            ResultsPublication.objects.for_competition(self.request.competition)
+            .select_related("stage", "stage__edition")
+            .filter(stage_id=stage_id)
+            .first()
+        )
         if publication is None:
             raise Http404("Wyniki tego etapu nie zostały ogłoszone.")
         rows = publication.rows

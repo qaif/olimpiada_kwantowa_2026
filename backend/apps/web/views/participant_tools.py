@@ -20,9 +20,9 @@ from django.shortcuts import get_object_or_404
 from django.views.generic import TemplateView, View
 
 from apps.cms.calendar import ICS_FILENAME, calendar_ics, participant_calendar
-from apps.cms.models import ContentPage
-from apps.cms.workshops import WORKSHOPS_SLUG, workshop_rows
+from apps.cms.workshops import WORKSHOPS_SLUG, workshop_rows, workshops_page
 from apps.competitions.models import Edition, Problem, Stage, StageEntry, StageKind
+from apps.competitions.scoping import resolve_competition, scope_to_competition
 from apps.competitions.services import current_edition, training_stage
 from apps.results.feedback import participant_feedback
 from apps.web.mixins import ParticipantRequiredMixin
@@ -41,7 +41,10 @@ class ParticipantFeedbackView(ParticipantRequiredMixin, TemplateView):
 
     def get_context_data(self, stage_id: int, **kwargs):
         context = super().get_context_data(**kwargs)
-        stage = get_object_or_404(Stage.objects.select_related("edition", "qualification_rule"), pk=stage_id)
+        stage = get_object_or_404(
+            Stage.objects.for_competition(self.competition).select_related("edition", "qualification_rule"),
+            pk=stage_id,
+        )
         feedback = participant_feedback(self.participant, stage)
         if feedback is None:
             raise Http404("Wyniki tego etapu nie zostały jeszcze ogłoszone.")
@@ -57,11 +60,13 @@ class ParticipantCalendarView(ParticipantRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        edition = current_edition()
+        edition = current_edition(self.competition)
         context.update(
             {
                 "edition": edition,
-                "items": participant_calendar(self.participant, edition=edition),
+                "items": participant_calendar(
+                    self.participant, edition=edition, competition=self.competition
+                ),
             }
         )
         return context
@@ -76,7 +81,10 @@ class ParticipantCalendarIcsView(ParticipantRequiredMixin, View):
     """
 
     def get(self, request):
-        items = participant_calendar(self.participant)
+        # Konkurs wprost, tak samo jak na ekranie kalendarza: plik ``.ics`` bywa **subskrybowany**,
+        # więc odświeża się latami – i ma wtedy wyliczać terminy tej olimpiady, w której uczestnik
+        # startuje, a nie tej, spod której domeny kiedyś kliknął.
+        items = participant_calendar(self.participant, competition=self.competition)
         response = HttpResponse(calendar_ics(items), content_type="text/calendar; charset=utf-8")
         response["Content-Disposition"] = f'attachment; filename="{ICS_FILENAME}"'
         return response
@@ -116,7 +124,7 @@ def _archive_problems(stage: Stage) -> list[ArchiveProblem]:
     ]
 
 
-def archived_editions() -> list[ArchiveEdition]:
+def archived_editions(competition=None) -> list[ArchiveEdition]:
     """Edycje inne niż bieżąca wraz z etapami, które się już otwarły.
 
     Filtr ``has_opened`` powtarza bramę, którą i tak egzekwuje ``ProblemStatementView``: treść
@@ -127,7 +135,7 @@ def archived_editions() -> list[ArchiveEdition]:
     rozwiązanie, a archiwum jest z definicji do czytania.
     """
     editions = (
-        Edition.objects.filter(is_current=False)
+        scope_to_competition(Edition.objects.filter(is_current=False), competition)
         .prefetch_related("stages__problems")
         .order_by("-created_at", "-id")
     )
@@ -144,7 +152,7 @@ def archived_editions() -> list[ArchiveEdition]:
     return rows
 
 
-def workshop_materials() -> list[dict]:
+def workshop_materials(competition=None) -> list[dict]:
     """Warsztaty z harmonogramu redakcyjnego – temat i termin, z odnośnikiem do ``/warsztaty/``.
 
     Harmonogram warsztatów jest **treścią redakcyjną** (blok ``schedule`` na stronie „Warsztaty”)
@@ -153,8 +161,7 @@ def workshop_materials() -> list[dict]:
     tam, gdzie materiały faktycznie są. Gdyby kiedyś warsztat dostał własny załącznik w modelu,
     zmienia się ta jedna funkcja.
     """
-    page = ContentPage.objects.live().filter(slug=WORKSHOPS_SLUG).first()
-    rows = workshop_rows(page)
+    rows = workshop_rows(workshops_page(resolve_competition(competition)))
     url = f"/{WORKSHOPS_SLUG}/"
     return [{"topic": row["topic"], "date_value": row["date_value"], "url": url} for row in rows]
 
@@ -170,11 +177,11 @@ class ParticipantArchiveView(ParticipantRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        edition = current_edition()
+        edition = current_edition(self.competition)
         training = training_stage(edition)
         context.update(
             {
-                "editions": archived_editions(),
+                "editions": archived_editions(self.competition),
                 "training_stage": training,
                 "training_problems": _archive_problems(training) if training is not None else [],
                 # Zgłoszenie do treningu jest warunkiem uploadu – archiwum mówi o tym wprost,
@@ -184,7 +191,7 @@ class ParticipantArchiveView(ParticipantRequiredMixin, TemplateView):
                     if training is not None
                     else None
                 ),
-                "workshops": workshop_materials(),
+                "workshops": workshop_materials(self.competition),
             }
         )
         return context

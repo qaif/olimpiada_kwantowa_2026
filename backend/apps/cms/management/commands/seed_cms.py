@@ -11,6 +11,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.cms.models import ArchiveEditionPage, ArchiveIndexPage, HomePage, NewsIndexPage, NewsPage
+from apps.cms.site_tree import home_page
 from apps.competitions.models import Edition
 
 HERO_TEXT = (
@@ -37,7 +38,8 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
-        home = HomePage.objects.first()
+        # Strona główna **witryny domyślnej** – patrz ``apps.cms.site_tree.home_page``.
+        home = home_page()
         if home is None:
             self.stderr.write("Brak drzewa stron – uruchom najpierw `manage.py migrate`.")
             return

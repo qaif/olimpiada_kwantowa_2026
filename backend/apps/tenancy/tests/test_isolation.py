@@ -11,16 +11,15 @@ prawa dowiedzieć się z kodu odpowiedzi, że etap o takim identyfikatorze w og�
 informacja o konkursie B. Odwrotnie: zła **rola** w swoim konkursie zostaje przy 403, bo tam nie ma
 czego ukrywać.
 
-Dlaczego część testów ma ``xfail(strict=True)``: zakresowanie wchodzi zadaniami T3 (domena zawodów)
-i T5 (widoki), a T7 biegnie równolegle od początku. Znacznik ``strict`` sprawia, że test, który
-**zacznie** przechodzić, zgłosi się sam jako błąd („XPASS”) – wtedy zdejmuje się z niego znacznik
-i przypadek staje się zwykłym testem strzegącym. Bez ``strict`` przejście byłoby ciche i wiedza
-„ten obszar jest już zamknięty” nie dotarłaby do nikogo.
+Znacznik ``xfail(strict=True)`` towarzyszył tym przypadkom, dopóki zakresowanie wchodziło
+zadaniami T3 (domena zawodów) i T5 (widoki), a T7 biegł równolegle. ``strict`` sprawia, że test,
+który **zacznie** przechodzić, zgłasza się sam jako błąd („XPASS”), więc znacznik zdejmuje się
+w tej samej zmianie, która zamyka obszar. Po zadaniu T5 zostaje **jeden** taki znacznik i jego
+powód jest inny niż „jeszcze nie zrobione” – patrz ``NO_COLUMN`` niżej.
 
 Świat drugiego konkursu budują fabryki z argumentem ``competition`` – mechanika i jej granice:
 ``apps/tenancy/tests/factories.py``. Dopóki model nie ma jeszcze kolumny konkursu, argument jest
-po cichu pomijany, więc obiekt należy „do nikogo” i widok go pokazuje: dokładnie stąd biorą się
-dzisiejsze ``xfail``.
+po cichu pomijany, więc obiekt należy „do nikogo” i widok go pokazuje.
 """
 
 from __future__ import annotations
@@ -49,9 +48,12 @@ from apps.tenancy.tests.factories import create_scoped, grant_membership
 
 pytestmark = pytest.mark.django_db
 
-#: Powody znaczników: zakresowanie domeny zawodów należy do T3, zakresowanie widoków – do T5.
-T3 = "zakresowanie domeny zawodów wchodzi w T3"
-T5 = "zakresowanie widoków panelu wchodzi w T5"
+#: Jedyny pozostały powód znacznika: model **nie ma jeszcze kolumny konkursu**, więc nie ma czym
+#: zawęzić ani zapytania, ani widoku. ``support.SupportTicket`` ma ją dostać zgodnie z § 3.2
+#: (``null=True``, bo istnieją też sprawy kierowane do operatora platformy), ale ``apps/support/``
+#: nie należy do żadnego z zadań T1–T7 – patrz raport T5. Do tego czasu ``create_scoped`` po cichu
+#: pomija argument, zgłoszenie należy „do nikogo” i kolejka koordynatora je pokazuje.
+NO_COLUMN = "model nie ma jeszcze kolumny konkursu (support.SupportTicket, § 3.2)"
 
 
 @pytest.fixture
@@ -91,19 +93,16 @@ def submission_b(other_competition, stage_b):
 # --- zawody ---------------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(strict=True, reason=T3)
 def test_stage_of_another_competition_is_not_found(client_a, stage_b):
     assert client_a.get(f"/coordinator/stages/{stage_b.pk}/edit/").status_code == 404
 
 
-@pytest.mark.xfail(strict=True, reason=T3)
 def test_problem_of_another_competition_is_not_found(client_a, other_competition, stage_b):
     problem = ProblemFactory(competition=other_competition, stage=stage_b)
 
     assert client_a.get(f"/coordinator/problems/{problem.pk}/").status_code == 404
 
 
-@pytest.mark.xfail(strict=True, reason=T3)
 def test_submission_of_another_competition_is_not_found(client_a, submission_b):
     """Blokada pracy do recenzji jest zapisem – tym bardziej nie wolno jej wykonać na cudzej."""
     response = client_a.post(f"/coordinator/submissions/{submission_b.pk}/lock-for-review/")
@@ -132,7 +131,6 @@ def test_review_of_another_competition_is_not_found(client_for, competition, oth
     assert client.get(f"/review/{review_b.pk}/").status_code == 404
 
 
-@pytest.mark.xfail(strict=True, reason=T3)
 def test_final_grade_of_another_competition_is_not_found(client_a, other_competition, submission_b):
     FinalGradeFactory(competition=other_competition, submission=submission_b)
 
@@ -143,7 +141,6 @@ def test_final_grade_of_another_competition_is_not_found(client_a, other_competi
     assert response.status_code == 404
 
 
-@pytest.mark.xfail(strict=True, reason=T3)
 def test_appeal_of_another_competition_is_not_found(client_for, competition, other_competition, submission_b):
     member = AppealsCommitteeMemberFactory(competition=competition)
     grant_membership(member.user, competition, CompetitionRole.APPEALS)
@@ -151,10 +148,9 @@ def test_appeal_of_another_competition_is_not_found(client_for, competition, oth
     client = client_for(competition)
     client.force_login(member.user)
 
-    assert client.get(f"/appeals/{appeal_b.pk}/decide/").status_code == 404
+    assert client.post(f"/appeals/{appeal_b.pk}/decide/").status_code == 404
 
 
-@pytest.mark.xfail(strict=True, reason=T3)
 def test_results_publication_of_another_competition_is_not_found(
     client_for, competition, other_competition, stage_b
 ):
@@ -170,7 +166,6 @@ def test_results_publication_of_another_competition_is_not_found(
     assert client_for(competition).get(f"/results/{publication.stage_id}/").status_code == 404
 
 
-@pytest.mark.xfail(strict=True, reason=T3)
 def test_certificate_of_another_competition_is_not_found(client_a, other_competition, stage_b):
     """Pobranie dokumentu z panelu koordynatora. Publiczna weryfikacja po kodzie zostaje globalna:
 
@@ -184,21 +179,18 @@ def test_certificate_of_another_competition_is_not_found(client_a, other_competi
 # --- konta i role ----------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(strict=True, reason=T5)
 def test_participant_of_another_competition_is_not_found(client_a, other_competition):
     participant = ParticipantFactory(competition=other_competition)
 
     assert client_a.get(f"/coordinator/participants/{participant.pk}/").status_code == 404
 
 
-@pytest.mark.xfail(strict=True, reason=T5)
 def test_committee_member_of_another_competition_is_not_found(client_a, other_competition):
     member = ActiveReviewerFactory(competition=other_competition)
 
     assert client_a.get(f"/coordinator/members/{member.pk}/").status_code == 404
 
 
-@pytest.mark.xfail(strict=True, reason=T5)
 def test_invitation_code_of_another_competition_is_not_listed(client_a, other_competition):
     """Kody zaproszeń nie mają ekranu szczegółu – reguła obowiązuje więc na liście.
 
@@ -213,7 +205,6 @@ def test_invitation_code_of_another_competition_is_not_listed(client_a, other_co
     assert invitation.email not in content
 
 
-@pytest.mark.xfail(strict=True, reason=T5)
 def test_broadcast_of_another_competition_is_not_listed(client_a, other_competition, coordinator_a):
     """Rejestr wysyłek organizatora: historia komunikatów konkursu B nie jest historią konkursu A."""
     broadcast = create_scoped(
@@ -233,14 +224,13 @@ def test_broadcast_of_another_competition_is_not_listed(client_a, other_competit
 # --- korespondencja, kalendarz, ślad ----------------------------------------------------------
 
 
-@pytest.mark.xfail(strict=True, reason=T5)
+@pytest.mark.xfail(strict=True, reason=NO_COLUMN)
 def test_support_ticket_of_another_competition_is_not_found(client_a, other_competition):
     ticket = SupportTicketFactory(competition=other_competition)
 
     assert client_a.get(f"/coordinator/support/{ticket.pk}/").status_code == 404
 
 
-@pytest.mark.xfail(strict=True, reason=T3)
 def test_edition_event_of_another_competition_is_not_found(client_a, stage_b):
     event = EditionEvent.objects.create(
         edition=stage_b.edition, title="Gala obcego konkursu", starts_on=timezone.localdate()
@@ -249,25 +239,33 @@ def test_edition_event_of_another_competition_is_not_found(client_a, stage_b):
     assert client_a.get(f"/coordinator/events/{event.pk}/edit/").status_code == 404
 
 
-@pytest.mark.xfail(strict=True, reason=T5)
-def test_audit_entry_of_another_competition_is_not_listed(client_a, other_competition):
+def test_audit_entry_of_another_competition_is_not_listed(client_a, other_competition, stage_b):
     """Ślad audytowy koordynatora jest śladem **jego** konkursu.
 
-    Wpisy o obiektach platformowych (konto, witryna) zostają bez konkursu i to jest odpowiedź
-    poprawna (§ 3.9) – ten test dotyczy wpisu, który konkurs ma.
+    Obiektem wpisu jest **istniejący** etap konkursu B, a nie wymyślony identyfikator, i to jest
+    istotne: ``core.AuditLog`` nie ma jeszcze kolumny konkursu (§ 3.9), więc zakres wychodzi
+    z obiektu, o którym wpis mówi (``apps.web.scoping.audit_scope``). Wpis o obiekcie, którego
+    w bazie nie ma – bo go skasowano – zostaje widoczny i tak ma być: ślad po skasowanym etapie
+    jest dokładnie tym, po co audyt istnieje.
+
+    Wpisy o obiektach platformowych (konto, witryna) też zostają widoczne i to jest dziś
+    odpowiedź poprawna: koordynator Olimpiady Kwantowej czyta je od zawsze, a schowanie ich
+    byłoby zmianą, której nikt nie zamawiał (§ 0). Zamyka to dopiero kolumna ``competition``
+    wypełniana w chwili zapisu.
     """
     entry = create_scoped(
         AuditLog,
         other_competition,
         action="stage.closed",
         target_type="competitions.stage",
-        target_id="4242",
+        target_id=str(stage_b.pk),
     )
 
-    assert entry.action not in client_a.get("/coordinator/audit/").content.decode()
+    assert (
+        f"{entry.target_type}#{entry.target_id}" not in client_a.get("/coordinator/audit/").content.decode()
+    )
 
 
-@pytest.mark.xfail(strict=True, reason=T5)
 def test_announcement_of_another_competition_is_not_listed(client_a, other_competition):
     """Baner wisi na każdej stronie serwisu, więc komunikat globalny byłby komunikatem cudzym."""
     announcement = AnnouncementFactory(

@@ -35,14 +35,40 @@ from apps.results.certificates import (
 from apps.results.models import Certificate, CertificateKind, CertificateTemplate
 from apps.web.certificate_forms import CertificateTemplateForm
 from apps.web.mixins import ActionViewMixin, CoordinatorRequiredMixin
+from apps.web.scoping import for_competition_or_unclaimed
 
 LIST_TEMPLATE = "web/coordinator/certificate_templates.html"
 FORM_TEMPLATE = "web/coordinator/certificate_template_form.html"
 SUPERVISORS_TEMPLATE = "web/coordinator/supervisors.html"
 
 
-def _template(pk: int) -> CertificateTemplate:
-    return get_object_or_404(CertificateTemplate.objects.select_related("edition"), pk=pk)
+def templates_for_competition(competition):
+    """Szablony dokumentów **tego konkursu** oraz szablony bez edycji.
+
+    ``CertificateTemplate.edition`` bywa puste i to jest jego cecha, nie brak: puste znaczy
+    „każda edycja” i tak wygląda winieta używana rok po roku. Dopóki szablony nie mają własnego
+    klucza obcego do konkursu (``apps/results/`` należy do zadania T3 – patrz raport), zakresem
+    jest więc **edycja szablonu**: wiersz z edycją tego konkursu albo wiersz bez edycji.
+
+    Wiersz bez edycji zostaje wspólny dla całej instalacji i to jest odnotowana cena tego
+    rozwiązania: organizator, który wgra „winietę na wszystkie edycje”, wystawi ją także
+    sąsiadowi, który własnej nie ma. Domknięcie należy do wydania D razem z kolumną
+    ``CertificateTemplate.competition``.
+    """
+    from django.db.models import Q
+
+    from apps.competitions.models import Edition
+
+    if competition is None:
+        return CertificateTemplate.objects.none()
+    return CertificateTemplate.objects.filter(
+        Q(edition__in=Edition.objects.for_competition(competition)) | Q(edition__isnull=True)
+    )
+
+
+def _template(competition, pk: int) -> CertificateTemplate:
+    """Szablon widoczny w tym konkursie albo 404."""
+    return get_object_or_404(templates_for_competition(competition).select_related("edition"), pk=pk)
 
 
 class CertificateTemplateListView(CoordinatorRequiredMixin, View):
@@ -54,7 +80,7 @@ class CertificateTemplateListView(CoordinatorRequiredMixin, View):
     """
 
     def get(self, request):
-        templates = list(CertificateTemplate.objects.select_related("edition"))
+        templates = list(templates_for_competition(request.competition).select_related("edition"))
         context = {
             "templates": templates,
             # Pusta lista jest normalnym i **poprawnym** stanem serwisu: bez ani jednego szablonu
@@ -73,12 +99,18 @@ class CertificateTemplateFormView(CoordinatorRequiredMixin, View):
     """
 
     def get(self, request, pk: int | None = None):
-        template = _template(pk) if pk is not None else None
-        return self._render(request, template, CertificateTemplateForm(instance=template))
+        template = _template(request.competition, pk) if pk is not None else None
+        return self._render(
+            request,
+            template,
+            CertificateTemplateForm(instance=template, competition=request.competition),
+        )
 
     def post(self, request, pk: int | None = None):
-        template = _template(pk) if pk is not None else None
-        form = CertificateTemplateForm(request.POST, request.FILES, instance=template)
+        template = _template(request.competition, pk) if pk is not None else None
+        form = CertificateTemplateForm(
+            request.POST, request.FILES, instance=template, competition=request.competition
+        )
         if not form.is_valid():
             return self._render(request, template, form, status=400)
         saved = form.save(commit=False)
@@ -121,7 +153,7 @@ class CertificateTemplateDeleteView(ActionViewMixin, CoordinatorRequiredMixin, V
         return reverse("web:coordinator-certificate-templates")
 
     def perform(self, request, pk: int) -> str:
-        template = _template(pk)
+        template = _template(request.competition, pk)
         name = template.name
         audit(
             request.user,
@@ -144,7 +176,7 @@ class CertificateTemplateDefaultView(ActionViewMixin, CoordinatorRequiredMixin, 
         return reverse("web:coordinator-certificate-templates")
 
     def perform(self, request, pk: int) -> str:
-        template = _template(pk)
+        template = _template(request.competition, pk)
         replaced = make_default_template(template)
         audit(
             request.user,
@@ -169,7 +201,7 @@ class CertificateTemplatePreviewView(CoordinatorRequiredMixin, View):
     """
 
     def get(self, request, pk: int):
-        template = _template(pk)
+        template = _template(request.competition, pk)
         kind = template.kind or CertificateKind.LAUREAT
         content = sample_content(kind, template.edition)
         return FileResponse(
@@ -192,7 +224,7 @@ class CoordinatorSupervisorsView(CoordinatorRequiredMixin, View):
     """
 
     def get(self, request):
-        edition = current_edition()
+        edition = current_edition(request.competition)
         rows = supervisors_with_participants(edition) if edition is not None else []
         issued = {
             certificate.supervisor_id: certificate
@@ -214,8 +246,13 @@ class IssueSupervisorCertificateView(ActionViewMixin, CoordinatorRequiredMixin, 
         return reverse("web:coordinator-supervisors")
 
     def perform(self, request, pk: int) -> str:
-        supervisor = get_object_or_404(SchoolSupervisor.objects.select_related("user"), pk=pk)
-        edition = current_edition()
+        supervisor = get_object_or_404(
+            for_competition_or_unclaimed(
+                SchoolSupervisor.objects.select_related("user"), request.competition
+            ),
+            pk=pk,
+        )
+        edition = current_edition(request.competition)
         if edition is None:
             return "Nie ustawiono bieżącej edycji – zaświadczenie nie ma do czego się odnosić."
         certificate, created = issue_certificate(
@@ -239,7 +276,7 @@ class IssueSupervisorCertificatesView(CoordinatorRequiredMixin, View):
     """
 
     def post(self, request):
-        edition = current_edition()
+        edition = current_edition(request.competition)
         if edition is None:
             messages.error(request, "Nie ustawiono bieżącej edycji – nie ma dla czego wystawiać zaświadczeń.")
             return redirect(reverse("web:coordinator-supervisors"))

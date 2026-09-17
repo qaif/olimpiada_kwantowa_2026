@@ -124,7 +124,7 @@ class SupervisorDashboardView(SupervisorRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         supervisor = self.supervisor
-        edition = current_edition()
+        edition = current_edition(self.competition)
         context.update(
             {
                 "supervisor": supervisor,
@@ -132,7 +132,8 @@ class SupervisorDashboardView(SupervisorRequiredMixin, TemplateView):
                 "rows": student_rows(supervisor, edition),
                 "confirmed": has_confirmed(supervisor, edition),
                 "certificates": list(
-                    Certificate.objects.filter(supervisor=supervisor)
+                    Certificate.objects.for_competition(self.competition)
+                    .filter(supervisor=supervisor)
                     .select_related("edition")
                     .order_by("-issued_at", "-id")
                 ),
@@ -151,7 +152,7 @@ class ConfirmParticipationView(ActionViewMixin, SupervisorRequiredMixin, View):
 
     def perform(self, request) -> str:
         result = confirm_participation(
-            self.supervisor, current_edition(), actor=request.user, request=request
+            self.supervisor, current_edition(self.competition), actor=request.user, request=request
         )
         if result["confirmed"]:
             return "Dziękujemy – udział szkoły w tej edycji został potwierdzony."
@@ -163,9 +164,9 @@ class SupervisorCertificateDownloadView(SupervisorRequiredMixin, View):
 
     def get(self, request, pk: int):
         certificate = get_object_or_404(
-            Certificate.objects.filter(supervisor=self.supervisor).select_related(
-                "edition", "supervisor__user"
-            ),
+            Certificate.objects.for_competition(self.competition)
+            .filter(supervisor=self.supervisor)
+            .select_related("edition", "supervisor__user"),
             pk=pk,
         )
         return FileResponse(
@@ -432,9 +433,13 @@ class SupervisorStudentsView(SupervisorRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         supervisor = self.supervisor
+        # Uczniowie **tego** konkursu: ``students_of`` wiąże ich adresem e-mail opiekuna, a ten
+        # adres jest jeden na całą platformę. Nauczyciel prowadzący klasę w dwóch olimpiadach
+        # zobaczyłby bez tego zawężenia obie listy pod każdą z domen.
         rows = [
             {"participant": participant, "state": invitation_state(participant)}
             for participant in students_of(supervisor)
+            if participant.competition_id in (None, getattr(self.competition, "pk", None))
         ]
         context.update(
             {
@@ -460,7 +465,10 @@ class ResendInvitationView(ActionViewMixin, SupervisorRequiredMixin, View):
     def perform(self, request, pk: int) -> str:
         email = normalize_supervisor_email(self.supervisor.user.email)
         participant = get_object_or_404(
-            Participant.objects.select_related("user").filter(supervisor_email__iexact=email), pk=pk
+            Participant.objects.for_competition(self.competition)
+            .select_related("user")
+            .filter(supervisor_email__iexact=email),
+            pk=pk,
         )
         resend_invitation(participant, actor=request.user, request=request)
         return "Zaproszenie zostało wysłane ponownie."

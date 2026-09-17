@@ -23,8 +23,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from apps.accounts.consents import CONSENTS, MINOR_MAX_AGE
-from apps.accounts.models import GROUP_APPEALS, GROUP_COORDINATOR, GROUP_PARTICIPANT
-from apps.accounts.services import active_reviewer_profile
+from apps.accounts.models import CompetitionRole
+from apps.accounts.services import active_reviewer_profile, participant_for, roles_for
 from apps.accounts.supervisors import supervisor_profile
 from apps.appeals.services import appeals_committee_profile
 
@@ -51,6 +51,17 @@ MINOR_CONSENT_FIELDS: tuple[str, ...] = tuple(
 
 
 def roles(request) -> dict:
+    """Role zalogowanej osoby **w konkursie z żądania** – wyłącznie do rysowania nawigacji.
+
+    Konkurs bierzemy z żądania, bo rola jest zawsze rolą w konkursie (§ 3.8): bez tego menu
+    uczestnika olimpiady A rysowałoby się także pod domeną konkursu B, a każdy z tych linków
+    kończyłby się 403 z mixinu. Źródłem prawdy jest ``roles_for`` – ta sama funkcja, którą
+    bramkują mixiny i uprawnienia DRF, więc menu i dostęp nie mogą się rozjechać.
+
+    Profile (recenzent, komisja, opiekun) sprawdzamy **dodatkowo**, bo sama rola nie wystarcza:
+    recenzent bez zatwierdzonego wpisu w komitecie nie ma czego recenzować, a link do kolejki
+    prowadziłby go w 403.
+    """
     user = getattr(request, "user", None)
     if user is None or not user.is_authenticated or not user.is_active:
         return {
@@ -60,15 +71,18 @@ def roles(request) -> dict:
             "is_appeals_committee": False,
             "is_supervisor": False,
         }
-    names = set(user.groups.values_list("name", flat=True))
+    competition = getattr(request, "competition", None)
+    names = roles_for(user, competition)
     return {
-        "is_participant": GROUP_PARTICIPANT in names and hasattr(user, "participant"),
-        "is_reviewer": active_reviewer_profile(user) is not None,
-        "is_coordinator": GROUP_COORDINATOR in names,
-        "is_appeals_committee": GROUP_APPEALS in names and appeals_committee_profile(user) is not None,
+        "is_participant": CompetitionRole.PARTICIPANT in names
+        and participant_for(user, competition) is not None,
+        "is_reviewer": active_reviewer_profile(user, competition) is not None,
+        "is_coordinator": CompetitionRole.COORDINATOR in names,
+        "is_appeals_committee": CompetitionRole.APPEALS in names
+        and appeals_committee_profile(user) is not None,
         # Opiekun szkolny – ta sama definicja, co w mixinie widoku i w przekierowaniu po
         # zalogowaniu (``apps.accounts.supervisors.supervisor_profile``).
-        "is_supervisor": supervisor_profile(user) is not None,
+        "is_supervisor": supervisor_profile(user, competition) is not None,
     }
 
 
@@ -120,7 +134,10 @@ def registration(request) -> dict:
     state = getattr(request, _REGISTRATION_CACHE_ATTR, None)
     if state is None:
         try:
-            state = current_registration_status()
+            # Konkurs z żądania, a nie z kontekstu: procesor renderuje **każdą** stronę, więc
+            # jest to miejsce, w którym pomyłka najbardziej boli – otwarta rejestracja sąsiada
+            # zapraszałaby do formularza konkursu, który jeszcze (albo już) nie zapisuje kont.
+            state = current_registration_status(competition=getattr(request, "competition", None))
         except DatabaseError:  # pragma: no cover - baza bez migracji tabeli edycji
             logger.warning("Nie udało się odczytać stanu rejestracji uczestników.")
             state = RegistrationStatus(False, REGISTRATION_DISABLED)
@@ -155,12 +172,33 @@ def registration(request) -> dict:
 
 
 def site_chrome(request) -> dict:
-    """Etykieta bieżącej edycji (podtytuł logotypu) i wersja aplikacji (stopka)."""
+    """Marka i etykieta bieżącej edycji dla nagłówka oraz wersja aplikacji dla stopki.
+
+    **Skąd bierze się marka.** Nazwa, hasło i dane organizatora w nagłówku i stopce idą
+    z ``cms.SiteSettings``, a te są ustawieniem **witryny** (``BaseSiteSetting``, § 1.6) –
+    czyli są zakresowane od chwili, w której konkurs dostał własną ``wagtailcore.Site``.
+    Szablon bazowy czyta je znacznikiem ``{{ settings.cms.SiteSettings… }}``, więc Konkurs #1
+    renderuje **dokładnie te same napisy**, co przed wielokonkursowością – i tego pilnują testy
+    niezmienności oraz złote (``apps/tenancy/tests/test_invariants.py``, ``test_golden_*``).
+
+    Nazwy z ``Competition`` (``name``, ``short_name``, odmiana) ten procesor **nie dokłada** i to
+    jest decyzja, a nie przeoczenie. Szablon ma je już z procesora ``tenancy.competition``
+    (``{{ competition.short_name }}``, ``{{ competition.genitive }}``), a druga droga do tej samej
+    wartości znaczyłaby pytanie „którą z nich czyta ten nagłówek” przy każdej zmianie marki.
+    Dopóki marka w ramie serwisu idzie z ``SiteSettings``, dokładanie tu drugiej kopii byłoby
+    kluczem kontekstowym, którego nikt nie renderuje.
+
+    Etykieta edycji bierze konkurs **z żądania**, a nie z kontekstu: w bazie wielokonkursowej
+    „pierwsza edycja z brzegu” jest cudza, a nagłówek stoi na każdej stronie serwisu.
+
+    Błąd bazy nie może wywrócić szablonu bazowego – stąd ``try``.
+    """
     from apps.competitions.services import current_edition
 
+    competition = getattr(request, "competition", None)
     label = ""
     try:
-        edition = current_edition()
+        edition = current_edition(competition)
     except DatabaseError:  # pragma: no cover - baza bez migracji tabeli edycji
         logger.warning("Nie udało się odczytać bieżącej edycji dla nagłówka.")
     else:

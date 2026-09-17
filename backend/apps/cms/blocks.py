@@ -265,10 +265,24 @@ class StageTimelineBlock(blocks.StructBlock):
         template = "cms/blocks/stage_timeline.html"
 
     def get_context(self, value, parent_context=None):
+        """Terminy **tego** konkursu, a nie „bieżącej edycji w bazie”.
+
+        Blok stoi w treści redakcyjnej, więc sam nie wie, czyją stronę składa – ale wie to
+        kontekst, w którym jest renderowany: Wagtail wstawia tam stronę i żądanie. Stąd bierzemy
+        konkurs (``apps.cms.tenancy``), bo bez niego blok wstawiony w treść jednej olimpiady
+        wyliczałby terminy drugiej – i to w akapicie, który redaktor wstawił właśnie po to, żeby
+        nie przepisywać dat ręcznie.
+
+        Importy są w środku metody: ``apps.cms.models`` importuje ten moduł, więc na poziomie
+        pliku byłby to cykl.
+        """
+        from .tenancy import competition_for_page
         from .timeline import stage_rows
 
         context = super().get_context(value, parent_context=parent_context)
-        context["rows"] = stage_rows()
+        parent = parent_context or {}
+        competition = competition_for_page(parent.get("page"), parent.get("request"))
+        context["rows"] = stage_rows(competition=competition)
         return context
 
 

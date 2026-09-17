@@ -55,13 +55,23 @@ class CertificateTemplateForm(forms.ModelForm):
         )
         widgets = {"layout": forms.Textarea(attrs={"rows": 16, "spellcheck": "false"})}
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, competition=None, **kwargs):
+        """``competition`` zawęża listę edycji do **tego** konkursu.
+
+        Lista wyboru jest tu bramką równie realną, co queryset widoku: ``ModelChoiceField``
+        odrzuca wartość spoza swojego querysetu, więc szablon nie da się przypiąć do cudzej
+        edycji nawet żądaniem złożonym ręcznie. Argument jest nazwany i domyślnie pusty, bo ten
+        sam formularz bywa budowany bez żądania (``/admin/``, testy jednostkowe).
+        """
         super().__init__(*args, **kwargs)
         # Puste znaczy „wszystkie rodzaje” i „wszystkie edycje” – etykieta musi to powiedzieć,
         # bo domyślne „---------” czyta się jak „nie wybrano” i wygląda na błąd formularza.
         self.fields["kind"].choices = [("", "wszystkie rodzaje")] + list(self.fields["kind"].choices)[1:]
         self.fields["edition"].empty_label = "wszystkie edycje"
-        self.fields["edition"].queryset = Edition.objects.order_by("-created_at", "-id")
+        editions = Edition.objects.order_by("-created_at", "-id")
+        if competition is not None:
+            editions = editions.for_competition(competition).order_by("-created_at", "-id")
+        self.fields["edition"].queryset = editions
         if not self.instance.pk and not self.initial.get("layout"):
             self.initial["layout"] = default_certificate_layout()
 

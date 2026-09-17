@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from django.views.generic import TemplateView
 
+from apps.results.models import ResultsPublication
 from apps.results.statistics import statistics
 
 
@@ -29,5 +30,14 @@ class StatisticsView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         # Odczyt idzie przez pamięć podręczną (10 minut) – patrz ``apps.results.statistics``.
-        context["stages"] = statistics()
+        # Pamięć jest wspólna dla całej instalacji i taka zostaje: liczby są policzone
+        # z **zanonimizowanych snapshotów publikacji**, czyli z danych już jawnych, a klucz per
+        # konkurs znaczyłby N przeliczeń tego samego zestawu wierszy. Zawężamy więc wynik –
+        # jedno zapytanie po identyfikatorach etapów tego konkursu, bez względu na rozmiar tabeli.
+        published = set(
+            ResultsPublication.objects.for_competition(self.request.competition).values_list(
+                "stage_id", flat=True
+            )
+        )
+        context["stages"] = [row for row in statistics() if row["stage_id"] in published]
         return context

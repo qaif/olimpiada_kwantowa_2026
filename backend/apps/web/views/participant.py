@@ -119,7 +119,7 @@ def _under_review(versions: list) -> bool:
     return bool(versions) and versions[0].status in UNDER_REVIEW_STATUSES
 
 
-def _problem_rows(user, entry: StageEntry | None) -> list[dict]:
+def _problem_rows(user, entry: StageEntry | None, competition=None) -> list[dict]:
     """Zadania etapu wraz z własnymi wersjami rozwiązań (najnowsza pierwsza).
 
     Rozwiązania biorą się z ``Submission.objects.for_user`` – filtr roli siedzi w queryseckie,
@@ -129,7 +129,7 @@ def _problem_rows(user, entry: StageEntry | None) -> list[dict]:
         return []
     problems = list(Problem.objects.filter(stage=entry.stage).order_by("number", "id"))
     versions: dict[int, list] = defaultdict(list)
-    for submission in submissions_for_user(user).filter(entry=entry):
+    for submission in submissions_for_user(user, competition).filter(entry=entry):
         versions[submission.problem_id].append(submission)
     # Publikacja etapu jest jedna na całą listę zadań, więc czytamy ją **raz**: w środku pętli
     # byłaby jednym zapytaniem na zadanie, czyli N+1 na każdym wejściu do panelu.
@@ -242,13 +242,13 @@ def _consent_rows(records) -> list[dict]:
     ]
 
 
-def _problem_row(user, entry: StageEntry, problem: Problem) -> dict:
+def _problem_row(user, entry: StageEntry, problem: Problem, competition=None) -> dict:
     """Jedna karta zadania – odpowiedź HTMX po uploadzie. Kształt musi być ten sam, co w pulpicie.
 
     Ścieżka oceniania jest tu liczona tak samo jak w ``_problem_rows``: karta wracająca po
     wysyłce ma pokazać krok „oddane” od razu, a nie dopiero po przeładowaniu całej strony.
     """
-    versions = list(submissions_for_user(user).filter(entry=entry, problem=problem))
+    versions = list(submissions_for_user(user, competition).filter(entry=entry, problem=problem))
     return _row(problem, versions, entry.stage, published_results(entry.stage_id))
 
 
@@ -277,7 +277,7 @@ def _consents_complete(participant, records=None) -> bool:
     return required <= active
 
 
-def _missing_numbers(user, entry, rows=None) -> tuple[int, ...]:
+def _missing_numbers(user, entry, rows=None, competition=None) -> tuple[int, ...]:
     """Numery zadań bez ani jednej wysłanej wersji – podstawa podpowiedzi „wyślij zadanie N”.
 
     Na zakładce zadań karty są już policzone, więc bierzemy je stamtąd; na pozostałych zakładkach
@@ -287,7 +287,9 @@ def _missing_numbers(user, entry, rows=None) -> tuple[int, ...]:
         return ()
     if rows is not None:
         return tuple(row["problem"].number for row in rows if not row["versions"])
-    sent = set(submissions_for_user(user).filter(entry=entry).values_list("problem_id", flat=True))
+    sent = set(
+        submissions_for_user(user, competition).filter(entry=entry).values_list("problem_id", flat=True)
+    )
     return tuple(
         problem.number
         for problem in Problem.objects.filter(stage=entry.stage).order_by("number", "id")
@@ -330,7 +332,7 @@ class MeView(ParticipantRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         user = self.request.user
         now = timezone.now()
-        edition = current_edition()
+        edition = current_edition(self.competition)
         stage = current_stage(edition, now) if edition else None
         entry = _entry_for(self.participant, stage)
         tab = self.active_tab()
@@ -408,14 +410,14 @@ class MeView(ParticipantRequiredMixin, TemplateView):
     def _tab_context(self, tab, user, edition, now, stage, entry, upload_open) -> dict:
         """Dane **tylko** wybranej zakładki. Każda gałąź odpowiada jednemu ekranowi."""
         if tab == TAB_RESULTS:
-            return {"results": results_for_participant(user)}
+            return {"results": results_for_participant(user, self.competition)}
         if tab == TAB_APPEALS:
             return {
                 # Reguła „co podlega reklamacji” mieszka w serwisie reklamacji, nie w widoku –
                 # ten sam predykat obowiązuje w API i przy walidacji w ``file_appeal``.
-                "appealable": appealable_submissions(user, now),
+                "appealable": appealable_submissions(user, now, self.competition),
                 "appeal_form": AppealForm(),
-                "my_appeals": list(appeals_for_participant(user)),
+                "my_appeals": list(appeals_for_participant(user, self.competition)),
             }
         if tab == TAB_CONSENTS:
             records = consents_for_participant(self.participant)
@@ -430,7 +432,7 @@ class MeView(ParticipantRequiredMixin, TemplateView):
             }
         context = {
             "upload_form": SubmissionUploadForm(),
-            "problem_rows": _problem_rows(user, entry),
+            "problem_rows": _problem_rows(user, entry, self.competition),
         }
         context.update(self._training_context(user, edition, now))
         return context
@@ -445,7 +447,9 @@ class MeView(ParticipantRequiredMixin, TemplateView):
             entry=entry,
             can_register=can_register,
             upload_open=upload_open,
-            missing_numbers=_missing_numbers(self.request.user, entry, context.get("problem_rows")),
+            missing_numbers=_missing_numbers(
+                self.request.user, entry, context.get("problem_rows"), self.competition
+            ),
             interview_booked=booking is not None,
             interview_bookable=any(row["bookable"] for row in context.get("interview_rows", [])),
             booked_slot_at=booking.slot.starts_at if booking is not None else None,
@@ -493,7 +497,7 @@ class MeView(ParticipantRequiredMixin, TemplateView):
             "training_upload_open": (
                 entry is not None and stage.is_open_for_submissions(now) and stage.closed_at is None
             ),
-            "training_problem_rows": _problem_rows(user, entry),
+            "training_problem_rows": _problem_rows(user, entry, self.competition),
         }
 
 
@@ -534,7 +538,10 @@ class StageRegisterView(ActionViewMixin, ParticipantRequiredMixin, View):
     success_url = reverse_lazy("web:me")
 
     def perform(self, request, stage_id: int) -> str:
-        stage = get_object_or_404(Stage.objects.select_related("edition"), pk=stage_id)
+        stage = get_object_or_404(
+            Stage.objects.for_competition(request.competition).select_related("edition"),
+            pk=stage_id,
+        )
         register_for_stage(self.participant, stage)
         return "Zgłoszenie do etapu zostało przyjęte."
 
@@ -550,7 +557,12 @@ class InterviewBookView(ActionViewMixin, ParticipantRequiredMixin, View):
     success_url = reverse_lazy("web:me")
 
     def perform(self, request, slot_id: int) -> str:
-        slot = get_object_or_404(InterviewSlot.objects.select_related("stage", "stage__edition"), pk=slot_id)
+        slot = get_object_or_404(
+            InterviewSlot.objects.for_competition(request.competition).select_related(
+                "stage", "stage__edition"
+            ),
+            pk=slot_id,
+        )
         book_slot(self.participant, slot, request=request)
         return "Termin rozmowy został zapisany. Potwierdzenie wysyłamy e-mailem."
 
@@ -575,7 +587,10 @@ class InterviewChooseView(ActionViewMixin, ParticipantRequiredMixin, View):
         if not slot_id.isdigit():
             raise DomainError("Wybierz termin rozmowy z listy.", "INVALID_INPUT", HTTP_400_BAD_REQUEST)
         slot = get_object_or_404(
-            InterviewSlot.objects.select_related("stage", "stage__edition"), pk=int(slot_id)
+            InterviewSlot.objects.for_competition(request.competition).select_related(
+                "stage", "stage__edition"
+            ),
+            pk=int(slot_id),
         )
         book_slot(self.participant, slot, request=request)
         return "Termin rozmowy został zapisany. Potwierdzenie wysyłamy e-mailem."
@@ -587,7 +602,10 @@ class InterviewCancelView(ActionViewMixin, ParticipantRequiredMixin, View):
     success_url = reverse_lazy("web:me")
 
     def perform(self, request, stage_id: int) -> str:
-        stage = get_object_or_404(Stage.objects.select_related("edition"), pk=stage_id)
+        stage = get_object_or_404(
+            Stage.objects.for_competition(request.competition).select_related("edition"),
+            pk=stage_id,
+        )
         cancel_booking(self.participant, stage=stage, request=request)
         return "Termin rozmowy został odwołany. Możesz wybrać inny."
 
@@ -607,9 +625,14 @@ class ProblemUploadView(ParticipantRequiredMixin, ThrottledFormMixin, View):
     throttle_scope = "upload"
 
     def post(self, request, stage_id: int, number: int):
-        stage = get_object_or_404(Stage.objects.select_related("edition"), pk=stage_id)
+        stage = get_object_or_404(
+            Stage.objects.for_competition(request.competition).select_related("edition"),
+            pk=stage_id,
+        )
         entry = get_object_or_404(StageEntry, participant=self.participant, stage=stage)
-        problem = get_object_or_404(Problem, stage=stage, number=number)
+        problem = get_object_or_404(
+            Problem.objects.for_competition(request.competition), stage=stage, number=number
+        )
         form = SubmissionUploadForm(request.POST, request.FILES)
         error = None
         if form.is_valid():
@@ -625,7 +648,7 @@ class ProblemUploadView(ParticipantRequiredMixin, ThrottledFormMixin, View):
                 error = str(exc.detail)
         now = timezone.now()
         context = {
-            "row": _problem_row(request.user, entry, problem),
+            "row": _problem_row(request.user, entry, problem, request.competition),
             "stage": stage,
             "entry": entry,
             "now": now,
@@ -649,7 +672,9 @@ class AppealCreateView(ParticipantRequiredMixin, View):
     """
 
     def post(self, request, submission_id: int):
-        submission = get_object_or_404(submissions_for_user(request.user), pk=submission_id)
+        submission = get_object_or_404(
+            submissions_for_user(request.user, request.competition), pk=submission_id
+        )
         target = f"{reverse('web:me')}?tab={TAB_APPEALS}"
         form = AppealForm(request.POST)
         if not form.is_valid():

@@ -60,6 +60,11 @@ class CoordinatorAnnouncementsView(CoordinatorRequiredMixin, View):
             # Autora zapisujemy wyłącznie przy utworzeniu: „kto to ogłosił” jest pytaniem o źródło
             # komunikatu, a nie o to, kto ostatni poprawił w nim literówkę.
             announcement.created_by = request.user
+        # Konkurs **z żądania**, a nie z formularza: komunikat wisi na każdej stronie serwisu,
+        # więc „czyj jest” nie może być wartością, którą da się podstawić w POST. Pole nie stoi
+        # w ``AnnouncementForm`` i stać nie ma – koordynator ogłasza w swoim konkursie albo
+        # w żadnym.
+        announcement.competition = request.competition
         announcement.save()
         audit(
             request.user,
@@ -77,7 +82,9 @@ class CoordinatorAnnouncementsView(CoordinatorRequiredMixin, View):
         return redirect(reverse("web:coordinator-announcements"))
 
     def _delete(self, request):
-        announcement = get_object_or_404(Announcement, pk=request.POST.get("pk") or 0)
+        announcement = get_object_or_404(
+            Announcement.objects.for_competition(request.competition), pk=request.POST.get("pk") or 0
+        )
         # Audyt **przed** skasowaniem: po ``delete()`` nie ma z czego wziąć identyfikatora celu.
         audit(
             request.user,
@@ -95,11 +102,11 @@ class CoordinatorAnnouncementsView(CoordinatorRequiredMixin, View):
         raw = request.POST.get("edit") if request.method == "POST" else request.GET.get("edit")
         if not raw:
             return None
-        return get_object_or_404(Announcement, pk=raw)
+        return get_object_or_404(Announcement.objects.for_competition(request.competition), pk=raw)
 
     def _render(self, request, form, edited, *, status: int = 200):
         now = timezone.now()
-        rows = list(Announcement.objects.all()[:LIMIT])
+        rows = list(Announcement.objects.for_competition(request.competition)[:LIMIT])
         context = {
             "form": form,
             "edited": edited,

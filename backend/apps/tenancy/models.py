@@ -244,11 +244,17 @@ class Competition(models.Model):
             # przy starcie aplikacji wcześniej. Lista slugów zarezerwowanych jest jedna dla całej
             # instalacji – prefiks ścieżki i slug strony drugiego poziomu konkurują o ten sam
             # pierwszy segment adresu.
-            from apps.cms.models import RESERVED_SLUGS
+            from apps.cms.models import RESERVED_SLUGS, taken_first_segments
 
             if self.path_prefix in RESERVED_SLUGS:
                 errors["path_prefix"] = (
                     "Ten prefiks należy do adresów aplikacji i przechwyciłby je dla konkursu."
+                )
+            elif self.path_prefix in taken_first_segments():
+                # Druga strona reguły z § 2.3: prefiks nie może przechwycić istniejącej strony
+                # drugiego poziomu domyślnej witryny (np. „zadania” Konkursu #1).
+                errors["path_prefix"] = (
+                    "Ten prefiks jest już adresem strony w serwisie i przechwyciłby ją dla konkursu."
                 )
 
         if errors:

@@ -36,8 +36,11 @@ LIST_TEMPLATE = "web/coordinator/events.html"
 FORM_TEMPLATE = "web/coordinator/event_form.html"
 
 
-def _event(pk: int) -> EditionEvent:
-    return get_object_or_404(EditionEvent.objects.select_related("edition"), pk=pk)
+def _event(competition, pk: int) -> EditionEvent:
+    """Wydarzenie **tego konkursu** albo 404 – zakres wychodzi z querysetu, nie z widoku (§ 3.6)."""
+    return get_object_or_404(
+        EditionEvent.objects.for_competition(competition).select_related("edition"), pk=pk
+    )
 
 
 def render_event_list(request, edition, *, status: int = 200):
@@ -55,14 +58,14 @@ class EventListView(CoordinatorRequiredMixin, View):
     """
 
     def get(self, request):
-        return render_event_list(request, current_edition())
+        return render_event_list(request, current_edition(request.competition))
 
 
 class EventCreateView(CoordinatorRequiredMixin, View):
     """``/coordinator/events/new/`` – dopisanie wydarzenia do bieżącej edycji."""
 
     def dispatch(self, request, *args, **kwargs):
-        self.edition = current_edition()
+        self.edition = current_edition(request.competition)
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request):
@@ -98,11 +101,11 @@ class EventEditView(CoordinatorRequiredMixin, View):
     """``/coordinator/events/<id>/edit/`` – zmiana wydarzenia."""
 
     def get(self, request, pk: int):
-        event = _event(pk)
+        event = _event(request.competition, pk)
         return self._render(request, event, EditionEventForm(instance=event))
 
     def post(self, request, pk: int):
-        event = _event(pk)
+        event = _event(request.competition, pk)
         form = EditionEventForm(request.POST, instance=event)
         if not form.is_valid():
             return self._render(request, event, form, status=400)
@@ -112,7 +115,7 @@ class EventEditView(CoordinatorRequiredMixin, View):
             messages.error(request, str(exc.detail))
             # Świeży obiekt z bazy: ``ModelForm`` zdążył już wpisać odrzucone wartości do
             # ``form.instance``, a strona ma pokazać stan, który faktycznie obowiązuje.
-            event = _event(pk)
+            event = _event(request.competition, pk)
             return self._render(request, event, EditionEventForm(instance=event), status=exc.status_code)
         messages.success(request, f"Wydarzenie „{event.title}” zostało zapisane.")
         return redirect(reverse("web:coordinator-events"))
@@ -131,7 +134,7 @@ class EventDeleteView(CoordinatorRequiredMixin, View):
     """
 
     def post(self, request, pk: int):
-        event = _event(pk)
+        event = _event(request.competition, pk)
         title = event.title
         delete_event(event, request.user, request=request)
         messages.success(request, f"Wydarzenie „{title}” zostało usunięte.")

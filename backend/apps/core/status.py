@@ -230,7 +230,10 @@ def snapshot(now=None, competition=None) -> dict:
         # ma się dobrze.
         "all_ok": all(item.ok for item in checks),
         "competition": competition_state(now, competition),
-        "announcements": cached_announcements(now),
+        # Komunikaty **tego** konkursu: od zadania T4 baner jest zakresowany, a jego odczyt bierze
+        # konkurs pierwszym argumentem. ``None`` znaczy tu „weź z kontekstu żądania” – dokładnie
+        # to samo, co wyżej w ``competition_state``.
+        "announcements": cached_announcements(competition, now),
     }
 
 

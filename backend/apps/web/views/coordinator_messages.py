@@ -23,7 +23,8 @@ from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.views.generic import View
 
-from apps.accounts.messaging import recent_broadcasts, resolve_recipients, send_broadcast
+from apps.accounts.messaging import BROADCAST_HISTORY_LIMIT, resolve_recipients, send_broadcast
+from apps.accounts.models import MessageBroadcast
 from apps.competitions.models import Stage
 from apps.competitions.services import current_edition
 from apps.web.coordinator_forms import BroadcastForm
@@ -41,15 +42,15 @@ class CoordinatorMessagesView(CoordinatorRequiredMixin, View):
     """``GET`` pokazuje formularz i historię, ``POST`` – podgląd albo wysyłkę."""
 
     def get(self, request):
-        return self._render(request, BroadcastForm(stages=self._stages()))
+        return self._render(request, BroadcastForm(stages=self._stages(request.competition)))
 
     def post(self, request):
-        form = BroadcastForm(request.POST, stages=self._stages())
+        form = BroadcastForm(request.POST, stages=self._stages(request.competition))
         if not form.is_valid():
             return self._render(request, form)
         recipients = resolve_recipients(
             form.cleaned_data["group"],
-            edition=current_edition(),
+            edition=current_edition(request.competition),
             stage=form.cleaned_data.get("stage"),
             district=form.cleaned_data.get("district"),
             addresses=form.cleaned_data.get("addresses", ""),
@@ -77,13 +78,13 @@ class CoordinatorMessagesView(CoordinatorRequiredMixin, View):
         return redirect(reverse("web:coordinator-messages"))
 
     @staticmethod
-    def _stages():
+    def _stages(competition):
         """Etapy bieżącej edycji – jedyne, do których wolno adresować komunikat.
 
         Bieżąca edycja, a nie wszystkie: komunikat o terminie dotyczy tegorocznych zawodów,
         a lista z etapami sprzed dwóch lat byłaby wyłącznie zaproszeniem do pomyłki.
         """
-        edition = current_edition()
+        edition = current_edition(competition)
         if edition is None:
             return Stage.objects.none()
         return Stage.objects.filter(edition=edition).order_by("opens_at", "id")
@@ -99,7 +100,14 @@ class CoordinatorMessagesView(CoordinatorRequiredMixin, View):
         context = {
             "form": form,
             "preview": None if preview is None else {"count": len(preview)},
-            "broadcasts": recent_broadcasts(),
-            "edition": current_edition(),
+            # Rejestr wysyłek **tego** konkursu: historia komunikatów sąsiada nie jest historią
+            # tego organizatora, a ``recent_broadcasts`` oddaje listę, więc zakres dokładamy
+            # do zapytania, zanim limit obetnie wiersze.
+            "broadcasts": list(
+                MessageBroadcast.objects.for_competition(request.competition)
+                .select_related("created_by")
+                .order_by("-created_at", "-id")[:BROADCAST_HISTORY_LIMIT]
+            ),
+            "edition": current_edition(request.competition),
         }
         return TemplateResponse(request, TEMPLATE, context)

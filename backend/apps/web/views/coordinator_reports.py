@@ -31,12 +31,13 @@ from apps.competitions.models import QualificationMode, Stage
 from apps.competitions.services import current_edition
 from apps.core import audit_browser, exports
 from apps.core.api import DomainError
-from apps.core.models import audit
+from apps.core.models import AuditLog, audit
 from apps.grading.reports import FALLBACK_OVERDUE_DAYS, review_has_due_at, reviewer_rows, stage_progress
 from apps.grading.worklog import format_duration, reviewer_seconds
 from apps.results.simulation import apply_rule, simulate
 from apps.web.coordinator_forms import AuditFilterForm, ManualQualificationForm, SimulationForm
 from apps.web.mixins import ActionViewMixin, CoordinatorRequiredMixin
+from apps.web.scoping import audit_scope
 
 PROGRESS_TEMPLATE = "web/coordinator/reports.html"
 AUDIT_TEMPLATE = "web/coordinator/audit.html"
@@ -44,9 +45,17 @@ EXPORT_TEMPLATE = "web/coordinator/export.html"
 SIMULATION_TEMPLATE = "web/coordinator/simulation.html"
 
 
-def _stage(stage_id: int) -> Stage:
-    """Etap z doczytaną edycją i progiem – oba stoją w nagłówku każdego z tych ekranów."""
-    return get_object_or_404(Stage.objects.select_related("edition", "qualification_rule"), pk=stage_id)
+def _stage(competition, stage_id: int) -> Stage:
+    """Etap **tego konkursu**, z doczytaną edycją i progiem – oba stoją w nagłówku tych ekranów.
+
+    Zawężenie jest w querysecie, więc etap cudzego konkursu daje 404 z ``get_object_or_404``,
+    a nie 403 z widoku: istnienie tego etapu nie jest informacją tego koordynatora (§ 3.6).
+    Cztery ekrany tego modułu wołają tę jedną funkcję – dzięki temu żaden nie może jej pominąć.
+    """
+    return get_object_or_404(
+        Stage.objects.for_competition(competition).select_related("edition", "qualification_rule"),
+        pk=stage_id,
+    )
 
 
 # --- 1. Pulpit postępu oceniania ----------------------------------------------------------------
@@ -68,7 +77,7 @@ class StageProgressView(CoordinatorRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        stage = _stage(self.kwargs["stage_id"])
+        stage = _stage(self.competition, self.kwargs["stage_id"])
         rows = reviewer_rows(stage)
         # Zmierzony czas pracy dokładamy do gotowych wierszy jednym agregatem (``reviewer_seconds``),
         # a nie pytaniem na wiersz: tabela ma tyle pozycji, ilu jest aktywnych recenzentów. Brak
@@ -104,11 +113,14 @@ class RemindReviewersView(ActionViewMixin, CoordinatorRequiredMixin, View):
     def perform(self, request, stage_id: int) -> str:
         from apps.grading.reports import remind_reviewers
 
-        stage = _stage(stage_id)
+        stage = _stage(self.competition, stage_id)
         raw_id = (request.POST.get("reviewer_id") or "").strip()
         member = None
         if raw_id:
-            member = get_object_or_404(CommitteeMember.objects.select_related("user"), pk=raw_id)
+            member = get_object_or_404(
+                CommitteeMember.objects.for_competition(self.competition).select_related("user"),
+                pk=raw_id,
+            )
         summary = remind_reviewers(
             stage,
             member=member,
@@ -139,7 +151,7 @@ class ExportIndexView(CoordinatorRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        edition = current_edition()
+        edition = current_edition(self.competition)
         context.update(
             {
                 "edition": edition,
@@ -186,12 +198,12 @@ class ExportDownloadView(CoordinatorRequiredMixin, View):
     def _dataset(self, request, kind: str):
         """Para (zbiór danych, obiekt do audytu) dla rodzaju eksportu z adresu."""
         if kind == "participants":
-            edition = current_edition()
+            edition = current_edition(self.competition)
             if edition is None:
                 raise Http404("Brak bieżącej edycji.")
             return exports.participant_dataset(edition), edition
         if kind in ("results", "reviews"):
-            stage = _stage(self._stage_id(request))
+            stage = _stage(self.competition, self._stage_id(request))
             if kind == "results":
                 return exports.stage_results_dataset(stage), stage
             return exports.stage_reviews_dataset(stage), stage
@@ -223,7 +235,14 @@ class AuditBrowserView(CoordinatorRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         params = self.request.GET
-        queryset = audit_browser.entries(params)
+        # Zawężenie **po** filtrach z adresu, bo obie warstwy są zwykłymi ``filter`` na tym samym
+        # querysecie i składają się w jedno zdanie SQL. Reguła zakresu jest jedna
+        # (``apps.web.scoping.audit_scope``) i obowiązuje także listy wyboru w filtrze – inaczej
+        # koordynator wybierałby z rozwijanej listy akcje, których nigdy nie zobaczy, a sama
+        # nazwa akcji z cudzego konkursu bywa informacją („pojawiło się u kogoś ``stage.closed``”).
+        scope = audit_scope(self.competition, self.request.user)
+        queryset = audit_browser.entries(params).filter(scope)
+        visible = AuditLog.objects.filter(scope)
         paginator = Paginator(queryset, audit_browser.AUDIT_PAGE_SIZE)
         page = paginator.get_page(params.get("page"))
         # Parametry filtra do odnośników stronicowania – bez nich „następna strona” gubiłaby
@@ -233,8 +252,8 @@ class AuditBrowserView(CoordinatorRequiredMixin, TemplateView):
             {
                 "form": AuditFilterForm(
                     data=params or None,
-                    actions=audit_browser.known_actions(),
-                    target_types=audit_browser.known_target_types(),
+                    actions=sorted(visible.values_list("action", flat=True).distinct()),
+                    target_types=sorted(visible.values_list("target_type", flat=True).distinct()),
                 ),
                 "page_obj": page,
                 "paginator": paginator,
@@ -265,7 +284,7 @@ class StageSimulationView(CoordinatorRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        stage = _stage(self.kwargs["stage_id"])
+        stage = _stage(self.competition, self.kwargs["stage_id"])
         rule = getattr(stage, "qualification_rule", None)
         params = self.request.GET
         initial = {
@@ -316,7 +335,7 @@ class ApplyQualificationRuleView(ActionViewMixin, CoordinatorRequiredMixin, View
         return reverse("web:coordinator-stage-simulation", args=[stage_id])
 
     def perform(self, request, stage_id: int) -> str:
-        stage = _stage(stage_id)
+        stage = _stage(self.competition, stage_id)
         form = SimulationForm(request.POST)
         if not form.is_valid():
             raise DomainError("Nieprawidłowe parametry progu kwalifikacji.", "QUALIFICATION_RULE_INVALID")

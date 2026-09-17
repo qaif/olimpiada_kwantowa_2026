@@ -39,5 +39,5 @@ class CoordinatorParticipantView(CoordinatorRequiredMixin, View):
     """
 
     def get(self, request, pk: int):
-        participant = get_object_or_404(card_queryset(), pk=pk)
+        participant = get_object_or_404(card_queryset().for_competition(request.competition), pk=pk)
         return TemplateResponse(request, TEMPLATE, participant_card(participant))

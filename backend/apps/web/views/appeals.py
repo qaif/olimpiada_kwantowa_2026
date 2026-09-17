@@ -36,7 +36,7 @@ class AppealsQueueView(AppealsCommitteeRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         rows = []
-        for appeal in appeals_queue(self.member):
+        for appeal in appeals_queue(self.member, self.competition):
             grade = getattr(appeal.submission, "final_grade", None)
             rows.append(
                 {
@@ -64,7 +64,7 @@ class AppealDecideView(ActionViewMixin, AppealsCommitteeRequiredMixin, View):
     success_url = reverse_lazy("web:appeals")
 
     def perform(self, request, pk: int) -> str:
-        appeal = get_object_or_404(appeals_queue(self.member), pk=pk)
+        appeal = get_object_or_404(appeals_queue(self.member, self.competition), pk=pk)
         form = AppealDecideForm(request.POST)
         if not form.is_valid():
             raise DomainError("Decyzja wymaga rozstrzygnięcia i uzasadnienia.", "INVALID_DECISION")

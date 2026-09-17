@@ -56,7 +56,7 @@ def _full_name(user) -> str:
     return name or user.email
 
 
-def _participants(query: str) -> list[Hit]:
+def _participants(query: str, competition) -> list[Hit]:
     """Uczestnicy: kod publiczny, nazwisko, imię, adres e-mail i nazwa szkoły.
 
     Odnośnik prowadzi na kartę uczestnika, a gdy jej jeszcze nie ma – na ekran edycji konta,
@@ -65,7 +65,8 @@ def _participants(query: str) -> list[Hit]:
     from apps.accounts.models import Participant
 
     rows = (
-        Participant.objects.select_related("user")
+        Participant.objects.for_competition(competition)
+        .select_related("user")
         .filter(
             Q(public_code__icontains=query)
             | Q(user__last_name__icontains=query)
@@ -92,12 +93,13 @@ def _participants(query: str) -> list[Hit]:
     return hits
 
 
-def _members(query: str) -> list[Hit]:
+def _members(query: str, competition) -> list[Hit]:
     """Członkowie komisji: nazwisko, imię, adres. Karta członka, a w zapasie edycja konta."""
     from apps.accounts.models import CommitteeMember
 
     rows = (
-        CommitteeMember.objects.select_related("user")
+        CommitteeMember.objects.for_competition(competition)
+        .select_related("user")
         .filter(
             Q(user__last_name__icontains=query)
             | Q(user__first_name__icontains=query)
@@ -123,7 +125,7 @@ def _members(query: str) -> list[Hit]:
     return hits
 
 
-def _problems(query: str) -> list[Hit]:
+def _problems(query: str, competition) -> list[Hit]:
     """Zadania: tytuł albo numer. Numer szukany wprost, bo „3” to najczęstsza fraza w tej grupie."""
     from apps.competitions.models import Problem
 
@@ -131,7 +133,8 @@ def _problems(query: str) -> list[Hit]:
     if query.isdigit():
         condition |= Q(number=int(query))
     rows = (
-        Problem.objects.select_related("stage", "stage__edition")
+        Problem.objects.for_competition(competition)
+        .select_related("stage", "stage__edition")
         .filter(condition)
         .order_by("-stage__opens_at", "number")[:GROUP_LIMIT]
     )
@@ -152,7 +155,7 @@ def _problems(query: str) -> list[Hit]:
     return hits
 
 
-def _stages(query: str) -> list[Hit]:
+def _stages(query: str, competition) -> list[Hit]:
     """Etapy bieżącej edycji. Filtr jest w Pythonie, bo ``display_name`` jest właściwością.
 
     Nazwa etapu bywa pusta i wtedy podpisem jest etykieta rodzaju („Etap I – eliminacje”) –
@@ -162,7 +165,7 @@ def _stages(query: str) -> list[Hit]:
 
     needle = query.casefold()
     hits = []
-    for stage in current_stages():
+    for stage in current_stages(competition):
         if needle not in stage.display_name.casefold():
             continue
         url = resolve(("web:coordinator-stage-edit",), (stage.pk,))
@@ -173,7 +176,7 @@ def _stages(query: str) -> list[Hit]:
     return hits[:GROUP_LIMIT]
 
 
-def _issues(query: str) -> list[Hit]:
+def _issues(query: str, competition) -> list[Hit]:
     """Zgłoszenia recenzentów – wyłącznie po numerze.
 
     Po treści szukać nie ma po czym: opis zgłoszenia jest zdaniem o jednej pracy, a nie polem
@@ -185,7 +188,8 @@ def _issues(query: str) -> list[Hit]:
     from apps.grading.models import WorkIssue
 
     rows = (
-        WorkIssue.objects.select_related("submission", "submission__entry__participant", "review")
+        WorkIssue.objects.for_competition(competition)
+        .select_related("submission", "submission__entry__participant", "review")
         .filter(pk=int(query))
         .order_by("-created_at")[:GROUP_LIMIT]
     )
@@ -215,14 +219,20 @@ GROUPS = (
 )
 
 
-def search(raw_query: str) -> list[Group]:
-    """Wyniki dla frazy, pogrupowane. Fraza krótsza niż dwa znaki daje pustą listę grup."""
+def search(raw_query: str, competition) -> list[Group]:
+    """Wyniki dla frazy w **jednym konkursie**, pogrupowane. Fraza krótsza niż dwa znaki – pustka.
+
+    Wyszukiwarka jest w panelu miejscem o najszerszym zasięgu: jedno pole pyta naraz o uczestników,
+    komisję, zadania, etapy i zgłoszenia. Zakres jest więc argumentem **wymaganym** – gdyby był
+    opcjonalny, pierwsze wywołanie, które go pominie, zamieniłoby wyszukiwarkę w spis nazwisk
+    wszystkich olimpiad w instalacji.
+    """
     query = (raw_query or "").strip()
     if len(query) < MIN_QUERY_LENGTH:
         return []
     groups = []
     for key, label, finder in GROUPS:
-        hits = finder(query)
+        hits = finder(query, competition)
         if hits:
             groups.append(Group(key=key, label=label, hits=hits))
     return groups

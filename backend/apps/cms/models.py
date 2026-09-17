@@ -26,7 +26,7 @@ from html import unescape
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
-from django.db import models
+from django.db import DatabaseError, models
 from django.db.models import F, Q
 from django.utils import timezone
 from django.utils.html import strip_tags
@@ -39,8 +39,10 @@ from wagtail.models import Orderable, Page
 from wagtail.search import index
 
 from apps.competitions.models import Edition, Stage
+from apps.competitions.scoping import scope_to_competition
 from apps.competitions.services import current_edition, current_stage, training_stage
 from apps.results.models import ResultsPublication
+from apps.tenancy.managers import CompetitionScopedManager
 
 from .blocks import (
     PARTNER_LEVELS,
@@ -50,6 +52,7 @@ from .blocks import (
     PartnersStreamBlock,
     StepsStreamBlock,
 )
+from .tenancy import competition_for_page, resolve_competition
 from .timeline import stage_rows
 from .workshops import WORKSHOP_KEY_LENGTH, WORKSHOPS_SLUG, upcoming_workshops
 
@@ -84,6 +87,64 @@ RESERVED_SLUGS = frozenset(
 #: Głębokość strony głównej w drzewie treebearda: ``Root`` ma 1, ``HomePage`` 2. Strony o adresie
 #: jednosegmentowym (``/aktualnosci/``) są jej dziećmi, czyli mają ``depth == 3``.
 HOME_PAGE_DEPTH = 2
+
+
+def competition_path_prefixes() -> frozenset[str]:
+    """Pierwsze segmenty adresu zajęte przez konkursy adresowane prefiksem ścieżki (§ 2.3).
+
+    ``RESERVED_SLUGS`` wyżej jest listą **stałą**, bo adresy aplikacji zna urlconf i one się nie
+    zmieniają bez wydania. Prefiksy konkursów są za to danymi: operator platformy zakłada konkurs
+    ``fizyczna`` pod adresem ``/fizyczna/…`` i od tej chwili strona CMS-u o slugu ``fizyczna``
+    przechwyciłaby **cały** drugi konkurs – redaktor konkursu A widziałby „opublikowano”,
+    a czytelnik konkursu B stronę A zamiast swojej. To jest ta sama klasa błędu, co slug ``login``,
+    tylko szkoda jest większa, bo dotyczy nie jednego adresu, a całej witryny.
+
+    Zapytanie wykonuje się przy **zapisie strony**, a nie przy jej wyświetleniu, więc nie ma tu
+    czego buforować: redaktor zapisuje stronę rzadko, a pamięć podręczna z czasem życia znaczyłaby,
+    że tuż po założeniu konkursu walidacja jeszcze o nim nie wie.
+
+    Baza bez tabeli konkursów (świeża instalacja przed migracjami ``tenancy``) oddaje pusty zbiór:
+    walidacja slugów ma wtedy działać dokładnie tak, jak działała przed wielokonkursowością.
+    """
+    from apps.tenancy.models import Competition, RoutingMode
+
+    try:
+        prefixes = Competition.objects.filter(routing_mode=RoutingMode.PATH).exclude(path_prefix="")
+        return frozenset(prefixes.values_list("path_prefix", flat=True))
+    except DatabaseError:  # pragma: no cover - baza bez migracji tabeli konkursów
+        return frozenset()
+
+
+def taken_first_segments(site=None) -> frozenset[str]:
+    """Pierwsze segmenty adresu zajęte **w drzewie stron** danej witryny (domyślnie domyślnej).
+
+    Odwrotna strona tej samej monety, co ``competition_path_prefixes``: tam pytamy „czy slug
+    strony nie przechwyci konkursu”, tu – „czy prefiks konkursu nie przechwyci strony”. Reguła
+    z § 2.3 wymaga obu sprawdzeń, bo kolizję da się zrobić z każdej strony: zakładając stronę pod
+    istniejącym prefiksem **albo** zakładając konkurs pod istniejącym slugiem.
+
+    Pierwsze sprawdzenie robi ``CMSPage.clean`` (niżej). Drugie należy do ``Competition.clean``
+    (``apps/tenancy/models.py``) – i ta funkcja jest dla niego, tak samo jak ``RESERVED_SLUGS``,
+    które ta sama metoda już stąd czyta. Wiedza „jakie adresy są zajęte w drzewie stron” mieszka
+    w aplikacji, która to drzewo prowadzi, a nie w warstwie platformy.
+
+    Zwracamy komplet slugów drugiego poziomu razem z ``RESERVED_SLUGS``: wołający ma jedną listę
+    „tego nie wolno”, a nie dwa zbiory do złożenia u siebie.
+    """
+    from wagtail.models import Page, Site
+
+    try:
+        if site is None:
+            site = Site.objects.filter(is_default_site=True).select_related("root_page").first()
+        if site is None:
+            return RESERVED_SLUGS
+        # Dzieci korzenia witryny, czyli strony o adresie jednosegmentowym – te same, które
+        # ``CMSPage.is_second_level`` uznaje za „drugi poziom”.
+        slugs = Page.objects.child_of(site.root_page).values_list("slug", flat=True)
+        return RESERVED_SLUGS | frozenset(slugs)
+    except DatabaseError:  # pragma: no cover - baza bez drzewa stron
+        return RESERVED_SLUGS
+
 
 #: Format identyfikatora strumienia danych GA4. Walidator stoi tu, a nie w podpowiedzi pola:
 #: literówka w identyfikatorze nie objawia się niczym widocznym (skrypt Google'a wczytuje się
@@ -326,12 +387,27 @@ class CMSPage(Page):
 
     def clean(self):
         super().clean()
-        if self.slug in RESERVED_SLUGS and self.is_second_level():
+        if not self.is_second_level():
+            return
+        if self.slug in RESERVED_SLUGS:
             raise ValidationError(
                 {
                     "slug": (
                         f"Adres „/{self.slug}/” należy do aplikacji (logowanie, panel, API). "
                         "Strona pod tym slugiem nigdy by się nie otworzyła – wybierz inny."
+                    )
+                }
+            )
+        # Prefiks ścieżki innego konkursu (§ 2.3). Komunikat jest osobny, bo i powód jest inny:
+        # tam adres należy do aplikacji, tu – do organizatora, który stoi pod tym segmentem ze
+        # swoim całym serwisem. Zapytanie wykonuje się dopiero po sprawdzeniu listy stałej, więc
+        # strona o slugu ``login`` odpada bez ani jednego odczytu z bazy.
+        if self.slug in competition_path_prefixes():
+            raise ValidationError(
+                {
+                    "slug": (
+                        f"Adres „/{self.slug}/” jest prefiksem innego konkursu na tej platformie. "
+                        "Strona pod tym slugiem przechwyciłaby jego adresy – wybierz inny."
                     )
                 }
             )
@@ -449,7 +525,11 @@ class HomePage(CMSPage):
     def get_context(self, request, *args, **kwargs):
         context = super().get_context(request, *args, **kwargs)
         now = timezone.now()
-        edition = current_edition()
+        # Edycja **tego** konkursu, a nie „bieżąca w bazie”: w instalacji wielokonkursowej
+        # pierwsza z brzegu jest cudza, a strona główna konkursu A pokazywałaby wtedy harmonogram
+        # konkursu B. Konkurs bierzemy z żądania (za darmo) – patrz ``apps.cms.tenancy``.
+        competition = competition_for_page(self, request)
+        edition = current_edition(competition)
         context.update(
             {
                 "now": now,
@@ -713,7 +793,7 @@ class ProblemsPage(CMSPage):
     def get_context(self, request, *args, **kwargs):
         context = super().get_context(request, *args, **kwargs)
         now = timezone.now()
-        edition = current_edition()
+        edition = current_edition(competition_for_page(self, request))
         stage = current_stage(edition, now) if edition else None
         # Jedyne miejsce decydujące o jawności treści. ``problems`` zostaje puste, dopóki etap
         # się nie otworzy – szablon nie ma z czego zrenderować ani tytułu, ani linku do PDF.
@@ -1072,11 +1152,21 @@ class ResultsPage(CMSPage):
 
     def get_context(self, request, *args, **kwargs):
         context = super().get_context(request, *args, **kwargs)
-        edition = current_edition()
+        competition = competition_for_page(self, request)
+        edition = current_edition(competition)
         # Filtr po ``results_published_at`` zostaje: znacznik na etapie jest tym, co koordynator
         # zdejmuje, żeby wycofać ogłoszenie, a sam rekord publikacji ma zostać jako ślad.
+        #
+        # Zawężenie do konkursu jest **drugim** filtrem i musi być: sekcja „Archiwum” wymienia
+        # wszystkie ogłoszone etapy, także z dawnych roczników, więc bez niego tabela wyników
+        # jednej olimpiady wyliczałaby etapy drugiej – razem z odnośnikami do jej publikacji.
+        # Drogę do konkursu (``stage__edition__competition``) zna manager modelu, a regułę
+        # odwrotów dla instalacji bez konkursów – ``scope_to_competition``.
         publications = (
-            ResultsPublication.objects.filter(stage__results_published_at__isnull=False)
+            scope_to_competition(
+                ResultsPublication.objects.filter(stage__results_published_at__isnull=False),
+                competition,
+            )
             .select_related("stage", "stage__edition")
             .order_by("-stage__results_published_at", "-stage_id")
         )
@@ -1217,6 +1307,24 @@ class Announcement(models.Model):
     Reguły wyświetlania, pamięć podręczna i procesor kontekstu są w ``apps.cms.announcements``.
     """
 
+    #: Właściciel komunikatu. Własny klucz obcy, a nie droga przez inny model
+    #: (``docs/UNIWERSALNY-ETAP-1.md`` § 3.2), bo komunikat **nie ma** przez co dojść do konkursu:
+    #: nie wisi przy edycji, etapie ani stronie – wisi nad całym serwisem. Bez tej kolumny baner
+    #: był globalny dla instalacji, czyli organizator konkursu A ogłaszał przerwę techniczną na
+    #: stronie konkursu B.
+    #:
+    #: Nullowalny i to jest stan przejściowy, nie projekt: wydanie C kładzie kolumnę przy kodzie,
+    #: który ją wypełnia, a domknięcie na ``NOT NULL`` wchodzi w wydaniu D po kontroli z § 4.4.
+    #: ``PROTECT`` – jak przy edycji: skasowanie konkursu z wiszącym komunikatem ma się zatrzymać
+    #: na wyjątku, a nie zabrać po cichu jego ogłoszenia.
+    competition = models.ForeignKey(
+        "tenancy.Competition",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="announcements",
+        verbose_name="konkurs",
+    )
     text = models.TextField("treść", max_length=ANNOUNCEMENT_MAX_TEXT_LENGTH)
     # Odnośnik jest **parą pól**, a nie znacznikiem w treści: baner renderuje zwykły tekst
     # (autoescapowany), więc adres wpisany w treść byłby napisem, a nie linkiem – a pozwolenie
@@ -1266,6 +1374,11 @@ class Announcement(models.Model):
     )
     created_at = models.DateTimeField("utworzony", default=timezone.now)
 
+    #: Manager z ``for_competition``. Zawężenie należy do querysetu, a nie do widoku
+    #: (``apps.tenancy.managers``): baner, ekran koordynatora i panel redakcyjny czytają ten sam
+    #: model, więc filtr dopisany w jednym z nich byłby filtrem, który dwa pozostałe pominą.
+    objects = CompetitionScopedManager()
+
     class Meta:
         verbose_name = "komunikat"
         verbose_name_plural = "komunikaty"
@@ -1281,6 +1394,24 @@ class Announcement(models.Model):
 
     def __str__(self) -> str:
         return self.text[:60]
+
+    def save(self, *args, **kwargs):
+        """Nowy komunikat bez wskazanego konkursu dostaje ten „na teraz”.
+
+        Reguła i uzasadnienie są te same, co przy ``competitions.Edition.save`` – celowo, bo to
+        jest ta sama decyzja: wartość domyślna należy do **modelu**, a nie do każdego z wołających.
+        Komunikat zapisują dziś trzy drogi i żadna z nich nie należy do tego zadania: ekran
+        ``/coordinator/announcements/``, fragment w ``/cms/`` i ``/admin/``. Komunikat bez
+        właściciela byłby niewidoczny dla banera, czyli ogłoszeniem, którego nikt nie zobaczy –
+        a to jest dokładnie ta klasa regresji, której zabrania § 0 dokumentu.
+
+        Wypełniamy **wyłącznie przy wstawianiu**: przy zapisie istniejącego wiersza konkurs jest
+        faktem, a nie domyślną wartością – podstawianie go z kontekstu przy każdym ``save()``
+        pozwoliłoby żądaniu jednego konkursu przepisać komunikat drugiego.
+        """
+        if self._state.adding and self.competition_id is None:
+            self.competition = resolve_competition()
+        return super().save(*args, **kwargs)
 
     def clean(self) -> None:
         super().clean()

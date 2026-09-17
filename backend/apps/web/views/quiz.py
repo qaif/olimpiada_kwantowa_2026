@@ -61,8 +61,15 @@ RESULT_TEMPLATE = "web/quiz/result.html"
 # --- wspólne ------------------------------------------------------------------------------------
 
 
-def _stage(stage_id: int) -> Stage:
-    return get_object_or_404(Stage.objects.select_related("edition"), pk=stage_id)
+def _stage(competition, stage_id: int) -> Stage:
+    """Etap **tego konkursu** albo 404 – jedno wejście dla wszystkich ekranów testu w panelu.
+
+    Reszta drogi zawęża się sama: test wisi na etapie (``Quiz.stage``), pytanie na teście,
+    a podejście na wpisie uczestnika – więc scoping tego jednego obiektu zamyka cały moduł.
+    """
+    return get_object_or_404(
+        Stage.objects.for_competition(competition).select_related("edition"), pk=stage_id
+    )
 
 
 def _quiz_or_404(stage: Stage):
@@ -98,7 +105,7 @@ class QuizSettingsView(_QuizPanelMixin, View):
     """
 
     def get(self, request, stage_id: int):
-        stage = _stage(stage_id)
+        stage = _stage(request.competition, stage_id)
         quiz = quiz_services.quiz_for_stage(stage)
         form = (
             QuizSettingsForm(instance=quiz)
@@ -108,7 +115,7 @@ class QuizSettingsView(_QuizPanelMixin, View):
         return self._render(request, stage, quiz, form)
 
     def post(self, request, stage_id: int):
-        stage = _stage(stage_id)
+        stage = _stage(request.competition, stage_id)
         quiz = quiz_services.quiz_for_stage(stage)
         form = QuizSettingsForm(request.POST, instance=quiz)
         if not form.is_valid():
@@ -135,7 +142,7 @@ class QuizQuestionsView(_QuizPanelMixin, View):
     """Lista pytań testu z podsumowaniem puli, punktacji i rozmiaru losowanego zestawu."""
 
     def get(self, request, stage_id: int):
-        stage = _stage(stage_id)
+        stage = _stage(request.competition, stage_id)
         quiz = _quiz_or_404(stage)
         context = self.panel_context(stage, quiz)
         context["pools"] = sorted(
@@ -156,14 +163,14 @@ class QuizQuestionFormView(_QuizPanelMixin, View):
     """Dodanie albo zmiana jednego pytania. ``question_id`` puste = nowe pytanie."""
 
     def get(self, request, stage_id: int, question_id: int | None = None):
-        stage = _stage(stage_id)
+        stage = _stage(request.competition, stage_id)
         quiz = _quiz_or_404(stage)
         question = self._question(quiz, question_id)
         initial = initial_from_question(question) if question else {"order": self._next_order(quiz)}
         return self._render(request, stage, quiz, QuestionForm(initial=initial), question)
 
     def post(self, request, stage_id: int, question_id: int | None = None):
-        stage = _stage(stage_id)
+        stage = _stage(request.competition, stage_id)
         quiz = _quiz_or_404(stage)
         question = self._question(quiz, question_id)
         form = QuestionForm(request.POST, request.FILES)
@@ -224,7 +231,7 @@ class QuizQuestionDeleteView(ActionViewMixin, CoordinatorRequiredMixin, View):
     """Usunięcie pytania (POST). Odmowa dla testu z podejściami stoi w serwisie."""
 
     def perform(self, request, stage_id: int, question_id: int) -> str:
-        stage = _stage(stage_id)
+        stage = _stage(request.competition, stage_id)
         quiz = _quiz_or_404(stage)
         question = get_object_or_404(QuizQuestion, pk=question_id, quiz=quiz)
         quiz_services.delete_question(question=question, actor=request.user, request=request)
@@ -244,12 +251,12 @@ class QuizImportView(_QuizPanelMixin, View):
     """
 
     def get(self, request, stage_id: int):
-        stage = _stage(stage_id)
+        stage = _stage(request.competition, stage_id)
         quiz = _quiz_or_404(stage)
         return self._render(request, stage, quiz, QuestionImportForm())
 
     def post(self, request, stage_id: int):
-        stage = _stage(stage_id)
+        stage = _stage(request.competition, stage_id)
         quiz = _quiz_or_404(stage)
         form = QuestionImportForm(request.POST, request.FILES)
         if not form.is_valid():
@@ -310,7 +317,7 @@ class QuizResultsView(_QuizPanelMixin, View):
     """Wyniki testu: punkty per uczestnik i statystyka pytań (trudność, moc różnicująca)."""
 
     def get(self, request, stage_id: int):
-        stage = _stage(stage_id)
+        stage = _stage(request.competition, stage_id)
         quiz = _quiz_or_404(stage)
         # Domykamy porzucone podejścia przed policzeniem czegokolwiek – inaczej ekran pokazywałby
         # zera przy osobach, którym po prostu padło łącze, a ich odpowiedzi leżą w bazie.
@@ -330,7 +337,7 @@ class QuizResultsExportView(CoordinatorRequiredMixin, View):
     """Eksport wyników testu do CSV – ta sama droga, co pozostałe eksporty panelu (z audytem)."""
 
     def get(self, request, stage_id: int):
-        stage = _stage(stage_id)
+        stage = _stage(request.competition, stage_id)
         quiz = _quiz_or_404(stage)
         quiz_services.finalise_overdue(quiz=quiz)
         rows = quiz_services.results_csv_rows(quiz)
@@ -350,7 +357,7 @@ class QuizRegradeView(ActionViewMixin, CoordinatorRequiredMixin, View):
     """„Przelicz punkty” – ponowna ocena wszystkich podejść po poprawce klucza odpowiedzi."""
 
     def perform(self, request, stage_id: int) -> str:
-        stage = _stage(stage_id)
+        stage = _stage(request.competition, stage_id)
         quiz = _quiz_or_404(stage)
         result = quiz_services.regrade_quiz(quiz=quiz, actor=request.user, request=request)
         return (
@@ -373,7 +380,7 @@ class QuizPreviewView(CoordinatorRequiredMixin, View):
     """
 
     def get(self, request, stage_id: int):
-        stage = _stage(stage_id)
+        stage = _stage(request.competition, stage_id)
         quiz = _quiz_or_404(stage)
         questions = list(quiz.questions.prefetch_related("options").order_by("pool", "order", "id"))
         order = quiz_services.draw_question_order(quiz, questions)

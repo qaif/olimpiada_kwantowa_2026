@@ -27,8 +27,8 @@ from django.urls import reverse
 from django.views.generic import View
 
 from apps.accounts.models import Participant
-from apps.cms.models import ContentPage, WorkshopAttendance
-from apps.cms.workshops import WORKSHOPS_SLUG, save_attendance, workshop_rows
+from apps.cms.models import WorkshopAttendance
+from apps.cms.workshops import save_attendance, workshop_rows, workshops_page
 from apps.competitions.services import current_edition
 from apps.core.models import audit
 from apps.results.certificates import build_certificates_zip, issue_workshop_certificates
@@ -42,7 +42,7 @@ TEMPLATE = "web/coordinator/workshop_attendance.html"
 PAGE_SIZE = 100
 
 
-def _participants(edition, query: str) -> list[Participant]:
+def _participants(competition, edition, query: str) -> list[Participant]:
     """Uczestnicy z wpisem do dowolnego etapu edycji, przefiltrowani po nazwisku albo kodzie.
 
     Krąg jest ten sam, co krąg odbiorców zaświadczenia: dokument przypina się do wpisu w edycji,
@@ -51,7 +51,8 @@ def _participants(edition, query: str) -> list[Participant]:
     if edition is None:
         return []
     queryset = (
-        Participant.objects.filter(stage_entries__stage__edition=edition)
+        Participant.objects.for_competition(competition)
+        .filter(stage_entries__stage__edition=edition)
         .select_related("user")
         .distinct()
         .order_by("user__last_name", "user__first_name", "public_code")
@@ -68,10 +69,15 @@ def _participants(edition, query: str) -> list[Participant]:
     return list(queryset)
 
 
-def _workshops() -> list[dict]:
-    """Kolumny tabeli: warsztaty z harmonogramu redakcyjnego, od najwcześniejszych."""
-    page = ContentPage.objects.live().filter(slug=WORKSHOPS_SLUG).first()
-    return workshop_rows(page)
+def _workshops(competition) -> list[dict]:
+    """Kolumny tabeli: warsztaty z harmonogramu **tego konkursu**, od najwcześniejszych.
+
+    Stronę wskazuje ``apps.cms.workshops.workshops_page`` – jedno wejście dla panelu i dla części
+    informacyjnej. Harmonogram jest treścią redakcyjną, a drzewo stron należy do witryny konkursu,
+    więc bez tego zawężenia tabela obecności konkursu A miałaby kolumny z harmonogramu konkursu B
+    (a klucze obecności – ``workshop_key`` – przestałyby do czegokolwiek pasować).
+    """
+    return workshop_rows(workshops_page(competition))
 
 
 class WorkshopAttendanceView(CoordinatorRequiredMixin, View):
@@ -88,9 +94,17 @@ class WorkshopAttendanceView(CoordinatorRequiredMixin, View):
     def post(self, request):
         if request.POST.get("action") == "import":
             return self._import(request)
-        workshops = _workshops()
+        workshops = _workshops(request.competition)
         keys = [row["key"] for row in workshops]
-        participant_ids = [int(value) for value in request.POST.getlist("participant") if value.isdigit()]
+        # Identyfikatory przychodzą z formularza, czyli **od klienta**: zawężamy je do uczestników
+        # tego konkursu, zanim serwis cokolwiek zapisze. Ukryte pole ze strony, którą koordynator
+        # właśnie widział, nie jest dowodem na to, co przyszło w żądaniu.
+        posted = [int(value) for value in request.POST.getlist("participant") if value.isdigit()]
+        participant_ids = list(
+            Participant.objects.for_competition(request.competition)
+            .filter(pk__in=posted)
+            .values_list("pk", flat=True)
+        )
         marked = set()
         for value in request.POST.getlist("attend"):
             participant_id, _, key = value.partition(":")
@@ -104,7 +118,7 @@ class WorkshopAttendanceView(CoordinatorRequiredMixin, View):
                 # Wpis audytowy wisi na **edycji**, a nie na uczestniku: zdarzeniem jest zapis
                 # jednej strony tabeli, a nie zmiana przy jednej osobie. Liczby zamiast listy
                 # nazwisk – audyt ma mówić, co się stało, a nie być drugą kopią danych osobowych.
-                current_edition() or request.user,
+                current_edition(request.competition) or request.user,
                 {"added": result["added"], "removed": result["removed"]},
                 request=request,
             )
@@ -120,11 +134,13 @@ class WorkshopAttendanceView(CoordinatorRequiredMixin, View):
             for error in form.errors.get("file", []):
                 messages.error(request, error)
             return self._render(request, form, status=400)
-        keys = {row["key"] for row in _workshops()}
+        keys = {row["key"] for row in _workshops(request.competition)}
         codes = {code for code, _ in form.rows}
         participants = {
             participant.public_code.upper(): participant.pk
-            for participant in Participant.objects.filter(public_code__in=codes)
+            for participant in Participant.objects.for_competition(request.competition).filter(
+                public_code__in=codes
+            )
         }
         rows = [
             WorkshopAttendance(
@@ -155,10 +171,10 @@ class WorkshopAttendanceView(CoordinatorRequiredMixin, View):
         return f"{url}?{'&'.join(params)}" if params else url
 
     def _render(self, request, form, *, status: int = 200):
-        edition = current_edition()
+        edition = current_edition(request.competition)
         query = request.GET.get("q", "")
-        workshops = _workshops()
-        participants = _participants(edition, query)
+        workshops = _workshops(request.competition)
+        participants = _participants(request.competition, edition, query)
         page_number = max(1, int(request.GET.get("page") or 1))
         start = (page_number - 1) * PAGE_SIZE
         visible = participants[start : start + PAGE_SIZE]
@@ -199,7 +215,7 @@ class IssueWorkshopCertificatesView(CoordinatorRequiredMixin, View):
     """
 
     def post(self, request):
-        edition = current_edition()
+        edition = current_edition(request.competition)
         if edition is None:
             messages.error(request, "Nie ustawiono bieżącej edycji – nie ma dla czego wystawiać zaświadczeń.")
             return redirect(reverse("web:coordinator-workshop-attendance"))

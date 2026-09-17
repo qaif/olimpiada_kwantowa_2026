@@ -43,11 +43,14 @@ class CoordinatorIssuesView(CoordinatorRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        edition = current_edition()
+        edition = current_edition(self.competition)
         stages = list(Stage.objects.filter(edition=edition).order_by("opens_at", "id")) if edition else []
         raw_stage = (self.request.GET.get("stage") or "").strip()
         selected = next((stage for stage in stages if str(stage.pk) == raw_stage), None)
-        rows = list(issue_rows(selected)[:ISSUE_LIMIT])
+        # ``issue_rows`` oddaje queryset, więc zakres dokładamy **do niego**, a nie do wyniku:
+        # limit ucina listę po zawężeniu, inaczej dwieście pierwszych zgłoszeń instalacji
+        # mogłoby w całości należeć do sąsiada, a ten ekran pokazywałby pustkę.
+        rows = list(issue_rows(selected).for_competition(self.competition)[:ISSUE_LIMIT])
         context.update(
             {
                 "edition": edition,
@@ -73,7 +76,7 @@ class ResolveIssueView(ActionViewMixin, CoordinatorRequiredMixin, View):
         return f"{base}?stage={stage_id}" if stage_id else base
 
     def perform(self, request, pk: int) -> str:
-        issue = get_object_or_404(WorkIssue, pk=pk)
+        issue = get_object_or_404(WorkIssue.objects.for_competition(request.competition), pk=pk)
         resolve_issue(issue, request.POST.get("resolution", ""), actor=request.user, request=request)
         return "Zgłoszenie zostało rozwiązane."
 
@@ -93,6 +96,8 @@ class IssueUnassignView(ActionViewMixin, CoordinatorRequiredMixin, View):
         return f"{base}?stage={stage_id}" if stage_id else base
 
     def perform(self, request, pk: int) -> str:
-        issue = get_object_or_404(WorkIssue.objects.select_related("review"), pk=pk)
+        issue = get_object_or_404(
+            WorkIssue.objects.for_competition(request.competition).select_related("review"), pk=pk
+        )
         unassign_reviewer(issue.review, actor=request.user, request=request)
         return "Praca została odebrana recenzentowi. Zgłoszenie nadal czeka na rozstrzygnięcie."

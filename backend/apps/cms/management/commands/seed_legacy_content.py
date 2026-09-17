@@ -156,6 +156,7 @@ from apps.cms.site_tree import (
     ensure_document_index,
     ensure_link_redirect,
     ensure_redirect,
+    home_page,
     take_document_page,
 )
 from apps.cms.workshops import WORKSHOPS_SLUG
@@ -606,7 +607,10 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
-        home = HomePage.objects.first()
+        # Witryna **domyślna**, a nie „pierwsza strona główna w bazie”: ta komenda nadpisuje
+        # treści, więc w instalacji wielokonkursowej trafienie w cudze drzewo byłoby zamianą
+        # serwisu jednego organizatora na treść drugiego (``apps.cms.site_tree.home_page``).
+        home = home_page()
         if home is None:
             raise CommandError("Brak drzewa stron – uruchom najpierw `manage.py migrate`.")
         if not FIXTURES.is_dir():

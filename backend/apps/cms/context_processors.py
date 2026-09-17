@@ -1,10 +1,19 @@
 """Menu części informacyjnej dla ``templates/base.html``.
 
 Nawigacja nie jest zabezpieczeniem (tak samo jak ``apps.web.context_processors.roles``) – to tylko
-lista publicznych stron Wagtaila oznaczonych „pokaż w menu”. Jeśli drzewo stron jeszcze nie
-istnieje (świeża baza przed migracją danych) albo zapytanie się nie powiedzie, wracamy do stałej
-listy adresów utworzonych przez migrację ``apps.cms.0002`` – szablon bazowy nigdy nie może
-wywrócić się przez CMS.
+lista publicznych stron Wagtaila oznaczonych „pokaż w menu”. Menu składa się z drzewa **witryny
+z żądania** (``Site.find_for_request``) i tak było od początku – ta część była poprawna jeszcze
+przed wielokonkursowością (``docs/UNIWERSALNY-ETAP-1.md`` § 3.7, „piąty, mniej oczywisty”).
+
+Poprawki wymagała lista zapasowa. ``FALLBACK_MENU`` to cztery adresy, które w bazie założyła
+migracja ``apps.cms.0002`` – czyli drzewo **Konkursu #1**, a nie „menu każdego serwisu”. Dlatego
+sięgamy po nią wyłącznie wtedy, gdy żądanie trafiło w witrynę **domyślną**: to jest ta jedna
+witryna, o której wiadomo, że te adresy w niej istnieją. Konkurs, którego drzewo stron dopiero
+powstaje, dostaje menu **puste** – nagłówek bez pozycji jest wtedy uczciwy, a nagłówek z cudzymi
+adresami prowadziłby jego czytelników na cztery strony, których pod tą domeną nie ma.
+
+Szablon bazowy nigdy nie może wywrócić się przez CMS: błąd bazy i brak drzewa kończą się pustym
+menu albo listą zapasową, nigdy wyjątkiem.
 
 Jedna pozycja menu ma listę rozwijaną: sekcja dokumentów (``DocumentIndexPage``). Rozwijamy
 **wyłącznie** ten typ, a nie „każdą stronę menu, która ma dzieci”: newsroom też ma dzieci i pod
@@ -27,7 +36,9 @@ logger = logging.getLogger(__name__)
 #: warsztaty). Dobór jest po slugu strony, nie po tytule, bo tytuł redakcja może zmienić.
 PRIMARY_MENU_SLUGS = ("zadania", "harmonogram", "warsztaty", "kontakt")
 
-#: Zapasowe menu = dokładnie te ścieżki, które tworzy migracja drzewa stron.
+#: Zapasowe menu = dokładnie te ścieżki, które tworzy migracja drzewa stron **witryny domyślnej**.
+#: Stała zostaje nietknięta (pilnuje jej ``test_menu_matches_seeded_tree``); zmieniło się to, komu
+#: wolno ją pokazać – patrz docstring modułu.
 FALLBACK_MENU = (
     {"title": "Aktualności", "url": "/aktualnosci/"},
     {"title": "Zadania", "url": "/zadania/"},
@@ -70,12 +81,21 @@ def _expandable_children(pages: list, request) -> dict[int, list[dict]]:
 
 
 def cms_menu(request) -> dict:
+    """Menu serwisu złożone z drzewa witryny, w którą trafiło żądanie.
+
+    ``fallback_allowed`` rozstrzyga o liście zapasowej: pokazujemy ją wyłącznie dla witryny domyślnej,
+    bo tylko o jej drzewie wiadomo, że ma te cztery adresy (patrz docstring modułu). Rozstrzygamy
+    to **przed** pętlą i na obiekcie, który i tak mamy w ręku – ``is_default_site`` jest kolumną
+    tego samego wiersza, więc nie kosztuje ani jednego zapytania więcej.
+    """
     from wagtail.models import Page, Site
 
+    fallback_allowed = False
     try:
         site = Site.find_for_request(request)
         if site is None:
             raise Site.DoesNotExist
+        fallback_allowed = site.is_default_site
         pages = list(Page.objects.live().in_menu().child_of(site.root_page).order_by("path"))
         children = _expandable_children(pages, request)
         items = []
@@ -94,17 +114,23 @@ def cms_menu(request) -> dict:
                 }
             )
     except (DatabaseError, Site.DoesNotExist, AttributeError):  # pragma: no cover - baza bez drzewa
-        logger.warning("Menu CMS niedostępne – używam listy zapasowej.")
+        # Witryny nie znamy, więc nie wiemy też, czy to ta domyślna – a lista zapasowa opisuje
+        # wyłącznie jej drzewo. Puste menu jest tu jedyną odpowiedzią, która nie może być cudza.
+        logger.warning("Menu CMS niedostępne – nagłówek zostaje bez pozycji.")
         items = []
-    fallback = [
-        {
-            **item,
-            "children": [],
-            "active": request.path == item["url"],
-            "primary": item["url"].strip("/") in PRIMARY_MENU_SLUGS,
-        }
-        for item in FALLBACK_MENU
-    ]
+    fallback = (
+        [
+            {
+                **item,
+                "children": [],
+                "active": request.path == item["url"],
+                "primary": item["url"].strip("/") in PRIMARY_MENU_SLUGS,
+            }
+            for item in FALLBACK_MENU
+        ]
+        if fallback_allowed
+        else []
+    )
     menu = items or fallback
     # Osobna lista dla przyklejonego paska zamiast filtrowania w szablonie: pasek i menu serwisu
     # czytają to samo źródło, a pasek pokazuje swoje pozycje dopiero po przyklejeniu (skrypt

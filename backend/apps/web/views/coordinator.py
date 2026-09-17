@@ -33,7 +33,6 @@ from apps.accounts.models import (
     CommitteeMember,
     InvitationCode,
     InvitationGrantsStatus,
-    User,
 )
 from apps.accounts.services import (
     approve_committee_member,
@@ -58,7 +57,6 @@ from apps.grading.services import (
     override_final_grade,
     remove_problem_reviewer_rule,
     resolve_moderation,
-    reviewer_pool,
     set_review_score,
     stage_assignment_rows,
     stage_problem_rules,
@@ -87,23 +85,29 @@ from apps.web.forms import (
     VerifyDistrictForm,
 )
 from apps.web.mixins import ActionViewMixin, CoordinatorRequiredMixin
+from apps.web.scoping import reviewer_pool_for
 from apps.web.templatetags.web_extras import LOCAL_TIME_LABEL, local_time
+from apps.web.views.coordinator_accounts import users_for_competition
 
 DASHBOARD_URL = reverse_lazy("web:coordinator")
 
 
-def dashboard_context(extra: dict | None = None) -> dict:
-    """Kontekst pulpitu: „co wymaga uwagi” plus karty etapów.
+def dashboard_context(competition, extra: dict | None = None) -> dict:
+    """Kontekst pulpitu: „co wymaga uwagi” plus karty etapów – dla **jednego** konkursu.
 
     Pulpit odpowiada dziś na **jedno** pytanie – czym trzeba się zająć – i pokazuje kalendarz
     edycji. Kolejki (moderacja, aktywacje, komitet, zaproszenia, podgląd wyników) mają własne
     adresy w ``coordinator_pages.py``; tutaj zostaje z nich sama liczba na kafelku. Dzięki temu
     wejście na pulpit kosztuje kilkanaście zapytań, a nie kilkadziesiąt, i da się z niego
     cokolwiek wyczytać bez przewijania.
+
+    Konkurs jest argumentem **wymaganym i pierwszym**, bo pulpit jest ekranem, na którym błąd
+    zakresu widać najpóźniej: same liczby, bez nazwisk i identyfikatorów, po których dałoby się
+    poznać, że pochodzą od sąsiada.
     """
     from apps.web.views.coordinator_pages import attention_rows
 
-    edition = current_edition()
+    edition = current_edition(competition)
     # ``Count`` w zapytaniu, a nie ``stage.problems.count()`` w szablonie: liczniki zadań i terminów
     # rozmów stoją na każdej karcie etapu, więc pętla w szablonie kosztowałaby zapytanie na etap.
     # ``distinct=True`` przy obu, bo dwa ``Count`` na tej samej karcie mnożą wiersze przez siebie.
@@ -112,7 +116,11 @@ def dashboard_context(extra: dict | None = None) -> dict:
         slot_count=Count("interview_slots", distinct=True),
     )
     stages = list(stage_qs.order_by("opens_at", "id")) if edition else []
-    published = set(ResultsPublication.objects.filter(stage__in=stages).values_list("stage_id", flat=True))
+    published = set(
+        ResultsPublication.objects.for_competition(competition)
+        .filter(stage__in=stages)
+        .values_list("stage_id", flat=True)
+    )
     context = {
         "now": timezone.now(),
         "edition": edition,
@@ -132,7 +140,7 @@ def dashboard_context(extra: dict | None = None) -> dict:
         "missing_kinds": missing_stage_kinds(edition) if edition else [],
         # Kafelki „co wymaga uwagi” – liczby te same, co badge w menu (jedno źródło, jedna minuta
         # pamięci podręcznej). Kolejki, do których prowadzą, mieszkają w ``coordinator_pages.py``.
-        "attention": attention_rows(),
+        "attention": attention_rows(competition),
         "assign_form": AssignReviewersForm(),
     }
     context.update(extra or {})
@@ -144,8 +152,8 @@ def dashboard_context(extra: dict | None = None) -> dict:
 SENT_INVITATIONS_LIMIT = 100
 
 
-def sent_invitation_rows(limit: int = SENT_INVITATIONS_LIMIT) -> list[InvitationCode]:
-    """Zaproszenia **wysłane listem**, od najnowszego.
+def sent_invitation_rows(competition, limit: int = SENT_INVITATIONS_LIMIT) -> list[InvitationCode]:
+    """Zaproszenia **wysłane listem** w tym konkursie, od najnowszego.
 
     Kody bez adresu (komenda CLI, sekcja „Kod zaproszenia”) do tej tabeli nie wchodzą: nie ma przy
     nich czego ponawiać ani komu unieważniać – kod przekazał człowiek i tylko on wie komu.
@@ -154,13 +162,14 @@ def sent_invitation_rows(limit: int = SENT_INVITATIONS_LIMIT) -> list[Invitation
     nas kolejność listów, które wyszły.
     """
     return list(
-        InvitationCode.objects.filter(email__isnull=False)
+        InvitationCode.objects.for_competition(competition)
+        .filter(email__isnull=False)
         .exclude(email="")
         .order_by("-sent_at", "-id")[:limit]
     )
 
 
-def pending_activation_rows(now=None) -> list[dict]:
+def pending_activation_rows(competition, now=None) -> list[dict]:
     """Konta, które czekają na potwierdzenie adresu e-mail – z czasem do automatycznego skasowania.
 
     Ta sekcja jest **obejściem operacyjnym z terminem ważności**: dopóki domena nadawcy nie ma
@@ -175,12 +184,17 @@ def pending_activation_rows(now=None) -> list[dict]:
 
     Role czytamy z grup jednym zapytaniem (``prefetch_related``): lista bywa długa, a rola jest tu
     jedyną podpowiedzią, czy chodzi o uczestnika, czy o zaproszonego recenzenta.
+
+    Zakres jest ten sam, co na liście kont (``users_for_competition``): konto cudzego konkursu
+    tu nie wchodzi, bo ręczna aktywacja cudzego konta nie jest czynnością tego koordynatora.
+    Jedna definicja „czyje to konto” dla obu ekranów – dwie rozjechałyby się przy pierwszej zmianie.
     """
     now = now or timezone.now()
     deadline_offset = timedelta(seconds=ACTIVATION_MAX_AGE)
     rows = []
     users = (
-        User.objects.filter(is_active=False, email_verified_at__isnull=True)
+        users_for_competition(competition)
+        .filter(is_active=False, email_verified_at__isnull=True)
         .prefetch_related("groups")
         .order_by("date_joined", "id")
     )
@@ -206,7 +220,7 @@ class CoordinatorDashboardView(CoordinatorRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context.update(dashboard_context())
+        context.update(dashboard_context(self.competition))
         return context
 
 
@@ -254,7 +268,7 @@ class CloseStageView(CoordinatorActionView):
     """Zamknięcie etapu: blokada najnowszych wersji plus znacznik ``closed_at``."""
 
     def perform(self, request, stage_id: int) -> str:
-        stage = get_object_or_404(Stage, pk=stage_id)
+        stage = get_object_or_404(Stage.objects.for_competition(request.competition), pk=stage_id)
         locked = close_stage_now(stage, actor=request.user, request=request)
         return f"Etap zamknięty. Zablokowanych rozwiązań: {locked}."
 
@@ -268,7 +282,7 @@ class LockStageForReviewView(CoordinatorActionView):
     """
 
     def perform(self, request, stage_id: int) -> str:
-        stage = get_object_or_404(Stage, pk=stage_id)
+        stage = get_object_or_404(Stage.objects.for_competition(request.competition), pk=stage_id)
         locked = lock_for_review(stage, actor=request.user, request=request)
         return (
             f"Zablokowano {locked} prac do oceny. Etap pozostaje otwarty – uczestnicy mogą nadal "
@@ -280,7 +294,9 @@ class AssignReviewersView(CoordinatorActionView):
     """Przydział recenzentów dla etapu. Pominięte prace (``skipped``) są wypisane z pseudonimem."""
 
     def perform(self, request, stage_id: int) -> str:
-        stage = get_object_or_404(Stage.objects.select_related("edition"), pk=stage_id)
+        stage = get_object_or_404(
+            Stage.objects.for_competition(request.competition).select_related("edition"), pk=stage_id
+        )
         form = AssignReviewersForm(request.POST)
         if not form.is_valid():
             raise DomainError("Nieprawidłowa liczba recenzentów na pracę.", "INVALID_PER_SUBMISSION")
@@ -484,15 +500,23 @@ class StageDownloadView(CoordinatorRequiredMixin, View):
     """
 
     def get(self, request, stage_id: int):
-        stage = get_object_or_404(Stage.objects.select_related("edition"), pk=stage_id)
+        stage = get_object_or_404(
+            Stage.objects.for_competition(request.competition).select_related("edition"), pk=stage_id
+        )
         raw = (request.GET.get("problem") or "").strip()
         problem = None
         if raw:
-            problem = get_object_or_404(Problem, pk=raw if raw.isdigit() else 0, stage=stage)
+            problem = get_object_or_404(
+                Problem.objects.for_competition(request.competition),
+                pk=raw if raw.isdigit() else 0,
+                stage=stage,
+            )
         return self._zip(request, stage, problem=problem)
 
     def post(self, request, stage_id: int):
-        stage = get_object_or_404(Stage.objects.select_related("edition"), pk=stage_id)
+        stage = get_object_or_404(
+            Stage.objects.for_competition(request.competition).select_related("edition"), pk=stage_id
+        )
         selected = [value for value in request.POST.getlist("submission_ids") if value.isdigit()]
         if not selected:
             messages.error(request, "Nie zaznaczono żadnej pracy.")
@@ -544,7 +568,10 @@ class StageAssignmentsView(CoordinatorRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        stage = get_object_or_404(Stage.objects.select_related("edition"), pk=self.kwargs["stage_id"])
+        stage = get_object_or_404(
+            Stage.objects.for_competition(self.request.competition).select_related("edition"),
+            pk=self.kwargs["stage_id"],
+        )
         params = self.request.GET
         query = params.get("q", "")
         problem_id = _int_param(params.get("problem"))
@@ -588,7 +615,7 @@ class StageAssignmentsView(CoordinatorRequiredMixin, TemplateView):
                 "paginator": paginator,
                 "problem_rows": stage_problem_rules(stage),
                 "submission_rows": page_rows,
-                "reviewer_pool": reviewer_pool(),
+                "reviewer_pool": reviewer_pool_for(self.request.competition),
                 "assigned_status": ReviewStatus.ASSIGNED,
                 "cancelled_status": ReviewStatus.CANCELLED,
                 # Odebrać można recenzję w każdym stanie poza anulowaną – także wystawioną.
@@ -636,13 +663,16 @@ class AddProblemRuleView(StageAssignmentActionView):
     """Dodanie reguły „to zadanie recenzuje ta osoba” – działa też na prace już zablokowane."""
 
     def perform(self, request, problem_id: int) -> str:
-        problem = get_object_or_404(Problem.objects.select_related("stage"), pk=problem_id)
+        problem = get_object_or_404(
+            Problem.objects.for_competition(request.competition).select_related("stage"), pk=problem_id
+        )
         self.stage_id = problem.stage_id
         form = ReviewerPickForm(request.POST)
         if not form.is_valid():
             raise DomainError("Wskaż recenzenta.", "REVIEWER_REQUIRED")
         reviewer = get_object_or_404(
-            CommitteeMember.objects.select_related("user"), pk=form.cleaned_data["reviewer_id"]
+            CommitteeMember.objects.for_competition(request.competition).select_related("user"),
+            pk=form.cleaned_data["reviewer_id"],
         )
         result = add_problem_reviewer_rule(problem, reviewer, actor=request.user, request=request)
         if result["conflicts"]:
@@ -661,7 +691,10 @@ class RemoveProblemRuleView(StageAssignmentActionView):
 
     def perform(self, request, pk: int) -> str:
         rule = get_object_or_404(
-            ProblemReviewerRule.objects.select_related("problem", "reviewer", "reviewer__user"), pk=pk
+            ProblemReviewerRule.objects.for_competition(request.competition).select_related(
+                "problem", "reviewer", "reviewer__user"
+            ),
+            pk=pk,
         )
         self.stage_id = rule.problem.stage_id
         email = rule.reviewer.user.email
@@ -680,14 +713,18 @@ class AssignSubmissionReviewerView(StageAssignmentActionView):
         from apps.submissions.models import Submission
 
         submission = get_object_or_404(
-            Submission.objects.select_related("entry", "entry__participant"), pk=submission_id
+            Submission.objects.for_competition(request.competition).select_related(
+                "entry", "entry__participant"
+            ),
+            pk=submission_id,
         )
         self.stage_id = submission.entry.stage_id
         form = ReviewerPickForm(request.POST)
         if not form.is_valid():
             raise DomainError("Wskaż recenzenta.", "REVIEWER_REQUIRED")
         reviewer = get_object_or_404(
-            CommitteeMember.objects.select_related("user"), pk=form.cleaned_data["reviewer_id"]
+            CommitteeMember.objects.for_competition(request.competition).select_related("user"),
+            pk=form.cleaned_data["reviewer_id"],
         )
         assign_reviewer_to_submission(submission, reviewer, actor=request.user, request=request)
         return (
@@ -707,7 +744,10 @@ class LockSubmissionForReviewView(StageAssignmentActionView):
         from apps.submissions.models import Submission
 
         submission = get_object_or_404(
-            Submission.objects.select_related("entry", "entry__participant"), pk=submission_id
+            Submission.objects.for_competition(request.competition).select_related(
+                "entry", "entry__participant"
+            ),
+            pk=submission_id,
         )
         self.stage_id = submission.entry.stage_id
         lock_submission_for_review(submission, actor=request.user, request=request)
@@ -722,7 +762,7 @@ class UnassignReviewView(StageAssignmentActionView):
 
     def perform(self, request, pk: int) -> str:
         review = get_object_or_404(
-            Review.objects.select_related(
+            Review.objects.for_competition(request.competition).select_related(
                 "submission",
                 "submission__entry",
                 "submission__entry__participant",
@@ -750,7 +790,7 @@ class SetReviewScoreView(StageAssignmentActionView):
 
     def perform(self, request, pk: int) -> str:
         review = get_object_or_404(
-            Review.objects.select_related(
+            Review.objects.for_competition(request.competition).select_related(
                 "submission",
                 "submission__entry",
                 "submission__entry__participant",
@@ -783,7 +823,10 @@ class OverrideFinalGradeView(StageAssignmentActionView):
         from apps.submissions.models import Submission
 
         submission = get_object_or_404(
-            Submission.objects.select_related("entry", "entry__participant"), pk=submission_id
+            Submission.objects.for_competition(request.competition).select_related(
+                "entry", "entry__participant"
+            ),
+            pk=submission_id,
         )
         self.stage_id = submission.entry.stage_id
         form = OverrideFinalGradeForm(request.POST)
@@ -841,7 +884,9 @@ class BulkAssignmentActionView(StageAssignmentActionView):
     def perform(self, request, stage_id: int) -> str:
         from apps.submissions.models import Submission
 
-        stage = get_object_or_404(Stage.objects.select_related("edition"), pk=stage_id)
+        stage = get_object_or_404(
+            Stage.objects.for_competition(request.competition).select_related("edition"), pk=stage_id
+        )
         self.stage_id = stage.pk
         action = (request.POST.get("action") or "").strip()
         if action not in self.ACTIONS:
@@ -850,7 +895,8 @@ class BulkAssignmentActionView(StageAssignmentActionView):
         if not selected:
             raise DomainError("Nie zaznaczono żadnej pracy.", "NOTHING_SELECTED")
         submissions = list(
-            Submission.objects.filter(pk__in=selected, entry__stage=stage)
+            Submission.objects.for_competition(request.competition)
+            .filter(pk__in=selected, entry__stage=stage)
             .select_related("entry", "entry__participant")
             .order_by("entry__participant__public_code", "problem__number", "pk")
         )
@@ -860,7 +906,8 @@ class BulkAssignmentActionView(StageAssignmentActionView):
             if not form.is_valid():
                 raise DomainError("Wskaż recenzenta.", "REVIEWER_REQUIRED")
             reviewer = get_object_or_404(
-                CommitteeMember.objects.select_related("user"), pk=form.cleaned_data["reviewer_id"]
+                CommitteeMember.objects.for_competition(request.competition).select_related("user"),
+                pk=form.cleaned_data["reviewer_id"],
             )
         done = 0
         # Powód → kody prac. Grupowanie po powodzie, a nie lista „praca: powód”, bo pominięcia
@@ -912,7 +959,9 @@ class ResolveModerationView(CoordinatorActionView):
     def perform(self, request, submission_id: int) -> str:
         from apps.submissions.models import Submission
 
-        submission = get_object_or_404(Submission, pk=submission_id)
+        submission = get_object_or_404(
+            Submission.objects.for_competition(request.competition), pk=submission_id
+        )
         form = ResolveModerationForm(request.POST)
         if not form.is_valid():
             raise DomainError("Podaj punkty ze skali etapu.", "SCORE_REQUIRED")
@@ -933,12 +982,15 @@ class AssignThirdReviewerView(CoordinatorActionView):
     def perform(self, request, submission_id: int) -> str:
         from apps.submissions.models import Submission
 
-        submission = get_object_or_404(Submission, pk=submission_id)
+        submission = get_object_or_404(
+            Submission.objects.for_competition(request.competition), pk=submission_id
+        )
         form = AssignThirdReviewerForm(request.POST)
         if not form.is_valid():
             raise DomainError("Wskaż recenzenta.", "REVIEWER_REQUIRED")
         reviewer = get_object_or_404(
-            CommitteeMember.objects.select_related("user"), pk=form.cleaned_data["reviewer_id"]
+            CommitteeMember.objects.for_competition(request.competition).select_related("user"),
+            pk=form.cleaned_data["reviewer_id"],
         )
         assign_third_reviewer(submission, reviewer, actor=request.user, request=request)
         return "Trzeci recenzent został wyznaczony."
@@ -948,7 +1000,9 @@ class ApproveCommitteeMemberView(CoordinatorActionView):
     """Zatwierdzenie członka komitetu (PENDING → ACTIVE + grupy)."""
 
     def perform(self, request, pk: int) -> str:
-        member = get_object_or_404(CommitteeMember.objects.select_related("user"), pk=pk)
+        member = get_object_or_404(
+            CommitteeMember.objects.for_competition(request.competition).select_related("user"), pk=pk
+        )
         approve_committee_member(member, actor=request.user)
         return "Członek komitetu został zatwierdzony."
 
@@ -963,7 +1017,10 @@ class ActivateAccountView(CoordinatorActionView):
     """
 
     def perform(self, request, pk: int) -> str:
-        user = get_object_or_404(User, pk=pk)
+        # Konto **z tego konkursu**: ręczna aktywacja i ponowienie listu są czynnościami
+        # organizatora wobec jego własnego uczestnika. Zawężenie jest to samo, co na liście kont
+        # (``users_for_competition``), żeby dwa ekrany nie miały dwóch definicji „czyje to konto”.
+        user = get_object_or_404(users_for_competition(request.competition), pk=pk)
         if user.email_verified_at is not None:
             raise DomainError("To konto jest już aktywne.", "ALREADY_ACTIVE")
         mark_activated(user, actor=request.user, action="account.activated_by_coordinator", request=request)
@@ -979,7 +1036,10 @@ class ResendActivationView(CoordinatorActionView):
     """
 
     def perform(self, request, pk: int) -> str:
-        user = get_object_or_404(User, pk=pk)
+        # Konto **z tego konkursu**: ręczna aktywacja i ponowienie listu są czynnościami
+        # organizatora wobec jego własnego uczestnika. Zawężenie jest to samo, co na liście kont
+        # (``users_for_competition``), żeby dwa ekrany nie miały dwóch definicji „czyje to konto”.
+        user = get_object_or_404(users_for_competition(request.competition), pk=pk)
         if not resend_activation(user.email, request=request):
             raise DomainError(
                 "Tego konta nie da się aktywować linkiem – adres jest już potwierdzony.",
@@ -996,7 +1056,9 @@ class VerifyDistrictView(CoordinatorActionView):
     """
 
     def perform(self, request, pk: int) -> str:
-        member = get_object_or_404(CommitteeMember.objects.select_related("user"), pk=pk)
+        member = get_object_or_404(
+            CommitteeMember.objects.for_competition(request.competition).select_related("user"), pk=pk
+        )
         form = VerifyDistrictForm(request.POST)
         if not form.is_valid():
             raise DomainError("Wybierz województwo z listy albo „— brak —”.", "DISTRICT_INVALID")
@@ -1093,7 +1155,7 @@ class ResendInvitationView(CoordinatorActionView):
     """„Wyślij ponownie”: stary kod przestaje działać, pod ten sam adres idzie nowy."""
 
     def perform(self, request, pk: int) -> str:
-        invitation = get_object_or_404(InvitationCode, pk=pk)
+        invitation = get_object_or_404(InvitationCode.objects.for_competition(request.competition), pk=pk)
         fresh = resend_invitation(invitation, actor=request.user, request=request)
         return f"Nowe zaproszenie wysłane na {fresh.email}. Poprzedni kod został unieważniony."
 
@@ -1102,7 +1164,7 @@ class RevokeInvitationView(CoordinatorActionView):
     """„Unieważnij”: kod przestaje być przyjmowany przy rejestracji, wiersz zostaje w tabeli."""
 
     def perform(self, request, pk: int) -> str:
-        invitation = get_object_or_404(InvitationCode, pk=pk)
+        invitation = get_object_or_404(InvitationCode.objects.for_competition(request.competition), pk=pk)
         revoked = revoke_invitation(invitation, actor=request.user, request=request)
         return f"Zaproszenie dla {revoked.email} zostało unieważnione."
 
@@ -1120,7 +1182,12 @@ class ComputeResultsView(CoordinatorRequiredMixin, View):
     def post(self, request, stage_id: int):
         from apps.web.views.coordinator_pages import stage_results_context
 
-        stage = get_object_or_404(Stage.objects.select_related("edition", "qualification_rule"), pk=stage_id)
+        stage = get_object_or_404(
+            Stage.objects.for_competition(request.competition).select_related(
+                "edition", "qualification_rule"
+            ),
+            pk=stage_id,
+        )
         try:
             rows = compute_stage_results(stage)
         except DomainError as exc:
@@ -1133,7 +1200,12 @@ class PublishResultsView(CoordinatorActionView):
     """Publikacja wyników: przeliczenie, kwalifikacja i zamrożenie zanonimizowanej tabeli."""
 
     def perform(self, request, stage_id: int) -> str:
-        stage = get_object_or_404(Stage.objects.select_related("edition", "qualification_rule"), pk=stage_id)
+        stage = get_object_or_404(
+            Stage.objects.for_competition(request.competition).select_related(
+                "edition", "qualification_rule"
+            ),
+            pk=stage_id,
+        )
         form = PublishResultsForm(request.POST)
         if not form.is_valid():
             raise DomainError("Wybierz tryb anonimizacji.", "INVALID_ANONYMIZATION")

@@ -57,6 +57,7 @@ from apps.web.coordinator_forms import (
     SimilarityFilterForm,
 )
 from apps.web.mixins import ActionViewMixin, CoordinatorRequiredMixin
+from apps.web.scoping import for_competition_or_unclaimed
 
 CALIBRATION_TEMPLATE = "web/coordinator/calibration.html"
 SIMILARITY_TEMPLATE = "web/coordinator/similarity.html"
@@ -64,9 +65,15 @@ SIMILARITY_PAIR_TEMPLATE = "web/coordinator/similarity_pair.html"
 CERTIFICATES_TEMPLATE = "web/coordinator/certificates.html"
 
 
-def _stage(stage_id: int) -> Stage:
-    """Etap z doczytaną edycją – stoi w nagłówku każdego z tych ekranów."""
-    return get_object_or_404(Stage.objects.select_related("edition"), pk=stage_id)
+def _stage(competition, stage_id: int) -> Stage:
+    """Etap **tego konkursu**, z doczytaną edycją – stoi w nagłówku każdego z tych ekranów.
+
+    404 dla etapu cudzego konkursu wychodzi z querysetu, a nie z gałęzi w widoku: cztery ekrany
+    tego modułu wołają tę jedną funkcję i żaden nie może jej pominąć (§ 3.6).
+    """
+    return get_object_or_404(
+        Stage.objects.for_competition(competition).select_related("edition"), pk=stage_id
+    )
 
 
 # --- 1. Kalibracja recenzentów ------------------------------------------------------------------
@@ -84,7 +91,7 @@ class StageCalibrationView(CoordinatorRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        stage = _stage(self.kwargs["stage_id"])
+        stage = _stage(self.competition, self.kwargs["stage_id"])
         result = stage_calibration(stage, sort=self.request.GET.get("sort"))
         context.update(
             {
@@ -134,7 +141,7 @@ class StageSimilarityView(CoordinatorRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        stage = _stage(self.kwargs["stage_id"])
+        stage = _stage(self.competition, self.kwargs["stage_id"])
         threshold = _threshold(self.request)
         context.update(
             {
@@ -162,7 +169,7 @@ class RecomputeSimilarityView(ActionViewMixin, CoordinatorRequiredMixin, View):
     def perform(self, request, stage_id: int) -> str:
         from apps.submissions.tasks import recompute_similarity
 
-        stage = _stage(stage_id)
+        stage = _stage(request.competition, stage_id)
         if not comparable_problems(stage):
             raise DomainError(
                 "W tym etapie nie ma zadań oddawanych jako kod – nie ma czego porównywać.",
@@ -175,9 +182,10 @@ class RecomputeSimilarityView(ActionViewMixin, CoordinatorRequiredMixin, View):
         )
 
 
-def _pair(pair_id: int) -> SubmissionSimilarity:
+def _pair(competition, pair_id: int) -> SubmissionSimilarity:
+    """Para prac **tego konkursu** albo 404 – porównanie pokazuje kod dwóch cudzych rozwiązań."""
     return get_object_or_404(
-        SubmissionSimilarity.objects.select_related(
+        SubmissionSimilarity.objects.for_competition(competition).select_related(
             "stage",
             "problem",
             "submission_a__entry__participant__user",
@@ -200,7 +208,7 @@ class SimilarityPairView(CoordinatorRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        pair = _pair(self.kwargs["pair_id"])
+        pair = _pair(self.competition, self.kwargs["pair_id"])
         if pair.stage_id != self.kwargs["stage_id"]:
             # Adres niesie etap i parę; niezgodność znaczy sklejony ręcznie odnośnik, a nie stan,
             # który ekran ma obsłużyć.
@@ -228,7 +236,7 @@ class ReportSimilarityView(ActionViewMixin, CoordinatorRequiredMixin, View):
         return reverse("web:coordinator-stage-similarity", args=[stage_id])
 
     def perform(self, request, stage_id: int, pair_id: int) -> str:
-        pair = _pair(pair_id)
+        pair = _pair(self.competition, pair_id)
         if pair.stage_id != stage_id:
             raise Http404("Ta para nie należy do wskazanego etapu.")
         reported = toggle_report(pair, actor=request.user, request=request)
@@ -257,7 +265,10 @@ class ManualQualificationView(ActionViewMixin, CoordinatorRequiredMixin, View):
         return reverse("web:coordinator-stage-simulation", args=[stage_id])
 
     def perform(self, request, entry_id: int) -> str:
-        self.entry = get_object_or_404(StageEntry.objects.select_related("participant", "stage"), pk=entry_id)
+        self.entry = get_object_or_404(
+            StageEntry.objects.for_competition(request.competition).select_related("participant", "stage"),
+            pk=entry_id,
+        )
         form = ManualQualificationForm(request.POST)
         if not form.is_valid():
             raise DomainError("Wybierz decyzję z listy.", "INVALID_DECISION")
@@ -313,7 +324,7 @@ class StageCertificatesView(CoordinatorRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        stage = _stage(self.kwargs["stage_id"])
+        stage = _stage(self.competition, self.kwargs["stage_id"])
         issued = _certificates_by_entry(stage)
         rows = compute_stage_results(stage, preview=True)
         supervisors = supervisors_for_edition(stage.edition)
@@ -343,7 +354,7 @@ class IssueCertificateView(ActionViewMixin, CoordinatorRequiredMixin, View):
         return reverse("web:coordinator-stage-certificates", args=[stage_id])
 
     def perform(self, request, stage_id: int) -> str:
-        stage = _stage(stage_id)
+        stage = _stage(request.competition, stage_id)
         form = CertificateIssueForm(request.POST)
         if not form.is_valid():
             raise DomainError("Wybierz rodzaj dokumentu.", "INVALID_CERTIFICATE_KIND")
@@ -351,13 +362,19 @@ class IssueCertificateView(ActionViewMixin, CoordinatorRequiredMixin, View):
         supervisor_id = (request.POST.get("supervisor") or "").strip()
         entry = supervisor = None
         if entry_id:
-            entry = get_object_or_404(StageEntry.objects.select_related("participant"), pk=entry_id)
+            entry = get_object_or_404(
+                StageEntry.objects.for_competition(request.competition).select_related("participant"),
+                pk=entry_id,
+            )
             if entry.stage_id != stage.pk:
                 raise Http404("Ten wpis nie należy do wskazanego etapu.")
         elif supervisor_id:
             from apps.accounts.models import SchoolSupervisor
 
-            supervisor = get_object_or_404(SchoolSupervisor, pk=supervisor_id)
+            supervisor = get_object_or_404(
+                for_competition_or_unclaimed(SchoolSupervisor.objects.all(), request.competition),
+                pk=supervisor_id,
+            )
         certificate, created = issue_certificate(
             edition=stage.edition,
             kind=form.cleaned_data["kind"],
@@ -381,7 +398,7 @@ class IssueAllCertificatesView(CoordinatorRequiredMixin, View):
     """
 
     def post(self, request, stage_id: int):
-        stage = _stage(stage_id)
+        stage = _stage(request.competition, stage_id)
         form = CertificateIssueForm(request.POST)
         if not form.is_valid():
             # Komunikat i powrót na ten sam ekran, a nie renderowanie go tutaj: strona dyplomów
@@ -417,7 +434,9 @@ class CertificateDownloadView(CoordinatorRequiredMixin, View):
 
     def get(self, request, pk: int):
         certificate = get_object_or_404(
-            Certificate.objects.select_related("edition", "entry__participant__user", "supervisor__user"),
+            Certificate.objects.for_competition(request.competition).select_related(
+                "edition", "entry__participant__user", "supervisor__user"
+            ),
             pk=pk,
         )
         return FileResponse(

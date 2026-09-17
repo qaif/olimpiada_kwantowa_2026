@@ -33,6 +33,7 @@ from apps.accounts.processing_register import (
     as_rows,
 )
 from apps.accounts.retention import anonymise_expired_editions, plan
+from apps.competitions.models import Edition
 from apps.core.exports import Dataset, csv_response
 from apps.web.mixins import CoordinatorRequiredMixin
 
@@ -79,7 +80,16 @@ class RetentionView(CoordinatorRequiredMixin, View):
         return redirect(reverse("web:coordinator-retention"))
 
     def _render(self, request):
-        plans = plan()
+        # Plan liczy serwis retencji (jedno źródło dla panelu i dla komendy
+        # ``retention_report``), a zakres konkursu dokładamy do jego wyniku: ``plan()`` chodzi po
+        # wszystkich edycjach instalacji, bo jest też wejściem operatora platformy.
+        #
+        # Ograniczenie wydania C, odnotowane wprost: **przycisk** uruchamia
+        # ``anonymise_expired_editions()`` bez zakresu, więc przebieg obejmie także edycje innych
+        # konkursów. Zawężenie wymaga argumentu w ``apps.accounts.retention`` (własność zadania
+        # T2) i należy do wydania D – patrz raport T5.
+        editions = set(Edition.objects.for_competition(request.competition).values_list("pk", flat=True))
+        plans = [item for item in plan() if item.edition.pk in editions]
         context = {
             "now": timezone.now(),
             "plans": plans,

@@ -23,8 +23,15 @@ class SupervisorRequiredMixin(RoleRequiredMixin):
     role_denied_message = "Ta strona jest dostępna wyłącznie dla opiekunów szkolnych."
 
     def has_role(self, user) -> bool:
-        return supervisor_profile(user) is not None
+        return supervisor_profile(user, self.competition) is not None
 
     @property
     def supervisor(self):
-        return supervisor_profile(self.request.user)
+        """Profil opiekuna **w konkursie z żądania**.
+
+        Konkurs podajemy wprost, choć ``supervisor_profile`` umie go wziąć z kontekstu: nauczyciel
+        bywa opiekunem w dwóch olimpiadach, a panel pod domeną jednej z nich ma pokazywać jej
+        uczniów. Zgodność z ``has_role`` wyżej jest tu warunkiem poprawności – gdyby bramka
+        pytała o inny konkurs niż ekran, dostęp i dane rozjechałyby się przy pierwszym takim koncie.
+        """
+        return supervisor_profile(self.request.user, self.competition)

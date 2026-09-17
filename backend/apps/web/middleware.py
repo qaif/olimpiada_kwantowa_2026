@@ -316,10 +316,17 @@ class ContentSecurityPolicyMiddleware:
             if is_admin_request(request):
                 response[self.header] = build_admin_policy()
             else:
+                # Pytanie jest o **witrynę tego żądania**, a nie o instalację: konkurs, który
+                # nie ma identyfikatora GA4, nie ma wymieniać hostów Google'a w swojej polityce
+                # tylko dlatego, że wpisał je organizator obok. Nagłówek Konkursu #1 zostaje przez
+                # to bajt w bajt taki, jak przed wielokonkursowością (§ 0.3, punkt 13) – pilnuje
+                # tego ``apps/tenancy/tests/test_invariants.py``.
+                #
                 # Import w środku: ``apps.cms`` ładuje modele Wagtaila, a middleware powstaje
-                # przy starcie procesu. Odczyt jest pamiętany w module (TTL), więc nie ma tu
-                # zapytania do bazy na każdy plik statyczny – patrz apps/cms/analytics.py.
-                from apps.cms.analytics import analytics_enabled
+                # przy starcie procesu. Odczyt jest pamiętany w module (TTL, klucz per witryna),
+                # więc nie ma tu zapytania do bazy na każdy plik statyczny – patrz
+                # ``apps/cms/analytics.py``.
+                from apps.cms.analytics import analytics_enabled_for_request
 
-                response[self.header] = build_policy(nonce, analytics=analytics_enabled())
+                response[self.header] = build_policy(nonce, analytics=analytics_enabled_for_request(request))
         return response

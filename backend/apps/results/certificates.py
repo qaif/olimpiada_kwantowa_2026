@@ -378,7 +378,9 @@ def _workshop_lines(certificate: Certificate) -> tuple[str, ...]:
 
     return tuple(
         ", ".join(part for part in (f"{row['date']} – {row['topic']}", row["lecturer"]) if part)
-        for row in attended_workshops(certificate.entry.participant)
+        # Warsztaty tego konkursu, a nie konkursu z kontekstu żądania: dyplom bywa generowany
+        # z zadania w tle, gdzie kontekst może wskazywać inny konkurs niż ten, którego jest dyplom.
+        for row in attended_workshops(certificate.entry.participant, certificate.edition.competition)
     )
 
 
