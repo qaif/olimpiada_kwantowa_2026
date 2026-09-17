@@ -8,24 +8,22 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
-## Niewydane (po `v0.18.0`)
+## Niewydane (po `v0.22.0`)
 
-- **`5dbb034`** — sekcje menu bocznego panelu koordynatora rozwijają się także po najechaniu kursorem
-  (tylko urządzenia wskazujące); sekcja otwarta najechaniem zamyka się po zjechaniu i nie jest
-  zapamiętywana.
-- W toku, jeszcze bez tagu wydania (katalog roboczy, wrzesień 2026): słownik szkół z miastem i jednostką
-  nadrzędną (`apps/schools/normalise.py`), układ dyplomów i **pieczęć elektroniczna PAdES**
-  (`apps/results/certificate_layout.py`, `apps/results/signing.py`, zależność `pyhanko`), a także
-  budowane równolegle **quiz** (`apps/quiz`), **rejestracja grupowa**
-  (`apps/accounts/bulk_registration.py`), **uwierzytelnianie dwuskładnikowe**
-  (`apps/accounts/twofactor.py`), **integracje zewnętrzne** (`apps/integrations`) oraz skrypty kopii
-  zapasowej (`scripts/backup.sh`, `scripts/restore.sh`). Wiersz w tej tabeli dostaną przy najbliższym
-  tagu — do tego czasu ich opis w podręcznikach jest oznaczony jako „(w przygotowaniu)”.
+- Brak — katalog roboczy jest równy tagowi `v0.22.0`.
+- Następne w kolejce, wydanie D etapu 1 (`UNIWERSALNY-ETAP-1.md` § 4.1): kolumny konkursu jako
+  `NOT NULL`, uczestnik per konkurs (`Participant.user` jako klucz obcy), unikalność kodów
+  publicznych per konkurs, jedna bieżąca edycja per konkurs, kolumny konkursu w
+  `support.SupportTicket`, `core.AuditLog`, kluczach API, webhookach i szablonach dyplomów.
 
 ## Wydania
 
 | Wersja | Data | Zmiana |
 |---|---|---|
+| **v0.22.0** | 2026-09-17 | etap 1, wydanie C: odczyty w panelach zakresowane do konkursu (`for_competition`, `current_edition(competition)`), CMS per witryna Wagtaila, komunikaty z kolumną konkursu, strona „Ustawienia konkursu” za flagą `competition_settings_page`, 14 z 15 testów izolacji zielonych |
+| **v0.21.0** | 2026-09-17 | etap 1, wydanie B: `accounts.Membership` i role per konkurs (za flagą `memberships_enforced`), nullowalne klucze obce `competition` z backfillem do Konkursu #1, `Caddyfile` generowany z `EXTRA_DOMAINS`, `pg_dump` przed migracjami w `deploy.sh`, testy izolacji i niezmienniczości |
+| **v0.20.0** | 2026-09-17 | etap 1, wydanie A: model `tenancy.Competition` 1:1 z witryną Wagtaila, `CompetitionMiddleware` i `current_competition()`, Konkurs #1 utworzony z istniejącej witryny, `create_competition` |
+| **v0.19.0** | 2026-09-17 | integracje (API, webhooki), testy online (`apps/quiz`), dyplomy 2.0 z pieczęcią PAdES, kopie zapasowe i monitoring, CI, 2FA za wyłączonym przełącznikiem, import grupowy uczniów, okręgi szkolne, dokumentacja i licencja |
 | **v0.18.0** | 2026-09-17 | scalony zduplikowany `msgid` („wersja %(version)s”), który wywracał `msgfmt` przy budowaniu obrazu |
 | **v0.17.1** | 2026-09-17 | wersja aplikacji w stopce i na `/status/` pochodzi z `APP_VERSION` (tag wdrożenia), a nie ze sztywnego „1.0” |
 | **v0.17.0** | 2026-09-16 | przebudowa układu paneli, narzędzia RODO, zgłoszenia i pomoc (support desk), FAQ, ogłoszenia i strona statusu |
