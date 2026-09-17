@@ -32,6 +32,8 @@ organizatora: zwalnia adres e-mail do ponownej rejestracji zamiast blokować go 
 
 from __future__ import annotations
 
+import logging
+
 from django.conf import settings
 from django.core import signing
 from django.db import transaction
@@ -45,6 +47,8 @@ from apps.core.api import DomainError
 from apps.core.models import audit
 
 from .models import User
+
+logger = logging.getLogger(__name__)
 
 #: Sole podpisu. Osobne dla każdego przeznaczenia, żeby token aktywacyjny nie dał się użyć jako
 #: potwierdzenie zmiany adresu (i odwrotnie) – to dwa różne uprawnienia.
@@ -119,18 +123,72 @@ def read_token(token: str, *, salt: str, max_age: int) -> dict:
     return payload
 
 
-def absolute_url(path: str, request=None) -> str:
+def _site_base_url(site) -> str:
+    """Bezwzględny adres witryny – schemat ``https`` niezależnie od ``Site.port``.
+
+    Świadome odstępstwo od ``wagtail.models.Site.root_url``, które wyprowadza schemat z portu.
+    Port witryny to ``80`` (wpisuje go migracja ``cms.0002``), bo TLS kończy się na Caddym, a nie
+    w Django – link ``http://…`` z listu dostałby więc 301 przy każdym kliknięciu, a w kliencie
+    pocztowym część odbiorców zobaczyłaby ostrzeżenie o niezabezpieczonym adresie. Port
+    niestandardowy (staging, instalacja deweloperska z jawnym portem) zostaje w adresie, bo bez
+    niego adres prowadziłby gdzie indziej.
+    """
+    host = site.hostname
+    if site.port not in (80, 443):
+        host = f"{host}:{site.port}"
+    return f"https://{host}"
+
+
+def _base_url_without_request(competition) -> str:
+    """Podstawa adresu dla wysyłki **spoza** żądania: konkurs → jego witryna → witryna domyślna.
+
+    To jest naprawa istniejącej dziury, nie nowa funkcja. Do tej zmiany odwrotem było
+    ``settings.SITE_URL`` – ustawienie, którego **nie definiuje** ani ``config/settings``, ani
+    ``.env.example``, ani compose. Skutek: każdy list wysłany z zadania Celery
+    (``remind_overdue_reviews``, ``remind_interviews``, powiadomienia o zamknięciu etapu,
+    rozstrzygnięcia reklamacji) niósł adres **względny**, czyli link, którego nie da się kliknąć
+    w kliencie pocztowym.
+
+    Kolejność źródeł ma uzasadnienie: konkurs zna swoją domenę także wtedy, gdy witryn jest kilka
+    (i to jego domena ma być w liście do jego uczestnika); witryna domyślna jest odpowiedzią
+    poprawną dla instalacji jednokonkursowej; ``WAGTAILADMIN_BASE_URL`` – dla bazy, w której
+    witryny jeszcze nie ma, i jest **zdefiniowane** (``https://{SITE_DOMAIN}``), więc instalacja
+    naprawia się sama, bez nowej zmiennej środowiskowej.
+    """
+    if competition is not None:
+        if competition.primary_domain:
+            return f"https://{competition.primary_domain}"
+        if competition.site_id:
+            return _site_base_url(competition.site)
+    try:
+        from wagtail.models import Site
+
+        site = Site.objects.filter(is_default_site=True).first()
+    except Exception:  # noqa: BLE001 - patrz docstring ``absolute_url``: list ma wyjść mimo wszystko
+        logger.warning("Nie udało się odczytać witryny domyślnej do linku w liście.", exc_info=True)
+        site = None
+    if site is not None:
+        return _site_base_url(site)
+    return (getattr(settings, "WAGTAILADMIN_BASE_URL", "") or "").rstrip("/")
+
+
+def absolute_url(path: str, request=None, competition=None) -> str:
     """Bezwzględny adres do listu.
 
     Kolejność źródeł: żądanie (tak buduje linki reset hasła – protokół bierze się
     z ``request.is_secure()``, więc za Caddy z ``SECURE_PROXY_SSL_HEADER`` wychodzi ``https``),
-    potem opcjonalne ``settings.SITE_URL`` dla wysyłek spoza żądania (komenda zarządzająca,
-    zadanie Celery). Bez żadnego z nich zostaje ścieżka – niedoskonały link jest lepszy niż
+    a poza żądaniem – konkurs: podany wprost albo wzięty z kontekstu
+    (``apps.tenancy.context.current_competition``, ustawianego przez warstwę dla żądania i przez
+    ``competition_context`` dla zadania). Szczegóły odwrotów: ``_base_url_without_request``.
+
+    Gdy nie ma **żadnego** źródła, zostaje sama ścieżka – niedoskonały link jest lepszy niż
     wywrócona wysyłka, bo operacja (założenie konta) jest już zapisana.
     """
     if request is not None:
         return request.build_absolute_uri(path)
-    base = (getattr(settings, "SITE_URL", "") or "").rstrip("/")
+    from apps.tenancy.context import current_competition
+
+    base = _base_url_without_request(competition or current_competition()).rstrip("/")
     return f"{base}{path}" if base else path
 
 

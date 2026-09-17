@@ -64,6 +64,11 @@ INSTALLED_APPS = [
     "captcha",
     "apps.cms",
     "apps.core",
+    # Konkursy (wielodostępność). **Po** ``apps.cms``, bo ``Competition`` ma klucze obce do
+    # ``wagtailcore.Site`` i ``wagtailimages.Image``, i **przed** ``apps.accounts``, bo to
+    # członkostwa i profile uczestników będą wskazywać na konkurs, a nie odwrotnie – kolejność
+    # w tej liście ma odbijać kierunek zależności.
+    "apps.tenancy",
     "apps.accounts",
     # Słownik szkół ponadpodstawowych (SIO/RSPO). Po ``apps.accounts``, bo model ``School``
     # korzysta z zamkniętej listy województw zdefiniowanej przy kontach.
@@ -128,6 +133,13 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Konkurs żądania: ``request.competition`` i zmienna kontekstowa dla kodu, który żądania nie
+    # widzi (poczta, zadania). **Za** ``AuthenticationMiddleware``, bo rozstrzygnięcie ma docelowo
+    # móc zależeć od użytkownika (przełącznik konkursu przy kilku członkostwach), i **przed**
+    # ``PreferencesMiddleware``, bo język domyślny konkursu jest niższym priorytetem niż wybór
+    # człowieka. Przy jednym konkursie warstwa niczego nie zmienia w odpowiedzi – patrz
+    # apps/tenancy/middleware.py.
+    "apps.tenancy.middleware.CompetitionMiddleware",
     # Jawny wybór człowieka: język zapisany na koncie i tryb wysokiego kontrastu. **Za**
     # ``AuthenticationMiddleware`` (czyta ``request.user``) i za ``LocaleMiddleware``, którego
     # rozstrzygnięcie ma prawo nadpisać – ustawienie konta wygrywa z ustawieniem przeglądarki.
@@ -167,6 +179,9 @@ TEMPLATES = [
                 # Język interfejsu i tryb wysokiego kontrastu – atrybut ``data-contrast`` na
                 # ``<html>`` i przełącznik „EN / PL” w pasku konta (apps/accounts/preferences.py).
                 "apps.accounts.preferences.interface",
+                # Konkurs żądania (marka w nagłówku i stopce). Przepisanie atrybutu ustawionego
+                # przez ``apps.tenancy.middleware`` – bez zapytania do bazy.
+                "apps.tenancy.context_processors.competition",
                 # Role do nawigacji (nie do autoryzacji – ta jest w mixinach i uprawnieniach DRF).
                 "apps.web.context_processors.roles",
                 # Dane prezentacyjne ramy serwisu: etykieta edycji w logotypie, wersja w stopce.

@@ -150,18 +150,35 @@ def services(now=None) -> list[ServiceStatus]:
     return [_check_database(), _check_cache(), _check_storage(), _check_queue(now)]
 
 
-def competition_state(now=None) -> dict:
+def competition_state(now=None, competition=None) -> dict:
     """Stan zawodów „na teraz”: rejestracja, etap bieżący i jego najbliższy termin.
 
     Czytamy to z tych samych funkcji, co reszta serwisu (``apps.competitions.registration``
     i ``apps.competitions.services``), bo strona statusu nie może pokazać innego stanu niż ten,
     który egzekwuje serwer – byłaby wtedy gorsza niż jej brak.
 
+    **Strona statusu jest per host.** Pod każdą domeną stoi jeden konkurs, a „trwa etap
+    eliminacyjny” bez powiedzenia, czyj, byłoby na platformie wielokonkursowej odpowiedzią
+    przypadkową. Konkurs bierzemy z argumentu albo z kontekstu żądania (ustawia go
+    ``apps.tenancy.middleware.CompetitionMiddleware``), bo widok statusu woła ``snapshot()``
+    bez argumentów – i ma tak zostać, skoro źródłem prawdy jest ta jedna funkcja.
+
+    Zakresowanie samego odczytu edycji (``current_edition(competition)``) wchodzi razem
+    z kolumną ``Edition.competition`` w zadaniu T3; tutaj konkurs jest już rozstrzygnięty
+    i wpisany do wyniku, więc zostanie wtedy do zmiany jedno wywołanie.
+
     Błąd bazy nie wywraca strony: pola zostają puste, a wiersz „baza danych” w tabeli usług i tak
     już powiedział, co się dzieje.
     """
+    from apps.tenancy.context import current_competition
+
     now = now or timezone.now()
+    competition = competition or current_competition()
     state = {
+        # Nazwa konkursu, a nie jego identyfikator: strona jest dla człowieka, a identyfikator
+        # niczego mu nie mówi. Pusty napis (host bez konkursu) szablon pomija tak samo, jak pomija
+        # pustą etykietę edycji.
+        "name": str(competition) if competition is not None else "",
         "registration_open": None,
         "registration_message": "",
         "edition": "",
@@ -189,12 +206,15 @@ def competition_state(now=None) -> dict:
     return state
 
 
-def snapshot(now=None) -> dict:
+def snapshot(now=None, competition=None) -> dict:
     """Komplet danych strony statusu – jedno źródło dla wariantu HTML i dla JSON-a.
 
     Dwa warianty tej samej strony **muszą** pokazywać to samo: monitoring zewnętrzny odpytuje
     ``/status.json``, a człowiek patrzy na ``/status/``, i rozjazd między nimi znaczyłby, że jedno
     z tych dwóch kłamie. Stąd jedna funkcja i dwa renderery nad nią.
+
+    ``competition`` podaje wołający, który konkurs zna (komenda, test); w żądaniu wystarcza
+    kontekst warstwy ``CompetitionMiddleware`` – patrz ``competition_state``.
     """
     from apps.cms.announcements import cached_announcements
     from apps.web.context_processors import APP_VERSION
@@ -209,7 +229,7 @@ def snapshot(now=None) -> dict:
         # nie istnieje, bo uczestnikowi z niedziałającym magazynem plików nie pomaga to, że baza
         # ma się dobrze.
         "all_ok": all(item.ok for item in checks),
-        "competition": competition_state(now),
+        "competition": competition_state(now, competition),
         "announcements": cached_announcements(now),
     }
 

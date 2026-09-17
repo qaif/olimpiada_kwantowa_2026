@@ -1,0 +1,255 @@
+"""Konkurs jako jednostka wielodostępności: jeden wiersz ``Competition`` na jedną ``wagtailcore.Site``.
+
+Dlaczego wariant „multi-site + wiersz właściciela”, a nie schemat na dzierżawcę: Wagtail już jest
+wielowitrynowy i już z tego korzystamy (``cms.SiteSettings`` dziedziczy po ``BaseSiteSetting``,
+``apps.cms.context_processors`` woła ``Site.find_for_request``), słownik szkół ma być wspólny,
+a konto osoby ma zostać **jedno** – uczeń bywa uczestnikiem dwóch olimpiad, nauczyciel opiekunem
+w trzech. Pełne uzasadnienie i nazwane granice tego wyboru: ``docs/UNIWERSALNY-ETAP-1.md`` § 1.2.
+
+Podział odpowiedzialności z ``cms.SiteSettings`` (żeby nie powstały dwa źródła prawdy):
+
+- **tutaj** stoi to, co jest faktem o konkursie i jego organizatorze i czego potrzebuje kod
+  **poza żądaniem HTTP** – poczta, zadania Celery, komendy, migracje: nazwa (z odmianą), dane
+  podmiotu, nadawca listów, domena, przełączniki,
+- w ``SiteSettings`` zostaje to, co jest **prezentacją serwisu** i należy do redaktora: hasło pod
+  logotypem, znak w stopce, adresy profili społecznościowych, identyfikator GA4.
+
+Pola dublujące się dziś w obu miejscach (``site_name``, ``organizer_name``, ``contact_email``)
+zostają w ``SiteSettings`` bez zmian – produkcja ma je wypełnione i tak mają zostać.
+"""
+
+from __future__ import annotations
+
+import re
+
+from django.core.exceptions import ValidationError
+from django.db import models
+from django.utils import timezone
+
+#: Dozwolony zapis koloru akcentu: sześć cyfr szesnastkowych z krzyżykiem. Skrót trzyznakowy
+#: (``#abc``) jest odrzucany celowo – wartość idzie wprost do zmiennej CSS na ``<html>``, a jeden
+#: zapis zamiast dwóch znaczy, że porównanie kolorów w panelu jest porównaniem napisów.
+HEX_COLOUR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+def validate_hex_colour(value: str) -> None:
+    """Kolor akcentu musi być pełnym zapisem szesnastkowym (``#1f6feb``).
+
+    Walidator, a nie ``choices``: paleta należy do organizatora, a nie do nas. Walidator, a nie
+    ``CharField`` bez sprawdzenia: wartość trafia do arkusza stylów jako zmienna CSS, więc napis
+    spoza tego wzorca byłby albo cichym brakiem koloru, albo wstrzyknięciem do stylu.
+    """
+    if value and not HEX_COLOUR_RE.match(value):
+        raise ValidationError(
+            "Kolor akcentu podaje się w zapisie szesnastkowym, np. #1f6feb.",
+            code="invalid_hex_colour",
+        )
+
+
+class RoutingMode(models.TextChoices):
+    """Skąd bierze się konkurs w adresie: z domeny czy z pierwszego segmentu ścieżki."""
+
+    DOMAIN = "DOMAIN", "własna domena"
+    PATH = "PATH", "prefiks ścieżki na domenie platformy"
+
+
+#: Katalog przełączników i ich wartości domyślne. Każdy z nich ma domyślnie stan **dzisiejszy**:
+#: konkurs bez ani jednego wpisu w ``feature_flags`` zachowuje się dokładnie tak, jak serwis
+#: zachowywał się przed wprowadzeniem wielokonkursowości (``docs/UNIWERSALNY-ETAP-1.md`` § 0.5).
+#:
+#: Katalog jest tu, a nie w ustawieniach, bo to jest wiedza o **modelu**: co wolno wpisać do
+#: ``feature_flags`` i co znaczy brak wpisu. Flaga spoza katalogu jest błędem wołającego, a nie
+#: wyłączoną funkcją – ``has_feature`` powie o tym wprost, zamiast po cichu oddać ``False``.
+FEATURE_DEFAULTS: dict[str, bool] = {
+    # Rozstrzyganie konkursu po pierwszym segmencie ścieżki (§ 2.3). Wyłączone: Konkurs #1 ma
+    # własną domenę, a tryb prefiksu nie rozdziela ciasteczek sesji.
+    "path_prefix_routing": False,
+    # Autoryzacja po ``accounts.Membership`` zamiast po globalnej grupie Django. Przełącza się na
+    # ``True`` dopiero po backfillu członkostw (T2) – do tego czasu regułą są grupy.
+    "memberships_enforced": False,
+    # Ekran „Ustawienia konkursu” w panelu koordynatora (T5).
+    "competition_settings_page": False,
+    # Zgody z modelu bazy zamiast ze stałej ``apps.accounts.consents.CONSENTS`` (etap 2).
+    "per_competition_consents": False,
+    # Rola opiekuna szkolnego – dziś zawsze obecna, więc domyślnie włączona.
+    "supervisor_role": True,
+    # Procedura odwoławcza – jw.
+    "appeals": True,
+    # Dyplomy i zaświadczenia – jw.
+    "certificates": True,
+}
+
+
+class Competition(models.Model):
+    """Jeden konkurs wiedzy: marka, organizator, adresowanie i przełączniki funkcji.
+
+    Konkurs jest **właścicielem** danych zawodów (edycje, uczestnicy, prace, wyniki) i zarazem
+    tożsamością, którą widzi uczestnik: nazwą w temacie listu, domeną w linku i danymi
+    administratora danych w klauzuli informacyjnej.
+
+    Konkurs #1 („Olimpiada Kwantowa”) nie powstaje z seedów, tylko z **danych już stojących
+    w produkcyjnej bazie** – patrz migracja ``0002_competition_from_site``.
+    """
+
+    # --- tożsamość ---------------------------------------------------------------------------
+    #: ``OneToOne`` z ``PROTECT``: skasowanie witryny w ``/cms/`` nie może osierocić konkursu
+    #: razem z jego edycjami, pracami i wynikami. Relacja jest jeden do jednego, bo drzewo stron
+    #: konkursu to dokładnie drzewo jego witryny – dwie witryny dla jednego konkursu znaczyłyby
+    #: dwie odpowiedzi na pytanie „jaka jest strona główna tego konkursu”.
+    site = models.OneToOneField(
+        "wagtailcore.Site",
+        on_delete=models.PROTECT,
+        related_name="competition",
+        verbose_name="witryna",
+    )
+    slug = models.SlugField("identyfikator", max_length=50, unique=True)
+    is_active = models.BooleanField("aktywny", default=True)
+    created_at = models.DateTimeField("utworzony", default=timezone.now)
+
+    # --- marka -------------------------------------------------------------------------------
+    name = models.CharField("nazwa", max_length=200)
+    short_name = models.CharField("nazwa skrócona", max_length=60, blank=True)
+    #: Odmiana nazwy własnej. Dwa pola są tańsze niż reguły fleksyjne i uczciwsze niż mianownik
+    #: w każdym zdaniu: listy piszą „komitet **Olimpiady Kwantowej**” i „udział w **Olimpiadzie
+    #: Kwantowej**”. Ten sam problem jest już opisany w ``apps/accounts/consents.py`` przy nazwie
+    #: organizatora („odmieniać cudzej nazwy własnej w kodzie nie będziemy”).
+    #: Puste pole znaczy „użyj ``name``” – patrz ``genitive`` i ``locative``.
+    genitive_name = models.CharField("nazwa w dopełniaczu", max_length=200, blank=True)
+    locative_name = models.CharField("nazwa w miejscowniku", max_length=200, blank=True)
+    tagline = models.CharField("hasło", max_length=200, blank=True)
+    #: Kolor akcentu jako wartość, nie jako arkusz stylów: szablon wystawia go jako zmienną CSS
+    #: na ``<html>``. Generowanie arkusza per konkurs unieważniałoby manifest WhiteNoise
+    #: (``CompressedManifestStaticFilesStorage``) i wymagałoby budowania statyków przy każdym
+    #: nowym konkursie – czyli wdrożenia zamiast wpisu w panelu.
+    accent_colour = models.CharField(
+        "kolor akcentu", max_length=7, blank=True, validators=[validate_hex_colour]
+    )
+    #: Logotyp i favikona przez bibliotekę obrazów Wagtaila, bo redaktor i tak wgrywa tam grafiki.
+    #: ``SET_NULL``: skasowanie obrazu ma zdjąć znak, a nie wywrócić konkurs; ``related_name="+"``,
+    #: bo od obrazu nikt nie pyta o konkurs.
+    logo = models.ForeignKey(
+        "wagtailimages.Image",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="logotyp",
+    )
+    favicon = models.ForeignKey(
+        "wagtailimages.Image",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="favikona",
+    )
+
+    # --- organizator (podmiot prawny) ---------------------------------------------------------
+    organizer_name = models.CharField("organizator", max_length=200)
+    organizer_address = models.CharField("adres", max_length=200, blank=True)
+    organizer_registry = models.CharField("dane rejestrowe", max_length=200, blank=True)
+    organizer_url = models.URLField("strona organizatora", blank=True)
+    contact_email = models.EmailField("e-mail kontaktowy", blank=True)
+    contact_phone = models.CharField("telefon", max_length=40, blank=True)
+    #: Adres inspektora ochrony danych **organizatora**: to on jest administratorem danych swoich
+    #: uczestników, a operator platformy procesorem (``docs/UNIWERSALNY-ETAP-1.md`` § 8, D5).
+    dpo_email = models.EmailField("inspektor ochrony danych", blank=True)
+
+    # --- poczta --------------------------------------------------------------------------------
+    #: Puste pola znaczą „weź ustawienie instalacji” (``DEFAULT_FROM_EMAIL``,
+    #: ``EMAIL_SUBJECT_PREFIX``). Uwaga operacyjna: relay w compose podpisuje DKIM-em jedną
+    #: domenę, więc nadawca w obcej domenie przejdzie, ale trafi do spamu – rekomendowany
+    #: układ to nadawca w domenie platformy i ``Reply-To`` na ``contact_email`` (§ 8, D6).
+    from_email = models.EmailField("nadawca listów", blank=True)
+    email_subject_prefix = models.CharField("prefiks tematu", max_length=60, blank=True)
+
+    # --- adresowanie ---------------------------------------------------------------------------
+    routing_mode = models.CharField(
+        "tryb adresowania",
+        max_length=8,
+        choices=RoutingMode.choices,
+        default=RoutingMode.DOMAIN,
+    )
+    #: Dubluje ``site.hostname`` **celowo**: witrynę zmienia redaktor w ``/cms/``, a my
+    #: potrzebujemy domeny tam, gdzie żądania nie ma – w liście z zadania Celery, w komendzie
+    #: i przy porównaniu z ``ALLOWED_HOSTS``. Zgodności pilnują ``clean()`` i sygnał
+    #: ``post_save`` na ``Site`` (``apps/tenancy/signals.py``).
+    primary_domain = models.CharField("domena główna", max_length=255, blank=True)
+    path_prefix = models.SlugField("prefiks ścieżki", max_length=40, blank=True)
+
+    # --- zachowanie ------------------------------------------------------------------------------
+    default_language = models.CharField("język domyślny", max_length=8, default="pl")
+    #: Strefa czasowa jest per konkurs, bo ``WARSAW`` w ``apps/competitions/models.py`` jest dziś
+    #: stałą modułu. Etap 1 **nie zmienia** obliczeń czasu – pole jest wypełniane i pokazywane,
+    #: a użycie go w prezentacji terminów to etap 2.
+    time_zone = models.CharField("strefa czasowa", max_length=64, default="Europe/Warsaw")
+    feature_flags = models.JSONField("przełączniki", default=dict, blank=True)
+
+    class Meta:
+        verbose_name = "konkurs"
+        verbose_name_plural = "konkursy"
+        ordering = ("name", "id")
+
+    def __str__(self) -> str:
+        return self.short_name or self.name
+
+    # --- odczyt ------------------------------------------------------------------------------
+    @property
+    def genitive(self) -> str:
+        """Nazwa w dopełniaczu, z odwrotem na mianownik. Puste pole = „nie odmieniamy”."""
+        return self.genitive_name or self.name
+
+    @property
+    def locative(self) -> str:
+        """Nazwa w miejscowniku, z odwrotem na mianownik."""
+        return self.locative_name or self.name
+
+    def has_feature(self, name: str) -> bool:
+        """Czy funkcja ``name`` jest w tym konkursie włączona.
+
+        **Jedyne** wejście do ``feature_flags``. Zapis ``competition.feature_flags.get(...)``
+        rozsiany po widokach znaczyłby, że domyślna wartość flagi jest zapisana w tylu miejscach,
+        ile jest odczytów – a wtedy pierwsza zmiana domyślnej wartości byłaby zmianą niepełną.
+
+        Nieznana nazwa podnosi ``KeyError``, zamiast oddać ``False``: literówka w nazwie flagi
+        wyglądałaby wtedy jak funkcja wyłączona przez organizatora i nikt by jej nie znalazł.
+        """
+        if name not in FEATURE_DEFAULTS:
+            raise KeyError(f"Nieznany przełącznik konkursu: {name!r}.")
+        value = (self.feature_flags or {}).get(name, FEATURE_DEFAULTS[name])
+        return bool(value)
+
+    # --- walidacja ---------------------------------------------------------------------------
+    def clean(self) -> None:
+        """Spójność adresowania: domena zgodna z witryną, prefiks obowiązkowy tylko w trybie ``PATH``.
+
+        Walidacja jest tu, a nie w formularzu panelu, bo te reguły obowiązują tak samo komendę
+        zakładającą konkurs, migrację i import – formularz jest tylko jednym z wołających.
+        """
+        super().clean()
+        errors: dict[str, str] = {}
+
+        if not self.primary_domain and self.site_id:
+            # Nie jest to „poprawka danych wpisanych przez człowieka”, tylko wypełnienie
+            # wartości, której jedynym sensownym źródłem jest witryna konkursu.
+            self.primary_domain = self.site.hostname
+
+        if self.routing_mode == RoutingMode.PATH and not self.path_prefix:
+            errors["path_prefix"] = "Tryb prefiksu ścieżki wymaga podania prefiksu."
+        if self.routing_mode == RoutingMode.DOMAIN and not self.primary_domain:
+            errors["primary_domain"] = "Tryb własnej domeny wymaga podania domeny."
+
+        if self.path_prefix:
+            # Import lokalny: ``apps.cms`` importuje modele Wagtaila, a ten moduł jest ładowany
+            # przy starcie aplikacji wcześniej. Lista slugów zarezerwowanych jest jedna dla całej
+            # instalacji – prefiks ścieżki i slug strony drugiego poziomu konkurują o ten sam
+            # pierwszy segment adresu.
+            from apps.cms.models import RESERVED_SLUGS
+
+            if self.path_prefix in RESERVED_SLUGS:
+                errors["path_prefix"] = (
+                    "Ten prefiks należy do adresów aplikacji i przechwyciłby je dla konkursu."
+                )
+
+        if errors:
+            raise ValidationError(errors)
