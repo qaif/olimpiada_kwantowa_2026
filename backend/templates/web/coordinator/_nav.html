@@ -29,8 +29,20 @@
       </form>
     {% endif %}
     {% for group in nav_groups %}
-      <div class="panel-nav__group">
-        <h2 class="panel-nav__heading">{{ group.label }}</h2>
+      {% comment %}
+        Każda sekcja jest rozwijana (``<details>``): sekcja z pozycją aktywną i pierwsza (pulpit)
+        otwierają się zawsze, pozostałe pamiętają stan w przeglądarce
+        (``static/js/coordinator-nav.js``). Bez skryptu wszystkie stoją otwarte – atrybut ``open``
+        stawia serwer, a skrypt tylko zwija to, co użytkownik zwinął wcześniej.
+      {% endcomment %}
+      <details class="panel-nav__group" data-nav-group="{{ group.slug }}"{% if group.active or forloop.first %} data-nav-pinned="1"{% endif %} open>
+        <summary class="panel-nav__heading">
+          <span class="panel-nav__heading-label">{{ group.label }}</span>
+          {% if group.badge %}
+            <span class="panel-nav__badge panel-nav__badge--group">{{ group.badge }}<span class="visually-hidden">
+              spraw czeka</span></span>
+          {% endif %}
+        </summary>
         <ul class="panel-nav__list">
           {% for item in group.items %}
             <li class="panel-nav__item">
@@ -60,7 +72,7 @@
             </li>
           {% endfor %}
         </ul>
-      </div>
+      </details>
     {% endfor %}
   </div>
 </details>

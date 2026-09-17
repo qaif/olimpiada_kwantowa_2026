@@ -38,3 +38,7 @@
   </div>
 </div>
 {% endblock %}
+{% block scripts %}{{ block.super }}
+  {# Pamięć zwiniętych sekcji menu bocznego – bez skryptu wszystkie sekcje stoją otwarte. #}
+  <script nonce="{{ request.csp_nonce }}" src="{% static 'js/coordinator-nav.js' %}" defer></script>
+{% endblock %}

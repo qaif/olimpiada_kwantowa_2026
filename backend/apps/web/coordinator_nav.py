@@ -23,6 +23,7 @@ from dataclasses import dataclass, field
 from django.core.cache import cache
 from django.db import DatabaseError
 from django.urls import NoReverseMatch, reverse
+from django.utils.text import slugify
 
 #: Wspólny klucz i czas życia liczników. Minuta, bo to rytm pracy koordynatora: badge ma
 #: powiedzieć „jest tu coś do zrobienia”, a nie służyć za zegar. Krótszy czas zamieniłby każde
@@ -427,7 +428,22 @@ def navigation(request) -> dict:
             if (item := _render_item(raw, counters, url_name, url_kwargs)) is not None
         ]
         if items:
-            rendered.append({"label": group.label, "items": items})
+            rendered.append(
+                {
+                    "label": group.label,
+                    # Klucz sekcji dla zapamiętanego stanu zwinięcia (localStorage w
+                    # ``static/js/coordinator-nav.js``) – z etykiety, bo grupy nie mają
+                    # własnych identyfikatorów, a etykieta jest stała między żądaniami.
+                    "slug": slugify(group.label),
+                    "items": items,
+                    # Sekcja z pozycją aktywną jest zawsze rozwinięta – zwinięte menu nie może
+                    # ukrywać miejsca, w którym użytkownik właśnie jest.
+                    "active": any(item["active"] or item["open"] for item in items),
+                    # Suma liczników sekcji – widoczna na zwiniętym nagłówku, żeby zwinięcie
+                    # nie chowało spraw czekających na koordynatora.
+                    "badge": sum(item["badge"] or 0 for item in items) or None,
+                }
+            )
     return {
         "nav_groups": rendered,
         "nav_counters": counters,

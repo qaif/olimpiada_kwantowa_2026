@@ -33,7 +33,7 @@ def test_nav_renders_for_the_coordinator(web_client, coordinator, elim_stage):
     assert 'aria-label="Menu panelu koordynatora"' in content
     # Sekcje menu – po nich widać, że panel ma jedną mapę, a nie listę odnośników.
     for label in ("Etapy", "Ocenianie", "Uczestnicy i konta", "Komitet", "Raporty", "Ustawienia"):
-        assert f">{label}</h2>" in content
+        assert f'<span class="panel-nav__heading-label">{label}</span>' in content
     assert "/coordinator/activations/" in content
     assert "/coordinator/committee/" in content
     assert elim_stage.display_name in content
@@ -213,3 +213,17 @@ def test_dashboard_no_longer_carries_the_moved_sections(web_client, coordinator,
     assert "Wysłane zaproszenia" not in content
     assert "Województwa członków komitetu" not in content
     assert "/coordinator/moderation/" in content
+
+
+def test_nav_groups_are_collapsible_and_the_active_group_is_pinned(web_client, coordinator, elim_stage):
+    """Sekcje menu są elementami ``<details>``; sekcja z pozycją aktywną i pulpit są przypięte."""
+    web_client.force_login(coordinator)
+
+    content = web_client.get(f"/coordinator/stages/{elim_stage.pk}/problems/").content.decode()
+
+    assert '<details class="panel-nav__group" data-nav-group="' in content
+    assert 'data-nav-group="etapy" data-nav-pinned="1" open' in content
+    assert 'data-nav-group="pulpit" data-nav-pinned="1" open' in content
+    # Sekcja bez pozycji aktywnej nie jest przypięta – skrypt może ją zwinąć z pamięci przeglądarki.
+    assert 'data-nav-group="raporty" data-nav-pinned="1"' not in content
+    assert "js/coordinator-nav.js" in content
