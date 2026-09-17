@@ -55,14 +55,32 @@ def available_languages() -> tuple[str, ...]:
     return tuple(code for code, _label in settings.LANGUAGES)
 
 
+#: Polecenie przełącznika zapisane w języku, na który przełącza. Stoi obok ``LANGUAGES`` z tego
+#: samego powodu, co etykiety: przycisk ma zaczepić oko osoby, która **nie czyta** bieżącego
+#: języka strony, więc jego nazwa dostępna nie może przechodzić przez gettext (byłaby wtedy
+#: zawsze w języku, którego ta osoba właśnie nie rozumie). Kod spoza słownika dostaje samą
+#: natywną etykietę – to nadal nazwa w dobrym języku, tylko krótsza.
+LANGUAGE_SWITCH_LABELS = {
+    "pl": "Przełącz na polski",
+    "en": "Switch to English",
+}
+
+
 def language_choices() -> list[dict]:
-    """Pozycje przełącznika języka: kod i etykieta w **tym** języku, nie w tłumaczeniu.
+    """Pozycje przełącznika języka: kod, etykieta i polecenie – w **tym** języku, nie w tłumaczeniu.
 
     „English” po polsku i „polski” po angielsku byłyby uprzejmością, która nie działa: kto szuka
     swojego języka na liście, szuka go zapisanego po swojemu. Dlatego etykiety są w ``LANGUAGES``
     zapisane natywnie i nie przechodzą przez gettext.
+
+    ``switch_label`` jest nazwą dostępną przycisku w pasku konta. Przycisk pokazuje dziś flagę
+    (organizator poprosił o ikonę zamiast napisu „EN”), a flaga jest **obrazkiem bez tekstu** –
+    bez tej etykiety czytnik ekranu przeczytałby „przycisk”, i tyle.
     """
-    return [{"code": code, "label": label} for code, label in settings.LANGUAGES]
+    return [
+        {"code": code, "label": label, "switch_label": LANGUAGE_SWITCH_LABELS.get(code, label)}
+        for code, label in settings.LANGUAGES
+    ]
 
 
 def stored_preference(user):

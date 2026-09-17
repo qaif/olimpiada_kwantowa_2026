@@ -59,4 +59,6 @@ def test_the_note_does_not_decide_whether_registration_is_open(web_client, editi
     without_note = web_client.get(REGISTER_URL).content.decode()
 
     for body in (with_note, without_note):
-        assert "Rejestracja jest otwarta" in body
+        # Formularz jest jedynym świadectwem otwartej rejestracji – zdanie o tym, że jest otwarta,
+        # zdjął organizator 15.09 (patrz ``templates/web/register.html``).
+        assert 'name="password"' in body

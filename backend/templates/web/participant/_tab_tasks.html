@@ -96,7 +96,12 @@
           <span class="badge badge--neutral">{% translate "trening" %}</span>
         {% endif %}
       </div>
-      <p class="card__meta">{% translate "Bez terminu i poza kwalifikacją – te zadania nie wpływają na wyniki zawodów. Służą do przejścia całej ścieżki: zgłoszenie, pobranie treści, wysłanie rozwiązania i odbiór oceny." %}</p>
+      {% comment %}
+        Ścieżka kończy się na wysłaniu rozwiązania, a nie na „odbiorze oceny”: prace treningowe
+        nie są sprawdzane ani oceniane (tak samo mówi hint na stronie „Zadania”), więc obietnica
+        oceny była zapowiedzią czegoś, co nigdy nie przychodzi – uwaga organizatora z 15.09.
+      {% endcomment %}
+      <p class="card__meta">{% translate "Bez terminu i poza kwalifikacją – te zadania nie wpływają na wyniki zawodów. Służą do przejścia całej ścieżki: zgłoszenie, pobranie treści, wysłanie rozwiązania." %}</p>
 
       {% if training_can_register %}
         <form method="post" action="{% url 'web:stage-register' training_stage.pk %}">

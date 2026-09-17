@@ -23,7 +23,8 @@ Co powstaje:
   są już „wersją demonstracyjną” ze starego WordPressa: metryka mówi, z jakiego eksportu
   pochodzą, a ramka na górze wskazuje PDF jako wersję źródłową,
 - **PDF-y organizatora** z ``fixtures/legacy/pdf/`` przypięte do właściwych stron: RODO, standardy
-  ochrony małoletnich i skład komitetów. To one są wersjami do wydruku i to z nich bierze się
+  ochrony małoletnich i skład komitetów, oraz – z ``fixtures/documents/`` – formularz zgody
+  opiekuna złożony u nas. To one są wersjami do wydruku i to z nich bierze się
   sekcja „Dokumenty do pobrania” na stronie głównej. Regulaminu tu **nie** ma: jego PDF, .docx
   i tekst strony to trzy postacie jednej wersji dokumentu i wgrywa je razem ``seed_regulamin``
   (rozdzielenie kończyło się stroną z nowego .docx i plikiem do pobrania ze starego PDF-u),
@@ -75,10 +76,14 @@ przed I edycją), ``zadania``
 
 - **wzór zgody opiekuna** (``/dokumenty/zgoda-opiekuna/``) nie pochodzi od organizatora: powstał
   w repozytorium, bo zgoda opiekuna w formularzu rejestracji musi mieć do czego linkować
-  (``apps.accounts.consents``). Dlatego nie ma pliku do pobrania, a metryka i ramka nad treścią
-  mówią wprost, że to wersja robocza do akceptacji – patrz README, „Decyzje do podjęcia przez
-  właściciela”. Wersja w metryce musi zgadzać się z ``apps.accounts.consents.GUARDIAN_VERSION``:
-  to ona trafia do wpisu dowodowego zgody.
+  (``apps.accounts.consents``). Metryka i ramka nad treścią mówią wprost, że to wersja robocza
+  do akceptacji – patrz README, „Decyzje do podjęcia przez właściciela”. Wersja w metryce musi
+  zgadzać się z ``apps.accounts.consents.GUARDIAN_VERSION``: to ona trafia do wpisu dowodowego
+  zgody. Od 15 września 2026 wisi przy tym dokumencie **formularz PDF do wydruku**
+  (``fixtures/documents/zgoda-opiekuna.pdf``, składany komendą ``build_guardian_consent_pdf``
+  z tego samego markdowna): organizator poprosił o szablon, a zgoda opiekuna jest jedynym
+  dokumentem tego serwisu, który ktoś wypełnia długopisem. Ramki „wersja robocza” w PDF-ie
+  nie ma – uzasadnienie w docstringu tamtej komendy.
 
 - **Zasady Organizacji Zawodów** (``/dokumenty/zoz/``) też są nasze, nie organizatora, i też są
   projektem: Regulamin w § 1 ust. 4 odsyła do ZOZ harmonogram, formę zadań, wykaz narzędzi, progi
@@ -124,7 +129,13 @@ from django.utils import timezone
 from wagtail.models import Page
 from wagtail.rich_text import RichText
 
-from apps.cms.attachments import LABEL_PDF, PDF_DIR, ensure_document, set_attachments
+from apps.cms.attachments import (
+    GENERATED_PDF_DIR,
+    LABEL_PDF,
+    PDF_DIR,
+    ensure_document,
+    set_attachments,
+)
 from apps.cms.legacy_markdown import parse_markdown
 from apps.cms.models import (
     ContentPage,
@@ -182,8 +193,12 @@ GUARDIAN_CONSENT_STATUS = "Wersja robocza do akceptacji organizatora"
 #: skala 0/2/5/6, dwie niezależne recenzje, okno reklamacji), a zapisy, których organizator jeszcze
 #: nie podjął, stoją w ostatniej sekcji dokumentu jako jawna lista decyzji – nie jako ogólnikowe
 #: zdanie udające regulację. Dlatego metryka i ramka nad treścią mówią wprost, że to projekt.
-ZOZ_VERSION = "0.1 (projekt)"
-ZOZ_DATE = date(2026, 9, 12)
+#: Wersja 0.2: poprawki redakcyjne organizatora z 15 września 2026 (m.in. „Przewodniczący Jury”
+#: zamiast koordynatora przy rozjeździe ocen, § 1 skrócony do odesłania do Harmonogramu, zakres
+#: warsztatów przeniesiony na stronę „Warsztaty”). Numer wersji i data w metryce muszą zgadzać się
+#: z ostatnią sekcją pliku ``zoz.md`` – to jedyne dwa miejsca, w których dokument mówi, co czytamy.
+ZOZ_VERSION = "0.2 (projekt)"
+ZOZ_DATE = date(2026, 9, 17)
 ZOZ_STATUS = "projekt do akceptacji organizatora"
 
 #: Polityka plików cookie jest naszym dokumentem, ale – inaczej niż ZOZ – **obowiązuje**: opisuje
@@ -460,12 +475,19 @@ class LegacyPage:
     metadata: dict = field(default_factory=dict)
     pdf: str = ""
     pdf_title: str = ""
+    #: Plik pochodzi z ``fixtures/documents/`` (złożony komendą z naszego markdowna), a nie
+    #: z ``fixtures/legacy/pdf/`` (podpisany plik organizatora). Rozróżnienie jest w danych, a nie
+    #: w ścieżce przekazywanej z zewnątrz, bo katalog źródłowy jest **cechą dokumentu** – patrz
+    #: ``apps.cms.attachments.GENERATED_PDF_DIR``.
+    pdf_generated: bool = False
 
 
 PAGES = (
     # ZOZ stoi pierwszy wśród dokumentów tej listy, bo pierwszy jest w sekcji ``/dokumenty/``
     # (zaraz za Regulaminem, którego seeduje osobna komenda ``seed_regulamin``). Pliku do pobrania
-    # nie ma – tak samo jak przy wzorze zgody opiekuna, bo to nasz projekt, a nie plik organizatora.
+    # nie ma i nie będzie: ZOZ czyta się na ekranie i zmienia razem z serwisem, więc wersją
+    # źródłową jest strona. (Wzór zgody opiekuna jest tu wyjątkiem – tam PDF jest formularzem
+    # do wypełnienia długopisem, a nie kopią treści.)
     LegacyPage(
         slug="zoz",
         title="Zasady Organizacji Zawodów (ZOZ)",
@@ -520,6 +542,15 @@ PAGES = (
             "document_date": GUARDIAN_CONSENT_DATE,
             "status_label": GUARDIAN_CONSENT_STATUS,
         },
+        # Formularz do wydruku. Organizator poprosił 15.09 o „szablon”, czyli o plik, który się
+        # pobiera, drukuje i podpisuje – wydruk strony z przeglądarki nim nie jest. Plik składa
+        # ``build_guardian_consent_pdf`` z tego samego markdowna, z którego powstaje ta strona,
+        # więc formularz i strona nie mogą powiedzieć dwóch różnych rzeczy. To także adres, pod
+        # który prowadzi etykieta zgody przy rejestracji (``consents.document_link`` bierze
+        # pierwszy PDF strony).
+        pdf="zgoda-opiekuna.pdf",
+        pdf_title="Zgoda rodzica lub opiekuna prawnego (formularz PDF)",
+        pdf_generated=True,
     ),
     LegacyPage(
         slug="standardy-ochrony-maloletnich",
@@ -583,6 +614,13 @@ class Command(BaseCommand):
 
         if not PDF_DIR.is_dir():
             raise CommandError(f"Brak katalogu z PDF-ami organizatora: {PDF_DIR}.")
+        # Brak formularza zgody opiekuna jest błędem wdrożenia, a nie stanem przejściowym: plik
+        # leży w repozytorium, a etykieta zgody przy rejestracji ma prowadzić do niego, nie do
+        # strony. Komunikat mówi, czym go odtworzyć, bo to jedyna komenda, która go składa.
+        if not GENERATED_PDF_DIR.is_dir():
+            raise CommandError(
+                f"Brak katalogu {GENERATED_PDF_DIR} – uruchom `manage.py build_guardian_consent_pdf`."
+            )
 
         # ``--only`` istnieje dla produkcji, na której ta komenda **nie** chodzi po każdym wdrożeniu:
         # pełny przebieg nadpisuje treść wszystkich stron plikami z repozytorium, więc dołożenie
@@ -814,7 +852,7 @@ class Command(BaseCommand):
         """Wgrywa PDF organizatora i przypina go do strony. Zwraca dopisek do komunikatu."""
         if not spec.pdf:
             return ""
-        source = PDF_DIR / spec.pdf
+        source = (GENERATED_PDF_DIR if spec.pdf_generated else PDF_DIR) / spec.pdf
         if not source.exists():
             raise CommandError(f"Brak pliku {source}.")
         document, action = ensure_document(spec.pdf_title, source)

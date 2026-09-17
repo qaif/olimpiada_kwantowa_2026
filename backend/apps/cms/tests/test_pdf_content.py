@@ -54,20 +54,25 @@ RODO_SECTIONS = (
     "11. Aktualizacje",
 )
 
-#: Dziesięć sekcji numerowanych plus nienumerowana „Wersja skrócona dla uczniów”, która w PDF-ie
+#: Dziewięć sekcji numerowanych plus nienumerowana „Wersja skrócona dla uczniów”, która w PDF-ie
 #: stoi między sekcją 9 a 10 i jest osobnym rozdziałem dokumentu, a nie ramką w środku sekcji.
+#:
+#: Dwa tytuły brzmią inaczej niż w PDF-ie i sekcji „10. Informacja o dokumencie” nie ma wcale –
+#: to poprawki zgłoszone przez organizatora 15 września 2026 („Internet system” było literówką,
+#: „Wdrożenie dostępność” brakiem przecinka, a metryka dokumentu dublowała metrykę strony, którą
+#: rysuje szablon ``cms/document_page.html``). Od tej chwili strona **nie jest** znak w znak
+#: przepisanym PDF-em; wersją źródłową zostaje plik do czasu, aż organizator przekaże nowy.
 STANDARDY_SECTIONS = (
     "1. Zakres i najważniejsze zasady",
     "2. Bezpieczne relacje Personelu z małoletnimi",
     "3. Weryfikacja i przygotowanie Personelu",
     "4. Bezpieczne relacje między uczestnikami",
-    "5. Internet system zawodów i wizerunek",
+    "5. Internetowy system zawodów i wizerunek",
     "6. Jak zgłosić zagrożenie lub krzywdzenie",
     "7. Procedura interwencji",
     "8. Poufność i ochrona zgłaszających",
-    "9. Wdrożenie dostępność i przegląd",
+    "9. Wdrożenie, dostępność i przegląd",
     "Wersja skrócona dla uczniów",
-    "10. Informacja o dokumencie",
 )
 
 #: Pary „Cel | Podstawa” z sekcji 3 polityki RODO. Sprawdzamy tekst, a nie znacznik: to podstawa

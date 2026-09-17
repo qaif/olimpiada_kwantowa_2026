@@ -5,7 +5,15 @@
     "poziom współpracy i opis są wartościami POCZĄTKOWYMI, bo organizator ich nie podał. Redakcja",
     "zmienia poziom, opis i kolejność w /cms/ (Strony → Partnerzy) i powtórny przebieg komendy",
     "tych zmian nie cofa – dopasowuje wpisy po nazwie partnera.",
-    "`level` musi być kluczem z PARTNER_LEVELS (apps/cms/blocks.py)."
+    "`level` musi być kluczem z PARTNER_LEVELS (apps/cms/blocks.py).",
+    "",
+    "`file` i `url` są OPCJONALNE. Pięć ostatnich wpisów to partnerzy dopisani przez organizatora",
+    "wprost w /cms/ na produkcji: ich logotypy leżą w bibliotece Wagtaila, a my nie mamy plików",
+    "źródłowych. Wpis bez `file` zakłada partnera bez logotypu (karta pokazuje inicjały) i NIGDY",
+    "nie rusza logotypu już wgranego – dzięki temu przebieg komendy na produkcji nie skasuje",
+    "obrazu, którego nie ma w repozytorium. Tak samo `url`: brak klucza znaczy „nie wiem, zostaw",
+    "to, co ustawiła redakcja”, a `\"url\": \"\"` znaczy „instytucja nie ma adresu”. Nazwy muszą być",
+    "IDENTYCZNE z tymi na produkcji – dopasowanie idzie po nazwie, więc literówka tworzy duplikat."
   ],
   "organizer": {
     "file": "qaif.png",
@@ -38,9 +46,9 @@
     },
     {
       "file": "uniwersytet-gdanski.jpg",
-      "name": "Uniwersytet Gdański",
+      "name": "Wydział Matematyki, Fizyki i Informatyki Uniwersytetu Gdańskiego",
       "level": "partner-naukowy",
-      "url": "https://ug.edu.pl/"
+      "url": "https://mfi.ug.edu.pl"
     },
     {
       "file": "aiqlab.png",
@@ -53,6 +61,26 @@
       "name": "Uniwersytet Jagielloński",
       "level": "partner-naukowy",
       "url": "https://www.uj.edu.pl/"
+    },
+    {
+      "name": "Wydział Informatyki i Telekomunikacji Politechniki Wrocławskiej",
+      "level": "partner-naukowy"
+    },
+    {
+      "name": "Wrocławskie Centrum Superkomputerowo-Sieciowe",
+      "level": "partner-instytucjonalny"
+    },
+    {
+      "name": "finQbit",
+      "level": "partner-instytucjonalny"
+    },
+    {
+      "name": "IQM",
+      "level": "partner-instytucjonalny"
+    },
+    {
+      "name": "EuroCC 3",
+      "level": "partner-instytucjonalny"
     }
   ]
 }

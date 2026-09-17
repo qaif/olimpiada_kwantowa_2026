@@ -31,6 +31,14 @@ from wagtail.models import Collection
 #: ``…/apps/cms/`` → ``…/apps/cms/fixtures/legacy/pdf/``. Oficjalne PDF-y organizatora.
 PDF_DIR = Path(__file__).resolve().parent / "fixtures" / "legacy" / "pdf"
 
+#: Pliki **złożone w repozytorium** z treści, którą sami piszemy – dziś jeden: formularz zgody
+#: opiekuna składany komendą ``build_guardian_consent_pdf`` z ``fixtures/legacy/zgoda-opiekuna.md``.
+#: Katalog jest osobny od ``PDF_DIR`` celowo: tamte pliki przyszły podpisane z zewnątrz i nie wolno
+#: ich odtworzyć, ten powstaje z pliku źródłowego jedną komendą i przy zmianie treści trzeba go
+#: przebudować. Pomylenie tych dwóch rzeczy kończy się albo nadpisaniem dokumentu organizatora,
+#: albo formularzem, który rozjechał się ze stroną.
+GENERATED_PDF_DIR = Path(__file__).resolve().parent / "fixtures" / "documents"
+
 #: Etykiety ról pliku – ta sama treść w obu komendach i w migracji danych ``cms.0007``.
 LABEL_PDF = "PDF do druku"
 LABEL_SOURCE_DOCX = "Wersja źródłowa (DOCX)"

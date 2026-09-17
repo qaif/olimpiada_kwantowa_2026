@@ -844,7 +844,13 @@ class DocumentPage(CMSPage):
         context = super().get_context(request, *args, **kwargs)
         # ``select_related`` – karta „Do pobrania” sięga po ``document.url``, ``filename``
         # i ``get_file_size`` w każdym wierszu; bez tego dwa pliki to trzy zapytania.
-        context["attachments"] = self.attachments.select_related("document")
+        attachments = list(self.attachments.select_related("document"))
+        context["attachments"] = attachments
+        # Pierwszy PDF osobno: dostaje przycisk **nad** treścią, a nie tylko wiersz w karcie
+        # „Do pobrania” niżej. Zgłoszenie organizatora dotyczyło co prawda odnośników przy
+        # zgodach, ale wynika z niego to samo pytanie czytelnika: „gdzie jest plik”. Lista
+        # jest już wczytana, więc wybór idzie po niej, a nie osobnym zapytaniem.
+        context["pdf_attachment"] = next((item for item in attachments if item.is_pdf), None)
         return context
 
 

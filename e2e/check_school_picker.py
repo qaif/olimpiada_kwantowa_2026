@@ -1,4 +1,4 @@
-"""Kontrola wyszukiwarki szkół w rejestracji: podpowiedzi, wybór z listy, ukryte ``school_id``.
+"""Kontrola wyszukiwarki szkół w rejestracji: miejscowość, podpowiedzi, wybór, ukryte ``school_id``.
 
 Uruchamiana przeciw dowolnemu adresowi (``E2E_BASE_URL``), także produkcyjnemu – zgłoszenie
 organizatora brzmiało „podałem szkołę z listy, a system kazał wybrać z listy”, czyli wybór nie
@@ -7,6 +7,12 @@ było, nie działał cały blok. Skrypt jest teraz czystym JS-em serwowanym z w�
 ta kontrola pilnuje dwóch rzeczy naraz: że podpowiedzi w ogóle są i że nic tu nie zależy od
 zewnętrznej biblioteki (asercja na ``window.Alpine`` celowo **nie** istnieje – Alpine może być
 na stronie dla innych widoków i wyszukiwarce nic do tego).
+
+Od uwag organizatora z 16.09 blok ma **dwa kroki**: najpierw miejscowość, potem szkoła. Kontrola
+sprawdza tu dokładnie to, czego nie widzi żaden test serwera: że wybór miejscowości zawęża listę
+szkół, że pusty tekst pokazuje wtedy **pełną** listę (a nie nic) i że lista doczytuje się
+przewijaniem. Bez tego „pełna lista szkół miasta” byłaby obietnicą sprawdzoną wyłącznie po stronie
+API, a poprzednia usterka tego bloku (Alpine z CDN-u) siedziała właśnie w przeglądarce.
 
 Zbieramy też błędy konsoli (CSP, 404 na skrypcie) – wypisujemy je zawsze, bo bywają jedynym
 śladem po zablokowanym zasobie.
@@ -60,7 +66,36 @@ def main() -> None:
         assert state["freeHiddenAttr"] is True, "skrypt nie ustawil atrybutu hidden"
         assert state["freeVisible"] is False, "przed zaznaczeniem kratki wolny tekst ma byc schowany"
 
-        page.select_option("#id_district", "mazowieckie")
+        # --- krok 1: miejscowość ---------------------------------------------------------------
+        page.fill("#id_school_city", "wroc")
+        page.wait_for_timeout(1200)
+        cities = page.locator("#city-suggestions li")
+        print("podpowiedzi miejscowosci:", cities.count())
+        assert cities.count() > 0, "krok miejscowosci nie zwrocil ani jednej podpowiedzi"
+        print("pierwsza miejscowosc:", cities.first.inner_text().strip()[:80])
+        cities.first.click()
+        page.wait_for_timeout(1200)
+
+        # Po wyborze miejscowości pole szkoły jest puste, a lista pokazuje **wszystkie** szkoły
+        # tego miasta – to jest odpowiedź na „po wpisaniu «wrocław» nie widać liceów”.
+        full = page.locator("#school-suggestions li")
+        print("pelna lista szkol miasta:", full.count())
+        assert page.input_value("#id_school_query") == "", "wybor miasta ma wyczyscic pole szkoly"
+        assert full.count() > 0, "po wybraniu miasta lista szkol jest pusta"
+        # Porządek: najpierw licea ogólnokształcące (apps/schools/models.py::KIND_ORDER).
+        print("pierwsza szkola:", full.first.inner_text().strip()[:80])
+
+        # Doczytywanie kolejnej strony przewinięciem listy. W mieście wojewódzkim szkół jest
+        # więcej niż mieści jedna odpowiedź, więc lista ma urosnąć.
+        before = full.count()
+        page.evaluate(
+            "() => { const l = document.getElementById('school-suggestions');"
+            " l.scrollTop = l.scrollHeight; }"
+        )
+        page.wait_for_timeout(1200)
+        print("po przewinieciu:", full.count(), "(bylo", before, ")")
+
+        # --- krok 2: szkoła --------------------------------------------------------------------
         page.fill("#id_school_query", "liceum")
         page.wait_for_timeout(1200)
         items = page.locator("#school-suggestions li")
@@ -88,12 +123,15 @@ def main() -> None:
             """() => ({
               freeVisible: FREE_VISIBLE(),
               queryDisabled: document.getElementById('id_school_query').disabled,
+              cityDisabled: document.getElementById('id_school_city').disabled,
               school_id: document.getElementById('id_school_id').value,
             })""".replace("FREE_VISIBLE()", FREE_VISIBLE)
         )
         print("po zaznaczeniu kratki:", toggled)
         assert toggled["freeVisible"] is True, "po zaznaczeniu kratki wolny tekst ma byc widoczny"
         assert toggled["queryDisabled"] is True, "wyszukiwarka ma byc wylaczona w trybie wolnego tekstu"
+        # Miejscowość jest zakresem wyszukiwarki – czynna obiecywałaby, że coś jeszcze zawęża.
+        assert toggled["cityDisabled"] is True, "pole miejscowosci ma byc wylaczone razem z wyszukiwarka"
         assert toggled["school_id"] == "", "zaznaczenie kratki ma uniewaznic wczesniejszy wybor"
 
         print("bledy konsoli:", errors or "brak")

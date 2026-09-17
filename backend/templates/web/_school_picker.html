@@ -1,7 +1,7 @@
 {% comment %}
-  Blok „szkoła” w rejestracji uczestnika: wyszukiwarka słownika SIO + jawny wyjątek dla szkół,
-  których w wykazie nie ma. Renderowany ręcznie (a nie pętlą po polach), bo cztery pola formularza
-  składają się tu na jeden komponent i muszą stać w konkretnym układzie.
+  Blok „szkoła” w rejestracji uczestnika: miejscowość → wyszukiwarka słownika SIO → jawny wyjątek
+  dla szkół, których w wykazie nie ma. Renderowany ręcznie (a nie pętlą po polach), bo pięć pól
+  formularza składa się tu na jeden komponent i muszą stać w konkretnym układzie.
 
   **Strona bez JavaScriptu działa.** Lista podpowiedzi zostaje pusta, pole „Nazwa szkoły” jest
   widoczne od początku, więc rejestracja idzie wpisaniem nazwy ręcznie. Skrypt
@@ -15,7 +15,35 @@
 {% endcomment %}
 <div class="school-picker" data-school-picker
      data-search-url="{% url 'schools:search' %}"
+     data-cities-url="{% url 'schools:cities' %}"
      data-district-field="{{ form.district.auto_id }}">
+  {% comment %}
+    Krok pierwszy: miejscowość. Doszedł po uwadze organizatora („okno wyboru szkoły po wpisaniu
+    «wrocław» nie pokazuje liceów ogólnokształcących… warto dodać pole miasta i wówczas dać pełną
+    listę szkół”). Pole jest **nieobowiązkowe** i to jest decyzja, a nie niedoróbka: wyszukiwanie
+    po samej nazwie działa jak wcześniej, a ktoś, kto zna dokładną nazwę swojej szkoły, nie ma
+    powodu przechodzić przez dwa kroki. Miejscowość jest skrótem dla tych, którzy jej nie znają.
+
+    Bez JavaScriptu pole nie robi nic poza tym, że stoi – i nic złego się nie dzieje: wartość nie
+    jedzie do serwisu (``SchoolChoiceMixin.clean`` ją zdejmuje), a rejestrację i tak kończy wpisanie
+    nazwy szkoły w widoczne poniżej pole „Nazwa szkoły”.
+  {% endcomment %}
+  <p class="school-picker__city">
+    {{ form.school_city.errors }}
+    <label for="{{ form.school_city.id_for_label }}">{{ form.school_city.label }}</label>
+    <span class="school-picker__control">
+      {{ form.school_city }}
+      <ul class="school-picker__list" id="city-suggestions" role="listbox"
+          aria-label="Podpowiedzi miejscowości" data-picker="city-list" hidden></ul>
+    </span>
+    {% comment %}
+      ``id`` jest tu obowiązkowy, a nie kosmetyczny: Django samo dokleja do kontrolki
+      ``aria-describedby="<auto_id>_helptext"``, więc podpowiedź bez tego identyfikatora jest
+      opisem, którego czytnik ekranu nie ma jak znaleźć – atrybut wskazuje wtedy na nic.
+      W ``as_p`` robi to szablon Django; ten blok renderujemy ręcznie, więc robimy to sami.
+    {% endcomment %}
+    <span class="helptext" id="{{ form.school_city.auto_id }}_helptext">{{ form.school_city.help_text }}</span>
+  </p>
   <p class="school-picker__query">
     {{ form.school_query.errors }}
     {% comment %}
@@ -35,7 +63,8 @@
       <ul class="school-picker__list" id="school-suggestions" role="listbox"
           aria-label="Podpowiedzi szkół" data-picker="list" hidden></ul>
     </span>
-    <span class="helptext">{{ form.school_query.help_text }}</span>
+    {# ``id`` z tego samego powodu, co przy miejscowości wyżej: celuje w niego ``aria-describedby``. #}
+    <span class="helptext" id="{{ form.school_query.auto_id }}_helptext">{{ form.school_query.help_text }}</span>
   </p>
   {{ form.school_id }}
   {% comment %}
@@ -43,6 +72,9 @@
     się w ciszy i wiadomo o niej tylko wtedy, gdy się ją widzi.
   {% endcomment %}
   <p class="school-picker__status visually-hidden" role="status" aria-live="polite" data-picker="status"></p>
+  {# Ten sam komunikat dla kroku „Miejscowość” – osobny, bo obie listy zmieniają się niezależnie. #}
+  <p class="school-picker__status visually-hidden" role="status" aria-live="polite"
+     data-picker="city-status"></p>
   {% comment %}
     Etykieta **przed** kratką – tak samo jak w ``as_p``, bo arkusz odwraca tę parę regułą
     ``.form p:has(> input[type=checkbox])``. Odwrotna kolejność w HTML-u dałaby tu jedyny

@@ -1,16 +1,17 @@
-"""``GET /api/schools/`` – wyszukiwarka słownika dla formularza rejestracji."""
+"""``GET /api/schools/`` i ``GET /api/schools/cities/`` – wyszukiwarka słownika dla rejestracji."""
 
 import pytest
 from rest_framework.settings import api_settings
 from rest_framework.test import APIClient
 
 from apps.accounts.models import Voivodeship
-from apps.schools.api import MAX_RESULTS, SchoolSearchView
+from apps.schools.api import MAX_RESULTS, CitySearchView, SchoolSearchView
 from apps.schools.models import SchoolKind
 
 from .factories import SchoolFactory
 
 URL = "/api/schools/"
+CITIES_URL = "/api/schools/cities/"
 
 
 @pytest.fixture
@@ -118,3 +119,162 @@ def test_endpoint_is_open_and_throttled_by_its_own_scope(api):
     # Scope musi być znany konfiguracji DRF – ``ScopedRateThrottle`` bez stawki wywraca żądanie.
     # W ``settings/test.py`` stawka jest ``None`` (limit wyłączony), ale klucz istnieje.
     assert "schools" in api_settings.DEFAULT_THROTTLE_RATES
+
+
+@pytest.mark.django_db
+def test_results_put_general_secondary_schools_first(api):
+    """Uwaga organizatora: po „wrocław” nie było widać liceów ogólnokształcących.
+
+    Przy porządku wyłącznie alfabetycznym pierwsze trafienia dużego miasta to szkoły branżowe
+    i technika przy zespołach szkół – nazwy na literę wcześniejszą niż „L”. Porządek zaczyna się
+    więc od typu: licea, technika, reszta; dopiero w obrębie typu decyduje nazwa.
+    """
+    SchoolFactory(name="BRANŻOWA SZKOŁA I STOPNIA NR 1", city="Wrocław", kind=SchoolKind.BRANZOWA_1)
+    SchoolFactory(name="ZESPÓŁ SZKÓŁ – TECHNIKUM NR 3", city="Wrocław", kind=SchoolKind.TECHNIKUM)
+    SchoolFactory(name="III LICEUM OGÓLNOKSZTAŁCĄCE", city="Wrocław", kind=SchoolKind.LO)
+
+    body = api.get(URL, {"q": "wroclaw"}).json()
+
+    assert [row["kind"] for row in body["results"]] == [
+        SchoolKind.LO,
+        SchoolKind.TECHNIKUM,
+        SchoolKind.BRANZOWA_1,
+    ]
+
+
+# --- zawężenie do miejscowości -----------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_city_narrows_the_search_to_that_city_only(api):
+    SchoolFactory(name="LICEUM NAD RZEKĄ", city="Płock")
+    SchoolFactory(name="LICEUM NAD RZEKĄ", city="Opole")
+
+    body = api.get(URL, {"q": "liceum", "city": "Opole"}).json()
+
+    assert [row["city"] for row in body["results"]] == ["Opole"]
+
+
+@pytest.mark.django_db
+def test_city_is_matched_without_diacritics(api):
+    SchoolFactory(name="XXI LICEUM OGÓLNOKSZTAŁCĄCE", city="Łódź")
+
+    body = api.get(URL, {"city": "lodz"}).json()
+
+    assert [row["city"] for row in body["results"]] == ["Łódź"]
+
+
+@pytest.mark.django_db
+def test_empty_query_with_a_city_lists_every_school_of_that_city(api):
+    """Sedno poprawki: kto nie wie, jak jego szkoła nazywa się w wykazie, ma ją przewinąć.
+
+    Bez miejscowości pusty tekst nadal nie zwraca niczego – lista „wszystkich szkół w Polsce”
+    nie jest listą, z której da się wybrać.
+    """
+    SchoolFactory(name="I LICEUM OGÓLNOKSZTAŁCĄCE", city="Kielce")
+    SchoolFactory(name="TECHNIKUM NR 2", city="Kielce", kind=SchoolKind.TECHNIKUM)
+    SchoolFactory(name="I LICEUM OGÓLNOKSZTAŁCĄCE", city="Radom")
+
+    body = api.get(URL, {"q": "", "city": "Kielce"}).json()
+
+    assert [row["name"] for row in body["results"]] == ["I LICEUM OGÓLNOKSZTAŁCĄCE", "TECHNIKUM NR 2"]
+    assert body["has_more"] is False
+    assert api.get(URL, {"q": ""}).json()["results"] == []
+
+
+@pytest.mark.django_db
+def test_the_full_city_list_is_paged_by_offset(api):
+    """Pełna lista dużego miasta nie mieści się w jednej odpowiedzi – klient doczytuje ją stronami."""
+    SchoolFactory.create_batch(MAX_RESULTS + 3, city="Kielce")
+
+    first = api.get(URL, {"city": "Kielce"}).json()
+    second = api.get(URL, {"city": "Kielce", "offset": str(MAX_RESULTS)}).json()
+
+    assert len(first["results"]) == MAX_RESULTS
+    assert first["has_more"] is True
+    assert len(second["results"]) == 3
+    assert second["has_more"] is False
+    # Strony nie zachodzą na siebie: porządek jest deterministyczny (typ, nazwa, identyfikator).
+    assert not {row["id"] for row in first["results"]} & {row["id"] for row in second["results"]}
+
+
+@pytest.mark.django_db
+def test_inactive_schools_are_absent_from_the_full_city_list(api):
+    SchoolFactory(name="LICEUM ŻYWE", city="Kielce")
+    SchoolFactory(name="LICEUM ZLIKWIDOWANE", city="Kielce", is_active=False)
+
+    body = api.get(URL, {"city": "Kielce"}).json()
+
+    assert [row["name"] for row in body["results"]] == ["LICEUM ŻYWE"]
+
+
+# --- podpowiedzi miejscowości ------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_cities_are_suggested_by_prefix_without_diacritics(api):
+    SchoolFactory(city="Łódź", voivodeship=Voivodeship.LODZKIE)
+    SchoolFactory(city="Legnica", voivodeship=Voivodeship.DOLNOSLASKIE)
+
+    body = api.get(CITIES_URL, {"q": "lod"}).json()
+
+    assert [row["city"] for row in body["results"]] == ["Łódź"]
+
+
+@pytest.mark.django_db
+def test_cities_are_distinct(api):
+    """Trzy szkoły w jednym mieście to jedna podpowiedź – inaczej lista miast byłaby listą szkół."""
+    SchoolFactory.create_batch(3, city="Wrocław", voivodeship=Voivodeship.DOLNOSLASKIE)
+
+    body = api.get(CITIES_URL, {"q": "wroc"}).json()
+
+    assert [row["city"] for row in body["results"]] == ["Wrocław"]
+
+
+@pytest.mark.django_db
+def test_cities_carry_the_voivodeship_with_a_label(api):
+    """Nazwy miast się powtarzają – bez województwa nie da się wskazać swojego."""
+    SchoolFactory(city="Brzeg", voivodeship=Voivodeship.OPOLSKIE)
+    SchoolFactory(city="Brzeg", voivodeship=Voivodeship.DOLNOSLASKIE)
+
+    rows = api.get(CITIES_URL, {"q": "brzeg"}).json()["results"]
+
+    assert len(rows) == 2
+    assert {row["voivodeship"] for row in rows} == {Voivodeship.OPOLSKIE, Voivodeship.DOLNOSLASKIE}
+    assert {row["voivodeship_label"] for row in rows} == {"opolskie", "dolnośląskie"}
+    assert set(rows[0]) == {"city", "voivodeship", "voivodeship_label"}
+
+
+@pytest.mark.django_db
+def test_city_suggestions_match_the_beginning_not_the_middle(api):
+    """Prefiks, a nie fragment: „law” w środku „Wrocław” dałby listę, w której nie widać pytania."""
+    SchoolFactory(city="Wrocław")
+
+    assert api.get(CITIES_URL, {"q": "law"}).json()["results"] == []
+
+
+@pytest.mark.django_db
+def test_city_suggestions_can_be_narrowed_by_voivodeship(api):
+    SchoolFactory(city="Brzeg", voivodeship=Voivodeship.OPOLSKIE)
+    SchoolFactory(city="Brzeg", voivodeship=Voivodeship.DOLNOSLASKIE)
+
+    rows = api.get(CITIES_URL, {"q": "brzeg", "voivodeship": Voivodeship.OPOLSKIE}).json()["results"]
+
+    assert [row["voivodeship"] for row in rows] == [Voivodeship.OPOLSKIE]
+
+
+@pytest.mark.django_db
+def test_city_suggestions_need_two_characters_and_are_capped(api):
+    for number in range(MAX_RESULTS + 5):
+        SchoolFactory(city=f"Miastko {number:02d}")
+
+    assert api.get(CITIES_URL, {"q": "m"}).json()["results"] == []
+    assert len(api.get(CITIES_URL, {"q": "miastko"}).json()["results"]) == MAX_RESULTS
+
+
+@pytest.mark.django_db
+def test_city_endpoint_is_open_and_shares_the_schools_throttle_scope(api):
+    """Ten sam formularz, ten sam koszt, ten sam limit – osobny scope byłby drugą definicją."""
+    assert api.get(CITIES_URL, {"q": "war"}).status_code == 200
+    assert CitySearchView.throttle_scope == "schools"
+    assert CitySearchView.permission_classes[0].__name__ == "AllowAny"

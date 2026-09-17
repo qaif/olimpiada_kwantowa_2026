@@ -298,14 +298,45 @@ PARTNER_LEVELS = [
 #: Ile liter inicjału pokazać, gdy partner nie ma jeszcze logotypu.
 INITIALS_LENGTH = 2
 
+#: Od tej proporcji (szerokość ÷ wysokość) logotyp jest **pasem**: napisem rozciągniętym na całą
+#: szerokość kafla i wysokim na kilkanaście pikseli.
+#:
+#: Próg nie jest gustem, tylko **proporcją kadru**. Kadr ma stałą wysokość i szerokość kolumny
+#: (ok. 273 × 128 px na ``/partnerzy/``, 313 × 96 px w pasie na stronie głównej), a
+#: ``object-fit: contain`` mieści w nim obraz w całości. Dopóki proporcja znaku jest mniejsza niż
+#: proporcja kadru (2,1 i 3,3), to **wysokość** jest ogranicznikiem – znak wypełnia kadr w pionie
+#: i dołożenie szerokości nie zmienia dla niego nic. Dopiero powyżej ogranicznikiem staje się
+#: szerokość, a wtedy druga kolumna siatki jest jedyną drogą do powiększenia napisu bez
+#: przycinania go i bez rozciągania.
+#:
+#: Stąd 3 – wartość między obiema proporcjami kadru. Na rzeczywistych plikach organizatora:
+#: godła instytutów 0,8–1,1, logotyp Wydziału Informatyki i Telekomunikacji PWr 1,1 (prawie
+#: kwadrat), Wydział Fizyki UW 2,5, IQM 2,8 – wszystkie wypełniają kadr w pionie. Znak AIQLAB-u
+#: ma 3,3, a pas PCSS-u 7,7: te dwa w jednej kolumnie rysują się wysokie odpowiednio na 82 i 35 px,
+#: choć kadr ma 128.
+#:
+#: Czego ten próg **nie** rozwiązuje: znaku prawie kwadratowego z nazwą instytucji wpisaną drobnym
+#: krojem w sam plik (właśnie logotyp PWr, na który skarżył się organizator). Tam ogranicza
+#: wysokość kadru, więc lekarstwem jest wyższy kadr w arkuszu, a nie druga kolumna.
+#:
+#: Wartość jest stałą modułu, a nie liczbą w arkuszu, bo decyzję podejmuje serwer: przeglądarka
+#: nie ma jak zapytać o proporcje pliku przed jego pobraniem, a przy ``loading="lazy"`` układ musi
+#: być gotowy wcześniej.
+WIDE_LOGO_RATIO = 3.0
+
 
 class PartnerValue(blocks.StructValue):
-    """Wartość bloku ``partner`` z inicjałami liczonymi po stronie Pythona.
+    """Wartość bloku ``partner`` z inicjałami i kwalifikacją logotypu liczonymi po stronie Pythona.
 
     Inicjały zastępują logotyp, którego dla większości partnerów po prostu nie ma (patrz
     ``docs/import/assets.md``): pusta karta wyglądałaby na błąd wczytywania obrazu. Liczymy je
     tutaj, a nie filtrem w szablonie, bo „pierwsza litera wyrazu” w nazwie typu „Uniwersytet
     im. Adama Mickiewicza” wymaga pominięcia skrótów – to reguła, nie formatowanie.
+
+    ``is_wide`` odpowiada na drugie pytanie układu: czy ten znak zmieści się w jednej kolumnie
+    siatki, czy potrzebuje dwóch, żeby dało się go przeczytać. Odpowiedź bierzemy z **wymiarów
+    zapisanych przy obrazie** (``Image.width``/``Image.height`` są kolumnami w bazie, nie odczytem
+    pliku), więc nie kosztuje ani jednego wejścia na dysk.
     """
 
     #: Wyrazy pomijane przy inicjałach: skróty i spójniki nie identyfikują instytucji.
@@ -316,6 +347,20 @@ class PartnerValue(blocks.StructValue):
         words = [word for word in re.split(r"[\s\-–—/,.]+", self.get("name", "")) if word]
         meaningful = [word for word in words if word.lower() not in self.SKIPPED_WORDS]
         return "".join(word[0] for word in (meaningful or words)[:INITIALS_LENGTH]).upper()
+
+    @property
+    def is_wide(self) -> bool:
+        """Czy logotyp jest pasem, któremu trzeba dać dwie kolumny siatki (patrz ``WIDE_LOGO_RATIO``).
+
+        Brak logotypu i wysokość zero to ``False``: karta pokazuje wtedy inicjały, a te są
+        kwadratem i nie mają czego rozciągać. Zero w mianowniku zdarza się przy obrazie wgranym
+        przed uzupełnieniem wymiarów – pytanie o proporcje nie ma wtedy odpowiedzi, a wywrócony
+        szablon strony partnerów byłby gorszy od nierozpoznanego pasa.
+        """
+        logo = self.get("logo")
+        if logo is None or not getattr(logo, "height", 0) or not getattr(logo, "width", 0):
+            return False
+        return logo.width / logo.height >= WIDE_LOGO_RATIO
 
 
 class PartnerBlock(blocks.StructBlock):

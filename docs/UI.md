@@ -58,7 +58,8 @@ sam rytm pionowy.
 - **ciemny** – `@media (prefers-color-scheme: dark)` nadpisuje **tylko tokeny** (plus trzy wyjątki
   komponentowe, opisane komentarzem w arkuszu),
 - **wysoki kontrast** – `:root[data-contrast="high"]`, czerń/biel/żółć, każda krawędź 2 px,
-  cienie zgaszone, fokus 4 px. Włącza go przełącznik „Kontrast” w pasku konta.
+  cienie zgaszone, fokus 4 px. Włącza go przełącznik w pasku konta – ikona kółka wypełnionego
+  w połowie (`.account-bar__btn--icon`, nazwa dostępna „Wysoki kontrast: włącz/wyłącz”).
 
 Jeżeli twój komponent używa wyłącznie tokenów, we wszystkich trzech wariantach wygląda poprawnie
 bez jednej dodatkowej reguły. **To jest cały kontrakt tego systemu.**

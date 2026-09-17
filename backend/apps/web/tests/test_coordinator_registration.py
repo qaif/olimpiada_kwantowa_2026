@@ -199,10 +199,16 @@ def test_without_a_current_edition_the_screen_explains_itself(web_client, coordi
 
 
 def test_register_page_shows_the_form_when_open(web_client, edition):
+    """Otwarta rejestracja poznaje się po formularzu, a nie po zdaniu o tym, że jest otwarta.
+
+    Zdanie „Rejestracja jest otwarta…” zdjął organizator 15.09: pola do wypełnienia mówią to
+    samo, a zapowiedź kolejnego kroku („zapiszesz się do etapu z panelu”) stała nad formularzem,
+    którego nikt jeszcze nie wypełnił.
+    """
     content = web_client.get(REGISTER_URL).content.decode()
 
-    assert "Rejestracja jest otwarta." in content
     assert 'name="password"' in content
+    assert "Rejestracja jest otwarta" not in content
 
 
 def test_register_page_shows_the_announcement_instead_of_the_form(web_client, edition):

@@ -255,6 +255,26 @@ def test_the_participant_block_saves_school_grade_and_voivodeship(web_client, co
     assert participant.school == "Technikum nr 3"
 
 
+def test_the_participant_block_renders_the_whole_school_picker(web_client, coordinator, participant):
+    """Ten sam blok „szkoła”, co w rejestracji – razem z krokiem „Miejscowość”.
+
+    Koordynator poprawia dane konta pod telefon od uczestnika, więc musi mieć tę samą drogę
+    do rejestru, co on: inaczej nazwa szkoły wpadałaby do bazy w dwóch brzmieniach zależnie od
+    tego, kto ją wpisał. Prefiks formularza (``participant-``) nie może rozspoić bloku – stąd
+    asercja na identyfikatory, po których wiąże się etykiety i skrypt.
+    """
+    web_client.force_login(coordinator)
+
+    body = web_client.get(edit_url(participant.user)).content.decode()
+
+    assert "data-school-picker" in body
+    assert 'data-cities-url="/api/schools/cities/"' in body
+    assert 'id="id_participant-school_city"' in body
+    assert 'data-district-field="id_participant-district"' in body
+    for hook in ("city", "city-list", "query", "school-id", "custom", "free", "free-input", "list"):
+        assert f'data-picker="{hook}"' in body, hook
+
+
 def test_an_invalid_phone_stops_the_whole_save(web_client, coordinator, participant):
     """Walidacja przed zapisem: zły numer nie ma prawa zostawić zapisanego nowego adresu e-mail."""
     web_client.force_login(coordinator)

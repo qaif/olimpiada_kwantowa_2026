@@ -129,6 +129,8 @@ class ConsentDefinitionSerializer(serializers.Serializer):
     text = serializers.CharField()
     document_slug = serializers.CharField(allow_blank=True)
     document_url = serializers.CharField(allow_blank=True)
+    # Adres, pod który prowadzi etykieta w formularzu WWW: PDF dokumentu, a bez niego strona.
+    document_link = serializers.CharField(allow_blank=True)
     version = serializers.CharField()
     required = serializers.BooleanField()
     required_for_minor = serializers.BooleanField()

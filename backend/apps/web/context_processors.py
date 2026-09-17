@@ -20,8 +20,9 @@ import os
 from django.conf import settings
 from django.db import DatabaseError
 from django.urls import reverse
+from django.utils import timezone
 
-from apps.accounts.consents import CONSENTS
+from apps.accounts.consents import CONSENTS, MINOR_MAX_AGE
 from apps.accounts.models import GROUP_APPEALS, GROUP_COORDINATOR, GROUP_PARTICIPANT
 from apps.accounts.services import active_reviewer_profile
 from apps.accounts.supervisors import supervisor_profile
@@ -39,6 +40,13 @@ APP_VERSION = os.environ.get("APP_VERSION", "dev")
 #: Statyczna krotka, więc żadnego zapytania na żądanie.
 REQUIRED_CONSENT_FIELDS: tuple[str, ...] = tuple(
     consent.field_name for consent in CONSENTS if consent.required
+)
+
+#: Nazwy pól zgód wymaganych **wyłącznie od osób niepełnoletnich**. Z tej samej definicji, co wyżej:
+#: skrypt odsłaniający blok zgody opiekuna (``static/js/register-age.js``) nie może mieć własnej
+#: listy nazw pól, bo rozjechałaby się z regułą serwera przy pierwszej zmianie zestawu zgód.
+MINOR_CONSENT_FIELDS: tuple[str, ...] = tuple(
+    consent.field_name for consent in CONSENTS if consent.required_for_minor
 )
 
 
@@ -132,6 +140,17 @@ def registration(request) -> dict:
         # oznaczenia. Zgody warunkowe („wymagane dla osób niepełnoletnich”) i dobrowolne mówią to
         # same, podpowiedzią pola – tu ich nie ma.
         "required_consent_fields": REQUIRED_CONSENT_FIELDS,
+        # Reguła niepełnoletności w postaci, którą da się postawić w atrybutach ``data-*``.
+        # Skrypt odsłaniający blok zgody opiekuna liczy dokładnie to samo, co ``consents.is_minor``
+        # (``rok bieżący − rocznik <= max_age``), ale **rok bierze stąd**, a nie z zegara
+        # przeglądarki: zegar użytkownika bywa przestawiony, a w nocy sylwestrową i tak
+        # pokazywałby inny rok niż serwer. Rozstrzyga serwer; skrypt ma tylko nie kłamać
+        # wcześniej, niż serwer zdąży odpowiedzieć.
+        "minor_rule": {
+            "max_age": MINOR_MAX_AGE,
+            "current_year": timezone.localdate().year,
+            "consent_fields": MINOR_CONSENT_FIELDS,
+        },
     }
 
 

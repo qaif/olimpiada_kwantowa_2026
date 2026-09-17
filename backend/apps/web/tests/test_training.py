@@ -59,6 +59,21 @@ def test_dashboard_offers_training_registration(web_client, participant, trainin
     assert str(TRAINING_DEADLINE.year) not in content
 
 
+def test_training_card_does_not_promise_a_mark(web_client, participant, training_stage, elim_stage):
+    """Ścieżka treningu kończy się na wysłaniu rozwiązania – prac treningowych nikt nie ocenia.
+
+    Karta obiecywała „odbiór oceny”, a strona „Zadania” w tym samym serwisie mówiła wprost, że
+    rozwiązania treningowe nie są sprawdzane ani oceniane. Organizator zdjął tę obietnicę 15.09:
+    zapowiedź czegoś, co nigdy nie przychodzi, kosztuje więcej niż brak zapowiedzi.
+    """
+    web_client.force_login(participant.user)
+
+    content = web_client.get("/me/").content.decode()
+
+    assert "wysłanie rozwiązania." in content
+    assert "odbiór oceny" not in content
+
+
 def test_participant_registers_to_training_and_sees_upload(
     web_client, participant, training_stage, training_problems, elim_stage
 ):

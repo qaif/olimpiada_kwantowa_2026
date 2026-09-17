@@ -1,20 +1,14 @@
 # Zasady Organizacji Zawodów – I edycja 2026/2027
 
-> Wersja robocza (0.1) do akceptacji organizatora – treść nie została jeszcze zatwierdzona przez Fundację Quantum AI ani sprawdzona przez Komitet Merytoryczny. Do tego czasu dokument służy wyłącznie jako projekt: wiążą Regulamin i Harmonogram, a nie ten tekst. Zapisy wymagające decyzji organizatora są wypisane w ostatniej sekcji.
+> Wersja robocza (0.2) do akceptacji organizatora – treść nie została jeszcze zatwierdzona przez Fundację Quantum AI ani sprawdzona przez Komitet Merytoryczny. Do tego czasu dokument służy wyłącznie jako projekt: wiążą Regulamin i Harmonogram, a nie ten tekst. Zapisy wymagające decyzji organizatora są wypisane w ostatniej sekcji.
 
 Zasady Organizacji Zawodów (dalej „ZOZ”) I edycji Olimpiady Kwantowej 2026/2027. Dokument powstaje na podstawie § 1 ust. 4 [Regulaminu Olimpiady Kwantowej](/dokumenty/regulamin/): Regulamin określa zasady stałe, a ZOZ – szczegóły jednej edycji, w szczególności harmonogram, formę zadań, wykaz dozwolonych narzędzi, maksymalną liczbę finalistów, progi punktowe oraz literaturę i program merytoryczny.
 
-Zgodnie z § 1 ust. 5 Regulaminu sprzeczność ZOZ z Regulaminem rozstrzyga się **na korzyść Regulaminu**. Dokumenty edycji należy czytać łącznie: Regulamin, ZOZ, [Harmonogram](/harmonogram/), [program warsztatów](/warsztaty/), [Politykę RODO](/dokumenty/rodo/) i [Standardy ochrony małoletnich](/dokumenty/standardy-ochrony-maloletnich/).
-
-Organizatorem Olimpiady jest Fundacja Quantum AI z siedzibą w Warszawie, ul. Sanocka 9/103, 02-110 Warszawa (KRS 0000808359, NIP 7010955891, REGON 384899425). Kontakt: contact@qaif.org.
+Zgodnie z § 1 ust. 5 Regulaminu sprzeczność ZOZ z Regulaminem rozstrzyga się **na korzyść Regulaminu**. Dokumenty edycji należy czytać łącznie: [Regulamin](/dokumenty/regulamin/), ZOZ, [Harmonogram](/harmonogram/), [program warsztatów](/warsztaty/), [Politykę RODO](/dokumenty/rodo/) i [Standardy ochrony małoletnich](/dokumenty/standardy-ochrony-maloletnich/).
 
 ## § 1. Harmonogram edycji
 
-Terminów zawodów **nie podaje ten dokument**. Wszystkie terminy – otwarcie i zamknięcie każdego etapu, termin recenzji oraz okno reklamacji – określa [Harmonogram na stronie Olimpiady](/harmonogram/). Harmonogram czyta terminy wprost z systemu zawodów, czyli z tych samych wartości, które zamykają przyjmowanie rozwiązań i otwierają okno reklamacji. Dzięki temu nie istnieje wersja terminarza rozbieżna z tym, co egzekwuje serwer, a każda decyzja organizatora o przesunięciu terminu jest widoczna na stronie od razu.
-
-O zachowaniu terminu rozstrzyga **czas serwera**, a nie czas na urządzeniu uczestnika. Zmiany terminów ogłasza organizator w aktualnościach; zakres dopuszczalnych zmian w trakcie edycji określa § 10 ust. 4 i § 23 Regulaminu (siła wyższa, awaria, bezpieczeństwo, ochrona równego traktowania).
-
-Rejestracja uczestników jest prowadzona elektronicznie i otwiera się w dniu ogłoszonym na stronie głównej i w Harmonogramie. Za datę zgłoszenia uważa się chwilę zapisania kompletnego formularza w systemie (§ 4 ust. 1 Regulaminu). Uczestnik niepełnoletni bierze udział za zgodą rodzica albo opiekuna prawnego – patrz [wzór zgody](/dokumenty/zgoda-opiekuna/).
+Wszystkie terminy – otwarcie i zamknięcie każdego etapu, termin recenzji oraz okno reklamacji – określa [Harmonogram na stronie Olimpiady](/harmonogram/).
 
 ## § 2. Struktura zawodów i forma poszczególnych etapów
 
@@ -78,23 +72,23 @@ Prace są oznaczane losowym kodem i oceniane bez ujawniania oceniającym imienia
 Każda praca trafia do **dwóch niezależnych recenzentów**, którzy oceniają ją osobno i nie widzą ocen ani komentarzy drugiej osoby. Dalszy tryb zależy od wyniku:
 
 1. **oceny zgodne** – ocena zgodna staje się oceną wstępną pracy (tryb „konsensus”), bez udziału osoby rozstrzygającej,
-2. **oceny różne** – praca trafia do moderacji. Rozjazd rozstrzyga koordynator albo wyznaczony **trzeci recenzent (rozjemca)**. Rozjemca widzi obie oceny rundy pierwszej wraz z ich uzasadnieniami wewnętrznymi, ale **nie wie, kto je wystawił** – runda druga ma być niezależna, a nie arbitrażem między nazwiskami. Trzecim recenzentem nie może być autor żadnej z ocen rundy pierwszej.
+2. **oceny różne** – praca trafia do moderacji. Rozjazd rozstrzyga Przewodniczący Jury albo wyznaczony **trzeci recenzent (rozjemca)**. Rozjemca widzi obie oceny rundy pierwszej wraz z ich uzasadnieniami wewnętrznymi, ale **nie wie, kto je wystawił** – runda druga ma być niezależna, a nie arbitrażem między nazwiskami. Trzecim recenzentem nie może być autor żadnej z ocen rundy pierwszej.
 
 Rozstrzygnięcie rozjazdu zawsze mieści się w skali punktowej etapu – system nie dopuszcza oceny spoza skali ani wartości pośredniej.
 
-Konflikt interesów wyłącza recenzenta z oceniania pracy: w etapie prowadzonym w podziale na województwa nie ocenia jej ani recenzent z tego samego województwa co uczestnik, ani recenzent, którego województwo nie zostało potwierdzone przez koordynatora – dopóki nie jest potwierdzone, nie da się wykazać, że konfliktu nie ma. Niezależnie od tego obowiązuje § 5 ust. 6 Regulaminu: członek Jury, którego bezstronność może budzić uzasadnione wątpliwości, ujawnia konflikt i nie bierze udziału w ocenie.
+Konflikt interesów wyłącza recenzenta z oceniania pracy. Obowiązuje § 5 ust. 6 Regulaminu: członek Jury, którego bezstronność może budzić uzasadnione wątpliwości, ujawnia konflikt i nie bierze udziału w ocenie.
 
 Błąd techniczny albo oczywista omyłka rachunkowa w ocenie podlega sprostowaniu również z urzędu (§ 9 ust. 4 Regulaminu).
 
 ## § 7. Informacja zwrotna dla uczestnika
 
-Po opublikowaniu wyników etapu uczestnik widzi w panelu swoją punktację **po zadaniach** oraz – jeżeli recenzenci ją przygotowali – komentarz dla uczestnika i publiczne adnotacje do pracy. Do uczestnika nigdy nie trafiają: uzasadnienia wewnętrzne recenzentów, tożsamość recenzenta ani liczba osób, które pracę oceniały.
+Po opublikowaniu wyników etapu uczestnik widzi w panelu swoją punktację **dla każdego zadania** oraz – jeżeli recenzenci ją przygotowali – komentarz dla uczestnika i publiczne adnotacje do pracy. Do uczestnika nigdy nie trafiają: uzasadnienia wewnętrzne recenzentów, tożsamość recenzenta ani liczba osób, które pracę oceniały.
 
 Punkty w panelu uczestnika są pokazywane **na bieżąco**. Jeżeli komisja zmieniła ocenę po ogłoszeniu tabeli, panel pokazuje obie liczby: wynik aktualny i wynik z ogłoszonej tabeli, wraz z informacją o różnicy.
 
 ## § 8. Reklamacje
 
-Reklamację na ocenę wstępną składa się **przez system**, w oknie reklamacji ogłoszonym w [Harmonogramie](/harmonogram/) dla danego etapu. Zgodnie z § 16 ust. 1 Regulaminu okno to nie może być krótsze niż 3 dni robocze od udostępnienia wyniku wstępnego. Okno otwiera się po terminie recenzji i zamyka w dniu podanym w Harmonogramie; po jego zamknięciu system nie przyjmuje już reklamacji.
+Reklamację na ocenę wstępną składa się **przez system**, w oknie czasowym reklamacji ogłoszonym w [Harmonogramie](/harmonogram/) dla danego etapu. Zgodnie z § 16 ust. 1 Regulaminu okno to nie może być krótsze niż 3 dni robocze od udostępnienia wyniku wstępnego. Okno otwiera się po terminie oceny i zamyka w dniu podanym w Harmonogramie; po jego zamknięciu system nie przyjmuje już reklamacji.
 
 Zasady formalne:
 
@@ -103,7 +97,7 @@ Zasady formalne:
 - uzasadnienie musi mieć co najmniej **50 znaków** i nie więcej niż **20 000 znaków**; tekst dłuższy jest odrzucany, a nie obcinany, bo obcięcie skasowałoby część odwołania,
 - reklamacja wskazuje zadanie lub zdarzenie, kwestionowany element i konkretne uzasadnienie. Sama niezgoda z poziomem trudności, modelem rozwiązania albo opublikowanym kryterium nie wystarcza bez wskazania błędu w jego zastosowaniu (§ 16 ust. 2 Regulaminu).
 
-Reklamację rozpoznaje Komisja Odwoławcza. Osoba, która wystawiła którąkolwiek z ocen tej pracy (rundy pierwszej albo rozjemczej), **nie może** rozstrzygać reklamacji na nią i nie widzi jej nawet na liście spraw. Komisja może podwyższyć, utrzymać albo obniżyć punktację, jeżeli ponowna ocena ujawni błąd; każda decyzja wymaga uzasadnienia. Odpowiedź przekazuje się co do zasady w ciągu 7 dni roboczych, a decyzja Komisji Odwoławczej w sprawie oceny jest ostateczna w toku Olimpiady (§ 16 ust. 3–4 Regulaminu).
+Reklamację rozpoznaje Komisja Odwoławcza. Osoba, która wystawiła którąkolwiek z ocen tej pracy, **nie może** rozstrzygać reklamacji na nią i nie widzi jej nawet na liście spraw. Komisja może podwyższyć, utrzymać albo obniżyć punktację, jeżeli ponowna ocena ujawni błąd; każda decyzja wymaga uzasadnienia. Odpowiedź przekazuje się co do zasady w ciągu 7 dni roboczych, a decyzja Komisji Odwoławczej w sprawie oceny jest ostateczna w toku Olimpiady (§ 16 ust. 3–4 Regulaminu).
 
 Rozwiązania, na które nie złożono reklamacji, stają się ostateczne automatycznie po zamknięciu okna reklamacji.
 
@@ -117,7 +111,7 @@ Listę rankingową tworzy się według łącznej liczby punktów, malejąco.
 
 **Remisy.** Ten sam wynik oznacza **tę samą lokatę (ex aequo)**: przy dwóch uczestnikach z najlepszym wynikiem obaj zajmują miejsce 1, a następny – miejsce 3. Kolejność wierszy w obrębie remisu jest techniczna (po kodzie uczestnika) i nie jest informacją o tym, kto był lepszy. Remis na granicy progu rozstrzyga się **na korzyść uczestników**: jeżeli próg opisany jest liczbą miejsc, do następnego etapu przechodzą wszyscy z wynikiem równym wynikowi na ostatnim premiowanym miejscu, choćby było ich więcej niż zakładana liczba miejsc. Reguła ta wymaga potwierdzenia organizatora – patrz ostatnia sekcja.
 
-**Progi kwalifikacji.** Próg do następnego etapu ma jedną z czterech postaci: minimalna liczba punktów, określona liczba najlepszych wyników, określona liczba najlepszych wyników w każdym województwie albo połączenie minimum punktowego z liczbą miejsc. Dla I edycji ustawiony jest próg **minimum punktowego: co najmniej 1 punkt**; Regulamin progów nie podaje i odsyła do tego dokumentu. Pozostałe progi wymagają decyzji organizatora.
+**Progi kwalifikacji.** Próg do następnego etapu ma jedną z czterech postaci: minimalna liczba punktów, określona liczba najlepszych wyników, określona liczba najlepszych wyników w każdym województwie albo połączenie minimum punktowego z liczbą miejsc. Dla I edycji ustawiony jest próg **minimum punktowego: co najmniej 1 punkt**; Regulamin progów nie podaje i odsyła do tego dokumentu. Pozostałe progi wymagają decyzji Jury.
 
 Wynik 0 punktów nigdy nie kwalifikuje: w progu opisanym liczbą miejsc kandydatem jest wyłącznie ten, kto zdobył choć jeden punkt. Dyskwalifikacja jest decyzją proceduralną, a nie wynikiem punktowym – osoba zdyskwalifikowana nie zajmuje miejsca w progu.
 
@@ -125,7 +119,7 @@ Progi i kwalifikację liczy się **dopiero po zamknięciu okna reklamacji**, nig
 
 ## § 10. Publikacja wyników i ochrona danych uczestników
 
-Publikacja **zamraża** tabelę wyników: to, co widzi publiczność, jest kopią z chwili ogłoszenia, a nie widokiem bieżących danych. Ponowna publikacja nadpisuje tę samą tabelę i zostawia ślad w rejestrze zdarzeń.
+Publikacja **zamraża** tabelę wyników: to, co jest widoczne, jest kopią z chwili ogłoszenia, a nie widokiem bieżących danych. Ponowna publikacja nadpisuje tę samą tabelę i zostawia ślad w rejestrze zdarzeń.
 
 Tabela publiczna zawiera wyłącznie: lokatę, podpis uczestnika, punkty za poszczególne zadania, sumę i informację o kwalifikacji. Nie zawiera adresu e-mail, roku urodzenia ani identyfikatorów kont. Podpis uczestnika ma jedną z trzech postaci:
 
@@ -145,7 +139,7 @@ Przebieg:
 2. terminy rozmów wyznacza koordynator; każdy termin ma godziny, liczbę miejsc i – gdy komisji jest kilka – oznaczenie komisji. Kilka komisji może rozmawiać równolegle, więc dwa terminy o tych samych godzinach są normalną sytuacją,
 3. uczestnik **sam zapisuje się w panelu** na jeden wybrany termin. W etapie przypada na uczestnika dokładnie jedna rozmowa; zmiana terminu jest przeniesieniem zapisu, a nie drugim zapisem,
 4. po zapisaniu system wysyła potwierdzenie na adres e-mail konta: etap, data i godziny rozmowy w czasie polskim, oznaczenie komisji i link do spotkania,
-5. **link do rozmowy widzi wyłącznie osoba zapisana na dany termin** – adres pokoju wideo, do którego wchodzi się bez logowania, jest w praktyce poświadczeniem. Ten sam link jest w panelu, więc zagubiony list nie odcina od rozmowy,
+5. **link do rozmowy widzi wyłącznie osoba zapisana na dany termin oraz członkowie Jury**. Ten sam link jest w panelu, więc zagubiony list nie odcina od rozmowy,
 6. termin można zmienić albo odwołać **do chwili jego rozpoczęcia**. Po rozpoczęciu rozmowy zapis jest zamknięty; po zamknięciu etapu nie działają ani zapisy, ani rezygnacje.
 
 Wszystkie terminy rozmów mieszczą się w oknie etapu ogłoszonym w [Harmonogramie](/harmonogram/) – termin poza tym oknem byłby terminem, którego nie ma w terminarzu.
@@ -158,7 +152,7 @@ Sposób wyliczenia wyniku kwalifikacyjnego po Etapie II, o którym mowa w § 12 
 
 ## § 12. Etap III – finał stacjonarny
 
-Finał odbywa się **stacjonarnie w Krakowie**, w warunkach kontrolowanej samodzielności, w terminie podanym w [Harmonogramie](/harmonogram/) (4–7 czerwca 2027). Do finału dopuszcza się wyłącznie osoby zakwalifikowane po Etapie II. Przed rozpoczęciem zawodów każdy uczestnik okazuje dokument ze zdjęciem oraz potwierdzenie statusu ucznia (§ 13 ust. 2 Regulaminu).
+Finał odbędzie się **stacjonarnie w Krakowie**, w warunkach kontrolowanej samodzielności, w terminie podanym w [Harmonogramie](/harmonogram/) (4–7 czerwca 2027). Do finału dopuszcza się wyłącznie osoby zakwalifikowane po Etapie II. Przed rozpoczęciem zawodów każdy uczestnik okazuje dokument ze zdjęciem oraz potwierdzenie statusu ucznia (§ 13 ust. 2 Regulaminu).
 
 Finał może obejmować zadania teoretyczne, obliczeniowe, problemowe, programistyczne, analizę danych albo część doświadczalną. **Liczbę sesji, czas ich trwania, wyposażenie stanowisk i zasady oddawania prac ustala organizator i publikuje przed finałem** – te wartości nie są jeszcze rozstrzygnięte i są wypisane w ostatniej sekcji.
 
@@ -176,18 +170,11 @@ Tytuły finalisty i laureata mają charakter **wewnętrzny**: potwierdzają wyni
 
 ## § 13. Program merytoryczny i literatura
 
-Program merytoryczny I edycji jest wyznaczony przez **zakres warsztatów przygotowawczych**, prowadzonych online i bezpłatnie od października 2026 do lutego 2027. Pełna lista tematów wraz z terminami znajduje się na stronie [warsztatów](/warsztaty/) i w [Harmonogramie](/harmonogram/); zakres obejmuje:
-
-- narzędzia matematyczne: liczby zespolone, algebra liniowa, rachunek prawdopodobieństwa i statystyka, elementy analizy matematycznej,
-- podstawy fizyczne: podstawy mechaniki kwantowej i podstawowe układy kwantowe,
-- obliczenia kwantowe: kubity, bramki, obwody i pomiary; podstawowe algorytmy kwantowe,
-- kwantowa teoria informacji: splątanie i twierdzenie Bella, kryptografia kwantowa,
-- realizacje i inżynieria: realizacje komputerów kwantowych, korekcja i mitygacja błędów, podstawy metrologii kwantowej,
-- warsztat praktyczny: narzędzia informatyczne, oprogramowanie kwantowe, analiza danych i obliczenia naukowe.
+Program merytoryczny I edycji jest wyznaczony przez **zakres warsztatów przygotowawczych**, prowadzonych online i bezpłatnie od października 2026 do lutego 2027. Zakres tematyczny podaje strona [Warsztaty](/warsztaty/); terminy poszczególnych spotkań są także w [Harmonogramie](/harmonogram/).
 
 Zakres rozmowy w Etapie II oraz zadań finału obejmuje cały program merytoryczny, a nie tylko zagadnienia poruszone w zadaniach Etapu I.
 
-**Wykazu literatury** dla I edycji organizator jeszcze nie ogłosił – patrz ostatnia sekcja. Do jego publikacji zakres wymaganej wiedzy wyznaczają tematy warsztatów wymienione powyżej.
+**Wykazu literatury** dla I edycji organizator jeszcze nie ogłosił – patrz ostatnia sekcja. Do jego publikacji zakres wymaganej wiedzy wyznaczają tematy warsztatów podane na stronie [Warsztaty](/warsztaty/).
 
 ## § 14. Poufność zadań i rozwiązań
 
@@ -226,7 +213,7 @@ Poniższe zapisy są wymagane przez Regulamin, ale nie zostały jeszcze przekaza
 
 ## § 17. Wersja dokumentu
 
-Wersja: 0.1 (projekt), 12 września 2026 r. Status: projekt do akceptacji organizatora. Dokument nie wchodzi w życie przed zatwierdzeniem przez Fundację Quantum AI; do tego czasu obowiązują wyłącznie [Regulamin](/dokumenty/regulamin/) i ogłoszony [Harmonogram](/harmonogram/).
+Wersja: 0.2 (projekt), 17 września 2026 r. Status: projekt do akceptacji organizatora. Dokument nie wchodzi w życie przed zatwierdzeniem przez Fundację Quantum AI; do tego czasu obowiązują wyłącznie [Regulamin](/dokumenty/regulamin/) i ogłoszony [Harmonogram](/harmonogram/).
 
 Zmiany ZOZ ogłasza się na stronie Olimpiady. Po rozpoczęciu rejestracji dopuszczalne są jedynie zmiany konieczne z powodu prawa, bezpieczeństwa albo zdarzeń nadzwyczajnych, które nie pogarszają w sposób nieproporcjonalny sytuacji uczestników (§ 24 ust. 2 Regulaminu).
 

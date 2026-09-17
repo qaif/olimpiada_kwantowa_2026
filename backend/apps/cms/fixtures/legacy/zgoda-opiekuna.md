@@ -8,7 +8,7 @@ Administratorem danych osobowych jest Fundacja Quantum AI z siedzibą w Warszawi
 
 ## Jak dostarczyć podpisany dokument
 
-1. Wydrukuj tę stronę (przycisk „Drukuj” u góry) albo pobierz plik do wydruku, jeśli jest już dostępny.
+1. Pobierz formularz w wersji do wydruku (plik PDF w sekcji „Do pobrania” na tej stronie) albo wydrukuj tę stronę przyciskiem „Drukuj” u góry.
 2. Wypełnij i podpisz oświadczenie – podpisuje je rodzic albo opiekun prawny uczestnika.
 3. Prześlij czytelny skan lub zdjęcie na adres contact@qaif.org z tematem „Zgoda opiekuna – Olimpiada Kwantowa”, podając kod uczestnika (OLM-…) widoczny w panelu.
 4. Zamiast skanu można okazać oryginał podczas etapu stacjonarnego – wtedy dokument zbiera komisja na miejscu.
@@ -67,6 +67,15 @@ Ta rubryka jest **dobrowolna** i niezależna od zgody na udział. Jej brak nie w
 - NIE wyrażam takiej zgody: ☐
 
 Tę zgodę uczestnik może w każdej chwili wyrazić albo wycofać samodzielnie w panelu uczestnika, w sekcji „Twoje zgody”.
+
+## Zgoda dodatkowa: publikacja wizerunku
+
+Ta rubryka jest **dobrowolna** i niezależna od zgody na udział oraz od zgody na publikację imienia i nazwiska. Dotyczy zdjęć i nagrań z wydarzeń Olimpiady (warsztaty, finał stacjonarny, uroczystość ogłoszenia wyników) publikowanych na stronie Olimpiady i w profilach organizatora. Jej brak nie wpływa na udział uczestnika ani na jego wynik.
+
+- TAK, wyrażam zgodę na nieodpłatne utrwalanie i publikację wizerunku uczestnika w relacjach z wydarzeń Olimpiady: ☐
+- NIE wyrażam takiej zgody: ☐
+
+Zgodę można wycofać w każdej chwili, pisząc na adres contact@qaif.org; wycofanie nie wpływa na zgodność z prawem publikacji dokonanych wcześniej. Podstawy przetwarzania wizerunku opisuje [Polityka RODO](/dokumenty/rodo/), a zasady publikowania wizerunku osób małoletnich – [Standardy ochrony małoletnich](/dokumenty/standardy-ochrony-maloletnich/).
 
 ## Miejscowość, data i podpis
 

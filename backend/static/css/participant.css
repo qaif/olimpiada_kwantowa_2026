@@ -16,6 +16,7 @@
      4. karta zadania: wiersz ostatniej wersji, błędy pól, zwijana historia
      5. wybór terminu rozmowy
      6. telefon (≤ 640 px) i wydruk
+     7. strefa upuszczania pliku (z własną regułą telefonową – cała funkcja w jednym miejscu)
    ============================================================================================== */
 
 /* --- 1. Nagłówek panelu ---------------------------------------------------------------------- */
@@ -402,5 +403,75 @@
   .p-details > *,
   .p-identity > * {
     display: revert;
+  }
+}
+
+/* --- 7. Strefa upuszczania pliku w karcie zadania --------------------------------------------- */
+
+/* Blok dopisany na końcu arkusza i **z własną** regułą telefonową, zamiast dołożenia trzech
+   deklaracji do sekcji 4 i szóstej: całe przeciąganie pliku jest jedną funkcją i czyta się ją
+   w jednym miejscu, razem z ``static/js/upload-dropzone.js``.
+
+   Podstawa ``.dropzone`` (przerywana ramka, tło, padding) stoi w ``app.css`` – tamtą klasę nosi
+   też zgoda opiekuna. Tutaj są wyłącznie części, które dokłada przeciąganie: podpowiedź,
+   podświetlenie celu, pierścień fokusu i wiersz stanu. */
+
+.dropzone__drag {
+  display: block;
+  margin-bottom: var(--sp-1);
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+}
+
+/* Podświetlenie celu w trakcie przeciągania. Zmieniamy **ramkę i tło**, a nie sam kolor tekstu:
+   w trybie wysokiego kontrastu i przy monochromatycznym widzeniu barwa sama nie niesie stanu,
+   a ciągła gruba ramka zamiast przerywanej widać bez rozróżniania kolorów. */
+.dropzone.is-dragover {
+  border-style: solid;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* Klawiatura nie przeciąga plików – ale wchodzi w pole wyboru i w potwierdzenie, które stoją
+   wewnątrz ramki. Bez tego pierścienia jedyne widoczne zaczepienie fokusu miało samo pole,
+   a ramka wokół niego wyglądała na nieaktywną. */
+.dropzone:focus-within {
+  border-color: var(--accent);
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Wiersz „co jest wybrane”. Pusty akapit znika zupełnie: w HTML-u przychodzi bez treści
+   (wypełnia go skrypt) i nie ma powodu, żeby ramka rosła o pustą linijkę u kogoś,
+   kto nic jeszcze nie wybrał ani nie ma JavaScriptu. */
+.dropzone__status {
+  margin: 0 0 var(--sp-3);
+  font-size: 0.9375rem;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.dropzone__status:empty {
+  display: none;
+}
+
+/* Odmowa („niedozwolony format”, „plik za duży”) jest ostrzeżeniem przed wysyłką, nie błędem
+   serwera – stąd ten sam kolor, co pozostałe komunikaty odmowy, i pogrubienie zamiast ramki:
+   błąd pola zwrócony przez serwer ma stać niżej i wyglądać inaczej niż nasza uprzejmość. */
+.dropzone__status--error {
+  color: var(--danger-ink);
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  /* Na telefonie strefa idzie na całą szerokość karty i traci część wyściółki: przy padding
+     1,5 rem z ``app.css`` samo pole wyboru pliku nie mieściło się w jednym wierszu. */
+  .dropzone {
+    padding: var(--sp-4) var(--sp-3);
+    width: 100%;
+  }
+
+  .dropzone__drag {
+    text-align: left;
   }
 }

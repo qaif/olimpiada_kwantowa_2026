@@ -125,6 +125,83 @@ def test_label_falls_back_to_the_canonical_document_path_without_the_page(db):
     assert consents.document_url("zgoda-opiekuna") == "/dokumenty/zgoda-opiekuna/"
 
 
+# --- odnośnik prowadzi do PDF-a, nie do podstrony ----------------------------------------------
+
+
+def publish_document_page(slug: str):
+    """Opublikowana strona dokumentu o tym slugu – bez seedów, które wgrywają całą treść.
+
+    Sekcję ``/dokumenty/`` zakłada ``seed_legacy_content``, a nie migracja drzewa stron, więc
+    w bazie testowej trzeba ją najpierw postawić. Uruchomienie całego seeda byłoby tu kosztem
+    bez wartości: przedmiotem testu jest wybór adresu, a nie import treści.
+    """
+    from apps.cms.models import DocumentIndexPage, DocumentPage, HomePage
+
+    index = DocumentIndexPage.objects.first()
+    if index is None:
+        index = DocumentIndexPage(title="Dokumenty", slug="dokumenty")
+        HomePage.objects.get().add_child(instance=index)
+        index.save_revision().publish()
+    page = DocumentPage(title=slug.capitalize(), slug=slug)
+    index.add_child(instance=page)
+    page.save_revision().publish()
+    return page
+
+
+def attach_file(page, *, filename: str, label: str = ""):
+    """Przypina do strony plik o tej nazwie (treść jest nieistotna – liczy się rozszerzenie)."""
+    from django.core.files.base import ContentFile
+    from wagtail.documents import get_document_model
+
+    from apps.cms.models import DocumentPageAttachment
+
+    document = get_document_model()(title=f"{page.title} – {filename}")
+    document.file.save(filename, ContentFile(b"tresc-testowa"), save=True)
+    DocumentPageAttachment.objects.create(page=page, document=document, label=label)
+    return document
+
+
+def test_document_link_points_at_the_pdf_when_the_page_has_one(db):
+    """Uwaga organizatora z 16.09: „linki do regulaminów powinny prowadzić do PDF-ów”.
+
+    Zgoda jest oświadczeniem złożonym pod konkretną wersją dokumentu, a wersją podpisaną przez
+    organizatora jest PDF – strona CMS-a jest jego czytelną transkrypcją z kotwicami.
+    """
+    page = publish_document_page("regulamin")
+    pdf = attach_file(page, filename="regulamin.pdf", label="PDF do druku")
+
+    assert consents.document_link("regulamin") == pdf.url
+    assert f'href="{pdf.url}"' in str(consents.label(BY_KIND[ConsentKind.TERMS]))
+
+
+def test_document_link_skips_attachments_that_are_not_pdfs(db):
+    """Plik źródłowy .docx jest materiałem redakcyjnym, a nie dokumentem do podpisania."""
+    page = publish_document_page("regulamin")
+    attach_file(page, filename="regulamin.docx", label="Wersja źródłowa (DOCX)")
+
+    assert consents.document_link("regulamin") == page.get_url()
+
+
+def test_document_link_falls_back_to_the_page_without_any_pdf(db):
+    """Dokument bywa opublikowany, zanim organizator wgra plik – zgoda nie może zostać bez linku."""
+    publish_document_page("rodo")
+
+    assert consents.document_link("rodo") == "/dokumenty/rodo/"
+    assert consents.document_link("zgoda-opiekuna") == "/dokumenty/zgoda-opiekuna/"
+    assert consents.document_link("") == ""
+
+
+def test_consent_description_carries_both_the_page_and_the_file(db):
+    """API oddaje dwa adresy, bo to dwie różne rzeczy: adres do zacytowania i plik do pobrania."""
+    page = publish_document_page("regulamin")
+    pdf = attach_file(page, filename="regulamin.pdf")
+
+    terms = next(row for row in consents.descriptions() if row["kind"] == ConsentKind.TERMS)
+
+    assert terms["document_url"] == page.get_url()
+    assert terms["document_link"] == pdf.url
+
+
 def test_versions_are_recorded_per_document():
     assert BY_KIND[ConsentKind.TERMS].version == consents.TERMS_VERSION
     assert BY_KIND[ConsentKind.PRIVACY].version == consents.PRIVACY_VERSION

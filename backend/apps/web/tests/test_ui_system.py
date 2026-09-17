@@ -124,6 +124,40 @@ def test_page_has_exactly_one_h1(web_client):
     assert len(re.findall(r"<h1\b", html)) == 1
 
 
+# --- stopka --------------------------------------------------------------------------------------
+
+
+def test_footer_says_the_version_and_nothing_else(web_client):
+    """Ostatni wiersz stopki to sama wersja wydania – „wersja <tag>”, bez zdania o strefie czasu.
+
+    Numer musi zostać **dynamiczny**: to po niego sięga zgłaszający błąd, a stopka z wpisanym na
+    sztywno numerem kłamałaby przy pierwszym wdrożeniu. Zdanie „wszystkie godziny podajemy
+    w czasie polskim” zdjął organizator 15.09 – godziny opisuje harmonogram, a każdą datę panel
+    i tak renderuje w strefie organizatora.
+    """
+    from apps.web import context_processors
+
+    html = web_client.get("/login/").content.decode()
+
+    assert f"wersja {context_processors.APP_VERSION}" in html
+    assert "Wersja aplikacji" not in html
+    assert "czasie polskim" not in html
+
+
+def test_footer_separator_does_not_leak_into_the_button_underline():
+    """Kropka rozdzielająca przed „Ustawieniami cookies” jest poza podkreśleniem przycisku.
+
+    ``.footer__link-button`` jest podkreślony, a jego ``::before`` stoi **wewnątrz** przycisku –
+    bez własnego ``display: inline-block`` podkreślenie obejmowało kropkę razem z jej marginesem
+    i rysowało przed tekstem kreskę, którą organizator zgłosił 15.09 jako zabłąkany znak „_”.
+    """
+    css = app_css()
+    rule = css.split(".footer__links a + a::before,", 1)[1].split("}", 1)[0]
+
+    assert "display: inline-block;" in rule
+    assert "text-decoration: none;" in rule
+
+
 def test_stylesheet_is_linked(web_client):
     html = web_client.get("/login/").content.decode()
     assert "css/app.css" in html

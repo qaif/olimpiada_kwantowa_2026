@@ -91,5 +91,12 @@
     {% endcomment %}
     <script type="module" nonce="{{ request.csp_nonce }}"
             src="{% static 'js/upload-preview.js' %}"></script>
+    {% comment %}
+      Przeciąganie pliku na kartę zadania. Zwykły skrypt, nie moduł: niczego nie dociąga, więc
+      nie potrzebuje ``'strict-dynamic'``. Ładowany razem z zakładką zadań, bo tylko tam stoją
+      karty z uploadem. Strona jest kompletna bez niego – pole wyboru pliku zostaje na miejscu,
+      a przeglądarka i tak przyjmuje plik upuszczony wprost na nie.
+    {% endcomment %}
+    <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/upload-dropzone.js' %}"></script>
   {% endif %}
 {% endblock %}

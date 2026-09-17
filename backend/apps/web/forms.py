@@ -71,6 +71,11 @@ def phone_field(*, required: bool = True) -> forms.CharField:
     właśnie na telefonie ten numer najczęściej się wpisuje. Walidacji kształtu tu nie ma –
     rozstrzyga ``normalize_phone`` w serwisie, bo ta sama reguła obowiązuje API i rejestrację
     przez dostawcę zewnętrznego.
+
+    Atrybutu ``size`` tu **nie ma i być nie może**: szerokość wszystkich pól tekstowych ustala
+    jedna reguła arkusza (``width: 100%``). Organizator zgłosił, że „okno do wprowadzenia numeru
+    telefonu ma wyraźnie mniejszy rozmiar” – przyczyną był brak selektora ``input[type="tel"]``
+    w tamtej regule, więc kontrolka zostawała przy domyślnych dwudziestu znakach przeglądarki.
     """
     return forms.CharField(
         label="Telefon",
@@ -78,6 +83,38 @@ def phone_field(*, required: bool = True) -> forms.CharField:
         required=required,
         help_text="Do kontaktu w sprawach organizacyjnych, np. +48 600 000 000.",
         widget=forms.TextInput(attrs={"type": "tel", "autocomplete": "tel"}),
+    )
+
+
+#: Podpowiedź pod rocznikiem w obu formularzach rejestracji uczestnika. Zgłoszenie organizatora:
+#: „rok urodzenia nie jest powiązany z obowiązkowością oświadczenia o niepełnoletniości”.
+#: Powiązanie istniało od początku po stronie serwera (``ConsentFieldsMixin.clean``), ale nie było
+#: **widoczne**: uczestnik wpisywał rocznik i nic się nie działo, a odmowę poznawał dopiero po
+#: wysłaniu formularza. Zdanie mówi wprost, czego się spodziewać; sam blok zgody odsłania
+#: ``static/js/register-age.js``.
+BIRTH_YEAR_MINOR_HINT = (
+    "Osoby niepełnoletnie potrzebują zgody opiekuna – pole poniżej pojawi się automatycznie."
+)
+
+
+def birth_year_field(*, help_text: str = "") -> forms.IntegerField:
+    """Rocznik uczestnika. Daty dziennej nie zbieramy – zasada minimalizacji.
+
+    ``data-age="birth-year"`` jest punktem zaczepienia dla ``static/js/register-age.js``: skrypt
+    szuka pola po atrybucie, a nie po ``id_birth_year``, bo ten sam blok renderuje się w dwóch
+    szablonach i przy dołożeniu prefiksu formularza identyfikator by się zmienił. Atrybut stoi tu,
+    a nie w szablonie, z tego samego powodu, co ``data-picker`` przy bloku „szkoła”.
+
+    ``help_text`` jest parametrem, bo podpowiedź o zgodzie opiekuna ma sens wyłącznie tam, gdzie
+    obok stoi blok zgód (rejestracja). W edycji profilu zgód nie ma – obiecywałaby pole, które się
+    nie pojawi.
+    """
+    return forms.IntegerField(
+        label="Rok urodzenia",
+        min_value=1900,
+        max_value=2100,
+        help_text=help_text,
+        widget=forms.NumberInput(attrs={"data-age": "birth-year"}),
     )
 
 
@@ -139,7 +176,7 @@ def clean_password_pair(form: forms.Form, cleaned: dict | None) -> dict:
 #: Pola bloku „szkoła” renderowanego ręcznie w szablonie (``web/_school_picker.html``). Reszta
 #: formularza idzie zwykłą pętlą, więc ta krotka jest jedynym miejscem, które trzeba zmienić,
 #: gdyby blok urósł o kolejne pole.
-SCHOOL_FIELD_NAMES = ("school_id", "school_query", "school_custom", "school")
+SCHOOL_FIELD_NAMES = ("school_id", "school_city", "school_query", "school_custom", "school")
 
 #: Klasa doklejana przez Django do etykiety (i do akapitu ``as_p``) każdego pola wymaganego.
 #: Gwiazdkę dorysowuje arkusz (``label.required::after`` w static/css/app.css) – w HTML-u nie ma
@@ -152,9 +189,13 @@ REQUIRED_CSS_CLASS = "required"
 class SchoolChoiceMixin(forms.Form):
     """Wybór szkoły ze słownika SIO albo – świadomą decyzją – wpisanie jej ręcznie.
 
-    Cztery pola zamiast jednego, bo jedno pole tekstowe nie potrafi odróżnić „nie znalazłem swojej
+    Pięć pól zamiast jednego, bo jedno pole tekstowe nie potrafi odróżnić „nie znalazłem swojej
     szkoły” od „nie chciało mi się szukać”:
 
+    - ``school_city`` – **krok pierwszy**: miejscowość. Do serwisu **nie trafia**; jest wyłącznie
+      zakresem wyszukiwania. Doszedł po uwadze organizatora („warto dodać pole miasta i wówczas
+      dać pełną listę szkół”): dwadzieścia podpowiedzi na całą Polskę nie jest listą, z której da
+      się wybrać swoją szkołę, a po zawężeniu do miasta lista bywa kompletna i można ją przewinąć,
     - ``school_query`` – to, co uczestnik widzi i w co pisze. Do serwisu **nie trafia**,
     - ``school_id`` – ukryty wynik wyboru z podpowiedzi; to on wiąże profil z rejestrem,
     - ``school_custom`` – kratka „mojej szkoły nie ma na liście”. Jej rolą jest **odsłonić** pole
@@ -173,6 +214,25 @@ class SchoolChoiceMixin(forms.Form):
 
     school_id = forms.IntegerField(
         required=False, min_value=1, widget=forms.HiddenInput(attrs={"data-picker": "school-id"})
+    )
+    school_city = forms.CharField(
+        label="Miejscowość",
+        required=False,
+        max_length=120,
+        help_text=(
+            "Wpisz pierwsze litery i wybierz miejscowość z podpowiedzi. "
+            "Pole „Szkoła” pokaże wtedy pełną listę szkół z tej miejscowości."
+        ),
+        widget=forms.TextInput(
+            attrs={
+                "autocomplete": "off",
+                "role": "combobox",
+                "aria-expanded": "false",
+                "aria-autocomplete": "list",
+                "aria-controls": "city-suggestions",
+                "data-picker": "city",
+            }
+        ),
     )
     school_query = forms.CharField(
         label="Szkoła",
@@ -222,9 +282,14 @@ class SchoolChoiceMixin(forms.Form):
         custom = cleaned.get("school_custom")
         query = (cleaned.get("school_query") or "").strip()
         # Pola pomocnicze nie mają prawa dojechać do serwisu – widoki wołają go
-        # ``**form.cleaned_data``, więc każdy nadmiarowy klucz byłby TypeError.
+        # ``**form.cleaned_data``, więc każdy nadmiarowy klucz byłby TypeError. Miejscowość jest
+        # wśród nich: opisuje **sposób szukania**, a nie szkołę. Miasto szkoły wybranej ze
+        # słownika przepisuje ``_resolve_school`` z rejestru, a przy szkole spoza wykazu wolny
+        # tekst jest jedyną prawdą, jaką mamy – wpisana obok miejscowość nie ma jak jej uzupełnić,
+        # bo nikt nie zapewni, że dotyczy tej samej placówki.
         cleaned.pop("school_query", None)
         cleaned.pop("school_custom", None)
+        cleaned.pop("school_city", None)
         free_text = (cleaned.get("school") or "").strip()
         cleaned["school"] = free_text
         if custom:
@@ -372,7 +437,7 @@ class ParticipantRegisterForm(CaptchaFormMixin, ConsentFieldsMixin, SchoolChoice
     phone = phone_field()
     district = voivodeship_field("Województwo")
     grade = grade_field()
-    birth_year = forms.IntegerField(label="Rok urodzenia", min_value=1900, max_value=2100)
+    birth_year = birth_year_field(help_text=BIRTH_YEAR_MINOR_HINT)
 
     def clean(self):
         return clean_password_pair(self, super().clean())
@@ -402,7 +467,7 @@ class SocialParticipantSignupForm(ConsentFieldsMixin, SchoolChoiceMixin):
     phone = phone_field()
     district = voivodeship_field("Województwo")
     grade = grade_field()
-    birth_year = forms.IntegerField(label="Rok urodzenia", min_value=1900, max_value=2100)
+    birth_year = birth_year_field(help_text=BIRTH_YEAR_MINOR_HINT)
 
 
 class CommitteeRegisterForm(CaptchaFormMixin):
@@ -469,6 +534,10 @@ def participant_profile_initial(participant) -> dict:
         "grade": participant.grade,
         "birth_year": participant.birth_year,
         "school_id": participant.school_ref_id,
+        # Miejscowość odtwarzamy wyłącznie ze słownika: przy szkole wpisanej ręcznie nie wiemy,
+        # w jakim mieście ona jest (pytamy o nazwę, nie o adres), a podstawienie czegokolwiek
+        # zawęziłoby wyszukiwarkę do miasta, którego uczestnik nigdy nie wskazał.
+        "school_city": participant.school_ref.city if from_registry else "",
         "school_query": participant.school,
         "school_custom": not from_registry,
         "school": "" if from_registry else participant.school,
@@ -492,7 +561,7 @@ class ParticipantProfileForm(SchoolChoiceMixin):
     phone = phone_field()
     district = voivodeship_field("Województwo")
     grade = grade_field()
-    birth_year = forms.IntegerField(label="Rok urodzenia", min_value=1900, max_value=2100)
+    birth_year = birth_year_field()
     # Opcjonalne i odwracalne jednym wyczyszczeniem pola: to uczestnik decyduje, czy nauczyciel
     # ma widzieć jego postęp, i tylko on może tę decyzję cofnąć (patrz ``apps.accounts.supervisors``).
     supervisor_email = forms.EmailField(
@@ -763,7 +832,7 @@ class CoordinatorParticipantForm(SchoolChoiceMixin):
     phone = phone_field()
     district = voivodeship_field("Województwo")
     grade = grade_field()
-    birth_year = forms.IntegerField(label="Rok urodzenia", min_value=1900, max_value=2100)
+    birth_year = birth_year_field()
 
 
 class CoordinatorCommitteeForm(forms.Form):

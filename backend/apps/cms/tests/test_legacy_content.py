@@ -78,10 +78,21 @@ DOCUMENT_TITLES = [
 #: przekierowywać i wpis dla niego byłby wymyślonym adresem.
 REDIRECTED_DOCUMENTS = ("regulamin", "rodo", "standardy-ochrony-maloletnich", "komitety")
 
-#: Dokumenty, przy których wisi plik organizatora. Wzoru zgody opiekuna tu nie ma: organizator
-#: nie przekazał żadnego pliku, bo dokument jest naszym projektem – do wydruku służy sama strona
-#: (przycisk „Drukuj” plus arkusz ``@media print``).
-DOWNLOADABLE_DOCUMENTS = ("regulamin", "rodo", "standardy-ochrony-maloletnich", "komitety")
+#: Dokumenty, przy których wisi plik do pobrania – w kolejności z drzewa stron. Trzy PDF-y są
+#: plikami organizatora, czwarty (wzór zgody opiekuna) składamy sami komendą
+#: ``build_guardian_consent_pdf``: to jedyny dokument serwisu, który ktoś wypełnia długopisem,
+#: więc wydruk strony z przeglądarki go nie zastępuje.
+DOWNLOADABLE_DOCUMENTS = (
+    "regulamin",
+    "rodo",
+    "zgoda-opiekuna",
+    "standardy-ochrony-maloletnich",
+    "komitety",
+)
+
+#: Tytuł formularza zgody opiekuna w bibliotece Wagtaila – tożsamość pliku, po której poznaje go
+#: ``ensure_document``. Poza ``PDF_TITLES``, bo tamte przyszły podpisane od organizatora.
+GUARDIAN_PDF_TITLE = "Zgoda rodzica lub opiekuna prawnego (formularz PDF)"
 
 #: Ramka nad treścią obu dokumentów: skąd jest treść i który plik jest wersją źródłową.
 SOURCE_NOTICE_FRAGMENT = "Wersja do pobrania (PDF) jest wersją źródłową."
@@ -578,6 +589,75 @@ def test_guardian_consent_page_is_printable(web_client, legacy_content):
     assert "onclick=" not in content
 
 
+def test_guardian_consent_has_a_printable_pdf_form(web_client, legacy_content):
+    """Organizator poprosił o **szablon**: plik, który się pobiera, drukuje i podpisuje.
+
+    Wydruk strony z przeglądarki nim nie jest, więc przy dokumencie wisi PDF złożony komendą
+    ``build_guardian_consent_pdf`` z tego samego markdowna, z którego powstaje strona.
+    """
+    attachment = DocumentPage.objects.get(slug="zgoda-opiekuna").attachments.get()
+
+    assert attachment.document.title == GUARDIAN_PDF_TITLE
+    assert attachment.is_pdf is True
+    assert attachment.document.filename.endswith(".pdf")
+    assert attachment.label == "PDF do druku"
+    # Rozmiar i skrót muszą być policzone: pierwszy widać na karcie „Do pobrania”, drugi trafia
+    # do nagłówka ``ETag`` widoku serwującego plik.
+    assert attachment.document.file_size > 0
+    assert attachment.document.file_hash
+
+    content = web_client.get("/dokumenty/zgoda-opiekuna/").content.decode()
+    assert f'href="{attachment.document.url}"' in content
+
+
+def test_guardian_consent_label_in_registration_points_at_the_pdf(legacy_content):
+    """Etykieta zgody przy rejestracji prowadzi do formularza, a nie do transkrypcji na stronie.
+
+    ``consents.document_link`` bierze pierwszy PDF strony – od chwili, w której formularz istnieje,
+    ten pierwszy PDF jest właśnie nim.
+    """
+    from apps.accounts import consents
+
+    link = consents.document_link("zgoda-opiekuna")
+
+    assert link.endswith(".pdf"), link
+    assert link != consents.document_url("zgoda-opiekuna")
+
+
+def test_guardian_consent_pdf_is_rebuilt_byte_for_byte(legacy_content):
+    """Plik w repozytorium jest tym, co składa komenda – inaczej strona i formularz się rozjadą.
+
+    Skład jest powtarzalny (``invariant=1`` w ``build_guardian_consent_pdf``), więc porównanie
+    bajtów jest uczciwe: różnica znaczy różnicę treści, a nie inną datę złożenia.
+    """
+    from apps.cms.attachments import GENERATED_PDF_DIR
+    from apps.cms.management.commands.build_guardian_consent_pdf import SOURCE, render_pdf
+
+    rebuilt = render_pdf(SOURCE.read_text(encoding="utf-8"))
+
+    assert rebuilt == (GENERATED_PDF_DIR / "zgoda-opiekuna.pdf").read_bytes()
+
+
+def test_guardian_consent_pdf_has_no_draft_banner(legacy_content):
+    """Ramka „wersja robocza” zostaje na stronie, a nie na kartce do podpisu – decyzja świadoma.
+
+    Strona mówi organizatorowi, że tekst czeka na akceptację; formularz, który opiekun wypełnia
+    przy dziecku, ma być formularzem, a nie projektem dokumentu ze stemplem „nie obowiązuje”.
+    Czytamy złożone akapity, a nie bajty PDF-a: po kompresji strumienia tekstu w pliku nie widać.
+    """
+    from apps.cms.management.commands.build_guardian_consent_pdf import SOURCE, _styles, build_story
+    from apps.results.certificates import register_fonts
+
+    register_fonts()
+    markdown = SOURCE.read_text(encoding="utf-8")
+    text = " ".join(getattr(flowable, "text", "") for flowable in build_story(markdown, _styles()))
+
+    assert "Wersja robocza" in markdown, "ramka zniknęła z pliku źródłowego – test stracił sens"
+    assert "Wersja robocza" not in text
+    # Sama treść oświadczenia w PDF-ie jest: to ta sama kartka, co strona, minus ramka.
+    assert "Dane rodzica albo opiekuna prawnego" in text
+
+
 def test_print_stylesheet_hides_navigation_and_footer():
     """Na kartce zostaje treść dokumentu, a nie pasek nawigacji i stopka."""
     from pathlib import Path
@@ -649,8 +729,8 @@ def test_footer_shows_organizer_from_settings(web_client, legacy_content):
     assert 'href="mailto:contact@qaif.org"' in content
 
 
-def test_home_page_lists_four_documents_to_download(web_client, legacy_content):
-    """Sekcja „Dokumenty do pobrania”: regulamin, RODO, standardy i skład komitetów."""
+def test_home_page_lists_every_document_to_download(web_client, legacy_content):
+    """Sekcja „Dokumenty do pobrania”: regulamin, RODO, zgoda opiekuna, standardy i komitety."""
     call_command("seed_regulamin", verbosity=0)
     call_command("seed_legacy_content", verbosity=0)
 
@@ -801,7 +881,7 @@ def test_document_index_links_every_file_directly(web_client, full_content):
     content = web_client.get("/dokumenty/").content.decode()
 
     files = [item for page in DocumentPage.objects.all() for item in page.attachments.all()]
-    # Regulamin ma dwa pliki (PDF i źródłowy .docx); wzór zgody opiekuna – żadnego.
+    # Regulamin ma dwa pliki (PDF i źródłowy .docx), pozostałe dokumenty z listy – po jednym.
     assert len(files) == len(DOWNLOADABLE_DOCUMENTS) + 1
     for item in files:
         assert f'href="{item.document.url}"' in content

@@ -42,12 +42,12 @@ Przed dopuszczeniem osoby do działalności związanej z wychowaniem, edukacją,
 
 Uczestnicy szanują granice, prywatność, własność i poglądy innych. Zabronione są bójki, groźby, wyzwiska, nękanie, wykluczanie, rozpowszechnianie kompromitujących materiałów, kontakt seksualny naruszający prawo lub granice drugiej osoby oraz namawianie do używek. Konflikty należy zgłosić opiekunowi; odwet wobec osoby zgłaszającej jest niedopuszczalny.
 
-## 5. Internet system zawodów i wizerunek
+## 5. Internetowy system zawodów i wizerunek
 
 - Uczestnik nie udostępnia loginu, hasła ani anonimowego kodu pracy i nie przesyła przez system treści niezwiązanych z zadaniami.
 - Personel kontaktuje się przez oficjalne konta i nie prowadzi z dzieckiem tajnych, prywatnych rozmów.
-- Treści nielegalne, seksualne, przemocowe lub nękające są blokowane i zgłaszane zgodnie z procedurą.
-- Publikacja rozpoznawalnego wizerunku wymaga właściwej podstawy prawnej; odmowa nie może powodować negatywnych konsekwencji.
+- Treści nielegalne, seksualne, przemocowe lub nękające są blokowane i zgłaszane zgodnie z procedurą opisaną w tym dokumencie (zob. [6. Jak zgłosić zagrożenie lub krzywdzenie](#6-jak-zglosic-zagrozenie-lub-krzywdzenie) i [7. Procedura interwencji](#7-procedura-interwencji)).
+- Publikacja rozpoznawalnego wizerunku osoby małoletniej wymaga właściwej podstawy prawnej; odmowa nie może powodować negatywnych konsekwencji.
 - Dane uczestników i prace są dostępne wyłącznie dla upoważnionych osób; recenzenci co do zasady pracują na anonimowych kodach.
 
 ## 6. Jak zgłosić zagrożenie lub krzywdzenie
@@ -74,7 +74,7 @@ Jeżeli zgłoszenie dotyczy członka Personelu, zostaje on odsunięty od kontakt
 
 Tożsamość dziecka, zgłaszającego i świadków jest chroniona. Informacje są przekazywane wyłącznie osobom i instytucjom uprawnionym. Zakazane są działania odwetowe. Dokumentacja jest przetwarzana zgodnie z RODO i przechowywana przez okres wynikający z prawa oraz potrzeb ochrony dziecka i obrony roszczeń.
 
-## 9. Wdrożenie dostępność i przegląd
+## 9. Wdrożenie, dostępność i przegląd
 
 Standardy są dostępne na stronie Olimpiady oraz w miejscu prowadzenia zawodów. Organizator udostępnia wersję pełną i skróconą, szkoli Personel, prowadzi rejestr interwencji i co najmniej raz na dwa lata ocenia działanie Standardów, a także po każdym poważnym zdarzeniu lub zmianie prawa. Za wdrożenie, przyjmowanie zgłoszeń, prowadzenie interwencji i aktualizację dokumentu odpowiadają osoby wyznaczone uchwałą Zarządu Fundacji.
 
@@ -90,7 +90,3 @@ Standardy są dostępne na stronie Olimpiady oraz w miejscu prowadzenia zawodów
 > - **Dziecięcy Telefon Zaufania Rzecznika Praw Dziecka:** 800 12 12 12
 >
 > Nie poniesiesz kary za zgłoszenie dokonane w dobrej wierze. Poproszenie o pomoc jest właściwą reakcją.
-
-## 10. Informacja o dokumencie
-
-Wersja: 1.0 z 22 lipca 2026 r. Dokument przygotowano z uwzględnieniem modelu standardów stosowanego przez Fundację Rozwoju Informatyki przy Olimpiadzie Informatycznej. Przed formalnym przyjęciem Zarząd Fundacji powinien wskazać imiennie osoby odpowiedzialne, przyjąć wzory karty interwencji i oświadczeń Personelu oraz potwierdzić zgodność dokumentu z aktualną organizacją zawodów.

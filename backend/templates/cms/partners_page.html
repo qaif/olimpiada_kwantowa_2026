@@ -21,7 +21,10 @@
 
   Kadr logotypu ma stałą wysokość i jasne tło: znaki instytucji są rysowane na biel, a proporcje
   mają skrajnie różne (pas PCSS-u wobec kwadratowego godła IF PAN). ``object-fit: contain`` w tym
-  kadrze sprawia, że karty w siatce mają jedną linię nazwy niezależnie od kształtu znaku.
+  kadrze sprawia, że karty w siatce mają jedną linię nazwy niezależnie od kształtu znaku. Znakom
+  o proporcji wyższej niż sam kadr to jednak nie wystarcza – stąd ``partner--wide`` (dwie kolumny
+  siatki) dla logotypów, którym rozmiar ogranicza szerokość, a nie wysokość (``WIDE_LOGO_RATIO``);
+  decyduje serwer, patrz ``PartnerValue.is_wide``.
 {% endcomment %}
 <div class="page-head">
   <h1>{{ page.title }}</h1>
@@ -40,22 +43,49 @@
       </div>
       <ul class="cards partners">
         {% for partner in group.partners %}
-          <li>
+          {% comment %}
+            Logotyp-pas (``partner.is_wide``, apps/cms/blocks.py) dostaje dwie kolumny siatki:
+            znak szerszy niż sam kadr rysuje się w nim wysoki na kilkadziesiąt pikseli, bo
+            ``object-fit: contain`` mieści go w całości, a ogranicznikiem jest wtedy **szerokość**.
+            Dwie kolumny to dwa razy więcej szerokości, czyli dwa razy większy napis – i jedyny
+            sposób, żeby go powiększyć bez przycinania albo rozciągania obrazu.
+
+            To **nie** jest odpowiedź na zgłoszenie o nieczytelnym napisie Wydziału Informatyki
+            i Telekomunikacji PWr: tamten znak jest prawie kwadratowy (584×528), więc ogranicza go
+            wysokość kadru. Jego lekarstwem jest wyższy kadr w arkuszu (150 px zamiast 112).
+          {% endcomment %}
+          <li{% if partner.is_wide %} class="partner--wide"{% endif %}>
             <article class="card partner-card">
-              <div class="partner-card__mark{% if partner.logo %} partner-card__mark--logo{% endif %}">
-                {% if partner.logo %}
-                  {% image partner.logo max-400x160 alt=partner.name loading="lazy" class="partner-card__logo" %}
-                {% else %}
-                  <span class="partner-card__initials" aria-hidden="true">{{ partner.initials }}</span>
-                {% endif %}
-              </div>
-              <h3 class="partner-card__name">
-                {% if partner.url %}
-                  <a href="{{ partner.url }}" target="_blank" rel="noopener noreferrer">{{ partner.name }}</a>
-                {% else %}
-                  {{ partner.name }}
-                {% endif %}
-              </h3>
+              {% comment %}
+                **Odnośnik obejmuje logotyp i nazwę**, a nie samą nazwę – uwaga organizatora
+                („na stronie partnerów linki powinny obejmować obrazek, nie tylko nazwę”).
+                Znak instytucji jest tym, w co człowiek celuje myszą, a wcześniej był jedynym
+                elementem karty, który nie prowadził donikąd.
+
+                Jeden ``<a>`` na partnera, otwierany warunkowo wokół obu elementów, a nie dwa
+                osobne odnośniki pod tym samym adresem: dwa dawałyby czytnikowi ekranu i nawigacji
+                klawiaturą dwa przystanki prowadzące w to samo miejsce. ``<a>`` wolno tu objąć
+                blok (model treści odnośnika jest „przezroczysty”), pod warunkiem że w środku
+                nie ma drugiego elementu interaktywnego – i nie ma.
+
+                Opis (``description``) zostaje **poza** odnośnikiem: to zdanie o współpracy,
+                a nie nazwa celu, więc wciągnięte do środka wydłużałoby nazwę dostępną linku
+                o całe zdanie.
+              {% endcomment %}
+              {% if partner.url %}<a class="partner-card__link" href="{{ partner.url }}" target="_blank" rel="noopener noreferrer">{% endif %}
+                <div class="partner-card__mark{% if partner.logo %} partner-card__mark--logo{% endif %}">
+                  {% if partner.logo %}
+                    {% comment %}
+                      Rendition większy od kadru: zapas na ekrany o dużej gęstości i na kafel
+                      rozciągnięty na dwie kolumny (``partner--wide``).
+                    {% endcomment %}
+                    {% image partner.logo max-600x240 alt=partner.name loading="lazy" class="partner-card__logo" %}
+                  {% else %}
+                    <span class="partner-card__initials" aria-hidden="true">{{ partner.initials }}</span>
+                  {% endif %}
+                </div>
+                <h3 class="partner-card__name">{{ partner.name }}</h3>
+              {% if partner.url %}</a>{% endif %}
               {% if partner.description %}<p class="partner-card__text">{{ partner.description }}</p>{% endif %}
             </article>
           </li>

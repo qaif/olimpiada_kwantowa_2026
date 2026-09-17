@@ -400,9 +400,13 @@ msgstr "Skip to content"
 msgid "Konto"
 msgstr "Account"
 
-#: templates/base.html:194
-msgid "Kontrast"
-msgstr "Contrast"
+#: templates/web/_interface_prefs.html:74
+msgid "Wysoki kontrast: wyłącz"
+msgstr "High contrast: turn off"
+
+#: templates/web/_interface_prefs.html:76
+msgid "Wysoki kontrast: włącz"
+msgstr "High contrast: turn on"
 
 #: templates/base.html:201
 msgid "Mój panel"
@@ -434,7 +438,7 @@ msgstr "Sign up"
 msgid "Rejestracja rusza %(opens)s"
 msgstr "Registration opens %(opens)s"
 
-#: templates/base.html:249
+#: templates/base.html:355
 msgid "Rejestracja z kodem"
 msgstr "Sign up with a code"
 
@@ -474,9 +478,8 @@ msgstr "Organiser:"
 
 #: templates/base.html:387
 #, python-format
-msgid ""
-"Wersja aplikacji %(version)s · wszystkie godziny podajemy w czasie polskim."
-msgstr "Application version %(version)s · all times are given in Polish time."
+msgid "wersja %(version)s"
+msgstr "version %(version)s"
 
 #: templates/web/account/delete.html:13 templates/web/account/delete.html:17
 #: templates/web/account/profile.html:83
@@ -1474,11 +1477,11 @@ msgstr "practice"
 msgid ""
 "Bez terminu i poza kwalifikacją – te zadania nie wpływają na wyniki zawodów. "
 "Służą do przejścia całej ścieżki: zgłoszenie, pobranie treści, wysłanie "
-"rozwiązania i odbiór oceny."
+"rozwiązania."
 msgstr ""
 "No deadline and outside qualification – these problems do not affect "
 "competition results. They exist so you can walk the whole path: entry, "
-"downloading the statement, uploading a solution and receiving a mark."
+"downloading the statement, uploading a solution."
 
 #: templates/web/participant/dashboard.html:330
 msgid "Moje wyniki"
@@ -1686,14 +1689,6 @@ msgstr "This stage has no problems to list."
 #: templates/web/register.html:3 templates/web/register.html:10
 msgid "Rejestracja uczestnika"
 msgstr "Participant registration"
-
-#: templates/web/register.html:31
-msgid ""
-"Rejestracja jest otwarta. Po założeniu konta zapiszesz się do etapu "
-"eliminacyjnego z panelu uczestnika."
-msgstr ""
-"Registration is open. Once your account exists, you enter the qualifying "
-"stage from the participant panel."
 
 #: templates/web/register.html:37
 msgid ""
@@ -3164,3 +3159,19 @@ msgstr "Before you report: check the <a href=\"/faq/\">frequently asked question
 #: templates/web/status.html
 msgid "Ta strona jest odświeżana co pół minuty. Wariant maszynowy dla monitoringu: <a href=\"/status.json\">/status.json</a>. Jeśli coś nie działa, a strona tego nie pokazuje – <a href=\"/support/new/\">zgłoś problem</a>."
 msgstr "This page is refreshed every half a minute. Machine-readable variant for monitoring: <a href=\"/status.json\">/status.json</a>. If something is broken and this page does not show it – <a href=\"/support/new/\">report a problem</a>."
+
+#: templates/web/participant/_problem_card.html
+msgid "Wybrano: %(name)s (%(size)s MB)"
+msgstr "Selected: %(name)s (%(size)s MB)"
+
+#: templates/web/participant/_problem_card.html
+msgid "Niedozwolony format – dozwolone: %(formats)s"
+msgstr "Unsupported format – allowed: %(formats)s"
+
+#: templates/web/participant/_problem_card.html
+msgid "Plik jest za duży (maks. %(limit)s MB)"
+msgstr "The file is too large (max. %(limit)s MB)"
+
+#: templates/web/participant/_problem_card.html
+msgid "Przeciągnij plik tutaj albo wybierz z dysku (%(formats)s do %(limit)s MB)."
+msgstr "Drag the file here or pick it from your disk (%(formats)s, up to %(limit)s MB)."

@@ -113,8 +113,10 @@ docker compose exec web python manage.py create_invitation \
   --email koordynator@example.com --appeals --max-uses 1
 ```
 
-Kod wpisuje się na `/register/committee/`. Zapraszanie większej grupy naraz — bez przepisywania
-kodów ręcznie — opisuje § 5.3.
+Kod wpisuje się na `/register/committee/`. Adres prowadzi ze **stopki** („Rejestracja z kodem”),
+a nie z paska konta: dotyczy kilkunastu osób na edycję, a pasek oglądają wszyscy odwiedzający
+(uwaga organizatora z 16.09). Zapraszanie większej grupy naraz — bez przepisywania kodów ręcznie
+— opisuje § 5.3.
 
 ## 3. Uruchomienie produkcyjne
 
@@ -766,6 +768,17 @@ Obok nich w tym samym pasku stoją ekrany, które mają własne adresy: `Kalenda
   formaty i limit → ścieżka oceniania → formularz wysyłki (ostrzeżenie „praca jest już w ocenie”
   stoi **w formularzu**, nad polem pliku, a błąd pola — przy tym polu) → ostatnia wersja ze
   skanem antywirusowym → zwinięta w `<details>` historia wysyłek (dopiero od drugiej wersji),
+- **plik można przeciągnąć na kartę.** Ramka formularza wysyłki jest strefą upuszczania
+  (`static/js/upload-dropzone.js`): plik upuszczony gdziekolwiek w jej obrębie ląduje w polu
+  wyboru, a pod polem pojawia się zdanie „Wybrano: *nazwa* (*rozmiar*)” albo odmowa —
+  „niedozwolony format” lub „plik za duży” — sprawdzona jeszcze przed wysłaniem bajtów pod górę.
+  To **dodatek, nie zamiennik**: natywne `input[type=file]` zostaje widoczne i dostępne
+  z klawiatury, skrypt nic nie wysyła (potwierdzenie „to rozwiązanie zadania *N*” dalej zaznacza
+  człowiek), a formaty i limit przychodzą z `Problem.allowed_formats` i `Problem.max_file_mb`
+  w `data-*` — skrypt nie zna żadnej z tych wartości. Ostatnie słowo ma serwer
+  (`apps/submissions/validators.py` patrzy na treść pliku, nie na rozszerzenie). Bez JavaScriptu
+  i w przeglądarce bez `DataTransfer` karta działa jak działała, bo upuszczenie pliku wprost na
+  pole obsługuje sama przeglądarka,
 - **wybór terminu rozmowy** jest listą pól wyboru pogrupowaną po dniach z jednym przyciskiem
   (`POST /me/interview/choose/`, termin w polu `slot_id`). Adres z identyfikatorem w ścieżce
   (`/me/interview-slots/<id>/book/`) zostaje nietknięty — jest w API i w linkach z listów.
@@ -989,10 +1002,19 @@ Migracja: `accounts.0015_guardian_consent_online` (`Participant.guardian_email`,
 
 ### 5.9 Język interfejsu i tryb wysokiego kontrastu
 
-W pasku konta — na każdej stronie, także dla gościa — stoją dwa przełączniki: **EN / PL**
-i **Kontrast**. Oba są formularzami `POST` na `/account/preferences/`; adres powrotu (`next`)
-jest sprawdzany po stronie serwera, bo przełącznik z otwartym przekierowaniem byłby gotowym
-narzędziem do phishingu.
+W pasku konta — na każdej stronie, także dla gościa — stoją dwa przełączniki: **język** i **wysoki
+kontrast** (`backend/templates/web/_interface_prefs.html`). Oba są formularzami `POST`
+na `/account/preferences/`; adres powrotu (`next`) jest sprawdzany po stronie serwera, bo
+przełącznik z otwartym przekierowaniem byłby gotowym narzędziem do phishingu.
+
+Oba są **ikonami bez napisu** — tak poprosił organizator: flaga języka, na który przełącza
+przycisk (Union Jack albo biało-czerwona), i kółko wypełnione w połowie. SVG jest wpisany
+w szablon (żadnych atrybutów `style` — CSP nie ma `'unsafe-inline'` dla stylów), kolory flag są
+ich własne, a obrys i ikona kontrastu idą `currentColor`, więc tryb wysokiego kontrastu obsługuje
+się sam. Rysunek bez tekstu nie ma nazwy, więc każdy przycisk dostaje ją osobno: język —
+ukrytym tekstem w **języku docelowym** (`LANGUAGE_SWITCH_LABELS` w `apps/accounts/preferences.py`;
+czyta go ktoś, kto nie czyta bieżącego języka strony, więc ta etykieta nie przechodzi przez
+gettext), kontrast — `aria-label` opisującym skutek kliknięcia, przy stanie w `aria-pressed`.
 
 Gdzie mieszka wybór (`apps/accounts/preferences.py`):
 
@@ -1332,8 +1354,28 @@ i reguła wymagalności w jednym miejscu.
 
 Etykieta każdej zgody jest **linkiem do dokumentu** (nowa karta, `rel="noopener"`), a nazwa
 organizatora pochodzi z `SiteSettings.organizer_name` — zmiana w `/cms/` przechodzi na formularz
-bez wydania aplikacji. Regułę wieku liczymy po roczniku i zachowawczo: osoba urodzona osiemnaście
-lat temu może mieć jeszcze 17 lat, więc zgoda opiekuna jest od niej wymagana.
+bez wydania aplikacji.
+
+**Link prowadzi do PDF-a, nie do podstrony** (`consents.document_link`, uwaga organizatora z 16.09).
+Bierzemy **pierwszy załącznik PDF** strony dokumentu — ten sam, który karta „Do pobrania” pokazuje
+przyciskiem głównym. Gdy przy dokumencie nie wisi jeszcze żaden PDF, etykieta prowadzi do strony
+(`consents.document_url`): zgoda bez odnośnika do treści nie jest zgodą świadomą, więc brak pliku
+nie może zostawić jej bez linku. **PDF-y wgrywa organizator w `/cms/`** (Strony → Dokumenty →
+*pliki do pobrania*) — dopięcie pliku zmienia adres w formularzu natychmiast, bez wydania aplikacji.
+`GET /api/auth/consents/` oddaje oba adresy: `document_url` (strona, do zacytowania w piśmie)
+i `document_link` (to, pod co klika człowiek). Sama strona dokumentu ma przy tym **przycisk
+„Pobierz PDF” nad treścią**, a nie tylko wiersz w karcie „Do pobrania” pod nią.
+
+**Rocznik rozstrzyga o zgodzie opiekuna po obu stronach.** Regułę liczymy po roczniku
+i zachowawczo: osoba urodzona osiemnaście lat temu może mieć jeszcze 17 lat, więc zgoda opiekuna
+jest od niej wymagana. Rozstrzyga serwer (`ConsentFieldsMixin.clean` → `consents.is_minor`; błąd
+staje **pod polem** zgody, bo wynika z innego pola tego samego formularza). W przeglądarce to samo
+robi `backend/static/js/register-age.js`: odsłania albo chowa wiersz zgody opiekuna przy każdej
+zmianie rocznika, ustawia na nim `required` i zdejmuje zaznaczenie z wiersza, który znika. Próg
+i **rok bieżący** przychodzą z serwera atrybutami `data-*` na bloku zgód (`minor_rule`
+w `apps/web/context_processors.py`) — skrypt nie ma własnej definicji „niepełnoletni”, a zegar
+przeglądarki bywa przestawiony. Bez JavaScriptu wiersz jest widoczny zawsze, a pod polem „Rok
+urodzenia” stoi zdanie, które mówi, czego się spodziewać.
 
 **Gdzie mieszka dowód.** Każda wyrażona zgoda to wiersz `accounts.ConsentRecord`
 (uczestnik, rodzaj, **wersja dokumentu**, data, droga: `web`/`api`/`social`/`panel`, ewentualne
@@ -1392,6 +1434,30 @@ po rejestrze**, a nie wolny tekst. Uczestnik pisze fragment nazwy albo miejscowo
 bez logowania, throttle `schools`) i wybiera jedną. Wyszukiwanie jest odporne na diakrytyki –
 „lodz” znajduje „ŁÓDŹ” – i wymaga trafienia **każdym** wpisanym słowem.
 
+**Krok „Miejscowość”.** Nad polem szkoły stoi pole `Miejscowość`
+(`GET /api/schools/cities/?q=&voivodeship=&limit=`, do 20 odrębnych par *miasto + województwo*,
+dopasowanie **prefiksowe** i odporne na diakrytyki: „lod” znajduje „Łódź”). Po wskazaniu
+miejscowości wyszukiwarka szkół pyta **wyłącznie** o nią, a **pusty tekst znaczy „pokaż wszystkie
+szkoły tego miasta”** — lista doczytuje się przewijaniem (`offset` w zapytaniu, `has_more`
+w odpowiedzi). Krok jest **nieobowiązkowy**: kto zna nazwę swojej szkoły, wpisuje ją jak dotąd,
+a wartość pola nigdy nie trafia do serwisu (`SchoolChoiceMixin.clean` ją zdejmuje — opisuje sposób
+szukania, a nie szkołę).
+
+Powód jest w uwagach organizatora z 16.09: „po wpisaniu «wrocław» nie widać liceów
+ogólnokształcących, a «liceum» nie pokazuje odpowiedniej listy”. Obie obserwacje mają jedną
+przyczynę — dwadzieścia trafień z całej Polski posortowanych alfabetycznie. Stąd druga zmiana:
+**porządek zaczyna się od typu szkoły** (`apps/schools/models.py::KIND_ORDER` — licea
+ogólnokształcące, technika, reszta), a dopiero w obrębie typu decyduje nazwa. Przy samym alfabecie
+pierwsze dwadzieścia pozycji dużego miasta to szkoły branżowe i technika przy zespołach szkół.
+
+Dopasowanie po miejscowości idzie po **wyliczonej kolumnie** `School.city_search` (nazwa miasta bez
+diakrytyków, małymi literami; indeks `schools_city_kind_idx`), tak samo jak wyszukiwanie szkół idzie
+po `School.search_text`. Rozszerzenia Postgresa `unaccent` świadomie **nie** zakładamy: wymaga
+uprawnień, których rola aplikacyjna na produkcji nie ma, a złożony raz napis jest dla planisty
+tańszy od funkcji w warunku. Kolumnę wypełnia `School.save()`, `seed_schools` (jawnie, bo
+`bulk_create`/`bulk_update` omijają `save()`) oraz backfill w migracji `schools.0002` — ta ostatnia
+dlatego, że na produkcji słownik jest już wgrany, a migracje idą przed komendą seedującą.
+
 Po co: wolny tekst nie grupuje. „II LO w Krakowie”, „2 LO Kraków” i „Liceum nr 2” to dla bazy
 trzy różne szkoły, więc próg k-anonimowości w publikacji wyników (`INITIALS_SCHOOL`, 7.4) nie ma
 czego zliczyć. Wybór ze słownika zapisuje w profilu nazwę **przepisaną z rejestru** oraz
@@ -1409,20 +1475,24 @@ któremu firmowe proxy albo wtyczka blokowały ten jeden adres, nie dostawał an
 wpisywał nazwę szkoły w widoczne pole i słyszał od serwera „wybierz szkołę z listy”. Punkty
 zaczepienia to atrybuty `data-picker` na widżetach (`apps/web/forms.py::SchoolChoiceMixin`);
 skrypt startuje na `DOMContentLoaded` dla **każdego** `[data-school-picker]` na stronie
-(rejestracja, dokończenie rejestracji przez dostawcę, edycja profilu).
+(rejestracja, dokończenie rejestracji przez dostawcę, edycja profilu, edycja konta w panelu
+koordynatora). Ten sam skrypt obsługuje krok „Miejscowość” — obie listy używają tych samych klas
+i tej samej obsługi klawiatury (strzałki, Enter, Escape).
 
 **Reguła serwera nie jest twardym „albo/albo”** (`SchoolChoiceMixin.clean` + `_resolve_school`):
 
 | co przyszło | co się dzieje |
 |---|---|
+| `school_city` (dowolne) | **nigdy nie dociera do serwisu** — jest zakresem wyszukiwania, nie daną o szkole |
 | `school_id` wybrany | wygrywa; nazwa przepisana z rejestru, wolny tekst ignorowany |
 | brak `school_id`, wolny tekst niepusty | **przyjęte jako szkoła spoza wykazu — nawet bez zaznaczonego checkboksa** (wpisany tekst jest jednoznaczną odpowiedzią; kratka służy do odsłonięcia pola, a nie do poświadczenia wpisu) |
 | brak jednego i drugiego, ale coś wpisano w wyszukiwarkę | „Wybierz szkołę z podpowiedzi albo zaznacz „Mojej szkoły nie ma na liście” i wpisz jej nazwę.” |
 | wszystko puste | „Wybierz szkołę z listy albo zaznacz, że nie ma jej na liście.” |
 
 Strona działa też **bez JavaScriptu**: pole wolnego tekstu jest wtedy widoczne od początku i sam
-wpis wystarczy. Kontrola w przeglądarce bez okna: `e2e/check_school_picker.py` (podpowiedzi,
-zapis `school_id` po kliknięciu, widoczność pola wolnego tekstu przed i po zaznaczeniu kratki).
+wpis wystarczy. Kontrola w przeglądarce bez okna: `e2e/check_school_picker.py` (podpowiedzi
+miejscowości, pełna lista szkół miasta i jej doczytywanie przewijaniem, zapis `school_id`
+po kliknięciu, widoczność pola wolnego tekstu przed i po zaznaczeniu kratki).
 
 W API rejestracji (`POST /api/auth/register/participant/`) szkołę podaje się jako `school_id`
 (wiersz słownika) **albo** `school` (nazwa). Klient sprzed wprowadzenia słownika, który zna tylko
@@ -2111,9 +2181,14 @@ docker compose exec web python manage.py seed_regulamin
 # (/jak-zaczac/, /o-olimpiadzie/) i przekierowania ze starych adresów.
 docker compose exec web python manage.py seed_legacy_content
 
+# Formularz zgody opiekuna (PDF do wydruku) z fixtures/legacy/zgoda-opiekuna.md.
+# Uruchamia się go PO zmianie treści wzoru, a plik wynikowy trafia do repozytorium —
+# seed wgrywa do biblioteki Wagtaila plik z repozytorium, nie składa go na produkcji.
+python manage.py build_guardian_consent_pdf
+
 # Dołożenie POJEDYNCZEJ strony na działającym serwisie — bez nadpisywania pozostałych treści
 # (pełny przebieg skasowałby poprawki wpisane w /cms/ od ostatniego importu).
-# Tak wgrywa się na produkcję wzór zgody opiekuna:
+# Tak wgrywa się na produkcję wzór zgody opiekuna razem z formularzem PDF:
 docker compose exec web python manage.py seed_legacy_content --only zgoda-opiekuna
 
 # Logotypy partnerów i organizatora z apps/cms/fixtures/partners/ (manifest partners.json):
@@ -2212,6 +2287,42 @@ najbliższym przebiegu, bo manifest opisuje stan docelowy — zakończenie wspó
 wpisu z `partners.json`, czyli zmianą z historią w repozytorium.
 Logotyp organizatora nie jest partnerem: trafia do `SiteSettings.organizer_logo` (stopka).
 
+**Logotypy rysują się większe** (uwaga organizatora z 16.09: „powiększenie logo lub napisu
+Wydziału Informatyki PWr, bo jest nieczytelny”). Ten znak jest **prawie kwadratowy** (584×528),
+więc ograniczała go wysokość kadru, a nie szerokość kolumny; nieczytelny był napis **wewnątrz
+pliku** — nazwa wydziału złożona drobnym krojem i przeskalowana razem z całym znakiem. Kadr karty
+urósł ze 112 na 150 px (obraz z 96 na 128), kadr w pasie na stronie głównej z 72 na 96 px,
+a **nazwa instytucji stoi pod znakiem jako tekst** (0,875 rem w pasie, nagłówek karty na
+`/partnerzy/`) — wcześniej w pasie logotyp był jedynym nośnikiem nazwy.
+
+**Odnośnik obejmuje logotyp i nazwę**, jeden `<a>` na partnera (`target="_blank"`,
+`rel="noopener noreferrer"`), a nie sam nagłówek: znak jest tym, w co człowiek celuje myszą.
+Opis współpracy zostaje poza odnośnikiem, żeby nie wydłużać jego nazwy dostępnej o całe zdanie.
+
+**Znak szerszy niż sam kadr dostaje dwie kolumny siatki.** To osobna sprawa od powiększenia kadru:
+powiększenie pomaga znakom kwadratowym (ogranicza je wysokość), a pasom nie pomaga wcale.
+Próg (`apps/cms/blocks.py::WIDE_LOGO_RATIO` = 3) nie jest gustem, tylko **proporcją kadru**
+(2,1 na `/partnerzy/`, 3,3 w pasie): poniżej niej `object-fit: contain` wykorzystuje wysokość do
+końca i dołożenie szerokości niczego nie zmienia; powyżej ogranicznikiem staje się szerokość — pas
+PCSS-u (7,7) rysuje się w jednej kolumnie wysoki na 35 px przy kadrze 128 px. Siatka ma wtedy
+`grid-auto-flow: dense`, żeby kafel podwójnej szerokości nie zostawiał za sobą pustej kratki.
+O tym, który logotyp jest „pasem”, rozstrzyga **serwer** (`PartnerValue.is_wide`, liczone
+z `Image.width`/`Image.height` — kolumn w bazie, nie odczytu pliku): przeglądarka nie zna proporcji
+pliku, zanim go nie pobierze, a przy `loading="lazy"` układ musi stać wcześniej.
+
+**Manifest wymienia też partnerów, których logotypów nie mamy.** Pięciu wpisów z produkcji
+(`Wydział Informatyki i Telekomunikacji Politechniki Wrocławskiej`, `Wrocławskie Centrum
+Superkomputerowo-Sieciowe`, `finQbit`, `IQM`, `EuroCC 3`) organizator dokonał wprost w `/cms/`:
+ich znaki leżą w bibliotece Wagtaila, a plików źródłowych nie ma w repozytorium. Stoją więc
+w `partners.json` **bez `file` i bez `url`** — oba pola są odtąd opcjonalne, a komenda przy ich
+braku **nie rusza** ani logotypu, ani adresu. To nie jest wygoda, tylko warunek bezpieczeństwa:
+gdyby „brak pliku” znaczyło „brak logotypu”, jeden przebieg `seed_partners` na produkcji skasowałby
+znak i odnośnik, których nie da się odtworzyć z repozytorium. Na świeżej instalacji ci partnerzy
+pokazują kółko z inicjałami. Dopisanie im znaku to wgranie pliku do
+`backend/apps/cms/fixtures/partners/` i uzupełnienie `file` w manifeście; adresy uzupełnia
+redakcja w `/cms/` albo klucz `url` w manifeście. Nazwy muszą być **identyczne** z produkcyjnymi —
+dopasowanie idzie po nazwie, więc literówka utworzyłaby duplikat.
+
 #### Decyzje do podjęcia przez właściciela
 
 Import odtworzył treść, ale nie mógł rozstrzygnąć sprzeczności, które w niej były. Pełne
@@ -2251,9 +2362,18 @@ uzasadnienie każdego punktu: `docs/import/stara-strona-inwentarz.md`, sekcja 8.
    radcę prawnego; do tego czasu strona nosi status „Wersja robocza do akceptacji organizatora”,
    ramkę z tym samym zdaniem nad treścią i wersję **0.1 (projekt)** — dzięki temu zgody zebrane
    przed zatwierdzeniem są w `ConsentRecord.document_version` odróżnialne od zebranych pod
-   wersją ostateczną. Do rozstrzygnięcia zostają też: czy organizator chce PDF-a do wydruku obok
-   strony, czy skan na `contact@qaif.org` wystarcza jako droga dostarczenia oraz czy podpisany
-   dokument ma być wymagany od wszystkich niepełnoletnich, czy dopiero na etapie stacjonarnym.
+   wersją ostateczną. **Formularz do wydruku jest** (organizator poprosił o szablon 15.09):
+   `backend/apps/cms/fixtures/documents/zgoda-opiekuna.pdf` składa komenda
+   `manage.py build_guardian_consent_pdf` z tego samego markdowna, z którego powstaje strona,
+   `seed_legacy_content` przypina go do dokumentu jako „PDF do druku”, a etykieta zgody przy
+   rejestracji prowadzi właśnie do niego (`consents.document_link`). Plik jest składany
+   powtarzalnie (`invariant=1`), więc po każdej zmianie treści trzeba go **przebudować i wgrać
+   do repozytorium** — pilnuje tego test w `apps/cms/tests/test_legacy_content.py`. Ramki
+   „wersja robocza” w PDF-ie nie ma: zostaje na stronie, bo kartka do podpisu ma być formularzem,
+   a nie projektem dokumentu ze stemplem „nie obowiązuje” — do decyzji organizatora, czy tak
+   ma zostać. Do rozstrzygnięcia zostają też: czy skan na `contact@qaif.org` wystarcza jako droga
+   dostarczenia oraz czy podpisany dokument ma być wymagany od wszystkich niepełnoletnich,
+   czy dopiero na etapie stacjonarnym.
    Po zatwierdzeniu: podmiana pliku źródłowego, `GUARDIAN_VERSION`
    w `backend/apps/accounts/consents.py` i metryki w `seed_legacy_content`, potem
    `manage.py seed_legacy_content --only zgoda-opiekuna`.
@@ -2276,7 +2396,7 @@ uzasadnienie każdego punktu: `docs/import/stara-strona-inwentarz.md`, sekcja 8.
    odwołuje się do ZOZ kilkanaście razy (§ 1 ust. 4 przenosi tam harmonogram, formę zadań, wykaz
    narzędzi, maksymalną liczbę finalistów, progi punktowe, literaturę i program merytoryczny),
    a dokumentu nie było — każde z tych odesłań prowadziło w pustkę. Powstał więc **projekt**:
-   `/dokumenty/zoz/` (źródło: `backend/apps/cms/fixtures/legacy/zoz.md`), wersja **0.1 (projekt)**,
+   `/dokumenty/zoz/` (źródło: `backend/apps/cms/fixtures/legacy/zoz.md`), wersja **0.2 (projekt)**,
    status „projekt do akceptacji organizatora”, z ramką o tym samym brzmieniu nad treścią.
    Dokument opisuje wyłącznie to, co serwis naprawdę robi — formaty i limity uploadu, liczenie
    terminu po stronie serwera, skalę 0/2/5/6, dwie niezależne recenzje i rozjemcę, okno reklamacji,

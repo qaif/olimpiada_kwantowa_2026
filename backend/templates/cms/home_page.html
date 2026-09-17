@@ -245,14 +245,27 @@
   kafle z nazwami, z których jedna była instytucją nieistniejącą – sekcja, która sama znika przy
   pustej liście, nie pozwala takiej sugestii wrócić przez pomyłkę redakcji.
 
-  Logotyp jest tu jedynym nośnikiem nazwy, więc ``alt`` musi ją nieść; przy braku pliku zostaje
-  sama nazwa jako tekst, a nie puste kółko – pas ma być czytelny także bez ani jednego logotypu.
+  **Nazwa instytucji stoi pod każdym znakiem jako tekst** – i to jest poprawka po zgłoszeniu
+  organizatora („napis Wydziału Informatyki i Telekomunikacji PWr jest nieczytelny”). Wcześniej
+  logotyp był jedynym nośnikiem nazwy: kto nie odczytał znaku, nie miał jak się dowiedzieć, czyj on
+  jest. Podpis ma 0,875 rem, czyli tyle, ile najmniejszy tekst, który w tym serwisie wolno postawić
+  jako treść. Druga połowa odpowiedzi jest w arkuszu: kadr znaku urósł z 72 na 96 px, bo znak,
+  który ma nazwę wpisaną w plik, da się powiększyć wyłącznie w całości.
+  Przy braku pliku zostaje sam podpis, a nie puste kółko – pas ma być czytelny także bez ani
+  jednego logotypu.
+
+  **Odnośnik obejmuje znak i podpis** – jeden ``<a>`` na kafel, tak samo jak karta na
+  ``/partnerzy/`` (uwaga organizatora: „linki powinny obejmować obrazek, nie tylko nazwę”).
+  ``alt`` niesie nazwę instytucji: organizator prosił, żeby zostawić go przy obrazie.
 
   Kafle mają jednolitą wysokość, a logotyp stoi w nich wyśrodkowany z ``object-fit: contain``:
   znaki instytucji mają skrajnie różne proporcje (pas PCSS-u jest ośmiokrotnie szerszy niż wyższy,
   godło IF PAN jest kwadratem), więc bez wspólnego kadru pas rozjeżdżałby się na kilka wysokości.
-  Rendition ``max-400x160`` jest większy od kadru (72 px wysokości) – to zapas na ekrany o dużej
-  gęstości; ``loading="lazy"``, bo pas stoi w dolnej połowie strony głównej.
+  Znak szerszy niż sam kadr (``block.value.is_wide``) zajmuje **dwie kolumny** siatki: przy jednej
+  ``contain`` mieści go w całości, ale ogranicznikiem jest wtedy szerokość, a nie wysokość, więc
+  napis ma kilkanaście pikseli i nie da się go powiększyć inaczej niż dokładając miejsca w poziomie.
+  Rendition ``max-600x240`` jest większy od kadru (72 px wysokości) – to zapas na ekrany o dużej
+  gęstości i na kafel podwójnej szerokości; ``loading="lazy"``, bo pas stoi w dolnej połowie strony.
 {% endcomment %}
 {% if partners_page %}
   <section class="section">
@@ -262,14 +275,14 @@
     </div>
     <ul class="partner-strip">
       {% for block in partners_page.partners %}
-        <li class="partner-strip__item">
-          {% if block.value.url %}<a class="partner-strip__link" href="{{ block.value.url }}"
-             target="_blank" rel="noopener noreferrer">{% endif %}
+        <li class="partner-strip__item{% if block.value.is_wide %} partner-strip__item--wide{% endif %}">
+          {% if block.value.url %}<a class="partner-strip__link" href="{{ block.value.url }}" target="_blank" rel="noopener noreferrer">{% endif %}
           {% if block.value.logo %}
-            {% image block.value.logo max-400x160 alt=block.value.name loading="lazy" class="partner-strip__logo" %}
-          {% else %}
-            <span class="partner-strip__name">{{ block.value.name }}</span>
+            <span class="partner-strip__frame">
+              {% image block.value.logo max-600x240 alt=block.value.name loading="lazy" class="partner-strip__logo" %}
+            </span>
           {% endif %}
+          <span class="partner-strip__name">{{ block.value.name }}</span>
           {% if block.value.url %}</a>{% endif %}
         </li>
       {% endfor %}

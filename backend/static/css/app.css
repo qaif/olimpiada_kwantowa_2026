@@ -771,14 +771,6 @@ hr {
   font-weight: 600;
 }
 
-/* „Rejestracja z kodem” jest drogą dla zaproszonych (komitet, recenzenci), a nie dla uczestnika:
-   zostaje odnośnikiem mniejszym od dwóch przycisków obok, żeby nie konkurowała z rejestracją. */
-.account-bar__link--sub {
-  font-size: 0.8125rem;
-  color: rgba(244, 241, 232, 0.74);
-  text-decoration: underline;
-}
-
 .account-bar__sep {
   width: 1px;
   height: 1.25rem;
@@ -1283,6 +1275,14 @@ hr {
   content: "·";
   margin-right: var(--sp-3);
   color: rgba(244, 241, 232, 0.4);
+  /* Separator jest atomowym pudełkiem liniowym, bo podkreślenie **nie wchodzi** do wnętrza
+     takiego pudełka (CSS Text Decoration: dekoracja nie propaguje się do atomic inline).
+     Bez tego kropka przed „Ustawieniami cookies” i jej 12-pikselowy margines wpadały w podkreślenie
+     przycisku (``.footer__link-button``) i rysowały się jako kreska przed tekstem – organizator
+     zgłosił to 15.09 jako „zabłąkane _”. Sąsiednie odnośniki podkreślenia nie mają, więc u nich
+     artefakt nie występował i regułę widać było wyłącznie przy tym jednym elemencie. */
+  display: inline-block;
+  text-decoration: none;
 }
 
 /* „Ustawienia cookies” – element sterujący, a nie adres, więc w HTML jest to ``<button>``
@@ -1819,6 +1819,14 @@ input[type="date"],
 input[type="datetime-local"],
 input[type="url"],
 input[type="search"],
+/* ``tel`` wypadło z tej listy razem z przejściem pola „Telefon” na klawiaturę numeryczną
+   (apps/web/forms.py::phone_field) i to jest cała treść zgłoszenia organizatora: „okno do
+   wprowadzenia nr telefonu ma wyraźnie mniejszy rozmiar”. Bez selektora kontrolka zostaje przy
+   domyślnej szerokości przeglądarki (``size=20``, czyli dwadzieścia znaków), więc w kolumnie pól
+   rozciągniętych na 100 % szerokości jedno stoi o połowę węższe i wygląda na pole innego rodzaju.
+   Szerokość ustala **arkusz**, a nie atrybut ``size`` w HTML-u: atrybut liczy się w znakach
+   bieżącego kroju i nie ma jak dogonić pozostałych pól. */
+input[type="tel"],
 select,
 textarea {
   width: 100%;
@@ -3449,12 +3457,20 @@ td.empty,
 }
 
 /* Kadr logotypu: stała wysokość i białe tło. Znaki instytucji mają skrajnie różne proporcje
-   (pas PCSS-u 1600×209 obok kwadratowego godła IF PAN), więc bez wspólnego kadru karty w siatce
+   (pas PCSS-u 1600×208 obok kwadratowego godła IF PAN), więc bez wspólnego kadru karty w siatce
    miałyby nazwy na różnych wysokościach. Tło jest jasne także w trybie ciemnym – logotypy są
-   rysowane na biel i na granacie znikałyby razem z konturem. */
+   rysowane na biel i na granacie znikałyby razem z konturem.
+
+   Kadr urósł ze 112 na 150 px (obraz z 96 na 128) po zgłoszeniu organizatora o nieczytelnym
+   napisie Wydziału Informatyki i Telekomunikacji PWr. Ten znak jest **prawie kwadratowy**
+   (584×528), więc dwie kolumny siatki nic by mu nie dały – ogranicza go wysokość kadru, a nie
+   szerokość kolumny. Nieczytelny był napis **wewnątrz pliku**: nazwa wydziału złożona drobnym
+   krojem i przeskalowana do 96 px razem z całym znakiem. Jedyne, co tu pomaga, to narysować znak
+   większy – stąd te dwie liczby. Powyżej 128 px kafle zaczynają dominować stronę, a nazwa
+   instytucji stoi i tak pod znakiem jako tekst. */
 .partner-card__mark--logo {
   justify-content: center;
-  height: 112px;
+  height: 150px;
   min-height: 0;
   padding: var(--sp-3);
   background: #fff;
@@ -3464,10 +3480,41 @@ td.empty,
 
 .partner-card__logo {
   max-width: 100%;
-  max-height: 96px;
+  max-height: 128px;
   width: auto;
   height: auto;
   object-fit: contain;
+}
+
+/* Znak **szerszy niż sam kadr** dostaje dwie kolumny siatki – i to jest odrębna sprawa od
+   powiększenia kadru wyżej. Powiększenie kadru pomaga znakom kwadratowym (ogranicza je wysokość);
+   tym nie pomaga wcale, bo ogranicza je szerokość. Kiedy proporcja znaku przekracza proporcję
+   kadru, ``contain`` mieści go w całości, ale wysokość zostaje niewykorzystana: pas 7,7:1
+   w kolumnie o kadrze 273 px szerokości rysuje się wysoki na 35 px, choć kadr ma 128. Podwojenie
+   szerokości podwaja wtedy wysokość napisu, bo ``contain`` skaluje proporcjonalnie – i jest jedyną
+   drogą, która nie przycina ani nie rozciąga znaku. O tym, który logotyp jest pasem, rozstrzyga
+   serwer (``PartnerValue.is_wide``, próg ``WIDE_LOGO_RATIO``): przeglądarka nie zna proporcji
+   pliku, zanim go nie pobierze, a przy ``loading="lazy"`` układ musi stać wcześniej.
+
+   Reguła zaczyna działać dopiero od 640 px, i to nie jest kosmetyka: siatka ``.cards`` jest
+   ``auto-fill`` po 280 px, więc na telefonie ma **jedną** kolumnę – ``span 2`` dołożyłby tam
+   kolumnę niejawną i wypchnął kartę poza ekran. Poniżej tej szerokości kafel i tak jest już na
+   całą szerokość, czyli dostaje dokładnie to, o co w tej regule chodzi. */
+@media (min-width: 640px) {
+  /* ``dense`` jest konsekwencją kafla o podwójnej szerokości, a nie osobną decyzją: przy
+     domyślnym ``row`` pozycja szerokości dwóch kolumn, która nie mieści się w resztce wiersza,
+     zostawia za sobą dziurę, a kolejne karty **nie** cofają się, żeby ją wypełnić. Pusty kadr
+     obok dwóch pełnych czyta się jak niewczytany obraz – czyli dokładnie jak usterka, którą ta
+     reguła naprawia. Cena: karta wąska może wyprzedzić szeroką. W obrębie jednej grupy wszyscy
+     partnerzy mają ten sam poziom współpracy, więc kolejność jest tam preferencją redakcji,
+     a nie hierarchią – grupy (patronat, sponsorzy) są osobnymi siatkami i nie mieszają się. */
+  .partners {
+    grid-auto-flow: dense;
+  }
+
+  .partners > .partner--wide {
+    grid-column: span 2;
+  }
 }
 
 .partner-card__initials {
@@ -3485,18 +3532,29 @@ td.empty,
   letter-spacing: 0.02em;
 }
 
+/* Odnośnik obejmuje logotyp **i** nazwę (templates/cms/partners_page.html), więc to on, a nie
+   karta, jest kolumną: przejmuje układ ``.partner-card`` dla obu swoich dzieci. Bez tego kadr
+   znaku i nazwa zlepiłyby się w jeden wiersz tekstu, bo ``<a>`` jest domyślnie elementem
+   liniowym. Kolor i podkreślenie dziedziczą się z otoczenia – kafel ma wyglądać jak karta,
+   a nie jak odnośnik tekstowy; podkreślenie pojawia się dopiero przy najechaniu i przy fokusie,
+   i to **pod nazwą**, bo to ona jest tu tekstem. */
+.partner-card__link {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  color: inherit;
+  text-decoration: none;
+}
+
+.partner-card__link:hover .partner-card__name,
+.partner-card__link:focus-visible .partner-card__name {
+  text-decoration: underline;
+}
+
 .partner-card__name {
   font-family: var(--font-serif);
   font-size: 1.0625rem;
   margin: 0;
-}
-
-.partner-card__name a {
-  text-decoration: none;
-}
-
-.partner-card__name a:hover {
-  text-decoration: underline;
 }
 
 .partner-card__text {
@@ -3526,6 +3584,9 @@ td.empty,
   list-style: none;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* ``dense`` z tego samego powodu, co w siatce kart na ``/partnerzy/``: kafel o podwójnej
+     szerokości, który nie mieści się w resztce wiersza, zostawiłby po sobie pustą kratkę. */
+  grid-auto-flow: dense;
   gap: var(--sp-4);
   margin: 0;
   padding: 0;
@@ -3537,14 +3598,19 @@ td.empty,
   }
 }
 
-/* Kafel ma jedną wysokość dla wszystkich logotypów i rośnie tylko wszerz (``flex: 1 1 auto``
-   z górnym ograniczeniem), więc pas wygląda jak jeden rząd znaków, a nie jak zbiór obrazków
-   o przypadkowych rozmiarach. Tło jest białe – patrz ``.partner-card__mark--logo``. */
+/* Kafel jest kolumną „znak + nazwa” o wspólnej wysokości minimalnej, więc pas wygląda jak jeden
+   rząd znaków, a nie jak zbiór obrazków o przypadkowych rozmiarach. ``min-height`` zamiast
+   ``height``: nazwa instytucji bywa dwuwierszowa („Poznańskie Centrum Superkomputerowo-Sieciowe”),
+   a przycięty podpis byłby gorszy od nierównego wiersza kafli – siatka wyrównuje je i tak,
+   bo pozycje w wierszu rozciągają się do najwyższej. Tło jest białe – patrz
+   ``.partner-card__mark--logo``. */
 .partner-strip__item {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 104px;
+  gap: var(--sp-2);
+  min-height: 148px;
   padding: var(--sp-3) var(--sp-4);
   background: #fff;
   border: 1px solid var(--line);
@@ -3552,25 +3618,56 @@ td.empty,
   box-shadow: var(--shadow-sm);
 }
 
+/* Pas (proporcja ponad ``WIDE_LOGO_RATIO`` – patrz ``PartnerValue.is_wide``) zajmuje obie kolumny, czyli
+   na każdej szerokości ekranu całą jej szerokość. To samo, co ``.partner--wide`` robi na
+   ``/partnerzy/``, tylko bez progu szerokości okna: ``.partner-strip`` ma kolumny **jawne**
+   (dwie do 700 px, trzy powyżej), więc ``span 2`` nigdy nie stworzy tu kolumny niejawnej. */
+.partner-strip__item--wide {
+  grid-column: span 2;
+}
+
 .partner-strip__link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  width: 100%;
+  height: 100%;
+  text-decoration: none;
+}
+
+/* Kadr znaku jest osobnym elementem, a nie samym obrazem: podpis z nazwą stoi pod nim, więc
+   obraz potrzebuje własnego pudełka o stałej wysokości – inaczej kafle z niskim znakiem miałyby
+   podpis wyżej niż kafle ze znakiem kwadratowym. 96 px zamiast dawnych 72 z tego samego powodu,
+   co 150 px w kadrze karty na ``/partnerzy/``: znaki z nazwą instytucji wpisaną w plik (logotyp
+   Wydziału Informatyki i Telekomunikacji PWr) w mniejszym kadrze mają napis poniżej progu
+   czytelności, a przeskalować da się wyłącznie cały znak. */
+.partner-strip__frame {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: 100%;
+  height: 96px;
 }
 
 .partner-strip__logo {
   max-width: 100%;
-  max-height: 72px;
+  max-height: 96px;
   width: auto;
   height: auto;
   object-fit: contain;
 }
 
+/* Podpis pod znakiem. 0,875 rem, a nie 0,8125 rem jak podpowiedzi: to jest **treść** – nazwa
+   instytucji, której organizator nie mógł odczytać z samego logotypu – a nie objaśnienie
+   czegoś, co widać obok. Kolor jest przygaszony, bo pierwszym planem kafla zostaje znak. */
 .partner-strip__name {
   font-family: var(--font-serif);
+  font-size: 0.875rem;
   font-weight: 600;
+  line-height: 1.3;
+  text-align: center;
   color: var(--ink-soft);
 }
 
@@ -3592,6 +3689,16 @@ td.empty,
   margin-bottom: var(--sp-4);
   padding-bottom: 0;
   border-bottom: 0;
+}
+
+/* Pas czynności nad treścią dokumentu: „Pobierz PDF” i „Drukuj”. ``flex`` z zawijaniem, bo na
+   telefonie dwa przyciski obok siebie nie mieszczą się w jednym wierszu, a odstęp między nimi
+   ma być odstępem, a nie przypadkową spacją z HTML-a. */
+.doc-print {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin: 0 0 var(--sp-4);
 }
 
 /* Karta „Do pobrania”: lista plików przypiętych do strony (templates/cms/_attachments.html)
@@ -4357,8 +4464,11 @@ fieldset:disabled .score-option {
 
 /* --- 7b. Wyszukiwarka szkół (rejestracja uczestnika) ---------------------------------------- */
 
-/* Blok jest jednym polem formularza złożonym z czterech kontrolek (patrz
-   templates/web/_school_picker.html), więc odstępy w środku są mniejsze niż między polami. */
+/* Blok jest jednym polem formularza złożonym z pięciu kontrolek – miejscowość, wyszukiwarka,
+   ukryty identyfikator, kratka wyjątku i wolny tekst (patrz templates/web/_school_picker.html) –
+   więc odstępy w środku są mniejsze niż między polami. Obie listy podpowiedzi (miejscowości
+   i szkół) używają tych samych klas ``.school-picker__list``/``__item``: to ten sam komponent
+   w dwóch rolach, a nie dwa podobne. */
 .school-picker {
   display: flex;
   flex-direction: column;
@@ -5149,10 +5259,33 @@ img.captcha {
   gap: var(--sp-1);
 }
 
-/* Kod języka („EN”, „PL”) jest krótki i ma nie skakać przy zmianie – stała szerokość minimalna
-   i cyfrowa przestrzeń liter trzymają pasek w jednym miejscu. */
+/* Oba przełączniki są ikonami bez napisu, a ikona jest węższa od przycisku z tekstem – stała
+   szerokość minimalna trzyma je w rozmiarze celu dotykowego (WCAG 2.5.8 chce 24 px) i nie pozwala
+   pozostałym pozycjom paska przeskoczyć, gdy przycisk zmieni zawartość po kliknięciu. */
 .account-bar__prefs button {
   min-width: 2.5rem;
+}
+
+/* Przycisk-ikona. ``.btn--ghost`` podkreśla swoją treść, bo jest tam tekstem – pod rysunkiem
+   podkreślenie rysowałoby kreskę bez znaczenia, a przy ukrytej etykiecie („visually-hidden”)
+   nie ma czego podkreślać. Odstęp też odpada: wewnątrz stoi jedno pudełko, nie dwa. */
+.account-bar__btn--icon {
+  text-decoration: none;
+  gap: 0;
+  padding-inline: var(--sp-2);
+}
+
+/* Flaga języka docelowego. Obrys idzie ``currentColor``, bo biały pas polskiej flagi na jasnym
+   tle (i granatowy Union Jack na granatowym pasku) inaczej zlewa się z tłem; ten sam obrys
+   rysuje ikonę w trybie wysokiego kontrastu, w którym kolory flag zostają własne. */
+.pref-flag {
+  display: block;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px currentColor;
+}
+
+.pref-icon {
+  display: block;
 }
 
 /* =================================================================================================

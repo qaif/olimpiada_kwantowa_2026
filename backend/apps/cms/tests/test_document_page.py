@@ -229,6 +229,32 @@ def test_regulamin_page_renders_content_and_download_link(web_client, regulamin)
     assert LEGAL_STATUS in content
 
 
+def test_regulamin_page_offers_the_pdf_above_the_content(web_client, regulamin):
+    """Uwaga organizatora z 16.09: dokument ma być plikiem, a nie tylko podstroną.
+
+    Karta „Do pobrania” z kompletem plików zostaje niżej, ale sam PDF dostaje przycisk **nad**
+    treścią: czytelnik, który wszedł tu z etykiety zgody przy rejestracji albo z pisma, przychodzi
+    po dokument i nie ma go szukać pod dwudziestoma czterema paragrafami.
+    """
+    content = web_client.get(PAGE_PATH).content.decode()
+    pdf = next(item for item in regulamin.attachments.all() if item.is_pdf)
+
+    assert "Pobierz PDF" in content
+    button = content.index("Pobierz PDF")
+    assert button < content.index('class="doc-body')
+    assert f'href="{pdf.document.url}" download' in content
+
+
+def test_a_document_without_a_pdf_has_no_download_button(web_client, regulamin):
+    """Bez pliku nie ma czego obiecywać – przycisk prowadzący donikąd byłby gorszy od jego braku."""
+    regulamin.attachments.all().delete()
+
+    content = web_client.get(PAGE_PATH).content.decode()
+
+    assert "Pobierz PDF" not in content
+    assert "Do pobrania" not in content
+
+
 def test_regulamin_page_renders_markup_not_escaped_source(web_client, regulamin):
     content = web_client.get(PAGE_PATH).content.decode()
 

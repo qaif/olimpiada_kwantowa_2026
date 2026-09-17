@@ -1,0 +1,93 @@
+{% load i18n %}{% comment %}
+  Przełączniki języka i kontrastu w pasku konta. Stoją **przed** pozycjami konta i są widoczne
+  także dla gościa: to ustawienie przeglądającego, a nie uprawnienie. Oba są formularzami POST,
+  a nie odnośnikami – zmieniają stan po stronie serwera, a nie prowadzą pod adres, więc GET
+  byłby tu nieprawdą (i dałby się wywołać obcą stroną przez podstawiony obrazek). Pole ``next``
+  wraca na tę samą stronę; adres jest sprawdzany po stronie serwera
+  (``apps.accounts.preferences.safe_next_url``), bo pochodzi od nadawcy żądania.
+
+  Oba przyciski są **ikonami bez napisu** – tak poprosił organizator. Napis „EN” w polskim pasku
+  i „Kontrast” obok niego zajmowały tyle miejsca, co pozycja menu, a mówiły mniej niż flaga
+  i kółko. Cena jest jedna i trzeba ją zapłacić jawnie: obrazek bez tekstu nie ma nazwy, więc
+  każdy z tych przycisków musi ją dostać z osobna –
+
+  - **język**: nazwą jest polecenie zapisane w języku docelowym (``item.switch_label``
+    z ``apps.accounts.preferences``). W ukrytym tekście, a nie w ``aria-label`` na SVG: jedna
+    nazwa na przycisk, bo dwie czytnik ekranu przeczytałby po kolei. Sama flaga jest wtedy
+    dekoracją (``aria-hidden``) i nie ma prawa się odezwać,
+  - **kontrast**: nazwą jest ``aria-label``, bo mówi o **skutku** kliknięcia („włącz”/„wyłącz”),
+    a stan niesie ``aria-pressed``. Etykieta zmienia się razem ze stanem, więc musi przejść
+    przez gettext – w odróżnieniu od polecenia zmiany języka.
+
+  SVG jest wpisany w szablon, a nie wczytywany plikiem: to dwa razy po kilka kształtów, a plik
+  z ikoną kosztowałby żądanie w każdym wejściu na dowolną stronę serwisu. Kolory flag są ich
+  własne (flaga w innych kolorach przestaje być flagą), obrys i ikona kontrastu idą
+  ``currentColor``, więc tryb wysokiego kontrastu obsługuje się sam. Ani jednego atrybutu
+  ``style`` – polityka CSP nie ma ``'unsafe-inline'`` dla stylów.
+{% endcomment %}
+<form method="post" action="{% url 'web:account-preferences' %}" class="inline account-bar__prefs">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+  <input type="hidden" name="high_contrast" value="{% if interface_high_contrast %}1{% else %}0{% endif %}">
+  {% for item in interface_languages %}
+    {% if item.code != interface_language %}
+      <button type="submit" name="language" value="{{ item.code }}"
+              class="btn btn--small btn--ghost account-bar__btn account-bar__btn--icon"
+              lang="{{ item.code }}" title="{{ item.switch_label }}">
+        {% if item.code == "en" %}
+          {% comment %}
+            Union Jack w uproszczeniu: przy szerokości 20 px przesunięcie czerwonych przekątnych
+            i tak jest poniżej jednego piksela, a wersja bez ``clipPath`` nie wnosi na stronę
+            identyfikatora, który mógłby się z czymkolwiek zderzyć.
+          {% endcomment %}
+          <svg class="pref-flag" width="20" height="14" viewBox="0 0 60 42" aria-hidden="true"
+               focusable="false">
+            <rect width="60" height="42" fill="#012169"/>
+            <path d="M0 0 60 42M60 0 0 42" stroke="#fff" stroke-width="8"/>
+            <path d="M0 0 60 42M60 0 0 42" stroke="#c8102e" stroke-width="4"/>
+            <path d="M30 0v42M0 21h60" stroke="#fff" stroke-width="14"/>
+            <path d="M30 0v42M0 21h60" stroke="#c8102e" stroke-width="8"/>
+          </svg>
+        {% elif item.code == "pl" %}
+          <svg class="pref-flag" width="20" height="14" viewBox="0 0 60 42" aria-hidden="true"
+               focusable="false">
+            <rect width="60" height="21" fill="#fff"/>
+            <rect y="21" width="60" height="21" fill="#dc143c"/>
+          </svg>
+        {% else %}
+          {% comment %}
+            Język spoza pary pl/en (gdyby doszedł do ``LANGUAGES``) nie ma tu flagi i **dobrze**:
+            wymyślona flaga myli bardziej niż kod języka, a niejeden język ma ich kilkanaście.
+          {% endcomment %}
+          <span aria-hidden="true">{{ item.code|upper }}</span>
+        {% endif %}
+        <span class="visually-hidden">{{ item.switch_label }}</span>
+      </button>
+    {% endif %}
+  {% endfor %}
+</form>
+<form method="post" action="{% url 'web:account-preferences' %}" class="inline account-bar__prefs">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+  <input type="hidden" name="language" value="{{ interface_language }}">
+  {% if interface_high_contrast %}
+    {% translate "Wysoki kontrast: wyłącz" as contrast_label %}
+  {% else %}
+    {% translate "Wysoki kontrast: włącz" as contrast_label %}
+  {% endif %}
+  <button type="submit" name="high_contrast" value="{% if interface_high_contrast %}0{% else %}1{% endif %}"
+          class="btn btn--small btn--ghost account-bar__btn account-bar__btn--icon"
+          aria-pressed="{% if interface_high_contrast %}true{% else %}false{% endif %}"
+          aria-label="{{ contrast_label }}" title="{{ contrast_label }}">
+    {% comment %}
+      Kółko wypełnione w połowie – ten sam znak, którym tryb kontrastu opisuje się w systemach
+      operacyjnych. Obie połowy idą ``currentColor``, więc ikona jest widoczna w każdym
+      wariancie kolorystycznym i nie trzeba jej przerysowywać dla trybu, który włącza.
+    {% endcomment %}
+    <svg class="pref-icon" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"
+         focusable="false">
+      <circle cx="9" cy="9" r="7.25" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M9 1.75a7.25 7.25 0 0 1 0 14.5z" fill="currentColor"/>
+    </svg>
+  </button>
+</form>

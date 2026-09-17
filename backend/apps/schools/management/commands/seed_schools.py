@@ -25,7 +25,13 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from apps.accounts.models import Voivodeship
-from apps.schools.models import DEFAULT_SOURCE_YEAR, School, SchoolKind, search_text_for
+from apps.schools.models import (
+    DEFAULT_SOURCE_YEAR,
+    School,
+    SchoolKind,
+    city_search_for,
+    search_text_for,
+)
 
 #: Domyślny słownik – ten sam plik, który leży w repozytorium (patrz fixtures/README.md).
 DEFAULT_FIXTURE = Path(__file__).resolve().parents[2] / "fixtures" / "szkoly-srednie-sio-2025.json"
@@ -41,6 +47,7 @@ UPDATED_FIELDS = (
     "address",
     "is_public",
     "search_text",
+    "city_search",
     "is_active",
     "source_year",
 )
@@ -117,6 +124,7 @@ class Command(BaseCommand):
             "address": str(row.get("address") or "")[:255],
             "is_public": bool(row.get("is_public", True)),
             "search_text": search_text_for(name, city)[:400],
+            "city_search": city_search_for(city)[:120],
             "is_active": True,
             "source_year": source_year,
         }
@@ -129,9 +137,10 @@ class Command(BaseCommand):
         to_update = [
             School(id=existing[fields["rspo"]], **fields) for fields in parsed if fields["rspo"] in existing
         ]
-        # ``bulk_create``/``bulk_update`` omijają ``School.save()``, więc ``search_text`` jest tu
-        # policzony jawnie w ``_school_fields`` – inaczej kolumna wyszukiwania zostałaby pusta
-        # i podpowiedzi nie znajdowałyby niczego.
+        # ``bulk_create``/``bulk_update`` omijają ``School.save()``, więc obie kolumny
+        # porównawcze (``search_text`` i ``city_search``) są policzone jawnie w
+        # ``_school_fields`` – inaczej zostałyby puste, a podpowiedzi szkół i miejscowości
+        # nie znajdowałyby niczego.
         School.objects.bulk_create(to_create, batch_size=BATCH_SIZE)
         School.objects.bulk_update(to_update, list(UPDATED_FIELDS), batch_size=BATCH_SIZE)
         deactivated = (

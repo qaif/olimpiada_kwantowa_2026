@@ -3,6 +3,8 @@
 {% block title %}{% translate "Rejestracja uczestnika" %}{% endblock %}
 {% block page_scripts %}
   <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/school-picker.js' %}"></script>
+  {# Zgoda opiekuna odsłaniana rocznikiem. Rozstrzyga serwer – patrz static/js/register-age.js. #}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/register-age.js' %}"></script>
 {% endblock %}
 {% block content %}
 <div class="auth">
@@ -26,7 +28,14 @@
       <p class="notice">{{ settings.cms.SiteSettings.registration_note }}</p>
     {% endif %}
     {% if registration.is_open %}
-      <p class="auth__intro">{% translate "Rejestracja jest otwarta. Po założeniu konta zapiszesz się do etapu eliminacyjnego z panelu uczestnika." %}</p>
+      {% comment %}
+        Przy otwartej rejestracji nie ma tu żadnego zdania i to jest decyzja, a nie przeoczenie
+        (uwaga organizatora z 15.09): formularz stojący pod nagłówkiem sam mówi, że rejestracja
+        jest otwarta, a zapowiedź „zapiszesz się do etapu eliminacyjnego z panelu” opisywała
+        krok, do którego jeszcze daleko. Gałąź „poza oknem rejestracji” niżej zostaje nietknięta:
+        tam powód (``registration.message``) jest jedyną treścią strony i bez niego czytelnik
+        zobaczyłby pusty ekran zamiast odpowiedzi na pytanie „to kiedy?”.
+      {% endcomment %}
       <form method="post" class="form">
         {% csrf_token %}
         {# Legenda gwiazdki – marker rysuje arkusz z klasy ``required`` (apps/web/forms.py). #}

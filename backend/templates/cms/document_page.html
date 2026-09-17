@@ -34,7 +34,21 @@
       nawigację, stopkę i sam przycisk niezależnie od tego, czy wydruk poszedł stąd,
       czy ze skrótu przeglądarki.
     {% endcomment %}
+    {% comment %}
+      „Pobierz PDF” stoi **nad** treścią, obok „Drukuj”, a karta „Do pobrania” zostaje niżej
+      z kompletem plików (PDF, źródłowy .docx, rozmiary). Powód jest jeden: czytelnik, który
+      wszedł tu z etykiety zgody przy rejestracji albo z pisma, przychodzi po dokument, a nie
+      po jego transkrypcję – i nie ma go szukać pod siedemnastoma paragrafami regulaminu.
+      Przycisk istnieje wyłącznie wtedy, gdy przy stronie wisi PDF (``pdf_attachment``
+      w ``DocumentPage.get_context``); bez pliku nie ma czego obiecywać.
+      ``download`` zamiast ``target="_blank"``: to plik do zachowania, a wbudowana przeglądarka
+      PDF-ów i tak otworzy go sama, jeśli tak ma ustawioną obsługę typu.
+    {% endcomment %}
     <p class="doc-print">
+      {% if pdf_attachment %}
+        <a class="btn btn--small btn--primary" href="{{ pdf_attachment.document.url }}" download>
+          Pobierz PDF</a>
+      {% endif %}
       <button type="button" class="btn btn--small btn--secondary" data-print hidden>Drukuj</button>
     </p>
 

@@ -138,10 +138,42 @@ def test_contrast_switch_does_not_reset_the_language(web_client, participant):
 
 
 def test_account_bar_offers_the_other_language_and_the_contrast(web_client):
+    """Oba przełączniki są ikonami, więc sprawdzamy ich **nazwy dostępne**, a nie napisy.
+
+    Flaga i kółko nie mają tekstu: gdyby test patrzył na „EN” i „Kontrast”, po zamianie napisów
+    na rysunki przestałby cokolwiek chronić, a jedyne, co tu może cicho zniknąć, to właśnie
+    nazwa – przycisk bez niej dalej wygląda dobrze i dalej działa myszą.
+    """
     content = web_client.get("/statystyki/", HTTP_ACCEPT_LANGUAGE="pl").content.decode()
 
     assert 'value="en"' in content
-    assert "Kontrast" in content
+    # Polecenie zmiany języka jest w języku docelowym – czyta je ktoś, kto nie czyta polskiego.
+    assert "Switch to English" in content
+    assert 'aria-label="Wysoki kontrast: włącz"' in content
+    assert 'aria-pressed="false"' in content
+
+
+def test_account_bar_switches_are_icons_without_a_caption(web_client):
+    """Napisów „EN” i „Kontrast” w pasku nie ma – organizator poprosił o flagę i ikonę."""
+    content = web_client.get("/statystyki/", HTTP_ACCEPT_LANGUAGE="pl").content.decode()
+
+    assert ">EN</button>" not in content
+    assert ">Kontrast<" not in content
+    assert 'class="pref-flag"' in content
+    assert 'class="pref-icon"' in content
+    # Rysunek jest dekoracją: nazwę niesie ukryty tekst, a dwie nazwy czytnik ekranu czytałby dwa razy.
+    flag = content[content.index('class="pref-flag"') :][:400]
+    assert 'aria-hidden="true"' in flag
+
+
+def test_contrast_button_says_what_the_click_will_do(web_client):
+    """Etykieta opisuje **skutek**, a stan niesie ``aria-pressed`` – po włączeniu oba się zmieniają."""
+    web_client.post(PREFERENCES_URL, {"high_contrast": "1", "next": "/statystyki/"})
+
+    content = web_client.get("/statystyki/", HTTP_ACCEPT_LANGUAGE="pl").content.decode()
+
+    assert 'aria-label="Wysoki kontrast: wyłącz"' in content
+    assert 'aria-pressed="true"' in content
 
 
 def test_next_outside_the_site_is_refused(web_client):

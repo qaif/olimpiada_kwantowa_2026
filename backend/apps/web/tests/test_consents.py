@@ -81,6 +81,25 @@ def test_register_form_shows_every_consent_with_a_link_to_its_document(web_clien
     assert 'name="publish_name_consent"' in body
 
 
+def test_register_form_links_the_consent_label_to_the_pdf_when_there_is_one(web_client, edition):
+    """Uwaga organizatora z 16.09: „linki do regulaminów powinny prowadzić do PDF-ów”.
+
+    Reguła wyboru adresu ma własne testy w ``apps/accounts/tests/test_consents.py``; tutaj
+    sprawdzamy, że formularz faktycznie renderuje ten adres – i że nadal otwiera go w nowej
+    karcie, bo przeczytanie regulaminu nie może kosztować wypełnionego formularza.
+    """
+    from apps.accounts.tests.test_consents import attach_file, publish_document_page
+
+    page = publish_document_page("regulamin")
+    pdf = attach_file(page, filename="regulamin.pdf", label="PDF do druku")
+
+    body = web_client.get(REGISTER_URL).content.decode()
+
+    assert f'href="{pdf.url}" target="_blank" rel="noopener"' in body
+    # Strona dokumentu przestaje być celem etykiety – linkiem jest plik.
+    assert 'href="/dokumenty/regulamin/"' not in body
+
+
 def test_register_form_blocks_a_minor_without_the_guardian_consent(web_client, edition):
     response = web_client.post(REGISTER_URL, register_payload(birth_year=minor_year()))
 
@@ -89,7 +108,71 @@ def test_register_form_blocks_a_minor_without_the_guardian_consent(web_client, e
     # Błąd stoi **pod polem** zgody opiekuna, a nie nad formularzem: wynika z rocznika
     # wpisanego obok, więc bez wskazania palcem nie wiadomo, co poprawić.
     assert "guardian_consent" in form.errors
+    assert form.errors["guardian_consent"] == [
+        "Zgoda rodzica lub opiekuna prawnego jest wymagana dla uczestnika niepełnoletniego."
+    ]
     assert not User.objects.exists()
+
+
+def test_register_form_does_not_require_the_guardian_consent_from_an_adult(web_client, edition):
+    """Druga połowa tej samej reguły: pełnoletni zakłada konto bez oświadczenia o opiekunie."""
+    response = web_client.post(REGISTER_URL, register_payload(birth_year=adult_year()))
+
+    assert response.status_code == 302
+    participant = Participant.objects.get()
+    assert participant.guardian_consent is False
+    assert not participant.consents.filter(kind=ConsentKind.GUARDIAN).exists()
+
+
+# --- powiązanie rocznika ze zgodą opiekuna w przeglądarce --------------------------------------
+
+
+def test_the_birth_year_says_what_the_guardian_consent_depends_on(web_client, edition):
+    """Uwaga organizatora z 16.09: „rok urodzenia nie jest powiązany z obowiązkowością oświadczenia”.
+
+    Powiązanie istniało od początku po stronie serwera, ale formularz o nim milczał: uczestnik
+    poznawał obowiązek dopiero z odmowy po wysłaniu. Zdanie pod rocznikiem mówi to wcześniej.
+    """
+    body = web_client.get(REGISTER_URL).content.decode()
+
+    assert "Osoby niepełnoletnie potrzebują zgody opiekuna" in body
+    assert body.index("Osoby niepełnoletnie potrzebują zgody opiekuna") < body.index('class="consents"')
+
+
+def test_the_consents_block_carries_the_minor_rule_for_the_script(web_client, edition):
+    """Skrypt nie ma własnej definicji „niepełnoletni” – regułę i rok bieżący dostaje z serwera."""
+    from apps.accounts.consents import MINOR_MAX_AGE
+
+    body = web_client.get(REGISTER_URL).content.decode()
+
+    assert "data-age-consents" in body
+    assert 'data-birth-year-field="id_birth_year"' in body
+    assert f'data-minor-max-age="{MINOR_MAX_AGE}"' in body
+    assert f'data-current-year="{timezone.localdate().year}"' in body
+    assert 'data-age="birth-year"' in body
+    # Znacznik stoi **wyłącznie** przy zgodzie warunkowej – pozostałe trzy są bezwarunkowe.
+    assert body.count('data-age="minor-consent"') == 1
+    row = body.split('data-age="minor-consent"', 1)[1]
+    assert 'name="guardian_consent"' in row.split("</div>", 1)[0]
+
+
+def test_the_registration_page_loads_the_age_script_with_a_nonce(web_client, edition):
+    body = web_client.get(REGISTER_URL).content.decode()
+
+    assert "js/register-age.js" in body
+    script = next(line for line in body.splitlines() if "js/register-age.js" in line)
+    assert 'nonce="' in script
+    # ``defer`` i adres z własnego serwisu – w projekcie nie ma ani jednego skryptu inline.
+    assert "defer" in script
+    assert "//" not in script.split("src=")[1]
+
+
+def test_the_consent_row_is_visible_without_javascript(web_client, edition):
+    """Bez skryptu wiersz zgody opiekuna stoi odsłonięty – serwer i tak jej zażąda od małoletniego."""
+    body = web_client.get(REGISTER_URL).content.decode()
+    row = body.split('data-age="minor-consent"', 1)[1].split(">", 1)[0]
+
+    assert "hidden" not in row
 
 
 def test_register_form_accepts_a_minor_with_the_guardian_consent(web_client, edition):

@@ -3,6 +3,8 @@
 {% block title %}Dokończ rejestrację{% endblock %}
 {% block page_scripts %}
   <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/school-picker.js' %}"></script>
+  {# Zgoda opiekuna odsłaniana rocznikiem – ten sam blok zgód, co w /register/. #}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/register-age.js' %}"></script>
 {% endblock %}
 {% block content %}
 <div class="auth">

@@ -20,6 +20,13 @@ tożsamością wpisu – logotyp i adres; ``level`` i ``description`` ustawiamy 
 wpisu, bo to redakcja, a nie manifest, decyduje, w której grupie stoi partner i co o nim napisać.
 Wpisy dodane w ``/cms/``, których w manifeście nie ma, zostają nietknięte.
 
+**Pola ``file`` i ``url`` są opcjonalne**, i to nie jest wygoda, tylko warunek bezpieczeństwa.
+Część partnerów organizator dopisał wprost w ``/cms/`` na produkcji: ich logotypy leżą w bibliotece
+Wagtaila, a plików źródłowych nie mamy. Manifest wymienia ich z nazwy (żeby świeża instalacja miała
+tę samą listę), ale bez pliku i bez adresu – a komenda **nie rusza** wtedy ani logotypu, ani adresu.
+Gdyby ruszała, jeden przebieg na produkcji skasowałby znak i odnośnik, których nie da się odtworzyć
+z repozytorium. Wpis bez logotypu pokazuje na stronie kółko z inicjałami.
+
 Czego komenda **nie** umie: usunąć partnera. Wpis skasowany w ``/cms/`` wróci przy najbliższym
 przebiegu, bo manifest opisuje stan docelowy, a nie różnicę. Zakończenie współpracy jest więc
 zmianą w repozytorium (skreślenie wpisu z ``partners.json``), a nie samym kliknięciem w panelu –
@@ -61,16 +68,21 @@ def _read_manifest(path: Path) -> dict:
     if not partners:
         raise CommandError(f"Manifest {path} nie wymienia ani jednego partnera.")
     for entry in partners:
-        for field in ("file", "name", "level"):
+        for field in ("name", "level"):
             if not entry.get(field):
                 raise CommandError(f"Wpis {entry!r} w manifeście nie ma pola „{field}”.")
         if entry["level"] not in LEVEL_KEYS:
             raise CommandError(
                 f"Poziom „{entry['level']}” (partner {entry['name']}) nie występuje w PARTNER_LEVELS."
             )
-        source = PARTNERS_DIR / entry["file"]
-        if not source.exists():
-            raise CommandError(f"Brak pliku logotypu {source}.")
+        # ``file`` jest opcjonalny (patrz ``_comment`` w manifeście): partner dopisany przez
+        # organizatora wprost w ``/cms/`` ma logotyp w bibliotece Wagtaila i nie ma go w repozytorium.
+        # Wpisana nazwa pliku musi natomiast istnieć – literówka w manifeście ma zatrzymać komendę,
+        # a nie po cichu zrobić z partnera wpisu bez znaku.
+        if entry.get("file"):
+            source = PARTNERS_DIR / entry["file"]
+            if not source.exists():
+                raise CommandError(f"Brak pliku logotypu {source}.")
 
     organizer = data.get("organizer") or {}
     if organizer and not (PARTNERS_DIR / organizer.get("file", "")).exists():
@@ -115,14 +127,6 @@ class Command(BaseCommand):
         created = updated = 0
 
         for entry in entries:
-            image, action = ensure_image(
-                entry["name"],
-                PARTNERS_DIR / entry["file"],
-                description=entry["name"],
-            )
-            created += action == "created"
-            updated += action == "updated"
-
             values = by_name.get(entry["name"])
             if values is None:
                 values = {
@@ -132,9 +136,28 @@ class Command(BaseCommand):
                 }
                 by_name[entry["name"]] = values
                 order.append(entry["name"])
-            values["logo"] = image
-            values["url"] = entry.get("url", "")
-            self.stdout.write(f"partner {entry['name']}: logotyp #{image.pk} {action}")
+
+            if entry.get("file"):
+                image, action = ensure_image(
+                    entry["name"],
+                    PARTNERS_DIR / entry["file"],
+                    description=entry["name"],
+                )
+                created += action == "created"
+                updated += action == "updated"
+                values["logo"] = image
+                self.stdout.write(f"partner {entry['name']}: logotyp #{image.pk} {action}")
+            else:
+                # Manifest nie zna pliku – logotypu **nie ruszamy**. Wpis nowy dostanie kartę
+                # z inicjałami, a wpis istniejący zachowa obraz wgrany w ``/cms/``. Wyzerowanie
+                # go tutaj skasowałoby na produkcji znak, którego nie ma w repozytorium, czyli
+                # nie dałoby się go przywrócić komendą.
+                self.stdout.write(f"partner {entry['name']}: bez logotypu w manifeście")
+
+            # Brak klucza ``url`` znaczy „manifest nie wie”, a nie „adresu nie ma”: pusty napis
+            # nadpisałby adres wpisany przez redakcję. Jawne ``"url": ""`` nadal czyści pole.
+            if "url" in entry:
+                values["url"] = entry["url"]
 
         page.partners = [("partner", by_name[name]) for name in order]
         page.save()

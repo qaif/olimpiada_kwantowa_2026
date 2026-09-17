@@ -37,7 +37,7 @@ COOKIES_TITLE = "Polityka plików cookie"
 
 #: Pierwsze zdanie ramki nad treścią ZOZ. Ma zostać także w wydruku, więc jest w pliku źródłowym,
 #: a nie dokładane przez komendę (jak ramka „wersją źródłową jest PDF” przy dokumentach organizatora).
-ZOZ_NOTICE = "Wersja robocza (0.1) do akceptacji organizatora"
+ZOZ_NOTICE = "Wersja robocza (0.2) do akceptacji organizatora"
 #: Sekcja z listą decyzji organizatora – bez niej dokument udawałby, że rozstrzyga progi i koszty.
 ZOZ_DECISIONS_HEADING = "Do rozstrzygnięcia przez organizatora"
 
@@ -99,8 +99,8 @@ def test_metadata_says_what_the_reader_is_reading(documents):
     zoz = DocumentPage.objects.get(slug=ZOZ_SLUG)
     cookies = DocumentPage.objects.get(slug=COOKIES_SLUG)
 
-    assert zoz.version_label == "0.1 (projekt)"
-    assert zoz.document_date == date(2026, 9, 12)
+    assert zoz.version_label == "0.2 (projekt)"
+    assert zoz.document_date == date(2026, 9, 17)
     assert zoz.status_label == "projekt do akceptacji organizatora"
 
     assert cookies.version_label == "1.1"
@@ -170,6 +170,43 @@ def test_zoz_points_at_the_schedule_instead_of_repeating_stage_dates(web_client,
     assert 'href="/harmonogram/"' in content
     for stage_date in STAGE_DATES_THAT_MUST_NOT_APPEAR:
         assert stage_date not in content
+
+
+def test_zoz_metadata_agrees_with_the_version_section_of_the_document(web_client, documents):
+    """Numer wersji stoi w dwóch miejscach: w metryce strony i w ostatniej sekcji treści.
+
+    Oba biorą się z różnych plików (komenda kontra ``zoz.md``), więc rozjazd jest tu możliwy
+    i przy każdej poprawce dokumentu realny – a czytelnik dostałby wtedy dwie odpowiedzi na
+    pytanie „którą wersję czytam”.
+    """
+    zoz = DocumentPage.objects.get(slug=ZOZ_SLUG)
+    content = web_client.get(zoz.url).content.decode()
+
+    assert f"Wersja: {zoz.version_label}" in content
+
+
+def test_zoz_carries_the_organisers_september_corrections(web_client, documents):
+    """Poprawki organizatora z 15.09 – każda zmieniała zapis, który mówił coś innego niż praktyka.
+
+    Czytamy **treść dokumentu**, a nie całą odpowiedź: dane rejestrowe Fundacji stoją w stopce
+    każdej strony serwisu, więc asercja „nie ma ich w dokumencie” postawiona na HTML-u całej
+    strony sprawdzałaby stopkę, a nie ZOZ.
+    """
+    page = DocumentPage.objects.get(slug=ZOZ_SLUG)
+    body = " ".join([str(page.intro), str(page.body)])
+
+    # Rozjazd ocen rozstrzyga organ Olimpiady, a nie funkcja techniczna w panelu.
+    assert "Rozjazd rozstrzyga Przewodniczący Jury" in body
+    assert "Pozostałe progi wymagają decyzji Jury." in body
+    # Link do rozmowy widzi też Jury – inaczej zapis zabraniałby komisji wejść na własną rozmowę.
+    assert "osoba zapisana na dany termin oraz członkowie Jury" in body
+    # § 1 jest jednym zdaniem odsyłającym do harmonogramu, a nie wykładem o zegarze serwera.
+    assert "Terminów zawodów" not in body
+    # Dane rejestrowe organizatora stoją w stopce serwisu i w Regulaminie, nie w środku ZOZ.
+    assert "REGON 384899425" not in body
+    # Zakres warsztatów ma jedno miejsce – stronę „Warsztaty”.
+    assert "narzędzia matematyczne: liczby zespolone" not in body
+    assert 'href="/dokumenty/regulamin/"' in body
 
 
 def test_zoz_links_the_documents_it_must_be_read_with(web_client, documents):

@@ -38,8 +38,10 @@ def test_seed_creates_rows_and_fills_the_search_column(tmp_path):
 
     school = School.objects.get(rspo=1000)
     assert school.city == "Łódź"
-    # Kolumna wyszukiwania powstaje mimo ``bulk_create`` (które omija ``Model.save()``).
+    # Obie kolumny porównawcze powstają mimo ``bulk_create`` (które omija ``Model.save()``).
     assert school.search_text == "iii liceum ogolnoksztalcace w lodzi lodz"
+    # Osobna kolumna samej miejscowości – po niej chodzi krok „Miejscowość” w wyszukiwarce.
+    assert school.city_search == "lodz"
     assert school.source_year == "2025/2026"
 
 
@@ -55,6 +57,8 @@ def test_seed_is_idempotent_and_updates_changed_rows(tmp_path):
     school = School.objects.get(rspo=1000)
     assert school.name == "III LO IM. NOWEGO PATRONA"
     assert school.search_text == "iii lo im. nowego patrona zgierz"
+    # Przeprowadzka szkoły przestawia także kolumnę miejscowości – inaczej zostałaby w Łodzi.
+    assert school.city_search == "zgierz"
 
 
 @pytest.mark.django_db

@@ -78,11 +78,32 @@
         <p class="msg msg-warning upload__warning">{% translate "Ta praca jest już w ocenie. Wysłanie nowej wersji anuluje dotychczasową ocenę – zostanie oceniona od nowa." %}</p>
       {% endif %}
       {% comment %}
-        „Dropzone” jest wyłącznie warstwą stylu na natywnym ``input[type=file]`` – bez JS, więc
-        wysyłka działa tak samo z klawiatury i przy wyłączonych skryptach.
+        „Dropzone” jest przede wszystkim warstwą stylu na natywnym ``input[type=file]`` – bez JS
+        wysyłka działa tak samo z klawiatury i przy wyłączonych skryptach. Przeciąganie pliku
+        **wprost na pole** obsługuje sama przeglądarka, od zawsze i bez naszego udziału, więc
+        podpowiedź o przeciąganiu jest prawdziwa także wtedy, gdy skrypt się nie wczyta.
+        ``static/js/upload-dropzone.js`` dokłada dwie rzeczy: rozszerza cel upuszczenia z samego
+        pola na całą ramkę (na dotykowym laptopie trafienie w wąski pasek pola to loteria)
+        i mówi od razu, co zostało wybrane – zamiast kazać czekać na odmowę serwera.
+
+        Limity i komunikaty jadą w ``data-*``, a nie są wpisane w skrypcie. Limit i formaty są
+        własnością zadania (``competitions.Problem``), a przeglądarka nie ma katalogu tłumaczeń:
+        gotowe zdania składa serwer w aktywnym języku – ta sama droga, co słowa odliczania
+        w ``_now.html``. ``{name}`` i ``{size}`` podstawia skrypt, bo tych dwóch serwer nie zna.
+
+        ``data-accept`` niesie tę samą listę rozszerzeń, co atrybut ``accept`` pola niżej:
+        skrypt ma odrzucać dokładnie to, czego okno wyboru pliku i tak nie pokaże.
       {% endcomment %}
-      <div class="dropzone">
+      <div class="dropzone" data-dropzone
+           data-accept="{{ row.problem.accept_attribute }}"
+           data-max-mb="{{ row.problem.max_file_mb }}"
+           data-msg-selected="{% blocktranslate trimmed with name='{name}' size='{size}' %}Wybrano: {{ name }} ({{ size }} MB){% endblocktranslate %}"
+           data-msg-format="{% blocktranslate trimmed with formats=row.problem.allowed_formats|join:', '|upper %}Niedozwolony format – dozwolone: {{ formats }}{% endblocktranslate %}"
+           data-msg-size="{% blocktranslate trimmed with limit=row.problem.max_file_mb %}Plik jest za duży (maks. {{ limit }} MB){% endblocktranslate %}">
         <label class="dropzone__label" for="file-{{ row.problem.pk }}">{% translate "Plik rozwiązania" %}</label>
+        <span class="dropzone__drag">{% blocktranslate trimmed with formats=row.problem.allowed_formats|join:", "|upper limit=row.problem.max_file_mb %}
+          Przeciągnij plik tutaj albo wybierz z dysku ({{ formats }} do {{ limit }} MB).
+        {% endblocktranslate %}</span>
         <span class="dropzone__hint">{% translate "Każda wysyłka tworzy nową wersję – poprzednie zostają w historii poniżej." %}</span>
         {% comment %}
           ``accept`` zawęża okno wyboru pliku do formatów zadania (zdjęcie ma dwa rozszerzenia:
@@ -92,6 +113,14 @@
         <input type="file" name="file" id="file-{{ row.problem.pk }}" required
                accept="{{ row.problem.accept_attribute }}"
                aria-label="{% blocktranslate trimmed with number=row.problem.number %}Plik rozwiązania zadania {{ number }}{% endblocktranslate %}">
+        {% comment %}
+          Miejsce na zdanie „co jest wybrane” – wypełnia je skrypt, więc w HTML-u jest puste
+          (arkusz ukrywa pusty akapit, żeby ramka nie rosła o pustą linijkę). ``aria-live``
+          jest ``polite``, a nie ``assertive``: to potwierdzenie czynności, którą uczestnik
+          właśnie wykonał, a nie ostrzeżenie, które ma przerwać czytanie. Element stoi **poza**
+          listą błędów pola – tamte pisze serwer po odmowie, ten mówi o wyborze sprzed wysyłki.
+        {% endcomment %}
+        <p class="dropzone__status" data-dropzone-status aria-live="polite"></p>
         {% comment %}
           Błąd pola stoi **przy polu**, a nie w komunikacie nad kartą: „wybierz plik” nad kartą
           z trzema polami nie mówi, które z nich poprawić. Formularz wraca związany wyłącznie

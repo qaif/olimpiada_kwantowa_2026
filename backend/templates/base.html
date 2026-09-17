@@ -160,34 +160,12 @@
     <nav class="account-bar" aria-label="{% translate 'Konto' %}">
       {% comment %}
         Język i kontrast stoją **przed** pozycjami konta i są widoczne także dla gościa: to
-        ustawienie przeglądającego, a nie uprawnienie. Oba przełączniki są formularzami POST,
-        a nie odnośnikami – zmieniają stan po stronie serwera, a nie prowadzą pod adres, więc GET
-        byłby tu nieprawdą (i dałby się wywołać obcą stroną przez podstawiony obrazek).
-        Pole ``next`` wraca na tę samą stronę; adres jest sprawdzany po stronie serwera
-        (``apps.accounts.preferences.safe_next_url``), bo pochodzi od nadawcy żądania.
+        ustawienie przeglądającego, a nie uprawnienie. Oba przełączniki (dziś: flaga języka
+        docelowego i kółko kontrastu) mieszkają w osobnym fragmencie, bo są jedynym miejscem
+        tego szablonu z rysunkiem wektorowym w treści – razem z uzasadnieniem, dlaczego ikona
+        bez napisu wymaga własnej nazwy dostępnej.
       {% endcomment %}
-      <form method="post" action="{% url 'web:account-preferences' %}" class="inline account-bar__prefs">
-        {% csrf_token %}
-        <input type="hidden" name="next" value="{{ request.get_full_path }}">
-        <input type="hidden" name="high_contrast" value="{% if interface_high_contrast %}1{% else %}0{% endif %}">
-        {% for item in interface_languages %}
-          {% if item.code != interface_language %}
-            <button type="submit" name="language" value="{{ item.code }}"
-                    class="btn btn--small btn--ghost account-bar__btn"
-                    lang="{{ item.code }}"
-                    title="{{ item.label }}">{{ item.code|upper }}</button>
-          {% endif %}
-        {% endfor %}
-      </form>
-      <form method="post" action="{% url 'web:account-preferences' %}" class="inline account-bar__prefs">
-        {% csrf_token %}
-        <input type="hidden" name="next" value="{{ request.get_full_path }}">
-        <input type="hidden" name="language" value="{{ interface_language }}">
-        <button type="submit" name="high_contrast" value="{% if interface_high_contrast %}0{% else %}1{% endif %}"
-                class="btn btn--small btn--ghost account-bar__btn"
-                aria-pressed="{% if interface_high_contrast %}true{% else %}false{% endif %}">
-          {% translate "Kontrast" %}</button>
-      </form>
+      {% include "web/_interface_prefs.html" %}
       <span class="account-bar__sep" aria-hidden="true"></span>
       {% if user.is_authenticated %}
         {% if is_participant %}
@@ -234,7 +212,6 @@
       {% else %}
         {% url 'web:login' as login_url %}
         {% url 'web:register' as register_url %}
-        {% url 'web:register-committee' as committee_url %}
         <a class="btn btn--small btn--secondary account-bar__btn" href="{{ login_url }}"
            {% if request.path == login_url %}aria-current="page"{% endif %}>{% translate "Zaloguj się" %}</a>
         {% comment %}
@@ -249,8 +226,13 @@
           <a class="btn btn--small btn--accent account-bar__btn" href="{{ register_url }}"
              {% if request.path == register_url %}aria-current="page"{% endif %}>{% blocktranslate trimmed with opens=registration.opens_at|date:"j E Y" %}Rejestracja rusza {{ opens }}{% endblocktranslate %}</a>
         {% endif %}
-        <a class="account-bar__link account-bar__link--sub" href="{{ committee_url }}"
-           {% if request.path == committee_url %}aria-current="page"{% endif %}>{% translate "Rejestracja z kodem" %}</a>
+        {% comment %}
+          „Rejestracja z kodem” stała tu jako trzecia pozycja i zniknęła stąd na wniosek
+          organizatora: kod zaproszenia dostaje kilkanaście osób na edycję (komitet, recenzenci),
+          a pasek konta oglądają wszyscy odwiedzający. Droga jest teraz w stopce, razem
+          z dokumentami i kontaktem – tam szuka się rzeczy rzadkich. Adres ``web:register-committee``
+          żyje dalej: zaproszenie prowadzi do niego wprost z listu.
+        {% endcomment %}
       {% endif %}
     </nav>
     </div>
@@ -361,6 +343,17 @@
         {% endcomment %}
         <a href="{% url 'statistics' %}">{% translate "Statystyki" %}</a>
         {% comment %}
+          „Rejestracja z kodem” – zeszła tu z paska konta na wniosek organizatora („opcja jest
+          rzadko używana”). Dotyczy kilkunastu osób na edycję (komitet, recenzenci, jury), które
+          i tak dostają adres w liście z zaproszeniem; w pasku konta konkurowała z jedynym
+          zaproszeniem, które jest dla wszystkich – „Zarejestruj się”. Odnośnik jest tu dla
+          każdego, także dla zalogowanych: kto ma już konto uczestnika, a dostał kod do komitetu,
+          musi mieć drogę do formularza bez wylogowywania się. ``{% templatetag openblock %} url
+          {% templatetag closeblock %}`` wolno tu użyć – adres jest wzorcem w ``apps/web/urls.py``,
+          a nie stroną w drzewie CMS-a, więc nic go nie skasuje edycją treści.
+        {% endcomment %}
+        <a href="{% url 'web:register-committee' %}">{% translate "Rejestracja z kodem" %}</a>
+        {% comment %}
           „Ustawienia cookies” otwierają pasek ponownie – to jedyna droga **wycofania** zgody
           bez czyszczenia danych witryny w przeglądarce, a wycofanie musi być tak samo łatwe,
           jak udzielenie (art. 7 ust. 3 RODO). Przycisk, a nie odnośnik: nie prowadzi pod żaden
@@ -402,7 +395,16 @@
         {% if site.contact_phone %}· <a href="tel:{{ site.contact_phone|cut:' ' }}">{{ site.contact_phone }}</a>{% endif %}
         {% if site.contact_url %}· <a href="{{ site.contact_url }}">{{ site.contact_url }}</a>{% endif %}
       </p>
-      <p class="footer__meta">{% blocktranslate trimmed with version=app_version %}Wersja aplikacji {{ version }} · wszystkie godziny podajemy w czasie polskim.{% endblocktranslate %}</p>
+      {% comment %}
+        Sama wersja wydania i nic więcej – uwaga organizatora z 15.09. Zdanie o czasie polskim
+        stało w stopce każdej strony, a jest odpowiedzią na pytanie zadawane wyłącznie przy
+        terminach: godziny etapów opisuje ``/harmonogram/``, a każda data w panelu i tak jest
+        renderowana w strefie organizatora (``local_datetime``), więc stopka powtarzała regułę
+        w miejscu, w którym nikt jej nie szuka. Numer wersji zostaje dynamiczny
+        (``APP_VERSION`` z wydania, patrz ``apps.web.context_processors``): to po niego sięga
+        zgłaszający błąd i to on odróżnia „u mnie nie działa” od „to było w poprzednim wydaniu”.
+      {% endcomment %}
+      <p class="footer__meta">{% blocktranslate trimmed with version=app_version %}wersja {{ version }}{% endblocktranslate %}</p>
     </div>
     {% endwith %}
   </div>

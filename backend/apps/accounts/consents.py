@@ -24,7 +24,9 @@ gdyby wersja przychodziła z bazy, redaktor mógłby przepisać historię jednym
 
 Adres dokumentu jest natomiast liczony **przy renderowaniu** z drzewa stron (po slugu), z awaryjnym
 ``/dokumenty/<slug>/``: dokument może być przeniesiony w drzewie, a rejestracja nie ma prawa
-przestać działać dlatego, że seed treści jeszcze nie przeszedł na tym środowisku.
+przestać działać dlatego, że seed treści jeszcze nie przeszedł na tym środowisku. Etykieta
+prowadzi przy tym do **PDF-a** przypiętego do strony dokumentu, o ile taki jest (``document_link``):
+oświadczenie składa się pod wersją podpisaną przez organizatora, a nie pod jej transkrypcją.
 """
 
 from __future__ import annotations
@@ -248,13 +250,49 @@ def document_url(slug: str) -> str:
     return page.get_url() or fallback
 
 
+def document_link(slug: str) -> str:
+    """Adres, pod który ma prowadzić etykieta zgody: **PDF dokumentu**, a bez niego sama strona.
+
+    Zgłoszenie organizatora: „linki do regulaminów powinny prowadzić do PDF-ów, a nie podstrony”.
+    I ma rację – zgoda jest oświadczeniem złożonym pod konkretną wersją dokumentu, a wersją
+    podpisaną przez organizatora i nadającą się do wydruku jest PDF; strona CMS-a jest jego
+    czytelną transkrypcją z kotwicami. Kto klika w regulamin przy checkboksie, chce dokument.
+
+    Wybieramy **pierwszy** załącznik PDF strony – ten sam, który karta „Do pobrania” pokazuje
+    przyciskiem głównym i który zbiera ``cms._download_rows``. Kolejność załączników jest
+    redakcyjna (``Orderable``), więc „pierwszy PDF” znaczy „ten, który redakcja postawiła na
+    początku”, a nie „przypadkowy”.
+
+    Bez PDF-a zostaje adres strony (``document_url``) i to jest świadomy fallback: dokument bywa
+    opublikowany jako sama treść, zanim organizator wgra plik w ``/cms/``. Zgoda bez odnośnika do
+    treści nie jest zgodą świadomą, więc brak pliku nie może zostawić etykiety bez linku.
+    """
+    if not slug:
+        return ""
+    try:
+        from apps.cms.models import DocumentPage
+
+        documents = DocumentPage.objects.live().prefetch_related("attachments__document")
+        page = documents.filter(slug=slug).first()
+        if page is not None:
+            # ``attachments.all()`` czyta bufor ``prefetch_related``; ``.filter()`` puściłby
+            # drugie zapytanie na każdą zgodę z osobna.
+            pdf = next((item for item in page.attachments.all() if item.is_pdf), None)
+            if pdf is not None and pdf.document.url:
+                return pdf.document.url
+    except Exception:  # noqa: BLE001 - brak tabeli/pliku nie może zablokować rejestracji
+        return document_url(slug)
+    return document_url(slug)
+
+
 def label(consent: Consent, *, organizer: str | None = None) -> SafeString:
     """Treść oświadczenia jako HTML: tekst z odnośnikiem do dokumentu.
 
     Odnośnik otwiera się w nowej karcie (``target="_blank"``) z ``rel="noopener"``: przeczytanie
-    regulaminu nie może kosztować utraty wypełnionego formularza rejestracji.
+    regulaminu nie może kosztować utraty wypełnionego formularza rejestracji. Prowadzi do PDF-a,
+    o ile taki przy dokumencie wisi – patrz ``document_link``.
     """
-    url = document_url(consent.document_slug)
+    url = document_link(consent.document_slug)
     link = (
         format_html('<a href="{}" target="_blank" rel="noopener">{}</a>', url, consent.link_text)
         if url and consent.link_text
@@ -289,7 +327,12 @@ def descriptions() -> list[dict]:
             "label": str(label(consent, organizer=organizer)),
             "text": plain_text(consent, organizer=organizer),
             "document_slug": consent.document_slug,
+            # Dwa adresy, bo to dwie różne rzeczy: ``document_url`` jest stroną dokumentu
+            # (stabilny adres do zacytowania w piśmie), ``document_link`` – tym, pod co klika
+            # człowiek przy checkboksie, czyli PDF-em, gdy jest. Klient zewnętrzny ma pokazać
+            # ten sam odnośnik, co formularz WWW, a nie wybierać sam.
             "document_url": document_url(consent.document_slug),
+            "document_link": document_link(consent.document_slug),
             "version": consent.version,
             "required": consent.required,
             "required_for_minor": consent.required_for_minor,

@@ -158,6 +158,57 @@ def test_field_order_puts_the_voivodeship_before_the_school():
     assert names.index("school_id") < names.index("grade")
 
 
+# --- krok „Miejscowość” -------------------------------------------------------------------------
+
+
+def test_the_city_is_only_a_search_scope_and_never_reaches_the_service():
+    """``school_city`` opisuje **sposób szukania**, a nie szkołę – do serwisu nie ma po co jechać.
+
+    Miasto szkoły wybranej ze słownika przepisuje ``_resolve_school`` z rejestru, a przy szkole
+    spoza wykazu nikt nie zapewni, że wpisana obok miejscowość dotyczy tej samej placówki.
+    """
+    form = ParticipantRegisterForm(form_data(school_city="Wrocław", school_id="17"))
+
+    assert form.is_valid(), form.errors
+    assert "school_city" not in form.cleaned_data
+    assert form.cleaned_data["school_id"] == 17
+
+
+def test_the_city_is_optional_and_does_not_block_a_search_by_name():
+    """Kto zna nazwę swojej szkoły, nie ma powodu przechodzić przez dwa kroki."""
+    form = ParticipantRegisterForm(form_data(school_id="17"))
+
+    assert form.is_valid(), form.errors
+    assert form.fields["school_city"].required is False
+
+
+@pytest.mark.django_db
+def test_profile_form_reopens_the_picker_in_the_city_of_the_linked_school(participant):
+    """Edycja profilu otwiera się z miejscowością szkoły z rejestru – nie każe szukać od zera."""
+    from apps.web.forms import participant_profile_initial
+
+    school = SchoolFactory(name="XIV LICEUM OGÓLNOKSZTAŁCĄCE", city="Wrocław")
+    participant.school_ref = school
+    participant.school = school.name
+    participant.save(update_fields=["school_ref", "school"])
+
+    initial = participant_profile_initial(participant)
+
+    assert initial["school_city"] == "Wrocław"
+
+
+@pytest.mark.django_db
+def test_profile_form_of_a_hand_typed_school_has_no_city(participant):
+    """Pytamy o nazwę szkoły, nie o adres – podstawione miasto zawęziłoby wyszukiwarkę zmyśleniem."""
+    from apps.web.forms import participant_profile_initial
+
+    participant.school_ref = None
+    participant.school = "Szkoła Europejska w Brukseli"
+    participant.save(update_fields=["school_ref", "school"])
+
+    assert participant_profile_initial(participant)["school_city"] == ""
+
+
 # --- render -----------------------------------------------------------------------------------
 
 
@@ -167,12 +218,44 @@ def test_registration_page_renders_the_picker(web_client, edition):
 
     assert "data-school-picker" in body
     assert 'data-search-url="/api/schools/"' in body
+    assert 'data-cities-url="/api/schools/cities/"' in body
     assert 'data-district-field="id_district"' in body
     # Punkty zaczepienia skryptu – nazwy muszą zgadzać się z static/js/school-picker.js.
-    for hook in ("query", "school-id", "custom", "free", "free-input", "list", "status"):
+    for hook in (
+        "city",
+        "city-list",
+        "city-status",
+        "query",
+        "school-id",
+        "custom",
+        "free",
+        "free-input",
+        "list",
+        "status",
+    ):
         assert f'data-picker="{hook}"' in body, hook
     assert 'role="listbox"' in body
     assert "Mojej szkoły nie ma na liście" in body
+    # Django dokleja do kontrolki ``aria-describedby="<auto_id>_helptext"``; blok renderujemy
+    # ręcznie, więc identyfikator podpowiedzi musi istnieć – inaczej atrybut wskazuje na nic.
+    for field in ("city", "query"):
+        assert f'aria-describedby="id_school_{field}_helptext"' in body
+        assert f'id="id_school_{field}_helptext"' in body
+
+
+@pytest.mark.django_db
+def test_registration_page_asks_for_the_city_before_the_school(web_client, edition):
+    """Uwaga organizatora z 16.09: „może warto dodać pole miasta i wówczas dać pełną listę szkół”.
+
+    Kolejność w DOM jest tu treścią, a nie układem: pole miejscowości ma stać **przed** polem
+    szkoły, bo zawęża jego listę. Odwrotna kolejność kazałaby najpierw szukać w całym kraju.
+    """
+    body = web_client.get(REGISTER_URL).content.decode()
+
+    assert 'id="id_school_city"' in body
+    assert body.index('id="id_school_city"') < body.index('id="id_school_query"')
+    assert "Miejscowość" in body
+    assert "pokaże wtedy pełną listę szkół z tej miejscowości" in body
 
 
 @pytest.mark.django_db
