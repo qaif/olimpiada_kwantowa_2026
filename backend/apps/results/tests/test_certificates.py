@@ -190,7 +190,9 @@ def test_nieznany_kod_nie_wywraca_strony():
 def test_zaswiadczenie_opiekuna_nigdy_nie_pokazuje_nazwiska(stage):
     """Opiekun nie przechodzi przez blok zgód uczestnika, a milczenie nie jest zgodą."""
     supervisor = SchoolSupervisor.objects.create(
-        user=UserFactory(first_name="Anna", last_name="Nauczycielska"), school="XIV LO"
+        user=UserFactory(first_name="Anna", last_name="Nauczycielska"),
+        school="XIV LO",
+        competition=stage.edition.competition,
     )
 
     certificate, _ = issue_certificate(

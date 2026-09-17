@@ -101,7 +101,7 @@ def resolve_recipients(
         if edition is None:
             return []
         return _emails(
-            User.objects.filter(DELIVERABLE, participant__stage_entries__stage__edition=edition)
+            User.objects.filter(DELIVERABLE, participations__stage_entries__stage__edition=edition)
             .values_list("email", flat=True)
             .distinct()
         )
@@ -109,7 +109,7 @@ def resolve_recipients(
         if stage is None:
             return []
         return _emails(
-            User.objects.filter(DELIVERABLE, participant__stage_entries__stage=stage)
+            User.objects.filter(DELIVERABLE, participations__stage_entries__stage=stage)
             .values_list("email", flat=True)
             .distinct()
         )
@@ -121,8 +121,8 @@ def resolve_recipients(
         return _emails(
             User.objects.filter(
                 DELIVERABLE,
-                participant__stage_entries__stage=stage,
-                participant__stage_entries__status=StageEntryStatus.QUALIFIED,
+                participations__stage_entries__stage=stage,
+                participations__stage_entries__status=StageEntryStatus.QUALIFIED,
             )
             .values_list("email", flat=True)
             .distinct()

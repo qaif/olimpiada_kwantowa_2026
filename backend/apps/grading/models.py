@@ -16,7 +16,7 @@ from django.utils import timezone
 
 from apps.accounts.models import CommitteeMember
 from apps.competitions.models import Problem
-from apps.competitions.scoping import competition_scoped_manager
+from apps.competitions.scoping import competition_scoped_manager, resolve_competition
 from apps.submissions.models import Submission
 from apps.tenancy.managers import CompetitionScopedQuerySet
 
@@ -383,6 +383,20 @@ class CommentSnippet(models.Model):
     i skasowanie szablonu nigdy ich nie rusza.
     """
 
+    #: Własna kolumna konkursu, choć § 3.4 prowadzi ten model do właściciela przez zadanie. Powód
+    #: jest jeden i jest nim ``NULL`` w ``problem``: szablon ogólny nie ma zadania, przez które
+    #: mógłby dojść do konkursu, więc do wydania D był wierszem wspólnym dla **całej instalacji** –
+    #: czyli w bazie wielokonkursowej wierszem cudzym. Droga przez zadanie istnieje dalej i nadal
+    #: jest prawdą; ta kolumna wyraża ją tam, gdzie tamtej drogi nie ma.
+    #:
+    #: ``PROTECT`` jak przy edycji: szablony są wykładnią komitetu do zadań, a nie danymi
+    #: tymczasowymi, i skasowanie konkursu ma się o nie zatrzymać.
+    competition = models.ForeignKey(
+        "tenancy.Competition",
+        on_delete=models.PROTECT,
+        related_name="comment_snippets",
+        verbose_name="konkurs",
+    )
     problem = models.ForeignKey(
         Problem,
         on_delete=models.CASCADE,
@@ -407,12 +421,10 @@ class CommentSnippet(models.Model):
     order = models.PositiveSmallIntegerField("kolejność", default=1)
     created_at = models.DateTimeField("utworzony", default=timezone.now)
 
-    #: Przez zadanie. Uwaga: ``problem`` jest **nullowalny** (szablon „do wszystkiego”), więc
-    #: ``for_competition`` takiego szablonu nie zwróci – i tak ma być. Szablon bez zadania nie ma
-    #: właściciela, a w bazie wielokonkursowej wspólna półka szablonów byłaby półką cudzą.
-    #: Wydanie D domyka to kolumną ``owner``/``competition``; do tego czasu wiersz bez zadania
-    #: widzą wyłącznie ekrany, które nie filtrują po konkursie.
-    objects = competition_scoped_manager("problem__stage__edition__competition")
+    #: Własną kolumną, a nie ścieżką przez zadanie: filtr po ``problem__stage__edition__competition``
+    #: gubił **szablony ogólne** (``problem IS NULL``), czyli dokładnie te wiersze, o które w tej
+    #: zmianie chodzi.
+    objects = competition_scoped_manager("competition")
 
     class Meta:
         verbose_name = "szablon komentarza"
@@ -421,6 +433,30 @@ class CommentSnippet(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+    def save(self, *args, **kwargs):
+        """Nowy szablon bez wskazanego konkursu bierze go z zadania, a bez zadania – z kontekstu.
+
+        Wartość domyślna jest w modelu z tego samego powodu, co przy ``Edition``: szablony zakłada
+        też kod spoza serwisu ``apps.grading.snippets`` – panel ``/admin/``, import i fabryki
+        testowe. Szablon bez właściciela byłby po wydaniu D wierszem nie do zapisania (``NOT
+        NULL``), a przed nim – wierszem widocznym u cudzego recenzenta.
+
+        Zadanie ma pierwszeństwo przed kontekstem, bo jest **faktem o szablonie**: szablon do
+        zadania konkursu B należy do konkursu B także wtedy, gdy zapisuje go ktoś zalogowany pod
+        domeną konkursu A. Wyłącznie przy wstawianiu – przy zapisie istniejącego wiersza konkurs
+        jest faktem, a nie wartością domyślną.
+        """
+        if self._state.adding and self.competition_id is None:
+            if self.problem_id is not None:
+                self.competition_id = (
+                    Problem.objects.filter(pk=self.problem_id)
+                    .values_list("stage__edition__competition_id", flat=True)
+                    .first()
+                )
+            if self.competition_id is None:
+                self.competition = resolve_competition()
+        return super().save(*args, **kwargs)
 
     @property
     def is_shared(self) -> bool:

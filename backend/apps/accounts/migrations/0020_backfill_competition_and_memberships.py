@@ -55,9 +55,16 @@ def sole_competition(apps):
     Więcej niż jeden konkurs przerywa wdrożenie. Ta migracja opiera się w całości na założeniu
     „wszystko, co tu stoi, ma jednego właściciela”; przy dwóch konkursach założenie jest fałszywe,
     a jego cichy skutek to przepisanie danych organizatora A na organizatora B.
+
+    Zwracamy **klucz główny**, nie obiekt, i pytamy wyłącznie o kolumnę ``id``. Model historyczny
+    ``Competition`` ma tyle kolumn, ile miał w swoim miejscu planu migracji, a późniejsze migracje
+    ``tenancy`` (np. ``0003_prefixes``) bywają zdejmowane **przed** tą przy cofaniu bazy – kolejności
+    nie da się wymusić zależnością w żadną stronę, bo ta migracja jest na produkcji już wykonana.
+    ``SELECT id`` jest odpowiedzią odporną na to z definicji: kolumna klucza głównego istnieje
+    w każdym stanie schematu, w którym tabela w ogóle jest.
     """
     Competition = apps.get_model("tenancy", "Competition")
-    rows = list(Competition.objects.order_by("pk")[:2])
+    rows = list(Competition.objects.order_by("pk").values_list("pk", flat=True)[:2])
     if len(rows) > 1:
         raise RuntimeError(
             "Backfill konkursu działa wyłącznie na bazie jednokonkursowej "
@@ -67,15 +74,15 @@ def sole_competition(apps):
 
 
 def forwards(apps, schema_editor):
-    competition = sole_competition(apps)
-    if competition is None:
+    competition_id = sole_competition(apps)
+    if competition_id is None:
         return
 
     for name in SCOPED_MODELS:
         model = apps.get_model("accounts", name)
         # Warunek na ``NULL``, a nie brak warunku: wydanie B stoi obok kodu, który właściciela
         # już wpisuje, więc wiersz z wartością jest wierszem świeżo zapisanym, a nie zaległym.
-        model.objects.filter(competition__isnull=True).update(competition=competition)
+        model.objects.filter(competition__isnull=True).update(competition_id=competition_id)
 
     Membership = apps.get_model("accounts", "Membership")
     User = apps.get_model("accounts", "User")
@@ -83,22 +90,27 @@ def forwards(apps, schema_editor):
         # Kto ma grupę, ten dostaje członkostwo w Konkursie #1. ``granted_by`` zostaje puste:
         # ról nie nadał człowiek, tylko migracja, a wpisanie tu kogokolwiek byłoby fikcją.
         holders = User.objects.filter(groups__name=role).values_list("pk", flat=True)
-        already = Membership.objects.filter(competition=competition, role=role).values_list(
+        already = Membership.objects.filter(competition_id=competition_id, role=role).values_list(
             "user_id", flat=True
         )
         missing = set(holders) - set(already)
         Membership.objects.bulk_create(
-            [Membership(user_id=user_id, competition=competition, role=role) for user_id in sorted(missing)]
+            [
+                Membership(user_id=user_id, competition_id=competition_id, role=role)
+                for user_id in sorted(missing)
+            ]
         )
 
 
 def backwards(apps, schema_editor):
-    competition = sole_competition(apps)
-    if competition is None:
+    competition_id = sole_competition(apps)
+    if competition_id is None:
         return
-    apps.get_model("accounts", "Membership").objects.filter(competition=competition).delete()
+    apps.get_model("accounts", "Membership").objects.filter(competition_id=competition_id).delete()
     for name in SCOPED_MODELS:
-        apps.get_model("accounts", name).objects.filter(competition=competition).update(competition=None)
+        apps.get_model("accounts", name).objects.filter(competition_id=competition_id).update(
+            competition=None
+        )
 
 
 class Migration(migrations.Migration):

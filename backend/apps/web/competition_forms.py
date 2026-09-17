@@ -47,6 +47,9 @@ EDITABLE_FIELDS: tuple[str, ...] = (
     # poczta
     "from_email",
     "email_subject_prefix",
+    # identyfikatory drukowane
+    "public_code_prefix",
+    "certificate_prefix",
     # zachowanie
     "default_language",
     "time_zone",
@@ -140,6 +143,8 @@ class CompetitionSettingsForm(forms.ModelForm):
             "dpo_email": "Inspektor ochrony danych",
             "from_email": "Nadawca listów",
             "email_subject_prefix": "Prefiks tematu listów",
+            "public_code_prefix": "Prefiks kodu uczestnika",
+            "certificate_prefix": "Prefiks numeru dyplomu",
             "default_language": "Język domyślny",
             "time_zone": "Strefa czasowa",
         }
@@ -161,6 +166,15 @@ class CompetitionSettingsForm(forms.ModelForm):
                 "SPF/DKIM tej domeny listy trafią do spamu."
             ),
             "email_subject_prefix": "Np. „[Olimpiada Kwantowa] ”. Puste = prefiks instalacji.",
+            "public_code_prefix": (
+                "Początek kodu, pod którym uczestnik występuje w tabelach wyników, np. „OLM-”. "
+                "<b>Kody już nadane się nie zmienią</b> – prefiks obowiązuje od następnej "
+                "rejestracji."
+            ),
+            "certificate_prefix": (
+                "Początek numeru dyplomu, np. „OK” w „OK/2026/0001”. <b>Numery już wystawionych "
+                "dokumentów się nie zmienią</b> – prefiks obowiązuje od następnego wystawienia."
+            ),
             "time_zone": ("Pokazywana na ekranach; obliczanie terminów przestawi się na nią w etapie 2."),
         }
 

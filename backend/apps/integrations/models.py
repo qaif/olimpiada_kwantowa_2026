@@ -24,9 +24,11 @@ Trzy decyzje, na których stoją te modele:
   na kolejkę. Dzięki temu „wysłaliśmy” i „nie wysłaliśmy” są stanem, który da się pokazać
   koordynatorowi i powtórzyć – a nie linijką w logu workera.
 
-Kluczem dziedziny jest **edycja** (``Edition``), a nie „olimpiada”: planowany podział na wiele
-konkursów doda ``Competition`` nad edycją, więc klucz API i webhook zapięte na edycji przeżyją
-tę zmianę bez migracji danych (dojdzie co najwyżej drugie, szersze dowiązanie).
+Właścicielem klucza i odbiorcy jest **konkurs** (``Competition``), a zawężenie do jednej edycji
+jest dodatkiem na wierzchu. Tak wyszło z podziału na wiele konkursów i jest to dokładnie to
+„drugie, szersze dowiązanie”, które ten moduł zapowiadał: edycja bywa pusta („klucz dla stałego
+partnera, także na przyszłe roczniki”), więc sama nie prowadzi do żadnego organizatora – a klucz
+wystawiony w konkursie A nie ma prawa czytać konkursu B także wtedy, i zwłaszcza wtedy.
 """
 
 from __future__ import annotations
@@ -39,6 +41,9 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+
+from apps.competitions.scoping import competition_scoped_manager
+from apps.tenancy.managers import CompetitionScopedQuerySet
 
 # --- zakresy uprawnień klucza -------------------------------------------------------------------
 # Lista jest **zamknięta**: zakres wpisuje koordynator w panelu, a literówka („read:participant”)
@@ -171,7 +176,14 @@ def validate_events(values) -> list[str]:
     return [event for event in WEBHOOK_EVENTS if event in chosen]
 
 
-class ApiKeyQuerySet(models.QuerySet):
+class ApiKeyQuerySet(CompetitionScopedQuerySet):
+    """Klucze jednego konkursu. ``competition_path`` jest domyślne – klucz ma własną kolumnę.
+
+    Podklasa ``CompetitionScopedQuerySet``, a nie ``competition_scoped_manager``: ten model ma
+    własną metodę querysetu (``active``), więc ścieżkę deklaruje wprost w swojej klasie – tak
+    samo, jak ``StageEntry``, ``Submission``, ``Review`` i ``Appeal`` (§ 3.5).
+    """
+
     def active(self):
         """Klucze, którymi da się dziś uwierzytelnić."""
         return self.filter(revoked_at__isnull=True)
@@ -185,6 +197,19 @@ class ApiKey(models.Model):
     w której imieniu działa żądanie – uprawnieniem jest sam zbiór zakresów.
     """
 
+    # Konkurs, którego dane ten klucz otwiera. ``PROTECT`` i **bez** ``null``: klucz bez konkursu
+    # byłby poświadczeniem o nieokreślonym zakresie danych, a to jest najgorsza możliwa postać
+    # poświadczenia do danych osobowych uczestników (§ 3.2, § 4.4).
+    #
+    # Dlaczego kolumna, skoro jest ``edition``: bo edycja bywa **pusta** („klucz dla stałego
+    # partnera, także na przyszłe roczniki”), a wtedy nie prowadzi do żadnego konkursu. Klucz
+    # wystawiony w konkursie A nie ma prawa czytać konkursu B także wtedy – i zwłaszcza wtedy.
+    competition = models.ForeignKey(
+        "tenancy.Competition",
+        verbose_name="konkurs",
+        on_delete=models.PROTECT,
+        related_name="api_keys",
+    )
     # Pusta edycja znaczy „wszystkie edycje” – tak wystawia się klucz dla stałego partnera, który
     # ma czytać także przyszłe roczniki. CASCADE, bo klucz zapięty na skasowanej edycji nie ma
     # już czego otwierać, a zostawiony byłby poświadczeniem bez zakresu danych.
@@ -260,9 +285,24 @@ class ApiKey(models.Model):
         """Czy klucz obejmuje daną edycję. Klucz bez edycji obejmuje wszystkie."""
         return self.edition_id is None or self.edition_id == edition_id
 
+    def covers_competition(self, competition) -> bool:
+        """Czy tym kluczem wolno czytać dane wskazanego konkursu.
+
+        ``None`` po stronie konkursu znaczy „żądanie przyszło pod adresem, którego nikt nie
+        przypisał do konkursu” i odpowiedź brzmi **nie**: klucz otwiera dane konkretnego
+        organizatora, a nie instalacji.
+        """
+        return competition is not None and self.competition_id == competition.pk
+
     def clean(self):
         super().clean()
         self.scopes = validate_scopes(self.scopes or [])
+        if self.edition_id is not None and self.competition_id is not None:
+            # Klucz konkursu A zapięty na edycji konkursu B miałby dwa różne zakresy danych naraz
+            # i nie dałoby się powiedzieć, który obowiązuje. Sprawdzamy to tu, a nie w serwisie,
+            # bo ta sama para pól bywa ustawiana z panelu, z komendy i z fabryki testowej.
+            if self.edition.competition_id != self.competition_id:
+                raise ValidationError({"edition": "Edycja należy do innego konkursu niż ten klucz."})
         if SCOPE_READ_PARTICIPANTS_PII in self.scopes and not self.pii_allowed:
             raise ValidationError(
                 {"pii_allowed": ("Zakres read:participants_pii wymaga zaznaczenia „dane osobowe dozwolone”.")}
@@ -282,6 +322,15 @@ class WebhookEndpoint(models.Model):
     zamiast kilkunastu.
     """
 
+    # Ten sam powód i ta sama postać, co przy ``ApiKey.competition``: pusta edycja („wszystkie
+    # roczniki”) nie prowadzi do żadnego konkursu, a zdarzenia konkursu A nie mają prawa wyjść na
+    # serwer wskazany przez organizatora konkursu B (§ 3.2).
+    competition = models.ForeignKey(
+        "tenancy.Competition",
+        verbose_name="konkurs",
+        on_delete=models.PROTECT,
+        related_name="webhook_endpoints",
+    )
     edition = models.ForeignKey(
         "competitions.Edition",
         verbose_name="edycja",
@@ -312,6 +361,9 @@ class WebhookEndpoint(models.Model):
     failures = models.PositiveIntegerField("porażki pod rząd", default=0)
     disabled_at = models.DateTimeField("wygaszony", null=True, blank=True)
 
+    #: Własna kolumna – odbiorca nie ma jak dojść do konkursu inną drogą (edycja bywa pusta).
+    objects = competition_scoped_manager("competition")
+
     class Meta:
         verbose_name = "odbiorca webhooków"
         verbose_name_plural = "odbiorcy webhooków"
@@ -323,6 +375,10 @@ class WebhookEndpoint(models.Model):
     def clean(self):
         super().clean()
         self.events = validate_events(self.events or [])
+        if self.edition_id is not None and self.competition_id is not None:
+            # Jak przy kluczu: dwa różne zakresy danych naraz to zakres nieokreślony.
+            if self.edition.competition_id != self.competition_id:
+                raise ValidationError({"edition": "Edycja należy do innego konkursu niż ten odbiorca."})
         scheme = urlsplit(self.url or "").scheme.lower()
         if scheme != "https":
             # Wyłącznie HTTPS, bo ładunek niesie identyfikatory i kody publiczne, a podpis HMAC
@@ -358,6 +414,10 @@ class WebhookDelivery(models.Model):
     last_error = models.CharField("ostatni błąd", max_length=300, blank=True)
     created_at = models.DateTimeField("utworzone", default=timezone.now, db_index=True)
     delivered_at = models.DateTimeField("doręczone", null=True, blank=True)
+
+    #: Bez własnej kolumny: doręczenie dochodzi do konkursu przez odbiorcę, do którego idzie
+    #: (§ 3.1 – druga droga do tej samej prawdy to druga okazja do rozjazdu).
+    objects = competition_scoped_manager("endpoint__competition")
 
     class Meta:
         verbose_name = "doręczenie webhooka"

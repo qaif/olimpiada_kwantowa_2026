@@ -35,7 +35,6 @@ from apps.results.certificates import (
 from apps.results.models import Certificate, CertificateKind, CertificateTemplate
 from apps.web.certificate_forms import CertificateTemplateForm
 from apps.web.mixins import ActionViewMixin, CoordinatorRequiredMixin
-from apps.web.scoping import for_competition_or_unclaimed
 
 LIST_TEMPLATE = "web/coordinator/certificate_templates.html"
 FORM_TEMPLATE = "web/coordinator/certificate_template_form.html"
@@ -43,27 +42,15 @@ SUPERVISORS_TEMPLATE = "web/coordinator/supervisors.html"
 
 
 def templates_for_competition(competition):
-    """Szablony dokumentów **tego konkursu** oraz szablony bez edycji.
+    """Szablony dokumentów **tego konkursu** – razem z tymi „na wszystkie edycje”.
 
-    ``CertificateTemplate.edition`` bywa puste i to jest jego cecha, nie brak: puste znaczy
-    „każda edycja” i tak wygląda winieta używana rok po roku. Dopóki szablony nie mają własnego
-    klucza obcego do konkursu (``apps/results/`` należy do zadania T3 – patrz raport), zakresem
-    jest więc **edycja szablonu**: wiersz z edycją tego konkursu albo wiersz bez edycji.
-
-    Wiersz bez edycji zostaje wspólny dla całej instalacji i to jest odnotowana cena tego
-    rozwiązania: organizator, który wgra „winietę na wszystkie edycje”, wystawi ją także
-    sąsiadowi, który własnej nie ma. Domknięcie należy do wydania D razem z kolumną
-    ``CertificateTemplate.competition``.
+    Jedno wywołanie managera, bo wydanie D dało szablonom własną kolumnę
+    (``CertificateTemplate.competition``). ``edition`` bywa nadal puste i to jest jego cecha,
+    nie brak: puste znaczy „każda edycja” i tak wygląda winieta używana rok po roku. Różnica
+    jest w tym, **czyja** to winieta: wiersz bez edycji przestał należeć do nikogo i należy do
+    konkursu, w którym go wgrano, więc sąsiad go nie widzi i nie dostanie go pod swój dyplom.
     """
-    from django.db.models import Q
-
-    from apps.competitions.models import Edition
-
-    if competition is None:
-        return CertificateTemplate.objects.none()
-    return CertificateTemplate.objects.filter(
-        Q(edition__in=Edition.objects.for_competition(competition)) | Q(edition__isnull=True)
-    )
+    return CertificateTemplate.objects.for_competition(competition)
 
 
 def _template(competition, pk: int) -> CertificateTemplate:
@@ -118,6 +105,10 @@ class CertificateTemplateFormView(CoordinatorRequiredMixin, View):
             # Autora zapisujemy wyłącznie przy utworzeniu – „kto to wgrał” jest pytaniem
             # o pochodzenie szablonu, a nie o to, kto ostatni przesunął napis o dwa punkty.
             saved.created_by = request.user
+            # Właściciel również tylko przy utworzeniu: szablon należy do konkursu, w którym go
+            # wgrano, i ta przynależność nie jest polem formularza – przeniesienie winiety do
+            # sąsiada nie jest czynnością, którą ten ekran ma umieć.
+            saved.competition = request.competition
         saved.save()
         audit(
             request.user,
@@ -247,9 +238,7 @@ class IssueSupervisorCertificateView(ActionViewMixin, CoordinatorRequiredMixin, 
 
     def perform(self, request, pk: int) -> str:
         supervisor = get_object_or_404(
-            for_competition_or_unclaimed(
-                SchoolSupervisor.objects.select_related("user"), request.competition
-            ),
+            SchoolSupervisor.objects.for_competition(request.competition).select_related("user"),
             pk=pk,
         )
         edition = current_edition(request.competition)

@@ -31,7 +31,10 @@ from apps.cms.models import SiteSettings
 from apps.tenancy.models import Competition
 
 BEFORE = ("tenancy", "0001_initial")
-AFTER = ("tenancy", "0002_competition_from_site")
+# „Po” to czoło aplikacji ``tenancy``, nie sama ``0002``: odczyty poniżej idą przez żywy model
+# ``Competition``, a ten zna też kolumny dołożone później (``0003_prefixes``). Zatrzymanie na
+# ``0002`` dawałoby ``UndefinedColumn`` w każdym ``SELECT``. Sama ``0002`` i tak jest po drodze.
+AFTER = ("tenancy", "0003_prefixes")
 
 PRODUCTION_HOST = "olimpiadakwantowa.pl"
 SITE_SETTINGS = {

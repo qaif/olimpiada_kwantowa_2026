@@ -283,18 +283,23 @@ def competition_footprint(user: User) -> dict:
     które kaskada ``User.delete()`` zabrałaby ze sobą (``StageEntry`` → ``Submission`` → ``Review``
     → ``FinalGrade``), plus recenzje po stronie komitetu, które są chronione ``PROTECT`` i nie
     dałyby się skasować wcale.
+
+    Liczymy po **wszystkich** profilach tej osoby, nie po profilu jednego konkursu: pytanie brzmi
+    „co zabierze skasowanie konta”, a konto jest platformowe i kaskada nie zna granicy konkursu
+    (§ 3.3). Zawężenie do konkursu z żądania pokazywałoby uczestnikowi dwóch olimpiad zero prac
+    do stracenia w chwili, gdy traci komplet.
     """
     from apps.competitions.models import StageEntry
     from apps.grading.models import Review
     from apps.submissions.models import Submission
 
-    participant = getattr(user, "participant", None)
+    from .services import participations_of
+
+    participants = list(participations_of(user).values_list("pk", flat=True))
     member = getattr(user, "committee_member", None)
     return {
-        "entries": StageEntry.objects.filter(participant=participant).count() if participant else 0,
-        "submissions": (
-            Submission.objects.filter(entry__participant=participant).count() if participant else 0
-        ),
+        "entries": StageEntry.objects.filter(participant_id__in=participants).count(),
+        "submissions": Submission.objects.filter(entry__participant_id__in=participants).count(),
         "reviews": Review.objects.filter(reviewer=member).count() if member else 0,
     }
 
@@ -349,9 +354,17 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
     nazwa szkoły, dowiązanie do rejestru szkół, rocznik, hasło, tokeny, powiązania z Google
     i Facebookiem, sesje. Zgody dostają ``withdrawn_at`` – dowód, że kiedyś obowiązywały, zostaje,
     ale żadna z nich nie jest już podstawą przetwarzania.
+
+    Czyścimy **każdy** profil uczestnika tej osoby, a nie profil jednego konkursu. Anonimizacja
+    jest zdarzeniem platformowym: znika adres e-mail, imię, nazwisko i hasło, czyli konto jako
+    takie. Zostawienie szkoły i rocznika w profilu drugiej olimpiady dałoby wiersz z danymi
+    osobowymi przy koncie, którego właściciel został już wytarty – i to bez żadnej podstawy, bo
+    zalogować się do tego drugiego konkursu też się nie da (§ 3.3).
     """
     now = timezone.now()
-    participant = getattr(user, "participant", None)
+    from .services import participations_of
+
+    participants = list(participations_of(user))
 
     user.email = f"deleted-{user.pk}@{ANONYMISED_EMAIL_DOMAIN}"
     user.first_name = ""
@@ -363,16 +376,16 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
     # nieaktywowanych kont (``apps.accounts.tasks``).
     user.save(update_fields=["email", "first_name", "last_name", "password", "is_active"])
 
-    if participant is not None:
+    for participant in participants:
         participant.phone = ""
         participant.school = ANONYMISED_SCHOOL
         participant.school_ref = None
         participant.birth_year = ANONYMISED_BIRTH_YEAR
         participant.publish_full_name = False
         participant.save(update_fields=["phone", "school", "school_ref", "birth_year", "publish_full_name"])
-        ConsentRecord.objects.filter(participant=participant, withdrawn_at__isnull=True).update(
-            withdrawn_at=now
-        )
+    ConsentRecord.objects.filter(participant__in=participants, withdrawn_at__isnull=True).update(
+        withdrawn_at=now
+    )
 
     _drop_credentials(user)
     audit(actor or user, "account.anonymised", user, {"user_id": user.pk}, request=request)
@@ -582,13 +595,19 @@ def update_account_by_coordinator(
     tam jako samo „zmienione”, bez wartości – wpisy audytowe czyta też ktoś bez prawa do danych
     uczestnika.
     """
+    from apps.tenancy.context import current_competition
+
+    from .services import participant_for
+
     _assert_not_coordinator(user)
     # Najpierw **cała** walidacja – trzech obiektów naraz, więc bez tego rozdziału zły numer
     # telefonu zostawiałby zapisany nowy adres e-mail i zmieniony status komitetu.
     values = _account_values(account)
     if "email" in account:
         values["email"] = _assert_email_free(account["email"], exclude_pk=user.pk)
-    profile = getattr(user, "participant", None)
+    # Profil z konkursu, którego panel koordynator ma przed sobą: koordynator olimpiady A nie
+    # poprawia szkoły uczestnikowi w olimpiadzie B, nawet jeżeli to jedno konto (§ 3.3).
+    profile = participant_for(user, current_competition())
     member = getattr(user, "committee_member", None)
     participant_values = _participant_values(participant) if participant else {}
     committee_values = _committee_values(committee) if committee else {}

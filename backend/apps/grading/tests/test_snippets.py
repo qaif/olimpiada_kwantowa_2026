@@ -168,3 +168,38 @@ def test_kasowanie_wlasnego_szablonu_zostawia_slad_w_audycie():
 
     assert not CommentSnippet.objects.filter(pk=snippet.pk).exists()
     assert AuditLog.objects.filter(action="snippet.deleted").exists()
+
+
+# --- właściciel szablonu (wydanie D) --------------------------------------------------------------
+
+
+def test_szablon_zadania_nalezy_do_konkursu_tego_zadania(other_competition):
+    """Konkurs bierze się z **zadania**, a nie z kontekstu żądania.
+
+    Zapis idzie tu z kontekstu Konkursu #1 (wiąże go autouse z ``conftest``), a zadanie należy do
+    konkursu drugiego – i to zadanie ma wygrać. Odwrotna kolejność przepisywałaby szablony do tego
+    konkursu, pod którego domeną akurat zalogował się koordynator.
+    """
+    problem = ProblemFactory(competition=other_competition)
+
+    set_problem_snippets(problem, [{"title": "Jednostki", "text": "Podaj jednostki wyniku."}])
+
+    assert problem_snippets(problem)[0].competition_id == other_competition.pk
+
+
+def test_wlasny_szablon_ogolny_nalezy_do_konkursu_recenzenta(other_competition):
+    """Prywatny szablon bez zadania nie ma innego wskazania niż komitet, w którym go napisano."""
+    reviewer = ActiveReviewerFactory(competition=other_competition)
+
+    snippet = add_own_snippet(reviewer, "Mój ogólny", "treść")
+
+    assert snippet.competition_id == other_competition.pk
+
+
+def test_szablon_ogolny_widac_wylacznie_w_swoim_konkursie(competition, other_competition):
+    """Szablon „do wszystkiego” był do wydania D wspólny dla całej instalacji – i to był wyciek."""
+    ours = CommentSnippet.objects.create(competition=competition, title="Nasz", text="n")
+    CommentSnippet.objects.create(competition=other_competition, title="Obcy", text="o")
+    reviewer = ActiveReviewerFactory(competition=competition)
+
+    assert snippets_for(ProblemFactory(competition=competition), reviewer) == [ours]

@@ -57,13 +57,13 @@
 
   <div class="card card--quiet">
     <h3 class="mt-0">{% translate "Publikacja imienia i nazwiska" %}</h3>
-    <p class="hint">{% blocktranslate trimmed with code=user.participant.public_code %}
+    <p class="hint">{% blocktranslate trimmed with code=participant.public_code %}
       Bez tej zgody w publikowanych tabelach wyników występujesz wyłącznie pod kodem {{ code }}.
       Zgodę możesz wyrazić i wycofać w każdej chwili.
     {% endblocktranslate %}</p>
     <form method="post" action="{% url 'web:consent-publish-name' %}" class="inline">
       {% csrf_token %}
-      {% if user.participant.publish_full_name %}
+      {% if participant.publish_full_name %}
         <input type="hidden" name="given" value="0">
         <button type="submit" class="btn btn--secondary">{% translate "Wycofaj zgodę na publikację nazwiska" %}</button>
       {% else %}

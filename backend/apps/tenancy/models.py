@@ -177,6 +177,19 @@ class Competition(models.Model):
     primary_domain = models.CharField("domena główna", max_length=255, blank=True)
     path_prefix = models.SlugField("prefiks ścieżki", max_length=40, blank=True)
 
+    # --- identyfikatory drukowane ----------------------------------------------------------------
+    #: Prefiks kodu publicznego uczestnika (``OLM-XXXXXX``). Był stałą modułu
+    #: (``apps.accounts.models.PUBLIC_CODE_PREFIX``), a kod publiczny jest identyfikatorem
+    #: w tabelach wyników **jednego** konkursu – dwie olimpiady pod jednym prefiksem dawałyby
+    #: w liście „OLM-ABC234” bez informacji, czyj to wynik. Konkurs #1 ma tu dokładnie ``OLM-``,
+    #: więc żaden istniejący kod się nie zmienia (``docs/UNIWERSALNY-ETAP-1.md`` § 3.3).
+    #: Kody już nadane zostają nietknięte: pole opisuje **nowe** kody, a nie zastane.
+    public_code_prefix = models.CharField("prefiks kodu uczestnika", max_length=8, default="OLM-")
+    #: Prefiks numeru dyplomu (``OK/2026/0001``). Był stałą ``CERTIFICATE_NUMBER_PREFIX``
+    #: w ``apps.results.models``. Unikalność samego numeru zostaje **globalna**, bo prefiks jest
+    #: jego częścią, a strona weryfikacji dyplomu jest publiczna i działa bez wskazania konkursu.
+    certificate_prefix = models.CharField("prefiks numeru dyplomu", max_length=8, default="OK")
+
     # --- zachowanie ------------------------------------------------------------------------------
     default_language = models.CharField("język domyślny", max_length=8, default="pl")
     #: Strefa czasowa jest per konkurs, bo ``WARSAW`` w ``apps/competitions/models.py`` jest dziś

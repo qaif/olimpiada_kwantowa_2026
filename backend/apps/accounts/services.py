@@ -12,7 +12,6 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import EmailValidator
 from django.db import IntegrityError, transaction
-from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
@@ -259,26 +258,41 @@ def roles_for(user, competition) -> set[str]:
 def participant_for(user, competition) -> Participant | None:
     """Profil uczestnika tej osoby **w tym konkursie** albo ``None``.
 
-    Jedyna droga do profilu w kodzie pisanym od tej zmiany. ``user.participant`` zostaje na czas
-    wydania B (relacja jest wciąż ``OneToOne``, patrz docstring ``Participant``), ale jest drogą
-    **bez konkursu** – a to znaczy, że po wydaniu D oddawałaby profil z dowolnego konkursu.
-    Kod, który woła tę funkcję już dziś, nie zmieni się wtedy ani o linię.
+    **Jedyna** droga do profilu. ``user.participant`` już nie istnieje: relacja odwrotna nazywa
+    się ``participations`` i jest wielokrotna, więc każde przeoczone miejsce podnosi
+    ``AttributeError`` zamiast oddawać profil z przypadkowego konkursu (§ 3.3, § 6 T2).
 
-    ``competition=None`` znaczy „nie wiadomo, o który konkurs chodzi” i oddaje profil bez
-    zawężania – czyli dokładnie to, co dziś oddaje ``user.participant``. Wyciekiem to nie jest:
-    pytamy o profil **tej** osoby, a nie o cudzy.
+    ``competition=None`` znaczy „nie wiadomo, o który konkurs chodzi” i oddaje pierwszy profil bez
+    zawężania. Wyciekiem to nie jest: pytamy o profil **tej** osoby, a nie o cudzy – a wołający
+    poza żądaniem (komenda, zadanie Celery na bazie jednokonkursowej) ma wtedy jedną poprawną
+    odpowiedź. Tam, gdzie konkurs jest znany, podaje się go wprost.
 
-    Wiersze bez konkursu (``competition IS NULL``) są widoczne dla każdego konkursu i to jest
-    świadome przez jedno wydanie: w wydaniu B kolumna dopiero powstaje, a kod zapisu i kod
-    odczytu mają przez chwilę stać obok siebie (§ 4.1). Wydanie D zamyka kolumnę na ``NOT NULL``
-    i ta gałąź znika sama – nie zostanie w kodzie jako „wyjątek, o którym wszyscy zapomnieli”.
+    Zawężenie jest **ścisłe**: wiersz innego konkursu nie jest odpowiedzią, a wierszy bez konkursu
+    nie ma – kolumnę domknęła na ``NOT NULL`` migracja ``accounts.0022_competition_not_null``.
     """
     if not user or not getattr(user, "is_authenticated", False):
         return None
     rows = Participant.objects.filter(user=user)
     if competition is not None:
-        rows = rows.filter(Q(competition=competition) | Q(competition__isnull=True))
+        rows = rows.filter(competition=competition)
     return rows.first()
+
+
+def participations_of(user):
+    """Wszystkie profile uczestnika tej osoby, po jednym na konkurs, razem z konkursem.
+
+    Do pytań, które dotyczą **konta**, a nie konkursu: „w czym ta osoba w ogóle startuje”
+    (panel konta), „co znika przy usunięciu konta” i „co trzeba wytrzeć przy anonimizacji”.
+    Bramek na tym nie stawiamy i stawiać nie wolno – do tego jest ``participant_for``, które pyta
+    o konkurs.
+
+    Queryset, a nie lista: wołający dokłada własne ``filter`` i ``count`` bez pobierania wierszy,
+    a konto bez profilu oddaje pusty queryset, nie ``None`` – pętla po nim wykonuje się zero razy
+    i nie potrzebuje warunku.
+    """
+    if not user or not getattr(user, "is_authenticated", False):
+        return Participant.objects.none()
+    return Participant.objects.filter(user=user).select_related("competition")
 
 
 def _add_to_group(user: User, name: str) -> None:
@@ -375,11 +389,17 @@ def create_participant_with_public_code(**fields) -> Participant:
     Rozstrzygającą instancją jest unikalność w bazie, nie wcześniejszy ``SELECT`` – sprawdzenie
     ``exists()`` przed zapisem było podatne na TOCTOU (inny proces mógł zająć kod w międzyczasie).
     Każda próba idzie w osobnym savepoincie, więc IntegrityError nie unieważnia transakcji żądania.
+
+    Prefiks kodu bierzemy z **konkursu tego profilu**, a nie ze stałej modułu: to ten sam konkurs,
+    który zaraz trafi do kolumny, więc kod i jego właściciel nie mają jak się rozjechać. Unikalność
+    jest odtąd parą (konkurs, kod), a jej nazwa zawiera ``public_code`` – ponawianie po kolizji
+    rozpoznaje ją tak samo, jak dawny więz globalny.
     """
+    competition = fields.get("competition")
     for _ in range(PUBLIC_CODE_MAX_ATTEMPTS):
         try:
             with transaction.atomic():
-                return Participant.objects.create(public_code=generate_public_code(), **fields)
+                return Participant.objects.create(public_code=generate_public_code(competition), **fields)
         except IntegrityError as exc:
             if not _violates_constraint(exc, "public_code"):
                 raise

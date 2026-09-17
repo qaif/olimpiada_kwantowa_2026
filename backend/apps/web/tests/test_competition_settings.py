@@ -164,6 +164,38 @@ def test_saving_brand_fields_updates_the_competition(coordinator_client, competi
     assert competition.contact_phone == "600 100 200"
 
 
+def test_printed_identifier_prefixes_are_editable(coordinator_client, competition):
+    """Prefiks kodu uczestnika i numeru dyplomu zmienia organizator, a nie wydanie aplikacji.
+
+    Oba były stałymi modułu (``PUBLIC_CODE_PREFIX``, ``CERTIFICATE_NUMBER_PREFIX``), a są
+    identyfikatorami **jednego** konkursu (§ 3.3): dwie olimpiady pod jednym prefiksem dawałyby
+    w tabeli wyników kod bez informacji, czyj to wynik. Konkurs #1 zostaje przy „OLM-” i „OK”,
+    więc żaden istniejący kod ani numer się nie zmienia – zmiana dotyczy wyłącznie nowych.
+    """
+    response = coordinator_client.post(
+        URL, form_payload(competition, public_code_prefix="FIZ-", certificate_prefix="OF")
+    )
+
+    assert response.status_code == 302
+    competition.refresh_from_db()
+    assert (competition.public_code_prefix, competition.certificate_prefix) == ("FIZ-", "OF")
+
+
+def test_the_prefix_help_text_says_existing_codes_do_not_change(coordinator_client):
+    """Ekran ma to powiedzieć wprost: pytanie „czy przenumerujecie mi dyplomy” pada tutaj."""
+    content = coordinator_client.get(URL).content.decode()
+
+    assert "Kody już nadane się nie zmienią" in content
+    assert "Numery już wystawionych" in content
+
+
+def test_changing_a_prefix_is_recorded_in_the_audit_entry(coordinator_client, competition):
+    coordinator_client.post(URL, form_payload(competition, certificate_prefix="OF"))
+
+    entry = AuditLog.objects.filter(action="competition.updated").latest("at")
+    assert entry.diff == {"fields": ["certificate_prefix"]}
+
+
 def test_saving_leaves_an_audit_entry_with_field_names_only(coordinator_client, competition):
     coordinator_client.post(URL, form_payload(competition, short_name="OK"))
 

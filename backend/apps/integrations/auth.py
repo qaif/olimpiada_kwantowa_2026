@@ -9,6 +9,11 @@ Trzy klasy, bo w DRF to trzy różne pytania i trzy różne odpowiedzi HTTP:
 Rozdzielenie nie jest formalnością: partner, który dostaje 403 zamiast 401, wie, że klucz działa
 i że trzeba poprosić o szerszą umowę, a nie że przekręcił poświadczenie.
 
+Czwarte pytanie dokłada wielokonkursowość: **czy to twoje drzwi**. Klucz wystawiony w konkursie A,
+użyty pod domeną konkursu B, dostaje **404** (``ForeignApiKey``), a nie 401 ani 403 – tak samo,
+jak zasób spoza edycji objętej kluczem (``apps.integrations.api``). Istnienie konkursu B nie jest
+informacją partnera konkursu A, więc odpowiedź ma brzmieć „nie ma tego tutaj”.
+
 Żądanie z kluczem **nie ma użytkownika**: ``request.user`` zostaje anonimowy, a cała tożsamość
 żądania siedzi w ``request.auth`` (obiekt ``ApiKey``). Podstawienie tu konta koordynatora –
 kuszące, bo „ktoś ten klucz wystawił” – znaczyłoby, że każdy widok pytający o rolę użytkownika
@@ -30,6 +35,7 @@ from rest_framework.exceptions import AuthenticationFailed, NotAuthenticated
 from rest_framework.permissions import BasePermission
 from rest_framework.throttling import BaseThrottle
 
+from apps.competitions.scoping import competition_of
 from apps.core.api import DomainError
 
 from .models import SCOPES, TOKEN_PREFIX, ApiKey, hash_secret
@@ -67,6 +73,24 @@ class RevokedApiKey(AuthenticationFailed):
 
     default_code = "API_KEY_REVOKED"
     default_detail = "Ten klucz API został unieważniony."
+
+
+class ForeignApiKey(DomainError):
+    """404 dla klucza konkursu A użytego pod adresem konkursu B.
+
+    404, a nie 403 – i to jest ta sama reguła, którą ten moduł stosuje już do edycji spoza
+    zakresu klucza (``apps.integrations.api``, „czego klucz nie obejmuje, tego nie ma”). Partner
+    organizatora A nie ma prawa dowiedzieć się z kodu odpowiedzi, że pod tym adresem w ogóle stoi
+    jakiś konkurs; 403 („jesteś, ale nie tobie”) potwierdzałoby jego istnienie i pozwalało
+    przejechać listę domen instalacji jednym kluczem.
+
+    Odmowa jest **uwierzytelnieniem**, a nie uprawnieniem, bo dotyczy samego poświadczenia: ten
+    klucz nie jest kluczem do tych drzwi, niezależnie od tego, jakie zakresy ma wypisane.
+    """
+
+    status_code = http.HTTP_404_NOT_FOUND
+    default_code = "NOT_FOUND"
+    default_detail = "Nie znaleziono zasobu."
 
 
 class ApiKeyRequired(NotAuthenticated):
@@ -132,7 +156,7 @@ class ApiKeyAuthentication(BaseAuthentication):
         if parsed is None:
             raise InvalidApiKey()
         prefix, secret = parsed
-        key = ApiKey.objects.select_related("edition").filter(prefix=prefix).first()
+        key = ApiKey.objects.select_related("competition", "edition").filter(prefix=prefix).first()
         if key is None:
             raise InvalidApiKey()
         # Porównanie w stałym czasie: zwykłe ``==`` kończy się na pierwszym różnym bajcie,
@@ -141,6 +165,17 @@ class ApiKeyAuthentication(BaseAuthentication):
             raise InvalidApiKey()
         if not key.is_active:
             raise RevokedApiKey()
+        # Konkurs rozstrzyga się **po** sprawdzeniu sekretu, a nie przez zawężenie wyszukiwania
+        # klucza. Gdyby wchodził do filtra, klucz z cudzego konkursu byłby nie do odróżnienia od
+        # klucza nieistniejącego – czyli dałby 401 („przekręciłeś poświadczenie”) zamiast 404
+        # („tego tu nie ma”), i partner szukałby literówki w konfiguracji zamiast adresu.
+        if not key.covers_competition(competition_of(request)):
+            logger.info(
+                "Klucz API %s (konkurs %s) użyty pod adresem innego konkursu.",
+                key.prefix,
+                key.competition_id,
+            )
+            raise ForeignApiKey()
         _touch(key)
         # Użytkownik zostaje anonimowy – tożsamością żądania jest klucz, patrz docstring modułu.
         from django.contrib.auth.models import AnonymousUser

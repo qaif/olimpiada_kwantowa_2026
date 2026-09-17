@@ -17,7 +17,7 @@ from django.db import migrations
 
 
 def sole_competition(apps):
-    """Konkurs, do którego należy cała zastana baza – albo ``None``, gdy nie ma go z czego wziąć.
+    """Identyfikator konkursu, do którego należy cała zastana baza – albo ``None``.
 
     ``None`` znaczy „świeża instalacja bez drzewa stron” (``tenancy.0002`` nie miała z czego
     utworzyć konkursu) i jest poprawną odpowiedzią: pusta baza nie ma czego backfillować.
@@ -26,9 +26,15 @@ def sole_competition(apps):
     „wszystko, co tu stoi, ma jednego właściciela”; przy dwóch konkursach założenie jest fałszywe,
     a jego cichy skutek to przepisanie edycji organizatora A na organizatora B. Ten sam warunek
     i to samo zdanie stoją w ``accounts.0020`` – celowo, bo to ta sama reguła.
+
+    Czytamy **sam klucz**, a nie cały wiersz, i to nie jest oszczędność bajtów: migracja danych
+    bywa odgrywana na stanie historycznym, w którym tabela konkursów ma mniej kolumn niż model
+    (``apps/tenancy/tests/test_migration_0002.py`` przewija ``tenancy`` do ``0002``, czyli przed
+    ``0003_prefixes``). ``SELECT *`` pytałby wtedy o kolumnę, której jeszcze nie ma. Ten sam wzorzec
+    stoi w ``accounts.0020``.
     """
     Competition = apps.get_model("tenancy", "Competition")
-    rows = list(Competition.objects.order_by("pk")[:2])
+    rows = list(Competition.objects.order_by("pk").values_list("pk", flat=True)[:2])
     if len(rows) > 1:
         raise RuntimeError(
             "Backfill konkursu działa wyłącznie na bazie jednokonkursowej "
@@ -38,19 +44,19 @@ def sole_competition(apps):
 
 
 def forwards(apps, schema_editor):
-    competition = sole_competition(apps)
-    if competition is None:
+    competition_id = sole_competition(apps)
+    if competition_id is None:
         return
     apps.get_model("competitions", "Edition").objects.filter(competition__isnull=True).update(
-        competition=competition
+        competition_id=competition_id
     )
 
 
 def backwards(apps, schema_editor):
-    competition = sole_competition(apps)
-    if competition is None:
+    competition_id = sole_competition(apps)
+    if competition_id is None:
         return
-    apps.get_model("competitions", "Edition").objects.filter(competition=competition).update(
+    apps.get_model("competitions", "Edition").objects.filter(competition_id=competition_id).update(
         competition=None
     )
 

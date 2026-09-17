@@ -218,6 +218,18 @@ Platforma obsługuje wiele niezależnych konkursów z jednej bazy i jednego wdro
 `wagtailcore.Site` (własne drzewo stron) plus jeden wiersz `tenancy.Competition`
 (marka, organizator, adresowanie). Projekt i uzasadnienia: [`docs/UNIWERSALNY-ETAP-1.md`](docs/UNIWERSALNY-ETAP-1.md).
 
+> **Na produkcji rób to z runbookiem: [`docs/OPERACJE.md`](docs/OPERACJE.md) § 6 („Drugi konkurs na
+> tej samej instalacji”).** Ta sekcja opisuje **komendę**; runbook opisuje **kolejność** i to, czego
+> tu nie ma: pre-flight `manage.py check_memberships` (kto straci dostęp, gdy o rolach przestanie
+> rozstrzygać globalna grupa Django), przełączenie flag `memberships_enforced`
+> i `competition_settings_page` w `/admin/` oraz to, że grupa `coordinator` jest globalna, więc
+> koordynator nowego konkursu dostaje razem z nią dostęp do `/cms/` całej instalacji.
+
+Co powstaje razem z konkursem: witryna i drzewo stron (puste, o właściwych adresach),
+`cms.SiteSettings`, wiersz `tenancy.Competition` oraz **pierwsza edycja z etapami szablonu**.
+Terminy etapów są wartością początkową odłożoną od pierwszego dnia następnego miesiąca — wyglądają
+na zastępcze, bo są zastępcze, a harmonogram wpisuje koordynator w panelu.
+
 **1. Załóż konkurs.** Komenda tworzy witrynę, drzewo stron (puste, o właściwych adresach),
 `SiteSettings` i wiersz konkursu z szablonu — i **nie** uruchamia seedów treści, bo te wpisują
 akapity Olimpiady Kwantowej:
@@ -226,8 +238,15 @@ akapity Olimpiady Kwantowej:
 docker compose exec web python manage.py create_competition \
   --slug fizyczna --name "Olimpiada Fizyczna" --domain olimpiadafizyczna.pl \
   --from-template przedmiotowa --organizer "Polskie Towarzystwo Fizyczne" \
-  --contact-email biuro@example.org --dry-run   # bez --dry-run zapisuje
+  --contact-email biuro@example.org \
+  --edition-label "I edycja 2026/2027" \
+  --coordinator-email koordynator@example.org \
+  --dry-run   # bez --dry-run zapisuje
 ```
+
+`--edition-label` jest opcjonalne (domyślnie bieżący rocznik szkolny liczony od września).
+`--coordinator-email` wymaga **istniejącego** konta — komenda kont nie zakłada i nieznany adres
+jest dla niej błędem, a nie zaproszeniem do założenia konta bez wiedzy jego właściciela.
 
 Szablony (`--from-template`, katalog w `backend/apps/tenancy/templates_catalog.py`):
 `kwantowa` (struktura dzisiejszej konfiguracji: ELIM → wojewódzki → finał + trening, cztery formaty
@@ -267,9 +286,10 @@ Wpisanie ich wprost niczego nie psuje – wartości podane ręcznie zostają na 
 sam, gdy DNS już wskazuje serwer. Kontrola na koniec: `docker compose exec web python manage.py
 check_domains --all`.
 
-**5. Treść.** Regulamin, klauzulę RODO i pozostałe dokumenty wpisuje redakcja nowego konkursu
-w `/cms/` – lista dokumentów, których wymaga wybrany szablon, jest w podsumowaniu komendy. Etapy
-i terminy zakłada koordynator w panelu.
+**5. Treść i terminy.** Regulamin, klauzulę RODO i pozostałe dokumenty wpisuje redakcja nowego
+konkursu w `/cms/` – lista dokumentów, których wymaga wybrany szablon, jest w podsumowaniu komendy.
+Etapy już są (z szablonu), ale ich **terminy są zastępcze**: koordynator poprawia je w panelu,
+zanim otworzy rejestrację.
 
 #### Wariant bez własnej domeny: prefiks ścieżki
 

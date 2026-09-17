@@ -58,7 +58,7 @@ def unactivated_accounts(now=None):
         is_active=False,
         email_verified_at__isnull=True,
         date_joined__lt=now - timedelta(seconds=ACTIVATION_MAX_AGE),
-    ).exclude(participant__invited_at__isnull=False)
+    ).exclude(participations__invited_at__isnull=False)
 
 
 @transaction.atomic

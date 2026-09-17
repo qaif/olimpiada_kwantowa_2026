@@ -23,6 +23,8 @@ from __future__ import annotations
 from django.db.models import F, Q
 from rest_framework import status as http
 
+from apps.competitions.models import Problem
+from apps.competitions.scoping import resolve_competition
 from apps.core.api import DomainError
 from apps.core.models import audit
 
@@ -36,6 +38,32 @@ MAX_SNIPPETS = 50
 
 def _bad_request(detail: str, code: str) -> DomainError:
     return DomainError(detail, code, http.HTTP_400_BAD_REQUEST)
+
+
+def competition_id_for(problem=None, member=None) -> int | None:
+    """Konkurs szablonu: z zadania, a bez zadania – z komitetu autora albo z kontekstu.
+
+    Kolejność nie jest dowolna. Zadanie jest **faktem o szablonie**: szablon do zadania konkursu B
+    należy do konkursu B także wtedy, gdy zapisuje go ktoś zalogowany pod domeną konkursu A.
+    Komitet jest drugi, bo recenzent bywa członkiem komitetu tylko jednego konkursu i jego własny
+    szablon ogólny (``problem IS NULL``) nie ma innego wskazania. Kontekst jest ostatni – dla
+    komendy i importu, które nie mają ani zadania, ani członka.
+
+    Jedno zapytanie zamiast przejścia ``problem.stage.edition.competition`` (trzy) i zamiast
+    zapytania na każdy tworzony wiersz – wołający pyta raz i podaje wynik wszystkim.
+    """
+    if problem is not None:
+        owner_id = (
+            Problem.objects.filter(pk=problem.pk)
+            .values_list("stage__edition__competition_id", flat=True)
+            .first()
+        )
+        if owner_id is not None:
+            return owner_id
+    member_competition_id = getattr(member, "competition_id", None)
+    if member_competition_id is not None:
+        return member_competition_id
+    return getattr(resolve_competition(), "pk", None)
 
 
 def parse_snippet_lines(text: str) -> list[dict]:
@@ -96,11 +124,19 @@ def snippets_for(problem, member) -> list[CommentSnippet]:
     Zakres: szablony **tego** zadania oraz ogólne (``problem IS NULL``), a spośród prywatnych
     wyłącznie należące do pytającego. Cudzy prywatny szablon nie wychodzi stąd nigdy – także dla
     koordynatora, który ogląda ten sam ekran w innej roli.
+
+    Trzecim wymiarem zakresu jest **konkurs** (wydanie D). Szablony zadania są nim zawężone same
+    z siebie – zadanie należy do jednego konkursu – ale szablony ogólne do wydania D leżały na
+    półce wspólnej dla całej instalacji, czyli w bazie wielokonkursowej na półce cudzej.
     """
     if member is None:
         return []
     scope = Q(problem__isnull=True) if problem is None else Q(problem__isnull=True) | Q(problem=problem)
-    rows = CommentSnippet.objects.filter(scope).filter(Q(owner__isnull=True) | Q(owner=member))
+    rows = (
+        CommentSnippet.objects.for_competition(competition_id_for(problem, member))
+        .filter(scope)
+        .filter(Q(owner__isnull=True) | Q(owner=member))
+    )
     # ``owner_id`` rosnąco z ``NULL`` na początku to dokładnie „wspólne, potem własne” – jedno
     # zapytanie zamiast dwóch i sklejania list. ``nulls_first`` podajemy jawnie, bo domyślne
     # ułożenie wartości pustych zależy od bazy, a kolejność jest tu częścią umowy z czytelnikiem.
@@ -121,6 +157,8 @@ def set_problem_snippets(problem, items, *, actor=None, request=None) -> int:
     """
     existing = problem_snippets(problem)
     before = [{"title": item.title, "text": item.text} for item in existing]
+    # Raz na zapis, a nie raz na wiersz: konkurs jest ten sam dla wszystkich szablonów zadania.
+    competition_id = competition_id_for(problem)
     for index, item in enumerate(items):
         if index < len(existing):
             snippet = existing[index]
@@ -130,6 +168,7 @@ def set_problem_snippets(problem, items, *, actor=None, request=None) -> int:
             snippet.save(update_fields=["order", "title", "text"])
         else:
             CommentSnippet.objects.create(
+                competition_id=competition_id,
                 problem=problem,
                 owner=None,
                 order=index + 1,
@@ -165,6 +204,7 @@ def add_own_snippet(member, title: str, text: str, *, problem=None, request=None
             "SNIPPET_LIMIT",
         )
     snippet = CommentSnippet.objects.create(
+        competition_id=competition_id_for(problem, member),
         problem=problem,
         owner=member,
         title=clean_title[:200],

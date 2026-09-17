@@ -84,11 +84,12 @@
             {% comment %}
               Odznaka „z importu” odpowiada na pytanie „skąd wzięło się dwadzieścia kont z jednej
               szkoły w jednej minucie”. Czytamy ją wprost z profilu (``Participant.invited_at``),
-              a nie z osobnego pola wiersza: konto uczestnika jest już w ``select_related``, więc
-              nie kosztuje to ani jednego zapytania więcej. Znacznik zostaje **po** aktywacji –
+              a nie z osobnego pola wiersza: profil **tego konkursu** przyjechał już w wierszu
+              (``account_rows`` liczy je jedną mapą na stronę), więc nie kosztuje to ani jednego
+              zapytania więcej. Znacznik zostaje **po** aktywacji –
               opisuje pochodzenie konta, a nie jego stan (ten jest w kolumnie obok).
             {% endcomment %}
-            <td>{{ row.role }}{% if row.protected %} <span class="badge badge--neutral">chronione</span>{% endif %}{% if row.user.participant.invited_at %} <span class="badge badge--info">z importu</span>{% endif %}</td>
+            <td>{{ row.role }}{% if row.protected %} <span class="badge badge--neutral">chronione</span>{% endif %}{% if row.participant.invited_at %} <span class="badge badge--info">z importu</span>{% endif %}</td>
             <td>{{ row.public_code|default:"—" }}</td>
             <td>{{ row.status }}</td>
             <td>{{ row.user.date_joined|local_datetime }}</td>
@@ -101,7 +102,7 @@
                 (prace, oceny, wyniki, reklamacje). Odnośnik pojawia się wyłącznie przy koncie
                 z profilem uczestnika – konto recenzenta ani opiekuna żadnej karty nie ma.
               {% endcomment %}
-              {% participant_card_url row.user.participant as card_url %}
+              {% participant_card_url row.participant as card_url %}
               {% if card_url %}
                 <a class="btn btn--secondary btn--small" href="{{ card_url }}">Karta</a>
               {% endif %}

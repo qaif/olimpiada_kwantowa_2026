@@ -500,7 +500,7 @@ def parse_table(
 # --- rozstrzygnięcie wierszy ------------------------------------------------------------------
 
 
-def validate_rows(rows: list[ImportRow]) -> list[ImportRow]:
+def validate_rows(rows: list[ImportRow], *, competition=None) -> list[ImportRow]:
     """Dopisuje każdemu wierszowi rozstrzygnięcie: założyć, dowiązać czy pominąć.
 
     Trzy reguły, wszystkie wymuszone tutaj, a nie w widoku, bo droga jest jedna dla nauczyciela
@@ -514,11 +514,26 @@ def validate_rows(rows: list[ImportRow]) -> list[ImportRow]:
     3. **adres zajęty przez konto bez profilu uczestnika** (recenzent, koordynator, opiekun)
        zostaje pominięty. Dorobienie takiemu koncu profilu uczestnika zmieniałoby komuś rolę
        w zawodach na podstawie pliku wgranego przez osobę trzecią.
+
+    „Konto uczestnika” znaczy od tej zmiany „konto z profilem **w tym konkursie**”: nauczyciel
+    importujący klasę do olimpiady A nie może dostać wiersza „dowiązać” dlatego, że uczeń startuje
+    w olimpiadzie B – tam jest jego profil, jego zgody i jego opiekun, a tutaj nie ma jeszcze nic.
+    ``competition=None`` bierze konkurs z kontekstu (``default_competition``), tak samo jak zapis.
     """
+    from .services import default_competition
+
+    if competition is None:
+        competition = default_competition()
     emails = [row.email for row in rows if row.email and not row.errors]
-    existing = {
-        user.email: user for user in User.objects.filter(email__in=emails).select_related("participant")
-    }
+    # Jedno zapytanie na cały plik: zbiór adresów, które mają w **tym** konkursie profil
+    # uczestnika, i zbiór adresów zajętych w ogóle. Dwa zbiory, bo prowadzą do dwóch różnych
+    # rozstrzygnięć (dowiązać / pominąć), a nie do jednego z warunkiem.
+    taken = set(User.objects.filter(email__in=emails).values_list("email", flat=True))
+    with_profile = set(
+        Participant.objects.filter(user__email__in=emails, competition=competition).values_list(
+            "user__email", flat=True
+        )
+    )
     seen: set[str] = set()
     for row in rows:
         if row.errors:
@@ -529,8 +544,7 @@ def validate_rows(rows: list[ImportRow]) -> list[ImportRow]:
             row.errors.append("adres powtórzony w pliku")
             continue
         seen.add(row.email)
-        user = existing.get(row.email)
-        if user is None:
+        if row.email not in taken:
             row.action = ACTION_CREATE
             if row.birth_year is not None and is_minor(row.birth_year) and not row.guardian_email:
                 row.notes.append(
@@ -538,7 +552,7 @@ def validate_rows(rows: list[ImportRow]) -> list[ImportRow]:
                     "sam po przyjęciu zaproszenia"
                 )
             continue
-        if getattr(user, "participant", None) is None:
+        if row.email not in with_profile:
             row.action = ACTION_SKIP
             row.errors.append("adres należy do konta, które nie jest kontem uczestnika")
             continue
@@ -640,11 +654,12 @@ def import_students(
     from .services import create_participant_with_public_code, default_competition, grant_role
     from .supervisors import set_supervisor_email
 
-    validate_rows(rows)
-    district = getattr(school_ref, "voivodeship", "") or ""
-    # Konkurs importu ustalamy **raz** dla całego pliku: jedna lista klasowa nie ma prawa
-    # rozsypać się po dwóch konkursach, choćby kontekst zmienił się w trakcie.
+    # Konkurs importu ustalamy **raz** dla całego pliku, i to **przed** rozstrzygnięciem wierszy:
+    # jedna lista klasowa nie ma prawa rozsypać się po dwóch konkursach, a podgląd i zapis mają
+    # pytać o istniejące profile w tym samym konkursie.
     competition = default_competition()
+    validate_rows(rows, competition=competition)
+    district = getattr(school_ref, "voivodeship", "") or ""
     now = timezone.now()
     created = 0
     linked = 0
@@ -672,7 +687,12 @@ def import_students(
             audit(actor, "participant.invited_by_import", participant, {"row": row.number}, request=request)
             created += 1
         elif row.action == ACTION_LINK:
-            participant = Participant.objects.select_related("user").get(user__email=row.email)
+            # Profil **tego** konkursu: po zmianie z wydania D jedno konto ma tyle profili,
+            # w ilu konkursach startuje, więc ``get`` bez zawężenia podniósłby
+            # ``MultipleObjectsReturned`` na uczniu dwóch olimpiad.
+            participant = Participant.objects.select_related("user").get(
+                user__email=row.email, competition=competition
+            )
             set_supervisor_email(
                 participant,
                 row.supervisor_email or default_supervisor_email,

@@ -8,18 +8,17 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
-## Niewydane (po `v0.22.0`)
+## Niewydane (po `v0.23.0`)
 
-- Brak — katalog roboczy jest równy tagowi `v0.22.0`.
-- Następne w kolejce, wydanie D etapu 1 (`UNIWERSALNY-ETAP-1.md` § 4.1): kolumny konkursu jako
-  `NOT NULL`, uczestnik per konkurs (`Participant.user` jako klucz obcy), unikalność kodów
-  publicznych per konkurs, jedna bieżąca edycja per konkurs, kolumny konkursu w
-  `support.SupportTicket`, `core.AuditLog`, kluczach API, webhookach i szablonach dyplomów.
+- Brak — katalog roboczy jest równy tagowi `v0.23.0`. Etap 1 systemu wielokonkursowego jest
+  domknięty; etap 2 (marka i dokumenty jako konfiguracja, edytor procesu, rejestracja część 2)
+  nie został jeszcze zlecony.
 
 ## Wydania
 
 | Wersja | Data | Zmiana |
 |---|---|---|
+| **v0.23.0** | 2026-09-17 | etap 1, wydanie D (domknięcie): `NOT NULL` na kluczach `competition`, uczestnik per konkurs (`Participant.user` jako klucz obcy, `participant_for`), kod publiczny i numer dyplomu z prefiksami konkursu (`OLM-`/`OK` bez zmian dla Konkursu #1), jedna edycja bieżąca i unikalny rocznik per konkurs, kolumny konkursu w zgłoszeniach pomocy, audycie, kluczach API, webhookach, szablonach dyplomów i szablonach komentarzy, `create_competition` zakłada edycję, etapy i koordynatora, `check_memberships`, runbook drugiego konkursu; 3235 testów, 0 xfail |
 | **v0.22.0** | 2026-09-17 | etap 1, wydanie C: odczyty w panelach zakresowane do konkursu (`for_competition`, `current_edition(competition)`), CMS per witryna Wagtaila, komunikaty z kolumną konkursu, strona „Ustawienia konkursu” za flagą `competition_settings_page`, 14 z 15 testów izolacji zielonych |
 | **v0.21.0** | 2026-09-17 | etap 1, wydanie B: `accounts.Membership` i role per konkurs (za flagą `memberships_enforced`), nullowalne klucze obce `competition` z backfillem do Konkursu #1, `Caddyfile` generowany z `EXTRA_DOMAINS`, `pg_dump` przed migracjami w `deploy.sh`, testy izolacji i niezmienniczości |
 | **v0.20.0** | 2026-09-17 | etap 1, wydanie A: model `tenancy.Competition` 1:1 z witryną Wagtaila, `CompetitionMiddleware` i `current_competition()`, Konkurs #1 utworzony z istniejącej witryny, `create_competition` |

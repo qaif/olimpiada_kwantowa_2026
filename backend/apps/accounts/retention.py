@@ -93,12 +93,17 @@ def retention_deadline(edition, *, last_deadline: datetime | None = None) -> dat
     return add_months(last_deadline, months)
 
 
-def expired_editions(now=None) -> list:
+def expired_editions(now=None, *, competition=None) -> list:
     """Edycje, którym upłynął okres retencji – bez bieżącej i bez tych bez terminu.
 
     Edycja bieżąca jest wykluczona **bezwarunkowo**, a nie przez sam termin: gdyby organizator
     ustawił rocznikowi retencję krótszą niż jego własny kalendarz, automat anonimizowałby
     uczestników trwających właśnie zawodów. Ten błąd jest łatwy do popełnienia i nieodwracalny.
+
+    ``competition`` zawęża do jednego konkursu – to jest tryb ekranu koordynatora, który widzi
+    wyłącznie swoją olimpiadę. ``None`` znaczy „wszystkie” i tak woła to zadanie ``beat``:
+    okres retencji ustawia każdy organizator swojej edycji, więc przebieg nocny nie ma powodu
+    dzielić pracy po konkursach, a dzielenie go znaczyłoby jedno zadanie na konkurs.
 
     Terminy liczymy w Pythonie, a nie w SQL-u: arytmetyka miesięcy różni się między silnikami,
     a edycji jest w tej bazie tyle, ile było roczników olimpiady.
@@ -107,6 +112,8 @@ def expired_editions(now=None) -> list:
 
     now = now or timezone.now()
     editions = Edition.objects.filter(is_current=False).annotate(last_deadline=Max("stages__deadline_at"))
+    if competition is not None:
+        editions = editions.filter(competition=competition)
     due = []
     for edition in editions:
         deadline = retention_deadline(edition, last_deadline=edition.last_deadline)
@@ -184,7 +191,14 @@ def _blocked_reason(participant: Participant, *, expired_ids: set[int]) -> str:
     # Warunek jest po zbiorze edycji przeterminowanych, a nie po dacie: edycje bywają prowadzone
     # równolegle (rocznik zamykany i rocznik trwający), więc porównanie dat rozstrzygałoby
     # o „późniejszości” tam, gdzie pytanie brzmi „czy uczestnik jeszcze startuje”.
-    if entries.exclude(stage__edition_id__in=expired_ids).exists():
+    #
+    # Pytamy o **konto**, a nie o ten jeden profil: anonimizacja wyciera adres, imię i hasło, czyli
+    # zabiera osobie dostęp do wszystkich konkursów naraz (§ 3.3). Uczestnik, którego rocznik
+    # w olimpiadzie A się przedawnił, ale który startuje właśnie w olimpiadzie B, jest uczestnikiem
+    # czynnym i jego konto zostaje. Na bazie jednokonkursowej to jest dokładnie ten sam warunek,
+    # co przedtem: profil jest jeden, więc i zgłoszenia są te same.
+    entries_of_account = StageEntry.objects.filter(participant__user_id=participant.user_id)
+    if entries_of_account.exclude(stage__edition_id__in=expired_ids).exists():
         return BLOCKED_LATER_EDITION
     if Appeal.objects.filter(filed_by=participant, status__in=PENDING_STATUSES).exists():
         return BLOCKED_OPEN_APPEAL
@@ -235,14 +249,18 @@ class RetentionPlan:
         return [item for item in self.candidates if not item.is_due]
 
 
-def plan(now=None) -> list[RetentionPlan]:
+def plan(now=None, *, competition=None) -> list[RetentionPlan]:
     """Co automat zrobiłby, gdyby ruszył teraz. Nie zmienia ani jednego wiersza.
 
     Jedno wejście dla obu czytelników dry-runu: komendy ``retention_report`` i ekranu
     ``/coordinator/retention/``. Gdyby każde z nich liczyło po swojemu, raport z terminala
     i tabela w panelu mogłyby pokazywać różne liczby – a wtedy żadnej z nich nie dałoby się ufać.
+
+    ``competition`` zawęża plan do jednego konkursu; zbiór edycji przeterminowanych, po którym
+    liczy się przeszkoda „startuje w późniejszej edycji”, jest wtedy **też** zawężony – i tak ma
+    być: zawężony plan ma pokazywać, co zrobi zawężony przebieg.
     """
-    editions = expired_editions(now)
+    editions = expired_editions(now, competition=competition)
     expired_ids = {edition.pk for edition in editions}
     return [
         RetentionPlan(
@@ -255,11 +273,14 @@ def plan(now=None) -> list[RetentionPlan]:
 
 
 @transaction.atomic
-def anonymise_expired_editions(now=None) -> dict:
+def anonymise_expired_editions(now=None, *, competition=None) -> dict:
     """Anonimizuje konta uczestników edycji, którym upłynął okres retencji.
 
     Zwraca ``{"editions": n, "anonymised": m, "blocked": k}`` – tyle, ile potrzeba do komunikatu
     w panelu i do logu przebiegu, i ani jednego adresu e-mail.
+
+    ``competition`` zawęża przebieg do jednego konkursu (ekran koordynatora, komenda z parametrem);
+    zadanie ``beat`` woła to bez argumentu i przerabia wszystkie konkursy naraz.
 
     Przebieg jest w **jednej** transakcji: anonimizacja połowy rocznika, przerwana błędem na
     trzydziestym koncie, zostawiłaby edycję w stanie, którego nie da się opisać ani uczestnikom,
@@ -270,7 +291,7 @@ def anonymise_expired_editions(now=None) -> dict:
 
     anonymised = 0
     blocked = 0
-    plans = plan(now)
+    plans = plan(now, competition=competition)
     for item in plans:
         for candidate in item.candidates:
             if not candidate.is_due:

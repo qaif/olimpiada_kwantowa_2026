@@ -163,9 +163,10 @@ def competition_state(now=None, competition=None) -> dict:
     ``apps.tenancy.middleware.CompetitionMiddleware``), bo widok statusu woła ``snapshot()``
     bez argumentów – i ma tak zostać, skoro źródłem prawdy jest ta jedna funkcja.
 
-    Zakresowanie samego odczytu edycji (``current_edition(competition)``) wchodzi razem
-    z kolumną ``Edition.competition`` w zadaniu T3; tutaj konkurs jest już rozstrzygnięty
-    i wpisany do wyniku, więc zostanie wtedy do zmiany jedno wywołanie.
+    Rozstrzygnięty konkurs jedzie dalej **argumentem**, a nie kontekstem: ``current_edition``
+    i ``current_registration_status`` umieją go wprawdzie wziąć z kontekstu, ale tę funkcję woła
+    też kod, który konkurs zna i podaje go wprost (komenda, test, przebieg wsadowy) – a wtedy
+    kontekst bywa pusty albo należy do sąsiada.
 
     Błąd bazy nie wywraca strony: pola zostają puste, a wiersz „baza danych” w tabeli usług i tak
     już powiedział, co się dzieje.
@@ -189,10 +190,13 @@ def competition_state(now=None, competition=None) -> dict:
         from apps.competitions.registration import current_registration_status, registration_message
         from apps.competitions.services import current_edition, current_stage
 
-        status = current_registration_status(now)
+        # Konkurs podajemy **wprost**, choć obie funkcje umieją go wziąć z kontekstu: ta funkcja
+        # bywa wołana z argumentem przez kod, który konkurs zna (komenda, test), a wtedy kontekst
+        # jest pusty albo cudzy – i strona statusu konkursu A pokazałaby harmonogram konkursu B.
+        status = current_registration_status(now, competition)
         state["registration_open"] = status.is_open
         state["registration_message"] = registration_message(status)
-        edition = current_edition()
+        edition = current_edition(competition)
         if edition is not None:
             state["edition"] = edition.year_label
             stage = current_stage(edition, now)

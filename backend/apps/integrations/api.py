@@ -96,10 +96,27 @@ class ApiKeyViewMixin:
     def api_key(self):
         return self.request.auth
 
+    @property
+    def competition(self):
+        """Konkurs klucza – a więc i konkurs żądania.
+
+        Bierzemy go z **klucza**, a nie z ``request.competition``, choć uwierzytelnienie
+        (``apps.integrations.auth``) właśnie sprawdziło, że są tym samym. Powód jest taki sam, co
+        przy każdym drugim sprawdzeniu w warstwie izolacji: gdyby ta reguła kiedyś zniknęła
+        z uwierzytelnienia, zapytania w widokach mają dalej zawężać się do zakresu poświadczenia,
+        a nie do zakresu adresu, pod który przyszło żądanie.
+        """
+        return self.api_key.competition
+
     def stage_in_scope(self, stage_id: int) -> Stage:
-        """Etap widoczny dla tego klucza albo 404. Jedno miejsce na regułę zawężenia do edycji."""
+        """Etap widoczny dla tego klucza albo 404. Jedno miejsce na regułę zawężenia.
+
+        Dwa zawężenia, w tej kolejności: **konkurs** (czyje to w ogóle dane) i dopiero potem
+        **edycja** (który rocznik obejmuje ten klucz) – § 3.5, reguła kolejności.
+        """
         stage = (
-            Stage.objects.select_related("edition")
+            Stage.objects.for_competition(self.competition)
+            .select_related("edition")
             .annotate(problem_count=Count("problems", distinct=True))
             .filter(pk=stage_id)
             .first()
@@ -109,8 +126,8 @@ class ApiKeyViewMixin:
         return stage
 
     def editions_in_scope(self):
-        """Edycje, które ten klucz w ogóle widzi."""
-        queryset = Edition.objects.all()
+        """Edycje, które ten klucz w ogóle widzi: jego konkursu, a w nim – jego edycji."""
+        queryset = Edition.objects.for_competition(self.competition)
         if self.api_key.edition_id is not None:
             queryset = queryset.filter(pk=self.api_key.edition_id)
         return queryset
@@ -166,7 +183,7 @@ class EditionStageListView(ApiKeyViewMixin, ListAPIView):
         edition_id = self.kwargs["edition_id"]
         if not self.api_key.covers_edition(edition_id):
             raise _not_found("Nie znaleziono edycji.")
-        if not Edition.objects.filter(pk=edition_id).exists():
+        if not self.editions_in_scope().filter(pk=edition_id).exists():
             raise _not_found("Nie znaleziono edycji.")
         queryset = (
             Stage.objects.filter(edition_id=edition_id)
@@ -315,11 +332,19 @@ class StatsListView(ApiKeyViewMixin, ListAPIView):
     serializer_class = V1StatsSerializer
 
     def get_queryset(self):
-        rows = statistics()
+        # Pamięć podręczna statystyk jest wspólna dla instalacji i taka zostaje – ta sama decyzja
+        # i to samo uzasadnienie, co w ``apps.web.views.statistics``: liczby są policzone
+        # z zanonimizowanych snapshotów, czyli z danych już jawnych, a klucz per konkurs znaczyłby
+        # N przeliczeń tego samego zestawu wierszy. Zawężamy więc **wynik**, jednym zapytaniem
+        # po identyfikatorach etapów tego konkursu.
+        published = set(
+            ResultsPublication.objects.for_competition(self.competition).values_list("stage_id", flat=True)
+        )
+        rows = [row for row in statistics() if row.get("stage_id") in published]
         edition_id = self.api_key.edition_id
         if edition_id is None:
             return rows
-        labels = set(Edition.objects.filter(pk=edition_id).values_list("year_label", flat=True))
+        labels = set(self.editions_in_scope().filter(pk=edition_id).values_list("year_label", flat=True))
         return [row for row in rows if row.get("edition") in labels]
 
 
@@ -372,7 +397,8 @@ class EventCreateView(ApiKeyViewMixin, GenericAPIView):
                 raise _not_found("Nie znaleziono edycji.")
             edition_id = key_edition_id
         if edition_id is None:
-            edition = current_edition()
+            # Konkurs podajemy wprost: to jest konkurs **klucza**, a nie kontekstu przebiegu.
+            edition = current_edition(self.competition)
             if edition is None:
                 raise DomainError(
                     "Nie ustawiono bieżącej edycji – podaj edition_id.",
@@ -380,7 +406,7 @@ class EventCreateView(ApiKeyViewMixin, GenericAPIView):
                     http.HTTP_400_BAD_REQUEST,
                 )
             return edition
-        edition = Edition.objects.filter(pk=edition_id).first()
+        edition = self.editions_in_scope().filter(pk=edition_id).first()
         if edition is None:
             raise _not_found("Nie znaleziono edycji.")
         return edition

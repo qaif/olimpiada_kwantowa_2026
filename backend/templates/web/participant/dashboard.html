@@ -26,7 +26,7 @@
   <span class="eyebrow">{% translate "Panel uczestnika" %}</span>
   <h1>{% translate "Twoje zgłoszenie" %}</h1>
   <p class="lead">{% translate "Kod publiczny:" %}
-    <strong class="code-chip">{{ user.participant.public_code }}</strong>
+    <strong class="code-chip">{{ participant.public_code }}</strong>
     – {% translate "pod tym kodem występujesz w ogłaszanych tabelach wyników." %}</p>
   {% comment %}
     Dane konta są **zwinięte**. To jedyne miejsce w panelu, w którym uczestnik zobaczy swoje dane,
@@ -40,12 +40,12 @@
     <summary class="p-identity__summary">{% translate "Twoje dane i ustawienia konta" %}</summary>
     <dl class="meta-list">
       <dt>{% translate "Dane kontaktowe" %}</dt>
-      <dd>{{ user.get_full_name|default:user.email }}, {{ user.email }}{% if user.participant.phone %},
-        tel. {{ user.participant.phone }}{% endif %}</dd>
+      <dd>{{ user.get_full_name|default:user.email }}, {{ user.email }}{% if participant.phone %},
+        tel. {{ participant.phone }}{% endif %}</dd>
       <dt>{% translate "Szkoła i klasa" %}</dt>
-      <dd>{{ user.participant.school }}{% if user.participant.grade %},
-        {% blocktranslate trimmed with grade=user.participant.grade %}klasa {{ grade }}{% endblocktranslate %}{% endif %}
-        ({{ user.participant.get_district_display }})</dd>
+      <dd>{{ participant.school }}{% if participant.grade %},
+        {% blocktranslate trimmed with grade=participant.grade %}klasa {{ grade }}{% endblocktranslate %}{% endif %}
+        ({{ participant.get_district_display }})</dd>
     </dl>
     <p class="actions">
       <a class="btn btn--secondary btn--small" href="{% url 'web:profile' %}">{% translate "Edytuj dane" %}</a>

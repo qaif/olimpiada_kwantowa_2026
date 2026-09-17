@@ -16,6 +16,15 @@ Czego ten moduł **nie** robi i nie ma robić:
 Filtry są składane z parametrów adresu (zwykły formularz GET, bez skryptu), więc wynik da się
 odświeżyć, zapisać w zakładkach i przesłać odnośnikiem – a tego zwykle chce ktoś, kto właśnie
 znalazł w audycie odpowiedź na czyjeś pytanie.
+
+**Czego ten moduł nie robi: nie zawęża do konkursu.** Od wydania D robi to manager
+(``AuditLog.objects.visible_to``, § 3.9) i robi to **w widoku**, na wyniku :func:`entries` –
+obie warstwy są zwykłymi ``filter`` na tym samym querysecie, więc składają się w jedno zdanie SQL.
+Rozdzielenie jest celowe: „co koordynator wybrał w formularzu” i „czyje wpisy wolno mu zobaczyć”
+to dwa różne pytania, a wpisanie drugiego tutaj znaczyłoby, że filtr adresu i reguła widoczności
+mogą się rozjechać po pierwszej zmianie jednego z nich. :func:`known_actions`
+i :func:`known_target_types` odpowiadają więc o **całą tabelę** i są odpowiedzią dla operatora
+platformy; listy wyboru w panelu koordynatora budują się z querysetu już zawężonego.
 """
 
 from __future__ import annotations

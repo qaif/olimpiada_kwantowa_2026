@@ -19,13 +19,17 @@ from django.db import migrations
 
 
 def forwards(apps, schema_editor):
+    # Same klucze, a nie całe wiersze: migracja danych bywa odgrywana na stanie historycznym,
+    # w którym tabela konkursów ma mniej kolumn niż dzisiejszy model (``tenancy.0003_prefixes``
+    # dokłada prefiksy, a ``apps/tenancy/tests/test_migration_0002.py`` przewija przed nią).
+    # ``SELECT *`` pytałby wtedy o kolumnę, której w bazie jeszcze nie ma.
     Competition = apps.get_model("tenancy", "Competition")
     Submission = apps.get_model("submissions", "Submission")
-    for competition in Competition.objects.order_by("pk"):
+    for competition_id in Competition.objects.order_by("pk").values_list("pk", flat=True):
         Submission.objects.filter(
             competition__isnull=True,
-            entry__stage__edition__competition=competition,
-        ).update(competition=competition)
+            entry__stage__edition__competition_id=competition_id,
+        ).update(competition_id=competition_id)
 
 
 def backwards(apps, schema_editor):
@@ -34,10 +38,10 @@ def backwards(apps, schema_editor):
     # zgodną z drogą przez rodzica. Praca z konkursem **innym** niż jej etap jest rozjazdem, który
     # ma zostać w bazie widoczny, a nie zniknąć przy cofaniu migracji.
     Competition = apps.get_model("tenancy", "Competition")
-    for competition in Competition.objects.order_by("pk"):
+    for competition_id in Competition.objects.order_by("pk").values_list("pk", flat=True):
         Submission.objects.filter(
-            competition=competition,
-            entry__stage__edition__competition=competition,
+            competition_id=competition_id,
+            entry__stage__edition__competition_id=competition_id,
         ).update(competition=None)
 
 

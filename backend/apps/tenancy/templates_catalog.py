@@ -13,10 +13,20 @@ Szablon ``kwantowa`` odwzorowuje **strukturę** tamtej konfiguracji (etapy, form
 zgód), a nie jej treść: nowy konkurs dostaje puste strony i puste terminy, bo cudza treść w cudzym
 serwisie jest błędem, nawet gdy przechodzi testy (``docs/UNIWERSALNY-ETAP-1.md`` § 4.5).
 
-**Czego tu jeszcze nie ma i dlaczego.** Etapy (``stages``) i dokumenty (``documents``) są opisane,
-ale ``create_competition`` ich jeszcze nie zakłada: ``competitions.Edition`` dostaje klucz obcy do
-konkursu dopiero w wydaniu B (T3), a szablony dokumentów w etapie 2 (T4). Dane stoją tu wcześniej
-świadomie — szablon ma być **jednym** opisem konkursu, a nie opisem rozsypanym po trzech wydaniach.
+**Terminy są odstępami, nie datami.** Etap opisujemy dwiema liczbami dni (``opens_after_days``,
+``length_days``), bo szablon nie zna harmonogramu organizatora i nie ma prawa go zgadywać.
+``create_competition`` odkłada te odstępy od **dnia bazowego** (pierwszy dzień następnego miesiąca)
+i zapisuje wynik jako wartość początkową; komplet terminów etapu należy potem do koordynatora,
+który poprawia go w panelu. Data w tym pliku znaczyłaby, że konkurs założony w marcu i konkurs
+założony w listopadzie dostają ten sam nieaktualny rocznik.
+
+**Czego tu nadal nie ma i dlaczego.** ``documents`` to lista kontrolna, a nie treść: szablony
+dokumentów z podstawieniami są etapem 2 (§ 5.3), więc komenda wypisuje slugi, a wpisuje je redakcja.
+``upload_formats`` i ``consents`` też są na razie listą kontrolną — formaty plików stoją na
+**zadaniu** (``competitions.Problem.allowed_formats``, a zadań szablon nie zakłada), a zgody na
+stałej ``apps.accounts.consents.CONSENTS``, dopóki nie przełączy ich flaga ``per_competition_consents``
+(etap 2). Dane stoją tu mimo to, bo szablon ma być **jednym** opisem konkursu, a nie opisem
+rozsypanym po wydaniach.
 """
 
 from __future__ import annotations
@@ -45,6 +55,29 @@ DEFAULT_PAGES: tuple[tuple[str, str, str], ...] = (
     ("cms.ResultsPage", "wyniki", "Wyniki"),
 )
 
+#: Znaczenie kluczy jednego etapu w ``stages``. Opis stoi osobno, bo to jedyne pole szablonu, które
+#: nie jest napisem ani listą napisów — a od niego zależy oś czasu zakładanej edycji.
+#:
+#: ``kind``
+#:     wartość ``apps.competitions.models.StageKind`` (``"ELIM"``, ``"DISTRICT"``, ``"FINAL"``,
+#:     ``"TRAINING"``). Napis, a nie stała klasy: katalog jest danymi i nie importuje modeli.
+#: ``name``
+#:     nazwa startowa etapu. Koordynator zmienia ją w panelu; ``--sync-dates`` (seed Konkursu #1)
+#:     jej nie rusza i tutaj też jest wartością początkową, a nie ustaleniem.
+#: ``format``
+#:     wartość ``apps.competitions.models.StageFormat`` (``"SUBMISSIONS"``, ``"INTERVIEW"``,
+#:     ``"QUIZ"``). Forma decyduje o tym, **co** uczestnik w etapie robi, więc musi być w szablonie:
+#:     etap wojewódzki Olimpiady Kwantowej jest rozmową, a nie arkuszem zadań.
+#: ``opens_after_days``
+#:     ile dni po terminie oddania **poprzedniego** etapu otwiera się ten. Dla pierwszego etapu
+#:     w kolejności liczy się od dnia bazowego (patrz docstring modułu).
+#: ``length_days``
+#:     ile dni trwa okno oddawania prac (otwarcie 00:00, termin 23:59 czasu polskiego — te same
+#:     godziny brzegowe, co w ``seed_edition_kwantowa``). ``None`` znaczy **piaskownica bez
+#:     terminu**: etap treningowy jest otwarty bez końca (``competitions.TRAINING_DEADLINE``),
+#:     nie kwalifikuje nikogo i nie przesuwa osi czasu następnego etapu.
+STAGE_FIELDS: tuple[str, ...] = ("kind", "name", "format", "opens_after_days", "length_days")
+
 #: Szablony. Każdy klucz jest wartością argumentu ``--from-template``.
 #:
 #: Znaczenie pól:
@@ -65,8 +98,8 @@ DEFAULT_PAGES: tuple[tuple[str, str, str], ...] = (
 #: ``pages``
 #:     sekcje drugiego poziomu (patrz ``DEFAULT_PAGES``).
 #: ``stages``
-#:     etapy w kolejności: ``(kind, tytuł, dni od poprzedniego terminu)``. Odstępy, nie daty —
-#:     daty wpisuje koordynator w panelu, bo to jego harmonogram, a nie nasz.
+#:     etapy w kolejności, każdy jako słownik (patrz ``STAGE_FIELDS``). Odstępy, nie daty — daty
+#:     wpisuje koordynator w panelu, bo to jego harmonogram, a nie nasz.
 #: ``upload_formats``
 #:     rozszerzenia plików przyjmowanych w zgłoszeniu.
 #: ``consents``
@@ -89,10 +122,42 @@ TEMPLATES: dict[str, dict] = {
         "feature_flags": {},
         "pages": DEFAULT_PAGES,
         "stages": (
-            ("ELIM", "Eliminacje", 0),
-            ("DISTRICT", "Etap wojewódzki (rozmowa)", 45),
-            ("FINAL", "Finał", 45),
-            ("TRAINING", "Trening", 0),
+            # Odstępy odwzorowują kształt I edycji: dwa etapy zdalne po ok. dwa miesiące, między
+            # nimi jeden dzień przerwy, a finał — zjazd stacjonarny — kilka miesięcy później.
+            # Liczby są okrągłe **celowo**: dokładne daty z harmonogramu organizatora stoją
+            # w ``seed_edition_kwantowa`` i należą do Konkursu #1, a nie do każdego nowego konkursu.
+            {
+                "kind": "ELIM",
+                "name": "Eliminacje",
+                "format": "SUBMISSIONS",
+                "opens_after_days": 0,
+                "length_days": 60,
+            },
+            {
+                "kind": "DISTRICT",
+                "name": "Etap wojewódzki (rozmowa)",
+                "format": "INTERVIEW",
+                "opens_after_days": 1,
+                "length_days": 60,
+            },
+            {
+                # Cztery dni zjazdu (otwarcie pierwszego dnia, termin czwartego) — tyle, ile trwa
+                # finał w Krakowie. Godziny sesji egzaminacyjnej ustawia koordynator.
+                "kind": "FINAL",
+                "name": "Finał",
+                "format": "SUBMISSIONS",
+                "opens_after_days": 120,
+                "length_days": 3,
+            },
+            {
+                # Piaskownica: otwarta od dnia bazowego, bez terminu, poza kwalifikacją i poza
+                # publiczną osią czasu (``StageKind.TRAINING``).
+                "kind": "TRAINING",
+                "name": "Trening",
+                "format": "SUBMISSIONS",
+                "opens_after_days": 0,
+                "length_days": None,
+            },
         ),
         "upload_formats": ("pdf", "ipynb", "py", "jpg"),
         "consents": ("TERMS", "PRIVACY", "GUARDIAN", "PUBLISH_NAME"),
@@ -108,9 +173,30 @@ TEMPLATES: dict[str, dict] = {
         "feature_flags": {},
         "pages": DEFAULT_PAGES,
         "stages": (
-            ("ELIM", "Zawody I stopnia (szkolne)", 0),
-            ("DISTRICT", "Zawody II stopnia (okręgowe)", 60),
-            ("FINAL", "Zawody III stopnia (centralne)", 60),
+            # Trzy stopnie po dwa miesiące, jeden dzień przerwy między nimi. Rozporządzenie MEN
+            # o olimpiadach terminów nie narzuca (ustala je regulamin konkursu), więc te odstępy są
+            # wyłącznie sensowną wartością początkową do poprawienia w panelu.
+            {
+                "kind": "ELIM",
+                "name": "Zawody I stopnia (szkolne)",
+                "format": "SUBMISSIONS",
+                "opens_after_days": 0,
+                "length_days": 60,
+            },
+            {
+                "kind": "DISTRICT",
+                "name": "Zawody II stopnia (okręgowe)",
+                "format": "SUBMISSIONS",
+                "opens_after_days": 1,
+                "length_days": 60,
+            },
+            {
+                "kind": "FINAL",
+                "name": "Zawody III stopnia (centralne)",
+                "format": "SUBMISSIONS",
+                "opens_after_days": 1,
+                "length_days": 60,
+            },
         ),
         "upload_formats": ("pdf",),
         # Bez zgody na publikację nazwiska: olimpiada przedmiotowa ogłasza wyniki na podstawie

@@ -123,9 +123,16 @@ def test_the_backfill_on_an_empty_database_does_nothing(before_backfill):  # noq
 
     Migracja ma wtedy przejść bez wyjątku, bo inaczej ``migrate`` na pustej bazie (pierwsze
     wdrożenie, baza testowa) zatrzymałby się na pierwszym uruchomieniu.
+
+    Kasujemy wprost w SQL, a nie ``Model.objects.delete()``, i to jest cena przewijania migracji:
+    baza stoi na ``0019``, więc nie ma jeszcze kolumn dołożonych w wydaniu D (m.in.
+    ``grading_commentsnippet.competition_id``), a kolektor kasowania Django buduje zapytania
+    z **dzisiejszych** modeli i pytałby o kolumnę, której w tej chwili nie ma. Wiersze do
+    skasowania są tu dwa i bez zależności, więc ``DELETE`` mówi dokładnie to, co trzeba.
     """
-    Edition.objects.all().delete()
-    Competition.objects.all().delete()
+    with connection.cursor() as cursor:
+        cursor.execute("DELETE FROM competitions_edition")
+        cursor.execute("DELETE FROM tenancy_competition")
 
     migrate_to(AFTER)
 

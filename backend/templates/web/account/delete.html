@@ -30,7 +30,7 @@
       <ul>
         <li>{% translate "znikają: imię, nazwisko, adres e-mail, telefon, nazwa szkoły, rok urodzenia, hasło, powiązania z kontami Google i Facebooka oraz wszystkie Twoje sesje;" %}</li>
         <li>{% translate "zostają: kod publiczny" %}
-          {% if user.participant %}<span class="code-chip">{{ user.participant.public_code }}</span>{% endif %}
+          {% if participant %}<span class="code-chip">{{ participant.public_code }}</span>{% endif %}
           {% translate "wraz z pracami, ocenami i wierszami w ogłoszonych tabelach wyników." %}</li>
       </ul>
       <p class="hint">{% translate "Dlaczego tak: ogłoszone wyniki i protokoły recenzji są dokumentacją zawodów, na której opierają się kwalifikacje innych uczestników. Skasowanie ich razem z kontem wyrwałoby kartę z protokołu i przesunęłoby progi kwalifikacyjne." %}</p>
@@ -71,7 +71,7 @@
       <div class="actions">
         <button type="submit" class="btn btn--primary">{% translate "Usuń konto na zawsze" %}</button>
         <a class="btn btn--secondary"
-           href="{% if user.participant %}{% url 'web:profile' %}{% else %}{% url 'web:account-profile' %}{% endif %}">{% translate "Anuluj" %}</a>
+           href="{{ profile_url }}">{% translate "Anuluj" %}</a>
       </div>
     </form>
   </div>

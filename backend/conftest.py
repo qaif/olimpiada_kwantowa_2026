@@ -130,6 +130,23 @@ def existing_competition():
     return Competition.objects.select_related("site").order_by("pk").first()
 
 
+def restored_competition():
+    """Konkurs #1 odtworzony po ``flush`` testu transakcyjnego – razem z witryną i korzeniem stron.
+
+    Ta funkcja istnieje od wydania D i z jego powodu. ``flush`` po teście transakcyjnym przywraca
+    wyłącznie typy treści i uprawnienia, a nie wiersze wpisane przez ``RunPython`` – więc od tamtej
+    chwili w bazie nie ma ani korzenia drzewa stron (odtwarza go ``root_page``), ani Konkursu #1
+    z ``tenancy.0002``. Do wydania D wiersz domeny zawodów bez właściciela był tylko niewidoczny;
+    od wydania D kolumna ``competition`` jest ``NOT NULL``, więc **każdy** test uruchomiony po
+    teście transakcyjnym wywracałby się na ``IntegrityError`` – i to zależnie od kolejności
+    pakietu, czyli w sposób, którego nie da się odtworzyć z samej nazwy testu.
+
+    Odtworzenie jest tym samym, co ``root_page`` robi dla drzewa stron: przywróceniem stanu, który
+    migracje gwarantują, a nie podstawieniem testowi świata, którego nie zamawiał.
+    """
+    return make_competition(HOST_COMPETITION, "kwantowa", default_site=True)
+
+
 def allow_test_hosts(settings) -> None:
     """Dopisuje domeny testowe do ``ALLOWED_HOSTS`` – wołane tylko tam, gdzie leci żądanie.
 
@@ -231,6 +248,21 @@ def unbound_competition():
     return None
 
 
+def _rewinds_migrations(request) -> bool:
+    """Czy ten test jest transakcyjny, czyli czy wolno mu przewijać migracje i czyścić bazę.
+
+    Pytanie zadajemy wyłącznie po to, żeby **nie** odtwarzać takiemu testowi Konkursu #1: testy
+    przewijające migracje (``tenancy.0002``, ``accounts.0010``, ``cms``) opisują bazę same, wiersz
+    po wierszu, i wstawiony im z zewnątrz konkurs trzymałby ``PROTECT``-em witrynę, którą za chwilę
+    kasują. Dane budują fabrykami, a te odtwarzają konkurs same, gdy naprawdę go potrzebują
+    (``apps/tenancy/tests/factories.py``).
+    """
+    marker = request.node.get_closest_marker("django_db")
+    if marker is not None and marker.kwargs.get("transaction"):
+        return True
+    return "transactional_db" in request.fixturenames
+
+
 def _wants_database(request) -> bool:
     """Czy ten test ma w ogóle bazę.
 
@@ -255,8 +287,11 @@ def _bind_competition(request):
 
     Trzy decyzje, każda z powodem:
 
-    - **nic nie tworzymy** (``existing_competition``): świat testu ma opisywać test, a nie fikstura
-      globalna. Baza bez konkursu wiąże ``None``, czyli dokładnie stan sprzed wielokonkursowości,
+    - **nic nie tworzymy ponad to, co gwarantują migracje** (``existing_competition``): świat testu
+      ma opisywać test, a nie fikstura globalna. Jedynym wyjątkiem jest baza wyczyszczona przez
+      wcześniejszy test transakcyjny – tam Konkurs #1 jest **odtwarzany** (``restored_competition``,
+      wydanie D), bo jego brak jest skutkiem ``flush``, a nie decyzją tego testu. Testom
+      transakcyjnym niczego nie odtwarzamy: to one przewijają migracje i kasują witryny,
     - **nie dotykamy bazy bez potrzeby**: test bez bazy nie dostaje jej tylnymi drzwiami, bo
       inaczej ``autouse`` zamieniłby każdy test jednostkowy w test bazodanowy,
     - ``getfixturevalue("db")`` zamiast zadeklarowanej zależności: fikstura ``autouse`` bywa
@@ -277,5 +312,7 @@ def _bind_competition(request):
         current = request.getfixturevalue("competition")
     else:
         current = existing_competition()
+        if current is None and not _rewinds_migrations(request):
+            current = restored_competition()
     with competition_context(current):
         yield current

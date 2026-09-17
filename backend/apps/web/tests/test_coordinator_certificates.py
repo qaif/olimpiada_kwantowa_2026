@@ -21,6 +21,7 @@ from apps.cms.workshops import WORKSHOPS_SLUG, workshop_rows
 from apps.competitions.tests.factories import StageEntryFactory
 from apps.results.certificate_layout import DEFAULT_LAYOUT
 from apps.results.models import Certificate, CertificateKind, CertificateTemplate
+from apps.tenancy.tests.factories import current_or_default_competition
 
 pytestmark = pytest.mark.django_db
 
@@ -81,9 +82,13 @@ def supervised_participant(stage, supervisor_email: str, **kwargs):
 
 
 def supervisor_account(email="opiekun@example.test") -> SchoolSupervisor:
+    # Konkurs z kontekstu, tak samo jak w fabrykach: od wydania D kolumna jest ``NOT NULL``
+    # (§ 3.2), a profil zakładamy wprost, bo opiekun nie ma własnej fabryki – zakłada go serwis
+    # rejestracji.
     return SchoolSupervisor.objects.create(
         user=UserFactory(email=email, first_name="Anna", last_name="Nauczycielska"),
         school="XIV LO",
+        competition=current_or_default_competition(),
     )
 
 
@@ -152,7 +157,9 @@ def test_nowy_szablon_dostaje_uklad_domyslny_w_formularzu(web_client, logged_coo
 
 def test_podglad_oddaje_pdf_i_nie_wystawia_dokumentu(web_client, logged_coordinator):
     """Obejrzenie układu nie może zużyć numeru z puli ani zostawić dyplomu w rejestrze."""
-    template = CertificateTemplate.objects.create(name="Podgląd", kind=CertificateKind.LAUREAT)
+    template = CertificateTemplate.objects.create(
+        name="Podgląd", kind=CertificateKind.LAUREAT, competition=current_or_default_competition()
+    )
 
     response = web_client.get(reverse("web:coordinator-certificate-template-preview", args=[template.pk]))
 
@@ -164,8 +171,11 @@ def test_podglad_oddaje_pdf_i_nie_wystawia_dokumentu(web_client, logged_coordina
 
 def test_ustaw_jako_domyslny_wylacza_poprzedni(web_client, logged_coordinator, edition):
     """Jedno kliknięcie zamiast odznaczania „aktywny” w każdym z pozostałych szablonów."""
-    old = CertificateTemplate.objects.create(name="Stary", kind="", edition=edition)
-    new = CertificateTemplate.objects.create(name="Nowy", kind="", edition=edition, is_active=False)
+    competition = current_or_default_competition()
+    old = CertificateTemplate.objects.create(name="Stary", kind="", edition=edition, competition=competition)
+    new = CertificateTemplate.objects.create(
+        name="Nowy", kind="", edition=edition, competition=competition, is_active=False
+    )
 
     web_client.post(reverse("web:coordinator-certificate-template-default", args=[new.pk]))
 

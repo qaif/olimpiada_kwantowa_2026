@@ -269,7 +269,9 @@ def test_zaproszone_konto_jest_nieaktywne_bez_hasla_i_bez_zgod(django_capture_on
     assert user.is_active is False
     assert user.email_verified_at is None
     assert user.has_usable_password() is False
-    participant = user.participant
+    # ``participations``, nie ``participant``: profil należy do konkursu, a konto może mieć ich
+    # tyle, w ilu konkursach startuje (§ 3.3). Import zakłada dokładnie jeden.
+    participant = user.participations.get()
     assert participant.gdpr_consent_at is None
     assert participant.terms_accepted_at is None
     assert ConsentRecord.objects.filter(participant=participant).count() == 0

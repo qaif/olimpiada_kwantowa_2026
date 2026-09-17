@@ -1,10 +1,11 @@
-"""``manage.py create_competition`` — nowy konkurs: witryna, drzewo stron, ustawienia, konkurs.
+"""``manage.py create_competition`` — nowy konkurs: witryna, strony, ustawienia, konkurs, edycja.
 
 Komenda jest **jedynym** wejściem do zakładania konkursu. Powód jest ten sam, dla którego katalog
 szablonów jest osobnym modułem: konkurs to cztery wiersze w trzech aplikacjach (``wagtailcore.Site``,
-``wagtailcore.Page``, ``cms.SiteSettings``, ``tenancy.Competition``), a każdy z nich wpisany ręcznie
-w ``/admin/`` jest okazją do pominięcia jednego z pozostałych. Konkurs bez witryny nie ma drzewa
-stron; witryna bez konkursu oddaje pod swoim adresem treść konkursu domyślnego.
+``wagtailcore.Page``, ``cms.SiteSettings``, ``tenancy.Competition``) plus edycja z etapami, a każdy
+z nich wpisany ręcznie w ``/admin/`` jest okazją do pominięcia jednego z pozostałych. Konkurs bez
+witryny nie ma drzewa stron; witryna bez konkursu oddaje pod swoim adresem treść konkursu domyślnego;
+konkurs bez bieżącej edycji nie pokazuje harmonogramu i nie przyjmuje rejestracji.
 
 Czego komenda **nie** robi i dlaczego:
 
@@ -12,10 +13,15 @@ Czego komenda **nie** robi i dlaczego:
   i ``seed_partners`` wpisują akapity Olimpiady Kwantowej. Nowy konkurs dostaje puste strony
   o właściwych adresach — treść należy do jego redakcji. Wyjątkiem są komendy wymienione
   w ``safe_seeds`` szablonu: globalne i idempotentne (dziś: sam ``seed_schools``).
-- **nie zakłada edycji ani etapów.** ``competitions.Edition`` dostaje klucz obcy do konkursu
-  dopiero w wydaniu B (zadanie T3, ``docs/UNIWERSALNY-ETAP-1.md`` § 4.1). Do tego czasu edycja
-  założona tutaj należałaby do Konkursu #1 — czyli byłaby edycją cudzego konkursu. Szablon opisuje
-  etapy (``stages``), a komenda wypisuje je jako listę kontrolną dla koordynatora.
+- **nie wpisuje terminów zawodów.** Edycję i etapy zakłada (§ 4.5, kroki 5 i 6), ale ich oś czasu
+  jest **wartością początkową**, a nie harmonogramem: pierwszy etap otwiera się pierwszego dnia
+  następnego miesiąca, a kolejne odkładają się od niego odstępami z szablonu. Reguły wokół terminu
+  oddania są te same, co w ``seed_edition_kwantowa`` (recenzje +14 dni, okno reklamacji +2/+9 dni
+  względem terminu recenzji) — skopiowane są **reguły**, nie daty. Komplet terminów należy do
+  koordynatora i poprawia się go w panelu.
+- **nie zakłada kont.** ``--coordinator-email`` nadaje rolę **istniejącemu** kontu; nieznany adres
+  jest błędem, a nie zaproszeniem do założenia konta bez wiedzy jego właściciela. Konto zakłada się
+  drogą, którą serwis zna (rejestracja, zaproszenie do komitetu, ``bootstrap_coordinator``).
 - **nie dotyka ``.env`` ani ``deploy/Caddyfile``.** Oba pliki należą do administratora serwera,
   a komenda chodzi w kontenerze aplikacji, który ich nie widzi (i nie ma prawa widzieć). Zamiast
   tego wypisuje dokładne linijki do wklejenia — patrz ``Command._report``.
@@ -27,15 +33,49 @@ check_domains``, wołany na końcu ``scripts/deploy.sh``.
 
 from __future__ import annotations
 
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
+
 from django.apps import apps as django_apps
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from django.utils import timezone
 from wagtail.models import Page, Site
 
 from apps.tenancy.models import Competition, RoutingMode
 from apps.tenancy.templates_catalog import TEMPLATE_CHOICES, TEMPLATE_PUSTY, TEMPLATES
+
+#: Strefa organizatora. Terminy liczymy w niej, a nie w UTC: „ostatni dzień o 23:59” ma być tą
+#: godziną w Warszawie także wtedy, gdy serwer stoi gdzie indziej (do bazy i tak trafia UTC).
+WARSAW = ZoneInfo("Europe/Warsaw")
+
+#: Odstępy wokół terminu oddania — **te same reguły**, co w ``seed_edition_kwantowa``, i ta sama
+#: kolejność wynikania: recenzje po terminie oddania, okno reklamacji po terminie recenzji.
+#: Skopiowana jest reguła, a nie data: daty tamtej komendy są harmonogramem Konkursu #1.
+REVIEW_AFTER_DEADLINE = timedelta(days=14)
+APPEAL_OPENS_AFTER_REVIEW = timedelta(days=2)
+APPEAL_CLOSES_AFTER_REVIEW = timedelta(days=9)
+
+#: Godziny brzegowe etapu: otwarcie o północy, termin oddania o 23:59 czasu polskiego.
+OPENS_TIME = (0, 0)
+DEADLINE_TIME = (23, 59)
+
+#: Okno reklamacji etapu treningowego — jeden dzień po dacie-wartowniku, dokładnie tak, jak
+#: ustawia je ``seed_training_problems``. Model wymaga niepustego okna także tam, gdzie nikt
+#: z niego nie skorzysta, bo trening nikogo nie kwalifikuje.
+TRAINING_APPEAL_WINDOW = timedelta(days=1)
+
+#: Wzorzec oznaczenia pierwszej edycji nowego konkursu — ten sam kształt, co ``EDITION_LABEL``
+#: w ``seed_edition_kwantowa`` („I edycja 2026/2027”). Rocznik liczy się z dnia uruchomienia
+#: komendy, a nie ze stałej: konkurs założony we wrześniu i konkurs założony w maju mają dostać
+#: rocznik, w którym naprawdę się odbędą.
+EDITION_LABEL_PATTERN = "I edycja {school_year}"
+
+#: Miesiąc, od którego liczy się nowy rok szkolny. Wrzesień, bo tak liczy go organizator
+#: (I edycja 2026/2027 otwiera eliminacje 1 września 2026).
+SCHOOL_YEAR_FIRST_MONTH = 9
 
 #: Port witryny zakładanej przez tę komendę. Taki sam, jaki wpisuje ``cms.0002_initial_tree``
 #: Konkursowi #1: ruch publiczny idzie przez Caddy'ego, który kończy TLS i puka do aplikacji po
@@ -101,6 +141,22 @@ class Command(BaseCommand):
         parser.add_argument("--contact-email", default="", help="Adres kontaktowy organizatora.")
         parser.add_argument("--accent", default="", help="Kolor akcentu, np. #1f6feb.")
         parser.add_argument(
+            "--edition-label",
+            default="",
+            help=(
+                "Oznaczenie pierwszej edycji, np. „I edycja 2026/2027”. Domyślnie bieżący rocznik "
+                "szkolny liczony od września."
+            ),
+        )
+        parser.add_argument(
+            "--coordinator-email",
+            default="",
+            help=(
+                "Adres istniejącego konta, które dostanie rolę koordynatora tego konkursu. "
+                "Nieznany adres jest błędem — komenda nie zakłada kont."
+            ),
+        )
+        parser.add_argument(
             "--dry-run",
             action="store_true",
             help="Wykonaj wszystko i wycofaj transakcję — sprawdza dane, nie zmienia bazy.",
@@ -141,6 +197,17 @@ class Command(BaseCommand):
         if Competition.objects.filter(primary_domain__iexact=hostname).exists():
             raise CommandError(f"Domena „{hostname}” należy już do innego konkursu.")
 
+        # Koordynator jest sprawdzany **przed** transakcją, razem z identyfikatorem i domeną:
+        # literówka w adresie ma zatrzymać komendę tam, gdzie zatrzymują ją pozostałe odmowy —
+        # zanim cokolwiek powstanie. Wyjątek w środku transakcji dałby ten sam skutek w bazie,
+        # ale inny komunikat: „konkurs założony, rola nie” zamiast „nie zakładam niczego”.
+        coordinator = self._coordinator(options["coordinator_email"])
+
+        today = timezone.localtime(timezone.now(), WARSAW).date()
+        edition_label = (options["edition_label"] or "").strip() or EDITION_LABEL_PATTERN.format(
+            school_year=_school_year(today)
+        )
+
         short_name = (options["short_name"] or name).strip()
         with transaction.atomic():
             competition = self._create(
@@ -155,6 +222,11 @@ class Command(BaseCommand):
                 accent=(options["accent"] or template["accent_colour"]).strip(),
                 template=template,
             )
+            edition, stages = self._create_edition(
+                competition, template, label=edition_label, base_day=_base_day(today)
+            )
+            if coordinator is not None:
+                self._grant_coordinator(coordinator, competition)
             if dry_run:
                 # Wycofanie **po** wykonaniu całości, a nie pominięcie zapisów: próba na sucho ma
                 # sprawdzić to, co sprawdzi baza (unikalność, więzy, walidacja modeli), a nie to,
@@ -164,7 +236,15 @@ class Command(BaseCommand):
         if not dry_run:
             self._run_safe_seeds(template)
 
-        self._report(competition, template_name, template, dry_run=dry_run)
+        self._report(
+            competition,
+            template_name,
+            template,
+            edition=edition,
+            stages=stages,
+            coordinator=coordinator,
+            dry_run=dry_run,
+        )
 
     # --- zakładanie ---------------------------------------------------------------------------
     def _create(
@@ -262,6 +342,90 @@ class Command(BaseCommand):
         competition.save()
         return competition
 
+    # --- edycja i etapy -----------------------------------------------------------------------
+    def _create_edition(self, competition: Competition, template: dict, *, label: str, base_day: date):
+        """Pierwsza edycja konkursu (bieżąca) i etapy z szablonu. Zwraca ``(edycja, etapy)``.
+
+        Etapy powstają przez ``apps.competitions.services.create_stage``, a nie przez
+        ``Stage.objects.create``: to tam stoi wiedza o obiektach zależnych (``ScoringScale``,
+        ``QualificationRule``), bez których etap jest wierszem, którego panel nie umie obsłużyć.
+        Powtórzenie tej wiedzy tutaj znaczyłoby, że nowy konkurs dostaje etapy o jeden obiekt
+        uboższe niż etapy zakładane w panelu — i że po zmianie skali domyślnej rozjeżdżają się
+        obie drogi.
+
+        Edycja jest **bieżąca** od razu, bo konkurs bez bieżącej edycji nie pokazuje harmonogramu
+        ani nie przyjmuje rejestracji; nie ma tu czego przełączać, bo innej edycji jeszcze nie ma.
+        """
+        from apps.competitions.models import Edition
+
+        edition = Edition(competition=competition, year_label=label, is_current=True)
+        try:
+            # ``full_clean`` z tego samego powodu, co przy konkursie: unikalność oznaczenia edycji
+            # i więzy „jedna bieżąca” mają się zgłosić czytelnym błędem komendy, a nie
+            # ``IntegrityError`` wypadającym w środku transakcji.
+            edition.full_clean()
+        except ValidationError as exc:
+            raise CommandError("; ".join(f"{k}: {' '.join(v)}" for k, v in exc.message_dict.items())) from exc
+        edition.save()
+
+        stages = [
+            self._create_stage(edition, spec, timeline)
+            for spec, timeline in _stage_timelines(template["stages"], base_day)
+        ]
+        return edition, stages
+
+    def _create_stage(self, edition, spec: dict, timeline: dict):
+        from apps.competitions.services import create_stage
+
+        try:
+            return create_stage(
+                edition=edition,
+                kind=spec["kind"],
+                name=spec["name"],
+                format=spec["format"],
+                **timeline,
+            )
+        except ValidationError as exc:
+            raise CommandError(
+                f"Etap {spec['kind']}: "
+                + "; ".join(f"{k}: {' '.join(v)}" for k, v in exc.message_dict.items())
+            ) from exc
+
+    # --- rola koordynatora --------------------------------------------------------------------
+    def _coordinator(self, email: str):
+        """Konto z ``--coordinator-email`` albo ``None``. Nieznany adres = odmowa, nie nowe konto.
+
+        Zakładanie konta „przy okazji” dałoby osobę z rolą koordynatora, która o tym nie wie, nie
+        ma hasła i nie potwierdziła adresu — czyli konto obsługiwane wyłącznie przez reset hasła
+        na adres, którego nikt nie zweryfikował.
+        """
+        email = (email or "").strip().lower()
+        if not email:
+            return None
+
+        from apps.accounts.models import User
+
+        user = User.objects.filter(email__iexact=email).first()
+        if user is None:
+            raise CommandError(
+                f"Nie ma konta o adresie „{email}”. Komenda nie zakłada kont — załóż je "
+                f"rejestracją albo komendą bootstrap_coordinator i uruchom ponownie."
+            )
+        return user
+
+    def _grant_coordinator(self, user, competition: Competition) -> None:
+        """Rola koordynatora tego konkursu przez ``apps.accounts.services.grant_role``.
+
+        Serwis zapisuje **oba**: wiersz ``accounts.Membership`` (rola w konkursie) i przynależność
+        do grupy Django ``coordinator`` (uprawnienie do ``/cms/``, § 3.8). Wpisanie tu samego
+        członkostwa dałoby koordynatora bez panelu redakcyjnego — czyli osobę, która nie może
+        wpisać regulaminu własnego konkursu.
+        """
+        from apps.accounts.models import CompetitionRole
+        from apps.accounts.services import grant_role
+
+        grant_role(user, CompetitionRole.COORDINATOR, competition=competition)
+
     def _run_safe_seeds(self, template: dict) -> None:
         """Komendy z ``safe_seeds`` szablonu — wyłącznie globalne i idempotentne (patrz katalog)."""
         for command_name in template["safe_seeds"]:
@@ -269,7 +433,17 @@ class Command(BaseCommand):
             call_command(command_name)
 
     # --- podsumowanie -------------------------------------------------------------------------
-    def _report(self, competition: Competition, template_name: str, template: dict, *, dry_run: bool) -> None:
+    def _report(
+        self,
+        competition: Competition,
+        template_name: str,
+        template: dict,
+        *,
+        edition,
+        stages: list,
+        coordinator,
+        dry_run: bool,
+    ) -> None:
         write = self.stdout.write
         if dry_run:
             write(self.style.WARNING("PRÓBA NA SUCHO – transakcja wycofana, baza bez zmian."))
@@ -280,6 +454,16 @@ class Command(BaseCommand):
         )
         write(f"  witryna:  {competition.site.hostname}:{competition.site.port}")
         write(f"  strony:   /{', /'.join(slug for _, slug, _ in template['pages'])}")
+        write(f"  edycja:   {edition.year_label} (bieżąca)")
+        for stage in stages:
+            # Terminy wypisujemy w strefie organizatora, bo w niej je liczyliśmy — w UTC wyglądałyby
+            # jak przesunięte o godzinę i pierwszą reakcją koordynatora byłaby poprawka, która
+            # niczego nie poprawia.
+            opens = timezone.localtime(stage.opens_at, WARSAW).date().isoformat()
+            deadline = timezone.localtime(stage.deadline_at, WARSAW).date().isoformat()
+            write(f"  etap:     {stage.kind} {stage.name} — {opens} → {deadline} (wartość początkowa)")
+        if coordinator is not None:
+            write(f"  koordynator: {coordinator.email} (rola w tym konkursie + grupa „coordinator”)")
 
         write("")
         write("Następne kroki (żadnego z nich komenda nie wykonuje za administratora):")
@@ -304,10 +488,91 @@ class Command(BaseCommand):
             f"  4. Dokumenty do wpisania w /cms/ przed otwarciem rejestracji: "
             f"{', '.join(template['documents']) or '—'}"
         )
-        if template["stages"]:
-            stages = ", ".join(f"{kind} ({title})" for kind, title, _ in template["stages"])
-            write(f"  5. Etapy do założenia w panelu koordynatora: {stages}")
-        write("  6. Sprawdzenie spójności domen: manage.py check_domains")
+        if stages:
+            write(
+                "  5. Terminy etapów w panelu koordynatora: powyższe są **wartością początkową** "
+                "odłożoną od pierwszego dnia następnego miesiąca, a nie harmonogramem."
+            )
+        write(
+            f"  6. Formaty plików do wpisania w zadaniach ({', '.join(template['upload_formats'])}) "
+            f"i zgody przy rejestracji ({', '.join(template['consents'])}) — jedno i drugie stoi "
+            f"dziś poza konkursem (zadanie, stała CONSENTS) i czeka na etap 2."
+        )
+        write("  7. Sprawdzenie spójności domen: manage.py check_domains")
+
+
+def _school_year(today: date) -> str:
+    """``date(2026, 9, 17)`` → ``"2026/2027"``; ``date(2026, 5, 1)`` → ``"2025/2026"``.
+
+    Rocznik liczony od września, bo tak liczy go organizator i tak podpisana jest I edycja
+    Olimpiady Kwantowej. Konkurs założony w maju należy do rocznika, który właśnie się kończy —
+    dopisanie mu następnego znaczyłoby edycję z etykietą o rok do przodu.
+    """
+    start = today.year if today.month >= SCHOOL_YEAR_FIRST_MONTH else today.year - 1
+    return f"{start}/{start + 1}"
+
+
+def _base_day(today: date) -> date:
+    """Dzień, od którego odkładają się terminy etapów: **pierwszy dzień następnego miesiąca**.
+
+    Konwencja jest jawna i celowo gruba. „Dziś” dałoby etap otwarty w chwili założenia konkursu,
+    czyli serwis przyjmujący prace, zanim istnieje choćby regulamin; „za rok” dałoby harmonogram,
+    którego nikt nie poprawi, bo nic go nie uwiera. Pierwszy dzień następnego miesiąca jest
+    rozpoznawalny na pierwszy rzut oka jako **wartość początkowa**, a nie data ustalona przez
+    organizatora — i zostawia na poprawienie jej od dwóch do pięciu tygodni.
+    """
+    year, month = (today.year + 1, 1) if today.month == 12 else (today.year, today.month + 1)
+    return date(year, month, 1)
+
+
+def _moment(day: date, time: tuple[int, int]) -> datetime:
+    return datetime(day.year, day.month, day.day, time[0], time[1], tzinfo=WARSAW)
+
+
+def _stage_timelines(stages, base_day: date):
+    """``(opis etapu z szablonu, komplet terminów)`` dla kolejnych etapów, w kolejności szablonu.
+
+    Jedno miejsce, w którym odstępy z katalogu zamieniają się w daty — dokładnie z tego samego
+    powodu, dla którego ``seed_edition_kwantowa`` ma ``_timeline``: reguła zapisana dwa razy daje
+    po zmianie dwa różne wyniki, a różnicy nie widać w bazie. Widać ją dopiero wtedy, gdy
+    uczestnik nie może złożyć reklamacji.
+
+    Etap bez terminu (``length_days is None``, czyli trening) dostaje datę-wartownika
+    ``TRAINING_DEADLINE`` i **nie przesuwa** kursora: piaskownica stoi obok zawodów, a nie w ich
+    kolejce, więc jej „termin” z 2099 roku nie może wypchnąć następnego etapu poza kalendarz.
+    """
+    from apps.competitions.models import TRAINING_DEADLINE
+
+    cursor = base_day
+    for spec in stages:
+        if spec["length_days"] is None:
+            yield (
+                spec,
+                {
+                    "opens_at": _moment(base_day, OPENS_TIME),
+                    "deadline_at": TRAINING_DEADLINE,
+                    "review_deadline_at": TRAINING_DEADLINE,
+                    "appeal_window_opens_at": TRAINING_DEADLINE,
+                    "appeal_window_closes_at": TRAINING_DEADLINE + TRAINING_APPEAL_WINDOW,
+                },
+            )
+            continue
+
+        opens_day = cursor + timedelta(days=spec["opens_after_days"])
+        deadline_day = opens_day + timedelta(days=spec["length_days"])
+        deadline_at = _moment(deadline_day, DEADLINE_TIME)
+        review_deadline_at = deadline_at + REVIEW_AFTER_DEADLINE
+        yield (
+            spec,
+            {
+                "opens_at": _moment(opens_day, OPENS_TIME),
+                "deadline_at": deadline_at,
+                "review_deadline_at": review_deadline_at,
+                "appeal_window_opens_at": review_deadline_at + APPEAL_OPENS_AFTER_REVIEW,
+                "appeal_window_closes_at": review_deadline_at + APPEAL_CLOSES_AFTER_REVIEW,
+            },
+        )
+        cursor = deadline_day
 
 
 def _split_domain(value: str) -> tuple[str, int]:

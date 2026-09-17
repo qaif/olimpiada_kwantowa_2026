@@ -360,6 +360,11 @@ class MeView(ParticipantRequiredMixin, TemplateView):
         context.update(
             {
                 "now": now,
+                # Profil **tego** konkursu, wprost w kontekście: po § 3.3 jedna osoba ma tyle
+                # profili, w ilu olimpiadach startuje, więc szablon nie ma jak dojść do
+                # właściwego z samego ``user`` – a droga, którą chodził dotąd
+                # (``user.participant``), po prostu nie istnieje.
+                "participant": self.participant,
                 "edition": edition,
                 "stage": stage,
                 "entry": entry,

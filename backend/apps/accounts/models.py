@@ -69,6 +69,11 @@ assert set(CompetitionRole.values) == set(RBAC_GROUPS), (
 
 # Alfabet bez znaków mylących (0/O, 1/I/L) – kod bywa przepisywany ręcznie z listy wyników.
 PUBLIC_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+#: Prefiks **zastępczy**: właściwy nosi ``tenancy.Competition.public_code_prefix``. Stała zostaje,
+#: bo jest odpowiedzią na pytanie „a jeżeli konkursu nie wiadomo” – profil zakładany poza żądaniem
+#: i bez wskazania konkursu (komenda, import, ``default`` kolumny) musi dostać jakiś kod, a jedyną
+#: wartością, która niczego nie zmienia w zastanej bazie, jest ta, którą ta baza miała dotąd.
+#: Konkurs #1 ma w polu dokładnie tę samą wartość, więc obie drogi dają ten sam kod.
 PUBLIC_CODE_PREFIX = "OLM-"
 PUBLIC_CODE_RANDOM_LENGTH = 6
 
@@ -80,10 +85,21 @@ MAX_GRADE = 5
 GRADE_CHOICES = [(number, str(number)) for number in range(MIN_GRADE, MAX_GRADE + 1)]
 
 
-def generate_public_code() -> str:
-    """Losowy, anonimowy identyfikator uczestnika w formacie ``OLM-XXXXXX``."""
+def generate_public_code(competition=None) -> str:
+    """Losowy, anonimowy identyfikator uczestnika w formacie ``<prefiks>XXXXXX``.
+
+    Prefiks jest własnością **konkursu** (``tenancy.Competition.public_code_prefix``), bo kod
+    publiczny jest identyfikatorem w tabelach wyników jednego konkursu i bywa przepisywany ręcznie
+    (``docs/UNIWERSALNY-ETAP-1.md`` § 3.3). Brak konkursu – i puste pole – schodzą do
+    ``PUBLIC_CODE_PREFIX``, czyli do wartości sprzed wielokonkursowości.
+
+    Argument jest opcjonalny, bo ta funkcja jest też ``default`` kolumny ``public_code``: Django
+    woła ``default`` bez argumentów i nie ma skąd znać konkursu wiersza. Kod nadany tą drogą
+    poprawia dopiero serwis (``create_participant_with_public_code``), który konkurs zna.
+    """
+    prefix = getattr(competition, "public_code_prefix", "") or PUBLIC_CODE_PREFIX
     suffix = "".join(secrets.choice(PUBLIC_CODE_ALPHABET) for _ in range(PUBLIC_CODE_RANDOM_LENGTH))
-    return f"{PUBLIC_CODE_PREFIX}{suffix}"
+    return f"{prefix}{suffix}"
 
 
 def hash_invitation_code(plain_code: str) -> str:
@@ -336,32 +352,31 @@ class Participant(models.Model):
     organizatorowi A obowiązuje organizatora B – czego nie da się obronić ani prawnie, ani
     technicznie (``public_code`` jest identyfikatorem w tabelach wyników **jednego** konkursu).
 
-    ``user`` jest **nadal** ``OneToOneField`` i to jest stan przejściowy, opisany wprost:
-    docelowo (``docs/UNIWERSALNY-ETAP-1.md`` § 3.3) jest to ``ForeignKey`` z
-    ``related_name="participations"`` i więzem unikalności na parze (użytkownik, konkurs).
-    Zamiana zrywa ``user.participant`` w kilkudziesięciu miejscach pięciu aplikacji domenowych,
-    więc – zgodnie z § 4.1 – wchodzi razem z domknięciem ``NOT NULL`` i zdjęciem globalnego
-    ``unique`` z ``public_code`` (wydanie D), jedną migracją i jednym przeglądem. Do tego czasu
-    **jedyną** drogą do profilu jest ``apps.accounts.services.participant_for(user, competition)``:
-    nowy kod woła ją już dziś i po zamianie nie zmieni ani jednej linii.
+    ``user`` jest ``ForeignKey`` z ``related_name="participations"``, a nie ``OneToOneField``:
+    jedno konto ma **tyle** profili, w ilu konkursach startuje (§ 3.3). Nazwy ``participant``
+    w relacji odwrotnej celowo nie ma i mieć nie będzie – ``user.participant`` podnosi
+    ``AttributeError``, więc każde przeoczone miejsce widać od razu, zamiast cicho oddawać profil
+    z przypadkowego konkursu. Jedyną drogą do profilu jest
+    ``apps.accounts.services.participant_for(user, competition)``, a do kompletu profili –
+    ``participations_of(user)``.
     """
 
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="participant")
-    #: Właściciel profilu. ``null=True`` wyłącznie na czas wydania B (§ 4.1): schemat i backfill
-    #: wchodzą **przed** kodem, który tego pola wymaga, żeby stara i nowa wersja aplikacji mogły
-    #: przez chwilę stać obok siebie i żeby wdrożenie nie miało przestoju. Wydanie D zmienia to
-    #: na ``NOT NULL`` po zapytaniu kontrolnym (§ 4.4). ``PROTECT``: skasowanie konkursu nie może
-    #: zabrać ze sobą uczestników razem z ich zgodami.
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="participations")
+    #: Właściciel profilu. ``PROTECT``: skasowanie konkursu nie może zabrać ze sobą uczestników
+    #: razem z ich zgodami. ``NOT NULL`` od wydania D (§ 4.1) – kolumna była nullowalna wyłącznie
+    #: na czas współistnienia starego i nowego kodu i domknęła ją migracja
+    #: ``accounts.0022_competition_not_null`` po zapytaniu kontrolnym (§ 4.4).
     competition = models.ForeignKey(
         "tenancy.Competition",
         verbose_name="konkurs",
-        null=True,
-        blank=True,
         db_index=True,
         on_delete=models.PROTECT,
         related_name="participants",
     )
-    public_code = models.CharField("kod publiczny", max_length=16, unique=True, default=generate_public_code)
+    #: Unikalny **w konkursie**, a nie globalnie: prefiks jest własnością konkursu
+    #: (``Competition.public_code_prefix``), a tabela wyników, w której ten kod stoi, należy do
+    #: jednego konkursu. Więz jest w ``Meta.constraints``, bo dotyczy pary kolumn.
+    public_code = models.CharField("kod publiczny", max_length=16, default=generate_public_code)
     # Nazwa szkoły **do pokazania** – wypełniona zawsze, niezależnie od tego, czy uczestnik wybrał
     # szkołę ze słownika, czy wpisał ją ręcznie. To ona idzie do snapshotu wyników (grupowanie
     # k-anonimowe po szkole) i do podglądu koordynatora, więc żadne miejsce w systemie nie musi
@@ -440,6 +455,21 @@ class Participant(models.Model):
         verbose_name = "uczestnik"
         verbose_name_plural = "uczestnicy"
         ordering = ("public_code",)
+        constraints = [
+            # Jedno konto – jeden profil **w konkursie**. Bez tego więzu podwójne kliknięcie
+            # w rejestrację albo powtórzony import listy klasowej dawałyby dwa profile tej samej
+            # osoby w tym samym konkursie, z dwoma kodami publicznymi i dwoma kompletami zgód.
+            models.UniqueConstraint(
+                fields=["user", "competition"], name="accounts_participant_unique_per_competition"
+            ),
+            # Kod publiczny jest unikalny w konkursie, a nie w instalacji: ten sam ciąg w dwóch
+            # konkursach to dwa różne kody w dwóch różnych tabelach wyników, a globalna unikalność
+            # kazałaby drugiemu organizatorowi omijać kody pierwszego.
+            models.UniqueConstraint(
+                fields=["competition", "public_code"],
+                name="accounts_participant_public_code_per_competition",
+            ),
+        ]
 
     def __str__(self) -> str:
         return self.public_code
@@ -510,12 +540,10 @@ class CommitteeMember(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="committee_member")
     #: Komitet jest komitetem **tego** konkursu – razem z ``district`` i ``is_appeals_committee``:
     #: „zweryfikowany recenzent” jest oświadczeniem jednego organizatora o jednej osobie.
-    #: ``null=True`` tylko na czas wydania B (§ 4.1), ``PROTECT`` jak przy uczestniku.
+    #: ``NOT NULL`` od wydania D (§ 4.1), ``PROTECT`` jak przy uczestniku.
     competition = models.ForeignKey(
         "tenancy.Competition",
         verbose_name="konkurs",
-        null=True,
-        blank=True,
         db_index=True,
         on_delete=models.PROTECT,
         related_name="committee_members",
@@ -581,12 +609,10 @@ class SchoolSupervisor(models.Model):
     #: Profil opiekuna jest per konkurs, bo ``verified`` jest oświadczeniem sprawdzonym przez
     #: **tego** organizatora, a ``SchoolParticipation`` dotyczy edycji konkretnego konkursu
     #: (``docs/UNIWERSALNY-ETAP-1.md`` § 8, D3). Nauczyciel ma jedno konto i wiele profili.
-    #: ``null=True`` tylko na czas wydania B (§ 4.1).
+    #: ``NOT NULL`` od wydania D (§ 4.1).
     competition = models.ForeignKey(
         "tenancy.Competition",
         verbose_name="konkurs",
-        null=True,
-        blank=True,
         db_index=True,
         on_delete=models.PROTECT,
         related_name="school_supervisors",
@@ -682,12 +708,10 @@ class InvitationCode(models.Model):
     code_hash = models.CharField("sha256 kodu", max_length=64, unique=True, editable=False)
     #: Kod nadaje status w komitecie **jednego** konkursu, więc i sam należy do tego konkursu:
     #: bez tej kolumny zaproszenie wystawione przez organizatora A wpuszczałoby recenzenta do
-    #: komitetu B. ``null=True`` tylko na czas wydania B (§ 4.1).
+    #: komitetu B. ``NOT NULL`` od wydania D (§ 4.1).
     competition = models.ForeignKey(
         "tenancy.Competition",
         verbose_name="konkurs",
-        null=True,
-        blank=True,
         db_index=True,
         on_delete=models.PROTECT,
         related_name="invitation_codes",
@@ -825,12 +849,10 @@ class MessageBroadcast(models.Model):
     #: Rejestr wysyłek należy do organizatora, który je zrobił. Grupy odbiorców są z definicji
     #: zakresowane (``EDITION_PARTICIPANTS`` to uczestnicy bieżącej edycji **tego** konkursu),
     #: więc wiersz bez właściciela nie dałby się odczytać: „ilu odbiorców” zależy od tego, czyja
-    #: to była edycja. ``null=True`` tylko na czas wydania B (§ 4.1).
+    #: to była edycja. ``NOT NULL`` od wydania D (§ 4.1).
     competition = models.ForeignKey(
         "tenancy.Competition",
         verbose_name="konkurs",
-        null=True,
-        blank=True,
         db_index=True,
         on_delete=models.PROTECT,
         related_name="broadcasts",

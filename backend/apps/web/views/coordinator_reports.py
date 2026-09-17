@@ -37,7 +37,6 @@ from apps.grading.worklog import format_duration, reviewer_seconds
 from apps.results.simulation import apply_rule, simulate
 from apps.web.coordinator_forms import AuditFilterForm, ManualQualificationForm, SimulationForm
 from apps.web.mixins import ActionViewMixin, CoordinatorRequiredMixin
-from apps.web.scoping import audit_scope
 
 PROGRESS_TEMPLATE = "web/coordinator/reports.html"
 AUDIT_TEMPLATE = "web/coordinator/audit.html"
@@ -237,12 +236,12 @@ class AuditBrowserView(CoordinatorRequiredMixin, TemplateView):
         params = self.request.GET
         # Zawężenie **po** filtrach z adresu, bo obie warstwy są zwykłymi ``filter`` na tym samym
         # querysecie i składają się w jedno zdanie SQL. Reguła zakresu jest jedna
-        # (``apps.web.scoping.audit_scope``) i obowiązuje także listy wyboru w filtrze – inaczej
-        # koordynator wybierałby z rozwijanej listy akcje, których nigdy nie zobaczy, a sama
-        # nazwa akcji z cudzego konkursu bywa informacją („pojawiło się u kogoś ``stage.closed``”).
-        scope = audit_scope(self.competition, self.request.user)
-        queryset = audit_browser.entries(params).filter(scope)
-        visible = AuditLog.objects.filter(scope)
+        # (``AuditLog.objects.visible_to`` – wpisy tego konkursu plus wpisy platformowe, § 3.9)
+        # i obowiązuje także listy wyboru w filtrze: inaczej koordynator wybierałby z rozwijanej
+        # listy akcje, których nigdy nie zobaczy, a sama nazwa akcji z cudzego konkursu bywa
+        # informacją („pojawiło się u kogoś ``stage.closed``”).
+        queryset = self._visible(audit_browser.entries(params))
+        visible = self._visible(AuditLog.objects.all())
         paginator = Paginator(queryset, audit_browser.AUDIT_PAGE_SIZE)
         page = paginator.get_page(params.get("page"))
         # Parametry filtra do odnośników stronicowania – bez nich „następna strona” gubiłaby
@@ -263,6 +262,18 @@ class AuditBrowserView(CoordinatorRequiredMixin, TemplateView):
             }
         )
         return context
+
+    def _visible(self, queryset):
+        """Wpisy, które ten czytelnik ma widzieć: ``visible_to`` albo – dla operatora – wszystkie.
+
+        Superużytkownik dostaje tabelę bez zawężenia, bo to operator platformy i to on odpowiada
+        za całą instalację. Roli w konkursie mu to nie daje: ``has_role`` nie eskaluje
+        ``is_superuser``, więc na ten ekran wchodzi wyłącznie jako koordynator, którym faktycznie
+        jest – wyjątek dotyczy zakresu tabeli, a nie prawa wejścia.
+        """
+        if self.request.user.is_superuser:
+            return queryset
+        return queryset.visible_to(self.competition)
 
 
 # --- 5. Symulacja kwalifikacji ------------------------------------------------------------------

@@ -21,7 +21,11 @@
 # `create_competition` ani razu, więc przebieg dla Olimpiady Kwantowej jest taki, jak był:
 #   NEW_COMPETITION_SLUG=fizyczna NEW_COMPETITION_NAME="Olimpiada Fizyczna" \
 #   NEW_COMPETITION_DOMAIN=olimpiadafizyczna.pl NEW_COMPETITION_TEMPLATE=przedmiotowa \
-#   [NEW_COMPETITION_ORGANIZER="Polskie Towarzystwo Fizyczne"] scripts/deploy.sh root@<host>
+#   [NEW_COMPETITION_ORGANIZER="Polskie Towarzystwo Fizyczne"] \
+#   [NEW_COMPETITION_EDITION_LABEL="I edycja 2026/2027"] \
+#   [NEW_COMPETITION_COORDINATOR_EMAIL=koordynator@example.org] scripts/deploy.sh root@<host>
+# Komenda zakłada też pierwszą edycję (bieżącą) i etapy z szablonu – ich terminy są wartością
+# początkową odłożoną od pierwszego dnia następnego miesiąca i poprawia je koordynator w panelu.
 # Domena konkursu musi jeszcze trafić do EXTRA_DOMAINS, DJANGO_ALLOWED_HOSTS
 # i DJANGO_CSRF_TRUSTED_ORIGINS w <REMOTE_DIR>/.env – komenda wypisuje gotowe linijki, a rozjazd
 # wykrywa `manage.py check_domains`, wołane na końcu wdrożenia.
@@ -250,7 +254,9 @@ log "6a/8 Nowy konkurs (tylko przy NEW_COMPETITION_SLUG)"
   NEW_COMPETITION_NAME="${NEW_COMPETITION_NAME:-}" \
   NEW_COMPETITION_DOMAIN="${NEW_COMPETITION_DOMAIN:-}" \
   NEW_COMPETITION_TEMPLATE="${NEW_COMPETITION_TEMPLATE:-pusty}" \
-  NEW_COMPETITION_ORGANIZER="${NEW_COMPETITION_ORGANIZER:-}" bash -s <<'REMOTE'
+  NEW_COMPETITION_ORGANIZER="${NEW_COMPETITION_ORGANIZER:-}" \
+  NEW_COMPETITION_EDITION_LABEL="${NEW_COMPETITION_EDITION_LABEL:-}" \
+  NEW_COMPETITION_COORDINATOR_EMAIL="${NEW_COMPETITION_COORDINATOR_EMAIL:-}" bash -s <<'REMOTE'
 set -euo pipefail
 cd "$REMOTE_DIR"
 if [ -z "$NEW_COMPETITION_SLUG" ]; then
@@ -266,6 +272,10 @@ ARGS=(--slug "$NEW_COMPETITION_SLUG" --name "$NEW_COMPETITION_NAME"
       --domain "$NEW_COMPETITION_DOMAIN" --from-template "$NEW_COMPETITION_TEMPLATE"
       --skip-existing)
 [ -n "$NEW_COMPETITION_ORGANIZER" ] && ARGS+=(--organizer "$NEW_COMPETITION_ORGANIZER")
+# Oznaczenie edycji puste = bieżący rocznik szkolny liczony przez komendę; adres koordynatora
+# pusty = konkurs bez roli nadanej z wdrożenia. Konto musi już istnieć – komenda kont nie zakłada.
+[ -n "$NEW_COMPETITION_EDITION_LABEL" ] && ARGS+=(--edition-label "$NEW_COMPETITION_EDITION_LABEL")
+[ -n "$NEW_COMPETITION_COORDINATOR_EMAIL" ] && ARGS+=(--coordinator-email "$NEW_COMPETITION_COORDINATOR_EMAIL")
 docker compose exec -T web python manage.py create_competition "${ARGS[@]}" </dev/null
 REMOTE
 

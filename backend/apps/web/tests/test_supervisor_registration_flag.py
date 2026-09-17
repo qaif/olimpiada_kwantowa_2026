@@ -20,6 +20,7 @@ from django.urls import reverse
 from apps.accounts.models import GROUP_SUPERVISOR, SchoolSupervisor, User
 from apps.accounts.supervisors import registration_enabled
 from apps.accounts.tests.factories import ParticipantFactory, UserFactory
+from apps.tenancy.tests.factories import current_or_default_competition
 from apps.web.tests.conftest import captcha_fields, password_fields
 
 pytestmark = pytest.mark.django_db
@@ -125,7 +126,7 @@ def test_istniejacy_opiekun_zachowuje_swoj_panel(web_client):
     """Konto powstało świadomie; ukrycie drogi wejścia nie odbiera dostępu do własnych danych."""
     user = UserFactory(email="nauczyciel@szkola.test")
     user.groups.add(Group.objects.get_or_create(name=GROUP_SUPERVISOR)[0])
-    SchoolSupervisor.objects.create(user=user, school="XIV LO")
+    SchoolSupervisor.objects.create(user=user, school="XIV LO", competition=current_or_default_competition())
     web_client.force_login(user)
 
     assert web_client.get("/supervisor/").status_code == 200

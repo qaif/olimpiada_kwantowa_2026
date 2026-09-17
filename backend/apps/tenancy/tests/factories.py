@@ -34,6 +34,14 @@ def current_or_default_competition():
     Odczyt kontekstu jest darmowy (zmienna kontekstowa), więc domyślna wartość nie dokłada
     zapytania do żadnego testu – zapytanie pojawia się wyłącznie tam, gdzie kontekstu nie ma,
     czyli w testach, które same sobie bazę wyczyściły.
+
+    Baza **bez ani jednego konkursu** dostaje Konkurs #1 odtworzony na miejscu i to jest zmiana
+    z wydania D. Powód jest ten sam, dla którego ``conftest.root_page`` odtwarza korzeń drzewa
+    stron: test transakcyjny czyści bazę po sobie, a ``flush`` przywraca wyłącznie typy treści
+    i uprawnienia – nie wiersze wpisane przez ``RunPython`` (czyli ani korzenia stron, ani
+    Konkursu #1 z ``tenancy.0002``). Do wydania D wiersz bez właściciela był tylko niewidoczny;
+    od wydania D kolumna jest ``NOT NULL``, więc każdy test **uruchomiony po** teście
+    transakcyjnym wywracałby się na ``IntegrityError`` – i to zależnie od kolejności pakietu.
     """
     from apps.tenancy.context import current_competition
     from apps.tenancy.models import Competition
@@ -41,7 +49,16 @@ def current_or_default_competition():
     competition = current_competition()
     if competition is not None:
         return competition
-    return Competition.objects.order_by("pk").first()
+    existing = Competition.objects.order_by("pk").first()
+    if existing is not None:
+        return existing
+    # Import w środku funkcji: ``conftest`` korzenia jest modułem pytesta, a nie pakietem
+    # aplikacji – na górze pliku nie byłoby go jeszcze w ``sys.modules``. Odtworzenie stoi tam,
+    # bo tam stoi cała mechanika świata testowego (witryna, korzeń drzewa, host Konkursu #1),
+    # a dwie kopie tej samej funkcji rozjechałyby się przy pierwszej zmianie.
+    from conftest import restored_competition
+
+    return restored_competition()
 
 
 def model_has_competition(model) -> bool:

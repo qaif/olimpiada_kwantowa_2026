@@ -31,7 +31,7 @@ from .models import (
     StageKind,
     default_scoring_values,
 )
-from .scoping import scope_to_competition
+from .scoping import require_competition
 from .video import DEFAULT_VIDEO_BASE_URL, VideoProvider
 
 #: Pola osi czasu etapu, którymi koordynator zarządza z panelu. ``results_published_at`` i
@@ -126,17 +126,18 @@ def current_edition(competition=None) -> Edition | None:
     ``CompetitionMiddleware``, w zadaniu Celery ``competition_context``, a w instalacji
     jednokonkursowej wychodzi na to samo, co dotąd (``apps.competitions.scoping``).
 
-    ``None`` w wyniku znaczy „nie wiadomo, o który konkurs chodzi” i jest **odpowiedzią pustą**,
-    a nie zaproszeniem do wzięcia pierwszej edycji z brzegu: w bazie wielokonkursowej pierwsza
-    z brzegu jest cudza, a strona główna konkursu A pokazywałaby wtedy harmonogram konkursu B.
+    ``None`` w wyniku znaczy dokładnie jedno: **ten** konkurs nie ma edycji bieżącej. Od wydania D
+    nie znaczy już „nie wiadomo, o który konkurs chodzi” – to drugie jest błędem wołającego
+    i podnosi ``CompetitionNotResolved`` (``apps.competitions.scoping.require_competition``).
+    Dwa różne stany pod jedną wartością były wcześniej do przyjęcia, bo kolumna konkursu była
+    jeszcze pusta; teraz „organizator nie ustawił edycji” i „zadanie zapomniało powiedzieć,
+    czyje zawody liczy” muszą się różnić, bo pierwsze jest informacją, a drugie awarią.
 
     Sygnatura ma argument **opcjonalny**, choć § 3.5 dokumentu wymaga go dla ``for_user``.
     Różnica jest zamierzona: ``for_user`` rozstrzyga **widoczność cudzych danych**, a ta funkcja
-    czyta pojedynczy wiersz konfiguracji rocznika. Wymuszenie argumentu znaczyłoby poprawkę
-    w 54 miejscach naraz (§ 2.4), czyli jedno wydanie z wszystkimi zmianami zamiast czterech –
-    dokładnie tego, czego zabrania § 4.1. Wołających po kolei przestawiają T4 i T5.
+    czyta pojedynczy wiersz konfiguracji rocznika.
     """
-    return scope_to_competition(Edition.objects.filter(is_current=True), competition).first()
+    return Edition.objects.filter(competition=require_competition(competition), is_current=True).first()
 
 
 def current_stage(edition: Edition, now=None) -> Stage | None:

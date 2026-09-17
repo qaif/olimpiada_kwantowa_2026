@@ -1,7 +1,7 @@
 # Uniwersalny system zawodów wiedzy — Etap 1: wielokonkursowość
 
-**Status:** projekt architektury do wykonania (implementation-ready). Nic z tego dokumentu nie jest
-jeszcze zaimplementowane.
+**Status:** w trakcie wykonania. Wydania A–C (`v0.20.0`–`v0.22.0`) są wdrożone na produkcji,
+wydanie D („domknięcie”) powstaje — rozpiska co do wydania jest w § 4.6.
 **Zakres:** zamiana portalu jednej olimpiady (Django 5 + Wagtail 6, `backend/`) w platformę, na
 której **wielu organizatorów** prowadzi **wiele niezależnych konkursów wiedzy** z jednej instalacji.
 **Poza zakresem etapu 1:** kreator konkursu w przeglądarce, rozliczenia, wielojęzyczność treści poza
@@ -1095,6 +1095,36 @@ Szablon `kwantowa` **nie jest** `seed_edition_kwantowa`: ta komenda wpisuje konk
 z harmonogramu organizatora i zostaje osobno, wyłącznie dla Konkursu #1. Szablon podaje
 **strukturę i domyślne odstępy** (`review_deadline_at` = deadline + 14 dni, okno reklamacji
 +2/+9 dni — te same reguły, co w `seed_edition_kwantowa`), a daty wpisuje koordynator w panelu.
+
+Etapy w katalogu są opisane dwiema liczbami dni: `opens_after_days` (ile po terminie oddania
+poprzedniego etapu ten się otwiera) i `length_days` (długość okna oddawania prac; `None` znaczy
+piaskownicę bez terminu, czyli `StageKind.TRAINING`). Komenda odkłada je od **dnia bazowego**,
+którym jest **pierwszy dzień następnego miesiąca**: data rozpoznawalna na pierwszy rzut oka jako
+wartość początkowa, a zarazem zostawiająca od dwóch do pięciu tygodni na poprawienie harmonogramu.
+Oznaczenie edycji bez `--edition-label` to `I edycja <rocznik szkolny liczony od września>`.
+
+### 4.6. Stan wdrożenia
+
+| Wydanie | Wersja | Data | Co naprawdę weszło |
+|---|---|---|---|
+| A | `v0.20.0` | 2026-09-17 | model `tenancy.Competition` 1:1 z witryną Wagtaila, `CompetitionMiddleware` i `current_competition()`, Konkurs #1 zbudowany migracją z istniejącej witryny (§ 0.1), `create_competition` bez edycji i etapów |
+| B | `v0.21.0` | 2026-09-17 | `accounts.Membership` i role per konkurs za flagą `memberships_enforced`, nullowalne `competition` na modelach z § 3.2 z backfillem do Konkursu #1, `Caddyfile` z `EXTRA_DOMAINS`, `pg_dump` przed migracjami, testy izolacji i niezmienniczości |
+| C | `v0.22.0` | 2026-09-17 | odczyty w panelach zakresowane przez `for_competition` i `current_edition(competition)`, CMS per witryna Wagtaila, `Announcement.competition`, strona „Ustawienia konkursu” za flagą `competition_settings_page`, 14 z 15 testów izolacji zielonych |
+| D | w toku | — | domknięcie: `NOT NULL` na kolumnach konkursu, uczestnik per konkurs, więzy `Edition` per konkurs, kolumny platformowe, `create_competition` z edycją i etapami, `check_memberships` |
+
+Wydanie D zamyka odstępstwa, które zostały po T5 — każde z nich było świadomą ceną za brak
+przestoju (§ 4.1), a nie przeoczeniem:
+
+- **lista kont i audyt zakresowane „przez wykluczenie”.** Panel koordynatora filtrował konta
+  i wpisy audytu odejmowaniem tego, co na pewno cudze, zamiast doborem tego, co na pewno swoje —
+  działa to wyłącznie dopóki „cudze” da się wyliczyć, czyli dopóki kolumna konkursu bywa pusta.
+- **`SchoolSupervisor` z tolerancją `NULL`.** Profil opiekuna bez konkursu był widziany przez
+  każdy konkurs, bo inaczej opiekunowie sprzed backfillu zniknęliby z paneli w dniu wdrożenia.
+- **przebieg retencji bez zakresu.** `apps.accounts.retention` liczył okres z ostatniego deadline'u
+  etapu bez pytania, czyj to etap — przy jednym konkursie to ta sama odpowiedź, przy dwóch nie.
+- **integracje i szablony dyplomów zakresowane przez edycję.** Klucze API, webhooki i szablony
+  dochodziły do właściciela łańcuchem relacji zamiast własną kolumną; druga droga do tej samej
+  prawdy jest drugą okazją do rozjazdu (§ 3.1).
 
 ---
 

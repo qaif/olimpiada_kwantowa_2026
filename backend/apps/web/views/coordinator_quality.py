@@ -57,7 +57,6 @@ from apps.web.coordinator_forms import (
     SimilarityFilterForm,
 )
 from apps.web.mixins import ActionViewMixin, CoordinatorRequiredMixin
-from apps.web.scoping import for_competition_or_unclaimed
 
 CALIBRATION_TEMPLATE = "web/coordinator/calibration.html"
 SIMILARITY_TEMPLATE = "web/coordinator/similarity.html"
@@ -372,8 +371,7 @@ class IssueCertificateView(ActionViewMixin, CoordinatorRequiredMixin, View):
             from apps.accounts.models import SchoolSupervisor
 
             supervisor = get_object_or_404(
-                for_competition_or_unclaimed(SchoolSupervisor.objects.all(), request.competition),
-                pk=supervisor_id,
+                SchoolSupervisor.objects.for_competition(request.competition), pk=supervisor_id
             )
         certificate, created = issue_certificate(
             edition=stage.edition,

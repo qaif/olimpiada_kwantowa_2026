@@ -20,7 +20,12 @@ from django.utils import timezone
 from apps.accounts.models import GROUP_COORDINATOR, Participant
 from apps.tenancy.managers import CompetitionScopedQuerySet
 
-from .scoping import competition_scoped_manager, resolve_competition, scope_to_competition
+from .scoping import (
+    competition_scoped_manager,
+    require_competition,
+    resolve_competition,
+    scope_to_competition,
+)
 from .storage import private_media_storage
 from .video import DEFAULT_VIDEO_BASE_URL, VideoProvider
 
@@ -159,21 +164,24 @@ class Edition(models.Model):
     rejestracji i retencja są decyzjami o **roczniku**, a nie o konkursie.
     """
 
-    #: Nullowalny przez całe wydanie B i to jest stan przejściowy, nie projekt (§ 4.1): schemat
-    #: kładzie się **przed** kodem, który go wymaga, żeby stara i nowa wersja aplikacji mogły przez
-    #: chwilę stać obok siebie. ``NOT NULL`` wchodzi w wydaniu D, po zapytaniu kontrolnym.
+    #: ``NOT NULL`` od wydania D (§ 4.1): nullowalność była stanem przejściowym, w którym stara
+    #: i nowa wersja aplikacji mogły przez chwilę stać obok siebie. Od tej chwili edycja bez
+    #: konkursu nie jest „edycją do uzupełnienia”, tylko rocznikiem bez właściciela – czyli
+    #: wierszem niewidocznym dla ``current_edition()`` i niewidocznym w zakresowaniu.
     #:
     #: ``PROTECT``, bo skasowanie konkursu razem z jego edycjami zabrałoby ze sobą prace, recenzje
     #: i wyniki – czyli dokumentację zawodów, które się odbyły.
     competition = models.ForeignKey(
         "tenancy.Competition",
         on_delete=models.PROTECT,
-        null=True,
-        blank=True,
         related_name="editions",
         verbose_name="konkurs",
     )
-    year_label = models.CharField("oznaczenie edycji", max_length=64, unique=True)
+    #: Bez ``unique=True``: „I edycja 2026/2027” ma prawo istnieć w każdym konkursie z osobna,
+    #: a unikalność obowiązuje w parze z właścicielem (``competitions_edition_unique_year_label``
+    #: w ``Meta.constraints``). Globalna unikalność znaczyłaby, że pierwszy organizator zajmuje
+    #: oznaczenie rocznika wszystkim pozostałym.
+    year_label = models.CharField("oznaczenie edycji", max_length=64)
     is_current = models.BooleanField("edycja bieżąca", default=False)
     created_at = models.DateTimeField("utworzona", default=timezone.now)
     # Okno rejestracji uczestników jest w ``Edition``, a nie w etapie eliminacyjnym: konto zakłada
@@ -215,11 +223,20 @@ class Edition(models.Model):
         verbose_name_plural = "edycje"
         ordering = ("-created_at", "id")
         constraints = [
-            # Częściowy indeks unikalny: dopuszcza wiele edycji archiwalnych, dokładnie jedną bieżącą.
+            # Częściowy indeks unikalny: dopuszcza wiele edycji archiwalnych, dokładnie jedną
+            # bieżącą – **w konkursie**. Nazwa więzi zostaje ta sama, co przed wydaniem D, żeby
+            # migracja była ``RemoveConstraint`` + ``AddConstraint`` o jednej nazwie, a nie zmianą,
+            # którą trzeba potem tropić w logach (§ 1.4).
             models.UniqueConstraint(
-                fields=["is_current"],
+                fields=["competition", "is_current"],
                 condition=Q(is_current=True),
                 name="competitions_edition_single_current",
+            ),
+            # Oznaczenie rocznika jest unikalne **u organizatora**, a nie w instalacji: dwie
+            # olimpiady mają prawo prowadzić równolegle „I edycję 2026/2027”.
+            models.UniqueConstraint(
+                fields=["competition", "year_label"],
+                name="competitions_edition_unique_year_label",
             ),
             # Okno rejestracji musi mieć dodatnią długość, o ile w ogóle ma oba końce. Bez tego
             # dałoby się zapisać okno, które nigdy nie jest otwarte – a strona pokazywałaby wtedy
@@ -260,12 +277,20 @@ class Edition(models.Model):
     def clean(self) -> None:
         super().clean()
         if self.is_current:
-            # Zakres tego sprawdzenia jest celowo **globalny**, mimo że konkursów bywa kilka:
-            # w wydaniu B constraint w bazie (``competitions_edition_single_current``) jest wciąż
-            # globalny, a walidacja luźniejsza od bazy zamieniłaby czytelny ``ValidationError``
-            # w ``IntegrityError`` w środku zapisu. Oba zawężają się do pary
-            # ``(competition, is_current)`` razem, w wydaniu D (§ 4.1).
-            others = Edition.objects.filter(is_current=True).exclude(pk=self.pk)
+            # Zakres tego sprawdzenia jest dokładnie taki, jak zakres więzi w bazie
+            # (``competitions_edition_single_current`` na parze ``(competition, is_current)``).
+            # Walidacja luźniejsza od bazy zamieniłaby czytelny ``ValidationError`` w
+            # ``IntegrityError`` w środku zapisu, a ostrzejsza – zabraniałaby organizatorowi B
+            # ustawienia własnej edycji bieżącej dlatego, że ma ją organizator A.
+            #
+            # Formularz waliduje się **przed** ``save()``, więc konkursu w polu jeszcze nie ma;
+            # bierzemy wtedy ten sam, który wpisze ``save()`` (kontekst żądania albo jedyny
+            # konkurs instalacji). ``None`` nie pasuje po wydaniu D do żadnego wiersza, więc
+            # brak rozstrzygnięcia nie zamienia się tu w odmowę zapisu z cudzego powodu.
+            competition_id = self.competition_id or getattr(resolve_competition(), "pk", None)
+            others = Edition.objects.filter(competition_id=competition_id, is_current=True).exclude(
+                pk=self.pk
+            )
             if others.exists():
                 raise ValidationError(
                     {"is_current": "Bieżąca może być tylko jedna edycja. Odznacz poprzednią."}
@@ -318,13 +343,15 @@ def current_registration_status(now=None, competition=None) -> RegistrationStatu
     ``competition=None`` znaczy „konkurs z kontekstu” (żądanie ustawia go warstwą, zadanie –
     ``competition_context``), a nie „dowolny”. Argument stoi **za** ``now``, żeby jedyne dzisiejsze
     wywołanie pozycyjne (``current_registration_status(now)`` w ``registration.py``) zostało tym,
-    czym było.
+    czym było. Konkurs nierozstrzygnięty w instalacji, która konkursy ma, podnosi
+    ``CompetitionNotResolved``: „rejestracja wyłączona” byłoby tu odpowiedzią wyglądającą
+    poprawnie i zamykałoby zapisy komuś, o kogo nikt nie pytał (§ 2.4).
 
     Zapytanie jest celowo najtańsze z możliwych – wywołuje je procesor kontekstu, czyli każde
     renderowanie szablonu bazowego.
     """
     edition = (
-        scope_to_competition(Edition.objects.filter(is_current=True), competition)
+        Edition.objects.filter(competition=require_competition(competition), is_current=True)
         .only("id", "registration_enabled", "registration_opens_at", "registration_closes_at")
         .first()
     )

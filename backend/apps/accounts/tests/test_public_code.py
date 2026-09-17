@@ -13,9 +13,11 @@ from apps.core.api import DomainError
 from .factories import ParticipantFactory, UserFactory
 
 
-def _fields(user):
+def _fields(user, competition):
+    """Komplet pól profilu. Konkurs jest **obowiązkowy** od wydania D – kolumna jest ``NOT NULL``."""
     return {
         "user": user,
+        "competition": competition,
         "school": "LO nr 1",
         "district": "mazowieckie",
         "birth_year": 2008,
@@ -24,19 +26,22 @@ def _fields(user):
 
 
 @pytest.mark.django_db
-def test_kolizja_kodu_konczy_sie_retry_i_sukcesem():
-    taken = ParticipantFactory().public_code
+def test_kolizja_kodu_konczy_sie_retry_i_sukcesem(competition):
+    taken = ParticipantFactory(competition=competition).public_code
     with mock.patch.object(services, "generate_public_code", side_effect=[taken, "OLM-ZZZZZ2"]):
-        participant = services.create_participant_with_public_code(**_fields(UserFactory()))
+        participant = services.create_participant_with_public_code(**_fields(UserFactory(), competition))
     assert participant.public_code == "OLM-ZZZZZ2"
 
 
 @pytest.mark.django_db
-def test_obcy_integrity_error_jest_propagowany():
+def test_obcy_integrity_error_jest_propagowany(competition):
     user = UserFactory()
-    ParticipantFactory(user=user)  # drugi profil dla tego samego usera łamie OneToOne, nie public_code
+    # Drugi profil tej samej osoby w **tym samym** konkursie łamie
+    # ``accounts_participant_unique_per_competition``, a nie więz kodu publicznego – ponawianie
+    # go nie dotyczy i błąd ma wyjść na wierzch.
+    ParticipantFactory(user=user, competition=competition)
     with pytest.raises(IntegrityError):
-        services.create_participant_with_public_code(**_fields(user))
+        services.create_participant_with_public_code(**_fields(user, competition))
 
 
 @pytest.mark.django_db

@@ -1,12 +1,13 @@
-# Operacje: kopie zapasowe, monitoring, alarmy, CI/CD, 2FA
+# Operacje: kopie zapasowe, monitoring, alarmy, CI/CD, 2FA, drugi konkurs
 
 Dokument dla osoby, która utrzymuje działający serwis – nie dla programisty i nie dla
-koordynatora. Odpowiada na cztery pytania, które padają w tej kolejności:
+koordynatora. Odpowiada na pięć pytań, które padają w tej kolejności:
 
 1. **czy przeżyjemy utratę serwera** (kopie zapasowe i odtwarzanie),
 2. **skąd się dowiemy, że coś nie działa** (monitoring i alarmy),
 3. **jak wjeżdża nowa wersja** (CI/CD),
-4. **jak chronione są konta z dostępem do cudzych danych** (2FA).
+4. **jak chronione są konta z dostępem do cudzych danych** (2FA),
+5. **jak dołożyć drugi konkurs, nie ruszając pierwszego** (§ 6).
 
 Na końcu jest lista kontrolna incydentu – do otwarcia wtedy, gdy nie ma czasu czytać reszty.
 
@@ -401,7 +402,126 @@ konta – hasło działa dalej.
 
 ---
 
-## 6. Lista kontrolna incydentu
+## 6. Drugi konkurs na tej samej instalacji
+
+Platforma prowadzi wiele niezależnych konkursów z jednej bazy i jednego wdrożenia
+(`docs/UNIWERSALNY-ETAP-1.md`). Ten runbook jest kolejnością czynności **na produkcji** — opis
+samej komendy i wariantu z prefiksem ścieżki jest w README § 3 („Kolejny konkurs na tej samej
+instalacji”), a tutaj stoi to, czego README nie zna: co sprawdzić **przed** i czym przełączyć flagi.
+
+Kolejność nie jest dowolna. Konkurs założony przed pre-flightem członkostw nadal zadziała, ale
+przełącznik ról zostanie wtedy przestawiony na bazie, o której nikt nie sprawdził, czy backfill
+jej nie pominął — a objaw tego wychodzi dopiero wtedy, gdy recenzent nie widzi przydziałów.
+
+### 6.1. Pre-flight: czy wolno przełączyć role na członkostwa
+
+O tym, czy ktoś jest recenzentem, rozstrzyga dziś **globalna grupa Django**; po przełączeniu flagi
+`memberships_enforced` rozstrzyga **wiersz `accounts.Membership` konkursu**. Różnicę pokazuje:
+
+```bash
+# na serwerze, w /opt/olimpiada
+docker compose exec -T web python manage.py check_memberships          # kod 1, gdy jest rozjazd
+docker compose exec -T web python manage.py check_memberships --all    # także role bez rozjazdu
+docker compose exec -T web python manage.py check_memberships --fix    # dopisz brakujące
+```
+
+Komenda nigdy nie kasuje członkostw — `--fix` wyłącznie dopisuje. Czytając wynik:
+
+- `UWAGA … bez członkostwa N z M` — **te osoby stracą dostęp** po przełączeniu flagi. Uruchom
+  `--fix`, a potem komendę jeszcze raz bez flagi: ma wyjść zero.
+- `info … członkostw bez grupy Django` — to nie jest rozjazd ról, tylko brak dostępu do `/cms/`
+  (panel redakcyjny wisi na uprawnieniach grupy `coordinator`, migracja `cms.0003_coordinator_permissions`).
+  Dotyczy koordynatorów i naprawia się dodaniem do grupy w `/admin/ → Użytkownicy`.
+
+Przy **jednym** konkursie w bazie komenda przyjmuje, że każdy członek globalnej grupy należy do
+niego (bo innego nie ma). Od drugiego konkursu przypisuje wyłącznie osoby, które mają w konkursie
+ślad: profil uczestnika, profil opiekuna szkolnego albo jakiekolwiek członkostwo. Członek grupy bez
+takiego śladu nie jest przypisywany nigdzie — i to jest właściwa odpowiedź, bo zgadywanie dałoby
+recenzentowi jednego konkursu wgląd w prace drugiego.
+
+### 6.2. Założenie konkursu — najpierw na sucho
+
+```bash
+docker compose exec -T web python manage.py create_competition \
+  --slug fizyczna --name "Olimpiada Fizyczna" --domain olimpiadafizyczna.pl \
+  --from-template przedmiotowa --organizer "Polskie Towarzystwo Fizyczne" \
+  --contact-email biuro@example.org --coordinator-email koordynator@example.org \
+  --dry-run
+```
+
+`--dry-run` wykonuje **całość** i wycofuje transakcję, więc sprawdza to, co sprawdzi baza
+(unikalność identyfikatora i domeny, więzy edycji, walidację modeli), a nie to, co o niej pamiętamy.
+Powtórz bez `--dry-run`, gdy wydruk się zgadza.
+
+Komenda zakłada przy okazji **pierwszą edycję** (bieżącą) i etapy z szablonu. Ich terminy są
+wartością początkową odłożoną od pierwszego dnia następnego miesiąca — mają wyglądać na zastępcze,
+bo są zastępcze. Harmonogram wpisuje koordynator w panelu; `--edition-label` nadpisuje domyślne
+oznaczenie rocznika (`I edycja <rok>/<rok+1>`, liczone od września).
+
+`--coordinator-email` wymaga **istniejącego** konta: komenda kont nie zakłada. Nadaje rolę
+koordynatora w tym konkursie **i** dopisuje do grupy Django `coordinator` — ta grupa jest globalna,
+więc daje dostęp do `/cms/` całej instalacji. Jeżeli redakcje mają być rozdzielone, ogranicz temu
+kontu uprawnienia do stron w `/cms/ → Ustawienia → Grupy`.
+
+### 6.3. `.env`, wdrożenie, DNS
+
+Dołożenie domeny musi zadziałać w **trzech** konfiguracjach naraz, bo każdy brak milczy inaczej:
+brak w Caddym = brak certyfikatu i „no such site”, brak w `ALLOWED_HOSTS` = 400 na każde żądanie,
+brak w `CSRF_TRUSTED_ORIGINS` = odmowa na każdym formularzu. Wpisuje się ją **w jednym** miejscu:
+
+```dotenv
+# /opt/olimpiada/.env
+EXTRA_DOMAINS=olimpiadafizyczna.pl www.olimpiadafizyczna.pl
+```
+
+Django dokłada stąd hosty do `DJANGO_ALLOWED_HOSTS` i origins `https://…` do
+`DJANGO_CSRF_TRUSTED_ORIGINS` samo (`config/settings/base.py`) — wpisanie ich wprost niczego nie
+psuje, wartości ręczne zostają na początku list. Potem:
+
+```bash
+./scripts/render_caddyfile.sh && docker compose up -d proxy web worker beat
+docker compose exec -T web python manage.py check_domains --all       # kontrola trzech miejsc
+```
+
+**DNS** jest ostatni, bo dopiero po nim Caddy może pobrać certyfikat: rekord A/AAAA
+`olimpiadafizyczna.pl` → adres serwera (i `www.`, jeżeli ta nazwa ma działać). Osobny rekord `s3.`
+nie jest potrzebny — bucket jest jeden i pliki idą przez `S3_PUBLIC_ADDRESS` domeny platformy.
+Po zmianie DNS-u powtórz `check_domains` i otwórz stronę główną konkursu.
+
+Ten sam konkurs da się założyć wdrożeniem (krok 6a, z `--skip-existing`, więc wdrożenie da się
+powtórzyć):
+
+```bash
+NEW_COMPETITION_SLUG=fizyczna NEW_COMPETITION_NAME="Olimpiada Fizyczna" \
+NEW_COMPETITION_DOMAIN=olimpiadafizyczna.pl NEW_COMPETITION_TEMPLATE=przedmiotowa \
+NEW_COMPETITION_EDITION_LABEL="I edycja 2026/2027" \
+NEW_COMPETITION_COORDINATOR_EMAIL=koordynator@example.org \
+scripts/deploy.sh root@<host>
+```
+
+### 6.4. Przełączniki konkursu w `/admin/`
+
+Flagi siedzą w polu `feature_flags` wiersza konkursu (`/admin/ → Konkursy → <konkurs>`), jako JSON
+z **różnicami** wobec wartości domyślnych. Pusty słownik `{}` znaczy „jak dziś”.
+
+```json
+{"memberships_enforced": true, "competition_settings_page": true}
+```
+
+- **`memberships_enforced`** — przełącza autoryzację z globalnych grup Django na `Membership` tego
+  konkursu. Przełączaj **wyłącznie po zielonym `check_memberships`** (§ 6.1). Cofnięcie to ta sama
+  jedna wartość, bez wdrożenia: flaga zostaje w kodzie jeden sezon właśnie po to.
+- **`competition_settings_page`** — pokazuje koordynatorowi ekran „Ustawienia konkursu”
+  (`/coordinator/competition/`): marka, organizator, kontakt. Adresowania (witryna, identyfikator,
+  tryb, prefiks) nie ma tam z założenia — zmiana domeny wymaga dostępu do serwera, więc należy do
+  operatora platformy, nie do koordynatora.
+
+Po każdym przestawieniu flagi: zaloguj się na konto jednej osoby z każdej roli i sprawdź, że widzi
+to, co widziała. Flaga jest odwracalna w minutę, ale tylko wtedy, gdy ktoś zauważy w tej minucie.
+
+---
+
+## 7. Lista kontrolna incydentu
 
 Otwórz, gdy przyszedł alarm albo telefon „nie działa”. Kolejność jest od najtańszego do
 najdroższego i ma jeden cel: **nie zrobić niczego nieodwracalnego w pierwszych pięciu minutach.**

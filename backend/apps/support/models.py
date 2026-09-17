@@ -36,6 +36,8 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from apps.competitions.scoping import competition_scoped_manager
+
 #: Twardy limit na teksty od użytkownika. Dłuższy tekst odrzuca formularz, a nie obcina po cichu –
 #: obcięte zgłoszenie kończyłoby się w połowie zdania, w którym zwykle jest sedno sprawy.
 MAX_BODY_LENGTH = 10000
@@ -88,6 +90,25 @@ def default_context() -> dict:
 class SupportTicket(models.Model):
     """Jedna sprawa zgłoszona organizatorowi."""
 
+    # Właściciel sprawy: organizator **tego** konkursu (``docs/UNIWERSALNY-ETAP-1.md`` § 3.2).
+    #
+    # ``SET_NULL``, a nie ``PROTECT``: korespondencja nie może zniknąć razem z konkursem ani
+    # zablokować jego usunięcia. Sprawa po skasowanym konkursie zostaje w bazie jako sprawa bez
+    # adresata – czyli dokładnie to, czym się wtedy staje.
+    #
+    # ``null=True`` opisuje jednak przede wszystkim **inny** przypadek i to on jest tu treścią:
+    # pusty konkurs znaczy „zgłoszenie do operatora platformy”. Osoba, która nie może się
+    # zalogować pod adresem bez konkursu (nieznany host, strona operatora), ma mieć dokąd
+    # napisać, a jej sprawa nie należy do żadnego organizatora.
+    competition = models.ForeignKey(
+        "tenancy.Competition",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="support_tickets",
+        verbose_name="konkurs",
+        help_text="Puste = zgłoszenie do operatora platformy.",
+    )
     # ``CASCADE``, a nie ``SET_NULL``, i to jest decyzja o danych, nie o kluczu obcym: zgłoszenie
     # jest **korespondencją tej osoby**, a nie dokumentem zawodów. Konto kasowane w całości to
     # konto bez śladu w zawodach (``apps.accounts.profile._erase_account``), czyli takie, którego
@@ -123,6 +144,11 @@ class SupportTicket(models.Model):
     created_at = models.DateTimeField("zgłoszone", default=timezone.now)
     answered_at = models.DateTimeField("odpowiedziano", null=True, blank=True)
     closed_at = models.DateTimeField("zamknięte", null=True, blank=True)
+
+    #: Własna kolumna – sprawa nie ma jak dojść do konkursu inną drogą (§ 3.5). ``for_competition``
+    #: jest **ścisłe**: sprawa bez konkursu należy do operatora platformy i w kolejce organizatora
+    #: nie ma czego szukać.
+    objects = competition_scoped_manager("competition")
 
     class Meta:
         verbose_name = "zgłoszenie"

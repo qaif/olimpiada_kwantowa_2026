@@ -8,11 +8,13 @@ Powiadomienia idą przez ``apps.accounts.activation.queue_mail``, czyli tą sam�
 aktywacyjne: wysyłka jest **skutkiem ubocznym** zapisu i jedzie po commicie. Niedostępny MTA nie
 może zamienić zgłoszonej sprawy w błąd 500 – a to jest sprawa kogoś, komu już coś nie zadziałało.
 
-Adres organizatora bierzemy z ``cms.SiteSettings.contact_email`` (Ustawienia → Dane serwisu),
-a nie z ``DEFAULT_FROM_EMAIL``: to drugie jest adresem **nadawcy** naszych listów (``noreply@…``),
-więc powiadomienie o nowym zgłoszeniu lądowałoby w skrzynce, której nikt nie czyta. Gdy ustawienia
-nie da się odczytać (świeża baza, komenda zarządzająca bez witryny), schodzimy na
-``DEFAULT_FROM_EMAIL`` – list bez idealnego adresata jest lepszy niż wywrócona wysyłka.
+Adres organizatora bierzemy z **konkursu sprawy** (``tenancy.Competition.contact_email``), a nie
+z ``DEFAULT_FROM_EMAIL``: to drugie jest adresem **nadawcy** naszych listów (``noreply@…``), więc
+powiadomienie o nowym zgłoszeniu lądowałoby w skrzynce, której nikt nie czyta. Dalsze odwroty to
+``cms.SiteSettings.contact_email`` (Ustawienia → Dane serwisu) i dopiero na końcu
+``DEFAULT_FROM_EMAIL`` – list bez idealnego adresata jest lepszy niż wywrócona wysyłka. Dla
+Olimpiady Kwantowej wszystkie trzy wskazują dziś na ten sam adres: ``tenancy.0002`` przepisała go
+z ustawień serwisu (``docs/UNIWERSALNY-ETAP-1.md`` § 0.1).
 """
 
 from __future__ import annotations
@@ -66,18 +68,23 @@ def _clean_text(value: str, *, field: str, label: str) -> str:
     return text
 
 
-def role_snapshot(user) -> str:
+def role_snapshot(user, competition=None) -> str:
     """Rola konta w chwili zgłoszenia, jednym słowem. Pusty napis = zgłoszenie bez konta.
 
     Kolejność rozstrzygania jest ta sama, co na liście kont koordynatora
     (``apps.web.views.coordinator_accounts.account_role``) – dwie różne odpowiedzi na pytanie
     „kim jest ta osoba” byłyby gorsze niż brak odpowiedzi.
+
+    Rola jest rolą **w konkursie sprawy** (§ 3.8): ta sama osoba bywa uczestnikiem jednej
+    olimpiady i recenzentem drugiej, a wątek czyta się w kontekście tego, kim nadawca był po tej
+    stronie. Profil uczestnika podajemy wprost, bo po § 3.3 relacja jest wielokrotna i to wołający
+    rozstrzyga, o który z profili chodzi.
     """
     if user is None or not user.is_authenticated:
         return ""
     from apps.web.views.coordinator_accounts import account_role
 
-    return account_role(user)
+    return account_role(user, competition, _participant_of(user, competition))
 
 
 def _last_audit_action(user) -> str:
@@ -97,13 +104,28 @@ def _last_audit_action(user) -> str:
     return entry.action if entry is not None else ""
 
 
-def _stage_ids(user) -> list[int]:
+def _participant_of(user, competition):
+    """Profil uczestnika zgłaszającego **w tym konkursie** albo ``None``.
+
+    ``participant_for``, a nie ``user.participant``: od wydania D jedna osoba ma tyle profili, ile
+    olimpiad, w których startuje (§ 3.3). Kontekst zgłoszenia ma opisywać tę, z której strony
+    sprawa przyszła – kod uczestnika z cudzego konkursu byłby w kolejce organizatora
+    identyfikatorem, który u niego niczego nie otwiera.
+    """
+    if user is None:
+        return None
+    from apps.accounts.services import participant_for
+
+    return participant_for(user, competition)
+
+
+def _stage_ids(user, competition) -> list[int]:
     """Etapy, w których zgłaszający jest zapisany – od najnowszego, najwyżej kilka.
 
     Identyfikatory, a nie nazwy: koordynator i tak klika w etap w panelu, a nazwa w kontekście
     rozjechałaby się z nazwą etapu, gdyby organizator ją zmienił po zgłoszeniu.
     """
-    participant = getattr(user, "participant", None) if user is not None else None
+    participant = _participant_of(user, competition)
     if participant is None:
         return []
     from apps.competitions.models import StageEntry
@@ -130,7 +152,8 @@ def collect_context(request, *, page_url: str = "") -> dict:
     user = getattr(request, "user", None)
     if user is not None and not user.is_authenticated:
         user = None
-    participant = getattr(user, "participant", None) if user is not None else None
+    competition = ticket_competition(request)
+    participant = _participant_of(user, competition)
     return {
         "adres_strony": (page_url or "").strip()[:500],
         "przegladarka": (request.headers.get("User-Agent") or "").strip()[:USER_AGENT_LIMIT],
@@ -138,19 +161,47 @@ def collect_context(request, *, page_url: str = "") -> dict:
         # coś dziwnego” czyta się inaczej, gdy przyszło z wersji angielskiej.
         "jezyk": get_language() or "",
         "kod_uczestnika": participant.public_code if participant is not None else "",
-        "etapy": _stage_ids(user),
+        "etapy": _stage_ids(user, competition),
         "ostatnia_czynnosc": _last_audit_action(user),
     }
 
 
-def _organizer_email() -> str:
+def ticket_competition(request=None):
+    """Konkurs, do którego idzie zgłoszenie składane właśnie teraz.
+
+    Kolejność jest ta sama, co wszędzie indziej w tym etapie: konkurs żądania (ustawia go
+    ``CompetitionMiddleware``) → kontekst (``competition_context`` w zadaniu, komendzie, teście) →
+    ``None``. ``None`` jest odpowiedzią **poprawną**, a nie brakiem danych: sprawa napisana pod
+    adresem, którego nikt nie przypisał do konkursu, idzie do operatora platformy (§ 3.2).
+
+    Czego ta funkcja świadomie **nie** robi: nie schodzi na „jedyny konkurs w instalacji”
+    (``default_competition``). Tamten odwrót jest dla kodu, który musi komuś przypisać nowy
+    wiersz; tutaj pusty konkurs ma własne, sensowne znaczenie, więc zgadywanie tylko by je
+    zamazało.
+    """
+    from apps.tenancy.context import current_competition
+
+    competition = getattr(request, "competition", None) if request is not None else None
+    return competition if competition is not None else current_competition()
+
+
+def _organizer_email(competition=None) -> str:
     """Adres organizatora dla powiadomień o nowych zgłoszeniach.
 
-    ``SiteSettings`` jest źródłem prawdy (ten sam adres stoi w stopce i na stronie „Kontakt”),
-    a ``DEFAULT_FROM_EMAIL`` jest wyłącznie awaryjnym wyjściem. Odczyt jest opakowany w ``try``,
-    bo ustawienia bywają nieosiągalne (baza bez drzewa stron), a niedostępne ustawienie nie może
-    wywrócić zapisu zgłoszenia.
+    Źródłem prawdy jest **konkurs sprawy** (``Competition.contact_email``): zgłoszenie idzie do
+    tego organizatora, którego strona je przyjęła, a nie do adresu instalacji. Dla Konkursu #1
+    nic się przez to nie zmienia – migracja ``tenancy.0002`` wzięła ten adres dokładnie
+    z ``SiteSettings.contact_email`` (§ 0.1), więc listy chodzą tam, gdzie chodziły.
+
+    Kolejność odwrotów: konkurs → ``SiteSettings`` witryny domyślnej (sprawa do operatora
+    platformy, konkurs bez wpisanego adresu) → ``DEFAULT_FROM_EMAIL``. Odczyt ustawień jest
+    opakowany w ``try``, bo bywają nieosiągalne (baza bez drzewa stron), a niedostępne ustawienie
+    nie może wywrócić zapisu zgłoszenia.
     """
+    if competition is not None:
+        address = (competition.contact_email or "").strip()
+        if address:
+            return address
     try:
         from wagtail.models import Site
 
@@ -183,7 +234,11 @@ def _notify_organizer(ticket: SupportTicket, *, request=None) -> None:
             link,
         ]
     )
-    queue_mail(f"Nowe zgłoszenie #{ticket.pk} – Olimpiada Kwantowa", message, _organizer_email())
+    queue_mail(
+        f"Nowe zgłoszenie #{ticket.pk} – Olimpiada Kwantowa",
+        message,
+        _organizer_email(ticket.competition),
+    )
 
 
 def _notify_reporter(ticket: SupportTicket, *, request=None) -> None:
@@ -246,10 +301,12 @@ def open_ticket(
             http.HTTP_400_BAD_REQUEST,
         )
 
+    competition = ticket_competition(request)
     ticket = SupportTicket.objects.create(
+        competition=competition,
         user=account,
         email=address,
-        role_snapshot=role_snapshot(account),
+        role_snapshot=role_snapshot(account, competition),
         category=category,
         subject=clean_subject,
         context=context or {},
@@ -333,6 +390,21 @@ def set_status(ticket: SupportTicket, new_status: str, *, actor, request=None) -
     return ticket
 
 
-def open_ticket_count() -> int:
-    """Liczba spraw czekających na organizatora – licznik na pulpicie koordynatora."""
-    return SupportTicket.objects.filter(status__in=PENDING_STATUSES).count()
+def pending_tickets(competition=None):
+    """Sprawy czekające na organizatora **tego** konkursu – jedno źródło kolejki i licznika.
+
+    Kolejka w panelu i licznik na pulpicie muszą liczyć to samo, więc zawężenie jest tu, a nie
+    w dwóch widokach. ``for_competition`` jest ścisłe: sprawa bez konkursu należy do operatora
+    platformy i w kolejce organizatora nie ma czego szukać.
+    """
+    queryset = SupportTicket.objects.filter(status__in=PENDING_STATUSES)
+    return queryset.for_competition(ticket_competition() if competition is None else competition)
+
+
+def open_ticket_count(competition=None) -> int:
+    """Liczba spraw czekających na organizatora – licznik na pulpicie koordynatora.
+
+    Argument jest opcjonalny, bo licznik liczy się w żądaniu, a tam konkurs stoi w kontekście.
+    Wołający, który konkurs zna (komenda, test, zadanie wsadowe), podaje go wprost.
+    """
+    return pending_tickets(competition).count()

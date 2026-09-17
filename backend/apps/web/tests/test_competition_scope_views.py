@@ -130,12 +130,20 @@ def test_account_of_another_competition_is_not_found(coordinator_a, other_compet
 def test_audit_browser_hides_entries_about_objects_of_another_competition(
     coordinator_a, competition, world_b
 ):
-    """Zakres audytu idzie **przez obiekt** wpisu – ``AuditLog`` nie ma własnej kolumny konkursu."""
+    """Zakres audytu idzie od wydania D **własną kolumną** wpisu (``AuditLog.competition``, § 3.9).
+
+    Wpisy powstają w ``competition_context``, czyli tak, jak powstają poza żądaniem: w zadaniu
+    Celery, w komendzie i w migracji. W żądaniu konkurs bierze się z ``request.competition``
+    i nie ma jak go pominąć – tu podajemy go wprost, bo wołamy helper bez żądania.
+    """
     from apps.core.models import audit
+    from apps.tenancy.context import competition_context
 
     mine = StageFactory(competition=competition)
-    audit(None, "stage.closed", mine)
-    audit(None, "stage.rule_updated", world_b["stage"])
+    with competition_context(competition):
+        audit(None, "stage.closed", mine)
+    with competition_context(world_b["competition"]):
+        audit(None, "stage.rule_updated", world_b["stage"])
 
     content = coordinator_a.get("/coordinator/audit/").content.decode()
 
@@ -146,12 +154,32 @@ def test_audit_browser_hides_entries_about_objects_of_another_competition(
 def test_audit_filter_choices_are_scoped_too(coordinator_a, world_b):
     """Sama nazwa akcji z cudzego konkursu bywa informacją („u kogoś padło ``stage.closed``”)."""
     from apps.core.models import audit
+    from apps.tenancy.context import competition_context
 
-    audit(None, "results.published", world_b["stage"])
+    with competition_context(world_b["competition"]):
+        audit(None, "results.published", world_b["stage"])
 
     content = coordinator_a.get("/coordinator/audit/").content.decode()
 
     assert 'value="results.published"' not in content
+
+
+def test_platform_audit_entries_stay_visible(coordinator_a, competition):
+    """Wpis bez konkursu (konto, witryna, alert) zostaje na ekranie – i to jest reguła, nie luka.
+
+    Koordynator Olimpiady Kwantowej czyta te wiersze od zawsze, a schowanie ich po wdrożeniu
+    wielokonkursowości byłoby zmianą widoczną i niezamówioną (§ 0). ``visible_to`` dopuszcza je
+    świadomie i pod własną nazwą – ``for_competition`` ich **nie** oddaje.
+    """
+    from apps.accounts.tests.factories import UserFactory
+    from apps.core.models import audit
+
+    account = UserFactory(email="platformowe@example.invalid")
+    audit(None, "account.blocked", account)
+
+    content = coordinator_a.get("/coordinator/audit/").content.decode()
+
+    assert f"accounts.user#{account.pk}" in content
 
 
 # --- panel recenzenta -----------------------------------------------------------------------
@@ -302,3 +330,177 @@ def test_reviewer_of_another_competition_gets_403_on_this_panel(client_for, comp
     response = logged_in(client_for, competition, reviewer_b.user).get("/review/")
 
     assert response.status_code == 403
+
+
+# --- wydanie D: domknięcie ekranów, które do wydania C zawężały się „przez edycję” -------------
+#
+# Cztery ekrany panelu zostały po wydaniu C z zakresem zbudowanym z tego, co akurat było pod ręką:
+# retencja liczyła plan konkursu, ale przycisk uruchamiał przebieg całej instalacji; kolejka
+# zgłoszeń nie zawężała się wcale; klucze API, odbiorcy webhooków i szablony dokumentów uznawały
+# wiersz „na wszystkie edycje” za wspólną półkę instalacji. Wydanie D dało wszystkim tym modelom
+# własną kolumnę konkursu – te testy pilnują, że ekrany faktycznie z niej korzystają.
+
+
+def test_retention_run_now_does_not_touch_another_competition(coordinator_a, other_competition):
+    """Przycisk „Wykonaj teraz” jest nieodwracalny, więc nie ma prawa wyjść poza swój konkurs.
+
+    Świat B jest zbudowany tak, żeby przebieg **chciał** go ruszyć: edycja archiwalna z minionym
+    terminem retencji, etap z ogłoszonymi wynikami i uczestnik z jednym wpisem. Gdyby zakres nie
+    działał, konto sąsiada zostałoby zanonimizowane jednym kliknięciem pod cudzą domeną – a tego
+    nie da się cofnąć ani wytłumaczyć.
+    """
+    from datetime import timedelta
+
+    from apps.accounts.profile import ANONYMISED_EMAIL_DOMAIN
+    from apps.competitions.models import StageKind
+    from apps.competitions.tests.factories import EditionFactory
+
+    past = timezone.now() - timedelta(days=31 * 30)
+    edition_b = EditionFactory(competition=other_competition, data_retention_months=24)
+    stage_b = StageFactory(
+        competition=other_competition,
+        edition=edition_b,
+        kind=StageKind.ELIM,
+        opens_at=past - timedelta(days=30),
+        deadline_at=past,
+        review_deadline_at=past + timedelta(days=14),
+        appeal_window_opens_at=past + timedelta(days=16),
+        appeal_window_closes_at=past + timedelta(days=23),
+        results_published_at=past + timedelta(days=24),
+    )
+    stranger = ParticipantFactory(competition=other_competition, user__email="sasiad@example.invalid")
+    StageEntryFactory(competition=other_competition, participant=stranger, stage=stage_b)
+
+    listing = coordinator_a.get("/coordinator/retention/").content.decode()
+    coordinator_a.post("/coordinator/retention/")
+
+    stranger.user.refresh_from_db()
+    assert edition_b.year_label not in listing
+    assert ANONYMISED_EMAIL_DOMAIN not in stranger.user.email
+
+
+def test_support_queue_lists_only_this_competitions_tickets(coordinator_a, competition, other_competition):
+    """Sprawa idzie do organizatora **swojego** konkursu: on ją czyta, on na nią odpowiada."""
+    from apps.support.tests.factories import SupportTicketFactory
+
+    mine = SupportTicketFactory(competition=competition, subject="Sprawa tutejsza")
+    stranger = SupportTicketFactory(competition=other_competition, subject="Sprawa sąsiada")
+
+    content = coordinator_a.get("/coordinator/support/").content.decode()
+
+    assert mine.subject in content
+    assert stranger.subject not in content
+
+
+def test_platform_support_ticket_stays_with_the_operator(coordinator_a):
+    """Zgłoszenie **do operatora platformy** (bez konkursu) nie jest sprawą żadnego koordynatora.
+
+    ``SupportTicket.competition`` jest ``null=True`` właśnie dla tych spraw (§ 3.2), a kolejka
+    stoi na ``for_competition``, które – inaczej niż ``AuditLog.visible_to`` – wierszy bez
+    konkursu **nie** oddaje. Tu nie ma czego pokazywać koordynatorowi: adresatem jest ktoś inny.
+    """
+    from apps.support.models import SupportTicket
+
+    ticket = SupportTicket.objects.create(
+        email="ktos@example.invalid", subject="Sprawa do operatora", competition=None
+    )
+
+    assert ticket.subject not in coordinator_a.get("/coordinator/support/").content.decode()
+    assert coordinator_a.get(f"/coordinator/support/{ticket.pk}/").status_code == 404
+
+
+def test_api_key_of_another_competition_is_invisible_and_cannot_be_revoked(coordinator_a, other_competition):
+    """Klucz „na wszystkie edycje” jest od wydania D kluczem jednego konkursu, nie instalacji."""
+    from apps.integrations.services import create_api_key
+
+    key, _token = create_api_key(
+        name="Partner sąsiada", scopes=["read:results"], competition=other_competition
+    )
+
+    content = coordinator_a.get("/coordinator/integrations/").content.decode()
+
+    assert key.name not in content
+    assert coordinator_a.post(f"/coordinator/integrations/keys/{key.pk}/revoke/").status_code == 404
+
+
+def test_webhook_endpoint_of_another_competition_is_not_found(coordinator_a, other_competition):
+    """Odbiorca bez edycji też ma właściciela – inaczej zdarzenia A jechałyby na serwer B."""
+    from apps.integrations.services import create_endpoint
+
+    endpoint = create_endpoint(
+        url="https://sasiad.example.invalid/hook",
+        events=["stage.closed"],
+        competition=other_competition,
+    )
+
+    content = coordinator_a.get("/coordinator/integrations/").content.decode()
+
+    assert endpoint.url not in content
+    assert coordinator_a.post(f"/coordinator/integrations/webhooks/{endpoint.pk}/delete/").status_code == 404
+
+
+def test_certificate_template_of_another_competition_is_not_found(coordinator_a, other_competition):
+    """Winieta „na wszystkie edycje” sąsiada nie ma się pojawić ani na liście, ani pod adresem."""
+    from apps.results.models import CertificateTemplate
+
+    template = CertificateTemplate.objects.create(
+        name="Winieta sąsiada", kind="", competition=other_competition
+    )
+
+    content = coordinator_a.get("/coordinator/certificates/templates/").content.decode()
+
+    assert template.name not in content
+    assert coordinator_a.get(f"/coordinator/certificates/templates/{template.pk}/").status_code == 404
+
+
+def test_new_certificate_template_belongs_to_this_competition(coordinator_a, competition):
+    """Szablon wgrany pod domeną konkursu jest jego szablonem – bez pola i bez pytania."""
+    from apps.results.models import CertificateTemplate
+
+    coordinator_a.post(
+        "/coordinator/certificates/templates/new/",
+        {"name": "Winieta tutejsza", "kind": "", "edition": "", "is_active": "on"},
+    )
+
+    saved = CertificateTemplate.objects.get(name="Winieta tutejsza")
+    assert saved.competition_id == competition.pk
+
+
+def test_accounts_list_hides_a_participant_of_another_competition(
+    coordinator_a, competition, other_competition
+):
+    """Konto „niczyje” zostaje widoczne, ale konto startujące **wyłącznie u sąsiada** – nie.
+
+    Reguła T5 („bez ani jednego członkostwa = widoczne dla każdego”) zostaje, bo konto bez ról
+    jest w tej bazie stanem realnym. Profil uczestnika jest jednak drugim, mocniejszym dowodem
+    własności: wiersz ``Participant`` bywa dopisany poza serwisem nadającym role, a razem z nim
+    na listę weszłyby nazwisko, szkoła i kod publiczny cudzego ucznia.
+    """
+    stranger = ParticipantFactory(
+        competition=other_competition, user__email="tylko-u-sasiada@example.invalid"
+    )
+    nobodys = UserFactory(email="niczyje@example.invalid")
+
+    content = coordinator_a.get("/coordinator/accounts/").content.decode()
+
+    assert nobodys.email in content
+    assert stranger.user.email not in content
+    assert coordinator_a.get(f"/coordinator/accounts/{stranger.user.pk}/").status_code == 404
+
+
+def test_accounts_list_shows_the_role_of_this_competition(coordinator_a, competition, other_competition):
+    """Kolumna „rola” mówi, kim ta osoba jest **tutaj** – a nie kim bywa gdzie indziej.
+
+    Układ testu jest tym, który powstaje sam: recenzent olimpiady kwantowej startuje jako
+    uczestnik w olimpiadzie sąsiada. Na liście konkursu A ma stać „członek komitetu”, bo profil
+    komitetu należy do A; profil uczestnika konkursu B nie jest tu żadną rolą i nie ma prawa
+    przykryć tamtej etykiety.
+    """
+    reviewer = ActiveReviewerFactory(competition=competition)
+    grant_membership(reviewer.user, competition, CompetitionRole.REVIEWER)
+    elsewhere = ParticipantFactory(competition=other_competition, user=reviewer.user)
+
+    content = coordinator_a.get(f"/coordinator/accounts/{reviewer.user.pk}/").content.decode()
+
+    assert "członek komitetu" in content
+    assert elsewhere.public_code not in content

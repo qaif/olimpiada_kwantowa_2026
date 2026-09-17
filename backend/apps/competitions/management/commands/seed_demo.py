@@ -17,9 +17,11 @@ from apps.accounts.services import (
     approve_committee_member,
     create_invitation,
     make_coordinator,
+    participant_for,
     register_participant,
 )
 from apps.competitions.models import Edition, Problem, Stage, StageEntry, StageEntryStatus, StageKind
+from apps.competitions.scoping import require_competition
 from apps.competitions.services import create_stage
 
 DEMO_PASSWORD = "Demo12345!"  # noqa: S105 - konto demonstracyjne, wyłącznie dla środowiska dev
@@ -65,6 +67,10 @@ class Command(BaseCommand):
             )
 
         now = timezone.now()
+        # Konkurs, do którego należą dane demonstracyjne: wskazany kontekstem albo jedyny
+        # w instalacji. Przy kilku konkursach komenda **przerywa** zamiast wybierać – seed, który
+        # sam sobie wybiera organizatora, dopisuje edycję i konta cudzej olimpiadzie.
+        self.competition = require_competition()
         edition = self._ensure_edition()
         stages = {kind: self._ensure_stage(edition, kind, plan, now) for kind, *plan in STAGE_PLAN}
         elim = stages[StageKind.ELIM]
@@ -84,10 +90,18 @@ class Command(BaseCommand):
     # --- edycja i etapy -------------------------------------------------------------------
 
     def _ensure_edition(self) -> Edition:
-        edition, created = Edition.objects.get_or_create(year_label=DEMO_EDITION_LABEL)
+        # Oznaczenie edycji jest unikalne **w konkursie** (wydanie D), więc szuka się go razem
+        # z właścicielem: bez tego seed dopisywałby się do rocznika o tej samej nazwie w cudzym
+        # konkursie albo wywracał się na więzi ``competitions_edition_unique_year_label``.
+        edition, created = Edition.objects.get_or_create(
+            competition=self.competition, year_label=DEMO_EDITION_LABEL
+        )
         if not edition.is_current:
-            # Najpierw zdejmij flagę z innych edycji – częściowy unique constraint dopuszcza jedną bieżącą.
-            Edition.objects.filter(is_current=True).exclude(pk=edition.pk).update(is_current=False)
+            # Najpierw zdejmij flagę z innych edycji **tego** konkursu – częściowy unique constraint
+            # dopuszcza jedną bieżącą na konkurs, a edycja sąsiada nie jest tu niczyim problemem.
+            Edition.objects.filter(competition=self.competition, is_current=True).exclude(
+                pk=edition.pk
+            ).update(is_current=False)
             edition.is_current = True
             edition.save(update_fields=["is_current"])
         self._report("edycja", edition.year_label, created)
@@ -177,7 +191,9 @@ class Command(BaseCommand):
                 )
                 created = True
             else:
-                participant = user.participant
+                # ``participant_for``, a nie ``user.participant``: profil jest profilem **w tym
+                # konkursie**, a relacja jeden-do-jednego znikła razem z wydaniem D.
+                participant = participant_for(user, self.competition)
                 created = False
             self._mark_verified(participant.user)
             self._report("uczestnik", email, created)
@@ -200,8 +216,12 @@ class Command(BaseCommand):
                     last_name="Demo",
                 )
             self._mark_verified(user)
+            # Komitet jest komitetem **tego** konkursu, więc profil szuka się razem z konkursem:
+            # bez tego seed dopisywałby recenzenta do komitetu, który akurat stoi w bazie pierwszy.
             member, _ = CommitteeMember.objects.get_or_create(
-                user=user, defaults={"district": district, "status": CommitteeStatus.PENDING}
+                user=user,
+                competition=self.competition,
+                defaults={"district": district, "status": CommitteeStatus.PENDING},
             )
             if member.status == CommitteeStatus.PENDING:
                 # Ta sama ścieżka co w panelu koordynatora: status ACTIVE + grupy reviewer/appeals.

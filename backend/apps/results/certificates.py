@@ -45,6 +45,7 @@ from rest_framework import status as http
 
 from apps.accounts.models import SchoolSupervisor
 from apps.competitions.models import Edition, StageEntry
+from apps.competitions.scoping import scope_to_competition
 from apps.core.api import DomainError
 from apps.core.models import audit
 
@@ -106,15 +107,35 @@ def _conflict(detail: str, code: str) -> DomainError:
 # --- rejestr ------------------------------------------------------------------------------------
 
 
-def _next_number(year: int) -> str:
-    """Kolejny numer w roku: ``OK/<rok>/<liczba>``.
+def number_prefix(competition=None) -> str:
+    """Prefiks numeru dokumentu tego konkursu – ``"OK"`` dla Olimpiady Kwantowej.
+
+    Prefiks jest własnością konkursu (``Competition.certificate_prefix``, § 3.3), bo numer trafia
+    na papier i do pism: dwa konkursy jednej instalacji nie mogą wystawiać dokumentów o numerach
+    nierozróżnialnych na wydruku. Konkurs #1 dostał w migracji ``tenancy.0003`` dokładnie ``"OK"``,
+    więc numery Olimpiady Kwantowej wyglądają i numerują się identycznie jak przed tą zmianą.
+
+    Odwrót na stałą ``CERTIFICATE_NUMBER_PREFIX`` obsługuje wyłącznie instalację bez konkursów
+    (baza sprzed ``tenancy.0002``) – tam nie ma czego pytać, a zachowanie ma być to sprzed etapu 1.
+    """
+    prefix = (getattr(competition, "certificate_prefix", "") or "").strip()
+    return prefix or CERTIFICATE_NUMBER_PREFIX
+
+
+def _next_number(year: int, competition=None) -> str:
+    """Kolejny numer w roku: ``<prefiks konkursu>/<rok>/<liczba>``.
 
     Numerację prowadzimy po **roku kalendarzowym wystawienia**, a nie po edycji: tak numeruje się
     dokumenty w sekretariacie i tak są cytowane w pismach. Kolejność wyliczamy z najwyższego
     dotychczasowego numeru, a nie z licznika wierszy – skasowany kiedyś wiersz nie może sprawić,
     że numer zostanie wydany komuś drugi raz.
+
+    Zapytanie idzie po **całej** tabeli, bez zawężenia do konkursu, i tak ma być: unikalność
+    numeru zostaje globalna (§ 3.3), a prefiks konkursu jest w nim zawarty, więc ``startswith``
+    i tak wybiera wyłącznie własną serię. Osobna numeracja per konkurs wychodzi z prefiksu, a nie
+    z filtra – a gdyby wyszła z filtra, dwa konkursy o tym samym prefiksie nadałyby ten sam numer.
     """
-    prefix = f"{CERTIFICATE_NUMBER_PREFIX}/{year}/"
+    prefix = f"{number_prefix(competition)}/{year}/"
     taken = Certificate.objects.filter(number__startswith=prefix).values_list("number", flat=True)
     highest = 0
     for number in taken:
@@ -165,6 +186,10 @@ def issue_certificate(
         return existing, False
 
     year = timezone.now().year
+    # Konkurs bierzemy z **edycji dokumentu**, a nie z kontekstu przebiegu: dyplom wystawiony
+    # w konkursie A ma nosić prefiks A także wtedy, gdy składa go przebieg wsadowy konkursu B.
+    # Ta sama zasada, co przy adresie weryfikacji w kodzie QR (``verification_url``).
+    competition = edition.competition
     for attempt in range(MAX_NUMBER_ATTEMPTS):
         try:
             with transaction.atomic():
@@ -173,7 +198,7 @@ def issue_certificate(
                     entry=entry,
                     supervisor=supervisor,
                     kind=kind,
-                    number=_next_number(year),
+                    number=_next_number(year, competition),
                     issued_by=actor if getattr(actor, "is_authenticated", False) else None,
                 )
         except IntegrityError:
@@ -235,8 +260,13 @@ def supervisors_with_participants(edition: Edition) -> list[dict]:
     if not counts:
         return []
     rows = []
-    for supervisor in SchoolSupervisor.objects.select_related("user").order_by(
-        "user__last_name", "user__first_name", "id"
+    # Zawężenie do konkursu edycji, a nie do całej instalacji: dopasowanie idzie **po adresie
+    # e-mail**, a ten sam nauczyciel bywa opiekunem w dwóch olimpiadach z tego samego adresu.
+    # Bez tego filtru zaświadczenie z edycji konkursu A trafiłoby na jego profil w konkursie B.
+    for supervisor in (
+        SchoolSupervisor.objects.for_competition(edition.competition)
+        .select_related("user")
+        .order_by("user__last_name", "user__first_name", "id")
     ):
         students = counts.get(normalize_supervisor_email(supervisor.user.email), 0)
         if students:
@@ -405,7 +435,18 @@ def certificate_content(certificate: Certificate) -> CertificateContent:
 # --- szablon graficzny --------------------------------------------------------------------------
 
 
-def resolve_template(kind: str, edition: Edition | None) -> CertificateTemplate | None:
+def templates_of(competition=None):
+    """Szablony jednego konkursu – wejście do każdego odczytu tej tabeli.
+
+    Odwrót („nie zawężaj”) należy do instalacji bez konkursów i jest tą samą regułą, co w całej
+    domenie zawodów (``apps.competitions.scoping.scope_to_competition``). Szablon ma od wydania D
+    własną kolumnę, więc „szablon dla wszystkich edycji” jest szablonem wszystkich edycji
+    **tego** konkursu, a nie wspólną półką instalacji.
+    """
+    return scope_to_competition(CertificateTemplate.objects.all(), competition)
+
+
+def resolve_template(kind: str, edition: Edition | None, competition=None) -> CertificateTemplate | None:
     """Szablon dla tego dokumentu albo ``None`` – wtedy obowiązuje układ wbudowany.
 
     Kolejność dopasowania idzie od najbardziej szczegółowego do najogólniejszego: (rodzaj, edycja)
@@ -414,11 +455,19 @@ def resolve_template(kind: str, edition: Edition | None) -> CertificateTemplate 
     dokumentów w tej samej edycji, a odwrotna kolejność kazałaby kopiować szablon laureata do
     każdej edycji z osobna, żeby nie przykryła go jubileuszowa winieta wspólna dla wszystkich.
 
+    Konkurs jest **przed** wszystkim (§ 3.5): domyślnie bierze się z edycji dokumentu, a nie
+    z kontekstu przebiegu – dyplom konkursu A ma dostać winietę A także wtedy, gdy składa go
+    przebieg wsadowy konkursu B. ``competition`` podaje wprost wyłącznie podgląd szablonu
+    w panelu, bo tam edycji może nie być wcale.
+
     Czytamy to przy każdym pobraniu dokumentu, więc każde zapytanie jest po indeksowanych
     kolumnach i bez ``JOIN``-ów – a najczęstszy przypadek (nie ma ani jednego szablonu) kończy
     się po pierwszym z nich.
     """
-    if not CertificateTemplate.objects.filter(is_active=True).exists():
+    if competition is None and edition is not None:
+        competition = edition.competition
+    scoped = templates_of(competition).filter(is_active=True)
+    if not scoped.exists():
         return None
     edition_id = edition.pk if edition is not None else None
     candidates = (
@@ -434,7 +483,7 @@ def resolve_template(kind: str, edition: Edition | None) -> CertificateTemplate 
         if filters in seen:
             continue
         seen.append(filters)
-        template = CertificateTemplate.objects.filter(is_active=True, **filters).first()
+        template = scoped.filter(**filters).first()
         if template is not None:
             return template
     return None
@@ -452,8 +501,11 @@ def make_default_template(template: CertificateTemplate) -> int:
     Wyłączone szablony zostają w bazie razem z plikami: powrót do poprzedniej winiety ma być
     jednym kliknięciem, a nie ponownym wgrywaniem tła z czyjegoś dysku.
     """
+    # Zawężamy do konkursu **tego** szablonu, a nie do konkursu kontekstu: „ustaw jako domyślny”
+    # ma wyłączyć rywali w tej samej półce, a półka jest własnością organizatora.
     replaced = (
-        CertificateTemplate.objects.filter(kind=template.kind, edition_id=template.edition_id, is_active=True)
+        CertificateTemplate.objects.for_competition(template.competition)
+        .filter(kind=template.kind, edition_id=template.edition_id, is_active=True)
         .exclude(pk=template.pk)
         .update(is_active=False)
     )

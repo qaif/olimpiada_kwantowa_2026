@@ -21,6 +21,7 @@ from apps.accounts.bulk_registration import (
 )
 from apps.accounts.models import GROUP_SUPERVISOR, Participant, SchoolSupervisor, User, Voivodeship
 from apps.accounts.tests.factories import ParticipantFactory, UserFactory
+from apps.tenancy.tests.factories import current_or_default_competition
 from apps.web.tests.conftest import WEB_TEST_PASSWORD
 
 pytestmark = pytest.mark.django_db
@@ -63,7 +64,9 @@ def supervisor():
     """Konto opiekuna gotowe do pracy – tak wygląda profil po aktywacji adresu."""
     user = UserFactory(email=SUPERVISOR_EMAIL, first_name="Anna", last_name="Nauczycielska")
     user.groups.add(Group.objects.get_or_create(name=GROUP_SUPERVISOR)[0])
-    return SchoolSupervisor.objects.create(user=user, school="XIV LO")
+    return SchoolSupervisor.objects.create(
+        user=user, school="XIV LO", competition=current_or_default_competition()
+    )
 
 
 @pytest.fixture

@@ -32,7 +32,7 @@ from apps.competitions.models import (
     StageKind,
     current_registration_status,
 )
-from apps.competitions.scoping import each_competition, scope_to_competition
+from apps.competitions.scoping import CompetitionNotResolved, each_competition, scope_to_competition
 from apps.competitions.services import current_edition
 from apps.competitions.tasks import remind_interviews
 from apps.tenancy.context import current_competition
@@ -276,3 +276,35 @@ def test_interview_reminders_go_out_per_competition(competition, other_competiti
 
     assert sent == 2
     assert InterviewBooking.objects.filter(reminder_sent_at__isnull=True).count() == 0
+
+
+# --- „nie wiadomo, o który konkurs chodzi” (wydanie D) --------------------------------------------
+
+
+def test_the_only_competition_answers_without_any_hint(competition, unbound_competition):  # noqa: ARG001
+    """Instalacja jednokonkursowa odpowiada bez wskazania – i to jest warunek § 0.
+
+    Zadania Celery i komendy Olimpiady Kwantowej wołają ``current_edition()`` bez argumentu od
+    zawsze. Gdyby wydanie D wymagało od nich wskazania konkursu, zmiana byłaby widoczna
+    w działającej produkcji – a tego zabrania ograniczenie nadrzędne dokumentu.
+    """
+    edition = CurrentEditionFactory(competition=competition)
+
+    assert current_edition() == edition
+    assert current_registration_status().is_open is True
+
+
+def test_two_competitions_without_a_hint_refuse_to_answer(other_competition, unbound_competition):  # noqa: ARG001
+    """Przy dwóch konkursach „bez wskazania” jest **błędem wołającego**, a nie pustą odpowiedzią.
+
+    Różnica wobec zapytań o dane (``scope_to_competition``, wyżej w tym pliku) jest zamierzona:
+    pusta lista prac jest widoczna od razu, a „brak bieżącej edycji” wygląda dokładnie tak, jak
+    prawdziwa odpowiedź organizatora, który jej nie ustawił. Zadanie okresowe albo import, które
+    zapomną powiedzieć, czyje zawody liczą, mają się zatrzymać, a nie zrobić nic po cichu.
+    """
+    CurrentEditionFactory(competition=other_competition)
+
+    with pytest.raises(CompetitionNotResolved):
+        current_edition()
+    with pytest.raises(CompetitionNotResolved):
+        current_registration_status()

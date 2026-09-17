@@ -31,11 +31,22 @@ import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 
+from django.core.exceptions import ImproperlyConfigured
 from django.db import models
 
 from apps.tenancy.managers import CompetitionScopedQuerySet
 
 logger = logging.getLogger(__name__)
+
+
+class CompetitionNotResolved(ImproperlyConfigured):
+    """Nie da się rozstrzygnąć, o który konkurs chodzi – a odpowiedź „pierwszy z brzegu” jest cudza.
+
+    ``ImproperlyConfigured``, a nie własna gałąź wyjątków: to jest stan **konfiguracji** (zadanie
+    okresowe albo komenda uruchomiona bez wskazania konkursu w instalacji, która ma ich kilka),
+    a nie błąd danych ani błąd żądania. Dzięki temu widać go tam, gdzie widać pozostałe błędy
+    konfiguracji Django, i nie da się go pomylić z ``DomainError`` odpowiedzi API.
+    """
 
 
 def competition_scoped_manager(competition_path: str = "competition"):
@@ -81,6 +92,42 @@ def resolve_competition(competition=None):
     from apps.accounts.services import default_competition
 
     return default_competition()
+
+
+def require_competition(competition=None):
+    """Konkurs do zawężenia albo ``CompetitionNotResolved``. Dla odczytów **konfiguracji konkursu**.
+
+    Różnica wobec :func:`resolve_competition` jest jedna i cała jest w odwrocie: tam „nie wiadomo”
+    zwraca ``None``, a wołający sam decyduje, co z tym zrobić (zwykle: pustka). Tutaj „nie wiadomo”
+    jest **błędem wołającego** i ma być słyszalne od razu.
+
+    Dlaczego akurat tutaj (``current_edition``, ``current_registration_status``): te dwie funkcje
+    odpowiadają na pytanie „jaki jest stan zawodów **teraz**”, a odpowiedź pusta jest od nich
+    nieodróżnialna od prawdziwej („organizator nie ustawił edycji bieżącej”). Zadanie okresowe,
+    komenda albo import, które zapomną wskazać konkurs, dostałyby więc odpowiedź wyglądającą
+    poprawnie – i po cichu nie zrobiłyby nic albo zrobiły to nie temu. Zapytania o **dane**
+    (listy prac, recenzji, wpisów) zostają przy odwrocie miękkim: tam pustka jest widoczna od razu
+    i nie da się jej wziąć za cudzy wiersz.
+
+    Jedyny konkurs instalacji jest odpowiedzią poprawną także bez kontekstu – inaczej każde
+    zadanie Celery i każda komenda Olimpiady Kwantowej wymagałaby jawnego wskazania konkursu,
+    czyli zmiany widocznej w produkcji jednokonkursowej (§ 0).
+    """
+    resolved = resolve_competition(competition)
+    if resolved is not None:
+        return resolved
+    from apps.tenancy.models import Competition
+
+    if Competition.objects.exists():
+        raise CompetitionNotResolved(
+            "Nie wiadomo, o który konkurs chodzi: instalacja prowadzi kilka konkursów, a wywołanie "
+            "nie wskazało żadnego. Podaj konkurs wprost albo zwiąż go kontekstem "
+            "(apps.tenancy.context.competition_context)."
+        )
+    raise CompetitionNotResolved(
+        "Ta instalacja nie ma ani jednego konkursu, więc nie ma czyich zawodów pokazać. "
+        "Konkurs #1 zakłada migracja tenancy.0002_competition_from_site."
+    )
 
 
 def competition_of(request):

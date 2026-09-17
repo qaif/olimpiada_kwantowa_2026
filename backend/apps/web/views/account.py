@@ -44,6 +44,7 @@ from apps.accounts.profile import (
     update_participant_profile,
     verify_self_deletion_credentials,
 )
+from apps.accounts.services import participant_for
 from apps.core.api import DomainError
 from apps.web.forms import (
     AccountDeleteForm,
@@ -54,6 +55,27 @@ from apps.web.forms import (
 )
 from apps.web.mixins import ParticipantRequiredMixin
 from apps.web.throttle import ThrottledFormMixin
+
+
+def own_participant(request):
+    """Profil uczestnika zalogowanej osoby **w konkursie tego żądania** albo ``None``.
+
+    Jedyna droga do profilu w tych widokach. ``user.participant`` nie istnieje – po § 3.3 relacja
+    jest wielokrotna (``user.participations``), bo jedna osoba startuje w kilku olimpiadach
+    z jednego konta, a każdy jej profil jest oświadczeniem złożonym **innemu** administratorowi
+    danych. „Moje dane” na tych ekranach znaczy więc „moje dane w tym konkursie”, a nie „w którymś”.
+    """
+    return participant_for(request.user, getattr(request, "competition", None))
+
+
+def profile_url(request) -> str:
+    """Adres ekranu „moje dane” właściwy dla tego konta: uczestnika albo konta bez profilu.
+
+    Jedno miejsce dla trzech ekranów (zmiana adresu e-mail, usunięcie konta i przekierowanie
+    z ``/account/profile/``), bo to jedna reguła: pełny formularz uczestnika ma wyłącznie ten,
+    kto w tym konkursie startuje.
+    """
+    return reverse("web:profile" if own_participant(request) is not None else "web:account-profile")
 
 
 class ServiceFormMixin:
@@ -135,7 +157,7 @@ class AccountProfileView(LoginRequiredMixin, ServiceFormMixin, FormView):
     success_message = "Dane zostały zapisane."
 
     def dispatch(self, request, *args, **kwargs):
-        if request.user.is_authenticated and hasattr(request.user, "participant"):
+        if request.user.is_authenticated and own_participant(request) is not None:
             return redirect("web:profile")
         return super().dispatch(request, *args, **kwargs)
 
@@ -170,7 +192,15 @@ class EmailChangeView(LoginRequiredMixin, ThrottledFormMixin, ServiceFormMixin, 
     )
 
     def get_success_url(self) -> str:
-        return reverse("web:profile" if hasattr(self.request.user, "participant") else "web:account-profile")
+        return profile_url(self.request)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Odnośnik „Wróć do edycji danych” liczy widok, a nie szablon: ``user.participant``
+        # w szablonie po § 3.3 nie istnieje, a nieistniejąca ścieżka renderuje się pustym
+        # napisem – czyli po cichu prowadziłaby uczestnika na ekran konta bez profilu.
+        context["profile_url"] = profile_url(self.request)
+        return context
 
     def call_service(self, form):
         request_email_change(
@@ -272,6 +302,10 @@ class AccountDeleteView(LoginRequiredMixin, ServiceFormMixin, FormView):
                 "keeps_pseudonymous_row": any(footprint.values()),
                 "needs_password": self.request.user.has_usable_password(),
                 "account_email": self.request.user.email,
+                # Kod publiczny na tej stronie jest kodem **w tym konkursie**: to on zostaje
+                # w ogłoszonych tabelach po anonimizacji i o nim jest całe to zdanie.
+                "participant": own_participant(self.request),
+                "profile_url": profile_url(self.request),
             }
         )
         return context

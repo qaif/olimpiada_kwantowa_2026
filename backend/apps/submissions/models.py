@@ -152,13 +152,15 @@ class Submission(models.Model):
     #: ``db_index`` wprost, choć klucz obcy i tak zakłada indeks: to pole jest **filtrem**, a nie
     #: relacją do przechodzenia, i ma być widać w modelu, po co tam stoi.
     #:
-    #: Nullowalne przez wydanie B (§ 4.1); ``SET_NULL``, a nie ``PROTECT`` jak przy edycji, bo to
-    #: kopia, a nie źródło – skasowanie konkursu ma zatrzymać się na ``Edition``.
+    #: ``NOT NULL`` od wydania D (§ 4.1): praca bez konkursu jest pracą niewidoczną dla własnego
+    #: koordynatora i dla kolejki recenzenta, bo oba ekrany filtrują właśnie po tej kolumnie.
+    #:
+    #: ``PROTECT`` zamiast dotychczasowego ``SET_NULL`` wynika wprost z ``NOT NULL`` – kolumna,
+    #: której nie wolno wyzerować, nie może mieć reguły „wyzeruj przy skasowaniu”. Praktycznie nic
+    #: to nie zmienia: skasowanie konkursu i tak zatrzymuje się wcześniej, na ``Edition``.
     competition = models.ForeignKey(
         "tenancy.Competition",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
+        on_delete=models.PROTECT,
         db_index=True,
         related_name="submissions",
         verbose_name="konkurs",

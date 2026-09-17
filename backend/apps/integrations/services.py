@@ -20,6 +20,7 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import status as http
 
+from apps.competitions.scoping import resolve_competition, scope_to_competition
 from apps.core.api import DomainError
 from apps.core.models import audit
 
@@ -74,12 +75,37 @@ def build_token(prefix: str, secret: str) -> str:
     return f"{TOKEN_PREFIX}_{prefix}_{secret}"
 
 
+def _owner(competition, edition):
+    """Konkurs, do którego należy wystawiany klucz albo dodawany odbiorca.
+
+    Kolejność: podany wprost → konkurs edycji (gdy wołający ją wskazał) → konkurs kontekstu albo
+    jedyny w instalacji (``resolve_competition``). Edycja jest **przed** kontekstem z rozmysłem:
+    koordynator, który wybrał edycję na formularzu, powiedział tym samym, o który konkurs chodzi,
+    a rozjazd między jednym a drugim zatrzyma dopiero ``clean()`` modelu.
+
+    Brak odpowiedzi jest tu błędem, a nie pustą wartością: kolumna jest ``NOT NULL``, więc bez
+    tego sprawdzenia zapis skończyłby się ``IntegrityError``-em – komunikatem bazy zamiast zdania
+    dla człowieka.
+    """
+    if competition is None and edition is not None:
+        competition = edition.competition
+    if competition is None:
+        competition = resolve_competition()
+    if competition is None:
+        raise _bad_request(
+            "Nie wiadomo, w którym konkursie wystawić to poświadczenie – wskaż konkurs.",
+            "COMPETITION_REQUIRED",
+        )
+    return competition
+
+
 @transaction.atomic
 def create_api_key(
     *,
     name: str,
     scopes: list[str],
     edition=None,
+    competition=None,
     pii_allowed: bool = False,
     rate_limit_per_minute: int = DEFAULT_RATE_LIMIT,
     actor=None,
@@ -89,6 +115,9 @@ def create_api_key(
 
     Klucz bez ani jednego zakresu jest odrzucany: uwierzytelniłby się, a potem odbijał każde
     żądanie z 403, czyli wyglądałby na awarię systemu, a nie na pomyłkę przy wystawianiu.
+
+    ``competition`` domyślnie bierze się z edycji albo z kontekstu żądania (:func:`_owner`) –
+    koordynator wystawia klucz w swoim konkursie i nie ma czego wybierać.
     """
     name = (name or "").strip()
     if not name:
@@ -110,6 +139,7 @@ def create_api_key(
 
     secret = generate_secret()
     key = ApiKey(
+        competition=_owner(competition, edition),
         edition=edition,
         name=name,
         prefix=generate_prefix(),
@@ -132,6 +162,7 @@ def create_api_key(
         {
             "name": key.name,
             "prefix": key.prefix,
+            "competition": key.competition_id,
             "edition": key.edition_id,
             "scopes": key.scopes,
             "pii_allowed": key.pii_allowed,
@@ -161,13 +192,18 @@ def revoke_api_key(key: ApiKey, *, actor=None, request=None) -> ApiKey:
     return locked
 
 
-def api_keys_for_panel(edition=None) -> list[ApiKey]:
+def api_keys_for_panel(edition=None, competition=None) -> list[ApiKey]:
     """Klucze do listy w panelu: bieżące i unieważnione, najnowsze na górze.
 
     Unieważnione zostają na liście celowo – to jedyne miejsce, w którym widać, że partner
     **miał** dostęp i kiedy go stracił.
+
+    Zawężenie do konkursu jest **pierwsze**, przed filtrem edycji: edycja rozstrzyga, o który
+    rocznik chodzi, konkurs – czyje to w ogóle są klucze (§ 3.5, reguła kolejności).
     """
-    queryset = ApiKey.objects.select_related("edition", "created_by")
+    queryset = scope_to_competition(
+        ApiKey.objects.select_related("competition", "edition", "created_by"), competition
+    )
     if edition is not None:
         queryset = queryset.filter(edition__in=[edition, None])
     return list(queryset)
@@ -178,11 +214,16 @@ def api_keys_for_panel(edition=None) -> list[ApiKey]:
 
 @transaction.atomic
 def create_endpoint(
-    *, url: str, events: list[str], edition=None, actor=None, request=None
+    *, url: str, events: list[str], edition=None, competition=None, actor=None, request=None
 ) -> WebhookEndpoint:
-    """Dodaje odbiorcę webhooków wraz z wylosowanym sekretem podpisu."""
+    """Dodaje odbiorcę webhooków wraz z wylosowanym sekretem podpisu.
+
+    ``competition`` domyślnie z edycji albo z kontekstu żądania (:func:`_owner`) – zdarzenia
+    konkursu A nie mają prawa wyjść na serwer wskazany przez organizatora konkursu B.
+    """
     cleaned = _clean_endpoint_fields({"url": url, "events": list(events or [])})
     endpoint = WebhookEndpoint(
+        competition=_owner(competition, edition),
         edition=edition,
         url=cleaned["url"],
         events=cleaned["events"],
@@ -198,7 +239,12 @@ def create_endpoint(
         actor,
         "webhook.created",
         endpoint,
-        {"url": endpoint.url, "events": endpoint.events, "edition": endpoint.edition_id},
+        {
+            "url": endpoint.url,
+            "events": endpoint.events,
+            "competition": endpoint.competition_id,
+            "edition": endpoint.edition_id,
+        },
         request=request,
     )
     logger.info("Dodano odbiorcę webhooków %s (%s).", endpoint.pk, endpoint.url)
@@ -329,13 +375,16 @@ def _enqueue(delivery_id: int) -> None:
     transaction.on_commit(_send)
 
 
-def deliveries_for_panel(*, endpoint=None, limit: int = 50) -> list[WebhookDelivery]:
+def deliveries_for_panel(*, endpoint=None, competition=None, limit: int = 50) -> list[WebhookDelivery]:
     """Ostatnie doręczenia do dziennika w panelu – domyślnie pięćdziesiąt najnowszych.
 
     Limit jest twardy, bo dziennik rośnie z każdym zdarzeniem razy liczba odbiorców: ekran ma
     odpowiadać na pytanie „czy ostatnie rzeczy doszły”, a nie serwować całą historię.
+
+    Doręczenie dochodzi do konkursu przez swojego odbiorcę (``endpoint__competition``), więc
+    zawężenie jest tu tym samym wywołaniem, co wszędzie – mimo braku własnej kolumny.
     """
-    queryset = WebhookDelivery.objects.select_related("endpoint")
+    queryset = scope_to_competition(WebhookDelivery.objects.select_related("endpoint"), competition)
     if endpoint is not None:
         queryset = queryset.filter(endpoint=endpoint)
     return list(queryset[:limit])

@@ -176,11 +176,18 @@ def test_committee_branch_ignores_reviews_outside_conflicting_rounds(open_stage)
 
 
 def bulk_provisional(stage, count: int) -> None:
-    """``count`` rozwiązań w GRADED_PROVISIONAL jednym zapisem – kolejne wersje tego samego zadania."""
+    """``count`` rozwiązań w GRADED_PROVISIONAL jednym zapisem – kolejne wersje tego samego zadania.
+
+    Konkurs wpisujemy tu wprost, bo ``bulk_create`` z definicji omija ``Submission.save()``, czyli
+    jedyne miejsce, które kolumnę denormalizacyjną wypełnia samo. Bierzemy go z **etapu**, tak samo
+    jak zrobiłby to zapis pojedynczy – nie z kontekstu, bo konkurs pracy wynika z etapu, w którym
+    ją oddano.
+    """
     entry = StageEntryFactory(stage=stage, participant=ParticipantFactory())
     problem = ProblemFactory(stage=stage)
     Submission.objects.bulk_create(
         Submission(
+            competition_id=stage.edition.competition_id,
             entry=entry,
             problem=problem,
             version=version,

@@ -16,6 +16,7 @@ najpierw jawnie przestawia flagę – i to jest zarazem dowód, że przełączni
 """
 
 import pytest
+from django.db import IntegrityError, transaction
 from rest_framework.response import Response
 from rest_framework.test import APIRequestFactory, force_authenticate
 from rest_framework.views import APIView
@@ -296,22 +297,28 @@ def test_participant_for_does_not_return_a_profile_of_another_competition(compet
 
 @pytest.mark.django_db
 def test_participant_for_without_a_competition_behaves_like_the_old_one_to_one(competition):
-    """``None`` znaczy „nie wiadomo który” i oddaje profil bez zawężania – jak ``user.participant``."""
+    """``None`` znaczy „nie wiadomo który” i oddaje profil bez zawężania.
+
+    Tak woła tę funkcję kod spoza żądania (komenda, zadanie) na bazie jednokonkursowej: pytanie
+    „profil tej osoby” ma tam dokładnie jedną poprawną odpowiedź.
+    """
     participant = ParticipantFactory(competition=competition)
 
     assert participant_for(participant.user, None) == participant
 
 
 @pytest.mark.django_db
-def test_a_profile_without_an_owner_is_still_visible_in_release_b(competition):
-    """Wiersz sprzed backfillu (``competition IS NULL``) nie może odciąć uczestnika od panelu.
+def test_a_profile_without_an_owner_cannot_be_created_any_more(competition):
+    """Wydanie D domknęło kolumnę na ``NOT NULL`` – wiersza bez właściciela nie da się już zapisać.
 
-    Gałąź znika sama w wydaniu D, gdy kolumna stanie się ``NOT NULL`` (§ 4.1).
+    Test pilnuje więzu w **bazie**, a nie w formularzu: to on jest ostatnią linią izolacji i to on
+    ma przewrócić każdą drogę zapisu, która pominęłaby konkurs (§ 4.1, wydanie D).
     """
     participant = ParticipantFactory(competition=competition)
-    Participant.objects.filter(pk=participant.pk).update(competition=None)
 
-    assert participant_for(participant.user, competition) == participant
+    with pytest.raises(IntegrityError):
+        with transaction.atomic():
+            Participant.objects.filter(pk=participant.pk).update(competition=None)
 
 
 @pytest.mark.django_db

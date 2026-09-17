@@ -136,8 +136,8 @@ def file_appeal(user, submission: Submission, argument: str, *, request=None) ->
     """
     # Profil z **konkursu rozwiązania**, a nie z kontekstu żądania: reklamację składa się w tym
     # konkursie, w którym oddano pracę. Porównanie niżej i tak rozstrzyga o własności, ale profil
-    # wzięty z innego konkursu dawałby 404 z niewłaściwego powodu – i to tylko do wydania D,
-    # w którym ``user.participant`` przestaje istnieć.
+    # wzięty z innego konkursu dawałby 404 z niewłaściwego powodu. Od wydania D innej drogi już
+    # nie ma: relacja jeden-do-jednego ``user.participant`` nie istnieje.
     from apps.accounts.services import participant_for
 
     participant = participant_for(user, submission.competition)

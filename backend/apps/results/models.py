@@ -113,6 +113,12 @@ class CertificateKind(models.TextChoices):
 
 #: Prefiks numeru dokumentu: ``OK/<rok>/<kolejny>``. „OK” od Olimpiady Kwantowej – numer trafia
 #: na papier i bywa przepisywany do dziennika szkolnego, więc musi być krótki i jednoznaczny.
+#:
+#: Od wydania D prefiks jest własnością konkursu (``tenancy.Competition.certificate_prefix``,
+#: § 3.3) i to on rozstrzyga o numerze. Ta stała zostaje jako **odwrót** dla przebiegu, któremu
+#: konkursu nie da się wskazać (podgląd szablonu w instalacji bez konkursów), i jako wartość
+#: domyślna nowego konkursu. Konkurs #1 dostał w migracji dokładnie ``"OK"``, więc żaden
+#: dotychczasowy numer się nie zmienia.
 CERTIFICATE_NUMBER_PREFIX = "OK"
 
 #: Alfabet kodu weryfikacyjnego – ten sam, co w kodach uczestników: bez znaków mylących przy
@@ -268,6 +274,16 @@ class CertificateTemplate(models.Model):
     wychodzi zawsze jako złożony PDF, więc nikt nie potrzebuje URL-a do samego tła.
     """
 
+    # Właściciel szablonu. ``PROTECT`` i bez ``null``: „szablon dla wszystkich edycji”
+    # (``edition IS NULL``) jest od wydania D szablonem wszystkich edycji **jednego konkursu**,
+    # a nie wspólną półką instalacji. Bez tej kolumny winieta organizatora A byłaby tłem dyplomu
+    # organizatora B – i to bez żadnego kliknięcia, samym trafieniem w odwrót „na wszystko”.
+    competition = models.ForeignKey(
+        "tenancy.Competition",
+        on_delete=models.PROTECT,
+        related_name="certificate_templates",
+        verbose_name="konkurs",
+    )
     name = models.CharField("nazwa", max_length=120)
     kind = models.CharField(
         "rodzaj dokumentu",
@@ -344,14 +360,12 @@ class CertificateTemplate(models.Model):
     )
     created_at = models.DateTimeField("utworzony", default=timezone.now)
 
-    #: Przez edycję – ta sama droga, co u dokumentu, który z szablonu powstaje.
-    #:
-    #: ``edition`` bywa **puste** („szablon dla wszystkich edycji”), więc taki wiersz nie wyjdzie
-    #: z ``for_competition``. Dopasowanie szablonu (``apps.results.certificates``) idzie natomiast
-    #: od szczegółu do ogółu i sięga po wiersz bez edycji świadomie: szablon „na wszystko” jest
-    #: dziś wspólną półką instalacji. Własną kolumnę konkursu dostanie w etapie 2, razem z ekranem
-    #: „Ustawienia konkursu” – dopóki konkurs jest jeden, wspólna półka jest półką jego własną.
-    objects = competition_scoped_manager("edition__competition")
+    #: Własna kolumna, a **nie** droga przez edycję – i to jest cała zmiana wydania D w tym
+    #: modelu. Dopasowanie szablonu (``apps.results.certificates.resolve_template``) idzie od
+    #: szczegółu do ogółu i kończy na wierszu bez edycji; dopóki zakres szedł przez ``edition``,
+    #: taki wiersz nie należał do nikogo, więc „szablon na wszystko” był wspólną półką całej
+    #: instalacji. Teraz jest półką jednego konkursu.
+    objects = competition_scoped_manager("competition")
 
     class Meta:
         verbose_name = "szablon dokumentu"

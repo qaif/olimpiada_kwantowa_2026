@@ -93,7 +93,9 @@ class ParticipantFactory(CompetitionScopedFactory):
         model = Participant
 
     user = factory.SubFactory(UserFactory, groups=[GROUP_PARTICIPANT])
-    public_code = factory.LazyFunction(generate_public_code)
+    # Prefiks kodu bierze się z konkursu profilu, dokładnie tak jak w serwisie rejestracji: test
+    # konkursu z własnym prefiksem ma dostać kod z tym prefiksem bez podawania go ręcznie.
+    public_code = factory.LazyAttribute(lambda obj: generate_public_code(obj.competition))
     school = "LO nr 1"
     # Szkoła wpisana ręcznie (``school_ref`` puste) – wariant, który działa bez słownika.
     grade = 3

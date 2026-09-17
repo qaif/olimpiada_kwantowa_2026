@@ -34,6 +34,7 @@ from .serializers import (
 )
 from .services import (
     approve_committee_member,
+    participant_for,
     register_committee,
     register_participant,
     verify_committee_district,
@@ -152,7 +153,10 @@ class MeView(GenericAPIView):
         serializer = MeUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         fields = dict(serializer.validated_data)
-        participant = getattr(request.user, "participant", None)
+        # Profil **tego** konkursu: konto startujące w dwóch olimpiadach ma dwa profile, a ``PATCH``
+        # ma zmienić ten, którego panel klient właśnie ogląda. Konkurs bierzemy z żądania (ustawia
+        # go ``apps.tenancy.middleware``), tak samo jak klasy uprawnień w ``permissions.py``.
+        participant = participant_for(request.user, getattr(request, "competition", None))
         if participant is not None:
             update_participant_profile(participant, actor=request.user, request=request, **fields)
         else:

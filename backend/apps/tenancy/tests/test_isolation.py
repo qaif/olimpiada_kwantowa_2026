@@ -14,12 +14,11 @@ czego ukrywać.
 Znacznik ``xfail(strict=True)`` towarzyszył tym przypadkom, dopóki zakresowanie wchodziło
 zadaniami T3 (domena zawodów) i T5 (widoki), a T7 biegł równolegle. ``strict`` sprawia, że test,
 który **zacznie** przechodzić, zgłasza się sam jako błąd („XPASS”), więc znacznik zdejmuje się
-w tej samej zmianie, która zamyka obszar. Po zadaniu T5 zostaje **jeden** taki znacznik i jego
-powód jest inny niż „jeszcze nie zrobione” – patrz ``NO_COLUMN`` niżej.
+w tej samej zmianie, która zamyka obszar. Po wydaniu D **nie ma tu ani jednego**: ostatni
+(zgłoszenie do supportu) zdjęła kolumna ``support.SupportTicket.competition``.
 
 Świat drugiego konkursu budują fabryki z argumentem ``competition`` – mechanika i jej granice:
-``apps/tenancy/tests/factories.py``. Dopóki model nie ma jeszcze kolumny konkursu, argument jest
-po cichu pomijany, więc obiekt należy „do nikogo” i widok go pokazuje.
+``apps/tenancy/tests/factories.py``.
 """
 
 from __future__ import annotations
@@ -47,13 +46,6 @@ from apps.support.tests.factories import SupportTicketFactory
 from apps.tenancy.tests.factories import create_scoped, grant_membership
 
 pytestmark = pytest.mark.django_db
-
-#: Jedyny pozostały powód znacznika: model **nie ma jeszcze kolumny konkursu**, więc nie ma czym
-#: zawęzić ani zapytania, ani widoku. ``support.SupportTicket`` ma ją dostać zgodnie z § 3.2
-#: (``null=True``, bo istnieją też sprawy kierowane do operatora platformy), ale ``apps/support/``
-#: nie należy do żadnego z zadań T1–T7 – patrz raport T5. Do tego czasu ``create_scoped`` po cichu
-#: pomija argument, zgłoszenie należy „do nikogo” i kolejka koordynatora je pokazuje.
-NO_COLUMN = "model nie ma jeszcze kolumny konkursu (support.SupportTicket, § 3.2)"
 
 
 @pytest.fixture
@@ -224,8 +216,13 @@ def test_broadcast_of_another_competition_is_not_listed(client_a, other_competit
 # --- korespondencja, kalendarz, ślad ----------------------------------------------------------
 
 
-@pytest.mark.xfail(strict=True, reason=NO_COLUMN)
 def test_support_ticket_of_another_competition_is_not_found(client_a, other_competition):
+    """Sprawa idzie do organizatora **swojego** konkursu – i tylko on ją czyta i zamyka.
+
+    Ostatni znacznik ``xfail`` w tej suicie zdjęło wydanie D razem z kolumną
+    ``support.SupportTicket.competition`` (§ 3.2): kolejka koordynatora stoi od niej na
+    ``for_competition``, a wątek, odpowiedź i zamknięcie wychodzą z jednego zawężonego querysetu.
+    """
     ticket = SupportTicketFactory(competition=other_competition)
 
     assert client_a.get(f"/coordinator/support/{ticket.pk}/").status_code == 404
@@ -242,16 +239,15 @@ def test_edition_event_of_another_competition_is_not_found(client_a, stage_b):
 def test_audit_entry_of_another_competition_is_not_listed(client_a, other_competition, stage_b):
     """Ślad audytowy koordynatora jest śladem **jego** konkursu.
 
-    Obiektem wpisu jest **istniejący** etap konkursu B, a nie wymyślony identyfikator, i to jest
-    istotne: ``core.AuditLog`` nie ma jeszcze kolumny konkursu (§ 3.9), więc zakres wychodzi
-    z obiektu, o którym wpis mówi (``apps.web.scoping.audit_scope``). Wpis o obiekcie, którego
-    w bazie nie ma – bo go skasowano – zostaje widoczny i tak ma być: ślad po skasowanym etapie
-    jest dokładnie tym, po co audyt istnieje.
+    Zakres idzie od wydania D **własną kolumną** wpisu: ``core.AuditLog.competition`` (§ 3.9),
+    wypełniana w chwili zapisu przez helper ``audit``. Przeglądarka panelu woła ``visible_to``,
+    które zawężanie „przez obiekt, o którym mówi wpis” zastąpiło w całości – razem z jego ceną,
+    czyli wpisem o skasowanym obiekcie, którego nie dało się już nikomu przypisać.
 
-    Wpisy o obiektach platformowych (konto, witryna) też zostają widoczne i to jest dziś
-    odpowiedź poprawna: koordynator Olimpiady Kwantowej czyta je od zawsze, a schowanie ich
-    byłoby zmianą, której nikt nie zamawiał (§ 0). Zamyka to dopiero kolumna ``competition``
-    wypełniana w chwili zapisu.
+    Wpisy o obiektach platformowych (konto, witryna) zostają widoczne i to jest odpowiedź
+    poprawna, a nie luka: koordynator Olimpiady Kwantowej czyta je od zawsze, a schowanie ich
+    byłoby zmianą, której nikt nie zamawiał (§ 0). Dlatego ``visible_to`` dopuszcza je pod własną
+    nazwą, a ``for_competition`` – nie.
     """
     entry = create_scoped(
         AuditLog,
@@ -286,3 +282,32 @@ def test_cms_page_of_another_competition_is_not_found(client_a, other_competitio
     page = root.add_child(instance=ContentPage(title="Strona obcego konkursu", slug="obca-strona"))
 
     assert client_a.get(f"/{page.slug}/").status_code == 404
+
+
+def test_general_comment_snippet_of_another_competition_is_not_offered(competition, other_competition):
+    """Szablon **ogólny** komitetu konkursu B nie podpowiada się recenzentowi konkursu A.
+
+    Osiemnasty przypadek, dołożony w wydaniu D. Szablon ogólny (``problem IS NULL``) nie ma zadania,
+    przez które dochodziłby do właściciela, więc do wydania D leżał na półce wspólnej dla całej
+    instalacji – i był jedynym miejscem w domenie ocen, w którym recenzent widział zdanie napisane
+    przez cudzy komitet. Zamyka to własna kolumna ``CommentSnippet.competition``.
+
+    Sprawdzamy serwisem (``snippets_for``), a nie adresem panelu, bo to on jest jedyną drogą do tej
+    listy – ekran oceny wywołuje go wprost, a widok nie dokłada do zakresu żadnej własnej reguły.
+    """
+    from apps.grading.models import CommentSnippet
+    from apps.grading.snippets import snippets_for
+
+    theirs = CommentSnippet.objects.create(
+        competition=other_competition, title="Wykładnia obcego komitetu", text="Brakuje jednostek."
+    )
+    ours = CommentSnippet.objects.create(
+        competition=competition, title="Nasza wykładnia", text="Uzasadnij przejście graniczne."
+    )
+    reviewer_a = ActiveReviewerFactory(competition=competition)
+    problem_a = ProblemFactory(competition=competition)
+
+    visible = snippets_for(problem_a, reviewer_a)
+
+    assert visible == [ours]
+    assert theirs not in visible

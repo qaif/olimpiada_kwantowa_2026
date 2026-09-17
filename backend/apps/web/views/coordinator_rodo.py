@@ -33,7 +33,6 @@ from apps.accounts.processing_register import (
     as_rows,
 )
 from apps.accounts.retention import anonymise_expired_editions, plan
-from apps.competitions.models import Edition
 from apps.core.exports import Dataset, csv_response
 from apps.web.mixins import CoordinatorRequiredMixin
 
@@ -63,7 +62,10 @@ class RetentionView(CoordinatorRequiredMixin, View):
         return self._render(request)
 
     def post(self, request):
-        result = anonymise_expired_editions()
+        # Przebieg **tego** konkursu. Bez argumentu anonimizacja objęłaby edycje sąsiada, czyli
+        # nieodwracalna operacja na cudzych danych osobowych wychodziłaby z przycisku, który
+        # opisuje tabelę widoczną wyżej – a ta pokazuje wyłącznie edycje tego konkursu.
+        result = anonymise_expired_editions(competition=request.competition)
         if result["anonymised"]:
             messages.success(
                 request,
@@ -80,16 +82,11 @@ class RetentionView(CoordinatorRequiredMixin, View):
         return redirect(reverse("web:coordinator-retention"))
 
     def _render(self, request):
-        # Plan liczy serwis retencji (jedno źródło dla panelu i dla komendy
-        # ``retention_report``), a zakres konkursu dokładamy do jego wyniku: ``plan()`` chodzi po
-        # wszystkich edycjach instalacji, bo jest też wejściem operatora platformy.
-        #
-        # Ograniczenie wydania C, odnotowane wprost: **przycisk** uruchamia
-        # ``anonymise_expired_editions()`` bez zakresu, więc przebieg obejmie także edycje innych
-        # konkursów. Zawężenie wymaga argumentu w ``apps.accounts.retention`` (własność zadania
-        # T2) i należy do wydania D – patrz raport T5.
-        editions = set(Edition.objects.for_competition(request.competition).values_list("pk", flat=True))
-        plans = [item for item in plan() if item.edition.pk in editions]
+        # Plan i przebieg liczy serwis retencji (jedno źródło dla panelu i dla komendy
+        # ``retention_report``), a konkurs podajemy mu wprost – tym samym argumentem, którym
+        # zawęża się przycisk „Wykonaj teraz”. Dzięki temu tabela i skutek jej kliknięcia opisują
+        # ten sam zbiór edycji; zawężanie wyniku w widoku dawałoby dwie reguły zamiast jednej.
+        plans = plan(competition=request.competition)
         context = {
             "now": timezone.now(),
             "plans": plans,

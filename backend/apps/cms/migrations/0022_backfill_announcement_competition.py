@@ -28,9 +28,16 @@ def sole_competition(apps):
     „wszystko, co tu stoi, ma jednego właściciela”; przy dwóch konkursach założenie jest fałszywe,
     a jego cichy skutek to ogłoszenie organizatora A na stronie organizatora B. Ten sam warunek
     i to samo zdanie stoją w ``competitions.0020`` i ``accounts.0020`` – celowo, bo to ta sama reguła.
+
+    Zwracamy **klucz główny**, nie obiekt, i pytamy wyłącznie o kolumnę ``id``. Model historyczny
+    ``Competition`` ma tyle kolumn, ile miał w swoim miejscu planu migracji, a późniejsze migracje
+    ``tenancy`` (``0003_prefixes``) bywają zdejmowane **przed** tą przy cofaniu bazy – kolejności nie
+    da się wymusić zależnością w żadną stronę, bo ta migracja jest na produkcji już wykonana.
+    ``SELECT id`` jest odpowiedzią odporną na to z definicji: kolumna klucza głównego istnieje
+    w każdym stanie schematu, w którym tabela w ogóle jest.
     """
     Competition = apps.get_model("tenancy", "Competition")
-    rows = list(Competition.objects.order_by("pk")[:2])
+    rows = list(Competition.objects.order_by("pk").values_list("pk", flat=True)[:2])
     if len(rows) > 1:
         raise RuntimeError(
             "Backfill konkursu działa wyłącznie na bazie jednokonkursowej "
@@ -40,19 +47,19 @@ def sole_competition(apps):
 
 
 def forwards(apps, schema_editor):
-    competition = sole_competition(apps)
-    if competition is None:
+    competition_id = sole_competition(apps)
+    if competition_id is None:
         return
     apps.get_model("cms", "Announcement").objects.filter(competition__isnull=True).update(
-        competition=competition
+        competition_id=competition_id
     )
 
 
 def backwards(apps, schema_editor):
-    competition = sole_competition(apps)
-    if competition is None:
+    competition_id = sole_competition(apps)
+    if competition_id is None:
         return
-    apps.get_model("cms", "Announcement").objects.filter(competition=competition).update(
+    apps.get_model("cms", "Announcement").objects.filter(competition_id=competition_id).update(
         competition=None
     )
 

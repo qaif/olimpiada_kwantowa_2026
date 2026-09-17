@@ -215,7 +215,18 @@ class MeSerializer(serializers.ModelSerializer):
         return obj.role_names
 
     def get_participant(self, obj: User) -> dict | None:
-        profile = getattr(obj, "participant", None)
+        """Profil uczestnika **w konkursie tego żądania**, a nie w dowolnym.
+
+        Konkurs czytamy z kontekstu (``apps.tenancy.context``), a nie z ``self.context["request"]``:
+        ten serializer bywa wołany wprost (``MeSerializer(user).data`` po zapisie), więc żądania
+        w kontekście nie ma zawsze, a zmiennej kontekstowej – ustawianej przez to samo
+        oprogramowanie pośredniczące – tak.
+        """
+        from apps.tenancy.context import current_competition
+
+        from .services import participant_for
+
+        profile = participant_for(obj, current_competition())
         return ParticipantProfileSerializer(profile).data if profile else None
 
     def get_committee(self, obj: User) -> dict | None:

@@ -57,7 +57,9 @@ def api_for(settings):
         (ReviewWorkLog, "review__submission__competition"),
         (ProblemReviewerRule, "problem__stage__edition__competition"),
         (RubricCriterion, "problem__stage__edition__competition"),
-        (CommentSnippet, "problem__stage__edition__competition"),
+        # Własna kolumna, a nie droga przez zadanie: szablon ogólny (``problem IS NULL``) nie ma
+        # zadania, przez które mógłby dojść do właściciela (wydanie D).
+        (CommentSnippet, "competition"),
     ],
 )
 def test_every_model_declares_its_way_to_the_competition(model, path):

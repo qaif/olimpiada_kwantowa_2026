@@ -23,7 +23,6 @@ from __future__ import annotations
 
 from django import forms
 from django.contrib import messages
-from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
 from django.urls import reverse
@@ -46,6 +45,7 @@ from apps.integrations.services import (
     create_api_key,
     create_endpoint,
     delete_endpoint,
+    deliveries_for_panel,
     resend_delivery,
     revoke_api_key,
     send_test_delivery,
@@ -77,7 +77,7 @@ def _edition_field(label: str) -> forms.ModelChoiceField:
         queryset=Edition.objects.none(),
         required=False,
         label=label,
-        empty_label="wszystkie edycje",
+        empty_label="wszystkie edycje konkursu",
     )
 
 
@@ -121,46 +121,34 @@ def _redirect():
     return redirect(reverse("web:coordinator-integrations"))
 
 
-def _scoped(queryset, competition, path: str = "edition"):
-    """Wiersze integracji tego konkursu **oraz** wiersze bez edycji.
-
-    ``ApiKey.edition`` i ``WebhookEndpoint.edition`` bywają puste i to jest ich cecha, nie
-    brak: puste znaczy „wszystkie edycje” i tak wygląda klucz partnera, który pyta o każdy
-    rocznik. Dopóki modele integracji nie mają własnego klucza obcego do konkursu
-    (``apps/integrations/`` nie należy do żadnego z zadań T1–T7 – patrz raport), zakresem
-    jest **edycja**: wiersz z edycją tego konkursu albo wiersz bez edycji.
-
-    Cena jest odnotowana: klucz „na wszystkie edycje” zostaje wspólny dla instalacji. Przy
-    jednym konkursie to stan zerowy, a domknięcie należy do wydania D razem z kolumną
-    ``ApiKey.competition``.
-    """
-    if competition is None:
-        return queryset.none()
-    editions = Edition.objects.for_competition(competition)
-    return queryset.filter(Q(**{f"{path}__in": editions}) | Q(**{f"{path}__isnull": True}))
-
-
 def _endpoint(competition, pk: int) -> WebhookEndpoint:
-    """Odbiorca webhooków widoczny w tym konkursie albo 404."""
-    return get_object_or_404(_scoped(WebhookEndpoint.objects.select_related("edition"), competition), pk=pk)
+    """Odbiorca webhooków **tego konkursu** albo 404.
+
+    Zawężenie idzie z managera (``WebhookEndpoint.competition``, § 3.2), więc żaden z czterech
+    adresów działających na odbiorcy (zapis, usunięcie, doręczenie próbne, ponowienie) nie może
+    go pominąć. 404, a nie 403: istnienie cudzego odbiorcy nie jest informacją tego koordynatora.
+    """
+    return get_object_or_404(
+        WebhookEndpoint.objects.for_competition(competition).select_related("edition"), pk=pk
+    )
 
 
 def _page_context(competition, *, key_form=None, webhook_form=None, plain_key=None) -> dict:
-    """Komplet danych ekranu. Jedno miejsce, bo ten sam ekran renderuje wejście i nieudany formularz."""
-    allowed_keys = set(_scoped(ApiKey.objects.all(), competition).values_list("pk", flat=True))
+    """Komplet danych ekranu. Jedno miejsce, bo ten sam ekran renderuje wejście i nieudany formularz.
+
+    Wiersz „wszystkie edycje” (pusta ``edition``) jest od wydania D wierszem **tego konkursu**,
+    a nie wspólną półką instalacji: klucz i odbiorca mają własną kolumnę ``competition``, bo
+    edycja bywa pusta i wtedy nie prowadziła do żadnego właściciela.
+    """
     return {
         "edition": current_edition(competition),
-        # Listę kluczy składa serwis integracji (jedna definicja „co widać w panelu”),
-        # a zakres konkursu dokładamy do jego wyniku – tak samo jak przy puli recenzentów.
-        "keys": [key for key in api_keys_for_panel() if key.pk in allowed_keys],
+        # Listę kluczy składa serwis integracji (jedna definicja „co widać w panelu”) i on sam
+        # ją zawęża – zakres jest argumentem, a nie sitem nałożonym na gotowy wynik.
+        "keys": api_keys_for_panel(competition=competition),
         "endpoints": list(
-            _scoped(WebhookEndpoint.objects.select_related("edition", "created_by"), competition)
+            WebhookEndpoint.objects.for_competition(competition).select_related("edition", "created_by")
         ),
-        "deliveries": list(
-            _scoped(WebhookDelivery.objects.select_related("endpoint"), competition, "endpoint__edition")[
-                :DELIVERY_LIMIT
-            ]
-        ),
+        "deliveries": deliveries_for_panel(competition=competition, limit=DELIVERY_LIMIT),
         "key_form": _bind_editions(key_form or ApiKeyForm(), competition),
         "webhook_form": _bind_editions(webhook_form or WebhookForm(), competition),
         "plain_key": plain_key,
@@ -197,6 +185,9 @@ class ApiKeyCreateView(CoordinatorRequiredMixin, View):
                 name=data["name"],
                 scopes=data["scopes"],
                 edition=data["edition"],
+                # Właściciela podajemy wprost, bo edycja bywa pusta („klucz na wszystkie
+                # roczniki”) i wtedy sama nie wskazuje żadnego konkursu.
+                competition=request.competition,
                 pii_allowed=data["pii_allowed"],
                 rate_limit_per_minute=data["rate_limit_per_minute"],
                 actor=request.user,
@@ -222,7 +213,7 @@ class ApiKeyRevokeView(CoordinatorRequiredMixin, View):
     """``POST /coordinator/integrations/keys/<id>/revoke/`` – unieważnienie klucza."""
 
     def post(self, request, pk: int):
-        key = get_object_or_404(_scoped(ApiKey.objects.all(), request.competition), pk=pk)
+        key = get_object_or_404(ApiKey.objects.for_competition(request.competition), pk=pk)
         try:
             revoke_api_key(key, actor=request.user, request=request)
         except DomainError as exc:
@@ -247,6 +238,9 @@ class WebhookCreateView(CoordinatorRequiredMixin, View):
                 url=data["url"],
                 events=data["events"],
                 edition=data["edition"],
+                # Jak przy kluczu: odbiorca „na wszystkie edycje” też musi mieć właściciela,
+                # bo zdarzenia konkursu A nie mają prawa wyjść na serwer wskazany przez B.
+                competition=request.competition,
                 actor=request.user,
                 request=request,
             )
@@ -311,12 +305,10 @@ class DeliveryResendView(CoordinatorRequiredMixin, View):
     """``POST /coordinator/integrations/deliveries/<id>/resend/`` – ponowienie z dziennika."""
 
     def post(self, request, pk: int):
+        # Doręczenie dochodzi do konkursu przez swojego odbiorcę (``endpoint__competition``) –
+        # tę ścieżkę zna jego manager, więc zawężenie jest tym samym wywołaniem, co wszędzie.
         delivery = get_object_or_404(
-            _scoped(
-                WebhookDelivery.objects.select_related("endpoint"),
-                request.competition,
-                "endpoint__edition",
-            ),
+            WebhookDelivery.objects.for_competition(request.competition).select_related("endpoint"),
             pk=pk,
         )
         try:

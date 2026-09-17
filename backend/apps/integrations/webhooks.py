@@ -32,6 +32,8 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from apps.competitions.scoping import scope_to_competition
+
 from .models import (
     MAX_CONSECUTIVE_FAILURES,
     WEBHOOK_EVENTS,
@@ -98,25 +100,31 @@ def build_envelope(delivery: WebhookDelivery) -> dict:
     }
 
 
-def endpoints_for(event: str, edition_id: int | None):
-    """Aktywni odbiorcy zapisani na dane zdarzenie w danej edycji.
+def endpoints_for(event: str, edition_id: int | None, competition=None):
+    """Aktywni odbiorcy **tego konkursu** zapisani na dane zdarzenie w danej edycji.
 
     Odbiorca bez edycji dostaje zdarzenia ze **wszystkich** edycji – tak wygląda integracja
     stała (system partnera, który ma po prostu wiedzieć, co się dzieje). Odbiorca z edycją
     dostaje wyłącznie swoją, także wtedy, gdy zdarzenie nie ma edycji w ogóle.
+
+    „Wszystkie edycje” znaczy jednak wszystkie edycje **jego** konkursu, a nie instalacji – i to
+    jest tu jedyna zmiana wielokonkursowa, za to najważniejsza: bez niej partner organizatora A
+    dostawałby na swój serwer zdarzenia organizatora B, razem z kodami jego uczestników.
+    Zawężenie idzie przez ``scope_to_competition``, więc obowiązuje ta sama reguła odwrotów, co
+    w całej domenie zawodów (instalacja bez konkursów zachowuje się jak przed etapem 1).
     """
-    queryset = WebhookEndpoint.objects.filter(is_active=True, edition__isnull=True)
-    if edition_id is not None:
-        queryset = WebhookEndpoint.objects.filter(is_active=True).filter(
-            Q(edition__isnull=True) | Q(edition_id=edition_id)
-        )
+    queryset = scope_to_competition(WebhookEndpoint.objects.filter(is_active=True), competition)
+    if edition_id is None:
+        queryset = queryset.filter(edition__isnull=True)
+    else:
+        queryset = queryset.filter(Q(edition__isnull=True) | Q(edition_id=edition_id))
     # Filtr po zdarzeniu jest w Pythonie, a nie w zapytaniu: ``events`` jest listą w JSON-ie,
     # a zapytanie „czy lista zawiera wartość” wyglądałoby inaczej w każdej bazie. Odbiorców są
     # jednostki, nie tysiące – to jedno zapytanie i pętla po kilku wierszach.
     return [endpoint for endpoint in queryset.order_by("id") if event in (endpoint.events or [])]
 
 
-def emit(event: str, payload: dict, edition=None) -> list[int]:
+def emit(event: str, payload: dict, edition=None, competition=None) -> list[int]:
     """Zgłasza zdarzenie domenowe odbiorcom webhooków. Zwraca identyfikatory doręczeń.
 
     Wołane z serwisów domenowych **wewnątrz** ich transakcji. Nieznane zdarzenie jest błędem
@@ -125,13 +133,21 @@ def emit(event: str, payload: dict, edition=None) -> list[int]:
 
     Brak odbiorców to normalny stan (tak wygląda serwis bez ani jednej integracji), więc nie ma
     tu żadnego ostrzeżenia ani śladu – po prostu nie powstaje nic.
+
+    ``competition`` domyślnie bierze się z edycji (gdy wołający podał ją obiektem) albo
+    z kontekstu przebiegu. Wołający wskazuje go wprost tam, gdzie zdarzenie nie ma edycji – a to
+    jest jedyny przypadek, w którym sam kontekst byłby zbyt słaby: zadanie wsadowe chodzące po
+    konkursach wiąże kontekst per konkurs (``each_competition``), ale sygnał wywołany z importu
+    już nie.
     """
     if event not in WEBHOOK_EVENTS:  # pragma: no cover - błąd programisty, nie danych
         raise ValueError(f"Nieznane zdarzenie webhooka: {event}.")
     # ``edition`` bywa obiektem (serwis ma go pod ręką) albo samym identyfikatorem (serwis ma
     # wyłącznie ``stage.edition_id`` i nie ma powodu dobierać wiersza tylko po to, żeby go tu oddać).
     edition_id = edition.pk if hasattr(edition, "pk") else edition
-    targets = endpoints_for(event, edition_id)
+    if competition is None and hasattr(edition, "competition_id"):
+        competition = edition.competition
+    targets = endpoints_for(event, edition_id, competition)
     if not targets:
         return []
     deliveries = WebhookDelivery.objects.bulk_create(

@@ -24,15 +24,21 @@ from apps.results.certificates import (
 from apps.results.models import CertificateKind, CertificateTemplate
 
 from .conftest import make_stage
+from .factories import CertificateTemplateFactory
 from .test_certificates import entry_with_name
 
 pytestmark = pytest.mark.django_db
 
 
 def template(**kwargs) -> CertificateTemplate:
-    """Szablon o podanym zakresie. Nazwa jest nieistotna dla dopasowania – liczy się para pól."""
+    """Szablon o podanym zakresie. Nazwa jest nieistotna dla dopasowania – liczy się para pól.
+
+    Przez fabrykę, a nie ``objects.create``: od wydania D szablon ma wymaganą kolumnę konkursu,
+    a fabryka bierze go z kontekstu testu (``backend/conftest.py``) – tak samo, jak każdy inny
+    wiersz zakresowany.
+    """
     kwargs.setdefault("name", "Szablon testowy")
-    return CertificateTemplate.objects.create(**kwargs)
+    return CertificateTemplateFactory(**kwargs)
 
 
 def png_bytes(color=(255, 255, 255)) -> bytes:

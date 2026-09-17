@@ -102,21 +102,22 @@ class SupportTicketSentView(View):
         return TemplateResponse(request, self.template_name, {})
 
 
-def own_tickets(user):
-    """Sprawy zgłoszone przez to konto, od najnowszej.
+def own_tickets(user, competition):
+    """Sprawy zgłoszone przez to konto w tym konkursie, od najnowszej.
 
     Jedno miejsce, w którym powstaje „moje zgłoszenia” – używają go lista i wątek. Dzięki temu
     cudza sprawa jest 404 z tego samego queryseta w obu widokach, a nie z warunku powtórzonego
-    w dwóch metodach.
+    w dwóch metodach. Zakres konkursu: uczestnik dwóch olimpiad widzi pod każdą domeną tylko
+    wątki z organizatorem tej olimpiady (``docs/UNIWERSALNY-ETAP-1.md`` § 3).
     """
-    return SupportTicket.objects.filter(user=user).order_by("-created_at", "-id")
+    return SupportTicket.objects.for_competition(competition).filter(user=user).order_by("-created_at", "-id")
 
 
 class SupportTicketListView(LoginRequiredMixin, View):
     """``/support/`` – lista własnych zgłoszeń."""
 
     def get(self, request):
-        context = {"tickets": list(own_tickets(request.user)[:OWN_TICKETS_LIMIT])}
+        context = {"tickets": list(own_tickets(request.user, request.competition)[:OWN_TICKETS_LIMIT])}
         return TemplateResponse(request, LIST_TEMPLATE, context)
 
 
@@ -152,7 +153,7 @@ class SupportTicketDetailView(LoginRequiredMixin, View):
         return redirect(reverse("web:support-detail", args=[ticket.pk]))
 
     def _ticket(self, request, pk: int) -> SupportTicket:
-        ticket = own_tickets(request.user).filter(pk=pk).first()
+        ticket = own_tickets(request.user, request.competition).filter(pk=pk).first()
         if ticket is None:
             raise Http404
         return ticket

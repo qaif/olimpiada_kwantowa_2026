@@ -310,6 +310,23 @@ def _preferences_section(user: User) -> dict:
     }
 
 
+def _participant(user: User):
+    """Profil uczestnika **w konkursie tego żądania** albo ``None``.
+
+    Eksport jest odpowiedzią administratora danych na pytanie „co o mnie wiecie”, a
+    administratorem jest organizator **jednego** konkursu (``docs/UNIWERSALNY-ETAP-1.md`` § 3.3).
+    Wrzucenie do paczki profilu z drugiej olimpiady – z jej szkołą, zgodami i kodem publicznym –
+    byłoby oddaniem uczestnikowi danych, których ten organizator nie przetwarza, a przy okazji
+    pokazaniem mu ich pod cudzą marką. Konkurs bierzemy z kontekstu, czyli stąd, skąd bierze go
+    widok, który tę paczkę wydaje.
+    """
+    from apps.tenancy.context import current_competition
+
+    from .services import participant_for
+
+    return participant_for(user, current_competition())
+
+
 def export_payload(user: User) -> dict:
     """Treść ``dane.json`` dla tego konta. Czysta funkcja – niczego nie zapisuje.
 
@@ -318,7 +335,7 @@ def export_payload(user: User) -> dict:
     (profil komitetu przy uczestniku), jest ``null`` – a nie znika – żeby kształt pliku był ten
     sam dla każdego konta i dał się odczytać maszynowo bez zgadywania.
     """
-    participant = getattr(user, "participant", None)
+    participant = _participant(user)
     return {
         "wersja_formatu": EXPORT_FORMAT_VERSION,
         "wygenerowano": _moment(timezone.now()),
@@ -394,7 +411,7 @@ def build_export_zip(user: User) -> ExportArchive:
     """
     from apps.submissions.storage import get_submission_storage
 
-    participant = getattr(user, "participant", None)
+    participant = _participant(user)
     payload = export_payload(user)
     storage = get_submission_storage()
     stream = tempfile.TemporaryFile()
@@ -432,7 +449,7 @@ def export_filename(user: User) -> str:
     i widnieje w historii przeglądarki. Uczestnik rozpozna go po kodzie publicznym, czyli po tym
     samym identyfikatorze, którym posługuje się w rozmowie z organizatorem.
     """
-    participant = getattr(user, "participant", None)
+    participant = _participant(user)
     marker = participant.public_code if participant is not None else f"konto-{user.pk}"
     return f"dane-konta-{marker}-{timezone.localdate().isoformat()}.zip"
 

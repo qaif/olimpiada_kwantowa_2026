@@ -149,7 +149,7 @@ def attention_counters(stage_ids: list[int] | None = None, competition=None) -> 
             .filter(status=CommitteeStatus.PENDING)
             .count(),
             "issues": open_issue_count(stage_ids),
-            "tickets": open_ticket_count(),
+            "tickets": open_ticket_count(competition),
         }
     except DatabaseError:  # pragma: no cover - baza bez migracji
         return dict(EMPTY_COUNTERS)

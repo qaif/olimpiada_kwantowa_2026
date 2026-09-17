@@ -17,6 +17,7 @@ from apps.results.models import Anonymization
 from apps.results.services import publish_results
 from apps.submissions.models import SubmissionStatus
 from apps.submissions.tests.factories import SubmissionFactory
+from apps.tenancy.tests.factories import current_or_default_competition
 from apps.web.tests.conftest import (
     WEB_TEST_PASSWORD,
     captcha_fields,
@@ -34,7 +35,9 @@ def supervisor():
     """Konto opiekuna gotowe do logowania – tak wygląda profil po aktywacji adresu."""
     user = UserFactory(email=SUPERVISOR_EMAIL, first_name="Anna", last_name="Nauczycielska")
     user.groups.add(Group.objects.get_or_create(name=GROUP_SUPERVISOR)[0])
-    return SchoolSupervisor.objects.create(user=user, school="XIV LO")
+    return SchoolSupervisor.objects.create(
+        user=user, school="XIV LO", competition=current_or_default_competition()
+    )
 
 
 @pytest.fixture

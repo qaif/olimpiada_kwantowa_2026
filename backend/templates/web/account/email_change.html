@@ -20,7 +20,7 @@
       {{ form.as_p }}
       <button type="submit" class="btn btn--primary btn--block">{% translate "Wyślij link potwierdzający" %}</button>
     </form>
-    <p class="auth__alt"><a href="{% if user.participant %}{% url 'web:profile' %}{% else %}{% url 'web:account-profile' %}{% endif %}">{% translate "Wróć do edycji danych" %}</a>.</p>
+    <p class="auth__alt"><a href="{{ profile_url }}">{% translate "Wróć do edycji danych" %}</a>.</p>
   </div>
 </div>
 {% endblock %}

@@ -30,12 +30,13 @@ from django.utils.http import urlencode
 from django.views.generic import View
 
 from apps.accounts.guardian import guardian_status
-from apps.accounts.models import GROUP_COORDINATOR, User
+from apps.accounts.models import GROUP_COORDINATOR, Participant, User
 from apps.accounts.profile import (
     competition_footprint,
     delete_account_by_coordinator,
     update_account_by_coordinator,
 )
+from apps.accounts.services import participant_for
 from apps.core.api import DomainError
 from apps.web.forms import (
     CoordinatorAccountForm,
@@ -54,16 +55,49 @@ DELETE_TEMPLATE = "web/coordinator/accounts_delete.html"
 #: całej bazy po kolei.
 ACCOUNTS_PER_PAGE = 50
 
+
+def participant_ids(competition):
+    """Konta z profilem uczestnika **w tym konkursie** – podzapytanie do filtra roli.
+
+    Podzapytanie, a nie złączenie przez ``participations``: po § 3.3 relacja jest wielokrotna,
+    więc ``filter(participations__…)`` w sumie logicznej z pozostałymi warunkami wyszukiwarki
+    daje ``LEFT JOIN``, a ten powiela wiersz konta startującego w dwóch olimpiadach. Lista jest
+    stronicowana, więc powielony wiersz to nie tylko podwójne nazwisko na ekranie, ale i błędna
+    liczba stron.
+    """
+    if competition is None:
+        return Participant.objects.values("user_id")
+    return Participant.objects.filter(competition=competition).values("user_id")
+
+
+def _profile_scope(relation: str, competition) -> dict:
+    """Zawężenie profilu roli do konkursu – puste, gdy żądanie konkursu nie zna.
+
+    Żądanie bez konkursu (instalacja, w której host nie wskazuje żadnego) ma zachowywać się
+    dokładnie tak, jak przed wielokonkursowością: ``has_role`` schodzi wtedy do grup Django,
+    a ten ekran – do profilu bez zakresu.
+    """
+    return {} if competition is None else {f"{relation}__competition": competition}
+
+
 #: Filtr roli w adresie → zawężenie zapytania. Cztery pozycje, bo tyle da się rozstrzygnąć
 #: bez zaglądania w grupy każdego wiersza z osobna: uczestnik ma profil uczestnika, członek
 #: komitetu – profil komitetu, opiekun szkolny – profil opiekuna, a „pozostałe” nie mają żadnego
 #: (konta koordynatorów i konta, które nie dokończyły rejestracji).
+#:
+#: Każdy filtr bierze **konkurs**, bo profil roli należy do konkursu (§ 3.2): filtr „uczestnicy”
+#: bez zakresu pokazywałby konta startujące u sąsiada, a filtr „pozostałe” chowałby je jako
+#: cudzych uczestników – czyli oba kłamałyby o tym samym koncie, tylko w przeciwne strony.
 ROLE_FILTERS = {
-    "participant": lambda qs: qs.filter(participant__isnull=False),
-    "committee": lambda qs: qs.filter(committee_member__isnull=False),
-    "supervisor": lambda qs: qs.filter(school_supervisor__isnull=False),
-    "other": lambda qs: qs.filter(
-        participant__isnull=True, committee_member__isnull=True, school_supervisor__isnull=True
+    "participant": lambda qs, competition: qs.filter(pk__in=participant_ids(competition)),
+    "committee": lambda qs, competition: qs.filter(
+        committee_member__isnull=False, **_profile_scope("committee_member", competition)
+    ),
+    "supervisor": lambda qs, competition: qs.filter(
+        school_supervisor__isnull=False, **_profile_scope("school_supervisor", competition)
+    ),
+    "other": lambda qs, competition: qs.exclude(pk__in=participant_ids(competition)).filter(
+        committee_member__isnull=True, school_supervisor__isnull=True
     ),
 }
 
@@ -113,15 +147,31 @@ def users_for_competition(competition):
     blokować ani kasować – to nie są jego dane osobowe do administrowania (§ 8, D5), a lista kont
     jest ekranem, z którego te trzy czynności wychodzą.
 
-    ``__in`` z podzapytaniem, a nie ``JOIN`` przez ``memberships``: osoba z dwiema rolami
-    w jednym konkursie (recenzent i członek komisji odwoławczej) pojawiłaby się przy złączeniu
-    dwa razy, a ``distinct()`` na liście ze stronicowaniem kosztuje sortowanie całego wyniku.
+    **Drugi dowód własności: profil uczestnika.** Samo członkostwo nie wystarczy, bo wiersz
+    ``Membership`` powstaje przy nadaniu roli, a ``Participant`` bywa dopisany inną drogą
+    (``/admin/``, import, dane sprzed poprawki) – i takie konto trafiłoby na listę jako „niczyje”
+    razem z nazwiskiem, szkołą i kodem publicznym uczestnika **sąsiada**. Konto z profilem
+    wyłącznie w cudzym konkursie jest więc wykluczone wprost, a konto z profilem tutaj – widoczne
+    nawet bez członkostwa.
+
+    ``__in`` z podzapytaniem, a nie ``JOIN`` przez ``memberships``/``participations``: osoba
+    z dwiema rolami w jednym konkursie (recenzent i członek komisji odwoławczej) albo startująca
+    w dwóch olimpiadach pojawiłaby się przy złączeniu dwa razy, a ``distinct()`` na liście ze
+    stronicowaniem kosztuje sortowanie całego wyniku.
     """
     from apps.accounts.models import Membership
 
     mine = Membership.objects.for_competition(competition).values("user_id")
     claimed_by_anyone = Membership.objects.values("user_id")
-    return User.objects.filter(Q(pk__in=mine) | ~Q(pk__in=claimed_by_anyone))
+    starts_here = participant_ids(competition)
+    starts_elsewhere = (
+        Participant.objects.none().values("user_id")
+        if competition is None
+        else Participant.objects.exclude(competition=competition).values("user_id")
+    )
+    visible = Q(pk__in=mine) | Q(pk__in=starts_here) | ~Q(pk__in=claimed_by_anyone)
+    stranger = Q(pk__in=starts_elsewhere) & ~Q(pk__in=mine) & ~Q(pk__in=starts_here)
+    return User.objects.filter(visible).exclude(stranger)
 
 
 def is_protected(user: User) -> bool:
@@ -161,24 +211,52 @@ def two_factor_device(user: User):
     return confirmed_device(user)
 
 
-def account_role(user: User) -> str:
-    """Rola konta w jednym słowie – do kolumny listy i do nagłówka edycji.
+def profile_here(user: User, relation: str, competition):
+    """Profil roli (``committee_member``, ``school_supervisor``) **tego** konkursu albo ``None``.
+
+    Obie relacje są wciąż ``OneToOne``, ale ich wiersz ma od wydania B własny konkurs (§ 3.2),
+    więc samo „profil istnieje” przestało znaczyć „profil tutaj”. Porównujemy identyfikator,
+    a nie robimy drugiego zapytania: wiersz przyjechał już razem z kontem
+    (``select_related``), a ekran listy pokazuje pięćdziesiąt kont naraz.
+
+    Żądanie bez konkursu oddaje profil bez zawężenia – tak samo jak ``has_role`` schodzi wtedy
+    do grup Django, czyli do zachowania sprzed wielokonkursowości.
+    """
+    profile = getattr(user, relation, None)
+    if profile is None or competition is None:
+        return profile
+    return profile if profile.competition_id == competition.pk else None
+
+
+def account_role(user: User, competition, participant) -> str:
+    """Rola konta **w tym konkursie** w jednym słowie – do kolumny listy i do nagłówka edycji.
 
     Kolejność rozstrzygania nie jest dowolna: koordynator wygrywa, bo to on decyduje o tym, czy
     konto w ogóle da się tu tknąć; potem komitet, bo profil komitetu niesie uprawnienia do cudzych
     prac. Konto z profilem uczestnika i profilem komitetu naraz jest w tym serwisie niemożliwe
     (rejestracje są rozłączne), ale kolejność i tak musi być zapisana, a nie przypadkowa.
+
+    Profil uczestnika przychodzi **z zewnątrz** (``participant_for`` albo mapa policzona na całą
+    stronę listy), bo po § 3.3 relacja jest wielokrotna: jedna osoba ma tyle profili, w ilu
+    olimpiadach startuje, a ta kolumna mówi o jednej z nich.
+
+    Dlaczego etykiety nie liczy ``roles_for``, choć to ono rozstrzyga o dostępie: bo rozróżnienie
+    „członek komitetu” / „komisja odwoławcza” jest faktem **profilu** (``is_appeals_committee``),
+    a nie członkostwa, a przy wyłączonym ``memberships_enforced`` ``roles_for`` czyta globalne
+    grupy Django – czyli konto z grupą, ale bez profilu (członek komitetu przed zatwierdzeniem),
+    dostałoby na liście Olimpiady Kwantowej etykietę, której dziś tam nie ma (§ 0). Zakres
+    konkursu wchodzi więc przez profile, a nie przez podmianę ich źródła.
     """
     if is_protected(user):
         return ROLE_COORDINATOR
-    member = getattr(user, "committee_member", None)
+    member = profile_here(user, "committee_member", competition)
     if member is not None:
         return ROLE_APPEALS if member.is_appeals_committee else ROLE_COMMITTEE
-    if getattr(user, "participant", None) is not None:
+    if participant is not None:
         return ROLE_PARTICIPANT
     # Opiekun szkolny na końcu, bo jego rola jest najsłabsza: nie ocenia, nie startuje i widzi
     # wyłącznie tych uczniów, którzy sami wskazali jego adres.
-    if getattr(user, "school_supervisor", None) is not None:
+    if profile_here(user, "school_supervisor", competition) is not None:
         return ROLE_SUPERVISOR
     return ROLE_NONE
 
@@ -198,14 +276,32 @@ def account_status(user: User) -> str:
     return STATUS_ACTIVE
 
 
-def account_rows(users) -> list[dict]:
+def participants_by_user(users, competition) -> dict:
+    """Profile uczestników **tego** konkursu dla kont z jednej strony listy – jedno zapytanie.
+
+    ``select_related("participant")`` przestało istnieć razem z relacją ``OneToOne`` (§ 3.3),
+    a ``participant_for`` w pętli po pięćdziesięciu wierszach to pięćdziesiąt zapytań. Mapa
+    ``{user_id: profil}`` liczona raz na stronę zostawia ten ekran przy jednym.
+    """
+    if competition is None:
+        rows = Participant.objects.filter(user__in=users)
+    else:
+        rows = Participant.objects.filter(user__in=users, competition=competition)
+    return {row.user_id: row for row in rows}
+
+
+def account_rows(users, competition) -> list[dict]:
     """Wiersze tabeli – wyłącznie prezentacja, żadnej reguły domenowej."""
+    participants = participants_by_user(users, competition)
     return [
         {
             "user": user,
-            "role": account_role(user),
+            "role": account_role(user, competition, participants.get(user.pk)),
             "status": account_status(user),
-            "public_code": getattr(getattr(user, "participant", None), "public_code", ""),
+            # Profil w wierszu, bo szablon nie ma jak dojść do właściwego z samego konta:
+            # relacja jest wielokrotna, a ta lista mówi o jednym konkursie.
+            "participant": participants.get(user.pk),
+            "public_code": getattr(participants.get(user.pk), "public_code", ""),
             "protected": is_protected(user),
         }
         for user in users
@@ -218,25 +314,29 @@ class CoordinatorAccountsView(CoordinatorRequiredMixin, View):
     def get(self, request):
         query = (request.GET.get("q") or "").strip()
         role = request.GET.get("role") or ""
-        # ``select_related`` na obu profilach i ``prefetch_related`` na grupach: rola i kod
-        # publiczny stoją w każdym wierszu, więc bez tego strona robiłaby trzy zapytania na konto.
+        # ``select_related`` na profilach komitetu i opiekuna oraz ``prefetch_related`` na grupach:
+        # rola stoi w każdym wierszu, więc bez tego strona robiłaby trzy zapytania na konto.
+        # Profilu uczestnika tu nie ma – relacja jest wielokrotna (§ 3.3) i wchodzi mapą
+        # ``participants_by_user`` liczoną na stronę, a nie złączeniem powielającym wiersze.
         users = (
             users_for_competition(request.competition)
-            .select_related("participant", "committee_member", "school_supervisor")
+            .select_related("committee_member", "school_supervisor")
             .prefetch_related("groups")
             .order_by("email")
         )
         if role in ROLE_FILTERS:
-            users = ROLE_FILTERS[role](users)
+            users = ROLE_FILTERS[role](users, request.competition)
         if query:
             # Po fragmencie, bo koordynator szuka z pamięci albo ze słuchu („Kowalska, chyba
             # gmail”). Kod publiczny wpada do tego samego pola – jest jedynym identyfikatorem,
-            # jaki uczestnik widzi u siebie i podaje przez telefon.
+            # jaki uczestnik widzi u siebie i podaje przez telefon. Szukamy go **w tym
+            # konkursie**: kod z cudzej olimpiady nie jest identyfikatorem, który ten ekran zna.
+            matching_codes = participant_ids(request.competition).filter(public_code__icontains=query)
             users = users.filter(
                 Q(email__icontains=query)
                 | Q(first_name__icontains=query)
                 | Q(last_name__icontains=query)
-                | Q(participant__public_code__icontains=query)
+                | Q(pk__in=matching_codes)
             )
         paginator = Paginator(users, ACCOUNTS_PER_PAGE)
         page = paginator.get_page(request.GET.get("page"))
@@ -244,7 +344,7 @@ class CoordinatorAccountsView(CoordinatorRequiredMixin, View):
         # wyników pokazywałaby wszystkie konta.
         filters = {name: value for name, value in (("q", query), ("role", role)) if value}
         context = {
-            "rows": account_rows(page.object_list),
+            "rows": account_rows(page.object_list, request.competition),
             "page_obj": page,
             "paginator": paginator,
             "query": query,
@@ -264,9 +364,7 @@ def _account(competition, pk: int) -> User:
     pominąć – wszystkie wołają tę funkcję.
     """
     return get_object_or_404(
-        users_for_competition(competition).select_related(
-            "participant", "committee_member", "school_supervisor"
-        ),
+        users_for_competition(competition).select_related("committee_member", "school_supervisor"),
         pk=pk,
     )
 
@@ -327,12 +425,14 @@ class CoordinatorAccountEditView(CoordinatorRequiredMixin, View):
                 },
             )
         }
-        participant = getattr(user, "participant", None)
+        # Profil uczestnika **tego** konkursu: blok „dane uczestnika” ma pokazywać szkołę i klasę
+        # zgłoszone tutaj, a nie te, które ta sama osoba podała sąsiedniej olimpiadzie.
+        participant = participant_for(user, self.request.competition)
         if participant is not None:
             forms["participant"] = CoordinatorParticipantForm(
                 data, prefix="participant", initial=participant_profile_initial(participant)
             )
-        member = getattr(user, "committee_member", None)
+        member = profile_here(user, "committee_member", self.request.competition)
         if member is not None:
             forms["committee"] = CoordinatorCommitteeForm(
                 data,
@@ -346,10 +446,10 @@ class CoordinatorAccountEditView(CoordinatorRequiredMixin, View):
         return forms
 
     def _render(self, request, user: User, forms: dict, *, status: int = 200):
-        participant = getattr(user, "participant", None)
+        participant = participant_for(user, request.competition)
         context = {
             "account": user,
-            "role": account_role(user),
+            "role": account_role(user, request.competition, participant),
             "status_label": account_status(user),
             "protected": is_protected(user),
             # Stan zgody opiekuna – do odczytu. Reguła jest jedna dla panelu uczestnika
@@ -358,7 +458,7 @@ class CoordinatorAccountEditView(CoordinatorRequiredMixin, View):
                 guardian_status(participant) if participant is not None else {"state": "not_required"}
             ),
             "participant": participant,
-            "committee": getattr(user, "committee_member", None),
+            "committee": profile_here(user, "committee_member", request.competition),
             # Drugi składnik logowania – do odczytu plus jeden przycisk. Koordynator nie może go
             # tu **włączyć** za kogoś (sekret musi powstać na urządzeniu właściciela), a jedynie
             # zdjąć zgubiony (``CoordinatorTwoFactorResetView``). Przy wyłączonym
@@ -469,15 +569,16 @@ class CoordinatorAccountDeleteView(CoordinatorRequiredMixin, View):
 
     def _render(self, request, user: User, *, status: int = 200):
         footprint = competition_footprint(user)
+        participant = participant_for(user, request.competition)
         context = {
             "account": user,
-            "role": account_role(user),
+            "role": account_role(user, request.competition, participant),
             "protected": is_protected(user),
             "is_self": user.pk == request.user.pk,
             "footprint": footprint,
             # ``True`` = zostanie anonimizacja, ``False`` = skasowanie wiersza. Nazwa mówi
             # o skutku, nie o implementacji, bo to ona stoi w treści strony.
             "keeps_pseudonymous_row": any(footprint.values()),
-            "participant": getattr(user, "participant", None),
+            "participant": participant,
         }
         return TemplateResponse(request, DELETE_TEMPLATE, context, status=status)
