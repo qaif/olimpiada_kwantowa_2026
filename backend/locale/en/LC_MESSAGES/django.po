@@ -476,7 +476,7 @@ msgstr "Cookie settings"
 msgid "Organizator:"
 msgstr "Organiser:"
 
-#: templates/base.html:387
+#: templates/base.html:387 templates/web/participant/_problem_card.html:162
 #, python-format
 msgid "wersja %(version)s"
 msgstr "version %(version)s"
@@ -1007,11 +1007,6 @@ msgstr "Antivirus scan"
 #: templates/web/participant/_problem_card.html:156
 msgid "Plik"
 msgstr "File"
-
-#: templates/web/participant/_problem_card.html:162
-#, python-format
-msgid "wersja %(version)s"
-msgstr "version %(version)s"
 
 #: templates/web/participant/_problem_card.html:163
 #: templates/web/reviewer/list.html:78
