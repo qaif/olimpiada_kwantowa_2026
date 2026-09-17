@@ -30,19 +30,42 @@
     }
   }
 
+  /* Rozwinięcie po najechaniu (organizator: „rozwijanie sekcji po najechaniu myszką”).
+     Tylko na urządzeniach z prawdziwym kursorem – na dotykowym „hover” to pierwsze tapnięcie
+     i sekcja otwierałaby się przed kliknięciem w pozycję. Krótkie opóźnienie odsiewa przelot
+     kursora przez menu w drodze do treści. Zwinięta sekcja otwarta najazdem wraca do stanu
+     zwiniętego po zjechaniu, a najazd **nie zapisuje** stanu w pamięci – zapamiętane jest tylko
+     to, co użytkownik kliknął. */
+  var HOVER_OPEN_DELAY = 150;
+  var HOVER_CLOSE_DELAY = 350;
+
+  function hoverCapable() {
+    try {
+      return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+    } catch (error) {
+      return false;
+    }
+  }
+
   function init() {
     var groups = document.querySelectorAll(".panel-nav__group[data-nav-group]");
     if (!groups.length) {
       return;
     }
     var collapsed = readCollapsed();
+    var useHover = hoverCapable();
     Array.prototype.forEach.call(groups, function (group) {
       var slug = group.getAttribute("data-nav-group");
       var pinned = group.hasAttribute("data-nav-pinned");
+      var hoverOpened = false;
+      var timer = null;
       if (!pinned && collapsed.indexOf(slug) !== -1) {
         group.removeAttribute("open");
       }
       group.addEventListener("toggle", function () {
+        if (hoverOpened) {
+          return; // zmiana wywołana najazdem – nie jest decyzją użytkownika
+        }
         var current = readCollapsed().filter(function (item) {
           return item !== slug;
         });
@@ -50,6 +73,48 @@
           current.push(slug);
         }
         writeCollapsed(current);
+      });
+      if (!useHover || pinned) {
+        return;
+      }
+      group.addEventListener("mouseenter", function () {
+        window.clearTimeout(timer);
+        if (group.open) {
+          return;
+        }
+        timer = window.setTimeout(function () {
+          hoverOpened = true;
+          group.open = true;
+        }, HOVER_OPEN_DELAY);
+      });
+      group.addEventListener("mouseleave", function () {
+        window.clearTimeout(timer);
+        if (!hoverOpened) {
+          return;
+        }
+        timer = window.setTimeout(function () {
+          if (hoverOpened) {
+            group.open = false;
+            // ``toggle`` jest zdarzeniem asynchronicznym – flaga zdejmowana dopiero po nim.
+            window.setTimeout(function () {
+              hoverOpened = false;
+            }, 0);
+          }
+        }, HOVER_CLOSE_DELAY);
+      });
+      // Kliknięcie w nagłówek sekcji otwartej najazdem = „chcę ją mieć otwartą”: od tej chwili
+      // to decyzja użytkownika, zapisywana jak każde inne kliknięcie.
+      group.addEventListener("click", function (event) {
+        if (hoverOpened && event.target.closest(".panel-nav__heading")) {
+          hoverOpened = false;
+          window.clearTimeout(timer);
+          event.preventDefault();
+          writeCollapsed(
+            readCollapsed().filter(function (item) {
+              return item !== slug;
+            })
+          );
+        }
       });
     });
   }
