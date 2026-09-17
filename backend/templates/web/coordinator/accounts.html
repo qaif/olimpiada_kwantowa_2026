@@ -42,6 +42,13 @@
         {% endif %}
       </div>
     </form>
+    {% comment %}
+      Import stoi przy liście kont, a nie w menu bocznym, bo jest czynnością **na tej liście**:
+      dokłada do niej konta. Odnośnik jest mały celowo – to narzędzie na kilka dni we wrześniu,
+      a nie codzienna droga organizatora.
+    {% endcomment %}
+    <p class="hint"><a href="{% url 'web:coordinator-accounts-import' %}">Hurtowe zaproszenie
+      uczniów z listy (CSV/XLSX)</a></p>
     <p class="hint">Rola:
       {% for value, label in role_choices %}
         {% if value == role %}
@@ -74,7 +81,14 @@
           <tr>
             <th scope="row"><a href="{% url 'web:coordinator-account-edit' row.user.pk %}">{{ row.user.email }}</a></th>
             <td>{{ row.user.get_full_name|default:"—" }}</td>
-            <td>{{ row.role }}{% if row.protected %} <span class="badge badge--neutral">chronione</span>{% endif %}</td>
+            {% comment %}
+              Odznaka „z importu” odpowiada na pytanie „skąd wzięło się dwadzieścia kont z jednej
+              szkoły w jednej minucie”. Czytamy ją wprost z profilu (``Participant.invited_at``),
+              a nie z osobnego pola wiersza: konto uczestnika jest już w ``select_related``, więc
+              nie kosztuje to ani jednego zapytania więcej. Znacznik zostaje **po** aktywacji –
+              opisuje pochodzenie konta, a nie jego stan (ten jest w kolumnie obok).
+            {% endcomment %}
+            <td>{{ row.role }}{% if row.protected %} <span class="badge badge--neutral">chronione</span>{% endif %}{% if row.user.participant.invited_at %} <span class="badge badge--info">z importu</span>{% endif %}</td>
             <td>{{ row.public_code|default:"—" }}</td>
             <td>{{ row.status }}</td>
             <td>{{ row.user.date_joined|local_datetime }}</td>

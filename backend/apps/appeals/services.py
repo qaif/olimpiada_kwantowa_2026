@@ -304,6 +304,11 @@ def decide_appeal(
         current_score,
         new_score if new_score is not None else current_score,
     )
+    # Zdarzenie dla systemów zewnętrznych (``apps.integrations``). Bez uzasadnienia decyzji –
+    # to jest tekst o konkretnym człowieku, a webhook leci na cudzy serwer.
+    from apps.integrations.events import appeal_decided as emit_appeal_decided
+
+    emit_appeal_decided(appeal, decision)
     return decision
 
 

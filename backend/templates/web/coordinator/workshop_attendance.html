@@ -1,0 +1,149 @@
+{% extends "web/coordinator/base.html" %}
+{% load static %}
+{% comment %}
+  Tabela obecności na warsztatach: uczestnicy w wierszach, zajęcia w kolumnach.
+
+  Zapis obejmuje wyłącznie **widoczną stronę** — dlatego lista uczestników tej strony jedzie
+  w ukrytych polach ``participant``. Bez nich serwer nie wiedziałby, których kratek koordynator
+  nie zaznaczył, bo ich nie chciał, a których nie widział wcale.
+
+  „Zaznacz kolumnę” jest jedyną rzeczą, której nie da się zrobić samym HTML-em, więc siedzi
+  w osobnym pliku (strict CSP nie dopuszcza skryptu inline). Bez tego pliku strona działa tak
+  samo, tylko kratki odhacza się pojedynczo — przyciski są wtedy ukryte.
+{% endcomment %}
+{% block title %}Obecność na warsztatach – panel koordynatora{% endblock %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block panel_title %}Obecność na warsztatach{% if edition %}: {{ edition.year_label }}{% endif %}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Warsztaty są treścią redakcyjną, a lista obecności powstaje na platformie wideo —
+    tutaj przepisujesz ją albo importujesz, żeby dało się wystawić zaświadczenia. Kolumny biorą się
+    z harmonogramu na stronie <a href="/warsztaty/">/warsztaty/</a>.</p>
+{% endblock %}
+{% block panel_content %}
+
+{% if not edition %}
+  <p class="hint">Nie ustawiono bieżącej edycji — nie ma dla kogo prowadzić listy obecności.</p>
+{% elif not workshops %}
+  <p class="hint">Harmonogram warsztatów jest pusty. Kolumny tej tabeli biorą się z wierszy bloku
+    „harmonogram” na stronie <a href="/warsztaty/">/warsztaty/</a>, które mają wypełniony termin
+    w postaci maszynowej (pole „termin (data)”).</p>
+{% else %}
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Zaświadczenia z warsztatów</h2>
+    <p>Dokument dostaje każdy, kto ma odhaczoną co najmniej jedną obecność i wpis do etapu w tej
+      edycji. Na zaświadczeniu wyliczone są tematy i terminy zajęć — dlatego progu „połowa zajęć”
+      tu nie ma: dokument sam mówi, ile tego było.</p>
+    <form method="post" action="{% url 'web:coordinator-workshop-certificates' %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn--primary">Wystaw zaświadczenia z warsztatów (ZIP)</button>
+    </form>
+  </div>
+</section>
+
+<section class="section">
+  <div class="card card--quiet">
+    <form method="get" class="form form--inline">
+      <label for="q">Szukaj po nazwisku, imieniu albo kodzie</label>
+      <input type="search" id="q" name="q" value="{{ query }}">
+      <button type="submit" class="btn btn--secondary btn--small">Filtruj</button>
+      {% if query %}<a class="btn btn--ghost btn--small" href="{% url 'web:coordinator-workshop-attendance' %}">Wyczyść</a>{% endif %}
+    </form>
+    <p class="hint">Uczestników w edycji: {{ total }}. Strona {{ page_number }} z {{ page_count }}.</p>
+  </div>
+</section>
+
+<section class="section">
+  <form method="post" id="attendance-form">
+    {% csrf_token %}
+    <input type="hidden" name="query" value="{{ query }}">
+    <input type="hidden" name="page" value="{{ page_number }}">
+    <div class="scroll">
+      <table class="table">
+        <caption class="visually-hidden">Obecność uczestników na warsztatach</caption>
+        <thead>
+          <tr>
+            <th scope="col">Uczestnik</th>
+            <th scope="col">Kod</th>
+            {% for workshop in workshops %}
+              <th scope="col">
+                {{ workshop.topic }}<br>
+                <span class="hint">{{ workshop.date_value|date:"j E Y" }}</span>
+                {% comment %}
+                  Przycisk zaznaczania kolumny jest ukryty do chwili, w której skrypt go odsłoni –
+                  przycisk, który bez JavaScriptu niczego nie robi, byłby obietnicą bez pokrycia.
+                {% endcomment %}
+                <button type="button" class="btn btn--ghost btn--small"
+                        data-check-column="{{ workshop.key }}" hidden>zaznacz kolumnę</button>
+              </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <th scope="row">
+                {{ row.participant.user.get_full_name|default:row.participant.user.email }}
+                <input type="hidden" name="participant" value="{{ row.participant.pk }}">
+              </th>
+              <td><span class="code-chip">{{ row.participant.public_code }}</span></td>
+              {% for cell in row.cells %}
+                <td>
+                  <input type="checkbox" name="attend"
+                         value="{{ row.participant.pk }}:{{ cell.workshop.key }}"
+                         data-workshop-key="{{ cell.workshop.key }}"
+                         {% if cell.checked %}checked{% endif %}
+                         aria-label="{{ row.participant.public_code }} – {{ cell.workshop.topic }}">
+                </td>
+              {% endfor %}
+            </tr>
+          {% empty %}
+            <tr><td colspan="{{ workshops|length|add:2 }}" class="empty">Nikt nie pasuje do filtru.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="actions">
+      <button type="submit" class="btn btn--primary">Zapisz obecności tej strony</button>
+    </div>
+  </form>
+</section>
+
+{% if page_count > 1 %}
+  <nav class="section" aria-label="Strony listy uczestników">
+    <p class="hint">
+      {% if page_number > 1 %}
+        <a href="?q={{ query }}&amp;page={{ page_number|add:'-1' }}">← poprzednia strona</a>
+      {% endif %}
+      {% if page_number < page_count %}
+        <a href="?q={{ query }}&amp;page={{ page_number|add:'1' }}">następna strona →</a>
+      {% endif %}
+    </p>
+  </nav>
+{% endif %}
+
+<section class="section">
+  <div class="card card--quiet">
+    <h2 class="mt-0">Import z pliku CSV</h2>
+    <p class="hint">Dwie kolumny: <code>kod,warsztat</code> — kod uczestnika z panelu i klucz
+      warsztatu. Import <strong>dokłada</strong> obecności, nigdy ich nie kasuje. Klucze warsztatów
+      tej edycji:</p>
+    <ul class="hint">
+      {% for workshop in workshops %}<li><code>{{ workshop.key }}</code> — {{ workshop.topic }}</li>{% endfor %}
+    </ul>
+    <form method="post" enctype="multipart/form-data" class="form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="import">
+      <input type="hidden" name="query" value="{{ query }}">
+      <input type="hidden" name="page" value="{{ page_number }}">
+      {{ import_form.as_p }}
+      <button type="submit" class="btn btn--secondary">Importuj obecności</button>
+    </form>
+  </div>
+</section>
+{% endif %}
+{% endblock %}
+{% block scripts %}{{ block.super }}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/workshop-attendance.js' %}"></script>
+{% endblock %}

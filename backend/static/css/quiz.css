@@ -1,0 +1,143 @@
+/* Test online – arkusz uczestnika i jego przyklejony licznik.
+ *
+ * Osobny arkusz, wczytywany wyłącznie na stronie podejścia i w podglądzie koordynatora. Powód jest
+ * ten sam, co przy ``reviewer.css``: to jedyny ekran serwisu, na którym uczestnik siedzi
+ * kilkadziesiąt minut i nic innego nie robi, więc ma własne reguły czytelności – a reszta serwisu
+ * nie ma powodu pobierać ich na każdej stronie.
+ *
+ * Kolory biorą się z tokenów ``app.css`` (``--…``), nie z wartości wpisanych tutaj: dzięki temu
+ * tryb ciemny i tryb wysokiego kontrastu działają na tej stronie same, bez ani jednej reguły
+ * dopisanej w tym pliku.
+ */
+
+/* Licznik przykleja się do górnej krawędzi, bo odpowiada na pytanie zadawane co chwilę przez całe
+   podejście. ``top: 0`` i nie więcej: pasek konta w tym szablonie jest jedynym elementem nad nim,
+   a linia czasu edycji jest na stronie testu wyłączona (patrz szablon). */
+.quiz-timer {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: baseline;
+  padding: 0.6rem 1rem;
+  margin-bottom: 1.5rem;
+  border-radius: 0.5rem;
+  background: var(--surface-raised, #fff);
+  border: 1px solid var(--border, #d7dce5);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
+}
+
+.quiz-timer__label {
+  font-size: 0.9rem;
+  color: var(--text-muted, #5b6678);
+}
+
+.quiz-timer__value {
+  font-size: 1.6rem;
+  /* Cyfry o stałej szerokości: bez tego licznik „skacze” w poziomie przy każdej zmianie sekundy,
+     a ruch na krawędzi pola widzenia rozprasza przez cały czas trwania testu. */
+  font-variant-numeric: tabular-nums;
+}
+
+.quiz-timer__save {
+  margin-left: auto;
+  font-size: 0.9rem;
+  color: var(--text-muted, #5b6678);
+}
+
+.quiz-timer__save--ok { color: var(--ok, #1c7c47); }
+.quiz-timer__save--error { color: var(--danger, #a3202c); }
+
+/* Ostatnie pięć minut i czas po terminie. Sam kolor nie wystarcza (daltonizm, tryb wysokiego
+   kontrastu), więc różnicę niesie też grubość obramowania. */
+.quiz-timer--warning {
+  border-color: var(--warn, #b5730b);
+  border-width: 2px;
+}
+
+.quiz-timer--over {
+  border-color: var(--danger, #a3202c);
+  border-width: 2px;
+}
+
+.quiz-question {
+  margin-bottom: 1.25rem;
+}
+
+.quiz-question__text {
+  /* Szerokość wiersza ograniczona do długości, którą oko czyta bez gubienia linii. Treść pytania
+     bywa akapitem, a nie zdaniem, i w pełnej szerokości ekranu czyta się ją źle. */
+  max-width: 62ch;
+  font-size: 1.05rem;
+}
+
+.quiz-question__image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.375rem;
+}
+
+.quiz-options {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+/* Wariant odpowiedzi jest **całym wierszem**: etykieta zajmuje resztę szerokości, więc kliknięcie
+   obok tekstu też zaznacza. Pole wyboru wielkości domyślnej jest celem o boku ok. 13 px, czyli
+   poniżej wszystkich zaleceń dotykowych – a test bywa rozwiązywany na telefonie. */
+.quiz-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.45rem 0.6rem;
+  margin: 0 0 0.25rem;
+  border-radius: 0.375rem;
+}
+
+.quiz-option:hover {
+  background: var(--surface-sunken, #f2f4f8);
+}
+
+.quiz-option input {
+  margin-top: 0.2rem;
+  flex: none;
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.quiz-option label {
+  flex: 1;
+  cursor: pointer;
+}
+
+.quiz-answer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.quiz-answer input {
+  min-width: 14rem;
+}
+
+.quiz-answer__unit {
+  color: var(--text-muted, #5b6678);
+}
+
+/* Zakończenie testu stoi w osobnej karcie na końcu arkusza, a nie w przyklejonym pasku: przycisk
+   bez odwrotu nie ma być pod kciukiem przez całe podejście. Dojście do niego wymaga przewinięcia
+   całego arkusza – czyli minięcia każdego pytania, które zostało bez odpowiedzi. */
+.quiz-finish {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+@media print {
+  /* Wydruk arkusza (np. dla komisji): licznik i przycisk są wtedy bez znaczenia. */
+  .quiz-timer,
+  .quiz-finish { display: none; }
+}

@@ -1,0 +1,15 @@
+{% extends "web/coordinator/base.html" %}
+{% load static %}
+{% comment %}
+  Podgląd importu w panelu organizatora – ta sama treść, inna rama (patrz ``import_coordinator.html``).
+{% endcomment %}
+{% block title %}Podgląd importu – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-accounts-import' %}">Import uczniów</a>{% endblock %}
+{% block panel_title %}Podgląd importu{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Nic jeszcze nie zostało zapisane i żaden list nie poszedł. Sprawdź listę i zatwierdź.</p>
+{% endblock %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block panel_content %}
+{% include "web/supervisor/_import_preview.html" %}
+{% endblock %}

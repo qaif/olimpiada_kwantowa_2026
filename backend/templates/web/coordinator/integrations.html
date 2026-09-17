@@ -1,0 +1,237 @@
+{% extends "web/coordinator/base.html" %}
+{% load static %}
+{% comment %}
+  Integracje: klucze API, odbiorcy webhooków i dziennik doręczeń na jednym ekranie.
+
+  Każda czynność zmieniająca stan jest POST-em z tokenem CSRF, także unieważnienie klucza
+  i usunięcie odbiorcy: kasowanie kliknięciem w odnośnik wykonałby za koordynatora dowolny
+  podgląd odnośników w jego skrzynce.
+
+  Klucz w postaci jawnej pojawia się w bloku „nowy klucz” dokładnie raz, zaraz po wystawieniu
+  (widok zdejmuje go z sesji przez ``pop``). Odświeżenie strony już go nie pokaże – i tak ma być.
+{% endcomment %}
+{% block title %}Integracje – panel koordynatora{% endblock %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block panel_title %}Integracje{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Klucze API dla systemów zewnętrznych i webhooki, którymi serwis sam zgłasza
+    zdarzenia edycji. Dokumentacja dla integratora: <code>docs/API.md</code>
+    oraz <a href="{% url 'swagger-ui' %}">schemat API</a>.</p>
+{% endblock %}
+{% block panel_content %}
+
+{% if plain_key %}
+  <section class="section">
+    <div class="card">
+      <h2 class="mt-0">Nowy klucz API</h2>
+      <p>Skopiuj go teraz. W bazie leży wyłącznie skrót klucza, więc <strong>nie da się go
+        odczytać ponownie</strong> – zgubiony klucz się unieważnia i wystawia nowy.</p>
+      <p><code>{{ plain_key }}</code></p>
+      <p class="hint">Klucz przekazuje się kanałem, którym przekazuje się hasła – nie e-mailem
+        bez szyfrowania i nie w treści zgłoszenia.</p>
+    </div>
+  </section>
+{% endif %}
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Klucze API</h2>
+    <span class="badge badge--danger">dostęp do danych</span>
+  </div>
+
+  {% if keys %}
+    <div class="scroll">
+      <table class="table">
+        <caption class="visually-hidden">Wystawione klucze API</caption>
+        <thead>
+          <tr>
+            <th scope="col">Nazwa</th>
+            <th scope="col">Przedrostek</th>
+            <th scope="col">Edycja</th>
+            <th scope="col">Zakresy</th>
+            <th scope="col">Limit/min</th>
+            <th scope="col">Ostatnie użycie</th>
+            <th scope="col">Stan</th>
+            <th scope="col"><span class="visually-hidden">Operacje</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for key in keys %}
+            <tr>
+              <th scope="row">{{ key.name }}</th>
+              <td><code>{{ key.prefix }}</code></td>
+              <td>{{ key.edition.year_label|default:"wszystkie" }}</td>
+              <td>
+                {% for scope in key.scopes %}<code>{{ scope }}</code>{% if not forloop.last %}, {% endif %}{% endfor %}
+                {% if key.pii_allowed %}<span class="badge badge--danger">PII</span>{% endif %}
+              </td>
+              <td>{{ key.rate_limit_per_minute }}</td>
+              <td>{{ key.last_used_at|date:"Y-m-d H:i"|default:"—" }}</td>
+              <td>
+                {% if key.is_active %}
+                  <span class="badge badge--ok">aktywny</span>
+                {% else %}
+                  <span class="badge badge--neutral">unieważniony {{ key.revoked_at|date:"Y-m-d" }}</span>
+                {% endif %}
+              </td>
+              <td class="actions">
+                {% if key.is_active %}
+                  <form method="post" action="{% url 'web:coordinator-integrations-key-revoke' key.pk %}" class="inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn--danger btn--small">Unieważnij</button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="hint">Nie wystawiono jeszcze żadnego klucza API.</p>
+  {% endif %}
+
+  <div class="card">
+    <h3 class="mt-0">Wystaw klucz</h3>
+    <form method="post" action="{% url 'web:coordinator-integrations-key-create' %}">
+      {% csrf_token %}
+      {{ key_form.as_p }}
+      <p class="hint">Zakres <code>read:participants_pii</code> działa wyłącznie razem z polem
+        „dane osobowe dozwolone” – to są dwie niezależne zgody na jedną rzecz.</p>
+      <p class="actions"><button type="submit" class="btn btn--primary">Wystaw klucz</button></p>
+    </form>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Webhooki</h2>
+  </div>
+
+  {% if endpoints %}
+    {% for endpoint in endpoints %}
+      <article class="card">
+        <div class="card__head">
+          <h3 class="mt-0 card__title">{{ endpoint.url }}</h3>
+          {% if endpoint.is_active %}
+            <span class="badge badge--ok">aktywny</span>
+          {% else %}
+            <span class="badge badge--danger">wygaszony {{ endpoint.disabled_at|date:"Y-m-d H:i" }}</span>
+          {% endif %}
+        </div>
+        <dl class="meta-list">
+          <dt>Edycja</dt><dd>{{ endpoint.edition.year_label|default:"wszystkie" }}</dd>
+          <dt>Zdarzenia</dt>
+          <dd>{% for event in endpoint.events %}<code>{{ event }}</code>{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</dd>
+          <dt>Sekret podpisu</dt><dd><code>{{ endpoint.secret }}</code></dd>
+          <dt>Porażki pod rząd</dt><dd>{{ endpoint.failures }}</dd>
+        </dl>
+        {% comment %}
+          Trzy osobne formularze obok siebie, a nie jeden z trzema przyciskami: każdy prowadzi
+          pod inny adres, więc jeden formularz musiałby rozstrzygać akcję po nazwie przycisku –
+          czyli po danych, których przeglądarka przy wysyłce klawiaturą nie zawsze przesyła.
+        {% endcomment %}
+        <div class="actions">
+          <form method="post" action="{% url 'web:coordinator-integrations-webhook-test' endpoint.pk %}" class="inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn--secondary btn--small">Wyślij test</button>
+          </form>
+          <form method="post" action="{% url 'web:coordinator-integrations-webhook-update' endpoint.pk %}" class="inline">
+            {% csrf_token %}
+            <input type="hidden" name="is_active" value="{% if endpoint.is_active %}0{% else %}1{% endif %}">
+            <button type="submit" class="btn btn--secondary btn--small">
+              {% if endpoint.is_active %}Wyłącz{% else %}Włącz{% endif %}</button>
+          </form>
+          <form method="post" action="{% url 'web:coordinator-integrations-webhook-delete' endpoint.pk %}" class="inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn--danger btn--small">Usuń</button>
+          </form>
+        </div>
+        <details>
+          <summary>Zmień adres i zdarzenia</summary>
+          <form method="post" action="{% url 'web:coordinator-integrations-webhook-update' endpoint.pk %}">
+            {% csrf_token %}
+            <p><label for="url-{{ endpoint.pk }}">Adres (https)</label>
+              <input id="url-{{ endpoint.pk }}" type="url" name="url" value="{{ endpoint.url }}" required></p>
+            <fieldset>
+              <legend>Zdarzenia</legend>
+              {% for event, description in events.items %}
+                <p><label>
+                  <input type="checkbox" name="events" value="{{ event }}"
+                         {% if event in endpoint.events %}checked{% endif %}>
+                  <code>{{ event }}</code> – {{ description }}</label></p>
+              {% endfor %}
+            </fieldset>
+            <p class="actions"><button type="submit" class="btn btn--primary btn--small">Zapisz</button></p>
+          </form>
+        </details>
+      </article>
+    {% endfor %}
+  {% else %}
+    <p class="hint">Żaden system zewnętrzny nie jest zapisany na zdarzenia tej olimpiady.</p>
+  {% endif %}
+
+  <div class="card">
+    <h3 class="mt-0">Dodaj odbiorcę</h3>
+    <form method="post" action="{% url 'web:coordinator-integrations-webhook-create' %}">
+      {% csrf_token %}
+      {{ webhook_form.as_p }}
+      <p class="hint">Wyłącznie adresy <code>https://</code>. Sekret podpisu wylosuje serwis –
+        znajdziesz go na liście powyżej i przekażesz odbiorcy tak, jak hasło.</p>
+      <p class="actions"><button type="submit" class="btn btn--primary">Dodaj odbiorcę</button></p>
+    </form>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Dziennik doręczeń</h2>
+  </div>
+  {% if deliveries %}
+    <div class="scroll">
+      <table class="table">
+        <caption class="visually-hidden">Ostatnie doręczenia webhooków</caption>
+        <thead>
+          <tr>
+            <th scope="col">Kiedy</th>
+            <th scope="col">Zdarzenie</th>
+            <th scope="col">Odbiorca</th>
+            <th scope="col">Stan</th>
+            <th scope="col">Próby</th>
+            <th scope="col">Ostatni błąd</th>
+            <th scope="col"><span class="visually-hidden">Operacje</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for delivery in deliveries %}
+            <tr>
+              <td>{{ delivery.created_at|date:"Y-m-d H:i" }}</td>
+              <td><code>{{ delivery.event }}</code></td>
+              <td>{{ delivery.endpoint.url }}</td>
+              <td>
+                {% if delivery.status == "DELIVERED" %}
+                  <span class="badge badge--ok">doręczone</span>
+                {% elif delivery.status == "FAILED" %}
+                  <span class="badge badge--danger">nieudane</span>
+                {% else %}
+                  <span class="badge badge--neutral">w kolejce</span>
+                {% endif %}
+              </td>
+              <td>{{ delivery.attempts }}</td>
+              <td>{{ delivery.last_error|default:"—" }}</td>
+              <td class="actions">
+                <form method="post" action="{% url 'web:coordinator-integrations-delivery-resend' delivery.pk %}" class="inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--secondary btn--small">Ponów</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="hint">Nic jeszcze nie wyszło z systemu – dziennik zapełni się przy pierwszym zdarzeniu.</p>
+  {% endif %}
+</section>
+{% endblock %}

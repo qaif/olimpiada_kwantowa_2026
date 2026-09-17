@@ -1,0 +1,92 @@
+# Wdrożenie produkcyjne uruchamiane ręcznie z zakładki Actions.
+#
+# **Wyłącznie `workflow_dispatch`** i to jest decyzja, a nie niedoróbka. Automatyczne wdrożenie po
+# każdym scaleniu do `main` znaczyłoby, że serwis potrafi zmienić się w środku etapu – a etap trwa
+# tygodniami i kończy się o północy terminem, którego nie da się przesunąć. Kto wdraża, ten wybiera
+# moment i patrzy na wynik; ten workflow tylko odbiera mu przepisywanie polecenia z pamięci.
+#
+# Skrypt jest ten sam, co przy wdrożeniu z laptopa (`scripts/deploy.sh`) – tutaj nie ma ani jednej
+# osobnej ścieżki wdrożeniowej. Gdyby była, różniłaby się od tej używanej ręcznie w awarii, czyli
+# dokładnie wtedy, gdy nikt nie ma czasu na niespodzianki.
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Cel SSH, np. root@olimpiadakwantowa.pl"
+        required: true
+        default: root@olimpiadakwantowa.pl
+      run_content_seeds:
+        description: "Nadpisać strony CMS treścią z repozytorium? (1 = tak; domyślnie nie)"
+        required: false
+        default: "0"
+
+# Dwa wdrożenia naraz na tę samą maszynę kończą się przeplecionymi krokami compose'a.
+# `cancel-in-progress: false` – przebiegu, który już zaczął zmieniać serwer, nie wolno przerwać
+# w połowie; drugi po prostu czeka.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: scripts/deploy.sh
+    runs-on: ubuntu-latest
+    # Środowisko GitHuba („Environment”) jest tu po coś konkretnego: to w nim włącza się wymóg
+    # zatwierdzenia przez wskazaną osobę przed uruchomieniem zadania. Bez tego każdy z prawem do
+    # zapisu w repozytorium wdraża produkcję jednym kliknięciem.
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # `git archive HEAD` w kroku 2/7 skryptu wysyła na serwer **to, co jest w HEAD**, więc
+          # płytkie sklonowanie wystarcza. Znaczniki są potrzebne osobno – patrz krok niżej.
+          fetch-depth: 0
+
+      - name: Klucz SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          set -eu
+          test -n "$DEPLOY_SSH_KEY" || { echo "Brak sekretu DEPLOY_SSH_KEY"; exit 1; }
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          # Klucz przez plik o uprawnieniach 600, a nie przez ssh-agent: skrypt woła `ssh -i`,
+          # więc agent i tak nie zostałby użyty, a jeden mechanizm mniej to jeden tryb awarii mniej.
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/olimpiada_deploy
+          chmod 600 ~/.ssh/olimpiada_deploy
+
+      - name: Wdrożenie
+        env:
+          SSH_KEY: ~/.ssh/olimpiada_deploy
+          # Przy PIERWSZYM wdrożeniu skrypt tworzy .env na serwerze i wymaga tych dwóch wartości;
+          # przy kolejnych są ignorowane (plik .env nie jest nadpisywany). Trzymamy je jako
+          # zmienne środowiska GitHuba, a nie sekrety, bo nie są tajne – to domena i adres e-mail.
+          SITE_DOMAIN: ${{ vars.SITE_DOMAIN }}
+          ACME_EMAIL: ${{ vars.ACME_EMAIL }}
+          # Konto pierwszego koordynatora: zakładane tylko wtedy, gdy oba sekrety są ustawione.
+          COORDINATOR_EMAIL: ${{ secrets.COORDINATOR_EMAIL }}
+          COORDINATOR_PASSWORD: ${{ secrets.COORDINATOR_PASSWORD }}
+          RUN_CONTENT_SEEDS: ${{ inputs.run_content_seeds }}
+          # Wersja pokazywana w stopce i w /status.json. `git describe` – ten sam sposób, co przy
+          # wdrożeniu z laptopa (stąd `fetch-depth: 0`: bez znaczników byłby tu sam skrót commita).
+          APP_VERSION: ${{ github.sha }}
+        run: scripts/deploy.sh "${{ inputs.target }}"
+
+      - name: Czy serwis odpowiada
+        env:
+          SITE_DOMAIN: ${{ vars.SITE_DOMAIN }}
+        # Wdrożenie, które „się udało”, a zostawiło serwis w stanie `degraded`, jest wdrożeniem
+        # nieudanym – i ma o tym powiedzieć czerwonym krzyżykiem, a nie ciszą. Pytamy o publiczny
+        # `/status.json`, czyli o to samo, co monitoring i co uczestnik.
+        run: |
+          set -eu
+          for i in $(seq 1 12); do
+            body="$(curl -fsS --max-time 10 "https://${SITE_DOMAIN}/status.json" || true)"
+            echo "$body"
+            case "$body" in *'"status": "ok"'*|*'"status":"ok"'*) exit 0 ;; esac
+            sleep 10
+          done
+          echo "Serwis nie wrócił do stanu ok w ciągu dwóch minut po wdrożeniu."
+          exit 1

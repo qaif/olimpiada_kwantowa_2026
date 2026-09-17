@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Konfiguracja drugiego składnika logowania. Jeden szablon obsługuje dwa stany konta, bo to jest
+  ta sama strona: „jeszcze nie mam” (kod QR i pole na kod) oraz „mam” (data włączenia, ile
+  zostało kodów zapasowych, przycisk wyłączenia). Dwa szablony znaczyłyby dwa miejsca, w których
+  trzeba tak samo wytłumaczyć, po co to w ogóle jest.
+
+  Kod QR jest wstawionym w treść SVG, a nie obrazkiem ``data:``. Powód jest konkretny: polityka
+  CSP tego serwisu nie dopuszcza ``img-src data:``, a poszerzanie jej dla jednego obrazka byłoby
+  zapłaceniem dziury za wygodę. SVG powstaje w całości po naszej stronie (apps/accounts/twofactor.py).
+{% endcomment %}
+{% block title %}{% translate "Logowanie dwuskładnikowe" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Twoje konto" %}</span>
+  <h1>{% translate "Logowanie dwuskładnikowe" %}</h1>
+  <p class="lead">{% translate "Drugi składnik to sześciocyfrowy kod z aplikacji w telefonie. Nawet gdy ktoś pozna Twoje hasło, bez telefonu nie wejdzie na konto." %}</p>
+</div>
+
+{% if enabled %}
+  <section class="section">
+    <div class="card">
+      <h2 class="mt-0">{% translate "Drugi składnik jest włączony" %}</h2>
+      <dl class="datalist">
+        <dt>{% translate "Włączony" %}</dt>
+        <dd>{{ confirmed_at|date:"j E Y, H:i" }}</dd>
+        <dt>{% translate "Ostatnio użyty" %}</dt>
+        <dd>{% if last_used_at %}{{ last_used_at|date:"j E Y, H:i" }}{% else %}—{% endif %}</dd>
+        <dt>{% translate "Kody zapasowe" %}</dt>
+        <dd>{% blocktranslate trimmed with left=backup_codes_left total=backup_codes_total %}
+          zostało {{ left }} z {{ total }}
+        {% endblocktranslate %}</dd>
+      </dl>
+      {% if backup_codes_left == 0 %}
+        <p class="alert alert--warning">{% translate "Nie masz już żadnego kodu zapasowego. Jeśli zgubisz telefon, jedyną drogą powrotu będzie prośba do organizatora. Wyłącz drugi składnik i włącz go od nowa, żeby dostać nowy komplet kodów." %}</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="card card--quiet">
+      <h2 class="mt-0">{% translate "Wyłączenie" %}</h2>
+      <p class="hint">{% translate "Po wyłączeniu konto będzie chronione samym hasłem. Dotychczasowe kody zapasowe przestaną działać." %}</p>
+      <form method="post" action="{% url 'web:twofactor-disable' %}" class="inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn--danger">{% translate "Wyłącz drugi składnik" %}</button>
+      </form>
+    </div>
+  </section>
+{% else %}
+  <section class="section">
+    <div class="card">
+      <h2 class="mt-0">{% translate "Krok 1: dodaj konto do aplikacji" %}</h2>
+      <p class="hint">{% translate "Potrzebna jest dowolna aplikacja uwierzytelniająca – na przykład Aegis, FreeOTP, Google Authenticator albo menedżer haseł, którego już używasz. Zeskanuj kod:" %}</p>
+      {% if qr_svg %}
+        <div class="qr">{{ qr_svg }}</div>
+      {% endif %}
+      <p class="hint">{% translate "Jeśli nie możesz zeskanować kodu, wpisz ten klucz ręcznie:" %}</p>
+      <p><code class="code-block">{{ secret }}</code></p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="card">
+      <h2 class="mt-0">{% translate "Krok 2: przepisz kod z aplikacji" %}</h2>
+      <p class="hint">{% translate "Potwierdzenie kodem jest po to, żeby błąd przy skanowaniu wyszedł teraz, a nie przy następnym logowaniu." %}</p>
+      {% if error %}<p class="alert alert--error">{{ error }}</p>{% endif %}
+      <form method="post" class="form">
+        {% csrf_token %}
+        <p>
+          <label for="id_code">{% translate "Kod z aplikacji" %}</label>
+          {# ``inputmode`` i ``autocomplete`` – klawiatura numeryczna na telefonie i podpowiedź #}
+          {# z menedżera haseł. ``autofocus``, bo to jedyne pole na tej stronie. #}
+          <input type="text" id="id_code" name="code" inputmode="numeric" pattern="[0-9]*"
+                 maxlength="{{ digits }}" autocomplete="one-time-code" autofocus required>
+        </p>
+        <div class="actions">
+          <button type="submit" class="btn btn--primary">{% translate "Włącz drugi składnik" %}</button>
+          <a class="btn btn--ghost" href="{% url 'web:account-profile' %}">{% translate "Wróć" %}</a>
+        </div>
+      </form>
+    </div>
+  </section>
+{% endif %}
+{% endblock %}

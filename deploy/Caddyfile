@@ -55,3 +55,25 @@ meet.{$SITE_DOMAIN} {
         X-Content-Type-Options "nosniff"
     }
 }
+
+# Monitoring (Uptime Kuma, profil `monitoring` w docker-compose.yml, patrz deploy/monitoring/README.md).
+# Ten sam wzorzec, co przy Jitsi: kontener `monitor` dołącza do sieci `edge` pod tą nazwą, a dopóki
+# nie ma rekordu DNS `monitor.<domena>`, blok tylko czeka na certyfikat i nikomu nie przeszkadza.
+# WebSocket (pulpit Kumy odświeża się przez socket.io) przechodzi przez reverse_proxy bez dodatków.
+#
+# Uwierzytelnienie jest po stronie Kumy (własne konto zakładane przy pierwszym wejściu) i musi tam
+# zostać włączone – pulpit monitoringu wystawiony anonimowo jest mapą tego, co i gdzie w tym
+# serwisie stoi, razem z historią, kiedy co nie działało.
+monitor.{$SITE_DOMAIN} {
+    encode gzip zstd
+    reverse_proxy monitor:3001 {
+        header_up X-Forwarded-Proto {scheme}
+    }
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        X-Content-Type-Options "nosniff"
+        # Pulpit monitoringu nie ma po co wisieć w cudzej ramce ani wyciekać ścieżek w Refererze.
+        X-Frame-Options "DENY"
+        Referrer-Policy "same-origin"
+    }
+}

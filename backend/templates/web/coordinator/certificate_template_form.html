@@ -1,0 +1,51 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Formularz szablonu dokumentu.
+
+  Pod formularzem stoi opis układu, a nie pod nim link do dokumentacji: układ wpisuje się tu
+  ręcznie w JSON-ie i bez legendy współrzędnych to pole jest nieużywalne. Legenda mówi przy tym
+  jedną rzecz, którą trzeba wiedzieć **przed** pierwszą zmianą: ``y`` liczy się od góry kartki.
+
+  ``enctype`` jest konieczne – bez niego przeglądarka wyśle same nazwy plików.
+{% endcomment %}
+{% block title %}{% if template %}Szablon: {{ template.name }}{% else %}Nowy szablon dyplomu{% endif %} – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-certificate-templates' %}">Szablony dyplomów</a>{% endblock %}
+{% block panel_title %}{% if template %}Szablon: {{ template.name }}{% else %}Nowy szablon dokumentu{% endif %}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Tło może być obrazem (PNG, JPG) albo PDF-em z drukarni — wtedy napisy trafiają
+    na jego pierwszą stronę. Kartka jest pozioma: 842 × 595 punktów.</p>
+{% endblock %}
+{% block panel_content %}
+
+<div class="card">
+  <form method="post" class="form form--wide" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    {{ form.as_p }}
+    <div class="actions">
+      <button type="submit" class="btn btn--primary">Zapisz szablon</button>
+      {% if template %}
+        <a class="btn btn--secondary" target="_blank" rel="noopener"
+           href="{% url 'web:coordinator-certificate-template-preview' template.pk %}">Podgląd PDF</a>
+      {% endif %}
+      <a class="btn btn--ghost" href="{% url 'web:coordinator-certificate-templates' %}">Anuluj</a>
+    </div>
+  </form>
+</div>
+
+<div class="card card--quiet">
+  <h2 class="mt-0">Jak czytać układ</h2>
+  <ul class="hint">
+    <li><code>y</code> liczy się od <strong>górnej</strong> krawędzi kartki — tak, jak czyta się
+      dokument. Większa liczba znaczy „niżej”.</li>
+    <li><code>x</code> pominięty = napis wyśrodkowany na stronie. Podany = odległość od lewej.</li>
+    <li><code>size</code> to stopień pisma, <code>bold</code> — krój pogrubiony,
+      <code>show: false</code> gasi blok (przydatne, gdy nagłówek jest już nadrukowany na tle).</li>
+    <li>Bloki: <code>organiser</code> (ma własny <code>text</code>), <code>edition</code>,
+      <code>title</code>, <code>recipient</code>, <code>school</code>, <code>statement</code>,
+      <code>workshops</code>, <code>signatures</code>, <code>footer</code>, <code>qr</code>,
+      <code>logo</code>.</li>
+    <li>Wystarczy wpisać to, co zmieniasz: brakujące bloki i klucze biorą wartości domyślne,
+      więc szablon nie psuje się po dodaniu nowego bloku w kolejnej wersji serwisu.</li>
+  </ul>
+</div>
+{% endblock %}

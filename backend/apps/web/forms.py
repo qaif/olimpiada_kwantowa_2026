@@ -536,8 +536,12 @@ def participant_profile_initial(participant) -> dict:
         "school_id": participant.school_ref_id,
         # Miejscowość odtwarzamy wyłącznie ze słownika: przy szkole wpisanej ręcznie nie wiemy,
         # w jakim mieście ona jest (pytamy o nazwę, nie o adres), a podstawienie czegokolwiek
-        # zawęziłoby wyszukiwarkę do miasta, którego uczestnik nigdy nie wskazał.
-        "school_city": participant.school_ref.city if from_registry else "",
+        # zawęziłoby wyszukiwarkę do miasta, którego uczestnik nigdy nie wskazał. Wstawiamy
+        # **gminę**, a nie miejscowość z wykazu: to ona jest tym, czego oczekuje parametr ``city``
+        # wyszukiwarki, a „Wrocław-Krzyki” w tym polu otworzyłoby edycję profilu z pustą listą.
+        "school_city": (participant.school_ref.city_parent or participant.school_ref.city)
+        if from_registry
+        else "",
         "school_query": participant.school,
         "school_custom": not from_registry,
         "school": "" if from_registry else participant.school,
@@ -574,6 +578,36 @@ class ParticipantProfileForm(SchoolChoiceMixin):
             "ani samych prac. Puste pole znaczy „nie mam opiekuna”."
         ),
     )
+
+    def __init__(self, *args, **kwargs):
+        """Zdejmuje pole opiekuna, gdy organizator w ogóle nie oferuje tej roli.
+
+        Przełącznik ``cms.SiteSettings.supervisor_registration_enabled`` jest domyślnie wyłączony
+        i wtedy nikt nie ma jak założyć konta opiekuna – pole byłoby pytaniem o adres, którego
+        nikt nie użyje, a dodatkowo obietnicą funkcji, której w serwisie nie ma.
+
+        Usuwamy je **razem z wartością**, a nie tylko ukrywamy w szablonie: pole schowane
+        atrybutem dalej przyjmuje POST, więc ukrycie byłoby pozorne. Adres już zapisany w profilu
+        zostaje w bazie nietknięty – decyzja ucznia sprzed wyłączenia przełącznika nie jest
+        czymś, co formularz danych ma prawo cofnąć bez jego wiedzy.
+        """
+        super().__init__(*args, **kwargs)
+        from apps.accounts.supervisors import registration_enabled
+
+        if not registration_enabled():
+            self.fields.pop("supervisor_email", None)
+
+    def clean(self):
+        """Bez pola nie ma klucza – a serwis profilu zmienia wyłącznie to, co dostał.
+
+        ``update_participant`` czyta ``fields`` po nazwach (``apps.accounts.profile``), więc brak
+        klucza znaczy „nie ruszaj tej wartości”. Nie podstawiamy tu pustego napisu: skasowałby
+        adres, który uczeń kiedyś świadomie wpisał.
+        """
+        cleaned = super().clean()
+        if "supervisor_email" not in self.fields:
+            cleaned.pop("supervisor_email", None)
+        return cleaned
 
 
 class AccountNamesForm(forms.Form):

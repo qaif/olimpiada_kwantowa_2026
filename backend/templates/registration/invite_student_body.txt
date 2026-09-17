@@ -1,0 +1,32 @@
+{% load i18n %}{% autoescape off %}{% comment %}
+  Treść listu z zaproszeniem dla ucznia zgłoszonego przez nauczyciela.
+
+  ``autoescape off`` jest poprawnością, a nie obejściem: to jest plik tekstowy, nie HTML, więc
+  encje (``&amp;`` zamiast ``&``) byłyby w wiadomości po prostu widoczne. Ten sam wybór, co
+  w ``password_reset_email.txt`` obok.
+
+  Poza imieniem i nazwą szkoły nie ma tu danych osobowych – ani nazwiska, ani klasy, ani nazwiska
+  nauczyciela. Adres przepisał z listy klasowej ktoś inny, więc list bywa doręczony pod zły adres,
+  a imię i szkoła w zupełności wystarczają, żeby uczeń rozpoznał, o co chodzi (dokładnie ta sama
+  zasada, co w liście do opiekuna prawnego – ``apps.accounts.guardian``).
+
+  Zdanie o tym, że nic się nie stanie bez kliknięcia, jest tu obowiązkowe: osoba, która nie chce
+  brać udziału, ma prawo wiedzieć, że wystarczy ten list zignorować.
+{% endcomment %}{% blocktranslate trimmed with name=first_name school=school %}
+Cześć {{ name }}! Nauczyciel ze szkoły {{ school }} zgłosił Cię do Olimpiady Kwantowej.
+{% endblocktranslate %}
+
+{% translate "Konto czeka na Ciebie, ale jeszcze nie działa: hasło ustawiasz sam i sam akceptujesz regulamin oraz informację o przetwarzaniu danych. Otwórz poniższy adres:" %}
+
+{{ link }}
+
+{% blocktranslate trimmed with days=days %}
+Link jest ważny {{ days }} dni. Jeśli wygaśnie, poproś nauczyciela o wysłanie go ponownie.
+{% endblocktranslate %}
+
+{% translate "Jeśli nie chcesz brać udziału – zignoruj tę wiadomość. Bez kliknięcia w link konto nie zostanie uruchomione i nikt nie zaloguje się na Twój adres." %}
+
+--
+{% translate "Olimpiada Kwantowa" %}
+{% translate "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać." %}
+{% endautoescape %}

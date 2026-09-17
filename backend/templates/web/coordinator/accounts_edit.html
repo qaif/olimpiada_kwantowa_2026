@@ -164,6 +164,36 @@
   koordynator nie dostaje ani jednego pola więcej. W aktach zostaje jego nazwisko przy akcji
   ``account.exported_by_coordinator``.
 {% endcomment %}
+{% comment %}
+  Drugi składnik logowania. Koordynator nie może go tu włączyć za kogoś – sekret musi powstać na
+  urządzeniu właściciela konta – a jedynie zdjąć zgubiony. Blok stoi poza formularzem edycji
+  z tego samego powodu, co eksport: formularzy nie da się zagnieżdżać, a to jest inna czynność.
+
+  Przy wyłączonym ``TWO_FACTOR_ENABLED`` (stan domyślny tej instalacji) całej sekcji nie ma –
+  łącznie z wariantem „to konto nie ma drugiego składnika”. Zdanie o funkcji, której nie da się
+  włączyć, jest gorsze od milczenia: każe koordynatorowi szukać przycisku, którego nie ma.
+{% endcomment %}
+{% if two_factor_enabled %}
+<section class="section">
+  <div class="card card--quiet">
+    <h2 class="mt-0">Logowanie dwuskładnikowe</h2>
+    {% if two_factor %}
+      <p class="hint">Włączone {{ two_factor.confirmed_at|date:"j E Y" }}; zostało
+        {{ two_factor.backup_codes_left }} kodów zapasowych. Zdejmij zabezpieczenie tylko wtedy, gdy
+        właściciel konta zgłosił utratę telefonu <strong>i</strong> potwierdziłeś jego tożsamość inną
+        drogą niż e-mail z tego konta. Reset zostaje w audycie pod Twoim nazwiskiem.</p>
+      <form method="post" action="{% url 'web:coordinator-account-2fa-reset' account.pk %}" class="inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn--danger">Zdejmij drugi składnik</button>
+      </form>
+    {% else %}
+      <p class="hint">To konto nie ma włączonego drugiego składnika. Włączyć może go wyłącznie jego
+        właściciel, na swoim profilu – sekret musi powstać na jego urządzeniu.</p>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
 <section class="section">
   <div class="card card--quiet">
     <h2 class="mt-0">Eksport danych (art. 20 RODO)</h2>

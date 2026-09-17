@@ -1,0 +1,96 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Szablony graficzne dyplomów i zaświadczeń.
+
+  Pusta lista jest stanem **poprawnym**, a nie brakiem konfiguracji: bez ani jednego szablonu
+  dokumenty składają się układem wbudowanym, tym samym co od pierwszej edycji. Strona mówi to
+  wprost, bo „brak szablonów” bez wyjaśnienia czyta się jak usterka.
+
+  Wyłączone szablony zostają na liście razem z włączonymi – powrót do zeszłorocznej winiety ma
+  być jednym kliknięciem, a nie ponownym wgrywaniem tła z czyjegoś dysku.
+{% endcomment %}
+{% block title %}Szablony dyplomów – panel koordynatora{% endblock %}
+{% block panel_title %}Szablony dyplomów i zaświadczeń{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Tło z drukarni, logo, do trzech podpisów i położenie napisów. Dokument dobiera
+    szablon od najbardziej szczegółowego do najogólniejszego: rodzaj i edycja → rodzaj → edycja →
+    wszystko. Gdy nie pasuje żaden, obowiązuje układ wbudowany.</p>
+{% endblock %}
+{% block panel_actions %}
+  <a class="btn btn--primary" href="{% url 'web:coordinator-certificate-template-new' %}">Dodaj szablon</a>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  {% if templates %}
+    <div class="scroll">
+      <table class="table">
+        <caption class="visually-hidden">Szablony dokumentów</caption>
+        <thead>
+          <tr>
+            <th scope="col">Nazwa</th>
+            <th scope="col">Rodzaj</th>
+            <th scope="col">Edycja</th>
+            <th scope="col">Tło</th>
+            <th scope="col">Stan</th>
+            <th scope="col"><span class="visually-hidden">Operacje</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for template in templates %}
+            <tr>
+              <th scope="row">
+                <a href="{% url 'web:coordinator-certificate-template-edit' template.pk %}">{{ template.name }}</a>
+              </th>
+              <td>{{ template.kind_label }}</td>
+              <td>{{ template.edition_label }}</td>
+              <td>{% if template.background %}<span class="badge badge--ok">jest</span>{% else %}—{% endif %}</td>
+              <td>
+                {% if template.is_active %}
+                  <span class="badge badge--ok">aktywny</span>
+                {% else %}
+                  <span class="badge badge--neutral">wyłączony</span>
+                {% endif %}
+              </td>
+              <td class="actions">
+                {% comment %}
+                  Podgląd otwiera się w nowej karcie: układ ogląda się, poprawia i ogląda
+                  ponownie, więc formularz po lewej ma zostać tam, gdzie był.
+                {% endcomment %}
+                <a class="btn btn--secondary btn--small" target="_blank" rel="noopener"
+                   href="{% url 'web:coordinator-certificate-template-preview' template.pk %}">Podgląd PDF</a>
+                <form method="post" class="inline"
+                      action="{% url 'web:coordinator-certificate-template-default' template.pk %}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--small btn--ghost">Ustaw jako domyślny dla rodzaju</button>
+                </form>
+                <form method="post" class="inline"
+                      action="{% url 'web:coordinator-certificate-template-delete' template.pk %}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--danger btn--small">Usuń</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="card card--quiet">
+      <p class="hint">Nie ma jeszcze ani jednego szablonu — i to jest w porządku. Dyplomy składają
+        się wtedy układem wbudowanym: nagłówek olimpiady, tytuł dokumentu, imię i nazwisko, zdanie
+        poświadczające, miejsce na podpis odręczny oraz numer, kod i kod QR w stopce.</p>
+    </div>
+  {% endif %}
+</section>
+
+<section class="section">
+  <div class="card card--quiet">
+    <h2 class="mt-0">Rodzaje dokumentów</h2>
+    <p class="hint">Szablon bez wskazanego rodzaju obsługuje wszystkie naraz. Rodzaje:</p>
+    <ul class="hint">
+      {% for value, label in kinds %}<li>{{ label }} (<code>{{ value }}</code>)</li>{% endfor %}
+    </ul>
+  </div>
+</section>
+{% endblock %}

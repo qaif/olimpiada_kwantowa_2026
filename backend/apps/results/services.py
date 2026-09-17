@@ -201,6 +201,35 @@ def _is_adult(birth_year: int | None, current_year: int) -> bool:
     return current_year - int(birth_year) >= ADULT_AGE
 
 
+def _quiz_scores(stage: Stage, *, preview: bool) -> dict[int, int] | None:
+    """Punkty z testu online per wpis – albo ``None``, gdy etap nie jest testem.
+
+    Jedyne miejsce, w którym wyniki wiedzą o istnieniu ``apps.quiz``, i cała jego wiedza mieści
+    się w jednym pytaniu i jednym słowniku. Rozróżnienie ``None`` (to nie jest etap testowy) od
+    pustego słownika (test bez ani jednego podejścia) jest istotne: w drugim przypadku wszyscy
+    dostają zero z testu, a nie sumę z zadań, których etap nie ma.
+
+    Import jest lokalny, a nie w nagłówku modułu, i to jest świadoma cena. ``apps.quiz`` zależy od
+    ``apps.competitions``, a ``apps.results`` od obu – import na górze nie tworzyłby dziś cyklu,
+    ale wiązałby przeliczanie wyników z aplikacją testów na czas ładowania, dla etapów, które
+    testu nie mają i mieć nie będą. Zależność w jednej funkcji jest też **widoczna**: to jest
+    dokładnie ten szew, którym wyniki i testy da się kiedyś rozdzielić.
+
+    Poza podglądem domykamy najpierw porzucone podejścia (``finalise_overdue``). Bez tego praca
+    kogoś, komu padło łącze na ostatnim pytaniu, zostałaby w stanie „w trakcie” i weszłaby do
+    protokołu jako zero, mimo że jego odpowiedzi leżą zapisane w bazie. W podglądzie tego nie
+    robimy, bo podgląd (symulacja progu) biegnie na żądanie GET i nie ma prawa niczego zapisać –
+    tam podejście trwające liczy się jako zero, tak samo jak nieoceniona praca w etapie pisemnym.
+    """
+    from apps.quiz import services as quiz_services
+
+    if not quiz_services.is_quiz_stage(stage):
+        return None
+    if not preview:
+        quiz_services.finalise_overdue(stage=stage)
+    return quiz_services.stage_scores(stage)
+
+
 def compute_stage_results(stage: Stage, *, preview: bool = False) -> list[dict]:
     """Tabela wyników etapu: suma ``FinalGrade.score`` po najnowszych wersjach zgłoszeń.
 
@@ -226,6 +255,7 @@ def compute_stage_results(stage: Stage, *, preview: bool = False) -> list[dict]:
         .order_by("id")
     )
     latest = _latest_submissions(stage)
+    quiz_scores = _quiz_scores(stage, preview=preview)
     # Pełnoletność liczymy raz na cały etap: znamy tylko rok urodzenia, więc dokładniejszej daty
     # i tak nie ma. Do wiersza trafia gotowa flaga, nigdy sam ``birth_year`` – rok urodzenia nie ma
     # po co wędrować przez warstwy aż do serializera.
@@ -247,6 +277,15 @@ def compute_stage_results(stage: Stage, *, preview: bool = False) -> list[dict]:
                 score = int(grade.score) if grade is not None else 0
             points[str(problem.number)] = score
             total += score
+        if quiz_scores is not None:
+            # Etap w formie testu online nie ma zadań ani prac, więc pętla wyżej nic nie policzyła.
+            # Suma przychodzi w całości z ``apps.quiz`` i **zastępuje** sumę z zadań, a nie dokłada
+            # się do niej: gdyby etap miał jedno i drugie, byłby etapem o dwóch formach naraz –
+            # a takiego stanu nie da się opisać ani w regulaminie, ani w tabeli wyników.
+            # ``points`` zostaje pusty, bo kolumny tabeli wyników to zadania (``problem_numbers``),
+            # a pytania testu są ich zbyt drobnym i zbyt licznym odpowiednikiem; rozbicie na
+            # pytania stoi na własnym ekranie (``/coordinator/stages/<id>/quiz/results/``).
+            total = quiz_scores.get(entry.pk, 0)
         rows.append(
             {
                 "entry_id": entry.pk,
@@ -694,6 +733,12 @@ def publish_results(stage: Stage, actor, anonymization: str, *, request=None) ->
         anonymization,
         not created,
     )
+    # Zgłoszenie zdarzenia systemom zewnętrznym (``apps.integrations``). Wiersze doręczeń powstają
+    # w tej transakcji, a samo wysłanie idzie na kolejkę po commicie – wycofana publikacja nie
+    # ogłasza tabeli, której nie ma, a awaria serwera partnera nie przewraca „Opublikuj wyniki”.
+    from apps.integrations.events import results_published
+
+    results_published(publication, rows=len(snapshot))
     return publication
 
 

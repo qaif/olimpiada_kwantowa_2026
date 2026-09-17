@@ -52,6 +52,29 @@
   {% if entry %}
     {% if stage.is_interview %}
       {% include "web/participant/_interview.html" %}
+    {% elif stage.is_quiz %}
+      {% comment %}
+        Etap w formie testu online: zamiast kart zadań jedno wejście na stronę startową testu.
+        Zasady, czas trwania i liczba podejść stoją **tam**, a nie tutaj – ta karta ma odpowiedzieć
+        na jedno pytanie („gdzie jest test”), a nie streścić regulamin w miejscu, z którego i tak
+        trzeba kliknąć dalej. Rozpoczęcie podejścia jest POST-em na stronie startowej, więc ten
+        odnośnik niczego nie uruchamia i wolno w niego wejść z ciekawości.
+      {% endcomment %}
+      <section class="section" id="test">
+        <div class="card card--accent">
+          <div class="card__head">
+            <h2 class="mt-0 card__title">{% translate "Test online" %}</h2>
+          </div>
+          {% if stage_quiz %}
+            <p class="card__meta">{% blocktranslate trimmed with minutes=stage_quiz.duration_minutes attempts=stage_quiz.attempts_allowed %}
+              Czas jednego podejścia: {{ minutes }} min. Dozwolone podejścia: {{ attempts }}.
+            {% endblocktranslate %}</p>
+            <p><a class="btn btn--accent" href="{% url 'web:quiz-start' stage.pk %}">{% translate "Przejdź do testu" %}</a></p>
+          {% else %}
+            <p class="card__meta">{% translate "Test nie jest jeszcze przygotowany. Zajrzyj tu ponownie bliżej terminu etapu." %}</p>
+          {% endif %}
+        </div>
+      </section>
     {% else %}
       <section class="section" id="zadania">
         <div class="section__head">

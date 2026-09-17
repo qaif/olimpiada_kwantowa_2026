@@ -1,0 +1,61 @@
+{% load i18n %}
+{% comment %}
+  Formularz wgrania listy uczniów – wspólny dla opiekuna i koordynatora. Osobny fragment, bo oba
+  ekrany różnią się wyłącznie ramą strony (zwykła strona serwisu kontra panel organizatora),
+  a treść ma być jedna: dwie kopie tego formularza rozjechałyby się przy pierwszej zmianie kolumn.
+
+  Opis kolumn składa się z definicji w ``apps.accounts.bulk_registration.COLUMNS``, a nie z ręcznie
+  przepisanej listy: dopisanie kolumny w kodzie ma od razu zmieniać instrukcję na ekranie.
+{% endcomment %}
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">{% translate "Jak przygotować plik" %}</h2>
+    <p>{% blocktranslate trimmed with max_rows=max_rows %}
+      Plik CSV albo XLSX, pierwszy wiersz to nagłówki kolumn, maksymalnie {{ max_rows }} wierszy.
+      Kolejność kolumn jest dowolna – liczy się nazwa w nagłówku.
+    {% endblocktranslate %}</p>
+    <ul>
+      {% for column in columns %}
+        <li><strong>{{ column.label }}</strong>{% if not column.required %} – {% translate "nieobowiązkowa" %}{% endif %}</li>
+      {% endfor %}
+    </ul>
+    <p class="hint">{% translate "Gotowy wiersz nagłówka do skopiowania do arkusza:" %}</p>
+    <pre class="code-listing"><code>{{ header_line }}</code></pre>
+    <p class="hint">{% blocktranslate trimmed %}
+      Uczniów, którzy mają już konto w serwisie, nie zakładamy drugi raz – zostaną tylko dopisani
+      do Twojej listy. Nikomu nie ustawiasz hasła: każdy uczeń dostaje list z linkiem, pod którym
+      sam ustala hasło i sam składa wymagane oświadczenia.
+    {% endblocktranslate %}</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">{% translate "Wgraj listę" %}</h2>
+    <form method="post" enctype="multipart/form-data" class="form" action="{{ post_url }}">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <p>
+        {{ form.file.errors }}
+        <label class="required" for="{{ form.file.id_for_label }}">{{ form.file.label }}</label>
+        {{ form.file }}
+        <span class="helptext" id="{{ form.file.auto_id }}_helptext">{{ form.file.help_text }}</span>
+      </p>
+      {% comment %}
+        Blok „szkoła” jest ten sam, co w rejestracji uczestnika (``web/_school_picker.html``):
+        nazwa szkoły wchodzi do grupowania w publikowanych wynikach, więc musi pochodzić z tego
+        samego miejsca u wszystkich uczniów placówki. Formularz importu nie ma pola województwa,
+        więc podpowiedzi nie zawężają się do regionu – skrypt radzi sobie z jego brakiem.
+      {% endcomment %}
+      {% if form.fallback_school %}
+        <p class="hint">{% blocktranslate trimmed with school=form.fallback_school %}
+          Zostaw blok „szkoła” pusty, jeśli cała lista jest z Twojej szkoły ({{ school }}).
+        {% endblocktranslate %}</p>
+      {% endif %}
+      {% include "web/_school_picker.html" %}
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">{% translate "Pokaż podgląd" %}</button>
+      </div>
+    </form>
+  </div>
+</section>

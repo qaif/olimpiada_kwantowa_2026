@@ -4,8 +4,8 @@
   - ``<th scope="col">`` w nagłówku i ``<th scope="row">`` w pierwszej komórce wiersza: czytnik
     ekranu zapowiada wtedy przy każdej komórce jej kolumnę i temat, więc szesnastowierszowa
     tabela daje się przejść bez zapamiętywania, która kolumna jest która,
-  - kolumna godzin znika w całości, kiedy żaden wiersz jej nie wypełnia (``value.has_time``) –
-    inaczej zostawiałaby pas pustych komórek,
+  - kolumny godzin i prowadzącego znikają w całości, kiedy żaden wiersz ich nie wypełnia
+    (``value.has_time``, ``value.has_lecturer``) – inaczej zostawiałyby pas pustych komórek,
   - opakowanie ``.table-scroll`` przewija samą tabelę na wąskim ekranie. Bez niego to strona
     dostaje poziomy pasek przewijania, a wraz z nią nagłówek i stopka.
 
@@ -19,6 +19,7 @@
         <th scope="col">{{ value.topic_label|default:"Temat" }}</th>
         <th scope="col">{{ value.date_label|default:"Termin" }}</th>
         {% if value.has_time %}<th scope="col">{{ value.time_label|default:"Godziny" }}</th>{% endif %}
+        {% if value.has_lecturer %}<th scope="col">{{ value.lecturer_label|default:"Prowadzący" }}</th>{% endif %}
       </tr>
     </thead>
     <tbody>
@@ -27,6 +28,7 @@
           <th scope="row" class="schedule__topic">{{ row.topic }}</th>
           <td class="schedule__date">{{ row.date }}</td>
           {% if value.has_time %}<td class="schedule__time">{{ row.time }}</td>{% endif %}
+          {% if value.has_lecturer %}<td class="schedule__lecturer">{{ row.lecturer }}</td>{% endif %}
         </tr>
       {% endfor %}
     </tbody>

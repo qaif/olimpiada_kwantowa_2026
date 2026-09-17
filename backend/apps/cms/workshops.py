@@ -19,6 +19,7 @@ from __future__ import annotations
 from datetime import date
 
 from django.utils import timezone
+from django.utils.text import slugify
 
 #: Slug strony z harmonogramem warsztatów. Zapowiedź na stronie głównej szuka jej po slugu, bo
 #: tytuł jest redakcyjny (może brzmieć „Warsztaty online”), a adres wisi w komunikatach.
@@ -62,6 +63,50 @@ def upcoming_workshops(page, *, now=None, limit: int = UPCOMING_LIMIT) -> list[d
     return rows[:limit]
 
 
+#: Ile znaków ma klucz warsztatu. Mieści datę (10), myślnik i slug tematu – dłuższy temat jest
+#: ucinany, bo klucz ma identyfikować wiersz, a nie go cytować.
+WORKSHOP_KEY_LENGTH = 120
+
+
+def workshop_key(topic: str, date_value: date) -> str:
+    """Trwały identyfikator wiersza harmonogramu: ``2026-11-12-kubity-i-bramki``.
+
+    Klucz z **daty i tematu**, a nie z pozycji wiersza w bloku ani z identyfikatora StreamFielda.
+    Powód jest jeden i praktyczny: obecność na warsztatach zapisuje się przy tym kluczu i ma
+    przeżyć redakcję strony. Redaktor dopisze wcześniejszy termin na początku tabeli, poprawi
+    literówkę w godzinach albo przeniesie blok – i gdyby klucz zależał od kolejności, komplet
+    odhaczonych obecności przesunąłby się na sąsiednie zajęcia.
+
+    Cena tej decyzji jest jawna: zmiana **tematu albo daty** tworzy nowy klucz i stara obecność
+    przestaje do wiersza pasować. To jest właściwy kompromis – zmiana tematu znaczy, że to inne
+    zajęcia, a przesunięcie terminu koordynator widzi w tabeli obecności jako pustą kolumnę
+    i może ją odhaczyć ponownie.
+    """
+    return f"{date_value.isoformat()}-{slugify(topic)}"[:WORKSHOP_KEY_LENGTH]
+
+
+def attended_workshops(participant) -> list[dict]:
+    """Warsztaty, na których ten uczestnik był – w kolejności kalendarza.
+
+    Przecięcie dwóch źródeł: odhaczonych kluczy (``cms.WorkshopAttendance``) i bieżącego
+    harmonogramu redakcyjnego. Wiersza, którego w harmonogramie już nie ma (temat zmieniono,
+    zajęcia odwołano), zaświadczenie **nie** wymienia: dokument ma wyliczać zajęcia, o których
+    da się dziś powiedzieć, kiedy się odbyły i czego dotyczyły, a nie sam klucz z bazy.
+
+    Import modeli jest wewnątrz funkcji – ``apps.cms.models`` importuje ten moduł, więc na
+    poziomie pliku byłby to cykl. Tą samą drogą chodzi tu ``apps.cms.timeline``.
+    """
+    from .models import ContentPage, WorkshopAttendance
+
+    keys = set(
+        WorkshopAttendance.objects.filter(participant=participant).values_list("workshop_key", flat=True)
+    )
+    if not keys:
+        return []
+    page = ContentPage.objects.live().filter(slug=WORKSHOPS_SLUG).first()
+    return [row for row in workshop_rows(page) if row["key"] in keys]
+
+
 def workshop_rows(page) -> list[dict]:
     """**Wszystkie** warsztaty z odczytaną datą, od najwcześniejszego – dla paska w nagłówku.
 
@@ -78,7 +123,15 @@ def workshop_rows(page) -> list[dict]:
     if page is None:
         return []
     rows = [
-        {"topic": row.get("topic", ""), "date_value": row["date_value"]}
+        {
+            "topic": row.get("topic", ""),
+            "date_value": row["date_value"],
+            # Brzmienie terminu tak, jak podał go organizator – to ono stoi na zaświadczeniu,
+            # bo dokument cytuje harmonogram, a nie przepisuje datę po swojemu.
+            "date": row.get("date", ""),
+            "lecturer": row.get("lecturer", "") or "",
+            "key": workshop_key(row.get("topic", ""), row["date_value"]),
+        }
         for block in page.body
         if block.block_type == "schedule"
         for row in block.value.get("rows", [])
@@ -95,3 +148,50 @@ def _today(now=None) -> date:
     if timezone.is_aware(now):
         return timezone.localtime(now).date()
     return now.date()
+
+
+def save_attendance(
+    participant_ids: list[int], keys: list[str], marked: set[tuple[int, str]], *, actor=None
+) -> dict:
+    """Zapisuje **jedną stronę** tabeli obecności i zwraca ``{"added": n, "removed": n}``.
+
+    Zakres zapisu jest tu najważniejszą decyzją. Formularz przysyła wyłącznie kratki zaznaczone,
+    więc „czego nie ma w POST-cie, tego nie było” dałoby się zastosować albo do całej bazy, albo
+    do tego, co koordynator naprawdę widział. Bierzemy drugie: kasujemy obecności **tylko** dla
+    uczestników z tej strony i warsztatów z tej tabeli. Inaczej przejście na drugą stronę listy
+    i zapisanie jej kasowałoby obecności wszystkich pozostałych – po cichu i nieodwracalnie.
+
+    Zapis idzie hurtem (jedno zapytanie kasujące i jedno wstawiające), bo strona ma sto wierszy
+    razy kilkanaście warsztatów; pętla z zapisem w środku to półtora tysiąca zapytań na jedno
+    kliknięcie „Zapisz”.
+    """
+    from .models import WorkshopAttendance
+
+    if not participant_ids or not keys:
+        return {"added": 0, "removed": 0}
+    existing = {
+        (row.participant_id, row.workshop_key): row.pk
+        for row in WorkshopAttendance.objects.filter(
+            participant_id__in=participant_ids, workshop_key__in=keys
+        )
+    }
+    wanted = {pair for pair in marked if pair[0] in set(participant_ids) and pair[1] in set(keys)}
+    stale = [pk for pair, pk in existing.items() if pair not in wanted]
+    added = [pair for pair in wanted if pair not in existing]
+    if stale:
+        WorkshopAttendance.objects.filter(pk__in=stale).delete()
+    if added:
+        WorkshopAttendance.objects.bulk_create(
+            [
+                WorkshopAttendance(
+                    participant_id=participant_id,
+                    workshop_key=key,
+                    created_by=actor if getattr(actor, "is_authenticated", False) else None,
+                )
+                for participant_id, key in added
+            ],
+            # Wyścig dwóch koordynatorów zapisujących tę samą stronę kończy się pominięciem
+            # duplikatu, a nie błędem 500 na ekranie tego, kto kliknął drugi.
+            ignore_conflicts=True,
+        )
+    return {"added": len(added), "removed": len(stale)}

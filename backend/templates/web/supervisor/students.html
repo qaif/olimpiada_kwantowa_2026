@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% load i18n static web_extras %}
+{% comment %}
+  Lista uczniów opiekuna widziana od strony **kont**, a nie prac: kto przyjął zaproszenie, kto
+  jeszcze nie, a kto zapisał się sam. Pulpit (``dashboard.html``) odpowiada na inne pytanie –
+  co się dzieje z pracami – i dlatego są to dwa ekrany, a nie jedna tabela z pustymi kolumnami.
+
+  Przycisk „wyślij ponownie” stoi wyłącznie przy uczniu, który zaproszenia jeszcze nie przyjął.
+  Przy koncie aktywnym nie miałby czego wysłać, a przy koncie założonym samodzielnie przez ucznia
+  nie ma żadnego zaproszenia – serwis odmówiłby obu (``bulk_registration.resend_invitation``),
+  więc ekran ich po prostu nie pokazuje.
+{% endcomment %}
+{% block title %}{% translate "Moi uczniowie – konta" %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:supervisor' %}">{% translate "Panel opiekuna szkolnego" %}</a></span>
+  <h1>{% translate "Konta moich uczniów" %}</h1>
+  <p class="lead">{% blocktranslate trimmed with email=supervisor.user.email %}
+    Lista powstaje z decyzji uczniów: widzisz tych, którzy mają w profilu Twój adres ({{ email }}) –
+    wpisany samodzielnie albo ustawiony importem. Każdy z nich może ją w każdej chwili cofnąć.
+  {% endblocktranslate %}</p>
+  <div class="actions">
+    <a class="btn btn--primary" href="{% url 'web:supervisor-import' %}">{% translate "Zaproś uczniów z listy" %}</a>
+    <a class="btn btn--secondary" href="{% url 'web:supervisor' %}">{% translate "Stan prac" %}</a>
+  </div>
+</div>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">{% translate "Uczniowie" %}</h2>
+    {% if invited_count %}
+      <p class="hint">{% blocktranslate trimmed with counter=invited_count %}
+        Czekamy na przyjęcie zaproszenia przez tyle osób: {{ counter }}.
+      {% endblocktranslate %}</p>
+    {% endif %}
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">{% translate "Imię i nazwisko" %}</th>
+          <th scope="col">{% translate "Klasa" %}</th>
+          <th scope="col">{% translate "Kod publiczny" %}</th>
+          <th scope="col">{% translate "Stan konta" %}</th>
+          <th scope="col"><span class="visually-hidden">{% translate "Operacje" %}</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <th scope="row">{{ row.participant.user.get_full_name }}</th>
+            <td>{{ row.participant.grade|default:"—" }}</td>
+            <td>{{ row.participant.public_code }}</td>
+            <td>
+              {% if row.state == "invited" %}
+                <span class="badge badge--warn">{% translate "zaproszony" %}</span>
+              {% elif row.state == "active" %}
+                <span class="badge badge--ok">{% translate "aktywny" %}</span>
+              {% else %}
+                <span class="badge badge--neutral">{% translate "zapisał się sam" %}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if row.state == "invited" %}
+                <form method="post"
+                      action="{% url 'web:supervisor-resend-invitation' row.participant.pk %}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--secondary btn--small">
+                    {% translate "Wyślij zaproszenie ponownie" %}</button>
+                </form>
+                {% if row.participant.invitation_sent_at %}
+                  <span class="hint">{% blocktranslate trimmed with sent=row.participant.invitation_sent_at|local_datetime %}
+                    Ostatnio wysłano: {{ sent }}
+                  {% endblocktranslate %}</span>
+                {% endif %}
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="empty">{% blocktranslate trimmed with email=supervisor.user.email %}
+            Nikt jeszcze nie wskazał Twojego adresu. Podaj uczniom adres {{ email }} albo zaproś
+            ich z listy klasowej.
+          {% endblocktranslate %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

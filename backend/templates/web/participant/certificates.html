@@ -26,6 +26,12 @@
               <th scope="col">Rodzaj</th>
               <th scope="col">Edycja</th>
               <th scope="col">Kod weryfikacyjny</th>
+              {% comment %}
+                Kolumna pieczęci mówi o **pliku**, nie o ważności dokumentu: dyplom bez pieczęci
+                jest tak samo ważny i tak samo da się go sprawdzić kodem. Pieczęć odpowiada
+                dodatkowo na pytanie „czy tego PDF-a ktoś po drodze nie zmienił”.
+              {% endcomment %}
+              <th scope="col">Pieczęć</th>
               <th scope="col">Plik</th>
             </tr>
           </thead>
@@ -38,6 +44,14 @@
                 <td>
                   <a href="{% url 'web:certificate-verify' certificate.code %}">
                     <span class="code-chip">{{ certificate.code }}</span></a>
+                </td>
+                <td>
+                  {% if certificate.signed %}
+                    <span class="badge badge--ok">podpisany elektronicznie</span>
+                    {% if certificate.signer_name %}<br><span class="hint">{{ certificate.signer_name }}</span>{% endif %}
+                  {% else %}
+                    <span class="hint">—</span>
+                  {% endif %}
                 </td>
                 <td>
                   <a class="btn btn--small btn--secondary"

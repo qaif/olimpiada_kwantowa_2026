@@ -27,7 +27,7 @@ APP_VERSION="${APP_VERSION:-$(git describe --tags --always)}"
 
 log() { printf '\n==> %s\n' "$*"; }
 
-log "1/7 Docker na serwerze"
+log "1/8 Docker na serwerze"
 "${SSH[@]}" bash -s <<'REMOTE'
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
@@ -47,11 +47,11 @@ if command -v ufw >/dev/null 2>&1; then
 fi
 REMOTE
 
-log "2/7 Kod: git archive HEAD -> $REMOTE_DIR"
+log "2/8 Kod: git archive HEAD -> $REMOTE_DIR"
 "${SSH[@]}" "mkdir -p '$REMOTE_DIR' && find '$REMOTE_DIR' -mindepth 1 -maxdepth 1 ! -name .env ! -name 'e2e' -exec rm -rf {} +"
 git archive --format=tar HEAD | "${SSH[@]}" "tar -x -C '$REMOTE_DIR'"
 
-log "3/7 .env (tworzony tylko przy pierwszym wdrożeniu)"
+log "3/8 .env (tworzony tylko przy pierwszym wdrożeniu)"
 "${SSH[@]}" env SITE_DOMAIN="${SITE_DOMAIN:-}" ACME_EMAIL="${ACME_EMAIL:-}" S3_PUBLIC_ADDRESS="${S3_PUBLIC_ADDRESS:-}" APP_VERSION="$APP_VERSION" REMOTE_DIR="$REMOTE_DIR" bash -s <<'REMOTE'
 set -euo pipefail
 cd "$REMOTE_DIR"
@@ -106,10 +106,10 @@ else
 fi
 REMOTE
 
-log "4/7 Build i start usług"
+log "4/8 Build i start usług"
 "${SSH[@]}" "cd '$REMOTE_DIR' && docker compose build --pull web && docker compose up -d --remove-orphans db redis minio minio-init clamav mail web worker beat proxy"
 
-log "5/7 Oczekiwanie na healthy"
+log "5/8 Oczekiwanie na healthy"
 "${SSH[@]}" bash -s <<REMOTE
 set -euo pipefail
 cd '$REMOTE_DIR'
@@ -120,7 +120,7 @@ for i in \$(seq 1 60); do
 done
 REMOTE
 
-log "6/7 Seedy treści i konto koordynatora"
+log "6/8 Seedy treści i konto koordynatora"
 # Seedy treści (seed_cms, seed_regulamin, seed_legacy_content, seed_partners) są narzędziami
 # importującymi: każdy przebieg nadpisuje strony CMS treścią z plików repozytorium. Po pierwszym
 # wdrożeniu treść należy do redakcji (/cms/), a terminy etapów do koordynatora (panel), więc
@@ -157,7 +157,7 @@ fi
 docker compose ps --format 'table {{.Service}}\t{{.State}}\t{{.Health}}'
 REMOTE
 
-log "7/7 DNS dla poczty (SPF / DKIM / DMARC / PTR)"
+log "7/8 DNS dla poczty (SPF / DKIM / DMARC / PTR)"
 # Klucz DKIM powstaje przy pierwszym starcie usługi `mail` i leży na wolumenie `mail_dkim`,
 # więc te rekordy są stałe – dopóki wolumen istnieje, kolejne wdrożenia ich nie zmieniają.
 "${SSH[@]}" env REMOTE_DIR="$REMOTE_DIR" DMARC_RUA="${DMARC_RUA:-contact@qaif.org}" MAIL_PUBLIC_IP="${MAIL_PUBLIC_IP:-}" bash -s <<'REMOTE'
@@ -202,6 +202,89 @@ chmod 600 mail-dns.txt
 cat mail-dns.txt
 echo
 echo "Zapisano: ${REMOTE_DIR}/mail-dns.txt"
+REMOTE
+
+log "8/8 Kopie zapasowe: hasło, katalog i cron"
+# Krok jest idempotentny w całości: hasło powstaje tylko raz (potem .env nie jest ruszany), a wpis
+# crona jest za każdym razem **nadpisywany** tą samą treścią. Nadpisanie, a nie dopisanie: wpis
+# dopisywany co wdrożenie dałby po pół roku kilkadziesiąt kopii tej samej kopii zapasowej naraz.
+#
+# Dlaczego cron hosta, a nie zadanie w Celery beat: kopia ma powstać także wtedy, gdy aplikacja
+# nie działa – a to jest najczęstszy dzień, w którym się jej szuka. Poza tym skrypt woła
+# `docker compose exec` i `docker run`, czyli potrzebuje dostępu do demona Dockera, którego
+# kontener aplikacji świadomie nie ma.
+"${SSH[@]}" env REMOTE_DIR="$REMOTE_DIR" bash -s <<'REMOTE'
+set -euo pipefail
+cd "$REMOTE_DIR"
+export DEBIAN_FRONTEND=noninteractive
+
+# gnupg (szyfrowanie paczek) i cron. Obraz Ubuntu na serwerze wirtualnym bywa bez obu.
+for pkg in gnupg cron; do
+  dpkg -s "$pkg" >/dev/null 2>&1 || apt-get install -y -qq "$pkg" >/dev/null
+done
+systemctl enable --now cron >/dev/null 2>&1 || true
+
+# Hasło do szyfrowania kopii. Tworzone raz; kolejne wdrożenia go NIE zmieniają – zmiana
+# unieważniłaby wszystkie dotychczasowe paczki, bo są zaszyfrowane starym.
+if ! grep -qE '^BACKUP_PASSPHRASE=' .env; then
+  {
+    echo
+    echo "# Hasło do szyfrowania kopii zapasowych (gpg AES-256). Wygenerowane przez scripts/deploy.sh."
+    echo "# JEGO UTRATA = UTRATA WSZYSTKICH KOPII. Zapisz je w menedżerze haseł organizatora."
+    echo "BACKUP_PASSPHRASE=$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 48)"
+    echo "# Kopia poza serwerem – bez tych czterech wartości scripts/backup.sh robi tylko kopię"
+    echo "# lokalną, która ginie razem z maszyną (docs/OPERACJE.md § Kopie zapasowe)."
+    echo "# BACKUP_REMOTE_URL="
+    echo "# BACKUP_ACCESS_KEY="
+    echo "# BACKUP_SECRET_KEY="
+    echo "# BACKUP_BUCKET="
+  } >> .env
+  chmod 600 .env
+  NEW_PASSPHRASE=1
+else
+  NEW_PASSPHRASE=0
+fi
+
+mkdir -p /opt/olimpiada-backups
+chmod 700 /opt/olimpiada-backups
+chmod +x scripts/backup.sh scripts/restore.sh scripts/backup_verify.sh 2>/dev/null || true
+
+# Godziny: kopia o 3:15 (najniższy ruch, po nocnych zadaniach beatu), test odtwarzania w niedzielę
+# o 4:40 – po kopii, żeby sprawdzał paczkę z tej samej nocy, i nie w tej samej minucie, bo oba
+# przebiegi zajmują dysk i pamięć.
+cat > /etc/cron.d/olimpiada-backup <<CRON
+# Kopie zapasowe platformy Olimpiady. Plik zakłada scripts/deploy.sh (krok 8/8) – zmiany
+# wprowadzaj tam, bo kolejne wdrożenie nadpisze ten plik.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+MAILTO=""
+15 3 * * *   root  cd ${REMOTE_DIR} && ./scripts/backup.sh        >> /var/log/olimpiada-backup.log 2>&1
+40 4 * * 0   root  cd ${REMOTE_DIR} && ./scripts/backup_verify.sh >> /var/log/olimpiada-backup.log 2>&1
+CRON
+chmod 644 /etc/cron.d/olimpiada-backup
+
+# Rotacja logu: bez niej /var/log/olimpiada-backup.log rośnie w nieskończoność i po roku jest
+# jedynym plikiem, który zapełnił dysk – czyli sam wywołał awarię, o której miał donosić.
+cat > /etc/logrotate.d/olimpiada-backup <<'ROTATE'
+/var/log/olimpiada-backup.log {
+    weekly
+    rotate 8
+    compress
+    missingok
+    notifempty
+    copytruncate
+}
+ROTATE
+
+echo "cron: $(grep -c '^[0-9]' /etc/cron.d/olimpiada-backup) zadania, katalog kopii: /opt/olimpiada-backups"
+if [ "$NEW_PASSPHRASE" = "1" ]; then
+  echo
+  echo "!!! WYGENEROWANO NOWE BACKUP_PASSPHRASE !!!"
+  echo "    Odczytaj je na serwerze i zapisz w menedżerze haseł organizatora:"
+  echo "      grep BACKUP_PASSPHRASE ${REMOTE_DIR}/.env"
+  echo "    (świadomie NIE wypisujemy go tutaj – ten log bywa logiem GitHub Actions)"
+  echo "    Bez tego hasła żadnej kopii nie da się otworzyć. Nikt go nie odzyska."
+fi
 REMOTE
 
 log "Gotowe: https://${SITE_DOMAIN:-<domena z .env>}/  (panel: /coordinator/, CMS: /cms/, admin: /admin/)"

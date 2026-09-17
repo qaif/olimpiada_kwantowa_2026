@@ -1,0 +1,90 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Formularz jednego pytania: pola wspólne plus klucz odpowiedzi czterech rodzajów pod spodem.
+
+  Pola nieistotne dla wybranego rodzaju **zostają widoczne**, a nie są chowane skryptem. To jest
+  wybór, nie zaniechanie: chowanie wymagałoby JavaScriptu (panel ma działać bez niego), a przy
+  zmianie rodzaju pytania koordynator i tak chce widzieć, co wpisał wcześniej – ukryte pole,
+  którego wartość poszła do bazy, jest gorsze od widocznego, którego nikt nie wypełnił. Zamiast
+  chowania jest podpis przy każdej sekcji, mówiący, którego rodzaju dotyczy.
+{% endcomment %}
+{% block title %}{% if question %}Pytanie {{ question.order }}{% else %}Nowe pytanie{% endif %}: {{ quiz.title }} – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-stage-quiz-questions' stage.pk %}">Pytania testu: {{ quiz.title }}</a>{% endblock %}
+{% block panel_title %}{% if question %}Pytanie {{ question.order }}{% else %}Nowe pytanie{% endif %}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Rodzaj pytania rozstrzyga, który klucz odpowiedzi jest brany pod uwagę –
+    pozostałe sekcje są wtedy ignorowane przy zapisie.</p>
+{% endblock %}
+{% block panel_content %}
+
+{% if has_attempts %}
+  <p class="msg msg-warning">Do tego testu są już podejścia. Treści i wariantów nie da się zmienić;
+    zapis odrzuci taką próbę. Poprawka klucza odpowiedzi wchodzi w życie po przeliczeniu punktów.</p>
+{% endif %}
+
+<div class="card">
+  <form method="post" class="form form--wide" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+
+    <fieldset>
+      <legend>Pytanie</legend>
+      {% comment %}
+        Pola wypisane po nazwie, a nie pętlą z filtrem: pętla po ``form`` musiałaby odsiać pola
+        klucza odpowiedzi warunkiem na nazwie, a taki warunek w składni szablonu sprowadza się do
+        wyszukiwania podnapisu – „order” pasowałoby wtedy do każdej nazwy, która je zawiera.
+        Lista jawna kosztuje osiem wierszy i nie ma tej pułapki.
+      {% endcomment %}
+      <p>{{ form.kind.errors }}{{ form.kind.label_tag }} {{ form.kind }}</p>
+      <p>{{ form.pool.errors }}{{ form.pool.label_tag }} {{ form.pool }}
+        <span class="hint">{{ form.pool.help_text }}</span></p>
+      <p>{{ form.order.errors }}{{ form.order.label_tag }} {{ form.order }}</p>
+      <p>{{ form.text.errors }}{{ form.text.label_tag }} {{ form.text }}</p>
+      <p>{{ form.points.errors }}{{ form.points.label_tag }} {{ form.points }}</p>
+      <p>{{ form.negative_points.errors }}{{ form.negative_points.label_tag }} {{ form.negative_points }}
+        <span class="hint">{{ form.negative_points.help_text }}</span></p>
+      <p>{{ form.image.errors }}{{ form.image.label_tag }} {{ form.image }}</p>
+      <p>{{ form.clear_image.label_tag }} {{ form.clear_image }}</p>
+      {% if question.image %}<p class="hint">Obecna ilustracja jest wgrana. Nowy plik ją zastąpi.</p>{% endif %}
+    </fieldset>
+
+    <fieldset>
+      <legend>Klucz: jednokrotny i wielokrotny wybór</legend>
+      <p>{{ form.options.errors }}{{ form.options.label_tag }} {{ form.options }}
+        <span class="hint">{{ form.options.help_text }}</span></p>
+      <p>{{ form.partial_credit.errors }}{{ form.partial_credit.label_tag }} {{ form.partial_credit }}</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Klucz: krótka odpowiedź tekstowa</legend>
+      <p>{{ form.accepted.errors }}{{ form.accepted.label_tag }} {{ form.accepted }}
+        <span class="hint">{{ form.accepted.help_text }}</span></p>
+      <p>{{ form.fold_case.label_tag }} {{ form.fold_case }}</p>
+      <p>{{ form.fold_whitespace.label_tag }} {{ form.fold_whitespace }}</p>
+      <p>{{ form.fold_diacritics.label_tag }} {{ form.fold_diacritics }}</p>
+      <p class="hint">Ignorowanie polskich znaków ratuje odpowiedzi pisane w pracowni z układem
+        klawiatury bez ogonków. Wielkość liter warto zostawić ignorowaną wszędzie poza pytaniami,
+        w których rozstrzyga o znaczeniu (np. „Co” to kobalt, a „CO” tlenek węgla).</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Klucz: odpowiedź liczbowa</legend>
+      <p>{{ form.answer.errors }}{{ form.answer.label_tag }} {{ form.answer }}</p>
+      <p>{{ form.tolerance_abs.errors }}{{ form.tolerance_abs.label_tag }} {{ form.tolerance_abs }}
+        <span class="hint">{{ form.tolerance_abs.help_text }}</span></p>
+      <p>{{ form.tolerance_rel.errors }}{{ form.tolerance_rel.label_tag }} {{ form.tolerance_rel }}
+        <span class="hint">Ułamek, np. 0,01 = 1%. Działa obok bezwzględnej – wystarczy zmieścić się w jednej.</span></p>
+      <p>{{ form.unit.errors }}{{ form.unit.label_tag }} {{ form.unit }}
+        <span class="hint">{{ form.unit.help_text }}</span></p>
+      <p class="hint">Uczestnik może wpisać przecinek zamiast kropki i zapis wykładniczy
+        („1,5e-3”) – obie postacie są czytane jako liczba.</p>
+    </fieldset>
+
+    <div class="actions">
+      <button type="submit" class="btn btn--accent">Zapisz pytanie</button>
+      <a class="btn btn--secondary"
+         href="{% url 'web:coordinator-stage-quiz-questions' stage.pk %}">Anuluj</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

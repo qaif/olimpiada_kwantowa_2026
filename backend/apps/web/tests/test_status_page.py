@@ -209,6 +209,11 @@ def test_the_json_variant_carries_no_infrastructure_details(web_client):
         "time",
         "version",
         "services",
+        # Stan kopii zapasowych – wyłącznie wartości logiczne. Dat tu nie ma i być nie może:
+        # data ostatniej kopii mówi obcemu, kiedy uderzenie zaboli najbardziej
+        # (apps/core/status.py, ``as_json``).
+        "backup_last_ok",
+        "backup_last_verified",
         "registration_open",
         "edition",
         "stage",

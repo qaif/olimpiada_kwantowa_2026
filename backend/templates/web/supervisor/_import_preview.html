@@ -1,0 +1,93 @@
+{% load i18n %}
+{% comment %}
+  Podgląd importu: co dokładnie stanie się po zatwierdzeniu, wiersz po wierszu.
+
+  Ekran istnieje dlatego, że plik z arkusza szkolnego zawiera literówki w adresach, uczniów już
+  zarejestrowanych i wiersze stopki. Zapis bez pokazania skutków znaczyłby dwadzieścia listów
+  wysłanych pod przypadkowe adresy – a listu nie da się cofnąć.
+
+  Numer wiersza jest **numerem z arkusza** (razem z nagłówkiem), żeby „wiersz 7” wskazywał
+  w Excelu na tę samą osobę, co tutaj.
+{% endcomment %}
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">{% translate "Co się stanie po zatwierdzeniu" %}</h2>
+    <p class="hint">
+      {% blocktranslate trimmed with created=preview.to_create linked=preview.to_link skipped=preview.skipped %}
+        Nowe zaproszenia: {{ created }} · dopisani do Twojej listy: {{ linked }} · pominięci: {{ skipped }}.
+      {% endblocktranslate %}
+    </p>
+  </div>
+  <div class="card">
+    <p>{% blocktranslate trimmed with school=school_name %}
+      Szkoła całej listy: <strong>{{ school }}</strong>.
+    {% endblocktranslate %}</p>
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">{% translate "Wiersz" %}</th>
+          <th scope="col">{% translate "Imię i nazwisko" %}</th>
+          <th scope="col">{% translate "E-mail" %}</th>
+          <th scope="col">{% translate "Rocznik" %}</th>
+          <th scope="col">{% translate "Klasa" %}</th>
+          <th scope="col">{% translate "Co zrobimy" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in preview.rows %}
+          <tr>
+            <td>{{ row.number }}</td>
+            <th scope="row">{{ row.full_name|default:"—" }}</th>
+            <td>{{ row.email|default:"—" }}</td>
+            <td>{{ row.birth_year|default:"—" }}</td>
+            <td>{{ row.grade|default:"—" }}</td>
+            <td>
+              {% if row.action == "create" %}
+                <span class="badge badge--ok">{% translate "zaproszenie" %}</span>
+              {% elif row.action == "link" %}
+                <span class="badge badge--info">{% translate "dopisanie do listy" %}</span>
+              {% else %}
+                <span class="badge badge--warn">{% translate "pominięty" %}</span>
+              {% endif %}
+              {% for problem in row.errors %}<span class="hint">{{ problem }}</span>{% endfor %}
+              {% for note in row.notes %}<span class="hint">{{ note }}</span>{% endfor %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section">
+  <div class="card">
+    {% if preview.has_importable %}
+      <form method="post" class="form" action="{{ post_url }}">
+        {% csrf_token %}
+        {% comment %}
+          Koszyk wierszy jest podpisany (``bulk_registration.pack_rows``), więc między tym ekranem
+          a zatwierdzeniem nie da się podmienić listy. Wiersze pominięte w nim nie jadą – po
+          zatwierdzeniu i tak nie miałyby czego zrobić.
+        {% endcomment %}
+        <input type="hidden" name="rows" value="{{ preview.token }}">
+        <input type="hidden" name="school" value="{{ school_name }}">
+        {% if school_id %}<input type="hidden" name="school_id" value="{{ school_id }}">{% endif %}
+        <div class="actions">
+          <button type="submit" class="btn btn--primary">
+            {% blocktranslate trimmed with created=preview.to_create %}
+              Zatwierdzam – wyślij {{ created }} zaproszeń
+            {% endblocktranslate %}
+          </button>
+          <a class="btn btn--ghost" href="{{ post_url }}">{% translate "Wgraj inny plik" %}</a>
+        </div>
+      </form>
+    {% else %}
+      <p class="empty">{% translate "Z tego pliku nie da się nikogo zaprosić – popraw go i wgraj jeszcze raz." %}</p>
+      <div class="actions">
+        <a class="btn btn--secondary" href="{{ post_url }}">{% translate "Wgraj inny plik" %}</a>
+      </div>
+    {% endif %}
+  </div>
+</section>

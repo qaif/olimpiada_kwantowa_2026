@@ -160,25 +160,33 @@ def stage_items(stages: list) -> tuple[Item, ...]:
     """Jedna pozycja na etap, a pod nią cztery ekrany, po które sięga się w trakcie zawodów.
 
     Etap w formie rozmowy nie ma zadań (``create_problem`` odmawia), więc zamiast „Zadania”
-    dostaje „Rozmowy” – odnośnik do ekranu, na którym da się cokolwiek zrobić.
+    dostaje „Rozmowy” – odnośnik do ekranu, na którym da się cokolwiek zrobić. Etap w formie
+    testu online z tego samego powodu dostaje „Test online”: nie ma w nim zadań do oddania ani
+    terminów rozmów, a cała praca koordynatora toczy się wokół arkusza pytań.
     """
     items = []
     for stage in stages:
-        first = (
-            Item(
+        if stage.is_interview:
+            first = Item(
                 "Rozmowy",
                 ("web:coordinator-stage-interviews",),
                 (stage.pk,),
                 ("coordinator-stage-interviews",),
             )
-            if stage.is_interview
-            else Item(
+        elif stage.is_quiz:
+            first = Item(
+                "Test online",
+                ("web:coordinator-stage-quiz",),
+                (stage.pk,),
+                ("coordinator-stage-quiz", "coordinator-stage-quiz-"),
+            )
+        else:
+            first = Item(
                 "Zadania",
                 ("web:coordinator-stage-problems",),
                 (stage.pk,),
                 ("coordinator-stage-problems", "coordinator-problem", "coordinator-problem-"),
             )
-        )
         items.append(
             Item(
                 stage.display_name,
@@ -261,6 +269,13 @@ def groups(stages: list) -> list[Group]:
             ("web:coordinator-events",),
             match=("coordinator-events", "coordinator-event-"),
         ),
+        # Klucze API i webhooki. W „Ustawieniach”, a nie w „Raportach”: to jest konfiguracja
+        # dostępu systemów zewnętrznych, czyli decyzja o tym, kto co widzi – nie zestawienie.
+        Item(
+            "Integracje",
+            ("web:coordinator-integrations",),
+            match=("coordinator-integrations", "coordinator-integrations-"),
+        ),
     )
     if stage is not None:
         reports += (
@@ -274,7 +289,15 @@ def groups(stages: list) -> list[Group]:
                 "Dyplomy",
                 ("web:coordinator-stage-certificates",),
                 stage_args,
-                ("coordinator-stage-certificates", "coordinator-certificate-"),
+                # Wzorce są wyliczone, a nie podane przedrostkiem ``coordinator-certificate-``:
+                # ten przedrostek łapie także ekrany szablonów, które są osobną pozycją menu,
+                # i obie świeciłyby się naraz.
+                (
+                    "coordinator-stage-certificates",
+                    "coordinator-certificate-issue",
+                    "coordinator-certificate-download",
+                    "coordinator-certificates-all",
+                ),
             ),
         )
         settings_items += (
@@ -286,6 +309,25 @@ def groups(stages: list) -> list[Group]:
             ),
         )
     reports += (
+        # Trzy ekrany dyplomów spoza pojedynczego etapu: wygląd dokumentu, obecność na warsztatach
+        # i zaświadczenia dla opiekunów. Stoją w „Raportach” obok „Dyplomów”, bo o tę sekcję
+        # koordynator zahacza, szukając czegokolwiek związanego z dokumentami – a każdy z nich
+        # dotyczy całej edycji, nie etapu, więc w sekcji „Etapy” nie miałby czego dopasować.
+        Item(
+            "Dyplomy: szablony",
+            ("web:coordinator-certificate-templates",),
+            match=("coordinator-certificate-templates", "coordinator-certificate-template-"),
+        ),
+        Item(
+            "Obecność na warsztatach",
+            ("web:coordinator-workshop-attendance",),
+            match=("coordinator-workshop-attendance", "coordinator-workshop-certificates"),
+        ),
+        Item(
+            "Zaświadczenia opiekunów",
+            ("web:coordinator-supervisors",),
+            match=("coordinator-supervisors", "coordinator-supervisor-"),
+        ),
         Item("Retencja danych", ("web:coordinator-retention",), match=("coordinator-retention",)),
         Item(
             "Rejestr czynności",

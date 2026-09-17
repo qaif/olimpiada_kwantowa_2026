@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Link zły, wygasły albo już użyty. Jeden komunikat na wszystkie trzy powody – rozróżnienie
+  „wygasł” od „już użyty” mówiłoby obcemu, że konto pod tym adresem istnieje i działa.
+{% endcomment %}
+{% block title %}{% translate "Link jest nieprawidłowy" %}{% endblock %}
+{% block timeline_strip %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Zaproszenie" %}</span>
+  <h1>{% translate "Ten link nie działa" %}</h1>
+  <p class="lead">{{ detail }}</p>
+  <p class="hint">
+    {% translate "Jeśli konto jest już uruchomione, po prostu się zaloguj. Jeśli link wygasł – poproś nauczyciela o wysłanie zaproszenia jeszcze raz." %}
+  </p>
+  <div class="actions">
+    <a class="btn btn--primary" href="{% url 'web:login' %}">{% translate "Zaloguj" %}</a>
+    <a class="btn btn--secondary" href="{% url 'web:password-reset' %}">{% translate "Nie pamiętasz hasła?" %}</a>
+  </div>
+</div>
+{% endblock %}

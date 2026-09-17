@@ -38,11 +38,53 @@ def test_seed_creates_rows_and_fills_the_search_column(tmp_path):
 
     school = School.objects.get(rspo=1000)
     assert school.city == "Łódź"
-    # Obie kolumny porównawcze powstają mimo ``bulk_create`` (które omija ``Model.save()``).
+    # Wszystkie kolumny wyliczane powstają mimo ``bulk_create`` (które omija ``Model.save()``).
     assert school.search_text == "iii liceum ogolnoksztalcace w lodzi lodz"
     # Osobna kolumna samej miejscowości – po niej chodzi krok „Miejscowość” w wyszukiwarce.
     assert school.city_search == "lodz"
+    assert school.city_parent == "Łódź"
     assert school.source_year == "2025/2026"
+
+
+@pytest.mark.django_db
+def test_seed_folds_a_district_of_the_directory_into_its_municipality(tmp_path):
+    """Wykaz zapisuje Warszawę wyłącznie dzielnicami – gmina musi powstać już przy wgrywaniu.
+
+    Gdyby liczył ją dopiero ``School.save()``, komenda seedująca (``bulk_create``) zostawiłaby
+    kolumnę pustą, a krok „Miejscowość” nie znalazłby stolicy mimo trzystu wgranych szkół.
+    """
+    call_command(
+        "seed_schools",
+        fixture=fixture_file(
+            tmp_path,
+            [
+                entry(
+                    rspo=2000,
+                    name="XIV LICEUM OGÓLNOKSZTAŁCĄCE",
+                    city="Śródmieście",
+                    voivodeship="mazowieckie",
+                    postal_code="00-001",
+                ),
+                entry(
+                    rspo=2001,
+                    name="III LICEUM OGÓLNOKSZTAŁCĄCE",
+                    city="Wrocław-Krzyki",
+                    voivodeship="dolnoslaskie",
+                    postal_code="53-001",
+                ),
+            ],
+        ),
+    )
+
+    warsaw = School.objects.get(rspo=2000)
+    wroclaw = School.objects.get(rspo=2001)
+    assert (warsaw.city, warsaw.city_parent, warsaw.city_search) == (
+        "Śródmieście",
+        "Warszawa",
+        "warszawa|srodmiescie",
+    )
+    assert "warszawa" in warsaw.search_text.split()
+    assert (wroclaw.city_parent, wroclaw.city_search) == ("Wrocław", "wroclaw|krzyki")
 
 
 @pytest.mark.django_db
@@ -59,6 +101,7 @@ def test_seed_is_idempotent_and_updates_changed_rows(tmp_path):
     assert school.search_text == "iii lo im. nowego patrona zgierz"
     # Przeprowadzka szkoły przestawia także kolumnę miejscowości – inaczej zostałaby w Łodzi.
     assert school.city_search == "zgierz"
+    assert school.city_parent == "Zgierz"
 
 
 @pytest.mark.django_db

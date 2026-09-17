@@ -1,0 +1,23 @@
+{% extends "web/coordinator/base.html" %}
+{% load static %}
+{% comment %}
+  Ten sam import w panelu organizatora. Różni się od wersji nauczycielskiej wyłącznie ramą strony
+  i dodatkową kolumną „e-mail opiekuna szkolnego”, którą dokłada widok – treść jest tym samym
+  fragmentem, więc zmiana instrukcji w jednym miejscu zmienia oba ekrany.
+{% endcomment %}
+{% block title %}Import uczniów – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-accounts' %}">Konta</a>{% endblock %}
+{% block panel_title %}Hurtowe zaproszenie uczniów{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Wgranie listy zakłada konta w stanie „zaproszony” i wysyła uczniom linki.
+    Hasła nie ustawiamy nikomu, zgód nie zbieramy za nikogo – robi to każdy uczeń sam pod linkiem
+    z listu. Kolumna „e-mail opiekuna szkolnego” pozwala rozdzielić listę między nauczycieli.</p>
+{% endblock %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block panel_content %}
+{% include "web/supervisor/_import_form.html" %}
+{% endblock %}
+{% block scripts %}{{ block.super }}
+  {# Podpowiedzi szkół. Bez skryptu formularz działa – nazwę szkoły wpisuje się wtedy ręcznie. #}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/school-picker.js' %}"></script>
+{% endblock %}

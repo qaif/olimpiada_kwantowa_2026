@@ -37,6 +37,20 @@
         {% endfor %}
       </p>
     </div>
+    {% comment %}
+      Zrzut struktury edycji dla systemu zewnętrznego. Osobna karta i **bez** odznaki „dane
+      osobowe”, bo w tym pliku ich nie ma – i to jest cała różnica między nim a arkuszem wyżej.
+    {% endcomment %}
+    <div class="card">
+      <h3 class="mt-0">Zrzut edycji (JSON)</h3>
+      <p>Struktura zawodów do przeniesienia do innego systemu albo do archiwum: edycja, etapy
+        z kalendarzem, zadania, wpisy uczestników pod kodami publicznymi i ogłoszone tabele
+        wyników. Bez imion, nazwisk, adresów i plików rozwiązań.</p>
+      <p class="actions">
+        <a class="btn btn--secondary"
+           href="{% url 'web:coordinator-export-edition-json' %}?edition={{ edition.pk }}">Pobierz JSON</a>
+      </p>
+    </div>
   </section>
 
   <section class="section">
@@ -66,7 +80,27 @@
             <a class="btn btn--secondary"
                href="{% url 'web:coordinator-export-download' 'reviews' fmt %}?stage={{ stage.pk }}">Recenzje {{ fmt|upper }}</a>
           {% endfor %}
+          {% comment %}
+            Protokół jest PDF-em, a nie arkuszem, bo to dokument do podpisu – arkusza się nie
+            podpisuje. Widok składa go z tych samych danych, co eksport wyników wyżej.
+          {% endcomment %}
+          <a class="btn btn--secondary"
+             href="{% url 'web:coordinator-export-protocol' %}?stage={{ stage.pk }}">Protokół PDF</a>
         </p>
+        <details>
+          <summary>Lista dla kuratorium (jedno województwo)</summary>
+          <p class="hint">Kod, imię, nazwisko, szkoła, miejscowość, klasa, wynik i kwalifikacja –
+            kolumny, o które kuratoria proszą w pismach. Województwo jest obowiązkowe: kurator ma
+            prawo do danych uczniów wyłącznie ze swojego terenu.</p>
+          <form method="get" action="{% url 'web:coordinator-export-kuratorium' 'csv' %}">
+            <input type="hidden" name="stage" value="{{ stage.pk }}">
+            <p><label for="voiv-{{ stage.pk }}">Województwo</label>
+              <select id="voiv-{{ stage.pk }}" name="voivodeship">
+                {% for value, label in voivodeships %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+              </select></p>
+            <p class="actions"><button type="submit" class="btn btn--secondary btn--small">Pobierz CSV</button></p>
+          </form>
+        </details>
       </article>
     {% empty %}
       <p class="empty"><span class="empty__title">Brak etapów</span>

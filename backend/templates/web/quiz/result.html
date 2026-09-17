@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% load i18n web_extras %}
+{% comment %}
+  Podsumowanie podejścia. Wynik pokazuje się **wyłącznie** wtedy, gdy pozwala na to ustawienie
+  testu – decyzję podejmuje serwis (``may_show_result``) i tu przychodzi już jako ``show_score``.
+  Szablon nie zna reguły ``show_results_after`` i nie ma jak się z nią rozjechać.
+
+  Czego tu nie ma i nie będzie: rozbicia na pytania z zaznaczeniem, które było poprawne. Przy teście
+  z losowanym zestawem takie podsumowanie jest kluczem odpowiedzi wydanym pierwszej osobie, która
+  skończy – a pozostali wciąż piszą.
+{% endcomment %}
+{% block title %}{{ quiz.title }} – {% translate "podsumowanie" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{{ stage.display_name }}</span>
+  <h1>{{ quiz.title }}</h1>
+  <p class="actions">
+    <a class="btn btn--secondary btn--small" href="{% url 'web:me' %}">{% translate "Wróć do panelu" %}</a>
+    <a class="btn btn--secondary btn--small"
+       href="{% url 'web:quiz-start' stage.pk %}">{% translate "Strona testu" %}</a>
+  </p>
+</div>
+
+<section class="section">
+  <div class="card card--accent">
+    <div class="card__head">
+      <h2 class="mt-0 card__title">{% translate "Twoje podejście" %}</h2>
+      <span class="badge badge--neutral">{{ attempt.get_status_display }}</span>
+    </div>
+    <dl class="meta-list">
+      <dt>{% translate "Rozpoczęte" %}</dt>
+      <dd>{{ attempt.started_at|local_datetime }}</dd>
+      <dt>{% translate "Zakończone" %}</dt>
+      <dd>{{ attempt.submitted_at|local_datetime }}</dd>
+      {% if show_score %}
+        <dt>{% translate "Wynik" %}</dt>
+        <dd><strong>{% blocktranslate trimmed with score=attempt.score maximum=attempt.max_points %}
+          {{ score }} z {{ maximum }} pkt
+        {% endblocktranslate %}</strong></dd>
+      {% endif %}
+    </dl>
+
+    {% if not show_score %}
+      {% comment %}
+        Brak wyniku wymaga zdania, a nie pustego miejsca: uczestnik, który nic tu nie znajduje,
+        zakłada awarię i pisze do organizatora. Zdanie mówi, **kiedy** wynik będzie – i to jest
+        jedyna informacja, jakiej w tej chwili potrzebuje.
+      {% endcomment %}
+      {% if quiz.show_results_after == "AFTER_CLOSE" %}
+        <p class="msg msg-info">{% blocktranslate trimmed with closes=closes_at|local_datetime %}
+          Odpowiedzi zapisane. Wynik zobaczysz po zamknięciu testu, czyli po {{ closes }}.
+        {% endblocktranslate %}</p>
+      {% else %}
+        <p class="msg msg-info">{% translate "Odpowiedzi zapisane. Wynik tego etapu poznasz razem z ogłoszeniem wyników – w zakładce „Wyniki” w panelu." %}</p>
+      {% endif %}
+    {% endif %}
+
+    {% if attempt.status == "EXPIRED" %}
+      <p class="msg msg-warning">{% translate "Czas podejścia minął, zanim je zakończyłeś. Policzyliśmy odpowiedzi, które zdążyły się zapisać." %}</p>
+    {% endif %}
+
+    {% if attempts_left > 0 %}
+      <p>{% blocktranslate trimmed with left=attempts_left %}
+        Pozostałe podejścia: {{ left }}.
+      {% endblocktranslate %}
+        <a href="{% url 'web:quiz-start' stage.pk %}">{% translate "Przejdź na stronę testu" %}</a></p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

@@ -48,6 +48,38 @@ def normalize_supervisor_email(email: str | None) -> str:
     return (email or "").strip().lower()
 
 
+def registration_enabled() -> bool:
+    """Czy serwis **oferuje** dziś zakładanie kont opiekuna szkolnego.
+
+    Rozstrzyga organizator przełącznikiem ``cms.SiteSettings.supervisor_registration_enabled``,
+    domyślnie **wyłączonym**: w pierwszej edycji rola nie jest ogłaszana publicznie, a konta
+    powstają na prośbę. Reguła mieszka tutaj, a nie w widoku, bo pytają o nią trzy niezależne
+    miejsca (adres rejestracji, pole „adres opiekuna” w profilu uczestnika, testy kontraktu)
+    i rozjazd któregokolwiek z nich znaczyłby ukrycie pozorne.
+
+    Nie pytamy o witrynę z żądania (``Site.find_for_request``), tylko o **którąkolwiek** z włączonym
+    przełącznikiem – tak samo, jak ``apps.cms.analytics.analytics_enabled`` i z tego samego powodu:
+    rozstrzygnięcie jest binarne, a dodatkowe zapytanie o witrynę kosztowałoby więcej niż warte
+    jest rozróżnienie domeny produkcyjnej od stagingowej przy jednorazowej decyzji organizatora.
+
+    Błąd bazy znaczy „nie” (świeża baza przed migracjami): domyślną odpowiedzią przełącznika,
+    który **ukrywa** funkcję, musi być jej ukrycie.
+
+    Czego ta funkcja **nie** rozstrzyga: dostępu opiekunów, którzy konto już mają. Ich panel
+    stoi na ``supervisor_profile`` niżej i przełącznik go nie dotyka – ukrycie drogi wejścia nie
+    jest tym samym, co odebranie komuś dostępu do danych, które już ogląda.
+    """
+    from django.db import DatabaseError
+
+    from apps.cms.models import SiteSettings
+
+    try:
+        return SiteSettings.objects.filter(supervisor_registration_enabled=True).exists()
+    except DatabaseError:  # pragma: no cover - baza bez migracji tabeli ustawień
+        logger.warning("Nie udało się odczytać przełącznika rejestracji opiekunów szkolnych.")
+        return False
+
+
 def supervisor_profile(user) -> SchoolSupervisor | None:
     """Profil opiekuna, o ile konto ma do tego prawo: grupa ``supervisor`` **i** profil.
 

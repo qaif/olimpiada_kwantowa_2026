@@ -15,6 +15,25 @@ Stan prac i dług techniczny: [`docs/BACKLOG.md`](docs/BACKLOG.md).
 Checklista bezpieczeństwa: [`docs/SECURITY_CHECKLIST.md`](docs/SECURITY_CHECKLIST.md).
 Pokrycie testami: [`docs/COVERAGE.md`](docs/COVERAGE.md).
 
+### Dokumentacja
+
+Ten plik jest dokumentacją **techniczną**: opisuje, jak system działa i dlaczego tak. Podręczniki niżej
+są napisane dla ludzi, którzy z niego korzystają, i dają się rozesłać w całości.
+
+| Dokument | Dla kogo |
+|---|---|
+| [`docs/PODRECZNIK-ADMINISTRATORA.md`](docs/PODRECZNIK-ADMINISTRATORA.md) | instalacja, wdrożenie, DNS i poczta, kopie zapasowe, aktualizacje, awarie, dane osobowe |
+| [`docs/PODRECZNIK-ORGANIZATORA.md`](docs/PODRECZNIK-ORGANIZATORA.md) | prowadzenie edycji: etapy, zadania, komitet, ocenianie, wyniki, dokumenty, RODO |
+| [`docs/PODRECZNIK-UCZESTNIKA.md`](docs/PODRECZNIK-UCZESTNIKA.md) | rejestracja, panel, wysyłka rozwiązań, wyniki i reklamacje |
+| [`docs/PODRECZNIK-RECENZENTA.md`](docs/PODRECZNIK-RECENZENTA.md) | kolejka pracy, ekran oceny, rubryka, szablony, terminy |
+| [`docs/API.md`](docs/API.md) | integracje: klucze API i zakresy, `/api/v1/`, webhooki i weryfikacja podpisu, limity, wersjonowanie |
+| [`docs/CHANGELOG.md`](docs/CHANGELOG.md) | historia wydań, po jednej linii na tag |
+
+**Licencja:** [AGPL-3.0-or-later](LICENSE) — systemem wolno się posłużyć do prowadzenia własnej
+olimpiady, pod warunkiem udostępnienia źródeł swojej wersji użytkownikom serwisu. Wybór, alternatywy
+(MIT/Apache-2.0) i to, co organizator musi jeszcze rozstrzygnąć, opisuje
+[`docs/LICENCJA-UZASADNIENIE.md`](docs/LICENCJA-UZASADNIENIE.md).
+
 ---
 
 ## 1. Wymagania
@@ -879,6 +898,24 @@ z treścią PDF, arkusz treningowy oraz harmonogram warsztatów.
 
 ### 5.6 Panel opiekuna szkolnego (`/supervisor/`)
 
+> **Rola jest domyślnie ukryta.** Decyduje o tym jeden przełącznik w `/cms/` → *Ustawienia →
+> Dane serwisu → Rejestracja* → **„rejestracja opiekunów szkolnych”**
+> (`cms.SiteSettings.supervisor_registration_enabled`, domyślnie **wyłączony**). Przy wyłączonym:
+> `/register/supervisor/` zwraca **404**, nigdzie nie ma do niego odnośnika, a uczestnik nie widzi
+> w profilu pola „adres e-mail opiekuna szkolnego” — bez nauczycieli z kontem byłoby to pytanie
+> o adres, którego nikt nie użyje. Konto opiekuna zakłada się wtedy **na prośbę**: organizator
+> włącza przełącznik na czas zapisów danej szkoły albo zakłada konto sam. FAQ wspomina o roli jako
+> dostępnej na życzenie; treść wpisu redaguje organizator w `/cms/`, nie repozytorium.
+>
+> Czego przełącznik **nie** robi: nie odbiera panelu opiekunom, którzy konto już mają. Te konta
+> powstały świadomie, a ukrycie drogi wejścia nie jest tym samym, co odebranie komuś dostępu do
+> danych, które już ogląda. Adres opiekuna raz zapisany w profilu ucznia też zostaje — decyzji
+> ucznia sprzed wyłączenia przełącznika formularz danych nie cofa bez jego wiedzy. Hurtowy import
+> uczniów po stronie koordynatora (5.6a) działa niezależnie od przełącznika: to narzędzie
+> organizatora, a nie część roli nauczyciela.
+>
+> Reszta tej sekcji opisuje stan **z włączonym** przełącznikiem.
+
 Nauczyciel, który prowadzi uczniów do olimpiady, zakłada konto pod `/register/supervisor/` —
 rejestracja jest **otwarta**, bez kodu zaproszenia, z tym samym blokiem antyspamowym, limitem
 żądań i aktywacją adresu, co pozostałe. Samo konto nie daje wglądu w niczyje dane: pusty panel
@@ -909,6 +946,69 @@ panelu.
 
 Koordynator widzi opiekunów na liście kont (`/coordinator/accounts/?role=supervisor`) i w tabeli
 wystawiania dokumentów.
+
+### 5.6a Import uczniów: zaproszenie całej klasy z pliku (`/supervisor/import/`)
+
+Zgłoszenie ze szkół brzmiało prosto: „mam dwudziestu uczniów, nie będę dwudziestu razy tłumaczyć,
+jak się zarejestrować”. Naturalna odpowiedź — „nauczyciel zakłada konta i rozdaje hasła” — jest
+jednak **wykluczona**, i to nie ze względów wygody:
+
+- **zgody są oświadczeniem ucznia** (regulamin, RODO, a dla niepełnoletnich zgoda opiekuna).
+  Nauczyciel nie może ich złożyć w cudzym imieniu, więc konto „pod klucz” byłoby kontem bez ani
+  jednej ważnej zgody,
+- **hasło rozdane przez osobę trzecią nie jest poświadczeniem.** Uczeń, którego hasło zna
+  nauczyciel, nie ma konta — ma konto współdzielone.
+
+Dlatego import dzieli się na dwie czynności wykonane przez **dwie różne osoby**.
+
+**1. Nauczyciel wgrywa listę.** Plik CSV albo XLSX, pierwszy wiersz to nagłówki, maksymalnie **500
+wierszy**. Kolejność kolumn jest dowolna — liczy się nazwa w nagłówku, rozpoznawana bez względu na
+wielkość liter i diakrytyki („IMIĘ”, „imie”, „Rok urodzenia” obok „rocznik”):
+
+```
+imię;nazwisko;e-mail;rok urodzenia;klasa;telefon;e-mail opiekuna prawnego
+```
+
+Telefon i adres opiekuna prawnego są nieobowiązkowe. Szkoły w pliku **nie ma i nie będzie**: wchodzi
+szkoła z profilu opiekuna albo wybrana raz dla całego pliku tą samą wyszukiwarką SIO, co
+w rejestracji. Powód nie jest oszczędnością klików — nazwa szkoły wchodzi do grupowania
+w publikowanych wynikach (próg k-anonimowości), więc dwadzieścia razy wpisana ręcznie dałaby
+dwadzieścia wariantów tej samej placówki.
+
+**Podgląd przed zapisem jest obowiązkowym krokiem**, a nie ozdobą: plik z arkusza szkolnego zawiera
+literówki w adresach, stopki i uczniów już zarejestrowanych, a listu nie da się cofnąć. Każdy wiersz
+dostaje jedno z trzech rozstrzygnięć:
+
+| Podgląd mówi | Znaczy |
+|---|---|
+| **zaproszenie** | powstanie konto w stanie „zaproszony” i pójdzie list z linkiem |
+| **dopisanie do listy** | adres należy już do konta uczestnika — dopisujemy tylko adres opiekuna, bez zakładania drugiego konta i bez ruszania zgód |
+| **pominięty** | zły adres, brak imienia lub nazwiska, klasa spoza 1–5, adres powtórzony w pliku albo adres konta, które nie jest kontem uczestnika |
+
+Adresy porównujemy **bez względu na wielkość liter**, a niepoprawny numer telefonu nie odrzuca
+wiersza (zostaje pusty z notką). Uczeń niepełnoletni bez adresu opiekuna prawnego jest oznaczony,
+ale **nie** odrzucony — zgodę opiekuna zbieramy od niego po przyjęciu zaproszenia (5.8).
+
+**2. Uczeń przyjmuje zaproszenie.** List prowadzi pod podpisany link `/zaproszenie/<token>/`, ważny
+**14 dni**. Konto założone importem jest do tego czasu nieaktywne i **nie ma używalnego hasła** —
+nie zaloguje się ani hasłem, ani przez dostawcę OAuth. Pod linkiem uczeń ustawia własne hasło, podaje
+województwo i telefon (dwie dane, których nie ma w liście klasowej) i **sam** zaznacza zgody —
+dokładnie ten sam blok oświadczeń, co w rejestracji. Dopiero to aktywuje konto.
+
+Konta z importu **nie podlegają kosiarce kont nieaktywowanych** (5.1): tamta kasuje po czterech
+godzinach porzucone rejestracje, a zaproszenie żyje dwa tygodnie i jest wystawione świadomie.
+
+**Nauczyciel widzi stan każdego ucznia** w `/supervisor/students/` — „zaproszony”, „aktywny” albo
+„zapisał się sam” — i przy tych pierwszych ma przycisk **wyślij zaproszenie ponownie** (nowy link,
+ten sam adres). Przycisk działa tylko dla uczniów, którzy mają w profilu jego adres.
+
+**Koordynator ma ten sam import** pod `/coordinator/accounts/import/` (mały odnośnik nad listą
+kont), z jedną dodatkową kolumną `e-mail opiekuna szkolnego` — dzięki niej jedno wgranie rozdziela
+uczniów między kilku nauczycieli. Na liście kont konta z importu mają odznakę **„z importu”**
+(zostaje także po aktywacji: opisuje pochodzenie konta, a nie jego stan), a w audycie powstają dwa
+rodzaje wpisów — `accounts.students_imported` z samymi liczbami przebiegu i
+`participant.invited_by_import` przy każdym koncie. **W żadnym z nich nie ma adresu ani nazwiska**:
+kogo dotyczą, mówi identyfikator celu.
 
 ### 5.7 Lista kontrolna i podgląd wysłanego pliku
 
@@ -1123,7 +1223,33 @@ tabela). Reszta narzędzi etapu siedzi pod „Więcej”.
 
 ## 6. Procedury operacyjne
 
+> **Runbook produkcyjny: [`docs/OPERACJE.md`](docs/OPERACJE.md).** Tam są rzeczy, które robi się
+> na działającym serwisie i pod presją czasu: automatyczne kopie zapasowe poza serwer razem
+> z cotygodniowym testem odtwarzania, monitoring i alarmy, wdrożenie z GitHub Actions, polityka
+> logowania dwuskładnikowego oraz **lista kontrolna incydentu**. Sekcje niżej zostają jako opis
+> pojedynczych czynności wykonywanych ręcznie.
+>
+> Skrót dla niecierpliwych:
+>
+> | Chcę | Polecenie / miejsce |
+> |------|---------------------|
+> | zrobić kopię teraz | `./scripts/backup.sh` (cron robi to co noc o 3:15) |
+> | sprawdzić, czy kopie działają | `docker compose exec web python manage.py record_backup_status --show` |
+> | odtworzyć kopię (bez ruszania produkcji) | `./scripts/restore.sh --dry-run`, potem bez `--dry-run` |
+> | dostawać listy o awariach | `ALERT_EMAILS=` w `.env` (docs/OPERACJE.md § 3.2) |
+> | postawić monitoring | `deploy/monitoring/README.md` |
+>
+> **Logowanie dwuskładnikowe (2FA) jest na tej instalacji wyłączone** – decyzja organizatora.
+> `TWO_FACTOR_ENABLED` ma domyślnie wartość `0`, ekrany `/account/2fa/…` i `/login/2fa/`
+> odpowiadają wtedy 404, w interfejsie nie ma do nich odnośników, a konta, które zdążyły włączyć
+> drugi składnik wcześniej, logują się samym hasłem (ich urządzenia zostają zapisane w bazie –
+> wyłącznik ich nie kasuje). Kod i opis włączenia: `docs/OPERACJE.md` § 5.
+
 ### 6.1 Kopia zapasowa
+
+Ręczny wariant, przydatny przy jednorazowym zrzucie „przed czymś ryzykownym”. Wariantem
+**produkcyjnym** jest `scripts/backup.sh` z crona: szyfruje paczki i wysyła je poza serwer, czego
+poniższe polecenia nie robią (docs/OPERACJE.md § 1).
 
 Dwie części: baza i buckety. Obie muszą pochodzić z **tego samego momentu** – snapshot wyników
 odwołuje się do plików w MinIO.
@@ -1443,6 +1569,33 @@ w odpowiedzi). Krok jest **nieobowiązkowy**: kto zna nazwę swojej szkoły, wpi
 a wartość pola nigdy nie trafia do serwisu (`SchoolChoiceMixin.clean` ją zdejmuje — opisuje sposób
 szukania, a nie szkołę).
 
+**Miasto, a nie „miejscowość z wykazu” (`School.city_parent`).** Wykaz SIO zapisuje pięć
+największych miast **dzielnicami**: cztery jako `Miasto-Dzielnica` (`Wrocław-Krzyki`,
+`Kraków-Nowa Huta`, `Łódź-Bałuty`, `Poznań-Grunwald`), a **Warszawę wyłącznie nazwami dzielnic**
+(`Śródmieście`, `Wola`, `Mokotów`… — napisu „Warszawa” nie ma w nim ani razu). Pierwsza wersja
+kroku „Miejscowość” brała te napisy dosłownie, więc „warszawa” nie znajdowało **niczego** mimo 333
+stołecznych szkół, a „wro” dawało pięć pozycji, z których każda zawężała listę do jednej piątej
+Wrocławia. Dlatego przy każdym wierszu stoi wyliczona **gmina** (`apps/schools/normalise.py`):
+
+| reguła | warunek | przykład |
+|---|---|---|
+| (a) `Miasto-Dzielnica` → `Miasto` | człon przed myślnikiem jest jednym z pięciu miast z ustawowym podziałem na dzielnice (Kraków, Łódź, Poznań, Warszawa, Wrocław) | `Wrocław-Krzyki` → `Wrocław`; `Bielsko-Biała`, `Kędzierzyn-Koźle`, `Busko-Zdrój` zostają nietknięte |
+| (b) dzielnica Warszawy → `Warszawa` | nazwa jest jedną z 18 dzielnic **i** województwo to `mazowieckie` **i** kod pocztowy jest z puli stolicy (`00-`…`04-`, dla Wesołej `05-07x`) | `Śródmieście` → `Warszawa`; `Wola` w małopolskiem albo z kodem `05-660` zostaje `Wolą` |
+
+Kod pocztowy jest w regule (b) dlatego, że wykaz **nie ma** kolumny powiatu ani gminy (są:
+województwo, miejscowość, kod pocztowy, ulica, typ podmiotu, kategoria uczniów), a „Wola”,
+„Bielany” czy „Wilanów” to również nazwy wsi. Gdyby kolumna powiatu kiedyś doszła, to ona byłaby
+warunkiem właściwym. Na wykazie 2025/2026 reguła przepisuje **903 wiersze** i nie rusza żadnego
+innego: Warszawa 0 → 333, Wrocław 0 → 132, Kraków 0 → 170, Łódź 3 → 134, Poznań 5 → 142,
+Gdańsk 84 → 84 (nierozbity w wykazie, więc bez zmian).
+
+Oryginalne `School.city` **zostaje** — to adres szkoły z rejestru. Podpowiedź miast zwraca gminy
+(„wro” → jeden `Wrocław`), wybranie miasta obejmuje wszystkie jego dzielnice, a pozycja listy
+szkół pokazuje `city_label` w postaci **„Wrocław (Krzyki)”**. Działa też droga odwrotna:
+„warszawa śródmieście” albo „wrocław krzyki” wpisane w pole „Szkoła” zawężają do jednej dzielnicy
+(oba wyrazy są w `search_text`), a sama nazwa dzielnicy w kroku „Miejscowość” podpowiada jej
+miasto („krzyki” → `Wrocław`).
+
 Powód jest w uwagach organizatora z 16.09: „po wpisaniu «wrocław» nie widać liceów
 ogólnokształcących, a «liceum» nie pokazuje odpowiedniej listy”. Obie obserwacje mają jedną
 przyczynę — dwadzieścia trafień z całej Polski posortowanych alfabetycznie. Stąd druga zmiana:
@@ -1450,13 +1603,19 @@ przyczynę — dwadzieścia trafień z całej Polski posortowanych alfabetycznie
 ogólnokształcące, technika, reszta), a dopiero w obrębie typu decyduje nazwa. Przy samym alfabecie
 pierwsze dwadzieścia pozycji dużego miasta to szkoły branżowe i technika przy zespołach szkół.
 
-Dopasowanie po miejscowości idzie po **wyliczonej kolumnie** `School.city_search` (nazwa miasta bez
-diakrytyków, małymi literami; indeks `schools_city_kind_idx`), tak samo jak wyszukiwanie szkół idzie
-po `School.search_text`. Rozszerzenia Postgresa `unaccent` świadomie **nie** zakładamy: wymaga
-uprawnień, których rola aplikacyjna na produkcji nie ma, a złożony raz napis jest dla planisty
-tańszy od funkcji w warunku. Kolumnę wypełnia `School.save()`, `seed_schools` (jawnie, bo
-`bulk_create`/`bulk_update` omijają `save()`) oraz backfill w migracji `schools.0002` — ta ostatnia
-dlatego, że na produkcji słownik jest już wgrany, a migracje idą przed komendą seedującą.
+Dopasowanie po miejscowości idzie po **wyliczonej kolumnie** `School.city_search` w postaci
+`gmina|dzielnica` (bez diakrytyków, małymi literami: `wroclaw|krzyki`, `warszawa|srodmiescie`,
+`gdansk`; indeks `schools_city_kind_idx`), tak samo jak wyszukiwanie szkół idzie po
+`School.search_text` (nazwa + miejscowość z wykazu + gmina). Separatorem jest `|`, a nie spacja,
+bo w wykazie są 43 pary gmin, w których jedna nazwa zaczyna nazwę drugiej (`Opole` i `Opole
+Lubelskie`, `Brzeg` i `Brzeg Dolny`, `Nowe` i `Nowe Miasto`) — przy spacji wybranie „Opola”
+dokładałoby szkoły z Opola Lubelskiego. Rozszerzenia Postgresa `unaccent` świadomie **nie**
+zakładamy: wymaga uprawnień, których rola aplikacyjna na produkcji nie ma, a złożony raz napis
+jest dla planisty tańszy od funkcji w warunku. Wszystkie trzy kolumny wyliczane (`city_parent`,
+`city_search`, `search_text`) liczy **jedna** funkcja `apps/schools/normalise.py::derived_fields`,
+a woła ją `School.save()`, `seed_schools` (jawnie, bo `bulk_create`/`bulk_update` omijają `save()`)
+oraz backfill w migracjach `schools.0002` i `schools.0003` — te ostatnie dlatego, że na produkcji
+słownik jest już wgrany, a migracje idą przed komendą seedującą.
 
 Po co: wolny tekst nie grupuje. „II LO w Krakowie”, „2 LO Kraków” i „Liceum nr 2” to dla bazy
 trzy różne szkoły, więc próg k-anonimowości w publikacji wyników (`INITIALS_SCHOOL`, 7.4) nie ma
@@ -1491,8 +1650,9 @@ i tej samej obsługi klawiatury (strzałki, Enter, Escape).
 
 Strona działa też **bez JavaScriptu**: pole wolnego tekstu jest wtedy widoczne od początku i sam
 wpis wystarczy. Kontrola w przeglądarce bez okna: `e2e/check_school_picker.py` (podpowiedzi
-miejscowości, pełna lista szkół miasta i jej doczytywanie przewijaniem, zapis `school_id`
-po kliknięciu, widoczność pola wolnego tekstu przed i po zaznaczeniu kratki).
+miejscowości — w tym „wroc”, „warszawa” i „krzyki” na **pełnym** słowniku z `seed_schools`, pełna
+lista szkół miasta i jej doczytywanie przewijaniem, etykieta „Wrocław (Krzyki)” na pozycji listy,
+zapis `school_id` po kliknięciu, widoczność pola wolnego tekstu przed i po zaznaczeniu kratki).
 
 W API rejestracji (`POST /api/auth/register/participant/`) szkołę podaje się jako `school_id`
 (wiersz słownika) **albo** `school` (nazwa). Klient sprzed wprowadzenia słownika, który zna tylko
@@ -2795,9 +2955,10 @@ treścią — bywa opisem zdarzenia z życia konkretnego ucznia).
 
 ### 6.12 Dyplomy i zaświadczenia — `/coordinator/stages/<id>/certificates/`
 
-Cztery rodzaje dokumentów: **laureat**, **finalista**, **uczestnik** i **opiekun**. Rodzaju nie
-wyliczamy z punktów — o tym, kto jest laureatem, rozstrzyga komitet, a próg tytułu bywa inny niż
-próg kwalifikacji.
+Rodzaju dokumentu nie wyliczamy z punktów — o tym, kto jest laureatem, rozstrzyga komitet, a próg
+tytułu bywa inny niż próg kwalifikacji. Rodzajów jest pięć (niżej: „Rodzaje dokumentów”); ten ekran
+obsługuje dyplomy uczestników jednego etapu, a szablony graficzne, zaświadczenia dla opiekunów
+i zaświadczenia z warsztatów mają własne ekrany opisane w dalszej części tej sekcji.
 
 W bazie (`results.Certificate`) jest **rejestr, nie plik**: edycja, odbiorca (wpis do etapu albo
 opiekun — dokładnie jeden z nich), rodzaj, numer `OK/<rok>/<kolejny>`, losowy kod weryfikacyjny,
@@ -2826,6 +2987,145 @@ pokazuje**, dopóki odbiorca nie wyraził zgody na publikację pełnych danych (
 opiekun nie przechodzi przez blok zgód uczestnika, a milczenie nie jest zgodą. Nieznany kod nie
 daje 404: strona wygląda tak samo i mówi „takiego dokumentu nie ma”, bo rozróżnienie kodem HTTP
 zamieniłoby ten adres w narzędzie do sprawdzania kodów maszynowo.
+
+#### Rodzaje dokumentów
+
+Pięć: **laureat**, **finalista**, **uczestnik**, **opiekun** i **warsztaty**. Ostatni poświadcza
+fakt spoza toru zawodów — obecność na warsztatach online — i dlatego jest osobnym rodzajem, a nie
+„uczestnikiem” z dopiskiem: zdanie na papierze jest tam inne, a pod nim stoi wyliczenie tematów,
+terminów i prowadzących.
+
+#### Szablon graficzny — `/coordinator/certificates/templates/`
+
+Dotąd wygląd dyplomu był **kodem**: zmiana winiety przed galą znaczyła poprawkę w
+`apps/results/certificates.py` i wdrożenie, a organizator z gotowym projektem z drukarni nie miał
+go gdzie wgrać. `results.CertificateTemplate` przenosi tę decyzję do panelu i zostawia w kodzie
+wyłącznie skład.
+
+Szablon ma: **tło** (PNG/JPG albo **PDF** — projekt z drukarni bywa w CMYK-u ze spadami i
+przerobienie go na obrazek kosztuje jakość; PDF nakładamy przez `pypdf`, skalując złożoną stronę
+do formatu projektu), **logo**, do **trzech podpisów** (grafika + imię i nazwisko + funkcja) oraz
+**układ** — słownik JSON z położeniem i stopniem pisma każdego bloku.
+
+Dopasowanie do dokumentu idzie od szczegółu do ogółu: **(rodzaj, edycja) → (rodzaj, wszystkie
+edycje) → (wszystkie rodzaje, edycja) → (wszystkie, wszystkie) → układ wbudowany**. Rodzaj jest
+przed edycją, bo dyplom laureata ma prawo wyglądać inaczej niż reszta dokumentów tego rocznika.
+**Brak jakiegokolwiek szablonu jest stanem poprawnym** i przez większość roku normalnym — dokumenty
+składają się wtedy układem wbudowanym, tym samym co od pierwszej edycji.
+
+Układ (`apps/results/certificate_layout.py`) liczy `y` od **górnej** krawędzi kartki (842 × 595 pkt,
+A4 poziomo), bo tak czyta się dokument i tak mierzy się go linijką na wydruku. Brak `x` znaczy
+wyśrodkowanie; `show: false` gasi blok (np. nagłówek nadrukowany już na tle). Szablon zapisuje
+**tylko to, co zmienia** — wartości scalają się blok po bloku z domyślnymi, więc dodanie nowego
+bloku w kolejnej wersji serwisu nie unieważnia szablonów zapisanych wcześniej.
+
+Przycisk **Podgląd PDF** składa kartę z danymi przykładowymi (numer `OK/<rok>/000`, kod
+`PRZYKLADOWY1`) — obejrzenie układu nie zużywa numeru z puli i nie zostawia dyplomu w rejestrze.
+**Ustaw jako domyślny dla rodzaju** włącza szablon i wyłącza pozostałe o tym samym zakresie; osobnej
+flagi „domyślny” nie ma z premedytacją, bo byłaby drugą prawdą obok `is_active`.
+
+Pliki idą do **prywatnego** storage (ten sam alias `private_media`, co treści zadań). Tło dyplomu
+nie jest tajemnicą, ale publiczny bucket to adres, który da się podlinkować — a czysta karta dyplomu
+olimpiady krążąca po sieci jest gotowym materiałem do podrobienia.
+
+Na dokumencie stoi też **kod QR** z adresem strony weryfikacji (`reportlab.graphics.barcode.qr`,
+bez nowej zależności). Nie zastępuje kodu w stopce i nie może: kod bywa przepisywany do wniosku
+ręcznie, a QR jest skrótem drogi dla tych, którzy dostali dyplom jako zdjęcie w telefonie.
+
+#### Zaświadczenia hurtowe: opiekunowie — `/coordinator/supervisors/`
+
+Osobny ekran obok listy kont z filtrem `?role=supervisor`, i to nie jest powtórzenie: tamta lista
+odpowiada na „jakie mamy konta”, ta na „komu należy się zaświadczenie”. Pokazuje **liczbę uczniów
+w edycji** (bez niej „Wystaw” byłoby decyzją na ślepo) i stan dokumentu. Krąg odbiorców to
+opiekunowie, których uczniowie mają w edycji wpis do **któregokolwiek** etapu — zaświadczenie
+poświadcza pracę z uczniami, a nie złożenie oświadczenia o udziale szkoły. Przyciski: **Wystaw**
+przy wierszu i **Wystaw zaświadczenia wszystkim opiekunom (ZIP)**; obie drogi idempotentne.
+
+#### Obecność na warsztatach i zaświadczenia z warsztatów — `/coordinator/workshops/attendance/`
+
+Warsztaty są jedyną częścią olimpiady, o której baza nie wie nic sama z siebie: harmonogram jest
+treścią redakcyjną (blok `schedule` na `/warsztaty/`), a zajęcia odbywają się na platformie wideo.
+`cms.WorkshopAttendance` trzyma więc tylko to, czego treść redakcyjna nie umie zapamiętać — **kto
+był** — i wiąże to z wierszem harmonogramu przez `workshop_key` = `<data>-<slug tematu>`
+(`2026-11-12-kubity-i-bramki-kwantowe`).
+
+Klucz jest z **daty i tematu**, a nie z pozycji wiersza: redaktor dopisze wcześniejszy termin na
+początku tabeli albo poprawi godziny, a odhaczone obecności mają zostać przy swoich zajęciach. Cena
+jest jawna — zmiana tematu albo daty tworzy nowy klucz, a stara obecność przestaje pasować
+(koordynator widzi to jako pustą kolumnę i może ją odhaczyć ponownie).
+
+Ekran to tabela **uczestnicy × warsztaty** z kratkami, stronicowana po 100 osób, z filtrem po
+nazwisku i kodzie oraz przyciskiem „zaznacz kolumnę” (osobny plik `static/js/workshop-attendance.js`
+— strict CSP nie dopuszcza skryptu inline; bez tego pliku strona działa, tylko odhacza się
+pojedynczo). **Zapis obejmuje wyłącznie widoczną stronę**: formularz przysyła same kratki
+zaznaczone, więc bez ograniczenia zakresu zapisanie drugiej strony kasowałoby obecności z pierwszej.
+
+Import **CSV** (`kod,warsztat`) dokłada obecności i nigdy ich nie kasuje — listę uczestników
+spotkania eksportuje platforma wideo, a przepisywanie trzystu kratek ręcznie po każdych zajęciach
+to praca, po której tabela zostaje pusta. Kod uczestnika, nie e-mail: adres jest daną osobową,
+która nie ma po co krążyć w plikach po dyskach szkół. Nieznany kod i nieznany klucz są pomijane.
+
+**Wystaw zaświadczenia z warsztatów (ZIP)** wystawia dokument każdemu, kto ma co najmniej jedną
+obecność **i** wpis do etapu w tej edycji (dokument musi się do czego przypiąć — warsztat nie jest
+etapem, a `Certificate` zna dwa rodzaje odbiorcy: wpis do etapu albo opiekuna). Progu „połowa zajęć”
+nie ma: dokument wylicza konkretne tematy i daty, więc sam mówi, ile tego było. Zaświadczenia
+z warsztatów widać w panelu uczestnika razem z resztą dokumentów i sprawdza się je tym samym
+adresem `/dyplomy/<kod>/`.
+
+Wiersz harmonogramu ma od tej zmiany opcjonalne pole **prowadzący** — na stronie „Warsztaty” jest
+kolumną (znika, gdy nikt jej nie wypełnił), a na zaświadczeniu treścią dokumentu.
+
+#### Pieczęć elektroniczna (PAdES)
+
+Kod weryfikacyjny odpowiada na „czy taki dokument wystawiono”. Pieczęć odpowiada na „czy **ten
+plik** jest tym, co wystawiono” — uczelnia, która dostaje PDF pocztą, sprawdza go czytnikiem, a nie
+przepisywaniem kodu ze zdjęcia. Obie drogi zostają: kod działa na papierze, pieczęć na pliku.
+
+Moduł `apps/results/signing.py` (biblioteka `pyhanko`, zależność zwykła — podpisuje produkcja)
+podpisuje dokument w wariancie **PAdES** przy każdym składzie. Konfiguracja przez środowisko
+(`.env`, opis w `.env.example`):
+
+| Zmienna | Znaczenie |
+| --- | --- |
+| `CERT_SIGN_P12_PATH` | ścieżka **w kontenerze** do pliku PKCS#12 z kluczem pieczęci. Pusta = podpisywanie wyłączone |
+| `CERT_SIGN_P12_PASSWORD` | hasło do tego pliku |
+| `CERT_SIGN_TSA_URL` | adres znacznika czasu (RFC 3161). Bez niego podpis niesie czas z zegara serwera |
+| `CERT_SIGN_REASON`, `CERT_SIGN_LOCATION` | powód i miejsce złożenia pieczęci, widoczne we właściwościach podpisu |
+
+Dwie reguły, które są tu ważniejsze od kryptografii:
+
+- **brak konfiguracji nie jest błędem.** Bez `CERT_SIGN_P12_PATH` dokumenty wychodzą niepodpisane —
+  to jest stan domyślny i poprawny. Klucz pieczęci to materiał kryptograficzny organizacji; nie ma
+  go ani na laptopie dewelopera, ani w testach,
+- **awaria podpisu nie wstrzymuje dokumentu.** Wygasły certyfikat, brak pliku na wolumenie,
+  milczące TSA — wszystko trafia do logu, a uczestnik dostaje PDF bez pieczęci. Odwrotna decyzja
+  znaczyłaby, że pomyłka w konfiguracji zatrzymuje wydawanie dyplomów w dniu gali.
+
+Stan pieczęci zapisuje się przy dokumencie (`Certificate.signed`, `signed_at`, `signer_name`) —
+PDF powstaje przy **każdym** pobraniu, więc pieczęć jest własnością chwili składu, a nie rejestru.
+Panel uczestnika i strona `/dyplomy/<kod>/` mówią o niej wprost, razem z nazwą pieczętującego
+(z podmiotu certyfikatu: nazwa organizacji, a w jej braku CN — pieczęć należy do **podmiotu**, nie
+do osoby, i to jej różnica wobec podpisu).
+
+**Skąd wziąć kwalifikowaną pieczęć.** W Polsce wydają ją kwalifikowani dostawcy usług zaufania
+z rejestru NCCert prowadzonego przez Ministerstwo Cyfryzacji (m.in. KIR — Szafir, Asseco — Certum,
+Eurocert, CenCert, PWPW — Sigillum). Zamawia się **pieczęć elektroniczną dla podmiotu** (a nie
+podpis dla osoby): wnioskodawcą jest organizacja, a w certyfikacie stoi jej nazwa i NIP/REGON.
+Do użycia po stronie serwera potrzebny jest klucz w postaci pliku **PKCS#12** (`.p12`/`.pfx`) —
+przy zamawianiu trzeba to powiedzieć wprost i wybrać wariant „w pliku programowym” (*soft
+certificate*), a nie na karcie.
+
+**Ograniczenie, o którym trzeba wiedzieć przed zakupem:** kwalifikowana pieczęć wydana na **karcie
+kryptograficznej albo tokenie USB** nie da się użyć po stronie serwera. Klucz nie opuszcza karty,
+a karta wymaga obecności przy każdym podpisie — serwer podpisuje bez człowieka, przy każdym
+pobraniu dyplomu. Do takiego scenariusza dostawcy mają osobną usługę **podpisu/pieczęci w chmurze**
+(zdalne HSM z API); jej podłączenie to inna integracja niż ta i ten moduł jej nie obsługuje.
+Jeśli pieczęć kwalifikowana nie wchodzi w grę, zostaje **pieczęć niekwalifikowana** (zwykły
+certyfikat do podpisu z pliku): czytnik PDF-a nadal wykrywa naruszenie pliku, tylko bez skutku
+prawnego równoważnego pieczęci kwalifikowanej.
+
+Plik `.p12` montuje się do kontenera wolumenem (np. `./secrets/pieczec.p12:/run/secrets/pieczec.p12:ro`)
+i **nigdy** nie trafia do repozytorium ani do obrazu.
 
 ### 6.13 Statystyki edycji (`/statystyki/`)
 
@@ -3085,7 +3385,131 @@ a werdykt niesie pole `status` (`ok` / `degraded`): monitor, który dostaje 503,
 niedostępna jest sama strona statusu, i przestaje czytać jej treść. Osobny adres, a nie
 `?format=json`, bo monitory konfiguruje się adresem — ten sam powód, co przy `/me/calendar.ics`.
 
+### 6.17 Testy online (etap w formie `QUIZ`)
+
+Trzecia forma etapu obok rozwiązań pisemnych i rozmowy kwalifikacyjnej (`StageFormat.QUIZ`,
+aplikacja `apps.quiz`). Różni się od pozostałych tym, czym one różnią się od siebie: **skąd biorą
+się punkty**. W etapie pisemnym wystawia je recenzent, w rozmowie — komisja, a tutaj nie ma ich kto
+wystawić: liczy je serwer w chwili zakończenia podejścia. Dlatego etap w tej formie nie ma zadań do
+oddania ani przydziałów recenzenckich.
+
+Wszystko jest kluczowane **etapem** (`Quiz.stage` jeden-do-jednego) i **wpisem do etapu**
+(`QuizAttempt.entry`), nigdy uczestnikiem wprost — to jedyna postać, która przetrwa planowany
+podział serwisu na wiele konkursów bez przenumerowania danych.
+
+#### Ekrany koordynatora
+
+| Adres | Do czego |
+|---|---|
+| `/coordinator/stages/<id>/quiz/` | ustawienia testu (zakłada test, jeśli etap go nie ma) |
+| `/coordinator/stages/<id>/quiz/questions/` | lista pytań w pulach, dodanie, zmiana, usunięcie |
+| `/coordinator/stages/<id>/quiz/import/` | import pytań z Markdowna albo CSV (format opisany na stronie) |
+| `/coordinator/stages/<id>/quiz/preview/` | „Podgląd jako uczestnik” — arkusz bez zakładania podejścia |
+| `/coordinator/stages/<id>/quiz/results/` | wyniki per uczestnik, statystyka pytań, eksport CSV, „Przelicz punkty” |
+
+Ekran ustawień działa także dla etapu, który **nie** ma jeszcze formy `QUIZ`: arkusz przygotowuje
+się zwykle przed decyzją regulaminową o formie zawodów. Zapis testu formy etapu nie przestawia —
+to osobna decyzja, na ekranie terminów etapu; inaczej jedno wejście „na próbę” zabierałoby
+uczestnikom upload rozwiązań.
+
+Najważniejsze ustawienia i to, co z nich wynika:
+
+- **czas trwania** — licznik jednego podejścia. Termin podejścia to wcześniejszy z dwóch:
+  `start + czas trwania` i koniec okna testu, więc kto zaczyna pięć minut przed zamknięciem,
+  dostaje pięć minut, a nie pełną godzinę,
+- **okno testu** — puste pola znaczą „jak etap”. Osobne terminy są po to, żeby sesja testowa mogła
+  być krótszym wycinkiem etapu (finał trwa cztery dni, test dwie godziny drugiego dnia),
+- **pytań z każdej puli** — losowanie zestawów. Pula to temat nadawany przy pytaniu; z każdej puli
+  ciągnie się zadaną liczbę pytań. Losowanie z jednego worka potrafiłoby dać komuś pięć pytań
+  z jednego tematu i ani jednego z drugiego, czyli dwa nieporównywalne testy przy tej samej liczbie
+  pytań. Ekran ostrzega, gdy pula jest mniejsza od limitu albo gdy pytania w losowanej puli są
+  warte różnie (wtedy o maksimum decyduje losowanie, a nie wiedza),
+- **podłoga punktów ujemnych** — `QUESTION` (domyślnie): błąd w jednym pytaniu nie zabiera punktów
+  z innego; `QUIZ`: ujemne przenoszą się między pytaniami, a zera pilnuje dopiero suma. **Brak
+  odpowiedzi nigdy nie jest karany** — inaczej punkty ujemne karałyby za to zachowanie, do którego
+  mają zachęcać, gdy uczestnik nie zna odpowiedzi,
+- **kiedy pokazać wynik** — `NEVER` (tylko w ogłoszonej tabeli etapu), `AFTER_CLOSE`, `IMMEDIATELY`.
+
+Rodzaje pytań: jednokrotny wybór, wielokrotny wybór (z oceną „wszystko albo nic” lub proporcjonalną
+— trafienia **minus** pomyłki, bo bez odejmowania pomyłek „zaznacz wszystko” dawałoby komplet
+punktów), krótka odpowiedź tekstowa (lista uznawanych zapisów + flagi normalizacji: wielkość liter,
+spacje, polskie znaki) i odpowiedź liczbowa (tolerancja bezwzględna **i** względna, działające
+alternatywnie — wystarczy zmieścić się w jednej). Pytanie otwarte, które musi przeczytać człowiek,
+nie jest testem, tylko zadaniem, i idzie zwykłą ścieżką.
+
+**Zestawu pytań nie da się zmienić po pierwszym podejściu** (`QUIZ_HAS_ATTEMPTS`): zestawy są
+losowane i zapisane przy starcie, więc dopisanie pytania zmieniałoby to, co wylosują następne
+osoby, a skasowanie zostawiałoby w cudzym zapisanym zestawie identyfikator, którego już nie ma.
+Poprawka **klucza odpowiedzi** jest natomiast dozwolona i to jest osobna droga: klucz bywa błędny
+i wychodzi to dopiero z wyników. Po poprawce trzeba kliknąć **„Przelicz punkty”** — wynik nie
+zmienia się sam, bo podejścia są ocenione w chwili zakończenia. Przeliczenie zostawia wpis audytowy
+`quiz.regraded` z liczbą podejść i liczbą zmienionych wyników (bez danych osobowych); to jedyny
+dokument, którym organizator wytłumaczy, dlaczego wyniki wyglądają inaczej niż wczoraj.
+
+Ekran wyników podaje przy każdym pytaniu **trudność** (odsetek odpowiedzi w pełni poprawnych wśród
+udzielonych) i **moc różnicującą** (różnica trudności między lepszą i słabszą połową uczestników).
+Ujemna moc różnicująca prawie zawsze znaczy błąd w kluczu albo dwuznaczną treść — bez tej kolumny
+wyszłoby to dopiero z reklamacji.
+
+#### Ścieżka uczestnika
+
+Wejście z zakładki „Zadania” w panelu (`/me/`), gdy etap bieżący jest w formie testu. Dalej:
+strona startowa z zasadami (`/me/stages/<id>/test/`) → arkusz (`/me/test/<id>/`) → podsumowanie
+(`/me/test/<id>/wynik/`). Rozpoczęcie jest **POST-em**, nie odnośnikiem: jedno wejście zużywa
+podejście i uruchamia licznik, a prefetch przeglądarki albo podgląd linku w komunikatorze nie może
+komuś rozpocząć zawodów.
+
+Arkusz to **jedna strona ze wszystkimi pytaniami** i przyklejonym licznikiem. Strona z jednym
+pytaniem wymagałaby żądania między pytaniami, więc na słabym łączu każdy powrót kosztowałby czas
+z licznika, a zerwane połączenie zostawiałoby uczestnika w środku testu bez drogi dalej.
+
+Odpowiedzi zapisują się przez `fetch` co 20 sekund i po każdej zmianie (`static/js/quiz.js`, nonce
+CSP, token CSRF z ciasteczka). **Bez JavaScriptu arkusz działa jako zwykły formularz**: odpowiedzi
+idą na serwer razem z przyciskiem „Zakończ test”, a licznik pokazuje czas z chwili wczytania strony
+(wpisuje go serwer). To jest wymaganie, nie ambicja — część zawodów odbywa się w pracowniach
+szkolnych z zablokowanymi skryptami.
+
+O czasie rozstrzyga **wyłącznie serwer**. Po `deadline_at` + 30 s tolerancji sieciowej zapis jest
+odrzucany (`QUIZ_ATTEMPT_EXPIRED`), a podejście domykane ze statusem „czas minął” — **razem z tym,
+co zdążyło się zapisać**. Tolerancja nie jest przedłużeniem testu, tylko uznaniem, że między
+kliknięciem a dotarciem żądania upływa czas. Podejście porzucone (zamknięty laptop) domyka
+`finalise_overdue` przy najbliższym wejściu na test, na ekranie wyników koordynatora i przy
+przeliczaniu wyników etapu — bez tego praca kogoś, komu padło łącze, weszłaby do protokołu jako zero.
+
+Zabezpieczenia podstawowe: jedno aktywne podejście na osobę i test (częściowy indeks unikalny
+w bazie, więc dwie karty przeglądarki nie otworzą dwóch), zestaw i kolejność wariantów losowane raz
+i **zapisane**, warianty tasowane po stronie serwera, a klucz odpowiedzi nie trafia do HTML-a
+uczestnika w ogóle — kontekst szablonu dostaje pytania jako słowniki bez `is_correct`
+i bez `settings`, więc nie ma go czym wypisać nawet przez nieostrożną pętlę.
+
+#### Jak punkty wchodzą do wyników etapu
+
+Jednym, wąskim szwem. `apps.quiz.services.stage_scores(stage) -> {entry_id: punkty}` jest jedynym
+wejściem testów do tabeli wyników, a `apps.results.services.compute_stage_results` pyta o nie
+tylko wtedy, gdy `stage.format == QUIZ` (hook `_quiz_scores`, import lokalny — zależność ma być
+widoczna i łatwa do odcięcia). Suma z testu **zastępuje** sumę z zadań, a kolumny zadań zostają
+puste: kolumnami tabeli wyników są zadania, a pytania testu są ich zbyt drobnym odpowiednikiem —
+rozbicie na pytania stoi na własnym ekranie.
+
+Trzy reguły zapisane w `stage_scores`:
+
+- liczy się **najlepsze** podejście (przy `attempts_allowed > 1` kolejne podejście ma sens tylko
+  wtedy, gdy może poprawić wynik),
+- podejścia przeterminowane liczą się normalnie; pomijane są wyłącznie te wciąż trwające,
+- wynik jest **zaokrąglany do pełnych punktów** (w górę przy połówce), bo `StageEntry.total_points`
+  jest polem całkowitym wspólnym dla wszystkich form etapu. Wynik dokładny, z częściami setnymi,
+  zostaje na ekranie wyników testu.
+
+Dalej etap zachowuje się jak każdy inny: próg kwalifikacji, symulacja, publikacja i anonimizacja
+idą tą samą drogą co przy etapie pisemnym. Podgląd (`preview=True`, symulacja progu) niczego nie
+zapisuje — także dla etapu w formie testu.
+
 ## 7. Testy i kontrola jakości
+
+> Te same kroki wykonuje automatycznie **`.github/workflows/ci.yml`** przy każdym push i pull
+> requeście (ruff, `makemigrations --check`, `msgfmt --check`, pełny pytest z Postgresem,
+> `docker build` obrazu produkcyjnego). Wdrożenie produkcyjne jest osobnym, **ręcznie**
+> uruchamianym workflow – opis razem z listą sekretów: [`docs/OPERACJE.md`](docs/OPERACJE.md) § 4.
 
 ```bash
 # Testy jednostkowe i integracyjne (w kontenerze – tak jak w CI)

@@ -14,6 +14,11 @@ szkół, że pusty tekst pokazuje wtedy **pełną** listę (a nie nic) i że lis
 przewijaniem. Bez tego „pełna lista szkół miasta” byłaby obietnicą sprawdzoną wyłącznie po stronie
 API, a poprzednia usterka tego bloku (Alpine z CDN-u) siedziała właśnie w przeglądarce.
 
+Druga rzecz, która wymaga **prawdziwego** słownika, a nie fabryki z testów: wykaz SIO zapisuje
+pięć największych miast dzielnicami, a Warszawę wyłącznie nazwami dzielnic. Kontrola pyta więc
+o „wroc”, „warszawa” i „krzyki” i sprawdza, że w odpowiedzi stoi jedno miasto – to jest asercja
+na danych z ``seed_schools``, a nie na trzech wierszach założonych w teście.
+
 Zbieramy też błędy konsoli (CSP, 404 na skrypcie) – wypisujemy je zawsze, bo bywają jedynym
 śladem po zablokowanym zasobie.
 """
@@ -67,12 +72,43 @@ def main() -> None:
         assert state["freeVisible"] is False, "przed zaznaczeniem kratki wolny tekst ma byc schowany"
 
         # --- krok 1: miejscowość ---------------------------------------------------------------
+        #
+        # Wykaz SIO rozbija Wrocław na pięć „miejscowości” (``Wrocław-Krzyki``, ``Wrocław-Fabryczna``
+        # …), a Warszawę zapisuje **wyłącznie** nazwami dzielnic. Od czasu ``School.city_parent``
+        # (apps/schools/normalise.py) podpowiedź ma pokazywać **jedną** pozycję na miasto – i to
+        # jest asercja, której nie da się postawić w teście serwera tak, żeby objęła prawdziwy
+        # słownik: na produkcji i w środowisku developerskim stoi za nią pełny wykaz z seeda.
         page.fill("#id_school_city", "wroc")
         page.wait_for_timeout(1200)
         cities = page.locator("#city-suggestions li")
         print("podpowiedzi miejscowosci:", cities.count())
         assert cities.count() > 0, "krok miejscowosci nie zwrocil ani jednej podpowiedzi"
-        print("pierwsza miejscowosc:", cities.first.inner_text().strip()[:80])
+        names = [cities.nth(i).inner_text().strip().split("\n")[0] for i in range(cities.count())]
+        print("miejscowosci dla 'wroc':", names)
+        assert names.count("Wrocław") == 1, "Wroclaw ma byc jedna pozycja, a nie lista dzielnic"
+        assert not any("-" in name and name.startswith("Wrocław") for name in names), (
+            "w podpowiedziach zostala dzielnica zapisana jako osobne miasto"
+        )
+
+        # Warszawy w wykazie nie ma pod własną nazwą – jest pod osiemnastoma nazwami dzielnic.
+        # Ta asercja pilnuje całej reguły (b) z ``apps/schools/normalise.py`` na prawdziwych danych.
+        page.fill("#id_school_city", "warszawa")
+        page.wait_for_timeout(1200)
+        capital = [
+            cities.nth(i).inner_text().strip().split("\n")[0] for i in range(cities.count())
+        ]
+        print("miejscowosci dla 'warszawa':", capital)
+        assert "Warszawa" in capital, "stolica nie znalazla sie w podpowiedziach miejscowosci"
+
+        # Dzielnica wpisana zamiast miasta też ma trafiać – w odpowiedzi stoi wtedy miasto.
+        page.fill("#id_school_city", "krzyki")
+        page.wait_for_timeout(1200)
+        district = [
+            cities.nth(i).inner_text().strip().split("\n")[0] for i in range(cities.count())
+        ]
+        print("miejscowosci dla 'krzyki':", district)
+        assert district == ["Wrocław"], "nazwa dzielnicy ma podpowiadac jej miasto"
+
         cities.first.click()
         page.wait_for_timeout(1200)
 
@@ -84,6 +120,12 @@ def main() -> None:
         assert full.count() > 0, "po wybraniu miasta lista szkol jest pusta"
         # Porządek: najpierw licea ogólnokształcące (apps/schools/models.py::KIND_ORDER).
         print("pierwsza szkola:", full.first.inner_text().strip()[:80])
+        # Pozycja pokazuje miasto z dzielnicą w nawiasie („Wrocław (Krzyki)”), a nie „Wrocław-Krzyki”:
+        # miasto odpowiada na „gdzie”, a dzielnica odróżnia szkoły o podobnych nazwach.
+        meta = full.first.locator(".school-picker__meta").inner_text().strip()
+        print("opis pierwszej pozycji:", meta)
+        assert meta.startswith("Wrocław"), "pozycja listy nie zaczyna sie od nazwy miasta"
+        assert "Wrocław-" not in meta, "na liscie zostala miejscowosc z wykazu zamiast miasta"
 
         # Doczytywanie kolejnej strony przewinięciem listy. W mieście wojewódzkim szkół jest
         # więcej niż mieści jedna odpowiedź, więc lista ma urosnąć.

@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% load static i18n %}
+{% comment %}
+  Arkusz testu: wszystkie pytania na jednej stronie, przyklejony licznik u góry.
+
+  Dlaczego jedna strona, a nie pytanie po pytaniu: strona z jednym pytaniem wymaga żądania między
+  pytaniami, więc na słabym łączu powrót do pytania drugiego kosztuje czas z licznika, a zerwane
+  połączenie zostawia uczestnika w środku testu bez drogi dalej. Jedna strona jest też jedyną
+  postacią, która działa **bez JavaScriptu**: wtedy to zwykły formularz z jednym przyciskiem
+  na końcu, a autozapis po prostu nie działa.
+
+  Klucza odpowiedzi w tym pliku nie ma czym wypisać – widok podaje pytania jako słowniki bez
+  ``is_correct`` i bez ``settings`` (``apps.web.views.quiz._public_questions``). To nie jest
+  ostrożność w szablonie, tylko konstrukcja: „zapomniana” pętla po wariantach nie ma tu dostępu
+  do niczego, co zdradzałoby odpowiedź.
+
+  Cały formularz jest **jednym** ``<form>``, którego akcją jest ten sam adres: bez JavaScriptu
+  „Zakończ test” wysyła komplet odpowiedzi razem z zakończeniem, jednym żądaniem.
+{% endcomment %}
+{% block title %}{{ quiz.title }} – {% translate "test w toku" %}{% endblock %}
+{% block head %}{{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/quiz.css' %}">
+{% endblock %}
+{% comment %}
+  Linia czasu edycji w nagłówku jest tu wyłączona: to pasek kalendarza zawodów, a na tej stronie
+  liczy się jeden termin – koniec podejścia – i ma być jedynym licznikiem na ekranie.
+{% endcomment %}
+{% block timeline_strip %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{{ stage.display_name }}</span>
+  <h1>{{ quiz.title }}</h1>
+</div>
+
+{% comment %}
+  Licznik jest **przyklejony** i renderowany przez serwer z gotową liczbą sekund – bez
+  JavaScriptu pokazuje, ile czasu zostało w chwili wczytania strony, i to jest uczciwa informacja.
+  Skrypt odlicza dalej. Wartości jadą w ``data-*``, bo skrypt nie ma katalogu tłumaczeń i nie może
+  mieć własnych napisów (ta sama droga, co ``countdown_words`` w panelu uczestnika).
+{% endcomment %}
+<div class="quiz-timer" data-quiz-timer
+     data-deadline="{{ deadline_iso }}"
+     data-seconds-left="{{ seconds_left }}"
+     data-autosave-url="{% url 'web:quiz-autosave' attempt.pk %}"
+     data-word-left="{% translate 'Do końca' %}"
+     data-word-over="{% translate 'Czas minął' %}"
+     data-word-saved="{% translate 'zapisano' %}"
+     data-word-saving="{% translate 'zapisuję…' %}"
+     data-word-failed="{% translate 'brak połączenia – spróbuję ponownie' %}"
+     role="status">
+  <span class="quiz-timer__label">{% translate "Do końca" %}</span>
+  <strong class="quiz-timer__value" data-quiz-clock>{{ seconds_left }} s</strong>
+  <span class="quiz-timer__save" data-quiz-status></span>
+</div>
+
+<form method="post" class="quiz-form" data-quiz-form
+      data-word-confirm="{% translate 'Zakończyć test? Po zakończeniu nie da się już zmienić odpowiedzi.' %}">
+  {% csrf_token %}
+  {% for question in questions %}
+    <section class="card quiz-question" id="pytanie-{{ forloop.counter }}">
+      <div class="card__head">
+        <h2 class="mt-0 card__title">{% blocktranslate trimmed with number=forloop.counter %}Pytanie {{ number }}{% endblocktranslate %}</h2>
+        <span class="badge badge--neutral">{% blocktranslate trimmed with points=question.points %}{{ points }} pkt{% endblocktranslate %}</span>
+      </div>
+      <p class="quiz-question__text">{{ question.text|linebreaksbr }}</p>
+      {% if question.image %}
+        {% comment %}
+          Ilustracja leży na prywatnym storage, więc adres jest podpisany i krótkotrwały.
+          ``alt`` jest pusty, bo treść pytania stoi tuż nad obrazkiem – powtórzony opis czytnik
+          ekranu przeczytałby dwa razy, a opisu samej ilustracji system nie zna.
+        {% endcomment %}
+        <p><img class="quiz-question__image" src="{{ question.image.url }}" alt="" loading="lazy"></p>
+      {% endif %}
+
+      {% if question.is_choice %}
+        <fieldset class="quiz-options">
+          <legend class="visually-hidden">
+            {% if question.is_multiple %}{% translate "Zaznacz wszystkie poprawne odpowiedzi" %}
+            {% else %}{% translate "Zaznacz jedną odpowiedź" %}{% endif %}</legend>
+          {% if question.is_multiple %}
+            <p class="hint">{% translate "Można zaznaczyć więcej niż jedną odpowiedź." %}</p>
+          {% endif %}
+          {% for option in question.options %}
+            <p class="quiz-option">
+              <input type="{% if question.is_multiple %}checkbox{% else %}radio{% endif %}"
+                     name="q{{ question.id }}" value="{{ option.id }}"
+                     id="o{{ option.id }}"
+                     {% if option.id in question.selected %}checked{% endif %}>
+              <label for="o{{ option.id }}">{{ option.text }}</label>
+            </p>
+          {% endfor %}
+        </fieldset>
+      {% elif question.is_numeric %}
+        <p class="quiz-answer">
+          <label for="q{{ question.id }}">{% translate "Odpowiedź" %}</label>
+          {% comment %}
+            ``type="text"``, a nie ``number``: pole liczbowe odrzuca przecinek dziesiętny
+            w części przeglądarek, a w polskiej szkole ułamki zapisuje się przecinkiem.
+            ``inputmode="decimal"`` daje na telefonie klawiaturę numeryczną, nie zabierając
+            możliwości wpisania czegokolwiek innego – o tym, czy to liczba, rozstrzyga serwer.
+          {% endcomment %}
+          <input type="text" inputmode="decimal" autocomplete="off"
+                 name="q{{ question.id }}" id="q{{ question.id }}"
+                 value="{{ question.value|default:'' }}">
+          {% if question.unit %}<span class="quiz-answer__unit">{{ question.unit }}</span>{% endif %}
+        </p>
+      {% else %}
+        <p class="quiz-answer">
+          <label for="q{{ question.id }}">{% translate "Odpowiedź" %}</label>
+          <input type="text" autocomplete="off" maxlength="500"
+                 name="q{{ question.id }}" id="q{{ question.id }}"
+                 value="{{ question.value|default:'' }}">
+        </p>
+      {% endif %}
+
+      {% if question.negative_points %}
+        <p class="hint">{% blocktranslate trimmed with penalty=question.negative_points %}
+          Za błędną odpowiedź odejmujemy {{ penalty }} pkt. Brak odpowiedzi nie jest karany.
+        {% endblocktranslate %}</p>
+      {% endif %}
+    </section>
+  {% endfor %}
+
+  <div class="card quiz-finish">
+    <p>{% translate "Po zakończeniu nie da się już zmienić odpowiedzi." %}</p>
+    <button type="submit" class="btn btn--accent">{% translate "Zakończ test" %}</button>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}{{ block.super }}
+  {# Licznik i autozapis. Strona jest kompletna bez tego skryptu – patrz komentarz na górze. #}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/quiz.js' %}"></script>
+{% endblock %}

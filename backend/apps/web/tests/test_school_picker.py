@@ -198,6 +198,25 @@ def test_profile_form_reopens_the_picker_in_the_city_of_the_linked_school(partic
 
 
 @pytest.mark.django_db
+def test_profile_form_reopens_the_picker_in_the_municipality_not_the_district(participant):
+    """Do pola „Miejscowość” wchodzi gmina, bo tego oczekuje parametr ``city`` wyszukiwarki.
+
+    Wykaz zapisuje szkołę pod „Wrocław-Krzyki”; wpisanie tego napisu w pole otworzyłoby edycję
+    profilu z pustą listą szkół, mimo że szkoła jest w słowniku.
+    """
+    from apps.web.forms import participant_profile_initial
+
+    school = SchoolFactory(
+        name="III LICEUM OGÓLNOKSZTAŁCĄCE", city="Wrocław-Krzyki", voivodeship="dolnoslaskie"
+    )
+    participant.school_ref = school
+    participant.school = school.name
+    participant.save(update_fields=["school_ref", "school"])
+
+    assert participant_profile_initial(participant)["school_city"] == "Wrocław"
+
+
+@pytest.mark.django_db
 def test_profile_form_of_a_hand_typed_school_has_no_city(participant):
     """Pytamy o nazwę szkoły, nie o adres – podstawione miasto zawęziłoby wyszukiwarkę zmyśleniem."""
     from apps.web.forms import participant_profile_initial

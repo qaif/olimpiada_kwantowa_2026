@@ -13,12 +13,16 @@ Zasady:
 import secrets
 
 from django.conf import settings
+from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 
 from apps.accounts.models import SchoolSupervisor
 from apps.competitions.models import Edition, Stage, StageEntry
+from apps.competitions.storage import private_media_storage
+
+from .certificate_layout import default_certificate_layout
 
 
 def default_snapshot() -> list:
@@ -80,18 +84,25 @@ class ResultsPublication(models.Model):
 
 
 class CertificateKind(models.TextChoices):
-    """Rodzaj dokumentu. Cztery, bo tyle jest różnych faktów do poświadczenia.
+    """Rodzaj dokumentu. Pięć, bo tyle jest różnych faktów do poświadczenia.
 
     Podział laureat / finalista / uczestnik jest podziałem **regulaminowym**, a nie wynikiem
     obliczenia: o tym, kto jest laureatem, rozstrzyga komitet i to on wybiera rodzaj przy
     wystawianiu. System nie zgaduje tego z punktów, bo próg laureata bywa ustalany na posiedzeniu
     i nie musi pokrywać się z progiem kwalifikacji.
+
+    ``WARSZTATY`` poświadcza obecność na warsztatach online, czyli fakt spoza toru zawodów:
+    warsztat nie jest etapem, nie ma wpisu, punktów ani progu, a mimo to nauczyciel bywa proszony
+    o zaświadczenie dla ucznia, a uczeń dokłada je do wniosku stypendialnego. Rodzaj jest osobny,
+    a nie „uczestnik” z dopiskiem, bo zdanie na papierze jest tu zupełnie inne – wylicza tematy
+    i terminy zajęć, na których uczeń był.
     """
 
     LAUREAT = "LAUREAT", "laureat"
     FINALISTA = "FINALISTA", "finalista"
     UCZESTNIK = "UCZESTNIK", "uczestnik"
     OPIEKUN = "OPIEKUN", "opiekun"
+    WARSZTATY = "WARSZTATY", "uczestnik warsztatów"
 
 
 #: Prefiks numeru dokumentu: ``OK/<rok>/<kolejny>``. „OK” od Olimpiady Kwantowej – numer trafia
@@ -164,6 +175,18 @@ class Certificate(models.Model):
         related_name="certificates_issued",
         verbose_name="wystawił",
     )
+    # --- pieczęć elektroniczna -------------------------------------------------------------
+    # Trzy pola opisujące **ostatni udany** podpis pliku, a nie sam fakt konfiguracji podpisu.
+    # PDF powstaje przy każdym pobraniu, więc to, czy dokument wyszedł z serwera opieczętowany,
+    # jest własnością chwili składu: certyfikat mógł stracić ważność, plik .p12 mógł zniknąć
+    # z wolumenu, a dokument i tak ma wyjść – tyle że bez pieczęci. Bez zapisania tego faktu
+    # strona weryfikacji musiałaby zgadywać, co odbiorca trzyma w ręku.
+    signed = models.BooleanField("podpisany elektronicznie", default=False)
+    signed_at = models.DateTimeField("data podpisu", null=True, blank=True)
+    # Nazwa z podmiotu certyfikatu (CN albo nazwa organizacji). Trzymamy ją przy dokumencie,
+    # bo strona weryfikacji ma powiedzieć **kto** pieczętował, a nie „podpisano cyfrowo”:
+    # czytelnik sprawdza dokument właśnie po to, żeby wiedzieć, czyja to pieczęć.
+    signer_name = models.CharField("podpisujący", max_length=200, blank=True)
 
     class Meta:
         verbose_name = "dyplom / zaświadczenie"
@@ -197,3 +220,144 @@ class Certificate(models.Model):
     @property
     def is_for_supervisor(self) -> bool:
         return self.supervisor_id is not None
+
+
+#: Rozszerzenia tła dokumentu. PDF jest tu obok obrazów świadomie: drukarnie oddają projekt
+#: dyplomu jako PDF w CMYK-u i przerobienie go na PNG kosztuje jakość, której na papierze
+#: nie da się odzyskać. Skład wkleja wtedy tekst **na pierwszą stronę** tego pliku.
+CERTIFICATE_BACKGROUND_EXTENSIONS = ("png", "jpg", "jpeg", "pdf")
+#: Logo i podpisy są rysowane na stronie, więc muszą być obrazem – PDF-u reportlab nie umie
+#: wstawić jako grafiki bez dodatkowej biblioteki, a nie ma po co jej dokładać dla winiety.
+CERTIFICATE_IMAGE_EXTENSIONS = ("png", "jpg", "jpeg")
+
+
+class CertificateTemplate(models.Model):
+    """Szablon graficzny dokumentu: tło, logo, podpisy i położenie napisów.
+
+    Po co, skoro dyplom już się składa. Bo dotąd jego wygląd był **kodem**: zmiana winiety przed
+    galą znaczyła poprawkę w ``apps.results.certificates`` i wdrożenie, a organizator, który
+    dostał z drukarni gotowy projekt karty, nie miał gdzie go wgrać. Szablon przenosi tę decyzję
+    tam, gdzie zapada – do panelu – i zostawia w kodzie wyłącznie skład.
+
+    Dopasowanie do dokumentu idzie od najbardziej szczegółowego do najogólniejszego:
+    (rodzaj, edycja) → (rodzaj, wszystkie edycje) → (wszystkie rodzaje, edycja) → (wszystkie,
+    wszystkie) → wbudowany układ. Pusty ``kind`` znaczy „każdy rodzaj”, puste ``edition`` –
+    „każda edycja”; jubileuszowa winieta jednej edycji nie wymaga więc kopiowania szablonu pięć
+    razy, a dyplom laureata może mieć własną kartę przy wspólnym tle reszty dokumentów.
+
+    ``kind`` jest **pustym napisem**, a nie ``NULL``-em: dwie wartości znaczące „brak” w jednej
+    kolumnie tekstowej to klasyczne źródło zapytań, które gubią wiersze (``= ''`` nie łapie
+    ``NULL``), a tutaj kolumna jest częścią wyszukiwania szablonu przy każdym pobraniu dokumentu.
+
+    Pliki idą do **prywatnego** storage (ten sam alias, co treści zadań). Tło dyplomu nie jest
+    tajemnicą, ale publiczny bucket to adres, który da się zgadnąć i podlinkować – a wtedy czysta
+    karta dyplomu olimpiady krąży po sieci jako gotowy plik do podrobienia. Dokument z panelu
+    wychodzi zawsze jako złożony PDF, więc nikt nie potrzebuje URL-a do samego tła.
+    """
+
+    name = models.CharField("nazwa", max_length=120)
+    kind = models.CharField(
+        "rodzaj dokumentu",
+        max_length=16,
+        choices=CertificateKind.choices,
+        blank=True,
+        help_text="Puste = szablon dla wszystkich rodzajów dokumentów.",
+    )
+    edition = models.ForeignKey(
+        Edition,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="certificate_templates",
+        verbose_name="edycja",
+        help_text="Puste = szablon dla wszystkich edycji.",
+    )
+    background = models.FileField(
+        "tło (PNG, JPG albo PDF)",
+        upload_to="certificates/backgrounds/",
+        blank=True,
+        storage=private_media_storage,
+        validators=[FileExtensionValidator(list(CERTIFICATE_BACKGROUND_EXTENSIONS))],
+    )
+    logo = models.ImageField(
+        "logo",
+        upload_to="certificates/logos/",
+        blank=True,
+        storage=private_media_storage,
+        validators=[FileExtensionValidator(list(CERTIFICATE_IMAGE_EXTENSIONS))],
+    )
+    # Trzy podpisy, każdy jako trójka pól, zamiast osobnej tabeli. Liczba jest ograniczona
+    # z premedytacją: na dokumencie mieszczą się trzy bloki podpisu obok siebie i tyle podpisów
+    # ma dyplom olimpiady (komitet, patron, partner). Tabela podrzędna dołożyłaby formularz
+    # zagnieżdżony i kolejność do utrzymania, a nie dołożyłaby ani jednej możliwości.
+    signature_1_image = models.ImageField(
+        "podpis 1 – grafika",
+        upload_to="certificates/signatures/",
+        blank=True,
+        storage=private_media_storage,
+        validators=[FileExtensionValidator(list(CERTIFICATE_IMAGE_EXTENSIONS))],
+    )
+    signature_1_name = models.CharField("podpis 1 – imię i nazwisko", max_length=120, blank=True)
+    signature_1_title = models.CharField("podpis 1 – funkcja", max_length=160, blank=True)
+    signature_2_image = models.ImageField(
+        "podpis 2 – grafika",
+        upload_to="certificates/signatures/",
+        blank=True,
+        storage=private_media_storage,
+        validators=[FileExtensionValidator(list(CERTIFICATE_IMAGE_EXTENSIONS))],
+    )
+    signature_2_name = models.CharField("podpis 2 – imię i nazwisko", max_length=120, blank=True)
+    signature_2_title = models.CharField("podpis 2 – funkcja", max_length=160, blank=True)
+    signature_3_image = models.ImageField(
+        "podpis 3 – grafika",
+        upload_to="certificates/signatures/",
+        blank=True,
+        storage=private_media_storage,
+        validators=[FileExtensionValidator(list(CERTIFICATE_IMAGE_EXTENSIONS))],
+    )
+    signature_3_name = models.CharField("podpis 3 – imię i nazwisko", max_length=120, blank=True)
+    signature_3_title = models.CharField("podpis 3 – funkcja", max_length=160, blank=True)
+    layout = models.JSONField("układ", default=default_certificate_layout, blank=True)
+    # Wyłączony szablon zostaje w bazie razem z plikami: „ten dyplom wygląda nie tak, wróćmy do
+    # poprzedniego” musi być jednym kliknięciem, a nie ponownym wgrywaniem tła z czyjegoś dysku.
+    is_active = models.BooleanField("aktywny", default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="certificate_templates",
+        verbose_name="utworzył",
+    )
+    created_at = models.DateTimeField("utworzony", default=timezone.now)
+
+    class Meta:
+        verbose_name = "szablon dokumentu"
+        verbose_name_plural = "szablony dokumentów"
+        # Od najnowszego: przy dwóch szablonach pasujących tak samo dobrze wygrywa ten, który
+        # wgrano później. Tak działa oczekiwanie („wgrałem nowy, to on obowiązuje”), a stary
+        # zostaje pod ręką jako wpis do włączenia z powrotem.
+        ordering = ("-created_at", "-id")
+
+    def __str__(self) -> str:
+        return self.name
+
+    @property
+    def kind_label(self) -> str:
+        """Etykieta rodzaju dla panelu. Pusty rodzaj to zdanie, a nie pusta komórka w tabeli."""
+        return self.get_kind_display() if self.kind else "wszystkie rodzaje"
+
+    @property
+    def edition_label(self) -> str:
+        return self.edition.year_label if self.edition_id else "wszystkie edycje"
+
+    def signatures(self) -> list[dict]:
+        """Wypełnione bloki podpisu, po kolei. Blok pusty w całości nie trafia na dokument."""
+        blocks = []
+        for index in (1, 2, 3):
+            image = getattr(self, f"signature_{index}_image")
+            name = getattr(self, f"signature_{index}_name")
+            title = getattr(self, f"signature_{index}_title")
+            if image or name or title:
+                blocks.append({"image": image or None, "name": name, "title": title})
+        return blocks

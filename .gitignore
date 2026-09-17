@@ -2,6 +2,10 @@
 __pycache__/
 *.pyc
 .venv/
+# Pobrane paczki kol zaleznosci wgrywanych do obrazu deweloperskiego recznie (np. pyhanko,
+# gdy `docker compose build` nie przechodzi przez firmowe proxy). To sa artefakty maszyny,
+# a nie zrodlo - zaleznosc jest nazwana w backend/pyproject.toml i stamtad bierze ja obraz.
+.wheels/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/

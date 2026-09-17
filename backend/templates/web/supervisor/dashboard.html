@@ -20,6 +20,15 @@
   <h1>Moi uczniowie</h1>
   <p class="lead">Lista powstaje z decyzji uczniów: widzisz tych, którzy wpisali Twój adres
     ({{ supervisor.user.email }}) w swoim profilu. Każdy z nich może ją w każdej chwili cofnąć.</p>
+  {% comment %}
+    Dwa wejścia do tej samej listy widzianej z dwóch stron: tu jest stan **prac**, a pod
+    „Konta uczniów” stan **kont** (kto przyjął zaproszenie). Import stoi obok, bo to jest
+    czynność, od której zaczyna się wrzesień w szkole.
+  {% endcomment %}
+  <div class="actions">
+    <a class="btn btn--primary" href="{% url 'web:supervisor-import' %}">Zaproś uczniów z listy</a>
+    <a class="btn btn--secondary" href="{% url 'web:supervisor-students' %}">Konta uczniów</a>
+  </div>
 </div>
 
 <section class="section">

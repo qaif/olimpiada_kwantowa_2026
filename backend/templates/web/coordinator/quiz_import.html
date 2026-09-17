@@ -1,0 +1,80 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Import pytań z pliku. Opis obu formatów stoi **na tej stronie**, a nie w dokumentacji: plik
+  przygotowuje się raz na edycję, więc nikt tej składni nie pamięta, a szukanie jej w README
+  w trakcie układania arkusza jest dokładnie tym momentem, w którym import przestaje się opłacać.
+{% endcomment %}
+{% block title %}Import pytań: {{ quiz.title }} – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-stage-quiz-questions' stage.pk %}">Pytania testu: {{ quiz.title }}</a>{% endblock %}
+{% block panel_title %}Import pytań z pliku{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Wczytanie jest w całości albo wcale: błąd w którymkolwiek pytaniu przerywa import
+    i nie zostawia po sobie wczytanych wcześniej. Numer wiersza jest w komunikacie.</p>
+{% endblock %}
+{% block panel_content %}
+
+{% if created %}
+  <p class="msg msg-success">Wczytano {{ created }} pytań.
+    <a href="{% url 'web:coordinator-stage-quiz-questions' stage.pk %}">Zobacz listę pytań</a>.</p>
+{% endif %}
+{% if has_attempts %}
+  <p class="msg msg-warning">Do tego testu są już podejścia – importu nie da się wykonać.
+    Zestaw pytań jest zamrożony od pierwszego podejścia.</p>
+{% endif %}
+
+<div class="card">
+  <form method="post" class="form form--wide" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <p>{{ form.fmt.errors }}{{ form.fmt.label_tag }} {{ form.fmt }}</p>
+    <p>{{ form.upload.errors }}{{ form.upload.label_tag }} {{ form.upload }}
+      <span class="hint">Plik tekstowy w kodowaniu UTF-8, najwyżej 512 kB.</span></p>
+    <p>{{ form.text.errors }}{{ form.text.label_tag }} {{ form.text }}</p>
+    <p>{{ form.replace.errors }}{{ form.replace.label_tag }} {{ form.replace }}
+      <span class="hint">{{ form.replace.help_text }}</span></p>
+    <div class="actions">
+      <button type="submit" class="btn btn--accent">Wczytaj pytania</button>
+    </div>
+  </form>
+</div>
+
+<section class="section">
+  <h2>Format: Markdown</h2>
+  <p>Każde pytanie zaczyna się wierszem z dwoma kratkami. Rodzaj pytania wynika z kształtu
+    odpowiedzi i zwykle nie trzeba go podawać: wiersze <code>- [x]</code> / <code>- [ ]</code> to
+    wybór (jeden zaznaczony → jednokrotny, więcej → wielokrotny), wiersz <code>=</code> to
+    odpowiedź otwarta.</p>
+  <pre class="code-block"><code>## [pula: kinematyka] [pkt: 2] [ujemne: 0.5]
+Ciało spada swobodnie z wysokości 20 m. Ile trwa spadek?
+- [ ] 1 s
+- [x] 2 s
+- [ ] 4 s
+
+## [typ: liczba] [pkt: 3]
+Podaj przyspieszenie ziemskie w m/s².
+= 9.81 [tol: 0.02] [jednostka: m/s²]
+
+## [typ: tekst]
+Jak nazywa się zjawisko opisane wyżej?
+= splątanie | splątanie kwantowe | entanglement</code></pre>
+  <p class="hint">Atrybuty w nawiasach są opcjonalne: bez <code>[pkt]</code> pytanie jest warte
+    1 punkt, bez <code>[ujemne]</code> nie ma kary, bez <code>[pula]</code> trafia do puli
+    domyślnej. Treść wolno napisać w tym samym wierszu co nagłówek albo pod nim.</p>
+</section>
+
+<section class="section">
+  <h2>Format: CSV</h2>
+  <p>Pierwszy wiersz to nagłówek, separator to średnik albo przecinek, kodowanie UTF-8. Wymagane
+    kolumny to <code>tresc</code> i <code>odpowiedzi</code>; <code>rodzaj</code>, <code>pula</code>,
+    <code>punkty</code> i <code>ujemne</code> wolno pominąć.</p>
+  <pre class="code-block"><code>rodzaj;pula;punkty;ujemne;tresc;odpowiedzi
+wybor;kinematyka;2;0.5;Ile trwa spadek?;1 s|*2 s|4 s
+liczba;;3;0;Przyspieszenie ziemskie?;9.81|tol:0.02|jednostka:m/s²
+tekst;;1;0;Nazwa zjawiska?;splątanie|entanglement</code></pre>
+  <p class="hint">Warianty rozdziela pionowa kreska (przecinek i średnik są już zajęte przez sam
+    plik CSV), a gwiazdka przed wariantem znaczy „poprawny”. Rodzaj wpisuje się po polsku:
+    <code>wybor</code>, <code>wielokrotny</code>, <code>tekst</code>, <code>liczba</code>.
+    Arkusz kalkulacyjny musi zapisać plik jako <strong>CSV UTF-8</strong> – zwykły „CSV” w polskiej
+    wersji Excela zapisuje inne kodowanie i polskie znaki przyjdą uszkodzone.</p>
+</section>
+{% endblock %}

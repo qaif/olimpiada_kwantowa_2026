@@ -25,13 +25,8 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from apps.accounts.models import Voivodeship
-from apps.schools.models import (
-    DEFAULT_SOURCE_YEAR,
-    School,
-    SchoolKind,
-    city_search_for,
-    search_text_for,
-)
+from apps.schools.models import DEFAULT_SOURCE_YEAR, School, SchoolKind
+from apps.schools.normalise import derived_fields
 
 #: Domyślny słownik – ten sam plik, który leży w repozytorium (patrz fixtures/README.md).
 DEFAULT_FIXTURE = Path(__file__).resolve().parents[2] / "fixtures" / "szkoly-srednie-sio-2025.json"
@@ -43,6 +38,7 @@ UPDATED_FIELDS = (
     "kind",
     "voivodeship",
     "city",
+    "city_parent",
     "postal_code",
     "address",
     "is_public",
@@ -114,17 +110,19 @@ class Command(BaseCommand):
         voivodeship = str(row.get("voivodeship") or "")
         if voivodeship not in Voivodeship.values:
             raise CommandError(f"Wiersz {index} (RSPO {rspo}): nieznane województwo {voivodeship!r}")
+        postal_code = str(row.get("postal_code") or "")[:12]
         return {
             "rspo": rspo,
             "name": name[:255],
             "kind": kind,
             "voivodeship": voivodeship,
             "city": city[:120],
-            "postal_code": str(row.get("postal_code") or "")[:12],
+            "postal_code": postal_code,
             "address": str(row.get("address") or "")[:255],
             "is_public": bool(row.get("is_public", True)),
-            "search_text": search_text_for(name, city)[:400],
-            "city_search": city_search_for(city)[:120],
+            # Gmina i obie kolumny porównawcze – jedno wywołanie, bo ``city_search``
+            # i ``search_text`` liczą się **od** gminy (patrz ``apps.schools.normalise``).
+            **derived_fields(name, city, voivodeship, postal_code),
             "is_active": True,
             "source_year": source_year,
         }
@@ -137,9 +135,9 @@ class Command(BaseCommand):
         to_update = [
             School(id=existing[fields["rspo"]], **fields) for fields in parsed if fields["rspo"] in existing
         ]
-        # ``bulk_create``/``bulk_update`` omijają ``School.save()``, więc obie kolumny
-        # porównawcze (``search_text`` i ``city_search``) są policzone jawnie w
-        # ``_school_fields`` – inaczej zostałyby puste, a podpowiedzi szkół i miejscowości
+        # ``bulk_create``/``bulk_update`` omijają ``School.save()``, więc wszystkie kolumny
+        # wyliczane (``city_parent``, ``city_search``, ``search_text``) są policzone jawnie
+        # w ``_school_fields`` – inaczej zostałyby puste, a podpowiedzi szkół i miejscowości
         # nie znajdowałyby niczego.
         School.objects.bulk_create(to_create, batch_size=BATCH_SIZE)
         School.objects.bulk_update(to_update, list(UPDATED_FIELDS), batch_size=BATCH_SIZE)

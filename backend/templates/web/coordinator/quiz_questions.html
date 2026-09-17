@@ -1,0 +1,121 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Lista pytań testu, pogrupowana w pule. Grupowanie nie jest ozdobą: pula jest jednostką
+  losowania, więc „ile pytań jest w puli” to najważniejsza liczba na tym ekranie – i to ona
+  rozstrzyga, czy losowanie w ogóle ma sens.
+
+  Klucz odpowiedzi **jest** tu widoczny (przy pytaniu wyboru gwiazdka, przy otwartym – wartość):
+  to ekran koordynatora, a pytanie bez widocznego klucza trzeba by otwierać po jednym, żeby
+  sprawdzić arkusz przed startem.
+{% endcomment %}
+{% load static web_extras %}
+{% block title %}Pytania testu: {{ stage.display_name }} – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-stage-quiz' stage.pk %}">Test online: {{ stage.display_name }}</a>{% endblock %}
+{% block panel_title %}Pytania testu: {{ quiz.title }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">{{ quiz.questions.count }} pytań w {{ pools|length }} pulach.
+    Jedno podejście dostaje {{ quiz.draw_size }} pytań za maksymalnie {{ quiz.max_points }} pkt.</p>
+{% endblock %}
+{% block panel_actions %}
+  {% if not has_attempts %}
+    <a class="btn btn--accent btn--small"
+       href="{% url 'web:coordinator-stage-quiz-question-new' stage.pk %}">Dodaj pytanie</a>
+    <a class="btn btn--secondary btn--small"
+       href="{% url 'web:coordinator-stage-quiz-import' stage.pk %}">Import z pliku</a>
+  {% endif %}
+  <a class="btn btn--secondary btn--small"
+     href="{% url 'web:coordinator-stage-quiz-preview' stage.pk %}">Podgląd jako uczestnik</a>
+{% endblock %}
+{% block panel_content %}
+
+{% if has_attempts %}
+  <p class="msg msg-warning">Do tego testu są już podejścia – zestawu pytań nie da się zmieniać.
+    Poprawiony klucz odpowiedzi wchodzi w życie dopiero po przeliczeniu punktów na
+    <a href="{% url 'web:coordinator-stage-quiz-results' stage.pk %}">ekranie wyników</a>.</p>
+{% endif %}
+{% if warnings %}
+  <ul class="msg msg-warning">
+    {% for warning in warnings %}<li>{{ warning }}</li>{% endfor %}
+  </ul>
+{% endif %}
+
+{% for pool in pools %}
+  <section class="section">
+    <div class="section__head">
+      <h2 class="mt-0">{% if pool.name %}Pula: {{ pool.name }}{% else %}Pula domyślna{% endif %}</h2>
+      <span class="badge badge--neutral">{{ pool.questions|length }} pyt. / {{ pool.points }} pkt</span>
+    </div>
+    <div class="scroll">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">#</th>
+            <th scope="col">Treść</th>
+            <th scope="col">Rodzaj</th>
+            <th scope="col">Klucz</th>
+            <th scope="col">Pkt</th>
+            <th scope="col"><span class="visually-hidden">Operacje</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for question in pool.questions %}
+            <tr>
+              <th scope="row" class="num">{{ question.order }}</th>
+              <td>{{ question.text|truncatechars:120 }}
+                {% if question.image %}<span class="badge badge--neutral">ilustracja</span>{% endif %}</td>
+              <td>{{ question.get_kind_display }}</td>
+              <td>
+                {% if question.has_options %}
+                  <ul class="plain">
+                    {% for option in question.options.all %}
+                      <li>{% if option.is_correct %}<strong>✓ {{ option.text }}</strong>{% else %}{{ option.text }}{% endif %}</li>
+                    {% endfor %}
+                  </ul>
+                {% else %}
+                  {% comment %}
+                    ``dict_get`` zamiast kropki: klucze ``settings`` to nazwy, których składnia
+                    szablonu nie zaadresuje wprost. Odpowiedź liczbowa ma jedną wartość, tekstowa –
+                    listę uznawanych zapisów; oba warianty wypisujemy jako kod, bo o to tu chodzi:
+                    o dosłowne brzmienie klucza, a nie o zdanie.
+                  {% endcomment %}
+                  {% with answer=question.settings|dict_get:"answer" accepted=question.settings|dict_get:"accepted" %}
+                    <code>{% if accepted %}{{ accepted|join:" / " }}{% else %}{{ answer|default:"—" }}{% endif %}</code>
+                  {% endwith %}
+                {% endif %}
+              </td>
+              <td class="num">{{ question.points }}{% if question.negative_points %} / −{{ question.negative_points }}{% endif %}</td>
+              <td class="actions">
+                {% if not has_attempts %}
+                  <a class="btn btn--small btn--secondary"
+                     href="{% url 'web:coordinator-stage-quiz-question-edit' stage.pk question.pk %}">Zmień</a>
+                  {% comment %}
+                    Usunięcie jest POST-em z potwierdzeniem przeglądarki, a nie odnośnikiem: kasuje
+                    pytanie razem z wariantami i nie ma cofnięcia. ``onsubmit`` byłby skryptem
+                    inline, czego nie dopuszcza CSP – potwierdzenie robi więc ``static/js/quiz.js``
+                    po atrybucie ``data-confirm``, a bez JavaScriptu zostaje zwykły przycisk.
+                  {% endcomment %}
+                  <form method="post" class="inline"
+                        action="{% url 'web:coordinator-stage-quiz-question-delete' stage.pk question.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn--small btn--danger"
+                            data-confirm="Usunąć to pytanie razem z wariantami odpowiedzi?">Usuń</button>
+                  </form>
+                {% else %}
+                  <a class="btn btn--small btn--secondary"
+                     href="{% url 'web:coordinator-stage-quiz-question-edit' stage.pk question.pk %}">Klucz</a>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% empty %}
+  <p class="empty"><span class="empty__title">Brak pytań</span>
+    Test nie ma jeszcze ani jednego pytania. Dodaj je pojedynczo albo wczytaj z pliku.</p>
+{% endfor %}
+{% endblock %}
+{% block scripts %}{{ block.super }}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/quiz.js' %}"></script>
+{% endblock %}

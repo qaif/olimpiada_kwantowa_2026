@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% load static i18n %}
+{% comment %}
+  „Podgląd jako uczestnik” dla koordynatora: arkusz w takiej postaci, w jakiej zobaczy go
+  uczestnik – ale **bez podejścia**, bez licznika i bez pól, które cokolwiek wysyłają.
+
+  Pola są wyłączone (``disabled``), a nie usunięte: chodzi o to, żeby zobaczyć rozmiar i układ
+  pytania dokładnie taki, jaki będzie w zawodach. Formularza tu nie ma w ogóle, więc nie ma czego
+  wysłać nawet po ręcznym zdjęciu atrybutu.
+
+  Zestaw jest losowany przy każdym wejściu i to jest zaleta: dwa odświeżenia pokazują dwa możliwe
+  zestawy, czyli dokładnie to, co chce się sprawdzić przed startem.
+
+  Szablon jest w ``web/quiz/``, a nie w ``web/coordinator/``, bo pokazuje **stronę uczestnika** –
+  i dlatego jego teksty są, tak jak reszta interfejsu uczestnika, przygotowane do tłumaczenia.
+{% endcomment %}
+{% block title %}{{ quiz.title }} – {% translate "podgląd testu" %}{% endblock %}
+{% block head %}{{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/quiz.css' %}">
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{{ stage.display_name }}</span>
+  <h1>{{ quiz.title }}</h1>
+  <p class="lead">{% translate "Podgląd arkusza. Nic tu nie jest zapisywane, a zestaw pytań jest losowany przy każdym wejściu." %}</p>
+  <p class="actions">
+    <a class="btn btn--secondary btn--small"
+       href="{% url 'web:coordinator-stage-quiz' stage.pk %}">{% translate "Wróć do ustawień testu" %}</a>
+  </p>
+</div>
+
+{% if quiz.instructions %}
+  <section class="section">
+    <div class="card card--quiet">
+      <h2 class="mt-0">{% translate "Instrukcja organizatora" %}</h2>
+      <p>{{ quiz.instructions|linebreaksbr }}</p>
+    </div>
+  </section>
+{% endif %}
+
+{% for question in questions %}
+  <section class="card quiz-question">
+    <div class="card__head">
+      <h2 class="mt-0 card__title">{% blocktranslate trimmed with number=forloop.counter %}Pytanie {{ number }}{% endblocktranslate %}</h2>
+      <span class="badge badge--neutral">{% blocktranslate trimmed with points=question.points %}{{ points }} pkt{% endblocktranslate %}</span>
+    </div>
+    <p class="quiz-question__text">{{ question.text|linebreaksbr }}</p>
+    {% if question.image %}
+      <p><img class="quiz-question__image" src="{{ question.image.url }}" alt="" loading="lazy"></p>
+    {% endif %}
+    {% if question.is_choice %}
+      <fieldset class="quiz-options" disabled>
+        <legend class="visually-hidden">
+          {% if question.is_multiple %}{% translate "Zaznacz wszystkie poprawne odpowiedzi" %}
+          {% else %}{% translate "Zaznacz jedną odpowiedź" %}{% endif %}</legend>
+        {% if question.is_multiple %}
+          <p class="hint">{% translate "Można zaznaczyć więcej niż jedną odpowiedź." %}</p>
+        {% endif %}
+        {% for option in question.options %}
+          <p class="quiz-option">
+            <input type="{% if question.is_multiple %}checkbox{% else %}radio{% endif %}"
+                   id="podglad-{{ option.id }}" disabled>
+            <label for="podglad-{{ option.id }}">{{ option.text }}</label>
+          </p>
+        {% endfor %}
+      </fieldset>
+    {% else %}
+      <p class="quiz-answer">
+        <label for="podglad-q{{ question.id }}">{% translate "Odpowiedź" %}</label>
+        <input type="text" id="podglad-q{{ question.id }}" disabled>
+        {% if question.unit %}<span class="quiz-answer__unit">{{ question.unit }}</span>{% endif %}
+      </p>
+    {% endif %}
+  </section>
+{% empty %}
+  <p class="empty"><span class="empty__title">{% translate "Brak pytań" %}</span>
+    {% translate "Ten test nie ma jeszcze pytań." %}</p>
+{% endfor %}
+{% endblock %}

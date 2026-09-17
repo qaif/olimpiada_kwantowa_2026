@@ -16,13 +16,20 @@ branżowe przy zespołach szkół) wypełniają limit, zanim dojdzie do „LICEU
 kraju pasuje do kilku tysięcy wierszy i pierwsze dwadzieścia z nich nie ma nic wspólnego z tym,
 kto pyta.
 
+**Dlaczego miasto, a nie „miejscowość z wykazu”.** Wykaz zapisuje pięć największych miast
+dzielnicami, a Warszawę **wyłącznie** dzielnicami („Śródmieście”, „Wola”, „Mokotów”…), więc
+pierwsza wersja kroku „Miejscowość” miała dwie dziury: „warszawa” nie znajdowało niczego, a „wro”
+dawało pięć pozycji, z których każda zawężała listę do jednej piątej Wrocławia. Podpowiedzi
+chodzą więc po **gminie** (``School.city_parent``, reguła w ``apps.schools.normalise``),
+a oryginalna miejscowość zostaje przy wierszu jako adres i jako etykieta „Wrocław (Krzyki)”.
+
 Rozwiązaniem nie jest podniesienie limitu, tylko **zawężenie do miasta**: po wybraniu miejscowości
 lista jest kompletna (doczytywana stronami), a porządek nie jest już alfabetyczny, tylko „najpierw
 licea ogólnokształcące, potem technika, potem reszta” (``KIND_ORDER``) – czyli w kolejności, w jakiej
 uczestnicy tej olimpiady faktycznie szukają swojej szkoły.
 """
 
-from django.db.models import Case, IntegerField, Value, When
+from django.db.models import Case, IntegerField, Q, Value, When
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import AllowAny
@@ -33,6 +40,7 @@ from apps.accounts.models import Voivodeship
 from apps.core.text import fold
 
 from .models import KIND_ORDER, School
+from .normalise import DISTRICT_SEPARATOR
 from .serializers import (
     CitySearchResultsSerializer,
     CitySuggestionSerializer,
@@ -67,28 +75,47 @@ def _kind_rank():
 
 
 def search_cities(query: str, *, voivodeship: str = "", limit: int = MAX_RESULTS):
-    """Odrębne miejscowości zaczynające się od ``query``. Pusty wynik dla zapytania za krótkiego.
+    """Odrębne **gminy** zaczynające się od ``query``. Pusty wynik dla zapytania za krótkiego.
 
     Dopasowanie jest **prefiksowe**, a nie „gdziekolwiek w napisie”, i to jest różnica wobec
     wyszukiwarki szkół: nazwa miasta jest krótka i człowiek pisze ją od początku, a fragment
-    w środku („law”) dawałby listę, w której nie widać, czego właściwie szukano. Porównanie idzie
-    po ``city_search`` (miejscowość bez diakrytyków, małymi literami), więc „lodz” znajduje „Łódź”.
+    w środku („law”) dawałby listę, w której nie widać, czego właściwie szukano. Prefiks liczy się
+    jednak także **od dzielnicy**, i stąd dwa warunki: ``city_search`` ma postać „gmina|dzielnica”
+    (patrz ``apps.schools.normalise``), więc „wro” trafia w gminę, a „krzyki” w dzielnicę – ktoś,
+    kto zna swoją dzielnicę i nie myśli o niej jako o części miasta, dostaje w odpowiedzi
+    „Wrocław” zamiast pustej listy.
 
-    Zwracamy pary (miejscowość, województwo), a nie same nazwy: „Brzeg” jest w dwóch
-    województwach, a uczestnik ma wybrać swoją szkołę, nie cudzą.
+    Zwracamy **gminy**, nie miejscowości z wykazu: pięć największych miast jest w nim rozbitych na
+    dzielnice, więc „wro” dawało wcześniej pięć pozycji, z których każda zawężała listę szkół do
+    jednej piątej Wrocławia, a „warszawa” nie dawało ani jednej – stolica figuruje tam wyłącznie
+    pod nazwami dzielnic.
+
+    Zwracamy pary (gmina, województwo), a nie same nazwy: „Brzeg” jest w dwóch województwach,
+    a uczestnik ma wybrać swoją szkołę, nie cudzą.
     """
     prefix = fold(query or "").strip()
     if len(prefix) < MIN_QUERY_LENGTH:
         return []
-    queryset = School.objects.filter(is_active=True, city_search__startswith=prefix)
+    queryset = School.objects.filter(is_active=True).filter(
+        Q(city_search__startswith=prefix) | Q(city_search__contains=f"{DISTRICT_SEPARATOR}{prefix}")
+    )
     if voivodeship in Voivodeship.values:
         queryset = queryset.filter(voivodeship=voivodeship)
-    rows = (
-        queryset.values("city", "voivodeship", "city_search")
-        .distinct()
-        .order_by("city_search", "voivodeship")[: max(1, min(limit, MAX_RESULTS))]
+    # Porządek robimy w Pythonie, a nie w bazie, bo ``SELECT DISTINCT`` może sortować wyłącznie
+    # po kolumnach, które wypisuje – a sortować chcemy po postaci **złożonej** („Łódź” ma stać
+    # przy „Lodzie”, a nie na końcu alfabetu, jak każe większość collation). Zbiór jest z góry
+    # mały: prefiks ma co najmniej dwa znaki, a odrębnych gmin w całym słowniku jest ~2 tysiące.
+    rows = sorted(
+        # ``order_by()`` bez argumentów kasuje domyślny porządek modelu (``name``, ``id``).
+        # Bez tego Django dokłada obie kolumny do ``SELECT DISTINCT`` i odrębność liczy się po
+        # szkole, a nie po mieście – czyli lista miast znów byłaby listą szkół.
+        queryset.values("city_parent", "voivodeship").order_by().distinct(),
+        key=lambda row: (fold(row["city_parent"]), row["voivodeship"]),
     )
-    return [{"city": row["city"], "voivodeship": row["voivodeship"]} for row in rows]
+    return [
+        {"city": row["city_parent"], "voivodeship": row["voivodeship"]}
+        for row in rows[: max(1, min(limit, MAX_RESULTS))]
+    ]
 
 
 def search_schools(
@@ -108,10 +135,16 @@ def search_schools(
       w nazwie, a drugi w mieście, i nie trafia w liceum Mickiewicza w Gdańsku. Zapytanie krótsze
       niż ``MIN_QUERY_LENGTH`` nie zwraca nic – pełne przejście po ośmiu tysiącach wierszy dla
       dwóch liter nikomu nie pomaga,
-    - **z miejscowością** – zbiór jest z góry ograniczony do jednego miasta, więc **pusty tekst
-      jest dozwolony** i znaczy „pokaż wszystkie szkoły tego miasta”. To jest sedno poprawki po
-      uwadze organizatora: uczestnik, który nie wie, jak dokładnie nazywa się jego szkoła w wykazie,
-      ma ją przewinąć, a nie zgadywać słowa.
+    - **z miejscowością** – zbiór jest z góry ograniczony do jednej **gminy** (razem ze wszystkimi
+      jej dzielnicami), więc **pusty tekst jest dozwolony** i znaczy „pokaż wszystkie szkoły tego
+      miasta”. To jest sedno poprawki po uwadze organizatora: uczestnik, który nie wie, jak
+      dokładnie nazywa się jego szkoła w wykazie, ma ją przewinąć, a nie zgadywać słowa.
+
+    Zawężenie do dzielnicy działa **w drugą stronę**, bez osobnego parametru: „warszawa
+    śródmieście” albo „wrocław krzyki” to dwa tokeny, a ``search_text`` trzyma i gminę,
+    i oryginalną miejscowość z wykazu – pierwszy wyraz trafia w gminę, drugi w dzielnicę
+    i koniunkcja sama zostawia jedną dzielnicę. Działa też po wybraniu miasta z podpowiedzi:
+    wpisane obok „krzyki” zawęża pełną listę Wrocławia.
 
     Porządek jest zawsze ten sam: najpierw typ (licea, technika, reszta), potem nazwa. Alfabet
     bez typu stawiał na początku listy wojewódzkiego miasta same szkoły branżowe.
@@ -128,7 +161,13 @@ def search_schools(
         return [], False
     queryset = School.objects.filter(is_active=True)
     if city_key:
-        queryset = queryset.filter(city_search=city_key)
+        # Gmina **razem z dzielnicami**: ``city_search`` ma postać „gmina|dzielnica”, więc wiersz
+        # bez dzielnicy pasuje dokładnie, a wiersz dzielnicy zaczyna się od gminy i separatora.
+        # Separator jest tu istotny – bez niego „Opole” brałoby też „Opole Lubelskie”, a takich
+        # par nazw jest w wykazie czterdzieści kilka.
+        queryset = queryset.filter(
+            Q(city_search=city_key) | Q(city_search__startswith=f"{city_key}{DISTRICT_SEPARATOR}")
+        )
     if voivodeship in Voivodeship.values:
         queryset = queryset.filter(voivodeship=voivodeship)
     for token in tokens:
@@ -173,7 +212,9 @@ class CitySearchView(GenericAPIView):
                 "q",
                 str,
                 description=f"Początek nazwy miejscowości, minimum {MIN_QUERY_LENGTH} znaki. "
-                "Wielkość liter i polskie znaki nie mają znaczenia.",
+                "Wielkość liter i polskie znaki nie mają znaczenia. Wracają **gminy**: początek "
+                "nazwy dzielnicy („krzyki”, „śródmieście”) też pasuje, ale w odpowiedzi stoi "
+                "miasto („Wrocław”, „Warszawa”).",
             ),
             OpenApiParameter(
                 "voivodeship",
@@ -216,8 +257,10 @@ class SchoolSearchView(GenericAPIView):
             OpenApiParameter(
                 "city",
                 str,
-                description="Zawężenie do miejscowości (nazwa z „/api/schools/cities/”). "
-                "Porównanie pomija wielkość liter i polskie znaki.",
+                description="Zawężenie do miejscowości – nazwa gminy z „/api/schools/cities/”. "
+                "Obejmuje wszystkie jej dzielnice („Wrocław” bierze też Krzyki i Fabryczną, "
+                "„Warszawa” – wszystkie osiemnaście). Porównanie pomija wielkość liter "
+                "i polskie znaki.",
             ),
             OpenApiParameter(
                 "voivodeship",

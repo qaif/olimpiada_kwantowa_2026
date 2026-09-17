@@ -170,6 +170,10 @@ class ScheduleRowBlock(blocks.StructBlock):
         ),
     )
     time = blocks.CharBlock(required=False, max_length=100, label="godziny")
+    # Prowadzący. Pole jest opcjonalne, bo harmonogram bywa ogłaszany, zanim wykładowca jest
+    # potwierdzony – ale wpisane nazwisko trafia **na zaświadczenie** z warsztatów, a tam jest
+    # treścią dokumentu: „u kogo” to połowa odpowiedzi na pytanie, czego uczeń się nauczył.
+    lecturer = blocks.CharBlock(required=False, max_length=200, label="prowadzący")
 
     class Meta:
         icon = "time"
@@ -186,6 +190,11 @@ class ScheduleValue(blocks.StructValue):
     @property
     def has_time(self) -> bool:
         return any((row.get("time") or "").strip() for row in self.get("rows", []))
+
+    @property
+    def has_lecturer(self) -> bool:
+        """To samo pytanie o kolumnę „prowadzący” – pusta kolumna znika z tabeli w całości."""
+        return any((row.get("lecturer") or "").strip() for row in self.get("rows", []))
 
 
 class ScheduleBlock(blocks.StructBlock):
@@ -214,6 +223,7 @@ class ScheduleBlock(blocks.StructBlock):
     topic_label = blocks.CharBlock(required=False, max_length=100, label="nagłówek kolumny „temat”")
     date_label = blocks.CharBlock(required=False, max_length=100, label="nagłówek kolumny „termin”")
     time_label = blocks.CharBlock(required=False, max_length=100, label="nagłówek kolumny „godziny”")
+    lecturer_label = blocks.CharBlock(required=False, max_length=100, label="nagłówek kolumny „prowadzący”")
     rows = blocks.ListBlock(ScheduleRowBlock(), label="wiersze")
 
     class Meta:

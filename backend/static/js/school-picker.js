@@ -277,7 +277,10 @@
     name.textContent = school.name;
     var meta = document.createElement("span");
     meta.className = "school-picker__meta";
-    meta.textContent = school.city + ", " + school.kind_label;
+    /* ``city_label`` zamiast ``city``: wykaz zapisuje pięć największych miast dzielnicami,
+     * a serwer układa je pod wybór z listy („Wrocław (Krzyki)” zamiast „Wrocław-Krzyki”).
+     * Odwrót na ``city`` jest na wypadek starszej odpowiedzi serwera – i tylko na to. */
+    meta.textContent = (school.city_label || school.city) + ", " + school.kind_label;
     item.appendChild(name);
     item.appendChild(meta);
     return item;
@@ -396,10 +399,11 @@
   SchoolPicker.prototype.choose = function (index) {
     var school = this.items[index];
     if (!school) return;
+    var where = school.city_label || school.city;
     this.schoolId.value = String(school.id);
-    this.query.value = school.name + ", " + school.city;
+    this.query.value = school.name + ", " + where;
     this.close();
-    this.say("Wybrano: " + school.name + ", " + school.city + ".");
+    this.say("Wybrano: " + school.name + ", " + where + ".");
   };
 
   /* --- krok „Miejscowość” -------------------------------------------------------------------
@@ -487,9 +491,10 @@
     if (this.cityItems.length === 0) {
       this.closeCity();
       /* Komunikat wskazuje wyjście, a nie tylko stwierdza brak: wykaz SIO zapisuje miejscowości
-       * nierówno (największe miasta bywają w nim rozbite na dzielnice, a Warszawa figuruje pod
-       * samymi nazwami dzielnic), więc „nie ma takiej miejscowości” bywa nieprawdą o szkole.
-       * Krok jest nieobowiązkowy i pole „Szkoła” działa bez niego – trzeba to powiedzieć. */
+       * nierówno (wsie przysiółkami, miasta dzielnicami – te ostatnie sprowadza do gminy
+       * ``apps/schools/normalise.py``), więc „nie ma takiej miejscowości” bywa nieprawdą
+       * o szkole. Krok jest nieobowiązkowy i pole „Szkoła” działa bez niego – trzeba to
+       * powiedzieć, zamiast zostawiać człowieka przy pustej liście. */
       this.sayCity(
         "Brak miejscowości zaczynających się od wpisanego tekstu. Możesz pominąć ten krok " +
           "i wpisać nazwę szkoły w polu niżej."

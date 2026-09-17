@@ -1,0 +1,80 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Zaświadczenia dla opiekunów szkolnych.
+
+  Lista jest inna niż lista kont z filtrem ``?role=supervisor`` i to jest jej cały sens: tamta
+  odpowiada na „jakie mamy konta”, ta na „komu należy się zaświadczenie”. Stąd kolumna z liczbą
+  uczniów w edycji — bez niej przycisk „Wystaw” byłby decyzją na ślepo.
+{% endcomment %}
+{% block title %}Zaświadczenia opiekunów – panel koordynatora{% endblock %}
+{% block panel_title %}Zaświadczenia dla opiekunów{% if edition %}: {{ edition.year_label }}{% endif %}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Na liście są opiekunowie, których uczniowie mają w tej edycji wpis do
+    któregokolwiek etapu — to ta praca jest treścią zaświadczenia. Wystawianie jest idempotentne:
+    opiekun z dokumentem zachowuje swój numer.</p>
+{% endblock %}
+{% block panel_content %}
+
+{% if edition %}
+  <section class="section">
+    <div class="card">
+      <h2 class="mt-0">Wystaw wszystkim</h2>
+      <p>Jedno zaświadczenie na opiekuna i paczka ZIP z kompletem. Nazwy plików w paczce to numery
+        dokumentów, nigdy nazwiska.</p>
+      <form method="post" action="{% url 'web:coordinator-supervisor-certificates' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn--primary">Wystaw zaświadczenia wszystkim opiekunom (ZIP)</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section__head">
+      <h2 class="mt-0">Opiekunowie</h2>
+      <span class="badge badge--danger">dane osobowe</span>
+    </div>
+    <div class="scroll">
+      <table class="table">
+        <caption class="visually-hidden">Opiekunowie z uczniami w edycji {{ edition.year_label }}</caption>
+        <thead>
+          <tr>
+            <th scope="col">Opiekun</th>
+            <th scope="col">Szkoła</th>
+            <th scope="col">Uczniów w edycji</th>
+            <th scope="col">Zaświadczenie</th>
+            <th scope="col">Wystaw</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <th scope="row">{{ row.supervisor.user.get_full_name|default:row.supervisor.user.email }}</th>
+              <td>{{ row.supervisor.display_school }}</td>
+              <td class="num">{{ row.students }}</td>
+              <td>
+                {% if row.certificate %}
+                  <a href="{% url 'web:coordinator-certificate-download' row.certificate.pk %}">{{ row.certificate.number }}</a>
+                  {% if row.certificate.signed %}<span class="badge badge--ok">podpisany elektronicznie</span>{% endif %}
+                {% else %}—{% endif %}
+              </td>
+              <td>
+                {% if not row.certificate %}
+                  <form method="post" action="{% url 'web:coordinator-supervisor-certificate' row.supervisor.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn--small btn--secondary">Wystaw</button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="empty">Żaden opiekun nie ma w tej edycji ucznia z wpisem do
+              etapu. Opiekuna wskazuje uczeń, wpisując jego adres w swoim profilu.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% else %}
+  <p class="hint">Nie ustawiono bieżącej edycji — zaświadczenie nie ma do czego się odnosić.</p>
+{% endif %}
+{% endblock %}

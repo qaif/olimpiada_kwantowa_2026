@@ -22,6 +22,7 @@ from __future__ import annotations
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
 from django.urls import reverse
@@ -95,6 +96,33 @@ def is_protected(user: User) -> bool:
     jest bramką, tylko informacją.
     """
     return user.is_superuser or user.groups.filter(name=GROUP_COORDINATOR).exists()
+
+
+def two_factor_feature() -> bool:
+    """Czy pokazywać na tym ekranie cokolwiek o drugim składniku (``TWO_FACTOR_ENABLED``).
+
+    Import lokalny w funkcji, a nie na górze modułu: ``apps.accounts.twofactor`` wciąga
+    ``cryptography`` i warstwę wymuszającą, a ten moduł jest importowany przy każdym starcie
+    procesu razem z mapą adresów.
+    """
+    from apps.accounts.twofactor import is_enabled
+
+    return is_enabled()
+
+
+def two_factor_device(user: User):
+    """Potwierdzony drugi składnik konta albo ``None`` – wyłącznie do pokazania na ekranie.
+
+    Przy wyłączonej funkcji zwraca ``None`` **niezależnie od zawartości bazy**: konto może mieć
+    zapisane urządzenie z czasów, gdy drugi składnik działał (wyłącznik ich nie kasuje), ale
+    ekran ma pokazywać stan obowiązujący, a nie historię. Sekcję i tak ukrywa ``two_factor_feature``
+    – to jest druga, tańsza bramka, żeby przy wyłączonej funkcji nie było nawet zapytania.
+    """
+    if not two_factor_feature():
+        return None
+    from apps.accounts.twofactor import confirmed_device
+
+    return confirmed_device(user)
 
 
 def account_role(user: User) -> str:
@@ -284,6 +312,12 @@ class CoordinatorAccountEditView(CoordinatorRequiredMixin, View):
             ),
             "participant": participant,
             "committee": getattr(user, "committee_member", None),
+            # Drugi składnik logowania – do odczytu plus jeden przycisk. Koordynator nie może go
+            # tu **włączyć** za kogoś (sekret musi powstać na urządzeniu właściciela), a jedynie
+            # zdjąć zgubiony (``CoordinatorTwoFactorResetView``). Przy wyłączonym
+            # ``TWO_FACTOR_ENABLED`` cała sekcja znika z ekranu – patrz ``two_factor_feature``.
+            "two_factor_enabled": two_factor_feature(),
+            "two_factor": two_factor_device(user),
             "account_form": forms.get("account"),
             "participant_form": forms.get("participant"),
             "committee_form": forms.get("committee"),
@@ -313,6 +347,44 @@ class CoordinatorAccountExportView(CoordinatorRequiredMixin, View):
 
         user = _account(pk)
         return send_export(request, user, actor=request.user)
+
+
+class CoordinatorTwoFactorResetView(CoordinatorRequiredMixin, View):
+    """``/coordinator/accounts/<pk>/2fa-reset/`` – zdjęcie drugiego składnika z cudzego konta.
+
+    Istnieje dla jednego scenariusza, który zdarza się naprawdę: członek komisji zgubił telefon
+    z aplikacją uwierzytelniającą i nie ma przy sobie kartki z kodami zapasowymi. Bez tego wejścia
+    jedyną drogą powrotu byłaby zmiana wiersza w bazie przez kogoś z dostępem do serwera – czyli
+    czynność, której nikt nie widzi i której nikt nie zliczy.
+
+    Reset **nie zakłada nowego sekretu**: konto zostaje bez drugiego składnika i właściciel
+    konfiguruje go sam na nowym urządzeniu. Nowy sekret wysłany kanałem, którym da się go
+    przechwycić, byłby zabezpieczeniem tylko z nazwy.
+
+    Ekranu potwierdzenia tu nie ma i to jest różnica wobec usuwania konta: skutek jest odwracalny
+    jednym kliknięciem właściciela, a ryzyko pomyłki (zdjęcie ochrony nie temu, komu trzeba)
+    pokrywa wpis ``2fa.reset`` w audycie razem z nazwiskiem koordynatora.
+    """
+
+    def post(self, request, pk: int):
+        from apps.accounts.twofactor import reset_by_coordinator
+
+        # Ten sam wyłącznik, co przy ekranach właściciela konta: przy wyłączonej funkcji adres nie
+        # istnieje. Ukrycie samego przycisku nie wystarcza – endpoint zdejmujący zabezpieczenie
+        # z cudzego konta nie może zostać osiągalny tylko dlatego, że nie ma do niego odnośnika.
+        if not two_factor_feature():
+            raise Http404("Logowanie dwuskładnikowe jest wyłączone na tej instalacji.")
+
+        user = _account(pk)
+        if reset_by_coordinator(user, actor=request.user, request=request):
+            messages.success(
+                request,
+                f"Drugi składnik logowania konta {user.email} został zdjęty. "
+                "Właściciel może włączyć go od nowa na swoim profilu.",
+            )
+        else:
+            messages.info(request, f"Konto {user.email} nie miało włączonego drugiego składnika.")
+        return redirect(reverse("web:coordinator-account-edit", args=[user.pk]))
 
 
 class CoordinatorAccountDeleteView(CoordinatorRequiredMixin, View):

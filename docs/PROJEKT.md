@@ -238,6 +238,7 @@ Reguły integralności egzekwowane w bazie/serwisie:
 |---|---|---|---|---|---|
 | Rejestracja otwarta | ✔ | – | – | ✔ | – |
 | Rejestracja z kodem / oczekiwanie na zatwierdzenie | – | ✔ | ✔ | – | zatwierdza |
+| Zaproszenie uczniów z listy (import CSV/XLSX) | przyjmuje | – | – | ✔ (swoich) | ✔ (dowolnych) |
 | Upload rozwiązania (przed deadline) | własne | – | – | – | w imieniu (audyt) |
 | Podgląd rozwiązań | własne | przydzielone | reklamowane | – | wszystkie |
 | Wystawienie oceny (runda 1) | – | przydzielone | – | – | – |
@@ -262,6 +263,23 @@ dane; jedyny zapis, jaki opiekun wykonuje, to oświadczenie o udziale własnej s
 (`accounts.SchoolParticipation`), które jest podstawą wystawienia mu zaświadczenia. Definicja roli
 ma jedno miejsce: `apps.accounts.supervisors.supervisor_profile` (grupa **i** profil
 `SchoolSupervisor`), wołane przez mixin widoku, nawigację i przekierowanie po zalogowaniu.
+
+**Drogi do konta uczestnika** są trzy i wszystkie kończą się tym samym: kompletem zgód złożonym
+przez **tę osobę, która zakłada konto**.
+
+1. **rejestracja otwarta** (`/register/`) — formularz z CAPTCHĄ, konto czeka na link aktywacyjny,
+2. **logowanie kontem zewnętrznym** (`/login/` → Google, Facebook) — pierwsze logowanie prowadzi na
+   `/rejestracja/dokoncz/`, gdzie uczestnik podaje szkołę, województwo, rocznik i **składa zgody**;
+   bez nich nie powstaje ani jeden wiersz,
+3. **zaproszenie z listy klasowej** (`apps.accounts.bulk_registration`) — nauczyciel albo
+   koordynator wgrywa plik CSV/XLSX, powstaje konto **nieaktywne i bez używalnego hasła**,
+   a uczeń pod podpisanym linkiem (`/zaproszenie/<token>/`, 14 dni) ustawia hasło i **sam** składa
+   zgody. Nauczyciel nie ustawia nikomu hasła i nie zgadza się w cudzym imieniu — obie te rzeczy
+   są tu wykluczone z założenia, a nie pominięte.
+
+Import jest jedynym miejscem, w którym profil uczestnika istnieje przed zgodami (stąd nullowalne
+`Participant.gdpr_consent_at`). Reguła „bez zgody nie ma udziału w zawodach” nie słabnie: konto bez
+zgód nie przechodzi aktywacji, więc się nie zaloguje, nie zapisze do etapu i niczego nie odda.
 
 ### 2.4 Workflow oceniania (wzorowany na OM)
 
@@ -297,6 +315,8 @@ Zasady punktacji:
 - Koordynator może **odebrać** recenzentowi pracę (`unassign_reviewer`) w każdym stanie recenzji poza anulowanym — łącznie z oceną już wystawioną. Recenzja przechodzi w `CANCELLED`, zostaje w bazie jako historia, przestaje się liczyć do rozstrzygnięcia i przestaje być dla recenzenta edytowalna. Odebranie wystawionej oceny rundy 1 zdejmuje ocenę konsensusu i zawraca pracę do `IN_REVIEW`; runda jest rozstrzygana ponownie tylko wtedy, gdy zostają co najmniej dwie recenzje (inaczej praca zamknęłaby się na jednym głosie i nie dałoby się przydzielić zastępstwa). Bramki odmowy są te same, co przy poprawianiu oceny.
 - Domyślna skala: **0 / 2 / 5 / 6** (semantyka jak w Olimpiadzie Matematycznej). Skala jest per etap (`ScoringScale.values`) i **może być nadpisana per zadanie** (`Problem.scoring_values` + `Problem.max_points`; puste = dziedzicz po etapie), więc finał może używać innej, a pojedyncze zadanie otwarte – jeszcze innej. Obie edytuje **koordynator z panelu** (`/coordinator/stages/<id>/scale/` oraz formularz zadania), nie administrator bazy; audyt `stage.scale_updated` / `problem.updated`. Wartości już wystawionej w recenzji albo w `FinalGrade` nie wolno ze skali usunąć (`409 SCALE_LOCKED`) – dokładanie wartości i zmiana opisów są zawsze dozwolone.
 - Rozjazd oznacza różne wartości. Nie ma uśredniania, bo skala jest porządkowa. Rozstrzyga trzeci recenzent albo posiedzenie.
+- **Etap w formie testu online (`StageFormat.QUIZ`) nie przechodzi przez tę maszynę stanów w ogóle.** Nie ma w nim `Submission`, więc nie ma ani jednego z przejść `SUBMITTED → LOCKED → IN_REVIEW → …`: nie ma pliku do wciągnięcia do oceniania, nie ma czego przydzielić recenzentom i nie ma rozjazdu do rozstrzygnięcia. Zamiast tego ma własną, znacznie krótszą maszynę stanów **podejścia** (`quiz.QuizAttempt`): `IN_PROGRESS → SUBMITTED` (uczestnik kliknął „Zakończ”) albo `IN_PROGRESS → EXPIRED` (minął `deadline_at` + 30 s tolerancji sieciowej). Oba przejścia końcowe są równoważne co do punktów: `EXPIRED` znaczy „czas minął, zanim kliknął”, a nie „zero punktów” — liczą się odpowiedzi, które zdążył zapisać autozapis. Ocena zapada w chwili przejścia i jest **idempotentna** (`quiz.services.grade_attempt`), więc wolno ją powtórzyć po poprawce klucza odpowiedzi (`quiz.regraded` w audycie) bez żadnego wpływu na stan. Podejście porzucone (zamknięta karta) domyka `finalise_overdue`, wołane przy wejściu na test, na ekranie wyników i przy przeliczaniu wyników etapu — bez tego stan `IN_PROGRESS` trwałby wiecznie, a zapisane odpowiedzi nie weszłyby do protokołu.
+- Do wyników etapu punkty z testu wchodzą **jednym wąskim szwem**: `quiz.services.stage_scores(stage) -> {entry_id: punkty}`, konsultowanym przez `results.services.compute_stage_results` wyłącznie wtedy, gdy `stage.format == QUIZ`. Suma z testu **zastępuje** sumę z `FinalGrade` (etap nie ma jednego i drugiego naraz — byłby wtedy etapem o dwóch formach), liczy się **najlepsze** podejście, a wynik jest zaokrąglany do pełnych punktów, bo `StageEntry.total_points` jest polem całkowitym wspólnym dla wszystkich form etapu. Od tego miejsca dalej — próg kwalifikacji, symulacja, publikacja, anonimizacja — etap testowy jest nie do odróżnienia od pisemnego i idzie dokładnie tą samą drogą. `results` nie wie o istnieniu pytań ani podejść i nie ma powodu wiedzieć; to jest szew, którym obie aplikacje da się kiedyś rozdzielić.
 - Suma punktów etapu = Σ `FinalGrade.score` po wszystkich zadaniach. `QualificationRule` przelicza `StageEntry.status` po zamknięciu reklamacji, nigdy wcześniej: `apply_qualification` i `publish_results` przed `appeal_window_closes_at` kończą się `409 APPEAL_WINDOW_OPEN`. Wyjątkiem jest podgląd koordynatora (`stages/{id}/results/compute/`) – robocza tabela, która niczego nie ogłasza. Oba serwisy blokują wiersz etapu (`select_for_update`), więc dwa równoległe przeliczenia nie depczą sobie po statusach.
 - Praca bez `FinalGrade` (w dowolnym stanie, także `FINAL`) blokuje przeliczenie – brak oceny to nie zero punktów. Zero punktów z kolei nie kwalifikuje w trybach `TOP_N`, `TOP_N_PER_DISTRICT` i `HYBRID`: „N najlepszych” w słabo obsadzonym etapie nie może oznaczać awansu za brak rozwiązania.
 - Kwalifikacja jest odwracalna. Uczestnik, który po ponownym przeliczeniu (np. po decyzji reklamacyjnej) spadł na `NOT_QUALIFIED`, traci wpis w następnym etapie, o ile jest on jeszcze `REGISTERED` i pusty. Wpis z oddanym `Submission` **zostaje** i wraca w wyniku jako `next_stage_conflicts` (pseudonimy) – kasowanie cudzej pracy jest decyzją koordynatora, nie serwisu. W `AuditLog` idą wyłącznie liczniki.

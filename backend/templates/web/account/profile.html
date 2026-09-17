@@ -78,6 +78,26 @@
 </section>
 
 {% comment %}
+  Drugi składnik logowania stoi **przed** eksportem i usunięciem konta, bo to jedyna pozycja na
+  tej stronie, która coś na koncie poprawia, a nie kończy. Sam ekran jest osobny (kod QR, kody
+  zapasowe), więc tutaj jest wyłącznie odnośnik – rozwinięcie tego bloku w miejscu znaczyłoby
+  generowanie sekretu przy każdym wejściu na edycję danych.
+
+  ``two_factor_enabled`` przychodzi z widoku (``apps/web/views/account.py``) i odbija
+  ``settings.TWO_FACTOR_ENABLED``. Przy wyłączonej funkcji – a to jest stan domyślny tej
+  instalacji – sekcji nie ma w ogóle: odnośnik prowadziłby na adres odpowiadający 404.
+{% endcomment %}
+{% if two_factor_enabled %}
+<section class="section" id="2fa">
+  <div class="card">
+    <h2 class="mt-0">{% translate "Logowanie dwuskładnikowe" %}</h2>
+    <p class="hint">{% translate "Dodatkowy, sześciocyfrowy kod z aplikacji w telefonie przy każdym logowaniu. Zalecany każdemu, kto ma w serwisie dostęp do cudzych prac lub danych: koordynatorom, członkom komitetu i komisji odwoławczej." %}</p>
+    <p><a class="btn btn--secondary" href="{% url 'web:twofactor-setup' %}">{% translate "Ustawienia drugiego składnika" %}</a></p>
+  </div>
+</section>
+{% endif %}
+
+{% comment %}
   Eksport danych (art. 20 RODO) stoi **przed** usunięciem konta i to nie jest kolejność
   przypadkowa: kto chce odejść z serwisu, najczęściej chce najpierw zabrać ze sobą swoje prace.
   Odnośnik, a nie formularz: żądanie niczego nie zmienia, więc GET jest tu prawdą.

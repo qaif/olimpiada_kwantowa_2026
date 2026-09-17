@@ -1,0 +1,190 @@
+# Ciągła integracja: to samo, co przed wdrożeniem robi człowiek, tylko bez pamiętania o tym.
+#
+# Kolejność zadań jest treścią, a nie estetyką: `lint` trwa kilkanaście sekund i wyłapuje większość
+# zwykłych pomyłek, `tests` trwa kilka minut, a `image` – najdłużej. Uruchamiamy je równolegle
+# (żaden nie potrzebuje wyniku poprzedniego), ale to `lint` daje odpowiedź najszybciej i to na nim
+# autor zmiany patrzy najpierw.
+#
+# Żaden krok nie wymaga sekretów. Jest to warunek świadomy: workflow uruchamiany z forka nie
+# dostaje sekretów repozytorium, więc gdyby ich potrzebował, na zewnętrznych zgłoszeniach
+# pokazywałby wyłącznie czerwony krzyżyk i nikt by z niego nic nie miał.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Nowy push do tej samej gałęzi przerywa poprzedni przebieg: wynik dla kodu sprzed dwóch minut
+# nikogo już nie interesuje, a minuty maszyny są wspólne.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Ta sama wersja, co w obrazie (backend/Dockerfile, `requires-python = ">=3.12"`). Testy
+  # przechodzące na innej wersji niż produkcja niczego o produkcji nie dowodzą.
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  lint:
+    name: ruff (styl i importy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          # Klucz cache'u po pliku zależności: przebieg, który niczego nie zmienił w zależnościach,
+          # nie ma powodu ich ponownie pobierać.
+          cache-dependency-glob: backend/pyproject.toml
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Instalacja narzędzi
+        working-directory: backend
+        run: uv pip install --system -r pyproject.toml --extra dev
+
+      # Dwa wywołania, a nie jedno: `check` szuka błędów, `format --check` pilnuje zapisu.
+      # Rozdzielone, bo ich naprawa jest inna – pierwsze poprawia człowiek, drugie `ruff format`.
+      - name: ruff check
+        working-directory: backend
+        run: ruff check apps ../e2e config
+
+      - name: ruff format --check
+        working-directory: backend
+        run: ruff format --check apps config
+
+  migrations:
+    name: makemigrations --check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/pyproject.toml
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Instalacja zależności
+        working-directory: backend
+        run: uv pip install --system -r pyproject.toml --extra dev
+
+      # Osobne zadanie, choć technicznie mogłoby wisieć przy testach. Powód: brakująca migracja
+      # jest awarią **wdrożenia**, a nie testów – produkcja wstaje wtedy z bazą niezgodną z kodem
+      # i wywraca się przy pierwszym zapytaniu. Osobne zadanie mówi to wprost nazwą.
+      #
+      # `--check --dry-run` niczego nie zapisuje i nie łączy się z bazą: Django porównuje modele
+      # z plikami migracji, więc żadna usługa nie jest tu potrzebna.
+      - name: Czy modele mają komplet migracji
+        working-directory: backend
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.test
+        run: python manage.py makemigrations --check --dry-run
+
+  translations:
+    name: msgfmt (tłumaczenia)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Ten sam krok, co w `backend/Dockerfile` – i to jest jedyny powód jego istnienia tutaj.
+      # Błąd składni w katalogu tłumaczeń wywraca **budowanie obrazu**, czyli wychodzi dopiero
+      # przy wdrożeniu. Tutaj wychodzi przy zgłoszeniu zmiany, kosztem dziesięciu sekund.
+      - name: Sprawdzenie katalogów tłumaczeń
+        working-directory: backend
+        run: |
+          set -eu
+          for po in locale/*/LC_MESSAGES/django.po; do
+            [ -e "$po" ] || continue
+            echo "== $po"
+            msgfmt --check --output-file=/dev/null "$po"
+          done
+
+  tests:
+    name: pytest
+    runs-on: ubuntu-latest
+
+    services:
+      # Postgres jest jedyną usługą, bez której testy nie ruszą: `config/settings/test.py`
+      # podmienia cache na lokalny, magazyn plików na dyskowy, a Celery na tryb `eager`, ale bazy
+      # podmienić się nie da – zapytania i migracje są przedmiotem połowy tych testów.
+      #
+      # Redisa i MinIO **nie ma** tutaj świadomie: w ustawieniach testowych nic ich nie dotyka
+      # (`CACHES` = locmem, `SUBMISSION_STORAGE_BACKEND` = lokalny), więc byłyby dwiema usługami,
+      # które wydłużają każdy przebieg i dokładają własne tryby awarii, nie sprawdzając niczego.
+      # Gdyby któryś test miał kiedyś naprawdę pukać w Redisa, wróci tu razem z nim.
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: olimpiada
+          POSTGRES_USER: olimpiada
+          POSTGRES_PASSWORD: olimpiada
+        ports: ["5432:5432"]
+        # Bez `health-cmd` krok testów startuje, zanim Postgres przyjmie pierwsze połączenie,
+        # i przewraca się losowo – raz na kilka przebiegów, czyli najgorszym możliwym rytmem.
+        options: >-
+          --health-cmd "pg_isready -U olimpiada -d olimpiada"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/pyproject.toml
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Instalacja zależności
+        working-directory: backend
+        run: uv pip install --system -r pyproject.toml --extra dev
+
+      - name: pytest
+        working-directory: backend
+        env:
+          # Wszystko przez zmienne środowiskowe, bez pliku .env: to jest ten sam kontrakt, co
+          # w compose (`x-app-env`), więc konfiguracja CI nie może rozjechać się z produkcyjną.
+          DATABASE_URL: postgres://olimpiada:olimpiada@localhost:5432/olimpiada
+          DJANGO_SECRET_KEY: ci-tylko-do-testow-nie-uzywac-nigdzie-indziej
+          DJANGO_SETTINGS_MODULE: config.settings.test
+          # E2E_MODE **musi** zostać wyłączone: ustawione zeruje próg antyspamowy i włącza tryb
+          # testowy CAPTCHY, więc testy tych dwóch zabezpieczeń przestałyby cokolwiek sprawdzać –
+          # i nie powiedziałyby o tym ani słowa.
+          E2E_MODE: "0"
+        run: python -m pytest -q --create-db
+
+  image:
+    name: docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Budujemy i **nie** wypychamy nigdzie. Sens tego kroku jest jeden: obraz musi dać się
+      # zbudować, zanim ktoś odpali `scripts/deploy.sh`, bo tam buduje się go na serwerze
+      # produkcyjnym – nieudane budowanie zostawia serwis na starej wersji w połowie wdrożenia.
+      # Ten krok wyłapuje przy okazji rzeczy, których nie widzi pytest: brakującą zależność
+      # systemową i błąd w katalogu tłumaczeń (Dockerfile woła `msgfmt`).
+      - name: Budowanie obrazu produkcyjnego
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          target: runtime
+          push: false
+          # Cache warstw w cache'u Actions – bez niego każdy przebieg instaluje zależności od zera.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -29,6 +29,21 @@
         <dt>Edycja</dt><dd>{{ certificate.edition }}</dd>
         <dt>Numer</dt><dd>{{ certificate.number }}</dd>
         <dt>Data wystawienia</dt><dd>{{ certificate.issued_on }}</dd>
+        {% comment %}
+          Pieczęć elektroniczna dotyczy pliku PDF, a nie samego dokumentu: dyplom bez pieczęci
+          jest ważny i właśnie go tu potwierdzamy. Mówimy o niej mimo to, bo ktoś, kto dostał
+          plik pocztą, chce wiedzieć, czy da się go sprawdzić także czytnikiem PDF-ów.
+        {% endcomment %}
+        <dt>Pieczęć elektroniczna</dt>
+        <dd>
+          {% if certificate.signed %}
+            Plik PDF pobrany z serwisu jest podpisany elektronicznie{% if certificate.signer_name %}
+            przez: {{ certificate.signer_name }}{% endif %}.
+          {% else %}
+            <span class="hint">Dokument wydawany jest bez pieczęci elektronicznej. Potwierdza go
+              ten kod weryfikacyjny — brak pieczęci nie jest wadą dokumentu.</span>
+          {% endif %}
+        </dd>
         <dt>Odbiorca</dt>
         <dd>
           {% if certificate.recipient %}

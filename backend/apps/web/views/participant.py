@@ -55,6 +55,7 @@ from apps.competitions.services import (
 )
 from apps.competitions.video import PRECHECK_TEXT
 from apps.core.api import DomainError
+from apps.quiz.services import quiz_for_stage
 from apps.results.services import published_results, results_for_participant
 from apps.submissions.preview import preview_for
 from apps.submissions.services import (
@@ -343,11 +344,14 @@ class MeView(ParticipantRequiredMixin, TemplateView):
             and stage.kind in SELF_REGISTRATION_KINDS
             and stage.is_open_for_submissions(now)
         )
-        # Etap w formie rozmowy nie ma uploadu w ogóle – nie „zamkniętego”, tylko żadnego
-        # (``submissions.create_submission`` odmawia z ``STAGE_NOT_ACCEPTING_FILES``).
+        # Etap w formie rozmowy ani w formie testu online nie ma uploadu w ogóle – nie
+        # „zamkniętego”, tylko żadnego (``submissions.create_submission`` odmawia
+        # z ``STAGE_NOT_ACCEPTING_FILES``). Warunek jest tu po to, żeby panel nie pokazywał
+        # kart zadań, których w takim etapie i tak nie ma.
         upload_open = (
             entry is not None
             and not stage.is_interview
+            and not stage.is_quiz
             and stage.is_open_for_submissions(now)
             and stage.closed_at is None
         )
@@ -387,6 +391,11 @@ class MeView(ParticipantRequiredMixin, TemplateView):
                 # Instrukcja „co zrobić przed rozmową” w jednym brzmieniu dla panelu i dla listu –
                 # patrz ``apps.competitions.video.PRECHECK_TEXT``.
                 "interview_precheck_text": PRECHECK_TEXT,
+                # Test online etapu – wyłącznie dla etapu w tej formie, tak samo jak terminy
+                # rozmów wyżej: w pozostałych etapach zapytanie poszłoby po to, żeby oddać
+                # ``None``. Zakładka „Zadania” pokazuje na tej podstawie kartę wejścia do testu;
+                # o tym, czy wolno go rozpocząć, rozstrzyga i tak ``apps.quiz.services``.
+                "stage_quiz": (quiz_for_stage(stage) if stage is not None and stage.is_quiz else None),
                 # Słowa odliczania jadą do przeglądarki w atrybutach ``data-*``: skrypt odświeżający
                 # licznik nie ma katalogu tłumaczeń i nie może mieć własnych napisów.
                 "countdown_words": countdown_words(),

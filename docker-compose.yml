@@ -263,6 +263,32 @@ services:
       retries: 3
       start_period: 30s
 
+  monitor:
+    # Monitoring zewnętrzny (Uptime Kuma) – patrz deploy/monitoring/README.md.
+    #
+    # Profil `monitoring`, czyli usługa **nie** wstaje przy zwykłym `docker compose up`: organizator
+    # włącza ją świadomie (`docker compose --profile monitoring up -d monitor`), bo wystawia kolejną
+    # domenę z własnym logowaniem i własną bazą kont.
+    #
+    # Uczciwe ostrzeżenie, którego nie da się obejść konfiguracją: monitor stojący na tej samej
+    # maszynie, co serwis, nie zauważy awarii tej maszyny – powie o niej tylko wtedy, gdy padnie
+    # sam serwis, a nie host, sieć albo zasilanie. Dlatego to jest **druga** linia, a pierwszą
+    # zostaje watchdog aplikacyjny (apps/core/alerts.py, list z serwera) plus dowolny zewnętrzny
+    # monitor odpytujący /status.json spoza tego serwera. Docelowo ta usługa powinna stać u innego
+    # dostawcy; compose jest tu po to, żeby dało się zacząć od czegokolwiek w piętnaście minut.
+    profiles: [monitoring]
+    image: louislam/uptime-kuma:1.23.16
+    restart: unless-stopped
+    volumes:
+      - monitor_data:/app/data
+    # `internal` – żeby pukać w `web:8000` i `minio:9000` z tej samej sieci, w której stoją
+    # (sprawdzenie „czy usługa żyje” nie ma przechodzić przez Caddy'ego; wtedy testowałoby proxy).
+    # `edge` – żeby Kuma mogła wyjść na świat z powiadomieniem (Telegram) i sprawdzić adres
+    # publiczny, oraz żeby Caddy ją zobaczył pod nazwą `monitor`.
+    networks: [internal, edge]
+    security_opt:
+      - no-new-privileges:true
+
   mailpit:
     profiles: [dev]
     image: axllent/mailpit:v1.24
@@ -298,3 +324,6 @@ volumes:
   static_files:
   caddy_data:
   caddy_config:
+  # Baza Uptime Kuma (monitory, historia, konta). Wolumen nazwany, bo historia dostępności jest
+  # jedyną rzeczą, która po incydencie odpowiada na pytanie „jak długo to nie działało”.
+  monitor_data:

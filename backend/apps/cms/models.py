@@ -51,7 +51,7 @@ from .blocks import (
     StepsStreamBlock,
 )
 from .timeline import stage_rows
-from .workshops import WORKSHOPS_SLUG, upcoming_workshops
+from .workshops import WORKSHOP_KEY_LENGTH, WORKSHOPS_SLUG, upcoming_workshops
 
 #: Adresy pierwszego segmentu, które należą do aplikacji (``config/urls.py`` + ``apps/web/urls.py``).
 #: Strona CMS z takim slugiem na drugim poziomie drzewa byłaby martwa – patrz docstring modułu.
@@ -184,6 +184,33 @@ class SiteSettings(BaseSiteSetting):
         default="Oficjalny start rejestracji: 21 września 2026.",
     )
 
+    #: Czy serwis w ogóle **oferuje** konto opiekuna szkolnego (nauczyciela). Domyślnie ``False``,
+    #: i to jest decyzja organizatora, a nie ostrożność: w pierwszej edycji rola opiekuna nie jest
+    #: ogłaszana publicznie („rejestracja nauczycieli ma być ukryta”), a konta zakłada się na
+    #: prośbę – przez włączenie tego przełącznika na czas zapisów albo ręcznie przez organizatora.
+    #:
+    #: Wyłączony przełącznik znaczy trzy rzeczy naraz, bo inaczej ukrycie byłoby pozorne:
+    #: adres ``/register/supervisor/`` odpowiada **404**, nigdzie nie ma do niego odnośnika,
+    #: a uczestnik nie widzi w profilu pola „adres e-mail opiekuna szkolnego” – bez nauczycieli
+    #: z kontem byłoby ono pytaniem o adres, którego nikt nie użyje.
+    #:
+    #: Czego przełącznik **nie** robi: nie odbiera panelu opiekunom, którzy konto już mają.
+    #: Te konta powstały świadomie (rejestracją albo ręką organizatora), a ukrycie drogi wejścia
+    #: nie jest tym samym, co odebranie komuś dostępu do danych, które już ogląda.
+    #:
+    #: Pole, a nie zmienna środowiskowa – z tego samego powodu, co identyfikator GA4 niżej:
+    #: to jest decyzja organizatora podejmowana w trakcie edycji, a przy zmiennej każde jej
+    #: odwrócenie byłoby wdrożeniem.
+    supervisor_registration_enabled = models.BooleanField(
+        "rejestracja opiekunów szkolnych",
+        default=False,
+        help_text=(
+            "Wyłączone: adres /register/supervisor/ zwraca 404, nigdzie nie ma do niego "
+            "odnośnika, a uczestnicy nie widzą w profilu pola z adresem opiekuna szkolnego. "
+            "Opiekunowie, którzy mają już konto, zachowują swój panel."
+        ),
+    )
+
     #: Identyfikator strumienia danych Google Analytics 4. **Puste pole wyłącza analitykę
     #: całkowicie**: serwis nie wczytuje wtedy żadnego skryptu Google'a, nie pyta o zgodę
     #: (pasek cookie zostaje informacyjny, bo nie ma czego wstrzymywać do kliknięcia), a nagłówek
@@ -251,7 +278,10 @@ class SiteSettings(BaseSiteSetting):
             ],
             heading="Media społecznościowe",
         ),
-        MultiFieldPanel([FieldPanel("registration_note")], heading="Rejestracja"),
+        MultiFieldPanel(
+            [FieldPanel("registration_note"), FieldPanel("supervisor_registration_enabled")],
+            heading="Rejestracja",
+        ),
         MultiFieldPanel([FieldPanel("ga_measurement_id")], heading="Analityka"),
     ]
 
@@ -1270,3 +1300,61 @@ class Announcement(models.Model):
         if not self.is_active or self.starts_at > now:
             return False
         return self.ends_at is None or self.ends_at > now
+
+
+class WorkshopAttendance(models.Model):
+    """Obecność jednego uczestnika na jednych warsztatach – podstawa zaświadczenia z warsztatów.
+
+    Dlaczego to mieszka w CMS-ie, a nie w ``apps.competitions``. Bo warsztaty **nie są etapem
+    zawodów**: nie mają wpisu, terminu egzekwowanego przez serwer ani punktów, a ich harmonogram
+    jest treścią redakcyjną (blok ``schedule`` na stronie „Warsztaty”). Tabela trzyma więc tylko
+    to, czego treść redakcyjna nie umie zapamiętać – kto był – i wiąże to z wierszem harmonogramu
+    przez ``workshop_key`` (``apps.cms.workshops.workshop_key``).
+
+    Klucz tekstowy zamiast klucza obcego, bo po drugiej stronie **nie ma tabeli**: wiersz
+    harmonogramu jest fragmentem StreamFielda w treści strony. Cena tego rozwiązania jest jawna
+    i opisana przy ``workshop_key``: zmiana tematu albo daty tworzy nowy klucz, a stara obecność
+    przestaje pasować do wiersza. To lepsze niż przenoszenie harmonogramu do bazy tylko po to,
+    żeby dało się postawić klucz obcy – harmonogram jest i zostaje tekstem, który pisze redakcja.
+
+    Obecność zapisuje **koordynator**, a nie uczestnik: to ona jest oświadczeniem organizatora,
+    na którym stoi dokument. Stąd ``created_by`` i brak jakiejkolwiek drogi zapisu z panelu ucznia.
+    """
+
+    participant = models.ForeignKey(
+        "accounts.Participant",
+        on_delete=models.CASCADE,
+        related_name="workshop_attendance",
+        verbose_name="uczestnik",
+    )
+    workshop_key = models.CharField("warsztat", max_length=WORKSHOP_KEY_LENGTH)
+    created_at = models.DateTimeField("zapisano", default=timezone.now)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="workshop_attendance_marked",
+        verbose_name="odhaczył",
+    )
+
+    class Meta:
+        verbose_name = "obecność na warsztatach"
+        verbose_name_plural = "obecności na warsztatach"
+        ordering = ("workshop_key", "id")
+        constraints = [
+            # Jedna obecność na parę uczestnik + warsztat. Bez tego dwa kliknięcia „Zapisz” na
+            # tej samej tabeli dopisałyby drugi wiersz, a zaświadczenie wyliczyłoby te same
+            # zajęcia dwa razy.
+            models.UniqueConstraint(
+                fields=["participant", "workshop_key"],
+                name="cms_workshop_attendance_unique",
+            ),
+        ]
+        indexes = [
+            # Tabela obecności w panelu czyta wszystkie odhaczenia jednej kolumny naraz.
+            models.Index(fields=["workshop_key"], name="cms_workshop_key_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.participant_id} @ {self.workshop_key}"

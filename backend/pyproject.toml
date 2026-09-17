@@ -2,6 +2,10 @@
 name = "olimpiada"
 version = "0.1.0"
 description = "Platforma olimpiady: etapy, upload rozwiązań, ocenianie 0-2-5-6, reklamacje, CMS"
+# Licencja całego repozytorium: pełny tekst w pliku ``LICENSE`` w korzeniu, uzasadnienie wyboru
+# w ``docs/LICENCJA-UZASADNIENIE.md``. Zapis tabelą (``{ text = … }``), a nie samym napisem, bo
+# tak wymaga PEP 621 — a pyproject czyta tu uv, nie budowanie pakietu.
+license = { text = "AGPL-3.0-or-later" }
 requires-python = ">=3.12"
 dependencies = [
     "django>=5.1,<5.2",
@@ -48,6 +52,12 @@ dependencies = [
     # idzie dopiero po czystym skanie antywirusowym. W zwykłych zależnościach, a nie w ekstrze
     # dev, bo liczbę stron pokazuje panel uczestnika, czyli produkcja.
     "pypdf>=4,<6",
+    # Pieczęć elektroniczna dokumentów w formacie PAdES (``apps.results.signing``). W zwykłych
+    # zależnościach, bo podpisuje **produkcja** – dokument powstaje przy każdym pobraniu i to
+    # wtedy trafia na niego pieczęć. Sama funkcja jest jednak wyłączona, dopóki nie ma klucza
+    # (``CERT_SIGN_P12_PATH``): bez niego moduł oddaje plik bez zmian, a import biblioteki
+    # w ogóle nie następuje – jest leniwy, wewnątrz funkcji podpisującej.
+    "pyhanko>=0.21,<1",
 ]
 
 [project.optional-dependencies]

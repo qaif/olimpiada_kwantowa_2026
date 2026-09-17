@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Ekran po uruchomieniu konta. Bez tokenu w adresie – niczego już nie identyfikuje, więc nie ma
+  powodu, żeby zostawał w historii przeglądarki ani w logach proxy.
+
+  Uczeń **nie jest** tu zalogowany automatycznie: pierwsze logowanie świeżo ustawionym hasłem
+  jest sprawdzeniem, czy je zapamiętał, i robi się je od razu, a nie tydzień później.
+{% endcomment %}
+{% block title %}{% translate "Konto zostało uruchomione" %}{% endblock %}
+{% block timeline_strip %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Zaproszenie" %}</span>
+  <h1>{% translate "Konto jest gotowe" %}</h1>
+  <p class="lead">{% translate "Hasło zostało ustawione, a oświadczenia zapisane. Zaloguj się swoim adresem e-mail i nowym hasłem." %}</p>
+  <div class="actions">
+    <a class="btn btn--primary" href="{% url 'web:login' %}">{% translate "Zaloguj" %}</a>
+  </div>
+</div>
+{% endblock %}

@@ -29,6 +29,11 @@ urlpatterns = [
     path("api/grading/", include("apps.grading.urls")),
     path("api/", include("apps.appeals.urls")),
     path("api/", include("apps.results.urls")),
+    # Publiczne API dla systemów zewnętrznych. Numer wersji jest w **prefiksie**, a nie w nagłówku:
+    # adres integracji da się wpisać do konfiguracji partnera, wkleić do zgłoszenia i odczytać
+    # z logu proxy. Uwierzytelnia klucz API (``apps.integrations.auth``), nie konto – dlatego stoi
+    # osobno od reszty ``/api/…``, choć schemat i Swagger są wspólne.
+    path("api/v1/", include("apps.integrations.urls")),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     # Swagger UI z nonce'ami i SRI – patrz apps/web/views/docs.py. Wersja biblioteki podaje
     # szablonowi wyłącznie adresy plików, więc podmiana widoku jest jedynym miejscem, w którym

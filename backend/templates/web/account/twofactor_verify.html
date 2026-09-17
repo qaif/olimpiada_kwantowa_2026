@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Drugi krok logowania. Układ jest ten sam, co na ``web/login.html`` (klasa ``auth``), bo to jest
+  ciąg dalszy tej samej czynności – człowiek ma zobaczyć, że nadal się loguje, a nie że trafił
+  w środek panelu.
+
+  Odnośnik „wyloguj” jest tu na stałe i jest ważniejszy, niż wygląda: sesja czekająca na kod nie
+  może nic innego, więc bez tego przycisku ktoś, kto zalogował się na cudzym komputerze i nie ma
+  przy sobie telefonu, zostawiałby tę sesję otwartą.
+{% endcomment %}
+{% block title %}{% translate "Potwierdzenie logowania" %}{% endblock %}
+{% block content %}
+<div class="auth">
+  <div class="card">
+    <h1>{% translate "Potwierdź logowanie" %}</h1>
+    <p class="auth__intro">{% blocktranslate trimmed with digits=digits %}
+      Przepisz {{ digits }}-cyfrowy kod z aplikacji uwierzytelniającej. Kod zmienia się co 30 sekund.
+    {% endblocktranslate %}</p>
+    {% if error %}<p class="alert alert--error">{{ error }}</p>{% endif %}
+    <form method="post" class="form">
+      {% csrf_token %}
+      <p>
+        <label for="id_code">{% translate "Kod" %}</label>
+        <input type="text" id="id_code" name="code" inputmode="numeric"
+               autocomplete="one-time-code" autofocus required>
+      </p>
+      <input type="hidden" name="next" value="{{ next }}">
+      <button type="submit" class="btn btn--primary btn--block">{% translate "Potwierdź" %}</button>
+    </form>
+    <p class="auth__alt">
+      {% if backup_codes_left %}
+        {% translate "Nie masz przy sobie telefonu? W to samo pole wpisz jeden ze swoich kodów zapasowych." %}<br>
+      {% else %}
+        {% translate "Nie masz przy sobie telefonu ani kodów zapasowych? Napisz do organizatora – zdejmie zabezpieczenie z Twojego konta." %}<br>
+      {% endif %}
+    </p>
+    <form method="post" action="{% url 'web:logout' %}" class="inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn--ghost">{% translate "Wyloguj" %}</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

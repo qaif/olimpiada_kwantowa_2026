@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% comment %}
+  Import listy uczniów w panelu opiekuna szkolnego. Rama strony jest tu zwykła (nauczyciel nie
+  pracuje w panelu organizatora), a cała treść stoi we wspólnym fragmencie – bliźniaczy ekran
+  koordynatora rozszerza inny szablon i włącza dokładnie ten sam kawałek.
+{% endcomment %}
+{% block title %}{% translate "Import listy uczniów" %}{% endblock %}
+{% block page_scripts %}
+  {# Podpowiedzi szkół. Bez skryptu formularz działa – nazwę szkoły wpisuje się wtedy ręcznie. #}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/school-picker.js' %}"></script>
+{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:supervisor' %}">{% translate "Panel opiekuna szkolnego" %}</a></span>
+  <h1>{% translate "Import listy uczniów" %}</h1>
+  <p class="lead">{% blocktranslate trimmed %}
+    Wgraj listę klasy, a my wyślemy każdemu uczniowi zaproszenie z linkiem. Konta zakładają
+    uczniowie: pod linkiem ustawiają własne hasło i sami składają wymagane oświadczenia –
+    Ty nie ustawiasz nikomu hasła i nie zgadzasz się za nikogo.
+  {% endblocktranslate %}</p>
+</div>
+{% include "web/supervisor/_import_form.html" %}
+{% endblock %}

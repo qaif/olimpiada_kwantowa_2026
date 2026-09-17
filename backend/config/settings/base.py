@@ -72,11 +72,19 @@ INSTALLED_APPS = [
     "apps.submissions",
     "apps.grading",
     "apps.appeals",
+    # Testy online sprawdzane automatycznie. **Przed** ``apps.results``, bo to wyniki sięgają po
+    # punkty z testu (``apps.quiz.services.stage_scores``), a nie odwrotnie – kolejność w tej
+    # liście ma odbijać kierunek zależności, żeby dało się go z niej odczytać.
+    "apps.quiz",
     "apps.results",
     # Zgłoszenia do organizatora (support desk). Osobna aplikacja, a nie model w ``apps.core``:
     # ma własny model, własne reguły i własną pocztę, a z domeną zawodów łączy ją wyłącznie
     # kontekst zgłoszenia – czyli odczyt, nigdy zapis.
     "apps.support",
+    # Warstwa integracyjna: klucze API dla systemów zewnętrznych, webhooki i eksporty na zewnątrz.
+    # **Po** aplikacjach domeny, bo czyta je wszystkie (edycje, wyniki, zgłoszenia), a żadna z nich
+    # nie czyta jej – zależność idzie w jedną stronę i kolejność w tej liście ma to pokazywać.
+    "apps.integrations",
     "apps.web",
     # Logowanie przez dostawców zewnętrznych (Google, Facebook). ``allauth.account`` jest wymagane
     # przez ``allauth.socialaccount`` (model ``EmailAddress``, adaptery) – jego **widoki** nie są
@@ -104,6 +112,13 @@ MIDDLEWARE = [
     # WhiteNoise: WhiteNoise odpowiada na /static/… sam, nie wołając dalszych warstw, więc niżej
     # w łańcuchu nagłówek nie objąłby ani jednego pliku statycznego.
     "apps.web.middleware.ContentSecurityPolicyMiddleware",
+    # Licznik odpowiedzi 5xx dla watchdoga alertów (apps/core/middleware.py). Możliwie na zewnątrz,
+    # żeby zobaczyć także odpowiedzi 500 złożone z wyjątku widoku przez wewnętrzne warstwy Django –
+    # te wracają tędy jak każda inna odpowiedź. **Pod** warstwą CSP, bo to ona ma kontrakt na drugie
+    # miejsce w łańcuchu (musi objąć również pliki statyczne oddawane przez WhiteNoise, patrz
+    # apps/web/tests/test_public.py); dla samego zliczania kodu odpowiedzi ta różnica jest bez
+    # znaczenia. Warstwa niczego nie modyfikuje i nie może rzucić.
+    "apps.core.middleware.ServerErrorCounterMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     # Język z ciasteczka albo z nagłówka ``Accept-Language``. Za sesją (czyta ją) i przed
@@ -117,6 +132,11 @@ MIDDLEWARE = [
     # ``AuthenticationMiddleware`` (czyta ``request.user``) i za ``LocaleMiddleware``, którego
     # rozstrzygnięcie ma prawo nadpisać – ustawienie konta wygrywa z ustawieniem przeglądarki.
     "apps.accounts.preferences.PreferencesMiddleware",
+    # Drugi składnik logowania (TOTP). **Za** ``AuthenticationMiddleware``, bo czyta
+    # ``request.user``, i przed warstwami, które cokolwiek robią w imieniu zalogowanego konta.
+    # Sesja po samym haśle jest tu w poczekalni: przechodzą wyłącznie adresy z listy
+    # w ``apps.accounts.twofactor`` (ekran weryfikacji, wylogowanie, strona statusu).
+    "apps.accounts.twofactor.TwoFactorMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     # Wymagana przez allauth: ustawia kontekst żądania (``allauth.core.context``), z którego
@@ -264,7 +284,50 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.core.tasks.heartbeat",
         "schedule": 60.0,
     },
+    # Watchdog aplikacyjny (apps/core/alerts.py): podsystemy, wolne miejsce na dysku, nieudane
+    # zadania, odpowiedzi 5xx i stan kopii zapasowych → list do ``ALERT_EMAILS``. Co pięć minut,
+    # bo tyle wynosi akceptowalne opóźnienie wykrycia awarii w noc przed deadline'em; częściej
+    # nie ma sensu, bo wyciszenie alertu i tak trwa godzinę.
+    "alerts-check": {
+        "task": "apps.core.tasks.alerts_check",
+        "schedule": 300.0,
+    },
 }
+
+# Adresy dyżurnych, na które watchdog wysyła alarmy (przecinkami). **Pusta lista wyłącza wysyłkę**
+# i to jest domyślne zachowanie: instalacja deweloperska nie ma nikogo budzić, a na produkcji
+# adresy wpisuje ten, kto bierze na siebie odbieranie tych listów.
+ALERT_EMAILS = env.list("ALERT_EMAILS", default=[])
+
+# --- Logowanie dwuskładnikowe (TOTP, apps/accounts/twofactor.py) -------------------------------
+# Wyłącznik główny całej funkcji. **Domyślnie wyłączony** – decyzja organizatora („autoryzacja
+# 2-etapowa wyłączona”), a nie ostrożność techniczna: na tej instalacji drugiego składnika nie ma
+# i nie ma go widać.
+#
+# Wyłączony znaczy dokładnie tyle:
+#   - ``apps.accounts.twofactor.TwoFactorMiddleware`` przepuszcza **każde** żądanie bez jednego
+#     zapytania do bazy – także konta, które mają już potwierdzone urządzenie. Logują się samym
+#     hasłem, tak jak wszyscy,
+#   - adresy ``/account/2fa/…``, ``/login/2fa/`` i reset z panelu koordynatora odpowiadają 404,
+#   - w interfejsie nie ma ani jednego odnośnika do drugiego składnika,
+#   - ``TWO_FACTOR_REQUIRED_ROLES`` nie znaczy nic (czyta je wyłącznie kod za tym wyłącznikiem).
+#
+# Czego wyłącznik **nie** robi: nie kasuje zapisanych urządzeń. Wiersze ``TwoFactorDevice``
+# zostają w bazie nietknięte, więc ponowne włączenie przywraca stan sprzed wyłączenia zamiast
+# kazać całemu komitetowi konfigurować aplikacje od nowa. Skasowanie ich jest osobną, świadomą
+# czynnością opisaną w docs/OPERACJE.md § 5.
+TWO_FACTOR_ENABLED = env.bool("TWO_FACTOR_ENABLED", default=False)
+
+# Role, od których drugi składnik jest **wymagany**: konto z tej grupy bez potwierdzonego
+# urządzenia trafia na ekran konfiguracji i nie zrobi nic innego, dopóki go nie włączy.
+# Znaczenie ma wyłącznie przy ``TWO_FACTOR_ENABLED=1``.
+#
+# Domyślnie pusto i to nie jest ostrożność dla samej ostrożności: włączenie tego w dniu wdrożenia
+# zamknęłoby koordynatorowi drogę do własnego panelu, zanim ktokolwiek zdążyłby zainstalować
+# aplikację uwierzytelniającą. Kolejność jest odwrotna – najpierw komitet włącza 2FA dobrowolnie
+# (ekran ``/account/2fa/``), a dopiero potem organizator domyka furtkę tą zmienną.
+# Sensowna wartość produkcyjna: ``TWO_FACTOR_REQUIRED_ROLES=coordinator,reviewer,appeals``.
+TWO_FACTOR_REQUIRED_ROLES = env.list("TWO_FACTOR_REQUIRED_ROLES", default=[])
 
 # --- Poczta wychodząca -----------------------------------------------------------------------
 # Jedna zmienna (``EMAIL_URL``) zamiast sześciu: dev ma ``smtp://mailpit:1025``, produkcja
@@ -579,6 +642,10 @@ REST_FRAMEWORK = {
         # formularza to kilkanaście żądań (jedno na przerwę w pisaniu), a dane są jawnym
         # rejestrem publicznym – chronimy tu koszt zapytania, nie treść.
         "schools": "120/min",
+        # Kod drugiego składnika (``/login/2fa/``). Sześć cyfr to milion możliwości, a kod żyje
+        # trzydzieści sekund – bez limitu da się je przeszukać w kilka godzin z jednego adresu,
+        # mając samo hasło. Stawka jest niska, bo człowiek przepisuje kod raz, najwyżej dwa razy.
+        "two_factor": "10/min",
     },
     "EXCEPTION_HANDLER": "apps.core.api.exception_handler",
 }
@@ -673,8 +740,28 @@ SPECTACULAR_SETTINGS = {
         "GradeMethodEnum": "apps.grading.models.GradeMethod.choices",
         "AppealStatusEnum": "apps.appeals.models.AppealStatus.choices",
         "AnonymizationEnum": "apps.results.models.Anonymization.choices",
+        # Pole „kind” ma w schemacie kilka różnych zbiorów wartości (rodzaj etapu, rodzaj
+        # dokumentu, typ szkoły). Odkąd etap wychodzi także publicznym API integracji
+        # (``/api/v1/editions/<id>/stages/``), generator musiał rozstrzygać kolizję sam i nadawał
+        # nazwy w rodzaju „KindBd6Enum” – czyli takie, które zmieniają się przy każdej zmianie
+        # zawartości schematu i psują klientom generowanie modeli.
+        "StageKindEnum": "apps.competitions.models.StageKind.choices",
     },
 }
+
+# --- pieczęć elektroniczna dyplomów (apps.results.signing) -------------------------------------
+# Bez ścieżki do pliku PKCS#12 podpisywanie jest **wyłączone** i dokumenty wychodzą niepodpisane –
+# tak samo, jak przed wprowadzeniem tej funkcji. To jest stan domyślny, bo klucz pieczęci jest
+# materiałem kryptograficznym organizacji: deweloper nie ma go mieć, a środowisko testowe tym
+# bardziej. Plik montuje się do kontenera wolumenem i trzyma poza repozytorium.
+CERT_SIGN_P12_PATH = env("CERT_SIGN_P12_PATH", default="")
+CERT_SIGN_P12_PASSWORD = env("CERT_SIGN_P12_PASSWORD", default="")
+# Adres znacznika czasu (RFC 3161). Bez niego podpis niesie czas z zegara serwera, czyli dowodzi
+# jedynie „kiedyś”; ze znacznikiem – „nie później niż wtedy”, i dlatego długoterminowa ważność
+# pieczęci (PAdES-LT) zaczyna się właśnie tutaj. Pusta wartość = podpis bez znacznika.
+CERT_SIGN_TSA_URL = env("CERT_SIGN_TSA_URL", default="")
+CERT_SIGN_REASON = env("CERT_SIGN_REASON", default="Dokument wystawiony przez Olimpiadę Kwantową")
+CERT_SIGN_LOCATION = env("CERT_SIGN_LOCATION", default="")
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024  # pliki idą strumieniem na dysk tymczasowy powyżej 2 MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024

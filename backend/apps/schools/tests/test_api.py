@@ -107,7 +107,17 @@ def test_suggestion_carries_the_label_of_the_kind(api):
     assert row["rspo"] == 51234
     assert row["kind"] == SchoolKind.TECHNIKUM
     assert row["kind_label"] == "technikum"
-    assert set(row) == {"id", "rspo", "name", "kind", "kind_label", "city", "voivodeship"}
+    assert set(row) == {
+        "id",
+        "rspo",
+        "name",
+        "kind",
+        "kind_label",
+        "city",
+        "city_parent",
+        "city_label",
+        "voivodeship",
+    }
 
 
 @pytest.mark.django_db
@@ -278,3 +288,191 @@ def test_city_endpoint_is_open_and_shares_the_schools_throttle_scope(api):
     assert api.get(CITIES_URL, {"q": "war"}).status_code == 200
     assert CitySearchView.throttle_scope == "schools"
     assert CitySearchView.permission_classes[0].__name__ == "AllowAny"
+
+
+# --- miasta rozbite w wykazie na dzielnice -------------------------------------------------------
+
+
+def wroclaw_districts() -> None:
+    """Wrocław tak, jak zapisuje go wykaz SIO: pięć „miejscowości”, żadnej o nazwie „Wrocław”."""
+    SchoolFactory(
+        name="III LICEUM OGÓLNOKSZTAŁCĄCE",
+        city="Wrocław-Krzyki",
+        voivodeship=Voivodeship.DOLNOSLASKIE,
+        postal_code="53-001",
+    )
+    SchoolFactory(
+        name="IX LICEUM OGÓLNOKSZTAŁCĄCE",
+        city="Wrocław-Fabryczna",
+        voivodeship=Voivodeship.DOLNOSLASKIE,
+        postal_code="54-001",
+    )
+
+
+@pytest.mark.django_db
+def test_districts_of_one_city_are_a_single_suggestion(api):
+    """„wro” ma dać jedno miasto, a nie pięć jego dzielnic.
+
+    Wykaz zapisuje Wrocław jako „Wrocław-Fabryczna”, „Wrocław-Krzyki”… – uczestnik dostawał więc
+    pięć pozycji, z których każda zawężała listę szkół do jednej piątej miasta, bez śladu,
+    że reszta gdzieś jest.
+    """
+    wroclaw_districts()
+
+    rows = api.get(CITIES_URL, {"q": "wro"}).json()["results"]
+
+    assert [row["city"] for row in rows] == ["Wrocław"]
+
+
+@pytest.mark.django_db
+def test_the_capital_is_found_although_the_directory_never_writes_its_name(api):
+    """Sedno zgłoszenia: w wykazie nie ma napisu „Warszawa” – są nazwy osiemnastu dzielnic."""
+    SchoolFactory(city="Śródmieście", voivodeship=Voivodeship.MAZOWIECKIE, postal_code="00-001")
+    SchoolFactory(city="Mokotów", voivodeship=Voivodeship.MAZOWIECKIE, postal_code="02-001")
+
+    rows = api.get(CITIES_URL, {"q": "warszawa"}).json()["results"]
+
+    assert [row["city"] for row in rows] == ["Warszawa"]
+
+
+@pytest.mark.django_db
+def test_a_district_name_still_suggests_its_city(api):
+    """Kto myśli o sobie „z Krzyków”, ma dostać Wrocław, a nie pustą listę."""
+    wroclaw_districts()
+
+    rows = api.get(CITIES_URL, {"q": "krzyki"}).json()["results"]
+
+    assert [row["city"] for row in rows] == ["Wrocław"]
+
+
+@pytest.mark.django_db
+def test_city_suggestions_still_match_the_beginning_of_a_word_not_its_middle(api):
+    """Dołożenie dzielnic nie zamienia podpowiedzi w wyszukiwanie fragmentów."""
+    wroclaw_districts()
+
+    assert api.get(CITIES_URL, {"q": "rzyki"}).json()["results"] == []
+    assert api.get(CITIES_URL, {"q": "law"}).json()["results"] == []
+
+
+@pytest.mark.django_db
+def test_choosing_the_city_covers_every_district(api):
+    """„Wrocław” ma dać wszystkie szkoły miasta – to jest cała zmiana widoczna dla uczestnika."""
+    wroclaw_districts()
+    SchoolFactory(name="I LICEUM OGÓLNOKSZTAŁCĄCE", city="Oleśnica", voivodeship=Voivodeship.DOLNOSLASKIE)
+
+    body = api.get(URL, {"city": "Wrocław"}).json()
+
+    assert [row["name"] for row in body["results"]] == [
+        "III LICEUM OGÓLNOKSZTAŁCĄCE",
+        "IX LICEUM OGÓLNOKSZTAŁCĄCE",
+    ]
+
+
+@pytest.mark.django_db
+def test_choosing_a_city_does_not_drag_in_a_city_whose_name_starts_the_same_way(api):
+    """W wykazie są 43 pary gmin, w których jedna nazwa zaczyna nazwę drugiej – to jedna z nich."""
+    SchoolFactory(name="I LICEUM OGÓLNOKSZTAŁCĄCE", city="Opole", voivodeship=Voivodeship.OPOLSKIE)
+    SchoolFactory(
+        name="II LICEUM OGÓLNOKSZTAŁCĄCE", city="Opole Lubelskie", voivodeship=Voivodeship.LUBELSKIE
+    )
+
+    body = api.get(URL, {"city": "Opole"}).json()
+
+    assert [row["city"] for row in body["results"]] == ["Opole"]
+
+
+@pytest.mark.django_db
+def test_a_result_row_shows_the_city_with_the_district_in_brackets(api):
+    """Etykieta odpowiada na „gdzie”, a nawias odróżnia dwie szkoły o podobnej nazwie w mieście."""
+    wroclaw_districts()
+
+    rows = api.get(URL, {"city": "Wrocław"}).json()["results"]
+
+    assert [row["city_label"] for row in rows] == ["Wrocław (Krzyki)", "Wrocław (Fabryczna)"]
+    # ``city`` zostaje adresem z rejestru – etykieta jedzie **obok** niego, a nie zamiast.
+    assert [row["city"] for row in rows] == ["Wrocław-Krzyki", "Wrocław-Fabryczna"]
+    assert {row["city_parent"] for row in rows} == {"Wrocław"}
+
+
+@pytest.mark.django_db
+def test_a_school_in_a_plain_city_has_the_same_label_as_its_city(api):
+    SchoolFactory(name="I LICEUM OGÓLNOKSZTAŁCĄCE", city="Kielce", voivodeship=Voivodeship.SWIETOKRZYSKIE)
+
+    row = api.get(URL, {"city": "Kielce"}).json()["results"][0]
+
+    assert row["city_label"] == "Kielce"
+    assert row["city_parent"] == "Kielce"
+
+
+@pytest.mark.django_db
+def test_typing_the_city_and_the_district_narrows_to_that_district(api):
+    """Odwrotna droga: kto pisze „wrocław krzyki”, zawęża do dzielnicy bez wybierania miasta."""
+    wroclaw_districts()
+
+    body = api.get(URL, {"q": "wroclaw krzyki"}).json()
+
+    assert [row["name"] for row in body["results"]] == ["III LICEUM OGÓLNOKSZTAŁCĄCE"]
+
+
+@pytest.mark.django_db
+def test_typing_the_capital_finds_its_schools_although_the_directory_writes_districts(api):
+    """„warszawa śródmieście” i samo „warszawa” – jedno i drugie ma działać w polu „Szkoła”."""
+    SchoolFactory(
+        name="XIV LICEUM OGÓLNOKSZTAŁCĄCE",
+        city="Śródmieście",
+        voivodeship=Voivodeship.MAZOWIECKIE,
+        postal_code="00-001",
+    )
+    SchoolFactory(
+        name="VI LICEUM OGÓLNOKSZTAŁCĄCE",
+        city="Mokotów",
+        voivodeship=Voivodeship.MAZOWIECKIE,
+        postal_code="02-001",
+    )
+
+    every = api.get(URL, {"q": "warszawa liceum"}).json()["results"]
+    one = api.get(URL, {"q": "warszawa śródmieście"}).json()["results"]
+
+    assert len(every) == 2
+    assert [row["name"] for row in one] == ["XIV LICEUM OGÓLNOKSZTAŁCĄCE"]
+
+
+@pytest.mark.django_db
+def test_the_district_narrows_the_list_of_a_chosen_city(api):
+    """Po wybraniu miasta wpisane obok „krzyki” zawęża pełną listę, zamiast ją zerować."""
+    wroclaw_districts()
+
+    body = api.get(URL, {"city": "Wrocław", "q": "krzyki"}).json()
+
+    assert [row["name"] for row in body["results"]] == ["III LICEUM OGÓLNOKSZTAŁCĄCE"]
+
+
+@pytest.mark.django_db
+def test_general_secondary_schools_come_first_across_districts(api):
+    """Porządek nie zmienia się przez zlanie dzielnic: najpierw licea, potem technika, potem reszta."""
+    SchoolFactory(
+        name="TECHNIKUM NR 1",
+        city="Wrocław-Krzyki",
+        kind=SchoolKind.TECHNIKUM,
+        voivodeship=Voivodeship.DOLNOSLASKIE,
+    )
+    SchoolFactory(
+        name="BRANŻOWA SZKOŁA I STOPNIA NR 1",
+        city="Wrocław-Fabryczna",
+        kind=SchoolKind.BRANZOWA_1,
+        voivodeship=Voivodeship.DOLNOSLASKIE,
+    )
+    SchoolFactory(
+        name="III LICEUM OGÓLNOKSZTAŁCĄCE",
+        city="Wrocław-Psie Pole",
+        kind=SchoolKind.LO,
+        voivodeship=Voivodeship.DOLNOSLASKIE,
+    )
+
+    body = api.get(URL, {"city": "Wrocław"}).json()
+
+    assert [row["kind"] for row in body["results"]] == [
+        SchoolKind.LO,
+        SchoolKind.TECHNIKUM,
+        SchoolKind.BRANZOWA_1,
+    ]

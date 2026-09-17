@@ -223,14 +223,29 @@ def as_json(data: dict) -> dict:
 
     Znaczniki czasu idą w ISO 8601 w czasie **lokalnym serwisu** (Europe/Warsaw) – ten sam, w
     którym podane są deadline'y. Strefa jest w zapisie jawna, więc maszyna nic nie traci.
+
+    Stan kopii zapasowych (``backup_last_ok``, ``backup_last_verified``) idzie tu jako **wartość
+    logiczna**, a nie data, i to jest świadome odstępstwo od reszty pól: ta odpowiedź jest
+    publiczna, a konkretna data ostatniej kopii mówi obcemu, kiedy uderzenie zaboli najbardziej.
+    „Tak/nie” wystarcza monitorowi zewnętrznemu, żeby zapalić lampkę; daty ogląda dyżurny przez
+    ``manage.py record_backup_status --show`` i dostaje je w treści alertu.
     """
+    from apps.core.backup import state as backup_state
+
     competition = data["competition"]
     deadline = competition.get("stage_deadline")
+    backup = backup_state()
     return {
         "status": "ok" if data["all_ok"] else "degraded",
         "time": timezone.localtime(data["now"]).isoformat(),
         "version": data["version"],
         "services": {item.name: item.ok for item in data["services"]},
+        # Kopie zapasowe **nie** wchodzą do ``status`` ani do ``all_ok`` wyżej: dla uczestnika,
+        # który o 23:40 pyta, czy da się oddać pracę, stan kopii nie zmienia niczego. Zapalenie
+        # przez nie całej strony na „degraded” nauczyłoby tylko jednego – żeby tej strony nie
+        # czytać. Monitoring operacyjny pyta o te dwa pola osobnym monitorem.
+        "backup_last_ok": backup.backup_fresh,
+        "backup_last_verified": backup.verify_fresh,
         "registration_open": competition.get("registration_open"),
         "edition": competition.get("edition") or None,
         "stage": competition.get("stage") or None,

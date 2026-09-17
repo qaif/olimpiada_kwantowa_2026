@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Przyjęcie zaproszenia wystawionego przez nauczyciela. Drugi (po zgodzie opiekuna prawnego) ekran
+  serwisu otwierany **bez zalogowania** – uprawnieniem jest podpisany token w adresie.
+
+  Dane z listy klasowej są tu pokazane, ale nie do edycji: nie po to, żeby ich bronić, tylko po to,
+  żeby ekran mówił prawdę o tym, co już jest w bazie. Poprawkę imienia albo klasy uczeń zrobi po
+  zalogowaniu w swoim profilu, gdzie ta zmiana ma właściwy kontekst i zostawia ślad.
+
+  Adres e-mail pochodzi z zaproszenia i **nie jest polem**: edytowalny pozwalałby przenieść cudze
+  zaproszenie na własną skrzynkę.
+{% endcomment %}
+{% block title %}{% translate "Zaproszenie do Olimpiady Kwantowej" %}{% endblock %}
+{% block timeline_strip %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Zaproszenie" %}</span>
+  <h1>{% translate "Uruchom swoje konto" %}</h1>
+  <p class="lead">{% blocktranslate trimmed with name=participant.user.first_name school=participant.school %}
+    Cześć {{ name }}! Nauczyciel ze szkoły {{ school }} zgłosił Cię do Olimpiady Kwantowej.
+    Ustaw hasło i potwierdź oświadczenia – dopiero to uruchamia konto.
+  {% endblocktranslate %}</p>
+</div>
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">{% translate "Twoje dane ze zgłoszenia" %}</h2>
+    <ul>
+      <li>{% translate "Adres e-mail (login):" %} <strong>{{ email }}</strong></li>
+      <li>{% translate "Szkoła:" %} {{ participant.school }}</li>
+      <li>{% translate "Klasa:" %} {{ participant.grade|default:"—" }}</li>
+      <li>{% translate "Rok urodzenia:" %} {{ participant.birth_year }}</li>
+    </ul>
+    <p class="hint">{% translate "Coś się nie zgadza? Uruchom konto i popraw dane w swoim profilu po zalogowaniu." %}</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="card">
+    <form method="post" class="form">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      {% for field in form %}
+        {% if field.name not in consent_field_names %}
+          <p>
+            {{ field.errors }}
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.help_text %}
+              <span class="helptext" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</span>
+            {% endif %}
+          </p>
+        {% endif %}
+      {% endfor %}
+      {% comment %}
+        Zgody w osobnym ``<fieldset>``, tak samo jak w rejestracji: to są oświadczenia, a nie
+        kolejne dane osobowe, i ich treść pochodzi z ``apps.accounts.consents`` – z tego samego
+        miejsca, z którego bierze ją wpis dowodowy.
+      {% endcomment %}
+      <fieldset class="consents">
+        <legend>{% translate "Oświadczenia" %}</legend>
+        {% for field in form %}
+          {% if field.name in consent_field_names %}
+            <p>
+              {{ field.errors }}
+              {{ field.label_tag }}
+              {{ field }}
+              {% if field.help_text %}
+                <span class="helptext" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</span>
+              {% endif %}
+            </p>
+          {% endif %}
+        {% endfor %}
+      </fieldset>
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">{% translate "Uruchamiam konto" %}</button>
+      </div>
+    </form>
+    <p class="hint">{% blocktranslate trimmed with days=valid_days %}
+      Link jest ważny {{ days }} dni. Jeśli nie chcesz brać udziału – zamknij tę stronę;
+      bez potwierdzenia konto nie zostanie uruchomione.
+    {% endblocktranslate %}</p>
+  </div>
+</section>
+{% endblock %}

@@ -208,3 +208,22 @@ def close_submissions(stage) -> None:
 def close_stage_timeline(stage) -> None:
     """Etap całkowicie zamknięty: po deadline, po recenzjach i po oknie reklamacji."""
     shift_stage(stage, opens=-60, deadline=-50, review=-40, appeal_opens=-30, appeal_closes=-20)
+
+
+@pytest.fixture
+def supervisor_registration_on(db):
+    """Włącza rolę opiekuna szkolnego na czas testu (``SiteSettings.supervisor_registration_enabled``).
+
+    Przełącznik jest **domyślnie wyłączony** (organizator: „rejestracja nauczycieli ma być
+    ukryta”), więc każdy test, którego przedmiotem jest zakładanie konta opiekuna albo pole
+    „adres e-mail opiekuna szkolnego” w profilu uczestnika, musi ten stan włączyć jawnie.
+    Testy samego ukrycia zaczynają od stanu domyślnego i tej fixture nie wołają.
+    """
+    from wagtail.models import Site
+
+    from apps.cms.models import SiteSettings
+
+    row = SiteSettings.for_site(Site.objects.get(is_default_site=True))
+    row.supervisor_registration_enabled = True
+    row.save()
+    return row

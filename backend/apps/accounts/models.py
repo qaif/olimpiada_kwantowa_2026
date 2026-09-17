@@ -268,7 +268,13 @@ class Participant(models.Model):
     # (``apps.results.services``), panel koordynatora i administracja pytają o stan bieżący
     # kilkanaście razy na żądanie i nie mają po co przekopywać historii. Zapisuje je wyłącznie
     # ``apps.accounts.services.record_consents`` – razem z wpisami dowodowymi, jedną transakcją.
-    gdpr_consent_at = models.DateTimeField("zgoda RODO z dnia")
+    # Nullowalne od wprowadzenia importu uczniów przez opiekuna (``apps.accounts.bulk_registration``):
+    # profil zaproszonego ucznia powstaje **zanim** ktokolwiek złożył za niego oświadczenie, bo
+    # nauczyciel nie może zgodzić się w cudzym imieniu. Puste pole znaczy więc „zgody jeszcze nie
+    # ma i konto jest nieaktywne”, a nie „zgubiliśmy datę”; wypełnia je dopiero ``record_consents``
+    # przy przyjęciu zaproszenia. Reguła „bez zgody RODO nie ma udziału w zawodach” nie słabnie:
+    # konto bez tej daty nie przechodzi aktywacji, więc nie zaloguje się i niczego nie odda.
+    gdpr_consent_at = models.DateTimeField("zgoda RODO z dnia", null=True, blank=True)
     #: Akceptacja regulaminu. Nullowalne wyłącznie ze względu na profile sprzed wprowadzenia
     #: zestawu zgód – od tej zmiany żadna droga rejestracji nie przepuszcza pustej wartości.
     terms_accepted_at = models.DateTimeField("regulamin zaakceptowany", null=True, blank=True)
@@ -287,6 +293,17 @@ class Participant(models.Model):
     # startu. Panel opiekuna dopasowuje uczniów po znormalizowanym adresie
     # (``apps.accounts.supervisors``), a pusty adres nie wiąże z nikim.
     supervisor_email = models.EmailField("adres opiekuna szkolnego", blank=True, db_index=True)
+    # --- import listy uczniów przez opiekuna albo koordynatora (apps.accounts.bulk_registration) ---
+    # Znacznik pochodzenia profilu, a nie stanu: wypełniony znaczy „to konto założył nauczyciel
+    # z listy klasowej, a nie uczeń sam z siebie”. Zostaje **na zawsze**, także po aktywacji, bo
+    # odpowiada na pytanie koordynatora „skąd się tu wzięło dwadzieścia kont z jednej szkoły
+    # w jednej minucie” (odznaka „z importu” na liście kont). Stanu konta nie duplikuje: „zaproszony
+    # czy aktywny” rozstrzyga ``User.email_verified_at``, tak samo jak przy zwykłej rejestracji.
+    invited_at = models.DateTimeField("zaproszony z importu", null=True, blank=True, db_index=True)
+    #: Kiedy ostatnio poszedł list z zaproszeniem. Osobne pole od ``invited_at``, bo zaproszenie
+    #: wolno wysłać ponownie (link żyje 14 dni, a uczeń bywa na wakacjach) – bez tego panel
+    #: opiekuna nie umiałby odpowiedzieć „wysłano dziś czy trzy tygodnie temu”.
+    invitation_sent_at = models.DateTimeField("zaproszenie wysłane", null=True, blank=True)
 
     class Meta:
         verbose_name = "uczestnik"
@@ -653,3 +670,12 @@ class MessageBroadcast(models.Model):
 
     def __str__(self) -> str:
         return f"{self.subject} → {self.recipient_count} odbiorców"
+
+
+# Drugi składnik logowania (TOTP) mieszka razem z resztą swojej logiki w ``apps.accounts.twofactor``
+# – model, protokół, warstwa wymuszająca i czynności w jednym pliku, bo czyta się je wyłącznie
+# razem. Django rejestruje modele wtedy, gdy importuje ``models`` aplikacji, więc bez tej linijki
+# ``makemigrations`` nie zobaczyłby tabeli. Import stoi na końcu pliku: ``twofactor`` nie sięga
+# do niczego z tego modułu w czasie importu (klucz obcy podaje przez ``settings.AUTH_USER_MODEL``),
+# ale kolejność i tak ma być jednoznaczna.
+from .twofactor import TwoFactorDevice  # noqa: E402,F401  (import dla rejestracji modelu)

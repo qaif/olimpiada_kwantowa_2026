@@ -14,8 +14,11 @@ from .models import School
 
 @admin.register(School)
 class SchoolAdmin(admin.ModelAdmin):
-    list_display = ("name", "city", "kind", "voivodeship", "is_public", "is_active", "rspo")
+    # ``city_parent`` obok ``city``, bo w pięciu największych miastach różnią się i to właśnie ta
+    # różnica bywa przyczyną zgłoszenia („nie widzę swojej szkoły w Warszawie”): kolumna pokazuje
+    # od razu, do jakiej gminy wiersz został przypisany.
+    list_display = ("name", "city", "city_parent", "kind", "voivodeship", "is_public", "is_active", "rspo")
     list_filter = ("kind", "voivodeship", "is_active", "is_public")
-    search_fields = ("name", "city", "rspo")
+    search_fields = ("name", "city", "city_parent", "rspo")
     readonly_fields = ("search_text", "source_year")
     ordering = ("name", "id")

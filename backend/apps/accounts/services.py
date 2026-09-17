@@ -316,6 +316,13 @@ def register_participant(
     )
     record_consents(participant, given, source=source, request=request)
     send_activation_email(user, request=request)
+    # Zdarzenie dla systemów zewnętrznych (``apps.integrations``). Wychodzi z niego kod publiczny,
+    # województwo i klasa – nigdy imię, nazwisko ani adres. Edycją zdarzenia jest edycja bieżąca:
+    # konto zakłada się **do olimpiady**, a nie do etapu, i to ona wyznacza rocznik zgłoszenia.
+    from apps.competitions.services import current_edition
+    from apps.integrations.events import registration_created
+
+    registration_created(participant, current_edition())
     return participant
 
 

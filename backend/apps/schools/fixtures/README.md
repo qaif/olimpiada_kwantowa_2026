@@ -27,6 +27,18 @@ Z wykazu 2025/2026 daje to **8 118 szkół**. Nazwy są przepisane dosłownie, w
 stoją w rejestrze – zamiana na zapis mieszany wymagałaby słownika wyjątków (patronowie, skróty,
 liczebniki rzymskie) i zapisywałaby uczestnikom nazwy, których szkoły nie używają.
 
+## Miejscowość: co jest w pliku, a co powstaje przy wgrywaniu
+
+W pliku stoi `city` **dokładnie tak, jak w wykazie**, razem z jego osobliwością: pięć największych
+miast jest w nim rozbitych na dzielnice (`Wrocław-Krzyki`, `Kraków-Nowa Huta`…), a Warszawa
+figuruje **wyłącznie** pod nazwami dzielnic (`Śródmieście`, `Wola`, `Mokotów`… – napisu „Warszawa”
+nie ma tu ani razu). Plik tego nie poprawia, bo jest wierną kopią źródła i ma się dać porównać
+z nowym wykazem linijka po linijce.
+
+Gminę (`School.city_parent`, po niej chodzi krok „Miejscowość” w rejestracji) wylicza dopiero
+`seed_schools` – regułą z `apps/schools/normalise.py`, tą samą, której używa `School.save()`
+i backfill w migracji `schools.0003`. Na wykazie 2025/2026 dotyczy to **903 wierszy**.
+
 ## Odświeżenie (raz na rok szkolny)
 
 ```bash

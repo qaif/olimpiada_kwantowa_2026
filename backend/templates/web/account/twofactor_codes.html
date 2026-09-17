@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Kody zapasowe pokazywane dokładnie raz, zaraz po włączeniu drugiego składnika. W bazie są
+  wyłącznie ich skróty, więc tej strony nie da się otworzyć drugi raz – i to jest cecha, a nie
+  niedoróbka. Stąd ton całej strony: „zapisz je teraz”, a nie „możesz je później znaleźć w…”.
+{% endcomment %}
+{% block title %}{% translate "Kody zapasowe" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Twoje konto" %}</span>
+  <h1>{% translate "Kody zapasowe" %}</h1>
+  <p class="lead">{% translate "Drugi składnik jest włączony. To jest jedyny moment, w którym widzisz te kody." %}</p>
+</div>
+
+<section class="section">
+  <div class="card">
+    <p class="alert alert--warning">{% translate "Wydrukuj tę stronę albo przepisz kody i schowaj je poza telefonem. Bez telefonu i bez kodu zapasowego jedyną drogą powrotu na konto jest prośba do organizatora." %}</p>
+    <ul class="codes">
+      {% for code in codes %}<li><code>{{ code }}</code></li>{% endfor %}
+    </ul>
+    <p class="hint">{% translate "Każdy kod działa jeden raz. Wpisuje się go w to samo pole, co kod z aplikacji." %}</p>
+    <div class="actions">
+      <a class="btn btn--primary" href="{% url 'web:twofactor-setup' %}">{% translate "Zapisałem kody" %}</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

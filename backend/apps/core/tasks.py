@@ -1,8 +1,9 @@
 """Zadania Celery wspólne dla całego systemu.
 
-Dwa: wysyłka listu i puls kolejki. Pierwsze idzie na kolejkę ``mail`` (``CELERY_TASK_ROUTES``
-w ``config/settings/base.py``), którą worker konsumuje razem z ``default`` i ``scan``; drugie
-na kolejkę domyślną, bo jego sensem jest właśnie sprawdzenie tej domyślnej drogi.
+Trzy: wysyłka listu, puls kolejki i przebieg watchdoga alertów. Pierwsze idzie na kolejkę ``mail``
+(``CELERY_TASK_ROUTES`` w ``config/settings/base.py``), którą worker konsumuje razem z ``default``
+i ``scan``; dwa pozostałe na kolejkę domyślną – sensem pulsu jest właśnie sprawdzenie tej domyślnej
+drogi, a watchdog nie może zależeć od kolejki, o której awarii ma donieść.
 
 Dlaczego poczta w ogóle jest zadaniem, a nie ``send_mail`` w środku żądania: MTA bywa wolny albo
 nieosiągalny, a wysyłka w żądaniu HTTP zamienia wtedy udaną operację (zapis na rozmowę) w błąd
@@ -105,3 +106,27 @@ def heartbeat() -> str:
     cache.set(HEARTBEAT_CACHE_KEY, stamp, HEARTBEAT_TTL_SECONDS)
     logger.debug("Puls workera: %s", stamp)
     return stamp
+
+
+@shared_task(name="apps.core.tasks.alerts_check")
+def alerts_check() -> int:
+    """Przebieg watchdoga: ocena stanu serwisu i listy do dyżurnych. Zwraca liczbę wysłanych listów.
+
+    Reguły są w ``apps.core.alerts`` – tutaj jest wyłącznie opakowanie w zadanie, żeby przebieg
+    miał kto wywołać (``CELERY_BEAT_SCHEDULE``, co pięć minut). Ten podział pozwala testować
+    regułę bez Celery i uruchomić ją ręcznie z ``manage.py shell`` w trakcie awarii.
+
+    Zadanie **nie ma ponowień** i to jest świadome: kolejny przebieg i tak przyjdzie za pięć
+    minut, a ponawiane zadanie alertowe potrafi zdublować list dokładnie wtedy, gdy skrzynka
+    dyżurnego jest najbardziej potrzebna. Wyjątek zostaje w logu workera.
+
+    Uwaga na kolejkę: zadanie jedzie kolejką ``default`` (nie ``mail``), choć wysyła listy.
+    Wysyłka jest tu synchroniczna właśnie po to, żeby informacja o zapchanej kolejce ``mail``
+    nie czekała w kolejce ``mail`` – patrz docstring ``apps.core.alerts``.
+    """
+    from apps.core.alerts import run
+
+    sent = run()
+    if sent:
+        logger.warning("Watchdog wysłał %s alertów.", sent)
+    return sent

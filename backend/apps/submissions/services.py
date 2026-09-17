@@ -175,6 +175,11 @@ def create_submission(
     # Potwierdzenie przyjęcia pracy. Treść listu należy do ``notifications``, a nie tutaj – ten
     # serwis ma wiedzieć, **że** uczestnik dostaje potwierdzenie, a nie co w nim stoi.
     notify_submission_received(submission, submission_file)
+    # Zdarzenie dla systemów zewnętrznych (``apps.integrations``). W ładunku jest metryczka pracy,
+    # nigdy plik ani nazwa pliku – ta bywa nazwiskiem („Kowalski_zad1.pdf”).
+    from apps.integrations.events import submission_received as emit_submission_received
+
+    emit_submission_received(submission)
     return submission
 
 
@@ -498,6 +503,10 @@ def close_stage_now(stage: Stage, *, actor=None, request=None) -> int:
     audit(actor, "stage.closed", locked_stage, {"locked": locked, "manual": True}, request=request)
     logger.info("Etap %s zamknięty ręcznie, zablokowanych rozwiązań: %s", locked_stage.pk, locked)
     stage.closed_at = locked_stage.closed_at
+    # Zdarzenie dla systemów zewnętrznych (``apps.integrations``): doręczenia idą po commicie.
+    from apps.integrations.events import stage_closed as emit_stage_closed
+
+    emit_stage_closed(locked_stage, locked=locked, manual=True)
     return locked
 
 
@@ -516,11 +525,16 @@ def close_due_stages(now=None) -> list[int]:
     """Zamyka wszystkie etapy, którym minął deadline. Zwraca listę id zamkniętych etapów."""
     now = now or timezone.now()
     closed: list[int] = []
+    from apps.integrations.events import stage_closed as emit_stage_closed
+
     for stage in due_stages(now):
         with transaction.atomic():
             locked = close_stage(stage)
             stage.closed_at = now
             stage.save(update_fields=["closed_at"])
+            # To samo zdarzenie, co przy zamknięciu ręcznym – zamknięcie z zegara nie jest dla
+            # systemu zewnętrznego innym faktem, więc nie może być innym powiadomieniem.
+            emit_stage_closed(stage, locked=locked, manual=False)
         logger.info("Etap %s zamknięty, zablokowanych rozwiązań: %s", stage.pk, locked)
         closed.append(stage.pk)
     return closed

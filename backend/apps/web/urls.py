@@ -9,7 +9,9 @@ from .views import (
     coordinator,
     coordinator_accounts,
     coordinator_announcements,
+    coordinator_certificates,
     coordinator_events,
+    coordinator_integrations,
     coordinator_issues,
     coordinator_members,
     coordinator_messages,
@@ -21,16 +23,20 @@ from .views import (
     coordinator_rodo,
     coordinator_stages,
     coordinator_support,
+    coordinator_workshops,
     guardian,
+    invite,
     participant,
     participant_extras,
     participant_tools,
     public,
+    quiz,
     reviewer,
     reviewer_extras,
     reviewer_tools,
     supervisor,
     support,
+    twofactor,
 )
 
 app_name = "web"
@@ -40,6 +46,10 @@ urlpatterns = [
     # Korzenia ``/`` tu nie ma: od T-09 obsługuje go ``cms.HomePage`` (Wagtail catch-all na końcu
     # ``config/urls.py``). Wszystkie pozostałe ścieżki ``apps.web`` są dopasowywane wcześniej.
     path("login/", public.LoginView.as_view(), name="login"),
+    # Drugi krok logowania (TOTP). Adres stoi przy logowaniu, a nie przy koncie, bo to jest
+    # **ciąg dalszy logowania**: sesja, która tu trafia, nie może jeszcze nic innego (patrz
+    # ``apps.accounts.twofactor.TwoFactorMiddleware``).
+    path("login/2fa/", twofactor.TwoFactorVerifyView.as_view(), name="twofactor-verify"),
     path("logout/", public.LogoutView.as_view(), name="logout"),
     # Reset hasła. Adres formularza nowego hasła jest krótki (``/reset/…``) celowo: token trafia do
     # listu, a długie adresy bywają łamane przez klienty pocztowe w połowie i przestają być klikalne.
@@ -69,6 +79,16 @@ urlpatterns = [
     # wziąć za token (ta sama pułapka, co przy ``activate/resend/`` wyżej).
     path("zgoda/dziekujemy/", guardian.GuardianConsentDoneView.as_view(), name="guardian-consent-done"),
     path("zgoda/<str:token>/", guardian.GuardianConsentView.as_view(), name="guardian-consent"),
+    # Przyjęcie zaproszenia wystawionego przez nauczyciela (``apps.accounts.bulk_registration``).
+    # Ta sama zasada, co wyżej: adres krótki i polski, bo trafia do listu czytanego przez ucznia,
+    # a ekran podziękowania stoi **przed** wzorcem z tokenem – inaczej „dziekujemy” dałoby się
+    # wziąć za token.
+    path(
+        "zaproszenie/dziekujemy/",
+        invite.StudentInviteDoneView.as_view(),
+        name="student-invite-done",
+    ),
+    path("zaproszenie/<str:token>/", invite.StudentInviteView.as_view(), name="student-invite"),
     # --- własne konto (wszystkie role) -------------------------------------------------------
     # ``/me/profile/`` jest przy panelu uczestnika, bo edytuje **profil uczestnika**;
     # ``/account/…`` obsługuje to, co ma każde konto: nazwisko, adres e-mail, usunięcie konta.
@@ -85,6 +105,12 @@ urlpatterns = [
     path("account/export/", account.AccountExportView.as_view(), name="account-export"),
     path("account/delete/", account.AccountDeleteView.as_view(), name="account-delete"),
     path("account/deleted/", account.AccountDeletedView.as_view(), name="account-deleted"),
+    # Drugi składnik logowania: konfiguracja, kody zapasowe (pokazywane raz) i wyłączenie.
+    # ``codes/`` i ``disable/`` stoją po adresie nadrzędnym wyłącznie dla czytelności – to są
+    # stałe segmenty, więc kolejność niczego tu nie rozstrzyga.
+    path("account/2fa/", twofactor.TwoFactorSetupView.as_view(), name="twofactor-setup"),
+    path("account/2fa/codes/", twofactor.TwoFactorCodesView.as_view(), name="twofactor-codes"),
+    path("account/2fa/disable/", twofactor.TwoFactorDisableView.as_view(), name="twofactor-disable"),
     # Język interfejsu i tryb wysokiego kontrastu. Bez logowania, bo to ustawienie
     # **przeglądającego**, a nie uprawnienie konta – gość czytający regulamin ma prawo włączyć
     # kontrast tak samo jak zalogowany uczestnik (``apps.accounts.preferences``).
@@ -133,6 +159,18 @@ urlpatterns = [
         participant.InterviewCancelView.as_view(),
         name="interview-cancel",
     ),
+    # Test online. Wejście jest **po etapie** (uczestnik przychodzi z zakładki „Zadania”, gdzie
+    # widzi etap, a nie numer testu), a wszystko dalej – po identyfikatorze **podejścia**: to ono
+    # jest przedmiotem tych ekranów i to ono ma właściciela, którego widok sprawdza. Adres
+    # z identyfikatorem etapu w dalszych krokach byłby drugą drogą do tych samych danych i drugim
+    # miejscem, w którym trzeba pamiętać o filtrze „to moje podejście”.
+    path("me/stages/<int:stage_id>/test/", quiz.QuizStartView.as_view(), name="quiz-start"),
+    path("me/test/<int:attempt_id>/", quiz.QuizAttemptView.as_view(), name="quiz-attempt"),
+    # Autozapis. Osobny adres, a nie ten sam z nagłówkiem „to jest AJAX”: odpowiada JSON-em,
+    # przyjmuje wyłącznie POST i nie ma wersji do przeglądania – trzy różnice, które w jednym
+    # widoku byłyby trzema rozgałęzieniami w środku obsługi zawodów.
+    path("me/test/<int:attempt_id>/zapis/", quiz.QuizAutosaveView.as_view(), name="quiz-autosave"),
+    path("me/test/<int:attempt_id>/wynik/", quiz.QuizResultView.as_view(), name="quiz-result"),
     # Zgoda na publikację nazwiska – jedyna zgoda, którą uczestnik zmienia sam w panelu.
     path(
         "me/consents/publish-name/",
@@ -189,6 +227,17 @@ urlpatterns = [
         "supervisor/certificates/<int:pk>/",
         supervisor.SupervisorCertificateDownloadView.as_view(),
         name="supervisor-certificate-download",
+    ),
+    # Import listy uczniów i wynikająca z niego lista „kto ma już konto”. Stoją **przed** wzorcem
+    # z identyfikatorem ucznia, bo „import” i „students” są zwykłymi segmentami i bez tej
+    # kolejności… nic złego by się nie stało (dalej jest ``<int:pk>``), ale czyta się to od
+    # ogólnego do szczegółowego, tak jak resztę tego pliku.
+    path("supervisor/import/", supervisor.SupervisorImportView.as_view(), name="supervisor-import"),
+    path("supervisor/students/", supervisor.SupervisorStudentsView.as_view(), name="supervisor-students"),
+    path(
+        "supervisor/students/<int:pk>/resend/",
+        supervisor.ResendInvitationView.as_view(),
+        name="supervisor-resend-invitation",
     ),
     # Publiczna weryfikacja dokumentu po kodzie z papieru. Adres jest po polsku i krótki, bo
     # bywa przepisywany z dyplomu ręcznie; nie wydaje danych osobowych bez zgody na publikację.
@@ -316,6 +365,60 @@ urlpatterns = [
         "coordinator/stages/<int:stage_id>/problems/",
         coordinator_stages.StageProblemsView.as_view(),
         name="coordinator-stage-problems",
+    ),
+    # Test online etapu. Cała gałąź stoi pod ``/quiz/``, bo to jeden przedmiot pracy w czterech
+    # widokach (ustawienia, pytania, import, wyniki) – tak samo jak ``/problems/`` wyżej trzyma
+    # zadania. ``questions/new/`` przed wzorcem z identyfikatorem: ``<int:…>`` i tak nie dopasuje
+    # słowa, ale kolejność mówi, co jest wejściem, a co szczegółem.
+    path(
+        "coordinator/stages/<int:stage_id>/quiz/",
+        quiz.QuizSettingsView.as_view(),
+        name="coordinator-stage-quiz",
+    ),
+    path(
+        "coordinator/stages/<int:stage_id>/quiz/questions/",
+        quiz.QuizQuestionsView.as_view(),
+        name="coordinator-stage-quiz-questions",
+    ),
+    path(
+        "coordinator/stages/<int:stage_id>/quiz/questions/new/",
+        quiz.QuizQuestionFormView.as_view(),
+        name="coordinator-stage-quiz-question-new",
+    ),
+    path(
+        "coordinator/stages/<int:stage_id>/quiz/questions/<int:question_id>/",
+        quiz.QuizQuestionFormView.as_view(),
+        name="coordinator-stage-quiz-question-edit",
+    ),
+    path(
+        "coordinator/stages/<int:stage_id>/quiz/questions/<int:question_id>/delete/",
+        quiz.QuizQuestionDeleteView.as_view(),
+        name="coordinator-stage-quiz-question-delete",
+    ),
+    path(
+        "coordinator/stages/<int:stage_id>/quiz/import/",
+        quiz.QuizImportView.as_view(),
+        name="coordinator-stage-quiz-import",
+    ),
+    path(
+        "coordinator/stages/<int:stage_id>/quiz/preview/",
+        quiz.QuizPreviewView.as_view(),
+        name="coordinator-stage-quiz-preview",
+    ),
+    path(
+        "coordinator/stages/<int:stage_id>/quiz/results/",
+        quiz.QuizResultsView.as_view(),
+        name="coordinator-stage-quiz-results",
+    ),
+    path(
+        "coordinator/stages/<int:stage_id>/quiz/results/export/",
+        quiz.QuizResultsExportView.as_view(),
+        name="coordinator-stage-quiz-export",
+    ),
+    path(
+        "coordinator/stages/<int:stage_id>/quiz/results/regrade/",
+        quiz.QuizRegradeView.as_view(),
+        name="coordinator-stage-quiz-regrade",
     ),
     # Paczka ZIP z pracami etapu: GET – całość albo jedno zadanie (``?problem=``), POST – wiersze
     # zaznaczone w tabeli przydziałów. Jeden adres, bo to jedna czynność w trzech rozmiarach.
@@ -494,6 +597,15 @@ urlpatterns = [
         coordinator_accounts.CoordinatorAccountsView.as_view(),
         name="coordinator-accounts",
     ),
+    # Hurtowe zaproszenie uczniów z listy – ten sam import, co u opiekuna, plus kolumna
+    # „e-mail opiekuna szkolnego”. Stoi **przed** wzorcem z identyfikatorem konta: „import” jest
+    # napisem, a ``<int:pk>`` liczbą, więc kolizji nie ma, ale kolejność od ogólnego do
+    # szczegółowego obowiązuje w tym pliku wszędzie.
+    path(
+        "coordinator/accounts/import/",
+        supervisor.CoordinatorStudentImportView.as_view(),
+        name="coordinator-accounts-import",
+    ),
     path(
         "coordinator/accounts/<int:pk>/",
         coordinator_accounts.CoordinatorAccountEditView.as_view(),
@@ -522,6 +634,14 @@ urlpatterns = [
         "coordinator/accounts/<int:pk>/resend-activation/",
         coordinator.ResendActivationView.as_view(),
         name="coordinator-account-resend",
+    ),
+    # „Zgubiłem telefon z aplikacją” – jedyna droga powrotu dla członka komisji, który nie ma już
+    # ani urządzenia, ani kodów zapasowych. POST, bo zdjęcie komuś zabezpieczenia jest decyzją
+    # organizatora i ma zostawić w audycie jego nazwisko (``2fa.reset``).
+    path(
+        "coordinator/accounts/<int:pk>/2fa-reset/",
+        coordinator_accounts.CoordinatorTwoFactorResetView.as_view(),
+        name="coordinator-account-2fa-reset",
     ),
     # Wyniki etapu: stan publikacji plus dwa przyciski. Wejście na adres niczego nie przelicza –
     # przeliczenie zapisuje sumy punktów wpisów, więc jest czynnością (POST), a nie otwarciem strony.
@@ -622,6 +742,65 @@ urlpatterns = [
         coordinator_quality.CertificateDownloadView.as_view(),
         name="coordinator-certificate-download",
     ),
+    # Szablony graficzne dokumentów. Gałąź ``certificates/templates/`` stoi obok adresu
+    # z identyfikatorem dokumentu i nie może z nim kolidować: ``<int:pk>`` nie dopasuje słowa.
+    path(
+        "coordinator/certificates/templates/",
+        coordinator_certificates.CertificateTemplateListView.as_view(),
+        name="coordinator-certificate-templates",
+    ),
+    path(
+        "coordinator/certificates/templates/new/",
+        coordinator_certificates.CertificateTemplateFormView.as_view(),
+        name="coordinator-certificate-template-new",
+    ),
+    path(
+        "coordinator/certificates/templates/<int:pk>/",
+        coordinator_certificates.CertificateTemplateFormView.as_view(),
+        name="coordinator-certificate-template-edit",
+    ),
+    path(
+        "coordinator/certificates/templates/<int:pk>/delete/",
+        coordinator_certificates.CertificateTemplateDeleteView.as_view(),
+        name="coordinator-certificate-template-delete",
+    ),
+    path(
+        "coordinator/certificates/templates/<int:pk>/default/",
+        coordinator_certificates.CertificateTemplateDefaultView.as_view(),
+        name="coordinator-certificate-template-default",
+    ),
+    path(
+        "coordinator/certificates/templates/<int:pk>/preview/",
+        coordinator_certificates.CertificateTemplatePreviewView.as_view(),
+        name="coordinator-certificate-template-preview",
+    ),
+    # Opiekunowie szkolni: zaświadczenia za pracę z uczniami w **edycji**, nie w etapie – stąd
+    # własna gałąź adresów, a nie kolejny ekran pod ``stages/<id>/``.
+    path(
+        "coordinator/supervisors/",
+        coordinator_certificates.CoordinatorSupervisorsView.as_view(),
+        name="coordinator-supervisors",
+    ),
+    path(
+        "coordinator/supervisors/certificates/",
+        coordinator_certificates.IssueSupervisorCertificatesView.as_view(),
+        name="coordinator-supervisor-certificates",
+    ),
+    path(
+        "coordinator/supervisors/<int:pk>/certificate/",
+        coordinator_certificates.IssueSupervisorCertificateView.as_view(),
+        name="coordinator-supervisor-certificate",
+    ),
+    path(
+        "coordinator/workshops/attendance/",
+        coordinator_workshops.WorkshopAttendanceView.as_view(),
+        name="coordinator-workshop-attendance",
+    ),
+    path(
+        "coordinator/workshops/certificates/",
+        coordinator_workshops.IssueWorkshopCertificatesView.as_view(),
+        name="coordinator-workshop-certificates",
+    ),
     path(
         "coordinator/messages/",
         coordinator_messages.CoordinatorMessagesView.as_view(),
@@ -687,10 +866,74 @@ urlpatterns = [
     # (nieznana daje 404). Etap dla eksportów etapowych jedzie jako ``?stage=<id>``, bo ten sam
     # widok obsługuje też eksport całej edycji, który etapu nie ma.
     path("coordinator/export/", coordinator_reports.ExportIndexView.as_view(), name="coordinator-export"),
+    # Eksporty na zewnątrz (kuratorium, protokół, zrzut edycji) – widoki w
+    # ``coordinator_integrations``, bo mają innego odbiorcę niż arkusze robocze panelu, ale adresy
+    # tutaj, czyli tam, gdzie koordynator szuka plików. Kuratorium **musi** stać przed wzorcem
+    # ``<kind>/<fmt>/`` niżej: tamten dopasowałby „kuratorium/csv/” jako nieznany rodzaj eksportu
+    # i odpowiedział 404. Protokół i zrzut edycji mają po jednym segmencie, więc nie kolidują.
+    path(
+        "coordinator/export/kuratorium/<str:fmt>/",
+        coordinator_integrations.KuratoriumExportView.as_view(),
+        name="coordinator-export-kuratorium",
+    ),
+    path(
+        "coordinator/export/protocol/",
+        coordinator_integrations.StageProtocolView.as_view(),
+        name="coordinator-export-protocol",
+    ),
+    path(
+        "coordinator/export/edition/",
+        coordinator_integrations.EditionJsonExportView.as_view(),
+        name="coordinator-export-edition-json",
+    ),
     path(
         "coordinator/export/<str:kind>/<str:fmt>/",
         coordinator_reports.ExportDownloadView.as_view(),
         name="coordinator-export-download",
+    ),
+    # --- integracje (klucze API, webhooki) ---------------------------------------------------
+    # Jeden ekran i po jednym adresie na czynność. Każda czynność jest POST-em pod własny adres,
+    # a nie jednym adresem z polem „akcja”: rozróżnianie po nazwie przycisku zależy od tego, czy
+    # przeglądarka go przyśle, a przy wysyłce klawiaturą nie zawsze przysyła.
+    path(
+        "coordinator/integrations/",
+        coordinator_integrations.IntegrationsView.as_view(),
+        name="coordinator-integrations",
+    ),
+    path(
+        "coordinator/integrations/keys/",
+        coordinator_integrations.ApiKeyCreateView.as_view(),
+        name="coordinator-integrations-key-create",
+    ),
+    path(
+        "coordinator/integrations/keys/<int:pk>/revoke/",
+        coordinator_integrations.ApiKeyRevokeView.as_view(),
+        name="coordinator-integrations-key-revoke",
+    ),
+    path(
+        "coordinator/integrations/webhooks/",
+        coordinator_integrations.WebhookCreateView.as_view(),
+        name="coordinator-integrations-webhook-create",
+    ),
+    path(
+        "coordinator/integrations/webhooks/<int:pk>/update/",
+        coordinator_integrations.WebhookUpdateView.as_view(),
+        name="coordinator-integrations-webhook-update",
+    ),
+    path(
+        "coordinator/integrations/webhooks/<int:pk>/delete/",
+        coordinator_integrations.WebhookDeleteView.as_view(),
+        name="coordinator-integrations-webhook-delete",
+    ),
+    path(
+        "coordinator/integrations/webhooks/<int:pk>/test/",
+        coordinator_integrations.WebhookTestView.as_view(),
+        name="coordinator-integrations-webhook-test",
+    ),
+    path(
+        "coordinator/integrations/deliveries/<int:pk>/resend/",
+        coordinator_integrations.DeliveryResendView.as_view(),
+        name="coordinator-integrations-delivery-resend",
     ),
     # --- komisja odwoławcza ------------------------------------------------------------------
     path("appeals/", appeals.AppealsQueueView.as_view(), name="appeals"),

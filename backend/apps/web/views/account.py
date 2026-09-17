@@ -80,6 +80,22 @@ class ServiceFormMixin:
         return super().form_valid(form)
 
 
+def two_factor_section_visible() -> bool:
+    """Czy pokazać na ekranie profilu sekcję „Logowanie dwuskładnikowe” (``TWO_FACTOR_ENABLED``).
+
+    Oba widoki profilu renderują ten sam szablon, więc obie drogi muszą podać tę samą wartość –
+    stąd jedna funkcja, a nie dwa odczyty ustawienia. Przy wyłączonej funkcji sekcja znika razem
+    z odnośnikiem: adres ``/account/2fa/`` odpowiada wtedy 404, a odnośnik prowadzący donikąd
+    jest gorszy od braku odnośnika.
+
+    Import lokalny: ``apps.accounts.twofactor`` wciąga ``cryptography``, a ten moduł jest
+    importowany przy każdym starcie procesu razem z mapą adresów.
+    """
+    from apps.accounts.twofactor import is_enabled
+
+    return is_enabled()
+
+
 class ParticipantProfileView(ParticipantRequiredMixin, ServiceFormMixin, FormView):
     """``/me/profile/`` – edycja własnych danych uczestnika."""
 
@@ -97,6 +113,7 @@ class ParticipantProfileView(ParticipantRequiredMixin, ServiceFormMixin, FormVie
         # Formularz zmiany adresu stoi na tej samej stronie, ale wysyła się pod własny adres:
         # to osobna operacja z osobnym potwierdzeniem, a nie kolejne pole tych danych.
         context.setdefault("email_form", EmailChangeForm())
+        context["two_factor_enabled"] = two_factor_section_visible()
         return context
 
     def call_service(self, form):
@@ -129,6 +146,7 @@ class AccountProfileView(LoginRequiredMixin, ServiceFormMixin, FormView):
         context = super().get_context_data(**kwargs)
         context["committee"] = getattr(self.request.user, "committee_member", None)
         context.setdefault("email_form", EmailChangeForm())
+        context["two_factor_enabled"] = two_factor_section_visible()
         return context
 
     def call_service(self, form):

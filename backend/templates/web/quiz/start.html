@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% load static i18n web_extras %}
+{% comment %}
+  Strona startowa testu: zasady, czas, liczba podejść – i dopiero potem przycisk.
+
+  Rozpoczęcie jest **formularzem POST**, a nie odnośnikiem, i to nie jest formalność: jedno wejście
+  uruchamia licznik i zużywa podejście, a GET musi być bezpieczny. Gdyby był odnośnikiem, zawody
+  potrafiłby komuś rozpocząć podgląd linku w komunikatorze albo prefetch przeglądarki.
+{% endcomment %}
+{% block title %}{{ quiz.title }} – {{ stage.display_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Panel uczestnika" %}</span>
+  <h1>{{ quiz.title }}</h1>
+  <p class="lead">{{ stage.display_name }} – {{ stage.edition.year_label }}</p>
+  <p class="actions">
+    <a class="btn btn--secondary btn--small" href="{% url 'web:me' %}">{% translate "Wróć do panelu" %}</a>
+  </p>
+</div>
+
+<section class="section">
+  <div class="card card--accent">
+    <h2 class="mt-0 card__title">{% translate "Zasady tego testu" %}</h2>
+    <dl class="meta-list">
+      <dt>{% translate "Czas jednego podejścia" %}</dt>
+      <dd>{% blocktranslate trimmed with minutes=quiz.duration_minutes %}{{ minutes }} min{% endblocktranslate %}</dd>
+      <dt>{% translate "Liczba pytań" %}</dt>
+      <dd>{{ question_count }}</dd>
+      <dt>{% translate "Pozostałe podejścia" %}</dt>
+      <dd>{% blocktranslate trimmed with left=attempts_left total=quiz.attempts_allowed %}{{ left }} z {{ total }}{% endblocktranslate %}</dd>
+      <dt>{% translate "Test otwarty" %}</dt>
+      <dd>{{ opens_at|local_datetime }} – {{ closes_at|local_datetime }}</dd>
+    </dl>
+    {% comment %}
+      Cztery zdania, które muszą paść **przed** startem, bo po starcie licznik już biegnie.
+      Punkty ujemne wymieniamy tylko wtedy, gdy w tym teście w ogóle są – reguła, która nie
+      obowiązuje, przeczytana przed zawodami, kosztuje uwagę i niepokój bez powodu.
+    {% endcomment %}
+    <ul class="hint">
+      <li>{% translate "Odpowiedzi zapisują się same, co kilkanaście sekund i po każdej zmianie. Zamknięcie karty przez pomyłkę nie kasuje tego, co już zapisane." %}</li>
+      <li>{% translate "Czas liczy serwer. Gdy minie, przyjmujemy to, co zdążyło się zapisać – i tak samo liczymy punkty." %}</li>
+      <li>{% translate "Pytania i warianty odpowiedzi możesz zobaczyć w innej kolejności niż inni – to normalne." %}</li>
+      <li>{% translate "Test działa także bez JavaScriptu: wtedy odpowiedzi wysyła dopiero przycisk „Zakończ test”." %}</li>
+    </ul>
+    {% if quiz.instructions %}
+      <div class="card card--quiet">
+        <h3 class="mt-0">{% translate "Instrukcja organizatora" %}</h3>
+        <p>{{ quiz.instructions|linebreaksbr }}</p>
+      </div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section">
+  <div class="card">
+    {% if active %}
+      <p>{% translate "Masz rozpoczęte podejście – wróć do niego, zamiast zaczynać od nowa." %}</p>
+      <p><a class="btn btn--accent" href="{% url 'web:quiz-attempt' active.pk %}">{% translate "Wróć do testu" %}</a></p>
+    {% elif not is_open %}
+      <p class="msg msg-warning">{% blocktranslate trimmed with opens=opens_at|local_datetime closes=closes_at|local_datetime %}
+        Test jest dostępny od {{ opens }} do {{ closes }}.
+      {% endblocktranslate %}</p>
+    {% elif attempts_left <= 0 %}
+      <p class="msg msg-warning">{% translate "Wykorzystano wszystkie podejścia do tego testu." %}</p>
+    {% else %}
+      <form method="post">
+        {% csrf_token %}
+        <p>{% blocktranslate trimmed with minutes=quiz.duration_minutes %}
+          Po kliknięciu licznik rusza i nie da się go zatrzymać. Masz {{ minutes }} min.
+        {% endblocktranslate %}</p>
+        <button type="submit" class="btn btn--accent"
+                data-confirm="{% translate 'Rozpocząć podejście? Licznik ruszy natychmiast.' %}">{% translate "Rozpocznij test" %}</button>
+      </form>
+    {% endif %}
+  </div>
+</section>
+
+{% if previous %}
+  <section class="section">
+    <h2>{% translate "Twoje zakończone podejścia" %}</h2>
+    <div class="scroll">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">{% translate "Rozpoczęte" %}</th>
+            <th scope="col">{% translate "Zakończone" %}</th>
+            <th scope="col">{% translate "Status" %}</th>
+            <th scope="col">{% translate "Wynik" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for attempt in previous %}
+            <tr>
+              <th scope="row">{{ attempt.started_at|local_datetime }}</th>
+              <td>{{ attempt.submitted_at|local_datetime }}</td>
+              <td>{{ attempt.get_status_display }}</td>
+              <td class="num">
+                {% comment %}
+                  O tym, czy wolno pokazać wynik, rozstrzyga jedna funkcja serwisu
+                  (``may_show_result``) – ta sama, co na stronie podsumowania. Szablon **nie**
+                  powtarza tu reguły ``show_results_after`` własnym warunkiem: dwie kopie tej
+                  reguły to dwie drogi, którymi wynik zawodów mógłby wyciec przed ogłoszeniem.
+                {% endcomment %}
+                <a href="{% url 'web:quiz-result' attempt.pk %}">{% translate "podsumowanie" %}</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endif %}
+{% endblock %}
+{% block scripts %}{{ block.super }}
+  {# Potwierdzenie startu. Bez skryptu przycisk działa normalnie – tylko bez pytania. #}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/quiz.js' %}"></script>
+{% endblock %}

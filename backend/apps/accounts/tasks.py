@@ -43,13 +43,22 @@ logger = logging.getLogger(__name__)
 
 
 def unactivated_accounts(now=None):
-    """Konta przeterminowane: nieaktywne, bez potwierdzenia adresu, starsze niż okno aktywacji."""
+    """Konta przeterminowane: nieaktywne, bez potwierdzenia adresu, starsze niż okno aktywacji.
+
+    Poza zasięgiem kosiarki zostają konta **z importu listy uczniów**
+    (``apps.accounts.bulk_registration``, ``Participant.invited_at``). Nie są porzuconą
+    rejestracją, tylko zaproszeniem wystawionym świadomie przez nauczyciela: link żyje czternaście
+    dni, uczeń czyta pocztę szkolną raz na tydzień, a skasowanie konta po czterech godzinach
+    zabrałoby przy okazji dowiązanie do opiekuna i kazałoby powtórzyć cały import. Uzasadnienie
+    kosiarki – „konto-widmo blokuje adres właścicielowi” – tu zresztą nie zachodzi: adres nie
+    należy do kogoś, kto właśnie próbuje się zarejestrować, tylko do ucznia, którego zaprosiliśmy.
+    """
     now = now or timezone.now()
     return User.objects.filter(
         is_active=False,
         email_verified_at__isnull=True,
         date_joined__lt=now - timedelta(seconds=ACTIVATION_MAX_AGE),
-    )
+    ).exclude(participant__invited_at__isnull=False)
 
 
 @transaction.atomic

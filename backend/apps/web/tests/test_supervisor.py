@@ -47,8 +47,13 @@ def student(email: str = SUPERVISOR_EMAIL, **kwargs):
     return ParticipantFactory(supervisor_email=email, **kwargs)
 
 
-def test_rejestracja_zaklada_konto_nieaktywne_w_grupie_opiekunow(web_client):
-    """Konto czeka na link aktywacyjny – tak samo jak uczestnik i komitet."""
+def test_rejestracja_zaklada_konto_nieaktywne_w_grupie_opiekunow(web_client, supervisor_registration_on):
+    """Konto czeka na link aktywacyjny – tak samo jak uczestnik i komitet.
+
+    Fixture włącza przełącznik ``SiteSettings.supervisor_registration_enabled``: od zgłoszenia
+    organizatora („rejestracja nauczycieli ma być ukryta”) adres istnieje wyłącznie wtedy, gdy
+    ta rola jest w serwisie oferowana. Ukrycia pilnuje ``test_supervisor_registration_flag``.
+    """
     response = web_client.post(
         reverse("web:register-supervisor"),
         {
@@ -155,8 +160,13 @@ def test_panel_wymaga_zalogowania(web_client):
     assert reverse("web:login") in response.headers["Location"]
 
 
-def test_uczestnik_zapisuje_adres_opiekuna_w_profilu(web_client, participant):
-    """Pole jest w formularzu profilu, opcjonalne i zapisuje się po normalizacji."""
+def test_uczestnik_zapisuje_adres_opiekuna_w_profilu(web_client, participant, supervisor_registration_on):
+    """Pole jest w formularzu profilu, opcjonalne i zapisuje się po normalizacji.
+
+    Warunkiem jest włączona rola opiekuna: przy wyłączonym przełączniku pola w formularzu
+    nie ma wcale (``test_supervisor_registration_flag``), bo byłoby pytaniem o adres, pod
+    którym nikt nie może założyć konta.
+    """
     web_client.force_login(participant.user)
 
     response = web_client.post(

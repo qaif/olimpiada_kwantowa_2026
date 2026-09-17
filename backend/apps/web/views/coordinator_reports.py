@@ -26,7 +26,7 @@ from django.urls import reverse
 from django.utils.http import urlencode
 from django.views.generic import TemplateView, View
 
-from apps.accounts.models import CommitteeMember
+from apps.accounts.models import CommitteeMember, Voivodeship
 from apps.competitions.models import QualificationMode, Stage
 from apps.competitions.services import current_edition
 from apps.core import audit_browser, exports
@@ -147,6 +147,11 @@ class ExportIndexView(CoordinatorRequiredMixin, TemplateView):
                 if edition
                 else [],
                 "formats": sorted(exports.FORMATS),
+                # Lista województw dla eksportu kuratoryjnego (``apps.integrations.exports``).
+                # Zamknięta lista z modelu, a nie literał w szablonie: kuratorium dostaje plik
+                # zawężony do jednego terenu, więc wartość musi pochodzić stamtąd, skąd pochodzi
+                # województwo uczestnika.
+                "voivodeships": Voivodeship.choices,
             }
         )
         return context

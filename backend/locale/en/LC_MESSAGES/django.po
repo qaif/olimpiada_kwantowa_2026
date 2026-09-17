@@ -3170,3 +3170,517 @@ msgstr "The file is too large (max. %(limit)s MB)"
 #: templates/web/participant/_problem_card.html
 msgid "Przeciągnij plik tutaj albo wybierz z dysku (%(formats)s do %(limit)s MB)."
 msgstr "Drag the file here or pick it from your disk (%(formats)s, up to %(limit)s MB)."
+
+#: templates/web/quiz/start.html
+msgid "Zasady tego testu"
+msgstr "Rules of this test"
+
+#: templates/web/quiz/start.html
+msgid "Czas jednego podejścia"
+msgstr "Time for one attempt"
+
+#: templates/web/quiz/start.html
+msgid "Liczba pytań"
+msgstr "Number of questions"
+
+#: templates/web/quiz/start.html
+msgid "Pozostałe podejścia"
+msgstr "Attempts left"
+
+#: templates/web/quiz/start.html
+msgid "Test otwarty"
+msgstr "Test open"
+
+#: templates/web/quiz/start.html
+msgid "Odpowiedzi zapisują się same, co kilkanaście sekund i po każdej zmianie. Zamknięcie karty przez pomyłkę nie kasuje tego, co już zapisane."
+msgstr "Answers are saved automatically, every few seconds and after every change. Closing the tab by mistake does not erase what has already been saved."
+
+#: templates/web/quiz/start.html
+msgid "Czas liczy serwer. Gdy minie, przyjmujemy to, co zdążyło się zapisać – i tak samo liczymy punkty."
+msgstr "Time is kept by the server. When it runs out we accept whatever has been saved – and score it the same way."
+
+#: templates/web/quiz/start.html
+msgid "Pytania i warianty odpowiedzi możesz zobaczyć w innej kolejności niż inni – to normalne."
+msgstr "You may see the questions and the answer options in a different order than others – that is normal."
+
+#: templates/web/quiz/start.html
+msgid "Test działa także bez JavaScriptu: wtedy odpowiedzi wysyła dopiero przycisk „Zakończ test”."
+msgstr "The test also works without JavaScript: your answers are then sent only by the “Finish test” button."
+
+#: templates/web/quiz/start.html
+msgid "Instrukcja organizatora"
+msgstr "Instructions from the organiser"
+
+#: templates/web/quiz/start.html
+msgid "Masz rozpoczęte podejście – wróć do niego, zamiast zaczynać od nowa."
+msgstr "You have an attempt in progress – go back to it instead of starting again."
+
+#: templates/web/quiz/start.html
+msgid "Wróć do testu"
+msgstr "Back to the test"
+
+#: templates/web/quiz/start.html
+msgid "Wykorzystano wszystkie podejścia do tego testu."
+msgstr "All attempts at this test have been used."
+
+#: templates/web/quiz/start.html
+msgid "Rozpocząć podejście? Licznik ruszy natychmiast."
+msgstr "Start the attempt? The countdown begins immediately."
+
+#: templates/web/quiz/start.html
+msgid "Rozpocznij test"
+msgstr "Start the test"
+
+#: templates/web/quiz/start.html
+msgid "Twoje zakończone podejścia"
+msgstr "Your finished attempts"
+
+#: templates/web/quiz/start.html
+msgid "Rozpoczęte"
+msgstr "Started"
+
+#: templates/web/quiz/start.html
+msgid "Zakończone"
+msgstr "Finished"
+
+#: templates/web/quiz/start.html
+msgid "Wynik"
+msgstr "Score"
+
+#: templates/web/quiz/start.html
+msgid "podsumowanie"
+msgstr "summary"
+
+#: templates/web/quiz/start.html
+#, python-format
+msgid "%(minutes)s min"
+msgstr "%(minutes)s min"
+
+#: templates/web/quiz/start.html
+#, python-format
+msgid "%(left)s z %(total)s"
+msgstr "%(left)s of %(total)s"
+
+#: templates/web/quiz/start.html
+#, python-format
+msgid "Test jest dostępny od %(opens)s do %(closes)s."
+msgstr "The test is available from %(opens)s until %(closes)s."
+
+#: templates/web/quiz/start.html
+#, python-format
+msgid "Po kliknięciu licznik rusza i nie da się go zatrzymać. Masz %(minutes)s min."
+msgstr "The countdown starts on click and cannot be paused. You have %(minutes)s min."
+
+#: templates/web/quiz/attempt.html
+msgid "test w toku"
+msgstr "test in progress"
+
+#: templates/web/quiz/attempt.html
+msgid "Do końca"
+msgstr "Time left"
+
+#: templates/web/quiz/attempt.html
+msgid "Czas minął"
+msgstr "Time is up"
+
+#: templates/web/quiz/attempt.html
+msgid "zapisuję…"
+msgstr "saving…"
+
+#: templates/web/quiz/attempt.html
+msgid "brak połączenia – spróbuję ponownie"
+msgstr "no connection – will retry"
+
+#: templates/web/quiz/attempt.html
+msgid "Zakończyć test? Po zakończeniu nie da się już zmienić odpowiedzi."
+msgstr "Finish the test? Once finished, answers can no longer be changed."
+
+#: templates/web/quiz/attempt.html
+msgid "Zaznacz wszystkie poprawne odpowiedzi"
+msgstr "Select all correct answers"
+
+#: templates/web/quiz/attempt.html
+msgid "Zaznacz jedną odpowiedź"
+msgstr "Select one answer"
+
+#: templates/web/quiz/attempt.html
+msgid "Można zaznaczyć więcej niż jedną odpowiedź."
+msgstr "More than one answer may be selected."
+
+#: templates/web/quiz/attempt.html
+msgid "Odpowiedź"
+msgstr "Answer"
+
+#: templates/web/quiz/attempt.html
+msgid "Po zakończeniu nie da się już zmienić odpowiedzi."
+msgstr "Once finished, answers can no longer be changed."
+
+#: templates/web/quiz/attempt.html
+msgid "Zakończ test"
+msgstr "Finish test"
+
+#: templates/web/quiz/attempt.html
+#, python-format
+msgid "Pytanie %(number)s"
+msgstr "Question %(number)s"
+
+#: templates/web/quiz/attempt.html
+#, python-format
+msgid "Za błędną odpowiedź odejmujemy %(penalty)s pkt. Brak odpowiedzi nie jest karany."
+msgstr "A wrong answer costs %(penalty)s pts. Leaving the question blank is never penalised."
+
+#: templates/web/quiz/result.html
+msgid "Strona testu"
+msgstr "Test page"
+
+#: templates/web/quiz/result.html
+msgid "Twoje podejście"
+msgstr "Your attempt"
+
+#: templates/web/quiz/result.html
+msgid "Odpowiedzi zapisane. Wynik tego etapu poznasz razem z ogłoszeniem wyników – w zakładce „Wyniki” w panelu."
+msgstr "Answers saved. You will learn your score for this stage when the results are announced – in the “Results” tab of your panel."
+
+#: templates/web/quiz/result.html
+msgid "Czas podejścia minął, zanim je zakończyłeś. Policzyliśmy odpowiedzi, które zdążyły się zapisać."
+msgstr "The time ran out before you finished the attempt. We scored the answers that had been saved."
+
+#: templates/web/quiz/result.html
+msgid "Przejdź na stronę testu"
+msgstr "Go to the test page"
+
+#: templates/web/quiz/result.html
+#, python-format
+msgid "%(score)s z %(maximum)s pkt"
+msgstr "%(score)s of %(maximum)s pts"
+
+#: templates/web/quiz/result.html
+#, python-format
+msgid "Odpowiedzi zapisane. Wynik zobaczysz po zamknięciu testu, czyli po %(closes)s."
+msgstr "Answers saved. You will see your score once the test closes, that is after %(closes)s."
+
+#: templates/web/quiz/result.html
+#, python-format
+msgid "Pozostałe podejścia: %(left)s."
+msgstr "Attempts left: %(left)s."
+
+#: templates/web/quiz/preview.html
+msgid "podgląd testu"
+msgstr "test preview"
+
+#: templates/web/quiz/preview.html
+msgid "Podgląd arkusza. Nic tu nie jest zapisywane, a zestaw pytań jest losowany przy każdym wejściu."
+msgstr "A preview of the paper. Nothing here is saved, and the set of questions is drawn anew on every visit."
+
+#: templates/web/quiz/preview.html
+msgid "Wróć do ustawień testu"
+msgstr "Back to test settings"
+
+#: templates/web/quiz/preview.html
+msgid "Brak pytań"
+msgstr "No questions"
+
+#: templates/web/quiz/preview.html
+msgid "Ten test nie ma jeszcze pytań."
+msgstr "This test has no questions yet."
+
+#: templates/web/participant/_tab_tasks.html
+msgid "Test online"
+msgstr "Online test"
+
+#: templates/web/participant/_tab_tasks.html
+msgid "Przejdź do testu"
+msgstr "Go to the test"
+
+#: templates/web/participant/_tab_tasks.html
+msgid "Test nie jest jeszcze przygotowany. Zajrzyj tu ponownie bliżej terminu etapu."
+msgstr "The test is not ready yet. Come back closer to the stage deadline."
+
+#: templates/web/participant/_tab_tasks.html
+#, python-format
+msgid "Czas jednego podejścia: %(minutes)s min. Dozwolone podejścia: %(attempts)s."
+msgstr "Time for one attempt: %(minutes)s min. Attempts allowed: %(attempts)s."
+
+#: apps/accounts/bulk_registration.py
+msgid "Link z zaproszeniem jest nieprawidłowy albo wygasł."
+msgstr "The invitation link is invalid or has expired."
+
+#: templates/registration/invite_student_subject.txt
+#: templates/web/invite/accept.html
+msgid "Zaproszenie do Olimpiady Kwantowej"
+msgstr "An invitation to the Quantum Olympiad"
+
+#: templates/registration/invite_student_body.txt
+#, python-format
+msgid "Cześć %(name)s! Nauczyciel ze szkoły %(school)s zgłosił Cię do Olimpiady Kwantowej."
+msgstr "Hi %(name)s! A teacher at %(school)s has entered you for the Quantum Olympiad."
+
+#: templates/registration/invite_student_body.txt
+msgid "Konto czeka na Ciebie, ale jeszcze nie działa: hasło ustawiasz sam i sam akceptujesz regulamin oraz informację o przetwarzaniu danych. Otwórz poniższy adres:"
+msgstr "An account is waiting for you, but it does not work yet: you set the password yourself and you accept the rules and the data protection notice yourself. Open the address below:"
+
+#: templates/registration/invite_student_body.txt
+#, python-format
+msgid "Link jest ważny %(days)s dni. Jeśli wygaśnie, poproś nauczyciela o wysłanie go ponownie."
+msgstr "The link is valid for %(days)s days. If it expires, ask your teacher to send it again."
+
+#: templates/registration/invite_student_body.txt
+msgid "Jeśli nie chcesz brać udziału – zignoruj tę wiadomość. Bez kliknięcia w link konto nie zostanie uruchomione i nikt nie zaloguje się na Twój adres."
+msgstr "If you do not want to take part – just ignore this message. Without clicking the link the account will not be activated and nobody will sign in with your address."
+
+#: templates/web/invite/accept.html
+#: templates/web/invite/done.html
+#: templates/web/invite/invalid.html
+msgid "Zaproszenie"
+msgstr "Invitation"
+
+#: templates/web/invite/accept.html
+msgid "Uruchom swoje konto"
+msgstr "Activate your account"
+
+#: templates/web/invite/accept.html
+#, python-format
+msgid "Cześć %(name)s! Nauczyciel ze szkoły %(school)s zgłosił Cię do Olimpiady Kwantowej. Ustaw hasło i potwierdź oświadczenia – dopiero to uruchamia konto."
+msgstr "Hi %(name)s! A teacher at %(school)s has entered you for the Quantum Olympiad. Set a password and confirm the declarations – only that activates the account."
+
+#: templates/web/invite/accept.html
+msgid "Twoje dane ze zgłoszenia"
+msgstr "Your details from the entry"
+
+#: templates/web/invite/accept.html
+msgid "Adres e-mail (login):"
+msgstr "E-mail address (your login):"
+
+#: templates/web/invite/accept.html
+msgid "Szkoła:"
+msgstr "School:"
+
+#: templates/web/invite/accept.html
+msgid "Klasa:"
+msgstr "Year:"
+
+#: templates/web/invite/accept.html
+msgid "Rok urodzenia:"
+msgstr "Year of birth:"
+
+#: templates/web/invite/accept.html
+msgid "Coś się nie zgadza? Uruchom konto i popraw dane w swoim profilu po zalogowaniu."
+msgstr "Something wrong? Activate the account and correct your details in your profile after signing in."
+
+#: templates/web/invite/accept.html
+msgid "Oświadczenia"
+msgstr "Declarations"
+
+#: templates/web/invite/accept.html
+msgid "Uruchamiam konto"
+msgstr "Activate my account"
+
+#: templates/web/invite/accept.html
+#, python-format
+msgid "Link jest ważny %(days)s dni. Jeśli nie chcesz brać udziału – zamknij tę stronę; bez potwierdzenia konto nie zostanie uruchomione."
+msgstr "The link is valid for %(days)s days. If you do not want to take part – just close this page; without confirmation the account will not be activated."
+
+#: templates/web/invite/done.html
+msgid "Konto zostało uruchomione"
+msgstr "The account has been activated"
+
+#: templates/web/invite/done.html
+msgid "Konto jest gotowe"
+msgstr "Your account is ready"
+
+#: templates/web/invite/done.html
+msgid "Hasło zostało ustawione, a oświadczenia zapisane. Zaloguj się swoim adresem e-mail i nowym hasłem."
+msgstr "The password has been set and the declarations recorded. Sign in with your e-mail address and your new password."
+
+#: templates/web/invite/invalid.html
+msgid "Jeśli konto jest już uruchomione, po prostu się zaloguj. Jeśli link wygasł – poproś nauczyciela o wysłanie zaproszenia jeszcze raz."
+msgstr "If the account is already active, simply sign in. If the link has expired – ask your teacher to send the invitation again."
+
+#: templates/web/supervisor/_import_form.html
+msgid "Jak przygotować plik"
+msgstr "How to prepare the file"
+
+#: templates/web/supervisor/_import_form.html
+#, python-format
+msgid "Plik CSV albo XLSX, pierwszy wiersz to nagłówki kolumn, maksymalnie %(max_rows)s wierszy. Kolejność kolumn jest dowolna – liczy się nazwa w nagłówku."
+msgstr "A CSV or XLSX file, the first row holds the column headings, at most %(max_rows)s rows. The order of the columns is up to you – only the heading matters."
+
+#: templates/web/supervisor/_import_form.html
+msgid "nieobowiązkowa"
+msgstr "optional"
+
+#: templates/web/supervisor/_import_form.html
+msgid "Gotowy wiersz nagłówka do skopiowania do arkusza:"
+msgstr "A ready heading row to copy into your spreadsheet:"
+
+#: templates/web/supervisor/_import_form.html
+msgid "Uczniów, którzy mają już konto w serwisie, nie zakładamy drugi raz – zostaną tylko dopisani do Twojej listy. Nikomu nie ustawiasz hasła: każdy uczeń dostaje list z linkiem, pod którym sam ustala hasło i sam składa wymagane oświadczenia."
+msgstr "Students who already have an account are not created a second time – they are only added to your list. You do not set anybody's password: every student gets an e-mail with a link where they set their own password and make the required declarations themselves."
+
+#: templates/web/supervisor/_import_form.html
+msgid "Wgraj listę"
+msgstr "Upload the list"
+
+#: templates/web/supervisor/_import_form.html
+#, python-format
+msgid "Zostaw blok „szkoła” pusty, jeśli cała lista jest z Twojej szkoły (%(school)s)."
+msgstr "Leave the school block empty if the whole list comes from your school (%(school)s)."
+
+#: templates/web/supervisor/_import_form.html
+msgid "Pokaż podgląd"
+msgstr "Show the preview"
+
+#: templates/web/supervisor/_import_preview.html
+msgid "Co się stanie po zatwierdzeniu"
+msgstr "What happens once you confirm"
+
+#: templates/web/supervisor/_import_preview.html
+#, python-format
+msgid "Nowe zaproszenia: %(created)s · dopisani do Twojej listy: %(linked)s · pominięci: %(skipped)s."
+msgstr "New invitations: %(created)s · added to your list: %(linked)s · skipped: %(skipped)s."
+
+#: templates/web/supervisor/_import_preview.html
+#, python-format
+msgid "Szkoła całej listy: <strong>%(school)s</strong>."
+msgstr "School for the whole list: <strong>%(school)s</strong>."
+
+#: templates/web/supervisor/_import_preview.html
+msgid "Wiersz"
+msgstr "Row"
+
+#: templates/web/supervisor/_import_preview.html
+#: templates/web/supervisor/students.html
+msgid "Imię i nazwisko"
+msgstr "Name"
+
+#: templates/web/supervisor/_import_preview.html
+msgid "E-mail"
+msgstr "E-mail"
+
+#: templates/web/supervisor/_import_preview.html
+msgid "Rocznik"
+msgstr "Year of birth"
+
+#: templates/web/supervisor/_import_preview.html
+#: templates/web/supervisor/students.html
+msgid "Klasa"
+msgstr "Year"
+
+#: templates/web/supervisor/_import_preview.html
+msgid "Co zrobimy"
+msgstr "What we will do"
+
+#: templates/web/supervisor/_import_preview.html
+msgid "zaproszenie"
+msgstr "invitation"
+
+#: templates/web/supervisor/_import_preview.html
+msgid "dopisanie do listy"
+msgstr "added to the list"
+
+#: templates/web/supervisor/_import_preview.html
+msgid "pominięty"
+msgstr "skipped"
+
+#: templates/web/supervisor/_import_preview.html
+#, python-format
+msgid "Zatwierdzam – wyślij %(created)s zaproszeń"
+msgstr "Confirm – send %(created)s invitations"
+
+#: templates/web/supervisor/_import_preview.html
+msgid "Wgraj inny plik"
+msgstr "Upload a different file"
+
+#: templates/web/supervisor/_import_preview.html
+msgid "Z tego pliku nie da się nikogo zaprosić – popraw go i wgraj jeszcze raz."
+msgstr "Nobody can be invited from this file – correct it and upload it again."
+
+#: templates/web/supervisor/import.html
+msgid "Import listy uczniów"
+msgstr "Importing a list of students"
+
+#: templates/web/supervisor/import.html
+#: templates/web/supervisor/import_preview.html
+#: templates/web/supervisor/students.html
+msgid "Panel opiekuna szkolnego"
+msgstr "School supervisor panel"
+
+#: templates/web/supervisor/import.html
+msgid "Wgraj listę klasy, a my wyślemy każdemu uczniowi zaproszenie z linkiem. Konta zakładają uczniowie: pod linkiem ustawiają własne hasło i sami składają wymagane oświadczenia – Ty nie ustawiasz nikomu hasła i nie zgadzasz się za nikogo."
+msgstr "Upload your class list and we will send every student an invitation with a link. The students activate the accounts themselves: at that link they set their own password and make the required declarations – you set nobody's password and consent on nobody's behalf."
+
+#: templates/web/supervisor/import_preview.html
+msgid "Podgląd importu"
+msgstr "Import preview"
+
+#: templates/web/supervisor/import_preview.html
+msgid "Nic jeszcze nie zostało zapisane i żaden list nie poszedł. Sprawdź listę i zatwierdź."
+msgstr "Nothing has been saved yet and no e-mail has gone out. Check the list and confirm."
+
+#: templates/web/supervisor/students.html
+msgid "Moi uczniowie – konta"
+msgstr "My students – accounts"
+
+#: templates/web/supervisor/students.html
+msgid "Konta moich uczniów"
+msgstr "My students' accounts"
+
+#: templates/web/supervisor/students.html
+#, python-format
+msgid "Lista powstaje z decyzji uczniów: widzisz tych, którzy mają w profilu Twój adres (%(email)s) – wpisany samodzielnie albo ustawiony importem. Każdy z nich może ją w każdej chwili cofnąć."
+msgstr "The list comes from the students' own decisions: you see those whose profile holds your address (%(email)s) – entered by themselves or set by an import. Any of them can undo that at any time."
+
+#: templates/web/supervisor/students.html
+msgid "Zaproś uczniów z listy"
+msgstr "Invite students from a list"
+
+#: templates/web/supervisor/students.html
+msgid "Stan prac"
+msgstr "Solution progress"
+
+#: templates/web/supervisor/students.html
+msgid "Uczniowie"
+msgstr "Students"
+
+#: templates/web/supervisor/students.html
+#, python-format
+msgid "Czekamy na przyjęcie zaproszenia przez tyle osób: %(counter)s."
+msgstr "Still waiting for this many people to accept the invitation: %(counter)s."
+
+#: templates/web/supervisor/students.html
+msgid "Kod publiczny"
+msgstr "Public code"
+
+#: templates/web/supervisor/students.html
+msgid "Stan konta"
+msgstr "Account state"
+
+#: templates/web/supervisor/students.html
+msgid "Operacje"
+msgstr "Actions"
+
+#: templates/web/supervisor/students.html
+msgid "zaproszony"
+msgstr "invited"
+
+#: templates/web/supervisor/students.html
+msgid "aktywny"
+msgstr "active"
+
+#: templates/web/supervisor/students.html
+msgid "zapisał się sam"
+msgstr "signed up alone"
+
+#: templates/web/supervisor/students.html
+msgid "Wyślij zaproszenie ponownie"
+msgstr "Send the invitation again"
+
+#: templates/web/supervisor/students.html
+#, python-format
+msgid "Ostatnio wysłano: %(sent)s"
+msgstr "Last sent: %(sent)s"
+
+#: templates/web/supervisor/students.html
+#, python-format
+msgid "Nikt jeszcze nie wskazał Twojego adresu. Podaj uczniom adres %(email)s albo zaproś ich z listy klasowej."
+msgstr "Nobody has pointed at your address yet. Give your students the address %(email)s or invite them from a class list."

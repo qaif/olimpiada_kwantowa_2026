@@ -16,6 +16,15 @@ Weryfikacja publiczna (``/dyplomy/<kod>/``) jest celowo **uboga**: potwierdza ro
 edycję, numer i to, że dokument istnieje. Imienia i nazwiska nie pokazuje, dopóki uczestnik nie
 zgodził się na publikację pełnych danych – strona jest dostępna bez logowania dla każdego, kto
 przepisze kod z papieru, więc byłaby inaczej wyszukiwarką danych osobowych po kodzie z dyplomu.
+
+Wygląd dokumentu jest **danymi**, a nie kodem: położenie napisów, tło, logo i podpisy bierze się
+z ``results.CertificateTemplate`` (``apps.results.certificate_layout`` opisuje układ). Skład jest
+jeden i ten sam dla dokumentu z szablonem i bez niego – bez szablonu po prostu obowiązuje układ
+domyślny, czyli dokładnie ta karta, którą olimpiada składała od pierwszej edycji. Dwie osobne
+ścieżki składu znaczyłyby, że poprawka w jednej z nich milcząco rozjeżdża dokumenty z drugiej.
+
+Gotowy plik przechodzi jeszcze przez pieczęć elektroniczną (``apps.results.signing``). Bez
+skonfigurowanego klucza to działanie puste – i taki jest stan domyślny.
 """
 
 from __future__ import annotations
@@ -30,6 +39,7 @@ from typing import BinaryIO
 
 from django.conf import settings
 from django.db import IntegrityError, transaction
+from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status as http
 
@@ -38,7 +48,14 @@ from apps.competitions.models import Edition, StageEntry
 from apps.core.api import DomainError
 from apps.core.models import audit
 
-from .models import CERTIFICATE_NUMBER_PREFIX, Certificate, CertificateKind
+from .certificate_layout import PAGE_HEIGHT, PAGE_WIDTH, block, is_visible
+from .models import (
+    CERTIFICATE_NUMBER_PREFIX,
+    Certificate,
+    CertificateKind,
+    CertificateTemplate,
+)
+from .signing import SignedDocument, sign_document
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +77,7 @@ DOCUMENT_TITLES = {
     CertificateKind.FINALISTA: "Dyplom finalisty",
     CertificateKind.UCZESTNIK: "Zaświadczenie o udziale",
     CertificateKind.OPIEKUN: "Zaświadczenie dla opiekuna",
+    CertificateKind.WARSZTATY: "Zaświadczenie o udziale w warsztatach",
 }
 
 #: Zdanie pod nazwiskiem. Rodzaj dokumentu mówi, **co** poświadczamy; to zdanie mówi to samo
@@ -69,7 +87,12 @@ DOCUMENT_STATEMENTS = {
     CertificateKind.FINALISTA: "uzyskał(a) tytuł finalisty Olimpiady Kwantowej",
     CertificateKind.UCZESTNIK: "brał(a) udział w Olimpiadzie Kwantowej",
     CertificateKind.OPIEKUN: "sprawował(a) opiekę nad uczestnikami Olimpiady Kwantowej",
+    CertificateKind.WARSZTATY: "uczestniczył(a) w warsztatach online Olimpiady Kwantowej",
 }
+
+#: Nagłówek listy warsztatów na zaświadczeniu. Lista bez zapowiedzi czytałaby się jak przypis,
+#: a to ona jest treścią tego akurat dokumentu – zdanie wyżej mówi tylko, że warsztaty były.
+WORKSHOP_LIST_HEADING = "Tematy zajęć:"
 
 #: Nazwa organizatora nad linią podpisu. Stała, bo na papierze podpisuje się komitet jako organ,
 #: a nie osoba, która akurat kliknęła „Wystaw”.
@@ -176,6 +199,115 @@ def issue_certificate(
     raise _conflict("Nie udało się nadać numeru dokumentu. Spróbuj jeszcze raz.", "NUMBER_CONFLICT")
 
 
+# --- wystawianie hurtowe ------------------------------------------------------------------------
+
+
+def supervisors_with_participants(edition: Edition) -> list[dict]:
+    """Opiekunowie mający w tej edycji **choć jednego** ucznia, wraz z liczbą tych uczniów.
+
+    Krąg odbiorców zaświadczenia dla opiekuna jest tu inny niż na ekranie dyplomów jednego etapu
+    (tam: ci, którzy potwierdzili udział szkoły) i jest to różnica świadoma. Zaświadczenie
+    poświadcza **pracę z uczniami**, a nie złożenie oświadczenia; nauczyciel, którego ośmioro
+    uczniów startowało w zawodach, tę pracę wykonał, choćby nie kliknął „Potwierdzam udział”.
+    Liczba uczniów jedzie razem z opiekunem, bo to ona jest w panelu jedynym widocznym
+    uzasadnieniem, dlaczego ktoś jest na tej liście – i ona odróżnia opiekuna od pustego konta.
+
+    Wiązanie idzie po adresie e-mail (``Participant.supervisor_email``), bo to uczeń wskazuje
+    swojego opiekuna – i to jest **jedyne** źródło tej relacji w systemie. Liczymy je hurtem:
+    jedno zapytanie po adresy uczniów z wpisami w edycji i jedno po profile opiekunów.
+    """
+    from apps.accounts.models import Participant
+    from apps.accounts.supervisors import normalize_supervisor_email
+
+    counts: dict[str, int] = {}
+    # Para (uczestnik, adres) z ``distinct``, a nie same adresy: złączenie po wpisach do etapów
+    # powiela uczestnika tyle razy, w ilu etapach startuje, a my liczymy **uczniów**, nie starty.
+    students = (
+        Participant.objects.filter(stage_entries__stage__edition=edition)
+        .exclude(supervisor_email="")
+        .values_list("id", "supervisor_email")
+        .distinct()
+    )
+    for _participant_id, email in students:
+        normalized = normalize_supervisor_email(email)
+        if normalized:
+            counts[normalized] = counts.get(normalized, 0) + 1
+    if not counts:
+        return []
+    rows = []
+    for supervisor in SchoolSupervisor.objects.select_related("user").order_by(
+        "user__last_name", "user__first_name", "id"
+    ):
+        students = counts.get(normalize_supervisor_email(supervisor.user.email), 0)
+        if students:
+            rows.append({"supervisor": supervisor, "students": students})
+    return rows
+
+
+def issue_supervisor_certificates(edition: Edition, *, actor=None, request=None) -> list[Certificate]:
+    """Zaświadczenia dla wszystkich opiekunów z uczniami w tej edycji. Idempotentne.
+
+    Opiekun, który ma już dokument w tej edycji, dostaje ten sam numer (unikalność opiekun +
+    edycja pilnuje tego w bazie). Powtórne „Wystaw wszystkim” jest więc bezpieczne – i musi być,
+    bo pierwsze bywa klikane w trakcie gali, kiedy lista jeszcze rośnie.
+    """
+    return [
+        issue_certificate(
+            edition=edition,
+            kind=CertificateKind.OPIEKUN,
+            supervisor=row["supervisor"],
+            actor=actor,
+            request=request,
+        )[0]
+        for row in supervisors_with_participants(edition)
+    ]
+
+
+def participants_with_workshops(edition: Edition) -> list[dict]:
+    """Uczestnicy z odhaczoną **co najmniej jedną** obecnością na warsztatach, z ich wpisem do etapu.
+
+    Zaświadczenie musi wisieć na czymś, co da się wskazać kluczem obcym, a ``Certificate`` zna
+    dwa rodzaje odbiorcy: wpis do etapu albo opiekuna. Warsztaty nie są etapem, więc dokument
+    przypinamy do **najwcześniejszego wpisu uczestnika w tej edycji**. To nie jest obejście:
+    wpis jest tu identyfikatorem uczestnika w edycji (i tym, co daje unikalność „jeden taki
+    dokument na osobę i edycję”), a nie twierdzeniem o etapie – na papierze nie ma ani słowa
+    o etapie, jest lista warsztatów.
+
+    Uczestnik bez żadnego wpisu w edycji nie dostanie zaświadczenia i tak ma być: system nie wie
+    wtedy, do której edycji dokument przypisać, a warsztaty odbywają się w rytmie edycji.
+    """
+    from apps.cms.models import WorkshopAttendance
+
+    participant_ids = set(WorkshopAttendance.objects.values_list("participant_id", flat=True).distinct())
+    if not participant_ids:
+        return []
+    rows: dict[int, StageEntry] = {}
+    for entry in (
+        StageEntry.objects.filter(participant_id__in=participant_ids, stage__edition=edition)
+        .select_related("participant__user", "stage")
+        .order_by("stage__opens_at", "stage_id")
+    ):
+        rows.setdefault(entry.participant_id, entry)
+    return [
+        {"participant": entry.participant, "entry": entry}
+        for entry in sorted(rows.values(), key=lambda item: item.participant_id)
+    ]
+
+
+def issue_workshop_certificates(edition: Edition, *, actor=None, request=None) -> list[Certificate]:
+    """Zaświadczenia z warsztatów dla wszystkich, którzy byli na choć jednych zajęciach."""
+    return [
+        issue_certificate(
+            edition=edition,
+            kind=CertificateKind.WARSZTATY,
+            entry=row["entry"],
+            actor=actor,
+            request=request,
+        )[0]
+        for row in participants_with_workshops(edition)
+    ]
+
+
 # --- treść dokumentu ----------------------------------------------------------------------------
 
 
@@ -191,6 +323,13 @@ class CertificateContent:
     number: str
     code: str
     issued_on: str
+    #: Wiersze listy warsztatów („12.11.2026 – Kubity i bramki, prowadzi: dr Kowalska”). Puste
+    #: dla każdego innego rodzaju dokumentu – zaświadczenie o udziale w zawodach nie ma czego
+    #: wyliczać, a blok listy po prostu nic wtedy nie rysuje.
+    workshops: tuple[str, ...] = ()
+    #: Adres strony weryfikacji – ten sam, który koduje QR. W treści, a nie w składzie, bo to
+    #: fakt o dokumencie (jak numer), a nie decyzja graficzna.
+    verification_url: str = ""
 
 
 def _recipient_name(certificate: Certificate) -> str:
@@ -207,6 +346,37 @@ def _recipient_school(certificate: Certificate) -> str:
     return certificate.entry.participant.school
 
 
+def verification_url(code: str) -> str:
+    """Bezwzględny adres strony weryfikacji dokumentu o tym kodzie.
+
+    Bez żądania – dokument składa się także w zadaniu wsadowym („Wystaw wszystkim”), więc adres
+    bierze się z ``settings.SITE_URL`` przez ten sam helper, co linki w listach. Gdy ustawienia
+    nie ma, zostaje sama ścieżka: QR z adresem względnym jest mniej wart niż z pełnym, ale wciąż
+    prowadzi pod właściwy adres po dopisaniu domeny, a dokument i tak nie może przez to nie wyjść.
+    """
+    from apps.accounts.activation import absolute_url
+
+    return absolute_url(reverse("web:certificate-verify", args=[code]))
+
+
+def _workshop_lines(certificate: Certificate) -> tuple[str, ...]:
+    """Wiersze listy warsztatów – wyłącznie dla zaświadczenia z warsztatów.
+
+    Import ``apps.cms`` jest w środku funkcji, bo to zależność w poprzek warstw: harmonogram
+    warsztatów jest **treścią redakcyjną** (blok ``schedule`` na stronie „Warsztaty”), a wyniki
+    zawodów nie mają powodu ciągnąć CMS-u przy starcie procesu. Na poziomie pliku byłoby to
+    zresztą ryzyko cyklu przy ładowaniu aplikacji.
+    """
+    if certificate.kind != CertificateKind.WARSZTATY or certificate.entry_id is None:
+        return ()
+    from apps.cms.workshops import attended_workshops
+
+    return tuple(
+        ", ".join(part for part in (f"{row['date']} – {row['topic']}", row["lecturer"]) if part)
+        for row in attended_workshops(certificate.entry.participant)
+    )
+
+
 def certificate_content(certificate: Certificate) -> CertificateContent:
     """Składa treść dokumentu z faktów w bazie. Jedno miejsce dla PDF-a i dla testów."""
     return CertificateContent(
@@ -218,7 +388,70 @@ def certificate_content(certificate: Certificate) -> CertificateContent:
         number=certificate.number,
         code=certificate.code,
         issued_on=timezone.localtime(certificate.issued_at).strftime("%d.%m.%Y"),
+        workshops=_workshop_lines(certificate),
+        verification_url=verification_url(certificate.code),
     )
+
+
+# --- szablon graficzny --------------------------------------------------------------------------
+
+
+def resolve_template(kind: str, edition: Edition | None) -> CertificateTemplate | None:
+    """Szablon dla tego dokumentu albo ``None`` – wtedy obowiązuje układ wbudowany.
+
+    Kolejność dopasowania idzie od najbardziej szczegółowego do najogólniejszego: (rodzaj, edycja)
+    → (rodzaj, wszystkie edycje) → (wszystkie rodzaje, edycja) → (wszystkie, wszystkie). Rodzaj
+    jest **przed** edycją z premedytacją: dyplom laureata ma prawo wyglądać inaczej niż reszta
+    dokumentów w tej samej edycji, a odwrotna kolejność kazałaby kopiować szablon laureata do
+    każdej edycji z osobna, żeby nie przykryła go jubileuszowa winieta wspólna dla wszystkich.
+
+    Czytamy to przy każdym pobraniu dokumentu, więc każde zapytanie jest po indeksowanych
+    kolumnach i bez ``JOIN``-ów – a najczęstszy przypadek (nie ma ani jednego szablonu) kończy
+    się po pierwszym z nich.
+    """
+    if not CertificateTemplate.objects.filter(is_active=True).exists():
+        return None
+    edition_id = edition.pk if edition is not None else None
+    candidates = (
+        {"kind": kind, "edition_id": edition_id},
+        {"kind": kind, "edition_id": None},
+        {"kind": "", "edition_id": edition_id},
+        {"kind": "", "edition_id": None},
+    )
+    seen: list[dict] = []
+    for filters in candidates:
+        # Dokument zawsze należy do edycji (pole jest wymagane), więc powtórki tu nie ma;
+        # ``seen`` pilnuje jej na wypadek wywołania z ``edition=None`` w podglądzie szablonu.
+        if filters in seen:
+            continue
+        seen.append(filters)
+        template = CertificateTemplate.objects.filter(is_active=True, **filters).first()
+        if template is not None:
+            return template
+    return None
+
+
+def make_default_template(template: CertificateTemplate) -> int:
+    """Czyni ten szablon obowiązującym dla jego rodzaju i edycji. Zwraca liczbę wyłączonych.
+
+    Reguła dopasowania (``resolve_template``) bierze przy remisie szablon **najnowszy**, więc
+    „ustaw jako domyślny” nie jest osobnym polem w tabeli, tylko czynnością: włącz ten, wyłącz
+    pozostałe pasujące dokładnie tak samo. Flagi „domyślny” nie ma w modelu z premedytacją –
+    byłaby drugą, niezależną prawdą obok ``is_active`` i pierwszy rozjazd między nimi dałby
+    ekran, na którym domyślny szablon jest wyłączony.
+
+    Wyłączone szablony zostają w bazie razem z plikami: powrót do poprzedniej winiety ma być
+    jednym kliknięciem, a nie ponownym wgrywaniem tła z czyjegoś dysku.
+    """
+    replaced = (
+        CertificateTemplate.objects.filter(kind=template.kind, edition_id=template.edition_id, is_active=True)
+        .exclude(pk=template.pk)
+        .update(is_active=False)
+    )
+    if not template.is_active:
+        template.is_active = True
+        template.save(update_fields=["is_active"])
+    return replaced
 
 
 # --- skład PDF ----------------------------------------------------------------------------------
@@ -247,24 +480,177 @@ def register_fonts() -> None:
         pdfmetrics.registerFont(TTFont(name, str(path)))
 
 
-def _centered(canvas, text: str, *, y: float, width: float, font: str, size: int) -> None:
-    """Jedna wyśrodkowana linia. Osobna funkcja, bo dyplom składa się prawie z samych takich."""
-    canvas.setFont(font, size)
-    canvas.drawCentredString(width / 2, y, text)
+def _font(settings: dict) -> str:
+    """Krój bloku. Jedno rozstrzygnięcie – tło i wielkość mają własne klucze układu."""
+    return FONT_BOLD if settings.get("bold") else FONT_REGULAR
 
 
-def render_pdf(certificate: Certificate) -> bytes:
-    """Składa dokument i zwraca bajty PDF-a.
+def _text(canvas, text: str, settings: dict, *, width: float, height: float) -> None:
+    """Jedna linia w miejscu opisanym układem. Brak ``x`` = wyśrodkowanie na stronie.
 
-    Układ jest celowo prosty i **poziomy** (A4 landscape): dyplom jest jedną stroną z nazwiskiem
-    pośrodku, a nie formularzem. Wszystko, co identyfikuje dokument (numer, kod weryfikacyjny,
-    adres strony weryfikacji), stoi w stopce – tam szuka się tego, sprawdzając cudzy dyplom.
+    Pusty napis nie jest błędem i nie rysuje niczego: „szkoła” bywa nieuzupełniona, a lista
+    warsztatów istnieje tylko na jednym rodzaju dokumentu. Blok wyłączony (``show: false``)
+    zachowuje się tak samo – dyplom na gotowym tle z nadrukowanym nagłówkiem nie ma powodu
+    dokładać drugiego napisu „OLIMPIADA KWANTOWA”.
+    """
+    if not text or not is_visible(settings):
+        return
+    canvas.setFont(_font(settings), settings.get("size", 12))
+    y = height - float(settings.get("y", 0))
+    x = settings.get("x")
+    if x is None:
+        canvas.drawCentredString(width / 2, y, text)
+    else:
+        canvas.drawString(float(x), y, text)
+
+
+def _image_bytes(field) -> bytes | None:
+    """Zawartość pliku z prywatnego storage albo ``None``, gdy pliku nie ma.
+
+    Brakujący plik (usunięty z bucketu, nieudane wgranie) **nie** wywraca dokumentu: dyplom ma
+    wyjść bez winiety, a nie zamienić się w błąd 500 w dniu gali. Ślad zostaje w logu.
+    """
+    if not field:
+        return None
+    try:
+        with field.open("rb") as handle:
+            return handle.read()
+    except (OSError, ValueError):
+        logger.warning("Nie udało się wczytać pliku szablonu dyplomu: %s.", getattr(field, "name", "?"))
+        return None
+
+
+def _draw_picture(canvas, data: bytes | None, *, x: float, y: float, width: float, height: float) -> None:
+    """Obraz w prostokącie, z zachowaniem proporcji. ``mask='auto'`` zostawia przezroczystość PNG."""
+    if not data:
+        return
+    from reportlab.lib.utils import ImageReader
+
+    canvas.drawImage(
+        ImageReader(BytesIO(data)),
+        x,
+        y,
+        width=width,
+        height=height,
+        preserveAspectRatio=True,
+        anchor="c",
+        mask="auto",
+    )
+
+
+def _draw_background(canvas, template, *, width: float, height: float) -> None:
+    """Tło obrazkowe na całą stronę. Tło w PDF-ie idzie inną drogą (``_merge_background``)."""
+    if template is None or not template.background:
+        return
+    if Path(template.background.name).suffix.lower() == ".pdf":
+        return
+    data = _image_bytes(template.background)
+    if data is None:
+        return
+    from reportlab.lib.utils import ImageReader
+
+    # Bez ``preserveAspectRatio``: tło ma pokryć kartkę w całości, a projekt z drukarni i tak
+    # jest w proporcjach A4. Biały pasek przy krawędzi wygląda na wadę wydruku, nie na decyzję.
+    canvas.drawImage(ImageReader(BytesIO(data)), 0, 0, width=width, height=height, mask="auto")
+
+
+def _draw_signatures(canvas, template, *, layout: dict, width: float, height: float) -> None:
+    """Bloki podpisu: kreska, a pod nią nazwisko i funkcja. Nad kreską – podpis odręczny z pliku.
+
+    Bez szablonu (albo gdy szablon nie ma ani jednego podpisu) zostaje jeden blok z nazwą organu,
+    czyli dokładnie to, co dyplom miał od początku: dokument wychodzi z systemu także wtedy, gdy
+    pieczęci elektronicznej nie skonfigurowano, więc miejsce na podpis odręczny musi na nim być.
+    """
+    settings = block(layout, "signatures")
+    if not is_visible(settings):
+        return
+    blocks = template.signatures() if template is not None else []
+    if not blocks:
+        blocks = [{"image": None, "name": "", "title": SIGNATURE_LINE}]
+    line_width = float(settings.get("width", 240))
+    size = settings.get("size", 10)
+    baseline = height - float(settings.get("y", 445))
+    slot = width / (len(blocks) + 1)
+    canvas.setLineWidth(0.7)
+    for index, signature in enumerate(blocks, start=1):
+        center = slot * index
+        _draw_picture(
+            canvas,
+            _image_bytes(signature["image"]),
+            x=center - line_width / 2,
+            y=baseline + 6,
+            width=line_width,
+            height=46,
+        )
+        canvas.line(center - line_width / 2, baseline, center + line_width / 2, baseline)
+        canvas.setFont(FONT_REGULAR, size)
+        offset = baseline - size - 7
+        for line in (signature["name"], signature["title"]):
+            if not line:
+                continue
+            canvas.drawCentredString(center, offset, line)
+            offset -= size + 3
+
+
+def _draw_footer(canvas, content: CertificateContent, *, layout: dict, width: float, height: float) -> None:
+    """Pas identyfikujący dokument: numer i kod po lewej, data i adres weryfikacji po prawej."""
+    settings = block(layout, "footer")
+    if not is_visible(settings):
+        return
+    size = settings.get("size", 9)
+    margin = float(settings.get("margin", 60))
+    top = height - float(settings.get("y", 525))
+    canvas.setFont(FONT_REGULAR, size)
+    canvas.drawString(margin, top, f"Numer dokumentu: {content.number}")
+    canvas.drawString(margin, top - size - 5, f"Kod weryfikacyjny: {content.code}")
+    canvas.drawRightString(width - margin, top, f"Data wystawienia: {content.issued_on}")
+    canvas.drawRightString(
+        width - margin, top - size - 5, "Weryfikacja: /dyplomy/<kod>/ w serwisie olimpiady"
+    )
+
+
+def _draw_qr(canvas, content: CertificateContent, *, layout: dict, height: float) -> None:
+    """Kod QR z adresem weryfikacji – dla tych, którzy dostają dyplom jako zdjęcie w telefonie.
+
+    Kod nie zastępuje napisu w stopce i nie może go zastąpić: kod weryfikacyjny bywa przepisywany
+    do wniosku ręcznie, a QR jest wyłącznie skrótem drogi. Rysujemy go z ``reportlab.graphics``,
+    więc nie dochodzi żadna zależność.
+    """
+    settings = block(layout, "qr")
+    if not is_visible(settings) or not content.verification_url:
+        return
+    from reportlab.graphics import renderPDF
+    from reportlab.graphics.barcode import qr
+    from reportlab.graphics.shapes import Drawing
+
+    size = float(settings.get("size", 74))
+    widget = qr.QrCodeWidget(content.verification_url)
+    bounds = widget.getBounds()
+    # Widget ma własną, naturalną wielkość w punktach; ``transform`` skaluje go do kwadratu
+    # zamówionego w układzie. Bez tego kod wychodzi w rozmiarze zależnym od długości adresu.
+    drawing = Drawing(
+        size,
+        size,
+        transform=[size / (bounds[2] - bounds[0]), 0, 0, size / (bounds[3] - bounds[1]), 0, 0],
+    )
+    drawing.add(widget)
+    bottom = height - float(settings.get("y", 455)) - size
+    renderPDF.draw(drawing, canvas, float(settings.get("x", 712)), bottom)
+
+
+def compose_pdf(content: CertificateContent, template: CertificateTemplate | None = None) -> bytes:
+    """Bajty gotowego dokumentu – bez pieczęci i bez sięgania do rejestru.
+
+    Osobno od ``render_pdf``, bo tę samą kartę składa **podgląd szablonu** w panelu: koordynator
+    ogląda tam dane przykładowe, żeby zobaczyć układ, zanim wystawi komukolwiek dokument. Gdyby
+    podgląd szedł przez ``render_pdf``, musiałby wcześniej wystawić dyplom „na niby” i nadać mu
+    numer z tej samej puli, co dokumentom prawdziwym.
     """
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.pdfgen import canvas as pdf_canvas
 
     register_fonts()
-    content = certificate_content(certificate)
+    layout = template.layout if template is not None else {}
     buffer = BytesIO()
     width, height = landscape(A4)
     canvas = pdf_canvas.Canvas(buffer, pagesize=landscape(A4))
@@ -273,29 +659,142 @@ def render_pdf(certificate: Certificate) -> bytes:
     canvas.setAuthor("Olimpiada Kwantowa")
     canvas.setSubject(f"{content.title}, edycja {content.edition}")
 
-    _centered(canvas, "OLIMPIADA KWANTOWA", y=height - 90, width=width, font=FONT_BOLD, size=22)
-    _centered(canvas, f"edycja {content.edition}", y=height - 120, width=width, font=FONT_REGULAR, size=13)
-    _centered(canvas, content.title, y=height - 190, width=width, font=FONT_BOLD, size=28)
-    _centered(canvas, content.recipient, y=height - 260, width=width, font=FONT_BOLD, size=24)
-    if content.school:
-        _centered(canvas, content.school, y=height - 288, width=width, font=FONT_REGULAR, size=13)
-    _centered(canvas, content.statement, y=height - 330, width=width, font=FONT_REGULAR, size=15)
+    _draw_background(canvas, template, width=width, height=height)
+    if template is not None:
+        logo = block(layout, "logo")
+        if is_visible(logo):
+            _draw_picture(
+                canvas,
+                _image_bytes(template.logo),
+                x=float(logo.get("x", 60)),
+                y=height - float(logo.get("y", 40)) - float(logo.get("height", 60)),
+                width=float(logo.get("width", 140)),
+                height=float(logo.get("height", 60)),
+            )
 
-    # Linia podpisu: sama kreska i podpis pod nią. Dokument wychodzi z systemu bez podpisu
-    # elektronicznego, więc miejsce na podpis odręczny musi na nim być naprawdę.
-    canvas.setLineWidth(0.7)
-    canvas.line(width / 2 - 120, 150, width / 2 + 120, 150)
-    _centered(canvas, SIGNATURE_LINE, y=133, width=width, font=FONT_REGULAR, size=10)
-
-    canvas.setFont(FONT_REGULAR, 9)
-    canvas.drawString(60, 70, f"Numer dokumentu: {content.number}")
-    canvas.drawString(60, 56, f"Kod weryfikacyjny: {content.code}")
-    canvas.drawRightString(width - 60, 70, f"Data wystawienia: {content.issued_on}")
-    canvas.drawRightString(width - 60, 56, "Weryfikacja: /dyplomy/<kod>/ w serwisie olimpiady")
+    organiser = block(layout, "organiser")
+    _text(canvas, organiser.get("text", "OLIMPIADA KWANTOWA"), organiser, width=width, height=height)
+    _text(canvas, f"edycja {content.edition}", block(layout, "edition"), width=width, height=height)
+    _text(canvas, content.title, block(layout, "title"), width=width, height=height)
+    _text(canvas, content.recipient, block(layout, "recipient"), width=width, height=height)
+    _text(canvas, content.school, block(layout, "school"), width=width, height=height)
+    _text(canvas, content.statement, block(layout, "statement"), width=width, height=height)
+    _draw_workshops(canvas, content, layout=layout, width=width, height=height)
+    _draw_signatures(canvas, template, layout=layout, width=width, height=height)
+    _draw_footer(canvas, content, layout=layout, width=width, height=height)
+    _draw_qr(canvas, content, layout=layout, height=height)
 
     canvas.showPage()
     canvas.save()
-    return buffer.getvalue()
+    overlay = buffer.getvalue()
+    return _merge_background(overlay, template)
+
+
+def _draw_workshops(
+    canvas, content: CertificateContent, *, layout: dict, width: float, height: float
+) -> None:
+    """Lista warsztatów: nagłówek i po jednym wierszu na zajęcia, od najwcześniejszych.
+
+    Zaświadczenie z warsztatów bez wyliczenia tematów poświadcza „był na czymś” i jest w praktyce
+    bezużyteczne – szkoła i komisja stypendialna pytają, **na czym**. Dlatego lista jest treścią
+    tego dokumentu, a nie ozdobą, i dlatego rośnie w dół: przy dwunastu zajęciach kartka i tak
+    kończy się wcześniej niż stopka, a wtedy pozostałe wiersze zastępuje jedno zdanie.
+    """
+    settings = block(layout, "workshops")
+    if not content.workshops or not is_visible(settings):
+        return
+    size = settings.get("size", 11)
+    leading = float(settings.get("leading", 15))
+    y = height - float(settings.get("y", 372))
+    # Dolna granica: pas stopki. Poniżej niej lista nachodziłaby na numer dokumentu.
+    limit = height - float(block(layout, "signatures").get("y", 445)) + leading
+    canvas.setFont(FONT_BOLD, size)
+    canvas.drawCentredString(width / 2, y, WORKSHOP_LIST_HEADING)
+    canvas.setFont(FONT_REGULAR, size)
+    for index, line in enumerate(content.workshops):
+        y -= leading
+        if y < limit:
+            canvas.drawCentredString(width / 2, y, f"… oraz {len(content.workshops) - index} kolejnych zajęć")
+            return
+        canvas.drawCentredString(width / 2, y, line)
+
+
+def _merge_background(overlay: bytes, template: CertificateTemplate | None) -> bytes:
+    """Nakłada złożoną stronę na **pierwszą stronę** tła w PDF-ie. Bez takiego tła – bez zmian.
+
+    Dlaczego w ogóle przyjmujemy tło jako PDF, skoro obrazek jest prostszy. Bo projekt dyplomu
+    przychodzi z drukarni jako PDF w CMYK-u, z osadzonymi krojami i spadami; przerobienie go na
+    PNG kosztuje jakość, której na papierze nie da się odzyskać, a redaktor i tak nie ma czym
+    tego zrobić.
+
+    Skalowanie nie jest kosmetyką: projekt bywa w formacie ze spadami (nieco większym niż A4),
+    a wtedy tekst złożony w A4 wylądowałby w lewym dolnym rogu arkusza zamiast na środku karty.
+    """
+    if template is None or not template.background:
+        return overlay
+    if Path(template.background.name).suffix.lower() != ".pdf":
+        return overlay
+    data = _image_bytes(template.background)
+    if not data:
+        return overlay
+    from pypdf import PdfReader, PdfWriter, Transformation
+    from pypdf.errors import PyPdfError
+
+    try:
+        page = PdfReader(BytesIO(data), strict=False).pages[0]
+        drawn = PdfReader(BytesIO(overlay), strict=False).pages[0]
+        page.merge_transformed_page(
+            drawn,
+            Transformation().scale(
+                float(page.mediabox.width) / PAGE_WIDTH,
+                float(page.mediabox.height) / PAGE_HEIGHT,
+            ),
+        )
+        writer = PdfWriter()
+        writer.add_page(page)
+        merged = BytesIO()
+        writer.write(merged)
+        return merged.getvalue()
+    except (PyPdfError, IndexError, ValueError):
+        # Uszkodzone albo puste tło nie może zabrać uczestnikowi dyplomu – wychodzi sam tekst.
+        logger.warning("Nie udało się nałożyć dokumentu na tło PDF szablonu %s.", template.pk)
+        return overlay
+
+
+def render_pdf(certificate: Certificate) -> bytes:
+    """Składa dokument, pieczętuje go (gdy skonfigurowano) i zwraca bajty PDF-a.
+
+    Układ jest celowo prosty i **poziomy** (A4 landscape): dyplom jest jedną stroną z nazwiskiem
+    pośrodku, a nie formularzem. Wszystko, co identyfikuje dokument (numer, kod weryfikacyjny,
+    adres strony weryfikacji, QR), stoi w stopce – tam szuka się tego, sprawdzając cudzy dyplom.
+    """
+    content = certificate_content(certificate)
+    template = resolve_template(certificate.kind, certificate.edition)
+    signed = sign_document(compose_pdf(content, template))
+    _remember_signature(certificate, signed)
+    return signed.data
+
+
+def _remember_signature(certificate: Certificate, signed: SignedDocument) -> None:
+    """Zapisuje przy dokumencie, czy **ten** skład wyszedł z pieczęcią.
+
+    Zapis w trakcie pobierania wygląda na dziwactwo, a jest jedyną uczciwą odpowiedzią na to, jak
+    ten dokument istnieje: PDF powstaje przy każdym pobraniu, więc pieczęć jest własnością chwili
+    składu, a nie rejestru. Certyfikat mógł wygasnąć, plik klucza zniknąć z wolumenu – i wtedy
+    dokument nadal wychodzi, tylko bez pieczęci. Strona weryfikacji ma o tym mówić prawdę.
+
+    Piszemy **wyłącznie przy zmianie** i tylko trzy kolumny: pobranie paczki z całym finałem nie
+    ma robić kilkuset zapisów po to, żeby przepisać te same wartości.
+    """
+    if certificate.pk is None:
+        return
+    unchanged = certificate.signed == signed.signed and certificate.signer_name == signed.signer_name
+    if unchanged:
+        return
+    certificate.signed = signed.signed
+    certificate.signer_name = signed.signer_name
+    certificate.signed_at = timezone.now() if signed.signed else None
+    certificate.save(update_fields=["signed", "signed_at", "signer_name"])
 
 
 def pdf_filename(certificate: Certificate) -> str:
@@ -399,4 +898,43 @@ def verify(code: str) -> dict | None:
         # ``None`` znaczy „odbiorca nie zgodził się na publikację nazwiska”, a nie „brak danych”.
         # Strona mówi to wprost, żeby nikt nie wziął pustego miejsca za wadę dokumentu.
         "recipient": content.recipient if _may_show_name(certificate) else None,
+        # Pieczęć elektroniczna dotyczy **pliku**, a nie wpisu w rejestrze, więc strona mówi
+        # o niej osobno: dokument jest ważny także bez niej (potwierdza go ten właśnie kod),
+        # a jej obecność odpowiada dodatkowo na pytanie „czy tego PDF-a nie ruszono”.
+        "signed": certificate.signed,
+        "signer_name": certificate.signer_name,
     }
+
+
+# --- podgląd szablonu ---------------------------------------------------------------------------
+
+#: Dane przykładowe podglądu. Nazwisko z kompletem polskich znaków, bo to jest pierwsza rzecz,
+#: którą trzeba zobaczyć na cudzym tle: czy krój ze szablonu ma ``ą``, ``ś`` i ``ż``.
+SAMPLE_NUMBER = "OK/2026/000"
+SAMPLE_CODE = "PRZYKLADOWY1"
+
+
+def sample_content(kind: str, edition: Edition | None = None) -> CertificateContent:
+    """Treść dokumentu „na niby” – do podglądu szablonu w panelu.
+
+    Numer jest spoza puli (``000``), a kod jawnie nieprawdziwy: podgląd bywa drukowany i pokazywany
+    na posiedzeniu komitetu, a wydruk z numerem wyglądającym na prawdziwy to dokument, którego
+    nikt nie wystawił.
+    """
+    return CertificateContent(
+        title=DOCUMENT_TITLES.get(kind, DOCUMENT_TITLES[CertificateKind.UCZESTNIK]),
+        statement=DOCUMENT_STATEMENTS.get(kind, DOCUMENT_STATEMENTS[CertificateKind.UCZESTNIK]),
+        recipient="Łucja Śniadecka",
+        school="XIV Liceum Ogólnokształcące w Warszawie",
+        edition=edition.year_label if edition is not None else "2026/2027",
+        number=SAMPLE_NUMBER,
+        code=SAMPLE_CODE,
+        issued_on=timezone.localtime(timezone.now()).strftime("%d.%m.%Y"),
+        workshops=(
+            "12.11.2026 – Kubity i bramki kwantowe, prowadzi: dr Anna Kowalska",
+            "10.12.2026 – Splątanie i nierówności Bella, prowadzi: prof. Jan Nowak",
+        )
+        if kind == CertificateKind.WARSZTATY
+        else (),
+        verification_url=verification_url(SAMPLE_CODE),
+    )

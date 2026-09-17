@@ -320,6 +320,13 @@ class StageFormat(models.TextChoices):
 
     SUBMISSIONS = "SUBMISSIONS", "rozwiązania pisemne"
     INTERVIEW = "INTERVIEW", "rozmowa kwalifikacyjna online"
+    # Test online sprawdzany automatycznie (``apps.quiz``). Trzecia forma, a nie odmiana etapu
+    # pisemnego, bo różni się dokładnie tym, czym różnią się od siebie dwie pozostałe: tym, co
+    # uczestnik robi i skąd biorą się jego punkty. W etapie pisemnym punkty wystawia recenzent,
+    # w rozmowie – komisja, a tutaj nie ma ich kto wystawić: liczy je serwer w chwili zakończenia
+    # podejścia. Dlatego etap w tej formie nie ma zadań do oddania ani przydziałów recenzenckich,
+    # a jego suma punktów wchodzi do wyników inną drogą – patrz ``apps.quiz.services.stage_scores``.
+    QUIZ = "QUIZ", "test online sprawdzany automatycznie"
 
 
 class Stage(models.Model):
@@ -450,6 +457,16 @@ class Stage(models.Model):
     def is_interview(self) -> bool:
         """Czy etap jest rozmową kwalifikacyjną online (brak uploadu, zapisy na terminy)."""
         return self.format == StageFormat.INTERVIEW
+
+    @property
+    def is_quiz(self) -> bool:
+        """Czy etap jest testem online sprawdzanym automatycznie (bez uploadu, bez recenzji).
+
+        Pytanie zadawane w kilku warstwach naraz (panel uczestnika, menu koordynatora,
+        przeliczenie wyników), więc stoi obok ``is_interview`` i z tego samego powodu: porównanie
+        z literałem rozsiane po szablonach przeżyłoby zmianę nazwy formy, a ta właściwość nie.
+        """
+        return self.format == StageFormat.QUIZ
 
     @property
     def is_training(self) -> bool:

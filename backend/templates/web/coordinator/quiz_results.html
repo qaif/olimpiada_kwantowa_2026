@@ -1,0 +1,120 @@
+{% extends "web/coordinator/base.html" %}
+{% load static web_extras %}
+{% comment %}
+  Wyniki testu w dwóch tabelach, bo odpowiadają na dwa różne pytania. Pierwsza („kto ile”) jest
+  materiałem do protokołu. Druga („które pytanie było jakie”) jest materiałem do **następnego**
+  testu i to ona bywa ważniejsza: ujemna moc różnicująca prawie zawsze znaczy błąd w kluczu albo
+  dwuznaczną treść, a bez tej kolumny wyszłoby to dopiero z reklamacji.
+{% endcomment %}
+{% block title %}Wyniki testu: {{ stage.display_name }} – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-stage-quiz' stage.pk %}">Test online: {{ stage.display_name }}</a>{% endblock %}
+{% block panel_title %}Wyniki testu: {{ quiz.title }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">{{ rows|length }} osób z zakończonym podejściem.
+    Punkty z testu wchodzą do wyników etapu automatycznie – liczy się <strong>najlepsze</strong>
+    podejście, zaokrąglone do pełnych punktów.</p>
+{% endblock %}
+{% block panel_actions %}
+  <a class="btn btn--secondary btn--small"
+     href="{% url 'web:coordinator-stage-quiz-export' stage.pk %}">Eksport CSV</a>
+  <a class="btn btn--secondary btn--small"
+     href="{% url 'web:coordinator-stage-results' stage.pk %}">Wyniki etapu</a>
+{% endblock %}
+{% block panel_content %}
+
+<div class="card card--quiet">
+  <form method="post" action="{% url 'web:coordinator-stage-quiz-regrade' stage.pk %}">
+    {% csrf_token %}
+    <h2 class="mt-0">Przelicz punkty</h2>
+    <p>Po poprawce klucza odpowiedzi wynik <strong>nie zmienia się sam</strong> – podejścia są
+      ocenione w chwili zakończenia. Ten przycisk ocenia je wszystkie ponownie, według dzisiejszego
+      klucza, i zapisuje w audycie, ile podejść zmieniło wynik.</p>
+    <button type="submit" class="btn btn--accent"
+            data-confirm="Przeliczyć punkty wszystkich podejść według obecnego klucza odpowiedzi?">Przelicz punkty</button>
+  </form>
+  {% if in_progress %}
+    <p class="hint">Podejść wciąż trwających: {{ in_progress }}. Nie wchodzą jeszcze do wyników –
+      wejdą, gdy zostaną zakończone albo gdy minie ich czas.</p>
+  {% endif %}
+</div>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Wyniki uczestników</h2>
+    <span class="badge badge--danger">dane osobowe</span>
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Kod</th>
+          <th scope="col">Uczestnik</th>
+          <th scope="col">Wynik</th>
+          <th scope="col">Maksimum</th>
+          <th scope="col">%</th>
+          <th scope="col">Podejścia</th>
+          <th scope="col">Oddano</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <th scope="row">{{ row.public_code }}</th>
+            <td>{{ row.first_name }} {{ row.last_name }}</td>
+            <td class="num">{{ row.score }}</td>
+            <td class="num">{{ row.max_points }}</td>
+            <td class="num">{{ row.percent|floatformat:1 }}</td>
+            <td class="num">{{ row.attempts }}</td>
+            <td>{{ row.submitted_at|local_datetime }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7">Nikt jeszcze nie zakończył podejścia.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Statystyka pytań</h2>
+  </div>
+  <p class="hint"><strong>Trudność</strong> to odsetek odpowiedzi w pełni poprawnych wśród
+    udzielonych: bliska 1 znaczy, że umieli wszyscy, bliska 0 – że pytanie było zbyt trudne albo
+    wadliwe. <strong>Moc różnicująca</strong> to różnica trudności między lepszą i słabszą połową
+    uczestników; wartość ujemna znaczy, że pytanie odpowiada odwrotnie niż reszta testu, i prawie
+    zawsze jest to błąd w kluczu. „—” znaczy, że danych jest za mało, żeby cokolwiek policzyć.</p>
+  <div class="scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Pula</th>
+          <th scope="col">Pytanie</th>
+          <th scope="col">Odpowiedzi</th>
+          <th scope="col">Bez odpowiedzi</th>
+          <th scope="col">Trudność</th>
+          <th scope="col">Moc różnicująca</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for stat in stats %}
+          <tr>
+            <td>{{ stat.question.pool|default:"—" }}</td>
+            <th scope="row">{{ stat.question.text|truncatechars:80 }}</th>
+            <td class="num">{{ stat.answered }}</td>
+            <td class="num">{{ stat.blank }}</td>
+            <td class="num">{% if stat.difficulty is None %}—{% else %}{{ stat.difficulty|floatformat:2 }}{% endif %}</td>
+            <td class="num">{% if stat.discrimination is None %}—{% else %}{{ stat.discrimination|floatformat:2 }}{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6">Test nie ma jeszcze pytań.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}{{ block.super }}
+  {# Potwierdzenie przy „Przelicz punkty” – bez skryptu przycisk działa, tylko bez pytania. #}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/quiz.js' %}"></script>
+{% endblock %}
