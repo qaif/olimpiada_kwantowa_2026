@@ -12,6 +12,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import EmailValidator
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
@@ -19,6 +20,7 @@ from rest_framework import status
 
 from apps.core.api import DomainError
 from apps.core.models import audit
+from apps.tenancy.context import current_competition
 
 from .activation import absolute_url, queue_mail, send_activation_email
 from .consents import (
@@ -30,17 +32,15 @@ from .consents import (
     required_kinds,
 )
 from .models import (
-    GROUP_APPEALS,
-    GROUP_COORDINATOR,
-    GROUP_PARTICIPANT,
-    GROUP_REVIEWER,
     MAX_GRADE,
     MIN_GRADE,
     CommitteeMember,
     CommitteeStatus,
+    CompetitionRole,
     ConsentRecord,
     InvitationCode,
     InvitationGrantsStatus,
+    Membership,
     Participant,
     User,
     Voivodeship,
@@ -141,26 +141,179 @@ def _require_grade(grade) -> int:
     return number
 
 
-def active_reviewer_profile(user) -> CommitteeMember | None:
-    """Profil recenzenta użytkownika, o ile wolno mu recenzować: ACTIVE **i** grupa ``reviewer``.
+def active_reviewer_profile(user, competition=None) -> CommitteeMember | None:
+    """Profil recenzenta użytkownika, o ile wolno mu recenzować: ACTIVE **i** rola ``reviewer``.
 
     Jedna definicja dla całego systemu: używa jej i uprawnienie ``IsActiveReviewer`` (przez
     ``apps.accounts.permissions``), i widoczność plików (``Submission.objects.for_user``), i serwisy
     oceniania. Rozjazd między nimi oznaczałby, że ktoś widzi pracę, której nie ma prawa recenzować.
+
+    ``competition=None`` znaczy „weź konkurs z kontekstu” (``current_competition()``), a nie „bez
+    konkursu”: funkcję woła kilkudziesięciu klientów w czterech aplikacjach, z których większość
+    ma konkurs w żądaniu i nie ma po co go tu przepisywać. Wskazanie wprost jest dla zadań Celery
+    i dla kodu, który chodzi po wielu konkursach po kolei.
     """
     if not user or not user.is_authenticated or not user.is_active:
         return None
     member = getattr(user, "committee_member", None)
     if member is None or member.status != CommitteeStatus.ACTIVE:
         return None
-    if not user.groups.filter(name=GROUP_REVIEWER).exists():
+    if not has_role(user, competition or current_competition(), CompetitionRole.REVIEWER):
         return None
     return member
+
+
+# --- konkurs i role w konkursie -------------------------------------------------------------------
+#
+# Cała autoryzacja „kto czym jest” przechodzi przez ``has_role``. Jedno miejsce, bo dwa znaczyłyby
+# dwie definicje roli, a pierwsza rozbieżność między nimi jest wyciekiem albo 403 na własnym panelu.
+
+
+def default_competition():
+    """Konkurs „na teraz”, a gdy kontekst jest pusty – jedyny konkurs w instalacji.
+
+    Po co odwrót, skoro jest ``current_competition()``: bo znaczna część kodu kont chodzi **poza
+    żądaniem** – zadania Celery (kosiarka kont, wysyłka listów), komendy (``bootstrap_coordinator``,
+    seedy), importy i testy jednostkowe, które nigdy nie widziały nagłówka ``Host``. W bazie
+    jednokonkursowej „nie wiadomo który” ma dokładnie jedną poprawną odpowiedź i udawanie, że jej
+    nie ma, kończyłoby się wierszami bez właściciela.
+
+    Przy **dwóch** konkursach odwrót celowo nie działa: zwracamy ``None``, czyli „powiedz wprost,
+    o który chodzi”. Zgadywanie („weź pierwszy”) przypisałoby uczestnika cudzemu organizatorowi –
+    i to po cichu. ``None`` u wołającego zostawia kolumnę pustą, co jest widoczne w kontroli przed
+    ``NOT NULL`` (``docs/UNIWERSALNY-ETAP-1.md`` § 4.4), a nie w cudzej tabeli wyników.
+
+    Miejsce docelowe tej funkcji to ``apps.tenancy`` – stoi tutaj, bo zadanie T1 jej nie zbudowało,
+    a ``apps/accounts/`` jest jedynym katalogiem, który wolno ruszyć w T2. Przeniesienie jest
+    zmianą jednej linii importu (patrz raport T2).
+    """
+    from apps.tenancy.models import Competition
+
+    current = current_competition()
+    if current is not None:
+        return current
+    # ``[:2]`` zamiast ``count()``: jedno zapytanie odpowiada i „ile ich jest”, i „który to”.
+    rows = list(Competition.objects.order_by("pk")[:2])
+    return rows[0] if len(rows) == 1 else None
+
+
+def memberships_enforced(competition) -> bool:
+    """Czy o roli rozstrzyga ``Membership``, czy jeszcze globalna grupa Django.
+
+    To jest **przełącznik migracji**, nie docelowa opcja konfiguracji (§ 3.8). Do backfillu
+    członkostw jedyną zapisaną w bazie odpowiedzią na pytanie „czy ta osoba jest recenzentem” są
+    grupy; po backfillu flaga ``memberships_enforced`` przechodzi na ``True`` i zostaje w kodzie
+    jeden sezon, na wypadek gdyby trzeba było wrócić bez wdrożenia.
+
+    Brak konkursu znaczy „nie ma czego egzekwować”: reguła schodzi wtedy do grup, czyli do
+    zachowania sprzed tej zmiany. To jest świadome i jest warunkiem § 0 – żądanie pod hostem,
+    którego nikt nie przypisał do konkursu, ma odpowiadać dokładnie tak, jak odpowiadało wczoraj.
+    """
+    return competition is not None and competition.has_feature("memberships_enforced")
+
+
+def has_role(user, competition, role: str) -> bool:
+    """Czy ``user`` ma rolę ``role`` w konkursie ``competition``. Jedyne miejsce tej reguły.
+
+    Przy wyłączonej fladze ``memberships_enforced`` odpowiada **grupa Django** – bajt w bajt to,
+    co robi serwis dziś; przy włączonej – wiersz ``Membership``. Dzięki temu przełączenie jest
+    jedną wartością w ``feature_flags``, a nie wdrożeniem, i da się je cofnąć w minutę.
+
+    Czego ta funkcja **nie** robi: nie eskaluje superużytkownika. ``is_superuser`` opisuje
+    operatora platformy, a nie koordynatora konkursu; cicha eskalacja zrobiłaby z każdego konta
+    serwisowego konto z wglądem w dane uczestników. Ta sama reguła obowiązuje dziś w
+    ``IsCoordinator`` i nie zmienia się tutaj.
+
+    Konto nieaktywne (zablokowane albo z niepotwierdzonym adresem) nie ma żadnej roli, niezależnie
+    od tego, co stoi w bazie – blokada konta ma zamykać dostęp od razu, bez sprzątania członkostw.
+    """
+    if not user or not user.is_authenticated or not user.is_active:
+        return False
+    # ``CompetitionRole(...)`` sprawdza wartość: literówka w nazwie roli ma podnieść ``ValueError``
+    # w miejscu wywołania, a nie po cichu oddać „nie ma takiej roli, czyli nie masz uprawnień”.
+    role = CompetitionRole(role).value
+    if memberships_enforced(competition):
+        return Membership.objects.filter(user=user, competition=competition, role=role).exists()
+    return user.groups.filter(name=role).exists()
+
+
+def roles_for(user, competition) -> set[str]:
+    """Komplet ról tej osoby w tym konkursie – do nawigacji i do odpowiedzi API, nie do bramek.
+
+    Bramkuje zawsze ``has_role`` (jedna rola, jedno pytanie). Ta funkcja odpowiada na pytanie
+    „co ta osoba tu w ogóle robi”, zadawane raz na żądanie przy składaniu menu – i dlatego jest
+    jednym zapytaniem, a nie pięcioma wywołaniami ``has_role``.
+
+    Zbiór, a nie lista: kolejność ról nie niesie informacji, a porównanie zbiorów jest tym, czego
+    chce wołający („czy jest tu kimkolwiek”, „czy jest tu wyłącznie uczestnikiem”).
+    """
+    if not user or not user.is_authenticated or not user.is_active:
+        return set()
+    known = set(CompetitionRole.values)
+    if memberships_enforced(competition):
+        rows = Membership.objects.filter(user=user, competition=competition)
+        return set(rows.values_list("role", flat=True)) & known
+    return set(user.groups.values_list("name", flat=True)) & known
+
+
+def participant_for(user, competition) -> Participant | None:
+    """Profil uczestnika tej osoby **w tym konkursie** albo ``None``.
+
+    Jedyna droga do profilu w kodzie pisanym od tej zmiany. ``user.participant`` zostaje na czas
+    wydania B (relacja jest wciąż ``OneToOne``, patrz docstring ``Participant``), ale jest drogą
+    **bez konkursu** – a to znaczy, że po wydaniu D oddawałaby profil z dowolnego konkursu.
+    Kod, który woła tę funkcję już dziś, nie zmieni się wtedy ani o linię.
+
+    ``competition=None`` znaczy „nie wiadomo, o który konkurs chodzi” i oddaje profil bez
+    zawężania – czyli dokładnie to, co dziś oddaje ``user.participant``. Wyciekiem to nie jest:
+    pytamy o profil **tej** osoby, a nie o cudzy.
+
+    Wiersze bez konkursu (``competition IS NULL``) są widoczne dla każdego konkursu i to jest
+    świadome przez jedno wydanie: w wydaniu B kolumna dopiero powstaje, a kod zapisu i kod
+    odczytu mają przez chwilę stać obok siebie (§ 4.1). Wydanie D zamyka kolumnę na ``NOT NULL``
+    i ta gałąź znika sama – nie zostanie w kodzie jako „wyjątek, o którym wszyscy zapomnieli”.
+    """
+    if not user or not getattr(user, "is_authenticated", False):
+        return None
+    rows = Participant.objects.filter(user=user)
+    if competition is not None:
+        rows = rows.filter(Q(competition=competition) | Q(competition__isnull=True))
+    return rows.first()
 
 
 def _add_to_group(user: User, name: str) -> None:
     group, _ = Group.objects.get_or_create(name=name)
     user.groups.add(group)
+
+
+def grant_role(user: User, role: str, *, competition=None, granted_by: User | None = None):
+    """Nadaje rolę: wiersz ``Membership`` **i** przynależność do grupy Django. Oba, zawsze.
+
+    Dlaczego oba, a nie samo członkostwo: od uprawnień grupy ``coordinator`` zależy dostęp do
+    ``/cms/`` (migracja ``cms.0003_coordinator_permissions``), a te uprawnienia są własnością
+    Wagtaila. Grupa jest więc dziś **uprawnieniem do panelu redakcyjnego**, a członkostwo – rolą
+    w konkursie; rozdzielenie jednego zapisu na dwa serwisy skończyłoby się kontem, które ma rolę,
+    ale nie ma panelu (albo odwrotnie).
+
+    Brak konkursu (świeża instalacja przed ``tenancy.0002``, dwa konkursy bez wskazania) zapisuje
+    **samą grupę** i nie podnosi wyjątku: zachowanie jest wtedy identyczne z tym sprzed T2, a
+    pustą kolumnę widać w kontroli przed ``NOT NULL`` (§ 4.4). Wyjątek w tym miejscu przewracałby
+    rejestrację uczestnika na bazie, na której konkurs jeszcze nie powstał.
+
+    ``get_or_create``, bo nadanie roli jest **idempotentne**: ponowna rejestracja tą samą drogą,
+    powtórzony import i powtórzony backfill mają skończyć się jednym wierszem, a nie błędem.
+    """
+    role = CompetitionRole(role).value
+    _add_to_group(user, role)
+    if competition is None:
+        return None
+    membership, _ = Membership.objects.get_or_create(
+        user=user,
+        competition=competition,
+        role=role,
+        defaults={"granted_by": granted_by},
+    )
+    return membership
 
 
 def _normalize_email(email: str) -> str:
@@ -302,9 +455,14 @@ def register_participant(
         last_name=last_name,
         is_active=False,
     )
-    _add_to_group(user, GROUP_PARTICIPANT)
+    # Konkurs rejestracji: ten z żądania (ustawia go ``apps.tenancy.middleware``), a poza żądaniem
+    # jedyny w instalacji. Jedna wartość dla profilu i dla członkostwa – gdyby były dwa odczyty,
+    # dałoby się zarejestrować uczestnika w jednym konkursie, a rolę nadać mu w drugim.
+    competition = default_competition()
+    grant_role(user, CompetitionRole.PARTICIPANT, competition=competition)
     participant = create_participant_with_public_code(
         user=user,
+        competition=competition,
         school=school_name,
         school_ref=school_obj,
         grade=grade,
@@ -555,9 +713,11 @@ def register_social_participant(
     )
     user.set_unusable_password()
     user.save()
-    _add_to_group(user, GROUP_PARTICIPANT)
+    competition = default_competition()
+    grant_role(user, CompetitionRole.PARTICIPANT, competition=competition)
     participant = create_participant_with_public_code(
         user=user,
+        competition=competition,
         school=school_name,
         school_ref=school_obj,
         grade=grade,
@@ -598,6 +758,8 @@ def create_invitation(
     plain_code = secrets.token_urlsafe(INVITATION_CODE_BYTES)
     invitation = InvitationCode.objects.create(
         code_hash=hash_invitation_code(plain_code),
+        # Kod wpuszcza do komitetu **tego** konkursu, w którym go wystawiono.
+        competition=default_competition(),
         created_by=created_by,
         expires_at=expires_at,
         max_uses=max_uses,
@@ -1026,6 +1188,10 @@ def register_committee(
     from_code = normalize_voivodeship(invitation.district)
     member = CommitteeMember.objects.create(
         user=user,
+        # Konkurs bierzemy z **kodu**, a nie z kontekstu żądania: to zaproszenie rozstrzyga,
+        # do czyjego komitetu ktoś wchodzi. Kod sprzed wydania B konkursu nie ma – wtedy, i tylko
+        # wtedy, schodzimy do konkursu bieżącego.
+        competition=invitation.competition or default_competition(),
         district=from_code or declared,
         district_verified=bool(from_code),
         status=invitation.grants_status,
@@ -1040,9 +1206,15 @@ def register_committee(
 
 
 def _grant_reviewer_groups(member: CommitteeMember) -> None:
-    _add_to_group(member.user, GROUP_REVIEWER)
+    """Role recenzenta (i ewentualnie komisji odwoławczej) w konkursie **tego profilu**.
+
+    Konkurs bierzemy z profilu komitetu, a nie z kontekstu żądania: zatwierdza koordynator, więc
+    kontekst jest jego, ale rola dotyczy konkursu, w którym ten recenzent się zgłosił.
+    """
+    competition = member.competition or default_competition()
+    grant_role(member.user, CompetitionRole.REVIEWER, competition=competition)
     if member.is_appeals_committee:
-        _add_to_group(member.user, GROUP_APPEALS)
+        grant_role(member.user, CompetitionRole.APPEALS, competition=competition)
 
 
 @transaction.atomic
@@ -1101,7 +1273,12 @@ def verify_committee_district(
     return member
 
 
-def make_coordinator(user: User) -> User:
-    """Nadaje rolę koordynatora (używane przez seed/administrację, nie przez API)."""
-    _add_to_group(user, GROUP_COORDINATOR)
+def make_coordinator(user: User, competition=None) -> User:
+    """Nadaje rolę koordynatora (używane przez seed/administrację, nie przez API).
+
+    ``competition`` jest opcjonalny, bo wołają stąd komendy startowe (``bootstrap_coordinator``,
+    seedy), które chodzą na bazie z jednym konkursem i nie mają po co go wskazywać. Wskazanie
+    wprost jest potrzebne dopiero wtedy, gdy konkursów jest więcej niż jeden.
+    """
+    grant_role(user, CompetitionRole.COORDINATOR, competition=competition or default_competition())
     return user

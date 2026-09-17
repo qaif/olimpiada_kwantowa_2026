@@ -20,6 +20,7 @@ from django.utils import timezone
 
 from apps.accounts.models import SchoolSupervisor
 from apps.competitions.models import Edition, Stage, StageEntry
+from apps.competitions.scoping import competition_scoped_manager
 from apps.competitions.storage import private_media_storage
 
 from .certificate_layout import default_certificate_layout
@@ -68,6 +69,11 @@ class ResultsPublication(models.Model):
     entry_totals = models.JSONField(
         "sumy wpisów w chwili publikacji", default=default_entry_totals, blank=True
     )
+
+    #: Przez etap. Tabela wyników jest publiczna, ale publiczna **w swoim konkursie**: adres
+    #: ``/results/<id>/`` nie wymaga logowania, więc bez zakresu byłby najtańszą drogą do cudzych
+    #: wyników – wystarczyłoby przejechać identyfikatory etapów.
+    objects = competition_scoped_manager("stage__edition__competition")
 
     class Meta:
         verbose_name = "publikacja wyników"
@@ -187,6 +193,13 @@ class Certificate(models.Model):
     # bo strona weryfikacji ma powiedzieć **kto** pieczętował, a nie „podpisano cyfrowo”:
     # czytelnik sprawdza dokument właśnie po to, żeby wiedzieć, czyja to pieczęć.
     signer_name = models.CharField("podpisujący", max_length=200, blank=True)
+
+    #: Przez edycję – klucz obcy do niej dokument ma od początku (§ 3.4).
+    #:
+    #: ``number`` i ``code`` zostają unikalne **globalnie** i to nie jest przeoczenie: numer niesie
+    #: prefiks konkursu, a strona weryfikacji jest publiczna i ma działać bez wskazania konkursu –
+    #: czytelnik trzymający dyplom w ręku nie wie, pod którą domeną go sprawdzić.
+    objects = competition_scoped_manager("edition__competition")
 
     class Meta:
         verbose_name = "dyplom / zaświadczenie"
@@ -330,6 +343,15 @@ class CertificateTemplate(models.Model):
         verbose_name="utworzył",
     )
     created_at = models.DateTimeField("utworzony", default=timezone.now)
+
+    #: Przez edycję – ta sama droga, co u dokumentu, który z szablonu powstaje.
+    #:
+    #: ``edition`` bywa **puste** („szablon dla wszystkich edycji”), więc taki wiersz nie wyjdzie
+    #: z ``for_competition``. Dopasowanie szablonu (``apps.results.certificates``) idzie natomiast
+    #: od szczegółu do ogółu i sięga po wiersz bez edycji świadomie: szablon „na wszystko” jest
+    #: dziś wspólną półką instalacji. Własną kolumnę konkursu dostanie w etapie 2, razem z ekranem
+    #: „Ustawienia konkursu” – dopóki konkurs jest jeden, wspólna półka jest półką jego własną.
+    objects = competition_scoped_manager("edition__competition")
 
     class Meta:
         verbose_name = "szablon dokumentu"

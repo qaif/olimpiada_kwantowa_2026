@@ -16,6 +16,12 @@ from django.utils import timezone
 
 from apps.accounts.models import GROUP_COORDINATOR, CommitteeStatus
 from apps.competitions.models import Problem, Stage, StageEntry
+from apps.competitions.scoping import (
+    competition_scoped_manager,
+    resolve_competition,
+    scope_to_competition,
+)
+from apps.tenancy.managers import CompetitionScopedQuerySet
 
 
 class SubmissionStatus(models.TextChoices):
@@ -41,8 +47,18 @@ class AvStatus(models.TextChoices):
     ERROR = "ERROR", "błąd skanu"
 
 
-class SubmissionQuerySet(models.QuerySet):
-    def for_user(self, user):
+class SubmissionQuerySet(CompetitionScopedQuerySet):
+    """Prace, z **własną** kolumną konkursu – jedyną denormalizacją w całym etapie 1 (§ 3.4).
+
+    Powód denormalizacji jest mierzalny: panel koordynatora i lista przydziałów recenzenta filtrują
+    po pracach kilkanaście razy na żądanie, a złączenie ``entry → stage → edition`` przy każdym
+    takim zapytaniu jest kosztem, którego nie ma czym uzasadnić. Ceną jest druga droga do tej samej
+    prawdy, więc spójności pilnuje zapis (``Submission.save``) i test.
+    """
+
+    competition_path = "competition"
+
+    def for_user(self, user, competition=None):
         """Widoczność per rola: uczestnik → własne, koordynator → wszystkie, recenzent → przydzielone.
 
         Członek komisji odwoławczej widzi dodatkowo rozwiązania, na które złożono reklamację –
@@ -59,24 +75,32 @@ class SubmissionQuerySet(models.QuerySet):
         Definicja „aktywnego recenzenta” (status ACTIVE **i** grupa ``reviewer``) jest jedna dla
         całego systemu i mieszka w ``apps.accounts.services.active_reviewer_profile`` – widoczność
         plików nie może być luźniejsza niż uprawnienie, które wpuszcza do ``/api/grading/reviews/``.
+
+        **Zakres konkursu idzie przed rolą** (§ 3.5) i to jest najważniejsza linia tej zmiany:
+        ``for_user`` rozstrzyga *rolę*, ``for_competition`` – *własność*. Do etapu 1 koordynator
+        widział tu wszystko; odtąd widzi wszystko **swojego** konkursu, bo rola jest rolą
+        w konkursie, a nie w instalacji. Odwrócenie kolejności (najpierw rola, potem zakres) dałoby
+        gałąź koordynatora, która zwraca ``self`` i nigdy już nie zostaje zawężona.
         """
         # Importy lokalne. ``apps.accounts.services`` ciągnie za sobą warstwę serwisową, a ten moduł
         # jest ładowany podczas rejestrowania aplikacji. ``apps.appeals`` i ``apps.grading`` zależą
         # od ``apps.submissions``, więc import na poziomie modułu byłby cyklem – stąd tutaj, gdzie
         # obie aplikacje są już załadowane.
-        from apps.accounts.services import active_reviewer_profile
+        from apps.accounts.services import active_reviewer_profile, participant_for
         from apps.appeals.models import CONFLICTING_ROUNDS
         from apps.grading.models import Review
 
+        competition = resolve_competition(competition)
+        scoped = scope_to_competition(self, competition)
         if not user or not user.is_authenticated or not user.is_active:
-            return self.none()
+            return scoped.none()
         if user.groups.filter(name=GROUP_COORDINATOR).exists():
-            return self
+            return scoped
         conditions = []
-        participant = getattr(user, "participant", None)
+        participant = participant_for(user, competition)
         if participant is not None:
             conditions.append(Q(entry__participant=participant))
-        reviewer = active_reviewer_profile(user)
+        reviewer = active_reviewer_profile(user, competition)
         if reviewer is not None:
             conditions.append(Q(reviews__reviewer=reviewer))
         member = getattr(user, "committee_member", None)
@@ -103,11 +127,11 @@ class SubmissionQuerySet(models.QuerySet):
             )
             conditions.append(Q(appeals__isnull=False) & ~Q(pk__in=conflicted))
         if not conditions:
-            return self.none()
+            return scoped.none()
         query = conditions[0]
         for extra in conditions[1:]:
             query |= extra
-        queryset = self.filter(query)
+        queryset = scoped.filter(query)
         # JOIN po recenzjach i reklamacjach potrafi zwielokrotnić wiersze (dwie recenzje tego samego
         # zgłoszenia w rundach 1 i 2), więc tylko ta gałąź wymaga odsiania duplikatów.
         if reviewer is not None or appeals_member is not None:
@@ -119,6 +143,26 @@ class Submission(models.Model):
     """Jedno oddanie zadania przez uczestnika. Kolejne oddania to kolejne wersje, nie nadpisanie."""
 
     uuid = models.UUIDField("uuid", default=uuid.uuid4, unique=True, editable=False)
+    #: **Jedyna** kolumna denormalizacyjna etapu 1 (§ 3.4). Nie zastępuje drogi przez
+    #: ``entry → stage → edition`` – powtarza jej wynik, żeby zapytania panelu i kolejki recenzenta
+    #: nie ciągnęły za sobą trzech złączeń. Spójności nie da się wyrazić ``CheckConstraint``-em
+    #: (warunek sięga innej tabeli), więc pilnuje jej ``save()`` poniżej oraz test
+    #: ``test_submission_competition_matches_entry``.
+    #:
+    #: ``db_index`` wprost, choć klucz obcy i tak zakłada indeks: to pole jest **filtrem**, a nie
+    #: relacją do przechodzenia, i ma być widać w modelu, po co tam stoi.
+    #:
+    #: Nullowalne przez wydanie B (§ 4.1); ``SET_NULL``, a nie ``PROTECT`` jak przy edycji, bo to
+    #: kopia, a nie źródło – skasowanie konkursu ma zatrzymać się na ``Edition``.
+    competition = models.ForeignKey(
+        "tenancy.Competition",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_index=True,
+        related_name="submissions",
+        verbose_name="konkurs",
+    )
     entry = models.ForeignKey(StageEntry, on_delete=models.CASCADE, related_name="submissions")
     problem = models.ForeignKey(Problem, on_delete=models.CASCADE, related_name="submissions")
     version = models.PositiveSmallIntegerField("wersja", default=1)
@@ -145,6 +189,31 @@ class Submission(models.Model):
 
     def __str__(self) -> str:
         return f"{self.entry_id}/zad. {self.problem_id} v{self.version} ({self.status})"
+
+    def save(self, *args, **kwargs):
+        """Nowa praca dziedziczy konkurs po swoim wpisie do etapu – zawsze, nie „zwykle”.
+
+        Kolumna jest denormalizacją, więc jej wartość nie jest decyzją: jest funkcją
+        ``entry.stage.edition.competition``. Wypełnienie stoi tutaj, a nie wyłącznie
+        w ``apps.submissions.services.create_submission``, bo „jedyna droga zapisu” jest prawdą
+        o produkcji, a nie o bazie: importy, fabryki testowe i przyszłe serwisy zapisują wprost,
+        a praca bez właściciela jest pracą niewidoczną dla własnego koordynatora.
+
+        Kontekstu żądania tu **nie** czytamy i to jest istotne: konkurs pracy wynika z etapu,
+        w którym ją oddano, a nie z domeny, spod której ktoś ją zapisuje. Gdyby było odwrotnie,
+        zapis wykonany z panelu konkursu A przepisałby pracę konkursu B na A.
+
+        Jedno dodatkowe zapytanie, wyłącznie przy wstawianiu i wyłącznie wtedy, gdy wołający nie
+        podał konkursu; ``create_submission`` podaje go z etapu, który i tak ma w ręku, więc na
+        ścieżce uploadu nie ma go wcale (istotne dla testów liczby zapytań).
+        """
+        if self._state.adding and self.competition_id is None and self.entry_id is not None:
+            self.competition_id = (
+                StageEntry.objects.filter(pk=self.entry_id)
+                .values_list("stage__edition__competition_id", flat=True)
+                .first()
+            )
+        return super().save(*args, **kwargs)
 
     @property
     def latest_file(self) -> "SubmissionFile | None":
@@ -190,6 +259,9 @@ class SubmissionFile(models.Model):
     # stron leży na końcu pliku – policzenie jej wymaga przeczytania całego dokumentu ze storage,
     # a czyta tę liczbę panel uczestnika przy każdym wejściu.
     page_count = models.PositiveIntegerField("liczba stron", null=True, blank=True)
+
+    #: Przez pracę, czyli przez jej kolumnę denormalizacyjną – jedno złączenie, nie cztery.
+    objects = competition_scoped_manager("submission__competition")
 
     class Meta:
         verbose_name = "plik rozwiązania"
@@ -261,6 +333,11 @@ class SubmissionSimilarity(models.Model):
         related_name="reported_similarities",
         verbose_name="zgłosił",
     )
+
+    #: Przez etap, a nie przez którąś z dwóch prac: para jest nieuporządkowana, więc droga przez
+    #: ``submission_a`` byłaby wyborem bez uzasadnienia. ``stage`` jest tu i tak zdenormalizowany,
+    #: a obie prace należą do tego samego zadania, czyli do tego samego etapu.
+    objects = competition_scoped_manager("stage__edition__competition")
 
     class Meta:
         verbose_name = "podobieństwo rozwiązań"

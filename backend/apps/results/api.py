@@ -22,6 +22,7 @@ from rest_framework.throttling import AnonRateThrottle
 
 from apps.accounts.permissions import IsCoordinator, IsParticipant
 from apps.competitions.models import Stage
+from apps.competitions.scoping import competition_of, scope_to_competition
 
 from .models import ResultsPublication
 from .serializers import (
@@ -41,7 +42,11 @@ class PublicStageResultsView(GenericAPIView):
     serializer_class = PublicResultsSerializer
 
     def get_queryset(self):
-        return ResultsPublication.objects.select_related("stage")
+        # Tabela jest publiczna, ale publiczna **w swoim konkursie**: bez zawężenia adres bez
+        # logowania byłby najtańszą drogą do cudzych wyników – wystarczy przejechać identyfikatory.
+        return scope_to_competition(
+            ResultsPublication.objects.select_related("stage"), competition_of(self.request)
+        )
 
     @extend_schema(responses={200: PublicResultsSerializer})
     def get(self, request, stage_id: int):
@@ -57,7 +62,7 @@ class MyResultsView(GenericAPIView):
 
     @extend_schema(responses={200: MyStageResultSerializer(many=True)})
     def get(self, request):
-        data = results_for_participant(request.user)
+        data = results_for_participant(request.user, competition_of(request))
         return Response(self.get_serializer(data, many=True).data)
 
 
@@ -67,7 +72,15 @@ class CoordinatorStageMixin:
     permission_classes = [IsCoordinator]
 
     def get_stage(self, pk: int) -> Stage:
-        return get_object_or_404(Stage.objects.select_related("edition", "qualification_rule"), pk=pk)
+        # Etap cudzego konkursu daje 404 wprost z querysetu – przeliczenie i publikacja wyników
+        # są zapisami, więc tym bardziej nie wolno ich wykonać na cudzym etapie.
+        return get_object_or_404(
+            scope_to_competition(
+                Stage.objects.select_related("edition", "qualification_rule"),
+                competition_of(self.request),
+            ),
+            pk=pk,
+        )
 
 
 class StageResultsComputeView(CoordinatorStageMixin, GenericAPIView):

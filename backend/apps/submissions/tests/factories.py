@@ -1,4 +1,13 @@
-"""Fabryki i budowniczowie plików testowych dla rozwiązań. Używane wyłącznie w testach."""
+"""Fabryki i budowniczowie plików testowych dla rozwiązań. Używane wyłącznie w testach.
+
+``SubmissionFactory`` przyjmuje od T7 argument ``competition``. Praca jest jedynym modelem
+z **denormalizowaną** kolumną konkursu (§ 3.5): panel koordynatora i lista przydziałów recenzenta
+filtrują po pracach kilkanaście razy na żądanie, a złączenie ``entry → stage → edition`` przy
+każdym takim zapytaniu jest mierzalne. Fabryka wpisuje więc konkurs w to samo miejsce, w które
+wpisuje go jedyna droga zapisu w produkcji (``apps.submissions.services.create_submission``),
+i zarazem propaguje go na wpis do etapu oraz zadanie – żeby kolumna i droga przez rodzica zawsze
+wskazywały ten sam konkurs.
+"""
 
 import json
 
@@ -8,6 +17,7 @@ from django.utils import timezone
 
 from apps.competitions.tests.factories import ProblemFactory, StageEntryFactory
 from apps.submissions.models import AvStatus, Submission, SubmissionFile, SubmissionStatus
+from apps.tenancy.tests.factories import SAME_COMPETITION, CompetitionScopedFactory
 
 # Minimalny, ale prawdziwy PDF: liczy się nagłówek %PDF- (walidator patrzy na treść, nie na nazwę).
 PDF_BYTES = b"%PDF-1.7\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF\n"
@@ -89,23 +99,23 @@ def jpeg_upload(name: str = "zdjecie.jpg") -> SimpleUploadedFile:
     return upload(name, JPEG_BYTES, "image/jpeg")
 
 
-class SubmissionFactory(factory.django.DjangoModelFactory):
+class SubmissionFactory(CompetitionScopedFactory):
     class Meta:
         model = Submission
 
-    entry = factory.SubFactory(StageEntryFactory)
-    problem = factory.SubFactory(ProblemFactory)
+    entry = factory.SubFactory(StageEntryFactory, competition=SAME_COMPETITION)
+    problem = factory.SubFactory(ProblemFactory, competition=SAME_COMPETITION)
     version = 1
     submitted_at = factory.LazyFunction(timezone.now)
     is_late = False
     status = SubmissionStatus.SUBMITTED
 
 
-class SubmissionFileFactory(factory.django.DjangoModelFactory):
+class SubmissionFileFactory(CompetitionScopedFactory):
     class Meta:
         model = SubmissionFile
 
-    submission = factory.SubFactory(SubmissionFactory)
+    submission = factory.SubFactory(SubmissionFactory, competition=SAME_COMPETITION)
     object_key = factory.Sequence(lambda n: f"1/1/OLM-TEST/{n:032d}/{'a' * 64}.pdf")
     sha256 = "a" * 64
     original_name = "rozwiazanie.pdf"

@@ -1,4 +1,11 @@
-"""Fabryki factory_boy dla kont. Używane wyłącznie w testach."""
+"""Fabryki factory_boy dla kont. Używane wyłącznie w testach.
+
+Profile ról (``Participant``, ``CommitteeMember``, ``InvitationCode``) dostają od zadania T7
+argument ``competition`` z wartością domyślną z kontekstu – uzasadnienie i mechanika:
+``apps/tenancy/tests/factories.py``. Samo konto (``User``) zakresu **nie** ma i mieć nie będzie:
+jedna osoba ma jedno hasło i jeden reset hasła na całą platformę, a rolą w konkursie jest dopiero
+członkostwo (``docs/UNIWERSALNY-ETAP-1.md`` § 3.8).
+"""
 
 from datetime import timedelta
 
@@ -20,6 +27,7 @@ from apps.accounts.models import (
     generate_public_code,
     hash_invitation_code,
 )
+from apps.tenancy.tests.factories import CompetitionScopedFactory
 
 DEFAULT_PASSWORD = "Poprawne-Haslo-2026"
 
@@ -75,7 +83,12 @@ class UserFactory(factory.django.DjangoModelFactory):
         _assign_groups(obj, create, extracted)
 
 
-class ParticipantFactory(factory.django.DjangoModelFactory):
+class ParticipantFactory(CompetitionScopedFactory):
+    """Profil uczestnika **jednego** konkursu (§ 3.3): szkoła, klasa, ``public_code`` i zgody.
+
+    Konto (``user``) zostaje wspólne dla platformy, więc podfabryka konta konkursu nie dostaje.
+    """
+
     class Meta:
         model = Participant
 
@@ -97,7 +110,9 @@ class ParticipantFactory(factory.django.DjangoModelFactory):
     guardian_consent = True
 
 
-class CommitteeMemberFactory(factory.django.DjangoModelFactory):
+class CommitteeMemberFactory(CompetitionScopedFactory):
+    """Członek komitetu **tego** konkursu – razem z województwem i przynależnością do komisji."""
+
     class Meta:
         model = CommitteeMember
 
@@ -137,8 +152,11 @@ class CoordinatorFactory(UserFactory):
     )
 
 
-class InvitationCodeFactory(factory.django.DjangoModelFactory):
-    """Fabryka kodu zaproszenia. Kod jawny wstrzykuje się parametrem ``plain_code``."""
+class InvitationCodeFactory(CompetitionScopedFactory):
+    """Fabryka kodu zaproszenia. Kod jawny wstrzykuje się parametrem ``plain_code``.
+
+    Kod nadaje status w komitecie **konkursu**, więc od T2 należy do konkursu (§ 3.2).
+    """
 
     class Meta:
         model = InvitationCode

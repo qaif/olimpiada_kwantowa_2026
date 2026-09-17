@@ -173,6 +173,9 @@ Co trzeba ustawić **zanim** to zadziała:
    droga odzyskania konta dla uczestnika, recenzenta, komisji i koordynatora. Domyślnie obsługuje ją
    usługa `mail` (własny Postfix z DKIM) – sekcja 4.1. Sama usługa nie wystarczy: bez rekordów
    SPF/DKIM/DMARC i PTR listy trafiają do spamu albo są odrzucane – sekcja 4.2.
+8. **`EXTRA_DOMAINS`** – tylko wtedy, gdy na tej instalacji ma stanąć **więcej niż jeden konkurs**.
+   Pusto (domyślnie) znaczy „jeden konkurs” i konfiguracja proxy jest wtedy bajt w bajt taka, jak
+   `deploy/Caddyfile`. Procedura dołożenia konkursu: niżej, „Kolejny konkurs na tej samej instalacji”.
 
 Certyfikat Let's Encrypt Caddy pobiera sam przy pierwszym starcie – wymaga otwartych portów 80 i 443
 i poprawnego DNS-u dla obu nazw.
@@ -189,6 +192,98 @@ obraz, uruchamia migracje (entrypoint `web`) i **nie rusza tego, co zmieniono na
   `seed_partners`) uruchamiają się same **tylko przy pierwszym wdrożeniu** (znacznik `.first-deploy`
   obok `.env`); ponowny import treści z repozytorium wymaga `RUN_CONTENT_SEEDS=1` i nadpisuje
   poprawki zrobione w `/cms/`.
+
+Kroki wdrożenia, o których warto wiedzieć:
+
+- **4/8** składa konfigurację proxy (`scripts/render_caddyfile.sh`: `deploy/Caddyfile` +
+  `EXTRA_DOMAINS`), buduje obraz i uruchamia **samą bazę**. Przy pustym `EXTRA_DOMAINS` wynik jest
+  kopią `deploy/Caddyfile` co do bajtu – sprawdza to `scripts/tests/render_caddyfile_test.sh`.
+  Krok dokłada też do `.env` brakujące `EXTRA_DOMAINS=` i `CADDYFILE_PATH=`; istniejących wartości
+  nie rusza.
+- **4a/8 – kopia bazy przed migracjami.** `pg_dump -Fc` do
+  `/opt/olimpiada-backups/pre-deploy-<data>-<wersja>.dump`, **zanim** entrypoint kontenera `web`
+  wykona `migrate`. Niepowodzenie zatrzymuje wdrożenie: migracji bez kopii nie wykonujemy. Zostaje
+  dziesięć ostatnich takich plików (kopie nocne z `scripts/backup.sh` to osobny zestaw).
+  Odtworzenie: `docker compose exec -T db pg_restore -U olimpiada -d olimpiada --clean --if-exists < <plik>`.
+- **4b/8** uruchamia komplet usług – i to tutaj wykonują się migracje.
+- **6a/8 – nowy konkurs, krok opcjonalny.** Bez zmiennej `NEW_COMPETITION_SLUG` nie wykonuje ani
+  jednego polecenia. Patrz niżej.
+- na końcu wdrożenia `manage.py check_domains` wypisuje konkursy, których domena nie jest wpuszczona
+  we wszystkich trzech konfiguracjach naraz. To jest **ostrzeżenie**, a nie bramka – wdrożenia nie
+  zatrzymuje.
+
+### Kolejny konkurs na tej samej instalacji
+
+Platforma obsługuje wiele niezależnych konkursów z jednej bazy i jednego wdrożenia: konkurs to jedna
+`wagtailcore.Site` (własne drzewo stron) plus jeden wiersz `tenancy.Competition`
+(marka, organizator, adresowanie). Projekt i uzasadnienia: [`docs/UNIWERSALNY-ETAP-1.md`](docs/UNIWERSALNY-ETAP-1.md).
+
+**1. Załóż konkurs.** Komenda tworzy witrynę, drzewo stron (puste, o właściwych adresach),
+`SiteSettings` i wiersz konkursu z szablonu — i **nie** uruchamia seedów treści, bo te wpisują
+akapity Olimpiady Kwantowej:
+
+```bash
+docker compose exec web python manage.py create_competition \
+  --slug fizyczna --name "Olimpiada Fizyczna" --domain olimpiadafizyczna.pl \
+  --from-template przedmiotowa --organizer "Polskie Towarzystwo Fizyczne" \
+  --contact-email biuro@example.org --dry-run   # bez --dry-run zapisuje
+```
+
+Szablony (`--from-template`, katalog w `backend/apps/tenancy/templates_catalog.py`):
+`kwantowa` (struktura dzisiejszej konfiguracji: ELIM → wojewódzki → finał + trening, cztery formaty
+plików, komplet zgód), `przedmiotowa` (trzy stopnie, sam PDF), `pusty` (szkielet serwisu).
+Komenda odmawia, gdy identyfikator albo domena są zajęte, a `--dry-run` wykonuje całość i wycofuje
+transakcję – sprawdza to, co sprawdzi baza, a nie to, co o niej pamiętamy.
+
+To samo da się zrobić przy wdrożeniu (krok 6a, `--skip-existing`, więc wdrożenie da się powtórzyć):
+
+```bash
+NEW_COMPETITION_SLUG=fizyczna NEW_COMPETITION_NAME="Olimpiada Fizyczna" \
+NEW_COMPETITION_DOMAIN=olimpiadafizyczna.pl NEW_COMPETITION_TEMPLATE=przedmiotowa \
+scripts/deploy.sh root@<host>
+```
+
+**2. DNS.** Rekord A/AAAA `olimpiadafizyczna.pl` → adres serwera (i `www.olimpiadafizyczna.pl`,
+jeżeli ta nazwa ma działać). Osobny rekord `s3.` **nie** jest potrzebny: bucket jest jeden i pliki
+idą dalej przez `S3_PUBLIC_ADDRESS` domeny platformy.
+
+**3. Domena w `/opt/olimpiada/.env`.** Dołożenie domeny musi zadziałać w trzech konfiguracjach
+naraz, bo każdy brak milczy inaczej: brak w Caddym = brak certyfikatu i „no such site”, brak
+w `ALLOWED_HOSTS` = 400 na każde żądanie, brak w `CSRF_TRUSTED_ORIGINS` = odmowa na każdym
+formularzu. Dlatego wpisuje się ją **w jednym** miejscu:
+
+```dotenv
+EXTRA_DOMAINS=olimpiadafizyczna.pl www.olimpiadafizyczna.pl
+DJANGO_ALLOWED_HOSTS=olimpiadakwantowa.pl,www.olimpiadakwantowa.pl,web,127.0.0.1,localhost
+DJANGO_CSRF_TRUSTED_ORIGINS=https://olimpiadakwantowa.pl,https://www.olimpiadakwantowa.pl
+```
+
+`DJANGO_ALLOWED_HOSTS` i `DJANGO_CSRF_TRUSTED_ORIGINS` **nie muszą** wymieniać nowej domeny:
+Django dokłada do obu list wszystko, co stoi w `EXTRA_DOMAINS` (`config/settings/base.py`).
+Wpisanie ich wprost niczego nie psuje – wartości podane ręcznie zostają na początku list.
+
+**4. Proxy.** `./scripts/render_caddyfile.sh && docker compose up -d proxy web worker beat`
+(albo po prostu ponowne `scripts/deploy.sh`, które robi jedno i drugie). Caddy pobierze certyfikat
+sam, gdy DNS już wskazuje serwer. Kontrola na koniec: `docker compose exec web python manage.py
+check_domains --all`.
+
+**5. Treść.** Regulamin, klauzulę RODO i pozostałe dokumenty wpisuje redakcja nowego konkursu
+w `/cms/` – lista dokumentów, których wymaga wybrany szablon, jest w podsumowaniu komendy. Etapy
+i terminy zakłada koordynator w panelu.
+
+#### Wariant bez własnej domeny: prefiks ścieżki
+
+`create_competition --path-prefix fizyczna` daje konkurs pod `https://<domena platformy>/fizyczna/…`
+bez rekordu DNS i bez zmian w Caddym. Trzy rzeczy, które trzeba wiedzieć, **zanim** się na to
+zdecyduje (`docs/UNIWERSALNY-ETAP-1.md` § 2.3):
+
+- **ciasteczka są wspólne.** Sesja i CSRF stoją na jednym haszczu ciasteczek dla całej domeny, więc
+  zalogowanie w jednym konkursie loguje we wszystkich, które dzielą tę domenę. Konto jest jedno, więc
+  nie jest to dziura – ale rozdziału sesji ten tryb nie daje i dlatego nie jest domyślny.
+- **prefiks zajmuje pierwszy segment adresu.** Nie może to być slug zarezerwowany (`login`, `me`,
+  `coordinator`, `api`, …) ani slug strony drugiego poziomu w innym konkursie – komenda odmawia.
+- **linki w listach wysyłanych spoza żądania** (zadania Celery) budują adres z `primary_domain`
+  konkursu, więc konkurs w tym trybie powinien mieć wpisaną domenę platformy.
 
 ### Własne Jitsi Meet do rozmów kwalifikacyjnych (`scripts/deploy_jitsi.sh`)
 
@@ -222,6 +317,8 @@ i `environment` w compose; w obrazie nie ma żadnego sekretu.
 | `DJANGO_DEBUG` | `0` | `1` wyłącznie lokalnie (nakładka `dev` ustawia to sama) |
 | `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1,web` | lista hostów Django |
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | `https://localhost` | origin(y) z protokołem |
+| `EXTRA_DOMAINS` | puste | domeny kolejnych konkursów, **rozdzielone spacjami**; wchodzą do bloków Caddy'ego (`scripts/render_caddyfile.sh`) oraz do `ALLOWED_HOSTS` i `CSRF_TRUSTED_ORIGINS` – patrz sekcja 3 |
+| `CADDYFILE_PATH` | `./deploy/Caddyfile` | plik konfiguracji montowany do proxy; instalacja z `EXTRA_DOMAINS` używa `./deploy/Caddyfile.generated` |
 | `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE` | `0` | w produkcji `1` |
 | `WEB_WORKERS` | `3` | procesy gunicorna |
 | `CELERY_CONCURRENCY` | `2` | wątki workera |
@@ -1250,6 +1347,12 @@ tabela). Reszta narzędzi etapu siedzi pod „Więcej”.
 Ręczny wariant, przydatny przy jednorazowym zrzucie „przed czymś ryzykownym”. Wariantem
 **produkcyjnym** jest `scripts/backup.sh` z crona: szyfruje paczki i wysyła je poza serwer, czego
 poniższe polecenia nie robią (docs/OPERACJE.md § 1).
+
+> **Kopia przed każdym wdrożeniem powstaje sama.** `scripts/deploy.sh` (krok 4a/8) robi
+> `pg_dump -Fc` do `/opt/olimpiada-backups/pre-deploy-<data>-<wersja>.dump` **zanim** uruchomi
+> kontener `web`, czyli zanim wykonają się migracje; niepowodzenie zatrzymuje wdrożenie. Te pliki
+> są **nieszyfrowane i zostają na serwerze** (to kopia na kwadrans, nie kopia na wypadek pożaru) –
+> trzymanych jest dziesięć ostatnich. Kopią „poza maszynę” jest nadal `scripts/backup.sh` z crona.
 
 Dwie części: baza i buckety. Obie muszą pochodzić z **tego samego momentu** – snapshot wyników
 odwołuje się do plików w MinIO.
@@ -3525,6 +3628,12 @@ cd backend && .venv/Scripts/ruff.exe format . && .venv/Scripts/ruff.exe check .
 # Spójność migracji
 docker compose exec -T web python manage.py makemigrations --check --dry-run
 
+# Konfiguracja compose (składnia, zmienne, montowania) i generator konfiguracji Caddy'ego.
+# Ten drugi jest testem powłoki, a nie pytestem: kontekstem budowania obrazu jest backend/,
+# więc katalogu scripts/ w kontenerze nie ma – narzędzie sprawdza się tam, gdzie działa.
+docker compose config -q
+bash scripts/tests/render_caddyfile_test.sh
+
 # Skan sekretów (katalog roboczy oraz historia gita)
 MSYS_NO_PATHCONV=1 docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect -s /repo --no-git -v
 MSYS_NO_PATHCONV=1 docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest detect -s /repo -v
@@ -3583,7 +3692,8 @@ deploy/             Caddyfile i polityki MinIO
 docs/               PROJEKT.md (architektura), BACKLOG.md, SECURITY_CHECKLIST.md,
                     COVERAGE.md, tasks/ (specyfikacje T-01…T-10)
 e2e/                scenariusz Playwrighta i jego zależności
-scripts/            e2e.sh
+scripts/            deploy.sh, backup.sh, restore.sh, render_caddyfile.sh, e2e.sh
+scripts/tests/      testy powłoki (render_caddyfile_test.sh) – uruchamiane na hoście, nie w obrazie
 agent/              szkielet pętli agentycznej (LangGraph) – patrz PROJEKT.md 3
 docker-compose.yml          produkcja/staging
 docker-compose.dev.yml      nakładka developerska (kod z hosta, porty, profil e2e)

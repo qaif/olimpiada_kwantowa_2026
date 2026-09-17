@@ -211,41 +211,53 @@ def reminder_message(stage, booking) -> tuple[str, str]:
     return subject, "\n".join(lines)
 
 
-def bookings_to_remind(now=None):
+def bookings_to_remind(now=None, competition=None):
     """Zapisy, którym należy się przypomnienie: rozmowa w ciągu najbliższej doby, list jeszcze nie poszedł.
 
     Okno jest półotwarte ``[now, now + 24h)`` i nie sięga w przeszłość: o rozmowie, która już się
     zaczęła, nie ma po co przypominać. ``reminder_sent_at`` jest jedynym bezpiecznikiem przed
     drugim listem – przebieg jest dzienny, ale beat po restarcie potrafi puścić zadanie od razu.
+
+    ``competition`` zawęża przebieg do jednego konkursu. Zadanie okresowe woła tę funkcję **raz na
+    konkurs** (``apps.competitions.tasks.remind_interviews``), a nie raz na instalację: list ma
+    nieść domenę i markę konkursu, w którym odbywa się rozmowa.
     """
     from .models import InterviewBooking
+    from .scoping import scope_to_competition
 
     now = now or timezone.now()
     horizon = now + timedelta(hours=REMINDER_LEAD_HOURS)
     return (
-        InterviewBooking.objects.filter(
-            reminder_sent_at__isnull=True,
-            slot__starts_at__gte=now,
-            slot__starts_at__lt=horizon,
+        scope_to_competition(
+            InterviewBooking.objects.filter(
+                reminder_sent_at__isnull=True,
+                slot__starts_at__gte=now,
+                slot__starts_at__lt=horizon,
+            ),
+            competition,
         )
         .select_related("slot", "slot__stage", "slot__stage__edition", "entry__participant__user")
         .order_by("slot__starts_at", "id")
     )
 
 
-def send_interview_reminders(now=None) -> int:
+def send_interview_reminders(now=None, competition=None) -> int:
     """Wysyła przypomnienia i znaczy zapisy. Zwraca liczbę listów przekazanych do kolejki.
 
     Znacznik stawiamy **przed** kolejkowaniem listu i zapisujemy go od razu: przy padzie workera
     wolimy jedno przypomnienie mniej niż dwa te same do tej samej osoby. Kolejka pocztowa ma
     własne ponowienia (``apps.core.tasks.send_mail_task``), więc ryzyko zgubienia listu jest małe.
+
+    Adresu w liście ta funkcja nie buduje sama – robi to ``reminder_message`` przez
+    ``absolute_url``, które czyta konkurs z **kontekstu**. Dlatego wołający (zadanie) wiąże konkurs
+    ``competition_context``, a tutaj wystarcza zawężenie zbioru zapisów.
     """
     from apps.accounts.activation import queue_mail
     from apps.accounts.preferences import language_for
 
     now = now or timezone.now()
     sent = 0
-    for booking in bookings_to_remind(now):
+    for booking in bookings_to_remind(now, competition):
         user = booking.entry.participant.user
         recipient = user.email
         if not recipient:

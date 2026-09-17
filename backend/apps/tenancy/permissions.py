@@ -4,17 +4,16 @@ Dzisiejsze ``apps.accounts.permissions.IsCoordinator`` pyta „czy w grupie ``co
 o rolę **w instalacji**. W bazie wielokonkursowej to pytanie jest za szerokie: koordynator konkursu
 A dostawałby endpointy konkursu B. Klasa poniżej dokłada brakujący wymiar – konkurs żądania.
 
-Stan przejściowy, nazwany wprost: modelu ``accounts.Membership`` i funkcji ``has_role`` jeszcze nie
-ma (powstają w zadaniu T2). Do tego czasu rola czyta się z grupy Django, czyli **dokładnie tak, jak
-czyta ją serwis dziś** – a warunek „konkurs żądania istnieje” już obowiązuje. Po T2 zmienia się tu
-jedna linia: wywołanie ``has_role(user, competition, CompetitionRole.COORDINATOR)``.
+Reguła roli jest od zadania T2 zapisana w ``apps.accounts.services.has_role`` i to ona – a nie ta
+klasa – rozstrzyga, czy odpowiada grupa Django, czy wiersz ``accounts.Membership`` (przełącznik
+``memberships_enforced``, § 3.8). Tutaj zostaje wyłącznie warunek „konkurs żądania istnieje”.
 """
 
 from __future__ import annotations
 
 from rest_framework.permissions import BasePermission
 
-from apps.accounts.models import GROUP_COORDINATOR
+from apps.accounts.models import CompetitionRole
 
 
 class IsCompetitionCoordinator(BasePermission):
@@ -31,9 +30,8 @@ class IsCompetitionCoordinator(BasePermission):
         competition = getattr(request, "competition", None)
         if competition is None:
             return False
-        user = request.user
-        if not user or not user.is_authenticated or not user.is_active:
-            return False
-        # T2: ``has_role(user, competition, CompetitionRole.COORDINATOR)``. Do czasu backfillu
-        # członkostw grupa Django jest jedyną zapisaną w bazie odpowiedzią na pytanie o rolę.
-        return user.groups.filter(name=GROUP_COORDINATOR).exists()
+        # Import lokalny: ``apps.accounts.services`` ciągnie za sobą aktywację, zgody i pocztę,
+        # a ten moduł jest ładowany przy składaniu widoków DRF.
+        from apps.accounts.services import has_role
+
+        return has_role(request.user, competition, CompetitionRole.COORDINATOR)

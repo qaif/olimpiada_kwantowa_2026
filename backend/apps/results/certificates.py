@@ -346,17 +346,22 @@ def _recipient_school(certificate: Certificate) -> str:
     return certificate.entry.participant.school
 
 
-def verification_url(code: str) -> str:
+def verification_url(code: str, competition=None) -> str:
     """Bezwzględny adres strony weryfikacji dokumentu o tym kodzie.
 
-    Bez żądania – dokument składa się także w zadaniu wsadowym („Wystaw wszystkim”), więc adres
-    bierze się z ``settings.SITE_URL`` przez ten sam helper, co linki w listach. Gdy ustawienia
-    nie ma, zostaje sama ścieżka: QR z adresem względnym jest mniej wart niż z pełnym, ale wciąż
-    prowadzi pod właściwy adres po dopisaniu domeny, a dokument i tak nie może przez to nie wyjść.
+    Bez żądania – dokument składa się także w zadaniu wsadowym („Wystaw wszystkim”), więc domenę
+    podaje **konkurs**: ten wskazany wprost albo ten z kontekstu (``absolute_url``). Dotąd stało tu
+    odwołanie do ``settings.SITE_URL`` – ustawienia, którego nie definiuje ani ``config/settings``,
+    ani ``.env.example``, więc kod QR na każdym dyplomie niósł adres **względny**, czyli nie
+    prowadził nigdzie. To jest naprawa tamtej dziury przy okazji zakresowania, a nie nowa funkcja.
+
+    Konkurs podajemy wprost, bo dokument bywa składany w pętli po wielu konkursach: adres ma
+    wskazywać domenę organizatora, który dyplom wystawił, a nie tę, spod której ktoś go pobiera.
+    Gdy nie ma żadnego źródła, zostaje sama ścieżka – dokument ma wyjść mimo wszystko.
     """
     from apps.accounts.activation import absolute_url
 
-    return absolute_url(reverse("web:certificate-verify", args=[code]))
+    return absolute_url(reverse("web:certificate-verify", args=[code]), competition=competition)
 
 
 def _workshop_lines(certificate: Certificate) -> tuple[str, ...]:
@@ -389,7 +394,9 @@ def certificate_content(certificate: Certificate) -> CertificateContent:
         code=certificate.code,
         issued_on=timezone.localtime(certificate.issued_at).strftime("%d.%m.%Y"),
         workshops=_workshop_lines(certificate),
-        verification_url=verification_url(certificate.code),
+        # Konkurs z edycji dokumentu, a nie z kontekstu: dyplom wystawiony w konkursie A ma nieść
+        # adres weryfikacji w domenie A także wtedy, gdy składa go przebieg wsadowy konkursu B.
+        verification_url=verification_url(certificate.code, certificate.edition.competition),
     )
 
 

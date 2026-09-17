@@ -17,6 +17,11 @@ node_modules/
 coverage.json
 nul
 uv.lock
+# Wygenerowana konfiguracja Caddy'ego (scripts/render_caddyfile.sh): deploy/Caddyfile plus bloki
+# domen z EXTRA_DOMAINS. Jest wynikiem, a nie zrodlem - zrodlem jest deploy/Caddyfile i .env
+# konkretnego serwera, wiec ten plik rozni sie miedzy instalacjami i w repozytorium nie ma czego
+# szukac. scripts/deploy.sh generuje go na serwerze przed startem uslug.
+deploy/Caddyfile.generated
 # Skompilowane katalogi tlumaczen. Zrodlem jest ``.po`` w repozytorium; ``.mo`` powstaje
 # przy budowaniu obrazu (msgfmt w backend/Dockerfile), wiec plik binarny nie ma tu czego
 # szukac - i nie da sie go zostawic nieaktualnego wzgledem zrodla.

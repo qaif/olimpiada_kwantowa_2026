@@ -94,18 +94,14 @@ def main() -> None:
         # Ta asercja pilnuje całej reguły (b) z ``apps/schools/normalise.py`` na prawdziwych danych.
         page.fill("#id_school_city", "warszawa")
         page.wait_for_timeout(1200)
-        capital = [
-            cities.nth(i).inner_text().strip().split("\n")[0] for i in range(cities.count())
-        ]
+        capital = [cities.nth(i).inner_text().strip().split("\n")[0] for i in range(cities.count())]
         print("miejscowosci dla 'warszawa':", capital)
         assert "Warszawa" in capital, "stolica nie znalazla sie w podpowiedziach miejscowosci"
 
         # Dzielnica wpisana zamiast miasta też ma trafiać – w odpowiedzi stoi wtedy miasto.
         page.fill("#id_school_city", "krzyki")
         page.wait_for_timeout(1200)
-        district = [
-            cities.nth(i).inner_text().strip().split("\n")[0] for i in range(cities.count())
-        ]
+        district = [cities.nth(i).inner_text().strip().split("\n")[0] for i in range(cities.count())]
         print("miejscowosci dla 'krzyki':", district)
         assert district == ["Wrocław"], "nazwa dzielnicy ma podpowiadac jej miasto"
 
@@ -131,8 +127,7 @@ def main() -> None:
         # więcej niż mieści jedna odpowiedź, więc lista ma urosnąć.
         before = full.count()
         page.evaluate(
-            "() => { const l = document.getElementById('school-suggestions');"
-            " l.scrollTop = l.scrollHeight; }"
+            "() => { const l = document.getElementById('school-suggestions'); l.scrollTop = l.scrollHeight; }"
         )
         page.wait_for_timeout(1200)
         print("po przewinieciu:", full.count(), "(bylo", before, ")")

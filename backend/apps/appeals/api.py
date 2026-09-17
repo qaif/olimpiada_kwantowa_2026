@@ -16,6 +16,7 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
 
 from apps.accounts.permissions import IsAppealsCommittee, IsParticipant
+from apps.competitions.scoping import competition_of, scope_to_competition
 from apps.submissions.models import Submission
 
 from .models import Appeal
@@ -41,7 +42,7 @@ class SubmissionAppealView(GenericAPIView):
     serializer_class = AppealFileSerializer
 
     def get_queryset(self):
-        return Submission.objects.for_user(self.request.user).select_related(
+        return Submission.objects.for_user(self.request.user, competition_of(self.request)).select_related(
             "entry", "entry__participant", "entry__stage"
         )
 
@@ -61,7 +62,7 @@ class MyAppealsView(GenericAPIView):
     serializer_class = MyAppealSerializer
 
     def get_queryset(self):
-        return appeals_for_participant(self.request.user)
+        return appeals_for_participant(self.request.user, competition_of(self.request))
 
     @extend_schema(responses={200: MyAppealSerializer(many=True)})
     def get(self, request):
@@ -73,11 +74,16 @@ class AppealsCommitteeMixin:
 
     permission_classes = [IsAppealsCommittee]
 
+    @property
+    def competition(self):
+        """Konkurs żądania – czytają go i kolejka, i wyszukanie sprawy do rozstrzygnięcia."""
+        return competition_of(self.request)
+
     def get_member(self):
         return appeals_committee_profile(self.request.user)
 
     def get_queryset(self):
-        return appeals_queue(self.get_member())
+        return appeals_queue(self.get_member(), self.competition)
 
 
 class AppealQueueView(AppealsCommitteeMixin, GenericAPIView):
@@ -102,7 +108,12 @@ class AppealDecideView(AppealsCommitteeMixin, GenericAPIView):
 
     @extend_schema(request=AppealDecideSerializer, responses={200: MyAppealSerializer})
     def post(self, request, pk: int):
-        appeal = get_object_or_404(Appeal.objects.select_related("submission"), pk=pk)
+        # Reklamacja jest wyszukiwana wśród **wszystkich** oczekujących tego konkursu, nie tylko
+        # własnych: konflikt interesów ma dać 403 ``CONFLICT_OF_INTEREST`` (patrz docstring klasy),
+        # a cudzy konkurs – 404, bo istnienie tamtej sprawy nie jest informacją dla tej komisji.
+        appeal = get_object_or_404(
+            scope_to_competition(Appeal.objects.select_related("submission"), self.competition), pk=pk
+        )
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         decide_appeal(

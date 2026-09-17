@@ -31,6 +31,7 @@ from .models import (
     StageKind,
     default_scoring_values,
 )
+from .scoping import scope_to_competition
 from .video import DEFAULT_VIDEO_BASE_URL, VideoProvider
 
 #: Pola osi czasu etapu, którymi koordynator zarządza z panelu. ``results_published_at`` i
@@ -118,9 +119,24 @@ RETENTION_EDITABLE_FIELDS = ("data_retention_months",)
 EDITION_EDITABLE_FIELDS = (*REGISTRATION_EDITABLE_FIELDS, *RETENTION_EDITABLE_FIELDS)
 
 
-def current_edition() -> Edition | None:
-    """Bieżąca edycja albo ``None``. Unikalność ``is_current`` gwarantuje constraint w bazie."""
-    return Edition.objects.filter(is_current=True).first()
+def current_edition(competition=None) -> Edition | None:
+    """Bieżąca edycja **konkursu** albo ``None``. Unikalność ``is_current`` pilnuje constraint.
+
+    ``None`` w argumencie znaczy „konkurs z kontekstu” – w żądaniu ustawia go
+    ``CompetitionMiddleware``, w zadaniu Celery ``competition_context``, a w instalacji
+    jednokonkursowej wychodzi na to samo, co dotąd (``apps.competitions.scoping``).
+
+    ``None`` w wyniku znaczy „nie wiadomo, o który konkurs chodzi” i jest **odpowiedzią pustą**,
+    a nie zaproszeniem do wzięcia pierwszej edycji z brzegu: w bazie wielokonkursowej pierwsza
+    z brzegu jest cudza, a strona główna konkursu A pokazywałaby wtedy harmonogram konkursu B.
+
+    Sygnatura ma argument **opcjonalny**, choć § 3.5 dokumentu wymaga go dla ``for_user``.
+    Różnica jest zamierzona: ``for_user`` rozstrzyga **widoczność cudzych danych**, a ta funkcja
+    czyta pojedynczy wiersz konfiguracji rocznika. Wymuszenie argumentu znaczyłoby poprawkę
+    w 54 miejscach naraz (§ 2.4), czyli jedno wydanie z wszystkimi zmianami zamiast czterech –
+    dokładnie tego, czego zabrania § 4.1. Wołających po kolei przestawiają T4 i T5.
+    """
+    return scope_to_competition(Edition.objects.filter(is_current=True), competition).first()
 
 
 def current_stage(edition: Edition, now=None) -> Stage | None:
@@ -387,11 +403,16 @@ def register_for_stage(participant: Participant, stage: Stage, *, now=None) -> S
         raise _already_registered() from exc
 
 
-def entries_for_user(user):
-    """Wpisy widoczne dla użytkownika. Filtr jest w querysecie, nie w widoku (PROJEKT.md 2.3)."""
+def entries_for_user(user, competition=None):
+    """Wpisy widoczne dla użytkownika. Filtr jest w querysecie, nie w widoku (PROJEKT.md 2.3).
+
+    ``select_related("stage__edition")`` stoi tu od początku i po zakresowaniu robi za drugie:
+    filtr ``stage__edition__competition`` korzysta z tego samego złączenia, więc liczba zapytań
+    nie rośnie ani o jedno.
+    """
     return (
         StageEntry.objects.select_related("stage", "stage__edition", "participant")
-        .for_user(user)
+        .for_user(user, competition)
         .order_by("stage__opens_at", "id")
     )
 

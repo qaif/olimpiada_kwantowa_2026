@@ -21,6 +21,7 @@ from apps.accounts.permissions import (
     IsParticipant,
 )
 from apps.competitions.models import Stage
+from apps.competitions.scoping import competition_of, scope_to_competition
 from apps.core.api import DomainError
 
 from .models import Submission
@@ -51,7 +52,11 @@ class SubmissionCreateView(GenericAPIView):
 
     @extend_schema(request=SubmissionUploadSerializer, responses={201: SubmissionSerializer})
     def post(self, request, stage_id: int, number: int):
-        stage = get_object_or_404(Stage.objects.select_related("edition"), pk=stage_id)
+        # Etap spoza konkursu żądania nie istnieje dla tego adresu – 404 z zawężonego querysetu.
+        stage = get_object_or_404(
+            scope_to_competition(Stage.objects.select_related("edition"), competition_of(request)),
+            pk=stage_id,
+        )
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         # Uczestnik (a więc i StageEntry) bierze się wyłącznie z request.user – brak IDOR.
@@ -73,7 +78,7 @@ class MySubmissionsView(GenericAPIView):
 
     @extend_schema(responses={200: SubmissionGroupSerializer(many=True)})
     def get(self, request):
-        groups = grouped_submissions_for_user(request.user)
+        groups = grouped_submissions_for_user(request.user, competition_of(request))
         return Response(self.get_serializer(groups, many=True).data)
 
 
@@ -90,7 +95,10 @@ class StageLockForReviewView(GenericAPIView):
 
     @extend_schema(request=None, responses={200: LockForReviewResultSerializer})
     def post(self, request, stage_id: int):
-        stage = get_object_or_404(Stage.objects.select_related("edition"), pk=stage_id)
+        stage = get_object_or_404(
+            scope_to_competition(Stage.objects.select_related("edition"), competition_of(request)),
+            pk=stage_id,
+        )
         locked = lock_for_review(stage, actor=request.user, request=request)
         return Response(LockForReviewResultSerializer({"locked": locked}).data)
 
@@ -108,7 +116,11 @@ class SubmissionLockForReviewView(GenericAPIView):
 
     @extend_schema(request=None, responses={200: SubmissionSerializer})
     def post(self, request, pk: int):
-        submission = get_object_or_404(Submission, pk=pk)
+        # Blokada pracy do oceny jest **zapisem**, więc tym bardziej nie wolno jej wykonać na
+        # cudzej: koordynator konkursu A dostaje tu 404 na pracy konkursu B.
+        submission = get_object_or_404(
+            scope_to_competition(Submission.objects.all(), competition_of(request)), pk=pk
+        )
         locked = lock_submission_for_review(submission, actor=request.user, request=request)
         return Response(SubmissionSerializer(locked).data)
 
@@ -130,7 +142,7 @@ class SubmissionDownloadView(GenericAPIView):
     serializer_class = SubmissionSerializer
 
     def get_queryset(self):
-        return Submission.objects.for_user(self.request.user).select_related(
+        return Submission.objects.for_user(self.request.user, competition_of(self.request)).select_related(
             "entry", "entry__participant", "problem"
         )
 
@@ -140,7 +152,11 @@ class SubmissionDownloadView(GenericAPIView):
         submission_file = submission.latest_file
         if submission_file is None:
             raise DomainError("Zgłoszenie nie ma pliku.", "FILE_NOT_FOUND", status.HTTP_404_NOT_FOUND)
-        participant = getattr(request.user, "participant", None)
+        # ``participant_for``, nie ``user.participant``: właścicielem jest profil **w tym
+        # konkursie**, a relacja jeden-do-jednego oddawałaby po wydaniu D dowolny z profili.
+        from apps.accounts.services import participant_for
+
+        participant = participant_for(request.user, competition_of(request))
         is_owner = participant is not None and submission.entry.participant_id == participant.pk
         if not submission_file.is_clean and not is_owner:
             raise DomainError(

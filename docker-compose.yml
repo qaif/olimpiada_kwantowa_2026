@@ -47,7 +47,13 @@ services:
       - "443:443"
       - "9000:9000"   # publiczny endpoint S3 (S3_PUBLIC_ADDRESS=<domena>:9000), gdy brak rekordu DNS s3.<domena>
     volumes:
-      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Domyślnie plik źródłowy – instalacja z jednym konkursem nie potrzebuje niczego generować
+      # i dostaje dokładnie tę konfigurację, którą widać w repozytorium. Instalacja z wieloma
+      # konkursami ustawia w .env CADDYFILE_PATH=./deploy/Caddyfile.generated (plik składa
+      # scripts/render_caddyfile.sh z deploy/Caddyfile + EXTRA_DOMAINS; robi to scripts/deploy.sh
+      # przed startem usług). Zmienna, a nie drugi montaż na sztywno: bind na nieistniejący plik
+      # daje katalog, a katalog w miejscu Caddyfile'a to proxy, które nie wstaje.
+      - ${CADDYFILE_PATH:-./deploy/Caddyfile}:/etc/caddy/Caddyfile:ro
       - static_files:/srv/static:ro
       - caddy_data:/data
       - caddy_config:/config

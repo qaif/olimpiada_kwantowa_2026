@@ -2,6 +2,12 @@
 
 Fabryki są jawne: ``StageFactory`` nie tworzy skali ani progu kwalifikacji – od tego jest
 serwis ``create_stage`` (kryterium 5). Dzięki temu test widzi dokładnie to, co zadeklarował.
+
+Od zadania T7 każda z nich przyjmuje ``competition`` (domyślnie: konkurs kontekstu). Własny klucz
+obcy dostaje wyłącznie ``Edition`` – i dopiero w T3; reszta modeli tej aplikacji dochodzi do
+konkursu przez edycję (§ 3.4), więc argument służy im do **propagacji**: ``StageEntryFactory(
+competition=inny)`` ma założyć uczestnika i etap tego samego, wskazanego konkursu. Bez propagacji
+test krzyżowy budowałby wpis, którego połowa należy do jednego konkursu, a połowa do drugiego.
 """
 
 from datetime import timedelta
@@ -26,9 +32,12 @@ from apps.competitions.models import (
     default_allowed_formats,
     default_scoring_values,
 )
+from apps.tenancy.tests.factories import SAME_COMPETITION, CompetitionScopedFactory
 
 
-class EditionFactory(factory.django.DjangoModelFactory):
+class EditionFactory(CompetitionScopedFactory):
+    """Edycja – korzeń domeny zawodów, więc jedyny model tej aplikacji z własnym FK (§ 3.2)."""
+
     class Meta:
         model = Edition
 
@@ -42,13 +51,13 @@ class CurrentEditionFactory(EditionFactory):
     is_current = True
 
 
-class StageFactory(factory.django.DjangoModelFactory):
+class StageFactory(CompetitionScopedFactory):
     """Etap otwarty „teraz”: otwarty dobę temu, deadline za 14 dni."""
 
     class Meta:
         model = Stage
 
-    edition = factory.SubFactory(EditionFactory)
+    edition = factory.SubFactory(EditionFactory, competition=SAME_COMPETITION)
     kind = StageKind.ELIM
     name = ""
     format = StageFormat.SUBMISSIONS
@@ -62,42 +71,48 @@ class StageFactory(factory.django.DjangoModelFactory):
     )
 
 
-class ScoringScaleFactory(factory.django.DjangoModelFactory):
+class ScoringScaleFactory(CompetitionScopedFactory):
     class Meta:
         model = ScoringScale
 
-    stage = factory.SubFactory(StageFactory)
+    stage = factory.SubFactory(StageFactory, competition=SAME_COMPETITION)
     values = factory.LazyFunction(default_scoring_values)
     max_value = 6
 
 
-class QualificationRuleFactory(factory.django.DjangoModelFactory):
+class QualificationRuleFactory(CompetitionScopedFactory):
     class Meta:
         model = QualificationRule
 
-    stage = factory.SubFactory(StageFactory)
+    stage = factory.SubFactory(StageFactory, competition=SAME_COMPETITION)
     mode = QualificationMode.MIN_POINTS
     min_points = 0
     top_n = None
 
 
-class ProblemFactory(factory.django.DjangoModelFactory):
+class ProblemFactory(CompetitionScopedFactory):
     class Meta:
         model = Problem
 
-    stage = factory.SubFactory(StageFactory)
+    stage = factory.SubFactory(StageFactory, competition=SAME_COMPETITION)
     number = factory.Sequence(lambda n: n + 1)
     title = factory.Sequence(lambda n: f"Zadanie testowe {n}")
     allowed_formats = factory.LazyFunction(default_allowed_formats)
     max_file_mb = 20
 
 
-class StageEntryFactory(factory.django.DjangoModelFactory):
+class StageEntryFactory(CompetitionScopedFactory):
+    """Wpis do etapu: uczestnik i etap muszą być z **tego samego** konkursu.
+
+    Spójności pilnuje ``clean()`` modelu (§ 3.4), więc fabryka propaguje konkurs na obie
+    podfabryki naraz – inaczej każdy test krzyżowy zaczynałby się od wywrócenia walidacji.
+    """
+
     class Meta:
         model = StageEntry
 
-    participant = factory.SubFactory(ParticipantFactory)
-    stage = factory.SubFactory(StageFactory)
+    participant = factory.SubFactory(ParticipantFactory, competition=SAME_COMPETITION)
+    stage = factory.SubFactory(StageFactory, competition=SAME_COMPETITION)
     status = StageEntryStatus.REGISTERED
 
 
@@ -108,13 +123,13 @@ class InterviewStageFactory(StageFactory):
     format = StageFormat.INTERVIEW
 
 
-class InterviewSlotFactory(factory.django.DjangoModelFactory):
+class InterviewSlotFactory(CompetitionScopedFactory):
     """Termin jutro o tej samej porze – domyślnie w przyszłości, żeby dało się na niego zapisać."""
 
     class Meta:
         model = InterviewSlot
 
-    stage = factory.SubFactory(InterviewStageFactory)
+    stage = factory.SubFactory(InterviewStageFactory, competition=SAME_COMPETITION)
     starts_at = factory.LazyFunction(lambda: timezone.now() + timedelta(days=1))
     ends_at = factory.LazyAttribute(lambda obj: obj.starts_at + timedelta(minutes=20))
     capacity = 1
@@ -122,9 +137,9 @@ class InterviewSlotFactory(factory.django.DjangoModelFactory):
     note = ""
 
 
-class InterviewBookingFactory(factory.django.DjangoModelFactory):
+class InterviewBookingFactory(CompetitionScopedFactory):
     class Meta:
         model = InterviewBooking
 
-    slot = factory.SubFactory(InterviewSlotFactory)
-    entry = factory.SubFactory(StageEntryFactory)
+    slot = factory.SubFactory(InterviewSlotFactory, competition=SAME_COMPETITION)
+    entry = factory.SubFactory(StageEntryFactory, competition=SAME_COMPETITION)

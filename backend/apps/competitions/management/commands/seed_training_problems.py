@@ -70,9 +70,37 @@ class Command(BaseCommand):
         "cztery zadania z apps/competitions/fixtures/training/."
     )
 
+    def _competition(self, slug):
+        """Konkurs ze slugu albo jedyny w instalacji. ``None`` znaczy „niech rozstrzygnie kontekst”."""
+        from apps.tenancy.models import Competition
+
+        if not slug:
+            return None
+        competition = Competition.objects.filter(slug=slug).first()
+        if competition is None:
+            raise CommandError(f"Nie ma konkursu o identyfikatorze {slug!r}.")
+        return competition
+
+    def add_arguments(self, parser):
+        """``--competition <slug>`` wskazuje konkurs; bez niego liczy się jedyny w instalacji.
+
+        Komenda chodzi poza żądaniem, więc konkursu nie ma skąd wziąć „sam z siebie”. Na bazie
+        jednokonkursowej odpowiedź jest jedna i argument jest zbędny – dlatego jest opcjonalny
+        i wywołanie z ``scripts/deploy.sh`` nie zmienia się o znak. Na bazie z dwoma konkursami
+        brak wskazania kończy się błędem, a nie zgadywaniem: zasianie zadań treningowych cudzej
+        olimpiadzie byłoby zmianą, której nikt nie zamawiał.
+        """
+        parser.add_argument(
+            "--competition",
+            dest="competition_slug",
+            default=None,
+            help="Slug konkursu, którego edycji dotyczą zadania treningowe.",
+        )
+
     @transaction.atomic
     def handle(self, *args, **options):
-        edition = current_edition()
+        competition = self._competition(options.get("competition_slug"))
+        edition = current_edition(competition)
         if edition is None:
             raise CommandError(
                 "Brak bieżącej edycji. Utwórz ją (np. seed_edition_kwantowa --make-current) "

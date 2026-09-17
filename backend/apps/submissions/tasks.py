@@ -108,8 +108,19 @@ def scan_submission_file(self, file_id: int) -> str:
 
 @shared_task
 def close_due_stages() -> list[int]:
-    """Beat co 60 s: etapy po ``deadline_at + grace_seconds`` dostają LOCKED i znacznik ``closed_at``."""
-    return close_due_stages_service(now=timezone.now())
+    """Beat co 60 s: etapy po ``deadline_at + grace_seconds`` dostają LOCKED i znacznik ``closed_at``.
+
+    Przebieg obchodzi wszystkie konkursy, każdy w jego kontekście. Zamknięcie etapu wywołuje
+    zdarzenie integracyjne (``stage.closed``) i powiadomienia, a te budują adresy przez
+    ``absolute_url`` – bez wiązania konkursu wyszłyby pod witrynę domyślną instalacji.
+    """
+    from apps.competitions.scoping import each_competition
+
+    now = timezone.now()
+    closed: list[int] = []
+    for competition in each_competition():
+        closed.extend(close_due_stages_service(now=now, competition=competition))
+    return closed
 
 
 @shared_task

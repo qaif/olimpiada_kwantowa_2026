@@ -16,7 +16,9 @@ from django.utils import timezone
 
 from apps.accounts.models import CommitteeMember
 from apps.competitions.models import Problem
+from apps.competitions.scoping import competition_scoped_manager
 from apps.submissions.models import Submission
+from apps.tenancy.managers import CompetitionScopedQuerySet
 
 #: Runda 1 to ocena ślepa (dwóch niezależnych recenzentów), runda 2 – rozjemcza (trzeci recenzent).
 ROUND_BLIND = 1
@@ -72,7 +74,16 @@ class GradeMethod(models.TextChoices):
     COORDINATOR_OVERRIDE = "OVERRIDE", "korekta koordynatora"
 
 
-class ReviewQuerySet(models.QuerySet):
+class ReviewQuerySet(CompetitionScopedQuerySet):
+    """Recenzje, z drogą do konkursu przez pracę – czyli przez jej kolumnę denormalizacyjną.
+
+    Jedno złączenie zamiast czterech (``submission__entry__stage__edition__competition``) i to
+    właśnie po to ta kolumna w ogóle powstała (§ 3.4): kolejka recenzenta i ekran postępu etapu
+    filtrują recenzje po kilka razy na żądanie.
+    """
+
+    competition_path = "submission__competition"
+
     def for_reviewer(self, member: CommitteeMember | None):
         """Recenzje jednego recenzenta. ``None`` (brak profilu) nie widzi niczego."""
         if member is None:
@@ -196,6 +207,9 @@ class FinalGrade(models.Model):
     decided_at = models.DateTimeField("rozstrzygnięta", default=timezone.now)
     rationale = models.TextField("uzasadnienie", blank=True)
 
+    #: Przez pracę – ocena uzgodniona jest jej własnością, nie osobnym bytem.
+    objects = competition_scoped_manager("submission__competition")
+
     class Meta:
         verbose_name = "ocena uzgodniona"
         verbose_name_plural = "oceny uzgodnione"
@@ -234,6 +248,9 @@ class ProblemReviewerRule(models.Model):
         verbose_name="utworzył",
     )
     created_at = models.DateTimeField("utworzona", default=timezone.now)
+
+    #: Przez zadanie: reguła mówi „**to** zadanie sprawdza ta osoba”, a zadanie należy do etapu.
+    objects = competition_scoped_manager("problem__stage__edition__competition")
 
     class Meta:
         verbose_name = "reguła przydziału zadania"
@@ -284,6 +301,9 @@ class RubricCriterion(models.Model):
     max_points = models.PositiveSmallIntegerField("maksimum punktów")
     created_at = models.DateTimeField("utworzone", default=timezone.now)
 
+    #: Przez zadanie, bo rubryka jest opisem **tego** zadania, a zadanie należy do etapu.
+    objects = competition_scoped_manager("problem__stage__edition__competition")
+
     class Meta:
         verbose_name = "kryterium rubryki"
         verbose_name_plural = "kryteria rubryki"
@@ -320,6 +340,9 @@ class ReviewNote(models.Model):
     author = models.ForeignKey(CommitteeMember, on_delete=models.PROTECT, related_name="review_notes")
     text = models.CharField("treść", max_length=MAX_NOTE_LENGTH)
     created_at = models.DateTimeField("dodana", default=timezone.now)
+
+    #: Przez pracę, tak samo jak recenzja, której notatka towarzyszy.
+    objects = competition_scoped_manager("submission__competition")
 
     class Meta:
         verbose_name = "notatka recenzencka"
@@ -384,6 +407,13 @@ class CommentSnippet(models.Model):
     order = models.PositiveSmallIntegerField("kolejność", default=1)
     created_at = models.DateTimeField("utworzony", default=timezone.now)
 
+    #: Przez zadanie. Uwaga: ``problem`` jest **nullowalny** (szablon „do wszystkiego”), więc
+    #: ``for_competition`` takiego szablonu nie zwróci – i tak ma być. Szablon bez zadania nie ma
+    #: właściciela, a w bazie wielokonkursowej wspólna półka szablonów byłaby półką cudzą.
+    #: Wydanie D domyka to kolumną ``owner``/``competition``; do tego czasu wiersz bez zadania
+    #: widzą wyłącznie ekrany, które nie filtrują po konkursie.
+    objects = competition_scoped_manager("problem__stage__edition__competition")
+
     class Meta:
         verbose_name = "szablon komentarza"
         verbose_name_plural = "szablony komentarzy"
@@ -419,6 +449,10 @@ class ReviewWorkLog(models.Model):
     started_at = models.DateTimeField("początek pracy", default=timezone.now)
     last_seen_at = models.DateTimeField("ostatni sygnał", default=timezone.now)
     seconds = models.PositiveIntegerField("zmierzony czas (s)", default=0)
+
+    #: Przez recenzję i jej pracę. Modelu nie ma w liście § 3.5, ale jest w tabeli dróg § 3.4 –
+    #: pominięcie zostawiłoby w audycie izolacji tabelę bez odpowiedzi na pytanie „czyja”.
+    objects = competition_scoped_manager("review__submission__competition")
 
     class Meta:
         verbose_name = "czas pracy nad recenzją"
@@ -480,6 +514,10 @@ class WorkIssue(models.Model):
     )
     resolved_at = models.DateTimeField("rozwiązane", null=True, blank=True)
     resolution = models.TextField("rozstrzygnięcie", blank=True)
+
+    #: Przez pracę, a nie przez recenzję: zgłoszenie dotyczy **pracy** (dwóch recenzentów potrafi
+    #: zgłosić tę samą), a kolejka koordynatora filtruje właśnie po pracach.
+    objects = competition_scoped_manager("submission__competition")
 
     class Meta:
         verbose_name = "zgłoszenie problemu z pracą"

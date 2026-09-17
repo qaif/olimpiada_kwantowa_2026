@@ -770,7 +770,7 @@ def _feedback_for(submission: Submission | None) -> list[dict]:
     return feedback
 
 
-def results_for_participant(user) -> list[dict]:
+def results_for_participant(user, competition=None) -> list[dict]:
     """Własne wyniki uczestnika – wyłącznie z etapów, których wyniki są już opublikowane.
 
     Punkty liczymy **na żywo**, z aktualnych ``FinalGrade``: uczestnikowi należy się prawda o jego
@@ -780,8 +780,14 @@ def results_for_participant(user) -> list[dict]:
     z dwóch różnych liczb byłoby gorsze niż pokazanie obu (PROJEKT.md 2.4).
 
     Widoczność bez zmian: przed ``Stage.results_published_at`` etap w ogóle nie jest zwracany.
+
+    ``competition`` wskazuje, **czyje** wyniki pokazujemy: uczeń startujący w dwóch olimpiadach ma
+    pod każdą domeną zobaczyć wyniki tej jednej, bo profil, kod publiczny i tabela wyników są
+    osobne dla każdego konkursu (§ 3.3).
     """
-    participant = getattr(user, "participant", None)
+    from apps.accounts.services import participant_for
+
+    participant = participant_for(user, competition)
     if participant is None:
         return []
     entries = list(

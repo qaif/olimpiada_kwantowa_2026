@@ -130,6 +130,11 @@ def create_submission(
     submission = Submission.objects.create(
         entry=entry,
         problem=problem,
+        # Konkurs wprost z etapu, który mamy już w ręku: kolumna denormalizacyjna nie jest decyzją
+        # tej ścieżki, tylko kopią właściciela etapu (§ 3.4). Podanie go tutaj oszczędza zapytanie,
+        # które inaczej dołożyłby ``Submission.save()`` – a to jest ścieżka uploadu, mierzona
+        # testami liczby zapytań.
+        competition_id=stage.edition.competition_id,
         version=(previous or 0) + 1,
         submitted_at=now,
         is_late=now > stage.deadline_at,
@@ -183,10 +188,14 @@ def create_submission(
     return submission
 
 
-def submissions_for_user(user):
-    """Rozwiązania widoczne dla użytkownika. Filtr roli jest w queryseckie, nie w widoku."""
+def submissions_for_user(user, competition=None):
+    """Rozwiązania widoczne dla użytkownika. Filtr roli jest w queryseckie, nie w widoku.
+
+    ``competition`` idzie **przed** rolą (§ 3.5) i robi to sam queryset – tutaj jest wyłącznie
+    przekazane dalej, żeby widok nie musiał znać kolejności.
+    """
     return (
-        Submission.objects.for_user(user)
+        Submission.objects.for_user(user, competition)
         # ``final_grade`` i ``appeals__decision`` są odwrotnymi stronami relacji z apps.grading
         # i apps.appeals – dociągane po nazwie, żeby lista własnych rozwiązań nie robiła N+1.
         .select_related("entry", "entry__participant", "entry__stage", "problem", "final_grade")
@@ -195,10 +204,10 @@ def submissions_for_user(user):
     )
 
 
-def grouped_submissions_for_user(user) -> list[dict]:
+def grouped_submissions_for_user(user, competition=None) -> list[dict]:
     """Własne rozwiązania pogrupowane per zadanie: najnowsza wersja + historia starszych."""
     groups: dict[tuple[int, int], dict] = {}
-    for submission in submissions_for_user(user):
+    for submission in submissions_for_user(user, competition):
         key = (submission.entry_id, submission.problem_id)
         group = groups.get(key)
         if group is None:
@@ -510,24 +519,35 @@ def close_stage_now(stage: Stage, *, actor=None, request=None) -> int:
     return locked
 
 
-def due_stages(now=None):
+def due_stages(now=None, competition=None):
     """Etapy po deadline (z tolerancją) i jeszcze niezamknięte.
 
     ``submission_deadline`` to ``deadline_at + grace_seconds``, więc ``deadline_at < now`` jest
     warunkiem koniecznym – ORM zawęża zbiór, a tolerancja jest sprawdzana na obiekcie.
+
+    ``competition`` zawęża przebieg do jednego konkursu – patrz ``close_due_stages``.
     """
+    from apps.competitions.scoping import scope_to_competition
+
     now = now or timezone.now()
-    candidates = Stage.objects.filter(closed_at__isnull=True, deadline_at__lt=now).order_by("id")
+    candidates = scope_to_competition(
+        Stage.objects.filter(closed_at__isnull=True, deadline_at__lt=now), competition
+    ).order_by("id")
     return [stage for stage in candidates if stage.submission_deadline <= now]
 
 
-def close_due_stages(now=None) -> list[int]:
-    """Zamyka wszystkie etapy, którym minął deadline. Zwraca listę id zamkniętych etapów."""
+def close_due_stages(now=None, competition=None) -> list[int]:
+    """Zamyka wszystkie etapy, którym minął deadline. Zwraca listę id zamkniętych etapów.
+
+    ``competition=None`` w wywołaniu **z żądania** znaczy „konkurs z kontekstu”; zadanie okresowe
+    (``apps.submissions.tasks.close_due_stages``) woła tę funkcję raz na konkurs, żeby zdarzenie
+    ``stage.closed`` i listy, które z niego wynikają, powstawały w kontekście właściwego konkursu.
+    """
     now = now or timezone.now()
     closed: list[int] = []
     from apps.integrations.events import stage_closed as emit_stage_closed
 
-    for stage in due_stages(now):
+    for stage in due_stages(now, competition):
         with transaction.atomic():
             locked = close_stage(stage)
             stage.closed_at = now

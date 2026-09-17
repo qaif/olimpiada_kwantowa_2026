@@ -80,16 +80,20 @@ def registration_enabled() -> bool:
         return False
 
 
-def supervisor_profile(user) -> SchoolSupervisor | None:
-    """Profil opiekuna, o ile konto ma do tego prawo: grupa ``supervisor`` **i** profil.
+def supervisor_profile(user, competition=None) -> SchoolSupervisor | None:
+    """Profil opiekuna, o ile konto ma do tego prawo: rola ``supervisor`` **i** profil.
 
     Jedna definicja roli dla mixinu widoku, nawigacji i przekierowania po zalogowaniu – tak samo
     jak ``active_reviewer_profile`` dla recenzenta. Reguła jest domyślnie zamknięta: konto bez
-    grupy albo bez profilu nie jest opiekunem, choćby miało wpisaną szkołę.
+    roli albo bez profilu nie jest opiekunem, choćby miało wpisaną szkołę.
+
+    ``competition=None`` znaczy „weź konkurs z kontekstu”, tak samo jak przy recenzencie.
     """
+    from .services import current_competition, has_role
+
     if not user or not user.is_authenticated or not user.is_active:
         return None
-    if not user.groups.filter(name=GROUP_SUPERVISOR).exists():
+    if not has_role(user, competition or current_competition(), GROUP_SUPERVISOR):
         return None
     return getattr(user, "school_supervisor", None)
 
@@ -121,7 +125,7 @@ def register_supervisor(
     # Importy lokalne: ``services`` importuje ``activation`` i modele, a reguły walidacji (szkoła,
     # telefon, konto hasłowe) mieszkają właśnie tam i nie ma powodu pisać ich tu drugi raz.
     from .phones import normalize_phone
-    from .services import _add_to_group, _create_user, _resolve_school
+    from .services import _create_user, _resolve_school, default_competition, grant_role
 
     # Szkoła ze słownika tylko wtedy, gdy ktoś ją stamtąd wybrał; w przeciwnym razie zostaje
     # zwykły tekst. Nie przepuszczamy go przez ``_resolve_school``, bo tamta funkcja pilnuje
@@ -139,13 +143,17 @@ def register_supervisor(
         last_name=last_name,
         is_active=False,
     )
+    # Jedna wartość dla profilu i dla członkostwa – ``verified`` jest oświadczeniem sprawdzonym
+    # przez **tego** organizatora, więc profil i rola muszą wskazywać ten sam konkurs.
+    competition = default_competition()
     profile = SchoolSupervisor.objects.create(
         user=user,
+        competition=competition,
         school=school_name,
         school_ref=school_obj,
         phone=normalize_phone(phone) if (phone or "").strip() else "",
     )
-    _add_to_group(user, GROUP_SUPERVISOR)
+    grant_role(user, GROUP_SUPERVISOR, competition=competition)
     send_activation_email(user, request=request)
     logger.info("Założono konto opiekuna szkolnego %s.", user.pk)
     return profile

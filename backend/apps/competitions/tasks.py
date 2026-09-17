@@ -25,7 +25,13 @@ def remind_interviews() -> int:
     Zwraca liczbę listów przekazanych do kolejki – wartość jest dla logu i testów, nikt jej nie
     czyta z bazy. Idempotencję zapewnia ``InterviewBooking.reminder_sent_at``, a nie częstotliwość
     przebiegu: beat po restarcie potrafi puścić zadanie od razu po poprzednim.
+
+    Przebieg idzie po **wszystkich** konkursach, ale każdy z nich obsługuje we własnym kontekście
+    (``apps.competitions.scoping.each_competition``). To nie jest porządkowanie pętli: link do
+    pokoju rozmowy i adres panelu w liście powstają przez ``absolute_url``, które czyta konkurs
+    z kontekstu – bez wiązania uczestnik konkursu B dostałby link pod domenę konkursu A.
     """
+    from .scoping import each_competition
     from .video import send_interview_reminders
 
-    return send_interview_reminders()
+    return sum(send_interview_reminders(competition=competition) for competition in each_competition())

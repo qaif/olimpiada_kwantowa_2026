@@ -215,8 +215,12 @@ def notify_results_published(publication, *, request=None) -> int:
     from apps.competitions.models import StageEntry
 
     stage = publication.stage
-    link = absolute_url(reverse("web:results", args=[stage.pk]), request)
-    feedback_link = absolute_url(reverse("web:participant-feedback", args=[stage.pk]), request)
+    # Poza żądaniem (przebieg wsadowy, komenda) domenę podaje **konkurs etapu**, a nie witryna
+    # domyślna instalacji. Czytamy go wyłącznie wtedy, gdy żądania nie ma: w panelu adres bierze
+    # się z ``request`` i dwa dodatkowe zapytania byłyby kosztem bez pożytku.
+    competition = None if request is not None else stage.edition.competition
+    link = absolute_url(reverse("web:results", args=[stage.pk]), request, competition)
+    feedback_link = absolute_url(reverse("web:participant-feedback", args=[stage.pk]), request, competition)
     sent = 0
     for entry in StageEntry.objects.filter(stage=stage).select_related("participant__user"):
         user = entry.participant.user
@@ -266,7 +270,9 @@ def appeal_decided_message(appeal, decision, link: str) -> str:
 def notify_appeal_decided(appeal, decision, *, request=None) -> bool:
     """List o decyzji komisji. Woła to ``appeals.services.decide_appeal``."""
     user = appeal.filed_by.user
-    link = absolute_url(reverse("web:me"), request)
+    # Jw. – konkurs pracy, której dotyczy reklamacja, i tylko poza żądaniem.
+    competition = None if request is not None else appeal.submission.competition
+    link = absolute_url(reverse("web:me"), request, competition)
     return _send(
         user,
         APPEAL_DECIDED_SUBJECT,

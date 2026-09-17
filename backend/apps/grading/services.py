@@ -1675,10 +1675,17 @@ def resolve_moderation(
 # --- zapytania dla API ------------------------------------------------------------------------
 
 
-def reviews_for_reviewer(member: CommitteeMember | None):
-    """Przydziały recenzenta. Filtr jest w queryseckie, nie w widoku (PROJEKT.md 2.3)."""
+def reviews_for_reviewer(member: CommitteeMember | None, competition=None):
+    """Przydziały recenzenta. Filtr jest w queryseckie, nie w widoku (PROJEKT.md 2.3).
+
+    Zakres konkursu idzie **przed** przydziałem (§ 3.5): recenzent w komitetach dwóch olimpiad ma
+    pod domeną A widzieć wyłącznie kolejkę A. Samo ``for_reviewer`` tego nie załatwia – profil
+    komitetu jest dziś jeden na konto, więc bez zawężenia obie kolejki zlałyby się w jedną.
+    """
+    from apps.competitions.scoping import scope_to_competition
+
     return (
-        Review.objects.for_reviewer(member)
+        scope_to_competition(Review.objects.for_reviewer(member), competition)
         .select_related(
             "submission",
             "submission__entry",
@@ -1909,10 +1916,16 @@ def stage_assignment_rows(
     )
 
 
-def moderation_queue():
-    """Rozwiązania w moderacji wraz z ocenami rundy 1 – widok wyłącznie dla koordynatora."""
+def moderation_queue(competition=None):
+    """Rozwiązania w moderacji wraz z ocenami rundy 1 – widok wyłącznie dla koordynatora.
+
+    „Wyłącznie dla koordynatora” znaczy odtąd „dla koordynatora **tego** konkursu”: rola jest rolą
+    w konkursie, a kolejka rozjazdów niesie prace razem z ich autorami.
+    """
+    from apps.competitions.scoping import scope_to_competition
+
     return (
-        Submission.objects.filter(status=SubmissionStatus.MODERATION)
+        scope_to_competition(Submission.objects.filter(status=SubmissionStatus.MODERATION), competition)
         .select_related("entry", "entry__participant", "entry__stage", "problem")
         .prefetch_related("reviews__reviewer__user")
         .order_by("entry__stage_id", "problem__number", "id")

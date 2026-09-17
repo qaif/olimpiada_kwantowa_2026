@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from apps.accounts.models import CommitteeMember
 from apps.accounts.permissions import IsActiveReviewer, IsCoordinator
 from apps.competitions.models import Problem, Stage
+from apps.competitions.scoping import competition_of, scope_to_competition
 from apps.submissions.models import Submission
 
 from .models import ProblemReviewerRule, Review
@@ -60,12 +61,24 @@ from .services import (
 
 
 class ReviewerScopedMixin:
-    """Wspólny queryset recenzenta: wyłącznie własne przydziały."""
+    """Wspólny queryset recenzenta: wyłącznie własne przydziały **w konkursie z żądania**.
+
+    Dwa zawężenia, dwie różne odpowiedzi na dwa różne pytania: konkurs mówi „czyje to dane”,
+    przydział – „kto ma je oceniać”. Kolejność jest regułą (§ 3.5) i wykonuje ją
+    ``reviews_for_reviewer``.
+    """
 
     permission_classes = [IsActiveReviewer]
 
+    @property
+    def competition(self):
+        """Konkurs żądania – skrót dla widoku, bo czytają go tu dwie metody."""
+        return competition_of(self.request)
+
     def get_queryset(self):
-        return reviews_for_reviewer(active_reviewer_profile(self.request.user))
+        return reviews_for_reviewer(
+            active_reviewer_profile(self.request.user, self.competition), self.competition
+        )
 
     def get_review(self, pk: int):
         return get_object_or_404(self.get_queryset(), pk=pk)
@@ -181,7 +194,10 @@ class StageAssignView(GenericAPIView):
 
     @extend_schema(request=AssignReviewersSerializer, responses={200: AssignmentResultSerializer})
     def post(self, request, pk: int):
-        stage = get_object_or_404(Stage.objects.select_related("edition"), pk=pk)
+        stage = get_object_or_404(
+            scope_to_competition(Stage.objects.select_related("edition"), competition_of(request)),
+            pk=pk,
+        )
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         result = assign_reviewers(
@@ -206,14 +222,22 @@ class StageProblemRulesView(GenericAPIView):
 
     @extend_schema(request=ProblemRuleCreateSerializer, responses={201: ProblemRuleResultSerializer})
     def post(self, request, pk: int):
-        stage = get_object_or_404(Stage, pk=pk)
+        competition = competition_of(request)
+        stage = get_object_or_404(scope_to_competition(Stage.objects.all(), competition), pk=pk)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        # Zadanie jest sprawdzane względem etapu z adresu, a zakres konkursu idzie osobno: gdyby
+        # kiedykolwiek zniknął warunek ``stage=stage``, została by druga bramka, a nie żadna.
         problem = get_object_or_404(
-            Problem.objects.select_related("stage"), pk=serializer.validated_data["problem_id"], stage=stage
+            scope_to_competition(Problem.objects.select_related("stage"), competition),
+            pk=serializer.validated_data["problem_id"],
+            stage=stage,
         )
+        # Recenzent zakresowany tak samo, jak przy przydziale pojedynczej pracy: reguła „to zadanie
+        # sprawdza ta osoba” wskazująca członka cudzego komitetu byłaby wpuszczeniem obcego do akt.
         reviewer = get_object_or_404(
-            CommitteeMember.objects.select_related("user"), pk=serializer.validated_data["reviewer_id"]
+            CommitteeMember.objects.for_competition(competition).select_related("user"),
+            pk=serializer.validated_data["reviewer_id"],
         )
         result = add_problem_reviewer_rule(problem, reviewer, actor=request.user, request=request)
         return Response(ProblemRuleResultSerializer(result).data, status=http.HTTP_201_CREATED)
@@ -228,7 +252,11 @@ class StageProblemRuleDetailView(GenericAPIView):
     @extend_schema(responses={204: None})
     def delete(self, request, pk: int, rule_id: int):
         rule = get_object_or_404(
-            ProblemReviewerRule.objects.select_related("problem"), pk=rule_id, problem__stage_id=pk
+            scope_to_competition(
+                ProblemReviewerRule.objects.select_related("problem"), competition_of(request)
+            ),
+            pk=rule_id,
+            problem__stage_id=pk,
         )
         remove_problem_reviewer_rule(rule, actor=request.user, request=request)
         return Response(status=http.HTTP_204_NO_CONTENT)
@@ -242,11 +270,17 @@ class SubmissionAssignReviewerView(GenericAPIView):
 
     @extend_schema(request=AssignReviewerSerializer, responses={201: ReviewSerializer})
     def post(self, request, submission_id: int):
-        submission = get_object_or_404(Submission, pk=submission_id)
+        competition = competition_of(request)
+        submission = get_object_or_404(
+            scope_to_competition(Submission.objects.all(), competition), pk=submission_id
+        )
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        # Recenzent też jest zakresowany: przydział pracy konkursu A osobie z komitetu konkursu B
+        # byłby wpuszczeniem obcego do akt, a nie pomyłką w formularzu.
         reviewer = get_object_or_404(
-            CommitteeMember.objects.select_related("user"), pk=serializer.validated_data["reviewer_id"]
+            CommitteeMember.objects.for_competition(competition).select_related("user"),
+            pk=serializer.validated_data["reviewer_id"],
         )
         review = assign_reviewer_to_submission(submission, reviewer, actor=request.user, request=request)
         return Response(ReviewSerializer(review).data, status=http.HTTP_201_CREATED)
@@ -264,7 +298,13 @@ class ReviewUnassignView(GenericAPIView):
 
     @extend_schema(request=None, responses={200: ReviewSerializer})
     def post(self, request, pk: int):
-        review = get_object_or_404(Review.objects.select_related("submission", "submission__entry"), pk=pk)
+        review = get_object_or_404(
+            scope_to_competition(
+                Review.objects.select_related("submission", "submission__entry"),
+                competition_of(request),
+            ),
+            pk=pk,
+        )
         review = unassign_reviewer(review, actor=request.user, request=request)
         return Response(ReviewSerializer(review).data)
 
@@ -282,7 +322,13 @@ class ReviewScoreView(GenericAPIView):
 
     @extend_schema(request=SetReviewScoreSerializer, responses={200: ReviewSerializer})
     def post(self, request, pk: int):
-        review = get_object_or_404(Review.objects.select_related("submission", "submission__entry"), pk=pk)
+        review = get_object_or_404(
+            scope_to_competition(
+                Review.objects.select_related("submission", "submission__entry"),
+                competition_of(request),
+            ),
+            pk=pk,
+        )
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         review = set_review_score(
@@ -303,7 +349,9 @@ class SubmissionFinalGradeView(GenericAPIView):
 
     @extend_schema(request=OverrideFinalGradeSerializer, responses={200: OverrideResultSerializer})
     def post(self, request, submission_id: int):
-        submission = get_object_or_404(Submission, pk=submission_id)
+        submission = get_object_or_404(
+            scope_to_competition(Submission.objects.all(), competition_of(request)), pk=submission_id
+        )
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         result = override_final_grade(
@@ -324,7 +372,7 @@ class ModerationListView(GenericAPIView):
 
     @extend_schema(responses={200: ModerationSubmissionSerializer(many=True)})
     def get(self, request):
-        return Response(self.get_serializer(moderation_queue(), many=True).data)
+        return Response(self.get_serializer(moderation_queue(competition_of(request)), many=True).data)
 
 
 class ModerationResolveView(GenericAPIView):
@@ -335,7 +383,9 @@ class ModerationResolveView(GenericAPIView):
 
     @extend_schema(request=ResolveModerationSerializer, responses={200: FinalGradeSerializer})
     def post(self, request, submission_id: int):
-        submission = get_object_or_404(Submission, pk=submission_id)
+        submission = get_object_or_404(
+            scope_to_competition(Submission.objects.all(), competition_of(request)), pk=submission_id
+        )
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         grade = resolve_moderation(
@@ -357,11 +407,15 @@ class ModerationAssignThirdView(GenericAPIView):
 
     @extend_schema(request=AssignThirdReviewerSerializer, responses={200: ReviewSerializer})
     def post(self, request, submission_id: int):
-        submission = get_object_or_404(Submission, pk=submission_id)
+        competition = competition_of(request)
+        submission = get_object_or_404(
+            scope_to_competition(Submission.objects.all(), competition), pk=submission_id
+        )
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         reviewer = get_object_or_404(
-            CommitteeMember.objects.select_related("user"), pk=serializer.validated_data["reviewer_id"]
+            CommitteeMember.objects.for_competition(competition).select_related("user"),
+            pk=serializer.validated_data["reviewer_id"],
         )
         review = assign_third_reviewer(submission, reviewer, actor=request.user, request=request)
         return Response(ReviewSerializer(review).data)

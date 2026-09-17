@@ -637,20 +637,24 @@ def import_students(
     ręcznie), zostaje puste i pyta o nie uczeń przy przyjęciu zaproszenia – nauczyciel i tak nie
     odpowiada za to pole, a zgadywanie wstawiłoby do bazy wartość, której nikt nie potwierdził.
     """
-    from .services import _add_to_group, create_participant_with_public_code
+    from .services import create_participant_with_public_code, default_competition, grant_role
     from .supervisors import set_supervisor_email
 
     validate_rows(rows)
     district = getattr(school_ref, "voivodeship", "") or ""
+    # Konkurs importu ustalamy **raz** dla całego pliku: jedna lista klasowa nie ma prawa
+    # rozsypać się po dwóch konkursach, choćby kontekst zmienił się w trakcie.
+    competition = default_competition()
     now = timezone.now()
     created = 0
     linked = 0
     for row in rows:
         if row.action == ACTION_CREATE:
             user = _create_invited_user(row)
-            _add_to_group(user, GROUP_PARTICIPANT)
+            grant_role(user, GROUP_PARTICIPANT, competition=competition)
             participant = create_participant_with_public_code(
                 user=user,
+                competition=competition,
                 school=school_name,
                 school_ref=school_ref,
                 grade=row.grade,

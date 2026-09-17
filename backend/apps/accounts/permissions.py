@@ -1,23 +1,42 @@
 """Klasy uprawnień DRF dla ról RBAC.
 
 Każdy widok w projekcie deklaruje uprawnienia jawnie – nie ma widoków bez ``permission_classes``.
-Rola = przynależność do grupy Django; dla recenzenta dodatkowo wymagany jest status ACTIVE profilu.
+Rola = odpowiedź ``apps.accounts.services.has_role``; dla recenzenta dodatkowo wymagany jest
+status ACTIVE profilu.
+
+Klasy są **cienkimi opakowaniami** i mają takie zostać: cała reguła („grupa Django czy wiersz
+``Membership``”) mieszka w ``has_role``, a tutaj jest wyłącznie dobranie konkursu i połączenie
+roli z profilem. Dzięki temu widoki DRF nie zmieniają deklaracji ``permission_classes`` ani przy
+przełączeniu flagi ``memberships_enforced``, ani przy żadnej późniejszej zmianie reguły.
+
+Konkurs bierzemy z żądania, które ustawia ``apps.tenancy.middleware``. Żądanie bez konkursu (host
+spoza listy, wywołanie testowe bez warstwy) daje ``None`` – a ``has_role`` schodzi wtedy do grup,
+czyli do zachowania sprzed wielokonkursowości. To jest warunek § 0 dokumentu: nic z tej zmiany nie
+ma prawa zmienić ani jednej odpowiedzi Konkursu #1 przed świadomym przełączeniem flagi.
 """
 
 from rest_framework.permissions import BasePermission
 
 from .models import (
-    GROUP_APPEALS,
-    GROUP_COORDINATOR,
-    GROUP_PARTICIPANT,
     CommitteeStatus,
+    CompetitionRole,
 )
 
 
-def _in_group(user, name: str) -> bool:
-    if not user or not user.is_authenticated or not user.is_active:
-        return False
-    return user.groups.filter(name=name).exists()
+def _competition(request):
+    """Konkurs żądania albo ``None``.
+
+    ``rest_framework.request.Request`` deleguje nieznane atrybuty do opakowanego ``HttpRequest``,
+    więc to jest ten sam obiekt, który widzi widok HTML – jedna warstwa, jedno rozstrzygnięcie.
+    """
+    return getattr(request, "competition", None)
+
+
+def _has_role(request, role: str) -> bool:
+    # Import lokalny: ``services`` importuje pośrednio ten moduł przez warstwę API.
+    from .services import has_role
+
+    return has_role(request.user, _competition(request), role)
 
 
 def _active_committee_member(user):
@@ -29,12 +48,20 @@ def _active_committee_member(user):
 
 
 class IsParticipant(BasePermission):
-    """Zalogowany uczestnik (grupa ``participant`` + profil ``Participant``)."""
+    """Zalogowany uczestnik: rola ``participant`` w tym konkursie **i** profil w tym konkursie."""
 
     message = "Wymagana rola uczestnika."
 
     def has_permission(self, request, view) -> bool:
-        return _in_group(request.user, GROUP_PARTICIPANT) and hasattr(request.user, "participant")
+        from .services import participant_for
+
+        if not _has_role(request, CompetitionRole.PARTICIPANT):
+            return False
+        # Sama rola nie wystarcza i nigdy nie wystarczała: endpointy uczestnika czytają profil
+        # (szkoła, kod publiczny, zgody), więc konto z rolą, ale bez profilu dostałoby 500
+        # zamiast 403. Profil bierzemy **z tego konkursu** – po wydaniu D profil z konkursu B
+        # przestanie tu cokolwiek otwierać, a wołanie jest już dziś tym docelowym.
+        return participant_for(request.user, _competition(request)) is not None
 
 
 class IsActiveReviewer(BasePermission):
@@ -52,25 +79,30 @@ class IsActiveReviewer(BasePermission):
         # Import lokalny: ``services`` importuje ``permissions`` pośrednio przez warstwę API.
         from .services import active_reviewer_profile
 
-        return active_reviewer_profile(request.user) is not None
+        return active_reviewer_profile(request.user, _competition(request)) is not None
 
 
 class IsAppealsCommittee(BasePermission):
-    """Członek komisji odwoławczej: grupa ``appeals`` + aktywny profil z ``is_appeals_committee``."""
+    """Komisja odwoławcza: rola ``appeals`` + aktywny profil z ``is_appeals_committee``."""
 
     message = "Wymagana rola komisji odwoławczej."
 
     def has_permission(self, request, view) -> bool:
-        if not _in_group(request.user, GROUP_APPEALS):
+        if not _has_role(request, CompetitionRole.APPEALS):
             return False
         member = _active_committee_member(request.user)
         return member is not None and member.is_appeals_committee
 
 
 class IsCoordinator(BasePermission):
-    """Koordynator olimpiady (grupa ``coordinator``). Bez cichej eskalacji dla superusera."""
+    """Koordynator konkursu z żądania. Bez cichej eskalacji dla superusera.
+
+    Superużytkownik jest operatorem platformy i ma własne narzędzie (``/admin/``). Eskalacja
+    zrobiłaby z każdego konta serwisowego konto z wglądem w dane uczestników – a konto serwisowe
+    zakłada się po to, żeby coś wdrożyć, a nie po to, żeby czytać czyjeś prace.
+    """
 
     message = "Wymagana rola koordynatora."
 
     def has_permission(self, request, view) -> bool:
-        return _in_group(request.user, GROUP_COORDINATOR)
+        return _has_role(request, CompetitionRole.COORDINATOR)

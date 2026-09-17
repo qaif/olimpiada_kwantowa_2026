@@ -13,7 +13,18 @@
 # Opcjonalne: S3_PUBLIC_ADDRESS (domyślnie <domena>:9000; po dodaniu rekordu DNS: s3.<domena>),
 #             MAKE_EDITION_CURRENT=1 (edycja „I edycja 2026/2027” jako bieżąca), APP_VERSION,
 #             DMARC_RUA (adres raportów DMARC, domyślnie contact@qaif.org),
-#             MAIL_PUBLIC_IP (adres do rekordu SPF, gdy serwer wychodzi przez inny IP niż własny).
+#             MAIL_PUBLIC_IP (adres do rekordu SPF, gdy serwer wychodzi przez inny IP niż własny),
+#             BACKUP_DIR (katalog kopii przed migracjami, domyślnie /opt/olimpiada-backups).
+#
+# Nowy konkurs (platforma wielokonkursowa, docs/UNIWERSALNY-ETAP-1.md § 4.5) – krok 6a wykonuje się
+# WYŁĄCZNIE wtedy, gdy ustawiono NEW_COMPETITION_SLUG. Bez tej zmiennej wdrożenie nie woła komendy
+# `create_competition` ani razu, więc przebieg dla Olimpiady Kwantowej jest taki, jak był:
+#   NEW_COMPETITION_SLUG=fizyczna NEW_COMPETITION_NAME="Olimpiada Fizyczna" \
+#   NEW_COMPETITION_DOMAIN=olimpiadafizyczna.pl NEW_COMPETITION_TEMPLATE=przedmiotowa \
+#   [NEW_COMPETITION_ORGANIZER="Polskie Towarzystwo Fizyczne"] scripts/deploy.sh root@<host>
+# Domena konkursu musi jeszcze trafić do EXTRA_DOMAINS, DJANGO_ALLOWED_HOSTS
+# i DJANGO_CSRF_TRUSTED_ORIGINS w <REMOTE_DIR>/.env – komenda wypisuje gotowe linijki, a rozjazd
+# wykrywa `manage.py check_domains`, wołane na końcu wdrożenia.
 #
 # Krok 7 wypisuje i zapisuje do <REMOTE_DIR>/mail-dns.txt rekordy SPF/DKIM/DMARC/PTR dla usługi
 # `mail` (własny Postfix). Dopóki ich nie dodasz w DNS-ie, poczta idzie do spamu albo jest odrzucana.
@@ -106,8 +117,82 @@ else
 fi
 REMOTE
 
-log "4/8 Build i start usług"
-"${SSH[@]}" "cd '$REMOTE_DIR' && docker compose build --pull web && docker compose up -d --remove-orphans db redis minio minio-init clamav mail web worker beat proxy"
+log "4/8 Konfiguracja proxy (EXTRA_DOMAINS), build obrazu i start samej bazy"
+# Rozdzielenie dawnego kroku „build i start usług” na 4 / 4a / 4b bierze się z jednego faktu:
+# migracje uruchamia entrypoint kontenera `web` (backend/entrypoint.sh), więc jedyne miejsce, w
+# którym da się zrobić kopię bazy **sprzed** migracji, jest między startem `db` a startem `web`.
+# Polecenie startujące komplet usług (krok 4b) zostaje co do znaku takie, jakie było.
+"${SSH[@]}" env REMOTE_DIR="$REMOTE_DIR" bash -s <<'REMOTE'
+set -euo pipefail
+cd "$REMOTE_DIR"
+# Dwie zmienne wielokonkursowości dokładane do .env **tylko wtedy, gdy ich nie ma**. Istniejących
+# wartości ten skrypt nie rusza (tak samo jak krok 3/8 nie rusza całego pliku), a serwer, na
+# którym .env powstał przed wielokonkursowością, dostaje je przy pierwszym wdrożeniu po zmianie –
+# bez ręcznej edycji pliku, której nikt by nie pamiętał.
+if ! grep -qE '^EXTRA_DOMAINS=' .env; then
+  {
+    echo
+    echo "# Domeny kolejnych konkursów, rozdzielone spacjami (docs/UNIWERSALNY-ETAP-1.md § 2.5)."
+    echo "# Ta sama lista wchodzi do bloków Caddy'ego (scripts/render_caddyfile.sh), do"
+    echo "# ALLOWED_HOSTS i do CSRF_TRUSTED_ORIGINS – wpisana w dwóch miejscach z trzech daje"
+    echo "# albo 400 na każde żądanie, albo odmowę CSRF na każdym formularzu."
+    echo "EXTRA_DOMAINS="
+  } >> .env
+  chmod 600 .env
+fi
+if ! grep -qE '^CADDYFILE_PATH=' .env; then
+  {
+    echo "# Konfiguracja proxy montowana do kontenera: plik składany z deploy/Caddyfile"
+    echo "# i EXTRA_DOMAINS przez scripts/render_caddyfile.sh (patrz docker-compose.yml)."
+    echo "CADDYFILE_PATH=./deploy/Caddyfile.generated"
+  } >> .env
+  chmod 600 .env
+fi
+# Generator chodzi przy każdym wdrożeniu, także gdy EXTRA_DOMAINS jest puste: krok 2/8 czyści
+# katalog z wszystkiego poza .env, a plik wynikowy nie jest w repozytorium. Przy pustej liście
+# wynik jest kopią deploy/Caddyfile co do bajtu (scripts/tests/render_caddyfile_test.sh).
+chmod +x scripts/render_caddyfile.sh
+./scripts/render_caddyfile.sh
+docker compose build --pull web
+docker compose up -d db
+for _ in $(seq 1 30); do
+  docker compose ps --format '{{.Service}}={{.Health}}' | grep -q 'db=healthy' && break
+  sleep 2
+done
+# Twardo: bez działającej bazy nie ma kopii z kroku 4a, a bez kopii nie wolno migrować.
+docker compose ps --format '{{.Service}}={{.Health}}' | grep -q 'db=healthy'
+REMOTE
+
+log "4a/8 Kopia bazy przed migracjami (pg_dump -Fc)"
+# Format `custom` (-Fc), a nie zwykły SQL: pozwala odtworzyć wybraną tabelę zamiast całej bazy,
+# co przy pomyłce w migracji jest różnicą między dziesięcioma minutami a wieczorem. Kopia jest
+# **warunkiem** wdrożenia (`set -e` + sprawdzenie rozmiaru): niepowodzenie zatrzymuje skrypt,
+# zanim entrypoint `web` wykona `migrate` (docs/UNIWERSALNY-ETAP-1.md § 0.2).
+"${SSH[@]}" env REMOTE_DIR="$REMOTE_DIR" APP_VERSION="$APP_VERSION" BACKUP_DIR="${BACKUP_DIR:-/opt/olimpiada-backups}" bash -s <<'REMOTE'
+set -euo pipefail
+cd "$REMOTE_DIR"
+PG_USER="$(grep -E '^POSTGRES_USER=' .env | cut -d= -f2-)"
+PG_DB="$(grep -E '^POSTGRES_DB=' .env | cut -d= -f2-)"
+mkdir -p "$BACKUP_DIR"
+chmod 700 "$BACKUP_DIR"
+# Znacznik: czas i wydanie. Czas, bo w jednym dniu bywa kilka wdrożeń tego samego tagu; wydanie,
+# bo przy odtwarzaniu pytanie brzmi „sprzed której wersji”, a nie „z której godziny”.
+STAMP="$(date +%Y%m%d-%H%M%S)-$(printf '%s' "$APP_VERSION" | tr -cs 'A-Za-z0-9._-' '-')"
+DUMP="$BACKUP_DIR/pre-deploy-$STAMP.dump"
+# </dev/null: `exec` nie może czytać stdin, bo to strumień tego skryptu.
+docker compose exec -T db pg_dump -U "$PG_USER" -d "$PG_DB" -Fc > "$DUMP" </dev/null
+chmod 600 "$DUMP"
+[ -s "$DUMP" ] || { echo "Kopia przed migracjami jest pusta – przerywam wdrożenie."; exit 1; }
+ls -lh "$DUMP"
+# Zostaje dziesięć ostatnich kopii przedwdrożeniowych. Bez tego katalog rośnie o pełny zrzut bazy
+# przy każdym wdrożeniu i po pół roku to on wywoła awarię, przed którą miał chronić. Kopie
+# nocne (scripts/backup.sh) są osobnym zestawem plików i ten limit ich nie dotyczy.
+ls -1t "$BACKUP_DIR"/pre-deploy-*.dump 2>/dev/null | tail -n +11 | xargs -r rm -f
+echo "Odtworzenie: docker compose exec -T db pg_restore -U $PG_USER -d $PG_DB --clean --if-exists < $DUMP"
+REMOTE
+
+log "4b/8 Start usług (migracje wykonuje entrypoint kontenera web)"
+"${SSH[@]}" "cd '$REMOTE_DIR' && docker compose up -d --remove-orphans db redis minio minio-init clamav mail web worker beat proxy"
 
 log "5/8 Oczekiwanie na healthy"
 "${SSH[@]}" bash -s <<REMOTE
@@ -155,6 +240,33 @@ if [ -n "$COORDINATOR_EMAIL" ] && [ -n "$COORDINATOR_PASSWORD" ]; then
     python manage.py bootstrap_coordinator </dev/null
 fi
 docker compose ps --format 'table {{.Service}}\t{{.State}}\t{{.Health}}'
+REMOTE
+
+log "6a/8 Nowy konkurs (tylko przy NEW_COMPETITION_SLUG)"
+# Krok opcjonalny i domyślnie pusty. Bez NEW_COMPETITION_SLUG nie wykonuje ani jednego polecenia
+# w kontenerze – wdrożenie Olimpiady Kwantowej wygląda dokładnie tak, jak wyglądało.
+"${SSH[@]}" env REMOTE_DIR="$REMOTE_DIR" \
+  NEW_COMPETITION_SLUG="${NEW_COMPETITION_SLUG:-}" \
+  NEW_COMPETITION_NAME="${NEW_COMPETITION_NAME:-}" \
+  NEW_COMPETITION_DOMAIN="${NEW_COMPETITION_DOMAIN:-}" \
+  NEW_COMPETITION_TEMPLATE="${NEW_COMPETITION_TEMPLATE:-pusty}" \
+  NEW_COMPETITION_ORGANIZER="${NEW_COMPETITION_ORGANIZER:-}" bash -s <<'REMOTE'
+set -euo pipefail
+cd "$REMOTE_DIR"
+if [ -z "$NEW_COMPETITION_SLUG" ]; then
+  echo "NEW_COMPETITION_SLUG nieustawione – żaden konkurs nie jest zakładany."
+  exit 0
+fi
+: "${NEW_COMPETITION_NAME:?NEW_COMPETITION_NAME wymagane razem z NEW_COMPETITION_SLUG}"
+: "${NEW_COMPETITION_DOMAIN:?NEW_COMPETITION_DOMAIN wymagane razem z NEW_COMPETITION_SLUG}"
+# --skip-existing: wdrożenie musi dać się powtórzyć. Bez tej flagi drugi przebieg z tymi samymi
+# zmiennymi kończyłby się błędem „konkurs już istnieje”, czyli czerwonym wdrożeniem za to, że
+# poprzednie się udało. Uruchomiona bez flagi (ręcznie) komenda nadal odmawia duplikatu.
+ARGS=(--slug "$NEW_COMPETITION_SLUG" --name "$NEW_COMPETITION_NAME"
+      --domain "$NEW_COMPETITION_DOMAIN" --from-template "$NEW_COMPETITION_TEMPLATE"
+      --skip-existing)
+[ -n "$NEW_COMPETITION_ORGANIZER" ] && ARGS+=(--organizer "$NEW_COMPETITION_ORGANIZER")
+docker compose exec -T web python manage.py create_competition "${ARGS[@]}" </dev/null
 REMOTE
 
 log "7/8 DNS dla poczty (SPF / DKIM / DMARC / PTR)"
@@ -286,5 +398,12 @@ if [ "$NEW_PASSPHRASE" = "1" ]; then
   echo "    Bez tego hasła żadnej kopii nie da się otworzyć. Nikt go nie odzyska."
 fi
 REMOTE
+
+log "Kontrola domen konkursów"
+# Ostrzeżenie, a nie bramka: rozjazd między domenami konkursów a ALLOWED_HOSTS / CSRF /
+# EXTRA_DOMAINS nie psuje konkursów, które już działają, więc nie ma powodu zatrzymywać wdrożenia
+# — ale jest jedyny moment, w którym ktoś na to patrzy, i jest nim ten log. `|| true`, bo
+# niedostępny kontener `web` (np. tuż po restarcie) nie może być powodem czerwonego wdrożenia.
+"${SSH[@]}" "cd '$REMOTE_DIR' && docker compose exec -T web python manage.py check_domains --all </dev/null" || true
 
 log "Gotowe: https://${SITE_DOMAIN:-<domena z .env>}/  (panel: /coordinator/, CMS: /cms/, admin: /admin/)"

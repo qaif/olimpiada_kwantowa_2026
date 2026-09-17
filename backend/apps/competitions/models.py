@@ -18,7 +18,9 @@ from django.db.models import F, Q
 from django.utils import timezone
 
 from apps.accounts.models import GROUP_COORDINATOR, Participant
+from apps.tenancy.managers import CompetitionScopedQuerySet
 
+from .scoping import competition_scoped_manager, resolve_competition, scope_to_competition
 from .storage import private_media_storage
 from .video import DEFAULT_VIDEO_BASE_URL, VideoProvider
 
@@ -146,8 +148,31 @@ class RegistrationStatus:
 
 
 class Edition(models.Model):
-    """Edycja olimpiady, np. „XV (2026/2027)”. Bieżąca może być tylko jedna."""
+    """Edycja olimpiady, np. „XV (2026/2027)”. Bieżąca może być tylko jedna.
 
+    Edycja jest **korzeniem domeny zawodów**: etap, zadanie, wpis, praca, recenzja, wynik i dyplom
+    dochodzą do właściciela przez nią (``docs/UNIWERSALNY-ETAP-1.md`` § 3.4). Dlatego to ona – jako
+    jedyny model tej aplikacji – ma własną kolumnę konkursu, a nie każdy z nich z osobna: druga
+    droga do tej samej prawdy to druga okazja do rozjazdu, a rozjazd w tabeli izolacji znaczy wyciek.
+
+    Wszystko, co dotąd stało na edycji, na niej **zostaje**: ``year_label``, ``is_current``, okno
+    rejestracji i retencja są decyzjami o **roczniku**, a nie o konkursie.
+    """
+
+    #: Nullowalny przez całe wydanie B i to jest stan przejściowy, nie projekt (§ 4.1): schemat
+    #: kładzie się **przed** kodem, który go wymaga, żeby stara i nowa wersja aplikacji mogły przez
+    #: chwilę stać obok siebie. ``NOT NULL`` wchodzi w wydaniu D, po zapytaniu kontrolnym.
+    #:
+    #: ``PROTECT``, bo skasowanie konkursu razem z jego edycjami zabrałoby ze sobą prace, recenzje
+    #: i wyniki – czyli dokumentację zawodów, które się odbyły.
+    competition = models.ForeignKey(
+        "tenancy.Competition",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="editions",
+        verbose_name="konkurs",
+    )
     year_label = models.CharField("oznaczenie edycji", max_length=64, unique=True)
     is_current = models.BooleanField("edycja bieżąca", default=False)
     created_at = models.DateTimeField("utworzona", default=timezone.now)
@@ -182,6 +207,9 @@ class Edition(models.Model):
         ),
     )
 
+    #: Domyślna ścieżka queryseta (``competition``) wystarcza – edycja ma własną kolumnę.
+    objects = competition_scoped_manager()
+
     class Meta:
         verbose_name = "edycja"
         verbose_name_plural = "edycje"
@@ -207,9 +235,36 @@ class Edition(models.Model):
     def __str__(self) -> str:
         return self.year_label
 
+    def save(self, *args, **kwargs):
+        """Nowa edycja bez wskazanego konkursu dostaje ten „na teraz”.
+
+        Domyślna wartość jest **w modelu**, a nie w każdym z wołających, bo edycje zakłada dziś
+        kilka dróg, z których część nie należy do tego zadania: panel ``/admin/``, komendy seedów
+        (``seed_edition_kwantowa``, ``seed_demo``), ``create_competition`` i import z integracji.
+        Edycja bez właściciela byłaby niewidoczna dla ``current_edition()``, czyli zniknęłaby
+        z nagłówka, harmonogramu i strony głównej – a to jest dokładnie ta klasa regresji, której
+        zabrania § 0 dokumentu.
+
+        Wypełniamy **wyłącznie przy wstawianiu**: przy zapisie istniejącego wiersza konkurs jest
+        faktem, a nie domyślną wartością, a podstawianie go z kontekstu przy każdym ``save()``
+        pozwoliłoby żądaniu jednego konkursu przepisać edycję drugiego.
+
+        ``None`` (instalacja bez konkursów, baza z dwoma i bez wskazania) zostaje ``None`` i jest
+        widoczne w kontroli przed ``NOT NULL`` (§ 4.4) – zgadywanie właściciela byłoby cichym
+        przypisaniem danych cudzemu organizatorowi.
+        """
+        if self._state.adding and self.competition_id is None:
+            self.competition = resolve_competition()
+        return super().save(*args, **kwargs)
+
     def clean(self) -> None:
         super().clean()
         if self.is_current:
+            # Zakres tego sprawdzenia jest celowo **globalny**, mimo że konkursów bywa kilka:
+            # w wydaniu B constraint w bazie (``competitions_edition_single_current``) jest wciąż
+            # globalny, a walidacja luźniejsza od bazy zamieniłaby czytelny ``ValidationError``
+            # w ``IntegrityError`` w środku zapisu. Oba zawężają się do pary
+            # ``(competition, is_current)`` razem, w wydaniu D (§ 4.1).
             others = Edition.objects.filter(is_current=True).exclude(pk=self.pk)
             if others.exists():
                 raise ValidationError(
@@ -252,16 +307,24 @@ class Edition(models.Model):
         )
 
 
-def current_registration_status(now=None) -> RegistrationStatus:
-    """Stan rejestracji **bieżącej** edycji – jedno źródło prawdy dla całego serwisu.
+def current_registration_status(now=None, competition=None) -> RegistrationStatus:
+    """Stan rejestracji **bieżącej** edycji konkursu – jedno źródło prawdy dla całego serwisu.
 
     Brak bieżącej edycji to ``disabled``, a nie „otwarta”: nie ma wtedy czego organizować, więc
     konto założone w takiej chwili nie miałoby do czego należeć (zapis do etapu i tak odmówiłby).
+    Ta sama odpowiedź należy się konkursowi, którego edycji **nie widać** – w bazie
+    wielokonkursowej otwarta rejestracja sąsiada nie jest otwartą rejestracją tutaj.
+
+    ``competition=None`` znaczy „konkurs z kontekstu” (żądanie ustawia go warstwą, zadanie –
+    ``competition_context``), a nie „dowolny”. Argument stoi **za** ``now``, żeby jedyne dzisiejsze
+    wywołanie pozycyjne (``current_registration_status(now)`` w ``registration.py``) zostało tym,
+    czym było.
+
     Zapytanie jest celowo najtańsze z możliwych – wywołuje je procesor kontekstu, czyli każde
     renderowanie szablonu bazowego.
     """
     edition = (
-        Edition.objects.filter(is_current=True)
+        scope_to_competition(Edition.objects.filter(is_current=True), competition)
         .only("id", "registration_enabled", "registration_opens_at", "registration_closes_at")
         .first()
     )
@@ -401,6 +464,10 @@ class Stage(models.Model):
     video_base_url = models.URLField(
         "adres serwera wideo", max_length=200, blank=True, default=DEFAULT_VIDEO_BASE_URL
     )
+
+    #: Bez własnej kolumny: etap dochodzi do konkursu przez edycję (§ 3.4). Jedna droga zamiast
+    #: dwóch – wtedy nie ma czego uzgadniać i nie ma jak się rozjechać.
+    objects = competition_scoped_manager("edition__competition")
 
     class Meta:
         verbose_name = "etap"
@@ -567,6 +634,10 @@ class ScoringScale(models.Model):
     values = models.JSONField("wartości skali", default=default_scoring_values)
     max_value = models.PositiveSmallIntegerField("maksimum", default=DEFAULT_MAX_VALUE)
 
+    #: Droga przez etap. Skali nie czyta dziś żaden ekran „po konkursie” – zakres jest tu po to,
+    #: żeby audyt izolacji (§ 3.9) nie natrafił na model, o którym nie wiadomo, czyj jest.
+    objects = competition_scoped_manager("stage__edition__competition")
+
     class Meta:
         verbose_name = "skala punktacji"
         verbose_name_plural = "skale punktacji"
@@ -599,6 +670,9 @@ class QualificationRule(models.Model):
     )
     min_points = models.PositiveIntegerField("minimum punktów", null=True, blank=True)
     top_n = models.PositiveIntegerField("liczba kwalifikowanych", null=True, blank=True)
+
+    #: Jw. – próg należy do etapu, a etap do edycji. Reguł kwalifikacji ta zmiana nie dotyka.
+    objects = competition_scoped_manager("stage__edition__competition")
 
     class Meta:
         verbose_name = "próg kwalifikacji"
@@ -688,6 +762,10 @@ class Problem(models.Model):
     # etapu przestałaby cokolwiek znaczyć.
     scoring_values = models.JSONField("skala punktacji zadania", null=True, blank=True)
     max_points = models.PositiveSmallIntegerField("maksimum punktów", null=True, blank=True)
+
+    #: Treść zadania bywa pobierana adresem, którego nikt nie musi znać (``/api/competitions/
+    #: problems/<pk>/statement/``), więc zakres jest tu regułą bezpieczeństwa, a nie porządkiem.
+    objects = competition_scoped_manager("stage__edition__competition")
 
     class Meta:
         verbose_name = "zadanie"
@@ -826,17 +904,38 @@ class ManualQualification(models.TextChoices):
 MIN_MANUAL_QUALIFICATION_REASON = 10
 
 
-class StageEntryQuerySet(models.QuerySet):
-    def for_user(self, user):
-        """Filtr per rola w jednym miejscu (PROJEKT.md 2.3): uczestnik widzi wyłącznie swoje wpisy."""
+class StageEntryQuerySet(CompetitionScopedQuerySet):
+    """Wpisy do etapów, z drogą do konkursu przez etap i jego edycję (§ 3.4).
+
+    ``entry.participant.competition`` jest **drugą** drogą do tej samej prawdy i celowo nie jest
+    tą, po której filtrujemy: zgodności obu pilnuje walidacja wpisu, a filtr ma być jeden.
+    """
+
+    competition_path = "stage__edition__competition"
+
+    def for_user(self, user, competition=None):
+        """Filtr per rola w jednym miejscu (PROJEKT.md 2.3): uczestnik widzi wyłącznie swoje wpisy.
+
+        **Kolejność jest regułą, nie stylem** (§ 3.5): najpierw ``for_competition`` (własność),
+        potem rola. Odwrotnie znaczyłoby, że koordynator konkursu A dostaje wpisy konkursu B,
+        bo „jest koordynatorem” – a rola jest rolą **w konkursie**, nie w instalacji.
+
+        ``competition=None`` bierze konkurs z kontekstu żądania; szczegóły odwrotów i jedyny
+        przypadek, w którym zawężenia nie ma, opisuje ``apps.competitions.scoping``.
+        """
+        scoped = scope_to_competition(self, competition)
         if not user or not user.is_authenticated or not user.is_active:
-            return self.none()
+            return scoped.none()
         if user.groups.filter(name=GROUP_COORDINATOR).exists():
-            return self
-        participant = getattr(user, "participant", None)
+            return scoped
+        # ``participant_for`` zamiast ``user.participant``: profil jest odtąd profilem **w tym
+        # konkursie**, a relacja jeden-do-jednego oddawałaby po wydaniu D dowolny z nich.
+        from apps.accounts.services import participant_for
+
+        participant = participant_for(user, resolve_competition(competition))
         if participant is None:
-            return self.none()
-        return self.filter(participant=participant)
+            return scoped.none()
+        return scoped.filter(participant=participant)
 
 
 class StageEntry(models.Model):
@@ -926,6 +1025,9 @@ class InterviewSlot(models.Model):
     note = models.CharField("oznaczenie", max_length=200, blank=True)
     created_at = models.DateTimeField("utworzony", default=timezone.now)
 
+    #: Termin jest zasobem etapu, więc droga do konkursu jest ta sama, co u etapu.
+    objects = competition_scoped_manager("stage__edition__competition")
+
     class Meta:
         verbose_name = "termin rozmowy"
         verbose_name_plural = "terminy rozmów"
@@ -978,6 +1080,10 @@ class InterviewBooking(models.Model):
     # patrz ``apps.competitions.tasks.remind_interviews``.
     reminder_sent_at = models.DateTimeField("przypomnienie wysłane", null=True, blank=True)
 
+    #: Przez wpis do etapu, a nie przez termin: to wpis niesie uczestnika, czyli osobę, do której
+    #: idzie przypomnienie – i to jego konkurs rozstrzyga, jaką domenę ma nieść link w liście.
+    objects = competition_scoped_manager("entry__stage__edition__competition")
+
     class Meta:
         verbose_name = "zapis na rozmowę"
         verbose_name_plural = "zapisy na rozmowy"
@@ -1028,6 +1134,10 @@ class EditionEvent(models.Model):
         verbose_name="dodane przez",
     )
     created_at = models.DateTimeField("utworzone", default=timezone.now)
+
+    #: Wydarzenie należy do edycji, a edycja do konkursu – kalendarz jednego organizatora nie ma
+    #: prawa pokazać gali drugiego.
+    objects = competition_scoped_manager("edition__competition")
 
     class Meta:
         verbose_name = "wydarzenie edycji"

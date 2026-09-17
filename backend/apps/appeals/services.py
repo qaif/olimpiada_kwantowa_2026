@@ -134,7 +134,13 @@ def file_appeal(user, submission: Submission, argument: str, *, request=None) ->
     statusu – po pierwszej reklamacji zgłoszenie jest już APPEALED i komunikat o „niewłaściwym
     stanie” byłby mylący.
     """
-    participant = getattr(user, "participant", None)
+    # Profil z **konkursu rozwiązania**, a nie z kontekstu żądania: reklamację składa się w tym
+    # konkursie, w którym oddano pracę. Porównanie niżej i tak rozstrzyga o własności, ale profil
+    # wzięty z innego konkursu dawałby 404 z niewłaściwego powodu – i to tylko do wydania D,
+    # w którym ``user.participant`` przestaje istnieć.
+    from apps.accounts.services import participant_for
+
+    participant = participant_for(user, submission.competition)
     locked = _locked_submission(submission.pk)
     if participant is None or locked.entry.participant_id != participant.pk:
         raise _not_found("Nie ma takiego rozwiązania.", "SUBMISSION_NOT_FOUND")
@@ -379,19 +385,27 @@ def finalize_unappealed(stage: Stage, *, now=None, actor=None, request=None) -> 
     return finalized
 
 
-def stages_with_closed_appeal_window(now=None):
+def stages_with_closed_appeal_window(now=None, competition=None):
     """Etapy, którym minęło okno reklamacji i które **mają jeszcze co finalizować**.
 
     Zawężenie do etapów z choć jednym GRADED_PROVISIONAL jest istotne dla beata: bez niego zadanie
     co 5 minut przemiatałoby wszystkie zamknięte etapy w historii olimpiady, żeby za każdym razem
     stwierdzić, że nie ma nic do zrobienia. ``distinct()``, bo złączenie idzie przez wpisy i ich
     rozwiązania (etap ma ich wiele).
+
+    ``competition`` zawęża przebieg do jednego konkursu – zadanie okresowe woła tę funkcję raz na
+    konkurs, żeby finalizacja i wynikające z niej powiadomienia działy się w jego kontekście.
     """
+    from apps.competitions.scoping import scope_to_competition
+
     now = now or timezone.now()
     return (
-        Stage.objects.filter(
-            appeal_window_closes_at__lte=now,
-            entries__submissions__status=SubmissionStatus.GRADED_PROVISIONAL,
+        scope_to_competition(
+            Stage.objects.filter(
+                appeal_window_closes_at__lte=now,
+                entries__submissions__status=SubmissionStatus.GRADED_PROVISIONAL,
+            ),
+            competition,
         )
         .distinct()
         .order_by("pk")
@@ -401,10 +415,17 @@ def stages_with_closed_appeal_window(now=None):
 # --- zapytania dla API ------------------------------------------------------------------------
 
 
-def appeals_queue(member: CommitteeMember | None):
-    """Kolejka komisji: reklamacje czekające na decyzję, bez tych z konfliktem interesów."""
+def appeals_queue(member: CommitteeMember | None, competition=None):
+    """Kolejka komisji: reklamacje czekające na decyzję, bez tych z konfliktem interesów.
+
+    Trzy zawężenia i każde odpowiada na inne pytanie: konkurs – „czyje to sprawy”, ``pending`` –
+    „czy jest co rozstrzygać”, konflikt interesów – „czy ta osoba może”. Zakres konkursu idzie
+    pierwszy (§ 3.5), bo jest własnością, a nie uprawnieniem.
+    """
+    from apps.competitions.scoping import scope_to_competition
+
     return (
-        Appeal.objects.pending()
+        scope_to_competition(Appeal.objects.pending(), competition)
         .without_conflict_for(member)
         .select_related(
             "submission",
@@ -434,7 +455,7 @@ def appeals_queue(member: CommitteeMember | None):
     )
 
 
-def appealable_submissions(user, now=None) -> list[Submission]:
+def appealable_submissions(user, now=None, competition=None) -> list[Submission]:
     """Własne rozwiązania, na które wolno teraz złożyć reklamację.
 
     Trzy warunki, dokładnie te same, których pilnuje ``file_appeal``: ocena wstępna
@@ -445,6 +466,11 @@ def appealable_submissions(user, now=None) -> list[Submission]:
     Filtr widoczności zostaje w queryseckie (``submissions_for_user`` → ``Submission.for_user``),
     więc lista nigdy nie wyjdzie poza własne prace pytającego. Ten queryset dociąga już
     ``entry__stage`` i ``appeals__decision``, więc pętla nie robi zapytań na wiersz.
+
+    ``competition`` idzie tą samą drogą, bo zakres konkursu jest częścią widoczności, a nie
+    dodatkiem do niej (§ 3.5): pod domeną A uczestnik ma widzieć formularz reklamacji wyłącznie
+    dla prac konkursu A. Argument jest opcjonalny, bo wołający (panel uczestnika) przechodzi na
+    jawne wskazanie w zadaniu T5.
     """
     # Import lokalny: ``apps.submissions`` nie zna ``apps.appeals`` (zależność idzie w drugą
     # stronę), a ``services`` obu aplikacji ładują się przy starcie – zostawiamy to na wywołanie.
@@ -453,16 +479,23 @@ def appealable_submissions(user, now=None) -> list[Submission]:
     now = now or timezone.now()
     return [
         submission
-        for submission in submissions_for_user(user)
+        for submission in submissions_for_user(user, competition)
         if submission.status == SubmissionStatus.GRADED_PROVISIONAL
         and not submission.appeals.all()
         and submission.entry.stage.is_appeal_window_open(now)
     ]
 
 
-def appeals_for_participant(user):
-    """Reklamacje uczestnika. Filtr jest w queryseckie, nie w widoku (PROJEKT.md 2.3)."""
-    participant = getattr(user, "participant", None)
+def appeals_for_participant(user, competition=None):
+    """Reklamacje uczestnika. Filtr jest w queryseckie, nie w widoku (PROJEKT.md 2.3).
+
+    Profil uczestnika bierzemy **z konkursu** (``participant_for``), a nie z relacji jeden-do-
+    jednego: po wydaniu D ta relacja oddawałaby profil z dowolnego konkursu, a reklamacja jest
+    sprawą prowadzoną przed konkretnym organizatorem.
+    """
+    from apps.accounts.services import participant_for
+
+    participant = participant_for(user, competition)
     if participant is None:
         return Appeal.objects.none()
     return (

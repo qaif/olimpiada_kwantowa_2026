@@ -77,7 +77,7 @@ def due_in_days(review, now=None):
     return (review.due_at - (now or timezone.now())).days
 
 
-def reviews_needing_reminder(now=None):
+def reviews_needing_reminder(now=None, competition=None):
     """Otwarte recenzje, o których trzeba dziś przypomnieć: termin za ≤ 2 dni albo już minął.
 
     Warunek ``reminded_at`` jest tym, co zamienia codzienny przebieg beatu w jeden list dziennie:
@@ -85,15 +85,23 @@ def reviews_needing_reminder(now=None):
     Praca, która wyszła z oceniania (ocena rozstrzygnięta, etap sfinalizowany), odpada razem
     z filtrem po stanie zgłoszenia – przypomnienie o recenzji, której nie da się już wystawić,
     byłoby wezwaniem do czynności niemożliwej.
+
+    ``competition`` zawęża przebieg do jednego konkursu: recenzent bywa w komitecie dwóch olimpiad
+    i ma dostać **dwa** listy z dwóch domen, a nie jeden ze wspólną listą prac.
     """
+    from apps.competitions.scoping import scope_to_competition
+
     now = now or timezone.now()
     cutoff = now + timedelta(days=REMINDER_LEAD_DAYS)
     return (
-        Review.objects.filter(
-            status__in=OPEN_STATUSES,
-            due_at__isnull=False,
-            due_at__lte=cutoff,
-            submission__status__in=REVIEWABLE_SUBMISSION_STATUSES,
+        scope_to_competition(
+            Review.objects.filter(
+                status__in=OPEN_STATUSES,
+                due_at__isnull=False,
+                due_at__lte=cutoff,
+                submission__status__in=REVIEWABLE_SUBMISSION_STATUSES,
+            ),
+            competition,
         )
         .filter(_not_reminded_recently(now))
         .select_related(

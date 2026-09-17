@@ -22,6 +22,7 @@ from apps.quiz.models import (
     QuizOption,
     QuizQuestion,
 )
+from apps.tenancy.tests.factories import SAME_COMPETITION, CompetitionScopedFactory
 
 
 class QuizStageFactory(StageFactory):
@@ -30,24 +31,24 @@ class QuizStageFactory(StageFactory):
     format = StageFormat.QUIZ
 
 
-class QuizFactory(factory.django.DjangoModelFactory):
+class QuizFactory(CompetitionScopedFactory):
     """Test dziedziczący okno etapu (puste ``opens_at``/``closes_at``), jedno podejście, 30 minut."""
 
     class Meta:
         model = Quiz
 
-    stage = factory.SubFactory(QuizStageFactory)
+    stage = factory.SubFactory(QuizStageFactory, competition=SAME_COMPETITION)
     title = factory.Sequence(lambda n: f"Test testowy {n}")
     instructions = ""
     duration_minutes = 30
     attempts_allowed = 1
 
 
-class QuizQuestionFactory(factory.django.DjangoModelFactory):
+class QuizQuestionFactory(CompetitionScopedFactory):
     class Meta:
         model = QuizQuestion
 
-    quiz = factory.SubFactory(QuizFactory)
+    quiz = factory.SubFactory(QuizFactory, competition=SAME_COMPETITION)
     pool = ""
     order = factory.Sequence(lambda n: n + 1)
     kind = QuestionKind.SINGLE_CHOICE
@@ -67,14 +68,14 @@ class QuizOptionFactory(factory.django.DjangoModelFactory):
     is_correct = False
 
 
-class QuizAttemptFactory(factory.django.DjangoModelFactory):
+class QuizAttemptFactory(CompetitionScopedFactory):
     """Podejście w toku z terminem za pół godziny. Zestaw pytań podaje test (``question_order``)."""
 
     class Meta:
         model = QuizAttempt
 
-    quiz = factory.SubFactory(QuizFactory)
-    entry = factory.SubFactory(StageEntryFactory)
+    quiz = factory.SubFactory(QuizFactory, competition=SAME_COMPETITION)
+    entry = factory.SubFactory(StageEntryFactory, competition=SAME_COMPETITION)
     # ``started_at`` jest zadeklarowane jawnie, mimo że model ma domyślne ``timezone.now``:
     # ``deadline_at`` liczy się **z niego**, a atrybut wzięty z domyślnej wartości pola nie jest
     # widoczny dla ``LazyAttribute``.

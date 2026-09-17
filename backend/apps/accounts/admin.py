@@ -7,7 +7,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.utils.translation import gettext_lazy as _
 
-from .models import CommitteeMember, ConsentRecord, InvitationCode, Participant, User
+from .models import CommitteeMember, ConsentRecord, InvitationCode, Membership, Participant, User
 
 
 @admin.register(User)
@@ -45,6 +45,23 @@ class ConsentRecordInline(admin.TabularInline):
 
     def has_add_permission(self, request, obj=None) -> bool:
         return False
+
+
+@admin.register(Membership)
+class MembershipAdmin(admin.ModelAdmin):
+    """Role w konkursach – narzędzie **operatora platformy**, nie koordynatora.
+
+    Koordynator nadaje role w swoim panelu (i tam zapisuje się też grupa Django, patrz
+    ``apps.accounts.services.grant_role``). Tutaj wiersz da się obejrzeć i poprawić ręcznie po
+    imporcie albo po backfillu – dlatego ``granted_at``/``granted_by`` są tylko do odczytu:
+    to jest zapis, **kiedy i przez kogo** rola powstała, a nie pole konfiguracji.
+    """
+
+    list_display = ("user", "competition", "role", "granted_at", "granted_by")
+    list_filter = ("competition", "role")
+    search_fields = ("user__email",)
+    readonly_fields = ("granted_at", "granted_by")
+    autocomplete_fields = ("user",)
 
 
 @admin.register(Participant)

@@ -41,13 +41,17 @@ def test_competition_is_available_to_view_and_to_context(competition):
     assert seen["context_competition"] == competition
 
 
-def test_context_is_cleared_after_the_response(competition):
+# ``unbound_competition`` w dwóch testach niżej: sprzątanie kontekstu da się sprawdzić wyłącznie
+# przy kontekście pustym na wejściu. Autouse ``_bind_competition`` (backend/conftest.py) wiąże
+# Konkurs #1 dla każdego testu z bazą, więc bez tej fikstury warstwa przywracałaby wartość
+# zastaną – i asercja „po odpowiedzi nie ma konkursu” mówiłaby o fiksturze, a nie o warstwie.
+def test_context_is_cleared_after_the_response(competition, unbound_competition):
     run(RequestFactory().get("/", HTTP_HOST=HOST_A))
 
     assert current_competition() is None
 
 
-def test_context_is_cleared_even_when_the_view_raises(competition):
+def test_context_is_cleared_even_when_the_view_raises(competition, unbound_competition):
     def boom(_request):
         raise RuntimeError("widok się wywrócił")
 

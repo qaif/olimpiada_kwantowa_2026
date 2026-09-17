@@ -11,8 +11,31 @@ env = environ.Env()
 
 SECRET_KEY = env("DJANGO_SECRET_KEY", default="insecure-dev-key-change-me")  # noqa: S105
 DEBUG = env.bool("DJANGO_DEBUG", default=False)
-ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1", "web"])
-CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
+# Domeny konkursów dołożonych do platformy, rozdzielone spacjami. Ta sama zmienna, z której
+# ``scripts/render_caddyfile.sh`` generuje bloki serwerowe Caddy'ego – i to jest cały powód, dla
+# którego jest jedna. Dołożenie domeny musi zadziałać w trzech miejscach naraz (proxy,
+# ``ALLOWED_HOSTS``, ``CSRF_TRUSTED_ORIGINS``); wpisana w dwóch z trzech daje albo 400 na każde
+# żądanie, albo odmowę weryfikacji CSRF na każdym formularzu, a przyczyna wygląda za każdym razem
+# inaczej (docs/UNIWERSALNY-ETAP-1.md § 2.5). Rozjazd między tą listą a bazą wykrywa
+# ``manage.py check_domains``, wołane na końcu ``scripts/deploy.sh``.
+#
+# Wartości wpisane wprost w ``DJANGO_ALLOWED_HOSTS`` i ``DJANGO_CSRF_TRUSTED_ORIGINS`` zostają
+# nietknięte i stoją na początku list – ta zmienna wyłącznie **dokłada**, żeby konfiguracja
+# działającej instalacji jednokonkursowej nie zmieniła się ani o jeden wpis.
+EXTRA_DOMAINS = [host for host in env("EXTRA_DOMAINS", default="").split() if host]
+ALLOWED_HOSTS = list(
+    dict.fromkeys(
+        [*env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1", "web"]), *EXTRA_DOMAINS]
+    )
+)
+CSRF_TRUSTED_ORIGINS = list(
+    dict.fromkeys(
+        [
+            *env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[]),
+            *(f"https://{host}" for host in EXTRA_DOMAINS),
+        ]
+    )
+)
 # Czytelna strona zamiast surowego „Weryfikacja CSRF nie powiodła się”: najczęstszy powód to
 # zalogowanie się na inne konto w drugiej karcie (Django wymienia wtedy token) – apps/web/views/errors.py.
 CSRF_FAILURE_VIEW = "apps.web.views.errors.csrf_failure"

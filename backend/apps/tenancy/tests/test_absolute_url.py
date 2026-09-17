@@ -40,8 +40,12 @@ def test_competition_may_be_passed_explicitly(competition, other_competition):
     )
 
 
-def test_without_a_competition_the_default_site_is_used(db):
-    """Instalacja jednokonkursowa naprawia się sama – bez nowej zmiennej środowiskowej."""
+def test_without_a_competition_the_default_site_is_used(db, unbound_competition):
+    """Instalacja jednokonkursowa naprawia się sama – bez nowej zmiennej środowiskowej.
+
+    ``unbound_competition`` zdejmuje autouse'owe związanie kontekstu: przedmiotem testu jest
+    **odwrót** do witryny domyślnej, a ten wchodzi w grę dopiero wtedy, gdy konkursu nie ma.
+    """
     Site.objects.filter(is_default_site=True).update(is_default_site=False)
     make_site("sama-witryna.invalid", default=True)
 

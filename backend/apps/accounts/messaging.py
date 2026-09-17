@@ -217,7 +217,14 @@ def send_broadcast(
     także osoby bez prawa do danych kontaktowych uczestników, a treść komunikatu jest już
     w rejestrze, do którego wchodzi wyłącznie koordynator.
     """
+    # Import lokalny: ``services`` ciągnie za sobą aktywację i zgody, a ten moduł jest ładowany
+    # przez Celery przy starcie workera – zależność w drugą stronę zamknęłaby cykl.
+    from .services import default_competition
+
     broadcast = MessageBroadcast.objects.create(
+        # Rejestr wysyłek należy do organizatora, który je zrobił; grupy odbiorców są zakresowane
+        # jego edycją, więc wiersz bez konkursu nie dałby się odczytać.
+        competition=default_competition(),
         created_by=actor if getattr(actor, "is_authenticated", False) else None,
         group=group,
         subject=subject,

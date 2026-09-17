@@ -20,8 +20,10 @@ from django.db import models
 from django.utils import timezone
 
 from apps.accounts.models import CommitteeMember, Participant
+from apps.competitions.scoping import competition_scoped_manager
 from apps.grading.models import ROUND_BLIND, ROUND_TIEBREAK, Review
 from apps.submissions.models import Submission
+from apps.tenancy.managers import CompetitionScopedQuerySet
 
 #: Minimalna długość uzasadnienia reklamacji (T-06). Krótsze zgłoszenie nie jest odwołaniem.
 MIN_ARGUMENT_LENGTH = 50
@@ -51,7 +53,11 @@ DECIDABLE_STATUSES = (AppealStatus.REJECTED, AppealStatus.ACCEPTED, AppealStatus
 SCORE_CHANGING_STATUSES = (AppealStatus.ACCEPTED, AppealStatus.PARTIALLY_ACCEPTED)
 
 
-class AppealQuerySet(models.QuerySet):
+class AppealQuerySet(CompetitionScopedQuerySet):
+    """Reklamacje, z drogą do konkursu przez pracę (a więc przez jej kolumnę denormalizacyjną)."""
+
+    competition_path = "submission__competition"
+
     def pending(self):
         return self.filter(status__in=PENDING_STATUSES)
 
@@ -144,6 +150,9 @@ class AppealDecision(models.Model):
     justification = models.TextField("uzasadnienie")
     decided_at = models.DateTimeField("rozstrzygnięta", default=timezone.now)
 
+    #: Przez reklamację i jej pracę. Modelu nie ma w liście § 3.5, ale jest w tabeli dróg § 3.4.
+    objects = competition_scoped_manager("appeal__submission__competition")
+
     class Meta:
         verbose_name = "decyzja o reklamacji"
         verbose_name_plural = "decyzje o reklamacjach"
@@ -170,6 +179,9 @@ class AppealDecisionCommitteeMember(models.Model):
         related_name="appeal_decision_seats",
         verbose_name="członek komisji",
     )
+
+    #: Jw. – jedno ogniwo dalej, bo skład należy do decyzji.
+    objects = competition_scoped_manager("decision__appeal__submission__competition")
 
     class Meta:
         verbose_name = "członek składu decyzji"

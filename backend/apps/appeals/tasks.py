@@ -25,13 +25,20 @@ def finalize_closed_appeal_windows() -> dict[str, int]:
     Rozwiązania w stanie APPEALED zostają nietknięte – czekają na decyzję komisji.
     Zwraca mapę ``{id etapu: liczba sfinalizowanych rozwiązań}`` wyłącznie dla etapów, w których
     coś się zmieniło (klucze jako tekst – wynik zadania jest serializowany do JSON).
+
+    Przebieg obchodzi **wszystkie** konkursy, każdy w jego kontekście. Identyfikatory etapów są
+    unikalne w całej instalacji, więc mapa wyniku zostaje płaska – zagnieżdżenie jej po konkursie
+    zmieniłoby kształt odpowiedzi zadania, a to jest kontrakt, który czytają logi i testy.
     """
+    from apps.competitions.scoping import each_competition
+
     now = timezone.now()
     finalized: dict[str, int] = {}
-    for stage in stages_with_closed_appeal_window(now):
-        count = finalize_unappealed(stage, now=now)
-        if count:
-            finalized[str(stage.pk)] = count
+    for competition in each_competition():
+        for stage in stages_with_closed_appeal_window(now, competition):
+            count = finalize_unappealed(stage, now=now)
+            if count:
+                finalized[str(stage.pk)] = count
     if finalized:
         logger.info("Finalizacja po oknie reklamacji: %s", finalized)
     return finalized

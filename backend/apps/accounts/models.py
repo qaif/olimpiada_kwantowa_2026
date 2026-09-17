@@ -17,6 +17,7 @@ from django.db.models.functions import Lower
 from django.utils import timezone
 
 from apps.core.text import fold as _fold
+from apps.tenancy.managers import CompetitionScopedManager
 
 from .consents import ConsentKind, ConsentSource
 
@@ -35,6 +36,35 @@ RBAC_GROUPS = (
     GROUP_APPEALS,
     GROUP_COORDINATOR,
     GROUP_SUPERVISOR,
+)
+
+
+class CompetitionRole(models.TextChoices):
+    """Rola człowieka **w jednym konkursie** – odpowiednik grupy Django, ale z właścicielem.
+
+    Grupa Django odpowiada na pytanie „czy ta osoba jest recenzentem w tej instalacji”. W bazie
+    wielokonkursowej to pytanie jest za szerokie: recenzent Olimpiady Kwantowej nie ma być
+    recenzentem olimpiady fizycznej tylko dlatego, że obie stoją na jednym serwerze. ``Membership``
+    dokłada brakujący wymiar, a ta lista nazywa role, które w nim występują.
+
+    **Wartości są identyczne z ``GROUP_*``** i to nie jest zbieg okoliczności, tylko warunek
+    taniego przejścia: backfill członkostw z ``auth_user_groups`` jest dzięki temu przepisaniem
+    kolumny, a nie mapowaniem nazw, którego pierwsza literówka odcięłaby komuś rolę. Kontrolę tej
+    zgodności robi asercja niżej – w module, a nie w teście, bo rozjazd ma zatrzymać start
+    aplikacji, a nie dopiero przebieg pakietu testów.
+    """
+
+    PARTICIPANT = GROUP_PARTICIPANT, "uczestnik"
+    REVIEWER = GROUP_REVIEWER, "recenzent"
+    APPEALS = GROUP_APPEALS, "komisja odwoławcza"
+    COORDINATOR = GROUP_COORDINATOR, "koordynator"
+    SUPERVISOR = GROUP_SUPERVISOR, "opiekun szkolny"
+
+
+# Grupy Django **zostają** (patrz docstring ``Membership``), więc obie listy muszą opisywać ten sam
+# zbiór ról. Gdyby kiedyś rozeszły się o jedną pozycję, backfill po cichu pominąłby tę rolę.
+assert set(CompetitionRole.values) == set(RBAC_GROUPS), (
+    "Role konkursu i grupy RBAC muszą opisywać ten sam zbiór ról."
 )
 
 # Alfabet bez znaków mylących (0/O, 1/I/L) – kod bywa przepisywany ręcznie z listy wyników.
@@ -229,10 +259,108 @@ class UserPreference(models.Model):
         return f"{self.user_id}: {self.language or 'auto'}{', kontrast' if self.high_contrast else ''}"
 
 
+class Membership(models.Model):
+    """Rola jednej osoby w jednym konkursie. Jedno konto, wiele konkursów, osobne role w każdym.
+
+    Po co osobna tabela, skoro grupy Django już są: bo grupa jest **globalna dla instalacji**.
+    Nauczyciel bywa opiekunem w trzech olimpiadach, uczeń uczestnikiem w dwóch, a koordynator
+    olimpiady fizycznej nie ma mieć wglądu w prace olimpiady kwantowej – wszystkie trzy zdania
+    są niewyrażalne zbiorem nazw grup bez właściciela.
+
+    **Grupy Django nie znikają** i to jest decyzja, a nie zaległość. Od uprawnień grupy
+    ``coordinator`` zależy dostęp do ``/cms/`` (migracja ``cms.0003_coordinator_permissions``
+    kopiuje tam komplet uprawnień ``Editors`` + ``Moderators``, w tym ``access_admin``), a te
+    uprawnienia są własnością Django i Wagtaila, nie naszą. Po tej zmianie grupa znaczy
+    **uprawnienie do panelu redakcyjnego**, a ``Membership`` – **rolę w konkursie**; serwis
+    nadający rolę zapisuje oba (``apps.accounts.services.grant_role``).
+
+    **Superużytkownik nie ma tu wiersza i mieć nie musi.** ``is_superuser``/``is_staff`` opisują
+    operatora platformy, a ``/admin/`` jest jego narzędziem. Autoryzacja konkursu nie eskaluje
+    superusera po cichu – tak samo, jak nie robi tego dzisiejsze ``IsCoordinator``.
+
+    ``CASCADE`` po obu stronach: skasowane konto nie zostawia roli, a skasowany konkurs (co
+    w ogóle jest możliwe dopiero po usunięciu jego danych, bo reszta stoi na ``PROTECT``) nie
+    zostawia członkostw wskazujących w pustkę. Tu nie ma czego archiwizować – dowodem, kto co
+    zrobił, jest ``core.AuditLog``, a nie ta tabela.
+    """
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="memberships")
+    competition = models.ForeignKey(
+        "tenancy.Competition",
+        on_delete=models.CASCADE,
+        related_name="memberships",
+        verbose_name="konkurs",
+    )
+    role = models.CharField("rola", max_length=16, choices=CompetitionRole.choices)
+    granted_at = models.DateTimeField("nadana", default=timezone.now)
+    #: Kto nadał. ``SET_NULL``, bo skasowanie konta koordynatora nie może unieważnić ról, które
+    #: on nadał – a ``NULL`` jest tu poprawną odpowiedzią „nadał system” (rejestracja, backfill).
+    granted_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="memberships_granted",
+        verbose_name="nadał",
+    )
+
+    #: Członkostwo ma własną kolumnę konkursu, więc domyślna ścieżka ``competition`` wystarcza.
+    objects = CompetitionScopedManager()
+
+    class Meta:
+        verbose_name = "członkostwo"
+        verbose_name_plural = "członkostwa"
+        ordering = ("competition", "user", "role")
+        constraints = [
+            # Rola jest faktem, a nie zdarzeniem: „uczestnik konkursu #1” albo jest, albo go nie
+            # ma. Bez tego więzu ponowne nadanie roli (druga rejestracja, powtórzony backfill)
+            # dokładałoby wiersze, a odebranie roli musiałoby kasować „wszystkie”.
+            models.UniqueConstraint(fields=["user", "competition", "role"], name="accounts_membership_unique")
+        ]
+        indexes = [
+            # Pytanie zadawane na **każdym** żądaniu panelu: „jakie role ma ta osoba tutaj”.
+            models.Index(fields=["user", "competition"], name="accounts_membership_uc_idx")
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user_id} → {self.competition_id}: {self.role}"
+
+
 class Participant(models.Model):
-    """Profil uczestnika. ``public_code`` jest jedynym identyfikatorem w publikowanych wynikach."""
+    """Profil uczestnika. ``public_code`` jest jedynym identyfikatorem w publikowanych wynikach.
+
+    Profil należy do **jednego** konkursu i nie da się go współdzielić: ``school``, ``grade``,
+    ``district``, ``birth_year``, ``guardian_email``, ``publish_full_name`` i komplet zgód
+    (``ConsentRecord``) są oświadczeniami złożonymi konkretnemu administratorowi danych pod
+    konkretnym regulaminem. Jeden profil dla dwóch olimpiad znaczyłby, że zgoda złożona
+    organizatorowi A obowiązuje organizatora B – czego nie da się obronić ani prawnie, ani
+    technicznie (``public_code`` jest identyfikatorem w tabelach wyników **jednego** konkursu).
+
+    ``user`` jest **nadal** ``OneToOneField`` i to jest stan przejściowy, opisany wprost:
+    docelowo (``docs/UNIWERSALNY-ETAP-1.md`` § 3.3) jest to ``ForeignKey`` z
+    ``related_name="participations"`` i więzem unikalności na parze (użytkownik, konkurs).
+    Zamiana zrywa ``user.participant`` w kilkudziesięciu miejscach pięciu aplikacji domenowych,
+    więc – zgodnie z § 4.1 – wchodzi razem z domknięciem ``NOT NULL`` i zdjęciem globalnego
+    ``unique`` z ``public_code`` (wydanie D), jedną migracją i jednym przeglądem. Do tego czasu
+    **jedyną** drogą do profilu jest ``apps.accounts.services.participant_for(user, competition)``:
+    nowy kod woła ją już dziś i po zamianie nie zmieni ani jednej linii.
+    """
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="participant")
+    #: Właściciel profilu. ``null=True`` wyłącznie na czas wydania B (§ 4.1): schemat i backfill
+    #: wchodzą **przed** kodem, który tego pola wymaga, żeby stara i nowa wersja aplikacji mogły
+    #: przez chwilę stać obok siebie i żeby wdrożenie nie miało przestoju. Wydanie D zmienia to
+    #: na ``NOT NULL`` po zapytaniu kontrolnym (§ 4.4). ``PROTECT``: skasowanie konkursu nie może
+    #: zabrać ze sobą uczestników razem z ich zgodami.
+    competition = models.ForeignKey(
+        "tenancy.Competition",
+        verbose_name="konkurs",
+        null=True,
+        blank=True,
+        db_index=True,
+        on_delete=models.PROTECT,
+        related_name="participants",
+    )
     public_code = models.CharField("kod publiczny", max_length=16, unique=True, default=generate_public_code)
     # Nazwa szkoły **do pokazania** – wypełniona zawsze, niezależnie od tego, czy uczestnik wybrał
     # szkołę ze słownika, czy wpisał ją ręcznie. To ona idzie do snapshotu wyników (grupowanie
@@ -304,6 +432,9 @@ class Participant(models.Model):
     #: wolno wysłać ponownie (link żyje 14 dni, a uczeń bywa na wakacjach) – bez tego panel
     #: opiekuna nie umiałby odpowiedzieć „wysłano dziś czy trzy tygodnie temu”.
     invitation_sent_at = models.DateTimeField("zaproszenie wysłane", null=True, blank=True)
+
+    #: Własna kolumna konkursu, więc domyślna ścieżka ``competition`` z queryseta wystarcza.
+    objects = CompetitionScopedManager()
 
     class Meta:
         verbose_name = "uczestnik"
@@ -377,6 +508,18 @@ class CommitteeMember(models.Model):
     """Profil członka komitetu (recenzent, ewentualnie komisja odwoławcza)."""
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="committee_member")
+    #: Komitet jest komitetem **tego** konkursu – razem z ``district`` i ``is_appeals_committee``:
+    #: „zweryfikowany recenzent” jest oświadczeniem jednego organizatora o jednej osobie.
+    #: ``null=True`` tylko na czas wydania B (§ 4.1), ``PROTECT`` jak przy uczestniku.
+    competition = models.ForeignKey(
+        "tenancy.Competition",
+        verbose_name="konkurs",
+        null=True,
+        blank=True,
+        db_index=True,
+        on_delete=models.PROTECT,
+        related_name="committee_members",
+    )
     district = models.CharField(  # noqa: DJ001
         "województwo", max_length=100, null=True, blank=True, choices=Voivodeship.choices
     )
@@ -396,6 +539,9 @@ class CommitteeMember(models.Model):
     approved_by = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True, related_name="committee_approvals"
     )
+
+    #: Własna kolumna konkursu – domyślna ścieżka queryseta.
+    objects = CompetitionScopedManager()
 
     class Meta:
         verbose_name = "członek komitetu"
@@ -432,6 +578,19 @@ class SchoolSupervisor(models.Model):
     """
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="school_supervisor")
+    #: Profil opiekuna jest per konkurs, bo ``verified`` jest oświadczeniem sprawdzonym przez
+    #: **tego** organizatora, a ``SchoolParticipation`` dotyczy edycji konkretnego konkursu
+    #: (``docs/UNIWERSALNY-ETAP-1.md`` § 8, D3). Nauczyciel ma jedno konto i wiele profili.
+    #: ``null=True`` tylko na czas wydania B (§ 4.1).
+    competition = models.ForeignKey(
+        "tenancy.Competition",
+        verbose_name="konkurs",
+        null=True,
+        blank=True,
+        db_index=True,
+        on_delete=models.PROTECT,
+        related_name="school_supervisors",
+    )
     school = models.CharField("szkoła", max_length=255, blank=True)
     school_ref = models.ForeignKey(
         "schools.School",
@@ -444,6 +603,9 @@ class SchoolSupervisor(models.Model):
     phone = models.CharField("telefon", max_length=32, blank=True)
     verified = models.BooleanField("dane szkoły zweryfikowane", default=False)
     created_at = models.DateTimeField("utworzony", default=timezone.now)
+
+    #: Własna kolumna konkursu – domyślna ścieżka queryseta.
+    objects = CompetitionScopedManager()
 
     class Meta:
         verbose_name = "opiekun szkolny"
@@ -518,6 +680,18 @@ class InvitationCode(models.Model):
     """Kod zaproszenia do komitetu. W bazie wyłącznie sha256 – kodu nie da się odtworzyć."""
 
     code_hash = models.CharField("sha256 kodu", max_length=64, unique=True, editable=False)
+    #: Kod nadaje status w komitecie **jednego** konkursu, więc i sam należy do tego konkursu:
+    #: bez tej kolumny zaproszenie wystawione przez organizatora A wpuszczałoby recenzenta do
+    #: komitetu B. ``null=True`` tylko na czas wydania B (§ 4.1).
+    competition = models.ForeignKey(
+        "tenancy.Competition",
+        verbose_name="konkurs",
+        null=True,
+        blank=True,
+        db_index=True,
+        on_delete=models.PROTECT,
+        related_name="invitation_codes",
+    )
     created_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name="invitations_created")
     created_at = models.DateTimeField("utworzony", default=timezone.now)
     expires_at = models.DateTimeField("wygasa")
@@ -546,6 +720,9 @@ class InvitationCode(models.Model):
     # Unieważnienie jest znacznikiem, a nie skasowaniem wiersza: po pomyłkowym zaproszeniu musi
     # zostać ślad, że kod istniał i został odebrany, inaczej audyt nie tłumaczy własnych wpisów.
     revoked_at = models.DateTimeField("unieważniono", null=True, blank=True)
+
+    #: Własna kolumna konkursu – domyślna ścieżka queryseta.
+    objects = CompetitionScopedManager()
 
     class Meta:
         verbose_name = "kod zaproszenia"
@@ -645,6 +822,19 @@ class MessageBroadcast(models.Model):
     komunikatów wysłanych do tysięcy osób.
     """
 
+    #: Rejestr wysyłek należy do organizatora, który je zrobił. Grupy odbiorców są z definicji
+    #: zakresowane (``EDITION_PARTICIPANTS`` to uczestnicy bieżącej edycji **tego** konkursu),
+    #: więc wiersz bez właściciela nie dałby się odczytać: „ilu odbiorców” zależy od tego, czyja
+    #: to była edycja. ``null=True`` tylko na czas wydania B (§ 4.1).
+    competition = models.ForeignKey(
+        "tenancy.Competition",
+        verbose_name="konkurs",
+        null=True,
+        blank=True,
+        db_index=True,
+        on_delete=models.PROTECT,
+        related_name="broadcasts",
+    )
     created_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -662,6 +852,9 @@ class MessageBroadcast(models.Model):
     status = models.CharField(
         "stan", max_length=16, choices=BroadcastStatus.choices, default=BroadcastStatus.QUEUED
     )
+
+    #: Własna kolumna konkursu – domyślna ścieżka queryseta.
+    objects = CompetitionScopedManager()
 
     class Meta:
         verbose_name = "komunikat"

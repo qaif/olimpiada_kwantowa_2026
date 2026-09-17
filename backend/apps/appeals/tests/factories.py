@@ -1,4 +1,9 @@
-"""Fabryki factory_boy dla reklamacji. Używane wyłącznie w testach."""
+"""Fabryki factory_boy dla reklamacji. Używane wyłącznie w testach.
+
+Reklamacja dochodzi do konkursu przez pracę (§ 3.4), więc argument ``competition`` propaguje się
+na pracę i na profil składającego – reklamacja z pracą konkursu A i uczestnikiem konkursu B nie
+jest stanem, który wolno zbudować nawet w teście.
+"""
 
 import factory
 from django.utils import timezone
@@ -7,6 +12,7 @@ from apps.accounts.models import GROUP_APPEALS, GROUP_REVIEWER, CommitteeStatus
 from apps.accounts.tests.factories import CommitteeMemberFactory, ParticipantFactory, UserFactory
 from apps.appeals.models import Appeal, AppealStatus
 from apps.submissions.tests.factories import SubmissionFactory
+from apps.tenancy.tests.factories import SAME_COMPETITION, CompetitionScopedFactory
 
 #: Uzasadnienie dłuższe niż wymagane 50 znaków – domyślne wejście testów.
 VALID_ARGUMENT = (
@@ -31,12 +37,12 @@ class AppealsCommitteeMemberFactory(CommitteeMemberFactory):
     is_appeals_committee = True
 
 
-class AppealFactory(factory.django.DjangoModelFactory):
+class AppealFactory(CompetitionScopedFactory):
     class Meta:
         model = Appeal
 
-    submission = factory.SubFactory(SubmissionFactory)
-    filed_by = factory.SubFactory(ParticipantFactory)
+    submission = factory.SubFactory(SubmissionFactory, competition=SAME_COMPETITION)
+    filed_by = factory.SubFactory(ParticipantFactory, competition=SAME_COMPETITION)
     filed_at = factory.LazyFunction(timezone.now)
     argument = VALID_ARGUMENT
     status = AppealStatus.OPEN
