@@ -116,7 +116,7 @@ mkdir -p "${WORK_DIR}/buckets"
 docker run --rm --network "$NETWORK" \
     -v "${WORK_DIR}/buckets:/backup" \
     -e MC_HOST_src="http://${MINIO_ROOT_USER}:${MINIO_ROOT_PASSWORD}@minio:9000" \
-    -e MC_QUIET=on -e MC_NO_COLOR=on \
+    -e MC_QUIET=1 -e MC_NO_COLOR=1 \
     --entrypoint sh "$MC_IMAGE" -c '
         set -e
         for bucket in submissions public-media; do
