@@ -5,7 +5,7 @@ wyniki) i pełny obieg zawodów – rejestracja uczestników, przyjmowanie rozwi
 deadline'em, dwustopniowe ocenianie w skali 0/2/5/6, moderacja rozjazdów, reklamacje i publikacja
 zanonimizowanych wyników.
 
-Aplikacja jest jedna: **Django 5.1 + DRF + HTMX + Wagtail 6.3** w jednym procesie. Nie ma drugiego
+Aplikacja jest jedna: **Django 6.1 + DRF + HTMX + Wagtail 8.0** w jednym procesie. Nie ma drugiego
 systemu tożsamości ani drugiego panelu – redaktor, koordynator, recenzent i uczestnik logują się
 tym samym kontem, a uprawnienia rozstrzygają grupy Django.
 

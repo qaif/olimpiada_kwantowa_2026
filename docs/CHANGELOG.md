@@ -8,17 +8,17 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
-## Niewydane (po `v0.25.0`)
+## Niewydane (po `v0.26.0`)
 
-- Brak — katalog roboczy jest równy tagowi `v0.25.0`. Etap 2 systemu wielokonkursowego jest
-  domknięty (`UNIWERSALNY-ETAP-2.md` § 3.1). Nie zlecone: aktualizacja Django 5.2 LTS + Wagtail 7.0
-  (zaproponowana, bez decyzji), drzewo CMS dla konkursu w trybie prefiksu ścieżki (uwaga T43),
+- Brak — katalog roboczy jest równy tagowi `v0.26.0`. Etap 2 systemu wielokonkursowego jest
+  domknięty (`UNIWERSALNY-ETAP-2.md` § 3.1). Nie zlecone: drzewo CMS dla konkursu w trybie prefiksu ścieżki (uwaga T43),
   edytor przebiegu przenoszący „przypisz kategorie” do warstwy serwisów.
 
 ## Wydania
 
 | Wersja | Data | Zmiana |
 |---|---|---|
+| **v0.26.0** | 2026-09-18 | aktualizacja frameworka: Django 5.1 → **6.1.1**, Wagtail 6.3 → **8.0**, DRF 3.15 → 3.18, celery 5.6, django-redis 7.0, drf-spectacular 0.30, django-environ 0.14, django-simple-captcha 0.7; `django.contrib.postgres` w `INSTALLED_APPS` (wymóg sprawdzenia `postgres.E005` dla indeksu wyszukiwania Wagtaila); ograniczenie `Django<6.1` w `django-celery-beat` 2.9.0 nadpisane w `[tool.uv] override-dependencies` (harmonogram sprawdzony: migracje, `DatabaseScheduler`, panel zadań, synchronizacja 8 wpisów); żadnej nowej migracji naszych aplikacji, budżety zapytań i złote testy bez zmian, 4623 testy; opis i wycofanie: `OPERACJE.md` § 9 |
 | **v0.25.0** | 2026-09-18 | konkursy w subdomenach zakładane z panelu koordynatora (`/coordinator/competitions/new/` za flagą `competition_creation` i przełącznikiem `PLATFORM_SUBDOMAINS`, podgląd przed założeniem, twórca zostaje koordynatorem, certyfikat TLS na żądanie w Caddy za zgodą `/internal/tls-allowed`, nieznana subdomena = 404, usługa `apps/tenancy/provisioning.py`); uwagi organizatora z 18.09: karty partnerów i pas logotypów w równym rozmiarze, ZOZ ukryty (`LegacyPage.hidden`, seed nie publikuje strony wycofanej w /cms/), serwis tylko po polsku – przełącznik języka za opcją witryny `english_interface_enabled` (domyślnie wyłączona, polski niezależnie od przeglądarki, zapisane wybory zostają w bazie) |
 | **v0.24.0** | 2026-09-18 | etap 2 (wydania E–K scalone): marka i dokumenty jako konfiguracja (`apps/tenancy/branding.py`, nadawca i podpisy listów z konkursu, `ConsentDefinition`, `DocumentTemplate` + `Certificate.template_version`, kalendarz/CAPTCHA/domena anonimowa, adres na stronie 500 z `ERROR_PAGE_CONTACT_EMAIL`), `/cms/` per konkurs (`cms:<slug>`, `scope_cms_access`), regiony jako drzewo per konkurs z 16 województwami i konfliktem interesów bez zmiany, typy placówek, profil rejestracji, słownik własny organizatora z importem CSV, wyszukiwarka dwóch słowników, import hurtowy z regionem/kategorią/placówką, edytor przebiegu (`PipelineStep`, `TransitionRule`, kategorie, komponenty etapu, punkty z rozmowy, drużyny, wagi i przesunięcie skali, remisy, role recenzenckie), kreator `/setup/` z tokenem, obrazy z CI do GHCR i `WEB_IMAGE`, profil compose dla operatora, Wagtail i18n z aliasami witryn, język listów per konkurs, wpisowe z rejestrem należności i webhookiem płatności, logistyka etapów stacjonarnych; 15 nowych flag konkursu domyślnie wyłączonych, Olimpiada Kwantowa bajt w bajt; E2E z drugim konkursem; 4508+ testów |
 | **v0.23.0** | 2026-09-17 | etap 1, wydanie D (domknięcie): `NOT NULL` na kluczach `competition`, uczestnik per konkurs (`Participant.user` jako klucz obcy, `participant_for`), kod publiczny i numer dyplomu z prefiksami konkursu (`OLM-`/`OK` bez zmian dla Konkursu #1), jedna edycja bieżąca i unikalny rocznik per konkurs, kolumny konkursu w zgłoszeniach pomocy, audycie, kluczach API, webhookach, szablonach dyplomów i szablonach komentarzy, `create_competition` zakłada edycję, etapy i koordynatora, `check_memberships`, runbook drugiego konkursu; 3235 testów, 0 xfail |

@@ -60,6 +60,14 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    # Rozszerzenia PostgreSQL-a wymagane przez wyszukiwarkę Wagtaila. Aplikacja nie wnosi ani
+    # jednej tabeli i nie ma migracji – rejestruje typy pól i indeksy (``SearchVectorField``,
+    # ``GinIndex``), z których zbudowany jest model ``wagtailsearch.IndexEntry`` bazodanowego
+    # backendu wyszukiwania (``WAGTAILSEARCH_BACKENDS`` niżej). Django od wersji 6.0 sprawdza to
+    # jawnie (``postgres.E005``): bez tego wpisu ``manage.py check`` kończy się sześcioma błędami,
+    # a wcześniej te same pola działały „przypadkiem”, bo nikt nie pytał, czy aplikacja jest
+    # zainstalowana.
+    "django.contrib.postgres",
     "rest_framework",
     "rest_framework.authtoken",
     "drf_spectacular",
@@ -375,6 +383,16 @@ TWO_FACTOR_ENABLED = env.bool("TWO_FACTOR_ENABLED", default=False)
 TWO_FACTOR_REQUIRED_ROLES = env.list("TWO_FACTOR_REQUIRED_ROLES", default=[])
 
 # --- Poczta wychodząca -----------------------------------------------------------------------
+# UWAGA (Django 6.1): wszystkie ustawienia ``EMAIL_*`` niżej są **przestarzałe** – zastąpi je
+# słownik ``MAILERS`` i Django 7.0 przestanie je czytać. Zostają tu **świadomie**, a nie przez
+# przeoczenie, i powód jest jeden, praktyczny: gdy ``MAILERS`` jest ustawione, Django **przestaje
+# patrzeć** na ``EMAIL_BACKEND`` (``django.core.mail.mailers._is_configured``). A ``EMAIL_BACKEND``
+# jest tym, czym testy przechwytują pocztę: podmienia je ``config/settings/test.py`` oraz wtyczka
+# ``pytest-django``, która ``MAILERS`` jeszcze nie zna. Przejście dzisiaj nie wywróciłoby testów –
+# byłoby gorzej: ``mail.outbox`` zostałby pusty, a asercje na treść listów zaczęłyby sprawdzać
+# nicość. Migracja należy więc do wydania, w którym ``pytest-django`` obsłuży ``MAILERS``; termin
+# wymuszony z zewnątrz to Django 7.0.
+#
 # Jedna zmienna (``EMAIL_URL``) zamiast sześciu: dev ma ``smtp://mailpit:1025``, produkcja
 # ``smtp+tls://user:haslo@host:587``. Domyślną wartością jest **konsola**, a nie SMTP na
 # ``localhost:25``: Django bez konfiguracji próbuje lokalnego MTA, którego w kontenerze nie ma, więc

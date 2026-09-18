@@ -8,31 +8,50 @@ description = "Platforma olimpiady: etapy, upload rozwiązań, ocenianie 0-2-5-6
 license = { text = "AGPL-3.0-or-later" }
 requires-python = ">=3.12"
 dependencies = [
-    "django>=5.1,<5.2",
-    "djangorestframework>=3.15,<3.16",
-    "drf-spectacular>=0.27,<0.29",
-    "django-environ>=0.11,<0.13",
+    # Django 6.1 (v0.26.0). Wymaga Pythona ≥ 3.12 (obraz ma 3.12) i PostgreSQL-a ≥ 15
+    # (compose i produkcja mają 16) – obie granice są spełnione z zapasem. Górna granica przy
+    # następnej wersji mniejszej, jak wszędzie w tym pliku: łatki (6.1.x) wchodzą same,
+    # a przeskok na 6.2 ma być świadomą decyzją i osobnym przebiegiem testów.
+    "django>=6.1,<6.2",
+    "djangorestframework>=3.18,<3.19",
+    "drf-spectacular>=0.30,<0.31",
+    # 0.14: pierwsze wydanie deklarujące zgodność z Django 6.x. Wcześniejsze linie działały,
+    # ale nie były testowane przeciwko 6.1 – a to ten pakiet czyta ``DATABASE_URL``/``EMAIL_URL``,
+    # czyli całą konfigurację środowiska.
+    "django-environ>=0.14,<0.15",
     "psycopg[binary]>=3.2,<3.3",
     "redis>=5.0,<6.0",
-    "django-redis>=5.4,<6.0",
-    "celery>=5.4,<5.6",
-    "django-celery-beat>=2.7,<2.9",
+    # 7.0: pierwsza linia z ``Django>=5.2`` w metadanych; 5.4 nie instaluje się obok Django 6.1.
+    "django-redis>=7.0,<7.1",
+    "celery>=5.6,<5.7",
+    # UWAGA – override w ``[tool.uv]`` na końcu pliku. ``django-celery-beat`` 2.9.0 (najnowsze
+    # wydanie, sprawdzone na PyPI 18.09.2026) deklaruje ``Django<6.1`` i bez obejścia blokuje
+    # rozwiązanie zależności. Deklaracja jest zbyt ostrożna, a nie prawdziwa: pakiet działa
+    # na 6.1 (dowód w docs/OPERACJE.md – migracje, ``DatabaseScheduler``, panel zadań
+    # okresowych, synchronizacja ``CELERY_BEAT_SCHEDULE``). Override znika w dniu, w którym
+    # ukaże się wydanie z ``Django<6.2`` (albo bez górnej granicy) – wtedy ta linia i sekcja
+    # ``[tool.uv]`` mają wypaść razem.
+    "django-celery-beat>=2.9,<2.10",
     "gunicorn>=23.0,<24.0",
     "uvicorn[standard]>=0.30,<0.36",
     "django-storages[s3]>=1.14,<1.15",
     "boto3>=1.35,<2.0",
     "nbformat>=5.10,<6.0",
     "whitenoise>=6.7,<7.0",
-    # CMS in-process (PROJEKT.md 1.1). 6.3 to linia LTS zgodna z Django 5.1.
-    "wagtail>=6.3,<6.4",
+    # CMS in-process (PROJEKT.md 1.1). 8.0 to pierwsza linia zgodna z Django 6.1 (metadane:
+    # ``Django>=5.2``, klasyfikatory 5.2/6.0/6.1); poprzednia 6.3 była linią LTS zgodną
+    # z Django 5.1 i z Django 6 się nie instaluje.
+    "wagtail>=8.0,<8.1",
     # Logowanie przez Google/Facebook. Używamy **wyłącznie** części socialaccount – lokalne
     # widoki allauth (hasłowe logowanie i rejestracja) nie są montowane, patrz apps/web/social_urls.py.
     # Ekstra ``socialaccount`` dociąga ``requests``/``requests-oauthlib`` (OAuth2 + PKCE).
-    "django-allauth[socialaccount]>=65.0,<66.0",
+    "django-allauth[socialaccount]>=65.19,<66.0",
     # CAPTCHA na publicznych formularzach rejestracji. Obrazek generuje Pillow (ten sam, którego
     # używa Wagtail), wyzwanie leży w naszej bazie, a obrazek jest serwowany spod naszego adresu:
     # nie ma tu żadnego trzeciego podmiotu ani ciasteczka, czyli polityka cookies zostaje prawdziwa.
-    "django-simple-captcha>=0.6,<0.7",
+    # 0.7: pierwsze wydanie deklarujące Django 6.x. Linia 0.6 ma w metadanych ``Django<5.2``,
+    # więc przy Django 6.1 nie da się jej zainstalować.
+    "django-simple-captcha>=0.7,<0.8",
     # Arkusze .xlsx w obie strony: odczyt wykazu SIO przy budowaniu słownika szkół
     # (``apps.schools.sio``) i zapis eksportów koordynatora (``apps.core.exports``). Zależność
     # była wcześniej w ekstrze ``dev``, bo czytał ją wyłącznie import słownika uruchamiany ręcznie.
@@ -74,6 +93,28 @@ dev = [
     # dokumentów. Import biblioteki w module jest leniwy, a test generatora sam się pomija
     # (``pytest.importorskip``), więc brak ekstry dev niczego nie psuje.
 ]
+
+# --- obejście zależności dla resolvera (uv) ----------------------------------------------------
+# Jedyny wpis i jedyny powód: ``django-celery-beat`` 2.9.0 – najnowsze wydanie na dzień
+# 18.09.2026 – deklaruje ``Django<6.1,>=2.2``. Górna granica jest w tym pakiecie od lat stawiana
+# na „ostatnie Django, jakie autorzy zdążyli przetestować”, a nie na faktyczną niezgodność:
+# 2.9.0 uruchamia się na Django 6.1 bez jednej zmiany (migracje aplikują się, ``DatabaseScheduler``
+# startuje, panel zadań okresowych renderuje się, wpisy z ``CELERY_BEAT_SCHEDULE`` synchronizują
+# się do bazy – procedura sprawdzenia w docs/OPERACJE.md, „Aktualizacja frameworka (v0.26.0)”).
+# Bez tego wpisu ``uv pip install -r pyproject.toml`` w ``backend/Dockerfile`` kończy się
+# „ResolutionImpossible”, czyli obraz produkcyjny w ogóle się nie buduje.
+#
+# Wpis mówi resolverowi: „na Django patrz **tu**, a nie na to, czego żąda pakiet”. Dlatego
+# override dotyczy ``django``, a nie ``django-celery-beat`` – nadpisuje się deklarację, która
+# blokuje, a nie pakiet, który ją napisał. Zakres jest dokładnie ten sam, co pin w
+# ``dependencies`` wyżej, więc nie poszerza niczego: wagtail i DRF żądają ``Django>=5.2``,
+# a 6.1 to spełnia.
+#
+# Warunek usunięcia (jeden, sprawdzalny): pierwsze wydanie ``django-celery-beat``, które w
+# metadanych dopuszcza Django 6.1 (``Django<6.2`` albo bez górnej granicy). Wtedy znika ta sekcja
+# **i** ostrzeżenie przy pinie w ``dependencies`` wyżej – obie rzeczy naraz, bo opisują to samo.
+[tool.uv]
+override-dependencies = ["django>=6.1,<6.2"]
 
 [tool.ruff]
 line-length = 110

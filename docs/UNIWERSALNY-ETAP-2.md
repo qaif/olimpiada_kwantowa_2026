@@ -75,6 +75,13 @@ testy.** Reguła jest przepisana z etapu 1 § 0 bez zmiany ani jednego słowa. R
 
 ### 0.4. Stos bez zmian
 
+> **Nota z 18.09.2026 (v0.26.0).** Zdanie „bez zmian” dotyczyło **etapu 2** i takie zostaje: etap 2
+> wyszedł na Django 5.1 + Wagtail 6.3 i nic w tym dokumencie nie zakłada nowszej wersji. Po etapie 2,
+> osobnym wydaniem i osobnym przebiegiem testów, stos został podniesiony do **Django 6.1 + Wagtail 8.0
+> + DRF 3.18** (pozycja zapowiedziana w § 0.3 jako „osobna, późniejsza”). Reszta wyliczenia niżej —
+> CSP, Postgres, Celery, MinIO, jedno wdrożenie — nie zmieniła się ani o jeden element. Przebieg
+> aktualizacji, obejście `django-celery-beat` i procedura wycofania: `docs/OPERACJE.md` § 9.
+
 Django 5.1 + Wagtail 6.3 + DRF + HTMX, ścisłe CSP bez `'unsafe-inline'` dla skryptów na stronach
 publicznych (`apps/web/middleware.py`), Postgres 16, Celery (kolejki `default`, `scan`, `mail`),
 MinIO z dwoma bucketami i rozdzielonymi poświadczeniami, jedno wdrożenie `docker compose` przez

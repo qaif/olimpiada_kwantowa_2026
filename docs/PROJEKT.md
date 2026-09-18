@@ -59,7 +59,7 @@ Pełna definicja: [`docker-compose.yml`](../docker-compose.yml) w katalogu głó
 
 ### 1.4 Część informacyjna: montaż Wagtaila (T-09)
 
-Wagtail 6.3 LTS działa w tym samym procesie co aplikacja (`INSTALLED_APPS`), bez drugiej usługi i drugiego systemu tożsamości.
+Wagtail 8.0 działa w tym samym procesie co aplikacja (`INSTALLED_APPS`), bez drugiej usługi i drugiego systemu tożsamości. (Do v0.25.0 była to linia 6.3 LTS; podniesienie stosu do Django 6.1 + Wagtail 8.0 opisuje `docs/OPERACJE.md` § 9.)
 
 **Kolejność adresów (`config/urls.py`) jest kontraktem.** Wagtail jest catch-allem w korzeniu, więc wszystko, co ma własną obsługę, musi być dopasowane wcześniej: `/admin/`, `/healthz/`, `/api/…`, `/cms/` (admin Wagtaila), `/documents/` (widok dokumentów), a na końcu `apps.web` (`/login/`, `/me/`, `/review/`, `/coordinator/`, `/appeals/`, `/results/<id>/`, `/register/…`). Ostatni wpis oddaje resztę drzewu stron. Strona główna `/` należy od T-09 do `cms.HomePage`; widok `web:home` przestał istnieć.
 

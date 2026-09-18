@@ -110,7 +110,11 @@ def _rolled_back():
     i dwa komplety kodów publicznych, więc porównanie wierszy trzeba by wtedy robić „z
     dokładnością do tłumaczenia” – a to jest dokładnie ta luźność, której ten test ma nie mieć.
     """
-    savepoint = transaction.savepoint()
+    # ``savepoint_create``, a nie ``savepoint``: Django 6.1 oznaczyło tę drugą nazwę jako
+    # przestarzałą (znika w 7.0), a jej ciało to jedna linia – wywołanie tej pierwszej. Zmiana jest
+    # więc wyłącznie nazwą; mechanika dwóch przebiegów i wszystkie asercje tego pliku zostają
+    # co do znaku.
+    savepoint = transaction.savepoint_create()
     try:
         yield
     finally:

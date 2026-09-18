@@ -951,3 +951,128 @@ wdrożenia — ale tylko wtedy, gdy ktoś zauważy w tej samej minucie.
 Konkursu #1 ta tabela **nie dotyczy**: Olimpiada Kwantowa zostaje z `feature_flags` zawierającym
 wyłącznie flagi etapu 1 i tak ma zostać przez cały sezon (decyzja D8, `docs/UNIWERSALNY-ETAP-2.md`
 § 6).
+
+---
+
+## 9. Aktualizacja frameworka (v0.26.0)
+
+### 9.1. Co się zmieniło
+
+Wydanie v0.26.0 nie dokłada ani jednej funkcji — podnosi stos, na którym stoi wszystko pozostałe:
+
+| Pakiet | Było (v0.25.0) | Jest (v0.26.0) | Dlaczego |
+|---|---|---|---|
+| `django` | 5.1.15 | 6.1.1 | prośba organizatora; 5.1 wychodzi z obsługi bezpieczeństwa |
+| `wagtail` | 6.3.8 | 8.0 | pierwsza linia zgodna z Django 6.1 (6.3 wymaga Django < 5.2) |
+| `djangorestframework` | 3.15 | 3.18.1 | 3.15 nie deklaruje Django 6 |
+| `django-redis` | 5.4 | 7.0.0 | jw. (`Django>=5.2` w metadanych) |
+| `drf-spectacular` | 0.28 | 0.30.0 | jw. |
+| `django-simple-captcha` | 0.6 | 0.7.0 | jw. |
+| `django-environ` | 0.12 | 0.14.0 | jw. |
+| `celery` | 5.5 | 5.6.3 | zgodność z `django-celery-beat` 2.9 |
+| `django-celery-beat` | 2.8.1 | 2.9.0 | najnowsze wydanie — **z obejściem**, patrz § 9.2 |
+| `django-allauth` | 65.x | 65.19.4 | jw. |
+
+Zmian w kodzie aplikacji ta aktualizacja wymagała **jednej**: do `INSTALLED_APPS` doszło
+`django.contrib.postgres`. Aplikacja nie wnosi tabel ani migracji — rejestruje `SearchVectorField`
+i `GinIndex`, z których zbudowany jest model `wagtailsearch.IndexEntry` bazodanowej wyszukiwarki
+Wagtaila. Django od 6.0 sprawdza to jawnie (`postgres.E005`), więc bez tego wpisu `manage.py check`
+kończy się sześcioma błędami. Żadna migracja **naszych** aplikacji nie powstała
+(`makemigrations --check --dry-run` jest czysty), żaden test nie został złagodzony.
+
+Wymagania środowiska, które trzeba znać przed wdrożeniem: Django 6.1 wymaga **Pythona ≥ 3.12**
+(obraz ma 3.12.14) i **PostgreSQL-a ≥ 15** (compose stawia `postgres:16-alpine`, produkcja ma 16).
+Obie granice są spełnione — ale gdyby ktoś kiedyś cofnął bazę do 14, aplikacja nie wstanie.
+
+### 9.2. Obejście `django-celery-beat` (i kiedy je usunąć)
+
+`django-celery-beat` 2.9.0 — najnowsze wydanie na 18.09.2026 — deklaruje w metadanych
+`Django<6.1,>=2.2`. Bez obejścia `uv pip install -r pyproject.toml` w `backend/Dockerfile` kończy
+się `ResolutionImpossible`, czyli **obraz produkcyjny w ogóle się nie buduje**.
+
+Obejście jest jedną sekcją w `backend/pyproject.toml`:
+
+```toml
+[tool.uv]
+override-dependencies = ["django>=6.1,<6.2"]
+```
+
+Nadpisywana jest deklaracja, która blokuje (wymaganie na `django`), a nie pakiet, który ją napisał.
+Zakres override'a jest identyczny z pinem w `dependencies`, więc niczego nie poszerza. Sprawdzone:
+uv **0.4.30** (ta wersja jest przypięta w `backend/Dockerfile`) czyta `[tool.uv]` z `pyproject.toml`
+także dla `uv pip install -r pyproject.toml` — z sekcją resolver kończy pracę („Resolved 126
+packages”), bez niej wypisuje wprost konflikt z `django-celery-beat`. Dockerfile nie wymagał zmiany.
+
+Że deklaracja jest przesadną ostrożnością, a nie faktem, potwierdzone czterema dowodami na
+Django 6.1.1:
+
+1. wszystkie 21 migracji `django_celery_beat` aplikuje się na pustej bazie bez błędu,
+2. `celery -A config beat --scheduler django_celery_beat.schedulers:DatabaseScheduler` startuje
+   i chodzi (zatrzymany dopiero limitem czasu), bez jednego tracebacku,
+3. do **pustej** bazy scheduler wpisał komplet zadań okresowych (8 pozycji z
+   `CELERY_BEAT_SCHEDULE` + `celery.backend_cleanup`) i zaczął je wysyłać,
+4. strony zadań okresowych w `/admin/` renderują się (200).
+
+**Warunek usunięcia obejścia — jeden i sprawdzalny:** pierwsze wydanie `django-celery-beat`, które
+w metadanych dopuszcza Django 6.1 (`Django<6.2` albo bez górnej granicy). Sprawdzenie zajmuje
+chwilę:
+
+```bash
+docker compose exec -T web pip index versions django-celery-beat
+docker compose exec -T web python -c "import importlib.metadata as m; print([r for r in m.requires('django-celery-beat') if r.lower().startswith('django')])"
+```
+
+Gdy warunek jest spełniony, znika **sekcja `[tool.uv]` i ostrzegawczy komentarz przy pinie
+`django-celery-beat` w `dependencies`** — obie rzeczy naraz, bo opisują to samo.
+
+### 9.3. Wycofanie (rollback)
+
+**Migracji Wagtaila nie da się w praktyce cofnąć.** Aktualizacja aplikuje osiem migracji, z czego
+siedem to Wagtail i `wagtailsearch` (`wagtailcore.0095`–`0098`, `wagtailadmin.0006`,
+`wagtailsearch.0010`, `wagtailusers.0015`). Wagtail nie utrzymuje odwracalności migracji między
+liniami głównymi, a `migrate wagtailcore <stara>` na produkcji jest operacją bez pokrycia testowego.
+Dlatego **jedyną** przewidzianą drogą powrotu jest odtworzenie bazy z kopii, a nie migracja wstecz.
+
+Procedura, w tej kolejności:
+
+1. **Zatrzymaj aplikację, zostaw bazę.** `docker compose stop web worker beat` — proxy i `db`
+   zostają, żeby nikt nie zapisał niczego w połowie odtwarzania.
+2. **Weź kopię sprzed migracji.** Robi ją automatycznie krok `4a/8` w `scripts/deploy.sh`:
+   `/opt/olimpiada-backups/pre-deploy-<data>-<wersja>.dump` (format `pg_dump -Fc`). Interesuje Cię
+   ta, której znacznik niesie **poprzednie** wydanie: `ls -1t /opt/olimpiada-backups/pre-deploy-*.dump`.
+3. **Odtwórz bazę** według § 2 („Odtwarzanie”) — ta sama procedura, ten sam plik, żadnego nowego
+   narzędzia.
+4. **Cofnij obraz.** W `.env` ustaw `APP_VERSION` na poprzednie wydanie (albo `WEB_IMAGE` na jego
+   tag w GHCR) i `docker compose up -d web worker beat`. Obraz poprzedniej wersji nadal ma
+   Django 5.1 i Wagtail 6.3, więc do **odtworzonej** bazy pasuje dokładnie.
+5. **Sprawdź** `/status.json`, `/`, `/cms/` i `/admin/` oraz `docker compose ps` (trzy usługi
+   `healthy`).
+
+Czego **nie** robić: uruchamiać starego obrazu na nowej bazie. Baza po migracjach Wagtaila 8 ma
+kolumny i tabele, o których Wagtail 6.3 nie wie — część panelu jeszcze się otworzy i to jest
+najgorszy możliwy wariant, bo awaria wyjdzie dopiero przy zapisie strony.
+
+### 9.4. Co sprawdzić po wdrożeniu
+
+Poza listą z § 8.2 (ta obowiązuje nadal) — cztery rzeczy, które dotyczą wyłącznie tej aktualizacji:
+
+| # | Sprawdzenie | Oczekiwane |
+|---|---|---|
+| 1 | `docker compose exec -T web python manage.py check` | „System check identified no issues” (gdyby wróciło `postgres.E005`, z `INSTALLED_APPS` wypadło `django.contrib.postgres`) |
+| 2 | `curl -sI https://<domena>/ \| grep -ci '^content-security-policy'` | **1** — nagłówek jest nadal nasz (`apps/web/middleware.py`, z nonce'em). Django 6.0 ma **własny** `ContentSecurityPolicyMiddleware`; nie włączamy go i `SECURE_CSP` zostaje nieustawione, bo dwa nagłówki znaczą przecięcie polityk, a nie sumę |
+| 3 | `docker compose logs beat --since 5m` | wpisy `Scheduler: Sending due task …`, zero tracebacków |
+| 4 | `/cms/` → obraz w dowolnym artykule | rendition renderuje się. Wagtail 8 **przestał** automatycznie konwertować AVIF i WebP do PNG; gdyby redakcja miała takie źródła, wraca się do starego zachowania przez `WAGTAILIMAGES_FORMAT_CONVERSIONS` (dziś w repozytorium nieustawione, bo biblioteka jest w JPEG/PNG) |
+
+### 9.5. Jeden dług zostawiony świadomie: `EMAIL_*` → `MAILERS`
+
+Django 6.1 oznaczyło **wszystkie** ustawienia `EMAIL_*` jako przestarzałe (znikają w 7.0) na rzecz
+słownika `MAILERS`. Przy każdym uruchomieniu widać z tego powodu dziewięć ostrzeżeń
+`RemovedInDjango70Warning` — i tak ma na razie zostać. Powód nie jest wygodą, tylko mechaniką:
+gdy `MAILERS` **jest** ustawione, Django przestaje czytać `EMAIL_BACKEND`, a to właśnie tym
+ustawieniem testy przechwytują pocztę (`config/settings/test.py` i wtyczka `pytest-django`, która
+`MAILERS` jeszcze nie zna). Przejście dzisiaj nie wywróciłoby testów — byłoby gorzej: `mail.outbox`
+zostałby pusty, a asercje na treść listów sprawdzałyby nicość.
+
+Migracja wchodzi w wydaniu, w którym `pytest-django` obsłuży `MAILERS`; ostateczny termin narzuca
+Django 7.0. Notatka stoi też przy samych ustawieniach (`backend/config/settings/base.py`, sekcja
+„Poczta wychodząca”), żeby nikt nie „posprzątał” ich wcześniej z dobrych chęci.
