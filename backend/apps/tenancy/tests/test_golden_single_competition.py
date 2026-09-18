@@ -28,6 +28,7 @@ from apps.cms.tests.test_cms_scope import _snapshot as cms_permission_snapshot
 from apps.submissions.models import Submission
 from apps.tenancy.models import FEATURE_DEFAULTS
 from apps.tenancy.tests.golden import build_golden, file_appeal, publish_results
+from apps.web.urls_competitions import urlpatterns as competition_urlpatterns
 from apps.web.urls_consents import urlpatterns as consent_urlpatterns
 from apps.web.urls_documents import urlpatterns as document_urlpatterns
 from apps.web.urls_fees import urlpatterns as fee_urlpatterns
@@ -276,6 +277,9 @@ STAGE_TWO_PATTERNS = (
     pipeline_urlpatterns,
     scoring_urlpatterns,
     fee_urlpatterns,
+    # Ekran „Nowy konkurs” (subdomeny platformy) nie jest wydaniem etapu 2, ale obowiązuje go ta
+    # sama reguła: menu Konkursu #1 nie ma prowadzić do ekranu, którego organizator nie zamawiał.
+    competition_urlpatterns,
 )
 
 #: Kolejność kluczy ``/status.json``. § 2.5: „jeden nowy klucz ``setup_pending``; pozostałe

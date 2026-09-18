@@ -1,0 +1,113 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  „Nowy konkurs”: formularz, a pod nim — po pierwszym wysłaniu — podgląd tego, co powstanie.
+
+  Kroki są dwa i oba są tym samym formularzem pod tym samym adresem. Pierwsze wysłanie wykonuje
+  **całą** czynność zakładania z wycofaniem transakcji (``dry_run``), więc liczby w podglądzie są
+  policzone przez ten sam kod, który za chwilę je zapisze — a nie spisane tutaj z pamięci. Drugie
+  wysłanie niesie przycisk potwierdzenia i zapisuje naprawdę.
+
+  Formularz zostaje **widoczny i wypełniony** także przy podglądzie: po przeczytaniu podsumowania
+  najczęstszą reakcją jest poprawka nazwy albo identyfikatora, a nie potwierdzenie w ciemno.
+  Przycisk potwierdzenia stoi dopiero pod podglądem, bo wcześniej nie ma czego potwierdzać.
+
+  Bez JavaScriptu i bez stylów w atrybutach – panel chodzi pod ścisłą polityką CSP.
+{% endcomment %}
+{% block title %}Nowy konkurs – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-competitions' %}">Moje konkursy</a>{% endblock %}
+{% block panel_title %}Nowy konkurs{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Nowy konkurs stanie pod adresem
+    <code>&lt;identyfikator&gt;.{{ platform_domain }}</code> z własnym drzewem stron, pierwszą
+    edycją i etapami z szablonu. Nic z tego nie wymaga dostępu do serwera.</p>
+{% endblock %}
+{% block panel_content %}
+
+<div class="card">
+  <form method="post" class="form form--wide" novalidate>
+    {% csrf_token %}
+    <p class="form__required-note">Pola oznaczone * są obowiązkowe.</p>
+    {{ form.as_p }}
+    <div class="actions">
+      <button type="submit" class="btn btn--secondary">Pokaż, co powstanie</button>
+      <a class="btn btn--secondary" href="{% url 'web:coordinator-competitions' %}">Anuluj</a>
+    </div>
+
+    {% if preview %}
+      <section class="section">
+        <div class="card card--quiet">
+          <h2>Co powstanie</h2>
+          <p class="notice">Nic jeszcze nie zostało zapisane. Poniższe liczby pochodzą z próby
+            wykonanej na bazie i wycofanej — to jest dokładnie to, co powstanie po potwierdzeniu.</p>
+
+          <dl class="meta-list">
+            <dt>Adres serwisu</dt><dd><code>{{ preview.address }}</code></dd>
+            <dt>Nazwa</dt><dd>{{ preview.name }}</dd>
+            <dt>Nazwa skrócona</dt><dd>{{ preview.short_name }}</dd>
+            <dt>Szablon</dt><dd>{{ preview.template_label }}</dd>
+            <dt>Strony</dt><dd>{{ preview.pages|join:", " }}</dd>
+            <dt>Pierwsza edycja</dt><dd>{{ preview.edition }} (bieżąca)</dd>
+            <dt>Definicje zgód</dt><dd>{{ preview.consents }}</dd>
+            <dt>Szablony dokumentów</dt><dd>{{ preview.document_templates }}</dd>
+            <dt>Regiony</dt><dd>{{ preview.regions }}</dd>
+            <dt>Kroki toru</dt><dd>{{ preview.pipeline }}</dd>
+            <dt>Grupa redakcyjna</dt><dd><code>{{ preview.cms_group }}</code></dd>
+            <dt>Kody uczestników</dt><dd><code>{{ preview.public_code_prefix }}</code>…</dd>
+            <dt>Numery dyplomów</dt><dd><code>{{ preview.certificate_prefix }}</code>/…</dd>
+          </dl>
+
+          {% if preview.stages %}
+            <h3>Etapy</h3>
+            <p class="hint">Terminy są <strong>wartością początkową</strong> odłożoną od pierwszego
+              dnia następnego miesiąca — mają wyglądać na zastępcze, bo są zastępcze. Harmonogram
+              wpisuje się potem w panelu nowego konkursu.</p>
+            <div class="scroll">
+              <table class="table">
+                <caption class="visually-hidden">Etapy pierwszej edycji nowego konkursu</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Etap</th>
+                    <th scope="col">Rodzaj</th>
+                    <th scope="col">Otwarcie</th>
+                    <th scope="col">Termin oddania</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for stage in preview.stages %}
+                    <tr>
+                      <td>{{ stage.name }}</td>
+                      <td><code>{{ stage.kind }}</code></td>
+                      <td>{{ stage.opens }}</td>
+                      <td>{{ stage.deadline }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <p class="hint">Ten szablon nie zakłada etapów — pierwszy etap dopisuje się w panelu
+              nowego konkursu.</p>
+          {% endif %}
+
+          <ul class="hint">
+            <li>Strony powstają <strong>puste</strong>: treść należy do redakcji nowego konkursu.
+              Dokumenty do wpisania przed otwarciem rejestracji:
+              {{ preview.documents|join:", "|default:"—" }}.</li>
+            <li>Zostaniesz koordynatorem nowego konkursu; w tym konkursie nic się nie zmieni.</li>
+            <li>Certyfikat dla nowego adresu wystawia się przy pierwszym wejściu i może to potrwać
+              do minuty.</li>
+            <li>Identyfikatora nie da się później zmienić z panelu — wchodzi do adresu, do kodów
+              uczestników i do eksportów.</li>
+          </ul>
+
+          <div class="actions">
+            <button type="submit" name="{{ confirm_field }}" value="1" class="btn">
+              Załóż konkurs pod adresem {{ preview.slug }}.{{ platform_domain }}
+            </button>
+          </div>
+        </div>
+      </section>
+    {% endif %}
+  </form>
+</div>
+{% endblock %}

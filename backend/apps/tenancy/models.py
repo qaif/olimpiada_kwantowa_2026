@@ -126,6 +126,18 @@ FEATURE_DEFAULTS: dict[str, bool] = {
     # Wielojęzyczność **treści** w drzewie stron (``WAGTAIL_I18N_ENABLED``, § 1.6). Wyłączona
     # znaczy jeden język i adresy bez prefiksu: ``/`` zostaje ``/``, a nie ``/pl/``.
     "content_translations": False,
+    # --- konkursy w subdomenach platformy --------------------------------------------------------
+    # Ekran „Nowy konkurs” w panelu koordynatora (``/coordinator/competitions/new/``): koordynator
+    # zakłada z panelu kolejny konkurs, a ten staje pod adresem ``<slug>.<SITE_DOMAIN>``. Wyłączona
+    # znaczy, że adresu nie ma (404) i że w menu nie przybywa ani jedna pozycja — czyli dokładnie
+    # dzisiejszy panel Konkursu #1.
+    #
+    # Ekran wymaga **dwóch** zgód naraz i to nie jest nadmiarowa ostrożność: ta flaga jest decyzją
+    # o **konkursie** („temu organizatorowi wolno zakładać kolejne”), a ustawienie instalacji
+    # ``PLATFORM_SUBDOMAINS`` (``config/settings/base.py``) — stwierdzeniem o **serwerze** („jest
+    # rekord wieloznaczny w DNS-ie i Caddy umie pobrać certyfikat na żądanie”). Sama flaga bez
+    # ustawienia dałaby konkurs założony pod adresem, który nie odpowiada.
+    "competition_creation": False,
 }
 
 

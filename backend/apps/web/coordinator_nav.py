@@ -373,6 +373,23 @@ def groups(stages: list, competition=None) -> list[Group]:
                 match=("coordinator-competition",),
             ),
         )
+    if competition is not None and competition.has_feature("competition_creation"):
+        # Zakładanie kolejnego konkursu w subdomenie platformy. **Zaraz pod** „Ustawieniami
+        # konkursu”, bo obie pozycje dotyczą konkursu jako całości, a nie jego rocznika — i bo
+        # tamta odpowiada na pytanie „jaki jest mój konkurs”, a ta na „jak założyć następny”.
+        # Bramką jest **sama flaga konkursu**, tak samo jak przy czternastu pozycjach wyżej, a nie
+        # flaga plus ustawienie instalacji (``PLATFORM_SUBDOMAINS``), którego ekran wymaga
+        # dodatkowo. Rozdział jest celowy: o tym, co widzi koordynator, ma rozstrzygać jedna
+        # rzecz, którą widać w ``feature_flags`` jego konkursu — a włączenie tej flagi na
+        # instalacji bez subdomen jest błędem operatora (ekran odpowie wtedy 404), a nie stanem,
+        # w którym menu ma się domyślać, co operator naprawdę miał na myśli.
+        settings_items += (
+            Item(
+                "Nowy konkurs",
+                ("web:coordinator-competition-new",),
+                match=("coordinator-competition-new", "coordinator-competitions"),
+            ),
+        )
     if competition is not None and competition.has_feature("per_competition_consents"):
         # Zgody konkursu (etap 2 § 2.2, T11). Bramka jest tą samą bramką, co u ekranu: przy
         # wyłączonej fladze widok oddaje 404, więc pozycja w menu prowadziłaby donikąd. Stoi

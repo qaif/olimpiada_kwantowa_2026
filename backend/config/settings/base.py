@@ -544,6 +544,36 @@ ERROR_PAGE_CONTACT_EMAIL = env("ERROR_PAGE_CONTACT_EMAIL", default="contact@qaif
 # Domena publiczna serwisu. Migracja ``apps.cms.0002`` ustawia z niej ``wagtailcore.Site``;
 # późniejsze zmiany domeny robi redaktor w ``/cms/`` (Ustawienia → Witryny), nie deploy.
 SITE_DOMAIN = env("SITE_DOMAIN", default="localhost")
+
+# --- konkursy w subdomenach platformy ----------------------------------------------------------
+# Wyłącznik funkcji „koordynator zakłada konkurs z panelu, a konkurs stoi pod
+# ``<slug>.{SITE_DOMAIN}``”. **Domyślnie wyłączony**, bo jego włączenie jest decyzją operatora
+# serwera, a nie skutkiem ``git pull``: działa dopiero wtedy, gdy DNS ma rekord wieloznaczny
+# ``*.{SITE_DOMAIN}``, a Caddy – on-demand TLS pytający ``/internal/tls-allowed``
+# (``apps/tenancy/internal_views.py``). Bez tych dwóch rzeczy nowy adres nie odpowiadałby mimo
+# poprawnej konfiguracji Django, a objawem byłby „konkurs założony, strona nie działa”.
+#
+# Włączony robi dokładnie trzy rzeczy i wszystkie trzy są tutaj albo wynikają z tej wartości:
+#
+# 1. wpuszcza **całą** domenę platformy do ``ALLOWED_HOSTS`` (wpis z kropką wiodącą – tak Django
+#    zapisuje „ta domena i jej subdomeny”) i do ``CSRF_TRUSTED_ORIGINS`` (wzorzec z gwiazdką,
+#    którego Django wymaga od wersji 4). Wartości zastane zostają **nietknięte i na początku
+#    list**: instalacja bez tego przełącznika ma mieć konfigurację co do wpisu taką, jak miała,
+# 2. każe odmówić (404) żądaniu spod subdomeny, pod którą nie stoi aktywny konkurs – inaczej
+#    wildcard znaczyłby „Konkurs #1 pod nieskończenie wieloma adresami”
+#    (``apps/tenancy/resolution.py``, ``platform_subdomain_miss``),
+# 3. otwiera ekran „Nowy konkurs” w panelu koordynatora – ale dopiero razem z flagą konkursu
+#    ``competition_creation``: instalacja ma umieć, a konkret musi być włączony.
+#
+# Czego **nie** robi: nie rusza ``SESSION_COOKIE_DOMAIN`` ani ``CSRF_COOKIE_DOMAIN``. Zostają
+# nieustawione (host-only), więc sesja z ``fizyczna.{SITE_DOMAIN}`` nie jedzie na
+# ``{SITE_DOMAIN}`` ani na subdomenę cudzego konkursu (etap 1 § 2.6). Ciasteczko na całą domenę
+# byłoby tu jedną linijką i jednym wyciekiem sesji między organizatorami.
+PLATFORM_SUBDOMAINS = env.bool("PLATFORM_SUBDOMAINS", default=False)
+if PLATFORM_SUBDOMAINS:
+    ALLOWED_HOSTS = list(dict.fromkeys([*ALLOWED_HOSTS, f".{SITE_DOMAIN}"]))
+    CSRF_TRUSTED_ORIGINS = list(dict.fromkeys([*CSRF_TRUSTED_ORIGINS, f"https://*.{SITE_DOMAIN}"]))
+
 WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", default="Olimpiada Kwantowa")
 WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL", default=f"https://{SITE_DOMAIN}")
 # Whitelist rozszerzeń dokumentów: bez niej redaktor mógłby wrzucić do publicznego bucketu plik
@@ -718,6 +748,12 @@ REST_FRAMEWORK = {
         # z zapasem dostawcę ponawiającego doręczenia całej edycji naraz i jednocześnie zamyka
         # dobieranie podpisu: milion prób na minutę byłoby atakiem, tysiąc dziennie nie jest.
         "payments": "60/min",
+        # Zakładanie konkursu z panelu koordynatora (``/coordinator/competitions/new/``). Stawka
+        # jest **dzienna i niska**, bo taka jest ta czynność: konkurs zakłada się raz na sezon,
+        # a każde założenie to nowa witryna, nowe drzewo stron, nowa edycja i wniosek o certyfikat
+        # do Let's Encrypt (limit 50 na domenę na tydzień). Podgląd przed zapisem limitu **nie**
+        # konsumuje – liczy się dopiero potwierdzenie (patrz ``apps/web/views/coordinator_competitions.py``).
+        "competition_create": "5/day",
     },
     "EXCEPTION_HANDLER": "apps.core.api.exception_handler",
 }

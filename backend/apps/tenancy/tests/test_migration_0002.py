@@ -71,6 +71,29 @@ SITE_SETTINGS = {
 }
 
 
+def create_site_settings(site, **fields) -> None:
+    """Wiersz ``cms.SiteSettings`` w kształcie, jaki baza ma **teraz**, a nie jaki ma żywy model.
+
+    Cofnięcie ``tenancy`` zdejmuje po drodze późniejsze migracje ``cms`` (np. pole języka interfejsu
+    z ``cms.0024``), a powrót do ``AFTER`` ich nie przywraca. Żywy model wstawiałby więc kolumny,
+    których w bazie nie ma – stąd model historyczny złożony z migracji faktycznie zastosowanych.
+    """
+    executor = MigrationExecutor(connection)
+    graph = executor.loader.graph
+    # Tylko węzły obecne w grafie: ewidencja pamięta też migracje zastąpione przez ``squash``
+    # (np. stare ``wagtailcore``), których w grafie już nie ma.
+    applied = {node for node in executor.loader.applied_migrations if node in graph.nodes}
+    leaves = [
+        node for node in applied if not any(child in applied for child in graph.node_map[node].children)
+    ]
+    model = executor.loader.project_state(leaves).apps.get_model("cms", "SiteSettings")
+    values = {key: (value.pk if hasattr(value, "pk") else value) for key, value in fields.items()}
+    # Klucze obce podajemy identyfikatorami: obiekty pochodzą z żywych modeli, a model historyczny
+    # przyjmuje tylko instancje własnego rejestru.
+    renamed = {(f"{key}_id" if hasattr(fields[key], "pk") else key): value for key, value in values.items()}
+    model.objects.create(site_id=site.pk, **renamed)
+
+
 def migrate_to(target) -> None:
     """Przewija bazę do wskazanej migracji."""
     executor = MigrationExecutor(connection)
@@ -132,7 +155,7 @@ def make_site(hostname: str) -> Site:
 def test_competition_is_built_from_the_existing_site_and_settings(rewound):
     """Kształt produkcji: konkurs dostaje dane organizatora z ``SiteSettings``, nie z kodu."""
     site = make_site(PRODUCTION_HOST)
-    SiteSettings.objects.create(site=site, **SITE_SETTINGS)
+    create_site_settings(site, **SITE_SETTINGS)
 
     migrate_to(AFTER)
 
@@ -194,7 +217,7 @@ def test_the_logo_points_at_the_same_image_as_the_footer(rewound):
     image = Image.objects.create(
         title="Znak", file="images/znak.png", width=10, height=10, collection=collection
     )
-    SiteSettings.objects.create(site=site, organizer_logo=image, **SITE_SETTINGS)
+    create_site_settings(site, organizer_logo=image, **SITE_SETTINGS)
 
     migrate_to(AFTER)
 
@@ -205,7 +228,7 @@ def test_the_logo_points_at_the_same_image_as_the_footer(rewound):
 def test_reverse_removes_only_what_the_migration_created(rewound):
     """Cofnięcie jest cofnięciem jednego kroku wdrożenia, a nie czyszczeniem instalacji."""
     site = make_site(PRODUCTION_HOST)
-    SiteSettings.objects.create(site=site, **SITE_SETTINGS)
+    create_site_settings(site, **SITE_SETTINGS)
     migrate_to(AFTER)
     other = Competition.objects.create(
         site=Site.objects.create(
@@ -241,7 +264,7 @@ def test_running_the_migration_twice_does_not_duplicate_the_competition(rewound)
     ewidencję, a nie zachowanie migracji na bazie, po której ktoś chodził ręcznie.
     """
     site = make_site(PRODUCTION_HOST)
-    SiteSettings.objects.create(site=site, **SITE_SETTINGS)
+    create_site_settings(site, **SITE_SETTINGS)
     migrate_to(AFTER)
 
     module = importlib.import_module("apps.tenancy.migrations.0002_competition_from_site")

@@ -69,7 +69,10 @@ ANALYTICS_FACTS = (
 def documents() -> DocumentIndexPage:
     """Komplet dokumentów: regulamin (osobna komenda) plus import – jak przy wdrożeniu."""
     call_command("seed_regulamin", verbosity=0)
-    call_command("seed_legacy_content", verbosity=0)
+    # ``publish_hidden``: ZOZ jest dziś ukryty decyzją organizatora (``LegacyPage.hidden``), a te
+    # testy pilnują **treści** dokumentu – czytają ją ze strony, więc strona musi być opublikowana.
+    # Samo ukrycie ma własne testy na końcu pliku.
+    call_command("seed_legacy_content", publish_hidden=True, verbosity=0)
     return DocumentIndexPage.objects.get(slug=INDEX_SLUG)
 
 
@@ -279,7 +282,7 @@ def test_seed_only_zoz_adds_the_document_without_touching_the_rest(documents):
     edited.save_revision().publish()
     DocumentPage.objects.filter(slug=ZOZ_SLUG).delete()
 
-    call_command("seed_legacy_content", only=[ZOZ_SLUG], verbosity=0)
+    call_command("seed_legacy_content", only=[ZOZ_SLUG], publish_hidden=True, verbosity=0)
 
     assert DocumentPage.objects.get(slug=ZOZ_SLUG).live is True
     assert DocumentPage.objects.get(slug="rodo").title == "Polityka RODO (poprawiona w /cms/)"
@@ -293,7 +296,7 @@ def test_seed_only_accepts_both_slugs_at_once(documents):
     """Komenda wdrożeniowa: ``--only zoz --only cookies`` dokłada oba dokumenty jednym przebiegiem."""
     DocumentPage.objects.filter(slug__in=(ZOZ_SLUG, COOKIES_SLUG)).delete()
 
-    call_command("seed_legacy_content", only=[ZOZ_SLUG, COOKIES_SLUG], verbosity=0)
+    call_command("seed_legacy_content", only=[ZOZ_SLUG, COOKIES_SLUG], publish_hidden=True, verbosity=0)
 
     index = DocumentIndexPage.objects.get(slug=INDEX_SLUG)
     slugs = _slugs(index)
@@ -307,3 +310,39 @@ def test_second_run_does_not_duplicate_either_document(documents):
 
     for slug in (ZOZ_SLUG, COOKIES_SLUG):
         assert DocumentPage.objects.filter(slug=slug).count() == 1
+
+
+# --- ukrycie ZOZ (decyzja organizatora, 18.09.2026) ----------------------------------------------
+
+
+@pytest.fixture
+def default_documents() -> DocumentIndexPage:
+    """Przebieg **bez** ``--publish-hidden`` – taki, jaki robi wdrożenie."""
+    call_command("seed_regulamin", verbosity=0)
+    call_command("seed_legacy_content", verbosity=0)
+    return DocumentIndexPage.objects.get(slug=INDEX_SLUG)
+
+
+def test_default_seed_keeps_zoz_as_a_draft_out_of_the_site(web_client, default_documents):
+    """ZOZ powstaje jako szkic: jest w /cms/, ale nie pod adresem, nie w spisie i nie w menu."""
+    zoz = DocumentPage.objects.get(slug=ZOZ_SLUG)
+
+    assert zoz.live is False
+    assert web_client.get(f"/{INDEX_SLUG}/{ZOZ_SLUG}/").status_code == 404
+    index = web_client.get(f"/{INDEX_SLUG}/").content.decode()
+    assert ZOZ_TITLE not in index
+    assert COOKIES_TITLE in index
+
+
+def test_seed_does_not_republish_a_page_withdrawn_in_the_cms(documents):
+    """Cofnięcie publikacji w panelu jest decyzją redakcji – ponowny przebieg jej nie odwraca."""
+    cookies = DocumentPage.objects.get(slug=COOKIES_SLUG)
+    cookies.unpublish()
+
+    call_command("seed_legacy_content", only=[COOKIES_SLUG], verbosity=0)
+    cookies.refresh_from_db()
+    assert cookies.live is False
+
+    call_command("seed_legacy_content", only=[COOKIES_SLUG], force=True, verbosity=0)
+    cookies.refresh_from_db()
+    assert cookies.live is True

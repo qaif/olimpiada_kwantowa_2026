@@ -38,6 +38,11 @@
 # i DJANGO_CSRF_TRUSTED_ORIGINS w <REMOTE_DIR>/.env – komenda wypisuje gotowe linijki, a rozjazd
 # wykrywa `manage.py check_domains`, wołane na końcu wdrożenia.
 #
+# Konkursy w subdomenach platformy (docs/OPERACJE.md § 6.5) – `PLATFORM_SUBDOMAINS=1`
+# w <REMOTE_DIR>/.env. Wtedy krok 4/8 generuje konfigurację proxy z blokiem `*.<domena>`
+# i on-demand TLS za zgodą aplikacji, a koordynator zakłada kolejne konkursy z panelu, bez
+# wdrożenia. BEZ tej zmiennej (domyślnie) konfiguracja proxy jest co do bajtu ta, co dotąd.
+#
 # Krok 7 wypisuje i zapisuje do <REMOTE_DIR>/mail-dns.txt rekordy SPF/DKIM/DMARC/PTR dla usługi
 # `mail` (własny Postfix). Dopóki ich nie dodasz w DNS-ie, poczta idzie do spamu albo jest odrzucana.
 set -euo pipefail
@@ -156,6 +161,23 @@ if ! grep -qE '^EXTRA_DOMAINS=' .env; then
   } >> .env
   chmod 600 .env
 fi
+# Subdomeny platformy: przełącznik dokładany **zakomentowany**, więc domyślną odpowiedzią jest
+# „wyłączone” i konfiguracja proxy zostaje taka, jaka była. Wpis istnieje po to, żeby operator
+# znalazł przełącznik w swoim `.env`, a nie w dokumentacji (docs/OPERACJE.md § 6.5). Wzorzec
+# `^#? *PLATFORM_SUBDOMAINS=` dopasowuje także wersję zakomentowaną – inaczej każde wdrożenie
+# dopisywałoby ten sam akapit jeszcze raz.
+if ! grep -qE '^#? *PLATFORM_SUBDOMAINS=' .env; then
+  {
+    echo
+    echo "# Konkursy w subdomenach platformy: <slug>.<SITE_DOMAIN> zakładane z panelu koordynatora,"
+    echo "# bez wdrożenia i bez wpisu w tym pliku (docs/OPERACJE.md § 6.5). Wymaga rekordu DNS"
+    echo "# *.<SITE_DOMAIN> wskazującego ten serwer; certyfikat powstaje przy pierwszym wejściu,"
+    echo "# a zgody na jego wystawienie udziela aplikacja (/internal/tls-allowed), więc limit"
+    echo "# Let's Encrypt (50 certyfikatów na domenę tygodniowo) zużywają tylko istniejące konkursy."
+    echo "# PLATFORM_SUBDOMAINS=1"
+  } >> .env
+  chmod 600 .env
+fi
 if ! grep -qE '^CADDYFILE_PATH=' .env; then
   {
     echo "# Konfiguracja proxy montowana do kontenera: plik składany z deploy/Caddyfile"
@@ -166,7 +188,13 @@ if ! grep -qE '^CADDYFILE_PATH=' .env; then
 fi
 # Generator chodzi przy każdym wdrożeniu, także gdy EXTRA_DOMAINS jest puste: krok 2/8 czyści
 # katalog z wszystkiego poza .env, a plik wynikowy nie jest w repozytorium. Przy pustej liście
-# wynik jest kopią deploy/Caddyfile co do bajtu (scripts/tests/render_caddyfile_test.sh).
+# i wyłączonym PLATFORM_SUBDOMAINS wynik jest kopią deploy/Caddyfile co do bajtu
+# (scripts/tests/render_caddyfile_test.sh).
+#
+# Obie zmienne generator czyta **sam**, z <REMOTE_DIR>/.env: skrypt wywołuje go z katalogu
+# wdrożenia, więc jego `ROOT` to ten katalog. Dlatego PLATFORM_SUBDOMAINS trafia do konfiguracji
+# proxy tą samą drogą co EXTRA_DOMAINS i wdrożenie nie musi nic przekazywać przez środowisko
+# (ani nie da się przez pomyłkę nadpisać wartości z serwera zmienną z własnej powłoki).
 chmod +x scripts/render_caddyfile.sh
 ./scripts/render_caddyfile.sh
 # Źródło obrazu aplikacji: rejestr albo build na miejscu. Rozgałęzienie, a nie podmiana – bez
@@ -455,5 +483,24 @@ log "Kontrola domen konkursów"
 # — ale jest jedyny moment, w którym ktoś na to patrzy, i jest nim ten log. `|| true`, bo
 # niedostępny kontener `web` (np. tuż po restarcie) nie może być powodem czerwonego wdrożenia.
 "${SSH[@]}" "cd '$REMOTE_DIR' && docker compose exec -T web python manage.py check_domains --all </dev/null" || true
+
+# Podpowiedź wyłącznie przy włączonym przełączniku – przy wyłączonym ten krok nie wypisuje ani
+# jednej linijki, więc log wdrożenia Olimpiady Kwantowej wygląda tak, jak wyglądał. Jedyna rzecz,
+# której subdomeny wymagają poza `.env`, jest w DNS-ie, a DNS jest jedynym elementem wdrożenia,
+# do którego skrypt nie ma dostępu i którego nikt nie zauważy, dopóki nie zabraknie certyfikatu.
+"${SSH[@]}" env REMOTE_DIR="$REMOTE_DIR" bash -s <<'REMOTE'
+set -euo pipefail
+cd "$REMOTE_DIR"
+FLAG="$(sed -n 's/^PLATFORM_SUBDOMAINS=//p' .env | tail -n 1 | tr -d '\r\042\047' | tr '[:upper:]' '[:lower:]')"
+case "$FLAG" in
+  1|true|yes|on)
+    # `sed`, a nie `grep | cut`: brak linijki SITE_DOMAIN daje pusty wynik, a nie kod 1 – a kod 1
+    # pod `set -e` zamieniłby podpowiedź w czerwone wdrożenie.
+    DOMAIN="$(sed -n 's/^SITE_DOMAIN=//p' .env | tail -n 1 | tr -d '\r\042\047')"
+    echo
+    echo "==> Subdomeny platformy: włączone — rekord DNS *.${DOMAIN:-<domena>} musi wskazywać na ten serwer"
+    ;;
+esac
+REMOTE
 
 log "Gotowe: https://${SITE_DOMAIN:-<domena z .env>}/  (panel: /coordinator/, CMS: /cms/, admin: /admin/)"

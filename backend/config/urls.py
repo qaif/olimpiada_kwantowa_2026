@@ -71,6 +71,13 @@ urlpatterns = [
     # (apps/tenancy/setup.py). Przed ``cms/`` i przed catch-allem Wagtaila, bo inaczej adres
     # skończyłby na drzewie stron, którego na świeżej instalacji jeszcze nie ma.
     path("setup/", include("apps.tenancy.setup_urls")),
+    # Adresy wewnętrzne platformy: dziś jeden – pytanie Caddy'ego „czy wystawić certyfikat na ten
+    # host” dla konkursów w subdomenach (apps/tenancy/internal_views.py). Odpowiada wyłącznie na
+    # żądanie z sieci docker (nagłówek ``Host: web:8000``); z domeny publicznej daje 404, więc
+    # z zewnątrz wygląda tak, jakby go nie było. Przed catch-allem Wagtaila, bo inaczej adres
+    # skończyłby na drzewie stron – a ``internal`` jest w ``RESERVED_SLUGS``, więc strony o takim
+    # adresie nie da się tam założyć.
+    path("internal/", include("apps.tenancy.internal_urls")),
     # Redakcja części informacyjnej. Dostęp ma wyłącznie grupa `coordinator` (migracja cms.0003).
     path("cms/", include(wagtailadmin_urls)),
     # Dokumenty Wagtaila serwuje widok aplikacji, a nie bezpośredni URL bucketu. Wzorce są kopią

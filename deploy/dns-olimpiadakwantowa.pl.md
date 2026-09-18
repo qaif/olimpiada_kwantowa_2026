@@ -9,6 +9,7 @@ Wartości 1:1 z `deploy/dns-olimpiadakwantowa.pl.zone`. TTL: 3600 (domyślny). R
 | A | `s3` | `169.58.242.197` | pliki (presigned URL) przez `s3.olimpiadakwantowa.pl` zamiast `:9000` |
 | A | `mail` | `169.58.242.197` | nazwa serwera poczty (HELO) |
 | A | `meet` | `169.58.242.197` | własne Jitsi Meet do rozmów kwalifikacyjnych (`scripts/deploy_jitsi.sh`) |
+| A | `*` | `169.58.242.197` | konkursy zakładane z panelu pod `<slug>.olimpiadakwantowa.pl` (`PLATFORM_SUBDOMAINS=1`) |
 | TXT | `@` | `v=spf1 ip4:169.58.242.197 -all` | SPF |
 | TXT | `olimpiada._domainkey` | `v=DKIM1; h=sha256; k=rsa; s=email; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAotteu3GhRRsJajATnJVGe7ThN+Er4hCMcNx6vKIx0hEJeNDVTok4OwaV6yHXaU403ku7YqufNTP9OdpbfpgSrJMI4l3wUB2796NNhA0zJDP7WnLS7juPsPfDYzxZXqtU6oC+PdzkqUcBHz67gCTJzKtU7wU+OPv5be883gYJRduor4OnAv5ZSeaMZ1eUEViQWgcQrpqXMEDhgkUStlHsgXpngQIxsSKF3mPhuAn6G2PxsCR0HGl8gRhk0SwiVc0Ak819do1ItjB0UmJwkV/nufoqyWUppmKEtTgsZp63NaJU3fZfqaRXbwBiS1tpRknvV+OaGkN6hd66uTkiWVGjhwIDAQAB` | DKIM |
 | TXT | `_dmarc` | `v=DMARC1; p=quarantine; rua=mailto:contact@qaif.org; adkim=r; aspf=r; fo=1` | DMARC |
@@ -16,8 +17,25 @@ Wartości 1:1 z `deploy/dns-olimpiadakwantowa.pl.zone`. TTL: 3600 (domyślny). R
 
 Poza strefą, w panelu **Contabo** (Reverse DNS): `169.58.242.197` → `mail.olimpiadakwantowa.pl`.
 
+## Rekord z gwiazdką (`*`) — co dokładnie robi, a czego nie
+Potrzebny tylko wtedy, gdy konkursy mają powstawać z panelu koordynatora pod `<slug>.olimpiadakwantowa.pl`
+(przełącznik `PLATFORM_SUBDOMAINS=1` w `/opt/olimpiada/.env`, `docs/OPERACJE.md` § 6.5). Bez niego nic
+się nie psuje — po prostu nowy konkurs nie ma adresu.
+
+- **Nie przykrywa rekordów jawnych.** `www`, `s3`, `meet`, `mail` (i każdy inny wpisany z nazwy)
+  działają dalej dokładnie tak samo: w DNS-ie rekord jawny zawsze wygrywa z wieloznacznym.
+- **Nie obejmuje samej domeny.** `olimpiadakwantowa.pl` (nazwa `@`) ma i musi mieć własny rekord A.
+- **Nie schodzi głębiej niż o jeden poziom.** `a.b.olimpiadakwantowa.pl` nie pasuje do `*`.
+- **Nie dotyczy poczty.** SPF, DKIM i DMARC to rekordy TXT — gwiazdka typu A ich nie zmienia
+  i nie tworzy.
+- **Nie powoduje wystawienia certyfikatów „na zapas”.** Caddy pyta aplikację o każdą nazwę osobno
+  (`on_demand_tls ask`), więc adres bez aktywnego konkursu nie dostaje certyfikatu i nie zużywa
+  tygodniowego limitu Let's Encrypt.
+
 ## Uwagi do panelu home.pl
 - W polu „nazwa” wpisuj tylko część przed domeną (`mail`, `s3`, `_dmarc`, `olimpiada._domainkey`); dla `@` zostaw puste lub wybierz domenę główną.
+- Rekord wieloznaczny wpisuje się w tym samym polu jako sama gwiazdka: `*` (niektóre panele
+  pokazują go potem jako `*.olimpiadakwantowa.pl`). Typ `A`, wartość ta sama co pozostałych.
 - Wartość TXT DKIM wklej w całości, bez łamania linii i bez dodatkowych cudzysłowów, jeśli panel dodaje je sam.
 - Propagacja: do 24 h (zwykle minuty). Sprawdzenie: `nslookup -type=TXT olimpiada._domainkey.olimpiadakwantowa.pl`.
 

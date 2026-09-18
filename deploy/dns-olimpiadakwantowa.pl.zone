@@ -9,6 +9,15 @@ $TTL 3600
 @                    IN A     169.58.242.197
 www                  IN A     169.58.242.197
 
+; --- Konkursy zakładane z panelu koordynatora: <slug>.olimpiadakwantowa.pl (PLATFORM_SUBDOMAINS=1) ---
+; Rekord z gwiazdką odpowiada za KAŻDĄ nazwę jednego poziomu, dla której nie ma rekordu własnego.
+; Nazwy wymienione wyżej i niżej (www, s3, meet, mail) działają dalej tak samo — rekord
+; jawny zawsze wygrywa z wieloznacznym. Gwiazdka NIE obejmuje samej domeny (@) ani nazw dwupoziomowych
+; (a.b.olimpiadakwantowa.pl), a rekordów TXT (SPF/DKIM/DMARC) nie dotyczy w ogóle: to inny typ.
+; Certyfikatu z tego rekordu nie wystawia się „hurtem” — Caddy pyta aplikację o każdą nazwę osobno
+; (on_demand_tls ask), więc adres bez aktywnego konkursu nie dostaje certyfikatu.
+*                    IN A     169.58.242.197
+
 ; --- Pliki (MinIO przez Caddy; po dodaniu tego rekordu portal przełączy się z portu :9000 na subdomenę) ---
 s3                   IN A     169.58.242.197
 

@@ -24,7 +24,14 @@
   własne (flaga w innych kolorach przestaje być flagą), obrys i ikona kontrastu idą
   ``currentColor``, więc tryb wysokiego kontrastu obsługuje się sam. Ani jednego atrybutu
   ``style`` – polityka CSP nie ma ``'unsafe-inline'`` dla stylów.
+
+  Całego formularza języka **nie ma**, gdy serwis oferuje jeden język
+  (``cms.SiteSettings.english_interface_enabled`` wyłączone – tak stoi Olimpiada Kwantowa).
+  Warunek jest na formularzu, a nie na samym przycisku: pusty ``<form>`` z tokenem CSRF i dwoma
+  polami ukrytymi byłby niewidocznym elementem, który nadal zajmuje miejsce w drzewie dostępności
+  i w kolejności tabulacji. Przełącznik kontrastu stoi w **drugim** formularzu i zostaje.
 {% endcomment %}
+{% if interface_languages|length > 1 %}
 <form method="post" action="{% url 'web:account-preferences' %}" class="inline account-bar__prefs">
   {% csrf_token %}
   <input type="hidden" name="next" value="{{ request.get_full_path }}">
@@ -66,6 +73,7 @@
     {% endif %}
   {% endfor %}
 </form>
+{% endif %}
 <form method="post" action="{% url 'web:account-preferences' %}" class="inline account-bar__prefs">
   {% csrf_token %}
   <input type="hidden" name="next" value="{{ request.get_full_path }}">

@@ -9,6 +9,7 @@ from django.urls import path
 # przestawiamy. Bramki flagi tu nie ma — o tym, czy ekran istnieje w tym konkursie, rozstrzyga
 # widok (§ 2.1), bo mapa adresów zależna od konkursu znaczyłaby ``reverse()`` dający raz adres,
 # a raz ``NoReverseMatch``.
+from .urls_competitions import urlpatterns as competition_urlpatterns
 from .urls_consents import urlpatterns as consent_urlpatterns
 from .urls_documents import urlpatterns as document_urlpatterns
 from .urls_fees import urlpatterns as fee_urlpatterns
@@ -977,4 +978,6 @@ urlpatterns = [
     *scoring_urlpatterns,
     # --- wydanie K: wpisowe, płatności i logistyka etapu stacjonarnego --------------------------
     *fee_urlpatterns,
+    # --- konkursy w subdomenach platformy: spis konkursów koordynatora i „Nowy konkurs” ---------
+    *competition_urlpatterns,
 ]

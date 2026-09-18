@@ -605,6 +605,104 @@ z **różnicami** wobec wartości domyślnych. Pusty słownik `{}` znaczy „jak
 Po każdym przestawieniu flagi: zaloguj się na konto jednej osoby z każdej roli i sprawdź, że widzi
 to, co widziała. Flaga jest odwracalna w minutę, ale tylko wtedy, gdy ktoś zauważy w tej minucie.
 
+### 6.5. Konkursy w subdomenach zakładane z panelu
+
+Wszystko powyżej wymaga **operatora przy serwerze**: wpisu w `.env`, wdrożenia i rekordu DNS na
+każdy konkurs. Ten tryb zdejmuje ten wymóg z konkursów, które mieszkają pod domeną platformy:
+koordynator zakłada konkurs w panelu, a ten działa pod `<slug>.<domena platformy>` (np.
+`fizyczna.olimpiadakwantowa.pl`) **od razu** — bez wdrożenia, bez edycji `.env` i bez nowego
+rekordu DNS.
+
+Konkurs z **własną** domeną (`olimpiadafizyczna.pl`) idzie nadal drogą z § 6.3 — tej ten tryb nie
+zastępuje ani nie zmienia.
+
+#### Jednorazowe przygotowanie (operator, raz na instalację)
+
+1. **DNS: rekord wieloznaczny.** `*` → adres serwera, typ A, u operatora strefy (dla
+   olimpiadakwantowa.pl: home.pl). Gotowy wpis i wyjaśnienie, czego ten rekord **nie** rusza
+   (`www`, `s3`, `meet`, `mail`, sama domena, SPF/DKIM/DMARC): `deploy/dns-olimpiadakwantowa.pl.md`,
+   sekcja „Rekord z gwiazdką”. Nic nie dzieje się automatycznie — rekord wpisuje człowiek w panelu
+   rejestratora.
+2. **Przełącznik w `/opt/olimpiada/.env`:**
+
+   ```dotenv
+   PLATFORM_SUBDOMAINS=1
+   CADDYFILE_PATH=./deploy/Caddyfile.generated   # wdrożenie ustawia to samo
+   ```
+
+3. **Wdrożenie** (`scripts/deploy.sh root@<host>`) albo, na miejscu, samo przegenerowanie proxy:
+
+   ```bash
+   cd /opt/olimpiada && ./scripts/render_caddyfile.sh && docker compose up -d proxy web
+   ```
+
+   Krok 4/8 wdrożenia generuje wtedy konfigurację Caddy'ego z opcją globalną
+   `on_demand_tls { ask http://web:8000/internal/tls-allowed }` i blokiem `*.<domena>`
+   (`tls { on_demand }`). Na koniec wdrożenie wypisuje przypomnienie o rekordzie DNS — tylko wtedy,
+   gdy przełącznik jest włączony.
+4. **Flaga `competition_creation`** na konkursie, **którego** koordynatorzy mają zakładać kolejne
+   (`/admin/ → Konkursy → <konkurs> → feature_flags`, § 6.4):
+
+   ```json
+   {"competition_creation": true}
+   ```
+
+   Flaga jest przy konkursie, a nie globalna, celowo: uprawnienie do zakładania konkursów dostaje
+   komitet, który już jedną olimpiadę prowadzi, a nie każdy koordynator w instalacji.
+
+#### Co się dzieje przy zakładaniu konkursu
+
+Koordynator wypełnia formularz w panelu; konkurs powstaje razem z witryną, drzewem stron i pierwszą
+edycją (tak samo jak przy `create_competition`). Adres `<slug>.<domena>` odpowiada od razu, bo
+rekord DNS `*` już istnieje. **Certyfikat powstaje przy pierwszym wejściu na ten adres**: Caddy
+pyta aplikację pod `/internal/tls-allowed?domain=<host>`, dostaje 200 dla domeny aktywnego konkursu
+i dopiero wtedy prosi Let's Encrypt. Pierwsze wejście trwa więc kilka sekund dłużej niż kolejne.
+
+Adres `/internal/*` nie jest publiczny: odpowiada wyłącznie na wewnętrzną nazwę `web:8000` w sieci
+compose, a konfiguracja proxy dodatkowo oddaje na niego 404 z każdej nazwy publicznej.
+
+#### Sprawdzenie
+
+```bash
+curl -sI https://fizyczna.olimpiadakwantowa.pl/ | head -3      # 200/301 = działa, z certyfikatem
+docker compose logs proxy | grep -i "certificate obtained"     # kiedy i dla jakiej nazwy
+docker compose logs proxy | grep -i "on-demand\|permission"    # gdy certyfikatu nie ma
+```
+
+Odmowa w logu (`no OCSP…`, `permission denied`) znaczy, że aplikacja **nie** potwierdziła nazwy —
+najczęściej dlatego, że konkurs jeszcze nie jest aktywny albo slug w adresie nie zgadza się z tym
+w bazie. To jest odpowiedź poprawna, a nie awaria proxy.
+
+#### Wyłączenie konkursu
+
+`is_active=False` na wierszu konkursu (`/admin/ → Konkursy`). Od tej chwili aplikacja odpowiada na
+tej nazwie 404, a endpoint zgody odmawia — więc **odnowienie** certyfikatu też nie nastąpi
+i po wygaśnięciu nazwa przestaje mieć TLS. Certyfikat już wystawiony żyje do końca ważności; to
+jest właściwość ACME, nie przeoczenie. Konkurs wraca do życia tą samą jedną wartością.
+
+#### Granice tego trybu
+
+- **Limit Let's Encrypt: 50 certyfikatów na domenę zarejestrowaną tygodniowo.** Liczy się cała
+  `olimpiadakwantowa.pl`, razem z subdomenami. Przy kilku konkursach rocznie to limit niewidoczny;
+  przy masowym zakładaniu i kasowaniu konkursów — jedyny, o który da się uderzyć.
+- **Jeden poziom nazwy.** `fizyczna.olimpiadakwantowa.pl` tak, `i.fizyczna.olimpiadakwantowa.pl`
+  nie: ani rekord `*`, ani blok `*.<domena>` nie schodzą głębiej.
+- **Nazwy zarezerwowane** (`www`, `s3`, `mail`, `meet`, `monitor`, …) są odrzucane po stronie
+  aplikacji — lista jest w kodzie, a nie w konfiguracji proxy, bo to aplikacja wie, co już zajęte.
+  Rekordy jawne w DNS-ie i tak wygrywają z wieloznacznym, więc nawet slug przepuszczony przez
+  pomyłkę nie przejmie `meet.` ani `mail.`.
+- **Bloki dosłowne mają pierwszeństwo.** Caddy wybiera witrynę po najbardziej szczegółowym
+  dopasowaniu nazwy, więc `meet.`, `monitor.`, `s3.` i domeny z `EXTRA_DOMAINS` działają dalej
+  dokładnie tak, jak działały.
+
+#### Wycofanie
+
+`PLATFORM_SUBDOMAINS=0` (albo skasowanie linijki) w `/opt/olimpiada/.env` i wdrożenie — generator
+wypuszcza wtedy konfigurację proxy **co do bajtu** taką, jaka jest dzisiaj, bez on-demand TLS
+i bez bloku wieloznacznego (pilnuje tego `scripts/tests/render_caddyfile_test.sh`). Konkursy
+z własnymi domenami i `EXTRA_DOMAINS` działają niezmiennie; te w subdomenach tracą adres do czasu,
+aż przełącznik wróci. Rekord DNS `*` może zostać — sam z siebie niczego nie obsługuje.
+
 ---
 
 ## 7. Lista kontrolna incydentu

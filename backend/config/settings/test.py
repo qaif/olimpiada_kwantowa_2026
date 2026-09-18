@@ -53,5 +53,7 @@ REST_FRAMEWORK = {
         "two_factor": None,
         # Webhook płatności (T49).
         "payments": None,
+        # Zakładanie konkursu z panelu koordynatora (subdomeny platformy).
+        "competition_create": None,
     },
 }

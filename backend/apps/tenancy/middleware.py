@@ -19,10 +19,15 @@ Miejsce w ``MIDDLEWARE`` (``config/settings/base.py``) jest częścią kontraktu
 
 from __future__ import annotations
 
+from django.http import HttpResponseNotFound
 from django.urls import get_script_prefix, set_script_prefix
 
 from apps.tenancy.context import reset_current_competition, set_current_competition
-from apps.tenancy.resolution import resolve_for_request
+from apps.tenancy.resolution import (
+    INTERNAL_URL_PREFIX,
+    platform_subdomain_miss,
+    resolve_for_request,
+)
 
 
 class CompetitionMiddleware:
@@ -45,6 +50,17 @@ class CompetitionMiddleware:
         request.competition = competition
         token = set_current_competition(competition)
         try:
+            if platform_subdomain_miss(request, competition):
+                # Subdomena platformy bez konkursu: 404 **zanim** cokolwiek się wyrenderuje, a nie
+                # strona domyślnej witryny. Powód stoi w ``apps/tenancy/resolution.py`` przy
+                # ``platform_subdomain_miss``; tutaj liczy się miejsce: odpowiedź składamy w tej
+                # warstwie, bo dopiero ona wie, czyj jest host, a niżej w łańcuchu odpowiada już
+                # drzewo stron Wagtaila (catch-all w korzeniu), które o konkursach nie wie nic.
+                #
+                # Odpowiedź jest **pusta** i taka ma zostać: szablon 404 niesie markę konkursu,
+                # a tu właśnie nie ma konkursu, którego markę wolno pokazać. Przy wyłączonym
+                # przełączniku ta gałąź nie wykonuje ani jednej instrukcji poza sprawdzeniem flagi.
+                return HttpResponseNotFound()
             return self.get_response(request)
         finally:
             reset_current_competition(token)
@@ -55,6 +71,14 @@ class CompetitionMiddleware:
 
     def _resolve(self, request):
         """Rozstrzyga konkurs i – w trybie prefiksu – zdejmuje prefiks z adresu."""
+        if request.path_info.startswith(INTERNAL_URL_PREFIX):
+            # Adresy wewnętrzne (``/internal/tls-allowed``) woła infrastruktura z sieci docker
+            # z nagłówkiem ``Host: web:8000``, czyli hostem, który z żadnym konkursem nie ma nic
+            # wspólnego. Rozstrzyganie zwróciłoby dla niego witrynę **domyślną**, więc pytanie
+            # Caddy'ego o certyfikat kosztowałoby zapytanie do bazy i odpowiadałoby w kontekście
+            # cudzego konkursu. Odpowiedź tych adresów nie zależy od konkursu żądania – zależy
+            # wyłącznie od parametru ``domain`` – więc kontekst zostaje pusty.
+            return None
         resolution = resolve_for_request(request)
         if not resolution.path_prefix:
             return resolution.competition

@@ -73,6 +73,13 @@ DOCUMENT_TITLES = [
     "Skład komitetów",
     "Polityka plików cookie",
 ]
+#: Dokumenty ukryte decyzją organizatora (``LegacyPage.hidden``): powstają jako szkice, więc są
+#: w drzewie, ale nie w spisie i nie w menu. Dziś jeden – ZOZ (P. Góra, 18.09.2026).
+HIDDEN_DOCUMENTS = ("zoz",)
+VISIBLE_DOCUMENT_ORDER = tuple(slug for slug in DOCUMENT_ORDER if slug not in HIDDEN_DOCUMENTS)
+VISIBLE_DOCUMENT_TITLES = [
+    title for slug, title in zip(DOCUMENT_ORDER, DOCUMENT_TITLES, strict=True) if slug not in HIDDEN_DOCUMENTS
+]
 #: Dokumenty, które miały jednosegmentowy adres przed wydzieleniem sekcji ``/dokumenty/`` – tylko
 #: one mają przekierowanie 301. Wzór zgody opiekuna powstał już w sekcji, więc nie ma skąd
 #: przekierowywać i wpis dla niego byłby wymyślonym adresem.
@@ -869,11 +876,13 @@ def test_document_index_lists_every_document(web_client, full_content):
     content = response.content.decode()
 
     assert response.status_code == 200
-    assert [page.slug for page in response.context["documents"]] == list(DOCUMENT_ORDER)
-    assert content.count('class="card doc-card"') == len(DOCUMENT_ORDER)
-    for slug, title in zip(DOCUMENT_ORDER, DOCUMENT_TITLES, strict=True):
+    assert [page.slug for page in response.context["documents"]] == list(VISIBLE_DOCUMENT_ORDER)
+    assert content.count('class="card doc-card"') == len(VISIBLE_DOCUMENT_ORDER)
+    for slug, title in zip(VISIBLE_DOCUMENT_ORDER, VISIBLE_DOCUMENT_TITLES, strict=True):
         assert f'href="/dokumenty/{slug}/"' in content
         assert title in content
+    for slug in HIDDEN_DOCUMENTS:
+        assert f'href="/dokumenty/{slug}/"' not in content
 
 
 def test_document_index_links_every_file_directly(web_client, full_content):
@@ -938,8 +947,10 @@ def test_menu_documents_item_has_every_document_as_child(web_client, full_conten
     item = next(entry for entry in response.context["cms_menu"] if entry["title"] == "Dokumenty")
 
     assert item["url"] == "/dokumenty/"
-    assert [child["title"] for child in item["children"]] == DOCUMENT_TITLES
-    assert [child["url"] for child in item["children"]] == [f"/dokumenty/{s}/" for s in DOCUMENT_ORDER]
+    assert [child["title"] for child in item["children"]] == VISIBLE_DOCUMENT_TITLES
+    assert [child["url"] for child in item["children"]] == [
+        f"/dokumenty/{s}/" for s in VISIBLE_DOCUMENT_ORDER
+    ]
 
 
 def test_menu_renders_documents_as_a_details_element(web_client, full_content):
@@ -974,7 +985,7 @@ def test_menu_reads_document_children_without_a_query_per_document(
     with django_assert_max_num_queries(6):
         menu = cms_menu(rf.get("/"))["cms_menu"]
 
-    assert [len(item["children"]) for item in menu if item["children"]] == [len(DOCUMENT_ORDER)]
+    assert [len(item["children"]) for item in menu if item["children"]] == [len(VISIBLE_DOCUMENT_ORDER)]
 
 
 # --- przekierowania ze starych adresów ----------------------------------------------------------

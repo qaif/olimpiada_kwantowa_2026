@@ -233,6 +233,36 @@ def client_for(settings):
 
 
 @pytest.fixture
+def english_enabled_site(db):  # noqa: ARG001 - fikstura bazy, używana przez efekt uboczny
+    """``english_enabled_site()`` – włącza angielską wersję interfejsu witrynie tego konkursu.
+
+    Przełącznik ``cms.SiteSettings.english_interface_enabled`` jest **domyślnie wyłączony**, bo tak
+    poprosił organizator Olimpiady Kwantowej („do polskiej olimpiady niech będzie wersja tylko
+    w języku polskim na razie”). Każdy test, którego przedmiotem jest angielski – nagłówek
+    ``Accept-Language``, flaga w pasku konta, panel uczestnika po angielsku, list po angielsku –
+    musi więc ten stan włączyć **jawnie**. Testy samej polskości zaczynają od stanu domyślnego
+    i tej fikstury nie wołają; to jest ta sama umowa, co przy ``supervisor_registration_on``.
+
+    Fikstura jest wywoływalna, a nie „gotowym wierszem”, bo pytanie jest per witryna: żądania
+    ``Client()`` idą pod witrynę domyślną (tak rozstrzyga ``Site.find_for_request``), a listy
+    o konkursie – pod witrynę **tego** konkursu, i bywa to inna witryna niż domyślna.
+    """
+
+    def enable(competition=None):
+        from wagtail.models import Site
+
+        from apps.cms.models import SiteSettings
+
+        site = competition.site if competition is not None else Site.objects.get(is_default_site=True)
+        row = SiteSettings.for_site(site)
+        row.english_interface_enabled = True
+        row.save()
+        return row
+
+    return enable
+
+
+@pytest.fixture
 def unbound_competition():
     """Wyłącza autouse'owe związanie kontekstu na czas tego testu.
 

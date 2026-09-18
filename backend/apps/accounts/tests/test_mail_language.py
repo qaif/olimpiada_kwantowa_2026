@@ -29,7 +29,7 @@ from django.core import mail
 from django.utils import translation
 
 from apps.accounts.models import UserPreference
-from apps.accounts.preferences import competition_language, language_for
+from apps.accounts.preferences import competition_language, language_for, stored_preference
 from apps.accounts.tests.factories import UserFactory
 from apps.competitions.video import send_interview_reminders
 from apps.submissions.notifications import notify_results_published
@@ -61,13 +61,56 @@ def _in_english(competition):
 # --- rozstrzyganie języka --------------------------------------------------------------------------
 
 
-def test_the_account_language_wins_over_the_competition(competition):
-    """Wybór człowieka bije ustawienie organizatora – i to jest cała hierarchia tej funkcji."""
+def test_the_account_language_wins_over_the_competition(competition, english_enabled_site):
+    """Wybór człowieka bije ustawienie organizatora – i to jest cała hierarchia tej funkcji.
+
+    Warunkiem jest to, że serwis tego konkursu angielski w ogóle **oferuje**: krok pierwszy wybiera
+    spośród języków serwisu, a nie spośród wszystkich, jakie zna instalacja.
+    """
+    english_enabled_site(competition)
     user = UserFactory()
     UserPreference.objects.create(user=user, language="en")
 
     with language_for(user, competition):
         assert translation.get_language() == "en"
+
+
+def test_the_account_language_does_not_apply_where_the_site_has_no_english(competition):
+    """Konkurs #1 nie wysyła angielskich listów nikomu – także osobie, która angielski zapisała.
+
+    Zapis jest z czasów, gdy przełącznik w pasku konta istniał, albo z innego konkursu tej samej
+    instalacji. Nie kasujemy go: uczestnik, który całą stronę widzi po polsku, ma dostawać polskie
+    listy, a jego wybór ma wrócić w dniu, w którym organizator angielski włączy.
+    """
+    user = UserFactory()
+    UserPreference.objects.create(user=user, language="en")
+
+    with language_for(user, competition):
+        assert translation.get_language() == "pl"
+
+    assert UserPreference.objects.get(user=user).language == "en"
+
+
+def test_the_language_of_the_competition_costs_one_query_per_batch(
+    competition, english_enabled_site, django_assert_num_queries
+):
+    """Ustawienie serwisu czytamy **raz na wysyłkę**, a nie raz na list.
+
+    Ogłoszenie wyników woła ``language_for`` tyle razy, ilu jest uczestników, zawsze z tym samym
+    obiektem konkursu. Gdyby każde z tych wywołań pytało bazę o ustawienia witryny, tysiąc listów
+    kosztowałby tysiąc zapytań o jedną, niezmienną wartość logiczną.
+    """
+    english_enabled_site(competition)
+    user = UserFactory()
+    # Odwrotna relacja ``user.preference`` też pyta bazę raz i zapamiętuje odpowiedź na obiekcie
+    # konta. Rozgrzewamy ją **poza** pomiarem, żeby przedmiotem tego testu został wyłącznie odczyt
+    # ustawień witryny – inaczej próg mówiłby o dwóch różnych pamięciach naraz.
+    stored_preference(user)
+
+    with django_assert_num_queries(1):
+        for _ in range(5):
+            with language_for(user, competition):
+                pass
 
 
 def test_the_competition_language_applies_to_an_account_without_a_preference(other_competition):
@@ -160,6 +203,26 @@ def test_the_results_letters_of_competition_one_stay_polish(competition, django_
         sent = notify_results_published(publication)
 
     assert sent == len(golden.participants)
+    assert {letter.subject for letter in mail.outbox} == {RESULTS_SUBJECT_PL}
+    assert {letter.body.splitlines()[-1] for letter in mail.outbox} == {AUTOMATIC_NOTE_PL}
+
+
+def test_the_results_letters_stay_polish_for_an_account_that_stored_english(
+    competition, django_capture_on_commit_callbacks
+):
+    """To samo, czytane ze skrzynki: Konkurs #1 bez angielskiego nie wysyła angielskich listów.
+
+    Uczestnik ma na koncie zapisany angielski – i to jest jedyna droga, którą przed przełącznikiem
+    angielszczyzna mogła wejść do listów Olimpiady Kwantowej.
+    """
+    golden = build_golden(competition)
+    publication = publish_results(golden)
+    UserPreference.objects.create(user=golden.participants[0].user, language="en")
+    mail.outbox.clear()
+
+    with django_capture_on_commit_callbacks(execute=True):
+        notify_results_published(publication)
+
     assert {letter.subject for letter in mail.outbox} == {RESULTS_SUBJECT_PL}
     assert {letter.body.splitlines()[-1] for letter in mail.outbox} == {AUTOMATIC_NOTE_PL}
 

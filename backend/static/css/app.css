@@ -3486,35 +3486,25 @@ td.empty,
   object-fit: contain;
 }
 
-/* Znak **szerszy niż sam kadr** dostaje dwie kolumny siatki – i to jest odrębna sprawa od
-   powiększenia kadru wyżej. Powiększenie kadru pomaga znakom kwadratowym (ogranicza je wysokość);
-   tym nie pomaga wcale, bo ogranicza je szerokość. Kiedy proporcja znaku przekracza proporcję
-   kadru, ``contain`` mieści go w całości, ale wysokość zostaje niewykorzystana: pas 7,7:1
-   w kolumnie o kadrze 273 px szerokości rysuje się wysoki na 35 px, choć kadr ma 128. Podwojenie
-   szerokości podwaja wtedy wysokość napisu, bo ``contain`` skaluje proporcjonalnie – i jest jedyną
-   drogą, która nie przycina ani nie rozciąga znaku. O tym, który logotyp jest pasem, rozstrzyga
-   serwer (``PartnerValue.is_wide``, próg ``WIDE_LOGO_RATIO``): przeglądarka nie zna proporcji
-   pliku, zanim go nie pobierze, a przy ``loading="lazy"`` układ musi stać wcześniej.
+/* Wszystkie karty partnerów mają **ten sam rozmiar** – decyzja organizatora (P. Góra, 18.09.2026).
+   Wcześniej znak-pas (``PartnerValue.is_wide``, np. PCSS, AIQLAB) dostawał dwie kolumny siatki, żeby
+   napis w nim był większy; dawało to jednak karty różnej szerokości w jednym rzędzie i czytało się
+   jak wyróżnienie jednego partnera kosztem pozostałych. Klasa ``partner--wide`` zostaje w szablonie
+   (``templates/cms/partners_page.html``) jako informacja o proporcji znaku, ale nie zmienia już
+   układu: każdy logotyp mieści się w tym samym kadrze przez ``object-fit: contain``. */
+.partners {
+  /* Każdy rząd tak wysoki, jak najwyższa karta grupy – bez tego rząd z nazwami jednowierszowymi
+     byłby niższy od rzędu z nazwą na trzy wiersze. */
+  grid-auto-rows: 1fr;
+}
 
-   Reguła zaczyna działać dopiero od 640 px, i to nie jest kosmetyka: siatka ``.cards`` jest
-   ``auto-fill`` po 280 px, więc na telefonie ma **jedną** kolumnę – ``span 2`` dołożyłby tam
-   kolumnę niejawną i wypchnął kartę poza ekran. Poniżej tej szerokości kafel i tak jest już na
-   całą szerokość, czyli dostaje dokładnie to, o co w tej regule chodzi. */
-@media (min-width: 640px) {
-  /* ``dense`` jest konsekwencją kafla o podwójnej szerokości, a nie osobną decyzją: przy
-     domyślnym ``row`` pozycja szerokości dwóch kolumn, która nie mieści się w resztce wiersza,
-     zostawia za sobą dziurę, a kolejne karty **nie** cofają się, żeby ją wypełnić. Pusty kadr
-     obok dwóch pełnych czyta się jak niewczytany obraz – czyli dokładnie jak usterka, którą ta
-     reguła naprawia. Cena: karta wąska może wyprzedzić szeroką. W obrębie jednej grupy wszyscy
-     partnerzy mają ten sam poziom współpracy, więc kolejność jest tam preferencją redakcji,
-     a nie hierarchią – grupy (patronat, sponsorzy) są osobnymi siatkami i nie mieszają się. */
-  .partners {
-    grid-auto-flow: dense;
-  }
+.partners > li {
+  display: flex;
+}
 
-  .partners > .partner--wide {
-    grid-column: span 2;
-  }
+.partners > li > .partner-card {
+  flex: 1 1 auto;
+  width: 100%;
 }
 
 .partner-card__initials {
@@ -3554,6 +3544,11 @@ td.empty,
 .partner-card__name {
   font-family: var(--font-serif);
   font-size: 1.0625rem;
+  line-height: 1.3;
+  /* Miejsce na trzy wiersze nazwy w każdej karcie: grupy partnerów są osobnymi siatkami, więc
+     samo ``grid-auto-rows`` wyrównuje karty tylko w obrębie grupy. Stała wysokość pola nazwy
+     daje ten sam rozmiar karty na całej stronie (najdłuższa dzisiejsza nazwa ma trzy wiersze). */
+  min-height: calc(3 * 1.3em);
   margin: 0;
 }
 
@@ -3584,9 +3579,8 @@ td.empty,
   list-style: none;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  /* ``dense`` z tego samego powodu, co w siatce kart na ``/partnerzy/``: kafel o podwójnej
-     szerokości, który nie mieści się w resztce wiersza, zostawiłby po sobie pustą kratkę. */
-  grid-auto-flow: dense;
+  /* Równe kafle: każdy rząd tak wysoki, jak najwyższy kafel pasa (podpis bywa na dwa wiersze). */
+  grid-auto-rows: 1fr;
   gap: var(--sp-4);
   margin: 0;
   padding: 0;
@@ -3618,13 +3612,9 @@ td.empty,
   box-shadow: var(--shadow-sm);
 }
 
-/* Pas (proporcja ponad ``WIDE_LOGO_RATIO`` – patrz ``PartnerValue.is_wide``) zajmuje obie kolumny, czyli
-   na każdej szerokości ekranu całą jej szerokość. To samo, co ``.partner--wide`` robi na
-   ``/partnerzy/``, tylko bez progu szerokości okna: ``.partner-strip`` ma kolumny **jawne**
-   (dwie do 700 px, trzy powyżej), więc ``span 2`` nigdy nie stworzy tu kolumny niejawnej. */
-.partner-strip__item--wide {
-  grid-column: span 2;
-}
+/* Bez podwójnej szerokości: wszystkie logotypy w pasie mają równe pola – decyzja organizatora
+   z 18.09.2026 (patrz ``.partners``). Klasa ``partner-strip__item--wide`` zostaje w szablonie bez
+   wpływu na układ. */
 
 .partner-strip__link {
   display: flex;

@@ -77,6 +77,11 @@ def test_review_list_query_count_does_not_grow_with_assignments(client, stage):
     """``latest_file`` musi czytać z cache'u prefetchu, inaczej każdy wiersz listy dokłada zapytanie."""
     small = ActiveReviewerFactory()
     assignments_for(small, stage, 2)
+    # Żądanie rozgrzewające: pierwsze wywołanie w procesie płaci jednorazowo za odczyty, które
+    # potem siedzą w pamięci podręcznej (np. „czy witryna ma analitykę” w warstwie CSP). Test
+    # mierzy wzrost liczby zapytań z liczbą przydziałów, a nie zimny start – bez rozgrzewki wynik
+    # zależałby od tego, który test pobiegł wcześniej.
+    queries_for_review_list(client, small)
     baseline = queries_for_review_list(client, small)
 
     large = ActiveReviewerFactory()

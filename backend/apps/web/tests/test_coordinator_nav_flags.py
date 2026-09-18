@@ -132,7 +132,15 @@ FLAG_ITEMS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
         frozenset({"Miejsca zawodów", "Przyjazdy i potrzeby", "Obecność"}),
     ),
     "content_translations": (frozenset(), frozenset()),
+    # --- konkursy w subdomenach platformy ---------------------------------------------------------
+    "competition_creation": (frozenset({"Nowy konkurs"}), frozenset({"Nowy konkurs"})),
 }
+
+#: Flagi spoza etapu 2, które mimo to dokładają pozycję menu i dlatego stoją w tabeli wyżej.
+#: Dziś jest jedna: ``competition_creation`` (ekran „Nowy konkurs”, subdomeny platformy). Stała
+#: istnieje po to, żeby licznik niżej nadal mówił o **etapie 2** – inaczej trzeba by przy każdym
+#: kolejnym ekranie poprawiać liczbę, o której dokument mówi, że jest ceną świadomie zapłaconą.
+LATER_FLAGS = frozenset({"competition_creation"})
 
 #: Wzorce wydań G–K, po jednej liście na wydanie – tak, jak stoją w ``apps/web/urls.py``.
 RELEASE_PATTERNS = {
@@ -242,6 +250,8 @@ def test_new_items_have_no_badges(competition):
     [
         ("web:coordinator-consents", "/coordinator/consents/"),
         ("web:coordinator-documents", "/coordinator/documents/"),
+        ("web:coordinator-competitions", "/coordinator/competitions/"),
+        ("web:coordinator-competition-new", "/coordinator/competitions/new/"),
     ],
 )
 def test_menu_targets_resolve_in_the_production_urlconf(name, expected):
@@ -278,8 +288,10 @@ def test_the_table_of_flags_covers_the_whole_stage_two_catalogue():
     catalogue = set(FEATURE_DEFAULTS) - STAGE_ONE_FLAGS
 
     assert set(FLAG_ITEMS) == catalogue
-    # § 0.6: „Piętnaście flag to dużo i to jest świadoma cena”.
-    assert len(catalogue) == 15
+    # § 0.6: „Piętnaście flag to dużo i to jest świadoma cena”. Liczymy **etap 2**, więc flagi
+    # dołożone później (``LATER_FLAGS``) odejmujemy – mają własne wiersze w tabeli wyżej, ale nie
+    # zmieniają zdania, które dokument postawił o etapie 2.
+    assert len(catalogue - LATER_FLAGS) == 15
 
 
 @pytest.mark.parametrize("flag", sorted(FLAG_ITEMS))

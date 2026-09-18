@@ -1,0 +1,93 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Spis konkursów, w których to konto jest koordynatorem, razem z ich adresami.
+
+  Ekran odpowiada na dwa pytania i na nic więcej: „które konkursy prowadzę” i „pod jakim adresem
+  stoi każdy z nich”. Zmiany konfiguracji tu nie ma z założenia — ustawienia konkursu zmienia się
+  **w tym konkursie**, czyli po przejściu pod jego adres, bo tam rozstrzyga się izolacja danych.
+
+  Po udanym założeniu konkursu wracamy tutaj z parametrem ``?utworzono=<slug>`` i wtedy na górze
+  stoi karta z nowym adresem. Parametr, a nie komunikat w sesji: adres nowego konkursu jest jedyną
+  rzeczą, którą trzeba z tamtego ekranu wynieść, i ma przeżyć odświeżenie strony.
+
+  Bez JavaScriptu i bez stylów w atrybutach – panel chodzi pod ścisłą polityką CSP.
+{% endcomment %}
+{% block title %}Moje konkursy – panel koordynatora{% endblock %}
+{% block panel_title %}Moje konkursy{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Konkursy, w których to konto ma rolę koordynatora, razem z adresami. Ustawienia
+    każdego z nich zmienia się <strong>w jego panelu</strong>, czyli pod jego adresem.</p>
+{% endblock %}
+{% block panel_content %}
+
+{% if created %}
+  <div class="card">
+    <h2>Konkurs „{{ created.name }}” został założony</h2>
+    <p class="notice">Adres serwisu:
+      <a href="https://{{ created.primary_domain }}/">https://{{ created.primary_domain }}/</a></p>
+    <ul class="hint">
+      <li><strong>Certyfikat wystawia się przy pierwszym wejściu</strong> pod ten adres i może to
+        potrwać do minuty. Jeżeli przeglądarka pokaże ostrzeżenie, odczekaj chwilę i odśwież —
+        drugie wejście trafia już na gotowy certyfikat.</li>
+      <li>Adres działa dzięki rekordowi wieloznacznemu <code>*.{{ platform_domain }}</code>
+        w DNS-ie. Jeżeli strona nie odpowiada wcale, rekordu brakuje i jest to zadanie dla
+        operatora platformy — nie da się go dodać z panelu.</li>
+      <li>Masz w nim rolę koordynatora, więc panel otwiera się po zalogowaniu pod tym adresem
+        (konto jest jedno, ale sesja jest osobna dla każdej domeny).</li>
+      <li>Terminy etapów są <strong>wartością początkową</strong> odłożoną od pierwszego dnia
+        następnego miesiąca. Harmonogram wpisuje się w panelu nowego konkursu.</li>
+    </ul>
+    <p class="actions">
+      <a class="btn" href="https://{{ created.primary_domain }}/coordinator/">Panel konkursu</a>
+      <a class="btn btn--secondary" href="https://{{ created.primary_domain }}/cms/">Redakcja treści</a>
+    </p>
+  </div>
+{% endif %}
+
+<section class="section">
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Konkursy, w których to konto jest koordynatorem</caption>
+      <thead>
+        <tr>
+          <th scope="col">Konkurs</th>
+          <th scope="col">Identyfikator</th>
+          <th scope="col">Adres</th>
+          <th scope="col">Stan</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>{{ row.name }}</td>
+            <td><code>{{ row.slug }}</code></td>
+            <td>
+              {% if row.primary_domain %}
+                <a href="https://{{ row.primary_domain }}/">{{ row.primary_domain }}</a>
+              {% else %}
+                /{{ row.path_prefix }}/
+              {% endif %}
+            </td>
+            <td>{% if row.is_active %}aktywny{% else %}wyłączony{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4">Ten spis jest pusty — to konto nie ma jeszcze roli koordynatora
+            w żadnym konkursie.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section">
+  <div class="card card--quiet">
+    <h2>Nowy konkurs</h2>
+    <p class="hint">Konkurs założony z panelu staje pod adresem
+      <code>&lt;identyfikator&gt;.{{ platform_domain }}</code>. Konkurs pod <strong>własną</strong>
+      domeną zakłada operator platformy z serwera, bo wymaga wpisu w DNS-ie.</p>
+    <p class="actions">
+      <a class="btn" href="{% url 'web:coordinator-competition-new' %}">Załóż nowy konkurs</a>
+    </p>
+  </div>
+</section>
+{% endblock %}

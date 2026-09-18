@@ -17,6 +17,13 @@ na końcu wdrożenia — ostrzeżenie w logu wdrożenia jest jedynym momentem, w
 Domyślnie komenda **nie przerywa** wdrożenia (kod wyjścia 0): rozjazd domen nie psuje konkursów,
 które już działają, a zatrzymane wdrożenie psuje. ``--strict`` odwraca tę decyzję i jest dla
 monitoringu oraz dla CI.
+
+Wyjątkiem od reguły trzech miejsc jest konkurs stojący pod **subdomeną platformy**
+(``<label>.<SITE_DOMAIN>``) przy włączonym ``PLATFORM_SUBDOMAINS``: obejmuje go wildcard we
+wszystkich trzech konfiguracjach naraz — certyfikat wystawia Caddy na żądanie (pytając
+``/internal/tls-allowed``), a Django wpuszcza całą domenę wpisem ``.SITE_DOMAIN``
+i ``https://*.SITE_DOMAIN``. Takie konkursy komenda liczy jako poprawne i mówi o tym w wydruku,
+bo inaczej każdy konkurs założony z panelu świeciłby się tu na czerwono od chwili powstania.
 """
 
 from __future__ import annotations
@@ -26,6 +33,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.http.request import validate_host
 
 from apps.tenancy.models import Competition, RoutingMode
+from apps.tenancy.resolution import is_platform_subdomain, platform_subdomains_enabled
 
 
 class Command(BaseCommand):
@@ -51,8 +59,19 @@ class Command(BaseCommand):
         proxy_hosts = {settings.SITE_DOMAIN, f"www.{settings.SITE_DOMAIN}"}
         proxy_hosts.update(getattr(settings, "EXTRA_DOMAINS", []))
 
+        # Subdomeny platformy są obsłużone **wildcardem** we wszystkich trzech konfiguracjach:
+        # Caddy wystawia im certyfikat na żądanie (blok ``on_demand_tls`` pytający
+        # ``/internal/tls-allowed``), a ``config/settings/base.py`` dokłada ``.SITE_DOMAIN`` do
+        # ``ALLOWED_HOSTS`` i ``https://*.SITE_DOMAIN`` do ``CSRF_TRUSTED_ORIGINS``. Żądanie wpisu
+        # w ``EXTRA_DOMAINS`` byłoby więc żądaniem linijki, która niczego nie zmienia — a ponieważ
+        # konkursy w subdomenach zakłada **koordynator z panelu**, każdy z nich świeciłby się tu
+        # na czerwono od chwili powstania i nauczyłby czytać tę listę bez uwagi.
+        platform_subdomains = platform_subdomains_enabled()
+        wildcard_origin = f"https://*.{settings.SITE_DOMAIN}"
+
         problems = 0
         checked = 0
+        covered_by_wildcard = 0
         for competition in Competition.objects.select_related("site").order_by("slug"):
             if competition.routing_mode == RoutingMode.PATH:
                 # Konkurs w trybie prefiksu ścieżki nie ma własnego hosta – odpowiada pod domeną
@@ -60,12 +79,14 @@ class Command(BaseCommand):
                 continue
             checked += 1
             host = competition.primary_domain or competition.site.hostname
+            wildcard = platform_subdomains and is_platform_subdomain(host)
+            covered_by_wildcard += int(wildcard)
             missing = []
-            if host not in proxy_hosts:
+            if host not in proxy_hosts and not wildcard:
                 missing.append(f"EXTRA_DOMAINS (brak „{host}” – Caddy nie wystawi certyfikatu)")
             if not validate_host(host, allowed_hosts):
                 missing.append(f"DJANGO_ALLOWED_HOSTS (brak „{host}” – każde żądanie to 400)")
-            if f"https://{host}" not in csrf_origins:
+            if f"https://{host}" not in csrf_origins and not (wildcard and wildcard_origin in csrf_origins):
                 missing.append(f"DJANGO_CSRF_TRUSTED_ORIGINS (brak „https://{host}” – formularze odmówią)")
             # Rozjazd między witryną a konkursem jest osobnym błędem: witrynę zmienia redaktor
             # w ``/cms/``, a ``primary_domain`` buduje linki w listach wysyłanych spoza żądania.
@@ -81,9 +102,18 @@ class Command(BaseCommand):
                     self.style.WARNING(f"UWAGA  {competition.slug} ({host}): " + "; ".join(missing))
                 )
             elif options["all"]:
-                self.stdout.write(f"ok     {competition.slug} ({host})")
+                note = " – subdomena platformy, bez wpisu w EXTRA_DOMAINS" if wildcard else ""
+                self.stdout.write(f"ok     {competition.slug} ({host}){note}")
 
         summary = f"Sprawdzono konkursy z własną domeną: {checked}, rozjazdów: {problems}."
+        if platform_subdomains:
+            # Zdanie stoi w wydruku **zawsze** przy włączonym przełączniku, także gdy ani jeden
+            # konkurs z niego nie korzysta: czytający tę listę ma wiedzieć, że brak wpisu
+            # w ``EXTRA_DOMAINS`` przestał tu być błędem, zanim zacznie szukać, dlaczego.
+            summary += (
+                f" Subdomeny platformy: włączone – hosty *.{settings.SITE_DOMAIN} są wpuszczone "
+                f"wildcardem, a certyfikat wystawia się na żądanie ({covered_by_wildcard} z nich)."
+            )
         if problems and options["strict"]:
             raise CommandError(summary)
         self.stdout.write(self.style.WARNING(summary) if problems else self.style.SUCCESS(summary))

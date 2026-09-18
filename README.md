@@ -331,6 +331,17 @@ konkursu w `/cms/` – lista dokumentów, których wymaga wybrany szablon, jest 
 Etapy już są (z szablonu), ale ich **terminy są zastępcze**: koordynator poprawia je w panelu,
 zanim otworzy rejestrację.
 
+#### Wariant bez wdrożenia: subdomena platformy
+
+Przy włączonym przełączniku `PLATFORM_SUBDOMAINS=1` konkurs zakładany przez koordynatora w panelu
+dostaje adres `<slug>.<domena platformy>` (np. `fizyczna.olimpiadakwantowa.pl`) i działa **od razu**
+— bez wdrożenia, bez wpisu w `.env` i bez nowego rekordu DNS, bo obsługuje je jeden rekord
+wieloznaczny `*`, a certyfikat powstaje przy pierwszym wejściu (Caddy pyta aplikację, czy nazwa
+należy do aktywnego konkursu). Wymaga jednorazowego przygotowania przez operatora i jest domyślnie
+**wyłączony**: bez niego konfiguracja proxy jest co do bajtu ta, którą widać w `deploy/Caddyfile`.
+Komplet — rekord DNS, przełącznik, flaga `competition_creation`, sprawdzenie, granice i wycofanie —
+w [`docs/OPERACJE.md`](docs/OPERACJE.md) § 6.5 („Konkursy w subdomenach zakładane z panelu”).
+
 #### Wariant bez własnej domeny: prefiks ścieżki
 
 `create_competition --path-prefix fizyczna` daje konkurs pod `https://<domena platformy>/fizyczna/…`

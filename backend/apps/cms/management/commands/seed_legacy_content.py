@@ -481,6 +481,11 @@ class LegacyPage:
     #: w ścieżce przekazywanej z zewnątrz, bo katalog źródłowy jest **cechą dokumentu** – patrz
     #: ``apps.cms.attachments.GENERATED_PDF_DIR``.
     pdf_generated: bool = False
+    #: Strona **wycofana z publikacji decyzją organizatora**: treść zostaje w repozytorium i w /cms/
+    #: (jako szkic, do przywrócenia jednym kliknięciem „Opublikuj”), ale zwykły przebieg komendy jej
+    #: nie publikuje. ``--publish-hidden`` publikuje ją mimo to – dla testów treści i dla instalacji,
+    #: która chce dokument pokazać.
+    hidden: bool = False
 
 
 PAGES = (
@@ -493,6 +498,10 @@ PAGES = (
         slug="zoz",
         title="Zasady Organizacji Zawodów (ZOZ)",
         document=True,
+        # Organizator (P. Góra, 18.09.2026): ZOZ ma być na razie ukryty. Na produkcji strona jest
+        # cofnięta z publikacji w /cms/; tutaj pilnujemy, żeby świeża instalacja i ponowny przebieg
+        # nie opublikowały jej z powrotem. Regulamin wspomina ZOZ wyłącznie tekstem, bez odnośnika.
+        hidden=True,
         metadata={
             "version_label": ZOZ_VERSION,
             "document_date": ZOZ_DATE,
@@ -594,6 +603,14 @@ class Command(BaseCommand):
             ),
         )
         parser.add_argument(
+            "--publish-hidden",
+            action="store_true",
+            help=(
+                "Opublikuj także strony oznaczone jako ukryte decyzją organizatora (dziś: ZOZ). "
+                "Bez tej flagi powstają jako szkice i nie są widoczne w serwisie."
+            ),
+        )
+        parser.add_argument(
             "--only",
             action="append",
             default=[],
@@ -632,6 +649,7 @@ class Command(BaseCommand):
         # od ostatniego importu. Z tą flagą komenda dotyka dokładnie wskazanych stron.
         only = set(options.get("only") or [])
         self.force = bool(options.get("force"))
+        self.publish_hidden = bool(options.get("publish_hidden"))
         known = {spec.slug for spec in PAGES}
         unknown = sorted(only - known)
         if unknown:
@@ -817,8 +835,14 @@ class Command(BaseCommand):
             # część zmieniono, a „pół strony z pliku, pół z panelu” byłoby gorsze niż obie całości.
             self.stdout.write(f"pominięto: {page.url} (zredagowana w /cms/; --force nadpisze)")
             return
+        publish = spec.publish and (not spec.hidden or self.publish_hidden)
+        if not created and not self.force and publish and not page.live:
+            # Cofnięcie publikacji w /cms/ jest decyzją redakcji tak samo jak poprawka treści:
+            # komenda nie wie, dlaczego strona zniknęła z serwisu, więc nie przywraca jej sama.
+            self.stdout.write(f"pominięto: /{spec.slug}/ (wycofana z publikacji w /cms/; --force przywróci)")
+            return
         if created:
-            page = model(title=spec.title, slug=spec.slug, live=spec.publish)
+            page = model(title=spec.title, slug=spec.slug, live=publish)
             parent.add_child(instance=page)
 
         page.title = spec.title
@@ -840,9 +864,9 @@ class Command(BaseCommand):
         # przez ORM już po ``page.save()`` – rewizja ze starego obiektu zdjęłaby je z publikacji.
         page = model.objects.get(pk=page.pk)
         revision = page.save_revision()
-        if spec.publish:
+        if publish:
             revision.publish()
-        status = "opublikowana" if spec.publish else "szkic"
+        status = "opublikowana" if publish else "szkic"
         if moved:
             note += ", przeniesiono pod /dokumenty/"
         self.stdout.write(
