@@ -1,0 +1,191 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Słownik placówek organizatora: karta profilu rejestracji, wyszukiwarka, wykaz i wpis ręczny.
+
+  Kolejność sekcji nie jest przypadkowa. Karta profilu stoi **pierwsza**, bo odpowiada na pytanie,
+  które przy pustych podpowiedziach zadaje się jako drugie i za późno: czy rejestracja w ogóle
+  z tego wykazu korzysta. Import ma własny ekran, bo ma własny krok podglądu.
+
+  Liczba w kolumnie „uczestnicy” jest odpowiedzią na pytanie „czy ten wiersz wolno ruszyć”:
+  placówka wskazana przez czyjś profil jest chroniona przez bazę (PROTECT) i wycofuje się ją
+  wyłącznie wyłączeniem.
+
+  Flagi w szablonie nie ma ani jednej – wszystkie warunki przychodzą gotowe z widoku (§ 2.1).
+{% endcomment %}
+{% block title %}Słownik placówek – panel koordynatora{% endblock %}
+{% block panel_title %}Słownik placówek{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Wykaz placówek tego konkursu: uczelnie partnerskie, ośrodki, kluby i szkoły spoza
+    wykazu publicznego. Wiersze stąd są drugim źródłem podpowiedzi w rejestracji – obok wykazu SIO,
+    którego ten ekran nie zmienia.</p>
+{% endblock %}
+{% block panel_actions %}
+  <a class="btn btn--primary" href="{% url 'web:coordinator-institutions-import' %}">Wgraj wykaz z pliku</a>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Profil rejestracji</h2>
+    <p class="hint">Reguły obowiązujące w formularzu rejestracji tego konkursu.</p>
+  </div>
+  <div class="card">
+    {% if not card.directory_active %}
+      <p class="msg msg-warning">Rejestracja <strong>nie korzysta</strong> z tego wykazu: w profilu
+        rejestracji odznaczone jest pole „słownik organizatora”. Wgrane placówki nie pojawią się
+        w podpowiedziach, dopóki go nie zaznaczysz.</p>
+    {% endif %}
+    <dl class="meta-list">
+      <dt>Dozwolone placówki</dt>
+      <dd>{{ card.types|join:", " }}</dd>
+      <dt>Słownik organizatora</dt>
+      <dd>{% if card.profile.allow_custom_directory %}tak{% else %}nie{% endif %}</dd>
+      <dt>Szkoła spoza wykazu (wolny tekst)</dt>
+      <dd>{% if card.profile.allow_free_text_school %}tak{% else %}nie{% endif %}</dd>
+      <dt>Uczestnicy spoza Polski</dt>
+      <dd>{% if card.profile.allow_foreign %}tak{% else %}nie{% endif %}</dd>
+      <dt>Klasy</dt>
+      <dd>od {{ card.grade_min }} do {{ card.grade_max }}{% if not card.profile.require_grade %} (klasa nieobowiązkowa){% endif %}</dd>
+    </dl>
+    {% if card.profile_editable %}
+      <p class="hint"><a href="{% url 'web:coordinator-registration-profile' %}">Zmień profil rejestracji</a></p>
+    {% else %}
+      <p class="hint">Konkurs nie ma włączonego profilu rejestracji, więc formularz pyta dokładnie
+        o to, o co pytał przed etapem 2. Zmiana wymaga flagi „institution_types”.</p>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Wykaz</h2>
+    <p class="hint">Placówek w słowniku: {{ total }}. Znalezionych: {{ paginator.count }}.</p>
+  </div>
+  <div class="card">
+    {% comment %}
+      Formularz GET, a nie POST: wynik wyszukiwania ma dać się odświeżyć, wysłać odnośnikiem
+      i wrócić do niego przyciskiem „wstecz”. Te same parametry bierze eksport, więc plik da się
+      zawęzić tym samym zapytaniem, co ekran.
+    {% endcomment %}
+    <form method="get" class="form">
+      <p>
+        <label for="institution-search">Nazwa albo miejscowość</label>
+        <input id="institution-search" type="search" name="q" value="{{ query }}" autocomplete="off">
+      </p>
+      <p>
+        <label for="institution-type">Rodzaj placówki</label>
+        <select id="institution-type" name="type">
+          <option value="">— wszystkie —</option>
+          {% for value, label in type_choices %}
+            <option value="{{ value }}"{% if value == kind %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </p>
+      <p>
+        <label for="institution-state">Stan</label>
+        <select id="institution-state" name="state">
+          {% for value, label in state_choices %}
+            <option value="{{ value }}"{% if value == state %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </p>
+      <div class="actions">
+        <button type="submit" class="btn btn--secondary">Szukaj</button>
+        {% if query or kind or state %}
+          <a class="btn btn--ghost" href="{% url 'web:coordinator-institutions' %}">Wyczyść</a>
+        {% endif %}
+      </div>
+    </form>
+    <p class="hint">
+      <a href="{% url 'web:coordinator-institutions-export' %}{% if filter_query %}?{{ filter_query }}{% endif %}">Pobierz
+        widoczne wiersze (CSV w formacie importu)</a> ·
+      <a href="{% url 'web:coordinator-institutions-template' %}">Pobierz wzór pliku</a>
+    </p>
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Placówki w słowniku tego konkursu</caption>
+      <thead>
+        <tr>
+          <th scope="col">Nazwa</th>
+          <th scope="col">Rodzaj</th>
+          <th scope="col">Miejscowość</th>
+          <th scope="col">Identyfikator</th>
+          <th scope="col">Źródło</th>
+          <th scope="col">Uczestnicy</th>
+          <th scope="col">Stan</th>
+          <th scope="col"><span class="visually-hidden">Operacje</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <th scope="row"><a href="{% url 'web:coordinator-institution' row.institution.pk %}">{{ row.institution.name }}</a></th>
+            <td>{{ row.institution.get_institution_type_display }}</td>
+            <td>{{ row.institution.city|default:"—" }}{% if row.institution.country %} ({{ row.institution.country }}){% endif %}</td>
+            <td>{% if row.institution.external_id %}<code>{{ row.institution.external_id }}</code>{% else %}—{% endif %}</td>
+            <td>{{ row.institution.source_label|default:"—" }}</td>
+            <td class="num">{{ row.participants }}</td>
+            <td>
+              {% if row.institution.is_active %}
+                <span class="badge badge--ok">aktywna</span>
+              {% else %}
+                <span class="badge badge--neutral">wyłączona</span>
+              {% endif %}
+            </td>
+            <td class="actions">
+              {% if row.institution.is_active %}
+                <form method="post" action="{% url 'web:coordinator-institution-deactivate' row.institution.pk %}" class="inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--secondary btn--small">Wyłącz</button>
+                </form>
+              {% else %}
+                <form method="post" action="{% url 'web:coordinator-institution-activate' row.institution.pk %}" class="inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--secondary btn--small">Włącz</button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="8" class="empty">{% if query or kind or state %}Żadna placówka nie pasuje do
+              zawężenia.{% else %}Ten konkurs nie ma jeszcze ani jednej własnej placówki – wgraj wykaz
+              z pliku albo dopisz pierwszą poniżej.{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if page_obj.has_other_pages %}
+    <p class="hint">
+      {% if page_obj.has_previous %}
+        <a class="btn btn--secondary btn--small"
+           href="?{% if filter_query %}{{ filter_query }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">Poprzednia</a>
+      {% endif %}
+      Strona {{ page_obj.number }} z {{ paginator.num_pages }}
+      {% if page_obj.has_next %}
+        <a class="btn btn--secondary btn--small"
+           href="?{% if filter_query %}{{ filter_query }}&amp;{% endif %}page={{ page_obj.next_page_number }}">Następna</a>
+      {% endif %}
+    </p>
+  {% endif %}
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Nowa placówka</h2>
+    <p class="hint">Dla wykazu na trzy pozycje plik CSV jest formalnością bez treści – wpisz je tutaj.
+      Przy dłuższym wykazie wygodniejszy jest import, bo ten sam plik wgrywa się co sezon.</p>
+  </div>
+  <div class="card">
+    <form method="post" action="{% url 'web:coordinator-institution-create' %}" class="form">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">Dodaj placówkę</button>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

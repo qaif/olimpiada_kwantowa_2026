@@ -109,11 +109,17 @@ def test_publish_name_label_has_no_document_link(db):
     assert "imienia i nazwiska" in html
 
 
-def test_privacy_label_names_the_organizer_from_site_settings(db):
-    """Nazwa organizatora pochodzi z ``/cms/``, nie z literału w kodzie."""
-    from apps.cms.models import SiteSettings
+def test_privacy_label_names_the_organizer_of_the_competition(competition):
+    """Nazwa organizatora pochodzi z danych konkursu, nie z literału w kodzie.
 
-    SiteSettings.objects.update(organizer_name="Fundacja Testowa")
+    Do etapu 2 źródłem był ``SiteSettings.objects.first()``, czyli **dowolna** witryna instalacji
+    (``docs/UNIWERSALNY-ETAP-2.md`` § 1.1.2). Konkursowi #1 nie zmienia to niczego – migracja
+    ``tenancy.0002`` przepisała mu tę samą nazwę – ale przy dwóch konkursach klauzula RODO
+    potrafiła nazwać administratorem danych cudzą fundację. Pozostałe przypadki (odwrót na
+    ustawienia witryny konkursu, pusty kontekst) opisuje ``test_consents_organizer.py``.
+    """
+    competition.organizer_name = "Fundacja Testowa"
+    competition.save(update_fields=["organizer_name"])
 
     html = str(consents.label(BY_KIND[ConsentKind.PRIVACY]))
 

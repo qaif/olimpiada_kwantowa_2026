@@ -1,0 +1,119 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Karta jednej drużyny: skład, wpisy do etapów i dwie czynności na składzie.
+
+  Uczestnika wskazuje się **kodem publicznym**, a nie nazwiskiem: ekran składu miałby inaczej
+  własną wyszukiwarkę po danych osobowych, czyli drugą listę uczestników. Kod jest tym, co
+  koordynator ma w protokole, a uczestnik na swoim pulpicie.
+
+  Każda zmiana jest POST-em z tokenem pod własnym adresem – rozróżnianie czynności po nazwie
+  wciśniętego przycisku zależy od tego, czy przeglądarka go przyśle, a przy wysyłce klawiaturą
+  nie zawsze przysyła.
+{% endcomment %}
+{% block title %}Drużyna {{ team.name }} – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-teams' %}">Drużyny</a>{% endblock %}
+{% block panel_title %}{{ team.name }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Kod publiczny: <strong class="code-chip">{{ team.public_code }}</strong>,
+    edycja {{ team.edition.year_label }}{% if team.school %}, {{ team.school }}{% endif %}.
+    Pod tym kodem drużyna staje w tabeli wyników.</p>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  <h2>Skład</h2>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Skład drużyny {{ team.name }}</caption>
+      <thead>
+        <tr>
+          <th scope="col">Kod uczestnika</th>
+          <th scope="col">Funkcja</th>
+          <th scope="col"><span class="visually-hidden">Operacje</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for member in members %}
+          <tr>
+            <th scope="row"><span class="code-chip">{{ member.participant.public_code }}</span></th>
+            <td>
+              {% if member.is_captain %}
+                <span class="badge badge--ok">kapitan</span>
+              {% else %}
+                <span class="badge badge--neutral">zawodnik</span>
+              {% endif %}
+            </td>
+            <td class="actions">
+              {% if not member.is_captain %}
+                <form method="post" action="{% url 'web:coordinator-team-captain' team.pk %}" class="inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="public_code" value="{{ member.participant.public_code }}">
+                  <button type="submit" class="btn btn--secondary btn--small">Ustaw kapitanem</button>
+                </form>
+              {% endif %}
+              <form method="post" action="{% url 'web:coordinator-team-member-remove' team.pk %}" class="inline">
+                {% csrf_token %}
+                <input type="hidden" name="public_code" value="{{ member.participant.public_code }}">
+                <button type="submit" class="btn btn--danger btn--small">Usuń ze składu</button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3" class="empty">Drużyna nie ma jeszcze ani jednego zawodnika.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3 class="mt-0">Dopisz uczestnika</h3>
+    <form method="post" class="form form--wide" novalidate>
+      {% csrf_token %}
+      {{ member_form.as_p }}
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">Dopisz do składu</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="section">
+  <h2>Wpisy do etapów</h2>
+  <p class="hint">Wpis drużyny zakłada organizator – regulamin konkursu drużynowego nie zna
+    samodzielnego zgłoszenia składu, więc okna rejestracji tu nie ma.</p>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Wpisy drużyny {{ team.name }} do etapów</caption>
+      <thead>
+        <tr>
+          <th scope="col">Etap</th>
+          <th scope="col">Status</th>
+          <th scope="col">Suma punktów</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in entries %}
+          <tr>
+            <th scope="row">{{ entry.stage.display_name }}</th>
+            <td>{{ entry.get_status_display }}</td>
+            <td class="num total">{% if entry.total_points is not None %}{{ entry.total_points }}{% else %}—{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3" class="empty">Drużyna nie jest jeszcze wpisana do żadnego etapu.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3 class="mt-0">Wpisz do etapu</h3>
+    <form method="post" action="{% url 'web:coordinator-team-stage' team.pk %}" class="form form--wide" novalidate>
+      {% csrf_token %}
+      {{ stage_form.as_p }}
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">Wpisz drużynę</button>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

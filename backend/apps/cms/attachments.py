@@ -26,7 +26,8 @@ from pathlib import Path
 
 from django.core.files import File
 from wagtail.documents import get_document_model
-from wagtail.models import Collection
+
+from apps.cms.permissions import upload_collection
 
 #: ``…/apps/cms/`` → ``…/apps/cms/fixtures/legacy/pdf/``. Oficjalne PDF-y organizatora.
 PDF_DIR = Path(__file__).resolve().parent / "fixtures" / "legacy" / "pdf"
@@ -72,11 +73,17 @@ def _refresh_metadata(document) -> None:
     document.get_file_hash()
 
 
-def ensure_document(title: str, source: Path):
-    """Dokument o zadanym tytule w kolekcji Root, z zawartością pliku ``source``.
+def ensure_document(title: str, source: Path, *, competition=None):
+    """Dokument o zadanym tytule w kolekcji konkursu, z zawartością pliku ``source``.
 
     Zwraca ``(document, action)``, gdzie ``action`` to ``"created"``, ``"updated"`` albo
     ``"unchanged"`` – komendy raportują to na stdout, żeby przebieg dało się przeczytać.
+
+    **Kolekcja dotyczy wyłącznie dokumentu zakładanego.** ``apps.cms.permissions.upload_collection``
+    oddaje kolekcję konkursu przy włączonej fladze ``scoped_cms_permissions``, a korzeń wtedy, gdy
+    flaga jest wyłączona (Konkurs #1, stan dzisiejszy) albo konkursu nie da się rozstrzygnąć.
+    Dokument **już wgrany zostaje w swojej kolekcji**: podmieniamy zawartość rekordu, a nie jego
+    miejsce w bibliotece (``docs/UNIWERSALNY-ETAP-2.md`` § 1.1.5).
     """
     Document = get_document_model()
     document = Document.objects.filter(title=title).first()
@@ -84,7 +91,7 @@ def ensure_document(title: str, source: Path):
         wanted = _digest(handle)
 
     if document is None:
-        document = Document(title=title, collection=Collection.get_first_root_node())
+        document = Document(title=title, collection=upload_collection(competition))
         with source.open("rb") as handle:
             document.file.save(source.name, File(handle), save=True)
         _refresh_metadata(document)

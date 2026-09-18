@@ -1,0 +1,93 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Komponenty etapu: z czego składa się jego suma punktów.
+
+  Etap **bez ani jednego** komponentu liczy się dokładnie jak przed edytorem przebiegu: suma bez
+  wag, źródło punktów z formy etapu. Pierwszy komponent przełącza etap na sumowanie po
+  komponentach, a usunięcie ostatniego wraca do stanu poprzedniego – i to jest jedyny przełącznik
+  obok flagi konkursu, więc ekran mówi o nim wprost.
+
+  Waga jest parą liczb, a nie ułamkiem dziesiętnym: 1/3 zapisane jako 0,333… daje sumę zależną od
+  kolejności dodawania, czyli tabelę wyników zmieniającą się przy przeliczeniu.
+{% endcomment %}
+{% block title %}Komponenty etapu – {{ stage.display_name }}{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-pipeline' %}">Przebieg edycji</a>{% endblock %}
+{% block panel_title %}Komponenty etapu: {{ stage.display_name }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Formy, z których składa się jeden etap, każda z własnym źródłem punktów i własną
+    wagą. Etap bez komponentów liczy się z formy etapu ({{ stage.get_format_display }}) i bez wag.</p>
+{% endblock %}
+{% block panel_content %}
+
+{% if not components %}
+  <div class="card card--quiet">
+    <p class="notice">Ten etap nie ma jeszcze ani jednego komponentu, więc jego suma punktów
+      powstaje dokładnie tak, jak przed edytorem przebiegu. Pierwszy dopisany komponent przełącza
+      etap na sumowanie po komponentach.</p>
+  </div>
+{% endif %}
+
+<section class="section">
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Komponenty tego etapu</caption>
+      <thead>
+        <tr>
+          <th scope="col">Kolejność</th>
+          <th scope="col">Nazwa</th>
+          <th scope="col">Źródło punktów</th>
+          <th scope="col">Waga</th>
+          <th scope="col">Wymagany</th>
+          <th scope="col"><span class="visually-hidden">Operacje</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for component in components %}
+          <tr>
+            <td class="num">{{ component.position }}</td>
+            <th scope="row">
+              <a href="{% url 'web:coordinator-stage-component' stage.pk component.pk %}">{{ component.display_name }}</a>
+            </th>
+            <td>{{ component.get_kind_display }}</td>
+            <td class="num">{{ component.weight_numerator }}/{{ component.weight_denominator }}</td>
+            <td>
+              {% if component.required %}
+                <span class="badge badge--ok">tak</span>
+              {% else %}
+                <span class="badge badge--neutral">nie</span>
+              {% endif %}
+            </td>
+            <td class="actions">
+              <form method="post" action="{% url 'web:coordinator-stage-component-delete' stage.pk component.pk %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn--danger btn--small">Usuń</button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="6" class="empty">Brak komponentów – etap liczy się z własnej formy.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Dopisz komponent</h2>
+    <p class="hint">Dwa komponenty tego samego rodzaju są dopuszczalne („test wstępny”, „test
+      finałowy”), ale nie na tym samym miejscu w kolejności.</p>
+  </div>
+  <div class="card">
+    <form method="post" action="{% url 'web:coordinator-stage-component-create' stage.pk %}" class="form">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">Dopisz komponent</button>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

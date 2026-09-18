@@ -27,10 +27,20 @@ Adres dokumentu jest natomiast liczony **przy renderowaniu** z drzewa stron (po 
 przestać działać dlatego, że seed treści jeszcze nie przeszedł na tym środowisku. Etykieta
 prowadzi przy tym do **PDF-a** przypiętego do strony dokumentu, o ile taki jest (``document_link``):
 oświadczenie składa się pod wersją podpisaną przez organizatora, a nie pod jej transkrypcją.
+
+**Etap 2: skąd bierze się zestaw zgód.** Od ``docs/UNIWERSALNY-ETAP-2.md`` § 1.1.2 zestaw ma dwa
+możliwe źródła i **jedno** wejście: :func:`consent_set`. Przy wyłączonej fladze konkursu
+``per_competition_consents`` (tak stoi Konkurs #1 – decyzja D8) zwraca stałą ``DEFAULT_CONSENTS``,
+czyli dokładnie to, co ten moduł wydawał wcześniej, i nie pyta o to bazy ani razu. Przy włączonej –
+wiersze ``accounts.ConsentDefinition`` tego konkursu, zamienione na te same dataklasy ``Consent``,
+więc formularz, ``GET /api/auth/consents/`` i panel uczestnika widzą jeden typ niezależnie od
+źródła. Rodzaje (``ConsentKind``) zostają zamkniętą listą w kodzie, bo reguła „opiekun dla
+niepełnoletniego” jest kodem (``is_minor``) i musi wiedzieć, o którą zgodę chodzi.
 """
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import date
 
@@ -38,6 +48,8 @@ from django.db import models
 from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.safestring import SafeString
+
+logger = logging.getLogger(__name__)
 
 #: Nazwa organizatora używana, gdy nie da się odczytać ``cms.SiteSettings`` (świeża baza, komenda
 #: zarządzająca bez witryny Wagtaila). Ta sama wartość, co domyślna w ``SiteSettings``.
@@ -121,7 +133,11 @@ GUARDIAN_VERSION = "0.1 (projekt) z 10 września 2026"
 #: i polityka RODO. Wersję numerujemy własną, bo to ona identyfikuje brzmienie oświadczenia.
 PUBLISH_NAME_VERSION = "1.0"
 
-CONSENTS: tuple[Consent, ...] = (
+#: Zestaw startowy zgód: to, co widzi uczestnik konkursu, który **nie** włączył
+#: ``per_competition_consents``, i to, co migracja ``accounts.0024`` wpisała do bazy jako wiersze
+#: ``ConsentDefinition``. Nazwa zmieniła się z ``CONSENTS`` na ``DEFAULT_CONSENTS`` w etapie 2
+#: (§ 1.1.2) i mówi dokładnie tyle, ile znaczy: to jest **domyślny** zestaw, a nie jedyny.
+DEFAULT_CONSENTS: tuple[Consent, ...] = (
     Consent(
         kind=ConsentKind.TERMS,
         field_name="terms_consent",
@@ -180,11 +196,103 @@ CONSENTS: tuple[Consent, ...] = (
     ),
 )
 
-BY_KIND: dict[str, Consent] = {consent.kind: consent for consent in CONSENTS}
-BY_FIELD: dict[str, Consent] = {consent.field_name: consent for consent in CONSENTS}
+#: Alias zostawiony **na sezon**, żeby testy niezmienności mogły zaimportować jedno i drugie
+#: i porównać (§ 1.1.2), a kod, który zestawu zgód jeszcze nie bierze z :func:`consent_set`,
+#: nie zmieniał zachowania przy okazji zmiany nazwy stałej. Znika razem z gałęzią odwrotu,
+#: czyli wtedy, kiedy flaga ``per_competition_consents`` przestanie być nigdzie ``False``.
+CONSENTS: tuple[Consent, ...] = DEFAULT_CONSENTS
+
+BY_KIND: dict[str, Consent] = {consent.kind: consent for consent in DEFAULT_CONSENTS}
+BY_FIELD: dict[str, Consent] = {consent.field_name: consent for consent in DEFAULT_CONSENTS}
 
 #: Nazwy pól zgód w kolejności, w jakiej mają stać w formularzu i w API.
-CONSENT_FIELD_NAMES: tuple[str, ...] = tuple(consent.field_name for consent in CONSENTS)
+CONSENT_FIELD_NAMES: tuple[str, ...] = tuple(consent.field_name for consent in DEFAULT_CONSENTS)
+
+
+#: Nazwa flagi konkursu, która przełącza źródło zestawu zgód ze stałej na bazę. Stoi w katalogu
+#: ``apps.tenancy.models.FEATURE_DEFAULTS`` od etapu 1 i jest domyślnie wyłączona; Konkurs #1
+#: zostaje na stałej przez sezon (decyzja organizatora D8, ``docs/UNIWERSALNY-ETAP-2.md`` § 6).
+CONSENT_FEATURE_FLAG = "per_competition_consents"
+
+
+def _competition_or_none(competition=None):
+    """Konkurs, którego zgody czytamy – miękko, bo to jest odczyt **treści dla uczestnika**.
+
+    Reguła etapu 2 (§ 1.0 (b)) każe czytać konfigurację konkursu twardo (``require_competition``),
+    a definicja zgody konfiguracją jest. Tutaj robimy wyjątek i on jest cały w tym, co stoi po
+    drugiej stronie odwrotu: przy ``None`` **nie** zwracamy pustki, tylko zestaw ze stałej – czyli
+    dokładnie to, co ten sam kod pokazywał przed etapem 2. Twardy odwrót zamieniłby żądanie pod
+    nierozstrzygniętym hostem w błąd 500 na formularzu rejestracji, a to jest zmiana widoczna dla
+    uczestnika Konkursu #1 (§ 0.1) – i to zmiana na gorsze, bo zgoda ze stałej jest poprawna.
+
+    Wyjątek jest szeroki z tego samego powodu, co w :func:`organizer_name`: brak tabeli konkursów
+    (pierwsza migracja, świeża baza) nie może wywrócić rejestracji.
+    """
+    try:
+        from apps.competitions.scoping import resolve_competition
+
+        return resolve_competition(competition)
+    except Exception:  # noqa: BLE001 - brak tabeli/kontekstu nie może zablokować rejestracji
+        return None
+
+
+def definitions_to_consents(definitions) -> tuple[Consent, ...]:
+    """Wiersze ``ConsentDefinition`` jako krotka :class:`Consent` – ten sam kształt, co stała.
+
+    Cała reszta systemu (formularz, serializer, panel, eksport) ma widzieć **jeden** typ, niezależnie
+    od tego, skąd zestaw przyszedł. Inaczej każde miejsce czytające zgodę musiałoby wiedzieć, czy
+    trzyma w ręku wiersz bazy, czy dataklasę – a to jest dokładnie ta wiedza, której rozjazd kończy
+    się zgodą zapisaną pod niewłaściwym rodzajem.
+    """
+    return tuple(
+        Consent(
+            kind=definition.kind,
+            field_name=definition.field_name,
+            text=definition.text,
+            version=definition.version,
+            missing_message=definition.missing_message,
+            link_text=definition.link_text,
+            document_slug=definition.document_slug,
+            required=definition.required,
+            required_for_minor=definition.required_for_minor,
+            help_text=definition.help_text,
+        )
+        for definition in definitions
+    )
+
+
+def consent_set(competition=None) -> tuple[Consent, ...]:
+    """Zgody **tego** konkursu: z bazy przy włączonej fladze, ze stałej przy wyłączonej.
+
+    Jedyne wejście do zestawu zgód (§ 1.0 (c)). Flagę czytamy tutaj, raz – nie w szablonie i nie
+    w pętli po wierszach – więc przełącznik jest jeden i widać go w jednym miejscu.
+
+    **Przy wyłączonej fladze nie pada ani jedno zapytanie**: ``has_feature`` czyta pole już
+    wczytanego konkursu, a konkurs bierze się z kontekstu żądania (``CompetitionMiddleware``).
+    To jest warunek z § 5.6 – budżety zapytań etapu 2 nie rosną.
+
+    Zestaw pusty przy **włączonej** fladze schodzi do stałej i zostawia ostrzeżenie w logu. Wygląda
+    to na furtkę i wymaga uzasadnienia: konkurs bez ani jednej definicji zgody pokazałby formularz
+    rejestracji **bez regulaminu i bez RODO**, czyli zebrałby dane osobowe bez podstawy. Pusta
+    tabela jest błędem konfiguracji (migracja ``accounts.0024`` wpisuje wiersze każdemu konkursowi),
+    a odpowiedzią na błąd konfiguracji nie może być zgoda, której nikt nie złożył.
+    """
+    competition = _competition_or_none(competition)
+    if competition is None or not competition.has_feature(CONSENT_FEATURE_FLAG):
+        return DEFAULT_CONSENTS
+    from .models import ConsentDefinition
+
+    definitions = definitions_to_consents(
+        ConsentDefinition.objects.for_competition(competition).filter(is_active=True)
+    )
+    if definitions:
+        return definitions
+    logger.warning(
+        "Konkurs %s ma włączoną flagę %s i ani jednej definicji zgody – pokazuję zestaw domyślny.",
+        getattr(competition, "slug", competition),
+        CONSENT_FEATURE_FLAG,
+    )
+    return DEFAULT_CONSENTS
 
 
 def is_minor(birth_year: int | None, *, today: date | None = None) -> bool:
@@ -201,26 +309,56 @@ def is_minor(birth_year: int | None, *, today: date | None = None) -> bool:
     return current_year - int(birth_year) <= MINOR_MAX_AGE
 
 
-def required_kinds(birth_year: int | None, *, today: date | None = None) -> tuple[str, ...]:
-    """Rodzaje zgód wymaganych od uczestnika o tym roczniku."""
+def required_kinds(birth_year: int | None, *, today: date | None = None, competition=None) -> tuple[str, ...]:
+    """Rodzaje zgód wymaganych od uczestnika o tym roczniku – w **tym** konkursie.
+
+    Reguła „opiekun dla niepełnoletniego” zostaje kodem (``is_minor``), bo musi wiedzieć, o którą
+    zgodę chodzi; danymi jest wyłącznie to, **które** zgody konkurs w ogóle zbiera.
+    """
     minor = is_minor(birth_year, today=today)
     return tuple(
-        consent.kind for consent in CONSENTS if consent.required or (consent.required_for_minor and minor)
+        consent.kind
+        for consent in consent_set(competition)
+        if consent.required or (consent.required_for_minor and minor)
     )
 
 
-def organizer_name() -> str:
-    """Nazwa organizatora z ``cms.SiteSettings`` – czytana przy renderowaniu, nie przy imporcie.
+def organizer_name(competition=None) -> str:
+    """Nazwa organizatora **tego** konkursu – czytana przy renderowaniu, nie przy imporcie.
 
-    Zmiana nazwy fundacji w ``/cms/`` ma od razu zmieniać treść zgody, bez wydania aplikacji.
-    Wyjątek jest szeroki świadomie: brak witryny Wagtaila albo brak tabeli (pierwsza migracja)
-    nie może wywrócić formularza rejestracji – zostaje wtedy wartość domyślna, ta sama, którą
-    ``SiteSettings`` ma w definicji pola.
+    Administratorem danych uczestnika jest organizator konkursu, w którym ten uczestnik się
+    rejestruje, więc w klauzuli RODO ma stać jego nazwa i nie ma tu miejsca na „pierwszy wiersz
+    z brzegu”. Do etapu 2 stało tu ``SiteSettings.objects.first()`` – przy dwóch konkursach
+    nazwa brała się z przypadkowej witryny (``docs/UNIWERSALNY-ETAP-1.md`` § 3.7,
+    ``docs/UNIWERSALNY-ETAP-2.md`` § 1.1.2). To jest błąd izolacji, a nie brak funkcji, więc
+    naprawa nie stoi za żadną flagą.
+
+    Kolejność źródeł i powód każdego z nich:
+
+    1. ``Competition.organizer_name`` – dane podmiotu prawnego stoją w konkursie, bo potrzebuje
+       ich także kod **poza żądaniem** (poczta, zadania Celery, komendy). Konkurs #1 ma tu
+       dokładnie tę nazwę, którą migracja ``tenancy.0002`` przepisała z ``cms.SiteSettings``,
+       więc treść zgody nie zmienia się ani o znak;
+    2. ``SiteSettings`` **witryny tego konkursu** – odwrót dla konkursu założonego bez wypełnionej
+       nazwy organizatora. Wciąż per witryna, czyli wciąż bez zaglądania do cudzej;
+    3. ``DEFAULT_ORGANIZER_NAME`` – gdy nie wiadomo, o który konkurs chodzi (instalacja prowadzi
+       ich kilka, a wywołanie nie wskazało żadnego) albo gdy nie ma czego odczytać.
+
+    Odwrót jest miękki (``resolve_competition``), a nie twardy, bo to jest odczyt **treści
+    pokazywanej uczestnikowi**: formularz rejestracji nie ma prawa przestać się otwierać dlatego,
+    że nie da się rozstrzygnąć konkursu. Wyjątek zostaje szeroki z tego samego powodu, co dotąd:
+    brak witryny albo brak tabeli (pierwsza migracja) nie może wywrócić rejestracji.
     """
     try:
         from apps.cms.models import SiteSettings
+        from apps.competitions.scoping import resolve_competition
 
-        settings_row = SiteSettings.objects.first()
+        competition = resolve_competition(competition)
+        if competition is None:
+            return DEFAULT_ORGANIZER_NAME
+        if competition.organizer_name:
+            return competition.organizer_name
+        settings_row = SiteSettings.for_site(competition.site)
     except Exception:  # noqa: BLE001 - brak tabeli/witryny nie może zablokować rejestracji
         return DEFAULT_ORGANIZER_NAME
     if settings_row is None:
@@ -301,10 +439,10 @@ def label(consent: Consent, *, organizer: str | None = None) -> SafeString:
     return format_html(consent.text, link=link, organizer=organizer or organizer_name())
 
 
-def labels(*, organizer: str | None = None) -> dict[str, SafeString]:
-    """Etykiety wszystkich zgód, po rodzaju. Jeden odczyt nazwy organizatora na formularz."""
-    organizer = organizer or organizer_name()
-    return {consent.kind: label(consent, organizer=organizer) for consent in CONSENTS}
+def labels(*, organizer: str | None = None, competition=None) -> dict[str, SafeString]:
+    """Etykiety wszystkich zgód konkursu, po rodzaju. Jeden odczyt nazwy organizatora na formularz."""
+    organizer = organizer or organizer_name(competition)
+    return {consent.kind: label(consent, organizer=organizer) for consent in consent_set(competition)}
 
 
 def plain_text(consent: Consent, *, organizer: str | None = None) -> str:
@@ -312,14 +450,17 @@ def plain_text(consent: Consent, *, organizer: str | None = None) -> str:
     return consent.text.format(link=consent.link_text, organizer=organizer or organizer_name())
 
 
-def descriptions() -> list[dict]:
+def descriptions(competition=None) -> list[dict]:
     """Opis zestawu zgód dla ``GET /api/auth/consents/``.
 
     Klient zewnętrzny dostaje komplet: brzmienie (w HTML i czystym tekstem), adres dokumentu,
     wersję i regułę wymagalności. Dzięki temu może pokazać dokładnie tę samą zgodę, którą pokazuje
     formularz WWW – a nie własną parafrazę, która nie broni się jako dowód.
+
+    Zestaw bierzemy z :func:`consent_set`, czyli z tego samego wejścia, co formularz i panel:
+    trzy powierzchnie czytające zgody osobno to trzy okazje na pokazanie trzech różnych treści.
     """
-    organizer = organizer_name()
+    organizer = organizer_name(competition)
     return [
         {
             "kind": consent.kind,
@@ -338,14 +479,110 @@ def descriptions() -> list[dict]:
             "required_for_minor": consent.required_for_minor,
             "help_text": consent.help_text,
         }
-        for consent in CONSENTS
+        for consent in consent_set(competition)
     ]
 
 
-def given_from_fields(values: dict) -> dict[str, bool]:
+def given_from_fields(values: dict, *, competition=None) -> dict[str, bool]:
     """Mapuje kwargi/pola formularza (``terms_consent`` …) na słownik ``{rodzaj: bool}``.
 
     Jedno miejsce dla wszystkich trzech dróg rejestracji – formularza, API i logowania
     społecznościowego – żeby nazwa pola i rodzaj zgody nie mogły się rozjechać.
     """
-    return {consent.kind: bool(values.get(consent.field_name)) for consent in CONSENTS}
+    return {consent.kind: bool(values.get(consent.field_name)) for consent in consent_set(competition)}
+
+
+def change_version(definition, version: str, *, actor=None, request=None):
+    """Zmienia wersję dokumentu w **jednej** definicji zgody i zostawia po tym ślad w audycie.
+
+    To jest jedyne wejście do zmiany wersji (ekran ``/coordinator/consents/``, § 2.2) i ma trzy
+    właściwości, których nie miałby zwykły zapis formularza:
+
+    1. **jeden wiersz na raz.** Wersji nie da się zmienić hurtem, bo „nowelizacja regulaminu” i
+       „nowa wersja wzoru zgody opiekuna” to dwa różne zdarzenia z dwiema różnymi datami;
+    2. **wpis audytowy ``consent_definition.version_changed`` z różnicą pól.** Od chwili zapisu
+       nowe wpisy dowodowe (``ConsentRecord.document_version``) mówią co innego niż wpisy sprzed
+       niego – i musi być widać, kto i kiedy tę granicę przesunął;
+    3. **dowody zostają nietknięte.** ``ConsentRecord`` nie ma klucza obcego do definicji właśnie
+       po to: zmiana wersji opisuje przyszłość, a nie przepisuje tego, na co ludzie się zgodzili.
+
+    Zapis pustej wersji odbija więz bazodanowy (``accounts_consentdef_version_not_empty``), a przed
+    nim ``full_clean``; zgoda bez wersji nie jest dowodem. Zapis wersji **tej samej** nie jest
+    błędem, tylko brakiem zmiany: nie pisze nic i nie zostawia wpisu, bo wpis audytowy bez różnicy
+    jest szumem w jedynym dzienniku, który ktoś naprawdę czyta po latach.
+    """
+    from django.db import transaction
+
+    from apps.core.models import audit
+
+    from .models import ConsentDefinition
+
+    version = (version or "").strip()
+    with transaction.atomic():
+        locked = ConsentDefinition.objects.select_for_update().get(pk=definition.pk)
+        previous = locked.version
+        if previous == version:
+            return locked
+        locked.version = version
+        locked.full_clean()
+        locked.save(update_fields=["version"])
+        audit(
+            actor,
+            "consent_definition.version_changed",
+            locked,
+            {
+                "kind": locked.kind,
+                "field_name": locked.field_name,
+                "version": {"from": previous, "to": version},
+            },
+            request=request,
+        )
+    definition.version = version
+    return locked
+
+
+#: Pola przepisywane ze stałej do wiersza ``ConsentDefinition``. Ta sama lista, co w migracji
+#: ``accounts.0024_consent_definitions_from_the_constant`` – i stoi tutaj z tego samego powodu,
+#: dla którego stoi tam: dołożenie pola do :class:`Consent` i zapomnienie o nim przy zapisie ma
+#: być widoczne w jednym miejscu, a nie rozsypane po pętli.
+DEFINITION_FIELDS: tuple[str, ...] = (
+    "field_name",
+    "text",
+    "link_text",
+    "document_slug",
+    "version",
+    "required",
+    "required_for_minor",
+    "help_text",
+    "missing_message",
+)
+
+
+def definitions_from_defaults(competition) -> list:
+    """Zestaw startowy zgód tego konkursu jako wiersze ``ConsentDefinition``; zwraca je po kolei.
+
+    Migracja ``accounts.0024`` wpisała ten zestaw **konkursom stojącym w bazie w chwili jej
+    wykonania**. Konkurs założony później (``manage.py create_competition``, kreator ``/setup/``)
+    nie ma jak przez nią przejść, a konkurs bez ani jednej definicji przy włączonej fladze
+    ``per_competition_consents`` pokazałby formularz rejestracji bez regulaminu i bez RODO – czyli
+    zebrałby dane osobowe bez podstawy. Funkcja stoi tu, a nie w komendzie, żeby źródłem zestawu
+    była dalej :data:`DEFAULT_CONSENTS` i tylko ona.
+
+    Idempotentnie: para (konkurs, rodzaj) jest unikalna (``accounts_consentdef_unique_kind``),
+    więc powtórzone wywołanie niczego nie mnoży. **Wiersza już istniejącego nie nadpisujemy** –
+    treść poprawiona przez koordynatora na ekranie „Zgody konkursu” ma przeżyć ponowny przebieg
+    komendy. Tym ta funkcja różni się od migracji, która celowo ustawiała wiersz na wartość ze
+    stałej: tam chodziło o **zrównanie** bazy ze stałą, tu o **założenie** brakującego zestawu.
+    """
+    from .models import ConsentDefinition
+
+    definitions = []
+    for order, consent in enumerate(DEFAULT_CONSENTS):
+        defaults = {name: getattr(consent, name) for name in DEFINITION_FIELDS}
+        defaults["ordering"] = order
+        defaults["is_active"] = True
+        definition, _ = ConsentDefinition.objects.get_or_create(
+            competition=competition, kind=str(consent.kind), defaults=defaults
+        )
+        definitions.append(definition)
+    return definitions

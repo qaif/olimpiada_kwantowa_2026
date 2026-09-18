@@ -258,6 +258,7 @@ def as_json(data: dict) -> dict:
     ``manage.py record_backup_status --show`` i dostaje je w treści alertu.
     """
     from apps.core.backup import state as backup_state
+    from apps.tenancy.setup import setup_available
 
     competition = data["competition"]
     deadline = competition.get("stage_deadline")
@@ -280,4 +281,11 @@ def as_json(data: dict) -> dict:
         "announcements": [
             {"level": item.level, "text": item.text} for item in data.get("announcements") or []
         ],
+        # Czy instalacja czeka jeszcze na kreator pierwszego uruchomienia (``/setup/``, § 1.7.3).
+        # Klucz jest **dołożony na końcu**: jedenaście pól wyżej zostaje bez zmian i w tej samej
+        # kolejności, bo kształt tej odpowiedzi jest kontraktem monitoringu zewnętrznego.
+        # Na produkcji jest to zawsze ``false`` (jest konkurs i jest superużytkownik), a monitor
+        # dostaje dzięki temu jednoznaczną odpowiedź na pytanie „czy ten adres to świeża, niczyja
+        # instalacja” – bez pukania do samego ``/setup/``, które i tak odpowiada 404.
+        "setup_pending": setup_available(),
     }

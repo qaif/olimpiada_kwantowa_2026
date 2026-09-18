@@ -1,0 +1,30 @@
+{% load i18n %}
+{% comment %}
+  Kafel „Formularz przyjazdu”. Włączany jednym warunkiem: kontekst ma klucz ``arrival_form``
+  wyłącznie wtedy, gdy konkurs prowadzi logistykę, ma wpisane miejsce zawodów, a uczestnik jest
+  zapisany do bieżącego etapu (``participant_logistics.arrival_card_context``). Flagi w szablonie
+  nie ma i być nie może (§ 2.1 punkt 3).
+
+  O tym, czy formularz pyta o dietę i dostępność, rozstrzyga decyzja organizatora (D21) — pola
+  powstają w formularzu, a nie tutaj. Etykieta pola uwag mówi wprost, czego nie wpisywać, i jest
+  ``help_text`` tego pola, więc wychodzi razem z nim.
+{% endcomment %}
+{% if arrival_form %}
+  <section class="section" id="przyjazd">
+    <div class="section__head"><h2 class="mt-0">{% translate "Formularz przyjazdu" %}</h2></div>
+    {% if arrival %}
+      <p class="hint">{% blocktranslate trimmed with submitted=arrival.submitted_at|date:"Y-m-d H:i" %}
+        Twoja deklaracja jest zapisana ({{ submitted }}). Możesz ją poprawić do dnia zawodów.
+      {% endblocktranslate %}</p>
+    {% else %}
+      <p class="hint">{% translate "Powiedz organizatorowi, kiedy przyjeżdżasz i czego potrzebujesz. Bez tej deklaracji nie zamówimy dla Ciebie noclegu ani posiłku." %}</p>
+    {% endif %}
+    <form method="post" action="{{ arrival_url }}">
+      {% csrf_token %}
+      {{ arrival_form.as_p }}
+      <p class="actions">
+        <button type="submit" class="btn btn--primary btn--small">{% translate "Zapisz deklarację" %}</button>
+      </p>
+    </form>
+  </section>
+{% endif %}

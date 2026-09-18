@@ -22,21 +22,30 @@ from __future__ import annotations
 
 import logging
 from collections import Counter
+from dataclasses import dataclass, field
+from decimal import ROUND_HALF_UP, Decimal
+from fractions import Fraction
 
 from django.db import transaction
-from django.db.models import Count, Prefetch
+from django.db.models import Count, Max, Prefetch
 from django.utils import timezone
 from rest_framework import status as http
 
 from apps.competitions.models import (
+    ComponentKind,
     ManualQualification,
+    PipelineStep,
     Problem,
     QualificationMode,
     Stage,
     StageEntry,
     StageEntryStatus,
     StageKind,
+    TieBreakKey,
+    TransitionGroupBy,
+    TransitionMode,
 )
+from apps.competitions.services import entry_owner, stage_scoring, weighted_scoring_enabled
 from apps.core.api import DomainError
 from apps.core.models import audit
 from apps.grading.models import Review, ReviewStatus
@@ -51,6 +60,25 @@ logger = logging.getLogger(__name__)
 #: ``StageKind.TRAINING`` **nie ma** na tej liście i to jest cała reguła „trening jest poza
 #: kwalifikacją”: etap treningowy nie ma następnego etapu i nigdy nie jest niczyim następnym.
 STAGE_ORDER = (StageKind.ELIM, StageKind.DISTRICT, StageKind.FINAL)
+
+#: Przełącznik, za którym stoi **cała** dwudrożność kwalifikacji w tym module
+#: (``docs/UNIWERSALNY-ETAP-2.md`` § 1.2). Nazwa jest jedna i jest tutaj, żeby literówka w niej
+#: wywracała się w jednym miejscu, a nie w każdym wywołaniu ``has_feature`` – ten sam zabieg, co
+#: ``BRANDING_FLAG`` w ``apps.tenancy.branding``. Wyłączona (i taka jest dla Konkursu #1) znaczy,
+#: że kolejność etapów czytamy z ``STAGE_ORDER``, a próg z ``QualificationRule`` – czyli dokładnie
+#: tą samą drogą i tym samym kodem, co przed etapem 2.
+PROCESS_EDITOR_FLAG = "process_editor"
+
+#: Przełącznik osobnych rankingów i progów per kategoria (§ 1.2.4). Wyłączony (i taki jest dla
+#: Konkursu #1) znaczy: jedna tabela, wiersz bez ani jednego nowego klucza, snapshot bez ani
+#: jednego nowego pola. Kategorie i przebieg z danych są **osobnymi** flagami z rozmysłem –
+#: konkurs bywa dwukategorialny bez przepisywania przebiegu i odwrotnie.
+CATEGORIES_FLAG = "categories"
+
+#: Przełącznik zgłoszeń drużynowych (§ 1.2.3). W tym module rozstrzyga **wyłącznie** o tym, czy
+#: odczyt wpisów dociąga drużynę jednym złączeniem – suma etapu chodzi po wpisach i drużyny nie
+#: zauważa. Wyłączony (i taki jest dla Konkursu #1) znaczy: ani jedno złączenie więcej.
+TEAM_ENTRIES_FLAG = "team_entries"
 
 #: Stany, w których ocena zgłoszenia jeszcze trwa. Etap z takim zgłoszeniem nie da się przeliczyć:
 #: suma punktów byłaby chwilowa, a opublikowana tabela musi być ostateczna (PROJEKT.md 2.4).
@@ -84,6 +112,58 @@ def _conflict(detail: str, code: str) -> DomainError:
 
 def _bad_request(detail: str, code: str) -> DomainError:
     return DomainError(detail, code, http.HTTP_400_BAD_REQUEST)
+
+
+# --- flagi konkursu ----------------------------------------------------------------------------
+#
+# Trzy funkcje i ani jednego ``has_feature`` poza nimi – to jest cała reguła § 1.0 (c) zapisana
+# w kodzie. Flagę czyta się **raz, możliwie wysoko**: na wejściu do przeliczenia albo na wejściu
+# do kwalifikacji, nigdy w pętli po wierszach i nigdy w szablonie. Wyłączona flaga ma dać kod
+# sprzed etapu 2 co do zapytania i co do wiersza, a nie „nową logikę ustawioną tak, żeby wyszło
+# to samo”.
+
+
+def competition_of(stage: Stage):
+    """Konkurs, do którego należy etap – drogą przez edycję.
+
+    Etap nie ma własnej kolumny konkursu i mieć jej nie będzie: druga droga do tej samej prawdy
+    to druga okazja do rozjazdu (``docs/UNIWERSALNY-ETAP-1.md`` § 3.4, § 1.0 (a) etapu 2). Funkcja
+    istnieje po to, żeby ta droga była zapisana **raz**, a nie powtarzana w każdym odczycie flagi.
+    """
+    return stage.edition.competition
+
+
+def process_editor_enabled(competition=None) -> bool:
+    """Czy ten konkurs czyta przebieg zawodów z danych, czy ze stałych w kodzie.
+
+    **Jedyne** wejście do flagi ``process_editor`` w całym module wyników (§ 1.0 (c)): decyzja
+    „którą drogą” zapada tu, raz na czynność, a nie w pętli po wierszach i nie w szablonie.
+
+    Brak konkursu to nie jest „organizator wyłączył funkcję”, tylko „nie wiadomo, czyj to etap” –
+    a odpowiedź w obu wypadkach ma być ta sama: zachowanie sprzed etapu 2.
+    """
+    return competition is not None and competition.has_feature(PROCESS_EDITOR_FLAG)
+
+
+def categories_enabled(competition=None) -> bool:
+    """Czy tabela wyników tego konkursu dzieli się na kategorie. **Jedyne** wejście do flagi.
+
+    Odpowiedź ``False`` znaczy dokładnie tyle, co przed etapem 2: jeden ranking, wiersz bez klucza
+    ``category`` i snapshot bez nowego pola. Ta sama reguła odwrotu, co wyżej – brak konkursu to
+    „nie wiadomo, czyja to tabela”, a nie „organizator wyłączył kategorie”.
+    """
+    return competition is not None and competition.has_feature(CATEGORIES_FLAG)
+
+
+def team_entries_enabled(competition=None) -> bool:
+    """Czy w tym konkursie właścicielem wpisu bywa drużyna. **Jedyne** wejście do flagi tutaj.
+
+    Odpowiedź rozstrzyga wyłącznie o **koszcie** odczytu: o właścicielu wpisu rozstrzygają dane
+    wiersza (``competitions.services.entry_owner``), a nie przełącznik. Konkurs bez drużyn nie ma
+    płacić za nie ani jednym złączeniem – stąd ta funkcja, a nie ``select_related("team")``
+    dopisane na stałe (§ 0.1, § 5.6).
+    """
+    return competition is not None and competition.has_feature(TEAM_ENTRIES_FLAG)
 
 
 # --- brama czasowa i blokada etapu -------------------------------------------------------------
@@ -177,19 +257,255 @@ def _assert_finalized(pending_codes: list[str]) -> None:
     raise error
 
 
-def _rank_rows(rows: list[dict]) -> list[dict]:
+def _category_fields(entry) -> dict:
+    """Trzy klucze kategorii dokładane do wiersza – i ani jednego więcej.
+
+    Rozdzielone z rozmysłem, bo czytają je trzy różne warstwy i każda potrzebuje czego innego:
+    ``category_id`` grupuje (ranking i reguła przejścia), ``category`` jest **etykietą** do
+    wyświetlenia w tabeli (tak samo, jak ``district`` jest etykietą, a nie slugiem), a
+    ``category_position`` ustawia grupy w kolejności organizatora.
+
+    Wpis bez kategorii w konkursie, który kategorie ma, dostaje puste wartości, a nie brak kluczy:
+    tabela ma wtedy jedną grupę „bez kategorii”, a nie wiersze wypadające z rankingu.
+    """
+    category = entry.category
+    return {
+        "category_id": entry.category_id,
+        "category": category.name if category is not None else "",
+        "category_position": category.position if category is not None else 0,
+    }
+
+
+def _group_order(row: dict) -> tuple[int, int]:
+    """Miejsce grupy w tabeli: kolejność ustawiona przez organizatora, a przy remisie identyfikator.
+
+    Wiersz bez kategorii (czyli **każdy** wiersz Konkursu #1) daje ``(0, 0)``, więc wszystkie
+    wiersze są w jednej grupie i porządek tabeli jest dokładnie ten, co przed etapem 2. Kolejność
+    bierzemy z ``Category.position``, a nie z nazwy: „podstawowa” przed „ponadpodstawową” to
+    decyzja organizatora, a nie przypadek alfabetu.
+    """
+    return (row.get("category_position") or 0, row.get("category_id") or 0)
+
+
+# --- rozstrzyganie remisów (§ 1.2.6 c) -----------------------------------------------------------
+#
+# Dziś remis znaczy **to samo miejsce** i nie ma żadnego kryterium, które by go rozstrzygało;
+# ``public_code`` układa wiersze wewnątrz remisu, ale niczego nie rozstrzyga – jest porządkiem
+# powtarzalności wydruku. Etap 2 tego nie zmienia, tylko dokłada obok **listę** kryteriów, którą
+# etap może mieć albo nie mieć (``competitions.TieBreak``). Etap bez ani jednego kryterium – czyli
+# **każdy** etap Olimpiady Kwantowej – nie płaci za nie ani jednego zapytania i dostaje dokładnie
+# dzisiejszą tabelę: ta sama kolejność wierszy i te same miejsca.
+#
+# Kryteria wchodzą do klucza sortowania **między** sumę a ``public_code`` i w tej samej kolejności
+# rozstrzygają o wspólnym miejscu: dwa wiersze dzielą miejsce wtedy i tylko wtedy, gdy są równe na
+# sumie i na każdym kryterium. Wartości są liczbami (czas oddania też – w sekundach epoki), bo
+# kierunek „malejąco/rosnąco” nakłada się wtedy zmianą znaku, a jeden klucz sortowania jest jedyną
+# gwarancją, że porządek wierszy i podział na miejsca nie mogą się rozejść.
+
+
+@dataclass(frozen=True)
+class TieBreakSpec:
+    """Jedno kryterium rozstrzygania remisów, odczytane z bazy i gotowe do porównania w pamięci.
+
+    Obiekt istnieje po to, żeby ``_rank_rows`` nie zadało **ani jednego** zapytania: wszystko, co
+    kryterium potrzebuje z bazy (numer zadania, identyfikator komponentu, pełne wyniki zadań, czasy
+    oddania prac), jest tu policzone raz na etap, a nie raz na wiersz.
+    """
+
+    key: str
+    descending: bool = True
+    #: Klucz w ``row["points"]`` dla ``PROBLEM_SCORE`` – numer zadania jako tekst, bo takim kluczem
+    #: opisuje punkty ``compute_stage_results``.
+    problem_number: str = ""
+    #: Klucz w ``row["components"]`` dla ``COMPONENT_SCORE`` – identyfikator komponentu jako tekst.
+    component_id: str = ""
+    #: Pełny wynik każdego zadania (``SOLVED_COUNT``), w tej samej postaci, w jakiej leży w wierszu.
+    full_scores: dict[str, int] = field(default_factory=dict)
+    #: Czas oddania ostatniej pracy wpisu w sekundach epoki (``SUBMITTED_AT``).
+    last_submission: dict[int, float] = field(default_factory=dict)
+
+    def value_of(self, row: dict) -> int | float | None:
+        """Wartość kryterium dla jednego wiersza albo ``None``, gdy wiersz jej nie ma.
+
+        ``None`` znaczy „nie ma czym rozstrzygnąć” i **zawsze** ląduje na końcu – niezależnie od
+        kierunku. Brak wartości nie jest ani najlepszym, ani najgorszym wynikiem: to brak danych,
+        a uczestnik bez danych nie ma wyprzedzać tego, o kim wiadomo.
+        """
+        points = row.get("points") or {}
+        if self.key == TieBreakKey.HIGHEST_SINGLE:
+            return max(points.values()) if points else None
+        if self.key == TieBreakKey.PROBLEM_SCORE:
+            return points.get(self.problem_number)
+        if self.key == TieBreakKey.COMPONENT_SCORE:
+            return (row.get("components") or {}).get(self.component_id)
+        if self.key == TieBreakKey.SOLVED_COUNT:
+            return sum(1 for number, full in self.full_scores.items() if points.get(number, -1) >= full)
+        if self.key == TieBreakKey.SUBMITTED_AT:
+            return self.last_submission.get(row["entry_id"])
+        # ``NONE`` nie dochodzi tutaj nigdy: ``tie_break_keys`` ucina na nim listę. Gdyby doszło,
+        # odpowiedź „brak wartości” jest jedyną bezpieczną – wszyscy równi, czyli wspólne miejsce.
+        return None
+
+
+def _full_scores(stage: Stage) -> dict[str, int]:
+    """Pełny wynik każdego zadania etapu – w tej samej postaci, w jakiej leży w wierszu wyników.
+
+    Wiersz niesie ocenę **wystawioną przez recenzenta**, czyli wartość z bazy po odjęciu
+    przesunięcia skali (``StageScoring.score``, § 1.2.6 b) – i to jest postać, w której stoi
+    ``max_value`` skali, bo skalę wpisuje organizator swoimi liczbami. Pełny wynik musi być w tej
+    samej postaci, inaczej „zadanie zrobione na maksa” nie zostałoby zliczone ani razu. Zadanie
+    z własną skalą przesunięciu etapu nie podlega – tak samo czyta to
+    ``competitions.services.stage_scoring``. Przy ``offset = 0`` (czyli w całym Konkursie #1)
+    obie postaci są tą samą liczbą.
+    """
+    scale = getattr(stage, "scoring_scale", None)
+    full: dict[str, int] = {}
+    for problem in stage.problems.all():
+        if problem.has_own_scale:
+            maximum = problem.max_points
+        elif scale is not None:
+            maximum = scale.max_value
+        else:
+            maximum = None
+        if maximum is not None:
+            full[str(problem.number)] = maximum
+    return full
+
+
+def _last_submission_times(stage: Stage) -> dict[int, float]:
+    """Czas oddania **ostatniej** pracy każdego wpisu, w sekundach epoki. Jedno zapytanie na etap.
+
+    Wersja odrzucona przez antywirusa nie jest oddaniem pracy – tak samo czyta to
+    ``_latest_submissions``: taka wersja nigdy nie weszła do oceniania. Wpis bez ani jednej pracy
+    nie ma tu wiersza i kryterium odpowie dla niego ``None``, czyli „na koniec”.
+    """
+    rows = (
+        Submission.objects.filter(entry__stage=stage)
+        .exclude(status=SubmissionStatus.REJECTED_INFECTED)
+        .values("entry_id")
+        .annotate(last=Max("submitted_at"))
+    )
+    return {row["entry_id"]: row["last"].timestamp() for row in rows}
+
+
+def tie_break_keys(stage: Stage, *, competition=None) -> tuple[TieBreakSpec, ...]:
+    """Kryteria rozstrzygania remisów etapu, w kolejności organizatora i z gotowymi wartościami.
+
+    Pusta krotka znaczy „układaj tabelę dokładnie jak przed etapem 2” i jest odpowiedzią w trzech
+    wypadkach: flaga ``weighted_scoring`` wyłączona (czyli w całym Konkursie #1), etap bez ani
+    jednego wiersza ``TieBreak``, albo lista zaczynająca się od ``NONE``. Przy wyłączonej fladze
+    funkcja nie robi **ani jednego zapytania** – pyta o flagę, zanim spojrzy na bazę (§ 5.6).
+
+    Flagę czyta ``competitions.services.weighted_scoring_enabled`` i nikt tu poza nią (§ 1.0 (c)):
+    wagi, punkty ujemne i remisy są jedną decyzją organizatora, więc mają jedno wejście. Konkurs
+    wolno podać, gdy wołający i tak go ma – przeliczenie wyników ma – żeby droga przez edycję nie
+    była przechodzona drugi raz.
+
+    ``NONE`` ucina listę **wraz z sobą**: „po tych kryteriach już nie rozstrzygamy” znaczy, że
+    wiersze równe na wcześniejszych dzielą miejsce, a nie że rozstrzyga je cokolwiek dalszego.
+    Kryteria za nim zostają w bazie i wracają do gry, gdy koordynator przestawi kolejność – to jest
+    ta sama decyzja, co przy ``off_pipeline``: wiersz wyjęty z toru, a nie skasowany.
+    """
+    if competition is None:
+        competition = competition_of(stage)
+    if not weighted_scoring_enabled(competition):
+        return ()
+    rules: list[TieBreakSpec] = []
+    full_scores: dict[str, int] | None = None
+    last_submission: dict[int, float] | None = None
+    for rule in stage.tie_breaks.select_related("problem").order_by("position", "id"):
+        if rule.key == TieBreakKey.NONE:
+            break
+        if rule.key == TieBreakKey.SOLVED_COUNT and full_scores is None:
+            full_scores = _full_scores(stage)
+        if rule.key == TieBreakKey.SUBMITTED_AT and last_submission is None:
+            last_submission = _last_submission_times(stage)
+        rules.append(
+            TieBreakSpec(
+                key=rule.key,
+                descending=rule.descending,
+                problem_number=str(rule.problem.number) if rule.problem_id else "",
+                component_id=str(rule.component_id) if rule.component_id else "",
+                full_scores=full_scores or {},
+                last_submission=last_submission or {},
+            )
+        )
+    return tuple(rules)
+
+
+def _tie_sort_key(row: dict, tie_breaks: tuple[TieBreakSpec, ...]) -> tuple:
+    """Część klucza sortowania pochodząca z kryteriów remisu. Bez kryteriów – pusta krotka.
+
+    Każde kryterium daje parę ``(obecność, liczba)``: wartość obecna ma ``0`` i idzie przed brakiem
+    (``(1, 0)``) niezależnie od kierunku, a kierunek „malejąco” nakłada się zmianą znaku. Para, a nie
+    sama liczba, bo inaczej „brak wyniku” musiałby udawać którąś z wartości – a udawać ma nie czego:
+    ani zera (to jest wynik), ani nieskończoności (to nie jest liczba punktów).
+    """
+    return tuple(
+        (0, -value if spec.descending else value) if (value := spec.value_of(row)) is not None else (1, 0)
+        for spec in tie_breaks
+    )
+
+
+def _place_key(row: dict, tie_breaks: tuple[TieBreakSpec, ...]) -> tuple:
+    """Co musi być równe, żeby dwa wiersze dzieliły miejsce: suma i **każde** kryterium.
+
+    Bez kryteriów wychodzi jednoelementowa krotka z samą sumą, czyli dokładnie dzisiejsza reguła
+    „ten sam wynik to to samo miejsce”. Klucz jest liczony z tych samych wartości, co klucz
+    sortowania, żeby porządek wierszy i podział na miejsca nie mogły powiedzieć czegoś innego.
+    """
+    return (row["total"], *(spec.value_of(row) for spec in tie_breaks))
+
+
+def _rank_rows(
+    rows: list[dict], group_by: str | None = None, tie_breaks: tuple[TieBreakSpec, ...] = ()
+) -> list[dict]:
     """Nadaje miejsca: malejąco po sumie, remis = to samo miejsce (1, 1, 3).
 
     Porządek wewnątrz remisu jest po ``public_code``, żeby tabela była powtarzalna – dwie
-    publikacje tych samych danych muszą dać ten sam plik.
+    publikacje tych samych danych muszą dać ten sam plik. ``public_code`` zostaje **ostatnim**
+    kluczem sortowania i nie jest kryterium rozstrzygania – jest porządkiem powtarzalności wydruku.
+
+    ``group_by`` (etap 2, § 1.2.4) wskazuje klucz wiersza, po którym tabela dzieli się na osobne
+    rankingi – dziś wyłącznie ``"category_id"``. ``None`` znaczy jedna tabela i jest **jedynym**
+    stanem Konkursu #1: wtedy wszystkie wiersze wpadają do jednej grupy, ``_group_order`` oddaje
+    dla każdego to samo, a lista wychodzi z tej funkcji identyczna co do wiersza i co do miejsca,
+    jak przed etapem 2. Grupy nie są liczone osobną pętlą właśnie po to, żeby nie było dwóch
+    implementacji „miejsca w tabeli”, które mogłyby się rozejść na remisie.
+
+    Miejsca wewnątrz grupy liczą się **od 1**: uczestnik kategorii „podstawowa” ma być pierwszy
+    w swojej kategorii, a nie dwusetny w tabeli, której nikt w tej postaci nie ogłasza.
+
+    ``tie_breaks`` (etap 2, § 1.2.6 c) to kryteria rozstrzygania remisów etapu, gotowe z
+    ``tie_break_keys``. Pusta krotka – jedyny stan Konkursu #1 – znaczy dokładnie dzisiejszą regułę:
+    ta sama suma to to samo miejsce. Z kryteriami wspólne miejsce dostają wyłącznie wiersze równe
+    **na sumie i na każdym kryterium**; kryteria wchodzą do klucza sortowania między sumę
+    a ``public_code``, który zostaje ostatnim kluczem także wtedy. Funkcja nie robi tu ani jednego
+    zapytania – wszystko, czego kryteria potrzebują z bazy, niesie ``TieBreakSpec``.
     """
-    ordered = sorted(rows, key=lambda row: (-row["total"], row["public_code"]))
-    rank = 0
-    previous_total: int | None = None
-    for index, row in enumerate(ordered, start=1):
-        if previous_total is None or row["total"] != previous_total:
-            rank = index
-            previous_total = row["total"]
+    ordered = sorted(
+        rows,
+        key=lambda row: (
+            _group_order(row),
+            -row["total"],
+            _tie_sort_key(row, tie_breaks),
+            row["public_code"],
+        ),
+    )
+    #: Wartownik, bo ``None`` jest poprawnym kluczem grupy (wiersz bez kategorii w konkursie,
+    #: który kategorie ma) i nie da się go użyć jako „jeszcze nie zaczęliśmy”.
+    unset = object()
+    group: object = unset
+    start = rank = 0
+    previous_place: tuple | None = None
+    for index, row in enumerate(ordered):
+        key = row.get(group_by) if group_by else None
+        if group is unset or key != group:
+            group, start, previous_place = key, index, None
+        place = _place_key(row, tie_breaks)
+        if previous_place is None or place != previous_place:
+            rank = index - start + 1
+            previous_place = place
         row["rank"] = rank
     return ordered
 
@@ -230,6 +546,201 @@ def _quiz_scores(stage: Stage, *, preview: bool) -> dict[int, int] | None:
     return quiz_services.stage_scores(stage)
 
 
+# --- komponenty etapu (§ 1.2.3) ------------------------------------------------------------------
+#
+# Etap **bez ani jednego komponentu** nie wchodzi tu ani razu: ``compute_stage_results`` pyta o nie
+# dopiero przy włączonej fladze ``process_editor``, a etap bez wierszy czyta ``Stage.format``
+# dokładnie tak, jak czytał przed etapem 2. To nie jest trzecia gałąź obok „zadania albo test” –
+# to jest **zamiana jednej osi na listę**: ta sama suma ocen zadań i ten sam szew z testem online
+# (``apps.quiz.services.stage_scores``), tylko wybierane przez wiersz komponentu, a nie przez pole.
+
+#: Rodzaje komponentów, których punkty biorą się z ``FinalGrade`` po zadaniach etapu – czyli tą samą
+#: drogą i z tej samej pętli, co dzisiejsza suma. Różni je to, **czyja** to praca i kto ją wystawił
+#: (uczestnik zdalnie, komisja na miejscu, drużyna), a nie arytmetyka.
+#:
+#: Konsekwencja, nazwana wprost: kilka takich komponentów w jednym etapie dzieli **jedną** sumę ocen
+#: zadań. Rozbicie zadań między komponenty wymagałoby wskazania komponentu przy zadaniu, a takiego
+#: pola nie ma i etap 2 go nie dokłada – etap o dwóch niezależnych zestawach zadań opisuje się dziś
+#: dwoma krokami przebiegu, a nie dwoma komponentami.
+GRADE_COMPONENT_KINDS = frozenset({ComponentKind.SUBMISSIONS, ComponentKind.ONSITE, ComponentKind.TEAM})
+
+
+def _components_of(stage: Stage) -> tuple:
+    """Komponenty etapu w kolejności ``position``. Pusta krotka znaczy „czytaj ``Stage.format``”."""
+    return tuple(stage.components.all())
+
+
+def _quiz_component_scores(stage: Stage, *, preview: bool) -> dict[int, int]:
+    """Punkty z testu dla **komponentu**, czyli bez pytania o ``Stage.format``.
+
+    Szew z ``apps.quiz`` jest ten sam, co w ``_quiz_scores`` (``stage_scores`` i ``finalise_overdue``
+    poza podglądem) i celowo nie jest z nią scalony: tamta funkcja odpowiada na pytanie „czy ten
+    etap **jest** testem”, a ta na „ile punktów dał test, który jest **jedną z form** tego etapu”.
+    Scalenie ich znaczyłoby, że etap z komponentem testowym musi mieć ``format=QUIZ`` – czyli że
+    komponenty nie zniosły wykluczalności, tylko ją przepisały.
+
+    Etap bez testu dostaje pusty słownik (``stage_scores`` sam tak odpowiada), więc komponent
+    testowy w etapie bez testu daje wszystkim zero, a nie wywraca przeliczenia.
+    """
+    from apps.quiz import services as quiz_services
+
+    if not preview:
+        quiz_services.finalise_overdue(stage=stage)
+    return quiz_services.stage_scores(stage)
+
+
+def _component_sources(stage: Stage, components, *, preview: bool) -> dict[int, dict[int, int]]:
+    """Punkty per wpis dla źródeł, które **nie** są sumą ocen zadań. Jedno zapytanie na źródło.
+
+    Źródło, którego żaden komponent nie potrzebuje, nie jest w ogóle odpytywane – etap o samych
+    komponentach pisemnych nie płaci ani jednego zapytania za istnienie testów online ani za
+    istnienie rozmów.
+
+    Klucz jest **komponentem**, a nie jego rodzajem, i to jest jedyna różnica wobec pierwszego
+    kształtu tej funkcji (T35). Powód nazwany wprost: dwie rozmowy w jednym etapie – wstępna
+    i finałowa – są dwoma komponentami o dwóch niezależnych wynikach, a klucz po rodzaju dałby im
+    jeden wspólny słownik, czyli tę samą liczbę w dwóch kolumnach tabeli. Test online tego problemu
+    nie ma (etap ma jeden zestaw pytań), więc jego mapa jest **tą samą** mapą pod każdym kluczem –
+    zapytanie pada raz, niezależnie od liczby komponentów testowych.
+
+    ``INTERVIEW`` czyta ``InterviewScore`` przez ``competitions.interviews.interview_scores_for``
+    (T36, § 1.2.3): wpis bez wyniku **nie ma tam klucza**, a nie zero – różnicę między „komisja
+    wpisała zero” a „komisja jeszcze nie wpisała” rozstrzyga dopiero ``StageComponent.required``
+    (patrz ``_missing_interview_codes``). Import jest lokalny, tak samo jak przy teście online:
+    moduł wyników czyta źródło punktów dopiero wtedy, gdy etap naprawdę ma taki komponent.
+    """
+    sources: dict[int, dict[int, int]] = {}
+    quiz_scores: dict[int, int] | None = None
+    interview_scores: dict[int, dict[int, int]] | None = None
+    for component in components:
+        if component.kind == ComponentKind.QUIZ:
+            if quiz_scores is None:
+                quiz_scores = _quiz_component_scores(stage, preview=preview)
+            sources[component.pk] = quiz_scores
+        elif component.kind == ComponentKind.INTERVIEW:
+            if interview_scores is None:
+                from apps.competitions.interviews import interview_scores_for
+
+                interview_scores = interview_scores_for(stage)
+            sources[component.pk] = interview_scores.get(component.pk, {})
+    return sources
+
+
+def _missing_interview_codes(components, sources, rows) -> list[str]:
+    """Pseudonimy wpisów, którym komisja nie wpisała punktów z **wymaganej** rozmowy.
+
+    Ta sama reguła, co przy nierozliczonej pracy (``_blocks_finalization``) i ten sam skutek
+    (``STAGE_NOT_FINALIZED``): brak wyniku nie jest zerem, tylko brakującą oceną, a cicha zamiana
+    luki na zero zaniżyłaby sumę i mogła wyrzucić kogoś z progu. ``required=False`` znaczy dokładnie
+    to, co mówi docstring ``StageComponent``: rozmowa nieobowiązkowa liczy się jako zero i nie
+    trzyma całej tabeli za zakładnika.
+
+    Rozmowa jest jedynym takim źródłem. Test online swojego braku nie zgłasza i zgłaszać nie ma –
+    podejście, którego nikt nie zaczął, jest tam zerem od zawsze (``quiz.services.stage_scores``),
+    a zmiana tej reguły byłaby zmianą zachowania etapu testowego, a nie dołożeniem rozmowy.
+    """
+    required = [c for c in components if c.required and c.kind == ComponentKind.INTERVIEW]
+    if not required:
+        return []
+    missing: list[str] = []
+    for component in required:
+        scored = sources.get(component.pk, {})
+        missing += [row["public_code"] for row in rows if row["entry_id"] not in scored]
+    return missing
+
+
+def _grades_block_finalization(components) -> bool:
+    """Czy nierozliczona praca nadal zamyka tabelę wyników etapu.
+
+    Bez komponentów: **zawsze**, czyli dokładnie jak dziś (``_blocks_finalization`` i
+    ``STAGE_NOT_FINALIZED``). Z komponentami: tylko wtedy, gdy któryś komponent czytający oceny
+    jest ``required``. Komponent nieobowiązkowy to zawody dodatkowe, w których nie każdy startuje –
+    czekanie z całą tabelą na jego dokończenie byłoby braniem zakładnika za cudzą nieobecność.
+    """
+    if not components:
+        return True
+    return any(component.required and component.kind in GRADE_COMPONENT_KINDS for component in components)
+
+
+def _round_half_up(value: Fraction) -> int:
+    """Ułamek na pełne punkty, połówka w górę – **ta sama** metoda, co ``apps.quiz.services``.
+
+    Zaokrąglenie następuje **raz**, na samym końcu sumy (§ 1.2.6). Sumowanie idzie przez
+    ``Fraction``, bo waga ``1/3`` zapisana jako ``0.333…`` dawałaby sumę zależną od kolejności
+    dodawania – czyli tabelę wyników zmieniającą się przy ponownym przeliczeniu tych samych danych.
+    """
+    return int(
+        (Decimal(value.numerator) / Decimal(value.denominator)).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    )
+
+
+def _component_total(entry_id: int, components, sources, grades_total: int) -> tuple[dict[str, int], int]:
+    """Punkty komponentów jednego wpisu i ich ważona suma.
+
+    Zwraca parę: słownik ``{id komponentu: punkty}`` (kolumny tabeli koordynatora i wsad do
+    rozstrzygania remisów, T40) oraz sumę zaokrągloną do pełnych punktów. Waga ``1/1`` na jedynym
+    komponencie pisemnym daje liczbę **identyczną** z dzisiejszą sumą ``int`` – i to jest osobna
+    asercja testu, a nie przypuszczenie.
+
+    Źródła są kluczowane **komponentem** (``_component_sources``), więc dwa komponenty tego samego
+    rodzaju dostają dwa niezależne wyniki – a nie jedną liczbę powtórzoną w dwóch kolumnach.
+    """
+    scores: dict[str, int] = {}
+    total = Fraction(0)
+    for component in components:
+        if component.kind in GRADE_COMPONENT_KINDS:
+            score = grades_total
+        else:
+            score = int(sources.get(component.pk, {}).get(entry_id, 0))
+        scores[str(component.pk)] = score
+        total += component.weight * score
+    return scores, _round_half_up(total)
+
+
+def _owner_fields(owner, participant, current_year: int) -> dict:
+    """Ta część wiersza, która opisuje **właściciela** wpisu: uczestnika albo drużynę (§ 1.2.3).
+
+    Klucze są te same dla obu rodzajów właściciela i to jest cała sztuczka: kwalifikacja, próg,
+    snapshot i podgląd koordynatora czytają wiersz, a nie wpis, więc nie muszą wiedzieć, kto nim
+    stoi. Wiersz uczestnika wychodzi stąd **co do klucza i co do wartości** taki, jak przed
+    etapem 2 – Konkurs #1 nie ma ani jednej drużyny, więc druga gałąź nie wykonuje się tam nigdy.
+
+    Drużyna nie ma nazwiska, wieku ani zgód na publikację i dlatego dostaje wartości „domyślnie
+    zamknięte”: puste napisy i ``False``. Nazwa drużyny jedzie osobnym kluczem ``team_name``,
+    którego wiersz uczestnika **nie ma** – po nim (i tylko po nim) ``_display_name`` poznaje, że
+    podpisem tej pozycji jest nazwa składu, a nie pseudonim osoby.
+    """
+    if participant is None:
+        return {
+            "participant_id": None,
+            "public_code": owner.public_code,
+            "first_name": "",
+            "last_name": "",
+            "school": owner.school,
+            # Drużyna bywa międzyszkolna i nie ma okręgu – pusty napis jest tu odpowiedzią
+            # prawdziwą, a nie brakiem danych do uzupełnienia.
+            "district": "",
+            "publish_full_name": False,
+            "guardian_consent": False,
+            "is_adult": False,
+            "team_name": owner.name,
+        }
+    return {
+        "participant_id": participant.pk,
+        "public_code": participant.public_code,
+        "first_name": participant.user.first_name,
+        "last_name": participant.user.last_name,
+        "school": participant.school,
+        # Etykieta, nie slug: snapshot jest danymi do wyświetlenia (tabela publiczna
+        # i podgląd koordynatora czytają go dosłownie), a grupowanie po ``_district_key``
+        # jest odporne na postać zapisu, bo normalizuje wielkość liter i spacje.
+        "district": participant.get_district_display(),
+        "publish_full_name": participant.publish_full_name,
+        "guardian_consent": participant.guardian_consent,
+        "is_adult": _is_adult(participant.birth_year, current_year),
+    }
+
+
 def compute_stage_results(stage: Stage, *, preview: bool = False) -> list[dict]:
     """Tabela wyników etapu: suma ``FinalGrade.score`` po najnowszych wersjach zgłoszeń.
 
@@ -247,15 +758,49 @@ def compute_stage_results(stage: Stage, *, preview: bool = False) -> list[dict]:
     ``StageEntry.total_points`` byłby skutkiem ubocznym zwykłego wejścia na stronę (żądanie GET).
     Praca bez oceny liczy się wtedy jako 0 punktów – i dlatego ekran symulacji **musi** napisać,
     ilu prac jeszcze nie rozliczono. Publikacja i kwalifikacja nigdy z tego trybu nie korzystają.
+
+    **Kategorie (§ 1.2.4)** dokładają do wiersza trzy klucze i dzielą ranking – ale wyłącznie
+    w konkursie, który ma flagę ``categories`` włączoną. Przy wyłączonej nie ma ani jednego
+    nowego klucza w wierszu, ani jednego złączenia więcej w zapytaniu i ani jednej innej liczby
+    w kolumnie „miejsce”. To jest wymaganie nadrzędne (§ 0.1), a nie optymalizacja.
+
+    **Komponenty (§ 1.2.3)** są drugą, równoległą drogą sumowania i wchodzą dopiero wtedy, gdy
+    konkurs ma flagę ``process_editor``, a etap ma choć jeden wiersz ``StageComponent``. Etap bez
+    komponentów – czyli **każdy** etap Olimpiady Kwantowej – nie płaci za nie ani jednego zapytania
+    i liczy się tą samą gałęzią, co przed etapem 2: suma ocen zadań albo, dla ``format=QUIZ``,
+    punkty z testu **zamiast** niej.
+
+    **Remisy (§ 1.2.6 c)** rozstrzyga lista ``TieBreak`` etapu i wchodzi ona wyłącznie tam, gdzie
+    konkurs ma flagę ``weighted_scoring``, a etap – choć jeden wiersz. Etap bez kryteriów układa
+    tabelę dokładnie jak dziś: ta sama suma to to samo miejsce, a ``public_code`` porządkuje wydruk.
     """
+    competition = competition_of(stage)
+    with_categories = categories_enabled(competition)
+    components = _components_of(stage) if process_editor_enabled(competition) else ()
+    # Kryteria remisu też czytamy **raz na przeliczenie**, a nie raz na wiersz – i przy wyłączonej
+    # fladze ``weighted_scoring`` nie kosztuje to ani jednego zapytania (§ 1.2.6 c).
+    tie_breaks = tie_break_keys(stage, competition=competition)
     problems = list(stage.problems.order_by("number", "id"))
-    entries = list(
-        StageEntry.objects.filter(stage=stage)
-        .select_related("participant", "participant__user")
-        .order_by("id")
-    )
+    # Wagi zadań i przesunięcie skali – odczytane **raz na przeliczenie** i z gotowych obiektów,
+    # więc przy włączonej fladze nie kosztują ani jednego zapytania, a przy wyłączonej wychodzą
+    # stałą ``PLAIN_SCORING``, czyli dzisiejszym sumowaniem ``int`` (§ 1.2.6 a–b).
+    scoring = stage_scoring(stage, competition=competition, problems=problems)
+    entries = StageEntry.objects.filter(stage=stage).select_related("participant", "participant__user")
+    if with_categories:
+        # Złączenie, a nie zapytanie na wiersz – i tylko wtedy, gdy kategorie w ogóle istnieją.
+        entries = entries.select_related("category")
+    if team_entries_enabled(competition):
+        # Drugi właściciel wpisu (§ 1.2.3) – tym samym zabiegiem i z tego samego powodu, co
+        # kategorie wyżej: jedno złączenie zamiast zapytania na wiersz i wyłącznie w konkursie,
+        # który drużyny w ogóle prowadzi.
+        entries = entries.select_related("team")
+    entries = list(entries.order_by("id"))
     latest = _latest_submissions(stage)
-    quiz_scores = _quiz_scores(stage, preview=preview)
+    # Etap z komponentami nie pyta o ``Stage.format`` w ogóle: o źródła punktów rozstrzyga lista,
+    # a test online jest na niej jednym z rodzajów, a nie wykluczającą alternatywą.
+    quiz_scores = None if components else _quiz_scores(stage, preview=preview)
+    component_sources = _component_sources(stage, components, preview=preview) if components else {}
+    grades_block = _grades_block_finalization(components)
     # Pełnoletność liczymy raz na cały etap: znamy tylko rok urodzenia, więc dokładniejszej daty
     # i tak nie ma. Do wiersza trafia gotowa flaga, nigdy sam ``birth_year`` – rok urodzenia nie ma
     # po co wędrować przez warstwy aż do serializera.
@@ -264,20 +809,42 @@ def compute_stage_results(stage: Stage, *, preview: bool = False) -> list[dict]:
     pending_codes: list[str] = []
     rows: list[dict] = []
     for entry in entries:
+        # Właściciel wpisu: uczestnik **albo** drużyna, jednym wejściem i bez czytania flagi
+        # (§ 1.2.3). ``participant`` zostaje osobno, bo wiersz niesie o uczestniku rzeczy, których
+        # drużyna nie ma – nazwisko, zgody, okręg – a dla wpisu drużynowego jest ``None``.
+        owner = entry_owner(entry)
         participant = entry.participant
         points: dict[str, int] = {}
-        total = 0
+        # Oceny **takie, jak leżą w bazie**, i wyłącznie te, które ktoś wystawił. Zadanie bez oceny
+        # nie ma tu klucza i to jest różnica, której nie wolno zgubić: przy skali z punktami
+        # ujemnymi „zero w bazie” znaczy „minus przesunięcie”, a brak pracy znaczy zero punktów.
+        raw: dict[int, int] = {}
         for problem in problems:
             submission = latest.get((entry.pk, problem.pk))
             score = 0
             if submission is not None:
-                if _blocks_finalization(submission):
-                    pending_codes.append(participant.public_code)
+                if grades_block and _blocks_finalization(submission):
+                    pending_codes.append(owner.public_code)
                 grade = getattr(submission, "final_grade", None)
-                score = int(grade.score) if grade is not None else 0
+                if grade is not None:
+                    raw[problem.pk] = int(grade.score)
+                    # Do tabeli idzie ocena **wystawiona** przez recenzenta, czyli wartość z bazy
+                    # pomniejszona o przesunięcie skali. Bez flagi (i przy skali bez punktów
+                    # ujemnych) jest to dokładnie liczba z kolumny ``score``.
+                    score = scoring.score(problem.pk, raw[problem.pk])
             points[str(problem.number)] = score
-            total += score
-        if quiz_scores is not None:
+        # Suma liczona **raz**, z ocen takich, jakie leżą w bazie: przesunięcie odejmuje
+        # ``StageScoring.total``, a nie wołający, żeby nie dało się odjąć go dwa razy ani ani razu.
+        # Bez flagi jest to dzisiejsze ``sum`` po ocenach, co do działania.
+        total = scoring.total(raw)
+        component_points: dict[str, int] | None = None
+        if components:
+            # Suma po komponentach **zastępuje** obie dzisiejsze ścieżki naraz: sumę ocen zadań
+            # (która wchodzi tu jako punkty komponentu pisemnego) i punkty z testu (jako punkty
+            # komponentu testowego). Nic nie jest liczone dwa razy – ``total`` z pętli wyżej jest
+            # wejściem do tej funkcji, a nie składnikiem obok niej.
+            component_points, total = _component_total(entry.pk, components, component_sources, total)
+        elif quiz_scores is not None:
             # Etap w formie testu online nie ma zadań ani prac, więc pętla wyżej nic nie policzyła.
             # Suma przychodzi w całości z ``apps.quiz`` i **zastępuje** sumę z zadań, a nie dokłada
             # się do niej: gdyby etap miał jedno i drugie, byłby etapem o dwóch formach naraz –
@@ -286,33 +853,35 @@ def compute_stage_results(stage: Stage, *, preview: bool = False) -> list[dict]:
             # a pytania testu są ich zbyt drobnym i zbyt licznym odpowiednikiem; rozbicie na
             # pytania stoi na własnym ekranie (``/coordinator/stages/<id>/quiz/results/``).
             total = quiz_scores.get(entry.pk, 0)
-        rows.append(
-            {
-                "entry_id": entry.pk,
-                "participant_id": participant.pk,
-                "public_code": participant.public_code,
-                "first_name": participant.user.first_name,
-                "last_name": participant.user.last_name,
-                "school": participant.school,
-                # Etykieta, nie slug: snapshot jest danymi do wyświetlenia (tabela publiczna
-                # i podgląd koordynatora czytają go dosłownie), a grupowanie po ``_district_key``
-                # jest odporne na postać zapisu, bo normalizuje wielkość liter i spacje.
-                "district": participant.get_district_display(),
-                "publish_full_name": participant.publish_full_name,
-                "guardian_consent": participant.guardian_consent,
-                "is_adult": _is_adult(participant.birth_year, current_year),
-                "status": entry.status,
-                # Decyzja komitetu o kwalifikacji wbrew progowi (pusta = rozstrzyga próg).
-                # Wędruje w wierszu, bo czytają ją trzy różne warstwy: kwalifikacja
-                # (``manual_qualified``), snapshot (odznaka w ogłoszonej tabeli) i symulacja.
-                "manual_qualification": entry.manual_qualification,
-                "points": points,
-                "total": total,
-            }
-        )
+        row = {
+            "entry_id": entry.pk,
+            **_owner_fields(owner, participant, current_year),
+            "status": entry.status,
+            # Decyzja komitetu o kwalifikacji wbrew progowi (pusta = rozstrzyga próg).
+            # Wędruje w wierszu, bo czytają ją trzy różne warstwy: kwalifikacja
+            # (``manual_qualified``), snapshot (odznaka w ogłoszonej tabeli) i symulacja.
+            "manual_qualification": entry.manual_qualification,
+            "points": points,
+            "total": total,
+        }
+        if with_categories:
+            row |= _category_fields(entry)
+        if component_points is not None:
+            # Rozbicie na komponenty jest w wierszu **roboczym**, a nie w snapshocie: kolumny
+            # ogłoszonej tabeli buduje ``build_snapshot`` z jawnej listy pól i ten klucz do niej
+            # nie wchodzi. Czytają go podgląd koordynatora i rozstrzyganie remisów (T40).
+            row["components"] = component_points
+        rows.append(row)
 
+    group_by = "category_id" if with_categories else None
     if preview:
-        return _rank_rows(rows)
+        return _rank_rows(rows, group_by, tie_breaks)
+
+    # Brak punktów z **wymaganej** rozmowy zamyka tabelę tak samo, jak nierozliczona praca – i tak
+    # samo jak ona nie zatrzymuje podglądu ani symulacji progu (wyjście wyżej). Liczy się to po
+    # pętli, a nie w niej: wiersz niesie już i identyfikator wpisu, i pseudonim.
+    if components:
+        pending_codes += _missing_interview_codes(components, component_sources, rows)
 
     _assert_finalized(pending_codes)
 
@@ -325,7 +894,7 @@ def compute_stage_results(stage: Stage, *, preview: bool = False) -> list[dict]:
             changed.append(entry)
     if changed:
         StageEntry.objects.bulk_update(changed, ["total_points"])
-    return _rank_rows(rows)
+    return _rank_rows(rows, group_by, tie_breaks)
 
 
 # --- kwalifikacja -----------------------------------------------------------------------------
@@ -410,10 +979,230 @@ def _district_key(value: str | None) -> str:
     return (value or "").strip().casefold()
 
 
-def next_stage_of(stage: Stage) -> Stage | None:
-    """Następny etap tej samej edycji (ELIM → DISTRICT → FINAL). Finał nie ma następnego.
+# --- kwalifikacja z danych: reguły przejścia (§ 1.2.5) -----------------------------------------
+#
+# Cały ten blok jest **martwy**, dopóki konkurs ma flagę ``process_editor`` wyłączoną: wchodzi się
+# do niego wyłącznie przez ``stage_qualification``, a ta pyta o flagę raz, na wejściu. Arytmetyka
+# nie jest tu przepisana ani o linijkę – próg liczy ta sama ``_top_n_cutoff``, a grupy dzieli ten
+# sam ``_district_key``, co dzisiejsze ``_qualified_entry_ids``. Dzięki temu trzy zachowania
+# brzegowe są wspólne z definicji, a nie przez zbieżność dwóch niezależnych implementacji:
+# **zero nie kwalifikuje** w trybach z ``top_n``, **remis na progu wpuszcza wszystkich** (progiem
+# jest wartość, nie miejsce) i **decyzja komitetu bije regułę** – także sumę reguł, bo dokłada ją
+# ``qualified_with_manual`` już po zsumowaniu zbiorów.
 
-    Etap treningowy też nie ma – i nie jest następnym dla żadnego etapu, bo nie ma go
+
+def transition_rules_for(stage: Stage) -> list:
+    """Reguły przejścia kroku tego etapu, w kolejności ``position``. Brak kroku = pusta lista.
+
+    Odczyt idzie przez odwrotny akcesor (``pipeline_step``), a nie przez zapytanie po edycji: krok
+    jest z etapem w relacji jeden-do-jednego, więc pytanie „jaki jest krok tego etapu” ma jedną
+    odpowiedź i nie ma czego sortować. Pusta lista jest tu zwykłym stanem (krok, którego edytor
+    procesu jeszcze nie dotknął), a nie błędem – co z nią zrobić, rozstrzyga
+    :func:`stage_qualification`.
+    """
+    step = getattr(stage, "pipeline_step", None)
+    if step is None:
+        return []
+    return list(step.transition_rules.all())
+
+
+def _assert_transition_rule_valid(rule) -> None:
+    """Komplet parametrów trybu – te same warunki i ten sam kod błędu, co w ``_rule_for``.
+
+    Sprawdzenie jest powtórzone przy **odczycie**, mimo że model ma je w ``clean()``: reguła bywa
+    wpisana migracją albo poprawiona w ``/admin/``, czyli drogą, która ``full_clean()`` omija.
+    Próg bez liczby nie jest progiem łagodnym, tylko progiem, którego nie da się policzyć – i lepiej
+    powiedzieć to przed przeliczeniem niż zakwalifikować kogoś przypadkiem.
+    """
+    if rule.requires_min_points and rule.min_points is None:
+        raise _conflict(f"Reguła przejścia {rule.mode} wymaga min_points.", "QUALIFICATION_RULE_INVALID")
+    if rule.requires_top_n and (rule.top_n is None or rule.top_n < 1):
+        raise _conflict(
+            f"Reguła przejścia {rule.mode} wymaga dodatniego top_n.", "QUALIFICATION_RULE_INVALID"
+        )
+    if rule.requires_percentile and (rule.percentile is None or not 1 <= rule.percentile <= 100):
+        raise _conflict(
+            f"Reguła przejścia {rule.mode} wymaga percentyla z zakresu 1–100.",
+            "QUALIFICATION_RULE_INVALID",
+        )
+
+
+def _category_ids(rows: list[dict]) -> dict[int, int | None]:
+    """Kategoria każdego wpisu: ``{entry_id: category_id}``.
+
+    Wartość bierzemy z wiersza, jeżeli tam stoi, a dla reszty robimy **jedno** zapytanie na cały
+    etap. Dwa źródła, bo wiersz niesie kategorię tylko w konkursie, który ma włączone kategorie
+    (§ 1.2.4) – a reguła przejścia potrafi się do kategorii odwołać także wtedy, gdy tabela
+    wyników jej nie pokazuje. Zapytania nie ma tam, gdzie nie ma po co: woła to wyłącznie reguła
+    dzieląca albo zawężająca po kategorii, więc Konkurs #1 nie płaci za nie ani razu.
+    """
+    known = {row["entry_id"]: row.get("category_id") for row in rows if "category_id" in row}
+    missing = [row["entry_id"] for row in rows if "category_id" not in row]
+    if missing:
+        known.update(dict(StageEntry.objects.filter(pk__in=missing).values_list("pk", "category_id")))
+    return known
+
+
+def _rule_rows(rows: list[dict], rule, categories: dict[int, int | None]) -> list[dict]:
+    """Wiersze, których reguła dotyczy: wszystkie albo wyłącznie jedna kategoria."""
+    if rule.category_id is None:
+        return rows
+    return [row for row in rows if categories.get(row["entry_id"]) == rule.category_id]
+
+
+def _rule_groups(rows: list[dict], group_by: str, categories: dict[int, int | None]) -> list[list[dict]]:
+    """Pole podzielone na grupy reguły. Bez podziału – jedna grupa ze wszystkimi wierszami.
+
+    Grupowanie po regionie jest **tym samym** grupowaniem, co w dzisiejszym
+    ``TOP_N_PER_DISTRICT``: po znormalizowanej etykiecie województwa (``_district_key``). „N na
+    województwo” nie jest osobną arytmetyką, tylko szczególnym przypadkiem „N w grupie”.
+    """
+    if not group_by:
+        return [rows]
+    groups: dict[object, list[dict]] = {}
+    for row in rows:
+        if group_by == TransitionGroupBy.REGION:
+            key: object = _district_key(row["district"])
+        else:
+            key = categories.get(row["entry_id"])
+        groups.setdefault(key, []).append(row)
+    return list(groups.values())
+
+
+def _percentile_top_n(count: int, percentile: int) -> int:
+    """Ilu uczestników grupy to ``percentile`` procent pola – zaokrąglone **w górę**.
+
+    W górę, bo „najlepsze 10 %” z pola siedmiu osób ma znaczyć jedną osobę, a nie zero: reguła
+    zapisana w regulaminie jest obietnicą, że ktoś przejdzie. Rachunek jest całkowitoliczbowy
+    (``-(-a // b)``), bo zaokrąglenie po drodze przez ``float`` potrafi dać przy setce wyników
+    liczbę zależną od kolejności dodawania – ta sama decyzja, co przy wagach jako ułamkach
+    zwykłych (§ 1.2.6). Samo odcięcie robi potem ``_top_n_cutoff``, więc zera nadal nie
+    kwalifikują, a remis na progu nadal wpuszcza wszystkich.
+    """
+    return -(-count * percentile // 100)
+
+
+def _qualified_by_rule(rows: list[dict], rule, categories: dict[int, int | None]) -> set[int]:
+    """Wpisy spełniające **jedną** regułę przejścia.
+
+    Odwzorowanie czterech dzisiejszych trybów jest jeden do jednego (§ 1.2.5): ``MIN_POINTS``
+    liczy to samo porównanie, ``TOP_N`` i ``HYBRID`` to jedna grupa ze wszystkimi, a
+    ``TOP_N_PER_GROUP`` z podziałem ``REGION`` to dzisiejsze ``TOP_N_PER_DISTRICT``.
+
+    ``MANUAL`` nie kwalifikuje nikogo i to nie jest brak implementacji: tryb znaczy „przechodzi
+    wyłącznie ten, komu komitet wpisał decyzję ręcznie”, a tę dokłada ``qualified_with_manual``
+    poza tą funkcją – tak samo, jak dokłada ją do każdego innego trybu.
+    """
+    mode = rule.mode
+    if mode == TransitionMode.MANUAL:
+        return set()
+    scope = _rule_rows(rows, rule, categories)
+    if mode == TransitionMode.MIN_POINTS:
+        return {row["entry_id"] for row in scope if row["total"] >= rule.min_points}
+    qualified: set[int] = set()
+    for group in _rule_groups(scope, rule.group_by, categories):
+        totals = [row["total"] for row in group]
+        if mode == TransitionMode.PERCENTILE:
+            top_n = _percentile_top_n(len(totals), rule.percentile)
+        else:
+            top_n = rule.top_n
+        if not top_n:
+            continue
+        cutoff = _top_n_cutoff(totals, top_n)
+        if cutoff is None:
+            continue
+        for row in group:
+            if row["total"] < cutoff:
+                continue
+            if mode == TransitionMode.HYBRID and row["total"] < rule.min_points:
+                continue
+            qualified.add(row["entry_id"])
+    return qualified
+
+
+def _qualified_by_transition_rules(rows: list[dict], rules, categories: dict[int, int | None]) -> set[int]:
+    """**Suma** zbiorów wszystkich reguł kroku – jedyna dozwolona kompozycja (§ 1.2.5).
+
+    Organizator pisze w regulaminie „do finału przechodzi 30 najlepszych **oraz** każdy, kto
+    zdobył co najmniej 90 punktów” i to jest suma. Iloczyn ma własny tryb (``HYBRID``), bo „oraz”
+    w regulaminie bywa jednym i drugim, a obie operacje wyrażone tą samą listą byłyby nieczytelne.
+    """
+    qualified: set[int] = set()
+    for rule in rules:
+        qualified |= _qualified_by_rule(rows, rule, categories)
+    return qualified
+
+
+@dataclass(frozen=True)
+class StageQualification:
+    """Próg etapu gotowy do zastosowania – **jedna** odpowiedź dla obu dróg.
+
+    Obiekt istnieje po to, żeby pytanie o flagę padło raz (przy budowie), a nie przy każdym
+    wierszu i nie drugi raz w symulacji. Niesie też ``mode`` – napis do audytu i do logu, a nie
+    do tabeli wyników: dla drogi dzisiejszej jest to tryb ``QualificationRule``, dla drogi z danych
+    tryby reguł kroku połączone znakiem ``+`` (bo reguł bywa kilka i każda jest osobną decyzją
+    organizatora).
+    """
+
+    mode: str
+    #: ``QualificationRule`` dla drogi dzisiejszej, ``None`` dla drogi z ``TransitionRule``.
+    rule: object | None
+    #: Reguły przejścia kroku; pusta krotka na drodze dzisiejszej.
+    rules: tuple
+    from_pipeline: bool
+
+    def qualified_entry_ids(self, rows: list[dict]) -> set[int]:
+        """Identyfikatory wpisów spełniających próg. ``rows`` są już bez zdyskwalifikowanych."""
+        if not self.from_pipeline:
+            return _qualified_entry_ids(rows, self.rule)
+        categories = _category_ids(rows) if self.needs_categories else {}
+        return _qualified_by_transition_rules(rows, self.rules, categories)
+
+    @property
+    def needs_categories(self) -> bool:
+        """Czy któraś reguła w ogóle pyta o kategorię – od tego zależy jedno dodatkowe zapytanie."""
+        return any(
+            rule.category_id is not None or rule.group_by == TransitionGroupBy.CATEGORY for rule in self.rules
+        )
+
+
+def stage_qualification(stage: Stage) -> StageQualification:
+    """Próg etapu: z ``TransitionRule`` przy włączonej fladze, z ``QualificationRule`` bez niej.
+
+    Jedyne miejsce, w którym ta decyzja zapada, i jedyne wejście do progu dla przeliczenia
+    i symulacji – rozjazd między nimi znaczyłby, że ekran, na którym koordynator dobiera próg,
+    pokazuje inny wynik niż późniejsze ogłoszenie.
+
+    **Odwrót na dzisiejszą regułę jest świadomy i jest tu najważniejszym zdaniem.** Przy włączonej
+    fladze krok bez ani jednej reguły przejścia (albo etap, dla którego kroku w ogóle nie ma)
+    czyta próg tam, gdzie czytał go zawsze – w ``QualificationRule``. Powód jest jeden i wynika
+    z § 0.1: flaga mówi „edytor procesu jest dostępny”, a nie „każdy etap został już przez ten
+    edytor przepisany”. Bez odwrotu włączenie flagi w trakcie sezonu zabierałoby próg etapom,
+    których nikt jeszcze nie tknął – czyli zmieniałoby wynik, którego zmieniać nie wolno.
+    Odwrotnością „nikt nie przechodzi” nie jest więc pusta lista reguł, tylko reguła w trybie
+    ``MANUAL``; pustka znaczy „nie skonfigurowano”, a nie „nie kwalifikujemy”.
+    """
+    if process_editor_enabled(competition_of(stage)):
+        rules = transition_rules_for(stage)
+        if rules:
+            for rule in rules:
+                _assert_transition_rule_valid(rule)
+            return StageQualification(
+                # ``dict.fromkeys`` zamiast ``set``: napis w audycie ma być powtarzalny, a zbiór
+                # nie ma kolejności. Kolejność jest ta, w której reguły stoją na ekranie.
+                mode="+".join(dict.fromkeys(rule.mode for rule in rules)),
+                rule=None,
+                rules=tuple(rules),
+                from_pipeline=True,
+            )
+    rule = _rule_for(stage)
+    return StageQualification(mode=rule.mode, rule=rule, rules=(), from_pipeline=False)
+
+
+def _next_stage_by_kind(stage: Stage) -> Stage | None:
+    """Następny etap według stałej ``STAGE_ORDER`` – dzisiejsze ciało, przeniesione bez zmiany.
+
+    Etap treningowy nie ma następnego – i nie jest następnym dla żadnego etapu, bo nie ma go
     w ``STAGE_ORDER``. Sprawdzenie jest jawne, a nie oparte na wyjątku z ``.index()``: „trening
     nie kwalifikuje” to reguła, którą trzeba przeczytać w kodzie, a nie wywnioskować z braku.
     """
@@ -428,6 +1217,37 @@ def next_stage_of(stage: Stage) -> Stage | None:
         if found is not None:
             return found
     return None
+
+
+def next_stage_of(stage: Stage) -> Stage | None:
+    """Następny etap tej samej edycji. Ostatni etap toru nie ma następnego.
+
+    Przy wyłączonej fladze ``process_editor`` odpowiedź pochodzi z ``STAGE_ORDER`` – tej samej
+    krotki i tą samą drogą, co przed etapem 2 (ELIM → DISTRICT → FINAL). Przy włączonej –
+    z ``PipelineStep.position``. Obie odpowiedzi muszą być dla Konkursu #1 **równe** i to jest
+    osobny test (§ 5.2, ``test_pipeline_matches_stage_order``).
+
+    Krok ``off_pipeline`` (trening, warsztat, sesja próbna) nie ma następnika i nie jest niczyim
+    następnikiem – dokładnie to, co dziś znaczy nieobecność w ``STAGE_ORDER``. Etap bez kroku przy
+    włączonej fladze też nie ma następnika: skoro przebieg jest danymi, to etap spoza przebiegu nie
+    ma miejsca, z którego można by pójść dalej. To jest jedyne miejsce, w którym odwrotu na
+    ``STAGE_ORDER`` **nie** ma – i nie może być, bo konkurs o pięciu rundach ma wszystkie etapy
+    rodzaju ``ROUND``, a krotka nie umie ich ustawić w kolejności.
+    """
+    if not process_editor_enabled(competition_of(stage)):
+        return _next_stage_by_kind(stage)
+    step = getattr(stage, "pipeline_step", None)
+    if step is None or step.off_pipeline:
+        return None
+    following = (
+        PipelineStep.objects.filter(
+            edition_id=stage.edition_id, off_pipeline=False, position__gt=step.position
+        )
+        .select_related("stage")
+        .order_by("position", "id")
+        .first()
+    )
+    return following.stage if following is not None else None
 
 
 def _sync_next_stage(following: Stage, candidates: list[dict]) -> tuple[int, int, list[str]]:
@@ -510,11 +1330,14 @@ def apply_qualification(stage: Stage, *, actor=None, request=None) -> dict:
     """
     stage = _locked_stage(stage)
     _assert_appeal_window_closed(stage)
-    rule = _rule_for(stage)
+    # Próg rozstrzygamy **przed** przeliczeniem, tak jak dotąd: etap bez progu ma odmówić, zanim
+    # policzy tabelę, której i tak nie ma jak zastosować. ``stage_qualification`` jest jedynym
+    # miejscem, w którym pada pytanie o flagę ``process_editor`` (§ 1.0 (c)).
+    qualification = stage_qualification(stage)
     rows = compute_stage_results(stage)
 
     candidates = [row for row in rows if row["status"] != StageEntryStatus.DISQUALIFIED]
-    qualified_ids = _qualified_entry_ids(candidates, rule)
+    qualified_ids = qualification.qualified_entry_ids(candidates)
 
     entries = {
         entry.pk: entry
@@ -545,7 +1368,7 @@ def apply_qualification(stage: Stage, *, actor=None, request=None) -> dict:
 
     summary = {
         "stage_id": stage.pk,
-        "mode": rule.mode,
+        "mode": qualification.mode,
         "qualified": sum(1 for row in candidates if row["qualified"]),
         "not_qualified": sum(1 for row in candidates if not row["qualified"]),
         "disqualified": len(rows) - len(candidates),
@@ -569,7 +1392,7 @@ def apply_qualification(stage: Stage, *, actor=None, request=None) -> dict:
         "Etap %s: kwalifikacja %s – %s zakwalifikowanych, %s nowych i %s usuniętych wpisów "
         "w etapie %s (%s konfliktów)",
         stage.pk,
-        rule.mode,
+        qualification.mode,
         summary["qualified"],
         created_entries,
         removed_entries,
@@ -615,8 +1438,17 @@ def _display_name(row: dict, anonymization: str, school_sizes: dict[str, int]) -
     dopuszczony wyłącznie w finale – patrz ``publish_results``). ``INITIALS_SCHOOL`` wymaga do tego
     grupy co najmniej ``MIN_SCHOOL_GROUP`` uczestników z tej szkoły w tym etapie: „J.K., XIV LO”
     przy jednym uczestniku z XIV LO to nie anonimizacja, tylko wskazanie palcem.
+
+    **Wpis drużynowy** (§ 1.2.3) podpisuje się nazwą drużyny – w tabeli konkursu drużynowego stoi
+    skład, a nie osoba, i to jego nazwę zna regulamin. Reguły zgód nie stosujemy do niego wcale,
+    bo nie ma czego: nazwa drużyny nie jest niczyim nazwiskiem, a zgodę na publikację składa się
+    za siebie. Tryb ``CODE`` zostaje przy kodzie publicznym także dla drużyny i to jest decyzja,
+    nie przeoczenie: tabela po pseudonimach ma być po pseudonimach bez wyjątku, a nazwę składu
+    bywa, że da się przypisać osobom (skład bywa dwuosobowy i podpisany nazwiskami).
     """
     code = row["public_code"]
+    if row.get("team_name"):
+        return code if anonymization == Anonymization.CODE else (row["team_name"] or code)
     if anonymization == Anonymization.FULL:
         if not _may_show_full_name(row):
             return code
@@ -644,6 +1476,13 @@ def build_snapshot(rows: list[dict], anonymization: str) -> list[dict]:
     Okręg zostaje tylko w tabeli po pseudonimach: tam jest jedyną informacją o kontekście i niczego
     nie zawęża. Doklejony do inicjałów ze szkołą albo do nazwiska nie dodaje nic, czego czytelnik już
     nie wie, a mnoży cechy quasi-identyfikujące (PROJEKT.md 2.4).
+
+    **Kategoria (§ 1.2.4) dochodzi wyłącznie wtedy, gdy niesie ją wiersz** – czyli wyłącznie
+    w konkursie z włączoną flagą ``categories``. Snapshot Konkursu #1 nie zyskuje ani jednego
+    klucza i to jest sprawdzane porównaniem słowników **na równość**, a nie na podzbiór (§ 5.2).
+    Kategoria nie jest przy tym cechą quasi-identyfikującą w rozumieniu okręgu: jest nią grupa
+    startowa ogłoszona w regulaminie, w której tabela i tak jest publikowana osobno – bez niej
+    czytelnik nie wie, czyje miejsce „1” właśnie czyta.
     """
     school_sizes = Counter(_school_key(row.get("school")) for row in rows)
     snapshot = []
@@ -660,6 +1499,8 @@ def build_snapshot(rows: list[dict], anonymization: str) -> list[dict]:
             # przydarzyło konkretnemu uczestnikowi.
             "manual": bool(row.get("manual_qualification")),
         }
+        if "category" in row:
+            item["category"] = row["category"]
         if anonymization == Anonymization.CODE:
             item["district"] = row["district"]
         snapshot.append(item)

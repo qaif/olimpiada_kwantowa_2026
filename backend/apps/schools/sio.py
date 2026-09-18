@@ -1,4 +1,4 @@
-"""Odczyt wykazu SIO (.xlsx) i reguła doboru szkół ponadpodstawowych.
+"""Odczyt wykazu SIO (.xlsx) i reguły doboru placówek (ponadpodstawowe, podstawowe).
 
 Moduł jest **czysto tekstowy**: nie importuje Django, nie dotyka bazy i nie wie o modelach.
 Woła go skrypt ``scripts/build_school_fixture.py`` (raz na rok szkolny, ręcznie) – a mieszka
@@ -34,6 +34,28 @@ SECONDARY_KINDS: dict[str, str] = {
     "Ogólnokształcąca szkoła baletowa": "ARTYSTYCZNA",
     "Szkoła specjalna przysposabiająca do pracy": "SPECJALNA",
     "Bednarska Szkoła Realna": "INNA",
+}
+
+#: To samo dla szkół podstawowych – **inna reguła doboru z tego samego wykazu**, a nie inny plik
+#: źródłowy. Wartości po prawej są nadal ``SchoolKind``, bo ta oś rozróżnia typ szkoły wewnątrz
+#: wykazu i etap 2 jej nie zmienia: szkoła podstawowa nie jest ani liceum, ani technikum, więc
+#: trafia na ``INNA`` i staje za nimi w porządku podpowiedzi (``KIND_ORDER``). Tym, co odróżnia
+#: te wiersze od ponadpodstawowych, jest ``School.institution_type``, a nie ``kind``.
+PRIMARY_KINDS: dict[str, str] = {
+    "Szkoła podstawowa": "INNA",
+    "Ogólnokształcąca szkoła muzyczna I stopnia": "ARTYSTYCZNA",
+}
+
+#: Rodzaj placówki wyprodukowany domyślnie – dzisiejszy wykaz zawiera wyłącznie takie wiersze.
+DEFAULT_INSTITUTION_TYPE = "SECONDARY"
+
+#: Rodzaj placówki → reguła doboru wierszy. Klucze są napisami, a nie ``InstitutionType``, bo ten
+#: moduł nie importuje Django (patrz docstring); zgodność z wykazem wartości pilnuje test
+#: ``test_institution_types.py``. Rodzaju spoza tej mapy nie da się zbudować z arkusza SIO –
+#: uczelnie idą z POL-onu (osobny plik), a ``FOREIGN``/``NONE``/``OTHER`` nie mają wierszy wcale.
+INSTITUTION_KINDS: dict[str, dict[str, str]] = {
+    DEFAULT_INSTITUTION_TYPE: SECONDARY_KINDS,
+    "PRIMARY": PRIMARY_KINDS,
 }
 
 #: Kategoria uczniów, która wyklucza wiersz. Szkoły dla dorosłych mają własny rytm i wiek
@@ -76,14 +98,30 @@ def street_address(street: str, house: str, flat: str) -> str:
     return " ".join(part for part in (street.strip(), number.strip()) if part).strip()
 
 
-def school_from_row(row: dict[str, str]) -> dict | None:
+def kinds_for(institution_type: str) -> dict[str, str]:
+    """Mapa „Typ podmiotu” → ``SchoolKind`` dla danego rodzaju placówki. Nieznany rodzaj jest błędem."""
+    try:
+        return INSTITUTION_KINDS[institution_type]
+    except KeyError as exc:
+        raise SioFormatError(
+            f"Wykazu SIO nie da się odczytać jako {institution_type!r} "
+            f"(znane rodzaje: {', '.join(sorted(INSTITUTION_KINDS))})"
+        ) from exc
+
+
+def school_from_row(row: dict[str, str], institution_type: str = DEFAULT_INSTITUTION_TYPE) -> dict | None:
     """Wiersz wykazu → wiersz słownika, albo ``None``, gdy nie przechodzi reguły doboru.
 
-    Reguła (szkoły ponadpodstawowe dla młodzieży): typ podmiotu z ``SECONDARY_KINDS``
+    Reguła (domyślnie: szkoły ponadpodstawowe dla młodzieży): typ podmiotu z ``SECONDARY_KINDS``
     **i** kategoria uczniów inna niż „Dorośli”. Wiersz bez nazwy albo bez miejscowości odpada –
     w podpowiedzi nie dałoby się go od niczego odróżnić.
+
+    ``institution_type`` przełącza **wyłącznie** regułę doboru (``INSTITUTION_KINDS``) i trafia do
+    wyniku jako pole. Rodzaj jest zapisany przy **każdym wierszu**, a nie domyślany z nazwy pliku,
+    bo od niego zależy, które wiersze ``seed_schools`` wygasi: plik, który nie mówi o sobie, czym
+    jest, wygasiłby przy wgraniu cały pozostały wykaz.
     """
-    kind = SECONDARY_KINDS.get(row.get("Typ podmiotu", ""))
+    kind = kinds_for(institution_type).get(row.get("Typ podmiotu", ""))
     if kind is None or row.get("Kategoria uczniów", "") == EXCLUDED_STUDENT_CATEGORY:
         return None
     try:
@@ -98,6 +136,7 @@ def school_from_row(row: dict[str, str]) -> dict | None:
         "rspo": rspo,
         "name": name[:255],
         "kind": kind,
+        "institution_type": institution_type,
         # Wykaz podaje województwo wersalikami („DOLNOŚLĄSKIE”); reszta systemu posługuje się
         # slugiem ASCII. Czy slug jest jednym z szesnastu dopuszczalnych, sprawdza już
         # ``seed_schools`` – to on zna ``Voivodeship``, a ten moduł nie importuje Django.
@@ -111,14 +150,20 @@ def school_from_row(row: dict[str, str]) -> dict | None:
     }
 
 
-def read_schools(path: Path, sheet: str = DEFAULT_SHEET) -> Iterator[dict]:
+def read_schools(
+    path: Path, sheet: str = DEFAULT_SHEET, institution_type: str = DEFAULT_INSTITUTION_TYPE
+) -> Iterator[dict]:
     """Wiersze słownika wyprodukowane z arkusza. Generator – wykaz ma kilkadziesiąt tysięcy wierszy.
 
     ``read_only=True`` jest warunkiem wykonalności, a nie optymalizacją: pełny model openpyxl
     trzyma cały arkusz w pamięci jako obiekty komórek, co dla 18 MB pliku znaczy kilka gigabajtów.
+
+    ``institution_type`` wybiera regułę doboru (``INSTITUTION_KINDS``) – jeden arkusz ministerstwa
+    daje więc tyle plików, ile rodzajów placówek, i **żaden z nich nie miesza rodzajów**.
     """
     from openpyxl import load_workbook
 
+    kinds_for(institution_type)  # nieznany rodzaj ma się wywrócić przed otwarciem 18 MB pliku
     workbook = load_workbook(path, read_only=True, data_only=True)
     try:
         if sheet not in workbook.sheetnames:
@@ -132,7 +177,7 @@ def read_schools(path: Path, sheet: str = DEFAULT_SHEET) -> Iterator[dict]:
         seen: set[int] = set()
         for values in stream:
             row = {name: _clean(values[index]) for name, index in columns.items() if index < len(values)}
-            school = school_from_row(row)
+            school = school_from_row(row, institution_type)
             if school is None:
                 continue
             # RSPO jest kluczem rejestru, ale eksport bywa wydany z powtórzeniami (np. gdy szkoła

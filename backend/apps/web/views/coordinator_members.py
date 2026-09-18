@@ -16,7 +16,8 @@ from django.shortcuts import get_object_or_404
 from django.views.generic import TemplateView
 
 from apps.accounts.member_card import member_card, member_list_rows
-from apps.accounts.models import CommitteeMember, CommitteeStatus
+from apps.accounts.models import CommitteeMember, CommitteeStatus, Region
+from apps.accounts.services import CUSTOM_REGIONS_FLAG
 from apps.competitions.services import current_edition
 from apps.grading.models import ReviewStatus
 from apps.web.forms import VOIVODESHIP_CHOICES
@@ -58,8 +59,11 @@ class CommitteeMembersView(CoordinatorRequiredMixin, TemplateView):
                 # i dla przydziału), a zawężenie do konkursu robimy **na wyniku**: ``CommitteeMember``
                 # ma własny klucz obcy, więc pytanie „czyj to członek komisji” ma tu jedną,
                 # tanią odpowiedź – bez drugiej kopii reguły „aktywny recenzent” w panelu.
-                "rows": _rows_of_competition(
-                    member_list_rows(status=status, stage_id=stage_id), self.competition
+                "rows": _with_region_labels(
+                    _rows_of_competition(
+                        member_list_rows(status=status, stage_id=stage_id), self.competition
+                    ),
+                    self.competition,
                 ),
                 "status": status,
                 "status_choices": CommitteeStatus.choices,
@@ -83,14 +87,20 @@ class CommitteeMemberCardView(CoordinatorRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        member = get_object_or_404(
-            CommitteeMember.objects.for_competition(self.competition).select_related("user", "approved_by"),
-            pk=self.kwargs["pk"],
+        queryset = CommitteeMember.objects.for_competition(self.competition).select_related(
+            "user", "approved_by"
         )
+        # Podział terytorialny konkursu (§ 1.4). Przy wyłączonej fladze karta nie dotyka kolumny
+        # ``region`` ani razu – ani złączeniem, ani odczytem, ani zmienną w kontekście.
+        by_region = _regions_enabled(self.competition)
+        if by_region:
+            queryset = queryset.select_related("region")
+        member = get_object_or_404(queryset, pk=self.kwargs["pk"])
         context.update(member_card(member))
         context.update(
             {
                 "voivodeship_choices": VOIVODESHIP_CHOICES,
+                "region_label": member.region.name if by_region and member.region_id else "",
                 "pending_status": CommitteeStatus.PENDING,
                 # Odebrać wolno recenzję w każdym stanie poza anulowaną – także wystawioną.
                 # Czy w tej konkretnej sprawie wolno (ogłoszone wyniki, ocena rozstrzygnięta przez
@@ -107,6 +117,33 @@ class CommitteeMemberCardView(CoordinatorRequiredMixin, TemplateView):
             }
         )
         return context
+
+
+def _regions_enabled(competition) -> bool:
+    """Czy ten konkurs ma własny podział terytorialny (§ 1.4).
+
+    Flagę czyta widok, nigdy szablon (§ 2.1): flaga w szablonie jest flagą, której nie widać
+    w teście widoku.
+    """
+    return competition is not None and competition.has_feature(CUSTOM_REGIONS_FLAG)
+
+
+def _with_region_labels(rows: list[dict], competition) -> list[dict]:
+    """Dopisuje wierszom listy nazwę regionu – **jednym** zapytaniem i tylko przy włączonej fladze.
+
+    Nie ``select_related``: wiersze składa ``apps.accounts.member_card.member_list_rows``, wspólne
+    dla panelu i dla przydziału, a odczyt ``member.region`` w pętli byłby zapytaniem na wiersz.
+    Słownik regionów konkursu to kilkanaście par i jedno zapytanie niezależne od liczby członków.
+
+    Przy wyłączonej fladze – czyli w Konkursie #1 – funkcja nie wykonuje ani jednego zapytania
+    i nie dokłada wierszom ani jednego klucza; lista wygląda wtedy co do znaku tak, jak dziś.
+    """
+    if not _regions_enabled(competition):
+        return rows
+    names = dict(Region.objects.for_competition(competition).values_list("id", "name"))
+    for row in rows:
+        row["region_label"] = names.get(getattr(row["member"], "region_id", None), "")
+    return rows
 
 
 def _rows_of_competition(rows: list[dict], competition) -> list[dict]:

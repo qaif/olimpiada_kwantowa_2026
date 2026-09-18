@@ -1,0 +1,36 @@
+{% load static %}{% comment %}
+  Szablon bazowy kreatora ``/setup/`` – **własny i minimalny**, świadomie nie dziedziczący po
+  ``base.html`` (``docs/UNIWERSALNY-ETAP-2.md`` § 2.5). Powód jest prosty: ``base.html`` renderuje
+  menu z drzewa stron CMS-u i markę z ``cms.SiteSettings``, a kreator otwiera się na instalacji,
+  w której nie ma ani jednego, ani drugiego – bo to on je za chwilę zakłada.
+
+  Stąd też brak jakiegokolwiek napisu o konkretnym organizatorze: w chwili renderowania tej strony
+  instalacja nie wie jeszcze, czyja jest.
+
+  Style idą osobnym plikiem (``static/css/setup.css``), a nie znacznikiem ``<style>``: polityka CSP
+  serwisu jest ścisła i nie robimy dla instalatora wyjątku, którego reszta serwisu nie ma.
+  JavaScriptu na tych trzech ekranach nie ma w ogóle – to formularze HTML, a nie aplikacja.
+{% endcomment %}<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block title %}Pierwsze uruchomienie{% endblock %} – instalator</title>
+  <link rel="stylesheet" href="{% static 'css/setup.css' %}">
+</head>
+<body>
+  <main class="setup">
+    <header class="setup__head">
+      {% if step %}<p class="setup__steps">Krok {{ step }} z 3</p>{% endif %}
+      <h1>{% block heading %}{% endblock %}</h1>
+      <p class="setup__lead">{% block lead %}{% endblock %}</p>
+    </header>
+    {% block content %}{% endblock %}
+    <footer class="setup__foot">
+      <p>Ten kreator jest dostępny wyłącznie na instalacji bez konkursu i bez konta operatora.
+        Po zakończeniu adres <code>/setup/</code> przestaje istnieć.</p>
+    </footer>
+  </main>
+</body>
+</html>

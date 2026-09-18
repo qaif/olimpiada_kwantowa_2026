@@ -1,0 +1,153 @@
+/* Style kreatora pierwszego uruchomienia (``/setup/``).
+ *
+ * Osobny, mały arkusz zamiast ``app.css``: kreator renderuje się na instalacji bez ustawień
+ * witryny i bez drzewa stron, a ``app.css`` obsługuje ramę serwisu, której tu nie ma. Arkusz jest
+ * plikiem, a nie znacznikiem ``<style>`` w szablonie – polityka CSP serwisu jest ścisła i kreator
+ * nie jest od niej wyjątkiem.
+ *
+ * Wartości kolorów są przepisane ze strony 500 (``templates/500.html``): to jedyne dwa ekrany
+ * w serwisie, które muszą wyglądać znośnie bez wiedzy o tym, czyja jest instalacja.
+ */
+
+:root {
+  --setup-bg: #f6f4ee;
+  --setup-card: #fffefb;
+  --setup-ink: #171d27;
+  --setup-muted: #5b6472;
+  --setup-accent: #1d4a86;
+  --setup-line: #dcd7cc;
+  --setup-error: #9b1c1c;
+}
+
+body {
+  margin: 0;
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--setup-bg);
+  color: var(--setup-ink);
+}
+
+.setup {
+  max-width: 44rem;
+  margin: 3rem auto;
+  padding: 2rem;
+  background: var(--setup-card);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.setup__steps {
+  margin: 0;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--setup-muted);
+}
+
+.setup__head h1 {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 1.6rem;
+}
+
+.setup__lead,
+.setup__foot {
+  color: var(--setup-muted);
+}
+
+.setup__section {
+  margin-top: 2rem;
+  border-top: 1px solid var(--setup-line);
+  padding-top: 1rem;
+}
+
+.setup__section h2 {
+  font-size: 1.1rem;
+}
+
+.setup__report {
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--setup-bg);
+  border: 1px solid var(--setup-line);
+  border-radius: 6px;
+  padding: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.setup__foot {
+  margin-top: 2rem;
+  border-top: 1px solid var(--setup-line);
+  padding-top: 1rem;
+  font-size: 0.9rem;
+}
+
+.form p {
+  margin: 1rem 0;
+}
+
+.form label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.form input[type="text"],
+.form input[type="email"],
+.form input[type="password"] {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.5rem;
+  border: 1px solid var(--setup-line);
+  border-radius: 6px;
+  font: inherit;
+  background: #fff;
+  color: inherit;
+}
+
+.form ul.errorlist {
+  margin: 0 0 0.25rem;
+  padding-left: 1.1rem;
+  color: var(--setup-error);
+}
+
+.form__required-note,
+.helptext {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--setup-muted);
+}
+
+.actions {
+  margin-top: 1.5rem;
+}
+
+.btn {
+  display: inline-block;
+  padding: 0.6rem 1.2rem;
+  border: 0;
+  border-radius: 6px;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn--primary {
+  background: var(--setup-accent);
+  color: #fff;
+}
+
+/* Pułapka antyspamowa (``apps/web/captcha.py``): pole ukryte **stylem**, a nie typem – dla bota
+   wypełniającego wszystko ma zostać zwykłym polem formularza. Reguła jest przepisana z app.css,
+   bo ten arkusz na stronie kreatora się nie ładuje; bez niej człowiek widziałby pole „strona
+   internetowa”, wypełniał je i dostawał odmowę. */
+.hp-field {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.form p:has(> .hp-field) {
+  display: none;
+}

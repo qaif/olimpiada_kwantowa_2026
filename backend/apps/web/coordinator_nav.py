@@ -207,13 +207,19 @@ def focus_stage(stages: list):
     return stages[-1]
 
 
-def stage_items(stages: list) -> tuple[Item, ...]:
+def stage_items(stages: list, competition=None) -> tuple[Item, ...]:
     """Jedna pozycja na etap, a pod nią cztery ekrany, po które sięga się w trakcie zawodów.
 
     Etap w formie rozmowy nie ma zadań (``create_problem`` odmawia), więc zamiast „Zadania”
     dostaje „Rozmowy” – odnośnik do ekranu, na którym da się cokolwiek zrobić. Etap w formie
     testu online z tego samego powodu dostaje „Test online”: nie ma w nim zadań do oddania ani
     terminów rozmów, a cała praca koordynatora toczy się wokół arkusza pytań.
+
+    ``competition`` jest tu wyłącznie po to, żeby odczytać przełączniki (etap 2 § 2.1 punkt 1):
+    dzieci etapu rosną tylko za flagą, a konkurs z domyślnymi flagami dostaje **te same cztery**
+    pozycje, co przed etapem 2. Domyślne ``None`` znaczy „host bez rozstrzygniętego konkursu” –
+    wtedy żadnej flagi nie ma, więc i żadnej dodatkowej pozycji. Żadnego zapytania tu nie ma:
+    ``has_feature`` czyta pole wiersza, który wołający już trzyma.
     """
     items = []
     for stage in stages:
@@ -238,33 +244,53 @@ def stage_items(stages: list) -> tuple[Item, ...]:
                 (stage.pk,),
                 ("coordinator-stage-problems", "coordinator-problem", "coordinator-problem-"),
             )
+        children: tuple[Item, ...] = (
+            first,
+            Item(
+                "Przydziały i oceny",
+                ("web:coordinator-stage-assignments",),
+                (stage.pk,),
+                ("coordinator-stage-assignments",),
+            ),
+            Item(
+                "Postęp",
+                ("web:coordinator-stage-progress",),
+                (stage.pk,),
+                ("coordinator-stage-progress",),
+            ),
+            Item(
+                "Wyniki",
+                ("web:coordinator-stage-results",),
+                (stage.pk,),
+                ("coordinator-stage-results",),
+            ),
+        )
+        if competition is not None and competition.has_feature("onsite_logistics"):
+            # Logistyka etapu stacjonarnego (§ 1.5.2, T42). Dwa ekrany dotyczą **jednego** etapu –
+            # deklaracje przyjazdu i lista obecności – więc stoją jako jego dzieci, a nie jako
+            # pozycje sekcji. Bramka jest tą samą bramką, co u widoków: przy wyłączonej fladze
+            # oddają 404, a pozycja prowadząca donikąd byłaby gorsza niż jej brak.
+            children += (
+                Item(
+                    "Przyjazdy i potrzeby",
+                    ("web:coordinator-stage-logistics",),
+                    (stage.pk,),
+                    ("coordinator-stage-logistics", "coordinator-stage-logistics-"),
+                ),
+                Item(
+                    "Obecność",
+                    ("web:coordinator-stage-attendance",),
+                    (stage.pk,),
+                    ("coordinator-stage-attendance",),
+                ),
+            )
         items.append(
             Item(
                 stage.display_name,
                 ("web:coordinator-stage-edit",),
                 (stage.pk,),
                 ("coordinator-stage-edit",),
-                children=(
-                    first,
-                    Item(
-                        "Przydziały i oceny",
-                        ("web:coordinator-stage-assignments",),
-                        (stage.pk,),
-                        ("coordinator-stage-assignments",),
-                    ),
-                    Item(
-                        "Postęp",
-                        ("web:coordinator-stage-progress",),
-                        (stage.pk,),
-                        ("coordinator-stage-progress",),
-                    ),
-                    Item(
-                        "Wyniki",
-                        ("web:coordinator-stage-results",),
-                        (stage.pk,),
-                        ("coordinator-stage-results",),
-                    ),
-                ),
+                children=children,
             )
         )
     return tuple(items)
@@ -303,6 +329,30 @@ def groups(stages: list, competition=None) -> list[Group]:
                 ("coordinator-stage-similarity", "coordinator-similarity-"),
             ),
         )
+    if stage is not None and competition is not None and competition.has_feature("process_editor"):
+        # Punkty z rozmowy (§ 1.2.3, T34) – w „Ocenianiu”, bo to jest **ocena** etapu w formie
+        # rozmowy, a nie jego konfiguracja. Warunek etapu jest ten sam, co u kalibracji: ekran
+        # dotyczy jednego etapu, a menu jest jedno.
+        quality += (
+            Item(
+                "Punkty z rozmowy",
+                ("web:coordinator-stage-interview-scores",),
+                stage_args,
+                ("coordinator-stage-interview-scores",),
+            ),
+        )
+    if stage is not None and competition is not None and competition.has_feature("reviewer_roles"):
+        # Nazwane role recenzenckie etapu (§ 1.2.7, T34). Sekcja „Ocenianie” zgodnie z mapą
+        # ekranów (§ 2.2). Wzorzec ``coordinator-reviewer-role-`` łapie czynności na wierszu
+        # (zmiana, usunięcie), które adresem stoją poza gałęzią etapu.
+        quality += (
+            Item(
+                "Role recenzenckie",
+                ("web:coordinator-stage-reviewer-roles",),
+                stage_args,
+                ("coordinator-stage-reviewer-roles", "coordinator-reviewer-role-"),
+            ),
+        )
     reports: tuple[Item, ...] = (
         Item(
             "Eksport danych", ("web:coordinator-export",), match=("coordinator-export", "coordinator-export-")
@@ -321,6 +371,46 @@ def groups(stages: list, competition=None) -> list[Group]:
                 "Ustawienia konkursu",
                 ("web:coordinator-competition",),
                 match=("coordinator-competition",),
+            ),
+        )
+    if competition is not None and competition.has_feature("per_competition_consents"):
+        # Zgody konkursu (etap 2 § 2.2, T11). Bramka jest tą samą bramką, co u ekranu: przy
+        # wyłączonej fladze widok oddaje 404, więc pozycja w menu prowadziłaby donikąd. Stoi
+        # zaraz pod „Ustawieniami konkursu”, bo opisuje **konkurs** – to, o co pyta w formularzu
+        # rejestracji – a nie jego rocznik.
+        settings_items += (
+            Item(
+                "Zgody konkursu",
+                ("web:coordinator-consents",),
+                match=("coordinator-consents", "coordinator-consent-"),
+            ),
+        )
+    if competition is not None and competition.has_feature("custom_regions"):
+        # Podział terytorialny konkursu (§ 1.4, T20). W „Ustawieniach”, bo opisuje **konkurs**,
+        # a nie jego rocznik: regiony przeżywają edycję. Bramka jest tą samą bramką, co u ekranu –
+        # przy wyłączonej fladze widok oddaje 404 i menu prowadziłoby donikąd.
+        settings_items += (
+            Item(
+                "Regiony",
+                ("web:coordinator-regions",),
+                match=("coordinator-regions", "coordinator-region"),
+            ),
+        )
+    if competition is not None and competition.has_feature("categories"):
+        # Kategorie uczestników (§ 1.2.4, T27) – własne progi i osobne rankingi, czyli
+        # konfiguracja konkursu, a nie zestawienie. Wzorce są wypisane parami (lista i wiersz,
+        # oba z przedrostkiem), bo ``coordinator-categories`` i ``coordinator-category`` są
+        # dwiema różnymi nazwami, a wzorzec bez myślnika porównuje się na równość.
+        settings_items += (
+            Item(
+                "Kategorie",
+                ("web:coordinator-categories",),
+                match=(
+                    "coordinator-categories",
+                    "coordinator-categories-",
+                    "coordinator-category",
+                    "coordinator-category-",
+                ),
             ),
         )
     settings_items += (
@@ -342,6 +432,43 @@ def groups(stages: list, competition=None) -> list[Group]:
             match=("coordinator-integrations", "coordinator-integrations-"),
         ),
     )
+    if competition is not None and competition.has_feature("institution_types"):
+        # Profil rejestracji (§ 1.3.4, T23) – co wolno wpisać w formularzu zgłoszeniowym. Stoi
+        # zaraz pod „Rejestracją uczestników”, bo jest jej drugą stroną: tamta mówi, kiedy
+        # rejestracja jest otwarta, ta – o co pyta.
+        settings_items += (
+            Item(
+                "Profil rejestracji",
+                ("web:coordinator-registration-profile",),
+                match=("coordinator-registration-profile",),
+            ),
+        )
+    if competition is not None and competition.has_feature("custom_school_directory"):
+        # Własny słownik placówek organizatora (§ 1.3.3, T23). W „Ustawieniach”, bo to jest
+        # wykaz, z którego korzysta formularz rejestracji – konfiguracja, a nie zestawienie.
+        settings_items += (
+            Item(
+                "Słownik placówek",
+                ("web:coordinator-institutions",),
+                match=(
+                    "coordinator-institutions",
+                    "coordinator-institutions-",
+                    "coordinator-institution",
+                    "coordinator-institution-",
+                ),
+            ),
+        )
+    if competition is not None and competition.has_feature("onsite_logistics"):
+        # Miejsca zawodów (§ 1.5.2, T42) – spis sal i ośrodków przeżywa edycję, więc to jest
+        # konfiguracja konkursu, a nie ekran etapu. Same przyjazdy i obecność stoją jako dzieci
+        # etapu (``stage_items``), bo dotyczą jednego terminu.
+        settings_items += (
+            Item(
+                "Miejsca zawodów",
+                ("web:coordinator-venues",),
+                match=("coordinator-venues", "coordinator-venues-", "coordinator-venue"),
+            ),
+        )
     if stage is not None:
         reports += (
             Item(
@@ -373,6 +500,19 @@ def groups(stages: list, competition=None) -> list[Group]:
                 ("coordinator-stage-scale",),
             ),
         )
+        if competition is not None and competition.has_feature("weighted_scoring"):
+            # Porządek rozstrzygania remisów (§ 1.2.6, T34) – **zaraz pod** „Skalą punktacji”,
+            # bo to jest druga połowa tej samej decyzji: tamta mówi, ile punktów, ta – kto jest
+            # wyżej przy równej liczbie. Warunek etapu bierze się stąd, że oba ekrany dotyczą
+            # jednego etapu.
+            settings_items += (
+                Item(
+                    "Rozstrzyganie remisów",
+                    ("web:coordinator-stage-tie-breaks",),
+                    stage_args,
+                    ("coordinator-stage-tie-breaks", "coordinator-tie-break-"),
+                ),
+            )
     reports += (
         # Trzy ekrany dyplomów spoza pojedynczego etapu: wygląd dokumentu, obecność na warsztatach
         # i zaświadczenia dla opiekunów. Stoją w „Raportach” obok „Dyplomów”, bo o tę sekcję
@@ -383,6 +523,38 @@ def groups(stages: list, competition=None) -> list[Group]:
             ("web:coordinator-certificate-templates",),
             match=("coordinator-certificate-templates", "coordinator-certificate-template-"),
         ),
+    )
+    if competition is not None and competition.has_feature("document_templates"):
+        # Teksty dokumentów (etap 2 § 2.2, T13) – **zaraz za** „Dyplomami: szablony”, bo obie
+        # pozycje dotyczą tego samego papieru i różnią się tym, czego dotyczą: tamta wyglądem
+        # (grafika, tło), ta brzmieniem (tytuł, zdanie główne, linia podpisu). Bramka jest tą
+        # samą bramką, co u ekranu: przy wyłączonej fladze widok oddaje 404.
+        #
+        # Wzorce dopasowania są **dwa i oba dokładne**, a nie jeden przedrostek: ekran rodzaju
+        # nazywa się ``coordinator-document`` (rodzaj jedzie w adresie swoją wartością, nie
+        # identyfikatorem wiersza), więc przedrostek ``coordinator-document-`` nie łapałby go
+        # wcale, a sam ``coordinator-document`` nie łapałby listy ``coordinator-documents``
+        # (wzorzec bez myślnika na końcu porównuje się na równość – patrz :class:`Item`).
+        reports += (
+            Item(
+                "Szablony dokumentów",
+                ("web:coordinator-documents",),
+                match=("coordinator-documents", "coordinator-document"),
+            ),
+        )
+    if competition is not None and competition.has_feature("fees"):
+        # Wpisowe (§ 1.5.1, T42) – cennik, należności i dokumenty rozliczeniowe. W „Raportach”
+        # zgodnie z mapą ekranów (§ 2.2): koordynator przychodzi tu po zestawienie „kto zapłacił”.
+        # Wzorce łapią zarówno listy (``coordinator-fees``, ``coordinator-fees-*``), jak
+        # i czynności na jednej należności (``coordinator-fee-*``).
+        reports += (
+            Item(
+                "Wpisowe",
+                ("web:coordinator-fees",),
+                match=("coordinator-fees", "coordinator-fees-", "coordinator-fee-"),
+            ),
+        )
+    reports += (
         Item(
             "Obecność na warsztatach",
             ("web:coordinator-workshop-attendance",),
@@ -400,9 +572,47 @@ def groups(stages: list, competition=None) -> list[Group]:
             match=("coordinator-processing-register",),
         ),
     )
+    people_items: tuple[Item, ...] = ()
+    if competition is not None and competition.has_feature("team_entries"):
+        # Drużyny (§ 1.2.3, T34) – **na końcu** sekcji „Uczestnicy i konta”, bo cztery pozycje
+        # przed nią są dzisiejszym menu i mają zostać w tej kolejności co do bajtu (§ 2.1 p. 1).
+        people_items += (
+            Item(
+                "Drużyny",
+                ("web:coordinator-teams",),
+                match=("coordinator-teams", "coordinator-team", "coordinator-team-"),
+            ),
+        )
+    stage_group: tuple[Item, ...] = stage_items(stages, competition)
+    if competition is not None and competition.has_feature("process_editor"):
+        # Edytor przebiegu (§ 1.2, T27). „Przebieg edycji” stoi **nad** listą etapów, bo opisuje
+        # tor jako całość – to z niego biorą się etapy niżej. „Komponenty etapu” dotyczą etapu
+        # w ognisku uwagi i dlatego stoją na końcu sekcji, tak samo jak reszta pozycji etapowych
+        # poza sekcją „Etapy”.
+        stage_group = (
+            Item(
+                "Przebieg edycji",
+                ("web:coordinator-pipeline",),
+                match=("coordinator-pipeline", "coordinator-pipeline-"),
+            ),
+            *stage_group,
+        )
+        if stage is not None:
+            stage_group += (
+                Item(
+                    "Komponenty etapu",
+                    ("web:coordinator-stage-components",),
+                    stage_args,
+                    (
+                        "coordinator-stage-components",
+                        "coordinator-stage-component",
+                        "coordinator-stage-component-",
+                    ),
+                ),
+            )
     return [
         Group("Pulpit", (Item("Co wymaga uwagi", ("web:coordinator",), match=("coordinator",)),)),
-        Group("Etapy", stage_items(stages)),
+        Group("Etapy", stage_group),
         Group("Ocenianie", quality),
         Group(
             "Uczestnicy i konta",
@@ -422,6 +632,7 @@ def groups(stages: list, competition=None) -> list[Group]:
                     match=("coordinator-activations",),
                     badge="activations",
                 ),
+                *people_items,
             ),
         ),
         Group(

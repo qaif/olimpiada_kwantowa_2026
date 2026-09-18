@@ -1,0 +1,186 @@
+{% extends "web/coordinator/base.html" %}
+{% load static %}
+{% comment %}
+  Rejestr należności: kto ile ma zapłacić, co wpłynęło i kiedy.
+
+  Edycja i filtr jadą w adresie (``?edition=…&status=…``), a nie w sesji: rejestr bywa wysyłany
+  jako odnośnik, a stan schowany w sesji znaczyłby, że dwie osoby pod tym samym adresem widzą co
+  innego. Każda akcja niesie ukryte pole ``back`` z bieżącym ciągiem zapytania, żeby po zapisie
+  wrócić na ten sam widok listy.
+
+  Każda czynność jest osobnym POST-em pod własny adres, a nie jednym adresem z polem „akcja”:
+  rozróżnianie po nazwie przycisku zależy od tego, czy przeglądarka go przyśle, a przy wysyłce
+  klawiaturą nie zawsze przysyła.
+{% endcomment %}
+{% block title %}Wpisowe: należności – panel koordynatora{% endblock %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-fees' %}">Wpisowe: cennik</a>{% endblock %}
+{% block panel_title %}Wpisowe: należności{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Rejestr odpowiada na trzy pytania: ile się należy, czy wpłynęło i kiedy.
+    <strong>Oznaczenie nie jest numerem faktury</strong> — to klucz do wiersza rejestru, po którym
+    odnajdziesz wpłatę i po którym dopasuje ją webhook dostawcy.</p>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  <form method="get" action="{% url 'web:coordinator-fees-register' %}">
+    <p>
+      <label for="edition-select">Edycja</label>
+      <select name="edition" id="edition-select">
+        {% for row in editions %}
+          <option value="{{ row.pk }}"{% if edition and row.pk == edition.pk %} selected{% endif %}>{{ row.year_label }}</option>
+        {% endfor %}
+      </select>
+      <label for="status-select">Stan</label>
+      <select name="status" id="status-select">
+        {% for value, label in status_labels %}
+          <option value="{{ value }}"{% if value == status %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn--secondary btn--small">Pokaż</button>
+    </p>
+  </form>
+</section>
+
+{% if edition %}
+  <section class="section">
+    <div class="section__head">
+      <h2 class="mt-0">Podsumowanie edycji {{ edition.year_label }}</h2>
+    </div>
+    {% if totals %}
+      <div class="scroll">
+        <table class="table">
+          <caption class="visually-hidden">Sumy należności po walutach</caption>
+          <thead>
+            <tr>
+              <th scope="col">Waluta</th>
+              <th scope="col">Naliczono</th>
+              <th scope="col">Wpłynęło</th>
+              <th scope="col">Zaległe</th>
+              <th scope="col">Należności</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for currency, sums in totals.items %}
+              <tr>
+                <th scope="row">{{ currency }}</th>
+                <td class="num">{{ sums.charged }}</td>
+                <td class="num">{{ sums.paid }}</td>
+                <td class="num">{{ sums.outstanding }}</td>
+                <td class="num">{{ sums.count }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="hint">Sumy są <strong>po walutach</strong>, a nie jedną liczbą: dodanie 50 PLN do
+        10 EUR dałoby liczbę, która nic nie znaczy, a przeliczanie po kursie znaczyłoby kurs
+        z jakiego dnia — czyli księgowość, której ten system nie prowadzi.</p>
+    {% else %}
+      <p class="hint">W tej edycji nie naliczono jeszcze żadnej należności.</p>
+    {% endif %}
+
+    <form method="post" action="{% url 'web:coordinator-fees-charge' %}">
+      {% csrf_token %}
+      <input type="hidden" name="edition" value="{{ edition.pk }}">
+      <input type="hidden" name="back" value="{{ back }}">
+      <p class="actions">
+        <button type="submit" class="btn btn--primary btn--small">Nalicz wpisowe zapisanym do etapów</button>
+      </p>
+      <p class="hint">Czynność jest idempotentna: powtórzenie nie wystawia drugiej należności
+        i nie zmienia kwot już naliczonych. Wolno ją powtórzyć po dopisaniu kolejnych uczestników.</p>
+    </form>
+  </section>
+
+  <section class="section">
+    <div class="section__head">
+      <h2 class="mt-0">Należności ({{ rows|length }} z {{ total_rows }})</h2>
+    </div>
+
+    {% if rows %}
+      {% for row in rows %}
+        <article class="card">
+          <div class="card__head">
+            <h3 class="mt-0 card__title">{{ row.participant_code }}</h3>
+            {% if row.settled %}
+              <span class="badge badge--ok">{{ row.status_label }}</span>
+            {% else %}
+              <span class="badge badge--danger">{{ row.status_label }}</span>
+            {% endif %}
+          </div>
+          <dl class="meta-list">
+            <dt>Kwota</dt>
+            <dd>{{ row.amount }} {{ row.currency }}{% if row.category %} ({{ row.category }}){% endif %}</dd>
+            <dt>Cennik</dt>
+            <dd>{{ row.schedule }}</dd>
+            <dt>Termin</dt>
+            <dd>{{ row.due_on|date:"Y-m-d"|default:"—" }}</dd>
+            <dt>Wpłynęło</dt>
+            <dd>{{ row.paid_at|date:"Y-m-d H:i"|default:"—" }}</dd>
+            <dt>Identyfikator wpłaty</dt>
+            <dd>{% if row.reference %}<code>{{ row.reference }}</code>{% else %}—{% endif %}</dd>
+            <dt>Dokument</dt>
+            <dd>{% if row.document_version %}wydany, wersja {{ row.document_version }}{% else %}niewydany{% endif %}</dd>
+          </dl>
+
+          <div class="actions">
+            <a class="btn btn--secondary btn--small"
+               href="{% url 'web:coordinator-fee-document' row.fee.pk %}">Wydaj i pobierz rachunek</a>
+          </div>
+
+          {% if not row.reference %}
+            <form method="post" action="{% url 'web:coordinator-fee-reference' row.fee.pk %}">
+              {% csrf_token %}
+              <input type="hidden" name="back" value="{{ back }}">
+              <p><label for="ref-{{ row.fee.pk }}">Identyfikator wpłaty u dostawcy</label>
+                <input type="text" name="reference" id="ref-{{ row.fee.pk }}" maxlength="120" required></p>
+              <p class="actions"><button type="submit" class="btn btn--secondary btn--small">Zapisz identyfikator</button></p>
+            </form>
+          {% endif %}
+
+          {% if row.status == "DUE" or row.status == "REFUNDED" %}
+            <form method="post" action="{% url 'web:coordinator-fee-payment' row.fee.pk %}">
+              {% csrf_token %}
+              <input type="hidden" name="back" value="{{ back }}">
+              <p><label for="pay-{{ row.fee.pk }}">Wpłata: identyfikator (przelew, KP)</label>
+                <input type="text" name="reference" id="pay-{{ row.fee.pk }}" maxlength="120" required></p>
+              <p class="actions"><button type="submit" class="btn btn--primary btn--small">Zapisz wpłatę</button></p>
+            </form>
+            <form method="post" action="{% url 'web:coordinator-fee-exempt' row.fee.pk %}">
+              {% csrf_token %}
+              <input type="hidden" name="back" value="{{ back }}">
+              <p><label for="exempt-{{ row.fee.pk }}">Zwolnienie regulaminowe: powód</label>
+                <input type="text" name="reason" id="exempt-{{ row.fee.pk }}" maxlength="200" required></p>
+              <p class="actions"><button type="submit" class="btn btn--secondary btn--small">Zwolnij</button></p>
+            </form>
+            <form method="post" action="{% url 'web:coordinator-fee-waive' row.fee.pk %}">
+              {% csrf_token %}
+              <input type="hidden" name="back" value="{{ back }}">
+              <p><label for="waive-{{ row.fee.pk }}">Umorzenie uznaniowe: powód</label>
+                <input type="text" name="reason" id="waive-{{ row.fee.pk }}" maxlength="200" required></p>
+              <p class="actions"><button type="submit" class="btn btn--secondary btn--small">Umórz</button></p>
+            </form>
+          {% endif %}
+
+          {% if row.status == "PAID" %}
+            <form method="post" action="{% url 'web:coordinator-fee-refund' row.fee.pk %}">
+              {% csrf_token %}
+              <input type="hidden" name="back" value="{{ back }}">
+              <p><label for="refund-{{ row.fee.pk }}">Zwrot wpłaty: powód</label>
+                <input type="text" name="reason" id="refund-{{ row.fee.pk }}" maxlength="200" required></p>
+              <p class="actions"><button type="submit" class="btn btn--danger btn--small">Zapisz zwrot</button></p>
+            </form>
+          {% endif %}
+        </article>
+      {% endfor %}
+    {% else %}
+      <p class="hint">Nie ma należności spełniających ten filtr.</p>
+    {% endif %}
+  </section>
+{% else %}
+  <section class="section">
+    <p class="hint">Ten konkurs nie ma edycji bieżącej — nie ma czyich należności pokazać.</p>
+  </section>
+{% endif %}
+{% endblock %}

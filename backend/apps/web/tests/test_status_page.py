@@ -219,4 +219,7 @@ def test_the_json_variant_carries_no_infrastructure_details(web_client):
         "stage",
         "stage_deadline",
         "announcements",
+        # Etap 2 § 1.7.3: jedyny dołożony klucz. Wartość logiczna „instalacja czeka jeszcze na
+        # kreator ``/setup/``”, czyli też nic o infrastrukturze (apps/tenancy/setup.py).
+        "setup_pending",
     }

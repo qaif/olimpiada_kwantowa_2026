@@ -154,7 +154,17 @@
                         {% translate "zgłoszony problem" %}</span>
                     {% endif %}
                   </td>
-                  <td class="num">{{ row.review.round }}</td>
+                  {% comment %}
+                    Runda zostaje liczbą i zostaje autorytatywna – rola jest **etykietą nad
+                    rundą**, a nie zamiast niej (§ 1.2.7). Etykieta pojawia się wyłącznie tam,
+                    gdzie konkurs nazwał role: widok wstawia ``role_label`` tylko przy włączonej
+                    fladze, a szablon flagi nie czyta.
+                  {% endcomment %}
+                  <td class="num">{{ row.review.round }}
+                    {% if row.review.role_label %}
+                      <span class="badge badge--neutral">{{ row.review.role_label }}</span>
+                    {% endif %}
+                  </td>
                   {% if tab.with_deadline %}
                     <td class="queue-due">
                       {% if row.review.due_at %}

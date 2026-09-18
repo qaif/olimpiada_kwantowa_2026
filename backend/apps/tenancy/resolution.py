@@ -11,8 +11,9 @@ hoście oddaje witrynę domyślną, więc ``localhost``, ``127.0.0.1`` i ``web``
 dokładnie tak, jak dotąd – bez wpisów w DNS i bez zmiennych środowiskowych.
 
 **Koszt na żądanie: jedno zapytanie.** Witrynę Wagtail i tak odczytuje (i zapamiętuje na żądaniu),
-a konkurs – z domeny albo z prefiksu ścieżki – bierze się z **jednego** zapytania z alternatywą,
-a nie z dwóch. To jest świadome odstępstwo od § 2.3 dokumentu, który proponował osobną, buforowaną
+a konkurs – z domeny, z prefiksu ścieżki albo z aliasu witryny (``apps.tenancy.aliases``,
+wielojęzyczność treści, § 1.6.2) – bierze się z **jednego** zapytania z alternatywą, a nie z trzech.
+To jest świadome odstępstwo od § 2.3 dokumentu, który proponował osobną, buforowaną
 mapę prefiksów: bufor z czasem życia znaczy, że koszt żądania zależy od tego, kiedy ostatnio
 wygasł, a tego nie da się ani przewidzieć w teście liczby zapytań, ani wytłumaczyć przy diagnozie
 produkcji. Jedno zapytanie zawsze jest tańsze do zrozumienia niż zero albo dwa zależnie od zegara.
@@ -28,6 +29,7 @@ from django.db import DatabaseError
 from django.db.models import Q
 from wagtail.models import Site
 
+from apps.tenancy.aliases import alias_match
 from apps.tenancy.models import Competition, RoutingMode
 
 logger = logging.getLogger(__name__)
@@ -77,12 +79,25 @@ def resolve_for_request(request) -> Resolution:
     match = Q(site=site) if site is not None else Q(pk__in=())
     if segment:
         match |= Q(routing_mode=RoutingMode.PATH, path_prefix=segment)
+    # Gałąź aliasów (§ 1.6.2): druga witryna tego samego konkursu w drugim języku treści. Puste
+    # ``Q()`` przy wyłączonym ``WAGTAIL_I18N_ENABLED`` nie zostawia w zapytaniu żadnego śladu –
+    # ani złączenia, ani warunku – więc instalacja jednojęzyczna pyta dokładnie o to samo, co
+    # przed tą zmianą.
+    aliases = alias_match(site)
+    match |= aliases
 
     try:
-        # Najwyżej dwa wiersze: konkurs witryny i konkurs prefiksu. Pobieramy oba jednym
-        # zapytaniem i dopiero tutaj rozstrzygamy pierwszeństwo – inaczej byłyby dwa zapytania,
-        # z których drugie prawie zawsze nic nie znajduje.
-        found = list(Competition.objects.filter(match, is_active=True).select_related("site")[:2])
+        # Najwyżej dwa wiersze: konkurs witryny (albo jej aliasu – witryna jest albo jednym, albo
+        # drugim) i konkurs prefiksu. Pobieramy oba jednym zapytaniem i dopiero tutaj rozstrzygamy
+        # pierwszeństwo – inaczej byłyby dwa zapytania, z których drugie prawie zawsze nic nie
+        # znajduje.
+        found = Competition.objects.filter(match, is_active=True).select_related("site")
+        if aliases:
+            # Złączenie z aliasami mnoży wiersze konkursu, który ma ich kilka, a limit poniżej
+            # liczy wiersze, nie konkursy. ``distinct()`` wchodzi **wyłącznie** razem z tą gałęzią,
+            # żeby zapytanie instalacji jednojęzycznej zostało nietknięte.
+            found = found.distinct()
+        found = list(found[:2])
     except DatabaseError:
         logger.warning("Nie udało się odczytać konkursu dla żądania.", exc_info=True)
         return Resolution(None)
@@ -93,7 +108,29 @@ def resolve_for_request(request) -> Resolution:
     for competition in found:
         if site is not None and competition.site_id == site.pk:
             return Resolution(competition)
+    if aliases:
+        return Resolution(_alias_competition(found))
     return Resolution(None)
+
+
+def _alias_competition(found) -> Competition | None:
+    """Konkurs dopasowany **aliasem** witryny – o ile ma włączone tłumaczenia treści.
+
+    Rozstrzygnięcie po wykluczeniu: pętle wyżej odrzuciły dopasowanie po prefiksie i po witrynie
+    głównej, więc jedyną alternatywą, która mogła dołożyć ten wiersz do wyniku, jest alias. Pytanie
+    bazy drugi raz („czy to na pewno alias”) kosztowałoby zapytanie na każde żądanie pod drugą
+    domeną i nie odpowiedziałoby na nic, czego nie wiadomo.
+
+    Flaga konkursu jest tu **drugą** bramką obok ustawienia instalacji: ``WAGTAIL_I18N_ENABLED``
+    mówi, że w tej instalacji w ogóle istnieją drzewa w kilku językach, a ``content_translations``
+    – że **ten** konkurs je prowadzi. Alias założony przed włączeniem flagi jest konfiguracją
+    w toku, a nie działającą drugą domeną; bez tej bramki kolejność dwóch kroków operatora
+    decydowałaby o tym, czy strona już odpowiada.
+    """
+    for competition in found:
+        if competition.has_feature("content_translations"):
+            return competition
+    return None
 
 
 def resolve_competition(request) -> Competition | None:

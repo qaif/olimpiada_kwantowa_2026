@@ -1,0 +1,64 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Profil rejestracji konkursu: co formularz pyta i co dopuszcza jako placówkę.
+
+  Podsumowanie stoi **nad** formularzem i pokazuje reguły obowiązujące teraz – czyli to, co widzi
+  uczestnik, a nie to, co jest w polach. Brak wiersza w bazie i wiersz z samymi wartościami
+  domyślnymi są równoważne (§ 1.3.4), więc ekran przed pierwszym zapisem pokazuje domyślne i mówi
+  o tym wprost.
+
+  Flagi w szablonie nie ma ani jednej – warunki przychodzą gotowe z widoku (§ 2.1).
+{% endcomment %}
+{% block title %}Profil rejestracji – panel koordynatora{% endblock %}
+{% block panel_title %}Profil rejestracji{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Jeden wiersz konfiguracji na konkurs: o co formularz rejestracji pyta i jakie
+    placówki dopuszcza. Wartości domyślne odtwarzają dzisiejszy formularz, więc konkurs, który
+    niczego tu nie zmienia, pyta dokładnie o to, o co pytał przed etapem 2.</p>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Obowiązuje teraz</h2>
+  </div>
+  <div class="card">
+    <dl class="meta-list">
+      <dt>Dozwolone placówki</dt>
+      <dd>{{ card.types|join:", " }}</dd>
+      <dt>Słownik organizatora</dt>
+      <dd>{% if card.directory_active %}tak{% else %}nie{% endif %}</dd>
+      <dt>Szkoła spoza wykazu (wolny tekst)</dt>
+      <dd>{% if card.profile.allow_free_text_school %}tak{% else %}nie{% endif %}</dd>
+      <dt>Uczestnicy spoza Polski</dt>
+      <dd>{% if card.profile.allow_foreign %}tak{% else %}nie{% endif %}</dd>
+      <dt>Klasy</dt>
+      <dd>od {{ card.grade_min }} do {{ card.grade_max }}{% if not card.profile.require_grade %} (klasa nieobowiązkowa){% endif %}</dd>
+    </dl>
+    {% if card.profile.allow_custom_directory and not card.directory_active %}
+      <p class="msg msg-warning">Pole „słownik organizatora” jest zaznaczone, ale konkurs nie ma
+        flagi „custom_school_directory” – wyszukiwarka nie zapyta o wykaz własny ani razu.</p>
+    {% endif %}
+    {% if directory_screen %}
+      <p class="hint"><a href="{% url 'web:coordinator-institutions' %}">Przejdź do słownika placówek</a></p>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Ustawienia</h2>
+    <p class="hint">Zmiana wchodzi od razu i dotyczy kolejnych rejestracji. Profile założone
+      wcześniej zostają bez zmian – ten ekran nie zmienia ani jednego cudzego wiersza.</p>
+  </div>
+  <div class="card">
+    <form method="post" class="form form--wide">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">Zapisz profil</button>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

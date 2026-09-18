@@ -144,9 +144,51 @@ def save_preferences(request, *, language: str, high_contrast: bool) -> dict:
     return {"language": resolved, "high_contrast": high_contrast}
 
 
+def competition_language(competition=None) -> str:
+    """Język domyślny konkursu – podanego wprost albo wziętego z kontekstu. Pusty napis, gdy go brak.
+
+    Kolejność źródeł jest ta sama, co w ``apps.accounts.activation.mail_competition``, i z tego
+    samego powodu: temat, nadawca i **język** jednego listu mają pochodzić z jednego konkursu.
+    Kontekst wiąże warstwa pośrednia w żądaniu, a ``competition_context`` w zadaniu i w komendzie.
+
+    Kod spoza ``settings.LANGUAGES`` jest tu równoważny brakowi wyboru: instalacja ma katalogi
+    tłumaczeń wyłącznie tych języków, które wymienia konfiguracja, a aktywowanie kodu bez katalogu
+    dałoby napisy źródłowe podane jako przekład.
+
+    Import kontekstu jest lokalny, bo ten moduł ładuje się jako warstwa pośrednia przy starcie
+    procesu – czyli zanim rejestr aplikacji jest gotowy.
+    """
+    if competition is None:
+        from apps.tenancy.context import current_competition
+
+        competition = current_competition()
+    language = getattr(competition, "default_language", "") or ""
+    return language if language in available_languages() else ""
+
+
 @contextmanager
-def language_for(user):
-    """Na czas bloku aktywuje język zapisany na koncie **odbiorcy**.
+def language_for(user, competition=None):
+    """Na czas bloku aktywuje język **odbiorcy**, a gdy konto go nie zapisało – język konkursu.
+
+    Trzy źródła w tej kolejności:
+
+    1. zapis na koncie odbiorcy (``UserPreference.language``) – jedyna z tych odpowiedzi, której
+       ktoś udzielił świadomie, więc wygrywa z każdą inną,
+    2. ``Competition.default_language`` konkursu, o którym jest list – podanego wprost albo
+       wziętego z kontekstu. Bez tego kroku konkurs prowadzony po angielsku wysyłałby list po
+       polsku z serwisu, który uczestnik widział wyłącznie po angielsku
+       (``docs/UNIWERSALNY-ETAP-2.md`` § 1.6.3),
+    3. ``settings.LANGUAGE_CODE`` – język instalacji, czyli odwrót sprzed etapu 2, używany tam,
+       gdzie konkursu nie ma skąd wziąć (zadanie okresowe po całej instalacji, test jednostkowy).
+
+    Dla Konkursu #1 wszystkie trzy kroki dają ``pl``: konto bez wyboru dostaje
+    ``default_language`` konkursu, a ten jest ``"pl"`` od migracji ``tenancy.0002``. Listy zostają
+    polskie co do bajtu i pilnują tego ``apps/tenancy/tests/test_invariants.py``
+    oraz ``apps/tenancy/tests/test_branding.py``.
+
+    Konkurs przychodzi argumentem, a nie zapytaniem: wołający ma go już wczytanego, bo tym samym
+    obiektem podpisuje list (``queue_mail(..., competition=…)``), więc język listu nie kosztuje
+    ani jednego odczytu z bazy więcej.
 
     Potrzebne wyłącznie tam, gdzie tekst powstaje **poza** żądaniem tej osoby: przy ogłoszeniu
     wyników (list do tysiąca uczestników składa koordynator) i przy nocnym przypomnieniu
@@ -155,14 +197,11 @@ def language_for(user):
 
     Przy liście powstającym w żądaniu adresata (potwierdzenie uploadu, aktywacja konta) nic tu
     nie trzeba robić: aktywny język **jest** już jego językiem.
-
-    Konto bez zapisanego wyboru nie zmienia niczego – zostaje język, który akurat obowiązuje.
     """
     preference = stored_preference(user)
     language = getattr(preference, "language", "") or ""
     if language not in available_languages():
-        yield
-        return
+        language = competition_language(competition) or settings.LANGUAGE_CODE
     previous = translation.get_language()
     translation.activate(language)
     try:

@@ -19,6 +19,11 @@ from apps.web.views.public import site_verification
 from apps.web.views.statistics import StatisticsView
 from apps.web.views.status import StatusJsonView, StatusView
 
+# Strona 500 – ta sama co dotąd, ale z adresem kontaktowym z ustawień (``ERROR_PAGE_CONTACT_EMAIL``,
+# decyzja organizatora D14). Nazwą, a nie importem: ``handler500`` wskazuje widok, który Django ma
+# zawołać już **po** awarii, więc im mniej wciąga on przy imporcie tego modułu, tym lepiej.
+handler500 = "apps.web.views.errors.server_error"
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("healthz/", include("apps.core.urls")),
@@ -61,6 +66,11 @@ urlpatterns = [
     # niż ``/healthz/``: tamto odpowiada orkiestratorowi kodem HTTP, to – człowiekowi treścią.
     path("status/", StatusView.as_view(), name="status"),
     path("status.json", StatusJsonView.as_view(), name="status-json"),
+    # Kreator pierwszego uruchomienia. Istnieje wyłącznie na instalacji bez konkursu i bez
+    # superużytkownika i wyłącznie dla żądania z tokenem – w każdym innym wypadku odpowiada 404
+    # (apps/tenancy/setup.py). Przed ``cms/`` i przed catch-allem Wagtaila, bo inaczej adres
+    # skończyłby na drzewie stron, którego na świeżej instalacji jeszcze nie ma.
+    path("setup/", include("apps.tenancy.setup_urls")),
     # Redakcja części informacyjnej. Dostęp ma wyłącznie grupa `coordinator` (migracja cms.0003).
     path("cms/", include(wagtailadmin_urls)),
     # Dokumenty Wagtaila serwuje widok aplikacji, a nie bezpośredni URL bucketu. Wzorce są kopią

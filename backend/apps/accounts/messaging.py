@@ -162,12 +162,17 @@ def send_broadcast_chunk(self, broadcast_id: int, recipients: list[str]) -> int:
     i za dopisanie licznika do rejestru.
 
     Temat i treść czytamy z rejestru, a nie z argumentów: ładunek zadania to wtedy identyfikator
-    i porcja adresów, a nie kopia całego listu powielona przy każdej porcji.
+    i porcja adresów, a nie kopia całego listu powielona przy każdej porcji. Stamtąd bierze się też
+    nadawca – z konkursu, do którego należy wysyłka (``MessageBroadcast.competition``). Przez moduł
+    marki nie idzie tu nic i nie ma czego: temat i treść komunikatu napisał koordynator, więc jego
+    zdania nie są napisem w kodzie, który wolno podmienić na wzorzec.
 
     Licznik zwiększamy wyrażeniem ``F``, bo porcje idą równolegle – odczyt i zapis w Pythonie
     gubiłby część inkrementów przy dwóch workerach.
     """
-    broadcast = MessageBroadcast.objects.filter(pk=broadcast_id).first()
+    # ``select_related``, bo z konkursu czytamy nadawcę listów – bez tego doszłoby drugie zapytanie
+    # na każdą porcję adresów.
+    broadcast = MessageBroadcast.objects.filter(pk=broadcast_id).select_related("competition").first()
     if broadcast is None:
         # Rejestr skasowano między zakolejkowaniem a wykonaniem – nie ma czego wysyłać ani
         # czego liczyć. Ponowienie niczego nie naprawi, więc kończymy cicho.
@@ -176,11 +181,13 @@ def send_broadcast_chunk(self, broadcast_id: int, recipients: list[str]) -> int:
         )
         return 0
 
-    from apps.core.tasks import send_mail_task
+    from apps.core.tasks import mail_from, send_mail_task
 
+    # Nadawcę czytamy raz na porcję: jest własnością konkursu, a nie pojedynczej koperty.
+    from_email = mail_from(broadcast.competition)
     queued = 0
     for recipient in recipients:
-        send_mail_task.delay(broadcast.subject, broadcast.body, [recipient])
+        send_mail_task.delay(broadcast.subject, broadcast.body, [recipient], from_email)
         queued += 1
     MessageBroadcast.objects.filter(pk=broadcast_id).update(sent_count=F("sent_count") + queued)
     broadcast.refresh_from_db(fields=["sent_count", "recipient_count"])

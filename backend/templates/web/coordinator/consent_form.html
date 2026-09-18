@@ -1,0 +1,70 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Jedna zgoda konkursu: treść i — osobno — wersja dokumentu.
+
+  Dwa formularze na jednej stronie, bo to dwie czynności o dwóch różnych skutkach. Zmiana treści
+  działa od najbliższego otwarcia formularza rejestracji i da się ją cofnąć drugim zapisem.
+  Zmiana wersji przesuwa granicę w dowodach: od chwili zapisu nowe wpisy ``ConsentRecord`` mówią
+  co innego niż wpisy sprzed niego, a wcześniejszych nie da się (i nie wolno) poprawić. Dlatego
+  wersja stoi w osobnej karcie, ma osobny adres i osobny krok potwierdzenia.
+
+  Pole „Wersja dokumentu” w pierwszym formularzu jest wyłączone i jest tam po to, żeby numer stał
+  przy treści, której dotyczy. Wartość z POST-a jest ignorowana (``disabled``).
+
+  Bez JavaScriptu i bez stylów w atrybutach — panel chodzi pod ścisłą polityką CSP.
+{% endcomment %}
+{% block title %}{{ definition.get_kind_display }} – zgody konkursu – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-consents' %}">Zgody konkursu</a>{% endblock %}
+{% block panel_title %}{{ definition.get_kind_display }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Pole formularza <code>{{ definition.field_name }}</code>,
+    {% if definition.required %}zgoda wymagana od każdego uczestnika{% elif definition.required_for_minor %}zgoda
+    wymagana od uczestnika niepełnoletniego{% else %}zgoda dobrowolna{% endif %}.
+    Wymagalności i rodzaju nie zmienia się z panelu.</p>
+{% endblock %}
+{% block panel_content %}
+
+<div class="card">
+  <h2 class="mt-0">Treść oświadczenia</h2>
+  <form method="post" class="form form--wide" novalidate
+        action="{% url 'web:coordinator-consent-edit' definition.pk %}">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <div class="actions">
+      <button type="submit" class="btn btn--primary">Zapisz treść</button>
+      <a class="btn btn--ghost" href="{% url 'web:coordinator-consents' %}">Wróć do listy</a>
+    </div>
+  </form>
+</div>
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Wersja dokumentu</h2>
+    <p class="hint">Obowiązuje wersja <strong>{{ definition.version }}</strong>. Każdy nowy wpis
+      dowodowy zapisuje się pod nią — to ona odpowiada po latach na pytanie „na co ta osoba się
+      zgodziła”. Zmiana dotyczy <strong>wyłącznie przyszłości</strong>: oświadczeń złożonych
+      wcześniej nie rusza.</p>
+    <form method="post" class="form" novalidate
+          action="{% url 'web:coordinator-consent-version' definition.pk %}">
+      {% csrf_token %}
+      {{ version_form.as_p }}
+      <div class="actions">
+        <button type="submit" class="btn btn--secondary">Zmień wersję…</button>
+      </div>
+    </form>
+    <p class="hint">Następny krok pokaże, co dokładnie się zmieni, i poprosi o potwierdzenie.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="card card--quiet">
+    <h2 class="mt-0">Co widzi teraz uczestnik</h2>
+    <p class="hint">Kolejność pól bloku „Zgody” w formularzu rejestracji:</p>
+    <ol class="hint">
+      {% for field in live_fields %}
+        <li><code>{{ field }}</code>{% if field == definition.field_name %} — ta zgoda{% endif %}</li>
+      {% endfor %}
+    </ol>
+  </div>
+</section>
+{% endblock %}

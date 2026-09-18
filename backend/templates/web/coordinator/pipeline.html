@@ -1,0 +1,138 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Przebieg edycji: co po czym i co poza torem zawodów.
+
+  Kolejność jest tu **listą**, a nie polem: każdy przycisk „w górę / w dół” i każdy zapis miejsca
+  przenumerowuje całą kolejkę, więc to, co widać w kolumnie „miejsce”, jest zawsze ciągiem 1…N.
+  Kroki poza torem stoją na końcu tabeli i nie mają miejsca – tak samo, jak dziś etap treningowy
+  nie ma go w kodzie.
+
+  Każda czynność jest osobnym formularzem POST pod własnym adresem, z tokenem CSRF. Bez
+  JavaScriptu i bez stylów w atrybutach – panel chodzi pod ścisłą polityką CSP.
+{% endcomment %}
+{% block title %}Przebieg edycji – panel koordynatora{% endblock %}
+{% block panel_title %}Przebieg edycji{% if edition %}: {{ edition.year_label }}{% endif %}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Kolejność etapów zawodów zapisana jako dane: krok toru wskazuje, który etap jest
+    którym z kolei i skąd bierze się jego następnik. Krok „poza torem” (trening, warsztat, sesja
+    próbna) nikogo nie kwalifikuje i nie jest niczyim następnikiem.</p>
+{% endblock %}
+{% block panel_content %}
+
+{% if edition %}
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Kolejka</h2>
+    <p class="hint">Miejsce 1 to pierwszy etap zawodów. Zapis miejsca przestawia całą kolejkę, więc
+      numery zostają ciągłe. Etap wyjęty z przebiegu zostaje w edycji – traci wyłącznie następnika
+      i swoje reguły przejścia.</p>
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Kroki przebiegu bieżącej edycji</caption>
+      <thead>
+        <tr>
+          <th scope="col">Miejsce</th>
+          <th scope="col">Etap</th>
+          <th scope="col">Rodzaj</th>
+          <th scope="col">Reguły przejścia</th>
+          <th scope="col">Zmiana miejsca</th>
+          <th scope="col"><span class="visually-hidden">Operacje</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td class="num">
+              {% if row.step.off_pipeline %}
+                <span class="badge badge--neutral">poza torem</span>
+              {% else %}
+                {{ row.step.position }}
+              {% endif %}
+            </td>
+            <th scope="row">
+              <a href="{% url 'web:coordinator-stage-edit' row.step.stage_id %}">{{ row.step.stage.display_name }}</a>
+            </th>
+            <td>{{ row.step.stage.get_kind_display }}</td>
+            <td>
+              <a href="{% url 'web:coordinator-pipeline-rules' row.step.pk %}">
+                {{ row.step.rule_count }} reguł(y)
+              </a>
+            </td>
+            <td class="actions">
+              {% comment %}
+                Dwa przyciski, dwa adresy. Kierunek jest w adresie, a nie w polu formularza:
+                rozróżnianie po nazwie wciśniętego przycisku zależy od tego, czy przeglądarka ją
+                przyśle, a przy wysyłce klawiaturą nie zawsze przysyła.
+              {% endcomment %}
+              <form method="post" action="{% url 'web:coordinator-pipeline-step-move' row.step.pk 'up' %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn--secondary btn--small">W górę</button>
+              </form>
+              <form method="post" action="{% url 'web:coordinator-pipeline-step-move' row.step.pk 'down' %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn--secondary btn--small">W dół</button>
+              </form>
+            </td>
+            <td class="actions">
+              <form method="post" action="{% url 'web:coordinator-pipeline-step' row.step.pk %}" class="inline">
+                {% csrf_token %}
+                {{ row.form.position }}
+                <label>{{ row.form.off_pipeline }} poza torem</label>
+                <button type="submit" class="btn btn--secondary btn--small">Zapisz miejsce</button>
+              </form>
+              <form method="post" action="{% url 'web:coordinator-pipeline-step-delete' row.step.pk %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn--danger btn--small">Wyjmij z przebiegu</button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="6" class="empty">Ta edycja nie ma ani jednego kroku przebiegu. Dopisz je
+              niżej – dopóki ich nie ma, kwalifikacja czyta próg zapisany przy etapie.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Dopisz krok dla istniejącego etapu</h2>
+    <p class="hint">Lista obejmuje wyłącznie etapy bieżącej edycji, które nie mają jeszcze swojego
+      miejsca w kolejce.</p>
+  </div>
+  <div class="card">
+    <form method="post" action="{% url 'web:coordinator-pipeline-step-create' %}" class="form">
+      {% csrf_token %}
+      {{ step_form.as_p }}
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">Dopisz krok</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Dodaj rundę</h2>
+    <p class="hint">Runda to etap bez miejsca w słowniku rodzajów: kolejność bierze się wyłącznie
+      z kolejki powyżej, a rundy rozróżnia nazwa. Nowa runda powstaje razem z domyślną skalą
+      punktacji, progiem i miejscem na końcu kolejki.</p>
+  </div>
+  <div class="card">
+    <form method="post" action="{% url 'web:coordinator-pipeline-round-create' %}" class="form">
+      {% csrf_token %}
+      {{ stage_form.as_p }}
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">Dodaj rundę</button>
+      </div>
+    </form>
+  </div>
+</section>
+{% else %}
+  <p class="hint">Nie ustawiono bieżącej edycji – przebieg nie ma do czego należeć.</p>
+{% endif %}
+{% endblock %}

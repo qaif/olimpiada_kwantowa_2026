@@ -32,6 +32,9 @@ from django import forms
 from django.conf import settings
 from django.core import signing
 
+from apps.tenancy.branding import branded_text
+from apps.tenancy.context import current_competition
+
 #: Nazwa pułapki. Wygląda jak pole, o które serwis mógłby pytać („strona internetowa”), więc bot
 #: dopasowujący pola po nazwie chętnie je wypełni.
 HONEYPOT_FIELD_NAME = "website"
@@ -65,6 +68,56 @@ CAPTCHA_HELP_TEXT = (
     "Wpisz wynik działania z obrazka. Nie widzisz obrazka (czytnik ekranu, brak grafiki)? "
     "Napisz do contact@qaif.org – konto założymy ręcznie."
 )
+
+#: Te same dwa zdania ze **wzorcem** w miejscu adresu. Zdanie zostaje treścią w kodzie, a adres
+#: staje się konfiguracją konkursu (``Competition.contact_email``) – bo czyta te komunikaty
+#: człowiek, który właśnie **nie może się zarejestrować**, i adres jest jedyną drogą, jaka mu
+#: zostaje. Adres cudzego organizatora byłby tu gorszy niż brak adresu
+#: (``docs/UNIWERSALNY-ETAP-2.md`` § 1.1.4).
+REJECTED_MESSAGE_TEMPLATE = (
+    "Nie udało się potwierdzić, że formularz wypełnił człowiek. Wyślij go jeszcze raz, "
+    "a jeśli błąd się powtarza – napisz do %(contact)s."
+)
+CAPTCHA_HELP_TEMPLATE = (
+    "Wpisz wynik działania z obrazka. Nie widzisz obrazka (czytnik ekranu, brak grafiki)? "
+    "Napisz do %(contact)s – konto założymy ręcznie."
+)
+
+
+def _competition():
+    """Konkurs żądania albo ``None`` – **bez** ani jednego zapytania do bazy.
+
+    Czytamy zmienną kontekstową (``CompetitionMiddleware`` ustawia ją na każdym żądaniu),
+    a nie ``scoping.resolve_competition()``, i są po temu dwa powody. Po pierwsze koszt:
+    formularz rejestracji powstaje w żądaniu objętym budżetem zapytań (§ 5.6), a odwrót
+    ``resolve_competition`` dokłada zapytanie zawsze, gdy kontekstu nie ma. Po drugie miejsce
+    użycia: ten mixin wchodzi także do kreatora ``/setup/``, czyli do instalacji, w której
+    konkursu jeszcze **nie ma** – i tam „nie wiadomo, czyj to formularz” jest odpowiedzią
+    poprawną, a nie stanem do dopytania bazy.
+    """
+    return current_competition()
+
+
+def _branded_message(template: str, fallback: str, competition=None) -> str:
+    """Komunikat z adresem konkursu albo dzisiejsze zdanie, gdy nie ma czego podstawić.
+
+    Dwa odwroty, nie jeden: flagę marki czyta ``branded_text`` (jedno wejście, § 1.0 (c)),
+    a pusty ``contact_email`` zatrzymujemy tutaj – komunikat „napisz do ” bez adresu byłby gorszy
+    od dzisiejszego zdania, a organizator nie ma obowiązku wypełnić tego pola.
+    """
+    if competition is None or not competition.contact_email:
+        return fallback
+    return branded_text(template, fallback, competition, contact=competition.contact_email)
+
+
+def rejected_message(competition=None) -> str:
+    """Komunikat odmowy dla pułapki i dla progu czasu – jeden i ogólny (patrz docstring modułu)."""
+    return _branded_message(REJECTED_MESSAGE_TEMPLATE, REJECTED_MESSAGE, competition)
+
+
+def captcha_help_text(competition=None) -> str:
+    """Podpowiedź pod obrazkiem – droga dla kogoś, kto obrazka nie zobaczy."""
+    return _branded_message(CAPTCHA_HELP_TEMPLATE, CAPTCHA_HELP_TEXT, competition)
 
 
 def min_fill_seconds() -> int:
@@ -130,9 +183,13 @@ class CaptchaFormMixin(forms.Form):
             initial=sign_timestamp,
             widget=forms.HiddenInput,
         )
+        # Konkurs czytamy **raz** na formularz i trzymamy pod własną nazwą: ``clean()`` składa
+        # z niego ten sam komunikat odmowy, a nazwa z podkreśleniem nie wchodzi w drogę polom,
+        # które formularze rejestracji trzymają pod ``self.competition``.
+        self._captcha_competition = _competition()
         self.fields[CAPTCHA_FIELD_NAME] = CaptchaField(
             label=CAPTCHA_LABEL,
-            help_text=CAPTCHA_HELP_TEXT,
+            help_text=captcha_help_text(self._captcha_competition),
             error_messages={"invalid": "Wynik działania jest niepoprawny. Spróbuj z nowym obrazkiem."},
         )
 
@@ -153,13 +210,14 @@ class CaptchaFormMixin(forms.Form):
         honeypot = cleaned.pop(HONEYPOT_FIELD_NAME, "") or ""
         signed = cleaned.pop(TIMESTAMP_FIELD_NAME, "") or ""
         cleaned.pop(CAPTCHA_FIELD_NAME, None)
+        message = rejected_message(self._captcha_competition)
         if honeypot.strip():
-            self.add_error(None, REJECTED_MESSAGE)
+            self.add_error(None, message)
             # Bez drugiego komunikatu: bot, który wpadł w pułapkę, i tak nie czyta odpowiedzi.
             return cleaned
         threshold = min_fill_seconds()
         if threshold:
             elapsed = elapsed_seconds(signed)
             if elapsed is None or elapsed < threshold:
-                self.add_error(None, REJECTED_MESSAGE)
+                self.add_error(None, message)
         return cleaned

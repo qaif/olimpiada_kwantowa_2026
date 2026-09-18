@@ -42,6 +42,29 @@ HEARTBEAT_TTL_SECONDS = 180
 MAX_RETRIES = 3
 
 
+def mail_from(competition=None) -> str | None:
+    """Nadawca listów tego konkursu albo ``None`` = nadawca instalacji (``DEFAULT_FROM_EMAIL``).
+
+    Jedno wejście do ``Competition.from_email`` dla całej wysyłki. Pole jest wypełniane
+    i edytowalne od etapu 1 (``apps/web/competition_forms.py``), ale do tej zmiany **żadna** droga
+    wysyłki go nie czytała – ``send_mail_task`` wpisywał ``DEFAULT_FROM_EMAIL`` na sztywno.
+    Puste pole nadal znaczy „weź ustawienie instalacji”, a Konkurs #1 ma tam dokładnie
+    ``DEFAULT_FROM_EMAIL`` (migracja ``tenancy.0002``), więc jego listy wychodzą od tego samego
+    nadawcy, co dotąd – co jest istotne, bo część filtrów pocztowych traktuje zmianę nadawcy jak
+    nowego korespondenta, czyli jak spam.
+
+    Czego ta funkcja **nie** robi: nie dokleja ``Competition.email_subject_prefix`` do tematu.
+    Prefiks jest dziś w ustawieniach (``EMAIL_SUBJECT_PREFIX``) i w kolumnie konkursu, ale
+    ``django.core.mail.send_mail`` nigdy go nie używał (robią to wyłącznie ``mail_admins``
+    i ``mail_managers``) – więc **żaden** dzisiejszy list Olimpiady Kwantowej go nie niesie.
+    Doklejenie go tutaj nie byłoby podłączeniem istniejącej konfiguracji, tylko zmianą
+    siedemnastu tematów naraz, widoczną dla każdego odbiorcy i dla jego reguł w skrzynce
+    (``docs/UNIWERSALNY-ETAP-2.md`` § 0.1 i § 0.2, poz. 4). Prefiks czeka więc na osobną decyzję
+    organizatora razem z ``Reply-To`` – a nie wchodzi „przy okazji” podłączania nadawcy.
+    """
+    return (getattr(competition, "from_email", "") or "").strip() or None
+
+
 @shared_task(
     bind=True,
     autoretry_for=(Exception,),
@@ -49,12 +72,20 @@ MAX_RETRIES = 3
     retry_jitter=True,
     max_retries=MAX_RETRIES,
 )
-def send_mail_task(self, subject: str, message: str, recipient_list: list[str]) -> int:
+def send_mail_task(
+    self, subject: str, message: str, recipient_list: list[str], from_email: str | None = None
+) -> int:
     """Wysyła jedną wiadomość tekstową. Zwraca liczbę dostarczonych listów (0 albo 1).
 
     Argumenty są prostymi typami (tekst, lista tekstów), a nie obiektami modeli: treść listu
     powstaje po stronie serwisu, zanim zadanie trafi do kolejki. Dzięki temu worker nie czyta
-    bazy i nie zależy od tego, czy obiekt jeszcze istnieje w chwili wysyłki.
+    bazy i nie zależy od tego, czy obiekt jeszcze istnieje w chwili wysyłki. Z tego samego powodu
+    nadawca przychodzi **napisem**, a nie konkursem: wołający odczytuje go z konkursu w chwili
+    kolejkowania (:func:`mail_from`), a worker nie musi wiedzieć, że konkursy w ogóle istnieją.
+
+    ``from_email=None`` znaczy „nadawca instalacji” (``DEFAULT_FROM_EMAIL``) i jest wartością
+    domyślną, więc zadanie zakolejkowane przez kod sprzed tej zmiany (albo przez wołającego, który
+    konkursu nie zna) zachowuje się dokładnie tak, jak zachowywało się dotąd.
 
     Dlaczego ponowienia: jedyny list z terminem rozmowy jest za ważny, żeby zginąć przez pięć
     sekund niedostępności MTA. Rosnący odstęp (``retry_backoff``) z rozrzutem (``retry_jitter``)
@@ -71,7 +102,7 @@ def send_mail_task(self, subject: str, message: str, recipient_list: list[str]) 
     sent = send_mail(
         subject,
         message,
-        settings.DEFAULT_FROM_EMAIL,
+        from_email or settings.DEFAULT_FROM_EMAIL,
         list(recipient_list or []),
         fail_silently=False,
     )

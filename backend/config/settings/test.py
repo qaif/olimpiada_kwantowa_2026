@@ -33,6 +33,12 @@ ANTISPAM_MIN_FILL_SECONDS = 3
 # a stawka ``None`` dla każdego scope'u neutralizuje też widoki z jawnym ``throttle_classes``.
 # ``SimpleRateThrottle.allow_request`` przy ``rate is None`` wychodzi zanim dotknie zegara – dzięki
 # temu test pod ``freeze_time`` nie trafia na ``SimpleRateThrottle.timer`` zamrożone przez freezegun.
+#
+# **Ten słownik wymienia dokładnie te same scope'y, co ``base.py``** – pilnuje tego
+# ``apps/web/tests/test_throttle.py::test_test_settings_list_the_same_throttle_scopes_as_base``.
+# Powód jest praktyczny: ``ScopedRateThrottle`` szuka stawki po nazwie i **brak klucza jest u niego
+# wyjątkiem**, a nie „bez limitu”, więc scope dopisany w ``base.py`` i pominięty tutaj wywraca
+# każdy test, który dotknie jego widoku – i to pięćsetką, czyli komunikatem nie o tym.
 REST_FRAMEWORK = {
     **REST_FRAMEWORK,
     "DEFAULT_THROTTLE_CLASSES": [],
@@ -42,6 +48,10 @@ REST_FRAMEWORK = {
         "login": None,
         "upload": None,
         "password_reset": None,
+        "support": None,
         "schools": None,
+        "two_factor": None,
+        # Webhook płatności (T49).
+        "payments": None,
     },
 }

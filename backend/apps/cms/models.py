@@ -79,6 +79,7 @@ RESERVED_SLUGS = frozenset(
         "static",
         # Strona statusu serwisu i zgłoszenia do organizatora – oba adresy obsługuje aplikacja
         # (``config/urls.py`` i ``apps/web/urls.py``), więc strona CMS o takim slugu byłaby martwa.
+        "setup",
         "status",
         "support",
     }

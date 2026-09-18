@@ -27,6 +27,10 @@ class PublicResultRowSerializer(serializers.Serializer):
     rank = serializers.IntegerField(read_only=True)
     display = serializers.CharField(read_only=True)
     district = serializers.CharField(read_only=True, required=False, allow_blank=True)
+    # Kategoria startowa – tak samo opcjonalna i z tego samego powodu, co okręg: snapshot niesie ją
+    # wyłącznie w konkursie z kategoriami (§ 1.2.4), a snapshoty Olimpiady Kwantowej nie niosą jej
+    # nigdy. Brak klucza to pominięte pole w odpowiedzi, nie błąd.
+    category = serializers.CharField(read_only=True, required=False, allow_blank=True)
     points = serializers.DictField(child=serializers.IntegerField(), read_only=True)
     total = serializers.IntegerField(read_only=True)
     qualified = serializers.BooleanField(read_only=True)
@@ -61,6 +65,9 @@ class StageResultRowSerializer(serializers.Serializer):
     last_name = serializers.CharField(read_only=True, allow_blank=True)
     school = serializers.CharField(read_only=True, allow_blank=True)
     district = serializers.CharField(read_only=True, allow_blank=True)
+    # Jw. – wiersz podglądu niesie kategorię wyłącznie w konkursie, który ma kategorie. Nazwa,
+    # a nie identyfikator: to jest odpowiedź do pokazania człowiekowi, a nie klucz do łączenia.
+    category = serializers.CharField(read_only=True, required=False, allow_blank=True)
     status = serializers.CharField(read_only=True)
     points = serializers.DictField(child=serializers.IntegerField(), read_only=True)
     total = serializers.IntegerField(read_only=True)

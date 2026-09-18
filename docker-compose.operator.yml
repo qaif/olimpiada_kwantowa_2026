@@ -1,0 +1,50 @@
+# Nakładka „świeży operator”: minimalny zestaw usług potrzebny do pierwszego uruchomienia
+# platformy na własnym serwerze i przejścia kreatora `/setup/`.
+#
+# Użycie (README § 3, docs/OPERACJE.md § 4.3):
+#   docker compose -f docker-compose.yml -f docker-compose.operator.yml up -d
+# wstaje: proxy, web, worker, beat, db, redis, minio, minio-init.
+#
+# Komplet usług (razem z ClamAV-em i własnym MTA) wraca profilem `full`, bez zmiany polecenia:
+#   docker compose -f docker-compose.yml -f docker-compose.operator.yml --profile full up -d
+# Zestaw usług z profilem `full` jest **równy** zestawowi domyślnemu z samego docker-compose.yml –
+# pilnuje tego scripts/tests/compose_profiles_test.sh.
+#
+# Dlaczego osobny plik, a nie profil wpisany wprost do docker-compose.yml: profile w compose
+# **dodają** usługi, a nie odejmują, więc „mniej usług na start” znaczy „wyjąć `clamav` i `mail`
+# z zestawu domyślnego”. Zrobione w docker-compose.yml zmieniłoby to, co startuje na produkcji
+# Olimpiady Kwantowej (krok 4b/8 wdrożenia) i w środowisku deweloperskim (`up -d worker` przestaje
+# ciągnąć ClamAV-a przez `depends_on`) – czyli dokładnie to, czego zabrania
+# docs/UNIWERSALNY-ETAP-2.md § 0.2 pkt 11. W nakładce zmiana dotyczy wyłącznie tego, kto poda ją
+# w `-f`; plik podstawowy zostaje bajt w bajt sobą.
+#
+# Obraz: bez zmiennej `WEB_IMAGE` compose zbuduje obraz na miejscu (kilkanaście minut i kompilator
+# w wymaganiach). Gotowy obraz z rejestru bierze się jedną zmienną w `.env`:
+#   WEB_IMAGE=ghcr.io/qaif/olimpiada-web:v0.24.0
+# i `docker compose … pull` przed `up -d` (inaczej compose i tak zbuduje własny, bo widzi `build:`).
+#
+# Czego operator w tym zestawie NIE ma – i co to znaczy:
+#   * `clamav` – skan antywirusowy załączników. Bez niego pliki dają się wysłać, ale zostają
+#     w stanie „oczekuje na skan”: zadanie z kolejki `scan` nie ma z czym rozmawiać. To jest
+#     stan do pierwszego dnia rejestracji, nie do prowadzenia zawodów – przed otwarciem naboru
+#     włącz profil `full` (ClamAV chce ~1,5 GB pamięci na bazę sygnatur, README § 1).
+#   * `mail` – wychodzący Postfix z DKIM-em. Bez niego nie działa aktywacja konta ani reset hasła,
+#     dopóki w `.env` nie ma `EMAIL_URL` zewnętrznego dostawcy (README § 4.1, wariant B).
+#     Poczta bez rekordów SPF/DKIM/DMARC i PTR trafia do spamu niezależnie od wybranego wariantu.
+services:
+  clamav:
+    profiles: [full]
+
+  mail:
+    profiles: [full]
+
+  worker:
+    depends_on:
+      # `required: false` jest tu warunkiem poprawności całego projektu, a nie optymalizacją:
+      # `worker` ma w docker-compose.yml zależność `clamav: service_healthy`, a compose odrzuca
+      # projekt, w którym włączona usługa zależy od usługi wyłączonej profilem („service worker
+      # depends on undefined service clamav”). Z `required: false` `worker` startuje bez ClamAV-a,
+      # a przy profilu `full` nadal czeka na jego `healthy` – kolejność pozostaje ta sama.
+      clamav:
+        condition: service_healthy
+        required: false

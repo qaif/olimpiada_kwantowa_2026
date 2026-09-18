@@ -1918,6 +1918,27 @@ To jest materiał porównawczy do punktu 16 listy § 0.5 i do testu § 5.2 uruch
 produkcyjnej — nie zastępuje `pg_dump`, tylko daje plik, który da się porównać `diff`-em bez
 odtwarzania bazy.
 
+### 3.1. Stan wdrożenia
+
+Wydania E–K zostały **zbudowane równolegle i scalone w jednym tagu `v0.24.0`** (2026-09-18),
+na polecenie organizatora („zrównolegl agentów”). Każde z nich spełnia regułę wspólną z osobna —
+cała nowa funkcjonalność stoi za flagami z § 0.6 (na produkcji `feature_flags = {}` dla Konkursu #1),
+a migracje danych zapisują Konkursowi #1 dokładnie dzisiejsze wartości (zgody, szablony dokumentów,
+regiony z 16 województw, przebieg etapów z `STAGE_ORDER` i `QualificationRule`). Bramki przyjęcia
+z tej sekcji przeszły dla całości: pełna suita na zielono, budżety zapytań (32/46/48) niezmienione,
+strony publiczne bajt w bajt, lista kontrolna z `docs/OPERACJE.md`. Numeracja `v0.25.0`–`v0.30.0`
+z tabeli powyżej **nie została użyta**; kolejne tagi idą dalej od `v0.24.0`.
+
+Odstępstwa od tabeli wydań, przyjęte w trakcie i opisane w kodzie: `Region.competition`,
+`Region.parent`, `ConsentDefinition.competition` i `DocumentTemplate.competition` są `CASCADE`
+(konfiguracja własna konkursu, dowody pozostają zamrożonymi napisami); gating profilu compose
+`full` stoi w nakładce `docker-compose.operator.yml`, nie w pliku bazowym; kreator `/setup/` wymaga
+jednorazowego tokenu (`SETUP_TOKEN` z `.env` albo z logu kontenera `web`); adres na `500.html`
+pochodzi z `ERROR_PAGE_CONTACT_EMAIL` z domyślną dzisiejszą wartością; `InterviewScore` jest
+kluczowany parą (zgłoszenie, komponent); `email_subject_prefix` konkursu **nie** jest doklejany do
+tematów (dziś żaden list Konkursu #1 go nie niesie); dane szczególne w formularzu przyjazdu są za
+osobnym przełącznikiem `LogisticsSettings.collect_special_needs` (domyślnie wyłączone).
+
 ---
 
 ## 4. Podział prac

@@ -70,6 +70,13 @@ INSTALLED_APPS = [
     # pod /dokumenty/) w bazie, a nie w urlconfie – redaktor widzi je i rozszerza w /cms/.
     "wagtail.contrib.redirects",
     "wagtail.contrib.settings",
+    # Tłumaczenie stron „strona po stronie” w ``/cms/`` (decyzja D19, docs/UNIWERSALNY-ETAP-2.md
+    # § 1.6). Aplikacja wnosi **jeden** model bez kolumn (nośnik uprawnienia „Can submit
+    # translations”) i przycisk „Translate” w liście stron. Przycisk pokazuje się wyłącznie wtedy,
+    # gdy istnieje ``Locale``, na który strona nie jest jeszcze przetłumaczona – instalacja
+    # z jednym językiem treści (czyli Konkurs #1) nie widzi go ani razu.
+    # XLIFF (``wagtail-localize``) to osobna zależność i osobna decyzja – nie w tym etapie.
+    "wagtail.contrib.simple_translation",
     "wagtail.embeds",
     "wagtail.sites",
     "wagtail.users",
@@ -421,7 +428,19 @@ LOCALE_PATHS = [BASE_DIR / "locale"]
 # ``i18n_patterns`` świadomie **nie** jest używane: adresy serwisu trafiają do listów, do regulaminu
 # i do pism (``/me/``, ``/results/12/``, ``/zgoda/<token>/``), a prefiks języka zrobiłby z każdego
 # z nich dwa adresy. Język wybiera człowiek, a wybór jedzie ciasteczkiem, sesją i – dla konta –
-# wierszem ``accounts.UserPreference`` (patrz ``apps.accounts.preferences``).
+# wierszem ``accounts.UserPreference`` (patrz ``apps.accounts.preferences``). Dowód, że tej decyzji
+# nie odwraca także wielojęzyczność **treści**: docs/UNIWERSALNY-ETAP-2.md § 1.6.2 – wielojęzyczność
+# realizuje drzewo stron per ``Locale`` pod osobną domeną (``apps.tenancy.aliases``), a nie prefiks.
+#
+# Wielojęzyczność treści Wagtaila. Domyślnie **wyłączona**: włączenie jest decyzją operatora wpisaną
+# w ``.env``, a nie skutkiem ``git pull``. Wyłączona znaczy dokładnie dzisiejszy stan – jeden
+# ``Locale`` (``pl``), jedno drzewo stron, ani jednego wyboru języka w ``/cms/`` i ani jednego
+# adresu więcej. Włączona nie zmienia żadnego adresu: drugie drzewo stoi pod drugą witryną
+# (``tenancy.CompetitionSiteAlias``), więc ``/`` zostaje ``/``, a nie ``/pl/``.
+WAGTAIL_I18N_ENABLED = env.bool("WAGTAIL_I18N_ENABLED", default=False)
+# Języki **treści** to ta sama lista, co języki interfejsu: drugi komplet nazw byłby drugim
+# miejscem, w którym trzeba pamiętać o dopisaniu języka, i pierwszym, w którym ktoś zapomni.
+WAGTAIL_CONTENT_LANGUAGES = LANGUAGES
 USE_TZ = True  # wszystkie DateTimeField w UTC; deadline'y porównywane przez timezone.now()
 
 STATIC_URL = "/static/"
@@ -511,6 +530,15 @@ CLAMAV_PORT = env.int("CLAMAV_PORT", default=3310)
 # ``StreamMaxLength`` clamd (obraz clamav 1.4 → 100 MB). Powyżej tej wartości clamd zrywa połączenie
 # w trakcie INSTREAM, co wyglądałoby jak awaria usługi i uruchamiało bezsensowne retry.
 CLAMAV_STREAM_MAX_BYTES = env.int("CLAMAV_STREAM_MAX_BYTES", default=100 * 1024 * 1024)
+
+# --- Strona błędu serwera (templates/500.html) -------------------------------------------------
+# Adres kontaktowy pokazywany na stronie 500. Ustawienie, a nie pole konkursu: ta strona renderuje
+# się **bez bazy** (i to jest jej sens), więc nie ma jak zapytać, czyj konkurs stał pod tym
+# żądaniem. Domyślną wartością jest dzisiejszy adres organizatora Olimpiady Kwantowej, więc
+# produkcja bez wpisu w ``.env`` wygląda dokładnie tak, jak przed etapem 2 (decyzja D14,
+# ``docs/UNIWERSALNY-ETAP-2.md`` § 1.1.4). Wartość podaje szablonowi ``handler500``
+# (``apps.web.views.errors.server_error``).
+ERROR_PAGE_CONTACT_EMAIL = env("ERROR_PAGE_CONTACT_EMAIL", default="contact@qaif.org")
 
 # --- Wagtail (część informacyjna, T-09) ------------------------------------------------------
 # Domena publiczna serwisu. Migracja ``apps.cms.0002`` ustawia z niej ``wagtailcore.Site``;
@@ -684,6 +712,12 @@ REST_FRAMEWORK = {
         # trzydzieści sekund – bez limitu da się je przeszukać w kilka godzin z jednego adresu,
         # mając samo hasło. Stawka jest niska, bo człowiek przepisuje kod raz, najwyżej dwa razy.
         "two_factor": "10/min",
+        # Webhook płatności (``/api/v1/payments/<dostawca>/``, § 1.5.1). Limit liczy się per adres
+        # nadawcy, bo żądanie przychodzi bez konta i bez klucza – jedynym poświadczeniem jest
+        # podpis, a podpis sprawdza się **po** przyjęciu żądania. Sześćdziesiąt na minutę mieści
+        # z zapasem dostawcę ponawiającego doręczenia całej edycji naraz i jednocześnie zamyka
+        # dobieranie podpisu: milion prób na minutę byłoby atakiem, tysiąc dziennie nie jest.
+        "payments": "60/min",
     },
     "EXCEPTION_HANDLER": "apps.core.api.exception_handler",
 }

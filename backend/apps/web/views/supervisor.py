@@ -36,6 +36,7 @@ from apps.accounts.bulk_registration import (
     MAX_ROWS,
     STATE_INVITED,
     columns_for,
+    extra_columns,
     header_line,
     import_students,
     invitation_state,
@@ -300,6 +301,7 @@ class BaseStudentImportView(View):
                 form.cleaned_data["file"],
                 with_supervisor=self.with_supervisor_column,
                 default_supervisor_email=self.default_supervisor_email(),
+                competition=self.competition,
             )
         except DomainError as exc:
             form.add_error(None, str(exc.detail))
@@ -352,10 +354,24 @@ class BaseStudentImportView(View):
         return _resolve_school(cleaned.get("school") or "", cleaned.get("school_id"))
 
     def _context(self, request, **extra) -> dict:
+        """Kontekst obu ekranów importu – instrukcja, wzorcowy nagłówek i treść podglądu.
+
+        Kolumny dokładane przez konkurs (``extra_columns``) wchodzą do instrukcji **i** decydują
+        o kolumnach tabeli podglądu. Jedno źródło, bo to jest ta sama lista: rubryka wymieniona
+        w opisie pliku, której podgląd nie pokazuje, znaczy dla nauczyciela „wpisałem i zniknęło”.
+        Przy konkursie bez flag etapu 2 lista jest pusta i oba ekrany zostają dzisiejsze (§ 0.1).
+        """
+        competition = self.competition
+        keys = {column.key for column in extra_columns(competition)}
         return {
-            "columns": columns_for(with_supervisor=self.with_supervisor_column),
-            "header_line": header_line(with_supervisor=self.with_supervisor_column),
+            "columns": columns_for(with_supervisor=self.with_supervisor_column, competition=competition),
+            "header_line": header_line(with_supervisor=self.with_supervisor_column, competition=competition),
             "with_supervisor_column": self.with_supervisor_column,
+            "show_region": "region" in keys,
+            "show_category": "category" in keys,
+            "show_institution": bool(
+                keys & {"institution_type", "institution_name", "custom_institution_id"}
+            ),
             "max_rows": MAX_ROWS,
             "post_url": request.path,
             **extra,

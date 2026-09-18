@@ -5,14 +5,21 @@
 # (żaden nie potrzebuje wyniku poprzedniego), ale to `lint` daje odpowiedź najszybciej i to na nim
 # autor zmiany patrzy najpierw.
 #
-# Żaden krok nie wymaga sekretów. Jest to warunek świadomy: workflow uruchamiany z forka nie
-# dostaje sekretów repozytorium, więc gdyby ich potrzebował, na zewnętrznych zgłoszeniach
-# pokazywałby wyłącznie czerwony krzyżyk i nikt by z niego nic nie miał.
+# Żaden krok nie wymaga sekretów **repozytorium**. Jest to warunek świadomy: workflow uruchamiany
+# z forka nie dostaje sekretów, więc gdyby ich potrzebował, na zewnętrznych zgłoszeniach pokazywałby
+# wyłącznie czerwony krzyżyk i nikt by z niego nic nie miał. Jedyny wyjątek jest pozorny: publikacja
+# obrazu do GHCR używa wbudowanego `GITHUB_TOKEN` (żaden sekret nie jest zakładany ręcznie) i włącza
+# się **wyłącznie** dla `main` i znaczników `v*`, czyli nigdy dla pull requesta – także własnego.
+# Zgłoszenie z forka nadal buduje obraz, tylko go nigdzie nie wypycha.
 name: CI
 
 on:
   push:
     branches: [main]
+    # Znaczniki wydań: obraz publikowany pod nazwą wersji powstaje właśnie tutaj
+    # (zadanie `image`, docs/UNIWERSALNY-ETAP-2.md § 1.7.2). Bez tego wiersza `git push --tags`
+    # nie uruchamiałby CI w ogóle, więc `v0.24.0` nie miałoby skąd wziąć obrazu.
+    tags: ["v*"]
   pull_request:
 
 # Nowy push do tej samej gałęzi przerywa poprzedni przebieg: wynik dla kodu sprzed dwóch minut
@@ -167,24 +174,87 @@ jobs:
         run: python -m pytest -q --create-db
 
   image:
-    name: docker build
+    name: docker build (+ GHCR dla main i v*)
     runs-on: ubuntu-latest
+    # `packages: write` wyłącznie tutaj i wyłącznie po to, żeby wypchnąć obraz do GHCR wbudowanym
+    # `GITHUB_TOKEN`-em. `contents: read` wpisane jawnie, bo podanie jednego uprawnienia zeruje
+    # pozostałe – bez tej linijki `actions/checkout` nie miałby czym sklonować repozytorium.
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
       - uses: docker/setup-buildx-action@v3
 
-      # Budujemy i **nie** wypychamy nigdzie. Sens tego kroku jest jeden: obraz musi dać się
+      # Kto publikuje, a kto tylko buduje – jedno miejsce, z którego biorą się i tagi, i decyzja.
+      # Wartości z kontekstu `github` wchodzą tu przez zmienne środowiskowe, a nie przez `${{ }}`
+      # w treści polecenia: nazwa gałęzi jest tekstem od autora zgłoszenia, więc wklejona wprost
+      # do skryptu byłaby wstrzyknięciem poleceń do powłoki biegnącej z tokenem tego zadania.
+      - name: Tagi obrazu i decyzja o publikacji
+        id: obraz
+        env:
+          REF: ${{ github.ref }}
+          REF_NAME: ${{ github.ref_name }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -eu
+          # Nazwa pakietu w GHCR musi być małymi literami, a nazwa organizacji na GitHubie nie musi.
+          image="ghcr.io/$(printf '%s' "$OWNER" | tr '[:upper:]' '[:lower:]')/olimpiada-web"
+          short="$(printf '%s' "$SHA" | cut -c1-7)"
+          case "$REF" in
+            # Wydanie: obraz pod nazwą wersji. To jest tag, który wpisuje się w WEB_IMAGE
+            # na serwerze (scripts/deploy.sh, README § 3).
+            refs/tags/v*)    push=true;  tags="$image:$REF_NAME,$image:sha-$short" ;;
+            # `main`: obraz „to, co na głównej” – do stagingu i do świeżej instalacji z paczki,
+            # zanim powstanie kolejny znacznik.
+            refs/heads/main) push=true;  tags="$image:main,$image:sha-$short" ;;
+            # Pull request (także z forka): buduje się, nie publikuje. Tag jest wymagany przez
+            # akcję nawet przy `push: false`, więc podajemy jeden, lokalny.
+            *)               push=false; tags="$image:pr" ;;
+          esac
+          {
+            echo "push=$push"
+            echo "tags=$tags"
+            echo "source=https://github.com/$REPO"
+            echo "version=$REF_NAME"
+          } >> "$GITHUB_OUTPUT"
+          echo "publikacja=$push, tagi=$tags"
+
+      - name: Logowanie do GHCR
+        if: steps.obraz.outputs.push == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Budowanie ma sens także bez publikacji i to jest jego pierwsze zadanie: obraz musi dać się
       # zbudować, zanim ktoś odpali `scripts/deploy.sh`, bo tam buduje się go na serwerze
       # produkcyjnym – nieudane budowanie zostawia serwis na starej wersji w połowie wdrożenia.
       # Ten krok wyłapuje przy okazji rzeczy, których nie widzi pytest: brakującą zależność
       # systemową i błąd w katalogu tłumaczeń (Dockerfile woła `msgfmt`).
+      #
+      # Publikacja (`main`, `v*`) dokłada do tego obraz, którym da się postawić instalację bez
+      # kompilatora na serwerze: `WEB_IMAGE=ghcr.io/…` w .env albo w wywołaniu wdrożenia.
+      # Nie publikujemy osobnych obrazów `worker` i `beat` – to ten sam obraz z innym poleceniem
+      # (docker-compose.yml, `x-app-base`). Obrazów nie podpisujemy (cosign to osobna pozycja).
       - name: Budowanie obrazu produkcyjnego
         uses: docker/build-push-action@v6
         with:
           context: ./backend
           target: runtime
-          push: false
+          push: ${{ steps.obraz.outputs.push }}
+          tags: ${{ steps.obraz.outputs.tags }}
+          # Etykiety OCI: bez `image.source` GHCR nie wie, do którego repozytorium należy pakiet,
+          # i nie pokazuje przy nim ani kodu, ani licencji.
+          labels: |
+            org.opencontainers.image.source=${{ steps.obraz.outputs.source }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.obraz.outputs.version }}
+            org.opencontainers.image.licenses=AGPL-3.0-or-later
           # Cache warstw w cache'u Actions – bez niego każdy przebieg instaluje zależności od zera.
           cache-from: type=gha
           cache-to: type=gha,mode=max

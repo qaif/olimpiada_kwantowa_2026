@@ -1,0 +1,58 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Jeden region. Kodu nie chowamy przy edycji: profile wskazują region kluczem obcym, a nie napisem,
+  więc zmiana kodu jest poprawką w regulaminie, a nie podmianą obiektu. Jeden skutek trzeba jednak
+  znać i mówi o nim zdanie pod formularzem – ``Participant.district`` jest denormalizowaną kopią
+  kodu i odświeży się dopiero przy najbliższym zapisie profilu.
+
+  Usunięcie stoi na dole i osobno od zapisu, bo jest jedyną czynnością na tej stronie, której nie
+  da się cofnąć. Region w użyciu zatrzyma je baza; ekran mówi wtedy, ilu ludzi to dotyczy.
+{% endcomment %}
+{% block title %}{{ region.name }} – regiony{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-regions' %}">Regiony</a>{% endblock %}
+{% block panel_title %}Region: {{ region.name }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Wskazują ten region: uczestnicy ({{ usage.participants }}), członkowie komitetu
+    ({{ usage.members }}), kody zaproszeń ({{ usage.codes }}).</p>
+{% endblock %}
+{% block panel_content %}
+<section class="section">
+  <div class="card">
+    <form method="post" class="form">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">Zapisz region</button>
+        <a class="btn btn--secondary" href="{% url 'web:coordinator-regions' %}">Wróć</a>
+      </div>
+    </form>
+    <p class="hint">Zmiana kodu nie przepisuje kolumny „województwo” w profilach, które ten region
+      już mają: jest ona kopią kodu i odświeży się przy najbliższym zapisie profilu.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Wycofanie regionu</h2>
+    <p class="hint">Wyłączenie zdejmuje region z list wyboru i zostawia go przy profilach, które go
+      mają. Usunięcie jest możliwe wyłącznie wtedy, gdy nie wskazuje go nikt.</p>
+  </div>
+  <div class="card">
+    {% if region.is_active %}
+      <form method="post" action="{% url 'web:coordinator-region-deactivate' region.pk %}" class="inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn--secondary">Wyłącz region</button>
+      </form>
+    {% else %}
+      <form method="post" action="{% url 'web:coordinator-region-activate' region.pk %}" class="inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn--secondary">Włącz region</button>
+      </form>
+    {% endif %}
+    <form method="post" action="{% url 'web:coordinator-region-delete' region.pk %}" class="inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn--danger">Usuń region</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

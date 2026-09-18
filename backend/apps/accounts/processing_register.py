@@ -326,6 +326,69 @@ ACTIVITIES: tuple[ProcessingActivity, ...] = (
     ),
 )
 
+#: Czynność **warunkowa**: wchodzi do rejestru wyłącznie konkursom, które zbierają potrzeby
+#: szczególne przed etapem stacjonarnym (``docs/UNIWERSALNY-ETAP-2.md`` § 1.5.2, decyzja
+#: organizatora D21). Konkurs #1 ich nie zbiera, więc jego rejestr nie zmienia się o ani jeden
+#: wiersz – i to jest powód, dla którego ta czynność stoi obok :data:`ACTIVITIES`, a nie w nich:
+#: rejestr ma opisywać przetwarzanie, które **naprawdę zachodzi**, a nie to, które kod umiałby
+#: przeprowadzić. Wpis powstaje razem z modułem, który te dane zbiera, i to jest warunek przyjęcia
+#: tamtej zmiany (art. 30 RODO).
+ONSITE_LOGISTICS_ACTIVITY = _activity(
+    key="logistyka",
+    name="Organizacja pobytu na etapie stacjonarnym",
+    purpose=(
+        "Przygotowanie noclegu, wyżywienia i dostępności miejsca zawodów oraz odnotowanie "
+        "obecności uczestnika na etapie odbywającym się na miejscu."
+    ),
+    legal_basis=(
+        "art. 6 ust. 1 lit. b RODO (wykonanie umowy – udział w zawodach) oraz – dla potrzeb "
+        "szczególnych, które bywają danymi o zdrowiu – art. 9 ust. 2 lit. a RODO (wyraźna zgoda "
+        "uczestnika albo jego opiekuna prawnego, wyrażona przez wypełnienie pola nieobowiązkowego)"
+    ),
+    subjects="uczestnicy zakwalifikowani do etapu odbywającego się na miejscu",
+    categories=[
+        "data przyjazdu i wyjazdu oraz wskazane miejsce zawodów",
+        "rodzaje zgłoszonych potrzeb: nocleg, wyżywienie, dojazd",
+        "rodzaje potrzeb szczególnych (dieta, dostępność) i krótka uwaga własna uczestnika – "
+        "wyłącznie w konkursie, który zbieranie tych danych świadomie włączył",
+        "obecność na etapie wraz z godziną odnotowania",
+    ],
+    recipients=[
+        HOSTING_RECIPIENT,
+        "koordynator konkursu – uwaga o potrzebach szczególnych nie jest pokazywana recenzentom "
+        "ani opiekunom szkolnym i nie wychodzi eksportem integracyjnym ani webhookiem",
+        "obiekt noclegowy i firma gastronomiczna – wyłącznie liczby osób oraz zakres diety "
+        "niezbędny do przygotowania posiłku, nigdy dokumentacja medyczna",
+    ],
+    retention=PARTICIPANT_RETENTION,
+    measures=[
+        "zbieranie potrzeb szczególnych jest domyślnie **wyłączone**; bez świadomej decyzji "
+        "organizatora pola nie ma ani w formularzu, ani w eksportach",
+        "pole uwag ma limit 500 znaków i etykietę mówiącą wprost, czego nie wpisywać "
+        "(diagnozy, nazwy chorób, leki, orzeczenia)",
+        "treść uwagi nie trafia do dziennika zdarzeń – audyt notuje wyłącznie fakt jej złożenia",
+    ],
+)
+
+
+def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
+    """Rejestr **tego** konkursu: czynności wspólne plus te, które wynikają z jego konfiguracji.
+
+    Jedno wejście dla ekranu ``/coordinator/processing-register/`` i dla eksportu CSV. Rejestr
+    przestał być jedną listą w chwili, w której dwa konkursy w jednej instalacji zaczęły zbierać
+    różne dane – a dopisanie czynności „na zapas” byłoby opisaniem przetwarzania, którego u danego
+    administratora nie ma.
+
+    ``None`` znaczy „nie wiadomo, o który konkurs chodzi” i daje rejestr podstawowy: to samo, co
+    widział czytelnik przed etapem 2.
+    """
+    from apps.competitions.logistics import collects_special_needs
+
+    if collects_special_needs(competition):
+        return (*ACTIVITIES, ONSITE_LOGISTICS_ACTIVITY)
+    return ACTIVITIES
+
+
 #: Nagłówki eksportu CSV. Kolejność i brzmienie są kontraktem tego pliku – rejestr bywa wklejany
 #: do dokumentacji organizatora i do korespondencji z organem nadzorczym.
 CSV_HEADERS = (
@@ -340,13 +403,18 @@ CSV_HEADERS = (
 )
 
 
-def as_rows() -> list[list[str]]:
+def as_rows(activities: tuple[ProcessingActivity, ...] | None = None) -> list[list[str]]:
     """Rejestr jako wiersze tekstu – materiał eksportu CSV.
 
     Listy wieloelementowe sklejamy średnikiem, a nie nową linią: plik CSV z wieloliniowymi
     komórkami otwiera się poprawnie w arkuszu, ale przestaje się czytać w terminalu i w diffie,
     a to jest drugi sposób, w jaki ten rejestr bywa oglądany.
+
+    Bez argumentu oddaje rejestr podstawowy (:data:`ACTIVITIES`), czyli dokładnie to, co oddawał
+    przed etapem 2. Wołający, który wie, o który konkurs chodzi, podaje wynik :func:`activities_for`
+    i dostaje plik opisujący przetwarzanie tego konkursu.
     """
+    activities = ACTIVITIES if activities is None else activities
     return [
         [
             activity.name,
@@ -358,5 +426,5 @@ def as_rows() -> list[list[str]]:
             activity.retention,
             "; ".join(activity.measures),
         ]
-        for activity in ACTIVITIES
+        for activity in activities
     ]

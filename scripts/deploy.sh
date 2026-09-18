@@ -16,6 +16,14 @@
 #             MAIL_PUBLIC_IP (adres do rekordu SPF, gdy serwer wychodzi przez inny IP niż własny),
 #             BACKUP_DIR (katalog kopii przed migracjami, domyślnie /opt/olimpiada-backups).
 #
+# Gotowy obraz zamiast budowania na serwerze (opcjonalnie, docs/UNIWERSALNY-ETAP-2.md § 1.7.2):
+#   WEB_IMAGE=ghcr.io/qaif/olimpiada-web:v0.24.0 scripts/deploy.sh root@<host>
+# Krok 4/8 pobiera wtedy obraz z rejestru zamiast go budować, a wartość trafia do <REMOTE_DIR>/.env,
+# żeby każde kolejne `docker compose` na serwerze (start, restart, `up -d proxy`) widziało ten sam
+# obraz. BEZ tej zmiennej wdrożenie robi dokładnie to, co robiło: `docker compose build --pull web`
+# na serwerze – i to jest droga domyślna dla Olimpiady Kwantowej. Powrót do budowania = kolejne
+# wdrożenie bez WEB_IMAGE (skrypt usuwa wtedy wpis z .env).
+#
 # Nowy konkurs (platforma wielokonkursowa, docs/UNIWERSALNY-ETAP-1.md § 4.5) – krok 6a wykonuje się
 # WYŁĄCZNIE wtedy, gdy ustawiono NEW_COMPETITION_SLUG. Bez tej zmiennej wdrożenie nie woła komendy
 # `create_competition` ani razu, więc przebieg dla Olimpiady Kwantowej jest taki, jak był:
@@ -121,12 +129,16 @@ else
 fi
 REMOTE
 
-log "4/8 Konfiguracja proxy (EXTRA_DOMAINS), build obrazu i start samej bazy"
+if [ -n "${WEB_IMAGE:-}" ]; then
+    log "4/8 Konfiguracja proxy (EXTRA_DOMAINS), obraz z rejestru ($WEB_IMAGE) i start samej bazy"
+else
+    log "4/8 Konfiguracja proxy (EXTRA_DOMAINS), build obrazu i start samej bazy"
+fi
 # Rozdzielenie dawnego kroku „build i start usług” na 4 / 4a / 4b bierze się z jednego faktu:
 # migracje uruchamia entrypoint kontenera `web` (backend/entrypoint.sh), więc jedyne miejsce, w
 # którym da się zrobić kopię bazy **sprzed** migracji, jest między startem `db` a startem `web`.
 # Polecenie startujące komplet usług (krok 4b) zostaje co do znaku takie, jakie było.
-"${SSH[@]}" env REMOTE_DIR="$REMOTE_DIR" bash -s <<'REMOTE'
+"${SSH[@]}" env REMOTE_DIR="$REMOTE_DIR" WEB_IMAGE="${WEB_IMAGE:-}" bash -s <<'REMOTE'
 set -euo pipefail
 cd "$REMOTE_DIR"
 # Dwie zmienne wielokonkursowości dokładane do .env **tylko wtedy, gdy ich nie ma**. Istniejących
@@ -157,7 +169,35 @@ fi
 # wynik jest kopią deploy/Caddyfile co do bajtu (scripts/tests/render_caddyfile_test.sh).
 chmod +x scripts/render_caddyfile.sh
 ./scripts/render_caddyfile.sh
-docker compose build --pull web
+# Źródło obrazu aplikacji: rejestr albo build na miejscu. Rozgałęzienie, a nie podmiana – bez
+# WEB_IMAGE wykonuje się dokładnie to polecenie, które wykonywało się dotąd
+# (docs/UNIWERSALNY-ETAP-2.md § 0.2 pkt 11 i § 1.7.2).
+if [ -n "${WEB_IMAGE:-}" ]; then
+  # Wpis w .env, bo compose czyta zmienne stamtąd: krok 4b i każde późniejsze `docker compose`
+  # na serwerze (restart usługi, `up -d proxy`, praca ręczna w awarii) muszą widzieć ten sam
+  # obraz. Bez wpisu compose wróciłby do wartości domyślnej, czyli do **budowania** obrazu
+  # w pierwszym poleceniu `up`, o którym nikt by się nie dowiedział.
+  if grep -qE '^WEB_IMAGE=' .env; then
+    sed -i "s|^WEB_IMAGE=.*|WEB_IMAGE=$WEB_IMAGE|" .env
+  else
+    {
+      echo
+      echo "# Obraz aplikacji z rejestru zamiast budowanego na serwerze – wpisuje scripts/deploy.sh,"
+      echo "# gdy wdrożenie dostanie WEB_IMAGE=… . Brak linijki WEB_IMAGE niżej znaczy: obraz budowany"
+      echo "# na serwerze (skrypt kasuje ją sam przy wdrożeniu bez tej zmiennej)."
+      echo "WEB_IMAGE=$WEB_IMAGE"
+    } >> .env
+  fi
+  chmod 600 .env
+  docker compose pull web
+else
+  # Powrót do budowania na serwerze musi też sprzątnąć po sobie: wpis z poprzedniego wdrożenia
+  # z rejestru trzymałby stary obraz przy życiu mimo świeżego kodu w katalogu.
+  if grep -qE '^WEB_IMAGE=' .env; then
+    sed -i '/^WEB_IMAGE=/d' .env
+  fi
+  docker compose build --pull web
+fi
 docker compose up -d db
 for _ in $(seq 1 30); do
   docker compose ps --format '{{.Service}}={{.Health}}' | grep -q 'db=healthy' && break

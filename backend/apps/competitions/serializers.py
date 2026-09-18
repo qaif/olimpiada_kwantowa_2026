@@ -8,6 +8,7 @@ from django.urls import reverse
 from rest_framework import serializers
 
 from .models import Edition, Problem, Stage, StageEntry
+from .services import entry_owner
 
 
 class PublicStageSerializer(serializers.ModelSerializer):
@@ -117,13 +118,25 @@ class CurrentEditionSerializer(serializers.ModelSerializer):
 
 
 class StageEntrySerializer(serializers.ModelSerializer):
-    """Wpis uczestnika do etapu – zwracany wyłącznie właścicielowi (queryset filtruje po roli)."""
+    """Wpis uczestnika **albo drużyny** do etapu – zwracany wyłącznie właścicielowi.
+
+    Zakres rozstrzyga queryset (``StageEntryQuerySet.for_user``), nie ten serializer.
+
+    ``public_code`` idzie przez ``entry_owner`` (§ 1.2.3), a nie przez ``participant.public_code``:
+    od etapu 2 właścicielem wpisu bywa drużyna, a wtedy kolumna ``participant`` jest pusta i pole
+    oddawałoby ``null`` – czyli wpis bez identyfikatora w tabeli wyników. Dla wpisu uczestnika
+    funkcja oddaje dokładnie ten sam napis, co dotąd, i nie dokłada ani jednego zapytania
+    (``participant`` jest w ``select_related`` querysetu).
+    """
 
     stage = PublicStageSerializer(read_only=True)
     edition = serializers.CharField(source="stage.edition.year_label", read_only=True)
-    public_code = serializers.CharField(source="participant.public_code", read_only=True)
+    public_code = serializers.SerializerMethodField()
 
     class Meta:
         model = StageEntry
         fields = ("id", "edition", "stage", "public_code", "status", "total_points", "created_at")
         read_only_fields = fields
+
+    def get_public_code(self, obj: StageEntry) -> str:
+        return entry_owner(obj).public_code

@@ -30,6 +30,21 @@
  * - ``[data-picker="list"]``        – ``<ul role="listbox">`` na podpowiedzi,
  * - ``[data-picker="status"]``      – komunikat dla czytnika ekranu (aria-live).
  *
+ * Dwa punkty zaczepienia doszły w etapie 2 (§ 1.3.3) i **oba są nieobowiązkowe** – bez nich plik
+ * zachowuje się dokładnie jak przed tym wydaniem, co jest warunkiem, bo ten sam skrypt obsługuje
+ * cztery ekrany, a Konkurs #1 nie ma ani jednego z tych pól:
+ *
+ * - ``[data-institution-type]`` na **korzeniu** – identyfikator listy wyboru „Rodzaj placówki”
+ *   (stoi poza blokiem, bo formularz renderuje ją zwykłą pętlą po polach). Skrypt czyta z niej
+ *   rodzaj placówki, dokłada go do zapytania i **chowa cały blok**, gdy wybrany rodzaj nie ma
+ *   wierszy w żadnym wykazie („placówka poza Polską”, „bez szkoły”, „inna placówka”) – nazwę
+ *   wpisuje się wtedy w pola, które formularz renderuje obok (``institution_name``, ``country``),
+ * - ``[data-picker="custom-institution-id"]`` – ukryte pole z identyfikatorem wiersza **słownika
+ *   organizatora**. Wykazy są dwa i dowiązania też są dwa (``school_ref`` i
+ *   ``custom_institution_ref``), więc wiersz z odpowiedzi mówi w polu ``source``, do której
+ *   kolumny należy. Bez tego pola podpowiedzi ze słownika organizatora są **pomijane**: pozycja,
+ *   której wyboru nie ma gdzie zapisać, byłaby zaproszeniem do odmowy po wysłaniu formularza.
+ *
  * Węzły podpowiedzi powstają przez ``createElement`` i ``textContent``, więc nazwa szkoły z API
  * nigdy nie jest interpretowana jako HTML.
  *
@@ -52,6 +67,18 @@
    * zanim zdarzenie kliknięcia zdążyłoby do niej dotrzeć. */
   var BLUR_DELAY_MS = 150;
 
+  /* Rodzaje placówek, które **mają wiersze w wykazach** – odpowiednik stałej
+   * ``apps.accounts.models.DIRECTORY_INSTITUTION_TYPES``. Trzy napisy powtórzone po stronie
+   * przeglądarki, tak samo jak ``MIN_QUERY_LENGTH`` wyżej: reguła „czego tu w ogóle szukać” musi
+   * być rozstrzygalna **przed** pierwszym zapytaniem, a wysłanie żądania po to, żeby dowiedzieć
+   * się, że nie ma czego szukać, byłoby żądaniem na darmo przy każdej zmianie listy wyboru. */
+  var DIRECTORY_TYPES = ["PRIMARY", "SECONDARY", "UNIVERSITY"];
+  /* Wartości pola ``source`` z odpowiedzi (apps/schools/serializers.py) i etykiety obu wykazów.
+   * Etykieta jedzie przy wierszu **tylko wtedy**, gdy odpowiedź rozróżnia źródła – czyli nigdy
+   * w konkursie z jednym wykazem, gdzie lista ma wyglądać dokładnie tak, jak dziś. */
+  var SOURCE_CUSTOM = "custom";
+  var SOURCE_LABELS = { sio: "wykaz szkół", custom: "wykaz organizatora" };
+
   function plural(value, one, few, many) {
     if (value === 1) return one;
     var rest = value % 10;
@@ -71,6 +98,8 @@
     this.cityStatus = ref(root, "city-status");
     this.query = ref(root, "query");
     this.schoolId = ref(root, "school-id");
+    /* Druga kolumna dowiązania – bywa, że formularz jej nie ma, i wtedy zostaje ``null``. */
+    this.customInstitutionId = ref(root, "custom-institution-id");
     this.custom = ref(root, "custom");
     this.free = ref(root, "free");
     this.freeInput = ref(root, "free-input");
@@ -80,6 +109,10 @@
     this.citiesUrl = root.dataset.citiesUrl || "/api/schools/cities/";
     var districtId = root.dataset.districtField || "";
     this.district = districtId ? document.getElementById(districtId) : null;
+    /* Lista wyboru „Rodzaj placówki” stoi **poza** blokiem (formularz renderuje ją zwykłą pętlą),
+     * więc szukamy jej po identyfikatorze z atrybutu korzenia – tak samo, jak województwa. */
+    var typeId = root.dataset.institutionType || "";
+    this.institutionType = typeId ? document.getElementById(typeId) : null;
     /* Indeks podświetlonej podpowiedzi; -1 = żadna. */
     this.active = -1;
     this.items = [];
@@ -114,6 +147,14 @@
   SchoolPicker.prototype.init = function () {
     var self = this;
     if (this.hasCityStep()) this.initCity();
+    if (this.institutionType) {
+      this.institutionType.addEventListener("change", function () {
+        self.onInstitutionTypeChange();
+      });
+      /* Stan początkowy, bo formularz wraca z błędem z już wybranym rodzajem placówki, a listy
+       * wyboru przeglądarka po odświeżeniu potrafi przywrócić bez zdarzenia ``change``. */
+      this.syncInstitutionType();
+    }
     this.query.addEventListener("input", function () {
       self.onInput();
     });
@@ -156,7 +197,51 @@
     this.syncCustom();
   };
 
+  /* --- rodzaj placówki ----------------------------------------------------------------------
+   *
+   * Cały ten blok istnieje wyłącznie dla konkursów, które pytają o rodzaj placówki (§ 1.3.4).
+   * Bez listy wyboru ``this.institutionType`` jest ``null`` i ani jedna z tych metod nie zmienia
+   * niczego: ``chosenType()`` oddaje pusty napis, a pusty napis znaczy „wykaz jak dotąd”.
+   */
+
+  /** Wybrany rodzaj placówki albo pusty napis, gdy konkurs o rodzaj nie pyta. */
+  SchoolPicker.prototype.chosenType = function () {
+    return this.institutionType ? this.institutionType.value : "";
+  };
+
+  /** Czy przy tym rodzaju placówki w ogóle jest czego szukać w wykazach. */
+  SchoolPicker.prototype.searchesTheDirectory = function () {
+    var chosen = this.chosenType();
+    return !chosen || DIRECTORY_TYPES.indexOf(chosen) >= 0;
+  };
+
+  SchoolPicker.prototype.onInstitutionTypeChange = function () {
+    /* Zmiana rodzaju placówki zaczyna wybór od nowa – tak samo jak zmiana miejscowości, i z tego
+     * samego powodu: poprzedni wiersz pochodził z innego zbioru, a zostawiony w ukrytym polu
+     * pojechałby na serwer mimo zmienionego pytania. Serwer robi dokładnie to samo
+     * (``SchoolChoiceMixin._clean_institution_outside_the_directory`` zeruje ``school_id``). */
+    this.clearChoice();
+    this.items = [];
+    this.offset = 0;
+    this.hasMore = false;
+    this.close();
+    this.syncInstitutionType();
+    if (!this.searchesTheDirectory()) return;
+    if (this.cityValue || this.query.value.trim().length >= MIN_QUERY_LENGTH) this.search();
+  };
+
+  /** Chowa albo pokazuje cały blok. Wolny tekst placówki spoza wykazu ma własne pole formularza. */
+  SchoolPicker.prototype.syncInstitutionType = function () {
+    this.root.hidden = !this.searchesTheDirectory();
+  };
+
   /* --- wolny tekst ------------------------------------------------------------------------- */
+
+  /** Kasuje **oba** dowiązania: wykazy są dwa, a wybrana placówka zawsze jedna. */
+  SchoolPicker.prototype.clearChoice = function () {
+    this.schoolId.value = "";
+    if (this.customInstitutionId) this.customInstitutionId.value = "";
+  };
 
   SchoolPicker.prototype.onCustomToggle = function () {
     this.syncCustom();
@@ -165,7 +250,7 @@
       if (this.hasCityStep()) this.closeCity();
       /* Wybór z listy przestaje obowiązywać: liczy się ostatnia decyzja uczestnika
        * (tę samą regułę ma ``SchoolChoiceMixin.clean`` po stronie serwera). */
-      this.schoolId.value = "";
+      this.clearChoice();
       if (this.freeInput) this.freeInput.focus();
     }
   };
@@ -189,7 +274,7 @@
   SchoolPicker.prototype.onInput = function () {
     /* Ręczna zmiana tekstu unieważnia wcześniejszy wybór: inaczej dopisanie litery do nazwy
      * zostawiłoby w ukrytym polu szkołę, której w polu widocznym już nie ma. */
-    this.schoolId.value = "";
+    this.clearChoice();
     if (this.timer) window.clearTimeout(this.timer);
     var term = this.query.value.trim();
     /* Próg długości obowiązuje **tylko** bez wybranej miejscowości. Z miastem zbiór jest z góry
@@ -213,6 +298,12 @@
     params.set("q", this.query.value.trim());
     params.set("limit", String(MAX_SUGGESTIONS));
     if (offset) params.set("offset", String(offset));
+    /* Rodzaj placówki zawęża **oba** wykazy i jedzie obok każdego innego zawężenia: to jest
+     * pytanie „czego szukam”, a nie „gdzie”. Serwer i tak sprowadza wartość do rodzajów
+     * dopuszczonych w konkursie (``_requested_types``), więc przestawiona w adresie nic nie
+     * otwiera. */
+    var type = this.chosenType();
+    if (type) params.set("institution_type", type);
     if (this.cityValue) {
       params.set("city", this.cityValue);
     } else {
@@ -244,14 +335,29 @@
         self.loading = false;
         if (ticket !== self.sequence) return;
         var rows = data && Array.isArray(data.results) ? data.results : [];
+        if (!self.customInstitutionId) {
+          /* Formularz bez drugiej kolumny dowiązania nie ma gdzie zapisać wyboru ze słownika
+           * organizatora – pokazana pozycja kończyłaby się odmową po wysłaniu. */
+          rows = rows.filter(function (row) {
+            return row.source !== SOURCE_CUSTOM;
+          });
+        }
         self.items = append ? self.items.concat(rows) : rows;
-        self.offset = self.items.length;
+        /* ``offset`` liczy wiersze **wykazu publicznego**: tylko on jest stronicowany, a słownik
+         * organizatora serwer oddaje w całości na pierwszej stronie (apps/schools/api.py).
+         * Doczytane wiersze dokładają się na koniec listy, czyli za placówkami organizatora –
+         * przestawianie ich do środka przesunęłoby pod kursorem pozycje, które czytający już
+         * ogląda, a to jest gorsze niż jeden szew w porządku długiej listy. */
+        self.offset = self.items.filter(function (row) {
+          return row.source !== SOURCE_CUSTOM;
+        }).length;
         self.hasMore = !!(data && data.has_more);
         self.render(append);
       });
   };
 
   SchoolPicker.prototype.search = function () {
+    if (!this.searchesTheDirectory()) return;
     if (!this.cityValue && this.query.value.trim().length < MIN_QUERY_LENGTH) return;
     this.fetchSchools(0, false);
   };
@@ -279,8 +385,18 @@
     meta.className = "school-picker__meta";
     /* ``city_label`` zamiast ``city``: wykaz zapisuje pięć największych miast dzielnicami,
      * a serwer układa je pod wybór z listy („Wrocław (Krzyki)” zamiast „Wrocław-Krzyki”).
-     * Odwrót na ``city`` jest na wypadek starszej odpowiedzi serwera – i tylko na to. */
-    meta.textContent = (school.city_label || school.city) + ", " + school.kind_label;
+     * Odwrót na ``city`` jest na wypadek starszej odpowiedzi serwera – i tylko na to.
+     * ``kind_label`` ma wyłącznie wiersz z wykazu SIO (typ szkoły); wiersz ze słownika
+     * organizatora niesie w tym miejscu rodzaj placówki. */
+    meta.textContent =
+      (school.city_label || school.city) + ", " + (school.kind_label || school.institution_type_label || "");
+    /* Nazwa wykazu dopisuje się **tylko** w odpowiedzi rozróżniającej źródła, czyli nigdy
+     * w konkursie z jednym wykazem: dopisek „wykaz szkół” przy każdej pozycji byłby tam szumem
+     * odpowiadającym na pytanie, którego nikt nie zadał. Idzie do tego samego węzła, a nie do
+     * własnego – wiersz listy ma dwie linijki i trzecia zmieniłaby jego wysokość. */
+    if (SOURCE_LABELS[school.source]) {
+      meta.textContent += " · " + SOURCE_LABELS[school.source];
+    }
     item.appendChild(name);
     item.appendChild(meta);
     return item;
@@ -400,10 +516,19 @@
     var school = this.items[index];
     if (!school) return;
     var where = school.city_label || school.city;
-    this.schoolId.value = String(school.id);
-    this.query.value = school.name + ", " + where;
+    /* Kolumnę dowiązania wskazuje **wiersz**, a nie skrypt: odpowiedź niesie ``source`` i nazwę
+     * pola, do którego należy (``school_id`` albo ``custom_institution_id``). Odwrót na ``id``
+     * jest na wypadek odpowiedzi bez tych kluczy – czyli konkursu z jednym wykazem, gdzie ta
+     * linijka robi dokładnie to, co robiła przed etapem 2. */
+    this.clearChoice();
+    if (school.source === SOURCE_CUSTOM && this.customInstitutionId) {
+      this.customInstitutionId.value = String(school.custom_institution_id || school.id);
+    } else {
+      this.schoolId.value = String(school.school_id || school.id);
+    }
+    this.query.value = school.name + (where ? ", " + where : "");
     this.close();
-    this.say("Wybrano: " + school.name + ", " + where + ".");
+    this.say("Wybrano: " + school.name + (where ? ", " + where : "") + ".");
   };
 
   /* --- krok „Miejscowość” -------------------------------------------------------------------
@@ -464,6 +589,11 @@
     var params = new URLSearchParams();
     params.set("q", term);
     params.set("limit", String(MAX_SUGGESTIONS));
+    /* Ten sam zakres, co przy szkołach: miejscowości mają być tymi, w których faktycznie coś
+     * znajdzie się w drugim kroku – lista miast z placówkami, których ten konkurs nie przyjmuje,
+     * prowadziłaby prosto w pustą listę szkół. */
+    var type = this.chosenType();
+    if (type) params.set("institution_type", type);
     var district = this.district ? this.district.value : "";
     if (district) params.set("voivodeship", district);
     var ticket = ++this.citySequence;
@@ -515,6 +645,14 @@
       meta.className = "school-picker__meta";
       /* Województwo przy nazwie, bo nazwy miast się powtarzają („Brzeg” jest w dwóch). */
       meta.textContent = row.voivodeship_label || row.voivodeship;
+      /* Miejscowość ze słownika organizatora województwa nie zna (opisuje ją kod regionu
+       * konkursu), więc zamiast pustego miejsca stoi tam nazwa wykazu – inaczej pozycja bez
+       * żadnego dopisku wyglądałaby na niedokończoną. */
+      if (SOURCE_LABELS[row.source]) {
+        meta.textContent = meta.textContent
+          ? meta.textContent + " · " + SOURCE_LABELS[row.source]
+          : SOURCE_LABELS[row.source];
+      }
       item.appendChild(name);
       item.appendChild(meta);
       list.appendChild(item);
@@ -536,7 +674,7 @@
     this.closeCity();
     /* Zmiana miejscowości zaczyna wybór szkoły od nowa: poprzednia szkoła była z innego miasta,
      * a zostawiona w ukrytym polu pojechałaby na serwer mimo zmienionego zakresu. */
-    this.schoolId.value = "";
+    this.clearChoice();
     this.query.value = "";
     this.items = [];
     this.offset = 0;

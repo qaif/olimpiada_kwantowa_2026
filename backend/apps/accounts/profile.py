@@ -59,6 +59,27 @@ ANONYMISED_SCHOOL = "—"
 ANONYMISED_BIRTH_YEAR = 1900
 
 
+def anonymised_email_domain(competition=None) -> str:
+    """Domena adresu dla **nowej** anonimizacji – z odwrotem na :data:`ANONYMISED_EMAIL_DOMAIN`.
+
+    Adres po anonimizacji jest **daną**, a nie konfiguracją: stoi w kolumnie logowania
+    (``USERNAME_FIELD = "email"``) pod więzem ``accounts_user_email_ci_uniq``. Dlatego ta funkcja
+    rozstrzyga wyłącznie o adresach nadawanych **od teraz**; kont już zanonimizowanych nie rusza
+    żadna migracja danych i nie ruszy – zakaz jest wyrażony wykonalnie w
+    ``apps/tenancy/tests/test_branding.py`` (``docs/UNIWERSALNY-ETAP-2.md`` § 1.1.4).
+
+    Konkurs #1 zostaje więc przy ``invalid.olimpiadakwantowa.pl`` zarówno w kontach już wytartych,
+    jak i w tych, które wytrze jutro: flagi marki nie ma, więc odwrót obowiązuje. Konkurs
+    z włączoną marką dostaje ``invalid.<swoja domena>`` – adres w cudzej domenie byłby w jego bazie
+    wierszem, którego nikt nie umie wyjaśnić.
+    """
+    from apps.tenancy.branding import uses_competition_branding
+
+    if not uses_competition_branding(competition):
+        return ANONYMISED_EMAIL_DOMAIN
+    return f"invalid.{competition.primary_domain}" if competition.primary_domain else ANONYMISED_EMAIL_DOMAIN
+
+
 def _is_coordinator(user: User) -> bool:
     return user.is_superuser or user.groups.filter(name=GROUP_COORDINATOR).exists()
 
@@ -362,11 +383,17 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
     zalogować się do tego drugiego konkursu też się nie da (§ 3.3).
     """
     now = timezone.now()
+    from apps.competitions.scoping import resolve_competition
+
     from .services import participations_of
 
     participants = list(participations_of(user))
 
-    user.email = f"deleted-{user.pk}@{ANONYMISED_EMAIL_DOMAIN}"
+    # Konkurs z kontekstu, odwrotem miękkim: anonimizację wnosi albo właściciel konta (żądanie
+    # pod domeną konkursu), albo kosiarka retencji, która chodzi po konkursach z ``each_competition``
+    # i każdy z nich wiąże. „Nie wiadomo, czyje to konto” daje dzisiejszą domenę – tę samą, co
+    # wszystkie konta wytarte do tej pory.
+    user.email = f"deleted-{user.pk}@{anonymised_email_domain(resolve_competition())}"
     user.first_name = ""
     user.last_name = ""
     user.set_unusable_password()

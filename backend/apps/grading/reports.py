@@ -32,6 +32,7 @@ from apps.appeals.models import Appeal, AppealStatus
 from apps.competitions.models import Stage
 from apps.core.models import audit
 from apps.submissions.models import Submission, SubmissionStatus
+from apps.tenancy import branding
 
 from .models import Review, ReviewStatus
 from .services import reviewer_pool
@@ -193,8 +194,12 @@ def reviewer_rows(stage: Stage, now=None) -> list[dict]:
 
 REMINDER_SUBJECT = "Przypomnienie o zaległych recenzjach – Olimpiada Kwantowa"
 
+#: Ten sam temat jako wzorzec z nazwą konkursu (``docs/UNIWERSALNY-ETAP-2.md`` § 1.1.1). Stała
+#: wyżej zostaje odwrotem; wybiera między nimi ``apps.tenancy.branding.subject``.
+REMINDER_SUBJECT_TEMPLATE = "Przypomnienie o zaległych recenzjach – %(competition)s"
 
-def reminder_message(stage: Stage, pending: int, overdue: int) -> str:
+
+def reminder_message(stage: Stage, pending: int, overdue: int, competition=None) -> str:
     """Treść przypomnienia. Poza adresem odbiorcy (nagłówek ``To:``) zero danych osobowych.
 
     W liście nie ma ani pseudonimów prac, ani tytułów zadań: recenzent i tak widzi komplet po
@@ -209,28 +214,36 @@ def reminder_message(stage: Stage, pending: int, overdue: int) -> str:
             "",
             "Prace są dostępne w panelu recenzenta po zalogowaniu.",
             "",
+            # Podpis przez moduł marki; odwrotem jest ten sam **nietłumaczony** literał, co dotąd –
+            # ekrany i listy komitetu są po polsku (§ 1.6.4).
             "--",
-            "Olimpiada Kwantowa",
+            branding.signature(competition),
             "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać.",
         ]
     )
 
 
-def _queue_reminder(stage: Stage, member: CommitteeMember, pending: int, overdue: int) -> None:
+def _queue_reminder(
+    stage: Stage, member: CommitteeMember, pending: int, overdue: int, competition=None
+) -> None:
     """Kolejkuje jeden list **po commicie** – wzorzec z ``apps.accounts.activation.queue_mail``.
 
     Wysyłka jest skutkiem ubocznym kliknięcia, a nie jego warunkiem: niedostępny MTA nie może
     zamienić zapisanego wpisu audytowego w błąd 500.
     """
+    from apps.core.tasks import mail_from
+
     recipient = (member.user.email or "").strip()
     if not recipient:
         return
-    message = reminder_message(stage, pending, overdue)
+    subject = branding.subject(REMINDER_SUBJECT_TEMPLATE, REMINDER_SUBJECT, competition)
+    message = reminder_message(stage, pending, overdue, competition)
+    from_email = mail_from(competition)
 
     def _enqueue() -> None:
         from apps.core.tasks import send_mail_task
 
-        send_mail_task.delay(REMINDER_SUBJECT, message, [recipient])
+        send_mail_task.delay(subject, message, [recipient], from_email)
 
     transaction.on_commit(_enqueue)
 
@@ -268,8 +281,11 @@ def remind_reviewers(
         if only_overdue and row["overdue"] <= 0:
             continue
         selected.append((row, pending))
+    # Konkurs czytamy **raz** na całe kliknięcie, a nie raz na recenzenta: to jeden odczyt zamiast
+    # dwóch zapytań na każdy list, a odpowiedź jest ta sama – etap należy do jednej edycji.
+    competition = stage.edition.competition
     for row, pending in selected:
-        _queue_reminder(stage, row["member"], pending, row["overdue"])
+        _queue_reminder(stage, row["member"], pending, row["overdue"], competition)
     summary = {
         "stage_id": stage.pk,
         "reviewers": len(selected),

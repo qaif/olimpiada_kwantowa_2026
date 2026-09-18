@@ -33,6 +33,7 @@ from django.utils.translation import gettext_lazy
 
 from apps.accounts.activation import absolute_url, queue_mail
 from apps.core.models import audit
+from apps.tenancy import branding
 
 logger = logging.getLogger(__name__)
 
@@ -50,24 +51,35 @@ SUBMISSION_INFECTED_SUBJECT = gettext_lazy("Plik odrzucony przez skan antywiruso
 RESULTS_PUBLISHED_SUBJECT = gettext_lazy("Wyniki etapu ogłoszone – Olimpiada Kwantowa")
 APPEAL_DECIDED_SUBJECT = gettext_lazy("Decyzja w sprawie reklamacji – Olimpiada Kwantowa")
 
+#: Te same cztery tematy jako wzorce z nazwą konkursu (``docs/UNIWERSALNY-ETAP-2.md`` § 1.1.1).
+#: Stałe wyżej zostają odwrotem i są napisami dosłownymi, a nie wzorcami podstawionymi nazwą
+#: Konkursu #1; wybiera między nimi ``apps.tenancy.branding.subject``.
+SUBMISSION_RECEIVED_SUBJECT_TEMPLATE = gettext_lazy("Rozwiązanie przyjęte – %(competition)s")
+SUBMISSION_INFECTED_SUBJECT_TEMPLATE = gettext_lazy(
+    "Plik odrzucony przez skan antywirusowy – %(competition)s"
+)
+RESULTS_PUBLISHED_SUBJECT_TEMPLATE = gettext_lazy("Wyniki etapu ogłoszone – %(competition)s")
+APPEAL_DECIDED_SUBJECT_TEMPLATE = gettext_lazy("Decyzja w sprawie reklamacji – %(competition)s")
 
-def _signature() -> tuple[str, ...]:
+
+def _signature(competition=None) -> tuple[str, ...]:
     """Stopka każdego listu – jedna, bo to ten sam nadawca i ta sama skrzynka bez odbioru.
 
     Funkcja, a nie stała: od wprowadzenia angielskiej wersji serwisu napis ma się przetłumaczyć
     w chwili składania listu, a moduł ładuje się przy starcie procesu, zanim jakikolwiek język
-    jest aktywny.
+    jest aktywny. Podpis idzie przez ``branding.signature``, więc przy wyłączonej fladze wraca
+    dokładnie ten przetłumaczalny literał, co dotąd.
     """
     return (
         "--",
-        _("Olimpiada Kwantowa"),
+        branding.signature(competition, fallback=_("Olimpiada Kwantowa")),
         _("Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać."),
     )
 
 
-def _message(*lines: str) -> str:
+def _message(*lines: str, competition=None) -> str:
     """Składa treść listu razem ze stopką – żeby żaden list nie wyszedł bez podpisu."""
-    return "\n".join([*lines, "", *_signature()])
+    return "\n".join([*lines, "", *_signature(competition)])
 
 
 def _recipient(user) -> str:
@@ -77,17 +89,20 @@ def _recipient(user) -> str:
     return (user.email or "").strip()
 
 
-def _send(user, subject: str, message: str, *, kind: str, target) -> bool:
+def _send(user, subject: str, message: str, *, kind: str, target, competition=None) -> bool:
     """Kolejkuje jeden list i zostawia w audycie sam rodzaj powiadomienia.
 
     Zwraca, czy list poszedł – wartość jest dla testów i dla logu, nie dla przeglądarki.
     Audyt powstaje **tylko** przy faktycznej wysyłce: wpis „wysłano” przy koncie zablokowanym
     byłby śladem zdarzenia, które się nie odbyło.
+
+    ``competition`` wyznacza kopertę (nadawcę). Temat i podpis złożył już wołający – ma je z tego
+    samego konkursu, bo bierze go z obiektu, którego dotyczy powiadomienie.
     """
     recipient = _recipient(user)
     if not recipient:
         return False
-    queue_mail(subject, message, recipient)
+    queue_mail(subject, message, recipient, competition=competition)
     audit(None, "notification.sent", target, {"type": kind})
     logger.info("Zakolejkowano powiadomienie %s dla obiektu %s.", kind, target.pk)
     return True
@@ -96,7 +111,7 @@ def _send(user, subject: str, message: str, *, kind: str, target) -> bool:
 # --- (a) potwierdzenie przyjęcia rozwiązania ----------------------------------------------------
 
 
-def submission_received_message(submission, submission_file) -> str:
+def submission_received_message(submission, submission_file, competition=None) -> str:
     """Treść potwierdzenia: co, która wersja, kiedy i o jakiej sumie kontrolnej.
 
     Suma sha256 jest w liście celowo. To jedyny dowód, jaki uczestnik ma w ręku na to, **który**
@@ -120,24 +135,30 @@ def submission_received_message(submission, submission_file) -> str:
         ),
         "",
         _("Każda kolejna wysyłka tworzy nową wersję; oceniana jest ostatnia."),
+        competition=competition,
     )
 
 
 def notify_submission_received(submission, submission_file) -> bool:
     """Potwierdzenie przyjęcia pracy. Woła je ``submissions.services.create_submission``."""
+    # Konkurs bierze się z **pracy**, a nie z kontekstu żądania: kolumna ``Submission.competition``
+    # jest tą samą, po której koordynator widzi tę pracę na swoim ekranie, więc list nie może
+    # nieść innej marki niż panel.
+    competition = submission.competition
     return _send(
         submission.entry.participant.user,
-        SUBMISSION_RECEIVED_SUBJECT,
-        submission_received_message(submission, submission_file),
+        branding.subject(SUBMISSION_RECEIVED_SUBJECT_TEMPLATE, SUBMISSION_RECEIVED_SUBJECT, competition),
+        submission_received_message(submission, submission_file, competition),
         kind=TYPE_SUBMISSION_RECEIVED,
         target=submission,
+        competition=competition,
     )
 
 
 # --- (b) werdykt skanu: wyłącznie plik odrzucony -------------------------------------------------
 
 
-def submission_infected_message(submission, submission_file) -> str:
+def submission_infected_message(submission, submission_file, competition=None) -> str:
     """Treść listu o odrzuconym pliku – z jawnym „oddaj jeszcze raz”, póki etap jest otwarty."""
     stage = submission.entry.stage
     return _message(
@@ -161,24 +182,27 @@ def submission_infected_message(submission, submission_file) -> str:
             "Co zrobić: sprawdź komputer programem antywirusowym, wygeneruj plik ponownie i wyślij "
             "go jeszcze raz w panelu uczestnika. Liczy się ostatnia wersja przyjęta przed terminem."
         ),
+        competition=competition,
     )
 
 
 def notify_submission_infected(submission, submission_file) -> bool:
     """List o odrzuceniu zainfekowanego pliku. Czysty skan jest cichy – patrz nagłówek modułu."""
+    competition = submission.competition
     return _send(
         submission.entry.participant.user,
-        SUBMISSION_INFECTED_SUBJECT,
-        submission_infected_message(submission, submission_file),
+        branding.subject(SUBMISSION_INFECTED_SUBJECT_TEMPLATE, SUBMISSION_INFECTED_SUBJECT, competition),
+        submission_infected_message(submission, submission_file, competition),
         kind=TYPE_SUBMISSION_INFECTED,
         target=submission,
+        competition=competition,
     )
 
 
 # --- (c) ogłoszenie wyników etapu ---------------------------------------------------------------
 
 
-def results_published_message(stage, link: str, feedback_link: str) -> str:
+def results_published_message(stage, link: str, feedback_link: str, competition=None) -> str:
     """Treść listu o wynikach: dwa odnośniki i ani jednej liczby.
 
     Punktów w liście nie ma świadomie. Tabela jest w serwisie, za logowaniem albo pod pseudonimem
@@ -192,6 +216,7 @@ def results_published_message(stage, link: str, feedback_link: str) -> str:
         "",
         "Jeżeli nie zgadzasz się z oceną, reklamację składa się w panelu uczestnika w oknie "
         "reklamacji wyznaczonym dla tego etapu.",
+        competition=competition,
     )
 
 
@@ -215,12 +240,18 @@ def notify_results_published(publication, *, request=None) -> int:
     from apps.competitions.models import StageEntry
 
     stage = publication.stage
-    # Poza żądaniem (przebieg wsadowy, komenda) domenę podaje **konkurs etapu**, a nie witryna
-    # domyślna instalacji. Czytamy go wyłącznie wtedy, gdy żądania nie ma: w panelu adres bierze
-    # się z ``request`` i dwa dodatkowe zapytania byłyby kosztem bez pożytku.
-    competition = None if request is not None else stage.edition.competition
-    link = absolute_url(reverse("web:results", args=[stage.pk]), request, competition)
-    feedback_link = absolute_url(reverse("web:participant-feedback", args=[stage.pk]), request, competition)
+    # Konkurs etapu czytamy **zawsze**, także w żądaniu: od etapu 2 wyznacza on nie tylko domenę
+    # w linku (poniżej), ale też markę w temacie i nadawcę listu, a te muszą być te same dla
+    # wszystkich odbiorców jednego ogłoszenia – niezależnie od tego, czy poszło z panelu, czy
+    # z przebiegu wsadowego. Koszt to dwa zapytania na **całe** ogłoszenie, a nie na uczestnika.
+    competition = stage.edition.competition
+    # W żądaniu adres nadal buduje się z ``request`` (protokół i host z nagłówków), więc konkursu
+    # tam nie podajemy – to jest zachowanie sprzed tej zmiany i nie ma powodu go ruszać.
+    link_competition = None if request is not None else competition
+    link = absolute_url(reverse("web:results", args=[stage.pk]), request, link_competition)
+    feedback_link = absolute_url(
+        reverse("web:participant-feedback", args=[stage.pk]), request, link_competition
+    )
     sent = 0
     for entry in StageEntry.objects.filter(stage=stage).select_related("participant__user"):
         user = entry.participant.user
@@ -230,11 +261,17 @@ def notify_results_published(publication, *, request=None) -> int:
         # Treść składa się **per odbiorca**, bo każdy może mieć inny język interfejsu. Koszt to
         # kilkanaście operacji na napisach na uczestnika – nieporównanie mniej niż jedno zapytanie
         # do bazy, a alternatywą byłby list w języku koordynatora dla wszystkich.
-        with language_for(user):
+        # Temat składa się **wewnątrz** bloku języka razem z treścią: ``branding.subject`` rozwiązuje
+        # leniwy napis w chwili wywołania, więc wyniesienie go przed pętlę wysłałoby wszystkim temat
+        # w języku koordynatora – dokładnie ta regresja, której ten blok tu zapobiega.
+        # Konto bez zapisanego języka dostaje język **konkursu** etapu (§ 1.6.3), a nie ten, który
+        # akurat obowiązuje koordynatorowi – ogłoszenie ma brzmieć tak samo dla wszystkich.
+        with language_for(user, competition):
             queue_mail(
-                RESULTS_PUBLISHED_SUBJECT,
-                results_published_message(stage, link, feedback_link),
+                branding.subject(RESULTS_PUBLISHED_SUBJECT_TEMPLATE, RESULTS_PUBLISHED_SUBJECT, competition),
+                results_published_message(stage, link, feedback_link, competition),
                 recipient,
+                competition=competition,
             )
         sent += 1
     if sent:
@@ -246,7 +283,7 @@ def notify_results_published(publication, *, request=None) -> int:
 # --- (d) decyzja w sprawie reklamacji ------------------------------------------------------------
 
 
-def appeal_decided_message(appeal, decision, link: str) -> str:
+def appeal_decided_message(appeal, decision, link: str, competition=None) -> str:
     """Treść listu o rozstrzygnięciu reklamacji – z uzasadnieniem, bo to ono jest tu treścią.
 
     Nowa punktacja w liście **nie** stoi: decyzja bywa zmianą oceny w obie strony, a liczba
@@ -264,19 +301,22 @@ def appeal_decided_message(appeal, decision, link: str) -> str:
         decision.justification,
         "",
         f"Szczegóły i aktualną punktację znajdziesz w panelu uczestnika: {link}",
+        competition=competition,
     )
 
 
 def notify_appeal_decided(appeal, decision, *, request=None) -> bool:
     """List o decyzji komisji. Woła to ``appeals.services.decide_appeal``."""
     user = appeal.filed_by.user
-    # Jw. – konkurs pracy, której dotyczy reklamacja, i tylko poza żądaniem.
-    competition = None if request is not None else appeal.submission.competition
-    link = absolute_url(reverse("web:me"), request, competition)
+    # Jw. – konkurs pracy, której dotyczy reklamacja. Czytamy go zawsze (marka i nadawca listu),
+    # a do adresu podajemy tylko poza żądaniem, tak jak dotąd.
+    competition = appeal.submission.competition
+    link = absolute_url(reverse("web:me"), request, None if request is not None else competition)
     return _send(
         user,
-        APPEAL_DECIDED_SUBJECT,
-        appeal_decided_message(appeal, decision, link),
+        branding.subject(APPEAL_DECIDED_SUBJECT_TEMPLATE, APPEAL_DECIDED_SUBJECT, competition),
+        appeal_decided_message(appeal, decision, link, competition),
         kind=TYPE_APPEAL_DECIDED,
         target=appeal,
+        competition=competition,
     )

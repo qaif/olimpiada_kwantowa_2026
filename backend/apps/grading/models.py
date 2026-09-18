@@ -91,12 +91,74 @@ class ReviewQuerySet(CompetitionScopedQuerySet):
         return self.filter(reviewer=member)
 
 
+class ReviewerRole(models.Model):
+    """Nazwana rola recenzencka etapu: pierwszy, drugi, arbiter, przewodniczący komisji.
+
+    Dziś rola recenzenta jest **numerem rundy**, a ich liczba – **argumentem wywołania**
+    ``assign_reviewers``. Nie ma więc w systemie odpowiedzi na pytanie „ilu recenzentów ma ten
+    etap”, jest tylko „ilu przydzielił ten, kto klikał” (``docs/UNIWERSALNY-ETAP-2.md`` § 1.2.7).
+    Ten model jest tą odpowiedzią – i niczym więcej: ``Review.round`` **zostaje i zostaje
+    autorytatywne**, rola jest etykietą nad rundą, a nie zamiast niej.
+
+    Etap bez ani jednej roli zachowuje się dokładnie jak przed etapem 2, więc Konkurs #1 – który
+    flagi ``reviewer_roles`` nie włącza i ról nie dostaje w żadnej migracji – nie widzi tu niczego.
+    """
+
+    stage = models.ForeignKey(
+        "competitions.Stage", on_delete=models.CASCADE, related_name="reviewer_roles", verbose_name="etap"
+    )
+    #: Kod maszynowy roli (``first``, ``second``, ``arbiter``) – trafia do audytu i do integracji,
+    #: więc jest slugiem ASCII, tak samo jak kod regionu czy kod etapu.
+    code = models.SlugField("kod", max_length=24)
+    name = models.CharField("nazwa", max_length=80)
+    #: Runda, w której ta rola pracuje. Rola **nie zastępuje** rundy: maszyna stanów oceniania
+    #: rozstrzyga po ``Review.round`` i etap 2 tego nie zmienia.
+    round = models.PositiveSmallIntegerField("runda", default=ROUND_BLIND)
+    count = models.PositiveSmallIntegerField("liczba recenzentów", default=1)
+    #: Czy oceny z tej roli biorą udział w ustalaniu zgodności (``_consensus_score``). Rola, która
+    #: się nie liczy, to np. przewodniczący komisji piszący własną opinię obok dwóch recenzji.
+    counts_towards_consensus = models.BooleanField("liczy się do zgodności", default=True)
+    position = models.PositiveSmallIntegerField("kolejność", default=0)
+
+    #: Przez etap: rola opisuje **ten** etap, a etap należy do edycji i przez nią do konkursu.
+    objects = competition_scoped_manager("stage__edition__competition")
+
+    class Meta:
+        verbose_name = "rola recenzencka"
+        verbose_name_plural = "role recenzenckie"
+        # Kolejność jest częścią znaczenia: przydział obsadza role w tej kolejności, więc „pierwszy
+        # recenzent” ma być pierwszy także wtedy, gdy organizator dopisał go później.
+        ordering = ("stage", "position", "id")
+        constraints = [
+            models.UniqueConstraint(fields=["stage", "code"], name="grading_reviewerrole_unique_code"),
+            models.CheckConstraint(condition=Q(round__gte=1), name="grading_reviewerrole_round_positive"),
+            # Rola bez ani jednego recenzenta nie jest rolą, a dziurą w przydziale: suma zerowa
+            # znaczyłaby „nie przydzielaj nikomu”, czyli ekran przydziału bez skutku i bez powodu.
+            models.CheckConstraint(condition=Q(count__gte=1), name="grading_reviewerrole_count_positive"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.name} (etap {self.stage_id}, runda {self.round})"
+
+
 class Review(models.Model):
     """Niezależna ocena jednego recenzenta dla jednego rozwiązania."""
 
     submission = models.ForeignKey(Submission, on_delete=models.CASCADE, related_name="reviews")
     reviewer = models.ForeignKey(CommitteeMember, on_delete=models.PROTECT, related_name="reviews")
     round = models.PositiveSmallIntegerField("runda", default=ROUND_BLIND)
+    # Nazwana rola tego przydziału (etap 2 § 1.2.7). ``NULL`` znaczy „etap ról nie ma” i jest
+    # wartością **każdej** recenzji Konkursu #1 – także tych, które dopiero powstaną. ``PROTECT``,
+    # bo skasowanie roli, na którą ktoś już recenzował, zabrałoby znaczenie wystawionej ocenie;
+    # rolę wycofuje się z etapu, a nie z historii.
+    role = models.ForeignKey(
+        "grading.ReviewerRole",
+        verbose_name="rola",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="reviews",
+    )
     score = models.PositiveSmallIntegerField("punkty", null=True, blank=True)
     comment_internal = models.TextField("komentarz wewnętrzny", blank=True)
     comment_for_participant = models.TextField("komentarz dla uczestnika", blank=True)

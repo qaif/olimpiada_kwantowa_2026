@@ -28,6 +28,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from apps.submissions.models import SubmissionStatus
+from apps.tenancy import branding
 
 from .models import Review, ReviewStatus
 
@@ -138,7 +139,18 @@ def group_by_reviewer(reviews) -> dict[int, list[Review]]:
     return grouped
 
 
-def reminder_message(reviews, now=None) -> tuple[str, str]:
+#: Dwa brzmienia tematu przypomnienia – jedyny list, który ma ich dwa, bo temat zależy od **doboru**
+#: recenzji (czy któraś jest po terminie). Stałe są odwrotem, wzorce niosą nazwę konkursu
+#: (``docs/UNIWERSALNY-ETAP-2.md`` § 1.1.1); wybiera między nimi ``apps.tenancy.branding.subject``.
+#: Oba są napisami z podstawieniem, więc odwrót podstawia się **przed** przekazaniem go do modułu
+#: marki – ``branding`` oddaje odwrót dosłownie i nie wolno mu podsunąć wzorca.
+OVERDUE_SUBJECT = "Olimpiada Kwantowa: %(count)s recenzji po terminie"
+OVERDUE_SUBJECT_TEMPLATE = "%(competition)s: %(count)s recenzji po terminie"
+DUE_SOON_SUBJECT = "Olimpiada Kwantowa: zbliża się termin recenzji"
+DUE_SOON_SUBJECT_TEMPLATE = "%(competition)s: zbliża się termin recenzji"
+
+
+def reminder_message(reviews, now=None, competition=None) -> tuple[str, str]:
     """Treść przypomnienia dla jednego recenzenta. Bez danych osobowych uczestników – kody prac.
 
     Ocenianie jest ślepe także w poczcie: w liście stoi kod publiczny pracy i numer zadania,
@@ -147,9 +159,14 @@ def reminder_message(reviews, now=None) -> tuple[str, str]:
     now = now or timezone.now()
     overdue = [review for review in reviews if review.due_at < now]
     subject = (
-        f"Olimpiada Kwantowa: {len(overdue)} recenzji po terminie"
+        branding.subject(
+            OVERDUE_SUBJECT_TEMPLATE,
+            OVERDUE_SUBJECT % {"count": len(overdue)},
+            competition,
+            count=len(overdue),
+        )
         if overdue
-        else "Olimpiada Kwantowa: zbliża się termin recenzji"
+        else branding.subject(DUE_SOON_SUBJECT_TEMPLATE, DUE_SOON_SUBJECT, competition)
     )
     lines = [
         "Przypomnienie o pracach, które czekają na Twoją ocenę:",

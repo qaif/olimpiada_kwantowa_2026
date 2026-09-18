@@ -429,3 +429,153 @@ class WebhookDelivery(models.Model):
 
     def __str__(self) -> str:
         return f"{self.event} → {self.endpoint_id} ({self.status})"
+
+
+# --- webhook przychodzący dostawcy płatności (§ 1.5.1, T49) ---------------------------------------
+# Pierwszy w całym repozytorium kierunek „do nas”. Wszystko powyżej opisuje ruch wychodzący:
+# my pytamy albo my mówimy, a poświadczenie jest nasze. Tutaj po drugiej stronie stoi **dostawca
+# płatności**, który podpisuje żądanie sekretem uzgodnionym z organizatorem – i to jest jedyne
+# miejsce w systemie, w którym cudzy serwer zmienia stan bez konta i bez klucza API. Reguły są
+# więc w modelach, a nie w widoku: sekret per konkurs, ślad każdego doręczenia, ochrona przed
+# powtórką. Obsługę opisuje ``apps.integrations.inbound``.
+
+#: Powód, dla którego doręczenia **nie** udało się zapisać jako wpłaty. Pusty napis znaczy
+#: „zapisano”. Lista jest zamknięta i krótka, bo to jest kolumna, po której organizator filtruje
+#: ekran uzgodnień: „czego dostawca przysłał, a system nie potrafił dopasować”.
+UNMATCHED_UNKNOWN_REFERENCE = "UNKNOWN_REFERENCE"
+UNMATCHED_IGNORED_STATUS = "IGNORED_STATUS"
+UNMATCHED_FEE_ALREADY_PAID = "FEE_ALREADY_PAID"
+UNMATCHED_FEE_NOT_DUE = "FEE_NOT_DUE"
+
+#: Powód → zdanie dla koordynatora. Ten sam wzorzec, co ``SCOPES`` i ``WEBHOOK_EVENTS``: opis jest
+#: częścią kontraktu z człowiekiem, który to potem odkręca ręcznie.
+UNMATCHED_REASONS: dict[str, str] = {
+    UNMATCHED_UNKNOWN_REFERENCE: "Żadna należność nie ma tego identyfikatora wpłaty.",
+    UNMATCHED_IGNORED_STATUS: "Dostawca przysłał zdarzenie, które nie jest potwierdzeniem wpłaty.",
+    UNMATCHED_FEE_ALREADY_PAID: "Należność jest już zapłacona innym identyfikatorem wpłaty.",
+    UNMATCHED_FEE_NOT_DUE: "Należność jest zwolniona albo umorzona – wpłaty nie zapisujemy.",
+}
+
+
+class PaymentEndpoint(models.Model):
+    """Sekret, którym dostawca płatności podpisuje potwierdzenia przysyłane **do nas**.
+
+    **Sekret jest per konkurs i per dostawca**, a nie per instalacja, i to jest pierwsza z czterech
+    reguł stuba (§ 1.5.1). Sekret instalacji znaczyłby, że jeden wyciek u jednego organizatora
+    otwiera przyjmowanie wpłat u wszystkich pozostałych – a przyjęcie wpłaty jest tu jedyną rzeczą,
+    którą cudzy serwer zmienia w systemie bez konta.
+
+    Wiersz jest **poświadczeniem przychodzącym**, więc – inaczej niż ``ApiKey`` – sekret leży
+    jawnie: podpis liczy nim druga strona, a my musimy policzyć dokładnie to samo. Z tego samego
+    powodu, co przy ``WebhookEndpoint.secret``, koordynator ma prawo go zobaczyć i wymienić
+    (``apps.integrations.inbound.rotate_payment_secret``).
+
+    ``provider`` jest **slugiem bez zamkniętej listy**, bo dostawca nie jest jeszcze wybrany
+    (decyzja D18, § 6). Zamknięta lista w kodzie znaczyłaby migrację w dniu podpisania umowy,
+    a stub ma być neutralny: cokolwiek podpisuje HMAC-em z surowego ciała, wchodzi adapterem,
+    a nie zmianą modelu.
+    """
+
+    competition = models.ForeignKey(
+        "tenancy.Competition",
+        verbose_name="konkurs",
+        on_delete=models.PROTECT,
+        related_name="payment_endpoints",
+    )
+    provider = models.SlugField("dostawca", max_length=40, help_text="Identyfikator w adresie webhooka.")
+    secret = models.CharField("sekret podpisu", max_length=64, default=generate_secret)
+    is_active = models.BooleanField("aktywny", default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="dodał",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="payment_endpoints",
+    )
+    created_at = models.DateTimeField("dodany", default=timezone.now)
+    rotated_at = models.DateTimeField("sekret wymieniony", null=True, blank=True)
+    # Znacznik ostatniego doręczenia – ta sama rola, co ``ApiKey.last_used_at``: odpowiada na
+    # pytanie „czy ta integracja jeszcze żyje”, a nie prowadzi dziennika (od tego jest
+    # ``PaymentEvent``).
+    last_event_at = models.DateTimeField("ostatnie doręczenie", null=True, blank=True)
+
+    #: Własna kolumna – poświadczenie nie ma jak dojść do konkursu inną drogą.
+    objects = competition_scoped_manager("competition")
+
+    class Meta:
+        verbose_name = "webhook płatności"
+        verbose_name_plural = "webhooki płatności"
+        ordering = ("competition", "provider")
+        constraints = [
+            # Jeden sekret na parę (konkurs, dostawca). Dwa wiersze znaczyłyby dwa ważne sekrety
+            # pod jednym adresem, czyli sekret unieważniony wymianą działałby dalej.
+            models.UniqueConstraint(
+                fields=["competition", "provider"], name="integrations_paymentendpoint_unique"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.provider} ({self.competition_id})"
+
+
+class PaymentEvent(models.Model):
+    """Ślad jednego doręczenia od dostawcy – zapisywany **zawsze**, także gdy nic nie pasuje.
+
+    Czwarta reguła stuba (§ 1.5.1): odpowiadamy 2xx po zapisaniu wiersza, a wiersz powstaje także
+    dla nieznanej należności (``matched=False``). Dostawca przestaje wtedy ponawiać, a organizator
+    dostaje listę rzeczy do ręcznego dopasowania – zamiast potwierdzenia, które zniknęło, bo
+    „nie było czego z nim zrobić”.
+
+    **Ładunku nie przechowujemy.** W wierszu leży wyłącznie ``payload_hash`` (SHA-256 surowych
+    bajtów): potwierdzenie wpłaty niesie zwykle imię i nazwisko płatnika, jego adres e-mail i numer
+    rachunku, a żadna z tych rzeczy nie jest nam do niczego potrzebna. Skrót wystarcza do jedynego
+    pytania, które pada po fakcie: „czy to jest **to samo** doręczenie, co tamto”.
+
+    **Kwoty też nie przechowujemy** – i to jest decyzja D15 zastosowana wprost. Kwota z webhooka
+    jest twierdzeniem dostawcy, którego system nie weryfikuje; zapisana w rejestrze wyglądałaby na
+    księgowanie. Rozbieżność kwoty wobec należności trafia do audytu ``fee.payment_recorded``
+    (``apps.tenancy.fees.record_payment``), czyli tam, gdzie człowiek jej szuka.
+    """
+
+    endpoint = models.ForeignKey(
+        PaymentEndpoint, verbose_name="webhook", on_delete=models.CASCADE, related_name="events"
+    )
+    # Klucz powtórki: identyfikator zdarzenia dostawcy, a gdy dostawca go nie przysyła –
+    # identyfikator wpłaty. Osobna kolumna, a nie „liczone w locie”, bo to po niej stoi więz
+    # unikalności, czyli jedyna ochrona przed doręczeniem odtworzonym z nagrania.
+    delivery_key = models.CharField("klucz doręczenia", max_length=120)
+    external_reference = models.CharField("identyfikator wpłaty", max_length=120, blank=True)
+    payload_hash = models.CharField("skrót ładunku", max_length=64)
+    matched = models.BooleanField("dopasowane", default=False)
+    unmatched_reason = models.CharField("powód niedopasowania", max_length=40, blank=True)
+    # ``SET_NULL``: skasowanie należności nie ma prawa skasować śladu wpłaty, która do niej
+    # przyszła. Ślad zostaje z samym identyfikatorem – i wtedy właśnie jest najbardziej potrzebny.
+    fee = models.ForeignKey(
+        "tenancy.ParticipantFee",
+        verbose_name="należność",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="payment_events",
+    )
+    received_at = models.DateTimeField("odebrane", default=timezone.now, db_index=True)
+
+    #: Bez własnej kolumny konkursu: zdarzenie dochodzi do niego przez swój webhook (§ 3.1).
+    objects = competition_scoped_manager("endpoint__competition")
+
+    class Meta:
+        verbose_name = "doręczenie płatności"
+        verbose_name_plural = "doręczenia płatności"
+        ordering = ("-received_at", "-id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["endpoint", "delivery_key"], name="integrations_paymentevent_unique_delivery"
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["endpoint", "-received_at"], name="integrations_payevent_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.endpoint_id}:{self.delivery_key}"

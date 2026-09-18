@@ -1,0 +1,129 @@
+{% extends "web/coordinator/base.html" %}
+{% load static %}
+{% comment %}
+  Webhooki płatności: sekrety dostawców i doręczenia, których system nie umiał dopasować.
+
+  Sekret pojawia się w bloku „nowy sekret” dokładnie raz — zaraz po założeniu poświadczenia albo
+  po wymianie (widok zdejmuje go z sesji przez ``pop``). Odświeżenie strony już go nie pokaże
+  i tak ma być.
+
+  Dziennik pokazuje wyłącznie doręczenia **niedopasowane**: te są jedyną rzeczą, po którą
+  organizator na ten ekran przychodzi. Ładunku nie przechowujemy — w wierszu leży sam skrót
+  SHA-256, bo potwierdzenie wpłaty niesie zwykle dane płatnika, a żadna z nich nie jest tu
+  potrzebna.
+{% endcomment %}
+{% block title %}Webhooki płatności – panel koordynatora{% endblock %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-fees' %}">Wpisowe: cennik</a>{% endblock %}
+{% block panel_title %}Webhooki płatności{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Sekret, którym dostawca podpisuje przysyłane nam potwierdzenia — osobny dla
+    każdego konkursu i każdego dostawcy. System <strong>nie łączy się z bankiem</strong>: przyjmuje
+    potwierdzenie, sprawdza podpis i zapisuje wpłatę w rejestrze należności.</p>
+{% endblock %}
+{% block panel_content %}
+
+{% if plain_secret %}
+  <section class="section">
+    <div class="card">
+      <h2 class="mt-0">Sekret podpisu</h2>
+      <p>Skopiuj go teraz i wklej u dostawcy. <strong>Nie pokażemy go ponownie</strong> —
+        zgubiony sekret się wymienia.</p>
+      <p><code>{{ plain_secret }}</code></p>
+      <p class="hint">Sekret przekazuje się kanałem, którym przekazuje się hasła — nie e-mailem
+        bez szyfrowania i nie w treści zgłoszenia.</p>
+    </div>
+  </section>
+{% endif %}
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Dostawcy</h2>
+    <span class="badge badge--danger">sekret podpisu</span>
+  </div>
+
+  {% if endpoints %}
+    <div class="scroll">
+      <table class="table">
+        <caption class="visually-hidden">Poświadczenia dostawców płatności</caption>
+        <thead>
+          <tr>
+            <th scope="col">Dostawca</th>
+            <th scope="col">Adres webhooka</th>
+            <th scope="col">Ostatnie doręczenie</th>
+            <th scope="col">Sekret wymieniony</th>
+            <th scope="col"><span class="visually-hidden">Operacje</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for endpoint in endpoints %}
+            <tr>
+              <th scope="row">{{ endpoint.provider }}</th>
+              <td><code>/api/v1/payments/{{ endpoint.provider }}/</code></td>
+              <td>{{ endpoint.last_event_at|date:"Y-m-d H:i"|default:"—" }}</td>
+              <td>{{ endpoint.rotated_at|date:"Y-m-d H:i"|default:"—" }}</td>
+              <td class="actions">
+                <form method="post" action="{% url 'web:coordinator-fees-payment-rotate' endpoint.pk %}" class="inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--danger btn--small">Wymień sekret</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="hint">Wymiana działa <strong>natychmiast i bez okresu przejściowego</strong>: dwa
+      ważne sekrety naraz znaczyłyby, że wyciek trwa tak długo, jak ten okres. Ceną jest kilka
+      odrzuconych doręczeń, zanim wkleisz nowy sekret u dostawcy — dostawcy ponawiają.</p>
+  {% else %}
+    <p class="hint">Nie założono jeszcze żadnego poświadczenia dostawcy.</p>
+  {% endif %}
+
+  <div class="card">
+    <h3 class="mt-0">Nowy dostawca</h3>
+    <form method="post" action="{% url 'web:coordinator-fees-payments' %}">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <p class="actions"><button type="submit" class="btn btn--primary">Załóż webhook</button></p>
+    </form>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Doręczenia bez dopasowania</h2>
+  </div>
+
+  {% if events %}
+    <div class="scroll">
+      <table class="table">
+        <caption class="visually-hidden">Potwierdzenia, których nie udało się dopasować</caption>
+        <thead>
+          <tr>
+            <th scope="col">Odebrane</th>
+            <th scope="col">Dostawca</th>
+            <th scope="col">Identyfikator wpłaty</th>
+            <th scope="col">Powód</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in events %}
+            <tr>
+              <th scope="row">{{ row.event.received_at|date:"Y-m-d H:i" }}</th>
+              <td>{{ row.event.endpoint.provider }}</td>
+              <td>{% if row.event.external_reference %}<code>{{ row.event.external_reference }}</code>{% else %}—{% endif %}</td>
+              <td>{{ row.reason|default:"—" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="hint">Dopasowanie ręczne polega na wpisaniu tego identyfikatora właściwej należności
+      w <a href="{% url 'web:coordinator-fees-register' %}">rejestrze należności</a> i odnotowaniu
+      wpłaty.</p>
+  {% else %}
+    <p class="hint">Wszystkie doręczenia zostały dopasowane — nie ma czego rozstrzygać ręcznie.</p>
+  {% endif %}
+</section>
+{% endblock %}

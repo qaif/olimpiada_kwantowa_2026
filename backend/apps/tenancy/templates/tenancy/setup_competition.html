@@ -1,0 +1,27 @@
+{% extends "tenancy/setup_base.html" %}{% comment %}
+  Krok 2: pierwszy konkurs. Formularz zbiera dokładnie te dane, których nie da się wywieść
+  z szablonu; resztę (witrynę, drzewo stron, ustawienia serwisu, edycję i etapy) zakłada komenda
+  ``create_competition`` – ta sama, którą uruchamia się z powłoki.
+{% endcomment %}
+{% block title %}Pierwszy konkurs{% endblock %}
+{% block heading %}Pierwszy konkurs{% endblock %}
+{% block lead %}Nazwa, adres i szablon startowy. Terminy etapów, dokumenty i treść stron poprawisz
+  potem w panelu koordynatora – kreator wpisuje wartości początkowe, a nie harmonogram.{% endblock %}
+{% block content %}
+<form method="post" class="form" novalidate>
+  {% csrf_token %}
+  <p class="form__required-note">Pola oznaczone * są obowiązkowe.</p>
+  {{ form.non_field_errors }}
+  {% for field in form %}
+    <p>
+      {{ field.errors }}
+      {{ field.label_tag }}
+      {{ field }}
+      {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
+    </p>
+  {% endfor %}
+  <div class="actions">
+    <button type="submit" class="btn btn--primary">Załóż konkurs</button>
+  </div>
+</form>
+{% endblock %}

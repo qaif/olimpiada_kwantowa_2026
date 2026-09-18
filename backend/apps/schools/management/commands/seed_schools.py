@@ -11,6 +11,12 @@ Zasady:
 - **nic nie jest kasowane.** Szkoła nieobecna w fixturze dostaje ``is_active=False`` i przestaje
   się pokazywać w podpowiedziach; wiersz zostaje, bo może być wskazany przez ``school_ref``
   uczestnika sprzed roku (``on_delete=PROTECT``),
+- **wygaszanie sięga wyłącznie rodzajów placówek obecnych w pliku.** Słownik jest od etapu 2
+  szerszy niż szkoły ponadpodstawowe (``School.institution_type``), a komenda została **jedna** –
+  gdyby wygaszała „wszystko, czego nie ma w pliku”, wgranie wykazu uczelni zgasiłoby osiem tysięcy
+  szkół ponadpodstawowych, a kolejne wgranie szkół zgasiłoby uczelnie. Wiersz bez pola
+  ``institution_type`` (plik sprzed etapu 2, w tym ten z repozytorium) jest szkołą
+  ponadpodstawową – dlatego dzisiejsze wgranie robi dokładnie to, co robiło,
 - **plik jest sprawdzany, nie zakładany.** Nieznane województwo albo typ szkoły przerywa wgranie:
   cichy import połowy słownika byłby gorszy niż brak importu, bo objawiłby się dopiero uczniowi,
   który nie znajduje swojej szkoły.
@@ -25,7 +31,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from apps.accounts.models import Voivodeship
-from apps.schools.models import DEFAULT_SOURCE_YEAR, School, SchoolKind
+from apps.schools.models import DEFAULT_SOURCE_YEAR, InstitutionType, School, SchoolKind
 from apps.schools.normalise import derived_fields
 
 #: Domyślny słownik – ten sam plik, który leży w repozytorium (patrz fixtures/README.md).
@@ -36,6 +42,7 @@ DEFAULT_FIXTURE = Path(__file__).resolve().parents[2] / "fixtures" / "szkoly-sre
 UPDATED_FIELDS = (
     "name",
     "kind",
+    "institution_type",
     "voivodeship",
     "city",
     "city_parent",
@@ -54,7 +61,7 @@ BATCH_SIZE = 500
 
 
 class Command(BaseCommand):
-    help = "Wgrywa słownik szkół ponadpodstawowych (SIO/RSPO) z fixture'u. Idempotentne."
+    help = "Wgrywa słownik placówek (SIO/RSPO) z fixture'u. Idempotentne."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -107,6 +114,13 @@ class Command(BaseCommand):
         kind = str(row.get("kind") or "")
         if kind not in SchoolKind.values:
             raise CommandError(f"Wiersz {index} (RSPO {rspo}): nieznany typ szkoły {kind!r}")
+        # Brak pola znaczy „szkoła ponadpodstawowa”, a nie „nie wiadomo”: plik z repozytorium
+        # powstał przed etapem 2 i zawiera wyłącznie takie wiersze (README fixture'u § „Rodzaj
+        # placówki”). Dopisywanie ośmiu tysięcy razy tej samej wartości do pliku, który ma się dać
+        # porównać z nowym wykazem linijka po linijce, kosztowałoby więcej, niż daje.
+        institution_type = str(row.get("institution_type") or InstitutionType.SECONDARY)
+        if institution_type not in InstitutionType.values:
+            raise CommandError(f"Wiersz {index} (RSPO {rspo}): nieznany rodzaj placówki {institution_type!r}")
         voivodeship = str(row.get("voivodeship") or "")
         if voivodeship not in Voivodeship.values:
             raise CommandError(f"Wiersz {index} (RSPO {rspo}): nieznane województwo {voivodeship!r}")
@@ -115,6 +129,7 @@ class Command(BaseCommand):
             "rspo": rspo,
             "name": name[:255],
             "kind": kind,
+            "institution_type": institution_type,
             "voivodeship": voivodeship,
             "city": city[:120],
             "postal_code": postal_code,
@@ -129,7 +144,13 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def _apply(self, parsed: list[dict]) -> tuple[int, int, int]:
-        """Wgrywa porcję wierszy i wygasza te, których w niej nie ma. Zwraca liczniki."""
+        """Wgrywa porcję wierszy i wygasza te, których w niej nie ma. Zwraca liczniki.
+
+        „Te, których w niej nie ma” znaczy: spośród **rodzajów placówek obecnych w pliku**
+        (``institution_type``). Zawężenie jest jedyną zmianą zachowania tej komendy w etapie 2
+        i przy dzisiejszym pliku jest bez skutku – wykaz z repozytorium ma jeden rodzaj i jest
+        to jedyny rodzaj w bazie Konkursu #1.
+        """
         existing = dict(School.objects.values_list("rspo", "id"))
         to_create = [School(**fields) for fields in parsed if fields["rspo"] not in existing]
         to_update = [
@@ -142,7 +163,10 @@ class Command(BaseCommand):
         School.objects.bulk_create(to_create, batch_size=BATCH_SIZE)
         School.objects.bulk_update(to_update, list(UPDATED_FIELDS), batch_size=BATCH_SIZE)
         deactivated = (
-            School.objects.filter(is_active=True)
+            School.objects.filter(
+                is_active=True,
+                institution_type__in=sorted({fields["institution_type"] for fields in parsed}),
+            )
             .exclude(rspo__in=[fields["rspo"] for fields in parsed])
             .update(is_active=False)
         )

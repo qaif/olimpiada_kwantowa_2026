@@ -2,6 +2,20 @@
 
 from django.urls import path
 
+# Wzorce ekranów wydań E–K stoją w osobnych modułach, bo powstały równolegle (T11, T13, T20, T23,
+# T27, T34, T42), a ten plik ma w etapie 2 **jednego** właściciela na wydanie
+# (``docs/UNIWERSALNY-ETAP-2.md`` § 4.1). Montaż jest rozwinięciem tych list na **końcu**
+# ``urlpatterns``: kolejność wzorców jest umową (etap 1 § 4.3), więc dopisujemy, a nie
+# przestawiamy. Bramki flagi tu nie ma — o tym, czy ekran istnieje w tym konkursie, rozstrzyga
+# widok (§ 2.1), bo mapa adresów zależna od konkursu znaczyłaby ``reverse()`` dający raz adres,
+# a raz ``NoReverseMatch``.
+from .urls_consents import urlpatterns as consent_urlpatterns
+from .urls_documents import urlpatterns as document_urlpatterns
+from .urls_fees import urlpatterns as fee_urlpatterns
+from .urls_institutions import urlpatterns as institution_urlpatterns
+from .urls_pipeline import urlpatterns as pipeline_urlpatterns
+from .urls_regions import urlpatterns as region_urlpatterns
+from .urls_scoring import urlpatterns as scoring_urlpatterns
 from .views import (
     account,
     appeals,
@@ -947,4 +961,20 @@ urlpatterns = [
     # --- komisja odwoławcza ------------------------------------------------------------------
     path("appeals/", appeals.AppealsQueueView.as_view(), name="appeals"),
     path("appeals/<int:pk>/decide/", appeals.AppealDecideView.as_view(), name="appeal-decide"),
+    # --- wydanie E: konfiguracja zgód i tekstów dokumentów -------------------------------------
+    # Dopisane **na końcu** listy, bo kolejność wzorców jest umową: wzorzec wstawiony w środek
+    # przesuwa dopasowanie wszystkiego, co stoi po nim, a adresy Konkursu #1 mają zostać co do
+    # bajtu takie, jak przed wdrożeniem (§ 0.2 punkt 1).
+    *consent_urlpatterns,
+    *document_urlpatterns,
+    # --- wydanie G: podział terytorialny konkursu ----------------------------------------------
+    *region_urlpatterns,
+    # --- wydanie H: słownik placówek organizatora i profil rejestracji --------------------------
+    *institution_urlpatterns,
+    # --- wydanie I: edytor przebiegu i kategorie ------------------------------------------------
+    *pipeline_urlpatterns,
+    # --- wydanie J: punktacja etapu, drużyny i role recenzenckie --------------------------------
+    *scoring_urlpatterns,
+    # --- wydanie K: wpisowe, płatności i logistyka etapu stacjonarnego --------------------------
+    *fee_urlpatterns,
 ]

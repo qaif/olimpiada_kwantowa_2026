@@ -52,12 +52,48 @@ class SchoolKind(models.TextChoices):
 KIND_ORDER: tuple[str, ...] = (SchoolKind.LO, SchoolKind.TECHNIKUM)
 
 
+class InstitutionType(models.TextChoices):
+    """Rodzaj placówki – **szersza oś** niż ``SchoolKind``: tamten rozróżnia liceum od technikum
+    wewnątrz szkół ponadpodstawowych, ten rozróżnia szkołę podstawową od uczelni i od jej braku.
+
+    Dwie osie, a nie jedna rozszerzona lista, bo pytania są różne. ``SchoolKind`` steruje
+    **porządkiem podpowiedzi** wewnątrz jednego miasta (``KIND_ORDER``) i pochodzi z „Typu
+    podmiotu” w wykazie; ``InstitutionType`` mówi, **z którego wykazu** wiersz w ogóle pochodzi
+    i czy dany konkurs go dopuszcza. Zlanie ich w jedną kolumnę znaczyłoby, że dołożenie uczelni
+    przestawia kolejność liceów – czyli zmianę widoczną w Konkursie #1 bez żadnego powodu.
+
+    Trzy ostatnie wartości **nie mają wierszy w** ``School``: placówka poza Polską, brak szkoły
+    i „inna placówka” to sytuacje uczestnika, a nie pozycje rejestru – tam nazwę wpisuje się
+    wolnym tekstem (§ 1.3.2 planu etapu 2).
+    """
+
+    PRIMARY = "PRIMARY", "szkoła podstawowa"
+    SECONDARY = "SECONDARY", "szkoła ponadpodstawowa"
+    UNIVERSITY = "UNIVERSITY", "uczelnia wyższa"
+    FOREIGN = "FOREIGN", "placówka poza Polską"
+    NONE = "NONE", "bez szkoły"
+    OTHER = "OTHER", "inna placówka"
+
+
 class School(models.Model):
     """Szkoła z wykazu SIO. Dane referencyjne – redakcja ich nie tworzy, wgrywa je ``seed_schools``."""
 
     rspo = models.PositiveIntegerField("numer RSPO", unique=True)
     name = models.CharField("nazwa", max_length=255)
     kind = models.CharField("typ", max_length=16, choices=SchoolKind.choices, default=SchoolKind.INNA)
+    # Rodzaj placówki – kolumna, a nie osobna tabela, bo słownik zostaje **jeden i wspólny dla
+    # instalacji** (etap 1 § 8, decyzja D2): rejestr ministerialny jest tym samym rejestrem dla
+    # każdego konkursu, więc rozbicie go po organizatorach znaczyłoby kilka kopii tych samych
+    # ośmiu tysięcy wierszy. Domyślna wartość jest ``SECONDARY``, bo tyle i wyłącznie tyle zawiera
+    # dzisiejszy wykaz; wiersz bez tej informacji (fixture sprzed etapu 2) jest szkołą
+    # ponadpodstawową i nikt nie musi tego wpisywać ręcznie.
+    institution_type = models.CharField(
+        "rodzaj placówki",
+        max_length=16,
+        choices=InstitutionType.choices,
+        default=InstitutionType.SECONDARY,
+        db_index=True,
+    )
     voivodeship = models.CharField("województwo", max_length=100, choices=Voivodeship.choices)
     city = models.CharField("miejscowość", max_length=120)
     # Gmina wyliczona z ``city`` (``apps.schools.normalise``). Osobna kolumna, a nie poprawiony
@@ -112,3 +148,12 @@ class School(models.Model):
         for field, value in computed.items():
             setattr(self, field, value)
         super().save(*args, **kwargs)
+
+
+# Słownik własny organizatora (``CustomInstitution``, § 1.3.3) mieszka w osobnym module razem ze
+# swoim importem CSV i wyszukiwarką – tam czyta się je jako jedną sprawę, a ten plik zostaje
+# opisem **wykazu publicznego**. Import stoi na końcu, a nie na górze, bo ``apps.schools.custom``
+# potrzebuje ``InstitutionType`` zdefiniowanego wyżej; Django ładuje wtedy oba modele razem
+# z aplikacją, więc ``makemigrations`` i rejestr modeli widzą ``CustomInstitution`` tak samo jak
+# ``School``.
+from .custom import CustomInstitution  # noqa: E402,F401  (import na końcu – patrz komentarz wyżej)

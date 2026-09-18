@@ -180,6 +180,40 @@ Co trzeba ustawić **zanim** to zadziała:
 Certyfikat Let's Encrypt Caddy pobiera sam przy pierwszym starcie – wymaga otwartych portów 80 i 443
 i poprawnego DNS-u dla obu nazw.
 
+### Świeża instalacja z gotowego obrazu (bez budowania)
+
+Wariant dla kogoś, kto stawia **własną** olimpiadę na własnym serwerze i nie ma powodu kompilować
+niczego na miejscu: obraz aplikacji buduje CI i publikuje w GHCR (`.github/workflows/ci.yml`,
+zadanie `image`; z gałęzi `main` i ze znaczników `v*`), a compose dostaje minimalny zestaw usług
+przez nakładkę `docker-compose.operator.yml`.
+
+```bash
+git clone https://github.com/qaif/olimpiada_kwantowa_2026 && cd olimpiada_kwantowa_2026
+cp .env.example .env                                   # 1 – uzupełnić jak w tabeli z sekcji 4
+echo 'WEB_IMAGE=ghcr.io/qaif/olimpiada-web:v0.24.0' >> .env                          # 2
+DC="docker compose -f docker-compose.yml -f docker-compose.operator.yml"             # 3
+$DC pull && $DC up -d                                  # 4 – osiem usług, bez ClamAV-a i MTA
+$DC ps                                                 # 5 – czekamy na "web ... healthy"
+```
+
+- **Krok 2** jest tym, co odróżnia ten wariant od sekcji wyżej: bez `WEB_IMAGE` compose zbuduje
+  obraz sam (kilkanaście minut i kompilator w wymaganiach). Lista wydań: *Packages* przy
+  repozytorium; `:main` to stan gałęzi głównej, `:v…` – wydanie.
+- **Krok 4** startuje `proxy`, `web`, `worker`, `beat`, `db`, `redis`, `minio`, `minio-init`.
+  **Nie** startuje `clamav` (skan załączników – potrzebuje ~1,5 GB pamięci) ani `mail` (własny
+  Postfix – bez rekordów DNS z sekcji 4.2 i tak nie doręczy poczty). Obie usługi dokłada ten sam
+  zestaw plików z profilem: `$DC --profile full up -d`. Zestaw z profilem `full` jest **równy**
+  zwykłemu `docker compose up -d` z samego `docker-compose.yml` – pilnuje tego
+  `scripts/tests/compose_profiles_test.sh`. Przed otwarciem rejestracji włącz `full`: bez skanera
+  nadesłane pliki zostają w stanie „oczekuje na skan”, a bez poczty nie działa reset hasła.
+- **Krok po `up`:** wejdź na `/setup/` (kreator pierwszego uruchomienia – zakłada konto operatora
+  i pierwszy konkurs). Kreator jest dostępny **wyłącznie** na instalacji, w której nie ma jeszcze
+  ani konkursu, ani superużytkownika; na działającym serwisie ten adres odpowiada 404. Token
+  wejściowy bierze się z `SETUP_TOKEN` w `.env`, a gdy zmiennej nie ma – kreator wypisuje go **raz**
+  do logu kontenera `web` (`$DC logs web`). Runbook: [`docs/OPERACJE.md`](docs/OPERACJE.md) § 4.3.
+- Aktualizacja takiej instalacji to podmiana tagu w `WEB_IMAGE` i `$DC pull && $DC up -d web worker
+  beat`; migracje wykonuje entrypoint kontenera `web`, tak samo jak przy wdrożeniu skryptem.
+
 ### Aktualizacja działającej produkcji (`scripts/deploy.sh`)
 
 `SITE_DOMAIN=… ACME_EMAIL=… scripts/deploy.sh root@<host>` wgrywa kod z `git archive HEAD`, buduje
@@ -198,6 +232,12 @@ Kroki wdrożenia, o których warto wiedzieć:
 - **4/8** składa konfigurację proxy (`scripts/render_caddyfile.sh`: `deploy/Caddyfile` +
   `EXTRA_DOMAINS`), buduje obraz i uruchamia **samą bazę**. Przy pustym `EXTRA_DOMAINS` wynik jest
   kopią `deploy/Caddyfile` co do bajtu – sprawdza to `scripts/tests/render_caddyfile_test.sh`.
+  Obraz można **pobrać zamiast budować**: `WEB_IMAGE=ghcr.io/qaif/olimpiada-web:v0.24.0
+  scripts/deploy.sh root@<host>` robi w tym kroku `docker compose pull web` i zapisuje wartość
+  w `.env` na serwerze (żeby widziały ją kolejne wywołania compose'a). **Bez** tej zmiennej krok
+  wykonuje dokładnie to, co dotąd – `docker compose build --pull web` – i to jest droga domyślna
+  dla Olimpiady Kwantowej; pilnuje tego `scripts/tests/deploy_image_source_test.sh`. Powrót do
+  budowania: kolejne wdrożenie bez `WEB_IMAGE` (skrypt kasuje wtedy wpis z `.env`).
   Krok dokłada też do `.env` brakujące `EXTRA_DOMAINS=` i `CADDYFILE_PATH=`; istniejących wartości
   nie rusza.
 - **4a/8 – kopia bazy przed migracjami.** `pg_dump -Fc` do

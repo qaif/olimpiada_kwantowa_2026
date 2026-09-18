@@ -22,7 +22,7 @@ from django.db import DatabaseError
 from django.urls import reverse
 from django.utils import timezone
 
-from apps.accounts.consents import CONSENTS, MINOR_MAX_AGE
+from apps.accounts.consents import MINOR_MAX_AGE, consent_set
 from apps.accounts.models import CompetitionRole
 from apps.accounts.services import active_reviewer_profile, participant_for, roles_for
 from apps.accounts.supervisors import supervisor_profile
@@ -36,18 +36,25 @@ logger = logging.getLogger(__name__)
 #: testy) jest to „dev”. Nie jest to numer schematu API (``SPECTACULAR_SETTINGS``) ani migracji.
 APP_VERSION = os.environ.get("APP_VERSION", "dev")
 
-#: Nazwy pól zgód wymaganych bezwarunkowo (regulamin, RODO) – liczone raz, z definicji zgód.
-#: Statyczna krotka, więc żadnego zapytania na żądanie.
-REQUIRED_CONSENT_FIELDS: tuple[str, ...] = tuple(
-    consent.field_name for consent in CONSENTS if consent.required
-)
 
-#: Nazwy pól zgód wymaganych **wyłącznie od osób niepełnoletnich**. Z tej samej definicji, co wyżej:
-#: skrypt odsłaniający blok zgody opiekuna (``static/js/register-age.js``) nie może mieć własnej
-#: listy nazw pól, bo rozjechałaby się z regułą serwera przy pierwszej zmianie zestawu zgód.
-MINOR_CONSENT_FIELDS: tuple[str, ...] = tuple(
-    consent.field_name for consent in CONSENTS if consent.required_for_minor
-)
+def consent_field_names(competition=None) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Nazwy pól zgód wymaganych bezwarunkowo i wymaganych wyłącznie od niepełnoletnich.
+
+    Dwie krotki z **jednego** odczytu zestawu (``consents.consent_set``), bo to jeden zestaw i dwa
+    pytania do niego. Skrypt odsłaniający blok zgody opiekuna (``static/js/register-age.js``) nie
+    może mieć własnej listy nazw pól – rozjechałaby się z regułą serwera przy pierwszej zmianie
+    zestawu zgód – a blok zgód w formularzu rejestracji oznacza po tej pierwszej liście wiersze
+    „wymagane”, zamiast wypisywać nazwy pól w szablonie.
+
+    Do etapu 2 były to dwie stałe modułu, liczone raz na proces. Teraz zestaw może zależeć od
+    konkursu, więc liczą się na żądanie – i nadal **bez zapytania**, dopóki konkurs nie włączył
+    ``per_competition_consents``: ``consent_set`` czyta wtedy stałą i nie zagląda do bazy (§ 5.6).
+    """
+    consents = consent_set(competition)
+    return (
+        tuple(consent.field_name for consent in consents if consent.required),
+        tuple(consent.field_name for consent in consents if consent.required_for_minor),
+    )
 
 
 def roles(request) -> dict:
@@ -131,17 +138,20 @@ def registration(request) -> dict:
     from apps.competitions.models import REGISTRATION_DISABLED, RegistrationStatus
     from apps.competitions.registration import current_registration_status, registration_message
 
+    # Konkurs z żądania, a nie z kontekstu: procesor renderuje **każdą** stronę, więc jest to
+    # miejsce, w którym pomyłka najbardziej boli – otwarta rejestracja sąsiada zapraszałaby do
+    # formularza konkursu, który jeszcze (albo już) nie zapisuje kont. Ten sam konkurs rozstrzyga
+    # o zestawie zgód, bo to ten sam formularz.
+    competition = getattr(request, "competition", None)
     state = getattr(request, _REGISTRATION_CACHE_ATTR, None)
     if state is None:
         try:
-            # Konkurs z żądania, a nie z kontekstu: procesor renderuje **każdą** stronę, więc
-            # jest to miejsce, w którym pomyłka najbardziej boli – otwarta rejestracja sąsiada
-            # zapraszałaby do formularza konkursu, który jeszcze (albo już) nie zapisuje kont.
-            state = current_registration_status(competition=getattr(request, "competition", None))
+            state = current_registration_status(competition=competition)
         except DatabaseError:  # pragma: no cover - baza bez migracji tabeli edycji
             logger.warning("Nie udało się odczytać stanu rejestracji uczestników.")
             state = RegistrationStatus(False, REGISTRATION_DISABLED)
         setattr(request, _REGISTRATION_CACHE_ATTR, state)
+    required_consent_fields, minor_consent_fields = consent_field_names(competition)
     return {
         "registration": {
             "is_open": state.is_open,
@@ -156,7 +166,7 @@ def registration(request) -> dict:
         # jedno źródło (``apps.accounts.consents``), więc dopisanie zgody nie zostawi wiersza bez
         # oznaczenia. Zgody warunkowe („wymagane dla osób niepełnoletnich”) i dobrowolne mówią to
         # same, podpowiedzią pola – tu ich nie ma.
-        "required_consent_fields": REQUIRED_CONSENT_FIELDS,
+        "required_consent_fields": required_consent_fields,
         # Reguła niepełnoletności w postaci, którą da się postawić w atrybutach ``data-*``.
         # Skrypt odsłaniający blok zgody opiekuna liczy dokładnie to samo, co ``consents.is_minor``
         # (``rok bieżący − rocznik <= max_age``), ale **rok bierze stąd**, a nie z zegara
@@ -166,7 +176,7 @@ def registration(request) -> dict:
         "minor_rule": {
             "max_age": MINOR_MAX_AGE,
             "current_year": timezone.localdate().year,
-            "consent_fields": MINOR_CONSENT_FIELDS,
+            "consent_fields": minor_consent_fields,
         },
     }
 

@@ -1,0 +1,74 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Szablony dokumentów: rodzaj po rodzaju, z wersją, która obowiązuje dzisiaj.
+
+  Tabela wymienia **wszystkie** rodzaje z ``tenancy.documents.DocumentKind``, także te, którym ten
+  konkurs nie nadał jeszcze ani jednej wersji. Rodzaj bez szablonu nie jest brakiem do ukrycia:
+  dokument wychodzi wtedy z tekstu wbudowanego, dokładnie tak, jak przed etapem 2, i trzeba to
+  widzieć, żeby wiedzieć, czego się jeszcze nie zmieniło.
+
+  Faktura i lista obecności stoją na liście razem z dyplomami, choć ich własne ekrany chodzą za
+  innymi przełącznikami (``fees``, ``onsite_logistics``). Tekst dokumentu jest jedną sprawą
+  i jednym miejscem – rozbicie go na trzy ekrany po przełączniku znaczyłoby, że koordynator szuka
+  zdania na papierze w trzech zakładkach.
+
+  Bez JavaScriptu i bez stylów w atrybutach – panel chodzi pod ścisłą polityką CSP.
+{% endcomment %}
+{% block title %}Szablony dokumentów – panel koordynatora{% endblock %}
+{% block panel_title %}Szablony dokumentów{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Teksty, które wychodzą na papierze: tytuł, zdanie pod nazwiskiem, linia podpisu
+    i dopisek w stopce. Wygląd dokumentu — tło, logo i układ — jest osobno, na ekranie
+    „Dyplomy: szablony”. Każda zmiana tekstu jest <strong>nową wersją</strong>: dokumenty wydane
+    wcześniej dalej wychodzą ze swojej.</p>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Rodzaje dokumentów tego konkursu</caption>
+      <thead>
+        <tr>
+          <th scope="col">Rodzaj dokumentu</th>
+          <th scope="col">Wersja obowiązująca</th>
+          <th scope="col">Tytuł na papierze</th>
+          <th scope="col">Wersji łącznie</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <th scope="row">
+              <a href="{% url 'web:coordinator-document' row.kind.value %}">{{ row.label }}</a>
+            </th>
+            <td>
+              {% if row.current %}
+                {{ row.current.version }}
+              {% else %}
+                <span class="badge badge--neutral">tekst wbudowany</span>
+              {% endif %}
+            </td>
+            <td>{% if row.current %}{{ row.current.title }}{% else %}—{% endif %}</td>
+            <td class="num">{{ row.count }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section">
+  <div class="card card--quiet">
+    <h2 class="mt-0">Czego ten ekran nie zmienia</h2>
+    <ul class="hint">
+      <li><strong>Wyglądu dokumentu.</strong> Tło, logo, bloki podpisu i układ strony opisuje
+        szablon graficzny — ekran „Dyplomy: szablony”. Tutaj są wyłącznie napisy.</li>
+      <li><strong>Dokumentów już wydanych.</strong> Każdy z nich niesie numer wersji, z której
+        powstał, i pobrany za rok wyjdzie taki sam, jak dziś.</li>
+      <li><strong>Numeru i kodu weryfikacyjnego.</strong> Nadaje je rejestr dyplomów w chwili
+        wystawienia; szablon może je najwyżej wypisać znacznikiem.</li>
+    </ul>
+  </div>
+</section>
+{% endblock %}

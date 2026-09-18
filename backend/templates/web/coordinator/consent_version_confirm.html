@@ -1,0 +1,56 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Drugi krok zmiany wersji dokumentu: jedno zdanie o skutku i jeden przycisk.
+
+  Krok istnieje, bo skutku nie widać na ekranie, na którym się go wywołuje. Po zapisie nowe wpisy
+  ``ConsentRecord`` mówią co innego niż wpisy sprzed niego, a wcześniejszych nie da się poprawić —
+  i dobrze, bo to one są dowodem na to, co obowiązywało wtedy. Pomyłka w numerze wersji jest więc
+  pomyłką, którą widać dopiero za rok, przy pytaniu „na co ta osoba się zgodziła”.
+
+  Nowa wersja jedzie w polu ukrytym, a nie w adresie: numer bywa zdaniem ze spacjami i przecinkami
+  („2.0 z 1 marca 2027”), a adres z taką wartością trafia do logów serwera i do historii
+  przeglądarki. Potwierdzenie jest samym faktem wysłania tego formularza — pola do przepisania
+  nie ma, bo przepisywanie napisu uczy przepisywać, a nie czytać.
+{% endcomment %}
+{% block title %}Zmiana wersji: {{ definition.get_kind_display }} – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-consent-edit' definition.pk %}">{{ definition.get_kind_display }}</a>{% endblock %}
+{% block panel_title %}Zmiana wersji dokumentu{% endblock %}
+{% block panel_lead %}
+  <p class="lead">{{ definition.get_kind_display }}, pole <code>{{ definition.field_name }}</code>.</p>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  <div class="card">
+    <p class="notice">Od tej chwili nowe zgody będą zapisywane pod wersją
+      <strong>{{ version }}</strong>.</p>
+
+    <dl class="meta-list">
+      <dt>Wersja obowiązująca</dt><dd>{{ definition.version }}</dd>
+      <dt>Wersja po zapisie</dt><dd>{{ version }}</dd>
+    </dl>
+
+    <ul class="hint">
+      <li>Oświadczenia złożone wcześniej <strong>zostają bez zmian</strong> — razem z numerem
+        wersji, pod którym je złożono.</li>
+      <li>Treść oświadczenia zmienia się osobno; ten krok zmienia <strong>wyłącznie</strong>
+        numer wersji dokumentu.</li>
+      <li>Zmiana trafia do dziennika audytu jako <code>consent_definition.version_changed</code>
+        razem z Twoim kontem i godziną.</li>
+    </ul>
+
+    <form method="post" class="form"
+          action="{% url 'web:coordinator-consent-version' definition.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="version" value="{{ version }}">
+      <div class="actions">
+        <button type="submit" name="{{ confirm_field }}" value="1" class="btn btn--danger">
+          Zapisz wersję {{ version }}
+        </button>
+        <a class="btn btn--secondary"
+           href="{% url 'web:coordinator-consent-edit' definition.pk %}">Anuluj</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

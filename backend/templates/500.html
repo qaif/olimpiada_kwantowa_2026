@@ -5,7 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Błąd serwera – Olimpiada Kwantowa</title>
   <!-- Strona 500 jest samodzielna (bez szablonu bazowego i procesorów kontekstu): renderuje się
-       wtedy, gdy coś już się wywróciło, więc nie może zależeć od bazy ani ustawień serwisu. -->
+       wtedy, gdy coś już się wywróciło, więc nie może zależeć od bazy ani ustawień serwisu.
+       Jedyną wartością z zewnątrz jest adres kontaktowy: podaje go widok
+       ``apps.web.views.errors.server_error`` z ustawienia ERROR_PAGE_CONTACT_EMAIL (czyli
+       ze środowiska, a nie z bazy). Odwrót w ``default`` jest tu konieczny, bo ten sam szablon
+       renderuje się także bez kontekstu – tak robi Django, gdy wywraca się sam widok błędu. -->
   <style>
     body { margin: 0; font: 16px/1.5 system-ui, sans-serif; background: #f6f4ee; color: #171d27; }
     main { max-width: 36rem; margin: 4rem auto; padding: 2rem; background: #fffefb; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
@@ -16,8 +20,10 @@
 <body>
   <main>
     <h1>Coś poszło nie tak po naszej stronie</h1>
+    {% with email=contact_email|default:"contact@qaif.org" %}
     <p>Serwer nie mógł obsłużyć tego żądania. Spróbuj ponownie za chwilę. Jeśli błąd się powtarza,
-      napisz do organizatora: <a href="mailto:contact@qaif.org">contact@qaif.org</a>.</p>
+      napisz do organizatora: <a href="mailto:{{ email }}">{{ email }}</a>.</p>
+    {% endwith %}
     <p><a href="/">Wróć na stronę główną</a></p>
   </main>
 </body>

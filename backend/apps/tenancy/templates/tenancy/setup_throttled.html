@@ -1,0 +1,12 @@
+{% extends "tenancy/setup_base.html" %}{% comment %}
+  Odmowa przy przekroczeniu limitu prób (scope ``setup``). Własny ekran, a nie
+  ``web/throttled.html``: tamten dziedziczy po ``base.html``, czyli po szablonie czytającym menu
+  CMS-u i ustawienia witryny – rzeczy, których na tej instalacji jeszcze nie ma.
+{% endcomment %}
+{% block title %}Za dużo prób{% endblock %}
+{% block heading %}Za dużo prób{% endblock %}
+{% block lead %}{{ message }}{% endblock %}
+{% block content %}
+<p>Limit chroni jedyny publiczny adres, który zakłada konto z pełnymi uprawnieniami. Odczekaj
+  i wróć pod ten sam adres kreatora.</p>
+{% endblock %}

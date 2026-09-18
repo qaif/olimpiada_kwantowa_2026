@@ -91,6 +91,41 @@ def test_form_rate_reads_the_same_setting_as_the_api():
         assert form_rate(scope) == api_throttle.get_rate()
 
 
+def test_test_settings_list_the_same_throttle_scopes_as_base():
+    """Oba słowniki stawek wymieniają **ten sam zestaw** scope'ów – nazwa w nazwę.
+
+    ``ScopedRateThrottle.get_rate`` szuka stawki po nazwie scope'u i brak klucza podnosi u niego
+    wyjątek, a nie „limit wyłączony” (``config/settings/test.py`` mówi o tym wprost). Scope dopisany
+    w ``base.py`` i pominięty w ``test.py`` wywracałby więc pięćsetką każdy test, który dotknie
+    jego widoku – i to komunikatem o nieistniejącej stawce, a nie o ekranie.
+
+    Porównujemy **zestawy nazw**, a nie wartości: wartości mają się różnić (w testach każda jest
+    ``None``) i to jest cały sens osobnego pliku ustawień.
+    """
+    from config.settings import base as base_settings
+
+    assert set(settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]) == set(
+        base_settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]
+    )
+    # Dwa scope'y wydania K i I wymienione z nazwy, bo o nie poszło: webhook płatności ma widok
+    # z jawnym ``throttle_classes``, a kreator ``/setup/`` czyta stawkę z tego samego słownika.
+    assert settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["payments"] is None
+
+
+def test_setup_wizard_rate_does_not_depend_on_an_undeclared_scope():
+    """Kreator ``/setup/`` ma stawkę także wtedy, gdy jego scope'u nie ma w ustawieniach DRF.
+
+    ``apps.tenancy.setup.throttle_rate`` czyta ustawienia, **gdy znają** scope (także z wartością
+    ``None``), a poza tym schodzi na zmienną środowiskową i wartość z § 1.7.1. Dopisanie scope'u
+    ``setup`` do obu słowników jest więc zmianą zachowania, a nie porządkiem – i dlatego montaż go
+    nie dopisuje, tylko sprawdza, że odwrót działa.
+    """
+    from apps.tenancy import setup
+
+    assert setup.THROTTLE_SCOPE not in settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]
+    assert setup.throttle_rate() is not None
+
+
 @override_settings(REST_FRAMEWORK=rest_framework_with(login="7/min"))
 def test_changing_the_api_rate_moves_the_form_limit_too():
     """Nie ma drugiej konfiguracji – podmiana ``REST_FRAMEWORK`` przestawia limit formularza.

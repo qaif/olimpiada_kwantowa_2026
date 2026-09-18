@@ -8,7 +8,9 @@ Widoki tylko orkiestrują. Zasady wspólne dla całego modułu:
 - konflikt interesów na etapie wojewódzkim liczy się wyłącznie z ``CommitteeMember.district``:
   recenzent z województwa uczestnika nie dostaje jego pracy. Województwo członka komitetu jest
   opcjonalne (decyzja organizatora), więc jego brak nikogo nie wyklucza, a ``district_verified``
-  jest tylko informacją dla koordynatora i niczego nie bramkuje,
+  jest tylko informacją dla koordynatora i niczego nie bramkuje. Konkurs z własnym podziałem
+  terytorialnym (flaga ``custom_regions``) porównuje w tym samym miejscu regiony zamiast kodów
+  województw – **reguła jest ta sama**, zmienia się słownik, którym jest wyrażona (§ 1.4.4),
 - czas zawsze przez ``timezone.now()``.
 """
 
@@ -26,6 +28,8 @@ from apps.accounts.models import (
     GROUP_REVIEWER,
     CommitteeMember,
     CommitteeStatus,
+    Region,
+    region_for_district,
 )
 from apps.accounts.services import active_reviewer_profile
 from apps.competitions.models import Problem, Stage, StageKind
@@ -42,6 +46,7 @@ from .models import (
     ProblemReviewerRule,
     Review,
     ReviewCancelReason,
+    ReviewerRole,
     ReviewStatus,
 )
 from .rubric import assert_total_in_scale, is_complete, validate_rubric
@@ -167,22 +172,107 @@ def reviewer_pool() -> list[CommitteeMember]:
     )
 
 
-def has_district_conflict(member: CommitteeMember, stage: Stage, participant_district: str | None) -> bool:
-    """Czy recenzent jest w konflikcie województwa dla tego uczestnika na tym etapie.
+#: Jedyne wejście do flagi podziału terytorialnego w tym module (§ 1.0 (c)). Nazwa stoi
+#: w ``FEATURE_DEFAULTS`` (``apps/tenancy/models.py``) i jest domyślnie wyłączona.
+CUSTOM_REGIONS_FLAG = "custom_regions"
 
-    Poza etapem wojewódzkim konfliktu nie ma. Na etapie wojewódzkim konfliktowy jest wyłącznie
-    recenzent z **tym samym** województwem co uczestnik. Województwo członka komitetu jest
-    opcjonalne (decyzja organizatora): kto go nie ma, ocenia prace ze wszystkich województw.
-    ``district_verified`` nie bierze tu udziału – województwo niepotwierdzone, ale równe
-    województwu uczestnika, jest konfliktem, bo to bezpieczniejszy kierunek niż wpuszczenie
-    recenzenta na pracę z jego własnego województwa.
+
+def _competition_of(stage: Stage):
+    """Konkurs etapu – drogą przez edycję, jedyną, jaką etap ma (ten sam idiom, co w wynikach).
+
+    Odczyt kosztuje dwa zapytania **raz na obiekt etapu** (Django trzyma obiekty powiązane przy
+    instancji), a w ogóle się nie wykonuje poza etapem wojewódzkim: wołający sprawdza rodzaj etapu
+    przed zapytaniem o konkurs, bo poza etapem wojewódzkim konfliktu nie ma i nie było.
+    """
+    return stage.edition.competition
+
+
+def conflict_by_region(stage: Stage) -> bool:
+    """Czy konflikt interesów tego etapu liczy się po regionach konkursu, czy po województwach.
+
+    Wołający pyta o to **raz na czynność**, żeby nie sięgać do regionu uczestnika w konkursie,
+    który regionów nie używa – tam każde takie sięgnięcie byłoby zapytaniem, którego przed etapem 2
+    nie było. Poza etapem wojewódzkim odpowiedź jest ``False`` bez ani jednego zapytania.
     """
     if stage.kind != StageKind.DISTRICT:
         return False
+    return _competition_of(stage).has_feature(CUSTOM_REGIONS_FLAG)
+
+
+def _has_district_conflict_by_code(member: CommitteeMember, participant_district: str | None) -> bool:
+    """Dzisiejsza reguła, co do znaku: równość kodów województw po normalizacji zapisu."""
     member_district = _norm_district(member.district)
     if not member_district:
         return False
     return member_district == _norm_district(participant_district)
+
+
+def _region_of(competition, profile) -> Region | None:
+    """Region profilu: z kolumny ``region``, a w jej braku – odwzorowanie jego województwa.
+
+    Odwrót na województwo jest **warunkiem ciągłości**, a nie wygodą. Migracja
+    ``accounts.0026_regions_from_voivodeships`` wypełniła ``region`` każdemu istniejącemu profilowi,
+    ale profil założony między wdrożeniem regionów a włączeniem flagi ma tam ``NULL`` – i gdyby taki
+    profil znaczył „brak konfliktu”, dzień włączenia flagi byłby dniem, w którym recenzent dostaje
+    pracę ucznia z własnego województwa. ``region_for_district`` odwzorowuje szesnaście kodów
+    jeden do jednego, więc dla takiej pary wynik reguły jest dokładnie ten, co dziś.
+    """
+    if profile.region_id is not None:
+        return profile.region
+    return region_for_district(competition, profile.district)
+
+
+def participant_conflict_region(stage: Stage, participant) -> Region | None:
+    """Region uczestnika do porównania – odczytany **wyłącznie** w konkursie, który regionów używa.
+
+    Skrót dla pięciu miejsc wołających regułę konfliktu: w konkursie bez flagi nie dotyka kolumny
+    ``region``, więc nie dokłada ani jednego zapytania do dzisiejszego przydziału recenzentów;
+    w konkursie z flagą podaje regule region wprost z profilu, zamiast odtwarzać go z województwa
+    (którego konkurs z własnym podziałem może w ogóle nie wypełniać).
+    """
+    return participant.region if conflict_by_region(stage) else None
+
+
+def has_district_conflict(
+    member: CommitteeMember,
+    stage: Stage,
+    participant_district: str | None = None,
+    *,
+    participant_region: Region | None = None,
+) -> bool:
+    """Czy recenzent jest w konflikcie okręgu dla tego uczestnika na tym etapie.
+
+    **Ta sama reguła, wyrażona na regionach tam, gdzie regiony są** (§ 1.4.4). Trzy warunki zostają
+    co do joty, niezależnie od flagi:
+
+    - dotyczy **wyłącznie** etapu wojewódzkiego (``StageKind.DISTRICT``) – rodzaj etapu mówi, które
+      to zawody, i to jest właściwe kryterium dla reguły o mieszkaniu w tym samym okręgu;
+    - brak wartości u członka komitetu **nie** wyklucza go z niczego: kto nie podał ani województwa,
+      ani regionu, ocenia prace zewsząd (decyzja organizatora);
+    - ``district_verified`` nie bierze udziału – wartość niepotwierdzona, ale równa wartości
+      uczestnika, jest konfliktem, bo to bezpieczniejszy kierunek.
+
+    Przy wyłączonej fladze ``custom_regions`` (czyli w Konkursie #1) wykonuje się dokładnie
+    dzisiejsze ciało: równość kodów województw. Przy włączonej porównywane są regiony, a region
+    z ``counts_for_conflict=False`` (np. „poza Polską”) konfliktu nie tworzy – dwóch uczestników
+    z zagranicy nie jest ze sobą w konflikcie z tytułu miejsca zamieszkania.
+
+    ``participant_region`` jest **optymalizacją, nie warunkiem**: wołający, który już ma region
+    uczestnika, oszczędza zapytanie, a wołający, który go nie poda, dostanie tę samą odpowiedź –
+    region zostanie odczytany z profilu albo odtworzony z województwa. Pominięcie tego argumentu
+    w którymkolwiek z pięciu miejsc wołających nie może więc dać cichego „brak konfliktu”.
+    """
+    if stage.kind != StageKind.DISTRICT:
+        return False
+    competition = _competition_of(stage)
+    if not competition.has_feature(CUSTOM_REGIONS_FLAG):
+        return _has_district_conflict_by_code(member, participant_district)
+    if participant_region is None:
+        participant_region = region_for_district(competition, participant_district)
+    if participant_region is None or not participant_region.counts_for_conflict:
+        return False
+    member_region = _region_of(competition, member)
+    return member_region is not None and member_region.pk == participant_region.pk
 
 
 def _assert_reviewer_eligible(reviewer: CommitteeMember) -> None:
@@ -287,6 +377,13 @@ def allowed_scores(stage: Stage, problem: Problem | None = None) -> set[int]:
     (ekran koordynatora, walidacja reklamacji bez pracy). Każde miejsce, które zna zgłoszenie,
     **musi** podać jego zadanie – inaczej ocena przechodząca walidację nie musiałaby należeć do
     skali, według której praca jest oceniana.
+
+    Zwracany zbiór jest zawsze w postaci **przechowywanej**, bo jego jedynym zastosowaniem jest
+    porównanie z tym, co wolno wpisać do kolumny ``score``. Skala etapu z punktami ujemnymi leży
+    w bazie przesunięta (``ScoringScale.offset``, etap 2 § 1.2.6 b), więc idzie tu przez
+    ``stored_allowed_values``; skala **zadania** przesunięcia nie ma i mieć nie może, więc wraca
+    dosłownie. Przy ``offset = 0`` – czyli w każdym konkursie bez punktów ujemnych, w tym
+    w Konkursie #1 – oba zbiory są tym samym zbiorem, co przed etapem 2, co do wartości.
     """
     if problem is not None:
         values = problem.allowed_values()
@@ -295,7 +392,7 @@ def allowed_scores(stage: Stage, problem: Problem | None = None) -> set[int]:
     scale = getattr(stage, "scoring_scale", None)
     if scale is None:
         raise _conflict("Etap nie ma skali punktacji.", "SCORING_SCALE_MISSING")
-    values = scale.allowed_values()
+    values = scale.stored_allowed_values()
     if not values:
         raise _conflict("Skala punktacji etapu jest pusta.", "SCORING_SCALE_MISSING")
     return values
@@ -413,6 +510,34 @@ def problem_rule_reviewers(problem_ids) -> dict[int, list[CommitteeMember]]:
     return grouped
 
 
+#: Jedyne wejście do flagi ról recenzenckich (§ 1.0 (c)). Domyślnie wyłączona, Konkurs #1 jej
+#: nie włącza, a etap bez ról zachowuje się jak przed etapem 2 nawet po jej włączeniu.
+REVIEWER_ROLES_FLAG = "reviewer_roles"
+
+
+def stage_reviewer_roles(stage: Stage) -> list[ReviewerRole]:
+    """Role rundy ślepej tego etapu – w kolejności, w jakiej mają być obsadzane.
+
+    Pusta lista znaczy „ten etap ról nie ma” i jest odpowiedzią w dwóch różnych sytuacjach:
+    konkurs nie włączył flagi albo włączył ją, ale organizator ról jeszcze nie wpisał. Obie mają
+    dawać dokładnie dzisiejsze zachowanie przydziału, więc rozróżniać ich nie ma po co.
+
+    Flaga sprawdzana przed zapytaniem: konkurs bez ról nie płaci za nie odczytem tabeli.
+    """
+    if not _competition_of(stage).has_feature(REVIEWER_ROLES_FLAG):
+        return []
+    return list(stage.reviewer_roles.filter(round=ROUND_BLIND).order_by("position", "id"))
+
+
+def _role_slots(stage: Stage) -> list[ReviewerRole]:
+    """Miejsca do obsadzenia w rundzie ślepej: rola powtórzona tyle razy, ilu chce recenzentów.
+
+    Lista miejsc, a nie sama liczba, bo przydział musi wiedzieć nie tylko **ilu** recenzentów
+    dołożyć, ale i **którą rolę** wpisać każdemu z nich.
+    """
+    return [role for role in stage_reviewer_roles(stage) for _ in range(role.count)]
+
+
 def _skipped(submission: Submission, reason: str, reviewer_id: int | None = None) -> dict:
     """Wiersz listy ``skipped``. Uczestnik wyłącznie pseudonimem – audyt czytają też osoby bez RODO."""
     return {
@@ -442,9 +567,23 @@ def assign_reviewers(stage: Stage, per_submission: int = 2, *, actor=None, reque
     świadoma decyzja organizatora wygrywa z liczbą, którą wpisał w formularzu przydziału. Reguła
     nie łamie jednak konfliktu interesów: recenzent skonfliktowany z tym uczestnikiem jest dla tej
     jednej pracy pomijany i trafia do ``skipped`` z powodem ``RULE_REVIEWER_CONFLICT``.
+
+    **Role recenzenckie** (etap 2 § 1.2.7) zmieniają tu dokładnie jedno: skąd bierze się liczba
+    recenzentów. Etap z rolami mówi sam, ilu ich ma – suma ``ReviewerRole.count`` rundy ślepej –
+    i wtedy ``per_submission`` jest ignorowane, bo liczba wpisana w formularzu przydziału byłaby
+    drugą, sprzeczną deklaracją tej samej rzeczy. Etap bez ról (czyli każdy etap Konkursu #1)
+    czyta argument tak jak dotąd. Nowe recenzje dostają role po kolei (``position``), a recenzja
+    przydzielona wcześniej – zanim organizator role wpisał – zostaje bez roli i nic jej to nie robi.
     """
     if per_submission < 1:
         raise _bad_request("Liczba recenzentów musi być dodatnia.", "INVALID_PER_SUBMISSION")
+
+    # Role czytane **raz na cały przydział**: to jest odczyt konfiguracji etapu, a nie decyzja
+    # o pojedynczej pracy (§ 1.0 (c)). Pusta lista znaczy „etap ról nie ma” i jest jedynym stanem
+    # Konkursu #1 – wtedy poniżej nie wykonuje się ani jedna nowa linijka.
+    slots = _role_slots(stage)
+    if slots:
+        per_submission = len(slots)
 
     _lock_stage_for_assignment(stage)
     submissions = _assignable_submissions(stage)
@@ -464,13 +603,21 @@ def assign_reviewers(stage: Stage, per_submission: int = 2, *, actor=None, reque
     # dawałoby terminy różniące się milisekundami i komunikat koordynatora nie mógłby podać jednej daty.
     now = timezone.now()
     due_at = review_due_at(stage, now)
+    # Flaga podziału terytorialnego czytana **raz na cały przydział**, a nie przy każdej parze
+    # praca–recenzent: w konkursie bez regionów sięgnięcie po ``participant.region`` byłoby
+    # zapytaniem na każdą pracę, którego przed etapem 2 nie było (§ 1.0 (c)).
+    by_region = conflict_by_region(stage)
     for submission in submissions:
         already = set(
             Review.objects.filter(submission=submission, round=ROUND_BLIND)
             .exclude(status=ReviewStatus.CANCELLED)
             .values_list("reviewer_id", flat=True)
         )
+        # Ile miejsc tej pracy jest już obsadzonych **przed** tym przebiegiem – stąd zaczynają się
+        # role dla nowych recenzji. Liczone tutaj, bo ``already`` rośnie jeszcze w kroku 1.
+        filled = len(already)
         participant_district = submission.entry.participant.district
+        participant_region = submission.entry.participant.region if by_region else None
 
         # Krok 1: recenzenci z reguł zadania. Konflikt interesów raportujemy per praca i per osoba –
         # koordynator musi wiedzieć, która reguła nie zadziałała i dla kogo, żeby załatwić to ręcznie.
@@ -478,7 +625,9 @@ def assign_reviewers(stage: Stage, per_submission: int = 2, *, actor=None, reque
         for member in rules.get(submission.problem_id, ()):
             if member.pk in already:
                 continue
-            if has_district_conflict(member, stage, participant_district):
+            if has_district_conflict(
+                member, stage, participant_district, participant_region=participant_region
+            ):
                 skipped.append(_skipped(submission, "RULE_REVIEWER_CONFLICT", member.pk))
                 continue
             chosen.append(member)
@@ -491,7 +640,10 @@ def assign_reviewers(stage: Stage, per_submission: int = 2, *, actor=None, reque
             eligible = [
                 member
                 for member in pool
-                if member.pk not in already and not has_district_conflict(member, stage, participant_district)
+                if member.pk not in already
+                and not has_district_conflict(
+                    member, stage, participant_district, participant_region=participant_region
+                )
             ]
             if len(eligible) < missing:
                 skipped.append(_skipped(submission, "NOT_ENOUGH_REVIEWERS"))
@@ -500,17 +652,22 @@ def assign_reviewers(stage: Stage, per_submission: int = 2, *, actor=None, reque
 
         if not chosen:
             continue
+        # Nowe recenzje obsadzają role od pierwszego wolnego miejsca. Bez ról ``slots`` jest puste
+        # i każda recenzja powstaje z ``role = None``, dokładnie jak przed etapem 2. Recenzentów
+        # ponad liczbę miejsc (więcej reguł niż ról) też przydzielamy – bez roli, bo świadoma
+        # decyzja organizatora wygrywa z liczbą, a wymyślanie dla niej roli byłoby zgadywaniem.
         Review.objects.bulk_create(
             [
                 Review(
                     submission=submission,
                     reviewer=member,
                     round=ROUND_BLIND,
+                    role=slots[filled + index] if filled + index < len(slots) else None,
                     status=ReviewStatus.ASSIGNED,
                     assigned_at=now,
                     due_at=due_at,
                 )
-                for member in chosen
+                for index, member in enumerate(chosen)
             ]
         )
         for member in chosen:
@@ -631,6 +788,8 @@ def add_problem_reviewer_rule(problem, reviewer: CommitteeMember, *, actor=None,
     assigned = 0
     conflicts = 0
     already = 0
+    # Jw.: flaga raz na całą regułę, a region uczestnika czytany wyłącznie tam, gdzie rozstrzyga.
+    by_region = conflict_by_region(stage)
     for submission in _assignable_submissions(stage):
         if submission.problem_id != problem.pk:
             continue
@@ -641,7 +800,13 @@ def add_problem_reviewer_rule(problem, reviewer: CommitteeMember, *, actor=None,
         ):
             already += 1
             continue
-        if has_district_conflict(reviewer, stage, submission.entry.participant.district):
+        participant = submission.entry.participant
+        if has_district_conflict(
+            reviewer,
+            stage,
+            participant.district,
+            participant_region=participant.region if by_region else None,
+        ):
             conflicts += 1
             continue
         _create_blind_assignment(submission, reviewer)
@@ -712,7 +877,12 @@ def assign_reviewer_to_submission(
         .exists()
     ):
         raise _conflict("Ten recenzent ma już tę pracę przydzieloną.", "ALREADY_ASSIGNED")
-    if has_district_conflict(reviewer, locked.entry.stage, locked.entry.participant.district):
+    if has_district_conflict(
+        reviewer,
+        locked.entry.stage,
+        locked.entry.participant.district,
+        participant_region=participant_conflict_region(locked.entry.stage, locked.entry.participant),
+    ):
         raise _conflict("Recenzent ma konflikt interesów (województwo).", "REVIEWER_CONFLICT_OF_INTEREST")
 
     review = _create_blind_assignment(locked, reviewer)
@@ -790,7 +960,12 @@ def assign_third_reviewer(submission: Submission, reviewer: CommitteeMember, *, 
         raise _conflict(
             "Trzecim recenzentem nie może być autor oceny z rundy 1.", "REVIEWER_CONFLICT_OF_INTEREST"
         )
-    if has_district_conflict(reviewer, locked.entry.stage, locked.entry.participant.district):
+    if has_district_conflict(
+        reviewer,
+        locked.entry.stage,
+        locked.entry.participant.district,
+        participant_region=participant_conflict_region(locked.entry.stage, locked.entry.participant),
+    ):
         raise _conflict("Recenzent ma konflikt interesów (województwo).", "REVIEWER_CONFLICT_OF_INTEREST")
     if Review.objects.filter(submission=locked, round=ROUND_TIEBREAK).exists():
         raise _conflict("Trzeci recenzent jest już wyznaczony.", "THIRD_REVIEWER_ALREADY_ASSIGNED")
@@ -950,13 +1125,30 @@ def _round_one_reviews(submission: Submission) -> list[Review]:
     )
 
 
+def _counts_towards_consensus(review: Review) -> bool:
+    """Czy ta recenzja bierze udział w ustalaniu zgodności ocen.
+
+    Recenzja **bez roli** liczy się zawsze – i to jest całe zachowanie sprzed etapu 2, bo przed nim
+    żadna recenzja roli nie miała. Rolę, która do zgodności się nie liczy, wskazuje organizator
+    (``ReviewerRole.counts_towards_consensus``, § 1.2.7): tak wchodzi przewodniczący komisji
+    piszący własną opinię obok dwóch niezależnych recenzji, nie unieważniając ich zgodności.
+    """
+    return review.role_id is None or review.role.counts_towards_consensus
+
+
 def _consensus_score(reviews: list[Review]) -> int | None:
     """Wspólna ocena kompletnej rundy 1 albo ``None`` (runda niekompletna lub oceny różne).
 
     Wydzielone z ``_settle_round_one``, bo o zgodność ocen pyta też poprawka recenzji: zanim
     powstanie ocena uzgodniona, trzeba zdjąć wiszący przydział rozjemczy z własnym powodem
     w audycie.
+
+    Recenzje z ról nieliczących się do zgodności odpadają z tego rachunku **przed** sprawdzeniem
+    kompletu: gdyby odpadały dopiero z porównania ocen, nieoddana opinia przewodniczącego
+    trzymałaby pracę w ocenianiu mimo dwóch zgodnych recenzji. W etapie bez ról (czyli w całym
+    Konkursie #1) lista wchodzi tu i wychodzi stąd nietknięta.
     """
+    reviews = [review for review in reviews if _counts_towards_consensus(review)]
     if not reviews or not all(review.is_submitted for review in reviews):
         return None
     scores = {review.score for review in reviews}

@@ -2,4 +2,4 @@ extend = "../backend/pyproject.toml"
 
 [lint.isort]
 # Moduly pomocnicze z tego katalogu (pytest wklada e2e/ na sys.path) – stabilna klasyfikacja niezaleznie od cwd.
-known-first-party = ["conftest", "timeline"]
+known-first-party = ["conftest", "stage2", "timeline"]

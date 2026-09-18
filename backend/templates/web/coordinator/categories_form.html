@@ -1,0 +1,27 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Jedna kategoria. Kodu nie chowamy przy edycji: kategoria nie jest nigdzie zapisana napisem –
+  wpisy i reguły przejścia wskazują ją kluczem obcym – więc zmiana kodu jest poprawką
+  w regulaminie, a nie podmianą obiektu.
+{% endcomment %}
+{% block title %}{{ category.name }} – kategorie{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-categories' %}">Kategorie</a>{% endblock %}
+{% block panel_title %}Kategoria: {{ category.name }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Zmiana zakresu klas działa od najbliższego przypisania automatycznego – wpisy,
+    które kategorię już mają, zostają bez zmian.</p>
+{% endblock %}
+{% block panel_content %}
+<section class="section">
+  <div class="card">
+    <form method="post" class="form">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">Zapisz kategorię</button>
+        <a class="btn btn--secondary" href="{% url 'web:coordinator-categories' %}">Wróć</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

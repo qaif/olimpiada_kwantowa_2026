@@ -8,16 +8,18 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
-## Niewydane (po `v0.23.0`)
+## Niewydane (po `v0.24.0`)
 
-- Brak — katalog roboczy jest równy tagowi `v0.23.0`. Etap 1 systemu wielokonkursowego jest
-  domknięty; etap 2 (marka i dokumenty jako konfiguracja, edytor procesu, rejestracja część 2)
-  nie został jeszcze zlecony.
+- Brak — katalog roboczy jest równy tagowi `v0.24.0`. Etap 2 systemu wielokonkursowego jest
+  domknięty (`UNIWERSALNY-ETAP-2.md` § 3.1). Nie zlecone: aktualizacja Django 5.2 LTS + Wagtail 7.0
+  (zaproponowana, bez decyzji), drzewo CMS dla konkursu w trybie prefiksu ścieżki (uwaga T43),
+  edytor przebiegu przenoszący „przypisz kategorie” do warstwy serwisów.
 
 ## Wydania
 
 | Wersja | Data | Zmiana |
 |---|---|---|
+| **v0.24.0** | 2026-09-18 | etap 2 (wydania E–K scalone): marka i dokumenty jako konfiguracja (`apps/tenancy/branding.py`, nadawca i podpisy listów z konkursu, `ConsentDefinition`, `DocumentTemplate` + `Certificate.template_version`, kalendarz/CAPTCHA/domena anonimowa, adres na stronie 500 z `ERROR_PAGE_CONTACT_EMAIL`), `/cms/` per konkurs (`cms:<slug>`, `scope_cms_access`), regiony jako drzewo per konkurs z 16 województwami i konfliktem interesów bez zmiany, typy placówek, profil rejestracji, słownik własny organizatora z importem CSV, wyszukiwarka dwóch słowników, import hurtowy z regionem/kategorią/placówką, edytor przebiegu (`PipelineStep`, `TransitionRule`, kategorie, komponenty etapu, punkty z rozmowy, drużyny, wagi i przesunięcie skali, remisy, role recenzenckie), kreator `/setup/` z tokenem, obrazy z CI do GHCR i `WEB_IMAGE`, profil compose dla operatora, Wagtail i18n z aliasami witryn, język listów per konkurs, wpisowe z rejestrem należności i webhookiem płatności, logistyka etapów stacjonarnych; 15 nowych flag konkursu domyślnie wyłączonych, Olimpiada Kwantowa bajt w bajt; E2E z drugim konkursem; 4508+ testów |
 | **v0.23.0** | 2026-09-17 | etap 1, wydanie D (domknięcie): `NOT NULL` na kluczach `competition`, uczestnik per konkurs (`Participant.user` jako klucz obcy, `participant_for`), kod publiczny i numer dyplomu z prefiksami konkursu (`OLM-`/`OK` bez zmian dla Konkursu #1), jedna edycja bieżąca i unikalny rocznik per konkurs, kolumny konkursu w zgłoszeniach pomocy, audycie, kluczach API, webhookach, szablonach dyplomów i szablonach komentarzy, `create_competition` zakłada edycję, etapy i koordynatora, `check_memberships`, runbook drugiego konkursu; 3235 testów, 0 xfail |
 | **v0.22.0** | 2026-09-17 | etap 1, wydanie C: odczyty w panelach zakresowane do konkursu (`for_competition`, `current_edition(competition)`), CMS per witryna Wagtaila, komunikaty z kolumną konkursu, strona „Ustawienia konkursu” za flagą `competition_settings_page`, 14 z 15 testów izolacji zielonych |
 | **v0.21.0** | 2026-09-17 | etap 1, wydanie B: `accounts.Membership` i role per konkurs (za flagą `memberships_enforced`), nullowalne klucze obce `competition` z backfillem do Konkursu #1, `Caddyfile` generowany z `EXTRA_DOMAINS`, `pg_dump` przed migracjami w `deploy.sh`, testy izolacji i niezmienniczości |

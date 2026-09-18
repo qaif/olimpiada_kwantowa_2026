@@ -1,0 +1,42 @@
+{% extends "tenancy/setup_base.html" %}{% comment %}
+  Krok 3: podsumowanie. Raport jest **wypisem z komendy** ``create_competition`` (te same linijki
+  do ``.env``, ta sama lista następnych kroków), a nie drugim wyliczeniem tych samych wartości.
+  Kreator ``.env`` nie zmienia i zmienić nie może: plik należy do administratora serwera,
+  a aplikacja chodzi w kontenerze, który go nie widzi.
+{% endcomment %}
+{% block title %}Gotowe{% endblock %}
+{% block heading %}Instalacja gotowa{% endblock %}
+{% block lead %}Konkurs „{{ competition.name }}” istnieje, a Ty jesteś jego koordynatorem
+  i operatorem instalacji.{% endblock %}
+{% block content %}
+<section class="setup__section">
+  <h2>Co zostało zrobione</h2>
+  <ul>
+    <li>konto operatora: <strong>{{ operator.email }}</strong> (superużytkownik, grupa „coordinator”)</li>
+    <li>konkurs: <strong>{{ competition.name }}</strong> (identyfikator <code>{{ competition.slug }}</code>)</li>
+    <li>witryna: <code>{{ competition.site.hostname }}:{{ competition.site.port }}</code></li>
+  </ul>
+</section>
+
+{% if documents %}
+<section class="setup__section">
+  <h2>Dokumenty do wpisania przed otwarciem rejestracji</h2>
+  <ul>
+    {% for document in documents %}<li><code>{{ document }}</code></li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if report %}
+<section class="setup__section">
+  <h2>Następne kroki po stronie serwera</h2>
+  <p>Tego kreator nie zrobi za administratora: pliku <code>.env</code> i konfiguracji proxy nie
+    widzi z wnętrza kontenera. Poniżej wypis z komendy, która założyła konkurs.</p>
+  <pre class="setup__report">{{ report }}</pre>
+</section>
+{% endif %}
+
+<div class="actions">
+  <a class="btn btn--primary" href="{{ coordinator_url }}">Przejdź do panelu koordynatora</a>
+</div>
+{% endblock %}

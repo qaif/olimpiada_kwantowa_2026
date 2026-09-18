@@ -107,7 +107,10 @@ def set_manual_qualification(
     """
     value = _clean_decision(decision)
     text = _clean_reason(reason, required=value != ManualQualification.NONE)
-    locked = StageEntry.objects.select_for_update().select_related("participant").get(pk=entry.pk)
+    # ``of=("self",)``: od kiedy zgłoszenie może należeć do drużyny, ``participant`` jest nullowalny,
+    # a PostgreSQL nie pozwala zablokować nullowalnej strony złączenia zewnętrznego. Blokujemy sam
+    # wiersz zgłoszenia – uczestnika i tak tylko czytamy.
+    locked = StageEntry.objects.select_for_update(of=("self",)).select_related("participant").get(pk=entry.pk)
     before = locked.manual_qualification
     locked.manual_qualification = value
     locked.manual_qualification_reason = text

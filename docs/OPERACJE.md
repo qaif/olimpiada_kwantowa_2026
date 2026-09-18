@@ -9,7 +9,8 @@ koordynatora. Odpowiada na pięć pytań, które padają w tej kolejności:
 4. **jak chronione są konta z dostępem do cudzych danych** (2FA),
 5. **jak dołożyć drugi konkurs, nie ruszając pierwszego** (§ 6).
 
-Na końcu jest lista kontrolna incydentu – do otwarcia wtedy, gdy nie ma czasu czytać reszty.
+Dalej są dwie listy kontrolne: **incydentu** (§ 7) – do otwarcia wtedy, gdy nie ma czasu czytać
+reszty – oraz **wdrożenia etapu 2** (§ 8), do przejścia po każdym wydaniu z serii E–K.
 
 Adres produkcyjny: `olimpiadakwantowa.pl` (169.58.242.197), katalog `/opt/olimpiada`,
 wdrożenie `scripts/deploy.sh` z kluczem `~/.ssh/olimpiada_deploy`.
@@ -273,6 +274,91 @@ kliknięciem.
 Klucz wdrożeniowy ma na serwerze pełne uprawnienia roota. Jeśli kiedykolwiek wyciekł – wymień go:
 `ssh-keygen -t ed25519 -f ~/.ssh/olimpiada_deploy`, wpisz nowy klucz publiczny do
 `/root/.ssh/authorized_keys`, usuń stary, podmień sekret w GitHubie.
+
+### 4.3. Obraz z GHCR / świeża instalacja
+
+Dwie rzeczy, które dokłada etap 2 do tego, co wyżej: obraz aplikacji **publikowany** przez CI
+i zestaw usług na pierwsze uruchomienie u kogoś, kto instaluje platformę u siebie. Dla produkcji
+Olimpiady Kwantowej obie są **opcjonalne i domyślnie wyłączone** — wdrożenie bez zmiennej
+`WEB_IMAGE` wykonuje te same polecenia, co przed etapem 2.
+
+#### Co publikuje CI
+
+Zadanie `image` w `.github/workflows/ci.yml` buduje obraz przy **każdym** zgłoszeniu (także z forka)
+i **wypycha** go do GHCR wyłącznie z gałęzi `main` i ze znaczników `v*`:
+
+| Zdarzenie | Tagi w `ghcr.io/qaif/olimpiada-web` | Publikacja |
+|---|---|---|
+| znacznik `v0.24.0` | `v0.24.0`, `sha-<7 znaków>` | tak |
+| push do `main` | `main`, `sha-<7 znaków>` | tak |
+| pull request | — | nie (sam build) |
+
+Logowanie idzie wbudowanym `GITHUB_TOKEN`-em (uprawnienie `packages: write` nadane **tylko** temu
+zadaniu) — w repozytorium nie ma i nie powstaje żaden sekret do rejestru. Obrazów nie podpisujemy.
+Nie ma osobnych obrazów `worker` i `beat`: to ten sam obraz z innym poleceniem, więc trzy tagi
+znaczyłyby trzy różne wersje kodu w jednym wdrożeniu.
+
+Pakiet jest domyślnie **prywatny**. Żeby ktokolwiek spoza organizacji mógł go pobrać, trzeba raz
+przestawić go na publiczny: *Packages → olimpiada-web → Package settings → Change visibility*.
+Dopóki jest prywatny, `docker pull` wymaga zalogowania (`docker login ghcr.io` tokenem z zakresem
+`read:packages`) — i to jest sensowny stan do czasu, aż licencja i skład obrazu zostaną przejrzane.
+
+#### Wdrożenie produkcyjne z gotowego obrazu
+
+```bash
+WEB_IMAGE=ghcr.io/qaif/olimpiada-web:v0.24.0 scripts/deploy.sh root@olimpiadakwantowa.pl
+```
+
+Krok 4/8 pobiera wtedy obraz (`docker compose pull web`) zamiast go budować i zapisuje wartość do
+`/opt/olimpiada/.env`, bo każde późniejsze `docker compose` na serwerze musi widzieć ten sam obraz.
+Pozostałe kroki — kopia bazy (4a), start usług (4b), seedy (6), konkurs (6a), DNS poczty (7), cron
+kopii (8) — są **bez zmian**.
+
+Powrót do budowania na serwerze: kolejne wdrożenie **bez** `WEB_IMAGE`; skrypt sam kasuje wpis
+z `.env`. Sprawdzenie, co jest teraz źródłem obrazu:
+
+```bash
+ssh root@<host> "grep -E '^WEB_IMAGE=' /opt/olimpiada/.env || echo 'obraz budowany na serwerze'"
+```
+
+Kiedy to ma sens: gdy serwer nie ma pamięci albo czasu na budowanie (build ciągnie zależności
+i kompiluje), gdy chcemy wdrożyć **dokładnie ten** obraz, który przeszedł CI, i gdy wdrożenie ma
+być odtwarzalne co do bajtu. Pułapka jest jedna i trzeba ją znać: obraz z rejestru odpowiada
+**znacznikowi**, a kod na serwerze — temu, co jest w `HEAD` (krok 2/8 wysyła `git archive HEAD`).
+Wdrażaj z rejestru z **odpowiadającego** znacznika, inaczej migracje w obrazie mogą się rozjechać
+z plikami w `/opt/olimpiada`.
+
+#### Świeża instalacja u nowego operatora
+
+Nakładka `docker-compose.operator.yml` daje minimalny zestaw ośmiu usług (`proxy`, `web`, `worker`,
+`beat`, `db`, `redis`, `minio`, `minio-init`) — bez `clamav` i bez `mail`:
+
+```bash
+cp .env.example .env                                                     # uzupełnić
+echo 'WEB_IMAGE=ghcr.io/qaif/olimpiada-web:v0.24.0' >> .env
+DC="docker compose -f docker-compose.yml -f docker-compose.operator.yml"
+$DC pull && $DC up -d
+$DC ps                                   # czekamy na web = healthy
+```
+
+Następny krok po `up` to **kreator `/setup/`**: zakłada konto operatora i pierwszy konkurs. Kreator
+działa wyłącznie na instalacji bez konkursu i bez superużytkownika — na działającym serwisie ten
+adres odpowiada 404 (punkt 22 listy kontrolnej produkcji). Token wejściowy bierze się z `SETUP_TOKEN`
+w `.env`, a gdy zmiennej nie ma, kreator wypisuje go **raz** do logu kontenera `web` (`$DC logs web`)
+— log wdrożenia bywa publiczny, więc token nie jest nigdzie wypisywany drugi raz.
+
+Komplet usług (skaner i własny MTA) wraca profilem, bez zmiany plików:
+
+```bash
+$DC --profile full up -d
+```
+
+Zrób to **przed** otwarciem rejestracji: bez `clamav` nadesłane pliki zostają w stanie „oczekuje na
+skan”, a bez `mail` (albo bez `EMAIL_URL` zewnętrznego dostawcy) nie działa aktywacja konta ani
+reset hasła. Zestaw usług z profilem `full` jest **równy** temu, co startuje z samego
+`docker-compose.yml` — pilnuje tego `scripts/tests/compose_profiles_test.sh`, a rozgałęzienia
+w kroku 4/8 `scripts/tests/deploy_image_source_test.sh`. Produkcja Olimpiady Kwantowej **nie
+używa** tej nakładki: `scripts/deploy.sh` startuje komplet usług, tak jak dotąd.
 
 ---
 
@@ -593,3 +679,177 @@ Dopiero gdy dane są **nieodwracalnie** uszkodzone albo skasowane – nie po awa
 restart. Odtworzenie do nowej bazy (§ 2) nic nie psuje i można je zrobić równolegle do diagnozy;
 przełączenie serwisu na odtworzone dane (§ 2.3) jest osobną decyzją i kosztuje wszystko, co
 zapisano od momentu wykonania kopii.
+
+---
+
+## 8. Lista kontrolna po wdrożeniu etapu 2 (v0.24.0)
+
+Etap 2 (`docs/UNIWERSALNY-ETAP-2.md`) dokłada siedem obszarów konfiguracji i **żaden z nich nie ma
+zmienić niczego w Olimpiadzie Kwantowej**. Ta sekcja zamienia listę z § 0.5 tamtego dokumentu na
+komendy, które operator wykonuje po każdym wydaniu z serii E–K (`v0.24.0`–`v0.30.0`), w kolejności
+wykonywania. Punkty 1–13 z etapu 1 (§ 0.3 `UNIWERSALNY-ETAP-1.md`) **obowiązują bez zmian** i idą
+przed tymi.
+
+**Co jest już sprawdzone testem, a czego tu nie ma.** Część listy § 0.5 pilnuje suita i nie ma
+powodu powtarzać jej ręcznie: katalog przełączników i menu koordynatora bez flag
+(`apps/tenancy/tests/test_golden_single_competition.py`, `apps/web/tests/test_coordinator_nav_flags.py`),
+kontrakt `/status.json` razem z kolejnością kluczy, jeden `Locale` i brak prefiksu języka
+(`apps/tenancy/tests/test_i18n.py`), uprawnienia grupy `coordinator` w `/cms/`
+(`apps/cms/tests/test_cms_scope.py`), 404 na `/setup/` przy skonfigurowanej instalacji
+(`apps/tenancy/tests/test_setup.py`) oraz przebieg dwóch konkursów obok siebie
+(`apps/web/tests/test_e2e_two_competitions.py`, `e2e/check_stage2_*.py`). **Tutaj stoi to, czego
+test sprawdzić nie może**: porównanie z produkcją sprzed wdrożenia i stan konkretnej bazy.
+
+### 8.1. Przed wdrożeniem: materiał porównawczy
+
+Bez tego kroku punkty 16–19 są niesprawdzalne — nie ma z czym porównywać. Wykonuje się go **przed**
+`scripts/deploy.sh`, z katalogu roboczego poza repozytorium (brudnopis operatora), bo pliki niosą
+dane osobowe i nie wolno ich commitować.
+
+```bash
+# na serwerze, w /opt/olimpiada
+TAG=v0.24.0
+mkdir -p /opt/olimpiada-backups/przed-${TAG} && cd /opt/olimpiada-backups/przed-${TAG}
+
+# 1. strony złote: dokładnie te adresy, które wymienia § 0.5 (punkty 14, 16, 19, 21)
+for path in / /register/ /wyniki/ /dokumenty/regulamin/ /dokumenty/rodo/ /status.json; do
+  curl -sS -D nagl$(echo "$path" | tr '/' '_').txt \
+       -o tresc$(echo "$path" | tr '/' '_').html "https://olimpiadakwantowa.pl$path"
+done
+
+# 2. każda ogłoszona tabela wyników – po jednym pliku na publikację (punkt 16)
+docker compose exec -T web python manage.py shell -c "
+from apps.results.models import ResultsPublication
+print('\n'.join(str(row.stage_id) for row in ResultsPublication.objects.all()))
+" | while read -r stage; do
+  curl -sS -o wyniki-${stage}.html "https://olimpiadakwantowa.pl/results/${stage}/"
+done
+
+# 3. snapshoty publikacji jako dane (wydania I i J – § 3 planu etapu 2)
+docker compose exec -T web python manage.py dumpdata results.ResultsPublication \
+    --indent 2 > publikacje-przed-${TAG}.json
+```
+
+### 8.2. Po wdrożeniu: komendy
+
+Kolejność jest istotna: najpierw pytamy, czy baza jest w stanie, w jakim miała być (migracje,
+domeny, członkostwa), a dopiero potem porównujemy to, co widzi uczestnik. Odwrotna kolejność każe
+diagnozować różnicę w HTML-u, której przyczyną jest niewykonana migracja.
+
+```bash
+# na serwerze, w /opt/olimpiada
+
+# 1. żadnej migracji do wykonania – pusty wynik znaczy „wszystkie zastosowane”
+docker compose exec -T web python manage.py showmigrations | grep '\[ \]'
+
+# 2. modele zgodne z migracjami – wdrożenie z niezacommitowaną zmianą modelu kończy się tutaj
+docker compose exec -T web python manage.py makemigrations --check --dry-run
+
+# 3. role kontra członkostwa (§ 6.1) – ma wyjść zero rozjazdów
+docker compose exec -T web python manage.py check_memberships
+
+# 4. domena w trzech miejscach naraz: Caddy, ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS
+docker compose exec -T web python manage.py check_domains --all
+
+# 5. wersja odpowiadającej aplikacji – ma być tagiem, który właśnie wjechał
+curl -sS https://olimpiadakwantowa.pl/status.json | python3 -m json.tool | grep -E '"(version|setup_pending|status)"'
+```
+
+Punkt 22 listy § 0.5 sprawdza się jedną linijką i ma dać **404**: kreator pierwszego uruchomienia
+nie istnieje na instalacji, która ma konkurs i superużytkownika.
+
+```bash
+curl -sS -o /dev/null -w '%{http_code}\n' https://olimpiadakwantowa.pl/setup/     # oczekiwane: 404
+```
+
+### 8.3. Zapytania kontrolne do bazy
+
+Wchodzi się przez `docker compose exec -T db psql -U olimpiada -d olimpiada -c "…"`. Każde
+zapytanie ma **jedną** oczekiwaną odpowiedź i jest wypisana obok — wynik inny niż ta odpowiedź
+zatrzymuje wdrożenie, a nie zaczyna dyskusję.
+
+```sql
+-- 1. przełączniki każdego konkursu. Olimpiada Kwantowa (slug „kwantowa”) ma mieć {} albo
+--    wyłącznie flagi etapu 1 (memberships_enforced, competition_settings_page). Każda flaga
+--    etapu 2 w tym wierszu to funkcja zapalona u działającej olimpiady bez decyzji organizatora.
+select slug, routing_mode, path_prefix, feature_flags from tenancy_competition order by id;
+
+-- 2. definicje zgód Konkursu #1: dokładnie 4 (regulamin, RODO, opiekun, publikacja nazwiska).
+--    Wiersz nadmiarowy albo brakujący znaczy, że migracja przepisująca zgody zrobiła co innego
+--    niż kopię stałej – a to jest jedyne miejsce, w którym treść oświadczenia mogłaby się zmienić.
+select count(*) from accounts_consentdefinition
+ where competition_id = (select id from tenancy_competition order by id limit 1);
+
+-- 3. szablony dokumentów Konkursu #1: dokładnie 5 (laureat, finalista, uczestnik, opiekun,
+--    warsztaty), wszystkie w tej samej wersji.
+select version, count(*) from tenancy_documenttemplate
+ where competition_id = (select id from tenancy_competition order by id limit 1)
+ group by version;
+
+-- 4. regiony Konkursu #1: 18 (kraj + 16 województw + „poza Polską”). Liczba inna znaczy, że
+--    migracja z Voivodeship policzyła województwa drugi raz albo pominęła korzeń.
+select count(*) from accounts_region
+ where competition_id = (select id from tenancy_competition order by id limit 1);
+
+-- 5. uczestnik należy do jednego konkursu i ma kod z jego prefiksu – zero wierszy w odpowiedzi.
+select p.id, p.public_code from accounts_participant p
+  join tenancy_competition c on c.id = p.competition_id
+ where p.public_code not like c.public_code_prefix || '%';
+
+-- 6. jeden język treści (punkt 20–21 listy) – ma być dokładnie jeden wiersz.
+select count(*) from wagtailcore_locale;
+```
+
+### 8.4. Porównanie stron złotych
+
+To jest punkt 16 listy § 0.5 wykonany narzędziem zamiast okiem. Wykonuje się go **po** § 8.2,
+z tego samego katalogu brudnopisu, w którym leżą pliki z § 8.1.
+
+```bash
+TAG=v0.24.0
+cd /opt/olimpiada-backups/przed-${TAG}
+mkdir -p ../po-${TAG} && cd ../po-${TAG}
+
+for path in / /register/ /wyniki/ /dokumenty/regulamin/ /dokumenty/rodo/; do
+  curl -sS -o tresc$(echo "$path" | tr '/' '_').html "https://olimpiadakwantowa.pl$path"
+done
+diff -r ../przed-${TAG} . --exclude='nagl*' --exclude='*.json'
+```
+
+Czego `diff` **ma** nie pokazać: ani jednej różnicy w `/register/` (brzmienie czterech zgód
+i odnośniki do `/dokumenty/regulamin/` oraz `/dokumenty/rodo/` — punkt 14), ani jednej w tabelach
+wyników (punkt 16). Czego pokazanie jest w porządku: znacznika czasu w `/status.json` i numeru
+wersji zasobu statycznego (`?v=…`), jeżeli wydanie przebudowało arkusz stylów.
+
+Punkty, których nie da się porównać plikiem i które zostają ręczne: pobranie dyplomu wystawionego
+**przed** wdrożeniem (ten sam numer, kod weryfikacyjny i linia podpisu — punkt 18), `/kalendarz.ics`
+uczestnika (`PRODID`, `X-WR-CALNAME`, `UID` — punkt 19) oraz wejście do `/cms/` na koncie
+koordynatora (drzewo stron, kolekcje mediów, brak nowego wyboru języka — punkt 20). Każdy z nich
+wymaga zalogowanego konta, więc robi je człowiek, a nie `curl`.
+
+### 8.5. Kolejność zapalania flag u drugiego konkursu
+
+Flagi zapala się **pojedynczo i w tej kolejności**, wpisując je do `feature_flags` w
+`/admin/ → Konkursy → <konkurs>` (§ 6.4). Kolejność nie jest dowolna: każda grupa zakłada, że
+poprzednia już stoi, a zapalenie wszystkiego naraz zamienia pierwszą usterkę w piętnaście
+podejrzanych.
+
+| # | Flagi | Co sprawdzić, zanim zapalisz następną |
+|---|---|---|
+| 1 | `per_competition_consents`, `document_templates` | `/coordinator/consents/` i `/coordinator/documents/` otwierają się; `/register/` konkursu pokazuje **te same** zgody, co przed zapaleniem (definicje są kopią zestawu domyślnego) |
+| 2 | `competition_branding_in_mail` | list aktywacyjny z rejestracji testowej ma temat i podpis tego konkursu, a nie platformy |
+| 3 | `scoped_cms_permissions` | `manage.py scope_cms_access --competition <slug> --dry-run`, a po przeczytaniu wydruku bez `--dry-run`; koordynator widzi w `/cms/` wyłącznie swoje poddrzewo, a koordynator Konkursu #1 — swoje bez zmian |
+| 4 | `custom_regions` | `/coordinator/regions/` pokazuje 18 wierszy startowych; lista województw w rejestracji nie zmienia się, dopóki regiony nie zostaną poprawione |
+| 5 | `institution_types`, `custom_school_directory` | `/coordinator/registration-profile/` i `/coordinator/institutions/`; **podgląd** wgrania wykazu (bez potwierdzenia) przed pierwszym prawdziwym importem |
+| 6 | `process_editor`, `categories` | `/coordinator/pipeline/` — konkurs założony komendą ma **pusty tor**: kroki dopisuje się przyciskiem „Dopisz krok”, po jednym na etap, zanim ktokolwiek policzy kwalifikację |
+| 7 | `weighted_scoring`, `reviewer_roles`, `team_entries` | wagi i remisy na ekranie etapu; przeliczenie etapu próbnego daje tę samą tabelę, co przed zapaleniem, dopóki wagi są `1/1` |
+| 8 | `fees`, `onsite_logistics` | `/coordinator/fees/` i `/coordinator/venues/`; rejestr należności **pusty**, dopóki cennik nie zostanie naliczony |
+| 9 | `content_translations` | dopiero po ustawieniu `WAGTAIL_I18N_ENABLED` i drugiego `Locale` — flaga bez nich nie ma czego włączyć |
+
+Po każdej grupie: zaloguj się na konto jednej osoby z każdej roli **tego** konkursu i sprawdź, że
+widzi to, co widziała. Cofnięcie jest tą samą jedną wartością w `feature_flags` i nie wymaga
+wdrożenia — ale tylko wtedy, gdy ktoś zauważy w tej samej minucie.
+
+Konkursu #1 ta tabela **nie dotyczy**: Olimpiada Kwantowa zostaje z `feature_flags` zawierającym
+wyłącznie flagi etapu 1 i tak ma zostać przez cały sezon (decyzja D8, `docs/UNIWERSALNY-ETAP-2.md`
+§ 6).

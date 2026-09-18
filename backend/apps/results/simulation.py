@@ -16,6 +16,12 @@ Reguła do symulacji jest **niezapisanym** obiektem ``QualificationRule``: model
 pierwszeństwo pól (``requires_min_points``/``requires_top_n``) i jego walidację, więc symulacja nie
 musi wiedzieć, który tryb czego wymaga. Zapis reguły jest osobną czynnością – ``apply_rule`` –
 wołaną wyłącznie wtedy, gdy koordynator naciśnie przycisk.
+
+Od etapu 2 to samo pytanie zadaje się drugim wejściem – ``simulate_transition`` – dla konkursu,
+który przebieg trzyma w danych (``TransitionRule``, ``docs/UNIWERSALNY-ETAP-2.md`` § 1.2.5).
+Wspólne jest **wszystko poza regułą**: wiersze, obsługa zdyskwalifikowanych, decyzja komitetu
+i rozbicie na województwa liczy jedno ciało (``_preview``), a różni je wyłącznie to, kogo pytamy
+o próg. Konkurs #1 wchodzi wyłącznie pierwszym wejściem i nie widzi z drugiego ani jednej linijki.
 """
 
 from __future__ import annotations
@@ -27,12 +33,26 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from rest_framework import status as http
 
-from apps.competitions.models import QualificationMode, QualificationRule, Stage, StageEntryStatus
+from apps.competitions.models import (
+    QualificationMode,
+    QualificationRule,
+    Stage,
+    StageEntryStatus,
+    TransitionMode,
+    TransitionRule,
+)
 from apps.core.api import DomainError
 from apps.core.models import audit
 from apps.submissions.models import Submission, SubmissionStatus
 
-from .services import _district_key, _qualified_entry_ids, compute_stage_results, qualified_with_manual
+from .services import (
+    StageQualification,
+    _district_key,
+    _qualified_entry_ids,
+    compute_stage_results,
+    qualified_with_manual,
+    stage_qualification,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -93,23 +113,18 @@ def _district_label(row: dict) -> str:
     return (row.get("district") or "").strip() or UNKNOWN_DISTRICT_LABEL
 
 
-def simulate(stage: Stage, mode: str, min_points: int | None, top_n: int | None) -> dict:
-    """Podgląd kwalifikacji dla zadanej reguły. Nic nie zapisuje, niczego nie ogłasza.
+def _preview(stage: Stage, qualify) -> dict:
+    """Wspólne ciało obu podglądów. ``qualify`` dostaje kandydatów i oddaje zbiór ``entry_id``.
 
-    Zdyskwalifikowani są poza progiem – tak samo, jak w ``apply_qualification``: dyskwalifikacja
-    jest decyzją proceduralną, a nie wynikiem punktowym, więc nie może zajmować miejsca w „top N”.
-    W zwracanej tabeli zostają, z jawnym ``qualified=False``, bo koordynator ma widzieć komplet
-    wpisów etapu, a nie tabelę, z której ktoś zniknął bez wyjaśnienia.
-
-    ``cutoff`` to najniższa suma punktów, która jeszcze się kwalifikuje – wyliczona z wyniku,
-    a nie z parametru reguły. Przy ``TOP_N`` parametrem jest liczba miejsc, a nie punkty; przy
-    ``TOP_N_PER_DISTRICT`` progów jest tyle, ile województw, więc jedna liczba byłaby wtedy
-    zaokrągleniem do najniższego z nich – i dokładnie tak jest opisana na ekranie.
+    Wydzielone, bo od etapu 2 są dwa wejścia (dzisiejsza ``QualificationRule`` i reguły przejścia
+    z danych), a wszystko poza samym progiem jest w nich identyczne. Gdyby każde miało własną
+    kopię tej pętli, pierwsza poprawka w obsłudze zdyskwalifikowanych albo decyzji komitetu
+    trafiłaby do jednej z nich – i ekran, na którym koordynator dobiera próg, zacząłby pokazywać
+    co innego niż przeliczenie.
     """
-    rule = build_rule(stage, mode, min_points, top_n)
     rows = compute_stage_results(stage, preview=True)
     candidates = [row for row in rows if row["status"] != StageEntryStatus.DISQUALIFIED]
-    qualified_ids = _qualified_entry_ids(candidates, rule)
+    qualified_ids = qualify(candidates)
     disqualified_ids = {row["entry_id"] for row in rows} - {row["entry_id"] for row in candidates}
     for row in rows:
         # Decyzja komitetu bije próg także w podglądzie – inaczej symulacja pokazywałaby inny
@@ -127,7 +142,6 @@ def simulate(stage: Stage, mode: str, min_points: int | None, top_n: int | None)
     entered = Counter(_district_label(row) for row in candidates)
     return {
         "stage": stage,
-        "rule": rule,
         "rows": rows,
         "qualified": len(qualified_rows),
         "not_qualified": len(candidates) - len(qualified_rows),
@@ -142,6 +156,98 @@ def simulate(stage: Stage, mode: str, min_points: int | None, top_n: int | None)
         ],
         "ungraded": ungraded_count(stage),
     }
+
+
+def simulate(stage: Stage, mode: str, min_points: int | None, top_n: int | None) -> dict:
+    """Podgląd kwalifikacji dla zadanej reguły. Nic nie zapisuje, niczego nie ogłasza.
+
+    Zdyskwalifikowani są poza progiem – tak samo, jak w ``apply_qualification``: dyskwalifikacja
+    jest decyzją proceduralną, a nie wynikiem punktowym, więc nie może zajmować miejsca w „top N”.
+    W zwracanej tabeli zostają, z jawnym ``qualified=False``, bo koordynator ma widzieć komplet
+    wpisów etapu, a nie tabelę, z której ktoś zniknął bez wyjaśnienia.
+
+    ``cutoff`` to najniższa suma punktów, która jeszcze się kwalifikuje – wyliczona z wyniku,
+    a nie z parametru reguły. Przy ``TOP_N`` parametrem jest liczba miejsc, a nie punkty; przy
+    ``TOP_N_PER_DISTRICT`` progów jest tyle, ile województw, więc jedna liczba byłaby wtedy
+    zaokrągleniem do najniższego z nich – i dokładnie tak jest opisana na ekranie.
+
+    Flagi ``process_editor`` ta funkcja **nie czyta** i to jest celowe: pytanie brzmi „co by było,
+    gdyby próg wyglądał tak”, a próg podaje formularz, nie baza. Ekran edytora procesu pyta
+    o próg **zapisany** i ma na to własne wejście (:func:`simulate_transition`).
+    """
+    rule = build_rule(stage, mode, min_points, top_n)
+    return {"rule": rule} | _preview(stage, lambda candidates: _qualified_entry_ids(candidates, rule))
+
+
+def build_transition_rule(
+    stage: Stage,
+    mode: str,
+    *,
+    min_points: int | None = None,
+    top_n: int | None = None,
+    percentile: int | None = None,
+    group_by: str = "",
+    category=None,
+) -> TransitionRule:
+    """Niezapisana reguła przejścia do podglądu. Walidację robi ``full_clean`` modelu.
+
+    Ta sama decyzja, co w :func:`build_rule` i z tego samego powodu: „tryb N w grupie wymaga
+    wskazania podziału” ma jedno miejsce w systemie i jest nim model, więc podgląd odrzuca
+    dokładnie te parametry, których nie przyjąłby zapis. ``exclude=["step"]`` pomija krok –
+    podgląd świadomie nie należy do żadnego zapisanego kroku przebiegu.
+    """
+    if mode not in TransitionMode.values:
+        raise DomainError(
+            f"Nieznany tryb reguły przejścia: {mode}.",
+            "QUALIFICATION_RULE_INVALID",
+            http.HTTP_400_BAD_REQUEST,
+        )
+    rule = TransitionRule(
+        mode=mode,
+        group_by=group_by or "",
+        category=category,
+        min_points=min_points,
+        top_n=top_n,
+        percentile=percentile,
+    )
+    try:
+        rule.full_clean(exclude=["step"], validate_unique=False)
+    except ValidationError as exc:
+        raise DomainError(
+            " ".join(message for messages in exc.message_dict.values() for message in messages),
+            "QUALIFICATION_RULE_INVALID",
+            http.HTTP_400_BAD_REQUEST,
+        ) from exc
+    return rule
+
+
+def simulate_transition(stage: Stage, rules=None) -> dict:
+    """Podgląd kwalifikacji dla reguł przejścia. Nic nie zapisuje, niczego nie ogłasza.
+
+    ``rules=None`` znaczy „próg, który dziś obowiązuje” – a więc dokładnie to, co zastosuje
+    ``apply_qualification``, razem z odwrotem na ``QualificationRule`` dla kroku, którego edytor
+    jeszcze nie tknął (patrz ``services.stage_qualification``). Lista reguł (także niezapisanych,
+    z :func:`build_transition_rule`) znaczy „co by było, gdyby przebieg wyglądał tak”.
+
+    Kształt odpowiedzi jest ten sam, co w :func:`simulate`, i dochodzą do niego dwa klucze:
+    ``rules`` (reguły, których użyto) i ``mode`` (napis o trybie – ten sam, który trafia do
+    audytu przeliczenia). ``rule`` zostaje ``None``, bo drogą z danych nie ma jednej reguły.
+    """
+    qualification = (
+        stage_qualification(stage)
+        if rules is None
+        else StageQualification(
+            mode="+".join(dict.fromkeys(rule.mode for rule in rules)),
+            rule=None,
+            rules=tuple(rules),
+            from_pipeline=True,
+        )
+    )
+    return {
+        "rule": qualification.rule,
+        "rules": qualification.rules,
+        "mode": qualification.mode,
+    } | _preview(stage, qualification.qualified_entry_ids)
 
 
 @transaction.atomic

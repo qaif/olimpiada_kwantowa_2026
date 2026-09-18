@@ -1,0 +1,111 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Kategorie startujących: słownik konkursu plus licznik wpisów bieżącej edycji.
+
+  Licznik nie jest ozdobą: kategoria z zerem wpisów po przypisaniu automatycznym znaczy, że jej
+  zakres klas nie łapie nikogo – a to jest literówka, której inaczej nie widać do chwili
+  ogłoszenia wyników.
+
+  Przycisk „przypisz automatycznie” **uzupełnia puste**, a nie nadpisuje: kategoria wpisana
+  ręcznie jest decyzją komitetu, a automat liczący z klasy nic o niej nie wie.
+{% endcomment %}
+{% block title %}Kategorie – panel koordynatora{% endblock %}
+{% block panel_title %}Kategorie{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Podział startujących na osobne rankingi i osobne progi: rocznik, typ szkoły albo
+    cokolwiek, co ustali organizator. Kategoria należy do konkursu, a przypisanie – do wpisu
+    w etapie, bo uczeń zmienia klasę między edycjami.</p>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Kategorie tego konkursu</caption>
+      <thead>
+        <tr>
+          <th scope="col">Kolejność</th>
+          <th scope="col">Nazwa</th>
+          <th scope="col">Kod</th>
+          <th scope="col">Klasy</th>
+          <th scope="col">Wpisy w bieżącej edycji</th>
+          <th scope="col">Stan</th>
+          <th scope="col"><span class="visually-hidden">Operacje</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td class="num">{{ row.category.position }}</td>
+            <th scope="row">
+              <a href="{% url 'web:coordinator-category' row.category.pk %}">{{ row.category.name }}</a>
+            </th>
+            <td><code>{{ row.category.code }}</code></td>
+            <td>
+              {% if row.category.has_grade_rule %}
+                {{ row.category.grade_min|default_if_none:"—" }}–{{ row.category.grade_max|default_if_none:"—" }}
+              {% else %}
+                <span class="badge badge--neutral">wskazuje człowiek</span>
+              {% endif %}
+            </td>
+            <td class="num">{{ row.entries }}</td>
+            <td>
+              {% if row.category.is_active %}
+                <span class="badge badge--ok">aktywna</span>
+              {% else %}
+                <span class="badge badge--neutral">wyłączona</span>
+              {% endif %}
+            </td>
+            <td class="actions">
+              <form method="post" action="{% url 'web:coordinator-category-delete' row.category.pk %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn--danger btn--small">Usuń</button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="7" class="empty">Ten konkurs nie ma jeszcze ani jednej kategorii – tabela
+              wyników jest wtedy jedna dla wszystkich.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Przypisanie automatyczne</h2>
+    <p class="hint">Kategoria z klasy ucznia, dla wpisów bieżącej edycji, które kategorii jeszcze
+      nie mają. Wpisy z kategorią wpisaną ręcznie zostają nietknięte; wpisy drużynowe są pomijane,
+      bo klasa jest cechą ucznia, a nie drużyny.</p>
+  </div>
+  <div class="card">
+    {% if has_grade_rules %}
+      <form method="post" action="{% url 'web:coordinator-categories-assign' %}" class="inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn--primary">Przypisz automatycznie</button>
+      </form>
+    {% else %}
+      <p class="notice">Żadna kategoria nie ma zakresu klas, więc automat nie ma czego policzyć.
+        Uzupełnij „klasa od” i „klasa do” przynajmniej w jednej kategorii.</p>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Nowa kategoria</h2>
+  </div>
+  <div class="card">
+    <form method="post" action="{% url 'web:coordinator-category-create' %}" class="form">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">Dodaj kategorię</button>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

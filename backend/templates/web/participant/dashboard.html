@@ -55,6 +55,52 @@
 </div>
 
 {% include "web/participant/_now.html" %}
+
+{% comment %}
+  Kafle wydania K: wpisowe i formularz przyjazdu. Stoją **nad** paskiem zakładek i poza nimi, bo
+  dotyczą udziału w edycji jako całości, a nie jednej z sekcji – tak samo jak nagłówek „Co teraz”.
+
+  Oba włączają się samym istnieniem klucza w kontekście (``fee``, ``arrival_form``), a ten
+  powstaje wyłącznie w konkursie z odpowiednią flagą (``participant_fees.fee_card_context``,
+  ``participant_logistics.arrival_card_context``). W Olimpiadzie Kwantowej obie funkcje wychodzą
+  na pierwszym warunku, bez ani jednego zapytania, a pulpit renderuje się co do bajtu tak, jak
+  przed wydaniem K – ``has_feature`` nie jest i nie będzie wołane w szablonie (§ 2.1 punkt 3).
+{% endcomment %}
+{% include "web/participant/_fees_card.html" %}
+{% include "web/participant/_arrival_card.html" %}
+
+{% comment %}
+  Karta „Moja drużyna” (wydanie J, § 2.3). Ta sama zasada, co przy dwóch kaflach wyżej: włącza ją
+  samo istnienie klucza ``my_teams``, a ten powstaje wyłącznie w konkursie z flagą ``team_entries``
+  i wyłącznie dla kogoś, kto w składzie faktycznie jest (``participant_teams.team_card_context``).
+  ``has_feature`` w szablonie nie jest wołane i nie będzie (§ 2.1 punkt 3).
+
+  Karta jest **tylko do czytania**: skład układa organizator, a zawodnik, który wypisałby się sam
+  w przeddzień finału, unieważniłby zgłoszenie całej drużyny. Widać kody publiczne, nie nazwiska –
+  pulpit nie jest listą osób.
+{% endcomment %}
+{% if my_teams %}
+  <section class="section" id="druzyna">
+    <div class="section__head"><h2 class="mt-0">{% translate "Moja drużyna" %}</h2></div>
+    {% for team in my_teams %}
+      <dl class="meta-list">
+        <dt>{% translate "Nazwa" %}</dt>
+        <dd>{{ team.name }} <span class="code-chip">{{ team.public_code }}</span></dd>
+        <dt>{% translate "Edycja" %}</dt>
+        <dd>{{ team.edition.year_label }}{% if team.school %}, {{ team.school }}{% endif %}</dd>
+        <dt>{% translate "Skład" %}</dt>
+        <dd>
+          {% for member in team.members.all %}
+            <span class="code-chip">{{ member.participant.public_code }}</span>{% if member.is_captain %}
+              ({% translate "kapitan" %}){% endif %}{% if not forloop.last %}, {% endif %}
+          {% endfor %}
+        </dd>
+      </dl>
+    {% endfor %}
+    <p class="hint">{% translate "Skład drużyny układa organizator. Zmianę zgłoś opiekunowi albo organizatorowi." %}</p>
+  </section>
+{% endif %}
+
 {% include "web/participant/_tabs.html" %}
 
 {% comment %}

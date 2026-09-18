@@ -1,6 +1,8 @@
 # Platforma Olimpiady – docker compose
 # Profile: domyślny = produkcja/staging, `--profile dev` dodaje mailpit i wystawia porty pomocnicze.
 # Sekrety wyłącznie przez .env (patrz .env.example). Żadna usługa danych nie jest w sieci `edge`.
+# Pierwsze uruchomienie u nowego operatora (bez ClamAV-a i własnego MTA, obraz z GHCR):
+# nakładka `docker-compose.operator.yml` – README § 3 i docs/OPERACJE.md § 4.3.
 
 x-app-env: &app-env
   DJANGO_SETTINGS_MODULE: config.settings.production
@@ -22,7 +24,11 @@ x-app-base: &app-base
     context: ./backend
     dockerfile: Dockerfile
     target: runtime
-  image: olimpiada/web:${APP_VERSION:-dev}
+  # Bez `WEB_IMAGE` wartość jest dokładnie ta, co była – obraz budowany na miejscu i tagowany
+  # wersją wdrożenia. Ustawione `WEB_IMAGE` (np. ghcr.io/qaif/olimpiada-web:v0.24.0) podmienia
+  # źródło obrazu dla `web`, `worker` i `beat` naraz: to jeden obraz z trzema poleceniami, więc
+  # trzy różne tagi znaczyłyby trzy różne wersje kodu w jednym wdrożeniu.
+  image: ${WEB_IMAGE:-olimpiada/web:${APP_VERSION:-dev}}
   env_file: .env
   environment: *app-env
   networks: [internal]

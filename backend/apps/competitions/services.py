@@ -4,14 +4,18 @@ Widoki tylko orkiestrują: walidacja reguł biznesowych, tworzenie obiektów zal
 domenowe (``DomainError``) żyją tutaj. Czas zawsze przez ``timezone.now()``.
 """
 
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from datetime import date
+from decimal import ROUND_HALF_UP, Decimal
+from fractions import Fraction
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 from rest_framework import status
 
-from apps.accounts.models import Participant
+from apps.accounts.models import Participant, generate_public_code
 from apps.core.api import DomainError
 
 from .models import (
@@ -29,7 +33,10 @@ from .models import (
     StageEntryStatus,
     StageFormat,
     StageKind,
+    Team,
+    TeamMember,
     default_scoring_values,
+    required_scale_offset,
 )
 from .scoping import require_competition
 from .video import DEFAULT_VIDEO_BASE_URL, VideoProvider
@@ -260,9 +267,14 @@ def ensure_stage_defaults(stage: Stage) -> None:
 
 
 def _stage_allowed_values(stage: Stage) -> set[int]:
-    """Oceny dopuszczalne przez skalę etapu albo pusty zbiór, gdy etap skali nie ma."""
+    """Oceny dopuszczalne przez skalę etapu – **w postaci, w jakiej leżą w bazie**.
+
+    Postać przechowywana, a nie wpisana przez organizatora, bo jedynym czytelnikiem tego zbioru
+    jest porównanie z ``scores_in_use``, a tam stoją wartości z kolumn ``score``. Przy
+    ``offset = 0`` (Konkurs #1 i każda skala bez punktów ujemnych) oba zbiory są tym samym zbiorem.
+    """
     scale = getattr(stage, "scoring_scale", None)
-    return scale.allowed_values() if scale is not None else set()
+    return scale.stored_allowed_values() if scale is not None else set()
 
 
 def scores_in_use(stage: Stage, *, problem: Problem | None = None) -> set[int]:
@@ -320,37 +332,167 @@ def set_scoring_scale(stage: Stage, values, max_value, *, actor, request=None) -
     Audyt (``stage.scale_updated``) notuje pełną skalę przed i po. To jedyne dane, po których da
     się później odtworzyć, według jakiej skali zapadły oceny z danego dnia – a skala nie zawiera
     niczego osobowego, więc wchodzi do ``diff`` w całości.
+
+    Przesunięcie (``ScoringScale.offset``, § 1.2.6 b) **nie jest argumentem**: wylicza je ta
+    funkcja ze skali, którą dostała, i tylko wtedy, gdy konkurs ma flagę ``weighted_scoring``.
+    Przy wyłączonej fladze zostaje zero, więc skala z punktem ujemnym odpada z dzisiejszym
+    komunikatem („Pole 'value' musi być nieujemną liczbą całkowitą”) zamiast wejść bokiem.
     """
     from apps.core.models import audit
 
     scale = ScoringScale.objects.select_for_update().filter(stage=stage).first()
     before = (
-        {"values": scale.values, "max_value": scale.max_value}
+        {"values": scale.values, "max_value": scale.max_value, "offset": scale.offset}
         if scale is not None
-        else {"values": None, "max_value": None}
+        else {"values": None, "max_value": None, "offset": None}
     )
     if scale is None:
         scale = ScoringScale(stage=stage)
     scale.values = values
     scale.max_value = max_value
+    weighted = weighted_scoring_enabled(stage.edition.competition)
+    scale.offset = required_scale_offset(values) if weighted else 0
     try:
         scale.full_clean()
     except ValidationError as exc:
         raise DomainError(
             "; ".join(exc.messages), "SCORING_SCALE_INVALID", status.HTTP_400_BAD_REQUEST
         ) from exc
+    used = scores_in_use(stage)
+    if scale.offset != (before["offset"] or 0) and used:
+        # Przesunięcie jest częścią znaczenia liczby leżącej w kolumnie ``score``: przy
+        # ``offset = 3`` zapisane zero znaczy „minus trzy”. Zmiana przesunięcia po wystawieniu
+        # choćby jednej oceny przepisałaby więc wszystkie oceny etapu bez dotykania ich wierszy –
+        # i to jest jedyny sposób, w jaki ta funkcja mogłaby po cichu zmienić tabelę wyników.
+        # Odmowa, a nie przeliczenie: przeliczenie ocen jest decyzją komitetu, a nie skutkiem
+        # ubocznym zapisania formularza skali.
+        raise DomainError(
+            "Skala ma już wystawione oceny, więc nie można teraz dołożyć ani zdjąć punktów "
+            "ujemnych – zmieniłoby to znaczenie ocen, które już zapadły.",
+            "SCALE_OFFSET_LOCKED",
+            status.HTTP_409_CONFLICT,
+        )
     assert_scale_covers_existing_scores(
-        scores_in_use(stage), scale.allowed_values(), subject=f"etap {stage.display_name}"
+        used, scale.stored_allowed_values(), subject=f"etap {stage.display_name}"
     )
     scale.save()
     audit(
         actor,
         "stage.scale_updated",
         stage,
-        {"from": before, "to": {"values": scale.values, "max_value": scale.max_value}},
+        {
+            "from": before,
+            "to": {"values": scale.values, "max_value": scale.max_value, "offset": scale.offset},
+        },
         request=request,
     )
     return scale
+
+
+# --- wagi zadań i przesunięcie skali (§ 1.2.6) --------------------------------------------------
+#
+# Jedna funkcja czytająca flagę i jeden obiekt niosący odpowiedź – ta sama reguła § 1.0 (c), którą
+# ``apps.results.services`` zapisała dla ``process_editor`` i ``categories``: flagę czyta się raz,
+# możliwie wysoko, nigdy w pętli po wierszach i nigdy w szablonie.
+
+#: Jedyne wejście do flagi wag w całym systemie. Nazwa stoi w ``FEATURE_DEFAULTS`` (T8).
+WEIGHTED_SCORING_FLAG = "weighted_scoring"
+
+
+def weighted_scoring_enabled(competition=None) -> bool:
+    """Czy ten konkurs liczy sumę etapu z wagami i przesunięciem skali.
+
+    Brak konkursu to nie „organizator wyłączył funkcję”, tylko „nie wiadomo, czyj to etap” –
+    a odpowiedź w obu wypadkach jest ta sama: zachowanie sprzed etapu 2.
+    """
+    return competition is not None and competition.has_feature(WEIGHTED_SCORING_FLAG)
+
+
+@dataclass(frozen=True)
+class StageScoring:
+    """Reguły punktacji jednego etapu odczytane **raz**: wagi zadań i przesunięcia skal.
+
+    Obiekt jest odpowiedzią na pytanie „jak z ocen zrobić sumę etapu” i istnieje po to, żeby to
+    pytanie miało jedną odpowiedź dla tabeli koordynatora, publikacji i symulacji progu. Przy
+    wyłączonej fladze jest stałą ``PLAIN_SCORING``: bez zapytań, bez ułamków i bez ani jednego
+    działania arytmetycznego ponad dzisiejsze ``+``.
+    """
+
+    #: Czy konkurs w ogóle zna wagi. ``False`` znaczy „licz dokładnie tak, jak przed etapem 2”.
+    weighted: bool = False
+    #: ``Problem.pk`` → przesunięcie skali, według której oceniano to zadanie.
+    offsets: dict[int, int] = field(default_factory=dict)
+    #: ``Problem.pk`` → waga zadania w sumie etapu.
+    weights: dict[int, Fraction] = field(default_factory=dict)
+
+    def score(self, problem_id: int, stored: int) -> int:
+        """Ocena taka, jaką wystawił recenzent: wartość z bazy pomniejszona o przesunięcie skali.
+
+        To jest liczba do pokazania w tabeli i do wzięcia do sumy. Bez flagi (i przy skali bez
+        punktów ujemnych) jest identyczna z wartością z bazy.
+        """
+        return int(stored) - self.offsets.get(problem_id, 0)
+
+    def total(self, scores: Mapping[int, int]) -> int:
+        """Suma etapu z ocen ``{Problem.pk: ocena}`` **takich, jakie leżą w bazie**.
+
+        Przesunięcie odejmuje ta funkcja, a nie wołający – ma być jedno miejsce, w którym liczba
+        z kolumny ``score`` staje się punktem, żeby nie dało się odjąć przesunięcia dwa razy ani
+        ani razu. Wołający używa ``score`` wyłącznie do **pokazania** oceny w tabeli.
+
+        Bez flagi jest to dzisiejsze sumowanie ``int`` co do działania, a nie „nowa droga ustawiona
+        tak, żeby wyszło to samo”. Z flagą suma idzie przez ``Fraction``, więc nie zależy od
+        kolejności dodawania, a zaokrąglenie zapada **raz**, na końcu, ``ROUND_HALF_UP`` – tą samą
+        metodą, którą ``apps.quiz.services.stage_scores`` sprowadza wynik testu do pełnych punktów.
+
+        Suma nie schodzi poniżej zera i to jest decyzja, nie skutek uboczny: ``StageEntry
+        .total_points`` jest ``PositiveIntegerField`` (§ 1.2.6, decyzja D10 – kolumny zostają
+        ``Positive*``), a regulaminowo punkty ujemne mają odbierać zdobyte, a nie robić z uczestnika
+        dłużnika. Dla Konkursu #1 ta gałąź nie może się wykonać: bez ujemnych ocen suma ujemna nie
+        powstaje.
+        """
+        if not self.weighted:
+            return sum(scores.values())
+        total = Fraction(0)
+        for problem_id, stored in scores.items():
+            total += Fraction(self.score(problem_id, stored)) * self.weights.get(problem_id, Fraction(1))
+        rounded = int(
+            (Decimal(total.numerator) / Decimal(total.denominator)).quantize(
+                Decimal("1"), rounding=ROUND_HALF_UP
+            )
+        )
+        return max(rounded, 0)
+
+
+#: Punktacja sprzed etapu 2: bez wag, bez przesunięć. Jedna instancja dla całego procesu – obiekt
+#: jest niezmienny i nie niesie żadnego stanu etapu.
+PLAIN_SCORING = StageScoring()
+
+
+def stage_scoring(stage: Stage, *, competition=None, problems=None) -> StageScoring:
+    """Reguły punktacji etapu – **jedyne** miejsce, w którym wagi i przesunięcia wchodzą do wyniku.
+
+    ``competition`` i ``problems`` wolno podać, gdy wołający i tak je ma (przeliczenie wyników ma
+    jedno i drugie): funkcja nie dokłada wtedy ani jednego zapytania. Przy wyłączonej fladze nie
+    dokłada ich nigdy – wychodzi stałą, zanim spojrzy na skalę czy zadania.
+
+    Zadanie z **własną** skalą nie podlega przesunięciu etapu: własna skala jest osobną skalą, a nie
+    wariantem etapowej (tak samo czyta to ``scores_in_use`` i ``grading.services.allowed_scores``).
+    Punkty ujemne w skali pojedynczego zadania wymagałyby przesunięcia per zadanie, czyli kolumny,
+    której § 1.2.6 nie zakłada – do czasu jej powstania skala zadania zostaje nieujemna.
+    """
+    if competition is None:
+        competition = stage.edition.competition
+    if not weighted_scoring_enabled(competition):
+        return PLAIN_SCORING
+    scale = getattr(stage, "scoring_scale", None)
+    stage_offset = (scale.offset or 0) if scale is not None else 0
+    problems = list(stage.problems.all()) if problems is None else list(problems)
+    return StageScoring(
+        weighted=True,
+        offsets={problem.pk: 0 if problem.has_own_scale else stage_offset for problem in problems},
+        weights={problem.pk: problem.weight for problem in problems},
+    )
 
 
 def _registration_closed() -> DomainError:
@@ -418,6 +560,257 @@ def entries_for_user(user, competition=None):
     )
 
 
+# --- drużyny (``docs/UNIWERSALNY-ETAP-2.md`` § 1.2.3) ---------------------------------------------
+
+
+def entry_owner(entry: StageEntry):
+    """Właściciel wpisu do etapu: ``Participant`` albo ``Team``. **Jedyne** wejście do tej odpowiedzi.
+
+    Po co w ogóle funkcja zamiast ``entry.participant``: od etapu 2 kolumna ``participant`` jest
+    nullowalna, bo właścicielem wpisu bywa drużyna (§ 1.2.3). Kilkanaście miejsc w serwisie czyta
+    ją dziś wprost (``apps/results/services.py``, ``apps/submissions/models.py``,
+    ``apps/grading/services.py``, ``apps/web/views/coordinator_*``) i każde z nich dostałoby dla
+    wpisu drużynowego ``None`` – czyli policzyłoby wynik dla nikogo, bez jednego wyjątku po drodze.
+
+    Dlatego brak właściciela podnosi **``AttributeError``**, a nie oddaje ``None``: to ten sam
+    wzorzec, którym etap 1 wymusił poprawki po zamianie ``user.participant`` na
+    ``participant_for`` (§ 6, T2 etapu 1). Przeoczone miejsce ma być głośne w pierwszym konkursie
+    drużynowym, a nie ciche w tabeli wyników.
+
+    Bez flagi ``team_entries`` odpowiedź jest **zawsze** uczestnikiem: więz
+    ``competitions_stageentry_single_owner`` nie dopuszcza wpisu niczyjego, a Konkurs #1 nie ma
+    ani jednej drużyny. Zachowanie jest więc identyczne z dzisiejszym i flagi ta funkcja nie czyta
+    – właściciela rozstrzygają dane wiersza, a nie przełącznik.
+
+    Zwracany obiekt ma ``public_code`` w obu wypadkach, więc czytelnicy tabeli wyników nie muszą
+    wiedzieć, który to rodzaj właściciela.
+    """
+    if entry.team_id is not None:
+        return entry.team
+    if entry.participant_id is not None:
+        return entry.participant
+    raise AttributeError(
+        f"Wpis do etapu {entry.pk} nie ma właściciela: ani uczestnika, ani drużyny. "
+        "Więz competitions_stageentry_single_owner nie powinien był na to pozwolić."
+    )
+
+
+def _team_invalid(exc: ValidationError) -> DomainError:
+    """``ValidationError`` drużyny albo składu → błąd domenowy z komunikatem dla panelu.
+
+    Własny kod, a nie ``_validation_error``: tamten mówi ``PROBLEM_INVALID`` i jest odpowiedzią
+    ekranu zadań. Jeden kod na dwa różne ekrany znaczyłby, że panel nie ma po czym rozpoznać,
+    czego dotyczy odmowa.
+    """
+    return DomainError("; ".join(exc.messages), "TEAM_INVALID", status.HTTP_400_BAD_REQUEST)
+
+
+def _teams_disabled() -> DomainError:
+    return DomainError(
+        "Ten konkurs nie prowadzi zgłoszeń drużynowych.",
+        "TEAM_ENTRIES_DISABLED",
+        status.HTTP_403_FORBIDDEN,
+    )
+
+
+def _assert_team_entries_enabled(competition) -> None:
+    """Bramka flagi ``team_entries`` – czytana **raz i wysoko**, czyli w serwisie (§ 1.0 (c)).
+
+    Wszystkie drogi do drużyny (panel koordynatora, import, komenda) idą przez ten moduł, więc
+    konkurs z wyłączoną flagą nie ma jak założyć ani jednej drużyny – a skoro nie ma drużyn, to
+    ``entry_owner`` nie ma jak oddać czegoś innego niż uczestnika.
+    """
+    if not competition.has_feature("team_entries"):
+        raise _teams_disabled()
+
+
+@transaction.atomic
+def create_team(
+    *, edition: Edition, name: str, school: str = "", supervisor_email: str = "", actor=None, request=None
+) -> Team:
+    """Zakłada drużynę w edycji, nadając jej kod publiczny z prefiksem konkursu.
+
+    Ponawianie po kolizji kodu jest tym samym wzorcem, co
+    ``apps.accounts.services.create_participant_with_public_code``: rozstrzyga unikalność w bazie,
+    a nie wcześniejszy ``SELECT`` (TOCTOU), i każda próba idzie w osobnym savepoincie, żeby
+    ``IntegrityError`` nie unieważnił transakcji żądania.
+    """
+    # Import lokalny i **prywatna** nazwa z ``apps.accounts.services``: rozpoznanie, który więz
+    # zerwał zapis, jest jedną regułą psycopg-a i druga jej kopia rozjechałaby się przy pierwszej
+    # zmianie backendu bazy. ``apps.accounts.services`` ciąga rejestrację, zgody i pocztę, więc
+    # import stoi w funkcji, a nie na górze modułu.
+    from apps.accounts.services import PUBLIC_CODE_MAX_ATTEMPTS, _violates_constraint
+    from apps.core.models import audit
+
+    competition = edition.competition
+    _assert_team_entries_enabled(competition)
+    team = Team(
+        competition=competition,
+        edition=edition,
+        name=name,
+        school=school,
+        supervisor_email=supervisor_email,
+    )
+    # Nazwa przed ``full_clean()``, a nie po: ``full_clean()`` też złapałoby duplikat (więz jest
+    # w ``Meta``), ale oddałoby go jako ogólne ``TEAM_INVALID``. Ekran ma dostać kod, po którym
+    # da się podpowiedzieć „zmień nazwę”, a nie listę komunikatów walidacji.
+    if Team.objects.filter(edition=edition, name=name).exists():
+        raise DomainError(
+            "Drużyna o tej nazwie już startuje w tej edycji.",
+            "TEAM_NAME_TAKEN",
+            status.HTTP_409_CONFLICT,
+        )
+    try:
+        # ``exclude``: kodu jeszcze nie ma, nadaje go pętla niżej – a razem z polem odpada też
+        # więz, który to pole niesie.
+        team.full_clean(exclude=["public_code"])
+    except ValidationError as exc:
+        raise _team_invalid(exc) from exc
+    for _ in range(PUBLIC_CODE_MAX_ATTEMPTS):
+        team.public_code = generate_public_code(competition)
+        try:
+            with transaction.atomic():
+                team.save()
+        except IntegrityError as exc:
+            if not _violates_constraint(exc, "public_code"):
+                raise
+            continue
+        audit(actor, "team.created", team, {"name": team.name, "code": team.public_code}, request=request)
+        return team
+    raise DomainError(
+        "Nie udało się wygenerować kodu drużyny.",
+        "PUBLIC_CODE_UNAVAILABLE",
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+    )
+
+
+@transaction.atomic
+def add_team_member(
+    team: Team, participant: Participant, *, is_captain: bool = False, actor=None, request=None
+) -> TeamMember:
+    """Dopisuje uczestnika do składu drużyny.
+
+    Drugi kapitan jest odmawiany, a nie cicho degradowany: przekazanie funkcji jest osobną
+    czynnością (``set_team_captain``), bo dotyczy dwóch wierszy naraz i ma zostać w audycie jako
+    jedno zdarzenie, a nie jako dwa niezwiązane dopisania do składu.
+    """
+    from apps.core.models import audit
+
+    _assert_team_entries_enabled(team.competition)
+    member = TeamMember(team=team, participant=participant, is_captain=is_captain)
+    # Oba pytania przed ``full_clean()`` z tego samego powodu, co przy nazwie drużyny: więzy
+    # złapałyby to samo, ale bez kodu błędu, po którym ekran wie, co zaproponować.
+    if TeamMember.objects.filter(team=team, participant=participant).exists():
+        raise DomainError(
+            "Ten uczestnik jest już w składzie drużyny.",
+            "TEAM_MEMBER_EXISTS",
+            status.HTTP_409_CONFLICT,
+        )
+    if is_captain and TeamMember.objects.filter(team=team, is_captain=True).exists():
+        raise DomainError(
+            "Drużyna ma już kapitana.",
+            "TEAM_CAPTAIN_TAKEN",
+            status.HTTP_409_CONFLICT,
+        )
+    try:
+        # Tu rozstrzyga się reguła, której więz bazy wyrazić nie może: uczestnik i drużyna z tego
+        # samego konkursu (``TeamMember.clean()``).
+        member.full_clean()
+    except ValidationError as exc:
+        raise _team_invalid(exc) from exc
+    member.save()
+    audit(
+        actor,
+        "team.member_added",
+        team,
+        {"participant": participant.public_code, "is_captain": is_captain},
+        request=request,
+    )
+    return member
+
+
+@transaction.atomic
+def remove_team_member(team: Team, participant: Participant, *, actor=None, request=None) -> None:
+    """Usuwa uczestnika ze składu. Sam profil zostaje nietknięty (``PROTECT`` przy członkostwie)."""
+    from apps.core.models import audit
+
+    _assert_team_entries_enabled(team.competition)
+    deleted, _ = TeamMember.objects.filter(team=team, participant=participant).delete()
+    if not deleted:
+        raise DomainError(
+            "Tego uczestnika nie ma w składzie drużyny.",
+            "TEAM_MEMBER_NOT_FOUND",
+            status.HTTP_404_NOT_FOUND,
+        )
+    audit(actor, "team.member_removed", team, {"participant": participant.public_code}, request=request)
+
+
+@transaction.atomic
+def set_team_captain(team: Team, participant: Participant, *, actor=None, request=None) -> TeamMember:
+    """Przekazuje funkcję kapitana – zdejmując ją poprzedniemu w tej samej transakcji.
+
+    Kolejność ma znaczenie i dlatego jest jawna: najpierw zdjęcie, potem nadanie. Odwrotnie
+    złamałby się więz ``competitions_teammember_single_captain`` w połowie operacji.
+    """
+    from apps.core.models import audit
+
+    _assert_team_entries_enabled(team.competition)
+    member = TeamMember.objects.filter(team=team, participant=participant).first()
+    if member is None:
+        raise DomainError(
+            "Kapitanem może być wyłącznie ktoś ze składu drużyny.",
+            "TEAM_MEMBER_NOT_FOUND",
+            status.HTTP_404_NOT_FOUND,
+        )
+    TeamMember.objects.filter(team=team, is_captain=True).exclude(pk=member.pk).update(is_captain=False)
+    if not member.is_captain:
+        member.is_captain = True
+        member.save(update_fields=["is_captain"])
+    audit(actor, "team.captain_set", team, {"participant": participant.public_code}, request=request)
+    return member
+
+
+def teams_of(participant: Participant):
+    """Drużyny, w których uczestnik jest w składzie – uporządkowane jak wszędzie indziej.
+
+    Osobna funkcja, a nie filtr w widoku, bo pyta o to i panel uczestnika („Moja drużyna”, § 2.3),
+    i panel koordynatora. ``StageEntryQuerySet.for_user`` zostaje **nietknięte**: widoczność wpisu
+    drużynowego w panelu uczestnika jest decyzją montażu (T34), a nie zmianą filtra ról – ten
+    filtr jest dziś jedyną gwarancją, że uczestnik widzi wyłącznie swoje wpisy.
+    """
+    return Team.objects.filter(members__participant=participant).order_by("edition", "name", "id")
+
+
+@transaction.atomic
+def register_team_for_stage(team: Team, stage: Stage, *, actor=None, request=None) -> StageEntry:
+    """Wpisuje drużynę do etapu. Wpis zakłada koordynator, a nie drużyna – stąd brak okna czasu.
+
+    Odpowiednik ``register_for_stage`` dla drugiego rodzaju właściciela, z tą jedną różnicą:
+    uczestnik zapisuje się sam i wtedy rozstrzyga okno rejestracji, a drużynę do etapu wstawia
+    organizator (regulamin konkursu drużynowego nie zna samodzielnego zgłoszenia składu).
+    """
+    from apps.core.models import audit
+
+    _assert_team_entries_enabled(team.competition)
+    if stage.edition_id != team.edition_id:
+        raise DomainError(
+            "Etap należy do innej edycji niż drużyna.",
+            "STAGE_EDITION_MISMATCH",
+            status.HTTP_400_BAD_REQUEST,
+        )
+    if StageEntry.objects.filter(team=team, stage=stage).exists():
+        raise _already_registered()
+    try:
+        with transaction.atomic():
+            entry = StageEntry.objects.create(
+                team=team, participant=None, stage=stage, status=StageEntryStatus.REGISTERED
+            )
+    except IntegrityError as exc:
+        raise _already_registered() from exc
+    audit(actor, "team.stage_entry_created", team, {"stage": stage.pk}, request=request)
+    return entry
+
+
 # --- zarządzanie etapami z panelu koordynatora ------------------------------------------------
 
 
@@ -427,9 +820,28 @@ def missing_stage_kinds(edition: Edition) -> list[tuple[str, str]]:
     Para (edycja, rodzaj) jest unikalna w bazie, więc formularz z pełną listą kończyłby się
     ``IntegrityError`` przy próbie dołożenia rodzaju, który edycja już ma. Kolejność jest
     kolejnością z ``StageKind``, więc „Trening” stoi na końcu listy – za etapami zawodów.
+
+    ``ROUND`` jest jedynym rodzajem **za flagą** (§ 0.1, § 0.6): dołożył go etap 2 razem
+    z ``PipelineStep``, a bez edytora przebiegu runda nie ma skąd wziąć swojego miejsca
+    w kolejce – ``STAGE_ORDER`` jej nie zna, więc etap tego rodzaju nie kwalifikowałby do
+    niczego i do niczego by nie kwalifikował. Koordynator Olimpiady Kwantowej ma więc na liście
+    dokładnie te cztery pozycje, które miał przed etapem 2.
+
+    Rundy nie dotyczy też odejmowanie „już zajętych”: więz ``competitions_stage_unique_kind``
+    jest dla niej zawieszony warunkiem (etapy rozróżnia ``Stage.name``), więc druga i piąta runda
+    muszą dać się dołożyć tak samo jak pierwsza.
     """
     taken = set(Stage.objects.filter(edition=edition).values_list("kind", flat=True))
-    return [(value, label) for value, label in StageKind.choices if value not in taken]
+    rounds_allowed = edition.competition.has_feature("process_editor")
+    kinds: list[tuple[str, str]] = []
+    for value, label in StageKind.choices:
+        if value == StageKind.ROUND:
+            if rounds_allowed:
+                kinds.append((value, label))
+            continue
+        if value not in taken:
+            kinds.append((value, label))
+    return kinds
 
 
 def stage_has_submissions(stage: Stage) -> bool:

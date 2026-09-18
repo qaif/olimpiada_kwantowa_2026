@@ -32,6 +32,7 @@ from rest_framework import status as http
 from apps.accounts.activation import absolute_url, queue_mail
 from apps.core.api import DomainError
 from apps.core.models import audit
+from apps.tenancy import branding
 
 from .models import (
     CONTEXT_AUDIT_MINUTES,
@@ -52,6 +53,18 @@ USER_AGENT_LIMIT = 200
 #: Ile etapów wymieniamy w kontekście. Uczestnik bywa zapisany w kilku etapach kilku edycji;
 #: sprawa dotyczy tego, co robi teraz, więc lista jest krótka i od najnowszego etapu.
 CONTEXT_STAGE_LIMIT = 5
+
+#: Tematy dwóch listów o zgłoszeniu. Do etapu 2 były literałem wewnątrz funkcji i **nie pilnował
+#: ich żaden test** (``docs/UNIWERSALNY-ETAP-2.md`` § 1.1.1) – stąd stała: napis, który ktoś ma
+#: w regułach swojej skrzynki, ma stać w jednym, widocznym miejscu. Obok stoi wzorzec z nazwą
+#: konkursu; wybiera między nimi ``apps.tenancy.branding.subject``.
+#:
+#: Numer sprawy podstawia się w **obu** napisach, także w odwrocie – moduł marki oddaje odwrót
+#: dosłownie, więc dostaje go już podstawionego.
+TICKET_OPENED_SUBJECT = "Nowe zgłoszenie #%(ticket)s – Olimpiada Kwantowa"
+TICKET_OPENED_SUBJECT_TEMPLATE = "Nowe zgłoszenie #%(ticket)s – %(competition)s"
+TICKET_ANSWERED_SUBJECT = "Odpowiedź na zgłoszenie #%(ticket)s – Olimpiada Kwantowa"
+TICKET_ANSWERED_SUBJECT_TEMPLATE = "Odpowiedź na zgłoszenie #%(ticket)s – %(competition)s"
 
 
 def _clean_text(value: str, *, field: str, label: str) -> str:
@@ -224,7 +237,8 @@ def _notify_organizer(ticket: SupportTicket, *, request=None) -> None:
     uczestnika, szkoła, adres), a skrzynka organizatora nie jest miejscem, w którym ma leżeć jego
     kopia. List mówi, że sprawa jest, jakiej kategorii i gdzie ją przeczytać.
     """
-    link = absolute_url(reverse("web:coordinator-support-detail", args=[ticket.pk]), request)
+    competition = ticket.competition
+    link = absolute_url(reverse("web:coordinator-support-detail", args=[ticket.pk]), request, competition)
     message = "\n".join(
         [
             f"Nowe zgłoszenie #{ticket.pk} w kategorii „{ticket.get_category_display()}”.",
@@ -235,9 +249,15 @@ def _notify_organizer(ticket: SupportTicket, *, request=None) -> None:
         ]
     )
     queue_mail(
-        f"Nowe zgłoszenie #{ticket.pk} – Olimpiada Kwantowa",
+        branding.subject(
+            TICKET_OPENED_SUBJECT_TEMPLATE,
+            TICKET_OPENED_SUBJECT % {"ticket": ticket.pk},
+            competition,
+            ticket=ticket.pk,
+        ),
         message,
-        _organizer_email(ticket.competition),
+        _organizer_email(competition),
+        competition=competition,
     )
 
 
@@ -251,8 +271,9 @@ def _notify_reporter(ticket: SupportTicket, *, request=None) -> None:
     recipient = ticket.reply_to
     if not recipient:  # pragma: no cover - constraint wymaga konta albo adresu
         return
+    competition = ticket.competition
     if ticket.user_id is not None:
-        link = absolute_url(reverse("web:support-detail", args=[ticket.pk]), request)
+        link = absolute_url(reverse("web:support-detail", args=[ticket.pk]), request, competition)
         tail = ["Odpowiedź jest w Twoim panelu:", link]
     else:
         tail = ["Odpowiedź przyjdzie osobną wiadomością od organizatora."]
@@ -264,7 +285,17 @@ def _notify_reporter(ticket: SupportTicket, *, request=None) -> None:
             *tail,
         ]
     )
-    queue_mail(f"Odpowiedź na zgłoszenie #{ticket.pk} – Olimpiada Kwantowa", message, recipient)
+    queue_mail(
+        branding.subject(
+            TICKET_ANSWERED_SUBJECT_TEMPLATE,
+            TICKET_ANSWERED_SUBJECT % {"ticket": ticket.pk},
+            competition,
+            ticket=ticket.pk,
+        ),
+        message,
+        recipient,
+        competition=competition,
+    )
 
 
 @transaction.atomic

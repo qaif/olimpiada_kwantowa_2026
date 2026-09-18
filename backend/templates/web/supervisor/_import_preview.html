@@ -32,6 +32,15 @@
           <th scope="col">{% translate "E-mail" %}</th>
           <th scope="col">{% translate "Rocznik" %}</th>
           <th scope="col">{% translate "Klasa" %}</th>
+          {% comment %}
+            Kolumny konkursu (region, kategoria, placówka) pokazujemy wyłącznie wtedy, gdy plik
+            mógł je nieść – decyduje ta sama lista, która złożyła instrukcję nad formularzem
+            (``bulk_registration.extra_columns``). Konkurs bez flag etapu 2 ma tu tabelę znak
+            w znak taką, jak przed nim.
+          {% endcomment %}
+          {% if show_region %}<th scope="col">{% translate "Region" %}</th>{% endif %}
+          {% if show_category %}<th scope="col">{% translate "Kategoria" %}</th>{% endif %}
+          {% if show_institution %}<th scope="col">{% translate "Placówka" %}</th>{% endif %}
           <th scope="col">{% translate "Co zrobimy" %}</th>
         </tr>
       </thead>
@@ -43,6 +52,14 @@
             <td>{{ row.email|default:"—" }}</td>
             <td>{{ row.birth_year|default:"—" }}</td>
             <td>{{ row.grade|default:"—" }}</td>
+            {% if show_region %}<td>{{ row.region.name|default:row.district|default:"—" }}</td>{% endif %}
+            {% if show_category %}<td>{{ row.category.name|default:"—" }}</td>{% endif %}
+            {% comment %}
+              Pusta komórka „placówka” znaczy „szkoła całego pliku”, a nie „nie wiadomo”: tę nazwę
+              widać wyżej, nad tabelą, i powtarzanie jej w pięciuset wierszach zasłoniłoby te
+              nieliczne, w których uczeń startuje skądinąd.
+            {% endcomment %}
+            {% if show_institution %}<td>{{ row.institution.school|default:"—" }}</td>{% endif %}
             <td>
               {% if row.action == "create" %}
                 <span class="badge badge--ok">{% translate "zaproszenie" %}</span>

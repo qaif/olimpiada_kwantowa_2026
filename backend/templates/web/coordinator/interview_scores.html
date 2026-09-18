@@ -1,0 +1,99 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Punkty komisji z rozmów: wybór komponentu i tabela wpisów z terminami.
+
+  Ekran istnieje wyłącznie w konkursie z włączonym edytorem przebiegu – flagę czyta widok (404
+  przy wyłączonej), nigdy ten szablon. Dla Olimpiady Kwantowej ekran zamiast ``/admin/`` **jest**
+  zmianą widoczną, dlatego jest za flagą, a nie dołożony wszystkim.
+
+  Ekran pokazuje dane osobowe: komisja musi wiedzieć, kogo ocenia i o której godzinie. Stąd
+  odznaka nad tabelą – ta sama, co przy terminach rozmów i przy podglądzie wyników.
+
+  Powtórny wpis tej samej pary (wpis, komponent) jest **poprawką**, a nie drugim wynikiem.
+{% endcomment %}
+{% block title %}Punkty z rozmowy: {{ stage.display_name }} – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-stage-interviews' stage.pk %}">Rozmowy</a>{% endblock %}
+{% block panel_title %}Punkty z rozmowy: {{ stage.display_name }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Wpis komisji dla jednego komponentu rozmowy. Ponowny wpis tej samej osoby jest
+    poprawką – historię zmian niesie audyt, a nie druga kolumna w tabeli.</p>
+  <p><span class="badge badge--warn">dane osobowe</span></p>
+{% endblock %}
+{% block panel_content %}
+
+{% if components %}
+  <section class="section">
+    <h2>Komponent</h2>
+    <ul class="hint">
+      {% for item in components %}
+        <li>
+          {% if item.pk == component.pk %}
+            <strong>{{ item.display_name }}</strong> (wybrany)
+          {% else %}
+            <a href="?component={{ item.pk }}">{{ item.display_name }}</a>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <section class="section">
+    <div class="scroll">
+      <table class="table">
+        <caption class="visually-hidden">Wpisy do etapu i punkty z rozmowy</caption>
+        <thead>
+          <tr>
+            <th scope="col">Uczestnik</th>
+            <th scope="col">Termin</th>
+            <th scope="col">Punkty</th>
+            <th scope="col">Uwaga komisji</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <th scope="row">
+                <span class="code-chip">{{ row.entry.participant.public_code }}</span>
+                {{ row.entry.participant.user.get_full_name }}
+              </th>
+              <td>
+                {% if row.booking %}
+                  {{ row.booking.slot.starts_at }}
+                {% else %}
+                  <span class="badge badge--neutral">bez terminu</span>
+                {% endif %}
+              </td>
+              <td class="num total">
+                {% if row.score %}{{ row.score.points }} / {{ row.score.max_points }}{% else %}—{% endif %}
+              </td>
+              <td>{% if row.score %}{{ row.score.note|default:"—" }}{% else %}—{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="empty">Do tego etapu nie ma ani jednego wpisu.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Wpisz punkty</h2>
+    <div class="card">
+      <form method="post" class="form form--wide" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="component" value="{{ component.pk }}">
+        {{ form.as_p }}
+        <div class="actions">
+          <button type="submit" class="btn btn--primary">Zapisz punkty</button>
+        </div>
+      </form>
+    </div>
+    <p class="hint">Dopuszczalne wartości w tym etapie:
+      {% for value in allowed %}<code>{{ value }}</code>{% if not forloop.last %}, {% endif %}{% endfor %}.
+      To ta sama skala, według której ocenia się prace.</p>
+  </section>
+{% else %}
+  <p class="hint">Ten etap nie ma ani jednego komponentu rozmowy. Komponenty dokłada się na
+    ekranie komponentów etapu – dopóki go nie ma, punktów z rozmowy nie ma gdzie zapisać.</p>
+{% endif %}
+{% endblock %}

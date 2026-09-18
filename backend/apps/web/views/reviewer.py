@@ -145,7 +145,20 @@ class ReviewListView(ReviewerScopedMixin, TemplateView):
         now = timezone.now()
         # ``work_log`` dociągamy tu, a nie w ``reviews_for_reviewer``: postęp („ostatnio otwarta”)
         # jest potrzebny wyłącznie tej liście, a serwis obsługuje też API i paczkę ZIP.
-        reviews = _queue_order(self.get_queryset().select_related("work_log"), now)
+        # Etykieta roli (etap 2 § 1.2.7) wchodzi **wyłącznie** w konkursie z flagą ``reviewer_roles``
+        # i wtedy jedno złączenie zastępuje zapytanie na wiersz. Bez flagi kolejka pyta o dokładnie
+        # to samo, co przed etapem 2: rola jest w niej ``NULL`` w każdej recenzji, a szablon nie ma
+        # czego pokazać. Flagę czyta widok, nigdy szablon (§ 2.1 punkt 3).
+        with_roles = self.competition is not None and self.competition.has_feature("reviewer_roles")
+        queryset = self.get_queryset().select_related("work_log")
+        if with_roles:
+            queryset = queryset.select_related("role")
+        reviews = _queue_order(queryset, now)
+        if with_roles:
+            for review in reviews:
+                # Atrybut, a nie słownik w kontekście: szablon wiersza ma pod ręką samą recenzję,
+                # a mapa ``{pk: etykieta}`` wymagałaby filtru do wyszukania po kluczu.
+                review.role_label = review.role.name if review.role_id else ""
         by_status: dict[str, list] = {}
         for review in reviews:
             by_status.setdefault(review.status, []).append(review)

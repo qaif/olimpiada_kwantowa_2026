@@ -9,6 +9,7 @@ Zasady:
 
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from fractions import Fraction
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
@@ -17,7 +18,7 @@ from django.db import models
 from django.db.models import F, Q
 from django.utils import timezone
 
-from apps.accounts.models import GROUP_COORDINATOR, Participant
+from apps.accounts.models import GROUP_COORDINATOR, Participant, generate_public_code
 from apps.tenancy.managers import CompetitionScopedQuerySet
 
 from .scoping import (
@@ -83,7 +84,24 @@ def scoring_allowed_values(values) -> set[int]:
     return result
 
 
-def validate_scoring_values(values, max_value, *, values_field: str, max_field: str) -> None:
+def required_scale_offset(values) -> int:
+    """Przesunięcie, jakiego wymaga ta skala: ile dodać do każdej wartości, żeby najniższa dała zero.
+
+    Skala bez wartości ujemnych wymaga zera i to jest **każda** skala Olimpiady Kwantowej, więc
+    funkcja jest dla niej stałą (``docs/UNIWERSALNY-ETAP-2.md`` § 1.2.6 b, decyzja organizatora
+    D10). Przesunięcie jest wyliczane, a nie wpisywane ręcznie: dwie deklaracje tej samej prawdy
+    (najniższa wartość skali i liczba, o którą się ją przesuwa) rozjechałyby się przy pierwszej
+    zmianie skali, a skutkiem byłaby ocena zapisana w bazie w innej skali niż odczytywana.
+    """
+    numbers = sorted(scoring_allowed_values(values))
+    if not numbers or numbers[0] >= 0:
+        return 0
+    return -numbers[0]
+
+
+def validate_scoring_values(
+    values, max_value, *, values_field: str, max_field: str, allow_negative: bool = False
+) -> None:
     """Reguły skali punktowej – wspólne dla skali etapu i dla nadpisania w zadaniu.
 
     Jedna definicja, bo to jest ta sama skala: zadanie z własnymi wartościami musi spełniać
@@ -93,6 +111,13 @@ def validate_scoring_values(values, max_value, *, values_field: str, max_field: 
 
     Nazwy pól są parametrem, żeby komunikat stanął pod właściwym polem formularza – w etapie jest
     to ``values``/``max_value``, w zadaniu ``scoring_values``/``max_points``.
+
+    ``allow_negative`` (etap 2 § 1.2.6 b) znosi **wyłącznie** wymóg nieujemności i jest
+    przekazywany przez wołającego na podstawie flagi ``weighted_scoring``. Przy wartości domyślnej
+    funkcja zachowuje się bit w bit jak przed etapem 2, łącznie z brzmieniem komunikatów, które
+    koordynator czyta na ``/coordinator/stages/<id>/scale/``. Wymóg obecności zera **zostaje także
+    przy punktach ujemnych**: skala bez zera nie ma jak wyrazić „brak istotnego postępu”, a
+    ``max_value`` nadal musi równać się największej wartości.
     """
     if not isinstance(values, list) or not values:
         raise ValidationError({values_field: "Skala musi być niepustą listą pozycji {value, label}."})
@@ -101,8 +126,16 @@ def validate_scoring_values(values, max_value, *, values_field: str, max_field: 
         if not isinstance(item, dict) or "value" not in item or "label" not in item:
             raise ValidationError({values_field: "Każda pozycja skali wymaga pól 'value' i 'label'."})
         value = item["value"]
-        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
-            raise ValidationError({values_field: "Pole 'value' musi być nieujemną liczbą całkowitą."})
+        if not isinstance(value, int) or isinstance(value, bool) or (value < 0 and not allow_negative):
+            raise ValidationError(
+                {
+                    values_field: (
+                        "Pole 'value' musi być liczbą całkowitą."
+                        if allow_negative
+                        else "Pole 'value' musi być nieujemną liczbą całkowitą."
+                    )
+                }
+            )
         if not isinstance(item["label"], str) or not item["label"].strip():
             raise ValidationError({values_field: "Pole 'label' musi być niepustym tekstem."})
         numbers.append(value)
@@ -390,13 +423,21 @@ class StageKind(models.TextChoices):
       nikt nie wziął jej za wynik zawodów.
 
     Ograniczenie „jeden na edycję” wychodzi z istniejącego unikalnego (edycja, rodzaj) – nie ma
-    potrzeby drugiej reguły.
+    potrzeby drugiej reguły. Wyjątkiem jest ``ROUND``.
+
+    ``ROUND`` to **rodzaj bez miejsca w kolejności**: konkurs o pięciu rundach nie ma dla nich
+    pięciu nazw rodzaju, a rozróżnia je ``Stage.name`` („Runda 1”, „Runda 2”). Dlatego i tylko
+    dlatego więz ``competitions_stage_unique_kind`` jest od etapu 2 warunkowy – nazwa więzi
+    zostaje ta sama, żeby nie trzeba było jej tropić w logach wdrożenia. Kolejność takich etapów
+    bierze się z ``PipelineStep.position``, a nie z rodzaju. Olimpiada Kwantowa nie ma ani jednego
+    etapu tego rodzaju, więc więz działa dla niej dosłownie jak przed zmianą.
     """
 
     ELIM = "ELIM", "Eliminacje"
     DISTRICT = "DISTRICT", "Wojewódzki"
     FINAL = "FINAL", "Finał"
     TRAINING = "TRAINING", "Trening"
+    ROUND = "ROUND", "Runda"
 
 
 class StageFormat(models.TextChoices):
@@ -501,7 +542,15 @@ class Stage(models.Model):
         verbose_name_plural = "etapy"
         ordering = ("edition", "opens_at", "id")
         constraints = [
-            models.UniqueConstraint(fields=["edition", "kind"], name="competitions_stage_unique_kind"),
+            # Warunek, a nie nowa więź: „jeden etap danego rodzaju na edycję” zostaje regułą dla
+            # każdego rodzaju poza ``ROUND``, bo rundy są rozróżniane nazwą, a nie rodzajem
+            # (patrz ``StageKind``). Nazwa więzi jest nietknięta – migracja zdejmuje ją i zakłada
+            # pod tą samą nazwą, więc w logach wdrożenia nie pojawia się nowy byt do wytłumaczenia.
+            models.UniqueConstraint(
+                fields=["edition", "kind"],
+                condition=~Q(kind=StageKind.ROUND),
+                name="competitions_stage_unique_kind",
+            ),
             models.CheckConstraint(
                 condition=Q(opens_at__lt=F("deadline_at")),
                 name="competitions_stage_opens_before_deadline",
@@ -660,6 +709,17 @@ class ScoringScale(models.Model):
     stage = models.OneToOneField(Stage, on_delete=models.CASCADE, related_name="scoring_scale")
     values = models.JSONField("wartości skali", default=default_scoring_values)
     max_value = models.PositiveSmallIntegerField("maksimum", default=DEFAULT_MAX_VALUE)
+    # Przesunięcie skali (etap 2 § 1.2.6 b, decyzja organizatora D10). ``values`` trzyma skalę
+    # **taką, jaką wpisał organizator** – z punktami ujemnymi, gdy konkurs je ma. W bazie ocen
+    # punkt ujemny nie ma gdzie stanąć: ``Review.score`` i ``FinalGrade.score`` są
+    # ``PositiveSmallIntegerField``, a ``StageEntry.total_points`` – ``PositiveIntegerField``.
+    # Zmiana typu tych kolumn dotknęłaby każdej tabeli wyników i każdego snapshotu, a przy okazji
+    # zdjęłaby bazodanową gwarancję „punkt nie bywa ujemny”, która dziś łapie błąd serwisu, zanim
+    # dojdzie do tabeli wyników. Dlatego ocena leży w bazie **przesunięta**: zapisujemy
+    # ``wartość + offset``, czytamy ``wartość_z_bazy - offset``, a ``offset`` jest dokładnie tą
+    # liczbą, która najniższą wartość skali sprowadza do zera (``required_scale_offset``).
+    # Konkurs #1 ma ``offset = 0`` i przy zerze żadne z tych działań nie zmienia ani jednej liczby.
+    offset = models.SmallIntegerField("przesunięcie skali", default=0)
 
     #: Droga przez etap. Skali nie czyta dziś żaden ekran „po konkursie” – zakres jest tu po to,
     #: żeby audyt izolacji (§ 3.9) nie natrafił na model, o którym nie wiadomo, czyj jest.
@@ -673,12 +733,49 @@ class ScoringScale(models.Model):
         return f"skala {sorted(self.allowed_values())} dla {self.stage_id}"
 
     def allowed_values(self) -> set[int]:
-        """Zbiór dopuszczalnych ocen. Używany przy walidacji ``Review.score`` (T-05)."""
+        """Zbiór dopuszczalnych ocen **w postaci wpisanej przez organizatora** (z minusem, gdy jest).
+
+        To jest skala do pokazania człowiekowi: formularz koordynatora, lista wyboru recenzenta,
+        tabela wyników. Do porównania z tym, co leży w kolumnie ``score``, służy
+        ``stored_allowed_values`` – przy ``offset = 0`` (czyli w całym Konkursie #1) oba zbiory są
+        tym samym zbiorem.
+        """
         return scoring_allowed_values(self.values)
+
+    def stored_allowed_values(self) -> set[int]:
+        """Te same oceny w postaci, w jakiej wolno je zapisać w bazie: wartość powiększona o offset.
+
+        Jedyny zbiór, z którym wolno porównywać ``Review.score`` i ``FinalGrade.score`` – bo to
+        one w tej postaci leżą (``grading.services.allowed_scores``).
+        """
+        offset = self.offset or 0
+        return {value + offset for value in self.allowed_values()}
 
     def clean(self) -> None:
         super().clean()
-        validate_scoring_values(self.values, self.max_value, values_field="values", max_field="max_value")
+        offset = self.offset or 0
+        # Punkty ujemne wolno wpisać dokładnie wtedy, kiedy skala jest przesunięta – a przesunięcie
+        # nakłada serwis (``set_scoring_scale``) i tylko przy włączonej fladze ``weighted_scoring``.
+        # Model nie czyta flagi sam: droga do konkursu wiedzie przez etap i edycję, więc każde
+        # ``full_clean()`` skali kosztowałoby dwa zapytania, także w konkursie, który o punktach
+        # ujemnych nigdy nie słyszał.
+        validate_scoring_values(
+            self.values,
+            self.max_value,
+            values_field="values",
+            max_field="max_value",
+            allow_negative=offset > 0,
+        )
+        required = required_scale_offset(self.values)
+        if offset != required:
+            raise ValidationError(
+                {
+                    "offset": (
+                        f"Przesunięcie skali musi być równe {required} – tyle brakuje najniższej "
+                        "wartości do zera."
+                    )
+                }
+            )
 
 
 class QualificationMode(models.TextChoices):
@@ -789,6 +886,18 @@ class Problem(models.Model):
     # etapu przestałaby cokolwiek znaczyć.
     scoring_values = models.JSONField("skala punktacji zadania", null=True, blank=True)
     max_points = models.PositiveSmallIntegerField("maksimum punktów", null=True, blank=True)
+    # Waga zadania w sumie etapu (etap 2 § 1.2.6 a) – **ułamek zwykły**, a nie liczba
+    # zmiennoprzecinkowa, i to jest decyzja, nie przesada: waga ``1/3`` zapisana jako ``0.333…``
+    # daje sumę zależną od kolejności dodawania, czyli tabelę wyników zmieniającą się przy
+    # przeliczeniu. Sumowanie idzie przez ``fractions.Fraction`` (``services.stage_scoring``),
+    # a zaokrąglenie zapada raz, na końcu. Waga ``1/1`` – jedyna, jaką ma Konkurs #1 – daje
+    # dokładnie tę samą liczbę, co dzisiejsze sumowanie ``int``.
+    # Licznik wolno ustawić na zero: to zadanie, które się liczy do oceniania, ale nie do sumy
+    # etapu (zadanie treningowe wewnątrz etapu). Mianownik zerowy jest niewyrażalny i pilnuje tego
+    # więz w bazie, a nie tylko ``clean()`` – dzielenie przez zero w przeliczeniu wyników byłoby
+    # błędem 500 na ekranie, który koordynator otwiera w dniu ogłoszenia.
+    weight_numerator = models.PositiveSmallIntegerField("waga – licznik", default=1)
+    weight_denominator = models.PositiveSmallIntegerField("waga – mianownik", default=1)
 
     #: Treść zadania bywa pobierana adresem, którego nikt nie musi znać (``/api/competitions/
     #: problems/<pk>/statement/``), więc zakres jest tu regułą bezpieczeństwa, a nie porządkiem.
@@ -807,6 +916,10 @@ class Problem(models.Model):
             models.CheckConstraint(
                 condition=Q(max_file_mb__lte=MAX_FILE_MB_LIMIT),
                 name="competitions_problem_max_file_mb_under_limit",
+            ),
+            models.CheckConstraint(
+                condition=Q(weight_denominator__gte=1),
+                name="competitions_problem_weight_denominator_positive",
             ),
         ]
 
@@ -860,6 +973,16 @@ class Problem(models.Model):
         """Czy zadanie ma własną skalę. Puste nadpisanie znaczy „dziedzicz po etapie”."""
         return bool(self.scoring_values)
 
+    @property
+    def weight(self) -> Fraction:
+        """Waga zadania jako ułamek zwykły. ``1`` dla każdego zadania, które wagi nie dostało.
+
+        Ułamek, a nie ``float`` – powód stoi przy polach. Czytelnikiem tej wartości jest
+        ``apps.competitions.services.stage_scoring`` i nikt poza nim: suma etapu ma jedną
+        implementację, żeby tabela koordynatora i tabela ogłoszona nie mogły się rozejść.
+        """
+        return Fraction(self.weight_numerator, self.weight_denominator or 1)
+
     def allowed_values(self) -> set[int]:
         """Oceny dopuszczalne dla **tego zadania** albo pusty zbiór, gdy skala jest etapowa.
 
@@ -884,6 +1007,8 @@ class Problem(models.Model):
             raise ValidationError(
                 {"max_file_mb": f"Limit rozmiaru musi mieścić się w 1–{MAX_FILE_MB_LIMIT} MB."}
             )
+        if not self.weight_denominator:
+            raise ValidationError({"weight_denominator": "Mianownik wagi musi być dodatni."})
         # Skala i jej maksimum są jedną informacją zapisaną w dwóch polach – tak samo jak w etapie.
         # Puste **oba** znaczą „dziedzicz po etapie”; wypełnione jedno byłoby nadpisaniem bez treści.
         if not self.scoring_values and self.max_points is None:
@@ -898,6 +1023,262 @@ class Problem(models.Model):
             values_field="scoring_values",
             max_field="max_points",
         )
+
+
+# =================================================================================================
+# Kategorie uczestników (``docs/UNIWERSALNY-ETAP-2.md`` § 1.2.4)
+# =================================================================================================
+
+
+class Category(models.Model):
+    """Kategoria uczestników: rocznik, klasa, typ szkoły albo cokolwiek, co ustali organizator.
+
+    Kategoria jest **danymi konkursu**, a nie edycji („szkoła podstawowa / ponadpodstawowa” ma
+    przeżyć rocznik); przypisanie jest natomiast per **wpis do etapu** (``StageEntry.category``),
+    bo uczeń zmienia klasę między edycjami.
+
+    Konkurs #1 kategorii nie ma i mieć nie będzie: tabela zostaje pusta, ``StageEntry.category``
+    zostaje ``NULL``, a flaga ``categories`` jest domyślnie wyłączona – czyli ranking, próg
+    i snapshot wyglądają dokładnie tak, jak przed etapem 2 (§ 0.1). Kategorie definiuje **panel**
+    (decyzja D12), a szablony ``kwantowa`` i ``pusty`` nie zakładają ani jednej.
+
+    Druga strona tej samej decyzji: kategoria ma **własną** kolumnę konkursu, bo jest jedynym
+    sposobem, w jaki może do niego dojść – nie wisi na edycji ani na etapie (§ 1.0 (a)).
+    """
+
+    #: ``PROTECT``, tak samo jak przy ``Edition.competition``: skasowanie konkursu razem
+    #: z kategoriami pociągnęłoby za sobą wpisy do etapów, czyli dokumentację odbytych zawodów.
+    competition = models.ForeignKey(
+        "tenancy.Competition",
+        on_delete=models.PROTECT,
+        related_name="categories",
+        verbose_name="konkurs",
+    )
+    #: Kod jest stały i nadaje się do wpisania w regulaminie, adresie i imporcie grupowym; nazwa
+    #: bywa poprawiana w trakcie sezonu. Unikalność obowiązuje **w konkursie**, a nie w instalacji
+    #: – „podstawowa” należy się każdemu organizatorowi z osobna.
+    code = models.SlugField("kod", max_length=32)
+    name = models.CharField("nazwa", max_length=120)
+    position = models.PositiveSmallIntegerField("kolejność", default=0)
+    #: Reguła automatycznego przypisania – **opcjonalna**. Puste = kategorię wskazuje uczestnik albo
+    #: koordynator. Zakres klas jest jedyną regułą, którą system policzy sam, bo ``Participant.grade``
+    #: jest jedyną cechą o porządku; wszystko inne (typ szkoły, rocznik urodzenia, język) jest
+    #: wyborem, a nie wyliczeniem, i zgadywanie go byłoby wpisaniem uczestnikowi decyzji za niego.
+    grade_min = models.PositiveSmallIntegerField("klasa od", null=True, blank=True)
+    grade_max = models.PositiveSmallIntegerField("klasa do", null=True, blank=True)
+    #: Wycofanie kategorii jest przestawieniem tego pola, a nie usunięciem wiersza: wpisy z lat
+    #: poprzednich mają dalej pokazywać, w jakiej kategorii ktoś startował.
+    is_active = models.BooleanField("aktywna", default=True)
+
+    #: Domyślna ścieżka queryseta (``competition``) – kategoria ma własną kolumnę.
+    objects = competition_scoped_manager()
+
+    class Meta:
+        verbose_name = "kategoria"
+        verbose_name_plural = "kategorie"
+        ordering = ("competition", "position", "id")
+        constraints = [
+            models.UniqueConstraint(fields=["competition", "code"], name="competitions_category_unique_code"),
+            # Zakres odwrócony („od 5 do 2”) nie jest kategorią pustą, tylko literówką – a literówka
+            # w regule automatycznego przypisania jest niewidoczna do chwili, w której uczestnik
+            # wyląduje w cudzym rankingu. Ostatnia linia obrony przed zapisem z pominięciem
+            # ``full_clean()``; warunek przepuszcza każdy zakres jednostronny i pusty.
+            models.CheckConstraint(
+                condition=Q(grade_min__isnull=True)
+                | Q(grade_max__isnull=True)
+                | Q(grade_min__lte=F("grade_max")),
+                name="competitions_category_grades_ordered",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.code})"
+
+    def clean(self) -> None:
+        super().clean()
+        if self.grade_min is not None and self.grade_max is not None and self.grade_min > self.grade_max:
+            raise ValidationError({"grade_max": "Klasa „do” nie może być niższa niż klasa „od”."})
+
+    @property
+    def has_grade_rule(self) -> bool:
+        """Czy kategoria ma regułę automatyczną. Brak reguły znaczy „wskazuje ją człowiek”."""
+        return self.grade_min is not None or self.grade_max is not None
+
+    def matches_grade(self, grade) -> bool:
+        """Czy uczeń tej klasy wpada do tej kategorii **regułą**, a nie wskazaniem.
+
+        Kategoria bez reguły odpowiada ``False`` – i to jest właściwa odpowiedź, a nie „pasuje
+        do wszystkiego”: gdyby brak zakresu znaczył „bez ograniczeń”, pierwsza kategoria
+        wpisana bez klas przechwytywałaby cały konkurs.
+        """
+        if grade is None or not self.has_grade_rule:
+            return False
+        if self.grade_min is not None and grade < self.grade_min:
+            return False
+        return not (self.grade_max is not None and grade > self.grade_max)
+
+    @classmethod
+    def auto_for_grade(cls, competition, grade) -> "Category | None":
+        """Kategoria wyliczona z klasy uczestnika albo ``None``, gdy żadna reguła nie pasuje.
+
+        Jedyne miejsce, w którym stoi reguła automatycznego przypisania – wołają ją rejestracja,
+        import grupowy i panel, żeby wszystkie trzy drogi dawały tę samą kategorię. Zakresy mają
+        być rozłączne; gdy nie są, wygrywa pierwsza po ``position``, bo to kolejność, którą
+        organizator widzi na ekranie, a nie kolejność wstawiania do tabeli.
+        """
+        if grade is None:
+            return None
+        for category in cls.objects.for_competition(competition).filter(is_active=True):
+            if category.matches_grade(grade):
+                return category
+        return None
+
+
+# =================================================================================================
+# Drużyny (``docs/UNIWERSALNY-ETAP-2.md`` § 1.2.3)
+# =================================================================================================
+
+
+class Team(models.Model):
+    """Drużyna jako **właściciel wpisu do etapu** – a nie nowy byt obok uczestnika.
+
+    Decyzja, z której wynika reszta tego modelu: drużyna nie dostaje własnej punktacji, własnej
+    tabeli wyników ani własnej ścieżki oceniania. Dostaje to samo, co uczestnik – wpis do etapu
+    (``StageEntry``) – a wszystko, co dzieje się dalej (zgłoszenie, recenzje, konsensus, suma,
+    próg, dyplom), chodzi po wpisach i dlatego **nie zmienia się wcale**. Gdyby drużyna była
+    drugim rodzajem zawodnika, każde z tych miejsc musiałoby umieć dwie arytmetyki naraz.
+
+    Stąd ``public_code``: kod publiczny jest identyfikatorem **w tabeli wyników**, a w tabeli
+    wyników konkursu drużynowego stoi drużyna. Generator jest ten sam, co dla uczestnika
+    (``apps.accounts.models.generate_public_code``) i bierze prefiks z konkursu, więc kody obu
+    rodzajów właścicieli wyglądają jednakowo i jednakowo się je przepisuje z wydruku.
+
+    Konkurs #1 drużyn nie ma i mieć nie będzie: tabela zostaje pusta, ``StageEntry.team`` zostaje
+    ``NULL``, a flaga ``team_entries`` jest domyślnie wyłączona – czyli wpis ma zawsze uczestnika,
+    dokładnie jak przed etapem 2 (§ 0.1).
+
+    Drużyna ma **własną** kolumnę konkursu (§ 1.0 (a)), bo jest bytem konkursu, a nie edycji:
+    ``edition`` mówi, w którym roczniku ta drużyna wystartowała, ale to konkurs rozstrzyga
+    o prefiksie kodu i o unikalności tego kodu. Rozjazdu obu dróg pilnuje ``clean()``.
+    """
+
+    #: ``PROTECT``, tak samo jak przy ``Edition.competition`` i ``Category.competition``:
+    #: skasowanie konkursu razem z drużynami pociągnęłoby za sobą wpisy do etapów, czyli
+    #: dokumentację odbytych zawodów.
+    competition = models.ForeignKey(
+        "tenancy.Competition",
+        on_delete=models.PROTECT,
+        related_name="teams",
+        verbose_name="konkurs",
+    )
+    #: ``CASCADE`` w ślad za edycją: drużyna jest składem **na jeden rocznik** (skład się zmienia,
+    #: nazwa bywa powtarzana), więc bez swojej edycji nie opisuje niczego.
+    edition = models.ForeignKey(
+        Edition, on_delete=models.CASCADE, related_name="teams", verbose_name="edycja"
+    )
+    name = models.CharField("nazwa", max_length=120)
+    #: Ta sama rola, co ``Participant.public_code``, i ten sam generator z prefiksem konkursu.
+    #: ``default`` jest wołany przez Django bez argumentów, więc bez konkursu schodzi do prefiksu
+    #: zastępczego – poprawia to serwis ``create_team``, który konkurs zna (tak samo jak
+    #: ``apps.accounts.services.create_participant_with_public_code``).
+    public_code = models.CharField("kod publiczny", max_length=16, default=generate_public_code)
+    #: Szkoła drużyny jest napisem, a nie kluczem do wykazu: drużyna bywa międzyszkolna albo
+    #: pozaszkolna, a napis jest dokładnie tym, co trafia na listę i na dyplom.
+    school = models.CharField("szkoła", max_length=255, blank=True)
+    supervisor_email = models.EmailField("opiekun", blank=True)
+
+    #: Domyślna ścieżka queryseta (``competition``) – drużyna ma własną kolumnę.
+    objects = competition_scoped_manager()
+
+    class Meta:
+        verbose_name = "drużyna"
+        verbose_name_plural = "drużyny"
+        ordering = ("edition", "name", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["competition", "public_code"],
+                name="competitions_team_public_code_per_competition",
+            ),
+            # Nazwa rozstrzyga w **edycji**, a nie w konkursie: „Kwanty 1” z roku 2026 i „Kwanty 1”
+            # z roku 2027 to dwa różne składy i obie nazwy muszą dać się wpisać.
+            models.UniqueConstraint(
+                fields=["edition", "name"], name="competitions_team_unique_name_per_edition"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.public_code})"
+
+    def clean(self) -> None:
+        """Drużyna i jej edycja muszą należeć do tego samego konkursu.
+
+        Reguły nie da się zapisać jako więzu bazy (porównanie z kolumną sąsiedniej tabeli), więc
+        stoi wyłącznie tutaj – tak samo jak przy ``PipelineStep``. Drużyna wpisana do cudzej
+        edycji startowałaby w cudzych zawodach z kodem publicznym swojego organizatora.
+        """
+        super().clean()
+        if self.edition_id is None or self.competition_id is None:
+            return
+        if self.edition.competition_id != self.competition_id:
+            raise ValidationError({"edition": "Edycja należy do innego konkursu niż drużyna."})
+
+
+class TeamMember(models.Model):
+    """Uczestnik w składzie drużyny. Członkostwo, a nie drugi profil.
+
+    ``participant`` jest z ``PROTECT``: skasowanie profilu uczestnika, który startował w drużynie,
+    zabrałoby ze składu osobę, której nazwisko stoi w protokole. Drużyna z ``CASCADE``, bo skład
+    bez drużyny nie znaczy nic.
+
+    Kapitan jest **wskazaniem**, a nie rolą w RBAC: nie daje żadnych uprawnień w systemie i służy
+    wyłącznie temu, żeby wiadomo było, do kogo pisać w sprawie drużyny. Dlatego jest polem
+    logicznym przy członkostwie, a nie kluczem obcym przy drużynie – skład z kapitanem usuniętym
+    ze składu byłby drużyną z kapitanem spoza drużyny.
+    """
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="members", verbose_name="drużyna")
+    participant = models.ForeignKey(
+        Participant, on_delete=models.PROTECT, related_name="team_memberships", verbose_name="uczestnik"
+    )
+    is_captain = models.BooleanField("kapitan", default=False)
+
+    #: Przez drużynę, bo to ona ma kolumnę konkursu. Droga przez uczestnika byłaby drugą drogą do
+    #: tej samej prawdy – pilnuje jej ``clean()``, a filtruje się po jednej (§ 3.4 etapu 1).
+    objects = competition_scoped_manager("team__competition")
+
+    class Meta:
+        verbose_name = "członek drużyny"
+        verbose_name_plural = "członkowie drużyny"
+        # Kapitan na początku składu: tak wygląda lista na ekranie i na wydruku. Porządek po
+        # ``id``, a nie po uczestniku, bo porządek po kluczu obcym ciągnąłby ``Participant``
+        # i jego ``ordering`` – czyli złączenie w każdym zapytaniu o skład.
+        ordering = ("team", "-is_captain", "id")
+        constraints = [
+            models.UniqueConstraint(fields=["team", "participant"], name="competitions_teammember_unique"),
+            # Kapitan jest jeden – dwóch kapitanów to nie jest drużyna o dwóch kapitanach, tylko
+            # niedokończone przekazanie funkcji. Warunek zdejmuje więz ze zwykłych członków,
+            # więc skład bez kapitana jest dopuszczalny (drużyna dopiero się zbiera).
+            models.UniqueConstraint(
+                fields=["team"],
+                condition=Q(is_captain=True),
+                name="competitions_teammember_single_captain",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.participant_id} w drużynie {self.team_id}"
+
+    def clean(self) -> None:
+        """Uczestnik i drużyna muszą należeć do tego samego konkursu.
+
+        Bez tej reguły skład drużyny byłby jedynym miejscem, w którym profil jednego organizatora
+        wchodzi do zawodów drugiego – a stamtąd trafiłby do tabeli wyników przez wpis drużyny.
+        """
+        super().clean()
+        if self.team_id is None or self.participant_id is None:
+            return
+        if self.participant.competition_id != self.team.competition_id:
+            raise ValidationError({"participant": "Uczestnik należy do innego konkursu niż drużyna."})
 
 
 class StageEntryStatus(models.TextChoices):
@@ -949,6 +1330,14 @@ class StageEntryQuerySet(CompetitionScopedQuerySet):
 
         ``competition=None`` bierze konkurs z kontekstu żądania; szczegóły odwrotów i jedyny
         przypadek, w którym zawężenia nie ma, opisuje ``apps.competitions.scoping``.
+
+        **Wpis drużynowy** (§ 1.2.3) widzi każdy, kto jest w składzie – i wyłącznie w konkursie
+        z włączoną flagą ``team_entries``. Gałąź jest bramkowana flagą, a nie samymi danymi, bo
+        to jest ten jeden filtr, który stanowi o tym, czy uczestnik widzi cudze wpisy: dopóki
+        organizator drużyn nie prowadzi, zapytanie ma zostać dokładnie takie, jak przed etapem 2
+        – bez drugiego złączenia i bez szansy, że ``team IS NULL`` po obu stronach zrówna dwa
+        wpisy niczyje. Konkurs #1 nie ma ani jednej drużyny **i** nie ma flagi, więc wychodzi
+        stąd tą samą drogą, co dotąd.
         """
         scoped = scope_to_competition(self, competition)
         if not user or not user.is_authenticated or not user.is_active:
@@ -959,22 +1348,91 @@ class StageEntryQuerySet(CompetitionScopedQuerySet):
         # konkursie**, a relacja jeden-do-jednego oddawałaby po wydaniu D dowolny z nich.
         from apps.accounts.services import participant_for
 
-        participant = participant_for(user, resolve_competition(competition))
+        resolved = resolve_competition(competition)
+        participant = participant_for(user, resolved)
         if participant is None:
             return scoped.none()
+        if resolved is not None and resolved.has_feature("team_entries"):
+            return scoped.filter(Q(participant=participant) | Q(team__members__participant=participant))
         return scoped.filter(participant=participant)
 
 
 class StageEntry(models.Model):
-    """Udział uczestnika w etapie. Dla ELIM powstaje przez rejestrację, dalej przez kwalifikację (T-07)."""
+    """Udział uczestnika **albo drużyny** w etapie. Dla ELIM powstaje przez rejestrację, dalej przez
+    kwalifikację (T-07).
 
-    participant = models.ForeignKey(Participant, on_delete=models.CASCADE, related_name="stage_entries")
+    Właściciel wpisu jest od etapu 2 jeden z dwóch (§ 1.2.3) i pilnuje tego więz
+    ``competitions_stageentry_single_owner``: albo ``participant``, albo ``team``, nigdy oba i nigdy
+    żaden. Jedynym wejściem do właściciela jest ``apps.competitions.services.entry_owner`` – które
+    dla wpisu bez właściciela podnosi ``AttributeError``, a nie oddaje ``None``. Po znullowaniu
+    ``participant`` cicha odpowiedź ``None`` byłaby bowiem gorsza od wywrócenia: kilkanaście miejsc
+    czyta dziś ``entry.participant`` wprost i każde z nich policzyłoby wynik dla nikogo.
+
+    Konkurs #1 ma ``team`` puste we wszystkich wierszach i flagę ``team_entries`` wyłączoną, więc
+    właścicielem jest zawsze uczestnik – dokładnie jak przed etapem 2 (§ 0.1).
+    """
+
+    #: Nullowalne **wyłącznie** dlatego, że właścicielem wpisu bywa drużyna (§ 1.2.3), i wyłącznie
+    #: razem z więzem ``single_owner`` – bez niego kolumna nullowalna znaczyłaby „wpis niczyj”.
+    participant = models.ForeignKey(
+        Participant, on_delete=models.CASCADE, related_name="stage_entries", null=True, blank=True
+    )
+    #: ``PROTECT``, bo skasowanie drużyny razem z jej wpisami zabrałoby wyniki etapu; drużynę
+    #: rozwiązuje się przez usunięcie ze składu, a nie przez usunięcie wiersza z wynikami.
+    team = models.ForeignKey(
+        "Team",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="stage_entries",
+        verbose_name="drużyna",
+    )
     stage = models.ForeignKey(Stage, on_delete=models.CASCADE, related_name="entries")
     status = models.CharField(
         "status", max_length=16, choices=StageEntryStatus.choices, default=StageEntryStatus.REGISTERED
     )
     total_points = models.PositiveIntegerField("suma punktów", null=True, blank=True)
     created_at = models.DateTimeField("utworzony", default=timezone.now)
+    # Kategoria startowa (etap 2, § 1.2.4). Przypisanie jest przy **wpisie**, a nie przy
+    # uczestniku, bo uczeń zmienia klasę między edycjami – ta sama osoba startuje raz
+    # w „podstawowej”, rok później w „ponadpodstawowej”, a wiersz sprzed roku ma pokazywać
+    # kategorię, w której faktycznie startowała.
+    #
+    # ``NULL`` znaczy „konkurs bez kategorii” i tak jest w Konkursie #1: pole nie ma wartości
+    # domyślnej, nie wchodzi do żadnego istniejącego zapytania i nie dokłada joinu, więc migracja
+    # jest samym ``AddField`` bez zmiany danych (§ 0.1, § 0.7).
+    #
+    # ``PROTECT``, bo skasowanie kategorii razem z wpisami zabrałoby wyniki etapu; kategorię
+    # wycofuje się przez ``Category.is_active``, a nie przez usunięcie wiersza.
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="stage_entries",
+        verbose_name="kategoria",
+    )
+    # Wpisowe (etap 2, § 1.5.1). Skrót do należności uczestnika za tę edycję – po to, żeby ekran
+    # etapu pokazał „nieopłacone” **bez złączenia przez edycję**. Skrót, a nie drugie źródło
+    # prawdy: pustą wartość ``apps.tenancy.fees.submission_blocked`` uzupełnia sobie sam, szukając
+    # należności po uczestniku i edycji.
+    #
+    # ``NULL`` znaczy „konkurs bez wpisowego” i tak jest w Konkursie #1: pole nie ma wartości
+    # domyślnej, nie wchodzi do żadnego istniejącego zapytania i nie dokłada joinu, więc migracja
+    # jest samym ``AddField`` bez zmiany danych (§ 0.1, § 0.7). Domknięcia na ``NOT NULL`` nie
+    # będzie nigdy – zawody bezpłatne są stanem docelowym, a nie brakiem do uzupełnienia.
+    #
+    # ``SET_NULL``, a nie ``PROTECT``: rejestr należności i wynik etapu są dwiema różnymi
+    # dokumentacjami, a skasowanie wiersza rozliczenia (pomyłkowe naliczenie) nie może zabrać ze
+    # sobą wpisu do etapu ani go zablokować.
+    fee = models.ForeignKey(
+        "tenancy.ParticipantFee",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="stage_entries",
+        verbose_name="wpisowe",
+    )
     # Kwalifikacja ręczna: decyzja komitetu, która **wygrywa z progiem punktowym** przy każdym
     # przeliczeniu wyników (patrz ``apps.results.services``). Pole jest przy wpisie, a nie przy
     # uczestniku, bo dotyczy jednego etapu – ktoś dopuszczony wyjątkowo do etapu wojewódzkiego
@@ -1009,6 +1467,22 @@ class StageEntry(models.Model):
             models.UniqueConstraint(
                 fields=["participant", "stage"], name="competitions_stageentry_unique_participant"
             ),
+            # Ten sam więz dla drugiego rodzaju właściciela. Warunek jest konieczny, a nie
+            # ozdobny: w Postgresie ``NULL`` nie jest równy ``NULL``, więc bez niego więz byłby
+            # martwy dla wpisów uczestników (``team`` puste), a i tak nic by nie łapał.
+            models.UniqueConstraint(
+                fields=["team", "stage"],
+                condition=Q(team__isnull=False),
+                name="competitions_stageentry_unique_team",
+            ),
+            # Właściciel wpisu jest dokładnie jeden (§ 1.2.3). To jedyny powód, dla którego
+            # ``participant`` wolno było znullować – i dlatego oba te fakty stoją w jednej
+            # migracji, a nie w dwóch: baza nie ma stanu pośredniego, w którym wpis jest niczyj.
+            models.CheckConstraint(
+                condition=Q(participant__isnull=False, team__isnull=True)
+                | Q(participant__isnull=True, team__isnull=False),
+                name="competitions_stageentry_single_owner",
+            ),
             # Decyzja bez uzasadnienia nie jest decyzją, tylko przestawionym polem. Ostatnia linia
             # obrony przed zapisem z pominięciem serwisu (``apps.results.manual``): pusta decyzja
             # przechodzi, każda inna wymaga niepustego tekstu.
@@ -1019,7 +1493,12 @@ class StageEntry(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"{self.participant.public_code} @ {self.stage_id} ({self.status})"
+        # Przez ``entry_owner``, a nie przez ``self.participant``: reguła „kto jest właścicielem
+        # wpisu” ma jedno miejsce, a wpis drużynowy ma w logu i w ``/admin/`` pokazywać kod
+        # drużyny. Import lokalny, bo ``services`` importuje ``models`` na poziomie modułu.
+        from .services import entry_owner
+
+        return f"{entry_owner(self).public_code} @ {self.stage_id} ({self.status})"
 
     @property
     def has_manual_qualification(self) -> bool:
@@ -1196,3 +1675,556 @@ class EditionEvent(models.Model):
         nigdzie nie powstał ekran liczący „koniec albo początek” po swojemu.
         """
         return (self.starts_on, self.ends_on or self.starts_on)
+
+
+# --- edytor procesu: przebieg edycji jako dane (UNIWERSALNY-ETAP-2 § 1.2) -------------------------
+#
+# Dwa fakty o przebiegu zawodów są dziś zapisane w kodzie: **kolejność etapów** jako krotka
+# ``STAGE_ORDER`` (``apps/results/services.py``) i **próg przejścia** jako ``QualificationRule``
+# związany jeden-do-jednego z etapem. Poniższe modele zapisują te same dwa fakty jako wiersze.
+#
+# Trzy rzeczy, których ta część **nie** robi, bo inaczej byłaby przepisaniem zachowania:
+# ``QualificationRule`` i ``QualificationMode`` zostają bez zmiany pola; ``STAGE_ORDER`` zostaje
+# na miejscu i nadal jest jedynym czytanym źródłem kolejności, dopóki konkurs ma flagę
+# ``process_editor`` wyłączoną (gałąź flagi dokłada T30); migracja ``pipeline_from_stages``
+# wpisuje Konkursowi #1 dokładnie to, co w jego bazie stoi dzisiaj, i niczego nie włącza.
+
+
+class PipelineStep(models.Model):
+    """Jeden krok przebiegu edycji: który etap, w którym miejscu kolejki.
+
+    Model jest listą, a nie polem ``Stage.order``, bo krok niesie **dwie** rzeczy: miejsce
+    w kolejce i regułę przejścia (``TransitionRule``). Pole porządkowe na etapie zostawiłoby regułę
+    bez właściciela, a reguł bywa kilka na krok (osobny próg na kategorię).
+
+    ``edition`` jest tu obok ``stage``, mimo że etap edycję zna. Powód jest jeden i jest
+    w ``Meta``: więz „jedno miejsce w kolejce zajmuje jeden krok” musi dać się wyrazić w bazie,
+    a więz na kolumnie z sąsiedniej tabeli nie istnieje. Rozjazdu pilnuje ``clean()``.
+    """
+
+    edition = models.ForeignKey(
+        Edition, on_delete=models.CASCADE, related_name="pipeline_steps", verbose_name="edycja"
+    )
+    stage = models.OneToOneField(
+        Stage, on_delete=models.CASCADE, related_name="pipeline_step", verbose_name="etap"
+    )
+    position = models.PositiveSmallIntegerField("miejsce w kolejce")
+    #: Krok poza torem zawodów: trening, warsztat, sesja próbna. Nie kwalifikuje, nie jest
+    #: następnikiem ani poprzednikiem i nie liczy się do osi czasu. Dla etapu treningowego znaczy
+    #: dokładnie tyle, co dziś znaczy jego nieobecność w ``STAGE_ORDER``.
+    off_pipeline = models.BooleanField("poza torem zawodów", default=False)
+
+    #: Krok należy do edycji, a edycja do konkursu – własnej kolumny nie ma z tego samego powodu,
+    #: co etap (§ 3.4 etapu 1): druga droga do tej samej prawdy to druga okazja do rozjazdu.
+    objects = competition_scoped_manager("edition__competition")
+
+    class Meta:
+        verbose_name = "krok przebiegu"
+        verbose_name_plural = "kroki przebiegu"
+        ordering = ("edition", "position", "id")
+        constraints = [
+            # Warunek na ``off_pipeline`` jest częścią reguły, a nie optymalizacją: kroki poza
+            # torem nie mają miejsca w kolejce, więc wszystkie stoją na pozycji 0 i nie mają
+            # o co się bić. Bez warunku drugi trening w edycji byłby ``IntegrityError``.
+            models.UniqueConstraint(
+                fields=["edition", "position"],
+                condition=Q(off_pipeline=False),
+                name="competitions_pipelinestep_unique_position",
+            )
+        ]
+
+    def __str__(self) -> str:
+        place = "poza torem" if self.off_pipeline else f"miejsce {self.position}"
+        return f"krok etapu {self.stage_id} ({place})"
+
+    def clean(self) -> None:
+        """Krok i jego etap muszą należeć do tej samej edycji.
+
+        Reguły nie da się zapisać jako więzu bazy (porównanie z kolumną sąsiedniej tabeli), więc
+        stoi wyłącznie tutaj – i dlatego jest jawna, a nie schowana w serwisie: krok wpisany do
+        cudzej edycji ustawiałby kolejność zawodów, których nie dotyczy.
+        """
+        super().clean()
+        if self.stage_id is None or self.edition_id is None:
+            return
+        if self.stage.edition_id != self.edition_id:
+            raise ValidationError({"stage": "Etap należy do innej edycji niż krok przebiegu."})
+
+
+class TransitionMode(models.TextChoices):
+    """Tryby przejścia do następnego kroku – nadzbiór dzisiejszego ``QualificationMode``.
+
+    Pierwsze cztery są dokładnym odwzorowaniem czterech trybów, które system liczy dziś
+    (``MIN_POINTS``, ``TOP_N``, ``TOP_N_PER_DISTRICT`` → ``TOP_N_PER_GROUP`` z podziałem po
+    regionie, ``HYBRID``). ``PERCENTILE`` i ``MANUAL`` są nowe i Olimpiada Kwantowa ich nie używa.
+    """
+
+    MIN_POINTS = "MIN_POINTS", "minimum punktów"
+    TOP_N = "TOP_N", "najlepszych N"
+    TOP_N_PER_GROUP = "TOP_N_PER_GROUP", "N w grupie"
+    HYBRID = "HYBRID", "minimum punktów ORAZ top N"
+    PERCENTILE = "PERCENTILE", "najlepsze P procent"
+    MANUAL = "MANUAL", "wyłącznie decyzja komitetu"
+
+
+class TransitionGroupBy(models.TextChoices):
+    """Po czym dzielimy pole przed zastosowaniem progu. Puste = bez podziału, czyli jedna tabela.
+
+    Dzisiejszy ``TOP_N_PER_DISTRICT`` to ten sam tryb ``TOP_N_PER_GROUP`` z podziałem ``REGION``:
+    „N na województwo” jest szczególnym przypadkiem „N w grupie”, a nie osobną arytmetyką.
+    """
+
+    NONE = "", "bez podziału"
+    REGION = "REGION", "region"
+    CATEGORY = "CATEGORY", "kategoria"
+
+
+class TransitionRule(models.Model):
+    """Reguła przejścia z kroku do następnego. **Kilka reguł na krok = suma zakwalifikowanych.**
+
+    Model jest listą, bo organizator pisze w regulaminie zdania typu „do finału przechodzi 30
+    najlepszych **oraz** każdy, kto zdobył co najmniej 90 punktów”. Suma zbiorów jest jedyną
+    dozwoloną kompozycją; iloczyn ma własny tryb (``HYBRID``), bo „oraz” w regulaminie bywa jednym
+    i drugim, a obie operacje wyrażone tą samą listą byłyby nieczytelne.
+
+    ``QualificationRule`` **nie znika i nie zmienia pól**: to ona jest czytana, dopóki konkurs ma
+    flagę ``process_editor`` wyłączoną. Trzy zachowania brzegowe, które przy włączonej fladze mają
+    wyjść identycznie (liczy je T30, nie ten model): zero nie kwalifikuje w trybach z ``top_n``,
+    remis na progu wpuszcza wszystkich, a decyzja komitetu bije regułę – także sumę reguł.
+    """
+
+    step = models.ForeignKey(
+        PipelineStep, on_delete=models.CASCADE, related_name="transition_rules", verbose_name="krok"
+    )
+    mode = models.CharField("tryb", max_length=24, choices=TransitionMode.choices)
+    group_by = models.CharField("podział", max_length=16, choices=TransitionGroupBy.choices, blank=True)
+    #: Zawężenie do jednej kategorii; puste = reguła dotyczy wszystkich. ``CASCADE``, a nie
+    #: ``PROTECT``: reguła bez kategorii, do której się odnosi, nie jest regułą – zostałaby progiem
+    #: dla zbioru, którego nie ma. Konkurs #1 kategorii nie ma, więc kolumna zostaje pusta.
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="transition_rules",
+        verbose_name="kategoria",
+    )
+    min_points = models.PositiveIntegerField("minimum punktów", null=True, blank=True)
+    top_n = models.PositiveIntegerField("liczba kwalifikowanych", null=True, blank=True)
+    percentile = models.PositiveSmallIntegerField("procent", null=True, blank=True)
+    position = models.PositiveSmallIntegerField("kolejność", default=0)
+
+    #: Reguła dochodzi do konkursu krokiem, krok edycją. Reguła przejścia jest **konfiguracją**
+    #: konkursu, więc czytający ją kod woła ``require_competition`` (§ 1.0 b), a nie miękki odwrót.
+    objects = competition_scoped_manager("step__edition__competition")
+
+    class Meta:
+        verbose_name = "reguła przejścia"
+        verbose_name_plural = "reguły przejścia"
+        ordering = ("step", "position", "id")
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(percentile__isnull=True) | (Q(percentile__gte=1) & Q(percentile__lte=100)),
+                name="competitions_transitionrule_percentile_range",
+            ),
+            models.CheckConstraint(
+                condition=Q(top_n__isnull=True) | Q(top_n__gte=1),
+                name="competitions_transitionrule_top_n_positive",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.get_mode_display()} (min={self.min_points}, top={self.top_n})"
+
+    @property
+    def requires_min_points(self) -> bool:
+        return self.mode in (TransitionMode.MIN_POINTS, TransitionMode.HYBRID)
+
+    @property
+    def requires_top_n(self) -> bool:
+        return self.mode in (
+            TransitionMode.TOP_N,
+            TransitionMode.TOP_N_PER_GROUP,
+            TransitionMode.HYBRID,
+        )
+
+    @property
+    def requires_percentile(self) -> bool:
+        return self.mode == TransitionMode.PERCENTILE
+
+    def clean(self) -> None:
+        """Ta sama reguła, co w ``QualificationRule.clean`` – rozszerzona o dwa nowe tryby.
+
+        ``MANUAL`` nie wymaga żadnego parametru i to nie jest przeoczenie: tryb znaczy „przechodzi
+        wyłącznie ten, komu komitet wpisał decyzję ręcznie”, więc próg byłby w nim liczbą, której
+        nikt nie czyta.
+        """
+        super().clean()
+        errors: dict[str, str] = {}
+        if self.requires_min_points and self.min_points is None:
+            errors["min_points"] = f"Tryb {self.mode} wymaga podania min_points."
+        if self.requires_top_n and self.top_n is None:
+            errors["top_n"] = f"Tryb {self.mode} wymaga podania top_n."
+        if self.requires_top_n and self.top_n is not None and self.top_n < 1:
+            errors["top_n"] = "top_n musi być dodatnie."
+        if self.requires_percentile and self.percentile is None:
+            errors["percentile"] = f"Tryb {self.mode} wymaga podania percentile."
+        if self.percentile is not None and not 1 <= self.percentile <= 100:
+            errors["percentile"] = "percentile musi być z zakresu 1–100."
+        if self.mode == TransitionMode.TOP_N_PER_GROUP and not self.group_by:
+            errors["group_by"] = "Tryb N w grupie wymaga wskazania podziału."
+        if errors:
+            raise ValidationError(errors)
+
+
+# =================================================================================================
+# Komponenty etapu (``docs/UNIWERSALNY-ETAP-2.md`` § 1.2.3)
+# =================================================================================================
+#
+# Dziś etap ma **jedną** formę (``Stage.format``) i dwie wykluczające się ścieżki punktów: zadania
+# albo test. Komentarz w ``apps.results.services.compute_stage_results`` mówi wprost, że etap
+# o dwóch formach naraz „nie da się opisać ani w regulaminie, ani w tabeli wyników”. Etap 2 znosi
+# tę wykluczalność **nie przez dołożenie trzeciej gałęzi**, tylko przez zamianę jednej osi na listę.
+#
+# ``Stage.format`` zostaje i zostaje autorytatywne dla etapu **bez ani jednego komponentu** – czyli
+# dla każdego etapu Olimpiady Kwantowej. Komponenty są dołożeniem wymiaru, a nie przepisaniem: ta
+# sama decyzja, co przy konkursie w etapie 1.
+
+
+class ComponentKind(models.TextChoices):
+    """Skąd komponent bierze punkty. Rodzaj jest **źródłem**, a nie etykietą na ekranie.
+
+    Trzy pierwsze odpowiadają dzisiejszym formom etapu (``StageFormat``), dwa ostatnie są nowe.
+    ``ONSITE`` i ``TEAM`` czytają ``FinalGrade`` tą samą drogą, co ``SUBMISSIONS`` – różni je to,
+    czyja to praca i kto ją wystawił, a nie arytmetyka; osobne wartości istnieją, żeby tabela
+    wyników mogła je nazwać w nagłówku kolumny i żeby reguła rozstrzygania remisów (T40) mogła
+    wskazać jedną z nich.
+    """
+
+    SUBMISSIONS = "SUBMISSIONS", "rozwiązania pisemne"
+    QUIZ = "QUIZ", "test online"
+    INTERVIEW = "INTERVIEW", "rozmowa"
+    ONSITE = "ONSITE", "zawody na miejscu"
+    TEAM = "TEAM", "praca drużynowa"
+
+
+class StageComponent(models.Model):
+    """Jedna forma w etapie, z własną wagą i własnym źródłem punktów.
+
+    Etap **bez ani jednego komponentu** zachowuje się dokładnie jak dziś: ``compute_stage_results``
+    czyta wtedy ``Stage.format`` i liczy sumę bez wag. Dopiero pierwszy komponent przełącza etap na
+    sumowanie po komponentach – i to jest cały przełącznik, obok flagi ``process_editor``.
+
+    **Waga jest ułamkiem zwykłym, nie zmiennoprzecinkowym** (§ 1.2.6), i to jest decyzja, a nie
+    przesada: waga ``1/3`` zapisana jako ``0.333…`` daje sumę zależną od kolejności dodawania,
+    czyli tabelę wyników zmieniającą się przy przeliczeniu. Sumowanie idzie przez ``Fraction``,
+    a zaokrąglenie następuje **raz**, na końcu. Dla ``1/1`` wynik jest identyczny z dzisiejszym
+    sumowaniem liczb całkowitych – i to jest osobna asercja testu (§ 5.2).
+    """
+
+    stage = models.ForeignKey(Stage, on_delete=models.CASCADE, related_name="components", verbose_name="etap")
+    kind = models.CharField("forma", max_length=16, choices=ComponentKind.choices)
+    #: Puste = nazwą jest etykieta rodzaju. Własna nazwa jest tym, co czyta uczestnik w nagłówku
+    #: kolumny („Część teoretyczna”), a rodzaj zostaje tożsamością techniczną – ten sam rozdział,
+    #: co między ``Stage.kind`` a ``Stage.name``.
+    name = models.CharField("nazwa", max_length=80, blank=True)
+    position = models.PositiveSmallIntegerField("kolejność", default=1)
+    #: Waga jako **ułamek zwykły** – uzasadnienie w docstringu klasy i w § 1.2.6.
+    weight_numerator = models.PositiveSmallIntegerField("licznik wagi", default=1)
+    weight_denominator = models.PositiveSmallIntegerField("mianownik wagi", default=1)
+    #: ``True`` odtwarza dzisiejsze ``_assert_finalized`` (``STAGE_NOT_FINALIZED``): praca w trakcie
+    #: oceniania albo bez oceny końcowej nie pozwala zamknąć tabeli. ``False`` liczy brak wyniku
+    #: jako zero i jest dla komponentu nieobowiązkowego – zawodów dodatkowych, w których nie każdy
+    #: startuje.
+    required = models.BooleanField("wymagany", default=True)
+
+    #: Komponent dochodzi do konkursu etapem, etap edycją – własnej kolumny nie ma z tego samego
+    #: powodu, co etap (§ 1.0 (a)).
+    objects = competition_scoped_manager("stage__edition__competition")
+
+    class Meta:
+        verbose_name = "komponent etapu"
+        verbose_name_plural = "komponenty etapu"
+        ordering = ("stage", "position", "id")
+        constraints = [
+            # Dwa komponenty tego samego rodzaju w jednym etapie są sensowne („test wstępny”
+            # i „test finałowy”), ale nie na tym samym miejscu w kolejności – wtedy tabela
+            # wyników miałaby dwie kolumny bez porządku między nimi.
+            models.UniqueConstraint(
+                fields=["stage", "kind", "position"], name="competitions_stagecomponent_unique"
+            ),
+            # Ostatnia linia obrony przed dzieleniem przez zero w sumie punktów. Mianownik zerowy
+            # nie jest „wagą neutralną”, tylko wywróconym przeliczeniem całego etapu.
+            models.CheckConstraint(
+                condition=Q(weight_denominator__gte=1),
+                name="competitions_stagecomponent_denominator_positive",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.display_name} (etap {self.stage_id})"
+
+    @property
+    def display_name(self) -> str:
+        """Nazwa do pokazania: własna, a bez niej etykieta rodzaju. Komponent nigdy bez podpisu."""
+        return self.name or self.get_kind_display()
+
+    @property
+    def weight(self) -> Fraction:
+        """Waga jako ``Fraction`` – jedyne miejsce, w którym para liczb staje się liczbą.
+
+        Sumowanie po komponentach mnoży przez **tę** wartość i nigdy przez ``float``: dokładność
+        ułamka jest tu jedyną gwarancją, że dwie publikacje tych samych danych dadzą ten sam plik.
+        """
+        return Fraction(self.weight_numerator, self.weight_denominator or 1)
+
+    def clean(self) -> None:
+        """Mianownik dodatni – ta sama reguła, co w więzie, tylko z czytelnym komunikatem."""
+        super().clean()
+        if not self.weight_denominator:
+            raise ValidationError({"weight_denominator": "Mianownik wagi musi być dodatni."})
+
+
+# =================================================================================================
+# Punkty z rozmowy – brakujące ogniwo komponentu ``INTERVIEW`` (§ 1.2.3, decyzja organizatora D9)
+# =================================================================================================
+#
+# Dziś rozmowa **nie ma ścieżki punktów**: ``results.services.compute_stage_results`` daje dla etapu
+# w formie rozmowy same zera, a punkty wpisuje koordynator w ``/admin/`` (``docs/BACKLOG.md``).
+# Tabela niżej domyka tę lukę i jest jedynym źródłem punktów komponentu ``INTERVIEW``. Wejście do
+# niej prowadzi przez ``competitions.interviews.record_interview_score`` – za flagą ``process_editor``
+# i z wpisem audytowym ``interview.scored``, bo dla Konkursu #1 ekran zamiast ``/admin/`` **jest**
+# zmianą widoczną (§ 0.1).
+
+
+class InterviewScore(models.Model):
+    """Punkty z rozmowy – wpis komisji, nie recenzja.
+
+    Osobny model, a nie ``FinalGrade`` bez ``Submission``: ``FinalGrade`` jest jeden-do-jednego ze
+    zgłoszeniem, a cała jego semantyka – konsensus, trzeci recenzent, moderacja, reklamacja –
+    dotyczy pracy oddanej jako plik. Rozmowa nie ma pliku, nie ma rundy ślepej i nie ma czego
+    zastąpić nową wersją.
+
+    **Wpis stoi przy parze (wpis do etapu, komponent), a nie przy terminie rozmowy**, i to jest
+    jedyne odstępstwo od szkicu w § 1.2.3. Trzy powody, wszystkie wynikłe z tego, że komponenty
+    (§ 1.2.3, T35) weszły przed tą tabelą:
+
+    - punkty czyta suma etapu **po komponencie** (``results.services._component_sources``), więc
+      etap o dwóch rozmowach – wstępnej i finałowej – potrzebuje dwóch niezależnych wyników;
+      wpis przy terminie dałby jeden, bo termin jest jeden na wpis do etapu,
+    - rozmowa, która odbyła się poza kalendarzem systemu (uczestnik umówiony telefonicznie, komisja
+      obradująca na miejscu), nie ma wiersza ``InterviewBooking`` – a punkty ma. Wpis przy terminie
+      znaczyłby „nie ma zapisu, nie ma oceny”,
+    - ``StageEntry`` jest tym, co niesie sumę etapu i kwalifikację; termin jest szczegółem
+      organizacyjnym obok. Termin zostaje osiągalny przez ``entry.interview_booking``.
+
+    ``max_points`` jest **kopią maksimum skali z chwili wpisu**, a nie odczytem na żywo: ekran
+    komisji pisze „ile z ilu”, a skala etapu bywa poprawiana już po rozmowie. Bez kopii ten sam
+    wynik czytałoby się po zmianie skali jako inny ułamek, a tabela wyników zmieniałaby się bez
+    ani jednej decyzji.
+    """
+
+    entry = models.ForeignKey(
+        StageEntry, on_delete=models.CASCADE, related_name="interview_scores", verbose_name="wpis do etapu"
+    )
+    component = models.ForeignKey(
+        StageComponent,
+        on_delete=models.CASCADE,
+        related_name="interview_scores",
+        verbose_name="komponent",
+    )
+    points = models.PositiveSmallIntegerField("punkty")
+    max_points = models.PositiveSmallIntegerField("maksimum")
+    #: Krótka uwaga komisji – **bez danych osobowych i bez uzasadnień o zdrowiu czy poglądach**.
+    #: Pole jest krótkie z rozmysłem: protokół rozmowy nie jest przedmiotem tej tabeli, a notatka,
+    #: która mieści akapit, staje się nią sama z siebie.
+    note = models.CharField("uwaga komisji", max_length=200, blank=True)
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="interview_scores",
+        verbose_name="wpisał",
+    )
+    recorded_at = models.DateTimeField("wpisane", default=timezone.now)
+
+    #: Przez wpis do etapu, tak samo jak zapis na rozmowę – to wpis niesie uczestnika i to jego
+    #: konkurs rozstrzyga, czyja to tabela wyników (§ 1.0 (a)).
+    objects = competition_scoped_manager("entry__stage__edition__competition")
+
+    class Meta:
+        verbose_name = "punkty z rozmowy"
+        verbose_name_plural = "punkty z rozmów"
+        ordering = ("component", "entry", "id")
+        constraints = [
+            # Jedna rozmowa to jeden wynik. Drugi wiersz tej samej pary nie byłby „poprawką”, tylko
+            # dwiema wersjami prawdy o tym samym komponencie – a suma etapu musi mieć jedną.
+            models.UniqueConstraint(fields=["entry", "component"], name="competitions_interviewscore_unique"),
+            # Ostatnia linia obrony przed „12 punktów z 10”: wynik spoza skali wchodziłby do sumy
+            # etapu i wyszedłby dopiero w ogłoszonej tabeli.
+            models.CheckConstraint(
+                condition=Q(points__lte=F("max_points")),
+                name="competitions_interviewscore_points_within_max",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.points}/{self.max_points} (wpis {self.entry_id}, komponent {self.component_id})"
+
+    def clean(self) -> None:
+        """Komponent musi być rozmową **tego** etapu, a wynik mieścić się w maksimum.
+
+        Te same reguły, co w więzach, plus jedna, której ``CheckConstraint`` wyrazić nie może:
+        komponent z innego etapu jest w tabeli wyników tego etapu liczbą znikąd. Komunikaty są po
+        to, żeby koordynator przeczytał je w formularzu ekranu wpisu punktów, a nie zobaczył błędu
+        bazy.
+        """
+        super().clean()
+        if self.max_points is not None and self.points is not None and self.points > self.max_points:
+            raise ValidationError({"points": "Punkty nie mogą przekraczać maksimum skali."})
+        if self.component_id is None:
+            return
+        if self.component.kind != ComponentKind.INTERVIEW:
+            raise ValidationError(
+                {"component": "Punkty z rozmowy wolno wpisać wyłącznie komponentowi rozmowy."}
+            )
+        if self.entry_id is not None and self.component.stage_id != self.entry.stage_id:
+            raise ValidationError({"component": "Komponent musi należeć do tego samego etapu, co wpis."})
+
+
+# =================================================================================================
+# Rozstrzyganie remisów jako uporządkowane dane (``docs/UNIWERSALNY-ETAP-2.md`` § 1.2.6 c)
+# =================================================================================================
+#
+# Dziś remis znaczy **to samo miejsce** i nie ma żadnego kryterium, które by go rozstrzygało
+# (``results.services._rank_rows``); porządek wewnątrz remisu jest po ``public_code`` i jest
+# porządkiem powtarzalności wydruku, a nie kryterium. Etap 2 tego nie zmienia – dokłada obok
+# **listę** kryteriów, którą etap może mieć albo nie mieć. Etap bez ani jednego wiersza ``TieBreak``
+# układa tabelę dokładnie tak, jak przed etapem 2, a Konkurs #1 nie dostaje w żadnej migracji ani
+# jednego wiersza, bo jego regulamin remisów nie rozstrzyga.
+
+
+class TieBreakKey(models.TextChoices):
+    """Czym rozstrzygamy remis. Wartość jest **źródłem liczby**, a nie napisem na ekranie.
+
+    ``NONE`` nie jest brakiem kryterium, tylko jawnym „dalej już nie rozstrzygamy”: wiersze
+    równe na wszystkich wcześniejszych kryteriach dzielą miejsce. Istnieje po to, żeby regulamin
+    dający dwa kryteria i wspólne miejsce po nich dało się zapisać w danych, zamiast wyrażać go
+    nieobecnością wierszy – a przy okazji żeby ekran edytora (T34) miał czym pokazać koniec listy.
+    """
+
+    HIGHEST_SINGLE = "HIGHEST_SINGLE", "najwyższy wynik w jednym zadaniu"
+    PROBLEM_SCORE = "PROBLEM_SCORE", "wynik we wskazanym zadaniu"
+    COMPONENT_SCORE = "COMPONENT_SCORE", "wynik we wskazanym komponencie"
+    SOLVED_COUNT = "SOLVED_COUNT", "liczba zadań z pełnym wynikiem"
+    SUBMITTED_AT = "SUBMITTED_AT", "wcześniejsze oddanie ostatniej pracy"
+    NONE = "NONE", "bez rozstrzygania (wspólne miejsce)"
+
+
+class TieBreak(models.Model):
+    """Jedno kryterium rozstrzygania remisów etapu, z miejscem w kolejności.
+
+    Model jest **listą**, a nie polem ``Stage.tie_break``, z tego samego powodu, dla którego
+    kolejność etapów jest listą kroków (§ 1.2.2): regulamin rozstrzyga remis kilkoma kryteriami po
+    kolei („wyżej ten, kto ma więcej punktów w zadaniu 3, a przy dalszym remisie ten, kto oddał
+    pracę wcześniej”). Jedno pole wyrażałoby wyłącznie pierwsze z nich.
+
+    Kierunek jest osobnym polem, bo nie wynika z kryterium: przy punktach „lepiej” znaczy więcej,
+    a przy czasie oddania – wcześniej. Domyślne ``descending=True`` jest prawdziwe dla czterech
+    kryteriów punktowych; przy ``SUBMITTED_AT`` koordynator ustawia ``False``.
+
+    Odczytuje ten model **wyłącznie** ``results.services.tie_break_keys`` – suma etapu i miejsce
+    w tabeli mają jedną implementację, żeby tabela koordynatora i tabela ogłoszona nie mogły się
+    rozejść.
+    """
+
+    stage = models.ForeignKey(Stage, on_delete=models.CASCADE, related_name="tie_breaks", verbose_name="etap")
+    key = models.CharField("kryterium", max_length=24, choices=TieBreakKey.choices)
+    #: Zadanie wskazane przez ``PROBLEM_SCORE``. ``CASCADE``, a nie ``PROTECT``: kryterium bez
+    #: zadania nie ma czego liczyć, więc usunięcie zadania ma zabrać także regułę, a nie zablokować
+    #: porządki w etapie, którego nikt jeszcze nie ogłosił.
+    problem = models.ForeignKey(
+        Problem,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="tie_breaks",
+        verbose_name="zadanie",
+    )
+    #: Komponent wskazany przez ``COMPONENT_SCORE`` – ta sama reguła usuwania, co przy zadaniu.
+    component = models.ForeignKey(
+        StageComponent,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="tie_breaks",
+        verbose_name="komponent",
+    )
+    descending = models.BooleanField("malejąco", default=True)
+    position = models.PositiveSmallIntegerField("kolejność", default=0)
+
+    #: Kryterium dochodzi do konkursu etapem, etap edycją – własnej kolumny konkursu nie ma z tego
+    #: samego powodu, co etap i komponent (§ 1.0 (a)).
+    objects = competition_scoped_manager("stage__edition__competition")
+
+    class Meta:
+        verbose_name = "rozstrzyganie remisu"
+        verbose_name_plural = "rozstrzyganie remisów"
+        ordering = ("stage", "position", "id")
+        constraints = [
+            # Dwa kryteria na tym samym miejscu w kolejności znaczyłyby tabelę wyników zależną od
+            # przypadkowego porządku wierszy w bazie – czyli dwa różne pliki z tych samych danych.
+            models.UniqueConstraint(
+                fields=["stage", "position"], name="competitions_tiebreak_unique_position"
+            ),
+            # Kryterium „wynik we wskazanym zadaniu” bez wskazanego zadania nie jest kryterium
+            # niepełnym, tylko kryterium, które po cichu nie rozstrzyga niczego. Lepiej, żeby nie
+            # dało się go zapisać.
+            models.CheckConstraint(
+                condition=~Q(key=TieBreakKey.PROBLEM_SCORE) | Q(problem__isnull=False),
+                name="competitions_tiebreak_problem_required",
+            ),
+            models.CheckConstraint(
+                condition=~Q(key=TieBreakKey.COMPONENT_SCORE) | Q(component__isnull=False),
+                name="competitions_tiebreak_component_required",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.position}. {self.get_key_display()} (etap {self.stage_id})"
+
+    def clean(self) -> None:
+        """Wskazanie musi pasować do kryterium i należeć do **tego** etapu.
+
+        Więzy w bazie pilnują obecności wskazania; tutaj dochodzi druga połowa reguły, której
+        ``CheckConstraint`` wyrazić nie może: zadanie z innego etapu jest w tabeli wyników tego
+        etapu liczbą znikąd. Komunikaty są po to, żeby koordynator przeczytał je w formularzu
+        edytora (T34), a nie zobaczył błędu bazy.
+        """
+        super().clean()
+        if self.key == TieBreakKey.PROBLEM_SCORE and self.problem_id is None:
+            raise ValidationError({"problem": "Kryterium „wynik we wskazanym zadaniu” wymaga zadania."})
+        if self.key == TieBreakKey.COMPONENT_SCORE and self.component_id is None:
+            raise ValidationError(
+                {"component": "Kryterium „wynik we wskazanym komponencie” wymaga komponentu."}
+            )
+        if self.problem_id is not None and self.problem.stage_id != self.stage_id:
+            raise ValidationError({"problem": "Zadanie musi należeć do tego samego etapu."})
+        if self.component_id is not None and self.component.stage_id != self.stage_id:
+            raise ValidationError({"component": "Komponent musi należeć do tego samego etapu."})
+
+
+# Logistyka etapu stacjonarnego (miejsce zawodów, deklaracja przyjazdu, obecność, ustawienia
+# obszaru) mieszka razem z resztą swojej logiki w ``apps.competitions.logistics`` – modele
+# i czynności w jednym pliku, bo czyta się je wyłącznie razem, a zmienia z innego powodu niż
+# punktację i kwalifikację (``docs/UNIWERSALNY-ETAP-2.md`` § 1.5.2). Django rejestruje modele
+# wtedy, gdy importuje ``models`` aplikacji, więc bez tej linijki ``makemigrations`` nie zobaczyłby
+# tabel. Import stoi na końcu pliku – tak samo jak ``apps.accounts.twofactor`` w ``accounts`` –
+# bo ``logistics`` sięga do ``StageEntry`` wyłącznie przez nazwę („competitions.StageEntry”).
+from .logistics import (  # noqa: E402,F401  (import dla rejestracji modeli)
+    ArrivalForm,
+    AttendanceRecord,
+    LogisticsSettings,
+    Venue,
+)

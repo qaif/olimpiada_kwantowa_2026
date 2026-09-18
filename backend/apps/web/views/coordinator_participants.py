@@ -25,6 +25,7 @@ from django.template.response import TemplateResponse
 from django.views.generic import View
 
 from apps.accounts.participant_card import card_queryset, participant_card
+from apps.accounts.services import CUSTOM_REGIONS_FLAG
 from apps.web.mixins import CoordinatorRequiredMixin
 
 TEMPLATE = "web/coordinator/participant_detail.html"
@@ -39,5 +40,21 @@ class CoordinatorParticipantView(CoordinatorRequiredMixin, View):
     """
 
     def get(self, request, pk: int):
-        participant = get_object_or_404(card_queryset().for_competition(request.competition), pk=pk)
-        return TemplateResponse(request, TEMPLATE, participant_card(participant))
+        queryset = card_queryset().for_competition(request.competition)
+        # Podział terytorialny konkursu (§ 1.4). Przy wyłączonej fladze – czyli w Konkursie #1 –
+        # karta nie dotyka kolumny ``region`` ani razu: ani ``select_related``, ani odczytu, ani
+        # zmiennej w kontekście. Przy włączonej nazwa regionu zastępuje etykietę województwa,
+        # a ``select_related`` trzyma obietnicę „stała liczba zapytań na kartę”.
+        by_region = self._regions_enabled(request)
+        if by_region:
+            queryset = queryset.select_related("region")
+        participant = get_object_or_404(queryset, pk=pk)
+        context = participant_card(participant)
+        context["region_label"] = participant.region.name if by_region and participant.region_id else ""
+        return TemplateResponse(request, TEMPLATE, context)
+
+    @staticmethod
+    def _regions_enabled(request) -> bool:
+        """Czy ten konkurs ma własny podział terytorialny. Flagę czyta widok, nigdy szablon (§ 2.1)."""
+        competition = getattr(request, "competition", None)
+        return competition is not None and competition.has_feature(CUSTOM_REGIONS_FLAG)

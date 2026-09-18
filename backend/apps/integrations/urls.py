@@ -21,6 +21,7 @@ from .api import (
     StageSubmissionListView,
     StatsListView,
 )
+from .inbound import PaymentWebhookView
 
 app_name = "integrations"
 
@@ -37,4 +38,7 @@ urlpatterns = [
     path("stages/<int:stage_id>/submissions/", StageSubmissionListView.as_view(), name="stage-submissions"),
     path("stats/", StatsListView.as_view(), name="stats"),
     path("events/", EventCreateView.as_view(), name="events"),
+    # Jedyny adres przyjmujący ruch **do nas** (§ 1.5.1). Stoi pod istniejącym prefiksem, więc
+    # ``config/urls.py`` nie jest edytowany – lista adresów zamrożonych w § 0.2 zostaje bez zmian.
+    path("payments/<slug:provider>/", PaymentWebhookView.as_view(), name="payment-webhook"),
 ]

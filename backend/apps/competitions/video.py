@@ -183,8 +183,18 @@ PRECHECK_TEXT = gettext_lazy(
 )
 
 
-def reminder_message(stage, booking) -> tuple[str, str]:
-    """Temat i treść przypomnienia o jutrzejszej rozmowie. Bez danych osobowych – adresat wie, kim jest."""
+def reminder_message(stage, booking, competition=None) -> tuple[str, str]:
+    """Temat i treść przypomnienia o jutrzejszej rozmowie. Bez danych osobowych – adresat wie, kim jest.
+
+    Temat **nie** niesie nazwy konkursu i to jest stan zastany, a nie przeoczenie: stoi w nim nazwa
+    etapu, a nie marka (``EXPECTED_SERVICE_SUBJECTS["interview_reminder"]``). Dokładanie tam nazwy
+    konkursu przy włączonej fladze byłoby dopisaniem zdania, którego nikt nie zamówił – markę tego
+    listu niosą podpis (niżej) i nadawca (``Competition.from_email``).
+    """
+    # Import lokalny, jak przy ``queue_mail`` niżej: ``apps.accounts`` ciągnie modele kont, a ten
+    # moduł ładuje się razem z zawodami – import na górze zamykałby cykl.
+    from apps.accounts.activation import signature_lines
+
     starts = timezone.localtime(booking.slot.starts_at)
     ends = timezone.localtime(booking.slot.ends_at)
     subject = _("Jutro rozmowa kwalifikacyjna: %(stage)s") % {"stage": stage.display_name}
@@ -204,9 +214,7 @@ def reminder_message(stage, booking) -> tuple[str, str]:
         "",
         str(PRECHECK_TEXT),
         "",
-        "--",
-        _("Olimpiada Kwantowa"),
-        _("Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać."),
+        *signature_lines(competition),
     ]
     return subject, "\n".join(lines)
 
@@ -262,13 +270,18 @@ def send_interview_reminders(now=None, competition=None) -> int:
         recipient = user.email
         if not recipient:
             continue
+        # Konkurs listu: ten, o który zawężono przebieg, a gdy przebieg jest po całej instalacji –
+        # konkurs edycji etapu, w którym odbywa się rozmowa. Odczyt z obiektu, a nie zgadywanie:
+        # uczestnik ma dostać list podpisany olimpiadą, na której rozmowę jest zapisany.
+        letter_competition = competition or booking.slot.stage.edition.competition
         booking.reminder_sent_at = now
         booking.save(update_fields=["reminder_sent_at"])
-        # List powstaje w zadaniu w tle, więc żaden język nie jest „naturalnie” aktywny –
-        # bierzemy ten zapisany na koncie odbiorcy (``apps.accounts.preferences``).
-        with language_for(user):
-            subject, message = reminder_message(booking.slot.stage, booking)
-        queue_mail(subject, message, recipient)
+        # List powstaje w zadaniu w tle, więc żaden język nie jest „naturalnie” aktywny – bierzemy
+        # ten zapisany na koncie odbiorcy, a gdy konto go nie zapisało: domyślny język **tej**
+        # olimpiady, nie serwera (``apps.accounts.preferences``, § 1.6.3).
+        with language_for(user, letter_competition):
+            subject, message = reminder_message(booking.slot.stage, booking, letter_competition)
+        queue_mail(subject, message, recipient, competition=letter_competition)
         sent += 1
     if sent:
         logger.info("Wysłano %s przypomnień o jutrzejszych rozmowach kwalifikacyjnych.", sent)

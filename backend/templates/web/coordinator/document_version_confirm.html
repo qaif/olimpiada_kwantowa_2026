@@ -1,0 +1,72 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Drugi krok publikacji tekstu dokumentu: jedno zdanie o skutku, podgląd i jeden przycisk.
+
+  Krok istnieje, bo skutku nie widać na ekranie, na którym się go wywołuje. Po zapisie każdy
+  dokument wystawiony od tej chwili niesie **tę** wersję i to ona rozstrzyga, co będzie na papierze,
+  gdy odbiorca pobierze go za rok. Dokumentów wydanych wcześniej zmiana nie rusza — i dobrze, bo
+  ktoś trzyma je w ręku.
+
+  Pięć pól jedzie w polach ukrytych, a nie w sesji ani w adresie: tekst dokumentu bywa długi na
+  akapit, a adres z taką wartością trafia do logów serwera i do historii przeglądarki. Dzięki temu
+  do zapisu idzie dokładnie to, co widać w podglądzie wyżej — a nie kopia odtworzona drugą drogą.
+
+  Potwierdzeniem jest sam fakt wysłania tego formularza; pola do przepisania nie ma, bo
+  przepisywanie napisu uczy przepisywać, a nie czytać.
+{% endcomment %}
+{% block title %}Publikacja wersji {{ values.version }}: {{ kind_label }} – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-document' kind.value %}">{{ kind_label }}</a>{% endblock %}
+{% block panel_title %}Publikacja nowej wersji{% endblock %}
+{% block panel_lead %}
+  <p class="lead">{{ kind_label }} — wersja <strong>{{ values.version }}</strong>.</p>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  <div class="card">
+    <p class="notice">Od tej chwili dokumenty będą wystawiane w wersji
+      <strong>{{ values.version }}</strong>.</p>
+
+    <dl class="meta-list">
+      <dt>Wersja obowiązująca</dt>
+      <dd>{% if current %}{{ current.version }}{% else %}— tekst wbudowany —{% endif %}</dd>
+      <dt>Wersja po publikacji</dt><dd>{{ values.version }}</dd>
+    </dl>
+
+    <ul class="hint">
+      <li>Dokumenty wydane wcześniej <strong>zostają bez zmian</strong> — każdy z nich niesie
+        numer wersji, z której powstał, i pobrany później wyjdzie taki sam, jak dziś.</li>
+      <li>Poprzednia wersja <strong>zostaje w historii</strong>; nic się nie kasuje.</li>
+      <li>Zmiana trafia do dziennika audytu jako <code>document_template.changed</code> razem
+        z Twoim kontem, godziną i obiema wersjami.</li>
+    </ul>
+
+    {% if preview %}
+      <div class="card card--accent">
+        <h2 class="mt-0">Tak wyjdzie na papierze</h2>
+        <p class="hint">Podstawienia przykładowe; nazwa konkursu i organizator są prawdziwe.</p>
+        <p class="lead">{{ preview.title }}</p>
+        <p>{{ preview.statement }}</p>
+        {% if preview.signature_line %}<p class="hint">{{ preview.signature_line }}</p>{% endif %}
+        {% if preview.footer_note %}<p class="hint">{{ preview.footer_note }}</p>{% endif %}
+      </div>
+    {% endif %}
+
+    <form method="post" class="form" action="{% url 'web:coordinator-document' kind.value %}">
+      {% csrf_token %}
+      <input type="hidden" name="version" value="{{ values.version }}">
+      <input type="hidden" name="title" value="{{ values.title }}">
+      <input type="hidden" name="statement" value="{{ values.statement }}">
+      <input type="hidden" name="signature_line" value="{{ values.signature_line }}">
+      <input type="hidden" name="footer_note" value="{{ values.footer_note }}">
+      <div class="actions">
+        <button type="submit" name="{{ confirm_field }}" value="1" class="btn btn--danger">
+          Opublikuj wersję {{ values.version }}
+        </button>
+        <a class="btn btn--secondary"
+           href="{% url 'web:coordinator-document' kind.value %}">Anuluj</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

@@ -19,7 +19,7 @@ from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.views.generic import TemplateView, View
 
-from apps.cms.calendar import ICS_FILENAME, calendar_ics, participant_calendar
+from apps.cms.calendar import calendar_ics, ics_filename, participant_calendar
 from apps.cms.workshops import WORKSHOPS_SLUG, workshop_rows, workshops_page
 from apps.competitions.models import Edition, Problem, Stage, StageEntry, StageKind
 from apps.competitions.scoping import resolve_competition, scope_to_competition
@@ -76,17 +76,19 @@ class ParticipantCalendarIcsView(ParticipantRequiredMixin, View):
     """Ten sam kalendarz jako plik ``.ics`` do zaimportowania albo zasubskrybowania.
 
     ``Content-Disposition: attachment`` jest świadome: bez niego przeglądarka wyświetliłaby plik
-    jako tekst, a kalendarz jest po to, żeby trafił do kalendarza. Nazwa pliku jest stała i bez
-    danych osobowych – plik bywa przesyłany dalej.
+    jako tekst, a kalendarz jest po to, żeby trafił do kalendarza. Nazwa pliku zależy wyłącznie
+    od konkursu i nie niesie danych osobowych – plik bywa przesyłany dalej.
     """
 
     def get(self, request):
         # Konkurs wprost, tak samo jak na ekranie kalendarza: plik ``.ics`` bywa **subskrybowany**,
         # więc odświeża się latami – i ma wtedy wyliczać terminy tej olimpiady, w której uczestnik
-        # startuje, a nie tej, spod której domeny kiedyś kliknął.
+        # startuje, a nie tej, spod której domeny kiedyś kliknął. Ten sam konkurs rozstrzyga
+        # napisy nagłówka pliku i jego nazwę (``apps.cms.calendar``, § 1.1.4).
         items = participant_calendar(self.participant, competition=self.competition)
-        response = HttpResponse(calendar_ics(items), content_type="text/calendar; charset=utf-8")
-        response["Content-Disposition"] = f'attachment; filename="{ICS_FILENAME}"'
+        body = calendar_ics(items, competition=self.competition)
+        response = HttpResponse(body, content_type="text/calendar; charset=utf-8")
+        response["Content-Disposition"] = f'attachment; filename="{ics_filename(self.competition)}"'
         return response
 
 

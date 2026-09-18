@@ -1,0 +1,78 @@
+{% extends "web/coordinator/base.html" %}
+{% load static %}
+{% comment %}
+  Obecność na etapie stacjonarnym: kto się stawił na sali.
+
+  Lista obejmuje **wszystkich** zapisanych do etapu, a nie tylko odhaczonych: to jest dokument,
+  który komisja niesie na salę, więc ma na nim być każdy, kto ma prawo wejść.
+
+  Każde odhaczenie jest osobnym POST-em na jeden wiersz, a nie zbiorczym zapisem całej tabeli.
+  Przy dwóch osobach odhaczających z dwóch urządzeń zapis zbiorczy kasowałby cudze odhaczenia.
+{% endcomment %}
+{% block title %}Obecność – panel koordynatora{% endblock %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block panel_eyebrow %}<a href="{{ logistics_url }}">Przyjazdy i potrzeby</a>{% endblock %}
+{% block panel_title %}Obecność{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Etap <strong>{{ stage.display_name }}</strong>: odhaczono {{ present_count }}
+    z {{ rows|length }} zapisanych. Godzinę wejścia stawia system w chwili odhaczenia — przy
+    sporze o dopuszczenie do zawodów to ona jest odpowiedzią.</p>
+{% endblock %}
+{% block panel_actions %}
+  <a class="btn btn--secondary" href="{{ list_url }}">Pobierz listę do druku</a>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  {% if rows %}
+    <div class="scroll">
+      <table class="table">
+        <caption class="visually-hidden">Obecność uczestników etapu</caption>
+        <thead>
+          <tr>
+            <th scope="col">Kod</th>
+            <th scope="col">Uczestnik</th>
+            <th scope="col">Szkoła</th>
+            <th scope="col">Miejsce</th>
+            <th scope="col">Obecność</th>
+            <th scope="col">Odnotowano</th>
+            <th scope="col"><span class="visually-hidden">Operacje</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <th scope="row"><code>{{ row.public_code }}</code></th>
+              <td>{{ row.first_name }} {{ row.last_name }}</td>
+              <td>{{ row.school|default:"—" }}</td>
+              <td>{{ row.venue|default:"—" }}</td>
+              <td>
+                {% if row.present %}
+                  <span class="badge badge--ok">obecny</span>
+                {% else %}
+                  <span class="badge badge--neutral">nieodnotowany</span>
+                {% endif %}
+              </td>
+              <td>{{ row.checked_in_at|date:"Y-m-d H:i"|default:"—" }}</td>
+              <td class="actions">
+                <form method="post" action="{% url 'web:coordinator-stage-attendance' stage.pk %}" class="inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="entry" value="{{ row.entry_id }}">
+                  {% if row.present %}
+                    <button type="submit" class="btn btn--secondary btn--small">Cofnij obecność</button>
+                  {% else %}
+                    <input type="hidden" name="present" value="1">
+                    <button type="submit" class="btn btn--primary btn--small">Odnotuj obecność</button>
+                  {% endif %}
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="hint">Do tego etapu nikt nie jest zapisany — nie ma kogo odhaczać.</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -30,9 +30,12 @@ from rest_framework import status
 from apps.core.api import DomainError
 
 from .models import (
+    ComponentKind,
     InterviewBooking,
+    InterviewScore,
     InterviewSlot,
     Stage,
+    StageComponent,
     StageEntry,
     StageEntryStatus,
 )
@@ -297,17 +300,27 @@ def _send_confirmation(entry: StageEntry, stage: Stage, slot: InterviewSlot, mee
 
     Wysyłka jest zadaniem na kolejce ``mail``, a nie ``send_mail`` w środku żądania: niedostępny
     MTA nie może zamienić udanego zapisu na błąd 500 ani zająć workera gunicorna na czas timeoutu.
+
+    Marki w tym liście nie ma ani w temacie, ani w treści (jest nazwa etapu i termin), więc przez
+    moduł marki nie idzie nic – zostaje sama koperta: nadawcą jest konkurs edycji tego etapu
+    (``Competition.from_email``), a nie na sztywno nadawca instalacji.
     """
-    subject, message = _confirmation_message(stage, slot, meeting_url)
+    from apps.core.tasks import mail_from
+
     recipient = entry.participant.user.email
+    if not recipient:
+        # Wcześniejsze wyjście, bo odczyt konkursu kosztuje zapytanie – a konto bez adresu nie ma
+        # dokąd dostać listu i nie ma po co składać ani treści, ani koperty.
+        return
+    subject, message = _confirmation_message(stage, slot, meeting_url)
+    from_email = mail_from(stage.edition.competition)
 
     def _enqueue() -> None:
         from apps.core.tasks import send_mail_task
 
-        send_mail_task.delay(subject, message, [recipient])
+        send_mail_task.delay(subject, message, [recipient], from_email)
 
-    if recipient:
-        transaction.on_commit(_enqueue)
+    transaction.on_commit(_enqueue)
 
 
 @transaction.atomic
@@ -482,3 +495,185 @@ def booking_for_participant(stage: Stage, participant) -> InterviewBooking | Non
         .filter(entry__stage=stage, entry__participant=participant)
         .first()
     )
+
+
+# --- punkty z rozmowy: wpis komisji (§ 1.2.3, decyzja organizatora D9) ---------------------------
+#
+# Dotąd rozmowa nie miała ścieżki punktów: tabela wyników dawała dla niej same zera, a punkty
+# wpisywał koordynator w ``/admin/`` (``docs/BACKLOG.md``). Dla Konkursu #1 ekran w panelu **jest**
+# zmianą widoczną, więc cała ta sekcja stoi za flagą ``process_editor`` (§ 0.1, § 0.6) i zostawia
+# ślad w audycie – tego ``/admin/`` nie dawał.
+#
+# Bramą wejściową **nie** jest ``_assert_interview_stage``: komponent rozmowy wolno mieć etapowi
+# o dowolnej formie (na tym polega § 1.2.3 – etap ma kilka form naraz), a ``Stage.format`` mówi
+# wyłącznie o etapie bez komponentów. Miejsce rozmowy w etapie rozstrzyga więc **komponent**,
+# a nie pole etapu.
+
+#: Jedyne wejście do flagi edytora przebiegu w tym module (§ 1.0 (c)): czytane raz, na wejściu do
+#: czynności, nigdy w pętli po wpisach i nigdy w szablonie.
+PROCESS_EDITOR_FLAG = "process_editor"
+
+#: Tyle mieści ``InterviewScore.note``. Uwaga dłuższa jest przycinana, a nie odrzucana: komisja
+#: wpisuje punkty pod presją czasu, a odmowa zapisu z powodu długości notatki kosztowałaby wynik.
+MAX_NOTE_LENGTH = 200
+
+
+def _stage_for_scoring(component: StageComponent) -> Stage:
+    """Etap **komponentu** wraz z edycją, konkursem i skalą – jedno zapytanie na cały wpis punktów.
+
+    Etap bierzemy z komponentu, a nie z wpisu do etapu, bo to komponent jest kontekstem oceny:
+    on wyznacza skalę, on niesie wagę i to jego brak wyniku zamyka tabelę. Wpis do etapu jest
+    wtedy tym, co się do tego kontekstu **musi zgadzać** – i sprawdza to ``_assert_scorable``.
+
+    Skala idzie w tym samym ``select_related``, bo pyta o nią walidacja oceny; konkurs – bo pyta
+    o niego flaga. Bez tego czynność, która zapisuje jeden wiersz, kosztowałaby trzy zapytania
+    więcej wyłącznie na chodzenie po kluczach obcych.
+    """
+    return Stage.objects.select_related("edition", "edition__competition", "scoring_scale").get(
+        pk=component.stage_id
+    )
+
+
+def _assert_scoring_enabled(stage: Stage) -> None:
+    """Flaga konkursu czytana raz, możliwie wysoko – i odmowa, gdy organizator jej nie włączył."""
+    if not stage.edition.competition.has_feature(PROCESS_EDITOR_FLAG):
+        raise _conflict(
+            "Wpis punktów z rozmowy wymaga włączonego edytora przebiegu zawodów.",
+            "PROCESS_EDITOR_DISABLED",
+        )
+
+
+def _assert_scorable(entry: StageEntry, component: StageComponent, stage: Stage) -> None:
+    """Komponent musi być rozmową, a wpis do etapu – wpisem do **jego** etapu.
+
+    Dwie odmowy zamiast jednej, bo to dwie różne pomyłki ekranu: zły rodzaj komponentu i uczestnik,
+    którego w tym etapie nie ma. Wspólny komunikat kazałby koordynatorowi zgadywać, którą z nich
+    popełnił.
+    """
+    if component.kind != ComponentKind.INTERVIEW:
+        raise _conflict(
+            "Punkty z rozmowy wolno wpisać wyłącznie komponentowi rozmowy.",
+            "COMPONENT_NOT_INTERVIEW",
+        )
+    if entry.stage_id != stage.pk:
+        raise _conflict("Ten wpis nie należy do etapu tego komponentu.", "ENTRY_NOT_IN_STAGE")
+
+
+def _validated_points(stage: Stage, points) -> tuple[int, int]:
+    """Ocena sprowadzona do skali etapu: para (punkty, maksimum skali).
+
+    Skala jest **ta sama**, którą zna ocenianie prac (``grading.services.allowed_scores``), i to
+    jest cała reguła: konkurs ma jedną skalę na etap, a rozmowa nie jest od niej wyjątkiem.
+    Import jest lokalny, bo ``apps.grading`` zaciąga ``apps.competitions`` przy starcie – zależność
+    w drugą stronę na poziomie modułu byłaby cyklem.
+
+    Zbiór wraca w postaci **przechowywanej** (z przesunięciem skali, § 1.2.6 b), czyli dokładnie
+    w tej, w której punkty leżą w kolumnie ``score`` recenzji – i w tej, w której leżą tutaj.
+    """
+    from apps.grading.services import allowed_scores
+
+    values = allowed_scores(stage)
+    if not isinstance(points, int) or isinstance(points, bool) or points not in values:
+        raise _bad_request(
+            f"Ocena {points} nie należy do skali {sorted(values)}.",
+            "SCORE_NOT_IN_SCALE",
+        )
+    return points, max(values)
+
+
+@transaction.atomic
+def record_interview_score(
+    entry: StageEntry,
+    component: StageComponent,
+    points,
+    *,
+    actor,
+    request=None,
+    note: str = "",
+) -> InterviewScore:
+    """Zapisuje punkty komisji z rozmowy – jeden wynik na parę (wpis, komponent).
+
+    Powtórne wywołanie jest **poprawką**, a nie drugim wynikiem: komisja bywa zmuszona zmienić
+    ocenę po naradzie, a dwa wiersze tej samej rozmowy znaczyłyby dwie sumy etapu. Historia zmian
+    nie ginie – niesie ją audyt (``interview.scored``), tak samo jak przy każdej innej decyzji
+    punktowej w tym systemie.
+
+    W ``diff`` idą wyłącznie identyfikatory i liczby. Uwaga komisji **nie** wchodzi do audytu i to
+    jest celowe: jedno zdanie o przebiegu rozmowy bywa daną osobową, a wpis audytowy czyta się
+    później zbiorczo, bez kontekstu, w którym powstał.
+    """
+    stage = _stage_for_scoring(component)
+    _assert_scoring_enabled(stage)
+    _assert_scorable(entry, component, stage)
+    value, max_points = _validated_points(stage, points)
+
+    from apps.core.models import audit
+
+    score, _created = InterviewScore.objects.update_or_create(
+        entry=entry,
+        component=component,
+        defaults={
+            "points": value,
+            "max_points": max_points,
+            "note": (note or "").strip()[:MAX_NOTE_LENGTH],
+            "recorded_by": actor if getattr(actor, "is_authenticated", False) else None,
+            "recorded_at": timezone.now(),
+        },
+    )
+    audit(
+        actor,
+        "interview.scored",
+        entry,
+        {"component": component.pk, "points": value, "max_points": max_points},
+        request=request,
+    )
+    return score
+
+
+def interview_scores_for(stage: Stage) -> dict[int, dict[int, int]]:
+    """Punkty z rozmów całego etapu: ``{id komponentu: {id wpisu: punkty}}``, jedno zapytanie.
+
+    Kształt jest podyktowany jedynym czytelnikiem liczącym – ``results.services`` sumuje etap
+    **po komponentach**, więc etap o dwóch rozmowach musi dostać dwa niezależne słowniki. Wpis bez
+    wyniku nie ma tu klucza i to jest różnica, której nie wolno zgubić: „zero punktów” i „komisja
+    jeszcze nie wpisała” to dwie różne rzeczy (patrz ``StageComponent.required``).
+    """
+    scores: dict[int, dict[int, int]] = {}
+    rows = InterviewScore.objects.filter(component__stage=stage).values_list(
+        "component_id", "entry_id", "points"
+    )
+    for component_id, entry_id, points in rows:
+        scores.setdefault(component_id, {})[entry_id] = int(points)
+    return scores
+
+
+def interview_components_for(stage: Stage) -> list[StageComponent]:
+    """Komponenty rozmowy tego etapu w kolejności – lista do wyboru na ekranie komisji.
+
+    Filtr rodzaju stoi **raz**, tutaj: ekran, który zbudowałby go sam, prędzej czy później pokazałby
+    komisji komponent pisemny i zaprosił do wpisania punktów, których ta tabela nie przyjmuje.
+    """
+    return list(stage.components.filter(kind=ComponentKind.INTERVIEW))
+
+
+def interview_score_rows(stage: Stage, component: StageComponent) -> list[dict]:
+    """Wiersze ekranu komisji: wpis do etapu, jego termin rozmowy i dotychczasowy wynik.
+
+    Stała liczba zapytań niezależnie od liczby uczestników – wpisy z uczestnikiem i terminem idą
+    jednym złączeniem, wyniki jednym słownikiem. ``score`` jest ``None`` dla wpisu jeszcze
+    nieocenionego i to jest wprost to, co ekran ma pokazać jako puste pole.
+    """
+    scores = {row.entry_id: row for row in InterviewScore.objects.filter(component=component)}
+    entries = (
+        StageEntry.objects.filter(stage=stage)
+        .select_related("participant", "participant__user", "interview_booking", "interview_booking__slot")
+        .order_by("participant__public_code", "id")
+    )
+    return [
+        {
+            "entry": entry,
+            "booking": getattr(entry, "interview_booking", None),
+            "score": scores.get(entry.pk),
+        }
+        for entry in entries
+    ]

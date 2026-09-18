@@ -48,6 +48,7 @@ from apps.competitions.models import Edition, StageEntry
 from apps.competitions.scoping import scope_to_competition
 from apps.core.api import DomainError
 from apps.core.models import audit
+from apps.tenancy.documents import current_version, render_document
 
 from .certificate_layout import PAGE_HEIGHT, PAGE_WIDTH, block, is_visible
 from .models import (
@@ -98,6 +99,29 @@ WORKSHOP_LIST_HEADING = "Tematy zajęć:"
 #: Nazwa organizatora nad linią podpisu. Stała, bo na papierze podpisuje się komitet jako organ,
 #: a nie osoba, która akurat kliknęła „Wystaw”.
 SIGNATURE_LINE = "Przewodniczący Komitetu Głównego Olimpiady Kwantowej"
+
+#: Autor w metadanych PDF-a. Widać go w podglądzie pliku **przed** otwarciem dokumentu, więc jest
+#: treścią dokumentu, a nie szczegółem technicznym. Dotąd stał literałem w ``compose_pdf``; nazwa
+#: istnieje po to, żeby odwrót dla wyłączonej flagi ``document_templates`` miał gdzie stać.
+PDF_AUTHOR = "Olimpiada Kwantowa"
+
+
+def document_fallback(kind: str) -> dict[str, str]:
+    """Dzisiejsze napisy dokumentu tego rodzaju – **odwrót** dla szablonów tekstu (§ 1.1.3).
+
+    Wołający podaje literał, a ``apps.tenancy.documents.render_document`` rozstrzyga, czy na
+    papier wyjdzie on, czy wiersz z bazy – dokładnie tak, jak przy marce listów
+    (``apps/tenancy/branding.py``). Dopóki flaga ``document_templates`` jest wyłączona, dokument
+    składa się z tych czterech napisów i **nie pada ani jedno zapytanie** do tabeli szablonów.
+
+    Nieznany rodzaj dostaje napisy „uczestnika” – ta sama reguła, co przed tą zmianą.
+    """
+    return {
+        "title": DOCUMENT_TITLES.get(kind, DOCUMENT_TITLES[CertificateKind.UCZESTNIK]),
+        "statement": DOCUMENT_STATEMENTS.get(kind, DOCUMENT_STATEMENTS[CertificateKind.UCZESTNIK]),
+        "signature_line": SIGNATURE_LINE,
+        "author": PDF_AUTHOR,
+    }
 
 
 def _conflict(detail: str, code: str) -> DomainError:
@@ -190,6 +214,9 @@ def issue_certificate(
     # w konkursie A ma nosić prefiks A także wtedy, gdy składa go przebieg wsadowy konkursu B.
     # Ta sama zasada, co przy adresie weryfikacji w kodzie QR (``verification_url``).
     competition = edition.competition
+    # Poza pętlą ponowień: wersja tekstu jest ta sama przy każdej próbie nadania numeru, a przy
+    # wyłączonej fladze ``document_templates`` to wywołanie nie pyta bazy ani razu.
+    template_version = current_version(competition, kind)
     for attempt in range(MAX_NUMBER_ATTEMPTS):
         try:
             with transaction.atomic():
@@ -199,6 +226,10 @@ def issue_certificate(
                     supervisor=supervisor,
                     kind=kind,
                     number=_next_number(year, competition),
+                    # Wersja tekstu z chwili wystawienia – kopia napisu, nie klucz obcy (§ 1.1.3).
+                    # Przy wyłączonej fladze jest pusta i nie kosztuje zapytania, a pusta znaczy
+                    # „układ wbudowany”, czyli dzisiejsze stałe tego modułu.
+                    template_version=template_version,
                     issued_by=actor if getattr(actor, "is_authenticated", False) else None,
                 )
         except IntegrityError:
@@ -360,6 +391,16 @@ class CertificateContent:
     #: Adres strony weryfikacji – ten sam, który koduje QR. W treści, a nie w składzie, bo to
     #: fakt o dokumencie (jak numer), a nie decyzja graficzna.
     verification_url: str = ""
+    #: Nazwa organu nad kreską podpisu, gdy szablon graficzny nie ma ani jednego bloku podpisu.
+    #: W treści, a nie w ``_draw_signatures``, bo od etapu 2 jej źródłem bywa konfiguracja
+    #: konkursu (``tenancy.DocumentTemplate.signature_line``), a skład ma dostać gotowy napis.
+    signature_line: str = SIGNATURE_LINE
+    #: Autor w metadanych pliku (``setAuthor``) – patrz :data:`PDF_AUTHOR`.
+    author: str = PDF_AUTHOR
+    #: Wersja tekstu, z której ten dokument powstał. Pusto = układ wbudowany, czyli stałe wyżej.
+    #: Trafia do ``Certificate.template_version`` przy wystawieniu i stamtąd wraca przy każdym
+    #: pobraniu – dokument wydany rok temu ma wyjść z drukarki tak samo, jak wtedy.
+    template_version: str = ""
 
 
 def _recipient_name(certificate: Certificate) -> str:
@@ -415,20 +456,54 @@ def _workshop_lines(certificate: Certificate) -> tuple[str, ...]:
 
 
 def certificate_content(certificate: Certificate) -> CertificateContent:
-    """Składa treść dokumentu z faktów w bazie. Jedno miejsce dla PDF-a i dla testów."""
-    return CertificateContent(
-        title=DOCUMENT_TITLES.get(certificate.kind, DOCUMENT_TITLES[CertificateKind.UCZESTNIK]),
-        statement=DOCUMENT_STATEMENTS.get(certificate.kind, DOCUMENT_STATEMENTS[CertificateKind.UCZESTNIK]),
-        recipient=_recipient_name(certificate),
-        school=_recipient_school(certificate),
-        edition=certificate.edition.year_label,
+    """Składa treść dokumentu z faktów w bazie. Jedno miejsce dla PDF-a i dla testów.
+
+    Napisy idą przez ``apps.tenancy.documents.render_document`` i **wersją zapisaną przy
+    wystawieniu**, a nie wersją obowiązującą dziś: dokument pobrany po poprawce tekstu ma wyjść
+    taki sam, jak ten, który odbiorca trzyma w ręku. Puste ``template_version`` (dokumenty sprzed
+    etapu 2 i wszystkie przy wyłączonej fladze) znaczy „układ wbudowany”, czyli stałe tego modułu –
+    i wtedy nie pada ani jedno dodatkowe zapytanie.
+    """
+    # Konkurs z edycji dokumentu, a nie z kontekstu: dyplom wystawiony w konkursie A ma nieść
+    # markę i adres weryfikacji A także wtedy, gdy składa go przebieg wsadowy konkursu B.
+    competition = certificate.edition.competition
+    recipient = _recipient_name(certificate)
+    school = _recipient_school(certificate)
+    edition = certificate.edition.year_label
+    issued_on = timezone.localtime(certificate.issued_at).strftime("%d.%m.%Y")
+    document = render_document(
+        competition,
+        certificate.kind,
+        version=certificate.template_version,
+        fallback=document_fallback(certificate.kind),
+        recipient=recipient,
+        school=school,
+        edition=edition,
         number=certificate.number,
         code=certificate.code,
-        issued_on=timezone.localtime(certificate.issued_at).strftime("%d.%m.%Y"),
+        date=issued_on,
+        # Kod uczestnika mamy tu za darmo (odbiorcę czytaliśmy przed chwilą tą samą drogą),
+        # a zaświadczenie opiekuna go po prostu nie ma. Znacznika ``{stage}`` w kontekście
+        # dyplomu **nie ma** z premedytacją: etap nie stoi na papierze, a jego nazwa kosztowałaby
+        # zapytanie przy każdym pobraniu dokumentu.
+        participant_code=certificate.entry.participant.public_code if certificate.entry_id else "",
+    )
+    return CertificateContent(
+        title=document.title,
+        statement=document.statement,
+        recipient=recipient,
+        school=school,
+        edition=edition,
+        number=certificate.number,
+        code=certificate.code,
+        issued_on=issued_on,
         workshops=_workshop_lines(certificate),
-        # Konkurs z edycji dokumentu, a nie z kontekstu: dyplom wystawiony w konkursie A ma nieść
-        # adres weryfikacji w domenie A także wtedy, gdy składa go przebieg wsadowy konkursu B.
-        verification_url=verification_url(certificate.code, certificate.edition.competition),
+        verification_url=verification_url(certificate.code, competition),
+        # Bez „albo stała”: odwrót jest w ``document_fallback``, a pusta linia podpisu w szablonie
+        # jest decyzją organizatora, a nie brakiem danych do uzupełnienia za jego plecami.
+        signature_line=document.signature_line,
+        author=document.author,
+        template_version=document.version,
     )
 
 
@@ -615,19 +690,31 @@ def _draw_background(canvas, template, *, width: float, height: float) -> None:
     canvas.drawImage(ImageReader(BytesIO(data)), 0, 0, width=width, height=height, mask="auto")
 
 
-def _draw_signatures(canvas, template, *, layout: dict, width: float, height: float) -> None:
+def _draw_signatures(
+    canvas,
+    template,
+    *,
+    layout: dict,
+    width: float,
+    height: float,
+    signature_line: str = SIGNATURE_LINE,
+) -> None:
     """Bloki podpisu: kreska, a pod nią nazwisko i funkcja. Nad kreską – podpis odręczny z pliku.
 
     Bez szablonu (albo gdy szablon nie ma ani jednego podpisu) zostaje jeden blok z nazwą organu,
     czyli dokładnie to, co dyplom miał od początku: dokument wychodzi z systemu także wtedy, gdy
     pieczęci elektronicznej nie skonfigurowano, więc miejsce na podpis odręczny musi na nim być.
+
+    ``signature_line`` jest **napisem gotowym** – rozstrzygnął go już ``certificate_content``
+    (stała albo tekst z konfiguracji konkursu, § 1.1.3). Domyślna wartość jest dzisiejsza, żeby
+    wołający, który jej nie podaje, składał dokument tak, jak przed etapem 2.
     """
     settings = block(layout, "signatures")
     if not is_visible(settings):
         return
     blocks = template.signatures() if template is not None else []
     if not blocks:
-        blocks = [{"image": None, "name": "", "title": SIGNATURE_LINE}]
+        blocks = [{"image": None, "name": "", "title": signature_line}]
     line_width = float(settings.get("width", 240))
     size = settings.get("size", 10)
     baseline = height - float(settings.get("y", 445))
@@ -717,7 +804,7 @@ def compose_pdf(content: CertificateContent, template: CertificateTemplate | Non
     canvas = pdf_canvas.Canvas(buffer, pagesize=landscape(A4))
     canvas.setTitle(f"{content.title} {content.number}")
     # Metadane dokumentu są częścią jego treści – w podglądzie PDF-a widać je przed otwarciem.
-    canvas.setAuthor("Olimpiada Kwantowa")
+    canvas.setAuthor(content.author)
     canvas.setSubject(f"{content.title}, edycja {content.edition}")
 
     _draw_background(canvas, template, width=width, height=height)
@@ -741,7 +828,14 @@ def compose_pdf(content: CertificateContent, template: CertificateTemplate | Non
     _text(canvas, content.school, block(layout, "school"), width=width, height=height)
     _text(canvas, content.statement, block(layout, "statement"), width=width, height=height)
     _draw_workshops(canvas, content, layout=layout, width=width, height=height)
-    _draw_signatures(canvas, template, layout=layout, width=width, height=height)
+    _draw_signatures(
+        canvas,
+        template,
+        layout=layout,
+        width=width,
+        height=height,
+        signature_line=content.signature_line,
+    )
     _draw_footer(canvas, content, layout=layout, width=width, height=height)
     _draw_qr(canvas, content, layout=layout, height=height)
 
@@ -981,21 +1075,46 @@ def sample_content(kind: str, edition: Edition | None = None) -> CertificateCont
     Numer jest spoza puli (``000``), a kod jawnie nieprawdziwy: podgląd bywa drukowany i pokazywany
     na posiedzeniu komitetu, a wydruk z numerem wyglądającym na prawdziwy to dokument, którego
     nikt nie wystawił.
+
+    Napisy idą wersją **obowiązującą** (``version=None``), a nie zapamiętaną – podgląd pokazuje
+    dokument, jaki wyjdzie po dzisiejszym „Wystaw”. Konkurs bierze się z edycji; bez edycji nie
+    ma czyjego szablonu czytać i zostają dzisiejsze stałe.
     """
-    return CertificateContent(
-        title=DOCUMENT_TITLES.get(kind, DOCUMENT_TITLES[CertificateKind.UCZESTNIK]),
-        statement=DOCUMENT_STATEMENTS.get(kind, DOCUMENT_STATEMENTS[CertificateKind.UCZESTNIK]),
-        recipient="Łucja Śniadecka",
-        school="XIV Liceum Ogólnokształcące w Warszawie",
-        edition=edition.year_label if edition is not None else "2026/2027",
+    competition = edition.competition if edition is not None else None
+    recipient = "Łucja Śniadecka"
+    school = "XIV Liceum Ogólnokształcące w Warszawie"
+    year_label = edition.year_label if edition is not None else "2026/2027"
+    issued_on = timezone.localtime(timezone.now()).strftime("%d.%m.%Y")
+    document = render_document(
+        competition,
+        kind,
+        fallback=document_fallback(kind),
+        recipient=recipient,
+        school=school,
+        edition=year_label,
         number=SAMPLE_NUMBER,
         code=SAMPLE_CODE,
-        issued_on=timezone.localtime(timezone.now()).strftime("%d.%m.%Y"),
+        date=issued_on,
+    )
+    return CertificateContent(
+        title=document.title,
+        statement=document.statement,
+        recipient=recipient,
+        school=school,
+        edition=year_label,
+        number=SAMPLE_NUMBER,
+        code=SAMPLE_CODE,
+        issued_on=issued_on,
         workshops=(
             "12.11.2026 – Kubity i bramki kwantowe, prowadzi: dr Anna Kowalska",
             "10.12.2026 – Splątanie i nierówności Bella, prowadzi: prof. Jan Nowak",
         )
         if kind == CertificateKind.WARSZTATY
         else (),
+        # Bez ``competition``: adres podglądu zostaje taki, jak przed etapem 2 (konkurs
+        # z kontekstu żądania), bo podgląd ogląda się zawsze we własnym panelu.
         verification_url=verification_url(SAMPLE_CODE),
+        signature_line=document.signature_line,
+        author=document.author,
+        template_version=document.version,
     )

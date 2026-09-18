@@ -12,11 +12,25 @@
 
   Punkty zaczepienia to atrybuty ``data-picker`` na widżetach (apps/web/forms.py), bo szablon
   renderuje ten blok na czterech ekranach i nazwa hooka nie ma prawa istnieć w kilku kopiach.
+
+  **Dwa dopiski etapu 2** (§ 1.3.3, § 1.3.4) i oba są warunkowe – konkurs bez profilu rejestracji
+  dostaje stąd znak w znak dzisiejszy HTML, łącznie ze spacjami:
+
+  - ``data-institution-type`` wskazuje **identyfikator** listy wyboru „Rodzaj placówki”
+    (formularz renderuje ją zwykłą pętlą, poza tym blokiem). Skrypt czyta z niej rodzaj placówki,
+    dopisuje go do zapytania i chowa cały blok przy placówce spoza wykazu – tak samo, jak robi to
+    serwer, który dla tych rodzajów zeruje ``school_id`` (``SchoolChoiceMixin.clean``),
+  - ukryte pole ``custom_institution_id`` (hook ``data-picker="custom-institution-id"``) – druga
+    kolumna dowiązania (``Participant.custom_institution_ref``), wypełniana przy wyborze wiersza
+    ze słownika organizatora.
+    Renderujemy je **tylko wtedy, gdy formularz je ma**: pole, którego nie zna ``clean()``, nie
+    dojechałoby do serwisu rejestracji, a niewypełniona kontrolka w formularzu obiecywałaby coś,
+    czego nikt nie odbiera.
 {% endcomment %}
 <div class="school-picker" data-school-picker
      data-search-url="{% url 'schools:search' %}"
      data-cities-url="{% url 'schools:cities' %}"
-     data-district-field="{{ form.district.auto_id }}">
+     data-district-field="{{ form.district.auto_id }}"{% if form.institution_type %} data-institution-type="{{ form.institution_type.auto_id }}"{% endif %}>
   {% comment %}
     Krok pierwszy: miejscowość. Doszedł po uwadze organizatora („okno wyboru szkoły po wpisaniu
     «wrocław» nie pokazuje liceów ogólnokształcących… warto dodać pole miasta i wówczas dać pełną
@@ -66,7 +80,7 @@
     {# ``id`` z tego samego powodu, co przy miejscowości wyżej: celuje w niego ``aria-describedby``. #}
     <span class="helptext" id="{{ form.school_query.auto_id }}_helptext">{{ form.school_query.help_text }}</span>
   </p>
-  {{ form.school_id }}
+  {{ form.school_id }}{% if form.custom_institution_id %}{{ form.custom_institution_id }}{% endif %}
   {% comment %}
     ``aria-live`` mówi czytnikowi ekranu, ile podpowiedzi się pojawiło – bez tego lista zmienia
     się w ciszy i wiadomo o niej tylko wtedy, gdy się ją widzi.

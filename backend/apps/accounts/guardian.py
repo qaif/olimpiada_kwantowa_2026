@@ -42,8 +42,9 @@ from rest_framework import status
 
 from apps.core.api import DomainError
 from apps.core.models import audit, client_ip
+from apps.tenancy import branding
 
-from .activation import absolute_url, queue_mail
+from .activation import absolute_url, queue_mail, signature_lines
 from .consents import BY_KIND, ConsentKind, ConsentSource, is_minor, organizer_name, plain_text
 from .models import ConsentRecord, Participant
 
@@ -59,6 +60,11 @@ GUARDIAN_DAYS = GUARDIAN_MAX_AGE // (24 * 3600)
 #: do napisu tuż przed kolejkowaniem zadania.
 GUARDIAN_SUBJECT = gettext_lazy("Prośba o zgodę opiekuna – Olimpiada Kwantowa")
 GUARDIAN_CONFIRMED_SUBJECT = gettext_lazy("Zgoda opiekuna została potwierdzona – Olimpiada Kwantowa")
+
+#: Te same tematy jako wzorce z nazwą konkursu (``docs/UNIWERSALNY-ETAP-2.md`` § 1.1.1). Stałe
+#: wyżej zostają odwrotem; wybiera między nimi ``apps.tenancy.branding.subject``.
+GUARDIAN_SUBJECT_TEMPLATE = gettext_lazy("Prośba o zgodę opiekuna – %(competition)s")
+GUARDIAN_CONFIRMED_SUBJECT_TEMPLATE = gettext_lazy("Zgoda opiekuna została potwierdzona – %(competition)s")
 
 INVALID_TOKEN_MESSAGE = gettext_lazy("Link do formularza zgody jest nieprawidłowy albo wygasł.")
 
@@ -135,7 +141,13 @@ def read_token(token: str) -> Participant:
         raise _invalid_token() from exc
     if not isinstance(payload, dict) or not payload.get("pk"):
         raise _invalid_token()
-    participant = Participant.objects.filter(pk=payload["pk"]).select_related("user", "school_ref").first()
+    # ``competition`` jest w ``select_related``, bo potwierdzenie zgody kończy się listem, a ten
+    # czyta z konkursu markę i nadawcę – bez tego doszłoby osobne zapytanie na każdą wizytę.
+    participant = (
+        Participant.objects.filter(pk=payload["pk"])
+        .select_related("user", "school_ref", "competition")
+        .first()
+    )
     if participant is None:
         raise _invalid_token()
     current = (participant.guardian_email or "").strip().lower()
@@ -160,7 +172,7 @@ def consent_version() -> str:
     return BY_KIND[ConsentKind.GUARDIAN].version
 
 
-def request_message(link: str, first_name: str, school: str) -> str:
+def request_message(link: str, first_name: str, school: str, competition=None) -> str:
     """List do opiekuna. Imię i szkoła są w treści, bo bez nich prośba jest nie do zweryfikowania.
 
     Nazwiska nie ma świadomie: do rozpoznania własnego dziecka wystarczy imię i nazwa szkoły,
@@ -189,14 +201,12 @@ def request_message(link: str, first_name: str, school: str) -> str:
                 "wiadomość. Bez potwierdzenia zgoda nie zostanie zapisana."
             ),
             "",
-            "--",
-            _("Olimpiada Kwantowa"),
-            _("Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać."),
+            *signature_lines(competition),
         ]
     )
 
 
-def confirmed_message(guardian_email: str) -> str:
+def confirmed_message(guardian_email: str, competition=None) -> str:
     """List do uczestnika po potwierdzeniu. Adres opiekuna jest jego własną daną – wolno go podać."""
     return "\n".join(
         [
@@ -208,9 +218,7 @@ def confirmed_message(guardian_email: str) -> str:
             "",
             _("Stan zgód widzisz po zalogowaniu w panelu uczestnika."),
             "",
-            "--",
-            _("Olimpiada Kwantowa"),
-            _("Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać."),
+            *signature_lines(competition),
         ]
     )
 
@@ -250,11 +258,20 @@ def request_consent(participant: Participant, email: str, *, actor=None, request
         )
     participant.guardian_email = normalized
     participant.save(update_fields=["guardian_email"])
-    link = absolute_url(reverse("web:guardian-consent", args=[make_token(participant)]), request)
+    # Konkurs bierze się z **uczestnika**, a nie z kontekstu żądania: zgoda dotyczy udziału w tym
+    # konkursie, w którym uczestnik jest zapisany, i to jego markę ma nieść list do opiekuna.
+    competition = participant.competition
+    link = absolute_url(reverse("web:guardian-consent", args=[make_token(participant)]), request, competition)
     queue_mail(
-        GUARDIAN_SUBJECT,
-        request_message(link, participant.user.first_name or "uczestnik/uczestniczka", participant.school),
+        branding.subject(GUARDIAN_SUBJECT_TEMPLATE, GUARDIAN_SUBJECT, competition),
+        request_message(
+            link,
+            participant.user.first_name or "uczestnik/uczestniczka",
+            participant.school,
+            competition,
+        ),
         normalized,
+        competition=competition,
     )
     # W ``diff`` nie ma adresu opiekuna: audyt czytają osoby, które nie muszą znać danych
     # kontaktowych rodziny uczestnika. Sam fakt wysyłki wystarczy, żeby wytłumaczyć późniejszy wpis
@@ -303,9 +320,11 @@ def confirm_consent(participant: Participant, *, request=None) -> ConsentRecord:
         {"version": record.document_version},
         request=request,
     )
+    competition = participant.competition
     queue_mail(
-        GUARDIAN_CONFIRMED_SUBJECT,
-        confirmed_message(record.given_by_email),
+        branding.subject(GUARDIAN_CONFIRMED_SUBJECT_TEMPLATE, GUARDIAN_CONFIRMED_SUBJECT, competition),
+        confirmed_message(record.given_by_email, competition),
         participant.user.email,
+        competition=competition,
     )
     return record

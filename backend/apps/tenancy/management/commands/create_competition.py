@@ -7,6 +7,14 @@ z nich wpisany ręcznie w ``/admin/`` jest okazją do pominięcia jednego z pozo
 witryny nie ma drzewa stron; witryna bez konkursu oddaje pod swoim adresem treść konkursu domyślnego;
 konkurs bez bieżącej edycji nie pokazuje harmonogramu i nie przyjmuje rejestracji.
 
+Od etapu 2 komenda wpisuje nowemu konkursowi także **cztery zestawy startowe**, które konkursom
+stojącym już w bazie dały migracje danych: definicje zgód (``accounts.0024``), teksty dokumentów
+(``tenancy.0005``), regiony (``accounts.0026``) i grupę redakcyjną ``cms:<slug>`` (§ 1.1.5).
+Migracja z definicji dotyczy wierszy istniejących w chwili jej wykonania, więc bez tego kroku
+konkurs założony później miałby po włączeniu flagi pusty formularz zgód i pustą listę regionów —
+czyli konfigurację, której brak widać dopiero w dniu, w którym zaczyna być potrzebna. Wszystko
+dzieje się w tej samej transakcji, co reszta, i jest idempotentne.
+
 Czego komenda **nie** robi i dlaczego:
 
 - **nie uruchamia seedów treści.** ``seed_cms``, ``seed_regulamin``, ``seed_legacy_content``
@@ -103,6 +111,37 @@ BLANKED_SITE_SETTINGS: tuple[str, ...] = (
     "ga_measurement_id",
 )
 
+#: Wersja pierwszego zestawu szablonów tekstu dokumentów nowego konkursu. **Nie**
+#: ``apps.tenancy.documents.INITIAL_VERSION`` („1.0 (stan z v0.23.0)”): tamta nazywa stan
+#: Konkursu #1 w chwili migracji ``tenancy.0005`` i w konkursie założonym dwa lata później byłaby
+#: nazwą wydania, którego jego koordynator nigdy nie widział. Tu chodzi o pierwszą wersję **tego**
+#: konkursu, a ta nazywa się po prostu „1.0”.
+INITIAL_DOCUMENT_VERSION = "1.0"
+
+#: Zdania główne dokumentów nowego konkursu: ``DOCUMENT_STATEMENTS``
+#: (``apps/results/certificates.py``) z marką Olimpiady Kwantowej zamienioną na znaczniki
+#: ``{competition_genitive}`` i ``{competition_locative}``.
+#:
+#: Dlaczego nie kopia tamtych napisów co do znaku — mimo że tak robi migracja ``tenancy.0005``:
+#: tamte zdania mówią „Olimpiady Kwantowej” w dopełniaczu, a migracja daje je **wyłącznie**
+#: konkursowi o najniższym ``pk`` i pisze wprost, że konkurs założony później dostaje swoje teksty
+#: z panelu. Wpisanie ich nowemu konkursowi byłoby wpisaniem cudzej marki do konfiguracji drugiego
+#: organizatora (§ 0.1). Znacznik w tym samym miejscu zdania daje ten sam dokument, tylko z nazwą
+#: tego konkursu — a odmianę niesie ``apps/tenancy/branding.py``, czyli jedno źródło.
+#:
+#: Klucze są wartościami ``apps.tenancy.documents.DocumentKind`` zapisanymi wprost, żeby ten moduł
+#: nie musiał importować modeli w czasie wczytywania komendy.
+INITIAL_DOCUMENT_STATEMENTS: dict[str, str] = {
+    "LAUREAT": "uzyskał(a) tytuł laureata {competition_genitive}",
+    "FINALISTA": "uzyskał(a) tytuł finalisty {competition_genitive}",
+    "UCZESTNIK": "brał(a) udział w {competition_locative}",
+    "OPIEKUN": "sprawował(a) opiekę nad uczestnikami {competition_genitive}",
+    "WARSZTATY": "uczestniczył(a) w warsztatach online {competition_genitive}",
+}
+
+#: Linia podpisu — ``SIGNATURE_LINE`` z tą samą zamianą i z tego samego powodu.
+INITIAL_SIGNATURE_LINE = "Przewodniczący Komitetu Głównego {competition_genitive}"
+
 
 class Command(BaseCommand):
     help = (
@@ -140,6 +179,20 @@ class Command(BaseCommand):
         )
         parser.add_argument("--contact-email", default="", help="Adres kontaktowy organizatora.")
         parser.add_argument("--accent", default="", help="Kolor akcentu, np. #1f6feb.")
+        parser.add_argument(
+            "--public-code-prefix",
+            default="",
+            help=(
+                "Przedrostek kodów publicznych uczestników (do 8 znaków). Domyślnie trzy pierwsze "
+                "litery sluga wielkimi literami i myślnik, np. FIZ- – każdy konkurs ma mieć własny, "
+                "żeby kody dwóch olimpiad nie wyglądały identycznie."
+            ),
+        )
+        parser.add_argument(
+            "--certificate-prefix",
+            default="",
+            help="Przedrostek numerów dyplomów (do 8 znaków). Domyślnie dwie pierwsze litery sluga.",
+        )
         parser.add_argument(
             "--edition-label",
             default="",
@@ -220,6 +273,10 @@ class Command(BaseCommand):
                 organizer=(options["organizer"] or name).strip(),
                 contact_email=(options["contact_email"] or "").strip(),
                 accent=(options["accent"] or template["accent_colour"]).strip(),
+                public_code_prefix=(options["public_code_prefix"] or "").strip()
+                or _default_public_code_prefix(slug),
+                certificate_prefix=(options["certificate_prefix"] or "").strip()
+                or _default_certificate_prefix(slug),
                 template=template,
             )
             edition, stages = self._create_edition(
@@ -227,6 +284,8 @@ class Command(BaseCommand):
             )
             if coordinator is not None:
                 self._grant_coordinator(coordinator, competition)
+            seeded = self._seed_configuration(competition, coordinator)
+            seeded["pipeline"] = len(self._seed_pipeline(edition))
             if dry_run:
                 # Wycofanie **po** wykonaniu całości, a nie pominięcie zapisów: próba na sucho ma
                 # sprawdzić to, co sprawdzi baza (unikalność, więzy, walidacja modeli), a nie to,
@@ -243,6 +302,7 @@ class Command(BaseCommand):
             edition=edition,
             stages=stages,
             coordinator=coordinator,
+            seeded=seeded,
             dry_run=dry_run,
         )
 
@@ -259,6 +319,8 @@ class Command(BaseCommand):
         organizer: str,
         contact_email: str,
         accent: str,
+        public_code_prefix: str,
+        certificate_prefix: str,
         template: dict,
     ) -> Competition:
         from apps.cms.models import HomePage, SiteSettings
@@ -331,6 +393,10 @@ class Command(BaseCommand):
             primary_domain=hostname,
             path_prefix=path_prefix,
             feature_flags=dict(template["feature_flags"]),
+            # Własne przedrostki od pierwszego dnia: ``OLM-``/``OK`` należą do Konkursu #1, a kod
+            # publiczny jest identyfikatorem w tabelach wyników **jednego** konkursu (etap 1 § 3.3).
+            public_code_prefix=public_code_prefix,
+            certificate_prefix=certificate_prefix,
         )
         try:
             # ``full_clean`` zamiast samego ``save``: reguły spójności adresowania (domena zgodna
@@ -426,6 +492,94 @@ class Command(BaseCommand):
 
         grant_role(user, CompetitionRole.COORDINATOR, competition=competition)
 
+    # --- konfiguracja startowa ------------------------------------------------------------------
+    def _seed_configuration(self, competition: Competition, coordinator) -> dict:
+        """Cztery zestawy startowe etapu 2; zwraca liczby do podsumowania.
+
+        Wszystkie cztery są tą samą robotą co migracje danych etapu 2 (``accounts.0024``,
+        ``accounts.0026``, ``tenancy.0005``) i powstały z jednego braku: migracja wpisuje wiersze
+        konkursom stojącym w bazie **w chwili jej wykonania**, a konkurs założony później nie ma
+        jak przez nią przejść. Bez tego kroku nowy konkurs po włączeniu odpowiedniej flagi miałby
+        pusty formularz zgód, pustą listę regionów i dokumenty bez tekstu — czyli konfigurację,
+        której nikt nie zamawiał i której nie widać, dopóki flaga jest wyłączona.
+
+        Krok stoi **w transakcji**, razem z konkursem, edycją i rolą: nowy konkurs ma powstać
+        w komplecie albo wcale, a ``--dry-run`` ma pokazać także to, co tutaj odrzuciłaby baza.
+        """
+        return {
+            "cms_group": self._ensure_cms_group(competition, coordinator),
+            "consents": len(self._seed_consents(competition)),
+            "documents": len(self._seed_documents(competition)),
+            "regions": len(self._seed_regions(competition)),
+        }
+
+    def _ensure_cms_group(self, competition: Competition, coordinator) -> str:
+        """Grupa redakcyjna ``cms:<slug>`` konkursu; zwraca jej nazwę (§ 1.1.5, T17).
+
+        Grupa powstaje **zawsze**, także przy wyłączonej fladze ``scoped_cms_permissions``: jest
+        wtedy pustym naczyniem, które nikomu niczego nie daje i nikomu niczego nie odbiera, a jej
+        brak znaczyłby, że dzień włączenia flagi jest dniem, w którym trzeba pamiętać o komendzie
+        ``scope_cms_access``. Do grupy **dopisujemy** koordynatora tylko przy włączonej fladze
+        i zawsze **oprócz** grupy globalnej ``coordinator``, którą nadał ``grant_role``: § 1.1.5
+        mówi wprost, że zawężenie dokłada, a nigdy nie odbiera. Odebranie globalnej grupy jest
+        osobną, jawną komendą.
+        """
+        from apps.cms.permissions import ensure_cms_group
+
+        group = ensure_cms_group(competition)
+        if coordinator is not None and competition.has_feature("scoped_cms_permissions"):
+            # ``add`` jest idempotentne — powtórzone wywołanie nie mnoży przynależności.
+            coordinator.groups.add(group)
+        return group.name
+
+    def _seed_pipeline(self, edition) -> list:
+        """Kroki toru z etapów szablonu – odpowiednik migracji ``competitions.0024`` dla nowej edycji.
+
+        Bez tego ekran „Przebieg edycji” (za flagą ``process_editor``) pokazywałby etapy i zero
+        kroków, a reguły przejścia byłyby nieosiągalne do pierwszego ręcznego „Dopisz krok”.
+        """
+        from apps.competitions.pipeline import ensure_pipeline
+
+        return ensure_pipeline(edition)
+
+    def _seed_consents(self, competition: Competition) -> list:
+        """Zestaw startowy zgód (``accounts.0024`` dla nowego konkursu, T10)."""
+        from apps.accounts.consents import definitions_from_defaults
+
+        return definitions_from_defaults(competition)
+
+    def _seed_documents(self, competition: Competition) -> list:
+        """Teksty pięciu dokumentów w wersji ``1.0`` (``tenancy.0005`` dla nowego konkursu, T12).
+
+        Tytuły idą **wprost** ze stałej składu (``DOCUMENT_TITLES``), bo marki nie zawierają;
+        zdanie główne i linia podpisu — z :data:`INITIAL_DOCUMENT_STATEMENTS`
+        i :data:`INITIAL_SIGNATURE_LINE`, czyli z tych samych zdań ze znacznikiem w miejscu nazwy.
+
+        Zapis idzie przez ``set_current_template``, a nie przez ``DocumentTemplate.objects.create``:
+        tam stoi walidacja znaczników i wpis audytowy, a szablon wpisany obok tej funkcji byłby
+        pierwszym w bazie, którego nikt nie sprawdził.
+        """
+        from apps.results.certificates import DOCUMENT_TITLES
+        from apps.tenancy.documents import set_current_template
+
+        return [
+            set_current_template(
+                competition,
+                kind,
+                version=INITIAL_DOCUMENT_VERSION,
+                title=DOCUMENT_TITLES[kind],
+                statement=statement,
+                signature_line=INITIAL_SIGNATURE_LINE,
+            )
+            for kind, statement in INITIAL_DOCUMENT_STATEMENTS.items()
+        ]
+
+    def _seed_regions(self, competition: Competition) -> list:
+        """Zestaw startowy regionów: kraj, 16 województw, „poza Polską” (``accounts.0026``, T18)."""
+        from apps.accounts.regions import default_regions_for
+
+        return default_regions_for(competition)
+
     def _run_safe_seeds(self, template: dict) -> None:
         """Komendy z ``safe_seeds`` szablonu — wyłącznie globalne i idempotentne (patrz katalog)."""
         for command_name in template["safe_seeds"]:
@@ -442,6 +596,7 @@ class Command(BaseCommand):
         edition,
         stages: list,
         coordinator,
+        seeded: dict,
         dry_run: bool,
     ) -> None:
         write = self.stdout.write
@@ -464,6 +619,15 @@ class Command(BaseCommand):
             write(f"  etap:     {stage.kind} {stage.name} — {opens} → {deadline} (wartość początkowa)")
         if coordinator is not None:
             write(f"  koordynator: {coordinator.email} (rola w tym konkursie + grupa „coordinator”)")
+        # Zestawy startowe etapu 2. Liczby wypisujemy, a nie zawartość: komplet zgód i regionów
+        # ogląda się na ekranach konfiguracji, a tutaj chodzi o jedno zdanie — „jest, nie musisz
+        # o tym pamiętać”. Brakująca pozycja byłaby natomiast widoczna od razu.
+        write(f"  zgody:    {seeded['consents']} definicje (zestaw domyślny, do poprawienia w panelu)")
+        write(f"  szablony dokumentów: {seeded['documents']} (wersja {INITIAL_DOCUMENT_VERSION})")
+        write(f"  regiony:  {seeded['regions']} (kraj, 16 województw, „poza Polską”)")
+        write(f"  grupa /cms/: {seeded['cms_group']}")
+        write(f"  przebieg: {seeded['pipeline']} kroków toru (edytor za flagą process_editor)")
+        write(f"  kody:     {competition.public_code_prefix}… / dyplomy {competition.certificate_prefix}/…")
 
         write("")
         write("Następne kroki (żadnego z nich komenda nie wykonuje za administratora):")
@@ -494,9 +658,10 @@ class Command(BaseCommand):
                 "odłożoną od pierwszego dnia następnego miesiąca, a nie harmonogramem."
             )
         write(
-            f"  6. Formaty plików do wpisania w zadaniach ({', '.join(template['upload_formats'])}) "
-            f"i zgody przy rejestracji ({', '.join(template['consents'])}) — jedno i drugie stoi "
-            f"dziś poza konkursem (zadanie, stała CONSENTS) i czeka na etap 2."
+            f"  6. Formaty plików do wpisania w zadaniach ({', '.join(template['upload_formats'])}). "
+            f"Zgody przy rejestracji ({', '.join(template['consents'])}) są już wpisane jako "
+            f"definicje konkursu — treść poprawia się na /coordinator/consents/ po włączeniu "
+            f"przełącznika per_competition_consents."
         )
         write("  7. Sprawdzenie spójności domen: manage.py check_domains")
 
@@ -573,6 +738,17 @@ def _stage_timelines(stages, base_day: date):
             },
         )
         cursor = deadline_day
+
+
+def _default_public_code_prefix(slug: str) -> str:
+    """``fizyczna`` → ``FIZ-``: trzy pierwsze litery sluga wielkimi literami (znaki spoza a–z pominięte)."""
+    letters = "".join(ch for ch in slug if ch.isalpha())[:3].upper() or "KON"
+    return f"{letters}-"
+
+
+def _default_certificate_prefix(slug: str) -> str:
+    """``fizyczna`` → ``FI``: dwie pierwsze litery sluga wielkimi literami."""
+    return "".join(ch for ch in slug if ch.isalpha())[:2].upper() or "KO"
 
 
 def _split_domain(value: str) -> tuple[str, int]:

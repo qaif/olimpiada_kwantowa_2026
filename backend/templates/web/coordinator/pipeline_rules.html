@@ -1,0 +1,162 @@
+{% extends "web/coordinator/base.html" %}
+{% load static %}
+{% comment %}
+  Reguły przejścia jednego kroku przebiegu.
+
+  Kilka reguł na kroku **sumuje się**: przechodzi ten, kto spełnia którąkolwiek. Dlatego podgląd
+  liczony przed zapisem bierze reguły zapisane **plus** tę z formularza – pojedyncza pokazywałaby
+  skład węższy niż późniejsze przeliczenie.
+
+  Parametry podglądu jadą w adresie (GET), więc wynik da się odświeżyć, zapisać w zakładkach
+  i wkleić reszcie komitetu. Samo wejście na stronę niczego nie liczy i niczego nie zapisuje:
+  przeliczenie etapu kosztuje, a ekran otwiera się także po to, żeby przeczytać, co jest zapisane.
+{% endcomment %}
+{% block title %}Reguły przejścia – {{ stage.display_name }}{% endblock %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-pipeline' %}">Przebieg edycji</a>{% endblock %}
+{% block panel_title %}Reguły przejścia: {{ stage.display_name }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Kto przechodzi z tego kroku dalej. Reguł może być kilka i wtedy się sumują –
+    „30 najlepszych <strong>oraz</strong> każdy z wynikiem co najmniej 90 punktów” to dwa wiersze,
+    a nie jeden. Krok bez ani jednej reguły czyta próg zapisany przy etapie.</p>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Reguły kroku</h2>
+    <p class="hint">Kolejność nie wpływa na wynik – porządkuje wyłącznie listę.
+      <a href="?preview={{ preview_current }}">Pokaż skutek reguł zapisanych</a>.</p>
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Reguły przejścia tego kroku</caption>
+      <thead>
+        <tr>
+          <th scope="col">Tryb</th>
+          <th scope="col">Podział</th>
+          <th scope="col">Kategoria</th>
+          <th scope="col">Minimum</th>
+          <th scope="col">N</th>
+          <th scope="col">Procent</th>
+          <th scope="col">Kolejność</th>
+          <th scope="col"><span class="visually-hidden">Operacje</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rule in rules %}
+          <tr>
+            <th scope="row">
+              <a href="{% url 'web:coordinator-pipeline-rule' step.pk rule.pk %}">{{ rule.get_mode_display }}</a>
+            </th>
+            <td>{{ rule.get_group_by_display|default:"—" }}</td>
+            <td>{% if rule.category %}{{ rule.category.name }}{% else %}wszystkie{% endif %}</td>
+            <td class="num">{{ rule.min_points|default_if_none:"—" }}</td>
+            <td class="num">{{ rule.top_n|default_if_none:"—" }}</td>
+            <td class="num">{{ rule.percentile|default_if_none:"—" }}</td>
+            <td class="num">{{ rule.position }}</td>
+            <td class="actions">
+              <form method="post" action="{% url 'web:coordinator-pipeline-rule-delete' step.pk rule.pk %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn--danger btn--small">Usuń</button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="8" class="empty">Ten krok nie ma ani jednej reguły przejścia. Próg czyta
+              się wtedy z reguły kwalifikacji zapisanej przy etapie – tak, jak przed edytorem.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">{% if editing %}Zmiana reguły{% else %}Nowa reguła{% endif %}</h2>
+    <p class="hint">„Przelicz podgląd” niczego nie zapisuje: pokazuje, kto przeszedłby dalej, gdyby
+      obok reguł zapisanych stanęła ta z formularza.</p>
+  </div>
+  <div class="card">
+    {% comment %}
+      Jeden komplet pól i dwa przyciski, każdy z własnym `formaction`. Czynność wynika więc
+      z adresu, do którego przeglądarka wysyła formularz, a nie z nazwy wciśniętego przycisku –
+      tej przy wysyłce klawiaturą nie zawsze widać po stronie serwera. Oba żądania są POST-em
+      z tokenem: podgląd niczego nie zapisuje, ale wysłanie go metodą GET postawiłoby token CSRF
+      w adresie, czyli w historii przeglądarki i w logu pośrednika.
+    {% endcomment %}
+    <form method="post" action="{{ save_action }}" class="form">
+      {% csrf_token %}
+      {% if editing %}<input type="hidden" name="rule" value="{{ editing.pk }}">{% endif %}
+      {{ form.as_p }}
+      <div class="actions">
+        <button type="submit" class="btn btn--secondary" formaction="{{ preview_action }}">Przelicz podgląd</button>
+        <button type="submit" class="btn btn--primary">
+          {% if editing %}Zapisz zmianę{% else %}Zapisz regułę{% endif %}
+        </button>
+      </div>
+    </form>
+    {% if editing %}
+      <p class="hint"><a href="{% url 'web:coordinator-pipeline-rules' step.pk %}">Wróć do dopisywania nowej reguły</a></p>
+    {% endif %}
+    {% if error %}<p class="msg msg-error">{{ error }}</p>{% endif %}
+  </div>
+</section>
+
+{% if preview %}
+  <section class="section">
+    <div class="section__head">
+      <h2 class="mt-0">Podgląd: {{ preview.mode }}</h2>
+      <p class="hint">Podgląd liczy pracę bez oceny końcowej jako zero punktów i nie zmienia
+        niczyjego statusu. Decyzja komitetu bije regułę także tutaj.</p>
+    </div>
+    <ul class="kpi">
+      <li class="kpi__item">
+        <span class="kpi__value">{{ preview.qualified }}</span>
+        <span class="kpi__label">Zakwalifikowanych</span>
+      </li>
+      <li class="kpi__item">
+        <span class="kpi__value">{{ preview.not_qualified }}</span>
+        <span class="kpi__label">Poza progiem</span>
+      </li>
+      <li class="kpi__item">
+        <span class="kpi__value">{% if preview.cutoff is not None %}{{ preview.cutoff }}{% else %}—{% endif %}</span>
+        <span class="kpi__label">Punkt odcięcia</span>
+      </li>
+      <li class="kpi__item{% if preview.ungraded %} kpi__item--attention{% endif %}">
+        <span class="kpi__value">{{ preview.ungraded }}</span>
+        <span class="kpi__label">Prac bez oceny</span>
+      </li>
+    </ul>
+    {% if preview.ungraded %}
+      <p class="msg msg-warning">Ocenianie nie jest skończone: {{ preview.ungraded }} prac nie ma
+        jeszcze oceny końcowej i liczy się w tym podglądzie jako 0 punktów.</p>
+    {% endif %}
+    <div class="scroll">
+      <table class="table">
+        <caption class="visually-hidden">Rozkład zakwalifikowanych po województwach</caption>
+        <thead>
+          <tr>
+            <th scope="col">Województwo</th>
+            <th scope="col">Startujących</th>
+            <th scope="col">Zakwalifikowanych</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in preview.districts %}
+            <tr>
+              <th scope="row">{{ row.district }}</th>
+              <td class="num">{{ row.entered }}</td>
+              <td class="num">{{ row.qualified }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="3" class="empty">Nikt nie mieści się w progu.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endif %}
+{% endblock %}

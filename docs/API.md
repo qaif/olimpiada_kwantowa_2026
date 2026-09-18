@@ -347,6 +347,64 @@ app.post("/hooks/olimpiada", express.raw({ type: "application/json" }), (req, re
 - każde doręczenie zostaje w dzienniku razem ze stanem, liczbą prób i ostatnim błędem; z panelu
   da się je ponowić ręcznie.
 
+### 3.5. Webhook przychodzący — potwierdzenia wpłat
+
+Jedyny adres w całym API, pod który przychodzi ruch **do nas**. Służy dostawcy płatności
+i istnieje wyłącznie w konkursach pobierających wpisowe; w Olimpiadzie Kwantowej, która jest
+bezpłatna, odpowiada **404** — tak samo jak u dostawcy, którego organizator nie założył.
+
+```
+POST /api/v1/payments/<dostawca>/
+Content-Type: application/json
+X-Olimpiada-Signature: t=<unix_ts>,v1=<hex>
+```
+
+`<dostawca>` to identyfikator (slug) nadany przez organizatora w panelu; tam też powstaje **sekret
+podpisu** — osobny dla każdej pary (konkurs, dostawca) — i tam się go wymienia. Wymiana działa
+natychmiast: podpis złożony starym sekretem przestaje być ważny z chwilą zapisania nowego.
+
+**Podpis jest ten sam, co w § 3.3**, tylko w drugą stronę: HMAC-SHA256 z sekretu, liczony ze
+znacznika czasu **i surowych bajtów ciała** naraz, tolerancja 300 s. Podpisuj bajty, które
+naprawdę wysyłasz — JSON odtworzony z obiektu ma inną kolejność kluczy, czyli inny podpis.
+
+Ciało (wszystkie pola poza `reference` opcjonalne):
+
+```json
+{
+  "reference": "OLM-WPIS-000123",
+  "event_id": "evt_9f3c1a",
+  "status": "paid",
+  "amount": "49.99",
+  "paid_at": "2027-03-01T10:15:00+01:00"
+}
+```
+
+| Pole | Znaczenie |
+|---|---|
+| `reference` | **wymagane.** Identyfikator wpłaty, ten sam, który organizator przypisał należności przy zakładaniu płatności. Po nim idzie dopasowanie |
+| `event_id` | identyfikator zdarzenia po Twojej stronie. Gdy jest, to on jest kluczem powtórki; gdy go nie ma, kluczem jest `reference` |
+| `status` | gdy jest, musi brzmieć `paid`. Każda inna wartość zostaje zapisana jako zdarzenie **niebędące** potwierdzeniem wpłaty |
+| `amount` | kwota **wyłącznie do porównania** z należnością. Nie jest księgowana; rozbieżność trafia do audytu organizatora |
+| `paid_at` | chwila wpłaty w ISO 8601. Brak znaczy „teraz”. Data bez strefy jest czytana w strefie serwisu |
+
+Pozostałe pola są **pomijane**: danych płatnika (imię, adres, numer rachunku) nie zapisujemy
+i nie chcemy ich dostawać. Z ładunku zostaje w bazie wyłącznie jego skrót SHA-256.
+
+Odpowiedzi:
+
+| Kod | Ciało | Kiedy |
+|---|---|---|
+| `200` | `{"matched": true}` | wpłata zapisana przy należności |
+| `200` | `{"matched": false}` | doręczenie przyjęte i zapisane, ale nie stało się wpłatą: nieznany `reference`, `status` inny niż `paid`, należność zwolniona albo umorzona. **Nie ponawiaj** — powód czeka na ekranie organizatora |
+| `400` | `{"code": "INVALID_PAYLOAD", …}` | ciało nie jest obiektem JSON, brakuje `reference` albo `paid_at` nie jest datą ISO 8601. Ponowienie nie pomoże |
+| `401` | `{"code": "INVALID_SIGNATURE", …}` | brak nagłówka, zły podpis albo podpis spoza okna 300 s. Treść jest ta sama dla wszystkich trzech |
+| `404` | `{"code": "NOT_FOUND", …}` | ten konkurs nie pobiera wpisowego albo nie zna tego dostawcy |
+| `429` | `{"code": "THROTTLED", …}` | przekroczony limit doręczeń na minutę. Ten adres nie ma klucza API, więc limit z § 5 go nie dotyczy: liczy się per adres nadawcy i wynosi 60/min. Uszanuj `Retry-After` |
+
+Odpowiedź **nie mówi nic ponad `matched`** — ani czyja to należność, ani ile wynosi, ani dlaczego
+się nie dopasowała. Powtórzone doręczenie tego samego klucza oddaje tę samą odpowiedź, nie tworzy
+drugiej wpłaty i nie zmienia daty pierwszej.
+
 ---
 
 ## 4. Eksporty z panelu

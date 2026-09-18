@@ -1,0 +1,1664 @@
+{
+  "training": {
+    "rows": [
+      {
+        "public_code": "OLM-0001",
+        "first_name": "Uczestnik",
+        "last_name": "Testowy 0001",
+        "school": "Liceum testowe nr 1",
+        "district": "mazowieckie",
+        "publish_full_name": true,
+        "guardian_consent": true,
+        "is_adult": true,
+        "status": "QUALIFIED",
+        "manual_qualification": "",
+        "points": {
+          "1": 6
+        },
+        "total": 6,
+        "rank": 1,
+        "qualified": true
+      },
+      {
+        "public_code": "OLM-0007",
+        "first_name": "Uczestnik",
+        "last_name": "Testowy 0007",
+        "school": "Liceum testowe nr 7",
+        "district": "małopolskie",
+        "publish_full_name": false,
+        "guardian_consent": true,
+        "is_adult": false,
+        "status": "NOT_QUALIFIED",
+        "manual_qualification": "",
+        "points": {
+          "1": 0
+        },
+        "total": 0,
+        "rank": 2,
+        "qualified": false
+      }
+    ],
+    "ranks": [
+      [
+        "OLM-0001",
+        1
+      ],
+      [
+        "OLM-0007",
+        2
+      ]
+    ],
+    "qualified": [
+      "OLM-0001"
+    ],
+    "snapshots": {
+      "CODE": [
+        {
+          "rank": 1,
+          "display": "OLM-0001",
+          "points": {
+            "1": 6
+          },
+          "total": 6,
+          "qualified": true,
+          "manual": false,
+          "district": "mazowieckie"
+        },
+        {
+          "rank": 2,
+          "display": "OLM-0007",
+          "points": {
+            "1": 0
+          },
+          "total": 0,
+          "qualified": false,
+          "manual": false,
+          "district": "małopolskie"
+        }
+      ],
+      "INITIALS_SCHOOL": [
+        {
+          "rank": 1,
+          "display": "OLM-0001",
+          "points": {
+            "1": 6
+          },
+          "total": 6,
+          "qualified": true,
+          "manual": false
+        },
+        {
+          "rank": 2,
+          "display": "OLM-0007",
+          "points": {
+            "1": 0
+          },
+          "total": 0,
+          "qualified": false,
+          "manual": false
+        }
+      ],
+      "FULL": [
+        {
+          "rank": 1,
+          "display": "Uczestnik Testowy 0001",
+          "points": {
+            "1": 6
+          },
+          "total": 6,
+          "qualified": true,
+          "manual": false
+        },
+        {
+          "rank": 2,
+          "display": "OLM-0007",
+          "points": {
+            "1": 0
+          },
+          "total": 0,
+          "qualified": false,
+          "manual": false
+        }
+      ]
+    },
+    "next_stage_kind": null,
+    "qualification_mode": "HYBRID",
+    "public_rows": [
+      {
+        "rank": 1,
+        "display": "OLM-0001",
+        "district": "mazowieckie",
+        "points": {
+          "1": 6
+        },
+        "total": 6,
+        "qualified": true,
+        "manual": false
+      },
+      {
+        "rank": 2,
+        "display": "OLM-0007",
+        "district": "małopolskie",
+        "points": {
+          "1": 0
+        },
+        "total": 0,
+        "qualified": false,
+        "manual": false
+      }
+    ],
+    "statistics": {
+      "is_training": true,
+      "participants": 2,
+      "problems": [
+        {
+          "number": "1",
+          "total": 2,
+          "bars": [
+            {
+              "value": 0,
+              "count": 1,
+              "share": 50.0,
+              "width": "w50"
+            },
+            {
+              "value": 6,
+              "count": 1,
+              "share": 50.0,
+              "width": "w50"
+            }
+          ]
+        }
+      ],
+      "mean": 3,
+      "median": 3.0,
+      "max_total": 6,
+      "qualified": 1,
+      "threshold": 6,
+      "districts": [
+        {
+          "code": "małopolskie",
+          "label": "małopolskie",
+          "count": 1,
+          "share": 50.0,
+          "width": "w50"
+        },
+        {
+          "code": "mazowieckie",
+          "label": "mazowieckie",
+          "count": 1,
+          "share": 50.0,
+          "width": "w50"
+        }
+      ],
+      "categories": []
+    },
+    "summary": {
+      "qualified": 1,
+      "not_qualified": 1,
+      "disqualified": 0,
+      "created_entries": 0,
+      "removed_entries": 0,
+      "next_stage_conflicts": []
+    }
+  },
+  "elim": {
+    "rows": [
+      {
+        "public_code": "OLM-0001",
+        "first_name": "Uczestnik",
+        "last_name": "Testowy 0001",
+        "school": "Liceum testowe nr 1",
+        "district": "mazowieckie",
+        "publish_full_name": true,
+        "guardian_consent": true,
+        "is_adult": true,
+        "status": "QUALIFIED",
+        "manual_qualification": "",
+        "points": {
+          "1": 6,
+          "2": 6,
+          "3": 6
+        },
+        "total": 18,
+        "rank": 1,
+        "qualified": true
+      },
+      {
+        "public_code": "OLM-0009",
+        "first_name": "Uczestnik",
+        "last_name": "Testowy 0009",
+        "school": "Liceum testowe nr 9",
+        "district": "mazowieckie",
+        "publish_full_name": false,
+        "guardian_consent": true,
+        "is_adult": false,
+        "status": "DISQUALIFIED",
+        "manual_qualification": "",
+        "points": {
+          "1": 6,
+          "2": 6,
+          "3": 6
+        },
+        "total": 18,
+        "rank": 1,
+        "qualified": false
+      },
+      {
+        "public_code": "OLM-0005",
+        "first_name": "Uczestnik",
+        "last_name": "Testowy 0005",
+        "school": "Liceum testowe nr 5",
+        "district": "małopolskie",
+        "publish_full_name": false,
+        "guardian_consent": true,
+        "is_adult": false,
+        "status": "QUALIFIED",
+        "manual_qualification": "",
+        "points": {
+          "1": 6,
+          "2": 6,
+          "3": 5
+        },
+        "total": 17,
+        "rank": 3,
+        "qualified": true
+      },
+      {
+        "public_code": "OLM-0006",
+        "first_name": "Uczestnik",
+        "last_name": "Testowy 0006",
+        "school": "Liceum testowe nr 6",
+        "district": "małopolskie",
+        "publish_full_name": false,
+        "guardian_consent": true,
+        "is_adult": false,
+        "status": "NOT_QUALIFIED",
+        "manual_qualification": "NOT_QUALIFIED",
+        "points": {
+          "1": 5,
+          "2": 5,
+          "3": 5
+        },
+        "total": 15,
+        "rank": 4,
+        "qualified": false
+      },
+      {
+        "public_code": "OLM-0002",
+        "first_name": "Uczestnik",
+        "last_name": "Testowy 0002",
+        "school": "Liceum testowe nr 1",
+        "district": "mazowieckie",
+        "publish_full_name": true,
+        "guardian_consent": false,
+        "is_adult": false,
+        "status": "QUALIFIED",
+        "manual_qualification": "",
+        "points": {
+          "1": 6,
+          "2": 5,
+          "3": 2
+        },
+        "total": 13,
+        "rank": 5,
+        "qualified": true
+      },
+      {
+        "public_code": "OLM-0003",
+        "first_name": "Uczestnik",
+        "last_name": "Testowy 0003",
+        "school": "Liceum testowe nr 1",
+        "district": "mazowieckie",
+        "publish_full_name": false,
+        "guardian_consent": true,
+        "is_adult": false,
+        "status": "QUALIFIED",
+        "manual_qualification": "",
+        "points": {
+          "1": 5,
+          "2": 6,
+          "3": 2
+        },
+        "total": 13,
+        "rank": 5,
+        "qualified": true
+      },
+      {
+        "public_code": "OLM-0004",
+        "first_name": "Uczestnik",
+        "last_name": "Testowy 0004",
+        "school": "Liceum testowe nr 4",
+        "district": "mazowieckie",
+        "publish_full_name": false,
+        "guardian_consent": true,
+        "is_adult": false,
+        "status": "QUALIFIED",
+        "manual_qualification": "QUALIFIED",
+        "points": {
+          "1": 2,
+          "2": 2,
+          "3": 0
+        },
+        "total": 4,
+        "rank": 7,
+        "qualified": true
+      },
+      {
+        "public_code": "OLM-0007",
+        "first_name": "Uczestnik",
+        "last_name": "Testowy 0007",
+        "school": "Liceum testowe nr 7",
+        "district": "małopolskie",
+        "publish_full_name": false,
+        "guardian_consent": true,
+        "is_adult": false,
+        "status": "NOT_QUALIFIED",
+        "manual_qualification": "",
+        "points": {
+          "1": 0,
+          "2": 0,
+          "3": 0
+        },
+        "total": 0,
+        "rank": 8,
+        "qualified": false
+      },
+      {
+        "public_code": "OLM-0008",
+        "first_name": "Uczestnik",
+        "last_name": "Testowy 0008",
+        "school": "Liceum testowe nr 8",
+        "district": "pomorskie",
+        "publish_full_name": false,
+        "guardian_consent": true,
+        "is_adult": false,
+        "status": "NOT_QUALIFIED",
+        "manual_qualification": "",
+        "points": {
+          "1": 0,
+          "2": 0,
+          "3": 0
+        },
+        "total": 0,
+        "rank": 8,
+        "qualified": false
+      }
+    ],
+    "ranks": [
+      [
+        "OLM-0001",
+        1
+      ],
+      [
+        "OLM-0009",
+        1
+      ],
+      [
+        "OLM-0005",
+        3
+      ],
+      [
+        "OLM-0006",
+        4
+      ],
+      [
+        "OLM-0002",
+        5
+      ],
+      [
+        "OLM-0003",
+        5
+      ],
+      [
+        "OLM-0004",
+        7
+      ],
+      [
+        "OLM-0007",
+        8
+      ],
+      [
+        "OLM-0008",
+        8
+      ]
+    ],
+    "qualified": [
+      "OLM-0001",
+      "OLM-0002",
+      "OLM-0003",
+      "OLM-0004",
+      "OLM-0005"
+    ],
+    "snapshots": {
+      "CODE": [
+        {
+          "rank": 1,
+          "display": "OLM-0001",
+          "points": {
+            "1": 6,
+            "2": 6,
+            "3": 6
+          },
+          "total": 18,
+          "qualified": true,
+          "manual": false,
+          "district": "mazowieckie"
+        },
+        {
+          "rank": 1,
+          "display": "OLM-0009",
+          "points": {
+            "1": 6,
+            "2": 6,
+            "3": 6
+          },
+          "total": 18,
+          "qualified": false,
+          "manual": false,
+          "district": "mazowieckie"
+        },
+        {
+          "rank": 3,
+          "display": "OLM-0005",
+          "points": {
+            "1": 6,
+            "2": 6,
+            "3": 5
+          },
+          "total": 17,
+          "qualified": true,
+          "manual": false,
+          "district": "małopolskie"
+        },
+        {
+          "rank": 4,
+          "display": "OLM-0006",
+          "points": {
+            "1": 5,
+            "2": 5,
+            "3": 5
+          },
+          "total": 15,
+          "qualified": false,
+          "manual": true,
+          "district": "małopolskie"
+        },
+        {
+          "rank": 5,
+          "display": "OLM-0002",
+          "points": {
+            "1": 6,
+            "2": 5,
+            "3": 2
+          },
+          "total": 13,
+          "qualified": true,
+          "manual": false,
+          "district": "mazowieckie"
+        },
+        {
+          "rank": 5,
+          "display": "OLM-0003",
+          "points": {
+            "1": 5,
+            "2": 6,
+            "3": 2
+          },
+          "total": 13,
+          "qualified": true,
+          "manual": false,
+          "district": "mazowieckie"
+        },
+        {
+          "rank": 7,
+          "display": "OLM-0004",
+          "points": {
+            "1": 2,
+            "2": 2,
+            "3": 0
+          },
+          "total": 4,
+          "qualified": true,
+          "manual": true,
+          "district": "mazowieckie"
+        },
+        {
+          "rank": 8,
+          "display": "OLM-0007",
+          "points": {
+            "1": 0,
+            "2": 0,
+            "3": 0
+          },
+          "total": 0,
+          "qualified": false,
+          "manual": false,
+          "district": "małopolskie"
+        },
+        {
+          "rank": 8,
+          "display": "OLM-0008",
+          "points": {
+            "1": 0,
+            "2": 0,
+            "3": 0
+          },
+          "total": 0,
+          "qualified": false,
+          "manual": false,
+          "district": "pomorskie"
+        }
+      ],
+      "INITIALS_SCHOOL": [
+        {
+          "rank": 1,
+          "display": "U.T., Liceum testowe nr 1",
+          "points": {
+            "1": 6,
+            "2": 6,
+            "3": 6
+          },
+          "total": 18,
+          "qualified": true,
+          "manual": false
+        },
+        {
+          "rank": 1,
+          "display": "OLM-0009",
+          "points": {
+            "1": 6,
+            "2": 6,
+            "3": 6
+          },
+          "total": 18,
+          "qualified": false,
+          "manual": false
+        },
+        {
+          "rank": 3,
+          "display": "OLM-0005",
+          "points": {
+            "1": 6,
+            "2": 6,
+            "3": 5
+          },
+          "total": 17,
+          "qualified": true,
+          "manual": false
+        },
+        {
+          "rank": 4,
+          "display": "OLM-0006",
+          "points": {
+            "1": 5,
+            "2": 5,
+            "3": 5
+          },
+          "total": 15,
+          "qualified": false,
+          "manual": true
+        },
+        {
+          "rank": 5,
+          "display": "U.T., Liceum testowe nr 1",
+          "points": {
+            "1": 6,
+            "2": 5,
+            "3": 2
+          },
+          "total": 13,
+          "qualified": true,
+          "manual": false
+        },
+        {
+          "rank": 5,
+          "display": "U.T., Liceum testowe nr 1",
+          "points": {
+            "1": 5,
+            "2": 6,
+            "3": 2
+          },
+          "total": 13,
+          "qualified": true,
+          "manual": false
+        },
+        {
+          "rank": 7,
+          "display": "OLM-0004",
+          "points": {
+            "1": 2,
+            "2": 2,
+            "3": 0
+          },
+          "total": 4,
+          "qualified": true,
+          "manual": true
+        },
+        {
+          "rank": 8,
+          "display": "OLM-0007",
+          "points": {
+            "1": 0,
+            "2": 0,
+            "3": 0
+          },
+          "total": 0,
+          "qualified": false,
+          "manual": false
+        },
+        {
+          "rank": 8,
+          "display": "OLM-0008",
+          "points": {
+            "1": 0,
+            "2": 0,
+            "3": 0
+          },
+          "total": 0,
+          "qualified": false,
+          "manual": false
+        }
+      ],
+      "FULL": [
+        {
+          "rank": 1,
+          "display": "Uczestnik Testowy 0001",
+          "points": {
+            "1": 6,
+            "2": 6,
+            "3": 6
+          },
+          "total": 18,
+          "qualified": true,
+          "manual": false
+        },
+        {
+          "rank": 1,
+          "display": "OLM-0009",
+          "points": {
+            "1": 6,
+            "2": 6,
+            "3": 6
+          },
+          "total": 18,
+          "qualified": false,
+          "manual": false
+        },
+        {
+          "rank": 3,
+          "display": "OLM-0005",
+          "points": {
+            "1": 6,
+            "2": 6,
+            "3": 5
+          },
+          "total": 17,
+          "qualified": true,
+          "manual": false
+        },
+        {
+          "rank": 4,
+          "display": "OLM-0006",
+          "points": {
+            "1": 5,
+            "2": 5,
+            "3": 5
+          },
+          "total": 15,
+          "qualified": false,
+          "manual": true
+        },
+        {
+          "rank": 5,
+          "display": "OLM-0002",
+          "points": {
+            "1": 6,
+            "2": 5,
+            "3": 2
+          },
+          "total": 13,
+          "qualified": true,
+          "manual": false
+        },
+        {
+          "rank": 5,
+          "display": "OLM-0003",
+          "points": {
+            "1": 5,
+            "2": 6,
+            "3": 2
+          },
+          "total": 13,
+          "qualified": true,
+          "manual": false
+        },
+        {
+          "rank": 7,
+          "display": "OLM-0004",
+          "points": {
+            "1": 2,
+            "2": 2,
+            "3": 0
+          },
+          "total": 4,
+          "qualified": true,
+          "manual": true
+        },
+        {
+          "rank": 8,
+          "display": "OLM-0007",
+          "points": {
+            "1": 0,
+            "2": 0,
+            "3": 0
+          },
+          "total": 0,
+          "qualified": false,
+          "manual": false
+        },
+        {
+          "rank": 8,
+          "display": "OLM-0008",
+          "points": {
+            "1": 0,
+            "2": 0,
+            "3": 0
+          },
+          "total": 0,
+          "qualified": false,
+          "manual": false
+        }
+      ]
+    },
+    "next_stage_kind": "DISTRICT",
+    "qualification_mode": "TOP_N_PER_DISTRICT",
+    "public_rows": [
+      {
+        "rank": 1,
+        "display": "OLM-0001",
+        "district": "mazowieckie",
+        "points": {
+          "1": 6,
+          "2": 6,
+          "3": 6
+        },
+        "total": 18,
+        "qualified": true,
+        "manual": false
+      },
+      {
+        "rank": 1,
+        "display": "OLM-0009",
+        "district": "mazowieckie",
+        "points": {
+          "1": 6,
+          "2": 6,
+          "3": 6
+        },
+        "total": 18,
+        "qualified": false,
+        "manual": false
+      },
+      {
+        "rank": 3,
+        "display": "OLM-0005",
+        "district": "małopolskie",
+        "points": {
+          "1": 6,
+          "2": 6,
+          "3": 5
+        },
+        "total": 17,
+        "qualified": true,
+        "manual": false
+      },
+      {
+        "rank": 4,
+        "display": "OLM-0006",
+        "district": "małopolskie",
+        "points": {
+          "1": 5,
+          "2": 5,
+          "3": 5
+        },
+        "total": 15,
+        "qualified": false,
+        "manual": true
+      },
+      {
+        "rank": 5,
+        "display": "OLM-0002",
+        "district": "mazowieckie",
+        "points": {
+          "1": 6,
+          "2": 5,
+          "3": 2
+        },
+        "total": 13,
+        "qualified": true,
+        "manual": false
+      },
+      {
+        "rank": 5,
+        "display": "OLM-0003",
+        "district": "mazowieckie",
+        "points": {
+          "1": 5,
+          "2": 6,
+          "3": 2
+        },
+        "total": 13,
+        "qualified": true,
+        "manual": false
+      },
+      {
+        "rank": 7,
+        "display": "OLM-0004",
+        "district": "mazowieckie",
+        "points": {
+          "1": 2,
+          "2": 2,
+          "3": 0
+        },
+        "total": 4,
+        "qualified": true,
+        "manual": true
+      },
+      {
+        "rank": 8,
+        "display": "OLM-0007",
+        "district": "małopolskie",
+        "points": {
+          "1": 0,
+          "2": 0,
+          "3": 0
+        },
+        "total": 0,
+        "qualified": false,
+        "manual": false
+      },
+      {
+        "rank": 8,
+        "display": "OLM-0008",
+        "district": "pomorskie",
+        "points": {
+          "1": 0,
+          "2": 0,
+          "3": 0
+        },
+        "total": 0,
+        "qualified": false,
+        "manual": false
+      }
+    ],
+    "statistics": {
+      "is_training": false,
+      "participants": 9,
+      "problems": [
+        {
+          "number": "1",
+          "total": 9,
+          "bars": [
+            {
+              "value": 0,
+              "count": 2,
+              "share": 22.2,
+              "width": "w20"
+            },
+            {
+              "value": 2,
+              "count": 1,
+              "share": 11.1,
+              "width": "w10"
+            },
+            {
+              "value": 5,
+              "count": 2,
+              "share": 22.2,
+              "width": "w20"
+            },
+            {
+              "value": 6,
+              "count": 4,
+              "share": 44.4,
+              "width": "w45"
+            }
+          ]
+        },
+        {
+          "number": "2",
+          "total": 9,
+          "bars": [
+            {
+              "value": 0,
+              "count": 2,
+              "share": 22.2,
+              "width": "w20"
+            },
+            {
+              "value": 2,
+              "count": 1,
+              "share": 11.1,
+              "width": "w10"
+            },
+            {
+              "value": 5,
+              "count": 2,
+              "share": 22.2,
+              "width": "w20"
+            },
+            {
+              "value": 6,
+              "count": 4,
+              "share": 44.4,
+              "width": "w45"
+            }
+          ]
+        },
+        {
+          "number": "3",
+          "total": 9,
+          "bars": [
+            {
+              "value": 0,
+              "count": 3,
+              "share": 33.3,
+              "width": "w35"
+            },
+            {
+              "value": 2,
+              "count": 2,
+              "share": 22.2,
+              "width": "w20"
+            },
+            {
+              "value": 5,
+              "count": 2,
+              "share": 22.2,
+              "width": "w20"
+            },
+            {
+              "value": 6,
+              "count": 2,
+              "share": 22.2,
+              "width": "w20"
+            }
+          ]
+        }
+      ],
+      "mean": 10.9,
+      "median": 13,
+      "max_total": 18,
+      "qualified": 5,
+      "threshold": 4,
+      "districts": [
+        {
+          "code": "mazowieckie",
+          "label": "mazowieckie",
+          "count": 5,
+          "share": 55.6,
+          "width": "w55"
+        },
+        {
+          "code": "małopolskie",
+          "label": "małopolskie",
+          "count": 3,
+          "share": 33.3,
+          "width": "w35"
+        },
+        {
+          "code": "pomorskie",
+          "label": "pomorskie",
+          "count": 1,
+          "share": 11.1,
+          "width": "w10"
+        }
+      ],
+      "categories": []
+    },
+    "summary": {
+      "qualified": 5,
+      "not_qualified": 3,
+      "disqualified": 1,
+      "created_entries": 1,
+      "removed_entries": 1,
+      "next_stage_conflicts": []
+    }
+  },
+  "district": {
+    "rows": [
+      {
+        "public_code": "OLM-0001",
+        "first_name": "Uczestnik",
+        "last_name": "Testowy 0001",
+        "school": "Liceum testowe nr 1",
+        "district": "mazowieckie",
+        "publish_full_name": true,
+        "guardian_consent": true,
+        "is_adult": true,
+        "status": "QUALIFIED",
+        "manual_qualification": "QUALIFIED",
+        "points": {},
+        "total": 0,
+        "rank": 1,
+        "qualified": true
+      },
+      {
+        "public_code": "OLM-0002",
+        "first_name": "Uczestnik",
+        "last_name": "Testowy 0002",
+        "school": "Liceum testowe nr 1",
+        "district": "mazowieckie",
+        "publish_full_name": true,
+        "guardian_consent": false,
+        "is_adult": false,
+        "status": "QUALIFIED",
+        "manual_qualification": "QUALIFIED",
+        "points": {},
+        "total": 0,
+        "rank": 1,
+        "qualified": true
+      },
+      {
+        "public_code": "OLM-0003",
+        "first_name": "Uczestnik",
+        "last_name": "Testowy 0003",
+        "school": "Liceum testowe nr 1",
+        "district": "mazowieckie",
+        "publish_full_name": false,
+        "guardian_consent": true,
+        "is_adult": false,
+        "status": "NOT_QUALIFIED",
+        "manual_qualification": "NOT_QUALIFIED",
+        "points": {},
+        "total": 0,
+        "rank": 1,
+        "qualified": false
+      },
+      {
+        "public_code": "OLM-0004",
+        "first_name": "Uczestnik",
+        "last_name": "Testowy 0004",
+        "school": "Liceum testowe nr 4",
+        "district": "mazowieckie",
+        "publish_full_name": false,
+        "guardian_consent": true,
+        "is_adult": false,
+        "status": "NOT_QUALIFIED",
+        "manual_qualification": "",
+        "points": {},
+        "total": 0,
+        "rank": 1,
+        "qualified": false
+      },
+      {
+        "public_code": "OLM-0005",
+        "first_name": "Uczestnik",
+        "last_name": "Testowy 0005",
+        "school": "Liceum testowe nr 5",
+        "district": "małopolskie",
+        "publish_full_name": false,
+        "guardian_consent": true,
+        "is_adult": false,
+        "status": "QUALIFIED",
+        "manual_qualification": "QUALIFIED",
+        "points": {},
+        "total": 0,
+        "rank": 1,
+        "qualified": true
+      }
+    ],
+    "ranks": [
+      [
+        "OLM-0001",
+        1
+      ],
+      [
+        "OLM-0002",
+        1
+      ],
+      [
+        "OLM-0003",
+        1
+      ],
+      [
+        "OLM-0004",
+        1
+      ],
+      [
+        "OLM-0005",
+        1
+      ]
+    ],
+    "qualified": [
+      "OLM-0001",
+      "OLM-0002",
+      "OLM-0005"
+    ],
+    "snapshots": {
+      "CODE": [
+        {
+          "rank": 1,
+          "display": "OLM-0001",
+          "points": {},
+          "total": 0,
+          "qualified": true,
+          "manual": true,
+          "district": "mazowieckie"
+        },
+        {
+          "rank": 1,
+          "display": "OLM-0002",
+          "points": {},
+          "total": 0,
+          "qualified": true,
+          "manual": true,
+          "district": "mazowieckie"
+        },
+        {
+          "rank": 1,
+          "display": "OLM-0003",
+          "points": {},
+          "total": 0,
+          "qualified": false,
+          "manual": true,
+          "district": "mazowieckie"
+        },
+        {
+          "rank": 1,
+          "display": "OLM-0004",
+          "points": {},
+          "total": 0,
+          "qualified": false,
+          "manual": false,
+          "district": "mazowieckie"
+        },
+        {
+          "rank": 1,
+          "display": "OLM-0005",
+          "points": {},
+          "total": 0,
+          "qualified": true,
+          "manual": true,
+          "district": "małopolskie"
+        }
+      ],
+      "INITIALS_SCHOOL": [
+        {
+          "rank": 1,
+          "display": "U.T., Liceum testowe nr 1",
+          "points": {},
+          "total": 0,
+          "qualified": true,
+          "manual": true
+        },
+        {
+          "rank": 1,
+          "display": "U.T., Liceum testowe nr 1",
+          "points": {},
+          "total": 0,
+          "qualified": true,
+          "manual": true
+        },
+        {
+          "rank": 1,
+          "display": "U.T., Liceum testowe nr 1",
+          "points": {},
+          "total": 0,
+          "qualified": false,
+          "manual": true
+        },
+        {
+          "rank": 1,
+          "display": "OLM-0004",
+          "points": {},
+          "total": 0,
+          "qualified": false,
+          "manual": false
+        },
+        {
+          "rank": 1,
+          "display": "OLM-0005",
+          "points": {},
+          "total": 0,
+          "qualified": true,
+          "manual": true
+        }
+      ],
+      "FULL": [
+        {
+          "rank": 1,
+          "display": "Uczestnik Testowy 0001",
+          "points": {},
+          "total": 0,
+          "qualified": true,
+          "manual": true
+        },
+        {
+          "rank": 1,
+          "display": "OLM-0002",
+          "points": {},
+          "total": 0,
+          "qualified": true,
+          "manual": true
+        },
+        {
+          "rank": 1,
+          "display": "OLM-0003",
+          "points": {},
+          "total": 0,
+          "qualified": false,
+          "manual": true
+        },
+        {
+          "rank": 1,
+          "display": "OLM-0004",
+          "points": {},
+          "total": 0,
+          "qualified": false,
+          "manual": false
+        },
+        {
+          "rank": 1,
+          "display": "OLM-0005",
+          "points": {},
+          "total": 0,
+          "qualified": true,
+          "manual": true
+        }
+      ]
+    },
+    "next_stage_kind": "FINAL",
+    "qualification_mode": "TOP_N",
+    "public_rows": [
+      {
+        "rank": 1,
+        "display": "OLM-0001",
+        "district": "mazowieckie",
+        "points": {},
+        "total": 0,
+        "qualified": true,
+        "manual": true
+      },
+      {
+        "rank": 1,
+        "display": "OLM-0002",
+        "district": "mazowieckie",
+        "points": {},
+        "total": 0,
+        "qualified": true,
+        "manual": true
+      },
+      {
+        "rank": 1,
+        "display": "OLM-0003",
+        "district": "mazowieckie",
+        "points": {},
+        "total": 0,
+        "qualified": false,
+        "manual": true
+      },
+      {
+        "rank": 1,
+        "display": "OLM-0004",
+        "district": "mazowieckie",
+        "points": {},
+        "total": 0,
+        "qualified": false,
+        "manual": false
+      },
+      {
+        "rank": 1,
+        "display": "OLM-0005",
+        "district": "małopolskie",
+        "points": {},
+        "total": 0,
+        "qualified": true,
+        "manual": true
+      }
+    ],
+    "statistics": {
+      "is_training": false,
+      "participants": 5,
+      "problems": [],
+      "mean": 0,
+      "median": 0,
+      "max_total": 0,
+      "qualified": 3,
+      "threshold": 0,
+      "districts": [
+        {
+          "code": "mazowieckie",
+          "label": "mazowieckie",
+          "count": 4,
+          "share": 80.0,
+          "width": "w80"
+        },
+        {
+          "code": "małopolskie",
+          "label": "małopolskie",
+          "count": 1,
+          "share": 20.0,
+          "width": "w20"
+        }
+      ],
+      "categories": []
+    },
+    "summary": {
+      "qualified": 3,
+      "not_qualified": 2,
+      "disqualified": 0,
+      "created_entries": 0,
+      "removed_entries": 0,
+      "next_stage_conflicts": []
+    }
+  },
+  "final": {
+    "rows": [
+      {
+        "public_code": "OLM-0001",
+        "first_name": "Uczestnik",
+        "last_name": "Testowy 0001",
+        "school": "Liceum testowe nr 1",
+        "district": "mazowieckie",
+        "publish_full_name": true,
+        "guardian_consent": true,
+        "is_adult": true,
+        "status": "QUALIFIED",
+        "manual_qualification": "",
+        "points": {
+          "1": 6,
+          "2": 6
+        },
+        "total": 12,
+        "rank": 1,
+        "qualified": true
+      },
+      {
+        "public_code": "OLM-0002",
+        "first_name": "Uczestnik",
+        "last_name": "Testowy 0002",
+        "school": "Liceum testowe nr 1",
+        "district": "mazowieckie",
+        "publish_full_name": true,
+        "guardian_consent": false,
+        "is_adult": false,
+        "status": "QUALIFIED",
+        "manual_qualification": "",
+        "points": {
+          "1": 6,
+          "2": 2
+        },
+        "total": 8,
+        "rank": 2,
+        "qualified": true
+      },
+      {
+        "public_code": "OLM-0005",
+        "first_name": "Uczestnik",
+        "last_name": "Testowy 0005",
+        "school": "Liceum testowe nr 5",
+        "district": "małopolskie",
+        "publish_full_name": false,
+        "guardian_consent": true,
+        "is_adult": false,
+        "status": "NOT_QUALIFIED",
+        "manual_qualification": "",
+        "points": {
+          "1": 2,
+          "2": 0
+        },
+        "total": 2,
+        "rank": 3,
+        "qualified": false
+      }
+    ],
+    "ranks": [
+      [
+        "OLM-0001",
+        1
+      ],
+      [
+        "OLM-0002",
+        2
+      ],
+      [
+        "OLM-0005",
+        3
+      ]
+    ],
+    "qualified": [
+      "OLM-0001",
+      "OLM-0002"
+    ],
+    "snapshots": {
+      "CODE": [
+        {
+          "rank": 1,
+          "display": "OLM-0001",
+          "points": {
+            "1": 6,
+            "2": 6
+          },
+          "total": 12,
+          "qualified": true,
+          "manual": false,
+          "district": "mazowieckie"
+        },
+        {
+          "rank": 2,
+          "display": "OLM-0002",
+          "points": {
+            "1": 6,
+            "2": 2
+          },
+          "total": 8,
+          "qualified": true,
+          "manual": false,
+          "district": "mazowieckie"
+        },
+        {
+          "rank": 3,
+          "display": "OLM-0005",
+          "points": {
+            "1": 2,
+            "2": 0
+          },
+          "total": 2,
+          "qualified": false,
+          "manual": false,
+          "district": "małopolskie"
+        }
+      ],
+      "INITIALS_SCHOOL": [
+        {
+          "rank": 1,
+          "display": "OLM-0001",
+          "points": {
+            "1": 6,
+            "2": 6
+          },
+          "total": 12,
+          "qualified": true,
+          "manual": false
+        },
+        {
+          "rank": 2,
+          "display": "OLM-0002",
+          "points": {
+            "1": 6,
+            "2": 2
+          },
+          "total": 8,
+          "qualified": true,
+          "manual": false
+        },
+        {
+          "rank": 3,
+          "display": "OLM-0005",
+          "points": {
+            "1": 2,
+            "2": 0
+          },
+          "total": 2,
+          "qualified": false,
+          "manual": false
+        }
+      ],
+      "FULL": [
+        {
+          "rank": 1,
+          "display": "Uczestnik Testowy 0001",
+          "points": {
+            "1": 6,
+            "2": 6
+          },
+          "total": 12,
+          "qualified": true,
+          "manual": false
+        },
+        {
+          "rank": 2,
+          "display": "OLM-0002",
+          "points": {
+            "1": 6,
+            "2": 2
+          },
+          "total": 8,
+          "qualified": true,
+          "manual": false
+        },
+        {
+          "rank": 3,
+          "display": "OLM-0005",
+          "points": {
+            "1": 2,
+            "2": 0
+          },
+          "total": 2,
+          "qualified": false,
+          "manual": false
+        }
+      ]
+    },
+    "next_stage_kind": null,
+    "qualification_mode": "MIN_POINTS",
+    "public_rows": [
+      {
+        "rank": 1,
+        "display": "OLM-0001",
+        "district": "mazowieckie",
+        "points": {
+          "1": 6,
+          "2": 6
+        },
+        "total": 12,
+        "qualified": true,
+        "manual": false
+      },
+      {
+        "rank": 2,
+        "display": "OLM-0002",
+        "district": "mazowieckie",
+        "points": {
+          "1": 6,
+          "2": 2
+        },
+        "total": 8,
+        "qualified": true,
+        "manual": false
+      },
+      {
+        "rank": 3,
+        "display": "OLM-0005",
+        "district": "małopolskie",
+        "points": {
+          "1": 2,
+          "2": 0
+        },
+        "total": 2,
+        "qualified": false,
+        "manual": false
+      }
+    ],
+    "statistics": {
+      "is_training": false,
+      "participants": 3,
+      "problems": [
+        {
+          "number": "1",
+          "total": 3,
+          "bars": [
+            {
+              "value": 2,
+              "count": 1,
+              "share": 33.3,
+              "width": "w35"
+            },
+            {
+              "value": 6,
+              "count": 2,
+              "share": 66.7,
+              "width": "w65"
+            }
+          ]
+        },
+        {
+          "number": "2",
+          "total": 3,
+          "bars": [
+            {
+              "value": 0,
+              "count": 1,
+              "share": 33.3,
+              "width": "w35"
+            },
+            {
+              "value": 2,
+              "count": 1,
+              "share": 33.3,
+              "width": "w35"
+            },
+            {
+              "value": 6,
+              "count": 1,
+              "share": 33.3,
+              "width": "w35"
+            }
+          ]
+        }
+      ],
+      "mean": 7.3,
+      "median": 8,
+      "max_total": 12,
+      "qualified": 2,
+      "threshold": 8,
+      "districts": [
+        {
+          "code": "mazowieckie",
+          "label": "mazowieckie",
+          "count": 2,
+          "share": 66.7,
+          "width": "w65"
+        },
+        {
+          "code": "małopolskie",
+          "label": "małopolskie",
+          "count": 1,
+          "share": 33.3,
+          "width": "w35"
+        }
+      ],
+      "categories": []
+    },
+    "summary": {
+      "qualified": 2,
+      "not_qualified": 1,
+      "disqualified": 0,
+      "created_entries": 0,
+      "removed_entries": 0,
+      "next_stage_conflicts": []
+    }
+  }
+}

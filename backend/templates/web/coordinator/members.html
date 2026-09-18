@@ -98,7 +98,12 @@
               {% if not row.member.user.is_active %}<span class="badge badge--danger">konto zablokowane</span>{% endif %}
             </td>
             <td>
-              {% if row.member.district %}
+              {% if row.region_label %}
+                {# Konkurs z własnym podziałem terytorialnym (flaga ``custom_regions``): nazwę
+                   regionu podaje widok. ``district_verified`` nie dotyczy regionu i nie zmienia
+                   swojej roli – mówi wyłącznie, skąd wzięła się wartość województwa. #}
+                {{ row.region_label }}
+              {% elif row.member.district %}
                 {{ row.member.get_district_display }}
                 {% if not row.member.district_verified %}<span class="badge badge--warn">niepotwierdzone</span>{% endif %}
               {% else %}

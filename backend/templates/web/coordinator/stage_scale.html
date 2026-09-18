@@ -49,6 +49,64 @@
   </div>
 </section>
 
+{% if weighted %}
+  {% comment %}
+    Sekcja wag i przesunięcia skali. Istnieje **wyłącznie** w konkursie z flagą ``weighted_scoring``:
+    kontekst wchodzi tu z widoku i dla każdego konkursu z domyślnymi przełącznikami (w tym dla
+    Olimpiady Kwantowej) jest go po prostu nie ma, więc ekran renderuje się co do bajtu tak, jak
+    przed etapem 2. Flagi ten szablon nie czyta i czytać nie może (§ 2.1 punkt 3).
+
+    Waga jest parą liczb, a nie ułamkiem dziesiętnym: ``1/3`` zapisane jako ``0,333…`` dałoby sumę
+    zależną od kolejności dodawania, czyli tabelę wyników zmieniającą się przy przeliczeniu.
+  {% endcomment %}
+  <section class="section">
+    <h2>Wagi zadań</h2>
+    <p class="hint">Waga <code>1/1</code> daje sumę identyczną z dzisiejszą. Licznik <code>0</code>
+      znaczy „zadanie oceniane, ale nieliczone do sumy etapu”.</p>
+    <form method="post" action="{% url 'web:coordinator-stage-weights' stage.pk %}"
+          class="form form--wide" novalidate>
+      {% csrf_token %}
+      <div class="scroll">
+        <table class="table">
+          <caption class="visually-hidden">Wagi zadań etapu {{ stage.display_name }}</caption>
+          <thead>
+            <tr>
+              <th scope="col">Zadanie</th>
+              <th scope="col">Licznik</th>
+              <th scope="col">Mianownik</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in weight_rows %}
+              <tr>
+                <th scope="row">Zadanie {{ row.problem.number }}: {{ row.problem.title }}</th>
+                <td>{{ row.form.weight_numerator }}{{ row.form.weight_numerator.errors }}</td>
+                <td>{{ row.form.weight_denominator }}{{ row.form.weight_denominator.errors }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="3" class="empty">Ten etap nie ma zadań – wag nie ma czemu nadać.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">Zapisz wagi</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="section">
+    <h2>Przesunięcie skali</h2>
+    <p class="hint">Przesunięcie: <strong>{{ scale_offset }}</strong>. Tyle brakuje najniższej
+      wartości skali do zera – wylicza je zapis skali, nie wpisuje się go ręcznie. Przy zerze
+      ocena leży w bazie dokładnie taka, jaką wystawił recenzent.</p>
+    <p class="hint">Wartości zapisane w bazie:
+      {% for value in stored_values %}<code>{{ value }}</code>{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}.</p>
+    <p class="hint"><a href="{% url 'web:coordinator-stage-tie-breaks' stage.pk %}">Rozstrzyganie
+      remisów tego etapu</a> – kryteria stosowane, gdy dwie sumy są równe.</p>
+  </section>
+{% endif %}
+
 {% if overrides %}
   {% comment %}
     Zadania z własną skalą wypisujemy tutaj, bo dla nich ten ekran nic nie zmienia. Bez tej listy

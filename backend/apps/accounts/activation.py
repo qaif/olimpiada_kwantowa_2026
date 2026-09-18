@@ -45,6 +45,7 @@ from rest_framework import status
 
 from apps.core.api import DomainError
 from apps.core.models import audit
+from apps.tenancy import branding
 
 from .models import User
 
@@ -74,6 +75,14 @@ ACTIVATION_HOURS = ACTIVATION_MAX_AGE // 3600
 ACTIVATION_SUBJECT = gettext_lazy("Aktywuj konto – Olimpiada Kwantowa")
 EMAIL_CHANGE_SUBJECT = gettext_lazy("Potwierdź nowy adres e-mail – Olimpiada Kwantowa")
 EMAIL_CHANGED_NOTICE_SUBJECT = gettext_lazy("Adres e-mail konta został zmieniony – Olimpiada Kwantowa")
+
+#: Te same tematy jako **wzorce** z nazwą konkursu (``docs/UNIWERSALNY-ETAP-2.md`` § 1.1.1).
+#: Stała wyżej zostaje odwrotem i jest napisem dosłownym, a nie wzorcem podstawionym nazwą
+#: Konkursu #1 – uzasadnienie stoi w ``apps.tenancy.branding``. Który z dwóch wyjdzie na zewnątrz,
+#: rozstrzyga wyłącznie ``branding.subject`` (flaga ``competition_branding_in_mail``).
+ACTIVATION_SUBJECT_TEMPLATE = gettext_lazy("Aktywuj konto – %(competition)s")
+EMAIL_CHANGE_SUBJECT_TEMPLATE = gettext_lazy("Potwierdź nowy adres e-mail – %(competition)s")
+EMAIL_CHANGED_NOTICE_SUBJECT_TEMPLATE = gettext_lazy("Adres e-mail konta został zmieniony – %(competition)s")
 
 #: Komunikat po rejestracji. W jednym miejscu, bo wychodzi z trzech ścieżek (formularz WWW,
 #: rejestracja komitetu, dokończenie rejestracji społecznościowej bez potwierdzonego adresu).
@@ -192,7 +201,40 @@ def absolute_url(path: str, request=None, competition=None) -> str:
     return f"{base}{path}" if base else path
 
 
-def activation_message(link: str) -> str:
+def mail_competition(competition=None):
+    """Konkurs, którego listem jest ten list: podany wprost albo wzięty z kontekstu.
+
+    Ta sama kolejność źródeł, co w :func:`absolute_url`, i z tego samego powodu: adres w liście
+    i marka w jego temacie mają pochodzić z **jednego** konkursu, bo inaczej uczestnik dostałby
+    list podpisany jedną olimpiadą z linkiem pod domenę drugiej. Kontekst ustawia warstwa dla
+    żądania (``apps.tenancy.middleware``) i ``competition_context`` dla zadania i komendy.
+
+    ``None`` jest odpowiedzią poprawną, a nie awarią: zadanie okresowe i test jednostkowy, które
+    konkursu nie mają skąd wziąć, dostają napisy sprzed etapu 2 i nadawcę instalacji. Zgadywanie
+    („weź pierwszy konkurs”) podpisałoby list Olimpiady Kwantowej marką cudzego organizatora.
+    """
+    if competition is not None:
+        return competition
+    from apps.tenancy.context import current_competition
+
+    return current_competition()
+
+
+def signature_lines(competition=None) -> list[str]:
+    """Trzy wiersze stopki listu: kreska, podpis i zdanie o skrzynce bez odbioru.
+
+    Podpis idzie przez ``branding.signature``, więc przy wyłączonej fladze wraca dzisiejszy,
+    **przetłumaczalny** literał. Funkcja, a nie stała: napis ma się przetłumaczyć w chwili
+    składania listu, a moduł ładuje się przy starcie procesu, zanim jakikolwiek język jest aktywny.
+    """
+    return [
+        "--",
+        branding.signature(competition, fallback=_("Olimpiada Kwantowa")),
+        _("Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać."),
+    ]
+
+
+def activation_message(link: str, competition=None) -> str:
     """Treść listu aktywacyjnego. Poza adresem odbiorcy (i tak w nagłówku ``To:``) zero danych osobowych."""
     return "\n".join(
         [
@@ -213,14 +255,12 @@ def activation_message(link: str) -> str:
                 "konto nie zostanie aktywowane i zniknie samo."
             ),
             "",
-            "--",
-            _("Olimpiada Kwantowa"),
-            _("Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać."),
+            *signature_lines(competition),
         ]
     )
 
 
-def email_change_message(link: str, new_email: str) -> str:
+def email_change_message(link: str, new_email: str, competition=None) -> str:
     """Treść listu na **nowy** adres: dopiero kliknięcie zmienia adres konta."""
     return "\n".join(
         [
@@ -236,14 +276,12 @@ def email_change_message(link: str, new_email: str) -> str:
             "",
             _("Jeśli to nie Ty prosiłeś o zmianę – zignoruj tę wiadomość."),
             "",
-            "--",
-            _("Olimpiada Kwantowa"),
-            _("Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać."),
+            *signature_lines(competition),
         ]
     )
 
 
-def email_changed_notice(new_email: str) -> str:
+def email_changed_notice(new_email: str, competition=None) -> str:
     """Treść listu na **stary** adres: ostrzeżenie, nie potwierdzenie.
 
     Właściciel skrzynki musi dowiedzieć się o przeniesieniu konta także wtedy, gdy sam o nie nie
@@ -259,22 +297,34 @@ def email_changed_notice(new_email: str) -> str:
             "",
             _("Jeśli to nie Ty dokonałeś zmiany, natychmiast skontaktuj się z organizatorem."),
             "",
-            "--",
-            _("Olimpiada Kwantowa"),
-            _("Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać."),
+            *signature_lines(competition),
         ]
     )
 
 
-def queue_mail(subject: str, message: str, recipient: str) -> None:
+def queue_mail(subject: str, message: str, recipient: str, *, competition=None) -> None:
     """Kolejkuje list **po commicie** – wzorzec z ``apps.competitions.interviews._send_confirmation``.
 
     Wysyłka jest skutkiem ubocznym rejestracji, a nie jej warunkiem: niedostępny MTA nie może
     zamienić założonego konta w błąd 500, a worker nie może zacząć czytać konta, które w bazie
     jeszcze nie jest zatwierdzone.
+
+    ``competition`` jest **słowem kluczowym z wartością domyślną** i wyznacza wyłącznie kopertę
+    listu: nadawcę (``Competition.from_email`` przez ``apps.core.tasks.mail_from``). Temat i podpis
+    składa wołający, bo tylko on wie, które zdanie wysyła. Konkurs niepodany wprost bierze się
+    z kontekstu (:func:`mail_competition`), więc wołający sprzed etapu 2 – np.
+    ``apps.accounts.bulk_registration`` – dostaje nadawcę swojego konkursu bez żadnej zmiany
+    w swoim kodzie.
     """
     if not recipient:
         return
+
+    from apps.core.tasks import mail_from
+
+    # Nadawcę rozstrzygamy **teraz**, a nie w callbacku po commicie: kontekst konkursu jest
+    # zmienną kontekstową żądania i do chwili commitu może już być posprzątany, a wtedy list
+    # wyszedłby od nadawcy instalacji zamiast od organizatora – po cichu i tylko czasami.
+    from_email = mail_from(mail_competition(competition))
 
     # ``str(...)`` **tuż przed** kolejkowaniem: temat bywa obiektem leniwego tłumaczenia
     # (``gettext_lazy``), a argumenty zadania Celery jadą przez JSON – leniwy obiekt nie
@@ -286,26 +336,44 @@ def queue_mail(subject: str, message: str, recipient: str) -> None:
     def _enqueue() -> None:
         from apps.core.tasks import send_mail_task
 
-        send_mail_task.delay(subject_text, message_text, [recipient])
+        send_mail_task.delay(subject_text, message_text, [recipient], from_email)
 
     transaction.on_commit(_enqueue)
 
 
-def send_activation_email(user: User, *, request=None) -> None:
+def send_activation_email(user: User, *, request=None, competition=None) -> None:
     """Kolejkuje list z linkiem aktywacyjnym dla konta."""
-    link = absolute_url(reverse("web:activate", args=[make_activation_token(user)]), request)
-    queue_mail(ACTIVATION_SUBJECT, activation_message(link), user.email)
+    competition = mail_competition(competition)
+    link = absolute_url(reverse("web:activate", args=[make_activation_token(user)]), request, competition)
+    queue_mail(
+        branding.subject(ACTIVATION_SUBJECT_TEMPLATE, ACTIVATION_SUBJECT, competition),
+        activation_message(link, competition),
+        user.email,
+        competition=competition,
+    )
 
 
-def send_email_change_confirmation(user: User, new_email: str, *, request=None) -> None:
+def send_email_change_confirmation(user: User, new_email: str, *, request=None, competition=None) -> None:
     """List potwierdzający na nowy adres. Stary adres dostaje osobne powiadomienie po zmianie."""
+    competition = mail_competition(competition)
     token = make_email_change_token(user, new_email)
-    link = absolute_url(reverse("web:email-change-confirm", args=[token]), request)
-    queue_mail(EMAIL_CHANGE_SUBJECT, email_change_message(link, new_email), new_email)
+    link = absolute_url(reverse("web:email-change-confirm", args=[token]), request, competition)
+    queue_mail(
+        branding.subject(EMAIL_CHANGE_SUBJECT_TEMPLATE, EMAIL_CHANGE_SUBJECT, competition),
+        email_change_message(link, new_email, competition),
+        new_email,
+        competition=competition,
+    )
 
 
-def send_email_changed_notice(old_email: str, new_email: str) -> None:
-    queue_mail(EMAIL_CHANGED_NOTICE_SUBJECT, email_changed_notice(new_email), old_email)
+def send_email_changed_notice(old_email: str, new_email: str, *, competition=None) -> None:
+    competition = mail_competition(competition)
+    queue_mail(
+        branding.subject(EMAIL_CHANGED_NOTICE_SUBJECT_TEMPLATE, EMAIL_CHANGED_NOTICE_SUBJECT, competition),
+        email_changed_notice(new_email, competition),
+        old_email,
+        competition=competition,
+    )
 
 
 def is_pending_activation(user: User) -> bool:

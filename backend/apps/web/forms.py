@@ -18,12 +18,30 @@ from django.core.files.uploadedfile import UploadedFile
 from django.utils import timezone
 from django.utils.translation import gettext_lazy
 
-from apps.accounts.consents import BY_KIND, CONSENT_FIELD_NAMES, CONSENTS, ConsentKind, is_minor, labels
-from apps.accounts.models import GRADE_CHOICES, CommitteeStatus, User, Voivodeship
+from apps.accounts.consents import (
+    CONSENT_FIELD_NAMES,
+    ConsentKind,
+    consent_set,
+    is_minor,
+    organizer_name,
+)
+from apps.accounts.consents import (
+    label as consent_label,
+)
+from apps.accounts.models import (
+    DIRECTORY_INSTITUTION_TYPES,
+    GRADE_CHOICES,
+    CommitteeStatus,
+    RegistrationProfile,
+    User,
+    Voivodeship,
+)
 from apps.accounts.services import (
     MAX_INVITATION_EMAILS,
     MAX_INVITATION_NOTE_LENGTH,
+    custom_directory_enabled,
     parse_email_list,
+    registration_profile,
 )
 from apps.appeals.models import MAX_TEXT_LENGTH, MIN_ARGUMENT_LENGTH, AppealStatus
 from apps.cms.models import Announcement
@@ -178,6 +196,51 @@ def clean_password_pair(form: forms.Form, cleaned: dict | None) -> dict:
 #: gdyby blok urósł o kolejne pole.
 SCHOOL_FIELD_NAMES = ("school_id", "school_city", "school_query", "school_custom", "school")
 
+#: Pola dokładane przez ``RegistrationProfile`` (§ 1.3.4). Nie ma ich w ``SCHOOL_FIELD_NAMES``
+#: i mieć nie może: tamta krotka opisuje blok renderowany **ręcznie** przez
+#: ``web/_school_picker.html``, a te trzy idą zwykłą pętlą po polach – czyli tak samo jak
+#: województwo i klasa. Nazwy są nazwami argumentów serwisu rejestracji, więc
+#: ``**form.cleaned_data`` trafia tam, gdzie ma trafić, bez ani jednego mapowania po drodze.
+INSTITUTION_TYPE_FIELD = "institution_type"
+COUNTRY_FIELD = "country"
+INSTITUTION_NAME_FIELD = "institution_name"
+
+#: Druga kolumna dowiązania placówki (``Participant.custom_institution_ref``, § 1.3.3). Pole jest
+#: **ukryte** i renderuje je ręcznie ``web/_school_picker.html``, tak samo jak ``school_id`` – więc
+#: wchodzi do bloku „szkoła” (``SchoolChoiceMixin.school_field_names``), a nie do zwykłej pętli po
+#: polach. W ``SCHOOL_FIELD_NAMES`` go nie ma i być nie może: tamta krotka opisuje blok
+#: **dzisiejszy** i wyznacza miejsca wstawiania pól profilu (``extended_participant_field_order``),
+#: a to pole powstaje warunkowo i dla Konkursu #1 nie powstaje nigdy.
+CUSTOM_INSTITUTION_FIELD = "custom_institution_id"
+
+
+def extended_participant_field_order(order, added) -> list[str]:
+    """``PARTICIPANT_FIELD_ORDER`` rozszerzone o pola profilu – **tylko** o te, które powstały.
+
+    Miejsca są dwa i oba wynikają z kolejności pytań, a nie z wygody:
+
+    - **rodzaj placówki stoi przed blokiem szkoły**, bo to on rozstrzyga, czego w tym bloku
+      szukać – tak samo jak województwo stoi przed nim od zawsze (patrz komentarz przy
+      ``PARTICIPANT_FIELD_ORDER``),
+    - **kraj i nazwa placówki stoją za blokiem**, bo są odpowiedzią na wypadek, w którym w wykazie
+      nic nie ma.
+
+    Pusta lista ``added`` znaczy, że nie ma czego wstawiać – i wtedy ta funkcja nie jest w ogóle
+    wołana. Kolejność bez profilu zostaje więc **tą samą krotką**, którą deklaruje moduł.
+    """
+    result: list[str] = []
+    for name in order:
+        if name == SCHOOL_FIELD_NAMES[0] and INSTITUTION_TYPE_FIELD in added:
+            result.append(INSTITUTION_TYPE_FIELD)
+        result.append(name)
+        if name == SCHOOL_FIELD_NAMES[-1]:
+            result.extend(field for field in (COUNTRY_FIELD, INSTITUTION_NAME_FIELD) if field in added)
+    # Pola, dla których w kolejności nie znalazło się miejsce (formularz bez bloku szkoły w
+    # ``field_order``), lądują na końcu – widoczne, a nie zgubione.
+    result.extend(field for field in added if field not in result)
+    return result
+
+
 #: Klasa doklejana przez Django do etykiety (i do akapitu ``as_p``) każdego pola wymaganego.
 #: Gwiazdkę dorysowuje arkusz (``label.required::after`` w static/css/app.css) – w HTML-u nie ma
 #: jej ani razu, bo czytnik ekranu i tak dostaje wymagalność z atrybutu ``required`` na kontrolce,
@@ -210,7 +273,28 @@ class SchoolChoiceMixin(forms.Form):
     blok na czterech ekranach (rejestracja hasłem, przez dostawcę, edycja profilu) – jedna
     definicja to jedno miejsce, w którym punkt zaczepienia może się rozjechać ze skryptem
     ``static/js/school-picker.js``.
+
+    **Profil rejestracji** (``RegistrationProfile``, § 1.3.4) rozstrzyga, o co ten konkurs pyta:
+    czy blok szkoły w ogóle się pokazuje, jakie rodzaje placówek są do wyboru, czy wolno wpisać
+    nazwę ręcznie i w jakim przedziale jest klasa. Odczyt jest **jeden na formularz** i jest
+    w ``__init__`` – tam, gdzie powstają pola. Profil domyślny (czyli Konkurs #1 i każdy konkurs
+    bez flagi ``institution_types``) wychodzi z ``__init__`` **przed** dołożeniem czegokolwiek:
+    ani jedno pole, ani jedna etykieta i ani jeden komunikat nie zmieniają się wtedy o znak
+    (§ 5.3, ``test_registration_form_html_unchanged``).
+
+    **Słownik własny organizatora** (§ 1.3.3) dokłada szóste pole, ukryte:
+    ``custom_institution_id`` – wynik wyboru wiersza z drugiego wykazu, czyli druga kolumna
+    dowiązania (``Participant.custom_institution_ref``). Warunek jest osobny od profilu
+    (:meth:`_apply_custom_directory`), bo słownik ma własną flagę i własne pole konfiguracji;
+    ``clean()`` sprowadza wtedy blok do **trzech** kluczy serwisu: ``school``, ``school_id``
+    i ``custom_institution_id``.
     """
+
+    #: Czy ten formularz słucha profilu rejestracji. ``False`` znaczy „dzisiejsze reguły zawsze”
+    #: i ma dokładnie jednego adresata – edycję własnego profilu uczestnika, której zapis
+    #: (``apps.accounts.profile``) sprawdza dziś wyłącznie dzisiejsze reguły. Pole widoczne na
+    #: ekranie, którego zapis by je pominął, byłoby polem udającym, że coś robi.
+    profile_driven = True
 
     school_id = forms.IntegerField(
         required=False, min_value=1, widget=forms.HiddenInput(attrs={"data-picker": "school-id"})
@@ -262,9 +346,138 @@ class SchoolChoiceMixin(forms.Form):
         widget=forms.TextInput(attrs={"data-picker": "free-input"}),
     )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.registration_profile = registration_profile() if self.profile_driven else RegistrationProfile()
+        self._apply_custom_directory()
+        if self.registration_profile.is_default():
+            # Dzisiejszy formularz. Wyjście **przed** czymkolwiek, a nie „pętla, która nic nie
+            # zmienia”: to jest miejsce, w którym widać, że Konkurs #1 nie płaci za etap 2 ani
+            # jednym polem, ani jednym zapytaniem.
+            return
+        self._apply_registration_profile(self.registration_profile)
+
+    def _apply_custom_directory(self) -> None:
+        """Dokłada ukryte pole drugiego wykazu – **tylko** gdy konkurs ze słownika własnego korzysta.
+
+        Warunek stoi **przed** wyjściem dla profilu domyślnego i to nie jest niedopatrzenie:
+        słownik własny ma własną flagę (``custom_school_directory``) i własne pole profilu, więc
+        konkurs może z niego korzystać, nie zmieniając ani jednego pytania formularza – a wtedy
+        ``is_default()`` jest prawdą, choć pole jest potrzebne. Odwrotnie być nie może:
+        ``custom_directory_enabled`` przy wyłączonej fladze odpowiada **bez zapytania do bazy**,
+        więc ``/register/`` Konkursu #1 nie płaci za ten warunek ani jednym zapytaniem, a pole
+        w jego formularzu nie powstaje nigdy (§ 5.6, ``test_registration_form_html_unchanged``).
+
+        ``profile_driven = False`` (edycja własnego profilu uczestnika) pola nie dostaje: zapis
+        tamtego ekranu (``apps.accounts.profile``) drugiego wykazu nie obsługuje, a kontrolka,
+        której nikt nie odbiera, obiecywałaby wybór bez skutku.
+        """
+        if not self.profile_driven or not custom_directory_enabled():
+            return
+        self.fields[CUSTOM_INSTITUTION_FIELD] = forms.IntegerField(
+            required=False,
+            # Punkt zaczepienia dla ``static/js/school-picker.js`` (T25): skrypt wpisuje tu
+            # identyfikator wiersza wybranego ze słownika organizatora. Bez skryptu pole zostaje
+            # puste i formularz działa jak dziś – wyborem jest wtedy wykaz publiczny albo wolny
+            # tekst, czyli warunek „strona bez JavaScriptu działa” (§ 0.4).
+            widget=forms.HiddenInput(attrs={"data-picker": "custom-institution-id"}),
+        )
+
+    def _apply_registration_profile(self, profile) -> None:
+        """Dokłada i zdejmuje pola według profilu. Woła się **raz**, po zbudowaniu ``self.fields``.
+
+        Trzy zmiany kształtu, każda warunkowa:
+
+        - ``institution_type`` – tylko wtedy, gdy dopuszczonych rodzajów placówek jest **więcej
+          niż jeden**. Lista wyboru z jedną pozycją nie jest pytaniem, tylko ozdobą,
+        - blok szkoły znika w całości, gdy żaden dopuszczony rodzaj nie ma wierszy w wykazie
+          (sam ``NONE``, ``FOREIGN``, ``OTHER``). Szablon renderuje ten blok w miejscu pola
+          ``school_id``, więc brak pola znaczy brak bloku – bez ani jednej zmiany w szablonie,
+          który należy do T25,
+        - ``school_custom`` i ``school`` znikają, gdy konkurs nie dopuszcza szkoły spoza wykazu:
+          kratka odsłaniająca pole, którego wpisanie i tak kończy się odmową, byłaby zaproszeniem
+          do błędu.
+
+        Do tego trzy zmiany wymagalności i zakresu (klasa, telefon, województwo) – bez dokładania
+        pól, bo te pytania stoją w formularzu od zawsze.
+        """
+        from apps.schools.models import InstitutionType
+
+        allowed = profile.institution_types()
+        added: list[str] = []
+        if len(allowed) > 1:
+            self.fields[INSTITUTION_TYPE_FIELD] = forms.ChoiceField(
+                label="Rodzaj placówki",
+                choices=[(value, label) for value, label in InstitutionType.choices if value in allowed],
+                # Atrybut ``data-picker`` jest umową z ``static/js/school-picker.js`` (T25):
+                # skrypt czyta z niego, jakiego rodzaju placówek szukać w podpowiedziach. Bez
+                # skryptu pole jest zwykłą listą wyboru i formularz działa tak samo, tylko
+                # wolniej – to jest warunek z § 0.4.
+                widget=forms.Select(attrs={"data-picker": "institution-type"}),
+            )
+            added.append(INSTITUTION_TYPE_FIELD)
+        if not profile.directory_types():
+            # ``self.school_field_names``, a nie sama stała: blok znika **w całości**, razem
+            # z ukrytym polem drugiego wykazu. Kontrolka bez bloku, który ją renderuje, byłaby
+            # polem niewidocznym na żadnym ekranie i nie do wypełnienia przez nikogo.
+            for name in self.school_field_names:
+                self.fields.pop(name, None)
+        elif not profile.allow_free_text_school:
+            self.fields.pop("school_custom", None)
+            self.fields.pop("school", None)
+        if profile.allow_foreign:
+            self.fields[COUNTRY_FIELD] = forms.CharField(
+                label="Kraj",
+                required=False,
+                max_length=2,
+                help_text="Dwuliterowy kod kraju (ISO 3166-1), na przykład „DE”. Puste znaczy Polska.",
+            )
+            added.append(COUNTRY_FIELD)
+        if set(allowed) - set(DIRECTORY_INSTITUTION_TYPES) - {InstitutionType.NONE}:
+            self.fields[INSTITUTION_NAME_FIELD] = forms.CharField(
+                label="Nazwa placówki",
+                required=False,
+                max_length=255,
+                help_text="Wypełnij, jeżeli Twojej placówki nie ma w wykazie.",
+            )
+            added.append(INSTITUTION_NAME_FIELD)
+        self._apply_profile_requirements(profile)
+        if added:
+            # ``field_order`` na **instancji**, a nie na klasie: porządek zależy od profilu
+            # konkursu, a klasa jest jedna dla całej instalacji. ``ConsentFieldsMixin`` woła
+            # ``order_fields(self.field_order)`` po nas i dzięki temu widzi już rozszerzoną
+            # kolejność – zgody zostają na końcu, tam gdzie były.
+            self.field_order = extended_participant_field_order(self.field_order, added)
+            self.order_fields(self.field_order)
+
+    def _apply_profile_requirements(self, profile) -> None:
+        """Wymagalność i zakres pól, które w formularzu stoją od zawsze."""
+        grade = self.fields.get("grade")
+        if grade is not None:
+            low, high = profile.grade_range()
+            grade.choices = [
+                ("", "— wybierz klasę —"),
+                *((str(value), str(value)) for value in range(low, high + 1)),
+            ]
+            grade.required = profile.require_grade
+        phone = self.fields.get("phone")
+        if phone is not None:
+            phone.required = profile.require_phone
+        district = self.fields.get("district")
+        if district is not None:
+            district.required = profile.require_region
+
     @property
     def school_field_names(self) -> tuple[str, ...]:
-        """Nazwy pól bloku „szkoła” – szablon pomija je w zwykłej pętli po polach formularza."""
+        """Nazwy pól bloku „szkoła” – szablon pomija je w zwykłej pętli po polach formularza.
+
+        Ukryte pole drugiego wykazu dochodzi **tylko wtedy, gdy formularz je ma**: renderuje je
+        ``web/_school_picker.html`` razem z ``school_id``, więc bez tego dopisku ta sama kontrolka
+        wyszłaby w HTML-u dwa razy – raz w bloku, raz w zwykłej pętli po polach. Formularz bez
+        słownika własnego (czyli Konkurs #1) dostaje stąd **tę samą krotkę**, co przed etapem 2.
+        """
+        if CUSTOM_INSTITUTION_FIELD in self.fields:
+            return (*SCHOOL_FIELD_NAMES, CUSTOM_INSTITUTION_FIELD)
         return SCHOOL_FIELD_NAMES
 
     def clean(self):
@@ -277,6 +490,11 @@ class SchoolChoiceMixin(forms.Form):
         odpowiedzią na pytanie „jaka szkoła” – kratka służy do **odsłonięcia** tego pola, a nie
         do poświadczenia, że wpis jest serio. Odmowa z powodu niezaznaczonej kratki odsyłała
         człowieka do listy, której akurat u niego nie było.
+
+        Profil rejestracji dokłada **rozgałęzienie na samej górze**, a nie warunki wewnątrz reguł:
+        placówka spoza wykazu (``FOREIGN``, ``NONE``, ``OTHER``) nie przechodzi przez ani jedną
+        linijkę powyższego akapitu, bo nie ma tam czego wybierać. Dzisiejsza gałąź zostaje
+        nietknięta co do komunikatu i co do kolejności warunków.
         """
         cleaned = super().clean()
         custom = cleaned.get("school_custom")
@@ -292,6 +510,16 @@ class SchoolChoiceMixin(forms.Form):
         cleaned.pop("school_city", None)
         free_text = (cleaned.get("school") or "").strip()
         cleaned["school"] = free_text
+        chosen = self._chosen_institution_type(cleaned)
+        if cleaned.get(CUSTOM_INSTITUTION_FIELD):
+            return self._clean_custom_institution(cleaned, chosen)
+        if chosen is not None and chosen not in DIRECTORY_INSTITUTION_TYPES:
+            return self._clean_institution_outside_the_directory(cleaned, chosen)
+        if not self.registration_profile.allow_free_text_school and not cleaned.get("school_id"):
+            # Konkurs bez furtki na wolny tekst mówi to jednym zdaniem, pod polem wyszukiwarki –
+            # dzisiejsze komunikaty odsyłałyby do kratki, której w tym formularzu nie ma.
+            self.add_error("school_query", "Wybierz placówkę z listy.")
+            return cleaned
         if custom:
             # Zaznaczony wyjątek unieważnia wcześniejszy wybór z listy: liczy się ostatnia decyzja
             # uczestnika, a nie kolejność, w jakiej klikał.
@@ -317,6 +545,74 @@ class SchoolChoiceMixin(forms.Form):
             )
         return cleaned
 
+    def _chosen_institution_type(self, cleaned) -> str | None:
+        """Rodzaj placówki wybrany w tym formularzu albo ``None``, gdy nie ma czego wybierać.
+
+        ``None`` – a nie ``"SECONDARY"`` – bo to jest odpowiedź „konkurs o rodzaj nie pyta”,
+        i dopiero ona pozwala zostawić dzisiejszą gałąź ``clean()`` bez ani jednego warunku
+        o profilu. Przy jednym dopuszczonym rodzaju pola w formularzu nie ma, więc wybór jest
+        znany bez pytania.
+        """
+        allowed = self.registration_profile.institution_types()
+        chosen = cleaned.get(INSTITUTION_TYPE_FIELD) or (allowed[0] if len(allowed) == 1 else None)
+        return chosen if chosen in allowed else None
+
+    def _clean_custom_institution(self, cleaned, chosen: str | None):
+        """Placówka wybrana ze **słownika organizatora** (§ 1.3.3) – gałąź pierwsza, jak w serwisie.
+
+        Kolejność warunków jest tu przepisana z ``accounts.services._resolve_institution`` i to
+        nie jest podobieństwo, tylko wymaganie: wybór z wykazu jest wyborem z wykazu **niezależnie
+        od rodzaju placówki**, bo uczelnia partnerska organizatora i jego ośrodek zagraniczny stoją
+        w tej samej tabeli. Gdyby formularz rozstrzygał inaczej niż serwis, uczestnik dostawałby
+        odmowę za wybór, który serwis by przyjął – albo odwrotnie.
+
+        Zerujemy obie drogi wykazu publicznego: nazwę przepisze serwis z wybranego wiersza, a wybór
+        kliknięty wcześniej w drugiej liście nie ma prawa przeżyć zmiany decyzji. Kraj przy
+        placówce „poza Polską” zostaje wymagany – tak samo jak w gałęzi wolnego tekstu i tym samym
+        zdaniem, bo odmowa serwisu (``COUNTRY_REQUIRED``) jest ta sama.
+
+        Identyfikatora **nie sprawdzamy w bazie**: czy wiersz istnieje, jest aktywny i ma
+        dopuszczony rodzaj, rozstrzyga ``_resolve_custom_institution`` – jednym zapytaniem
+        i w jednym miejscu dla formularza, API i importu grupowego.
+        """
+        from apps.schools.models import InstitutionType
+
+        cleaned["school"] = ""
+        cleaned["school_id"] = None
+        if INSTITUTION_NAME_FIELD in cleaned:
+            cleaned[INSTITUTION_NAME_FIELD] = ""
+        if (
+            chosen == InstitutionType.FOREIGN
+            and COUNTRY_FIELD in self.fields
+            and not (cleaned.get(COUNTRY_FIELD) or "").strip()
+        ):
+            self.add_error(COUNTRY_FIELD, "Podaj kraj.")
+        return cleaned
+
+    def _clean_institution_outside_the_directory(self, cleaned, chosen: str):
+        """Placówka spoza wykazu: nazwa wolnym tekstem, kraj przy placówce poza Polską.
+
+        Do serwisu idzie ``institution_name``, a nie ``school``: kopiowanie jednego w drugie jest
+        **regułą domenową** i ma jedno miejsce (``accounts.services._resolve_institution``), tak
+        samo jak dziś przepisanie nazwy z rejestru. Formularz zeruje ``school`` i ``school_id``,
+        żeby wybór klikniętym wcześniej wierszem wykazu nie przeżył zmiany rodzaju placówki.
+        """
+        from apps.schools.models import InstitutionType
+
+        cleaned["school"] = ""
+        cleaned["school_id"] = None
+        name = (cleaned.get(INSTITUTION_NAME_FIELD) or "").strip()
+        cleaned[INSTITUTION_NAME_FIELD] = name
+        if chosen == InstitutionType.NONE:
+            cleaned[INSTITUTION_NAME_FIELD] = ""
+            return cleaned
+        if not name and INSTITUTION_NAME_FIELD in self.fields:
+            self.add_error(INSTITUTION_NAME_FIELD, "Podaj nazwę placówki.")
+        if chosen == InstitutionType.FOREIGN and COUNTRY_FIELD in self.fields:
+            if not (cleaned.get(COUNTRY_FIELD) or "").strip():
+                self.add_error(COUNTRY_FIELD, "Podaj kraj.")
+        return cleaned
+
 
 class ConsentFieldsMixin(forms.Form):
     """Blok „Zgody” obu formularzy rejestracji uczestnika.
@@ -333,14 +629,25 @@ class ConsentFieldsMixin(forms.Form):
     błąd niezwiązany z polem. Wyjątkiem jest zgoda opiekuna – tam błąd **musi** stanąć pod polem,
     bo wynika z innego pola tego samego formularza (rocznika) i bez wskazania palcem uczestnik
     nie wie, czego od niego chcą.
+
+    **Skąd bierze się zestaw zgód.** Z :func:`apps.accounts.consents.consent_set`, czyli z tego
+    samego wejścia, co API i panel uczestnika – nie ze stałej. Przy wyłączonej fladze
+    ``per_competition_consents`` zestaw jest dokładnie tą stałą i nie kosztuje ani jednego
+    zapytania; przy włączonej pochodzi z ``ConsentDefinition`` **tego** konkursu. Odczyt jest
+    jeden na formularz i jest tutaj, bo to tutaj powstają pola: gdyby zestaw czytało osobno
+    ``__init__``, osobno ``consent_field_names`` i osobno ``clean``, trzy części jednego
+    formularza mogłyby zobaczyć trzy różne zestawy.
     """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        texts = labels()
-        for consent in CONSENTS:
+        # Nazwę organizatora czytamy **raz na formularz** i podajemy ją każdej etykiecie: inaczej
+        # ten sam napis szedłby z bazy tyle razy, ile jest zgód.
+        organizer = organizer_name()
+        self._consents = consent_set()
+        for consent in self._consents:
             self.fields[consent.field_name] = forms.BooleanField(
-                label=texts[consent.kind],
+                label=consent_label(consent, organizer=organizer),
                 required=False,
                 help_text=consent.help_text,
                 # Bez dwukropka: etykietą jest całe zdanie oświadczenia zakończone kropką,
@@ -349,13 +656,18 @@ class ConsentFieldsMixin(forms.Form):
             )
         # Pola dołożone po ``super().__init__`` stają na końcu ``self.fields`` niezależnie od
         # ``field_order`` – tam je zresztą chcemy mieć, ale kolejność ma wynikać z deklaracji,
-        # a nie z tego, w którym momencie powstało pole.
+        # a nie z tego, w którym momencie powstało pole. Zgoda o nazwie spoza ``FIELD_ORDER``
+        # (konkurs z własnym zestawem) ląduje na końcu, czyli tam, gdzie stoi cały blok zgód.
         self.order_fields(self.field_order)
 
     @property
     def consent_field_names(self) -> tuple[str, ...]:
-        """Nazwy pól zgód – szablon renderuje je w osobnym ``<fieldset>``, poza zwykłą pętlą."""
-        return CONSENT_FIELD_NAMES
+        """Nazwy pól zgód – szablon renderuje je w osobnym ``<fieldset>``, poza zwykłą pętlą.
+
+        Liczone z zestawu, z którego powstały pola, a nie ze stałej ``CONSENT_FIELD_NAMES``:
+        szablon ma wypisać dokładnie te pola, które w tym formularzu są.
+        """
+        return tuple(consent.field_name for consent in self._consents)
 
     def clean(self):
         """Zgoda opiekuna wymagana dla niepełnoletniego – błąd pod polem, nie nad formularzem.
@@ -363,11 +675,20 @@ class ConsentFieldsMixin(forms.Form):
         Rocznik bywa niepoprawny (pole nie przeszło walidacji) – wtedy milczymy i zostawiamy
         rozstrzygnięcie serwisowi: dopisywanie drugiego błędu do formularza, w którym pierwszy
         jest oczywisty, tylko zaciemnia, co poprawić.
+
+        Zgody opiekuna szukamy w zestawie **tego** formularza, a nie w indeksie ``BY_KIND``:
+        konkurs, który tej zgody nie zbiera, nie ma pod czym postawić błędu i milczy. Regułę
+        „kto jest niepełnoletni” trzyma nadal ``consents.is_minor`` – to jest kod, nie dane.
         """
         cleaned = super().clean()
         birth_year = cleaned.get("birth_year")
-        guardian = BY_KIND[ConsentKind.GUARDIAN]
-        if birth_year and is_minor(birth_year) and not cleaned.get(guardian.field_name):
+        guardian = next((item for item in self._consents if item.kind == ConsentKind.GUARDIAN), None)
+        if (
+            guardian is not None
+            and birth_year
+            and is_minor(birth_year)
+            and not cleaned.get(guardian.field_name)
+        ):
             self.add_error(guardian.field_name, guardian.missing_message)
         return cleaned
 
@@ -555,9 +876,17 @@ class ParticipantProfileForm(SchoolChoiceMixin):
     Zakres jest dokładnie taki, jak w rejestracji **minus** poświadczenia i minus zgody: zgody są
     oświadczeniami z własną historią (``ConsentRecord``) i nie zmienia się ich zapisem formularza
     danych. ``public_code`` nie jest edytowalny nigdzie – to identyfikator w ogłoszonych tabelach.
+
+    Profilu rejestracji ten ekran **nie słucha** (``profile_driven = False``) i jest to decyzja
+    na jedno wydanie: zapis idzie przez ``apps.accounts.profile._participant_values``, który
+    sprawdza dzisiejsze reguły (klasa 1–5, szkoła z wykazu albo wolny tekst) i o rodzaju placówki
+    nie wie. Pole „Rodzaj placówki” na ekranie, którego zapis by je pominął, byłoby polem
+    udającym, że coś robi – a to jest gorsze od jego braku. Zmiana placówki przez uczestnika
+    konkursu z własnym profilem rejestracji wchodzi razem z tamtym serwisem.
     """
 
     required_css_class = REQUIRED_CSS_CLASS
+    profile_driven = False
     field_order = [name for name in PARTICIPANT_PROFILE_FIELD_ORDER]
 
     first_name = forms.CharField(label="Imię", max_length=150)

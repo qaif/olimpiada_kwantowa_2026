@@ -1,0 +1,95 @@
+{% extends "web/coordinator/base.html" %}
+{% load static %}
+{% comment %}
+  Cennik wpisowego: ile kosztuje start w edycji i czy cena zależy od kategorii.
+
+  Kwota należności jest **kopiowana** w chwili naliczenia, a nie czytana z cennika przy każdym
+  wyświetleniu – podniesienie ceny w połowie sezonu nie zmienia kwoty, którą ktoś dostał na
+  dokumencie i zapłacił. Dlatego formularz zmiany nie ma pól „edycja” i „kategoria”: one mówią,
+  czego cennik dotyczy, a nie ile kosztuje.
+
+  Każda zmiana jest POST-em z tokenem CSRF. Bez JavaScriptu i bez stylów w atrybutach – panel
+  chodzi pod ścisłą polityką CSP.
+{% endcomment %}
+{% block title %}Wpisowe: cennik – panel koordynatora{% endblock %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block panel_title %}Wpisowe: cennik{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Ile kosztuje start w edycji, z jakim terminem płatności i czy cena zależy od
+    kategorii. System jest <strong>rejestrem należności, a nie programem księgowym</strong>: nie
+    numeruje faktur zgodnie z ustawą, nie prowadzi ewidencji VAT i nie wystawia korekt. Stawka VAT
+    jest zapisem Twojej decyzji i wychodzi na dokument taka, jaką ją wpiszesz.</p>
+{% endblock %}
+{% block panel_actions %}
+  <a class="btn btn--secondary" href="{% url 'web:coordinator-fees-register' %}">Rejestr należności</a>
+  <a class="btn btn--secondary" href="{% url 'web:coordinator-fees-payments' %}">Webhooki płatności</a>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Cenniki tego konkursu</h2>
+  </div>
+
+  {% if schedules %}
+    {% for row in schedules %}
+      <article class="card">
+        <div class="card__head">
+          <h3 class="mt-0 card__title">{{ row.schedule.name }}</h3>
+          {% if row.schedule.is_active %}
+            <span class="badge badge--ok">aktywny</span>
+          {% else %}
+            <span class="badge badge--neutral">wycofany</span>
+          {% endif %}
+        </div>
+        <dl class="meta-list">
+          <dt>Edycja</dt>
+          <dd>{{ row.schedule.edition.year_label }}</dd>
+          <dt>Kategoria</dt>
+          <dd>{% if row.schedule.category %}{{ row.schedule.category.name }}{% else %}cena podstawowa edycji{% endif %}</dd>
+          <dt>Kwota</dt>
+          <dd>{{ row.schedule.amount }} {{ row.schedule.currency }}</dd>
+          <dt>Brak wpłaty blokuje oddanie pracy</dt>
+          <dd>{% if row.schedule.blocks_submission %}tak{% else %}nie{% endif %}</dd>
+        </dl>
+        <form method="post" action="{% url 'web:coordinator-fee-schedule' row.schedule.pk %}">
+          {% csrf_token %}
+          {{ row.form.as_p }}
+          <p class="actions"><button type="submit" class="btn btn--secondary btn--small">Zapisz zmiany</button></p>
+        </form>
+      </article>
+    {% endfor %}
+  {% else %}
+    <p class="hint">Ten konkurs nie ma jeszcze żadnego cennika. Dopóki go nie ma, nie da się
+      naliczyć nikomu wpisowego — i to jest poprawny stan konkursu bezpłatnego.</p>
+  {% endif %}
+</section>
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Nowy cennik</h2>
+    <form method="post" action="{% url 'web:coordinator-fees' %}">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <p class="hint">Jedna edycja ma <strong>jedną</strong> cenę podstawową (bez kategorii)
+        i najwyżej po jednej cenie na kategorię. Cennik kategorii jest wyjątkiem od ceny
+        podstawowej, a nie obowiązkiem.</p>
+      <p class="actions"><button type="submit" class="btn btn--primary">Zapisz cennik</button></p>
+    </form>
+  </div>
+</section>
+
+<section class="section">
+  <div class="card card--quiet">
+    <h2 class="mt-0">Czego ten ekran nie robi</h2>
+    <ul class="hint">
+      <li><strong>Nie liczy podatku.</strong> Stawka VAT jest zapisem decyzji i trafia na dokument
+        taka, jaką ją wpiszesz.</li>
+      <li><strong>Nie zmienia należności już naliczonych.</strong> Każda nosi kwotę z chwili
+        naliczenia; nowa cena obowiązuje od następnego.</li>
+      <li><strong>Nie blokuje niczego sama z siebie.</strong> Bramka „bez wpłaty nie oddasz pracy”
+        jest wyborem regulaminowym i włącza ją osobne pole — domyślnie wyłączone.</li>
+    </ul>
+  </div>
+</section>
+{% endblock %}

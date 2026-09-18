@@ -35,7 +35,16 @@ from django.utils.translation import gettext_lazy
 from django.views.generic import TemplateView, View
 from rest_framework.status import HTTP_400_BAD_REQUEST
 
-from apps.accounts.consents import CONSENTS, ConsentKind, ConsentSource, labels, required_kinds
+from apps.accounts.consents import (
+    ConsentKind,
+    ConsentSource,
+    consent_set,
+    organizer_name,
+    required_kinds,
+)
+from apps.accounts.consents import (
+    label as consent_label,
+)
 from apps.accounts.guardian import guardian_status
 from apps.accounts.services import consents_for_participant, set_publish_name_consent
 from apps.appeals.services import appealable_submissions, appeals_for_participant, file_appeal
@@ -45,6 +54,7 @@ from apps.competitions.interviews import (
     cancel_booking,
     slots_for_participant,
 )
+from apps.competitions.logistics import onsite_logistics_enabled
 from apps.competitions.models import InterviewSlot, Problem, Stage, StageEntry
 from apps.competitions.services import (
     SELF_REGISTRATION_KINDS,
@@ -64,10 +74,14 @@ from apps.submissions.services import (
     submissions_for_user,
 )
 from apps.submissions.status_track import STATE_CURRENT, STATE_FAILED, status_track
+from apps.tenancy.fees import fees_enabled
 from apps.web.forms import AppealForm, SubmissionUploadForm
 from apps.web.mixins import ActionViewMixin, ParticipantRequiredMixin
 from apps.web.participant_now import countdown_words, now_panel
 from apps.web.throttle import ThrottledFormMixin
+from apps.web.views.participant_fees import fee_card_context
+from apps.web.views.participant_logistics import arrival_card_context
+from apps.web.views.participant_teams import team_card_context
 
 #: Zakładki pulpitu. Klucz jest w adresie (``/me/?tab=wyniki``), więc jest po polsku i bez odmiany –
 #: adres panelu bywa przesyłany dalej i ma być czytelny. Pierwsza jest domyślna: wejście na ``/me/``
@@ -211,7 +225,7 @@ def _track_for(versions: list, stage: Stage, publication) -> object:
     return status_track(submission=versions[0] if versions else None, stage=stage, publication=publication)
 
 
-def _consent_rows(records) -> list[dict]:
+def _consent_rows(records, competition=None) -> list[dict]:
     """Zgody uczestnika do pokazania w panelu: po jednym wierszu na rodzaj, stan najświeższy.
 
     Historia w bazie bywa dłuższa niż jeden wpis na rodzaj (zgoda wycofana i wyrażona ponownie),
@@ -224,21 +238,28 @@ def _consent_rows(records) -> list[dict]:
 
     Argumentem są **wpisy**, a nie uczestnik: tę samą listę czyta znacznik „zgody kompletne”
     w nagłówku panelu i drugi odczyt tej samej tabeli w jednym żądaniu byłby zapytaniem po nic.
+
+    Zestaw rodzajów bierze się z ``consents.consent_set`` – z tego samego wejścia, co formularz
+    rejestracji i ``GET /api/auth/consents/``. Panel pokazujący inny zestaw niż formularz mówiłby
+    uczestnikowi, że nie złożył zgody, o którą nikt go nie prosił.
     """
     latest: dict[str, object] = {}
     for record in records:
         latest.setdefault(record.kind, record)
-    texts = labels()
+    # Zestaw czytamy **raz** i z niego składamy etykiety – ``labels()`` woła to samo wejście,
+    # więc para „labels() + consent_set()” kosztowałaby dwa odczyty jednego zestawu.
+    consents = consent_set(competition)
+    organizer = organizer_name(competition)
     return [
         {
             "kind": consent.kind,
             "name": ConsentKind(consent.kind).label,
-            "label": texts[consent.kind],
+            "label": consent_label(consent, organizer=organizer),
             "version": consent.version,
             "optional": consent.is_optional,
             "record": latest.get(consent.kind),
         }
-        for consent in CONSENTS
+        for consent in consents
     ]
 
 
@@ -409,6 +430,21 @@ class MeView(ParticipantRequiredMixin, TemplateView):
             }
         )
         context.update(self._tab_context(tab, user, edition, now, stage, entry, upload_open))
+        # Kafle wydania K – wpisowe i deklaracja przyjazdu. Warunek stoi **przed** wywołaniem,
+        # a nie tylko w środku funkcji, i to nie jest ostrożność na wyrost: samo sięgnięcie po
+        # ``self.participant`` kosztuje zapytanie (``participant_for``), więc argument policzony
+        # „na wszelki wypadek” byłby zapytaniem na każdym wejściu do panelu w konkursie, który
+        # o wpisowym i logistyce nic nie wie. Flagę czytają predykaty obszaru – jedyne miejsce,
+        # w którym te dwie nazwy padają (§ 1.0 (c)) – a ``self.competition`` jest już w pamięci
+        # (``CompetitionMiddleware``), więc sam odczyt nie dotyka bazy. Budżet zapytań ``/me/``
+        # dla Konkursu #1 zostaje więc co do jednego (§ 5.6).
+        if fees_enabled(self.competition):
+            context.update(fee_card_context(self.competition, self.participant, edition))
+        if onsite_logistics_enabled(self.competition):
+            context.update(arrival_card_context(self.competition, stage, entry))
+        # Karta „Moja drużyna” (wydanie J, § 2.3) – ta sama zasada, co dwie wyżej: pusty słownik
+        # bez ani jednego zapytania w konkursie bez flagi ``team_entries``.
+        context.update(team_card_context(self.participant, self.competition))
         context["now_panel"] = self._now_panel(context, now, stage, entry, can_register, upload_open)
         return context
 
@@ -428,7 +464,7 @@ class MeView(ParticipantRequiredMixin, TemplateView):
             records = consents_for_participant(self.participant)
             return {
                 "consent_records": records,
-                "consent_rows": _consent_rows(records),
+                "consent_rows": _consent_rows(records, self.competition),
                 # Stan zgody opiekuna liczy serwis (``apps.accounts.guardian``): wiek uczestnika,
                 # wysłana prośba i wpis dowodowy to trzy fakty z trzech miejsc i szablon nie ma
                 # ich składać samodzielnie.

@@ -1,4 +1,4 @@
-# Słownik szkół ponadpodstawowych (SIO / RSPO)
+# Słownik placówek (SIO / RSPO)
 
 Plik `szkoly-srednie-sio-2025.json` jest **danymi referencyjnymi**, a nie treścią redakcyjną:
 powstaje maszynowo z rejestru ministerialnego, leży w repozytorium i jest wgrywany do bazy przy
@@ -12,7 +12,7 @@ każdym wdrożeniu (`manage.py seed_schools`, krok 6/7 w `scripts/deploy.sh`).
   55 741 wierszy), rok szkolny **2025/2026**,
 - licencja: dane publiczne udostępniane przez Ministerstwo Edukacji Narodowej.
 
-## Reguła doboru wierszy
+## Reguła doboru wierszy (`szkoly-srednie-sio-2025.json`)
 
 Do słownika trafiają szkoły ponadpodstawowe **dla młodzieży**, czyli wiersze, w których:
 
@@ -26,6 +26,30 @@ Do słownika trafiają szkoły ponadpodstawowe **dla młodzieży**, czyli wiersz
 Z wykazu 2025/2026 daje to **8 118 szkół**. Nazwy są przepisane dosłownie, wersalikami, tak jak
 stoją w rejestrze – zamiana na zapis mieszany wymagałaby słownika wyjątków (patronowie, skróty,
 liczebniki rzymskie) i zapisywałaby uczestnikom nazwy, których szkoły nie używają.
+
+## Rodzaj placówki
+
+Od etapu 2 słownik nie jest już z definicji listą szkół ponadpodstawowych: kolumna
+`School.institution_type` (`InstitutionType` w `apps/schools/models.py`) mówi, z którego wykazu
+wiersz pochodzi — `SECONDARY`, `PRIMARY`, `UNIVERSITY`. Wartości `FOREIGN`, `NONE` i `OTHER`
+**nie mają wierszy w tej tabeli**: to sytuacje uczestnika, a nie pozycje rejestru.
+
+| Rodzaj | Źródło | Reguła doboru | Plik |
+|---|---|---|---|
+| `SECONDARY` | wykaz SIO (niżej) | `sio.SECONDARY_KINDS` | `szkoly-srednie-sio-2025.json` |
+| `PRIMARY` | **ten sam** wykaz SIO | `sio.PRIMARY_KINDS` | `szkoly-podstawowe-sio-2025.json` |
+| `UNIVERSITY` | wykaz POL-on | osobny skrypt budujący | `uczelnie-polon-2025.json` |
+
+Rodzaj stoi przy **każdym wierszu** pliku, a nie w nazwie pliku ani w opcji komendy, bo to od
+niego zależy, co `seed_schools` wygasi: wygaszanie („wiersz nieobecny w pliku dostaje
+`is_active=False`”) zawęża się do **rodzajów obecnych w pliku**. Bez tego zawężenia wgranie wykazu
+uczelni wygasiłoby wszystkie szkoły ponadpodstawowe, a najbliższe wdrożenie wygasiłoby uczelnie.
+
+`szkoly-srednie-sio-2025.json` tego pola **nie ma i nie musi mieć**: brak pola znaczy `SECONDARY`.
+Plik powstał przed etapem 2, zawiera wyłącznie takie wiersze i ma się dać porównać z nowym wykazem
+linijka po linijce — dopisanie do niego 8 118 razy tej samej wartości nic by nie wyjaśniło.
+Pliki generowane od nowa (także przyszłe wydania wykazu szkół ponadpodstawowych) rodzaj już mają,
+bo wpisuje go `sio.school_from_row`.
 
 ## Miejscowość: co jest w pliku, a co powstaje przy wgrywaniu
 
@@ -50,6 +74,12 @@ backend/.venv/Scripts/python.exe scripts/build_school_fixture.py Wykaz_szkol.xls
 ```
 
 `seed_schools` robi **upsert po numerze RSPO** i **nigdy nie kasuje wierszy**: szkoła, której nie
-ma w nowym wykazie, dostaje `is_active=False`. Powód jest twardy – `Participant.school_ref`
-wskazuje na te wiersze z `on_delete=PROTECT`, a historia zgłoszeń nie może zniknąć razem
-z aktualizacją słownika.
+ma w nowym wykazie, dostaje `is_active=False` — w obrębie rodzajów placówek obecnych w pliku.
+Powód jest twardy – `Participant.school_ref` wskazuje na te wiersze z `on_delete=PROTECT`,
+a historia zgłoszeń nie może zniknąć razem z aktualizacją słownika.
+
+Skrypt buduje dziś wykaz szkół **ponadpodstawowych**; regułę doboru szkół podstawowych
+(`sio.PRIMARY_KINDS`) ma już `apps/schools/sio.py` i sięga się po nią przez
+`read_schools(path, institution_type="PRIMARY")`. Przełącznik wiersza poleceń dla tej reguły
+dokłada zadanie, które przynosi sam plik `szkoly-podstawowe-sio-2025.json` — bez pliku byłaby to
+opcja bez zastosowania.

@@ -1,0 +1,37 @@
+{% load i18n %}
+{% comment %}
+  Kafel „Wpisowe”. Włączany jednym warunkiem: kontekst ma klucz ``fee`` wyłącznie wtedy, gdy
+  konkurs pobiera wpisowe **i** tej osobie coś naliczono (``participant_fees.fee_card_context``).
+  Flagi w szablonie nie ma i być nie może (§ 2.1 punkt 3): flaga czytana w szablonie jest flagą,
+  której nie widać w teście widoku.
+
+  Uczestnik widzi swoją należność i nic poza nią: kwotę, stan, termin, oznaczenie do przelewu
+  i — jeżeli organizator go wydał — rachunek. Nie widzi cennika ani powodu zwolnienia wpisanego
+  przez koordynatora.
+{% endcomment %}
+{% if fee %}
+  <section class="section" id="wpisowe">
+    <div class="section__head"><h2 class="mt-0">{% translate "Wpisowe" %}</h2></div>
+    <dl class="meta-list">
+      <dt>{% translate "Kwota" %}</dt>
+      <dd>{{ fee.amount }} {{ fee.currency }}</dd>
+      <dt>{% translate "Stan" %}</dt>
+      <dd>{{ fee_status_label }}</dd>
+      <dt>{% translate "Termin płatności" %}</dt>
+      <dd>{{ fee.due_on|date:"Y-m-d"|default:"—" }}</dd>
+      <dt>{% translate "Oznaczenie do przelewu" %}</dt>
+      <dd><span class="code-chip">{{ fee_reference }}</span></dd>
+    </dl>
+    {% if fee_document_ready %}
+      <p class="actions">
+        <a class="btn btn--secondary btn--small"
+           href="{% url 'web:participant-fee-document' %}">{% translate "Pobierz rachunek" %}</a>
+      </p>
+    {% else %}
+      <p class="hint">{% translate "Rachunek wystawia organizator. Gdy będzie gotowy, pojawi się tu przycisk pobrania." %}</p>
+    {% endif %}
+    {% if not fee_settled %}
+      <p class="hint">{% translate "Wpisz oznaczenie w tytule przelewu — po nim organizator odnajdzie Twoją wpłatę." %}</p>
+    {% endif %}
+  </section>
+{% endif %}

@@ -1,0 +1,106 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Zgody konkursu: lista definicji zbieranych przy rejestracji.
+
+  Tabela pokazuje **komplet**, razem z definicjami odznaczonymi jako nieaktywne. Zgoda wycofana
+  z zestawu nie znika z bazy (wpisy dowodowe z lat poprzednich mają dalej mieć w bazie treść,
+  pod którą je złożono), więc nie może zniknąć i z tego ekranu – inaczej jedyną drogą do jej
+  przywrócenia byłby ``/admin/``.
+
+  Kolumny wymagalności są tu tylko do czytania: zgoda na regulamin i klauzula RODO są podstawą
+  przetwarzania danych, a zgoda opiekuna warunkiem udziału osoby niepełnoletniej. Decyzja o tym
+  zapada poza panelem – ekran ma o niej informować, a nie ją oddawać pod jedno kliknięcie.
+
+  Bez JavaScriptu i bez stylów w atrybutach – panel chodzi pod ścisłą polityką CSP.
+{% endcomment %}
+{% block title %}Zgody konkursu – panel koordynatora{% endblock %}
+{% block panel_title %}Zgody konkursu{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Oświadczenia, które uczestnik składa przy rejestracji: treść, dokument, wersja
+    i wymagalność. Zmiana treści działa od najbliższego otwarcia formularza; zmiana wersji
+    przesuwa granicę w dowodach i ma osobne potwierdzenie.</p>
+{% endblock %}
+{% block panel_content %}
+
+{% if falls_back_to_defaults %}
+  <div class="card card--quiet">
+    <p class="notice">Żadna definicja nie jest aktywna, więc formularz rejestracji pokazuje
+      <strong>zestaw domyślny</strong> — ten sam, co konkurs bez własnych zgód. Rejestracja bez
+      regulaminu i bez klauzuli RODO zbierałaby dane osobowe bez podstawy, więc system nie
+      pokazuje pustego bloku zgód, tylko schodzi do zestawu wbudowanego.</p>
+  </div>
+{% endif %}
+
+<section class="section">
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Definicje zgód tego konkursu</caption>
+      <thead>
+        <tr>
+          <th scope="col">Rodzaj</th>
+          <th scope="col">Pole formularza</th>
+          <th scope="col">Dokument</th>
+          <th scope="col">Wersja</th>
+          <th scope="col">Wymagalność</th>
+          <th scope="col">Kolejność</th>
+          <th scope="col">Stan</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for definition in definitions %}
+          <tr>
+            <th scope="row">
+              <a href="{% url 'web:coordinator-consent-edit' definition.pk %}">{{ definition.get_kind_display }}</a>
+            </th>
+            <td><code>{{ definition.field_name }}</code></td>
+            <td>
+              {% if definition.document_slug %}
+                <code>{{ definition.document_slug }}</code>
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td>{{ definition.version }}</td>
+            <td>
+              {% if definition.required %}
+                <span class="badge badge--ok">wymagana</span>
+              {% elif definition.required_for_minor %}
+                <span class="badge badge--warn">wymagana dla niepełnoletnich</span>
+              {% else %}
+                <span class="badge badge--neutral">dobrowolna</span>
+              {% endif %}
+            </td>
+            <td class="num">{{ definition.ordering }}</td>
+            <td>
+              {% if definition.is_active %}
+                <span class="badge badge--ok">aktywna</span>
+              {% else %}
+                <span class="badge badge--neutral">wyłączona</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="7" class="empty">Ten konkurs nie ma ani jednej definicji zgody. Wiersze
+              zakłada migracja albo komenda <code>create_competition</code>.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section">
+  <div class="card card--quiet">
+    <h2 class="mt-0">Co widzi teraz uczestnik</h2>
+    <p class="hint">Kolejność pól bloku „Zgody” w formularzu rejestracji, liczona tym samym
+      wejściem, co sam formularz:</p>
+    <ol class="hint">
+      {% for field in live_fields %}<li><code>{{ field }}</code></li>{% endfor %}
+    </ol>
+    <p class="hint">Rodzajów zgód nie da się dołożyć z panelu: po rodzaju poznaje oświadczenie
+      wpis dowodowy i reguła „zgoda opiekuna dla osoby niepełnoletniej”, więc lista rodzajów
+      zostaje w kodzie.</p>
+  </div>
+</section>
+{% endblock %}

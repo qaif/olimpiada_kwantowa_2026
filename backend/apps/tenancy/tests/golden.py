@@ -56,6 +56,7 @@ from apps.competitions.models import (
 )
 from apps.competitions.tests.factories import (
     CurrentEditionFactory,
+    InterviewSlotFactory,
     ProblemFactory,
     QualificationRuleFactory,
     ScoringScaleFactory,
@@ -383,3 +384,148 @@ def file_appeal(golden: Golden) -> Appeal:
         filed_by=golden.participants[0],
     )
     return golden.appeal
+
+
+# --- zdarzenia wysyłające listy -------------------------------------------------------------------
+#
+# Cztery funkcje poniżej stoją **poza** ``build_golden`` z tego samego powodu, co ``publish_results``
+# i ``file_appeal``: są zdarzeniami, a nie stanem świata. Dołożenie ich do fikstury dorzuciłoby
+# każdemu testowi złotemu zgłoszenie, rozmowę i zaległą recenzję, a razem z nimi kilka zapytań do
+# progów z ``QUERY_BUDGET`` – czyli zmieniłoby pomiar, którego ta fikstura ma pilnować.
+#
+# Są tu, a nie w teście, bo pilnują tematów sześciu listów, których do etapu 2 nie sprawdzał żaden
+# test niezmienności (``docs/UNIWERSALNY-ETAP-2.md`` § 1.1.1). Temat składa się w serwisie
+# z podstawieniem, więc jedynym sposobem odczytania go takim, jaki dojdzie do człowieka, jest
+# **wysłanie listu** – stąd droga przez serwis i ``django.core.mail.outbox``, a nie przez import
+# stałej, której w tych pięciu miejscach po prostu nie ma.
+
+
+def open_support_ticket(golden: Golden, *, body: str = "Nie widzę zadania w panelu.") -> object:
+    """Zgłoszenie uczestnika do organizatora. Zwraca sprawę; list idzie do organizatora.
+
+    Wysyłka jest zakolejkowana **po commicie** (``apps.accounts.activation.queue_mail``), więc
+    wołający opakowuje to wywołanie w ``django_capture_on_commit_callbacks(execute=True)`` –
+    inaczej ``mail.outbox`` zostaje pusty i test przechodzi, nie sprawdziwszy niczego.
+    """
+    from apps.support.models import SupportCategory
+    from apps.support.services import open_ticket
+
+    return open_ticket(
+        user=golden.participants[0].user,
+        category=SupportCategory.OTHER,
+        subject="Pytanie o termin",
+        body=body,
+    )
+
+
+def answer_support_ticket(golden: Golden, ticket, *, body: str = "Termin jest w regulaminie.") -> object:
+    """Odpowiedź koordynatora na zgłoszenie. Zwraca wypowiedź; list idzie do zgłaszającego."""
+    from apps.support.services import reply
+
+    return reply(ticket, body, author=golden.coordinator, from_coordinator=True)
+
+
+def book_interview(golden: Golden, *, participant=None, hours_ahead: int = 20) -> object:
+    """Zapis na rozmowę w etapie okręgowym (forma ``INTERVIEW``). Zwraca zapis.
+
+    Termin stoi **dwadzieścia godzin** przed nami, a nie dobę: mieści się wtedy w oknie
+    przypomnienia (``apps.competitions.video.bookings_to_remind``, ``[teraz, teraz + 24 h)``),
+    więc na tym samym zapisie da się sprawdzić temat potwierdzenia i temat przypomnienia.
+    """
+    participant = participant or golden.participants[0]
+    StageEntryFactory(
+        competition=golden.competition,
+        participant=participant,
+        stage=golden.district,
+        status=StageEntryStatus.QUALIFIED,
+    )
+    slot = InterviewSlotFactory(
+        competition=golden.competition,
+        stage=golden.district,
+        starts_at=timezone.now() + timedelta(hours=hours_ahead),
+    )
+    from apps.competitions.interviews import book_slot
+
+    return book_slot(participant, slot)
+
+
+def assign_pending_review(golden: Golden, *, overdue: bool = True) -> object:
+    """Recenzja czekająca na wykonanie – jedyny stan, o którym przypomina beat oceniania.
+
+    Recenzje złotej fikstury są **wystawione** (``SUBMITTED``), więc żadna z nich nie wchodzi do
+    przebiegu przypomnień; praca przechodzi tu w stan ``IN_REVIEW``, a recenzja dostaje własnego
+    recenzenta, bo więz ``grading_review_unique_assignment`` nie dopuszcza drugiego przydziału tej
+    samej pracy tej samej osobie w tej samej rundzie.
+
+    ``overdue`` rozstrzyga, który z **dwóch** tematów przypomnienia złoży serwis
+    (``apps.grading.deadlines.reminder_message``): „po terminie” czy „zbliża się termin”.
+    """
+    from apps.submissions.models import Submission
+
+    submission = Submission.objects.filter(entry__participant__in=golden.participants).first()
+    submission.status = SubmissionStatus.IN_REVIEW
+    submission.save(update_fields=["status"])
+    reviewer = ActiveReviewerFactory(
+        competition=golden.competition,
+        user__email=f"recenzent-zalegly@{MAIL_DOMAIN}",
+        user__first_name="Recenzent",
+        user__last_name="Zaległy",
+    )
+    now = timezone.now()
+    return ReviewFactory(
+        competition=golden.competition,
+        submission=submission,
+        reviewer=reviewer,
+        round=ROUND_BLIND,
+        status=ReviewStatus.ASSIGNED,
+        due_at=now - timedelta(days=2) if overdue else now + timedelta(days=1),
+    )
+
+
+#: Pola osi czasu etapu przesuwane razem, w jednym kawałku. Kolejność jest tu bez znaczenia –
+#: przesuwamy wszystkie o tę samą różnicę, więc wzajemny porządek dat zostaje nietknięty.
+STAGE_TIMELINE_FIELDS = (
+    "opens_at",
+    "deadline_at",
+    "review_deadline_at",
+    "appeal_window_opens_at",
+    "appeal_window_closes_at",
+)
+
+
+def ready_for_results(golden: Golden, *stages: Stage, score: int = 2) -> None:
+    """Przenosi wskazane etapy do chwili, w której wolno ogłosić ich wyniki.
+
+    Złota fikstura opisuje świat **w trakcie** sezonu: etapy mają otwarte okna reklamacji, jedna
+    praca jest dopiero oddana, a przy jednym wpisie nie ma żadnej. ``compute_stage_results`` odmawia
+    wtedy przeliczenia (``STAGE_NOT_FINALIZED``), a próg – policzenia (``APPEAL_WINDOW_OPEN``)
+    i tak ma być: tabelę wyników ogłasza się dopiero po zamknięciu oceniania i reklamacji. Funkcja
+    przesuwa ten sam świat o jeden krok dalej i dlatego stoi **poza** ``build_golden``, tak samo jak
+    ``publish_results`` i ``file_appeal``: jest zdarzeniem, a nie stanem świata.
+
+    Dwie rzeczy naraz, bo obie są tą samą chwilą w kalendarzu zawodów:
+
+    - **oś czasu** etapu wędruje wstecz o tyle, żeby okno reklamacji zamknęło się dobę temu.
+      Różnicę liczymy z danych etapu, a nie stałą liczbą dni: etapy złotej fikstury stoją
+      w odstępach kwartalnych, więc jedno przesunięcie dla wszystkich zostawiłoby finał
+      z oknem nadal otwartym,
+    - **ocenianie**: każda praca dostaje stan ``FINAL`` i ocenę końcową. Wpis bez ani jednej pracy
+      zostaje bez zmian i to jest przedmiot, a nie przeoczenie: brak zgłoszenia znaczy zero
+      punktów, czyli wiersz, który w każdej ogłoszonej tabeli istnieje.
+
+    Woła to test snapshotu tabel wyników (``docs/UNIWERSALNY-ETAP-2.md`` § 5.2, T28).
+    """
+    from apps.submissions.models import Submission
+
+    now = timezone.now()
+    for stage in stages:
+        offset = stage.appeal_window_closes_at - (now - timedelta(days=1))
+        for name in STAGE_TIMELINE_FIELDS:
+            setattr(stage, name, getattr(stage, name) - offset)
+        stage.save(update_fields=list(STAGE_TIMELINE_FIELDS))
+    for submission in Submission.objects.filter(entry__stage__in=stages):
+        if submission.status != SubmissionStatus.FINAL:
+            submission.status = SubmissionStatus.FINAL
+            submission.save(update_fields=["status"])
+        if getattr(submission, "final_grade", None) is None:
+            FinalGradeFactory(competition=golden.competition, submission=submission, score=score)

@@ -1,0 +1,32 @@
+{% extends "tenancy/setup_base.html" %}{% comment %}
+  Krok 1: konto operatora instalacji. Blok antyspamowy (CAPTCHA, pułapka, znacznik czasu) jest ten
+  sam, co w publicznej rejestracji – włączamy go z ``templates/web/_antispam_fields.html``, żeby
+  wyzwanie wyglądało i działało dokładnie tak samo w obu miejscach.
+{% endcomment %}
+{% block title %}Konto operatora{% endblock %}
+{% block heading %}Konto operatora instalacji{% endblock %}
+{% block lead %}To konto dostaje pełne uprawnienia: panel administracyjny, redakcję treści
+  i konfigurację konkursu. Zakładasz je raz, na pustej instalacji.{% endblock %}
+{% block content %}
+<form method="post" class="form" novalidate>
+  {% csrf_token %}
+  <p class="form__required-note">Pola oznaczone * są obowiązkowe.</p>
+  {{ form.non_field_errors }}
+  {% for field in form %}
+    {% if field.name in form.antispam_field_names %}
+      {# Blok antyspamowy renderuje się razem, na końcu formularza – patrz niżej. #}
+    {% else %}
+      <p>
+        {{ field.errors }}
+        {{ field.label_tag }}
+        {{ field }}
+        {% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}
+      </p>
+    {% endif %}
+  {% endfor %}
+  {% include "web/_antispam_fields.html" %}
+  <div class="actions">
+    <button type="submit" class="btn btn--primary">Załóż konto i przejdź dalej</button>
+  </div>
+</form>
+{% endblock %}

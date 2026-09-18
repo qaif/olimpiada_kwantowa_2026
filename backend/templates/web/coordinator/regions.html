@@ -1,0 +1,239 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Podział terytorialny konkursu: drzewo regionów, liczby „kto jest gdzie” i podgląd reguły
+  konfliktu interesów.
+
+  Trzy panele, bo to są trzy różne pytania. Drzewo jest konfiguracją i wolno je zmieniać. Liczby
+  są stanem faktycznym bieżącej edycji i niczego nie da się z nich kliknąć. Podgląd odpowiada na
+  pytanie, którego po samym drzewie nie widać: czy po tym podziale zostanie komu oceniać prace
+  z każdego regionu.
+
+  Wcięcie w kolumnie „nazwa” jest **znakiem**, a nie stylem: panel chodzi na ścisłym CSP bez
+  'unsafe-inline', więc atrybut style w wierszu tabeli nie ma tu prawa wstępu.
+{% endcomment %}
+{% block title %}Regiony – panel koordynatora{% endblock %}
+{% block panel_title %}Regiony{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Podział terytorialny tego konkursu: kraj, regiony (województwa, stany, okręgi)
+    i podregiony. Podział jest danymi konkursu, a nie instalacji – decyduje o liście wyboru
+    w rejestracji i o regule konfliktu interesów na etapie wojewódzkim.</p>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Drzewo regionów</h2>
+    <p class="hint">Kolejność zmienia się w obrębie jednego nadrzędnego. Regionu, którym ktoś już
+      startował, nie da się usunąć – wyłącz go, a zniknie z list wyboru, zostając przy profilach,
+      które go mają.</p>
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Regiony tego konkursu</caption>
+      <thead>
+        <tr>
+          <th scope="col">Nazwa</th>
+          <th scope="col">Kod</th>
+          <th scope="col">Poziom</th>
+          <th scope="col">Kolejność</th>
+          <th scope="col">Stan</th>
+          <th scope="col">Konflikt</th>
+          <th scope="col"><span class="visually-hidden">Operacje</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <th scope="row">{{ row.indent }}<a href="{% url 'web:coordinator-region' row.region.pk %}">{{ row.region.name }}</a></th>
+            <td><code>{{ row.region.code }}</code></td>
+            <td>{{ row.region.get_level_display }}</td>
+            <td class="num">{{ row.region.position }}</td>
+            <td>
+              {% if row.region.is_active %}
+                <span class="badge badge--ok">aktywny</span>
+              {% else %}
+                <span class="badge badge--neutral">wyłączony</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if row.region.counts_for_conflict %}
+                liczy się
+              {% else %}
+                <span class="badge badge--neutral">nie liczy się</span>
+              {% endif %}
+            </td>
+            <td class="actions">
+              {% if row.can_move_up %}
+                <form method="post" action="{% url 'web:coordinator-region-move' row.region.pk 'up' %}" class="inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--ghost btn--small">W górę</button>
+                </form>
+              {% endif %}
+              {% if row.can_move_down %}
+                <form method="post" action="{% url 'web:coordinator-region-move' row.region.pk 'down' %}" class="inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--ghost btn--small">W dół</button>
+                </form>
+              {% endif %}
+              {% if row.region.is_active %}
+                <form method="post" action="{% url 'web:coordinator-region-deactivate' row.region.pk %}" class="inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--secondary btn--small">Wyłącz</button>
+                </form>
+              {% else %}
+                <form method="post" action="{% url 'web:coordinator-region-activate' row.region.pk %}" class="inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--secondary btn--small">Włącz</button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="7" class="empty">Ten konkurs nie ma jeszcze ani jednego regionu –
+              uzupełnij zestaw startowy albo dopisz własny podział.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Kto jest gdzie</h2>
+    <p class="hint">Uczestnicy bieżącej edycji{% if edition %} ({{ edition }}){% endif %} i członkowie
+      komitetu konkursu. Komitet nie jest liczony per edycja, bo powołuje się go w konkursie,
+      a nie w roczniku.</p>
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Liczba uczestników i członków komitetu w regionach</caption>
+      <thead>
+        <tr>
+          <th scope="col">Region</th>
+          <th scope="col">Uczestnicy</th>
+          <th scope="col">Komitet</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in counts %}
+          <tr>
+            <th scope="row">{{ row.region.name }}</th>
+            <td class="num">{{ row.participants }}</td>
+            <td class="num">{{ row.members }}</td>
+          </tr>
+        {% endfor %}
+        <tr>
+          <th scope="row">bez regionu</th>
+          <td class="num">{{ counts_unassigned.participants }}</td>
+          <td class="num">{{ counts_unassigned.members }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="hint">„Bez regionu” to profile założone przed włączeniem własnego podziału. Reguła
+    konfliktu odtwarza im region z województwa, więc nie są poza nią – po prostu nie widać ich
+    w drzewie.</p>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Konflikt interesów – podgląd</h2>
+    <p class="hint">Reguła jest jedna i dotyczy wyłącznie etapu wojewódzkiego: członek komitetu
+      wypada z prac uczestników ze swojego regionu. Brak regionu u członka komitetu nie wyklucza
+      go z niczego.</p>
+  </div>
+  <div class="card">
+    {% if stages %}
+      <form method="get" class="form">
+        <p>
+          <label for="preview-stage">Etap</label>
+          <select id="preview-stage" name="stage">
+            <option value="">— wybierz etap —</option>
+            {% for stage in stages %}
+              <option value="{{ stage.pk }}"{% if stage.pk == selected_stage_id %} selected{% endif %}>{{ stage.display_name }}</option>
+            {% endfor %}
+          </select>
+        </p>
+        <div class="actions">
+          <button type="submit" class="btn btn--secondary">Pokaż podgląd</button>
+        </div>
+      </form>
+    {% else %}
+      <p class="notice">Bieżąca edycja nie ma ani jednego etapu – nie ma czego podejrzeć.</p>
+    {% endif %}
+
+    {% if preview %}
+      {% if not preview.applies %}
+        <p class="notice">Etap {{ preview.stage.display_name }} nie jest etapem wojewódzkim, więc
+          reguła konfliktu okręgu go nie dotyczy – i nie dotyczyła przed etapem 2.</p>
+      {% else %}
+        <p>Aktywnych wierszy komitetu w konkursie: <strong>{{ preview.reviewers }}</strong>.
+          Wpisów uczestników bez regionu: <strong>{{ preview.unassigned }}</strong>.</p>
+        <div class="scroll">
+          <table class="table">
+            <caption class="visually-hidden">Podgląd konfliktu interesów na wskazanym etapie</caption>
+            <thead>
+              <tr>
+                <th scope="col">Region</th>
+                <th scope="col">Wpisy uczestników</th>
+                <th scope="col">Komitet w regionie</th>
+                <th scope="col">Zostaje do oceny</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in preview.rows %}
+                <tr>
+                  <th scope="row">{{ row.region.name }}
+                    {% if not row.region.counts_for_conflict %}
+                      <span class="badge badge--neutral">poza konfliktem</span>
+                    {% endif %}
+                  </th>
+                  <td class="num">{{ row.participants }}</td>
+                  <td class="num">{{ row.members }}</td>
+                  <td class="num">{{ row.available }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="4" class="empty">Na tym etapie nie ma jeszcze ani jednego wpisu
+                    z regionem, a komitet nie ma przypisanych regionów.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+    {% endif %}
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Nowy region</h2>
+  </div>
+  <div class="card">
+    <form method="post" action="{% url 'web:coordinator-region-create' %}" class="form">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">Dodaj region</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Zestaw startowy</h2>
+    <p class="hint">Kraj „Polska”, szesnaście województw i nieaktywny region „poza Polską”. Czynność
+      uzupełnia braki i niczego nie nadpisuje: nazwy i kolejność poprawione tutaj zostają.</p>
+  </div>
+  <div class="card">
+    <form method="post" action="{% url 'web:coordinator-regions-defaults' %}" class="inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn--secondary">Przywróć domyślne województwa</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

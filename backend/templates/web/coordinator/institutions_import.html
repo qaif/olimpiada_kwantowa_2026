@@ -1,0 +1,154 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Wgranie wykazu placówek z pliku CSV – dwa kroki na jednym adresie.
+
+  Opis kolumn stoi **na tej stronie**, a nie w dokumentacji: plik przygotowuje się raz na sezon,
+  więc nikt tej listy nie pamięta, a szukanie jej w README w trakcie układania arkusza jest
+  dokładnie tym momentem, w którym import przestaje się opłacać (ta sama reguła, co przy imporcie
+  pytań testu).
+
+  Podgląd liczy wszystko i **nie zapisuje niczego**. Zatwierdzenie jest osobnym żądaniem z tym
+  samym plikiem – przeglądarka nie pozwala wstawić pliku z powrotem do pola i jest to
+  zabezpieczenie, a nie niedoróbka.
+{% endcomment %}
+{% block title %}Wgranie wykazu placówek – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-institutions' %}">Słownik placówek</a>{% endblock %}
+{% block panel_title %}Wgranie wykazu z pliku{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Plik CSV z placówkami tego konkursu. Pierwsze wgranie pokazuje podgląd i nie
+    zapisuje ani jednego wiersza; zapis wymaga wskazania tego samego pliku po raz drugi.
+    Placówek w słowniku: {{ total }}.</p>
+{% endblock %}
+{% block panel_content %}
+
+{% if report %}
+  <section class="section">
+    <div class="section__head">
+      <h2 class="mt-0">Podgląd – nic nie zostało zapisane</h2>
+      <p class="hint">Liczby są policzone na stanie wykazu z tej chwili. Żeby zapisać, wskaż ten sam
+        plik jeszcze raz w formularzu poniżej i potwierdź.</p>
+    </div>
+    <div class="card">
+      <dl class="meta-list">
+        <dt>Nowe placówki</dt>
+        <dd>{{ report.created }}</dd>
+        <dt>Poprawione</dt>
+        <dd>{{ report.updated }}</dd>
+        <dt>Bez zmian</dt>
+        <dd>{{ report.unchanged }}</dd>
+        <dt>Do wygaszenia</dt>
+        <dd>{{ report.deactivated }}</dd>
+        <dt>Pominięte (błąd wiersza)</dt>
+        <dd>{{ report.skipped }}</dd>
+      </dl>
+      {% if report.errors %}
+        <div class="scroll">
+          <table class="table">
+            <caption class="visually-hidden">Wiersze pliku do poprawienia</caption>
+            <thead>
+              <tr>
+                <th scope="col">Wiersz pliku</th>
+                <th scope="col">Co jest nie tak</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for issue in report.errors %}
+                <tr>
+                  <td class="num">{{ issue.line }}</td>
+                  <td>{{ issue.message }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <p class="hint">Wiersz z błędem nie przerywa importu – pozostałe wejdą. Numer jest numerem
+          linii w pliku, licząc nagłówek jako pierwszą.</p>
+      {% else %}
+        <p class="notice">Ani jednego wiersza do poprawienia.</p>
+      {% endif %}
+    </div>
+  </section>
+{% endif %}
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">{% if report %}Zatwierdzenie{% else %}Plik{% endif %}</h2>
+  </div>
+  <div class="card">
+    <form method="post" class="form form--wide" enctype="multipart/form-data" novalidate>
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <p>{{ form.file.errors }}{{ form.file.label_tag }} {{ form.file }}
+        <span class="helptext">{{ form.file.help_text }}</span></p>
+      <p>{{ form.deactivate_missing.errors }}{{ form.deactivate_missing.label_tag }} {{ form.deactivate_missing }}
+        <span class="helptext">{{ form.deactivate_missing.help_text }}</span></p>
+      <p>{{ form.source_label.errors }}{{ form.source_label.label_tag }} {{ form.source_label }}
+        <span class="helptext">{{ form.source_label.help_text }}</span></p>
+      {{ form.confirm }}
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">{% if report %}Wgraj ten plik i zapisz{% else %}Pokaż podgląd{% endif %}</button>
+        <a class="btn btn--ghost" href="{% url 'web:coordinator-institutions' %}">Wróć do wykazu</a>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Format pliku</h2>
+    <p class="hint">Najwyżej {{ max_rows }} wierszy, najwyżej {{ max_upload_mb }} MB. Separator:
+      średnik albo przecinek. Kodowanie UTF-8 (w arkuszu: „Zapisz jako” → „CSV UTF-8”).</p>
+  </div>
+  <div class="card">
+    <div class="scroll">
+      <table class="table">
+        <caption class="visually-hidden">Kolumny pliku z wykazem placówek</caption>
+        <thead>
+          <tr>
+            <th scope="col">Nagłówek</th>
+            <th scope="col">Obowiązkowa</th>
+            <th scope="col">Inne przyjmowane nazwy</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for column in columns %}
+            <tr>
+              <th scope="row"><code>{{ column.label }}</code></th>
+              <td>{% if column.required %}tak{% else %}nie{% endif %}</td>
+              <td>{{ column.aliases|join:", " }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="hint">Kolumna spoza tej listy jest pomijana, a nie odrzucana – arkusz roboczy ma prawo
+      mieć rubrykę „uwagi”. Rodzaj placówki wpisuje się kodem albo etykietą:
+      {% for value, label in types %}<code>{{ value }}</code> ({{ label }}){% if not forloop.last %}, {% endif %}{% endfor %}.
+      Pusty rodzaj znaczy „inna placówka”.</p>
+    <pre class="code-block"><code>nazwa;identyfikator;rodzaj;kraj;region;miejscowosc;kod_pocztowy;adres
+Uniwersytet Jagielloński;A1;UNIVERSITY;;malopolskie;Kraków;31-007;ul. Gołębia 24
+Ośrodek w Berlinie;A2;FOREIGN;DE;;Berlin;;Unter den Linden 1</code></pre>
+    <p class="hint"><a href="{% url 'web:coordinator-institutions-template' %}">Pobierz wzór pliku
+      (sam nagłówek)</a> · <a href="{% url 'web:coordinator-institutions-export' %}">Pobierz
+      dzisiejszy wykaz w tym samym formacie</a></p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Co robi wgranie</h2>
+  </div>
+  <div class="card">
+    <ul>
+      <li>Wiersz z <strong>identyfikatorem</strong> poprawia placówkę o tym identyfikatorze; bez
+        identyfikatora rozpoznanie idzie po nazwie i miejscowości.</li>
+      <li>Placówka odnaleziona w pliku <strong>wraca do aktywnych</strong> – obecność w nowym pliku
+        jest oświadczeniem, że nadal jest w programie.</li>
+      <li>Placówki nieobecnej w pliku <strong>nikt nie kasuje</strong>. Przy zaznaczonej kratce
+        „wygaś nieobecne” znika tylko z podpowiedzi.</li>
+      <li>Błąd w jednym wierszu nie przerywa wgrania – pozostałe wchodzą, a wiersz z błędem czeka
+        na poprawiony plik.</li>
+    </ul>
+  </div>
+</section>
+{% endblock %}

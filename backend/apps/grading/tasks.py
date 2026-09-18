@@ -41,21 +41,23 @@ def remind_overdue_reviews() -> dict[str, int]:
     a połowa jego pozycji byłaby tam niedostępna.
     """
     from apps.competitions.scoping import each_competition
-    from apps.core.tasks import send_mail_task
+    from apps.core.tasks import mail_from, send_mail_task
 
     now = timezone.now()
     reviewers = 0
     reminded = 0
     for competition in each_competition():
         grouped = group_by_reviewer(reviews_needing_reminder(now, competition))
+        # Nadawca jest własnością konkursu, a nie listu, więc czytamy go raz na konkurs.
+        from_email = mail_from(competition)
         for reviews in grouped.values():
             recipient = reviews[0].reviewer.user.email
             if not recipient:
                 # Konto bez adresu e-mail (import, konto techniczne): nie ma dokąd wysłać, a znacznik
                 # zostawiamy pusty – gdy adres się pojawi, przypomnienie pójdzie przy kolejnym przebiegu.
                 continue
-            subject, message = reminder_message(reviews, now)
-            send_mail_task.delay(subject, message, [recipient])
+            subject, message = reminder_message(reviews, now, competition)
+            send_mail_task.delay(subject, message, [recipient], from_email)
             Review.objects.filter(pk__in=[review.pk for review in reviews]).update(reminded_at=now)
             # Wpis audytowy na członka komitetu, a nie na każdą recenzję z osobna: zdarzeniem jest
             # „poszedł list do tej osoby”, a nie „przypomniano o tej pracy”. W ``diff`` stoją same

@@ -45,10 +45,12 @@ from apps.competitions.services import (
     update_problem,
     update_registration_window,
     update_stage,
+    weighted_scoring_enabled,
 )
 from apps.core.api import DomainError
 from apps.grading.rubric import set_criteria
 from apps.grading.snippets import set_problem_snippets
+from apps.web.coordinator_forms import ProblemWeightForm
 from apps.web.forms import (
     InterviewSlotsForm,
     ProblemForm,
@@ -77,6 +79,89 @@ SLOT_FIELDS = ("starts_at", "duration_minutes", "count", "capacity", "meeting_ur
 
 PROBLEMS_TEMPLATE = "web/coordinator/problems.html"
 INTERVIEWS_TEMPLATE = "web/coordinator/interviews.html"
+SCALE_TEMPLATE = "web/coordinator/stage_scale.html"
+
+
+def weight_prefix(problem: Problem) -> str:
+    """Prefiks pól wagi jednego zadania. Jedna definicja dla widoku, który rysuje, i dla tego,
+    który czyta POST – inaczej formularz wysyłałby nazwy, których druga strona by nie znalazła."""
+    return f"p{problem.pk}"
+
+
+def weighted_section(stage: Stage, weight_forms: dict | None = None) -> dict:
+    """Sekcja ekranu skali dostępna wyłącznie w konkursie z flagą ``weighted_scoring`` (§ 1.2.6).
+
+    Pusty słownik znaczy „tej sekcji nie ma” i jest odpowiedzią dla **każdego** konkursu
+    z domyślnymi przełącznikami, w tym dla Olimpiady Kwantowej: ekran skali renderuje się wtedy
+    dokładnie tak, jak przed etapem 2 – bez ani jednego nowego pola i bez ani jednego zapytania
+    o zadania ponad te, które i tak są (§ 2.1, § 2.2: ten jeden istniejący ekran wolno rozszerzyć,
+    ale **tylko** za flagą).
+
+    Flagę czyta widok, nigdy szablon (§ 2.1 punkt 3): szablon dostaje gotową listę albo nic.
+
+    ``weight_forms`` (mapa ``Problem.pk`` → formularz) pozwala wrócić na ten ekran z **związanymi**
+    formularzami po nieudanym zapisie wag, żeby koordynator zobaczył to, co wpisał, razem
+    z komunikatem pod właściwym polem.
+    """
+    if not weighted_scoring_enabled(stage.edition.competition):
+        return {}
+    bound = weight_forms or {}
+    rows = []
+    for problem in stage.problems.order_by("number", "id"):
+        rows.append(
+            {
+                "problem": problem,
+                "form": bound.get(problem.pk)
+                or ProblemWeightForm(
+                    prefix=weight_prefix(problem),
+                    initial={
+                        "weight_numerator": problem.weight_numerator,
+                        "weight_denominator": problem.weight_denominator,
+                    },
+                ),
+            }
+        )
+    scale = getattr(stage, "scoring_scale", None)
+    return {
+        # Jawny znacznik „sekcja jest”, a nie sama niepusta lista: etap bez zadań ma pustą listę
+        # wag, a przesunięcie skali pokazać trzeba i wtedy.
+        "weighted": True,
+        "weight_rows": rows,
+        # Przesunięcie skali i postać, w której oceny **leżą w bazie** (§ 1.2.6 b). Podgląd jest tu
+        # po to, żeby koordynator wpisujący skalę z punktami ujemnymi zobaczył obie liczby naraz:
+        # tę, którą widzi recenzent, i tę, którą zobaczy w eksporcie surowych danych.
+        "scale_offset": (scale.offset or 0) if scale is not None else 0,
+        "stored_values": sorted(scale.stored_allowed_values()) if scale is not None else [],
+    }
+
+
+def render_scale_page(
+    request, stage: Stage, form=None, *, status: int = 200, weight_forms: dict | None = None
+):
+    """Strona skali punktacji etapu. Wspólna dla zapisu skali i dla zapisu wag zadań.
+
+    Funkcja modułowa, a nie metoda widoku – tak samo jak ``render_problem_list``
+    i ``render_interview_list`` – bo obie czynności mają własne adresy POST, a jedną stronę.
+
+    ``form=None`` znaczy „skala prosto z bazy”: tak wchodzi tu ekran wag, który skali nie dotyka,
+    a stronę musi narysować w całości.
+    """
+    if form is None:
+        form = ScoringScaleForm(initial=_scale_initial(stage))
+    context = {
+        "stage": stage,
+        "form": form,
+        "now": timezone.now(),
+        # Podgląd pokazuje skalę **po zapisie**, a nie tę z bazy: koordynator ma zobaczyć skutek
+        # tego, co wpisał, zanim kliknie „Zapisz” drugi raz po odmowie.
+        "preview": _scale_preview(stage, form),
+        # Zadania z własną skalą – bo dla nich zmiana na tym ekranie niczego nie znaczy.
+        "overrides": [
+            problem for problem in stage.problems.order_by("number", "id") if problem.has_own_scale
+        ],
+        **weighted_section(stage, weight_forms),
+    }
+    return TemplateResponse(request, SCALE_TEMPLATE, context, status=status)
 
 
 def _stage_for_edit(competition, stage_id: int) -> Stage:
@@ -169,7 +254,7 @@ class StageScaleView(CoordinatorRequiredMixin, View):
     to samo żądanie wysłane skryptem ma dostać kod, po którym widać, że zmiana nie weszła.
     """
 
-    template_name = "web/coordinator/stage_scale.html"
+    template_name = SCALE_TEMPLATE
 
     def get(self, request, stage_id: int):
         stage = _stage_for_edit(request.competition, stage_id)
@@ -195,19 +280,7 @@ class StageScaleView(CoordinatorRequiredMixin, View):
         return redirect(reverse("web:coordinator"))
 
     def _render(self, request, stage: Stage, form: ScoringScaleForm, *, status: int = 200):
-        context = {
-            "stage": stage,
-            "form": form,
-            "now": timezone.now(),
-            # Podgląd pokazuje skalę **po zapisie**, a nie tę z bazy: koordynator ma zobaczyć skutek
-            # tego, co wpisał, zanim kliknie „Zapisz” drugi raz po odmowie.
-            "preview": _scale_preview(stage, form),
-            # Zadania z własną skalą – bo dla nich zmiana na tym ekranie niczego nie znaczy.
-            "overrides": [
-                problem for problem in stage.problems.order_by("number", "id") if problem.has_own_scale
-            ],
-        }
-        return TemplateResponse(request, self.template_name, context, status=status)
+        return render_scale_page(request, stage, form, status=status)
 
 
 def _scale_initial(stage: Stage) -> dict:

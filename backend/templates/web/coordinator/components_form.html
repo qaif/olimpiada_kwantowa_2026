@@ -1,0 +1,27 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Jeden komponent etapu. Rodzaju nie chowamy przy edycji: zmiana źródła punktów jest dopuszczalna
+  (koordynator bywa poprawia wpisany omyłkowo rodzaj), a jej skutek widać w tabeli wyników dopiero
+  po przeliczeniu – i dlatego stoi tu zdanie o tym wprost.
+{% endcomment %}
+{% block title %}{{ component.display_name }} – komponenty etapu{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-stage-components' stage.pk %}">Komponenty etapu</a>{% endblock %}
+{% block panel_title %}Komponent: {{ component.display_name }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Etap {{ stage.display_name }}. Zmiana wagi albo źródła punktów działa od
+    najbliższego przeliczenia wyników – tabela już ogłoszona zostaje bez zmian.</p>
+{% endblock %}
+{% block panel_content %}
+<section class="section">
+  <div class="card">
+    <form method="post" class="form">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">Zapisz komponent</button>
+        <a class="btn btn--secondary" href="{% url 'web:coordinator-stage-components' stage.pk %}">Wróć</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

@@ -199,6 +199,17 @@ class Certificate(models.Model):
     # bo strona weryfikacji ma powiedzieć **kto** pieczętował, a nie „podpisano cyfrowo”:
     # czytelnik sprawdza dokument właśnie po to, żeby wiedzieć, czyja to pieczęć.
     signer_name = models.CharField("podpisujący", max_length=200, blank=True)
+    #: Wersja tekstu dokumentu z chwili wystawienia – **kopia napisu**
+    #: ``tenancy.DocumentTemplate.version``, a nie klucz obcy do niego (§ 1.1.3). Ta sama
+    #: konwencja i to samo uzasadnienie, co przy ``accounts.ConsentRecord.document_version``:
+    #: PDF-a nikt nie przechowuje, więc powstaje przy każdym pobraniu – bez zapamiętanej wersji
+    #: poprawka zdania zmieniłaby treść dokumentu, który ktoś trzyma w ręku. Klucz obcy dawałby
+    #: zaś kasowanie wiersza szablonu jako sposób na unieważnienie cudzego dyplomu.
+    #:
+    #: **Pusto znaczy „układ wbudowany”**, czyli dzisiejsze stałe ``apps.results.certificates`` –
+    #: tak wygląda każdy dokument sprzed etapu 2 i każdy wystawiony przy wyłączonej fladze
+    #: ``document_templates``.
+    template_version = models.CharField("wersja szablonu tekstu", max_length=100, blank=True)
 
     #: Przez edycję – klucz obcy do niej dokument ma od początku (§ 3.4).
     #:

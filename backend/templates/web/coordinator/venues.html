@@ -1,0 +1,92 @@
+{% extends "web/coordinator/base.html" %}
+{% load static %}
+{% comment %}
+  Miejsca zawodów i decyzja o danych szczególnych (D21).
+
+  Miejsce jest **per konkurs**, a nie per etap: finał i warsztaty bywają w tym samym budynku,
+  a organizator wpisuje adres raz i wskazuje go w kolejnych latach. ``Stage.location`` zostaje bez
+  zmian i nadal jest tym, co czyta publiczność w harmonogramie — ten ekran opisuje dane
+  organizacyjne, nie zapowiedź.
+
+  Przełącznik potrzeb szczególnych stoi razem z ostrzeżeniem, którego brzmienie przychodzi
+  z ``apps.competitions.logistics.SPECIAL_NEEDS_WARNING``: treść ma się zmieniać razem z regułą,
+  którą opisuje, a nie razem z szablonem.
+{% endcomment %}
+{% block title %}Miejsca zawodów – panel koordynatora{% endblock %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block panel_title %}Miejsca zawodów{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Adresy, pod które przyjeżdżają uczestnicy etapu stacjonarnego. Uczestnik wybiera
+    miejsce w formularzu przyjazdu na swoim pulpicie; bez ani jednego wpisanego miejsca formularz
+    się nie pojawia.</p>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  <div class="card">
+    <div class="card__head">
+      <h2 class="mt-0 card__title">Potrzeby szczególne: dieta i dostępność</h2>
+      {% if special_needs %}
+        <span class="badge badge--danger">zbieramy</span>
+      {% else %}
+        <span class="badge badge--neutral">nie zbieramy</span>
+      {% endif %}
+    </div>
+    <p>{{ special_needs_warning }}</p>
+    <p class="hint">Odpowiedzi o diecie i dostępności bywają <strong>danymi o zdrowiu</strong>
+      (art. 9 RODO). Włączenie ma sens dopiero wtedy, gdy wiesz, po co pytasz i kto tę odpowiedź
+      czyta. Dostęp ma wyłącznie koordynator — nigdy recenzent i nigdy opiekun. Wyłączenie nie
+      kasuje zebranych już uwag: to jest osobna czynność (retencja danych).</p>
+    <form method="post" action="{% url 'web:coordinator-venues-special-needs' %}">
+      {% csrf_token %}
+      {{ special_needs_form.as_p }}
+      <p class="actions"><button type="submit" class="btn btn--secondary">Zapisz decyzję</button></p>
+    </form>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Miejsca tego konkursu</h2>
+  </div>
+
+  {% if venues %}
+    {% for row in venues %}
+      <article class="card">
+        <div class="card__head">
+          <h3 class="mt-0 card__title">{{ row.venue.name }}</h3>
+          {% if row.venue.capacity %}
+            <span class="badge badge--neutral">{{ row.venue.capacity }} miejsc</span>
+          {% endif %}
+        </div>
+        <dl class="meta-list">
+          <dt>Adres</dt>
+          <dd>{{ row.venue.address|default:"—" }}</dd>
+          <dt>Miejscowość</dt>
+          <dd>{{ row.venue.city|default:"—" }}</dd>
+        </dl>
+        <form method="post" action="{% url 'web:coordinator-venue' row.venue.pk %}">
+          {% csrf_token %}
+          {{ row.form.as_p }}
+          <p class="actions"><button type="submit" class="btn btn--secondary btn--small">Zapisz zmiany</button></p>
+        </form>
+      </article>
+    {% endfor %}
+  {% else %}
+    <p class="hint">Nie wpisano jeszcze żadnego miejsca zawodów.</p>
+  {% endif %}
+</section>
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Nowe miejsce</h2>
+    <form method="post" action="{% url 'web:coordinator-venues' %}">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <p class="hint">Pusta pojemność znaczy „nie wiadomo”, a nie „zero”: adres wolno zapisać,
+        zanim poznasz limit sali.</p>
+      <p class="actions"><button type="submit" class="btn btn--primary">Zapisz miejsce</button></p>
+    </form>
+  </div>
+</section>
+{% endblock %}

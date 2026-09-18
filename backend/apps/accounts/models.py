@@ -12,12 +12,13 @@ import secrets
 
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.models import PermissionsMixin
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models.functions import Lower
 from django.utils import timezone
 
 from apps.core.text import fold as _fold
-from apps.tenancy.managers import CompetitionScopedManager
+from apps.tenancy.managers import CompetitionScopedManager, CompetitionScopedQuerySet
 
 from .consents import ConsentKind, ConsentSource
 
@@ -163,6 +164,137 @@ def normalize_voivodeship(text: str | None) -> str | None:
     if not folded:
         return None
     return _VOIVODESHIPS_BY_FOLDED.get(folded) or _VOIVODESHIPS_BY_FOLDED.get(f"{folded}e")
+
+
+class RegionLevel(models.TextChoices):
+    """Lista zamknięta z rozmysłem.
+
+    To nie jest hierarchia dowolnej głębokości, tylko trzy poziomy, które organizatorzy naprawdę
+    rozróżniają. Drzewo bez ograniczenia głębokości znaczyłoby, że formularz rejestracji musi
+    umieć pokazać nieznaną z góry liczbę list rozwijanych – a żaden organizator o to nie prosił.
+    """
+
+    COUNTRY = "COUNTRY", "kraj"
+    REGION = "REGION", "region"  # województwo, stan, land, okręg
+    COUNTY = "COUNTY", "podregion"  # powiat, dystrykt
+
+
+class RegionQuerySet(CompetitionScopedQuerySet):
+    """Queryset regionów. Ścieżka do konkursu jest domyślna – region ma własną kolumnę."""
+
+    def active(self):
+        """Regiony, które wolno pokazać człowiekowi do wyboru.
+
+        Jedno miejsce na tę regułę, bo pytają o nią formularz rejestracji, formularz komitetu
+        i filtry panelu koordynatora – trzy listy, które muszą podawać ten sam zestaw.
+        """
+        return self.filter(is_active=True)
+
+
+class Region(models.Model):
+    """Jednostka podziału terytorialnego **konkursu**.
+
+    Podział jest danymi konkursu, a nie instalacji: olimpiada ogólnopolska dzieli się na 16
+    województw, olimpiada uczelniana na 5 okręgów akademickich, a konkurs międzynarodowy na kraje.
+    Do etapu 2 podział był stałą w kodzie (``Voivodeship``) wspólną dla całej platformy.
+
+    ``Voivodeship`` **zostaje bez zmian** i zostaje jedynym źródłem wartości pól ``district``.
+    Region jest warstwą obok, nie zamiast: dopóki konkurs nie włączy flagi ``custom_regions``,
+    formularze, zapytania i strony czytają ``district`` dokładnie tak, jak dziś (§ 1.4.2), a wiersze
+    tej tabeli – wpisane migracją ``accounts.0026`` jako odwzorowanie szesnastu województw – leżą
+    nieużywane. Ich zgodność z listą województw pilnuje
+    ``apps/accounts/tests/test_regions.py::test_regions_mirror_the_voivodeship_list``.
+    """
+
+    #: ``CASCADE``, tak jak przy ``ConsentDefinition`` i ``DocumentTemplate``, a nie ``PROTECT`` jak
+    #: przy ``Participant`` i ``CommitteeMember``. Granica biegnie po tym, czyje dane niesie wiersz:
+    #: profil jest **cudzymi** danymi i konkursu z nim skasować nie wolno, a region jest słownikiem
+    #: **samego konkursu**. ``PROTECT`` znaczyłby, że migracja ``0026`` – zakładająca zestaw
+    #: startowy **każdemu** konkursowi – uczyniła każdy konkurs nieusuwalnym, także ten założony
+    #: omyłkowo przez kreator ``/setup/``. Uczestnicy nie zniknęliby po cichu razem z regionami:
+    #: ``Participant.region`` i ``CommitteeMember.region`` zostają ``PROTECT``, więc konkurs
+    #: z profilami zatrzyma się na nich – czyli tam, gdzie stoją cudze dane.
+    competition = models.ForeignKey(
+        "tenancy.Competition",
+        verbose_name="konkurs",
+        on_delete=models.CASCADE,
+        related_name="regions",
+    )
+    #: Kod jest **ASCII-owym slugiem** – przepisane wprost z ``Voivodeship`` i z tego samego
+    #: powodu: trafia do adresów, filtrów administracji, kluczy grupowania wyników i wpisów
+    #: audytu. Dla szesnastu województw kod jest **dosłownie** dzisiejszą wartością ``district``,
+    #: więc backfill jest złączeniem po kolumnie, a nie ręcznie przepisaną mapą.
+    code = models.SlugField("kod", max_length=40)
+    name = models.CharField("nazwa", max_length=120)
+    level = models.CharField("poziom", max_length=16, choices=RegionLevel.choices, default=RegionLevel.REGION)
+    #: ``CASCADE``, choć § 1.4.2 pisze ``PROTECT``: poddrzewo bez korzenia nie jest drzewem, a przy
+    #: ``PROTECT`` **każde** kasowanie konkursu kończyłoby się wyjątkiem – szesnaście województw
+    #: wskazuje na kraj ``pl``, a kolektor Django nie zwalnia z ``PROTECT`` wierszy kasowanych w tej
+    #: samej partii. Bezpieczeństwo niesie tu warstwa niżej i niesie je lepiej: ``Participant.region``
+    #: i ``CommitteeMember.region`` są ``PROTECT``, więc region, który komuś przypisano, zatrzyma
+    #: kasowanie razem z całym poddrzewem nad sobą.
+    parent = models.ForeignKey(
+        "self",
+        verbose_name="nadrzędny",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="children",
+    )
+    position = models.PositiveSmallIntegerField("kolejność", default=0)
+    #: Wycofanie regionu z listy jest przestawieniem tej flagi, a nie skasowaniem wiersza: profile
+    #: z lat poprzednich mają dalej wskazywać region, w którym wtedy startowały.
+    is_active = models.BooleanField("aktywny", default=True)
+    #: Region „poza Polską” ma tu ``False``: dwóch uczestników z zagranicy nie jest ze sobą
+    #: w konflikcie z tytułu miejsca zamieszkania.
+    counts_for_conflict = models.BooleanField("liczy się do konfliktu", default=True)
+
+    #: Własna kolumna konkursu – domyślna ścieżka queryseta.
+    objects = models.Manager.from_queryset(RegionQuerySet)()
+
+    class Meta:
+        verbose_name = "region"
+        verbose_name_plural = "regiony"
+        ordering = ("competition", "position", "name", "id")
+        constraints = [
+            # Kod identyfikuje region **w konkursie**, nie na platformie: dwie olimpiady mogą mieć
+            # region ``mazowieckie`` i nie jest to ten sam wiersz.
+            models.UniqueConstraint(fields=["competition", "code"], name="accounts_region_unique_code"),
+        ]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+def region_for_district(competition, district: str | None) -> Region | None:
+    """Region konkursu odpowiadający wartości ``district`` albo ``None``.
+
+    Jedyna droga od starego słownika do nowego – wołają ją rejestracja, import grupowy uczniów
+    i przydział recenzentów, żeby profil zapisany z samym województwem dostał też region, a profil
+    zapisany z regionem dał się porównać z profilem sprzed flagi.
+
+    Dopasowanie idzie po **kodzie**, bo kody szesnastu regionów startowych są dosłownie wartościami
+    ``Voivodeship`` (migracja ``accounts.0026``). Najpierw próbujemy napisu **takiego, jaki
+    przyszedł** – konkurs z własnym podziałem ma kody spoza listy województw i jego wartość ma
+    wygrywać z każdym domysłem. Dopiero potem idzie w ruch :func:`normalize_voivodeship`, żeby
+    „woj. Mazowieckie” z dawnych danych i ze starych integracji trafiło tam, gdzie trafia dziś.
+
+    ``None`` znaczy „nie umiem tego przypisać” i nigdy nie zgadujemy – tak samo jak
+    :func:`normalize_voivodeship`.
+    """
+    if competition is None:
+        return None
+    raw = (district or "").strip()
+    if not raw:
+        return None
+    codes = [raw] + [code for code in (normalize_voivodeship(raw),) if code and code != raw]
+    found = {
+        region.code: region for region in Region.objects.for_competition(competition).filter(code__in=codes)
+    }
+    for code in codes:
+        if code in found:
+            return found[code]
+    return None
 
 
 class UserManager(BaseUserManager):
@@ -395,10 +527,55 @@ class Participant(models.Model):
         on_delete=models.PROTECT,
         related_name="participants",
     )
+    # Dowiązanie do słownika **własnego organizatora** (``schools.CustomInstitution``, § 1.3.3).
+    # Stoi **obok** ``school_ref``, a nie zamiast: to są dwa różne wykazy – publiczny rejestr SIO
+    # wspólny dla instalacji i lista jednego konkursu. Dwa nullowalne klucze obce zamiast relacji
+    # ogólnej to ta sama decyzja i to samo uzasadnienie, co przy ``Certificate.entry``/``supervisor``
+    # (``apps/results/models.py``): rodzajów wykazu są dwa i nigdy nie będzie ich więcej, a klucz
+    # obcy daje integralność, której ``GenericForeignKey`` nie daje. Nazwa ``school`` (wolny tekst)
+    # jest wypełniona tak czy inaczej, więc tabela wyników i próg k-anonimowości nie muszą wiedzieć,
+    # z którego wykazu wiersz pochodzi. PROTECT z tego samego powodu, co przy ``school_ref``:
+    # skasowanie wiersza słownika zabrałoby uczestnikowi informację o placówce, a import wykazu
+    # wygasza (``is_active=False``), nie kasuje.
+    custom_institution_ref = models.ForeignKey(
+        "schools.CustomInstitution",
+        verbose_name="placówka ze słownika organizatora",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="participants",
+    )
+    # Kraj uczestnika w zapisie ISO 3166-1 alpha-2. **Pusty znaczy Polska**, a nie „nie podano”:
+    # wpisanie ``"PL"`` istniejącym profilom byłoby migracją danych osobowych bez powodu, a odczyt
+    # ``country or "PL"`` ma jedno miejsce (§ 1.3.2). Kolumna powstaje razem z ``RegistrationProfile``
+    # i przy wyłączonej fladze ``institution_types`` nikt jej nie wypełnia – formularz Konkursu #1
+    # o kraj nie pyta ani razu.
+    country = models.CharField("kraj", max_length=2, blank=True)
+    # Nazwa placówki wpisana wolnym tekstem przy rodzaju spoza wykazu (``FOREIGN``, ``OTHER``).
+    # Pole jest **niezależne** od ``school``: ``school`` zostaje nazwą do pokazania (wchodzi do
+    # progu k-anonimowości w publikacji wyników), a serwis rejestracji kopiuje do niego tę wartość
+    # – dokładnie tak, jak dziś kopiuje nazwę z wykazu (``_resolve_school``). Dzięki temu żadne
+    # miejsce liczące statystyki nie musi wiedzieć, którą drogą uczestnik się zarejestrował.
+    institution_name = models.CharField("nazwa placówki", max_length=255, blank=True)
     # Nullowalna wyłącznie ze względu na profile sprzed wprowadzenia pola – formularz, API
     # i serwis rejestracji wymagają klasy od każdego nowego uczestnika.
     grade = models.PositiveSmallIntegerField("klasa", choices=GRADE_CHOICES, null=True, blank=True)
     district = models.CharField("województwo", max_length=100, choices=Voivodeship.choices)
+    # Region z podziału terytorialnego konkursu (``Region``). Stoi **obok** ``district``, a nie
+    # zamiast: przy wyłączonej fladze ``custom_regions`` czyta się wyłącznie ``district``, dokładnie
+    # jak dziś, a przy włączonej ``region`` jest źródłem prawdy i to z niego serwis rejestracji
+    # wypełnia ``district`` (§ 1.4.2). Denormalizacja jest świadoma i ma termin ważności: wykreślenie
+    # ``district`` jest pozycją backlogu na sezon po włączeniu flagi wszędzie – bez niej trzeba by
+    # dotknąć ponad sześćdziesięciu miejsc naraz, w tym tabel wyników.
+    # Nullowalne: profile sprzed tej zmiany i konkursy, które regionów nie używają.
+    region = models.ForeignKey(
+        "accounts.Region",
+        verbose_name="region",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="participants",
+    )
     birth_year = models.PositiveSmallIntegerField("rok urodzenia")
     # Telefon kontaktowy. ``blank=True`` w modelu, choć formularz i API wymagają go od każdego
     # nowego uczestnika: profile sprzed wprowadzenia pola nie mają numeru i nie wolno ich
@@ -528,6 +705,263 @@ class ConsentRecord(models.Model):
         return self.withdrawn_at is None
 
 
+# =================================================================================================
+# Definicje zgód per konkurs (``docs/UNIWERSALNY-ETAP-2.md`` § 1.1.2)
+# =================================================================================================
+
+
+class ConsentDefinition(models.Model):
+    """Definicja jednej zgody **jednego konkursu**: treść, dokument, wersja, wymagalność.
+
+    Model nie zastępuje ``ConsentRecord`` i nie jest z nim związany kluczem obcym. Dowód
+    (``ConsentRecord.document_version``) zostaje **kopią napisu** z chwili złożenia oświadczenia –
+    dokładnie jak dziś. Klucz obcy do definicji znaczyłby, że poprawienie literówki w treści zgody
+    zmienia wstecz to, na co ludzie się zgodzili, a to jest jedyna rzecz, której przy zgodzie
+    zmienić nie wolno.
+
+    Wiersze wpisuje migracja ``accounts.0024`` – każdemu konkursowi zestaw ze stałej
+    ``apps.accounts.consents.DEFAULT_CONSENTS``, znak w znak razem z wersjami dokumentów. Dopóki
+    konkurs nie włączy flagi ``per_competition_consents``, wiersze **leżą nieużywane**: zestaw
+    czyta się ze stałej (:func:`apps.accounts.consents.consent_set`), a ich równość ze stałą
+    pilnuje test ``test_consent_definitions_match_the_constant``.
+
+    Czym ten model **nie** jest: nie jest miejscem na nowy *rodzaj* zgody. ``ConsentKind`` zostaje
+    zamkniętą listą w kodzie, bo po rodzaju poznaje zgodę model dowodowy, serwis rejestracji
+    i reguła „opiekun dla niepełnoletniego” (``consents.is_minor``) – a reguła musi wiedzieć,
+    o którą zgodę chodzi. Konkurs zmienia tu **treść, dokument, wersję i wymagalność**.
+    """
+
+    #: ``CASCADE``, a nie ``PROTECT`` jak przy uczestniku i komitecie – i różnica jest w tym, czym
+    #: jest wiersz. Profil uczestnika i profil członka komitetu niosą **cudze dane**, więc konkursu
+    #: z nimi skasować nie wolno. Definicja zgody jest **konfiguracją samego konkursu**: opisem
+    #: tego, o co ten konkurs pyta w formularzu. Dowód zostaje nietknięty, bo nie ma do definicji
+    #: klucza obcego – ``ConsentRecord.document_version`` jest **kopią napisu** z chwili złożenia
+    #: oświadczenia. Kasowany konkurs nie zostawia więc wpisów dowodowych bez treści; zostawia je
+    #: dokładnie takimi, jakie były. ``PROTECT`` znaczyłby natomiast, że migracja danych ``0024``
+    #: (wiersz dla **każdego** konkursu w bazie) uczyniła każdy konkurs nieusuwalnym.
+    competition = models.ForeignKey(
+        "tenancy.Competition",
+        on_delete=models.CASCADE,
+        related_name="consent_definitions",
+        verbose_name="konkurs",
+    )
+    kind = models.CharField("rodzaj", max_length=24, choices=ConsentKind.choices)
+    #: Nazwa pola w formularzu, w serializerze i w imporcie grupowym. Stoi w wierszu, bo mapowanie
+    #: „pole → rodzaj zgody” ma być jedno – rozjazd formularza z serwisem znaczyłby zgodę zapisaną
+    #: pod niewłaściwym rodzajem.
+    field_name = models.CharField("nazwa pola", max_length=40)
+    #: Wzorzec z nazwanymi miejscami ``{link}`` (odnośnik do dokumentu) i ``{organizer}`` (nazwa
+    #: organizatora). Inne miejsce w nawiasach klamrowych jest literówką i odbija je ``clean()``:
+    #: niepodstawione ``{cokolwiek}`` wywróciłoby renderowanie **formularza rejestracji**.
+    text = models.TextField("treść oświadczenia")
+    link_text = models.CharField("tekst odnośnika", max_length=200, blank=True)
+    document_slug = models.SlugField("dokument", max_length=60, blank=True)
+    version = models.CharField("wersja dokumentu", max_length=100)
+    required = models.BooleanField("wymagana zawsze", default=False)
+    required_for_minor = models.BooleanField("wymagana dla niepełnoletnich", default=False)
+    help_text = models.CharField("podpowiedź", max_length=200, blank=True)
+    missing_message = models.CharField("komunikat o braku", max_length=300, blank=True)
+    #: Kolejność jest treścią, a nie kosmetyką: zgody wymagane stoją przed dobrowolnymi, żeby nikt
+    #: nie zaakceptował dobrowolnej, myśląc, że to ta wymagana.
+    ordering = models.PositiveSmallIntegerField("kolejność", default=0)
+    #: Wycofanie zgody z zestawu jest przestawieniem tego pola, a nie skasowaniem wiersza: wpisy
+    #: dowodowe z lat poprzednich mają dalej mieć w bazie treść, pod którą je złożono.
+    is_active = models.BooleanField("aktywna", default=True)
+
+    #: Definicja ma własną kolumnę konkursu – nie ma drugiej drogi, którą mogłaby do niego dojść.
+    objects = CompetitionScopedManager()
+
+    class Meta:
+        verbose_name = "definicja zgody"
+        verbose_name_plural = "definicje zgód"
+        ordering = ("competition", "ordering", "id")
+        constraints = [
+            models.UniqueConstraint(fields=["competition", "kind"], name="accounts_consentdef_unique_kind"),
+            models.UniqueConstraint(
+                fields=["competition", "field_name"], name="accounts_consentdef_unique_field"
+            ),
+            # Zgoda bez wersji nie jest dowodem: ``ConsentRecord.document_version`` byłby pusty
+            # i po pierwszej nowelizacji regulaminu nie dałoby się odpowiedzieć na jedyne pytanie,
+            # które przy zgodzie pada.
+            models.CheckConstraint(
+                condition=~models.Q(version=""), name="accounts_consentdef_version_not_empty"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.get_kind_display()} ({self.version})"
+
+    def clean(self) -> None:
+        """Sprawdza wersję i wzorzec treści – **zanim** wywróci się formularz rejestracji.
+
+        ``text`` składa ``format_html`` z dwoma nazwanymi argumentami. Trzecie miejsce w nawiasach
+        klamrowych (albo niedomknięty nawias) podnosi wyjątek dopiero przy renderowaniu, czyli
+        u uczestnika próbującego się zarejestrować, a nie u organizatora zapisującego treść.
+        """
+        super().clean()
+        if not (self.version or "").strip():
+            raise ValidationError({"version": "Podaj wersję dokumentu – bez niej zgoda nie jest dowodem."})
+        try:
+            (self.text or "").format(link="", organizer="")
+        except (IndexError, KeyError, ValueError) as error:
+            raise ValidationError(
+                {
+                    "text": (
+                        "Treść może zawierać wyłącznie miejsca {link} i {organizer}; "
+                        f"nawiasy klamrowe wpisz podwójnie. Błąd: {error}"
+                    )
+                }
+            ) from error
+
+
+#: Rodzaje placówek, które **mają wiersze** w ``schools.School`` – czyli te, dla których pytanie
+#: „którą wybierasz z wykazu” w ogóle ma sens. Pozostałe (``FOREIGN``, ``NONE``, ``OTHER``) są
+#: sytuacjami uczestnika, a nie pozycjami rejestru: tam nazwę wpisuje się wolnym tekstem
+#: (§ 1.3.2 planu etapu 2). Krotka napisów, a nie import ``InstitutionType`` na górze modułu:
+#: ``apps.schools.models`` importuje ``apps.accounts.models`` (lista województw), więc import
+#: w drugą stronę zamknąłby pętlę zależności między aplikacjami. Zgodność tej krotki z listą
+#: rodzajów pilnuje ``apps/accounts/tests/test_registration_profile.py``.
+DIRECTORY_INSTITUTION_TYPES: tuple[str, ...] = ("PRIMARY", "SECONDARY", "UNIVERSITY")
+
+#: Rodzaj placówki, o który pyta dzisiejsza rejestracja – i jedyny, jaki zna Konkurs #1.
+DEFAULT_INSTITUTION_TYPE = "SECONDARY"
+
+
+class RegistrationProfile(models.Model):
+    """Co konkurs pyta przy rejestracji i co dopuszcza jako placówkę.
+
+    Model, a nie kilkanaście pól na ``Competition``: to kilkanaście pól **jednej sprawy**, a
+    ``Competition`` ma już trzydzieści i jest czytany na każdym żądaniu. Wiersz jest
+    **opcjonalny** – jego brak znaczy „jak dziś”, i taki jest stan Konkursu #1: migracja
+    ``accounts.0028`` nie zakłada go nikomu, bo brak wiersza i wiersz z samymi wartościami
+    domyślnymi są równoważne, a brak jest tańszy i jawniejszy (§ 1.3.4).
+
+    **Wartość domyślna każdego pola odtwarza dzisiejszy formularz**: szkoła ponadpodstawowa
+    z wykazu SIO albo wpisana ręcznie, klasa 1–5 wymagana, telefon wymagany, województwo
+    wymagane, rocznik wymagany, bez kategorii do wyboru. Dlatego jedyne wejście do tej
+    konfiguracji – ``apps.accounts.services.registration_profile`` – może przy wyłączonej fladze
+    ``institution_types`` oddać **niezapisany** wiersz z samymi domyślnymi i nie zapytać bazy ani
+    razu (warunek budżetu ``/register/``, § 5.6).
+
+    Czym ten model **nie** jest: nie jest miejscem na dodatkowe pole formularza. Zestaw pytań
+    zostaje w kodzie (formularz, serializer, serwis); konkurs rozstrzyga tu wyłącznie, **czy**
+    o coś pytać i w jakim zakresie.
+    """
+
+    #: ``CASCADE`` i ``OneToOne``, tak jak przy ``ConsentDefinition``: to jest konfiguracja samego
+    #: konkursu, a nie cudze dane. Skasowanie konkursu zabiera jego profil rejestracji i nie ma
+    #: powodu, żeby go przed tym bronić – profile uczestników trzyma ``PROTECT`` na
+    #: ``Participant.competition``, czyli tam, gdzie stoją dane ludzi.
+    competition = models.OneToOneField(
+        "tenancy.Competition",
+        verbose_name="konkurs",
+        on_delete=models.CASCADE,
+        related_name="registration_profile",
+    )
+    #: Lista wartości ``schools.InstitutionType``. **Pusta znaczy wyłącznie ``SECONDARY``**, czyli
+    #: dzisiaj – a nie „żadna”: pusty zbiór dopuszczonych placówek zamknąłby rejestrację, co nie
+    #: jest konfiguracją, tylko awarią. Lista, a nie tabela wiele-do-wielu: to jest garść napisów
+    #: ze **stałej** listy, czytana raz na formularz i nigdy nie filtrowana w zapytaniu.
+    allowed_institution_types = models.JSONField("dozwolone placówki", default=list, blank=True)
+    #: Czy wyszukiwarka pyta też o słownik organizatora (``schools.CustomInstitution``, T24).
+    #: Warunek jest **koniunkcją** z flagą ``custom_school_directory`` – patrz
+    #: ``services.custom_directory_enabled``.
+    allow_custom_directory = models.BooleanField("słownik organizatora", default=False)
+    #: Szkoła spoza wykazu wpisana wolnym tekstem. Domyślnie **wolno**, bo tak jest dziś: wykaz SIO
+    #: nie zna szkół założonych po jego dacie, a brak swojej szkoły na liście nie może zamykać
+    #: drogi do rejestracji.
+    allow_free_text_school = models.BooleanField("szkoła spoza wykazu", default=True)
+    allow_foreign = models.BooleanField("uczestnicy spoza Polski", default=False)
+    require_grade = models.BooleanField("klasa wymagana", default=True)
+    require_phone = models.BooleanField("telefon wymagany", default=True)
+    require_region = models.BooleanField("region wymagany", default=True)
+    #: Pole jest w modelu, bo tak stanowi § 1.3.4, ale **dzisiaj nie ma czego wyłączyć**:
+    #: ``Participant.birth_year`` jest kolumną ``NOT NULL``, a od rocznika zależy reguła „zgoda
+    #: opiekuna dla niepełnoletniego” (``consents.is_minor``) – czyli podstawa prawna zapisu.
+    #: Znullowanie kolumny jest osobnym wydaniem (nullowalne → backfill → ``NOT NULL``, § 0.7)
+    #: i osobną decyzją o zgodach, a nie skutkiem ubocznym profilu rejestracji. Do tego czasu
+    #: formularz pyta o rocznik niezależnie od tej wartości.
+    require_birth_year = models.BooleanField("rocznik wymagany", default=True)
+    #: ``None`` znaczy „jak dziś”, czyli ``MIN_GRADE``/``MAX_GRADE``. Osobne pola, a nie lista klas:
+    #: konkurs zawęża **przedział**, a nie wybiera klasy pojedynczo – a przedział da się pokazać
+    #: w komunikacie walidacji jednym zdaniem.
+    grade_min = models.PositiveSmallIntegerField("klasa od", null=True, blank=True)
+    grade_max = models.PositiveSmallIntegerField("klasa do", null=True, blank=True)
+    participant_picks_category = models.BooleanField("kategoria z wyboru", default=False)
+
+    #: Własna kolumna konkursu – domyślna ścieżka queryseta.
+    objects = CompetitionScopedManager()
+
+    class Meta:
+        verbose_name = "profil rejestracji"
+        verbose_name_plural = "profile rejestracji"
+        ordering = ("competition",)
+
+    def __str__(self) -> str:
+        return f"profil rejestracji: {self.competition_id}"
+
+    # --- odczyt -------------------------------------------------------------------------------
+
+    def institution_types(self) -> tuple[str, ...]:
+        """Rodzaje placówek dopuszczone w tym konkursie – zawsze niepuste i zawsze uporządkowane.
+
+        Porządek jest porządkiem deklaracji ``InstitutionType``, a nie kolejnością wpisaną do
+        kolumny: lista wyboru w formularzu ma wyglądać tak samo niezależnie od tego, w jakiej
+        kolejności koordynator zaznaczał kratki. Wartość spoza listy rodzajów jest pomijana –
+        wiersz po ręcznej poprawce w bazie nie ma prawa wywrócić formularza rejestracji.
+        """
+        from apps.schools.models import InstitutionType
+
+        chosen = {str(value) for value in (self.allowed_institution_types or [])}
+        allowed = tuple(value for value in InstitutionType.values if value in chosen)
+        return allowed or (DEFAULT_INSTITUTION_TYPE,)
+
+    def directory_types(self) -> tuple[str, ...]:
+        """Dopuszczone rodzaje, które mają wiersze w wykazie – czyli czym karmić wyszukiwarkę."""
+        return tuple(value for value in self.institution_types() if value in DIRECTORY_INSTITUTION_TYPES)
+
+    def grade_range(self) -> tuple[int, int]:
+        """Przedział klas ``(od, do)``. ``None`` w kolumnie znaczy dzisiejszą granicę."""
+        low = MIN_GRADE if self.grade_min is None else int(self.grade_min)
+        high = MAX_GRADE if self.grade_max is None else int(self.grade_max)
+        return low, high
+
+    def is_default(self) -> bool:
+        """Czy ten profil pyta dokładnie o to, o co pyta dzisiejszy formularz.
+
+        Pytanie zadaje formularz: profil domyślny **nie dokłada ani jednego pola** i nie zmienia
+        ani jednej etykiety, więc ``/register/`` Konkursu #1 zostaje bajt w bajt taki, jak dziś
+        (§ 5.3, ``test_registration_form_html_unchanged``).
+        """
+        return (
+            self.institution_types() == (DEFAULT_INSTITUTION_TYPE,)
+            and self.allow_free_text_school
+            and not self.allow_foreign
+            and not self.allow_custom_directory
+            and self.require_grade
+            and self.require_phone
+            and self.require_region
+            and self.require_birth_year
+            and self.grade_range() == (MIN_GRADE, MAX_GRADE)
+        )
+
+    def clean(self) -> None:
+        """Sprawdza przedział klas i listę rodzajów – **zanim** wywróci się formularz rejestracji."""
+        super().clean()
+        from apps.schools.models import InstitutionType
+
+        unknown = sorted(
+            {str(value) for value in (self.allowed_institution_types or [])} - set(InstitutionType.values)
+        )
+        if unknown:
+            raise ValidationError(
+                {"allowed_institution_types": f"Nieznane rodzaje placówek: {', '.join(unknown)}."}
+            )
+        low, high = self.grade_range()
+        if low > high:
+            raise ValidationError({"grade_max": "Klasa „do” nie może być mniejsza niż klasa „od”."})
+
+
 class CommitteeStatus(models.TextChoices):
     PENDING = "PENDING", "oczekuje"
     ACTIVE = "ACTIVE", "aktywny"
@@ -558,6 +992,17 @@ class CommitteeMember(models.Model):
     # a reguła konfliktu interesów porównuje samo ``district`` – patrz
     # ``apps.grading.services.has_district_conflict``.
     district_verified = models.BooleanField("województwo zweryfikowane", default=False)
+    # Region z podziału konkursu – obok ``district``, na tych samych zasadach co u uczestnika.
+    # ``district_verified`` **nie** dotyczy tego pola i nie zmienia swojej roli: mówi wyłącznie,
+    # skąd wzięła się wartość ``district`` (decyzja organizatora z ``docs/BACKLOG.md``).
+    region = models.ForeignKey(
+        "accounts.Region",
+        verbose_name="region",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="committee_members",
+    )
     status = models.CharField(
         "status", max_length=16, choices=CommitteeStatus.choices, default=CommitteeStatus.PENDING
     )
@@ -732,6 +1177,16 @@ class InvitationCode(models.Model):
     # deklaracją z formularza rejestracji, a profil powstaje od razu z ``district_verified=True``.
     district = models.CharField(  # noqa: DJ001
         "województwo", max_length=100, null=True, blank=True, choices=Voivodeship.choices
+    )
+    # Region narzucony przez koordynatora – obok ``district``, na tych samych zasadach: przy
+    # wyłączonej fladze ``custom_regions`` kod zaproszenia niesie wyłącznie województwo.
+    region = models.ForeignKey(
+        "accounts.Region",
+        verbose_name="region",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="invitation_codes",
     )
     # Adres, na który kod pojechał listem. Puste dla kodów wygenerowanych „do ręki” (komenda CLI,
     # sekcja „Kod zaproszenia” w panelu) – tam kod przekazuje człowiek i serwis nie wie komu.

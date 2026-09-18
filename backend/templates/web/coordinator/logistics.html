@@ -1,0 +1,107 @@
+{% extends "web/coordinator/base.html" %}
+{% load static %}
+{% comment %}
+  Przyjazdy i potrzeby jednego etapu: kto kiedy przyjeżdża i ile czego zamówić.
+
+  Kolumna „Uwagi” istnieje **wyłącznie** wtedy, gdy konkurs świadomie włączył zbieranie potrzeb
+  szczególnych (decyzja D21). Przy wyłączonym zbieraniu wiersz nie ma w ogóle klucza ``note``
+  (``apps.competitions.logistics.arrival_rows``), więc szablon nie ma czego pokazać nawet przez
+  pomyłkę — warunek niżej jest drugą, nie jedyną bramką.
+
+  Listy do druku składa ``apps.integrations.exports.render_logistics_list`` tą samą ścieżką
+  ReportLab, którą powstaje protokół etapu. Nowego generatora PDF nie ma.
+{% endcomment %}
+{% block title %}Przyjazdy i potrzeby – panel koordynatora{% endblock %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-stage-edit' stage.pk %}">{{ stage.display_name }}</a>{% endblock %}
+{% block panel_title %}Przyjazdy i potrzeby{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Deklaracje uczestników etapu <strong>{{ stage.display_name }}</strong>: kiedy
+    przyjeżdżają, gdzie i czego potrzebują. Liczby z podsumowania przepisuje się wprost do
+    zamówienia w hotelu i w kuchni.</p>
+{% endblock %}
+{% block panel_actions %}
+  <a class="btn btn--secondary" href="{{ attendance_url }}">Lista obecności</a>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Ile czego zamówić</h2>
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Liczba zgłoszeń każdej potrzeby</caption>
+      <thead>
+        <tr>
+          <th scope="col">Potrzeba</th>
+          <th scope="col">Zgłoszeń</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for label, count in summary_rows %}
+          <tr>
+            <th scope="row">{{ label }}</th>
+            <td class="num">{{ count }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Listy do druku</h2>
+  </div>
+  <p class="actions">
+    {% for kind, label in list_kinds %}
+      <a class="btn btn--secondary btn--small"
+         href="{% url 'web:coordinator-stage-logistics-list' stage.pk kind %}">{{ label }}</a>
+    {% endfor %}
+  </p>
+  <p class="hint">Uwaga tekstowa uczestnika wychodzi <strong>wyłącznie na listę żywieniową</strong>
+    i wyłącznie przy włączonym zbieraniu potrzeb szczególnych: kuchnia musi wiedzieć, co
+    przygotować, a lista obecności krąży po sali.</p>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Deklaracje ({{ rows|length }})</h2>
+  </div>
+
+  {% if rows %}
+    <div class="scroll">
+      <table class="table">
+        <caption class="visually-hidden">Deklaracje przyjazdu uczestników etapu</caption>
+        <thead>
+          <tr>
+            <th scope="col">Kod</th>
+            <th scope="col">Uczestnik</th>
+            <th scope="col">Miejsce</th>
+            <th scope="col">Przyjazd</th>
+            <th scope="col">Wyjazd</th>
+            <th scope="col">Potrzeby</th>
+            {% if special_needs %}<th scope="col">Uwagi</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <th scope="row"><code>{{ row.public_code }}</code></th>
+              <td>{{ row.first_name }} {{ row.last_name }}</td>
+              <td>{{ row.venue|default:"—" }}</td>
+              <td>{{ row.arrives_on|date:"Y-m-d"|default:"—" }}</td>
+              <td>{{ row.departs_on|date:"Y-m-d"|default:"—" }}</td>
+              <td>{% for label in row.need_labels %}{{ label }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</td>
+              {% if special_needs %}<td>{{ row.note|default:"—" }}</td>{% endif %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="hint">Nikt nie złożył jeszcze deklaracji przyjazdu do tego etapu.</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,6 +1,6 @@
-"""Eksporty do systemów zewnętrznych: lista dla kuratorium, protokół etapu i zrzut edycji.
+"""Eksporty na zewnątrz: lista dla kuratorium, protokół etapu, listy pobytowe i zrzut edycji.
 
-Trzy różne dokumenty, bo trzy różne pytania z zewnątrz:
+Cztery różne dokumenty, bo cztery różne pytania z zewnątrz:
 
 - **lista dla kuratorium** (CSV/XLSX, jedno województwo) – kurator pyta „którzy uczniowie z mojego
   województwa wzięli udział i z jakim skutkiem”. Kolumny są takie, jakich kuratoria żądają
@@ -9,11 +9,15 @@ Trzy różne dokumenty, bo trzy różne pytania z zewnątrz:
   **na zewnątrz**, o innym odbiorcy i innej podstawie prawnej niż arkusze robocze koordynatora,
 - **protokół etapu** (PDF) – dokument, który komitet podpisuje i wkłada do teczki zawodów.
   Dlatego jest PDF-em z blokiem podpisów, a nie arkuszem: arkusza się nie podpisuje,
+- **listy pobytowe** (PDF: obecności, noclegowa, żywieniowa) – recepcja obiektu i kuchnia pytają
+  „ile osób i kto”, a komisja niesie na salę dokument z rubryką na podpis. Istnieją wyłącznie
+  w konkursie z flagą ``onsite_logistics`` (§ 1.5.2) i składają się tą samą ścieżką ReportLab,
+  co protokół – nowy generator PDF nie powstaje,
 - **zrzut edycji** (JSON) – przeniesienie zawodów do innego systemu albo archiwum. Struktura plus
   kody publiczne, **bez ani jednego nazwiska**: migracja danych osobowych jest osobną decyzją
   i osobną umową, a nie skutkiem ubocznym eksportu struktury.
 
-Wspólne dla wszystkich trzech: wychodzą wyłącznie z panelu koordynatora, a każde pobranie
+Wspólne dla wszystkich czterech: wychodzą wyłącznie z panelu koordynatora, a każde pobranie
 zostawia wpis audytowy z liczbą wierszy (robi to widok, tak samo jak przy eksportach w
 ``apps.core.exports``). Eksport jest jedyną drogą, którą komplet danych opuszcza system –
 i ma być drogą widoczną.
@@ -272,6 +276,219 @@ def render_stage_protocol(stage) -> bytes:
         story.append(Paragraph(f"…………………………………………&nbsp;&nbsp;{caption}", sign_style))
         story.append(Spacer(1, 6 * mm))
 
+    document.build(story)
+    return buffer.getvalue()
+
+
+# --- listy do druku etapu stacjonarnego (PDF) ---------------------------------------------------
+#
+# Trzy listy, które organizator niesie ze sobą na salę i do recepcji obiektu: obecności, noclegowa
+# i żywieniowa (``docs/UNIWERSALNY-ETAP-2.md`` § 1.5.2). Idą **tą samą** ścieżką ReportLab, co
+# protokół etapu wyżej – ``register_fonts`` plus ``LongTable`` z ``repeatRows=1`` – bo problem jest
+# ten sam: nieznana z góry liczba wierszy, polskie znaki i nagłówek powtarzany na każdej stronie.
+# Nowy generator PDF nie powstaje ani tutaj, ani nigdzie indziej w tym wydaniu.
+#
+# Wszystkie trzy istnieją wyłącznie dla konkursu z flagą ``onsite_logistics``; dla pozostałych
+# (w tym dla Konkursu #1) dane biorą się z funkcji, które oddają pustkę, więc lista wychodzi pusta
+# i nie pada ani jedno zapytanie o logistykę.
+
+#: Rodzaje list. Napisy, a nie ``TextChoices``: to nie jest kolumna w bazie, tylko wybór na ekranie
+#: i fragment nazwy pliku.
+LIST_ATTENDANCE = "attendance"
+LIST_ACCOMMODATION = "accommodation"
+LIST_MEAL = "meal"
+
+#: Dzisiejszy tytuł na papierze – **odwrót** dla :func:`logistics_list_title`, a zarazem jedyne
+#: miejsce, w którym ten napis stoi w kodzie. Od wejścia ``tenancy.DocumentTemplate`` rodzaju
+#: ``ATTENDANCE_LIST`` (§ 1.1.3, zadania T12 i T13) tytuł listy obecności bierze się z szablonu
+#: konkursu, a te wartości obowiązują przy wyłączonej fladze ``document_templates``.
+LOGISTICS_LIST_TITLES = {
+    LIST_ATTENDANCE: "Lista obecności",
+    LIST_ACCOMMODATION: "Lista noclegowa",
+    LIST_MEAL: "Lista żywieniowa",
+}
+
+#: Pusta rubryka do podpisu ręcznego. Lista obecności jest dokumentem, który podpisuje uczestnik
+#: przy wejściu na salę – bez tej kolumny byłaby wydrukiem ekranu, a nie dokumentem.
+SIGNATURE_COLUMN = "Podpis"
+
+
+def logistics_list_title(stage, kind: str) -> str:
+    """Tytuł listy na papierze: z szablonu konkursu albo z :data:`LOGISTICS_LIST_TITLES`.
+
+    Szew do ``tenancy.DocumentTemplate`` (§ 1.1.3) jest tutaj, a nie w trzech wywołaniach w trzech
+    funkcjach. Przy wyłączonej fladze ``document_templates`` – a więc w Olimpiadzie Kwantowej –
+    ``render_document`` oddaje dosłownie dzisiejszą stałą i **nie pyta bazy o szablon ani razu**;
+    to ten warunek z § 5.6, na którym stoją budżety zapytań.
+
+    **Szablon dotyczy wyłącznie listy obecności** i to nie jest niedopatrzenie: rodzaj
+    ``DocumentKind.ATTENDANCE_LIST`` opisuje jeden dokument – ten, który uczestnik podpisuje przy
+    wejściu na salę. Lista noclegowa i żywieniowa są wydrukami roboczymi dla hotelu i dla kuchni,
+    nie wychodzą poza organizatora i nie mają własnego rodzaju; puszczenie ich przez ten sam
+    szablon dałoby trzy wydruki zatytułowane „Lista obecności”. Gdyby organizator kiedyś chciał
+    zmieniać także tamte dwa tytuły, odpowiedzią są dwa nowe rodzaje dokumentu, a nie wspólny.
+    """
+    fallback = LOGISTICS_LIST_TITLES[kind]
+    if kind != LIST_ATTENDANCE:
+        return fallback
+    from apps.competitions.logistics import competition_of_stage
+    from apps.tenancy.documents import DocumentKind, render_document
+
+    return render_document(
+        competition_of_stage(stage),
+        DocumentKind.ATTENDANCE_LIST,
+        fallback={"title": fallback},
+        stage=stage.display_name,
+        date=timezone.localtime().strftime("%d.%m.%Y"),
+    ).title
+
+
+def logistics_list_filename(stage, kind: str) -> str:
+    """Nazwa pliku listy: ``lista-<rodzaj>-etap-<id>-<data>.pdf``. Bez nazwisk – plik krąży dalej."""
+    return f"lista-{kind}-etap-{stage.pk}-{timezone.localtime().strftime('%Y%m%d')}.pdf"
+
+
+def logistics_list_rows(stage, kind: str) -> tuple[list[str], list[list[str]]]:
+    """Nagłówek i wiersze jednej listy. Rozdzielone od składu, bo to jest to, co się sprawdza.
+
+    Reguła danych szczególnych (decyzja organizatora D21) jest widoczna w kształcie wyniku:
+    kolumna „Uwagi” istnieje **wyłącznie** na liście żywieniowej i **wyłącznie** w konkursie, który
+    świadomie włączył zbieranie potrzeb szczególnych. Tam jest jedyne miejsce, w którym ta treść ma
+    adresata – kuchnia musi wiedzieć, co przygotować. Na liście obecności i noclegowej uwagi nie ma
+    w żadnym wariancie, bo tam nie jest do niczego potrzebna, a lista obecności krąży po sali.
+    """
+    from apps.competitions.logistics import (
+        LogisticsNeed,
+        arrival_rows,
+        attendance_rows,
+        collects_special_needs,
+        competition_of_stage,
+        need_labels,
+    )
+
+    if kind == LIST_ATTENDANCE:
+        header = ["Lp.", "Kod", "Imię i nazwisko", "Szkoła", "Miejsce", "Obecność", SIGNATURE_COLUMN]
+        rows = [
+            [
+                str(number),
+                row["public_code"],
+                f"{row['first_name']} {row['last_name']}".strip(),
+                row["school"],
+                row["venue"],
+                "obecny" if row["present"] else "",
+                "",
+            ]
+            for number, row in enumerate(attendance_rows(stage), start=1)
+        ]
+        return header, rows
+
+    if kind == LIST_ACCOMMODATION:
+        header = ["Lp.", "Kod", "Imię i nazwisko", "Miejsce", "Przyjazd", "Wyjazd"]
+        rows = [
+            [
+                str(number),
+                row["public_code"],
+                f"{row['first_name']} {row['last_name']}".strip(),
+                row["venue"],
+                row["arrives_on"].isoformat() if row["arrives_on"] else "",
+                row["departs_on"].isoformat() if row["departs_on"] else "",
+            ]
+            for number, row in enumerate(
+                [row for row in arrival_rows(stage) if LogisticsNeed.ACCOMMODATION in row["needs"]],
+                start=1,
+            )
+        ]
+        return header, rows
+
+    if kind == LIST_MEAL:
+        special = collects_special_needs(competition_of_stage(stage))
+        header = ["Lp.", "Kod", "Imię i nazwisko", "Potrzeby"]
+        if special:
+            header.append("Uwagi")
+        meal_needs = {LogisticsNeed.MEAL, LogisticsNeed.DIET}
+        rows = []
+        for number, row in enumerate(
+            [row for row in arrival_rows(stage) if meal_needs & set(row["needs"])], start=1
+        ):
+            line = [
+                str(number),
+                row["public_code"],
+                f"{row['first_name']} {row['last_name']}".strip(),
+                ", ".join(need_labels(row["needs"])),
+            ]
+            if special:
+                line.append(row.get("note", ""))
+            rows.append(line)
+        return header, rows
+
+    raise ValueError(f"Nieznany rodzaj listy: {kind}")
+
+
+def render_logistics_list(stage, kind: str) -> bytes:
+    """Składa listę do druku i zwraca bajty PDF-a – ta sama ścieżka, co protokół etapu.
+
+    Szerokości kolumn liczone są z ich liczby, a nie wypisane per lista: kolumn jest od czterech do
+    siedmiu, pierwsza („Lp.”) zawsze wąska, a rozpisywanie trzech tabel szerokości znaczyłoby trzy
+    miejsca do poprawienia przy dołożeniu jednej kolumny.
+    """
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.platypus import LongTable, Paragraph, SimpleDocTemplate, Spacer, TableStyle
+
+    from apps.results.certificates import FONT_BOLD, FONT_REGULAR, register_fonts
+
+    register_fonts()
+    header, rows = logistics_list_rows(stage, kind)
+    title = logistics_list_title(stage, kind)
+
+    title_style = ParagraphStyle("title", fontName=FONT_BOLD, fontSize=15, leading=19, spaceAfter=6)
+    meta_style = ParagraphStyle("meta", fontName=FONT_REGULAR, fontSize=9.5, leading=13)
+
+    buffer = BytesIO()
+    document = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=18 * mm,
+        rightMargin=18 * mm,
+        topMargin=16 * mm,
+        bottomMargin=16 * mm,
+        title=f"{title} – etap {stage.pk}",
+    )
+
+    usable = 174 * mm
+    first = 12 * mm
+    rest = (usable - first) / max(len(header) - 1, 1)
+    table = LongTable([header, *rows], colWidths=[first, *[rest] * (len(header) - 1)], repeatRows=1)
+    table.setStyle(
+        TableStyle(
+            [
+                ("FONTNAME", (0, 0), (-1, 0), FONT_BOLD),
+                ("FONTNAME", (0, 1), (-1, -1), FONT_REGULAR),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
+                ("BACKGROUND", (0, 0), (-1, 0), colors.whitesmoke),
+                ("ALIGN", (0, 0), (0, -1), "RIGHT"),
+                # Wiersze wyższe niż tekst: rubryka podpisu bez miejsca na podpis nie jest rubryką.
+                ("TOPPADDING", (0, 1), (-1, -1), 5),
+                ("BOTTOMPADDING", (0, 1), (-1, -1), 5),
+            ]
+        )
+    )
+
+    story = [
+        Paragraph(title, title_style),
+        Paragraph(
+            f"Edycja: {stage.edition.year_label}<br/>Etap: {stage.display_name}<br/>"
+            f"Liczba osób na liście: {len(rows)}<br/>"
+            f"Listę sporządzono: {timezone.localtime().strftime('%Y-%m-%d %H:%M')}",
+            meta_style,
+        ),
+        Spacer(1, 8 * mm),
+        table,
+    ]
     document.build(story)
     return buffer.getvalue()
 

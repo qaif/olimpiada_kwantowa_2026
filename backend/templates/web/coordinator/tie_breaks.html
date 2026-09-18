@@ -1,0 +1,97 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Rozstrzyganie remisów etapu: uporządkowana lista kryteriów.
+
+  Ekran istnieje wyłącznie w konkursie z włączonymi wagami – flagę czyta widok (404 przy
+  wyłączonej), nigdy ten szablon. Etap bez ani jednego wiersza układa tabelę dokładnie tak, jak
+  przed etapem 2: ta sama suma to to samo miejsce, a kod publiczny porządkuje wydruk.
+
+  Kolejność jest treścią tej listy, a nie jej ozdobą: kryteria stosuje się po kolei, a „bez
+  rozstrzygania” **kończy** listę – wiersze równe na wcześniejszych kryteriach dzielą miejsce.
+{% endcomment %}
+{% block title %}Rozstrzyganie remisów: {{ stage.display_name }} – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-stage-scale' stage.pk %}">Skala punktacji</a>{% endblock %}
+{% block panel_title %}Rozstrzyganie remisów: {{ stage.display_name }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Czym rozstrzygamy równą sumę punktów i w jakiej kolejności. Etap bez ani jednego
+    kryterium daje wspólne miejsce każdemu, kto ma tę samą sumę.</p>
+{% endblock %}
+{% block panel_content %}
+
+<div class="card card--quiet">
+  <ul class="hint">
+    <li>Kryteria stosuje się <strong>po kolei</strong>: dopiero równość na pierwszym oddaje
+      głos drugiemu.</li>
+    <li><strong>Bez rozstrzygania</strong> kończy listę razem z sobą – kryteria stojące za nim
+      zostają w bazie, ale nie liczą się, dopóki nie zmienisz kolejności.</li>
+    <li>Kod publiczny zostaje <strong>zawsze ostatnim</strong> kluczem porządku i nie jest
+      kryterium: dwie publikacje tych samych danych muszą dać ten sam plik.</li>
+  </ul>
+</div>
+
+<section class="section">
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Kryteria rozstrzygania remisów etapu {{ stage.display_name }}</caption>
+      <thead>
+        <tr>
+          <th scope="col">Kolejność</th>
+          <th scope="col">Kryterium</th>
+          <th scope="col">Wskazanie</th>
+          <th scope="col">Kierunek</th>
+          <th scope="col"><span class="visually-hidden">Operacje</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rule in rules %}
+          <tr>
+            <td class="num">{{ rule.position }}</td>
+            <th scope="row">{{ rule.get_key_display }}</th>
+            <td>
+              {% if rule.problem %}
+                Zadanie {{ rule.problem.number }}: {{ rule.problem.title }}
+              {% elif rule.component %}
+                {{ rule.component.display_name }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td>
+              {% if rule.descending %}
+                <span class="badge badge--neutral">malejąco</span>
+              {% else %}
+                <span class="badge badge--neutral">rosnąco</span>
+              {% endif %}
+            </td>
+            <td class="actions">
+              <form method="post" action="{% url 'web:coordinator-tie-break-delete' rule.pk %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn--danger btn--small">Zdejmij</button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="5" class="empty">Ten etap nie rozstrzyga remisów – wiersze o tej samej
+              sumie dzielą miejsce.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section">
+  <h2>Nowe kryterium</h2>
+  <div class="card">
+    <form method="post" class="form form--wide" novalidate>
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">Dodaj kryterium</button>
+        <a class="btn btn--ghost" href="{% url 'web:coordinator-stage-scale' stage.pk %}">Wróć do skali</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

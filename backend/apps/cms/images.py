@@ -37,7 +37,8 @@ from django.core.files.base import ContentFile
 from PIL import Image as PILImage
 from PIL import ImageChops
 from wagtail.images import get_image_model
-from wagtail.models import Collection
+
+from apps.cms.permissions import upload_collection
 
 #: ``…/apps/cms/`` → ``…/apps/cms/fixtures/partners/``. Logotypy przekazane przez organizatora.
 PARTNERS_DIR = Path(__file__).resolve().parent / "fixtures" / "partners"
@@ -145,11 +146,16 @@ def _apply(image, data: bytes, filename: str, width: int, height: int) -> None:
     image.renditions.all().delete()
 
 
-def ensure_image(title: str, source: Path, *, description: str = ""):
-    """Obraz o zadanym tytule w kolekcji Root, z **znormalizowaną** zawartością ``source``.
+def ensure_image(title: str, source: Path, *, description: str = "", competition=None):
+    """Obraz o zadanym tytule w kolekcji konkursu, z **znormalizowaną** zawartością ``source``.
 
     Zwraca ``(image, action)``, gdzie ``action`` to ``"created"``, ``"updated"`` albo
     ``"unchanged"`` – komendy raportują to na stdout, żeby przebieg dało się przeczytać.
+
+    **Kolekcja dotyczy wyłącznie obrazu zakładanego** – ta sama reguła i to samo wejście, co
+    w ``apps.cms.attachments.ensure_document``: kolekcja konkursu przy włączonej fladze
+    ``scoped_cms_permissions``, korzeń przy wyłączonej albo bez rozstrzygnięcia. Obraz już wgrany
+    zostaje w swojej kolekcji: zmienia się zawartość rekordu, nie jego miejsce w bibliotece.
     """
     Image = get_image_model()
     data, filename, width, height = normalize(source)
@@ -159,7 +165,7 @@ def ensure_image(title: str, source: Path, *, description: str = ""):
         image = Image(
             title=title,
             description=description,
-            collection=Collection.get_first_root_node(),
+            collection=upload_collection(competition),
         )
         _apply(image, data, filename, width, height)
         return image, "created"

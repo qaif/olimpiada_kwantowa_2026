@@ -1,0 +1,52 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Jedna placówka ze słownika organizatora. Osobna strona, a nie formularz w wierszu tabeli:
+  pól jest dziewięć, a przy dziewięciu polach w wierszu nie da się powiedzieć, co dokładnie
+  zapisuje przycisk (ta sama reguła, co na liście kont).
+
+  Liczba dowiązanych uczestników stoi przy formularzu, bo jest odpowiedzią na pytanie, które przy
+  poprawianiu nazwy zadaje się od razu: czy ktoś już tę placówkę wskazał.
+{% endcomment %}
+{% block title %}{{ institution.name }} – słownik placówek{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-institutions' %}">Słownik placówek</a>{% endblock %}
+{% block panel_title %}{{ institution.name }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Placówka z wykazu tego konkursu. Kolejny import rozpozna ją po identyfikatorze,
+    a bez identyfikatora – po nazwie i miejscowości, więc zmiana jednego z tych pól znaczy, że
+    następny plik założy wiersz obok, zamiast poprawić ten.</p>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  <div class="card">
+    <dl class="meta-list">
+      <dt>Uczestnicy wskazujący tę placówkę</dt>
+      <dd>{{ participants }}</dd>
+      <dt>Źródło</dt>
+      <dd>{{ institution.source_label|default:"wpis ręczny" }}</dd>
+      <dt>Dodana</dt>
+      <dd>{{ institution.created_at|date:"Y-m-d H:i" }}</dd>
+    </dl>
+    {% if participants %}
+      <p class="notice">Placówka jest w użyciu. Usunięcia tu nie ma i nie będzie – wiersz wskazany
+        przez czyjś profil trzyma baza (PROTECT), a wycofuje się go odznaczeniem „aktywna”.</p>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Dane placówki</h2>
+  </div>
+  <div class="card">
+    <form method="post" class="form form--wide">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">Zapisz</button>
+        <a class="btn btn--ghost" href="{% url 'web:coordinator-institutions' %}">Wróć do wykazu</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

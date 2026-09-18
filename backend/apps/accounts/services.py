@@ -19,18 +19,20 @@ from rest_framework import status
 
 from apps.core.api import DomainError
 from apps.core.models import audit
+from apps.tenancy import branding
 from apps.tenancy.context import current_competition
 
 from .activation import absolute_url, queue_mail, send_activation_email
 from .consents import (
     BY_KIND,
-    CONSENTS,
     ConsentKind,
     ConsentSource,
+    consent_set,
     given_from_fields,
     required_kinds,
 )
 from .models import (
+    DIRECTORY_INSTITUTION_TYPES,
     MAX_GRADE,
     MIN_GRADE,
     CommitteeMember,
@@ -41,11 +43,13 @@ from .models import (
     InvitationGrantsStatus,
     Membership,
     Participant,
+    RegistrationProfile,
     User,
     Voivodeship,
     generate_public_code,
     hash_invitation_code,
     normalize_voivodeship,
+    region_for_district,
 )
 from .phones import normalize_phone
 
@@ -55,6 +59,96 @@ PUBLIC_CODE_MAX_ATTEMPTS = 20
 #: Najkrótsza sensowna nazwa szkoły wpisana ręcznie. „LO” samo w sobie nie identyfikuje niczego,
 #: a puste pole po ``strip()`` zostawiłoby uczestnika bez szkoły w tabeli wyników.
 MIN_SCHOOL_NAME_LENGTH = 3
+
+#: Flaga, za którą stoi cały ``RegistrationProfile`` (§ 0.6, § 2.3). Jedna flaga na obszar, a nie
+#: jedna na pole: profil jest **jedną** decyzją organizatora („co konkurs pyta przy rejestracji”),
+#: a piętnaście przełączników na piętnaście pól byłoby piętnastoma sposobami na rozjazd formularza
+#: z serwisem.
+REGISTRATION_PROFILE_FLAG = "institution_types"
+
+#: Flaga słownika własnego organizatora. Czyta ją :func:`custom_directory_enabled` i wyłącznie ona.
+CUSTOM_DIRECTORY_FLAG = "custom_school_directory"
+
+#: Flaga podziału terytorialnego z ``Region`` zamiast z ``Voivodeship`` (§ 1.4.2).
+CUSTOM_REGIONS_FLAG = "custom_regions"
+
+
+def registration_profile(competition=None) -> RegistrationProfile:
+    """Profil rejestracji **tego** konkursu – jedyne wejście do reguł formularza (§ 1.3.4).
+
+    Odwrót jest dwustopniowy i oba stopnie dają **to samo**, czyli dzisiejszy formularz:
+
+    - **flaga wyłączona albo konkurs nierozstrzygnięty** – oddajemy niezapisany wiersz z samymi
+      wartościami domyślnymi i **nie pytamy bazy ani razu**. To jest warunek z § 5.6: budżet
+      zapytań ``/register/`` nie rośnie w żadnym wydaniu etapu 2, a rejestracja jest ekranem,
+      po którym chodzi każdy uczestnik;
+    - **flaga włączona, ale wiersza nie ma** – tak samo, bo brak wiersza znaczy „jak dziś”
+      (§ 1.3.4). Migracja ``accounts.0028`` nie zakłada go nikomu.
+
+    Odwrót przy pustym kontekście jest **miękki**, tak samo jak przy zgodach
+    (``apps.accounts.consents._competition_or_none``) i z tego samego powodu: twarde
+    ``require_competition`` zamieniłoby żądanie pod nierozstrzygniętym hostem w błąd 500 na
+    formularzu rejestracji, a to jest zmiana widoczna dla uczestnika Konkursu #1 (§ 0.1) – i to
+    zmiana na gorsze, bo reguły domyślne są poprawne.
+
+    Wynik jest **do czytania**, a nie do zapisu: wiersz zwrócony przy wyłączonej fladze nie ma
+    klucza głównego i ``save()`` na nim założyłby konfigurację, której nikt nie zamawiał.
+    """
+    competition = _competition_or_none(competition)
+    if competition is None or not competition.has_feature(REGISTRATION_PROFILE_FLAG):
+        return RegistrationProfile()
+    return _stored_profile(competition)
+
+
+def _competition_or_none(competition=None):
+    """Konkurs dla odczytu reguł rejestracji albo ``None`` – odwrót **miękki**, jak przy zgodach."""
+    from apps.competitions.scoping import resolve_competition
+
+    try:
+        return resolve_competition(competition)
+    except Exception:  # noqa: BLE001 - brak kontekstu nie może zablokować rejestracji
+        return None
+
+
+def _stored_profile(competition) -> RegistrationProfile:
+    """Wiersz profilu tego konkursu albo niezapisany wiersz z domyślnymi (brak = „jak dziś”).
+
+    Odwrotna relacja ``OneToOne`` podnosi ``RelatedObjectDoesNotExist``, który dziedziczy po
+    ``AttributeError`` – ``getattr`` z wartością domyślną jest więc tu pełnym odczytem, a nie
+    obejściem; Django zapamiętuje wynik przy obiekcie, więc drugi odczyt w tym samym żądaniu
+    nie kosztuje już nic.
+    """
+    return getattr(competition, "registration_profile", None) or RegistrationProfile(competition=competition)
+
+
+def allowed_institution_types(competition=None) -> tuple[str, ...]:
+    """Rodzaje placówek dopuszczone w konkursie – dla wyszukiwarki (T25) i importu (T24).
+
+    Zawsze niepusta krotka wartości ``schools.InstitutionType``; przy wyłączonej fladze
+    ``institution_types`` jest to dokładnie ``("SECONDARY",)``, czyli dzisiejszy zakres
+    podpowiedzi. Wyszukiwarka pyta **tę** funkcję, a nie profil wprost: dzięki temu zawężenie
+    listy i zawężenie walidacji w serwisie mają jedno źródło, a wiersz, którego nie wolno wybrać,
+    nie ma jak trafić do podpowiedzi.
+    """
+    return registration_profile(competition).institution_types()
+
+
+def custom_directory_enabled(competition=None) -> bool:
+    """Czy wolno pytać o słownik własny organizatora (``schools.CustomInstitution``, T24).
+
+    Koniunkcja **flagi platformy** i **decyzji konkursu**: flaga mówi, czy ta zdolność w ogóle
+    istnieje w tym wydaniu, a pole profilu – czy ten konkurs jej używa. Przy wyłączonej fladze
+    odpowiedź jest ``False`` **bez zapytania do bazy**, bo od tego zależy budżet ``/register/``
+    (§ 5.6: „bez flagi zapytanie do ``CustomInstitution`` nie pada ani razu”).
+
+    Wiersz czytamy wprost, a nie przez :func:`registration_profile`: słownik własny jest osobną
+    zdolnością z osobną flagą, więc konkurs, który chce wyłącznie własnego wykazu placówek, nie
+    ma powodu włączać przy okazji rodzajów placówek.
+    """
+    competition = _competition_or_none(competition)
+    if competition is None or not competition.has_feature(CUSTOM_DIRECTORY_FLAG):
+        return False
+    return _stored_profile(competition).allow_custom_directory
 
 
 def _require_voivodeship(district: str | None, *, required: bool) -> str | None:
@@ -79,8 +173,19 @@ def _require_voivodeship(district: str | None, *, required: bool) -> str | None:
     return None
 
 
-def _resolve_school(school: str, school_id: int | None):
+def _resolve_school(
+    school: str,
+    school_id: int | None,
+    *,
+    allow_free_text: bool = True,
+    allowed_types: tuple[str, ...] | None = None,
+):
     """Zwraca ``(nazwa_do_pokazania, obiekt_School_albo_None)`` dla pary pól z rejestracji.
+
+    Dwa argumenty nazwane dołożył etap 2 i oba mają **dzisiejszą wartość domyślną**, więc wołający,
+    który o profilu rejestracji nie wie (``apps.accounts.profile``, import grupowy, seed), dostaje
+    to samo zachowanie i te same komunikaty, co przed tą zmianą: ``allow_free_text=False`` zamyka
+    furtkę wolnego tekstu, a ``allowed_types`` zawęża dopuszczone rodzaje placówek z wykazu.
 
     Dwie drogi, dokładnie jedna obowiązkowa:
 
@@ -115,7 +220,25 @@ def _resolve_school(school: str, school_id: int | None):
                 "SCHOOL_NOT_FOUND",
                 status.HTTP_400_BAD_REQUEST,
             ) from exc
+        # Rodzaj placówki sprawdzamy na **już pobranym** wierszu, więc nie kosztuje to zapytania.
+        # Przy domyślnym profilu warunek jest spełniony z definicji: dzisiejszy wykaz to 8118
+        # szkół ponadpodstawowych i ani jednego wiersza innego rodzaju (§ 1.3.2).
+        if allowed_types is not None and chosen.institution_type not in allowed_types:
+            raise DomainError(
+                "Ten rodzaj placówki nie jest dopuszczony w tym konkursie.",
+                "INSTITUTION_TYPE_NOT_ALLOWED",
+                status.HTTP_400_BAD_REQUEST,
+            )
         return chosen.name, chosen
+    if not allow_free_text:
+        # Konkurs, który wyłączył wolny tekst, nie ma innej drogi niż wykaz – i musi to powiedzieć
+        # osobnym zdaniem, bo dzisiejszy komunikat („albo wpisz jej nazwę”) odesłałby uczestnika
+        # do pola, którego u niego nie ma.
+        raise DomainError(
+            "Wybierz placówkę z listy.",
+            "SCHOOL_REQUIRED",
+            status.HTTP_400_BAD_REQUEST,
+        )
     if len(text) < MIN_SCHOOL_NAME_LENGTH:
         raise DomainError(
             "Wybierz szkołę z listy albo wpisz jej nazwę.",
@@ -125,18 +248,194 @@ def _resolve_school(school: str, school_id: int | None):
     return text, None
 
 
-def _require_grade(grade) -> int:
-    """Klasa 1–5. Wymagana od każdego nowego uczestnika (stare profile mają ``None``)."""
+def _resolve_institution(profile: RegistrationProfile, fields: dict, *, competition=None) -> dict:
+    """Sprowadza blok „placówka” do kolumn ``Participant`` – niezależnie od rodzaju placówki.
+
+    Wejściem jest to, co przysłał formularz albo API (``institution_type``, ``school``,
+    ``school_id``, ``custom_institution_id``, ``institution_name``, ``country``), wyjściem –
+    słownik pól profilu. Trzy gałęzie, bo pytania są różne:
+
+    - **placówka ze słownika organizatora** (``custom_institution_id``, § 1.3.3) – dowiązanie do
+      ``schools.CustomInstitution`` obok pustego ``school_ref``. Gałąź jest pierwsza, bo wybór
+      z wykazu jest wyborem z wykazu niezależnie od rodzaju placówki – uczelnia partnerska
+      organizatora i jego ośrodek zagraniczny idą tą samą drogą,
+    - **placówka z wykazu publicznego** (``PRIMARY``, ``SECONDARY``, ``UNIVERSITY``) – dokładnie
+      dzisiejsza droga przez :func:`_resolve_school`, razem z furtką na wolny tekst,
+    - **placówka spoza wykazu** (``FOREIGN``, ``NONE``, ``OTHER``) – nazwa jest wolnym tekstem
+      i **kopiuje się do ``school``**, tak jak dziś kopiuje się nazwa z rejestru. Dzięki temu
+      publikacja wyników, próg k-anonimowości i podgląd koordynatora nie muszą wiedzieć, którą
+      drogą uczestnik się zarejestrował (§ 1.3.2). „Bez szkoły” zostawia ``school`` pustym – to
+      jest odpowiedź na pytanie o szkołę, a nie brak odpowiedzi.
+
+    Przy profilu domyślnym (Konkurs #1) gałąź jest jedna, ``institution_type`` nie przychodzi
+    z żadnego formularza, a wynik jest identyczny z tym, co serwis zapisywał przed etapem 2.
+    Wynik ma zawsze ten sam **komplet kluczy**, także ``custom_institution_ref`` – dzięki temu
+    przejście z jednego wykazu na drugi czyści dowiązanie, zamiast zostawiać dwa naraz.
+    """
+    allowed = profile.institution_types()
+    chosen = (fields.get("institution_type") or "").strip().upper()
+    if not chosen:
+        if len(allowed) > 1:
+            raise DomainError(
+                "Wybierz rodzaj placówki.", "INSTITUTION_TYPE_REQUIRED", status.HTTP_400_BAD_REQUEST
+            )
+        chosen = allowed[0]
+    if chosen not in allowed:
+        raise DomainError(
+            "Ten rodzaj placówki nie jest dopuszczony w tym konkursie.",
+            "INSTITUTION_TYPE_NOT_ALLOWED",
+            status.HTTP_400_BAD_REQUEST,
+        )
+    country = _require_country(fields.get("country"), profile=profile, institution_type=chosen)
+    custom_id = fields.get("custom_institution_id")
+    # Kolejność warunków jest tu **całą** treścią budżetu zapytań z § 5.6: przy wyłączonej fladze
+    # ``custom_school_directory`` ``custom_directory_enabled`` odpowiada bez dotknięcia bazy, a bez
+    # przysłanego identyfikatora nie pytamy nawet o flagę. Rejestracja Konkursu #1 przechodzi więc
+    # tędy dokładnie tyloma zapytaniami, co przed etapem 2 – i to jest jedyny warunek, pod którym
+    # ta gałąź ma prawo tu stać.
+    if custom_id and custom_directory_enabled(competition):
+        chosen_row = _resolve_custom_institution(competition, custom_id, allowed=allowed)
+        return {
+            "school": chosen_row.name,
+            "school_ref": None,
+            "custom_institution_ref": chosen_row,
+            "institution_name": "",
+            "country": country,
+        }
+    if chosen in DIRECTORY_INSTITUTION_TYPES:
+        name, school_obj = _resolve_school(
+            fields.get("school", ""),
+            fields.get("school_id"),
+            allow_free_text=profile.allow_free_text_school,
+            allowed_types=None if profile.is_default() else profile.directory_types(),
+        )
+        return {
+            "school": name,
+            "school_ref": school_obj,
+            "custom_institution_ref": None,
+            "institution_name": "",
+            "country": country,
+        }
+    text = (fields.get("institution_name") or fields.get("school") or "").strip()
+    if chosen == "NONE":
+        return {
+            "school": "",
+            "school_ref": None,
+            "custom_institution_ref": None,
+            "institution_name": "",
+            "country": country,
+        }
+    if len(text) < MIN_SCHOOL_NAME_LENGTH:
+        raise DomainError("Podaj nazwę placówki.", "INSTITUTION_NAME_REQUIRED", status.HTTP_400_BAD_REQUEST)
+    return {
+        "school": text,
+        "school_ref": None,
+        "custom_institution_ref": None,
+        "institution_name": text,
+        "country": country,
+    }
+
+
+def _resolve_custom_institution(competition, custom_id, *, allowed: tuple[str, ...]):
+    """Wiersz słownika organizatora wskazany przez formularz – albo błąd domenowy.
+
+    Trzy warunki, wszystkie na **jednym** pobranym wierszu, więc kosztuje to jedno zapytanie:
+
+    - wiersz należy do **tego** konkursu (``for_competition``) – identyfikator z cudzego wykazu ma
+      być nie do odróżnienia od nieistniejącego, bo lista placówek organizatora jest jego listą
+      kontrahentów i nawet „ten numer istnieje” jest o niej zdaniem,
+    - wiersz jest aktywny – wygaszona placówka zostaje przy profilach sprzed wygaszenia, ale nowego
+      zgłoszenia już nie przyjmuje (tak samo, jak wygaszona szkoła z wykazu SIO),
+    - rodzaj placówki jest dopuszczony w konkursie – ta sama reguła i **ten sam komunikat**, co
+      przy wykazie publicznym (``_resolve_school``); dwa zdania o tej samej odmowie znaczyłyby, że
+      uczestnik widzi inny komunikat w zależności od tego, z której listy wybrał.
+    """
+    from apps.schools.custom import CustomInstitution
+
+    try:
+        chosen = CustomInstitution.objects.for_competition(competition).get(pk=custom_id, is_active=True)
+    except (CustomInstitution.DoesNotExist, ValueError, TypeError) as exc:
+        raise DomainError(
+            "Wybrana placówka nie istnieje w wykazie organizatora.",
+            "CUSTOM_INSTITUTION_NOT_FOUND",
+            status.HTTP_400_BAD_REQUEST,
+        ) from exc
+    if chosen.institution_type not in allowed:
+        raise DomainError(
+            "Ten rodzaj placówki nie jest dopuszczony w tym konkursie.",
+            "INSTITUTION_TYPE_NOT_ALLOWED",
+            status.HTTP_400_BAD_REQUEST,
+        )
+    return chosen
+
+
+def _require_country(country, *, profile: RegistrationProfile, institution_type: str) -> str:
+    """Kraj w zapisie ISO 3166-1 alpha-2. **Pusty znaczy Polska**, a nie „nie podano”.
+
+    Konkurs, który nie dopuszcza uczestników spoza Polski, o kraj nie pyta i przysłanej wartości
+    nie zapisuje – pole, którego nie ma w formularzu, nie może wejść do bazy okrężną drogą przez
+    API. Przy placówce poza Polską kraj jest **wymagany**: bez niego „poza Polską” nie niesie
+    żadnej informacji ponad to, co i tak stoi w rodzaju placówki.
+    """
+    text = (country or "").strip().upper()
+    if not profile.allow_foreign:
+        return ""
+    if not text:
+        if institution_type == "FOREIGN":
+            raise DomainError("Podaj kraj.", "COUNTRY_REQUIRED", status.HTTP_400_BAD_REQUEST)
+        return ""
+    if len(text) != 2 or not text.isascii() or not text.isalpha():
+        raise DomainError(
+            "Kraj podaj dwuliterowym kodem (ISO 3166-1), na przykład „DE”.",
+            "COUNTRY_INVALID",
+            status.HTTP_400_BAD_REQUEST,
+        )
+    return text
+
+
+def _resolve_region(competition, district, region, *, profile: RegistrationProfile) -> tuple[str, object]:
+    """Zwraca parę ``(district, region)`` do zapisania w profilu uczestnika (§ 1.4.2).
+
+    Przy **wyłączonej** fladze ``custom_regions`` odpowiada wyłącznie ``district`` i nie pada ani
+    jedno dodatkowe zapytanie – dokładnie jak dziś. Przy włączonej źródłem prawdy jest region,
+    a ``district`` jest jego **denormalizowaną kopią** (``region.code``): to on zostaje dla
+    kilkudziesięciu odczytów, których etap 2 nie dotyka – filtrów panelu, eksportów i tabel
+    wyników. Jedno miejsce tego zapisu jest tutaj, więc kopia nie ma jak się rozjechać.
+
+    Region rozpoznajemy po kodzie – najpierw po wartości przysłanej wprost (``region``), potem po
+    województwie (``district``); robi to :func:`apps.accounts.models.region_for_district` jednym
+    zapytaniem. Kod nierozpoznany schodzi do dzisiejszej reguły, czyli do listy województw:
+    konkurs z włączoną flagą, ale bez własnego podziału, ma zachowywać się jak przed nią.
+    """
+    if competition is None or not competition.has_feature(CUSTOM_REGIONS_FLAG):
+        return _require_voivodeship(district, required=profile.require_region) or "", None
+    found = region_for_district(competition, (region or "").strip() or district)
+    if found is None:
+        return _require_voivodeship(district, required=profile.require_region) or "", None
+    return found.code, found
+
+
+def _require_grade(grade, *, profile: RegistrationProfile | None = None) -> int | None:
+    """Klasa z przedziału konkursu. Domyślnie 1–5 i wymagana – czyli dokładnie jak dziś.
+
+    Przedział i wymagalność bierze się z ``RegistrationProfile`` (§ 1.3.4); brak profilu znaczy
+    dzisiejsze granice, więc wołający sprzed etapu 2 (``apps.accounts.profile``, import grupowy,
+    API) nie zmienia zachowania ani komunikatu. Konkurs, który o klasę nie pyta, zapisuje
+    ``None`` – kolumna jest nullowalna od zawsze, bo profile sprzed jej wprowadzenia też jej
+    nie mają.
+    """
+    low, high = (MIN_GRADE, MAX_GRADE) if profile is None else profile.grade_range()
+    required = True if profile is None else profile.require_grade
+    if not required and (grade is None or grade == ""):
+        return None
     try:
         number = int(grade)
     except (TypeError, ValueError) as exc:
         raise DomainError(
-            f"Podaj klasę ({MIN_GRADE}–{MAX_GRADE}).", "GRADE_INVALID", status.HTTP_400_BAD_REQUEST
+            f"Podaj klasę ({low}–{high}).", "GRADE_INVALID", status.HTTP_400_BAD_REQUEST
         ) from exc
-    if not MIN_GRADE <= number <= MAX_GRADE:
-        raise DomainError(
-            f"Podaj klasę ({MIN_GRADE}–{MAX_GRADE}).", "GRADE_INVALID", status.HTTP_400_BAD_REQUEST
-        )
+    if not low <= number <= high:
+        raise DomainError(f"Podaj klasę ({low}–{high}).", "GRADE_INVALID", status.HTTP_400_BAD_REQUEST)
     return number
 
 
@@ -425,6 +724,11 @@ def register_participant(
     phone: str = "",
     school: str = "",
     school_id: int | None = None,
+    custom_institution_id: int | None = None,
+    institution_type: str = "",
+    institution_name: str = "",
+    country: str = "",
+    region: str = "",
     guardian_consent: bool = False,
     terms_consent: bool = False,
     publish_name_consent: bool = False,
@@ -440,6 +744,14 @@ def register_participant(
     ``school`` (wolny tekst dla szkół spoza wykazu); szczegóły w ``_resolve_school``. Kolejność
     argumentów jest zachowana wstecznie: klient API, który zna wyłącznie tekstowe ``school``,
     działa dalej bez zmian.
+
+    Pięć argumentów dołożył etap 2 i **wszystkie mają puste wartości domyślne**, więc klient
+    sprzed tej zmiany trafia dokładnie tam, gdzie trafiał: ``institution_type`` (rodzaj placówki,
+    pusty znaczy „jedyny dopuszczony”), ``institution_name`` (nazwa placówki spoza wykazu),
+    ``country`` (ISO 3166-1 alpha-2, pusty znaczy Polska), ``region`` (kod regionu z podziału
+    konkursu) i ``custom_institution_id`` (wybór ze słownika organizatora, § 1.3.3 – czytany
+    wyłącznie przy włączonej fladze ``custom_school_directory``). To, czy o którekolwiek z nich
+    wolno zapytać, rozstrzyga ``RegistrationProfile`` (§ 1.3.4) – a jego brak znaczy „jak dziś”.
 
     Zgody wchodzą osobnymi argumentami (``terms_consent``, ``gdpr_consent``, ``guardian_consent``,
     ``publish_name_consent``), a nie słownikiem, bo są zwykłymi polami formularza i serializera –
@@ -464,9 +776,26 @@ def register_participant(
     # Zgody sprawdzamy przed zapisem czegokolwiek – konto bez kompletu zgód nie ma prawa powstać
     # nawet na chwilę wewnątrz transakcji.
     validate_consents(given, birth_year=birth_year)
-    district = _require_voivodeship(district, required=True)
-    school_name, school_obj = _resolve_school(school, school_id)
-    grade = _require_grade(grade)
+    # Konkurs rejestracji: ten z żądania (ustawia go ``apps.tenancy.middleware``), a poza żądaniem
+    # jedyny w instalacji. Jedna wartość dla profilu, dla członkostwa i dla reguł formularza –
+    # gdyby były dwa odczyty, dałoby się zarejestrować uczestnika w jednym konkursie, regułami
+    # drugiego, a rolę nadać mu w trzecim.
+    competition = default_competition()
+    profile = registration_profile(competition)
+    district, region_obj = _resolve_region(competition, district, region, profile=profile)
+    institution = _resolve_institution(
+        profile,
+        {
+            "institution_type": institution_type,
+            "school": school,
+            "school_id": school_id,
+            "custom_institution_id": custom_institution_id,
+            "institution_name": institution_name,
+            "country": country,
+        },
+        competition=competition,
+    )
+    grade = _require_grade(grade, profile=profile)
     phone = normalize_phone(phone)
     user = _create_user(
         email=email,
@@ -475,22 +804,18 @@ def register_participant(
         last_name=last_name,
         is_active=False,
     )
-    # Konkurs rejestracji: ten z żądania (ustawia go ``apps.tenancy.middleware``), a poza żądaniem
-    # jedyny w instalacji. Jedna wartość dla profilu i dla członkostwa – gdyby były dwa odczyty,
-    # dałoby się zarejestrować uczestnika w jednym konkursie, a rolę nadać mu w drugim.
-    competition = default_competition()
     grant_role(user, CompetitionRole.PARTICIPANT, competition=competition)
     participant = create_participant_with_public_code(
         user=user,
         competition=competition,
-        school=school_name,
-        school_ref=school_obj,
         grade=grade,
         district=district,
+        region=region_obj,
         birth_year=birth_year,
         phone=phone,
         gdpr_consent_at=timezone.now(),
         guardian_consent=guardian_consent,
+        **institution,
     )
     record_consents(participant, given, source=source, request=request)
     send_activation_email(user, request=request)
@@ -521,7 +846,7 @@ def _require_registration_open() -> None:
     ensure_registration_open()
 
 
-def validate_consents(given: dict[str, bool], *, birth_year: int | None) -> None:
+def validate_consents(given: dict[str, bool], *, birth_year: int | None, competition=None) -> None:
     """Sprawdza komplet zgód wymaganych od uczestnika o tym roczniku.
 
     Reguła siedzi **w serwisie**, a nie w formularzu i serializerze, bo dróg rejestracji są trzy
@@ -532,13 +857,24 @@ def validate_consents(given: dict[str, bool], *, birth_year: int | None) -> None
     Woła się je **przed** utworzeniem czegokolwiek: bez kompletu zgód nie powstaje ani ``User``,
     ani ``Participant``, ani powiązanie ``SocialAccount``.
     """
-    for kind in required_kinds(birth_year):
+    # Zestaw i komunikaty zgód **tego** konkursu; bez wskazania – konkurs z kontekstu żądania,
+    # a przy wyłączonej fladze dzisiejsza stała (``consent_set``).
+    by_kind = {consent.kind: consent for consent in consent_set(competition)}
+    for kind in required_kinds(birth_year, competition=competition):
         if not given.get(kind):
             raise DomainError(
-                BY_KIND[kind].missing_message,
+                by_kind[kind].missing_message,
                 "CONSENT_REQUIRED",
                 status.HTTP_400_BAD_REQUEST,
             )
+
+
+def _consent_by_kind(competition, kind: str):
+    """Definicja zgody danego rodzaju w zestawie **tego** konkursu (``consent_set``)."""
+    for consent in consent_set(competition):
+        if consent.kind == kind:
+            return consent
+    return BY_KIND[kind]
 
 
 @transaction.atomic
@@ -564,7 +900,10 @@ def record_consents(
        a zdarzeniem jest jedno: wypełnienie formularza.
     """
     now = timezone.now()
-    validate_consents(given, birth_year=participant.birth_year)
+    validate_consents(given, birth_year=participant.birth_year, competition=participant.competition)
+    # Zestaw zgód **tego** konkursu (przy wyłączonej fladze – dzisiejsza stała, bez zapytania):
+    # dowód ma nieść wersję dokumentu, pod którym uczestnik naprawdę się podpisał.
+    consents = consent_set(participant.competition)
 
     records = [
         ConsentRecord(
@@ -574,7 +913,7 @@ def record_consents(
             given_at=now,
             source=source,
         )
-        for consent in CONSENTS
+        for consent in consents
         if given.get(consent.kind)
     ]
     ConsentRecord.objects.bulk_create(records)
@@ -597,7 +936,7 @@ def record_consents(
             "source": source,
             **{
                 consent.kind: {"given": bool(given.get(consent.kind)), "version": consent.version}
-                for consent in CONSENTS
+                for consent in consents
             },
         },
         request=request,
@@ -633,7 +972,7 @@ def set_publish_name_consent(
             record = ConsentRecord.objects.create(
                 participant=participant,
                 kind=ConsentKind.PUBLISH_NAME,
-                document_version=BY_KIND[ConsentKind.PUBLISH_NAME].version,
+                document_version=_consent_by_kind(participant.competition, ConsentKind.PUBLISH_NAME).version,
                 given_at=now,
                 source=source,
             )
@@ -672,6 +1011,11 @@ def register_social_participant(
     phone: str = "",
     school: str = "",
     school_id: int | None = None,
+    custom_institution_id: int | None = None,
+    institution_type: str = "",
+    institution_name: str = "",
+    country: str = "",
+    region: str = "",
     guardian_consent: bool = False,
     terms_consent: bool = False,
     publish_name_consent: bool = False,
@@ -711,9 +1055,22 @@ def register_social_participant(
         }
     )
     validate_consents(given, birth_year=birth_year)
-    district = _require_voivodeship(district, required=True)
-    school_name, school_obj = _resolve_school(school, school_id)
-    grade = _require_grade(grade)
+    competition = default_competition()
+    profile = registration_profile(competition)
+    district, region_obj = _resolve_region(competition, district, region, profile=profile)
+    institution = _resolve_institution(
+        profile,
+        {
+            "institution_type": institution_type,
+            "school": school,
+            "school_id": school_id,
+            "custom_institution_id": custom_institution_id,
+            "institution_name": institution_name,
+            "country": country,
+        },
+        competition=competition,
+    )
+    grade = _require_grade(grade, profile=profile)
     email = _normalize_email(email)
     if not email:
         raise DomainError(
@@ -733,19 +1090,18 @@ def register_social_participant(
     )
     user.set_unusable_password()
     user.save()
-    competition = default_competition()
     grant_role(user, CompetitionRole.PARTICIPANT, competition=competition)
     participant = create_participant_with_public_code(
         user=user,
         competition=competition,
-        school=school_name,
-        school_ref=school_obj,
         grade=grade,
         district=district,
+        region=region_obj,
         birth_year=birth_year,
         phone=phone,
         gdpr_consent_at=timezone.now(),
         guardian_consent=guardian_consent,
+        **institution,
     )
     record_consents(participant, given, source=source, request=request)
     if not email_verified:
@@ -837,6 +1193,12 @@ EMAIL_SEPARATORS = re.compile(r"[\s,;]+")
 
 INVITATION_SUBJECT = "Zaproszenie do komitetu Olimpiady Kwantowej"
 
+#: Ten sam temat jako wzorzec z nazwą konkursu (``docs/UNIWERSALNY-ETAP-2.md`` § 1.1.1). Jedyny
+#: z szesnastu, który odmienia nazwę: „komitetu **Olimpiady Kwantowej**” jest dopełniaczem, więc
+#: wzorzec sięga po ``%(competition_genitive)s`` (``Competition.genitive_name``). Stała wyżej
+#: zostaje odwrotem – wybiera między nimi ``apps.tenancy.branding.subject``.
+INVITATION_SUBJECT_TEMPLATE = "Zaproszenie do komitetu %(competition_genitive)s"
+
 #: Górna długość osobistej dopiski koordynatora. Pole jest dla jednego zdania („piszemy po
 #: rozmowie na konferencji”), a nie dla okólnika – długi tekst i tak zginie pod kodem.
 MAX_INVITATION_NOTE_LENGTH = 500
@@ -884,6 +1246,7 @@ def invitation_message(
     district: str | None = None,
     is_appeals: bool = False,
     note: str = "",
+    competition=None,
 ) -> str:
     """Treść zaproszenia. Poza adresem odbiorcy (i tak w nagłówku ``To:``) zero danych osobowych.
 
@@ -923,8 +1286,11 @@ def invitation_message(
         "Jeśli nie spodziewasz się tego zaproszenia – zignoruj tę wiadomość. Bez wpisania kodu "
         "nic się nie wydarzy.",
         "",
+        # Podpis idzie przez moduł marki, ale jego odwrotem jest **nietłumaczony** literał – i to
+        # jest stan zastany, a nie przeoczenie: ten list jako jedyny z pięciu nie ma ani jednego
+        # ``gettext`` (zaproszenie do komitetu pisze się po polsku, § 1.6.4).
         "--",
-        "Olimpiada Kwantowa",
+        branding.signature(competition),
         "Wiadomość wysłana automatycznie; prosimy na nią nie odpowiadać.",
     ]
     return "\n".join(lines)
@@ -978,8 +1344,12 @@ def _issue_invitation(
         },
         request=request,
     )
+    # Konkurs bierze się z **kodu**, a nie z kontekstu: zaproszenie nadaje status w komitecie tego
+    # konkursu, którego kolumnę ma wiersz (``InvitationCode.competition``), i to jego marka ma stać
+    # w temacie listu, który ten status obiecuje.
+    competition = invitation.competition
     queue_mail(
-        INVITATION_SUBJECT,
+        branding.subject(INVITATION_SUBJECT_TEMPLATE, INVITATION_SUBJECT, competition),
         invitation_message(
             plain_code,
             link=link,
@@ -987,8 +1357,10 @@ def _issue_invitation(
             district=district,
             is_appeals=is_appeals,
             note=note,
+            competition=competition,
         ),
         email,
+        competition=competition,
     )
     return invitation
 

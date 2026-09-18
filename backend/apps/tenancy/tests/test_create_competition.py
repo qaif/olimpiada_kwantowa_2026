@@ -418,3 +418,220 @@ def test_dry_run_does_not_grant_the_role():
     create(coordinator_email=user.email, dry_run=True)
 
     assert not Membership.objects.filter(user=user).exists()
+
+
+# --- zestawy startowe etapu 2 --------------------------------------------------------------------
+#
+# Cztery zestawy, które konkursom stojącym w bazie dały migracje danych (``accounts.0024``,
+# ``accounts.0026``, ``tenancy.0005``) i grupa redakcyjna z § 1.1.5. Migracja z definicji dotyczy
+# wierszy istniejących w chwili jej wykonania, więc przedmiotem tych testów jest to, że konkurs
+# założony **później** dostaje to samo — i że nie dostaje przy okazji cudzej marki.
+# =================================================================================================
+
+
+def new_competition() -> Competition:
+    create()
+    return Competition.objects.get(slug="fizyczna")
+
+
+@freeze_time(TODAY)
+def test_new_competition_gets_the_default_consent_definitions():
+    """Zestaw zgód ze stałej, znak w znak — inaczej rejestracja po włączeniu flagi byłaby pusta."""
+    from apps.accounts.consents import DEFAULT_CONSENTS
+    from apps.accounts.models import ConsentDefinition
+
+    competition = new_competition()
+
+    definitions = list(ConsentDefinition.objects.for_competition(competition).order_by("ordering"))
+    assert [row.kind for row in definitions] == [str(consent.kind) for consent in DEFAULT_CONSENTS]
+    for row, consent in zip(definitions, DEFAULT_CONSENTS, strict=True):
+        assert row.field_name == consent.field_name
+        assert row.text == consent.text
+        assert row.version == consent.version
+        assert row.required == consent.required
+        assert row.required_for_minor == consent.required_for_minor
+        assert row.is_active is True
+
+
+@freeze_time(TODAY)
+def test_new_competition_gets_document_templates_without_the_kwantowa_brand():
+    """Pięć rodzajów w wersji ``1.0``, a marka w zdaniu jest **znacznikiem**, a nie cudzą nazwą.
+
+    Napisy migracji ``tenancy.0005`` mówią „Olimpiady Kwantowej” w dopełniaczu i dostaje je tam
+    wyłącznie konkurs o najniższym ``pk``. Nowy konkurs dostaje te same zdania ze znacznikiem
+    ``{competition_genitive}`` — czyli ten sam dokument, tylko z własną nazwą.
+    """
+    from apps.results.certificates import DOCUMENT_TITLES
+    from apps.tenancy.documents import DocumentKind, templates_of
+
+    competition = new_competition()
+
+    kinds = set(templates_of(competition).values_list("kind", flat=True))
+    assert kinds == {
+        DocumentKind.LAUREAT,
+        DocumentKind.FINALISTA,
+        DocumentKind.UCZESTNIK,
+        DocumentKind.OPIEKUN,
+        DocumentKind.WARSZTATY,
+    }
+    # Wiersz bierzemy z querysetu, a nie z ``current_template``: ta funkcja przy wyłączonej fladze
+    # ``document_templates`` **nie pyta bazy** (§ 5.6), a nowy konkurs flagi nie włącza — wiersze
+    # mają leżeć gotowe na dzień, w którym ktoś ją włączy.
+    laureat = templates_of(competition).get(kind=DocumentKind.LAUREAT, is_current=True)
+    assert laureat.version == "1.0"
+    assert laureat.title == DOCUMENT_TITLES[DocumentKind.LAUREAT]
+    assert "Kwantow" not in laureat.statement
+    assert "{competition_genitive}" in laureat.statement
+    assert "{competition_genitive}" in laureat.signature_line
+    # Podstawienie działa, czyli znacznik nie zostanie na papierze.
+    assert competition.name in laureat.render(competition).statement
+
+
+@freeze_time(TODAY)
+def test_new_competition_gets_the_starting_regions():
+    """Kraj, szesnaście województw z listy ``Voivodeship`` i nieaktywne „poza Polską”."""
+    from apps.accounts.models import Region, RegionLevel, Voivodeship
+
+    competition = new_competition()
+
+    regions = list(Region.objects.for_competition(competition).order_by("position", "id"))
+    assert len(regions) == len(Voivodeship.choices) + 2
+
+    country = regions[0]
+    assert (country.code, country.level) == ("pl", RegionLevel.COUNTRY)
+    voivodeships = regions[1:-1]
+    assert [region.code for region in voivodeships] == list(Voivodeship.values)
+    assert [region.name for region in voivodeships] == [str(label) for _, label in Voivodeship.choices]
+    assert {region.parent_id for region in voivodeships} == {country.pk}
+    assert {region.level for region in voivodeships} == {RegionLevel.REGION}
+
+    abroad = regions[-1]
+    assert abroad.code == "poza-polska"
+    assert abroad.is_active is False
+    assert abroad.counts_for_conflict is False
+
+
+@freeze_time(TODAY)
+def test_new_competition_gets_its_own_cms_group():
+    """Grupa ``cms:<slug>`` powstaje zawsze — także przy wyłączonej fladze zawężenia uprawnień."""
+    from django.contrib.auth.models import Group
+
+    competition = new_competition()
+
+    assert Group.objects.filter(name=f"cms:{competition.slug}").exists()
+    assert competition.has_feature("scoped_cms_permissions") is False
+
+
+@freeze_time(TODAY)
+def test_coordinator_joins_the_competition_cms_group_only_behind_the_flag(monkeypatch):
+    """Zawężenie **dokłada**: koordynator zostaje w grupie globalnej i dostaje grupę konkursu.
+
+    Flagę czyta komenda z wiersza konkursu, a wiersz powstaje z ``feature_flags`` szablonu —
+    dlatego test podmienia katalog szablonów, a nie zapisuje konkursu po fakcie: chodzi
+    o zachowanie **w trakcie** zakładania.
+    """
+    from apps.accounts.models import CompetitionRole
+    from apps.tenancy import templates_catalog
+
+    # Komenda importuje **ten sam** obiekt słownika (``from … import TEMPLATES``), więc podmiana
+    # pozycji w katalogu jest podmianą dla komendy; monkeypatch przywraca ją po teście.
+    template = {**TEMPLATES[TEMPLATE], "feature_flags": {"scoped_cms_permissions": True}}
+    monkeypatch.setitem(templates_catalog.TEMPLATES, TEMPLATE, template)
+    user = make_user()
+
+    create(coordinator_email=user.email)
+
+    competition = Competition.objects.get(slug="fizyczna")
+    names = set(user.groups.values_list("name", flat=True))
+    assert f"cms:{competition.slug}" in names
+    assert CompetitionRole.COORDINATOR in names
+
+
+@freeze_time(TODAY)
+def test_dry_run_leaves_no_starting_sets():
+    """Próba na sucho wykonuje wszystko i wycofuje — także cztery zestawy startowe."""
+    from django.contrib.auth.models import Group
+
+    from apps.accounts.models import ConsentDefinition, Region
+    from apps.tenancy.documents import DocumentTemplate
+
+    before = (
+        ConsentDefinition.objects.count(),
+        Region.objects.count(),
+        DocumentTemplate.objects.count(),
+        Group.objects.count(),
+    )
+
+    create(dry_run=True)
+
+    assert (
+        ConsentDefinition.objects.count(),
+        Region.objects.count(),
+        DocumentTemplate.objects.count(),
+        Group.objects.count(),
+    ) == before
+
+
+@freeze_time(TODAY)
+def test_report_names_every_starting_set():
+    """Podsumowanie wymienia każdy zestaw — brakująca pozycja ma być widoczna od razu."""
+    from io import StringIO
+
+    output = StringIO()
+    call_command(
+        "create_competition",
+        slug="fizyczna",
+        name="Olimpiada Fizyczna",
+        domain="olimpiadafizyczna.invalid",
+        from_template=TEMPLATE,
+        stdout=output,
+    )
+
+    report = output.getvalue()
+    assert "zgody:    4" in report
+    assert "szablony dokumentów: 5" in report
+    assert "regiony:  18" in report
+    assert "grupa /cms/: cms:fizyczna" in report
+
+
+# --- etap 2, uwagi T43: tor etapów i własne przedrostki kodów -------------------------------------
+
+
+def test_new_competition_gets_a_pipeline_step_for_every_stage():
+    """Szablon z etapami daje od razu kroki toru – bez pierwszego ręcznego „Dopisz krok”.
+
+    Odpowiednik migracji ``competitions.0024`` dla edycji założonej po niej: etap treningowy poza
+    torem, pozostałe w kolejności ``ELIM`` → ``DISTRICT`` → ``FINAL``, a próg kwalifikacji etapu
+    staje się jego regułą przejścia.
+    """
+    from apps.competitions.models import PipelineStep, StageKind, TransitionRule
+
+    create(from_template="przedmiotowa")
+    steps = list(PipelineStep.objects.filter(edition=edition()).order_by("position", "id"))
+
+    assert [s.stage.kind for s in steps if not s.off_pipeline] == [
+        StageKind.ELIM,
+        StageKind.DISTRICT,
+        StageKind.FINAL,
+    ]
+    assert {s.stage.kind for s in steps if s.off_pipeline} <= {StageKind.TRAINING}
+    for step in steps:
+        if step.off_pipeline:
+            continue
+        has_rule = QualificationRule.objects.filter(stage=step.stage).exists()
+        assert TransitionRule.objects.filter(step=step).exists() == has_rule
+
+
+def test_new_competition_gets_its_own_code_prefixes():
+    """``OLM-`` i ``OK`` należą do Konkursu #1; nowy konkurs dostaje przedrostki ze sluga."""
+    create()
+    competition = Competition.objects.get(slug="fizyczna")
+
+    assert (competition.public_code_prefix, competition.certificate_prefix) == ("FIZ-", "FI")
+
+
+def test_code_prefixes_can_be_given_explicitly():
+    create(public_code_prefix="OF-", certificate_prefix="OFI")
+    competition = Competition.objects.get(slug="fizyczna")
+
+    assert (competition.public_code_prefix, competition.certificate_prefix) == ("OF-", "OFI")

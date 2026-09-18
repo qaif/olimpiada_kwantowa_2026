@@ -1,0 +1,165 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Jeden rodzaj dokumentu: tekst obowiązujący, historia wersji i formularz nowej wersji.
+
+  Trzy karty w tej kolejności, bo w takiej kolejności się o tym myśli: co jest na papierze dzisiaj,
+  co było wcześniej, co ma być od jutra. Historii nie da się stąd skasować ani poprawić — wersja
+  jest wskaźnikiem, którym dokument wystawiony kiedyś pokazuje swój własny tekst, a wiersz usunięty
+  zamieniłby odtworzenie takiego dokumentu w zgadywanie.
+
+  Podgląd składa serwer (``DocumentTemplate.render``), a nie skrypt na stronie: panel chodzi pod
+  ścisłą polityką CSP, a podgląd składany drugą drogą pokazywałby coś innego niż to, co pójdzie do
+  zapisu. Podstawienia w podglądzie są przykładowe — nazwa konkursu i organizator są prawdziwe,
+  bo to dane tego konkursu, a odbiorca, szkoła i numer są wymyślone: podgląd tekstu nie jest
+  powodem, żeby czyjeś nazwisko szło na ekran.
+
+  Przycisk „Opublikuj…” prowadzi na osobną stronę potwierdzenia, a nie zapisuje od razu — skutku
+  nie widać na tym ekranie, tylko na dokumentach wystawianych od tej chwili.
+
+  Bez JavaScriptu i bez stylów w atrybutach.
+{% endcomment %}
+{% block title %}{{ kind_label }} – szablony dokumentów – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-documents' %}">Szablony dokumentów</a>{% endblock %}
+{% block panel_title %}{{ kind_label }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">
+    {% if current %}
+      Obowiązuje wersja <strong>{{ current.version }}</strong>. Nowa wersja zaczyna obowiązywać od
+      chwili publikacji; dokumenty wydane wcześniej zostają przy swojej.
+    {% else %}
+      Ten rodzaj nie ma jeszcze własnego tekstu — dokument wychodzi z tekstu wbudowanego, tego
+      samego, co przed etapem 2. Pierwsza opublikowana wersja go zastąpi.
+    {% endif %}
+  </p>
+{% endblock %}
+{% block panel_content %}
+
+{% if current %}
+  <section class="section">
+    <div class="card">
+      <h2 class="mt-0">Tekst obowiązujący</h2>
+      <dl class="meta-list">
+        <dt>Wersja</dt><dd>{{ current.version }}</dd>
+        <dt>Tytuł</dt><dd>{{ current.title }}</dd>
+        <dt>Zdanie główne</dt><dd>{{ current.statement }}</dd>
+        <dt>Linia podpisu</dt><dd>{% if current.signature_line %}{{ current.signature_line }}{% else %}— brak —{% endif %}</dd>
+        <dt>Dopisek w stopce</dt><dd>{% if current.footer_note %}{{ current.footer_note }}{% else %}— brak —{% endif %}</dd>
+      </dl>
+      {% if current_preview %}
+        <div class="card card--quiet">
+          <h3 class="mt-0">Tak wychodzi na papierze</h3>
+          <p class="lead">{{ current_preview.title }}</p>
+          <p>{{ current_preview.statement }}</p>
+          {% if current_preview.signature_line %}<p class="hint">{{ current_preview.signature_line }}</p>{% endif %}
+          {% if current_preview.footer_note %}<p class="hint">{{ current_preview.footer_note }}</p>{% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </section>
+{% endif %}
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Nowa wersja</h2>
+    <p class="hint">Numer wersji musi być inny niż każdy dotychczasowy — to po nim odtwarza się
+      treść dokumentu wydanego kiedyś. „Podgląd” niczego nie zapisuje.</p>
+    <form method="post" class="form form--wide" novalidate
+          action="{% url 'web:coordinator-document' kind.value %}">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="actions">
+        <button type="submit" name="{{ preview_field }}" value="1" class="btn btn--secondary">Podgląd</button>
+        <button type="submit" class="btn btn--primary">Opublikuj nową wersję…</button>
+        <a class="btn btn--ghost" href="{% url 'web:coordinator-documents' %}">Wróć do listy</a>
+      </div>
+    </form>
+  </div>
+</section>
+
+{% if preview %}
+  <section class="section">
+    <div class="card card--accent">
+      <h2 class="mt-0">Podgląd wersji {{ preview.version }}</h2>
+      <p class="hint">Jeszcze nic nie zapisano. Tak wyjdzie dokument po opublikowaniu tej wersji.</p>
+      <p class="lead">{{ preview.title }}</p>
+      <p>{{ preview.statement }}</p>
+      {% if preview.signature_line %}<p class="hint">{{ preview.signature_line }}</p>{% endif %}
+      {% if preview.footer_note %}<p class="hint">{{ preview.footer_note }}</p>{% endif %}
+    </div>
+  </section>
+{% endif %}
+
+<section class="section">
+  <div class="card card--quiet">
+    <h2 class="mt-0">Znaczniki dozwolone w tym dokumencie</h2>
+    <p class="hint">Znacznika spoza tej listy nie da się zapisać — literówka
+      <code>{partcipant_code}</code> ma zostać zauważona tutaj, a nie w dokumencie wydanym tysiącu
+      osób. Klamrę, która ma stanąć na papierze, wpisuje się podwójnie.</p>
+    <ul class="hint">
+      {% for name in placeholders %}
+        <li><code>{{ name }}</code></li>
+      {% endfor %}
+    </ul>
+    <p class="hint">Znacznik, którego ten dokument nie ma (zaświadczenie opiekuna nie ma kodu
+      uczestnika), podstawia się pustym miejscem — dokument wychodzi bez dziury w zdaniu.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="card card--quiet">
+    <h2 class="mt-0">Wartości użyte w podglądzie</h2>
+    <p class="hint">Nazwa konkursu, jej odmiana i nazwa organizatora są prawdziwe — to dane tego
+      konkursu. Pozostałe są wymyślone na potrzeby podglądu:</p>
+    <dl class="meta-list">
+      {% for name, value in sample %}
+        <dt><code>{{ name }}</code></dt>
+        <dd>{{ value }}</dd>
+      {% endfor %}
+    </dl>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Historia wersji</h2>
+    <p class="hint">Tylko do czytania. Wersji nie da się skasować ani poprawić — dokument wydany
+      kiedyś wskazuje swój tekst właśnie numerem wersji.</p>
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Wersje tekstu tego rodzaju dokumentu</caption>
+      <thead>
+        <tr>
+          <th scope="col">Wersja</th>
+          <th scope="col">Tytuł</th>
+          <th scope="col">Zdanie główne</th>
+          <th scope="col">Utworzona</th>
+          <th scope="col">Stan</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for version in versions %}
+          <tr>
+            <th scope="row">{{ version.version }}</th>
+            <td>{{ version.title }}</td>
+            <td>{{ version.statement }}</td>
+            <td>{{ version.created_at|date:"d.m.Y H:i" }}</td>
+            <td>
+              {% if version.is_current %}
+                <span class="badge badge--ok">obowiązuje</span>
+              {% else %}
+                <span class="badge badge--neutral">historia</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="5" class="empty">Ten rodzaj nie ma jeszcze ani jednej wersji — dokument
+              wychodzi z tekstu wbudowanego.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

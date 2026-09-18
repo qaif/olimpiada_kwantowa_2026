@@ -166,17 +166,16 @@ def build_response(dataset: Dataset, fmt: str) -> HttpResponse | StreamingHttpRe
 # --- zbiory danych ------------------------------------------------------------------------------
 
 
-def _consent_columns() -> list[str]:
+def _consent_columns(consents) -> list[str]:
     """Kolumny zgód – po trzy na każdy rodzaj, w kolejności z ``apps.accounts.consents``.
 
     Kolejność jest ta sama, co w formularzu rejestracji, żeby arkusz dało się czytać obok niego.
-    Lista rodzajów pochodzi z modułu zgód, a nie z literału tutaj: dołożenie zgody ma dołożyć
-    kolumny samo, bo eksport bez jednej ze zgód jest gorszy niż brak eksportu.
+    Zestaw przychodzi z zewnątrz (``consents.consent_set`` konkursu tej edycji), a nie liczy się
+    tutaj: nagłówek i wiersze muszą pochodzić z **jednego** odczytu, inaczej konkurs z własnymi
+    zgodami dostałby arkusz, w którym kolumna mówi co innego niż wartość pod nią.
     """
-    from apps.accounts.consents import CONSENTS
-
     columns: list[str] = []
-    for consent in CONSENTS:
+    for consent in consents:
         label = consent.kind
         columns += [f"{label}: stan", f"{label}: wersja dokumentu", f"{label}: data"]
     return columns
@@ -209,9 +208,13 @@ def participant_dataset(edition) -> Dataset:
     wyłącznie rejestr zdarzeń. Z każdego rodzaju pokazujemy wpis najnowszy – ``prefetch_related``
     czyta je hurtem, więc kolumny zgód nie kosztują zapytania na wiersz.
     """
-    from apps.accounts.consents import CONSENTS
+    from apps.accounts.consents import consent_set
     from apps.accounts.models import Participant
 
+    # Zestaw zgód **konkursu tej edycji**, a nie konkursu z żądania: eksport opisuje zawody, które
+    # się odbyły, więc nagłówek ma mówić o zgodach ich organizatora nawet wtedy, gdy plik składa
+    # się poza żądaniem (zadanie, komenda).
+    consents = consent_set(edition.competition)
     participants = (
         Participant.objects.filter(stage_entries__stage__edition=edition)
         .select_related("user")
@@ -241,7 +244,7 @@ def participant_dataset(edition) -> Dataset:
                 user.is_active,
                 user.email_verified_at,
             ]
-            for consent in CONSENTS:
+            for consent in consents:
                 record = latest.get(consent.kind)
                 if record is None:
                     row += ["brak", "", ""]
@@ -254,7 +257,7 @@ def participant_dataset(edition) -> Dataset:
             yield row
 
     return Dataset(
-        header=[*PARTICIPANT_HEADER_BASE, *_consent_columns()],
+        header=[*PARTICIPANT_HEADER_BASE, *_consent_columns(consents)],
         rows=_rows(),
         count=participants.count(),
         title="Uczestnicy",

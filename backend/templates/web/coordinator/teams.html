@@ -1,0 +1,72 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Drużyny bieżącej edycji: lista składów i formularz założenia nowego.
+
+  Ekran istnieje wyłącznie w konkursie z włączonymi zgłoszeniami drużynowymi – flagę czyta widok
+  (404 przy wyłączonej), nigdy ten szablon. Drużyna jest **właścicielem wpisu do etapu**, a nie
+  nowym bytem obok uczestnika, więc kod publiczny drużyny wygląda tak samo jak kod uczestnika
+  i tak samo stoi w tabeli wyników.
+
+  Bez JavaScriptu i bez stylów w atrybutach – panel chodzi pod ścisłą polityką CSP.
+{% endcomment %}
+{% block title %}Drużyny – panel koordynatora{% endblock %}
+{% block panel_title %}Drużyny{% if edition %}: {{ edition.year_label }}{% endif %}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Składy startujące w tej edycji. Drużyna dostaje kod publiczny z prefiksem
+    konkursu i pod nim staje w tabeli wyników – tak samo jak uczestnik startujący sam.</p>
+{% endblock %}
+{% block panel_content %}
+
+{% if edition %}
+  <section class="section">
+    <div class="scroll">
+      <table class="table">
+        <caption class="visually-hidden">Drużyny edycji {{ edition.year_label }}</caption>
+        <thead>
+          <tr>
+            <th scope="col">Nazwa</th>
+            <th scope="col">Kod publiczny</th>
+            <th scope="col">Szkoła</th>
+            <th scope="col">Skład</th>
+            <th scope="col">Opiekun</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for team in teams %}
+            <tr>
+              <th scope="row">
+                <a href="{% url 'web:coordinator-team' team.pk %}">{{ team.name }}</a>
+              </th>
+              <td><span class="code-chip">{{ team.public_code }}</span></td>
+              <td>{{ team.school|default:"—" }}</td>
+              <td class="num">{{ team.member_count }}</td>
+              <td>{{ team.supervisor_email|default:"—" }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="5" class="empty">Ta edycja nie ma jeszcze ani jednej drużyny.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Nowa drużyna</h2>
+    <div class="card">
+      <form method="post" class="form form--wide" novalidate>
+        {% csrf_token %}
+        {{ form.as_p }}
+        <div class="actions">
+          <button type="submit" class="btn btn--primary">Załóż drużynę</button>
+        </div>
+      </form>
+    </div>
+    <p class="hint">Nazwa musi być niepowtarzalna w tej edycji. Kod publiczny nadaje system –
+      tym samym generatorem, co uczestnikom.</p>
+  </section>
+{% else %}
+  <p class="hint">Nie ustawiono bieżącej edycji – drużyna nie ma do czego należeć.</p>
+{% endif %}
+{% endblock %}

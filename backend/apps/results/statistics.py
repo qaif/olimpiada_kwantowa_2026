@@ -137,6 +137,37 @@ def _districts(rows: list[dict]) -> list[dict]:
     ]
 
 
+def _categories(rows: list[dict]) -> list[dict]:
+    """Liczba uczestników w kategorii – wyłącznie wtedy, gdy snapshot w ogóle je niesie.
+
+    Ta sama reguła i ten sam kształt, co przy województwach: liczymy z zamrożonej tabeli i tylko
+    z niej. Snapshot konkursu bez kategorii (a takim jest **każdy** snapshot Olimpiady Kwantowej)
+    nie ma klucza ``category``, więc lista wychodzi pusta – i to jest poprawna odpowiedź, a nie
+    brak funkcji. Kategoria jest w snapshocie etykietą, nie kodem, więc nie ma tu czego tłumaczyć.
+
+    Porządek jest natomiast **inny** niż przy województwach i to jest decyzja: kategorie ustawia
+    organizator w regulaminie („podstawowa”, „ponadpodstawowa”) i tabela ma je czytać w tej samej
+    kolejności, w której stoją w ogłoszonej tabeli wyników – czyli w kolejności pierwszego
+    wystąpienia, a nie od najliczniejszej. Sortowanie po liczbie zamieniłoby grupy startowe
+    w ranking, którego nikt nie ogłaszał.
+    """
+    counts = Counter(row["category"] for row in rows if row.get("category"))
+    total = sum(counts.values())
+    order = {}
+    for row in rows:
+        order.setdefault(row.get("category"), len(order))
+    return [
+        {
+            "code": name,
+            "label": name,
+            "count": count,
+            "share": round(_share(count, total), 1),
+            "width": width_class(_share(count, total)),
+        }
+        for name, count in sorted(counts.items(), key=lambda item: order[item[0]])
+    ]
+
+
 def _totals(rows: list[dict]) -> list[int]:
     return [int(row["total"]) for row in rows if isinstance(row.get("total"), (int, float))]
 
@@ -174,6 +205,10 @@ def stage_statistics(publication: ResultsPublication) -> dict:
         "qualified": sum(1 for row in rows if row.get("qualified")),
         "threshold": _threshold(rows),
         "districts": _districts(rows),
+        # Pusta lista dla każdego etapu Olimpiady Kwantowej – kategorii tam nie ma i nie będzie
+        # (§ 1.2.4). Klucz jest bezwarunkowy, bo kształt odpowiedzi ma być jeden: szablon, który
+        # raz ma sekcję, a raz jej nie ma, sprawdzałby obecność klucza zamiast jego zawartości.
+        "categories": _categories(rows),
     }
 
 

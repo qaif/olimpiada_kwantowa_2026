@@ -1,0 +1,17 @@
+{% extends "tenancy/setup_base.html" %}{% comment %}
+  Odmowa kreatora – **jedna dla wszystkich powodów**: instalacja jest już skonfigurowana, tokenu
+  nie ma, token jest nie ten albo krok należy do innej sesji. Strona nie mówi, który z tych
+  powodów zadziałał, bo każda różnica byłaby podpowiedzią dla kogoś, kto próbuje adres odgadnąć.
+
+  Własny szablon, a nie ``templates/404.html``: tamten dziedziczy po ``base.html``, który na
+  instalacji bez konkursu nie renderuje się wcale (procesor kontekstu rejestracji podnosi wtedy
+  ``CompetitionNotResolved``) – a odmowa musi działać właśnie tam.
+{% endcomment %}
+{% block title %}Nie znaleziono strony{% endblock %}
+{% block heading %}Nie znaleziono strony{% endblock %}
+{% block lead %}Pod tym adresem nic nie ma.{% endblock %}
+{% block content %}
+<p>Kreator pierwszego uruchomienia istnieje wyłącznie na instalacji, w której nie ma jeszcze ani
+  konkursu, ani konta operatora – i wyłącznie dla adresu z jednorazowym tokenem.</p>
+<div class="actions"><a class="btn btn--primary" href="/">Strona główna</a></div>
+{% endblock %}

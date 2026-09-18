@@ -171,7 +171,11 @@ def _is_anonymised(user: User) -> bool:
     """
     from .profile import ANONYMISED_EMAIL_DOMAIN
 
-    return user.email.endswith(f"@{ANONYMISED_EMAIL_DOMAIN}")
+    # Dwie postacie: dzisiejsza stała (istniejące konta) i ``invalid.<domena konkursu>`` przy
+    # włączonej marce konkursu (``apps.accounts.profile.anonymised_email_domain``). Obie stoją
+    # na zarezerwowanym ``invalid`` jako pierwszym członie domeny.
+    _, _, domain = user.email.rpartition("@")
+    return domain == ANONYMISED_EMAIL_DOMAIN or domain.startswith("invalid.")
 
 
 def _blocked_reason(participant: Participant, *, expired_ids: set[int]) -> str:

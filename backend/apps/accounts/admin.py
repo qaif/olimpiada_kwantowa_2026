@@ -7,7 +7,17 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.utils.translation import gettext_lazy as _
 
-from .models import CommitteeMember, ConsentRecord, InvitationCode, Membership, Participant, User
+from .models import (
+    CommitteeMember,
+    ConsentDefinition,
+    ConsentRecord,
+    InvitationCode,
+    Membership,
+    Participant,
+    Region,
+    RegistrationProfile,
+    User,
+)
 
 
 @admin.register(User)
@@ -45,6 +55,74 @@ class ConsentRecordInline(admin.TabularInline):
 
     def has_add_permission(self, request, obj=None) -> bool:
         return False
+
+
+@admin.register(ConsentDefinition)
+class ConsentDefinitionAdmin(admin.ModelAdmin):
+    """Definicje zgód konkursu – narzędzie **operatora platformy**, nie koordynatora.
+
+    Koordynator zmienia wersję dokumentu w swoim panelu (``/coordinator/consents/``), bo tam zmiana
+    wymaga potwierdzenia zdaniem „od tej chwili nowe zgody będą zapisywane pod wersją X” i zostawia
+    wpis ``consent_definition.version_changed`` w audycie (``apps.accounts.consents.change_version``).
+    Tutaj wiersz da się obejrzeć i poprawić po imporcie – **bez** tego wpisu, więc to jest droga
+    dla operatora naprawiającego dane, a nie dla organizatora prowadzącego konkurs.
+
+    Konkurs jest polem tylko do odczytu po założeniu wiersza: przeniesienie definicji do innego
+    konkursu nie jest edycją, tylko podmianą treści oświadczenia u kogoś innego.
+    """
+
+    list_display = ("competition", "kind", "field_name", "version", "required", "is_active")
+    list_filter = ("competition", "kind", "required", "required_for_minor", "is_active")
+    search_fields = ("field_name", "text", "version")
+    ordering = ("competition", "ordering", "id")
+
+    def get_readonly_fields(self, request, obj=None):
+        return ("competition",) if obj is not None else ()
+
+
+@admin.register(Region)
+class RegionAdmin(admin.ModelAdmin):
+    """Podział terytorialny konkursu – narzędzie **operatora platformy**, nie koordynatora.
+
+    Koordynator dostaje własny ekran (``/coordinator/regions/``, zadanie T20). Tutaj wiersz da się
+    obejrzeć i poprawić po imporcie albo po migracji – dlatego konkurs jest po założeniu tylko do
+    odczytu: przeniesienie regionu do innego konkursu zmieniałoby okręg ludziom, którzy już go
+    zadeklarowali, i to bez śladu w audycie.
+    """
+
+    list_display = ("competition", "code", "name", "level", "parent", "position", "is_active")
+    list_filter = ("competition", "level", "is_active", "counts_for_conflict")
+    search_fields = ("code", "name")
+    ordering = ("competition", "position", "name", "id")
+
+    def get_readonly_fields(self, request, obj=None):
+        return ("competition",) if obj is not None else ()
+
+
+@admin.register(RegistrationProfile)
+class RegistrationProfileAdmin(admin.ModelAdmin):
+    """Profil rejestracji konkursu – narzędzie **operatora platformy**, nie koordynatora.
+
+    Wiersza nie ma żaden konkurs, dopóki ktoś go tu (albo komendą) nie założy: brak wiersza znaczy
+    „jak dziś” i taki jest stan Konkursu #1 (§ 1.3.4). Dlatego lista bywa pusta i to jest stan
+    poprawny, a nie brakujące dane.
+
+    Konkurs jest po założeniu tylko do odczytu: przeniesienie profilu do innego konkursu zmieniłoby
+    formularz rejestracji u kogoś innego – i to bez śladu w audycie.
+    """
+
+    list_display = (
+        "competition",
+        "allowed_institution_types",
+        "allow_free_text_school",
+        "allow_foreign",
+        "require_grade",
+    )
+    list_filter = ("allow_custom_directory", "allow_free_text_school", "allow_foreign")
+    ordering = ("competition",)
+
+    def get_readonly_fields(self, request, obj=None):
+        return ("competition",) if obj is not None else ()
 
 
 @admin.register(Membership)

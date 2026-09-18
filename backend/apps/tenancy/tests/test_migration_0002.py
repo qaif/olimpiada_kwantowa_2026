@@ -24,6 +24,7 @@ import pytest
 from django.conf import settings
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
+from django.db.migrations.loader import MigrationLoader
 from wagtail.images.models import Image
 from wagtail.models import Collection, Locale, Page, Site
 
@@ -31,10 +32,31 @@ from apps.cms.models import SiteSettings
 from apps.tenancy.models import Competition
 
 BEFORE = ("tenancy", "0001_initial")
-# „Po” to czoło aplikacji ``tenancy``, nie sama ``0002``: odczyty poniżej idą przez żywy model
-# ``Competition``, a ten zna też kolumny dołożone później (``0003_prefixes``). Zatrzymanie na
-# ``0002`` dawałoby ``UndefinedColumn`` w każdym ``SELECT``. Sama ``0002`` i tak jest po drodze.
-AFTER = ("tenancy", "0003_prefixes")
+
+
+def _last_competition_table_migration() -> tuple[str, str]:
+    """„Po” to ostatnia migracja ``tenancy`` zmieniająca **tabelę konkursu**, nie samo ``0002``.
+
+    Odczyty poniżej idą przez żywy model ``Competition``, a ten zna też kolumny dołożone później
+    (``0003_prefixes``). Zatrzymanie na ``0002`` dawałoby ``UndefinedColumn`` w każdym ``SELECT``.
+    Nie celujemy jednak w czoło aplikacji: jego przodkami są backfille wydania B z innych aplikacji,
+    które przy cofaniu odmawiają pracy na bazie z dwoma konkursami – a dokładnie taki stan buduje
+    ``test_reverse_removes_only_what_the_migration_created``. ``MigrationLoader(None)`` czyta
+    wyłącznie pliki, bez połączenia z bazą, więc wolno to zrobić przy imporcie modułu.
+    """
+    loader = MigrationLoader(None, ignore_no_migrations=True)
+    (head,) = [node for node in loader.graph.leaf_nodes() if node[0] == "tenancy"]
+    chosen = ("tenancy", "0002_competition_from_site")
+    for node in loader.graph.forwards_plan(head):
+        if node[0] != "tenancy":
+            continue
+        for operation in loader.disk_migrations[node].operations:
+            if getattr(operation, "model_name", "").lower() == "competition":
+                chosen = node
+    return chosen
+
+
+AFTER = _last_competition_table_migration()
 
 PRODUCTION_HOST = "olimpiadakwantowa.pl"
 SITE_SETTINGS = {
@@ -79,8 +101,12 @@ def rewound(transactional_db):  # noqa: ARG001 - fixture bazy, używana przez ef
     przy zakładaniu bazy testowej zostaje.
     """
     migrate_to(BEFORE)
-    SiteSettings.objects.all().delete()
-    Site.objects.all().delete()
+    # Surowy SQL, nie ORM: kolektor ``Site.delete()`` zagląda do każdej tabeli z kluczem do witryny,
+    # także tych z późniejszych migracji ``tenancy`` (aliasy witryn), których po cofnięciu do
+    # ``0001`` w bazie nie ma. Kolejność: najpierw ustawienia (klucz do witryny), potem witryny.
+    with connection.cursor() as cursor:
+        cursor.execute(f'DELETE FROM "{SiteSettings._meta.db_table}"')
+        cursor.execute(f'DELETE FROM "{Site._meta.db_table}"')
     yield
     migrate_to_head()
 
@@ -197,6 +223,13 @@ def test_reverse_removes_only_what_the_migration_created(rewound):
     migrate_to(BEFORE)
 
     assert list(Competition.objects.values_list("slug", flat=True)) == [other.slug]
+
+    # Sprzątanie przed powrotem do czoła (fixture ``rewound``): backfille wydania B odmawiają pracy
+    # na bazie z dwoma konkursami, a ``0002`` założy Konkurs #1 od nowa obok ``other``. Surowy
+    # SQL, bo po cofnięciu do ``0001`` tabel późniejszych relacji jeszcze nie ma.
+    with connection.cursor() as cursor:
+        cursor.execute(f'DELETE FROM "{Competition._meta.db_table}" WHERE id = %s', [other.pk])
+        cursor.execute(f'DELETE FROM "{Site._meta.db_table}" WHERE id = %s', [other.site_id])
 
 
 @pytest.mark.django_db(transaction=True)

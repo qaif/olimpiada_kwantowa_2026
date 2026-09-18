@@ -1,0 +1,66 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Nazwane role recenzenckie etapu.
+
+  Ekran istnieje wyłącznie w konkursie z włączonymi rolami – flagę czyta widok (404 przy
+  wyłączonej), nigdy ten szablon. Etap bez ani jednej roli zachowuje się dokładnie jak przed
+  etapem 2: przydział czyta liczbę recenzentów z argumentu, a zgodność liczy się ze wszystkich
+  nieanulowanych recenzji rundy ślepej.
+
+  Rola jest **etykietą nad rundą**, a nie zamiast niej: maszyna stanów oceniania rozstrzyga po
+  numerze rundy i etap 2 tego nie zmienia. Dlatego runda jest osobnym polem każdej roli.
+
+  Zmiana wiersza ma własny formularz z prefiksem ``r<id>`` – ten sam, którego szuka widok.
+{% endcomment %}
+{% block title %}Role recenzenckie: {{ stage.display_name }} – panel koordynatora{% endblock %}
+{% block panel_title %}Role recenzenckie: {{ stage.display_name }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Ilu recenzentów ma ten etap i jak się nazywają: pierwszy, drugi, arbiter,
+    przewodniczący komisji. Przydział obsadza role w kolejności z tej listy.</p>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  {% for row in rows %}
+    <div class="card">
+      <h2 class="mt-0">{{ row.role.name }} <span class="code-chip">{{ row.role.code }}</span></h2>
+      <form method="post" action="{% url 'web:coordinator-reviewer-role-update' row.role.pk %}"
+            class="form form--wide" novalidate>
+        {% csrf_token %}
+        {{ row.form.as_p }}
+        <div class="actions">
+          <button type="submit" class="btn btn--primary">Zapisz rolę</button>
+        </div>
+      </form>
+      {% comment %}
+        Usunięcie jest osobnym formularzem, a nie drugim przyciskiem w tamtym: dwa przyciski
+        w jednym formularzu rozróżnia się po nazwie wciśniętego, a ta przy wysyłce klawiaturą
+        nie zawsze dochodzi.
+      {% endcomment %}
+      <form method="post" action="{% url 'web:coordinator-reviewer-role-delete' row.role.pk %}" class="inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn--danger btn--small">Wycofaj rolę</button>
+      </form>
+    </div>
+  {% empty %}
+    <p class="hint">Ten etap nie ma nazwanych ról – przydział działa tak, jak dotąd: liczbę
+      recenzentów podaje się przy przydzielaniu, a do zgodności liczą się wszystkie recenzje
+      rundy ślepej.</p>
+  {% endfor %}
+</section>
+
+<section class="section">
+  <h2>Nowa rola</h2>
+  <div class="card">
+    <form method="post" class="form form--wide" novalidate>
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">Dodaj rolę</button>
+      </div>
+    </form>
+  </div>
+  <p class="hint">Roli, na którą są już wystawione recenzje, nie da się wycofać – zabrałoby to
+    znaczenie ocenom, które zapadły. Taką rolę zmienia się, a nie kasuje.</p>
+</section>
+{% endblock %}

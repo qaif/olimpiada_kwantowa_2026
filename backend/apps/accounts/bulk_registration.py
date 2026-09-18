@@ -162,14 +162,81 @@ SUPERVISOR_COLUMN = Column(
 )
 
 
-def columns_for(*, with_supervisor: bool) -> tuple[Column, ...]:
-    """Zestaw kolumn dla danej drogi importu – nauczyciela albo koordynatora."""
-    return (*COLUMNS, SUPERVISOR_COLUMN) if with_supervisor else COLUMNS
+#: Kolumny, które dokłada **konfiguracja konkursu**, a nie droga importu (§ 1.3.4, § 1.2.4, § 1.4).
+#: Każda jest nieobowiązkowa i każda pojawia się wyłącznie razem ze swoją flagą – plik
+#: przygotowany wcześniej wczytuje się dalej bez zmiany, a instrukcja na ekranie nie wymienia
+#: kolumn, których ten konkurs i tak nie przyjmie.
+REGION_COLUMN = Column("region", "region", ("region", "wojewodztwo", "okreg"), required=False)
+CATEGORY_COLUMN = Column("category", "kategoria", ("kategoria", "kodkategorii"), required=False)
+INSTITUTION_TYPE_COLUMN = Column(
+    "institution_type",
+    "typ placówki",
+    ("typplacowki", "rodzajplacowki", "typinstytucji"),
+    required=False,
+)
+INSTITUTION_ID_COLUMN = Column(
+    "custom_institution_id",
+    "placówka (identyfikator)",
+    ("placowkaidentyfikator", "placowkaid", "idplacowki", "identyfikatorplacowki"),
+    required=False,
+)
+INSTITUTION_NAME_COLUMN = Column(
+    "institution_name", "placówka", ("placowka", "nazwaplacowki"), required=False
+)
+COUNTRY_COLUMN = Column("country", "kraj", ("kraj", "panstwo", "kodkraju"), required=False)
+
+#: Flaga kategorii z katalogu § 0.6. Nazwa jest tu przepisana, a nie zaimportowana z
+#: ``apps.results.services``: warstwa kont nie zna warstwy wyników i poznać jej nie ma – import
+#: w tę stronę zamknąłby pętlę między aplikacjami. Jedynym odczytem zostaje ``has_feature``.
+CATEGORIES_FLAG = "categories"
 
 
-def header_line(*, with_supervisor: bool) -> str:
+def extra_columns(competition=None) -> tuple[Column, ...]:
+    """Kolumny dołożone przez konkurs – pusta krotka, dopóki żadna flaga nie jest włączona.
+
+    Trzy powody, dla których to jest jedno miejsce, a nie warunek w każdym z trzech ekranów:
+
+    - **instrukcja i parser mają widzieć ten sam zestaw.** Kolumna wymieniona w opisie pliku,
+      której parser nie zna (albo odwrotnie), jest najgorszym rodzajem pomyłki w imporcie:
+      nauczyciel wypełnia rubrykę, która nigdzie nie trafia;
+    - **Konkurs #1 ma tu dostać dokładnie dzisiejszy zestaw** (§ 0.1). Wszystkie flagi są u niego
+      domyślne, więc funkcja oddaje ``()`` i nie dotyka bazy ani razu;
+    - ``competition=None`` znaczy „nie wiadomo, w jakim konkursie” i też oddaje ``()``. Odwrót
+      jest **miękki** i celowo po stronie dzisiejszego zachowania: wołający spoza żądania (komenda,
+      test, zadanie Celery) dostaje kolumny, które umiał obsłużyć przed etapem 2.
+    """
+    if competition is None:
+        return ()
+    from .services import CUSTOM_REGIONS_FLAG, REGISTRATION_PROFILE_FLAG, custom_directory_enabled
+
+    extra: list[Column] = []
+    if competition.has_feature(CUSTOM_REGIONS_FLAG):
+        extra.append(REGION_COLUMN)
+    if competition.has_feature(CATEGORIES_FLAG):
+        extra.append(CATEGORY_COLUMN)
+    if competition.has_feature(REGISTRATION_PROFILE_FLAG):
+        extra.extend((INSTITUTION_TYPE_COLUMN, INSTITUTION_NAME_COLUMN, COUNTRY_COLUMN))
+    if custom_directory_enabled(competition):
+        extra.append(INSTITUTION_ID_COLUMN)
+    return tuple(extra)
+
+
+def columns_for(*, with_supervisor: bool, competition=None) -> tuple[Column, ...]:
+    """Zestaw kolumn dla danej drogi importu – nauczyciela albo koordynatora.
+
+    Kolumny konkursu stoją **na końcu**, za kolumną opiekuna szkolnego: kolejność w nagłówku i tak
+    nie ma znaczenia (dopasowanie idzie po nazwie), a dzisiejszy początek wiersza zostaje wtedy
+    znak w znak taki, jak w arkuszach, które nauczyciele mają już przygotowane.
+    """
+    base = (*COLUMNS, SUPERVISOR_COLUMN) if with_supervisor else COLUMNS
+    return (*base, *extra_columns(competition))
+
+
+def header_line(*, with_supervisor: bool, competition=None) -> str:
     """Wzorcowy wiersz nagłówka do pokazania na stronie importu (i do skopiowania do arkusza)."""
-    return ";".join(column.label for column in columns_for(with_supervisor=with_supervisor))
+    return ";".join(
+        column.label for column in columns_for(with_supervisor=with_supervisor, competition=competition)
+    )
 
 
 # --- wiersz i jego rozstrzygnięcie ------------------------------------------------------------
@@ -200,9 +267,24 @@ class ImportRow:
     phone: str = ""
     guardian_email: str = ""
     supervisor_email: str = ""
+    #: Surowa treść kolumn dokładanych przez konkurs (:func:`extra_columns`). Puste napisy znaczą
+    #: „tej kolumny w pliku nie było” – i to jest stan Konkursu #1 we wszystkich wierszach.
+    region_code: str = ""
+    category_code: str = ""
+    institution_type: str = ""
+    custom_institution_id: str = ""
+    institution_name: str = ""
+    country: str = ""
     action: str = ACTION_CREATE
     errors: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    #: Rozstrzygnięcia liczone przez :func:`validate_rows` – **nie** jadą w koszyku i nie wchodzą
+    #: do ``payload``: między podglądem a zatwierdzeniem region mógł zostać wygaszony, a kategoria
+    #: przestawiona, więc zapis liczy je od nowa (tak samo jak decyzję „założyć czy dowiązać”).
+    district: str = ""
+    region: object | None = None
+    category: object | None = None
+    institution: dict | None = None
 
     @property
     def full_name(self) -> str:
@@ -215,7 +297,7 @@ class ImportRow:
         założyć konto na ten adres. Zatwierdzenie liczy je od nowa (``validate_rows``), więc
         koszyk jest listą danych, a nie listą decyzji do wykonania w ciemno.
         """
-        return {
+        data = {
             "n": self.number,
             "f": self.first_name,
             "l": self.last_name,
@@ -226,6 +308,24 @@ class ImportRow:
             "gu": self.guardian_email,
             "s": self.supervisor_email,
         }
+        # Kolumny konkursu wchodzą do koszyka **wyłącznie wypełnione**. Nie jest to oszczędność
+        # bajtów: dzięki temu koszyk pliku bez tych kolumn jest znak w znak taki sam, jak przed
+        # etapem 2, więc podgląd Konkursu #1 nie zmienia się nawet w polu ukrytym (§ 0.1).
+        data.update(
+            {
+                key: value
+                for key, value in (
+                    ("r", self.region_code),
+                    ("c", self.category_code),
+                    ("it", self.institution_type),
+                    ("ii", self.custom_institution_id),
+                    ("in", self.institution_name),
+                    ("k", self.country),
+                )
+                if value
+            }
+        )
+        return data
 
     @classmethod
     def from_payload(cls, data: dict) -> ImportRow:
@@ -239,6 +339,12 @@ class ImportRow:
             phone=str(data.get("p") or ""),
             guardian_email=str(data.get("gu") or ""),
             supervisor_email=str(data.get("s") or ""),
+            region_code=str(data.get("r") or ""),
+            category_code=str(data.get("c") or ""),
+            institution_type=str(data.get("it") or ""),
+            custom_institution_id=str(data.get("ii") or ""),
+            institution_name=str(data.get("in") or ""),
+            country=str(data.get("k") or ""),
         )
 
 
@@ -487,6 +593,16 @@ def parse_table(
                 row.notes.append("adres opiekuna prawnego pominięty – niepoprawny zapis")
         supervisor = _cell(raw, mapping, "supervisor_email")
         row.supervisor_email = normalize_supervisor_email(supervisor) or default_supervisor_email
+        # Kolumny konkursu czytamy **surowo**: rozstrzyga je ``validate_rows``, bo region, kategoria
+        # i placówka są wierszami w bazie, a ta funkcja z założenia nie zadaje ani jednego pytania.
+        # Gdy kolumny w pliku nie ma, ``_cell`` oddaje pusty napis – czyli dokładnie to, co wiersz
+        # ma dziś (§ 0.1).
+        row.region_code = _cell(raw, mapping, "region")[:40]
+        row.category_code = _cell(raw, mapping, "category")[:32]
+        row.institution_type = _cell(raw, mapping, "institution_type").upper()[:32]
+        row.custom_institution_id = _cell(raw, mapping, "custom_institution_id")[:32]
+        row.institution_name = _cell(raw, mapping, "institution_name")[:255]
+        row.country = _cell(raw, mapping, "country").upper()[:32]
         rows.append(row)
     if not rows:
         raise DomainError(
@@ -495,6 +611,234 @@ def parse_table(
             status.HTTP_400_BAD_REQUEST,
         )
     return rows
+
+
+# --- kolumny konkursu: region, kategoria, placówka ---------------------------------------------
+
+
+def _column_error(column: Column, value: str, detail) -> str:
+    """Komunikat wiersza nazywający **kolumnę i wartość**.
+
+    „Nieznany region” w pliku o pięciuset wierszach nie mówi nic: nauczyciel nie wie ani której
+    rubryki dotyczy, ani co dokładnie w niej stoi. Nazwa kolumny jest tą samą nazwą, którą widzi
+    w nagłówku arkusza i w instrukcji nad formularzem, więc poprawka jest jednym spojrzeniem.
+    """
+    return f"kolumna „{column.label}” („{value}”): {str(detail).strip()}"
+
+
+#: Który błąd serwisu rejestracji dotyczy której rubryki pliku. Reguły placówki są **te same**, co
+#: przy ``/register/`` (``apps.accounts.services._resolve_institution``) i drugiej ich kopii tu nie
+#: ma; import dokłada wyłącznie to, czego formularz nie potrzebuje – wskazanie kolumny.
+_INSTITUTION_ERROR_COLUMNS: dict[str, Column] = {
+    "INSTITUTION_TYPE_REQUIRED": INSTITUTION_TYPE_COLUMN,
+    "INSTITUTION_TYPE_NOT_ALLOWED": INSTITUTION_TYPE_COLUMN,
+    "COUNTRY_REQUIRED": COUNTRY_COLUMN,
+    "COUNTRY_INVALID": COUNTRY_COLUMN,
+    "CUSTOM_INSTITUTION_NOT_FOUND": INSTITUTION_ID_COLUMN,
+    "SCHOOL_NOT_FOUND": INSTITUTION_ID_COLUMN,
+    "SCHOOL_REQUIRED": INSTITUTION_NAME_COLUMN,
+    "INSTITUTION_NAME_REQUIRED": INSTITUTION_NAME_COLUMN,
+}
+
+
+def _institution_cell(row: ImportRow, column: Column) -> str:
+    """Wartość tej rubryki w tym wierszu – do komunikatu, a nie do rozstrzygnięcia."""
+    return {
+        INSTITUTION_TYPE_COLUMN: row.institution_type,
+        INSTITUTION_ID_COLUMN: row.custom_institution_id,
+        INSTITUTION_NAME_COLUMN: row.institution_name,
+        COUNTRY_COLUMN: row.country,
+    }.get(column, "")
+
+
+def _custom_institution_id(text: str) -> str:
+    """Identyfikator placówki z komórki. Arkusz potrafi podać „12.0” – to nadal jest ten numer."""
+    value = (text or "").replace(" ", "")
+    return value[:-2] if value.endswith(".0") else value
+
+
+def _names_own_institution(row: ImportRow) -> bool:
+    """Czy wiersz wskazuje **własną** placówkę, czy zostaje przy szkole całego pliku.
+
+    Blok „placówka” czytamy jako całość i tylko wtedy, gdy wiersz naprawdę coś nazywa: wskazuje
+    wykaz organizatora (identyfikator), wpisuje nazwę albo deklaruje rodzaj placówki spoza wykazu
+    publicznego (``FOREIGN``, ``NONE``, ``OTHER``). Sam „typ placówki” równy rodzajowi z wykazu nie
+    zastępuje szkoły z formularza – szkoła jest jedna dla całego pliku i tak ma zostać (nazwa
+    wchodzi do progu k-anonimowości w publikacji wyników).
+    """
+    from .models import DIRECTORY_INSTITUTION_TYPES
+
+    if row.custom_institution_id or row.institution_name:
+        return True
+    return bool(row.institution_type) and row.institution_type not in DIRECTORY_INSTITUTION_TYPES
+
+
+def _resolve_row_context(rows: list[ImportRow], competition) -> None:
+    """Dopisuje wierszom to, co wynika z **konfiguracji konkursu**: region, kategorię i placówkę.
+
+    Funkcja jest w całości warunkowa i to jest jej główna treść: przy konkursie bez flag etapu 2
+    żaden wiersz nie ma wypełnionej ani jednej z tych kolumn (bo :func:`extra_columns` ich nie
+    wystawiła), więc kończy się na trzech sprawdzeniach napisów i **nie zadaje ani jednego
+    zapytania** (§ 5.6).
+
+    Reguły nie są tu przepisane, tylko wywołane: region rozstrzyga
+    ``apps.accounts.services._resolve_region`` (§ 1.4.2), kategorię ``Category.auto_for_grade``
+    i kod z wiersza (§ 1.2.4), a placówkę ``_resolve_institution`` (§ 1.3.2–1.3.4) – ta sama
+    funkcja i te same komunikaty, co przy ``/register/``. Import dokłada wyłącznie to, czego
+    formularz nie potrzebuje: wskazanie rubryki i wartości, bo błąd dotyczy wiersza w arkuszu.
+
+    Wyniki są **na wiersz** i nie jadą w koszyku: zapis liczy je od nowa, tak samo jak decyzję
+    „założyć czy dowiązać”.
+    """
+    if competition is None:
+        return
+    wants_region = any(row.region_code for row in rows)
+    wants_category = competition.has_feature(CATEGORIES_FLAG)
+    wants_institution = any(
+        row.institution_type or row.custom_institution_id or row.institution_name or row.country
+        for row in rows
+    )
+    if not (wants_region or wants_category or wants_institution):
+        return
+    from .services import registration_profile
+
+    profile = registration_profile(competition)
+    if wants_region:
+        _resolve_rows_region(rows, competition, profile)
+    if wants_category:
+        _resolve_rows_category(rows, competition, profile)
+    if wants_institution:
+        _resolve_rows_institution(rows, competition, profile)
+
+
+def _resolve_rows_region(rows: list[ImportRow], competition, profile) -> None:
+    """Region wiersza z kolumny „region”: kod podziału konkursu albo nazwa województwa.
+
+    Pamięć podręczna jest na **wartość komórki**, a nie na wiersz: lista klasowa ma zwykle jeden
+    region na cały plik, więc pięćset wierszy kosztuje jedno zapytanie. Nierozpoznana wartość
+    schodzi do dzisiejszej reguły (lista województw) i dopiero jej odmowa jest błędem wiersza –
+    konkurs z włączoną flagą, ale bez własnego podziału, ma zachowywać się jak przed nią.
+    """
+    from .services import _resolve_region
+
+    resolved: dict[str, tuple[str, object] | DomainError] = {}
+    for row in rows:
+        if not row.region_code:
+            continue
+        if row.region_code not in resolved:
+            try:
+                resolved[row.region_code] = _resolve_region(
+                    competition, row.region_code, row.region_code, profile=profile
+                )
+            except DomainError as exc:
+                resolved[row.region_code] = exc
+        found = resolved[row.region_code]
+        if isinstance(found, DomainError):
+            row.errors.append(_column_error(REGION_COLUMN, row.region_code, found.detail))
+        else:
+            row.district, row.region = found
+
+
+def _resolve_rows_category(rows: list[ImportRow], competition, profile) -> None:
+    """Kategoria startowa wiersza: kod z kolumny „kategoria” albo reguła klas (§ 1.2.4).
+
+    Kod wskazany wprost wygrywa zawsze. Gdy go nie ma, kategorię liczy ``Category.auto_for_grade``
+    – ale **tylko** wtedy, gdy konkurs nie pozwala wskazać jej uczestnikowi: w konkursie, w którym
+    kategoria jest wyborem zawodnika, wpisanie mu jej z klasy byłoby podjęciem decyzji za niego.
+    Zapytania liczą się na **klasy**, a tych jest najwyżej pięć.
+    """
+    from apps.competitions.models import Category
+
+    available = {
+        category.code: category
+        for category in Category.objects.for_competition(competition).filter(is_active=True)
+    }
+    auto: dict[int | None, object] = {}
+    for row in rows:
+        if row.errors:
+            continue
+        if row.category_code:
+            found = available.get(row.category_code)
+            if found is None:
+                row.errors.append(
+                    _column_error(CATEGORY_COLUMN, row.category_code, "nie ma takiej kategorii.")
+                )
+            else:
+                row.category = found
+            continue
+        if profile.participant_picks_category:
+            continue
+        if row.grade not in auto:
+            auto[row.grade] = Category.auto_for_grade(competition, row.grade)
+        row.category = auto[row.grade]
+
+
+def _resolve_rows_institution(rows: list[ImportRow], competition, profile) -> None:
+    """Placówka wiersza: wykaz organizatora, wolny tekst albo sam kraj (§ 1.3.2–1.3.4).
+
+    Dwie drogi, bo blok „placówka” odpowiada na dwa różne pytania. Wiersz, który **nazywa** swoją
+    placówkę, idzie przez ``_resolve_institution`` – czyli dokładnie tam, gdzie idzie rejestracja,
+    z tymi samymi odmowami. Wiersz, który podaje wyłącznie rodzaj placówki albo kraj, zostaje przy
+    szkole całego pliku, a te dwie wartości są tylko sprawdzane: rodzaj listą dopuszczonych,
+    kraj tą samą regułą ISO, co przy ``/register/``.
+
+    Pamięć podręczna jest na **treść bloku**: klasa wyjeżdżająca z jednej uczelni partnerskiej ma
+    ten sam blok w każdym wierszu, więc kosztuje jedno zapytanie, a nie pięćset.
+    """
+    from .services import _require_country, _resolve_institution
+
+    allowed = profile.institution_types()
+    cache: dict[tuple[str, str, str, str], dict | DomainError] = {}
+    for row in rows:
+        key = (row.institution_type, row.custom_institution_id, row.institution_name, row.country)
+        if not any(key):
+            continue
+        if row.institution_type and row.institution_type not in allowed:
+            row.errors.append(
+                _column_error(
+                    INSTITUTION_TYPE_COLUMN,
+                    row.institution_type,
+                    # Zdanie jest przepisane **znak w znak** z serwisu rejestracji: ta sama odmowa
+                    # ma brzmieć tak samo niezależnie od tego, czy przyszła z formularza, czy z pliku.
+                    "Ten rodzaj placówki nie jest dopuszczony w tym konkursie.",
+                )
+            )
+            continue
+        if not _names_own_institution(row):
+            # Sam kraj (albo sam rodzaj z wykazu publicznego): szkoła zostaje ta z formularza,
+            # a jedyną rzeczą do rozstrzygnięcia jest zapis kraju – tą samą regułą, co rejestracja.
+            try:
+                country = _require_country(
+                    row.country, profile=profile, institution_type=row.institution_type or allowed[0]
+                )
+            except DomainError as exc:
+                row.errors.append(_column_error(COUNTRY_COLUMN, row.country, exc.detail))
+                continue
+            if country:
+                row.institution = {"country": country}
+            continue
+        if key not in cache:
+            fields = {
+                "institution_type": row.institution_type,
+                "custom_institution_id": _custom_institution_id(row.custom_institution_id) or None,
+                "institution_name": row.institution_name,
+                # ``school`` jest tu tą samą komórką, co ``institution_name``: wolny tekst z pliku
+                # wchodzi obiema drogami, bo ``_resolve_institution`` czyta ``school`` dla wykazu
+                # publicznego, a ``institution_name`` dla placówki spoza wykazu.
+                "school": row.institution_name,
+                "school_id": None,
+                "country": row.country,
+            }
+            try:
+                cache[key] = _resolve_institution(profile, fields, competition=competition)
+            except DomainError as exc:
+                cache[key] = exc
+        found = cache[key]
+        if isinstance(found, DomainError):
+            column = _INSTITUTION_ERROR_COLUMNS.get(found.machine_code, INSTITUTION_NAME_COLUMN)
+            row.errors.append(_column_error(column, _institution_cell(row, column), found.detail))
+        else:
+            row.institution = dict(found)
 
 
 # --- rozstrzygnięcie wierszy ------------------------------------------------------------------
@@ -519,11 +863,16 @@ def validate_rows(rows: list[ImportRow], *, competition=None) -> list[ImportRow]
     importujący klasę do olimpiady A nie może dostać wiersza „dowiązać” dlatego, że uczeń startuje
     w olimpiadzie B – tam jest jego profil, jego zgody i jego opiekun, a tutaj nie ma jeszcze nic.
     ``competition=None`` bierze konkurs z kontekstu (``default_competition``), tak samo jak zapis.
+
+    Przed rozstrzygnięciem idzie :func:`_resolve_row_context`, czyli kolumny dokładane przez
+    konkurs (region, kategoria, placówka). Kolejność nie jest dowolna: ich odmowy są **błędami
+    wiersza**, a wiersz z błędem ma zostać pominięty i nie ma po co pytać o jego adres.
     """
     from .services import default_competition
 
     if competition is None:
         competition = default_competition()
+    _resolve_row_context(rows, competition)
     emails = [row.email for row in rows if row.email and not row.errors]
     # Jedno zapytanie na cały plik: zbiór adresów, które mają w **tym** konkursie profil
     # uczestnika, i zbiór adresów zajętych w ogóle. Dwa zbiory, bo prowadzą do dwóch różnych
@@ -594,15 +943,22 @@ def unpack_rows(token: str) -> list[ImportRow]:
     return [ImportRow.from_payload(item) for item in payload if isinstance(item, dict)]
 
 
-def preview_upload(upload, *, with_supervisor: bool, default_supervisor_email: str = "") -> ImportPreview:
-    """Pełna droga „plik → podgląd”: odczyt, oczyszczenie, rozstrzygnięcie i koszyk."""
+def preview_upload(
+    upload, *, with_supervisor: bool, default_supervisor_email: str = "", competition=None
+) -> ImportPreview:
+    """Pełna droga „plik → podgląd”: odczyt, oczyszczenie, rozstrzygnięcie i koszyk.
+
+    Konkurs wchodzi **jednym** argumentem i dwa razy: raz decyduje o zestawie kolumn
+    (:func:`extra_columns`), raz o rozstrzygnięciu wierszy. Dwa różne konkursy w tych dwóch
+    miejscach znaczyłyby plik, którego nagłówek przyjęliśmy, a treści nie umiemy przypisać.
+    """
     table = read_table(upload)
     rows = parse_table(
         table,
-        columns=columns_for(with_supervisor=with_supervisor),
+        columns=columns_for(with_supervisor=with_supervisor, competition=competition),
         default_supervisor_email=default_supervisor_email,
     )
-    validate_rows(rows)
+    validate_rows(rows, competition=competition)
     importable = [row for row in rows if row.action != ACTION_SKIP]
     return ImportPreview(rows=rows, token=pack_rows(importable))
 
@@ -629,6 +985,98 @@ def _create_invited_user(row: ImportRow) -> User:
     return user
 
 
+def _placement(row: ImportRow, competition, *, school_name: str, school_ref, district: str) -> dict:
+    """Kolumny profilu opisujące „skąd startuje ten uczeń”: placówka, kraj, okręg i region.
+
+    Wartością domyślną każdej z nich jest **dzisiejsza** wartość: szkoła z formularza, jej
+    województwo, brak kraju, brak dowiązania do wykazu organizatora i brak regionu. Wiersz
+    podmienia z tego tylko to, co sam nazwał – a Konkurs #1 nie nazywa niczego, więc dostaje
+    dokładnie ten sam zapis, co przed etapem 2 (§ 0.1).
+
+    Kolejność źródeł okręgu jest przepisana z § 1.3.4 i ma trzy stopnie, bo tyle jest coraz
+    słabszych przesłanek: kolumna „region” (ktoś to napisał wprost), region placówki z wykazu
+    organizatora (``CustomInstitution.region_code``) albo „poza Polską” dla placówki zagranicznej,
+    i dopiero na końcu województwo szkoły całego pliku.
+    """
+    fields = {
+        "school": school_name,
+        "school_ref": school_ref,
+        "custom_institution_ref": None,
+        "institution_name": "",
+        "country": "",
+    }
+    if row.institution:
+        fields.update(row.institution)
+    if row.district:
+        return {**fields, "district": row.district, "region": row.region}
+    fallback = _fallback_district(row, competition, fields, district)
+    return {**fields, **_district_and_region(competition, fallback)}
+
+
+def _fallback_district(row: ImportRow, competition, fields: dict, district: str) -> str:
+    """Okręg wiersza, gdy kolumny „region” w pliku nie było – dzisiejsza reguła i jej wyjątek.
+
+    Wiersz, który **nie nazwał** własnej placówki, dostaje województwo szkoły całego pliku: to jest
+    dzisiejsza linia i ani jeden znak w niej się nie zmienia.
+
+    Wiersz, który placówkę nazwał, dzisiejszej odpowiedzi mieć nie może – uczeń uczelni partnerskiej
+    albo szkoły w Berlinie nie startuje z województwa szkoły nauczyciela. Przy własnym podziale
+    (``custom_regions``) odpowiedzią jest region wykazu organizatora albo „poza Polską”; **bez**
+    podziału odpowiedzi nie ma i kolumna zostaje pusta. Pusta, a nie zgadnięta: ``district`` czyta
+    kilkadziesiąt miejsc jako województwo z zamkniętej listy (filtry panelu, eksporty, reguła
+    konfliktu interesów), więc kod spoza tej listy byłby tam wartością, której nikt nie umie
+    porównać. O region dopyta uczeń przy przyjęciu zaproszenia – tak samo, jak przy szkole spoza
+    rejestru.
+    """
+    from .regions import ABROAD_CODE
+    from .services import CUSTOM_REGIONS_FLAG
+
+    custom = fields.get("custom_institution_ref")
+    if custom is None and not _names_own_institution(row):
+        return district
+    if competition is None or not competition.has_feature(CUSTOM_REGIONS_FLAG):
+        return ""
+    if custom is not None:
+        return (custom.region_code or "").strip()
+    return ABROAD_CODE if row.institution_type == "FOREIGN" else ""
+
+
+def _district_and_region(competition, district: str) -> dict:
+    """Para „okręg i region” dla wartości wyliczonej z placówki – jedno miejsce na denormalizację.
+
+    Przy wyłączonej fladze ``custom_regions`` oddaje dzisiejszy napis i ``None``, **bez zapytania**:
+    kolumna ``region`` jest wtedy pusta w każdym wierszu, tak samo jak w rejestracji (§ 1.4.2).
+    """
+    from .models import region_for_district
+    from .services import CUSTOM_REGIONS_FLAG
+
+    if competition is None or not competition.has_feature(CUSTOM_REGIONS_FLAG):
+        return {"district": district, "region": None}
+    found = region_for_district(competition, district)
+    if found is None:
+        return {"district": district, "region": None}
+    return {"district": found.code, "region": found}
+
+
+def _assign_categories(stage, pairs: list[tuple[int, object]]) -> None:
+    """Kategoria startowa na **istniejących** wpisach do etapu (§ 1.2.4).
+
+    ``update`` na zawężonym zbiorze, a nie ``get_or_create``: import nikogo do etapu nie zapisuje
+    (patrz :func:`import_students`), więc wiersz, którego nie ma, ma **nie powstać**. Zapytań jest
+    tyle, ile różnych kategorii w pliku – czyli najwyżej tyle, ile konkurs ich ma.
+    """
+    from apps.competitions.models import StageEntry
+
+    by_category: dict[int, list[int]] = {}
+    for participant_id, category in pairs:
+        if category is not None:
+            by_category.setdefault(category.pk, []).append(participant_id)
+    for category_id, participant_ids in by_category.items():
+        StageEntry.objects.filter(stage=stage, participant_id__in=participant_ids).update(
+            category_id=category_id
+        )
+
+
 @transaction.atomic
 def import_students(
     rows: list[ImportRow],
@@ -636,6 +1084,7 @@ def import_students(
     school_name: str,
     school_ref=None,
     default_supervisor_email: str = "",
+    stage=None,
     actor=None,
     request=None,
 ) -> dict:
@@ -645,11 +1094,18 @@ def import_students(
     szkoły wchodzi do grupowania w publikowanych wynikach (próg k-anonimowości), więc musi być
     zapisana identycznie u wszystkich uczniów placówki. Kolumny „szkoła” w pliku nie ma i nie
     będzie – dwadzieścia ręcznie wpisanych wariantów tej samej nazwy to dwadzieścia szkół
-    w statystyce.
+    w statystyce. Kolumna **„placówka”** (etap 2, § 1.3.2) jest czym innym i dlatego wolno jej
+    istnieć: nie jest drugim zapisem tej samej szkoły, tylko wskazaniem, że **ten** uczeń startuje
+    z innej placówki niż reszta listy – z wykazu organizatora albo spoza Polski.
 
     Województwo bierzemy ze **szkoły z rejestru**, gdy taka jest. Gdy nie ma (szkoła wpisana
     ręcznie), zostaje puste i pyta o nie uczeń przy przyjęciu zaproszenia – nauczyciel i tak nie
     odpowiada za to pole, a zgadywanie wstawiłoby do bazy wartość, której nikt nie potwierdził.
+
+    ``stage`` jest nieobowiązkowy i **nikogo do etapu nie zapisuje**: import nie tworzy wpisów
+    i tworzyć ich nie będzie (konto bez zgód nie ma prawa startować, patrz dokumentacja modułu).
+    Podany etap znaczy wyłącznie „uzupełnij kategorię na wpisach, które już istnieją” (§ 1.2.4) –
+    czyli dokładnie to, po co koordynator wgrywa listę z kolumną „kategoria” do trwającej edycji.
     """
     from .services import create_participant_with_public_code, default_competition, grant_role
     from .supervisors import set_supervisor_email
@@ -663,23 +1119,26 @@ def import_students(
     now = timezone.now()
     created = 0
     linked = 0
+    categorised: list[tuple[int, object]] = []
     for row in rows:
         if row.action == ACTION_CREATE:
             user = _create_invited_user(row)
             grant_role(user, GROUP_PARTICIPANT, competition=competition)
+            placement = _placement(
+                row, competition, school_name=school_name, school_ref=school_ref, district=district
+            )
             participant = create_participant_with_public_code(
                 user=user,
                 competition=competition,
-                school=school_name,
-                school_ref=school_ref,
                 grade=row.grade,
-                district=district,
                 birth_year=row.birth_year,
                 phone=row.phone,
                 guardian_email=row.guardian_email,
                 supervisor_email=row.supervisor_email or default_supervisor_email,
                 invited_at=now,
+                **placement,
             )
+            categorised.append((participant.pk, row.category))
             send_invitation(participant, request=request)
             # Wpis per konto, bo to jest zdarzenie dotyczące **tej** osoby: bez niego koordynator
             # patrzący na konto nie wie, skąd się wzięło. W ``diff`` nie ma ani adresu, ani
@@ -699,7 +1158,13 @@ def import_students(
                 actor=actor,
                 request=request,
             )
+            # Profilu **nie** nadpisujemy: uczeń, który zarejestrował się sam, podał swoją szkołę,
+            # swój region i swoją placówkę, a plik nauczyciela nie jest powodem, żeby mu je zmienić
+            # (§ 0.1). Dowiązanie dopisuje opiekuna szkolnego i tyle – tak samo, jak przed etapem 2.
+            categorised.append((participant.pk, row.category))
             linked += 1
+    if stage is not None:
+        _assign_categories(stage, categorised)
     skipped = sum(1 for row in rows if row.action == ACTION_SKIP)
     # Drugi wpis opisuje **przebieg**, a nie konto: to on odpowiada na pytanie „kto i kiedy wgrał
     # listę”. Same liczby, zero adresów – audyt czytają także osoby bez wglądu w listy klasowe.

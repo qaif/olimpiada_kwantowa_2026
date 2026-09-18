@@ -29,9 +29,11 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 
 from django.utils import timezone
+from django.utils.text import slugify
 
 from apps.competitions.models import InterviewBooking
 from apps.competitions.services import current_edition
+from apps.tenancy.branding import branded_text, calendar_name, uses_competition_branding
 
 # ``_localdate`` i ``_status_for`` są prywatne dla modułu linii czasu, ale kalendarz jest jego
 # sąsiadem w tej samej aplikacji i musi liczyć „minione / teraz / przed nami” **dokładnie tak
@@ -43,10 +45,16 @@ from .timeline import TL_PAST, _localdate, _status_for, format_date_range, timel
 #: Człon domenowy ``UID``-ów. RFC wymaga globalnej unikalności, a nie adresu, pod który da się
 #: napisać – dlatego stała, a nie nazwa hosta z żądania: ten sam wpis pobrany z ``localhost``
 #: i z produkcji musi mieć ten sam identyfikator, bo inaczej kalendarz zobaczy dwa wydarzenia.
+#: Od etapu 2 jest to **odwrót**: konkurs z włączoną marką wstawia tu swoją domenę (:func:`uid_domain`).
 UID_DOMAIN = "olimpiadakwantowa.pl"
 
 #: Identyfikator programu generującego plik. RFC 5545 wymaga ``PRODID`` i nie dopuszcza pustego.
 PRODID = "-//Olimpiada Kwantowa//Kalendarz uczestnika//PL"
+
+#: Wzorzec ``PRODID`` dla konkursu z własną marką. Kształt jest dzisiejszy co do znaku – zmienia
+#: się wyłącznie człon z nazwą, bo ``PRODID`` identyfikuje **program**, a nie wydarzenie, więc
+#: jego zmiana niczego u uczestnika nie duplikuje (``docs/UNIWERSALNY-ETAP-2.md`` § 1.1.4).
+PRODID_TEMPLATE = "-//%(competition)s//Kalendarz uczestnika//PL"
 
 #: Nazwa pliku w nagłówku ``Content-Disposition``. Bez polskich znaków, bo nagłówek HTTP jest
 #: w ASCII, a ``filename*`` byłby tu kosmetyką dla jednego słowa.
@@ -67,6 +75,42 @@ KIND_LABELS = {
     "workshop": "warsztaty",
     KIND_INTERVIEW: "rozmowa kwalifikacyjna",
 }
+
+
+def uid_domain(competition=None) -> str:
+    """Człon domenowy ``UID``-ów tego konkursu – z odwrotem na :data:`UID_DOMAIN`.
+
+    **Dlaczego za flagą, a nie wprost z ``primary_domain``.** ``UID`` jest kluczem wydarzenia
+    w kliencie kalendarza: jego zmiana nie poprawia istniejącego wpisu, tylko dokłada drugi obok –
+    a plik bywa **zasubskrybowany**, więc stary wpis zostaje u uczestnika na zawsze i nie ma jak go
+    zdalnie cofnąć. Odczyt wprost z ``primary_domain`` wiązałby więc identyfikatory wydarzeń
+    Olimpiady Kwantowej z polem, które redaktor zmienia w ``/cms/`` (domena witryny dociąga za sobą
+    ``primary_domain`` sygnałem ``tenancy.sync_primary_domain``) – i pierwsza taka zmiana
+    podwoiłaby każdy termin w każdym zasubskrybowanym kalendarzu.
+
+    Za flagą zmiana jest **jednorazowa i świadoma**: włącza ją organizator konkursu, który marki
+    jeszcze nie ogłaszał. Konkurs #1 flagi nie ma i dostaje dokładnie dzisiejszy człon.
+    """
+    if not uses_competition_branding(competition):
+        return UID_DOMAIN
+    return competition.primary_domain or UID_DOMAIN
+
+
+def ics_filename(competition=None) -> str:
+    """Nazwa pliku w ``Content-Disposition`` – z odwrotem na :data:`ICS_FILENAME`.
+
+    Ze **slugu**, a nie z nazwy konkursu: nazwę redaktor poprawia w panelu (literówka, rok
+    w tytule), a slug jest identyfikatorem konkursu i się nie zmienia. Nazwa pliku nie jest
+    kluczem niczego – uczestnik widzi ją w oknie pobierania – ale plik trafia potem do katalogu
+    z pobranymi i dwa różne nazwiska tego samego kalendarza są mu tam wyłącznie do niczego.
+
+    ``slugify`` zdejmuje polskie znaki i spacje: nagłówek HTTP jest w ASCII, a ``filename*``
+    byłby tu kosmetyką dla jednego słowa (ten sam powód, co przy :data:`ICS_FILENAME`).
+    """
+    if not uses_competition_branding(competition):
+        return ICS_FILENAME
+    slug = slugify(competition.slug)
+    return f"{slug}.ics" if slug else ICS_FILENAME
 
 
 @dataclass(frozen=True)
@@ -117,8 +161,7 @@ class CalendarItem:
         local_end = timezone.localtime(self.ends_at)
         return f"{format_date_range(self.start, self.start)}, {local_start:%H:%M}–{local_end:%H:%M}"
 
-    @property
-    def uid(self) -> str:
+    def uid_in(self, domain: str = UID_DOMAIN) -> str:
         """Identyfikator stabilny między pobraniami – skrót rodzaju, tytułu i obu dat.
 
         Skrót, a nie klucz główny, bo połowa pozycji kalendarza nie ma klucza głównego: warsztaty
@@ -126,10 +169,20 @@ class CalendarItem:
         wyłącznie generatorem niepowtarzalnego napisu (RFC 5545 §3.8.4.7 nie wymaga od ``UID``
         niczego poza unikalnością), a nie zabezpieczeniem – stąd ``usedforsecurity=False``
         i obcięcie do 32 znaków, żeby wiersz pliku mieścił się bez zawijania.
+
+        ``domain`` jest **tylko** członem po ``@`` i nie wchodzi do skrótu: ta sama pozycja ma
+        w dwóch konkursach ten sam skrót, a różni ją domena. Sposób liczenia skrótu jest
+        zamrożony (``docs/UNIWERSALNY-ETAP-2.md`` § 4.4, T14) – zmiana ziarna zdublowałaby
+        wydarzenia w każdym zasubskrybowanym kalendarzu.
         """
         seed = f"{self.kind}|{self.title}|{self.start.isoformat()}|{self.end.isoformat()}"
         digest = hashlib.sha256(seed.encode("utf-8"), usedforsecurity=False).hexdigest()
-        return f"{digest[:32]}@{UID_DOMAIN}"
+        return f"{digest[:32]}@{domain}"
+
+    @property
+    def uid(self) -> str:
+        """``UID`` w dzisiejszej domenie – postać używana wszędzie poza składaniem pliku konkursu."""
+        return self.uid_in()
 
 
 def _interview_items(participant, edition, now) -> list[CalendarItem]:
@@ -263,11 +316,11 @@ def _utc_value(value: datetime) -> str:
     return value.astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
 
 
-def _event_lines(item: CalendarItem, stamp: str) -> list[str]:
+def _event_lines(item: CalendarItem, stamp: str, domain: str = UID_DOMAIN) -> list[str]:
     """Jeden ``VEVENT``. Wydarzenie całodniowe ma ``DTEND`` na dzień **po** ostatnim (RFC 5545)."""
     lines = [
         "BEGIN:VEVENT",
-        f"UID:{item.uid}",
+        f"UID:{item.uid_in(domain)}",
         f"DTSTAMP:{stamp}",
     ]
     if item.is_all_day:
@@ -288,23 +341,36 @@ def _event_lines(item: CalendarItem, stamp: str) -> list[str]:
     return lines
 
 
-def calendar_ics(items: list[CalendarItem], *, now=None) -> str:
+def calendar_ics(items: list[CalendarItem], *, now=None, competition=None) -> str:
     """Kompletny plik ``.ics`` z podanych pozycji. Wiersze rozdzielone CRLF, zawinięte do 75 oktetów.
 
     Kalendarz bez wydarzeń też jest poprawnym plikiem i taki właśnie wychodzi: klient subskrybujący
     adres ma zobaczyć pusty kalendarz, a nie błąd pobierania.
+
+    ``competition`` podaje **wołający** (widok), a nie kontekst żądania: plik bywa subskrybowany
+    latami i ma nieść markę tej olimpiady, w której uczestnik startuje. Brak konkursu znaczy
+    „dzisiaj”, czyli napisy sprzed etapu 2 – ta sama reguła, co w ``apps.tenancy.branding``.
+    Flaga jest czytana **raz**, w trzech funkcjach tego modułu (§ 1.0 (c)).
+
+    Trzy napisy nagłówka idą trzema różnymi drogami i to jest zamierzone: ``X-WR-CALNAME`` jest
+    nazwą widoczną u uczestnika (moduł marki), ``PRODID`` identyfikuje program (wzorzec
+    z odwrotem), a człon ``UID`` jest kluczem wydarzenia (:func:`uid_domain`).
     """
     stamp = _utc_value(now or timezone.now())
+    domain = uid_domain(competition)
     lines = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
-        f"PRODID:{PRODID}",
+        # ``escape_text`` obu napisów: przy dzisiejszych literałach nie zmienia ani znaku (nie ma
+        # w nich przecinka, średnika ani ukośnika), a nazwa konkursu z przecinkiem rozjechałaby
+        # bez tego wartość na dwa parametry – RFC 5545 §3.3.11 dotyczy każdej wartości TEXT.
+        f"PRODID:{escape_text(branded_text(PRODID_TEMPLATE, PRODID, competition))}",
         "CALSCALE:GREGORIAN",
         "METHOD:PUBLISH",
-        "X-WR-CALNAME:Olimpiada Kwantowa",
+        f"X-WR-CALNAME:{escape_text(calendar_name(competition))}",
     ]
     for item in items:
-        lines.extend(_event_lines(item, stamp))
+        lines.extend(_event_lines(item, stamp, domain))
     lines.append("END:VCALENDAR")
     folded = [part for line in lines for part in _fold(line)]
     return "\r\n".join(folded) + "\r\n"

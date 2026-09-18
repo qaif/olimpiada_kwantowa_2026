@@ -77,6 +77,55 @@ FEATURE_DEFAULTS: dict[str, bool] = {
     "appeals": True,
     # Dyplomy i zaświadczenia – jw.
     "certificates": True,
+    # --- etap 2: konfiguracja, proces, rejestracja (``docs/UNIWERSALNY-ETAP-2.md`` § 0.6) -------
+    # Katalog dostaje **komplet** flag etapu 2 naraz, także te, których pierwszy czytelnik powstanie
+    # dopiero za kilka wydań. Flaga bez czytelnika jest nieszkodliwa (``has_feature`` podnosi
+    # ``KeyError`` wyłącznie dla nazwy **spoza** katalogu), a katalog dopisywany po kawałku byłby
+    # plikiem, który zmienia dziesięć równoległych zadań – czyli jedynym miejscem gwarantowanego
+    # konfliktu. ``per_competition_consents`` stoi wyżej, bo do katalogu weszła już w etapie 1.
+    # Każda z nich jest domyślnie **wyłączona**, czyli Konkurs #1 zachowuje się dokładnie jak dziś.
+    #
+    # Tematy listów, podpisy i nazwa kalendarza z konkursu zamiast z literału (§ 1.1.1, § 1.1.4).
+    # Czyta ją wyłącznie ``apps.tenancy.branding``.
+    "competition_branding_in_mail": False,
+    # Teksty dyplomów i zaświadczeń z ``tenancy.DocumentTemplate`` zamiast ze stałych
+    # ``apps.results.certificates`` (§ 1.1.3). Skład PDF-a zostaje bez zmian – zmienia się
+    # wyłącznie źródło czterech napisów.
+    "document_templates": False,
+    # Uprawnienia do ``/cms/`` liczone per konkurs: grupa ``cms:<slug>``, uprawnienia stron na
+    # korzeniu witryny konkursu i własna kolekcja mediów (§ 1.1.5). Wyłączona znaczy „jak dziś”:
+    # globalna grupa ``coordinator`` z migracji ``cms.0003``.
+    "scoped_cms_permissions": False,
+    # Edytor przebiegu zawodów: dowolna liczba etapów z ``PipelineStep``, komponenty etapu
+    # i reguły przejścia jako dane zamiast stałej ``STAGE_ORDER`` (§ 1.2).
+    "process_editor": False,
+    # Kategorie uczestników z własnymi progami i osobnymi rankingami (§ 1.2.4).
+    "categories": False,
+    # Zgłoszenia i punktacja drużynowa: ``Team``, ``TeamMember``, właściciel wpisu inny niż
+    # uczestnik (§ 1.2.3).
+    "team_entries": False,
+    # Wagi zadań, przesunięcie skali, punkty ujemne i jawny porządek rozstrzygania remisów
+    # (§ 1.2.6). Wyłączona zostawia dzisiejszą skalę 0-2-5-6 i sumę bez wag.
+    "weighted_scoring": False,
+    # Nazwane role recenzenckie i przydział prac według nich (§ 1.2.7).
+    "reviewer_roles": False,
+    # Placówki inne niż szkoła ponadpodstawowa we wspólnym wykazie (§ 1.3.2).
+    "institution_types": False,
+    # Własny słownik placówek organizatora wgrywany z CSV (§ 1.3.3). Wyłączona znaczy, że do
+    # ``CustomInstitution`` nie idzie ani jedno zapytanie – wyszukiwarka pyta sam wykaz SIO.
+    "custom_school_directory": False,
+    # Podział terytorialny z drzewa ``Region`` zamiast z zamkniętej listy ``Voivodeship`` (§ 1.4).
+    # Kolumny województw zostają wypełniane i czytane, dopóki flaga jest wyłączona.
+    "custom_regions": False,
+    # Wpisowe: cennik, zwolnienia, status płatności i dokumenty rozliczeniowe (§ 1.5.1).
+    # Konkurs #1 jest bezpłatny i ma taki zostać.
+    "fees": False,
+    # Logistyka etapu stacjonarnego: miejsca, formularze przyjazdu, nocleg, listy obecności
+    # (§ 1.5.2).
+    "onsite_logistics": False,
+    # Wielojęzyczność **treści** w drzewie stron (``WAGTAIL_I18N_ENABLED``, § 1.6). Wyłączona
+    # znaczy jeden język i adresy bez prefiksu: ``/`` zostaje ``/``, a nie ``/pl/``.
+    "content_translations": False,
 }
 
 
@@ -272,3 +321,17 @@ class Competition(models.Model):
 
         if errors:
             raise ValidationError(errors)
+
+
+# Wpisowe (cennik konkursu, rejestr należności, dokument rozliczeniowy) mieszka razem z resztą
+# swojej logiki w ``apps.tenancy.fees`` – modele i czynności w jednym pliku, bo czyta się je
+# wyłącznie razem (``docs/UNIWERSALNY-ETAP-2.md`` § 1.5.1). Django rejestruje modele wtedy, gdy
+# importuje ``models`` aplikacji, więc bez tej linijki ``makemigrations`` nie zobaczyłby tabel.
+# Import stoi na **końcu** pliku i jest bezpieczny: ``fees`` sięga do ``Competition``, ``Edition``,
+# ``Category`` i ``Participant`` wyłącznie przez nazwy („tenancy.Competition”, …), a jedyny jego
+# import z domeny zawodów (``apps.competitions.scoping``) nie dotyka modeli.
+from .fees import (  # noqa: E402,F401  (import dla rejestracji modeli)
+    FeeSchedule,
+    FeeStatus,
+    ParticipantFee,
+)

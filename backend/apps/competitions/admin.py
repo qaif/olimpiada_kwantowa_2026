@@ -155,10 +155,21 @@ class InterviewBookingAdmin(admin.ModelAdmin):
 
 @admin.register(StageEntry)
 class StageEntryAdmin(admin.ModelAdmin):
-    """Wpisy do etapów. Statusy zmienia kwalifikacja (T-07); tu tylko podgląd i korekty ręczne."""
+    """Wpisy do etapów. Statusy zmienia kwalifikacja (T-07); tu tylko podgląd i korekty ręczne.
 
-    list_display = ("participant", "stage", "status", "total_points", "created_at")
+    Kolumna „drużyna” i wyszukiwanie po niej wchodzą, bo od etapu 2 właścicielem wpisu bywa
+    drużyna (§ 1.2.3), a wtedy kolumna „uczestnik” jest pusta – lista bez drugiej kolumny
+    pokazywałaby wiersze bez właściciela i nie dałoby się ich tu odnaleźć. Dla Konkursu #1
+    kolumna jest pusta we wszystkich wierszach, a wyszukiwanie zachowuje się jak dotąd.
+    """
+
+    list_display = ("participant", "team", "stage", "status", "total_points", "created_at")
     list_filter = ("status", "stage__edition", "stage__kind")
-    search_fields = ("participant__public_code", "participant__user__email")
+    search_fields = (
+        "participant__public_code",
+        "participant__user__email",
+        "team__public_code",
+        "team__name",
+    )
     autocomplete_fields = ("participant",)
     readonly_fields = ("created_at",)

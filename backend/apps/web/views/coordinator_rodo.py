@@ -26,10 +26,10 @@ from django.utils import timezone
 from django.views.generic import View
 
 from apps.accounts.processing_register import (
-    ACTIVITIES,
     CSV_HEADERS,
     REGISTER_DATE,
     REGISTER_VERSION,
+    activities_for,
     as_rows,
 )
 from apps.accounts.retention import anonymise_expired_editions, plan
@@ -107,18 +107,26 @@ class ProcessingRegisterView(CoordinatorRequiredMixin, View):
     ``?format=csv`` oddaje ten sam rejestr jako plik. Osobny parametr, a nie osobny adres, bo to
     jest ten sam dokument w drugiej postaci – a postać wybiera się przy pobieraniu, nie przy
     linkowaniu.
+
+    **Rejestr jest rejestrem tego konkursu** (etap 2 § 1.5.2, decyzja D21). Od chwili, w której
+    dwa konkursy w jednej instalacji zaczęły zbierać różne dane, jedna lista dla wszystkich
+    opisywałaby przetwarzanie, którego u części administratorów nie ma. Dobór robi
+    ``activities_for``: czynności wspólne plus te, które wynikają z konfiguracji – dziś jedna,
+    „logistyka etapu stacjonarnego”, i wyłącznie przy świadomie włączonym zbieraniu potrzeb
+    szczególnych. Dla Konkursu #1 wynik jest **co do bajtu** taki, jak przed etapem 2: flaga
+    ``onsite_logistics`` jest wyłączona, więc lista wraca dokładnie stałą ``ACTIVITIES``.
     """
 
     def get(self, request):
         if request.GET.get("format") == "csv":
-            return self._csv()
+            return self._csv(request)
         return TemplateResponse(request, REGISTER_TEMPLATE, self._context(request))
 
     def _context(self, request) -> dict:
         from apps.cms.models import SiteSettings
 
         return {
-            "activities": ACTIVITIES,
+            "activities": activities_for(request.competition),
             "version": REGISTER_VERSION,
             "register_date": REGISTER_DATE,
             # ``for_request`` zamiast ``for_site``: ekran jest za logowaniem i zawsze ma żądanie,
@@ -126,15 +134,19 @@ class ProcessingRegisterView(CoordinatorRequiredMixin, View):
             "site_settings": SiteSettings.for_request(request),
         }
 
-    def _csv(self):
+    def _csv(self, request):
         """Rejestr jako plik – tą samą drogą, co eksporty koordynatora (``apps.core.exports``).
 
         Dzięki temu rejestr dostaje BOM UTF-8 i średnik jako separator, czyli otwiera się
         w polskim Excelu bez rozsypanych ogonków. Dokument idzie do organu nadzorczego i do
         dokumentacji organizatora – plik, którego nie da się otworzyć dwoma kliknięciami, byłby
         odpowiedzią pozorną.
+
+        Plik opisuje **ten sam** zbiór czynności, co strona: gdyby ekran i eksport dobierały je
+        osobno, organizator wysyłałby organowi nadzorczemu dokument różny od tego, który sam
+        czyta.
         """
-        rows = as_rows()
+        rows = as_rows(activities_for(request.competition))
         return csv_response(
             Dataset(
                 header=list(CSV_HEADERS),
