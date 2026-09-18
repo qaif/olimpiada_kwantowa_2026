@@ -751,10 +751,56 @@ def _draw_footer(canvas, content: CertificateContent, *, layout: dict, width: fl
     canvas.setFont(FONT_REGULAR, size)
     canvas.drawString(margin, top, f"Numer dokumentu: {content.number}")
     canvas.drawString(margin, top - size - 5, f"Kod weryfikacyjny: {content.code}")
-    canvas.drawRightString(width - margin, top, f"Data wystawienia: {content.issued_on}")
-    canvas.drawRightString(
-        width - margin, top - size - 5, "Weryfikacja: /dyplomy/<kod>/ w serwisie olimpiady"
-    )
+    right = _footer_right_edge(content, layout=layout, width=width, height=height, top=top, size=size)
+    canvas.drawRightString(right, top, f"Data wystawienia: {content.issued_on}")
+    canvas.drawRightString(right, top - size - 5, "Weryfikacja: /dyplomy/<kod>/ w serwisie olimpiady")
+
+
+#: Odstęp między kodem QR a prawą kolumną stopki, gdy stopka musi się przed nim cofnąć.
+QR_FOOTER_GAP = 8
+
+
+def _qr_box(content: CertificateContent, *, layout: dict, height: float) -> tuple[float, float, float] | None:
+    """``(x, dół, bok)`` kodu QR w układzie strony albo ``None``, gdy kod nie będzie rysowany.
+
+    Jedno miejsce z regułą „czy i gdzie stoi kod”: czyta ją rysowanie kodu i stopka, która ma się
+    z nim nie pokrywać. Dwie kopie tej reguły rozjechałyby się przy pierwszej zmianie układu.
+    """
+    settings = block(layout, "qr")
+    if not is_visible(settings) or not content.verification_url:
+        return None
+    size = float(settings.get("size", 74))
+    bottom = height - float(settings.get("y", 455)) - size
+    return float(settings.get("x", 712)), bottom, size
+
+
+def _footer_right_edge(
+    content: CertificateContent, *, layout: dict, width: float, height: float, top: float, size: float
+) -> float:
+    """Prawa krawędź prawej kolumny stopki: margines strony albo lewa krawędź kodu QR.
+
+    W domyślnym układzie kod QR (bok 74 pt od ``y=455``) sięga 4 pt poniżej pierwszego wiersza
+    stopki (``y=525``) i zasłaniał końcówkę napisu „Data wystawienia”. Stopka cofa się przed
+    kodem tylko wtedy, gdy oba prostokąty naprawdę na siebie zachodzą – szablon, który przesunął
+    kod wyżej albo stopkę niżej, zachowuje wyrównanie do marginesu.
+    """
+    edge = width - margin_of(layout)
+    box = _qr_box(content, layout=layout, height=height)
+    if box is None:
+        return edge
+    qr_x, qr_bottom, qr_size = box
+    footer_top = top + size
+    footer_bottom = top - size - 5 - 2
+    overlaps_vertically = qr_bottom < footer_top and qr_bottom + qr_size > footer_bottom
+    overlaps_horizontally = qr_x < edge
+    if overlaps_vertically and overlaps_horizontally:
+        return qr_x - QR_FOOTER_GAP
+    return edge
+
+
+def margin_of(layout: dict) -> float:
+    """Margines stopki z układu (``footer.margin``), w punktach."""
+    return float(block(layout, "footer").get("margin", 60))
 
 
 def _draw_qr(canvas, content: CertificateContent, *, layout: dict, height: float) -> None:
@@ -764,14 +810,14 @@ def _draw_qr(canvas, content: CertificateContent, *, layout: dict, height: float
     do wniosku ręcznie, a QR jest wyłącznie skrótem drogi. Rysujemy go z ``reportlab.graphics``,
     więc nie dochodzi żadna zależność.
     """
-    settings = block(layout, "qr")
-    if not is_visible(settings) or not content.verification_url:
+    box = _qr_box(content, layout=layout, height=height)
+    if box is None:
         return
     from reportlab.graphics import renderPDF
     from reportlab.graphics.barcode import qr
     from reportlab.graphics.shapes import Drawing
 
-    size = float(settings.get("size", 74))
+    x, bottom, size = box
     widget = qr.QrCodeWidget(content.verification_url)
     bounds = widget.getBounds()
     # Widget ma własną, naturalną wielkość w punktach; ``transform`` skaluje go do kwadratu
@@ -782,8 +828,7 @@ def _draw_qr(canvas, content: CertificateContent, *, layout: dict, height: float
         transform=[size / (bounds[2] - bounds[0]), 0, 0, size / (bounds[3] - bounds[1]), 0, 0],
     )
     drawing.add(widget)
-    bottom = height - float(settings.get("y", 455)) - size
-    renderPDF.draw(drawing, canvas, float(settings.get("x", 712)), bottom)
+    renderPDF.draw(drawing, canvas, x, bottom)
 
 
 def compose_pdf(content: CertificateContent, template: CertificateTemplate | None = None) -> bytes:

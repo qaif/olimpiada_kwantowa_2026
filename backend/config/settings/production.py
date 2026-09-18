@@ -27,9 +27,7 @@ from django.core.exceptions import ImproperlyConfigured
 
 from .base import *  # noqa: F401,F403
 from .base import (
-    EMAIL_BACKEND,
-    EMAIL_HOST,
-    EMAIL_PORT,
+    MAILERS,
     S3_ENDPOINT_URL,
     S3_PRIVATE_ACCESS_KEY,
     S3_PRIVATE_SECRET_KEY,
@@ -55,16 +53,22 @@ if not S3_ACCESS_KEY or not S3_SECRET_KEY:
 # wysyła listów), więc nie ma powodu, żeby z tego powodu nie dało się wdrożyć aplikacji – ale musi
 # to być widać w logu startowym, bo objawem jest cicho niedziałający formularz „Nie pamiętasz hasła?”.
 # ``localhost:25`` to domyślne ustawienie Django, czyli „nikt tego nie skonfigurował”: w kontenerze
-# aplikacyjnym nie ma MTA i połączenie skończy się odmową.
-if EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend" and (
-    EMAIL_HOST in ("", "localhost", "127.0.0.1", "::1") or EMAIL_PORT == 25
+# aplikacyjnym nie ma MTA i połączenie skończy się odmową. Czytamy to z ``MAILERS`` (ustawienia
+# ``EMAIL_*`` już nie istnieją – patrz base.py), ale wejściem nadal jest zmienna ``EMAIL_URL``
+# i o niej mówi komunikat, bo to ją operator ma poprawić w ``.env``.
+_default_mailer = MAILERS["default"]
+_default_mailer_options = _default_mailer.get("OPTIONS", {})
+_email_host = _default_mailer_options.get("host", "")
+_email_port = _default_mailer_options.get("port")
+if _default_mailer["BACKEND"] == "django.core.mail.backends.smtp.EmailBackend" and (
+    _email_host in ("", "localhost", "127.0.0.1", "::1") or _email_port == 25
 ):
     logging.getLogger("config.settings").warning(
         "EMAIL_URL wskazuje %s:%s – w kontenerze aplikacyjnym nie ma MTA, więc reset hasła nie "
         "wyśle wiadomości. Ustaw EMAIL_URL=smtp+tls://uzytkownik:haslo@host:587 oraz "
         "DEFAULT_FROM_EMAIL na adres w domenie z rekordami SPF/DKIM.",
-        EMAIL_HOST,
-        EMAIL_PORT,
+        _email_host,
+        _email_port,
     )
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

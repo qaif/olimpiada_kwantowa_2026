@@ -1063,16 +1063,86 @@ Poza listą z § 8.2 (ta obowiązuje nadal) — cztery rzeczy, które dotyczą w
 | 3 | `docker compose logs beat --since 5m` | wpisy `Scheduler: Sending due task …`, zero tracebacków |
 | 4 | `/cms/` → obraz w dowolnym artykule | rendition renderuje się. Wagtail 8 **przestał** automatycznie konwertować AVIF i WebP do PNG; gdyby redakcja miała takie źródła, wraca się do starego zachowania przez `WAGTAILIMAGES_FORMAT_CONVERSIONS` (dziś w repozytorium nieustawione, bo biblioteka jest w JPEG/PNG) |
 
-### 9.5. Jeden dług zostawiony świadomie: `EMAIL_*` → `MAILERS`
+### 9.5. Poczta: `EMAIL_*` → `MAILERS` (dług spłacony)
 
-Django 6.1 oznaczyło **wszystkie** ustawienia `EMAIL_*` jako przestarzałe (znikają w 7.0) na rzecz
-słownika `MAILERS`. Przy każdym uruchomieniu widać z tego powodu dziewięć ostrzeżeń
-`RemovedInDjango70Warning` — i tak ma na razie zostać. Powód nie jest wygodą, tylko mechaniką:
-gdy `MAILERS` **jest** ustawione, Django przestaje czytać `EMAIL_BACKEND`, a to właśnie tym
-ustawieniem testy przechwytują pocztę (`config/settings/test.py` i wtyczka `pytest-django`, która
-`MAILERS` jeszcze nie zna). Przejście dzisiaj nie wywróciłoby testów — byłoby gorzej: `mail.outbox`
-zostałby pusty, a asercje na treść listów sprawdzałyby nicość.
+Django 6.1 oznaczyło wszystkie ustawienia `EMAIL_*` jako przestarzałe (znikają w 7.0) na rzecz
+słownika `MAILERS` — i dawało z tego powodu **dziewięć** ostrzeżeń `RemovedInDjango70Warning` przy
+każdym uruchomieniu. Konfiguracja jest już przeniesiona i tych ostrzeżeń nie ma.
 
-Migracja wchodzi w wydaniu, w którym `pytest-django` obsłuży `MAILERS`; ostateczny termin narzuca
-Django 7.0. Notatka stoi też przy samych ustawieniach (`backend/config/settings/base.py`, sekcja
-„Poczta wychodząca”), żeby nikt nie „posprzątał” ich wcześniej z dobrych chęci.
+**Dla operatora nie zmienia się nic.** Wejściem nadal są te same zmienne w `/opt/olimpiada/.env`:
+`EMAIL_URL` (adres relaya razem z poświadczeniami i szyfrowaniem) oraz `EMAIL_TIMEOUT`.
+`config/settings/base.py` składa z nich `MAILERS = {"default": {"BACKEND": …, "OPTIONS": {…}}}` —
+te same wartości, które dotąd stały w `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`,
+`EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`/`EMAIL_USE_SSL` i `EMAIL_TIMEOUT`, tylko w jednym słowniku
+zamiast w siedmiu ustawieniach. `.env` nie wymaga **żadnej** edycji, a ostrzeżenie startowe
+„`EMAIL_URL` wskazuje localhost:25” mówi dalej to samo i o tej samej zmiennej.
+
+Czego pilnują testy, żeby to została prawda: `backend/apps/core/tests/test_mailers_config.py`.
+Sprawdza cztery rzeczy naraz — że każda droga wysyłki kończy się w `mail.outbox` (w policzalnej
+liczbie sztuk), że pod ustawieniami produkcyjnymi z podanym `EMAIL_URL` powstaje dokładnie ten
+nadajnik SMTP, którego się spodziewamy, że żaden moduł ustawień nie definiuje już nazwy `EMAIL_*`
+(moduł z jedną i drugą naraz Django odrzuca wyjątkiem, więc objawem byłby nieuruchamiający się
+kontener) i że wysyłka nie wywołuje ostrzeżeń o wycofaniu.
+
+**Drugi nadajnik — organizator z własną domeną.** Gdyby konkurs dołożony do platformy miał wysyłać
+listy własnym relayem (bo SPF/DKIM jego domeny nie obejmują naszego), dopisuje się do `MAILERS`
+drugi alias obok `"default"` — np. `"fizyczna"` z własnym hostem, użytkownikiem i hasłem z osobnej
+zmiennej środowiskowej — a w miejscu wysyłki wskazuje się go argumentem `using="fizyczna"`
+(`EmailMessage.send(using=…)`, `send_mail(…, using=…)`). Kosztem nie jest sam słownik, tylko
+**wybór**: dzisiaj żadna droga wysyłki nie pyta o konkurs w tej sprawie, więc alias musiałby
+dojść tam, gdzie dziś dochodzi nadawca — do `apps/core/tasks.py::mail_from` i do zadania
+`send_mail_task`, jako kolejny prosty argument obok adresu nadawcy. To jest osobna decyzja
+organizatora, razem z `Reply-To` i prefiksem tematu (`docs/UNIWERSALNY-ETAP-2.md` § 0.1), a nie
+skutek uboczny tej migracji.
+
+**Jedna pułapka na zapas**, gdyby ktoś przełączył `EMAIL_URL` na dostawcę zewnętrznego
+z uwierzytelnieniem (README § 4.1, wariant B): powiadomienia **Wagtaila** (obieg redakcyjny w
+`/cms/`) wysyłają listy przez przestarzałe `get_connection(username=None, password=None, …)`,
+a Django przy włączonym `MAILERS` traktuje takie `None` jak jawne „bez poświadczeń” i nadpisuje
+nimi to, co stoi w `OPTIONS`. Naszej poczty to nie dotyczy (przez `MAILERS` idzie wszystko,
+co wysyła aplikacja), a dzisiejszego relaya w compose też nie, bo `smtp://mail:587` żadnego
+logowania nie wymaga. Przy dostawcy z hasłem powiadomienie redakcyjne dostałoby jednak odmowę
+`530` — objaw głośny, nie cichy. Znika to razem z Django 7.0, które `get_connection()` skasuje.
+
+### 9.6. reportlab 5.x
+
+Do v0.26.0 `backend/pyproject.toml` trzymał `reportlab>=4,<5`, więc produkcja składała wszystkie
+dokumenty biblioteką **4.5.1**, podczas gdy obraz deweloperski niósł już **5.0.1** — rozjazd
+starszy niż sama aktualizacja frameworka i niewygodny z jednego powodu: testy PDF-ów sprawdzały
+bibliotekę, której produkcja nie uruchamiała. Od v0.26.1 pin brzmi `reportlab>=5.0,<6` i obie
+strony mają 5.0.1 (najnowsze wydanie na dzień 18.09.2026; linia 5.x ma dotąd tylko 5.0.0 i 5.0.1).
+Nic w drzewie zależności reportlaba nie ogranicza — w szczególności **nie** robi tego `pyhanko`,
+który składu PDF-ów w ogóle nie dotyka: w rozwiązaniu `uv pip compile --extra dev` wiersz
+`reportlab==5.0.1` ma jedno źródło, `olimpiada (pyproject.toml)`.
+
+Przejście jest małe i to jest sedno decyzji. Wobec 4.5.1 wydanie 5.0 zmienia w kodzie biblioteki
+jedenaście plików i niesie dokładnie jedną zmianę zachowania, która mogłaby nas dotyczyć:
+`rl_config.trustedHosts = None` znaczy teraz „żaden host nie jest zaufany”, a nie „wszystkie”
+(dotyczy `open_for_read`, czyli wczytywania zasobu **adresem**). Nas nie dotyczy, bo obrazy
+podajemy zawsze bajtami — `ImageReader(BytesIO(...))` w `apps/results/certificates.py` — a kroje
+ścieżką w repozytorium; ani jedno wywołanie nie wychodzi do sieci. Poza tym znikły dwa zaplecza
+opcjonalne (`rl_renderPM`, `pyRXP`), a `Canvas.getpdfdata()` koduje latin1 zamiast utf-8 — żadnej
+z tych trzech rzeczy nie używamy (`grep` po `apps/` i `config/` nie daje trafienia).
+
+Sprawdzone porównaniem dokumentów, a nie deklaracją. Dwanaście dokumentów — pięć rodzajów dyplomu
+w układzie wbudowanym, dyplom na szablonie graficznym (tło, logo, trzy podpisy, kod QR), wzór zgody
+opiekuna, protokół etapu, trzy listy logistyczne i rachunek za wpisowe — złożono **obiema** wersjami
+z tych samych danych (zamrożony zegar, `rl_config.invariant = 1`, baza testowa zakładana od zera,
+ustalone ziarno fabryk i generatora kodów publicznych). Wszystkie dwanaście par wyszło **bajt
+w bajt** identycznie: ta sama paginacja, ten sam format strony, ten sam tekst razem z polskimi
+znakami, te same kroje (`DejaVuSans`, `DejaVuSans-Bold`), tyle samo obrazów i zerowe przesunięcie
+przebiegów tekstu (porównanie pypdf, macierz `tm` przebieg po przebiegu). Że porównanie mierzy
+wersję biblioteki, a nie szum przebiegu, potwierdza próba kontrolna: dwa uruchomienia na 5.0.1
+dają pliki identyczne.
+
+Osobno warty odnotowania skutek dotyczy `backend/apps/cms/fixtures/documents/zgoda-opiekuna.pdf` —
+pliku składanego komendą `build_guardian_consent_pdf`, trzymanego w repozytorium i porównywanego
+w testach **bajt w bajt** (`test_guardian_consent_pdf_is_rebuilt_byte_for_byte`). Z 5.0.1 wychodzi
+dokładnie ten plik, który w repozytorium leży (to samo sha256), więc regeneracji nie było potrzeby
+i jej nie zrobiono.
+
+**Wycofanie.** Jedną linią i przebudową obrazu: w `backend/pyproject.toml` wróć do
+`reportlab>=4,<5`, zbuduj obraz od nowa (lokalnie `docker compose build web`, na produkcji zwykłą
+drogą z § 4.2) i odtwórz `web`, `worker` oraz `beat`. Migracji ani danych to nie dotyka: reportlab
+niczego nie zapisuje w bazie, a dokumenty powstają od nowa przy każdym pobraniu
+(`apps/results/certificates.py`), więc wycofanie jest natychmiastowe i bezstratne.

@@ -90,6 +90,7 @@ def test_the_coordinator_reminder_carries_the_brand_of_the_competition_of_the_st
     with django_capture_on_commit_callbacks(execute=True):
         remind_reviewers(golden.elim)
 
+    assert mail.outbox, "Recenzent z przydzieloną pracą ma dostać przypomnienie."
     assert {letter.subject for letter in mail.outbox} == {
         f"Przypomnienie o zaległych recenzjach – {OTHER_NAME}"
     }

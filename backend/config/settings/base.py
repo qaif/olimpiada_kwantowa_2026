@@ -383,15 +383,16 @@ TWO_FACTOR_ENABLED = env.bool("TWO_FACTOR_ENABLED", default=False)
 TWO_FACTOR_REQUIRED_ROLES = env.list("TWO_FACTOR_REQUIRED_ROLES", default=[])
 
 # --- Poczta wychodząca -----------------------------------------------------------------------
-# UWAGA (Django 6.1): wszystkie ustawienia ``EMAIL_*`` niżej są **przestarzałe** – zastąpi je
-# słownik ``MAILERS`` i Django 7.0 przestanie je czytać. Zostają tu **świadomie**, a nie przez
-# przeoczenie, i powód jest jeden, praktyczny: gdy ``MAILERS`` jest ustawione, Django **przestaje
-# patrzeć** na ``EMAIL_BACKEND`` (``django.core.mail.mailers._is_configured``). A ``EMAIL_BACKEND``
-# jest tym, czym testy przechwytują pocztę: podmienia je ``config/settings/test.py`` oraz wtyczka
-# ``pytest-django``, która ``MAILERS`` jeszcze nie zna. Przejście dzisiaj nie wywróciłoby testów –
-# byłoby gorzej: ``mail.outbox`` zostałby pusty, a asercje na treść listów zaczęłyby sprawdzać
-# nicość. Migracja należy więc do wydania, w którym ``pytest-django`` obsłuży ``MAILERS``; termin
-# wymuszony z zewnątrz to Django 7.0.
+# Konfiguracja poczty jest **słownikiem** ``MAILERS`` (Django 6.1), a nie ustawieniami ``EMAIL_*``:
+# tamte są przestarzałe i znikają w Django 7.0 (``django/conf/__init__.py``:
+# ``DEPRECATED_EMAIL_SETTINGS``). Kształt jest taki sam jak u ``DATABASES``/``CACHES``: alias →
+# ``{"BACKEND": ..., "OPTIONS": {...}}``, a alias ``"default"`` jest tym, którego używa każda
+# wysyłka bez wskazania nadajnika (``django/core/mail/handler.py``: ``DEFAULT_MAILER_ALIAS``).
+# Obu rodzajów naraz Django **nie przyjmuje**: moduł ustawień, który definiuje ``MAILERS``
+# i choćby jedno ``EMAIL_*`` z tamtej listy, kończy się ``ImproperlyConfigured``
+# (``_check_email_settings_conflicts``). Dlatego niżej nie ma ani jednego z nich – nazwy
+# **zmiennych środowiskowych** (``EMAIL_URL``, ``EMAIL_TIMEOUT``) zostają bez zmian, bo to one są
+# umową wdrożeniową i nikt nie ma edytować ``.env`` z tego powodu.
 #
 # Jedna zmienna (``EMAIL_URL``) zamiast sześciu: dev ma ``smtp://mailpit:1025``, produkcja
 # ``smtp+tls://user:haslo@host:587``. Domyślną wartością jest **konsola**, a nie SMTP na
@@ -399,19 +400,38 @@ TWO_FACTOR_REQUIRED_ROLES = env.list("TWO_FACTOR_REQUIRED_ROLES", default=[])
 # pierwsza wysyłka kończyłaby się ``ConnectionRefusedError`` w środku żądania HTTP. ``consolemail``
 # zawsze „działa”, a brak konfiguracji widać w logu, a nie w błędzie 500.
 _email = env.email_url("EMAIL_URL", default="consolemail://")
-EMAIL_BACKEND = _email["EMAIL_BACKEND"]
-# ``environ`` zwraca ``None`` dla brakujących części adresu; Django oczekuje w tych ustawieniach
-# łańcuchów i liczb, więc normalizujemy je tutaj, a nie w miejscu wysyłki.
-EMAIL_HOST = _email.get("EMAIL_HOST") or "localhost"
-EMAIL_PORT = _email.get("EMAIL_PORT") or 25
-EMAIL_HOST_USER = _email.get("EMAIL_HOST_USER") or ""
-EMAIL_HOST_PASSWORD = _email.get("EMAIL_HOST_PASSWORD") or ""
-EMAIL_USE_TLS = bool(_email.get("EMAIL_USE_TLS"))
-EMAIL_USE_SSL = bool(_email.get("EMAIL_USE_SSL"))
-EMAIL_FILE_PATH = _email.get("EMAIL_FILE_PATH") or ""
+_email_backend = _email["EMAIL_BACKEND"]
 # Bez limitu czasu wysyłka wisi na gnieździe tak długo, jak pozwoli sieć – a robimy ją synchronicznie
 # w żądaniu POST /password-reset/, więc worker gunicorna zostałby zajęty na czas dowolnie długi.
-EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=10)
+_email_timeout = env.int("EMAIL_TIMEOUT", default=10)
+# ``environ`` zwraca ``None`` dla brakujących części adresu; backend SMTP oczekuje w ``OPTIONS``
+# łańcuchów i liczb, więc normalizujemy je tutaj, a nie w miejscu wysyłki. Wartości domyślne są
+# dokładnie te, które dawały do tej pory globalne ustawienia ``EMAIL_*`` (host ``localhost``,
+# port 25, puste poświadczenia) – zmiana jest wyłącznie w tym, **gdzie** stoją.
+_smtp_backend = "django.core.mail.backends.smtp.EmailBackend"
+if _email_backend == _smtp_backend:
+    _mailer_options = {
+        "host": _email.get("EMAIL_HOST") or "localhost",
+        "port": _email.get("EMAIL_PORT") or 25,
+        "username": _email.get("EMAIL_HOST_USER") or "",
+        "password": _email.get("EMAIL_HOST_PASSWORD") or "",
+        "use_tls": bool(_email.get("EMAIL_USE_TLS")),
+        "use_ssl": bool(_email.get("EMAIL_USE_SSL")),
+        "timeout": _email_timeout,
+    }
+elif _email_backend == "django.core.mail.backends.filebased.EmailBackend":
+    # ``filemail://`` – jedyny backend, który wymaga katalogu; pozostałe (konsola, locmem,
+    # dummy) nie mają żadnych opcji i dostają pusty słownik, bo nieznany klucz w ``OPTIONS``
+    # to u nadajnika **wyjątek** (``InvalidMailer``), a nie zignorowany argument.
+    _mailer_options = {"file_path": _email.get("EMAIL_FILE_PATH") or ""}
+else:
+    _mailer_options = {}
+
+#: Jeden nadajnik: cała instalacja wysyła listy z jednego relaya. Drugi alias (np. własna domena
+#: organizatora) to dopisanie klucza tutaj i ``using="alias"`` w miejscu wysyłki – patrz
+#: docs/OPERACJE.md § 9.5.
+MAILERS = {"default": {"BACKEND": _email_backend, "OPTIONS": _mailer_options}}
+
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@localhost")
 # Nadawca wiadomości systemowych (``mail_admins``, raporty 500). Ten sam adres: MTA odbiorcy i tak
 # sprawdza SPF dla domeny nadawcy, więc drugi, nieskonfigurowany adres tylko psułby dostarczalność.

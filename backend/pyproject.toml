@@ -65,7 +65,23 @@ dependencies = [
     # panelu. Kroje DejaVu są w repozytorium (``backend/static/fonts/``) razem z licencją –
     # wbudowane w reportlab fonty Type1 nie mają polskich znaków diakrytycznych, więc bez nich
     # „Zaświadczenie dla Łucji Śniadeckiej” składałoby się z czarnych prostokątów.
-    "reportlab>=4,<5",
+    #
+    # 5.x (v0.26.1). Do v0.26.0 stała tu granica ``<5`` i produkcja składała dokumenty
+    # **reportlabem 4.5.1**, podczas gdy obraz deweloperski niósł już 5.0.1 – czyli testy PDF-ów
+    # sprawdzały bibliotekę, której produkcja nie uruchamiała. Ta linia zdejmuje ten rozjazd,
+    # a nie dokłada możliwości: 5.0 to z naszego punktu widzenia 4.5.1 plus jedna zmiana
+    # bezpieczeństwa (``rl_config.trustedHosts=None`` znaczy teraz „żaden host nie jest zaufany”,
+    # a nie „wszystkie”) i dwa usunięte zaplecza opcjonalne (``rl_renderPM``, ``pyRXP``). Żadna
+    # z tych rzeczy nas nie dotyczy: obrazy podajemy zawsze jako ``ImageReader(BytesIO(...))``,
+    # a nie adresem, więc ``open_for_read`` nigdy nie wychodzi do sieci; bitmap nie renderujemy
+    # i XML-a reportlabem nie parsujemy. Sprawdzone porównaniem dokumentów, nie deklaracją:
+    # dwanaście dokumentów (pięć rodzajów dyplomu, dyplom na szablonie graficznym z tłem, logo,
+    # trzema podpisami i QR-em, wzór zgody opiekuna, protokół etapu, trzy listy logistyczne
+    # i rachunek) złożonych oboma wersjami z tych samych danych wychodzi **bajt w bajt** tak samo
+    # (docs/OPERACJE.md § 9.6). Górna granica stoi tam, gdzie stała dotąd – przy następnej wersji
+    # głównej: łatki i wydania 5.x wchodzą same, a przeskok na 6 ma być osobnym przebiegiem
+    # tego samego porównania.
+    "reportlab>=5.0,<6",
     # Liczba stron PDF-a oddanego przez uczestnika (``apps.submissions.preview``). Czytamy
     # **wyłącznie** tablicę stron – biblioteka niczego nie renderuje i nie wykonuje, a sam odczyt
     # idzie dopiero po czystym skanie antywirusowym. W zwykłych zależnościach, a nie w ekstrze

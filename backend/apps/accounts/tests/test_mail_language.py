@@ -203,6 +203,9 @@ def test_the_results_letters_of_competition_one_stay_polish(competition, django_
         sent = notify_results_published(publication)
 
     assert sent == len(golden.participants)
+    # Liczba listów **w skrzynce**, a nie tylko wynik serwisu: bez tej asercji zbiory niżej
+    # mówiłyby o tym, co zastały, a nie o tym, co miało przyjść.
+    assert len(mail.outbox) == len(golden.participants)
     assert {letter.subject for letter in mail.outbox} == {RESULTS_SUBJECT_PL}
     assert {letter.body.splitlines()[-1] for letter in mail.outbox} == {AUTOMATIC_NOTE_PL}
 
@@ -223,6 +226,7 @@ def test_the_results_letters_stay_polish_for_an_account_that_stored_english(
     with django_capture_on_commit_callbacks(execute=True):
         notify_results_published(publication)
 
+    assert len(mail.outbox) == len(golden.participants)
     assert {letter.subject for letter in mail.outbox} == {RESULTS_SUBJECT_PL}
     assert {letter.body.splitlines()[-1] for letter in mail.outbox} == {AUTOMATIC_NOTE_PL}
 
@@ -238,6 +242,7 @@ def test_the_results_letters_follow_the_language_of_the_competition(
     with django_capture_on_commit_callbacks(execute=True):
         notify_results_published(publication)
 
+    assert len(mail.outbox) == len(golden.participants)
     assert {letter.subject for letter in mail.outbox} == {RESULTS_SUBJECT_EN}
     assert {letter.body.splitlines()[-1] for letter in mail.outbox} == {AUTOMATIC_NOTE_EN}
 
@@ -253,6 +258,7 @@ def test_the_account_language_still_decides_inside_the_loop(competition, django_
     with django_capture_on_commit_callbacks(execute=True):
         notify_results_published(publication)
 
+    assert len(mail.outbox) == len(golden.participants)
     subjects = {letter.to[0]: letter.subject for letter in mail.outbox}
     assert subjects[chosen.email] == RESULTS_SUBJECT_PL
     assert set(subjects.values()) == {RESULTS_SUBJECT_PL, RESULTS_SUBJECT_EN}

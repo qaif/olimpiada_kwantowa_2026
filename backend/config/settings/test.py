@@ -15,7 +15,14 @@ STORAGES = {
 CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
 # Poczta do ``django.core.mail.outbox``: testy sprawdzają treść wiadomości, a nie to, czy udało się
 # otworzyć gniazdo do mailpita. Backend konsolowy z ``base.py`` niczego by nie zapisał.
-EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+#
+# Przechwycenie idzie przez ``MAILERS`` – ustawienia ``EMAIL_*`` w Django 6.1 już nie działają
+# (patrz base.py). Drugim, niezależnym zabezpieczeniem jest sam Django: ``setup_test_environment()``
+# (``django/test/utils.py``) podmienia **każdy** alias z ``MAILERS`` na ``locmem`` na czas sesji
+# testowej, a ``pytest-django`` 4.14 nie robi w tej sprawie nic własnego – woła tę funkcję
+# (``pytest_django/plugin.py``, fixture ``django_test_environment``). Że obie drogi naprawdę
+# prowadzą do ``mail.outbox``, sprawdza ``apps/core/tests/test_mailers_config.py``.
+MAILERS = {"default": {"BACKEND": "django.core.mail.backends.locmem.EmailBackend"}}
 # Testy nie dotykają MinIO ani sieci: pliki rozwiązań lądują pod MEDIA_ROOT (tmp_path per test).
 SUBMISSION_STORAGE_BACKEND = "apps.submissions.storage.LocalSubmissionStorage"
 # CAPTCHA w trybie testowym: pakiet przyjmuje odpowiedź „PASSED” niezależnie od wyzwania, więc

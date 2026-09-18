@@ -122,6 +122,9 @@ def test_results_letters_go_to_every_participant_with_one_brand(
         sent = notify_results_published(publication)
 
     assert sent == len(golden.participants)
+    # Liczba listów **w skrzynce**, a nie tylko wynik serwisu: zbiory niżej porównują to, co
+    # zastały, więc bez tej asercji pusty outbox byłby dla nich stanem nie do odróżnienia od błędu.
+    assert len(mail.outbox) == len(golden.participants)
     assert {letter.subject for letter in mail.outbox} == {f"Wyniki etapu ogłoszone – {OTHER_NAME}"}
     assert {letter.from_email for letter in mail.outbox} == {OTHER_SENDER}
     assert {_signature_of(letter.body) for letter in mail.outbox} == {("--", OTHER_NAME, SIGNATURE_LINES[2])}
@@ -137,6 +140,7 @@ def test_results_letters_of_competition_one_are_unchanged(
     with django_capture_on_commit_callbacks(execute=True):
         notify_results_published(publication)
 
+    assert len(mail.outbox) == len(golden.participants)
     assert {letter.subject for letter in mail.outbox} == {str(RESULTS_PUBLISHED_SUBJECT)}
     assert {letter.from_email for letter in mail.outbox} == {settings.DEFAULT_FROM_EMAIL}
     assert {_signature_of(letter.body) for letter in mail.outbox} == {SIGNATURE_LINES}
