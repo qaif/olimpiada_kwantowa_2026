@@ -33,6 +33,7 @@ import logging
 import tempfile
 import zipfile
 from dataclasses import dataclass
+from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
 from typing import BinaryIO
@@ -401,6 +402,10 @@ class CertificateContent:
     #: Trafia do ``Certificate.template_version`` przy wystawieniu i stamtąd wraca przy każdym
     #: pobraniu – dokument wydany rok temu ma wyjść z drukarki tak samo, jak wtedy.
     template_version: str = ""
+    #: Logo olimpiady (bajty obrazu) rysowane w lewym górnym rogu, gdy szablon graficzny nie niesie
+    #: własnego. ``None`` = dokument bez znaku. W treści, a nie w składzie, z tego samego powodu co
+    #: linia podpisu: źródłem jest konkurs (patrz :func:`competition_logo`), a skład dostaje gotowe.
+    logo: bytes | None = None
 
 
 def _recipient_name(certificate: Certificate) -> str:
@@ -504,7 +509,50 @@ def certificate_content(certificate: Certificate) -> CertificateContent:
         signature_line=document.signature_line,
         author=document.author,
         template_version=document.version,
+        logo=competition_logo(competition),
     )
+
+
+# --- logo olimpiady -----------------------------------------------------------------------------
+
+#: Znak Olimpiady Kwantowej z repozytorium (``static/img/``). Wersja ``@2x`` – 1200 px szerokości
+#: daje przy 140 pt na papierze ponad 600 dpi, czyli ostry wydruk; mniejszy plik byłby widocznie
+#: miękki na dyplomie oprawionym w ramkę.
+DEFAULT_LOGO_STATIC_PATH = "img/logo-olimpiada-kwantowa@2x.png"
+
+
+@lru_cache(maxsize=1)
+def _default_logo() -> bytes | None:
+    """Bajty znaku z plików statycznych albo ``None``, gdy pliku nie ma (wtedy dyplom bez znaku)."""
+    from django.contrib.staticfiles import finders
+
+    path = finders.find(DEFAULT_LOGO_STATIC_PATH)
+    if not path:
+        logger.warning("Brak pliku logo dyplomu: %s.", DEFAULT_LOGO_STATIC_PATH)
+        return None
+    try:
+        return Path(path).read_bytes()
+    except OSError:
+        logger.warning("Nie udało się wczytać logo dyplomu: %s.", path)
+        return None
+
+
+def competition_logo(competition=None) -> bytes | None:
+    """Logo, które staje na dyplomie **tego** konkursu.
+
+    Ta sama reguła, co przy napisach (``apps.tenancy.branding``): dopóki konkurs nie włączył własnej
+    marki, dokumenty niosą znak Olimpiady Kwantowej z repozytorium – razem z nagłówkiem „OLIMPIADA
+    KWANTOWA”, który stoi obok. Uwaga: ``Competition.logo`` Konkursu #1 to dziś znak **organizatora**
+    (Fundacji, przeniesiony ze stopki serwisu), a nie olimpiady, więc nie może być tu źródłem.
+    Konkurs z własną marką dostaje swój logotyp z biblioteki obrazów; bez logotypu – dokument
+    bez znaku, a nie z cudzym.
+    """
+    from apps.tenancy.branding import uses_competition_branding
+
+    if competition is None or not uses_competition_branding(competition):
+        return _default_logo()
+    image = getattr(competition, "logo", None)
+    return _image_bytes(image.file) if image is not None else None
 
 
 # --- szablon graficzny --------------------------------------------------------------------------
@@ -853,17 +901,20 @@ def compose_pdf(content: CertificateContent, template: CertificateTemplate | Non
     canvas.setSubject(f"{content.title}, edycja {content.edition}")
 
     _draw_background(canvas, template, width=width, height=height)
-    if template is not None:
-        logo = block(layout, "logo")
-        if is_visible(logo):
-            _draw_picture(
-                canvas,
-                _image_bytes(template.logo),
-                x=float(logo.get("x", 60)),
-                y=height - float(logo.get("y", 40)) - float(logo.get("height", 60)),
-                width=float(logo.get("width", 140)),
-                height=float(logo.get("height", 60)),
-            )
+    logo = block(layout, "logo")
+    if is_visible(logo):
+        # Znak z szablonu graficznego ma pierwszeństwo; bez niego (albo bez szablonu) staje logo
+        # olimpiady z treści dokumentu. ``show: false`` w układzie gasi oba – np. gdy znak jest
+        # już częścią tła.
+        picture = _image_bytes(template.logo) if template is not None and template.logo else None
+        _draw_picture(
+            canvas,
+            picture or content.logo,
+            x=float(logo.get("x", 60)),
+            y=height - float(logo.get("y", 40)) - float(logo.get("height", 60)),
+            width=float(logo.get("width", 140)),
+            height=float(logo.get("height", 60)),
+        )
 
     organiser = block(layout, "organiser")
     _text(canvas, organiser.get("text", "OLIMPIADA KWANTOWA"), organiser, width=width, height=height)
@@ -1162,4 +1213,5 @@ def sample_content(kind: str, edition: Edition | None = None) -> CertificateCont
         signature_line=document.signature_line,
         author=document.author,
         template_version=document.version,
+        logo=competition_logo(competition),
     )
