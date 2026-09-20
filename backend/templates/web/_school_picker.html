@@ -42,7 +42,12 @@
     jedzie do serwisu (``SchoolChoiceMixin.clean`` ją zdejmuje), a rejestrację i tak kończy wpisanie
     nazwy szkoły w widoczne poniżej pole „Nazwa szkoły”.
   {% endcomment %}
-  <p class="school-picker__city">
+  {% comment %}
+    ``<div class="field">``, a nie ``<p>``: akapit nie może zawierać ``<ul>``, więc parser HTML
+    zamykał go tuż przed listą podpowiedzi i wyrzucał ją poza ``.school-picker__control``. Lista
+    traciła kotwicę i rozciągała się na całą szerokość strony, zamiast stanąć pod polem.
+  {% endcomment %}
+  <div class="field school-picker__city">
     {{ form.school_city.errors }}
     <label for="{{ form.school_city.id_for_label }}">{{ form.school_city.label }}</label>
     <span class="school-picker__control">
@@ -57,8 +62,8 @@
       W ``as_p`` robi to szablon Django; ten blok renderujemy ręcznie, więc robimy to sami.
     {% endcomment %}
     <span class="helptext" id="{{ form.school_city.auto_id }}_helptext">{{ form.school_city.help_text }}</span>
-  </p>
-  <p class="school-picker__query">
+  </div>
+  <div class="field school-picker__query">
     {{ form.school_query.errors }}
     {% comment %}
       Klasa ``required`` stoi tu ręcznie, a nie z ``required_css_class``: pole ``school_query``
@@ -79,7 +84,7 @@
     </span>
     {# ``id`` z tego samego powodu, co przy miejscowości wyżej: celuje w niego ``aria-describedby``. #}
     <span class="helptext" id="{{ form.school_query.auto_id }}_helptext">{{ form.school_query.help_text }}</span>
-  </p>
+  </div>
   {{ form.school_id }}{% if form.custom_institution_id %}{{ form.custom_institution_id }}{% endif %}
   {% comment %}
     ``aria-live`` mówi czytnikowi ekranu, ile podpowiedzi się pojawiło – bez tego lista zmienia

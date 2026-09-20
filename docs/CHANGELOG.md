@@ -8,9 +8,9 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
-## Niewydane (po `v0.26.2`)
+## Niewydane (po `v0.26.3`)
 
-- Brak — katalog roboczy jest równy tagowi `v0.26.2`. Etap 2 systemu wielokonkursowego jest
+- Brak — katalog roboczy jest równy tagowi `v0.26.3`. Etap 2 systemu wielokonkursowego jest
   domknięty (`UNIWERSALNY-ETAP-2.md` § 3.1). Nie zlecone: drzewo CMS dla konkursu w trybie prefiksu ścieżki (uwaga T43),
   edytor przebiegu przenoszący „przypisz kategorie” do warstwy serwisów.
 
@@ -18,6 +18,7 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 
 | Wersja | Data | Zmiana |
 |---|---|---|
+| **v0.26.3** | 2026-09-20 | wyszukiwarka szkół: lista podpowiedzi (szkół i miejscowości) rozwija się pod swoim polem – opakowania pól to `<div class="field">` zamiast `<p>`, bo parser HTML wyrzucał `<ul>` poza akapit i lista rozciągała się na całą szerokość strony |
 | **v0.26.2** | 2026-09-19 | logo olimpiady na dyplomach i zaświadczeniach: znak z `static/img/logo-olimpiada-kwantowa@2x.png` w lewym górnym rogu każdego dokumentu (blok `logo` układu); logo szablonu graficznego ma pierwszeństwo, `show: false` je gasi, konkurs z własną marką dostaje swój logotyp (`competition_logo`) |
 | **v0.26.1** | 2026-09-19 | poczta na `MAILERS` (Django 6.1) zamiast wycofywanych `EMAIL_*` – te same zmienne `.env` (`EMAIL_URL`, `EMAIL_TIMEOUT`), zero ostrzeżeń `RemovedInDjango70Warning`, testy kontrolne skrzynki (197 listów przed = 197 po, test po teście); `reportlab` 5.x (pin `>=5.0,<6`) – 12 rodzajów dokumentów bajt w bajt identycznych z 4.5.1; stopka dyplomu cofa się przed kodem QR (w domyślnym układzie kod zasłaniał końcówkę „Data wystawienia”) |
 | **v0.26.0** | 2026-09-18 | aktualizacja frameworka: Django 5.1 → **6.1.1**, Wagtail 6.3 → **8.0**, DRF 3.15 → 3.18, celery 5.6, django-redis 7.0, drf-spectacular 0.30, django-environ 0.14, django-simple-captcha 0.7; `django.contrib.postgres` w `INSTALLED_APPS` (wymóg sprawdzenia `postgres.E005` dla indeksu wyszukiwania Wagtaila); ograniczenie `Django<6.1` w `django-celery-beat` 2.9.0 nadpisane w `[tool.uv] override-dependencies` (harmonogram sprawdzony: migracje, `DatabaseScheduler`, panel zadań, synchronizacja 8 wpisów); żadnej nowej migracji naszych aplikacji, budżety zapytań i złote testy bez zmian, 4623 testy; opis i wycofanie: `OPERACJE.md` § 9 |
