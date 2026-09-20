@@ -248,7 +248,7 @@ jobs:
       - name: pytest
         working-directory: backend
         run: >-
-          python -m pytest -q --create-db
+          python -m pytest -q --create-db --durations=20
           --splits ${{ strategy.job-total }} --group ${{ matrix.shard }}
 
   pytest-ok:
