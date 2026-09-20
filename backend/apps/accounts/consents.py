@@ -118,7 +118,10 @@ class Consent:
 #: regulamin-mammoth.html`` (wiersze „Wersja” i „Data dokumentu”), którą wgrywa ``seed_regulamin``.
 #: Zmiana dokumentu = zmiana tej stałej: od tego momentu nowe zgody są zapisywane pod nową wersją,
 #: a stare wpisy dalej mówią prawdę o tym, co obowiązywało wtedy.
-TERMS_VERSION = "1.0 z 2 września 2026"
+#:
+#: Wersja z 20 września 2026 r. nie ma już tabeli metryki (dokument przyszedł bez numeru), więc
+#: identyfikuje ją sama data publikacji na stronie.
+TERMS_VERSION = "z 20 września 2026"
 
 #: Wersja polityki RODO – z ostatniej sekcji ``apps/cms/fixtures/legacy/rodo.md``
 #: („Wersja: 1.0 z 22 lipca 2026 r.”).

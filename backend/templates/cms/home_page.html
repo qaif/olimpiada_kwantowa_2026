@@ -104,9 +104,6 @@
                   <div><dt>Deadline</dt><dd>{{ row.stage.deadline_at|local_datetime }}</dd></div>
                 {% endif %}
               {% endif %}
-              <div><dt>Reklamacje</dt>
-                <dd>{{ row.stage.appeal_window_opens_at|local_datetime }} –
-                  {{ row.stage.appeal_window_closes_at|local_datetime }}</dd></div>
             </dl>
             {% if row.has_results %}
               <a class="btn btn--secondary btn--small" href="{% url 'web:results' row.stage.pk %}">Tabela wyników</a>

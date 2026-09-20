@@ -8,7 +8,7 @@ Administratorem danych osobowych jest Fundacja Quantum AI z siedzibą w Warszawi
 
 ## Jak dostarczyć podpisany dokument
 
-1. Pobierz formularz w wersji do wydruku (plik PDF w sekcji „Do pobrania” na tej stronie) albo wydrukuj tę stronę przyciskiem „Drukuj” u góry.
+1. Pobierz i wydrukuj formularz.
 2. Wypełnij i podpisz oświadczenie – podpisuje je rodzic albo opiekun prawny uczestnika.
 3. Prześlij czytelny skan lub zdjęcie na adres contact@qaif.org z tematem „Zgoda opiekuna – Olimpiada Kwantowa”, podając kod uczestnika (OLM-…) widoczny w panelu.
 4. Zamiast skanu można okazać oryginał podczas etapu stacjonarnego – wtedy dokument zbiera komisja na miejscu.

@@ -8,9 +8,9 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
-## Niewydane (po `v0.26.3`)
+## Niewydane (po `v0.26.4`)
 
-- Brak — katalog roboczy jest równy tagowi `v0.26.3`. Etap 2 systemu wielokonkursowego jest
+- Brak — katalog roboczy jest równy tagowi `v0.26.4`. Etap 2 systemu wielokonkursowego jest
   domknięty (`UNIWERSALNY-ETAP-2.md` § 3.1). Nie zlecone: drzewo CMS dla konkursu w trybie prefiksu ścieżki (uwaga T43),
   edytor przebiegu przenoszący „przypisz kategorie” do warstwy serwisów.
 
@@ -18,6 +18,7 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 
 | Wersja | Data | Zmiana |
 |---|---|---|
+| **v0.26.4** | 2026-09-20 | uwagi organizatora z 20.09: **regulamin** w wersji z 20 września 2026 r. (eksport z Dokumentów Google: strona, PDF i .docx bez roboczych komentarzy; importer czyta tabele w `<th>` i sekcję „Status Olimpiady Kwantowej”; dokument bez metryki dostaje datę 20.09.2026; `TERMS_VERSION` = „z 20 września 2026” + migracja `accounts.0030` dla definicji zgody); **harmonogram i strona główna bez okna reklamacji**; komunikat o rejestracji „Zakończenie rejestracji: 28.02.2027” (migracja `cms.0025` podmienia tylko niezmienioną wartość domyślną); zakres Komitetu Merytorycznego + „rozpatrywanie odwołań”; instrukcja zgody opiekuna „Pobierz i wydrukuj formularz.”; komenda `replace_page_text` – poprawka jednego sformułowania na stronie prowadzonej w /cms/ (raport bez `--apply`, nowa rewizja + publikacja, odmowa przy szkicu) |
 | **v0.26.3** | 2026-09-20 | wyszukiwarka szkół: lista podpowiedzi (szkół i miejscowości) rozwija się pod swoim polem – opakowania pól to `<div class="field">` zamiast `<p>`, bo parser HTML wyrzucał `<ul>` poza akapit i lista rozciągała się na całą szerokość strony |
 | **v0.26.2** | 2026-09-19 | logo olimpiady na dyplomach i zaświadczeniach: znak z `static/img/logo-olimpiada-kwantowa@2x.png` w lewym górnym rogu każdego dokumentu (blok `logo` układu); logo szablonu graficznego ma pierwszeństwo, `show: false` je gasi, konkurs z własną marką dostaje swój logotyp (`competition_logo`) |
 | **v0.26.1** | 2026-09-19 | poczta na `MAILERS` (Django 6.1) zamiast wycofywanych `EMAIL_*` – te same zmienne `.env` (`EMAIL_URL`, `EMAIL_TIMEOUT`), zero ostrzeżeń `RemovedInDjango70Warning`, testy kontrolne skrzynki (197 listów przed = 197 po, test po teście); `reportlab` 5.x (pin `>=5.0,<6`) – 12 rodzajów dokumentów bajt w bajt identycznych z 4.5.1; stopka dyplomu cofa się przed kodem QR (w domyślnym układzie kod zasłaniał końcówkę „Data wystawienia”) |

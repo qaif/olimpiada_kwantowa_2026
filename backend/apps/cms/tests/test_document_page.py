@@ -13,9 +13,9 @@ Testy pilnują czterech rzeczy, które przy imporcie dokumentu prawnego psują s
    a nie wyświetlać jako tekst. Odwrotny błąd (podwójne escapowanie w imporcie) jest widoczny
    dopiero w przeglądarce.
 
-Wzorcem jest wersja 1.0 z 2 września 2026 r.: trzyetapowa (§ 11–13), bez akapitu „WAŻNY STATUS
-PRAWNY” na stronie tytułowej – zastrzeżenie o statusie prawnym stoi wyłącznie w sekcji „Status
-dokumentu”, z której import robi ramkę.
+Wzorcem jest wersja z 20 września 2026 r. (eksport z Dokumentów Google po uwagach organizatora):
+trzyetapowa (§ 11–13), **bez tabeli metryki** na stronie tytułowej, z zastrzeżeniem o statusie
+prawnym w sekcji „Status Olimpiady Kwantowej”, z której import robi ramkę.
 """
 
 import re
@@ -34,19 +34,23 @@ pytestmark = pytest.mark.django_db
 CHAPTERS = 10
 PARAGRAPHS = 24
 
-#: Metryka wersji 1.0 z 2 września 2026 r. – wersja, data i status prosto z tabeli tytułowej.
-VERSION = "1.0"
-DOCUMENT_DATE = "2026-09-02"
-STATUS = "Projekt do zatwierdzenia uchwałą Zarządu"
+#: Wersja z 20 września 2026 r. nie ma tabeli metryki: numeru wersji nie ma, a data i status są
+#: wartościami domyślnymi importu (``DEFAULT_DOCUMENT_DATE``, ``DEFAULT_STATUS_LABEL``).
+VERSION = ""
+DOCUMENT_DATE = "2026-09-20"
+STATUS = "Dokument organizatora (Fundacja Quantum AI)"
 
 #: Zdanie z sekcji „Status dokumentu”. W tej wersji dokumentu stoi ono **wyłącznie** tam (akapit
 #: „WAŻNY STATUS PRAWNY” ze strony tytułowej zniknął), więc pominięcie sekcji zdjęłoby z serwisu
 #: jedyną informację o tym, że Olimpiada nie nadaje ustawowych uprawnień laureata.
 LEGAL_STATUS = "nie nadaje ustawowych uprawnień laureata lub finalisty"
 
-#: Wyciąg tekstu z PDF-u (``pypdf``) – wzorzec kompletności treści, tak samo jak w
-#: ``test_pdf_content.py`` dla RODO i standardów ochrony małoletnich. Leży obok pliku, bo do
-#: kontenera trafia wyłącznie ``backend/``.
+#: Niezależny wyciąg tekstu dokumentu – wzorzec kompletności treści, tak samo jak w
+#: ``test_pdf_content.py`` dla RODO i standardów ochrony małoletnich. Dla wersji z 20 września
+#: 2026 r. jest to eksport tekstowy z Dokumentów Google (ten sam dokument, z którego powstał PDF
+#: i .docx), bez dwóch roboczych komentarzy redaktorów: ``pypdf`` rozbija tekst tego PDF-u na
+#: pojedyncze wyrazy w osobnych wierszach i zawyża licznik słów. Leży obok pliku, bo do kontenera
+#: trafia wyłącznie ``backend/``.
 PDF_TEXT = Path(__file__).resolve().parents[1] / "fixtures" / "regulamin"
 PDF_TEXT_FILE = "Regulamin-Olimpiady-Kwantowej.txt"
 
@@ -121,6 +125,7 @@ def test_seed_keeps_the_legal_status_notice(regulamin):
     assert LEGAL_STATUS in notices[0]["text"].source
     # Nagłówek sekcji się nie renderuje – ramka sama jest wyróżnieniem.
     assert "Status dokumentu" not in headings
+    assert "Status Olimpiady Kwantowej" not in headings
     # Ramka stoi nad treścią dokumentu, a nie gdzieś w środku.
     assert regulamin.body[0].block_type == "notice"
 
@@ -218,7 +223,7 @@ def test_regulamin_page_renders_content_and_download_link(web_client, regulamin)
     assert response.status_code == 200
     assert regulamin.title in content
     # Metryka dokumentu: wersja, data i status.
-    assert f"Wersja {VERSION}" in content
+    assert "doc-meta__item\">Wersja" not in content  # dokument bez numeru wersji
     assert f'datetime="{DOCUMENT_DATE}"' in content
     assert STATUS in content
     # Załączniki: link do widoku dokumentów Wagtaila, nie do adresu obiektu w buckecie.

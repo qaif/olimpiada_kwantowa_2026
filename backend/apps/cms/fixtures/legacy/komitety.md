@@ -6,7 +6,7 @@ Za przygotowanie zadań i jakość merytoryczną Olimpiady odpowiada Komitet Mer
 
 ## Komitet Merytoryczny
 
-**Zakres odpowiedzialności:** Zadania, kryteria oceniania, anonimowa ocena prac, kwalifikacja i rozstrzygnięcia Jury
+**Zakres odpowiedzialności:** Zadania, kryteria oceniania, anonimowa ocena prac, kwalifikacja i rozstrzygnięcia Jury, rozpatrywanie odwołań
 
 1. Paweł Gora
 2. Grzegorz Czelusta

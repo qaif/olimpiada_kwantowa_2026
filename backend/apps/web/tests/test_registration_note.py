@@ -17,7 +17,7 @@ from apps.cms.models import SiteSettings
 pytestmark = pytest.mark.django_db
 
 REGISTER_URL = "/register/"
-NOTE = "Oficjalny start rejestracji: 21 września 2026."
+NOTE = "Zakończenie rejestracji: 28.02.2027"
 
 
 def set_note(text: str) -> None:

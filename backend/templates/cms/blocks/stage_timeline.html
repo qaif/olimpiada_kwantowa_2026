@@ -69,9 +69,7 @@
             wobec uczestnika i tak ma być podpisany.
           {% endcomment %}
           <div><dt>Wyniki do</dt><dd>{{ row.stage.review_deadline_at|local_datetime }}</dd></div>
-          <div><dt>Reklamacje</dt>
-            <dd>{{ row.stage.appeal_window_opens_at|local_datetime }} –
-              {{ row.stage.appeal_window_closes_at|local_datetime }}</dd></div>
+          {# Okna reklamacji harmonogram nie pokazuje (decyzja organizatora z 20.09.2026): tryb i terminy reklamacji opisuje § 16 Regulaminu, a uczestnik widzi swoje okno w panelu. #}
         </dl>
       </li>
     {% endfor %}

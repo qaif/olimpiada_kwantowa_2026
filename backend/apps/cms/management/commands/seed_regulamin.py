@@ -6,7 +6,7 @@ w bazie sprzed przeniesienia dokumentów – ta sama komenda przenosi pod sekcj�
 jej identyfikator, rewizje i odnośniki wewnętrzne.
 
 Komenda importuje trzy pliki z ``apps/cms/fixtures/regulamin/`` – wszystkie trzy są tą samą
-wersją dokumentu (1.0 z 2 września 2026 r.), więc leżą w jednym katalogu i wgrywa je jedna
+wersją dokumentu (obecnie: z 20 września 2026 r.), więc leżą w jednym katalogu i wgrywa je jedna
 komenda:
 
 - ``regulamin-mammoth.html`` – konwersja pliku .docx (mammoth) na płaską listę ``p``/``h1``/``h2``/
@@ -45,6 +45,12 @@ tabela Wersja/Data/Status                    ``version_label``/``document_date``
 ``h1`` pozostałe                             ``heading`` poziom 2 poza spisem rozdziałów
 ``ol``/``ul``/``p`` sekcji                   jeden blok ``paragraph`` na sekcję
 ===========================================  ==================================================
+
+Wersja z 20 września 2026 r. (eksport z Dokumentów Google, po uwagach organizatora) **nie ma
+tabeli metryki**: numer wersji zostaje wtedy pusty, a data i status dostają wartości domyślne
+(``DEFAULT_DOCUMENT_DATE``, ``DEFAULT_STATUS_LABEL``). Tabele tej wersji konwerter oddaje w ``<th>``
+zamiast ``<td>`` (``table_rows``), a sekcja zastrzeżenia nazywa się „Status Olimpiady Kwantowej”.
+Plik .docx w katalogu ma usunięte dwa robocze komentarze redaktorów – treść dokumentu jest bez zmian.
 
 Wersja 1.0 z 2 września 2026 r. przestawiła dwie rzeczy względem wersji z sierpnia i obie są
 widoczne w tabeli wyżej:
@@ -96,7 +102,9 @@ SKIPPED_SECTIONS = frozenset({"Spis rozdziałów"})
 #: Sekcje, których treść trafia do ramki (``notice``) zamiast do zwykłych akapitów – nagłówek
 #: sekcji się nie renderuje, bo ramka sama jest wyróżnieniem. Zastrzeżenie o statusie prawnym
 #: ma stać na górze strony, a nie w środku dokumentu jak kolejny akapit.
-NOTICE_SECTIONS = frozenset({"Status dokumentu"})
+#: Dwa brzmienia nagłówka: wersja 1.0 nazywała sekcję „Status dokumentu”, wersja z 20 września
+#: 2026 r. – „Status Olimpiady Kwantowej”. Treść i rola są te same.
+NOTICE_SECTIONS = frozenset({"Status dokumentu", "Status Olimpiady Kwantowej"})
 
 #: Etykiety wiersza tabeli metryki → pole modelu.
 META_ROWS = {"Wersja": "version_label", "Data dokumentu": "document_date", "Status": "status_label"}
@@ -105,6 +113,12 @@ META_ROWS = {"Wersja": "version_label", "Data dokumentu": "document_date", "Stat
 #: obowiązująca wersja”, więc puste pole byłoby gorsze od zdania, które przynajmniej mówi,
 #: czyj to dokument.
 DEFAULT_STATUS_LABEL = "Dokument organizatora (Fundacja Quantum AI)"
+
+#: Data wpisywana, gdy dokument nie ma tabeli metryki: dzień, w którym organizator przekazał tę
+#: wersję do publikacji. Ta sama data identyfikuje wersję w zgodach rejestracyjnych
+#: (``apps.accounts.consents.TERMS_VERSION``) – strona i wpis dowodowy mają wskazywać ten sam
+#: dokument. Wersja z własną metryką nadpisuje tę wartość swoją datą.
+DEFAULT_DOCUMENT_DATE = date(2026, 9, 20)
 
 CHAPTER_RE = re.compile(r"^Rozdział\s+([IVXLC]+)\.")
 PARAGRAPH_RE = re.compile(r"^§\s*(\d+)\.")
@@ -238,7 +252,16 @@ def render_inner(node: Node) -> str:
 
 
 def table_rows(node: Node) -> list[list[Node]]:
-    return [row.find_all("td") for row in node.find_all("tr")]
+    """Wiersze tabeli jako listy komórek – ``<td>`` i ``<th>`` na równi.
+
+    Eksport z Dokumentów Google oznacza każdy wiersz jako nagłówkowy, więc konwerter oddaje te
+    same tabele w ``<thead><tr><th>``. W dokumencie to nadal układ strony (ramka, dwie kolumny
+    „etykieta – wartość”), a nie nagłówki danych: rodzaj komórki nie niesie tu żadnej treści.
+    """
+    return [
+        [cell for cell in row.children if isinstance(cell, Node) and cell.tag in {"td", "th"}]
+        for row in node.find_all("tr")
+    ]
 
 
 # --- składanie treści --------------------------------------------------------------------------
@@ -382,6 +405,7 @@ def build_content(nodes: list[Node]) -> tuple[dict, list[tuple[str, object]]]:
     flush()
     meta["intro"] = "".join(intro_parts)
     meta["status_label"] = meta["status_label"] or DEFAULT_STATUS_LABEL
+    meta["document_date"] = meta["document_date"] or DEFAULT_DOCUMENT_DATE
 
     # --- korpus dokumentu ----------------------------------------------------------------------
     skipping = False

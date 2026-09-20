@@ -247,7 +247,7 @@ class SiteSettings(BaseSiteSetting):
         "komunikat o rejestracji",
         max_length=200,
         blank=True,
-        default="Oficjalny start rejestracji: 21 września 2026.",
+        default="Zakończenie rejestracji: 28.02.2027",
     )
 
     #: Czy serwis w ogóle **oferuje** konto opiekuna szkolnego (nauczyciela). Domyślnie ``False``,

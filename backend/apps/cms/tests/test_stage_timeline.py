@@ -72,7 +72,8 @@ def test_timeline_shows_every_stage_of_the_current_edition(web_client, harmonogr
 
     assert "Eliminacje" in content
     assert "<dt>Oddanie rozwiązań</dt>" in content
-    assert "<dt>Reklamacje</dt>" in content
+    # Decyzja organizatora z 20.09.2026: harmonogram nie pokazuje okna reklamacji.
+    assert "Reklamacje" not in content
     assert "Terminy zostaną ogłoszone" not in content
 
 

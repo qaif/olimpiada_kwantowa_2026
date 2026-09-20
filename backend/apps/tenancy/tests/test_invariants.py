@@ -101,7 +101,7 @@ def test_csp_does_not_mention_google_without_a_measurement_id(client_for, compet
 #: Wersja trafia do wpisu dowodowego (``ConsentRecord.document_version``), więc jej cicha zmiana
 #: znaczyłaby, że nie da się już odpowiedzieć na pytanie „na co ta osoba się zgodziła”.
 EXPECTED_CONSENTS = (
-    ("terms_consent", "TERMS", "1.0 z 2 września 2026", True, False),
+    ("terms_consent", "TERMS", "z 20 września 2026", True, False),
     ("gdpr_consent", "PRIVACY", "1.0 z 22 lipca 2026", True, False),
     ("guardian_consent", "GUARDIAN", "0.1 (projekt) z 10 września 2026", False, True),
     ("publish_name_consent", "PUBLISH_NAME", "1.0", False, False),

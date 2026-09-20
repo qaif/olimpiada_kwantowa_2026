@@ -1,6 +1,6 @@
 # Harmonogram
 
-Poniżej terminy I edycji Olimpiady Kwantowej. Terminarz pochodzi wprost z systemu zawodów — z tych samych terminów, które zamykają przyjmowanie rozwiązań i otwierają okno reklamacji — więc jest zawsze zgodny z tym, co egzekwuje serwer. Zapisy do eliminacji są otwarte przez cały czas trwania I etapu.
+Poniżej terminy I edycji Olimpiady Kwantowej. Terminarz pochodzi wprost z systemu zawodów — z tych samych terminów, które zamykają przyjmowanie rozwiązań — więc jest zawsze zgodny z tym, co egzekwuje serwer. Zapisy do eliminacji są otwarte przez cały czas trwania I etapu.
 
 ## Terminarz 2026/2027
 
