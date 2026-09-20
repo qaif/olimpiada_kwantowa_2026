@@ -102,6 +102,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # `msgfmt` nie jest częścią obrazu `ubuntu-latest` – w `backend/Dockerfile` przychodzi razem
+      # z pakietem `gettext` (warstwa runtime), tutaj trzeba go doinstalować jawnie. Bez tego kroku
+      # polecenie niżej kończy się kodem 127 („command not found”), co wygląda jak błąd w plikach
+      # tłumaczeń, a jest wyłącznie brakiem narzędzia na goszczącym runnerze.
+      - name: Instalacja gettext
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gettext
+
       # Ten sam krok, co w `backend/Dockerfile` – i to jest jedyny powód jego istnienia tutaj.
       # Błąd składni w katalogu tłumaczeń wywraca **budowanie obrazu**, czyli wychodzi dopiero
       # przy wdrożeniu. Tutaj wychodzi przy zgłoszeniu zmiany, kosztem dziesięciu sekund.
@@ -116,8 +123,29 @@ jobs:
           done
 
   tests:
-    name: pytest
+    # ~4700 testów w jednym przebiegu trwało 27–32 minuty – dłużej niż `lint`, `migrations`
+    # i `image` razem wzięte, i to ich autor czekał najdłużej na czerwony/zielony wynik.
+    # `pytest-split` dzieli zbiór testów na tyle części, ile wpisów ma `matrix.shard` niżej (dziś
+    # pięć), równych liczbą testów, nie czasem – patrz niżej. Każdy shard dostaje **własny**
+    # kontener Postgresa (blok `services` jest per-job, więc matrix mnoży go razem z resztą joba),
+    # więc bazy się nie ścigają i nie trzeba nikomu nadawać osobnej nazwy.
+    #
+    # Podział jest po **liczbie testów**, a nie po zmierzonym czasie: `pytest-split` umie ważyć
+    # shardy plikiem `.test_durations`, ale zbudowanie go wymagałoby przebiegu całego zbioru
+    # z `--store-durations` – czyli osobnego zadania, które i tak czekałoby tyle, co dzisiejszy
+    # pojedynczy przebieg. Równy podział jest gorszy tylko o tyle, że najwolniejszy shard (testy
+    # PDF-ów i pieczęci elektronicznej ważą wyraźnie więcej niż reszta) może skończyć zauważalnie
+    # później niż pozostałe – i to jest jedyny koszt tego uproszczenia; plik durations można dołożyć
+    # później, nie zmieniając niczego poza tym jednym argumentem `pytest`.
+    name: "pytest (shard ${{ matrix.shard }}/${{ strategy.job-total }})"
     runs-on: ubuntu-latest
+    strategy:
+      # `fail-fast: false` celowo: shard nr 2 czerwony nie ma ukrywać, że nr 5 też jest czerwony –
+      # autor zmiany ma dostać komplet informacji z jednego przebiegu, a nie odkrywać drugą awarię
+      # dopiero po naprawieniu pierwszej i ponownym pushu.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5]
 
     services:
       # Postgres jest jedyną usługą, bez której testy nie ruszą: `config/settings/test.py`
@@ -128,6 +156,9 @@ jobs:
       # (`CACHES` = locmem, `SUBMISSION_STORAGE_BACKEND` = lokalny), więc byłyby dwiema usługami,
       # które wydłużają każdy przebieg i dokładają własne tryby awarii, nie sprawdzając niczego.
       # Gdyby któryś test miał kiedyś naprawdę pukać w Redisa, wróci tu razem z nim.
+      #
+      # `S3_*`/`MINIO_*` niżej to inna sprawa – nie jest to usługa, tylko **poświadczenia**, których
+      # potrzebuje kilka testów offline (patrz `env` joba).
       postgres:
         image: postgres:16-alpine
         env:
@@ -142,6 +173,35 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+
+    env:
+      # Wszystko przez zmienne środowiskowe, bez pliku .env: to jest ten sam kontrakt, co
+      # w compose (`x-app-env`), więc konfiguracja CI nie może rozjechać się z produkcyjną.
+      DATABASE_URL: postgres://olimpiada:olimpiada@localhost:5432/olimpiada
+      # ≥ 50 znaków – `config/settings/production.py` odmawia startu poniżej tego progu.
+      # `apps/submissions/tests/test_bucket_credentials.py` przeładowuje ten moduł ustawień
+      # wprost (klucze storage czyta się przy imporcie, nie da się ich podmienić
+      # `override_settings`), więc ten sam próg obowiązuje w teście, a nie tylko na produkcji.
+      DJANGO_SECRET_KEY: ci-tylko-do-testow-nie-uzywac-nigdzie-indziej-minimum-50-znakow
+      DJANGO_SETTINGS_MODULE: config.settings.test
+      # E2E_MODE **musi** zostać wyłączone: ustawione zeruje próg antyspamowy i włącza tryb
+      # testowy CAPTCHY, więc testy tych dwóch zabezpieczeń przestałyby cokolwiek sprawdzać –
+      # i nie powiedziałyby o tym ani słowa.
+      E2E_MODE: "0"
+      # Poświadczenia MinIO – lokalnie dają je compose i `.env` (patrz `.env.example`), tutaj nie
+      # ma ani jednego, ani drugiego. Testy nie dotykają prawdziwego S3 (`config/settings/test.py`
+      # ustawia lokalny storage rozwiązań), ale kilka z nich **podpisuje** presigned URL offline
+      # (`apps/submissions/tests/test_critic_fixes.py`, `test_download_privacy.py`) albo
+      # przeładowuje `config/settings/production.py`, gdzie klucze wchodzą do konfiguracji S3
+      # (`test_bucket_credentials.py`) – bez nich boto3 kończy podpisywanie
+      # `NoCredentialsError`em, zanim dojdzie do jakiegokolwiek zapytania sieciowego. Wartości są
+      # fałszywkami takimi jak w `.env.example` – nic tu naprawdę nie łączy się z MinIO.
+      MINIO_ROOT_USER: ci-minio-root
+      MINIO_ROOT_PASSWORD: ci-minio-root-haslo-testowe
+      S3_PUBLIC_ACCESS_KEY: ci-public-access-key
+      S3_PUBLIC_SECRET_KEY: ci-public-secret-key-testowy
+      S3_PRIVATE_ACCESS_KEY: ci-private-access-key
+      S3_PRIVATE_SECRET_KEY: ci-private-secret-key-testowy
 
     steps:
       - uses: actions/checkout@v4
@@ -159,19 +219,55 @@ jobs:
         working-directory: backend
         run: uv pip install --system -r pyproject.toml --extra dev
 
+      # `backend/Dockerfile` kompiluje katalogi tłumaczeń przy budowaniu obrazu (`gettext` jest
+      # w warstwie runtime); tutaj testy odpalają się bez obrazu, więc bez tego kroku katalog
+      # angielski zostaje wyłącznie źródłem (`.po`) i Django cicho oddaje polskie napisy –
+      # dokładnie to sprawdzają `apps/accounts/tests/test_mail_language.py` i
+      # `apps/web/tests/test_preferences_i18n.py`.
+      - name: Instalacja gettext
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gettext
+
+      - name: Kompilacja katalogów tłumaczeń
+        working-directory: backend
+        run: |
+          set -eu
+          for po in locale/*/LC_MESSAGES/django.po; do
+            [ -e "$po" ] || continue
+            msgfmt -o "${po%.po}.mo" "$po"
+          done
+
+      # WhiteNoise w trybie bez finderów (`WHITENOISE_USE_FINDERS = DEBUG`, a `DEBUG=False` w
+      # testach) serwuje pliki wyłącznie z `STATIC_ROOT` – czyli z tego, co zostawił
+      # `collectstatic`. W obrazie robi to `entrypoint.sh` przy starcie kontenera; tutaj nikt tego
+      # nie wołał, więc `apps/web/tests/test_ui_system.py::test_stylesheet_is_served` (i każdy
+      # inny test czytający `/static/...`) dostawał 404 na pusty katalog.
+      - name: collectstatic
+        working-directory: backend
+        run: python manage.py collectstatic --noinput
+
       - name: pytest
         working-directory: backend
-        env:
-          # Wszystko przez zmienne środowiskowe, bez pliku .env: to jest ten sam kontrakt, co
-          # w compose (`x-app-env`), więc konfiguracja CI nie może rozjechać się z produkcyjną.
-          DATABASE_URL: postgres://olimpiada:olimpiada@localhost:5432/olimpiada
-          DJANGO_SECRET_KEY: ci-tylko-do-testow-nie-uzywac-nigdzie-indziej
-          DJANGO_SETTINGS_MODULE: config.settings.test
-          # E2E_MODE **musi** zostać wyłączone: ustawione zeruje próg antyspamowy i włącza tryb
-          # testowy CAPTCHY, więc testy tych dwóch zabezpieczeń przestałyby cokolwiek sprawdzać –
-          # i nie powiedziałyby o tym ani słowa.
-          E2E_MODE: "0"
-        run: python -m pytest -q --create-db
+        run: >-
+          python -m pytest -q --create-db --durations=20
+          --splits ${{ strategy.job-total }} --group ${{ matrix.shard }}
+
+  pytest-ok:
+    # Jeden wymagany check zamiast pięciu (nazwy shardów zmieniają się z liczbą shardów w matrixie,
+    # więc nie nadają się na regułę ochrony gałęzi). `if: always()` musi tu być: bez niego ten job
+    # w ogóle by się nie uruchomił, gdyby któryś shard padł – a wtedy `needs.tests.result` nigdy nie
+    # przyjąłby wartości `failure`, tylko cały workflow zatrzymałby się bez tego joba,
+    # czyli bez czytelnej, jednej odpowiedzi „testy przeszły / nie przeszły”.
+    name: pytest (wynik zbiorczy)
+    runs-on: ubuntu-latest
+    needs: [tests]
+    if: always()
+    steps:
+      - name: Czy wszystkie shardy przeszły
+        run: |
+          if [ "${{ needs.tests.result }}" != "success" ]; then
+            echo "Co najmniej jeden shard pytest nie przeszedł (wynik: ${{ needs.tests.result }})."
+            exit 1
+          fi
 
   image:
     name: docker build (+ GHCR dla main i v*)
