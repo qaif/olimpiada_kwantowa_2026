@@ -441,7 +441,7 @@ EXPECTED_DOCUMENT_STATEMENTS = {
 #: dokument wystawiony bez szablonu graficznego (``_draw_signatures``), czyli na wszystkie
 #: dokumenty Konkursu #1 sprzed wprowadzenia szablonów.
 EXPECTED_WORKSHOP_LIST_HEADING = "Tematy zajęć:"
-EXPECTED_SIGNATURE_LINE = "Przewodniczący Komitetu Głównego Olimpiady Kwantowej"
+EXPECTED_SIGNATURE_LINE = "Przewodniczący Komitetu Sterującego Olimpiady Kwantowej"
 
 #: Autor w metadanych PDF-a. Widać go w podglądzie pliku **przed** otwarciem dokumentu i zostaje
 #: w nim na zawsze – PDF-a nikt nie przechowuje, więc powstaje przy każdym pobraniu na nowo.

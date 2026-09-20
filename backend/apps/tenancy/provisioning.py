@@ -149,7 +149,7 @@ INITIAL_DOCUMENT_STATEMENTS: dict[str, str] = {
 }
 
 #: Linia podpisu — ``SIGNATURE_LINE`` z tą samą zamianą i z tego samego powodu.
-INITIAL_SIGNATURE_LINE = "Przewodniczący Komitetu Głównego {competition_genitive}"
+INITIAL_SIGNATURE_LINE = "Przewodniczący Komitetu Sterującego {competition_genitive}"
 
 
 class ProvisioningError(Exception):

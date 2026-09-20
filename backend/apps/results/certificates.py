@@ -98,8 +98,10 @@ DOCUMENT_STATEMENTS = {
 WORKSHOP_LIST_HEADING = "Tematy zajęć:"
 
 #: Nazwa organizatora nad linią podpisu. Stała, bo na papierze podpisuje się komitet jako organ,
-#: a nie osoba, która akurat kliknęła „Wystaw”.
-SIGNATURE_LINE = "Przewodniczący Komitetu Głównego Olimpiady Kwantowej"
+#: a nie osoba, która akurat kliknęła „Wystaw”. Dokumenty wystawia **Komitet Sterujący** (decyzja
+#: organizatora z 20.09.2026); wcześniejszy „Komitet Główny” był nazwą ze starej strony, której
+#: nie zna ani regulamin, ani skład komitetów.
+SIGNATURE_LINE = "Przewodniczący Komitetu Sterującego Olimpiady Kwantowej"
 
 #: Autor w metadanych PDF-a. Widać go w podglądzie pliku **przed** otwarciem dokumentu, więc jest
 #: treścią dokumentu, a nie szczegółem technicznym. Dotąd stał literałem w ``compose_pdf``; nazwa
