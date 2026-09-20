@@ -123,8 +123,29 @@ jobs:
           done
 
   tests:
-    name: pytest
+    # ~4700 testów w jednym przebiegu trwało 27–32 minuty – dłużej niż `lint`, `migrations`
+    # i `image` razem wzięte, i to ich autor czekał najdłużej na czerwony/zielony wynik.
+    # `pytest-split` dzieli zbiór testów na tyle części, ile wpisów ma `matrix.shard` niżej (dziś
+    # pięć), równych liczbą testów, nie czasem – patrz niżej. Każdy shard dostaje **własny**
+    # kontener Postgresa (blok `services` jest per-job, więc matrix mnoży go razem z resztą joba),
+    # więc bazy się nie ścigają i nie trzeba nikomu nadawać osobnej nazwy.
+    #
+    # Podział jest po **liczbie testów**, a nie po zmierzonym czasie: `pytest-split` umie ważyć
+    # shardy plikiem `.test_durations`, ale zbudowanie go wymagałoby przebiegu całego zbioru
+    # z `--store-durations` – czyli osobnego zadania, które i tak czekałoby tyle, co dzisiejszy
+    # pojedynczy przebieg. Równy podział jest gorszy tylko o tyle, że najwolniejszy shard (testy
+    # PDF-ów i pieczęci elektronicznej ważą wyraźnie więcej niż reszta) może skończyć zauważalnie
+    # później niż pozostałe – i to jest jedyny koszt tego uproszczenia; plik durations można dołożyć
+    # później, nie zmieniając niczego poza tym jednym argumentem `pytest`.
+    name: "pytest (shard ${{ matrix.shard }}/${{ strategy.job-total }})"
     runs-on: ubuntu-latest
+    strategy:
+      # `fail-fast: false` celowo: shard nr 2 czerwony nie ma ukrywać, że nr 5 też jest czerwony –
+      # autor zmiany ma dostać komplet informacji z jednego przebiegu, a nie odkrywać drugą awarię
+      # dopiero po naprawieniu pierwszej i ponownym pushu.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5]
 
     services:
       # Postgres jest jedyną usługą, bez której testy nie ruszą: `config/settings/test.py`
@@ -226,7 +247,27 @@ jobs:
 
       - name: pytest
         working-directory: backend
-        run: python -m pytest -q --create-db
+        run: >-
+          python -m pytest -q --create-db
+          --splits ${{ strategy.job-total }} --group ${{ matrix.shard }}
+
+  pytest-ok:
+    # Jeden wymagany check zamiast pięciu (nazwy shardów zmieniają się z liczbą shardów w matrixie,
+    # więc nie nadają się na regułę ochrony gałęzi). `if: always()` musi tu być: bez niego ten job
+    # w ogóle by się nie uruchomił, gdyby któryś shard padł – a wtedy `needs.tests.result` nigdy nie
+    # przyjąłby wartości `failure`, tylko cały workflow zatrzymałby się bez tego joba,
+    # czyli bez czytelnej, jednej odpowiedzi „testy przeszły / nie przeszły”.
+    name: pytest (wynik zbiorczy)
+    runs-on: ubuntu-latest
+    needs: [tests]
+    if: always()
+    steps:
+      - name: Czy wszystkie shardy przeszły
+        run: |
+          if [ "${{ needs.tests.result }}" != "success" ]; then
+            echo "Co najmniej jeden shard pytest nie przeszedł (wynik: ${{ needs.tests.result }})."
+            exit 1
+          fi
 
   image:
     name: docker build (+ GHCR dla main i v*)
