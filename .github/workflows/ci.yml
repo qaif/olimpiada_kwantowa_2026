@@ -102,6 +102,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # `msgfmt` nie jest częścią obrazu `ubuntu-latest` – w `backend/Dockerfile` przychodzi razem
+      # z pakietem `gettext` (warstwa runtime), tutaj trzeba go doinstalować jawnie. Bez tego kroku
+      # polecenie niżej kończy się kodem 127 („command not found”), co wygląda jak błąd w plikach
+      # tłumaczeń, a jest wyłącznie brakiem narzędzia na goszczącym runnerze.
+      - name: Instalacja gettext
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gettext
+
       # Ten sam krok, co w `backend/Dockerfile` – i to jest jedyny powód jego istnienia tutaj.
       # Błąd składni w katalogu tłumaczeń wywraca **budowanie obrazu**, czyli wychodzi dopiero
       # przy wdrożeniu. Tutaj wychodzi przy zgłoszeniu zmiany, kosztem dziesięciu sekund.
