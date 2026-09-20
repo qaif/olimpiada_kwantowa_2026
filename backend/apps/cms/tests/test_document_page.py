@@ -223,7 +223,7 @@ def test_regulamin_page_renders_content_and_download_link(web_client, regulamin)
     assert response.status_code == 200
     assert regulamin.title in content
     # Metryka dokumentu: wersja, data i status.
-    assert "doc-meta__item\">Wersja" not in content  # dokument bez numeru wersji
+    assert 'doc-meta__item">Wersja' not in content  # dokument bez numeru wersji
     assert f'datetime="{DOCUMENT_DATE}"' in content
     assert STATUS in content
     # Załączniki: link do widoku dokumentów Wagtaila, nie do adresu obiektu w buckecie.
