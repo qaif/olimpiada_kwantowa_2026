@@ -12,10 +12,12 @@ przewijanie migracji to DDL po DML, więc potrzebny jest ``transaction=True``, t
 czyszczą bazę po sobie (nie zakładamy więc niczego o jej zawartości i budujemy wiersze sami),
 a fikstura przywraca czoło migracji także wtedy, gdy test przerwie się w połowie.
 
-Modele bierzemy **zwykłe**, a nie historyczne: przewijana jest wyłącznie migracja danych, więc
-schemat ``tenancy``, ``cms`` i ``wagtailcore`` jest w obu punktach ten sam. Stan historyczny
-z ``project_state`` zawierałby zresztą tylko przodków ``tenancy.0001`` – a więc ani ``cms``, ani
-tego, co ta migracja czyta.
+Do **odczytu** bierzemy modele zwykłe, a nie historyczne: w punkcie ``AFTER`` schemat tabeli
+konkursu jest dokładnie taki, jaki zna żywy model. Stan historyczny z ``project_state`` zawierałby
+zresztą tylko przodków ``tenancy.0001`` – a więc ani ``cms``, ani tego, co ta migracja czyta.
+Do **zapisu** jest odwrotnie i dlatego istnieje :func:`historical_model`: wiersz wstawiany na
+schemacie starszym niż żywy model (ustawienia serwisu, drugi konkurs w teście odwrotności) musi
+mieć dokładnie te kolumny, które w bazie w tej chwili są.
 """
 
 import importlib
@@ -33,16 +35,28 @@ from apps.tenancy.models import Competition
 
 BEFORE = ("tenancy", "0001_initial")
 
+#: Stan tuż po migracji, której ten plik dotyczy. Używa go **wyłącznie** test odwrotności – patrz
+#: jego docstring: od ``tenancy.0008`` plan dojścia do :data:`AFTER` ciągnie za sobą backfille
+#: wydania B, a te odmawiają cofnięcia na bazie z dwoma konkursami.
+BASE = ("tenancy", "0002_competition_from_site")
+
 
 def _last_competition_table_migration() -> tuple[str, str]:
     """„Po” to ostatnia migracja ``tenancy`` zmieniająca **tabelę konkursu**, nie samo ``0002``.
 
     Odczyty poniżej idą przez żywy model ``Competition``, a ten zna też kolumny dołożone później
-    (``0003_prefixes``). Zatrzymanie na ``0002`` dawałoby ``UndefinedColumn`` w każdym ``SELECT``.
-    Nie celujemy jednak w czoło aplikacji: jego przodkami są backfille wydania B z innych aplikacji,
-    które przy cofaniu odmawiają pracy na bazie z dwoma konkursami – a dokładnie taki stan buduje
-    ``test_reverse_removes_only_what_the_migration_created``. ``MigrationLoader(None)`` czyta
-    wyłącznie pliki, bez połączenia z bazą, więc wolno to zrobić przy imporcie modułu.
+    (``0003_prefixes``, ``0008_competition_submission_forward_emails``). Zatrzymanie na ``0002``
+    dawałoby ``UndefinedColumn`` w każdym ``SELECT``.
+
+    Do 20.09.2026 wybór ten omijał czoło aplikacji, bo przodkami czoła są backfille wydania B
+    z innych aplikacji, które przy cofaniu odmawiają pracy na bazie z dwoma konkursami. Od
+    ``tenancy.0008`` (adresy przekazywania rozwiązań) ostatnia migracja tabeli konkursu **jest**
+    czołem, więc plan ``AFTER`` te backfille zawiera – i tak ma być, bo kolumna jest w żywym
+    modelu. Jedyny test, któremu to przeszkadzało, dostał własny punkt docelowy (:data:`BASE`);
+    pozostałe idą do przodu na bazie jednokonkursowej, gdzie backfille pracują normalnie.
+
+    ``MigrationLoader(None)`` czyta wyłącznie pliki, bez połączenia z bazą, więc wolno to zrobić
+    przy imporcie modułu.
     """
     loader = MigrationLoader(None, ignore_no_migrations=True)
     (head,) = [node for node in loader.graph.leaf_nodes() if node[0] == "tenancy"]
@@ -71,12 +85,13 @@ SITE_SETTINGS = {
 }
 
 
-def create_site_settings(site, **fields) -> None:
-    """Wiersz ``cms.SiteSettings`` w kształcie, jaki baza ma **teraz**, a nie jaki ma żywy model.
+def historical_model(app_label: str, model_name: str):
+    """Model w kształcie, jaki baza ma **teraz** – złożony z migracji faktycznie zastosowanych.
 
-    Cofnięcie ``tenancy`` zdejmuje po drodze późniejsze migracje ``cms`` (np. pole języka interfejsu
-    z ``cms.0024``), a powrót do ``AFTER`` ich nie przywraca. Żywy model wstawiałby więc kolumny,
-    których w bazie nie ma – stąd model historyczny złożony z migracji faktycznie zastosowanych.
+    Potrzebny wszędzie tam, gdzie test wstawia wiersz do tabeli, której schemat jest w tej chwili
+    starszy niż żywy model: żywy model wstawiałby kolumny, których w bazie jeszcze (albo już) nie
+    ma. Dwóch takich miejsc jest dwa – ustawienia serwisu i drugi konkurs – i oba mają ten sam
+    powód, więc mają też jedną funkcję.
     """
     executor = MigrationExecutor(connection)
     graph = executor.loader.graph
@@ -86,7 +101,16 @@ def create_site_settings(site, **fields) -> None:
     leaves = [
         node for node in applied if not any(child in applied for child in graph.node_map[node].children)
     ]
-    model = executor.loader.project_state(leaves).apps.get_model("cms", "SiteSettings")
+    return executor.loader.project_state(leaves).apps.get_model(app_label, model_name)
+
+
+def create_site_settings(site, **fields) -> None:
+    """Wiersz ``cms.SiteSettings`` w kształcie, jaki baza ma **teraz**, a nie jaki ma żywy model.
+
+    Cofnięcie ``tenancy`` zdejmuje po drodze późniejsze migracje ``cms`` (np. pole języka interfejsu
+    z ``cms.0024``), a powrót do ``AFTER`` ich nie przywraca.
+    """
+    model = historical_model("cms", "SiteSettings")
     values = {key: (value.pk if hasattr(value, "pk") else value) for key, value in fields.items()}
     # Klucze obce podajemy identyfikatorami: obiekty pochodzą z żywych modeli, a model historyczny
     # przyjmuje tylko instancje własnego rejestru.
@@ -226,17 +250,29 @@ def test_the_logo_points_at_the_same_image_as_the_footer(rewound):
 
 @pytest.mark.django_db(transaction=True)
 def test_reverse_removes_only_what_the_migration_created(rewound):
-    """Cofnięcie jest cofnięciem jednego kroku wdrożenia, a nie czyszczeniem instalacji."""
+    """Cofnięcie jest cofnięciem jednego kroku wdrożenia, a nie czyszczeniem instalacji.
+
+    Ten jeden test celuje w :data:`BASE`, a nie w :data:`AFTER`, i od 20.09.2026 jest to warunek
+    jego działania. Odkąd ``tenancy.0008`` dokłada kolumnę tabeli konkursu, plan dojścia do
+    ``AFTER`` ciągnie za sobą backfille wydania B (``accounts.0020``, ``competitions.0020``),
+    a te **odmawiają cofnięcia** na bazie z dwoma konkursami – czyli dokładnie na tej, którą ten
+    test buduje, i słusznie: ich założeniem jest „wszystko tu ma jednego właściciela”.
+
+    Przedmiotem testu jest odwrotność ``0002``, więc stan tuż po niej w zupełności wystarcza.
+    Drugi konkurs zakładamy modelem historycznym i z tego samego powodu, co ustawienia serwisu
+    w :func:`create_site_settings`: żywy model zna kolumny, których w tej chwili w bazie nie ma.
+    """
     site = make_site(PRODUCTION_HOST)
     create_site_settings(site, **SITE_SETTINGS)
-    migrate_to(AFTER)
-    other = Competition.objects.create(
-        site=Site.objects.create(
-            hostname="fizyczna.invalid",
-            port=80,
-            site_name="Fizyczna",
-            root_page_id=site.root_page_id,
-        ),
+    migrate_to(BASE)
+    other_site = Site.objects.create(
+        hostname="fizyczna.invalid",
+        port=80,
+        site_name="Fizyczna",
+        root_page_id=site.root_page_id,
+    )
+    historical_model("tenancy", "Competition").objects.create(
+        site_id=other_site.pk,
         slug="fizyczna",
         name="Olimpiada Fizyczna",
         organizer_name="Inny organizator",
@@ -245,14 +281,16 @@ def test_reverse_removes_only_what_the_migration_created(rewound):
 
     migrate_to(BEFORE)
 
-    assert list(Competition.objects.values_list("slug", flat=True)) == [other.slug]
+    # ``values_list`` czyta **jedną** kolumnę, więc działa także na schemacie sprzed późniejszych
+    # migracji tabeli konkursu – w przeciwieństwie do ``get()``, który pyta o komplet kolumn.
+    assert list(Competition.objects.values_list("slug", flat=True)) == ["fizyczna"]
 
     # Sprzątanie przed powrotem do czoła (fixture ``rewound``): backfille wydania B odmawiają pracy
-    # na bazie z dwoma konkursami, a ``0002`` założy Konkurs #1 od nowa obok ``other``. Surowy
+    # na bazie z dwoma konkursami, a ``0002`` założy Konkurs #1 od nowa obok tamtego. Surowy
     # SQL, bo po cofnięciu do ``0001`` tabel późniejszych relacji jeszcze nie ma.
     with connection.cursor() as cursor:
-        cursor.execute(f'DELETE FROM "{Competition._meta.db_table}" WHERE id = %s', [other.pk])
-        cursor.execute(f'DELETE FROM "{Site._meta.db_table}" WHERE id = %s', [other.site_id])
+        cursor.execute(f'DELETE FROM "{Competition._meta.db_table}" WHERE slug = %s', ["fizyczna"])
+        cursor.execute(f'DELETE FROM "{Site._meta.db_table}" WHERE id = %s', [other_site.pk])
 
 
 @pytest.mark.django_db(transaction=True)

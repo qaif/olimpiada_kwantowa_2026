@@ -76,7 +76,15 @@ EXPECTED_MENU_WITHOUT_FLAGS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ),
     (
         "Ustawienia",
-        ("Rejestracja uczestników", "Wydarzenia linii czasu", "Integracje"),
+        (
+            "Rejestracja uczestników",
+            "Wydarzenia linii czasu",
+            "Integracje",
+            # Prośba organizatora z 20.09.2026 – pozycja bez flagi, bo ekran jest zamówiony
+            # dla Konkursu #1, a nie jest zdolnością systemu wielokonkursowego. Samo dopisanie
+            # pozycji nie zmienia ani jednego listu: bramką jest puste pole adresów.
+            "Przekazywanie rozwiązań",
+        ),
     ),
 )
 
@@ -206,6 +214,7 @@ def test_consents_flag_adds_exactly_one_item_in_settings(competition):
         "Rejestracja uczestników",
         "Wydarzenia linii czasu",
         "Integracje",
+        "Przekazywanie rozwiązań",
     )
     # Poza „Ustawieniami” nie zmienia się nic: flaga dokłada ekran, a nie przebudowuje panelu.
     assert labels_of(competition, "Raporty") == dict(EXPECTED_MENU_WITHOUT_FLAGS)["Raporty"]

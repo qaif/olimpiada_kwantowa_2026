@@ -27,6 +27,7 @@ from .views import (
     coordinator_certificates,
     coordinator_competition,
     coordinator_events,
+    coordinator_forwarding,
     coordinator_integrations,
     coordinator_issues,
     coordinator_members,
@@ -345,6 +346,14 @@ urlpatterns = [
         "coordinator/registration/",
         coordinator_stages.RegistrationSettingsView.as_view(),
         name="coordinator-registration",
+    ),
+    # Przekazywanie przyjętych rozwiązań na skrzynkę organizatora. Adres bez identyfikatora,
+    # bo ustawienie należy do **konkursu**, a konkurs wskazuje domena żądania – nie ma tu adresu,
+    # pod którym dałoby się otworzyć cudzą konfigurację.
+    path(
+        "coordinator/submission-forwarding/",
+        coordinator_forwarding.SubmissionForwardingView.as_view(),
+        name="coordinator-submission-forwarding",
     ),
     # Wydarzenia linii czasu. Sąsiadują z kalendarzem etapów, bo to ta sama czynność – układanie
     # terminów edycji – tylko dla tej części kalendarza, której system nie egzekwuje.

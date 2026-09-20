@@ -18,6 +18,7 @@ from rest_framework import status
 from apps.competitions.models import Problem, Stage, StageEntry, StageEntryStatus
 from apps.core.api import DomainError
 
+from . import forwarding
 from .models import AvStatus, Submission, SubmissionFile, SubmissionStatus
 from .notifications import notify_submission_infected, notify_submission_received
 from .packaging import ZipPackage, build_zip
@@ -631,6 +632,19 @@ def apply_scan_verdict(submission_file: SubmissionFile, verdict: str, signature:
         # uznanego za czysty: to pierwsza chwila, w której wolno przeczytać jego treść, a odczyt
         # idzie do S3 i nie ma po co trzymać na niego otwartej transakcji bazodanowej.
         store_page_count(locked)
+        # Przekazanie pracy na skrzynkę organizatora (``Competition.submission_forward_emails``).
+        # **Ta sama chwila**, co odczyt treści wyżej, i z tego samego powodu: czysty skan jest
+        # jedynym momentem, w którym wolno wypuścić zawartość pliku dalej.
+        #
+        # Przechwytujemy tu **każdy** wyjątek i to jest reguła, a nie ostrożność: przekazywanie
+        # jest skutkiem ubocznym skanu, a nie jego warunkiem. Awaria brokera (albo – w trybie
+        # ``CELERY_TASK_ALWAYS_EAGER`` – awaria samej wysyłki, bo zadanie wykonuje się wtedy
+        # w miejscu wywołania) nie może zostawić zgłoszenia w ``SCANNING`` ani zmusić skanu do
+        # ponowienia, który zdublowałby werdykt. Ślad zostaje w logu workera.
+        try:
+            forwarding.enqueue(locked)
+        except Exception:  # noqa: BLE001 - list nie może wywrócić skanu; powód w komentarzu wyżej
+            logger.exception("Nie udało się zakolejkować przekazania pliku %s.", locked.pk)
     return locked
 
 

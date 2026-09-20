@@ -147,6 +147,14 @@ EXPECTED_SUBJECTS = {
 TICKET_MARK = "#<n>"
 STAGE_MARK = "<etap>"
 COUNT_MARK = "<n>"
+#: Znaczniki tematu listu z przekazanym rozwiązaniem: numer zadania i kod uczestnika.
+PROBLEM_MARK = "<nr>"
+CODE_MARK = "<kod>"
+
+#: Prefiks doklejany przez Django do tematów wysyłanych przez ``mail_admins``/``send_mail``
+#: z ``subject_prefix``. Konkurs #1 dostał go w migracji ``tenancy.0002`` jako własną wartość.
+#: Stoi **nad** listą tematów, bo jeden z nich (przekazanie rozwiązania) sam go niesie.
+EXPECTED_SUBJECT_PREFIX = "[Olimpiada Kwantowa] "
 
 #: Sześć tematów, których do etapu 2 **nie pilnował żaden test** (``docs/UNIWERSALNY-ETAP-2.md``
 #: § 1.1.1 i § 5.4). Różnią się od jedenastu wyżej jedną rzeczą: nie są stałą modułu, tylko
@@ -155,9 +163,11 @@ COUNT_MARK = "<n>"
 #: Robi to ``apps/tenancy/tests/test_branding.py``; tutaj stoi sama zamrożona wartość, bo to ten
 #: plik jest listą „co w Konkursie #1 ma zostać dokładnie takie, jakie jest”.
 #:
-#: Pozycji jest sześć, a wierszy tabeli § 1.1.1 dochodzi pięć: przypomnienie o recenzjach po
+#: Pozycji jest siedem, a wierszy tabeli § 1.1.1 dochodzi pięć: przypomnienie o recenzjach po
 #: terminie ma **dwa** brzmienia (``apps/grading/deadlines.py:149–152``) i oba są tematem listu,
-#: który ktoś dostanie – zamrożenie jednego z nich zostawiałoby drugi bez żadnej asercji.
+#: który ktoś dostanie – zamrożenie jednego z nich zostawiałoby drugi bez żadnej asercji. Siódma
+#: pozycja (przekazanie rozwiązania) jest młodsza od tej tabeli: powstała na prośbę organizatora
+#: z 20.09.2026 i jako jedyna nie idzie do uczestnika, tylko do komitetu.
 EXPECTED_SERVICE_SUBJECTS = {
     "support_opened": f"Nowe zgłoszenie {TICKET_MARK} – Olimpiada Kwantowa",
     "support_answered": f"Odpowiedź na zgłoszenie {TICKET_MARK} – Olimpiada Kwantowa",
@@ -165,16 +175,20 @@ EXPECTED_SERVICE_SUBJECTS = {
     "interview_reminder": f"Jutro rozmowa kwalifikacyjna: {STAGE_MARK}",
     "reviews_overdue": f"Olimpiada Kwantowa: {COUNT_MARK} recenzji po terminie",
     "reviews_due_soon": "Olimpiada Kwantowa: zbliża się termin recenzji",
+    # Przekazanie przyjętego rozwiązania na skrzynkę organizatora (prośba z 20.09.2026). Jedyny
+    # temat w całym serwisie z **prefiksem** konkursu (``[Olimpiada Kwantowa] ``): odbiorcą jest
+    # komitet, który tych listów dostaje setki i filtruje je po nawiasie kwadratowym. Uzasadnienie
+    # stoi przy ``apps.submissions.forwarding.subject_for``; treść sprawdza
+    # ``apps/submissions/tests/test_forwarding.py``.
+    "submission_forwarded": (
+        f"{EXPECTED_SUBJECT_PREFIX}Nowe rozwiązanie: {STAGE_MARK} – zadanie {PROBLEM_MARK} – {CODE_MARK}"
+    ),
 }
 
-#: Komplet tematów wychodzących z instalacji – szesnaście pozycji tabeli § 1.1.1, z których jedna
+#: Komplet tematów wychodzących z instalacji – siedemnaście rodzajów listu, z których jeden
 #: (przypomnienie o recenzjach) niesie dwa brzmienia. Stała jest jedna, żeby dopisanie
-#: siedemnastego listu bez wiersza w teście było widoczne w jednym miejscu.
+#: dziewiętnastego listu bez wiersza w teście było widoczne w jednym miejscu.
 ALL_EXPECTED_SUBJECTS = {**EXPECTED_SUBJECTS, **EXPECTED_SERVICE_SUBJECTS}
-
-#: Prefiks doklejany przez Django do tematów wysyłanych przez ``mail_admins``/``send_mail``
-#: z ``subject_prefix``. Konkurs #1 dostał go w migracji ``tenancy.0002`` jako własną wartość.
-EXPECTED_SUBJECT_PREFIX = "[Olimpiada Kwantowa] "
 
 
 def test_email_subjects_unchanged(settings):
@@ -208,16 +222,17 @@ def test_competition_one_keeps_the_installation_mail_settings(competition, setti
 
 
 def test_every_outgoing_subject_is_frozen():
-    """Siedemnaście napisów na szesnaście rodzajów listu – i ani jednego więcej bez wiersza tutaj.
+    """Osiemnaście napisów na siedemnaście rodzajów listu – i ani jednego więcej bez wiersza tutaj.
 
     Test pilnuje **listy**, a nie treści: treści pilnują ``test_email_subjects_unchanged`` (stałe
-    modułów) i ``test_branding.py`` (tematy składane w serwisie, czytane z ``mail.outbox``). Bez
-    tego liczenia dopisanie siedemnastego rodzaju listu byłoby zmianą, po której nadal wszystko
-    przechodzi – bo nowego tematu po prostu nikt by nie porównywał.
+    modułów), ``test_branding.py`` (tematy składane w serwisie, czytane z ``mail.outbox``)
+    i ``apps/submissions/tests/test_forwarding.py`` (przekazanie rozwiązania). Bez tego liczenia
+    dopisanie kolejnego rodzaju listu byłoby zmianą, po której nadal wszystko przechodzi – bo
+    nowego tematu po prostu nikt by nie porównywał.
     """
     assert len(EXPECTED_SUBJECTS) == 11
-    assert len(EXPECTED_SERVICE_SUBJECTS) == 6
-    assert len(ALL_EXPECTED_SUBJECTS) == 17
+    assert len(EXPECTED_SERVICE_SUBJECTS) == 7
+    assert len(ALL_EXPECTED_SUBJECTS) == 18
     # Żaden temat nie jest pusty i żaden nie powtarza się pod dwoma kluczami: powtórzenie znaczyłoby,
     # że dwa różne zdarzenia dają w skrzynce ten sam wiersz i nie da się ich rozróżnić filtrem.
     assert all(ALL_EXPECTED_SUBJECTS.values())

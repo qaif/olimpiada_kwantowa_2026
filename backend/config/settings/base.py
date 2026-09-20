@@ -284,6 +284,10 @@ CELERY_TASK_ROUTES = {
     # zadanie rozbija porcję na koperty i oddaje je ``send_mail_task``. Na kolejce ``default``
     # kilkadziesiąt porcji zablokowałoby workerowi resztę zadań serwisu.
     "apps.accounts.messaging.send_broadcast_chunk": {"queue": "mail"},
+    # Przekazanie przyjętego rozwiązania na adresy organizatora. Kolejka ``mail``, bo to jest
+    # wysyłka listu (z załącznikiem sięgającym po plik do S3), a nie praca domenowa – na kolejce
+    # ``scan`` blokowałaby przyjmowanie kolejnych prac na czas rozmowy z MTA.
+    "apps.submissions.tasks.forward_submission_file": {"queue": "mail"},
 }
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_TIMEZONE = "UTC"
@@ -562,6 +566,16 @@ S3_REGION = env("S3_REGION", default="us-east-1")
 SUBMISSION_STORAGE_BACKEND = env(
     "SUBMISSION_STORAGE_BACKEND", default="apps.submissions.storage.S3SubmissionStorage"
 )
+
+# Do jakiego rozmiaru dokładamy plik rozwiązania jako **załącznik** listu przekazywanego na adresy
+# organizatora (``Competition.submission_forward_emails``). Powyżej tej wartości list idzie bez
+# załącznika, z odnośnikiem do panelu – patrz ``apps.submissions.forwarding``.
+#
+# Dwadzieścia megabajtów, a nie dwadzieścia pięć (czyli tyle, ile wolno wgrać): kodowanie base64
+# rozdyma załącznik o około 37 %, więc plik na granicy uploadu daje kopertę bliską 34 MB. Limit
+# wiadomości na relayu w compose (``POSTFIX_message_size_limit``) trzeba trzymać **powyżej**
+# wyniku tego mnożenia, inaczej odrzucenie zobaczy dopiero worker w logu.
+SUBMISSION_FORWARD_MAX_ATTACHMENT_MB = env.int("SUBMISSION_FORWARD_MAX_ATTACHMENT_MB", default=20)
 
 CLAMAV_HOST = env("CLAMAV_HOST", default="clamav")
 CLAMAV_PORT = env.int("CLAMAV_PORT", default=3310)

@@ -1,7 +1,8 @@
 """Zadania Celery: skan antywirusowy pliku rozwiązania i cykliczne zamykanie etapów po deadline.
 
 ``scan_submission_file`` idzie na kolejkę ``scan`` (``CELERY_TASK_ROUTES``), ``close_due_stages``
-uruchamia ``beat`` co minutę (``CELERY_BEAT_SCHEDULE``).
+uruchamia ``beat`` co minutę (``CELERY_BEAT_SCHEDULE``), a ``forward_submission_file`` – kolejką
+``mail``, bo jest wysyłką listu z załącznikiem, a nie pracą domenową.
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ from celery import shared_task
 from django.utils import timezone
 
 from .antivirus import ClamAVStreamTooLarge, ClamAVUnavailable, scan_stream
+from .forwarding import forward_file
 from .models import AvStatus, SubmissionFile, SubmissionStatus
 from .services import apply_scan_error, apply_scan_verdict
 from .services import close_due_stages as close_due_stages_service
@@ -23,6 +25,11 @@ MAX_SCAN_RETRIES = 5
 RETRY_BASE_SECONDS = 30
 RETRY_MAX_SECONDS = 600
 SCAN_TIMEOUT_SECONDS = 60
+
+#: Ile razy ponawiamy przekazanie pracy organizatorowi. Trzy, tak samo jak przy zwykłym liście
+#: (``apps.core.tasks.MAX_RETRIES``): typową awarię MTA przykrywają, a dalsze dobijanie się
+#: trzymałoby w kolejce zadanie z kilkunastomegabajtowym załącznikiem.
+MAX_FORWARD_RETRIES = 3
 
 #: Kody błędu S3, którymi MinIO odpowiada na „nie ma takiego obiektu”.
 _MISSING_OBJECT_CODES = {"NoSuchKey", "NoSuchBucket", "404", "NotFound"}
@@ -104,6 +111,31 @@ def scan_submission_file(self, file_id: int) -> str:
     if verdict == AvStatus.INFECTED:
         logger.warning("Plik %s zainfekowany (%s) – zgłoszenie odrzucone.", file_id, signature)
     return verdict
+
+
+@shared_task(
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_jitter=True,
+    max_retries=MAX_FORWARD_RETRIES,
+)
+def forward_submission_file(self, file_id: int) -> str:
+    """Przekazuje przeskanowany plik rozwiązania na adresy organizatora (``forwarding.forward_file``).
+
+    Ten sam kształt ponowień, co u ``apps.core.tasks.send_mail_task``, i z tego samego powodu:
+    między nami a relayem stoi jeszcze DNS, gniazdo i TLS, więc ponawiamy **każdy** wyjątek,
+    z rosnącym odstępem i rozrzutem. Rozrzut nie jest ozdobą – przy zamknięciu etapu skany kończą
+    się setkami naraz, a bez niego wszystkie ponowienia uderzyłyby w MTA w tej samej sekundzie.
+
+    Po wyczerpaniu prób wyjątek leci dalej i zostaje w logu workera. Dla uczestnika i dla skanu nie
+    zmienia to nic: praca jest przyjęta, werdykt zapisany, a znacznik ``forwarded_at`` pusty, więc
+    list da się wysłać ponownie (dziś ręcznie, z ``manage.py shell``) bez ryzyka duplikatu.
+
+    Argumentem jest identyfikator, a nie obiekt: zadanie jedzie przez brokera jako JSON, a treść
+    listu i tak powstaje z wiersza odczytanego pod blokadą.
+    """
+    return forward_file(file_id)
 
 
 @shared_task

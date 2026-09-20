@@ -245,8 +245,15 @@ services:
       # Jedna linia na doręczenie („TLS connection established to …”) – bez tego z logu nie widać,
       # czy list poszedł szyfrowany, a przy `may` nie ma o tym żadnej innej informacji.
       POSTFIX_smtp_tls_loglevel: "1"
-      # Aplikacja wysyła wyłącznie krótkie listy transakcyjne; obraz domyślnie nie ma limitu.
-      POSTFIX_message_size_limit: "10485760"
+      # Limit rozmiaru koperty (obraz domyślnie nie ma żadnego). Do 20.09.2026 stało tu 10 MB,
+      # bo aplikacja wysyłała wyłącznie krótkie listy transakcyjne. Od przekazywania przyjętych
+      # rozwiązań na skrzynkę organizatora (`Competition.submission_forward_emails`) jeden rodzaj
+      # listu niesie **załącznik**: plik do `SUBMISSION_FORWARD_MAX_ATTACHMENT_MB` (domyślnie
+      # 20 MB), a kodowanie base64 rozdyma go o około 37 % — czyli koperta sięga ~28 MB.
+      # 40 MiB zostawia zapas na nagłówki i na podniesienie tamtego ustawienia do granicy uploadu
+      # (25 MB → ~34 MB koperty). Limit **musi** być wyższy od wyniku tego mnożenia: odrzucenie
+      # przez relay widać dopiero w logu workera, a organizator nie dostaje wtedy nic.
+      POSTFIX_message_size_limit: "41943040"
       # Sieć docker-bridge nie ma IPv6; bez tego Postfix próbuje rekordów AAAA i czeka na timeout.
       POSTFIX_inet_protocols: ipv4
       DKIM_AUTOGENERATE: "true"

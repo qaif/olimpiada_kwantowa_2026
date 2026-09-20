@@ -448,6 +448,20 @@ def groups(stages: list, competition=None) -> list[Group]:
             ("web:coordinator-integrations",),
             match=("coordinator-integrations", "coordinator-integrations-"),
         ),
+        # Przekazywanie rozwiązań na skrzynkę organizatora (prośba organizatora z 20.09.2026).
+        # **Bez flagi**, w odróżnieniu od kilkunastu pozycji wyżej: to nie jest zdolność systemu
+        # wielokonkursowego, którą włącza operator, tylko ekran zamówiony wprost przez organizatora
+        # Konkursu #1 – i to on ma go zobaczyć bez proszenia kogokolwiek o przestawienie flagi.
+        # Zamiast flagi bramką jest samo pole: puste znaczy „nie przekazujemy” i tak zaczyna każdy
+        # konkurs, więc dopisanie pozycji nie zmienia ani jednego listu.
+        #
+        # Stoi zaraz za „Integracjami”, bo odpowiada na to samo pytanie co one: co i dokąd wychodzi
+        # z serwisu na zewnątrz.
+        Item(
+            "Przekazywanie rozwiązań",
+            ("web:coordinator-submission-forwarding",),
+            match=("coordinator-submission-forwarding",),
+        ),
     )
     if competition is not None and competition.has_feature("institution_types"):
         # Profil rejestracji (§ 1.3.4, T23) – co wolno wpisać w formularzu zgłoszeniowym. Stoi

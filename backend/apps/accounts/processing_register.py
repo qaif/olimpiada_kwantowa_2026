@@ -31,8 +31,10 @@ from datetime import date
 from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 
 #: Wersja treści rejestru i data jej przyjęcia. Zmieniane ręcznie, razem z treścią niżej.
-REGISTER_VERSION = "1.0"
-REGISTER_DATE = date(2026, 9, 16)
+#: 1.1 (20.09.2026) – przekazywanie przyjętych rozwiązań na skrzynkę organizatora dokłada drogę,
+#: którą prace uczestników wychodzą poza serwer, więc jest zmianą materialną, a nie literówką.
+REGISTER_VERSION = "1.1"
+REGISTER_DATE = date(2026, 9, 20)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
 #: domyślna wartość ``Edition.data_retention_months`` – gdyby organizator zmienił ją dla rocznika,
@@ -168,12 +170,24 @@ ACTIVITIES: tuple[ProcessingActivity, ...] = (
             HOSTING_RECIPIENT,
             "członkowie komitetu oceniającego – ocenianie jest ślepe: recenzent widzi kod "
             "uczestnika, nigdy jego nazwiska",
+            # Przekazywanie prac pocztą (``Competition.submission_forward_emails``). Wiersz jest
+            # **bezwarunkowy**, w odróżnieniu od logistyki niżej, i to jest świadome: odbiorcą
+            # jest sam administrator (organizator) na własnej skrzynce, a nie nowy podmiot, więc
+            # rejestr nie zmienia się w zależności od tego, czy pole jest dziś wypełnione. Zdanie
+            # mówi wprost o drodze, którą dane wychodzą, bo to ona jest tu faktem do zgłoszenia.
+            "skrzynka pocztowa organizatora – jeżeli włączono przekazywanie rozwiązań, każda "
+            "przyjęta praca jest po czystym skanie antywirusowym przesyłana na wskazane adresy "
+            "komitetu wraz z metryczką (kod, imię i nazwisko, szkoła, etap, zadanie, wersja)",
+            MAIL_RECIPIENT,
         ],
         retention=PARTICIPANT_RETENTION,
         measures=[
             "prace w prywatnym storage'u (bucket bez dostępu anonimowego), odnośniki podpisane i wygasające",
             "skan antywirusowy każdego pliku przed udostępnieniem go komitetowi",
             "nazwy plików budowane z kodu uczestnika – nazwisko z nazwy pliku nie przechodzi dalej",
+            "przekazywanie prac pocztą jest domyślnie **wyłączone** (puste pole adresów), obejmuje "
+            "wyłącznie pliki z czystym skanem i zostawia ślad w dzienniku zdarzeń przy każdej "
+            "zmianie adresów",
         ],
     ),
     _activity(

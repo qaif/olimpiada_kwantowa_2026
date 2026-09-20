@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from django import forms
 
-from apps.tenancy.models import FEATURE_DEFAULTS, Competition
+from apps.tenancy.models import FEATURE_DEFAULTS, MAX_FORWARD_EMAILS, Competition, split_forward_emails
 
 #: Pola, które koordynator zmienia z panelu – w kolejności sekcji na ekranie. Krotka, a nie
 #: ``exclude``: lista pól modelu rośnie w kolejnych etapach, a ``exclude`` wpuściłoby każde nowe
@@ -54,6 +54,10 @@ EDITABLE_FIELDS: tuple[str, ...] = (
     "default_language",
     "time_zone",
 )
+# ``submission_forward_emails`` świadomie **nie** stoi na tej liście, choć jest polem konkursu:
+# przekazywanie prac ma własny ekran (``/coordinator/submission-forwarding/``), bo to jest decyzja
+# o **przetwarzaniu danych osobowych uczestników** – wynosi ich pliki poza serwis – i nie może
+# wpaść przypadkiem w jeden zapis razem z kolorem akcentu i prefiksem numeru dyplomu.
 
 #: Przełączniki, które wolno przestawić z panelu, w kolejności wyświetlania. ``path_prefix_routing``
 #: świadomie **nie** jest na tej liście: przestawia sposób adresowania, czyli to samo, czego
@@ -256,3 +260,61 @@ class CompetitionSettingsForm(forms.ModelForm):
             if bool((before or {}).get(name, FEATURE_DEFAULTS[name])) != flags[name]
         ]
         return changed
+
+
+#: Ile adresów wolno wpisać na ekranie przekazywania. Reguła stoi w modelu
+#: (``tenancy.MAX_FORWARD_EMAILS``); tutaj jest tylko nazwa, pod którą czyta ją szablon – żeby
+#: liczba w zdaniu pomocy nie była literałem obok reguły, która ją naprawdę egzekwuje.
+FORWARD_EMAIL_LIMIT = MAX_FORWARD_EMAILS
+
+
+class SubmissionForwardingForm(forms.ModelForm):
+    """Adresy, na które serwis przekazuje przyjęte rozwiązania (prośba organizatora z 20.09.2026).
+
+    Jedno pole i jeden ekran, bo to jest jedna decyzja: „czy komitet dostaje prace także pocztą
+    i na które skrzynki”. ``ModelForm``, a nie ``Form`` z ręcznym zapisem, żeby reguła poprawności
+    adresów została tam, gdzie obowiązuje wszystkich – w walidatorze modelu
+    (``apps.tenancy.models.validate_submission_forward_emails``, wołanym przez ``_post_clean``).
+    Powtórzenie jej tutaj dawałoby ekran, który przyjmuje co innego niż komenda i import.
+
+    Zapis **normalizuje** wpis do jednego adresu na wiersz. Nie jest to kosmetyka: pole bywa
+    wklejane z książki adresowej („a@x.pl, b@x.pl”), a wpis audytowy i pytanie „czy coś się
+    zmieniło” pracują na tej wartości – bez normalizacji ta sama lista wklejona dwoma sposobami
+    wyglądałaby jak zmiana.
+    """
+
+    class Meta:
+        model = Competition
+        fields = ("submission_forward_emails",)
+        labels = {"submission_forward_emails": "Adresy, na które trafiają rozwiązania"}
+        widgets = {
+            "submission_forward_emails": forms.Textarea(
+                attrs={"rows": 5, "placeholder": "komitet@example.org"}
+            )
+        }
+
+    def clean_submission_forward_emails(self) -> str:
+        """Jeden adres na wiersz, bez powtórzeń i bez pustych – w kolejności wpisania.
+
+        Metoda **nie waliduje**: poprawność adresów i ich liczbę sprawdza walidator modelu, który
+        uruchamia się później (``ModelForm._post_clean`` → ``Model.full_clean``) i na wartości już
+        znormalizowanej. Dublowanie sprawdzenia tutaj znaczyłoby dwa komunikaty o jednym błędzie.
+        """
+        return "\n".join(split_forward_emails(self.cleaned_data.get("submission_forward_emails", "")))
+
+    def addresses(self) -> list[str]:
+        """Adresy po walidacji – dla komunikatu na ekranie i dla licznika we wpisie audytowym."""
+        return split_forward_emails(self.cleaned_data.get("submission_forward_emails", ""))
+
+    def has_changed_addresses(self) -> bool:
+        """Czy lista adresów jest inna niż przed otwarciem formularza – warunek wpisu audytowego.
+
+        Porównujemy **zbiory adresów**, a nie napisy: zmiana kolejności albo separatora nie jest
+        zdarzeniem, o którym ma zostać ślad, a zapis bez zmiany jest tu czynnością zwykłą (ekran
+        bywa otwierany po to, żeby sprawdzić, dokąd idą prace).
+
+        ``self.initial``, a nie ``self.instance``: ``_post_clean`` wpisał już nową wartość do
+        instancji, więc porównanie z nią zawsze dawałoby „bez zmian”.
+        """
+        before = set(split_forward_emails(self.initial.get("submission_forward_emails", "")))
+        return before != set(self.addresses())

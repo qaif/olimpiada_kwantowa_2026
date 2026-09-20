@@ -363,6 +363,41 @@ w jednej transakcji. Dzień wcześniej idzie automatyczne przypomnienie z linkie
 
 > **Etap w formie rozmowy nie ma ścieżki oceniania w systemie** — punkty wpisuje koordynator poza nim.
 
+### 4.8 Przekazywanie rozwiązań na skrzynkę — `/coordinator/submission-forwarding/`
+
+Ekran **„Przekazywanie rozwiązań”** (menu: Ustawienia → Przekazywanie rozwiązań). Serwis może
+przesyłać **każdą** przyjętą pracę na wskazane skrzynki komitetu — pocztą, razem z plikiem
+w załączniku.
+
+| Pole | Znaczenie |
+|---|---|
+| Adresy, na które trafiają rozwiązania | jeden adres na wiersz albo po przecinku, **najwyżej pięć**. Puste pole = przekazywanie wyłączone (tak zaczyna każdy konkurs) |
+
+Jak to działa:
+
+1. **List wychodzi dopiero po czystym skanie antywirusowym**, a nie w chwili wysłania pracy —
+   zwykle kilka–kilkanaście sekund po uploadzie. Plik odrzucony przez skan nie jest przekazywany
+   nigdy, tak samo jak plik, którego skan się nie powiódł.
+2. **Każda wersja to osobny list.** Uczestnik, który poprawi rozwiązanie, tworzy nową wersję —
+   dostaniesz ją drugim listem. Oceniana jest ostatnia wersja.
+3. **Temat**: `[Olimpiada Kwantowa] Nowe rozwiązanie: <etap> – zadanie <nr> – <kod uczestnika>`.
+   Nawias kwadratowy na początku jest po to, żeby dało się ustawić na te listy regułę w skrzynce.
+4. **Treść** niesie metryczkę pracy: konkurs, etap, zadanie, numer wersji, czas przyjęcia, kod
+   publiczny, imię i nazwisko, szkołę, nazwę pliku, jego rozmiar i sumę kontrolną SHA-256 oraz
+   odnośnik do karty uczestnika w panelu. **Punktów ani recenzji w liście nie ma.**
+5. **Załącznik** ma granicę 20 MB (ustawienie instalacji `SUBMISSION_FORWARD_MAX_ATTACHMENT_MB`).
+   Większy plik przychodzi bez załącznika, z wyjaśnieniem i odnośnikiem do panelu — pobierzesz go
+   stamtąd.
+6. **Etap treningowy też jest przekazywany.** To najtańszy sposób sprawdzenia, czy ustawienie
+   działa, zanim ruszą eliminacje.
+7. Awaria poczty **nie rusza przyjętej pracy**: praca jest przyjęta, skan zapisany, a list
+   ponawiany. Zmiana adresów zostaje w audycie (`competition.forwarding_updated`, bez adresów).
+
+> **To jest wyniesienie danych osobowych uczestników poza serwis.** Administratorem tych danych
+> jesteś Ty (organizator), a skrzynka, na którą trafiają prace, nie jest już pod kontrolą
+> platformy — wpisuj wyłącznie adresy komitetu i pamiętaj o wierszu w rejestrze czynności (§ 9.2,
+> czynność „Przyjmowanie i ocenianie prac konkursowych”).
+
 ---
 
 ## 5. Wyniki

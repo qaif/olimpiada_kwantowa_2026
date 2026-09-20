@@ -23,6 +23,7 @@ from __future__ import annotations
 import re
 
 from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from django.db import models
 from django.utils import timezone
 
@@ -30,6 +31,66 @@ from django.utils import timezone
 #: (``#abc``) jest odrzucany celowo – wartość idzie wprost do zmiennej CSS na ``<html>``, a jeden
 #: zapis zamiast dwóch znaczy, że porównanie kolorów w panelu jest porównaniem napisów.
 HEX_COLOUR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+#: Ile adresów wolno wskazać w przekazywaniu rozwiązań. Pięć, bo to jest skrzynka **komitetu**,
+#: a nie lista wysyłkowa: każdy oddany plik idzie na każdy z tych adresów, więc dziesiąty adres
+#: znaczy dziesięć kopii jednego załącznika w kolejce ``mail`` i dziesięć kopii u odbiorców.
+#: Organizator, który potrzebuje więcej, wpisuje jeden adres grupowy po swojej stronie – tam ma
+#: nad nim kontrolę (może kogoś wypisać), a tu miałby tylko dłuższe pole.
+MAX_FORWARD_EMAILS = 5
+
+#: Czym wolno rozdzielić adresy w jednym polu tekstowym. Przecinek, średnik i nowa linia, bo
+#: dokładnie tak ludzie wklejają adresy ze swojej książki adresowej – wymuszanie jednego znaku
+#: byłoby regułą, której nikt nie przeczyta przed wklejeniem.
+FORWARD_EMAIL_SEPARATORS = re.compile(r"[,;\s]+")
+
+
+def split_forward_emails(value: str | None) -> list[str]:
+    """Rozbija zawartość pola na listę adresów, bez pustych i bez powtórzeń.
+
+    **Jedyne** miejsce, w którym z napisu powstaje lista: czyta stąd walidator, formularz panelu
+    i wysyłka (``apps.submissions.forwarding``). Dwie implementacje znaczyłyby, że ekran przyjmuje
+    coś, czego wysyłka nie rozumie – a objawem byłby list, który po prostu nie dochodzi.
+
+    Powtórzenia zjadamy zachowując kolejność wpisania: ten sam adres dwa razy nie jest błędem
+    organizatora (bywa skutkiem wklejenia), ale byłby dwiema kopiami tego samego załącznika.
+    """
+    seen: dict[str, None] = {}
+    for item in FORWARD_EMAIL_SEPARATORS.split(value or ""):
+        cleaned = item.strip()
+        if cleaned:
+            seen.setdefault(cleaned, None)
+    return list(seen)
+
+
+def validate_submission_forward_emails(value: str) -> None:
+    """Lista adresów przekazywania rozwiązań: poprawne adresy i nie więcej niż :data:`MAX_FORWARD_EMAILS`.
+
+    Walidator modelu, a nie formularza: to samo pole wypełnia komenda zakładająca konkurs i import
+    konfiguracji, a adres z literówką znaczy tu pracę uczestnika wysyłaną w próżnię – i to bez
+    żadnego objawu widocznego dla organizatora, bo odbicie od MTA dochodzi do nadawcy instalacji.
+
+    Puste pole jest poprawne i znaczy „funkcja wyłączona” – patrz ``Competition.forward_emails``.
+    """
+    addresses = split_forward_emails(value)
+    if len(addresses) > MAX_FORWARD_EMAILS:
+        raise ValidationError(
+            "Adresów może być najwyżej %(limit)s; wpisano %(count)s.",
+            code="too_many_forward_emails",
+            params={"limit": MAX_FORWARD_EMAILS, "count": len(addresses)},
+        )
+    wrong = []
+    for address in addresses:
+        try:
+            validate_email(address)
+        except ValidationError:
+            wrong.append(address)
+    if wrong:
+        raise ValidationError(
+            "To nie są poprawne adresy e-mail: %(addresses)s.",
+            code="invalid_forward_email",
+            params={"addresses": ", ".join(wrong)},
+        )
 
 
 def validate_hex_colour(value: str) -> None:
@@ -223,6 +284,28 @@ class Competition(models.Model):
     #: układ to nadawca w domenie platformy i ``Reply-To`` na ``contact_email`` (§ 8, D6).
     from_email = models.EmailField("nadawca listów", blank=True)
     email_subject_prefix = models.CharField("prefiks tematu", max_length=60, blank=True)
+    #: Adresy, na które serwis przekazuje **każde** przyjęte rozwiązanie (prośba organizatora
+    #: z 20.09.2026). Puste pole znaczy „funkcja wyłączona” i to jest stan domyślny każdego
+    #: konkursu – przekazywanie wynosi prace uczestników poza serwis, więc nie może się włączyć
+    #: przez wdrożenie, tylko przez świadomy wpis w panelu.
+    #:
+    #: Pole **tekstowe z listą**, a nie ``EmailField`` ani osobna tabela: komitet ma jedną, dwie,
+    #: czasem trzy skrzynki i zmienia je raz na edycję. Tabela dawałaby ekran z dodawaniem
+    #: i kasowaniem wierszy dla trzech wartości, a pojedynczy ``EmailField`` zmuszałby organizatora
+    #: do zakładania aliasu u swojego dostawcy poczty, żeby wpisać dwa adresy.
+    #:
+    #: Konkurs jest właścicielem tego ustawienia, a nie edycja: skrzynka komitetu przeżywa rocznik,
+    #: a odpowiedź na pytanie „dokąd idą prace tego organizatora” nie może zależeć od tego, którą
+    #: edycję akurat wybrano.
+    submission_forward_emails = models.TextField(
+        "przekazywanie rozwiązań",
+        blank=True,
+        validators=[validate_submission_forward_emails],
+        help_text=(
+            "Adresy rozdzielone przecinkiem albo nową linią (najwyżej pięć). Puste pole wyłącza "
+            "przekazywanie."
+        ),
+    )
 
     # --- adresowanie ---------------------------------------------------------------------------
     routing_mode = models.CharField(
@@ -277,6 +360,17 @@ class Competition(models.Model):
     def locative(self) -> str:
         """Nazwa w miejscowniku, z odwrotem na mianownik."""
         return self.locative_name or self.name
+
+    @property
+    def forward_emails(self) -> list[str]:
+        """Adresy przekazywania rozwiązań – **jedyne** wejście do kolumny tekstowej.
+
+        Pusta lista znaczy „przekazywanie wyłączone”, i to jest ta sama odpowiedź, co dla pola
+        wypełnionego samymi spacjami. Gdyby wołający rozbijał napis sam, każde miejsce miałoby
+        własne zdanie o tym, co jest wpisem pustym – a jedno z nich prędzej czy później wysłałoby
+        list na adres ``""``.
+        """
+        return split_forward_emails(self.submission_forward_emails)
 
     def has_feature(self, name: str) -> bool:
         """Czy funkcja ``name`` jest w tym konkursie włączona.

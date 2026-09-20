@@ -1,0 +1,60 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Przekazywanie przyjętych rozwiązań na skrzynkę organizatora.
+
+  Ramka „Dziś przekazujemy” stoi **nad** formularzem i jest listą adresów wziętą z bazy, a nie
+  z pola formularza: koordynator ma najpierw zobaczyć stan, który obowiązuje, a dopiero potem
+  pole do jego zmiany. Po nieudanym zapisie różnica między jednym a drugim jest całą treścią
+  tego ekranu.
+
+  Zakres i granice (co idzie, czego nie ma, kiedy bez załącznika) stoją wypisane nad polem, a nie
+  w komunikacie po zapisie: to są dane osobowe uczestników wysyłane poza serwis, więc koordynator
+  ma wiedzieć, na co się zgadza, **zanim** wpisze adres.
+
+  Bez JavaScriptu i bez stylów w atrybutach – panel chodzi pod ścisłą polityką CSP.
+{% endcomment %}
+{% block title %}Przekazywanie rozwiązań – panel koordynatora{% endblock %}
+{% block panel_title %}Przekazywanie rozwiązań{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Serwis może przesyłać każdą przyjętą pracę na wskazane skrzynki komitetu.
+    Puste pole wyłącza przekazywanie i tak zaczyna każdy konkurs.</p>
+{% endblock %}
+{% block panel_content %}
+
+<div class="card card--quiet">
+  <dl class="meta-list">
+    <dt>Stan</dt>
+    <dd>
+      {% if current %}włączone – {{ current|length }} adres(y){% else %}wyłączone{% endif %}
+    </dd>
+    <dt>Adresy</dt>
+    <dd>
+      {% if current %}
+        <ul class="plain-list">{% for address in current %}<li>{{ address }}</li>{% endfor %}</ul>
+      {% else %}—{% endif %}
+    </dd>
+  </dl>
+  <ul class="hint">
+    <li>List wychodzi dopiero <strong>po czystym skanie antywirusowym</strong>. Plik odrzucony przez
+      skan nie jest przekazywany nigdy.</li>
+    <li>Każda nowa wersja rozwiązania to osobny list – oceniana jest ostatnia wersja.</li>
+    <li>W treści listu stoi etap, zadanie, numer wersji, czas przyjęcia, suma kontrolna pliku oraz
+      kod, imię, nazwisko i szkoła uczestnika. Punktów ani recenzji w liście nie ma.</li>
+    <li>Plik idzie w załączniku. Większe pliki (ponad {{ limit_mb }} MB) przychodzą bez załącznika,
+      z odnośnikiem do karty uczestnika w panelu.</li>
+    <li>Adresów może być najwyżej {{ limit }}. Potrzebujesz więcej – wskaż jeden adres grupowy
+      po swojej stronie.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <form method="post" class="form form--wide" novalidate>
+    {% csrf_token %}
+    {{ form.as_p }}
+    <div class="actions">
+      <button type="submit" class="btn btn--primary">Zapisz adresy</button>
+      <a class="btn btn--ghost" href="{% url 'web:coordinator' %}">Anuluj</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

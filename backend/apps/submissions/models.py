@@ -261,6 +261,13 @@ class SubmissionFile(models.Model):
     # stron leży na końcu pliku – policzenie jej wymaga przeczytania całego dokumentu ze storage,
     # a czyta tę liczbę panel uczestnika przy każdym wejściu.
     page_count = models.PositiveIntegerField("liczba stron", null=True, blank=True)
+    # Kiedy plik został przekazany na adresy organizatora (``Competition.submission_forward_emails``).
+    # ``None`` znaczy „jeszcze nie” i to jest jedyny warunek wysyłki – znacznik czasu, a nie
+    # ``BooleanField``, z tego samego powodu, co przy ``reminder_sent_at`` i ``reminded_at``:
+    # pytanie zadawane nad tą kolumną brzmi „kiedy komitet to dostał”, a nie „czy dostał”.
+    # Kolumna stoi przy **pliku**, a nie przy pracy: przekazujemy plik po czystym skanie, a to
+    # plik (nie praca) ma status skanu i to on bywa w pracy drugi, gdyby kiedykolwiek doszedł.
+    forwarded_at = models.DateTimeField("przekazany organizatorowi", null=True, blank=True)
 
     #: Przez pracę, czyli przez jej kolumnę denormalizacyjną – jedno złączenie, nie cztery.
     objects = competition_scoped_manager("submission__competition")
