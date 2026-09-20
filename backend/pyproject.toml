@@ -100,6 +100,10 @@ dev = [
     "pytest>=8.3",
     "pytest-django>=4.9",
     "pytest-cov>=5.0",
+    # Dzieli zbiór testów na równe części dla shardów `pytest` w CI (`.github/workflows/ci.yml`,
+    # job `tests`, `--splits`/`--group`). Bez pliku `.test_durations` dzieli po liczbie testów,
+    # nie po zmierzonym czasie – patrz komentarz przy jobie.
+    "pytest-split>=0.10,<1.0",
     "factory-boy>=3.3",
     "freezegun>=1.5",
     "ruff>=0.6",
