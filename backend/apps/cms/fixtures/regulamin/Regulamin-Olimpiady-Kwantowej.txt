@@ -17,7 +17,7 @@ Dokument obejmuje 24 paragrafy. Numery stron są widoczne w stopce, a pełne tyt
 ________________
 
 Status Olimpiady Kwantowej
-Olimpiada Kwantowa w opisanym niżej modelu trzech etapów jest niezależnym konkursem edukacyjnym. Nie jest olimpiadą trójstopniową przeprowadzaną na podstawie rozporządzenia ministra właściwego ds edukacji i nie nadaje ustawowych uprawnień laureata lub finalisty, dopóki nie zostanie formalnie objęta właściwym trybem prawnym, a jej regulamin nie zostanie odpowiednio dostosowany.
+Olimpiada Kwantowa w opisanym niżej modelu trzech etapów jest niezależnym konkursem edukacyjnym. Nie jest olimpiadą trójstopniową przeprowadzaną na podstawie rozporządzenia Ministra właściwego ds. Edukacji i nie nadaje ustawowych uprawnień laureata lub finalisty, dopóki nie zostanie formalnie objęta właściwym trybem prawnym, a jej regulamin nie zostanie odpowiednio dostosowany.
 	Organizator
 Nazwa
 	Fundacja Quantum AI
@@ -32,7 +32,7 @@ Nazwa
 1. Olimpiada Kwantowa, zwana dalej „Olimpiadą”, jest ogólnopolskim, indywidualnym i trzyetapowym konkursem edukacyjnym z zakresu technologii kwantowych oraz ich podstaw matematycznych, fizycznych i informatycznych.
 2. Organizatorem Olimpiady jest Fundacja Quantum AI z siedzibą w Warszawie przy ul. Sanockiej 9/103, 02-110 Warszawa, wpisana do Krajowego Rejestru Sądowego pod numerem KRS 0000808359, NIP 7010955891, REGON 384899425, zwana dalej „Organizatorem”.
 3. Olimpiada posługuje się nazwą „Olimpiada Kwantowa”, jednak obecnie pozostaje niezależnym konkursem edukacyjnym i nie nadaje uprawnień przewidzianych dla laureatów i finalistów olimpiad organizowanych na podstawie przepisów oświatowych, chyba że odrębny przepis, decyzja lub komunikat właściwego organu stanowi inaczej.
-4. Niniejszy Regulamin określa stałe zasady Olimpiady. Szczegóły zasad etapów danej edycji, w szczególności harmonogram, formę zadań, wykaz dozwolonych narzędzi i program merytoryczny, określają Zasady Organizacji Zawodów danego etapu, zwane dalej „ZOZ, które zostaną opublikowane na stronie Olimpiady najpóźniej wraz z opublikowaniem zadań dla danego etapu Olimpiady.
+4. Niniejszy Regulamin określa stałe zasady Olimpiady. Szczegóły zasad etapów danej edycji, w szczególności harmonogram, formę zadań, wykaz dozwolonych narzędzi i program merytoryczny, określają Zasady Organizacji Zawodów danego etapu, zwane dalej „ZOZ”, które zostaną opublikowane na stronie Olimpiady najpóźniej wraz z opublikowaniem zadań dla danego etapu Olimpiady.
 5. Regulamin, ZOZ, program merytoryczny, harmonogram oraz komunikaty są publikowane na stronie internetowej Olimpiady. Sprzeczność ZOZ z Regulaminem rozstrzyga się na korzyść Regulaminu.
 § 2. Cele Olimpiady
 1. Celami Olimpiady są w szczególności:

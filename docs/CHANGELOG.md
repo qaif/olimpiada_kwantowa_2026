@@ -8,9 +8,9 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
-## Niewydane (po `v0.27.0`)
+## Niewydane (po `v0.27.1`)
 
-- Brak — katalog roboczy jest równy tagowi `v0.27.0`. Etap 2 systemu wielokonkursowego jest
+- Brak — katalog roboczy jest równy tagowi `v0.27.1`. Etap 2 systemu wielokonkursowego jest
   domknięty (`UNIWERSALNY-ETAP-2.md` § 3.1). Nie zlecone: drzewo CMS dla konkursu w trybie prefiksu ścieżki (uwaga T43),
   edytor przebiegu przenoszący „przypisz kategorie” do warstwy serwisów.
 
@@ -18,6 +18,7 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 
 | Wersja | Data | Zmiana |
 |---|---|---|
+| **v0.27.1** | 2026-09-21 | regulamin – dwie poprawki brzmienia na polecenie organizatora: „Ministra właściwego ds. Edukacji” w ramce statusu i domknięty cudzysłów „ZOZ” w § 1 ust. 4 (strona, .docx, wyciąg tekstowy; PDF złożony z poprawionego .docx w Wordzie – 14 stron). W dokumencie Google obie zmiany stoją jako sugestie do zaakceptowania |
 | **v0.27.0** | 2026-09-20 | przekazywanie przyjętych rozwiązań na skrzynkę organizatora: ekran `/coordinator/submission-forwarding/` (do pięciu adresów per konkurs, puste pole = wyłączone, audyt `competition.forwarding_updated` bez adresów), list z metryczką pracy i plikiem w załączniku wysyłany **po czystym skanie antywirusowym** z zadania Celery na kolejce `mail` (`apps/submissions/forwarding.py`), znacznik `SubmissionFile.forwarded_at` przeciw duplikatom, granica załącznika `SUBMISSION_FORWARD_MAX_ATTACHMENT_MB` (domyślnie 20 MB; powyżej list bez pliku i z odnośnikiem do panelu), limit koperty relaya podniesiony z 10 MB do 40 MiB, wiersz o tej drodze w rejestrze czynności przetwarzania (wersja 1.1) |
 | **v0.26.5** | 2026-09-20 | dyplomy i zaświadczenia wystawia **Komitet Sterujący**: linia podpisu „Przewodniczący Komitetu Sterującego Olimpiady Kwantowej” (`SIGNATURE_LINE`, wartość początkowa nowych konkursów; migracja `tenancy.0007` podmienia nazwę komitetu w istniejących szablonach dokumentów). Dokumenty składają się przy pobraniu, więc już wystawione też dostają nowy podpis |
 | **v0.26.4** | 2026-09-20 | uwagi organizatora z 20.09: **regulamin** w wersji z 20 września 2026 r. (eksport z Dokumentów Google: strona, PDF i .docx bez roboczych komentarzy; importer czyta tabele w `<th>` i sekcję „Status Olimpiady Kwantowej”; dokument bez metryki dostaje datę 20.09.2026; `TERMS_VERSION` = „z 20 września 2026” + migracja `accounts.0030` dla definicji zgody); **harmonogram i strona główna bez okna reklamacji**; komunikat o rejestracji „Zakończenie rejestracji: 28.02.2027” (migracja `cms.0025` podmienia tylko niezmienioną wartość domyślną); zakres Komitetu Merytorycznego + „rozpatrywanie odwołań”; instrukcja zgody opiekuna „Pobierz i wydrukuj formularz.”; komenda `replace_page_text` – poprawka jednego sformułowania na stronie prowadzonej w /cms/ (raport bez `--apply`, nowa rewizja + publikacja, odmowa przy szkicu) |
