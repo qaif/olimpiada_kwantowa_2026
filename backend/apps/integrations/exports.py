@@ -150,9 +150,9 @@ def kuratorium_dataset(stage, voivodeship: str) -> Dataset:
 #: Podpisy pod blokiem podpisów protokołu. Trzy, bo tyle podpisów nosi protokół zawodów:
 #: przewodniczący komitetu, sekretarz i członek komitetu jako świadek.
 PROTOCOL_SIGNATURES = (
-    "Przewodniczący Komitetu Głównego",
-    "Sekretarz Komitetu Głównego",
-    "Członek Komitetu Głównego",
+    "Przewodniczący Komitetu Sterującego",
+    "Sekretarz Komitetu Sterującego",
+    "Członek Komitetu Sterującego",
 )
 
 #: Ile wierszy tabeli mieści się na stronie protokołu. Tabela idzie kawałkami (``splitByRow``),
@@ -266,7 +266,7 @@ def render_stage_protocol(stage) -> bytes:
         table,
         Spacer(1, 14 * mm),
         Paragraph(
-            "Komitet Główny stwierdza zgodność powyższego zestawienia ze stanem systemu "
+            "Komitet Sterujący stwierdza zgodność powyższego zestawienia ze stanem systemu "
             "w chwili sporządzenia protokołu.",
             meta_style,
         ),

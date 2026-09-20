@@ -126,17 +126,17 @@ jobs:
     # ~4700 testów w jednym przebiegu trwało 27–32 minuty – dłużej niż `lint`, `migrations`
     # i `image` razem wzięte, i to ich autor czekał najdłużej na czerwony/zielony wynik.
     # `pytest-split` dzieli zbiór testów na tyle części, ile wpisów ma `matrix.shard` niżej (dziś
-    # pięć), równych liczbą testów, nie czasem – patrz niżej. Każdy shard dostaje **własny**
-    # kontener Postgresa (blok `services` jest per-job, więc matrix mnoży go razem z resztą joba),
-    # więc bazy się nie ścigają i nie trzeba nikomu nadawać osobnej nazwy.
+    # pięć). Każdy shard dostaje **własny** kontener Postgresa (blok `services` jest per-job, więc
+    # matrix mnoży go razem z resztą joba), więc bazy się nie ścigają i nie trzeba nikomu nadawać
+    # osobnej nazwy.
     #
-    # Podział jest po **liczbie testów**, a nie po zmierzonym czasie: `pytest-split` umie ważyć
-    # shardy plikiem `.test_durations`, ale zbudowanie go wymagałoby przebiegu całego zbioru
-    # z `--store-durations` – czyli osobnego zadania, które i tak czekałoby tyle, co dzisiejszy
-    # pojedynczy przebieg. Równy podział jest gorszy tylko o tyle, że najwolniejszy shard (testy
-    # PDF-ów i pieczęci elektronicznej ważą wyraźnie więcej niż reszta) może skończyć zauważalnie
-    # później niż pozostałe – i to jest jedyny koszt tego uproszczenia; plik durations można dołożyć
-    # później, nie zmieniając niczego poza tym jednym argumentem `pytest`.
+    # Podział jest po **zmierzonym czasie**, nie po liczbie testów: `backend/.test_durations`
+    # niesie czas każdego testu, a `--splitting-algorithm least_duration` rozkłada testy tak, żeby
+    # shardy kończyły mniej więcej razem. Podział po liczbie dawał shardy od 2 do 17 minut, bo
+    # testy PDF-ów, pieczęci elektronicznej i cofania migracji ważą wielokrotnie więcej niż reszta
+    # i stoją obok siebie. Test, którego w pliku nie ma (nowy), dostaje czas średni – plik nie
+    # musi więc być aktualny co do testu, wystarczy odświeżyć go, gdy shardy znów się rozjadą:
+    # pełny przebieg z wtyczką zapisującą czasy (opis w `docs/OPERACJE.md`, § CI).
     name: "pytest (shard ${{ matrix.shard }}/${{ strategy.job-total }})"
     runs-on: ubuntu-latest
     strategy:
@@ -250,6 +250,7 @@ jobs:
         run: >-
           python -m pytest -q --create-db --durations=20
           --splits ${{ strategy.job-total }} --group ${{ matrix.shard }}
+          --splitting-algorithm least_duration
 
   pytest-ok:
     # Jeden wymagany check zamiast pięciu (nazwy shardów zmieniają się z liczbą shardów w matrixie,

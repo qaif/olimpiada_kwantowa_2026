@@ -8,9 +8,9 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
-## Niewydane (po `v0.27.2`)
+## Niewydane (po `v0.27.3`)
 
-- Brak — katalog roboczy jest równy tagowi `v0.27.2`. Etap 2 systemu wielokonkursowego jest
+- Brak — katalog roboczy jest równy tagowi `v0.27.3`. Etap 2 systemu wielokonkursowego jest
   domknięty (`UNIWERSALNY-ETAP-2.md` § 3.1). Nie zlecone: drzewo CMS dla konkursu w trybie prefiksu ścieżki (uwaga T43),
   edytor przebiegu przenoszący „przypisz kategorie” do warstwy serwisów.
 
@@ -18,6 +18,7 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 
 | Wersja | Data | Zmiana |
 |---|---|---|
+| **v0.27.3** | 2026-09-21 | protokół etapu (eksport PDF) podpisuje **Komitet Sterujący** – przewodniczący, sekretarz i członek oraz zdanie o zgodności zestawienia (domknięcie v0.26.5: „Komitet Główny” nie występuje już w żadnym dokumencie); CI: shardy `pytest` układane po zmierzonym czasie (`backend/.test_durations`, `--splitting-algorithm least_duration`, odświeżanie: `docs/OPERACJE.md` § 10) |
 | **v0.27.2** | 2026-09-21 | CI zielone i szybsze: zadanie `pytest` dostało środowisko obrazu (skompilowane katalogi tłumaczeń, `collectstatic`, klucz ≥ 50 znaków, poświadczenia S3/MinIO) – znika 12 stałych niepowodzeń i 4 błędy zależne od środowiska; `msgfmt` instaluje gettext; testy w 5 równoległych shardach (`pytest-split`) z jednym statusem zbiorczym „pytest (wynik zbiorczy)” – ok. 17 min zamiast ok. 30 (shardy jeszcze nierówne: brak pliku czasów). Bez zmian w aplikacji |
 | **v0.27.1** | 2026-09-21 | regulamin – dwie poprawki brzmienia na polecenie organizatora: „Ministra właściwego ds. Edukacji” w ramce statusu i domknięty cudzysłów „ZOZ” w § 1 ust. 4 (strona, .docx, wyciąg tekstowy; PDF złożony z poprawionego .docx w Wordzie – 14 stron). W dokumencie Google obie zmiany stoją jako sugestie do zaakceptowania |
 | **v0.27.0** | 2026-09-20 | przekazywanie przyjętych rozwiązań na skrzynkę organizatora: ekran `/coordinator/submission-forwarding/` (do pięciu adresów per konkurs, puste pole = wyłączone, audyt `competition.forwarding_updated` bez adresów), list z metryczką pracy i plikiem w załączniku wysyłany **po czystym skanie antywirusowym** z zadania Celery na kolejce `mail` (`apps/submissions/forwarding.py`), znacznik `SubmissionFile.forwarded_at` przeciw duplikatom, granica załącznika `SUBMISSION_FORWARD_MAX_ATTACHMENT_MB` (domyślnie 20 MB; powyżej list bez pliku i z odnośnikiem do panelu), limit koperty relaya podniesiony z 10 MB do 40 MiB, wiersz o tej drodze w rejestrze czynności przetwarzania (wersja 1.1) |

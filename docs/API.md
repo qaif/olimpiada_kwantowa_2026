@@ -414,7 +414,7 @@ pliki dla odbiorców zewnętrznych:
 
 - **lista dla kuratorium** (CSV/XLSX, zawsze jedno województwo): kod, imię, nazwisko, szkoła,
   miejscowość, klasa, wynik, kwalifikacja,
-- **protokół etapu** (PDF): tabela wyników z blokiem podpisów Komitetu Głównego,
+- **protokół etapu** (PDF): tabela wyników z blokiem podpisów Komitetu Sterującego,
 - **zrzut edycji** (JSON, `format: "olimpiada.edition.v1"`): struktura zawodów, etapy, zadania,
   wpisy uczestników pod kodami publicznymi i ogłoszone tabele — bez danych osobowych. To jest
   droga do migracji zawodów do innego systemu.
