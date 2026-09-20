@@ -239,7 +239,8 @@ EXPECTED_CONSENT_SET = (
         "text": "Zapoznałem/-am się z Regulaminem Olimpiady Kwantowej i akceptuję jego postanowienia.",
         "document_slug": "regulamin",
         "document_url": "/dokumenty/regulamin/",
-        "version": "1.0 z 2 września 2026",
+        # Nowelizacja regulaminu z 20.09.2026 – jedyna świadoma zmiana w tym zestawie.
+        "version": "z 20 września 2026",
         "required": True,
         "required_for_minor": False,
         "help_text": "",
