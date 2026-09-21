@@ -27,10 +27,12 @@
     <ul class="sponsor-slider__track" data-sponsor-slider-track>
       {% for entry in sponsor_slider.entries %}
         <li class="sponsor-slider__item">
-          {% if entry.url %}<a class="sponsor-slider__link" href="{{ entry.url }}" rel="noopener" target="_blank">{% endif %}
+          {# draggable="false" na odnośniku i obrazku: bez tego przeciąganie zaczyna natywne DnD, patrz sponsor-slider.js #}
+          {% if entry.url %}<a class="sponsor-slider__link" href="{{ entry.url }}" rel="noopener" target="_blank" draggable="false">{% endif %}
           <span class="sponsor-slider__frame">
             <img class="sponsor-slider__logo" src="{{ entry.src }}" alt="{{ entry.name }}"
-                 width="{{ entry.width }}" height="{{ entry.height }}" loading="lazy" decoding="async">
+                 width="{{ entry.width }}" height="{{ entry.height }}" loading="lazy" decoding="async"
+                 draggable="false">
           </span>
           {% if entry.url %}</a>{% endif %}
         </li>

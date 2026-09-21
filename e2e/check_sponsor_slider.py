@@ -1,6 +1,7 @@
-"""Kontrola taśmy sponsorów w menu: pętla bez końca, pauza, ograniczony ruch, wąski ekran.
+"""Kontrola taśmy sponsorów w menu: pętla bez końca, pauza, ograniczony ruch, wąski ekran,
+dopasowanie plakietek i przeciąganie myszą.
 
-Cztery rzeczy, których nie sprawdzi pytest, bo dzieją się w przeglądarce (``static/js/sponsor-slider.js``):
+Rzeczy, których nie sprawdzi pytest, bo dzieją się w przeglądarce (``static/js/sponsor-slider.js``):
 
 1. **Taśma jedzie i nigdy się nie zatrzymuje**, kiedy logotypów jest więcej, niż mieści pudełko.
    Stan jest jawny w znaczniku (``data-sponsor-slider-state``: ``running``/``static``) – skrypt
@@ -13,6 +14,11 @@ Cztery rzeczy, których nie sprawdzi pytest, bo dzieją się w przeglądarce (``
    transformacja taśmy ma się nie zmieniać przez cały interwał.
 4. **Poniżej 900 px paska nie ma wcale** – to samo pytanie, co przy innych elementach nagłówka
    (``check_sticky_bar.py``, ``check_timeline_strip.py``).
+5. **Każdy widoczny logotyp mieści się w swojej plakietce** – geometria (``max-height`` na
+   fleksowym dziecku bez wysokości rodzica) nie działa tak samo w Playwright/Chromium jak
+   w pytest (który w ogóle nie rysuje layoutu), stąd osobna kontrola bounding boxów.
+6. **Przeciągnięcie myszą przesuwa taśmę i nie otwiera strony partnera** – to jest dokładnie ten
+   sam gest, który wcześniej zaczynał natywne przeciąganie obrazka/odnośnika.
 
 Wymaga zawodów z ustawionym logotypem organizatora i co najmniej pięcioma partnerami z logotypem
 (więcej, niż mieści jeden rząd o szerokości 1280 px – cztery sloty po ~132 px) – tyle, ile
@@ -147,6 +153,68 @@ def check_reduced_motion(browser) -> None:
     context.close()
 
 
+def check_logo_fits_frame(page) -> None:
+    """Każdy widoczny logotyp mieści się w bounding boksie swojej plakietki – żaden nie wystaje
+    (dawny bug: rendition do 48px wysokości wychodziła poza pigułkę wysoką na 36px, bo
+    ``max-height: 100%`` na fleksowym dziecku bez wysokości rodzica nic nie robi)."""
+    boxes = page.evaluate(
+        """() => {
+          const items = [...document.querySelectorAll('.sponsor-slider__item:not([aria-hidden])')];
+          return items.map((item) => {
+            const frame = item.querySelector('.sponsor-slider__frame');
+            const img = item.querySelector('.sponsor-slider__logo');
+            const f = frame.getBoundingClientRect();
+            const i = img.getBoundingClientRect();
+            return {
+              frame: {x: f.x, y: f.y, right: f.right, bottom: f.bottom},
+              logo: {x: i.x, y: i.y, right: i.right, bottom: i.bottom},
+            };
+          });
+        }"""
+    )
+    assert boxes, "brak widocznych plakietek do sprawdzenia"
+    # Pół piksela luzu na zaokrąglenia subpikselowe silnika renderowania.
+    slack = 0.5
+    for pair in boxes:
+        f, logo = pair["frame"], pair["logo"]
+        assert logo["x"] >= f["x"] - slack, "logotyp wystaje poza plakietkę z lewej strony"
+        assert logo["y"] >= f["y"] - slack, "logotyp wystaje poza plakietkę u góry"
+        assert logo["right"] <= f["right"] + slack, "logotyp wystaje poza plakietkę z prawej strony"
+        assert logo["bottom"] <= f["bottom"] + slack, "logotyp wystaje poza plakietkę u dołu"
+    print(f"plakietki: {len(boxes)} logotypów mieści się w ramkach bez wystawania")
+
+
+def check_drag_moves_without_navigating(page, state: dict) -> None:
+    """Przeciągnięcie taśmy myszą o 150px w lewo ma ją przesunąć – i **nie** ma otwierać strony
+    partnera (dawny bug: to samo przeciągnięcie zaczynało natywne przeciąganie obrazka/odnośnika)."""
+    if state["state"] != "running":
+        print("slider statyczny – pomijam test przeciągania (nic tu nie jedzie)")
+        return
+
+    root = page.locator("[data-sponsor-slider]")
+    box = root.bounding_box()
+    assert box is not None
+    start_x = box["x"] + box["width"] / 2
+    start_y = box["y"] + box["height"] / 2
+
+    opened_popup = {"seen": False}
+    page.on("popup", lambda popup: opened_popup.__setitem__("seen", True))
+
+    before = page.evaluate(STATE)["transform"]
+    page.mouse.move(start_x, start_y)
+    page.mouse.down()
+    # Kilka pośrednich kroków zamiast teleportacji – bliżej realnego gestu, uruchamia pointermove.
+    for step in range(1, 6):
+        page.mouse.move(start_x - step * 30, start_y, steps=1)
+    page.mouse.up()
+    page.wait_for_timeout(200)
+    after = page.evaluate(STATE)["transform"]
+
+    print(f"przeciąganie: przed={before} po={after} otwarto_kartę={opened_popup['seen']}")
+    assert before != after, "przeciągnięcie o 150px w lewo ma przesunąć taśmę"
+    assert not opened_popup["seen"], "przeciągnięcie nie ma otwierać strony partnera w nowej karcie"
+
+
 def check_narrow_screen(page) -> None:
     """Poniżej 900 px slidera w menu nie ma wcale – to samo pytanie, co przy innych elementach."""
     page.set_viewport_size({"width": 700, "height": 800})
@@ -165,8 +233,10 @@ with sync_playwright() as playwright:
     page = browser.new_page(viewport={"width": 1280, "height": 800})
     initial_state = check_rendering(page)
     check_state_matches_capacity(initial_state)
+    check_logo_fits_frame(page)
     check_endless_loop(page, initial_state)
     check_pause_independent(page, initial_state)
+    check_drag_moves_without_navigating(page, initial_state)
     check_reduced_motion(browser)
     check_narrow_screen(page)
     browser.close()

@@ -357,6 +357,23 @@ def test_a_link_opens_in_a_new_tab_without_an_opener(web_client, competition, pa
     assert 'href="https://a.example/" rel="noopener" target="_blank"' in content
 
 
+def test_the_link_and_image_are_not_natively_draggable(web_client, competition, partners_page):
+    """``draggable="false"`` na obu znacznikach: bez tego przeciąganie myszą nad logotypem zaczyna
+    natywne przeciąganie obrazka/odnośnika zamiast przesuwać taśmę (sponsor-slider.js)."""
+    set_partners(
+        partners_page, [partner("Partner A", logo=make_image("Partner A"), url="https://a.example/")]
+    )
+
+    content = web_client.get("/").content.decode()
+    nav = content.split('class="nav nav--cms"', 1)[1].split("</nav>", 1)[0]
+
+    assert 'class="sponsor-slider__link"' in nav
+    link = nav.split('class="sponsor-slider__link"', 1)[1].split(">", 1)[0]
+    assert 'draggable="false"' in link
+    img = nav.split('class="sponsor-slider__logo"', 1)[1].split(">", 1)[0]
+    assert 'draggable="false"' in img
+
+
 def test_a_disabled_slider_renders_nothing(web_client, competition, partners_page):
     row = settings_for(competition)
     row.sponsor_slider_enabled = False

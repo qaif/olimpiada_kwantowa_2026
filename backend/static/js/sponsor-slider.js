@@ -21,12 +21,21 @@
  * kontenerze – łapie też przejście przez punkt załamania 900 px, bo wtedy szerokość skacze na
  * zero) oraz przy zmianie ``prefers-reduced-motion`` w locie.
  *
- * Pauza: trzy **niezależne** powody – najechanie myszą, fokus klawiaturą w środku i ukryta karta.
- * Wznowienie następuje dopiero, gdy żaden z nich już nie obowiązuje (zjechanie kursorem, kiedy
- * wciąż trzyma fokus, ma nic nie robić – i odwrotnie).
+ * Pauza: cztery **niezależne** powody – najechanie myszą, fokus klawiaturą w środku, ukryta karta
+ * i przeciąganie taśmy palcem/myszą. Wznowienie następuje dopiero, gdy żaden z nich już nie
+ * obowiązuje (zjechanie kursorem, kiedy wciąż trzyma fokus, ma nic nie robić – i odwrotnie).
  *
  * Fokus na przyciętej planszy przesuwa ją w widoczne pole natychmiast, **także** w trybie
  * statycznym i przy ograniczonym ruchu – klawiatura nie może utknąć na niewidocznym odnośniku.
+ *
+ * Przeciąganie (tylko w stanie „running” – w „static” nie ma czego przewijać): naciśnięcie
+ * zapamiętuje pozycję X, przekroczenie 5 px ustawia flagę ``dragged`` i od tej chwili taśma
+ * jedzie za kursorem/palcem bez animacji (przejście wyłączone). Puszczenie zaokrągla do
+ * najbliższego pełnego pola. Ujemny indeks (przeciąganie w prawo od samego początku taśmy) nie ma
+ * czego pokazać przed pierwszym oryginałem, więc punkt odniesienia doskakuje o ``total`` w tej
+ * samej klatce – kopia na końcu jest identyczna z oryginałem, więc doskok jest niewidoczny (ta
+ * sama sztuczka, co ``snapBack()`` na drugim końcu taśmy). Kliknięcie, które kończy realne
+ * przeciągnięcie, jest tłumione (capture-phase ``click``), żeby nie otwierało strony partnera.
  */
 (function () {
   "use strict";
@@ -69,6 +78,16 @@
     var hovering = false;
     var focused = false;
     var hiddenTab = document.hidden;
+
+    /* Przeciąganie: ``dragging`` to czwarty powód pauzy (patrz ``paused()``), ``dragged`` mówi,
+       czy ruch przekroczył próg 5 px – dopiero wtedy to „prawdziwe” przeciągnięcie, a nie zwykłe
+       kliknięcie, i dopiero wtedy następujący po nim ``click`` trzeba stłumić. */
+    var pointerId = null;
+    var dragging = false;
+    var dragged = false;
+    var dragStartX = 0;
+    var dragBaseIndex = 0;
+    var DRAG_THRESHOLD_PX = 5;
 
     function slotWidth() {
       var rect = items[0].getBoundingClientRect();
@@ -123,7 +142,7 @@
     }
 
     function paused() {
-      return hovering || focused || hiddenTab;
+      return hovering || focused || hiddenTab || dragging;
     }
 
     function start() {
@@ -173,8 +192,9 @@
       }
     });
 
-    /* Trzy niezależne powody pauzy – żaden nie może „skasować” drugiego. Wznowienie następuje
-       dopiero, gdy wszystkie trzy przestają obowiązywać naraz. */
+    /* Cztery niezależne powody pauzy (czwarty – przeciąganie – jest niżej) – żaden nie może
+       „skasować” drugiego. Wznowienie następuje dopiero, gdy wszystkie cztery przestają
+       obowiązywać naraz. */
     root.addEventListener("mouseenter", function () {
       hovering = true;
       stop();
@@ -206,6 +226,103 @@
         start();
       }
     });
+
+    /* Przeglądarka domyślnie zaczyna natywne przeciąganie obrazka/odnośnika po naciśnięciu
+       i przesunięciu myszy nad nimi (widmowa miniatura, można upuścić w pasek adresu) –
+       ``draggable="false"`` w szablonie załatwia to w większości przeglądarek, to tylko
+       dodatkowe zabezpieczenie (obejmuje też klony, bo ``cloneNode`` kopiuje atrybut). */
+    root.addEventListener("dragstart", function (event) {
+      event.preventDefault();
+    });
+
+    /* Przeciąganie taśmy myszą/palcem – tylko gdy jedzie (klony istnieją, jest czym wypełnić
+       ujemny/zbyt duży indeks). W trybie statycznym nie ma czego przewijać. */
+    root.addEventListener("pointerdown", function (event) {
+      if (!running || (event.pointerType === "mouse" && event.button !== 0)) {
+        return;
+      }
+      pointerId = event.pointerId;
+      dragStartX = event.clientX;
+      dragBaseIndex = index;
+      dragged = false;
+      dragging = true;
+      stop();
+    });
+
+    root.addEventListener("pointermove", function (event) {
+      if (pointerId === null || event.pointerId !== pointerId) {
+        return;
+      }
+      var dx = event.clientX - dragStartX;
+      if (!dragged) {
+        if (Math.abs(dx) <= DRAG_THRESHOLD_PX) {
+          return;
+        }
+        dragged = true;
+        if (root.setPointerCapture) {
+          root.setPointerCapture(pointerId);
+        }
+      }
+      var width = slotWidth();
+      var position = dragBaseIndex - dx / width;
+      if (position < 0) {
+        /* Nic nie stoi przed pierwszym oryginałem – kopia na końcu (indeksy total..2*total-1)
+           jest identyczna z oryginałami, więc doskok punktu odniesienia o ``total`` w tej samej
+           klatce jest niewidoczny: to te same logotypy, tylko inne znaczniki w DOM-ie. */
+        dragBaseIndex += total;
+        position += total;
+      }
+      moveTo(position, false);
+    });
+
+    function endDrag(event) {
+      if (pointerId === null || event.pointerId !== pointerId) {
+        return;
+      }
+      if (root.releasePointerCapture && root.hasPointerCapture && root.hasPointerCapture(pointerId)) {
+        root.releasePointerCapture(pointerId);
+      }
+      pointerId = null;
+      dragging = false;
+      if (dragged) {
+        var dx = event.clientX - dragStartX;
+        var width = slotWidth();
+        var target = Math.round(dragBaseIndex - dx / width);
+        var animate = true;
+        if (target < 0) {
+          /* Tak samo jak w ``pointermove`` – to doskok do identycznej kopii, nie dosunięcie,
+             więc bez animacji. */
+          target += total;
+          animate = false;
+        }
+        index = target;
+        snapped = index === 0;
+        moveTo(index, animate);
+        /* index >= total: nic dodatkowego nie trzeba robić – istniejący nasłuch ``transitionend``
+           wyżej wywoła ``snapBack()`` po zakończeniu tego przejścia, dokładnie jak po ``advance()``. */
+      }
+      /* ``dragged`` zostaje – kolejny ``click`` (odpalany przez przeglądarkę zaraz po
+         ``pointerup``) go stłumi i dopiero wtedy wyzeruje, patrz nasłuch niżej. */
+      start();
+    }
+
+    root.addEventListener("pointerup", endDrag);
+    root.addEventListener("pointercancel", endDrag);
+
+    /* Kliknięcie kończące realne przeciągnięcie nie ma otwierać strony partnera – zwykłe
+       kliknięcie (bez ruchu ponad próg) przechodzi normalnie do odnośnika. Faza przechwytywania,
+       żeby zdążyć przed obsługą kliknięcia na ``<a>``. */
+    root.addEventListener(
+      "click",
+      function (event) {
+        if (dragged) {
+          event.preventDefault();
+          event.stopPropagation();
+          dragged = false;
+        }
+      },
+      true
+    );
 
     /* Fokus na przyciętej planszy: przesuwamy ją w widoczne pole natychmiast – niezależnie od
        tego, czy taśma akurat jedzie, stoi statycznie czy działa w trybie ograniczonego ruchu.

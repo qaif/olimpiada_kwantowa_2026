@@ -905,6 +905,12 @@ hr {
     round(down, 100cqw, var(--sponsor-slot-w)),
     calc(var(--sponsor-slot-w) * 4)
   );
+  /* Przeciąganie myszą/palcem przesuwa taśmę (sponsor-slider.js), nie zaznacza tekst i nie
+     zaczyna natywnego przeciągania obrazka/odnośnika – patrz też ``draggable="false"`` w
+     szablonie. ``pan-y`` zostawia pionowe przewijanie strony działające na dotyku. */
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .sponsor-slider__track {
@@ -936,6 +942,7 @@ hr {
   width: 100%;
   height: 100%;
   text-decoration: none;
+  -webkit-user-drag: none;
 }
 
 /* Pierścień fokusu rysuje się na ``<a>``, czyli **pod** plakietką w porządku malowania, ale
@@ -947,22 +954,43 @@ hr {
   border-radius: var(--radius-sm, 6px);
 }
 
+/* Plakietka ma **stały, jednakowy rozmiar** niezależnie od logotypu (dawniej była tak szeroka,
+   jak jej treść, więc partnerzy z szerszym znakiem dostawali szerszą plakietkę – wyglądało to
+   nierówno) – 6 px odstępu z każdej strony od krawędzi pola (``--sponsor-slot-w/h``).
+   ``overflow: hidden`` jest siatką bezpieczeństwa: sam obrazek już mieści się w środku dzięki
+   regule niżej, ale rendition większa niż plakietka (zdarza się – patrz uwaga organizatora)
+   nie ma prawa jej rozepchać. */
 .sponsor-slider__frame {
   display: flex;
   align-items: center;
   justify-content: center;
-  max-height: calc(var(--sponsor-slot-h) - 8px);
+  box-sizing: border-box;
+  width: calc(var(--sponsor-slot-w) - 12px);
+  height: calc(var(--sponsor-slot-h) - 8px);
   padding: 4px 10px;
+  overflow: hidden;
   background: #f6f4ee; /* stała: znaki partnerów wymagają jasnego tła także w trybie ciemnym */
   border-radius: var(--radius-sm, 6px);
 }
 
+/* Obrazek skaluje się **w dół** do plakietki z zachowaniem proporcji (``object-fit: contain``
+   działa tu, bo plakietka ma teraz definite rozmiar – wcześniej ``max-height: 100%`` na
+   fleksowym dziecku bez wysokości rodzica nic nie robił, stąd logotypy 44–112 px wysokości
+   wychodziły poza pigułkę), ale nigdy w górę: ``width``/``height`` z atrybutów HTML dają obrazowi
+   jego naturalny rozmiar jako bazę, a ``width``/``height: auto`` w CSS tylko go zmniejszają,
+   nigdy nie powiększają ponad tę bazę. ``min-width/height: 0`` zdejmuje fleksowe minimum
+   zawartości, które inaczej blokowałoby kurczenie się poniżej rozmiaru samego obrazka. */
 .sponsor-slider__logo {
+  display: block;
   max-width: 100%;
   max-height: 100%;
   width: auto;
   height: auto;
+  min-width: 0;
+  min-height: 0;
   object-fit: contain;
+  flex: 0 1 auto;
+  -webkit-user-drag: none;
 }
 
 /* Poniżej 900 px nawigacja serwisu zawija się pod logotyp (patrz reguła ``.nav--cms`` wyżej) –
