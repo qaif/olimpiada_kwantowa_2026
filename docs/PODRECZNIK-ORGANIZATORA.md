@@ -500,6 +500,7 @@ decyzja człowieka, a nie wynik obliczenia.
 | **Komunikaty** (listy do grupy) | `/coordinator/messages/` | jednorazowa wiadomość e-mail do wybranej grupy |
 | **Ogłoszenia** (pasek w serwisie) | `/coordinator/announcements/` | zdanie widoczne na **każdej** stronie, także dla niezalogowanych |
 | **Zgłoszenia** (support desk) | `/coordinator/support/` | kolejka spraw od ludzi, z wątkiem i odpowiedzią |
+| **Forum uczestników** | `/coordinator/forum/` | rozmowa uczestników między sobą, moderowana przez Ciebie |
 | **FAQ** | `/faq/` (redakcja w `/cms/`) | odpowiedzi, które mają wyprzedzić zgłoszenia |
 | **Strona statusu** | `/status/` | „nie mogę wysłać pracy — to u was, czy u mnie?” |
 
@@ -553,7 +554,82 @@ Nie wchodzą tam ciasteczka, tokeny ani zawartość formularzy. Formularz mówi 
 serwisu w `/cms/` (adres nadawcy `noreply@…` jest skrzynką, której nikt nie czyta). **Żaden z listów nie
 niesie treści** — tylko informację, że sprawa albo odpowiedź jest, i odnośnik.
 
-### 6.4 FAQ
+### 6.4 Forum uczestników — `/coordinator/forum/`
+
+Forum jest **domyślnie wyłączone** i to nie jest ostrożność techniczna. Pod adresem rozmawiają osoby
+**niepełnoletnie**, więc otwarcie forum jest zobowiązaniem do dyżuru moderacyjnego — a nie funkcją, która
+ma się włączyć razem z wdrożeniem. Włącza je przełącznik konkursu `participant_forum`
+(`/coordinator/competition/`). Dopóki jest wyłączony, adresów `/forum/…` i `/coordinator/forum/…` **nie ma**
+(404), a w żadnym menu nie przybywa ani jedna pozycja.
+
+| Kto | Gdzie |
+|---|---|
+| Uczestnik, komitet | „Forum” w pasku konta → `/forum/`; dział: `/forum/<dział>/`; wątek: `/forum/t/<id>/` |
+| Autor | `/forum/mine/` — „Twoje wpisy”: stan każdej wypowiedzi i **Twoje uzasadnienie**, gdy ją odrzuciłeś |
+| Koordynator | `/coordinator/forum/` — kolejka; `/coordinator/forum/t/<id>/` — wątek z **każdym** wpisem |
+| Koordynator | `/coordinator/forum/threads/`, `/coordinator/forum/categories/`, `/coordinator/forum/settings/` |
+
+**Zacznij od działu.** Wątki powstają wyłącznie w dziale, więc forum bez ani jednego działu jest forum,
+na którym nikt nic nie napisze. Działu nie da się skasować — stoją w nim rozmowy — ale da się go zamknąć
+na nowe wątki, a wtedy zostaje do czytania.
+
+**Dwa tryby moderacji** (`/coordinator/forum/settings/`):
+
+- **przed publikacją** (domyślny) — wpis widzą inni dopiero po Twoim zatwierdzeniu; do tego czasu widzi
+  go **wyłącznie jego autor**, z dopiskiem „czeka na moderację”,
+- **po publikacji** — wpis jest widoczny od razu, a Ty go ukrywasz. Wybieraj to tylko wtedy, gdy masz
+  dyżur moderacyjny na żywo.
+
+**W czasie etapu przyjmującego rozwiązania obowiązuje tryb „przed publikacją” — zawsze, niezależnie od
+tego ustawienia.** To nie jest ostrożność, tylko regulamin: § 10 ust. 2 i § 17 zabraniają omawiania
+rozwiązań zadań otwartego etapu, a wpis widoczny przez kwadrans, zanim go zdejmiesz, zdąży przeczytać
+ktoś, kto jeszcze nie oddał pracy. Ekran ustawień mówi wprost, gdy wymuszenie działa. Formularz pisania
+pokazuje wtedy uczestnikowi ostrzeżenie z nazwą etapu i cytatem z regulaminu.
+
+**Kolejka** (`/coordinator/forum/`) trzyma trzy listy naraz: nowe wątki, nowe wpisy i zgłoszone
+wypowiedzi. Treść stoi w niej wprost, żeby decyzja była jednym kliknięciem, a nie otwieraniem kart.
+Zaznaczenie kilku pozycji i **„Zatwierdź zaznaczone”** publikuje je razem — **odrzucić zbiorczo się nie
+da** i tak ma zostać: odrzucenie wymaga uzasadnienia, które zobaczy autor, a jedno zdanie wysłane do
+dwudziestu osób naraz nie jest uzasadnieniem żadnej z tych decyzji.
+
+**Zatwierdzenie wątku publikuje razem z nim jego pierwszy wpis** — to on jest treścią, którą właśnie
+przeczytałeś. Dalsze wpisy tego wątku przechodzą kolejkę osobno.
+
+**Zgłoszenie od uczestnika niczego nie ukrywa.** Rozstrzygasz Ty: „Rozpatrzone” zamyka sprawę i nie rusza
+wypowiedzi. Automatyczne zdejmowanie po zgłoszeniu dałoby każdemu uczestnikowi przycisk „usuń cudzy
+wpis”, a na forum, na którym toczy się rywalizacja, ktoś by go w końcu użył.
+
+**Forum nie wysyła listów — ani do Ciebie, ani do autorów.** Decyzja jest świadoma: konkurs ma już dwa
+kanały poczty (komunikaty i zgłoszenia), a trzeci, wyzwalany każdym akapitem nastolatka, zamieniłby Twoją
+skrzynkę w kanał RSS i skończył się regułą „do kosza”. W zamian:
+
+- **odznaka przy „Forum uczestników”** w menu panelu mówi, ile pozycji czeka. To jedyny sygnał, więc przy
+  trybie „przed publikacją” zaglądaj do kolejki tak, jak zaglądasz do zgłoszeń,
+- **autor znajduje Twoje uzasadnienie** na swoim ekranie `/forum/mine/` — i to jedyne miejsce, w którym
+  się o odrzuceniu dowie. Odrzucenie bez uzasadnienia jest niemożliwe (formularz odmówi).
+
+**Czego forum nie ma i w wersji pierwszej mieć nie będzie:** wiadomości prywatnych (rozmowa
+niepełnoletnich bez świadków jest dokładnie tym, czego moderacja nie widzi), załączników i HTML-a
+(wypowiedź jest tekstem, odnośniki stają się klikalne same), polubień i rankingów (zawody mają już jeden
+ranking i jest anonimowy), awatarów i podpisów.
+
+**Podpis pod wypowiedzią to imię i pierwsza litera nazwiska** — nigdy adres e-mail, szkoła ani kod
+publiczny `OLM-…`. Kod jest kluczem anonimowego oceniania: jeden wątek „cześć, jestem Ania OLM-XXXXXX”
+wystarczyłby, żeby powiązanie kod → osoba stało się publiczne dla wszystkich naraz. Wpisy członków
+komitetu i Twoje noszą odznakę „Komitet” / „Organizator”, żeby uczestnik odróżnił zdanie kolegi od zdania
+osoby rozstrzygającej o zawodach.
+
+**Uczestnik może poprawić swój wpis przez 15 minut** od napisania; poprawka opublikowanego wpisu wraca
+w trybie „przed publikacją” **do kolejki** (inaczej wystarczyłoby napisać zdanie nijakie, doczekać
+zatwierdzenia i podmienić treść). **Usunięcie własnego wpisu jest miękkie**: dla czytelników znika
+natychmiast, ale wiersz zostaje — żeby zgłoszona wypowiedź nie mogła zniknąć na żądanie autora.
+
+**Każda Twoja decyzja zostaje w dzienniku zdarzeń** (`/coordinator/audit/`, zdarzenia `forum.*`) —
+**bez kopii treści wypowiedzi**. RODO: forum ma własny wiersz w rejestrze czynności przetwarzania
+(wersja 1.2), wpisy uczestnika wchodzą do paczki `/account/export/`, a anonimizacja konta zdejmuje podpis
+(zostaje „Użytkownik usunięty”), zostawiając rozmowę czytelną.
+
+### 6.5 FAQ
 
 Strona `/faq/` z pytaniami pogrupowanymi w sekcje; każde pytanie ma **trwałą kotwicę**, więc odpowiedź na
 zgłoszenie może odesłać do konkretnego pytania, a odnośnik przeżyje poprawkę sformułowania. Redakcja

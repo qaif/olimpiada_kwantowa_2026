@@ -50,10 +50,12 @@ from apps.forum.services import (
     edit_post,
     effective_mode,
     own_posts,
+    own_threads,
     reply,
     report_post,
     settings_for,
     stage_forcing_pre_moderation,
+    thread_visible_to,
     visible_posts,
     visible_threads,
 )
@@ -235,14 +237,21 @@ class ForumThreadView(ForumAccessMixin, ThrottledFormMixin, View):
         # „ostatnia” zamiast numeru: po dodaniu wpisu wracamy na jego stronę, a nie na pierwszą.
         # Numer wyliczony w widoku rozjechałby się z paginatorem przy pierwszym wpisie ukrytym.
         page = paginator.get_page(paginator.num_pages if number == "ostatnia" else number)
+        base = self.base_context()
         context = {
-            **self.base_context(),
+            **base,
             "thread": thread,
             "page_obj": page,
             "paginator": paginator,
             "entries": render_posts(page.object_list, request.user, self.competition),
             "form": form,
-            "can_write": not thread.is_locked and thread.is_published,
+            # Trzy warunki, a nie dwa: „tylko do odczytu” jest tą samą odmową, co zamknięty wątek,
+            # i musi stać **tutaj**, a nie w szablonie. Inaczej każdy kolejny szablon forum
+            # wyprowadzałby tę regułę od nowa, a pierwszy, który o niej zapomni, pokaże formularz
+            # odpowiedzi, po którym ``ensure_can_write`` i tak odmówi (``FORUM_READ_ONLY``).
+            "can_write": (
+                not thread.is_locked and thread.is_published and not base["forum_settings"].is_read_only
+            ),
         }
         return TemplateResponse(request, THREAD_TEMPLATE, context, status=status)
 
@@ -394,9 +403,31 @@ class ForumMyPostsView(ForumAccessMixin, View):
     To jest **jedyne** miejsce, w którym autor dowiaduje się, że jego wpis został odrzucony i
     dlaczego. Listu o tym nie wysyłamy (uzasadnienie w docstringu ``apps.forum.services``), więc
     ten ekran musi być kompletny: są tu wpisy czekające, odrzucone, ukryte i opublikowane.
+
+    **Dwie listy, nie jedna**, bo odrzucenie wątku i odrzucenie wpisu są dwiema różnymi decyzjami
+    i niosą dwa różne uzasadnienia. Wątek odrzucony **po** zatwierdzeniu swojego pierwszego wpisu
+    zostawiłby ten wpis w stanie „opublikowany” (``moderate_thread`` nie cofa cudzych decyzji), więc
+    sama lista wpisów pokazywałaby autorowi zieloną odznakę pod tematem, którego nikt już nie widzi.
+
+    Każdy wiersz niesie ``thread_visible``: odrzucony i ukryty wątek daje 404 także swojemu
+    autorowi, a odnośnik, o którym z góry wiadomo, że nie zadziała, jest gorszy niż jego brak.
     """
 
+    #: Ile pozycji wypisujemy. Ekran jest historią własnych wypowiedzi, a nie archiwum forum –
+    #: autor, który napisał ich więcej, szuka konkretnej w wątku, a nie na tej liście.
+    LIMIT = 200
+
     def get(self, request):
-        posts = own_posts(request.user, self.competition)[:200]
-        context = {**self.base_context(), "posts": list(posts)}
+        posts = own_posts(request.user, self.competition)[: self.LIMIT]
+        threads = own_threads(request.user, self.competition)[: self.LIMIT]
+        context = {
+            **self.base_context(),
+            "posts": [
+                {"post": post, "thread_visible": thread_visible_to(post.thread, request.user)}
+                for post in posts
+            ],
+            "threads": [
+                {"thread": thread, "visible": thread_visible_to(thread, request.user)} for thread in threads
+            ],
+        }
         return TemplateResponse(request, MINE_TEMPLATE, context)

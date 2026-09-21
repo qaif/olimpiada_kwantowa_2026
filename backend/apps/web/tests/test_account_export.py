@@ -96,6 +96,57 @@ def test_the_data_file_never_carries_the_password_hash(web_client, participant):
     assert participant.user.password not in body
 
 
+def test_the_data_file_holds_the_own_forum_posts(web_client, participant, competition):
+    """Wypowiedzi na forum są danymi tej osoby, więc wchodzą do paczki razem ze stanem moderacji.
+
+    Uzasadnienie odrzucenia **też**: decyzja o wypowiedzi dotyczy jej autora, a ekran „Twoje wpisy”
+    jest jedynym miejscem, w którym autor się o niej dowiaduje – paczka nie może być uboższa.
+    """
+    from apps.forum.models import ModerationStatus
+    from apps.forum.tests.factories import ForumPostFactory
+
+    ForumPostFactory(
+        competition=competition,
+        author=participant.user,
+        body="TRESC-MOJEGO-WPISU",
+        status=ModerationStatus.REJECTED,
+        moderation_note="UZASADNIENIE-ORGANIZATORA",
+    )
+    web_client.force_login(participant.user)
+
+    section = payload(web_client.get(EXPORT_URL))["wpisy_na_forum"]
+
+    assert len(section) == 1
+    assert section[0]["tresc"] == "TRESC-MOJEGO-WPISU"
+    assert section[0]["uzasadnienie_moderatora"] == "UZASADNIENIE-ORGANIZATORA"
+
+
+def test_the_forum_section_never_carries_somebody_elses_post(web_client, participant, competition):
+    """Art. 15 pyta o dane **tej** osoby, a nie o rozmowę, w której brała udział.
+
+    Paczka z odpowiedziami innych uczestników byłaby wydaniem ich danych komuś, kto o nie nie pytał
+    i nie ma do nich prawa – a na forum piszą osoby niepełnoletnie.
+    """
+    from apps.forum.tests.factories import ForumPostFactory, ForumThreadFactory
+
+    thread = ForumThreadFactory(competition=competition)
+    ForumPostFactory(competition=competition, thread=thread, author=participant.user, body="MOJE")
+    ForumPostFactory(competition=competition, thread=thread, body="CUDZE-ZDANIE")
+    web_client.force_login(participant.user)
+
+    body = json.dumps(payload(web_client.get(EXPORT_URL)))
+
+    assert "MOJE" in body
+    assert "CUDZE-ZDANIE" not in body
+
+
+def test_the_forum_section_is_an_empty_list_for_an_account_that_never_wrote(web_client, participant):
+    """Kształt pliku ma być ten sam dla każdego konta – brak wpisów to pusta lista, a nie brak klucza."""
+    web_client.force_login(participant.user)
+
+    assert payload(web_client.get(EXPORT_URL))["wpisy_na_forum"] == []
+
+
 def test_consents_come_with_the_document_version_and_both_timestamps(web_client, participant):
     ConsentRecord.objects.create(
         participant=participant,

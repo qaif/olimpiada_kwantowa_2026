@@ -8,16 +8,18 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
-## Niewydane (po `v0.27.3`)
+## Niewydane (po `v0.28.0`)
 
-- Brak — katalog roboczy jest równy tagowi `v0.27.3`. Etap 2 systemu wielokonkursowego jest
-  domknięty (`UNIWERSALNY-ETAP-2.md` § 3.1). Nie zlecone: drzewo CMS dla konkursu w trybie prefiksu ścieżki (uwaga T43),
-  edytor przebiegu przenoszący „przypisz kategorie” do warstwy serwisów.
+- Brak. Nie zlecone: drzewo CMS dla konkursu w trybie prefiksu ścieżki (uwaga T43),
+  edytor przebiegu przenoszący „przypisz kategorie” do warstwy serwisów. Forum w wersji pierwszej
+  świadomie **nie ma** powiadomień e-mail, wiadomości prywatnych, załączników, polubień ani
+  rankingów — uzasadnienie każdej z tych decyzji stoi w `PODRECZNIK-ORGANIZATORA.md` § 6.4.
 
 ## Wydania
 
 | Wersja | Data | Zmiana |
 |---|---|---|
+| **v0.28.0** | 2026-09-21 | **forum uczestników moderowane przez koordynatora** (prośba organizatora z 21.09.2026), za flagą `participant_forum` **domyślnie wyłączoną**: uczestnik dostaje `/forum/` (działy, wątek po 20 wpisów, nowy wątek, odpowiedź, zgłoszenie wpisu) i `/forum/mine/` – jedyne miejsce, w którym autor dowiaduje się o odrzuceniu i czyta uzasadnienie; koordynator `/coordinator/forum/` (kolejka wątków, wpisów i zgłoszeń, zbiorcze zatwierdzanie, spis wątków, wątek z każdym stanem, działy, ustawienia). Wypowiedź jest **zwykłym tekstem** (bez HTML-a i załączników, `linebreaksbr` + `urlize` z `rel="nofollow noopener noreferrer"`), podpisem jest **imię i inicjał nazwiska** – nigdy adres e-mail, szkoła ani kod `OLM-…` (klucz anonimowego oceniania). **Dopóki którykolwiek etap przyjmuje rozwiązania, obowiązuje moderacja wstępna niezależnie od ustawienia konkursu** (regulamin § 10 ust. 2 i § 17), a formularz pisania niesie ostrzeżenie z nazwą etapu. Własny wpis poprawialny przez 15 minut (poprawka opublikowanego wraca do kolejki), usunięcie miękkie (`HIDDEN`), limit `forum` 30/h; każda decyzja moderatora zostawia zdarzenie `forum.*` w audycie **bez kopii treści**. RODO: wiersz forum w rejestrze czynności (wersja **1.2**, warunkowy – wchodzi wyłącznie konkursom z włączoną flagą), wpisy w paczce `/account/export/`, anonimizacja konta zdejmuje podpis („Użytkownik usunięty”), treść zostaje częścią rozmowy. Bez powiadomień e-mail – sygnałem jest odznaka w menu panelu. Konkurs z domyślnymi przełącznikami nie zmienia się o ani jeden adres i ani jedną pozycję menu |
 | **v0.27.3** | 2026-09-21 | protokół etapu (eksport PDF) podpisuje **Komitet Sterujący** – przewodniczący, sekretarz i członek oraz zdanie o zgodności zestawienia (domknięcie v0.26.5: „Komitet Główny” nie występuje już w żadnym dokumencie); CI: shardy `pytest` układane po zmierzonym czasie (`backend/.test_durations`, `--splitting-algorithm least_duration`, odświeżanie: `docs/OPERACJE.md` § 10) |
 | **v0.27.2** | 2026-09-21 | CI zielone i szybsze: zadanie `pytest` dostało środowisko obrazu (skompilowane katalogi tłumaczeń, `collectstatic`, klucz ≥ 50 znaków, poświadczenia S3/MinIO) – znika 12 stałych niepowodzeń i 4 błędy zależne od środowiska; `msgfmt` instaluje gettext; testy w 5 równoległych shardach (`pytest-split`) z jednym statusem zbiorczym „pytest (wynik zbiorczy)” – ok. 17 min zamiast ok. 30 (shardy jeszcze nierówne: brak pliku czasów). Bez zmian w aplikacji |
 | **v0.27.1** | 2026-09-21 | regulamin – dwie poprawki brzmienia na polecenie organizatora: „Ministra właściwego ds. Edukacji” w ramce statusu i domknięty cudzysłów „ZOZ” w § 1 ust. 4 (strona, .docx, wyciąg tekstowy; PDF złożony z poprawionego .docx w Wordzie – 14 stron). W dokumencie Google obie zmiany stoją jako sugestie do zaakceptowania |

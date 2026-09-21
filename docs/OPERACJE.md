@@ -601,6 +601,15 @@ z **różnicami** wobec wartości domyślnych. Pusty słownik `{}` znaczy „jak
   (`/coordinator/competition/`): marka, organizator, kontakt. Adresowania (witryna, identyfikator,
   tryb, prefiks) nie ma tam z założenia — zmiana domeny wymaga dostępu do serwera, więc należy do
   operatora platformy, nie do koordynatora.
+- **`participant_forum`** — otwiera forum uczestników (`/forum/`) i jego moderację
+  (`/coordinator/forum/`). Wyłączona znaczy, że tych adresów **nie ma** (404) i że w żadnym menu nie
+  przybywa ani jedna pozycja. Ta flaga różni się od pozostałych jednym: jej zapalenie nie jest
+  decyzją techniczną, tylko **zobowiązaniem organizatora do dyżuru moderacyjnego**. Pod tym adresem
+  piszą publicznie osoby niepełnoletnie, a domyślny tryb „przed publikacją” znaczy, że nieobsłużona
+  kolejka to forum, które milczy. Nie zapalaj jej „na próbę” ani przed uzgodnieniem z organizatorem,
+  kto i jak często zagląda do `/coordinator/forum/`. Pierwszy krok **po** zapaleniu: założyć co
+  najmniej jeden dział (`/coordinator/forum/categories/`) — bez działu nikt nie napisze ani słowa.
+  Szczegóły moderacji: `PODRECZNIK-ORGANIZATORA.md` § 6.4.
 
 Po każdym przestawieniu flagi: zaloguj się na konto jednej osoby z każdej roli i sprawdź, że widzi
 to, co widziała. Flaga jest odwracalna w minutę, ale tylko wtedy, gdy ktoś zauważy w tej minucie.
@@ -943,6 +952,7 @@ podejrzanych.
 | 7 | `weighted_scoring`, `reviewer_roles`, `team_entries` | wagi i remisy na ekranie etapu; przeliczenie etapu próbnego daje tę samą tabelę, co przed zapaleniem, dopóki wagi są `1/1` |
 | 8 | `fees`, `onsite_logistics` | `/coordinator/fees/` i `/coordinator/venues/`; rejestr należności **pusty**, dopóki cennik nie zostanie naliczony |
 | 9 | `content_translations` | dopiero po ustawieniu `WAGTAIL_I18N_ENABLED` i drugiego `Locale` — flaga bez nich nie ma czego włączyć |
+| 10 | `participant_forum` | **dopiero po uzgodnieniu dyżuru moderacyjnego** (§ 6.4): `/coordinator/forum/categories/` — założyć pierwszy dział, `/coordinator/forum/settings/` — potwierdzić tryb „przed publikacją”, a potem napisać wpis z konta uczestnika i sprawdzić, że odznaka przy „Forum uczestników” w menu panelu urosła o jeden |
 
 Po każdej grupie: zaloguj się na konto jednej osoby z każdej roli **tego** konkursu i sprawdź, że
 widzi to, co widziała. Cofnięcie jest tą samą jedną wartością w `feature_flags` i nie wymaga

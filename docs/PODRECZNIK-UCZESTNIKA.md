@@ -203,7 +203,48 @@ wyraziłeś zgody na publikację pełnych danych.
 
 ---
 
-## 8. Coś nie działa
+## 8. Forum — `/forum/`
+
+Forum jest tylko w niektórych konkursach: jeżeli w pasku konta nie ma pozycji **„Forum”**, to znaczy,
+że ten konkurs go nie prowadzi. Czytać i pisać mogą **wyłącznie zalogowani uczestnicy tego konkursu**
+oraz komitet i organizator — z zewnątrz nie widać ani jednego zdania i wyszukiwarki forum nie indeksują.
+
+| Ekran | Adres | Co w nim jest |
+|---|---|---|
+| Działy | `/forum/` | spis działów i ostatnie rozmowy |
+| Dział | `/forum/<dział>/` | wątki jednego działu, przypięte na górze |
+| Wątek | `/forum/t/<id>/` | rozmowa, 20 wpisów na stronę, formularz odpowiedzi |
+| **Twoje wpisy** | `/forum/mine/` | stan każdej Twojej wypowiedzi i **uzasadnienie organizatora**, jeżeli którąś odrzucił |
+
+**O rozwiązaniach zadań otwartego etapu nie wolno rozmawiać.** Zabrania tego regulamin (§ 10 ust. 2
+i § 17), a próba uzyskania albo podania rozwiązania jest podstawą do dyskwalifikacji. Dopóki trwa etap
+przyjmujący prace, **każdy wpis czeka na zatwierdzenie przez organizatora** — formularz mówi o tym wprost
+i podaje nazwę etapu, którego zakaz dotyczy.
+
+**Zwykle wpis nie pojawia się od razu.** W trybie moderacji wstępnej widzisz go tylko Ty, z dopiskiem
+„czeka na moderację”, dopóki organizator go nie przepuści. Nie pisz go drugi raz — jest na miejscu.
+
+**O decyzjach nie wysyłamy listów.** Jeżeli chcesz wiedzieć, co się stało z Twoją wypowiedzią, zajrzyj
+na `/forum/mine/`: to jedyne miejsce, w którym zobaczysz stan wpisu i uzasadnienie, gdyby organizator go
+odrzucił.
+
+**Kilka reguł, które warto znać:**
+
+- podpisem jest **imię i pierwsza litera nazwiska**. Nie podawaj na forum swojego kodu `OLM-…`, adresu
+  e-mail ani nazwy szkoły — kod jest kluczem anonimowego oceniania i ma nim zostać,
+- wpis to **zwykły tekst**: znaczników HTML i załączników forum nie przyjmuje, a odnośniki stają się
+  klikalne same,
+- **własny wpis poprawisz przez 15 minut** od napisania. Poprawka wpisu, który był już opublikowany,
+  wraca w trybie moderacji wstępnej do kolejki,
+- **„Usuń”** zdejmuje Twój wpis z wątku natychmiast,
+- **„Zgłoś”** przy cudzym wpisie wysyła jedno zdanie do organizatora. Zgłoszenie widzi wyłącznie on
+  i samo w sobie niczego nie ukrywa — decyduje człowiek,
+- forum **nie ma wiadomości prywatnych**. To jest decyzja, nie brak: rozmowa ma się toczyć tam, gdzie
+  widzi ją moderator.
+
+---
+
+## 9. Coś nie działa
 
 1. **Sprawdź `/status/`** — strona mówi, czy działa baza, magazyn prac i kolejka zadań, i podaje
    **czas na serwerze**. To odpowiedź na pytanie „to u was, czy u mnie?”.

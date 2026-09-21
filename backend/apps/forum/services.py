@@ -252,6 +252,39 @@ def own_posts(user, competition):
     )
 
 
+def own_threads(user, competition):
+    """Wątki założone przez tę osobę – razem z odrzuconymi i ukrytymi.
+
+    Bliźniak :func:`own_posts` i istnieje z tego samego powodu: odrzucenie **wątku** jest osobną
+    decyzją od odrzucenia wpisu (``apps.forum.models.ForumThread``) i niesie własne uzasadnienie.
+    Bez tej funkcji autor, któremu moderator odrzucił cały temat, nie miałby w serwisie ani
+    jednego miejsca, w którym się o tym dowie – wątek znika mu z działu, a lista wpisów pokazuje
+    jego pierwszy wpis jako „opublikowany”, bo ``moderate_thread`` nie rusza wpisów już
+    zatwierdzonych. Forum nie wysyła listów, więc cisza w tym miejscu byłaby ciszą ostateczną.
+    """
+    if not _identified(user):
+        return ForumThread.objects.none()
+    return (
+        ForumThread.objects.for_competition(competition)
+        .filter(author=user)
+        .select_related("category")
+        .order_by("-created_at", "-id")
+    )
+
+
+def thread_visible_to(thread: ForumThread, user) -> bool:
+    """Czy ta osoba otworzy stronę tego wątku, czy dostanie 404.
+
+    Ta sama reguła, co w :func:`visible_threads`, wyciągnięta dla **jednego** wiersza: ekran
+    „Twoje wpisy” wypisuje wątki, z których część jest odrzucona albo ukryta, i odnośnik do takiego
+    wątku prowadziłby donikąd. Odnośnik, o którym z góry wiadomo, że da 404, jest gorszy niż jego
+    brak – dlatego szablon pyta o to tutaj, zamiast zgadywać ze statusu.
+    """
+    if thread.status == ModerationStatus.PUBLISHED:
+        return True
+    return thread.status == ModerationStatus.PENDING and _identified(user) and thread.author_id == user.pk
+
+
 def categories_with_counts(competition, user):
     """Kategorie konkursu razem z liczbą widocznych wątków – jedno zapytanie na całą stronę.
 
