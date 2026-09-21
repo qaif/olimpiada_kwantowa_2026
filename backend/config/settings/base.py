@@ -124,6 +124,11 @@ INSTALLED_APPS = [
     # ma własny model, własne reguły i własną pocztę, a z domeną zawodów łączy ją wyłącznie
     # kontekst zgłoszenia – czyli odczyt, nigdy zapis.
     "apps.support",
+    # Forum uczestników (prośba organizatora z 21.09.2026). Osobna aplikacja z tego samego powodu,
+    # co ``apps.support``: własne modele, własne reguły moderacji i własny panel. Z domeną zawodów
+    # łączy ją jeden **odczyt** – „czy trwa etap przyjmujący rozwiązania”, od którego zależy
+    # wymuszona moderacja wstępna (``apps.forum.services.effective_mode``).
+    "apps.forum",
     # Warstwa integracyjna: klucze API dla systemów zewnętrznych, webhooki i eksporty na zewnątrz.
     # **Po** aplikacjach domeny, bo czyta je wszystkie (edycje, wyniki, zgłoszenia), a żadna z nich
     # nie czyta jej – zależność idzie w jedną stronę i kolejność w tej liście ma to pokazywać.
