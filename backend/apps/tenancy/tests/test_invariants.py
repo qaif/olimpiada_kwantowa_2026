@@ -304,7 +304,10 @@ QUERY_BUDGET = {
     # jest miejscem na odczyt konkursu, który zakresowanie dokłada w T4/T5 – po tych zadaniach
     # próg wraca do wartości zmierzonej, a nie zostaje „na wszelki wypadek”.
     "/": 32,
-    "/me/": 46,
+    # 47 = 46 + zapytanie nagłówka CSP o identyfikator GA4, liczone od 21.09.2026 zawsze na zimno
+    # (patrz ``_reset_panel_counters``). To nie jest nowy koszt strony, tylko koniec zależności
+    # pomiaru od kolejności testów.
+    "/me/": 47,
     "/coordinator/": 48,
 }
 
@@ -323,11 +326,20 @@ def _reset_panel_counters():
     liczba zapytań na pulpicie byłaby raz „z pamięcią”, raz „bez” – a próg, który raz łapie, a raz
     nie, jest gorszy niż brak progu.
     """
+    from apps.cms import analytics
     from apps.web.coordinator_nav import invalidate_counters
 
+    # Drugi licznik z pamięcią procesu: odpowiedź „czy witryna ma identyfikator GA4”
+    # (``apps.cms.analytics``), o którą pyta nagłówek CSP przy każdej odpowiedzi HTML. Zapamiętana
+    # przez wcześniejszy test oszczędzała tu jedno zapytanie, więc wynik zależał od tego, co
+    # biegło przed tym modułem w tym samym procesie – a od podziału testów na shardy w CI
+    # (v0.27.2) kolejność zmienia się z każdym dołożonym testem. Wyszło to 21.09.2026: ten sam
+    # kod dawał 46 zapytań w całym zbiorze i 47 w pojedynkę. Mierzymy zawsze **na zimno**.
+    analytics._cache.clear()
     invalidate_counters()
     yield
     invalidate_counters()
+    analytics._cache.clear()
 
 
 def test_query_counts_unchanged_on_the_home_page(
