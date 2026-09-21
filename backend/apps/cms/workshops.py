@@ -156,6 +156,11 @@ def workshop_rows(page) -> list[dict]:
     on jest miejscem, w którym polszczyzna zamienia się w ``date``. Wiersz z terminem nieostrym
     („do potwierdzenia”) nie ma ``date_value`` i po prostu nie trafia na oś – w tabeli na stronie
     „Warsztaty” stoi normalnie, bo tam jest tekstem, a nie punktem na osi.
+
+    ``time`` wchodzi do wyniku z tego samego powodu, co w ``upcoming_workshops``: godziny są
+    treścią tabeli, a nie tylko zapowiedzi na stronie głównej – kto czyta wiersz spoza tych trzech
+    najbliższych (np. komenda zasiewająca działy forum jednym na warsztat), ma dostać to samo pole,
+    zamiast czytać blok jeszcze raz po swojemu.
     """
     if page is None:
         return []
@@ -166,6 +171,7 @@ def workshop_rows(page) -> list[dict]:
             # Brzmienie terminu tak, jak podał go organizator – to ono stoi na zaświadczeniu,
             # bo dokument cytuje harmonogram, a nie przepisuje datę po swojemu.
             "date": row.get("date", ""),
+            "time": row.get("time", ""),
             "lecturer": row.get("lecturer", "") or "",
             "key": workshop_key(row.get("topic", ""), row["date_value"]),
         }

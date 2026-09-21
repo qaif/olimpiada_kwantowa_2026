@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% load i18n web_extras %}
+{% comment %}
+  Lista wątków jednego działu. Kolejność bierze się z ``ForumThread.Meta.ordering`` (przypięte,
+  potem od ostatniej wypowiedzi) i szablon jej **nie** poprawia: gdyby sortował po swojemu, dział
+  wyglądałby inaczej niż kolejka moderacji i niż licznik na stronie wejściowej, a wszystkie trzy
+  czytają tę samą tabelę.
+
+  Odznaka „czeka na moderację” pojawia się tylko przy **własnym** wątku autora – cudzych wątków
+  w tym stanie po prostu nie ma w queryseciie (``visible_threads``). Ta odznaka nie jest więc
+  informacją o cudzej sprawie, tylko odpowiedzią na pytanie „założyłem wątek, gdzie on jest”;
+  bez niej uczestnik zakładałby go drugi raz.
+
+  Stronicowanie chodzi po parametrze ``strona``, a nie ``page``: adres działu bywa przesyłany
+  między uczestnikami i ma się czytać po polsku tak samo jak reszta serwisu. Parametr czyta
+  ``apps.web.views.forum.ForumCategoryView``.
+
+  „Nowy wątek” stoi tu jako jedyny ``btn--primary``, ale tylko wtedy, gdy dział jest otwarty
+  i forum nie jest w trybie tylko do odczytu. Przycisk prowadzący do formularza, który skończy
+  się odmową, jest gorszy niż zdanie wyjaśniające, dlaczego go nie ma.
+{% endcomment %}
+{% block title %}{{ category.name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:forum' %}">{% translate "Forum" %}</a></span>
+  <h1>{{ category.name }}</h1>
+  {% if category.description %}<p class="lead">{{ category.description }}</p>{% endif %}
+  <p class="row">
+    {% if category.is_open %}
+      <span class="badge badge--ok">{% translate "otwarty na nowe wątki" %}</span>
+    {% else %}
+      <span class="badge badge--neutral">{% translate "zamknięty dla nowych wątków" %}</span>
+    {% endif %}
+  </p>
+</div>
+
+{% if open_stage_warning %}
+  <p class="notice notice--warning">
+    {% if open_stage %}<strong>{{ open_stage.display_name }}</strong> – {% endif %}{{ open_stage_warning }}
+  </p>
+{% endif %}
+
+<p class="actions">
+  {% if category.is_open and not forum_settings.is_read_only %}
+    <a class="btn btn--primary" href="{% url 'web:forum-thread-new' %}">{% translate "Nowy wątek" %}</a>
+  {% endif %}
+  <a class="btn btn--secondary" href="{% url 'web:forum' %}">{% translate "Wszystkie działy" %}</a>
+  <a class="btn btn--ghost" href="{% url 'web:forum-mine' %}">{% translate "Twoje wpisy" %}</a>
+</p>
+
+{% if forum_settings.is_read_only %}
+  <p class="notice">{% translate "Forum jest w trybie tylko do odczytu: rozmowy zostają do przeczytania, ale nowych wpisów nie przyjmujemy." %}</p>
+{% elif not category.is_open %}
+  <p class="notice">{% translate "Ten dział jest zamknięty dla nowych wątków. Wątki, które już w nim są, zostają do czytania." %}</p>
+{% endif %}
+
+<section class="section">
+  <div class="section__head"><h2>{% translate "Wątki" %}</h2></div>
+  <ul class="cards cards--wide">
+    {% for thread in threads %}
+      <li class="card{% if thread.is_pinned %} card--accent{% endif %}">
+        <div class="card__head">
+          <h3 class="card__title">
+            <a href="{% url 'web:forum-thread' thread.pk %}">{{ thread.title }}</a>
+          </h3>
+          <p class="row">
+            {% if thread.is_pinned %}<span class="badge badge--info">{% translate "przypięty" %}</span>{% endif %}
+            {% if thread.is_locked %}<span class="badge badge--neutral">{% translate "zamknięty" %}</span>{% endif %}
+            {% if thread.is_pending %}<span class="badge badge--warn">{% translate "czeka na moderację" %}</span>{% endif %}
+          </p>
+        </div>
+        <p class="card__meta">
+          {% translate "założony:" %} {{ thread.created_at|local_datetime }}
+          · {% translate "ostatnia wypowiedź:" %} {{ thread.last_activity_at|local_datetime }}
+        </p>
+      </li>
+    {% empty %}
+      <li>
+        <div class="empty">
+          <span class="empty__title">{% translate "W tym dziale nie ma jeszcze wątków" %}</span>
+          <p class="empty__text">{% translate "Nikt tu jeszcze o nic nie zapytał. Jeżeli Twoje pytanie pasuje do opisu działu, załóż pierwszy wątek – reszta forum go zobaczy po zatwierdzeniu przez organizatora." %}</p>
+          {% if category.is_open and not forum_settings.is_read_only %}
+            <p class="empty__actions">
+              <a class="btn btn--small btn--secondary" href="{% url 'web:forum-thread-new' %}">{% translate "Nowy wątek" %}</a>
+            </p>
+          {% endif %}
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+
+  {% if page_obj.has_other_pages %}
+    <nav aria-label="{% translate 'Strony listy wątków' %}">
+      <p class="hint">
+        {% if page_obj.has_previous %}
+          <a class="btn btn--secondary btn--small"
+             href="?strona={{ page_obj.previous_page_number }}">{% translate "Poprzednia" %}</a>
+        {% endif %}
+        {% translate "Strona" %} {{ page_obj.number }} {% translate "z" %} {{ paginator.num_pages }}
+        {% if page_obj.has_next %}
+          <a class="btn btn--secondary btn--small"
+             href="?strona={{ page_obj.next_page_number }}">{% translate "Następna" %}</a>
+        {% endif %}
+      </p>
+    </nav>
+  {% endif %}
+</section>
+{% endblock %}

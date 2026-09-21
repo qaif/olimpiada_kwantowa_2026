@@ -77,12 +77,18 @@ def roles(request) -> dict:
             "is_coordinator": False,
             "is_appeals_committee": False,
             "is_supervisor": False,
+            "can_use_forum": False,
         }
     competition = getattr(request, "competition", None)
     names = roles_for(user, competition)
+    # Jedno zapytanie o profil uczestnika dla całego procesora: ``is_participant`` i
+    # ``can_use_forum`` pytają o **ten sam** wiersz (uczestnik tego konkursu), a przy roli
+    # uczestnika bez włączonego forum ``_forum_visible`` i tak by tego profilu nie potrzebował.
+    # Licząc go raz, zamiast osobno w każdym miejscu, pasek konta nie płaci za forum drugim
+    # zapytaniem, którego wynik już trzyma.
+    participant = participant_for(user, competition) if CompetitionRole.PARTICIPANT in names else None
     return {
-        "is_participant": CompetitionRole.PARTICIPANT in names
-        and participant_for(user, competition) is not None,
+        "is_participant": participant is not None,
         "is_reviewer": active_reviewer_profile(user, competition) is not None,
         "is_coordinator": CompetitionRole.COORDINATOR in names,
         "is_appeals_committee": CompetitionRole.APPEALS in names
@@ -90,7 +96,39 @@ def roles(request) -> dict:
         # Opiekun szkolny – ta sama definicja, co w mixinie widoku i w przekierowaniu po
         # zalogowaniu (``apps.accounts.supervisors.supervisor_profile``).
         "is_supervisor": supervisor_profile(user, competition) is not None,
+        # Forum uczestników: pozycja w pasku konta jest **wyłącznie** wtedy, gdy adres odpowie.
+        # Dwa warunki naraz, bo forum ma dwie bramki i obie muszą być spełnione – przełącznik
+        # konkursu (bez niego ``/forum/`` daje 404) i rola czytelnika. Liczone z ``names`` i
+        # ``participant``, które już mamy, więc pasek konta nie płaci za tę pozycję ani jednym
+        # dodatkowym zapytaniem.
+        "can_use_forum": _forum_visible(competition, names, participant),
     }
+
+
+def _forum_visible(competition, names: set[str], participant) -> bool:
+    """Czy pokazać pozycję „Forum” – ta sama reguła, co ``apps.forum.services.can_read``.
+
+    Powtórzenie reguły, a nie jej wywołanie, i to jest kompromis z otwartymi oczami:
+    ``can_read`` pyta ``has_role`` trzy razy, czyli trzy zapytania **na każdej stronie serwisu**,
+    a tutaj mamy już gotowy zbiór ról z jednego zapytania. Rozjazd między tymi dwoma miejscami
+    kosztuje najwyżej pozycję w pasku prowadzącą w 403 (nawigacja nie jest zabezpieczeniem –
+    patrz docstring modułu), a nie dostęp do cudzej rozmowy.
+
+    Jedyna świadoma różnica wobec ``can_read``: recenzent bez zatwierdzonego wpisu w komitecie
+    dostaje tu pozycję, a tam wejście. To jest ta sama różnica, którą ma dziś ``is_reviewer``
+    w drugą stronę, i nie wpuszcza nikogo nigdzie.
+
+    ``participant`` przychodzi **gotowy** z ``roles()`` – ten sam profil, którym ta funkcja
+    policzyłaby ``is_participant`` wywołaniem ``participant_for``. Osobne zapytanie tutaj
+    powtarzałoby dokładnie ten sam ``SELECT`` przy każdym żądaniu uczestnika z włączonym forum.
+    """
+    from apps.forum.models import FORUM_FLAG
+
+    if competition is None or not competition.has_feature(FORUM_FLAG):
+        return False
+    if names & {CompetitionRole.COORDINATOR, CompetitionRole.REVIEWER, CompetitionRole.APPEALS}:
+        return True
+    return CompetitionRole.PARTICIPANT in names and participant is not None
 
 
 #: Kolejność przycisków na stronie logowania i rejestracji (stała, niezależna od słownika ustawień).

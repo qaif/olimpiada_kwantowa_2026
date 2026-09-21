@@ -199,6 +199,18 @@ FEATURE_DEFAULTS: dict[str, bool] = {
     # rekord wieloznaczny w DNS-ie i Caddy umie pobrać certyfikat na żądanie”). Sama flaga bez
     # ustawienia dałaby konkurs założony pod adresem, który nie odpowiada.
     "competition_creation": False,
+    # --- forum uczestników -----------------------------------------------------------------------
+    # Forum moderowane przez koordynatora (prośba organizatora z 21.09.2026). Wyłączona znaczy, że
+    # adresów ``/forum/…`` i ``/coordinator/forum/`` **nie ma** (404) i że w żadnym menu nie
+    # przybywa ani jedna pozycja — czyli dokładnie dzisiejszy serwis.
+    #
+    # Domyślnie wyłączona mimo tego, że ekran jest zamówiony wprost przez organizatora Konkursu #1
+    # (a nie jest zdolnością systemu wielokonkursowego, jak piętnaście flag wyżej). Powód nie jest
+    # techniczny: forum to miejsce, w którym **osoby niepełnoletnie piszą publicznie**, a jego
+    # otwarcie wymaga dyżuru moderacyjnego po stronie organizatora. Włączenie tego przez wdrożenie
+    # znaczyłoby otwarcie takiego miejsca w chwili, w której nikt go jeszcze nie pilnuje — dlatego
+    # otwiera je świadomy wpis w panelu, a nie data wydania.
+    "participant_forum": False,
 }
 
 

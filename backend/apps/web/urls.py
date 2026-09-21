@@ -27,6 +27,7 @@ from .views import (
     coordinator_certificates,
     coordinator_competition,
     coordinator_events,
+    coordinator_forum,
     coordinator_forwarding,
     coordinator_integrations,
     coordinator_issues,
@@ -41,6 +42,7 @@ from .views import (
     coordinator_stages,
     coordinator_support,
     coordinator_workshops,
+    forum,
     guardian,
     invite,
     participant,
@@ -143,6 +145,22 @@ urlpatterns = [
     path("support/sent/", support.SupportTicketSentView.as_view(), name="support-sent"),
     path("support/", support.SupportTicketListView.as_view(), name="support"),
     path("support/<int:pk>/", support.SupportTicketDetailView.as_view(), name="support-detail"),
+    # --- forum uczestników (za flagą ``participant_forum``) ----------------------------------
+    # Wzorce stoją w mapie **zawsze**, tak samo jak wzorce ekranów za pozostałymi flagami:
+    # o tym, czy ekran istnieje w tym konkursie, rozstrzyga widok (404), bo mapa adresów zależna
+    # od konkursu znaczyłaby ``reverse()`` dający raz adres, a raz ``NoReverseMatch`` – czyli
+    # wywrócony pasek konta na instalacji, w której ktoś właśnie wyłączył przełącznik.
+    #
+    # Człony ``t/`` i ``p/`` są krótkie celowo: adres wątku bywa przesyłany między uczestnikami,
+    # a ``new/`` i ``mine/`` stoją **przed** wzorcem z działem, bo ``<slug>`` dopasowałby oba.
+    path("forum/", forum.ForumIndexView.as_view(), name="forum"),
+    path("forum/new/", forum.ForumThreadCreateView.as_view(), name="forum-thread-new"),
+    path("forum/mine/", forum.ForumMyPostsView.as_view(), name="forum-mine"),
+    path("forum/t/<int:pk>/", forum.ForumThreadView.as_view(), name="forum-thread"),
+    path("forum/p/<int:pk>/edit/", forum.ForumPostEditView.as_view(), name="forum-post-edit"),
+    path("forum/p/<int:pk>/delete/", forum.ForumPostDeleteView.as_view(), name="forum-post-delete"),
+    path("forum/p/<int:pk>/report/", forum.ForumPostReportView.as_view(), name="forum-post-report"),
+    path("forum/<slug:slug>/", forum.ForumCategoryView.as_view(), name="forum-category"),
     # --- uczestnik ---------------------------------------------------------------------------
     path("me/", participant.MeView.as_view(), name="me"),
     path(
@@ -855,6 +873,33 @@ urlpatterns = [
         "coordinator/support/<int:pk>/",
         coordinator_support.CoordinatorSupportDetailView.as_view(),
         name="coordinator-support-detail",
+    ),
+    # Moderacja forum. Kolejka stoi pod adresem bez przyrostka, bo to po nią przychodzi się
+    # codziennie; spis wątków, działy i ustawienia są jej sąsiadami, a nie jej podstronami.
+    path(
+        "coordinator/forum/",
+        coordinator_forum.CoordinatorForumView.as_view(),
+        name="coordinator-forum",
+    ),
+    path(
+        "coordinator/forum/threads/",
+        coordinator_forum.CoordinatorForumThreadsView.as_view(),
+        name="coordinator-forum-threads",
+    ),
+    path(
+        "coordinator/forum/categories/",
+        coordinator_forum.CoordinatorForumCategoriesView.as_view(),
+        name="coordinator-forum-categories",
+    ),
+    path(
+        "coordinator/forum/settings/",
+        coordinator_forum.CoordinatorForumSettingsView.as_view(),
+        name="coordinator-forum-settings",
+    ),
+    path(
+        "coordinator/forum/t/<int:pk>/",
+        coordinator_forum.CoordinatorForumThreadView.as_view(),
+        name="coordinator-forum-thread",
     ),
     # Komunikaty organizatora (baner na każdej stronie serwisu). Jeden adres na listę, dodanie
     # i edycję: komunikat ma sześć pól, a pisze się go wtedy, gdy liczy się czas.

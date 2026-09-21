@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% load i18n web_extras %}
+{% comment %}
+  Poprawka własnego wpisu. Ekran w całości tłumaczy dwie rzeczy, których nie widać z przycisku
+  „Popraw”, a które zaraz się wydarzą.
+
+  Pierwsza: okno jest kwadransem od dodania wpisu i po jego zamknięciu nie da się już nic zmienić
+  (``apps.forum.models.EDIT_WINDOW_MINUTES``). Kwadrans wystarcza na literówkę i na zdanie,
+  którego zabrakło, a jest za krótki, żeby podmienić treść już przeczytaną przez innych – wpis
+  sprzed godziny brzmiący inaczej niż odpowiedź pod nim jest gorszy niż wpis z literówką.
+  Dlatego pokazujemy **konkretną godzinę** (``post.editable_until``), a nie napis „masz jeszcze
+  chwilę”: godzina daje się sprawdzić na zegarku, a odliczanie wymagałoby skryptu, którego CSP
+  i tak nie wpuści.
+
+  Druga: w trybie „przed publikacją” poprawiony wpis **wraca do kolejki** i znika innym z oczu
+  do czasu ponownej decyzji (``apps.forum.services.edit_post``). Bez tego zdania na ekranie
+  autor uznałby zniknięcie swojego wpisu za awarię. Bez samej reguły w serwisie wystarczyłoby
+  napisać zdanie nijakie, doczekać zatwierdzenia i podmienić treść.
+
+  Przy zamkniętym oknie formularza tu nie ma w ogóle. Pole tekstowe, którego zapis skończy się
+  odmową serwisu, jest zaproszeniem do napisania czegoś, co i tak przepadnie.
+
+  ``form.non_field_errors`` stoi **poza** rozgałęzieniem ``can_edit`` i to jest poprawka, nie
+  ozdoba: POST spóźniony o sekundę wraca z serwisu jako 400 z błędem ogólnym formularza
+  (``apps.forum.services.edit_post`` → ``FORUM_EDIT_WINDOW_CLOSED``), a ``can_edit`` liczone od
+  nowa dla tej samej chwili jest wtedy już fałszywe – błąd, który stoi wyłącznie w gałęzi
+  formularza, nigdy by się nie wyrenderował i autor dostawałby pusty stan „okno zamknięte” bez
+  ani jednego słowa o tym, co się właśnie stało.
+{% endcomment %}
+{% block title %}{% translate "Popraw wpis" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">
+    <a href="{% url 'web:forum-thread' post.thread_id %}">{{ post.thread.title }}</a>
+  </span>
+  <h1>{% translate "Popraw wpis" %}</h1>
+  <p class="lead">{% translate "Wpis można poprawić tylko przez 15 minut od dodania. Potem zostaje taki, jaki jest." %}</p>
+  <p class="row">
+    <span class="badge badge--neutral">{% translate "dodany:" %} {{ post.created_at|local_datetime }}</span>
+    <span class="badge {% if can_edit %}badge--warn{% else %}badge--neutral{% endif %}">
+      {% translate "można poprawiać do:" %} {{ post.editable_until|local_datetime }}</span>
+    {% if post.edited_at %}
+      <span class="badge badge--info">{% translate "już poprawiany:" %} {{ post.edited_at|local_datetime }}</span>
+    {% endif %}
+  </p>
+</div>
+
+{{ form.non_field_errors }}
+
+{% if can_edit %}
+  <p class="notice notice--warning">{% translate "Po zapisaniu poprawki wpis wraca do kolejki organizatora i do czasu ponownego zatwierdzenia widzisz go tylko Ty. Tak działa tryb „przed publikacją”, który obowiązuje zawsze w czasie otwartego etapu." %}</p>
+
+  {% if open_stage_warning %}
+    <p class="notice notice--warning">
+      {% if open_stage %}<strong>{{ open_stage.display_name }}</strong> – {% endif %}{{ open_stage_warning }}
+    </p>
+  {% endif %}
+
+  <section class="section">
+    <div class="card">
+      <form class="form" method="post" novalidate>
+        {% csrf_token %}
+        {{ form.as_p }}
+        <div class="actions">
+          <button type="submit" class="btn btn--primary">{% translate "Zapisz poprawkę" %}</button>
+          <a class="btn btn--secondary" href="{% url 'web:forum-thread' post.thread_id %}">{% translate "Anuluj" %}</a>
+        </div>
+      </form>
+    </div>
+  </section>
+{% else %}
+  <div class="empty">
+    <span class="empty__title">{% translate "Okno poprawek jest już zamknięte" %}</span>
+    <p class="empty__text">{% translate "Ten wpis można było poprawiać przez 15 minut od dodania. Jeżeli treść jest nie do utrzymania, usuń wpis w wątku i napisz go jeszcze raz – albo napisz do organizatora przez formularz pomocy." %}</p>
+    <p class="empty__actions">
+      <a class="btn btn--primary" href="{% url 'web:forum-thread' post.thread_id %}">{% translate "Wróć do wątku" %}</a>
+    </p>
+  </div>
+{% endif %}
+{% endblock %}

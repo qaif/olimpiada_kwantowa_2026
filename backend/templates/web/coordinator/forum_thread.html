@@ -1,0 +1,112 @@
+{% extends "web/coordinator/base.html" %}
+{% load web_extras forum_extras %}
+{% comment %}
+  Wątek oczami moderatora: **wszystkie** wpisy, w każdym stanie.
+
+  Osobny ekran od strony uczestnika, bo odpowiada na odwrotne pytanie. Tamta pokazuje to, co
+  widać; moderacja polega na oglądaniu tego, czego nie widać – wpisów ukrytych, odrzuconych
+  i czekających. Wejście koordynatora na stronę uczestnika z parametrem „pokaż wszystko”
+  znaczyłoby jeden queryset obsługujący dwie sprzeczne potrzeby i jeden warunek stojący między
+  uczestnikiem a ukrytą wypowiedzią.
+
+  Każda czynność jest **osobnym formularzem**, a nie przyciskiem w jednym wspólnym: uzasadnienie
+  i identyfikator wpisu muszą jechać razem z tą decyzją, pod którą stoją, a nie z pierwszą
+  z brzegu na stronie.
+{% endcomment %}
+{% block title %}{{ thread.title }} – forum, panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-forum-threads' %}">Wątki forum</a>{% endblock %}
+{% block panel_title %}{{ thread.title }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">{{ thread_author }} · {{ thread.category.name }} · założony
+    {{ thread.created_at|local_datetime }}</p>
+  <p class="hint">
+    <span class="badge {% if thread.status == 'PUBLISHED' %}badge--ok{% elif thread.status == 'PENDING' %}badge--warn{% elif thread.status == 'REJECTED' %}badge--danger{% else %}badge--neutral{% endif %}">
+      {{ thread.get_status_display }}</span>
+    {% if thread.is_pinned %}<span class="badge badge--accent">przypięty</span>{% endif %}
+    {% if thread.is_locked %}<span class="badge badge--neutral">zamknięty</span>{% endif %}
+    {% if thread.moderation_note %}Twoje uzasadnienie: {{ thread.moderation_note }}{% endif %}
+  </p>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  <div class="section__head"><h2>Cały wątek</h2></div>
+  <p class="hint">Przypięcie zmienia kolejność działu, zamknięcie odbiera prawo do pisania,
+    a ukrycie zdejmuje wątek z oczu uczestników. To trzy różne decyzje i dlatego są trzema
+    przyciskami.</p>
+  <form method="post" action="{% url 'web:coordinator-forum-thread' thread.pk %}">
+    {% csrf_token %}
+    <p class="field">
+      <label for="thread-note">Uzasadnienie zmiany stanu wątku (zobaczy je autor)</label>
+      <input type="text" id="thread-note" name="note" maxlength="500"
+             value="{{ thread.moderation_note }}">
+    </p>
+    <p class="actions">
+      {% if thread.is_pinned %}
+        <button class="btn btn--small btn--secondary" name="action" value="unpin">Odepnij</button>
+      {% else %}
+        <button class="btn btn--small btn--secondary" name="action" value="pin">Przypnij</button>
+      {% endif %}
+      {% if thread.is_locked %}
+        <button class="btn btn--small btn--secondary" name="action" value="unlock">Otwórz na wpisy</button>
+      {% else %}
+        <button class="btn btn--small btn--secondary" name="action" value="lock">Zamknij na wpisy</button>
+      {% endif %}
+      {% if thread.status != "PUBLISHED" %}
+        <button class="btn btn--small btn--primary" name="action" value="thread-publish">Opublikuj wątek</button>
+      {% else %}
+        <button class="btn btn--small btn--danger" name="action" value="thread-hide">Ukryj wątek</button>
+      {% endif %}
+      <button class="btn btn--small btn--danger" name="action" value="thread-reject">Odrzuć wątek</button>
+    </p>
+  </form>
+</section>
+
+<section class="section">
+  <div class="section__head"><h2>Wpisy ({{ entries|length }})</h2></div>
+  {% for entry in entries %}
+    <article class="card {% if entry.report %}card--accent{% elif entry.post.status != 'PUBLISHED' %}card--quiet{% endif %}">
+      <div class="card__head">
+        <h3 class="card__title">{{ entry.author }}</h3>
+        <span class="badge {% if entry.post.status == 'PUBLISHED' %}badge--ok{% elif entry.post.status == 'PENDING' %}badge--warn{% elif entry.post.status == 'REJECTED' %}badge--danger{% else %}badge--neutral{% endif %}">
+          {{ entry.post.get_status_display }}</span>
+        {% if entry.report %}<span class="badge badge--danger">zgłoszone</span>{% endif %}
+      </div>
+      <p class="card__meta">
+        {{ entry.post.created_at|local_datetime }}
+        {% if entry.post.edited_at %}· poprawiony {{ entry.post.edited_at|local_datetime }}{% endif %}
+        {% if entry.post.moderated_at %}· decyzja {{ entry.post.moderated_at|local_datetime }}{% endif %}
+      </p>
+      <div class="card__body">{{ entry.post.body|post_body }}</div>
+      {% if entry.post.moderation_note %}
+        <p class="card__meta">Uzasadnienie dla autora: {{ entry.post.moderation_note }}</p>
+      {% endif %}
+      {% if entry.report %}
+        <p class="card__meta"><strong>Zgłoszenie:</strong> {{ entry.report.reason|post_body }}</p>
+      {% endif %}
+      <form class="card__foot" method="post" action="{% url 'web:coordinator-forum-thread' thread.pk %}">
+        {% csrf_token %}
+        <input type="hidden" name="post" value="{{ entry.post.pk }}">
+        <p class="field">
+          <label for="note-{{ entry.post.pk }}">Uzasadnienie (zobaczy je autor)</label>
+          <input type="text" id="note-{{ entry.post.pk }}" name="note" maxlength="500">
+        </p>
+        <p class="actions">
+          {% if entry.post.status != "PUBLISHED" %}
+            <button class="btn btn--small btn--secondary" name="action" value="post-publish">Opublikuj</button>
+          {% else %}
+            <button class="btn btn--small btn--danger" name="action" value="post-hide">Ukryj</button>
+          {% endif %}
+          <button class="btn btn--small btn--danger" name="action" value="post-reject">Odrzuć</button>
+        </p>
+      </form>
+    </article>
+  {% empty %}
+    <div class="empty">
+      <span class="empty__title">Wątek bez wpisów</span>
+      <p class="empty__text">To nie powinno się zdarzyć: wątek powstaje razem ze swoim pierwszym
+        wpisem, w jednej transakcji. Jeżeli to widzisz, zgłoś to operatorowi platformy.</p>
+    </div>
+  {% endfor %}
+</section>
+{% endblock %}

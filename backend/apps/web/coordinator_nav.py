@@ -53,6 +53,7 @@ EMPTY_COUNTERS: dict[str, int] = {
     "committee": 0,
     "issues": 0,
     "tickets": 0,
+    "forum": 0,
 }
 
 
@@ -130,6 +131,7 @@ def attention_counters(stage_ids: list[int] | None = None, competition=None) -> 
     if cached is not None:
         return cached
     from apps.accounts.models import CommitteeMember, CommitteeStatus
+    from apps.forum.services import moderation_count
     from apps.grading.issues import open_issue_count
     from apps.submissions.models import Submission, SubmissionStatus
     from apps.support.services import open_ticket_count
@@ -150,6 +152,10 @@ def attention_counters(stage_ids: list[int] | None = None, competition=None) -> 
             .count(),
             "issues": open_issue_count(stage_ids),
             "tickets": open_ticket_count(competition),
+            # Konkurs bez forum oddaje zero **bez ani jednego zapytania** (``has_feature`` czyta
+            # pole wiersza, który już trzymamy), więc ta pozycja nie zmienia kosztu panelu
+            # w konkursie z domyślnymi przełącznikami.
+            "forum": moderation_count(competition),
         }
     except DatabaseError:  # pragma: no cover - baza bez migracji
         return dict(EMPTY_COUNTERS)
@@ -603,6 +609,40 @@ def groups(stages: list, competition=None) -> list[Group]:
             match=("coordinator-processing-register",),
         ),
     )
+    communication: tuple[Item, ...] = (
+        Item("Komunikaty", ("web:coordinator-messages",), match=("coordinator-messages",)),
+        # Ekrany budowane równolegle: kolejka zgłoszeń od ludzi i ogłoszenia serwisu.
+        # Nazwa adresu jest tu **przewidywana**, więc każda pozycja ma kilku kandydatów
+        # i znika z menu, dopóki żaden z nich nie istnieje w urlconfie.
+        Item(
+            "Zgłoszenia",
+            ("web:coordinator-support", "web:coordinator-tickets"),
+            match=("coordinator-support", "coordinator-support-", "coordinator-tickets"),
+            badge="tickets",
+        ),
+        Item(
+            "Ogłoszenia",
+            ("web:coordinator-announcements", "web:coordinator-announcement-list"),
+            match=("coordinator-announcements", "coordinator-announcement-"),
+        ),
+    )
+    if competition is not None and competition.has_feature("participant_forum"):
+        # Moderacja forum (prośba organizatora z 21.09.2026). W „Komunikacji”, bo to jest rozmowa
+        # z uczestnikami – obok komunikatów i zgłoszeń – a nie zestawienie ani konfiguracja
+        # zawodów. Bramka jest tą samą bramką, co u ekranu: przy wyłączonej fladze widoki oddają
+        # 404, więc pozycja prowadziłaby donikąd.
+        #
+        # Wzorzec jest **jeden przedrostek**, bo wszystkie pięć ekranów moderacji nazywa się
+        # ``coordinator-forum…`` i mają świecić tę samą pozycję: kolejka, spis wątków, wątek,
+        # działy i ustawienia są jedną sprawą rozłożoną na pięć adresów.
+        communication += (
+            Item(
+                "Forum uczestników",
+                ("web:coordinator-forum",),
+                match=("coordinator-forum", "coordinator-forum-"),
+                badge="forum",
+            ),
+        )
     people_items: tuple[Item, ...] = ()
     if competition is not None and competition.has_feature("team_entries"):
         # Drużyny (§ 1.2.3, T34) – **na końcu** sekcji „Uczestnicy i konta”, bo cztery pozycje
@@ -688,26 +728,7 @@ def groups(stages: list, competition=None) -> list[Group]:
                 Item("Województwa", ("web:coordinator-committee",), fragment="wojewodztwa"),
             ),
         ),
-        Group(
-            "Komunikacja",
-            (
-                Item("Komunikaty", ("web:coordinator-messages",), match=("coordinator-messages",)),
-                # Ekrany budowane równolegle: kolejka zgłoszeń od ludzi i ogłoszenia serwisu.
-                # Nazwa adresu jest tu **przewidywana**, więc każda pozycja ma kilku kandydatów
-                # i znika z menu, dopóki żaden z nich nie istnieje w urlconfie.
-                Item(
-                    "Zgłoszenia",
-                    ("web:coordinator-support", "web:coordinator-tickets"),
-                    match=("coordinator-support", "coordinator-support-", "coordinator-tickets"),
-                    badge="tickets",
-                ),
-                Item(
-                    "Ogłoszenia",
-                    ("web:coordinator-announcements", "web:coordinator-announcement-list"),
-                    match=("coordinator-announcements", "coordinator-announcement-"),
-                ),
-            ),
-        ),
+        Group("Komunikacja", communication),
         Group("Raporty", reports),
         Group("Ustawienia", settings_items),
     ]

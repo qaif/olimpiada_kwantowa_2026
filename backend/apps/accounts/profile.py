@@ -381,6 +381,15 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
     takie. Zostawienie szkoły i rocznika w profilu drugiej olimpiady dałoby wiersz z danymi
     osobowymi przy koncie, którego właściciel został już wytarty – i to bez żadnej podstawy, bo
     zalogować się do tego drugiego konkursu też się nie da (§ 3.3).
+
+    **Wypowiedzi na forum** (``apps.forum``) zostają, a znika spod nich podpis – i to nie wymaga
+    tu ani jednej linijki, bo obie połowy tej reguły są już w tamtym module: ``author`` jest
+    ``SET_NULL``, a podpis powstaje w jednym miejscu (``apps.forum.models.display_author``),
+    które puste imię czyta tak samo jak skasowane konto i oddaje „Użytkownik usunięty”. Decyzja,
+    żeby treści nie kasować, jest decyzją o rozmowie: pod wpisem stoją cudze odpowiedzi, a wycięcie
+    akapitu, do którego ktoś się odniósł, zamienia je w bełkot. Sama treść przestaje być powiązana
+    z osobą, więc żądanie z art. 17 jest spełnione – a uczestnik, który chce zdjąć konkretny wpis
+    **przed** usunięciem konta, ma do tego własny przycisk na forum.
     """
     now = timezone.now()
     from apps.competitions.scoping import resolve_competition

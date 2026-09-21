@@ -56,6 +56,8 @@ REST_FRAMEWORK = {
         "upload": None,
         "password_reset": None,
         "support": None,
+        # Pisanie na forum uczestników.
+        "forum": None,
         "schools": None,
         "two_factor": None,
         # Webhook płatności (T49).

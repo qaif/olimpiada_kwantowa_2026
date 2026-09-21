@@ -22,7 +22,9 @@ import pytest
 from apps.accounts.processing_register import (
     ACTIVITIES,
     CSV_HEADERS,
+    FORUM_ACTIVITY,
     REGISTER_VERSION,
+    activities_for,
     as_rows,
 )
 from apps.competitions.models import DEFAULT_RETENTION_MONTHS
@@ -94,6 +96,62 @@ def test_csv_rows_match_the_activities():
 def test_the_version_is_set():
     """Wersja odpowiada na pytanie „czy czytam aktualny rejestr” i stoi w nazwie pliku CSV."""
     assert REGISTER_VERSION
+
+
+# --- forum uczestników: czynność warunkowa -------------------------------------------------------
+#
+# Rejestr ma opisywać przetwarzanie, które **naprawdę zachodzi**. Konkurs bez forum nie zbiera ani
+# jednego wpisu, więc wiersz o forum byłby w jego rejestrze opisem cudzego przetwarzania – a organ
+# nadzorczy czyta ten dokument jako oświadczenie administratora, nie jako spis możliwości systemu.
+
+
+@pytest.mark.django_db
+def test_a_competition_without_the_forum_has_no_forum_row(competition):
+    keys = {activity.key for activity in activities_for(competition)}
+
+    assert competition.has_feature("participant_forum") is False
+    assert "forum" not in keys
+
+
+@pytest.mark.django_db
+def test_a_competition_with_the_forum_gets_the_forum_row(competition):
+    competition.feature_flags = {**(competition.feature_flags or {}), "participant_forum": True}
+
+    keys = {activity.key for activity in activities_for(competition)}
+
+    assert "forum" in keys
+
+
+def test_the_forum_row_has_all_elements_required_by_article_30():
+    """Ta sama asercja, co dla wierszy stałych – czynność warunkowa nie jest czynnością gorszą.
+
+    Bez tego testu wiersz forum nie miałby **żadnego** pokrycia: parametryzacja wyżej chodzi po
+    ``ACTIVITIES``, a ten wiersz z założenia w nich nie stoi.
+    """
+    for element in (
+        FORUM_ACTIVITY.purpose,
+        FORUM_ACTIVITY.legal_basis,
+        FORUM_ACTIVITY.subjects,
+        FORUM_ACTIVITY.categories,
+        FORUM_ACTIVITY.recipients,
+        FORUM_ACTIVITY.retention,
+        FORUM_ACTIVITY.measures,
+    ):
+        assert element
+
+
+def test_the_forum_row_names_the_hosting_provider():
+    assert any("Contabo" in item for item in FORUM_ACTIVITY.recipients)
+
+
+def test_the_forum_row_says_the_signature_is_not_the_public_code():
+    """Najważniejsze zdanie tego wiersza: kod ``OLM-…`` jest kluczem anonimowego oceniania i na
+    forum nie pojawia się w żadnej postaci. Rejestr ma to mówić wprost, bo to jest **środek
+    techniczny** w rozumieniu art. 32, a nie szczegół interfejsu."""
+    measures = " ".join(FORUM_ACTIVITY.measures)
+
+    assert "kod publiczny" in measures
+    assert "imieniem z inicjałem" in measures
 
 
 # --- ekran koordynatora -------------------------------------------------------------------------

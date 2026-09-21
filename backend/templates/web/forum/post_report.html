@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% load i18n web_extras forum_extras %}
+{% comment %}
+  „Zgłoś wpis”. Ekran pokazuje zgłaszany akapit w całości i mówi wprost, co zgłoszenie robi,
+  a czego nie robi.
+
+  Cytat jest tu obowiązkowy, a nie ozdobny: przycisk „Zgłoś” stoi pod każdą wypowiedzią, a na
+  telefonie między kliknięciem a formularzem gubi się kontekst. Bez cytatu połowa zgłoszeń
+  dotyczyłaby sąsiedniego wpisu. Treść wychodzi tym samym filtrem, co w wątku (``post_body``) –
+  drugiego sposobu renderowania wpisu na forum nie ma i nie ma być.
+
+  Podpis pod cytatem bierzemy z kontekstu (``author``), a nie z ``post.author``: ten ekran
+  ogląda osoba, która z autorem właśnie się nie zgadza, i jest to ostatnie miejsce, w którym
+  wolno by pokazać cokolwiek ponad imię i inicjał (uzasadnienie w
+  ``apps.forum.models.display_author``).
+
+  Zdanie „zgłoszenie nie ukrywa wpisu” stoi tu świadomie. Automatyczne zdejmowanie po zgłoszeniu
+  dałoby każdemu uczestnikowi przycisk „usuń cudzy wpis”, a na forum, na którym toczy się
+  rywalizacja, ktoś by go w końcu użył (``apps.forum.services.report_post``). Lepiej powiedzieć
+  to od razu niż tłumaczyć się z tego później.
+{% endcomment %}
+{% block title %}{% translate "Zgłoś wpis" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">
+    <a href="{% url 'web:forum-thread' post.thread_id %}">{{ post.thread.title }}</a>
+  </span>
+  <h1>{% translate "Zgłoś wpis" %}</h1>
+  <p class="lead">{% translate "Napisz organizatorowi, co jest nie tak z tą wypowiedzią. Zgłoszenie widzi wyłącznie organizator – ani autor wpisu, ani reszta forum się o nim nie dowie." %}</p>
+</div>
+
+<section class="section">
+  <div class="section__head"><h2>{% translate "Zgłaszany wpis" %}</h2></div>
+  <article class="card card--quiet">
+    <div class="card__head">
+      <h3 class="card__title">{{ author }}</h3>
+      <p class="row">
+        <span class="badge badge--neutral">{{ post.created_at|local_datetime }}</span>
+      </p>
+    </div>
+    <div class="quote">{{ post.body|post_body }}</div>
+  </article>
+</section>
+
+<section class="section">
+  <div class="section__head"><h2>{% translate "Powód zgłoszenia" %}</h2></div>
+  <p class="notice">{% translate "Zgłoszenie nie ukrywa wpisu – decyzję podejmuje organizator i może być innego zdania niż Ty. Jeżeli chodzi o treść zadań otwartego etapu, napisz to wprost: takie wpisy organizator zdejmuje w pierwszej kolejności." %}</p>
+  <div class="card">
+    <form class="form" method="post" novalidate>
+      {% csrf_token %}
+      <p class="form__required-note">{% translate "Pola oznaczone * są obowiązkowe." %}</p>
+      {{ form.non_field_errors }}
+      {{ form.as_p }}
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">{% translate "Wyślij zgłoszenie" %}</button>
+        <a class="btn btn--secondary" href="{% url 'web:forum-thread' post.thread_id %}">{% translate "Anuluj" %}</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

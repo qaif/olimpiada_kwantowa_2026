@@ -142,13 +142,31 @@ FLAG_ITEMS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "content_translations": (frozenset(), frozenset()),
     # --- konkursy w subdomenach platformy ---------------------------------------------------------
     "competition_creation": (frozenset({"Nowy konkurs"}), frozenset({"Nowy konkurs"})),
+    # --- forum uczestników (prośba organizatora z 21.09.2026) ------------------------------------
+    "participant_forum": (frozenset({"Forum uczestników"}), frozenset({"Forum uczestników"})),
 }
 
 #: Flagi spoza etapu 2, które mimo to dokładają pozycję menu i dlatego stoją w tabeli wyżej.
-#: Dziś jest jedna: ``competition_creation`` (ekran „Nowy konkurs”, subdomeny platformy). Stała
-#: istnieje po to, żeby licznik niżej nadal mówił o **etapie 2** – inaczej trzeba by przy każdym
-#: kolejnym ekranie poprawiać liczbę, o której dokument mówi, że jest ceną świadomie zapłaconą.
-LATER_FLAGS = frozenset({"competition_creation"})
+#: Dziś są dwie: ``competition_creation`` (ekran „Nowy konkurs”, subdomeny platformy) i
+#: ``participant_forum`` (moderacja forum, prośba organizatora z 21.09.2026). Stała istnieje po to,
+#: żeby licznik niżej nadal mówił o **etapie 2** – inaczej trzeba by przy każdym kolejnym ekranie
+#: poprawiać liczbę, o której dokument mówi, że jest ceną świadomie zapłaconą.
+LATER_FLAGS = frozenset({"competition_creation", "participant_forum"})
+
+#: Klucze odznak w menu. Piąta i szósta pozycja tej listy to dwa różne rodzaje wyjątku, więc obie
+#: mają tu własne zdanie:
+#:
+#: - ``tickets`` i cztery przed nim są dzisiejszym menu i nie zależą od żadnej flagi,
+#: - ``forum`` jest **świadomym odstępstwem** od reguły „nowy ekran nie dostaje odznaki” (§ 2.2).
+#:   Reguła broni kosztu pulpitu, a tutaj koszt jest zerowy dla konkursu z domyślnymi
+#:   przełącznikami: ``apps.forum.services.moderation_count`` oddaje zero **bez ani jednego
+#:   zapytania**, dopóki flaga jest wyłączona. Płaci wyłącznie konkurs, który forum włączył – i on
+#:   płaci za coś, bez czego moderacja by nie działała: forum w wersji pierwszej **nie wysyła
+#:   listów** (decyzja opisana w ``docs/PODRECZNIK-ORGANIZATORA.md``), więc odznaka jest jedynym
+#:   sygnałem, że pod adresem czekają wpisy, których nikt jeszcze nie widział. Ekran bez odznaki
+#:   znaczyłby kolejkę moderacyjną, do której trzeba pamiętać, żeby zaglądać – a przy domyślnej
+#:   moderacji wstępnej „zapomniałem zajrzeć” równa się „forum milczy”.
+EXPECTED_BADGES = frozenset({"moderation", "issues", "activations", "committee", "tickets", "forum"})
 
 #: Wzorce wydań G–K, po jednej liście na wydanie – tak, jak stoją w ``apps/web/urls.py``.
 RELEASE_PATTERNS = {
@@ -251,7 +269,7 @@ def test_new_items_have_no_badges(competition):
     """Nowy ekran **nie dostaje odznaki** (§ 2.2): każda odznaka to szóste zapytanie na pulpicie."""
     with_flags(competition, per_competition_consents=True, document_templates=True)
 
-    assert badges(competition) == {"moderation", "issues", "activations", "committee", "tickets"}
+    assert badges(competition) == EXPECTED_BADGES - {"forum"}
 
 
 @pytest.mark.parametrize(
@@ -339,11 +357,16 @@ def test_all_stage_two_flags_at_once_add_the_union_and_nothing_more(competition,
 
 
 def test_no_stage_two_flag_adds_a_badge(competition, elim_stage):
-    """Nowy ekran **nie dostaje odznaki** (§ 2.2): każda odznaka to szóste zapytanie na pulpicie."""
+    """Nowy ekran **nie dostaje odznaki** (§ 2.2): każda odznaka to szóste zapytanie na pulpicie.
+
+    Wyjątek ``forum`` jest jeden, jest nazwany i ma uzasadnienie przy :data:`EXPECTED_BADGES`.
+    Asercja niżej pilnuje, żeby **został jeden**: kolejna flaga etapu 2 z odznaką wywróci ten test
+    i będzie musiała napisać swoje zdanie tak samo, jak forum napisało swoje.
+    """
     with_flags(competition, **dict.fromkeys(FLAG_ITEMS, True))
 
     marked = {item.badge for group in groups([elim_stage], competition) for item in group.items if item.badge}
-    assert marked == {"moderation", "issues", "activations", "committee", "tickets"}
+    assert marked == set(EXPECTED_BADGES)
 
 
 def test_stage_children_of_the_logistics_flag_hang_under_the_stage(competition, elim_stage):

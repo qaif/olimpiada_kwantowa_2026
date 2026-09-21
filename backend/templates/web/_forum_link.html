@@ -1,0 +1,20 @@
+{% comment %}
+  „Forum” w pasku konta. Pozycja jest **wyłącznie** wtedy, gdy adres odpowie: przełącznik
+  ``participant_forum`` włączony i konto ma prawo czytać forum tego konkursu. Obie bramki liczy
+  ``apps.web.context_processors.roles`` (klucz ``can_use_forum``) z ról, które i tak już pobrał,
+  więc strona bez forum nie płaci za tę linijkę ani jednym zapytaniem – i wygląda co do bajtu tak,
+  jak przed dołożeniem forum.
+
+  Nawigacja nie jest zabezpieczeniem: dostęp rozstrzyga ``ForumAccessMixin`` w widoku (404 przy
+  wyłączonym przełączniku, 403 przy złej roli). Tu decyduje się wyłącznie o tym, czego nie
+  pokazywać, żeby nie prowadzić do ekranu, którego nie ma.
+
+  Osobny plik, a nie trzy wiersze w ``base.html``: szablon bazowy jest współwłasnością całego
+  serwisu i zmienia go równolegle więcej niż jedna para rąk, więc dokładamy do niego **jedną**
+  linijkę, a cały znacznik razem z uzasadnieniem stoi tutaj.
+{% endcomment %}
+{% if can_use_forum %}
+  {% url 'web:forum' as forum_url %}
+  <a class="account-bar__link" href="{{ forum_url }}"
+     {% if request.path == forum_url %}aria-current="page"{% endif %}>Forum</a>
+{% endif %}

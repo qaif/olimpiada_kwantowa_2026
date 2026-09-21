@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% load i18n web_extras %}
+{% comment %}
+  „Twoje wpisy”. To jest **jedyne** miejsce w serwisie, w którym autor dowiaduje się, że jego
+  wpis został odrzucony i dlaczego – forum nie wysyła o tym listu i nie będzie wysyłać
+  (uzasadnienie w docstringu ``apps.forum.services``: konkurs ma już dwa kanały poczty, a trzeci,
+  wyzwalany każdym akapitem nastolatka, skończyłby się regułą „do kosza” w skrzynce
+  koordynatora). Skoro poczty nie ma, ten ekran musi być kompletny: są tu wpisy czekające,
+  odrzucone, ukryte i opublikowane, a notatka moderatora stoi **w treści wiersza**, a nie
+  w dymku ani w rozwijanej sekcji. Uzasadnienie schowane za kliknięciem jest uzasadnieniem,
+  którego połowa autorów nie przeczyta.
+
+  Lista jest listą kart, a nie tabelą: notatka moderatora bywa zdaniem złożonym, a zdanie złożone
+  w komórce tabeli na ekranie 360 px rozpycha ją na szerokość, której nie uratuje nawet
+  ``.scroll``.
+
+  Treści wpisu tu **nie** renderujemy. Nie dlatego, że to tajemnica – to własny tekst autora –
+  tylko dlatego, że ten ekran odpowiada na pytanie „co się stało z moim wpisem”, a nie „co
+  napisałem”. Od czytania rozmowy jest wątek i prowadzi do niego odnośnik w każdym wierszu.
+{% endcomment %}
+{% block title %}{% translate "Twoje wpisy" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:forum' %}">{% translate "Forum" %}</a></span>
+  <h1>{% translate "Twoje wpisy" %}</h1>
+  <p class="lead">{% translate "Wszystko, co napisałeś na tym forum, razem ze stanem i uzasadnieniem organizatora. O decyzjach nie wysyłamy listów – czekają tutaj." %}</p>
+</div>
+
+<p class="actions">
+  {% if forum_settings.is_read_only %}
+    <a class="btn btn--primary" href="{% url 'web:forum' %}">{% translate "Wróć na forum" %}</a>
+  {% else %}
+    <a class="btn btn--primary" href="{% url 'web:forum-thread-new' %}">{% translate "Nowy wątek" %}</a>
+    <a class="btn btn--ghost" href="{% url 'web:forum' %}">{% translate "Wróć na forum" %}</a>
+  {% endif %}
+</p>
+
+{% comment %}
+  Dwie listy, a nie jedna, bo to dwie różne decyzje organizatora. Wątek odrzucony **po** tym, jak
+  jego pierwszy wpis został już zatwierdzony, zostawia ten wpis „opublikowanym” – lista wpisów
+  pokazywałaby wtedy zieloną odznakę pod tematem, którego nikt już nie widzi. Wątki idą pierwsze,
+  bo odrzucenie całego tematu jest większą wiadomością niż odrzucenie jednej odpowiedzi.
+
+  Temat bywa **bez odnośnika** i to nie jest niedopatrzenie: odrzucony i ukryty wątek daje 404 także
+  swojemu autorowi (``apps.forum.services.thread_visible_to``), a odnośnik, o którym z góry wiadomo,
+  że nie zadziała, jest gorszy niż jego brak.
+{% endcomment %}
+{% if threads %}
+  <section class="section">
+    <div class="section__head"><h2>{% translate "Twoje wątki" %}</h2></div>
+    {% for row in threads %}
+      <article class="card{% if row.thread.moderation_note %} card--accent{% endif %}">
+        <div class="card__head">
+          <h3 class="card__title">
+            {% if row.visible %}
+              <a href="{% url 'web:forum-thread' row.thread.pk %}">{{ row.thread.title }}</a>
+            {% else %}
+              {{ row.thread.title }}
+            {% endif %}
+          </h3>
+          <p class="row">
+            <span class="badge {% if row.thread.is_published %}badge--ok{% elif row.thread.is_pending %}badge--warn{% elif row.thread.status == 'REJECTED' %}badge--danger{% else %}badge--neutral{% endif %}">
+              {{ row.thread.get_status_display }}</span>
+          </p>
+        </div>
+        <p class="card__meta">
+          {{ row.thread.category.name }}
+          · {% translate "założony:" %} {{ row.thread.created_at|local_datetime }}
+        </p>
+        {% if row.thread.moderation_note %}
+          <p class="notice notice--warning">
+            <strong>{% translate "Uzasadnienie organizatora:" %}</strong> {{ row.thread.moderation_note }}
+          </p>
+        {% elif row.thread.is_pending %}
+          <p class="hint">{% translate "Wątek czeka na zatwierdzenie przez organizatora. Do tego czasu widzisz go tylko Ty." %}</p>
+        {% endif %}
+      </article>
+    {% endfor %}
+  </section>
+{% endif %}
+
+<section class="section">
+  <div class="section__head"><h2>{% translate "Historia wpisów" %}</h2></div>
+  {% for row in posts %}
+    {% with post=row.post %}
+    <article class="card{% if post.moderation_note %} card--accent{% endif %}">
+      <div class="card__head">
+        <h3 class="card__title">
+          {% if row.thread_visible %}
+            <a href="{% url 'web:forum-thread' post.thread_id %}">{{ post.thread.title }}</a>
+          {% else %}
+            {{ post.thread.title }}
+          {% endif %}
+        </h3>
+        <p class="row">
+          <span class="badge {% if post.is_published %}badge--ok{% elif post.is_pending %}badge--warn{% elif post.is_rejected %}badge--danger{% else %}badge--neutral{% endif %}">
+            {{ post.get_status_display }}</span>
+        </p>
+      </div>
+      <p class="card__meta">
+        {{ post.thread.category.name }}
+        · {% translate "dodany:" %} {{ post.created_at|local_datetime }}
+        {% if post.edited_at %}· {% translate "poprawiony:" %} {{ post.edited_at|local_datetime }}{% endif %}
+      </p>
+      {% if post.moderation_note %}
+        <p class="notice notice--warning">
+          <strong>{% translate "Uzasadnienie organizatora:" %}</strong> {{ post.moderation_note }}
+        </p>
+      {% elif post.is_rejected %}
+        <p class="hint">{% translate "Organizator nie zostawił uzasadnienia. Jeżeli nie wiesz, co było nie tak, zapytaj przez formularz pomocy." %}</p>
+      {% elif post.is_pending %}
+        <p class="hint">{% translate "Wpis czeka na zatwierdzenie przez organizatora. Do tego czasu widzisz go tylko Ty." %}</p>
+      {% endif %}
+    </article>
+    {% endwith %}
+  {% empty %}
+    <div class="empty">
+      <span class="empty__title">{% translate "Nie napisałeś tu jeszcze ani słowa" %}</span>
+      <p class="empty__text">{% translate "Gdy założysz wątek albo odpowiesz w cudzym, wpis pojawi się na tej liście razem ze swoim stanem. To tutaj – i tylko tutaj – zobaczysz, jeżeli organizator któryś z nich odrzuci." %}</p>
+      {% if not forum_settings.is_read_only %}
+        <p class="empty__actions">
+          <a class="btn btn--small btn--secondary" href="{% url 'web:forum' %}">{% translate "Przejrzyj działy" %}</a>
+        </p>
+      {% endif %}
+    </div>
+  {% endfor %}
+</section>
+{% endblock %}

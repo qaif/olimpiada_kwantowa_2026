@@ -1,0 +1,68 @@
+{% extends "web/coordinator/base.html" %}
+{% load web_extras %}
+{% comment %}
+  Ustawienia forum konkursu: tryb moderacji i przełącznik „tylko do odczytu”.
+
+  Ekran mówi **wprost**, gdy ustawienie jest w tej chwili nadpisane przez otwarty etap. Pole wyboru
+  pokazujące „po publikacji” w chwili, gdy każdy wpis i tak czeka w kolejce, byłoby ustawieniem,
+  które kłamie – a organizator, który mu uwierzy, przestanie zaglądać do kolejki
+  (``apps.forum.services.effective_mode``).
+
+  Wymuszenie nie jest ostrożnością, tylko regulaminem: § 10 ust. 2 i § 17 zabraniają omawiania
+  rozwiązań zadań otwartego etapu, a wpis widoczny przez kwadrans, zanim moderator go zdejmie,
+  zdąży zostać przeczytany przez tych, którzy jeszcze nie oddali pracy. Odwrócenie tej reguły
+  kosztowałoby unieważnienie etapu, a nie jeden nieprzyjemny wątek.
+{% endcomment %}
+{% block title %}Ustawienia forum – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-forum' %}">Forum uczestników</a>{% endblock %}
+{% block panel_title %}Ustawienia forum{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Kiedy wpis staje się widoczny dla innych i czy forum w ogóle przyjmuje nowe
+    wypowiedzi.</p>
+{% endblock %}
+{% block panel_actions %}
+  <a class="btn btn--small btn--secondary" href="{% url 'web:coordinator-forum' %}">Kolejka moderacji</a>
+{% endblock %}
+{% block panel_content %}
+
+{% if open_stage %}
+  <p class="notice notice--warning">
+    Trwa etap „{{ open_stage.display_name }}” i przyjmuje rozwiązania, więc <strong>niezależnie od
+    ustawienia niżej</strong> każdy wpis czeka teraz na Twoje zatwierdzenie. Tak ma być: regulamin
+    zabrania omawiania zadań otwartego etapu (§ 10 ust. 2 i § 17), a wpis widoczny przez kwadrans
+    zdąży przeczytać ktoś, kto jeszcze nie oddał pracy. Ustawienie wróci do gry po zamknięciu etapu.
+  </p>
+{% endif %}
+
+<p class="hint">Obowiązujący w tej chwili tryb:
+  <span class="badge {% if forum_mode == mode_pre %}badge--warn{% else %}badge--info{% endif %}">
+    {% if forum_mode == mode_pre %}przed publikacją{% else %}po publikacji{% endif %}</span>
+  {% if forum_settings.is_read_only %}<span class="badge badge--neutral">tylko do odczytu</span>{% endif %}
+</p>
+
+<form class="form" method="post" action="{% url 'web:coordinator-forum-settings' %}">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  {{ form.as_p }}
+  <p class="actions">
+    <button type="submit" class="btn btn--primary">Zapisz ustawienia</button>
+  </p>
+</form>
+
+<section class="section">
+  <div class="section__head"><h2>Czego forum nie robi</h2></div>
+  <p class="hint">Warto to wiedzieć, zanim uczestnik o to zapyta:</p>
+  <ul>
+    <li><strong>Nie wysyła listów.</strong> Ani do Ciebie o nowym wpisie, ani do autora
+      o odrzuceniu. Sygnałem jest odznaka przy „Forum uczestników” w menu panelu, a autor
+      znajduje Twoje uzasadnienie na swoim ekranie „Twoje wpisy”.</li>
+    <li><strong>Nie ma wiadomości prywatnych.</strong> Uczestnicy są niepełnoletni, a rozmowa bez
+      świadków jest dokładnie tym, czego moderacja nie widzi.</li>
+    <li><strong>Nie przyjmuje załączników ani HTML-a.</strong> Wypowiedź jest tekstem; odnośniki
+      stają się klikalne same.</li>
+    <li><strong>Nie pokazuje adresu e-mail, szkoły ani kodu <code class="code-chip">OLM-…</code></strong>
+      – podpisem jest imię i pierwsza litera nazwiska. Kod publiczny jest kluczem anonimowego
+      oceniania i nie może trafić na forum w żadnej postaci.</li>
+  </ul>
+</section>
+{% endblock %}

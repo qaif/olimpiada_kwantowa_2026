@@ -124,6 +124,11 @@ INSTALLED_APPS = [
     # ma własny model, własne reguły i własną pocztę, a z domeną zawodów łączy ją wyłącznie
     # kontekst zgłoszenia – czyli odczyt, nigdy zapis.
     "apps.support",
+    # Forum uczestników (prośba organizatora z 21.09.2026). Osobna aplikacja z tego samego powodu,
+    # co ``apps.support``: własne modele, własne reguły moderacji i własny panel. Z domeną zawodów
+    # łączy ją jeden **odczyt** – „czy trwa etap przyjmujący rozwiązania”, od którego zależy
+    # wymuszona moderacja wstępna (``apps.forum.services.effective_mode``).
+    "apps.forum",
     # Warstwa integracyjna: klucze API dla systemów zewnętrznych, webhooki i eksporty na zewnątrz.
     # **Po** aplikacjach domeny, bo czyta je wszystkie (edycje, wyniki, zgłoszenia), a żadna z nich
     # nie czyta jej – zależność idzie w jedną stronę i kolejność w tej liście ma to pokazywać.
@@ -786,6 +791,12 @@ REST_FRAMEWORK = {
         # Stawka jest wyższa niż przy rejestracji: człowiek, któremu coś nie działa, pisze czasem
         # drugie zgłoszenie w tej samej sprawie, a odbicie go limitem byłoby karą za problem.
         "support": "10/hour",
+        # Pisanie na forum uczestników (wątek, odpowiedź, zgłoszenie wpisu). Limit nie chroni tu
+        # cudzej skrzynki – forum nie wysyła listów – tylko **kolejkę moderacyjną i rozmowę**:
+        # trzydzieści wpisów w godzinę to więcej, niż napisze uczestnik czytający odpowiedzi,
+        # a mniej, niż potrzeba, żeby zasypać dział albo wyczerpać dyżur koordynatora. Stawka jest
+        # wyższa niż przy zgłoszeniach, bo tam jedno zdanie kończy sprawę, a tu toczy się rozmowa.
+        "forum": "30/hour",
         # Podpowiedzi szkół w formularzu rejestracji. Limit jest wysoki, bo jedno wypełnienie
         # formularza to kilkanaście żądań (jedno na przerwę w pisaniu), a dane są jawnym
         # rejestrem publicznym – chronimy tu koszt zapytania, nie treść.
