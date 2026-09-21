@@ -868,15 +868,43 @@ hr {
    bez skryptu (i z ``prefers-reduced-motion``) widać po prostu tyle logotypów, ile się mieści.
    Znaki partnerów są projektowane na jasne tło, więc każdy dostaje jasną plakietkę – ta sama
    sztuczka, co przy logotypie organizatora w stopce (``.footer__logo``/``.brand__logo``). */
-.sponsor-slider {
+/* Dok taśmy: element wiersza menu, który bierze **wolne miejsce na prawo od ostatniej pozycji**
+   (``flex: 1 1 0`` – podstawa zero, więc o zawinięciu do nowego wiersza decyduje samo minimum,
+   czyli jedno pole, a nie szerokość całej taśmy; z ``flex-basis: auto`` taśma o dziewięciu
+   logotypach spadała pod menu). Taśma stoi w nim przy prawej krawędzi. */
+.sponsor-slider-dock {
   --sponsor-slot-w: 132px;
   --sponsor-slot-h: 44px;
+  flex: 1 1 0;
+  min-width: var(--sponsor-slot-w);
+  display: flex;
+  justify-content: flex-end;
+  container-type: inline-size;
+}
+
+/* Wiersz menu musi sięgać prawej krawędzi kolumny, żeby dok miał co brać: sama ``.nav`` jest
+   tak szeroka, jak jej pozycje, więc bez rozciągnięcia „wolne miejsce” wynosiłoby zero. Tylko
+   wtedy, gdy taśma jest na stronie i na ekranach, na których ją widać. */
+@media (min-width: 900px) {
+  .nav--cms:has(.sponsor-slider-dock) {
+    flex: 1 1 auto;
+  }
+}
+
+/* Szerokość taśmy to **pełne pola**: tyle, ile mieści dok, najwyżej cztery. Bez zaokrągłenia
+   w dół przy krawędzi stałaby połówka logotypu. ``round()`` znają przeglądarki z lat 2023+;
+   starsza zostaje przy pierwszej deklaracji, czyli przy jednym polu – taśma nadal jedzie. */
+.sponsor-slider {
   position: relative;
   overflow: hidden;
   height: var(--sponsor-slot-h);
-  flex: 1 1 auto;
-  min-width: var(--sponsor-slot-w);
-  max-width: calc(var(--sponsor-slot-w) * 4);
+  flex: 0 0 auto;
+  width: var(--sponsor-slot-w);
+  width: clamp(
+    var(--sponsor-slot-w),
+    round(down, 100cqw, var(--sponsor-slot-w)),
+    calc(var(--sponsor-slot-w) * 4)
+  );
 }
 
 .sponsor-slider__track {
@@ -941,6 +969,7 @@ hr {
    pasek sponsorów zabrałby wtedy miejsce, którego brakuje na same pozycje menu. Strona główna
    ma swój pełny pas partnerów (``.partner-strip``) niezależnie od tego pudełka. */
 @media (max-width: 899px) {
+  .sponsor-slider-dock,
   .sponsor-slider {
     display: none;
   }

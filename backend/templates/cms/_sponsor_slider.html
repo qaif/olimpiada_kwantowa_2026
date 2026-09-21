@@ -20,6 +20,8 @@
   i żadnego partnera) → fragment nie rysuje ani jednego znacznika.
 {% endcomment %}
 {% if sponsor_slider.entries %}
+  {# Dok zajmuje wolne miejsce wiersza menu; sama taśma ma w nim szerokość pełnych pól – app.css. #}
+  <div class="sponsor-slider-dock">
   <div class="sponsor-slider" data-sponsor-slider data-interval="{{ sponsor_slider.seconds }}"
        aria-label="Partnerzy i sponsorzy">
     <ul class="sponsor-slider__track" data-sponsor-slider-track>
@@ -34,5 +36,6 @@
         </li>
       {% endfor %}
     </ul>
+  </div>
   </div>
 {% endif %}
