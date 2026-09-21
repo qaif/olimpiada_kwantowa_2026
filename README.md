@@ -2713,11 +2713,16 @@ uzasadnienie każdego punktu: `docs/import/stara-strona-inwentarz.md`, sekcja 8.
    `manage.py seed_legacy_content --only zgoda-opiekuna`.
 6. **Osoby odpowiedzialne za ochronę małoletnich.** § 9 i § 10 standardów wymagają wskazania ich
    imiennie uchwałą Zarządu i przyjęcia wzoru karty interwencji.
-7. **Skład komitetów.** Szesnaście nazwisk i zakresy odpowiedzialności potwierdza PDF organizatora,
-   więc dokument `/dokumenty/komitety/` jest opublikowany. Do decyzji zostają: funkcje i afiliacje członków,
-   podwójne członkostwo dwóch osób (Paweł Gora, Grzegorz Czelusta figurują w obu komitetach)
-   i nazewnictwo — „Komitet Główny” ze starej strony głównej nie istnieje ani w regulaminie,
-   ani w PDF-ie.
+7. **Skład komitetów — rozstrzygnięte.** Dokument `/dokumenty/komitety/` jest opublikowany
+   z dwunastoma osobami w Komitecie Merytorycznym i siedmioma w Organizacyjnym, każda z tytułem
+   i afiliacją; podwójne członkostwo dwóch osób (Paweł Gora, Grzegorz Czelusta) i nazewnictwo
+   (bez „Komitetu Głównego”, którego nie ma ani w regulaminie, ani na stronie) są rozstrzygnięte.
+   Źródłem jest bezpośrednio wiadomość organizatora z 21 września 2026, nie PDF: tego dnia
+   organizator kazał **zdjąć plik do pobrania** ze składem (skład zmienia się częściej niż
+   dokument, który ktoś by podpisywał), więc strona zostaje jedynym miejscem z tą listą —
+   `manage.py build_guardian_consent_pdf --document komitety` nadal potrafi złożyć wydruk na
+   żądanie, ale jego wynik nie leży już w repozytorium ani nie jest nigdzie przypięty
+   (`retire_legacy_files`, `docs/OPERACJE.md`).
 8. **Partnerzy — logotypy są, poziomy współpracy do potwierdzenia.** Organizator przekazał sześć
    logotypów (FUW, PCSS, CFT PAN, IF PAN, Uniwersytet Gdański, AIQLAB Institute) i adresy stron,
    ale **nie podał poziomu współpracy ani opisu**. `seed_partners` wpisuje wartości wstępne

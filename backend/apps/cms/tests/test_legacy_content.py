@@ -2,14 +2,18 @@
 
 Testy pilnują czterech rzeczy, na których ten import stoi:
 
-- **co jest publiczne, a co nie.** „Komitety”: skład komitetów jest podpisanym PDF-em
-  organizatora, więc strona ma być publiczna i w menu. „Partnerzy” są publiczni, ale z **pustą**
-  listą – nazwy ze starej strony (w tym nieistniejący „Uniwersytet Kwantowy”) nie mogą wrócić
-  na serwis ani przez import, ani przez sekcję na stronie głównej,
+- **co jest publiczne, a co nie.** „Komitety”: skład komitetów jest listą podaną przez
+  organizatora, więc strona ma być publiczna i w menu – bez pliku do pobrania (decyzja
+  organizatora z 21.09.2026: skład zmienia się częściej niż dokument, który ktoś by podpisywał).
+  „Partnerzy” są publiczni, ale z **pustą** listą – nazwy ze starej strony (w tym nieistniejący
+  „Uniwersytet Kwantowy”) nie mogą wrócić na serwis ani przez import, ani przez sekcję na
+  stronie głównej,
 - **kolejność menu.** Menu wynika z kolejności rodzeństwa w drzewie, a nie z pola sortującego,
   więc pomyłka w komendzie objawia się dopiero w nagłówku strony,
-- **pliki organizatora.** Cztery PDF-y mają wisieć przy właściwych stronach, dać się pobrać
-  i nie mnożyć kopii w bibliotece przy powtórnym przebiegu komendy,
+- **pliki organizatora.** Trzy PDF-y mają wisieć przy właściwych stronach, dać się pobrać
+  i nie mnożyć kopii w bibliotece przy powtórnym przebiegu komendy; skład komitetów PDF-u już
+  nie ma (``retired_pdf_titles`` sprząta go z instalacji, które go jeszcze mają – patrz
+  ``apps/cms/tests/test_retire_legacy_files.py``),
 - **oś czasu edycji.** Stara strona ma po jednej dacie na etap; reguły uzupełniające resztę są
   zapisane w komendzie i tu sprawdzane, żeby ich cicha zmiana nie przeszła bez śladu.
 """
@@ -85,16 +89,17 @@ VISIBLE_DOCUMENT_TITLES = [
 #: przekierowywać i wpis dla niego byłby wymyślonym adresem.
 REDIRECTED_DOCUMENTS = ("regulamin", "rodo", "standardy-ochrony-maloletnich", "komitety")
 
-#: Dokumenty, przy których wisi plik do pobrania – w kolejności z drzewa stron. Trzy PDF-y są
-#: plikami organizatora, czwarty (wzór zgody opiekuna) składamy sami komendą
+#: Dokumenty, przy których wisi plik do pobrania – w kolejności z drzewa stron. Dwa PDF-y są
+#: plikami organizatora, trzeci (wzór zgody opiekuna) składamy sami komendą
 #: ``build_guardian_consent_pdf``: to jedyny dokument serwisu, który ktoś wypełnia długopisem,
-#: więc wydruk strony z przeglądarki go nie zastępuje.
+#: więc wydruk strony z przeglądarki go nie zastępuje. Składu komitetów tu nie ma: 21.09.2026
+#: organizator kazał zdjąć jego PDF, strona zostaje bez pliku do pobrania (patrz
+#: ``LegacyPage.retired_pdf_titles`` i ``test_komitety_is_a_document_with_metadata_and_chapters``).
 DOWNLOADABLE_DOCUMENTS = (
     "regulamin",
     "rodo",
     "zgoda-opiekuna",
     "standardy-ochrony-maloletnich",
-    "komitety",
 )
 
 #: Tytuł formularza zgody opiekuna w bibliotece Wagtaila – tożsamość pliku, po której poznaje go
@@ -112,11 +117,13 @@ WARSAW = ZoneInfo("Europe/Warsaw")
 
 #: Tytuły PDF-ów organizatora wgrywanych przez tę komendę – tożsamość pliku w bibliotece Wagtaila.
 #: PDF-u regulaminu tu nie ma: wgrywa go ``seed_regulamin`` razem z .docx i treścią strony, bo
-#: wszystkie trzy są tą samą wersją dokumentu (patrz apps/cms/tests/test_document_page.py).
+#: wszystkie trzy są tą samą wersją dokumentu (patrz apps/cms/tests/test_document_page.py). PDF-u
+#: składu komitetów też tu już nie ma – 21.09.2026 organizator kazał go zdjąć (``retired_pdf_titles``);
+#: instalacje, które go jeszcze mają, sprząta ``retire_legacy_files`` (patrz
+#: ``test_retire_legacy_files.py``).
 PDF_TITLES = {
     "Polityka RODO Olimpiady Kwantowej (PDF)",
     "Standardy ochrony małoletnich (PDF)",
-    "Skład komitetów Olimpiady Kwantowej (PDF)",
 }
 
 #: Pasek nawigacji po imporcie – kolejność ustalona przez organizatora 21.09.2026
@@ -202,15 +209,16 @@ def test_seed_uploads_the_official_pdfs(legacy_content):
 def test_seed_attaches_pdf_to_matching_pages(legacy_content):
     rodo = DocumentPage.objects.get(slug="rodo").attachments.get()
     standardy = DocumentPage.objects.get(slug="standardy-ochrony-maloletnich").attachments.get()
-    komitety = DocumentPage.objects.get(slug="komitety").attachments.get()
 
     assert rodo.document.title == "Polityka RODO Olimpiady Kwantowej (PDF)"
     assert standardy.document.title == "Standardy ochrony małoletnich (PDF)"
-    assert komitety.document.title == "Skład komitetów Olimpiady Kwantowej (PDF)"
-    for item in (rodo, standardy, komitety):
+    for item in (rodo, standardy):
         assert item.label == "PDF do druku"
         assert item.is_pdf is True
         assert item.document.filename.endswith(".pdf")
+    # Skład komitetów nie ma pliku do pobrania od 21.09.2026 – patrz
+    # ``test_komitety_is_a_document_with_metadata_and_chapters``.
+    assert not DocumentPage.objects.get(slug="komitety").attachments.exists()
 
 
 @pytest.mark.parametrize("reversed_order", [False, True])
@@ -248,7 +256,7 @@ def test_seed_does_not_duplicate_documents_on_second_run(legacy_content):
     [
         ("/dokumenty/rodo/", "Polityka RODO Olimpiady Kwantowej (PDF)"),
         ("/dokumenty/standardy-ochrony-maloletnich/", "Standardy ochrony małoletnich (PDF)"),
-        ("/dokumenty/komitety/", "Skład komitetów Olimpiady Kwantowej (PDF)"),
+        # Bez „/dokumenty/komitety/”: od 21.09.2026 ta strona nie ma pliku do pobrania.
     ],
 )
 def test_pages_link_and_serve_their_pdf(web_client, legacy_content, path, title):
@@ -506,8 +514,8 @@ def test_partners_page_groups_entries_by_level(web_client, legacy_content):
     assert ">UW<" in content
 
 
-def test_komitety_is_public_with_scope_from_pdf(web_client, legacy_content):
-    """Strona składu komitetów jest publiczna i powtarza zakresy odpowiedzialności z PDF-u."""
+def test_komitety_is_public_with_scope_from_the_committee_list(web_client, legacy_content):
+    """Strona składu komitetów jest publiczna i powtarza zakresy odpowiedzialności organizatora."""
     response = web_client.get("/dokumenty/komitety/")
     content = response.content.decode()
 
@@ -746,7 +754,11 @@ def test_footer_shows_organizer_from_settings(web_client, legacy_content):
 
 
 def test_home_page_lists_every_document_to_download(web_client, legacy_content):
-    """Sekcja „Dokumenty do pobrania”: regulamin, RODO, zgoda opiekuna, standardy i komitety."""
+    """Sekcja „Dokumenty do pobrania”: regulamin, RODO, zgoda opiekuna i standardy.
+
+    Składu komitetów tu nie ma: od 21.09.2026 strona nie ma pliku do pobrania (organizator kazał
+    go zdjąć), więc sekcja rośnie o cztery pozycje, nie o pięć.
+    """
     call_command("seed_regulamin", verbosity=0)
     call_command("seed_legacy_content", verbosity=0)
 
@@ -927,7 +939,13 @@ def test_document_summary_reads_as_a_sentence(legacy_content):
 
 
 def test_komitety_is_a_document_with_metadata_and_chapters(web_client, legacy_content):
-    """Skład komitetów ma układ dokumentu: metrykę, spis sekcji i PDF złożony z treści strony."""
+    """Skład komitetów ma układ dokumentu: metrykę i spis sekcji, ale **bez** pliku do pobrania.
+
+    Decyzja organizatora z 21.09.2026: usunąć PDF ze składem komitetów, strona zostaje bez zmian.
+    Skład zmienia się częściej niż dokument, który ktoś by podpisywał, więc druga lista obok
+    strony była drugą listą do utrzymania – została jedna, na stronie (``build_guardian_consent_pdf
+    --document komitety`` nadal umie złożyć wydruk na żądanie, tylko wynik nikomu już nie wisi).
+    """
     page = DocumentPage.objects.get(slug="komitety")
     content = web_client.get("/dokumenty/komitety/").content.decode()
 
@@ -940,14 +958,17 @@ def test_komitety_is_a_document_with_metadata_and_chapters(web_client, legacy_co
     assert 'href="#komitet-merytoryczny"' in content
     assert 'href="#komitet-organizacyjny"' in content
     # Metryka opisuje skład podany przez organizatora 21.09.2026, a nie podpisany PDF z 7 września:
-    # źródłem jest treść strony, a plik do pobrania jest jej wydrukiem (``build_guardian_consent_pdf
-    # --document komitety``) – dlatego ramki „PDF jest wersją źródłową” tu już nie ma.
+    # źródłem jest wyłącznie treść strony – dlatego ramki „PDF jest wersją źródłową” tu nie ma.
     assert page.version_label == ""
     assert page.document_date.isoformat() == "2026-09-21"
     assert "21 września 2026" in page.status_label
     assert page.body[0].block_type != "notice"
     assert SOURCE_NOTICE_FRAGMENT not in content
-    assert page.attachments.get().document.title == "Skład komitetów Olimpiady Kwantowej (PDF)"
+    # Bez pliku do pobrania: ani wiersza załącznika, ani przycisku/karty na stronie.
+    assert not page.attachments.exists()
+    assert "Pobierz PDF" not in content
+    assert "Do pobrania" not in content
+    assert 'class="doc-download' not in content
 
 
 # --- menu z listą rozwijaną ---------------------------------------------------------------------
@@ -1344,22 +1365,3 @@ def test_content_page_deleted_in_cms_is_not_recreated(legacy_content):
     call_command("seed_legacy_content", verbosity=0)
 
     assert not ContentPage.objects.filter(slug="dla-nauczycieli").exists()
-
-
-def test_committees_pdf_is_rebuilt_byte_for_byte(legacy_content):
-    """PDF składu komitetów jest tym, co składa komenda z ``komitety.md`` – strona i plik są jednym.
-
-    Ta sama reguła, co przy formularzu zgody opiekuna: skład jest powtarzalny (``invariant=1``),
-    więc różnica bajtów znaczy, że ktoś zmienił listę osób i nie przebudował pliku do pobrania.
-    """
-    from apps.cms.management.commands.build_guardian_consent_pdf import DOCUMENTS, render_pdf
-
-    spec = DOCUMENTS["komitety"]
-    rebuilt = render_pdf(
-        spec["source"].read_text(encoding="utf-8"),
-        title=spec["title"],
-        subject=spec["subject"],
-        footer_left=spec["footer_left"],
-    )
-
-    assert rebuilt == spec["output"].read_bytes()

@@ -347,6 +347,13 @@ adres odpowiada 404 (punkt 22 listy kontrolnej produkcji). Token wejściowy bier
 w `.env`, a gdy zmiennej nie ma, kreator wypisuje go **raz** do logu kontenera `web` (`$DC logs web`)
 — log wdrożenia bywa publiczny, więc token nie jest nigdzie wypisywany drugi raz.
 
+Treść CMS-a (regulamin, dokumenty, harmonogram…) wgrywają komendy `manage.py seed_regulamin`
+i `manage.py seed_legacy_content` — pełny przebieg tej drugiej nie chodzi po każdym wdrożeniu, bo
+nadpisałby poprawki redakcji wprowadzone w `/cms/` (patrz jej docstring). Gdy trzeba tylko zdjąć
+plik wycofany przez organizatora z instalacji, która go jeszcze ma (dziś: PDF ze składem
+komitetów), bez dotykania treści i rewizji strony, służy do tego wąska komenda
+`manage.py retire_legacy_files` (`--dry-run` tylko liczy, ile plików by usunęła).
+
 Komplet usług (skaner i własny MTA) wraca profilem, bez zmiany plików:
 
 ```bash

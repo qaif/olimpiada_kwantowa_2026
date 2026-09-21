@@ -160,7 +160,7 @@ def guest_pages(browser) -> None:
         # Warsztaty: tabela szesnastu terminów, z której strona główna bierze trzy najbliższe.
         ("/warsztaty/", "01h-warsztaty", "top"),
         ("/dokumenty/rodo/", "01d-rodo", "top"),
-        # Skład komitetów: dokument z kartą „Do pobrania” nad treścią (PDF organizatora).
+        # Skład komitetów: dokument bez pliku do pobrania (organizator kazał zdjąć PDF 21.09.2026).
         ("/dokumenty/komitety/", "01e-komitety", "top"),
         # Standardy ochrony małoletnich: drugi dokument przepisany z PDF-u organizatora.
         ("/dokumenty/standardy-ochrony-maloletnich/", "01f-standardy", "top"),

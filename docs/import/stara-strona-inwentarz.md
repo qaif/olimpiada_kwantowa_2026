@@ -257,9 +257,15 @@ społecznościowego. Formularza kontaktowego również nie ma.
 
 > **Potwierdzone.** Organizator przekazał podpisany `Sklad-komitetow-Olimpiady-Kwantowej.pdf`
 > (7 września 2026) — obie listy są w nim identyczne z poniższymi, co do osoby i kolejności.
-> Strona `/komitety/` jest od tej chwili opublikowana, a PDF wisi przy niej do pobrania;
+> Strona `/komitety/` jest od tej chwili opublikowana, a PDF wisiał przy niej do pobrania;
 > § 6 ust. 3 regulaminu wymaga publikowania aktualnego składu obu komitetów.
-> PDF dokłada zakresy odpowiedzialności, których stara strona nie miała — patrz niżej.
+> PDF dokładał zakresy odpowiedzialności, których stara strona nie miała — patrz niżej.
+>
+> **Stan historyczny.** Skład poniżej i sam PDF opisują stan na 7 września 2026. 21 września
+> 2026 organizator przekazał nowy, szerszy skład (z tytułami i afiliacjami) wprost do treści
+> strony i kazał **zdjąć plik do pobrania** — od tej daty `/dokumenty/komitety/` trzyma listę
+> wyłącznie na sobie, a PDF (razem z wyciągiem tekstu w `fixtures/legacy/pdf-text/`) jest
+> skasowany z repozytorium; patrz `apps/cms/fixtures/legacy/komitety.md` i `docs/import/assets.md`.
 
 **Komitet Merytoryczny** (pełni w całości funkcję Jury — § 5 ust. 2): Paweł Gora,
 Grzegorz Czelusta, Michał Krupiński, Rafał Demkowicz-Dobrzański, Krzysztof Pawłowski,
@@ -382,9 +388,11 @@ zmiany w regulaminie, a nie w kodzie.
 3. **Status prawny olimpiady.** Zastrzeżenie z `regulamin.json` mówi, że tytuły finalisty
    i laureata są „wewnętrzne” i nie dają uprawnień ustawowych. Czy nowy portal ma komunikować
    to samo (i gdzie), czy trwa procedura objęcia trybem MEN?
-4. **Skład komitetów** — szesnaście nazwisk i zakresy potwierdza PDF organizatora (4.2). Zostaje:
-   dopisać funkcje i afiliacje, rozstrzygnąć podwójne członkostwo dwóch osób, ujednolicić
-   nazewnictwo („Komitet Główny” ze strony głównej nie istnieje ani w regulaminie, ani w PDF-ie).
+4. **Skład komitetów — rozstrzygnięte.** Organizator przekazał 21 września 2026 szerszy skład
+   (12 + 7 osób) z tytułami i afiliacjami wprost do treści strony; podwójne członkostwo dwóch osób
+   (Paweł Gora, Grzegorz Czelusta) i nazewnictwo („Komitet Główny” nie istnieje ani w regulaminie,
+   ani na stronie) są rozstrzygnięte. Tego samego dnia kazał też **zdjąć plik do pobrania** ze
+   składem (4.2) — strona jest od tej chwili jedynym miejscem z tą listą.
 5. **Partnerzy i patroni — miejsce gotowe, treść do potwierdzenia.** `/partnerzy/` jest
    opublikowana jako `PartnersPage` z pustą listą i sekcją „Zostań partnerem”; poziomy
    współpracy (patronat honorowy, partner instytucjonalny/naukowy, sponsor

@@ -248,12 +248,14 @@ def test_page_keeps_the_words_of_the_pdf(legacy_content, slug, source):
     )
 
 
-def test_komitety_repeats_the_pdf_including_contact(web_client, legacy_content):
-    """Skład komitetów jest jednostronicowym PDF-em – strona ma powtarzać także jego stopkę.
+def test_komitety_repeats_the_committee_list_including_contact(web_client, legacy_content):
+    """Skład komitetów pochodzi z ``komitety.md`` – strona ma powtarzać także stopkę kontaktową.
 
-    Bez porównania liczby słów: numery pozycji w listach nazwisk rysuje ``<ol>``, a nie tekst,
-    więc licznik słów strony i PDF-u nie może się zgodzić. Nazwiska i zakresy odpowiedzialności
-    sprawdza ``test_legacy_content``.
+    Do 21.09.2026 przy stronie wisiał jednostronicowy PDF ze składem; organizator kazał go zdjąć
+    (strona zostaje, plik znika – patrz ``LegacyPage.retired_pdf_titles``), więc nie ma już
+    oracle'a do porównania. Test i tak nie liczy słów: numery pozycji w listach nazwisk rysuje
+    ``<ol>``, a nie tekst, więc licznik słów strony i dawnego pliku i tak nigdy by się nie zgodził.
+    Nazwiska i zakresy odpowiedzialności sprawdza ``test_legacy_content``.
     """
     content = web_client.get("/dokumenty/komitety/").content.decode()
     page_text = " ".join(page_words(DocumentPage.objects.get(slug="komitety")))

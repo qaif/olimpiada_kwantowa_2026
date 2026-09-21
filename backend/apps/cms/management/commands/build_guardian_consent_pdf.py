@@ -75,12 +75,12 @@ PDF_TITLE = "Zgoda rodzica lub opiekuna prawnego – Olimpiada Kwantowa"
 PDF_SUBJECT = "Formularz zgody rodzica lub opiekuna prawnego na udział w Olimpiadzie Kwantowej"
 
 #: Dokumenty składane tą komendą: źródło (markdown strony), plik wynikowy i metadane PDF-a.
-#: Drugi wpis doszedł 21.09.2026: organizator podał nowy skład komitetów (tytuły, afiliacje,
-#: dwie nowe osoby), a przy stronie wisiał podpisany PDF ze składem z 7 września – plik do
-#: pobrania przeczyłby stronie, przy której stoi. Nowy plik powstaje z **tego samego**
-#: ``komitety.md``, co strona, więc nie da się ich rozjechać, i zajmuje miejsce starego pod tą
-#: samą nazwą (``fixtures/legacy/pdf/``), żeby ``seed_legacy_content`` podmienił treść dokumentu
-#: w bibliotece, a nie dołożył drugiego.
+#: Drugi wpis doszedł 21.09.2026 razem z nowym składem komitetów. Tego samego dnia organizator
+#: zdecydował, że **pliku przy stronie nie będzie** (skład stoi wyłącznie na stronie, patrz
+#: ``seed_legacy_content``: ``retired_pdf_titles``), więc wynik tej komendy nie leży już
+#: w repozytorium i nie jest nigdzie przypinany. Sam skład zostaje: gdy organizator poprosi
+#: o wydruk składu (np. do pisma), powstaje jednym poleceniem z tego samego ``komitety.md``,
+#: co strona – ``build_guardian_consent_pdf --document komitety --output <plik>``.
 DOCUMENTS = {
     "zgoda-opiekuna": {
         "source": SOURCE,

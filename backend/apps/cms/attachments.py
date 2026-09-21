@@ -22,6 +22,7 @@ Trzy decyzje warte uzasadnienia:
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Iterable
 from pathlib import Path
 
 from django.core.files import File
@@ -137,3 +138,48 @@ def set_attachments(page, model, specs: list[tuple[object, str]]) -> None:
         row.label = label
         row.sort_order = index
         row.save(update_fields=["label", "sort_order"])
+
+
+def retire_documents(page, model, titles: Iterable[str]) -> int:
+    """Odpina od ``page`` i kasuje z biblioteki (wraz z plikiem) dokumenty o wskazanych tytułach.
+
+    Wspólna dla ``seed_legacy_content`` (``_retire_attachments``) i komendy ``retire_legacy_files``:
+    obie sprzątają plik, który organizator kazał zdjąć ze strony, nie ruszając samej strony ani
+    dokumentów o innych tytułach – nawet dołożonych do tej samej strony ręcznie w ``/cms/``.
+    Bezpieczna, gdy nie ma czego sprzątać: zwraca wtedy ``0`` i nic nie zmienia, więc wywołanie
+    tej funkcji drugi raz (albo na instalacji, która pliku nigdy nie miała) jest równie tanim
+    „nic się nie stało" co przeliczenie.
+
+    Kolejność ewaluacji ma znaczenie: dokumenty czytamy **do listy** ``documents`` najpierw, zanim
+    skasujemy jakikolwiek wiersz – dopiero ta lista (a nie leniwy queryset przeliczany drugi raz
+    po tym, jak stan bazy już się zmienił) jest podstawą i filtra po wierszach załączników,
+    i pętli kasującej same dokumenty.
+
+    Plik ze storage nie jest kasowany tu wprost. ``document.delete()`` wystarcza: Wagtail podpina
+    pod sygnał ``post_delete`` modelu dokumentu zadanie ``delete_file_from_storage_task``
+    (``wagtail/documents/signal_handlers.py``), zaplanowane na ``transaction.on_commit`` – wołanie
+    tu dodatkowo ``document.file.delete()`` kasowałoby ten sam plik drugi raz. W testach zadanie
+    trzeba jawnie wykonać (``django_capture_on_commit_callbacks(execute=True)``), bo w transakcji
+    testu ``on_commit`` się nie odpala.
+
+    **Tytuł jest tożsamością globalną w całej bibliotece** – ``ensure_document`` szuka dokumentu
+    po tytule bez względu na stronę czy konkurs (patrz jego docstring), więc dokument o tym samym
+    tytule podpięty także do **innej** strony jest wciąż tym samym wierszem ``Document``. Wiersz
+    załącznika odpinamy tylko dla ``page`` przekazanej tutaj, ale ``document.delete()`` działa na
+    całej bibliotece: FK ``PageAttachment.document`` ma ``on_delete=PROTECT`` właśnie po to, żeby
+    to nie uszło płazem – jeśli inna strona nadal ma załącznik z tym samym dokumentem, Django
+    podniesie ``ProtectedError`` zamiast po cichu urwać jej plik spod nóg. To zamierzone: dwie
+    strony z plikiem o identycznym tytule w bibliotece to kolizja nazw do rozwiązania ręcznie
+    (zmiana tytułu jednego z nich), a nie coś, co ta funkcja ma cicho przemilczeć.
+    """
+    if not titles:
+        return 0
+    Document = get_document_model()
+    documents = list(Document.objects.filter(title__in=titles))
+    if not documents:
+        return 0
+    document_ids = [document.pk for document in documents]
+    model.objects.filter(page=page, document_id__in=document_ids).delete()
+    for document in documents:
+        document.delete()
+    return len(documents)

@@ -63,11 +63,21 @@ porównuje z tym wyciągiem treść stron.
 |---|---|---|---|---|
 | `Polityka-RODO-Olimpiada-Kwantowa.pdf` | 3 | 86 060 B | `c9c155ed6468767c57d9e8ecf9cc347e` | `/rodo/` |
 | `Standardy-ochrony-maloletnich-Olimpiada-Kwantowa.pdf` | 4 | 96 806 B | `95bded2a0ef7b7f4e8e112c309acd31f` | `/standardy-ochrony-maloletnich/` |
-| `Sklad-komitetow-Olimpiady-Kwantowej.pdf` | 1 | 63 119 B | `cd15134e0afee04ab7c292c692864659` | `/komitety/` |
+| `Sklad-komitetow-Olimpiady-Kwantowej.pdf` | 1 | 63 119 B | `cd15134e0afee04ab7c292c692864659` | `/komitety/` (wycofany 21.09.2026 — patrz niżej) |
 
 PDF ze składem komitetów jest powodem, dla którego `/komitety/` przestało być szkicem: nazwiska
-i zakresy odpowiedzialności są w nim podpisane przez organizatora, a strona jest jego wersją
-czytelną w przeglądarce. Treść `fixtures/legacy/komitety.md` przepisano z tego PDF-u.
+i zakresy odpowiedzialności były w nim podpisane przez organizatora, a strona była jego wersją
+czytelną w przeglądarce. Treść `fixtures/legacy/komitety.md` przepisano pierwotnie z tego PDF-u.
+
+**21 września 2026 organizator kazał ten plik zdjąć** (skład zmienia się częściej niż dokument,
+który ktoś by podpisywał — druga lista obok strony była drugą listą do utrzymania): plik i wpis
+w tabeli wyżej opisują więc stan **historyczny** importu, a nie dzisiejszą instalację. Wiersz
+`fixtures/legacy/pdf-text/Sklad-komitetow-Olimpiady-Kwantowej.txt` (oracle testu treści) i sam
+PDF w `fixtures/legacy/pdf/` są od tej daty skasowane z repozytorium, a strona `/komitety/`
+(dziś `/dokumenty/komitety/`) trzyma listę wyłącznie na sobie. Komenda `retire_legacy_files`
+odpina i kasuje ten dokument na instalacjach, które go jeszcze mają; `build_guardian_consent_pdf
+--document komitety` nadal umie złożyć wydruk na żądanie, tylko jego wynik nie wraca już do
+repozytorium.
 
 ## Duplikaty (identyczne MD5 — nie wgrywać drugi raz)
 

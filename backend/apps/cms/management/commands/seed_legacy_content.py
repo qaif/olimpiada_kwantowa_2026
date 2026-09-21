@@ -18,22 +18,29 @@ Co powstaje:
   organizatora jako dziećmi. Sekcja jest jedną pozycją menu z listą rozwijaną; stare adresy
   jednosegmentowe (``/regulamin/``, ``/rodo/``…) zostają jako trwałe przekierowania,
 - **dokumenty opublikowane** (``DocumentPage``): polityka RODO, wzór zgody rodzica lub opiekuna
-  prawnego, standardy ochrony małoletnich i skład komitetów. Trzy z nich są przepisane
-  z podpisanych PDF-ów organizatora (``fixtures/legacy/pdf-text/``), sekcja po sekcji, więc nie
-  są już „wersją demonstracyjną” ze starego WordPressa: metryka mówi, z jakiego eksportu
-  pochodzą, a ramka na górze wskazuje PDF jako wersję źródłową,
-- **PDF-y organizatora** z ``fixtures/legacy/pdf/`` przypięte do właściwych stron: RODO, standardy
-  ochrony małoletnich i skład komitetów, oraz – z ``fixtures/documents/`` – formularz zgody
-  opiekuna złożony u nas. To one są wersjami do wydruku i to z nich bierze się
-  sekcja „Dokumenty do pobrania” na stronie głównej. Regulaminu tu **nie** ma: jego PDF, .docx
-  i tekst strony to trzy postacie jednej wersji dokumentu i wgrywa je razem ``seed_regulamin``
-  (rozdzielenie kończyło się stroną z nowego .docx i plikiem do pobrania ze starego PDF-u),
+  prawnego, standardy ochrony małoletnich i skład komitetów. Dwa pierwsze z nich (RODO, standardy)
+  są przepisane z podpisanych PDF-ów organizatora (``fixtures/legacy/pdf-text/``), sekcja po
+  sekcji, więc nie są już „wersją demonstracyjną” ze starego WordPressa: metryka mówi, z jakiego
+  eksportu pochodzą, a ramka na górze wskazuje PDF jako wersję źródłową. Skład komitetów przeszedł
+  tę samą drogę na starcie (transkrypcja podpisanego PDF-u z 7 września 2026), ale od 21 września
+  2026 organizator utrzymuje listę wprost na stronie – bez pliku i bez ramki (patrz niżej),
+- **PDF-y organizatora** z ``fixtures/legacy/pdf/`` przypięte do właściwych stron: RODO i standardy
+  ochrony małoletnich, oraz – z ``fixtures/documents/`` – formularz zgody opiekuna złożony u nas.
+  To one są wersjami do wydruku i to z nich bierze się sekcja „Dokumenty do pobrania” na stronie
+  głównej. Regulaminu tu **nie** ma: jego PDF, .docx i tekst strony to trzy postacie jednej wersji
+  dokumentu i wgrywa je razem ``seed_regulamin`` (rozdzielenie kończyło się stroną z nowego .docx
+  i plikiem do pobrania ze starego PDF-u). Składu komitetów też tu już nie ma – patrz niżej,
 - **„Skład komitetów” jest dokumentem, a nie stroną treści**, bo lista nazwisk wyszła spod pióra
-  organizatora jako podpisany PDF (``Sklad-komitetow-Olimpiady-Kwantowej.pdf``) – nie jest roboczą
-  notatką do potwierdzenia, tylko oficjalnym dokumentem, a strona jest jego wersją czytelną
-  w przeglądarce. Treść (nazwiska i zakresy odpowiedzialności) pochodzi z PDF-u. Baza sprzed tej
-  zmiany ma stronę ``ContentPage`` o tym slugu; komenda ją kasuje i tworzy dokument na nowo,
-  bo typu strony nie da się zmienić w miejscu (dwie tabele),
+  organizatora jako podpisany PDF (pierwotnie ``Sklad-komitetow-Olimpiady-Kwantowej.pdf``, 7
+  września 2026) – nie była roboczą notatką do potwierdzenia, tylko oficjalnym dokumentem, a strona
+  była jego wersją czytelną w przeglądarce. Baza sprzed tej zmiany ma stronę ``ContentPage`` o tym
+  slugu; komenda ją kasuje i tworzy dokument na nowo, bo typu strony nie da się zmienić w miejscu
+  (dwie tabele). **21 września 2026 organizator zdecydował usunąć plik do pobrania** (skład zmienia
+  się częściej niż dokument, który ktoś by podpisywał, a druga lista obok strony jest drugą listą
+  do utrzymania) – strona zostaje, plik znika (``LegacyPage.retired_pdf_titles``,
+  ``apps.cms.attachments.retire_documents``); komenda ``build_guardian_consent_pdf --document
+  komitety`` nadal umie złożyć wydruk na żądanie, tylko jego wynik nie leży już w repozytorium
+  ani nie jest nigdzie przypięty,
 - **strony zredagowane w /cms/ są nietykalne**: strona, która ma choć jedną rewizję z autorem
   (rewizje tej komendy nie mają autora), zostaje przy pełnym przebiegu pominięta – z komunikatem.
   Reguła istnieje, bo organizator redaguje harmonogram i skład komitetów bezpośrednio na
@@ -134,6 +141,7 @@ from apps.cms.attachments import (
     LABEL_PDF,
     PDF_DIR,
     ensure_document,
+    retire_documents,
     set_attachments,
 )
 from apps.cms.legacy_markdown import parse_markdown
@@ -480,6 +488,11 @@ class LegacyPage:
     metadata: dict = field(default_factory=dict)
     pdf: str = ""
     pdf_title: str = ""
+    #: Tytuły plików, które **kiedyś** wisiały przy tej stronie, a już nie mają: komenda odpina je
+    #: od strony i kasuje z biblioteki Wagtaila. Samo usunięcie ``pdf`` z wpisu nie wystarcza –
+    #: na stojącej instalacji załącznik i dokument zostałyby w bazie, a adres ``/documents/<id>/…``
+    #: dalej oddawałby plik, o którym organizator zdecydował, że ma zniknąć.
+    retired_pdf_titles: tuple[str, ...] = ()
     #: Plik pochodzi z ``fixtures/documents/`` (złożony komendą z naszego markdowna), a nie
     #: z ``fixtures/legacy/pdf/`` (podpisany plik organizatora). Rozróżnienie jest w danych, a nie
     #: w ścieżce przekazywanej z zewnątrz, bo katalog źródłowy jest **cechą dokumentu** – patrz
@@ -516,17 +529,16 @@ PAGES = (
         slug="komitety",
         title="Skład komitetów",
         document=True,
-        # Bez ramki „PDF jest wersją źródłową”: od 21.09.2026 jest odwrotnie. Organizator podał
-        # nowy skład (tytuły, afiliacje, dwie nowe osoby), a plik do pobrania składamy z tego
-        # samego ``komitety.md``, co stronę (``build_guardian_consent_pdf --document komitety``),
-        # więc źródłem jest treść strony, a PDF jej wydrukiem.
+        # Bez pliku do pobrania (decyzja organizatora z 21.09.2026: „usuń PDF z członkami
+        # komitetów, ale zostaw ich na stronie”). Skład zmienia się częściej niż dokument, który
+        # ktoś by podpisywał, a każdy plik obok strony jest drugą listą do utrzymania – została
+        # jedna, na stronie. ``retired_pdf_titles`` sprząta plik z instalacji, które go już mają.
         metadata={
             "version_label": DOCUMENT_VERSION,
             "document_date": COMMITTEES_DATE,
             "status_label": COMMITTEES_STATUS,
         },
-        pdf="Sklad-komitetow-Olimpiady-Kwantowej.pdf",
-        pdf_title="Skład komitetów Olimpiady Kwantowej (PDF)",
+        retired_pdf_titles=("Skład komitetów Olimpiady Kwantowej (PDF)",),
     ),
     LegacyPage(slug="harmonogram", title="Harmonogram", in_menu=True),
     # Warsztaty dostały własną pozycję menu, bo wcześniej cały ich harmonogram był tabelą w środku
@@ -886,7 +898,7 @@ class Command(BaseCommand):
     def _seed_attachment(self, page, spec: LegacyPage) -> str:
         """Wgrywa PDF organizatora i przypina go do strony. Zwraca dopisek do komunikatu."""
         if not spec.pdf:
-            return ""
+            return self._retire_attachments(page, spec)
         source = (GENERATED_PDF_DIR if spec.pdf_generated else PDF_DIR) / spec.pdf
         if not source.exists():
             raise CommandError(f"Brak pliku {source}.")
@@ -894,6 +906,21 @@ class Command(BaseCommand):
         model = DocumentPageAttachment if spec.document else ContentPageAttachment
         set_attachments(page, model, [(document, LABEL_PDF)])
         return f", PDF #{document.pk} {action}"
+
+    def _retire_attachments(self, page, spec: LegacyPage) -> str:
+        """Odpina i kasuje pliki wycofane przez organizatora (``LegacyPage.retired_pdf_titles``).
+
+        Cienka warstwa nad ``apps.cms.attachments.retire_documents`` – ta sama funkcja stoi też
+        za samodzielną komendą ``retire_legacy_files``, która sprząta plik na produkcji bez
+        ponownego seedowania treści strony (patrz jej docstring: dlaczego to dwie różne komendy).
+        """
+        if not spec.retired_pdf_titles:
+            return ""
+        model = DocumentPageAttachment if spec.document else ContentPageAttachment
+        removed = retire_documents(page, model, spec.retired_pdf_titles)
+        if not removed:
+            return ""
+        return f", usunięto wycofany plik ({removed})"
 
     # --- najczęstsze pytania ---------------------------------------------------------------
 
