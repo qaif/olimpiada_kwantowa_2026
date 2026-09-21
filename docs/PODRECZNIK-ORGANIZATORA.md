@@ -575,6 +575,13 @@ i `/coordinator/forum/…` **nie ma** (404), a w żadnym menu nie przybywa ani j
 na którym nikt nic nie napisze. Działu nie da się skasować — stoją w nim rozmowy — ale da się go zamknąć
 na nowe wątki, a wtedy zostaje do czytania.
 
+**Komplet startowych działów jednym poleceniem:** `manage.py seed_forum_categories --competition <slug>`
+zakłada dział „Ogólne” i po jednym dziale na każdy warsztat z tabeli harmonogramu strony „Warsztaty” —
+nazwa działu bierze temat bez dopisku prowadzącego, a termin i prowadzący trafiają do opisu. Polecenie
+jest **idempotentne**: rozpoznaje istniejące działy po adresie (slugu), więc drugie uruchomienie —
+po dopisaniu kolejnego warsztatu do harmonogramu — nic nie nadpisze w działach, które już zredagowałeś
+w panelu. Argument `--competition` wolno pominąć wyłącznie na instalacji z jednym konkursem.
+
 **Dwa tryby moderacji** (`/coordinator/forum/settings/`):
 
 - **przed publikacją** (domyślny) — wpis widzą inni dopiero po Twoim zatwierdzeniu; do tego czasu widzi
