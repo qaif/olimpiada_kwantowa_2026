@@ -236,14 +236,34 @@
     });
 
     /* Przeciąganie taśmy myszą/palcem – tylko gdy jedzie (klony istnieją, jest czym wypełnić
-       ujemny/zbyt duży indeks). W trybie statycznym nie ma czego przewijać. */
+       pole także „za końcem” listy). W trybie statycznym nie ma czego przewijać.
+
+       Pozycja jest zawsze sprowadzana do zakresu ``[0, total)`` (``wrap``): druga kopia plansz
+       stoi pod indeksami ``total..2*total-1``, więc przy pozycji z tego zakresu całe widoczne
+       pole jest zawsze zapełnione – niezależnie od tego, jak daleko i jak szybko ktoś pociągnął
+       (kilka pełnych obrotów taśmy też). Pojedyncza korekta „± total” tego nie gwarantowała. */
+    function wrap(value) {
+      var rest = value % total;
+      return rest < 0 ? rest + total : rest;
+    }
+
+    function dragPosition(clientX) {
+      var width = slotWidth();
+      if (!width) {
+        /* Taśma schowana w trakcie gestu (okno zwężone poniżej progu) – nie ma czego liczyć. */
+        return null;
+      }
+      return wrap(dragBaseIndex - (clientX - dragStartX) / width);
+    }
+
     root.addEventListener("pointerdown", function (event) {
-      if (!running || (event.pointerType === "mouse" && event.button !== 0)) {
+      if (!running || pointerId !== null || (event.pointerType === "mouse" && event.button !== 0)) {
+        /* ``pointerId !== null``: drugi palec nie przejmuje gestu rozpoczętego pierwszym. */
         return;
       }
       pointerId = event.pointerId;
       dragStartX = event.clientX;
-      dragBaseIndex = index;
+      dragBaseIndex = index >= total ? index - total : index;
       dragged = false;
       dragging = true;
       stop();
@@ -253,26 +273,27 @@
       if (pointerId === null || event.pointerId !== pointerId) {
         return;
       }
-      var dx = event.clientX - dragStartX;
       if (!dragged) {
-        if (Math.abs(dx) <= DRAG_THRESHOLD_PX) {
+        if (Math.abs(event.clientX - dragStartX) <= DRAG_THRESHOLD_PX) {
           return;
         }
         dragged = true;
+        /* Przechwycenie wskaźnika dopiero **po** progu, nie przy naciśnięciu: przechwycony
+           wskaźnik kieruje także ``click`` na pasek zamiast na odnośnik, więc zwykłe kliknięcie
+           w logo przestałoby otwierać stronę partnera. Sprzątanie po geście, który skończył się
+           poza paskiem bez przechwycenia, robią nasłuchy na ``window`` niżej. */
         if (root.setPointerCapture) {
-          root.setPointerCapture(pointerId);
+          try {
+            root.setPointerCapture(pointerId);
+          } catch (error) {
+            /* Wskaźnik zdążył zniknąć (przycisk puszczony przed tą linią) – nie ma czego łapać. */
+          }
         }
       }
-      var width = slotWidth();
-      var position = dragBaseIndex - dx / width;
-      if (position < 0) {
-        /* Nic nie stoi przed pierwszym oryginałem – kopia na końcu (indeksy total..2*total-1)
-           jest identyczna z oryginałami, więc doskok punktu odniesienia o ``total`` w tej samej
-           klatce jest niewidoczny: to te same logotypy, tylko inne znaczniki w DOM-ie. */
-        dragBaseIndex += total;
-        position += total;
+      var position = dragPosition(event.clientX);
+      if (position !== null) {
+        moveTo(position, false);
       }
-      moveTo(position, false);
     });
 
     function endDrag(event) {
@@ -285,29 +306,36 @@
       pointerId = null;
       dragging = false;
       if (dragged) {
-        var dx = event.clientX - dragStartX;
-        var width = slotWidth();
-        var target = Math.round(dragBaseIndex - dx / width);
-        var animate = true;
-        if (target < 0) {
-          /* Tak samo jak w ``pointermove`` – to doskok do identycznej kopii, nie dosunięcie,
-             więc bez animacji. */
-          target += total;
-          animate = false;
+        var position = running ? dragPosition(event.clientX) : null;
+        if (position !== null) {
+          /* Dosunięcie do najbliższego pełnego pola, z animacją. ``round`` może dać ``total``
+             (np. 8,6 → 9 przy dziewięciu planszach) – to poprawna pozycja w kopii, a nasłuch
+             ``transitionend`` wyżej zrobi z niej zero dokładnie tak, jak po ``advance()``. */
+          index = Math.round(position);
+          snapped = index === 0;
+          moveTo(index, true);
+          if (index >= total) {
+            window.setTimeout(snapBack, TRANSITION_MS + 50);
+          }
         }
-        index = target;
-        snapped = index === 0;
-        moveTo(index, animate);
-        /* index >= total: nic dodatkowego nie trzeba robić – istniejący nasłuch ``transitionend``
-           wyżej wywoła ``snapBack()`` po zakończeniu tego przejścia, dokładnie jak po ``advance()``. */
+        /* Znacznik tłumi **jedno** kliknięcie – to, które przeglądarka wysyła zaraz po puszczeniu
+           przycisku. Gaśnie sam po chwili, bo kliknięcie nie zawsze przychodzi (gest skończony
+           poza paskiem): zostawiony na stałe zjadłby następne, prawdziwe kliknięcie – także
+           Enter z klawiatury, który ``pointerdown`` nie poprzedza i który nie miałby jak go
+           wyzerować. */
+        window.setTimeout(function () {
+          dragged = false;
+        }, 80);
       }
-      /* ``dragged`` zostaje – kolejny ``click`` (odpalany przez przeglądarkę zaraz po
-         ``pointerup``) go stłumi i dopiero wtedy wyzeruje, patrz nasłuch niżej. */
       start();
     }
 
-    root.addEventListener("pointerup", endDrag);
-    root.addEventListener("pointercancel", endDrag);
+    /* Na ``window``, nie na pasku: gest zakończony poza paskiem przed przekroczeniem progu
+       (czyli bez przechwycenia wskaźnika) nigdy nie dostarczyłby tu ``pointerup`` i pauza
+       „dragging” zostałaby na zawsze – taśma stanęłaby do przeładowania strony. */
+    window.addEventListener("pointerup", endDrag);
+    window.addEventListener("pointercancel", endDrag);
+    root.addEventListener("lostpointercapture", endDrag);
 
     /* Kliknięcie kończące realne przeciągnięcie nie ma otwierać strony partnera – zwykłe
        kliknięcie (bez ruchu ponad próg) przechodzi normalnie do odnośnika. Faza przechwytywania,
