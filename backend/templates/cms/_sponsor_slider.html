@@ -1,0 +1,38 @@
+{% comment %}
+  Pasek rotujących logotypów w menu serwisu, po prawej stronie pozycji „FAQ” (templates/base.html,
+  wewnątrz ``<nav class="nav nav--cms">``, po pętli po pozycjach menu – uwaga organizatora
+  z 21.09.2026, „jak na Olimpiadzie Biologicznej”).
+
+  Ładunek (``sponsor_slider``) przychodzi z procesora kontekstu
+  ``apps.cms.sponsor_slider.sponsor_slider``, z pamięcią podręczną – warstwa zapytań nie kosztuje
+  nic w oknie TTL. Pierwsza plansza to zawsze logotyp organizatora (jeśli ustawiony w /cms/ →
+  Ustawienia → Dane serwisu), potem partnerzy w kolejności strony /partnerzy/, z pominięciem tych
+  bez logotypu, spoza wybranych poziomów i zdublowanych z organizatorem.
+
+  Każdy znacznik logotypu stoi w tym HTML-u **dokładnie raz** – to ``static/js/sponsor-slider.js``
+  dokleja klony potrzebne do bezszwowej pętli przewijania, nie serwer. Bez skryptu (albo
+  z ``prefers-reduced-motion: reduce``, albo gdy logotypów jest mniej niż mieści się w pasku)
+  przeglądarka pokazuje po prostu tyle plansz, ile mieści pudełko – reszta jest przycięta
+  (``overflow: hidden`` w arkuszu), a nie ukryta atrybutem, więc nawigacja klawiaturą wciąż do
+  nich dochodzi.
+
+  Wyłączony slider, brak strony partnerów albo brak jakiegokolwiek logotypu (organizatora
+  i żadnego partnera) → fragment nie rysuje ani jednego znacznika.
+{% endcomment %}
+{% if sponsor_slider.entries %}
+  <div class="sponsor-slider" data-sponsor-slider data-interval="{{ sponsor_slider.seconds }}"
+       aria-label="Partnerzy i sponsorzy">
+    <ul class="sponsor-slider__track" data-sponsor-slider-track>
+      {% for entry in sponsor_slider.entries %}
+        <li class="sponsor-slider__item">
+          {% if entry.url %}<a class="sponsor-slider__link" href="{{ entry.url }}" rel="noopener" target="_blank">{% endif %}
+          <span class="sponsor-slider__frame">
+            <img class="sponsor-slider__logo" src="{{ entry.src }}" alt="{{ entry.name }}"
+                 width="{{ entry.width }}" height="{{ entry.height }}" loading="lazy" decoding="async">
+          </span>
+          {% if entry.url %}</a>{% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endif %}

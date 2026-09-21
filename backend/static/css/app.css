@@ -857,6 +857,92 @@ hr {
   }
 }
 
+/* --- Pasek logotypów sponsorów (menu serwisu, po prawej stronie „FAQ”) ------------------------ */
+/* Uwaga organizatora z 21.09.2026, „jak na Olimpiadzie Biologicznej” (olimpbiol.pl): taśma
+   logotypów, kilka naraz, przesuwa się o jeden co ``data-interval`` sekund
+   (static/js/sponsor-slider.js buduje samą animację; ten arkusz opisuje wyłącznie geometrię).
+
+   Pudełko ma **stałą wysokość**, więc wiersz menu nigdy nie zmienia rozmiaru, kiedy taśma jedzie.
+   Szerokość jest elastyczna (``flex: 1 1 auto``) między jednym a czterema slotami – tyle, ile
+   akurat zmieści się w wolnym miejscu wiersza menu; ``overflow: hidden`` przycina resztę, więc
+   bez skryptu (i z ``prefers-reduced-motion``) widać po prostu tyle logotypów, ile się mieści.
+   Znaki partnerów są projektowane na jasne tło, więc każdy dostaje jasną plakietkę – ta sama
+   sztuczka, co przy logotypie organizatora w stopce (``.footer__logo``/``.brand__logo``). */
+.sponsor-slider {
+  --sponsor-slot-w: 132px;
+  --sponsor-slot-h: 44px;
+  position: relative;
+  overflow: hidden;
+  height: var(--sponsor-slot-h);
+  flex: 1 1 auto;
+  min-width: var(--sponsor-slot-w);
+  max-width: calc(var(--sponsor-slot-w) * 4);
+}
+
+.sponsor-slider__track {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  width: max-content;
+  /* Przejście dokłada wyłącznie skrypt (klasa domyślna jedzie bez animacji – bez JS-u taśma
+     stoi w miejscu, więc nie ma czego animować). */
+  transition: transform 0.9s ease;
+  will-change: transform;
+}
+
+.sponsor-slider__item {
+  flex: 0 0 var(--sponsor-slot-w);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.sponsor-slider__link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  text-decoration: none;
+}
+
+.sponsor-slider__frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-height: calc(var(--sponsor-slot-h) - 8px);
+  padding: 4px 10px;
+  background: #f6f4ee; /* stała: znaki partnerów wymagają jasnego tła także w trybie ciemnym */
+  border-radius: var(--radius-sm, 6px);
+}
+
+.sponsor-slider__logo {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+/* Poniżej 900 px nawigacja serwisu zawija się pod logotyp (patrz reguła ``.nav--cms`` wyżej) –
+   pasek sponsorów zabrałby wtedy miejsce, którego brakuje na same pozycje menu. Strona główna
+   ma swój pełny pas partnerów (``.partner-strip``) niezależnie od tego pudełka. */
+@media (max-width: 899px) {
+  .sponsor-slider {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sponsor-slider__track {
+    transition: none;
+  }
+}
+
 /* --- Linia czasu edycji (pasek „terminalowy” w nagłówku) ------------------------------------- */
 /*
    Trzy reguły, na których stoi cały ten blok:

@@ -86,6 +86,13 @@
   {% endcomment %}
   <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/announcements.js' %}"></script>
   {% comment %}
+    Pasek logotypów sponsorów jest kompletny bez tego skryptu – serwer rysuje tyle plansz, ile
+    mieści pudełko (``overflow: hidden`` przycina resztę), a to jest poprawny stan spoczynkowy,
+    nie awaria. Skrypt dokłada wyłącznie przewijanie: klony do bezszwowej pętli, przesunięcie
+    o jeden logotyp co ``data-interval`` sekund, pauzę pod kursorem/fokusem/w ukrytej karcie.
+  {% endcomment %}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/sponsor-slider.js' %}"></script>
+  {% comment %}
     Miejsce na skrypty potrzebne tylko na niektórych stronach – dziś jest tu wyłącznie
     wyszukiwarka szkół w rejestracji (``js/school-picker.js``), która **nie** jest już komponentem
     Alpine'a i niczego spoza serwisu nie potrzebuje.
@@ -281,6 +288,13 @@
              {% if item.url == request.path %}aria-current="page"{% endif %}>{{ item.title }}</a>
         {% endif %}
       {% endfor %}
+      {% comment %}
+        Pasek rotujących logotypów sponsorów – po prawej stronie pozycji „FAQ” (uwaga
+        organizatora z 21.09.2026). Stoi **po** pętli, wewnątrz tego samego ``<nav>``, żeby
+        znalazł się dokładnie tam bez własnego ``aria-label`` konkurującego z menu. Fragment
+        sam się chowa, kiedy slider jest wyłączony albo nie ma żadnego logotypu do pokazania.
+      {% endcomment %}
+      {% include "cms/_sponsor_slider.html" %}
     </nav>
   </div>
 </header>

@@ -84,6 +84,8 @@ EXPECTED_MENU_WITHOUT_FLAGS: tuple[tuple[str, tuple[str, ...]], ...] = (
             # dla Konkursu #1, a nie jest zdolnością systemu wielokonkursowego. Samo dopisanie
             # pozycji nie zmienia ani jednego listu: bramką jest puste pole adresów.
             "Przekazywanie rozwiązań",
+            # Uwaga organizatora z 21.09.2026 – ten sam powód braku flagi, co wyżej.
+            "Slider sponsorów",
         ),
     ),
 )
@@ -233,6 +235,7 @@ def test_consents_flag_adds_exactly_one_item_in_settings(competition):
         "Wydarzenia linii czasu",
         "Integracje",
         "Przekazywanie rozwiązań",
+        "Slider sponsorów",
     )
     # Poza „Ustawieniami” nie zmienia się nic: flaga dokłada ekran, a nie przebudowuje panelu.
     assert labels_of(competition, "Raporty") == dict(EXPECTED_MENU_WITHOUT_FLAGS)["Raporty"]

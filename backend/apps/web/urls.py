@@ -39,6 +39,7 @@ from .views import (
     coordinator_quality,
     coordinator_reports,
     coordinator_rodo,
+    coordinator_sponsor_slider,
     coordinator_stages,
     coordinator_support,
     coordinator_workshops,
@@ -372,6 +373,14 @@ urlpatterns = [
         "coordinator/submission-forwarding/",
         coordinator_forwarding.SubmissionForwardingView.as_view(),
         name="coordinator-submission-forwarding",
+    ),
+    # Slider sponsorów w menu: włącznik, tempo przewijania i poziomy partnerów. Adres bez
+    # identyfikatora z tego samego powodu, co przekazywanie rozwiązań wyżej – konkurs wskazuje
+    # domena żądania.
+    path(
+        "coordinator/sponsor-slider/",
+        coordinator_sponsor_slider.SponsorSliderView.as_view(),
+        name="coordinator-sponsor-slider",
     ),
     # Wydarzenia linii czasu. Sąsiadują z kalendarzem etapów, bo to ta sama czynność – układanie
     # terminów edycji – tylko dla tej części kalendarza, której system nie egzekwuje.

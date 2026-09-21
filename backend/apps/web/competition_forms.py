@@ -21,6 +21,8 @@ from __future__ import annotations
 
 from django import forms
 
+from apps.cms.blocks import PARTNER_LEVELS
+from apps.cms.models import SPONSOR_SLIDER_MAX_SECONDS, SPONSOR_SLIDER_MIN_SECONDS
 from apps.tenancy.models import FEATURE_DEFAULTS, MAX_FORWARD_EMAILS, Competition, split_forward_emails
 
 #: Pola, które koordynator zmienia z panelu – w kolejności sekcji na ekranie. Krotka, a nie
@@ -324,3 +326,44 @@ class SubmissionForwardingForm(forms.ModelForm):
         """
         before = set(split_forward_emails(self.initial.get("submission_forward_emails", "")))
         return before != set(self.addresses())
+
+
+class SponsorSliderForm(forms.Form):
+    """Ekran „Slider sponsorów” (``/coordinator/sponsor-slider/``): włącznik, tempo, poziomy.
+
+    Zwykły ``forms.Form``, nie ``ModelForm`` – trzy pola zapisują się na ``cms.SiteSettings``
+    (per witryna, nie per konkurs jak reszta tego modułu), a widok sam decyduje, którą witrynę
+    zapisuje (``SiteSettings.for_site(competition.site)``); formularz nie musi tego wiedzieć.
+
+    Pole ``levels`` ma **te same** ``choices``, co ``PARTNER_LEVELS`` – nieznany klucz w POST-cie
+    odpada tu, standardowym mechanizmem ``MultipleChoiceField`` („Wybierz poprawną wartość…”),
+    zanim dotrze do walidatora modelu (``apps.cms.models.validate_sponsor_slider_levels``, który
+    broni drugiej drogi zapisu – JSON-a wklejonego wprost w ``/cms/``).
+    """
+
+    enabled = forms.BooleanField(
+        label="Pokazuj slider sponsorów w menu",
+        required=False,
+        help_text="Wyłączenie chowa pasek logotypów z menu na każdej stronie serwisu.",
+    )
+    seconds = forms.IntegerField(
+        label="Co ile sekund pasek przesuwa się o jeden logotyp",
+        min_value=SPONSOR_SLIDER_MIN_SECONDS,
+        max_value=SPONSOR_SLIDER_MAX_SECONDS,
+    )
+    levels = forms.MultipleChoiceField(
+        label="Poziomy partnerów w sliderze",
+        required=False,
+        choices=PARTNER_LEVELS,
+        widget=forms.CheckboxSelectMultiple,
+        help_text="Nic nie zaznaczone = wszystkie poziomy.",
+    )
+
+    def __init__(self, *args, level_counts: dict[str, int] | None = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        counts = level_counts or {}
+        # Liczba partnerów **z logotypem** na każdym poziomie – obok etykiety, żeby koordynator
+        # widział od razu, czy zaznaczenie poziomu w ogóle coś pokaże.
+        self.fields["levels"].choices = [
+            (key, f"{label} ({counts.get(key, 0)})") for key, label in PARTNER_LEVELS
+        ]

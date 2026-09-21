@@ -468,6 +468,15 @@ def groups(stages: list, competition=None) -> list[Group]:
             ("web:coordinator-submission-forwarding",),
             match=("coordinator-submission-forwarding",),
         ),
+        # Slider sponsorów w menu (uwaga organizatora z 21.09.2026). Zaraz za „Przekazywaniem
+        # rozwiązań”, bo obie pozycje doszły tego samego dnia i z tego samego powodu nie mają
+        # flagi: to są ekrany zamówione wprost dla Konkursu #1, a nie zdolności systemu
+        # wielokonkursowego, które operator włącza konkursowi z osobna.
+        Item(
+            "Slider sponsorów",
+            ("web:coordinator-sponsor-slider",),
+            match=("coordinator-sponsor-slider",),
+        ),
     )
     if competition is not None and competition.has_feature("institution_types"):
         # Profil rejestracji (§ 1.3.4, T23) – co wolno wpisać w formularzu zgłoszeniowym. Stoi

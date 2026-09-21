@@ -273,9 +273,15 @@ def link_body(content: str, url: str) -> str:
 
     Działa, dopóki odnośniki się nie zagnieżdżają – a zagnieżdżać się nie mogą (HTML tego zabrania
     i asercja niżej tego pilnuje), więc pierwszy ``</a>`` po ``href`` zamyka właśnie ten.
+
+    Szukamy **po ostatnim** zamknięciu ``<nav>`` (nagłówek ma ich kilka: pasek przyklejony,
+    konto, menu serwisu): to menu serwisu ma od 21.09.2026 własny slider sponsorów, który
+    potrafi wskazywać ten sam adres partnera co karta/pas niżej na stronie – pierwsze trafienie
+    w całym dokumencie bywa więc odnośnikiem z nagłówka, a nie tym, którego dotyczy ten test.
     """
-    assert f'href="{url}"' in content, f"brak odnośnika {url}"
-    return content.split(f'href="{url}"', 1)[1].split("</a>", 1)[0]
+    body = content.rsplit("</nav>", 1)[-1]
+    assert f'href="{url}"' in body, f"brak odnośnika {url}"
+    return body.split(f'href="{url}"', 1)[1].split("</a>", 1)[0]
 
 
 def test_the_partner_link_wraps_the_logo_and_the_name(web_client, partners):
