@@ -33,8 +33,12 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: Wersja treści rejestru i data jej przyjęcia. Zmieniane ręcznie, razem z treścią niżej.
 #: 1.1 (20.09.2026) – przekazywanie przyjętych rozwiązań na skrzynkę organizatora dokłada drogę,
 #: którą prace uczestników wychodzą poza serwer, więc jest zmianą materialną, a nie literówką.
-REGISTER_VERSION = "1.1"
-REGISTER_DATE = date(2026, 9, 20)
+#: 1.2 (21.09.2026) – forum uczestników dokłada przetwarzanie, którego w serwisie dotąd nie było:
+#: **treść pisaną publicznie przez osoby niepełnoletnie**, podpisaną imieniem i inicjałem nazwiska
+#: i czytaną przez innych uczestników. Nowa kategoria danych i nowy krąg odbiorców to zmiana
+#: materialna z podręcznikowego przykładu, a nie doprecyzowanie istniejącego wiersza.
+REGISTER_VERSION = "1.2"
+REGISTER_DATE = date(2026, 9, 21)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
 #: domyślna wartość ``Edition.data_retention_months`` – gdyby organizator zmienił ją dla rocznika,
@@ -385,6 +389,73 @@ ONSITE_LOGISTICS_ACTIVITY = _activity(
 )
 
 
+#: Czynność **warunkowa**: wchodzi do rejestru wyłącznie konkursom, które prowadzą forum
+#: uczestników (przełącznik ``participant_forum``, prośba organizatora z 21.09.2026). Obok
+#: :data:`ACTIVITIES` z tego samego powodu, co logistyka wyżej: rejestr ma opisywać przetwarzanie,
+#: które **naprawdę zachodzi**. Konkurs z wyłączonym forum nie zbiera ani jednego wpisu, więc jego
+#: rejestr nie zmienia się o ani jeden wiersz.
+#:
+#: Wpis jest tu ostrożniejszy niż pozostałe i to jest celowe. Pozostałe czynności opisują dane,
+#: które serwis **od kogoś dostaje** w znanym kształcie (imię, szkoła, plik z rozwiązaniem). Tutaj
+#: kategorią danych jest **tekst, który człowiek napisze sam**, i nikt z góry nie wie, co w nim
+#: będzie – a piszą osoby niepełnoletnie. Dlatego wśród środków stoi to, czego forum **nie ma**
+#: (załączników, wiadomości prywatnych, indeksowania), bo brak drogi jest tu skuteczniejszym
+#: środkiem niż jakakolwiek kontrola nad treścią, która tą drogą by przyszła.
+FORUM_ACTIVITY = _activity(
+    key="forum",
+    name="Forum uczestników konkursu",
+    purpose=(
+        "Umożliwienie uczestnikom zadawania pytań o organizację zawodów i rozmowy między sobą "
+        "pod nadzorem organizatora, wraz z moderacją tych wypowiedzi."
+    ),
+    legal_basis=(
+        "art. 6 ust. 1 lit. f RODO (prawnie uzasadniony interes administratora i uczestników – "
+        "sprawna komunikacja w czasie zawodów oraz bezpieczeństwo rozmowy osób niepełnoletnich); "
+        "korzystanie z forum jest dobrowolne i nie warunkuje udziału w zawodach"
+    ),
+    subjects="uczestnicy konkursu, członkowie komitetu i koordynator, którzy piszą na forum",
+    categories=[
+        "treść wypowiedzi napisana przez użytkownika (tekst, bez załączników i bez HTML-a)",
+        "podpis pod wypowiedzią: imię i pierwsza litera nazwiska – nigdy adres e-mail, szkoła "
+        "ani kod publiczny uczestnika",
+        "data napisania i data poprawki wypowiedzi",
+        "treść zgłoszenia wpisu do moderatora wraz z tożsamością zgłaszającego",
+        "decyzja moderacyjna: stan wpisu, osoba i czas decyzji oraz uzasadnienie dla autora",
+    ],
+    recipients=[
+        HOSTING_RECIPIENT,
+        "pozostali zalogowani uczestnicy tego konkursu oraz członkowie jego komitetu – forum nie "
+        "jest publiczne, nie da się go przeczytać bez konta i nie jest indeksowane przez "
+        "wyszukiwarki",
+        "koordynator konkursu jako moderator – wyłącznie on widzi zgłoszenia wpisów i tożsamość "
+        "osoby zgłaszającej",
+    ],
+    retention=(
+        "wypowiedzi zostają w wątku bezterminowo, bo są częścią rozmowy, do której odnoszą się "
+        "odpowiedzi innych osób; po anonimizacji albo usunięciu konta znika podpis pod nimi "
+        "(zostaje napis „Użytkownik usunięty”), a sama treść przestaje być powiązana z osobą"
+    ),
+    measures=[
+        "forum jest domyślnie **wyłączone**: bez świadomej decyzji organizatora nie istnieje ani "
+        "jeden adres, pod którym dałoby się cokolwiek napisać albo przeczytać",
+        "czytanie wymaga zalogowania i roli w tym konkursie – wypowiedzi osób niepełnoletnich nie "
+        "są dostępne dla nikogo z zewnątrz ani dla wyszukiwarek",
+        "podpis powstaje w jednym miejscu w kodzie (``apps.forum.models.display_author``) i jest "
+        "imieniem z inicjałem: kod publiczny uczestnika, który jest kluczem anonimowego "
+        "oceniania, nie pojawia się na forum w żadnej postaci",
+        "moderacja wstępna jest domyślna, a w czasie etapu przyjmującego rozwiązania obowiązuje "
+        "**zawsze**, niezależnie od ustawienia konkursu",
+        "wypowiedź jest tekstem: forum nie przyjmuje załączników ani HTML-a, więc nie jest drogą "
+        "wnoszenia plików do serwisu",
+        "forum nie ma wiadomości prywatnych – rozmowa osób niepełnoletnich zawsze odbywa się "
+        "w miejscu, które widzi moderator",
+        "usunięcie własnej wypowiedzi jest natychmiastowe dla czytelników; wiersz zostaje wyłącznie "
+        "po to, żeby zgłoszony wpis nie znikał na żądanie autora",
+        "każda decyzja moderatora zostawia wpis w dzienniku zdarzeń **bez kopii treści** wypowiedzi",
+    ],
+)
+
+
 def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
     """Rejestr **tego** konkursu: czynności wspólne plus te, które wynikają z jego konfiguracji.
 
@@ -397,10 +468,14 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
     widział czytelnik przed etapem 2.
     """
     from apps.competitions.logistics import collects_special_needs
+    from apps.forum.models import FORUM_FLAG
 
+    activities = ACTIVITIES
     if collects_special_needs(competition):
-        return (*ACTIVITIES, ONSITE_LOGISTICS_ACTIVITY)
-    return ACTIVITIES
+        activities = (*activities, ONSITE_LOGISTICS_ACTIVITY)
+    if competition is not None and competition.has_feature(FORUM_FLAG):
+        activities = (*activities, FORUM_ACTIVITY)
+    return activities
 
 
 #: Nagłówki eksportu CSV. Kolejność i brzmienie są kontraktem tego pliku – rejestr bywa wklejany

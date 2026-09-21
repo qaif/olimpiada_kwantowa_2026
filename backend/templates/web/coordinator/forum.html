@@ -1,0 +1,198 @@
+{% extends "web/coordinator/base.html" %}
+{% load static web_extras forum_extras %}
+{% comment %}
+  Kolejka moderacji forum: wątki, wpisy i zgłoszenia na jednym ekranie.
+
+  Trzy listy razem, bo to jedna czynność – „przejrzyj, co przyszło”. Rozbicie ich na trzy adresy
+  znaczyłoby trzy miejsca, w które trzeba zajrzeć, żeby wiedzieć, czy forum jest obsłużone,
+  a odznaka w menu i tak liczy je razem.
+
+  **Treść wpisu stoi w kolejce wprost**, a nie za odnośnikiem „zobacz”. Moderator ma przeczytać
+  akapit i kliknąć, a nie otwierać kolejno kilkanaście kart – przy domyślnej moderacji wstępnej to
+  od szybkości tego ekranu zależy, czy forum w ogóle rozmawia.
+
+  **Dlaczego formularzy jest wiele, a nie jeden.** Zbiorcze zatwierdzenie i decyzja o pojedynczym
+  wpisie potrzebują różnych danych: tamto listy zaznaczeń, to jednego identyfikatora i jednego
+  uzasadnienia. Gdyby wszystko stało w jednym formularzu, ``request.POST.get("note")`` przy
+  odrzuceniu trzeciego wpisu odczytałoby pole pierwszego, a ``get("thread")`` – pierwszy
+  zaznaczony wiersz zamiast tego, pod którym kliknięto przycisk. Dlatego każda karta ma **własny**
+  formularz, a kratki zaznaczenia należą do formularza zbiorczego przez atrybut ``form="…"``
+  (formularzy nie wolno zagnieżdżać). To ten sam wzorzec, co w tabeli przydziałów, razem z jego
+  skryptem „zaznacz wszystkie” – bez skryptu ekran działa w całości, trzeba tylko klikać po jednym.
+
+  Zbiorczo da się **wyłącznie zatwierdzić**. Odrzucenie wymaga uzasadnienia, które zobaczy autor
+  (``apps.forum.services.moderate_post``), a jedno zdanie wysłane do dwudziestu osób naraz nie jest
+  uzasadnieniem żadnej z tych decyzji.
+{% endcomment %}
+{% block title %}Forum uczestników – panel koordynatora{% endblock %}
+{% block panel_title %}Forum uczestników{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Wątki, wpisy i zgłoszenia czekające na Twoją decyzję. Forum nie wysyła listów –
+    ten ekran jest jedynym miejscem, w którym widać, że ktoś coś napisał.</p>
+{% endblock %}
+{% block panel_actions %}
+  <a class="btn btn--small btn--secondary" href="{% url 'web:coordinator-forum-threads' %}">Wszystkie wątki</a>
+  <a class="btn btn--small btn--secondary" href="{% url 'web:coordinator-forum-categories' %}">Działy</a>
+  <a class="btn btn--small btn--secondary" href="{% url 'web:coordinator-forum-settings' %}">Ustawienia forum</a>
+{% endblock %}
+{% block panel_content %}
+
+{% if open_stage %}
+  <p class="notice notice--warning">Trwa etap „{{ open_stage.display_name }}” i przyjmuje rozwiązania,
+    więc forum chodzi w trybie moderacji wstępnej niezależnie od ustawienia konkursu. Wpisy
+    omawiające zadania tego etapu odrzucaj – regulamin tego zabrania (§ 10 ust. 2 i § 17).</p>
+{% elif forum_mode == "POST" %}
+  <p class="hint">Forum działa w trybie „po publikacji”: wpisy są widoczne od razu, a Ty je
+    ukrywasz. W kolejce niżej stoją wtedy wyłącznie zgłoszenia od uczestników.</p>
+{% endif %}
+{% if forum_settings.is_read_only %}
+  <p class="notice">Forum jest w trybie tylko do odczytu – rozmowy są widoczne, ale nikt nie doda
+    nowego wpisu.</p>
+{% endif %}
+
+{% if not queue_total %}
+  <div class="empty">
+    <span class="empty__title">Kolejka jest pusta</span>
+    <p class="empty__text">Nic nie czeka na decyzję. Nowe wątki i wpisy pojawią się tutaj same –
+      nie trzeba niczego odświeżać ani zapisywać się na powiadomienia.</p>
+    <p class="empty__actions">
+      <a class="btn btn--small btn--secondary"
+         href="{% url 'web:coordinator-forum-threads' %}">Przejrzyj wszystkie wątki</a>
+    </p>
+  </div>
+{% endif %}
+
+{% if threads or posts %}
+  {% comment %}
+    Formularz zbiorczy stoi **obok** kart, a nie wokół nich: kratki zaznaczenia należą do niego
+    przez ``form="forum-bulk"``, więc wysyłają się także wtedy, gdy skrypt „zaznacz wszystkie”
+    nie dojedzie.
+  {% endcomment %}
+  <form id="forum-bulk" method="post" action="{% url 'web:coordinator-forum' %}">
+    {% csrf_token %}
+    <p class="actions">
+      <input type="checkbox" hidden data-select-all="forum-bulk" id="select-all-forum">
+      <label class="visually-hidden" hidden data-select-all-label="forum-bulk"
+             for="select-all-forum">Zaznacz wszystkie pozycje kolejki</label>
+      <button class="btn btn--primary" name="action" value="bulk-approve">Zatwierdź zaznaczone</button>
+    </p>
+  </form>
+
+  {% if threads %}
+    <section class="section">
+      <div class="section__head"><h2>Nowe wątki ({{ threads|length }})</h2></div>
+      <p class="hint">Zatwierdzenie wątku publikuje razem z nim jego pierwszy wpis – to on jest
+        treścią, którą właśnie czytasz. Pozostałe wpisy tego wątku przechodzą kolejkę osobno.</p>
+      {% for row in threads %}
+        <article class="card">
+          <div class="card__head">
+            <h3 class="card__title">{{ row.thread.title }}</h3>
+            <span class="badge badge--warn">czeka na moderację</span>
+          </div>
+          <p class="card__meta">
+            <label class="field--inline" for="pick-thread-{{ row.thread.pk }}">
+              <input type="checkbox" form="forum-bulk" name="thread" value="{{ row.thread.pk }}"
+                     id="pick-thread-{{ row.thread.pk }}">
+              zaznacz do zatwierdzenia
+            </label>
+            · {{ row.author }} · {{ row.thread.category.name }} · {{ row.thread.created_at|local_datetime }}
+          </p>
+          {% if row.first %}<div class="card__body">{{ row.first.body|post_body }}</div>{% endif %}
+          <form class="card__foot" method="post" action="{% url 'web:coordinator-forum' %}">
+            {% csrf_token %}
+            <input type="hidden" name="thread" value="{{ row.thread.pk }}">
+            <p class="field">
+              <label for="note-thread-{{ row.thread.pk }}">Uzasadnienie odrzucenia (zobaczy je autor)</label>
+              <input type="text" id="note-thread-{{ row.thread.pk }}" name="note" maxlength="500">
+            </p>
+            <p class="actions">
+              <button class="btn btn--small btn--secondary" name="action" value="approve-thread">Opublikuj</button>
+              <button class="btn btn--small btn--danger" name="action" value="reject-thread">Odrzuć</button>
+            </p>
+          </form>
+        </article>
+      {% endfor %}
+    </section>
+  {% endif %}
+
+  {% if posts %}
+    <section class="section">
+      <div class="section__head"><h2>Nowe wpisy ({{ posts|length }})</h2></div>
+      {% for row in posts %}
+        <article class="card">
+          <div class="card__head">
+            <h3 class="card__title">
+              <a href="{% url 'web:coordinator-forum-thread' row.post.thread_id %}">{{ row.post.thread.title }}</a>
+            </h3>
+            <span class="badge badge--warn">czeka na moderację</span>
+          </div>
+          <p class="card__meta">
+            <label class="field--inline" for="pick-post-{{ row.post.pk }}">
+              <input type="checkbox" form="forum-bulk" name="post" value="{{ row.post.pk }}"
+                     id="pick-post-{{ row.post.pk }}">
+              zaznacz do zatwierdzenia
+            </label>
+            · {{ row.author }} · {{ row.post.thread.category.name }} · {{ row.post.created_at|local_datetime }}
+            {% if row.post.edited_at %}<span class="badge badge--neutral">poprawiony</span>{% endif %}
+          </p>
+          <div class="card__body">{{ row.post.body|post_body }}</div>
+          <form class="card__foot" method="post" action="{% url 'web:coordinator-forum' %}">
+            {% csrf_token %}
+            <input type="hidden" name="post" value="{{ row.post.pk }}">
+            <p class="field">
+              <label for="note-post-{{ row.post.pk }}">Uzasadnienie odrzucenia (zobaczy je autor)</label>
+              <input type="text" id="note-post-{{ row.post.pk }}" name="note" maxlength="500">
+            </p>
+            <p class="actions">
+              <button class="btn btn--small btn--secondary" name="action" value="approve-post">Opublikuj</button>
+              <button class="btn btn--small btn--danger" name="action" value="reject-post">Odrzuć</button>
+            </p>
+          </form>
+        </article>
+      {% endfor %}
+    </section>
+  {% endif %}
+{% endif %}
+
+{% if reports %}
+  <section class="section">
+    <div class="section__head"><h2>Zgłoszone wpisy ({{ reports|length }})</h2></div>
+    <p class="hint">Zgłoszenie samo w sobie nie ukrywa wpisu – rozstrzygasz Ty. „Rozpatrzone”
+      zamyka sprawę i nie rusza wypowiedzi; żeby ją zdjąć, otwórz wątek i ukryj wpis.</p>
+    {% for row in reports %}
+      <article class="card card--accent">
+        <div class="card__head">
+          <h3 class="card__title">
+            <a href="{% url 'web:coordinator-forum-thread' row.report.post.thread_id %}">{{ row.report.post.thread.title }}</a>
+          </h3>
+          <span class="badge badge--danger">zgłoszone</span>
+        </div>
+        <p class="card__meta">Wpis: {{ row.author }} · zgłoszone {{ row.report.created_at|local_datetime }}</p>
+        {% comment %}
+          Powód zgłoszenia jest tekstem od uczestnika, więc idzie przez ten sam filtr, co wpis:
+          zescapowany, z odnośnikami i złamaniami wierszy. Cudza treść nie ma na tę stronę drugiej drogi.
+        {% endcomment %}
+        <p class="card__body"><strong>Powód:</strong> {{ row.report.reason|post_body }}</p>
+        <div class="card__body">{{ row.report.post.body|post_body }}</div>
+        <div class="card__foot">
+          <p class="actions">
+            <a class="btn btn--small btn--secondary"
+               href="{% url 'web:coordinator-forum-thread' row.report.post.thread_id %}">Otwórz wątek</a>
+          </p>
+          <form method="post" action="{% url 'web:coordinator-forum' %}">
+            {% csrf_token %}
+            <input type="hidden" name="report" value="{{ row.report.pk }}">
+            <p class="actions">
+              <button class="btn btn--small btn--ghost" name="action" value="resolve-report">Rozpatrzone</button>
+            </p>
+          </form>
+        </div>
+      </article>
+    {% endfor %}
+  </section>
+{% endif %}
+{% endblock %}
+{% block page_scripts %}
+  {# Skrót, nie warunek działania: odsłania kratkę „zaznacz wszystkie”. Bez niego klika się po jednym. #}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/select-all.js' %}"></script>
+{% endblock %}

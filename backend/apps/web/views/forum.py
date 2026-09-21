@@ -165,9 +165,7 @@ class ForumCategoryView(ForumAccessMixin, View):
     """``/forum/<dział>/`` – wątki jednego działu, przypięte na górze."""
 
     def get(self, request, slug: str):
-        category = (
-            ForumCategory.objects.for_competition(self.competition).filter(slug=slug).first()
-        )
+        category = ForumCategory.objects.for_competition(self.competition).filter(slug=slug).first()
         if category is None:
             raise Http404("Nie ma takiego działu.")
         threads = (
@@ -224,10 +222,7 @@ class ForumThreadView(ForumAccessMixin, ThrottledFormMixin, View):
 
     def _thread(self, request, pk: int) -> ForumThread:
         thread = (
-            visible_threads(self.competition, request.user)
-            .filter(pk=pk)
-            .select_related("category")
-            .first()
+            visible_threads(self.competition, request.user).filter(pk=pk).select_related("category").first()
         )
         if thread is None:
             raise Http404("Nie ma takiego wątku.")
@@ -289,7 +284,9 @@ class ForumThreadCreateView(ForumAccessMixin, ThrottledFormMixin, View):
         return ThreadForm(data, categories=categories)
 
     def _render(self, request, form, *, status: int = 200):
-        return TemplateResponse(request, NEW_THREAD_TEMPLATE, {**self.base_context(), "form": form}, status=status)
+        return TemplateResponse(
+            request, NEW_THREAD_TEMPLATE, {**self.base_context(), "form": form}, status=status
+        )
 
 
 class ForumPostEditView(ForumAccessMixin, View):
@@ -324,7 +321,12 @@ class ForumPostEditView(ForumAccessMixin, View):
         return post
 
     def _render(self, request, post: ForumPost, form, *, status: int = 200):
-        context = {**self.base_context(), "post": post, "form": form, "can_edit": can_edit(post, request.user)}
+        context = {
+            **self.base_context(),
+            "post": post,
+            "form": form,
+            "can_edit": can_edit(post, request.user),
+        }
         return TemplateResponse(request, EDIT_TEMPLATE, context, status=status)
 
 
@@ -332,11 +334,7 @@ class ForumPostDeleteView(ForumAccessMixin, View):
     """``/forum/p/<id>/delete/`` – usunięcie własnego wpisu (miękkie, do stanu ukrytego)."""
 
     def post(self, request, pk: int):
-        post = (
-            ForumPost.objects.for_competition(self.competition)
-            .filter(pk=pk, author=request.user)
-            .first()
-        )
+        post = ForumPost.objects.for_competition(self.competition).filter(pk=pk, author=request.user).first()
         if post is None:
             raise Http404("Nie ma takiego wpisu.")
         try:

@@ -347,8 +347,49 @@ def export_payload(user: User) -> dict:
         "zgoda_opiekuna": _guardian_section(participant),
         "zgloszenia_do_etapow": _entries_section(participant),
         "wyniki_ogloszone": _results_section(participant),
+        "wpisy_na_forum": _forum_section(user),
         "ustawienia_interfejsu": _preferences_section(user),
     }
+
+
+def _forum_section(user: User) -> list[dict]:
+    """Wypowiedzi tej osoby na forum – **wyłącznie jej własne**, razem ze stanem moderacji.
+
+    Art. 15 RODO pyta o dane **tej** osoby, a nie o rozmowę, w której brała udział. Dlatego jest tu
+    treść jej wpisów i temat wątku, w którym stoją, a nie ani jedno cudze zdanie: paczka
+    z odpowiedziami innych uczestników byłaby wydaniem ich danych osobie, która o nie nie pytała
+    i nie ma do nich prawa (patrz docstring modułu). Z tego samego powodu nie ma tu zgłoszeń
+    **cudzych** wpisów, które ta osoba wysłała do moderatora – zgłoszenie mówi o wypowiedzi kogoś
+    innego, a nie o zgłaszającym.
+
+    Uzasadnienie moderatora **jest** – i to jest ten sam powód, dla którego istnieje ekran „Twoje
+    wpisy”: decyzja o odrzuceniu wypowiedzi dotyczy tej osoby, więc ma prawo ją dostać także
+    w paczce, a nie wyłącznie na ekranie, o którym musi pamiętać.
+
+    Wpisy z **każdego** konkursu, a nie tylko z bieżącego: paczkę pobiera konto, a nie uczestnik
+    jednego konkursu, i pytanie brzmi „co o mnie wiecie”, a nie „co wiecie o mnie tutaj”. Konto
+    bez ani jednego wpisu dostaje pustą listę – kształt pliku ma być ten sam dla każdego konta.
+    """
+    from apps.forum.models import ForumPost
+
+    posts = (
+        ForumPost.objects.filter(author=user)
+        .select_related("thread", "thread__category", "competition")
+        .order_by("created_at", "id")
+    )
+    return [
+        {
+            "konkurs": post.competition.name,
+            "dzial": post.thread.category.name,
+            "watek": post.thread.title,
+            "tresc": post.body,
+            "dodany": _moment(post.created_at),
+            "poprawiony": _moment(post.edited_at),
+            "stan": post.get_status_display(),
+            "uzasadnienie_moderatora": post.moderation_note or None,
+        }
+        for post in posts
+    ]
 
 
 @dataclass(frozen=True)

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Formularz nowego wątku. Trzy pola i nic poza nimi: dział, temat i pierwsza wypowiedź.
+
+  Renderujemy ``form.as_p`` zamiast rozpisywać pola ręcznie – tak samo jak pozostałe formularze
+  serwisu. Powód jest w ``docs/UI.md``: ``.form p`` daje układ etykieta / pole / pomoc / błąd
+  razem z ``aria-describedby`` i ``aria-invalid``, więc pole rozpisane ręcznie może się od tego
+  układu tylko odchylić. Listę działów zawęża **widok** (queryset tego konkursu, wyłącznie
+  otwarte) – szablon nie ma tu czego filtrować i nie wolno mu tego próbować.
+
+  ``form.non_field_errors`` stoi osobno na górze, bo trafiają tam odmowy z serwisu
+  (``DomainError`` z ``create_thread``: dział zamknięty, forum tylko do odczytu). To nie są błędy
+  pojedynczego pola i doklejone pod polem „Dział” brzmiałyby jak zły wybór z listy, a nie jak
+  stan forum.
+
+  Ostrzeżenie regulaminowe stoi **nad** formularzem, bo to jest to samo miejsce, co w wątku:
+  § 10 ust. 2 i § 17 mają być przeczytane przed napisaniem tematu, a nie po.
+{% endcomment %}
+{% block title %}{% translate "Nowy wątek" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:forum' %}">{% translate "Forum" %}</a></span>
+  <h1>{% translate "Nowy wątek" %}</h1>
+  <p class="lead">{% translate "Zadaj pytanie całemu forum. Wątek zobaczą inni dopiero po zatwierdzeniu przez organizatora." %}</p>
+</div>
+
+{% if open_stage_warning %}
+  <p class="notice notice--warning">
+    {% if open_stage %}<strong>{{ open_stage.display_name }}</strong> – {% endif %}{{ open_stage_warning }}
+  </p>
+{% endif %}
+
+{% if forum_settings.is_read_only %}
+  <p class="notice">{% translate "Forum jest w trybie tylko do odczytu – nowego wątku teraz nie założysz." %}</p>
+{% endif %}
+
+<section class="section">
+  <div class="card">
+    <form class="form" method="post" novalidate>
+      {% csrf_token %}
+      <p class="form__required-note">{% translate "Pola oznaczone * są obowiązkowe." %}</p>
+      {{ form.non_field_errors }}
+      {{ form.as_p }}
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">{% translate "Załóż wątek" %}</button>
+        <a class="btn btn--secondary" href="{% url 'web:forum' %}">{% translate "Anuluj" %}</a>
+      </div>
+    </form>
+    <p class="hint">{% translate "Treść wpisu jest zwykłym tekstem: odnośniki zamieniamy na klikalne same, a znaczników HTML i załączników forum nie przyjmuje. Nie podawaj adresu e-mail, nazwy szkoły ani swojego kodu uczestnika – oceny w olimpiadzie są anonimowe i to Cię chroni." %}</p>
+  </div>
+</section>
+{% endblock %}

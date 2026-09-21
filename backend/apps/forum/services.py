@@ -199,7 +199,9 @@ def ensure_can_write(user, competition) -> None:
     co ma z tym zrobić.
     """
     if not can_read(user, competition):
-        raise DomainError("Forum jest dostępne dla uczestników tego konkursu.", "FORUM_FORBIDDEN", http.HTTP_403_FORBIDDEN)
+        raise DomainError(
+            "Forum jest dostępne dla uczestników tego konkursu.", "FORUM_FORBIDDEN", http.HTTP_403_FORBIDDEN
+        )
     if settings_for(competition).is_read_only:
         raise DomainError(
             "Forum jest w trybie tylko do odczytu – nowych wpisów nie przyjmujemy.",
@@ -438,7 +440,9 @@ def report_post(*, post: ForumPost, user, reason: str, request=None) -> ForumRep
     toczy się rywalizacja, ktoś by go w końcu użył.
     """
     if not can_read(user, post.competition):
-        raise DomainError("Forum jest dostępne dla uczestników tego konkursu.", "FORUM_FORBIDDEN", http.HTTP_403_FORBIDDEN)
+        raise DomainError(
+            "Forum jest dostępne dla uczestników tego konkursu.", "FORUM_FORBIDDEN", http.HTTP_403_FORBIDDEN
+        )
     clean_reason = _clean(reason, limit=MAX_REASON_LENGTH, field="REASON", label="Powód zgłoszenia")
     return ForumReport.objects.create(
         competition=post.competition, post=post, reporter=user, reason=clean_reason
@@ -609,8 +613,15 @@ def resolve_report(*, report: ForumReport, actor, request=None) -> ForumReport:
 
 @transaction.atomic
 def save_category(
-    *, competition, actor, name: str, description: str = "", ordering: int = 100, is_open: bool = True,
-    category: ForumCategory | None = None, request=None,
+    *,
+    competition,
+    actor,
+    name: str,
+    description: str = "",
+    ordering: int = 100,
+    is_open: bool = True,
+    category: ForumCategory | None = None,
+    request=None,
 ) -> ForumCategory:
     """Zakłada albo zmienia dział forum. Slug powstaje z nazwy i nie zmienia się przy zmianie nazwy.
 
@@ -626,23 +637,29 @@ def save_category(
     category.ordering = int(ordering or 0)
     category.is_open = bool(is_open)
     category.save()
-    audit(actor, AUDIT_CATEGORY_SAVED, category, {"slug": category.slug, "is_open": category.is_open}, request=request)
+    audit(
+        actor,
+        AUDIT_CATEGORY_SAVED,
+        category,
+        {"slug": category.slug, "is_open": category.is_open},
+        request=request,
+    )
     return category
 
 
 def _free_slug(competition, name: str) -> str:
     """Wolny identyfikator działu w tym konkursie. Pusty wynik ``slugify`` dostaje nazwę zastępczą."""
     base = slugify(name)[:50] or "dzial"
-    taken = set(
-        ForumCategory.objects.for_competition(competition).values_list("slug", flat=True)
-    )
+    taken = set(ForumCategory.objects.for_competition(competition).values_list("slug", flat=True))
     if base not in taken:
         return base
     for index in range(2, 100):
         candidate = f"{base}-{index}"
         if candidate not in taken:
             return candidate
-    raise DomainError("Nie udało się nadać identyfikatora działu.", "FORUM_SLUG_TAKEN", http.HTTP_400_BAD_REQUEST)
+    raise DomainError(
+        "Nie udało się nadać identyfikatora działu.", "FORUM_SLUG_TAKEN", http.HTTP_400_BAD_REQUEST
+    )
 
 
 @transaction.atomic
@@ -655,7 +672,9 @@ def save_settings(*, competition, actor, mode: str, is_read_only: bool, request=
     row.is_read_only = bool(is_read_only)
     row.updated_at = timezone.now()
     row.save(update_fields=["mode", "is_read_only", "updated_at"])
-    audit(actor, AUDIT_SETTINGS_CHANGED, row, {"mode": row.mode, "read_only": row.is_read_only}, request=request)
+    audit(
+        actor, AUDIT_SETTINGS_CHANGED, row, {"mode": row.mode, "read_only": row.is_read_only}, request=request
+    )
     return row
 
 

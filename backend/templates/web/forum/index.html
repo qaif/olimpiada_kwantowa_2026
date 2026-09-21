@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% load i18n web_extras %}
+{% comment %}
+  Strona wejściowa forum. Dwie listy pod sobą, a nie jedna, bo odpowiadają na dwa różne pytania:
+  „gdzie mam napisać” (działy) i „co się tu właśnie dzieje” (dziesięć ostatnich wątków). Gdyby
+  była tylko lista działów, uczestnik wchodzący drugi raz w tygodniu musiałby otworzyć każdy
+  z nich, żeby sprawdzić, czy przybyło rozmów; gdyby była tylko lista ostatnich wątków, nie
+  byłoby widać, że forum w ogóle ma strukturę – a struktura jest tu regulaminowa (dział bywa
+  zamykany po etapie, patrz ``ForumCategory.is_open``).
+
+  Licznik przy dziale liczy wątki **widoczne dla tej osoby**, a nie wiersze w tabeli
+  (``apps.forum.services.categories_with_counts``). Dlatego nie dopisujemy tu żadnej własnej
+  arytmetyki: obietnica z tej strony ma się zgadzać z tym, co widać po kliknięciu.
+
+  Ostrzeżenie o otwartym etapie stoi **nad** listami, mimo że z tej strony nic się nie pisze.
+  Powód jest taki sam jak przy formularzach: uczestnik, który przychodzi tu w czasie zawodów,
+  ma zobaczyć zakaz omawiania zadań zanim zacznie czytać wątki, a nie dopiero wtedy, gdy będzie
+  już miał odpowiedź w głowie (Regulamin § 10 ust. 2 i § 17).
+
+  „Nowy wątek” jest jedynym ``btn--primary`` na tym ekranie. Przy forum w trybie tylko do odczytu
+  ten przycisk znika zamiast prowadzić do formularza, który i tak skończy się odmową serwisu
+  (``ensure_can_write``) – wtedy akcją pierwszoplanową zostają „Twoje wpisy”.
+{% endcomment %}
+{% block title %}{% translate "Forum uczestników" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Forum" %}</span>
+  <h1>{% translate "Forum uczestników" %}</h1>
+  <p class="lead">{% translate "Rozmowy uczestników tego konkursu. Czytają je tylko zalogowani, a każdy wpis ogląda organizator." %}</p>
+</div>
+
+{% if open_stage_warning %}
+  <p class="notice notice--warning">
+    {% if open_stage %}<strong>{{ open_stage.display_name }}</strong> – {% endif %}{{ open_stage_warning }}
+  </p>
+{% endif %}
+
+{% if forum_settings.is_read_only %}
+  <p class="notice">{% translate "Forum jest w trybie tylko do odczytu: rozmowy zostają do przeczytania, ale nowych wpisów nie przyjmujemy." %}</p>
+{% endif %}
+
+<p class="actions">
+  {% if forum_settings.is_read_only %}
+    <a class="btn btn--primary" href="{% url 'web:forum-mine' %}">{% translate "Twoje wpisy" %}</a>
+  {% else %}
+    <a class="btn btn--primary" href="{% url 'web:forum-thread-new' %}">{% translate "Nowy wątek" %}</a>
+    <a class="btn btn--ghost" href="{% url 'web:forum-mine' %}">{% translate "Twoje wpisy" %}</a>
+  {% endif %}
+</p>
+
+<section class="section">
+  <div class="section__head"><h2>{% translate "Działy" %}</h2></div>
+  <ul class="cards">
+    {% for category in categories %}
+      <li class="card">
+        <div class="card__head">
+          <h3 class="card__title">
+            <a href="{% url 'web:forum-category' category.slug %}">{{ category.name }}</a>
+          </h3>
+          {% if category.is_open %}
+            <span class="badge badge--ok">{% translate "otwarty" %}</span>
+          {% else %}
+            <span class="badge badge--neutral">{% translate "zamknięty" %}</span>
+          {% endif %}
+        </div>
+        {% if category.description %}<p>{{ category.description }}</p>{% endif %}
+        <p class="card__meta">{% translate "wątków:" %} {{ category.thread_count }}</p>
+      </li>
+    {% empty %}
+      <li>
+        <div class="empty">
+          <span class="empty__title">{% translate "Nie ma jeszcze żadnego działu" %}</span>
+          <p class="empty__text">{% translate "Działy zakłada organizator. Dopóki nie ma ani jednego, nie ma też gdzie założyć wątku – napisz do organizatora przez formularz pomocy." %}</p>
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section class="section">
+  <div class="section__head"><h2>{% translate "Ostatnie wątki" %}</h2></div>
+  <ul class="cards cards--wide">
+    {% for thread in threads %}
+      <li class="card card--quiet">
+        <div class="card__head">
+          <h3 class="card__title">
+            <a href="{% url 'web:forum-thread' thread.pk %}">{{ thread.title }}</a>
+          </h3>
+          <p class="row">
+            {% if thread.is_pinned %}<span class="badge badge--info">{% translate "przypięty" %}</span>{% endif %}
+            {% if thread.is_locked %}<span class="badge badge--neutral">{% translate "zamknięty" %}</span>{% endif %}
+            {% if thread.is_pending %}<span class="badge badge--warn">{% translate "czeka na moderację" %}</span>{% endif %}
+          </p>
+        </div>
+        <p class="card__meta">
+          <a href="{% url 'web:forum-category' thread.category.slug %}">{{ thread.category.name }}</a>
+          · {% translate "ostatnia wypowiedź:" %} {{ thread.last_activity_at|local_datetime }}
+        </p>
+      </li>
+    {% empty %}
+      <li>
+        <div class="empty">
+          <span class="empty__title">{% translate "Nikt jeszcze nic nie napisał" %}</span>
+          <p class="empty__text">{% translate "Forum działa, tylko nie ma na nim rozmów. Pierwszy wątek zakłada się tym samym przyciskiem, co każdy następny." %}</p>
+          {% if not forum_settings.is_read_only %}
+            <p class="empty__actions">
+              <a class="btn btn--small btn--secondary" href="{% url 'web:forum-thread-new' %}">{% translate "Nowy wątek" %}</a>
+            </p>
+          {% endif %}
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

@@ -390,9 +390,7 @@ class ForumReport(models.Model):
         related_name="forum_reports",
         verbose_name="konkurs",
     )
-    post = models.ForeignKey(
-        ForumPost, on_delete=models.CASCADE, related_name="reports", verbose_name="wpis"
-    )
+    post = models.ForeignKey(ForumPost, on_delete=models.CASCADE, related_name="reports", verbose_name="wpis")
     reporter = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

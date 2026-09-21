@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% load i18n web_extras forum_extras %}
+{% comment %}
+  Strona wątku: wypowiedzi chronologicznie i formularz odpowiedzi pod nimi.
+
+  Pod wpisem stoi **gotowy podpis** z kontekstu (``entry.author``), a nie ``post.author``.
+  To nie jest wygoda szablonu, tylko jedyne zabezpieczenie, jakie da się tu postawić: dopóki
+  w kontekście nie ma obiektu użytkownika, żadna przyszła poprawka tego pliku nie dopisze
+  przypadkiem ``{% templatetag openvariable %} post.author.email {% templatetag closevariable %}``
+  ani nie dojdzie przez profil do kodu publicznego ``OLM-…``. Ten kod jest kluczem anonimizacji
+  w ocenianiu – uzasadnienie w docstringu ``apps.forum.models.display_author``. Odznaka
+  „Organizator”/„Komitet” przychodzi tą samą drogą (``entry.badge``), bo zdanie osoby
+  rozstrzygającej o zawodach ma się odróżniać od zdania kolegi z ławki.
+
+  Treść wpisu wychodzi **wyłącznie** przez filtr ``post_body``. Nigdzie tu nie ma ``|safe``
+  i nie ma po co go dodawać: filtr escapuje tekst, dopiero potem robi odnośniki i łamie wiersze
+  (``apps.forum.templatetags.forum_extras``). To jedyne miejsce na forum, w którym z tekstu
+  uczestnika powstaje HTML.
+
+  Usunięcie własnego wpisu siedzi w ``<details>``, a nie za oknem ``confirm()``: strict CSP nie
+  dopuszcza skryptu inline, a przycisk kasujący bez żadnego kroku pośredniego jest o jedno
+  drgnięcie palca od zniknięcia akapitu, do którego ktoś zdążył się odnieść. Natywne
+  ``<details>`` daje ten krok bez ani jednej linijki JavaScriptu.
+
+  Ostrzeżenie o otwartym etapie stoi **bezpośrednio nad formularzem odpowiedzi**. Miejsce jest
+  wymogiem regulaminowym (§ 10 ust. 2 i § 17), a nie układem: zakaz omawiania zadań otwartego
+  etapu ma być ostatnią rzeczą, którą uczestnik czyta przed kliknięciem w pole tekstowe.
+
+  Gdy pisać nie wolno, szablon mówi **dlaczego** zamiast chować formularz w ciszy. Trzy powody
+  są trzema różnymi czynnościami dla czytelnika: zamknięty wątek (nic nie zrobi), wątek czekający
+  na moderację (ma poczekać) i forum tylko do odczytu (etap się skończył).
+{% endcomment %}
+{% block title %}{{ thread.title }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">
+    <a href="{% url 'web:forum-category' thread.category.slug %}">{{ thread.category.name }}</a>
+  </span>
+  <h1>{{ thread.title }}</h1>
+  <p class="row">
+    {% if thread.is_pinned %}<span class="badge badge--info">{% translate "przypięty" %}</span>{% endif %}
+    {% if thread.is_locked %}<span class="badge badge--neutral">{% translate "zamknięty" %}</span>{% endif %}
+    {% if thread.is_pending %}<span class="badge badge--warn">{% translate "czeka na moderację" %}</span>{% endif %}
+    <span class="badge badge--neutral">{% translate "założony:" %} {{ thread.created_at|local_datetime }}</span>
+  </p>
+</div>
+
+{% if thread.is_pending %}
+  <p class="notice">{% translate "Ten wątek czeka na zatwierdzenie przez organizatora. Widzisz go tylko Ty – do czasu decyzji nikt inny nie może go przeczytać ani nic w nim dopisać." %}</p>
+{% endif %}
+
+<section class="section">
+  <div class="section__head"><h2>{% translate "Wypowiedzi" %}</h2></div>
+
+  {% for entry in entries %}
+    <article class="card{% if entry.is_own %} card--quiet{% endif %}" id="wpis-{{ entry.post.pk }}">
+      <div class="card__head">
+        <h3 class="card__title">{{ entry.author }}</h3>
+        <p class="row">
+          {% if entry.badge %}<span class="badge badge--info">{{ entry.badge }}</span>{% endif %}
+          {% if entry.post.is_pending %}
+            <span class="badge badge--warn">{% translate "czeka na moderację" %}</span>
+          {% endif %}
+        </p>
+      </div>
+      <p class="card__meta">
+        {{ entry.post.created_at|local_datetime }}
+        {% if entry.post.edited_at %}
+          · {% translate "poprawiony:" %} {{ entry.post.edited_at|local_datetime }}
+        {% endif %}
+      </p>
+      <div class="quote">{{ entry.post.body|post_body }}</div>
+      <p class="card__foot actions">
+        {% if entry.can_edit %}
+          <a class="btn btn--small btn--secondary"
+             href="{% url 'web:forum-post-edit' entry.post.pk %}">{% translate "Popraw" %}</a>
+        {% endif %}
+        {% if not entry.is_own and entry.post.is_published %}
+          <a class="btn btn--small btn--ghost"
+             href="{% url 'web:forum-post-report' entry.post.pk %}">{% translate "Zgłoś" %}</a>
+        {% endif %}
+      </p>
+      {% if entry.is_own %}
+        <details class="details">
+          <summary class="details__summary">{% translate "Usuń ten wpis" %}</summary>
+          <div class="details__body">
+            <p class="hint">{% translate "Wpis zniknie z wątku natychmiast i nie da się tego cofnąć. Odpowiedzi, które ktoś napisał pod nim, zostają – dlatego kasujemy sam akapit, a nie kawałek rozmowy." %}</p>
+            <form method="post" action="{% url 'web:forum-post-delete' entry.post.pk %}">
+              {% csrf_token %}
+              <p class="actions">
+                <button type="submit" class="btn btn--small btn--danger">{% translate "Tak, usuń wpis" %}</button>
+              </p>
+            </form>
+          </div>
+        </details>
+      {% endif %}
+    </article>
+  {% empty %}
+    <div class="empty">
+      <span class="empty__title">{% translate "Nie ma tu jeszcze ani jednej widocznej wypowiedzi" %}</span>
+      <p class="empty__text">{% translate "Wypowiedzi w tym wątku czekają na zatwierdzenie przez organizatora albo zostały zdjęte. Zajrzyj tu później." %}</p>
+    </div>
+  {% endfor %}
+
+  {% if page_obj.has_other_pages %}
+    <nav aria-label="{% translate 'Strony wątku' %}">
+      <p class="hint">
+        {% if page_obj.has_previous %}
+          <a class="btn btn--secondary btn--small"
+             href="?strona={{ page_obj.previous_page_number }}">{% translate "Poprzednia" %}</a>
+        {% endif %}
+        {% translate "Strona" %} {{ page_obj.number }} {% translate "z" %} {{ paginator.num_pages }}
+        {% if page_obj.has_next %}
+          <a class="btn btn--secondary btn--small"
+             href="?strona={{ page_obj.next_page_number }}">{% translate "Następna" %}</a>
+        {% endif %}
+      </p>
+    </nav>
+  {% endif %}
+</section>
+
+<section class="section">
+  {% if forum_settings.is_read_only %}
+    <div class="section__head"><h2>{% translate "Odpowiedz" %}</h2></div>
+    <p class="notice">{% translate "Forum jest w trybie tylko do odczytu – nowych wpisów nie przyjmujemy. Rozmowa zostaje tu do przeczytania." %}</p>
+  {% elif thread.is_locked %}
+    <div class="section__head"><h2>{% translate "Odpowiedz" %}</h2></div>
+    <p class="notice">{% translate "Ten wątek jest zamknięty przez organizatora. Jeżeli masz do niego coś do dodania, załóż nowy wątek w tym samym dziale." %}</p>
+  {% elif not can_write %}
+    <div class="section__head"><h2>{% translate "Odpowiedz" %}</h2></div>
+    <p class="notice">{% translate "Do wątku czekającego na moderację nie dopisuje nikt – także jego autor. Organizator ma ocenić temat, a nie rozmowę, która zdążyła pod nim urosnąć." %}</p>
+  {% else %}
+    <div class="section__head"><h2>{% translate "Odpowiedz" %}</h2></div>
+    {% comment %}
+      Ostrzeżenie regulaminowe musi stać między nagłówkiem a polem tekstowym – patrz komentarz
+      na górze pliku. Nie przenoś go na górę strony „dla porządku”.
+    {% endcomment %}
+    {% if open_stage_warning %}
+      <p class="notice notice--warning">
+        {% if open_stage %}<strong>{{ open_stage.display_name }}</strong> – {% endif %}{{ open_stage_warning }}
+      </p>
+    {% endif %}
+    <div class="card">
+      <form method="post" class="form" novalidate>
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        <p>
+          {{ form.body.errors }}
+          {{ form.body.label_tag }}
+          {{ form.body }}
+          {% if form.body.help_text %}<span class="helptext">{{ form.body.help_text }}</span>{% endif %}
+        </p>
+        <div class="actions">
+          <button type="submit" class="btn btn--primary">{% translate "Wyślij odpowiedź" %}</button>
+          <a class="btn btn--ghost" href="{% url 'web:forum-mine' %}">{% translate "Twoje wpisy" %}</a>
+        </div>
+      </form>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

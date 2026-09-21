@@ -193,6 +193,7 @@
           <a class="account-bar__link" href="{{ coordinator_url }}"
              {% if request.path == coordinator_url %}aria-current="page"{% endif %}>Koordynator</a>
         {% endif %}
+        {% include "web/_forum_link.html" %}
         {% comment %}
           „Zgłoś problem” stoi przy pozycjach konta, a nie w stopce, i to jest cała jego wartość:
           człowiek, któremu coś właśnie nie zadziałało, ma drogę do organizatora **z tej strony,

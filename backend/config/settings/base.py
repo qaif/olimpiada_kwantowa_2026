@@ -791,6 +791,12 @@ REST_FRAMEWORK = {
         # Stawka jest wyższa niż przy rejestracji: człowiek, któremu coś nie działa, pisze czasem
         # drugie zgłoszenie w tej samej sprawie, a odbicie go limitem byłoby karą za problem.
         "support": "10/hour",
+        # Pisanie na forum uczestników (wątek, odpowiedź, zgłoszenie wpisu). Limit nie chroni tu
+        # cudzej skrzynki – forum nie wysyła listów – tylko **kolejkę moderacyjną i rozmowę**:
+        # trzydzieści wpisów w godzinę to więcej, niż napisze uczestnik czytający odpowiedzi,
+        # a mniej, niż potrzeba, żeby zasypać dział albo wyczerpać dyżur koordynatora. Stawka jest
+        # wyższa niż przy zgłoszeniach, bo tam jedno zdanie kończy sprawę, a tu toczy się rozmowa.
+        "forum": "30/hour",
         # Podpowiedzi szkół w formularzu rejestracji. Limit jest wysoki, bo jedno wypełnienie
         # formularza to kilkanaście żądań (jedno na przerwę w pisaniu), a dane są jawnym
         # rejestrem publicznym – chronimy tu koszt zapytania, nie treść.

@@ -1,0 +1,85 @@
+{% extends "web/coordinator/base.html" %}
+{% load web_extras %}
+{% comment %}
+  Spis **wszystkich** wątków konkursu, także odrzuconych i ukrytych – w odróżnieniu od kolejki,
+  która pokazuje wyłącznie to, co czeka na decyzję. Ten ekran odpowiada na inne pytanie:
+  „co w ogóle jest na forum i gdzie to znaleźć”.
+
+  Filtr stanu jest zwykłym parametrem adresu, a nie formularzem POST: adres z filtrem ma dać się
+  zapisać w zakładkach i przesłać drugiej osobie – ta sama reguła, co w kolejce zgłoszeń.
+
+  Podpis autora jest imieniem z inicjałem, tak samo jak na forum: tabela w panelu nie jest powodem,
+  żeby pokazać tu adres e-mail albo kod publiczny uczestnika. Koordynator, który musi ustalić, kto
+  napisał wpis, robi to przez listę kont, a nie przez ekran rozmowy – i zostawia po tym ślad tam,
+  gdzie ta czynność należy (``apps.forum.models.display_author``).
+{% endcomment %}
+{% block title %}Wątki forum – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-forum' %}">Forum uczestników</a>{% endblock %}
+{% block panel_title %}Wątki forum{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Wszystkie wątki tego konkursu razem ze stanem moderacji. Kliknięcie tematu
+    otwiera wątek z pełną treścią – także tą, której uczestnicy nie widzą.</p>
+{% endblock %}
+{% block panel_actions %}
+  <a class="btn btn--small btn--secondary" href="{% url 'web:coordinator-forum' %}">Kolejka moderacji</a>
+{% endblock %}
+{% block panel_content %}
+
+<nav class="chips" aria-label="Filtr stanu">
+  <a class="chip" href="{% url 'web:coordinator-forum-threads' %}"
+     {% if not status %}aria-current="page"{% endif %}>Wszystkie</a>
+  {% for value, label in status_choices %}
+    <a class="chip" href="{% url 'web:coordinator-forum-threads' %}?status={{ value }}"
+       {% if status == value %}aria-current="page"{% endif %}>{{ label }}</a>
+  {% endfor %}
+</nav>
+
+<div class="scroll">
+  <table class="table">
+    <caption>Wątki forum{% if status %} – stan: {{ status }}{% endif %}</caption>
+    <thead>
+      <tr>
+        <th scope="col">Temat</th>
+        <th scope="col">Dział</th>
+        <th scope="col">Autor</th>
+        <th scope="col">Stan</th>
+        <th scope="col">Ostatnia aktywność</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>
+          <th scope="row">
+            <a href="{% url 'web:coordinator-forum-thread' row.thread.pk %}">{{ row.thread.title }}</a>
+            {% if row.thread.is_pinned %}<span class="badge badge--accent">przypięty</span>{% endif %}
+            {% if row.thread.is_locked %}<span class="badge badge--neutral">zamknięty</span>{% endif %}
+          </th>
+          <td>{{ row.thread.category.name }}</td>
+          <td>{{ row.author }}</td>
+          <td>
+            <span class="badge {% if row.thread.status == 'PUBLISHED' %}badge--ok{% elif row.thread.status == 'PENDING' %}badge--warn{% elif row.thread.status == 'REJECTED' %}badge--danger{% else %}badge--neutral{% endif %}">
+              {{ row.thread.get_status_display }}</span>
+          </td>
+          <td>{{ row.thread.last_activity_at|local_datetime }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="empty">Brak wątków w tym zestawieniu.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if page_obj.has_other_pages %}
+  <p class="hint">
+    {% if page_obj.has_previous %}
+      <a class="btn btn--secondary btn--small"
+         href="?{% if filter_query %}{{ filter_query }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">Poprzednia</a>
+    {% endif %}
+    Strona {{ page_obj.number }} z {{ paginator.num_pages }}
+    {% if page_obj.has_next %}
+      <a class="btn btn--secondary btn--small"
+         href="?{% if filter_query %}{{ filter_query }}&amp;{% endif %}page={{ page_obj.next_page_number }}">Następna</a>
+    {% endif %}
+  </p>
+{% endif %}
+{% endblock %}

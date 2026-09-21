@@ -1,0 +1,75 @@
+{% extends "web/coordinator/base.html" %}
+{% load web_extras %}
+{% comment %}
+  Działy forum: spis i formularz na jednym ekranie.
+
+  Jeden ekran, a nie lista plus osobna strona formularza: dział ma cztery pola, a zakłada się go
+  wtedy, gdy się patrzy na listę tych, które już są – żeby nie założyć drugiego takiego samego.
+
+  Identyfikatora w adresie (``slug``) nie ma w formularzu i to jest decyzja, a nie przeoczenie:
+  nadaje go serwis z nazwy i **nie zmienia** przy zmianie nazwy, bo adres działu bywa wklejony
+  w cudzej wiadomości, a przeliczanie go przy każdej poprawce zamieniałoby te odnośniki w 404.
+
+  Działu nie da się skasować i też jest to decyzja: w dziale stoją rozmowy, a skasowanie go
+  zabrałoby je razem z odpowiedziami, do których ktoś się odniósł. Zamiast tego jest „otwarty na
+  nowe wątki” – zamknięty dział zostaje do czytania.
+{% endcomment %}
+{% block title %}Działy forum – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-forum' %}">Forum uczestników</a>{% endblock %}
+{% block panel_title %}Działy forum{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Wątki powstają wyłącznie w dziale, więc forum bez ani jednego działu jest forum,
+    na którym nie da się nic napisać. Zacznij od jednego – kolejne dołożysz, gdy będą potrzebne.</p>
+{% endblock %}
+{% block panel_actions %}
+  <a class="btn btn--small btn--secondary" href="{% url 'web:coordinator-forum' %}">Kolejka moderacji</a>
+{% endblock %}
+{% block panel_content %}
+
+<div class="scroll">
+  <table class="table">
+    <caption>Działy tego konkursu</caption>
+    <thead>
+      <tr>
+        <th scope="col">Nazwa</th>
+        <th scope="col">Adres</th>
+        <th scope="col">Opis</th>
+        <th scope="col" class="num">Kolejność</th>
+        <th scope="col">Nowe wątki</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in categories %}
+        <tr>
+          <th scope="row">{{ row.name }}</th>
+          <td><code class="code-chip">/forum/{{ row.slug }}/</code></td>
+          <td>{{ row.description }}</td>
+          <td class="num">{{ row.ordering }}</td>
+          <td>
+            {% if row.is_open %}
+              <span class="badge badge--ok">otwarty</span>
+            {% else %}
+              <span class="badge badge--neutral">zamknięty</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="empty">Nie ma jeszcze ani jednego działu.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<section class="section">
+  <div class="section__head"><h2>{% if category %}Zmień dział{% else %}Nowy dział{% endif %}</h2></div>
+  <form class="form" method="post" action="{% url 'web:coordinator-forum-categories' %}">
+    {% csrf_token %}
+    {% if category %}<input type="hidden" name="category" value="{{ category.pk }}">{% endif %}
+    {{ form.non_field_errors }}
+    {{ form.as_p }}
+    <p class="actions">
+      <button type="submit" class="btn btn--primary">Zapisz dział</button>
+    </p>
+  </form>
+</section>
+{% endblock %}
