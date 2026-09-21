@@ -70,6 +70,12 @@ EDITABLE_FLAGS: tuple[str, ...] = (
     "appeals",
     "certificates",
 )
+# ``participant_forum`` świadomie **nie** stoi na tej liście, choć jest zwykłym przełącznikiem
+# konkursu. Powód jest ten sam, co przy ``submission_forward_emails`` wyżej, tylko z drugiej
+# strony: włączenie forum otwiera miejsce, w którym **osoby niepełnoletnie piszą publicznie**, więc
+# jest zobowiązaniem organizatora do dyżuru moderacyjnego, a nie ustawieniem, które ma wpaść
+# w jeden zapis razem z kolorem akcentu. Przestawia je operator platformy w ``/admin/``, po
+# ustaleniu, kto i jak często zagląda do ``/coordinator/forum/`` (``docs/OPERACJE.md`` § 6.4).
 
 #: Etykieta i wyjaśnienie każdego przełącznika. Wyjaśnienie mówi, **co się stanie**, a nie jak
 #: flaga się nazywa w kodzie: ekran czyta koordynator, a nie autor migracji.

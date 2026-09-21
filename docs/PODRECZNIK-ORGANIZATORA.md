@@ -558,9 +558,11 @@ niesie treści** — tylko informację, że sprawa albo odpowiedź jest, i odno�
 
 Forum jest **domyślnie wyłączone** i to nie jest ostrożność techniczna. Pod adresem rozmawiają osoby
 **niepełnoletnie**, więc otwarcie forum jest zobowiązaniem do dyżuru moderacyjnego — a nie funkcją, która
-ma się włączyć razem z wdrożeniem. Włącza je przełącznik konkursu `participant_forum`
-(`/coordinator/competition/`). Dopóki jest wyłączony, adresów `/forum/…` i `/coordinator/forum/…` **nie ma**
-(404), a w żadnym menu nie przybywa ani jedna pozycja.
+ma się włączyć razem z wdrożeniem. Włącza je przełącznik konkursu `participant_forum`, a przestawia go
+**operator platformy** (`/admin/ → Konkursy → <konkurs> → feature_flags`, `OPERACJE.md` § 6.4) — nie ma go
+na ekranie „Ustawienia konkursu” celowo, bo otwarcie forum jest ustaleniem dyżuru moderacyjnego, a nie
+polem do zaznaczenia obok koloru akcentu. Dopóki przełącznik jest wyłączony, adresów `/forum/…`
+i `/coordinator/forum/…` **nie ma** (404), a w żadnym menu nie przybywa ani jedna pozycja.
 
 | Kto | Gdzie |
 |---|---|
