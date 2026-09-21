@@ -173,8 +173,12 @@ def cms_menu(request) -> dict:
             # Domek stoi pierwszy i prowadzi na stronę główną **tej** witryny. Dokładamy go tylko
             # do menu, które ma cokolwiek: konkurs bez drzewa stron ma nagłówek pusty (docstring
             # modułu), a sam domek udawałby tam nawigację, której nie ma.
-            home_url = site.root_page.get_url(request=request) or "/"
-            items.insert(0, {**_menu_item("", HOME_ITEM_TITLE, home_url, request), "home": True})
+            #
+            # Adres to zawsze ``/``: witryna Wagtaila jest dopasowywana po hoście, więc jej strona
+            # główna stoi w korzeniu domeny, z której przyszło żądanie. ``root_page.get_url()``
+            # dałoby ten sam napis, ale na zimnej pamięci podręcznej kosztuje zapytanie o ścieżki
+            # witryn – na każdej stronie serwisu (wyłapał to budżet zapytań panelu uczestnika).
+            items.insert(0, {**_menu_item("", HOME_ITEM_TITLE, "/", request), "home": True})
     except (DatabaseError, Site.DoesNotExist, AttributeError):  # pragma: no cover - baza bez drzewa
         # Witryny nie znamy, więc nie wiemy też, czy to ta domyślna – a lista zapasowa opisuje
         # wyłącznie jej drzewo. Puste menu jest tu jedyną odpowiedzią, która nie może być cudza.
