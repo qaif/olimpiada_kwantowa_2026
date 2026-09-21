@@ -21,7 +21,9 @@ from datetime import timedelta
 
 import pytest
 from django.conf import settings
+from django.db import connection
 from django.test import override_settings
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from apps.accounts.models import CompetitionRole
@@ -188,6 +190,28 @@ def test_the_account_bar_leads_to_the_forum_when_the_flag_is_on(web_client, comp
     body = web_client.get(ACCOUNT_SCREEN_URL).content.decode()
 
     assert 'href="/forum/"' in body
+
+
+def test_the_account_bar_costs_no_extra_query_for_a_participant_when_the_flag_is_on(web_client, competition):
+    """``roles()`` liczy profil uczestnika **raz** dla ``is_participant`` i ``can_use_forum``.
+
+    ``_forum_visible`` wołał kiedyś ``participant_for`` drugi raz, więc pasek konta uczestnika
+    z włączonym forum kosztował jedno zapytanie więcej niż z flagą wyłączoną – ten sam profil
+    liczony dwa razy w jednym renderowaniu.
+    """
+    profile = participant_of(competition)
+    web_client.force_login(profile.user)
+    web_client.get(ACCOUNT_SCREEN_URL)  # rozgrzewka: sesja i liczniki menu
+
+    with CaptureQueriesContext(connection) as without_flag:
+        web_client.get(ACCOUNT_SCREEN_URL)
+
+    with_forum(competition)
+
+    with CaptureQueriesContext(connection) as with_flag:
+        web_client.get(ACCOUNT_SCREEN_URL)
+
+    assert len(with_flag) == len(without_flag)
 
 
 # --- izolacja konkursów ----------------------------------------------------------------------------
@@ -402,7 +426,10 @@ def test_a_post_older_than_the_window_comes_back_with_an_error(web_client, compe
     """Wpis sprzed godziny, który brzmi inaczej niż odpowiedź pod nim, jest gorszy niż literówka.
 
     Widok nie przekierowuje i nie wyrzuca 403: odmowa serwisu wraca jako błąd formularza, czyli
-    kod 400 i ten sam ekran – a treść w bazie zostaje taka, jaka była.
+    kod 400 i ten sam ekran – a treść w bazie zostaje taka, jaka była. Błąd ma się dać **przeczytać**:
+    ``form.non_field_errors`` stał wcześniej wyłącznie w gałęzi ``{% if can_edit %}``, a przy
+    zamkniętym oknie ta gałąź się nie renderuje – autor dostawał 400 i pustą stronę bez ani
+    jednego słowa o tym, co się stało.
     """
     with_forum(competition)
     profile = participant_of(competition)
@@ -417,6 +444,28 @@ def test_a_post_older_than_the_window_comes_back_with_an_error(web_client, compe
     post.refresh_from_db()
     assert response.status_code == 400
     assert post.body == "Pierwotna treść"
+    body = response.content.decode()
+    assert f"Wpis można poprawić tylko przez {EDIT_WINDOW_MINUTES} minut od dodania." in body
+
+
+@override_settings(REST_FRAMEWORK=rest_framework_with(forum="3/hour"))
+def test_editing_is_throttled_like_every_other_form(web_client, competition):
+    """Ten sam scope, co odpowiedź, nowy wątek i zgłoszenie – limit ma chronić kolejkę
+    moderacyjną (poprawka opublikowanego wpisu w trybie ``PRE`` wraca do niej), a nie tylko jedną
+    z pięciu dróg, którymi się do niej trafia.
+    """
+    with_forum(competition)
+    profile = participant_of(competition)
+    post = ForumPostFactory(competition=competition, author=profile.user, body="Pierwotna treść")
+    web_client.force_login(profile.user)
+    for attempt in range(3):
+        response = web_client.post(edit_url(post), {"body": f"Poprawka numer {attempt}"})
+        assert response.status_code == 302, attempt
+
+    blocked = web_client.post(edit_url(post), {"body": "Czwarta poprawka"})
+
+    assert blocked.status_code == 429
+    assert int(blocked.headers["Retry-After"]) >= 1
 
 
 def test_deleting_an_own_post_hides_it_instead_of_dropping_the_row(web_client, competition):

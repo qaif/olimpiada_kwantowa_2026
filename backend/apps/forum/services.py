@@ -39,6 +39,7 @@ from .models import (
     MAX_POST_LENGTH,
     MAX_REASON_LENGTH,
     MAX_TITLE_LENGTH,
+    PENDING_STATUSES,
     ForumCategory,
     ForumPost,
     ForumReport,
@@ -65,6 +66,7 @@ AUDIT_POST_APPROVED = "forum.post_approved"
 AUDIT_POST_REJECTED = "forum.post_rejected"
 AUDIT_POST_HIDDEN = "forum.post_hidden"
 AUDIT_POST_RESTORED = "forum.post_restored"
+AUDIT_THREAD_RESTORED = "forum.thread_restored"
 AUDIT_REPORT_RESOLVED = "forum.report_resolved"
 AUDIT_CATEGORY_SAVED = "forum.category_saved"
 AUDIT_SETTINGS_CHANGED = "forum.settings_changed"
@@ -94,6 +96,13 @@ def stage_forcing_pre_moderation(competition, now=None):
     Zakresem jest **bieżąca edycja tego konkursu** – ta sama, o którą pyta pulpit i menu panelu
     (``apps.competitions.services.current_edition``). Edycja zeszłoroczna z otwartym etapem nie
     istnieje, a gdyby istniała, nie byłaby powodem, żeby zamykać dzisiejszą rozmowę.
+
+    Etap treningowy jest **pomijany** – ta sama reguła i to samo uzasadnienie, co w
+    ``apps.competitions.services.current_stage``: trening jest otwarty bez końca (sentynel
+    ``TRAINING_DEADLINE`` w roku 2099), więc gdyby wchodził do tej pętli, forum zamykałoby się
+    w tryb ``PRE`` na stałe, a ostrzeżenie nad formularzem nazywałoby piaskownicę zamiast realnych
+    zawodów. Trening nie jest etapem, którego § 10 ust. 2 i § 17 dotyczą – nikt nie oddaje w nim
+    rozwiązań na ocenę, więc nie ma czego chronić przed przedwczesnym ujawnieniem.
     """
     from apps.competitions.models import Stage
     from apps.competitions.services import current_edition
@@ -104,8 +113,9 @@ def stage_forcing_pre_moderation(competition, now=None):
     if edition is None:
         return None
     now = now or timezone.now()
-    for stage in Stage.objects.filter(edition=edition).order_by("opens_at", "id"):
-        if stage.is_open_for_submissions(now):
+    stages = Stage.objects.filter(edition=edition).order_by("opens_at", "id")
+    for stage in stages:
+        if not stage.is_training and stage.is_open_for_submissions(now):
             return stage
     return None
 
@@ -224,15 +234,15 @@ def visible_threads(competition, user):
     razem z notatką moderatora, a nie w dziale, w którym miałyby udawać rozmowę.
     """
     rows = ForumThread.objects.for_competition(competition)
-    own = Q(author=user, status=ModerationStatus.PENDING) if _identified(user) else Q(pk__in=[])
-    return rows.filter(Q(status=ModerationStatus.PUBLISHED) | own)
+    own = Q(author=user, status__in=PENDING_STATUSES) if _identified(user) else Q(pk__in=[])
+    return rows.filter(Q(status__in=READABLE_STATUSES) | own)
 
 
 def visible_posts(thread, user):
     """Wpisy wątku widoczne dla tej osoby – ta sama reguła, co przy wątkach."""
     rows = ForumPost.objects.filter(thread=thread)
-    own = Q(author=user, status=ModerationStatus.PENDING) if _identified(user) else Q(pk__in=[])
-    return rows.filter(Q(status=ModerationStatus.PUBLISHED) | own).order_by("created_at", "id")
+    own = Q(author=user, status__in=PENDING_STATUSES) if _identified(user) else Q(pk__in=[])
+    return rows.filter(Q(status__in=READABLE_STATUSES) | own).order_by("created_at", "id")
 
 
 def own_posts(user, competition):
@@ -280,9 +290,9 @@ def thread_visible_to(thread: ForumThread, user) -> bool:
     wątku prowadziłby donikąd. Odnośnik, o którym z góry wiadomo, że da 404, jest gorszy niż jego
     brak – dlatego szablon pyta o to tutaj, zamiast zgadywać ze statusu.
     """
-    if thread.status == ModerationStatus.PUBLISHED:
+    if thread.status in READABLE_STATUSES:
         return True
-    return thread.status == ModerationStatus.PENDING and _identified(user) and thread.author_id == user.pk
+    return thread.status in PENDING_STATUSES and _identified(user) and thread.author_id == user.pk
 
 
 def categories_with_counts(competition, user):
@@ -292,9 +302,9 @@ def categories_with_counts(competition, user):
     pokazać zero, bo tyle po kliknięciu zobaczy czytelnik. Licznik liczący wiersze w tabeli byłby
     obietnicą, której strona działu nie dotrzyma.
     """
-    visible = Q(threads__status=ModerationStatus.PUBLISHED)
+    visible = Q(threads__status__in=READABLE_STATUSES)
     if _identified(user):
-        visible |= Q(threads__author=user, threads__status=ModerationStatus.PENDING)
+        visible |= Q(threads__author=user, threads__status__in=PENDING_STATUSES)
     return (
         ForumCategory.objects.for_competition(competition)
         .annotate(thread_count=Count("threads", filter=visible, distinct=True))
@@ -546,7 +556,7 @@ _THREAD_ACTIONS = {
     ModerationStatus.PUBLISHED: AUDIT_THREAD_APPROVED,
     ModerationStatus.REJECTED: AUDIT_THREAD_REJECTED,
     ModerationStatus.HIDDEN: AUDIT_THREAD_HIDDEN,
-    ModerationStatus.PENDING: AUDIT_THREAD_APPROVED,
+    ModerationStatus.PENDING: AUDIT_THREAD_RESTORED,
 }
 
 
@@ -717,7 +727,7 @@ def save_settings(*, competition, actor, mode: str, is_read_only: bool, request=
 def pending_threads(competition):
     return (
         ForumThread.objects.for_competition(competition)
-        .filter(status=ModerationStatus.PENDING)
+        .filter(status__in=PENDING_STATUSES)
         .select_related("author", "category")
         .order_by("created_at", "id")
     )
@@ -732,12 +742,12 @@ def pending_posts(competition):
     """
     pending_thread_ids = list(
         ForumThread.objects.for_competition(competition)
-        .filter(status=ModerationStatus.PENDING)
+        .filter(status__in=PENDING_STATUSES)
         .values_list("pk", flat=True)
     )
     return (
         ForumPost.objects.for_competition(competition)
-        .filter(status=ModerationStatus.PENDING)
+        .filter(status__in=PENDING_STATUSES)
         .exclude(thread_id__in=pending_thread_ids)
         .select_related("author", "thread", "thread__category")
         .order_by("created_at", "id")

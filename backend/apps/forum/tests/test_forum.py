@@ -22,7 +22,13 @@ from django.utils import timezone
 
 from apps.accounts.models import CompetitionRole
 from apps.accounts.tests.factories import CoordinatorFactory, ParticipantFactory, UserFactory
-from apps.competitions.tests.factories import CurrentEditionFactory, StageFactory
+from apps.competitions.models import TRAINING_DEADLINE, StageKind
+from apps.competitions.tests.factories import (
+    CurrentEditionFactory,
+    QualificationRuleFactory,
+    ScoringScaleFactory,
+    StageFactory,
+)
 from apps.core.api import DomainError
 from apps.core.models import AuditLog
 from apps.forum import services
@@ -95,6 +101,28 @@ def open_edition(competition):
     edition = CurrentEditionFactory(competition=competition)
     StageFactory(competition=competition, edition=edition)
     return edition
+
+
+def training_stage_for(edition):
+    """Etap treningowy edycji, taki, jaki zostawia ``seed_training_problems``: otwarty bez końca.
+
+    Ta sama fabryka, co w ``apps.web.tests.test_training`` – piaskownica ma sentynel
+    ``TRAINING_DEADLINE`` (rok 2099) zamiast realnego terminu, więc ``is_open_for_submissions``
+    zwraca dla niej ``True`` na zawsze, dopóki jej ktoś nie zamknie ręcznie.
+    """
+    stage = StageFactory(
+        edition=edition,
+        kind=StageKind.TRAINING,
+        name="Zadania treningowe",
+        opens_at=timezone.now() - timedelta(hours=1),
+        deadline_at=TRAINING_DEADLINE,
+        review_deadline_at=TRAINING_DEADLINE,
+        appeal_window_opens_at=TRAINING_DEADLINE,
+        appeal_window_closes_at=TRAINING_DEADLINE + timedelta(days=1),
+    )
+    ScoringScaleFactory(stage=stage)
+    QualificationRuleFactory(stage=stage, min_points=0)
+    return stage
 
 
 # --- podpis autora -------------------------------------------------------------------------------
@@ -242,6 +270,36 @@ def test_a_stage_of_another_competition_does_not_force_our_mode(competition, oth
     open_edition(other_competition)
 
     assert services.stage_forcing_pre_moderation(competition) is None
+
+
+def test_a_training_stage_does_not_force_pre_moderation_forever(competition):
+    """Trening jest otwarty bez końca (sentynel 2099) – ta sama reguła i ten sam powód, co przy
+    pomijaniu treningu w ``apps.competitions.services.current_stage``: gdyby liczył się tutaj,
+    forum zamykałoby się w ``PRE`` na stałe, niezależnie od ustawienia koordynatora."""
+    edition = CurrentEditionFactory(competition=competition)
+    training_stage_for(edition)
+    services.save_settings(
+        competition=competition,
+        actor=coordinator_of(competition),
+        mode=ModerationMode.POST,
+        is_read_only=False,
+    )
+
+    assert services.stage_forcing_pre_moderation(competition) is None
+    assert services.effective_mode(competition) == ModerationMode.POST
+
+
+def test_a_training_stage_alongside_a_real_open_stage_names_the_real_stage(competition):
+    """Trening obok prawdziwych zawodów nie przesłania ich: wymuszenie ``PRE`` ma wskazać etap,
+    którego rozwiązań regulamin faktycznie broni (§ 10 ust. 2, § 17), a nie piaskownicę."""
+    edition = open_edition(competition)
+    training_stage_for(edition)
+
+    forcing = services.stage_forcing_pre_moderation(competition)
+
+    assert forcing is not None
+    assert forcing.kind != StageKind.TRAINING
+    assert services.effective_mode(competition) == ModerationMode.PRE
 
 
 # --- pisanie ---------------------------------------------------------------------------------------
@@ -536,6 +594,24 @@ def test_every_moderation_decision_leaves_an_audit_entry(competition, status, ac
     entry = AuditLog.objects.filter(action=action).get()
     assert entry.actor_id == actor.pk
     assert entry.target_id == str(post.pk)
+
+
+def test_moderating_a_thread_back_to_pending_writes_its_own_audit_action(competition):
+    """Powrót do kolejki nie jest zatwierdzeniem i nie ma dzielić z nim nazwy zdarzenia.
+
+    ``_THREAD_ACTIONS[PENDING]`` wskazywał wcześniej na ``AUDIT_THREAD_APPROVED`` – ekran audytu
+    pokazywałby więc wątek cofnięty do kolejki jako zatwierdzony, czyli dokładną odwrotność decyzji
+    moderatora. ``AUDIT_THREAD_RESTORED`` mirroruje ``AUDIT_POST_RESTORED`` z tego samego powodu.
+    """
+    actor = coordinator_of(competition)
+    thread = ForumThreadFactory(competition=competition, status=ModerationStatus.PUBLISHED)
+
+    services.moderate_thread(thread=thread, actor=actor, status=ModerationStatus.PENDING)
+
+    entry = AuditLog.objects.filter(action=services.AUDIT_THREAD_RESTORED).get()
+    assert entry.actor_id == actor.pk
+    assert entry.target_id == str(thread.pk)
+    assert not AuditLog.objects.filter(action=services.AUDIT_THREAD_APPROVED).exists()
 
 
 def test_the_audit_entry_never_carries_the_body_of_the_post(competition):

@@ -298,8 +298,10 @@ class ForumThreadCreateView(ForumAccessMixin, ThrottledFormMixin, View):
         )
 
 
-class ForumPostEditView(ForumAccessMixin, View):
+class ForumPostEditView(ForumAccessMixin, ThrottledFormMixin, View):
     """``/forum/p/<id>/edit/`` – poprawka własnego wpisu w oknie kwadransa."""
+
+    throttle_scope = "forum"
 
     def get(self, request, pk: int):
         post = self._post(request, pk)
@@ -339,8 +341,10 @@ class ForumPostEditView(ForumAccessMixin, View):
         return TemplateResponse(request, EDIT_TEMPLATE, context, status=status)
 
 
-class ForumPostDeleteView(ForumAccessMixin, View):
+class ForumPostDeleteView(ForumAccessMixin, ThrottledFormMixin, View):
     """``/forum/p/<id>/delete/`` – usunięcie własnego wpisu (miękkie, do stanu ukrytego)."""
+
+    throttle_scope = "forum"
 
     def post(self, request, pk: int):
         post = ForumPost.objects.for_competition(self.competition).filter(pk=pk, author=request.user).first()

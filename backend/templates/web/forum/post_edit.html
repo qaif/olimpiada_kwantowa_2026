@@ -19,6 +19,13 @@
 
   Przy zamkniętym oknie formularza tu nie ma w ogóle. Pole tekstowe, którego zapis skończy się
   odmową serwisu, jest zaproszeniem do napisania czegoś, co i tak przepadnie.
+
+  ``form.non_field_errors`` stoi **poza** rozgałęzieniem ``can_edit`` i to jest poprawka, nie
+  ozdoba: POST spóźniony o sekundę wraca z serwisu jako 400 z błędem ogólnym formularza
+  (``apps.forum.services.edit_post`` → ``FORUM_EDIT_WINDOW_CLOSED``), a ``can_edit`` liczone od
+  nowa dla tej samej chwili jest wtedy już fałszywe – błąd, który stoi wyłącznie w gałęzi
+  formularza, nigdy by się nie wyrenderował i autor dostawałby pusty stan „okno zamknięte” bez
+  ani jednego słowa o tym, co się właśnie stało.
 {% endcomment %}
 {% block title %}{% translate "Popraw wpis" %}{% endblock %}
 {% block content %}
@@ -38,6 +45,8 @@
   </p>
 </div>
 
+{{ form.non_field_errors }}
+
 {% if can_edit %}
   <p class="notice notice--warning">{% translate "Po zapisaniu poprawki wpis wraca do kolejki organizatora i do czasu ponownego zatwierdzenia widzisz go tylko Ty. Tak działa tryb „przed publikacją”, który obowiązuje zawsze w czasie otwartego etapu." %}</p>
 
@@ -51,7 +60,6 @@
     <div class="card">
       <form class="form" method="post" novalidate>
         {% csrf_token %}
-        {{ form.non_field_errors }}
         {{ form.as_p }}
         <div class="actions">
           <button type="submit" class="btn btn--primary">{% translate "Zapisz poprawkę" %}</button>
