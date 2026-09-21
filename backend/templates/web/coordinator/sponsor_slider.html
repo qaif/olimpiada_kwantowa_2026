@@ -1,0 +1,67 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Slider sponsorów: włącznik, tempo przewijania i poziomy partnerów pokazywane w menu serwisu.
+
+  Listy partnerów tu nie ma – redaguje się ją na stronie „Partnerzy” w /cms/, gdzie stoi też
+  logotyp organizatora (/cms/ → Ustawienia → Dane serwisu). Ten ekran wyłącznie filtruje i tempuje
+  to, co tam już jest, więc podgląd niżej pokazuje **każdego** partnera z logotypem – także
+  odfiltrowanego, z powodem, a nie po cichu pominiętego.
+
+  Bez JavaScriptu i bez stylów w atrybutach – panel chodzi pod ścisłą polityką CSP.
+{% endcomment %}
+{% block title %}Slider sponsorów – panel koordynatora{% endblock %}
+{% block panel_title %}Slider sponsorów{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Pasek w menu serwisu może pokazywać rotujące logotypy organizatora i partnerów.
+    Listę partnerów i ich logotypy redaguje się w <a href="/cms/">/cms/ → Partnerzy</a>; tutaj
+    ustawiasz wyłącznie to, czy pasek się pokazuje, jak szybko się przesuwa i które poziomy
+    współpracy pokazuje.</p>
+{% endblock %}
+{% block panel_content %}
+
+<div class="card">
+  <form method="post" class="form form--wide" novalidate>
+    {% csrf_token %}
+    {{ form.as_p }}
+    <div class="actions">
+      <button type="submit" class="btn btn--primary">Zapisz</button>
+      <a class="btn btn--ghost" href="{% url 'web:coordinator' %}">Anuluj</a>
+    </div>
+  </form>
+</div>
+
+<div class="card card--quiet">
+  <h2 class="mt-0">Co pokaże slider teraz</h2>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Wpis</th>
+        <th>Poziom</th>
+        <th>Logotyp</th>
+        <th>Odnośnik</th>
+        <th>Stan</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>
+          <td>{{ row.name }}</td>
+          <td>{% if row.kind == "organizer" %}<span class="hint">{{ row.level_label }}</span>{% else %}{{ row.level_label }}{% endif %}</td>
+          <td>{% if row.has_logo %}jest{% else %}brak{% endif %}</td>
+          <td>{% if row.has_link %}jest{% else %}brak{% endif %}</td>
+          <td>
+            {% if row.shown %}
+              <span class="badge badge--ok">pokazany</span>
+            {% else %}
+              <span class="badge badge--neutral">pominięty{% if row.note %} – {{ row.note }}{% endif %}</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="hint">Logotyp i adres organizatora zmienia się w
+    <a href="/cms/">/cms/ → Ustawienia → Dane serwisu</a>. Listę partnerów, ich logotypy, adresy
+    i poziomy współpracy redaguje się w <a href="/cms/">/cms/ → Partnerzy</a>.</p>
+</div>
+{% endblock %}

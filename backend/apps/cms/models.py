@@ -25,7 +25,7 @@ from html import unescape
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.validators import RegexValidator
+from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import DatabaseError, models
 from django.db.models import F, Q
 from django.utils import timezone
@@ -165,6 +165,30 @@ validate_ga_measurement_id = RegexValidator(
         "Administracja → Strumienie danych."
     ),
 )
+
+
+#: Granice pola „sekundy” slidera sponsorów – tu i w formularzu ekranu koordynatora
+#: (``apps.web.competition_forms.SponsorSliderForm``), żeby jedna liczba nie rozjechała się
+#: z drugą. Dolna granica jest **jedynką**, nie zerem: o tym, czy pasek w ogóle się pokazuje,
+#: rozstrzyga osobny przełącznik (``sponsor_slider_enabled``) – „zero sekund” przestało być
+#: sposobem na wyłączenie slidera (uwaga organizatora z 21.09.2026).
+SPONSOR_SLIDER_MIN_SECONDS = 1
+SPONSOR_SLIDER_MAX_SECONDS = 120
+
+
+def validate_sponsor_slider_levels(value):
+    """Każdy klucz musi być znanym poziomem współpracy (patrz ``PARTNER_LEVELS`` w ``.blocks``).
+
+    Ekran koordynatora (``/coordinator/sponsor-slider/``) odrzuca nieznany klucz już
+    w formularzu (``forms.MultipleChoiceField`` z tymi samymi ``choices``) – ten walidator broni
+    drugiej drogi zapisu tego pola, czyli JSON-a wklejonego wprost w ``/cms/``.
+    """
+    if not isinstance(value, list):
+        raise ValidationError("Lista poziomów musi być tablicą kluczy.")
+    known = {key for key, _ in PARTNER_LEVELS}
+    unknown = [item for item in value if item not in known]
+    if unknown:
+        raise ValidationError(f"Nieznane poziomy współpracy: {', '.join(unknown)}.")
 
 
 @register_setting(icon="site")
@@ -329,6 +353,43 @@ class SiteSettings(BaseSiteSetting):
         ),
     )
 
+    #: Pasek rotujących logotypów partnerów i organizatora w menu serwisu (uwaga organizatora
+    #: z 21.09.2026, „jak na Olimpiadzie Biologicznej”), po prawej stronie pozycji „FAQ”. Trzy
+    #: pola, nie jedno, bo to trzy różne decyzje: **czy** w ogóle go pokazywać, **jak szybko**
+    #: się przesuwa i **których** partnerów pokazuje.
+    #:
+    #: ``sponsor_slider_enabled`` jest jedynym wyłącznikiem – bez niego trzeba by wyłączać slider
+    #: „sekundami równymi zeru”, co dawało dwie drogi do tego samego stanu i dwa miejsca, w których
+    #: mogły się rozjechać. Domyślnie włączony, bo organizator zamówił go od razu widocznym.
+    sponsor_slider_enabled = models.BooleanField(
+        "slider sponsorów włączony",
+        default=True,
+        help_text="Wyłączenie chowa pasek logotypów z menu na każdej stronie serwisu.",
+    )
+    sponsor_slider_seconds = models.PositiveSmallIntegerField(
+        "slider sponsorów – sekundy",
+        default=5,
+        validators=[
+            MinValueValidator(SPONSOR_SLIDER_MIN_SECONDS),
+            MaxValueValidator(SPONSOR_SLIDER_MAX_SECONDS),
+        ],
+        help_text="Co ile sekund pasek przesuwa się o jeden logotyp.",
+    )
+    #: Puste = bez filtra, czyli każdy poziom współpracy z logotypem trafia do slidera – to jest
+    #: stan domyślny każdego konkursu, więc dołożenie tego pola nie zmienia ani jednego menu.
+    #: Klucze są tymi samymi kluczami, co w ``PartnersStreamBlock`` (``PartnerBlock.level``) –
+    #: druga lista poziomów w tym samym serwisie mogłaby się z tamtą rozjechać.
+    sponsor_slider_levels = models.JSONField(
+        "slider sponsorów – poziomy",
+        default=list,
+        blank=True,
+        validators=[validate_sponsor_slider_levels],
+        help_text=(
+            "Poziomy współpracy pokazywane w sliderze (patrz „Partnerzy” w /cms/). "
+            "Puste = pokazuj partnerów każdego poziomu."
+        ),
+    )
+
     #: Kolejność, etykieta i nazwa znaku graficznego serwisów – jedna lista dla stopki i „Kontaktu”.
     #: Gdyby o kolejności decydował szablon, dołożenie piątego serwisu wymagałoby zgodnej poprawki
     #: w dwóch plikach, a rozjechanie się ich nie miałoby jak się ujawnić.
@@ -386,6 +447,17 @@ class SiteSettings(BaseSiteSetting):
         # potrzebuje.
         MultiFieldPanel([FieldPanel("english_interface_enabled")], heading="Język interfejsu"),
         MultiFieldPanel([FieldPanel("ga_measurement_id")], heading="Analityka"),
+        # Tempo i włącznik slidera stoją też tutaj – ten sam wiersz w bazie, co ekran koordynatora
+        # (/coordinator/sponsor-slider/), więc obie drogi zapisu zawsze się zgadzają. Listę
+        # partnerów redaguje się osobno, na stronie „Partnerzy”.
+        MultiFieldPanel(
+            [
+                FieldPanel("sponsor_slider_enabled"),
+                FieldPanel("sponsor_slider_seconds"),
+                FieldPanel("sponsor_slider_levels"),
+            ],
+            heading="Slider sponsorów",
+        ),
     ]
 
     class Meta:

@@ -398,6 +398,40 @@ Jak to działa:
 > platformy — wpisuj wyłącznie adresy komitetu i pamiętaj o wierszu w rejestrze czynności (§ 9.2,
 > czynność „Przyjmowanie i ocenianie prac konkursowych”).
 
+### 4.9 Slider sponsorów — `/coordinator/sponsor-slider/`
+
+Ekran **„Slider sponsorów”** (menu: Ustawienia → Slider sponsorów). W pasku menu serwisu, po
+prawej stronie pozycji „FAQ”, jedzie taśma logotypów partnerów i organizatora — kilka naraz,
+przesuwa się o jeden logotyp co ustawioną liczbę sekund, w nieskończonej pętli (jak na stronie
+Olimpiady Biologicznej).
+
+| Pole | Znaczenie |
+|---|---|
+| Pokazuj slider sponsorów w menu | włącznik. Wyłączenie chowa pasek na każdej stronie serwisu — natychmiast, bez czekania |
+| Co ile sekund pasek przesuwa się o jeden logotyp | liczba całkowita od 1 do 120 |
+| Poziomy partnerów w sliderze | grupa pól wyboru, jedno na każdy poziom współpracy, z liczbą partnerów **z logotypem** na tym poziomie. Nic niezaznaczone = pokazuj partnerów każdego poziomu (tak zaczyna każdy konkurs) |
+
+Skąd biorą się logotypy — **nie ma tu drugiej listy partnerów**:
+
+1. **Pierwsza plansza to zawsze logotyp organizatora**, ten sam, co w stopce serwisu
+   (`/cms/` → Ustawienia → Dane serwisu → Organizator). Bez ustawionego logotypu organizatora
+   slider zaczyna od razu od pierwszego partnera. Jeśli organizacja stoi też jako partner pod tym
+   samym adresem internetowym, jej znak nie pokazuje się drugi raz.
+2. **Reszta to partnerzy strony `/partnerzy/`** (`/cms/` → Partnerzy), w tej samej kolejności —
+   wyłącznie ci, którzy mają wgrany logotyp. Poziom, opis, adres i sam logotyp redaguje się
+   **tam**; ten ekran wyłącznie filtruje poziomy i ustawia tempo.
+3. **Podgląd pod formularzem** pokazuje każdego partnera z logotypem — także pominiętego w
+   sliderze, z powodem (poziom niezaznaczony, brak logotypu, duplikat organizatora) — żeby
+   od razu było wiadomo, czemu jakiegoś znaku nie widać w menu.
+4. **Bez partnera z logotypem i bez logotypu organizatora slider nie pokazuje się wcale** — pusty
+   pasek w menu wyglądałby jak usterka.
+5. Na wąskim ekranie (telefon, tablet w pionie) i przy włączonym w systemie trybie ograniczonego
+   ruchu slider albo znika z menu, albo stoi nieruchomo — nigdy nie miga i nie przewija się wbrew
+   ustawieniom dostępności przeglądarki.
+
+Zmiana zapisuje się od razu (audyt `site.sponsor_slider_updated` — włącznik, sekundy i poziomy,
+bez treści komunikatów).
+
 ---
 
 ## 5. Wyniki

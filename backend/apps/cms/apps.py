@@ -15,4 +15,6 @@ class CmsConfig(AppConfig):
         # komunikatów po zapisie i skasowaniu (apps/cms/announcements.py). Bez niego baner
         # pokazywałby stan sprzed minuty także zaraz po kliknięciu „Ogłoś” – a komunikat o awarii
         # ogłasza się właśnie po to, żeby był od razu.
-        from . import analytics, announcements  # noqa: F401
+        # Trzeci import: odbiorniki czyszczące pamięć podręczną slidera sponsorów po publikacji
+        # strony „Partnerzy” i po zapisie ustawień serwisu (apps/cms/sponsor_slider.py).
+        from . import analytics, announcements, sponsor_slider  # noqa: F401

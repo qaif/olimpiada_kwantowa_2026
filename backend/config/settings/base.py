@@ -241,6 +241,11 @@ TEMPLATES = [
                 # Odczyt jest z pamięci podręcznej (60 s, unieważnianej przy zapisie), bo inaczej
                 # każda odsłona kosztowałaby zapytanie; panel redakcyjny baneru nie dostaje.
                 "apps.cms.announcements.announcements",
+                # Pasek rotujących logotypów partnerów i organizatora w menu, po prawej stronie
+                # „FAQ” (templates/cms/_sponsor_slider.html). Odczyt jest z pamięci podręcznej
+                # (5 minut, unieważnianej przy publikacji partnerów i przy zapisie ustawień);
+                # panel redakcyjny paska nie dostaje.
+                "apps.cms.sponsor_slider.sponsor_slider",
                 # Nazwa serwisu, hasło i dane organizatora – ``cms.SiteSettings`` edytowane
                 # w ``/cms/`` (Ustawienia → Serwis). Szablony czytają je jako
                 # ``settings.cms.SiteSettings``; nic z tego nie jest zaszyte w kodzie.

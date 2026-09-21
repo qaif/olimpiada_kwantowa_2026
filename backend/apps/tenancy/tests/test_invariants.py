@@ -303,12 +303,22 @@ QUERY_BUDGET = {
     # Zmierzone na złotej fiksturze (wydanie B, po T2 i T3): 29 / 43 / 45. Zapas trzech zapytań
     # jest miejscem na odczyt konkursu, który zakresowanie dokłada w T4/T5 – po tych zadaniach
     # próg wraca do wartości zmierzonej, a nie zostaje „na wszelki wypadek”.
-    "/": 32,
+    #
+    # +1 od 21.09.2026: slider sponsorów w menu (``apps.cms.sponsor_slider``, procesor kontekstu
+    # w ``templates/base.html``, czyli na **każdej** stronie serwisu). Ładunek kosztuje dwa nowe
+    # zapytania – ``SiteSettings.for_site`` (włącznik/sekundy/poziomy) i ``PartnersPage…first()``
+    # (lista partnerów) – ale na stronie głównej jedno z nich trafia w ustawienia już wczytane
+    # przez Wagtaila dla tej samej instancji ``Site`` (``{% get_settings %}`` w tym samym
+    # szablonie), więc widoczny przyrost to tu tylko jedno zapytanie. Panel koordynatora
+    # i uczestnika (niżej) nie mają tego współdzielenia – tam widać oba.
+    "/": 33,
     # 47 = 46 + zapytanie nagłówka CSP o identyfikator GA4, liczone od 21.09.2026 zawsze na zimno
     # (patrz ``_reset_panel_counters``). To nie jest nowy koszt strony, tylko koniec zależności
     # pomiaru od kolejności testów.
-    "/me/": 47,
-    "/coordinator/": 48,
+    # +2 od 21.09.2026: slider sponsorów – ``SiteSettings.for_site`` i ``PartnersPage…first()``,
+    # patrz komentarz przy ``"/"`` wyżej.
+    "/me/": 49,
+    "/coordinator/": 50,
 }
 
 
