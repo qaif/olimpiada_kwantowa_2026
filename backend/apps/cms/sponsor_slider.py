@@ -31,17 +31,26 @@ odczyt z pamięci podręcznej ma kosztować zero zapytań, więc wołanie ``{% i
 
 from __future__ import annotations
 
+import logging
 from urllib.parse import urlsplit
 
 from django.core.cache import cache
 from django.db import DatabaseError
-from django.db.models.signals import post_save
+from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
-from wagtail.signals import page_published, page_unpublished
+from wagtail.images import get_image_model
+from wagtail.signals import page_published, page_unpublished, post_page_move
 
 from .blocks import PARTNER_LEVELS
 from .models import PartnersPage, SiteSettings
-from .tenancy import competition_for_request, resolve_competition
+from .tenancy import (
+    competition_for_page,
+    competition_for_request,
+    competition_for_site,
+    resolve_competition,
+)
+
+logger = logging.getLogger(__name__)
 
 #: Przedrostek i czas życia pamięci podręcznej ładunku slidera. Pasek stoi na **każdej** stronie
 #: serwisu – patrz uzasadnienie w docstringu modułu.
@@ -55,6 +64,12 @@ RENDITION_SPEC = "max-160x48"
 #: ``validate_sponsor_slider_levels`` w ``apps.cms.models``: broni zapisu, to tu broni odczytu,
 #: bo poziom mógł zniknąć z kodu **po** zapisaniu filtra).
 LEVEL_KEYS = frozenset(key for key, _ in PARTNER_LEVELS)
+
+#: Jedyne schematy, pod którymi plansza dostaje odnośnik. Bez tego strażnika ``javascript:…``
+#: wpisany wprost do adresu bloku (z pominięciem walidacji formularza – ``URLBlock``/``URLField``
+#: łapią to w /cms/ i na ekranie koordynatora, ale nie każdy zapis idzie tą drogą, patrz migracje
+#: danych i import) trafiłby do ``href`` na **każdej** stronie serwisu.
+_ALLOWED_URL_SCHEMES = ("http://", "https://")
 
 
 def cache_key(competition) -> str:
@@ -82,11 +97,40 @@ def _empty_payload() -> dict:
     return {"seconds": 0, "entries": []}
 
 
-def _rendition_entry(image, *, name: str, url: str) -> dict:
-    rendition = image.get_rendition(RENDITION_SPEC)
+def _safe_url(url: str | None) -> str:
+    """Adres, ale tylko pod ``http(s)://`` – inaczej pusty napis, czyli „bez odnośnika”.
+
+    Broni przed ``javascript:…`` i podobnymi schematami wpisanymi wprost do danych bloku z
+    pominięciem walidacji formularza (``URLBlock``/``URLField`` łapią to w /cms/ i na ekranie
+    koordynatora, ale migracja danych albo import CSV nie przechodzą przez żaden formularz).
+    """
+    url = (url or "").strip()
+    if url.lower().startswith(_ALLOWED_URL_SCHEMES):
+        return url
+    return ""
+
+
+def _rendition_entry(image, *, name: str, url: str) -> dict | None:
+    """Rendition logotypu jako gotowy wpis – albo ``None``, gdy pliku nie da się przygotować.
+
+    Plik źródłowy bywa nieosiągalny: skasowany bezpośrednio w magazynie, awaria S3/MinIO,
+    uszkodzony format, rekord bez pliku. To jest stan **danych**, a nie błąd programu – i nie może
+    wywrócić strony, bo ten kod stoi w procesorze kontekstu wołanym na **każdej** stronie serwisu
+    (``sponsor_slider`` niżej). Pomijamy wyłącznie tę jedną planszę; log niesie identyfikator
+    obrazu, nigdy nazwę partnera ani adres (to nie są dane osobowe, ale i tak nie są tu potrzebne).
+    """
+    try:
+        rendition = image.get_rendition(RENDITION_SPEC)
+    except Exception:  # noqa: BLE001 - patrz docstring; jeden zepsuty plik nie może zdjąć strony
+        logger.warning(
+            "Nie udało się przygotować logotypu #%s do slidera sponsorów – pomijam wpis.",
+            image.pk,
+            exc_info=True,
+        )
+        return None
     return {
         "name": name,
-        "url": url,
+        "url": _safe_url(url),
         "src": rendition.url,
         "width": rendition.width,
         "height": rendition.height,
@@ -98,18 +142,15 @@ def organizer_entry(settings_row) -> dict | None:
     logo = settings_row.organizer_logo
     if logo is None:
         return None
-    return _rendition_entry(
-        logo,
-        name=settings_row.organizer_name,
-        url=(settings_row.contact_url or "").strip(),
-    )
+    return _rendition_entry(logo, name=settings_row.organizer_name, url=settings_row.contact_url)
 
 
 def partner_entries(site, levels: frozenset[str], *, skip_url: str = "") -> list[dict]:
     """Partnerzy strony ``/partnerzy/`` **tej** witryny, z logotypem, w kolejności strony.
 
     ``skip_url`` jest znormalizowanym adresem organizatora – partner pod tym samym adresem nie
-    dubluje pierwszej planszy.
+    dubluje pierwszej planszy. Wpis, którego logotyp nie da się przygotować, jest pomijany
+    (``_rendition_entry`` oddaje wtedy ``None``) – reszta partnerów zostaje na taśmie.
     """
     page = PartnersPage.objects.live().child_of(site.root_page).first()
     if page is None:
@@ -122,15 +163,17 @@ def partner_entries(site, levels: frozenset[str], *, skip_url: str = "") -> list
             continue
         if levels and value.get("level") not in levels:
             continue
-        url = (value.get("url") or "").strip()
+        url = _safe_url(value.get("url"))
         if url and skip_url and normalize_url(url) == skip_url:
             continue
-        entries.append(_rendition_entry(logo, name=value.get("name", ""), url=url))
+        entry = _rendition_entry(logo, name=value.get("name", ""), url=url)
+        if entry is not None:
+            entries.append(entry)
     return entries
 
 
-def build_payload(competition=None) -> dict:
-    """Ładunek slidera **bez** pamięci podręcznej – liczy się od zera przy każdym wołaniu."""
+def _build_payload(competition) -> dict:
+    """Ładunek slidera **bez** pamięci podręcznej – właściwa treść, patrz ``build_payload``."""
     competition = resolve_competition(competition)
     site = getattr(competition, "site", None)
     if site is None:
@@ -152,6 +195,21 @@ def build_payload(competition=None) -> dict:
     if not entries:
         return _empty_payload()
     return {"seconds": settings_row.sponsor_slider_seconds, "entries": entries}
+
+
+def build_payload(competition=None) -> dict:
+    """Ładunek slidera **bez** pamięci podręcznej – liczy się od zera przy każdym wołaniu.
+
+    Owinięty w łapacz wszystkiego: ``_rendition_entry`` łapie awarię pojedynczego logotypu, ale
+    ten kod stoi w procesorze kontekstu **każdej** strony serwisu, więc jakikolwiek inny,
+    nieprzewidziany wyjątek (błąd sterownika magazynu, awaria pamięci podręcznej renditionów…)
+    ma dawać pusty pasek, a nie pięćsetkę na całym serwisie naraz.
+    """
+    try:
+        return _build_payload(competition)
+    except Exception:  # noqa: BLE001 - patrz docstring
+        logger.warning("Nie udało się zbudować ładunku slidera sponsorów.", exc_info=True)
+        return _empty_payload()
 
 
 def cached_payload(competition=None) -> dict:
@@ -182,15 +240,60 @@ def _all_cache_keys() -> list[str]:
     return keys
 
 
-#: Trzy zdarzenia unieważniają ładunek: publikacja/wycofanie strony „Partnerzy” (nowy albo zdjęty
-#: logotyp, zmiana poziomu) i zapis ``SiteSettings`` (włącznik, sekundy, filtr poziomów, **oraz**
-#: logotyp i adres organizatora – ten sam wiersz, edytowany w /cms/ → Ustawienia → Dane serwisu,
-#: a nie na ekranie koordynatora). Bez tego ostatniego zmiana znaku organizatora czekałaby na
-#: wygaśnięcie TTL, mimo że stopka pokazuje ją od razu.
+def _warm(competition) -> None:
+    """Przelicza i zapisuje ładunek **od razu**, w żądaniu, które spowodowało zmianę.
+
+    Rendition logotypu bywa kosztowna (dekodowanie i skalowanie pliku) – ten koszt ma zapłacić
+    redaktor, który właśnie kliknął „Zapisz” (na ekranie koordynatora albo w /cms/), a nie
+    przypadkowy gość odświeżający stronę główną milisekundę później na zimnej pamięci. Wołane
+    tylko tam, gdzie **wiadomo**, którego konkursu dotyczyła zmiana; zdarzenia bez tej wiedzy
+    (obraz w bibliotece, przeniesienie strony) zostawiają odbudowę leniwej ścieżce.
+    """
+    competition = resolve_competition(competition)
+    if competition is None:
+        return
+    cache.set(cache_key(competition), build_payload(competition), CACHE_TTL_SECONDS)
+
+
+#: Zdarzenia unieważniające ładunek — i to, dlaczego jest ich więcej niż trzy pierwotne:
+#:
+#: - **publikacja/wycofanie** strony „Partnerzy” (nowy albo zdjęty logotyp, zmiana poziomu) –
+#:   od razu odbudowuje i zapisuje ładunek **tego** konkursu (``instance`` niesie stronę),
+#: - **skasowanie i przeniesienie** strony „Partnerzy” – rzadsze i bez oczywistego zysku
+#:   z natychmiastowej odbudowy, więc tylko czyszczenie; następne żądanie odbuduje leniwie,
+#: - **zapis ``SiteSettings``** (włącznik, sekundy, filtr poziomów, **oraz** logotyp i adres
+#:   organizatora – ten sam wiersz, edytowany w /cms/ → Ustawienia → Dane serwisu, a nie na
+#:   ekranie koordynatora) – też z natychmiastową odbudową (``instance`` niesie witrynę),
+#: - **zapis i skasowanie obrazu** w bibliotece – logotyp partnera i logotyp organizatora są
+#:   opakowane w StreamField/FK, więc nie da się tanio ustalić, których witryn to dotyczy;
+#:   czyszczymy pamięć **wszystkich** konkursów. To jest szerszy młot niż potrzeba (dowolny obraz
+#:   w bibliotece, nawet zdjęcie do aktualności, czyści też ten pasek), ale zdarzenie jest rzadkie
+#:   (redaktor edytujący bibliotekę obrazów), a koszt pomyłki – nieaktualny znak w menu do pięciu
+#:   minut TTL – jest tym, czego dokładnie ta pamięć ma unikać.
 @receiver(page_published, sender=PartnersPage, dispatch_uid="cms.sponsor_slider.reset_on_publish")
 @receiver(page_unpublished, sender=PartnersPage, dispatch_uid="cms.sponsor_slider.reset_on_unpublish")
+def _reset_on_partners_change(sender, instance=None, **kwargs) -> None:
+    reset_cache()
+    if instance is not None:
+        _warm(competition_for_page(instance))
+
+
+@receiver(post_delete, sender=PartnersPage, dispatch_uid="cms.sponsor_slider.reset_on_delete")
+@receiver(post_page_move, sender=PartnersPage, dispatch_uid="cms.sponsor_slider.reset_on_move")
+def _reset_on_partners_structural_change(sender, **kwargs) -> None:
+    reset_cache()
+
+
 @receiver(post_save, sender=SiteSettings, dispatch_uid="cms.sponsor_slider.reset_on_settings_save")
-def _reset_on_change(sender, **kwargs) -> None:
+def _reset_on_settings_save(sender, instance=None, **kwargs) -> None:
+    reset_cache()
+    if instance is not None:
+        _warm(competition_for_site(instance.site))
+
+
+@receiver(post_save, sender=get_image_model(), dispatch_uid="cms.sponsor_slider.reset_on_image_save")
+@receiver(post_delete, sender=get_image_model(), dispatch_uid="cms.sponsor_slider.reset_on_image_delete")
+def _reset_on_image_change(sender, **kwargs) -> None:
     reset_cache()
 
 
@@ -200,9 +303,20 @@ def sponsor_slider(request) -> dict:
     Panel redakcyjny i panel administracyjny nie dostają paska – z tego samego powodu, co baner
     komunikatów (``apps.cms.announcements``): mają własną ramę i pasek wstrzyknięty w cudzy layout
     niczego by nie pokazał sensownie.
+
+    Owinięte w łapacz wszystkiego, tak samo jak ``apps.cms.analytics.analytics_enabled_for_request``:
+    to jest warstwa doklejana do **każdej** odpowiedzi, więc żaden wyjątek (nawet w samej pamięci
+    podręcznej albo w rozstrzyganiu konkursu) nie może być nowym miejscem, w którym strona pada.
     """
     from apps.web.middleware import is_admin_path
 
-    if is_admin_path(request.path):
+    try:
+        if is_admin_path(request.path):
+            return {"sponsor_slider": _empty_payload()}
+        return {"sponsor_slider": cached_payload(competition_for_request(request))}
+    except Exception:  # noqa: BLE001 - patrz docstring
+        logger.warning(
+            "Procesor kontekstu slidera sponsorów zawiódł – pasek znika z tej odpowiedzi.",
+            exc_info=True,
+        )
         return {"sponsor_slider": _empty_payload()}
-    return {"sponsor_slider": cached_payload(competition_for_request(request))}

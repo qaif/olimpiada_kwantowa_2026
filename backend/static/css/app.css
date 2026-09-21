@@ -910,6 +910,15 @@ hr {
   text-decoration: none;
 }
 
+/* Pierścień fokusu rysuje się na ``<a>``, czyli **pod** plakietką w porządku malowania, ale
+   ``outline`` stoi poza ramką elementu (dodatni ``outline-offset``) i wychodzi poza plakietkę
+   niezależnie od tła, które ta rysuje na wierzchu – patrz też tryb wysokiego kontrastu niżej. */
+.sponsor-slider__link:focus-visible {
+  outline: 2px solid var(--accent-on-brand);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm, 6px);
+}
+
 .sponsor-slider__frame {
   display: flex;
   align-items: center;
@@ -5593,4 +5602,20 @@ img.captcha {
 :root[data-contrast="high"] .details__summary:hover {
   background: #000;
   text-decoration: underline;
+}
+
+/* Plakietka slidera sponsorów ma stałe jasne tło (``#f6f4ee``) niezależne od motywu – to jest
+   zamierzone (znaki partnerów wymagają jasnego tła zawsze), więc w tym trybie dostaje tylko
+   wyraźną ramkę, tak jak reszta elementów z tłem stałym (patrz reguła ``.card``/``.badge``
+   wyżej). Pierścień fokusu dostaje własny, grubszy wariant zamiast ogólnej reguły
+   ``:is(a, …):is(:focus, :focus-visible)`` – ta ogólna maluje czarne tło na samym ``<a>``, które
+   plakietka i tak zakrywa swoim tłem, więc bez tej reguły pierścień zlewałby się z jasną ramką. */
+:root[data-contrast="high"] .sponsor-slider__frame {
+  border: 2px solid #000;
+}
+
+:root[data-contrast="high"] .sponsor-slider__link:is(:focus, :focus-visible) {
+  outline: 4px solid var(--focus);
+  outline-offset: 4px;
+  background: none;
 }

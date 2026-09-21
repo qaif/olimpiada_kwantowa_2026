@@ -12,11 +12,13 @@ from __future__ import annotations
 from io import BytesIO
 
 import pytest
+from django.core.cache import cache as django_cache
 from django.core.files.images import ImageFile
 from PIL import Image as PILImage
 from wagtail.images import get_image_model
+from wagtail.images.models import SourceImageIOError
 
-from apps.cms.models import FAQPage, HomePage, PartnersPage, SiteSettings
+from apps.cms.models import ContentPage, FAQPage, HomePage, PartnersPage, SiteSettings
 from apps.cms.sponsor_slider import build_payload, cache_key, cached_payload, normalize_url
 
 pytestmark = pytest.mark.django_db
@@ -381,3 +383,233 @@ def test_only_the_organizer_renders_a_single_item(web_client, competition):
 
     assert content.count("sponsor-slider__item") == 1
     assert "data-sponsor-slider" in content
+
+
+# --- odporność na uszkodzone logotypy (Critic review PR #9, blocker 1) --------------------------
+#
+# Ten sam plik w bibliotece bywa nieosiągalny: skasowany bezpośrednio w magazynie, awaria
+# S3/MinIO, uszkodzony format. To jest stan danych, na który organizator nie ma wpływu z poziomu
+# przeglądarki, a ten kod stoi w procesorze kontekstu wołanym na **każdej** stronie serwisu –
+# jeden zepsuty plik nie może dawać pięćsetki na całym serwisie.
+
+
+def test_a_broken_organizer_logo_is_skipped_and_partners_still_show(competition, partners_page, monkeypatch):
+    row = settings_for(competition)
+    organizer_logo = make_image("Organizator")
+    row.organizer_logo = organizer_logo
+    row.save()
+    set_partners(partners_page, [partner("Partner A", logo=make_image("Partner A"))])
+
+    Image = get_image_model()
+    original = Image.get_rendition
+
+    def broken(self, *args, **kwargs):
+        if self.pk == organizer_logo.pk:
+            raise SourceImageIOError("plik nieosiągalny")
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(Image, "get_rendition", broken)
+
+    payload = build_payload(competition)
+
+    assert [entry["name"] for entry in payload["entries"]] == ["Partner A"]
+
+
+def test_a_broken_partner_logo_is_skipped_other_partners_still_show(competition, partners_page, monkeypatch):
+    bad = make_image("Zły")
+    good = make_image("Dobry")
+    set_partners(partners_page, [partner("Zły", logo=bad), partner("Dobry", logo=good)])
+
+    Image = get_image_model()
+    original = Image.get_rendition
+
+    def broken(self, *args, **kwargs):
+        if self.pk == bad.pk:
+            raise SourceImageIOError("plik nieosiągalny")
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(Image, "get_rendition", broken)
+
+    payload = build_payload(competition)
+
+    assert [entry["name"] for entry in payload["entries"]] == ["Dobry"]
+
+
+def test_every_broken_logo_yields_an_empty_slider_not_a_crash(competition, partners_page, monkeypatch):
+    row = settings_for(competition)
+    row.organizer_logo = make_image("Organizator")
+    row.save()
+    set_partners(partners_page, [partner("Partner A", logo=make_image("Partner A"))])
+
+    def always_broken(self, *args, **kwargs):
+        raise SourceImageIOError("plik nieosiągalny")
+
+    monkeypatch.setattr(get_image_model(), "get_rendition", always_broken)
+
+    assert build_payload(competition) == {"seconds": 0, "entries": []}
+
+
+def test_an_unexpected_exception_in_the_builder_yields_an_empty_slider(
+    competition, partners_page, monkeypatch
+):
+    """Nie tylko błąd obrazu – dowolny nieprzewidziany wyjątek ma dawać pusty pasek, nie 500."""
+    row = settings_for(competition)
+    row.organizer_logo = make_image("Organizator")
+    row.save()
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("awaria magazynu")
+
+    monkeypatch.setattr("apps.cms.sponsor_slider.partner_entries", boom)
+
+    assert build_payload(competition) == {"seconds": 0, "entries": []}
+
+
+def test_an_image_deleted_from_storage_is_skipped(competition, partners_page):
+    """Rekord istnieje, ale plik zniknął z magazynu – to samo zachowanie, co uszkodzony plik.
+
+    Plik kasujemy **przed** publikacją: publikacja strony „Partnerzy” już przelicza i zapisuje
+    rendition (``_warm`` – patrz medium 7), więc gdybyśmy skasowali plik dopiero potem, test
+    trafiłby w rendition już wygenerowany i zapisany, a nie w ten sam, zepsuty plik źródłowy.
+    """
+    image = make_image("Partner A")
+    image.file.storage.delete(image.file.name)
+    set_partners(partners_page, [partner("Partner A", logo=image)])
+
+    assert build_payload(competition) == {"seconds": 0, "entries": []}
+
+
+def test_a_deleted_image_file_does_not_crash_the_page(web_client, competition, partners_page):
+    """Sprawdzone na stronie **innej** niż główna: ``/`` ma też własny pas partnerów
+    (``partner-strip``, poza zakresem tej zmiany), który dotknąłby tego samego pliku niezależnie
+    od slidera – tu przedmiotem jest wyłącznie odporność procesora kontekstu."""
+    image = make_image("Partner A")
+    image.file.storage.delete(image.file.name)
+    set_partners(partners_page, [partner("Partner A", logo=image)])
+
+    response = web_client.get("/zadania/")
+
+    assert response.status_code == 200
+    assert "data-sponsor-slider" not in response.content.decode()
+
+
+# --- schemat adresu (Critic review PR #9) --------------------------------------------------------
+
+
+def test_a_javascript_partner_url_written_directly_to_block_data_is_ignored(competition, partners_page):
+    """Ominięcie walidacji formularza: adres wpisany wprost do danych bloku po stronie Pythona."""
+    set_partners(
+        partners_page,
+        [partner("Zła strona", logo=make_image("Zła strona"), url="javascript:alert(1)")],
+    )
+
+    payload = build_payload(competition)
+
+    assert payload["entries"][0]["url"] == ""
+
+
+def test_a_javascript_organizer_url_written_directly_to_the_row_is_ignored(competition):
+    row = settings_for(competition)
+    row.organizer_logo = make_image("Organizator")
+    row.save()
+    SiteSettings.objects.filter(pk=row.pk).update(contact_url="javascript:alert(1)")
+
+    payload = build_payload(competition)
+
+    assert payload["entries"][0]["url"] == ""
+
+
+# --- unieważnianie pamięci podręcznej: skasowanie i przeniesienie strony, obraz w bibliotece ------
+# (Critic review PR #9, high 2)
+
+
+def _seed_sentinel(competition) -> None:
+    """Wpisuje wartownika wprost do pamięci podręcznej – test wykrywa sam fakt jego zniknięcia,
+    a nie przypadkową zgodność danych sprzed i po zdarzeniu."""
+    django_cache.set(cache_key(competition), {"seconds": 999, "entries": ["wartownik"]}, 300)
+
+
+def test_deleting_the_partners_page_invalidates_the_cache(competition, partners_page):
+    set_partners(partners_page, [partner("Jedyny", logo=make_image("Jedyny"))])
+    cached_payload(competition)
+
+    PartnersPage.objects.get(pk=partners_page.pk).delete()
+
+    assert cached_payload(competition) == {"seconds": 0, "entries": []}
+
+
+def test_moving_the_partners_page_invalidates_the_cache(competition, partners_page, home):
+    set_partners(partners_page, [partner("Jedyny", logo=make_image("Jedyny"))])
+    cached_payload(competition)
+    _seed_sentinel(competition)
+
+    other_branch = home.add_child(instance=ContentPage(title="Inna gałąź", slug="inna-galaz"))
+    PartnersPage.objects.get(pk=partners_page.pk).move(other_branch, pos="last-child")
+
+    assert cached_payload(competition) != {"seconds": 999, "entries": ["wartownik"]}
+
+
+def test_saving_an_image_invalidates_the_cache(competition, partners_page):
+    image = make_image("Partner A")
+    set_partners(partners_page, [partner("Partner A", logo=image)])
+    cached_payload(competition)
+    _seed_sentinel(competition)
+
+    image.title = "Zmieniona nazwa"
+    image.save()
+
+    assert cached_payload(competition) != {"seconds": 999, "entries": ["wartownik"]}
+
+
+def test_deleting_an_image_invalidates_the_cache(competition, partners_page):
+    image = make_image("Partner A")
+    set_partners(partners_page, [partner("Partner A", logo=image)])
+    cached_payload(competition)
+    _seed_sentinel(competition)
+
+    image.delete()
+
+    assert cached_payload(competition) != {"seconds": 999, "entries": ["wartownik"]}
+
+
+# --- odbudowa poza żądaniem czytelnika (Critic review PR #9, medium 7) ---------------------------
+
+
+def test_saving_settings_warms_the_cache_for_the_next_visitor(
+    competition, partners_page, django_assert_max_num_queries, monkeypatch
+):
+    """Po zapisie ustawień pierwszy kolejny odczyt (gość na stronie głównej) nie płaci niczym:
+    ani zapytaniem, ani wywołaniem ``get_rendition`` – rendition powstał już w tym żądaniu."""
+    set_partners(partners_page, [partner("Partner A", logo=make_image("Partner A"))])
+    row = settings_for(competition)
+
+    Image = get_image_model()
+    original = Image.get_rendition
+    calls: list[int] = []
+
+    def counting(self, *args, **kwargs):
+        calls.append(self.pk)
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(Image, "get_rendition", counting)
+
+    row.organizer_logo = make_image("Organizator")
+    row.save()  # -> sygnał: reset_cache() + _warm() przelicza i zapisuje ładunek od razu
+
+    calls.clear()
+    with django_assert_max_num_queries(0):
+        payload = cached_payload(competition)
+
+    assert calls == [], "odczyt po zapisie nie może wołać get_rendition drugi raz"
+    assert [entry["name"] for entry in payload["entries"]] == ["Fundacja Quantum AI", "Partner A"]
+
+
+def test_publishing_partners_warms_the_cache_for_the_next_visitor(
+    competition, partners_page, django_assert_max_num_queries
+):
+    set_partners(partners_page, [partner("Partner A", logo=make_image("Partner A"))])
+
+    with django_assert_max_num_queries(0):
+        payload = cached_payload(competition)
+
+    assert [entry["name"] for entry in payload["entries"]] == ["Partner A"]

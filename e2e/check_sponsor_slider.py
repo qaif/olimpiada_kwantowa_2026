@@ -2,20 +2,21 @@
 
 Cztery rzeczy, których nie sprawdzi pytest, bo dzieją się w przeglądarce (``static/js/sponsor-slider.js``):
 
-1. **Taśma jedzie i nigdy się nie zatrzymuje.** Po jednym pełnym okrążeniu (tyle plansz, ile jest
-   naprawdę – klony na końcu doliczają się same) wraca bez skoku na początek i jedzie dalej –
-   organizator, potem partnerzy, znowu organizator, w kółko (uwaga organizatora z 21.09.2026:
-   „jak na Olimpiadzie Biologicznej”, bez żadnego zatrzymania po jednym przejściu).
-2. **Najechanie i fokus zatrzymują taśmę**, zjechanie/utrata fokusu wznawiają ją.
-3. **``prefers-reduced-motion: reduce`` wyłącza ruch całkowicie** – zostaje nieruchomy rząd
-   pierwszych logotypów, tylu, ile mieści pudełko.
+1. **Taśma jedzie i nigdy się nie zatrzymuje**, kiedy logotypów jest więcej, niż mieści pudełko.
+   Stan jest jawny w znaczniku (``data-sponsor-slider-state``: ``running``/``static``) – skrypt
+   sam decyduje, w którym stanie być, więc kontrola czyta ten atrybut, a nie zgaduje po klasach.
+   Jeśli logotypów jest więcej niż widocznych slotów, a stan mimo to jest ``static``, to jest
+   **usterka**, nie powód do pominięcia testu.
+2. **Najechanie i fokus zatrzymują taśmę** (dwa niezależne powody – patrz ``check_pause_
+   independent``), zjechanie/utrata fokusu wznawiają ją.
+3. **``prefers-reduced-motion: reduce`` wyłącza ruch całkowicie** – stan ma być ``static``, a
+   transformacja taśmy ma się nie zmieniać przez cały interwał.
 4. **Poniżej 900 px paska nie ma wcale** – to samo pytanie, co przy innych elementach nagłówka
    (``check_sticky_bar.py``, ``check_timeline_strip.py``).
 
-Wymaga zawodów z ustawionym logotypem organizatora i co najmniej czterema partnerami z logotypem
-(więcej, niż mieści jeden rząd) – tyle, ile zakłada ``manage.py seed_partners`` na środowisku
-deweloperskim. Bez tego taśma ma za mało plansz, żeby się w ogóle przewijać (test 1 kończy się
-wtedy komunikatem „za mało logotypów do testu pętli”, a nie fałszywym zielonym wynikiem).
+Wymaga zawodów z ustawionym logotypem organizatora i co najmniej pięcioma partnerami z logotypem
+(więcej, niż mieści jeden rząd o szerokości 1280 px – cztery sloty po ~132 px) – tyle, ile
+zakłada ``manage.py seed_partners`` na środowisku deweloperskim.
 
 Uruchamianie jak pozostałe kontrole (Chromium bez okna, w sieci compose):
 
@@ -34,71 +35,99 @@ STATE = """() => {
   const root = document.querySelector('[data-sponsor-slider]');
   if (!root) return null;
   const track = root.querySelector('[data-sponsor-slider-track]');
+  const items = [...track.querySelectorAll('.sponsor-slider__item')];
+  const real = items.filter((item) => !item.hasAttribute('aria-hidden'));
+  const style = getComputedStyle(root);
   return {
     interval: parseInt(root.getAttribute('data-interval'), 10),
-    animated: root.classList.contains('sponsor-slider--animated'),
-    items: track.querySelectorAll('.sponsor-slider__item').length,
-    realItems: track.querySelectorAll('.sponsor-slider__item:not([aria-hidden])').length,
+    state: root.getAttribute('data-sponsor-slider-state'),
+    itemCount: items.length,
+    realCount: real.length,
+    slotWidth: real.length ? real[0].getBoundingClientRect().width : 0,
+    rootWidth: root.clientWidth,
+    display: style.display,
     transform: getComputedStyle(track).transform,
-    display: getComputedStyle(root).display,
   };
 }"""
 
 
-def check_rendering(page) -> None:
+def visible_slots(state: dict) -> int:
+    if not state["slotWidth"]:
+        return state["realCount"]
+    return max(1, int(state["rootWidth"] // state["slotWidth"]))
+
+
+def check_rendering(page) -> dict:
     page.goto(BASE + PATH, wait_until="networkidle")
     state = page.evaluate(STATE)
     assert state is not None, "slider sponsorów musi stać w menu (organizator albo partner z logo)"
-    print(f"slider: {state['realItems']} plansz, interwał {state['interval']}s, animated={state['animated']}")
+    print(f"slider: {state['realCount']} plansz, interwał {state['interval']}s, stan={state['state']}")
     assert state["interval"] > 0, "atrybut data-interval musi być dodatnią liczbą sekund"
+    assert state["state"] in ("running", "static"), "data-sponsor-slider-state ma mieć jedną z dwóch wartości"
+    return state
 
 
-def check_endless_loop(page) -> None:
+def check_state_matches_capacity(state: dict) -> None:
+    """Za dużo logotypów na jeden rząd → stan MUSI być ``running``. To jest twarda asercja."""
+    slots = visible_slots(state)
+    print(f"plansz: {state['realCount']}, widocznych slotów: {slots}")
+    if state["realCount"] > slots:
+        assert state["state"] == "running", (
+            f"jest {state['realCount']} logotypów na {slots} widocznych slotów, "
+            "a slider nie jedzie (data-sponsor-slider-state != 'running')"
+        )
+    else:
+        assert state["state"] == "static", "logotypy mieszczą się naraz – slider nie ma czego przewijać"
+
+
+def check_endless_loop(page, state: dict) -> None:
     """Po jednym okrążeniu taśma wraca na początek bez skoku i jedzie dalej – bez końca."""
-    page.goto(BASE + PATH, wait_until="networkidle")
-    before = page.evaluate(STATE)
-    if not before["animated"] or before["realItems"] < 2:
-        print("za mało logotypów do testu pętli – pomijam (patrz docstring modułu)")
+    if state["state"] != "running":
         return
-
-    interval_ms = before["interval"] * 1000
+    interval_ms = state["interval"] * 1000
     seen_transforms = set()
-    # Obserwujemy przez dwa pełne okrążenia plus zapas – tyle, żeby złapać powrót na zero.
-    rounds = before["realItems"] * 2 + 1
+    rounds = state["realCount"] * 2 + 1
     for _ in range(rounds):
         page.wait_for_timeout(interval_ms + 150)
-        state = page.evaluate(STATE)
-        seen_transforms.add(state["transform"])
+        seen_transforms.add(page.evaluate(STATE)["transform"])
     print(f"transformacje zaobserwowane w {rounds} krokach: {len(seen_transforms)}")
     assert len(seen_transforms) >= 2, "taśma faktycznie się przesuwa"
-    # Taśma nie może się zatrzymać na końcu – ostatni odczyt to wciąż aktywne przewijanie.
-    final = page.evaluate(STATE)
+
+    before = page.evaluate(STATE)["transform"]
     page.wait_for_timeout(interval_ms + 150)
-    after_final = page.evaluate(STATE)
-    assert final["transform"] != after_final["transform"] or before["realItems"] <= 1, (
-        "taśma stanęła zamiast jechać dalej – pętla ma być bez końca"
-    )
+    after = page.evaluate(STATE)["transform"]
+    assert before != after, "taśma stanęła zamiast jechać dalej – pętla ma być bez końca"
 
 
-def check_pause_on_hover(page) -> None:
-    page.goto(BASE + PATH, wait_until="networkidle")
-    state = page.evaluate(STATE)
-    if not state["animated"]:
-        print("slider statyczny (za mało logotypów albo jeden slot) – pomijam test pauzy")
+def check_pause_independent(page, state: dict) -> None:
+    """Hover i fokus to dwa niezależne powody pauzy – żaden nie może „zjeść” drugiego."""
+    if state["state"] != "running":
+        print("slider statyczny – pomijam test pauzy (nic tu nie jedzie)")
         return
     interval_ms = state["interval"] * 1000
     root = page.locator("[data-sponsor-slider]")
+    link = root.locator("a").first
+
+    # Najechanie zatrzymuje.
     root.hover()
     before = page.evaluate(STATE)["transform"]
     page.wait_for_timeout(interval_ms + 300)
-    during = page.evaluate(STATE)["transform"]
-    print(f"pod kursorem: {before} -> {during}")
-    assert before == during, "najechanie na slider ma zatrzymać przewijanie"
+    during_hover = page.evaluate(STATE)["transform"]
+    assert before == during_hover, "najechanie na slider ma zatrzymać przewijanie"
 
-    page.mouse.move(10, 10)
+    # Fokus na odnośniku W ŚRODKU sliderа, mysz nadal na sliderze: pauza ma trwać po zjechaniu
+    # myszą, dopóki fokus tam stoi (dwa niezależne powody, nie jeden wspólny flag).
+    link.focus()
+    page.mouse.move(1, 1)  # zjeżdżamy kursorem poza slider, ale fokus zostaje w środku
     page.wait_for_timeout(interval_ms + 300)
-    after = page.evaluate(STATE)["transform"]
-    assert after != during, "zjechanie kursorem ma wznowić przewijanie"
+    still_paused = page.evaluate(STATE)["transform"]
+    assert during_hover == still_paused, "utrata najechania nie może wznowić taśmy, dopóki trwa fokus"
+
+    # Dopiero zdjęcie fokusu (poza slider) wznawia.
+    page.keyboard.press("Tab")
+    page.wait_for_timeout(interval_ms + 300)
+    resumed = page.evaluate(STATE)["transform"]
+    assert resumed != still_paused, "zdjęcie fokusu i myszy razem ma wznowić przewijanie"
 
 
 def check_reduced_motion(browser) -> None:
@@ -109,8 +138,8 @@ def check_reduced_motion(browser) -> None:
     if state is None:
         context.close()
         return
-    print(f"reduced-motion: animated={state['animated']}")
-    assert state["animated"] is False, "prefers-reduced-motion ma wyłączyć ruch całkowicie"
+    print(f"reduced-motion: stan={state['state']}")
+    assert state["state"] == "static", "prefers-reduced-motion ma wyłączyć ruch całkowicie"
     before = page.evaluate(STATE)["transform"]
     page.wait_for_timeout((state["interval"] + 1) * 1000)
     after = page.evaluate(STATE)["transform"]
@@ -134,9 +163,10 @@ def check_narrow_screen(page) -> None:
 with sync_playwright() as playwright:
     browser = playwright.chromium.launch()
     page = browser.new_page(viewport={"width": 1280, "height": 800})
-    check_rendering(page)
-    check_endless_loop(page)
-    check_pause_on_hover(page)
+    initial_state = check_rendering(page)
+    check_state_matches_capacity(initial_state)
+    check_endless_loop(page, initial_state)
+    check_pause_independent(page, initial_state)
     check_reduced_motion(browser)
     check_narrow_screen(page)
     browser.close()
