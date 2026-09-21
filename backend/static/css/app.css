@@ -506,6 +506,17 @@ hr {
   border-bottom: 2px solid transparent;
 }
 
+/* Strona główna jako domek (pierwsza pozycja menu). ``inline-flex`` wyrównuje rysunek do linii
+   bazowej sąsiednich napisów; nazwa pozycji stoi w ``visually-hidden`` obok rysunku. */
+.nav__link--home {
+  display: inline-flex;
+  align-items: center;
+}
+
+.nav__home-icon {
+  display: block;
+}
+
 .nav__link:hover {
   color: #fff;
   border-bottom-color: rgba(239, 138, 130, 0.6);
@@ -870,6 +881,22 @@ hr {
    Poniżej 640 px wykres znika i zostaje z niego zwinięty kalendarz (``.tl-list``): 102 znaki
    miałyby tam wysokość dwóch pikseli. Obie postacie są rozłączne (``display: none``), więc
    czytnik ekranu nigdy nie czyta ich obu. */
+
+/* Dok linii czasu – od 21.09.2026 pasek stoi na dole strony, tuż nad stopką (templates/base.html),
+   a nie w nagłówku. Tło nagłówka jedzie razem z nim, bo kolory wykresu (``--tl-*``) są dobrane pod
+   granat; ``flex-shrink: 0`` z tego samego powodu, co w stopce: ``body`` jest kolumną flex i to
+   treść ma się kurczyć, nie pasek. Bez bieżącej edycji znacznik nie rysuje niczego – puste
+   opakowanie znika, żeby nad stopką nie został granatowy pasek bez treści. */
+.timeline-dock {
+  flex-shrink: 0;
+  background: var(--brand);
+  color: var(--brand-ink);
+  padding: var(--sp-2) 0;
+}
+
+.timeline-dock:not(:has(.timeline-strip)) {
+  display: none;
+}
 
 .timeline-strip {
   position: relative;

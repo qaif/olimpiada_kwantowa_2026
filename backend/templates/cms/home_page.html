@@ -217,22 +217,34 @@
   </section>
 {% endif %}
 
-{% if latest_news %}
-  <section class="section">
+{% comment %}
+  Panel aktualności. Od 21.09.2026 jest **jedyną** drogą do newsroomu z nawigacji – pozycję
+  „Aktualności” w menu zastąpił domek – dlatego stoi także wtedy, gdy wiadomości jeszcze nie ma
+  (pusty panel mówi „tu będą komunikaty”, a jego brak nie mówi nic), i zawsze prowadzi do pełnej
+  listy. Bez opublikowanego newsroomu panelu nie ma: nie byłoby dokąd prowadzić.
+{% endcomment %}
+{% if news_index or latest_news %}
+  <section class="section" id="aktualnosci">
     <div class="section__head">
       <h2 class="mt-0">Aktualności</h2>
+      {% if news_index %}<a href="{% pageurl news_index %}">Wszystkie aktualności</a>{% endif %}
     </div>
-    <ul class="cards">
-      {% for item in latest_news %}
-        <li>
-          <article class="card news-card">
-            <span class="news-card__date">{{ item.date }}</span>
-            <h3><a href="{% pageurl item %}">{{ item.title }}</a></h3>
-            {% if item.lead %}<p>{{ item.lead }}</p>{% endif %}
-          </article>
-        </li>
-      {% endfor %}
-    </ul>
+    {% if latest_news %}
+      <ul class="cards">
+        {% for item in latest_news %}
+          <li>
+            <article class="card news-card">
+              <span class="news-card__date">{{ item.date }}</span>
+              <h3><a href="{% pageurl item %}">{{ item.title }}</a></h3>
+              {% if item.lead %}<p>{{ item.lead }}</p>{% endif %}
+            </article>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty"><span class="empty__title">Brak aktualności</span>
+        Komunikaty organizatora – w tym linki do warsztatów – pojawią się tutaj.</p>
+    {% endif %}
   </section>
 {% endif %}
 

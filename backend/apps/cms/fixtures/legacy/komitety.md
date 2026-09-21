@@ -8,27 +8,30 @@ Za przygotowanie zadań i jakość merytoryczną Olimpiady odpowiada Komitet Mer
 
 **Zakres odpowiedzialności:** Zadania, kryteria oceniania, anonimowa ocena prac, kwalifikacja i rozstrzygnięcia Jury, rozpatrywanie odwołań
 
-1. Paweł Gora
-2. Grzegorz Czelusta
-3. Michał Krupiński
-4. Rafał Demkowicz-Dobrzański
-5. Krzysztof Pawłowski
-6. Krzysztof Kurowski
-7. Piotr Rydlichowski
-8. Adam Wesołowski
-9. Marek Adamczyk
-10. Tomasz Sowiński
+1. Prof. dr hab. Rafał Demkowicz-Dobrzański (Uniwersytet Warszawski) – **Przewodniczący**
+2. Mgr Grzegorz Czelusta (Uniwersytet Jagielloński) – **Wiceprzewodniczący**
+3. Dr Marek Adamczyk (finQbit)
+4. Dr Paweł Gora (Fundacja Quantum AI)
+5. Dr Michał Krupiński (Instytut Fizyki Jądrowej PAN)
+6. Dr hab. Krzysztof Kurowski (Poznańskie Centrum Superkomputerowo-Sieciowe)
+7. Dr hab. Krzysztof Pawłowski (Centrum Fizyki Teoretycznej PAN)
+8. Mgr inż. Piotr Rydlichowski (Poznańskie Centrum Superkomputerowo-Sieciowe)
+9. Prof. dr hab. Tomasz Sowiński (Instytut Fizyki PAN)
+10. Dr inż. Mateusz Tykierko (IQM)
+11. Mgr Adam Wesołowski (Royal Holloway London)
+12. Prof. dr hab. Karol Życzkowski (Uniwersytet Jagielloński)
 
 ## Komitet Organizacyjny
 
 **Zakres odpowiedzialności:** Rejestracja, komunikacja, obsługa systemu, logistyka, miejsce finału i dokumentacja zawodów
 
-1. Paweł Gora
-2. Michał Kutwin
-3. Tomasz Ćwik
-4. Marcin Sadowski
-5. Michał Szaniewski
-6. Grzegorz Czelusta
+1. Dr Paweł Gora (Fundacja Quantum AI) – **Przewodniczący**
+2. Mgr Grzegorz Czelusta (Uniwersytet Jagielloński)
+3. Mgr inż. Tomasz Ćwik (finQbit)
+4. Mgr Michał Kutwin (Fundacja Quantum AI)
+5. Mgr Marcin Sadowski (AIQLAB)
+6. Mgr Michał Szaniewski (AIQLAB)
+7. Dr hab. Jakub Mielczarek (Uniwersytet Jagielloński)
 
 ## Kontakt z Organizatorem
 

@@ -193,16 +193,7 @@
           <a class="account-bar__link" href="{{ coordinator_url }}"
              {% if request.path == coordinator_url %}aria-current="page"{% endif %}>Koordynator</a>
         {% endif %}
-        {% comment %}
-          „Zgłoś problem” stoi przy pozycjach konta, a nie w stopce, i to jest cała jego wartość:
-          człowiek, któremu coś właśnie nie zadziałało, ma drogę do organizatora **z tej strony,
-          na której utknął** – a adres tej strony jedzie razem ze zgłoszeniem. Pozycja jest dla
-          każdej roli, bo utknąć potrafi tak samo uczestnik przy wysyłce pracy, jak recenzent
-          przy otwieraniu cudzego PDF-a.
-        {% endcomment %}
-        {% url 'web:support' as support_url %}
-        <a class="account-bar__link" href="{{ support_url }}"
-           {% if request.path == support_url %}aria-current="page"{% endif %}>{% translate "Zgłoś problem" %}</a>
+        {% include "web/_support_link.html" %}
         <span class="account-bar__sep" aria-hidden="true"></span>
         <span class="account-bar__who who" title="{{ user.email }}">{{ user.email }}</span>
         <form method="post" action="{% url 'web:logout' %}" class="inline account-bar__logout">
@@ -210,6 +201,7 @@
           <button type="submit" class="btn btn--small btn--secondary account-bar__btn">{% translate "Wyloguj" %}</button>
         </form>
       {% else %}
+        {% include "web/_support_link.html" %}
         {% url 'web:login' as login_url %}
         {% url 'web:register' as register_url %}
         <a class="btn btn--small btn--secondary account-bar__btn" href="{{ login_url }}"
@@ -254,20 +246,35 @@
             JavaScripcie i nie potrzebuje ani atrybutów ARIA, ani obsługi fokusu – przeglądarka
             robi jedno i drugie sama. Od 900 px arkusz otwiera ją dodatkowo najechaniem
             (``:hover``/``:focus-within``), więc na desktopie kliknięcie nie jest konieczne.
-            Pierwsza pozycja listy prowadzi do samej sekcji: rozwijacz nie może być jedyną drogą
-            do adresu, który da się podać w piśmie.
+            Pozycji „Wszystkie dokumenty” na liście już nie ma (uwaga organizatora z 21.09.2026):
+            lista rozwijana wymienia każdy dokument z nazwy, więc odnośnik do samego spisu był
+            jedenastą drogą do tych samych dziesięciu stron. Adres ``/dokumenty/`` działa dalej.
           {% endcomment %}
           <details class="nav-menu">
             <summary class="nav__link nav-menu__summary{% if item.active %} nav-menu__summary--active{% endif %}">{{ item.title }}</summary>
             <ul class="nav-menu__list">
-              <li><a class="nav-menu__link nav-menu__link--all" href="{{ item.url }}"
-                     {% if item.url == request.path %}aria-current="page"{% endif %}>Wszystkie dokumenty</a></li>
               {% for child in item.children %}
                 <li><a class="nav-menu__link" href="{{ child.url }}"
                        {% if child.active %}aria-current="page"{% endif %}>{{ child.title }}</a></li>
               {% endfor %}
             </ul>
           </details>
+        {% elif item.home %}
+          {% comment %}
+            Strona główna jako domek, bez napisu (uwaga organizatora z 21.09.2026). Nazwa zostaje
+            w ``visually-hidden`` i w ``title``: ikona bez nazwy jest dla czytnika ekranu pustym
+            odnośnikiem, a dla myszy – zagadką. Rysunek jest ``aria-hidden`` i bierze kolor
+            z tekstu (``currentColor``), więc podświetlenie aktywnej pozycji działa jak u reszty.
+          {% endcomment %}
+          <a class="nav__link nav__link--home" href="{{ item.url }}" title="{{ item.title }}"
+             {% if item.url == request.path %}aria-current="page"{% endif %}>
+            <svg class="nav__home-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"
+                 focusable="false" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h5v-6h4v6h5V9.5"/>
+            </svg>
+            <span class="visually-hidden">{{ item.title }}</span>
+          </a>
         {% else %}
           <a class="nav__link" href="{{ item.url }}"
              {% if item.url == request.path %}aria-current="page"{% endif %}>{{ item.title }}</a>
@@ -275,15 +282,6 @@
       {% endfor %}
     </nav>
   </div>
-  {% comment %}
-    Linia czasu edycji – pod wierszem menu serwisu i **poza** przyklejonym paskiem konta.
-    Poza nim celowo: pasek konta przykleja się do krawędzi okna i ma zostać krótki, a linia czasu
-    jest kalendarzem do przeczytania raz, a nie skrótem trzymanym pod ręką przez całą stronę.
-    Nagłówek renderuje się na każdej stronie serwisu (żaden szablon go nie nadpisuje), więc blok
-    jest tu jedynym wyłącznikiem: szablon, któremu pasek przeszkadza, nadpisuje ``timeline_strip``
-    pustką. Bez bieżącej edycji znacznik nie rysuje niczego.
-  {% endcomment %}
-  {% block timeline_strip %}{% timeline_strip_block %}{% endblock %}
 </header>
 
 {% comment %}
@@ -310,6 +308,19 @@
   {% block content %}{% endblock %}
 </main>
 
+{% comment %}
+  Linia czasu edycji – **na dole strony, tuż nad stopką** (uwaga organizatora z 21.09.2026;
+  wcześniej stała w nagłówku, pod menu). Rozwijany kalendarz na górze każdej strony odsuwał treść
+  w dół przy każdym najechaniu myszą po drodze do menu; na dole rozwija się w stronę stopki i nie
+  przesuwa niczego, co czytelnik właśnie czyta. Stoi na każdej stronie serwisu, więc blok jest
+  jedynym wyłącznikiem: szablon, któremu pasek przeszkadza, nadpisuje ``timeline_strip`` pustką.
+  Bez bieżącej edycji znacznik nie rysuje niczego, a arkusz chowa wtedy puste opakowanie.
+
+  Opakowanie ``.timeline-dock`` niesie granatowe tło nagłówka: kolory wykresu są dobrane pod
+  ciemne tło i na jasnym tle strony byłyby nieczytelne.
+{% endcomment %}
+<div class="timeline-dock">{% block timeline_strip %}{% timeline_strip_block %}{% endblock %}</div>
+
 <footer class="footer">
   <div class="footer__inner">
     {% with site=settings.cms.SiteSettings %}
@@ -325,34 +336,16 @@
       <p class="footer__links">
         <a href="/dokumenty/rodo/">{% translate "Polityka prywatności (RODO)" %}</a>
         <a href="/dokumenty/cookies/">{% translate "Polityka plików cookie" %}</a>
-        <a href="/dokumenty/">{% translate "Dokumenty" %}</a>
         {% comment %}
-          FAQ i formularz pomocy w stopce, a **nie** w przyklejonym pasku nawigacji: pasek jest
-          krótki i trzyma to, czego uczestnik szuka w trakcie zawodów (zadania, terminy). Pytania
-          i zgłoszenia czyta się wtedy, gdy coś już nie wyszło – a wtedy szuka się ich na dole
-          strony, razem z kontaktem i dokumentami. Adres ``/faq/`` jest stałą ścieżką strony
-          w drzewie Wagtaila z tego samego powodu, co dokumenty wyżej: strona bywa jeszcze
-          nieopublikowana, a brak strony nie może wywrócić szablonu bazowego.
+          Stopka po uwagach organizatora z 21.09.2026: zniknęły z niej „Dokumenty”, „Najczęstsze
+          pytania”, „Statystyki” i „Rejestracja z kodem”. Dokumenty i FAQ mają własne pozycje
+          w menu u góry; statystyki i rejestracja z kodem zostają pod swoimi adresami
+          (``/statystyki/``, ``web:register-committee`` – zaproszenie prowadzi tam wprost z listu),
+          tylko bez odnośnika na każdej stronie. „Zgłoś problem” prowadzi pod **ten sam adres**,
+          co pozycja w pasku konta – oba odnośniki rysuje jeden fragment, żeby nie dało się ich
+          rozjechać.
         {% endcomment %}
-        <a href="/faq/">{% translate "Najczęstsze pytania" %}</a>
-        <a href="{% url 'web:support-new' %}">{% translate "Zgłoś problem" %}</a>
-        {% comment %}
-          Statystyki ogłoszonych etapów. Adres jest wzorcem w ``config/urls.py`` (a nie stroną
-          w drzewie CMS-a), więc tu wolno użyć ``{% templatetag openblock %} url {% templatetag closeblock %}``
-          – w odróżnieniu od dokumentów wyżej nic go nie przeniesie ani nie skasuje.
-        {% endcomment %}
-        <a href="{% url 'statistics' %}">{% translate "Statystyki" %}</a>
-        {% comment %}
-          „Rejestracja z kodem” – zeszła tu z paska konta na wniosek organizatora („opcja jest
-          rzadko używana”). Dotyczy kilkunastu osób na edycję (komitet, recenzenci, jury), które
-          i tak dostają adres w liście z zaproszeniem; w pasku konta konkurowała z jedynym
-          zaproszeniem, które jest dla wszystkich – „Zarejestruj się”. Odnośnik jest tu dla
-          każdego, także dla zalogowanych: kto ma już konto uczestnika, a dostał kod do komitetu,
-          musi mieć drogę do formularza bez wylogowywania się. ``{% templatetag openblock %} url
-          {% templatetag closeblock %}`` wolno tu użyć – adres jest wzorcem w ``apps/web/urls.py``,
-          a nie stroną w drzewie CMS-a, więc nic go nie skasuje edycją treści.
-        {% endcomment %}
-        <a href="{% url 'web:register-committee' %}">{% translate "Rejestracja z kodem" %}</a>
+        {% include "web/_support_link.html" with css_class="footer__link" %}
         {% comment %}
           „Ustawienia cookies” otwierają pasek ponownie – to jedyna droga **wycofania** zgody
           bez czyszczenia danych witryny w przeglądarce, a wycofanie musi być tak samo łatwe,

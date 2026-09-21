@@ -1,0 +1,15 @@
+{% load i18n %}
+{% comment %}
+  „Zgłoś problem” – jeden odnośnik w dwóch miejscach: w pasku konta u góry i w stopce (uwaga
+  organizatora z 21.09.2026: „niech w stopce i na górze link będzie to samo”). Wcześniej górny
+  prowadził na listę własnych zgłoszeń (tylko dla zalogowanych), a dolny na formularz – dwa różne
+  ekrany pod tą samą nazwą. Teraz oba otwierają **formularz**: działa także bez logowania, więc
+  pozycja u góry jest dla każdego, a człowiek, któremu coś nie zadziałało, ma drogę do
+  organizatora z tej strony, na której utknął. Lista własnych zgłoszeń jest o jedno kliknięcie
+  dalej, na samym formularzu.
+
+  ``css_class`` – klasa odnośnika; domyślnie pozycja paska konta, stopka podaje własną.
+{% endcomment %}
+{% url 'web:support-new' as support_new_url %}
+<a class="{{ css_class|default:'account-bar__link' }}" href="{{ support_new_url }}"
+   {% if request.path == support_new_url %}aria-current="page"{% endif %}>{% translate "Zgłoś problem" %}</a>

@@ -119,24 +119,29 @@ PDF_TITLES = {
     "Skład komitetów Olimpiady Kwantowej (PDF)",
 }
 
-#: Pasek nawigacji po imporcie. Dokumenty mają **jedną** pozycję („Dokumenty”) z listą rozwijaną –
-#: regulamin i skład komitetów nie stoją już osobno między pozostałymi stronami.
-#: „O Olimpiadzie” i „Jak zacząć?” nie są już pozycjami paska – ich treść stoi na stronie głównej.
-#: „Warsztaty” stoją zaraz za „Harmonogramem”: obie pozycje odpowiadają na pytanie „kiedy”.
+#: Pasek nawigacji po imporcie – kolejność ustalona przez organizatora 21.09.2026
+#: (``apps.cms.context_processors.MENU_ORDER``): domek zamiast „Aktualności”, „Komitety” wyjęte
+#: z listy rozwijanej dokumentów na osobną pozycję, FAQ pod krótką nazwą na końcu. „Archiwum”
+#: i newsroom zniknęły z menu (adresy działają dalej). Dokumenty mają nadal **jedną** pozycję
+#: z listą rozwijaną; „O Olimpiadzie” i „Jak zacząć?” stoją na stronie głównej.
 MENU_TITLES = [
-    "Aktualności",
-    "Zadania",
+    "Strona główna",
+    "Komitety",
+    "Partnerzy",
     "Harmonogram",
+    "Zadania",
+    "Wyniki",
     "Warsztaty",
     "Dokumenty",
-    "Archiwum",
-    "Wyniki",
-    "Partnerzy",
     "Kontakt",
-    # FAQ zamyka menu: to nie jest treść, po którą sięga się przed przystąpieniem do zawodów,
-    # tylko ta, po którą sięga się, kiedy coś już nie wyszło – czyli z tego samego odruchu,
-    # co po adres kontaktowy. W przyklejonym pasku nawigacji go nie ma (``PRIMARY_MENU_SLUGS``).
-    "Najczęstsze pytania",
+    "FAQ",
+]
+#: Dokumenty na liście rozwijanej: wszystkie widoczne **poza** wyniesionym do menu składem komitetów.
+MENU_DOCUMENT_ORDER = tuple(slug for slug in VISIBLE_DOCUMENT_ORDER if slug != "komitety")
+MENU_DOCUMENT_TITLES = [
+    title
+    for slug, title in zip(DOCUMENT_ORDER, DOCUMENT_TITLES, strict=True)
+    if slug in MENU_DOCUMENT_ORDER
 ]
 
 
@@ -510,8 +515,11 @@ def test_komitety_is_public_with_scope_from_pdf(web_client, legacy_content):
     assert "Zadania, kryteria oceniania, anonimowa ocena prac, kwalifikacja i rozstrzygnięcia Jury" in content
     assert "Rejestracja, komunikacja, obsługa systemu, logistyka, miejsce finału i dokumentacja" in content
     assert "pełni również funkcję Jury" in content
-    # Wszystkie szesnaście wpisów z PDF-u (dziesięć + sześć, Paweł Gora i Grzegorz Czelusta w obu).
-    for name in ("Rafał Demkowicz-Dobrzański", "Tomasz Sowiński", "Michał Kutwin", "Tomasz Ćwik"):
+    # Skład podany przez organizatora 21.09.2026: dwanaście + siedem osób, z tytułami
+    # i afiliacjami (Paweł Gora i Grzegorz Czelusta w obu komitetach).
+    assert "Prof. dr hab. Rafał Demkowicz-Dobrzański (Uniwersytet Warszawski)" in content
+    assert "Dr hab. Jakub Mielczarek (Uniwersytet Jagielloński)" in content
+    for name in ("Karol Życzkowski", "Mateusz Tykierko", "Tomasz Sowiński", "Michał Kutwin", "Tomasz Ćwik"):
         assert name in content
 
 
@@ -947,21 +955,38 @@ def test_menu_documents_item_has_every_document_as_child(web_client, full_conten
     item = next(entry for entry in response.context["cms_menu"] if entry["title"] == "Dokumenty")
 
     assert item["url"] == "/dokumenty/"
-    assert [child["title"] for child in item["children"]] == VISIBLE_DOCUMENT_TITLES
-    assert [child["url"] for child in item["children"]] == [
-        f"/dokumenty/{s}/" for s in VISIBLE_DOCUMENT_ORDER
-    ]
+    assert [child["title"] for child in item["children"]] == MENU_DOCUMENT_TITLES
+    assert [child["url"] for child in item["children"]] == [f"/dokumenty/{s}/" for s in MENU_DOCUMENT_ORDER]
+
+
+def test_menu_starts_with_home_and_promotes_the_committees(web_client, full_content):
+    """Domek prowadzi na stronę główną, a „Komitety” są pozycją menu, nie dokumentem z listy."""
+    menu = web_client.get("/").context["cms_menu"]
+
+    assert (menu[0]["url"], menu[0]["home"]) == ("/", True)
+    assert [item["home"] for item in menu[1:]] == [False] * (len(menu) - 1)
+    committees = next(item for item in menu if item["title"] == "Komitety")
+    assert committees["url"] == "/dokumenty/komitety/"
+    assert committees["children"] == []
+    # Newsroom i archiwum mają „pokaż w menu” w drzewie, ale w nagłówku ich nie ma.
+    assert {"/aktualnosci/", "/archiwum/"}.isdisjoint(item["url"] for item in menu)
 
 
 def test_menu_renders_documents_as_a_details_element(web_client, full_content):
-    """Rozwijacz działa bez JavaScriptu: ``<details>`` + ``<summary>``, plus link do całej sekcji."""
+    """Rozwijacz działa bez JavaScriptu: ``<details>`` + ``<summary>``; bez pozycji „Wszystkie dokumenty”."""
     content = web_client.get("/").content.decode()
     menu = content.split('class="nav nav--cms"', 1)[1].split("</nav>", 1)[0]
 
     assert '<details class="nav-menu">' in menu
     assert ">Dokumenty</summary>" in menu
-    assert 'href="/dokumenty/"' in menu
-    assert menu.index("/dokumenty/regulamin/") < menu.index("/dokumenty/komitety/")
+    assert "Wszystkie dokumenty" not in menu
+    assert 'href="/dokumenty/"' not in menu
+    details = menu.split('<details class="nav-menu">', 1)[1].split("</details>", 1)[0]
+    assert "/dokumenty/regulamin/" in details
+    # Skład komitetów jest osobną pozycją menu (domek, Komitety, …), a nie wierszem tej listy.
+    assert "/dokumenty/komitety/" not in details
+    assert '<a class="nav__link" href="/dokumenty/komitety/"' in menu
+    assert 'class="nav__link nav__link--home" href="/"' in menu
     # Żaden dokument nie jest już osobną pozycją najwyższego poziomu.
     assert '<a class="nav__link" href="/dokumenty/regulamin/"' not in menu
 

@@ -579,6 +579,10 @@ class HomePage(CMSPage):
                 "current_stage": current_stage(edition, now) if edition else None,
                 "stage_rows": stage_rows(edition, now),
                 "latest_news": NewsPage.objects.live().descendant_of(self).order_by("-date", "-pk")[:3],
+                # Newsroom nie ma już pozycji w menu (uwagi organizatora z 21.09.2026) – drogą do
+                # pełnej listy jest panel „Aktualności” na stronie głównej, więc panel potrzebuje
+                # adresu newsroomu. ``None`` = newsroom nieopublikowany i panelu nie ma wcale.
+                "news_index": NewsIndexPage.objects.live().child_of(self).first(),
                 "downloads": _download_rows(self),
                 # Sekcja „Dokumenty do pobrania” prowadzi do pełnej listy; strona-indeks bywa
                 # nieopublikowana (świeża baza przed seedem), więc szablon pyta o ``None``.
