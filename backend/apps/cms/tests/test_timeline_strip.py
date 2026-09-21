@@ -513,6 +513,23 @@ def test_strip_is_absent_without_a_current_edition(web_client):
     assert "data-timeline-strip" not in web_client.get("/login/").content.decode()
 
 
+def test_strip_sits_in_the_dock_after_main_not_inside_the_header(web_client, edition):
+    """Pasek stoi w ``.timeline-dock`` tuż nad stopką (uwaga organizatora z 21.09.2026) – wcześniej
+    stał w nagłówku, pod menu. ``<header class="topbar">`` ma zostać bez niego."""
+    StageFactory(edition=edition, kind=StageKind.ELIM)
+
+    content = web_client.get("/").content.decode()
+    header = content.split('<header class="topbar">', 1)[1].split("</header>", 1)[0]
+
+    assert "data-timeline-strip" not in header
+    # Kolejność w źródle strony: treść, potem dok z paskiem, potem stopka.
+    main_end = content.index("</main>")
+    dock_start = content.index('class="timeline-dock"')
+    footer_start = content.index('<footer class="footer">')
+    assert main_end < dock_start < footer_start
+    assert "data-timeline-strip" in content[dock_start:footer_start]
+
+
 def test_at_rest_the_header_holds_only_the_bar(web_client, edition):
     """W spoczynku pasek jest **jedną linią**: reszta siedzi w panelu zwiniętym do zera wysokości.
 

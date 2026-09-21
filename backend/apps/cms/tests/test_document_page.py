@@ -283,7 +283,13 @@ def test_regulamin_page_has_anchored_table_of_contents(web_client, regulamin):
 
 
 def test_regulamin_lives_in_the_documents_section_of_the_menu(web_client, regulamin):
-    """Regulamin nie jest już osobną pozycją paska – prowadzi do niego rozwijana „Dokumenty”."""
+    """Regulamin nie jest już osobną pozycją paska – prowadzi do niego rozwijana „Dokumenty”.
+
+    Kolejność w pasku jest dziś kolejnością organizatora (``MENU_ORDER``, uwaga z 21.09.2026),
+    a nie samej kolejności drzewa: „Dokumenty” stoją za „Zadaniami” i „Wynikami”, niezależnie od
+    tego, gdzie w drzewie stron leży sekcja. „Archiwum” w tym minimalnym drzewie (bez pełnego
+    importu) w ogóle nie ma – organizator zdjął je z paska (``HIDDEN_MENU_SLUGS``).
+    """
     content = web_client.get("/").content.decode()
     menu = content.split('class="nav nav--cms"', 1)[1].split("</nav>", 1)[0]
 
@@ -291,4 +297,5 @@ def test_regulamin_lives_in_the_documents_section_of_the_menu(web_client, regula
     assert '<details class="nav-menu">' in menu
     assert f'href="{PAGE_PATH}"' in menu
     assert '<a class="nav__link" href="/regulamin/"' not in menu
-    assert menu.index("/zadania/") < menu.index("/dokumenty/") < menu.index("/archiwum/")
+    assert menu.index("/zadania/") < menu.index("/wyniki/") < menu.index("/dokumenty/")
+    assert 'href="/archiwum/"' not in menu

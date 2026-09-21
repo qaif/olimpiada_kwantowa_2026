@@ -53,8 +53,12 @@ def test_home_page_serves_root_with_links_to_all_sections(web_client, open_stage
     content = response.content.decode()
 
     assert response.status_code == 200
-    for url in ("/aktualnosci/", "/zadania/", "/archiwum/", "/wyniki/"):
+    for url in ("/aktualnosci/", "/zadania/", "/wyniki/"):
         assert f'href="{url}"' in content
+    # „Archiwum” zniknęło z nawigacji 21.09.2026 (``HIDDEN_MENU_SLUGS``) – adres nadal odpowiada,
+    # tylko strona główna już do niego nie prowadzi (i żadna inna sekcja chrome też nie).
+    assert 'href="/archiwum/"' not in content
+    assert web_client.get("/archiwum/").status_code == 200
     # Oś czasu nadal pochodzi z apps.competitions, nie z treści redakcyjnej.
     assert open_stage.edition.year_label in content
 

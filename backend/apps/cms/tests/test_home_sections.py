@@ -222,6 +222,21 @@ def test_about_section_renders_blocks_not_raw_markup(web_client, legacy_content)
     assert 'class="notice notice--info"' in content
 
 
+# --- panel aktualności ---------------------------------------------------------------------------
+
+
+def test_home_page_shows_the_news_panel_even_without_any_news(web_client, news_index):
+    """Panel jest jedyną drogą do newsroomu od 21.09.2026 (domek zastąpił „Aktualności” w menu),
+    więc ma stać nawet bez opublikowanego wpisu – pusty panel mówi „tu będą komunikaty”, a jego
+    brak nie mówi nic."""
+    content = web_client.get("/").content.decode()
+
+    assert 'id="aktualnosci"' in content
+    assert "Wszystkie aktualności" in content
+    assert f'href="{news_index.url}"' in content
+    assert "Brak aktualności" in content
+
+
 # --- najważniejsze pozycje menu w przyklejonym pasku -------------------------------------------
 
 
@@ -243,11 +258,17 @@ def test_primary_menu_items_are_ready_in_the_sticky_bar_and_stay_in_the_service_
     assert 'href="/aktualnosci/"' not in sticky_nav
     assert "data-sticky-nav" in content
     assert 'src="/static/js/sticky-bar.js"' in content
-    # Kolejność w pasku to kolejność drzewa stron, tak jak w dolnym menu.
+    # Kolejność w pasku (i w dolnym menu) to dziś kolejność organizatora (``MENU_ORDER``, uwaga
+    # z 21.09.2026), nie kolejność drzewa: „Harmonogram” stoi przed „Zadaniami” w obu miejscach.
     assert (
-        sticky_nav.index('href="/zadania/"')
-        < sticky_nav.index('href="/harmonogram/"')
+        sticky_nav.index('href="/harmonogram/"')
+        < sticky_nav.index('href="/zadania/"')
         < sticky_nav.index('href="/warsztaty/"')
+    )
+    assert (
+        service_nav.index('href="/harmonogram/"')
+        < service_nav.index('href="/zadania/"')
+        < service_nav.index('href="/warsztaty/"')
     )
 
 

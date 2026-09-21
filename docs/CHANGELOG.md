@@ -8,9 +8,9 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
-## Niewydane (po `v0.27.3`)
+## Niewydane (po `v0.27.4`)
 
-- Brak — katalog roboczy jest równy tagowi `v0.27.3`. Etap 2 systemu wielokonkursowego jest
+- Brak — katalog roboczy jest równy tagowi `v0.27.4`. Etap 2 systemu wielokonkursowego jest
   domknięty (`UNIWERSALNY-ETAP-2.md` § 3.1). Nie zlecone: drzewo CMS dla konkursu w trybie prefiksu ścieżki (uwaga T43),
   edytor przebiegu przenoszący „przypisz kategorie” do warstwy serwisów.
 
@@ -18,6 +18,7 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 
 | Wersja | Data | Zmiana |
 |---|---|---|
+| **v0.27.4** | 2026-09-21 | uwagi organizatora z 21.09: **menu** w ustalonej kolejności – domek (strona główna), Komitety, Partnerzy, Harmonogram, Zadania, Wyniki, Warsztaty, Dokumenty, Kontakt, FAQ (`cms/context_processors.py`: `MENU_ORDER`; newsroom i archiwum zdjęte z menu, skład komitetów wyniesiony z listy „Dokumenty”, z której zniknęła też pozycja „Wszystkie dokumenty”); **aktualności** jako stały panel strony głównej z odnośnikiem do wszystkich; **linia czasu** przeniesiona z nagłówka na dół strony, nad stopkę (`.timeline-dock`); **stopka** bez „Dokumenty”, „Najczęstsze pytania”, „Statystyki” i „Rejestracja z kodem” (adresy działają dalej); **„Zgłoś problem”** – ten sam odnośnik do formularza w pasku konta (także dla niezalogowanych) i w stopce; **skład komitetów** z tytułami i afiliacjami (12 + 7 osób), PDF do pobrania składany z treści strony (`build_guardian_consent_pdf --document komitety`) |
 | **v0.27.3** | 2026-09-21 | protokół etapu (eksport PDF) podpisuje **Komitet Sterujący** – przewodniczący, sekretarz i członek oraz zdanie o zgodności zestawienia (domknięcie v0.26.5: „Komitet Główny” nie występuje już w żadnym dokumencie); CI: shardy `pytest` układane po zmierzonym czasie (`backend/.test_durations`, `--splitting-algorithm least_duration`, odświeżanie: `docs/OPERACJE.md` § 10) |
 | **v0.27.2** | 2026-09-21 | CI zielone i szybsze: zadanie `pytest` dostało środowisko obrazu (skompilowane katalogi tłumaczeń, `collectstatic`, klucz ≥ 50 znaków, poświadczenia S3/MinIO) – znika 12 stałych niepowodzeń i 4 błędy zależne od środowiska; `msgfmt` instaluje gettext; testy w 5 równoległych shardach (`pytest-split`) z jednym statusem zbiorczym „pytest (wynik zbiorczy)” – ok. 17 min zamiast ok. 30 (shardy jeszcze nierówne: brak pliku czasów). Bez zmian w aplikacji |
 | **v0.27.1** | 2026-09-21 | regulamin – dwie poprawki brzmienia na polecenie organizatora: „Ministra właściwego ds. Edukacji” w ramce statusu i domknięty cudzysłów „ZOZ” w § 1 ust. 4 (strona, .docx, wyciąg tekstowy; PDF złożony z poprawionego .docx w Wordzie – 14 stron). W dokumencie Google obie zmiany stoją jako sugestie do zaakceptowania |

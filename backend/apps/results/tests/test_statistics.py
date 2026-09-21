@@ -176,8 +176,11 @@ def test_page_carries_no_personal_data():
     assert "OLM-" not in content
 
 
-def test_footer_links_to_the_statistics():
-    """Strona ma być znajdowalna bez znajomości adresu – stąd odnośnik w stopce każdej strony."""
-    content = Client().get("/statystyki/").content.decode()
+def test_footer_no_longer_links_to_the_statistics_but_the_page_still_answers():
+    """Stopka nie prowadzi już do statystyk (uwaga organizatora z 21.09.2026) – adres wciąż
+    odpowiada, tylko trzeba go znać: zniknął jedyny odnośnik do niego w ramie serwisu."""
+    response = Client().get("/statystyki/")
+    content = response.content.decode()
 
-    assert 'href="/statystyki/"' in content
+    assert response.status_code == 200
+    assert 'href="/statystyki/"' not in content

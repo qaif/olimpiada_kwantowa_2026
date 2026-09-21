@@ -71,6 +71,32 @@ ABSOLUTE_SCHEMES = ("http://", "https://", "mailto:", "tel:")
 #: Stopka każdej strony. Formularz krąży luzem – kartka wyrwana z kompletu ma powiedzieć, czyj to
 #: dokument i ile stron liczy całość, bo inaczej nie widać, że czegoś brakuje.
 FOOTER_LEFT = "Olimpiada Kwantowa – zgoda rodzica lub opiekuna prawnego"
+PDF_TITLE = "Zgoda rodzica lub opiekuna prawnego – Olimpiada Kwantowa"
+PDF_SUBJECT = "Formularz zgody rodzica lub opiekuna prawnego na udział w Olimpiadzie Kwantowej"
+
+#: Dokumenty składane tą komendą: źródło (markdown strony), plik wynikowy i metadane PDF-a.
+#: Drugi wpis doszedł 21.09.2026: organizator podał nowy skład komitetów (tytuły, afiliacje,
+#: dwie nowe osoby), a przy stronie wisiał podpisany PDF ze składem z 7 września – plik do
+#: pobrania przeczyłby stronie, przy której stoi. Nowy plik powstaje z **tego samego**
+#: ``komitety.md``, co strona, więc nie da się ich rozjechać, i zajmuje miejsce starego pod tą
+#: samą nazwą (``fixtures/legacy/pdf/``), żeby ``seed_legacy_content`` podmienił treść dokumentu
+#: w bibliotece, a nie dołożył drugiego.
+DOCUMENTS = {
+    "zgoda-opiekuna": {
+        "source": SOURCE,
+        "output": OUTPUT,
+        "title": PDF_TITLE,
+        "subject": PDF_SUBJECT,
+        "footer_left": FOOTER_LEFT,
+    },
+    "komitety": {
+        "source": FIXTURES / "legacy" / "komitety.md",
+        "output": FIXTURES / "legacy" / "pdf" / "Sklad-komitetow-Olimpiady-Kwantowej.pdf",
+        "title": "Skład komitetów Olimpiady Kwantowej",
+        "subject": "Komitet Merytoryczny i Komitet Organizacyjny Olimpiady Kwantowej",
+        "footer_left": "Olimpiada Kwantowa – skład komitetów",
+    },
+}
 
 PAGE_MARGIN_MM = 18
 BOTTOM_MARGIN_MM = 20
@@ -314,7 +340,11 @@ def build_story(markdown: str, styles: dict) -> list:
 
 
 def _draw_footer(canvas, doc) -> None:
-    """Stopka z numerem strony. Rysowana na płótnie, bo flowable nie wie, na której jest stronie."""
+    """Stopka z numerem strony. Rysowana na płótnie, bo flowable nie wie, na której jest stronie.
+
+    Napis po lewej bierze się z dokumentu (``doc.footer_left``), bo tym samym składem powstaje
+    więcej niż jeden plik – patrz ``DOCUMENTS``.
+    """
     from reportlab.lib.units import mm
 
     from apps.results.certificates import FONT_REGULAR
@@ -323,13 +353,24 @@ def _draw_footer(canvas, doc) -> None:
     canvas.saveState()
     canvas.setFont(FONT_REGULAR, 7.5)
     canvas.setFillGray(0.35)
-    canvas.drawString(doc.leftMargin, baseline, FOOTER_LEFT)
+    canvas.drawString(doc.leftMargin, baseline, getattr(doc, "footer_left", FOOTER_LEFT))
     canvas.drawRightString(doc.pagesize[0] - doc.rightMargin, baseline, f"strona {canvas.getPageNumber()}")
     canvas.restoreState()
 
 
-def render_pdf(markdown: str) -> bytes:
-    """Składa formularz i zwraca bajty PDF-a."""
+def render_pdf(
+    markdown: str,
+    *,
+    title: str = PDF_TITLE,
+    subject: str = PDF_SUBJECT,
+    footer_left: str = FOOTER_LEFT,
+) -> bytes:
+    """Składa dokument i zwraca bajty PDF-a.
+
+    Wartości domyślne opisują formularz zgody opiekuna – wywołanie bez argumentów daje ten sam
+    plik co do bajtu, co przed dodaniem drugiego dokumentu (pilnuje tego
+    ``test_guardian_consent_pdf_is_rebuilt_byte_for_byte``).
+    """
     from io import BytesIO
 
     from reportlab.lib.pagesizes import A4
@@ -348,34 +389,44 @@ def render_pdf(markdown: str) -> bytes:
         rightMargin=PAGE_MARGIN_MM * mm,
         topMargin=PAGE_MARGIN_MM * mm,
         bottomMargin=BOTTOM_MARGIN_MM * mm,
-        title="Zgoda rodzica lub opiekuna prawnego – Olimpiada Kwantowa",
+        title=title,
         author="Fundacja Quantum AI",
-        subject="Formularz zgody rodzica lub opiekuna prawnego na udział w Olimpiadzie Kwantowej",
+        subject=subject,
         # Plik leży w repozytorium, więc musi być **powtarzalny**: bez tego reportlab wpisuje
         # do środka datę złożenia i identyfikator z losowości, czyli ta sama treść dawałaby za
         # każdym przebiegiem inne bajty. Skutek byłby podwójny – szum w diffie i ponowne wgranie
         # pliku do biblioteki Wagtaila przy każdym seedzie (``ensure_document`` porównuje SHA-256).
         invariant=1,
     )
+    document.footer_left = footer_left
     document.build(build_story(markdown, styles), onFirstPage=_draw_footer, onLaterPages=_draw_footer)
     return buffer.getvalue()
 
 
 class Command(BaseCommand):
-    help = "Składa formularz zgody opiekuna (PDF) z pliku fixtures/legacy/zgoda-opiekuna.md."
+    help = "Składa PDF z markdowna strony: formularz zgody opiekuna (domyślnie) albo skład komitetów."
 
     def add_arguments(self, parser):
         parser.add_argument(
-            "--output",
-            default=str(OUTPUT),
-            help=f"Plik wynikowy (domyślnie {OUTPUT}).",
+            "--document",
+            choices=sorted(DOCUMENTS),
+            default="zgoda-opiekuna",
+            help="Który dokument złożyć (domyślnie formularz zgody opiekuna).",
         )
+        parser.add_argument("--output", default="", help="Plik wynikowy (domyślnie właściwy dla dokumentu).")
 
     def handle(self, *args, **options):
-        if not SOURCE.exists():  # pragma: no cover - brak pliku znaczyłby zepsute repozytorium
-            raise CommandError(f"Brak pliku źródłowego {SOURCE}.")
-        target = Path(options["output"])
+        spec = DOCUMENTS[options["document"]]
+        source = spec["source"]
+        if not source.exists():  # pragma: no cover - brak pliku znaczyłby zepsute repozytorium
+            raise CommandError(f"Brak pliku źródłowego {source}.")
+        target = Path(options["output"] or spec["output"])
         target.parent.mkdir(parents=True, exist_ok=True)
-        data = render_pdf(SOURCE.read_text(encoding="utf-8"))
+        data = render_pdf(
+            source.read_text(encoding="utf-8"),
+            title=spec["title"],
+            subject=spec["subject"],
+            footer_left=spec["footer_left"],
+        )
         target.write_bytes(data)
         self.stdout.write(f"zapisano: {target} ({len(data)} bajtów)")

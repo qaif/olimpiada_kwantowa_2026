@@ -224,13 +224,29 @@ def test_the_request_helper_asks_about_the_site_of_that_request(rf, competition,
 def test_the_menu_is_built_from_the_tree_of_the_site_of_the_request(
     client_for, competition, other_competition, other_home
 ):
+    """Menu każdej witryny wciąż wynika z jej własnego drzewa – domek i ``MENU_ORDER`` (uwaga
+    organizatora z 21.09.2026) tego nie zmieniają, tylko dokładają się do wyniku.
+
+    ``MENU_ORDER`` dobiera pozycje po **slugu**, tak samo jak ``PRIMARY_MENU_SLUGS`` wcześniej –
+    dlatego „Zadania drugiej” i „Wyniki drugiej” (slugi ``zadania``/``wyniki``) wyprzedzają
+    w pasku drugiego konkursu „Ogłoszenia” (slug ``ogloszenia``, nieznany liście), mimo że
+    w drzewie stoją za nim. To nie jest wyciek danych Konkursu #1 – to ta sama, jawna reguła
+    zastosowana do slugów, które akurat się powtarzają.
+    """
     own = client_for(competition).get("/").context["cms_menu"]
     other = client_for(other_competition).get("/").context["cms_menu"]
 
-    assert [item["title"] for item in other] == ["Ogłoszenia", "Zadania drugiej", "Wyniki drugiej"]
+    assert [item["title"] for item in other] == [
+        "Strona główna",
+        "Zadania drugiej",
+        "Wyniki drugiej",
+        "Ogłoszenia",
+    ]
     assert "Zadania drugiej" not in [item["title"] for item in own]
-    # Menu Konkursu #1 zostaje dokładnie takie, jakie było – to jest warunek § 0.
-    assert [item["title"] for item in own][:4] == ["Aktualności", "Zadania", "Archiwum", "Wyniki"]
+    # Menu Konkursu #1 zostaje dokładnie takie, jakie było w drzewie – to jest warunek § 0.
+    # W nagłówku dziś stoi krócej: domek zamiast „Aktualności”, „Archiwum” organizator zdjął
+    # z paska (``HIDDEN_MENU_SLUGS``); oba adresy działają dalej (patrz test niżej).
+    assert [item["title"] for item in own] == ["Strona główna", "Zadania", "Wyniki"]
 
 
 def test_a_site_without_a_page_tree_gets_an_empty_menu_not_the_one_of_competition_one(

@@ -261,11 +261,25 @@ def test_certificate_number_prefix_is_ok():
 EXPECTED_MENU = ("Aktualności", "Zadania", "Archiwum", "Wyniki")
 
 
-def test_menu_matches_seeded_tree(client_for, competition):
-    response = client_for(competition).get("/")
-    titles = tuple(item["title"] for item in response.context["cms_menu"])
+def test_menu_matches_seeded_tree(competition):
+    """Drzewo Konkursu #1 (migracja ``cms.0002``) ma zostać dokładnie takie, jakie jest.
 
-    assert titles[: len(EXPECTED_MENU)] == EXPECTED_MENU
+    Nagłówek dziś filtruje i przestawia tę listę (domek, ``HIDDEN_MENU_SLUGS``, ``MENU_ORDER`` –
+    decyzje organizatora z 21.09.2026, testowane osobno w ``apps/cms/tests`` i mogące się zmienić
+    przy kolejnej uwadze), więc inwariant czytamy z surowego drzewa stron w kolejności
+    rodzeństwa – to ono ma zostać stałe, niezależnie od tego, co z niego akurat pokazuje nagłówek.
+    """
+    from wagtail.models import Page
+
+    titles = tuple(
+        Page.objects.live()
+        .in_menu()
+        .child_of(competition.site.root_page)
+        .order_by("path")
+        .values_list("title", flat=True)
+    )
+
+    assert titles == EXPECTED_MENU
     # Lista zapasowa (dla konkursu bez drzewa stron) wymienia te same pozycje i ma to zostać:
     # czytelnik, który trafi na serwis w trakcie awarii bazy, ma zobaczyć **to** menu.
     assert tuple(item["title"] for item in FALLBACK_MENU) == EXPECTED_MENU

@@ -176,6 +176,10 @@ SOURCE_STATUS = "Dokument organizatora (Fundacja Quantum AI), eksport z 7 wrześ
 #: stoi w ostatniej sekcji obu dokumentów, a data z nagłówka PDF-u to data przekazania pliku.
 DOCUMENT_VERSION = ""  # numer wersji nie występuje w metryce PDF; datę eksportu niesie document_date
 DOCUMENT_DATE = date(2026, 9, 7)
+#: Skład komitetów ma własną metrykę: lista osób pochodzi z wiadomości organizatora z 21 września
+#: 2026 r., a nie z podpisanego PDF-u z 7 września, który opisują stałe wyżej.
+COMMITTEES_DATE = date(2026, 9, 21)
+COMMITTEES_STATUS = "Skład podany przez organizatora (Fundacja Quantum AI), stan na 21 września 2026"
 
 #: Wzór zgody opiekuna nie pochodzi od organizatora – powstał w repozytorium jako **projekt**
 #: i czeka na akceptację Fundacji oraz radcy prawnego. Metryka mówi to wprost (status), a ramka
@@ -512,11 +516,14 @@ PAGES = (
         slug="komitety",
         title="Skład komitetów",
         document=True,
-        source_notice=True,
+        # Bez ramki „PDF jest wersją źródłową”: od 21.09.2026 jest odwrotnie. Organizator podał
+        # nowy skład (tytuły, afiliacje, dwie nowe osoby), a plik do pobrania składamy z tego
+        # samego ``komitety.md``, co stronę (``build_guardian_consent_pdf --document komitety``),
+        # więc źródłem jest treść strony, a PDF jej wydrukiem.
         metadata={
             "version_label": DOCUMENT_VERSION,
-            "document_date": DOCUMENT_DATE,
-            "status_label": SOURCE_STATUS,
+            "document_date": COMMITTEES_DATE,
+            "status_label": COMMITTEES_STATUS,
         },
         pdf="Sklad-komitetow-Olimpiady-Kwantowej.pdf",
         pdf_title="Skład komitetów Olimpiady Kwantowej (PDF)",

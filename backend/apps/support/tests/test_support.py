@@ -371,11 +371,16 @@ def test_the_reporter_can_add_a_note_from_the_thread(client_, participant):
 
 
 def test_the_account_bar_links_to_support_for_a_logged_in_user(client_, participant):
+    """Pasek konta prowadzi teraz do formularza (uwaga organizatora z 21.09.2026), nie do listy
+    zgłoszeń – lista własnych zgłoszeń jest jedno kliknięcie dalej, na samym formularzu
+    („Moje zgłoszenia”, widoczne tylko zalogowanym – patrz ``templates/web/support/new.html``)."""
     client_.force_login(participant.user)
 
     body = client_.get(LIST_URL).content.decode()
+    account_bar = body[body.index('aria-label="Konto"') : body.index('aria-label="Serwis"')]
 
-    assert f'href="{LIST_URL}"' in body
+    assert f'href="{NEW_URL}"' in account_bar
+    assert f'href="{LIST_URL}"' not in account_bar
 
 
 def test_anonymising_an_account_keeps_its_tickets(participant):

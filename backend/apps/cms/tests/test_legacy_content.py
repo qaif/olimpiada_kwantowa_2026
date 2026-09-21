@@ -139,9 +139,7 @@ MENU_TITLES = [
 #: Dokumenty na liście rozwijanej: wszystkie widoczne **poza** wyniesionym do menu składem komitetów.
 MENU_DOCUMENT_ORDER = tuple(slug for slug in VISIBLE_DOCUMENT_ORDER if slug != "komitety")
 MENU_DOCUMENT_TITLES = [
-    title
-    for slug, title in zip(DOCUMENT_ORDER, DOCUMENT_TITLES, strict=True)
-    if slug in MENU_DOCUMENT_ORDER
+    title for slug, title in zip(DOCUMENT_ORDER, DOCUMENT_TITLES, strict=True) if slug in MENU_DOCUMENT_ORDER
 ]
 
 
@@ -354,11 +352,14 @@ def test_warsztaty_lists_every_workshop_as_a_table(web_client, legacy_content):
     assert 'href="/harmonogram/"' in content
 
 
-def test_warsztaty_is_in_the_menu_right_after_harmonogram(web_client, legacy_content):
-    """Kolejność menu to kolejność rodzeństwa w drzewie – „Warsztaty” muszą stać za „Harmonogramem”."""
+def test_warsztaty_stands_right_after_wyniki_in_the_declared_menu_order(web_client, legacy_content):
+    """Kolejność menu jest dziś organizatora (``MENU_ORDER``, uwaga z 21.09.2026), nie kolejność
+    rodzeństwa w drzewie: „Warsztaty” stoją zaraz za „Wynikami”, a nie zaraz za „Harmonogramem”,
+    mimo że w drzewie stron są jego bezpośrednim sąsiadem."""
     titles = [item["title"] for item in web_client.get("/").context["cms_menu"]]
 
-    assert titles.index("Warsztaty") == titles.index("Harmonogram") + 1
+    assert titles.index("Warsztaty") == titles.index("Wyniki") + 1
+    assert titles.index("Harmonogram") < titles.index("Warsztaty")
 
 
 def test_workshop_rows_carry_a_machine_readable_date(legacy_content):
@@ -926,7 +927,7 @@ def test_document_summary_reads_as_a_sentence(legacy_content):
 
 
 def test_komitety_is_a_document_with_metadata_and_chapters(web_client, legacy_content):
-    """Skład komitetów ma układ dokumentu: metrykę, ramkę ze źródłem, spis sekcji i PDF."""
+    """Skład komitetów ma układ dokumentu: metrykę, spis sekcji i PDF złożony z treści strony."""
     page = DocumentPage.objects.get(slug="komitety")
     content = web_client.get("/dokumenty/komitety/").content.decode()
 
@@ -938,12 +939,14 @@ def test_komitety_is_a_document_with_metadata_and_chapters(web_client, legacy_co
     assert '<nav class="doc-toc"' in content
     assert 'href="#komitet-merytoryczny"' in content
     assert 'href="#komitet-organizacyjny"' in content
-    # Metryka opisuje eksport PDF-u organizatora – dokładnie tak, jak przy RODO.
+    # Metryka opisuje skład podany przez organizatora 21.09.2026, a nie podpisany PDF z 7 września:
+    # źródłem jest treść strony, a plik do pobrania jest jej wydrukiem (``build_guardian_consent_pdf
+    # --document komitety``) – dlatego ramki „PDF jest wersją źródłową” tu już nie ma.
     assert page.version_label == ""
-    assert page.document_date.isoformat() == "2026-09-07"
-    assert page.status_label == DocumentPage.objects.get(slug="rodo").status_label
-    assert page.body[0].block_type == "notice"
-    assert SOURCE_NOTICE_FRAGMENT in content
+    assert page.document_date.isoformat() == "2026-09-21"
+    assert "21 września 2026" in page.status_label
+    assert page.body[0].block_type != "notice"
+    assert SOURCE_NOTICE_FRAGMENT not in content
     assert page.attachments.get().document.title == "Skład komitetów Olimpiady Kwantowej (PDF)"
 
 
@@ -1004,13 +1007,23 @@ def test_menu_marks_current_document_and_its_section(web_client, full_content):
 def test_menu_reads_document_children_without_a_query_per_document(
     django_assert_max_num_queries, rf, full_content
 ):
-    """Lista rozwijana kosztuje jedno zapytanie na całe menu, nie jedno na dokument."""
+    """Lista rozwijana kosztuje jedno zapytanie na całe menu, nie jedno na dokument.
+
+    Zmierzone na tym stanie (pełny import, jedna sekcja rozwijana): trzy zapytania – witryna
+    żądania (``Site.find_for_request``), strony menu najwyższego poziomu i jedno zapytanie po
+    dzieci jedynego rozwijanego rodzica (``DocumentIndexPage``). To nie jest regresja z 21.09:
+    menu kosztowało tyle samo już wcześniej – próg 6 był po prostu szerszym zapasem, niż
+    potrzeba. Zostawiamy jedno zapytanie zapasu (nie zero), żeby test nie łapał przypadkowego
+    przesunięcia o jedno zapytanie w zależności od stanu pamięci podręcznej ``ContentType``.
+    """
     from apps.cms.context_processors import cms_menu
 
-    with django_assert_max_num_queries(6):
+    with django_assert_max_num_queries(4):
         menu = cms_menu(rf.get("/"))["cms_menu"]
 
-    assert [len(item["children"]) for item in menu if item["children"]] == [len(VISIBLE_DOCUMENT_ORDER)]
+    # Skład komitetów jest dziś wyniesiony do menu głównego (``PROMOTED_DOCUMENT_SLUGS``), więc
+    # lista rozwijana ma o jeden dokument mniej niż wszystkich widocznych dokumentów.
+    assert [len(item["children"]) for item in menu if item["children"]] == [len(MENU_DOCUMENT_ORDER)]
 
 
 # --- przekierowania ze starych adresów ----------------------------------------------------------
@@ -1331,3 +1344,22 @@ def test_content_page_deleted_in_cms_is_not_recreated(legacy_content):
     call_command("seed_legacy_content", verbosity=0)
 
     assert not ContentPage.objects.filter(slug="dla-nauczycieli").exists()
+
+
+def test_committees_pdf_is_rebuilt_byte_for_byte(legacy_content):
+    """PDF składu komitetów jest tym, co składa komenda z ``komitety.md`` – strona i plik są jednym.
+
+    Ta sama reguła, co przy formularzu zgody opiekuna: skład jest powtarzalny (``invariant=1``),
+    więc różnica bajtów znaczy, że ktoś zmienił listę osób i nie przebudował pliku do pobrania.
+    """
+    from apps.cms.management.commands.build_guardian_consent_pdf import DOCUMENTS, render_pdf
+
+    spec = DOCUMENTS["komitety"]
+    rebuilt = render_pdf(
+        spec["source"].read_text(encoding="utf-8"),
+        title=spec["title"],
+        subject=spec["subject"],
+        footer_left=spec["footer_left"],
+    )
+
+    assert rebuilt == spec["output"].read_bytes()

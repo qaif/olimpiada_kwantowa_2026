@@ -48,33 +48,59 @@ def test_account_bar_of_anonymous_visitor_has_two_buttons_in_a_fixed_order(web_c
     assert reverse("web:register-committee") not in bar
 
 
-def test_registration_with_a_code_stands_in_the_footer_not_in_the_account_bar(web_client, edition):
-    """Uwaga organizatora z 16.09: „usunąłbym rejestrację z kodem z górnej belki (…) do stopki”.
+def test_registration_with_a_code_has_no_link_in_the_chrome_but_the_address_still_works(web_client, edition):
+    """Uwaga organizatora z 21.09: odnośnik zniknął też ze stopki, gdzie stanął po uwadze z 16.09.
 
-    Kod zaproszenia dostaje kilkanaście osób na edycję (komitet, recenzenci, jury) i każda z nich
-    ma adres w liście. Pasek konta oglądają wszyscy odwiedzający, więc pozycja rzadka konkurowała
-    tam z jedyną, która jest dla każdego – „Zarejestruj się”. Adres pozostaje żywy: test pilnuje
-    **miejsca**, a nie istnienia drogi.
+    Wtedy organizator poprosił o przeniesienie go z paska konta do stopki – kod zaproszenia
+    dostaje kilkanaście osób na edycję (komitet, recenzenci, jury), a stopkę ogląda każdy
+    odwiedzający, tak samo jak pasek. Teraz obie belki mają zostać krótkie i bez odnośników
+    rzadkich: droga zostaje żywa (zaproszenie prowadzi tam wprost z listu), znika tylko z ramy
+    serwisu w całości. Test pilnuje **braku miejsca w chrome**, a nie istnienia drogi.
     """
     response = web_client.get("/")
     url = reverse("web:register-committee")
 
     assert url not in account_bar(response)
-    assert f'<a href="{url}">Rejestracja z kodem</a>' in footer(response)
+    assert url not in footer(response)
     assert web_client.get(url).status_code == 200
 
 
-def test_the_footer_link_with_a_code_is_there_also_for_a_logged_in_user(web_client, participant, edition):
-    """Kto ma konto uczestnika, a dostał kod do komitetu, nie może musieć się wylogować."""
-    web_client.force_login(participant.user)
+def test_the_registration_with_a_code_link_stays_out_of_the_footer_for_a_logged_in_user_too(
+    web_client, participant, edition
+):
+    """Kto ma konto uczestnika, a dostał kod do komitetu, nie widzi go w stopce – tak samo jak gość.
 
-    assert reverse("web:register-committee") in footer(web_client.get("/"))
+    Adres zostaje żywy niezależnie od tego, kto go szuka (test wyżej pilnuje samego braku
+    w chrome, ten – że decyzja nie zależy od stanu logowania).
+    """
+    web_client.force_login(participant.user)
+    url = reverse("web:register-committee")
+
+    assert url not in footer(web_client.get("/"))
+    assert web_client.get(url).status_code == 200
 
 
 def test_account_bar_marks_the_current_page(web_client, edition):
     text = flat(web_client.get(reverse("web:login")))
 
     assert f'href="{reverse("web:login")}" aria-current="page"' in text
+
+
+def test_support_link_is_in_the_account_bar_for_an_anonymous_visitor_too(web_client, edition):
+    """Uwaga organizatora z 21.09.2026: „Zgłoś problem” ma stać w pasku konta także dla gościa.
+
+    Wcześniej pasek prowadził do zgłoszenia tylko osobom zalogowanym; gość, któremu coś nie
+    zadziałało zanim założył konto, miał drogę do organizatora wyłącznie w stopce. Oba miejsca
+    (pasek i stopka) rysuje ten sam fragment (``web/_support_link.html``) i prowadzą pod ten sam
+    adres – formularz, nie listę zgłoszeń (patrz ``apps/support/tests/test_support.py``).
+    """
+    url = reverse("web:support-new")
+    response = web_client.get("/")
+
+    assert f'href="{url}"' in account_bar(response)
+    assert "Zgłoś problem" in account_bar(response)
+    assert f'href="{url}"' in footer(response)
+    assert flat(response).count(f'href="{url}"') == 2
 
 
 def account_bar(response) -> str:
