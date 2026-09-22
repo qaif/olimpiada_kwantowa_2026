@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import copy
 from contextlib import contextmanager
+from datetime import date
 from unittest import mock
 from urllib.parse import parse_qs, urlparse
 
@@ -116,11 +117,11 @@ def complete_signup(client: Client, **overrides):
         "school": "LO nr 3",
         "district": "mazowieckie",
         "grade": 2,
-        "birth_year": 2008,
+        "birth_date": "2008-12-31",
         "phone": "600 100 200",
         "terms_consent": "on",
         "gdpr_consent": "on",
-        # Rocznik 2008 to w 2026 r. osoba „na pewno niepełnoletnia” w rozumieniu
+        # Urodzony 31.12.2008, czyli w 2026 r. osoba „na pewno niepełnoletnia” w rozumieniu
         # ``accounts.consents.is_minor`` – bez zgody opiekuna formularz jej nie przepuści.
         "guardian_consent": "on",
     }
@@ -237,7 +238,7 @@ def test_signup_without_gdpr_consent_can_be_retried(web_client, google, edition)
 def test_signup_with_consent_creates_participant_linked_to_the_provider(web_client, google, edition):
     social_login(web_client)
 
-    response = complete_signup(web_client, school="LO nr 3", district="mazowieckie", birth_year=2009)
+    response = complete_signup(web_client, school="LO nr 3", district="mazowieckie", birth_date="2009-11-20")
 
     assert response.status_code == 302
     assert response.headers["Location"] == "/me/"
@@ -252,6 +253,8 @@ def test_signup_with_consent_creates_participant_linked_to_the_provider(web_clie
     participant = Participant.objects.get(user=user)
     assert participant.school == "LO nr 3"
     assert participant.district == "mazowieckie"
+    assert participant.birth_date == date(2009, 11, 20)
+    # Rocznik jedzie **za** datą: liczy go ``Participant.save``, a nie formularz.
     assert participant.birth_year == 2009
     assert participant.gdpr_consent_at is not None
     assert participant.public_code.startswith("OLM-")

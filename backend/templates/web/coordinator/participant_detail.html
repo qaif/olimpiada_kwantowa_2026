@@ -103,8 +103,12 @@
         <dt>Województwo</dt>
         <dd>{{ participant.get_district_display }}</dd>
       {% endif %}
+      <dt>Data urodzenia</dt>
+      {# Myślnik, a nie pusta komórka: „nie znamy dnia” jest odpowiedzią na pytanie koordynatora
+         „dlaczego ten uczeń ma zgodę opiekuna mimo rocznika 2007”, a brak wiersza nią nie jest. #}
+      <dd>{{ participant.birth_date|default:"—" }}</dd>
       <dt>Rok urodzenia</dt>
-      <dd>{{ participant.birth_year }}</dd>
+      <dd>{{ participant.known_birth_year|default:"—" }}</dd>
       <dt>Kod publiczny</dt>
       <dd><code>{{ participant.public_code }}</code></dd>
       <dt>Konto założone</dt>

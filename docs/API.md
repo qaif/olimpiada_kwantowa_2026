@@ -148,6 +148,13 @@ Filtry: `voivodeship`, `status`, `grade`, `school` (fragment nazwy). Z zakresem
 i `email`. `school_city` jest wypełnione tylko dla szkół z wykazu SIO — szkoła wpisana ręcznie
 nie ma miejscowości jako osobnej danej i nie zgadujemy jej.
 
+**Wieku tu nie ma i nie będzie.** Serwis zbiera od uczestnika pełną datę urodzenia (potrzebuje
+jej, żeby rozstrzygnąć, czy udział wymaga zgody opiekuna prawnego), ale to API nie wystawia ani
+daty, ani rocznika, ani wyliczonego wieku — także z zakresem `read:participants_pii`. Odbiorca
+zewnętrzny nie ma celu, dla którego byłyby mu potrzebne, a data urodzenia jest klasycznym kluczem
+dopasowania osoby do innych zbiorów. Jeżeli Twój scenariusz naprawdę wymaga wieku, napisz — to
+jest rozmowa o podstawie prawnej, a nie o polu w odpowiedzi.
+
 ### 2.4. Wyniki etapu — `read:results`
 
 Wyłącznie **ogłoszona, zamrożona** tabela. Etap bez publikacji odpowiada `404`: dla świata na
@@ -457,6 +464,31 @@ webhookiem.
 - zmiana łamiąca kontrakt to `/api/v2/` wystawione obok `v1`; o wycofaniu starej wersji
   organizator uprzedza z wyprzedzeniem i nie robi tego w trakcie trwającej edycji,
 - nazwy zakresów i zdarzeń są częścią kontraktu — aktualną listę zawsze zwraca `GET /api/v1/`.
+
+### 6.1. Rejestracja uczestnika (`POST /api/auth/register/participant/`)
+
+To jest API **konta**, a nie integracji — opisujemy je tutaj, bo od wydania `v0.30.0` zmienił się
+w nim kształt jednego pola i klient sprzed tej zmiany ma dalej działać bez poprawki.
+
+| Pole | Typ | Uwagi |
+|---|---|---|
+| `birth_date` | `string` (`RRRR-MM-DD`) | **zalecane.** Pełna data urodzenia. Z niej liczy się
+  pełnoletność i wymagalność `guardian_consent`, a także `birth_year` w odpowiedziach |
+| `birth_year` | `integer` | zostaje **wyłącznie** dla zgodności wstecznej. Bez `birth_date` wiek
+  rozstrzyga się starą, zachowawczą regułą (rok bieżący − rocznik ≤ 18 ⇒ osoba niepełnoletnia) |
+
+Zasady:
+
+- podaj **jedno z dwóch**. Brak obu to `400 BIRTH_DATE_REQUIRED` (chyba że organizator wyłączył
+  pytanie o wiek — wtedy uczestnik bez daty jest traktowany jak osoba niepełnoletnia),
+- gdy przyślesz oba, rozstrzyga `birth_date` i to z niej wyliczamy `birth_year`. Nie odrzucamy
+  żądania, w którym się rozjeżdżają — zapisujemy wartość dokładniejszą,
+- zakres: od `1900-01-01` do dnia dzisiejszego włącznie. Poza nim `400 BIRTH_DATE_INVALID`,
+- **pełnoletni = ma już za sobą dzień osiemnastych urodzin** (data lokalna Europe/Warsaw;
+  urodzony 29 lutego staje się pełnoletni 1 marca). Osoba niepełnoletnia bez
+  `guardian_consent: true` dostaje `400 CONSENT_REQUIRED` i **nie powstaje ani konto, ani profil**,
+- `PATCH /api/auth/me/` przyjmuje `birth_date` tą samą drogą; `GET /api/auth/me/` zwraca obie
+  wartości, a `birth_date` bywa `null` w profilach założonych przed `v0.30.0`.
 
 ---
 

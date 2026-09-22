@@ -1,4 +1,4 @@
-/* Zgoda opiekuna odsłaniana rocznikiem – rejestracja uczestnika (`/register/`, dokończenie
+/* Zgoda opiekuna odsłaniana datą urodzenia – rejestracja uczestnika (`/register/`, dokończenie
  * rejestracji przez Google/Facebooka).
  *
  * Zgłoszenie organizatora: „rok urodzenia nie jest powiązany z obowiązkowością oświadczenia
@@ -7,19 +7,25 @@
  * oświadczenie, które jej nie dotyczy, a osoba niepełnoletnia dowiadywała się o obowiązku
  * dopiero z odmowy po wysłaniu formularza. Ten plik przenosi tę samą regułę przed wysyłkę.
  *
+ * Od wydania 0.30.0 regułą jest **pełna data**, a nie rocznik: pełnoletni jest ten, kto skończył
+ * już 18 lat. Do tej zmiany osoba kończąca 18 lat w tym roku widziała zgodę opiekuna przez cały
+ * rok, także dzień po swoich urodzinach.
+ *
  * Czego ten skrypt **nie** robi: nie rozstrzyga. Rozstrzyga serwer i tylko serwer – tu chodzi
  * o to, żeby formularz nie milczał, a nie o to, żeby zastąpić walidację. Trzy decyzje wynikają
  * wprost z tego podziału:
  *
- * - **reguła i rok bieżący przychodzą z serwera** (atrybuty `data-minor-max-age`
- *   i `data-current-year` na `<fieldset class="consents">`, patrz
+ * - **reguła i dzisiejsza data przychodzą z serwera** (atrybuty `data-minor-max-age`
+ *   i `data-current-date` na `<fieldset class="consents">`, patrz
  *   apps/web/context_processors.py). Własna kopia progu rozjechałaby się z
- *   `apps.accounts.consents.MINOR_MAX_AGE` przy pierwszej zmianie, a `new Date().getFullYear()`
- *   czyta zegar użytkownika – przestawiony albo po prostu w innej strefie niż Europe/Warsaw,
- * - **pusty i niepoprawny rocznik znaczy „niepełnoletni”**, dokładnie jak `consents.is_minor`:
+ *   `apps.accounts.consents.MINOR_MAX_AGE` przy pierwszej zmianie, a `new Date()` czyta zegar
+ *   użytkownika – przestawiony albo po prostu chodzący w innej strefie niż Europe/Warsaw, czyli
+ *   pokazujący w części doby inny **dzień**. W sam dzień osiemnastych urodzin to jest różnica
+ *   między pokazaniem zgody a jej schowaniem,
+ * - **pusta i niepoprawna data znaczy „niepełnoletni”**, dokładnie jak `consents.is_minor`:
  *   przy nieznanym wieku pokazujemy zgodę, a nie chowamy. Zawyżenie kosztuje jeden zbędny
  *   checkbox, zaniżenie – zgodę pobraną od dziecka bez wiedzy opiekuna,
- * - **wiersz z błędem serwera zostaje widoczny** bez względu na rocznik. Schowanie pola,
+ * - **wiersz z błędem serwera zostaje widoczny** bez względu na datę. Schowanie pola,
  *   przy którym stoi „popraw to”, zostawia człowieka z odmową bez wskazanego miejsca.
  *
  * Bez tego pliku (wyłączony JavaScript, zablokowany zasób) formularz działa jak wcześniej:
@@ -28,49 +34,83 @@
  * Umowa z szablonem (templates/web/_participant_form_fields.html):
  * - `[data-age-consents]`            – `<fieldset>` z zgodami; nosi regułę w `data-*`,
  * - `[data-age="minor-consent"]`     – wiersz zgody wymaganej tylko od niepełnoletnich,
- * - `[data-age="birth-year"]`        – pole rocznika (apps/web/forms.py::birth_year_field).
+ * - `[data-age="birth-date"]`        – pole daty urodzenia (apps/web/forms.py::birth_date_field).
  */
 
 (function () {
   "use strict";
 
-  /** Pole rocznika: najpierw po identyfikatorze z serwera, potem po atrybucie w obrębie formularza.
+  /** Data „RRRR-MM-DD” jako trójka liczb, albo `null`, gdy to nie jest data.
    *
-   * Dwie drogi, bo blok zgód i pole rocznika stoją w **różnych** miejscach formularza: identyfikator
-   * jest tym, co szablon zna na pewno (`form.birth_year.auto_id`), a szukanie po atrybucie ratuje
+   * Świadomie **bez** `new Date(value)`: konstruktor przyjmuje niepełne zapisy, przelicza je na
+   * strefę czasową przeglądarki i potrafi oddać dzień sąsiedni. Tutaj chodzi o porównanie dwóch
+   * dat kalendarzowych, w którym strefa czasowa nie występuje ani razu.
+   */
+  function parseDate(value) {
+    var match = /^(\d{4})-(\d{2})-(\d{2})$/.exec((value || "").trim());
+    if (!match) return null;
+    var year = parseInt(match[1], 10);
+    var month = parseInt(match[2], 10);
+    var day = parseInt(match[3], 10);
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+    return [year, month, day];
+  }
+
+  /** Porównanie kalendarzowe: ujemne, gdy `a` jest wcześniejsze niż `b`. */
+  function compare(a, b) {
+    for (var index = 0; index < 3; index += 1) {
+      if (a[index] !== b[index]) return a[index] - b[index];
+    }
+    return 0;
+  }
+
+  /** Dzień osiemnastych urodzin – ta sama arytmetyka, co `consents.adulthood_date`.
+   *
+   * 29 lutego w roku nieprzestępnym staje się 1 marca: dnia urodzin po prostu nie ma, a dzień
+   * później zamiast dnia wcześniej jest wyborem na korzyść zgody opiekuna.
+   */
+  function adulthoodDate(birth, maxAge) {
+    var year = birth[0] + maxAge;
+    if (birth[1] === 2 && birth[2] === 29 && !isLeapYear(year)) return [year, 3, 1];
+    return [year, birth[1], birth[2]];
+  }
+
+  function isLeapYear(year) {
+    return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  }
+
+  /** Pole daty: najpierw po identyfikatorze z serwera, potem po atrybucie w obrębie formularza.
+   *
+   * Dwie drogi, bo blok zgód i pole daty stoją w **różnych** miejscach formularza: identyfikator
+   * jest tym, co szablon zna na pewno (`form.birth_date.auto_id`), a szukanie po atrybucie ratuje
    * sytuację, w której formularz dostanie prefiks i identyfikator się zmieni.
    */
-  function findBirthYear(root) {
-    var id = root.dataset.birthYearField || "";
+  function findBirthDate(root) {
+    var id = root.dataset.birthDateField || "";
     var byId = id ? document.getElementById(id) : null;
     if (byId) return byId;
     var form = root.closest ? root.closest("form") : null;
-    return (form || document).querySelector('[data-age="birth-year"]');
+    return (form || document).querySelector('[data-age="birth-date"]');
   }
 
   function AgeConsents(root) {
     this.root = root;
-    this.birthYear = findBirthYear(root);
+    this.birthDate = findBirthDate(root);
     this.items = root.querySelectorAll('[data-age="minor-consent"]');
     this.maxAge = parseInt(root.dataset.minorMaxAge, 10);
-    this.currentYear = parseInt(root.dataset.currentYear, 10);
+    this.today = parseDate(root.dataset.currentDate);
   }
 
   /** Czy da się cokolwiek zrobić. Brak którejkolwiek części = zostaw wariant bez skryptu. */
   AgeConsents.prototype.isComplete = function () {
-    return !!(
-      this.birthYear &&
-      this.items.length > 0 &&
-      !isNaN(this.maxAge) &&
-      !isNaN(this.currentYear)
-    );
+    return !!(this.birthDate && this.items.length > 0 && !isNaN(this.maxAge) && this.today);
   };
 
-  /** Ta sama arytmetyka, co ``apps.accounts.consents.is_minor`` – łącznie z brakiem rocznika. */
+  /** Ta sama reguła, co ``apps.accounts.consents.is_minor`` – łącznie z brakiem daty. */
   AgeConsents.prototype.isMinor = function () {
-    var year = parseInt(this.birthYear.value, 10);
-    if (isNaN(year) || year <= 0) return true;
-    return this.currentYear - year <= this.maxAge;
+    var birth = parseDate(this.birthDate.value);
+    if (!birth) return true;
+    return compare(this.today, adulthoodDate(birth, this.maxAge)) < 0;
   };
 
   AgeConsents.prototype.sync = function () {
@@ -88,7 +128,7 @@
         box.required = minor;
         /* Zaznaczenie zdjęte razem z ukryciem wiersza. Oświadczenie, którego nie widać, nie może
          * pojechać na serwer jako złożone – a właśnie tak wyglądałby przypadek „zaznaczyłem,
-         * potem poprawiłem rocznik na pełnoletni”. */
+         * potem poprawiłem datę na pełnoletnią”. */
         if (!show) box.checked = false;
       }
     }
@@ -96,12 +136,12 @@
 
   AgeConsents.prototype.init = function () {
     var self = this;
-    /* ``input`` łapie też wklejenie i strzałki pola liczbowego, ``change`` – uzupełnienie
-     * przez menedżera formularzy przeglądarki, które nie zawsze wywołuje ``input``. */
-    this.birthYear.addEventListener("input", function () {
+    /* ``input`` łapie wpisywanie i wklejenie, ``change`` – wybór z kalendarza przeglądarki
+     * i uzupełnienie przez menedżera formularzy, które nie zawsze wywołuje ``input``. */
+    this.birthDate.addEventListener("input", function () {
       self.sync();
     });
-    this.birthYear.addEventListener("change", function () {
+    this.birthDate.addEventListener("change", function () {
       self.sync();
     });
     this.sync();

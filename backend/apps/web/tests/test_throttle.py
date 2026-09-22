@@ -54,7 +54,7 @@ def registration_payload(email: str) -> dict:
         "school": "LO nr 7",
         "district": "mazowieckie",
         "grade": 2,
-        "birth_year": 2008,
+        "birth_date": "2008-12-31",
         "phone": "600 100 200",
         "terms_consent": "on",
         "gdpr_consent": "on",

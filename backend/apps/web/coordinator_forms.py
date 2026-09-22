@@ -868,8 +868,9 @@ class RegistrationProfileForm(forms.ModelForm):
             "grade_min": "Puste znaczy dzisiejszą granicę.",
             "grade_max": "Puste znaczy dzisiejszą granicę.",
             "require_birth_year": (
-                "Dziś nie ma czego wyłączyć: od rocznika zależy reguła zgody opiekuna, "
-                "czyli podstawa prawna zapisu. Pole czeka na osobne wydanie."
+                "Odznaczenie zostawia datę urodzenia nieobowiązkową. Uwaga: od wieku zależy "
+                "reguła zgody opiekuna, a uczestnik bez podanej daty jest traktowany jak osoba "
+                "niepełnoletnia – zgody opiekuna zażądamy wtedy od każdego."
             ),
             "participant_picks_category": (
                 "Wybór kategorii w rejestracji. Działa razem z flagą „categories”."

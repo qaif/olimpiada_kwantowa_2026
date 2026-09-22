@@ -277,7 +277,7 @@ def _consents_complete(participant, records=None) -> bool:
     """Czy uczestnik ma komplet **wymaganych od niego** zgód – znacznik w nagłówku „Co teraz”.
 
     Regułę „które zgody są wymagane” trzyma ``accounts.consents.required_kinds`` (zależy od
-    rocznika), a nie ten widok: inaczej znacznik mówiłby „brakuje zgody” pełnoletniemu, od którego
+    wieku), a nie ten widok: inaczej znacznik mówiłby „brakuje zgody” pełnoletniemu, od którego
     zgody opiekuna nie wymagamy wcale. Wpis wycofany nie liczy się jako zgoda obowiązująca.
 
     Zgoda opiekuna jest z tego rachunku **wyjęta**, choć bywa wymagana. Ma własny znacznik i własny,
@@ -289,7 +289,7 @@ def _consents_complete(participant, records=None) -> bool:
     ``records`` przyjmujemy z zewnątrz, bo zakładka zgód i tak je wczytuje – bez tego ten sam
     odczyt szedłby do bazy dwa razy na jedno żądanie.
     """
-    required = set(required_kinds(participant.birth_year)) - {ConsentKind.GUARDIAN}
+    required = set(required_kinds(participant.birth_date, participant.birth_year)) - {ConsentKind.GUARDIAN}
     if not required:
         return True
     if records is None:

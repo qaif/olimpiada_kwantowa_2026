@@ -5,7 +5,7 @@ Widoki nie tworzą obiektów samodzielnie – cała logika i wszystkie błędy d
 
 import re
 import secrets
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 
 from django.contrib.auth.models import Group
 from django.contrib.auth.password_validation import validate_password
@@ -34,7 +34,9 @@ from .consents import (
 from .models import (
     DIRECTORY_INSTITUTION_TYPES,
     MAX_GRADE,
+    MIN_BIRTH_DATE,
     MIN_GRADE,
+    UNKNOWN_BIRTH_YEAR,
     CommitteeMember,
     CommitteeStatus,
     CompetitionRole,
@@ -439,6 +441,85 @@ def _require_grade(grade, *, profile: RegistrationProfile | None = None) -> int 
     return number
 
 
+def _require_birth_date(value) -> date | None:
+    """Data urodzenia w postaci gotowej do zapisu – albo ``None``, gdy wolno jej nie znać.
+
+    Jedna reguła dla wszystkich dróg zapisu (formularz, API, import, ekran koordynatora), bo od
+    wieku zależy podstawa prawna zapisu i to nie jest miejsce na cztery interpretacje tego samego
+    pola. Przyjmujemy ``date`` (formularz i serializer już ją zbudowały) oraz napis w zapisie ISO
+    ``RRRR-MM-DD`` i polskim ``DD.MM.RRRR`` – drugi po to, żeby plik z importu nie wymagał od
+    nauczyciela przestawiania formatu kolumny w arkuszu.
+
+    Granice są sitem na literówki, a nie regułą wieku: data z przyszłości i data sprzed
+    :data:`~apps.accounts.models.MIN_BIRTH_DATE` są odrzucane, a górnego ograniczenia wieku nie ma.
+
+    Pusta wartość przechodzi jako ``None`` i **nie** jest tu błędem: o tym, czy wolno jej nie
+    podać, rozstrzyga profil rejestracji jedno piętro wyżej (:func:`_resolve_birth`). Pusta data
+    nie znaczy „pełnoletni” – ``consents.is_minor`` bez daty i bez rocznika odpowiada „małoletni”.
+    """
+    if value in (None, ""):
+        return None
+    if isinstance(value, datetime):
+        value = value.date()
+    if not isinstance(value, date):
+        parsed = None
+        for pattern in ("%Y-%m-%d", "%d.%m.%Y"):
+            try:
+                parsed = datetime.strptime(str(value).strip(), pattern).date()
+                break
+            except ValueError:
+                continue
+        if parsed is None:
+            raise DomainError(
+                "Podaj datę urodzenia w zapisie RRRR-MM-DD albo DD.MM.RRRR.",
+                "BIRTH_DATE_INVALID",
+                status.HTTP_400_BAD_REQUEST,
+            )
+        value = parsed
+    if value > timezone.localdate():
+        raise DomainError(
+            "Data urodzenia nie może być z przyszłości.",
+            "BIRTH_DATE_INVALID",
+            status.HTTP_400_BAD_REQUEST,
+        )
+    if value < MIN_BIRTH_DATE:
+        raise DomainError(
+            f"Data urodzenia nie może być wcześniejsza niż {MIN_BIRTH_DATE:%d.%m.%Y}.",
+            "BIRTH_DATE_INVALID",
+            status.HTTP_400_BAD_REQUEST,
+        )
+    return value
+
+
+def _resolve_birth(birth_date, birth_year, *, profile: RegistrationProfile | None = None):
+    """Para (data urodzenia, rocznik) dla zapisu – **jedno** miejsce godzenia obu kolumn.
+
+    Trzy przypadki i każdy jest realny:
+
+    - **data** (rejestracja od wydania 0.30.0) – rocznik bierze się z niej i przysłany obok
+      rocznik jest ignorowany. Nie ma tu błędu „rok nie zgadza się z datą”: klient, który przysłał
+      jedno i drugie, ma dostać zapis zgodny z tym, co dokładniejsze, a nie odmowę,
+    - **sam rocznik** (klient API sprzed tej zmiany, import z kolumną „rok urodzenia”) – data
+      zostaje pusta, a reguła wieku spada na starą, rocznikową,
+    - **nic** – dopuszczalne wyłącznie w konkursie, którego profil o wiek nie pyta. Rocznik jest
+      wtedy :data:`~apps.accounts.models.UNKNOWN_BIRTH_YEAR`, czyli „nie wiem”, a nie zero lat.
+    """
+    birth_date = _require_birth_date(birth_date)
+    if birth_date is not None:
+        return birth_date, birth_date.year
+    if birth_year in (None, ""):
+        if profile is None or profile.require_birth_year:
+            raise DomainError("Podaj datę urodzenia.", "BIRTH_DATE_REQUIRED", status.HTTP_400_BAD_REQUEST)
+        return None, UNKNOWN_BIRTH_YEAR
+    try:
+        year = int(birth_year)
+    except (TypeError, ValueError) as exc:
+        raise DomainError("Podaj datę urodzenia.", "BIRTH_DATE_INVALID", status.HTTP_400_BAD_REQUEST) from exc
+    if not MIN_BIRTH_DATE.year <= year <= timezone.localdate().year:
+        raise DomainError("Podaj datę urodzenia.", "BIRTH_DATE_INVALID", status.HTTP_400_BAD_REQUEST)
+    return None, year
+
+
 def active_reviewer_profile(user, competition=None) -> CommitteeMember | None:
     """Profil recenzenta użytkownika, o ile wolno mu recenzować: ACTIVE **i** rola ``reviewer``.
 
@@ -718,8 +799,9 @@ def register_participant(
     first_name: str,
     last_name: str,
     district: str,
-    birth_year: int,
     grade: int,
+    birth_date: date | str | None = None,
+    birth_year: int | None = None,
     gdpr_consent: bool,
     phone: str = "",
     school: str = "",
@@ -775,13 +857,16 @@ def register_participant(
     )
     # Zgody sprawdzamy przed zapisem czegokolwiek – konto bez kompletu zgód nie ma prawa powstać
     # nawet na chwilę wewnątrz transakcji.
-    validate_consents(given, birth_year=birth_year)
     # Konkurs rejestracji: ten z żądania (ustawia go ``apps.tenancy.middleware``), a poza żądaniem
     # jedyny w instalacji. Jedna wartość dla profilu, dla członkostwa i dla reguł formularza –
     # gdyby były dwa odczyty, dałoby się zarejestrować uczestnika w jednym konkursie, regułami
     # drugiego, a rolę nadać mu w trzecim.
     competition = default_competition()
     profile = registration_profile(competition)
+    # Wiek godzimy **przed** sprawdzeniem zgód, bo od niego zależy, które zgody są wymagane:
+    # rozstrzygnięcie „małoletni” liczone z surowego napisu daty byłoby zgadywaniem.
+    birth_date, birth_year = _resolve_birth(birth_date, birth_year, profile=profile)
+    validate_consents(given, birth_date=birth_date, birth_year=birth_year)
     district, region_obj = _resolve_region(competition, district, region, profile=profile)
     institution = _resolve_institution(
         profile,
@@ -811,6 +896,7 @@ def register_participant(
         grade=grade,
         district=district,
         region=region_obj,
+        birth_date=birth_date,
         birth_year=birth_year,
         phone=phone,
         gdpr_consent_at=timezone.now(),
@@ -846,8 +932,14 @@ def _require_registration_open() -> None:
     ensure_registration_open()
 
 
-def validate_consents(given: dict[str, bool], *, birth_year: int | None, competition=None) -> None:
-    """Sprawdza komplet zgód wymaganych od uczestnika o tym roczniku.
+def validate_consents(
+    given: dict[str, bool],
+    *,
+    birth_date: date | None = None,
+    birth_year: int | None = None,
+    competition=None,
+) -> None:
+    """Sprawdza komplet zgód wymaganych od uczestnika w tym wieku.
 
     Reguła siedzi **w serwisie**, a nie w formularzu i serializerze, bo dróg rejestracji są trzy
     (WWW, API, dostawca zewnętrzny) i każda z nich jest równie dobrym wejściem. Formularz
@@ -860,7 +952,7 @@ def validate_consents(given: dict[str, bool], *, birth_year: int | None, competi
     # Zestaw i komunikaty zgód **tego** konkursu; bez wskazania – konkurs z kontekstu żądania,
     # a przy wyłączonej fladze dzisiejsza stała (``consent_set``).
     by_kind = {consent.kind: consent for consent in consent_set(competition)}
-    for kind in required_kinds(birth_year, competition=competition):
+    for kind in required_kinds(birth_date, birth_year, competition=competition):
         if not given.get(kind):
             raise DomainError(
                 by_kind[kind].missing_message,
@@ -900,7 +992,12 @@ def record_consents(
        a zdarzeniem jest jedno: wypełnienie formularza.
     """
     now = timezone.now()
-    validate_consents(given, birth_year=participant.birth_year, competition=participant.competition)
+    validate_consents(
+        given,
+        birth_date=participant.birth_date,
+        birth_year=participant.birth_year,
+        competition=participant.competition,
+    )
     # Zestaw zgód **tego** konkursu (przy wyłączonej fladze – dzisiejsza stała, bez zapytania):
     # dowód ma nieść wersję dokumentu, pod którym uczestnik naprawdę się podpisał.
     consents = consent_set(participant.competition)
@@ -1005,8 +1102,9 @@ def register_social_participant(
     first_name: str,
     last_name: str,
     district: str,
-    birth_year: int,
     grade: int,
+    birth_date: date | str | None = None,
+    birth_year: int | None = None,
     gdpr_consent: bool,
     phone: str = "",
     school: str = "",
@@ -1054,9 +1152,10 @@ def register_social_participant(
             "publish_name_consent": publish_name_consent,
         }
     )
-    validate_consents(given, birth_year=birth_year)
     competition = default_competition()
     profile = registration_profile(competition)
+    birth_date, birth_year = _resolve_birth(birth_date, birth_year, profile=profile)
+    validate_consents(given, birth_date=birth_date, birth_year=birth_year)
     district, region_obj = _resolve_region(competition, district, region, profile=profile)
     institution = _resolve_institution(
         profile,
@@ -1097,6 +1196,7 @@ def register_social_participant(
         grade=grade,
         district=district,
         region=region_obj,
+        birth_date=birth_date,
         birth_year=birth_year,
         phone=phone,
         gdpr_consent_at=timezone.now(),

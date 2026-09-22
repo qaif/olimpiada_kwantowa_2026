@@ -31,6 +31,7 @@ from apps.accounts.consents import (
 from apps.accounts.models import (
     DIRECTORY_INSTITUTION_TYPES,
     GRADE_CHOICES,
+    MIN_BIRTH_DATE,
     CommitteeStatus,
     RegistrationProfile,
     User,
@@ -104,36 +105,88 @@ def phone_field(*, required: bool = True) -> forms.CharField:
     )
 
 
-#: Podpowiedź pod rocznikiem w obu formularzach rejestracji uczestnika. Zgłoszenie organizatora:
-#: „rok urodzenia nie jest powiązany z obowiązkowością oświadczenia o niepełnoletniości”.
-#: Powiązanie istniało od początku po stronie serwera (``ConsentFieldsMixin.clean``), ale nie było
-#: **widoczne**: uczestnik wpisywał rocznik i nic się nie działo, a odmowę poznawał dopiero po
-#: wysłaniu formularza. Zdanie mówi wprost, czego się spodziewać; sam blok zgody odsłania
-#: ``static/js/register-age.js``.
-BIRTH_YEAR_MINOR_HINT = (
+#: Podpowiedź pod datą urodzenia w obu formularzach rejestracji uczestnika. Zgłoszenie
+#: organizatora: „rok urodzenia nie jest powiązany z obowiązkowością oświadczenia
+#: o niepełnoletniości”. Powiązanie istniało od początku po stronie serwera
+#: (``ConsentFieldsMixin.clean``), ale nie było **widoczne**: uczestnik wpisywał datę i nic się
+#: nie działo, a odmowę poznawał dopiero po wysłaniu formularza. Zdanie mówi wprost, czego się
+#: spodziewać; sam blok zgody odsłania ``static/js/register-age.js``.
+BIRTH_DATE_MINOR_HINT = (
     "Osoby niepełnoletnie potrzebują zgody opiekuna – pole poniżej pojawi się automatycznie."
 )
 
+#: Postacie daty przyjmowane z pola tekstowego. ISO jest tym, co przysyła ``<input type="date">``;
+#: zapis „dd.mm.rrrr” – tym, co wpisze człowiek w przeglądarce, która kontrolki daty nie ma
+#: (starsze Safari, tryby dostępności). Odrzucenie własnego zapisu daty w polskim serwisie byłoby
+#: odmową z powodu, którego nie widać w formularzu.
+BIRTH_DATE_INPUT_FORMATS = ("%Y-%m-%d", "%d.%m.%Y")
 
-def birth_year_field(*, help_text: str = "") -> forms.IntegerField:
-    """Rocznik uczestnika. Daty dziennej nie zbieramy – zasada minimalizacji.
 
-    ``data-age="birth-year"`` jest punktem zaczepienia dla ``static/js/register-age.js``: skrypt
-    szuka pola po atrybucie, a nie po ``id_birth_year``, bo ten sam blok renderuje się w dwóch
+def birth_date_field(*, help_text: str = "", required: bool = True) -> forms.DateField:
+    """Data urodzenia uczestnika – pełna, bo od niej zależy reguła „zgoda opiekuna”.
+
+    Do wydania 0.30.0 stał tu sam rocznik (``birth_year_field``) i wynikała z niego reguła
+    zachowawcza: kto kończy 18 lat w tym roku, był małoletni przez cały rok, także po urodzinach.
+    Pełna data zamienia przybliżenie w rozstrzygnięcie (``apps.accounts.consents.is_minor``).
+
+    ``data-age="birth-date"`` jest punktem zaczepienia dla ``static/js/register-age.js``: skrypt
+    szuka pola po atrybucie, a nie po ``id_birth_date``, bo ten sam blok renderuje się w dwóch
     szablonach i przy dołożeniu prefiksu formularza identyfikator by się zmienił. Atrybut stoi tu,
     a nie w szablonie, z tego samego powodu, co ``data-picker`` przy bloku „szkoła”.
+
+    ``type="date"`` daje kontrolkę kalendarza tam, gdzie przeglądarka ją ma, a tam, gdzie nie ma –
+    zwykłe pole tekstowe; dlatego ``input_formats`` przyjmuje obie postacie zapisu. ``min``
+    pilnuje literówki w roku po stronie przeglądarki; rozstrzyga i tak serwer (``Participant.clean``
+    oraz ``clean_birth_date`` niżej).
 
     ``help_text`` jest parametrem, bo podpowiedź o zgodzie opiekuna ma sens wyłącznie tam, gdzie
     obok stoi blok zgód (rejestracja). W edycji profilu zgód nie ma – obiecywałaby pole, które się
     nie pojawi.
     """
-    return forms.IntegerField(
-        label="Rok urodzenia",
-        min_value=1900,
-        max_value=2100,
+    return forms.DateField(
+        label="Data urodzenia",
+        required=required,
+        input_formats=BIRTH_DATE_INPUT_FORMATS,
         help_text=help_text,
-        widget=forms.NumberInput(attrs={"data-age": "birth-year"}),
+        widget=forms.DateInput(
+            format="%Y-%m-%d",
+            attrs={
+                "type": "date",
+                "data-age": "birth-date",
+                "min": MIN_BIRTH_DATE.isoformat(),
+                "autocomplete": "bday",
+            },
+        ),
     )
+
+
+def clean_birth_date(value):
+    """Zakres daty urodzenia – ta sama reguła, co ``Participant.clean``, ale jako błąd pola.
+
+    Powtórzenie jest świadome: model odpowiada za spójność wiersza w każdej drodze zapisu,
+    a formularz musi postawić komunikat **pod polem**, żeby było widać, co poprawić. Obie reguły
+    czytają tę samą stałą i tę samą datę dzisiejszą.
+    """
+    if value is None:
+        return value
+    today = timezone.localdate()
+    if value > today:
+        raise forms.ValidationError("Data urodzenia nie może być z przyszłości.")
+    if value < MIN_BIRTH_DATE:
+        raise forms.ValidationError(
+            f"Data urodzenia nie może być wcześniejsza niż {MIN_BIRTH_DATE:%d.%m.%Y}."
+        )
+    return value
+
+
+def _clean_birth_date_method(self):
+    """``clean_birth_date`` dla każdego formularza z tym polem – przypisywane w ciele klasy.
+
+    Cztery formularze (dwie drogi rejestracji, edycja profilu, ekran koordynatora) mają to samo
+    pole i tę samą regułę zakresu. Wspólny mixin byłby tu piątą klasą bazową dla jednej metody,
+    a skopiowana czterokrotnie metoda – czterema miejscami do poprawienia przy zmianie granicy.
+    """
+    return clean_birth_date(self.cleaned_data.get("birth_date"))
 
 
 def password_field(label: str = "Hasło") -> forms.CharField:
@@ -295,6 +348,13 @@ class SchoolChoiceMixin(forms.Form):
     #: (``apps.accounts.profile``) sprawdza dziś wyłącznie dzisiejsze reguły. Pole widoczne na
     #: ekranie, którego zapis by je pominął, byłoby polem udającym, że coś robi.
     profile_driven = True
+
+    #: Czy formularz wolno zapisać **bez** daty urodzenia, choć profil rejestracji jej wymaga.
+    #: Ma dokładnie jednego adresata: ekran koordynatora. Koordynator poprawia cudze dane i daty
+    #: urodzenia ucznia sprzed tej zmiany po prostu nie zna – wymaganie jej od niego znaczyłoby
+    #: „wpisz cokolwiek, żeby zapisać telefon”, czyli zachętę do zmyślania danych, od których
+    #: zależy podstawa prawna zapisu. Pusta data zostaje pusta i reguła wieku spada na rocznikową.
+    allow_unknown_birth_date = False
 
     school_id = forms.IntegerField(
         required=False, min_value=1, widget=forms.HiddenInput(attrs={"data-picker": "school-id"})
@@ -466,6 +526,14 @@ class SchoolChoiceMixin(forms.Form):
         district = self.fields.get("district")
         if district is not None:
             district.required = profile.require_region
+        # Data urodzenia. Do wydania 0.30.0 ta flaga nie miała czego wyłączyć (kolumna rocznika
+        # była ``NOT NULL``); ``Participant.birth_date`` jest nullowalne, więc przełącznik wreszcie
+        # działa. Wyłączony **nie** znaczy „nie pytamy o zgodę opiekuna”: uczestnik bez daty i bez
+        # rocznika jest dla ``consents.is_minor`` małoletni, czyli zgoda opiekuna staje się
+        # wymagana od wszystkich (patrz ``RegistrationProfile.require_birth_year``).
+        birth_date = self.fields.get("birth_date")
+        if birth_date is not None:
+            birth_date.required = profile.require_birth_year and not self.allow_unknown_birth_date
 
     @property
     def school_field_names(self) -> tuple[str, ...]:
@@ -681,12 +749,12 @@ class ConsentFieldsMixin(forms.Form):
         „kto jest niepełnoletni” trzyma nadal ``consents.is_minor`` – to jest kod, nie dane.
         """
         cleaned = super().clean()
-        birth_year = cleaned.get("birth_year")
+        birth_date = cleaned.get("birth_date")
         guardian = next((item for item in self._consents if item.kind == ConsentKind.GUARDIAN), None)
         if (
             guardian is not None
-            and birth_year
-            and is_minor(birth_year)
+            and birth_date
+            and is_minor(birth_date)
             and not cleaned.get(guardian.field_name)
         ):
             self.add_error(guardian.field_name, guardian.missing_message)
@@ -732,7 +800,7 @@ PARTICIPANT_FIELD_ORDER = (
     "district",
     *SCHOOL_FIELD_NAMES,
     "grade",
-    "birth_year",
+    "birth_date",
     # Zgody na końcu i w jednym bloku: to osobne oświadczenia, a nie kolejne dane osobowe –
     # szablon renderuje je w ``<fieldset class="consents">`` (patrz ``ConsentFieldsMixin``).
     *CONSENT_FIELD_NAMES,
@@ -758,7 +826,9 @@ class ParticipantRegisterForm(CaptchaFormMixin, ConsentFieldsMixin, SchoolChoice
     phone = phone_field()
     district = voivodeship_field("Województwo")
     grade = grade_field()
-    birth_year = birth_year_field(help_text=BIRTH_YEAR_MINOR_HINT)
+    birth_date = birth_date_field(help_text=BIRTH_DATE_MINOR_HINT)
+
+    clean_birth_date = _clean_birth_date_method
 
     def clean(self):
         return clean_password_pair(self, super().clean())
@@ -788,7 +858,9 @@ class SocialParticipantSignupForm(ConsentFieldsMixin, SchoolChoiceMixin):
     phone = phone_field()
     district = voivodeship_field("Województwo")
     grade = grade_field()
-    birth_year = birth_year_field(help_text=BIRTH_YEAR_MINOR_HINT)
+    birth_date = birth_date_field(help_text=BIRTH_DATE_MINOR_HINT)
+
+    clean_birth_date = _clean_birth_date_method
 
 
 class CommitteeRegisterForm(CaptchaFormMixin):
@@ -830,7 +902,7 @@ PARTICIPANT_PROFILE_FIELD_ORDER = (
     "district",
     *SCHOOL_FIELD_NAMES,
     "grade",
-    "birth_year",
+    "birth_date",
     # Adres opiekuna szkolnego stoi na końcu, bo jest jedynym polem tego formularza, które nie
     # opisuje uczestnika, tylko **nadaje komuś wgląd** w jego przebieg w zawodach.
     "supervisor_email",
@@ -853,7 +925,7 @@ def participant_profile_initial(participant) -> dict:
         "phone": participant.phone,
         "district": participant.district,
         "grade": participant.grade,
-        "birth_year": participant.birth_year,
+        "birth_date": participant.birth_date,
         "school_id": participant.school_ref_id,
         # Miejscowość odtwarzamy wyłącznie ze słownika: przy szkole wpisanej ręcznie nie wiemy,
         # w jakim mieście ona jest (pytamy o nazwę, nie o adres), a podstawienie czegokolwiek
@@ -894,7 +966,9 @@ class ParticipantProfileForm(SchoolChoiceMixin):
     phone = phone_field()
     district = voivodeship_field("Województwo")
     grade = grade_field()
-    birth_year = birth_year_field()
+    birth_date = birth_date_field()
+
+    clean_birth_date = _clean_birth_date_method
     # Opcjonalne i odwracalne jednym wyczyszczeniem pola: to uczestnik decyduje, czy nauczyciel
     # ma widzieć jego postęp, i tylko on może tę decyzję cofnąć (patrz ``apps.accounts.supervisors``).
     supervisor_email = forms.EmailField(
@@ -1187,15 +1261,27 @@ class CoordinatorParticipantForm(SchoolChoiceMixin):
     ``public_code`` nie jest edytowalny nigdzie – to identyfikator w ogłoszonych tabelach wyników.
     Szkołę wybiera się tą samą wyszukiwarką SIO, co przy rejestracji, żeby uczniowie jednej szkoły
     mieli w bazie jeden napis (od tego zależy próg k-anonimowości przy publikacji).
+
+    Data urodzenia jest tu **nieobowiązkowa** – jedyne takie miejsce w serwisie i jedyne, w którym
+    dane wpisuje ktoś inny niż ich właściciel (patrz ``allow_unknown_birth_date``).
     """
 
     required_css_class = REQUIRED_CSS_CLASS
-    field_order = ["phone", "district", *SCHOOL_FIELD_NAMES, "grade", "birth_year"]
+    field_order = ["phone", "district", *SCHOOL_FIELD_NAMES, "grade", "birth_date"]
+    allow_unknown_birth_date = True
 
     phone = phone_field()
     district = voivodeship_field("Województwo")
     grade = grade_field()
-    birth_year = birth_year_field()
+    birth_date = birth_date_field(
+        required=False,
+        help_text=(
+            "Puste pole znaczy „nie znamy dnia urodzin”. Wiek jest wtedy liczony po roczniku "
+            "i rozstrzygany na korzyść zgody opiekuna."
+        ),
+    )
+
+    clean_birth_date = _clean_birth_date_method
 
 
 class CoordinatorCommitteeForm(forms.Form):

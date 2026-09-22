@@ -189,6 +189,12 @@ PARTICIPANT_HEADER_BASE = [
     "szkoła",
     "klasa",
     "województwo",
+    # Dwie kolumny wieku, a nie jedna, i to jest decyzja o **eksporcie koordynatora**, a nie
+    # o schemacie: data bywa pusta (profile sprzed wydania 0.30.0), a rocznik jest w każdym
+    # wierszu – arkusz z samą datą miałby w tych wierszach dziurę i nie dałoby się po nim
+    # posortować rocznikami. Eksporty wychodzące poza organizatora (``apps.integrations``) wieku
+    # nie dostają w ogóle i tak zostaje: zasada minimalizacji.
+    "data urodzenia",
     "rok urodzenia",
     "telefon",
     "konto aktywne",
@@ -239,7 +245,8 @@ def participant_dataset(edition) -> Dataset:
                 participant.school,
                 participant.grade,
                 participant.get_district_display(),
-                participant.birth_year,
+                participant.birth_date,
+                participant.known_birth_year,
                 participant.phone,
                 user.is_active,
                 user.email_verified_at,

@@ -55,7 +55,13 @@ CATEGORIES_FLAG = "categories"
 ADULT_YEAR = timezone.localdate().year - 25
 
 #: Dzisiejszy nagłówek importu nauczyciela, znak w znak.
+#: Nagłówek pliku wgrywanego w tych testach. Zostaje przy kolumnie „rok urodzenia”, i to jest
+#: część zdania, które te testy mówią: arkusz sprzed wydania 0.30.0 ma wchodzić bez zmiany ani
+#: jednej komórki. Kolumnę „data urodzenia” sprawdza ``test_birth_date.py``.
 BASE_HEADER = "imię;nazwisko;e-mail;rok urodzenia;klasa;telefon;e-mail opiekuna prawnego"
+
+#: Wzorcowy nagłówek **pokazywany** na ekranie importu – ten prosi już o pełną datę urodzenia.
+SAMPLE_HEADER = "imię;nazwisko;e-mail;data urodzenia;klasa;telefon;e-mail opiekuna prawnego"
 
 
 class Upload(io.BytesIO):
@@ -113,8 +119,8 @@ def test_konkurs_bez_flag_nie_dostaje_ani_jednej_dodatkowej_kolumny(competition,
     """
     with django_assert_num_queries(0):
         assert extra_columns(competition) == ()
-        assert header_line(with_supervisor=False, competition=competition) == BASE_HEADER
-        assert header_line(with_supervisor=False) == BASE_HEADER
+        assert header_line(with_supervisor=False, competition=competition) == SAMPLE_HEADER
+        assert header_line(with_supervisor=False) == SAMPLE_HEADER
 
 
 @pytest.mark.parametrize(
@@ -170,7 +176,10 @@ def test_koszyk_pliku_bez_kolumn_konkursu_jest_taki_jak_dawniej(competition):
     """Podgląd Konkursu #1 nie zmienia się nawet w polu ukrytym – koszyk ma dzisiejsze klucze."""
     rows = preview(competition, student(), header=BASE_HEADER)
 
-    assert set(rows[0].payload()) == {"n", "f", "l", "e", "b", "g", "p", "gu", "s"}
+    # ``bd`` (data urodzenia) jest w koszyku zawsze, także puste – w pliku z kolumną „rok urodzenia”
+    # dnia urodzin po prostu nie ma. Reszta kluczy jest dzisiejsza co do znaku.
+    assert set(rows[0].payload()) == {"n", "f", "l", "e", "b", "bd", "g", "p", "gu", "s"}
+    assert rows[0].payload()["bd"] is None
 
 
 # --- region --------------------------------------------------------------------------------------

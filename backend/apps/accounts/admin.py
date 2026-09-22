@@ -151,6 +151,7 @@ class ParticipantAdmin(admin.ModelAdmin):
         "school_ref",
         "grade",
         "district",
+        "birth_date",
         "birth_year",
         "publish_full_name",
     )

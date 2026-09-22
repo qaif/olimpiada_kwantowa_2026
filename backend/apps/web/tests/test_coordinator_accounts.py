@@ -14,6 +14,8 @@ Czego pilnują te testy poza samym zapisem:
   ``apps.core.models``, bo wpisy czyta też ktoś bez prawa do danych uczestnika.
 """
 
+from datetime import date
+
 import pytest
 
 from apps.accounts.models import CommitteeStatus, Participant, User, Voivodeship
@@ -57,7 +59,7 @@ def participant_fields(participant, **overrides) -> dict:
         "participant-phone": participant.phone,
         "participant-district": participant.district,
         "participant-grade": str(participant.grade),
-        "participant-birth_year": str(participant.birth_year),
+        "participant-birth_date": participant.birth_date.isoformat(),
         "participant-school_custom": "on",
         "participant-school": participant.school,
     }
@@ -239,7 +241,7 @@ def test_the_participant_block_saves_school_grade_and_voivodeship(web_client, co
                     "participant-phone": "600 300 400",
                     "participant-district": Voivodeship.POMORSKIE,
                     "participant-grade": "2",
-                    "participant-birth_year": "2009",
+                    "participant-birth_date": "2009-05-04",
                     "participant-school": "Technikum nr 3",
                 },
             ),
@@ -251,6 +253,8 @@ def test_the_participant_block_saves_school_grade_and_voivodeship(web_client, co
     assert participant.phone == "+48600300400"
     assert participant.district == Voivodeship.POMORSKIE
     assert participant.grade == 2
+    assert participant.birth_date == date(2009, 5, 4)
+    # Rocznik jedzie **za** datą: liczy go ``Participant.save``, a nie formularz.
     assert participant.birth_year == 2009
     assert participant.school == "Technikum nr 3"
 

@@ -58,10 +58,11 @@ class InviteAcceptForm(ConsentFieldsMixin):
     """Hasło, dwie brakujące dane i komplet zgód. Formularz mieszka tutaj – nikt inny go nie używa.
 
     ``ConsentFieldsMixin`` dokłada blok zgód z ``apps.accounts.consents``, razem z regułą
-    „niepełnoletni musi mieć zgodę opiekuna” postawioną pod właściwym polem. Rocznika w tym
-    formularzu **nie ma** (przyszedł z listy klasowej), więc regułę wieku egzekwuje serwis –
-    domieszka milczy, gdy nie ma czego porównać, a ``accept_invitation`` rozstrzyga po roczniku
-    zapisanym w profilu.
+    „niepełnoletni musi mieć zgodę opiekuna” postawioną pod właściwym polem. Daty urodzenia w tym
+    formularzu **nie ma** (przyszła z listy klasowej), więc regułę wieku egzekwuje serwis –
+    domieszka milczy, gdy nie ma czego porównać, a ``accept_invitation`` liczy ją z profilu:
+    z ``birth_date``, a gdy plik niósł sam rocznik – z ``birth_year`` starą, zachowawczą regułą.
+    Ucznia zaproszonego bez podanego wieku obie drogi traktują jak małoletniego.
     """
 
     required_css_class = REQUIRED_CSS_CLASS

@@ -13,12 +13,17 @@ rozstrzyga on, a nie zegarek w telefonie. Bieżący czas serwera stoi na stronie
 ### Rejestracja — `/register/`
 
 Formularz prosi o: adres e-mail, imię i nazwisko, hasło (dwa razy), telefon, województwo, **szkołę**,
-**klasę**, rok urodzenia i zgody.
+**klasę**, **datę urodzenia** i zgody.
 
 - **szkołę wybiera się z wyszukiwarki** (słownik szkół ponadpodstawowych). Gdy Twojej szkoły w niej nie
   ma, zaznacz „nie ma jej na liście” i wpisz nazwę ręcznie,
-- **rocznik decyduje o zgodzie opiekuna**: osobie niepełnoletniej formularz dokłada wiersz zgody rodzica
-  lub opiekuna prawnego,
+- **data urodzenia decyduje o zgodzie opiekuna**: osobie niepełnoletniej formularz dokłada wiersz zgody
+  rodzica lub opiekuna prawnego. Pełnoletni jesteś **od dnia osiemnastych urodzin** — w dniu urodzin
+  formularz już o zgodę opiekuna nie pyta, dzień wcześniej jeszcze pyta (urodzony 29 lutego: od 1 marca).
+  Rozstrzyga serwer i dzisiejsza data w Polsce, a nie zegar Twojego komputera,
+- **konto założone przed 22.09.2026** zna sam rocznik, więc zgoda opiekuna bywa tam wymagana przez cały
+  rok, w którym kończysz 18 lat. Uzupełnij datę w **„Edytuj dane”** — panel przypomina o tym jednym
+  zdaniem — a wiek policzy się dokładnie,
 - każda zgoda ma **odnośnik do dokumentu** (regulamin, polityka RODO, wzór zgody opiekuna) — otwiera się
   w nowej karcie,
 - zgoda na **publikację imienia i nazwiska** jest nieobowiązkowa i można ją później wycofać,
@@ -48,7 +53,7 @@ Po rejestracji strona `/register/done/` mówi „sprawdź skrzynkę”. Na podan
 |---|---|
 | Logowanie | `/login/` |
 | Nie pamiętasz hasła | `/password-reset/` — link z listu jest jednorazowy i ważny 24 h |
-| Twoje dane (imię, nazwisko, telefon, województwo, szkoła, klasa, rocznik) | `/me/profile/` — przycisk „Edytuj dane” w panelu |
+| Twoje dane (imię, nazwisko, telefon, województwo, szkoła, klasa, data urodzenia) | `/me/profile/` — przycisk „Edytuj dane” w panelu |
 | **Adres e-mail opiekuna szkolnego** (pole opcjonalne) | `/me/profile/` — dopiero po jego wpisaniu nauczyciel widzi Twój postęp; da się je wyczyścić |
 | Zmiana adresu e-mail | `/account/profile/` → `/account/email/` — potwierdzenie idzie na **dotychczasowy** adres |
 | Język interfejsu i tryb wysokiego kontrastu | dwie ikony w pasku konta, na każdej stronie |
@@ -56,7 +61,7 @@ Po rejestracji strona `/register/done/` mówi „sprawdź skrzynkę”. Na podan
 | Usunięcie konta | `/account/delete/` — patrz niżej |
 
 **Usunięcie konta.** Jeśli brałeś już udział w zawodach (zgłoszenie, praca, recenzja), konto jest
-**anonimizowane**: znikają imię, nazwisko, adres, telefon, szkoła i rocznik, a w ogłoszonych tabelach
+**anonimizowane**: znikają imię, nazwisko, adres, telefon, szkoła i data urodzenia, a w ogłoszonych tabelach
 zostaje sam kod uczestnika. Konto bez takiego śladu jest kasowane w całości, a adres wraca do puli.
 Operacja wymaga podania aktualnego hasła (albo przepisania własnego adresu, gdy logujesz się przez
 Google/Facebooka) i **jest nieodwracalna**.

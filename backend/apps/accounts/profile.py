@@ -44,7 +44,12 @@ from .phones import normalize_phone
 #: wystarcza do odtworzenia przebiegu sprawy; „na co” jest w profilu, dla tych, którzy mają dostęp.
 #: ``supervisor_email`` jest tu, choć nie jest daną **uczestnika**: to adres osoby trzeciej
 #: (nauczyciela), więc do audytu ma iść wyłącznie „zmienił” – tak samo jak przy telefonie.
-PERSONAL_FIELDS = frozenset({"first_name", "last_name", "phone", "school", "email", "supervisor_email"})
+#: ``birth_date`` dołącza do tej listy razem z wydaniem 0.30.0, a ``birth_year`` **nie**: rocznik
+#: nie wskazuje osoby (dzieli uczestników na kilka grup po kilkaset), a pełna data urodzenia jest
+#: klasycznym kluczem dopasowania do innych zbiorów i nie ma po co stać w rejestrze zdarzeń.
+PERSONAL_FIELDS = frozenset(
+    {"first_name", "last_name", "phone", "school", "email", "supervisor_email", "birth_date"}
+)
 
 #: Domena adresów po anonimizacji. ``.invalid`` jest zarezerwowana przez RFC 2606 – list na taki
 #: adres nie wyjdzie nawet przez pomyłkę, a wiersz nadal spełnia unikalność i format ``EmailField``.
@@ -107,7 +112,7 @@ def _participant_values(fields: dict) -> dict:
     """
     # Importy lokalne: ``services`` importuje ``activation``, a nie ``profile`` – ale reguły
     # walidacji mieszkają w ``services`` i drugi raz ich tu nie piszemy.
-    from .services import _require_grade, _require_voivodeship, _resolve_school
+    from .services import _require_birth_date, _require_grade, _require_voivodeship, _resolve_school
 
     values: dict = {}
     if "first_name" in fields:
@@ -120,7 +125,15 @@ def _participant_values(fields: dict) -> dict:
         values["district"] = _require_voivodeship(fields["district"], required=True)
     if "grade" in fields:
         values["grade"] = _require_grade(fields["grade"])
+    if "birth_date" in fields:
+        # Pusta wartość znaczy „nie znamy dnia urodzin” i jest poprawna: tak wygląda profil sprzed
+        # wydania 0.30.0 i tak wolno zapisać ekran koordynatora (``allow_unknown_birth_date``).
+        # Rocznika **nie** czyścimy razem z datą – wiersz bez jednego i drugiego nie miałby po
+        # czym liczyć wieku, a kolumna rocznika jest ``NOT NULL``.
+        values["birth_date"] = _require_birth_date(fields["birth_date"])
     if "birth_year" in fields:
+        # Droga wsteczna: klient API sprzed tej zmiany przysyła sam rocznik. Gdy przysłał też datę,
+        # rozstrzyga data – rocznik wyliczy z niej ``Participant.save``.
         values["birth_year"] = int(fields["birth_year"])
     if "supervisor_email" in fields:
         # Adres opiekuna szkolnego. Normalizacja jest ta sama, którą stosuje panel opiekuna przy
@@ -154,7 +167,7 @@ def _save_participant_values(participant: Participant, values: dict) -> dict:
 
     updates = [
         name
-        for name in ("phone", "district", "grade", "birth_year", "school", "supervisor_email")
+        for name in ("phone", "district", "grade", "birth_date", "birth_year", "school", "supervisor_email")
         if name in values
     ]
     for name in updates:
@@ -190,8 +203,17 @@ def update_participant_profile(
     Pól nietkniętych w ``diff`` nie ma – inaczej nie dałoby się odróżnić „zmienił województwo”
     od „otworzył formularz i zapisał bez zmian”.
     """
+    # Uzupełnienie brakującej daty urodzenia jest **osobnym** zdarzeniem, a nie kolejną pozycją
+    # w ``diff``: profile sprzed wydania 0.30.0 znają sam rocznik, a od pełnej daty zależy reguła
+    # „zgoda opiekuna dla małoletniego”. Pytanie „od kiedy ten uczestnik ma dokładny wiek i kto go
+    # wpisał” pada przy sporze o zgodę i nie może odpowiadać na nie sam napis „zmieniono dane”.
+    completing_birth_date = participant.birth_date is None
     diff = _save_participant_values(participant, _participant_values(fields))
     audit(actor, "participant.profile_updated", participant, diff, request=request)
+    if completing_birth_date and participant.birth_date is not None:
+        # W ``diff`` audytu nie ma samej daty – jest daną osobową (wiek), a wpisy audytowe czyta
+        # też ktoś bez prawa do danych uczestnika. Kogo dotyczy, mówi ``target``.
+        audit(actor, "participant.birth_date_completed", participant, {}, request=request)
     return participant
 
 
@@ -417,8 +439,21 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
         participant.school = ANONYMISED_SCHOOL
         participant.school_ref = None
         participant.birth_year = ANONYMISED_BIRTH_YEAR
+        # Data urodzenia znika **cała**, a nie „do rocznika”: dzień i miesiąc urodzin same w sobie
+        # zawężają krąg osób, a po anonimizacji nie mają czego opisywać. Rocznik zostaje podmieniony
+        # na jawnie nieprawdziwy, bo kolumna jest ``NOT NULL`` (patrz ``ANONYMISED_BIRTH_YEAR``).
+        participant.birth_date = None
         participant.publish_full_name = False
-        participant.save(update_fields=["phone", "school", "school_ref", "birth_year", "publish_full_name"])
+        participant.save(
+            update_fields=[
+                "phone",
+                "school",
+                "school_ref",
+                "birth_date",
+                "birth_year",
+                "publish_full_name",
+            ]
+        )
     ConsentRecord.objects.filter(participant__in=participants, withdrawn_at__isnull=True).update(
         withdrawn_at=now
     )

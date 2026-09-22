@@ -31,6 +31,7 @@ from django.db.models import Count, Max, Prefetch
 from django.utils import timezone
 from rest_framework import status as http
 
+from apps.accounts.consents import is_minor
 from apps.competitions.models import (
     ComponentKind,
     ManualQualification,
@@ -97,9 +98,15 @@ MAX_REPORTED_CODES = 20
 #: (k-anonimowość, PROJEKT.md 2.4).
 MIN_SCHOOL_GROUP = 3
 
-#: Wiek, od którego uznajemy uczestnika za pełnoletniego przy zgodzie na publikację nazwiska.
-#: 19, a nie 18: znamy wyłącznie rok urodzenia, więc konserwatywnie zaokrąglamy w stronę ochrony –
-#: osoba, która skończy 18 lat w tym roku, wciąż wymaga zgody opiekuna.
+#: Wiek, od którego uznajemy uczestnika za pełnoletniego przy zgodzie na publikację nazwiska,
+#: gdy znamy **wyłącznie rocznik** (profile sprzed wydania 0.30.0). 19, a nie 18, i to jest
+#: zaokrąglenie w stronę ochrony: osoba, która skończy 18 lat w tym roku, przez część roku jeszcze
+#: ich nie ma, a dnia urodzin w takim wierszu nie ma wcale.
+#:
+#: Uczestnik z pełną datą urodzenia nie przechodzi przez tę stałą w ogóle – dla niego pytanie
+#: „czy jest pełnoletni” ma odpowiedź dokładną i wydaje ją ``apps.accounts.consents.is_minor``,
+#: to samo miejsce, które rozstrzyga o zgodzie opiekuna przy rejestracji. Dwie różne odpowiedzi
+#: na to samo pytanie w dwóch miejscach systemu byłyby gorsze od jednej niedokładnej.
 ADULT_AGE = 19
 
 
@@ -510,11 +517,21 @@ def _rank_rows(
     return ordered
 
 
-def _is_adult(birth_year: int | None, current_year: int) -> bool:
-    """Czy uczestnik jest pełnoletni „na pewno”, licząc wyłącznie po roku urodzenia."""
+def _is_adult(birth_date, birth_year: int | None, today) -> bool:
+    """Czy uczestnik jest pełnoletni – dokładnie, gdy znamy datę; „na pewno”, gdy sam rocznik.
+
+    Z pełną datą odpowiedź wydaje ``consents.is_minor``: pełnoletni jest ten, kto **skończył**
+    18 lat, licząc kalendarzowo i z 29 lutego włącznie. Bez daty zostaje stara reguła rocznikowa
+    (``ADULT_AGE``), bo dnia urodzin w takim wierszu nie ma i nie będzie.
+
+    Brak jednego i drugiego znaczy „nie pełnoletni”, czyli nazwisko do tabeli nie wejdzie bez
+    zgody opiekuna. Przy nieznanym wieku to jedyna odpowiedź, którą da się obronić.
+    """
+    if birth_date is not None:
+        return not is_minor(birth_date, today=today)
     if not birth_year:
         return False
-    return current_year - int(birth_year) >= ADULT_AGE
+    return today.year - int(birth_year) >= ADULT_AGE
 
 
 def _quiz_scores(stage: Stage, *, preview: bool) -> dict[int, int] | None:
@@ -697,7 +714,7 @@ def _component_total(entry_id: int, components, sources, grades_total: int) -> t
     return scores, _round_half_up(total)
 
 
-def _owner_fields(owner, participant, current_year: int) -> dict:
+def _owner_fields(owner, participant, today) -> dict:
     """Ta część wiersza, która opisuje **właściciela** wpisu: uczestnika albo drużynę (§ 1.2.3).
 
     Klucze są te same dla obu rodzajów właściciela i to jest cała sztuczka: kwalifikacja, próg,
@@ -737,7 +754,7 @@ def _owner_fields(owner, participant, current_year: int) -> dict:
         "district": participant.get_district_display(),
         "publish_full_name": participant.publish_full_name,
         "guardian_consent": participant.guardian_consent,
-        "is_adult": _is_adult(participant.birth_year, current_year),
+        "is_adult": _is_adult(participant.birth_date, participant.birth_year, today),
     }
 
 
@@ -801,10 +818,11 @@ def compute_stage_results(stage: Stage, *, preview: bool = False) -> list[dict]:
     quiz_scores = None if components else _quiz_scores(stage, preview=preview)
     component_sources = _component_sources(stage, components, preview=preview) if components else {}
     grades_block = _grades_block_finalization(components)
-    # Pełnoletność liczymy raz na cały etap: znamy tylko rok urodzenia, więc dokładniejszej daty
-    # i tak nie ma. Do wiersza trafia gotowa flaga, nigdy sam ``birth_year`` – rok urodzenia nie ma
-    # po co wędrować przez warstwy aż do serializera.
-    current_year = timezone.now().year
+    # Dzisiejsza data **lokalna** (Europe/Warsaw), liczona raz na cały etap: pełnoletność zmienia
+    # się o północy czasu lokalnego, a nie UTC, więc ``timezone.now().date()`` przesuwałby urodziny
+    # o kilka godzin w wybrane dni roku. Do wiersza trafia gotowa flaga, nigdy sama data ani
+    # rocznik – wiek nie ma po co wędrować przez warstwy aż do serializera.
+    today = timezone.localdate()
 
     pending_codes: list[str] = []
     rows: list[dict] = []
@@ -855,7 +873,7 @@ def compute_stage_results(stage: Stage, *, preview: bool = False) -> list[dict]:
             total = quiz_scores.get(entry.pk, 0)
         row = {
             "entry_id": entry.pk,
-            **_owner_fields(owner, participant, current_year),
+            **_owner_fields(owner, participant, today),
             "status": entry.status,
             # Decyzja komitetu o kwalifikacji wbrew progowi (pusta = rozstrzyga próg).
             # Wędruje w wierszu, bo czytają ją trzy różne warstwy: kwalifikacja

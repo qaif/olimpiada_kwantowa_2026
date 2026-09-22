@@ -58,11 +58,16 @@ DEFAULT_ORGANIZER_NAME = "Fundacja Quantum AI"
 #: Sekcja dokumentów w drzewie stron. Awaryjny adres etykiety, gdy strony jeszcze nie ma w bazie.
 DOCUMENTS_PATH = "/dokumenty/"
 
-#: Wiek, powyżej którego zgoda opiekuna przestaje być wymagana – liczony **wyłącznie po roczniku**,
-#: bo daty dziennej urodzenia nie zbieramy (zasada minimalizacji). Osoba, która w tym roku kończy
-#: 18 lat, przez większość roku jest jeszcze małoletnia, więc rocznik „minus 18” traktujemy jako
-#: niepełnoletni. Zawyżenie kosztuje jeden zbędny checkbox, zaniżenie – zgodę pobraną od dziecka
-#: bez wiedzy opiekuna; te dwa błędy nie są równoważne.
+#: Wiek pełnoletności. Od wydania z pełną datą urodzenia jest to próg liczony **kalendarzowo**:
+#: pełnoletni jest ten, kto skończył 18 lat, czyli dzisiejsza data lokalna jest co najmniej dniem
+#: osiemnastych urodzin.
+#:
+#: Ta sama stała obsługuje **starą** regułę rocznikową, bo profile sprzed tej zmiany mają wyłącznie
+#: rocznik (``Participant.birth_date`` jest nullowalne i nikt go za nie nie dopisze). Reguła
+#: rocznikowa jest zachowawcza z premedytacją – „rok bieżący − rocznik <= 18” – bo osoba urodzona
+#: osiemnaście lat temu może mieć jeszcze 17 lat, a dnia urodzin nie znamy. Zawyżenie kosztuje
+#: jeden zbędny checkbox, zaniżenie – zgodę pobraną od dziecka bez wiedzy opiekuna; te dwa błędy
+#: nie są równoważne.
 MINOR_MAX_AGE = 18
 
 
@@ -298,27 +303,71 @@ def consent_set(competition=None) -> tuple[Consent, ...]:
     return DEFAULT_CONSENTS
 
 
-def is_minor(birth_year: int | None, *, today: date | None = None) -> bool:
-    """Czy rocznik oznacza osobę, od której wymagamy zgody opiekuna.
+def adulthood_date(birth_date: date) -> date:
+    """Dzień, w którym osoba urodzona ``birth_date`` staje się pełnoletnia.
 
-    Reguła jest zachowawcza z premedytacją: ``rok bieżący - rocznik <= 18``. Osoba urodzona
-    osiemnaście lat temu może mieć jeszcze 17 lat (urodziny dopiero przed nią), a daty dziennej
-    nie znamy. Brak rocznika też jest traktowany jak niepełnoletność – nie zgadujemy na korzyść
-    pominięcia zgody.
+    Zwykle są to te same dzień i miesiąc w roku ``+18``. Wyjątkiem jest 29 lutego: rok
+    ``+18`` bywa nieprzestępny i takiego dnia po prostu nie ma. Polskie prawo liczy termin
+    oznaczony w latach do dnia odpowiadającego początkowemu (art. 112 k.c.), a gdy takiego dnia
+    nie ma – do ostatniego dnia miesiąca, czyli 28 lutego. Bierzemy jednak **1 marca**, bo w razie
+    wątpliwości wolimy o jeden dzień dłużej uznawać kogoś za małoletniego niż o jeden dzień za
+    wcześnie przestać żądać zgody opiekuna (patrz ``MINOR_MAX_AGE``).
     """
+    try:
+        return birth_date.replace(year=birth_date.year + MINOR_MAX_AGE)
+    except ValueError:  # 29 lutego w roku nieprzestępnym
+        return date(birth_date.year + MINOR_MAX_AGE, 3, 1)
+
+
+def is_minor(
+    birth_date: date | int | None = None,
+    birth_year: int | None = None,
+    *,
+    today: date | None = None,
+) -> bool:
+    """Czy od tej osoby wymagamy zgody opiekuna. **Jedyne** miejsce z tą regułą w systemie.
+
+    Dwie reguły, bo są dwa rodzaje danych i nie wolno ich mylić:
+
+    - **pełna data urodzenia** (od wydania, w którym rejestracja o nią pyta) daje odpowiedź
+      dokładną: pełnoletni jest ten, kto **skończył już** 18 lat, czyli dzisiejsza data lokalna
+      jest co najmniej dniem osiemnastych urodzin (``adulthood_date``),
+    - **sam rocznik** (profile sprzed tej zmiany, import z kolumną „rok urodzenia”) daje odpowiedź
+      zachowawczą, czyli dokładnie tę, którą ten system dawał do tej pory: ``rok bieżący − rocznik
+      <= 18``. Nie da się jej uściślić, bo dnia urodzin w tych wierszach po prostu nie ma.
+
+    Brak jednego i drugiego znaczy „niepełnoletni” – przy nieznanym wieku żądamy zgody, a nie
+    zgadujemy na korzyść jej pominięcia.
+
+    ``birth_date`` przyjmuje też ``int``, i to nie jest niechlujstwo, tylko **droga wsteczna**:
+    ``is_minor(participant.birth_year)`` wołane w kilkunastu miejscach (i w cudzych testach) ma
+    znaczyć to samo, co znaczyło, zamiast cicho porównywać liczbę z datą. Liczba na pierwszej
+    pozycji jest rocznikiem i idzie starą regułą.
+    """
+    if isinstance(birth_date, int):
+        birth_date, birth_year = None, birth_date
+    today = today or timezone.localdate()
+    if birth_date is not None:
+        return today < adulthood_date(birth_date)
     if not birth_year:
         return True
-    current_year = (today or timezone.localdate()).year
-    return current_year - int(birth_year) <= MINOR_MAX_AGE
+    return today.year - int(birth_year) <= MINOR_MAX_AGE
 
 
-def required_kinds(birth_year: int | None, *, today: date | None = None, competition=None) -> tuple[str, ...]:
-    """Rodzaje zgód wymaganych od uczestnika o tym roczniku – w **tym** konkursie.
+def required_kinds(
+    birth_date: date | int | None = None,
+    birth_year: int | None = None,
+    *,
+    today: date | None = None,
+    competition=None,
+) -> tuple[str, ...]:
+    """Rodzaje zgód wymaganych od uczestnika w tym wieku – w **tym** konkursie.
 
     Reguła „opiekun dla niepełnoletniego” zostaje kodem (``is_minor``), bo musi wiedzieć, o którą
-    zgodę chodzi; danymi jest wyłącznie to, **które** zgody konkurs w ogóle zbiera.
+    zgodę chodzi; danymi jest wyłącznie to, **które** zgody konkurs w ogóle zbiera. Argumenty
+    przechodzą do ``is_minor`` bez zmiany znaczenia – łącznie z rocznikiem na pierwszej pozycji.
     """
-    minor = is_minor(birth_year, today=today)
+    minor = is_minor(birth_date, birth_year, today=today)
     return tuple(
         consent.kind
         for consent in consent_set(competition)

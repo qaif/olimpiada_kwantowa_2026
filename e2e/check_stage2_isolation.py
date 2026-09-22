@@ -70,7 +70,7 @@ def register_in_the_second_competition(report: Report, page) -> dict[str, str]:
     suggestion.wait_for(state="visible", timeout=15_000)
     suggestion.click()
     page.select_option("#id_grade", "3")
-    page.fill("#id_birth_year", "2008")
+    page.fill("#id_birth_date", "2008-12-31")
     for consent in ("#id_terms_consent", "#id_gdpr_consent", "#id_guardian_consent"):
         if page.locator(consent).count():
             page.check(consent)

@@ -180,7 +180,7 @@ def test_uczestnik_zapisuje_adres_opiekuna_w_profilu(web_client, participant, su
             "phone": "600 100 200",
             "district": participant.district,
             "grade": participant.grade,
-            "birth_year": participant.birth_year,
+            "birth_date": participant.birth_date,
             "school": participant.school,
             "school_custom": "on",
             "supervisor_email": "  Nauczyciel@Szkola.Test  ",

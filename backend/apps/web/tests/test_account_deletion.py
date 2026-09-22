@@ -180,6 +180,9 @@ def test_a_participant_of_the_competition_is_anonymised_not_deleted(web_client, 
     assert participant.phone == ""
     assert participant.school == "—"
     assert participant.school_ref is None
+    # Data urodzenia znika **cała**: dzień i miesiąc same w sobie zawężają krąg osób,
+    # a rocznik idzie na wartość jawnie nieprawdziwą (kolumna jest ``NOT NULL``).
+    assert participant.birth_date is None
     assert participant.birth_year == 1900
     assert participant.publish_full_name is False
     # Województwo zostaje: pole ma zamkniętą listę, a okręg sam nie identyfikuje osoby.

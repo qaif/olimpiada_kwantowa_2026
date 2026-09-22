@@ -162,7 +162,10 @@ def participant_identity() -> dict:
         "school": "",
         "district": "mazowieckie",
         "grade": "3",
-        "birth_year": "2008",
+        # Data urodzenia w zapisie ISO – tak przyjmuje ją ``<input type="date">``.
+        # 31.12.2008 znaczy w tym sezonie osobę niepełnoletnią, więc scenariusz przechodzi
+        # także przez zgodę opiekuna.
+        "birth_date": "2008-12-31",
         # Telefon jest wymagany od każdego nowego uczestnika (kontakt organizacyjny). Numer
         # z zakresu testowego, w postaci „jak wpisuje człowiek” – serwis go znormalizuje.
         "phone": "600 100 200",

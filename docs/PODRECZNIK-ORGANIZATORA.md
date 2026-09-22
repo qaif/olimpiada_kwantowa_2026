@@ -746,6 +746,50 @@ Regulamin, polityka RODO, standardy ochrony małoletnich, skład komitetów, pol
 jako strony w `/dokumenty/` redagowane w `/cms/`, z załącznikami do pobrania (PDF, opcjonalnie DOCX).
 Kolejność, treść i załączniki należą do **redakcji**; wdrożenie aplikacji ich nie nadpisuje.
 
+### 7.4 Zgoda opiekuna — jak serwis ustala pełnoletność
+
+Od wydania `v0.30.0` rejestracja pyta o **pełną datę urodzenia**, a nie o sam rocznik. Zmiana ma
+jeden cel: wymagalność zgody rodzica albo opiekuna prawnego jest decyzją o podstawie prawnej
+udziału w zawodach i ma być **rozstrzygnięciem**, a nie przybliżeniem.
+
+**Reguła, słowo w słowo.** Uczestnik jest pełnoletni, gdy dzisiejsza data (liczona w strefie
+Europe/Warsaw, czyli tak, jak liczy ją człowiek w Polsce) jest **co najmniej** dniem jego
+osiemnastych urodzin. Dzień urodzin jest już dniem pełnoletności; dzień wcześniej — jeszcze nie.
+Urodzony 29 lutego staje się pełnoletni **1 marca**: roku „+18” po roczniku przestępnym nigdy nie
+ma w kalendarzu 29 lutego, a przy wątpliwości wolimy wymagać zgody o dzień za długo niż o dzień
+za krótko.
+
+**Co z uczestnikami zapisanymi wcześniej.** Konta założone przed tą zmianą znają wyłącznie
+rocznik — dnia urodzin nikt im nie dopisze, bo zgadnięta data byłaby danymi wymyślonymi, a nie
+uzupełnionymi. Dla nich obowiązuje stara, zachowawcza reguła: *rok bieżący − rocznik ≤ 18* znaczy
+osobę niepełnoletnią. W praktyce jest to najwyżej o rok „za ostrożnie”, czyli jeden checkbox
+więcej. Uczestnik może uzupełnić datę sam w **Mój panel → Edytuj dane**; panel przypomina mu o tym
+jednym zdaniem, a uzupełnienie zostaje w audycie jako `participant.birth_date_completed`.
+
+**Wiek nieznany znaczy „niepełnoletni”.** Dotyczy to konta bez daty i bez rocznika oraz konkursu,
+którego profil rejestracji ma odznaczone „Data urodzenia wymagana”. Nigdy nie zgadujemy na korzyść
+pominięcia zgody: zawyżenie kosztuje jedno zbędne pole wyboru, zaniżenie — zgodę pobraną od
+dziecka bez wiedzy opiekuna. Te dwa błędy nie są równoważne.
+
+**Gdzie ta reguła działa.** We wszystkich drogach zapisu naraz, bo jest zapisana w jednym miejscu
+(`apps/accounts/consents.py`): rejestracja hasłem `/register/`, dokończenie rejestracji przez
+Google/Facebooka, API rejestracji, import listy klasowej przez nauczyciela, przyjęcie zaproszenia
+przez ucznia, edycja danych przez uczestnika i przez Ciebie w panelu. Skrypt w przeglądarce, który
+odsłania wiersz zgody, **niczego nie rozstrzyga** — formularz wysłany bez JavaScriptu albo
+z wyciętym polem dostaje tę samą odmowę z serwera.
+
+**Co zobaczysz w panelu.** Karta uczestnika (`/coordinator/accounts/<id>/`) pokazuje datę
+urodzenia, rocznik i stan zgody opiekuna: „niewymagana (uczestnik pełnoletni)”, „potwierdzona”,
+„prośba wysłana” albo „brak adresu opiekuna”. Jeżeli po Twoim zapisie uczestnik wychodzi na osobę
+niepełnoletnią bez potwierdzonej zgody, ekran mówi to wprost komunikatem po zapisie. Jest to
+**ostrzeżenie, a nie blokada**: poprawienie danych nie może zależeć od oświadczenia, którego i tak
+nie złożysz za nikogo. Zgodę zbiera uczestnik ze swojego panelu, a potwierdza ją opiekun
+podpisanym linkiem (`/zgoda/<token>/`).
+
+**Co z tego wychodzi na zewnątrz.** Nic. Eksporty dla odbiorców zewnętrznych (API integracji,
+protokoły, listy dla kuratorium) nie niosą ani daty urodzenia, ani rocznika. Twój własny eksport
+uczestników edycji ma obie kolumny — to są dane organizatora, nie odbiorcy.
+
 ---
 
 ## 8. Dyplomy i zaświadczenia — `/coordinator/stages/<id>/certificates/`
@@ -783,7 +827,7 @@ deadline'u etapu** tej edycji — nie od daty utworzenia edycji (bo edycja żyje
 wyników (bo tę się przesuwa).
 
 Po terminie automat anonimizuje konta uczestników tej edycji **tą samą funkcją**, co żądanie usunięcia
-danych: znikają imię, nazwisko, adres, telefon, szkoła i rocznik, zostaje pseudonimowy kod, województwo
+danych: znikają imię, nazwisko, adres, telefon, szkoła i data urodzenia, zostaje pseudonimowy kod, województwo
 i cała dokumentacja zawodów.
 
 Ekran pokazuje dwie listy: **„Do anonimizacji (N)”** i **„Zostają (N)”** — z powodem:
@@ -854,7 +898,7 @@ czytelności” zamieniłoby ślad techniczny w wyciąg z bazy osobowej.
 |---|---|---|
 | **Konta** | `/coordinator/accounts/` | wszystkie konta; wyszukiwarka `?q=`, filtr `?role=`, 50 na stronę |
 | Uczestnicy / Opiekunowie szkolni | ta sama lista z filtrem roli | osobny ekran powtarzałby wyszukiwarkę i kolumny |
-| Edycja konta | `/coordinator/accounts/<id>/` | dane, „Konto aktywne”, dla uczestnika także telefon, województwo, szkoła, klasa, rocznik; dla członka komitetu status, komisja odwoławcza i województwo |
+| Edycja konta | `/coordinator/accounts/<id>/` | dane, „Konto aktywne”, dla uczestnika także telefon, województwo, szkoła, klasa, **data urodzenia**; dla członka komitetu status, komisja odwoławcza i województwo |
 | Usunięcie konta | `/coordinator/accounts/<id>/delete/` | strona potwierdzenia mówi, co się stanie |
 | **Konta oczekujące na aktywację** | `/coordinator/activations/` | „Aktywuj ręcznie”, „Wyślij link ponownie” |
 | **Karta uczestnika** | `/coordinator/participants/<id>/` | cały przebieg zawodów jednej osoby, wyłącznie do odczytu |

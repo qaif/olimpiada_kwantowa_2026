@@ -207,13 +207,18 @@ def registration(request) -> dict:
         "required_consent_fields": required_consent_fields,
         # Reguła niepełnoletności w postaci, którą da się postawić w atrybutach ``data-*``.
         # Skrypt odsłaniający blok zgody opiekuna liczy dokładnie to samo, co ``consents.is_minor``
-        # (``rok bieżący − rocznik <= max_age``), ale **rok bierze stąd**, a nie z zegara
-        # przeglądarki: zegar użytkownika bywa przestawiony, a w nocy sylwestrową i tak
-        # pokazywałby inny rok niż serwer. Rozstrzyga serwer; skrypt ma tylko nie kłamać
-        # wcześniej, niż serwer zdąży odpowiedzieć.
+        # (data urodzenia + ``max_age`` lat > dziś), ale **dzisiejszą datę bierze stąd**, a nie
+        # z zegara przeglądarki: zegar użytkownika bywa przestawiony, a nawet dobrze ustawiony
+        # chodzi w jego strefie, nie w Europe/Warsaw – w wybranych godzinach doby pokazywałby więc
+        # inny dzień niż serwer, czyli inny wynik w sam dzień osiemnastych urodzin. Rozstrzyga
+        # serwer; skrypt ma tylko nie kłamać wcześniej, niż serwer zdąży odpowiedzieć.
+        #
+        # Do wydania 0.30.0 stał tu sam ``current_year`` i próg wieku – wtedy rejestracja pytała
+        # o rocznik. Pole zniknęło razem z ostatnim jego czytelnikiem: klucz kontekstowy, którego
+        # nikt nie renderuje, przy pierwszym czytaniu wygląda jak coś, co trzeba utrzymać.
         "minor_rule": {
             "max_age": MINOR_MAX_AGE,
-            "current_year": timezone.localdate().year,
+            "current_date": timezone.localdate().isoformat(),
             "consent_fields": minor_consent_fields,
         },
     }

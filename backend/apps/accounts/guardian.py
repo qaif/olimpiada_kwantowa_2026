@@ -82,8 +82,12 @@ def _invalid_token() -> DomainError:
 
 
 def requires_guardian_consent(participant: Participant) -> bool:
-    """Czy od tego uczestnika wymagamy zgody opiekuna. Reguła jest jedna: ``consents.is_minor``."""
-    return is_minor(participant.birth_year)
+    """Czy od tego uczestnika wymagamy zgody opiekuna. Reguła jest jedna: ``consents.is_minor``.
+
+    Oba pola idą razem i w tej kolejności: pełna data rozstrzyga dokładnie, a rocznik jest
+    odwrotem dla profili sprzed wydania 0.30.0, które daty nie mają i mieć nie będą.
+    """
+    return is_minor(participant.birth_date, participant.birth_year)
 
 
 def confirmed_record(participant: Participant) -> ConsentRecord | None:

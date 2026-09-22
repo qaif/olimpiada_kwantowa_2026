@@ -9,6 +9,7 @@ w ``apps/accounts/tests/test_consents.py``. Tutaj sprawdzamy to, czego tamte nie
 - czy w panelu widać historię zgód i czy jedyną odwracalną z nich da się faktycznie odwrócić.
 """
 
+from datetime import date, timedelta
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -33,12 +34,25 @@ TOGGLE_URL = "/me/consents/publish-name/"
 CONSENTS_TAB_URL = "/me/?tab=zgody"
 
 
-def minor_year() -> int:
-    return timezone.localdate().year - MINOR_MAX_AGE
+def _shift(day, years: int):
+    """``day`` przesunięty o ``years`` lat; 29 lutego w roku nieprzestępnym → 1 marca."""
+    try:
+        return day.replace(year=day.year + years)
+    except ValueError:
+        return date(day.year + years, 3, 1)
 
 
-def adult_year() -> int:
-    return timezone.localdate().year - MINOR_MAX_AGE - 1
+def minor_date() -> str:
+    """Data urodzenia osoby, która osiemnastych urodzin **jeszcze nie miała** – ma je jutro.
+
+    Dokładnie na granicy reguły i liczona od „dziś”, żeby test nie starzał się z kalendarzem.
+    """
+    return _shift(timezone.localdate() + timedelta(days=1), -MINOR_MAX_AGE).isoformat()
+
+
+def adult_date() -> str:
+    """Data urodzenia osoby, która osiemnaste urodziny ma **dzisiaj** – czyli jest już pełnoletnia."""
+    return _shift(timezone.localdate(), -MINOR_MAX_AGE).isoformat()
 
 
 def register_payload(**overrides) -> dict:
@@ -51,7 +65,7 @@ def register_payload(**overrides) -> dict:
         "school": "LO nr 7",
         "district": "mazowieckie",
         "grade": 2,
-        "birth_year": adult_year(),
+        "birth_date": adult_date(),
         "phone": "600 100 200",
         "terms_consent": "on",
         "gdpr_consent": "on",
@@ -101,7 +115,7 @@ def test_register_form_links_the_consent_label_to_the_pdf_when_there_is_one(web_
 
 
 def test_register_form_blocks_a_minor_without_the_guardian_consent(web_client, edition):
-    response = web_client.post(REGISTER_URL, register_payload(birth_year=minor_year()))
+    response = web_client.post(REGISTER_URL, register_payload(birth_date=minor_date()))
 
     assert response.status_code == 200
     form = response.context["form"]
@@ -116,7 +130,7 @@ def test_register_form_blocks_a_minor_without_the_guardian_consent(web_client, e
 
 def test_register_form_does_not_require_the_guardian_consent_from_an_adult(web_client, edition):
     """Druga połowa tej samej reguły: pełnoletni zakłada konto bez oświadczenia o opiekunie."""
-    response = web_client.post(REGISTER_URL, register_payload(birth_year=adult_year()))
+    response = web_client.post(REGISTER_URL, register_payload(birth_date=adult_date()))
 
     assert response.status_code == 302
     participant = Participant.objects.get()
@@ -124,14 +138,14 @@ def test_register_form_does_not_require_the_guardian_consent_from_an_adult(web_c
     assert not participant.consents.filter(kind=ConsentKind.GUARDIAN).exists()
 
 
-# --- powiązanie rocznika ze zgodą opiekuna w przeglądarce --------------------------------------
+# --- powiązanie daty urodzenia ze zgodą opiekuna w przeglądarce --------------------------------
 
 
-def test_the_birth_year_says_what_the_guardian_consent_depends_on(web_client, edition):
+def test_the_birth_date_says_what_the_guardian_consent_depends_on(web_client, edition):
     """Uwaga organizatora z 16.09: „rok urodzenia nie jest powiązany z obowiązkowością oświadczenia”.
 
     Powiązanie istniało od początku po stronie serwera, ale formularz o nim milczał: uczestnik
-    poznawał obowiązek dopiero z odmowy po wysłaniu. Zdanie pod rocznikiem mówi to wcześniej.
+    poznawał obowiązek dopiero z odmowy po wysłaniu. Zdanie pod datą urodzenia mówi to wcześniej.
     """
     body = web_client.get(REGISTER_URL).content.decode()
 
@@ -140,16 +154,24 @@ def test_the_birth_year_says_what_the_guardian_consent_depends_on(web_client, ed
 
 
 def test_the_consents_block_carries_the_minor_rule_for_the_script(web_client, edition):
-    """Skrypt nie ma własnej definicji „niepełnoletni” – regułę i rok bieżący dostaje z serwera."""
+    """Skrypt nie ma własnej definicji „niepełnoletni” – regułę i dzisiejszą datę dostaje z serwera.
+
+    Dzisiejszą **datę**, a nie rok: od wydania 0.30.0 pełnoletność zapada w dniu urodzin, więc
+    zegar przeglądarki (bywa w innej strefie niż Europe/Warsaw) potrafiłby się z serwerem
+    rozejść dokładnie w tym jednym dniu, w którym ta odpowiedź się zmienia.
+    """
     from apps.accounts.consents import MINOR_MAX_AGE
 
     body = web_client.get(REGISTER_URL).content.decode()
 
     assert "data-age-consents" in body
-    assert 'data-birth-year-field="id_birth_year"' in body
+    assert 'data-birth-date-field="id_birth_date"' in body
     assert f'data-minor-max-age="{MINOR_MAX_AGE}"' in body
-    assert f'data-current-year="{timezone.localdate().year}"' in body
-    assert 'data-age="birth-year"' in body
+    assert f'data-current-date="{timezone.localdate().isoformat()}"' in body
+    assert 'data-age="birth-date"' in body
+    # Kontrolka kalendarza i dolna granica sita na literówki – obie z ``birth_date_field``.
+    assert 'type="date"' in body
+    assert 'min="1900-01-01"' in body
     # Znacznik stoi **wyłącznie** przy zgodzie warunkowej – pozostałe trzy są bezwarunkowe.
     assert body.count('data-age="minor-consent"') == 1
     row = body.split('data-age="minor-consent"', 1)[1]
@@ -176,7 +198,7 @@ def test_the_consent_row_is_visible_without_javascript(web_client, edition):
 
 
 def test_register_form_accepts_a_minor_with_the_guardian_consent(web_client, edition):
-    response = web_client.post(REGISTER_URL, register_payload(birth_year=minor_year(), guardian_consent="on"))
+    response = web_client.post(REGISTER_URL, register_payload(birth_date=minor_date(), guardian_consent="on"))
 
     assert response.status_code == 302
     participant = Participant.objects.get()
@@ -240,7 +262,7 @@ def test_social_signup_form_blocks_a_minor_without_the_guardian_consent():
             "school": "LO nr 7",
             "district": "mazowieckie",
             "grade": 2,
-            "birth_year": minor_year(),
+            "birth_date": minor_date(),
             "terms_consent": "on",
             "gdpr_consent": "on",
         }
@@ -265,7 +287,7 @@ def test_consent_fields_do_not_leak_into_the_service_kwargs():
             "school": "LO nr 7",
             "district": "mazowieckie",
             "grade": 2,
-            "birth_year": adult_year(),
+            "birth_date": adult_date(),
             "phone": "600 100 200",
             "terms_consent": "on",
             "gdpr_consent": "on",
@@ -283,7 +305,7 @@ def test_consent_fields_do_not_leak_into_the_service_kwargs():
         "last_name",
         "district",
         "grade",
-        "birth_year",
+        "birth_date",
         "phone",
         "school",
         "school_id",

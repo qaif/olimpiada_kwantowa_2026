@@ -54,7 +54,7 @@ def form_data(**overrides) -> dict:
         "last_name": "Uczestnik",
         "district": "mazowieckie",
         "grade": "3",
-        "birth_year": 2008,
+        "birth_date": "2008-12-31",
         "phone": "600 100 200",
         "terms_consent": "on",
         "gdpr_consent": "on",

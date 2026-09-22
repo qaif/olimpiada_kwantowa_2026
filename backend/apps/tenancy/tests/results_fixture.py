@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import importlib
 from dataclasses import dataclass, field
-from datetime import timedelta
+from datetime import date, timedelta
 
 from django.apps import apps as django_apps
 from django.utils import timezone
@@ -193,8 +193,20 @@ def public_code(competition, suffix: str) -> str:
     return f"{competition.public_code_prefix}{suffix}"
 
 
-def _birth_year(adult: bool) -> int:
-    return timezone.now().year - (ADULT_AGE_YEARS if adult else MINOR_AGE_YEARS)
+def _birth_date(adult: bool) -> date:
+    """Data urodzenia uczestnika fikstury – o tyle lat wstecz, ile mówi ``adult``.
+
+    Dzień i miesiąc są **dzisiejsze**, więc osoba „pełnoletnia” ma dokładnie 25 lat, a nie „25 lat
+    i kawałek”: od wydania 0.30.0 pełnoletność liczy się kalendarzowo, a fikstura złota ma dawać
+    ten sam snapshot niezależnie od dnia, w którym chodzą testy. 29 lutego zamienia się na
+    1 marca tą samą drogą, co w regule wieku.
+    """
+    today = timezone.localdate()
+    year = today.year - (ADULT_AGE_YEARS if adult else MINOR_AGE_YEARS)
+    try:
+        return today.replace(year=year)
+    except ValueError:  # 29 lutego w roku nieprzestępnym
+        return date(year, 3, 1)
 
 
 def _people(competition) -> dict[str, Participant]:
@@ -209,7 +221,7 @@ def _people(competition) -> dict[str, Participant]:
             user__last_name=f"Testowy {suffix}",
             school=school,
             district=district,
-            birth_year=_birth_year(adult),
+            birth_date=_birth_date(adult),
             publish_full_name=publish_full_name,
             guardian_consent=guardian_consent,
         )
@@ -538,7 +550,7 @@ def build_edge_stage(competition, name: str) -> Stage:
             user__first_name="Uczestnik",
             user__last_name=f"Brzegowy {suffix}",
             district=district,
-            birth_year=_birth_year(False),
+            birth_date=_birth_date(False),
         )
         entry = _entry(competition, stage, participant, status=status, manual=manual)
         _grade(competition, entry, problems, scores)

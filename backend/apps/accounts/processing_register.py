@@ -37,8 +37,11 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: **treść pisaną publicznie przez osoby niepełnoletnie**, podpisaną imieniem i inicjałem nazwiska
 #: i czytaną przez innych uczestników. Nowa kategoria danych i nowy krąg odbiorców to zmiana
 #: materialna z podręcznikowego przykładu, a nie doprecyzowanie istniejącego wiersza.
-REGISTER_VERSION = "1.3"
-REGISTER_DATE = date(2026, 9, 21)
+#: 1.4 (22.09.2026) – rejestracja pyta o **pełną datę urodzenia** zamiast samego rocznika.
+#: Zakres danych o osobie się poszerza (dzień i miesiąc urodzin to klasyczny klucz dopasowania do
+#: innych zbiorów), więc jest to zmiana materialna, choć cel przetwarzania zostaje ten sam.
+REGISTER_VERSION = "1.4"
+REGISTER_DATE = date(2026, 9, 22)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
 #: domyślna wartość ``Edition.data_retention_months`` – gdyby organizator zmienił ją dla rocznika,
@@ -120,7 +123,13 @@ ACTIVITIES: tuple[ProcessingActivity, ...] = (
             "adres e-mail (jest zarazem loginem)",
             "numer telefonu (opcjonalnie)",
             "nazwa szkoły i województwo",
-            "klasa i rok urodzenia (bez daty dziennej – zasada minimalizacji)",
+            (
+                "klasa oraz data urodzenia – od wieku zależy zdolność do czynności prawnych, "
+                "czyli to, czy udział w zawodach wymaga zgody rodzica albo opiekuna prawnego. "
+                "Do 21.09.2026 zbieraliśmy sam rocznik i rozstrzygaliśmy tę kwestię "
+                "przybliżeniem na korzyść ochrony małoletniego; pełna data zamienia "
+                "przybliżenie na rozstrzygnięcie i nie służy żadnemu innemu celowi"
+            ),
             "adres e-mail opiekuna szkolnego (opcjonalnie)",
             "kod publiczny uczestnika (pseudonim nadawany przez system)",
         ],

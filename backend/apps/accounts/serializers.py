@@ -30,7 +30,17 @@ class ParticipantRegisterSerializer(serializers.Serializer):
     school_id = serializers.IntegerField(min_value=1, required=False, allow_null=True, default=None)
     grade = serializers.ChoiceField(choices=GRADE_CHOICES)
     district = serializers.ChoiceField(choices=Voivodeship.choices)
-    birth_year = serializers.IntegerField(min_value=1900, max_value=2200)
+    # Data urodzenia w zapisie ISO (``RRRR-MM-DD``). Od niej zależy, czy wymagamy zgody opiekuna
+    # (``accounts.services.validate_consents`` → ``consents.is_minor``), więc jest tu polem
+    # pierwszej klasy, a nie dodatkiem do rocznika.
+    #
+    # ``required=False`` **nie** znaczy „nieobowiązkowa”: znaczy „albo data, albo rocznik”.
+    # Klient API sprzed wydania 0.30.0 zna wyłącznie ``birth_year`` i ma dalej działać bez zmiany
+    # ani jednego znaku – dlatego oba pola są opcjonalne w serializerze, a warunek „podaj wiek”
+    # stawia serwis, który zna też profil rejestracji konkursu (``_resolve_birth``). Gdy przyjdą
+    # oba, rozstrzyga data i to z niej liczy się rocznik.
+    birth_date = serializers.DateField(required=False, allow_null=True)
+    birth_year = serializers.IntegerField(min_value=1900, max_value=2200, required=False)
     # Zgody. Dwie pierwsze są obowiązkowe dla każdego, ``guardian_consent`` – dla niepełnoletnich
     # (rozstrzyga ``accounts.services.validate_consents``, bo tam jest znany rocznik i tam ta
     # reguła obowiązuje wszystkie trzy drogi rejestracji naraz), ``publish_name_consent`` jest
@@ -157,6 +167,10 @@ class ParticipantProfileSerializer(serializers.ModelSerializer):
             "grade",
             "district",
             "district_label",
+            # Pełna data urodzenia albo ``null`` w profilach sprzed wydania 0.30.0; rocznik jest
+            # wtedy jedyną znaną wartością i zostaje w odpowiedzi także dla nowych profili,
+            # bo klient sprzed tej zmiany czyta wyłącznie jego.
+            "birth_date",
             "birth_year",
             # Telefon jest w profilu **właściciela konta** (``GET /api/auth/me/``), a nie w żadnym
             # widoku recenzenta – ci widzą pracę pod pseudonimem i numer kontaktowy nie ma dla nich
@@ -252,6 +266,7 @@ class MeUpdateSerializer(serializers.Serializer):
     school_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
     grade = serializers.ChoiceField(choices=GRADE_CHOICES, required=False)
     district = serializers.ChoiceField(choices=Voivodeship.choices, required=False)
+    birth_date = serializers.DateField(required=False, allow_null=True)
     birth_year = serializers.IntegerField(min_value=1900, max_value=2200, required=False)
 
     def validate(self, attrs):

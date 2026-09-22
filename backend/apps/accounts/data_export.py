@@ -94,7 +94,11 @@ def _participant_section(participant) -> dict | None:
         "szkola_z_rejestru": participant.school_ref.name if participant.school_ref_id else None,
         "wojewodztwo": participant.district,
         "klasa": participant.grade,
-        "rok_urodzenia": participant.birth_year,
+        # Pełna data i rocznik obok siebie: eksport art. 15 RODO ma pokazać to, co w bazie
+        # **jest**, a w wierszach sprzed wydania 0.30.0 jest sam rocznik. Pusta data znaczy więc
+        # „nie mamy dnia urodzin”, a nie „pominięto pole”.
+        "data_urodzenia": participant.birth_date.isoformat() if participant.birth_date else None,
+        "rok_urodzenia": participant.known_birth_year,
         "telefon": participant.phone,
         "opiekun_szkolny_email": participant.supervisor_email,
         "zgoda_na_publikacje_nazwiska": participant.publish_full_name,

@@ -30,7 +30,9 @@
           <th scope="col">{% translate "Wiersz" %}</th>
           <th scope="col">{% translate "Imię i nazwisko" %}</th>
           <th scope="col">{% translate "E-mail" %}</th>
-          <th scope="col">{% translate "Rocznik" %}</th>
+          {# Jedna kolumna na wiek, nie dwie: plik niesie datę **albo** rocznik, a podgląd ma
+             odpowiadać na pytanie „czy to jest ten uczeń”, nie na pytanie o postać zapisu. #}
+          <th scope="col">{% translate "Data urodzenia" %}</th>
           <th scope="col">{% translate "Klasa" %}</th>
           {% comment %}
             Kolumny konkursu (region, kategoria, placówka) pokazujemy wyłącznie wtedy, gdy plik
@@ -50,7 +52,7 @@
             <td>{{ row.number }}</td>
             <th scope="row">{{ row.full_name|default:"—" }}</th>
             <td>{{ row.email|default:"—" }}</td>
-            <td>{{ row.birth_year|default:"—" }}</td>
+            <td>{{ row.birth_date|default:row.birth_year|default:"—" }}</td>
             <td>{{ row.grade|default:"—" }}</td>
             {% if show_region %}<td>{{ row.region.name|default:row.district|default:"—" }}</td>{% endif %}
             {% if show_category %}<td>{{ row.category.name|default:"—" }}</td>{% endif %}

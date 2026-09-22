@@ -51,6 +51,7 @@ import io
 import logging
 import unicodedata
 from dataclasses import dataclass, field
+from datetime import date, datetime
 
 from django.core import signing
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -67,7 +68,14 @@ from apps.core.models import audit
 
 from .activation import absolute_url, mark_activated, queue_mail
 from .consents import is_minor
-from .models import GROUP_PARTICIPANT, MAX_GRADE, MIN_GRADE, Participant, User
+from .models import (
+    GROUP_PARTICIPANT,
+    MAX_GRADE,
+    MIN_BIRTH_DATE,
+    MIN_GRADE,
+    Participant,
+    User,
+)
 from .phones import normalize_phone
 from .supervisors import normalize_supervisor_email
 
@@ -125,6 +133,12 @@ class Column:
     label: str
     aliases: tuple[str, ...]
     required: bool = True
+    #: Czy kolumna wchodzi do wzorcowego wiersza nagłówka (:func:`header_line`). ``False`` ma
+    #: dziś jedną kolumnę – „rok urodzenia”. Plik z nią nadal wchodzi (arkusze sprzed wydania
+    #: 0.30.0 są w szkołach i mają działać), ale nowy arkusz ma powstawać z kolumną „data
+    #: urodzenia”: gotowy nagłówek z dwiema rubrykami na to samo jest zaproszeniem do wpisania
+    #: obu i rozjechania ich ze sobą.
+    sample: bool = True
 
 
 def _header_key(text: str) -> str:
@@ -140,7 +154,13 @@ COLUMNS: tuple[Column, ...] = (
     Column("first_name", "imię", ("imie", "imiona", "imieucznia")),
     Column("last_name", "nazwisko", ("nazwisko", "nazwiskoucznia")),
     Column("email", "e-mail", ("email", "adresemail", "emailucznia", "adresemailucznia")),
-    Column("birth_year", "rok urodzenia", ("rokurodzenia", "rocznik")),
+    # Wiek: dwie kolumny i **żadna z nich nie jest wymagana z osobna** – wymagana jest jedna
+    # z dwóch (``map_header``). „Data urodzenia” jest tą, o którą prosimy w szablonie od wydania
+    # 0.30.0, bo od pełnej daty zależy reguła zgody opiekuna; „rok urodzenia” zostaje, bo w szkole
+    # krąży wersja pliku sprzed tej zmiany i odrzucenie jej byłoby odesłaniem nauczyciela
+    # z gotową listą klasową po to, żeby przepisał dwadzieścia dat.
+    Column("birth_date", "data urodzenia", ("dataurodzenia", "datur")),
+    Column("birth_year", "rok urodzenia", ("rokurodzenia", "rocznik"), required=False, sample=False),
     Column("grade", "klasa", ("klasa",)),
     Column("phone", "telefon", ("telefon", "nrtelefonu", "numertelefonu"), required=False),
     Column(
@@ -235,7 +255,9 @@ def columns_for(*, with_supervisor: bool, competition=None) -> tuple[Column, ...
 def header_line(*, with_supervisor: bool, competition=None) -> str:
     """Wzorcowy wiersz nagłówka do pokazania na stronie importu (i do skopiowania do arkusza)."""
     return ";".join(
-        column.label for column in columns_for(with_supervisor=with_supervisor, competition=competition)
+        column.label
+        for column in columns_for(with_supervisor=with_supervisor, competition=competition)
+        if column.sample
     )
 
 
@@ -262,6 +284,7 @@ class ImportRow:
     first_name: str = ""
     last_name: str = ""
     email: str = ""
+    birth_date: date | None = None
     birth_year: int | None = None
     grade: int | None = None
     phone: str = ""
@@ -303,6 +326,9 @@ class ImportRow:
             "l": self.last_name,
             "e": self.email,
             "b": self.birth_year,
+            # Data jedzie w koszyku w zapisie ISO, a nie jako obiekt: koszyk jest podpisanym
+            # napisem między dwoma żądaniami (podgląd → zatwierdzenie), więc musi być JSON-em.
+            "bd": self.birth_date.isoformat() if self.birth_date else None,
             "g": self.grade,
             "p": self.phone,
             "gu": self.guardian_email,
@@ -335,6 +361,7 @@ class ImportRow:
             last_name=str(data.get("l") or ""),
             email=str(data.get("e") or ""),
             birth_year=data.get("b"),
+            birth_date=date.fromisoformat(data["bd"]) if data.get("bd") else None,
             grade=data.get("g"),
             phone=str(data.get("p") or ""),
             guardian_email=str(data.get("gu") or ""),
@@ -476,6 +503,7 @@ def map_header(header: list[str], columns: tuple[Column, ...]) -> dict[str, int]
     seen = {_header_key(cell): index for index, cell in enumerate(header) if (cell or "").strip()}
     mapping: dict[str, int] = {}
     missing: list[str] = []
+    missing_keys: set[str] = set()
     for column in columns:
         for alias in column.aliases:
             if alias in seen:
@@ -484,6 +512,13 @@ def map_header(header: list[str], columns: tuple[Column, ...]) -> dict[str, int]
         else:
             if column.required:
                 missing.append(column.label)
+                missing_keys.add(column.key)
+    # „Data urodzenia” jest wymagana, ale **rocznik ją zastępuje**: arkusze sprzed wydania 0.30.0
+    # krążą po szkołach gotowe i odesłanie nauczyciela po to, żeby przepisał dwadzieścia dat,
+    # byłoby odmową bez powodu. Wiek musi być jakiś – bez niego nie wiadomo, od kogo żądać zgody
+    # opiekuna – więc warunkiem jest para, a nie żadna z kolumn z osobna.
+    if "birth_date" in missing_keys and "birth_year" in mapping:
+        missing.remove("data urodzenia")
     if missing:
         raise DomainError(
             "W pliku brakuje kolumn: " + ", ".join(missing) + ".",
@@ -498,6 +533,54 @@ def _cell(row: list[str], mapping: dict[str, int], key: str) -> str:
     if index is None or index >= len(row):
         return ""
     return (row[index] or "").strip()
+
+
+#: Zapisy daty przyjmowane z komórki arkusza: ISO (tak eksportuje większość systemów szkolnych)
+#: i polski zapis z kropkami (tak pisze człowiek). Więcej wariantów świadomie nie ma: „03/04/2008”
+#: znaczy w Polsce co innego niż w Stanach, a zgadywanie, który to dzień, przy dacie urodzenia
+#: kończy się cichą pomyłką w regule zgody opiekuna.
+BIRTH_DATE_PATTERNS = ("%Y-%m-%d", "%d.%m.%Y")
+
+
+def _read_birth(raw: list[str], mapping: dict[str, int], row: ImportRow) -> None:
+    """Wiek z wiersza: pełna data, a w plikach sprzed wydania 0.30.0 – sam rocznik.
+
+    Pierwszeństwo ma data i to nie jest tylko kwestia kolejności: gdy jest, rocznik **liczy się
+    z niej**, więc plik z obiema kolumnami i rozjechanymi wartościami nie zapisze wiersza,
+    w którym dzień urodzin nie pasuje do rocznika.
+
+    Pusta komórka daty przy obecnej kolumnie rocznika spada na rocznik – nauczyciel, który zna
+    datę dwudziestu uczniów i rocznik trzech, ma móc wysłać taką listę, a nie wybierać między
+    zmyślaniem dnia a wycięciem trzech wierszy.
+    """
+    text = _cell(raw, mapping, "birth_date")
+    if text:
+        row.birth_date = _clean_birth_date(text, row)
+        if row.birth_date is not None:
+            row.birth_year = row.birth_date.year
+        return
+    if "birth_year" in mapping:
+        row.birth_year = _clean_year(_cell(raw, mapping, "birth_year"), row)
+        return
+    row.errors.append("brak daty urodzenia")
+
+
+def _clean_birth_date(text: str, row: ImportRow) -> date | None:
+    """Data urodzenia z komórki. Arkusz potrafi dokleić godzinę – dzień jest tym, o co pytamy."""
+    value = text.strip().split(" ")[0].split("T")[0]
+    for pattern in BIRTH_DATE_PATTERNS:
+        try:
+            parsed = datetime.strptime(value, pattern).date()
+            break
+        except ValueError:
+            continue
+    else:
+        row.errors.append("data urodzenia w nieznanym zapisie (RRRR-MM-DD albo DD.MM.RRRR)")
+        return None
+    if not MIN_BIRTH_DATE <= parsed <= timezone.localdate():
+        row.errors.append("data urodzenia poza zakresem")
+        return None
+    return parsed
 
 
 def _clean_year(text: str, row: ImportRow) -> int | None:
@@ -574,7 +657,7 @@ def parse_table(
         if not row.first_name or not row.last_name:
             row.errors.append("brak imienia albo nazwiska")
         row.email = _clean_email(_cell(raw, mapping, "email"), row)
-        row.birth_year = _clean_year(_cell(raw, mapping, "birth_year"), row)
+        _read_birth(raw, mapping, row)
         row.grade = _clean_grade(_cell(raw, mapping, "grade"), row)
         phone = _cell(raw, mapping, "phone")
         if phone:
@@ -895,7 +978,8 @@ def validate_rows(rows: list[ImportRow], *, competition=None) -> list[ImportRow]
         seen.add(row.email)
         if row.email not in taken:
             row.action = ACTION_CREATE
-            if row.birth_year is not None and is_minor(row.birth_year) and not row.guardian_email:
+            known_age = row.birth_date is not None or row.birth_year is not None
+            if known_age and is_minor(row.birth_date, row.birth_year) and not row.guardian_email:
                 row.notes.append(
                     "uczeń niepełnoletni bez adresu opiekuna prawnego – zgodę opiekuna uzupełni "
                     "sam po przyjęciu zaproszenia"
@@ -1131,6 +1215,7 @@ def import_students(
                 user=user,
                 competition=competition,
                 grade=row.grade,
+                birth_date=row.birth_date,
                 birth_year=row.birth_year,
                 phone=row.phone,
                 guardian_email=row.guardian_email,
@@ -1351,4 +1436,4 @@ def validate_consents_for(participant: Participant, given: dict[str, bool]) -> N
     """
     from .services import validate_consents
 
-    validate_consents(given, birth_year=participant.birth_year)
+    validate_consents(given, birth_date=participant.birth_date, birth_year=participant.birth_year)

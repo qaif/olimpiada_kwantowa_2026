@@ -10,6 +10,8 @@ osobowe. Tak stanowi ``apps.core.models``: wpisy audytowe czytają też osoby be
 osobowych uczestnika.
 """
 
+from datetime import date
+
 import pytest
 from django.core import mail
 from django.urls import reverse
@@ -34,7 +36,7 @@ def profile_payload(**overrides) -> dict:
         "phone": "600 300 400",
         "district": Voivodeship.MALOPOLSKIE,
         "grade": "4",
-        "birth_year": 2007,
+        "birth_date": "2007-04-18",
         "school_custom": "on",
         "school": "LO nr 9",
     }
@@ -75,6 +77,8 @@ def test_saving_the_form_updates_the_profile_and_the_names(web_client, participa
     assert participant.phone == "+48600300400"
     assert participant.district == Voivodeship.MALOPOLSKIE
     assert participant.grade == 4
+    assert participant.birth_date == date(2007, 4, 18)
+    # Rocznik jedzie **za** datą – liczy go ``Participant.save``, a nie formularz.
     assert participant.birth_year == 2007
     assert participant.school == "LO nr 9"
 
@@ -104,7 +108,7 @@ def test_saving_without_changes_leaves_an_empty_diff(web_client, participant):
         phone=participant.phone,
         district=participant.district,
         grade=str(participant.grade),
-        birth_year=participant.birth_year,
+        birth_date=participant.birth_date,
         school=participant.school,
     )
 

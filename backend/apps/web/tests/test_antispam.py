@@ -41,7 +41,7 @@ def participant_payload(**overrides) -> dict:
         "school": "LO nr 7",
         "district": "mazowieckie",
         "grade": 2,
-        "birth_year": 2008,
+        "birth_date": "2008-12-31",
         "terms_consent": "on",
         "gdpr_consent": "on",
         "guardian_consent": "on",

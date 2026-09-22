@@ -30,7 +30,13 @@
       <li>{% translate "Adres e-mail (login):" %} <strong>{{ email }}</strong></li>
       <li>{% translate "Szkoła:" %} {{ participant.school }}</li>
       <li>{% translate "Klasa:" %} {{ participant.grade|default:"—" }}</li>
-      <li>{% translate "Rok urodzenia:" %} {{ participant.birth_year }}</li>
+      {# Data, gdy ją znamy; rocznik w profilach sprzed wydania 0.30.0 i w listach zaimportowanych
+         z kolumną „rok urodzenia”. Uczeń ma tu zobaczyć to, co o nim wpisano, a nie pustą rubrykę. #}
+      {% if participant.birth_date %}
+        <li>{% translate "Data urodzenia:" %} {{ participant.birth_date }}</li>
+      {% elif participant.known_birth_year %}
+        <li>{% translate "Rok urodzenia:" %} {{ participant.known_birth_year }}</li>
+      {% endif %}
     </ul>
     <p class="hint">{% translate "Coś się nie zgadza? Uruchom konto i popraw dane w swoim profilu po zalogowaniu." %}</p>
   </div>

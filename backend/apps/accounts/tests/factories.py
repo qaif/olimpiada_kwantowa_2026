@@ -7,7 +7,7 @@ jedna osoba ma jedno hasło i jeden reset hasła na całą platformę, a rolą w
 członkostwo (``docs/UNIWERSALNY-ETAP-1.md`` § 3.8).
 """
 
-from datetime import timedelta
+from datetime import date, timedelta
 
 import factory
 from django.contrib.auth.models import Group
@@ -104,6 +104,21 @@ class ParticipantFactory(CompetitionScopedFactory):
     # i muszą mieć powtarzalny punkt wyjścia (własne województwo podają jawnie).
     district = Voivodeship.MAZOWIECKIE
     birth_year = 2008
+    # Data urodzenia **wyliczana z rocznika**, a nie wpisana obok niego. Dwa powody, oba praktyczne:
+    #
+    # - para w bazie ma być spójna (``Participant.save`` liczy rocznik z daty), więc fabryka nie
+    #   może produkować wiersza, którego produkcja nigdy nie zobaczy,
+    # - kilkadziesiąt testów podaje **sam** ``birth_year`` („uczeń sprzed 16 lat”, „dorosły sprzed
+    #   25 lat”) i ma dostać uczestnika w tym wieku. Data przypięta na sztywno przykryłaby ten
+    #   argument i cicho zamieniła małoletniego w pełnoletniego.
+    #
+    # Dzień 31 grudnia zachowuje dokładnie to, co znaczył rocznik pod starą regułą: osoba z rocznika
+    # Y była małoletnia przez **cały** rok Y+18. Środek roku przesunąłby granicę o pół roku i wywrócił
+    # testy zgody opiekuna z powodu, który nie ma z nimi nic wspólnego.
+    #
+    # Profil „sprzed wydania 0.30.0” (sam rocznik, bez daty) test zapisuje jawnie:
+    # ``ParticipantFactory(birth_date=None)`` – i wtedy widać w nim, że o to właśnie chodzi.
+    birth_date = factory.LazyAttribute(lambda obj: date(obj.birth_year, 12, 31) if obj.birth_year else None)
     # Numer z zakresu testowego w postaci już znormalizowanej – dokładnie takiej, jaką zapisuje
     # ``apps.accounts.phones.normalize_phone``.
     phone = "+48600000000"

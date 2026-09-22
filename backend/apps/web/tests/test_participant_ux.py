@@ -504,8 +504,8 @@ def test_guardian_consent_is_counted_only_by_its_own_chip(web_client, participan
         ConsentRecord.objects.create(
             participant=participant, kind=kind, document_version="1.0", source=ConsentSource.WEB
         )
-    participant.birth_year = timezone.localdate().year - 16
-    participant.save(update_fields=["birth_year"])
+    participant.birth_date = participant.birth_date.replace(year=timezone.localdate().year - 16)
+    participant.save(update_fields=["birth_date"])
 
     content = logged(web_client, participant).get(ME).content.decode()
 

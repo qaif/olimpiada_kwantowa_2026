@@ -36,18 +36,19 @@
 
 {% comment %}
   Atrybuty ``data-*`` na zestawie zgód to umowa z ``static/js/register-age.js``: skrypt odsłania
-  (albo chowa) wiersz zgody opiekuna, kiedy zmienia się rocznik. Reguła i rok bieżący przychodzą
-  **z serwera** (``apps/web/context_processors.py`` → ``apps/accounts/consents.py``), bo dokładnie
-  ta sama arytmetyka rozstrzyga potem walidację formularza; skrypt nie ma prawa mieć własnej
-  definicji „niepełnoletni”, a zegar przeglądarki – własnego roku.
+  (albo chowa) wiersz zgody opiekuna, kiedy zmienia się data urodzenia. Reguła i dzisiejsza data
+  przychodzą **z serwera** (``apps/web/context_processors.py`` → ``apps/accounts/consents.py``),
+  bo dokładnie ta sama arytmetyka rozstrzyga potem walidację formularza; skrypt nie ma prawa mieć
+  własnej definicji „niepełnoletni”, a zegar przeglądarki – własnego dnia (bywa w innej strefie
+  niż Europe/Warsaw, a w dniu osiemnastych urodzin to jest cała różnica).
 
   Bez JavaScriptu wiersz jest widoczny **zawsze**, tak jak przed tą zmianą: zgoda opiekuna nie
   może zniknąć dlatego, że skrypt nie wystartował, a serwer i tak jej zażąda od niepełnoletniego.
 {% endcomment %}
 <fieldset class="consents" data-age-consents
-          data-birth-year-field="{{ form.birth_year.auto_id }}"
+          data-birth-date-field="{{ form.birth_date.auto_id }}"
           data-minor-max-age="{{ minor_rule.max_age }}"
-          data-current-year="{{ minor_rule.current_year }}">
+          data-current-date="{{ minor_rule.current_date }}">
   <legend>Zgody</legend>
   {% for field in form %}
     {% if field.name in form.consent_field_names %}

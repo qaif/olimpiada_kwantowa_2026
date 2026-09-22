@@ -36,6 +36,21 @@
     „Usuń konto” prowadzi na stronę z wyjaśnieniem skutków, a nie na akcję: konsekwencje zależą
     od tego, czy uczestnik brał już udział w zawodach.
   {% endcomment %}
+  {% comment %}
+    Jedno zdanie dla profili sprzed wydania 0.30.0, czyli tych, które znają sam rocznik. Od pełnej
+    daty urodzenia zależy, czy żądamy zgody opiekuna, a przy samym roczniku reguła jest
+    zachowawcza: osoba, która skończyła 18 lat w tym roku, wciąż widzi obowiązek zgody rodzica.
+    Uzupełnienie daty jest więc **w jej interesie**, a nie kolejną prośbą o dane.
+
+    Zdanie stoi nad zwiniętymi danymi konta, bo zwiniętych nikt nie otwiera; nie jest ostrzeżeniem
+    i niczego nie blokuje – konto działa dalej tak samo. ``participant`` jest już w kontekście
+    pulpitu (``MeView``), więc ten warunek nie kosztuje ani jednego zapytania.
+  {% endcomment %}
+  {% if not participant.birth_date %}
+    <p class="hint">{% translate "Uzupełnij datę urodzenia w profilu" %} –
+      <a href="{% url 'web:profile' %}">{% translate "Edytuj dane" %}</a>.
+      {% translate "Bez pełnej daty wiek liczymy po roczniku, a zgodę opiekuna traktujemy zachowawczo." %}</p>
+  {% endif %}
   <details class="p-identity">
     <summary class="p-identity__summary">{% translate "Twoje dane i ustawienia konta" %}</summary>
     <dl class="meta-list">
@@ -46,6 +61,8 @@
       <dd>{{ participant.school }}{% if participant.grade %},
         {% blocktranslate trimmed with grade=participant.grade %}klasa {{ grade }}{% endblocktranslate %}{% endif %}
         ({{ participant.get_district_display }})</dd>
+      <dt>{% translate "Data urodzenia" %}</dt>
+      <dd>{{ participant.birth_date|default:"—" }}</dd>
     </dl>
     <p class="actions">
       <a class="btn btn--secondary btn--small" href="{% url 'web:profile' %}">{% translate "Edytuj dane" %}</a>

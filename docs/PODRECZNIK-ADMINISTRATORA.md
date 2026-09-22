@@ -401,7 +401,7 @@ Trzy drogi, wszystkie przez **jedną** funkcję `anonymise_account`, więc skute
 zawodów.**
 
 - konto **ze śladem** w zawodach (zgłoszenie, praca, recenzja) jest **anonimizowane**: adres zmienia się
-  na `deleted-<pk>@invalid.<domena>`, znikają imię, nazwisko, telefon, szkoła i rocznik, hasło staje się
+  na `deleted-<pk>@invalid.<domena>`, znikają imię, nazwisko, telefon, szkoła i data urodzenia (rocznik idzie na wartość jawnie nieprawdziwą, bo kolumna jest `NOT NULL`), hasło staje się
   nieużywalne, powiązania OAuth, tokeny i sesje są kasowane, zgody dostają `withdrawn_at`. Zostaje
   pseudonimowy `Participant.public_code`, więc ogłoszone tabele wyników dalej mają swój wiersz.
   Audyt: `account.anonymised` (albo `account.anonymised_by_retention` z identyfikatorem edycji),

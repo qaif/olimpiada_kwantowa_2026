@@ -33,7 +33,7 @@ def participant_payload(**overrides) -> dict:
         "school": "LO nr 7",
         "district": "mazowieckie",
         "grade": 2,
-        "birth_year": 1990,
+        "birth_date": "1990-12-31",
         "terms_consent": "on",
         "gdpr_consent": "on",
         **participant_extra_fields(),

@@ -29,7 +29,7 @@ from django.urls import reverse
 from django.utils.http import urlencode
 from django.views.generic import View
 
-from apps.accounts.guardian import guardian_status
+from apps.accounts.guardian import STATUS_MISSING, STATUS_PENDING, guardian_status
 from apps.accounts.models import GROUP_COORDINATOR, Participant, User
 from apps.accounts.profile import (
     competition_footprint,
@@ -355,6 +355,34 @@ class CoordinatorAccountsView(CoordinatorRequiredMixin, View):
         return TemplateResponse(request, LIST_TEMPLATE, context)
 
 
+def _warn_about_a_missing_guardian_consent(request, user: User) -> None:
+    """Ostrzega koordynatora, gdy po jego zapisie uczestnik wychodzi na małoletniego bez zgody.
+
+    Powód jest jeden i konkretny: **data urodzenia jest edytowalna z tego ekranu**, a od niej
+    zależy podstawa prawna udziału w zawodach. Poprawka „2007 → 2009” zamienia uczestnika
+    pełnoletniego w małoletniego bez zgody opiekuna, a bez tego zdania koordynator zobaczyłby
+    wyłącznie „dane zostały zapisane” i dowiedziałby się o brakującej zgodzie najwcześniej
+    z karty uczestnika, na którą już nie wraca.
+
+    Ostrzeżenie, a nie odmowa: zapis poprawnych danych nie może zależeć od oświadczenia, którego
+    koordynator za nikogo nie złoży. Zgodę zbiera uczestnik albo jego opiekun
+    (``apps.accounts.guardian``), a ekran ma o tym **przypomnieć**, a nie tego pilnować.
+
+    Stan liczy ``guardian_status``, czyli to samo miejsce, co karta uczestnika i panel uczestnika –
+    trzeci rachunek pełnoletności w tym module byłby trzecią odpowiedzią na to samo pytanie.
+    """
+    participant = participant_for(user, request.competition)
+    if participant is None:
+        return
+    state = guardian_status(participant)["state"]
+    if state in (STATUS_MISSING, STATUS_PENDING):
+        messages.warning(
+            request,
+            "Uwaga: uczestnik jest niepełnoletni, brak potwierdzonej zgody opiekuna. "
+            "Zgodę składa opiekun prawny – uczestnik prosi o nią ze swojego panelu.",
+        )
+
+
 def _account(competition, pk: int) -> User:
     """Konto z tego konkursu albo 404.
 
@@ -407,6 +435,7 @@ class CoordinatorAccountEditView(CoordinatorRequiredMixin, View):
             fresh = _account(request.competition, pk)
             return self._render(request, fresh, self._forms(fresh), status=exc.status_code)
         messages.success(request, f"Dane konta {user.email} zostały zapisane.")
+        _warn_about_a_missing_guardian_consent(request, user)
         return redirect(reverse("web:coordinator-accounts"))
 
     def _forms(self, user: User, data=None) -> dict:

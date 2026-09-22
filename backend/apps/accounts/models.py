@@ -9,6 +9,7 @@ Zasady:
 import hashlib
 import re
 import secrets
+from datetime import date
 
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.models import PermissionsMixin
@@ -84,6 +85,20 @@ PUBLIC_CODE_RANDOM_LENGTH = 6
 MIN_GRADE = 1
 MAX_GRADE = 5
 GRADE_CHOICES = [(number, str(number)) for number in range(MIN_GRADE, MAX_GRADE + 1)]
+
+#: Najwcześniejsza data urodzenia przyjmowana przez formularze, API i model. Nie jest to reguła
+#: wieku, tylko **sito na literówki**: „1089” w polu roku ma wrócić jako błąd pola, a nie wjechać
+#: do bazy i rozstrzygnąć o zgodzie opiekuna. Górną granicą jest zawsze dzień dzisiejszy.
+MIN_BIRTH_DATE = date(1900, 1, 1)
+
+#: Rocznik wpisywany, gdy wieku **nie znamy** – czyli w konkursie, którego profil rejestracji
+#: o datę urodzenia nie pyta (``RegistrationProfile.require_birth_year`` odznaczone).
+#: ``Participant.birth_year`` jest kolumną ``NOT NULL`` i taką zostaje, więc „nie wiem” musi mieć
+#: swoją wartość; zero jest jedyną, której nikt nie weźmie za rocznik. Reguła wieku rozumie ją bez
+#: żadnego dodatkowego warunku: ``consents.is_minor`` na fałszywym roczniku odpowiada „małoletni”,
+#: czyli tak, jak ma odpowiadać przy nieznanym wieku. W eksportach i w odpowiedziach API zero
+#: wychodzi jako pusta wartość (:attr:`Participant.known_birth_year`), a nie jako liczba.
+UNKNOWN_BIRTH_YEAR = 0
 
 
 def generate_public_code(competition=None) -> str:
@@ -576,6 +591,26 @@ class Participant(models.Model):
         on_delete=models.PROTECT,
         related_name="participants",
     )
+    # Pełna data urodzenia. Od zgłoszenia organizatora z 22.09.2026 rejestracja pyta **o nią**,
+    # a nie o sam rocznik: od wieku zależy podstawa prawna zapisu (zgoda opiekuna dla małoletniego),
+    # a rocznik potrafił odpowiedzieć na to pytanie wyłącznie zachowawczo – osoba kończąca 18 lat
+    # w tym roku była przez większość roku liczona jak dziecko, także po swoich urodzinach.
+    #
+    # ``null=True`` jest **stanem historycznym, nie opcją**: profile sprzed tej zmiany znają sam
+    # rocznik i nikt im dnia nie dopisze (zgadnięty dzień urodzin byłby danymi wymyślonymi, a nie
+    # uzupełnionymi). Puste pole znaczy „nie wiemy dokładnie” i reguła wieku spada wtedy na starą,
+    # rocznikową (``apps.accounts.consents.is_minor``). Uczestnik uzupełnia datę sam
+    # w ``/me/profile/``, a panel przypomina mu o tym jednym zdaniem.
+    birth_date = models.DateField("data urodzenia", null=True, blank=True)
+    #: Rocznik. Zostaje kolumną ``NOT NULL`` i od tej zmiany jest **wyliczany**: gdy ``birth_date``
+    #: jest wypełnione, ``birth_year`` musi być równe ``birth_date.year`` i pilnuje tego ``save()``
+    #: (oraz ``clean()`` dla formularzy i administracji). Nie ma tu więzu bazodanowego, bo
+    #: „wyciągnij rok z daty” nie zapisuje się przenośnie w ``CheckConstraint`` – zamiast tego
+    #: jedno miejsce zapisu i test niezmienniczy.
+    #:
+    #: Po co w ogóle zostaje, skoro data ją zawiera: bo eksporty dla podmiotów zewnętrznych mają
+    #: dostawać **rocznik i nic więcej** (minimalizacja), a wiersze historyczne nie mają daty
+    #: w ogóle – bez tej kolumny nie dałoby się ich porównać z nowymi jednym zapytaniem.
     birth_year = models.PositiveSmallIntegerField("rok urodzenia")
     # Telefon kontaktowy. ``blank=True`` w modelu, choć formularz i API wymagają go od każdego
     # nowego uczestnika: profile sprzed wprowadzenia pola nie mają numeru i nie wolno ich
@@ -650,6 +685,52 @@ class Participant(models.Model):
 
     def __str__(self) -> str:
         return self.public_code
+
+    def save(self, *args, **kwargs):
+        """Wypełniona data urodzenia **wyznacza** rocznik – zawsze, niezależnie od drogi zapisu.
+
+        Reguła stoi w ``save()``, a nie w serwisach, bo dróg zapisu jest siedem (rejestracja WWW,
+        rejestracja przez dostawcę, API, import listy klasowej, edycja profilu, ekran koordynatora,
+        administracja Django) i każda z nich mogłaby zostawić rocznik z innego roku niż data.
+        Dwie kolumny mówiące o tej samej rzeczy dwie różne rzeczy są gorsze od jednej niedokładnej.
+
+        ``update_fields`` jest dopisywane, a nie ignorowane: zapis punktowy samej daty (tak działa
+        uzupełnienie profilu) musi zapisać także wyliczony z niej rocznik, inaczej kolumny
+        rozjechałyby się dokładnie w tym jednym przypadku, dla którego to pole powstało.
+        """
+        if self.birth_date is not None and self.birth_year != self.birth_date.year:
+            self.birth_year = self.birth_date.year
+            update_fields = kwargs.get("update_fields")
+            if update_fields is not None and "birth_year" not in update_fields:
+                kwargs["update_fields"] = [*update_fields, "birth_year"]
+        return super().save(*args, **kwargs)
+
+    def clean(self) -> None:
+        """Zakres daty urodzenia – zanim wywróci się formularz albo administracja.
+
+        Granice są celowo szerokie i celowo dwie: data z przyszłości jest oczywistą pomyłką (albo
+        próbą obejścia reguły wieku), a data sprzed 1900 roku – literówką w polu roku. Górnego
+        ograniczenia wieku („najwyżej 120 lat”) tu nie ma: nie chroni przed żadnym nadużyciem,
+        a odmawiałoby rejestracji człowiekowi, który po prostu żyje długo.
+        """
+        super().clean()
+        if self.birth_date is not None:
+            today = timezone.localdate()
+            if self.birth_date > today:
+                raise ValidationError({"birth_date": "Data urodzenia nie może być z przyszłości."})
+            if self.birth_date < MIN_BIRTH_DATE:
+                raise ValidationError(
+                    {"birth_date": f"Data urodzenia nie może być wcześniejsza niż {MIN_BIRTH_DATE:%d.%m.%Y}."}
+                )
+
+    @property
+    def known_birth_year(self) -> int | None:
+        """Rocznik albo ``None``, gdy wieku nie znamy (:data:`UNKNOWN_BIRTH_YEAR`).
+
+        Do pokazywania i do eksportu, nigdy do reguły wieku: tam idzie ``birth_year`` wprost, bo
+        ``consents.is_minor`` i tak rozumie fałszywą wartość jako „nie wiem, czyli małoletni”.
+        """
+        return self.birth_year or None
 
 
 class ConsentRecord(models.Model):
@@ -875,13 +956,25 @@ class RegistrationProfile(models.Model):
     require_grade = models.BooleanField("klasa wymagana", default=True)
     require_phone = models.BooleanField("telefon wymagany", default=True)
     require_region = models.BooleanField("region wymagany", default=True)
-    #: Pole jest w modelu, bo tak stanowi § 1.3.4, ale **dzisiaj nie ma czego wyłączyć**:
-    #: ``Participant.birth_year`` jest kolumną ``NOT NULL``, a od rocznika zależy reguła „zgoda
-    #: opiekuna dla niepełnoletniego” (``consents.is_minor``) – czyli podstawa prawna zapisu.
-    #: Znullowanie kolumny jest osobnym wydaniem (nullowalne → backfill → ``NOT NULL``, § 0.7)
-    #: i osobną decyzją o zgodach, a nie skutkiem ubocznym profilu rejestracji. Do tego czasu
-    #: formularz pyta o rocznik niezależnie od tej wartości.
-    require_birth_year = models.BooleanField("rocznik wymagany", default=True)
+    #: Czy rejestracja pyta o **datę urodzenia**. Nazwa kolumny zostaje ``require_birth_year``
+    #: i jest to świadoma decyzja: zmiana nazwy kolumny to migracja na żywej bazie i przepisanie
+    #: każdego odczytu, a znaczenie i tak jest jedno – „czy pytamy o wiek”. Zmienia się natomiast
+    #: to, **o co** pytamy: od wydania z pełną datą urodzenia pole ``Participant.birth_date``
+    #: jest nullowalne, więc pierwszy raz naprawdę jest co wyłączyć.
+    #:
+    #: Wyłączone znaczy „data nieobowiązkowa”, a **nie** „wieku nie sprawdzamy”: uczestnik bez daty
+    #: i bez rocznika jest dla ``consents.is_minor`` małoletni, czyli konkurs, który o wiek nie
+    #: pyta, zbiera zgodę opiekuna od wszystkich. To jest jedyny bezpieczny odwrót – wiek
+    #: rozstrzyga o podstawie prawnej zapisu, a nieznany wiek nie może znaczyć „pełnoletni”.
+    require_birth_year = models.BooleanField(
+        "data urodzenia wymagana",
+        default=True,
+        help_text=(
+            "Wyłączona znaczy, że data urodzenia jest nieobowiązkowa. Uczestnik bez podanej daty "
+            "jest traktowany jak osoba niepełnoletnia, więc zgoda opiekuna będzie wymagana "
+            "od każdego."
+        ),
+    )
     #: ``None`` znaczy „jak dziś”, czyli ``MIN_GRADE``/``MAX_GRADE``. Osobne pola, a nie lista klas:
     #: konkurs zawęża **przedział**, a nie wybiera klasy pojedynczo – a przedział da się pokazać
     #: w komunikacie walidacji jednym zdaniem.
