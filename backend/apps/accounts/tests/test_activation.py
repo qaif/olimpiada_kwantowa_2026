@@ -5,7 +5,8 @@ Czego te testy pilnują, po kolei:
 - **konto z rejestracji nie loguje się bez potwierdzenia adresu.** Adres e-mail jest u nas loginem
   i jedyną drogą odzyskania konta, więc przyjmowanie go na słowo znaczyło konto bez powrotu przy
   literówce i możliwość zajęcia cudzego adresu,
-- **token jest jednorazowy i krótki.** Cztery godziny, bo tyle samo żyje nieaktywowane konto,
+- **token jest jednorazowy i krótki.** Doba (od 22.09.2026; wcześniej cztery godziny), bo tyle samo
+  żyje nieaktywowane konto,
 - **ponowna wysyłka nie zdradza, kto ma konto.** Odpowiedź jest identyczna dla adresu istniejącego
   i nieistniejącego – inaczej publiczny formularz byłby wyszukiwarką kont,
 - **dostawca, który potwierdził adres, zastępuje nasz list.** Google podaje ``email_verified``;
@@ -95,7 +96,7 @@ def test_registration_creates_an_inactive_account_and_sends_the_link(
     # List mówi o spamie i o oknie ważności – bez tego uczestnik nie wie, gdzie szukać i ile ma czasu.
     # Zdanie o spamie stoi na stronie po rejestracji, nie w liście (kto go czyta, ten go dostał).
     assert "spam" not in message.body
-    assert "4 godziny" in message.body
+    assert "24 godziny" in message.body
     # Poza adresem odbiorcy (i tak w nagłówku ``To:``) w liście nie ma danych osobowych.
     assert "Nowak" not in message.body
 
@@ -212,7 +213,7 @@ def test_activation_also_tells_allauth_that_the_address_is_verified(open_registr
 @pytest.mark.django_db
 def test_activation_window_is_four_hours():
     """Okno aktywacji i życie nieaktywowanego konta to **ta sama** liczba – patrz activation.py."""
-    assert ACTIVATION_MAX_AGE == 4 * 3600
+    assert ACTIVATION_MAX_AGE == 24 * 3600
 
 
 # --- ponowna wysyłka ----------------------------------------------------------------------------

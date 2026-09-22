@@ -33,12 +33,12 @@ przycisk pojawia się wtedy na `/login/` i `/register/`. Zgody wypełnia się i 
 
 Po rejestracji strona `/register/done/` mówi „sprawdź skrzynkę”. Na podany adres idzie list z linkiem.
 
-> **Link jest ważny 4 godziny i tyle samo żyje nieaktywowane konto.** Po tym czasie konto znika,
+> **Link jest ważny 24 godziny i tyle samo żyje nieaktywowane konto.** Po tym czasie konto znika,
 > a adres wraca do puli — można zarejestrować się jeszcze raz.
 
 - **listu nie ma?** Zajrzyj do spamu, a potem użyj **„Wyślij link ponownie”** (`/activate/resend/`,
   odnośnik stały na stronie logowania),
-- **literówka w adresie?** Zarejestruj się ponownie po upływie 4 godzin albo napisz do organizatora
+- **literówka w adresie?** Zarejestruj się ponownie po upływie 24 godzin albo napisz do organizatora
   (`/support/new/`) — on aktywuje konto ręcznie,
 - konto z logowania przez **Google** jest aktywne od razu (Google potwierdza adres); z Facebooka — nie.
 

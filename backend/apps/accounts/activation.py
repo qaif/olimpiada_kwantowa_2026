@@ -24,10 +24,12 @@ sprzed zmiany nie potwierdza adresu, którego już nie ma. Podpisu nie da się p
 ``SECRET_KEY``, a stanu w bazie token nie potrzebuje – jednorazowość bierze się z tego, że
 aktywacja sprawdza ``email_verified_at is None`` (drugie kliknięcie nie ma czego zmienić).
 
-``ACTIVATION_MAX_AGE`` to **cztery godziny**, nie doba: tyle samo żyje nieaktywowane konto.
-Po tym czasie ``apps.accounts.tasks.purge_unactivated_accounts`` kasuje je z bazy, więc link
-ważny dłużej wskazywałby na konto, którego już nie ma. Krótkie okno jest tu decyzją
-organizatora: zwalnia adres e-mail do ponownej rejestracji zamiast blokować go kontem-widmem.
+``ACTIVATION_MAX_AGE`` to **doba**: tyle samo żyje nieaktywowane konto. Po tym czasie
+``apps.accounts.tasks.purge_unactivated_accounts`` kasuje je z bazy, więc link ważny dłużej
+wskazywałby na konto, którego już nie ma. Okno było czterogodzinne (decyzja organizatora z
+września 2026: zwolnić adres e-mail do ponownej rejestracji zamiast blokować go kontem-widmem);
+22.09.2026 organizator wydłużył je do 24 godzin – cztery godziny mijały, zanim uczeń zdążył
+zajrzeć do skrzynki po lekcjach, a ponowna rejestracja od zera zniechęcała.
 """
 
 from __future__ import annotations
@@ -56,10 +58,11 @@ logger = logging.getLogger(__name__)
 ACTIVATION_SALT = "apps.accounts.activation"
 EMAIL_CHANGE_SALT = "apps.accounts.email-change"
 
-#: Ważność linku aktywacyjnego w sekundach – **cztery godziny**, zgodnie z decyzją organizatora.
-#: Ta sama wartość wyznacza życie nieaktywowanego konta (``purge_unactivated_accounts``): gdyby
-#: link był ważny dłużej niż konto, kliknięcie kończyłoby się „nieprawidłowy link” bez wyjaśnienia.
-ACTIVATION_MAX_AGE = 4 * 3600
+#: Ważność linku aktywacyjnego w sekundach – **doba** (decyzja organizatora z 22.09.2026; wcześniej
+#: cztery godziny). Ta sama wartość wyznacza życie nieaktywowanego konta
+#: (``purge_unactivated_accounts``): gdyby link był ważny dłużej niż konto, kliknięcie kończyłoby
+#: się „nieprawidłowy link” bez wyjaśnienia.
+ACTIVATION_MAX_AGE = 24 * 3600
 
 #: Ważność linku potwierdzającego zmianę adresu. Dłużej niż aktywacja, bo tu nic nie jest kasowane:
 #: do kliknięcia obowiązuje stary adres i konto działa normalnie.

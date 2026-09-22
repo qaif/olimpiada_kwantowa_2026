@@ -420,7 +420,7 @@ docker compose exec web python manage.py retention_report   # nic nie zmienia; n
 Raport wypisuje **kody publiczne**, nigdy adresów e-mail — wykaz adresów byłby dokładnie tą daną, którą
 retencja usuwa.
 
-**Konta nieaktywowane** kasuje się same: link aktywacyjny żyje 4 godziny i tyle samo żyje konto, po czym
+**Konta nieaktywowane** kasuje się same: link aktywacyjny żyje 24 godziny i tyle samo żyje konto, po czym
 `purge_unactivated_accounts` (beat, co 15 minut) usuwa je razem z profilem, żeby adres wrócił do puli.
 Konta, do których odwołuje się dokumentacja zawodów, nie są kasowane nigdy.
 

@@ -1,6 +1,6 @@
 """Kosiarka kont nieaktywowanych – decyzja organizatora, nie optymalizacja bazy.
 
-Konto, którego adresu nikt nie potwierdził w ciągu ``ACTIVATION_MAX_AGE`` (cztery godziny),
+Konto, którego adresu nikt nie potwierdził w ciągu ``ACTIVATION_MAX_AGE`` (doba),
 jest kasowane razem z profilem. Powód jest praktyczny i dotyczy uczestnika, nie serwera:
 adres e-mail jest u nas unikalny, więc konto-widmo **blokuje ten adres**. Bez kosiarki uczeń,
 który pomylił się w haśle albo nie doczekał listu i zamknął kartę, dostawałby przy drugiej próbie

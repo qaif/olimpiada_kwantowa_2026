@@ -271,7 +271,7 @@ FAQ_ENTRIES = (
         "Konto i rejestracja",
         "Nie dostałem listu aktywacyjnego. Co zrobić?",
         "<p>Sprawdź folder ze spamem – list przychodzi z adresu serwisu i bywa tam filtrowany. "
-        "Link jest ważny <strong>cztery godziny</strong>; po tym czasie konto, którego adresu "
+        "Link jest ważny <strong>24 godziny</strong>; po tym czasie konto, którego adresu "
         "nikt nie potwierdził, jest kasowane, a adres wraca do ponownej rejestracji. Jeśli listu "
         "nie ma, użyj strony „Wyślij link ponownie” albo zgłoś sprawę organizatorowi.</p>",
     ),

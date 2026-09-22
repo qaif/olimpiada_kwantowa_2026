@@ -687,7 +687,7 @@ linku wysłanego na podany adres. Konto z Google jest aktywne od razu, bo Google
 `email_verified`. Powód: adres e-mail jest loginem i jedyną drogą odzyskania konta — literówka
 dawałaby konto bez powrotu, a cudzy adres dałoby się zająć kontem-widmem.
 
-**Link jest ważny 4 godziny i tyle samo żyje nieaktywowane konto.** Po tym czasie
+**Link jest ważny 24 godziny i tyle samo żyje nieaktywowane konto.** Po tym czasie
 `apps.accounts.tasks.purge_unactivated_accounts` (beat, co 15 minut) kasuje je razem z profilem,
 więc adres zwalnia się do ponownej rejestracji — inaczej uczeń, który nie doczekał listu,
 odbijałby się na zawsze o „konto z tym adresem już istnieje”. Konta, do których odwołuje się

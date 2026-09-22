@@ -37,7 +37,7 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: **treść pisaną publicznie przez osoby niepełnoletnie**, podpisaną imieniem i inicjałem nazwiska
 #: i czytaną przez innych uczestników. Nowa kategoria danych i nowy krąg odbiorców to zmiana
 #: materialna z podręcznikowego przykładu, a nie doprecyzowanie istniejącego wiersza.
-REGISTER_VERSION = "1.2"
+REGISTER_VERSION = "1.3"
 REGISTER_DATE = date(2026, 9, 21)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
@@ -127,7 +127,7 @@ ACTIVITIES: tuple[ProcessingActivity, ...] = (
         recipients=[HOSTING_RECIPIENT, MAIL_RECIPIENT],
         retention=PARTICIPANT_RETENTION,
         measures=[
-            "aktywacja konta linkiem e-mail; konto niepotwierdzone jest kasowane po 4 godzinach",
+            "aktywacja konta linkiem e-mail; konto niepotwierdzone jest kasowane po 24 godzinach",
             "limit prób logowania i rejestracji (throttling po adresie IP i po tożsamości)",
         ],
     ),

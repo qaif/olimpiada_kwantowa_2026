@@ -83,7 +83,7 @@ def test_registration_tells_the_user_to_check_the_mailbox(
     assert "link aktywacyjny" in body
     # Komunikat musi mówić o czterech godzinach: po tym czasie konto znika i rejestrację
     # trzeba powtórzyć.
-    assert "4 godziny" in body
+    assert "24 godziny" in body
 
 
 def test_the_link_from_the_message_activates_the_account(

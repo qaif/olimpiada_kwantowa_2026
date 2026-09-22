@@ -14,7 +14,7 @@ Konto komitetu powstaje **wyłącznie na kod zaproszenia** od koordynatora — n
 dla recenzentów.
 
 1. Otwórz `/register/committee/`, wpisz kod z listu (albo przekazany inną drogą) i załóż konto.
-2. Aktywuj adres, klikając link z listu. **Link jest ważny 4 godziny** i tyle samo żyje nieaktywowane
+2. Aktywuj adres, klikając link z listu. **Link jest ważny 24 godziny** i tyle samo żyje nieaktywowane
    konto; ponowną wysyłkę zamawia się pod `/activate/resend/`.
 3. Poczekaj na **zatwierdzenie przez koordynatora** — do tego czasu panel recenzenta jest zamknięty.
 

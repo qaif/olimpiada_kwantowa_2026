@@ -27,7 +27,7 @@ def test_successful_registration_lands_on_the_check_your_mailbox_page(
     assert "Konto zostało założone" in body
     assert "aktywacja-web@example.test" in body
     assert "sprawdź folder ze spamem" in body
-    assert "4 godziny" in body
+    assert "24 godziny" in body
     assert 'href="/activate/resend/"' in body
     # Zdanie o spamie zniknęło z treści listu – tam nie miało sensu.
     assert "folder ze spamem" not in mail.outbox[0].body

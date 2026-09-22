@@ -870,7 +870,7 @@ Trzy rzeczy, które panel robi inaczej niż samoobsługa:
   jednym kliknięciem.
 
 **Ekran aktywacji jest obejściem na czas problemów z dostarczalnością poczty.** Lista pokazuje czas
-pozostały do skasowania konta (link aktywacyjny i nieaktywowane konto żyją 4 godziny), a ręczna aktywacja
+pozostały do skasowania konta (link aktywacyjny i nieaktywowane konto żyją 24 godziny), a ręczna aktywacja
 zostawia **inny wpis w audycie** niż kliknięcie linku przez użytkownika — bo adres został potwierdzony
 czym innym.
 
