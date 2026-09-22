@@ -1,20 +1,21 @@
 {% extends "base.html" %}
+{% load wagtailcore_tags %}
 {% block title %}Rejestracja opiekuna szkolnego{% endblock %}
 {% block content %}
 <div class="auth">
   <div class="card">
     <h1>Rejestracja opiekuna szkolnego</h1>
     {% comment %}
-      Rejestracja jest otwarta (bez kodu zaproszenia), bo samo konto nie daje wglądu w niczyje
-      dane: panel pokazuje wyłącznie tych uczniów, którzy sami wpisali ten adres w swoim profilu.
-      Dlatego intro mówi wprost, od czego zależy zawartość panelu – inaczej pierwszą reakcją po
-      założeniu konta byłoby pytanie „dlaczego mam pustą listę”.
+      Wstęp nad formularzem pochodzi z ustawień witryny (``cms.SiteSettings
+      .supervisor_registration_intro``) i domyślnie go nie ma – organizator 22.09.2026 kazał
+      zdjąć zaszyty tu akapit i chciał móc go redagować z /cms/. Rejestracja jest otwarta – bez
+      kodu zaproszenia – bo samo konto nie daje wglądu w niczyje dane: panel pokazuje wyłącznie
+      uczniów, którzy sami wpisali ten adres w profilu; to wyjaśnienie stoi w pustym stanie
+      pulpitu opiekuna.
     {% endcomment %}
-    <p class="auth__intro">Konto dla nauczyciela, który prowadzi uczniów do olimpiady. Zobaczysz
-      w nim tych uczestników, którzy wpiszą Twój adres e-mail w swoim profilu – ich kod, imię,
-      nazwisko i to, na jakim etapie procedury są ich prace.</p>
-    <p class="hint">Panel <strong>nie</strong> pokazuje prac, komentarzy recenzentów ani punktów
-      przed ogłoszeniem wyników etapu.</p>
+    {% if settings.cms.SiteSettings.supervisor_registration_intro %}
+      <div class="auth__intro">{{ settings.cms.SiteSettings.supervisor_registration_intro|richtext }}</div>
+    {% endif %}
     <form method="post" class="form">
       {% csrf_token %}
       {# Legenda gwiazdki – marker rysuje arkusz z klasy ``required`` (apps/web/forms.py). #}

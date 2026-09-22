@@ -950,6 +950,10 @@ z 19.09.2026 na wyraźną prośbę — rola nie była jeszcze ogłaszana). Żeby
 
 1. `/cms/` → **Ustawienia** → **Dane serwisu** → zaznacz **„Rejestracja opiekunów szkolnych”**
    (`SiteSettings.supervisor_registration_enabled`) → zapisz.
+   Tuż pod przełącznikiem stoi pole **„wstęp nad formularzem rejestracji opiekunów”**
+   (`supervisor_registration_intro`): domyślnie puste, czyli nad formularzem `/register/supervisor/`
+   nie ma żadnego tekstu (decyzja organizatora z 22.09.2026); wpisany akapit pojawia się tam od razu,
+   bez wdrożenia.
 2. Od tej chwili, bez restartu i bez czekania: `/register/supervisor/` odpowiada formularzem zamiast
    404-ki; na `/register/` i na `/login/` pojawia się linia „Jesteś nauczycielem? Zarejestruj się jako
    opiekun szkolny”; profil uczestnika (`/me/` → Profil) pokazuje pole „Adres e-mail opiekuna
