@@ -1260,11 +1260,11 @@ docker compose up -d web worker beat
 Dwa kroki wcześniej (obraz już skasowany) wymaga ponownego budowania z odpowiedniego commitu –
 `git checkout <tag>` na kopii repozytorium i `scripts/deploy.sh` bez `WEB_IMAGE`.
 
-## 12. Wyszukiwarka szkół: rozszerzenie `pg_trgm` (v0.31.2)
+## 12. Wyszukiwarka szkół: rozszerzenie `pg_trgm` (v0.31.0)
 
 Migracja `schools.0006_pg_trgm_search_indexes` wymaga rozszerzenia PostgreSQL **`pg_trgm`**
 (indeksy GIN pod `search_text`/`city_search`, klasa operatorów `gin_trgm_ops` – zastąpiły trzy
-indeksy B-tree bez ani jednego skanu na produkcji, patrz `docs/CHANGELOG.md` v0.31.2). Rozszerzenie
+indeksy B-tree bez ani jednego skanu na produkcji, patrz `docs/CHANGELOG.md` v0.31.0). Rozszerzenie
 zakłada sama migracja (`django.contrib.postgres.operations.TrigramExtension`,
 `CREATE EXTENSION IF NOT EXISTS pg_trgm`) — nic nie trzeba robić ręcznie przed wdrożeniem, o ile
 spełniony jest jeden warunek środowiska:
@@ -1284,3 +1284,51 @@ uruchomienia (kolejne wdrożenie, przywrócenie z kopii zapasowej) i bezpieczna 
 `pytest-django` zakłada testową bazę tym samym mechanizmem migracji co produkcję. Czas blokady:
 `CREATE INDEX` na ośmiu tysiącach wierszy `schools_school` to ułamek sekundy, więc migracja nie
 wymaga osobnego okna serwisowego.
+
+## 13. Cache całych stron publicznych (v0.31.0)
+
+Anonimowe odsłony stron części informacyjnej (strona główna, harmonogram, warsztaty, dokumenty,
+FAQ, partnerzy, kontakt, aktualności, wyniki, archiwum) i `/statystyki/` kosztowały na produkcji
+250–500 ms CPU na odsłonę (profilowanie 22.09.2026) – głównie renderowanie szablonu, nie zapytania
+(1–3 ms). Odpowiedź jest identyczna dla każdego anonimowego gościa tej samej witryny, więc
+`apps.web.page_cache.PageCacheMiddleware` trzyma ją w Redisie (ten sam `CACHES["default"]`, co
+reszta serwisu) przez `PAGE_CACHE_SECONDS` (domyślnie 120 s).
+
+**Co jest cache'owane.** Wyłącznie allow-lista adresów (kod źródłowy w `apps/web/page_cache.py`,
+stałe `ALLOWED_PATHS`/`ALLOWED_PREFIXES`), wyłącznie `GET`/`HEAD`, wyłącznie gość (niezalogowany,
+bez sesji zmienionej w trakcie obsługi – komunikat organizatora, przełącznik wysokiego kontrastu),
+wyłącznie odpowiedź 200 z `Content-Type: text/html` bez `Set-Cookie` i bez `Vary`. Parametr
+zapytania: tylko `?page=<liczba>`, każdy inny wyłącza cache dla tego żądania.
+
+**Czego cache nigdy nie obejmuje i dlaczego:** panel koordynatora, konto, API, `/cms/`, `/admin/`,
+formularze rejestracji – każdy z nich renderuje coś zależnego od tożsamości albo przyjmuje POST,
+a allow-lista (nie deny-lista) sprawia, że nowy adres jest bezpieczny z definicji, dopóki ktoś
+świadomie nie dopisze go do listy. Nonce CSP i token CSRF (ten drugi wstrzykiwany do **każdej**
+strony przez `templates/base.html`, atrybut `hx-headers`) nie są nigdy przechowywane – w cache'u
+leży placeholder, a świeżą wartość dostaje każde żądanie osobno (patrz docstring modułu za pełne
+uzasadnienie).
+
+**Klucz** niesie: wersję globalną, wersję witryny konkursu, identyfikator konkursu, język
+interfejsu, ścieżkę i `?page=`. Wersje to liczniki (`INCR`) – unieważnienie nigdy nie wylicza
+istniejących wpisów, tylko podbija licznik, więc stare wpisy po prostu przestają być trafiane
+i wygasają same po TTL.
+
+**Unieważnianie jest automatyczne** przy: publikacji/wycofaniu/przeniesieniu/skasowaniu strony
+Wagtaila, zapisie `cms.SiteSettings`, komunikacie organizatora (`cms.Announcement` – z konkursem:
+tylko jego witryna, bez konkursu: wszystkie witryny naraz), zmianie edycji/etapu/wydarzenia
+(`competitions.Edition`/`Stage`/`EditionEvent`) i ogłoszeniu wyników (`results.ResultsPublication`).
+Ręczne wyczyszczenie (np. po imporcie z ominięciem sygnałów Django):
+
+```bash
+docker compose exec -T web python manage.py page_cache_clear
+```
+
+**Weryfikacja.** Nagłówek `X-Page-Cache: HIT|MISS|BYPASS` na każdej odpowiedzi (wyłącznie do
+diagnozy – klient nic z niego nie wnioskuje). `BYPASS` na allow-liście najczęściej znaczy: gość
+zalogowany, parametr zapytania spoza `?page=`, albo `PAGE_CACHE_ENABLED=False` w `.env`.
+
+**Wyłączenie w razie incydentu** (np. redaktor zgłasza „strona nie aktualizuje się”, a sygnał
+unieważnienia z jakiegoś powodu nie doszedł): `PAGE_CACHE_ENABLED=False` w `.env` i restart `web`,
+albo doraźnie `PAGE_CACHE_SECONDS=0` – oba wyłączniki są od razu widoczne w `X-Page-Cache: BYPASS`.
+Cache zostaje **wyłączony domyślnie** w środowisku testowym (`config/settings/test.py`), więc
+budżety zapytań (`apps/tenancy/tests/test_invariants.py`) mierzą kod, nie trafienia bufora.
