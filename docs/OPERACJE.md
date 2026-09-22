@@ -1182,3 +1182,80 @@ Polecenie uruchamia cały zbiór w lokalnym środowisku (ok. pół godziny) i na
 `backend/.test_durations`; wtyczka `backend/ci_durations_plugin.py` sumuje czas przygotowania,
 wykonania i sprzątania każdego testu. Plik commituje się jak każdy inny. Czasy z maszyny lokalnej
 różnią się od czasów w CI co do wartości, ale nie co do proporcji – a podział zależy tylko od nich.
+
+## 11. Wydajność: WSGI, wątki, połączenia (v0.31.0)
+
+Test obciążeniowy z 22.09.2026 zmierzył linię bazową: **~7 req/s** w nasyceniu, p95 **2,3 s**
+przy 5 użytkownikach jednocześnie. Przyczyna: usługa `web` chodziła pod ASGI (gunicorn +
+`UvicornWorker`), a aplikacja jest w 100% synchroniczna – Django wykonuje wtedy każdy widok
+w **jednym wątku puli na proces** (`ThreadSensitiveContext`), więc `--workers 3` dawało dokładnie
+trzy równoległe żądania, niezależnie od tego, ile CPU i RAM-u stało bezczynnie obok.
+
+### 11.1. Model współbieżności
+
+`web` (`docker-compose.yml`, `backend/Dockerfile`) chodzi teraz pod **WSGI + worker `gthread`**:
+
+```
+gunicorn config.wsgi:application --workers ${WEB_WORKERS:-4} --threads ${WEB_THREADS:-4} \
+  --worker-class gthread --timeout 120 --graceful-timeout 30 \
+  --max-requests 2000 --max-requests-jitter 200
+```
+
+Concurrency procesu to iloczyn `WEB_WORKERS × WEB_THREADS`, nie sama liczba workerów – przy
+domyślnych 4×4 to **16** równoległych żądań na instancję `web`. `--max-requests` z rozrzutem
+(`--max-requests-jitter`) restartuje worker po ok. 2000±200 żądaniach: łata powolny wyciek
+pamięci w pojedynczym procesie bez wspólnego, widocznego restartu wszystkich naraz.
+
+Reguła doboru `WEB_WORKERS`/`WEB_THREADS`: **workery** skalują z liczbą rdzeni (serwer produkcyjny
+ma 6 vCPU – 4 workery zostawiają margines pozostałym usługom: `worker`, `beat`, `db`, `redis`,
+`minio`, `clamav`), **wątki** skalują z udziałem czasu żądania spędzanym na I/O (baza, S3, SMTP) –
+podnoszenie ich ponad ok. 8 przestaje pomagać, bo GIL i tak serializuje część pracy w Pythonie.
+
+### 11.2. Budżet połączeń z Postgresem
+
+`max_connections=100`. Przy domyślnych wartościach:
+
+| Usługa | Wzór | Połączenia |
+|---|---|---|
+| `web` | `WEB_WORKERS × WEB_THREADS` = 4×4 | 16 |
+| `worker` | `CELERY_CONCURRENCY` | 2 |
+| `beat` | proces jednowątkowy | 1 |
+| **razem** | | **ok. 19–20** |
+
+Zapas do 100 jest świadomie duży: administracyjne połączenia (`manage.py shell`, `psql` ręcznie
+w trakcie incydentu) i chwila nakładania się dwóch wdrożeń (stary kontener kończy żądania, nowy już
+przyjmuje) nie mogą wypchnąć aplikacji z puli. Podnoszenie `WEB_WORKERS`/`WEB_THREADS` powyżej ok.
+6×8 zbliża budżet do granicy i wymaga podniesienia `max_connections` w Postgresie razem z tym.
+
+`DB_CONN_MAX_AGE=60` (`config/settings/base.py`) i `CONN_HEALTH_CHECKS=True` są bezpieczne właśnie
+dzięki `gthread`: wątek roboczy **żyje w puli workera** (nie ginie po żądaniu, jak wątek pod ASGI),
+więc trwałe połączenie ma kto zamknąć przy wygaśnięciu. Incydent, który kiedyś to wyłączył (92
+bezczynne połączenia z `web` po dobie, „too many clients already”), miał inną przyczynę – wątek
+ASGI ginął, a jego połączenie zostawało otwarte aż do wygaśnięcia po stronie Pythona. Pełna historia
+stoi w komentarzu przy `DATABASES["default"]["CONN_MAX_AGE"]`.
+
+### 11.3. Rollback
+
+`WEB_WORKERS` i `WEB_THREADS` to zmienne `.env` – awaryjny powrót do mniejszej współbieżności (np.
+podejrzenie, że nowa wartość przeciąża bazę albo maszynę) nie wymaga wdrożenia:
+
+```bash
+# na serwerze, w /opt/olimpiada
+sed -i 's/^WEB_WORKERS=.*/WEB_WORKERS=2/; s/^WEB_THREADS=.*/WEB_THREADS=2/' .env
+docker compose up -d web
+```
+
+Powrót do poprzedniej **wersji** obrazu (nie tylko konfiguracji) korzysta z tagu, który
+`scripts/deploy.sh` (ostatni krok, „Porządki: stare obrazy”) świadomie zostawia obok bieżącego –
+każde wdrożenie kasuje tagi `olimpiada/web` starsze niż bieżący i poprzedni, więc jeden krok wstecz
+nie wymaga ponownego budowania:
+
+```bash
+# na serwerze, w /opt/olimpiada – docker images pokazuje zostawione tagi
+docker compose stop web worker beat
+sed -i 's/^APP_VERSION=.*/APP_VERSION=<poprzednia-wersja>/' .env
+docker compose up -d web worker beat
+```
+
+Dwa kroki wcześniej (obraz już skasowany) wymaga ponownego budowania z odpowiedniego commitu –
+`git checkout <tag>` na kopii repozytorium i `scripts/deploy.sh` bez `WEB_IMAGE`.

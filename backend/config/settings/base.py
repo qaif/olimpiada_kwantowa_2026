@@ -268,15 +268,42 @@ MESSAGE_STORAGE = "django.contrib.messages.storage.session.SessionStorage"
 DATABASES = {
     "default": env.db("DATABASE_URL", default="postgres://olimpiada:olimpiada@localhost:5432/olimpiada")
 }
-# Bez trwałych połączeń (``CONN_MAX_AGE=0``). Aplikacja chodzi pod ASGI (gunicorn + UvicornWorker),
-# a Django wykonuje synchroniczne widoki w **nowym wątku na żądanie** (``ThreadSensitiveContext``).
-# Trwałe połączenie jest przypięte do wątku i zamyka je tylko ``close_old_connections`` w tym samym
-# wątku – wątek po żądaniu ginie, a jego połączenie zostaje otwarte aż do wygaśnięcia po stronie
-# Pythona. Z ``CONN_MAX_AGE=60`` produkcja po dobie trzymała 92 bezczynne połączenia z ``web``
-# i Postgres odpowiadał „too many clients already” (limit 100) – każda strona dawała 500.
-# Koszt nowego połączenia do bazy w tej samej sieci compose to pojedyncze milisekundy; pula
-# psycopg (``OPTIONS["pool"]``, Django 5.1) wymaga pakietu ``psycopg[pool]`` i jest w BACKLOG-u.
-DATABASES["default"]["CONN_MAX_AGE"] = env.int("DB_CONN_MAX_AGE", default=0)
+# Historia tej linijki (żeby nikt drugi raz nie wdepnął w ten sam dół):
+#
+# 1. Incydent (przed 22.09.2026): z ``CONN_MAX_AGE=60`` produkcja po dobie trzymała 92 bezczynne
+#    połączenia z ``web`` i Postgres odpowiadał „too many clients already” (limit 100) – każda
+#    strona dawała 500.
+# 2. Przyczyna: aplikacja chodziła pod ASGI (gunicorn + ``UvicornWorker``), a Django wykonywało
+#    synchroniczne widoki w **nowym wątku na żądanie** (``ThreadSensitiveContext``). Trwałe
+#    połączenie jest przypięte do wątku i zamyka je tylko ``close_old_connections`` w tym samym
+#    wątku – wątek po żądaniu ginął, a jego połączenie zostawało otwarte aż do wygaśnięcia po
+#    stronie Pythona. Jedyną bezpieczną łatą było wtedy wyłączenie trwałych połączeń
+#    (``CONN_MAX_AGE=0``): koszt nowego połączenia do bazy w tej samej sieci compose to pojedyncze
+#    milisekundy, ale pod ASGI to jeszcze i tak nie miało znaczenia – zob. punkt 3.
+# 3. Test obciążeniowy (22.09.2026) pokazał, że ASGI dla w 100% synchronicznej aplikacji było
+#    złym wyborem niezależnie od połączeń: Django serializuje widoki synchroniczne na wątek puli
+#    na proces, więc trzy workery ASGI dawały maksymalnie trzy równoległe żądania (~7 req/s
+#    w nasyceniu, 300–600% CPU z przełączania wątków). Naprawą było przejście na WSGI + worker
+#    ``gthread`` (``docker-compose.yml``, usługa ``web``): concurrency procesu to teraz
+#    ``--workers`` razy ``--threads``, a wątek roboczy **żyje w puli workera**, nie ginie po
+#    żądaniu – więc trwałe połączenie znów ma sens (jeden wątek = jedno długożyjące połączenie,
+#    zamykane przez ``close_old_connections`` w tym samym wątku, który je otworzył).
+#
+# Budżet połączeń Postgresa (``max_connections=100``) przy domyślnych wartościach:
+#   web:    WEB_WORKERS × WEB_THREADS = 4 × 4 = 16
+#   worker: CELERY_CONCURRENCY = 2
+#   beat:   1 (proces jednowątkowy)
+#   razem:  ok. 19–20 z 20–25 zarezerwowanych na aplikację (zapas na `manage.py shell`,
+#           migracje ręczne i drugie takie samo wdrożenie w trakcie rolloutu) – reszta limitu
+#           zostaje dla Postgresa samego i dla awaryjnych połączeń administracyjnych.
+# 60 s (nie 0, nie kilka minut): wystarczy, żeby wątek obsługujący kolejne żądania nie płacił
+# nowym uściskiem dłoni TCP+TLS-do-bazy za każdym razem, a jednocześnie połączenie bezczynnego
+# wątku (np. workera, który akurat nie ma zadań) nie stoi otwarte godzinami. ``CONN_HEALTH_CHECKS``
+# dokłada tani ``SELECT 1`` przed ponownym użyciem połączenia starszego niż moment ostatniego
+# błędu – bez tego martwe połączenie (np. po restarcie Postgresa) ujawniłoby się dopiero
+# wyjątkiem w środku żądania użytkownika, a z włączonym sprawdzeniem Django po cichu otwiera nowe.
+DATABASES["default"]["CONN_MAX_AGE"] = env.int("DB_CONN_MAX_AGE", default=60)
+DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
 DATABASES["default"]["ATOMIC_REQUESTS"] = False
 
 REDIS_URL = env("REDIS_URL", default="redis://localhost:6379/0")
@@ -362,6 +389,14 @@ CELERY_BEAT_SCHEDULE = {
     "alerts-check": {
         "task": "apps.core.tasks.alerts_check",
         "schedule": 300.0,
+    },
+    # Sprzątanie wygasłych wyzwań CAPTCHA (``django-simple-captcha`` nie robi tego samo –
+    # apps/core/tasks.py). Co godzinę: wyzwanie wygasa po kilku minutach, więc rzadszy przebieg
+    # pozwoliłby tabeli rosnąć proporcjonalnie do ruchu na formularzach rejestracji między
+    # przebiegami bez żadnej korzyści z rzadszego uruchamiania.
+    "captcha-clean": {
+        "task": "apps.core.tasks.captcha_clean",
+        "schedule": 3600.0,
     },
 }
 
