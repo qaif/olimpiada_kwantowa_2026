@@ -32,7 +32,12 @@ CATEGORIES_FLAG = "categories"
 SUPERVISOR_EMAIL = "nauczyciel@szkola.test"
 ADULT_YEAR = timezone.localdate().year - 25
 
+#: Nagłówek pliku **wgrywanego** w tych testach. Zostaje przy kolumnie „rok urodzenia”, bo arkusz
+#: sprzed wydania 0.30.0 ma wchodzić bez zmiany ani jednej komórki.
 BASE_HEADER = "imię;nazwisko;e-mail;rok urodzenia;klasa;telefon;e-mail opiekuna prawnego"
+
+#: Wzorcowy nagłówek **pokazywany** na ekranie importu – ten prosi już o pełną datę urodzenia.
+SAMPLE_HEADER = "imię;nazwisko;e-mail;data urodzenia;klasa;telefon;e-mail opiekuna prawnego"
 
 IMPORT_URL = "/supervisor/import/"
 COORDINATOR_IMPORT_URL = "/coordinator/accounts/import/"
@@ -78,11 +83,17 @@ def labels(response) -> list[str]:
 
 
 def test_konkurs_bez_flag_ma_dzisiejsza_instrukcje(web_client, logged_supervisor):
-    """Ekran opiekuna Konkursu #1: siedem rubryk i ten sam wiersz nagłówka, co przed etapem 2."""
+    """Ekran opiekuna Konkursu #1: siedem rubryk, bez ani jednej kolumny konkursu.
+
+    Wiersz nagłówka jest dzisiejszy poza jedną rubryką: od wydania 0.30.0 prosimy o **datę**
+    urodzenia, a nie o rocznik. Plik z kolumną „rok urodzenia” nadal wchodzi (sprawdza to
+    ``test_konkurs_bez_flag_nie_dostaje_ani_jednej_dodatkowej_kolumny`` i testy niżej) – zmienia
+    się to, o co **prosimy**, a nie to, co przyjmujemy.
+    """
     response = web_client.get(IMPORT_URL)
 
     assert response.status_code == 200
-    assert response.context["header_line"] == BASE_HEADER
+    assert response.context["header_line"] == SAMPLE_HEADER
     assert response.context["show_region"] is False
     assert response.context["show_category"] is False
     assert response.context["show_institution"] is False
