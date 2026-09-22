@@ -1182,3 +1182,173 @@ Polecenie uruchamia cały zbiór w lokalnym środowisku (ok. pół godziny) i na
 `backend/.test_durations`; wtyczka `backend/ci_durations_plugin.py` sumuje czas przygotowania,
 wykonania i sprzątania każdego testu. Plik commituje się jak każdy inny. Czasy z maszyny lokalnej
 różnią się od czasów w CI co do wartości, ale nie co do proporcji – a podział zależy tylko od nich.
+
+## 11. Wydajność: WSGI, wątki, połączenia (v0.31.0)
+
+Test obciążeniowy z 22.09.2026 zmierzył linię bazową: **~7 req/s** w nasyceniu, p95 **2,3 s**
+przy 5 użytkownikach jednocześnie. Przyczyna: usługa `web` chodziła pod ASGI (gunicorn +
+`UvicornWorker`), a aplikacja jest w 100% synchroniczna – Django wykonuje wtedy każdy widok
+w **jednym wątku puli na proces** (`ThreadSensitiveContext`), więc `--workers 3` dawało dokładnie
+trzy równoległe żądania, niezależnie od tego, ile CPU i RAM-u stało bezczynnie obok.
+
+### 11.1. Model współbieżności
+
+`web` (`docker-compose.yml`, `backend/Dockerfile`) chodzi teraz pod **WSGI + worker `gthread`**:
+
+```
+gunicorn config.wsgi:application --workers ${WEB_WORKERS:-4} --threads ${WEB_THREADS:-4} \
+  --worker-class gthread --timeout 120 --graceful-timeout 30 \
+  --max-requests 2000 --max-requests-jitter 200
+```
+
+Concurrency procesu to iloczyn `WEB_WORKERS × WEB_THREADS`, nie sama liczba workerów – przy
+domyślnych 4×4 to **16** równoległych żądań na instancję `web`. `--max-requests` z rozrzutem
+(`--max-requests-jitter`) restartuje worker po ok. 2000±200 żądaniach: łata powolny wyciek
+pamięci w pojedynczym procesie bez wspólnego, widocznego restartu wszystkich naraz.
+
+Reguła doboru `WEB_WORKERS`/`WEB_THREADS`: **workery** skalują z liczbą rdzeni (serwer produkcyjny
+ma 6 vCPU – 4 workery zostawiają margines pozostałym usługom: `worker`, `beat`, `db`, `redis`,
+`minio`, `clamav`), **wątki** skalują z udziałem czasu żądania spędzanym na I/O (baza, S3, SMTP) –
+podnoszenie ich ponad ok. 8 przestaje pomagać, bo GIL i tak serializuje część pracy w Pythonie.
+
+### 11.2. Budżet połączeń z Postgresem
+
+`max_connections=100`. Przy domyślnych wartościach:
+
+| Usługa | Wzór | Połączenia |
+|---|---|---|
+| `web` | `WEB_WORKERS × WEB_THREADS` = 4×4 | 16 |
+| `worker` | `CELERY_CONCURRENCY` | 2 |
+| `beat` | proces jednowątkowy | 1 |
+| **razem** | | **ok. 19–20** |
+
+Zapas do 100 jest świadomie duży: administracyjne połączenia (`manage.py shell`, `psql` ręcznie
+w trakcie incydentu) i chwila nakładania się dwóch wdrożeń (stary kontener kończy żądania, nowy już
+przyjmuje) nie mogą wypchnąć aplikacji z puli. Podnoszenie `WEB_WORKERS`/`WEB_THREADS` powyżej ok.
+6×8 zbliża budżet do granicy i wymaga podniesienia `max_connections` w Postgresie razem z tym.
+
+`DB_CONN_MAX_AGE=60` (`config/settings/base.py`) i `CONN_HEALTH_CHECKS=True` są bezpieczne właśnie
+dzięki `gthread`: wątek roboczy **żyje w puli workera** (nie ginie po żądaniu, jak wątek pod ASGI),
+więc trwałe połączenie ma kto zamknąć przy wygaśnięciu. Incydent, który kiedyś to wyłączył (92
+bezczynne połączenia z `web` po dobie, „too many clients already”), miał inną przyczynę – wątek
+ASGI ginął, a jego połączenie zostawało otwarte aż do wygaśnięcia po stronie Pythona. Pełna historia
+stoi w komentarzu przy `DATABASES["default"]["CONN_MAX_AGE"]`.
+
+### 11.3. Rollback
+
+`WEB_WORKERS` i `WEB_THREADS` to zmienne `.env` – awaryjny powrót do mniejszej współbieżności (np.
+podejrzenie, że nowa wartość przeciąża bazę albo maszynę) nie wymaga wdrożenia:
+
+```bash
+# na serwerze, w /opt/olimpiada
+sed -i 's/^WEB_WORKERS=.*/WEB_WORKERS=2/; s/^WEB_THREADS=.*/WEB_THREADS=2/' .env
+docker compose up -d web
+```
+
+Powrót do poprzedniej **wersji** obrazu (nie tylko konfiguracji) korzysta z tagu, który
+`scripts/deploy.sh` (ostatni krok, „Porządki: stare obrazy”) świadomie zostawia obok bieżącego –
+każde wdrożenie kasuje tagi `olimpiada/web` starsze niż bieżący i poprzedni, więc jeden krok wstecz
+nie wymaga ponownego budowania:
+
+```bash
+# na serwerze, w /opt/olimpiada – docker images pokazuje zostawione tagi
+docker compose stop web worker beat
+sed -i 's/^APP_VERSION=.*/APP_VERSION=<poprzednia-wersja>/' .env
+docker compose up -d web worker beat
+```
+
+Dwa kroki wcześniej (obraz już skasowany) wymaga ponownego budowania z odpowiedniego commitu –
+`git checkout <tag>` na kopii repozytorium i `scripts/deploy.sh` bez `WEB_IMAGE`.
+
+## 12. Wyszukiwarka szkół: rozszerzenie `pg_trgm` (v0.31.0)
+
+Migracja `schools.0006_pg_trgm_search_indexes` wymaga rozszerzenia PostgreSQL **`pg_trgm`**
+(indeksy GIN pod `search_text`/`city_search`, klasa operatorów `gin_trgm_ops` – zastąpiły trzy
+indeksy B-tree bez ani jednego skanu na produkcji, patrz `docs/CHANGELOG.md` v0.31.0). Rozszerzenie
+zakłada sama migracja (`django.contrib.postgres.operations.TrigramExtension`,
+`CREATE EXTENSION IF NOT EXISTS pg_trgm`) — nic nie trzeba robić ręcznie przed wdrożeniem, o ile
+spełniony jest jeden warunek środowiska:
+
+- **obraz bazy ma zawierać `pg_trgm`.** Obraz `postgres:16-alpine`, którego używa
+  `docker-compose.yml` i produkcja (§ 9.1: PostgreSQL ≥ 15, produkcja ma 16), zawiera go w pakiecie
+  `contrib` domyślnie — nie trzeba doinstalowywać żadnego pakietu systemowego,
+- **rola aplikacyjna nie potrzebuje uprawnień superużytkownika.** `pg_trgm` jest rozszerzeniem
+  *zaufanym* (*trusted*) od PostgreSQL 13 — właściciel bazy (rola, na której działa aplikacja) może
+  je założyć sam, tak jak każdą inną migrację. Gdyby instalacja kiedyś trafiła na PostgreSQL < 13
+  albo na zarządzaną usługę, która nie oznacza `pg_trgm` jako zaufane, migracja przerwie się na
+  `CREATE EXTENSION` z błędem uprawnień — rozwiązaniem jest jednorazowe `CREATE EXTENSION pg_trgm;`
+  wykonane przez administratora bazy przed `python manage.py migrate`.
+
+`CREATE EXTENSION IF NOT EXISTS` jest idempotentne, więc migracja jest bezpieczna do ponownego
+uruchomienia (kolejne wdrożenie, przywrócenie z kopii zapasowej) i bezpieczna na bazie testowej —
+`pytest-django` zakłada testową bazę tym samym mechanizmem migracji co produkcję. Czas blokady:
+`CREATE INDEX` na ośmiu tysiącach wierszy `schools_school` to ułamek sekundy, więc migracja nie
+wymaga osobnego okna serwisowego.
+
+## 13. Cache całych stron publicznych (v0.31.0)
+
+Anonimowe odsłony stron części informacyjnej (strona główna, harmonogram, warsztaty, dokumenty,
+FAQ, partnerzy, kontakt, aktualności, wyniki, archiwum) i `/statystyki/` kosztowały na produkcji
+250–500 ms CPU na odsłonę (profilowanie 22.09.2026) – głównie renderowanie szablonu, nie zapytania
+(1–3 ms). Odpowiedź jest identyczna dla każdego anonimowego gościa tej samej witryny, więc
+`apps.web.page_cache.PageCacheMiddleware` trzyma ją w Redisie (ten sam `CACHES["default"]`, co
+reszta serwisu) przez `PAGE_CACHE_SECONDS` (domyślnie 120 s).
+
+**Co jest cache'owane.** Wyłącznie allow-lista adresów (kod źródłowy w `apps/web/page_cache.py`,
+stałe `ALLOWED_PATHS`/`ALLOWED_PREFIXES`), wyłącznie `GET`/`HEAD`, wyłącznie gość (niezalogowany,
+bez sesji zmienionej w trakcie obsługi – przełącznik wysokiego kontrastu, i bez komunikatu
+organizatora **wyświetlonego** w tym żądaniu – sprawdzenie niezależne od `session.modified`, patrz
+niżej), wyłącznie odpowiedź 200 z `Content-Type: text/html` bez `Set-Cookie`, bez `Vary` i nie
+większa niż 512 KiB. Parametr zapytania: tylko `?page=<liczba>`, każdy inny wyłącza cache dla tego
+żądania.
+
+**Czego cache nigdy nie obejmuje i dlaczego:** panel koordynatora, konto, API, `/cms/`, `/admin/`,
+formularze rejestracji – każdy z nich renderuje coś zależnego od tożsamości albo przyjmuje POST,
+a allow-lista (nie deny-lista) sprawia, że nowy adres jest bezpieczny z definicji, dopóki ktoś
+świadomie nie dopisze go do listy. Nonce CSP i token CSRF (ten drugi wstrzykiwany do **każdej**
+strony przez `templates/base.html`, atrybut `hx-headers`) nie są nigdy przechowywane – w cache'u
+leży placeholder, a świeżą wartość dostaje każde żądanie osobno (patrz docstring modułu za pełne
+uzasadnienie).
+
+**Uwaga o komunikatach organizatora:** `request.session.modified` **nie wystarcza** jako sygnał
+„komunikat został pokazany” – `MessageMiddleware` konsumuje kolejkę i zapisuje ją z powrotem do
+sesji dopiero w swojej fazie odpowiedzi, a `PageCacheMiddleware` stoi niżej w łańcuchu (patrz
+docstring modułu), więc widzi sesję **przed** tym zapisem. Warstwa sprawdza więc magazyn
+komunikatów wprost (`request._messages.used`/`.added_new`) – ustawiany już w trakcie renderowania
+szablonu (`{% if messages %}`).
+
+**Odporność na awarię Redisa.** `CACHES["default"]["OPTIONS"]["IGNORE_EXCEPTIONS"]` każe
+`django-redis` połykać błędy połączenia; sama warstwa dodatkowo opakowuje własne wywołania cache'a
+(`_safe_get`/`_safe_set`/`_safe_incr`) w drugie, niezależne zabezpieczenie. Skutek: gdy Redis nie
+odpowiada, strona renderuje się normalnie (BYPASS albo MISS bez zapisu) zamiast kończyć się
+pięćsetką.
+
+**Cache-Control.** Każda odpowiedź HIT i MISS z tej warstwy dostaje `Cache-Control: private,
+no-store` (``setdefault`` – widok, który sam ustawił ten nagłówek, wygrywa). To jest wyłącznie
+zaprzeczenie w drugą stronę: cache jest po stronie serwera, a nagłówek pilnuje, żeby żaden
+pośredniczący proxy/CDN nie zbuforował po swojej stronie materializowanego nonce'u/tokenu CSRF.
+
+**Klucz** niesie: wersję globalną, wersję witryny konkursu, identyfikator konkursu, język
+interfejsu, ścieżkę i `?page=`. Wersje to liczniki (`INCR`) – unieważnienie nigdy nie wylicza
+istniejących wpisów, tylko podbija licznik, więc stare wpisy po prostu przestają być trafiane
+i wygasają same po TTL.
+
+**Unieważnianie jest automatyczne** przy: publikacji/wycofaniu/przeniesieniu/skasowaniu strony
+Wagtaila, zapisie `cms.SiteSettings`, komunikacie organizatora (`cms.Announcement` – z konkursem:
+tylko jego witryna, bez konkursu: wszystkie witryny naraz), zmianie edycji/etapu/wydarzenia
+(`competitions.Edition`/`Stage`/`EditionEvent`) i ogłoszeniu wyników (`results.ResultsPublication`).
+Ręczne wyczyszczenie (np. po imporcie z ominięciem sygnałów Django):
+
+```bash
+docker compose exec -T web python manage.py page_cache_clear
+```
+
+**Weryfikacja.** Nagłówek `X-Page-Cache: HIT|MISS|BYPASS` na każdej odpowiedzi (wyłącznie do
+diagnozy – klient nic z niego nie wnioskuje). `BYPASS` na allow-liście najczęściej znaczy: gość
+zalogowany, parametr zapytania spoza `?page=`, albo `PAGE_CACHE_ENABLED=False` w `.env`.
+
+**Wyłączenie w razie incydentu** (np. redaktor zgłasza „strona nie aktualizuje się”, a sygnał
+unieważnienia z jakiegoś powodu nie doszedł): `PAGE_CACHE_ENABLED=False` w `.env` i restart `web`,
+albo doraźnie `PAGE_CACHE_SECONDS=0` – oba wyłączniki są od razu widoczne w `X-Page-Cache: BYPASS`.
+Cache zostaje **wyłączony domyślnie** w środowisku testowym (`config/settings/test.py`), więc
+budżety zapytań (`apps/tenancy/tests/test_invariants.py`) mierzą kod, nie trafienia bufora.

@@ -15,6 +15,7 @@ zagraniczne, świeżo założone i placówki spoza wykazu istnieją i nie mogą 
 ``Participant.school_ref`` jest więc opcjonalnym dowiązaniem, a nie jedyną drogą.
 """
 
+from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 
 from apps.accounts.models import Voivodeship
@@ -107,7 +108,12 @@ class School(models.Model):
     postal_code = models.CharField("kod pocztowy", max_length=12, blank=True)
     address = models.CharField("adres", max_length=255, blank=True)
     is_public = models.BooleanField("publiczna", default=True)
-    search_text = models.CharField("tekst wyszukiwania", max_length=400, db_index=True, editable=False)
+    # Bez ``db_index=True``: wyszukiwarka pyta tę kolumnę wyłącznie ``contains`` (koniunkcja
+    # tokenów w ``search_schools``), a zwykły B-tree (razem z automatycznym indeksem
+    # ``varchar_pattern_ops`` pod ``LIKE 'prefiks%'``) nie umie obsłużyć dopasowania w środku
+    # napisu – stąd 864 sekwencyjnych przejść po tabeli na produkcji (22.09.2026) mimo indeksu.
+    # Właściwy indeks pod ``contains`` jest w ``Meta.indexes`` niżej (GIN + ``pg_trgm``).
+    search_text = models.CharField("tekst wyszukiwania", max_length=400, editable=False)
     # Postać porównawcza miejscowości: „wroclaw krzyki”, „warszawa srodmiescie”, „gdansk”.
     # Gmina stoi na początku, dzielnica jest osobnym wyrazem – reguła i uzasadnienie w
     # ``apps.schools.normalise.city_search_for``.
@@ -128,10 +134,24 @@ class School(models.Model):
             # Podpowiedzi są filtrowane województwem wybranym w formularzu – para (województwo,
             # tekst) jest więc dokładnie tym, po czym chodzi zapytanie wyszukiwarki.
             models.Index(fields=("voivodeship", "search_text"), name="schools_voiv_search_idx"),
-            # Krok „Miejscowość”: podpowiedź miast (prefiks po ``city_search``) i pełna lista szkół
-            # wybranego miasta uporządkowana typem, a potem nazwą. Jeden indeks obsługuje oba
-            # zapytania, bo oba zaczynają się od tej samej kolumny.
-            models.Index(fields=("city_search", "kind", "name"), name="schools_city_kind_idx"),
+            # ``schools_city_kind_idx`` (city_search, kind, name) zdjęty stąd 22.09.2026: zero
+            # skanów na produkcji przez 15 dni. Porządek listy liczy ``_kind_rank()`` w
+            # ``apps.schools.api`` – wyrażenie ``Case``, nie kolumna ``kind`` – więc ten indeks
+            # nigdy nie mógł posłużyć sortowaniu, a filtr ``city_search`` obsługuje sam siebie
+            # (indeks jednokolumnowy niżej, plus GIN pod ``contains`` przy dzielnicach).
+            #
+            # GIN + ``pg_trgm`` pod dopasowanie **w środku napisu** (``contains``), którego zwykły
+            # B-tree nie obsłuży: ``search_text__contains`` (koniunkcja tokenów w
+            # ``search_schools``) i ``city_search__contains`` (dzielnica po separatorze w
+            # ``search_cities``/``search_schools``). Rozszerzenie włącza migracja
+            # ``0006_pg_trgm_search_indexes`` (``TrigramExtension``) – rola aplikacyjna nie
+            # potrzebuje do tego uprawnień superużytkownika (``pg_trgm`` jest zaufanym
+            # rozszerzeniem od PostgreSQL 13).
+            GinIndex(fields=["search_text"], name="schools_search_trgm_idx", opclasses=["gin_trgm_ops"]),
+            # Prefiks (``city_search__startswith``) nadal obsługuje ``varchar_pattern_ops``
+            # doklejany automatycznie przez ``db_index=True`` na kolumnie – ten indeks jest tylko
+            # dla wariantu ``contains`` (dzielnica).
+            GinIndex(fields=["city_search"], name="schools_city_trgm_idx", opclasses=["gin_trgm_ops"]),
         ]
 
     def __str__(self) -> str:

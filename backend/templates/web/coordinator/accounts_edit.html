@@ -194,6 +194,29 @@
 </section>
 {% endif %}
 
+{% comment %}
+  Reset hasła. Stoi obok drugiego składnika z tego samego powodu, co on: to jest czynność
+  bezpieczeństwa wobec cudzego konta, a nie edycja danych, więc nie mieści się w formularzu wyżej.
+
+  Bez odnośnika, który widniałby na koncie własnym koordynatora, na koncie jeszcze nieaktywowanym
+  albo bez hasła platformy – widok i tak odmówi, ale przycisk, który zawsze odmawia, jest gorszy
+  od jego braku (decyzja z 22.09.2026, ta sama zasada, co przy sekcji wyżej).
+{% endcomment %}
+{% if account.pk != request.user.pk and account.email_verified_at and account.is_active and account.has_usable_password %}
+<section class="section">
+  <div class="card card--quiet">
+    <h2 class="mt-0">Hasło</h2>
+    <p class="hint">Wysyła na adres {{ account.email }} dokładnie ten sam list, co formularz
+      „Nie pamiętasz hasła?” na stronie logowania – link ważny tyle samo co przy samoobsłudze.
+      Nie widzisz ani nowego hasła, ani treści linku: to konto właściciela, nie Twoje.</p>
+    <form method="post" action="{% url 'web:coordinator-account-password-reset' account.pk %}" class="inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn--secondary">Wyślij link do zmiany hasła</button>
+    </form>
+  </div>
+</section>
+{% endif %}
+
 <section class="section">
   <div class="card card--quiet">
     <h2 class="mt-0">Eksport danych (art. 20 RODO)</h2>

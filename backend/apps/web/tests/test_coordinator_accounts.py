@@ -14,9 +14,11 @@ Czego pilnują te testy poza samym zapisem:
   ``apps.core.models``, bo wpisy czyta też ktoś bez prawa do danych uczestnika.
 """
 
+import re
 from datetime import date
 
 import pytest
+from django.core import mail
 
 from apps.accounts.models import CommitteeStatus, Participant, User, Voivodeship
 from apps.accounts.tests.factories import (
@@ -32,6 +34,10 @@ pytestmark = pytest.mark.django_db
 
 LIST_URL = "/coordinator/accounts/"
 
+#: Adres formularza nowego hasła wyciągnięty z treści listu (``/reset/<uidb64>/<token>/``) – ten
+#: sam wzorzec, co w ``test_password_reset.py``, bo to jest dokładnie ten sam list.
+RESET_LINK = re.compile(r"/reset/[^/\s]+/[^/\s]+/")
+
 
 def edit_url(user) -> str:
     return f"/coordinator/accounts/{user.pk}/"
@@ -39,6 +45,10 @@ def edit_url(user) -> str:
 
 def delete_url(user) -> str:
     return f"/coordinator/accounts/{user.pk}/delete/"
+
+
+def password_reset_url(user) -> str:
+    return f"/coordinator/accounts/{user.pk}/password-reset/"
 
 
 def account_fields(user, **overrides) -> dict:
@@ -451,6 +461,114 @@ def test_the_coordinator_cannot_delete_another_coordinator(web_client, coordinat
 
     assert User.objects.filter(pk=other.pk).exists()
     assert "Konto koordynatora" in response.content.decode()
+
+
+# --- reset hasła ---------------------------------------------------------------------------------
+
+
+def test_the_coordinator_sends_a_working_password_reset_link(web_client, coordinator, participant):
+    web_client.force_login(coordinator)
+
+    response = web_client.post(password_reset_url(participant.user))
+
+    assert response.status_code == 302
+    assert response["Location"] == edit_url(participant.user)
+    assert len(mail.outbox) == 1
+    assert mail.outbox[0].to == [participant.user.email]
+    match = RESET_LINK.search(mail.outbox[0].body)
+    assert match, mail.outbox[0].body
+    # Link naprawdę działa: to jest ten sam formularz „Ustaw nowe hasło”, co przy samoobsłudze.
+    landing = web_client.get(match.group(0), follow=True)
+    assert landing.status_code == 200
+    assert "Ustaw nowe hasło" in landing.content.decode()
+    entry = AuditLog.objects.get(action="password.reset_sent")
+    assert entry.actor == coordinator
+    assert entry.target_type == "accounts.user"
+    assert entry.target_id == str(participant.user.pk)
+    # Bez adresu ani tokenu w audycie – wpis czyta też ktoś bez prawa do danych uczestnika.
+    assert participant.user.email not in str(entry.diff)
+
+
+def test_password_reset_only_accepts_post(web_client, coordinator, participant):
+    web_client.force_login(coordinator)
+
+    response = web_client.get(password_reset_url(participant.user))
+
+    assert response.status_code == 405
+    assert len(mail.outbox) == 0
+
+
+def test_a_participant_cannot_send_a_password_reset_link(web_client, participant, reviewer):
+    web_client.force_login(participant.user)
+
+    response = web_client.post(password_reset_url(reviewer.user))
+
+    assert response.status_code == 403
+    assert len(mail.outbox) == 0
+
+
+def test_an_inactive_account_gets_no_reset_link(web_client, coordinator, participant):
+    participant.user.is_active = False
+    participant.user.save(update_fields=["is_active"])
+    web_client.force_login(coordinator)
+
+    response = web_client.post(password_reset_url(participant.user), follow=True)
+
+    assert len(mail.outbox) == 0
+    assert "zablokowane" in response.content.decode()
+    assert not AuditLog.objects.filter(action="password.reset_sent").exists()
+
+
+def test_a_not_yet_activated_account_gets_no_reset_link(web_client, coordinator):
+    # Konto czekające na aktywację ma ``is_active=True`` (login działa dopiero po kliknięciu
+    # w link), a rozstrzyga wyłącznie ``email_verified_at`` – patrz ``account_status`` wyżej.
+    user = UserFactory(email_verified_at=None)
+    web_client.force_login(coordinator)
+
+    response = web_client.post(password_reset_url(user), follow=True)
+
+    assert len(mail.outbox) == 0
+    assert "nie zostało jeszcze aktywowane" in response.content.decode()
+    assert not AuditLog.objects.filter(action="password.reset_sent").exists()
+
+
+def test_an_account_without_a_usable_password_gets_no_reset_link(web_client, coordinator):
+    user = UserFactory()
+    user.set_unusable_password()
+    user.save(update_fields=["password"])
+    web_client.force_login(coordinator)
+
+    response = web_client.post(password_reset_url(user), follow=True)
+
+    assert len(mail.outbox) == 0
+    assert "nie ma hasła platformy" in response.content.decode()
+    assert not AuditLog.objects.filter(action="password.reset_sent").exists()
+
+
+def test_the_coordinator_cannot_reset_their_own_password_from_this_screen(web_client, coordinator):
+    web_client.force_login(coordinator)
+
+    response = web_client.post(password_reset_url(coordinator), follow=True)
+
+    assert len(mail.outbox) == 0
+    assert "Własnego hasła nie resetuje się z tego ekranu" in response.content.decode()
+    assert not AuditLog.objects.filter(action="password.reset_sent").exists()
+
+
+def test_the_password_reset_button_is_hidden_for_the_coordinators_own_row(web_client, coordinator):
+    web_client.force_login(coordinator)
+
+    body = web_client.get(edit_url(coordinator)).content.decode()
+
+    assert "Wyślij link do zmiany hasła" not in body
+
+
+def test_the_password_reset_button_is_shown_for_an_eligible_account(web_client, coordinator, participant):
+    web_client.force_login(coordinator)
+
+    body = web_client.get(edit_url(participant.user)).content.decode()
+
+    assert "Wyślij link do zmiany hasła" in body
 
 
 # --- uprawnienia --------------------------------------------------------------------------------

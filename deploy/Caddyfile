@@ -15,6 +15,15 @@ www.{$SITE_DOMAIN} {
         max_size {$MAX_UPLOAD_MB}MB
     }
     handle_path /static/* {
+        # Rok + `immutable`: WhiteNoise (`CompressedManifestStaticFilesStorage`, DEBUG=0 –
+        # config/settings/base.py) daje każdemu plikowi w szablonach (`{% static %}`) nazwę
+        # z odciskiem treści w nazwie (`app.<hash>.css`) – zmiana treści to zawsze **nowy** adres,
+        # więc stary URL bezpiecznie leży w pamięci przeglądarki, dopóki istnieje. Szablony nie
+        # odwołują się do `/static/...` z pominięciem `{% static %}` (sprawdzone grepem po
+        # `backend/apps` – jedyne trafienia to testy, nie kod serwowany produkcyjnie), więc cała
+        # ścieżka może dostać ten sam, długi nagłówek bez ryzyka przytrzymania nieaktualnej wersji
+        # pliku pod niezmienną nazwą.
+        header Cache-Control "public, max-age=31536000, immutable"
         root * /srv/static
         file_server
     }

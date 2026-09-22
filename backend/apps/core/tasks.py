@@ -161,3 +161,29 @@ def alerts_check() -> int:
     if sent:
         logger.warning("Watchdog wysłał %s alertów.", sent)
     return sent
+
+
+@shared_task(name="apps.core.tasks.captcha_clean")
+def captcha_clean() -> int:
+    """Usuwa wygasłe wyzwania CAPTCHA (``captcha.CaptchaStore``). Zwraca liczbę skasowanych wierszy.
+
+    Po co to w ogóle sprzątać: ``django-simple-captcha`` zapisuje **jeden wiersz na każde
+    wyrenderowanie** obrazka – formularz odrzucony przez inną walidację (hasła się nie zgadzają,
+    e-mail zajęty) każe przeglądarce wyrenderować nowe wyzwanie, a stare zostaje w tabeli. Pakiet
+    sam niczego nie kasuje (żadnego sygnału ani zadania) – bez tego zadania tabela rośnie
+    bezterminowo, proporcjonalnie do ruchu na `/register/` i `/register/committee/`, nie do liczby
+    kont, które faktycznie powstały.
+    Godzina, nie dzień: wyzwanie wygasa po kilku minutach (``CAPTCHA_TIMEOUT``), więc częstszy
+    przebieg trzyma tabelę stale małą zamiast pozwalać jej urosnąć między przebiegami i skasować
+    naraz dużo wierszy jednym zapytaniem `DELETE`.
+
+    Liczymy wygasłe wiersze **przed** wywołaniem ``CaptchaStore.remove_expired()`` (metoda pakietu
+    nie zwraca liczby skasowanych) – w oknie między liczeniem a kasowaniem może dojść jeszcze jedno
+    wygaśnięcie, ale to zadanie jest wyłącznie miarą sprzątania w logu workera, nie rozliczeniem.
+    """
+    from captcha.models import CaptchaStore
+
+    expired = CaptchaStore.objects.filter(expiration__lt=timezone.now()).count()
+    CaptchaStore.remove_expired()
+    logger.debug("Sprzątanie CAPTCHY: skasowano %s wygasłych wyzwań.", expired)
+    return expired

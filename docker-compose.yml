@@ -4,6 +4,17 @@
 # Pierwsze uruchomienie u nowego operatora (bez ClamAV-a i własnego MTA, obraz z GHCR):
 # nakładka `docker-compose.operator.yml` – README § 3 i docs/OPERACJE.md § 4.3.
 
+# Rotacja logu kontenera: bez limitu `json-file` rośnie bez końca na dysku hosta, aż go zapełni –
+# usługa gadatliwa w awarii (worker w pętli ponowień, proxy pod atakiem) wywołałaby wtedy drugą
+# awarię, tym razem dysku, zamiast zostać po prostu w logu. 50 MB × 5 plików = 250 MB na usługę,
+# z zapasem na przejrzenie ostatniej awarii, a nie tylko ostatniej minuty. Jedna definicja (kotwica
+# YAML), żeby żadna nowa usługa nie została bez limitu przez przeoczenie.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "5"
+
 x-app-env: &app-env
   DJANGO_SETTINGS_MODULE: config.settings.production
   DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
@@ -33,6 +44,7 @@ x-app-base: &app-base
   environment: *app-env
   networks: [internal]
   restart: unless-stopped
+  logging: *default-logging
   read_only: true
   tmpfs:
     - /tmp:size=256m
@@ -48,6 +60,7 @@ services:
   proxy:
     image: caddy:2.8
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "80:80"
       - "443:443"
@@ -79,11 +92,33 @@ services:
 
   web:
     <<: *app-base
+    # WSGI (gthread), nie ASGI: aplikacja jest w 100% synchroniczna (grep potwierdza – brak
+    # `async def` widoku, `channels`, websocketów), a pod ASGI (gunicorn + UvicornWorker) Django
+    # wykonuje każdy widok synchroniczny w **jednym** wątku puli na proces (`ThreadSensitiveContext`)
+    # – concurrency procesu to wtedy `--workers`, nie `--workers` razy nic. Test obciążeniowy
+    # z 22.09.2026 pokazał tego cenę: 3 workery = maks. 3 równoległe żądania, ok. 7 req/s w nasyceniu,
+    # 300–600% CPU z samego przełączania wątków, a `DB_CONN_MAX_AGE` trzeba było trzymać na 0 (patrz
+    # niżej), bo trwałe połączenie przypięte do wątku zostawało otwarte długo po żądaniu.
+    # `gthread` daje worker **wielowątkowy** bez zmiany w kodzie widoków: concurrency procesu to
+    # `--workers` razy `--threads` (4×4 = 16 równoległych żądań), a wątek roboczy żyje w puli
+    # workera (nie ginie po żądaniu jak wątek ASGI), więc trwałe połączenie znów ma sens – patrz
+    # `DB_CONN_MAX_AGE` w `backend/config/settings/base.py`.
     command: >
-      gunicorn config.asgi:application
-      -k uvicorn.workers.UvicornWorker
-      --bind 0.0.0.0:8000 --workers ${WEB_WORKERS:-3}
-      --timeout 120 --graceful-timeout 30 --access-logfile -
+      gunicorn config.wsgi:application
+      --bind 0.0.0.0:8000 --workers ${WEB_WORKERS:-4} --threads ${WEB_THREADS:-4}
+      --worker-class gthread
+      --timeout 120 --graceful-timeout 30 --max-requests 2000 --max-requests-jitter 200
+      --access-logfile -
+    # `mem_limit`/`mem_reservation`, nie `deploy.resources`: to drugie czyta wyłącznie Swarm,
+    # a ten compose stoi na jednej maszynie bez Swarma – limit w `deploy:` byłby dokumentacją,
+    # która nigdy niczego nie ogranicza. 2g na 4 workery × 4 wątki (po ~250 MB RSS na worker plus
+    # stary i nowy worker naraz przy rotacji `--max-requests`) zostawia zapas nad typowym zużyciem,
+    # a jednocześnie na serwerze 12 GB/6 vCPU (razem z worker 768m, clamav 3g, db/redis/minio bez
+    # jawnego limitu) nie pozwala jednemu
+    # przeciekowi pamięci w widoku zjeść całej maszyny i zabrać RAM-u Postgresowi. Bez limitu CPU
+    # celowo: pojedynczy proces zajmujący więcej rdzeni pod chwilowym szczytem ruchu nie jest
+    # awarią, a dławienie CPU tylko wydłużyłoby czas odpowiedzi każdemu żądaniu naraz.
+    mem_limit: 2g
     volumes:
       - static_files:/app/staticfiles
     networks: [edge, internal]
@@ -101,6 +136,10 @@ services:
   worker:
     <<: *app-base
     command: celery -A config worker -l info --concurrency ${CELERY_CONCURRENCY:-2} -Q default,scan,mail
+    # Patrz komentarz przy `web` – ten sam powód, mniejsza liczba (dwa procesy współbieżne zamiast
+    # szesnastu wątków web, a skan antywirusowy trzyma plik w pamięci tylko na czas przesłania do
+    # ClamAV, nie cały czas życia procesu).
+    mem_limit: 768m
     environment:      # migracje i collectstatic wykonuje tylko web
       <<: *app-env
       RUN_MIGRATIONS: "0"
@@ -133,6 +172,7 @@ services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
+    logging: *default-logging
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -150,6 +190,7 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    logging: *default-logging
     command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
     volumes:
       - redis_data:/data
@@ -163,6 +204,7 @@ services:
   minio:
     image: minio/minio:RELEASE.2025-04-22T22-12-26Z
     restart: unless-stopped
+    logging: *default-logging
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
@@ -180,6 +222,7 @@ services:
     # Jednorazowo: buckety, polityki anonimowe oraz dwa konta serwisowe z dostępem tylko do
     # własnego bucketu (separacja kryptograficzna mediów publicznych i danych prywatnych).
     image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    logging: *default-logging
     entrypoint: >
       /bin/sh -c "
       mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD &&
@@ -211,6 +254,15 @@ services:
   clamav:
     image: clamav/clamav:1.4
     restart: unless-stopped
+    logging: *default-logging
+    # Baza sygnatur (`freshclam`) trzyma się w pamięci procesu skanującego, nie tylko na dysku –
+    # 3g, nie 2g jak `web`: w spoczynku ClamAV zajmuje ~950 MB, a przy przeładowaniu sygnatur
+    # (freshclam) trzyma przez chwilę starą i nową bazę naraz, czyli blisko 2 GB – limit 2g kończyłby
+    # się wtedy zabiciem procesu, a więc cichą odmową skanów. Poniżej ~1 GB ClamAV w ogóle nie
+    # załaduje pełnej bazy i skanowanie
+    # zaczyna cicho zawodzić zamiast tylko wolniej działać. Patrz komentarz przy `web` w sprawie
+    # `mem_limit` kontra `deploy.resources` i braku limitu CPU.
+    mem_limit: 3g
     environment:
       CLAMAV_NO_FRESHCLAMD: "false"
     volumes:
@@ -232,6 +284,7 @@ services:
     # wersja jest przypięta świadomie, bo migracja zmienia lokalizację wolumenu z kluczami.
     image: boky/postfix:v5.1.0-alpine
     restart: unless-stopped
+    logging: *default-logging
     # HELO/EHLO i myhostname. Musi zgadzać się z rekordem PTR adresu wyjściowego, inaczej
     # Gmail/Outlook odrzucają połączenie jeszcze przed sprawdzeniem SPF.
     hostname: mail.${SITE_DOMAIN:-localhost}
@@ -302,6 +355,7 @@ services:
     profiles: [monitoring]
     image: louislam/uptime-kuma:1.23.16
     restart: unless-stopped
+    logging: *default-logging
     volumes:
       - monitor_data:/app/data
     # `internal` – żeby pukać w `web:8000` i `minio:9000` z tej samej sieci, w której stoją
@@ -315,6 +369,7 @@ services:
   mailpit:
     profiles: [dev]
     image: axllent/mailpit:v1.24
+    logging: *default-logging
     ports:
       - "8025:8025"
     networks: [internal]

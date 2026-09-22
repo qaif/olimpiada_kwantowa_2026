@@ -34,4 +34,8 @@ RUN set -eu; for po in locale/*/LC_MESSAGES/django.po; do \
 USER app
 EXPOSE 8000
 ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["gunicorn", "config.asgi:application", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]
+# WSGI + gthread, nie ASGI: aplikacja jest wyłącznie synchroniczna – patrz komentarz przy
+# `command:` usługi `web` w docker-compose.yml. To jest ta sama binarka, więc `docker run` bez
+# compose (np. przy debugowaniu obrazu) musi wywoływać dokładnie to samo polecenie, inaczej obraz
+# i compose rozjeżdżałyby się cichaczem co do modelu współbieżności.
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4", "--threads", "4", "--worker-class", "gthread"]

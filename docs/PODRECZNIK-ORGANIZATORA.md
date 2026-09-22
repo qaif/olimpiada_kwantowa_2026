@@ -889,6 +889,11 @@ importu. W audycie zostaje rodzaj eksportu i liczba wierszy, **nigdy dane**.
 uczestnik pobiera sam. Wniosek z art. 20 przychodzi też listem, od osoby, która akurat nie może się
 zalogować.
 
+Na tej samej karcie konta przycisk **„Wyślij link do zmiany hasła”** wysyła dokładnie ten sam list,
+co samoobsługowe „Nie pamiętasz hasła?” — nigdy nie zobaczysz ani nowego hasła, ani treści linku;
+przycisk odmawia dla konta jeszcze nieaktywowanego, zablokowanego, bez hasła platformy i dla
+własnego konta.
+
 ### 9.4 Audyt — `/coordinator/audit/`
 
 Ekran **„Audyt”**: 100 wpisów na stronę, od najnowszego, z filtrami (fragment adresu wykonawcy, akcja,

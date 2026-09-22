@@ -199,9 +199,22 @@ MIDDLEWARE = [
     # obsługi 404 – przekierowanie „/accounts/ → logowanie” włącza się dopiero, gdy istnieje
     # nazwa ``account_email`` (nie mamy jej, bo widoków allauth nie montujemy).
     "allauth.account.middleware.AccountMiddleware",
+    # Cache całych odpowiedzi HTML dla anonimowych GET-ów stron publicznych (apps/web/page_cache.py).
+    # Miejsce jest częścią kontraktu, nie przypadkiem: **bezpośrednio przed** widokiem (jedyna
+    # warstwa niżej to ``RedirectMiddleware``, patrz komentarz pod nią), więc trafienie pomija
+    # wyłącznie rozstrzyganie adresu i sam widok – każda warstwa **nad** tą (sesja, CSRF, konkurs,
+    # preferencje, nagłówki bezpieczeństwa) działa tak samo przy trafieniu i przy chybieniu.
+    # Musi stać **za** ``CsrfViewMiddleware``: przy trafieniu ta warstwa sama woła
+    # ``django.middleware.csrf.get_token()``, a ciasteczko ``csrftoken`` dokłada dopiero
+    # ``CsrfViewMiddleware`` w swojej fazie odpowiedzi, wyżej w łańcuchu. Musi stać **za**
+    # ``CompetitionMiddleware`` i ``PreferencesMiddleware`` – klucz cache'a niesie konkurs i język
+    # żądania, a oba są gotowe dopiero po tych warstwach.
+    "apps.web.page_cache.PageCacheMiddleware",
     # Na samym końcu łańcucha: warstwa działa wyłącznie na odpowiedzi 404, więc musi zobaczyć
     # ostatnie słowo widoków (Wagtail jest catch-allem w korzeniu). Dopiero gdy nikt nie umiał
     # obsłużyć adresu, sprawdzamy, czy nie jest to adres strony przeniesionej w drzewie.
+    # Przy trafieniu cache'a ta warstwa w ogóle nie widzi żądania (patrz warstwa wyżej) – i to jest
+    # poprawne: trafienie istnieje wyłącznie dla adresów, o których już wiadomo, że dają 200.
     "wagtail.contrib.redirects.middleware.RedirectMiddleware",
 ]
 
@@ -268,15 +281,42 @@ MESSAGE_STORAGE = "django.contrib.messages.storage.session.SessionStorage"
 DATABASES = {
     "default": env.db("DATABASE_URL", default="postgres://olimpiada:olimpiada@localhost:5432/olimpiada")
 }
-# Bez trwałych połączeń (``CONN_MAX_AGE=0``). Aplikacja chodzi pod ASGI (gunicorn + UvicornWorker),
-# a Django wykonuje synchroniczne widoki w **nowym wątku na żądanie** (``ThreadSensitiveContext``).
-# Trwałe połączenie jest przypięte do wątku i zamyka je tylko ``close_old_connections`` w tym samym
-# wątku – wątek po żądaniu ginie, a jego połączenie zostaje otwarte aż do wygaśnięcia po stronie
-# Pythona. Z ``CONN_MAX_AGE=60`` produkcja po dobie trzymała 92 bezczynne połączenia z ``web``
-# i Postgres odpowiadał „too many clients already” (limit 100) – każda strona dawała 500.
-# Koszt nowego połączenia do bazy w tej samej sieci compose to pojedyncze milisekundy; pula
-# psycopg (``OPTIONS["pool"]``, Django 5.1) wymaga pakietu ``psycopg[pool]`` i jest w BACKLOG-u.
-DATABASES["default"]["CONN_MAX_AGE"] = env.int("DB_CONN_MAX_AGE", default=0)
+# Historia tej linijki (żeby nikt drugi raz nie wdepnął w ten sam dół):
+#
+# 1. Incydent (przed 22.09.2026): z ``CONN_MAX_AGE=60`` produkcja po dobie trzymała 92 bezczynne
+#    połączenia z ``web`` i Postgres odpowiadał „too many clients already” (limit 100) – każda
+#    strona dawała 500.
+# 2. Przyczyna: aplikacja chodziła pod ASGI (gunicorn + ``UvicornWorker``), a Django wykonywało
+#    synchroniczne widoki w **nowym wątku na żądanie** (``ThreadSensitiveContext``). Trwałe
+#    połączenie jest przypięte do wątku i zamyka je tylko ``close_old_connections`` w tym samym
+#    wątku – wątek po żądaniu ginął, a jego połączenie zostawało otwarte aż do wygaśnięcia po
+#    stronie Pythona. Jedyną bezpieczną łatą było wtedy wyłączenie trwałych połączeń
+#    (``CONN_MAX_AGE=0``): koszt nowego połączenia do bazy w tej samej sieci compose to pojedyncze
+#    milisekundy, ale pod ASGI to jeszcze i tak nie miało znaczenia – zob. punkt 3.
+# 3. Test obciążeniowy (22.09.2026) pokazał, że ASGI dla w 100% synchronicznej aplikacji było
+#    złym wyborem niezależnie od połączeń: Django serializuje widoki synchroniczne na wątek puli
+#    na proces, więc trzy workery ASGI dawały maksymalnie trzy równoległe żądania (~7 req/s
+#    w nasyceniu, 300–600% CPU z przełączania wątków). Naprawą było przejście na WSGI + worker
+#    ``gthread`` (``docker-compose.yml``, usługa ``web``): concurrency procesu to teraz
+#    ``--workers`` razy ``--threads``, a wątek roboczy **żyje w puli workera**, nie ginie po
+#    żądaniu – więc trwałe połączenie znów ma sens (jeden wątek = jedno długożyjące połączenie,
+#    zamykane przez ``close_old_connections`` w tym samym wątku, który je otworzył).
+#
+# Budżet połączeń Postgresa (``max_connections=100``) przy domyślnych wartościach:
+#   web:    WEB_WORKERS × WEB_THREADS = 4 × 4 = 16
+#   worker: CELERY_CONCURRENCY = 2
+#   beat:   1 (proces jednowątkowy)
+#   razem:  ok. 19–20 z 20–25 zarezerwowanych na aplikację (zapas na `manage.py shell`,
+#           migracje ręczne i drugie takie samo wdrożenie w trakcie rolloutu) – reszta limitu
+#           zostaje dla Postgresa samego i dla awaryjnych połączeń administracyjnych.
+# 60 s (nie 0, nie kilka minut): wystarczy, żeby wątek obsługujący kolejne żądania nie płacił
+# nowym uściskiem dłoni TCP+TLS-do-bazy za każdym razem, a jednocześnie połączenie bezczynnego
+# wątku (np. workera, który akurat nie ma zadań) nie stoi otwarte godzinami. ``CONN_HEALTH_CHECKS``
+# dokłada tani ``SELECT 1`` przed ponownym użyciem połączenia starszego niż moment ostatniego
+# błędu – bez tego martwe połączenie (np. po restarcie Postgresa) ujawniłoby się dopiero
+# wyjątkiem w środku żądania użytkownika, a z włączonym sprawdzeniem Django po cichu otwiera nowe.
+DATABASES["default"]["CONN_MAX_AGE"] = env.int("DB_CONN_MAX_AGE", default=60)
+DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
 DATABASES["default"]["ATOMIC_REQUESTS"] = False
 
 REDIS_URL = env("REDIS_URL", default="redis://localhost:6379/0")
@@ -284,8 +324,27 @@ CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": REDIS_URL,
+        # Awaria/niedostępność Redisa ma degradować funkcje, które z niego korzystają (cache stron
+        # publicznych – apps/web/page_cache.py, komunikaty i slider sponsorów – apps/cms/*), a nie
+        # wywracać każde żądanie pięćsetką. Bez tej flagi ``django-redis`` przepuszcza wyjątek
+        # połączenia do wołającego; ``apps.web.page_cache`` ma dodatkowo **własne**, niezależne
+        # zabezpieczenie (patrz ``_safe_get``/``_safe_set``/``_safe_incr``) na wypadek, gdyby ta
+        # opcja kiedyś zniknęła albo backend się zmienił.
+        "OPTIONS": {"IGNORE_EXCEPTIONS": True},
     }
 }
+
+# Pełnostronicowy cache anonimowych GET-ów stron publicznych (apps/web/page_cache.py) – patrz
+# docstring tego modułu za uzasadnienie i za to, dlaczego nie jest to wbudowany
+# ``UpdateCacheMiddleware``. Domyślnie włączony wszędzie, gdzie ``DEBUG`` jest wyłączone (produkcja,
+# staging): deweloper ma widzieć skutek każdej zmiany od razu, bez czekania na TTL.
+# ``config/settings/test.py`` wyłącza go jawnie **mimo** ``DEBUG=False`` – suita ma mierzyć kod,
+# a nie trafienia bufora (patrz budżet zapytań w ``apps/tenancy/tests/test_invariants.py``).
+PAGE_CACHE_ENABLED = env.bool("PAGE_CACHE_ENABLED", default=not DEBUG)
+# Czas życia wpisu w sekundach. Zero wyłącza cache tak samo, jak ``PAGE_CACHE_ENABLED = False`` –
+# dwa niezależne wyłączniki, bo jeden bywa wygodniejszy operacyjnie (zmienna środowiskowa przy
+# incydencie), a drugi programistycznie (test, który włącza cache, ale ze świadomie krótkim TTL).
+PAGE_CACHE_SECONDS = env.int("PAGE_CACHE_SECONDS", default=120)
 
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/1")
 CELERY_RESULT_BACKEND = None
@@ -362,6 +421,14 @@ CELERY_BEAT_SCHEDULE = {
     "alerts-check": {
         "task": "apps.core.tasks.alerts_check",
         "schedule": 300.0,
+    },
+    # Sprzątanie wygasłych wyzwań CAPTCHA (``django-simple-captcha`` nie robi tego samo –
+    # apps/core/tasks.py). Co godzinę: wyzwanie wygasa po kilku minutach, więc rzadszy przebieg
+    # pozwoliłby tabeli rosnąć proporcjonalnie do ruchu na formularzach rejestracji między
+    # przebiegami bez żadnej korzyści z rzadszego uruchamiania.
+    "captcha-clean": {
+        "task": "apps.core.tasks.captcha_clean",
+        "schedule": 3600.0,
     },
 }
 

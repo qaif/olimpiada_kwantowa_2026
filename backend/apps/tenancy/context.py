@@ -6,10 +6,14 @@ komendy (wtedy żądania nie ma i nie będzie). Przekazywanie konkursu przez wsz
 argumentem jest właściwą drogą tam, gdzie da się to zrobić – ta zmienna jest dla miejsc, gdzie się
 nie da, bo wołający jest biblioteką albo sygnałem.
 
-Dlaczego ``ContextVar``, a nie ``threading.local()``: serwis chodzi pod ASGI (``UvicornWorker``),
-a Django wykonuje synchroniczne widoki w wątku z puli – wartość zapisana „w wątku” bywałaby przy
-kolejnym żądaniu cudza albo pusta. Wzorzec jest ten sam, którego używa ``django.utils.translation``
-dla aktywnego języka.
+Dlaczego ``ContextVar``, a nie ``threading.local()``: gunicorn uruchamia workery ``gthread`` – każdy
+proces obsługuje kilka żądań na współdzielonej puli wątków (``--threads``), a wątek **wraca do puli**
+po żądaniu i dostaje kolejne. ``threading.local()`` przywiązuje wartość do wątku, nie do żądania,
+więc kolejne żądanie na tym samym wątku odziedziczyłoby cudzy konkurs (albo, gorzej, żaden – zależnie
+od tego, czy poprzednie żądanie posprzątało). ``ContextVar`` jest per-``Context`` Pythona, a
+``BaseHandler`` Django tworzy dla każdego żądania świeży – co czyni go bezpiecznym niezależnie od
+tego, czy proces obsługuje wątki (``gthread``), zadania async (``ASGI``) czy jedno żądanie naraz
+(``sync``). Wzorzec jest ten sam, którego używa ``django.utils.translation`` dla aktywnego języka.
 
 **Czego ta zmienna nie jest:** nie jest autoryzacją. To, że konkurs jest ustawiony, nie znaczy, że
 wołający ma prawo do jego danych – o tym rozstrzygają managery (``for_competition``), mixiny widoków

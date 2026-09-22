@@ -99,7 +99,11 @@ DJANGO_SECRET_KEY=$(gen 64)
 DJANGO_DEBUG=0
 DJANGO_ALLOWED_HOSTS=$SITE_DOMAIN,www.$SITE_DOMAIN,web,127.0.0.1,localhost
 DJANGO_CSRF_TRUSTED_ORIGINS=https://$SITE_DOMAIN,https://www.$SITE_DOMAIN
-WEB_WORKERS=3
+# WSGI + gthread (v0.31.0): concurrency = WEB_WORKERS × WEB_THREADS. Budżet połączeń Postgresa
+# (max_connections=100, DB_CONN_MAX_AGE=60 – config/settings/base.py) przy 4×4: 16 z web + 2
+# (worker) + 1 (beat) ≈ 19–20 z 100.
+WEB_WORKERS=4
+WEB_THREADS=4
 CELERY_CONCURRENCY=2
 
 POSTGRES_DB=olimpiada
@@ -476,6 +480,23 @@ if [ "$NEW_PASSPHRASE" = "1" ]; then
   echo "    Bez tego hasła żadnej kopii nie da się otworzyć. Nikt go nie odzyska."
 fi
 REMOTE
+
+log "Porządki: stare obrazy"
+# Każde udane wdrożenie zostawia na serwerze jeszcze jeden obraz `olimpiada/web:<wersja>` (budowany
+# na miejscu – bez WEB_IMAGE, czyli droga domyślna dla Olimpiady Kwantowej) i bez sprzątania warstwy
+# rosną bez końca: miesiąc cotygodniowych wydań to kilkanaście gigabajtów, których reszta serwisu
+# (kopie bazy w kroku 4a, wolumeny danych) i tak potrzebuje. Zostają **dwa** tagi, nie jeden:
+# bieżący i poprzedni – poprzedni jest gotowym rollbackiem bez ponownego budowania (`docker compose
+# up -d web worker beat` po przestawieniu `APP_VERSION` w .env na tamtą wersję i restarcie), a
+# rollback z jednym zostawionym tagiem, czyli tym samym co bieżący, nie różniłby się niczym od
+# braku rollbacku. Sortowanie po dacie utworzenia obrazu (nie po numerze wersji): `WEB_IMAGE`
+# ustawiane i zdejmowane między wdrożeniami mogłoby dać tagi, które nie sortują się leksykograficznie
+# w kolejności wydań. `|| true`: obraz w użyciu (np. kontener nie zdążył jeszcze zniknąć po `up -d`
+# kroku 4b) nie ma być powodem czerwonego wdrożenia – posprząta się przy następnym przebiegu.
+"${SSH[@]}" "docker images --filter=reference='olimpiada/web' --format '{{.CreatedAt}}|{{.Repository}}:{{.Tag}}' | sort -r | tail -n +3 | cut -d'|' -f2 | xargs -r docker rmi" || true
+# Dangling (warstwy budowania bez tagu – etap `builder` obrazu wielostopniowego, buildy przerwane
+# w połowie): bezpieczne do skasowania zawsze, bo z definicji nic ich nie referencuje.
+"${SSH[@]}" "docker image prune -f"
 
 log "Kontrola domen konkursów"
 # Ostrzeżenie, a nie bramka: rozjazd między domenami konkursów a ALLOWED_HOSTS / CSRF /

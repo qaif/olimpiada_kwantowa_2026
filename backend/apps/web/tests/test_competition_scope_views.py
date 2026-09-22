@@ -127,6 +127,22 @@ def test_account_of_another_competition_is_not_found(coordinator_a, other_compet
     assert coordinator_a.get(f"/coordinator/accounts/{stranger.user.pk}/").status_code == 404
 
 
+def test_password_reset_of_another_competitions_account_is_not_found(coordinator_a, other_competition):
+    """Zawężenie jest to samo, co na karcie konta: koordynator A nie tknie konta konkursu B.
+
+    404, a nie 403 – patrz nagłówek modułu: istnienie cudzego konta nie jest niczyją informacją.
+    """
+    from django.core import mail
+
+    stranger = ParticipantFactory(competition=other_competition)
+    grant_membership(stranger.user, other_competition, CompetitionRole.PARTICIPANT)
+
+    response = coordinator_a.post(f"/coordinator/accounts/{stranger.user.pk}/password-reset/")
+
+    assert response.status_code == 404
+    assert len(mail.outbox) == 0
+
+
 def test_audit_browser_hides_entries_about_objects_of_another_competition(
     coordinator_a, competition, world_b
 ):

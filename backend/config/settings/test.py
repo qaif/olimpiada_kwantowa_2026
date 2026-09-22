@@ -13,6 +13,11 @@ STORAGES = {
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+# Wyłączone jawnie, mimo że ``DEBUG = False`` powyżej dałoby ``base.py`` powód, żeby włączyć je
+# samo (patrz komentarz przy ``PAGE_CACHE_ENABLED`` w base.py). Budżety zapytań
+# (``apps/tenancy/tests/test_invariants.py``) i reszta suity mają mierzyć **kod**, a nie trafienia
+# bufora – test, któremu ten cache naprawdę jest potrzebny, włącza go sam przez ``settings``.
+PAGE_CACHE_ENABLED = False
 # Poczta do ``django.core.mail.outbox``: testy sprawdzają treść wiadomości, a nie to, czy udało się
 # otworzyć gniazdo do mailpita. Backend konsolowy z ``base.py`` niczego by nie zapisał.
 #
