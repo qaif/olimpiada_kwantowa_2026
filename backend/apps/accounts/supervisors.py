@@ -24,8 +24,11 @@ ten sam człowiek i ta sama skrzynka.
 from __future__ import annotations
 
 import logging
+import time
 
 from django.db import transaction
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from django.utils import timezone
 from rest_framework import status as http
 
@@ -52,6 +55,16 @@ SUPERVISOR_CONSENT_KINDS = (ConsentKind.TERMS, ConsentKind.PRIVACY)
 
 logger = logging.getLogger(__name__)
 
+#: Czas życia pamięci podręcznej przełącznika – ten sam kompromis i ta sama wartość, co
+#: ``apps.cms.analytics.CACHE_TTL_SECONDS``: jedno zapytanie na pół minuty na proces, a zapis
+#: w ``/cms/`` czyści ją od razu przez sygnał niżej.
+_REGISTRATION_CACHE_TTL_SECONDS = 30
+
+#: ``{identyfikator witryny albo None: (monotoniczny znacznik czasu, wynik)}`` – kształt i powód
+#: jak w ``apps.cms.analytics._cache``: to jest kod odpalany z warstwy prezentacji (widok
+#: rejestracji, procesor kontekstu), a nie coś, co warto płacić pamięcią współdzieloną.
+_registration_cache: dict[int | None, tuple[float, bool]] = {}
+
 
 def normalize_supervisor_email(email: str | None) -> str:
     """Postać porównawcza adresu opiekuna: bez spacji, małymi literami.
@@ -63,19 +76,32 @@ def normalize_supervisor_email(email: str | None) -> str:
     return (email or "").strip().lower()
 
 
-def registration_enabled() -> bool:
-    """Czy serwis **oferuje** dziś zakładanie kont opiekuna szkolnego.
+def registration_enabled(site_id: int | None = None) -> bool:
+    """Czy **ta witryna** oferuje dziś zakładanie kont opiekuna szkolnego.
 
     Rozstrzyga organizator przełącznikiem ``cms.SiteSettings.supervisor_registration_enabled``,
     domyślnie **wyłączonym**: w pierwszej edycji rola nie jest ogłaszana publicznie, a konta
-    powstają na prośbę. Reguła mieszka tutaj, a nie w widoku, bo pytają o nią trzy niezależne
-    miejsca (adres rejestracji, pole „adres opiekuna” w profilu uczestnika, testy kontraktu)
-    i rozjazd któregokolwiek z nich znaczyłby ukrycie pozorne.
+    powstają na prośbę. Reguła mieszka tutaj, a nie w widoku, bo pytają o nią kilka niezależnych
+    miejsc (adres rejestracji, odnośniki na stronach publicznych, pole „adres opiekuna” w profilu
+    uczestnika, testy kontraktu) i rozjazd któregokolwiek z nich znaczyłby ukrycie pozorne.
 
-    Nie pytamy o witrynę z żądania (``Site.find_for_request``), tylko o **którąkolwiek** z włączonym
-    przełącznikiem – tak samo, jak ``apps.cms.analytics.analytics_enabled`` i z tego samego powodu:
-    rozstrzygnięcie jest binarne, a dodatkowe zapytanie o witrynę kosztowałoby więcej niż warte
-    jest rozróżnienie domeny produkcyjnej od stagingowej przy jednorazowej decyzji organizatora.
+    **Pytanie jest per witryna** (23.09.2026, poprawka do wydania z 22.09) – ``SiteSettings`` jest
+    per witryna od migracji ``cms.0005``, a organizator drugiego konkursu na tej samej instalacji
+    ma prawo trzymać tę rolę wyłączoną, mimo że pierwszy ją właśnie włączył. Odczyt instalacyjny
+    (widziałby „którakolwiek” witryna) wyciekałby adres ``/register/supervisor/`` i odnośniki do
+    niego na **każdej** witrynie, bo formularz i tak by go przyjął – to jest dokładnie ta sama
+    pomyłka, którą dla analityki opisuje ``apps.cms.analytics``, i to samo jest tu lekarstwem:
+    filtr po ``site_id``, gdy wołający witrynę zna (``registration_enabled_for_request``), i pytanie
+    instalacyjne (``site_id=None``) wyłącznie tam, gdzie witryny nie da się ustalić – dziś to jest
+    formularz profilu uczestnika (``apps.web.forms``) i testy kontraktu, które nie chodzą przez
+    żądanie HTTP.
+
+    Wynik jest **pamiętany** przez ``_REGISTRATION_CACHE_TTL_SECONDS`` na klucz witryny (ten sam
+    kompromis, co ``analytics_enabled``): widok rejestracji i procesor kontekstu pytają o to samo
+    na każdym żądaniu, a zapytanie do bazy przy każdym z nich kosztowałoby więcej, niż jest warte
+    trzydziestosekundowe opóźnienie widoczności zmiany. Zapis w ``/cms/`` czyści pamięć od razu
+    (sygnał ``post_save`` niżej), więc organizator, który właśnie włączył przełącznik, widzi
+    skutek bez czekania – opóźnienie dotyczy wyłącznie **innych** procesów aplikacji.
 
     Błąd bazy znaczy „nie” (świeża baza przed migracjami): domyślną odpowiedzią przełącznika,
     który **ukrywa** funkcję, musi być jej ukrycie.
@@ -84,15 +110,61 @@ def registration_enabled() -> bool:
     stoi na ``supervisor_profile`` niżej i przełącznik go nie dotyka – ukrycie drogi wejścia nie
     jest tym samym, co odebranie komuś dostępu do danych, które już ogląda.
     """
+    now = time.monotonic()
+    remembered = _registration_cache.get(site_id)
+    if remembered is not None and now - remembered[0] < _REGISTRATION_CACHE_TTL_SECONDS:
+        return remembered[1]
+
     from django.db import DatabaseError
 
     from apps.cms.models import SiteSettings
 
     try:
-        return SiteSettings.objects.filter(supervisor_registration_enabled=True).exists()
+        rows = SiteSettings.objects.filter(supervisor_registration_enabled=True)
+        if site_id is not None:
+            rows = rows.filter(site_id=site_id)
+        enabled = rows.exists()
     except DatabaseError:  # pragma: no cover - baza bez migracji tabeli ustawień
         logger.warning("Nie udało się odczytać przełącznika rejestracji opiekunów szkolnych.")
-        return False
+        enabled = False
+    _registration_cache[site_id] = (now, enabled)
+    return enabled
+
+
+def registration_enabled_for_request(request) -> bool:
+    """To samo pytanie o witrynę **tego** żądania – wejście dla widoku i procesora kontekstu.
+
+    ``Site.find_for_request`` jest darmowe: ``CompetitionMiddleware`` i menu części informacyjnej
+    rozstrzygnęły już witrynę wcześniej, a Wagtail pamięta wynik na obiekcie żądania. Żądanie, dla
+    którego witryny nie da się ustalić (host spoza ``ALLOWED_HOSTS`` w teście jednostkowym,
+    ``RequestFactory`` bez środkowej warstwy) schodzi na pytanie instalacyjne – zachowanie sprzed
+    tej poprawki – zamiast wywracać stronę wyjątkiem w warstwie, która ma tylko pokazać odnośnik.
+    """
+    from wagtail.models import Site
+
+    try:
+        site = Site.find_for_request(request)
+    except Exception:  # noqa: BLE001 - patrz docstring: żądanie ma dostać odpowiedź, nie 500
+        site = None
+    return registration_enabled(site.pk if site is not None else None)
+
+
+def reset_registration_cache(**_kwargs) -> None:
+    """Zapomina zapamiętane odpowiedzi **wszystkich** witryn. Woła to sygnał zapisu oraz testy."""
+    _registration_cache.clear()
+
+
+@receiver(post_save, dispatch_uid="accounts.supervisors.reset_registration_cache")
+def _reset_registration_cache_on_settings_save(sender, **kwargs) -> None:
+    """Zapis ``SiteSettings`` w ``/cms/`` ma być widoczny od razu, a nie po upływie TTL.
+
+    Odbiornik jest podpięty pod **każdy** ``post_save`` i dopiero w środku sprawdza nadawcę – tak
+    samo i z tego samego powodu, co ``apps.cms.analytics._reset_on_settings_save``: podpięcie go
+    do konkretnego modelu wymagałoby importu ``apps.cms.models`` w chwili ładowania tej aplikacji,
+    czyli zanim rejestr modeli jest gotowy.
+    """
+    if sender.__name__ == "SiteSettings" and sender._meta.app_label == "cms":
+        reset_registration_cache()
 
 
 def supervisor_profile(user, competition=None) -> SchoolSupervisor | None:

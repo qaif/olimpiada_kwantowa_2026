@@ -266,6 +266,32 @@ def test_committee_accounts_are_untouched():
     assert not member.user.email.endswith(f"@{ANONYMISED_EMAIL_DOMAIN}")
 
 
+def test_supervisors_are_not_touched_by_the_automatic_run():
+    """Decyzja, nie przeoczenie (22.09.2026, patrz docstring modułu i PODRECZNIK-ORGANIZATORA § 9.1).
+
+    Ten moduł liczy kandydatów po zgłoszeniach uczestnika, więc opiekun szkolny – którego jedynym
+    śladem w dokumentacji zawodów jest ``SchoolParticipation`` – nigdy nie trafia na listę i nigdy
+    nie zostanie tym przebiegiem zanonimizowany, choćby jego edycja dawno wygasła. Test istnieje,
+    żeby ta granica była widoczna w suicie, a nie tylko w komentarzu – gdy ktoś ją kiedyś przesunie,
+    ma po czym poznać, którego testu dotyczy zmiana.
+    """
+    from django.contrib.auth.models import Group
+
+    from apps.accounts.models import GROUP_SUPERVISOR, SchoolParticipation, SchoolSupervisor
+
+    edition = old_edition()
+    user = UserFactory(email="opiekun.retencja@szkola.test")
+    user.groups.add(Group.objects.get_or_create(name=GROUP_SUPERVISOR)[0])
+    supervisor = SchoolSupervisor.objects.create(user=user, school="XIV LO", competition=edition.competition)
+    SchoolParticipation.objects.create(supervisor=supervisor, edition=edition)
+
+    result = anonymise_expired_editions()
+
+    user.refresh_from_db()
+    assert not user.email.endswith(f"@{ANONYMISED_EMAIL_DOMAIN}")
+    assert result["anonymised"] == 0
+
+
 def test_a_second_run_does_nothing():
     """Konto już zanonimizowane nie wchodzi do przebiegu ponownie – ani do liczników, ani do audytu."""
     edition = old_edition()

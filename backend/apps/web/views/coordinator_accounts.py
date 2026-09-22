@@ -615,6 +615,10 @@ class CoordinatorAccountDeleteView(CoordinatorRequiredMixin, View):
             # ``True`` = zostanie anonimizacja, ``False`` = skasowanie wiersza. Nazwa mówi
             # o skutku, nie o implementacji, bo to ona stoi w treści strony.
             "keeps_pseudonymous_row": any(footprint.values()),
+            # Patrz ``apps.web.views.account.AccountDeleteView`` – ten sam podział na dwa
+            # niezależne zdania (uczestnik / opiekun szkolny), bo konto bywa oboma naraz.
+            "has_participant_footprint": any(footprint[key] for key in ("entries", "submissions", "reviews")),
+            "has_supervisor_footprint": bool(footprint.get("school_participations")),
             "participant": participant,
         }
         return TemplateResponse(request, DELETE_TEMPLATE, context, status=status)

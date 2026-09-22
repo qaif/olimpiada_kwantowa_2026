@@ -111,10 +111,50 @@ def test_activation_unlocks_the_dashboard(web_client, supervisor_registration_on
 # --- izolacja konkursów -------------------------------------------------------------------------
 
 
+# --- przełącznik per witryna (H1, 23.09.2026) ---------------------------------------------------
+
+
+def test_the_switch_is_scoped_to_its_own_site(
+    client_for, competition, other_competition, supervisor_registration_on
+):
+    """Włączenie na witrynie A nie ma prowadzić do odnośnika ani adresu na witrynie B.
+
+    ``supervisor_registration_on`` włącza przełącznik na witrynie **domyślnej**, którą jest
+    witryna ``competition`` (patrz ``conftest.py::competition``). ``other_competition`` stoi na
+    osobnej, niedomyślnej witrynie i nie miała przełącznika ruszonego – jeśli
+    ``registration_enabled`` pytałaby o instalację, a nie o witrynę żądania, dostałaby tu ten sam
+    (błędny) wynik „włączone” na obu.
+    """
+    site_a = client_for(competition)
+    site_b = client_for(other_competition)
+
+    assert REGISTER_URL in site_a.get("/register/").content.decode()
+    assert REGISTER_URL in site_a.get("/login/").content.decode()
+    assert site_a.get(REGISTER_URL).status_code == 200
+
+    assert REGISTER_URL not in site_b.get("/register/").content.decode()
+    assert REGISTER_URL not in site_b.get("/login/").content.decode()
+    assert site_b.get(REGISTER_URL).status_code == 404
+    assert site_b.post(REGISTER_URL, payload()).status_code == 404
+
+
 def test_the_profile_belongs_to_the_competition_of_the_site(
     client_for, competition, other_competition, supervisor_registration_on
 ):
-    """Opiekun należy do konkursu **witryny, pod którą się zarejestrował** – nie do pierwszej z brzegu."""
+    """Opiekun należy do konkursu **witryny, pod którą się zarejestrował** – nie do pierwszej z brzegu.
+
+    Przełącznik jest od H1 (23.09.2026) per witryna – ``supervisor_registration_on`` włącza go
+    wyłącznie na witrynie domyślnej (``competition``), więc ten test, który sprawdza co innego
+    (zakresowanie profilu po konkursie, nie samą widoczność adresu), włącza go tu jawnie także
+    na drugiej witrynie. Test samego przełącznika stoi osobno –
+    ``test_the_switch_is_scoped_to_its_own_site``.
+    """
+    from apps.cms.models import SiteSettings
+
+    other_settings = SiteSettings.for_site(other_competition.site)
+    other_settings.supervisor_registration_enabled = True
+    other_settings.save()
+
     client_for(competition).post(REGISTER_URL, payload(email="pierwszy@szkola.test"))
     client_for(other_competition).post(REGISTER_URL, payload(email="drugi@szkola.test"))
 

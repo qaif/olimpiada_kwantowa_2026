@@ -27,6 +27,28 @@ Czego ten moduł **nie** kasuje i dlaczego:
   rocznika X”: jego konto jest kontem funkcyjnym, żyje między edycjami i odpowiada za nie
   organizator. Retencja dotyczy uczestników.
 
+**Opiekunowie szkolni – świadomy dług, nie przeoczenie (22.09.2026).** Ten moduł **nie** anonimizuje
+kont opiekunów szkolnych, choć ``apps.accounts.profile.anonymise_account`` już umie wyczyścić ich
+dane (szkoła, telefon, zgody) w żądaniu samoobsługowym i w usunięciu przez koordynatora. Powód, dla
+którego automat retencji ich nie dotyka, jest strukturalny: cała reguła „kiedy wolno” w tym module
+(``_blocked_reason``, ``candidates``) jest napisana w słowniku uczestnika – zgłoszenia, reklamacje,
+publikacja wyników jednego etapu jednej edycji. Opiekun nie ma zgłoszeń ani reklamacji; jego
+jedynym śladem w dokumentacji zawodów jest ``SchoolParticipation`` (potwierdzenie „szkoła bierze
+udział w tej edycji”), a pytanie „czy wolno go już anonimizować” ma inny kształt: nie „czy sprawa
+jest zamknięta”, tylko „czy ten nauczyciel nie prowadzi też uczniów w edycji, która jeszcze trwa”
+– w tym module nie ma dziś nic, co odpowiada na to pytanie. Doklejenie opiekunów do istniejącej
+pętli po uczestnikach dałoby złą odpowiedź (albo pomija ich całkiem, albo anonimizuje w środku
+prowadzonej klasy), a osobna pętla jest zadaniem samym w sobie, nie linijką w tym zadaniu.
+
+Do czasu, aż ta pętla powstanie: konta opiekunów **nie znikają same** z upływem terminu retencji
+edycji. Organizator, który chce je wyczyścić, robi to dziś ręcznie – usunięciem konta z panelu
+(``/coordinator/accounts/<id>/delete/``), które przechodzi przez ``anonymise_account`` i **już**
+sprząta profil opiekuna poprawnie (patrz jego docstring). Test tego stanu:
+``apps/accounts/tests/test_retention.py::test_supervisors_are_not_touched_by_the_automatic_run``
+– żeby ta decyzja była widoczna w testach, a nie tylko w komentarzu, i żeby ktoś, kto ją kiedyś
+odwróci, wiedział, którego testu dotyczy zmiana. Opisane też w
+``docs/PODRECZNIK-ORGANIZATORA.md`` § 9.1.
+
 Co zostaje po anonimizacji: dokładnie to, co przy żądaniu z art. 17 – pseudonimowy wiersz
 uczestnika (``public_code``, województwo) i cała dokumentacja zawodów. Robi to jedna i ta sama
 funkcja ``apps.accounts.profile.anonymise_account``; ten moduł jedynie **wybiera**, czyje konta

@@ -35,7 +35,7 @@ from django.utils.functional import SimpleLazyObject
 from apps.accounts.consents import MINOR_MAX_AGE, consent_set
 from apps.accounts.models import CompetitionRole
 from apps.accounts.services import active_reviewer_profile, participant_for, roles_for
-from apps.accounts.supervisors import registration_enabled, supervisor_profile
+from apps.accounts.supervisors import registration_enabled_for_request, supervisor_profile
 from apps.appeals.services import appeals_committee_profile
 
 logger = logging.getLogger(__name__)
@@ -167,12 +167,18 @@ def social_providers(request) -> dict:
 def supervisor_registration(request) -> dict:
     """Czy pokazać odnośnik do rejestracji opiekuna szkolnego – leniwie, patrz docstring modułu.
 
-    Wartość liczy ``apps.accounts.supervisors.registration_enabled()`` – ta sama funkcja, która
-    bramkuje sam adres ``/register/supervisor/`` i zdejmuje pole „adres opiekuna” z profilu
-    uczestnika. Trzy powierzchnie, jedna reguła: rozjazd któregokolwiek z nich znaczyłby odnośnik
-    prowadzący w 404 albo pole bez odnośnika, który by je tłumaczył.
+    Wartość liczy ``apps.accounts.supervisors.registration_enabled_for_request()`` – **witrynę
+    tego żądania**, ta sama funkcja, która od 23.09.2026 bramkuje sam adres
+    ``/register/supervisor/``. Odnośnik i adres, do którego prowadzi, muszą odpowiadać na to samo
+    pytanie: pokazanie linku na witrynie, która akurat tej roli nie oferuje, prowadziłoby w 404.
+
+    Pole „adres opiekuna” w profilu uczestnika (``apps.web.forms``) pyta wciąż **instalacyjnie**
+    (``registration_enabled()`` bez argumentu) – ten formularz nie ma tu jeszcze swojego żądania
+    w chwili budowy pól i migracja go na wariant per-witrynowy nie jest częścią tej poprawki.
     """
-    return {"supervisor_registration_open": SimpleLazyObject(registration_enabled)}
+    return {
+        "supervisor_registration_open": SimpleLazyObject(lambda: registration_enabled_for_request(request))
+    }
 
 
 #: Klucz podręczny na obiekcie żądania. Procesory kontekstu odpalają się **raz na renderowanie

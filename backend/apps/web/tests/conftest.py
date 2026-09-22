@@ -210,6 +210,24 @@ def close_stage_timeline(stage) -> None:
     shift_stage(stage, opens=-60, deadline=-50, review=-40, appeal_opens=-30, appeal_closes=-20)
 
 
+@pytest.fixture(autouse=True)
+def _reset_supervisor_registration_cache():
+    """Pamięć podręczna przełącznika opiekunów jest stanem procesu – wycofanie transakcji jej nie czyści.
+
+    Ten sam powód i ten sam wzorzec, co ``apps.cms.tests.test_analytics::clean_analytics_cache``:
+    ``apps.accounts.supervisors.registration_enabled`` pamięta wynik do 30 sekund, a
+    ``supervisor_registration_on`` (niżej) zapisuje ustawienie przez ``.save()`` w prawie każdym
+    teście tego katalogu. Bez sprzątania test, który włączył przełącznik, zostawiałby „włączone”
+    kolejnym testom – **nawet po wycofaniu transakcji** – aż do upływu TTL, a które konkretnie
+    testy oberwą, zależałoby od kolejności biegu.
+    """
+    from apps.accounts.supervisors import reset_registration_cache
+
+    reset_registration_cache()
+    yield
+    reset_registration_cache()
+
+
 @pytest.fixture
 def supervisor_registration_on(db):
     """Włącza rolę opiekuna szkolnego na czas testu (``SiteSettings.supervisor_registration_enabled``).

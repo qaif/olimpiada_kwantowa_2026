@@ -94,6 +94,83 @@ def test_account_referenced_by_the_competition_is_skipped_and_logged(caplog):
     assert user.email not in caplog.text
 
 
+def test_an_unactivated_supervisor_account_is_deleted_past_the_window():
+    """Ta sama kosiarka, ten sam powód: opiekun też nie ma jeszcze konta chronionego dowodem.
+
+    Rejestracja opiekuna przechodzi przez ten sam ``register_supervisor`` → aktywacja, co
+    uczestnik – konto powstaje ``is_active=False``, ``email_verified_at=None`` i czeka na ten sam
+    link. H2 (22.09.2026): dopóki ta rola nie prowadziła nigdzie, nikt nie sprawdzał, czy kosiarka
+    w ogóle ją widzi.
+    """
+    from apps.accounts.supervisors import register_supervisor
+
+    register_supervisor(
+        email="porzucony.opiekun@szkola.test",
+        password="Poprawne-Haslo-2026",
+        first_name="Jan",
+        last_name="Nauczyciel",
+        terms_consent=True,
+        gdpr_consent=True,
+    )
+    user = User.objects.get(email="porzucony.opiekun@szkola.test")
+    User.objects.filter(pk=user.pk).update(date_joined=timezone.now() - WINDOW - timedelta(minutes=1))
+
+    result = purge_unactivated_accounts()
+
+    assert result == {"deleted": 1, "skipped": 0}
+    assert not User.objects.filter(pk=user.pk).exists()
+
+
+def test_an_activated_supervisor_account_is_kept():
+    """Aktywacja odcina konto od kosiarki dokładnie tak samo, jak u uczestnika."""
+    from apps.accounts.activation import activate_with_token, make_activation_token
+    from apps.accounts.supervisors import register_supervisor
+
+    register_supervisor(
+        email="aktywny.opiekun@szkola.test",
+        password="Poprawne-Haslo-2026",
+        first_name="Jan",
+        last_name="Nauczyciel",
+        terms_consent=True,
+        gdpr_consent=True,
+    )
+    user = User.objects.get(email="aktywny.opiekun@szkola.test")
+    activate_with_token(make_activation_token(user))
+    User.objects.filter(pk=user.pk).update(date_joined=timezone.now() - WINDOW - timedelta(minutes=1))
+
+    result = purge_unactivated_accounts()
+
+    assert result == {"deleted": 0, "skipped": 0}
+    assert User.objects.filter(pk=user.pk).exists()
+
+
+def test_an_unactivated_supervisor_with_a_confirmed_participation_is_skipped_and_logged(caplog):
+    """Nieprzewidziany stan, tak samo jak u uczestnika: potwierdzenie istnieje, kasowanie by je zabrało."""
+    from apps.accounts.models import SchoolParticipation
+    from apps.accounts.supervisors import register_supervisor
+    from apps.competitions.tests.factories import CurrentEditionFactory
+    from apps.tenancy.tests.factories import current_or_default_competition
+
+    register_supervisor(
+        email="niedokonczone.szkola@szkola.test",
+        password="Poprawne-Haslo-2026",
+        first_name="Jan",
+        last_name="Nauczyciel",
+        terms_consent=True,
+        gdpr_consent=True,
+    )
+    user = User.objects.get(email="niedokonczone.szkola@szkola.test")
+    User.objects.filter(pk=user.pk).update(date_joined=timezone.now() - WINDOW - timedelta(hours=1))
+    edition = CurrentEditionFactory(competition=current_or_default_competition())
+    SchoolParticipation.objects.create(supervisor=user.school_supervisor, edition=edition)
+
+    with caplog.at_level("WARNING"):
+        result = purge_unactivated_accounts()
+
+    assert result == {"deleted": 0, "skipped": 1}
+    assert User.objects.filter(pk=user.pk).exists()
+
+
 def test_deleting_the_account_frees_the_address_for_a_new_registration():
     """Sens całej kosiarki: ten sam adres da się zarejestrować ponownie."""
     user = waiting_user(age=WINDOW + timedelta(minutes=1), email="drugie-podejscie@example.test")

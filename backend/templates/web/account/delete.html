@@ -22,24 +22,35 @@
   <div class="card">
     {% if keeps_pseudonymous_row %}
       <h2 class="mt-0">{% translate "Co się stanie z Twoimi danymi" %}</h2>
-      <p>{% blocktranslate trimmed with entries=footprint.entries submissions=footprint.submissions reviews=footprint.reviews %}
-        Brałeś udział w zawodach ({{ entries }} zgłoszeń, {{ submissions }} oddanych prac,
-        {{ reviews }} wystawionych recenzji), więc <strong>usuniemy Twoje dane osobowe</strong>,
-        ale zostawimy anonimowy ślad udziału:
-      {% endblocktranslate %}</p>
-      <ul>
-        <li>{% translate "znikają: imię, nazwisko, adres e-mail, telefon, nazwa szkoły, data i rok urodzenia, hasło, powiązania z kontami Google i Facebooka oraz wszystkie Twoje sesje;" %}</li>
-        <li>{% translate "zostają: kod publiczny" %}
-          {% if participant %}<span class="code-chip">{{ participant.public_code }}</span>{% endif %}
-          {% translate "wraz z pracami, ocenami i wierszami w ogłoszonych tabelach wyników." %}</li>
-      </ul>
-      <p class="hint">{% translate "Dlaczego tak: ogłoszone wyniki i protokoły recenzji są dokumentacją zawodów, na której opierają się kwalifikacje innych uczestników. Skasowanie ich razem z kontem wyrwałoby kartę z protokołu i przesunęłoby progi kwalifikacyjne." %}</p>
+      {% if has_participant_footprint %}
+        <p>{% blocktranslate trimmed with entries=footprint.entries submissions=footprint.submissions reviews=footprint.reviews %}
+          Brałeś udział w zawodach ({{ entries }} zgłoszeń, {{ submissions }} oddanych prac,
+          {{ reviews }} wystawionych recenzji), więc <strong>usuniemy Twoje dane osobowe</strong>,
+          ale zostawimy anonimowy ślad udziału:
+        {% endblocktranslate %}</p>
+        <ul>
+          <li>{% translate "znikają: imię, nazwisko, adres e-mail, telefon, nazwa szkoły, data i rok urodzenia, hasło, powiązania z kontami Google i Facebooka oraz wszystkie Twoje sesje;" %}</li>
+          <li>{% translate "zostają: kod publiczny" %}
+            {% if participant %}<span class="code-chip">{{ participant.public_code }}</span>{% endif %}
+            {% translate "wraz z pracami, ocenami i wierszami w ogłoszonych tabelach wyników." %}</li>
+        </ul>
+        <p class="hint">{% translate "Dlaczego tak: ogłoszone wyniki i protokoły recenzji są dokumentacją zawodów, na której opierają się kwalifikacje innych uczestników. Skasowanie ich razem z kontem wyrwałoby kartę z protokołu i przesunęłoby progi kwalifikacyjne." %}</p>
+      {% endif %}
+      {% if has_supervisor_footprint %}
+        <p>{% blocktranslate trimmed with count=footprint.school_participations %}
+          Jako opiekun szkolny potwierdziłeś udział szkoły w {{ count }} edycjach, więc
+          <strong>usuniemy Twoje dane osobowe</strong> (imię, nazwisko, e-mail, telefon, nazwę
+          szkoły), ale zostawimy sam fakt tych potwierdzeń – to na nich organizator opiera listę
+          szkół biorących udział w danej edycji.
+        {% endblocktranslate %}</p>
+      {% endif %}
     {% else %}
       <h2 class="mt-0">{% translate "Co się stanie z Twoim kontem" %}</h2>
       <p>{% blocktranslate trimmed %}
-        Twoje konto nie ma powiązanych zgłoszeń, prac ani recenzji, więc zostanie
-        <strong>usunięte w całości</strong> – razem z profilem, zgodami i wszystkimi danymi
-        osobowymi. Adres e-mail zwolni się do ponownej rejestracji.
+        Twoje konto nie ma powiązanych zgłoszeń, prac, recenzji ani potwierdzonych udziałów
+        szkoły w żadnej edycji, więc zostanie <strong>usunięte w całości</strong> – razem
+        z profilem, zgodami i wszystkimi danymi osobowymi. Adres e-mail zwolni się do ponownej
+        rejestracji.
       {% endblocktranslate %}</p>
     {% endif %}
 

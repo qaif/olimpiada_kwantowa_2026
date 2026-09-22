@@ -51,7 +51,7 @@ from apps.accounts.supervisors import (
     has_confirmed,
     normalize_supervisor_email,
     register_supervisor,
-    registration_enabled,
+    registration_enabled_for_request,
     student_rows,
     students_of,
 )
@@ -87,11 +87,11 @@ class RegisterSupervisorView(ThrottledFormMixin, ServiceFormView):
     i komitecie: konto powstaje nieaktywne i czeka na link z listu, a strona „sprawdź skrzynkę”
     jest wspólna dla wszystkich rejestracji.
 
-    Adres istnieje tylko wtedy, gdy organizator **oferuje** tę rolę
-    (``cms.SiteSettings.supervisor_registration_enabled``, domyślnie wyłączone). Wyłączony
-    przełącznik daje **404**, a nie 403 ani stronę „funkcja niedostępna”: z zewnątrz ten adres
-    ma nie istnieć, a komunikat „rejestracja opiekunów jest wyłączona” byłby ogłoszeniem, że
-    jednak istnieje i wypada dopytać.
+    Adres istnieje tylko wtedy, gdy organizator **tej witryny** oferuje tę rolę
+    (``cms.SiteSettings.supervisor_registration_enabled``, domyślnie wyłączone i **per witryna** –
+    patrz ``apps.accounts.supervisors.registration_enabled``). Wyłączony przełącznik daje **404**,
+    a nie 403 ani stronę „funkcja niedostępna”: z zewnątrz ten adres ma nie istnieć, a komunikat
+    „rejestracja opiekunów jest wyłączona” byłby ogłoszeniem, że jednak istnieje i wypada dopytać.
     """
 
     template_name = REGISTER_TEMPLATE
@@ -103,8 +103,10 @@ class RegisterSupervisorView(ThrottledFormMixin, ServiceFormView):
 
     def dispatch(self, request, *args, **kwargs):
         # Bramka stoi w ``dispatch``, a nie w ``get``/``post`` z osobna: POST na ukryty adres
-        # miałby inaczej własną, nieogrodzoną drogę do zakładania kont.
-        if not registration_enabled():
+        # miałby inaczej własną, nieogrodzoną drogę do zakładania kont. Pytamy o witrynę **tego**
+        # żądania (``registration_enabled_for_request``), nie o instalację: drugi konkurs na tej
+        # samej instalacji ma prawo trzymać tę rolę wyłączoną, mimo że pierwszy ją włączył.
+        if not registration_enabled_for_request(request):
             raise Http404("Rejestracja opiekunów szkolnych nie jest prowadzona.")
         return super().dispatch(request, *args, **kwargs)
 

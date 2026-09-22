@@ -16,6 +16,7 @@ from .models import (
     Participant,
     Region,
     RegistrationProfile,
+    SchoolSupervisor,
     User,
 )
 
@@ -172,6 +173,41 @@ class CommitteeMemberAdmin(admin.ModelAdmin):
     search_fields = ("user__email",)
     readonly_fields = ("created_at", "approved_at", "approved_by")
     autocomplete_fields = ("user",)
+
+
+class SupervisorConsentRecordInline(ConsentRecordInline):
+    """Historia zgód przy profilu opiekuna szkolnego – bliźniak ``ConsentRecordInline``.
+
+    Osobna klasa, a nie ta sama pod ``ParticipantAdmin`` i ``SchoolSupervisorAdmin`` naraz: jeden
+    ``ConsentRecord`` niesie **albo** ``participant``, **albo** ``supervisor``
+    (``accounts_consentrecord_exactly_one_owner``), więc pod profilem opiekuna Django ma znaleźć
+    ten drugi klucz obcy. ``fk_name`` jest tu jawny, a nie zdany na automatyczne rozpoznanie: model
+    ma od migracji ``0031`` dwa różne klucze obce do dwóch różnych rodziców, i jawność jest tańsza
+    niż poleganie na tym, że akurat tylko jeden z nich wskazuje ten model.
+    """
+
+    fk_name = "supervisor"
+
+
+@admin.register(SchoolSupervisor)
+class SchoolSupervisorAdmin(admin.ModelAdmin):
+    """Konta opiekunów szkolnych – narzędzie operatora do wglądu w dowody zgód (art. 20.09.2026, M1).
+
+    Panel koordynatora (``/coordinator/accounts/?role=supervisor``) jest drogą samoobsługową do
+    codziennej pracy z tymi kontami; ten ekran istnieje wyłącznie po to, żeby dało się odpowiedzieć
+    „na co i kiedy ten nauczyciel się zgodził” bez zaglądania do bazy SQL-em – tak samo, jak
+    ``ConsentRecordInline`` odpowiada na to samo pytanie o uczestnika. Reguł domenowych tu nie ma
+    (rejestracja, panel, zgody – wszystko w ``apps.accounts.supervisors``); to jest czytanie
+    z gotowych danych, nie ich zmienianie.
+    """
+
+    list_display = ("user", "school", "school_ref", "competition", "verified", "created_at")
+    list_filter = ("competition", "verified")
+    search_fields = ("user__email", "school")
+    readonly_fields = ("created_at",)
+    autocomplete_fields = ("user",)
+    raw_id_fields = ("school_ref",)
+    inlines = (SupervisorConsentRecordInline,)
 
 
 @admin.register(InvitationCode)

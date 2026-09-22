@@ -325,7 +325,12 @@ def competition_footprint(user: User) -> dict:
     Liczymy zgłoszenia i prace uczestnika oraz recenzje członka komitetu. To dokładnie te obiekty,
     które kaskada ``User.delete()`` zabrałaby ze sobą (``StageEntry`` → ``Submission`` → ``Review``
     → ``FinalGrade``), plus recenzje po stronie komitetu, które są chronione ``PROTECT`` i nie
-    dałyby się skasować wcale.
+    dałyby się skasować wcale, plus potwierdzenia opiekuna szkolnego (``SchoolParticipation``) –
+    te kaskada zabrałaby dokładnie tak samo, ``SchoolSupervisor`` → ``SchoolParticipation``.
+    Potwierdzenie „szkoła bierze udział w tej edycji” jest dla opiekuna tym, czym zgłoszenie jest
+    dla uczestnika: oświadczeniem przypiętym do konkretnej edycji, na którym organizator opiera
+    listę szkół biorących udział i wystawienie zaświadczeń – zniknięcie go bez śladu byłoby taką
+    samą wyrwaną kartą z dokumentacji, jak skasowana praca.
 
     Liczymy po **wszystkich** profilach tej osoby, nie po profilu jednego konkursu: pytanie brzmi
     „co zabierze skasowanie konta”, a konto jest platformowe i kaskada nie zna granicy konkursu
@@ -336,14 +341,19 @@ def competition_footprint(user: User) -> dict:
     from apps.grading.models import Review
     from apps.submissions.models import Submission
 
+    from .models import SchoolParticipation
     from .services import participations_of
 
     participants = list(participations_of(user).values_list("pk", flat=True))
     member = getattr(user, "committee_member", None)
+    supervisor = getattr(user, "school_supervisor", None)
     return {
         "entries": StageEntry.objects.filter(participant_id__in=participants).count(),
         "submissions": Submission.objects.filter(entry__participant_id__in=participants).count(),
         "reviews": Review.objects.filter(reviewer=member).count() if member else 0,
+        "school_participations": (
+            SchoolParticipation.objects.filter(supervisor=supervisor).count() if supervisor else 0
+        ),
     }
 
 
@@ -397,6 +407,17 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
     nazwa szkoły, dowiązanie do rejestru szkół, rocznik, hasło, tokeny, powiązania z Google
     i Facebookiem, sesje. Zgody dostają ``withdrawn_at`` – dowód, że kiedyś obowiązywały, zostaje,
     ale żadna z nich nie jest już podstawą przetwarzania.
+
+    To samo dotyczy profilu **opiekuna szkolnego**, jeśli to konto go ma: szkoła, szkoła z rejestru
+    i telefon znikają, a jego zgody (regulamin, RODO złożone przy ``/register/supervisor/``)
+    dostają ``withdrawn_at`` tak samo jak zgody uczestnika. Wiersz ``SchoolSupervisor`` sam zostaje
+    – tak samo, jak zostaje wiersz ``Participant`` – bo to on niesie ``SchoolParticipation``:
+    potwierdzenia „szkoła bierze udział w tej edycji”, na których organizator opiera listę szkół
+    i zaświadczenia. Konto bywa uczestnikiem i opiekunem naraz (adres nauczyciela, który sam kiedyś
+    startował), więc czyścimy **oba** profile w jednym przebiegu niezależnie od tego, który z nich
+    dał powód do anonimizacji zamiast skasowania wiersza (``competition_footprint``) – rozdzielanie
+    tego na dwa wywołania zostawiałoby czasem jeden profil z danymi osobowymi przy koncie, którego
+    właściciel już zniknął.
 
     Czyścimy **każdy** profil uczestnika tej osoby, a nie profil jednego konkursu. Anonimizacja
     jest zdarzeniem platformowym: znika adres e-mail, imię, nazwisko i hasło, czyli konto jako
@@ -457,6 +478,16 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
     ConsentRecord.objects.filter(participant__in=participants, withdrawn_at__isnull=True).update(
         withdrawn_at=now
     )
+
+    supervisor = getattr(user, "school_supervisor", None)
+    if supervisor is not None:
+        supervisor.school = ""
+        supervisor.school_ref = None
+        supervisor.phone = ""
+        supervisor.save(update_fields=["school", "school_ref", "phone"])
+        ConsentRecord.objects.filter(supervisor=supervisor, withdrawn_at__isnull=True).update(
+            withdrawn_at=now
+        )
 
     _drop_credentials(user)
     audit(actor or user, "account.anonymised", user, {"user_id": user.pk}, request=request)

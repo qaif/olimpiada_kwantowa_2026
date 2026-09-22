@@ -164,6 +164,63 @@ def test_consents_come_with_the_document_version_and_both_timestamps(web_client,
     assert consents[0]["wycofana"] is None
 
 
+def _supervisor(email: str = "opiekun.eksport@szkola.test"):
+    """Konto opiekuna, poza fabryką: ``SchoolSupervisor`` nie ma jeszcze własnej ``Factory``."""
+    from django.contrib.auth.models import Group
+
+    from apps.accounts.models import GROUP_SUPERVISOR, SchoolSupervisor
+    from apps.tenancy.tests.factories import current_or_default_competition
+
+    user = UserFactory(email=email)
+    user.groups.add(Group.objects.get_or_create(name=GROUP_SUPERVISOR)[0])
+    return SchoolSupervisor.objects.create(
+        user=user, school="XIV LO", competition=current_or_default_competition()
+    )
+
+
+def test_a_pure_supervisor_export_carries_their_own_consents(web_client):
+    """B1: konto bez profilu uczestnika nie może dostać paczki bez dowodu **swoich** zgód."""
+    supervisor = _supervisor()
+    ConsentRecord.objects.create(
+        supervisor=supervisor, kind=ConsentKind.TERMS, document_version="z 20 września 2026", source="web"
+    )
+    ConsentRecord.objects.create(
+        supervisor=supervisor, kind=ConsentKind.PRIVACY, document_version="1.0", source="web"
+    )
+    web_client.force_login(supervisor.user)
+
+    body = payload(web_client.get(EXPORT_URL))
+
+    assert body["profil_opiekuna_szkolnego"]["szkola"] == "XIV LO"
+    consents = {row["rodzaj"]: row for row in body["zgody"]}
+    assert consents.keys() == {ConsentKind.TERMS, ConsentKind.PRIVACY}
+    assert all(row["wlasciciel"] == "opiekun_szkolny" for row in consents.values())
+    assert consents[ConsentKind.TERMS]["wersja_dokumentu"] == "z 20 września 2026"
+
+
+def test_a_dual_role_account_gets_both_sets_of_consents(web_client, participant):
+    """Jedno konto, dwa profile: paczka niesie zgody **obu**, każdą podpisaną właścicielem."""
+    from apps.accounts.models import SchoolSupervisor
+    from apps.tenancy.tests.factories import current_or_default_competition
+
+    ConsentRecord.objects.create(
+        participant=participant, kind=ConsentKind.TERMS, document_version="1.0", source="web"
+    )
+    supervisor = SchoolSupervisor.objects.create(
+        user=participant.user, school="I LO", competition=current_or_default_competition()
+    )
+    ConsentRecord.objects.create(
+        supervisor=supervisor, kind=ConsentKind.TERMS, document_version="1.0", source="web"
+    )
+    web_client.force_login(participant.user)
+
+    consents = payload(web_client.get(EXPORT_URL))["zgody"]
+
+    owners = {row["wlasciciel"] for row in consents}
+    assert owners == {"uczestnik", "opiekun_szkolny"}
+    assert len(consents) == 2
+
+
 def test_stage_entries_and_submission_metadata_are_included(web_client, participant, entry, problems):
     from apps.submissions.models import Submission, SubmissionFile
 

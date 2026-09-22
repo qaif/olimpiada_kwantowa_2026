@@ -300,6 +300,14 @@ class AccountDeleteView(LoginRequiredMixin, ServiceFormMixin, FormView):
                 # ``True`` = zostanie anonimizacja, ``False`` = skasowanie wiersza. Nazwa mówi
                 # o skutku, nie o implementacji, bo to ona stoi w treści strony.
                 "keeps_pseudonymous_row": any(footprint.values()),
+                # Dwie różne opowieści pod jednym „zostanie anonimizacja”: uczestnik, który brał
+                # udział w zawodach, i opiekun, który potwierdził udział szkoły w edycji. Konto
+                # bywa jednym i drugim naraz (§ dual-role), więc to są dwa niezależne warunki,
+                # nie gałęzie jednego – strona pokazuje każdy zdanie, które ma treść.
+                "has_participant_footprint": any(
+                    footprint[key] for key in ("entries", "submissions", "reviews")
+                ),
+                "has_supervisor_footprint": bool(footprint.get("school_participations")),
                 "needs_password": self.request.user.has_usable_password(),
                 "account_email": self.request.user.email,
                 # Kod publiczny na tej stronie jest kodem **w tym konkursie**: to on zostaje

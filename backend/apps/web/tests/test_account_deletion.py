@@ -283,10 +283,15 @@ def test_a_participant_with_only_a_submission_is_also_anonymised(web_client, par
 
 
 def test_an_entry_on_its_own_is_enough_to_trigger_anonymisation(participant):
-    """Sprawdzenie śladu liczy zgłoszenia, prace i recenzje – każde z osobna wystarcza."""
+    """Sprawdzenie śladu liczy zgłoszenia, prace, recenzje i potwierdzenia opiekuna – każde z osobna."""
     from apps.accounts.profile import competition_footprint
 
-    assert competition_footprint(participant.user) == {"entries": 0, "submissions": 0, "reviews": 0}
+    assert competition_footprint(participant.user) == {
+        "entries": 0,
+        "submissions": 0,
+        "reviews": 0,
+        "school_participations": 0,
+    }
 
     StageEntryFactory(participant=participant)
 

@@ -134,16 +134,15 @@ def _supervisor_section(supervisor) -> dict | None:
     }
 
 
-def _consents_section(participant) -> list[dict]:
-    """Dowody zgód: rodzaj, **wersja dokumentu**, kiedy wyrażona i kiedy wycofana.
+def _consent_rows(queryset, owner: str) -> list[dict]:
+    """Wiersze jednego właściciela: rodzaj, **wersja dokumentu**, kiedy wyrażona i wycofana.
 
     Wersja dokumentu jest tu najważniejsza i dlatego jest wypisana wprost: pytanie „na co ta osoba
     się zgodziła” ma sens dopiero razem z brzmieniem dokumentu, pod którym to zrobiła.
     """
-    if participant is None:
-        return []
     return [
         {
+            "wlasciciel": owner,
             "rodzaj": record.kind,
             "wersja_dokumentu": record.document_version,
             "wyrazona": _moment(record.given_at),
@@ -151,8 +150,30 @@ def _consents_section(participant) -> list[dict]:
             "droga": record.source,
             "potwierdzona_z_adresu": record.given_by_email,
         }
-        for record in participant.consents.order_by("given_at", "id")
+        for record in queryset.order_by("given_at", "id")
     ]
+
+
+def _consents_section(participant, supervisor) -> list[dict]:
+    """Dowody zgód **tego konta** – uczestnika i opiekuna szkolnego razem, z właścicielem w wierszu.
+
+    Jedno konto bywa naraz profilem uczestnika i profilem opiekuna (rodzic, który sam kiedyś
+    startował, a dziś jest opiekunem młodszego rodzeństwa – adresy bywają te same). Osobna sekcja
+    dla każdej roli zmuszałaby do dwóch pytań o to samo prawo (art. 15/20 RODO pyta o **dane tej
+    osoby**, nie „dane tej osoby jako uczestnika”); jedna lista z ``wlasciciel`` w każdym wierszu
+    odpowiada od razu na całe pytanie, tak samo jak ``_forum_section`` łączy wpisy ze wszystkich
+    konkursów w jedną listę zamiast rysować sekcję na każdy z osobna.
+
+    ``ConsentRecord`` sam nie ma wspólnego „konta” do przefiltrowania po nim (patrz jego Meta) –
+    dowód niesie właściciela w kolumnie ``participant`` **albo** ``supervisor``, nigdy oba naraz –
+    więc dwa zapytania po dwóch relacjach są tu jedyną drogą, nie skrótem od jednego złączenia.
+    """
+    rows: list[dict] = []
+    if participant is not None:
+        rows += _consent_rows(participant.consents, "uczestnik")
+    if supervisor is not None:
+        rows += _consent_rows(supervisor.consents, "opiekun_szkolny")
+    return rows
 
 
 def _files_section(submission) -> list[dict]:
@@ -340,14 +361,15 @@ def export_payload(user: User) -> dict:
     sam dla każdego konta i dał się odczytać maszynowo bez zgadywania.
     """
     participant = _participant(user)
+    supervisor = getattr(user, "school_supervisor", None)
     return {
         "wersja_formatu": EXPORT_FORMAT_VERSION,
         "wygenerowano": _moment(timezone.now()),
         "konto": _account_section(user),
         "profil_uczestnika": _participant_section(participant),
         "profil_komitetu": _committee_section(getattr(user, "committee_member", None)),
-        "profil_opiekuna_szkolnego": _supervisor_section(getattr(user, "school_supervisor", None)),
-        "zgody": _consents_section(participant),
+        "profil_opiekuna_szkolnego": _supervisor_section(supervisor),
+        "zgody": _consents_section(participant, supervisor),
         "zgoda_opiekuna": _guardian_section(participant),
         "zgloszenia_do_etapow": _entries_section(participant),
         "wyniki_ogloszone": _results_section(participant),

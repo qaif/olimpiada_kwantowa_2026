@@ -25,24 +25,32 @@
     {% else %}
       {% if keeps_pseudonymous_row %}
         <h2 class="mt-0">Co się stanie z danymi tego konta</h2>
-        <p>To konto ma ślad w zawodach ({{ footprint.entries }} zgłoszeń,
-          {{ footprint.submissions }} oddanych prac, {{ footprint.reviews }} wystawionych recenzji),
-          więc <strong>dane osobowe zostaną usunięte</strong>, a anonimowy ślad udziału zostanie:</p>
-        <ul>
-          <li>znikają: imię, nazwisko, adres e-mail, telefon, nazwa szkoły, data i rok urodzenia, hasło,
-            powiązania z kontami Google i Facebooka oraz wszystkie sesje tego konta;</li>
-          <li>zostają: kod publiczny
-            {% if participant %}<span class="code-chip">{{ participant.public_code }}</span>{% endif %}
-            wraz z pracami, ocenami i wierszami w ogłoszonych tabelach wyników.</li>
-        </ul>
-        <p class="hint">Dlaczego tak: ogłoszone wyniki i protokoły recenzji są dokumentacją zawodów,
-          na której opierają się kwalifikacje innych uczestników. Skasowanie ich razem z kontem
-          wyrwałoby kartę z protokołu i przesunęłoby progi kwalifikacyjne.</p>
+        {% if has_participant_footprint %}
+          <p>To konto ma ślad w zawodach ({{ footprint.entries }} zgłoszeń,
+            {{ footprint.submissions }} oddanych prac, {{ footprint.reviews }} wystawionych recenzji),
+            więc <strong>dane osobowe zostaną usunięte</strong>, a anonimowy ślad udziału zostanie:</p>
+          <ul>
+            <li>znikają: imię, nazwisko, adres e-mail, telefon, nazwa szkoły, data i rok urodzenia, hasło,
+              powiązania z kontami Google i Facebooka oraz wszystkie sesje tego konta;</li>
+            <li>zostają: kod publiczny
+              {% if participant %}<span class="code-chip">{{ participant.public_code }}</span>{% endif %}
+              wraz z pracami, ocenami i wierszami w ogłoszonych tabelach wyników.</li>
+          </ul>
+          <p class="hint">Dlaczego tak: ogłoszone wyniki i protokoły recenzji są dokumentacją zawodów,
+            na której opierają się kwalifikacje innych uczestników. Skasowanie ich razem z kontem
+            wyrwałoby kartę z protokołu i przesunęłoby progi kwalifikacyjne.</p>
+        {% endif %}
+        {% if has_supervisor_footprint %}
+          <p>To konto jako opiekun szkolny potwierdziło udział szkoły w
+            {{ footprint.school_participations }} edycjach, więc <strong>dane osobowe zostaną
+            usunięte</strong> (imię, nazwisko, e-mail, telefon, nazwa szkoły), a same potwierdzenia
+            zostają – na nich opiera się lista szkół biorących udział w danej edycji.</p>
+        {% endif %}
       {% else %}
         <h2 class="mt-0">Co się stanie z tym kontem</h2>
-        <p>To konto nie ma powiązanych zgłoszeń, prac ani recenzji, więc zostanie
-          <strong>usunięte w całości</strong> – razem z profilem, zgodami i wszystkimi danymi
-          osobowymi. Adres e-mail zwolni się do ponownej rejestracji.</p>
+        <p>To konto nie ma powiązanych zgłoszeń, prac, recenzji ani potwierdzonych udziałów szkoły
+          w żadnej edycji, więc zostanie <strong>usunięte w całości</strong> – razem z profilem,
+          zgodami i wszystkimi danymi osobowymi. Adres e-mail zwolni się do ponownej rejestracji.</p>
       {% endif %}
       <p class="hint">Jeżeli chodzi wyłącznie o odcięcie logowania, wróć do edycji konta i odznacz
         „Konto aktywne” – blokadę da się cofnąć, usunięcia nie.</p>

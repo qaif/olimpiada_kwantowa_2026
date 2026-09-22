@@ -172,6 +172,97 @@ def test_deleting_an_account_without_a_footprint_leaves_only_the_audit_trail(act
     assert entry.diff == {"user_id": pk}
 
 
+# --- opiekun szkolny (B2, 22.09.2026) ------------------------------------------------------------
+
+
+def _supervisor_with_confirmed_participation(*, email: str):
+    """Konto opiekuna z jedną zgodą i jednym potwierdzeniem udziału szkoły w edycji."""
+    from django.contrib.auth.models import Group
+
+    from apps.accounts.consents import ConsentKind
+    from apps.accounts.models import GROUP_SUPERVISOR, ConsentRecord, SchoolParticipation, SchoolSupervisor
+    from apps.competitions.tests.factories import CurrentEditionFactory
+    from apps.tenancy.tests.factories import current_or_default_competition
+
+    user = UserFactory(email=email)
+    user.groups.add(Group.objects.get_or_create(name=GROUP_SUPERVISOR)[0])
+    competition = current_or_default_competition()
+    supervisor = SchoolSupervisor.objects.create(
+        user=user, school="XIV LO", phone="600100200", competition=competition
+    )
+    ConsentRecord.objects.create(
+        supervisor=supervisor, kind=ConsentKind.TERMS, document_version="1.0", source="web"
+    )
+    edition = CurrentEditionFactory(competition=competition)
+    SchoolParticipation.objects.create(supervisor=supervisor, edition=edition)
+    return supervisor
+
+
+def test_deleting_a_pure_supervisor_with_a_confirmed_participation_is_anonymised(actor):
+    """B2: bez tego SchoolParticipation nie liczyło się do śladu, więc konto szłoby w kasację."""
+    from apps.accounts.models import SchoolParticipation, SchoolSupervisor
+
+    supervisor = _supervisor_with_confirmed_participation(email="opiekun.usuwany@szkola.test")
+    user = supervisor.user
+
+    assert delete_account_by_coordinator(user, actor=actor) == "anonymised"
+
+    user.refresh_from_db()
+    assert user.is_active is False
+    assert user.first_name == ""
+    assert SchoolSupervisor.objects.filter(pk=supervisor.pk).exists()
+    supervisor.refresh_from_db()
+    assert supervisor.school == ""
+    assert supervisor.phone == ""
+    assert SchoolParticipation.objects.filter(supervisor=supervisor).exists()
+    assert not supervisor.consents.filter(withdrawn_at__isnull=True).exists()
+
+
+def test_deleting_a_supervisor_without_any_footprint_is_a_hard_delete(actor):
+    """Bez potwierdzenia udziału ani jednej edycji nie ma czego chronić – tak samo jak u uczestnika."""
+    from django.contrib.auth.models import Group
+
+    from apps.accounts.models import GROUP_SUPERVISOR, SchoolSupervisor
+    from apps.tenancy.tests.factories import current_or_default_competition
+
+    user = UserFactory(email="opiekun.bez-sladu@szkola.test")
+    user.groups.add(Group.objects.get_or_create(name=GROUP_SUPERVISOR)[0])
+    SchoolSupervisor.objects.create(user=user, school="XIV LO", competition=current_or_default_competition())
+    pk = user.pk
+
+    assert delete_account_by_coordinator(user, actor=actor) == "deleted"
+    assert not User.objects.filter(pk=pk).exists()
+
+
+def test_deleting_a_dual_role_account_anonymises_both_profiles(actor):
+    """Uczestnik, który jest też opiekunem: oba profile czyszczą się w jednym przebiegu."""
+    from apps.accounts.consents import ConsentKind
+    from apps.accounts.models import ConsentRecord, SchoolSupervisor
+    from apps.competitions.tests.factories import StageEntryFactory
+    from apps.tenancy.tests.factories import current_or_default_competition
+
+    participant = ParticipantFactory()
+    supervisor = SchoolSupervisor.objects.create(
+        user=participant.user,
+        school="I LO",
+        phone="600300400",
+        competition=current_or_default_competition(),
+    )
+    ConsentRecord.objects.create(
+        supervisor=supervisor, kind=ConsentKind.TERMS, document_version="1.0", source="web"
+    )
+    StageEntryFactory(participant=participant)
+
+    assert delete_account_by_coordinator(participant.user, actor=actor) == "anonymised"
+
+    participant.refresh_from_db()
+    supervisor.refresh_from_db()
+    assert participant.school == "—"
+    assert supervisor.school == ""
+    assert supervisor.phone == ""
+    assert not supervisor.consents.filter(withdrawn_at__isnull=True).exists()
+
+
 def test_deleting_your_own_account_still_has_no_actor_in_the_audit():
     """Zachowanie ``delete_own_account`` po wydzieleniu wspólnego rdzenia – bez zmian.
 

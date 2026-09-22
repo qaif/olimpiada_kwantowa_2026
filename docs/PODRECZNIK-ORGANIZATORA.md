@@ -845,6 +845,15 @@ kalendarz rocznika) nie może anonimizować startujących. Konta komitetu i koor
 Anonimizacja jest **nieodwracalna**, więc ekran jest planem, a przycisk **„Wykonaj teraz”** wykonuje ten
 sam przebieg synchronicznie, z potwierdzeniem.
 
+**Opiekunowie szkolni nie wchodzą (jeszcze) do tego automatu** (stan na 22.09.2026, patrz docstring
+`apps/accounts/retention.py`). Reguła „czy wolno już wyczyścić to konto” jest tu napisana w
+słowniku uczestnika (zgłoszenia, reklamacje, publikacja wyników) i nie umie dziś rozstrzygnąć
+analogicznego pytania dla nauczyciela („czy nie prowadzi klasy w edycji, która jeszcze trwa”).
+Konto opiekuna, które organizator chce mimo to wyczyścić, usuwa się **ręcznie** z listy kont
+(`/coordinator/accounts/` → filtr „opiekunowie” → „Usuń konto”) — ten ekran już poprawnie
+anonimizuje profil opiekuna (szkoła, telefon, zgody znikają; potwierdzenia udziału szkoły w
+edycjach zostają, jeśli takie są — patrz § 10).
+
 ### 9.2 Rejestr czynności przetwarzania — `/coordinator/processing-register/`
 
 Dokument wymagany art. 30 ust. 1 RODO, **gotowy do wydania na żądanie**. Obejmuje dziewięć czynności:
