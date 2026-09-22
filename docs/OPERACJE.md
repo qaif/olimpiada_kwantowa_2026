@@ -1182,3 +1182,28 @@ Polecenie uruchamia cały zbiór w lokalnym środowisku (ok. pół godziny) i na
 `backend/.test_durations`; wtyczka `backend/ci_durations_plugin.py` sumuje czas przygotowania,
 wykonania i sprzątania każdego testu. Plik commituje się jak każdy inny. Czasy z maszyny lokalnej
 różnią się od czasów w CI co do wartości, ale nie co do proporcji – a podział zależy tylko od nich.
+
+## 11. Wyszukiwarka szkół: rozszerzenie `pg_trgm` (v0.31.2)
+
+Migracja `schools.0006_pg_trgm_search_indexes` wymaga rozszerzenia PostgreSQL **`pg_trgm`**
+(indeksy GIN pod `search_text`/`city_search`, klasa operatorów `gin_trgm_ops` – zastąpiły trzy
+indeksy B-tree bez ani jednego skanu na produkcji, patrz `docs/CHANGELOG.md` v0.31.2). Rozszerzenie
+zakłada sama migracja (`django.contrib.postgres.operations.TrigramExtension`,
+`CREATE EXTENSION IF NOT EXISTS pg_trgm`) — nic nie trzeba robić ręcznie przed wdrożeniem, o ile
+spełniony jest jeden warunek środowiska:
+
+- **obraz bazy ma zawierać `pg_trgm`.** Obraz `postgres:16-alpine`, którego używa
+  `docker-compose.yml` i produkcja (§ 9.1: PostgreSQL ≥ 15, produkcja ma 16), zawiera go w pakiecie
+  `contrib` domyślnie — nie trzeba doinstalowywać żadnego pakietu systemowego,
+- **rola aplikacyjna nie potrzebuje uprawnień superużytkownika.** `pg_trgm` jest rozszerzeniem
+  *zaufanym* (*trusted*) od PostgreSQL 13 — właściciel bazy (rola, na której działa aplikacja) może
+  je założyć sam, tak jak każdą inną migrację. Gdyby instalacja kiedyś trafiła na PostgreSQL < 13
+  albo na zarządzaną usługę, która nie oznacza `pg_trgm` jako zaufane, migracja przerwie się na
+  `CREATE EXTENSION` z błędem uprawnień — rozwiązaniem jest jednorazowe `CREATE EXTENSION pg_trgm;`
+  wykonane przez administratora bazy przed `python manage.py migrate`.
+
+`CREATE EXTENSION IF NOT EXISTS` jest idempotentne, więc migracja jest bezpieczna do ponownego
+uruchomienia (kolejne wdrożenie, przywrócenie z kopii zapasowej) i bezpieczna na bazie testowej —
+`pytest-django` zakłada testową bazę tym samym mechanizmem migracji co produkcję. Czas blokady:
+`CREATE INDEX` na ośmiu tysiącach wierszy `schools_school` to ułamek sekundy, więc migracja nie
+wymaga osobnego okna serwisowego.
