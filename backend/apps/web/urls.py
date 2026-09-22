@@ -703,6 +703,14 @@ urlpatterns = [
         coordinator_accounts.CoordinatorTwoFactorResetView.as_view(),
         name="coordinator-account-2fa-reset",
     ),
+    # „Zresetuj mi hasło” – koordynator wysyła cudzemu kontu ten sam list, co samoobsługowy
+    # formularz „Nie pamiętasz hasła?”. POST, bo to decyzja organizatora, a nie odczyt strony,
+    # i zostawia w audycie ``password.reset_sent`` pod jego nazwiskiem (decyzja z 22.09.2026).
+    path(
+        "coordinator/accounts/<int:pk>/password-reset/",
+        coordinator_accounts.CoordinatorPasswordResetView.as_view(),
+        name="coordinator-account-password-reset",
+    ),
     # Wyniki etapu: stan publikacji plus dwa przyciski. Wejście na adres niczego nie przelicza –
     # przeliczenie zapisuje sumy punktów wpisów, więc jest czynnością (POST), a nie otwarciem strony.
     path(
