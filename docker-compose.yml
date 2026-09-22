@@ -92,7 +92,11 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
-      start_period: 40s
+      # 180 s, nie 40: entrypoint robi migracje i collectstatic **przed** startem gunicorna,
+      # a po większych wydaniach (v0.29.1, v0.30.0 – 22.09.2026) trwało to dłużej niż okres
+      # rozruchu plus pięć prób. Compose ogłaszał „web unhealthy”, wdrożenie przerywało się
+      # na kroku 4b, a kontener wstawał zdrowy pół minuty później – i trzeba było je ponawiać.
+      start_period: 180s
 
   worker:
     <<: *app-base
