@@ -311,7 +311,16 @@ QUERY_BUDGET = {
     # przez Wagtaila dla tej samej instancji ``Site`` (``{% get_settings %}`` w tym samym
     # szablonie), więc widoczny przyrost to tu tylko jedno zapytanie. Panel koordynatora
     # i uczestnika (niżej) nie mają tego współdzielenia – tam widać oba.
-    "/": 33,
+    #
+    # +1 od 22.09.2026: pozycja menu „Dla nauczycieli” (``apps.cms.context_processors.
+    # _supervisor_menu_item``) pyta o przełącznik ``SiteSettings.supervisor_registration_enabled``
+    # **od razu**, a nie leniwie jak procesor ``apps.web.context_processors.supervisor_registration`` –
+    # menu musi znać wynik, żeby wiedzieć, czy w ogóle dołożyć pozycję. Pytanie ma trzydziestosekundową
+    # pamięć podręczną na proces (``apps.accounts.supervisors._registration_cache``), więc to jest
+    # jedno zapytanie na pół minuty na instalację, nie jedno na żądanie – próg mierzy tu jednak stan
+    # zimny (patrz ``_reset_panel_counters`` niżej), bo inaczej wynik zależałby od tego, co przed tym
+    # testem zdążyło wygrzać pamięć w tym samym procesie.
+    "/": 34,
     # 47 = 46 + zapytanie nagłówka CSP o identyfikator GA4, liczone od 21.09.2026 zawsze na zimno
     # (patrz ``_reset_panel_counters``). To nie jest nowy koszt strony, tylko koniec zależności
     # pomiaru od kolejności testów.
@@ -336,6 +345,7 @@ def _reset_panel_counters():
     liczba zapytań na pulpicie byłaby raz „z pamięcią”, raz „bez” – a próg, który raz łapie, a raz
     nie, jest gorszy niż brak progu.
     """
+    from apps.accounts.supervisors import reset_registration_cache
     from apps.cms import analytics
     from apps.web.coordinator_nav import invalidate_counters
 
@@ -345,11 +355,17 @@ def _reset_panel_counters():
     # biegło przed tym modułem w tym samym procesie – a od podziału testów na shardy w CI
     # (v0.27.2) kolejność zmienia się z każdym dołożonym testem. Wyszło to 21.09.2026: ten sam
     # kod dawał 46 zapytań w całym zbiorze i 47 w pojedynkę. Mierzymy zawsze **na zimno**.
+    #
+    # Trzeci: przełącznik rejestracji opiekunów szkolnych (``apps.accounts.supervisors``), od
+    # 22.09.2026 czytany bezwarunkowo przez menu CMS na każdej stronie (``_supervisor_menu_item``) –
+    # ten sam powód, ta sama pamięć trzydziestosekundowa na proces.
     analytics._cache.clear()
     invalidate_counters()
+    reset_registration_cache()
     yield
     invalidate_counters()
     analytics._cache.clear()
+    reset_registration_cache()
 
 
 def test_query_counts_unchanged_on_the_home_page(

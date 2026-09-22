@@ -953,9 +953,11 @@ z 19.09.2026 na wyraźną prośbę — rola nie była jeszcze ogłaszana). Żeby
 2. Od tej chwili, bez restartu i bez czekania: `/register/supervisor/` odpowiada formularzem zamiast
    404-ki; na `/register/` i na `/login/` pojawia się linia „Jesteś nauczycielem? Zarejestruj się jako
    opiekun szkolny”; profil uczestnika (`/me/` → Profil) pokazuje pole „Adres e-mail opiekuna
-   szkolnego”.
-3. **Wyłączenie chowa z powrotem wszystkie trzy** — adres rejestracji znów daje 404, odnośniki znikają,
-   pole profilu jest zdejmowane z formularza (nie tylko ukrywane). Konta opiekunów, które już powstały,
+   szkolnego”; głównemu menu (dla niezalogowanego czytelnika) przybywa ostatnia pozycja „Dla
+   nauczycieli”, prowadząca na ten sam adres (prośba organizatora z 22.09.2026).
+3. **Wyłączenie chowa z powrotem wszystkie cztery** — adres rejestracji znów daje 404, odnośniki
+   i pozycja menu znikają, pole profilu jest zdejmowane z formularza (nie tylko ukrywane). Konta
+   opiekunów, które już powstały,
    **nie tracą dostępu**: panel `/supervisor/` działa dalej, a uczeń, który już wpisał adres opiekuna,
    nie traci tego wpisu.
 

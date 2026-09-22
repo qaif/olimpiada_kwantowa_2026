@@ -10,10 +10,14 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 
 ## Niewydane (po `v0.31.0`)
 
-- Brak. Nie zlecone: drzewo CMS dla konkursu w trybie prefiksu ścieżki (uwaga T43),
-  edytor przebiegu przenoszący „przypisz kategorie” do warstwy serwisów. Forum w wersji pierwszej
-  świadomie **nie ma** powiadomień e-mail, wiadomości prywatnych, załączników, polubień ani
-  rankingów — uzasadnienie każdej z tych decyzji stoi w `PODRECZNIK-ORGANIZATORA.md` § 6.4.
+| Wersja | Data | Zmiana |
+|---|---|---|
+| **v0.31.1** | 2026-09-22 | osobna pozycja głównego menu „Dla nauczycieli” (prośba organizatora z 22.09.2026): odnośnik do `/register/supervisor/` stoi teraz jako ostatnia pozycja menu, za drzewem CMS (albo za listą zapasową), a nie tylko na `/register/` i na `/login/` jak dotąd; widoczna wyłącznie niezalogowanemu czytelnikowi i wyłącznie na witrynie, która ma dziś włączony przełącznik `SiteSettings.supervisor_registration_enabled` (`apps/cms/context_processors.py::_supervisor_menu_item`) – ten sam warunek, co reszta odnośników do tej roli. Budżet zapytań strony głównej (`apps/tenancy/tests/test_invariants.py::QUERY_BUDGET["/"]`) rośnie o jedno zapytanie: menu, w przeciwieństwie do leniwego procesora `supervisor_registration`, musi znać wynik przełącznika od razu, żeby wiedzieć, czy w ogóle dołożyć pozycję (nadal trzydziestosekundowa pamięć podręczna na proces, nie zapytanie na żądanie)
+
+Nie zlecone: drzewo CMS dla konkursu w trybie prefiksu ścieżki (uwaga T43), edytor przebiegu
+przenoszący „przypisz kategorie” do warstwy serwisów. Forum w wersji pierwszej świadomie **nie ma**
+powiadomień e-mail, wiadomości prywatnych, załączników, polubień ani rankingów — uzasadnienie
+każdej z tych decyzji stoi w `PODRECZNIK-ORGANIZATORA.md` § 6.4.
 
 ## Wydania
 

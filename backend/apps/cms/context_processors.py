@@ -20,6 +20,10 @@ Jedna pozycja menu ma listę rozwijaną: sekcja dokumentów (``DocumentIndexPage
 regułą ogólną wysypałby do nagłówka wszystkie aktualności, a archiwum – wszystkie edycje.
 Dzieci czytamy jednym zapytaniem dla całego menu, więc dołożenie kolejnego dokumentu nie dokłada
 zapytania do każdej strony serwisu.
+
+Jedna pozycja nie pochodzi z drzewa Wagtaila: „Dla nauczycieli” (prośba organizatora z 22.09.2026,
+patrz ``_supervisor_menu_item``) stoi zawsze **ostatnia**, za drzewem albo za listą zapasową, i tylko
+dla niezalogowanego czytelnika na witrynie, która ma dziś włączoną rejestrację opiekunów szkolnych.
 """
 
 from __future__ import annotations
@@ -103,6 +107,44 @@ def _ordered(items: list[dict]) -> list[dict]:
     rank = {slug: index for index, slug in enumerate(MENU_ORDER)}
     # ``sorted`` jest stabilne, więc pozycje spoza listy zachowują kolejność, w jakiej przyszły.
     return sorted(items, key=lambda item: rank.get(item["slug"], len(rank)))
+
+
+def _supervisor_menu_item(request) -> dict | None:
+    """Osobna pozycja menu „Dla nauczycieli” – prośba organizatora z 22.09.2026.
+
+    Do tej pory rejestracja opiekuna szkolnego (``/register/supervisor/``) miała odnośnik
+    wyłącznie na ``/register/`` i na ``/login/``; organizator poprosił o osobną pozycję w głównym
+    menu, bo nauczyciel szukający konta nie zawsze trafia na stronę logowania uczestnika.
+
+    Warunek jest **wyłącznie** dla niezalogowanych: konto, które już jest zalogowane (uczestnik,
+    koordynator, opiekun z gotowym profilem), nie ma z odnośnika żadnego pożytku – nie zarejestruje
+    się nim drugi raz. Nie sprawdzamy przy tym, którą to rolę ma zalogowana osoba (uczestnik czy już
+    opiekun) – reguła „zalogowany = nie pokazuj” jest prosta i nie rozjeżdża się z każdą nową rolą,
+    jaka kiedyś dojdzie do systemu.
+
+    Przełącznik czytamy tą samą funkcją, którą bramkuje sam adres i którą pyta procesor
+    ``apps.web.context_processors.supervisor_registration`` na ``/register/`` i na ``/login/`` –
+    odnośnik i adres, do którego prowadzi, muszą odpowiadać na to samo pytanie „czy ta witryna
+    oferuje dziś tę rolę”, inaczej pozycja menu na cudzej witrynie prowadziłaby w 404. W przeciwieństwie
+    do tamtego procesora wołamy funkcję **od razu**, a nie leniwie za ``SimpleLazyObject`` – trzeba
+    znać wynik, żeby wiedzieć, czy w ogóle dokładać pozycję do listy.
+
+    Zapytanie kosztuje to samo, co gdziekolwiek indziej: przełącznik ma trzydziestosekundową pamięć
+    podręczną na proces (``apps.accounts.supervisors._registration_cache``), czyszczoną od razu przy
+    zapisie ``cms.SiteSettings`` w /cms/ – tym samym sygnałem, który unieważnia też stronę w anonimowej
+    pamięci podręcznej (``apps.web.page_cache``, nasłuch na ``SiteSettings``), więc zmiana organizatora
+    jest widoczna od razu na obu warstwach, a nie dopiero po wygaśnięciu TTL.
+    """
+    from django.urls import reverse
+
+    from apps.accounts.supervisors import registration_enabled_for_request
+
+    user = getattr(request, "user", None)
+    if user is not None and getattr(user, "is_authenticated", False):
+        return None
+    if not registration_enabled_for_request(request):
+        return None
+    return _menu_item("nauczyciele", "Dla nauczycieli", reverse("web:register-supervisor"), request)
 
 
 def _expandable_children(pages: list, request) -> tuple[dict[int, list[dict]], list[dict]]:
@@ -200,6 +242,14 @@ def cms_menu(request) -> dict:
         else []
     )
     menu = items or fallback
+    if menu:
+        # Ostatnia pozycja, za drzewem CMS albo za listą zapasową – tak samo jak domek wyżej, konkurs
+        # bez żadnej pozycji menu (drzewo puste, brak witryny domyślnej) nie dostaje jej też: nagłówek
+        # bez nawigacji jest tu uczciwą odpowiedzią, a osobna pozycja bez reszty menu wyglądałaby na
+        # pomyłkę renderowania, nie na świadomy wybór.
+        supervisor_item = _supervisor_menu_item(request)
+        if supervisor_item is not None:
+            menu = [*menu, supervisor_item]
     # Osobna lista dla przyklejonego paska zamiast filtrowania w szablonie: pasek i menu serwisu
     # czytają to samo źródło, a pasek pokazuje swoje pozycje dopiero po przyklejeniu (skrypt
     # static/js/sticky-bar.js) – dolne menu zostaje w pełnym składzie.
