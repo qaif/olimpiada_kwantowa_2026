@@ -291,6 +291,19 @@ class SiteSettings(BaseSiteSetting):
     #: Pole, a nie zmienna środowiskowa – z tego samego powodu, co identyfikator GA4 niżej:
     #: to jest decyzja organizatora podejmowana w trakcie edycji, a przy zmiennej każde jej
     #: odwrócenie byłoby wdrożeniem.
+    #: Tekst nad formularzem rejestracji opiekuna szkolnego. Domyślnie **pusty** – organizator
+    #: 22.09.2026 kazał zdjąć wstęp z tej strony („usuń tylko ten tekst nad formularzem”) i zapytał,
+    #: czy da się go redagować z /cms/. Pole zamiast twardego usunięcia: pusty = brak akapitu,
+    #: wpisany = akapit nad formularzem, bez wdrożenia przy każdej zmianie brzmienia. Formaty
+    #: ograniczone do pogrubienia, kursywy i odnośnika – to jeden akapit wstępu, nie strona.
+    supervisor_registration_intro = RichTextField(
+        "wstęp nad formularzem rejestracji opiekunów",
+        blank=True,
+        default="",
+        features=["bold", "italic", "link"],
+        help_text="Puste = nad formularzem /register/supervisor/ nie ma żadnego tekstu.",
+    )
+
     supervisor_registration_enabled = models.BooleanField(
         "rejestracja opiekunów szkolnych",
         default=False,
@@ -438,7 +451,11 @@ class SiteSettings(BaseSiteSetting):
             heading="Media społecznościowe",
         ),
         MultiFieldPanel(
-            [FieldPanel("registration_note"), FieldPanel("supervisor_registration_enabled")],
+            [
+                FieldPanel("registration_note"),
+                FieldPanel("supervisor_registration_enabled"),
+                FieldPanel("supervisor_registration_intro"),
+            ],
             heading="Rejestracja",
         ),
         # Osobna sekcja, a nie pole doklejone do „Rejestracji”: język interfejsu obowiązuje na

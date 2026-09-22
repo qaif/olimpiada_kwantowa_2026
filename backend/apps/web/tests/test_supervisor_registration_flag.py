@@ -162,3 +162,39 @@ def test_po_wlaczeniu_uczestnik_znow_widzi_pole_adresu_opiekuna(
     web_client.force_login(participant.user)
     body = web_client.get(reverse("web:profile")).content.decode()
     assert "supervisor_email" in body
+
+
+# --- wstęp nad formularzem z ustawień witryny (22.09.2026) ------------------------------------
+
+
+def _site_settings():
+    from wagtail.models import Site
+
+    from apps.cms.models import SiteSettings
+
+    return SiteSettings.for_site(Site.objects.get(is_default_site=True))
+
+
+def test_domyslnie_nad_formularzem_opiekuna_nie_ma_zadnego_wstepu(web_client, supervisor_registration_on):
+    """Organizator 22.09.2026: „usuń tylko ten tekst nad formularzem” – pole puste, więc akapitu nie ma."""
+    response = web_client.get(reverse("web:register-supervisor"))
+    assert response.status_code == 200
+    body = response.content.decode()
+    assert "Rejestracja opiekuna szkolnego" in body
+    assert "auth__intro" not in body
+    assert "Konto dla nauczyciela" not in body
+
+
+def test_wstep_wpisany_w_cms_pojawia_sie_nad_formularzem(web_client, supervisor_registration_on):
+    """Ten sam tekst redagowany z /cms/ zamiast z szablonu: wpisany – jest, wyczyszczony – znika."""
+    row = _site_settings()
+    row.supervisor_registration_intro = "<p>Konto dla <b>nauczyciela</b> prowadzącego uczniów.</p>"
+    row.save()
+    body = web_client.get(reverse("web:register-supervisor")).content.decode()
+    assert "auth__intro" in body
+    assert "Konto dla <b>nauczyciela</b> prowadzącego uczniów." in body
+
+    row.supervisor_registration_intro = ""
+    row.save()
+    body = web_client.get(reverse("web:register-supervisor")).content.decode()
+    assert "auth__intro" not in body
