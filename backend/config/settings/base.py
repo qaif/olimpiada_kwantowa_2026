@@ -324,6 +324,13 @@ CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": REDIS_URL,
+        # Awaria/niedostępność Redisa ma degradować funkcje, które z niego korzystają (cache stron
+        # publicznych – apps/web/page_cache.py, komunikaty i slider sponsorów – apps/cms/*), a nie
+        # wywracać każde żądanie pięćsetką. Bez tej flagi ``django-redis`` przepuszcza wyjątek
+        # połączenia do wołającego; ``apps.web.page_cache`` ma dodatkowo **własne**, niezależne
+        # zabezpieczenie (patrz ``_safe_get``/``_safe_set``/``_safe_incr``) na wypadek, gdyby ta
+        # opcja kiedyś zniknęła albo backend się zmienił.
+        "OPTIONS": {"IGNORE_EXCEPTIONS": True},
     }
 }
 

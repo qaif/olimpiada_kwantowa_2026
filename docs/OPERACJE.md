@@ -1296,9 +1296,11 @@ reszta serwisu) przez `PAGE_CACHE_SECONDS` (domyślnie 120 s).
 
 **Co jest cache'owane.** Wyłącznie allow-lista adresów (kod źródłowy w `apps/web/page_cache.py`,
 stałe `ALLOWED_PATHS`/`ALLOWED_PREFIXES`), wyłącznie `GET`/`HEAD`, wyłącznie gość (niezalogowany,
-bez sesji zmienionej w trakcie obsługi – komunikat organizatora, przełącznik wysokiego kontrastu),
-wyłącznie odpowiedź 200 z `Content-Type: text/html` bez `Set-Cookie` i bez `Vary`. Parametr
-zapytania: tylko `?page=<liczba>`, każdy inny wyłącza cache dla tego żądania.
+bez sesji zmienionej w trakcie obsługi – przełącznik wysokiego kontrastu, i bez komunikatu
+organizatora **wyświetlonego** w tym żądaniu – sprawdzenie niezależne od `session.modified`, patrz
+niżej), wyłącznie odpowiedź 200 z `Content-Type: text/html` bez `Set-Cookie`, bez `Vary` i nie
+większa niż 512 KiB. Parametr zapytania: tylko `?page=<liczba>`, każdy inny wyłącza cache dla tego
+żądania.
 
 **Czego cache nigdy nie obejmuje i dlaczego:** panel koordynatora, konto, API, `/cms/`, `/admin/`,
 formularze rejestracji – każdy z nich renderuje coś zależnego od tożsamości albo przyjmuje POST,
@@ -1307,6 +1309,24 @@ a allow-lista (nie deny-lista) sprawia, że nowy adres jest bezpieczny z definic
 strony przez `templates/base.html`, atrybut `hx-headers`) nie są nigdy przechowywane – w cache'u
 leży placeholder, a świeżą wartość dostaje każde żądanie osobno (patrz docstring modułu za pełne
 uzasadnienie).
+
+**Uwaga o komunikatach organizatora:** `request.session.modified` **nie wystarcza** jako sygnał
+„komunikat został pokazany” – `MessageMiddleware` konsumuje kolejkę i zapisuje ją z powrotem do
+sesji dopiero w swojej fazie odpowiedzi, a `PageCacheMiddleware` stoi niżej w łańcuchu (patrz
+docstring modułu), więc widzi sesję **przed** tym zapisem. Warstwa sprawdza więc magazyn
+komunikatów wprost (`request._messages.used`/`.added_new`) – ustawiany już w trakcie renderowania
+szablonu (`{% if messages %}`).
+
+**Odporność na awarię Redisa.** `CACHES["default"]["OPTIONS"]["IGNORE_EXCEPTIONS"]` każe
+`django-redis` połykać błędy połączenia; sama warstwa dodatkowo opakowuje własne wywołania cache'a
+(`_safe_get`/`_safe_set`/`_safe_incr`) w drugie, niezależne zabezpieczenie. Skutek: gdy Redis nie
+odpowiada, strona renderuje się normalnie (BYPASS albo MISS bez zapisu) zamiast kończyć się
+pięćsetką.
+
+**Cache-Control.** Każda odpowiedź HIT i MISS z tej warstwy dostaje `Cache-Control: private,
+no-store` (``setdefault`` – widok, który sam ustawił ten nagłówek, wygrywa). To jest wyłącznie
+zaprzeczenie w drugą stronę: cache jest po stronie serwera, a nagłówek pilnuje, żeby żaden
+pośredniczący proxy/CDN nie zbuforował po swojej stronie materializowanego nonce'u/tokenu CSRF.
 
 **Klucz** niesie: wersję globalną, wersję witryny konkursu, identyfikator konkursu, język
 interfejsu, ścieżkę i `?page=`. Wersje to liczniki (`INCR`) – unieważnienie nigdy nie wylicza
