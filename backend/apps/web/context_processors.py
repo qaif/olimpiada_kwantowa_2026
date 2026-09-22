@@ -12,6 +12,15 @@ bazowego – dlatego zapytanie jest opakowane w ``try``.
 ta sama lista, z której korzysta allauth (``settings.SOCIALACCOUNT_PROVIDERS[...]["APPS"]``),
 budowana w ``config/settings/base.py`` ze zmiennych środowiskowych. Dzięki temu przycisk nie może
 pojawić się dla dostawcy, którego allauth nie zna – kliknięcie kończyłoby się błędem 500.
+
+``supervisor_registration`` mówi stronom publicznym (``/register/``, ``/login/``,
+``/register/supervisor/``), czy pokazać odnośnik do rejestracji opiekuna szkolnego. Wartość jest
+**leniwa** (``SimpleLazyObject``): przełącznik czyta się zapytaniem, które nie jest opakowane
+w konkurs z żądania (patrz ``apps.accounts.supervisors.registration_enabled``), więc doliczenie go
+na sztywno do każdej strony podniosłoby budżet zapytań strony głównej
+(``apps.tenancy.tests.test_invariants.QUERY_BUDGET["/"]``), choć strona główna tej wartości nie
+pokazuje. Leniwość sprawia, że zapytanie pada wyłącznie tam, gdzie szablon naprawdę odczytuje
+``{{ supervisor_registration_open }}``.
 """
 
 import logging
@@ -21,11 +30,12 @@ from django.conf import settings
 from django.db import DatabaseError
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.functional import SimpleLazyObject
 
 from apps.accounts.consents import MINOR_MAX_AGE, consent_set
 from apps.accounts.models import CompetitionRole
 from apps.accounts.services import active_reviewer_profile, participant_for, roles_for
-from apps.accounts.supervisors import supervisor_profile
+from apps.accounts.supervisors import registration_enabled, supervisor_profile
 from apps.appeals.services import appeals_committee_profile
 
 logger = logging.getLogger(__name__)
@@ -152,6 +162,17 @@ def social_providers(request) -> dict:
             if (configured.get(provider_id) or {}).get("APPS")
         ]
     }
+
+
+def supervisor_registration(request) -> dict:
+    """Czy pokazać odnośnik do rejestracji opiekuna szkolnego – leniwie, patrz docstring modułu.
+
+    Wartość liczy ``apps.accounts.supervisors.registration_enabled()`` – ta sama funkcja, która
+    bramkuje sam adres ``/register/supervisor/`` i zdejmuje pole „adres opiekuna” z profilu
+    uczestnika. Trzy powierzchnie, jedna reguła: rozjazd któregokolwiek z nich znaczyłby odnośnik
+    prowadzący w 404 albo pole bez odnośnika, który by je tłumaczył.
+    """
+    return {"supervisor_registration_open": SimpleLazyObject(registration_enabled)}
 
 
 #: Klucz podręczny na obiekcie żądania. Procesory kontekstu odpalają się **raz na renderowanie

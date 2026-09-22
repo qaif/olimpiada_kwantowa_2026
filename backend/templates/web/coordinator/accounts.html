@@ -89,7 +89,7 @@
               zapytania więcej. Znacznik zostaje **po** aktywacji –
               opisuje pochodzenie konta, a nie jego stan (ten jest w kolumnie obok).
             {% endcomment %}
-            <td>{{ row.role }}{% if row.protected %} <span class="badge badge--neutral">chronione</span>{% endif %}{% if row.participant.invited_at %} <span class="badge badge--info">z importu</span>{% endif %}</td>
+            <td>{{ row.role }}{% if row.supervisor_school %} ({{ row.supervisor_school }}){% endif %}{% if row.protected %} <span class="badge badge--neutral">chronione</span>{% endif %}{% if row.participant.invited_at %} <span class="badge badge--info">z importu</span>{% endif %}</td>
             <td>{{ row.public_code|default:"—" }}</td>
             <td>{{ row.status }}</td>
             <td>{{ row.user.date_joined|local_datetime }}</td>

@@ -235,6 +235,10 @@ TEMPLATES = [
                 # Lista skonfigurowanych dostawców OAuth (Google/Facebook). Przycisk pojawia się
                 # wyłącznie wtedy, gdy dostawca ma w środowisku komplet kluczy.
                 "apps.web.context_processors.social_providers",
+                # Czy pokazać odnośnik do rejestracji opiekuna szkolnego (``/register/``,
+                # ``/login/``, ``/register/supervisor/``). Wartość jest leniwa – patrz docstring
+                # modułu – więc strony, które jej nie pokazują, nie płacą za nią zapytaniem.
+                "apps.web.context_processors.supervisor_registration",
                 # Menu części informacyjnej (strony Wagtaila oznaczone „pokaż w menu”).
                 "apps.cms.context_processors.cms_menu",
                 # Baner komunikatów organizatora pod nagłówkiem – na każdej stronie serwisu.

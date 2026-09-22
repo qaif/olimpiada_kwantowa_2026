@@ -28,7 +28,7 @@ from django.db.migrations.executor import MigrationExecutor
 from wagtail.models import Locale, Page, Site
 
 from apps.accounts.consents import DEFAULT_CONSENTS
-from apps.accounts.models import ConsentDefinition, ConsentRecord
+from apps.accounts.models import ConsentDefinition
 from apps.tenancy.models import Competition
 
 from .factories import UserFactory
@@ -107,6 +107,22 @@ def make_participant(historical, competition):
     )
 
 
+def make_consent_record(historical, *, participant_id: int, kind: str, version: str):
+    """Dowód zgody wpisany **modelem historycznym** – z tego samego powodu, co ``make_participant``.
+
+    Od ``accounts.0032`` prawdziwa klasa ``ConsentRecord`` ma kolumnę ``supervisor_id``, której na
+    stanie ``0023`` jeszcze nie ma. Model historyczny widzi wyłącznie kolumny swojego punktu
+    w czasie, więc ten sam ``INSERT``/``SELECT`` działa zarówno przed ``migrate_to(AFTER)``, jak
+    i po powrocie ``migrate_to(BEFORE)``.
+    """
+    return historical.get_model("accounts", "ConsentRecord").objects.create(
+        participant_id=participant_id,
+        kind=kind,
+        document_version=version,
+        source="web",
+    )
+
+
 def rows_of(competition) -> list[tuple]:
     definitions = ConsentDefinition.objects.filter(competition=competition).order_by("ordering")
     return [
@@ -151,22 +167,24 @@ def test_the_migration_repeated_restores_the_text_from_the_constant(rewound):  #
 def test_reversing_the_migration_keeps_the_proofs(rewound):
     """Odwrót zabiera definicje, a dowody zostawia – to jest reguła, a nie szczegół wykonania.
 
-    Uczestnika zakłada **model historyczny**: na stanie ``0023`` tabela nie ma jeszcze kolumny
-    ``region_id`` (``accounts.0025``), a prawdziwa klasa wymieniłaby ją w ``INSERT``. Dowód
-    (``ConsentRecord``) zostaje prawdziwy – jego tabela w obu punktach wygląda tak samo.
+    Uczestnika i dowód zakłada **model historyczny** (``make_participant``, ``make_consent_record``):
+    na stanie ``0023`` tabela uczestnika nie ma jeszcze kolumny ``region_id`` (``accounts.0025``),
+    a tabela dowodu – kolumny ``supervisor_id`` (``accounts.0032``); prawdziwa klasa wymieniłaby
+    obie w ``INSERT``/``SELECT``. Wiersz, który opisują, zostaje prawdziwy niezależnie od tego,
+    którym modelem go czytamy – to on jest przedmiotem testu, nie kolumny dołożone później.
     """
     competition = make_competition("pierwsza")
     participant = make_participant(rewound, competition)
-    record = ConsentRecord.objects.create(
+    record = make_consent_record(
+        rewound,
         participant_id=participant.pk,
         kind="TERMS",
-        document_version=DEFAULT_CONSENTS[0].version,
-        source="web",
+        version=DEFAULT_CONSENTS[0].version,
     )
 
     migrate_to(AFTER)
     migrate_to(BEFORE)
 
     assert not ConsentDefinition.objects.filter(competition=competition).exists()
-    kept = ConsentRecord.objects.get(pk=record.pk)
+    kept = rewound.get_model("accounts", "ConsentRecord").objects.get(pk=record.pk)
     assert kept.document_version == DEFAULT_CONSENTS[0].version

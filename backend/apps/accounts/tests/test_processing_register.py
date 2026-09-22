@@ -62,6 +62,20 @@ def test_participant_retention_matches_the_default_of_the_edition_field():
     assert str(DEFAULT_RETENTION_MONTHS) in entry.retention
 
 
+def test_the_supervisor_row_exists_and_flags_the_retention_gap():
+    """1.5 (22.09.2026): rola istniała wcześniej bez ani jednego wiersza – teraz ma swój.
+
+    Termin przechowywania mówi wprost, że automat retencji jej jeszcze nie obejmuje – to jest
+    ten sam dług, udokumentowany w ``apps.accounts.retention`` i w podręczniku organizatora § 9.1,
+    a nie przeoczenie tego wiersza.
+    """
+    entry = next(item for item in ACTIVITIES if item.key == "opiekunowie")
+
+    assert "opiekun" in entry.subjects
+    assert any("zgod" in category for category in entry.categories)
+    assert "nie obejmuje" in entry.retention
+
+
 def test_analytics_is_listed_as_a_recipient_only_behind_consent():
     entry = next(item for item in ACTIVITIES if item.key == "serwis")
     recipients = " ".join(entry.recipients)

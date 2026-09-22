@@ -54,7 +54,7 @@ Po rejestracji strona `/register/done/` mówi „sprawdź skrzynkę”. Na podan
 | Logowanie | `/login/` |
 | Nie pamiętasz hasła | `/password-reset/` — link z listu jest jednorazowy i ważny 24 h |
 | Twoje dane (imię, nazwisko, telefon, województwo, szkoła, klasa, data urodzenia) | `/me/profile/` — przycisk „Edytuj dane” w panelu |
-| **Adres e-mail opiekuna szkolnego** (pole opcjonalne) | `/me/profile/` — dopiero po jego wpisaniu nauczyciel widzi Twój postęp; da się je wyczyścić |
+| **Adres e-mail opiekuna szkolnego** (pole opcjonalne) | `/me/profile/` — dopiero po jego wpisaniu nauczyciel widzi Twój postęp; da się je wyczyścić. Jeśli nauczyciel nie ma jeszcze konta, a organizator włączył tę rejestrację, założy je sam pod `/register/supervisor/` |
 | Zmiana adresu e-mail | `/account/profile/` → `/account/email/` — potwierdzenie idzie na **dotychczasowy** adres |
 | Język interfejsu i tryb wysokiego kontrastu | dwie ikony w pasku konta, na każdej stronie |
 | **Pobranie wszystkich swoich danych** (art. 20 RODO) | `/account/export/` — paczka ZIP z `dane.json` i wgranymi plikami, jedna na 10 minut |

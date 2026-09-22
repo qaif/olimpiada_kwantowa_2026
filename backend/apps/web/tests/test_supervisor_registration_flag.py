@@ -38,6 +38,8 @@ def register_payload(email: str = "nowy.opiekun@szkola.test") -> dict:
         "first_name": "Jan",
         "last_name": "Nauczyciel",
         "school": "Zespół Szkół nr 2",
+        "terms_consent": "on",
+        "gdpr_consent": "on",
         **password_fields(),
         **captcha_fields(),
     }

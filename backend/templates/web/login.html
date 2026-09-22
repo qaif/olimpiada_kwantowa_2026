@@ -28,7 +28,12 @@
       {% translate "Nie masz konta?" %}
       <a href="{% url 'web:register' %}">{% translate "Zarejestruj się" %}</a>.<br>
       {% translate "Członek komitetu z kodem zaproszenia:" %}
-      <a href="{% url 'web:register-committee' %}">{% translate "rejestracja z kodem" %}</a>.</p>
+      <a href="{% url 'web:register-committee' %}">{% translate "rejestracja z kodem" %}</a>.<br>
+      {% if supervisor_registration_open %}
+        {% translate "Jesteś nauczycielem?" %}
+        <a href="{% url 'web:register-supervisor' %}">{% translate "Zarejestruj się jako opiekun szkolny" %}</a>.
+      {% endif %}
+    </p>
   </div>
 </div>
 {% endblock %}

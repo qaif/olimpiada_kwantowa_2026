@@ -930,6 +930,30 @@ przypisywania po nazwie szkoły — oba wyglądają porządniej, ale oba znaczy�
 dostęp do danych ucznia bez jego udziału. Opiekun widzi kod, imię, nazwisko, szkołę i klasę ucznia oraz
 ścieżkę statusu pracy; **nie widzi punktów przed ogłoszeniem wyników, prac ani komentarzy recenzentów**.
 
+**Włączenie rejestracji opiekunów szkolnych.** Konto opiekuna zakłada się samoobsługowo pod adresem
+`/register/supervisor/`, ale sam adres jest domyślnie **ukryty** (organizator wyłączył go w wydaniu
+z 19.09.2026 na wyraźną prośbę — rola nie była jeszcze ogłaszana). Żeby go pokazać:
+
+1. `/cms/` → **Ustawienia** → **Dane serwisu** → zaznacz **„Rejestracja opiekunów szkolnych”**
+   (`SiteSettings.supervisor_registration_enabled`) → zapisz.
+2. Od tej chwili, bez restartu i bez czekania: `/register/supervisor/` odpowiada formularzem zamiast
+   404-ki; na `/register/` i na `/login/` pojawia się linia „Jesteś nauczycielem? Zarejestruj się jako
+   opiekun szkolny”; profil uczestnika (`/me/` → Profil) pokazuje pole „Adres e-mail opiekuna
+   szkolnego”.
+3. **Wyłączenie chowa z powrotem wszystkie trzy** — adres rejestracji znów daje 404, odnośniki znikają,
+   pole profilu jest zdejmowane z formularza (nie tylko ukrywane). Konta opiekunów, które już powstały,
+   **nie tracą dostępu**: panel `/supervisor/` działa dalej, a uczeń, który już wpisał adres opiekuna,
+   nie traci tego wpisu.
+
+**Co widzi nauczyciel po rejestracji.** Formularz zbiera imię, nazwisko, adres e-mail, hasło, szkołę
+(wolny tekst — jeden nauczyciel bywa opiekunem uczniów z kilku placówek, więc nie ma tu wyszukiwarki SIO
+jak u uczestnika), telefon kontaktowy (opcjonalny) oraz zgody na regulamin i RODO — te same dokumenty
+i wersje, co u uczestnika. Po wysłaniu formularza konto **czeka na aktywację**, dokładnie jak konto
+ucznia: list z linkiem aktywacyjnym, 4 godziny na kliknięcie, w razie potrzeby ponowna wysyłka z ekranu
+logowania. Strona „Konto zostało założone” tłumaczy nauczycielowi, co dalej: panel „Moi uczniowie” będzie
+pusty, dopóki uczniowie sami nie wpiszą jego adresu e-mail w swoim profilu — to oni decydują, kto widzi
+ich postęp, nie organizator ani nauczyciel.
+
 ---
 
 ## 11. Kalendarz prowadzenia edycji — ściągawka

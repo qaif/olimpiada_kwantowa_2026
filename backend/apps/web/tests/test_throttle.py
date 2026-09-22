@@ -221,6 +221,29 @@ def test_committee_registration_shares_the_register_scope(web_client):
     assert web_client.post("/register/committee/", payload).status_code == 429
 
 
+@override_settings(REST_FRAMEWORK=rest_framework_with(register="3/min"))
+def test_supervisor_registration_shares_the_register_scope(web_client, supervisor_registration_on):
+    """Rejestracja opiekuna idzie z tego samego licznika, co uczestnik i komitet.
+
+    Payload celowo bez zgód (``terms_consent``/``gdpr_consent``): serwis odrzuca go za każdym
+    razem tym samym błędem (``CONSENT_REQUIRED``), więc odpowiedź jest przewidywalna – 200
+    (formularz z błędem) na każdą z trzech prób, 429 na czwartą. Sam POST konsumuje limit
+    niezależnie od wyniku (``RegisterSupervisorView.throttle_scope = "register"``).
+    """
+    payload = {
+        "email": "opiekun.throttle@example.test",
+        "first_name": "Jan",
+        "last_name": "Nauczyciel",
+        "school": "Zespół Szkół nr 2",
+        **password_fields(),
+        **captcha_fields(),
+    }
+    for attempt in range(3):
+        assert web_client.post("/register/supervisor/", payload).status_code == 200, attempt
+
+    assert web_client.post("/register/supervisor/", payload).status_code == 429
+
+
 # --- upload przez UI ---------------------------------------------------------------------------
 
 

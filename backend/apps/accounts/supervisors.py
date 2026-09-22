@@ -33,7 +33,22 @@ from apps.core.api import DomainError
 from apps.core.models import audit
 
 from .activation import send_activation_email
-from .models import GROUP_SUPERVISOR, Participant, SchoolParticipation, SchoolSupervisor, User
+from .consents import ConsentKind, ConsentSource, consent_set
+from .models import (
+    GROUP_SUPERVISOR,
+    ConsentRecord,
+    Participant,
+    SchoolParticipation,
+    SchoolSupervisor,
+    User,
+)
+
+#: Zgody zbierane od opiekuna szkolnego: regulamin i RODO, obie wymagane zawsze. Ta sama treść
+#: i wersja dokumentu, co u uczestnika (:data:`apps.accounts.consents.DEFAULT_CONSENTS`) – to są
+#: te same dokumenty w ``/dokumenty/``, więc zestaw czytamy z :func:`consent_set`, a nie
+#: powtarzamy go tutaj. Zgody „opiekun dla niepełnoletniego” i „publikacja nazwiska” dotyczą
+#: wyłącznie ucznia i u opiekuna nie mają czego dotyczyć.
+SUPERVISOR_CONSENT_KINDS = (ConsentKind.TERMS, ConsentKind.PRIVACY)
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +123,9 @@ def register_supervisor(
     school: str = "",
     school_id: int | None = None,
     phone: str = "",
+    terms_consent: bool = False,
+    gdpr_consent: bool = False,
+    source: str = ConsentSource.WEB,
     request=None,
 ) -> SchoolSupervisor:
     """Zakłada konto opiekuna szkolnego. Konto czeka na potwierdzenie adresu, jak każde inne.
@@ -121,11 +139,24 @@ def register_supervisor(
     uczniów z kilku placówek (zespół szkół, korepetycje, koło pozaszkolne), a wymuszanie jednej
     nazwy kazałoby mu wybrać nieprawdę. Do zaświadczenia i tak potrzebna jest weryfikacja przez
     organizatora (``SchoolSupervisor.verified``).
+
+    Regulamin i RODO są tu **tymi samymi** dokumentami, co przy rejestracji uczestnika (ten sam
+    zestaw i te same wersje – :func:`apps.accounts.consents.consent_set`): opiekun podaje dane
+    osobowe (imię, nazwisko, telefon, szkołę) na tych samych zasadach, więc potrzebuje tej samej
+    podstawy. Sprawdzamy **przed** zapisem czegokolwiek – konto bez kompletu zgód nie ma prawa
+    powstać nawet na chwilę wewnątrz transakcji, tak samo jak u uczestnika.
     """
     # Importy lokalne: ``services`` importuje ``activation`` i modele, a reguły walidacji (szkoła,
     # telefon, konto hasłowe) mieszkają właśnie tam i nie ma powodu pisać ich tu drugi raz.
     from .phones import normalize_phone
     from .services import _create_user, _resolve_school, default_competition, grant_role
+
+    competition = default_competition()
+    given = {
+        ConsentKind.TERMS: terms_consent,
+        ConsentKind.PRIVACY: gdpr_consent,
+    }
+    _validate_supervisor_consents(given, competition=competition)
 
     # Szkoła ze słownika tylko wtedy, gdy ktoś ją stamtąd wybrał; w przeciwnym razie zostaje
     # zwykły tekst. Nie przepuszczamy go przez ``_resolve_school``, bo tamta funkcja pilnuje
@@ -145,7 +176,6 @@ def register_supervisor(
     )
     # Jedna wartość dla profilu i dla członkostwa – ``verified`` jest oświadczeniem sprawdzonym
     # przez **tego** organizatora, więc profil i rola muszą wskazywać ten sam konkurs.
-    competition = default_competition()
     profile = SchoolSupervisor.objects.create(
         user=user,
         competition=competition,
@@ -154,9 +184,66 @@ def register_supervisor(
         phone=normalize_phone(phone) if (phone or "").strip() else "",
     )
     grant_role(user, GROUP_SUPERVISOR, competition=competition)
+    record_supervisor_consents(profile, given, source=source, request=request)
     send_activation_email(user, request=request)
     logger.info("Założono konto opiekuna szkolnego %s.", user.pk)
     return profile
+
+
+def _validate_supervisor_consents(given: dict[str, bool], *, competition=None) -> None:
+    """Sprawdza komplet zgód wymaganych od opiekuna (regulamin, RODO) – obie zawsze.
+
+    Osobna funkcja od ``accounts.services.validate_consents``, bo tamta liczy też zgodę opiekuna
+    dla niepełnoletniego i zestawia ją z rocznikiem uczestnika – pytanie, które przy rejestracji
+    nauczyciela nie ma treści.
+    """
+    by_kind = {consent.kind: consent for consent in consent_set(competition)}
+    for kind in SUPERVISOR_CONSENT_KINDS:
+        if not given.get(kind):
+            raise DomainError(
+                by_kind[kind].missing_message,
+                "CONSENT_REQUIRED",
+                http.HTTP_400_BAD_REQUEST,
+            )
+
+
+def record_supervisor_consents(
+    supervisor: SchoolSupervisor, given: dict[str, bool], *, source: str, request=None
+) -> list[ConsentRecord]:
+    """Zapisuje dowody zgód opiekuna (regulamin, RODO) – bliźniak ``accounts.services.record_consents``.
+
+    Zgoda niewyrażona nie tworzy wiersza, z tego samego powodu, co u uczestnika: brak dowodu jest
+    tu poprawnym stanem po odrzuceniu w ``_validate_supervisor_consents`` (funkcja i tak nie
+    dotrze tutaj bez kompletu), a wiersz „nie zgodził się” niczego by nie dowodził.
+    """
+    now = timezone.now()
+    consents = [consent for consent in consent_set(supervisor.competition) if consent.kind in given]
+    records = [
+        ConsentRecord(
+            supervisor=supervisor,
+            kind=consent.kind,
+            document_version=consent.version,
+            given_at=now,
+            source=source,
+        )
+        for consent in consents
+        if given.get(consent.kind)
+    ]
+    ConsentRecord.objects.bulk_create(records)
+    audit(
+        supervisor.user,
+        "supervisor.consents_recorded",
+        supervisor,
+        {
+            "source": source,
+            **{
+                consent.kind: {"given": bool(given.get(consent.kind)), "version": consent.version}
+                for consent in consents
+            },
+        },
+        request=request,
+    )
+    return records
 
 
 # --- lista uczniów --------------------------------------------------------------------------------

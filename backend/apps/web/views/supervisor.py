@@ -44,6 +44,7 @@ from apps.accounts.bulk_registration import (
     resend_invitation,
     unpack_rows,
 )
+from apps.accounts.consents import ConsentSource
 from apps.accounts.models import Participant
 from apps.accounts.supervisors import (
     confirm_participation,
@@ -108,7 +109,9 @@ class RegisterSupervisorView(ThrottledFormMixin, ServiceFormView):
         return super().dispatch(request, *args, **kwargs)
 
     def call_service(self, form):
-        register_supervisor(**form.cleaned_data, request=self.request)
+        # ``source`` dokładamy tutaj, a nie w formularzu, z tego samego powodu, co przy
+        # uczestniku: to fakt o **drodze** żądania, a nie dana wpisana przez opiekuna.
+        register_supervisor(**form.cleaned_data, source=ConsentSource.WEB, request=self.request)
         remember_registration(self.request, form.cleaned_data["email"], self.registration_kind)
 
 

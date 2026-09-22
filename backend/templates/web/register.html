@@ -56,6 +56,10 @@
     {% endif %}
     <p class="auth__alt">{% translate "Masz już konto?" %}
       <a href="{% url 'web:login' %}">{% translate "Zaloguj się" %}</a>.</p>
+    {% if supervisor_registration_open %}
+      <p class="notice">{% translate "Jesteś nauczycielem?" %}
+        <a href="{% url 'web:register-supervisor' %}">{% translate "Zarejestruj się jako opiekun szkolny" %}</a>.</p>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

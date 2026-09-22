@@ -24,6 +24,13 @@
     {% if is_committee %}
       <p class="hint">{% translate "Jeśli kod zaproszenia wymagał zatwierdzenia, po aktywacji poczekaj jeszcze na decyzję koordynatora." %}</p>
     {% endif %}
+    {% if is_supervisor %}
+      <p class="hint">{% blocktranslate trimmed %}
+        Po aktywacji panel opiekuna czeka pod adresem „Moi uczniowie”. Będzie pusty, dopóki
+        uczniowie nie wpiszą Twojego adresu e-mail w polu „adres opiekuna szkolnego” we własnym
+        profilu – to oni decydują, kto widzi ich postęp.
+      {% endblocktranslate %}</p>
+    {% endif %}
     <p class="auth__alt">{% translate "Nie dostałeś listu?" %}
       <a href="{% url 'web:activate-resend' %}">{% translate "Wyślij link ponownie" %}</a>.<br>
       {% translate "Masz już aktywne konto?" %}

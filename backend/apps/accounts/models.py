@@ -749,10 +749,36 @@ class ConsentRecord(models.Model):
 
     ``CASCADE``: skasowanie profilu uczestnika (żądanie usunięcia danych) zabiera też jego
     zgody – trzymanie dowodu zgody osoby, której danych już nie mamy, nie ma podstawy.
+
+    **Właściciel wpisu jest jeden z dwóch, nigdy oba naraz** (``accounts_consentrecord_exactly_one_owner``):
+    ``participant`` dla zgody uczestnika, ``supervisor`` dla zgody opiekuna szkolnego złożonej przy
+    rejestracji (``apps.accounts.supervisors.register_supervisor``). Osobna kolumna, a nie wspólna
+    „konto”, bo dowód ma mówić, **czyją** zgodę na co niesie – z samego ``user`` nie dałoby się
+    odróżnić zgody złożonej jako uczestnik od zgody złożonej jako opiekun, gdyby kiedyś jedna osoba
+    miała oba profile. ``kind`` opiekuna ogranicza się w praktyce do ``TERMS`` i ``PRIVACY`` –
+    reguła „opiekun dla niepełnoletniego” i zgoda na publikację nazwiska dotyczą wyłącznie ucznia.
     """
 
+    #: ``null=True``: wpis może zamiast tego wskazywać ``supervisor`` – patrz ograniczenie
+    #: ``accounts_consentrecord_exactly_one_owner`` w ``Meta.constraints``.
     participant = models.ForeignKey(
-        Participant, on_delete=models.CASCADE, related_name="consents", verbose_name="uczestnik"
+        Participant,
+        on_delete=models.CASCADE,
+        related_name="consents",
+        verbose_name="uczestnik",
+        null=True,
+        blank=True,
+    )
+    #: Zgoda opiekuna szkolnego (regulamin, RODO) złożona przy ``/register/supervisor/``.
+    #: ``null=True`` z tego samego powodu, co ``participant`` – wpis niesie dokładnie jedną z tych
+    #: dwóch relacji.
+    supervisor = models.ForeignKey(
+        "accounts.SchoolSupervisor",
+        on_delete=models.CASCADE,
+        related_name="consents",
+        verbose_name="opiekun szkolny",
+        null=True,
+        blank=True,
     )
     kind = models.CharField("rodzaj", max_length=20, choices=ConsentKind.choices)
     document_version = models.CharField("wersja dokumentu", max_length=100, blank=True)
@@ -775,7 +801,21 @@ class ConsentRecord(models.Model):
         verbose_name = "zgoda uczestnika"
         verbose_name_plural = "zgody uczestników"
         ordering = ("-given_at", "-id")
-        indexes = [models.Index(fields=["participant", "kind"], name="accounts_consent_pk_idx")]
+        indexes = [
+            models.Index(fields=["participant", "kind"], name="accounts_consent_pk_idx"),
+            models.Index(fields=["supervisor", "kind"], name="accounts_consent_sup_idx"),
+        ]
+        constraints = [
+            # Wpis dowodowy ma dokładnie jednego właściciela – nigdy oba naraz (rozjazd, komu
+            # naprawdę dotyczy zgoda) i nigdy żadnego (dowód bez adresata nie jest dowodem niczego).
+            models.CheckConstraint(
+                condition=(
+                    models.Q(participant__isnull=False, supervisor__isnull=True)
+                    | models.Q(participant__isnull=True, supervisor__isnull=False)
+                ),
+                name="accounts_consentrecord_exactly_one_owner",
+            ),
+        ]
 
     def __str__(self) -> str:
         state = "wycofana" if self.withdrawn_at else "aktywna"

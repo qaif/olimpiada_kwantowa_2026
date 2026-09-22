@@ -277,7 +277,10 @@ class RegisterDoneView(TemplateView):
         if not email:
             return redirect("web:register")
         context = self.get_context_data(
-            email=email, is_committee=kind == "committee", activation_hours=ACTIVATION_HOURS
+            email=email,
+            is_committee=kind == "committee",
+            is_supervisor=kind == "supervisor",
+            activation_hours=ACTIVATION_HOURS,
         )
         return self.render_to_response(context)
 

@@ -15,12 +15,22 @@ tak samo u wszystkich uczniów jednej placówki. Szkoła opiekuna nie wchodzi do
 jest podpisem na zaświadczeniu i wskazówką dla organizatora przy weryfikacji. Nauczyciel bywa
 zresztą opiekunem uczniów z kilku placówek i wymuszanie na nim jednego wiersza ze słownika
 kazałoby mu wybrać nieprawdę.
+
+Zgody (regulamin, RODO) powstają **w** ``__init__``, z tego samego powodu, co w
+``apps.web.forms.ConsentFieldsMixin``: etykieta niesie odnośnik do dokumentu i nazwę organizatora,
+a oba czyta się z bazy. Pól nie ma tu więcej niż te dwa (bez zgody opiekuna dla niepełnoletniego
+i bez zgody na publikację nazwiska) – to są zgody **ucznia**, nie nauczyciela, i tutaj nie mają
+czego dotyczyć. Pola nie są ``required=True``: tak samo jak przy rejestracji uczestnika, komplet
+sprawdza serwis (``apps.accounts.supervisors.register_supervisor``), żeby formularz WWW nie miał
+własnej kopii reguły „co jest wymagane”.
 """
 
 from __future__ import annotations
 
 from django import forms
 
+from apps.accounts.consents import ConsentKind, consent_set, organizer_name
+from apps.accounts.consents import label as consent_label
 from apps.web.captcha import CaptchaFormMixin
 from apps.web.forms import (
     PASSWORD_CONFIRM_FIELD,
@@ -30,9 +40,15 @@ from apps.web.forms import (
     phone_field,
 )
 
+#: Rodzaje zgód zbieranych od opiekuna – te same, co
+#: ``apps.accounts.supervisors.SUPERVISOR_CONSENT_KINDS``. Stała powtórzona, a nie zaimportowana:
+#: ``apps.accounts.supervisors`` importuje moduły widoków dopiero przy rejestracji, a formularz ma
+#: stać niezależnie od tego porządku.
+SUPERVISOR_CONSENT_KINDS = (ConsentKind.TERMS, ConsentKind.PRIVACY)
+
 
 class SupervisorRegisterForm(CaptchaFormMixin):
-    """Rejestracja opiekuna szkolnego: konto, szkoła i telefon kontaktowy.
+    """Rejestracja opiekuna szkolnego: konto, szkoła, telefon kontaktowy i zgody.
 
     Telefon jest opcjonalny, w odróżnieniu od profilu uczestnika: organizator dzwoni do opiekuna
     wtedy, gdy nie może dodzwonić się do ucznia, a to jest udogodnienie, nie warunek konta.
@@ -63,6 +79,25 @@ class SupervisorRegisterForm(CaptchaFormMixin):
     last_name = forms.CharField(label="Nazwisko", max_length=150)
     school = forms.CharField(label="Szkoła", max_length=255, required=False)
     phone = phone_field(required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        organizer = organizer_name()
+        self._consents = [consent for consent in consent_set() if consent.kind in SUPERVISOR_CONSENT_KINDS]
+        for consent in self._consents:
+            self.fields[consent.field_name] = forms.BooleanField(
+                label=consent_label(consent, organizer=organizer),
+                required=False,
+                label_suffix="",
+            )
+        # Zgody dołożone po ``super().__init__`` stają na końcu ``self.fields`` niezależnie od
+        # ``field_order`` – tam je zresztą chcemy: pod resztą danych, tuż nad CAPTCHĄ.
+        self.order_fields(self.field_order)
+
+    @property
+    def consent_field_names(self) -> tuple[str, ...]:
+        """Nazwy pól zgód – szablon renderuje je w osobnym bloku, poza zwykłą pętlą po polach."""
+        return tuple(consent.field_name for consent in self._consents)
 
     def clean(self):
         return clean_password_pair(self, super().clean())

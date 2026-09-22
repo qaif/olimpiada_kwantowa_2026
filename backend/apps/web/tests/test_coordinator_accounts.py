@@ -479,3 +479,53 @@ def test_a_participant_cannot_delete_a_foreign_account_with_a_post(web_client, p
 
     assert response.status_code == 403
     assert User.objects.filter(pk=victim.user.pk).exists()
+
+
+# --- opiekun szkolny -----------------------------------------------------------------------------
+
+
+def test_the_list_shows_the_supervisor_role_and_school(web_client, coordinator):
+    """Rola „opiekun szkolny” w kolumnie roli, ze szkołą w nawiasie obok – patrz 22.09.2026.
+
+    Filtr ``?role=supervisor`` i etykieta roli istniały już wcześniej
+    (``apps.web.views.coordinator_accounts.ROLE_FILTERS``/``ROLE_CHOICES``); ten test pilnuje
+    dokładki – szkoły przy roli, bo bez niej organizator musiał otwierać każde konto z osobna,
+    żeby sprawdzić, czyją klasę nauczyciel prowadzi.
+    """
+    from django.contrib.auth.models import Group
+
+    from apps.accounts.models import GROUP_SUPERVISOR, SchoolSupervisor
+    from apps.tenancy.tests.factories import current_or_default_competition
+
+    supervisor_user = UserFactory(email="nauczyciel.lista@szkola.test")
+    supervisor_user.groups.add(Group.objects.get_or_create(name=GROUP_SUPERVISOR)[0])
+    SchoolSupervisor.objects.create(
+        user=supervisor_user, school="XIV LO", competition=current_or_default_competition()
+    )
+    web_client.force_login(coordinator)
+
+    response = web_client.get(LIST_URL)
+
+    body = response.content.decode()
+    assert "opiekun szkolny" in body
+    assert "(XIV LO)" in body
+
+
+def test_the_supervisor_filter_narrows_the_list_to_supervisors(web_client, coordinator, participant):
+    from django.contrib.auth.models import Group
+
+    from apps.accounts.models import GROUP_SUPERVISOR, SchoolSupervisor
+    from apps.tenancy.tests.factories import current_or_default_competition
+
+    supervisor_user = UserFactory(email="nauczyciel.filtr@szkola.test")
+    supervisor_user.groups.add(Group.objects.get_or_create(name=GROUP_SUPERVISOR)[0])
+    SchoolSupervisor.objects.create(
+        user=supervisor_user, school="I LO", competition=current_or_default_competition()
+    )
+    web_client.force_login(coordinator)
+
+    response = web_client.get(LIST_URL, {"role": "supervisor"})
+
+    body = response.content.decode()
+    assert supervisor_user.email in body
+    assert participant.user.email not in body

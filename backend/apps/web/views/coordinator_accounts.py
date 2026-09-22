@@ -303,6 +303,13 @@ def account_rows(users, competition) -> list[dict]:
             "participant": participants.get(user.pk),
             "public_code": getattr(participants.get(user.pk), "public_code", ""),
             "protected": is_protected(user),
+            # Szkoła opiekuna – wyłącznie **tego** konkursu (``profile_here`` odcina profil
+            # sąsiedniej olimpiady), obok etykiety roli. Bez osobnej kolumny: to jest jedyny
+            # wiersz, którego dotyczy, a tabela nie ma miejsca na kolumnę pustą dla wszystkich
+            # pozostałych ról.
+            "supervisor_school": getattr(
+                profile_here(user, "school_supervisor", competition), "display_school", ""
+            ),
         }
         for user in users
     ]

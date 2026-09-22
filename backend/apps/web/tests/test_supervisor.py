@@ -64,6 +64,8 @@ def test_rejestracja_zaklada_konto_nieaktywne_w_grupie_opiekunow(web_client, sup
             "first_name": "Jan",
             "last_name": "Nauczyciel",
             "school": "Zespół Szkół nr 2",
+            "terms_consent": "on",
+            "gdpr_consent": "on",
             **password_fields(),
             **captcha_fields(),
         },

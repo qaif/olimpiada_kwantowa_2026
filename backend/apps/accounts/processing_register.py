@@ -40,7 +40,11 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: 1.4 (22.09.2026) – rejestracja pyta o **pełną datę urodzenia** zamiast samego rocznika.
 #: Zakres danych o osobie się poszerza (dzień i miesiąc urodzin to klasyczny klucz dopasowania do
 #: innych zbiorów), więc jest to zmiana materialna, choć cel przetwarzania zostaje ten sam.
-REGISTER_VERSION = "1.4"
+#: 1.5 (22.09.2026) – konta opiekunów szkolnych dostają **własny wiersz** rejestru: rola istniała
+#: już wcześniej, ale nie była tu opisana wcale, a od tej zmiany zbiera też zgody (regulamin,
+#: RODO) i wchodzi do eksportu i anonimizacji konta. Nowa czynność przetwarzania z własnym kręgiem
+#: osób jest z definicji zmianą materialną, nie doprecyzowaniem istniejącego wiersza.
+REGISTER_VERSION = "1.5"
 REGISTER_DATE = date(2026, 9, 22)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
@@ -163,6 +167,49 @@ ACTIVITIES: tuple[ProcessingActivity, ...] = (
         measures=[
             "zgoda opiekuna składana pod jednorazowym podpisanym odnośnikiem, bez zakładania konta",
             "wycofanie zgody jest równie proste, co jej udzielenie (art. 7 ust. 3 RODO)",
+        ],
+    ),
+    _activity(
+        key="opiekunowie",
+        name="Prowadzenie kont opiekunów szkolnych",
+        purpose=(
+            "Umożliwienie nauczycielowi wglądu w postęp prac uczniów, którzy sami wskazali jego "
+            "adres w swoim profilu, oraz potwierdzenie udziału szkoły w danej edycji. Konto nie "
+            "daje dostępu do żadnych danych, dopóki żaden uczeń go nie wskaże."
+        ),
+        legal_basis=(
+            "art. 6 ust. 1 lit. f RODO (prawnie uzasadniony interes organizatora – kontakt ze "
+            "szkołą prowadzącą uczniów do olimpiady) oraz art. 6 ust. 1 lit. a RODO dla zgód "
+            "wyrażonych przy rejestracji (regulamin, RODO)"
+        ),
+        subjects="nauczyciele rejestrujący się jako opiekunowie szkolni uczestników",
+        categories=[
+            "imię i nazwisko",
+            "adres e-mail (jest zarazem loginem i kluczem dopasowania do profilu ucznia)",
+            "numer telefonu (opcjonalnie)",
+            "nazwa szkoły (wolny tekst – opiekun bywa nauczycielem uczniów z kilku placówek)",
+            "rodzaj zgody, wersja dokumentu, data wyrażenia i wycofania (regulamin, RODO)",
+            "potwierdzenie „szkoła bierze udział w tej edycji” wraz z datą",
+        ],
+        recipients=[HOSTING_RECIPIENT, MAIL_RECIPIENT],
+        retention=(
+            "adres istnieje wyłącznie, gdy organizator włączył tę rolę przełącznikiem "
+            "`SiteSettings.supervisor_registration_enabled` na danej witrynie; konto nieaktywowane "
+            "kasuje kosiarka po 24 godzinach (jak konto uczestnika). Automatyczna retencja "
+            "(`/coordinator/retention/`) świadomie **nie obejmuje jeszcze** kont opiekunów – dług "
+            "udokumentowany w `apps.accounts.retention` i w § 9.1 podręcznika organizatora; do "
+            "czasu jej wdrożenia konto czyści się ręcznie z panelu koordynatora, tak samo jak na "
+            "żądanie właściciela (`/account/delete/`)"
+        ),
+        measures=[
+            "aktywacja konta linkiem e-mail, CAPTCHA i limit prób – ten sam komplet, co przy "
+            "rejestracji uczestnika",
+            "uprawnienie do wglądu w postęp konkretnego ucznia pochodzi wyłącznie od decyzji tego "
+            "ucznia (wpisanie adresu opiekuna w profilu) i jest przez niego odwracalne jednym "
+            "wyczyszczeniem pola",
+            "usunięcie konta (samoobsługowe albo przez koordynatora) scala szkołę, telefon i "
+            "zgody z resztą anonimizacji – wycofane zgody i wyczyszczone dane zostają, "
+            "potwierdzenia udziału szkoły w edycji zostają jako dokumentacja zawodów",
         ],
     ),
     _activity(
