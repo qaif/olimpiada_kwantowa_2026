@@ -29,14 +29,6 @@
     <strong class="code-chip">{{ participant.public_code }}</strong>
     – {% translate "pod tym kodem występujesz w ogłaszanych tabelach wyników." %}</p>
   {% comment %}
-    Dane konta są **zwinięte**. To jedyne miejsce w panelu, w którym uczestnik zobaczy swoje dane,
-    ale zagląda tu raz na edycję – a rozwinięte zabierały pierwszy ekran nagłówkowi „Co teraz”,
-    czyli tej jednej rzeczy, po którą się na pulpit wchodzi. ``<details>`` zamiast skryptu:
-    działa bez JavaScriptu i z klawiatury, a przeglądarka sama obsługuje fokus i stan.
-    „Usuń konto” prowadzi na stronę z wyjaśnieniem skutków, a nie na akcję: konsekwencje zależą
-    od tego, czy uczestnik brał już udział w zawodach.
-  {% endcomment %}
-  {% comment %}
     Jedno zdanie dla profili sprzed wydania 0.30.0, czyli tych, które znają sam rocznik. Od pełnej
     daty urodzenia zależy, czy żądamy zgody opiekuna, a przy samym roczniku reguła jest
     zachowawcza: osoba, która skończyła 18 lat w tym roku, wciąż widzi obowiązek zgody rodzica.
@@ -51,6 +43,14 @@
       <a href="{% url 'web:profile' %}">{% translate "Edytuj dane" %}</a>.
       {% translate "Bez pełnej daty wiek liczymy po roczniku, a zgodę opiekuna traktujemy zachowawczo." %}</p>
   {% endif %}
+  {% comment %}
+    Dane konta są **zwinięte**. To jedyne miejsce w panelu, w którym uczestnik zobaczy swoje dane,
+    ale zagląda tu raz na edycję – a rozwinięte zabierały pierwszy ekran nagłówkowi „Co teraz”,
+    czyli tej jednej rzeczy, po którą się na pulpit wchodzi. ``<details>`` zamiast skryptu:
+    działa bez JavaScriptu i z klawiatury, a przeglądarka sama obsługuje fokus i stan.
+    „Usuń konto” prowadzi na stronę z wyjaśnieniem skutków, a nie na akcję: konsekwencje zależą
+    od tego, czy uczestnik brał już udział w zawodach.
+  {% endcomment %}
   <details class="p-identity">
     <summary class="p-identity__summary">{% translate "Twoje dane i ustawienia konta" %}</summary>
     <dl class="meta-list">

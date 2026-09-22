@@ -27,6 +27,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 import pytest
+from django.utils import timezone
 from freezegun import freeze_time
 
 from apps.accounts.consents import ConsentKind, is_minor
@@ -335,3 +336,55 @@ def test_the_coordinator_is_warned_after_turning_a_participant_into_a_minor(
     assert participant.birth_date == MINOR_BY_A_DAY
     warnings = [str(message) for message in response.context["messages"]]
     assert any("niepełnoletni" in text and "zgody opiekuna" in text for text in warnings), warnings
+
+
+# --- (e) przyjęcie zaproszenia przez ucznia z listy klasowej -------------------------------------
+
+
+@freeze_time(TODAY)
+@pytest.mark.parametrize(
+    ("birth_date", "expected_status"),
+    [
+        pytest.param(MINOR_BY_A_DAY, 400, id="maloletni-bez-zgody-odmowa"),
+        pytest.param(ADULT_TODAY, 302, id="pelnoletni-przechodzi"),
+    ],
+)
+def test_the_invitation_form_reads_the_age_from_the_profile(
+    web_client, competition, birth_date, expected_status
+):
+    """Uczeń z listy klasowej nie podaje daty – przyszła z pliku nauczyciela, więc liczy ją serwis.
+
+    Formularz przyjęcia zaproszenia nie ma pola wieku i mieć go nie będzie: data jest już
+    w profilu, a pytanie o nią drugi raz zapraszałoby do wpisania czegoś innego niż to, co
+    nauczyciel zgłosił. Reguła jest ta sama, co przy rejestracji otwartej.
+    """
+    from apps.accounts.bulk_registration import make_invite_token
+
+    # Profil „zaproszonego ucznia”, czyli dokładnie to, co zostawia import listy klasowej:
+    # konto nieaktywne i niepotwierdzone (inaczej ``read_invite_token`` uzna token za zużyty),
+    # ``invited_at`` wypełnione, a zgód jeszcze nie ma – nauczyciel nie składa ich za nikogo.
+    participant = ParticipantFactory(
+        competition=competition,
+        birth_date=birth_date,
+        user__email="zaproszony@example.test",
+        user__is_active=False,
+        user__email_verified_at=None,
+        invited_at=timezone.now(),
+        gdpr_consent_at=None,
+        terms_accepted_at=None,
+        guardian_consent=False,
+    )
+    token = make_invite_token(participant)
+
+    response = web_client.post(
+        f"/zaproszenie/{token}/",
+        {
+            **password_fields(),
+            "phone": "600 100 200",
+            "district": participant.district,
+            "terms_consent": "on",
+            "gdpr_consent": "on",
+        },
+    )
+
+    assert response.status_code == expected_status
