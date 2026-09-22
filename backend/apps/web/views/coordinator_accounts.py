@@ -38,6 +38,7 @@ from apps.accounts.profile import (
 )
 from apps.accounts.services import participant_for
 from apps.core.api import DomainError
+from apps.core.models import audit
 from apps.web.forms import (
     CoordinatorAccountForm,
     CoordinatorCommitteeForm,
@@ -568,6 +569,104 @@ class CoordinatorTwoFactorResetView(CoordinatorRequiredMixin, View):
         else:
             messages.info(request, f"Konto {user.email} nie miało włączonego drugiego składnika.")
         return redirect(reverse("web:coordinator-account-edit", args=[user.pk]))
+
+
+class CoordinatorPasswordResetView(CoordinatorRequiredMixin, View):
+    """``/coordinator/accounts/<pk>/password-reset/`` – wysyłka linku do zmiany hasła cudzego konta.
+
+    Odpowiedź na inny telefon niż ten z § powyżej: „zapomniałem hasła, a nie mam już dostępu do
+    poczty ze szkoły” albo po prostu „proszę zresetować mi hasło” – organizator ma to załatwić bez
+    proszenia uczestnika, żeby sam znalazł link w swojej skrzynce (decyzja organizatora,
+    22.09.2026).
+
+    **Koordynator nie ustawia hasła ani nie widzi linku.** Widok woła ten sam formularz Django
+    (``PasswordResetForm``) z tymi samymi szablonami listu, co samoobsługowy ``PasswordResetView``
+    (``apps.web.views.public``) – list jest bajt w bajt identyczny z tym, który wysyła sobie sam
+    uczestnik, a token nigdy nie trafia do odpowiedzi HTTP ani do audytu. Inny efekt tego samego
+    kliknięcia (ustawienie hasła wprost przez koordynatora) uczyniłby go posiadaczem hasła, które
+    powinno znać wyłącznie właściciel konta.
+
+    Limit ``password_reset`` (scope publicznego formularza) tu **nie obowiązuje**: ogranicza on
+    anonima zgadującego cudze adresy, a to żądanie idzie od zalogowanego koordynatora o koncie,
+    które już ma otwarte przed sobą – to samo rozróżnienie, co przy eksporcie RODO wyżej.
+
+    Cztery odmowy, każda bez wysyłki i bez wpisu w audycie:
+
+    - **konto jeszcze nie aktywowane** – link do zmiany hasła nie miałby dokąd trafić, dopóki
+      adres nie jest potwierdzony; na to jest osobny przycisk („Wyślij link ponownie” na ekranie
+      aktywacji),
+    - **konto zablokowane** (``is_active=False``) – blokada ma znaczyć „nie loguje się wcale”,
+      a nie „loguje się nowym hasłem”,
+    - **konto bez hasła platformy** (``has_usable_password()`` fałsz, logowanie wyłącznie przez
+      zewnętrznego dostawcę) – nie ma czego resetować,
+    - **konto własne koordynatora** – do tego służy „Nie pamiętasz hasła?” na stronie logowania,
+      a nie ekran zarządzania cudzymi kontami.
+    """
+
+    def post(self, request, pk: int):
+        from django.contrib.auth.forms import PasswordResetForm
+        from django.contrib.auth.tokens import default_token_generator
+
+        from apps.web.views.public import PasswordResetView as SelfServicePasswordResetView
+        from apps.web.views.public import service_name
+
+        user = _account(request.competition, pk)
+        edit_url = reverse("web:coordinator-account-edit", args=[user.pk])
+
+        if user.pk == request.user.pk:
+            messages.error(
+                request,
+                "Własnego hasła nie resetuje się z tego ekranu – od tego jest „Nie pamiętasz "
+                "hasła?” na stronie logowania.",
+            )
+            return redirect(edit_url)
+        if user.email_verified_at is None:
+            messages.error(
+                request,
+                f"Konto {user.email} nie zostało jeszcze aktywowane – link do zmiany hasła nie ma "
+                "dokąd trafić. Wyślij najpierw link aktywacyjny.",
+            )
+            return redirect(edit_url)
+        if not user.is_active:
+            messages.error(
+                request,
+                f"Konto {user.email} jest zablokowane – odblokuj je najpierw "
+                "(pole „Konto aktywne” w danych konta).",
+            )
+            return redirect(edit_url)
+        if not user.has_usable_password():
+            messages.error(
+                request,
+                f"Konto {user.email} nie ma hasła platformy (logowanie przez zewnętrznego "
+                "dostawcę) – nie ma czego resetować.",
+            )
+            return redirect(edit_url)
+
+        form = PasswordResetForm(data={"email": user.email})
+        if not form.is_valid():
+            # Nie powinno się zdarzyć – adres pochodzi z naszej własnej bazy – ale ``form.save()``
+            # poniżej milczy przy braku dopasowania, więc jawny błąd jest tu bezpieczniejszy niż
+            # cisza, z której nie sposób odróżnić „wysłano” od „nic się nie stało”.
+            messages.error(request, f"Nie udało się przygotować linku dla adresu {user.email}.")
+            return redirect(edit_url)
+
+        # Te same nazwy szablonów i ten sam kontekst, co w ``PasswordResetView`` – patrz docstring
+        # klasy. ``from_email`` pusty sięga po domyślnego nadawcę ustawień, tak jak tam.
+        form.save(
+            use_https=request.is_secure(),
+            token_generator=default_token_generator,
+            from_email=None,
+            email_template_name=SelfServicePasswordResetView.email_template_name,
+            subject_template_name=SelfServicePasswordResetView.subject_template_name,
+            html_email_template_name=SelfServicePasswordResetView.html_email_template_name,
+            request=request,
+            extra_email_context={"site_name": service_name(request)},
+        )
+        # ``diff`` bez adresu i bez tokenu z tego samego powodu, co przy ``2fa.reset`` – audyt
+        # czyta też ktoś bez prawa do danych osobowych.
+        audit(request.user, "password.reset_sent", user, {}, request=request)
+        messages.success(request, f"Link do zmiany hasła został wysłany na adres {user.email}.")
+        return redirect(edit_url)
 
 
 class CoordinatorAccountDeleteView(CoordinatorRequiredMixin, View):

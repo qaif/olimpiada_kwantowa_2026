@@ -10,10 +10,14 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 
 ## Niewydane (po `v0.30.1`)
 
-- Brak. Nie zlecone: drzewo CMS dla konkursu w trybie prefiksu ścieżki (uwaga T43),
-  edytor przebiegu przenoszący „przypisz kategorie” do warstwy serwisów. Forum w wersji pierwszej
-  świadomie **nie ma** powiadomień e-mail, wiadomości prywatnych, załączników, polubień ani
-  rankingów — uzasadnienie każdej z tych decyzji stoi w `PODRECZNIK-ORGANIZATORA.md` § 6.4.
+| Wersja | Data | Zmiana |
+|---|---|---|
+| **v0.30.2** | 2026-09-22 | koordynator resetuje hasło cudzego konta z karty `/coordinator/accounts/<id>/` — przycisk „Wyślij link do zmiany hasła” (`CoordinatorPasswordResetView`) wysyła dokładnie ten sam list, co samoobsługowy formularz „Nie pamiętasz hasła?” (`PasswordResetForm.save()` z tymi samymi szablonami i kontekstem listu), a koordynator nie widzi ani hasła, ani treści linku; odmowa bez wysyłki i bez wpisu audytowego dla konta jeszcze nieaktywowanego, zablokowanego, bez hasła platformy (logowanie przez zewnętrznego dostawcę) i dla konta własnego koordynatora (od tego jest „Nie pamiętasz hasła?” na stronie logowania); throttle `password_reset` (dla anonima z formularza publicznego) tego żądania nie dotyczy — koordynator jest już zalogowany; wpis audytowy `password.reset_sent` bez adresu i bez tokenu |
+
+Nie zlecone: drzewo CMS dla konkursu w trybie prefiksu ścieżki (uwaga T43),
+edytor przebiegu przenoszący „przypisz kategorie” do warstwy serwisów. Forum w wersji pierwszej
+świadomie **nie ma** powiadomień e-mail, wiadomości prywatnych, załączników, polubień ani
+rankingów — uzasadnienie każdej z tych decyzji stoi w `PODRECZNIK-ORGANIZATORA.md` § 6.4.
 
 ## Wydania
 
