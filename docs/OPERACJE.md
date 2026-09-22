@@ -1182,3 +1182,51 @@ Polecenie uruchamia cały zbiór w lokalnym środowisku (ok. pół godziny) i na
 `backend/.test_durations`; wtyczka `backend/ci_durations_plugin.py` sumuje czas przygotowania,
 wykonania i sprzątania każdego testu. Plik commituje się jak każdy inny. Czasy z maszyny lokalnej
 różnią się od czasów w CI co do wartości, ale nie co do proporcji – a podział zależy tylko od nich.
+
+## 11. Cache całych stron publicznych (v0.31.1)
+
+Anonimowe odsłony stron części informacyjnej (strona główna, harmonogram, warsztaty, dokumenty,
+FAQ, partnerzy, kontakt, aktualności, wyniki, archiwum) i `/statystyki/` kosztowały na produkcji
+250–500 ms CPU na odsłonę (profilowanie 22.09.2026) – głównie renderowanie szablonu, nie zapytania
+(1–3 ms). Odpowiedź jest identyczna dla każdego anonimowego gościa tej samej witryny, więc
+`apps.web.page_cache.PageCacheMiddleware` trzyma ją w Redisie (ten sam `CACHES["default"]`, co
+reszta serwisu) przez `PAGE_CACHE_SECONDS` (domyślnie 120 s).
+
+**Co jest cache'owane.** Wyłącznie allow-lista adresów (kod źródłowy w `apps/web/page_cache.py`,
+stałe `ALLOWED_PATHS`/`ALLOWED_PREFIXES`), wyłącznie `GET`/`HEAD`, wyłącznie gość (niezalogowany,
+bez sesji zmienionej w trakcie obsługi – komunikat organizatora, przełącznik wysokiego kontrastu),
+wyłącznie odpowiedź 200 z `Content-Type: text/html` bez `Set-Cookie` i bez `Vary`. Parametr
+zapytania: tylko `?page=<liczba>`, każdy inny wyłącza cache dla tego żądania.
+
+**Czego cache nigdy nie obejmuje i dlaczego:** panel koordynatora, konto, API, `/cms/`, `/admin/`,
+formularze rejestracji – każdy z nich renderuje coś zależnego od tożsamości albo przyjmuje POST,
+a allow-lista (nie deny-lista) sprawia, że nowy adres jest bezpieczny z definicji, dopóki ktoś
+świadomie nie dopisze go do listy. Nonce CSP i token CSRF (ten drugi wstrzykiwany do **każdej**
+strony przez `templates/base.html`, atrybut `hx-headers`) nie są nigdy przechowywane – w cache'u
+leży placeholder, a świeżą wartość dostaje każde żądanie osobno (patrz docstring modułu za pełne
+uzasadnienie).
+
+**Klucz** niesie: wersję globalną, wersję witryny konkursu, identyfikator konkursu, język
+interfejsu, ścieżkę i `?page=`. Wersje to liczniki (`INCR`) – unieważnienie nigdy nie wylicza
+istniejących wpisów, tylko podbija licznik, więc stare wpisy po prostu przestają być trafiane
+i wygasają same po TTL.
+
+**Unieważnianie jest automatyczne** przy: publikacji/wycofaniu/przeniesieniu/skasowaniu strony
+Wagtaila, zapisie `cms.SiteSettings`, komunikacie organizatora (`cms.Announcement` – z konkursem:
+tylko jego witryna, bez konkursu: wszystkie witryny naraz), zmianie edycji/etapu/wydarzenia
+(`competitions.Edition`/`Stage`/`EditionEvent`) i ogłoszeniu wyników (`results.ResultsPublication`).
+Ręczne wyczyszczenie (np. po imporcie z ominięciem sygnałów Django):
+
+```bash
+docker compose exec -T web python manage.py page_cache_clear
+```
+
+**Weryfikacja.** Nagłówek `X-Page-Cache: HIT|MISS|BYPASS` na każdej odpowiedzi (wyłącznie do
+diagnozy – klient nic z niego nie wnioskuje). `BYPASS` na allow-liście najczęściej znaczy: gość
+zalogowany, parametr zapytania spoza `?page=`, albo `PAGE_CACHE_ENABLED=False` w `.env`.
+
+**Wyłączenie w razie incydentu** (np. redaktor zgłasza „strona nie aktualizuje się”, a sygnał
+unieważnienia z jakiegoś powodu nie doszedł): `PAGE_CACHE_ENABLED=False` w `.env` i restart `web`,
+albo doraźnie `PAGE_CACHE_SECONDS=0` – oba wyłączniki są od razu widoczne w `X-Page-Cache: BYPASS`.
+Cache zostaje **wyłączony domyślnie** w środowisku testowym (`config/settings/test.py`), więc
+budżety zapytań (`apps/tenancy/tests/test_invariants.py`) mierzą kod, nie trafienia bufora.

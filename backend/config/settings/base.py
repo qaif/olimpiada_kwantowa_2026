@@ -199,9 +199,22 @@ MIDDLEWARE = [
     # obsługi 404 – przekierowanie „/accounts/ → logowanie” włącza się dopiero, gdy istnieje
     # nazwa ``account_email`` (nie mamy jej, bo widoków allauth nie montujemy).
     "allauth.account.middleware.AccountMiddleware",
+    # Cache całych odpowiedzi HTML dla anonimowych GET-ów stron publicznych (apps/web/page_cache.py).
+    # Miejsce jest częścią kontraktu, nie przypadkiem: **bezpośrednio przed** widokiem (jedyna
+    # warstwa niżej to ``RedirectMiddleware``, patrz komentarz pod nią), więc trafienie pomija
+    # wyłącznie rozstrzyganie adresu i sam widok – każda warstwa **nad** tą (sesja, CSRF, konkurs,
+    # preferencje, nagłówki bezpieczeństwa) działa tak samo przy trafieniu i przy chybieniu.
+    # Musi stać **za** ``CsrfViewMiddleware``: przy trafieniu ta warstwa sama woła
+    # ``django.middleware.csrf.get_token()``, a ciasteczko ``csrftoken`` dokłada dopiero
+    # ``CsrfViewMiddleware`` w swojej fazie odpowiedzi, wyżej w łańcuchu. Musi stać **za**
+    # ``CompetitionMiddleware`` i ``PreferencesMiddleware`` – klucz cache'a niesie konkurs i język
+    # żądania, a oba są gotowe dopiero po tych warstwach.
+    "apps.web.page_cache.PageCacheMiddleware",
     # Na samym końcu łańcucha: warstwa działa wyłącznie na odpowiedzi 404, więc musi zobaczyć
     # ostatnie słowo widoków (Wagtail jest catch-allem w korzeniu). Dopiero gdy nikt nie umiał
     # obsłużyć adresu, sprawdzamy, czy nie jest to adres strony przeniesionej w drzewie.
+    # Przy trafieniu cache'a ta warstwa w ogóle nie widzi żądania (patrz warstwa wyżej) – i to jest
+    # poprawne: trafienie istnieje wyłącznie dla adresów, o których już wiadomo, że dają 200.
     "wagtail.contrib.redirects.middleware.RedirectMiddleware",
 ]
 
@@ -286,6 +299,18 @@ CACHES = {
         "LOCATION": REDIS_URL,
     }
 }
+
+# Pełnostronicowy cache anonimowych GET-ów stron publicznych (apps/web/page_cache.py) – patrz
+# docstring tego modułu za uzasadnienie i za to, dlaczego nie jest to wbudowany
+# ``UpdateCacheMiddleware``. Domyślnie włączony wszędzie, gdzie ``DEBUG`` jest wyłączone (produkcja,
+# staging): deweloper ma widzieć skutek każdej zmiany od razu, bez czekania na TTL.
+# ``config/settings/test.py`` wyłącza go jawnie **mimo** ``DEBUG=False`` – suita ma mierzyć kod,
+# a nie trafienia bufora (patrz budżet zapytań w ``apps/tenancy/tests/test_invariants.py``).
+PAGE_CACHE_ENABLED = env.bool("PAGE_CACHE_ENABLED", default=not DEBUG)
+# Czas życia wpisu w sekundach. Zero wyłącza cache tak samo, jak ``PAGE_CACHE_ENABLED = False`` –
+# dwa niezależne wyłączniki, bo jeden bywa wygodniejszy operacyjnie (zmienna środowiskowa przy
+# incydencie), a drugi programistycznie (test, który włącza cache, ale ze świadomie krótkim TTL).
+PAGE_CACHE_SECONDS = env.int("PAGE_CACHE_SECONDS", default=120)
 
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/1")
 CELERY_RESULT_BACKEND = None
