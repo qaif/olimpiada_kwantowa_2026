@@ -111,13 +111,14 @@ services:
       --access-logfile -
     # `mem_limit`/`mem_reservation`, nie `deploy.resources`: to drugie czyta wyłącznie Swarm,
     # a ten compose stoi na jednej maszynie bez Swarma – limit w `deploy:` byłby dokumentacją,
-    # która nigdy niczego nie ogranicza. 1500m na 4 workery × 4 wątki (Django + Wagtail + WhiteNoise
-    # w pamięci procesu) zostawia zapas nad typowym zużyciem, a jednocześnie na serwerze 12 GB/6 vCPU
-    # (razem z worker 768m, clamav 2g, db/redis/minio bez jawnego limitu) nie pozwala jednemu
+    # która nigdy niczego nie ogranicza. 2g na 4 workery × 4 wątki (po ~250 MB RSS na worker plus
+    # stary i nowy worker naraz przy rotacji `--max-requests`) zostawia zapas nad typowym zużyciem,
+    # a jednocześnie na serwerze 12 GB/6 vCPU (razem z worker 768m, clamav 3g, db/redis/minio bez
+    # jawnego limitu) nie pozwala jednemu
     # przeciekowi pamięci w widoku zjeść całej maszyny i zabrać RAM-u Postgresowi. Bez limitu CPU
     # celowo: pojedynczy proces zajmujący więcej rdzeni pod chwilowym szczytem ruchu nie jest
     # awarią, a dławienie CPU tylko wydłużyłoby czas odpowiedzi każdemu żądaniu naraz.
-    mem_limit: 1500m
+    mem_limit: 2g
     volumes:
       - static_files:/app/staticfiles
     networks: [edge, internal]
@@ -255,10 +256,13 @@ services:
     restart: unless-stopped
     logging: *default-logging
     # Baza sygnatur (`freshclam`) trzyma się w pamięci procesu skanującego, nie tylko na dysku –
-    # 2g, nie 1500m jak `web`, bo poniżej tego ClamAV odmawia załadowania pełnej bazy i skanowanie
+    # 3g, nie 2g jak `web`: w spoczynku ClamAV zajmuje ~950 MB, a przy przeładowaniu sygnatur
+    # (freshclam) trzyma przez chwilę starą i nową bazę naraz, czyli blisko 2 GB – limit 2g kończyłby
+    # się wtedy zabiciem procesu, a więc cichą odmową skanów. Poniżej ~1 GB ClamAV w ogóle nie
+    # załaduje pełnej bazy i skanowanie
     # zaczyna cicho zawodzić zamiast tylko wolniej działać. Patrz komentarz przy `web` w sprawie
     # `mem_limit` kontra `deploy.resources` i braku limitu CPU.
-    mem_limit: 2g
+    mem_limit: 3g
     environment:
       CLAMAV_NO_FRESHCLAMD: "false"
     volumes:
