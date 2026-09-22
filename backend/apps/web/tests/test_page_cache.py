@@ -11,7 +11,12 @@ Trzy warstwy testów, bo trzy różne rzeczy naprawdę zależą od siebie inacze
   rozstrzygania konkursu, który i tak biegnie wyżej w łańcuchu niezależnie od cache'a).
 - **wywołania funkcji modułu wprost** – dla furtek bezpieczeństwa, których nie da się wywołać
   prawdziwym żądaniem gościa (``Set-Cookie`` ustawiony przez widok, sesja zmieniona w trakcie
-  obsługi, dwa wystąpienia tokenu CSRF w treści).
+  obsługi, dwa wystąpienia tokenu CSRF w treści, odpowiedź większa niż limit).
+
+Komunikat organizatora (``django.contrib.messages``) dostaje **osobny** test przez prawdziwy
+łańcuch warstw (``SessionMiddleware`` → ``MessageMiddleware`` → ``PageCacheMiddleware``), bo to
+jest dokładnie przypadek, w którym ``request.session.modified`` nie wystarcza – patrz
+``_messages_shown`` w ``apps/web/page_cache.py`` i test niżej.
 """
 
 from __future__ import annotations
@@ -78,6 +83,10 @@ def test_miss_then_hit_same_body_except_nonce_and_csrf_token(client_for, competi
         second_csrf, "@csrf@"
     )
     assert normalised_first == normalised_second
+
+    # Cache jest wyłącznie po stronie serwera – nagłówek ma to jawnie zaprzeczać, na obu drogach.
+    assert first["Cache-Control"] == page_cache.CACHE_CONTROL_VALUE
+    assert second["Cache-Control"] == page_cache.CACHE_CONTROL_VALUE
 
 
 def test_hit_nonce_matches_csp_header(client_for, competition, settings):
@@ -155,6 +164,87 @@ def test_disabled_by_setting_always_bypasses(client_for, competition, settings):
     assert second["X-Page-Cache"] == "BYPASS"
 
 
+def _client_with_queued_message(client_for, competition, *, text: str):
+    """Klient z komunikatem organizatora już czekającym w sesji – tak, jakby przyszedł z przekierowania
+
+    po prawdziwej akcji (np. zgłoszenie formularza). Sesja jest **prawdziwą** sesją klienta – kolejne
+    ``client.get(...)`` przechodzi przez ``SessionMiddleware`` i ``MessageMiddleware`` tak samo, jak
+    zrobiłaby to przeglądarka; jedyną rzeczą zasymulowaną tutaj jest sam moment dodania komunikatu
+    (w produkcji robi to widok, wołając ``django.contrib.messages.success(request, …)``).
+    """
+    from django.conf import settings as django_settings
+    from django.contrib.messages import SUCCESS, add_message
+    from django.contrib.messages.storage.session import SessionStorage
+
+    client = client_for(competition)
+    session = client.session
+    request = RequestFactory().get("/")
+    request.session = session
+    request._messages = SessionStorage(request)
+    add_message(request, SUCCESS, text)
+    request._messages.update(HttpResponse())
+    session.save()
+    client.cookies[django_settings.SESSION_COOKIE_NAME] = session.session_key
+    return client
+
+
+def test_page_with_a_flash_message_is_never_cached(client_for, competition, settings):
+    """Blocker naprawiony 22.09.2026: ``request.session.modified`` przychodzi za późno.
+
+    ``MessageMiddleware`` zapisuje skonsumowaną kolejkę do sesji w swojej **fazie odpowiedzi**,
+    a ta stoi wyżej w łańcuchu niż ``PageCacheMiddleware`` (patrz docstring modułu) – w chwili,
+    gdy ta warstwa pyta o ``session.modified``, tamten zapis jeszcze się nie wydarzył. Bez
+    dodatkowego sprawdzenia magazynu komunikatów (``_messages_shown``) ta strona trafiłaby do
+    cache'a z cudzym komunikatem w treści i pokazywałaby go **każdemu** kolejnemu gościowi przez
+    120 sekund.
+    """
+    _enable(settings)
+    text = "Zgłoszenie zostało zapisane."
+    client = _client_with_queued_message(client_for, competition, text=text)
+
+    response = client.get("/")
+
+    assert text in response.content.decode()
+    assert response["X-Page-Cache"] != "HIT"  # nic nie mogło trafić z cache'a - dopiero co powstało
+
+    # Dowód, że nic **nie zostało zapisane**: kolejny, zupełnie czysty gość nie widzi cudzego
+    # komunikatu, a jego żądanie samo jest chybieniem – gdyby poprzednie się zapisało, byłoby to
+    # trafienie z zamrożonym komunikatem w treści.
+    clean_second_visitor = client_for(competition).get("/")
+    assert text not in clean_second_visitor.content.decode()
+    assert clean_second_visitor["X-Page-Cache"] == "MISS"
+
+
+class _ExplodingCache:
+    """Podstawia się pod ``page_cache.cache`` – każde wywołanie udaje awarię połączenia z Redisem."""
+
+    def get(self, *args, **kwargs):
+        raise ConnectionError("redis niedostępny (test)")
+
+    def set(self, *args, **kwargs):
+        raise ConnectionError("redis niedostępny (test)")
+
+    def incr(self, *args, **kwargs):
+        raise ConnectionError("redis niedostępny (test)")
+
+
+def test_redis_outage_degrades_instead_of_crashing(client_for, competition, settings, monkeypatch):
+    """HIGH naprawiony 22.09.2026: awaria Redisa nie ma prawa dać pięćsetki na stronie publicznej.
+
+    ``IGNORE_EXCEPTIONS`` w ``CACHES["default"]`` (config/settings/base.py) załatwiłoby to samo
+    dla prawdziwego backendu, ale ten test podmienia ``page_cache.cache`` na obiekt, który zawsze
+    rzuca – sprawdza więc **własne** zabezpieczenie warstwy (``_safe_get``/``_safe_set``/
+    ``_safe_incr``), niezależne od konfiguracji backendu.
+    """
+    _enable(settings)
+    monkeypatch.setattr(page_cache, "cache", _ExplodingCache())
+
+    response = client_for(competition).get("/")
+
+    assert response.status_code == 200
+    assert response["X-Page-Cache"] in ("MISS", "BYPASS")
+
+
 # --- Bezpieczne furtki: wywołania funkcji modułu wprost --------------------------------------------
 
 
@@ -185,6 +275,53 @@ def test_storable_rejects_non_200_and_non_html():
 
     json_response = HttpResponse("{}", content_type="application/json")
     assert page_cache._storable(request, json_response) is False
+
+
+def test_storable_rejects_response_when_a_message_was_displayed():
+    """Sprawdza ``_messages_shown`` w izolacji – patrz test przez prawdziwy łańcuch wyżej.
+
+    ``list(request._messages)`` symuluje dokładnie to, co robi ``{% if messages %}`` w szablonie:
+    iteruje magazyn, co ustawia ``storage.used`` od razu, bez czekania na zapis do sesji.
+    """
+    from django.contrib.messages import SUCCESS
+    from django.contrib.messages.storage.session import SessionStorage
+    from django.contrib.sessions.backends.db import SessionStore
+
+    request = RequestFactory().get("/")
+    request.session = SessionStore()
+    request._messages = SessionStorage(request)
+    request._messages.add(SUCCESS, "Zapisano.")
+    list(request._messages)  # odczyt = to, co robi szablon
+
+    response = HttpResponse("<html></html>", content_type="text/html")
+    assert page_cache._storable(request, response) is False
+
+
+def test_storable_accepts_a_request_with_an_untouched_message_storage():
+    """Kontrast z testem wyżej: magazyn **obecny, ale nieodczytany** nie blokuje zapisu.
+
+    To jest normalny przypadek każdej odsłony strony na allow-liście – ``MessageMiddleware``
+    zawsze ustawia ``request._messages``, także wtedy, gdy w sesji nie ma żadnego komunikatu.
+    """
+    from django.contrib.messages.storage.session import SessionStorage
+    from django.contrib.sessions.backends.db import SessionStore
+
+    request = RequestFactory().get("/")
+    request.session = SessionStore()
+    request._messages = SessionStorage(request)
+
+    response = HttpResponse("<html></html>", content_type="text/html")
+    assert page_cache._storable(request, response) is True
+
+
+def test_storable_rejects_oversized_response():
+    request = RequestFactory().get("/")
+
+    oversized = HttpResponse(b"x" * (page_cache.PAGE_CACHE_MAX_BYTES + 1), content_type="text/html")
+    assert page_cache._storable(request, oversized) is False
+
+    within_limit = HttpResponse(b"x" * 10, content_type="text/html")
+    assert page_cache._storable(request, within_limit) is True
 
 
 def test_placeholder_body_refuses_ambiguous_csrf_token():

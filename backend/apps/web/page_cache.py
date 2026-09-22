@@ -63,14 +63,23 @@ nie wiadomo, które podmienić – więc taka odpowiedź **w ogóle nie trafia d
 - odpowiedzi, które same ustawiają ciasteczko (``response.cookies`` niepusty **na wyniku widoku**,
   zanim jeszcze doszły do niego ciasteczka sesji/CSRF dokładane wyżej w łańcuchu – patrz punkt
   o miejscu w ``MIDDLEWARE``) – to sygnał, że widok robi coś specyficznego dla tego gościa,
-- żądań, w których sesja **zmieniła się** w trakcie obsługi (``request.session.modified``) – to
-  jest dokładnie sygnał, którego potrzeba dla komunikatów organizatora (``django.contrib.messages``,
-  ``MESSAGE_STORAGE`` = sesja: odczyt niepustej kolejki czyści ją i ustawia ``modified``) i dla
+- żądań, w których sesja **zmieniła się** w trakcie obsługi (``request.session.modified``) – dla
   przełącznika wysokiego kontrastu gościa (``apps.accounts.preferences.CONTRAST_SESSION_KEY``) –
-  oba są stanem **tej przeglądarki**, a nie treścią wspólną dla wszystkich anonimowych gości,
+  to jest stan **tej przeglądarki**, a nie treść wspólna dla wszystkich anonimowych gości,
+- żądań, w których **komunikat organizatora został wyświetlony** (``django.contrib.messages``,
+  ``MESSAGE_STORAGE`` = sesja). Uwaga implementacyjna: ``request.session.modified`` **nie** jest tu
+  wystarczające – ``MessageMiddleware`` konsumuje kolejkę i zapisuje sesję dopiero w swojej fazie
+  odpowiedzi, a ta warstwa stoi **niżej** w łańcuchu (patrz punkt o miejscu w ``MIDDLEWARE``), więc
+  widzi sesję **przed** tym zapisem. Sygnałem, który jest widoczny na czas, jest sam magazyn
+  komunikatów (``request._messages`` – ustawia go ``MessageMiddleware`` w fazie żądania):
+  ``{% if messages %}`` w szablonie odczytuje go **w trakcie renderowania**, czyli zanim ta warstwa
+  w ogóle dostanie odpowiedź z powrotem, i ustawia ``storage.used``/``storage.added_new`` od razu,
+  bez czekania na zapis do sesji,
 - żądań gościa, który **już** ma w sesji ustawiony wysoki kontrast (``CONTRAST_SESSION_KEY``) –
   strona renderuje się dla niego inaczej (``data-contrast="high"`` na ``<html>``), a to jest tak
-  rzadkie (gość musiał już raz kliknąć przełącznik), że nie opłaca się poszerzać nim klucza.
+  rzadkie (gość musiał już raz kliknąć przełącznik), że nie opłaca się poszerzać nim klucza,
+- odpowiedzi dłuższych niż ``PAGE_CACHE_MAX_BYTES`` – zabezpieczenie przed jedną olbrzymią stroną
+  wypychającą z Redisa wpisy wszystkich pozostałych.
 
 **Klucz:** ``(wersja globalna, wersja witryny konkursu, konkurs, język interfejsu, ścieżka,
 parametr page)`` – patrz ``build_key``. Wersje to liczniki w Redisie: unieważnienie = ``INCR``,
@@ -83,9 +92,17 @@ klucze **wszystkich** witryn naraz, bez ich wyliczania.
 
 **Nagłówki:** ``Content-Type``, ``Content-Language`` i CSP wracają takie, jakie były (CSP ze świeżym
 nonce'em). ``X-Page-Cache: HIT|MISS|BYPASS`` – wyłącznie do weryfikacji, koszt jednego przypisania.
-``Cache-Control`` **zostaje nietknięty**: widoki Wagtaila go dziś nie ustawiają (patrz
-``apps/cms/views.py``), a ta warstwa cache'uje **po stronie serwera** i nie ma zamiaru uczyć
-przeglądarki ani CDN-u niczego nowego o buforowaniu.
+``Cache-Control: private, no-store`` – dokładany **wprost** (``setdefault``, więc widok, który sam
+ustawi ten nagłówek, wygrywa) na każdej odpowiedzi HIT i MISS z tej warstwy: cache jest wyłącznie
+po stronie serwera, a bez tego jawnego zaprzeczenia domyślne zachowanie proxy/CDN-u przed Caddym
+(dziś go nie ma, ale to nie jest gwarancja na zawsze) mogłoby kiedyś zacząć buforować odpowiedź
+z materializowanym nonce'em i tokenem CSRF – czyli dokładnie to, czemu ta warstwa ma zapobiegać.
+
+**Awaria Redisa nie ma prawa wywrócić strony.** ``CACHES["default"]["OPTIONS"]["IGNORE_EXCEPTIONS"]``
+(``config/settings/base.py``) każe ``django-redis`` połykać błędy połączenia i zwracać ``None``/nic
+nie robić; ta warstwa dodatkowo owija własne wywołania (``_safe_get``/``_safe_set``/``_safe_incr``)
+w drugie, niezależne zabezpieczenie – żądanie ma się wyrenderować normalnie (BYPASS albo MISS bez
+zapisu), a nie skończyć pięćsetką, gdy Redis akurat nie odpowiada.
 """
 
 from __future__ import annotations
@@ -140,6 +157,15 @@ METRIC_PREFIX = f"{CACHE_PREFIX}:metric"
 #: wyłącza cache tak samo jak ``PAGE_CACHE_ENABLED = False`` (patrz ``config/settings/base.py``).
 DEFAULT_TTL_SECONDS = 120
 
+#: Odpowiedzi dłuższe niż to nie trafiają do cache'a (patrz ``_storable``) – zabezpieczenie przed
+#: jedną nietypowo dużą stroną wypychającą z Redisa wpisy wszystkich pozostałych. 512 KiB jest
+#: kilkanaście razy więcej niż największa strona z allow-listy waży dziś w praktyce.
+PAGE_CACHE_MAX_BYTES = 512 * 1024
+
+#: Nagłówek, który ta warstwa dokłada każdej odpowiedzi HIT/MISS, gdy widok sam żadnego nie ustawił
+#: (patrz docstring modułu, sekcja „Nagłówki”).
+CACHE_CONTROL_VALUE = "private, no-store"
+
 
 def _ttl_seconds() -> int:
     return int(getattr(settings, "PAGE_CACHE_SECONDS", DEFAULT_TTL_SECONDS))
@@ -155,9 +181,48 @@ def _competition_id(request) -> int | None:
     return getattr(competition, "pk", None)
 
 
+# --- Bezpieczne wywołania cache'a: awaria Redisa nie ma prawa wywrócić żądania --------------------
+#
+# ``IGNORE_EXCEPTIONS`` w ``CACHES["default"]`` (config/settings/base.py) już każe ``django-redis``
+# połykać błędy połączenia, ale to ustawienie backendu – druga, niezależna warstwa tutaj nie zależy
+# od tego, czy ktoś go kiedyś wyłączy albo podmieni backend na taki, który tego nie robi.
+
+
+def _safe_get(key: str, default=None):
+    try:
+        return cache.get(key, default)
+    except Exception:  # noqa: BLE001 - patrz nagłówek sekcji: awaria cache'a nie ma tu prawa głosu
+        logger.warning("Cache stron publicznych: błąd backendu (get) – żądanie bez cache'a.", exc_info=True)
+        return default
+
+
+def _safe_set(key: str, value, timeout) -> None:
+    try:
+        cache.set(key, value, timeout)
+    except Exception:  # noqa: BLE001
+        logger.warning("Cache stron publicznych: błąd backendu (set) – wpis pominięty.", exc_info=True)
+
+
+def _safe_incr(key: str) -> bool:
+    """``True``, gdy podbicie się udało – albo backend akurat milczy z powodu awarii.
+
+    Nie da się tych dwóch przypadków odróżnić bez drugiego zapytania, a to nie jest koszt, który
+    warto tu płacić: skutek błędnego ``True`` jest wyłącznie taki, że nie próbujemy dodatkowo
+    ``cache.set`` – a to wywołanie i tak by padło z tego samego powodu.
+    """
+    try:
+        cache.incr(key)
+        return True
+    except ValueError:
+        return False
+    except Exception:  # noqa: BLE001
+        logger.warning("Cache stron publicznych: błąd backendu (incr) – wersja nie podbita.", exc_info=True)
+        return True
+
+
 def _version(key: str) -> int:
     """Wersja spod klucza – ``1``, gdy nikt jeszcze nie unieważniał (klucz nie istnieje)."""
-    value = cache.get(key)
+    value = _safe_get(key)
     return int(value) if value is not None else 1
 
 
@@ -169,10 +234,8 @@ def _versions(competition_id: int | None) -> tuple[int, int]:
 
 def _bump(key: str) -> None:
     """``INCR`` na wersji – klucz bez wartości startuje od ``1``, więc bump daje od razu ``2``."""
-    try:
-        cache.incr(key)
-    except ValueError:
-        cache.set(key, 2, None)
+    if not _safe_incr(key):
+        _safe_set(key, 2, None)
 
 
 def invalidate_competition(competition_id: int | None) -> None:
@@ -205,7 +268,13 @@ def _query_suffix(request) -> str | None:
 
 
 def build_key(request) -> str | None:
-    """Klucz cache'a dla tego żądania, albo ``None``, gdy zapytanie nie kwalifikuje się do klucza."""
+    """Klucz cache'a dla tego żądania, albo ``None``, gdy zapytanie nie kwalifikuje się do klucza.
+
+    ``GET`` i ``HEAD`` dostają **ten sam** klucz – to celowe, nie przeoczenie. Widok, który nie
+    definiuje własnego ``head()`` (żaden z allow-listy tego nie robi), dostaje go od Django jako
+    alias ``get()`` (``django.views.generic.View.head = View.get``), więc obie metody i tak
+    renderują identyczną treść; osobny klucz podwoiłby liczbę wpisów bez żadnej korzyści.
+    """
     query = _query_suffix(request)
     if query is None:
         return None
@@ -258,6 +327,24 @@ def _eligible(request) -> bool:
     return True
 
 
+def _messages_shown(request) -> bool:
+    """Czy komunikat organizatora (``django.contrib.messages``) został **odczytany** w tym żądaniu.
+
+    ``request.session.modified`` przychodzi za późno: ``MessageMiddleware`` konsumuje kolejkę
+    i zapisuje ją z powrotem do sesji dopiero w swojej **fazie odpowiedzi**, a ta warstwa stoi niżej
+    w łańcuchu (patrz docstring modułu, punkt o miejscu w ``MIDDLEWARE``) – w chwili, gdy pyta
+    o ``session.modified``, tamten zapis jeszcze się nie wydarzył. Magazyn komunikatów
+    (``request._messages``, ustawiony przez ``MessageMiddleware`` w fazie **żądania**) jest za to
+    dostępny od razu: szablon czyta go w trakcie renderowania (``{% if messages %}``), czyli
+    zanim ta warstwa w ogóle zobaczy odpowiedź z powrotem, i ustawia ``used``/``added_new``
+    synchronicznie, bez czekania na cokolwiek.
+    """
+    storage = getattr(request, "_messages", None)
+    if storage is None:
+        return False
+    return bool(getattr(storage, "used", False) or getattr(storage, "added_new", False))
+
+
 def _storable(request, response) -> bool:
     """Czy **tę konkretną odpowiedź** wolno zapisać – dodatkowe warunki ponad ``_eligible``.
 
@@ -275,8 +362,12 @@ def _storable(request, response) -> bool:
     content_type = response.get("Content-Type", "").split(";")[0].strip().lower()
     if content_type != "text/html":
         return False
+    if len(response.content) > PAGE_CACHE_MAX_BYTES:
+        return False
     session = getattr(request, "session", None)
     if session is not None and session.modified:
+        return False
+    if _messages_shown(request):
         return False
     return True
 
@@ -288,7 +379,10 @@ CSRF_PLACEHOLDER = b"@@page-cache-csrf@@"
 
 #: Token CSRF stoi w treści dokładnie w jednym miejscu – atrybucie ``hx-headers`` znacznika
 #: ``<body>`` (``templates/base.html``). Wzorzec jest wąski celowo: łapie **ten** token, a nie
-#: dowolny ciąg, który przypadkiem wygląda podobnie gdzie indziej na stronie.
+#: dowolny ciąg, który przypadkiem wygląda podobnie gdzie indziej na stronie. Dokładnie jedno
+#: dopasowanie jest jedynym stanem, który ta warstwa akceptuje bez wahania – gdyby redaktor kiedyś
+#: przez pomyłkę wkleił drugi taki wzorzec (np. w treści strony), dwa dopasowania i tak nie mówią,
+#: który podmienić, więc odpowiedź w ogóle nie trafia do cache'u (patrz ``_placeholder_body``).
 _CSRF_TOKEN_RE = re.compile(rb'"X-CSRFToken":\s*"([^"]+)"')
 
 
@@ -337,17 +431,15 @@ def _materialize_header(nonce: str, header: str) -> str:
 
 def _increment_metric(name: str) -> None:
     key = f"{METRIC_PREFIX}:{name}"
-    try:
-        cache.incr(key)
-    except ValueError:
-        cache.set(key, 1, None)
+    if not _safe_incr(key):
+        _safe_set(key, 1, None)
 
 
 def metrics() -> dict:
     """Liczniki trafień/chybień od ostatniego wyczyszczenia cache'a – do strony statusu."""
     return {
-        "hits": cache.get(f"{METRIC_PREFIX}:hit") or 0,
-        "misses": cache.get(f"{METRIC_PREFIX}:miss") or 0,
+        "hits": _safe_get(f"{METRIC_PREFIX}:hit") or 0,
+        "misses": _safe_get(f"{METRIC_PREFIX}:miss") or 0,
     }
 
 
@@ -372,7 +464,7 @@ class PageCacheMiddleware:
             response.setdefault("X-Page-Cache", "BYPASS")
             return response
 
-        cached = cache.get(key)
+        cached = _safe_get(key)
         if cached is not None:
             _increment_metric("hit")
             return self._serve_hit(request, cached)
@@ -381,6 +473,7 @@ class PageCacheMiddleware:
         response = self.get_response(request)
         self._maybe_store(request, key, response)
         response.setdefault("X-Page-Cache", "MISS")
+        response.setdefault("Cache-Control", CACHE_CONTROL_VALUE)
         return response
 
     def _serve_hit(self, request, cached: dict) -> HttpResponse:
@@ -392,6 +485,7 @@ class PageCacheMiddleware:
             nonce = getattr(request, "csp_nonce", "")
             response["Content-Security-Policy"] = _materialize_header(nonce, cached["csp"])
         response["X-Page-Cache"] = "HIT"
+        response["Cache-Control"] = CACHE_CONTROL_VALUE
         return response
 
     def _maybe_store(self, request, key: str, response) -> None:
@@ -408,7 +502,7 @@ class PageCacheMiddleware:
             "content_language": response.get("Content-Language", ""),
             "csp": _placeholder_header(nonce, csp) if csp else "",
         }
-        cache.set(key, payload, _ttl_seconds())
+        _safe_set(key, payload, _ttl_seconds())
 
 
 # --- Unieważnianie: sygnały modeli, których zmiana zmienia treść stron publicznych ----------------
