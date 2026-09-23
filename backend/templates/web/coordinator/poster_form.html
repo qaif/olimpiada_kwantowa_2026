@@ -3,6 +3,9 @@
   Dodanie i edycja plakatu do pobrania. Formularz przez ``as_p`` – etykieta, pole, pomoc i błąd
   układają się same (``docs/UI.md`` § 2.13). ``enctype`` jest obowiązkowy: bez niego przeglądarka
   wysłałaby nazwę pliku zamiast pliku, a formularz odpowiedziałby „to pole jest wymagane”.
+
+  ``<datalist>`` podpowiada w polu „Karta” grupy, które konkurs już ma – karta powstaje z identycznego
+  napisu, więc wybór z listy jest pewniejszy niż przepisywanie „A3 · 297×420 mm” z pamięci.
 {% endcomment %}
 {% block title %}{% if editing %}Plakat „{{ material.title }}”{% else %}Nowy plakat{% endif %} – panel koordynatora{% endblock %}
 {% block panel_eyebrow %}<a href="{% url 'web:coordinator-posters' %}">Plakaty do pobrania</a>{% endblock %}
@@ -24,6 +27,9 @@
     {% csrf_token %}
     <p class="form__required-note">Pola oznaczone * są obowiązkowe.</p>
     {{ form.as_p }}
+    <datalist id="{{ groups_datalist_id }}">
+      {% for group in groups %}<option value="{{ group }}"></option>{% endfor %}
+    </datalist>
     <div class="actions">
       <button type="submit" class="btn btn--primary">{% if editing %}Zapisz zmiany{% else %}Dodaj plakat{% endif %}</button>
       <a class="btn btn--ghost" href="{% url 'web:coordinator-posters' %}">Anuluj</a>

@@ -28,9 +28,27 @@ REQUIRED_CSS_CLASS = "required"
 MATERIAL_ACCEPT = "application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png"
 PREVIEW_ACCEPT = "image/jpeg,image/png,.jpg,.jpeg,.png"
 
+#: ``id`` listy podpowiedzi grup (``<datalist>`` w ``web/coordinator/poster_form.html``).
+GROUP_DATALIST_ID = "poster-groups"
+
+
+def existing_groups(competition) -> list[str]:
+    """Grupy (karty) plakatów tego konkursu – podpowiedź w polu „Karta”, żeby nie powstały dwie
+    karty „A3 · 297×420 mm” i „A3 · 297 × 420 mm” różniące się spacją. Także grupy szkiców
+    (karta w przygotowaniu), bez archiwum.
+    """
+    return list(
+        PromoMaterial.objects.for_competition(competition)
+        .filter(archived_at__isnull=True)
+        .exclude(group="")
+        .order_by("group")
+        .values_list("group", flat=True)
+        .distinct()
+    )
+
 
 class PromoMaterialForm(forms.ModelForm):
-    """Tytuł, opis, plik, opcjonalny podgląd i publikacja jednego plakatu."""
+    """Tytuł, opis, karta i napis przycisku, plik, opcjonalny podgląd i publikacja jednego plakatu."""
 
     required_css_class = REQUIRED_CSS_CLASS
 
@@ -62,15 +80,31 @@ class PromoMaterialForm(forms.ModelForm):
 
     class Meta:
         model = PromoMaterial
-        fields = ("title", "description", "is_published")
+        fields = ("title", "description", "group", "variant_label", "is_published")
         labels = {
             "title": "Tytuł",
             "description": "Opis",
+            "group": "Karta (grupa plików)",
+            "variant_label": "Napis na przycisku",
             "is_published": "Opublikowany – widoczny na stronie /plakaty/",
         }
         help_texts = {
-            "title": "Np. „Plakat olimpiady 2026/2027”.",
+            "title": (
+                "Np. „Plakat olimpiady 2026/2027”. We wspólnej karcie tytułu nie widać na stronie – "
+                "nazywa pobrany plik i wiersz w statystykach, np. „A3 (PDF ze spadem)”."
+            ),
             "description": "Jedna linia: format i przeznaczenie, np. „A4 pionowy” albo „A3 do gabloty”.",
+            "group": (
+                "Pliki z identycznym napisem stają na stronie na jednej karcie z przyciskiem na każdy "
+                "plik, np. „A3 · 297×420 mm”. Napis jest nagłówkiem karty. Puste – osobna karta."
+            ),
+            "variant_label": (
+                "Tylko we wspólnej karcie, np. „PDF ze spadem 3 mm”. Puste – sam format pliku "
+                "(JPG, PNG albo PDF)."
+            ),
+        }
+        widgets = {
+            "group": forms.TextInput(attrs={"list": GROUP_DATALIST_ID, "autocomplete": "off"}),
         }
 
     def __init__(self, *args, **kwargs):

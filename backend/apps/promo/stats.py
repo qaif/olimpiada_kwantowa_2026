@@ -171,6 +171,8 @@ def daily_series(
 CSV_HEADER = [
     "plakat",
     "opis",
+    "karta (grupa)",
+    "przycisk",
     "format",
     "stan",
     f"pobrania – {SHORT_WINDOW_DAYS} dni",
@@ -202,16 +204,22 @@ def _count_cells(counts: Counts) -> list:
 
 
 def csv_rows(stats: list[MaterialStats], total: Counts) -> list[list]:
-    """Wiersze eksportu: plakat po plakacie, na końcu suma (tak jak w tabeli na ekranie)."""
+    """Wiersze eksportu: plakat po plakacie, na końcu suma (tak jak w tabeli na ekranie).
+
+    „Przycisk” jest wypełniony wyłącznie przy pliku z grupą – plik na własnej karcie ma przycisk
+    „Pobierz” bez wariantu, więc napis z formatu byłby w arkuszu informacją, której nie ma na stronie.
+    """
     rows = [
         [
             item.material.title,
             item.material.description,
+            item.material.group,
+            item.material.variant_name if item.material.group else "",
             item.material.format_label,
             state_label(item.material),
             *_count_cells(item.counts),
         ]
         for item in stats
     ]
-    rows.append(["RAZEM (wszystkie plakaty)", "", "", "", *_count_cells(total)])
+    rows.append(["RAZEM (wszystkie plakaty)", "", "", "", "", "", *_count_cells(total)])
     return rows

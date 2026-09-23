@@ -13,6 +13,9 @@
   szerokości z zamkniętej listy – polityka CSP nie dopuszcza stylu w atrybucie). Słupki są ozdobą
   liczb stojących obok (``aria-hidden``); czytnik ekranu dostaje tabelę.
 
+  Plik z grupą ma pod tytułem linię „Karta: … · przycisk „…”” – na stronie /plakaty/ pliki jednej
+  grupy stoją na wspólnej karcie, a tu zostają osobnymi wierszami, bo statystyki są per plik.
+
   Akcje w wierszach to małe formularze POST na adres listy (pole ``action``) – ten sam wzorzec, co
   komunikaty. Usunięcie pyta o potwierdzenie (``confirmSubmit``, Alpine – bez kodu inline).
 {% endcomment %}
@@ -67,6 +70,7 @@
               <td class="poster-stats__title">
                 <strong>{{ material.title }}</strong>
                 <span class="hint poster-stats__meta">{% if material.description %}{{ material.description }} · {% endif %}{{ material.format_label }}, {{ material.file_size|filesizeformat }}</span>
+                {% if material.group %}<span class="hint poster-stats__meta">Karta: {{ material.group }} · przycisk „{{ material.variant_name }}”</span>{% endif %}
                 {% if material.is_published %}
                   <span class="badge badge--ok">opublikowany</span>
                 {% else %}

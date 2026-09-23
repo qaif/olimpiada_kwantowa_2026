@@ -3,6 +3,8 @@
 Czego pilnują te testy:
 
 - **lista** pokazuje wyłącznie opublikowane plakaty konkursu z żądania; bez nich – 404,
+- **karty grup**: pliki z tą samą grupą na jednej karcie z przyciskiem na plik, każdy do własnego
+  adresu pobrania; liczba zapytań strony nie zależy od grupowania,
 - **pobranie** oddaje plik jako załącznik, zapisuje zdarzenie (bez adresu IP) i nigdy nie trafia
   do pamięci stron; ``HEAD`` i roboty nie są liczone,
 - **izolacja**: plakatu cudzego konkursu nie widać ani na liście, ani pod adresem pobrania,
@@ -75,6 +77,97 @@ def test_list_shows_preview_or_the_document_icon(browser, competition):
     content = browser.get("/plakaty/").content.decode()
 
     assert 'class="poster-card__icon"' in content
+
+
+def test_grouped_materials_share_one_card_with_a_button_per_file(browser, competition):
+    jpg = make_material(competition, title="A3 (JPG)", fmt="jpg", group="A3 · 297×420 mm", position=0)
+    pdf = make_material(competition, title="A3 (PDF)", group="A3 · 297×420 mm", position=1)
+    bleed = make_material(
+        competition,
+        title="A3 (PDF ze spadem)",
+        group="A3 · 297×420 mm",
+        variant_label="PDF ze spadem 3 mm",
+        position=2,
+    )
+    make_material(competition, title="Ulotka A5", description="Do rozdania", position=3)
+
+    response = browser.get("/plakaty/")
+    content = response.content.decode()
+
+    assert response.status_code == 200
+    # Jedna karta grupy i jedna karta pojedynczego pliku.
+    assert content.count('class="card poster-card"') == 2
+    assert content.count("A3 · 297×420 mm</h2>") == 1
+    # Tytułów plików z grupy na stronie nie ma – nagłówkiem karty jest grupa.
+    assert "A3 (PDF ze spadem)" not in content
+    # Przycisk na każdy plik, do jego własnego adresu pobrania, w kolejności koordynatora.
+    positions = [content.index(download_url(material)) for material in (jpg, pdf, bleed)]
+    assert positions == sorted(positions)
+    assert "PDF ze spadem 3 mm" in content
+    # Nazwa dostępna przycisku niesie grupę („Pobierz A3 · 297×420 mm – PDF ze spadem 3 mm”).
+    assert '<span class="visually-hidden"> A3 · 297×420 mm –</span> PDF ze spadem 3 mm' in content
+    # Karta bez grupy wygląda jak dotąd.
+    assert "Ulotka A5</h2>" in content
+    assert ": Ulotka A5 (PDF)</span>" in content
+
+
+def test_grouped_card_uses_the_first_available_preview(browser, competition):
+    from django.core.files.base import ContentFile
+
+    from apps.promo.tests.helpers import image_bytes
+
+    make_material(competition, title="A2 (PDF)", group="A2", position=0)
+    second = make_material(competition, title="A2 (PDF 2)", group="A2", position=1)
+    second.preview.save("podglad.jpg", ContentFile(image_bytes("JPEG")), save=True)
+
+    content = browser.get("/plakaty/").content.decode()
+
+    assert second.preview.url in content
+    assert 'class="poster-card__icon"' not in content
+
+
+def test_download_from_a_grouped_card_counts_the_file(browser, competition):
+    make_material(competition, title="A3 (JPG)", fmt="jpg", group="A3", position=0)
+    pdf = make_material(competition, title="A3 (PDF)", group="A3", position=1)
+
+    response = browser.get(download_url(pdf))
+
+    assert response.status_code == 200
+    assert response["Content-Disposition"] == 'attachment; filename="a3-pdf.pdf"'
+    assert list(PromoDownload.objects.values_list("material_id", flat=True)) == [pdf.pk]
+
+
+def test_group_of_another_competition_does_not_join_our_card(client_for, competition, other_competition):
+    make_material(competition, title="Nasz A3", group="A3")
+    theirs = make_material(other_competition, title="Ich A3", group="A3")
+
+    content = client_for(competition, HTTP_USER_AGENT=BROWSER).get("/plakaty/").content.decode()
+
+    assert content.count('class="card poster-card"') == 1
+    assert download_url(theirs) not in content
+
+
+def test_grouping_does_not_change_the_number_of_queries(browser, competition):
+    """Karty składa Python z jednej listy – z grupami i bez tyle samo zapytań (strona na ciepło)."""
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    from apps.promo.models import PromoMaterial
+
+    for index, fmt in enumerate(("jpg", "pdf", "pdf", "png", "pdf")):
+        make_material(competition, title=f"Plik {index}", fmt=fmt, position=index)
+    browser.get("/plakaty/")
+
+    with CaptureQueriesContext(connection) as flat:
+        browser.get("/plakaty/")
+    # ``QuerySet.update`` bez sygnałów – pamięć „czy są plakaty” zostaje ciepła, jak przy pomiarze wyżej.
+    PromoMaterial.objects.filter(title__in=["Plik 0", "Plik 1", "Plik 2"]).update(group="A3")
+    PromoMaterial.objects.filter(title__in=["Plik 3"]).update(group="A2")
+    with CaptureQueriesContext(connection) as grouped:
+        content = browser.get("/plakaty/").content.decode()
+
+    assert content.count('class="card poster-card"') == 3
+    assert len(grouped.captured_queries) == len(flat.captured_queries)
 
 
 # --- pobranie ----------------------------------------------------------------------------------------
