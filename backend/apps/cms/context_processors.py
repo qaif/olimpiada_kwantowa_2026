@@ -21,7 +21,7 @@ regułą ogólną wysypałby do nagłówka wszystkie aktualności, a archiwum �
 Dzieci czytamy jednym zapytaniem dla całego menu, więc dołożenie kolejnego dokumentu nie dokłada
 zapytania do każdej strony serwisu.
 
-Jedna pozycja nie pochodzi z drzewa Wagtaila: „Dla nauczycieli” (prośba organizatora z 22.09.2026,
+Jedna pozycja nie pochodzi z drzewa Wagtaila: „Dla szkół/nauczycieli” (prośba organizatora z 22.09.2026,
 patrz ``_supervisor_menu_item``) stoi zawsze **ostatnia**, za drzewem albo za listą zapasową, i tylko
 dla niezalogowanego czytelnika na witrynie, która ma dziś włączoną rejestrację opiekunów szkolnych.
 """
@@ -134,17 +134,38 @@ def _supervisor_menu_item(request) -> dict | None:
     zapisie ``cms.SiteSettings`` w /cms/ – tym samym sygnałem, który unieważnia też stronę w anonimowej
     pamięci podręcznej (``apps.web.page_cache``, nasłuch na ``SiteSettings``), więc zmiana organizatora
     jest widoczna od razu na obu warstwach, a nie dopiero po wygaśnięciu TTL.
+
+    Od 23.09.2026 (prośba organizatora) pozycja nazywa się „Dla szkół/nauczycieli” i jest listą
+    rozwijaną: „Rejestracja nauczyciela” (warunki jak wyżej) i „Plakaty do pobrania” (gdy konkurs ma
+    opublikowany plakat – ``apps.promo.availability``, wpis w pamięci podręcznej współdzielony ze
+    stopką, więc bez dodatkowego zapytania). Plakaty przydają się także zalogowanym, dlatego lista
+    istnieje, gdy ma choć jedną pozycję, a znika dopiero bez żadnej.
     """
     from django.urls import reverse
 
     from apps.accounts.supervisors import registration_enabled_for_request
+    from apps.promo.availability import has_public_materials
 
     user = getattr(request, "user", None)
-    if user is not None and getattr(user, "is_authenticated", False):
+    anonymous = not (user is not None and getattr(user, "is_authenticated", False))
+    kids = []
+    if anonymous and registration_enabled_for_request(request):
+        kids.append(_child("Rejestracja nauczyciela", reverse("web:register-supervisor"), request))
+    try:
+        posters = has_public_materials(getattr(request, "competition", None))
+    except Exception:  # noqa: BLE001 - awaria pamięci podręcznej/bazy nie może położyć nagłówka
+        logger.warning("Nie udało się sprawdzić, czy konkurs ma plakaty – menu bez nich.", exc_info=True)
+        posters = False
+    if posters:
+        kids.append(_child("Plakaty do pobrania", reverse("web:posters"), request))
+    if not kids:
         return None
-    if not registration_enabled_for_request(request):
-        return None
-    return _menu_item("nauczyciele", "Dla nauczycieli", reverse("web:register-supervisor"), request)
+    return _menu_item("nauczyciele", "Dla szkół/nauczycieli", kids[0]["url"], request, kids)
+
+
+def _child(title: str, url: str, request) -> dict:
+    """Pozycja listy rozwijanej – ten sam kształt co dzieci sekcji dokumentów."""
+    return {"title": title, "url": url, "active": request.path == url}
 
 
 def _expandable_children(pages: list, request) -> tuple[dict[int, list[dict]], list[dict]]:

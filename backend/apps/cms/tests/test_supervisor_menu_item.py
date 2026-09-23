@@ -23,7 +23,7 @@ from apps.cms.models import SiteSettings
 pytestmark = pytest.mark.django_db
 
 REGISTER_SUPERVISOR_URL = "/register/supervisor/"
-ITEM_TITLE = "Dla nauczycieli"
+ITEM_TITLE = "Dla szkół/nauczycieli"
 
 
 @pytest.fixture(autouse=True)
@@ -96,3 +96,50 @@ def test_item_is_active_on_the_supervisor_registration_page(
     assert item["active"] is True
     # Pozostałe pozycje nie mają się nagle podświetlić razem z nią.
     assert all(entry["active"] is False for entry in menu if entry["title"] != ITEM_TITLE)
+
+
+# --- lista rozwijana (23.09.2026): rejestracja + plakaty --------------------------------------
+
+
+def test_dropdown_has_registration_and_posters(client_for, competition, supervisor_registration_on):
+    from apps.promo.tests.helpers import make_material
+
+    make_material(competition)
+    menu = client_for(competition).get("/").context["cms_menu"]
+
+    item = next(entry for entry in menu if entry["title"] == ITEM_TITLE)
+    assert [(kid["title"], kid["url"]) for kid in item["children"]] == [
+        ("Rejestracja nauczyciela", REGISTER_SUPERVISOR_URL),
+        ("Plakaty do pobrania", reverse("web:posters")),
+    ]
+
+
+def test_logged_in_user_gets_only_the_posters(client_for, competition, supervisor_registration_on):
+    """Rejestracja nie ma sensu dla zalogowanego, plakaty – owszem."""
+    from apps.promo.tests.helpers import make_material
+
+    make_material(competition)
+    client = client_for(competition)
+    client.force_login(UserFactory())
+
+    item = next(entry for entry in client.get("/").context["cms_menu"] if entry["title"] == ITEM_TITLE)
+    assert [kid["title"] for kid in item["children"]] == ["Plakaty do pobrania"]
+
+
+def test_posters_alone_keep_the_dropdown_when_registration_is_off(client_for, competition):
+    from apps.promo.tests.helpers import make_material
+
+    make_material(competition)
+    item = next(
+        entry
+        for entry in client_for(competition).get("/").context["cms_menu"]
+        if entry["title"] == ITEM_TITLE
+    )
+    assert [kid["title"] for kid in item["children"]] == ["Plakaty do pobrania"]
+
+
+def test_dropdown_is_rendered_as_details(client_for, competition, supervisor_registration_on):
+    body = client_for(competition).get("/").content.decode()
+    menu = body.split('class="nav nav--cms"', 1)[1].split("</nav>", 1)[0]
+    assert f">{ITEM_TITLE}</summary>" in menu
+    assert f'href="{REGISTER_SUPERVISOR_URL}"' in menu
