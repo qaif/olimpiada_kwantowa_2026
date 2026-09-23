@@ -130,12 +130,46 @@ def test_the_event_stores_a_keyed_hash_never_the_address(competition):
 
 
 def test_same_address_same_hash_regardless_of_browser(competition):
+    first = make_material(competition, title="A")
+    second = make_material(competition, title="B")
+
+    one = tracking.record_download(request_from("198.51.100.1", user_agent=BROWSER), first)
+    two = tracking.record_download(request_from("198.51.100.1", user_agent=BROWSER + " Edg/140"), second)
+
+    assert one.ip_hash == two.ip_hash
+
+
+# --- podwójne kliknięcie ---------------------------------------------------------------------------
+
+
+def test_double_click_within_the_window_is_recorded_once(competition):
     material = make_material(competition)
 
-    first = tracking.record_download(request_from("198.51.100.1", user_agent=BROWSER), material)
-    second = tracking.record_download(request_from("198.51.100.1", user_agent=BROWSER + " Edg/140"), material)
+    first = tracking.record_download(request_from("198.51.100.1"), material)
+    second = tracking.record_download(request_from("198.51.100.1"), material)
 
-    assert first.ip_hash == second.ip_hash
+    assert first is not None
+    assert second is None
+    assert PromoDownload.objects.count() == 1
+
+
+def test_same_address_after_the_window_is_recorded_again(competition):
+    material = make_material(competition)
+    earlier = timezone.now() - timedelta(seconds=tracking.DEBOUNCE_SECONDS + 1)
+    make_download(material, ip_hash=tracking.ip_hash("198.51.100.1"), at=earlier)
+
+    assert tracking.record_download(request_from("198.51.100.1"), material) is not None
+    assert PromoDownload.objects.count() == 2
+
+
+def test_debounce_is_per_address_and_per_material(competition):
+    first = make_material(competition, title="A")
+    second = make_material(competition, title="B")
+
+    assert tracking.record_download(request_from("198.51.100.1"), first) is not None
+    assert tracking.record_download(request_from("198.51.100.2"), first) is not None
+    assert tracking.record_download(request_from("198.51.100.1"), second) is not None
+    assert PromoDownload.objects.count() == 3
 
 
 def test_the_key_comes_from_secret_key(settings):

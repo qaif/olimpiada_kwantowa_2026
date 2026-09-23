@@ -471,7 +471,9 @@ dniu** za ostatnie 30 dni (oba szeregi; czipy nad wykresem zawężają go do jed
 
 - **Pobrania** — każde pobranie pliku przez przeglądarkę. **Nie liczymy**: robotów wyszukiwarek,
   podglądów linków w komunikatorach (Messenger, WhatsApp, Slack…), narzędzi typu `curl`, zapytań
-  sprawdzających (HEAD) ani pobrań przez koordynatora konkursu.
+  sprawdzających (HEAD) ani pobrań przez koordynatora konkursu. Podwójne kliknięcie (ten sam plakat
+  z tego samego adresu w ciągu 10 sekund) to jedno pobranie, a jeden adres może pobrać najwyżej
+  30 plików na minutę – nadmiar dostaje komunikat „Zbyt wiele prób” i nie trafia do statystyk.
 - **Unikalne IP** — liczba **różnych adresów IP w całym okresie kolumny** (nie w ciągu doby). W
   wierszu „Razem” adres, z którego pobrano dwa różne plakaty, liczy się **raz** — dlatego ta liczba
   bywa mniejsza niż suma kolumny. Cała szkoła za jednym routerem to zwykle jeden adres; nauczyciel,

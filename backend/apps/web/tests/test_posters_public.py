@@ -107,6 +107,15 @@ def test_head_is_answered_but_not_counted(browser, competition):
     assert PromoDownload.objects.count() == 0
 
 
+def test_head_is_404_when_the_file_is_missing_in_storage(browser, competition):
+    """Ta sama odpowiedź co ``GET`` – ``HEAD`` nie może obiecywać pliku, którego nie ma."""
+    material = make_material(competition)
+    material.file.storage.delete(material.file.name)
+
+    assert browser.head(download_url(material)).status_code == 404
+    assert browser.get(download_url(material)).status_code == 404
+
+
 def test_bot_gets_the_file_but_is_not_counted(client_for, competition):
     material = make_material(competition)
 
@@ -248,4 +257,59 @@ def test_download_is_never_cached(browser, competition, settings):
 
     assert first["X-Page-Cache"] == "BYPASS"
     assert second["X-Page-Cache"] == "BYPASS"
+    # Oba żądania dostały plik (nie trafienie w pamięć stron); drugie w oknie podwójnego
+    # kliknięcia nie jest drugim pobraniem – patrz ``apps.promo.tracking.DEBOUNCE_SECONDS``.
+    assert first.status_code == second.status_code == 200
+    assert PromoDownload.objects.count() == 1
+
+
+# --- limit żądań i podwójne kliknięcie -------------------------------------------------------------
+
+
+def _with_rate(settings, rate: str | None) -> None:
+    config = dict(settings.REST_FRAMEWORK)
+    config["DEFAULT_THROTTLE_RATES"] = {**config["DEFAULT_THROTTLE_RATES"], "poster_download": rate}
+    settings.REST_FRAMEWORK = config
+
+
+def test_download_is_rate_limited_per_address_and_throttled_requests_are_not_recorded(
+    client_for, competition, settings
+):
+    _with_rate(settings, "3/min")
+    first = make_material(competition, title="A")
+    second = make_material(competition, title="B")
+    client = client_for(competition, HTTP_USER_AGENT=BROWSER, REMOTE_ADDR="203.0.113.20")
+
+    statuses = [
+        client.get(download_url(first)).status_code,
+        client.get(download_url(second)).status_code,
+        client.head(download_url(first)).status_code,
+    ]
+    throttled = client.get(download_url(second))
+
+    assert statuses == [200, 200, 200]
+    assert throttled.status_code == 429
+    assert int(throttled["Retry-After"]) >= 1
+    assert "no-store" in throttled["Cache-Control"]
     assert PromoDownload.objects.count() == 2
+    # Inny adres ma własny kubełek.
+    other = client_for(competition, HTTP_USER_AGENT=BROWSER, REMOTE_ADDR="203.0.113.21")
+    assert other.get(download_url(second)).status_code == 200
+    assert PromoDownload.objects.count() == 3
+
+
+def test_scope_has_a_rate_in_base_settings():
+    from config.settings import base as base_settings
+
+    assert base_settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["poster_download"] == "30/min"
+
+
+def test_double_click_serves_the_file_twice_but_records_once(browser, competition):
+    material = make_material(competition)
+
+    first = browser.get(download_url(material))
+    second = browser.get(download_url(material))
+
+    assert b"".join(second.streaming_content) == PDF_BYTES
+    assert first.status_code == second.status_code == 200
+    assert PromoDownload.objects.count() == 1

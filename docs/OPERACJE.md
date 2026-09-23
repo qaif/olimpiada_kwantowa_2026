@@ -1371,7 +1371,9 @@ buckety są już w kopii zapasowej (§ 1) – nie trzeba nic dopisywać.
 zadań. Plik do 50 MB zajmuje na czas wysyłki jeden wątek `gthread` (§ 11). Przy dzisiejszym ruchu
 (kilkadziesiąt pobrań dziennie) to pomijalne; gdyby plakat zaczął być pobierany setkami na
 godzinę, pierwszą dźwignią jest mniejszy plik (PDF do druku rzadko potrzebuje więcej niż 10 MB),
-a nie konfiguracja serwera.
+a nie konfiguracja serwera. Jeden adres IP może pobrać najwyżej 30 plików na minutę (scope
+`poster_download` w `REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]`, licznik `apps.web.throttle`,
+odpowiedź 429 z `Retry-After`); cała pracownia za jednym NAT-em mieści się w tym z zapasem.
 
 **Pseudonim adresu IP i jego retencja.** Zdarzenie pobrania (`promo.PromoDownload`) niesie
 `ip_hash` = HMAC-SHA256 adresu klienta z kluczem wyprowadzonym z `DJANGO_SECRET_KEY` (kontekst
