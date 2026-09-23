@@ -265,6 +265,16 @@
                 <li><a class="nav-menu__link" href="{{ child.url }}"
                        {% if child.active %}aria-current="page"{% endif %}>{{ child.title }}</a></li>
               {% endfor %}
+              {% comment %}
+                „Plakaty do pobrania” na końcu listy „Dokumenty” (prośba organizatora z 23.09.2026).
+                To nie jest strona Wagtaila, więc dokładamy ją tu, a nie w drzewie; warunek ten sam co
+                w stopce – leniwe ``promo_available`` z pamięci podręcznej, bez plakatu nie ma pozycji.
+              {% endcomment %}
+              {% if promo_available %}
+                {% url 'web:posters' as posters_url %}
+                <li><a class="nav-menu__link" href="{{ posters_url }}"
+                       {% if request.path == posters_url %}aria-current="page"{% endif %}>{% translate "Plakaty do pobrania" %}</a></li>
+              {% endif %}
             </ul>
           </details>
         {% elif item.home %}

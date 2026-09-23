@@ -313,3 +313,25 @@ def test_double_click_serves_the_file_twice_but_records_once(browser, competitio
     assert b"".join(second.streaming_content) == PDF_BYTES
     assert first.status_code == second.status_code == 200
     assert PromoDownload.objects.count() == 1
+
+
+# --- menu „Dokumenty” ------------------------------------------------------------------------------
+
+
+def _documents_dropdown(body: str) -> str:
+    start = body.index('<ul class="nav-menu__list">')
+    return body[start : body.index("</ul>", start)]
+
+
+def test_documents_dropdown_ends_with_posters_only_when_one_is_published(browser, competition):
+    """Prośba organizatora z 23.09.2026: plakaty także na liście „Dokumenty” w menu serwisu."""
+    from django.core.management import call_command
+
+    call_command("seed_regulamin", verbosity=0)  # sekcja „Dokumenty” z jednym dokumentem
+
+    assert "/plakaty/" not in _documents_dropdown(browser.get("/dokumenty/regulamin/").content.decode())
+
+    make_material(competition)
+    dropdown = _documents_dropdown(browser.get("/dokumenty/regulamin/").content.decode())
+    assert dropdown.rstrip().endswith("Plakaty do pobrania</a></li>")
+    assert 'href="/plakaty/"' in dropdown
