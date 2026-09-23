@@ -362,6 +362,15 @@
         {% endcomment %}
         {% include "web/_support_link.html" with css_class="footer__link" %}
         {% comment %}
+          „Plakaty do pobrania” (prośba organizatora z 23.09.2026) – wyłącznie wtedy, gdy konkurs
+          ma choć jeden opublikowany plakat, bo pusta lista oddaje 404. ``promo_available`` jest
+          leniwe i czytane z pamięci podręcznej unieważnianej przy zapisie plakatu
+          (``apps.promo.availability``), więc stopka nie dokłada zapytania na każdą odsłonę.
+        {% endcomment %}
+        {% if promo_available %}
+          <a href="{% url 'web:posters' %}">{% translate "Plakaty do pobrania" %}</a>
+        {% endif %}
+        {% comment %}
           „Ustawienia cookies” otwierają pasek ponownie – to jedyna droga **wycofania** zgody
           bez czyszczenia danych witryny w przeglądarce, a wycofanie musi być tak samo łatwe,
           jak udzielenie (art. 7 ust. 3 RODO). Przycisk, a nie odnośnik: nie prowadzi pod żaden

@@ -35,6 +35,7 @@ from .views import (
     coordinator_messages,
     coordinator_pages,
     coordinator_participants,
+    coordinator_posters,
     coordinator_problem_detail,
     coordinator_quality,
     coordinator_reports,
@@ -49,6 +50,7 @@ from .views import (
     participant,
     participant_extras,
     participant_tools,
+    posters,
     public,
     quiz,
     reviewer,
@@ -92,6 +94,11 @@ urlpatterns = [
     path("activate/resend/", public.ActivationResendView.as_view(), name="activate-resend"),
     path("activate/<str:token>/", public.ActivateAccountView.as_view(), name="activate"),
     path("results/<int:stage_id>/", public.PublicResultsView.as_view(), name="results"),
+    # Plakaty do pobrania (prośba organizatora z 23.09.2026). Adres polski i krótki, bo trafia do
+    # listów do szkół i na wydruki. Lista stoi na allow-liście pamięci stron publicznych
+    # (``apps.web.page_cache``), pobranie – celowo nie: każde pobranie musi dojść do licznika.
+    path("plakaty/", posters.PostersView.as_view(), name="posters"),
+    path("plakaty/<int:pk>/pobierz/", posters.PosterDownloadView.as_view(), name="poster-download"),
     # Zgoda opiekuna składana bez konta – uprawnieniem jest podpisany token w adresie
     # (``apps.accounts.guardian``). Adres jest krótki i polski, bo trafia do listu, który czyta
     # rodzic, a nie do nawigacji serwisu. Ekran podziękowania stoi **przed** wzorcem z tokenem:
@@ -381,6 +388,34 @@ urlpatterns = [
         "coordinator/sponsor-slider/",
         coordinator_sponsor_slider.SponsorSliderView.as_view(),
         name="coordinator-sponsor-slider",
+    ),
+    # Plakaty do pobrania: lista ze statystykami pobrań (i akcjami na wierszach), formularz dodania
+    # i edycji, plik dla koordynatora bez licznika i eksport statystyk. Adresy bez konkursu w ścieżce
+    # – konkurs wskazuje domena żądania, jak przy sliderze wyżej.
+    path(
+        "coordinator/posters/",
+        coordinator_posters.CoordinatorPostersView.as_view(),
+        name="coordinator-posters",
+    ),
+    path(
+        "coordinator/posters/export.csv",
+        coordinator_posters.PostersExportView.as_view(),
+        name="coordinator-posters-export",
+    ),
+    path(
+        "coordinator/posters/new/",
+        coordinator_posters.PosterFormView.as_view(),
+        name="coordinator-poster-new",
+    ),
+    path(
+        "coordinator/posters/<int:pk>/edit/",
+        coordinator_posters.PosterFormView.as_view(),
+        name="coordinator-poster-edit",
+    ),
+    path(
+        "coordinator/posters/<int:pk>/file/",
+        coordinator_posters.PosterFileView.as_view(),
+        name="coordinator-poster-file",
     ),
     # Wydarzenia linii czasu. Sąsiadują z kalendarzem etapów, bo to ta sama czynność – układanie
     # terminów edycji – tylko dla tej części kalendarza, której system nie egzekwuje.

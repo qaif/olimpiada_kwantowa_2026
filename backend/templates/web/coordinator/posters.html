@@ -1,0 +1,237 @@
+{% extends "web/coordinator/base.html" %}
+{% load static web_extras %}
+{% comment %}
+  Plakaty do pobrania: lista z akcjami, statystyki pobrań i wykres dzienny na jednym ekranie.
+
+  Każda liczba jest parą „pobrania / unikalne IP” (uwaga organizatora z 23.09.2026). Tabela ma
+  dwa wiersze nagłówka: okno (7 dni, 30 dni, od początku) nad parą kolumn – bez tego sześć kolumn
+  liczb czytałoby się jak jedna długa lista. Wiersz sumy stoi w ``<tfoot>`` i jego „unikalne”
+  **nie są sumą kolumny** (ten sam adres przy dwóch plakatach to jeden adres) – mówi to podpis
+  pod tabelą, a liczy ``apps.promo.stats.totals``.
+
+  Wykres dzienny to ten sam wykres CSS-owy, co na ``/statystyki/`` (``statistics.css``, klasy
+  szerokości z zamkniętej listy – polityka CSP nie dopuszcza stylu w atrybucie). Słupki są ozdobą
+  liczb stojących obok (``aria-hidden``); czytnik ekranu dostaje tabelę.
+
+  Akcje w wierszach to małe formularze POST na adres listy (pole ``action``) – ten sam wzorzec, co
+  komunikaty. Usunięcie pyta o potwierdzenie (``confirmSubmit``, Alpine – bez kodu inline).
+{% endcomment %}
+{% block title %}Plakaty do pobrania – panel koordynatora{% endblock %}
+{% block panel_head %}
+  <link rel="stylesheet" href="{% static 'css/statistics.css' %}">
+  <link rel="stylesheet" href="{% static 'css/posters.css' %}">
+{% endblock %}
+{% block panel_title %}Plakaty do pobrania{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Plakaty i ulotki, które nauczyciele i uczniowie pobierają bez logowania ze strony
+    <a href="{% url 'web:posters' %}">/plakaty/</a>. Odnośnik „Plakaty do pobrania” pojawia się w stopce
+    serwisu i w panelu opiekuna szkolnego, gdy opublikowany jest choć jeden plakat.</p>
+{% endblock %}
+{% block panel_actions %}
+  <a class="btn btn--primary" href="{% url 'web:coordinator-poster-new' %}">Dodaj plakat</a>
+  <a class="btn btn--secondary" href="{% url 'web:coordinator-posters-export' %}">Eksport statystyk (CSV)</a>
+{% endblock %}
+{% block panel_content %}
+
+<ul class="kpi">
+  <li class="kpi__item"><span class="kpi__value">{{ totals.total_30 }}</span><span class="kpi__label">pobrań w {{ long_days }} dni</span></li>
+  <li class="kpi__item"><span class="kpi__value">{{ totals.unique_30 }}</span><span class="kpi__label">unikalnych IP w {{ long_days }} dni</span></li>
+  <li class="kpi__item"><span class="kpi__value">{{ totals.total }}</span><span class="kpi__label">pobrań od początku</span></li>
+  <li class="kpi__item"><span class="kpi__value">{{ totals.unique }}</span><span class="kpi__label">unikalnych IP od początku</span></li>
+</ul>
+
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Plakaty na stronie</h2></div>
+  {% if active_rows %}
+    <div class="scroll">
+      <table class="table table--compact poster-stats">
+        <caption class="visually-hidden">Plakaty do pobrania: stan i liczba pobrań oraz unikalnych adresów IP w trzech okresach.</caption>
+        <thead>
+          <tr>
+            <th scope="col" rowspan="2">Plakat</th>
+            <th scope="colgroup" colspan="2" class="num">{{ short_days }} dni</th>
+            <th scope="colgroup" colspan="2" class="num">{{ long_days }} dni</th>
+            <th scope="colgroup" colspan="2" class="num">Od początku</th>
+            <th scope="col" rowspan="2">Działania</th>
+          </tr>
+          <tr>
+            <th scope="col" class="num">pobrania</th><th scope="col" class="num">unik. IP</th>
+            <th scope="col" class="num">pobrania</th><th scope="col" class="num">unik. IP</th>
+            <th scope="col" class="num">pobrania</th><th scope="col" class="num">unik. IP</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in active_rows %}
+            {% with material=row.material counts=row.counts %}
+            <tr>
+              <td class="poster-stats__title">
+                <strong>{{ material.title }}</strong>
+                <span class="hint poster-stats__meta">{% if material.description %}{{ material.description }} · {% endif %}{{ material.format_label }}, {{ material.file_size|filesizeformat }}</span>
+                {% if material.is_published %}
+                  <span class="badge badge--ok">opublikowany</span>
+                {% else %}
+                  <span class="badge badge--neutral">szkic</span>
+                {% endif %}
+              </td>
+              <td class="num">{{ counts.total_7 }}</td><td class="num">{{ counts.unique_7 }}</td>
+              <td class="num">{{ counts.total_30 }}</td><td class="num">{{ counts.unique_30 }}</td>
+              <td class="num">{{ counts.total }}</td><td class="num">{{ counts.unique }}</td>
+              <td>
+                <div class="actions poster-stats__actions">
+                  {% comment %}
+                    Kolejność na stronie /plakaty/ – strzałki w tej samej komórce co reszta akcji, a nie
+                    w osobnej kolumnie: tabela ma sześć kolumn liczb i każda dodatkowa kolumna to
+                    przewijanie w poziomie w kolumnie panelu.
+                  {% endcomment %}
+                  <form method="post" class="inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="pk" value="{{ material.pk }}">
+                    <button type="submit" name="action" value="up" class="btn btn--ghost btn--small"
+                            {% if forloop.first %}disabled{% endif %}
+                            aria-label="Przesuń „{{ material.title }}” wyżej">↑</button>
+                    <button type="submit" name="action" value="down" class="btn btn--ghost btn--small"
+                            {% if forloop.last %}disabled{% endif %}
+                            aria-label="Przesuń „{{ material.title }}” niżej">↓</button>
+                  </form>
+                  <a class="btn btn--ghost btn--small" href="{% url 'web:coordinator-poster-edit' material.pk %}">Zmień</a>
+                  <form method="post" class="inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="pk" value="{{ material.pk }}">
+                    {% if material.is_published %}
+                      <button type="submit" name="action" value="unpublish" class="btn btn--secondary btn--small">Zdejmij</button>
+                    {% else %}
+                      <button type="submit" name="action" value="publish" class="btn btn--secondary btn--small">Opublikuj</button>
+                    {% endif %}
+                  </form>
+                  <form method="post" class="inline"
+                        x-data="confirmSubmit" x-on:submit="check"
+                        data-confirm="{% if counts.total %}Ten plakat ma już pobrania – trafi do archiwum: zniknie ze strony, a statystyki zostaną. Kontynuować?{% else %}Usunąć ten plakat razem z plikiem?{% endif %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="pk" value="{{ material.pk }}">
+                    <button type="submit" name="action" value="delete" class="btn btn--ghost btn--small">Usuń</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% endwith %}
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="total">
+            <td class="poster-stats__title"><strong>Razem</strong> <span class="hint poster-stats__meta">wszystkie plakaty, także z archiwum</span></td>
+            <td class="num">{{ totals.total_7 }}</td><td class="num">{{ totals.unique_7 }}</td>
+            <td class="num">{{ totals.total_30 }}</td><td class="num">{{ totals.unique_30 }}</td>
+            <td class="num">{{ totals.total }}</td><td class="num">{{ totals.unique }}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty">
+      <span class="empty__title">Nie ma jeszcze żadnego plakatu</span>
+      <p class="empty__text">Dodaj plik PDF, JPG albo PNG. Strona /plakaty/ i odnośnik w stopce pojawią się, gdy opublikujesz pierwszy plakat.</p>
+      <p class="empty__actions"><a class="btn btn--small btn--secondary" href="{% url 'web:coordinator-poster-new' %}">Dodaj plakat</a></p>
+    </div>
+  {% endif %}
+  <ul class="hint">
+    <li><strong>Pobrania</strong> – każde pobranie pliku przez przeglądarkę. Nie liczymy robotów
+      (wyszukiwarki, podglądy linków w komunikatorach), sprawdzeń typu HEAD ani Twoich własnych
+      pobrań jako koordynatora.</li>
+    <li><strong>Unikalne IP</strong> – liczba różnych adresów IP w całym okresie kolumny, a nie
+      w ciągu doby. W wierszu „Razem” adres, z którego pobrano dwa różne plakaty, liczy się raz –
+      dlatego ta liczba bywa mniejsza niż suma kolumny. Cała szkoła za jednym routerem to zwykle
+      jeden adres.</li>
+    <li>Adresów IP nie zapisujemy – przechowujemy wyłącznie ich pseudonim, kasowany po
+      {{ retention_months }} miesiącach. Kolumna „od początku · unik. IP” obejmuje więc ostatnie
+      {{ retention_months }} miesięcy; liczba pobrań zostaje pełna.</li>
+  </ul>
+</section>
+
+{% if archived_rows %}
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Archiwum</h2></div>
+  <p class="hint">Plakaty usunięte po tym, jak ktoś je już pobrał. Nie ma ich na stronie, ale ich
+    pobrania zostają w statystykach i w eksporcie. „Przywróć” wraca plakat na listę jako szkic.</p>
+  <div class="scroll">
+    <table class="table table--compact">
+      <caption class="visually-hidden">Plakaty w archiwum i ich pobrania.</caption>
+      <thead>
+        <tr>
+          <th scope="col">Plakat</th>
+          <th scope="col">W archiwum od</th>
+          <th scope="col" class="num">Pobrania</th>
+          <th scope="col" class="num">Unik. IP</th>
+          <th scope="col">Działania</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in archived_rows %}
+          <tr>
+            <td><strong>{{ row.material.title }}</strong></td>
+            <td>{{ row.material.archived_at|local_datetime }}</td>
+            <td class="num">{{ row.counts.total }}</td>
+            <td class="num">{{ row.counts.unique }}</td>
+            <td>
+              <form method="post" class="inline">
+                {% csrf_token %}
+                <input type="hidden" name="pk" value="{{ row.material.pk }}">
+                <button type="submit" name="action" value="restore" class="btn btn--ghost btn--small">Przywróć</button>
+              </form>
+              <a class="btn btn--ghost btn--small" href="{% url 'web:coordinator-poster-file' row.material.pk %}">Plik</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Pobrania dzień po dniu – ostatnie {{ chart_days }} dni</h2>
+  </div>
+  {% if materials|length > 1 %}
+    <ul class="chips" aria-label="Wykres dla plakatu">
+      <li><a class="chip" href="{% url 'web:coordinator-posters' %}" {% if not chart_material %}aria-current="page"{% endif %}>Wszystkie plakaty</a></li>
+      {% for material in materials %}
+        <li><a class="chip" href="{% url 'web:coordinator-posters' %}?material={{ material.pk }}"
+               {% if chart_material.pk == material.pk %}aria-current="page"{% endif %}>{{ material.title }}</a></li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  <p class="hint poster-legend" aria-hidden="true">
+    <span class="poster-legend__item"><span class="poster-legend__swatch"></span> pobrania</span>
+    <span class="poster-legend__item"><span class="poster-legend__swatch poster-legend__swatch--unique"></span> unikalne IP tego dnia</span>
+  </p>
+  <div class="scroll scroll--tall">
+    <table class="table table--compact stat-table poster-daily">
+      <caption class="visually-hidden">Liczba pobrań i unikalnych adresów IP w kolejnych dniach{% if chart_material %} – plakat „{{ chart_material.title }}”{% endif %}, od najnowszego.</caption>
+      <thead>
+        <tr>
+          <th scope="col">Dzień</th>
+          <th scope="col" class="num">Pobrania</th>
+          <th scope="col" class="num">Unik. IP</th>
+          <th scope="col"><span class="visually-hidden">Wykres</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for day in series %}
+          <tr>
+            <th scope="row">{{ day.day|date:"D j.m" }}</th>
+            <td class="num">{{ day.count }}</td>
+            <td class="num">{{ day.unique }}</td>
+            <td>
+              <span class="poster-daily__bars" aria-hidden="true">
+                <span class="stat-bar"><span class="stat-bar__fill stat-bar__fill--{{ day.count_width }}"></span></span>
+                <span class="stat-bar"><span class="stat-bar__fill poster-daily__unique stat-bar__fill--{{ day.unique_width }}"></span></span>
+              </span>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

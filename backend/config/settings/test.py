@@ -69,5 +69,7 @@ REST_FRAMEWORK = {
         "payments": None,
         # Zakładanie konkursu z panelu koordynatora (subdomeny platformy).
         "competition_create": None,
+        # Pobieranie plakatów do pobrania (``/plakaty/<id>/pobierz/``).
+        "poster_download": None,
     },
 }

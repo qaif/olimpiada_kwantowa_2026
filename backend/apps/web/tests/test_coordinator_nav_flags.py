@@ -86,6 +86,8 @@ EXPECTED_MENU_WITHOUT_FLAGS: tuple[tuple[str, tuple[str, ...]], ...] = (
             "Przekazywanie rozwiązań",
             # Uwaga organizatora z 21.09.2026 – ten sam powód braku flagi, co wyżej.
             "Slider sponsorów",
+            # Prośba organizatora z 23.09.2026 – plakaty do pobrania, bez flagi z tego samego powodu.
+            "Plakaty do pobrania",
         ),
     ),
 )
@@ -236,6 +238,7 @@ def test_consents_flag_adds_exactly_one_item_in_settings(competition):
         "Integracje",
         "Przekazywanie rozwiązań",
         "Slider sponsorów",
+        "Plakaty do pobrania",
     )
     # Poza „Ustawieniami” nie zmienia się nic: flaga dokłada ekran, a nie przebudowuje panelu.
     assert labels_of(competition, "Raporty") == dict(EXPECTED_MENU_WITHOUT_FLAGS)["Raporty"]

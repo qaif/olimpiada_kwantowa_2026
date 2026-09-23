@@ -44,8 +44,12 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: już wcześniej, ale nie była tu opisana wcale, a od tej zmiany zbiera też zgody (regulamin,
 #: RODO) i wchodzi do eksportu i anonimizacji konta. Nowa czynność przetwarzania z własnym kręgiem
 #: osób jest z definicji zmianą materialną, nie doprecyzowaniem istniejącego wiersza.
-REGISTER_VERSION = "1.5"
-REGISTER_DATE = date(2026, 9, 22)
+#: 1.6 (23.09.2026) – statystyka pobrań plakatów (``apps.promo``) liczy pobrania z **unikalnych
+#: adresów IP** w dowolnym okresie, więc przy każdym pobraniu zostaje pseudonim adresu IP (HMAC
+#: z kluczem serwera). Nowa kategoria danych o osobach, które nie mają w serwisie konta, i nowy
+#: termin usunięcia – zmiana materialna, a nie doprecyzowanie wiersza „serwis”.
+REGISTER_VERSION = "1.6"
+REGISTER_DATE = date(2026, 9, 23)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
 #: domyślna wartość ``Edition.data_retention_months`` – gdyby organizator zmienił ją dla rocznika,
@@ -396,6 +400,47 @@ ACTIVITIES: tuple[ProcessingActivity, ...] = (
             "się ani jeden skrypt podmiotu trzeciego",
             "tryb zgody (Consent Mode v2): przed kliknięciem zgody nie powstaje cookie analityczne",
             "polityka Content-Security-Policy bez kodu inline, zamknięta lista dostawców osadzeń",
+        ],
+    ),
+    # Statystyka pobrań plakatów (prośba organizatora z 23.09.2026, ``apps.promo``). Osobny wiersz,
+    # a nie kolejna kategoria w „serwisie”: tamten opisuje bezpieczeństwo i analitykę **za zgodą**,
+    # a tu przetwarzanie idzie bez zgody, na uzasadnionym interesie, i ma **własny** termin usunięcia
+    # egzekwowany zadaniem (``apps.promo.tasks.clear_expired_ip_hashes``). Wiersz jest bezwarunkowy:
+    # ekran plakatów nie ma flagi, a pierwszy opublikowany plakat zaczyna przetwarzanie bez udziału
+    # operatora.
+    _activity(
+        key="plakaty",
+        name="Statystyka pobrań materiałów promocyjnych (plakatów)",
+        purpose=(
+            "Policzenie, ile razy i z ilu różnych adresów IP pobrano plakaty i ulotki olimpiady "
+            "udostępnione na stronie serwisu – do oceny zasięgu promocji wśród szkół."
+        ),
+        legal_basis=(
+            "art. 6 ust. 1 lit. f RODO (prawnie uzasadniony interes administratora – ocena "
+            "skuteczności promocji olimpiady); pobranie plakatu nie wymaga konta ani zgody"
+        ),
+        subjects="osoby pobierające plakaty ze strony serwisu (głównie nauczyciele i uczniowie)",
+        categories=[
+            "pseudonim adresu IP: HMAC-SHA256 z kluczem przechowywanym wyłącznie po stronie serwera – "
+            "bez samego adresu IP, bez nagłówka przeglądarki i bez powiązania z kontem",
+            "data i godzina pobrania oraz wskazanie pobranego pliku",
+        ],
+        recipients=[
+            HOSTING_RECIPIENT,
+            "koordynator konkursu – wyłącznie liczby zbiorcze (pobrania i unikalne adresy w oknach "
+            "7 dni, 30 dni i od początku); pojedynczych pseudonimów nie widzi nikt w interfejsie",
+        ],
+        retention=(
+            "pseudonim adresu IP – 12 miesięcy od pobrania, po czym jest automatycznie zerowany "
+            "(zadanie dzienne); samo zdarzenie pobrania (data, plik) bez pseudonimu zostaje "
+            "bezterminowo jako liczba pobrań łącznie"
+        ),
+        measures=[
+            "adres IP nie jest zapisywany w żadnej postaci odwracalnej – do bazy trafia wyłącznie "
+            "HMAC z kluczem wyprowadzonym z sekretu aplikacji, którego nie ma w bazie ani w jej kopii",
+            "adres klienta brany wyłącznie z połączenia albo z nagłówka zaufanego odwrotnego proxy; "
+            "nagłówki podane przez klienta są ignorowane",
+            "roboty, podglądy linków i żądania HEAD nie są liczone ani zapisywane",
         ],
     ),
 )

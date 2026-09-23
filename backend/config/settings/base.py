@@ -129,6 +129,11 @@ INSTALLED_APPS = [
     # łączy ją jeden **odczyt** – „czy trwa etap przyjmujący rozwiązania”, od którego zależy
     # wymuszona moderacja wstępna (``apps.forum.services.effective_mode``).
     "apps.forum",
+    # Plakaty do pobrania i statystyka ich pobrań (prośba organizatora z 23.09.2026). Osobna
+    # aplikacja, a nie model w ``apps.cms``: plakat nie jest stroną ani snippetem Wagtaila, ma własny
+    # plik w storage prywatnym, własne zdarzenia (pobrania) i własne reguły prywatności liczenia
+    # (``apps.promo.tracking``). Z domeną zawodów łączy ją wyłącznie konkurs.
+    "apps.promo",
     # Warstwa integracyjna: klucze API dla systemów zewnętrznych, webhooki i eksporty na zewnątrz.
     # **Po** aplikacjach domeny, bo czyta je wszystkie (edycje, wyniki, zgłoszenia), a żadna z nich
     # nie czyta jej – zależność idzie w jedną stronę i kolejność w tej liście ma to pokazywać.
@@ -263,6 +268,10 @@ TEMPLATES = [
                 # (5 minut, unieważnianej przy publikacji partnerów i przy zapisie ustawień);
                 # panel redakcyjny paska nie dostaje.
                 "apps.cms.sponsor_slider.sponsor_slider",
+                # Czy konkurs ma plakaty do pobrania – odnośnik w stopce i w panelu opiekuna
+                # szkolnego. Wartość leniwa, z pamięci podręcznej unieważnianej przy zapisie plakatu
+                # (``apps.promo.availability``).
+                "apps.promo.availability.promo_materials",
                 # Nazwa serwisu, hasło i dane organizatora – ``cms.SiteSettings`` edytowane
                 # w ``/cms/`` (Ustawienia → Serwis). Szablony czytają je jako
                 # ``settings.cms.SiteSettings``; nic z tego nie jest zaszyte w kodzie.
@@ -405,6 +414,13 @@ CELERY_BEAT_SCHEDULE = {
     # o minuty i nie zmieniał niczego poza obciążeniem bazy.
     "anonymise-expired-editions": {
         "task": "apps.accounts.retention.anonymise_expired_editions",
+        "schedule": 86400.0,
+    },
+    # Retencja pseudonimów adresów IP przy pobraniach plakatów (apps/promo/tasks.py): po dwunastu
+    # miesiącach skrót ``ip_hash`` jest zerowany, a samo zdarzenie zostaje w liczbie pobrań łącznie.
+    # Raz na dobę z tego samego powodu, co anonimizacja wyżej – termin jest liczony w miesiącach.
+    "promo-clear-expired-ip-hashes": {
+        "task": "apps.promo.tasks.clear_expired_ip_hashes",
         "schedule": 86400.0,
     },
     # Puls workera zapisywany w cache'u – z niego strona ``/status/`` czyta, czy kolejka zadań
@@ -893,6 +909,12 @@ REST_FRAMEWORK = {
         # do Let's Encrypt (limit 50 na domenę na tydzień). Podgląd przed zapisem limitu **nie**
         # konsumuje – liczy się dopiero potwierdzenie (patrz ``apps/web/views/coordinator_competitions.py``).
         "competition_create": "5/day",
+        # Pobieranie plakatów (``/plakaty/<id>/pobierz/``, ``apps.web.views.posters``). Limit per
+        # adres IP chroni dwie rzeczy naraz: wątek serwera (plik do 50 MB idzie przez aplikację)
+        # i statystykę pobrań, którą skrypt w pętli zawyżałby bez końca. Trzydzieści na minutę
+        # to więcej, niż wyklika nauczyciel pobierający wszystkie plakaty po kolei – także cała
+        # pracownia za jednym adresem szkoły – a mniej, niż potrzeba do nabijania licznika.
+        "poster_download": "30/min",
     },
     "EXCEPTION_HANDLER": "apps.core.api.exception_handler",
 }

@@ -32,7 +32,7 @@ edycji i zgłoszenia po numerze. Fraza krótsza niż dwa znaki nie szuka niczego
 | **Komitet** | Członkowie, Zatwierdzenia, Zaproszenia, Województwa |
 | **Komunikacja** | Komunikaty, Zgłoszenia, Ogłoszenia |
 | **Raporty** | Eksport danych, Audyt, Symulacja kwalifikacji, Dyplomy, Retencja danych, Rejestr czynności |
-| **Ustawienia** | Rejestracja uczestników, Wydarzenia linii czasu, Skala punktacji |
+| **Ustawienia** | Rejestracja uczestników, Wydarzenia linii czasu, Skala punktacji, Slider sponsorów, Plakaty do pobrania |
 
 Przy czterech pozycjach (Moderacja, Aktywacje, Zatwierdzenia, Zgłoszenia) stoją **liczniki spraw
 czekających**. Zero nie rysuje kropki — kropka przy pozycji, pod którą nic nie czeka, uczyłaby ignorować
@@ -431,6 +431,67 @@ Skąd biorą się logotypy — **nie ma tu drugiej listy partnerów**:
 
 Zmiana zapisuje się od razu (audyt `site.sponsor_slider_updated` — włącznik, sekundy i poziomy,
 bez treści komunikatów).
+
+### 4.10 Plakaty do pobrania — `/coordinator/posters/`
+
+Ekran **„Plakaty do pobrania”** (menu: Ustawienia → Plakaty do pobrania, zaraz pod sliderem
+sponsorów). Plakaty i ulotki olimpiady, które nauczyciele i uczniowie pobierają **bez logowania**
+ze strony **`/plakaty/`** — siatka kart z podglądem, tytułem, opisem, formatem i rozmiarem pliku
+oraz przyciskiem „Pobierz”.
+
+**Gdzie to widać.** Odnośnik „Plakaty do pobrania” pojawia się w **stopce każdej strony** i jako
+przycisk „Plakaty do powieszenia w szkole” w **panelu opiekuna szkolnego** (`/supervisor/`) —
+wyłącznie wtedy, gdy opublikowany jest choć jeden plakat. Bez opublikowanych plakatów strona
+`/plakaty/` odpowiada „nie znaleziono”, a odnośników nie ma nigdzie. Zmiana (publikacja, zdjęcie,
+nowy tytuł) widać w serwisie od razu — bez czekania na odświeżenie pamięci stron.
+
+**Dodanie plakatu** — „Dodaj plakat”:
+
+| Pole | Znaczenie |
+|---|---|
+| Tytuł | nagłówek karty, np. „Plakat olimpiady 2026/2027”. Z tytułu powstaje też nazwa zapisanego pliku (`plakat-olimpiady-2026-2027.pdf`) |
+| Opis | jedna linia pod tytułem: format i przeznaczenie, np. „A4 pionowy”, „A3 do gabloty” |
+| Plik plakatu | **PDF, JPG albo PNG, najwyżej 50 MB**. Format rozpoznajemy po zawartości pliku, nie po rozszerzeniu — plik, który tylko udaje PDF (np. strona HTML przemianowana na `.pdf`), zostanie odrzucony |
+| Własny podgląd | opcjonalny obrazek JPG/PNG (do 5 MB) na kartę. Dla plakatu JPG/PNG **podgląd powstaje sam** z pliku; dla PDF-a bez własnego podglądu karta pokazuje ikonę dokumentu |
+| Opublikowany | bez zaznaczenia plakat jest **szkicem** — widać go tylko w panelu |
+
+Na liście plakatów w każdym wierszu: strzałki **↑ ↓** (kolejność na stronie `/plakaty/`), **Zmień**,
+**Opublikuj / Zdejmij** i **Usuń**. Plik szkicu możesz pobrać z ekranu edycji („pobierz, żeby
+sprawdzić”) — to pobranie nie liczy się do statystyk. Podmiana pliku w edycji zachowuje statystyki
+plakatu; stary plik jest usuwany.
+
+**Usuń a statystyki.** Plakat, którego **nikt jeszcze nie pobrał**, jest usuwany razem z plikiem.
+Plakat, który **ma już pobrania**, trafia do **Archiwum** (sekcja pod listą): znika ze strony, ale
+jego liczby zostają w tabeli, w sumie i w eksporcie. „Przywróć” wraca go na listę jako szkic.
+
+**Statystyki — dwie liczby wszędzie.** Tabela pod listą pokazuje dla każdego plakatu i w wierszu
+„Razem” **pobrania** oraz **unikalne adresy IP** w trzech okresach: **ostatnie 7 dni**, **ostatnie
+30 dni** i **od początku**. Nad tabelą stoją cztery kafelki z sumami, a pod nią **wykres dzień po
+dniu** za ostatnie 30 dni (oba szeregi; czipy nad wykresem zawężają go do jednego plakatu).
+
+- **Pobrania** — każde pobranie pliku przez przeglądarkę. **Nie liczymy**: robotów wyszukiwarek,
+  podglądów linków w komunikatorach (Messenger, WhatsApp, Slack…), narzędzi typu `curl`, zapytań
+  sprawdzających (HEAD) ani pobrań przez koordynatora konkursu. Podwójne kliknięcie (ten sam plakat
+  z tego samego adresu w ciągu 10 sekund) to jedno pobranie, a jeden adres może pobrać najwyżej
+  30 plików na minutę – nadmiar dostaje komunikat „Zbyt wiele prób” i nie trafia do statystyk.
+- **Unikalne IP** — liczba **różnych adresów IP w całym okresie kolumny** (nie w ciągu doby). W
+  wierszu „Razem” adres, z którego pobrano dwa różne plakaty, liczy się **raz** — dlatego ta liczba
+  bywa mniejsza niż suma kolumny. Cała szkoła za jednym routerem to zwykle jeden adres; nauczyciel,
+  który pobrał plakat w szkole i w domu — dwa.
+- **Eksport statystyk (CSV)** oddaje tę samą tabelę (średnik, polskie znaki poprawnie w Excelu):
+  dla każdego okresu para kolumn „pobrania / unikalne IP” i wiersz „RAZEM” na końcu.
+
+**RODO — co zapisujemy.** Adresu IP **nie zapisujemy**. Przy pobraniu zostaje wyłącznie jego
+**pseudonim** (skrót HMAC-SHA256 z kluczem serwera), data i wskazanie pliku — bez nagłówka
+przeglądarki i bez konta. Pseudonim jest **automatycznie kasowany po 12 miesiącach** (zadanie
+nocne); samo pobranie zostaje w liczbie pobrań. Skutek: kolumna „od początku · unikalne IP”
+obejmuje ostatnie 12 miesięcy, a „od początku · pobrania” — pełną historię. Czynność opisuje
+rejestr czynności przetwarzania (§ 9.2, wiersz „Statystyka pobrań materiałów promocyjnych”;
+podstawa: prawnie uzasadniony interes, art. 6 ust. 1 lit. f RODO).
+
+Każda zmiana zostawia wpis w audycie (`promo.created`, `promo.updated`, `promo.published`,
+`promo.unpublished`, `promo.reordered`, `promo.archived`, `promo.deleted`, `promo.restored`; eksport —
+`export.generated`) z numerem plakatu i nazwami zmienionych pól, bez tytułu i nazwy pliku.
 
 ---
 
@@ -854,11 +915,18 @@ Konto opiekuna, które organizator chce mimo to wyczyścić, usuwa się **ręczn
 anonimizuje profil opiekuna (szkoła, telefon, zgody znikają; potwierdzenia udziału szkoły w
 edycjach zostają, jeśli takie są — patrz § 10).
 
+**Pseudonimy adresów IP przy pobraniach plakatów** (§ 4.10) mają **własny, stały termin**:
+12 miesięcy od pobrania, niezależnie od ustawień edycji. Kasuje je nocne zadanie
+`apps.promo.tasks.clear_expired_ip_hashes` — ten ekran ich nie pokazuje i nie trzeba go do tego
+uruchamiać; liczba pobrań zostaje, znika tylko możliwość policzenia unikalnych adresów sprzed roku.
+
 ### 9.2 Rejestr czynności przetwarzania — `/coordinator/processing-register/`
 
-Dokument wymagany art. 30 ust. 1 RODO, **gotowy do wydania na żądanie**. Obejmuje dziewięć czynności:
-konta uczestników, dowody zgód, przyjmowanie i ocenianie prac, ogłaszanie wyników i dokumenty,
-reklamacje, rozmowy kwalifikacyjne, konta komitetu, zgłoszenia i pomoc oraz utrzymanie serwisu.
+Dokument wymagany art. 30 ust. 1 RODO, **gotowy do wydania na żądanie**. Obejmuje jedenaście czynności:
+konta uczestników, dowody zgód, konta opiekunów szkolnych, przyjmowanie i ocenianie prac, ogłaszanie
+wyników i dokumenty, reklamacje, rozmowy kwalifikacyjne, konta komitetu, zgłoszenia i pomoc,
+utrzymanie serwisu oraz statystykę pobrań plakatów (wersja 1.6 z 23.09.2026 — pseudonim adresu IP
+przy pobraniu plakatu, kasowany po 12 miesiącach, § 4.10).
 Odbiorcy są wymienieni wprost (hosting, dostawca poczty, analityka wyłącznie po zgodzie). Dane
 administratora (nazwa, adres, KRS, kontakt) dokłada się **z ustawień serwisu w `/cms/`**, więc ich
 poprawka nie wymaga wydania aplikacji. `?format=csv` oddaje ten sam dokument jako plik otwierający się
