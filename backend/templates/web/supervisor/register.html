@@ -16,6 +16,15 @@
     {% if settings.cms.SiteSettings.supervisor_registration_intro %}
       <div class="auth__intro">{{ settings.cms.SiteSettings.supervisor_registration_intro|richtext }}</div>
     {% endif %}
+    {% comment %}
+      Plakaty do pobrania (prośba organizatora z 23.09.2026: „Dla nauczycieli” to miejsce, gdzie
+      nauczyciel ich szuka). Tylko przy opublikowanym plakacie – ta sama leniwa flaga co w stopce.
+    {% endcomment %}
+    {% if promo_available %}
+      <p class="alert alert--info">
+        <span>Chcesz powiesić plakat olimpiady w szkole? <a href="{% url 'web:posters' %}">Plakaty do pobrania</a> – bez logowania.</span>
+      </p>
+    {% endif %}
     <form method="post" class="form">
       {% csrf_token %}
       {# Legenda gwiazdki – marker rysuje arkusz z klasy ``required`` (apps/web/forms.py). #}

@@ -58,6 +58,23 @@ def test_the_supervisor_page_links_back_to_participant_registration(web_client, 
     assert reverse("web:register") in body
 
 
+def test_the_supervisor_page_links_to_posters_when_one_is_published(
+    client_for, competition, supervisor_registration_on
+):
+    from apps.promo.tests.helpers import make_material
+
+    link = f'href="{reverse("web:posters")}">Plakaty do pobrania</a> – bez'
+
+    def page() -> str:
+        return client_for(competition).get(REGISTER_URL).content.decode()
+
+    assert link not in page()
+    make_material(competition, published=False)
+    assert link not in page()
+    make_material(competition)
+    assert link in page()
+
+
 # --- zgody ------------------------------------------------------------------------------------
 
 
