@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% load static i18n %}
+{% comment %}
+  „Plakaty do pobrania” (prośba organizatora z 23.09.2026). Siatka kart ``.cards`` z systemu
+  interfejsu (``docs/UI.md`` § 2.4) – jedyne, co dochodzi w ``static/css/posters.css``, to ramka
+  podglądu o stałych proporcjach, żeby karty z plakatem pionowym, poziomym i PDF-em bez miniatury
+  stały w równym rzędzie.
+
+  Podgląd ma pusty ``alt``: tytuł plakatu stoi tuż pod nim jako nagłówek karty, więc opis obrazka
+  czytnik ekranu przeczytałby dwa razy. Ikona PDF-a jest ozdobą (``aria-hidden``) – format i rozmiar
+  pliku stoją w tekście pod tytułem.
+
+  Przycisk „Pobierz” prowadzi przez widok aplikacji (``web:poster-download``), a nie wprost do
+  pliku: to widok liczy pobrania. Atrybut ``download`` jest wskazówką dla przeglądarki; nazwę pliku
+  i tak ustala nagłówek ``Content-Disposition``.
+{% endcomment %}
+{% block title %}{% translate "Plakaty do pobrania" %}{% endblock %}
+{% block description %}{% translate "Plakaty i ulotki olimpiady do wydrukowania i powieszenia w szkole – pliki PDF, JPG i PNG do pobrania bez logowania." %}{% endblock %}
+{% block head %}
+  <link rel="stylesheet" href="{% static 'css/posters.css' %}">
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Dla szkół" %}</span>
+  <h1>{% translate "Plakaty do pobrania" %}</h1>
+  <p class="lead">{% translate "Wydrukuj i powieś w szkole – pomóż nam dotrzeć do uczniów, którzy jeszcze nie wiedzą o olimpiadzie." %}</p>
+  <p class="hint">{% translate "Pliki pobiera się bez logowania. Wersje PDF są przygotowane do druku." %}</p>
+</div>
+
+<ul class="cards poster-cards">
+  {% for material in materials %}
+    <li>
+      <article class="card poster-card">
+        <div class="poster-card__preview">
+          {% if material.preview %}
+            <img src="{{ material.preview.url }}" alt="" loading="lazy" decoding="async">
+          {% else %}
+            <svg class="poster-card__icon" viewBox="0 0 48 60" aria-hidden="true" focusable="false">
+              <path d="M4 2h28l12 12v42a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="none" stroke="currentColor" stroke-width="2.5"/>
+              <path d="M32 2v12h12" fill="none" stroke="currentColor" stroke-width="2.5"/>
+              <text x="23" y="44" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">{{ material.format_label }}</text>
+            </svg>
+          {% endif %}
+        </div>
+        <h2 class="card__title poster-card__title">{{ material.title }}</h2>
+        {% if material.description %}<p class="poster-card__description">{{ material.description }}</p>{% endif %}
+        <p class="card__meta">{{ material.format_label }} · {{ material.file_size|filesizeformat }}</p>
+        <p class="poster-card__actions">
+          <a class="btn btn--primary btn--block" href="{% url 'web:poster-download' material.pk %}" download>
+            {% translate "Pobierz" %}<span class="visually-hidden">: {{ material.title }} ({{ material.format_label }})</span>
+          </a>
+        </p>
+      </article>
+    </li>
+  {% endfor %}
+</ul>
+{% endblock %}

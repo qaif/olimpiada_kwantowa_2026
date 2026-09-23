@@ -320,14 +320,26 @@ QUERY_BUDGET = {
     # jedno zapytanie na pół minuty na instalację, nie jedno na żądanie – próg mierzy tu jednak stan
     # zimny (patrz ``_reset_panel_counters`` niżej), bo inaczej wynik zależałby od tego, co przed tym
     # testem zdążyło wygrzać pamięć w tym samym procesie.
-    "/": 34,
+    #
+    # +1 od 23.09.2026: odnośnik „Plakaty do pobrania” w stopce **każdej** strony
+    # (``apps.promo.availability``, procesor ``promo_materials``) pyta „czy konkurs ma choć jeden
+    # opublikowany plakat”. Odpowiedź leży w pamięci podręcznej przez godzinę, jest unieważniana
+    # i od razu przeliczana przy każdym zapisie plakatu – w ruchu produkcyjnym to zero zapytań na
+    # odsłonę. Próg mierzy jednak stan zimny (``backend/conftest.py`` czyści pamięć przed każdym
+    # testem), więc widać tu to jedno ``EXISTS`` pierwszego żądania po zimnym starcie. Że drugie
+    # żądanie go już nie płaci, sprawdza ``apps/web/tests/test_posters_public.py``
+    # (``test_warm_page_does_not_ask_about_posters``). Ten sam przyrost i ten sam powód przy
+    # ``/me/`` i ``/coordinator/`` niżej – stopka jest w ``templates/base.html``.
+    "/": 35,
     # 47 = 46 + zapytanie nagłówka CSP o identyfikator GA4, liczone od 21.09.2026 zawsze na zimno
     # (patrz ``_reset_panel_counters``). To nie jest nowy koszt strony, tylko koniec zależności
     # pomiaru od kolejności testów.
     # +2 od 21.09.2026: slider sponsorów – ``SiteSettings.for_site`` i ``PartnersPage…first()``,
     # patrz komentarz przy ``"/"`` wyżej.
-    "/me/": 49,
-    "/coordinator/": 50,
+    # +1 od 23.09.2026: odnośnik „Plakaty do pobrania” w stopce – patrz komentarz przy ``"/"``.
+    "/me/": 50,
+    # 50 + 1 od 23.09.2026: odnośnik „Plakaty do pobrania” w stopce – patrz komentarz przy ``"/"``.
+    "/coordinator/": 51,
 }
 
 

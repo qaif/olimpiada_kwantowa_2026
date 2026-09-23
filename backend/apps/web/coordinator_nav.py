@@ -477,6 +477,15 @@ def groups(stages: list, competition=None) -> list[Group]:
             ("web:coordinator-sponsor-slider",),
             match=("coordinator-sponsor-slider",),
         ),
+        # Plakaty do pobrania i statystyki ich pobrań (prośba organizatora z 23.09.2026). Zaraz za
+        # sliderem sponsorów, bo obie pozycje dotyczą tego samego – promocji olimpiady na stronie –
+        # i z tego samego powodu nie mają flagi: ekran zamówił organizator Konkursu #1. Bramką jest
+        # sama treść: bez opublikowanego plakatu strona ``/plakaty/`` i odnośnik w stopce nie istnieją.
+        Item(
+            "Plakaty do pobrania",
+            ("web:coordinator-posters",),
+            match=("coordinator-posters", "coordinator-posters-", "coordinator-poster-"),
+        ),
     )
     if competition is not None and competition.has_feature("institution_types"):
         # Profil rejestracji (§ 1.3.4, T23) – co wolno wpisać w formularzu zgłoszeniowym. Stoi

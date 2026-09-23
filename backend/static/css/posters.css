@@ -1,0 +1,133 @@
+/* =================================================================================================
+   Plakaty do pobrania (/plakaty/) – dodatek do ``.cards``/``.card`` z ``app.css``.
+
+   Jedyna rzecz, której system interfejsu nie ma: **ramka podglądu o stałych proporcjach**. Bez
+   niej karta z plakatem pionowym jest dwa razy wyższa od karty z poziomym, a przycisk „Pobierz”
+   skacze w rzędzie. Proporcja 3:4 jest proporcją pionowego A4 zaokrągloną do liczb, które da się
+   zapamiętać; obraz w środku jest dopasowany (``contain``), a nie przycięty – plakat, któremu
+   ucięto nagłówek, przestaje być podglądem.
+
+   Kolory, odstępy i promienie wyłącznie z tokenów (``docs/UI.md`` § 1), więc tryb ciemny i tryb
+   wysokiego kontrastu działają bez jednej dodatkowej reguły.
+   ============================================================================================== */
+
+.poster-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.poster-card__preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 3 / 4;
+  margin: 0 0 var(--sp-2);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-inset);
+}
+
+.poster-card__preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Ikona dokumentu dla PDF-a bez własnej miniatury. ``currentColor`` – kolor bierze z tekstu
+   drugoplanowego, więc w trybie kontrastu staje się czarna/żółta razem z resztą strony. */
+.poster-card__icon {
+  width: 30%;
+  max-width: 6rem;
+  height: auto;
+  color: var(--muted);
+}
+
+.poster-card__title {
+  margin: 0;
+  font-size: 1.15rem;
+  overflow-wrap: anywhere;
+}
+
+.poster-card__description {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+/* Przycisk przyklejony do dołu karty: karty w rzędzie mają tę samą wysokość (``.cards .card``),
+   a opis bywa jedno- albo dwuwierszowy – bez tego przyciski stałyby na różnych wysokościach. */
+.poster-card__actions {
+  margin: auto 0 0;
+  padding-top: var(--sp-2);
+}
+
+/* --- panel koordynatora: /coordinator/posters/ ------------------------------------------------ */
+
+/* Opis i format pod tytułem plakatu w wierszu tabeli – w nowej linii, drobniej. */
+.poster-stats__meta {
+  display: block;
+  font-weight: 400;
+}
+
+/* Trzy małe akcje w jednej komórce – zawijają się (``.actions``), żeby tabela z sześcioma kolumnami
+   liczb mieściła się w kolumnie panelu bez przewijania w poziomie na typowym ekranie. */
+.poster-stats__actions {
+  margin: 0;
+  min-width: 9rem;
+}
+
+/* Tytuł plakatu łamie się w wielu wierszach zamiast rozpychać tabelę; ``width`` zamiast ``min-width``,
+   bo tę drugą algorytm układu tabeli dla komórek pomija. */
+.poster-stats__title {
+  width: 14rem;
+}
+
+.poster-stats__title .badge {
+  margin-top: var(--sp-1);
+}
+
+/* Dwa słupki jeden pod drugim: górny – pobrania, dolny – unikalne adresy tego dnia. Oba na tej samej
+   skali (szczyt pobrań w oknie), więc dolny nigdy nie wystaje poza górny – tak jak liczby obok. */
+.poster-daily__bars {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  width: min(100%, 22rem);
+  vertical-align: middle;
+}
+
+.poster-daily__bars .stat-bar {
+  width: 100%;
+  height: 0.6rem;
+  margin: 0;
+}
+
+/* Drugi szereg w drugim kolorze ze statusów – ``--ok`` jest kreską i wypełnieniem (``docs/UI.md``
+   § 1), a nie tekstem, więc wymóg kontrastu tekstu go tu nie dotyczy. */
+.poster-daily__unique,
+.poster-legend__swatch--unique {
+  background: var(--ok);
+}
+
+.poster-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+}
+
+.poster-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.poster-legend__swatch {
+  display: inline-block;
+  width: 1rem;
+  height: 0.6rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--info);
+}

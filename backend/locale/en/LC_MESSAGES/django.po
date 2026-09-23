@@ -3684,3 +3684,23 @@ msgstr "Last sent: %(sent)s"
 #, python-format
 msgid "Nikt jeszcze nie wskazał Twojego adresu. Podaj uczniom adres %(email)s albo zaproś ich z listy klasowej."
 msgstr "Nobody has pointed at your address yet. Give your students the address %(email)s or invite them from a class list."
+
+#: templates/base.html templates/web/posters.html
+msgid "Plakaty do pobrania"
+msgstr "Posters to download"
+
+#: templates/web/posters.html
+msgid "Plakaty i ulotki olimpiady do wydrukowania i powieszenia w szkole – pliki PDF, JPG i PNG do pobrania bez logowania."
+msgstr "Olympiad posters and leaflets to print and put up at school – PDF, JPG and PNG files, no login required."
+
+#: templates/web/posters.html
+msgid "Dla szkół"
+msgstr "For schools"
+
+#: templates/web/posters.html
+msgid "Wydrukuj i powieś w szkole – pomóż nam dotrzeć do uczniów, którzy jeszcze nie wiedzą o olimpiadzie."
+msgstr "Print them and put them up at your school – help us reach students who have not heard about the olympiad yet."
+
+#: templates/web/posters.html
+msgid "Pliki pobiera się bez logowania. Wersje PDF są przygotowane do druku."
+msgstr "No login is needed to download. The PDF versions are print-ready."

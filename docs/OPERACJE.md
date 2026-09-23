@@ -1336,8 +1336,9 @@ i wygasają same po TTL.
 **Unieważnianie jest automatyczne** przy: publikacji/wycofaniu/przeniesieniu/skasowaniu strony
 Wagtaila, zapisie `cms.SiteSettings`, komunikacie organizatora (`cms.Announcement` – z konkursem:
 tylko jego witryna, bez konkursu: wszystkie witryny naraz), zmianie edycji/etapu/wydarzenia
-(`competitions.Edition`/`Stage`/`EditionEvent`) i ogłoszeniu wyników (`results.ResultsPublication`).
-Ręczne wyczyszczenie (np. po imporcie z ominięciem sygnałów Django):
+(`competitions.Edition`/`Stage`/`EditionEvent`), ogłoszeniu wyników (`results.ResultsPublication`)
+i zapisie/skasowaniu plakatu do pobrania (`promo.PromoMaterial` – lista `/plakaty/` i odnośnik
+w stopce, § 14). Ręczne wyczyszczenie (np. po imporcie z ominięciem sygnałów Django):
 
 ```bash
 docker compose exec -T web python manage.py page_cache_clear
@@ -1352,3 +1353,43 @@ unieważnienia z jakiegoś powodu nie doszedł): `PAGE_CACHE_ENABLED=False` w `.
 albo doraźnie `PAGE_CACHE_SECONDS=0` – oba wyłączniki są od razu widoczne w `X-Page-Cache: BYPASS`.
 Cache zostaje **wyłączony domyślnie** w środowisku testowym (`config/settings/test.py`), więc
 budżety zapytań (`apps/tenancy/tests/test_invariants.py`) mierzą kod, nie trafienia bufora.
+
+## 14. Plakaty do pobrania i statystyka pobrań (v0.32.0)
+
+Ekran koordynatora `/coordinator/posters/`, strona publiczna `/plakaty/`, pobranie
+`/plakaty/<id>/pobierz/` (aplikacja `apps.promo`, opis dla organizatora:
+`PODRECZNIK-ORGANIZATORA.md` § 4.10). Dla operatora ważne są cztery rzeczy:
+
+**Gdzie leżą pliki.** Plik plakatu idzie na storage `private_media` – na produkcji bucket
+`submissions` pod prefiksem `problem-statements/promo/<id konkursu>/` (ten sam alias, co treści
+zadań; prefiks `problem-statements` jest ustawieniem aliasu w `config/settings/production.py`).
+Prywatny, bo każde pobranie ma przejść przez licznik – plik z publicznym adresem w buckecie dałoby
+się pobierać z pominięciem statystyk. Miniatury leżą w `public-media` pod `promo/previews/`. Oba
+buckety są już w kopii zapasowej (§ 1) – nie trzeba nic dopisywać.
+
+**Pobranie idzie przez aplikację** (`FileResponse`, załącznik), jak dokumenty Wagtaila i treść
+zadań. Plik do 50 MB zajmuje na czas wysyłki jeden wątek `gthread` (§ 11). Przy dzisiejszym ruchu
+(kilkadziesiąt pobrań dziennie) to pomijalne; gdyby plakat zaczął być pobierany setkami na
+godzinę, pierwszą dźwignią jest mniejszy plik (PDF do druku rzadko potrzebuje więcej niż 10 MB),
+a nie konfiguracja serwera.
+
+**Pseudonim adresu IP i jego retencja.** Zdarzenie pobrania (`promo.PromoDownload`) niesie
+`ip_hash` = HMAC-SHA256 adresu klienta z kluczem wyprowadzonym z `DJANGO_SECRET_KEY` (kontekst
+`promo-ip-hash`). Adresu IP ani nagłówka przeglądarki w bazie nie ma. Adres bierze
+`apps.core.models.client_ip` – `X-Real-IP` wyłącznie od `TRUSTED_PROXY_IPS`, jak w audycie.
+Zadanie beat `promo-clear-expired-ip-hashes` (raz na dobę, `apps.promo.tasks.clear_expired_ip_hashes`)
+zeruje skrót w zdarzeniach starszych niż 12 miesięcy; zdarzenia zostają. Ręcznie:
+
+```bash
+docker compose exec -T web python manage.py shell -c "from apps.promo.tasks import clear_expired_ip_hashes; print(clear_expired_ip_hashes())"
+```
+
+**Zmiana `DJANGO_SECRET_KEY`** zmienia klucz skrótu: pobrania sprzed i po zmianie z tego samego
+adresu liczą się jako dwa unikalne adresy (tak samo, jak ta zmiana unieważnia sekrety 2FA, § 5).
+Statystyka pobrań łącznie nie zmienia się.
+
+**Odnośnik w stopce** czyta „czy konkurs ma opublikowany plakat” z Redisa (klucz
+`promo:available:<id konkursu>`, TTL godzina, unieważniany i od razu przeliczany przy każdym zapisie
+plakatu). Po imporcie z ominięciem sygnałów wystarczy `page_cache_clear` i odczekanie TTL albo
+restart Redisa.
+

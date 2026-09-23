@@ -85,7 +85,8 @@ nie wiadomo, które podmienić – więc taka odpowiedź **w ogóle nie trafia d
 parametr page)`` – patrz ``build_key``. Wersje to liczniki w Redisie: unieważnienie = ``INCR``,
 nigdy enumeracja istniejących wpisów. Wersja **witryny** obejmuje zdarzenia przypisane do
 konkretnego konkursu (publikacja/wycofanie/przeniesienie/skasowanie strony, zapis ``SiteSettings``,
-komunikat organizatora przypisany do konkursu, zmiana edycji/etapu/wydarzenia/publikacji wyników).
+komunikat organizatora przypisany do konkursu, zmiana edycji/etapu/wydarzenia/publikacji wyników,
+zapis i skasowanie plakatu do pobrania).
 Wersja **globalna** obejmuje to, czego nie da się przypisać do jednej witryny (komunikat bez
 konkursu – patrz ``apps.cms.models.Announcement.competition``, pole nullowalne) – bumpuje wtedy
 klucze **wszystkich** witryn naraz, bez ich wyliczania.
@@ -132,6 +133,10 @@ ALLOWED_PATHS = frozenset(
         "/kontakt/",
         "/wyniki/",
         "/statystyki/",
+        # Lista plakatów do pobrania (``apps.web.views.posters``). Wyłącznie **lista** – adres
+        # pobrania (``/plakaty/<id>/pobierz/``) nie pasuje do żadnego wpisu tej listy ani do
+        # prefiksu niżej, więc każde pobranie dochodzi do widoku i do licznika.
+        "/plakaty/",
     }
 )
 
@@ -524,6 +529,7 @@ from wagtail.signals import page_published, page_unpublished, post_page_move  # 
 from apps.cms.models import Announcement, SiteSettings  # noqa: E402
 from apps.cms.tenancy import competition_for_page, competition_for_site  # noqa: E402
 from apps.competitions.models import Edition, EditionEvent, Stage  # noqa: E402
+from apps.promo.models import PromoMaterial  # noqa: E402
 from apps.results.models import ResultsPublication  # noqa: E402
 
 
@@ -581,3 +587,15 @@ def _on_edition_event_saved(sender, instance, **kwargs) -> None:
 )
 def _on_results_publication_saved(sender, instance, **kwargs) -> None:
     invalidate_competition(instance.stage.edition.competition_id)
+
+
+@receiver(post_save, sender=PromoMaterial, dispatch_uid="web.page_cache.invalidate_on_promo_save")
+@receiver(post_delete, sender=PromoMaterial, dispatch_uid="web.page_cache.invalidate_on_promo_delete")
+def _on_promo_material_changed(sender, instance, **kwargs) -> None:
+    """Plakat zmienia **dwie** rzeczy naraz: listę ``/plakaty/`` i odnośnik w stopce każdej strony.
+
+    Stąd unieważnienie całej witryny konkursu, a nie samego adresu listy: strona główna zapisana
+    w pamięci przed opublikowaniem pierwszego plakatu nie miałaby odnośnika w stopce przez cały
+    czas życia wpisu, a po zdjęciu ostatniego – prowadziłaby w 404.
+    """
+    invalidate_competition(instance.competition_id)

@@ -1,0 +1,33 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Dodanie i edycja plakatu do pobrania. Formularz przez ``as_p`` – etykieta, pole, pomoc i błąd
+  układają się same (``docs/UI.md`` § 2.13). ``enctype`` jest obowiązkowy: bez niego przeglądarka
+  wysłałaby nazwę pliku zamiast pliku, a formularz odpowiedziałby „to pole jest wymagane”.
+{% endcomment %}
+{% block title %}{% if editing %}Plakat „{{ material.title }}”{% else %}Nowy plakat{% endif %} – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-posters' %}">Plakaty do pobrania</a>{% endblock %}
+{% block panel_title %}{% if editing %}Plakat „{{ material.title }}”{% else %}Nowy plakat{% endif %}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Plik, który nauczyciele pobiorą ze strony <a href="{% url 'web:posters' %}">/plakaty/</a>,
+    i podpis na jego karcie. Plakat zapisany bez zaznaczenia „Opublikowany” jest szkicem – widzisz go
+    tylko tutaj.</p>
+{% endblock %}
+{% block panel_content %}
+<div class="card">
+  {% if editing %}
+    <p class="hint">Obecny plik: {{ material.format_label }}, {{ material.file_size|filesizeformat }} –
+      <a href="{% url 'web:coordinator-poster-file' material.pk %}">pobierz, żeby sprawdzić</a>
+      (to pobranie nie liczy się do statystyk).
+      {% if material.preview %}Podgląd: {% if material.preview_is_generated %}zrobiony automatycznie z pliku{% else %}wgrany ręcznie{% endif %}.{% else %}Bez podglądu – karta pokazuje ikonę dokumentu.{% endif %}</p>
+  {% endif %}
+  <form method="post" enctype="multipart/form-data" class="form form--wide" novalidate>
+    {% csrf_token %}
+    <p class="form__required-note">Pola oznaczone * są obowiązkowe.</p>
+    {{ form.as_p }}
+    <div class="actions">
+      <button type="submit" class="btn btn--primary">{% if editing %}Zapisz zmiany{% else %}Dodaj plakat{% endif %}</button>
+      <a class="btn btn--ghost" href="{% url 'web:coordinator-posters' %}">Anuluj</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
