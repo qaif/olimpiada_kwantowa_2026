@@ -7,6 +7,8 @@ Przedmiotem jest to, czego nie widać po samym widoku:
 - **usunięcie plakatu z pobraniami archiwizuje** go, a nie kasuje – statystyki zostają; plakat bez
   pobrań znika naprawdę, razem z plikiem,
 - **statystyki są podwójne** (pobrania / unikalne IP) w trzech oknach, w tabeli, w sumie i w CSV,
+- **karta (grupa) i napis przycisku** – w formularzu (z podpowiedzią grup tylko tego konkursu),
+  w tabeli i w CSV; statystyki zostają per plik,
 - **ślad w audycie** przy każdej zmianie, bez tytułu i nazwy pliku w treści wpisu,
 - **tylko koordynator tego konkursu** – uczestnik dostaje 403, anonim logowanie, a plakat sąsiada
   pod naszą domeną nie istnieje (404).
@@ -155,6 +157,40 @@ def test_replacing_the_file_removes_the_old_one_and_keeps_the_stats(coordinator_
     assert material.downloads.count() == 1
 
 
+def test_group_and_variant_label_are_saved_from_the_form(coordinator_client, competition):
+    response = post_form(
+        coordinator_client,
+        f"{URL}new/",
+        file=upload("plakat.pdf", PDF_BYTES),
+        group="  A3 · 297×420 mm ",
+        variant_label="PDF ze spadem 3 mm",
+    )
+
+    assert response.status_code == 302
+    material = PromoMaterial.objects.get()
+    assert material.group == "A3 · 297×420 mm"
+    assert material.variant_label == "PDF ze spadem 3 mm"
+    assert {"group", "variant_label"} <= set(AuditLog.objects.get(action="promo.created").diff["fields"])
+
+
+def test_form_suggests_groups_of_this_competition_only(coordinator_client, competition, other_competition):
+    from django.utils import timezone
+
+    make_material(competition, group="A3 · 297×420 mm")
+    make_material(competition, group="A3 · 297×420 mm", published=False)
+    make_material(competition, group="Stara karta", archived_at=timezone.now())
+    make_material(other_competition, group="Karta sąsiada")
+
+    content = coordinator_client.get(f"{URL}new/").content.decode()
+
+    assert 'list="poster-groups"' in content
+    assert '<datalist id="poster-groups">' in content
+    assert content.count('<option value="A3 · 297×420 mm">') == 1
+    assert "Stara karta" not in content
+    assert "Karta sąsiada" not in content
+    assert "Napis na przycisku" in content
+
+
 def test_archived_material_cannot_be_edited(coordinator_client, competition):
     from django.utils import timezone
 
@@ -263,6 +299,19 @@ def test_list_shows_downloads_and_unique_ips(coordinator_client, competition):
     assert response.context["series"][0]["count"] == 3
 
 
+def test_list_shows_the_card_of_a_grouped_file_with_stats_per_file(coordinator_client, competition):
+    jpg = make_material(competition, title="A3 (JPG)", fmt="jpg", group="A3 · 297×420 mm")
+    make_material(competition, title="A3 (PDF)", group="A3 · 297×420 mm", variant_label="PDF do druku")
+    make_download(jpg)
+
+    response = coordinator_client.get(URL)
+    content = response.content.decode()
+
+    assert "Karta: A3 · 297×420 mm · przycisk „JPG”" in content
+    assert "Karta: A3 · 297×420 mm · przycisk „PDF do druku”" in content
+    assert [row.counts.total for row in response.context["active_rows"]] == [1, 0]
+
+
 def test_chart_can_be_narrowed_to_one_material(coordinator_client, competition, other_competition):
     first = make_material(competition, title="A")
     second = make_material(competition, title="B")
@@ -296,6 +345,24 @@ def test_csv_export_has_both_numbers_and_a_total_row(coordinator_client, competi
     # Suma pobrań 3, unikalnych adresów 2 – a nie 3, bo adres „a” pobrał oba plakaty.
     assert ";3;2;3;2;3;2;" in lines[-1]
     assert AuditLog.objects.filter(action="export.generated", diff__kind="promo_downloads").exists()
+
+
+def test_csv_export_has_group_and_button_columns(coordinator_client, competition):
+    make_material(competition, title="A3 (PDF)", group="A3 · 297×420 mm")
+    make_material(competition, title="A3 (spad)", group="A3 · 297×420 mm", variant_label="PDF ze spadem 3 mm")
+    make_material(competition, title="Ulotka")
+
+    response = coordinator_client.get(f"{URL}export.csv")
+    lines = b"".join(response.streaming_content).decode("utf-8-sig").strip().split("\r\n")
+
+    assert lines[0].startswith("plakat;opis;karta (grupa);przycisk;format;")
+    assert lines[1].startswith("A3 (PDF);A4 pionowy;A3 · 297×420 mm;PDF;PDF;") or lines[1].startswith(
+        "A3 (PDF);;A3 · 297×420 mm;PDF;PDF;"
+    )
+    assert lines[2].startswith("A3 (spad);;A3 · 297×420 mm;PDF ze spadem 3 mm;PDF;")
+    # Plik na własnej karcie nie ma wariantu – na stronie jego przycisk to samo „Pobierz”.
+    assert lines[3].startswith("Ulotka;;;;PDF;")
+    assert lines[-1].startswith("RAZEM (wszystkie plakaty);;;;;;0;")
 
 
 # --- uprawnienia i izolacja -----------------------------------------------------------------------

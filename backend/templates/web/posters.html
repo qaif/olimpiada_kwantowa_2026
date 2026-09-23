@@ -10,6 +10,13 @@
   czytnik ekranu przeczytałby dwa razy. Ikona PDF-a jest ozdobą (``aria-hidden``) – format i rozmiar
   pliku stoją w tekście pod tytułem.
 
+  Karta jest **jednym plikiem** albo **grupą plików** (``apps.promo.cards``): pliki z tą samą grupą
+  („A3 · 297×420 mm”) stoją na jednej karcie – nagłówkiem jest grupa, podgląd to pierwszy podgląd
+  w grupie, a każdy plik ma własny przycisk z wariantem i rozmiarem („Pobierz PDF · 2,6 MB”).
+  Pierwszy przycisk jest główny, pozostałe drugoplanowe – żeby karta miała jedno oczywiste
+  kliknięcie. Czytnik ekranu dostaje w nazwie przycisku także grupę (``visually-hidden``), bo lista
+  linków „Pobierz JPG, Pobierz JPG, Pobierz JPG” z trzech kart nie mówi, który to plakat.
+
   Przycisk „Pobierz” prowadzi przez widok aplikacji (``web:poster-download``), a nie wprost do
   pliku: to widok liczy pobrania. Atrybut ``download`` jest wskazówką dla przeglądarki; nazwę pliku
   i tak ustala nagłówek ``Content-Disposition``.
@@ -28,30 +35,45 @@
 </div>
 
 <ul class="cards poster-cards">
-  {% for material in materials %}
+  {% for card in cards %}
+    {% with first=card.first preview=card.preview_material %}
     <li>
       <article class="card poster-card">
         <div class="poster-card__preview">
-          {% if material.preview %}
-            <img src="{{ material.preview.url }}" alt="" loading="lazy" decoding="async">
+          {% if preview %}
+            <img src="{{ preview.preview.url }}" alt="" loading="lazy" decoding="async">
           {% else %}
             <svg class="poster-card__icon" viewBox="0 0 48 60" aria-hidden="true" focusable="false">
               <path d="M4 2h28l12 12v42a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="none" stroke="currentColor" stroke-width="2.5"/>
               <path d="M32 2v12h12" fill="none" stroke="currentColor" stroke-width="2.5"/>
-              <text x="23" y="44" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">{{ material.format_label }}</text>
+              <text x="23" y="44" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">{{ first.format_label }}</text>
             </svg>
           {% endif %}
         </div>
-        <h2 class="card__title poster-card__title">{{ material.title }}</h2>
-        {% if material.description %}<p class="poster-card__description">{{ material.description }}</p>{% endif %}
-        <p class="card__meta">{{ material.format_label }} · {{ material.file_size|filesizeformat }}</p>
-        <p class="poster-card__actions">
-          <a class="btn btn--primary btn--block" href="{% url 'web:poster-download' material.pk %}" download>
-            {% translate "Pobierz" %}<span class="visually-hidden">: {{ material.title }} ({{ material.format_label }})</span>
-          </a>
-        </p>
+        <h2 class="card__title poster-card__title">{{ card.heading }}</h2>
+        {% if card.description %}<p class="poster-card__description">{{ card.description }}</p>{% endif %}
+        {% if card.is_group %}
+          <ul class="poster-card__variants">
+            {% for material in card.materials %}
+              <li>
+                <a class="btn {% if forloop.first %}btn--primary{% else %}btn--secondary{% endif %} poster-card__variant" href="{% url 'web:poster-download' material.pk %}" download>
+                  <span>{% translate "Pobierz" %}<span class="visually-hidden"> {{ card.group }} –</span> {{ material.variant_name }}</span>
+                  <span class="poster-card__size">· {{ material.file_size|filesizeformat }}</span>
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="card__meta">{{ first.format_label }} · {{ first.file_size|filesizeformat }}</p>
+          <p class="poster-card__actions">
+            <a class="btn btn--primary btn--block" href="{% url 'web:poster-download' first.pk %}" download>
+              {% translate "Pobierz" %}<span class="visually-hidden">: {{ first.title }} ({{ first.format_label }})</span>
+            </a>
+          </p>
+        {% endif %}
       </article>
     </li>
+    {% endwith %}
   {% endfor %}
 </ul>
 {% endblock %}

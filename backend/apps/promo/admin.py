@@ -13,9 +13,9 @@ from .models import PromoDownload, PromoMaterial
 
 @admin.register(PromoMaterial)
 class PromoMaterialAdmin(admin.ModelAdmin):
-    list_display = ("title", "competition", "file_format", "is_published", "archived_at", "position")
+    list_display = ("title", "group", "competition", "file_format", "is_published", "archived_at", "position")
     list_filter = ("competition", "is_published", "file_format")
-    search_fields = ("title", "description")
+    search_fields = ("title", "description", "group")
     raw_id_fields = ("created_by",)
     readonly_fields = (
         "file",

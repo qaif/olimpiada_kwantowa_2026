@@ -63,6 +63,39 @@
   padding-top: var(--sp-2);
 }
 
+/* Karta grupy plików: przycisk na każdy plik („Pobierz JPG · 1,7 MB”). Zawijają się (``flex-wrap``)
+   i rosną do szerokości wiersza – krótkie warianty („JPG”, „PDF”) stają obok siebie, długi
+   („PDF ze spadem 3 mm”) zajmuje własny wiersz; na telefonie nic nie wystaje poza kartę. Ta sama
+   zasada, co ``.poster-card__actions``: lista przyklejona do dołu karty. */
+.poster-card__variants {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin: auto 0 0;
+  padding: var(--sp-2) 0 0;
+  list-style: none;
+}
+
+.poster-card__variants > li {
+  display: flex;
+  flex: 1 1 auto;
+  margin: 0;
+}
+
+.poster-card__variant {
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  column-gap: var(--sp-1);
+  row-gap: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Rozmiar pliku drobniej i bez pogrubienia – to informacja przy przycisku, a nie jego treść. */
+.poster-card__size {
+  font-weight: 400;
+  white-space: nowrap;
+}
+
 /* --- panel koordynatora: /coordinator/posters/ ------------------------------------------------ */
 
 /* Opis i format pod tytułem plakatu w wierszu tabeli – w nowej linii, drobniej. */

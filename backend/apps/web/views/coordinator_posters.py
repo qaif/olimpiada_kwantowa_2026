@@ -35,7 +35,7 @@ from django.views.generic import View
 from apps.core.exports import Dataset, csv_response
 from apps.core.models import audit
 from apps.promo import services, stats
-from apps.promo.forms import PromoMaterialForm
+from apps.promo.forms import GROUP_DATALIST_ID, PromoMaterialForm, existing_groups
 from apps.promo.models import IP_HASH_RETENTION_MONTHS, PromoMaterial
 from apps.web.mixins import CoordinatorRequiredMixin
 
@@ -195,7 +195,13 @@ class PosterFormView(_PostersMixin, View):
         return material
 
     def _render(self, request, form, material, *, status: int = 200):
-        context = {"form": form, "material": material, "editing": material.pk is not None}
+        context = {
+            "form": form,
+            "material": material,
+            "editing": material.pk is not None,
+            "groups": existing_groups(self._competition()),
+            "groups_datalist_id": GROUP_DATALIST_ID,
+        }
         return TemplateResponse(request, FORM_TEMPLATE, context, status=status)
 
 

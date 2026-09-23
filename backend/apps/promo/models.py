@@ -69,6 +69,15 @@ class PromoMaterial(models.Model):
     #: Krótki opis pod tytułem: format papieru, orientacja, przeznaczenie („A4 pionowy”,
     #: „A3 do gabloty”, „wersja do druku w kolorze”). Jedna linia, nie akapit.
     description = models.CharField("opis", max_length=200, blank=True)
+    #: Nagłówek **wspólnej karty** na ``/plakaty/`` (prośba organizatora z 23.09.2026: „jedna karta
+    #: na format papieru, kilka przycisków”). Pliki jednego konkursu z identyczną, niepustą grupą
+    #: („A3 · 297×420 mm”) stają na jednej karcie z jednym podglądem i przyciskiem na każdy plik;
+    #: pusta grupa = osobna karta jak dotąd. Grupa to napis, a nie osobny model: karta nie ma
+    #: własnych danych poza nagłówkiem, a statystyki i pobranie zostają przy pliku.
+    group = models.CharField("karta (grupa)", max_length=100, blank=True)
+    #: Napis na przycisku pliku we wspólnej karcie („JPG”, „PDF ze spadem 3 mm”). Pusty = sam
+    #: format pliku (``variant_name``). Na karcie pojedynczego pliku nieużywany.
+    variant_label = models.CharField("wariant (przycisk)", max_length=60, blank=True)
     file = models.FileField(
         "plik",
         upload_to=material_upload_to,
@@ -130,6 +139,11 @@ class PromoMaterial(models.Model):
     @property
     def format_label(self) -> str:
         return FORMATS.get(self.file_format, (b"", "", self.file_format.upper()))[2]
+
+    @property
+    def variant_name(self) -> str:
+        """Napis przycisku we wspólnej karcie: ``variant_label`` albo – gdy pusty – sam format."""
+        return self.variant_label or self.format_label
 
     @property
     def content_type(self) -> str:

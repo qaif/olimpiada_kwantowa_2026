@@ -31,6 +31,7 @@ from django.utils.http import content_disposition_header
 from django.views.generic import View
 
 from apps.promo.availability import public_materials
+from apps.promo.cards import build_cards
 from apps.promo.tracking import record_download
 from apps.web.throttle import ThrottledFormMixin, check, consume, throttle_keys
 
@@ -49,6 +50,10 @@ def _competition(request):
 class PostersView(View):
     """``GET /plakaty/`` – siatka kart: podgląd, tytuł, opis, format i rozmiar, „Pobierz”.
 
+    Pliki z tą samą grupą stoją na jednej karcie z przyciskiem na każdy plik
+    (``apps.promo.cards``); karty składa Python z tej samej, jednej listy – liczba zapytań strony
+    nie zależy od grupowania.
+
     Konkurs bez opublikowanych plakatów dostaje 404, a nie pustą stronę: odnośnik w stopce
     znika w tym samym momencie (``apps.promo.availability``), więc na pustą listę dałoby się trafić
     tylko ze starej zakładki – a tam 404 mówi prawdę („tego tu już nie ma”).
@@ -58,7 +63,7 @@ class PostersView(View):
         materials = list(public_materials(_competition(request)))
         if not materials:
             raise Http404("Ten konkurs nie ma plakatów do pobrania.")
-        return TemplateResponse(request, TEMPLATE, {"materials": materials})
+        return TemplateResponse(request, TEMPLATE, {"cards": build_cards(materials)})
 
 
 class PosterDownloadView(ThrottledFormMixin, View):

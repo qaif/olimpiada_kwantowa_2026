@@ -451,6 +451,8 @@ nowy tytuł) widać w serwisie od razu — bez czekania na odświeżenie pamięc
 |---|---|
 | Tytuł | nagłówek karty, np. „Plakat olimpiady 2026/2027”. Z tytułu powstaje też nazwa zapisanego pliku (`plakat-olimpiady-2026-2027.pdf`) |
 | Opis | jedna linia pod tytułem: format i przeznaczenie, np. „A4 pionowy”, „A3 do gabloty” |
+| Karta (grupa plików) | opcjonalnie. Pliki z **identycznym** napisem (np. „A3 · 297×420 mm”) stają na stronie na **jednej karcie** z przyciskiem na każdy plik — patrz „Kilka plików na jednej karcie” niżej. Pole podpowiada karty, które już masz; puste = plik na własnej karcie |
+| Napis na przycisku | tylko dla pliku z kartą, np. „PDF ze spadem 3 mm”. Puste = sam format pliku („JPG”, „PNG”, „PDF”) |
 | Plik plakatu | **PDF, JPG albo PNG, najwyżej 50 MB**. Format rozpoznajemy po zawartości pliku, nie po rozszerzeniu — plik, który tylko udaje PDF (np. strona HTML przemianowana na `.pdf`), zostanie odrzucony |
 | Własny podgląd | opcjonalny obrazek JPG/PNG (do 5 MB) na kartę. Dla plakatu JPG/PNG **podgląd powstaje sam** z pliku; dla PDF-a bez własnego podglądu karta pokazuje ikonę dokumentu |
 | Opublikowany | bez zaznaczenia plakat jest **szkicem** — widać go tylko w panelu |
@@ -459,6 +461,32 @@ Na liście plakatów w każdym wierszu: strzałki **↑ ↓** (kolejność na st
 **Opublikuj / Zdejmij** i **Usuń**. Plik szkicu możesz pobrać z ekranu edycji („pobierz, żeby
 sprawdzić”) — to pobranie nie liczy się do statystyk. Podmiana pliku w edycji zachowuje statystyki
 plakatu; stary plik jest usuwany.
+
+**Kilka plików na jednej karcie.** Ten sam plakat w kilku plikach (JPG do podglądu, PDF do druku,
+PDF ze spadem dla drukarni) nie musi stać na stronie jako kilka prawie identycznych kart. Wpisz
+każdemu z tych plików tę samą **Kartę**, np. „A3 · 297×420 mm”, a na stronie powstanie jedna karta:
+
+```
+A3 · 297×420 mm
+[podgląd]
+[Pobierz JPG · 1,7 MB] [Pobierz PDF · 2,6 MB] [Pobierz PDF ze spadem 3 mm · 2,0 MB]
+```
+
+- **Nagłówek** karty to napis z pola „Karta”; tytułu pliku na stronie wtedy nie widać — nadal
+  nazywa pobrany plik i wiersz w statystykach, więc warto, żeby mówił, co to za plik („A3 (PDF ze
+  spadem)”).
+- **Podgląd** to podgląd pierwszego pliku karty, który go ma (zwykle JPG/PNG — PDF bez własnego
+  podglądu nie zabiera karcie obrazka). **Opis** — pierwszy niepusty opis w karcie.
+- **Kolejność przycisków** to kolejność plików na liście (strzałki ↑ ↓), a **miejsce karty** na
+  stronie to miejsce jej pierwszego pliku.
+- Na karcie są wyłącznie **opublikowane** pliki — szkic z tą samą kartą nie pokaże się, dopóki go
+  nie opublikujesz.
+- Napis karty musi być **identyczny** (także spacje i znaki „·”, „×”), dlatego pole podpowiada karty,
+  które już istnieją — wybierz z listy zamiast przepisywać.
+
+Statystyki zostają **per plik**: w tabeli każdy plik ma swój wiersz (pod tytułem linia „Karta: … ·
+przycisk „…””), a każdy przycisk na karcie prowadzi do pobrania swojego pliku. Eksport CSV ma
+kolumny „karta (grupa)” i „przycisk”.
 
 **Usuń a statystyki.** Plakat, którego **nikt jeszcze nie pobrał**, jest usuwany razem z plikiem.
 Plakat, który **ma już pobrania**, trafia do **Archiwum** (sekcja pod listą): znika ze strony, ale
