@@ -127,6 +127,39 @@ Dwie pozycje długu technicznego z `BACKLOG.md`. Bez migracji. Nowa zależność
   zależy już od rozmowy z MTA; błąd brokera jest połykany i logowany po kluczu konta.
 - `send_mail_task` przyjmuje opcjonalne `html_message` (alternatywa `text/html`).
 
+## [Unreleased] – drzewo CMS konkursu pod prefiksem
+
+Zamyka uwagę T43: konkurs adresowany prefiksem ścieżki (`https://<platforma>/<prefiks>/…`,
+`routing_mode=PATH`) ma pod prefiksem **własne drzewo stron CMS**. Do tej pory Wagtail wybierał
+witrynę po hoście, więc pod `/<prefiks>/` serwował stronę główną, menu i dokumenty konkursu-gospodarza.
+Konkurs z własną domeną (Olimpiada Kwantowa) – bez zmian co do bajtu (testy złote, budżety zapytań).
+
+- **Serwowanie:** `CompetitionMiddleware` pod prefiksem podstawia witrynę konkursu jako witrynę żądania
+  (`request._wagtail_site`) – strony, menu, `SiteSettings`, przekierowania i analityka pochodzą z jego
+  drzewa. Strona gospodarza pod prefiksem = 404, strona konkursu pod prefiksem bez prefiksu = 404.
+- **Adresy stron:** `Page.get_url_parts` opakowany w `apps/tenancy/page_urls.py` – `pageurl`,
+  `page.url`, `full_url`, podgląd i „Zobacz na żywo” w `/cms/` niosą prefiks **strony** (a nie
+  żądania) i adres platformy zamiast domeny, na którą konkurs czeka. Mapa „witryna → prefiks”
+  w pamięci podręcznej (unieważniana sygnałami), czytana wyłącznie przy linkach między witrynami
+  i bez żądania; instalacja z jedną witryną nie płaci nic.
+- **`path_prefix_routing` ma czytelnika:** jest bramką **gospodarza** – prefiks rozstrzyga konkurs
+  wyłącznie pod hostem, którego konkurs ma tę flagę (ciasteczka sesji są wtedy wspólne, więc to jego
+  wybór). Bez dodatkowego zapytania. `create_competition --path-prefix` włącza ją konkursowi witryny
+  domyślnej (i mówi o tym w wydruku; bez konkursu platformy – odmowa), migracja danych
+  `tenancy.0010_path_prefix_routing_on_platform` robi to na bazach, w których konkurs `PATH` już stoi
+  (baza z jednym konkursem – bez zmian). Prefiks pod domeną innego konkursu przestaje działać.
+- **Przekierowania** (`apps.cms.redirects.CompetitionRedirectMiddleware` zamiast warstwy Wagtaila):
+  pod prefiksem dopasowanie po adresie bez prefiksu, cel względny dostaje prefiks, bezwzględny bez zmian.
+- **Nie wyprowadza z prefiksu:** logo, „Strona główna”, linki RODO/cookies w stopce i stronach błędów
+  (`site_root` z procesora `apps.tenancy.context_processors.competition`), domek w menu, pasek
+  harmonogramu, `LOGIN_URL`/`LOGIN_REDIRECT_URL`/`LOGOUT_REDIRECT_URL` (leniwe `reverse`),
+  wylogowanie, odnośniki zgód do dokumentów (teraz z drzewa **tego** konkursu), linki w listach spoza
+  żądania (`https://<platforma>/<prefiks>/…`).
+- **Pamięć podręczna:** klucz pamięci stron anonimowych i klucz paska harmonogramu dostają człon
+  prefiksu – wyłącznie pod prefiksem, więc klucze konkursu z domeną są te same.
+- Testy `apps/tenancy/tests/test_path_prefix_cms.py`; runbook `OPERACJE.md` § 6.6 i flaga w § 6.4;
+  `UNIWERSALNY-ETAP-2.md` § 3.1 (uwaga T43 zamknięta).
+
 ## v0.35.0 – 2026-09-24
 
 Wydanie zbiorcze z dwóch próśb organizatora z 24.09.2026. **Dowolne wartości ocen i różne maksima
@@ -493,8 +526,8 @@ człowiek; sugestia jest niewiążąca.
 | **v0.32.0** | 2026-09-23 | **plakaty do pobrania** (prośba organizatora z 23.09.2026): nowa aplikacja `apps.promo` (modele `PromoMaterial` i `PromoDownload`, migracja promo.0001), strona publiczna **`/plakaty/`** (siatka kart: podgląd, tytuł, opis, format i rozmiar, „Pobierz”; 404, gdy konkurs nie ma opublikowanych plakatów; na allow-liście pamięci stron, unieważnianej przy każdym zapisie plakatu) i pobranie `/plakaty/<id>/pobierz/` (plik z prywatnego storage jako załącznik przez aplikację, `Cache-Control: no-store`, nigdy w pamięci stron); plik PDF/JPG/PNG do 50 MB rozpoznawany **po treści** (sygnatury `%PDF-`, `FF D8 FF`, PNG), miniatura JPG/PNG robiona automatycznie (Pillow), dla PDF-a opcjonalny własny podgląd albo ikona; odnośnik „Plakaty do pobrania” w stopce każdej strony i przycisk w panelu opiekuna szkolnego – tylko gdy jest opublikowany plakat (flaga w Redisie, unieważniana przy zapisie; budżety zapytań `/`, `/me/`, `/coordinator/` +1 na zimno, na ciepło zero). Ekran koordynatora **`/coordinator/posters/`** (Ustawienia → Plakaty do pobrania): dodanie, edycja, publikacja, kolejność, usunięcie (plakat z pobraniami trafia do archiwum ze statystykami), eksport CSV, audyt `promo.*`; statystyki **podwójne** – pobrania i **unikalne adresy IP** w oknach 7 dni / 30 dni / od początku (unikalność w całym oknie i w sumie między plakatami), kafelki, wykres dzienny obu szeregów (CSS, bez JS), eksport z tymi samymi kolumnami. Nie liczymy robotów, podglądów linków, `HEAD` ani koordynatora; podwójne kliknięcie (ten sam plakat i adres w 10 s) to jedno pobranie, a pobieranie ma limit 30/min na adres IP (scope `poster_download`, 429 bez zapisu pobrania); `HEAD` na plik brakujący w storage daje 404 jak `GET`. Adresu IP nie zapisujemy: zostaje **pseudonim** HMAC-SHA256 z kluczem z `SECRET_KEY`, zerowany po 12 miesiącach nowym zadaniem beat `promo-clear-expired-ip-hashes`; rejestr czynności przetwarzania 1.6 – nowa czynność „Statystyka pobrań materiałów promocyjnych” (art. 6 ust. 1 lit. f) |
 | **v0.31.2** | 2026-09-22 | strona rejestracji opiekuna szkolnego (`/register/supervisor/`) bez zaszytego w szablonie wstępu nad formularzem (organizator, 22.09.2026: „usuń tylko ten tekst nad formularzem”; „czy to intro mogę edytować z poziomu CMS”) – w jego miejsce pole `SiteSettings.supervisor_registration_intro` (`/cms/` → Ustawienia → Dane serwisu, sekcja „Rejestracja”; migracja cms.0027): domyślnie puste, czyli akapitu nie ma, a wpisany tekst (pogrubienie, kursywa, odnośnik) pojawia się nad formularzem bez wdrożenia; wyjaśnienie, skąd bierze się lista uczniów, zostaje w pustym stanie pulpitu opiekuna |
 
-Nie zlecone: drzewo CMS dla konkursu w trybie prefiksu ścieżki (uwaga T43), edytor przebiegu
-przenoszący „przypisz kategorie” do warstwy serwisów. Forum w wersji pierwszej świadomie **nie ma**
+Nie zlecone: edytor przebiegu przenoszący „przypisz kategorie” do warstwy serwisów (drzewo CMS
+konkursu pod prefiksem ścieżki, uwaga T43 – zrobione, sekcja „[Unreleased]” wyżej). Forum w wersji pierwszej świadomie **nie ma**
 powiadomień e-mail, wiadomości prywatnych, załączników, polubień ani rankingów — uzasadnienie
 każdej z tych decyzji stoi w `PODRECZNIK-ORGANIZATORA.md` § 6.4.
 

@@ -146,7 +146,7 @@
       Nazwa serwisu pochodzi z ``cms.SiteSettings`` (Ustawienia → Dane serwisu w /cms/), nie
       z szablonu: zmiana nazwy albo danych organizatora nie może wymagać wydania aplikacji.
     {% endcomment %}
-    <a class="brand" href="/">
+    <a class="brand" href="{{ site_root|default:"/" }}">
       {% comment %}Logotyp jest projektowany na jasne tło, więc w granatowym nagłówku stoi na jasnej plakietce.
       Nazwa zostaje w DOM (visually-hidden) jako tekst linku dla czytników ekranu i testów.{% endcomment %}
       <span class="brand__logo"><img src="{% static 'img/logo-olimpiada-kwantowa.png' %}"
@@ -358,8 +358,8 @@
         brak strony wywracałby cały szablon bazowy.
       {% endcomment %}
       <p class="footer__links">
-        <a href="/dokumenty/rodo/">{% translate "Polityka prywatności (RODO)" %}</a>
-        <a href="/dokumenty/cookies/">{% translate "Polityka plików cookie" %}</a>
+        <a href="{{ site_root|default:"/" }}dokumenty/rodo/">{% translate "Polityka prywatności (RODO)" %}</a>
+        <a href="{{ site_root|default:"/" }}dokumenty/cookies/">{% translate "Polityka plików cookie" %}</a>
         {% comment %}
           Stopka po uwagach organizatora z 21.09.2026: zniknęły z niej „Dokumenty”, „Najczęstsze
           pytania”, „Statystyki” i „Rejestracja z kodem”. Dokumenty i FAQ mają własne pozycje
@@ -454,7 +454,7 @@
     {% if ga_id %}
       <p class="cookie-notice__text">Używamy plików cookie niezbędnych do działania serwisu oraz –
         za Twoją zgodą – Google Analytics do statystyk odwiedzin.
-        <a class="cookie-notice__link" href="/dokumenty/cookies/">Polityka plików cookie</a></p>
+        <a class="cookie-notice__link" href="{{ site_root|default:"/" }}dokumenty/cookies/">Polityka plików cookie</a></p>
       {% comment %}
         Oba przyciski mają ten sam rozmiar i stoją obok siebie: odmowa nie może być trudniejsza
         od zgody (motyw 32 RODO i wytyczne EROD 03/2022 o „deceptive design”). Różni je wyłącznie
@@ -470,7 +470,7 @@
     {% else %}
       <p class="cookie-notice__text">Ten serwis używa wyłącznie niezbędnych plików cookie (sesja
         logowania, zabezpieczenie formularzy). Nie używamy cookies reklamowych ani analitycznych.
-        <a class="cookie-notice__link" href="/dokumenty/cookies/">Polityka plików cookie</a></p>
+        <a class="cookie-notice__link" href="{{ site_root|default:"/" }}dokumenty/cookies/">Polityka plików cookie</a></p>
       <button type="button" class="btn btn--small btn--accent cookie-notice__ok"
               data-cookie-notice-dismiss>Rozumiem</button>
     {% endif %}

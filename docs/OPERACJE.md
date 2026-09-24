@@ -610,6 +610,11 @@ z **różnicami** wobec wartości domyślnych. Pusty słownik `{}` znaczy „jak
   (`/coordinator/competition/`): marka, organizator, kontakt. Adresowania (witryna, identyfikator,
   tryb, prefiks) nie ma tam z założenia — zmiana domeny wymaga dostępu do serwera, więc należy do
   operatora platformy, nie do koordynatora.
+- **`path_prefix_routing`** — ustawiana **konkursowi platformy** (witryny domyślnej, u nas Olimpiadzie
+  Kwantowej), a nie konkursowi pod prefiksem: otwiera jego domenę dla konkursów adresowanych
+  prefiksem ścieżki (`/<prefiks>/…`, § 6.6). Wyłączona znaczy, że pod tą domeną `/<prefiks>/` jest
+  zwykłym adresem jej drzewa stron (czyli 404). `create_competition --path-prefix` włącza ją sama
+  i mówi o tym w wydruku. Wyłączenie zdejmuje z domeny **wszystkie** konkursy pod prefiksem naraz.
 - **`participant_forum`** — otwiera forum uczestników (`/forum/`) i jego moderację
   (`/coordinator/forum/`). Wyłączona znaczy, że tych adresów **nie ma** (404) i że w żadnym menu nie
   przybywa ani jedna pozycja. Ta flaga różni się od pozostałych jednym: jej zapalenie nie jest
@@ -734,6 +739,50 @@ wypuszcza wtedy konfigurację proxy **co do bajtu** taką, jaka jest dzisiaj, be
 i bez bloku wieloznacznego (pilnuje tego `scripts/tests/render_caddyfile_test.sh`). Konkursy
 z własnymi domenami i `EXTRA_DOMAINS` działają niezmiennie; te w subdomenach tracą adres do czasu,
 aż przełącznik wróci. Rekord DNS `*` może zostać — sam z siebie niczego nie obsługuje.
+
+### 6.6. Konkurs pod prefiksem ścieżki (`/<prefiks>/` na domenie platformy)
+
+Tryb dla konkursu, który czeka na własny DNS (`docs/UNIWERSALNY-ETAP-1.md` § 2.3): adresy
+`https://olimpiadakwantowa.pl/fizyczna/…`, bez wpisu w `.env`, bez Caddy'ego i bez DNS-u. Od zmiany
+„drzewo CMS konkursu pod prefiksem” (`CHANGELOG.md`, uwaga T43) taki konkurs ma pod prefiksem
+**własne drzewo stron CMS** — stronę główną, menu, dokumenty, przekierowania i ustawienia witryny
+swojej, a nie platformy.
+
+```bash
+docker compose exec -T web python manage.py create_competition   --slug fizyczna --name "Olimpiada Fizyczna" --domain olimpiadafizyczna.pl   --path-prefix fizyczna --from-template przedmiotowa   --coordinator-email koordynator@example.org --dry-run      # potem bez --dry-run
+```
+
+- `--domain` jest domeną, **na którą konkurs czeka** — trafia do jego witryny Wagtaila
+  (`/cms/ → Ustawienia → Witryny`). Do czasu DNS-u nic pod nią nie odpowiada i nie trzeba jej nigdzie
+  wpisywać.
+- Komenda zakłada witrynę konkursu z **własną stroną główną** i sekcjami z szablonu (drzewo obok
+  drzewa platformy, nie pod nim) i włącza konkursowi platformy `path_prefix_routing` (§ 6.4) —
+  wydruk mówi „włączono mu teraz” albo „był już włączony”. Bez konkursu platformy (brak aktywnego
+  konkursu witryny domyślnej) komenda odmawia.
+- Prefiks nie może być slugiem strony drugiego poziomu platformy ani adresem aplikacji
+  (`Competition.clean`), a redaktor platformy nie założy potem strony o slugu równym prefiksowi
+  (`CMSPage.clean`).
+
+**Sprawdzenie po założeniu** (dwie minuty, w przeglądarce):
+
+1. `https://<platforma>/fizyczna/` — strona główna **Olimpiady Fizycznej** (tytuł, menu z jej sekcji;
+   logo i „Strona główna” prowadzą pod `/fizyczna/`).
+2. `https://<platforma>/fizyczna/zadania/` — sekcja z jej drzewa; `https://<platforma>/fizyczna/<slug
+   strony platformy>/` — **404** (strony platformy nie przeciekają pod prefiks, i odwrotnie).
+3. W `/cms/` strona konkursu → „Podgląd” i „Zobacz na żywo” — adres pod `/fizyczna/`.
+4. Wylogowany: `https://<platforma>/fizyczna/me/` przekierowuje na `/fizyczna/login/?next=…`.
+
+**Czego ten tryb nie daje** — i dlatego nie jest domyślny: sesja i CSRF są **wspólne** z platformą
+(jeden host, ciasteczka na ścieżce `/`), więc zalogowanie się w jednym konkursie loguje w drugim
+(konto i tak jest jedno, § 3.8 etapu 1). Linki w listach wysyłanych poza żądaniem prowadzą pod
+`https://<platforma>/fizyczna/…`.
+
+**Przejście na własną domenę** (gdy DNS zadziała): § 6.3 dla domeny z `--domain`, potem w `/admin/ →
+Konkursy` `routing_mode` = „własna domena” (prefiks można zostawić pusty). Drzewo stron zostaje to
+samo — witryna już ma tę domenę. Stare adresy `/fizyczna/…` pod domeną platformy przestają wtedy
+działać: jeśli były rozesłane, dopisz w `/cms/ → Ustawienia → Przekierowania` witryny **platformy**
+przekierowanie `/fizyczna` na `https://olimpiadafizyczna.pl/` (Wagtail nie przekierowuje całych
+poddrzew — tylko adresy dopisane z nazwy).
 
 ---
 

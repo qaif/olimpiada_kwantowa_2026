@@ -286,17 +286,24 @@ def build_key(request) -> str | None:
     competition_id = _competition_id(request)
     global_version, site_version = _versions(competition_id)
     language = getattr(request, "LANGUAGE_CODE", settings.LANGUAGE_CODE)
-    return ":".join(
-        [
-            CACHE_PREFIX,
-            str(global_version),
-            str(site_version),
-            str(competition_id or "none"),
-            language,
-            request.path_info,
-            query,
-        ]
-    )
+    parts = [
+        CACHE_PREFIX,
+        str(global_version),
+        str(site_version),
+        str(competition_id or "none"),
+        language,
+        request.path_info,
+        query,
+    ]
+    prefix = getattr(request, "competition_script_prefix", "")
+    if prefix:
+        # Konkurs pod prefiksem ścieżki bywa osiągalny także pod własną domeną (czeka na DNS, potem
+        # oba adresy działają naraz). Treść jest ta sama, ale **odnośniki** nie: pod prefiksem niosą
+        # ``/druga/``, pod domeną – nie. Bez prefiksu w kluczu pierwsza odsłona jednego adresu
+        # oddawałaby drugiemu cudze linki. Człon dochodzi wyłącznie przy prefiksie, więc klucze
+        # konkursu z własną domeną zostają co do znaku te same.
+        parts.append(f"prefix={prefix}")
+    return ":".join(parts)
 
 
 # --- Kwalifikacja żądania -------------------------------------------------------------------------

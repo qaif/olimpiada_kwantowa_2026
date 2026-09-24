@@ -11,10 +11,11 @@ bez sygnałów, więc nie ma jak zapętlić zapisu ani nadpisać pól, których 
 
 from __future__ import annotations
 
-from django.db.models.signals import post_save
+from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from wagtail.models import Site
 
+from apps.tenancy import page_urls
 from apps.tenancy.models import Competition
 
 
@@ -24,3 +25,17 @@ def sync_primary_domain(sender, instance, **kwargs) -> None:
     Competition.objects.filter(site=instance).exclude(primary_domain=instance.hostname).update(
         primary_domain=instance.hostname
     )
+
+
+@receiver(post_save, sender=Site, dispatch_uid="tenancy.page_urls.site_saved")
+@receiver(post_delete, sender=Site, dispatch_uid="tenancy.page_urls.site_deleted")
+@receiver(post_save, sender=Competition, dispatch_uid="tenancy.page_urls.competition_saved")
+@receiver(post_delete, sender=Competition, dispatch_uid="tenancy.page_urls.competition_deleted")
+def forget_path_prefix_sites(sender, **kwargs) -> None:
+    """Mapa „witryna → prefiks ścieżki” (``apps.tenancy.page_urls``) po zmianie konkursu albo witryny.
+
+    Prefiks, tryb adresowania, aktywność konkursu i witryna domyślna (adres platformy) stoją
+    w tych dwóch tabelach, więc każdy ich zapis zdejmuje mapę. Zapis jest rzadki (panel operatora,
+    ``create_competition``), a mapa bez unieważnienia żyłaby godzinę z adresem sprzed zmiany.
+    """
+    page_urls.invalidate()

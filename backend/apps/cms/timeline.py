@@ -14,7 +14,7 @@ import re
 from datetime import date
 
 from django.core.cache import cache
-from django.urls import reverse
+from django.urls import get_script_prefix, reverse
 from django.utils import timezone
 from django.utils.formats import date_format
 
@@ -340,7 +340,7 @@ def _workshop_items(today: date, competition=None) -> list[dict]:
             start=row["date_value"],
             end=row["date_value"],
             today=today,
-            url=f"/{WORKSHOPS_SLUG}/",
+            url=f"{get_script_prefix()}{WORKSHOPS_SLUG}/",
             note="online",
         )
         for row in workshop_rows(page)
@@ -604,7 +604,7 @@ def _lead_item(items: list[dict]) -> dict | None:
     return items[-1] if items else None
 
 
-def _cache_key(edition_id: int, competition_id: int | None) -> str:
+def _cache_key(edition_id: int, competition_id: int | None, script_prefix: str | None = None) -> str:
     """Klucz bufora: konkurs i jego edycja.
 
     Konkurs w kluczu jest **nadmiarowy i ma taki zostać**. Edycja należy do dokładnie jednego
@@ -619,7 +619,13 @@ def _cache_key(edition_id: int, competition_id: int | None) -> str:
     problem prawdziwy: zdjęcie bufora (``invalidate_timeline_cache``) musiałoby zgadnąć,
     dla którego dnia policzono wpis, który ma skasować.
     """
-    return f"{CACHE_PREFIX}:{competition_id or 'none'}:{edition_id}"
+    key = f"{CACHE_PREFIX}:{competition_id or 'none'}:{edition_id}"
+    # Pasek niesie odnośniki złożone ``reverse()`` (wyniki, rejestracja, warsztaty), a te w konkursie
+    # pod prefiksem ścieżki mają prefiks żądania. Ten sam konkurs bywa osiągalny także pod własną
+    # domeną, więc wpis policzony pod ``/druga/`` nie może trafić do odsłony bez prefiksu (ani
+    # odwrotnie). Człon dochodzi wyłącznie przy prefiksie – klucz Konkursu #1 zostaje ten sam.
+    prefix = get_script_prefix() if script_prefix is None else script_prefix
+    return key if prefix == "/" else f"{key}:{prefix}"
 
 
 def invalidate_timeline_cache(edition_id: int) -> None:
@@ -633,8 +639,18 @@ def invalidate_timeline_cache(edition_id: int) -> None:
     obiektu edycji już nie ma pod ręką. Konkurs do klucza dobieramy więc jednym ``values_list``
     – zapytanie wykonuje się przy zapisie wydarzenia (rzadko), a nie przy odsłonie strony.
     """
-    competition_id = Edition.objects.filter(pk=edition_id).values_list("competition_id", flat=True).first()
-    cache.delete(_cache_key(edition_id, competition_id))
+    row = (
+        Edition.objects.filter(pk=edition_id)
+        .values_list("competition_id", "competition__path_prefix")
+        .first()
+    )
+    competition_id, path_prefix = row if row is not None else (None, "")
+    keys = [_cache_key(edition_id, competition_id, "/")]
+    if path_prefix:
+        # Wariant policzony pod prefiksem ścieżki (patrz ``_cache_key``) – to samo zapytanie niesie
+        # prefiks konkursu, więc zdjęcie obu wpisów nie kosztuje drugiego odczytu.
+        keys.append(_cache_key(edition_id, competition_id, f"/{path_prefix}/"))
+    cache.delete_many(keys)
 
 
 def timeline_strip(edition: Edition | None = None, now=None, *, competition=None) -> dict | None:

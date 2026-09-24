@@ -186,6 +186,13 @@ class ProvisioningResult:
     #: Linijki do ``.env`` administratora serwera; pusta krotka znaczy „nie ma czego wklejać”.
     env_lines: tuple[str, ...]
     dry_run: bool
+    #: Konkurs platformy (witryny domyślnej), pod którego hostem odpowiada konkurs w trybie
+    #: prefiksu ścieżki, albo ``None`` dla konkursu z własną domeną. Wołający wypisuje go, bo tej
+    #: czynności ubocznej administrator ma się dowiedzieć z wydruku, a nie z ``/admin/``.
+    platform: Competition | None = None
+    #: Czy to założenie **włączyło** konkursowi platformy ``path_prefix_routing`` (wcześniej było
+    #: wyłączone). ``False`` przy konkursie z domeną i przy bramce otwartej już wcześniej.
+    opened_platform: bool = False
 
 
 def coordinator_from_email(email: str):
@@ -290,6 +297,7 @@ def create_competition_from_template(
             _grant_coordinator(coordinator, competition)
         seeded = _seed_configuration(competition, coordinator)
         seeded["pipeline"] = len(_seed_pipeline(edition))
+        platform, opened_platform = _open_platform_for_prefix(competition)
         if dry_run:
             # Wycofanie **po** wykonaniu całości, a nie pominięcie zapisów – patrz docstring.
             transaction.set_rollback(True)
@@ -307,6 +315,8 @@ def create_competition_from_template(
         coordinator=coordinator,
         env_lines=env_lines_for(competition),
         dry_run=dry_run,
+        platform=platform,
+        opened_platform=opened_platform,
     )
 
 
@@ -412,6 +422,43 @@ def _create(
         raise ProvisioningError(_flatten(exc)) from exc
     competition.save()
     return competition
+
+
+def _open_platform_for_prefix(competition: Competition) -> tuple[Competition | None, bool]:
+    """Konkurs platformy z otwartą bramką ``path_prefix_routing`` – dla konkursu w trybie ``PATH``.
+
+    Konkurs pod prefiksem ścieżki odpowiada wyłącznie pod hostem, którego konkurs ma włączone
+    ``path_prefix_routing`` (``apps.tenancy.resolution.hosts_path_prefixes``). Założenie konkursu
+    z ``--path-prefix`` **jest** decyzją „ten konkurs stoi pod adresem platformy”, więc otwieramy
+    bramkę konkursowi witryny domyślnej – tej, która odpowiada pod domeną platformy – w tej samej
+    transakcji. Bez tego nowy konkurs powstawałby z adresem, który od pierwszej chwili daje 404,
+    a administrator dowiadywałby się o drugim kroku dopiero z pierwszego zgłoszenia.
+
+    Zapis idzie przez ``update()`` na jednym polu: nie woła ``full_clean`` ani sygnałów zapisu
+    konkursu platformy, a przede wszystkim nie nadpisuje pozostałych przełączników tego konkursu.
+    Brak konkursu platformy jest odmową: prefiks ścieżki nie miałby wtedy pod czym odpowiadać.
+    """
+    from apps.tenancy.resolution import PATH_PREFIX_FLAG
+
+    if competition.routing_mode != RoutingMode.PATH:
+        return None, False
+    platform = (
+        Competition.objects.filter(site__is_default_site=True, is_active=True)
+        .exclude(pk=competition.pk)
+        .first()
+    )
+    if platform is None:
+        raise ProvisioningError(
+            "Tryb prefiksu ścieżki wymaga konkursu platformy (aktywny konkurs witryny domyślnej) – "
+            "pod jego domeną odpowiada konkurs z prefiksem. Załóż konkurs z własną domeną (--domain) "
+            "albo najpierw konkurs platformy."
+        )
+    if platform.has_feature(PATH_PREFIX_FLAG):
+        return platform, False
+    flags = {**(platform.feature_flags or {}), PATH_PREFIX_FLAG: True}
+    Competition.objects.filter(pk=platform.pk).update(feature_flags=flags)
+    platform.feature_flags = flags
+    return platform, True
 
 
 # --- edycja i etapy -----------------------------------------------------------------------------

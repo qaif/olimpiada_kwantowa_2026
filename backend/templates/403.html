@@ -8,7 +8,7 @@
       komisji albo koordynatora). Jeśli masz kilka kont, zaloguj się na właściwe.</p>
     <p class="actions">
       <a class="btn btn--primary" href="{% url 'web:login' %}">Zaloguj się</a>
-      <a class="btn btn--secondary" href="/">Strona główna</a>
+      <a class="btn btn--secondary" href="{{ site_root|default:"/" }}">Strona główna</a>
     </p>
   </div>
 </div>

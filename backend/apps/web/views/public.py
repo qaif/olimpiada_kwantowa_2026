@@ -24,7 +24,7 @@ from django.contrib.auth.views import PasswordResetDoneView as DjangoPasswordRes
 from django.contrib.auth.views import PasswordResetView as DjangoPasswordResetView
 from django.http import Http404, HttpResponse
 from django.shortcuts import redirect
-from django.urls import reverse_lazy
+from django.urls import get_script_prefix, reverse_lazy
 from django.views.generic import FormView, TemplateView
 
 from apps.accounts.activation import (
@@ -71,7 +71,8 @@ def default_panel_url(request) -> str:
     ):
         if context.get(flag):
             return str(reverse_lazy(name))
-    return "/"
+    # Strona główna **tego** konkursu: pod prefiksem ścieżki ``/druga/``, bez prefiksu ``/``.
+    return get_script_prefix()
 
 
 class LoginView(ThrottledFormMixin, DjangoLoginView):
@@ -107,7 +108,9 @@ class LoginView(ThrottledFormMixin, DjangoLoginView):
 class LogoutView(DjangoLogoutView):
     """Wylogowanie. Wyłącznie POST – wylogowanie GET-em byłoby podatne na CSRF przez ``<img>``."""
 
-    next_page = "/"
+    #: Strona główna konkursu, z którego człowiek się wylogował (``LOGOUT_REDIRECT_URL`` – leniwy
+    #: prefiks skryptu, patrz ``config/settings/base.py``); bez prefiksu to jest ``/``.
+    next_page = settings.LOGOUT_REDIRECT_URL
 
 
 def service_name(request) -> str:

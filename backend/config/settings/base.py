@@ -4,6 +4,8 @@ import logging
 from pathlib import Path
 
 import environ
+from django.urls import get_script_prefix, reverse_lazy
+from django.utils.functional import lazy
 from wagtail.embeds import oembed_providers
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -237,7 +239,9 @@ MIDDLEWARE = [
     # obsłużyć adresu, sprawdzamy, czy nie jest to adres strony przeniesionej w drzewie.
     # Przy trafieniu cache'a ta warstwa w ogóle nie widzi żądania (patrz warstwa wyżej) – i to jest
     # poprawne: trafienie istnieje wyłącznie dla adresów, o których już wiadomo, że dają 200.
-    "wagtail.contrib.redirects.middleware.RedirectMiddleware",
+    # Podklasa warstwy Wagtaila, która zna prefiks ścieżki konkursu (apps/cms/redirects.py); bez
+    # prefiksu woła dokładnie ``RedirectMiddleware.process_response``.
+    "apps.cms.redirects.CompetitionRedirectMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -888,9 +892,13 @@ WAGTAILEMBEDS_FINDERS = [
 ]
 
 # Logowanie sesyjne interfejsu WWW (apps.web). Niezalogowany dostaje 302 na /login/?next=...
-LOGIN_URL = "/login/"
-LOGIN_REDIRECT_URL = "/me/"
-LOGOUT_REDIRECT_URL = "/"
+# Wartości **leniwe**, liczone w chwili użycia: w konkursie pod prefiksem ścieżki
+# (``apps.tenancy.middleware``) ``reverse()`` i ``get_script_prefix()`` niosą prefiks żądania, więc
+# przekierowanie na logowanie nie wyprowadza z konkursu do konkursu-gospodarza. Bez prefiksu wartości
+# są co do znaku te same, co dawne napisy ``/login/``, ``/me/`` i ``/``.
+LOGIN_URL = reverse_lazy("web:login")
+LOGIN_REDIRECT_URL = reverse_lazy("web:me")
+LOGOUT_REDIRECT_URL = lazy(get_script_prefix, str)()
 
 # --- Logowanie przez Google i Facebooka (django-allauth, wyłącznie socialaccount) --------------
 #
