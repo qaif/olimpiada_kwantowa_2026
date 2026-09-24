@@ -83,6 +83,18 @@ Dat tam nie ma i nie będzie – `/status.json` jest publiczny, a data ostatniej
 kiedy uderzenie zaboli najbardziej. Konkretne znaczniki czasu pokazuje
 `docker compose exec web python manage.py record_backup_status --show`.
 
+### Monitor połączeń z bazą (opcjonalny, zalecany)
+
+Ostatnie pole `/status.json` – `db_connections` – mówi, jak blisko Postgres jest limitu połączeń
+(`max_connections`): `ok`, `warn` (od 80 %), `critical` (od 95 %) albo `unknown` (odczyt się nie
+udał). Monitor **JSON Query** z interwałem 5 minut:
+
+- Query: `$.db_connections`, oczekiwana wartość `ok`.
+
+To jest drugi, niezależny sygnał obok listu watchdoga (`docs/OPERACJE.md` § 11.2): watchdog chodzi
+w workerze Celery, a ten monitor – z zewnątrz. Liczb tu nie ma celowo (strona jest publiczna); ile
+z ilu i kto trzyma połączenia, pokazuje `docker compose exec web python manage.py db_connections`.
+
 ---
 
 ## 3. Kanały powiadomień

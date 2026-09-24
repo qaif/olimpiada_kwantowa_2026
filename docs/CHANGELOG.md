@@ -90,6 +90,43 @@ obie bezstratne, na małych tabelach – `OPERACJE.md` § 18.4.
   eksport danych uczestnika (art. 15/20 RODO) niesie `proponowane_punkty` i `maksimum` sugestii AI
   jako liczby JSON (`6`, `4.5`) zamiast tekstu z kolumny („6.00”), jak `suma_punktow` obok.
 
+## [Unreleased] – pula połączeń i reset hasła w tle
+
+Dwie pozycje długu technicznego z `BACKLOG.md`. Bez migracji. Nowa zależność: ekstra `pool` przy
+`psycopg` (`psycopg[binary,pool]` – dociąga `psycopg-pool`), więc **obraz trzeba przebudować**.
+`web`, `worker` i `beat` wdrażać razem (to jeden obraz): `send_mail_task` ma nowy argument
+`html_message`, którego stary worker nie zna. Kroki operatora: `OPERACJE.md` § 11.2.
+
+### Pula połączeń z Postgresem i alarm zajętości
+
+- **Pula psycopg w `web`** (`DATABASES["default"]["OPTIONS"]["pool"]`, reguły w
+  `backend/config/dbpool.py`): jedna pula na proces gunicorna, `DB_POOL_MAX_SIZE` domyślnie
+  `WEB_THREADS`, `DB_POOL_MIN_SIZE=1`, `DB_POOL_TIMEOUT=10`. Przy puli `CONN_MAX_AGE` jest zawsze
+  0 (wymóg Django), a `DB_CONN_MAX_AGE` działa już tylko w procesach bez puli.
+- **`worker` i `beat` bez puli** (`DB_POOL=0` w `docker-compose.yml`, a ustawienia rozpoznają proces
+  Celery także same): Celery 5.6 w workerze `prefork` zamyka pulę przed i po każdym zadaniu.
+- **`application_name` per usługa** (`DB_APPLICATION_NAME`: `olimpiada-web`, `olimpiada-worker`,
+  `olimpiada-beat`) – w `pg_stat_activity` widać, kto trzyma połączenia.
+- **Alarm zajętości** (`apps/core/dbconnections.py`): jedno zapytanie do `pg_stat_activity`,
+  buforowane 30 s. `/healthz/` i `/status.json` dostają pole `db_connections`
+  (`ok|warn|critical|unknown`, wyłącznie poziom – bez liczb; `/status.json` dokłada je jako ostatni
+  klucz, a kod `/healthz/` się nie zmienia). Watchdog pisze na `ALERT_EMAILS` od 80 %
+  (`db-connections:warn`) i od 95 % (`db-connections:critical`) z podziałem na usługi i stany.
+  Nowa komenda `manage.py db_connections` (kod wyjścia = poziom). Progi:
+  `DB_CONNECTIONS_WARN_PERCENT`, `DB_CONNECTIONS_CRITICAL_PERCENT`.
+- Budżet przy domyślnych wartościach: ok. 20 połączeń aplikacji ze 100 (`web` 4×4 z puli, `worker`
+  2, `beat` 1) – `max_connections` bez zmian.
+
+### Reset hasła w tle
+
+- `POST /password-reset/` i `/coordinator/accounts/<pk>/password-reset/` nie wysyłają już listu
+  w żądaniu: `QueuedPasswordResetForm` (`apps/accounts/password_reset.py`) renderuje ten sam list
+  (szablony, kontekst, token – bez zmian) i kolejkuje go w `send_mail_task` na kolejce `mail` po
+  commicie. Treść, temat, nadawca i część HTML są identyczne z listem wysyłanym dotąd (test porównuje
+  oba). Odpowiedź, limit `password_reset` i brak enumeracji kont bez zmian – a czas odpowiedzi nie
+  zależy już od rozmowy z MTA; błąd brokera jest połykany i logowany po kluczu konta.
+- `send_mail_task` przyjmuje opcjonalne `html_message` (alternatywa `text/html`).
+
 ## v0.35.0 – 2026-09-24
 
 Wydanie zbiorcze z dwóch próśb organizatora z 24.09.2026. **Dowolne wartości ocen i różne maksima

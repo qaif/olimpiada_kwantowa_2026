@@ -129,7 +129,8 @@ Pełny szablon z komentarzami: [`.env.example`](../.env.example). Wartości wcho
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | `https://localhost` | origin(y) **z protokołem**; brak wpisu = 403 przy każdym formularzu |
 | `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE` | = `not DEBUG` | w produkcji `1`; odkomentuj `0` tylko w devie bez TLS |
 | `WEB_WORKERS` / `CELERY_CONCURRENCY` | `3` / `2` | procesy gunicorna i wątki workera |
-| `DB_CONN_MAX_AGE` | `0` | **nie podnosić** — patrz incydent w § 8.4 |
+| `DB_POOL` / `DB_POOL_MAX_SIZE` | `1` w `web` / `WEB_THREADS` | pula połączeń z bazą — patrz § 9.4 |
+| `DB_CONN_MAX_AGE` | `60` | działa tylko w `worker`/`beat` (bez puli); w `web` ignorowane — § 9.4 |
 | `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | `olimpiada` / `olimpiada` / – | baza |
 | `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` | – | konto administracyjne MinIO; **backend go nie używa** (tylko `minio-init`) |
 | `S3_PUBLIC_ACCESS_KEY` / `S3_PUBLIC_SECRET_KEY` | `wagtail-media` / – | konto serwisowe bucketu `public-media` (media Wagtaila) |
@@ -139,7 +140,7 @@ Pełny szablon z komentarzami: [`.env.example`](../.env.example). Wartości wcho
 | `TRUSTED_PROXY_IPS` | podsieci compose | komu wolno podać `X-Real-IP`. **Nigdy `0.0.0.0/0`** — nagłówek od nieznanego nadawcy to dane od klienta, a nie fakt |
 | `EMAIL_URL` | brak = log | `smtp://mailpit:1025` (dev), `smtp://mail:587` (własny relay), `smtp+tls://user:hasło@host:587` (dostawca zewnętrzny) |
 | `DEFAULT_FROM_EMAIL` | `noreply@localhost` | nadawca listów (i `SERVER_EMAIL`); domena musi mieć SPF/DKIM |
-| `EMAIL_TIMEOUT` | `10` | limit sekund na połączenie SMTP (wysyłka resetu hasła jest synchroniczna w żądaniu) |
+| `EMAIL_TIMEOUT` | `10` | limit sekund na połączenie SMTP (wysyłka idzie w workerze Celery, kolejka `mail`) |
 | `GOOGLE_OAUTH_CLIENT_ID` / `_SECRET` | puste | logowanie Google; puste = przycisk się nie pokazuje |
 | `FACEBOOK_APP_ID` / `_SECRET` | puste | logowanie Facebook; jw. |
 | `SITE_URL` | – | opcjonalny adres bezwzględny dla wysyłek spoza żądania HTTP |
@@ -487,17 +488,25 @@ Uwaga na limity Let's Encrypt: powtarzanie wdrożenia „aż się uda” wyczerp
 `UvicornWorker`), a trwałe połączenie jest przypięte do wątku żądania, który ginie bez
 `close_old_connections`. Postgres odpowiadał „too many clients already” i **każda** strona dawała 500.
 
-**Stan docelowy i obowiązujący:** `CONN_MAX_AGE=0` (zmienna `DB_CONN_MAX_AGE`,
-`backend/config/settings/base.py`). **Nie podnoś jej** bez wprowadzenia puli połączeń
-(`psycopg[pool]` + `OPTIONS["pool"]`) — to jest otwarty dług techniczny, nie ustawienie do dostrojenia.
+**Stan obowiązujący (od wydania po v0.35.0):** `web` bierze połączenia z **puli psycopg** — jedna pula na proces
+gunicorna, najwyżej `DB_POOL_MAX_SIZE` połączeń (domyślnie tyle, ile wątków: `WEB_THREADS`), a nadmiar
+bezczynnych połączeń pula zamyka sama, stopniowo (jedno na 10 minut bezczynności). `worker` i `beat` chodzą bez puli, z
+`DB_CONN_MAX_AGE=60`. Przy domyślnych wartościach cała aplikacja trzyma najwyżej ok. 20 ze 100
+połączeń (rachunek: [`OPERACJE.md`](OPERACJE.md) § 11.2).
+
+Objaw nie przychodzi już bez ostrzeżenia: powyżej **80 %** `max_connections` watchdog wysyła list na
+`ALERT_EMAILS` z podziałem na usługi, a `/healthz/` i `/status.json` pokazują
+`"db_connections": "warn"` (95 % — `"critical"`).
 
 Szybka diagnostyka, gdy objaw wróci:
 
 ```bash
-docker compose exec db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
-  -c "select state, count(*) from pg_stat_activity group by state;"
-docker compose restart web worker beat     # doraźnie zwalnia połączenia
+docker compose exec web python manage.py db_connections   # ile z ilu, kto trzyma, w jakim stanie
+docker compose restart web          # gdy trzyma `olimpiada-web` – doraźnie zwalnia połączenia
+docker compose restart worker beat  # gdy `olimpiada-worker` / `olimpiada-beat`
 ```
+
+Połączenia `(bez nazwy)` to nie aplikacja — to `psql`, kopia zapasowa albo coś spoza compose'a.
 
 ### 9.5 Pozostałe typowe sytuacje
 

@@ -123,6 +123,9 @@ def test_status_json_keeps_its_contract(anon, golden):
         # Jedyny klucz dopisany w etapie 2 (§ 1.7.3, zadanie T41): „czy instalacja czeka jeszcze
         # na kreator ``/setup/``”. Pozostałe jedenaście zostaje bez zmian i w tej samej kolejności.
         "setup_pending",
+        # Poziom zajętości połączeń z Postgresem (``ok|warn|critical|unknown``) – bez liczb
+        # (apps/core/dbconnections.py).
+        "db_connections",
     }
     assert payload["edition"] == golden.edition.year_label
     # Konkurs #1 jest skonfigurowany, więc kreatora nie ma – to ta sama odpowiedź, co 404 na
@@ -299,6 +302,7 @@ EXPECTED_STATUS_KEYS = (
     "stage_deadline",
     "announcements",
     "setup_pending",
+    "db_connections",
 )
 
 

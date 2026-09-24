@@ -74,7 +74,7 @@ adres e-mail. Wszystko poniżej pilnują testy z `apps/web/tests/test_password_r
 | 3.1.9 | Wersja HTML listu bez zasobów zdalnych | ✔ | Style inline, zero `<img>` i zero adresów CDN – obrazek w liście to potwierdzenie odczytu i wyciek adresu IP czytelnika. Test: `::test_message_has_a_plain_text_and_an_html_part_without_remote_resources`. |
 | 3.1.10 | Link `https` za proxy | ✔ | Protokół z `request.is_secure()` + `SECURE_PROXY_SSL_HEADER` (`config/settings/production.py`). Test: `::test_link_uses_https_when_the_request_came_through_the_proxy`. |
 | 3.1.11 | Poświadczenia SMTP wyłącznie w `EMAIL_URL` (env) | ✔ | `config/settings/base.py` (`env.email_url`); produkcja loguje ostrzeżenie, gdy `EMAIL_URL` wskazuje `localhost:25` (brak MTA w kontenerze). Wariant domyślny (`smtp://mail:587`, własny Postfix w sieci compose) żadnych poświadczeń nie ma – patrz 10. Konfiguracja: `README.md` § 4.1. |
-| 3.1.12 | Wysyłka listu jest synchroniczna w żądaniu | ⚠ `low` | `EMAIL_TIMEOUT=10` ogranicza czas zajęcia workera, ale niedostępny SMTP nadal spowalnia POST `/password-reset/`. Przeniesienie na kolejkę `mail` (trasa jest już w `CELERY_TASK_ROUTES`): `BACKLOG.md`. |
+| 3.1.12 | Wysyłka listu resetu hasła nie blokuje żądania | ✔ | Od wydania po v0.35.0 list idzie przez `send_mail_task` na kolejce `mail`, po commicie (`apps/accounts/password_reset.py`); odpowiedź nie czeka na SMTP, więc jej czas nie zdradza, czy konto istnieje, a niedostępny relay nie zajmuje wątków gunicorna. Błąd kolejkowania jest połykany i logowany po kluczu konta (odpowiedź zostaje 302, jak dla adresu bez konta). |
 
 ### 3.1a Aktywacja konta e-mailem (`/activate/<token>/`, `/activate/resend/`)
 
@@ -254,7 +254,7 @@ serwerów MX odbiorców. Konfiguracja i weryfikacja: `README.md` § 4.1–4.3.
 | 10.7 | SPF / DKIM / DMARC / PTR w DNS | ⚠ – **do zrobienia po stronie operatora strefy** | Rekordy wypisuje `scripts/deploy.sh` (krok 7/7) i zapisuje do `<REMOTE_DIR>/mail-dns.txt`; tabela w `README.md` § 4.2. Do czasu ich dodania listy dochodzą, ale bez uwierzytelnienia – trafiają do spamu, a część odbiorców je odrzuci. PTR (`<IP>` → `mail.<domena>`) ustawia się w panelu dostawcy serwera, nie w strefie. |
 | 10.8 | Rozmiar wiadomości ograniczony | ✔ | `POSTFIX_message_size_limit=10485760` (obraz domyślnie nie ma limitu); aplikacja wysyła wyłącznie krótkie listy transakcyjne. |
 | 10.9 | Klucz DKIM przeżywa restart | ✔ | Wolumen `mail_dkim:/etc/opendkim/keys`; przy kolejnym starcie w logu `Key for domain <domena> already exists … Will not overwrite.` Inaczej każdy `up -d --force-recreate` unieważniałby rekord TXT w DNS-ie. |
-| 10.10 | Poczta nie blokuje startu aplikacji | ✔ | `web`/`worker`/`beat` **nie** mają `depends_on` na `mail`; awaria relaya psuje reset hasła, ale nie serwis. `EMAIL_TIMEOUT=10` ogranicza czas zajęcia workera (3.1.12). |
+| 10.10 | Poczta nie blokuje startu aplikacji | ✔ | `web`/`worker`/`beat` **nie** mają `depends_on` na `mail`; awaria relaya opóźnia listy (ponowienia `send_mail_task`), ale nie serwis. `EMAIL_TIMEOUT=10` ogranicza czas zajęcia procesu workera Celery (3.1.12). |
 
 ---
 
