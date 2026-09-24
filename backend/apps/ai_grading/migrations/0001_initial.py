@@ -11,9 +11,15 @@ class Migration(migrations.Migration):
 
     initial = True
 
+    # ``submissions.0001_initial``, a nie najnowsza migracja prac (tak ją wpisał ``makemigrations``):
+    # tabela ocen AI potrzebuje wyłącznie tabeli ``Submission`` (klucz obcy do ``pk``), a zależność
+    # od ``0008`` cofała tę aplikację razem z każdym testem migracji prac (``submissions.0005``),
+    # po czym ``Competition.objects.all().delete()`` sięgał kaskadą do nieistniejącej tabeli
+    # ``ai_grading_aigradingsettings``. Zmiana przy scaleniu wydania v0.34.0, przed pierwszym
+    # wdrożeniem tej migracji – na żadnej bazie nie jest jeszcze zastosowana.
     dependencies = [
         ('competitions', '0031_interview_score'),
-        ('submissions', '0008_submissionfile_forwarded_at'),
+        ('submissions', '0001_initial'),
         ('tenancy', '0008_competition_submission_forward_emails'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
