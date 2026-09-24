@@ -258,6 +258,7 @@ def as_json(data: dict) -> dict:
     ``manage.py record_backup_status --show`` i dostaje je w treści alertu.
     """
     from apps.core.backup import state as backup_state
+    from apps.core.dbconnections import level as db_connections_level
     from apps.tenancy.setup import setup_available
 
     competition = data["competition"]
@@ -288,4 +289,11 @@ def as_json(data: dict) -> dict:
         # dostaje dzięki temu jednoznaczną odpowiedź na pytanie „czy ten adres to świeża, niczyja
         # instalacja” – bez pukania do samego ``/setup/``, które i tak odpowiada 404.
         "setup_pending": setup_available(),
+        # Zajętość połączeń z Postgresem – **wyłącznie poziom** (``ok|warn|critical|unknown``,
+        # ``apps.core.dbconnections``), dołożony na końcu z tego samego powodu, co klucz wyżej.
+        # Nie wchodzi do ``status``: przy 85 % połączeń uczestnik nadal oddaje pracę, a gdy
+        # połączeń zabraknie naprawdę, ``services.database`` i tak zgaśnie. Liczby (ile z ilu, kto
+        # trzyma) są w liście watchdoga i w ``manage.py db_connections`` – publicznie powiedziałyby
+        # obcemu, ile brakuje do położenia serwisu.
+        "db_connections": db_connections_level(),
     }

@@ -775,9 +775,10 @@ class CoordinatorPasswordResetView(CoordinatorRequiredMixin, View):
     22.09.2026).
 
     **Koordynator nie ustawia hasła ani nie widzi linku.** Widok woła ten sam formularz Django
-    (``PasswordResetForm``) z tymi samymi szablonami listu, co samoobsługowy ``PasswordResetView``
-    (``apps.web.views.public``) – list jest bajt w bajt identyczny z tym, który wysyła sobie sam
-    uczestnik, a token nigdy nie trafia do odpowiedzi HTTP ani do audytu. Inny efekt tego samego
+    (``QueuedPasswordResetForm``) z tymi samymi szablonami listu, co samoobsługowy
+    ``PasswordResetView`` (``apps.web.views.public``) – list jest bajt w bajt identyczny z tym,
+    który wysyła sobie sam uczestnik, idzie tą samą drogą (kolejka ``mail``, po commicie), a token
+    nigdy nie trafia do odpowiedzi HTTP ani do audytu. Inny efekt tego samego
     kliknięcia (ustawienie hasła wprost przez koordynatora) uczyniłby go posiadaczem hasła, które
     powinno znać wyłącznie właściciel konta.
 
@@ -799,9 +800,9 @@ class CoordinatorPasswordResetView(CoordinatorRequiredMixin, View):
     """
 
     def post(self, request, pk: int):
-        from django.contrib.auth.forms import PasswordResetForm
         from django.contrib.auth.tokens import default_token_generator
 
+        from apps.accounts.password_reset import QueuedPasswordResetForm
         from apps.web.views.public import PasswordResetView as SelfServicePasswordResetView
         from apps.web.views.public import service_name
 
@@ -837,7 +838,7 @@ class CoordinatorPasswordResetView(CoordinatorRequiredMixin, View):
             )
             return redirect(edit_url)
 
-        form = PasswordResetForm(data={"email": user.email})
+        form = QueuedPasswordResetForm(data={"email": user.email})
         if not form.is_valid():
             # Nie powinno się zdarzyć – adres pochodzi z naszej własnej bazy – ale ``form.save()``
             # poniżej milczy przy braku dopasowania, więc jawny błąd jest tu bezpieczniejszy niż

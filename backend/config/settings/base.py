@@ -332,20 +332,64 @@ DATABASES = {
 #    żądaniu – więc trwałe połączenie znów ma sens (jeden wątek = jedno długożyjące połączenie,
 #    zamykane przez ``close_old_connections`` w tym samym wątku, który je otworzył).
 #
-# Budżet połączeń Postgresa (``max_connections=100``) przy domyślnych wartościach:
-#   web:    WEB_WORKERS × WEB_THREADS = 4 × 4 = 16
-#   worker: CELERY_CONCURRENCY = 2
+# 4. Pula połączeń (``psycopg_pool``, po v0.35.0). Trwałe połączenie per wątek ogranicza liczbę
+#    połączeń tylko **pośrednio** – przez to, ile wątków żyje i czy każdy z nich pamięta posprzątać.
+#    Punkt 2 pokazał, co się dzieje, gdy jedno z tych założeń pęka. Pula ogranicza je **wprost**:
+#    proces nie otworzy więcej niż ``max_size`` połączeń, niezależnie od modelu wątków, a nadwyżkę
+#    ponad ``min_size`` zamyka sama, stopniowo (jedno na 10 min bezczynności – ``max_idle``).
+#    Połączenie wraca do puli na końcu żądania (``request_finished`` → ``close()`` → ``putconn``),
+#    a nie zostaje przy wątku.
+#
+# **Pula i ``CONN_MAX_AGE`` wykluczają się** – Django przy puli wymaga ``CONN_MAX_AGE=0`` i bez
+# tego rzuca ``ImproperlyConfigured("Pooling doesn't support persistent connections.")`` przy
+# pierwszym zapytaniu. Dlatego przy włączonej puli ``DB_CONN_MAX_AGE`` jest **ignorowane** (zero
+# ustawiamy tu sami), a działa wyłącznie w procesach bez puli: ``worker`` i ``beat`` (Celery –
+# uzasadnienie w ``config.dbpool.pool_enabled_by_default``) oraz awaryjnie przy ``DB_POOL=0``.
+#
+# Rozmiar: ``DB_POOL_MAX_SIZE`` domyślnie = ``WEB_THREADS``, bo pula jest **per proces** (jedna na
+# worker gunicorna, wspólna dla jego wątków), a wątek trzyma najwyżej jedno połączenie naraz.
+# Mniej niż liczba wątków znaczy, że wątek czeka na połączenie (do ``DB_POOL_TIMEOUT``, potem 500);
+# więcej – że pula nigdy nie użyje nadwyżki, ale budżet musi ją policzyć.
+#
+# Budżet połączeń Postgresa (``max_connections=100``, domyślne Postgresa – compose go nie zmienia)
+# przy domyślnych wartościach (pełny rachunek: docs/OPERACJE.md § 11.2):
+#   web:    WEB_WORKERS × DB_POOL_MAX_SIZE = 4 × 4 = 16 (w spoczynku WEB_WORKERS × 1 = 4)
+#   worker: CELERY_CONCURRENCY = 2 (+ proces główny, który bazy zwykle nie trzyma)
 #   beat:   1 (proces jednowątkowy)
-#   razem:  ok. 19–20 z 20–25 zarezerwowanych na aplikację (zapas na `manage.py shell`,
-#           migracje ręczne i drugie takie samo wdrożenie w trakcie rolloutu) – reszta limitu
-#           zostaje dla Postgresa samego i dla awaryjnych połączeń administracyjnych.
-# 60 s (nie 0, nie kilka minut): wystarczy, żeby wątek obsługujący kolejne żądania nie płacił
-# nowym uściskiem dłoni TCP+TLS-do-bazy za każdym razem, a jednocześnie połączenie bezczynnego
-# wątku (np. workera, który akurat nie ma zadań) nie stoi otwarte godzinami. ``CONN_HEALTH_CHECKS``
-# dokłada tani ``SELECT 1`` przed ponownym użyciem połączenia starszego niż moment ostatniego
-# błędu – bez tego martwe połączenie (np. po restarcie Postgresa) ujawniłoby się dopiero
-# wyjątkiem w środku żądania użytkownika, a z włączonym sprawdzeniem Django po cichu otwiera nowe.
-DATABASES["default"]["CONN_MAX_AGE"] = env.int("DB_CONN_MAX_AGE", default=60)
+#   razem:  ok. 20 z 100 – reszta to zapas na ``manage.py`` (entrypoint, shell, komendy
+#           operatora – każda z własną pulą ``min_size``), ``pg_dump`` kopii zapasowej, ``psql``
+#           w trakcie incydentu i ``superuser_reserved_connections`` (3).
+# Przekroczenie 80 % ``max_connections`` zgłasza ``apps.core.dbconnections`` (``/healthz/``,
+# ``/status.json``, watchdog ``apps.core.alerts``).
+#
+# ``CONN_HEALTH_CHECKS`` dokłada tani ``SELECT 1`` przed ponownym użyciem połączenia – bez tego
+# martwe połączenie (np. po restarcie Postgresa) ujawniłoby się dopiero wyjątkiem w środku żądania
+# użytkownika. Przy puli to samo robi ``check`` puli (Django ustawia go z tej samej flagi).
+from config.dbpool import (  # noqa: E402 - moduł pomocniczy ustawień, patrz jego docstring
+    DEFAULT_MIN_SIZE,
+    DEFAULT_TIMEOUT_SECONDS,
+    pool_enabled_by_default,
+    pool_options,
+)
+
+DB_POOL = env.bool("DB_POOL", default=pool_enabled_by_default())
+DATABASES["default"].setdefault("OPTIONS", {})
+# Nazwa usługi w ``pg_stat_activity.application_name`` – bez niej operator widzi w bazie sto
+# identycznych połączeń i nie wie, który kontener je trzyma. Compose ustawia ją per usługa
+# (``olimpiada-web``, ``olimpiada-worker``, ``olimpiada-beat``); ``manage.py db_connections``
+# i list alarmowy liczą połączenia właśnie po tej nazwie.
+DATABASES["default"]["OPTIONS"]["application_name"] = env("DB_APPLICATION_NAME", default="olimpiada")
+if DB_POOL:
+    DATABASES["default"]["OPTIONS"]["pool"] = pool_options(
+        min_size=env.int("DB_POOL_MIN_SIZE", default=DEFAULT_MIN_SIZE),
+        max_size=env.int("DB_POOL_MAX_SIZE", default=env.int("WEB_THREADS", default=4)),
+        timeout=env.float("DB_POOL_TIMEOUT", default=DEFAULT_TIMEOUT_SECONDS),
+    )
+    DATABASES["default"]["CONN_MAX_AGE"] = 0
+else:
+    # 60 s (nie 0, nie kilka minut): wątek obsługujący kolejne zadania nie płaci za nowe
+    # połączenie za każdym razem, a połączenie bezczynnego procesu nie stoi otwarte godzinami.
+    DATABASES["default"]["CONN_MAX_AGE"] = env.int("DB_CONN_MAX_AGE", default=60)
 DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
 DATABASES["default"]["ATOMIC_REQUESTS"] = False
 
@@ -503,6 +547,13 @@ CELERY_BEAT_SCHEDULE = {
 # i to jest domyślne zachowanie: instalacja deweloperska nie ma nikogo budzić, a na produkcji
 # adresy wpisuje ten, kto bierze na siebie odbieranie tych listów.
 ALERT_EMAILS = env.list("ALERT_EMAILS", default=[])
+# Progi zajętości połączeń z Postgresem w procentach ``max_connections`` (``apps.core.dbconnections``).
+# 80 % to ostrzeżenie z zapasem na reakcję: przy budżecie z komentarza przy ``DATABASES`` (ok. 20
+# ze 100) taki poziom znaczy, że coś trzyma połączenia wbrew budżetowi – dokładnie obraz sprzed
+# incydentu z 09.09.2026, na długo przed „too many clients already”. 95 % to stan, w którym
+# następne wdrożenie albo ``psql`` dyżurnego może już nie wejść.
+DB_CONNECTIONS_WARN_PERCENT = env.int("DB_CONNECTIONS_WARN_PERCENT", default=80)
+DB_CONNECTIONS_CRITICAL_PERCENT = env.int("DB_CONNECTIONS_CRITICAL_PERCENT", default=95)
 
 # --- Logowanie dwuskładnikowe (TOTP, apps/accounts/twofactor.py) -------------------------------
 # Wyłącznik główny całej funkcji. **Domyślnie wyłączony** – decyzja organizatora („autoryzacja
@@ -553,8 +604,10 @@ TWO_FACTOR_REQUIRED_ROLES = env.list("TWO_FACTOR_REQUIRED_ROLES", default=[])
 # zawsze „działa”, a brak konfiguracji widać w logu, a nie w błędzie 500.
 _email = env.email_url("EMAIL_URL", default="consolemail://")
 _email_backend = _email["EMAIL_BACKEND"]
-# Bez limitu czasu wysyłka wisi na gnieździe tak długo, jak pozwoli sieć – a robimy ją synchronicznie
-# w żądaniu POST /password-reset/, więc worker gunicorna zostałby zajęty na czas dowolnie długi.
+# Bez limitu czasu wysyłka wisi na gnieździe tak długo, jak pozwoli sieć. Od wydania po v0.35.0
+# żaden list aplikacji nie wychodzi już w żądaniu HTTP (ostatni – reset hasła – idzie przez kolejkę
+# ``mail``), więc limit chroni proces workera Celery (i synchroniczne listy watchdoga,
+# ``apps.core.alerts``) przed zawieszeniem na martwym relayu, a nie wątek gunicorna.
 _email_timeout = env.int("EMAIL_TIMEOUT", default=10)
 # ``environ`` zwraca ``None`` dla brakujących części adresu; backend SMTP oczekuje w ``OPTIONS``
 # łańcuchów i liczb, więc normalizujemy je tutaj, a nie w miejscu wysyłki. Wartości domyślne są

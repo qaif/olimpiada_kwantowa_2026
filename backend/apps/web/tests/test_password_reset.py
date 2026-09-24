@@ -60,6 +60,23 @@ def rest_framework_with(**rates) -> dict:
     return config
 
 
+@pytest.fixture
+def request_reset(web_client, django_capture_on_commit_callbacks):
+    """POST formularza resetu **razem z** callbackami ``on_commit`` – tak, jak po commicie w produkcji.
+
+    List idzie przez ``transaction.on_commit`` → ``send_mail_task`` (``apps.accounts.password_reset``),
+    a test działa w transakcji wycofywanej na końcu, więc bez wykonania callbacków ``mail.outbox``
+    zostawałby pusty także dla adresu z kontem. ``send_mail_task`` w testach jest eager
+    (``CELERY_TASK_ALWAYS_EAGER``), więc list ląduje w skrzynce locmem w tym samym wywołaniu.
+    """
+
+    def _post(email: str, **extra):
+        with django_capture_on_commit_callbacks(execute=True):
+            return web_client.post(RESET_URL, {"email": email}, **extra)
+
+    return _post
+
+
 # --- formularz i wysyłka -----------------------------------------------------------------------
 
 
@@ -69,8 +86,8 @@ def test_reset_form_is_public_and_linked_from_login(web_client):
     assert RESET_URL in web_client.get(LOGIN_URL).content.decode()
 
 
-def test_existing_account_gets_a_message_with_a_reset_link(web_client, participant):
-    response = web_client.post(RESET_URL, {"email": participant.user.email})
+def test_existing_account_gets_a_message_with_a_reset_link(web_client, participant, request_reset):
+    response = request_reset(participant.user.email)
 
     assert response.status_code == 302
     assert response["Location"] == SENT_URL
@@ -78,22 +95,22 @@ def test_existing_account_gets_a_message_with_a_reset_link(web_client, participa
     assert web_client.get(link).status_code in (200, 302)
 
 
-def test_reviewer_uses_the_same_flow_as_a_participant(web_client):
+def test_reviewer_uses_the_same_flow_as_a_participant(web_client, request_reset):
     """Jeden model konta, jeden przepływ – recenzent nie ma osobnej ścieżki odzyskiwania hasła."""
     reviewer = ActiveReviewerFactory()
 
-    response = web_client.post(RESET_URL, {"email": reviewer.user.email})
+    response = request_reset(reviewer.user.email)
 
     assert response.status_code == 302
     assert len(mail.outbox) == 1
     assert mail.outbox[0].to == [reviewer.user.email]
 
 
-def test_pending_committee_member_can_reset_too(web_client):
+def test_pending_committee_member_can_reset_too(web_client, request_reset):
     """Konto ``PENDING`` czeka na zatwierdzenie uprawnień, ale jest zwykłym, aktywnym kontem."""
     member = PendingReviewerFactory()
 
-    web_client.post(RESET_URL, {"email": member.user.email})
+    request_reset(member.user.email)
 
     assert len(mail.outbox) == 1
 
@@ -101,11 +118,11 @@ def test_pending_committee_member_can_reset_too(web_client):
 # --- brak enumeracji kont ----------------------------------------------------------------------
 
 
-def test_unknown_address_looks_exactly_like_a_known_one(web_client, participant):
+def test_unknown_address_looks_exactly_like_a_known_one(web_client, participant, request_reset):
     """Odpowiedzi muszą być nie do odróżnienia – inaczej formularz jest wyrocznią „czy to konto istnieje”."""
-    known = web_client.post(RESET_URL, {"email": participant.user.email})
+    known = request_reset(participant.user.email)
     mail.outbox.clear()
-    unknown = web_client.post(RESET_URL, {"email": "nie-ma-takiego@example.test"})
+    unknown = request_reset("nie-ma-takiego@example.test")
 
     assert unknown.status_code == known.status_code == 302
     assert unknown["Location"] == known["Location"] == SENT_URL
@@ -117,21 +134,21 @@ def test_confirmation_page_speaks_conditionally(web_client):
     assert "Jeśli pod podanym adresem istnieje konto" in body
 
 
-def test_inactive_account_gets_no_message(web_client, participant):
+def test_inactive_account_gets_no_message(web_client, participant, request_reset):
     """Domyślne zachowanie ``PasswordResetForm.get_users`` – konto wyłączone nie dostaje linku."""
     participant.user.is_active = False
     participant.user.save(update_fields=["is_active"])
 
-    response = web_client.post(RESET_URL, {"email": participant.user.email})
+    response = request_reset(participant.user.email)
 
     assert response.status_code == 302
     assert response["Location"] == SENT_URL
     assert len(mail.outbox) == 0
 
 
-def test_address_matches_regardless_of_letter_case(web_client, participant):
+def test_address_matches_regardless_of_letter_case(web_client, participant, request_reset):
     """Konta trzymamy małymi literami; adres z formularza jest normalizowany, a nie odrzucany."""
-    response = web_client.post(RESET_URL, {"email": participant.user.email.upper()})
+    response = request_reset(participant.user.email.upper())
 
     assert response.status_code == 302
     assert len(mail.outbox) == 1
@@ -141,8 +158,10 @@ def test_address_matches_regardless_of_letter_case(web_client, participant):
 # --- treść wiadomości --------------------------------------------------------------------------
 
 
-def test_message_carries_a_link_but_no_password_and_no_token_in_the_subject(web_client, participant):
-    web_client.post(RESET_URL, {"email": participant.user.email})
+def test_message_carries_a_link_but_no_password_and_no_token_in_the_subject(
+    web_client, participant, request_reset
+):
+    request_reset(participant.user.email)
     message = mail.outbox[0]
     link = reset_link_from_outbox()
     token = link.strip("/").split("/")[-1]
@@ -159,8 +178,10 @@ def test_message_carries_a_link_but_no_password_and_no_token_in_the_subject(web_
     assert re.search(r"https?://[^/]+/reset/", message.body)
 
 
-def test_message_has_a_plain_text_and_an_html_part_without_remote_resources(web_client, participant):
-    web_client.post(RESET_URL, {"email": participant.user.email})
+def test_message_has_a_plain_text_and_an_html_part_without_remote_resources(
+    web_client, participant, request_reset
+):
+    request_reset(participant.user.email)
     message = mail.outbox[0]
 
     assert message.content_subtype == "plain"
@@ -173,8 +194,8 @@ def test_message_has_a_plain_text_and_an_html_part_without_remote_resources(web_
 
 
 @override_settings(SECURE_PROXY_SSL_HEADER=("HTTP_X_FORWARDED_PROTO", "https"))
-def test_link_uses_https_when_the_request_came_through_the_proxy(web_client, participant):
-    web_client.post(RESET_URL, {"email": participant.user.email}, HTTP_X_FORWARDED_PROTO="https", secure=True)
+def test_link_uses_https_when_the_request_came_through_the_proxy(web_client, participant, request_reset):
+    request_reset(participant.user.email, HTTP_X_FORWARDED_PROTO="https", secure=True)
 
     assert "https://" in mail.outbox[0].body
     assert "http://testserver" not in mail.outbox[0].body
@@ -183,9 +204,9 @@ def test_link_uses_https_when_the_request_came_through_the_proxy(web_client, par
 # --- ustawienie nowego hasła -------------------------------------------------------------------
 
 
-def test_link_leads_to_a_form_that_actually_changes_the_password(web_client, participant):
+def test_link_leads_to_a_form_that_actually_changes_the_password(web_client, participant, request_reset):
     email = participant.user.email
-    web_client.post(RESET_URL, {"email": email})
+    request_reset(email)
     link = reset_link_from_outbox()
 
     # Pierwsze wejście przekierowuje na adres z ``set-password``: token wędruje do sesji, żeby nie
@@ -205,9 +226,9 @@ def test_link_leads_to_a_form_that_actually_changes_the_password(web_client, par
     assert not participant.user.check_password(DEFAULT_PASSWORD)
 
 
-def test_new_password_logs_in_and_the_old_one_does_not(web_client, participant):
+def test_new_password_logs_in_and_the_old_one_does_not(web_client, participant, request_reset):
     email = participant.user.email
-    web_client.post(RESET_URL, {"email": email})
+    request_reset(email)
     form_url = web_client.get(reset_link_from_outbox(), follow=True).request["PATH_INFO"]
     web_client.post(form_url, {"new_password1": NEW_PASSWORD, "new_password2": NEW_PASSWORD})
 
@@ -215,8 +236,8 @@ def test_new_password_logs_in_and_the_old_one_does_not(web_client, participant):
     assert web_client.post(LOGIN_URL, {"username": email, "password": NEW_PASSWORD}).status_code == 302
 
 
-def test_token_is_single_use(web_client, participant):
-    web_client.post(RESET_URL, {"email": participant.user.email})
+def test_token_is_single_use(web_client, participant, request_reset):
+    request_reset(participant.user.email)
     link = reset_link_from_outbox()
     form_url = web_client.get(link, follow=True).request["PATH_INFO"]
     web_client.post(form_url, {"new_password1": NEW_PASSWORD, "new_password2": NEW_PASSWORD})
@@ -239,8 +260,8 @@ def test_made_up_token_shows_the_invalid_link_page(web_client, participant):
     assert "Link jest nieważny" in response.content.decode()
 
 
-def test_short_password_is_rejected_by_the_validators(web_client, participant):
-    web_client.post(RESET_URL, {"email": participant.user.email})
+def test_short_password_is_rejected_by_the_validators(web_client, participant, request_reset):
+    request_reset(participant.user.email)
     form_url = web_client.get(reset_link_from_outbox(), follow=True).request["PATH_INFO"]
 
     response = web_client.post(form_url, {"new_password1": "Krot1!", "new_password2": "Krot1!"})
@@ -253,9 +274,9 @@ def test_short_password_is_rejected_by_the_validators(web_client, participant):
     assert participant.user.check_password(DEFAULT_PASSWORD)
 
 
-def test_reset_does_not_log_the_user_in(web_client, participant):
+def test_reset_does_not_log_the_user_in(web_client, participant, request_reset):
     """Dostęp do skrzynki pocztowej nie może być jednym kliknięciem zamieniany w sesję."""
-    web_client.post(RESET_URL, {"email": participant.user.email})
+    request_reset(participant.user.email)
     form_url = web_client.get(reset_link_from_outbox(), follow=True).request["PATH_INFO"]
     web_client.post(form_url, {"new_password1": NEW_PASSWORD, "new_password2": NEW_PASSWORD})
 
@@ -265,8 +286,8 @@ def test_reset_does_not_log_the_user_in(web_client, participant):
 # --- audyt -------------------------------------------------------------------------------------
 
 
-def test_successful_reset_is_recorded_in_the_audit_log(web_client, participant):
-    web_client.post(RESET_URL, {"email": participant.user.email})
+def test_successful_reset_is_recorded_in_the_audit_log(web_client, participant, request_reset):
+    request_reset(participant.user.email)
     form_url = web_client.get(reset_link_from_outbox(), follow=True).request["PATH_INFO"]
     web_client.post(form_url, {"new_password1": NEW_PASSWORD, "new_password2": NEW_PASSWORD})
 
@@ -278,9 +299,9 @@ def test_successful_reset_is_recorded_in_the_audit_log(web_client, participant):
     assert participant.user.email not in str(entry.diff)
 
 
-def test_requesting_a_link_alone_is_not_audited_as_a_password_change(web_client, participant):
+def test_requesting_a_link_alone_is_not_audited_as_a_password_change(web_client, participant, request_reset):
     """Sam POST formularza niczego nie zmienia – wpis powstaje dopiero przy zapisaniu hasła."""
-    web_client.post(RESET_URL, {"email": participant.user.email})
+    request_reset(participant.user.email)
 
     assert not AuditLog.objects.filter(action="password.reset").exists()
 
@@ -289,12 +310,12 @@ def test_requesting_a_link_alone_is_not_audited_as_a_password_change(web_client,
 
 
 @override_settings(REST_FRAMEWORK=rest_framework_with(password_reset="5/hour"))
-def test_sixth_request_within_the_window_is_throttled(web_client, participant):
+def test_sixth_request_within_the_window_is_throttled(web_client, participant, request_reset):
     email = participant.user.email
     for attempt in range(5):
-        assert web_client.post(RESET_URL, {"email": email}).status_code == 302, attempt
+        assert request_reset(email).status_code == 302, attempt
 
-    blocked = web_client.post(RESET_URL, {"email": email})
+    blocked = request_reset(email)
 
     assert blocked.status_code == 429
     assert int(blocked.headers["Retry-After"]) >= 1
@@ -302,26 +323,26 @@ def test_sixth_request_within_the_window_is_throttled(web_client, participant):
 
 
 @override_settings(REST_FRAMEWORK=rest_framework_with(password_reset="3/hour"))
-def test_changing_the_target_address_does_not_dodge_the_limit(web_client):
+def test_changing_the_target_address_does_not_dodge_the_limit(web_client, request_reset):
     """Kubełek po samym adresie IP – inaczej formularz rozsyłałby listy po dowolnych skrzynkach."""
     for attempt in range(3):
-        assert web_client.post(RESET_URL, {"email": f"ktos{attempt}@example.test"}).status_code == 302
+        assert request_reset(f"ktos{attempt}@example.test").status_code == 302
 
-    assert web_client.post(RESET_URL, {"email": "kolejny@example.test"}).status_code == 429
+    assert request_reset("kolejny@example.test").status_code == 429
     # Inny klient ma własny kubełek i nie jest karany za cudze próby.
-    other = web_client.post(RESET_URL, {"email": "zinnegoip@example.test"}, REMOTE_ADDR="10.9.9.9")
+    other = request_reset("zinnegoip@example.test", REMOTE_ADDR="10.9.9.9")
     assert other.status_code == 302
 
 
 @override_settings(REST_FRAMEWORK=rest_framework_with(login="10/min", password_reset=None))
-def test_successful_reset_clears_the_login_lockout(web_client, participant):
+def test_successful_reset_clears_the_login_lockout(web_client, participant, request_reset):
     """Po dziesięciu nietrafionych hasłach i skutecznym resecie logowanie musi znowu działać."""
     email = participant.user.email
     for _ in range(10):
         web_client.post(LOGIN_URL, {"username": email, "password": "zle-haslo"})
     assert web_client.post(LOGIN_URL, {"username": email, "password": "zle-haslo"}).status_code == 429
 
-    web_client.post(RESET_URL, {"email": email})
+    request_reset(email)
     form_url = web_client.get(reset_link_from_outbox(), follow=True).request["PATH_INFO"]
     web_client.post(form_url, {"new_password1": NEW_PASSWORD, "new_password2": NEW_PASSWORD})
 
@@ -335,10 +356,10 @@ def test_reset_timeout_is_a_day():
     assert settings.PASSWORD_RESET_TIMEOUT == 24 * 3600
 
 
-def test_every_role_shares_one_account_model(web_client):
+def test_every_role_shares_one_account_model(web_client, request_reset):
     """Sanity check dla założenia całego przepływu: nie ma osobnego modelu konta per rola."""
     user = UserFactory(email="ktos@example.test")
 
-    web_client.post(RESET_URL, {"email": user.email})
+    request_reset(user.email)
 
     assert len(mail.outbox) == 1

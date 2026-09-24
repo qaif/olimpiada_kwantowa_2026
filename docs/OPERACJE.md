@@ -203,6 +203,7 @@ Widzi to, czego nie widać z zewnątrz:
 | odpowiedzi 5xx | ≥ 10 w 15 min | ktoś właśnie nie może oddać pracy |
 | brak kopii zapasowej | > 36 h | patrz § 1 |
 | brak testu odtwarzania | > 10 dni | patrz § 1.4 |
+| połączenia z Postgresem | ≥ 80 % / ≥ 95 % `max_connections` | patrz § 11.2 – „Alarm zajętości połączeń” |
 
 Włączenie: w `.env` na serwerze
 
@@ -223,6 +224,7 @@ informacji o kończącym się dysku. Każdy wysłany alarm zostaje w audycie jak
 curl -s https://olimpiadakwantowa.pl/status.json | python3 -m json.tool
 docker compose ps --format 'table {{.Service}}\t{{.State}}\t{{.Health}}'
 docker compose exec web python manage.py record_backup_status --show
+docker compose exec web python manage.py db_connections     # połączenia z bazą: ile z ilu, kto trzyma
 docker compose exec -T web python -c \
   "from apps.core.alerts import evaluate; print([a.title for a in evaluate()] or 'brak alarmów')"
 ```
@@ -1225,28 +1227,107 @@ ma 6 vCPU – 4 workery zostawiają margines pozostałym usługom: `worker`, `be
 `minio`, `clamav`), **wątki** skalują z udziałem czasu żądania spędzanym na I/O (baza, S3, SMTP) –
 podnoszenie ich ponad ok. 8 przestaje pomagać, bo GIL i tak serializuje część pracy w Pythonie.
 
-### 11.2. Budżet połączeń z Postgresem
+### 11.2. Budżet połączeń z Postgresem i pula połączeń
 
-`max_connections=100`. Przy domyślnych wartościach:
+**Pula (od wydania po v0.35.0).** `web` bierze połączenia z puli `psycopg_pool`
+(`DATABASES["default"]["OPTIONS"]["pool"]`, `backend/config/settings/base.py`, reguły doboru
+w `backend/config/dbpool.py`). Pula jest **jedna na proces** gunicorna i wspólna dla jego wątków:
+połączenie wraca do niej na końcu każdego żądania, proces nigdy nie otworzy więcej niż
+`DB_POOL_MAX_SIZE`, a bezczynny nadmiar ponad `DB_POOL_MIN_SIZE` pula zamyka sama, stopniowo – jedno
+połączenie na każde 10 minut, w których nie było potrzebne (po szczycie ruchu proces wraca z 4 do 1
+w ok. pół godziny; granicę górną pula trzyma zawsze).
+To jest różnica wobec `CONN_MAX_AGE`, które ogranicza liczbę połączeń tylko pośrednio (tyle, ile
+żyje wątków, i pod warunkiem, że każdy posprząta) – dokładnie to założenie pękło w incydencie
+z 09.09.2026 (92 bezczynne połączenia, „too many clients already”).
 
-| Usługa | Wzór | Połączenia |
+| Zmienna | Domyślnie | Znaczenie |
 |---|---|---|
-| `web` | `WEB_WORKERS × WEB_THREADS` = 4×4 | 16 |
-| `worker` | `CELERY_CONCURRENCY` | 2 |
-| `beat` | proces jednowątkowy | 1 |
-| **razem** | | **ok. 19–20** |
+| `DB_POOL` | `1` (w procesach Celery i w obrazie bez `psycopg_pool`: `0`) | pula włączona; compose ustawia `DB_POOL=0` dla `worker` i `beat` |
+| `DB_POOL_MAX_SIZE` | `WEB_THREADS` (4) | najwięcej połączeń na proces `web`; mniej niż wątków = wątki czekają |
+| `DB_POOL_MIN_SIZE` | `1` | połączenia trzymane bez ruchu, na proces |
+| `DB_POOL_TIMEOUT` | `10` | sekundy czekania na wolne połączenie, potem błąd 500 (licznik 5xx watchdoga) |
+| `DB_CONN_MAX_AGE` | `60` | **tylko** procesy bez puli (`worker`, `beat`); przy puli ignorowane |
+| `DB_APPLICATION_NAME` | per usługa w compose | `pg_stat_activity.application_name`: `olimpiada-web`, `olimpiada-worker`, `olimpiada-beat` |
 
-Zapas do 100 jest świadomie duży: administracyjne połączenia (`manage.py shell`, `psql` ręcznie
-w trakcie incydentu) i chwila nakładania się dwóch wdrożeń (stary kontener kończy żądania, nowy już
-przyjmuje) nie mogą wypchnąć aplikacji z puli. Podnoszenie `WEB_WORKERS`/`WEB_THREADS` powyżej ok.
-6×8 zbliża budżet do granicy i wymaga podniesienia `max_connections` w Postgresie razem z tym.
+**Pula i `CONN_MAX_AGE` wykluczają się**: Django przy puli wymaga `CONN_MAX_AGE=0` (inaczej
+`ImproperlyConfigured` przy pierwszym zapytaniu – każda strona 500). Ustawienia robią to same:
+przy `DB_POOL=1` zero jest wpisywane niezależnie od `DB_CONN_MAX_AGE`.
 
-`DB_CONN_MAX_AGE=60` (`config/settings/base.py`) i `CONN_HEALTH_CHECKS=True` są bezpieczne właśnie
-dzięki `gthread`: wątek roboczy **żyje w puli workera** (nie ginie po żądaniu, jak wątek pod ASGI),
-więc trwałe połączenie ma kto zamknąć przy wygaśnięciu. Incydent, który kiedyś to wyłączył (92
-bezczynne połączenia z `web` po dobie, „too many clients already”), miał inną przyczynę – wątek
-ASGI ginął, a jego połączenie zostawało otwarte aż do wygaśnięcia po stronie Pythona. Pełna historia
-stoi w komentarzu przy `DATABASES["default"]["CONN_MAX_AGE"]`.
+**Dlaczego `worker` i `beat` bez puli.** Pula ma wątki tła, a wątki nie przeżywają `fork()` –
+Celery 5.6 wie o tym i w workerze `prefork` **zamyka całą pulę przed i po każdym zadaniu**
+(`DjangoWorkerFixup._close_database`). Pula w workerze to więc otwarcie i zamknięcie połączeń przy
+każdym zadaniu – drożej niż jedno zwykłe połączenie. `beat` jest jednym wątkiem z jednym
+połączeniem, więc pula nie miałaby tam czego współdzielić. Poza `DB_POOL=0` w compose ustawienia
+rozpoznają proces Celery same (`celery …` w `sys.argv`) – nowa usługa Celery bez tej zmiennej też
+nie dostanie puli. Tak samo obraz **bez** pakietu `psycopg_pool` (nieprzebudowany po aktualizacji):
+domyślnie chodzi wtedy bez puli, jak przed nią, zamiast dawać 500 na pierwszym zapytaniu – dlatego
+po wdrożeniu sprawdź `import psycopg_pool` (niżej).
+
+**Budżet** przy `max_connections=100` (domyślne Postgresa – `docker-compose.yml` go nie zmienia,
+bo zmiana polecenia usługi `db` to restart bazy przy wdrożeniu):
+
+| Usługa | Wzór | Połączenia (maks.) | W spoczynku |
+|---|---|---|---|
+| `web` | `WEB_WORKERS × DB_POOL_MAX_SIZE` = 4×4 | 16 | `WEB_WORKERS × DB_POOL_MIN_SIZE` = 4 |
+| `worker` | `CELERY_CONCURRENCY` (proces główny bazy zwykle nie trzyma) | 2–3 | 0–2 |
+| `beat` | proces jednowątkowy | 1 | 0–1 |
+| `manage.py` (entrypoint, shell, komendy operatora) | własna pula na proces | 1–2 na proces | 0 |
+| kopia zapasowa (`pg_dump`), `psql` dyżurnego | – | 1–2 | 0 |
+| `superuser_reserved_connections` | ustawienie Postgresa | 3 | 3 |
+| **razem** | | **ok. 25–27** | **ok. 8–10** |
+
+Zapas do 100 jest świadomie duży: chwila nakładania się starego i nowego procesu przy rotacji
+`--max-requests` albo przy wdrożeniu nie może wypchnąć aplikacji z puli. Podnosząc `WEB_WORKERS`
+albo `WEB_THREADS`, licz `WEB_WORKERS × DB_POOL_MAX_SIZE`: powyżej ok. 6×8 (48) budżet zbliża się
+do progu ostrzeżenia (80) i trzeba podnieść `max_connections` razem z nim.
+
+#### Alarm zajętości połączeń
+
+`backend/apps/core/dbconnections.py`: jedno zapytanie do `pg_stat_activity` (połączenia klientów
+całego serwera, pogrupowane po `application_name` i stanie) plus `max_connections`, wynik
+buforowany 30 s we wspólnym cache'u – dowolnie częste pukanie w `/healthz/` to najwyżej jedno
+zapytanie na pół minuty.
+
+| Gdzie | Co widać | Dla kogo |
+|---|---|---|
+| `/healthz/` | `"db_connections"`: `ok` / `warn` / `critical` / `unknown` – **kod HTTP się nie zmienia** | orkiestrator, monitor zewnętrzny |
+| `/status.json` | to samo pole, ostatni klucz; **nie** wpływa na `"status"` | monitor zewnętrzny (§ 3.1) |
+| list watchdoga (`ALERT_EMAILS`) | liczby, progi, podział na usługi i stany | dyżurny |
+| `manage.py db_connections` | to samo co list, odczyt świeży; kod wyjścia 0/1/2/3 = ok/warn/critical/brak odczytu | operator na serwerze |
+
+Publiczne odpowiedzi niosą **wyłącznie poziom**: liczba połączeń i nazwy usług mówiłyby obcemu,
+ile brakuje do położenia serwisu. Progi: `DB_CONNECTIONS_WARN_PERCENT` (80) i
+`DB_CONNECTIONS_CRITICAL_PERCENT` (95), włącznie. Ostrzeżenie i stan krytyczny mają **osobne**
+klucze wyciszenia (`db-connections:warn`, `db-connections:critical`), więc eskalacja z 80 % na 95 %
+w ciągu godziny daje drugi list. `unknown` (odczyt się nie udał) nie jest osobnym alarmem –
+niedziałającą bazę zgłasza już `service:database`.
+
+**Jak czytać alarm i co zrobić:**
+
+```bash
+# na serwerze, w /opt/olimpiada
+docker compose exec web python manage.py db_connections
+```
+
+- trzyma **`olimpiada-web`** i jest go więcej niż `WEB_WORKERS × DB_POOL_MAX_SIZE` – coś omija pulę
+  albo działa drugi komplet kontenerów `web` (np. zawieszone wdrożenie): `docker compose ps`,
+  potem `docker compose restart web`,
+- trzyma **`olimpiada-worker`** / **`olimpiada-beat`** – `docker compose restart worker beat`,
+- dużo **`idle in transaction`** – żądanie albo zadanie trzyma transakcję otwartą (błąd w kodzie):
+  logi `web`/`worker` z tej samej minuty, restart zwalnia połączenia doraźnie,
+- dużo **`(bez nazwy)`** – nie aplikacja: ręczne `psql`, kopia zapasowa, narzędzie spoza compose'a;
+  szczegóły: `docker compose exec db psql -U "$POSTGRES_USER" -c "select pid, usename, client_addr,
+  backend_start, state from pg_stat_activity where application_name = ''"`,
+- budżet po prostu wyrósł (podniesione `WEB_WORKERS`/`WEB_THREADS`) – obniż je albo podnieś
+  `max_connections` (restart `db`, poza godzinami oddawania prac).
+
+**Sprawdzenie po wdrożeniu**, że pula działa (liczby dla domyślnych 4×4):
+
+```bash
+docker compose exec web python -c "import psycopg_pool"    # obraz ma psycopg[pool]
+docker compose exec web python manage.py db_connections    # olimpiada-web: od 4 do 16 (+1–2 samej komendy)
+curl -s https://<domena>/healthz/                          # … "db_connections": "ok"
+```
 
 ### 11.3. Rollback
 
@@ -1256,6 +1337,16 @@ podejrzenie, że nowa wartość przeciąża bazę albo maszynę) nie wymaga wdro
 ```bash
 # na serwerze, w /opt/olimpiada
 sed -i 's/^WEB_WORKERS=.*/WEB_WORKERS=2/; s/^WEB_THREADS=.*/WEB_THREADS=2/' .env
+docker compose up -d web
+```
+
+Tak samo bez wdrożenia wyłącza się **pulę połączeń** (§ 11.2) – np. przy podejrzeniu, że to ona
+zwraca błędy `PoolTimeout`/500 pod obciążeniem. `web` wraca wtedy do trwałych połączeń per wątek
+(`DB_CONN_MAX_AGE`, domyślnie 60 s), czyli do stanu sprzed puli:
+
+```bash
+# na serwerze, w /opt/olimpiada
+echo 'DB_POOL=0' >> .env
 docker compose up -d web
 ```
 

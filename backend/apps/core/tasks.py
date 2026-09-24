@@ -73,9 +73,21 @@ def mail_from(competition=None) -> str | None:
     max_retries=MAX_RETRIES,
 )
 def send_mail_task(
-    self, subject: str, message: str, recipient_list: list[str], from_email: str | None = None
+    self,
+    subject: str,
+    message: str,
+    recipient_list: list[str],
+    from_email: str | None = None,
+    html_message: str | None = None,
 ) -> int:
     """Wysyła jedną wiadomość tekstową. Zwraca liczbę dostarczonych listów (0 albo 1).
+
+    ``html_message`` (opcjonalne, słowo kluczowe) dokłada wersję HTML jako alternatywę
+    ``text/html`` – dokładnie ten kształt, który ``PasswordResetForm.send_mail`` Django składa sam
+    (``EmailMultiAlternatives`` + ``attach_alternative``), bo ``django.core.mail.send_mail``
+    z ``html_message`` robi to samo. Potrzebuje go list resetu hasła
+    (``apps.accounts.password_reset``); wołający sprzed tej zmiany go nie podają i dostają list
+    wyłącznie tekstowy, jak dotąd.
 
     Argumenty są prostymi typami (tekst, lista tekstów), a nie obiektami modeli: treść listu
     powstaje po stronie serwisu, zanim zadanie trafi do kolejki. Dzięki temu worker nie czyta
@@ -105,6 +117,7 @@ def send_mail_task(
         from_email or settings.DEFAULT_FROM_EMAIL,
         list(recipient_list or []),
         fail_silently=False,
+        html_message=html_message,
     )
     logger.info(
         "Wysłano %s wiadomości do %s odbiorców (próba %s).",

@@ -34,6 +34,7 @@ from apps.accounts.activation import (
     resend_activation,
 )
 from apps.accounts.consents import ConsentSource
+from apps.accounts.password_reset import QueuedPasswordResetForm
 from apps.accounts.services import register_committee, register_participant
 from apps.cms.models import SiteSettings
 from apps.competitions.scoring import problem_maxima_by_number, stage_maximum_total
@@ -137,9 +138,14 @@ class PasswordResetView(ThrottledFormMixin, DjangoPasswordResetView):
 
     Limit (scope ``password_reset``) konsumuje **każdy** POST, także udany: inaczej ten formularz
     byłby wysyłaczem listów na dowolny cudzy adres, ograniczonym wyłącznie cierpliwością nadawcy.
+
+    List idzie **w tle** (``QueuedPasswordResetForm`` → ``send_mail_task`` na kolejce ``mail``, po
+    commicie): odpowiedź nie czeka na MTA, więc jej czas nie zdradza już, czy konto istnieje,
+    a awaria relaya nie zajmuje wątków gunicorna – uzasadnienie w ``apps.accounts.password_reset``.
     """
 
     template_name = "web/password_reset.html"
+    form_class = QueuedPasswordResetForm
     # Nazwy szablonów listu są jawne, bo domyślne Django (``registration/password_reset_email.html``)
     # są zajęte przez ``django.contrib.admin`` – tam ten plik jest treścią *tekstową*, mimo nazwy.
     subject_template_name = "registration/password_reset_subject.txt"

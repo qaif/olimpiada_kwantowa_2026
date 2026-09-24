@@ -107,7 +107,7 @@ Uwagi:
 | <http://localhost:8000/cms/> | panel redakcyjny Wagtaila (grupa `coordinator`) |
 | <http://localhost:8000/admin/> | panel Django (`is_staff`) |
 | <http://localhost:8000/api/docs/> | Swagger UI |
-| <http://localhost:8000/healthz/> | healthcheck (`{"status":"ok","db":true,"redis":true}`) |
+| <http://localhost:8000/healthz/> | healthcheck (`{"status":"ok","db":true,"redis":true,"db_connections":"ok"}`) |
 | <http://localhost:9001/> | konsola MinIO (`MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD`) |
 | <http://localhost:8025/> | Mailpit – tylko przy `--profile dev` |
 
@@ -393,6 +393,10 @@ i `environment` w compose; w obrazie nie ma żadnego sekretu.
 | `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE` | `0` | w produkcji `1` |
 | `WEB_WORKERS` | `3` | procesy gunicorna |
 | `CELERY_CONCURRENCY` | `2` | wątki workera |
+| `DB_POOL` | `1` w `web`, `0` w `worker`/`beat` (i bez pakietu `psycopg_pool`) | pula połączeń psycopg (`docs/OPERACJE.md` § 11.2) |
+| `DB_POOL_MAX_SIZE` / `DB_POOL_MIN_SIZE` / `DB_POOL_TIMEOUT` | `WEB_THREADS` / `1` / `10` | rozmiar puli na worker gunicorna i czekanie na połączenie (s) |
+| `DB_CONN_MAX_AGE` | `60` | trwałość połączenia – **tylko** w procesach bez puli (`worker`, `beat`) |
+| `DB_CONNECTIONS_WARN_PERCENT` / `DB_CONNECTIONS_CRITICAL_PERCENT` | `80` / `95` | progi alarmu zajętości `max_connections` |
 | `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | `olimpiada` / `olimpiada` / – | baza |
 | `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` | – | konto administracyjne MinIO; backend go **nie** używa (tylko `minio-init`) |
 | `S3_PUBLIC_ACCESS_KEY` / `S3_PUBLIC_SECRET_KEY` | `wagtail-media` / – | konto serwisowe bucketu `public-media` (media Wagtaila) |
@@ -402,7 +406,7 @@ i `environment` w compose; w obrazie nie ma żadnego sekretu.
 | `TRUSTED_PROXY_IPS` | podsieci compose | komu wolno podać `X-Real-IP` |
 | `EMAIL_URL` | `consolemail://` (dev `.env`: `smtp://mailpit:1025`; produkcja z `deploy.sh`: `smtp://mail:587`) | poczta wychodząca – patrz 4.1 |
 | `DEFAULT_FROM_EMAIL` | `noreply@localhost` (dev `.env`: `olimpiada@localhost`) | nadawca listów (także `SERVER_EMAIL`); domena musi mieć SPF/DKIM – patrz 4.2 |
-| `EMAIL_TIMEOUT` | `10` | limit sekund na połączenie SMTP (wysyłka jest synchroniczna w żądaniu) |
+| `EMAIL_TIMEOUT` | `10` | limit sekund na połączenie SMTP (wysyłka idzie w workerze Celery, kolejka `mail`) |
 | `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` | puste | logowanie przez Google; puste = przycisk się nie pokazuje – patrz 4.4 |
 | `FACEBOOK_APP_ID` / `FACEBOOK_APP_SECRET` | puste | logowanie przez Facebooka; puste = przycisk się nie pokazuje – patrz 4.4 |
 | `E2E_MODE` | (nieustawiona) | **tylko dev**: odblokowuje `manage.py e2e_timeline`. W produkcji nigdy |
