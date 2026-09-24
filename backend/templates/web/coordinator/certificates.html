@@ -1,4 +1,5 @@
 {% extends "web/coordinator/base.html" %}
+{% load coordinator_extras %}
 {% load static %}
 {% comment %}
   Wystawianie dyplomów i zaświadczeń dla jednego etapu.
@@ -103,7 +104,7 @@
       <tbody>
         {% for row in supervisor_rows %}
           <tr>
-            <th scope="row">{{ row.supervisor.user.get_full_name|default:row.supervisor.user.email }}</th>
+            <th scope="row">{{ row.supervisor.user|person }}</th>
             <td>{{ row.supervisor.display_school }}</td>
             <td>
               {% if row.certificate %}

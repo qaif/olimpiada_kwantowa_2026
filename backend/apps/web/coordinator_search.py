@@ -14,6 +14,13 @@ Trzy zasady, na których to stoi:
   zadania. Rozstrzyga ``NoReverseMatch``, a nie nasza wiedza o tym, co już jest wdrożone,
 - **wyszukiwarka niczego nie odsłania**. Wszystko, co tu widać, koordynator widzi i tak na
   swoich ekranach; bramką jest ``CoordinatorRequiredMixin`` na widoku, a nie ten moduł.
+
+Konta usunięte na żądanie (po anonimizacji, ``apps.accounts.anonymised``) są w grupach osób
+(uczestnicy, komisja) **domyślnie pomijane** – tak samo jak na liście kont. Ich adres
+„deleted-…@invalid.…” pasował do fraz w rodzaju „del” albo „inv” i zaśmiecał wyniki, a sama osoba
+nie jest już kimś, kogo się szuka do rozmowy. ``include_deleted=True`` (przełącznik „Pokaż usunięte
+konta” na ekranie wyników) przywraca je z podpisem „Konto usunięte” i kodem publicznym – nigdy
+z adresem technicznym. :func:`hidden_deleted` liczy, ilu takich trafień wyszukiwarka nie pokazała.
 """
 
 from __future__ import annotations
@@ -22,6 +29,7 @@ from dataclasses import dataclass
 
 from django.db.models import Q
 
+from apps.accounts.anonymised import DELETED_ACCOUNT_LABEL, anonymised_q, is_anonymised
 from apps.web.coordinator_nav import resolve
 
 #: Ile wyników pokazujemy w jednej grupie. Wyszukiwarka ma **znaleźć**, a nie wylistować bazę:
@@ -56,32 +64,50 @@ def _full_name(user) -> str:
     return name or user.email
 
 
-def _participants(query: str, competition) -> list[Hit]:
+def _participant_matches(query: str, competition):
+    """Profile uczestników pasujące do frazy – bez limitu i bez odsiewu kont usuniętych."""
+    from apps.accounts.models import Participant
+
+    return Participant.objects.for_competition(competition).filter(
+        Q(public_code__icontains=query)
+        | Q(user__last_name__icontains=query)
+        | Q(user__first_name__icontains=query)
+        | Q(user__email__icontains=query)
+        | Q(school__icontains=query)
+    )
+
+
+def _member_matches(query: str, competition):
+    """Członkowie komisji pasujący do frazy – bez limitu i bez odsiewu kont usuniętych."""
+    from apps.accounts.models import CommitteeMember
+
+    return CommitteeMember.objects.for_competition(competition).filter(
+        Q(user__last_name__icontains=query)
+        | Q(user__first_name__icontains=query)
+        | Q(user__email__icontains=query)
+    )
+
+
+def _participants(query: str, competition, *, include_deleted: bool = False) -> list[Hit]:
     """Uczestnicy: kod publiczny, nazwisko, imię, adres e-mail i nazwa szkoły.
 
     Odnośnik prowadzi na kartę uczestnika, a gdy jej jeszcze nie ma – na ekran edycji konta,
     czyli tam, gdzie i tak kończy się większość telefonów („proszę poprawić literówkę”).
     """
-    from apps.accounts.models import Participant
-
-    rows = (
-        Participant.objects.for_competition(competition)
-        .select_related("user")
-        .filter(
-            Q(public_code__icontains=query)
-            | Q(user__last_name__icontains=query)
-            | Q(user__first_name__icontains=query)
-            | Q(user__email__icontains=query)
-            | Q(school__icontains=query)
-        )
-        .order_by("user__last_name", "user__email")[:GROUP_LIMIT]
-    )
+    rows = _participant_matches(query, competition)
+    if not include_deleted:
+        rows = rows.exclude(anonymised_q("user"))
+    rows = rows.select_related("user").order_by("user__last_name", "user__email", "pk")[:GROUP_LIMIT]
     hits = []
     for participant in rows:
         url = resolve(("web:coordinator-participant",), (participant.pk,)) or resolve(
             ("web:coordinator-account-edit",), (participant.user_id,)
         )
         if url is None:  # pragma: no cover - oba adresy znikają dopiero razem z panelem
+            continue
+        if is_anonymised(participant.user):
+            # Szkoła po anonimizacji to „—”, a adres jest techniczny – zostaje sam kod.
+            hits.append(Hit(label=DELETED_ACCOUNT_LABEL, meta=participant.public_code, url=url))
             continue
         hits.append(
             Hit(
@@ -93,20 +119,12 @@ def _participants(query: str, competition) -> list[Hit]:
     return hits
 
 
-def _members(query: str, competition) -> list[Hit]:
+def _members(query: str, competition, *, include_deleted: bool = False) -> list[Hit]:
     """Członkowie komisji: nazwisko, imię, adres. Karta członka, a w zapasie edycja konta."""
-    from apps.accounts.models import CommitteeMember
-
-    rows = (
-        CommitteeMember.objects.for_competition(competition)
-        .select_related("user")
-        .filter(
-            Q(user__last_name__icontains=query)
-            | Q(user__first_name__icontains=query)
-            | Q(user__email__icontains=query)
-        )
-        .order_by("user__last_name", "user__email")[:GROUP_LIMIT]
-    )
+    rows = _member_matches(query, competition)
+    if not include_deleted:
+        rows = rows.exclude(anonymised_q("user"))
+    rows = rows.select_related("user").order_by("user__last_name", "user__email", "pk")[:GROUP_LIMIT]
     hits = []
     for member in rows:
         url = resolve(("web:coordinator-member",), (member.pk,)) or resolve(
@@ -115,6 +133,9 @@ def _members(query: str, competition) -> list[Hit]:
         if url is None:  # pragma: no cover
             continue
         district = member.get_district_display() if member.district else "bez województwa"
+        if is_anonymised(member.user):
+            hits.append(Hit(label=DELETED_ACCOUNT_LABEL, meta=member.get_status_display(), url=url))
+            continue
         hits.append(
             Hit(
                 label=_full_name(member.user),
@@ -209,6 +230,9 @@ def _issues(query: str, competition) -> list[Hit]:
     return hits
 
 
+#: Grupy osób – jedyne, w których działa przełącznik kont usuniętych.
+PEOPLE_GROUPS = frozenset({"participants", "members"})
+
 #: Kolejność grup na ekranie wyników. Uczestnicy na górze, bo to o nich są telefony.
 GROUPS = (
     ("participants", "Uczestnicy", _participants),
@@ -219,7 +243,7 @@ GROUPS = (
 )
 
 
-def search(raw_query: str, competition) -> list[Group]:
+def search(raw_query: str, competition, *, include_deleted: bool = False) -> list[Group]:
     """Wyniki dla frazy w **jednym konkursie**, pogrupowane. Fraza krótsza niż dwa znaki – pustka.
 
     Wyszukiwarka jest w panelu miejscem o najszerszym zasięgu: jedno pole pyta naraz o uczestników,
@@ -232,7 +256,26 @@ def search(raw_query: str, competition) -> list[Group]:
         return []
     groups = []
     for key, label, finder in GROUPS:
-        hits = finder(query, competition)
+        if key in PEOPLE_GROUPS:
+            hits = finder(query, competition, include_deleted=include_deleted)
+        else:
+            hits = finder(query, competition)
         if hits:
             groups.append(Group(key=key, label=label, hits=hits))
     return groups
+
+
+def hidden_deleted(raw_query: str, competition) -> int:
+    """Ile kont usuniętych pasuje do frazy w grupach osób – liczba przy „Pokaż usunięte konta”.
+
+    Dwa ``COUNT`` (uczestnicy i komisja), bez limitu grupy: liczba ma mówić, ile wyszukiwarka
+    schowała, a nie ile zmieściłoby się na ekranie. Fraza za krótka – zero, bo nic nie szukano.
+    """
+    query = (raw_query or "").strip()
+    if len(query) < MIN_QUERY_LENGTH:
+        return 0
+    condition = anonymised_q("user")
+    return (
+        _participant_matches(query, competition).filter(condition).count()
+        + _member_matches(query, competition).filter(condition).count()
+    )

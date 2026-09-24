@@ -1,4 +1,5 @@
 {% extends "web/coordinator/base.html" %}
+{% load list_controls %}
 {% comment %}
   Wyniki wyszukiwania w panelu. Pole stoi w menu, więc ten ekran jest jedną odpowiedzią na
   pytanie zadane z dowolnego miejsca panelu.
@@ -19,6 +20,14 @@
   {% endif %}
 {% endblock %}
 {% block panel_content %}
+{% comment %}
+  Przełącznik kont usuniętych – wyłącznie przy frazie, która w ogóle coś szukała. Liczba w nawiasie
+  mówi, ile kont usuniętych pasuje do **tej** frazy (typowo: kod publiczny osoby, która usunęła
+  konto, a o której jest sprawa w odwołaniu).
+{% endcomment %}
+{% if query and not too_short %}
+  {% deleted_toggle controls %}
+{% endif %}
 {% if too_short %}
   <p class="empty"><span class="empty__title">Za krótka fraza</span>
     Podaj co najmniej {{ min_length }} znaki – jedna litera pasuje do połowy bazy.</p>

@@ -21,16 +21,17 @@ from __future__ import annotations
 
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Case, Count, IntegerField, OuterRef, Q, Subquery, Value, When
+from django.db.models.functions import Coalesce
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
 from django.urls import reverse
-from django.utils.http import urlencode
 from django.views.generic import View
 
+from apps.accounts.anonymised import is_anonymised
 from apps.accounts.guardian import STATUS_MISSING, STATUS_PENDING, guardian_status
-from apps.accounts.models import GROUP_COORDINATOR, Participant, User
+from apps.accounts.models import GROUP_COORDINATOR, Participant, User, Voivodeship
 from apps.accounts.profile import (
     competition_footprint,
     delete_account_by_coordinator,
@@ -45,6 +46,7 @@ from apps.web.forms import (
     CoordinatorParticipantForm,
     participant_profile_initial,
 )
+from apps.web.list_controls import ListControls, SortKey
 from apps.web.mixins import CoordinatorRequiredMixin
 
 LIST_TEMPLATE = "web/coordinator/accounts.html"
@@ -122,6 +124,159 @@ STATUS_PENDING_ACTIVATION = "nieaktywowane"
 STATUS_BLOCKED = "nieaktywne"
 STATUS_ACTIVE = "aktywne"
 
+#: Sortowalne kolumny listy kont (``apps.web.list_controls``). Klucz w adresie → pola ORM; nic
+#: spoza tej listy nie trafi do ``order_by``. Porządek domyślny to ``email`` rosnąco – ten sam,
+#: który lista miała przed wprowadzeniem sortowania.
+#:
+#: Kolumny spoza tabeli kont sortują po **adnotacjach**, dokładanych przez widok wyłącznie wtedy,
+#: gdy lista jest po nich sortowana (``_annotate_for_sort``): ``stan`` – ta sama trójka, co
+#: w kolumnie „Stan” (``account_status``), zapisana liczbą w kolejności aktywne → zablokowane →
+#: nieaktywowane; kolumny profilu uczestnika – podzapytaniem o profil **tego** konkursu, bo
+#: relacja jest wielokrotna (§ 3.3) i złączenie powielałoby wiersze. Kolumny „Rola” nie sortujemy:
+#: rolę liczy Python z grup i profili (``account_role``), a odtworzenie tej kolejności
+#: rozstrzygania w SQL-u byłoby drugą, rozjeżdżającą się kopią reguły.
+ACCOUNT_SORT_KEYS = (
+    SortKey("email", "E-mail", ("email",)),
+    SortKey("nazwisko", "Imię i nazwisko", ("last_name", "first_name")),
+    SortKey("kod", "Kod publiczny", ("sort_kod",)),
+    SortKey("stan", "Stan", ("sort_stan",)),
+    SortKey("zalozone", "Założone", ("date_joined",), descending_first=True),
+)
+
+#: Kolumny listy **uczestników** (``?role=participant`` – pozycja „Uczestnicy” w menu). To ta sama
+#: lista kont z filtrem roli (``coordinator_nav``: osobny ekran powtarzałby wyszukiwarkę,
+#: stronicowanie i kolumny), ale z kolumnami profilu uczestnika, bo „przeglądanie uczestników” to
+#: pytania o szkołę, klasę, województwo, zgodę opiekuna i to, czy ktoś w ogóle coś oddał.
+#: Imię i nazwisko są tu osobnymi kolumnami – sortowanie po imieniu to osobne pytanie („Ania z LO 5”).
+PARTICIPANT_SORT_KEYS = (
+    SortKey("kod", "Kod", ("sort_kod",)),
+    SortKey("nazwisko", "Nazwisko", ("last_name", "first_name")),
+    SortKey("imie", "Imię", ("first_name", "last_name")),
+    SortKey("email", "E-mail", ("email",)),
+    SortKey("szkola", "Szkoła", ("sort_szkola",)),
+    SortKey("wojewodztwo", "Województwo", ("sort_wojewodztwo",)),
+    SortKey("klasa", "Klasa", ("sort_klasa",)),
+    SortKey("opiekun", "Zgoda opiekuna", ("sort_opiekun",)),
+    SortKey("prace", "Prace", ("sort_prace",), descending_first=True),
+    SortKey("stan", "Stan", ("sort_stan",)),
+    SortKey("zalozone", "Założone", ("date_joined",), descending_first=True),
+)
+
+#: Klucz sortowania → pole profilu uczestnika, po którym sortuje podzapytanie. Województwa tu nie ma
+#: – patrz ``VOIVODESHIP_RANK``.
+PARTICIPANT_SORT_FIELDS = {
+    "kod": "public_code",
+    "szkola": "school",
+    "klasa": "grade",
+    "opiekun": "guardian_consent",
+}
+
+#: Litery z ogonkami → litera bazowa z dopiskiem, który stawia je **za** wszystkimi słowami na tę
+#: literę bazową („~” jest w ASCII za „z”). Tyle wystarcza, żeby porządek szesnastu nazw był
+#: porządkiem polskiego alfabetu: „łódzkie” po „lubuskie”, „śląskie” po „pomorskie”.
+_POLISH_LETTERS = {
+    "ą": "a~",
+    "ć": "c~",
+    "ę": "e~",
+    "ł": "l~",
+    "ń": "n~",
+    "ó": "o~",
+    "ś": "s~",
+    "ź": "z~",
+    "ż": "z~~",
+}
+
+#: Pozycja województwa w porządku alfabetycznym **nazw**. Kolumna trzyma slug ASCII
+#: (``Voivodeship``: ``lodzkie``), a sortowanie po slugu stawiałoby „łódzkie” przed „lubelskie” –
+#: organizator czyta nazwy, więc sortujemy po nazwach, liczbą z ``Case`` w podzapytaniu.
+VOIVODESHIP_RANK = {
+    value: rank
+    for rank, (value, _label) in enumerate(
+        sorted(Voivodeship.choices, key=lambda choice: "".join(_POLISH_LETTERS.get(c, c) for c in choice[1]))
+    )
+}
+
+
+def _works(competition):
+    """Prace uczestników bieżącej edycji konkursu – podstawa kolumny „Prace”.
+
+    „Praca” to zadanie, do którego uczestnik cokolwiek oddał (``Count(problem, distinct)``), a nie
+    liczba wersji pliku: poprawka oddana trzy razy jest jedną pracą. Bieżąca edycja, bo profil
+    uczestnika żyje w konkursie przez wiele lat, a pytanie z listy brzmi „czy w tym roku coś oddał”.
+    Konkurs bez edycji bieżącej (albo żądanie bez konkursu) liczy wszystkie prace profilu.
+    """
+    from apps.competitions.services import current_edition
+    from apps.submissions.models import Submission
+
+    works = Submission.objects.all()
+    if competition is not None:
+        works = works.filter(entry__participant__competition=competition)
+        edition = current_edition(competition)
+        if edition is not None:
+            works = works.filter(entry__stage__edition=edition)
+    return works
+
+
+def _annotate_for_sort(users, controls: ListControls, competition):
+    """Adnotacja pod kolumnę sortowaną po wartości spoza tabeli kont – tylko dla wybranej kolumny.
+
+    Tylko dla wybranej, bo każda kosztuje: podzapytanie wykonuje się dla każdego wiersza **przed**
+    stronicowaniem (sortuje się cały wynik), a przy porządku domyślnym nie ma po co go liczyć.
+    """
+    if controls.sort in PARTICIPANT_SORT_FIELDS:
+        profile = Participant.objects.filter(user=OuterRef("pk"))
+        if competition is not None:
+            profile = profile.filter(competition=competition)
+        field = PARTICIPANT_SORT_FIELDS[controls.sort]
+        users = users.annotate(**{f"sort_{controls.sort}": Subquery(profile.values(field)[:1])})
+    elif controls.sort == "wojewodztwo":
+        profile = Participant.objects.filter(user=OuterRef("pk"))
+        if competition is not None:
+            profile = profile.filter(competition=competition)
+        rank = Case(
+            *(When(district=value, then=Value(position)) for value, position in VOIVODESHIP_RANK.items()),
+            default=Value(len(VOIVODESHIP_RANK)),
+            output_field=IntegerField(),
+        )
+        users = users.annotate(
+            sort_wojewodztwo=Subquery(
+                profile.annotate(rank=rank).values("rank")[:1], output_field=IntegerField()
+            )
+        )
+    elif controls.sort == "prace":
+        counted = (
+            _works(competition)
+            .filter(entry__participant__user=OuterRef("pk"))
+            .values("entry__participant__user")
+            .annotate(total=Count("problem", distinct=True))
+            .values("total")
+        )
+        users = users.annotate(sort_prace=Coalesce(Subquery(counted, output_field=IntegerField()), Value(0)))
+    elif controls.sort == "stan":
+        users = users.annotate(
+            sort_stan=Case(
+                When(email_verified_at__isnull=True, then=Value(2)),
+                When(is_active=False, then=Value(1)),
+                default=Value(0),
+                output_field=IntegerField(),
+            )
+        )
+    return users
+
+
+def works_by_participant(participants, competition) -> dict:
+    """Liczba prac (``_works``) dla profili z jednej strony listy – jedno zapytanie na stronę."""
+    ids = [participant.pk for participant in participants]
+    if not ids:
+        return {}
+    rows = (
+        _works(competition)
+        .filter(entry__participant__in=ids)
+        .values("entry__participant")
+        .annotate(total=Count("problem", distinct=True))
+    )
+    return {row["entry__participant"]: row["total"] for row in rows}
+
 
 def users_for_competition(competition):
     """Konta, które ten koordynator w ogóle widzi: **jego członkowie i konta niczyje**.
@@ -181,8 +336,18 @@ def is_protected(user: User) -> bool:
     Powtórzona tutaj **wyłącznie po to, żeby ekran o tym powiedział**: przycisków, których serwis
     i tak nie przepuści, nie ma prawa być na stronie. Rozstrzygający pozostaje serwis – widok nie
     jest bramką, tylko informacją.
+
+    Grupy czytamy z ``prefetch_related("groups")``, gdy wołający je dociągnął (lista kont robi to
+    dla całej strony): ``groups.filter(...).exists()`` omija bufor prefetchu i na liście dawało dwa
+    zapytania na **każdy** wiersz (rola i odznaka „chronione”). Bez prefetchu – jedno zapytanie,
+    jak dotąd; ekran edycji ogląda jedno konto.
     """
-    return user.is_superuser or user.groups.filter(name=GROUP_COORDINATOR).exists()
+    if user.is_superuser:
+        return True
+    prefetched = getattr(user, "_prefetched_objects_cache", {}).get("groups")
+    if prefetched is not None:
+        return any(group.name == GROUP_COORDINATOR for group in prefetched)
+    return user.groups.filter(name=GROUP_COORDINATOR).exists()
 
 
 def two_factor_feature() -> bool:
@@ -291,18 +456,29 @@ def participants_by_user(users, competition) -> dict:
     return {row.user_id: row for row in rows}
 
 
-def account_rows(users, competition) -> list[dict]:
-    """Wiersze tabeli – wyłącznie prezentacja, żadnej reguły domenowej."""
+def account_rows(users, competition, *, with_works: bool = False) -> list[dict]:
+    """Wiersze tabeli – wyłącznie prezentacja, żadnej reguły domenowej.
+
+    ``deleted`` – konto po anonimizacji (na liście wyłącznie przy włączonym „Pokaż usunięte
+    konta”). Szablon pokazuje wtedy „Konto usunięte” zamiast adresu ``deleted-…@invalid.…``: ten
+    adres jest technicznym wypełniaczem kolumny logowania, a nie informacją dla człowieka.
+
+    ``with_works`` – kolumna „Prace” listy uczestników: jedno zapytanie zbiorcze na stronę
+    (``works_by_participant``), a nie licznik w każdym wierszu.
+    """
     participants = participants_by_user(users, competition)
+    works = works_by_participant(participants.values(), competition) if with_works else {}
     return [
         {
             "user": user,
+            "deleted": is_anonymised(user),
             "role": account_role(user, competition, participants.get(user.pk)),
             "status": account_status(user),
             # Profil w wierszu, bo szablon nie ma jak dojść do właściwego z samego konta:
             # relacja jest wielokrotna, a ta lista mówi o jednym konkursie.
             "participant": participants.get(user.pk),
             "public_code": getattr(participants.get(user.pk), "public_code", ""),
+            "works": works.get(getattr(participants.get(user.pk), "pk", None), 0),
             "protected": is_protected(user),
             # Szkoła opiekuna – wyłącznie **tego** konkursu (``profile_here`` odcina profil
             # sąsiedniej olimpiady), obok etykiety roli. Bez osobnej kolumny: to jest jedyny
@@ -317,11 +493,24 @@ def account_rows(users, competition) -> list[dict]:
 
 
 class CoordinatorAccountsView(CoordinatorRequiredMixin, View):
-    """``/coordinator/accounts/`` – lista wszystkich kont z wyszukiwarką i filtrem roli."""
+    """``/coordinator/accounts/`` – lista wszystkich kont z wyszukiwarką, filtrem roli i sortowaniem.
+
+    Konta usunięte na żądanie (po anonimizacji, ``apps.accounts.anonymised``) są domyślnie
+    **schowane**: to już nie są osoby, którymi się administruje, a ich adres „deleted-…” wyglądał
+    na liście jak błąd (zgłoszenie organizatora z 24.09.2026). Przełącznik „Pokaż usunięte konta”
+    zostaje, bo tego wiersza czasem trzeba – do audytu, do sprawy z odwołaniem, do sprawdzenia,
+    czy żądanie usunięcia zostało wykonane. Liczba ukrytych stoi przy przełączniku.
+    """
 
     def get(self, request):
         query = (request.GET.get("q") or "").strip()
         role = request.GET.get("role") or ""
+        # Lista uczestników (``?role=participant``) ma własne kolumny profilu i własny zestaw
+        # kluczy sortowania; porządek domyślny obu to adres e-mail – ten sam, co przed zmianą.
+        participant_mode = role == "participant"
+        controls = ListControls(
+            request, PARTICIPANT_SORT_KEYS if participant_mode else ACCOUNT_SORT_KEYS, default="email"
+        )
         # ``select_related`` na profilach komitetu i opiekuna oraz ``prefetch_related`` na grupach:
         # rola stoi w każdym wierszu, więc bez tego strona robiłaby trzy zapytania na konto.
         # Profilu uczestnika tu nie ma – relacja jest wielokrotna (§ 3.3) i wchodzi mapą
@@ -330,7 +519,6 @@ class CoordinatorAccountsView(CoordinatorRequiredMixin, View):
             users_for_competition(request.competition)
             .select_related("committee_member", "school_supervisor")
             .prefetch_related("groups")
-            .order_by("email")
         )
         if role in ROLE_FILTERS:
             users = ROLE_FILTERS[role](users, request.competition)
@@ -346,19 +534,26 @@ class CoordinatorAccountsView(CoordinatorRequiredMixin, View):
                 | Q(last_name__icontains=query)
                 | Q(pk__in=matching_codes)
             )
+        # Po wyszukiwaniu i filtrze roli, a przed sortowaniem: licznik ukrytych mówi wtedy
+        # o **tej** liście („w tym wyszukiwaniu schowano jedno konto usunięte”).
+        users = controls.filter_deleted(users)
+        users = controls.order(_annotate_for_sort(users, controls, request.competition))
         paginator = Paginator(users, ACCOUNTS_PER_PAGE)
         page = paginator.get_page(request.GET.get("page"))
-        # Wyszukiwanie i filtr muszą przeżyć przejście na kolejną stronę – bez tego druga strona
-        # wyników pokazywałaby wszystkie konta.
-        filters = {name: value for name, value in (("q", query), ("role", role)) if value}
+        # Wyszukiwanie, filtr, sortowanie i przełącznik muszą przeżyć przejście na kolejną stronę –
+        # bez tego druga strona pokazywałaby wszystkie konta, i to w innym porządku niż pierwsza.
+        # Odnośniki filtra roli niosą ten sam stan, tylko bez ``role`` (``role_query``).
         context = {
-            "rows": account_rows(page.object_list, request.competition),
+            "rows": account_rows(page.object_list, request.competition, with_works=participant_mode),
+            "participant_mode": participant_mode,
             "page_obj": page,
             "paginator": paginator,
             "query": query,
             "role": role,
             "role_choices": ROLE_CHOICES,
-            "filter_query": urlencode(filters),
+            "filter_query": controls.page_query,
+            "role_query": controls.query_without("role"),
+            "controls": controls,
         }
         return TemplateResponse(request, LIST_TEMPLATE, context)
 

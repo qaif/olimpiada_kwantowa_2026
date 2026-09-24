@@ -312,7 +312,27 @@ def region_for_district(competition, district: str | None) -> Region | None:
     return None
 
 
-class UserManager(BaseUserManager):
+class UserQuerySet(models.QuerySet):
+    """Queryset kont ze skrótami reguły „konto po anonimizacji” (``apps.accounts.anonymised``).
+
+    Skróty, a nie osobna reguła: warunek mieszka w ``anonymised_q`` i tu jest tylko podpięty,
+    żeby listy panelu pisały ``User.objects.exclude_anonymised()`` zamiast składać ``Q`` ręcznie.
+    """
+
+    def exclude_anonymised(self):
+        """Bez kont po anonimizacji – domyślny widok każdej listy osób w panelu koordynatora."""
+        from .anonymised import anonymised_q
+
+        return self.exclude(anonymised_q())
+
+    def anonymised(self):
+        """Wyłącznie konta po anonimizacji – do licznika „ukrytych” przy przełączniku listy."""
+        from .anonymised import anonymised_q
+
+        return self.filter(anonymised_q())
+
+
+class UserManager(BaseUserManager.from_queryset(UserQuerySet)):
     """Manager użytkownika logującego się adresem e-mail."""
 
     use_in_migrations = True
@@ -489,6 +509,24 @@ class Membership(models.Model):
         return f"{self.user_id} → {self.competition_id}: {self.role}"
 
 
+class ParticipantQuerySet(CompetitionScopedQuerySet):
+    """Profile uczestników: zakresowanie konkursem plus reguła „konto po anonimizacji”.
+
+    Profil po anonimizacji zostaje w bazie (kod publiczny wiąże go z ogłoszonymi wynikami), więc
+    każda lista **przeglądania** uczestników musi go odsiać sama – patrz ``apps.accounts.anonymised``.
+    """
+
+    def exclude_anonymised(self):
+        from .anonymised import anonymised_q
+
+        return self.exclude(anonymised_q("user"))
+
+    def anonymised(self):
+        from .anonymised import anonymised_q
+
+        return self.filter(anonymised_q("user"))
+
+
 class Participant(models.Model):
     """Profil uczestnika. ``public_code`` jest jedynym identyfikatorem w publikowanych wynikach.
 
@@ -661,7 +699,8 @@ class Participant(models.Model):
     invitation_sent_at = models.DateTimeField("zaproszenie wysłane", null=True, blank=True)
 
     #: Własna kolumna konkursu, więc domyślna ścieżka ``competition`` z queryseta wystarcza.
-    objects = CompetitionScopedManager()
+    #: Queryset dokłada do zakresowania skróty reguły „konto po anonimizacji”.
+    objects = models.Manager.from_queryset(ParticipantQuerySet)()
 
     class Meta:
         verbose_name = "uczestnik"

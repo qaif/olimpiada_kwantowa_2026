@@ -13,14 +13,14 @@
   (``web/_school_picker.html`` + zewnętrzny skrypt) – nazwa szkoły ma trafiać do bazy w jednym
   brzmieniu niezależnie od tego, kto ją wpisuje.
 {% endcomment %}
-{% block title %}Konto {{ account.email }} – panel koordynatora{% endblock %}
+{% block title %}Konto {{ account|account_email }} – panel koordynatora{% endblock %}
 {% block page_scripts %}
   {% if participant_form %}
     <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/school-picker.js' %}"></script>
   {% endif %}
 {% endblock %}
 {% block panel_eyebrow %}<a href="{% url 'web:coordinator-accounts' %}">Konta</a>{% endblock %}
-{% block panel_title %}{{ account.email }}{% endblock %}
+{% block panel_title %}{{ account|account_email }}{% endblock %}
 {% block panel_lead %}
   <p class="lead">{{ role }} · konto {{ status_label }} · założone {{ account.date_joined|local_datetime }}
     {% if participant %} · kod publiczny {{ participant.public_code }}{% endif %}</p>

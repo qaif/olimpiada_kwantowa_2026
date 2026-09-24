@@ -11,6 +11,8 @@ worka – i ten sam skutek: dołożenie tu czegokolwiek nie rozszerza tego, co �
 from django import template
 from django.urls import reverse
 
+from apps.accounts.anonymised import DELETED_ACCOUNT_LABEL, is_anonymised, person_label
+
 register = template.Library()
 
 
@@ -31,3 +33,36 @@ def participant_card_url(participant) -> str:
     if pk is None:
         return ""
     return reverse("web:coordinator-participant", args=[pk])
+
+
+# --- konta usunięte na żądanie (apps.accounts.anonymised) ---------------------------------------
+#
+# Konto po anonimizacji zostaje w bazie z adresem ``deleted-<pk>@invalid.…`` i pustym imieniem.
+# Listy, które takie konto **muszą** pokazać (przydziały, recenzje, odwołania, audyt, karta),
+# wypisywały dotąd ten adres – wzorcem ``get_full_name|default:email`` albo wprost. Trzy filtry
+# niżej zastępują oba wzorce jednym miejscem, które zamiast adresu technicznego daje neutralny
+# podpis „Konto usunięte” (zgłoszenie organizatora z 24.09.2026).
+
+
+@register.filter
+def is_deleted_account(user) -> bool:
+    """Czy konto jest po anonimizacji – do rozgałęzienia w szablonie."""
+    return is_anonymised(user)
+
+
+@register.filter
+def person(user, public_code: str = "") -> str:
+    """Imię i nazwisko, w ich braku adres – a konto usunięte: „Konto usunięte (kod)”.
+
+    Zastępuje ``get_full_name|default:email``; kod publiczny (argument) dopisujemy wyłącznie
+    kontu usuniętemu, bo tylko tam jest jedynym, co wiąże wiersz z aktami zawodów.
+    """
+    return person_label(user, public_code or "")
+
+
+@register.filter
+def account_email(user) -> str:
+    """Adres konta do pokazania – a konto usunięte: „Konto usunięte” zamiast adresu technicznego."""
+    if user is None:
+        return ""
+    return DELETED_ACCOUNT_LABEL if is_anonymised(user) else user.email

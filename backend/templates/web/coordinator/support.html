@@ -1,4 +1,5 @@
 {% extends "web/coordinator/base.html" %}
+{% load coordinator_extras %}
 {% load web_extras %}
 {% comment %}
   Kolejka zgłoszeń. Filtry są zwykłymi parametrami adresu, a nie formularzem POST: adres
@@ -60,7 +61,7 @@
             Adres zgłaszającego jest tu jawny i tak ma być: to jedyny ekran, na którym organizator
             ma z kim wyjaśnić sprawę. Rola jest ta z chwili zgłoszenia, nie dzisiejsza.
           {% endcomment %}
-          {% if ticket.user %}{{ ticket.user.email }}{% else %}{{ ticket.email }} <span class="badge badge--neutral">bez konta</span>{% endif %}
+          {% if ticket.user %}{{ ticket.user|account_email }}{% else %}{{ ticket.email }} <span class="badge badge--neutral">bez konta</span>{% endif %}
           {% if ticket.role_snapshot %}<span class="hint">{{ ticket.role_snapshot }}</span>{% endif %}
         </td>
         <td>

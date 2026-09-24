@@ -21,13 +21,14 @@ from django.shortcuts import get_object_or_404
 from django.views.generic import TemplateView
 
 from apps.accounts.activation import ACTIVATION_HOURS
+from apps.accounts.anonymised import anonymised_q
 from apps.accounts.models import CommitteeMember, CommitteeStatus
 from apps.competitions.models import Stage
 from apps.grading.comparison import notes_by_submission
 from apps.grading.services import moderation_queue
 from apps.results.models import ResultsPublication
 from apps.web.coordinator_nav import attention_counters, current_stages, focus_stage, resolve
-from apps.web.coordinator_search import MIN_QUERY_LENGTH, search
+from apps.web.coordinator_search import MIN_QUERY_LENGTH, hidden_deleted, search
 from apps.web.forms import (
     VOIVODESHIP_CHOICES,
     AssignThirdReviewerForm,
@@ -37,6 +38,7 @@ from apps.web.forms import (
     ResolveModerationForm,
     VerifyDistrictForm,
 )
+from apps.web.list_controls import ListControls
 from apps.web.mixins import CoordinatorRequiredMixin
 from apps.web.scoping import reviewer_pool_for
 
@@ -47,6 +49,10 @@ class CoordinatorSearchView(CoordinatorRequiredMixin, TemplateView):
     Formularz stoi na górze menu, więc ten ekran jest dostępny z każdego miejsca panelu. Wynik
     jest pogrupowany po rodzaju obiektu, bo ta sama fraza („Kowalski”) trafia zwykle w kilka
     rodzajów naraz, a koordynator wie, którego szuka.
+
+    Konta usunięte są w wynikach schowane, a przełącznik nad wynikami (``?usuniete=1``) je
+    przywraca – ten sam, co na liście kont (``apps.web.list_controls``). Sortowania tu nie ma:
+    wyniki są pogrupowane i ucięte do ``GROUP_LIMIT``, więc porządek jest stały (nazwisko).
     """
 
     template_name = "web/coordinator/search.html"
@@ -54,9 +60,13 @@ class CoordinatorSearchView(CoordinatorRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         query = (self.request.GET.get("q") or "").strip()
-        groups = search(query, self.request.competition)
+        controls = ListControls(self.request, ())
+        groups = search(query, self.request.competition, include_deleted=controls.show_deleted)
+        if not controls.show_deleted:
+            controls.hidden_deleted = hidden_deleted(query, self.request.competition)
         context.update(
             {
+                "controls": controls,
                 "query": query,
                 "groups": groups,
                 "total": sum(len(group.hits) for group in groups),
@@ -85,20 +95,21 @@ class CoordinatorCommitteeView(CoordinatorRequiredMixin, TemplateView):
 
         context = super().get_context_data(**kwargs)
         competition = self.competition
+        # Konta usunięte na żądanie (``apps.accounts.anonymised``) wypadają z obu kolejek bez
+        # przełącznika: tu się **zatwierdza** i **przypisuje województwo**, a osoby, której konta
+        # już nie ma, nie da się ani zatwierdzić, ani wysłać do pracy. Do wglądu (audyt, historia
+        # recenzji) służy lista członków z przełącznikiem „Pokaż usunięte konta”.
+        members = (
+            CommitteeMember.objects.for_competition(competition)
+            .exclude(anonymised_q("user"))
+            .select_related("user")
+        )
         context.update(
             {
                 "pending_members": list(
-                    CommitteeMember.objects.for_competition(competition)
-                    .select_related("user")
-                    .filter(status=CommitteeStatus.PENDING)
-                    .order_by("created_at", "id")
+                    members.filter(status=CommitteeStatus.PENDING).order_by("created_at", "id")
                 ),
-                "active_members": list(
-                    CommitteeMember.objects.for_competition(competition)
-                    .select_related("user")
-                    .filter(status=CommitteeStatus.ACTIVE)
-                    .order_by("user__email")
-                ),
+                "active_members": list(members.filter(status=CommitteeStatus.ACTIVE).order_by("user__email")),
                 "voivodeship_choices": VOIVODESHIP_CHOICES,
                 "verify_form": VerifyDistrictForm(),
                 "invitation_form": InvitationForm(),

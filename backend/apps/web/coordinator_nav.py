@@ -130,6 +130,7 @@ def attention_counters(stage_ids: list[int] | None = None, competition=None) -> 
     cached = cache.get(key)
     if cached is not None:
         return cached
+    from apps.accounts.anonymised import anonymised_q
     from apps.accounts.models import CommitteeMember, CommitteeStatus
     from apps.forum.services import moderation_count
     from apps.grading.issues import open_issue_count
@@ -147,8 +148,12 @@ def attention_counters(stage_ids: list[int] | None = None, competition=None) -> 
             "activations": users_for_competition(competition)
             .filter(is_active=False, email_verified_at__isnull=True)
             .count(),
+            # Bez kont usuniętych na żądanie – tak samo jak kolejka na ekranie „Komitet”
+            # (``CoordinatorCommitteeView``); inaczej plakietka obiecywałaby wniosek, którego
+            # w kolejce nie ma i którego nie da się zatwierdzić.
             "committee": CommitteeMember.objects.for_competition(competition)
             .filter(status=CommitteeStatus.PENDING)
+            .exclude(anonymised_q("user"))
             .count(),
             "issues": open_issue_count(stage_ids),
             "tickets": open_ticket_count(competition),
@@ -707,7 +712,8 @@ def groups(stages: list, competition=None) -> list[Group]:
             "Uczestnicy i konta",
             (
                 # Listy uczestników i opiekunów to ta sama lista kont z ustawionym filtrem roli –
-                # osobny ekran powtarzałby jej wyszukiwarkę, stronicowanie i kolumny.
+                # osobny ekran powtarzałby jej wyszukiwarkę, stronicowanie i sortowanie. Filtr
+                # „uczestnicy” dokłada kolumny profilu (``coordinator_accounts.PARTICIPANT_SORT_KEYS``).
                 Item("Uczestnicy", ("web:coordinator-accounts",), query="role=participant"),
                 Item(
                     "Wszystkie konta",

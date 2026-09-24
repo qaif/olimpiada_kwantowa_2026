@@ -1,6 +1,7 @@
 {% extends "web/coordinator/base.html" %}
 {% load web_extras %}
 {% load coordinator_extras %}
+{% load list_controls %}
 {% comment %}
   Lista wszystkich kont w serwisie. Jedyny ekran poza ``/admin/``, z którego organizator poprawia
   cudze dane i kasuje konta – dlatego wiersz prowadzi do osobnej strony edycji, a nie do formularza
@@ -9,6 +10,9 @@
 
   Stronicowanie jest zwykłe (Django Paginator, zwykłe odnośniki, zero skryptu): lista służy do
   odnalezienia **jednego** konta wyszukiwarką, a nie do przeglądania bazy po kolei.
+
+  Sortowanie nagłówkami i przełącznik kont usuniętych liczy ``apps.web.list_controls`` – cały
+  stan listy jest w adresie, a odnośniki stronicowania i filtra roli niosą go dalej.
 {% endcomment %}
 {% block title %}Konta – panel koordynatora{% endblock %}
 {% block panel_title %}Konta{% endblock %}
@@ -35,9 +39,12 @@
         <input id="account-search" type="search" name="q" value="{{ query }}" autocomplete="off">
       </p>
       {% if role %}<input type="hidden" name="role" value="{{ role }}">{% endif %}
+      {% comment %}Sortowanie i przełącznik przeżywają nową frazę tak samo jak filtr roli.{% endcomment %}
+      {% if controls.explicit %}<input type="hidden" name="sort" value="{{ controls.sort_value }}">{% endif %}
+      {% if controls.show_deleted %}<input type="hidden" name="usuniete" value="1">{% endif %}
       <div class="actions">
         <button type="submit" class="btn btn--secondary">Szukaj</button>
-        {% if query or role %}
+        {% if query or role or controls.explicit or controls.show_deleted %}
           <a class="btn btn--ghost" href="{% url 'web:coordinator-accounts' %}">Wyczyść</a>
         {% endif %}
       </div>
@@ -54,33 +61,97 @@
         {% if value == role %}
           <strong>{{ label }}</strong>
         {% else %}
-          <a href="?{% if value %}role={{ value }}{% endif %}{% if query %}{% if value %}&amp;{% endif %}q={{ query|urlencode }}{% endif %}">{{ label }}</a>
+          <a href="?{{ role_query }}{% if value %}{% if role_query %}&amp;{% endif %}role={{ value }}{% endif %}">{{ label }}</a>
         {% endif %}
         {% if not forloop.last %}·{% endif %}
       {% endfor %}
     </p>
+    {% deleted_toggle controls %}
   </div>
 </section>
 
 <section class="section">
+  {% if participant_mode %}
+  {% comment %}
+    Lista uczestników: ta sama lista kont z filtrem roli, ale z kolumnami profilu **tego** konkursu
+    (szkoła, województwo, klasa, zgoda opiekuna, liczba prac w bieżącej edycji). Każdy nagłówek
+    poza operacjami sortuje – po stronie serwera, bo lista jest stronicowana.
+  {% endcomment %}
   <div class="scroll">
-    <table class="table">
+    <table class="table table--compact" aria-label="Uczestnicy">
       <thead>
         <tr>
-          <th scope="col">E-mail</th>
-          <th scope="col">Imię i nazwisko</th>
-          <th scope="col">Rola</th>
-          <th scope="col">Kod publiczny</th>
-          <th scope="col">Stan</th>
-          <th scope="col">Założone</th>
+          {% sort_header controls "kod" %}
+          {% sort_header controls "nazwisko" %}
+          {% sort_header controls "imie" %}
+          {% sort_header controls "email" %}
+          {% sort_header controls "szkola" %}
+          {% sort_header controls "wojewodztwo" %}
+          {% sort_header controls "klasa" "num" %}
+          {% sort_header controls "opiekun" %}
+          {% sort_header controls "prace" "num" %}
+          {% sort_header controls "stan" %}
+          {% sort_header controls "zalozone" %}
           <th scope="col"><span class="visually-hidden">Operacje</span></th>
         </tr>
       </thead>
       <tbody>
         {% for row in rows %}
           <tr>
-            <th scope="row"><a href="{% url 'web:coordinator-account-edit' row.user.pk %}">{{ row.user.email }}</a></th>
-            <td>{{ row.user.get_full_name|default:"—" }}</td>
+            <th scope="row">{{ row.public_code|default:"—" }}</th>
+            {% if row.deleted %}
+              <td colspan="3">Konto usunięte <span class="badge badge--neutral">usunięte</span></td>
+            {% else %}
+              <td>{{ row.user.last_name|default:"—" }}</td>
+              <td>{{ row.user.first_name|default:"—" }}</td>
+              <td>{{ row.user.email }}{% if row.participant.invited_at %} <span class="badge badge--info">z importu</span>{% endif %}</td>
+            {% endif %}
+            <td>{{ row.participant.school|default:"—" }}</td>
+            <td>{{ row.participant.get_district_display|default:"—" }}</td>
+            <td class="num">{{ row.participant.grade|default:"—" }}</td>
+            <td>{% if row.participant.guardian_consent %}tak{% else %}—{% endif %}</td>
+            <td class="num">{{ row.works }}</td>
+            <td>{{ row.status }}</td>
+            <td>{{ row.user.date_joined|local_datetime }}</td>
+            <td>
+              {% participant_card_url row.participant as card_url %}
+              {% if card_url %}
+                <a class="btn btn--secondary btn--small" href="{{ card_url }}">Karta</a>
+              {% endif %}
+              <a class="btn btn--secondary btn--small"
+                 href="{% url 'web:coordinator-account-edit' row.user.pk %}">{% if row.protected %}Podgląd{% else %}Edytuj{% endif %}</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="12" class="empty">Żaden uczestnik nie pasuje do tych warunków.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          {% sort_header controls "email" %}
+          {% sort_header controls "nazwisko" %}
+          <th scope="col">Rola</th>
+          {% sort_header controls "kod" %}
+          {% sort_header controls "stan" %}
+          {% sort_header controls "zalozone" %}
+          <th scope="col"><span class="visually-hidden">Operacje</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            {% comment %}
+              Konto usunięte (widoczne tylko przy włączonym przełączniku) nie pokazuje adresu
+              „deleted-…@invalid.…”: to wypełniacz kolumny logowania, nie informacja. Neutralny
+              podpis i kod publiczny w kolumnie obok wystarczą, żeby powiązać wiersz z aktami.
+            {% endcomment %}
+            <th scope="row"><a href="{% url 'web:coordinator-account-edit' row.user.pk %}">{% if row.deleted %}Konto usunięte{% else %}{{ row.user.email }}{% endif %}</a>{% if row.deleted %} <span class="badge badge--neutral">usunięte</span>{% endif %}</th>
+            <td>{% if row.deleted %}—{% else %}{{ row.user.get_full_name|default:"—" }}{% endif %}</td>
             {% comment %}
               Odznaka „z importu” odpowiada na pytanie „skąd wzięło się dwadzieścia kont z jednej
               szkoły w jednej minucie”. Czytamy ją wprost z profilu (``Participant.invited_at``),
@@ -114,6 +185,7 @@
       </tbody>
     </table>
   </div>
+  {% endif %}
 
   {% if page_obj.has_other_pages %}
     <p class="hint">

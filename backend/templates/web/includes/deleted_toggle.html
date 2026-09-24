@@ -1,0 +1,18 @@
+{% comment %}
+  Przełącznik kont usuniętych (``{% deleted_toggle controls %}``, apps.web.templatetags.list_controls).
+
+  Domyślnie konta po anonimizacji są schowane, a przycisk mówi, ile ich schowano **w tej liście**
+  (po wyszukiwaniu i filtrach). Przycisk stoi zawsze, także przy zerze: organizator ma wiedzieć,
+  że lista coś odsiewa i gdzie to włączyć, zanim zacznie szukać konta do audytu.
+  Odnośnik, a nie formularz: stan listy jest w adresie (``?usuniete=1``) i przeżywa stronicowanie,
+  sortowanie i wyszukiwanie tak samo jak one. Bez ``role="button"``: odnośnik z tą rolą obiecuje
+  aktywację spacją, której przeglądarka dla ``<a>`` nie da – stan niesie sam napis („Pokaż”/„Ukryj”).
+{% endcomment %}
+<p class="deleted-toggle">
+  {% if controls.show_deleted %}
+    <a class="btn btn--secondary btn--small" href="{{ controls.deleted_url }}">Ukryj usunięte konta</a>
+    <span class="hint">Widać także konta usunięte na żądanie – z podpisem „Konto usunięte” i kodem publicznym.</span>
+  {% else %}
+    <a class="btn btn--ghost btn--small" href="{{ controls.deleted_url }}">Pokaż usunięte konta{% if controls.hidden_deleted is not None %} ({{ controls.hidden_deleted }}){% endif %}</a>
+  {% endif %}
+</p>

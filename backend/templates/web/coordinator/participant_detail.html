@@ -1,4 +1,5 @@
 {% extends "web/coordinator/base.html" %}
+{% load coordinator_extras %}
 {% load static %}
 {% load web_extras %}
 {% comment %}
@@ -29,7 +30,7 @@
 {% block panel_title %}Karta uczestnika {{ participant.public_code }}{% endblock %}
 
 {% block panel_lead %}
-  <p class="lead">{{ account.get_full_name|default:account.email }} ·
+  <p class="lead">{{ account|person:participant.public_code }} ·
     {{ participant.school }} ·
     {% if participant.grade %}klasa {{ participant.grade }} · {% endif %}
     {# ``region_label`` stawia widok i **wyłącznie** wtedy, gdy konkurs ma własny podział
@@ -74,7 +75,7 @@
       <dt>Imię i nazwisko</dt>
       <dd>{{ account.get_full_name|default:"—" }}</dd>
       <dt>Adres e-mail</dt>
-      <dd>{{ account.email }}
+      <dd>{{ account|account_email }}
         {% if account.email_verified_at %}
           <span class="badge badge--ok">potwierdzony {{ account.email_verified_at|local_datetime }}</span>
         {% else %}
@@ -206,7 +207,7 @@
           {% if block.entry.has_manual_qualification %}
             <strong>{{ block.entry.get_manual_qualification_display }}</strong>
             {% if block.entry.manual_qualified_at %} · {{ block.entry.manual_qualified_at|local_datetime }}{% endif %}
-            {% if block.entry.manual_qualified_by %} · {{ block.entry.manual_qualified_by.email }}{% endif %}
+            {% if block.entry.manual_qualified_by %} · {{ block.entry.manual_qualified_by|account_email }}{% endif %}
             <p class="quote">{{ block.entry.manual_qualification_reason }}</p>
           {% else %}
             <span class="hint">brak – rozstrzyga próg punktowy</span>
@@ -300,7 +301,7 @@
               <tbody>
                 {% for review in problem.reviews %}
                   <tr>
-                    <th scope="row">{{ review.reviewer.user.email }}{% if review.round != 1 %}
+                    <th scope="row">{{ review.reviewer.user|account_email }}{% if review.round != 1 %}
                       <span class="badge badge--neutral">runda {{ review.round }}</span>{% endif %}</th>
                     <td><span class="{{ review.status|badge_class }}">{{ review.get_status_display }}</span>
                       {% if review.cancel_reason %}
@@ -350,7 +351,7 @@
               {% if problem.final_grade %}
                 {{ problem.final_grade.score }} pkt ({{ problem.final_grade.get_method_display }}){% if problem.final_grade.decided_at %},
                 {{ problem.final_grade.decided_at|local_datetime }}{% endif %}{% if problem.final_grade.decided_by %},
-                {{ problem.final_grade.decided_by.email }}{% endif %}
+                {{ problem.final_grade.decided_by|account_email }}{% endif %}
               {% else %}
                 <span class="hint">brak</span>
               {% endif %}
@@ -603,7 +604,7 @@
               <th scope="row">{{ entry.at|local_datetime }}</th>
               <td><code>{{ entry.action }}</code></td>
               <td><code>{{ entry.target_type }}#{{ entry.target_id }}</code></td>
-              <td>{% if entry.actor %}{{ entry.actor.email }}{% else %}
+              <td>{% if entry.actor %}{{ entry.actor|account_email }}{% else %}
                 <span class="hint">system</span>{% endif %}</td>
               <td>
                 {% if entry.diff %}

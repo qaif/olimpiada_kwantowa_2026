@@ -191,13 +191,12 @@ def _is_anonymised(user: User) -> bool:
     przyjmie. Sam ``is_active=False`` by nie wystarczył – niesie też „konto zablokowane przez
     organizatora”, a takiemu nadal wolno mieć dane.
     """
-    from .profile import ANONYMISED_EMAIL_DOMAIN
+    # Reguła ma jedno miejsce (``apps.accounts.anonymised``) – to samo, z którego listy panelu
+    # koordynatora odsiewają konta usunięte. Dwie postacie domeny (stała i ``invalid.<domena
+    # konkursu>`` przy marce konkursu) są opisane tam.
+    from .anonymised import is_anonymised
 
-    # Dwie postacie: dzisiejsza stała (istniejące konta) i ``invalid.<domena konkursu>`` przy
-    # włączonej marce konkursu (``apps.accounts.profile.anonymised_email_domain``). Obie stoją
-    # na zarezerwowanym ``invalid`` jako pierwszym członie domeny.
-    _, _, domain = user.email.rpartition("@")
-    return domain == ANONYMISED_EMAIL_DOMAIN or domain.startswith("invalid.")
+    return is_anonymised(user)
 
 
 def _blocked_reason(participant: Participant, *, expired_ids: set[int]) -> str:

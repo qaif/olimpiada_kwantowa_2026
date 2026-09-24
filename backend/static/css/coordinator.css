@@ -445,6 +445,41 @@
   color: var(--muted);
 }
 
+/* Nagłówek sortowalnej kolumny (``templates/web/includes/sort_header.html``, apps.web.list_controls).
+   Odnośnik przejmuje krój nagłówka tabeli – w tabeli ma wyglądać jak nagłówek, a nie jak link
+   w treści – i dostaje podkreślenie dopiero przy najechaniu i fokusie. Strzałka nieaktywnej
+   kolumny jest przygaszona: mówi „da się sortować”, ale nie konkuruje z kolumną bieżącą. */
+.sort-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  color: inherit;
+  text-decoration: none;
+}
+
+.sort-link:hover,
+.sort-link:focus-visible {
+  text-decoration: underline;
+}
+
+.sort-link__arrow {
+  color: var(--muted);
+  font-size: 0.75em;
+}
+
+.sort-link--active .sort-link__arrow {
+  color: var(--ink);
+}
+
+/* Przełącznik kont usuniętych (``templates/web/includes/deleted_toggle.html``). */
+.deleted-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: var(--sp-2) 0 0;
+}
+
 @media print {
   .panel__nav {
     display: none;
