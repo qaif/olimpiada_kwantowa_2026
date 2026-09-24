@@ -1690,8 +1690,13 @@ dostawca organizatorowi, na którego jest klucz.
 
 Potwierdzenie umowy powierzenia (DPA) z dostawcą jest **oświadczeniem organizatora**, więc żadna
 migracja go nie wpisuje – także dla Anthropic z v0.34.0. Po wdrożeniu wersji z dostawcami **żaden
-dostawca nie dostaje prac uczestników**, dopóki koordynator nie zaznaczy potwierdzenia w panelu albo
-operator nie wpisze go komendą (gdy organizator oświadczył je inną drogą):
+dostawca nie dostaje prac uczestników**, dopóki go nie potwierdzi **koordynator osobiście w panelu**
+(`/coordinator/ai-grading/` → „Potwierdź umowę powierzenia” → strona z informacją o dostawcy →
+oświadczenie → „Potwierdzam”; zapis niesie wersję pokazanej informacji). **To jest zwykła droga –
+decyzja organizatora z 24.09.2026: operator nie wpisuje potwierdzeń za koordynatora.** Komenda niżej
+zostaje wyłącznie na sytuacje wyjątkowe (np. panel niedostępny, a organizator potwierdził umowę
+na piśmie) i zapisuje potwierdzenie **bez** wersji informacji – karta dostawcy pokazuje wtedy
+„wpisane komendą operatora”:
 
 ```bash
 docker compose exec -T web python manage.py confirm_ai_provider_dpa \

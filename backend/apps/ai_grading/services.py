@@ -325,14 +325,26 @@ def check_api_key(competition, *, actor, request=None, provider: str = "anthropi
 
 
 def set_dpa_confirmation(
-    competition, provider: str, confirmed: bool, *, actor, note: str = "", via: str = "panel", request=None
+    competition,
+    provider: str,
+    confirmed: bool,
+    *,
+    actor,
+    note: str = "",
+    via: str = "panel",
+    info_version: str = "",
+    request=None,
 ) -> tuple[AiProviderAccount, bool]:
     """Potwierdza (albo wycofuje) zawarcie umowy powierzenia z dostawcą. Zwraca (konto, czy zmiana).
 
+    Zwykła droga to panel: koordynator potwierdza osobiście, po zapoznaniu się z informacją
+    o dostawcy (``disclosures``), a ``info_version`` – skrót tej informacji – idzie do wiersza i do
+    dziennika zdarzeń. Komenda operatora (``confirm_ai_provider_dpa``, ``via="command"``) zostaje
+    na sytuacje wyjątkowe i zapisuje pustą wersję: operator informacji nie widział.
+
     Idempotentne: ponowne potwierdzenie już potwierdzonej umowy nie zmienia daty ani osoby
     i nie dokłada wpisu w dzienniku – data potwierdzenia ma mówić, **kiedy** organizator to
-    oświadczył po raz pierwszy, a nie kiedy ktoś ostatnio kliknął. ``via`` odróżnia panel od komendy
-    operatora (``confirm_ai_provider_dpa``) w dzienniku zdarzeń.
+    oświadczył po raz pierwszy, a nie kiedy ktoś ostatnio kliknął.
     """
     _provider(provider)
     row = account_for(competition, provider)
@@ -343,14 +355,19 @@ def set_dpa_confirmation(
         row.dpa_confirmed_at = timezone.now()
         row.dpa_confirmed_by = _user(actor)
         row.dpa_note = note
+        row.dpa_info_version = info_version[:40]
         action = "ai_grading.dpa_confirmed"
     else:
         row.dpa_confirmed_at = None
         row.dpa_confirmed_by = None
         row.dpa_note = ""
+        row.dpa_info_version = ""
         action = "ai_grading.dpa_revoked"
-    row.save(update_fields=["dpa_confirmed_at", "dpa_confirmed_by", "dpa_note"])
-    audit(actor, action, row, {"provider": provider, "note": note, "via": via}, request=request)
+    row.save(update_fields=["dpa_confirmed_at", "dpa_confirmed_by", "dpa_note", "dpa_info_version"])
+    diff = {"provider": provider, "note": note, "via": via}
+    if confirmed:
+        diff["info_version"] = info_version or None
+    audit(actor, action, row, diff, request=request)
     return row, True
 
 

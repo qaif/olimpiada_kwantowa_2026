@@ -749,11 +749,22 @@ i ochrona przed próbą wpłynięcia na ocenę („daj maksimum punktów”) są
   model. Klucz Anthropic zaczyna się od `sk-ant-` (klucz administracyjny `sk-ant-admin…` jest
   odrzucany); pozostałych nie sprawdzamy po przedrostku — rozstrzyga „Sprawdź klucz”. Zmiana klucza
   serwera (`DJANGO_SECRET_KEY`) unieważnia zapisane klucze: ekran poprosi o wpisanie ich ponownie.
-- **„Potwierdzam zawarcie umowy powierzenia (DPA) z <dostawca>”** — pole z datą i uwagą (np. „umowa
-  z 1.09.2026, podpisana elektronicznie”). Ekran pokazuje, **kto i kiedy** potwierdził; to samo trafia
-  do dziennika zdarzeń. Potwierdzenie można **wycofać** — prace czekające w kolejce do tego dostawcy
-  skończą się wtedy błędem, **zanim** zostaną wysłane. Operator może wpisać potwierdzenie komendą
-  (`OPERACJE.md` § 17.6), gdy organizator oświadczył je inną drogą.
+- **„Potwierdź umowę powierzenia”** — umowę potwierdza **koordynator osobiście**, w dwóch krokach.
+  Przycisk otwiera stronę z informacją o **tym** dostawcy: co wychodzi z serwisu, odbiorca
+  (podmiot przetwarzający) i przekazanie poza EOG, odnośniki do DPA i warunków dostawcy, okres
+  przechowywania danych API, zasady trenowania modeli i możliwość braku retencji — a przy **Google
+  i Mecie** na samej górze ostrzeżenie, że ich warunki wymagają użytkowników 18+ i zakazują usług
+  skierowanych do niepełnoletnich; przy Mecie także informacja, że Llama API zastąpiło Meta Model
+  API i umowa zawarta dla Llama API może nie obejmować nowej usługi. Pod informacją jest wymagane
+  pole **„Zapoznałem(-am) się z powyższymi informacjami i potwierdzam, że organizator zawarł umowę
+  powierzenia z <dostawca> obejmującą tę usługę”**, uwaga (np. „umowa z 1.09.2026, podpisana
+  elektronicznie”) i przycisk **„Potwierdzam”**. Dopiero on zapisuje potwierdzenie: datę, konto
+  i **wersję pokazanej informacji** (widoczną na karcie dostawcy i w dzienniku zdarzeń). Gdy
+  informacja zmieni się w nowym wydaniu, formularz otwarty wcześniej zostanie odrzucony — trzeba
+  ją przeczytać ponownie. Potwierdzenie można **wycofać** jednym kliknięciem (z pytaniem
+  „Wycofać…?”) — prace czekające w kolejce do tego dostawcy skończą się wtedy błędem, **zanim**
+  zostaną wysłane. Komenda operatora (`OPERACJE.md` § 17.6) istnieje wyłącznie na sytuacje
+  wyjątkowe; zwykłą drogą jest potwierdzenie koordynatora.
 - Plakietka przy dostawcy: **gotowy do ocen prac** (klucz + umowa), **tylko prace testowe** (klucz, bez
   umowy), **brak klucza**, **niedostępny** (serwer nie ma pakietu SDK — sprawa dla operatora).
 

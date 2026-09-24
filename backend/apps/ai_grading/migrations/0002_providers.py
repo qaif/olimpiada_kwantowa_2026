@@ -106,6 +106,12 @@ class Migration(migrations.Migration):
                 ),
                 ("dpa_note", models.CharField(blank=True, max_length=300, verbose_name="uwaga do potwierdzenia")),
                 (
+                    "dpa_info_version",
+                    models.CharField(
+                        blank=True, max_length=40, verbose_name="wersja informacji przy potwierdzeniu"
+                    ),
+                ),
+                (
                     "api_key_set_by",
                     models.ForeignKey(
                         blank=True,

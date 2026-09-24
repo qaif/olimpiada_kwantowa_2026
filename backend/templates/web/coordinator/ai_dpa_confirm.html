@@ -1,0 +1,84 @@
+{% extends "web/coordinator/base.html" %}
+{% load web_extras %}
+{% load coordinator_extras %}
+{% comment %}
+  Potwierdzenie umowy powierzenia z jednym dostawcą AI – ekran informacji i oświadczenia.
+
+  Koordynator potwierdza umowę osobiście, **po** przeczytaniu tego, co tu stoi (decyzja organizatora
+  z 24.09.2026). Treść pochodzi z ``apps.ai_grading.disclosures``; jej wersja (skrót) jedzie w ukrytym
+  polu i trafia do zapisu potwierdzenia – po niej widać, którą wersję informacji koordynator miał
+  przed oczami. Ostrzeżenie o warunkach wiekowych stoi na górze, w ramce ostrzeżenia, bo to jest
+  rzecz, która może przesądzić, że dostawcy w ogóle nie wolno użyć.
+
+  Bez skryptów – strona działa także bez JavaScriptu.
+{% endcomment %}
+{% block title %}Umowa powierzenia – {{ info.label }} – panel koordynatora{% endblock %}
+{% block panel_title %}Potwierdzenie umowy powierzenia: {{ info.label }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Przeczytaj informacje o dostawcy. Potwierdzenie jest oświadczeniem organizatora –
+    od chwili jego zapisania prace uczestników mogą trafiać do {{ info.label }}.</p>
+{% endblock %}
+{% block panel_content %}
+{% if info.age_warning %}
+  <section class="section">
+    <div class="msg msg-warning" role="alert">
+      <p><strong>Ograniczenie wieku w warunkach dostawcy.</strong> {{ info.age_warning }}</p>
+    </div>
+  </section>
+{% endif %}
+{% for item in info.extra %}
+  <section class="section"><div class="msg msg-warning"><p>{{ item }}</p></div></section>
+{% endfor %}
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0">Co wychodzi z serwisu</h2>
+    <ul>{% for item in info.data_leaving %}<li>{{ item }}</li>{% endfor %}</ul>
+    <h2>Odbiorca i przekazanie poza EOG</h2>
+    <p><strong>{{ info.recipient }}</strong></p>
+    <p>{{ info.transfer }}</p>
+    <h2>Przechowywanie danych API</h2>
+    <p>{{ info.retention }}</p>
+    <h2>Trenowanie modeli</h2>
+    <p>{{ info.training }}</p>
+    <h2>Brak retencji (zero data retention)</h2>
+    <p>{{ info.zero_retention }}</p>
+    <h2>Umowa i warunki dostawcy</h2>
+    <ul>
+      {% for label, url in info.links %}
+        <li><a href="{{ url }}" rel="noopener noreferrer" target="_blank">{{ label }}</a> <span class="hint">({{ url }})</span></li>
+      {% endfor %}
+    </ul>
+    <p class="hint">Stan stron dostawcy z {{ info.version|slice:":10" }}. To są rzeczy do sprawdzenia przez
+      organizatora (inspektora ochrony danych), a nie rozstrzygnięcie systemu – szczegóły w podręczniku
+      organizatora, § 4.12. Wersja informacji: <code>{{ info.version }}</code>.</p>
+  </div>
+</section>
+
+<section class="section" id="potwierdzenie">
+  <div class="card">
+    {% if account.dpa_confirmed %}
+      <p><span class="badge badge--ok">umowa potwierdzona</span>
+        {{ account.dpa_confirmed_at|local_datetime }}{% if account.dpa_confirmed_by %} – {{ account.dpa_confirmed_by|account_email }}{% endif %}</p>
+      <a class="btn btn--ghost" href="{% url 'web:coordinator-ai-grading' %}#dostawca-{{ info.provider }}">Wróć do ustawień</a>
+    {% else %}
+      {% if error %}<p class="msg msg-error" role="alert">{{ error }}</p>{% endif %}
+      <form method="post" class="form form--wide">
+        {% csrf_token %}
+        <input type="hidden" name="info_version" value="{{ info.version }}">
+        <p><label><input type="checkbox" name="ack" required>
+          Zapoznałem(-am) się z powyższymi informacjami i potwierdzam, że organizator zawarł umowę
+          powierzenia z {{ info.label }} obejmującą tę usługę</label></p>
+        <p>
+          <label for="dpa-uwaga">Uwaga (np. data i forma zawarcia umowy)</label>
+          <input type="text" name="note" id="dpa-uwaga" maxlength="300">
+        </p>
+        <div class="actions">
+          <button type="submit" class="btn btn--primary">Potwierdzam</button>
+          <a class="btn btn--ghost" href="{% url 'web:coordinator-ai-grading' %}#dostawca-{{ info.provider }}">Anuluj</a>
+        </div>
+      </form>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
