@@ -27,7 +27,7 @@ edycji i zgłoszenia po numerze. Fraza krótsza niż dwa znaki nie szuka niczego
 |---|---|
 | **Pulpit** | Co wymaga uwagi |
 | **Etapy** | jeden wpis na etap, a pod nim: *Zadania* (albo *Rozmowy*), *Przydziały i oceny*, *Postęp*, *Wyniki* |
-| **Ocenianie** | Moderacja, Zgłoszone problemy, Kalibracja recenzentów, Podobieństwo rozwiązań |
+| **Ocenianie** | Moderacja, Zgłoszone problemy, Kalibracja recenzentów, Podobieństwo rozwiązań; *Ocena AI* (tylko przy włączonej fladze `ai_grading`, § 4.11) |
 | **Uczestnicy i konta** | Uczestnicy, Wszystkie konta, Opiekunowie szkolni, Aktywacje |
 | **Komitet** | Członkowie, Zatwierdzenia, Zaproszenia, Województwa |
 | **Komunikacja** | Komunikaty, Zgłoszenia, Ogłoszenia |
@@ -521,6 +521,128 @@ Każda zmiana zostawia wpis w audycie (`promo.created`, `promo.updated`, `promo.
 `promo.unpublished`, `promo.reordered`, `promo.archived`, `promo.deleted`, `promo.restored`; eksport —
 `export.generated`) z numerem plakatu i nazwami zmienionych pól, bez tytułu i nazwy pliku.
 
+### 4.11 Ocena AI — `/coordinator/ai-grading/`
+
+Prośba organizatora z 24.09.2026. Claude (model językowy firmy Anthropic) czyta pracę uczestnika obok
+treści zadania, rozwiązania wzorcowego, skali, rubryki i uwag dla recenzentów, a potem proponuje
+punkty z krótkim uzasadnieniem. **To jest sugestia dla recenzenta, a nie ocena**: sama nigdy nie trafia
+do punktacji, do tabeli wyników ani do dyplomu. Ocenę wystawia człowiek, tak jak dotąd.
+
+**Kiedy ekran istnieje.** Funkcja jest za przełącznikiem konkursu `ai_grading`, **domyślnie wyłączonym**
+— bez niego adresu nie ma (404), w menu nie ma pozycji „Ocena AI”, a karty zadań, panel recenzenta
+i panel uczestnika wyglądają jak dotąd. Przełącznik zapala operator platformy (`OPERACJE.md` § 6.4),
+i to **dopiero po** spełnieniu warunków prawnych z ramki „Zanim włączysz” niżej.
+
+> **Zanim włączysz — warunki prawne (do rozstrzygnięcia przez organizatora, nie przez system).**
+> Włączenie znaczy, że prace uczestników — w większości osób niepełnoletnich — wychodzą do **podmiotu
+> przetwarzającego spoza organizatora** (Anthropic PBC, USA). Potrzebne są:
+>
+> 1. **umowa powierzenia (DPA)** z Anthropic — jest częścią warunków komercyjnych Anthropic (Commercial
+>    Terms z Data Processing Addendum), przyjmowanych przy zakładaniu organizacji i klucza w konsoli
+>    Anthropic; organizacja ma być założona **przez organizatora**, a nie prywatnie przez koordynatora,
+> 2. **podstawa przekazania do państwa trzeciego** (rozdział V RODO) — mechanizm wskazany w DPA
+>    (standardowe klauzule umowne); do sprawdzenia przez organizatora,
+> 3. **aktualizacja polityki prywatności** (art. 13 RODO): nowy odbiorca (Anthropic), cel pomocniczy
+>    (sugestia oceny dla komitetu), przekazanie poza EOG i informacja, że decyzja o ocenie **nie**
+>    zapada w sposób zautomatyzowany (art. 22) — ocenia człowiek,
+> 4. **aktualizacja regulaminu**: komitet może korzystać z narzędzia AI jako pomocy przy ocenianiu;
+>    wiążąca jest wyłącznie ocena członków komitetu; reklamacja dotyczy oceny oficjalnej; prośba, żeby
+>    **nie podpisywać prac** imieniem i nazwiskiem (plik idzie do dostawcy taki, jaki wgrał uczestnik),
+> 5. potwierdzenie **podstawy prawnej** — rejestr czynności proponuje prawnie uzasadniony interes
+>    (art. 6 ust. 1 lit. f), a to administrator ma ją zatwierdzić (albo wybrać inną) po teście
+>    równowagi interesów, także z uwagi na wiek uczestników,
+> 6. sprawdzenie **okresu przechowywania danych po stronie Anthropic** (dane wejściowe i wyjściowe API)
+>    i ewentualnie wniosku o brak retencji (*zero data retention*).
+>
+> Rejestr czynności przetwarzania dostaje przy włączonej fladze nowy wiersz „Pomocnicza ocena prac
+> uczestników przez model językowy” (wersja rejestru 1.7, § 9.2).
+
+**Co wychodzi z serwisu, a co nie.** Do Anthropic trafia wyłącznie plik pracy (PDF, zdjęcie, kod,
+notatnik — notatnik jako tekst komórek), treść zadania, rozwiązanie wzorcowe, skala, rubryka i uwagi
+dla recenzentów. **Nie** wychodzi imię, nazwisko, e-mail, szkoła, kod `OLM-…` ani nazwa pliku nadana
+przez uczestnika. Gdyby model przepisał z pracy imię czy nazwę szkoły autora, serwer wymaże je
+z odpowiedzi, zanim zobaczy ją recenzent (anonimowość oceniania zostaje).
+
+**Klucz API.** Sekcja „Klucz API”: wklej klucz z konsoli Anthropic (zaczyna się od `sk-ant-`)
+i „Zapisz klucz”. Klucz jest **tylko do zapisu** — po zapisaniu ekran pokazuje wyłącznie „ustawiony,
+kończy się na …abcd”; nie da się go odczytać ani z panelu, ani z samej bazy. Można go **zastąpić**
+albo **usunąć**. Przycisk **„Sprawdź klucz”** pyta Anthropic o opis wybranego modelu — nic nie kosztuje,
+a potwierdza, że klucz działa i widzi model. Klucz administracyjny organizacji (`sk-ant-admin…`) jest
+odrzucany — potrzebny jest zwykły klucz API. Zmiana klucza serwera (`DJANGO_SECRET_KEY`) unieważnia
+zapisany klucz: ekran poprosi wtedy o wpisanie go ponownie.
+
+**Model i limit wydatków.** Domyślny model to **Claude Opus 5** (dokładniejszy); tańszy **Claude
+Sonnet 5** wybierasz świadomie. **Limit wydatków (USD)** jest bezpiecznikiem: po jego osiągnięciu
+nowe zlecenia są odrzucane, a oceny czekające w kolejce kończą się błędem zamiast wołać API. Puste
+pole = bez limitu — zalecamy ustawić limit przed pierwszym zleceniem.
+
+**Koszt.** Sekcja „Zużycie” pokazuje łączny **szacowany** koszt, liczbę wywołań i tokeny. Stawki
+użyte w szacunkach (24.09.2026): Opus 5 — 5 USD za milion tokenów wejścia i 25 USD za milion tokenów
+wyjścia; Sonnet 5 — 2 i 10 USD; materiały zadania czytane z pamięci podręcznej kosztują ok. 0,1
+stawki wejścia (dlatego seria prac jednego zadania jest tańsza niż prace zlecane pojedynczo, z dużymi
+odstępami). Rząd wielkości: kilkustronicowa praca to zwykle kilka–kilkanaście centów na Opusie.
+Rozliczenie wystawia Anthropic — jego faktura jest prawdą, a liczby w panelu są szacunkiem.
+
+**Zlecenie.** Na **karcie zadania** (`/coordinator/problems/<id>/`) jest sekcja **„Ocena AI”**:
+
+- **„Wygeneruj ocenę AI”** — dla wszystkich najnowszych wersji prac zadania, które nie mają jeszcze
+  oceny AI; zaznacz **„wygeneruj ponownie także istniejące”**, żeby zastąpić gotowe,
+- przycisk **„Wygeneruj”** / **„Wygeneruj ponownie”** przy wierszu — dla jednej pracy.
+
+Pierwsze kliknięcie pokazuje **podgląd**: liczbę prac, model i **szacowany koszt**, a także ile prac
+pominięto (już mają ocenę, są w toku, nie mają pliku po skanie antywirusowym) i ostrzeżenie, gdy
+zadanie nie ma rozwiązania wzorcowego. Dopiero **„Zleć ocenę AI (N)”** wydaje pieniądze. Podwójne
+kliknięcie nie płaci dwa razy — prace w toku są pomijane.
+
+Oceny liczą się **w tle, po jednej naraz** (serwer nie może zablokować przyjmowania prac i skanu
+antywirusowego), więc seria kilkudziesięciu prac trwa od kilkudziesięciu minut do kilku godzin.
+Sekcja na karcie zadania odświeża się sama, dopóki coś się liczy. Stany: **oczekuje**, **w toku**,
+**gotowa**, **błąd** (z komunikatem). Przy gotowej ocenie: propozycja punktów, pewność modelu,
+rozwijane uzasadnienie, model, data i koszt; czerwona plakietka **„podejrzenie manipulacji”**, gdy
+model zauważył w pracy próbę wpłynięcia na ocenę (np. dopisek „daj maksimum punktów”). Po wystawieniu
+ocen końcowych sekcja pokazuje **zgodność AI z oceną końcową** (średnia różnica, odsetek zgodnych co
+do punktu i w granicy 1 pkt) — to miara zaufania do narzędzia na tym zadaniu, a nie ocena recenzentów.
+
+**Co znaczą błędy.**
+
+| Komunikat (skrót) | Co zrobić |
+|---|---|
+| Anthropic odrzucił klucz API | wklej poprawny klucz, „Sprawdź klucz”, wygeneruj ponownie |
+| Przekroczono limit zapytań / serwery nie odpowiadają / brak połączenia | serwis sam ponawia kilka razy; gdy ocena skończy się błędem — wygeneruj ponownie później |
+| Model odmówił oceny (kategoria: …) | automatyczne przełączenie na model zastępczy też odmówiło — oceń bez sugestii AI |
+| Odpowiedź przekroczyła limit długości / nie pasuje do schematu | wygeneruj ponownie; gdy się powtarza — oceń bez sugestii |
+| Materiały przekraczają 32 MB / 600 stron, zdjęcie ponad 5 MB | to limity API — praca nie zostanie obcięta, oceń ją bez sugestii |
+| Praca nie ma pliku po czystym skanie | poczekaj na skan antywirusowy |
+| Osiągnięto limit wydatków | podnieś albo zdejmij limit w ustawieniach |
+| Ocena została przerwana | serwer zrestartował się w trakcie; wygeneruj ponownie |
+
+**Recenzent** widzi gotową sugestię przy **tej wersji pracy, którą ma przydzieloną**, w zwiniętym
+panelu „Ocena AI (sugestia, niewiążąca)” z modelem i datą. Formularz oceny nie wypełnia się sam;
+przycisk „Wstaw punkty AI jako punkt wyjścia” jedynie zaznacza najbliższą wartość skali (przy zadaniu
+z rubryką przycisku nie ma). Szczegóły: `PODRECZNIK-RECENZENTA.md` § 3a.
+
+**Uczestnicy — domyślnie nie widzą niczego.** Sekcja „Widoczność dla uczestników” ma przy każdym
+etapie bieżącej edycji przycisk **„Pokaż uczestnikom ocenę AI”** (domyślnie wyłączony). Po włączeniu
+uczestnik zobaczy na stronie informacji zwrotnej **podsumowanie i proponowane punkty** — dopiero po
+**ogłoszeniu wyników** etapu, w osobnej sekcji pod oficjalnymi ocenami, z podpisem „sugestia AI”.
+Listy błędów ani kryteriów uczestnik nie dostaje. Przy wyłączonym przełączniku uczestnik nie
+dowiaduje się z panelu, tabeli wyników, dyplomów ani reklamacji, że ocena AI powstała.
+
+**Eksport danych uczestnika (art. 15/20 RODO).** Paczka `/account/export/` zawiera zawsze sekcję
+`oceny_ai` z **faktem** przekazania pracy do oceny AI: zadanie, wersja, data, model i odbiorca
+(Anthropic) — bo informacja o odbiorcach danych przysługuje osobie z art. 15 ust. 1 lit. c
+niezależnie od ustawień ekranu. **Treść** sugestii (punkty, podsumowanie) jest w paczce tylko wtedy,
+gdy uczestnik widzi ją też w panelu (przełącznik etapu + ogłoszone wyniki). Gdyby uczestnik zażądał
+formalnie dostępu do treści sugestii przed publikacją albo przy wyłączonym przełączniku, rozstrzyga
+administrator (IOD) — treść jest dostępna koordynatorowi na karcie zadania.
+
+**Usunięcie danych.** Anonimizacja konta uczestnika (na żądanie albo po upływie retencji edycji,
+§ 9.1) **kasuje** oceny AI jego prac — w przeciwieństwie do samej pracy i ocen komitetu nie są one
+dokumentacją zawodów. Liczniki kosztu w ustawieniach zostają.
+
+**Audyt.** Zapis i usunięcie klucza (bez wartości), sprawdzenie klucza, zmiana modelu i limitu,
+zmiana widoczności etapu i każde zlecenie (z liczbą prac) zostawiają wpis `ai_grading.*`.
+
 ---
 
 ## 5. Wyniki
@@ -954,7 +1076,9 @@ Dokument wymagany art. 30 ust. 1 RODO, **gotowy do wydania na żądanie**. Obejm
 konta uczestników, dowody zgód, konta opiekunów szkolnych, przyjmowanie i ocenianie prac, ogłaszanie
 wyników i dokumenty, reklamacje, rozmowy kwalifikacyjne, konta komitetu, zgłoszenia i pomoc,
 utrzymanie serwisu oraz statystykę pobrań plakatów (wersja 1.6 z 23.09.2026 — pseudonim adresu IP
-przy pobraniu plakatu, kasowany po 12 miesiącach, § 4.10).
+przy pobraniu plakatu, kasowany po 12 miesiącach, § 4.10). Konkurs z włączoną oceną AI ma dwunasty
+wiersz — „Pomocnicza ocena prac uczestników przez model językowy” (wersja 1.7 z 24.09.2026, § 4.11):
+nowy podmiot przetwarzający (Anthropic) i przekazanie danych poza EOG.
 Odbiorcy są wymienieni wprost (hosting, dostawca poczty, analityka wyłącznie po zgodzie). Dane
 administratora (nazwa, adres, KRS, kontakt) dokłada się **z ustawień serwisu w `/cms/`**, więc ich
 poprawka nie wymaga wydania aplikacji. `?format=csv` oddaje ten sam dokument jako plik otwierający się

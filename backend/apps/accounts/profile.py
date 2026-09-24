@@ -433,6 +433,10 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
     akapitu, do którego ktoś się odniósł, zamienia je w bełkot. Sama treść przestaje być powiązana
     z osobą, więc żądanie z art. 17 jest spełnione – a uczestnik, który chce zdjąć konkretny wpis
     **przed** usunięciem konta, ma do tego własny przycisk na forum.
+
+    **Oceny AI** prac tej osoby (``apps.ai_grading``) są kasowane. Praca i jej oficjalne oceny
+    zostają jako dokumentacja zawodów, ale sugestia AI dokumentacją nie jest – nikt na niej nie
+    opiera kwalifikacji – więc po anonimizacji nie ma już żadnego celu, któremu służyłaby.
     """
     now = timezone.now()
     from apps.competitions.scoping import resolve_competition
@@ -488,6 +492,10 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
         ConsentRecord.objects.filter(supervisor=supervisor, withdrawn_at__isnull=True).update(
             withdrawn_at=now
         )
+
+    from apps.ai_grading.services import erase_for_participants
+
+    erase_for_participants(participants)
 
     _drop_credentials(user)
     audit(actor or user, "account.anonymised", user, {"user_id": user.pk}, request=request)

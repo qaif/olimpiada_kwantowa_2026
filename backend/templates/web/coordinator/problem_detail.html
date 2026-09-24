@@ -394,6 +394,11 @@
   </div>
 </section>
 
+{# --- 5a. Ocena AI (za flagą ``ai_grading``) ------------------------------------------------------ #}
+{% if ai %}
+  {% include "web/coordinator/_ai_problem.html" %}
+{% endif %}
+
 {# --- 6. Pobierz i podobieństwa ---------------------------------------------------------------- #}
 <section class="section" id="pobierz">
   <div class="card">

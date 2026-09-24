@@ -210,6 +210,8 @@
       </details>
     {% endif %}
 
+    {% if ai %}{% include "web/reviewer/_ai_assessment.html" %}{% endif %}
+
     {% include "web/reviewer/_issue_banner.html" %}
 
     {% if withdrawn %}
@@ -379,6 +381,9 @@
   {% endcomment %}
   <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/reviewer-layout.js' %}"></script>
   <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/review-snippets.js' %}"></script>
+  {% if ai.prefill_value is not None %}
+    <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/review-ai.js' %}"></script>
+  {% endif %}
   {% if editable or revision_allowed %}
     <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/review-worklog.js' %}"></script>
   {% endif %}

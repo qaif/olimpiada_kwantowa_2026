@@ -95,4 +95,8 @@
       {% translate "Ten etap nie ma zadań do wypisania." %}</p>
   {% endfor %}
 </section>
+
+{% if ai_feedback %}
+  {% include "web/participant/_ai_feedback.html" %}
+{% endif %}
 {% endblock %}

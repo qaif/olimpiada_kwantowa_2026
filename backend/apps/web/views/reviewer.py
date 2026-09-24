@@ -24,6 +24,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import TemplateView, View
 
+from apps.ai_grading.services import reviewer_context as ai_reviewer_context
 from apps.core.api import DomainError
 from apps.grading.code_view import code_listing, line_notes
 from apps.grading.comparison import comparison_context
@@ -336,6 +337,14 @@ class ReviewDetailView(ReviewerScopedMixin, TemplateView):
                 # dozwolone (patrz ``apps.grading.issues``).
                 "open_issue": review.issues.filter(status=WorkIssueStatus.OPEN).first(),
                 "issue_kinds": WorkIssueKind.choices,
+                # Sugestia AI tej wersji pracy – wyłącznie gotowa i wyłącznie przy włączonej
+                # fladze konkursu; ``None`` znaczy „panelu nie ma”. Recenzja pochodzi z własnych
+                # przydziałów recenzenta (``get_review``), więc cudzej pracy tu nie zobaczy.
+                # Przycisk „wstaw punkty AI” tylko wypełnia formularz i tylko wtedy, gdy ten jest
+                # do zapisania – ocena wystawiona na stałe nie ma czego wypełniać.
+                "ai": ai_reviewer_context(
+                    review, self.competition, editable=editable or block_reason is None
+                ),
             }
         )
         return context

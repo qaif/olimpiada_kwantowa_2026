@@ -19,6 +19,7 @@ from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.views.generic import TemplateView, View
 
+from apps.ai_grading.services import participant_ai_feedback
 from apps.cms.calendar import calendar_ics, ics_filename, participant_calendar
 from apps.cms.workshops import WORKSHOPS_SLUG, workshop_rows, workshops_page
 from apps.competitions.models import Edition, Problem, Stage, StageEntry, StageKind
@@ -50,6 +51,10 @@ class ParticipantFeedbackView(ParticipantRequiredMixin, TemplateView):
             raise Http404("Wyniki tego etapu nie zostały jeszcze ogłoszone.")
         context["feedback"] = feedback
         context["stage"] = stage
+        # Sugestie AI – pusta lista, dopóki koordynator nie włączy ich dla tego etapu (i przy
+        # wyłączonej ocenie AI w konkursie). Pusta lista znaczy, że w szablonie nie powstaje ani
+        # jedno słowo o ocenie AI – uczestnik nie dowiaduje się nawet, że istniała.
+        context["ai_feedback"] = participant_ai_feedback(self.participant, stage)
         return context
 
 

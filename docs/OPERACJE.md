@@ -617,6 +617,10 @@ z **różnicami** wobec wartości domyślnych. Pusty słownik `{}` znaczy „jak
   kto i jak często zagląda do `/coordinator/forum/`. Pierwszy krok **po** zapaleniu: założyć co
   najmniej jeden dział (`/coordinator/forum/categories/`) — bez działu nikt nie napisze ani słowa.
   Szczegóły moderacji: `PODRECZNIK-ORGANIZATORA.md` § 6.4.
+- **`ai_grading`** — ocena AI (sugestia punktów dla komitetu liczona przez Claude'a). Wyłączona
+  znaczy, że `/coordinator/ai-grading/…` odpowiada 404, a panele wyglądają jak dziś. Zapalenie
+  jest **decyzją prawną organizatora** (umowa powierzenia z Anthropic, polityka prywatności,
+  regulamin), a nie techniczną — nie zapalaj jej przed jej potwierdzeniem. Szczegóły serwerowe: § 15.
 
 Po każdym przestawieniu flagi: zaloguj się na konto jednej osoby z każdej roli i sprawdź, że widzi
 to, co widziała. Flaga jest odwracalna w minutę, ale tylko wtedy, gdy ktoś zauważy w tej minucie.
@@ -1395,3 +1399,88 @@ Statystyka pobrań łącznie nie zmienia się.
 plakatu). Po imporcie z ominięciem sygnałów wystarczy `page_cache_clear` i odczekanie TTL albo
 restart Redisa.
 
+## 15. Ocena AI (`apps.ai_grading`, prośba organizatora z 24.09.2026)
+
+Sugestia punktów dla komitetu liczona przez Claude'a (Anthropic). Opis funkcji dla organizatora:
+`PODRECZNIK-ORGANIZATORA.md` § 4.11; tutaj to, co dotyczy serwera.
+
+### 15.1. Przełącznik i warunek jego zapalenia
+
+Flaga konkursu **`ai_grading`**, domyślnie wyłączona (§ 6.4). **Nie zapalaj jej przed potwierdzeniem
+przez organizatora warunków prawnych** z § 4.11 podręcznika organizatora (umowa powierzenia z
+Anthropic, polityka prywatności, regulamin): od chwili, w której koordynator wklei klucz i zleci
+pierwszą ocenę, prace uczestników wychodzą do podmiotu przetwarzającego poza EOG. Po zapaleniu
+koordynator widzi w menu „Ocenianie → Ocena AI”; bez klucza API nic się nie dzieje.
+
+```json
+{"ai_grading": true}
+```
+
+### 15.2. Zależność
+
+Nowa zależność Pythona: **`anthropic>=1.8,<2`** (oficjalne SDK; ciągnie `httpx2`, `httpcore2`, `pydantic`, `jiter`,
+`anyio`, `truststore`, `docstring-parser`). Obraz produkcyjny instaluje ją przy zwykłym budowaniu
+(`uv pip install -r pyproject.toml`). Import jest leniwy – wewnątrz `apps.ai_grading.client` – więc
+konkurs bez oceny AI biblioteki w ogóle nie ładuje. Na stacji deweloperskiej za firmowym proxy TLS
+`docker compose build web` potrafi nie pobrać pakietu; testy klienta SDK (`test_client.py`) same się
+wtedy pomijają (`importorskip`), reszta testów oceny AI z SDK nie korzysta.
+
+### 15.3. Klucz API
+
+Klucz wpisuje **koordynator** w panelu – nie ma go w `.env` ani w żadnym ustawieniu instalacji. Leży
+w `ai_grading_aigradingsettings.api_key_encrypted` jako token Fernet z kluczem wyprowadzonym
+z `DJANGO_SECRET_KEY` (etykieta `ai-grading-api-key`, ten sam zabieg co przy 2FA, § 5.5).
+Konsekwencje:
+
+- **rotacja `DJANGO_SECRET_KEY` unieważnia zapisane klucze** – panel pokaże „wpisz klucz ponownie”,
+  a zlecone oceny skończą się błędem `key_unreadable` (bez wywołania API),
+- klucz **nie** jedzie przez Redisa: zadanie Celery dostaje wyłącznie identyfikator oceny i czyta
+  klucz z bazy samo,
+- klucz nie trafia do logów ani do audytu (wpis `ai_grading.key_set` ma tylko `{"replaced": …}`).
+  **Nie** ustawiaj na produkcji `ANTHROPIC_LOG=debug` – tryb diagnostyczny SDK loguje szczegóły
+  żądań.
+
+### 15.4. Celery: kolejka z ogranicznikiem
+
+Jedna ocena = jedno zadanie `apps.ai_grading.tasks.run_ai_assessment` na kolejce `default`. Zlecenie
+**nie** wrzuca wszystkich zadań naraz: oceny czekają w bazie jako `PENDING`, a do Celery trafia ich
+tyle, ile mieści `AI_GRADING_MAX_CONCURRENCY` (domyślnie **1** w całej instalacji). Koniec każdej
+oceny wypuszcza następną. Powód: worker ma dwa miejsca (`CELERY_CONCURRENCY=2`), wywołanie modelu
+trwa minuty, a drugie miejsce musi zostać dla skanu antywirusowego i poczty.
+
+| Ustawienie (`.env`) | Domyślnie | Znaczenie |
+|---|---|---|
+| `AI_GRADING_MAX_CONCURRENCY` | 1 | ile ocen liczy się naraz; podnosić **razem** z `CELERY_CONCURRENCY`, nigdy do jego wartości |
+| `AI_GRADING_STALE_MINUTES` | 30 | po ilu minutach ocena „w locie” jest uznana za zgubioną (> twardy limit zadania 16 min) |
+| `AI_GRADING_REQUEST_TIMEOUT` | 600 | limit czasu jednego żądania HTTP do API (s) |
+| `AI_GRADING_SDK_MAX_RETRIES` | 2 | ponowienia wewnątrz SDK (429, 5xx, sieć) w obrębie jednego wywołania |
+| `AI_GRADING_MAX_TOKENS` | 32000 | górna granica odpowiedzi – bezpiecznik kosztu jednej oceny |
+| `AI_GRADING_MAX_BATCH` | 500 | najwięcej prac w jednym zleceniu |
+
+Ponowienia: po 429, 5xx i błędach sieci zadanie ponawia się do 4 razy z wykładniczym opóźnieniem
+(60 s, 120 s, … maks. 15 min; `retry-after` z odpowiedzi 429 ma pierwszeństwo, przycięte do 15 min).
+Odpowiedź, którą API **oddało** (także odmowa i ucięcie na `max_tokens`), nie jest ponawiana
+automatycznie – jest policzona i kończy się błędem z komunikatem dla koordynatora. Zadanie ma twardy
+limit 16 minut (`soft_time_limit` 15 min).
+
+Siatka asekuracyjna: zadanie beat **`ai-grading-pump`** (co 5 min, `pump_ai_assessments`) zamienia
+oceny `RUNNING` starsze niż `AI_GRADING_STALE_MINUTES` w błąd „przerwana” (a nie w ponowienie –
+wywołanie mogło zostać policzone po stronie Anthropic, zanim worker padł) i wypuszcza oceny,
+których zadanie zniknęło z brokera. `DatabaseScheduler` dopisze wpis sam przy starcie beatu.
+
+Podgląd kolejki:
+
+```bash
+docker compose exec -T web python manage.py shell -c "from apps.ai_grading.models import AiAssessment as A; from django.db.models import Count; print(list(A.objects.values('status').annotate(n=Count('id'))))"
+```
+
+Awaryjne zatrzymanie wszystkiego bez wdrożenia: zdjąć flagę `ai_grading` (oceny czekające w kolejce
+skończą się błędem `disabled` bez wywołania API) albo ustawić koordynatorowi limit wydatków 0.
+
+### 15.5. Logi i koszt
+
+Każde wywołanie loguje model, `stop_reason` i `request_id` (`message._request_id`) – po tym
+identyfikatorze wsparcie Anthropic znajduje żądanie. Treści pracy ani odpowiedzi w logach nie ma.
+Zużycie tokenów i szacowany koszt liczy aplikacja (stawki w `apps.ai_grading.models.PRICING_USD_PER_MTOK`,
+stan z 24.09.2026 – przy zmianie cennika Anthropic poprawić tę tabelę); fakturę wystawia Anthropic
+organizatorowi, na którego jest klucz.
