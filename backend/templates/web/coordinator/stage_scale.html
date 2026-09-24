@@ -1,4 +1,5 @@
 {% extends "web/coordinator/base.html" %}
+{% load web_extras %}
 {% block title %}Skala punktacji: {{ stage.display_name }} – panel koordynatora{% endblock %}
 {% block panel_title %}Skala punktacji: {{ stage.display_name }}{% endblock %}
 {% block panel_lead %}
@@ -18,7 +19,16 @@
       nie można (odmowa <code>SCALE_LOCKED</code>). Najpierw popraw te oceny, potem zmień skalę.</li>
     <li>Skala musi zawierać <strong>0</strong>, wartości muszą być unikalne i rosnące, a maksimum
       równe największej z nich.</li>
+    <li><strong>Dowolne wartości ocen</strong> (przełącznik niżej): recenzent wpisuje dowolną liczbę
+      od najniższej do najwyższej wartości skali, co 0,01 (np. 4,25), a wartości skali stają się
+      podpowiedzią. W tym trybie zadanie może też mieć <strong>samo maksimum punktów</strong>
+      (np. 12,5) – ustawia się je przy zadaniu. Powrót do „tylko wartości ze skali” system odrzuci
+      (<code>FREE_VALUES_IN_USE</code>), dopóki istnieje choć jedna ocena spoza skali albo zadanie
+      z samym maksimum – komunikat poda, ile ich jest.</li>
   </ul>
+  {% if free_values %}
+    <p class="msg msg-info">Ten etap ocenia <strong>dowolnymi wartościami</strong> (co 0,01).</p>
+  {% endif %}
 </div>
 
 <div class="card">
@@ -34,7 +44,8 @@
 
 <section class="section">
   <h2>Podgląd skali</h2>
-  <p class="hint">Tak zobaczy ją recenzent przy wyborze oceny.</p>
+  <p class="hint">{% if free_values %}Tak zobaczy ją recenzent obok pola oceny – jako podpowiedź,
+    nie listę do wyboru.{% else %}Tak zobaczy ją recenzent przy wyborze oceny.{% endif %}</p>
   <div class="scroll">
     <table class="table">
       <thead><tr><th scope="col">Punkty</th><th scope="col">Opis</th></tr></thead>
@@ -114,11 +125,14 @@
   {% endcomment %}
   <section class="section">
     <h2>Zadania z własną skalą</h2>
-    <p class="hint">Tych zadań zmiana powyżej nie dotyczy – skalę ustawia się przy zadaniu.</p>
+    <p class="hint">Tych zadań zmiana wartości skali powyżej nie dotyczy – skalę albo maksimum
+      ustawia się przy zadaniu. Tryb oceniania (skala albo dowolne wartości) obowiązuje je tak samo,
+      jak cały etap.</p>
     <ul class="hint">
-      {% for problem in overrides %}
-        <li><a href="{% url 'web:coordinator-problem-edit' problem.pk %}">Zadanie {{ problem.number }}:
-          {{ problem.title }}</a> – maksimum {{ problem.max_points }} pkt</li>
+      {% for row in overrides %}
+        <li><a href="{% url 'web:coordinator-problem-edit' row.problem.pk %}">Zadanie {{ row.problem.number }}:
+          {{ row.problem.title }}</a> – maksimum {{ row.maximum|points }} pkt{% if row.max_only %}
+          (samo maksimum, ocena od 0 co 0,01){% endif %}</li>
       {% endfor %}
     </ul>
   </section>

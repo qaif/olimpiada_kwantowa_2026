@@ -18,7 +18,7 @@
     </div>
     <dl class="meta-list">
       <dt>Ocena wstępna</dt>
-      <dd><strong>{% if row.current_score is not None %}{{ row.current_score }}{% else %}—{% endif %}</strong></dd>
+      <dd><strong>{% if row.current_score is not None %}{{ row.current_score|points }}{% else %}—{% endif %}</strong></dd>
       <dt>Złożona</dt><dd>{{ row.appeal.filed_at }}</dd>
     </dl>
 
@@ -31,7 +31,7 @@
         <thead><tr><th>Punkty</th><th>Komentarz wewnętrzny</th></tr></thead>
         <tbody>
           {% for review in row.reviews %}
-            <tr><td class="num total">{{ review.score }}</td><td>{{ review.comment_internal }}</td></tr>
+            <tr><td class="num total">{{ review.score|points }}</td><td>{{ review.comment_internal }}</td></tr>
           {% empty %}
             <tr><td colspan="2" class="empty">Brak wystawionych ocen rundy 1.</td></tr>
           {% endfor %}

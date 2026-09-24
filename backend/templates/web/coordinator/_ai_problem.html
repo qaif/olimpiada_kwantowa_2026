@@ -74,7 +74,7 @@
             </td>
             <td class="workload-num">
               {% if assessment.status == 'DONE' %}
-                <strong>{{ assessment.proposed_points|floatformat:"-2" }}</strong> / {{ assessment.max_points|floatformat:"-2" }} pkt
+                <strong>{{ assessment.proposed_points|points }}</strong> / {{ assessment.max_points|points }} pkt
                 <span class="hint">(pewność: {{ assessment.get_confidence_display }})</span>
                 {% if assessment.injection_suspected %}<span class="badge badge--danger">podejrzenie manipulacji</span>{% endif %}
               {% else %}—{% endif %}

@@ -23,7 +23,7 @@ from __future__ import annotations
 import logging
 from collections import Counter
 from dataclasses import dataclass, field
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 from fractions import Fraction
 
 from django.db import transaction
@@ -46,9 +46,11 @@ from apps.competitions.models import (
     TransitionGroupBy,
     TransitionMode,
 )
+from apps.competitions.scoring import problem_maximum, stage_free_values
 from apps.competitions.services import entry_owner, stage_scoring, weighted_scoring_enabled
 from apps.core.api import DomainError
 from apps.core.models import audit
+from apps.core.points import POINTS_QUANTUM, WHOLE_POINTS, points_json, round_points, to_points
 from apps.grading.models import Review, ReviewStatus
 from apps.submissions.models import Submission, SubmissionStatus
 from apps.submissions.notifications import notify_results_published
@@ -327,7 +329,7 @@ class TieBreakSpec:
     #: Klucz w ``row["components"]`` dla ``COMPONENT_SCORE`` – identyfikator komponentu jako tekst.
     component_id: str = ""
     #: Pełny wynik każdego zadania (``SOLVED_COUNT``), w tej samej postaci, w jakiej leży w wierszu.
-    full_scores: dict[str, int] = field(default_factory=dict)
+    full_scores: dict[str, Decimal] = field(default_factory=dict)
     #: Czas oddania ostatniej pracy wpisu w sekundach epoki (``SUBMITTED_AT``).
     last_submission: dict[int, float] = field(default_factory=dict)
 
@@ -354,7 +356,7 @@ class TieBreakSpec:
         return None
 
 
-def _full_scores(stage: Stage) -> dict[str, int]:
+def _full_scores(stage: Stage) -> dict[str, Decimal]:
     """Pełny wynik każdego zadania etapu – w tej samej postaci, w jakiej leży w wierszu wyników.
 
     Wiersz niesie ocenę **wystawioną przez recenzenta**, czyli wartość z bazy po odjęciu
@@ -364,16 +366,14 @@ def _full_scores(stage: Stage) -> dict[str, int]:
     z własną skalą przesunięciu etapu nie podlega – tak samo czyta to
     ``competitions.services.stage_scoring``. Przy ``offset = 0`` (czyli w całym Konkursie #1)
     obie postaci są tą samą liczbą.
+
+    Maksimum podaje ``competitions.scoring.problem_maximum`` – ta sama reguła, która sprawdza
+    ocenę – więc zadanie z samym maksimum (tryb dowolny, wydanie 0.35.0) ma tu swoje 12,5, a nie
+    maksimum skali etapu.
     """
-    scale = getattr(stage, "scoring_scale", None)
-    full: dict[str, int] = {}
+    full: dict[str, Decimal] = {}
     for problem in stage.problems.all():
-        if problem.has_own_scale:
-            maximum = problem.max_points
-        elif scale is not None:
-            maximum = scale.max_value
-        else:
-            maximum = None
+        maximum = problem_maximum(stage, problem)
         if maximum is not None:
             full[str(problem.number)] = maximum
     return full
@@ -418,7 +418,7 @@ def tie_break_keys(stage: Stage, *, competition=None) -> tuple[TieBreakSpec, ...
     if not weighted_scoring_enabled(competition):
         return ()
     rules: list[TieBreakSpec] = []
-    full_scores: dict[str, int] | None = None
+    full_scores: dict[str, Decimal] | None = None
     last_submission: dict[int, float] | None = None
     for rule in stage.tie_breaks.select_related("problem").order_by("position", "id"):
         if rule.key == TieBreakKey.NONE:
@@ -679,39 +679,47 @@ def _grades_block_finalization(components) -> bool:
     return any(component.required and component.kind in GRADE_COMPONENT_KINDS for component in components)
 
 
-def _round_half_up(value: Fraction) -> int:
-    """Ułamek na pełne punkty, połówka w górę – **ta sama** metoda, co ``apps.quiz.services``.
+def _round_half_up(value: Fraction, quantum: Decimal = WHOLE_POINTS) -> Decimal:
+    """Ułamek na pełne punkty (albo na 0,01), połówka w górę – **ta sama** metoda, co ``apps.quiz.services``.
 
     Zaokrąglenie następuje **raz**, na samym końcu sumy (§ 1.2.6). Sumowanie idzie przez
     ``Fraction``, bo waga ``1/3`` zapisana jako ``0.333…`` dawałaby sumę zależną od kolejności
     dodawania – czyli tabelę wyników zmieniającą się przy ponownym przeliczeniu tych samych danych.
+
+    ``quantum`` (wydanie 0.35.0) to pełny punkt w etapie „tylko ze skali” – dokładnie jak przed
+    tym wydaniem – i 0,01 w etapie z dowolnymi wartościami (``_total_quantum``).
     """
-    return int(
-        (Decimal(value.numerator) / Decimal(value.denominator)).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
-    )
+    return round_points(Decimal(value.numerator) / Decimal(value.denominator), quantum)
 
 
-def _component_total(entry_id: int, components, sources, grades_total: int) -> tuple[dict[str, int], int]:
+def _total_quantum(stage: Stage) -> Decimal:
+    """Krok zaokrąglenia sumy ważonej etapu: 0,01 w trybie dowolnym, pełny punkt w trybie skali."""
+    return POINTS_QUANTUM if stage_free_values(stage) else WHOLE_POINTS
+
+
+def _component_total(
+    entry_id: int, components, sources, grades_total, quantum: Decimal = WHOLE_POINTS
+) -> tuple[dict[str, Decimal], Decimal]:
     """Punkty komponentów jednego wpisu i ich ważona suma.
 
     Zwraca parę: słownik ``{id komponentu: punkty}`` (kolumny tabeli koordynatora i wsad do
-    rozstrzygania remisów, T40) oraz sumę zaokrągloną do pełnych punktów. Waga ``1/1`` na jedynym
-    komponencie pisemnym daje liczbę **identyczną** z dzisiejszą sumą ``int`` – i to jest osobna
-    asercja testu, a nie przypuszczenie.
+    rozstrzygania remisów, T40) oraz sumę zaokrągloną do ``quantum`` – pełnych punktów albo, w etapie
+    z dowolnymi wartościami, 0,01. Waga ``1/1`` na jedynym komponencie pisemnym daje liczbę
+    **identyczną** z sumą ocen zadań – i to jest osobna asercja testu, a nie przypuszczenie.
 
     Źródła są kluczowane **komponentem** (``_component_sources``), więc dwa komponenty tego samego
     rodzaju dostają dwa niezależne wyniki – a nie jedną liczbę powtórzoną w dwóch kolumnach.
     """
-    scores: dict[str, int] = {}
+    scores: dict[str, Decimal] = {}
     total = Fraction(0)
     for component in components:
         if component.kind in GRADE_COMPONENT_KINDS:
-            score = grades_total
+            score = to_points(grades_total)
         else:
-            score = int(sources.get(component.pk, {}).get(entry_id, 0))
+            score = to_points(sources.get(component.pk, {}).get(entry_id, 0))
         scores[str(component.pk)] = score
-        total += component.weight * score
-    return scores, _round_half_up(total)
+        total += component.weight * Fraction(score)
+    return scores, _round_half_up(total, quantum)
 
 
 def _owner_fields(owner, participant, today) -> dict:
@@ -817,6 +825,9 @@ def compute_stage_results(stage: Stage, *, preview: bool = False) -> list[dict]:
     # a test online jest na niej jednym z rodzajów, a nie wykluczającą alternatywą.
     quiz_scores = None if components else _quiz_scores(stage, preview=preview)
     component_sources = _component_sources(stage, components, preview=preview) if components else {}
+    # Krok zaokrąglenia sumy komponentów – czytany wyłącznie wtedy, gdy komponenty są, więc etap
+    # bez nich nie płaci za to ani jednego zapytania (budżety ``tenancy/tests/test_invariants``).
+    quantum = _total_quantum(stage) if components else WHOLE_POINTS
     grades_block = _grades_block_finalization(components)
     # Dzisiejsza data **lokalna** (Europe/Warsaw), liczona raz na cały etap: pełnoletność zmienia
     # się o północy czasu lokalnego, a nie UTC, więc ``timezone.now().date()`` przesuwałby urodziny
@@ -832,11 +843,13 @@ def compute_stage_results(stage: Stage, *, preview: bool = False) -> list[dict]:
         # drużyna nie ma – nazwisko, zgody, okręg – a dla wpisu drużynowego jest ``None``.
         owner = entry_owner(entry)
         participant = entry.participant
-        points: dict[str, int] = {}
+        points: dict[str, Decimal | int] = {}
         # Oceny **takie, jak leżą w bazie**, i wyłącznie te, które ktoś wystawił. Zadanie bez oceny
         # nie ma tu klucza i to jest różnica, której nie wolno zgubić: przy skali z punktami
         # ujemnymi „zero w bazie” znaczy „minus przesunięcie”, a brak pracy znaczy zero punktów.
-        raw: dict[int, int] = {}
+        # Wartości są ``Decimal`` z kolumny dziesiętnej (wydanie 0.35.0) – bez rzutowania na
+        # ``int``, które przed tym wydaniem było bezstratne, a dziś ucinałoby ocenę 4,25 do 4.
+        raw: dict[int, Decimal] = {}
         for problem in problems:
             submission = latest.get((entry.pk, problem.pk))
             score = 0
@@ -845,7 +858,7 @@ def compute_stage_results(stage: Stage, *, preview: bool = False) -> list[dict]:
                     pending_codes.append(owner.public_code)
                 grade = getattr(submission, "final_grade", None)
                 if grade is not None:
-                    raw[problem.pk] = int(grade.score)
+                    raw[problem.pk] = grade.score
                     # Do tabeli idzie ocena **wystawiona** przez recenzenta, czyli wartość z bazy
                     # pomniejszona o przesunięcie skali. Bez flagi (i przy skali bez punktów
                     # ujemnych) jest to dokładnie liczba z kolumny ``score``.
@@ -861,7 +874,9 @@ def compute_stage_results(stage: Stage, *, preview: bool = False) -> list[dict]:
             # (która wchodzi tu jako punkty komponentu pisemnego) i punkty z testu (jako punkty
             # komponentu testowego). Nic nie jest liczone dwa razy – ``total`` z pętli wyżej jest
             # wejściem do tej funkcji, a nie składnikiem obok niej.
-            component_points, total = _component_total(entry.pk, components, component_sources, total)
+            component_points, total = _component_total(
+                entry.pk, components, component_sources, total, quantum
+            )
         elif quiz_scores is not None:
             # Etap w formie testu online nie ma zadań ani prac, więc pętla wyżej nic nie policzyła.
             # Suma przychodzi w całości z ``apps.quiz`` i **zastępuje** sumę z zadań, a nie dokłada
@@ -1508,8 +1523,11 @@ def build_snapshot(rows: list[dict], anonymization: str) -> list[dict]:
         item = {
             "rank": row["rank"],
             "display": _display_name(row, anonymization, school_sizes),
-            "points": dict(row["points"]),
-            "total": row["total"],
+            # Punkty i suma idą do JSON-a przez ``points_json``: liczba całkowita zostaje ``int``
+            # (snapshot etapu „tylko ze skali” jest co do bajtu taki, jak przed wydaniem 0.35.0),
+            # a ułamkowa staje się liczbą JSON z najwyżej dwoma miejscami (``4.25``).
+            "points": {number: points_json(value) for number, value in row["points"].items()},
+            "total": points_json(row["total"]),
             "qualified": bool(row.get("qualified")),
             # Czy o tym wierszu rozstrzygnęła decyzja komitetu, a nie próg. Sama flaga, bez
             # uzasadnienia i bez rodzaju decyzji: ogłoszona tabela ma powiedzieć, że wynik nie
@@ -1561,7 +1579,7 @@ def publish_results(stage: Stage, actor, anonymization: str, *, request=None) ->
             "snapshot": snapshot,
             # Klucz do „mojego wyniku” w ogłoszonej tabeli. Wierszy snapshotu nie da się przypisać
             # do osoby (i dobrze), a uczestnik musi wiedzieć, z czym porównać swoje bieżące punkty.
-            "entry_totals": {str(row["entry_id"]): row["total"] for row in summary["rows"]},
+            "entry_totals": {str(row["entry_id"]): points_json(row["total"]) for row in summary["rows"]},
         },
     )
     stage.results_published_at = now
@@ -1683,11 +1701,11 @@ def results_for_participant(user, competition=None) -> list[dict]:
     for entry in entries:
         stage = entry.stage
         rows = []
-        total = 0
+        total = Decimal(0)
         for problem in problems.get(stage.pk, []):
             submission = latest.get((entry.pk, problem.pk))
             grade = getattr(submission, "final_grade", None) if submission is not None else None
-            score = int(grade.score) if grade is not None else 0
+            score = grade.score if grade is not None else Decimal(0)
             total += score
             rows.append(
                 {
@@ -1698,8 +1716,9 @@ def results_for_participant(user, competition=None) -> list[dict]:
                     "feedback": _feedback_for(submission),
                 }
             )
-        published = published_totals.get(stage.pk, {}).get(str(entry.pk))
-        published = int(published) if published is not None else None
+        # Snapshot sprzed 0.35.0 niesie ``int``, nowszy – liczbę JSON (``int`` albo ``float``);
+        # ``to_points`` czyta obie postaci do ``Decimal``, więc porównanie z sumą na żywo jest dokładne.
+        published = to_points(published_totals.get(stage.pk, {}).get(str(entry.pk)))
         results.append(
             {
                 "stage_id": stage.pk,

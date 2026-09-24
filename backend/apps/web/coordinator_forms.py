@@ -37,6 +37,7 @@ from apps.schools.models import InstitutionType
 from apps.tenancy.documents import DocumentTemplate
 
 from .forms import VOIVODESHIP_CHOICES
+from .points_fields import MAX_POINTS_INPUT, THRESHOLD_MAX, PointsField
 
 #: Górny limit długości komunikatu. Sto tysięcy znaków to kilkadziesiąt stron – nie jest to limit
 #: redakcyjny, tylko zabezpieczenie przed wklejeniem przez pomyłkę całego dokumentu do pola treści
@@ -306,7 +307,9 @@ class SimulationForm(forms.Form):
     """
 
     mode = forms.ChoiceField(label="Tryb progu", choices=QualificationMode.choices)
-    min_points = forms.IntegerField(label="Minimum punktów", required=False, min_value=0)
+    # Dziesiętne od wydania 0.35.0: suma etapu z dowolnymi wartościami ocen bywa ułamkowa, więc
+    # próg „co najmniej 38,5” musi dać się zasymulować i zapisać. Przecinek i kropka – oba.
+    min_points = PointsField(label="Minimum punktów", required=False, min_value=0, max_value=THRESHOLD_MAX)
     top_n = forms.IntegerField(label="Liczba kwalifikowanych (N)", required=False, min_value=1)
 
 
@@ -548,6 +551,10 @@ class TransitionRuleForm(forms.ModelForm):
     zawężona do konkursu żądania – z tego samego powodu.
     """
 
+    #: Pole z modelu byłoby ``forms.DecimalField`` bez lokalizacji, czyli odrzucałoby przecinek –
+    #: to samo pole punktów, co w każdym innym formularzu panelu (wydanie 0.35.0).
+    min_points = PointsField(label="Minimum punktów", required=False, min_value=0, max_value=THRESHOLD_MAX)
+
     class Meta:
         model = TransitionRule
         fields = ("mode", "group_by", "category", "min_points", "top_n", "percentile", "position")
@@ -723,13 +730,14 @@ class InterviewScoreForm(forms.Form):
     """Punkty komisji z jednej rozmowy: wpis do etapu, liczba punktów i uwaga.
 
     Skali formularz **nie zna** i to jest reguła, a nie uproszczenie: dopuszczalne wartości
-    rozstrzyga ``grading.services.allowed_scores`` przez ``record_interview_score``, czyli tą samą
+    rozstrzyga ``competitions.scoring.score_rule`` przez ``record_interview_score``, czyli tą samą
     drogą, co przy ocenie pracy. Druga kopia listy w formularzu rozjechałaby się przy pierwszej
-    zmianie skali etapu.
+    zmianie skali etapu. Pole przyjmuje liczbę dziesiętną z przecinkiem – czy wolno ją wpisać,
+    zależy od trybu etapu (wydanie 0.35.0).
     """
 
     entry = forms.ModelChoiceField(label="Wpis", queryset=None)
-    points = forms.IntegerField(label="Punkty")
+    points = PointsField(label="Punkty", min_value=-MAX_POINTS_INPUT, max_value=MAX_POINTS_INPUT)
     note = forms.CharField(label="Uwaga komisji", max_length=200, required=False)
 
     def __init__(self, *args, entries, **kwargs):

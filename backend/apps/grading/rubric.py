@@ -128,17 +128,22 @@ def is_complete(items) -> bool:
     return bool(items) and all(item.get("points") is not None for item in items)
 
 
-def assert_total_in_scale(total: int, allowed) -> int:
-    """Suma z rubryki musi być wartością ze skali. Bez zaokrąglania – z listą do wyboru w błędzie.
+def assert_total_in_scale(total: int, rule) -> int:
+    """Suma z rubryki musi być dopuszczalną oceną. Bez zaokrąglania – z tym, co wolno, w błędzie.
 
-    Skala przychodzi z zewnątrz (``apps.grading.services.allowed_scores``), bo to tam stoi reguła
-    pierwszeństwa „skala zadania przed skalą etapu”, a ten moduł nie może importować serwisów
-    (importują one jego).
+    Reguła przychodzi z zewnątrz (``apps.competitions.scoring.score_rule``), bo to tam stoi
+    pierwszeństwo „skala zadania przed skalą etapu” i tryb etapu, a ten moduł nie może importować
+    serwisów (importują one jego). W etapie „tylko ze skali” suma musi być wartością skali;
+    w etapie z dowolnymi wartościami – mieścić się w zakresie (od wydania 0.35.0).
     """
-    if total not in allowed:
-        values = ", ".join(str(value) for value in sorted(allowed))
+    if not rule.accepts(total):
+        if rule.free:
+            where = f"wykracza poza {rule.describe()}"
+        else:
+            values = ", ".join(str(value) for value in sorted(rule.values))
+            where = f"nie należy do skali tego zadania: {values}"
         raise _bad_request(
-            f"Suma punktów z rubryki ({total}) nie należy do skali tego zadania: {values}. "
+            f"Suma punktów z rubryki ({total}) {where}. "
             "Popraw punkty przy kryteriach – system nie zaokrągla oceny za Ciebie.",
             "RUBRIC_TOTAL_NOT_IN_SCALE",
         )

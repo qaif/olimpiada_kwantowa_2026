@@ -340,7 +340,7 @@
                   <a class="asg-chip__who"
                      href="{% url 'web:coordinator-member' review.reviewer.pk %}">{{ review.reviewer.user|account_email }}</a>
                   <span class="asg-chip__status">{{ review.get_status_display }}{% if review.round != 1 %} · runda {{ review.round }}{% endif %}</span>
-                  <span class="asg-chip__score">{% if review.score is not None %}{{ review.score }} pkt{% else %}— pkt{% endif %}</span>
+                  <span class="asg-chip__score">{% if review.score is not None %}{{ review.score|points }} pkt{% else %}— pkt{% endif %}</span>
                   {% if review.due_at and review.status != cancelled_status %}
                     {% if review.due_at < now and not review.submitted_at %}
                       <span class="badge badge--danger">po terminie {{ review.due_at|local_datetime }}</span>
@@ -349,9 +349,10 @@
                     {% endif %}
                   {% endif %}
                   <span class="asg-chip__actions">
-                    {% if row.scale_values %}
+                    {% if row.score_widget %}
                       {# Punkty ze skali **zadania** (a w jej braku – etapu), nie wolne pole:
-                         ocena spoza skali i tak nie przejdzie przez serwis. #}
+                         ocena spoza skali i tak nie przejdzie przez serwis. W etapie z dowolnymi
+                         wartościami (0.35.0) – pole liczbowe z zakresem zadania, co 0,01. #}
                       <details class="asg-edit">
                         <summary class="asg-edit__summary">Zmień punkty</summary>
                         <form method="post" action="{% url 'web:coordinator-review-score' review.pk %}"
@@ -359,11 +360,7 @@
                           {% csrf_token %}
                           <input type="hidden" name="filters" value="{{ return_query }}">
                           <label class="visually-hidden" for="score-{{ review.pk }}">Punkty</label>
-                          <select id="score-{{ review.pk }}" name="score">
-                            {% for value in row.scale_values %}
-                              <option value="{{ value }}"{% if review.score == value %} selected{% endif %}>{{ value }}</option>
-                            {% endfor %}
-                          </select>
+                          {% include "web/coordinator/_score_input.html" with widget=row.score_widget id_prefix="score-" id_pk=review.pk current=review.score %}
                           <label class="visually-hidden" for="score-why-{{ review.pk }}">Notatka</label>
                           <input id="score-why-{{ review.pk }}" type="text" name="rationale"
                                  placeholder="Notatka (opcjonalnie)">
@@ -391,7 +388,7 @@
             </td>
             <td class="asg-final">
               {% if row.final_grade %}
-                <p class="asg-final__score"><strong>{{ row.final_grade.score }} pkt</strong><br>
+                <p class="asg-final__score"><strong>{{ row.final_grade.score|points }} pkt</strong><br>
                   <span class="hint">{{ row.final_grade.get_method_display }}</span></p>
               {% else %}
                 <p class="hint">brak oceny końcowej</p>
@@ -403,7 +400,7 @@
                   której nikt już nie przeczyta.
                 {% endcomment %}
                 <p class="hint">Najpierw „Zablokuj do oceny”.</p>
-              {% elif row.scale_values %}
+              {% elif row.score_widget %}
                 <details class="asg-edit">
                   <summary class="asg-edit__summary">Ocena końcowa</summary>
                   {% comment %}
@@ -417,12 +414,8 @@
                     {% if not row.reviews %}
                       <span class="hint">Praca bez recenzji – wpisana ocena będzie oceną końcową.</span>
                     {% endif %}
-                    <label for="final-score-{{ submission.pk }}">Punkty</label>
-                    <select id="final-score-{{ submission.pk }}" name="score">
-                      {% for value in row.scale_values %}
-                        <option value="{{ value }}"{% if row.final_grade.score == value %} selected{% endif %}>{{ value }}</option>
-                      {% endfor %}
-                    </select>
+                    <label for="final-score-{{ submission.pk }}">Punkty{% if row.score_widget.free %} (od {{ row.score_widget.minimum|points }} do {{ row.score_widget.maximum|points }}, co 0,01){% endif %}</label>
+                    {% include "web/coordinator/_score_input.html" with widget=row.score_widget id_prefix="final-score-" id_pk=submission.pk current=row.final_grade.score %}
                     <label for="final-why-{{ submission.pk }}">Uzasadnienie (wymagane)</label>
                     <textarea id="final-why-{{ submission.pk }}" name="rationale" rows="2" required></textarea>
                     <button type="submit" class="btn btn--primary btn--small">Zapisz korektę</button>

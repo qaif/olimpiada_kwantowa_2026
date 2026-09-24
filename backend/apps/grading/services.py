@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 from collections import Counter
+from decimal import Decimal
 
 from django.db import connection, models, transaction
 from django.utils import timezone
@@ -33,8 +34,10 @@ from apps.accounts.models import (
 )
 from apps.accounts.services import active_reviewer_profile
 from apps.competitions.models import Problem, Stage, StageKind
+from apps.competitions.scoring import safe_score_rule, score_rule
 from apps.core.api import DomainError
 from apps.core.models import audit
+from apps.core.points import PointsError, parse_points
 from apps.submissions.models import Submission, SubmissionFile, SubmissionStatus
 
 from .deadlines import review_due_at
@@ -365,7 +368,13 @@ def _clean_comment(value: str | None) -> str:
 
 
 def allowed_scores(stage: Stage, problem: Problem | None = None) -> set[int]:
-    """Dopuszczalne oceny: skala **zadania**, jeśli je ma, w przeciwnym razie skala etapu.
+    """Wartości obowiązującej skali: skala **zadania**, jeśli je ma, w przeciwnym razie skala etapu.
+
+    Od wydania 0.35.0 to jest zbiór **wartości skali**, a nie pełna odpowiedź „co wolno wpisać”:
+    w etapie z dowolnymi wartościami dopuszczalna jest każda liczba z zakresu, a zadanie z samym
+    maksimum nie ma wartości wcale (pusty zbiór). Pełną regułę – tryb, granice, przesunięcie – niesie
+    ``apps.competitions.scoring.score_rule`` i to ona sprawdza każdą zapisywaną ocenę
+    (``_assert_score_in_scale``). Ta funkcja zostaje dla ekranów i raportów, które pokazują skalę.
 
     Pierwszeństwo zadania jest całą regułą „skala punktacji zadań” (prośba organizatora): etap
     niesie skalę domyślną, a pojedyncze zadanie wolno punktować inaczej – np. zadanie otwarte
@@ -385,17 +394,7 @@ def allowed_scores(stage: Stage, problem: Problem | None = None) -> set[int]:
     dosłownie. Przy ``offset = 0`` – czyli w każdym konkursie bez punktów ujemnych, w tym
     w Konkursie #1 – oba zbiory są tym samym zbiorem, co przed etapem 2, co do wartości.
     """
-    if problem is not None:
-        values = problem.allowed_values()
-        if values:
-            return values
-    scale = getattr(stage, "scoring_scale", None)
-    if scale is None:
-        raise _conflict("Etap nie ma skali punktacji.", "SCORING_SCALE_MISSING")
-    values = scale.stored_allowed_values()
-    if not values:
-        raise _conflict("Skala punktacji etapu jest pusta.", "SCORING_SCALE_MISSING")
-    return values
+    return set(score_rule(stage, problem).values)
 
 
 def scale_items(stage: Stage, problem: Problem | None = None) -> list[dict]:
@@ -407,25 +406,22 @@ def scale_items(stage: Stage, problem: Problem | None = None) -> list[dict]:
 
     Brak skali to pusta lista, a nie wyjątek: ekran ma stanąć także dla etapu, którego skalę ktoś
     skasował – znika z niego wtedy sam formularz oceny, a nie cała strona.
+
+    W etapie z dowolnymi wartościami te same pozycje są **podpowiedzią** przy polu liczbowym, a nie
+    listą wyboru; zadanie z samym maksimum pozycji nie ma (pusta lista) – podpowiedź ze skali etapu
+    opisywałaby inny zakres niż ten, w którym się je ocenia.
     """
-    raw = (problem.scoring_values if problem is not None else None) or None
-    if raw is None:
-        scale = getattr(stage, "scoring_scale", None)
-        raw = scale.values if scale is not None else []
-    return [
-        {"value": item["value"], "label": item.get("label", "")}
-        for item in raw or []
-        if isinstance(item, dict)
-        and isinstance(item.get("value"), int)
-        and not isinstance(item.get("value"), bool)
-    ]
+    rule = safe_score_rule(stage, problem)
+    return [dict(item) for item in rule.items] if rule is not None else []
 
 
-def _assert_score_in_scale(stage: Stage, score, problem: Problem | None = None) -> int:
-    values = allowed_scores(stage, problem)
-    if not isinstance(score, int) or isinstance(score, bool) or score not in values:
-        raise _bad_request(f"Ocena {score} nie należy do skali {sorted(values)}.", "SCORE_NOT_IN_SCALE")
-    return score
+def _assert_score_in_scale(stage: Stage, score, problem: Problem | None = None) -> Decimal:
+    """Ocena po walidacji (``Decimal``, postać przechowywana) albo ``DomainError``.
+
+    Jedyne wejście wszystkich dróg zapisu oceny w tym module. Regułę – skala albo zakres, dwa
+    miejsca po przecinku, przecinek w tekście – składa ``apps.competitions.scoring.ScoreRule``.
+    """
+    return score_rule(stage, problem).clean(score)
 
 
 def _locked_submission(submission_id: int) -> Submission:
@@ -1037,7 +1033,13 @@ def save_draft(
         if is_complete(items):
             score = total
     if score is not None:
-        review.score = score
+        # Szkic nie sprawdza skali ani zakresu (to decyzja przy wystawieniu), ale **liczbą** musi
+        # być: kolumna jest dziesiętna o dwóch miejscach, a „4,255” zapisane bez sprawdzenia
+        # zaokrągliłaby baza – po cichu i inaczej, niż zrobiłby to recenzent.
+        try:
+            review.score = parse_points(score)
+        except PointsError as exc:
+            raise _bad_request(str(exc), exc.code) from exc
         fields.append("score")
     if comment_internal is not None:
         review.comment_internal = _clean_comment(comment_internal)
@@ -1205,7 +1207,7 @@ def _score_from_rubric(submission: Submission, score, rubric) -> tuple[int, list
     items, total = validate_rubric(submission.problem, rubric)
     if not items:
         return score, None
-    assert_total_in_scale(total, allowed_scores(submission.entry.stage, submission.problem))
+    assert_total_in_scale(total, score_rule(submission.entry.stage, submission.problem))
     return total, items
 
 

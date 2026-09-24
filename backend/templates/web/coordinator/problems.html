@@ -22,6 +22,7 @@
           <th scope="col">Treść PDF</th>
           <th scope="col">Formaty</th>
           <th scope="col">Limit</th>
+          <th scope="col">Maks. punktów</th>
           <th scope="col">Rozwiązania</th>
           <th scope="col"><span class="visually-hidden">Operacje</span></th>
         </tr>
@@ -43,6 +44,7 @@
             </td>
             <td>{% for item in row.problem.allowed_formats %}<span class="tag">.{{ item }}</span> {% endfor %}</td>
             <td class="num">{{ row.problem.max_file_mb }} MB</td>
+            <td class="num">{% if row.maximum is not None %}{{ row.maximum|points }}{% if row.problem.has_own_scale or row.problem.has_own_max %} <span class="hint">(własne)</span>{% endif %}{% else %}—{% endif %}</td>
             <td class="num">{{ row.submissions }}</td>
             <td>
               <div class="actions">
@@ -58,11 +60,16 @@
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="7" class="empty">Ten etap nie ma jeszcze zadań.</td></tr>
+          <tr><td colspan="8" class="empty">Ten etap nie ma jeszcze zadań.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+  {% if max_total is not None %}
+    <p class="hint">Maksymalna suma etapu: <strong>{{ max_total|points }} pkt</strong>
+      {% if free_values %}· etap ocenia dowolnymi wartościami (co 0,01) – zadaniu można nadać
+      samo maksimum punktów w jego formularzu{% endif %}.</p>
+  {% endif %}
 </section>
 
 <section class="section">

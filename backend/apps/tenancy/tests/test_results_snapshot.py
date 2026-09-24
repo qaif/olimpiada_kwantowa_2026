@@ -55,6 +55,7 @@ import pytest
 from django.db import transaction
 
 from apps.competitions.models import Stage
+from apps.core.points import jsonable_points
 from apps.results.models import Anonymization
 from apps.results.serializers import PublicResultsSerializer
 from apps.results.services import (
@@ -262,8 +263,11 @@ def stable(tables: dict) -> dict:
         for name, table in tables.items()
     }
     # Przez JSON, a nie wprost: plik i tak jest JSON-em, więc porównanie ma biec na tym, co w nim
-    # naprawdę stanie (krotki jako listy, ``Decimal`` jako napis), a nie na obiektach Pythona.
-    return json.loads(json.dumps(frozen, ensure_ascii=False, default=str))
+    # naprawdę stanie (krotki jako listy), a nie na obiektach Pythona. Punkty są od wydania 0.35.0
+    # ``Decimal`` (kolumny dziesiętne) i idą przez ``jsonable_points`` – tę samą zamianę, którą
+    # przechodzi snapshot publikacji – a nie przez ``str``: ocena 6 ma w pliku zostać liczbą 6,
+    # a nie stać się napisem „6.00”, bo zmieniłby się zapis, a nie tabela.
+    return json.loads(json.dumps(jsonable_points(frozen), ensure_ascii=False, default=str))
 
 
 # --- świat -----------------------------------------------------------------------------------------

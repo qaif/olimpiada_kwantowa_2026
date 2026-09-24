@@ -26,15 +26,15 @@
       <tbody>
         <tr>
           <td><strong>{% translate "Ty" %}</strong></td>
-          <td class="num total">{% if comparison.own_score is not None %}{{ comparison.own_score }}{% else %}—{% endif %}</td>
+          <td class="num total">{% if comparison.own_score is not None %}{{ comparison.own_score|points }}{% else %}—{% endif %}</td>
           <td class="num">—</td>
           <td>{{ review.comment_for_participant }}</td>
         </tr>
         {% for row in comparison.rows %}
           <tr>
             <td>{{ row.label }}</td>
-            <td class="num total">{{ row.score }}</td>
-            <td class="num">{% if row.difference is not None %}{% if row.difference > 0 %}+{% endif %}{{ row.difference }}{% else %}—{% endif %}</td>
+            <td class="num total">{{ row.score|points }}</td>
+            <td class="num">{% if row.difference is not None %}{% if row.difference > 0 %}+{% endif %}{{ row.difference|points }}{% else %}—{% endif %}</td>
             <td>{{ row.comment_for_participant }}</td>
           </tr>
         {% empty %}

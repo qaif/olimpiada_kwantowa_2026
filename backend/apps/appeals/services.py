@@ -16,6 +16,7 @@ Widoki tylko orkiestrują. Zasady wspólne dla modułu:
 from __future__ import annotations
 
 import logging
+from decimal import Decimal
 
 from django.db import transaction
 from django.db.models import Prefetch
@@ -24,10 +25,10 @@ from rest_framework import status as http
 
 from apps.accounts.models import CommitteeMember, CommitteeStatus
 from apps.competitions.models import Stage
+from apps.competitions.scoring import score_rule
 from apps.core.api import DomainError
 from apps.core.models import audit
 from apps.grading.models import ROUND_BLIND, FinalGrade, GradeMethod, Review
-from apps.grading.services import allowed_scores
 from apps.submissions.models import Submission, SubmissionFile, SubmissionStatus
 from apps.submissions.notifications import notify_appeal_decided
 
@@ -94,7 +95,7 @@ def _locked_submission(submission_id: int) -> Submission:
             "entry__participant",
             "entry__stage",
             "entry__stage__scoring_scale",
-            # ``problem`` niesie własną skalę punktacji, gdy zadanie ją ma – patrz ``allowed_scores``.
+            # ``problem`` niesie własną skalę punktacji, gdy zadanie ją ma – patrz ``score_rule``.
             "problem",
         )
         .get(pk=submission_id)
@@ -188,13 +189,14 @@ def file_appeal(user, submission: Submission, argument: str, *, request=None) ->
 
 
 def _validate_decision(
-    stage: Stage, decision_status: str, new_score, current_score: int | None, problem=None
-) -> int | None:
+    stage: Stage, decision_status: str, new_score, current_score, problem=None
+) -> Decimal | None:
     """Sprawdza spójność rozstrzygnięcia z punktacją. Zwraca ``new_score`` po walidacji.
 
-    Skala bierze się z zadania, a dopiero w jego braku z etapu (``grading.services.allowed_scores``):
-    komisja odwoławcza wpisuje punkty do tej samej ``FinalGrade``, co recenzent, więc nie może mieć
-    szerszego zakresu niż on.
+    Reguła bierze się z zadania, a dopiero w jego braku z etapu
+    (``apps.competitions.scoring.score_rule``): komisja odwoławcza wpisuje punkty do tej samej
+    ``FinalGrade``, co recenzent, więc nie może mieć ani szerszego zakresu, ani innego trybu niż
+    on – w etapie z dowolnymi wartościami może więc przyznać 4,25, a w etapie „tylko ze skali” nie.
     """
     if decision_status not in DECIDABLE_STATUSES:
         raise _bad_request(
@@ -206,9 +208,7 @@ def _validate_decision(
         return None
     if new_score is None:
         raise _bad_request("Uwzględnienie reklamacji wymaga podania nowej punktacji.", "NEW_SCORE_REQUIRED")
-    values = allowed_scores(stage, problem)
-    if not isinstance(new_score, int) or isinstance(new_score, bool) or new_score not in values:
-        raise _bad_request(f"Ocena {new_score} nie należy do skali {sorted(values)}.", "SCORE_NOT_IN_SCALE")
+    new_score = score_rule(stage, problem).clean(new_score)
     if new_score == current_score:
         raise _bad_request(
             "Nowa punktacja jest taka sama jak dotychczasowa – to nie jest zmiana oceny.",

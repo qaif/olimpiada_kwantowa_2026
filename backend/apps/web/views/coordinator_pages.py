@@ -24,6 +24,7 @@ from apps.accounts.activation import ACTIVATION_HOURS
 from apps.accounts.anonymised import anonymised_q
 from apps.accounts.models import CommitteeMember, CommitteeStatus
 from apps.competitions.models import Stage
+from apps.competitions.scoring import stage_maximum_total
 from apps.grading.comparison import notes_by_submission
 from apps.grading.services import moderation_queue
 from apps.results.models import ResultsPublication
@@ -201,7 +202,17 @@ def stage_results_context(stage: Stage, rows: list[dict] | None = None) -> dict:
         # dostępu przez relację, bo etap bez publikacji ma rzucić ``None``, a nie wyjątek.
         "publication": ResultsPublication.objects.filter(stage=stage).first(),
         "publish_form": PublishResultsForm(),
-        "preview": {"stage": stage, "rows": rows} if rows is not None else None,
+        "preview": (
+            {
+                "stage": stage,
+                "rows": rows,
+                # „Razem (max 40)” – suma maksimów zadań tą samą arytmetyką, co suma uczestnika
+                # (``competitions.scoring.stage_maximum_total``, wydanie 0.35.0).
+                "max_total": stage_maximum_total(stage, stage.problems.all()),
+            }
+            if rows is not None
+            else None
+        ),
     }
 
 

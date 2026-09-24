@@ -63,6 +63,7 @@ from apps.competitions.models import (
     Problem,
     Stage,
 )
+from apps.competitions.scoring import stage_free_values
 from apps.competitions.services import EDITION_EDITABLE_FIELDS, STAGE_EDITABLE_FIELDS
 from apps.competitions.video import DEFAULT_VIDEO_BASE_URL, VideoProvider
 from apps.core.api import DomainError
@@ -71,6 +72,7 @@ from apps.grading.snippets import format_snippet_lines, parse_snippet_lines, pro
 from apps.results.models import Anonymization
 from apps.submissions.validators import MEGABYTE, validate_pdf
 from apps.web.captcha import CaptchaFormMixin
+from apps.web.points_fields import MAX_POINTS_INPUT, PointsField
 
 # Pusta pozycja na początku listy: przeglądarka inaczej wybrałaby pierwsze województwo za
 # rejestrującego się i cichaczem przypisała mu okręg, którego nigdy świadomie nie wskazał.
@@ -1116,10 +1118,22 @@ class AnnotationsField(forms.CharField):
         return parsed
 
 
-class ReviewDraftForm(forms.Form):
-    """Szkic recenzji: wszystko opcjonalne (ocena może być jeszcze niepełna)."""
+#: Pola ocen w formularzach panelu przyjmują ocenę **w postaci do pokazania** – taką, jaką
+#: recenzent widzi na skali, czyli z minusem, gdy skala go ma. Dolna granica jest więc symetryczna,
+#: a nie zero: zero jako minimum techniczne odrzucałoby poprawną ocenę „-1,5” jeszcze przed
+#: serwisem. Na postać przechowywaną przelicza widok (``ScoreRule.to_stored``), a zakres
+#: i tryb sprawdza serwis.
+SCORE_INPUT_BOUNDS = {"min_value": -MAX_POINTS_INPUT, "max_value": MAX_POINTS_INPUT}
 
-    score = forms.IntegerField(label="Punkty", required=False, min_value=0, max_value=1000)
+
+class ReviewDraftForm(forms.Form):
+    """Szkic recenzji: wszystko opcjonalne (ocena może być jeszcze niepełna).
+
+    ``score`` jest od wydania 0.35.0 liczbą dziesiętną (``PointsField``): przyjmuje „4,25” i „4.25”,
+    a w etapie „tylko ze skali” – wartość zaznaczoną na liście, jak dotąd.
+    """
+
+    score = PointsField(label="Punkty", required=False, **SCORE_INPUT_BOUNDS)
     comment_internal = forms.CharField(label="Komentarz wewnętrzny", required=False, widget=forms.Textarea)
     comment_for_participant = forms.CharField(
         label="Komentarz dla uczestnika", required=False, widget=forms.Textarea
@@ -1130,7 +1144,7 @@ class ReviewDraftForm(forms.Form):
 class ReviewSubmitForm(ReviewDraftForm):
     """Wystawienie oceny: ``score`` obowiązkowy, zgodność ze skalą sprawdza serwis."""
 
-    score = forms.IntegerField(label="Punkty", required=True, min_value=0, max_value=1000)
+    score = PointsField(label="Punkty", required=True, **SCORE_INPUT_BOUNDS)
 
 
 class AppealForm(forms.Form):
@@ -1155,7 +1169,7 @@ class AppealDecideForm(forms.Form):
             (AppealStatus.PARTIALLY_ACCEPTED, "częściowo uwzględniona"),
         ],
     )
-    new_score = forms.IntegerField(label="Nowa punktacja", required=False, min_value=0, max_value=1000)
+    new_score = PointsField(label="Nowa punktacja", required=False, **SCORE_INPUT_BOUNDS)
     justification = forms.CharField(
         label="Uzasadnienie", widget=forms.Textarea(attrs={"rows": 4}), max_length=MAX_TEXT_LENGTH
     )
@@ -1164,7 +1178,7 @@ class AppealDecideForm(forms.Form):
 class ResolveModerationForm(forms.Form):
     """Rozstrzygnięcie rozjazdu ocen przez koordynatora."""
 
-    score = forms.IntegerField(label="Punkty", min_value=0, max_value=1000)
+    score = PointsField(label="Punkty", **SCORE_INPUT_BOUNDS)
     rationale = forms.CharField(label="Uzasadnienie", required=False, widget=forms.Textarea)
 
 
@@ -1177,14 +1191,14 @@ class AssignThirdReviewerForm(forms.Form):
 class SetReviewScoreForm(forms.Form):
     """Korekta punktów pojedynczej recenzji. Zgodność ze skalą etapu rozstrzyga serwis."""
 
-    score = forms.IntegerField(label="Punkty", min_value=0, max_value=1000)
+    score = PointsField(label="Punkty", **SCORE_INPUT_BOUNDS)
     rationale = forms.CharField(label="Notatka", required=False, widget=forms.Textarea)
 
 
 class OverrideFinalGradeForm(forms.Form):
     """Korekta oceny końcowej. Uzasadnienie jest obowiązkowe – minimalną długość pilnuje serwis."""
 
-    score = forms.IntegerField(label="Punkty", min_value=0, max_value=1000)
+    score = PointsField(label="Punkty", **SCORE_INPUT_BOUNDS)
     rationale = forms.CharField(label="Uzasadnienie", widget=forms.Textarea)
 
 
@@ -1402,6 +1416,14 @@ MAX_SCALE_VALUE = 1000
 #: zrobione telefonem przez uczestnika bez skanera.
 FORMAT_LABELS = {"jpg": "JPEG (zdjęcie rozwiązania)"}
 
+#: Tryby oceniania etapu na ekranie skali (``ScoringScale.free_values``, wydanie 0.35.0).
+SCORING_MODE_SCALE = "scale"
+SCORING_MODE_FREE = "free"
+SCORING_MODE_CHOICES = [
+    (SCORING_MODE_SCALE, "tylko wartości ze skali"),
+    (SCORING_MODE_FREE, "dowolna wartość od min do max (co 0,01)"),
+]
+
 #: Podpowiedź pod polem skali. Jedna dla etapu i dla zadania – to ten sam zapis.
 SCALE_HELP_TEXT = (
     "Po jednej pozycji w wierszu, w postaci „wartość;opis”, wartości rosnąco i koniecznie z zerem, "
@@ -1475,9 +1497,34 @@ class ScoringScaleForm(forms.Form):
         max_value=MAX_SCALE_VALUE,
         help_text="Musi być równe największej wartości skali.",
     )
+    # Tryb oceniania etapu (wydanie 0.35.0). Radio, a nie checkbox, bo obie odpowiedzi mają być
+    # nazwane wprost – „odznaczone pole” nie mówi koordynatorowi, co się stanie z oceną 4,25.
+    # Pole nieobowiązkowe: żądanie bez niego (stary klient, skrypt) znaczy „nie zmieniaj trybu”,
+    # a nie „wróć do skali” – powrót do skali bywa odmawiany i nie może zdarzyć się przypadkiem.
+    mode = forms.ChoiceField(
+        label="Jakie oceny wolno wystawić",
+        choices=SCORING_MODE_CHOICES,
+        widget=forms.RadioSelect,
+        required=False,
+        help_text=(
+            "„Dowolna wartość” pozwala recenzentom wpisać np. 4,25 – każdą liczbę od najniższej do "
+            "najwyższej wartości skali (albo do maksimum zadania), z dokładnością do 0,01. Wartości "
+            "skali i ich opisy zostają wtedy przy polu oceny jako podpowiedź. Powrót do „tylko "
+            "wartości ze skali” jest możliwy dopiero, gdy żadna wystawiona ocena nie leży poza skalą."
+        ),
+    )
 
     def clean_values(self):
         return parse_scale_lines(self.cleaned_data["values"])
+
+    def free_values(self) -> bool | None:
+        """Wybrany tryb jako ``free_values`` serwisu: ``True``/``False`` albo ``None`` = „bez zmiany”."""
+        mode = self.cleaned_data.get("mode")
+        if mode == SCORING_MODE_FREE:
+            return True
+        if mode == SCORING_MODE_SCALE:
+            return False
+        return None
 
 
 class LocalDateTimeField(forms.DateTimeField):
@@ -1843,12 +1890,16 @@ class ProblemForm(forms.ModelForm):
         widget=forms.Textarea(attrs={"rows": 6}),
         help_text=f"Puste = zadanie punktuje skala etapu. {SCALE_HELP_TEXT}",
     )
-    max_points = forms.IntegerField(
+    max_points = PointsField(
         label="Maksimum punktów tego zadania",
         required=False,
         min_value=0,
         max_value=MAX_SCALE_VALUE,
-        help_text="Wypełnij razem ze skalą zadania; musi być równe jej największej wartości.",
+        help_text=(
+            "Wypełnij razem ze skalą zadania; musi być równe jej największej wartości. W etapie "
+            "z dowolnymi wartościami ocen wolno podać samo maksimum (np. 7 albo 12,5) bez skali – "
+            "zadanie ocenia się wtedy dowolną liczbą od 0 do tego maksimum."
+        ),
     )
     # Materiały dla oceniających. Wzorcówka jest plikiem (jak treść zadania), rubryka – tekstem
     # (jak skala), bo kryteria poprawia się w trakcie oceniania i zmiana ma działać od razu.
@@ -2035,14 +2086,31 @@ class ProblemForm(forms.ModelForm):
         return parse_scale_lines(text) if text else None
 
     def clean(self):
-        """Skala zadania i jego maksimum są jedną deklaracją – wypełnia się je razem albo wcale."""
+        """Skala zadania i jego maksimum są jedną deklaracją – wypełnia się je razem albo wcale.
+
+        Wyjątek (wydanie 0.35.0, „zadania mogą mieć różną ilość punktów”): w etapie z dowolnymi
+        wartościami ocen wolno podać **samo** maksimum. Pytamy o tryb etapu tutaj, żeby komunikat
+        stanął pod polem; ostatnie słowo i tak ma ``Problem.clean`` wołane przez serwis.
+        """
         cleaned = super().clean()
         values = cleaned.get("scoring_values")
         max_points = cleaned.get("max_points")
         if values and max_points is None:
             self.add_error("max_points", "Podaj maksimum punktów dla skali tego zadania.")
         if not values and max_points is not None:
-            self.add_error("scoring_values", "Podaj skalę zadania albo wyczyść maksimum punktów.")
+            if not stage_free_values(self.stage):
+                self.add_error(
+                    "scoring_values",
+                    "Podaj skalę zadania albo wyczyść maksimum punktów. Samo maksimum wolno podać "
+                    "tylko w etapie z dowolnymi wartościami ocen.",
+                )
+            elif max_points <= 0:
+                self.add_error("max_points", "Maksimum punktów zadania musi być dodatnie.")
+        if values and max_points is not None and max_points != max_points.to_integral_value():
+            self.add_error(
+                "max_points",
+                "Maksimum skali zadania musi być liczbą całkowitą – równą największej wartości skali.",
+            )
         return cleaned
 
     def uploaded_statement(self):

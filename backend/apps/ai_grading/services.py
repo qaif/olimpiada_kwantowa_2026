@@ -264,10 +264,6 @@ def _record_usage(assessment_id: int, competition, result: CallResult, requested
 # --- materiały ----------------------------------------------------------------------------------
 
 
-def _stage_scale(problem):
-    return getattr(problem.stage, "scoring_scale", None)
-
-
 def scale_values(problem) -> list[int]:
     """Wartości skali w postaci **do pokazania** (z minusem, gdy skala go ma) – jak u recenzenta."""
     from apps.grading.services import scale_items
@@ -275,15 +271,22 @@ def scale_values(problem) -> list[int]:
     return sorted(item["value"] for item in scale_items(problem.stage, problem))
 
 
-def max_points_for(problem) -> int | None:
-    """Maksimum zadania: najwyższa wartość obowiązującej skali (zadania albo etapu)."""
-    values = scale_values(problem)
-    if values:
-        return max(values)
-    if problem.max_points:
-        return int(problem.max_points)
-    scale = _stage_scale(problem)
-    return int(scale.max_value) if scale is not None and scale.max_value else None
+def max_points_for(problem) -> Decimal | None:
+    """Maksimum zadania w postaci do pokazania – z reguły oceny (``competitions.scoring``).
+
+    Ta sama liczba, którą recenzent widzi przy polu punktów: najwyższa wartość skali zadania albo
+    etapu, a w etapie z dowolnymi wartościami także samo maksimum zadania (12,5). Wcześniej
+    funkcja składała ją sama z pól skali – i zadanie z samym maksimum dostałoby maksimum etapu.
+    """
+    from apps.competitions.scoring import problem_maximum
+
+    return problem_maximum(problem.stage, problem)
+
+
+def _rule(problem):
+    from apps.competitions.scoring import safe_score_rule
+
+    return safe_score_rule(problem.stage, problem)
 
 
 def _read_field(field_file) -> bytes:
@@ -309,6 +312,7 @@ def problem_materials(problem) -> prompt.ProblemMaterials:
     maximum = max_points_for(problem)
     if maximum is None or maximum <= 0:
         raise prompt.MaterialError("no_scale", "Zadanie nie ma skali punktacji – nie ma czego proponować.")
+    rule = _rule(problem)
     return prompt.ProblemMaterials(
         number=problem.number,
         title=problem.title,
@@ -321,6 +325,7 @@ def problem_materials(problem) -> prompt.ProblemMaterials:
             {"title": item.title, "description": item.description, "max_points": item.max_points}
             for item in criteria_for(problem)
         ],
+        free_values=bool(rule is not None and rule.free),
     )
 
 
@@ -779,12 +784,14 @@ def _execute(assessment: AiAssessment, competition, *, final_attempt: bool) -> R
 # --- odczyty: koordynator -----------------------------------------------------------------------
 
 
-def _final_display(score: int, problem) -> int:
-    """Ocena końcowa w postaci do pokazania: skala etapu bywa w bazie przesunięta (``offset``)."""
-    if problem.has_own_scale:
-        return score
-    scale = _stage_scale(problem)
-    return score - (scale.offset or 0) if scale is not None else score
+def _final_display(score, problem) -> Decimal:
+    """Ocena końcowa w postaci do pokazania: skala etapu bywa w bazie przesunięta (``offset``).
+
+    Przesunięcie zna reguła oceny (``ScoreRule.to_display``) – ta sama, która je nałożyła przy
+    zapisie, więc zadanie z własnym zakresem nie dostanie cudzego offsetu.
+    """
+    rule = _rule(problem)
+    return rule.to_display(score) if rule is not None else score
 
 
 def problem_overview(problem) -> dict:
@@ -857,9 +864,7 @@ def reviewer_context(review, competition, *, editable: bool) -> dict | None:
     from apps.grading.rubric import criteria_for
 
     has_rubric = bool(list(criteria_for(review.submission.problem)))
-    suggested = prompt.nearest_scale_value(
-        assessment.proposed_points, scale_values(review.submission.problem)
-    )
+    suggested = suggested_points(assessment.proposed_points, review.submission.problem)
     return {
         "assessment": assessment,
         # Przycisk tylko wypełnia formularz – i tylko tam, gdzie formularz ma jedno pole punktów.
@@ -867,6 +872,26 @@ def reviewer_context(review, competition, *, editable: bool) -> dict | None:
         # rozwiązanie po swojemu – przeniesienie jej do rubryki byłoby zgadywaniem.
         "prefill_value": suggested if editable and not has_rubric else None,
     }
+
+
+def suggested_points(proposed: Decimal | None, problem):
+    """Punkty do wstawienia przyciskiem „punkty AI jako punkt wyjścia” – albo ``None``.
+
+    W etapie „tylko ze skali” – najbliższa wartość skali (``prompt.nearest_scale_value``), jak
+    dotąd. W etapie z dowolnymi wartościami (wydanie 0.35.0) – sama propozycja, przycięta do
+    zakresu zadania i sprowadzona do 0,01 (połówka w górę, ``apps.core.points.round_points``):
+    formularz przyjmuje wtedy każdą taką liczbę, więc zaokrąglanie do skali odbierałoby
+    recenzentowi informację, którą AI już podało.
+    """
+    if proposed is None:
+        return None
+    rule = _rule(problem)
+    if rule is not None and rule.free:
+        from apps.core.points import round_points
+
+        value = round_points(proposed)
+        return min(max(value, rule.display_minimum), rule.display_maximum)
+    return prompt.nearest_scale_value(proposed, scale_values(problem))
 
 
 def participant_ai_feedback(participant, stage) -> list[dict]:

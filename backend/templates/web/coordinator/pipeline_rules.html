@@ -1,4 +1,5 @@
 {% extends "web/coordinator/base.html" %}
+{% load web_extras %}
 {% load static %}
 {% comment %}
   Reguły przejścia jednego kroku przebiegu.
@@ -51,7 +52,7 @@
             </th>
             <td>{{ rule.get_group_by_display|default:"—" }}</td>
             <td>{% if rule.category %}{{ rule.category.name }}{% else %}wszystkie{% endif %}</td>
-            <td class="num">{{ rule.min_points|default_if_none:"—" }}</td>
+            <td class="num">{% if rule.min_points is not None %}{{ rule.min_points|points }}{% else %}—{% endif %}</td>
             <td class="num">{{ rule.top_n|default_if_none:"—" }}</td>
             <td class="num">{{ rule.percentile|default_if_none:"—" }}</td>
             <td class="num">{{ rule.position }}</td>
@@ -122,7 +123,7 @@
         <span class="kpi__label">Poza progiem</span>
       </li>
       <li class="kpi__item">
-        <span class="kpi__value">{% if preview.cutoff is not None %}{{ preview.cutoff }}{% else %}—{% endif %}</span>
+        <span class="kpi__value">{% if preview.cutoff is not None %}{{ preview.cutoff|points }}{% else %}—{% endif %}</span>
         <span class="kpi__label">Punkt odcięcia</span>
       </li>
       <li class="kpi__item{% if preview.ungraded %} kpi__item--attention{% endif %}">

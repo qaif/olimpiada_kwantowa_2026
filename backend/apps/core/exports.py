@@ -34,9 +34,12 @@ import logging
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
+from decimal import Decimal
 
 from django.http import HttpResponse, StreamingHttpResponse
 from django.utils import timezone
+
+from .points import is_whole, points_csv
 
 logger = logging.getLogger(__name__)
 
@@ -83,12 +86,21 @@ def _stamp(now=None) -> str:
     return timezone.localtime(now or timezone.now()).strftime("%Y%m%d-%H%M")
 
 
-def _cell(value) -> str | int:
+def _cell(value) -> str | int | Decimal:
     """Wartość do komórki: ``None`` jako pusta, data w czasie lokalnym, prawda/fałsz po polsku.
 
     Daty sprowadzamy do czasu lokalnego w jednym miejscu, bo arkusz z godzinami w UTC jest
     pułapką: nikt przy nim nie pamięta o przesunięciu, a różnica jest akurat na tyle mała,
     żeby wyglądać wiarygodnie. Liczby zostają liczbami – w arkuszu mają się sumować.
+
+    Punkty (``Decimal`` z kolumn dziesiętnych, wydanie 0.35.0): całkowite jako ``int`` – arkusz
+    etapu „tylko ze skali” wygląda co do znaku jak przed tym wydaniem („5”, a nie „5.00”) – a
+    ułamkowe jako ``Decimal`` bez zbędnych zer. W XLSX to komórka liczbowa; w CSV ``csv.writer``
+    zapisuje ją **z kropką** („4.25”), niezależnie od języka interfejsu. Kropka jest decyzją:
+    plik CSV czytają też skrypty i system kuratorium, a przecinek dziesiętny w pliku, który sam
+    rozdziela pola znakiem interpunkcyjnym, jest przepisem na przesunięte kolumny. Polski Excel
+    wczytujący CSV z kropką trzeba poprosić o import z separatorem „.” – napisaliśmy to
+    w ``docs/PODRECZNIK-ORGANIZATORA.md``; kto chce liczb gotowych do Excela, bierze XLSX.
     """
     if value is None:
         return ""
@@ -98,6 +110,8 @@ def _cell(value) -> str | int:
         return timezone.localtime(value).strftime("%Y-%m-%d %H:%M")
     if isinstance(value, int):
         return value
+    if isinstance(value, Decimal):
+        return int(value) if is_whole(value) else Decimal(points_csv(value))
     return str(value)
 
 

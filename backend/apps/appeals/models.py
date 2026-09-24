@@ -17,10 +17,12 @@ Zasady:
 
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.accounts.models import CommitteeMember, Participant
 from apps.competitions.scoping import competition_scoped_manager
+from apps.core.points import POINTS_PLACES, SCORE_MAX_DIGITS
 from apps.grading.models import ROUND_BLIND, ROUND_TIEBREAK, Review
 from apps.submissions.models import Submission
 from apps.tenancy.managers import CompetitionScopedQuerySet
@@ -145,8 +147,15 @@ class AppealDecision(models.Model):
         related_name="appeal_decisions",
         verbose_name="rozstrzygnął",
     )
-    # ``null`` = decyzja bez zmiany punktacji (reklamacja odrzucona).
-    new_score = models.PositiveSmallIntegerField("nowa punktacja", null=True, blank=True)
+    # ``null`` = decyzja bez zmiany punktacji (reklamacja odrzucona). Postać przechowywana
+    # i dziesiętna – jak ``FinalGrade.score``, do którego ta liczba trafia (wydanie 0.35.0).
+    new_score = models.DecimalField(
+        "nowa punktacja",
+        max_digits=SCORE_MAX_DIGITS,
+        decimal_places=POINTS_PLACES,
+        null=True,
+        blank=True,
+    )
     justification = models.TextField("uzasadnienie")
     decided_at = models.DateTimeField("rozstrzygnięta", default=timezone.now)
 
@@ -157,6 +166,12 @@ class AppealDecision(models.Model):
         verbose_name = "decyzja o reklamacji"
         verbose_name_plural = "decyzje o reklamacjach"
         ordering = ("-decided_at", "-id")
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(new_score__isnull=True) | Q(new_score__gte=0),
+                name="appeals_appealdecision_new_score_non_negative",
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"decyzja dla reklamacji {self.appeal_id} (nowa ocena: {self.new_score})"

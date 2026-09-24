@@ -145,8 +145,10 @@ Jak to czytać:
   komitet.
 
 Przycisk **„Wstaw punkty AI jako punkt wyjścia”** zaznacza w formularzu najbliższą propozycji
-wartość skali — i nic poza tym: niczego nie zapisuje ani nie wysyła, a zaznaczenie zmienisz jednym
-kliknięciem. Przy zadaniu z rubryką przycisku nie ma (model dzieli rozwiązanie po swojemu, a nie
+wartość skali (w etapie z dowolnymi wartościami ocen – wpisuje do pola samą propozycję, np. 4,5,
+przyciętą do zakresu zadania) — i nic poza tym: niczego nie zapisuje ani nie wysyła, a zaznaczenie
+zmienisz jednym kliknięciem. Przy zadaniu z rubryką przycisku nie ma (model dzieli rozwiązanie po swojemu,
+a nie
 według kryteriów komitetu). Nic w formularzu nie wypełnia się samo.
 
 Anonimowość zostaje: model nie dostaje danych uczestnika, a gdyby przepisał z pracy imię czy nazwę
@@ -157,13 +159,35 @@ szkoły, serwer wymaże je z odpowiedzi, zanim ją zobaczysz.
 ## 4. Skala i rubryka
 
 **Bez rubryki** wybierasz jedną wartość ze **skali etapu** (albo z własnej skali zadania) — każda ma
-opis, np. `2 — istotny postęp, rozwiązanie niepełne`.
+opis, np. `2 — istotny postęp, rozwiązanie niepełne`. Nad listą stoi **maksimum za to zadanie**
+(zadania mogą mieć różną liczbę punktów).
+
+### Etap z dowolnymi wartościami ocen
+
+Organizator może przełączyć etap w tryb **„dowolna wartość od min do max (co 0,01)”**. Zamiast listy
+wartości widzisz wtedy **pole liczbowe** z opisem zakresu, np. „Ocena: dowolna liczba od 0 do 6, co 0,01
+(np. 4,25)”, a w nagłówku maksimum zadania – „Punkty (max 6)” albo np. „Punkty (max 12,5)”, gdy zadanie
+ma własne maksimum.
+
+- **Wpisuj z przecinkiem albo z kropką** – „4,25” i „4.25” to ta sama ocena. Strzałki pola zmieniają
+  ją co 0,01.
+- **Najwyżej dwa miejsca po przecinku.** „4,255” system odrzuci z komunikatem, zamiast zaokrąglić – to
+  byłaby zmiana Twojej decyzji. Ocena całkowita („5”) jest oczywiście w porządku.
+- **Poza zakresem** (np. 6,5 przy maksimum 6 albo liczba ujemna przy skali od 0) – odmowa z podaniem
+  zakresu.
+- **Wartości skali z opisami stoją pod polem jako podpowiedź** („5 – rozwiązanie pełne z drobnymi
+  usterkami”): pomagają dobrać liczbę do poziomu rozwiązania, ale nie ograniczają wyboru. Przy zadaniu
+  z samym maksimum podpowiedzi nie ma.
+- Zgodność dwóch recenzji liczy się tak samo jak dotąd: **równe** oceny (4,25 i 4,25) dają ocenę
+  uzgodnioną, różne – nawet o 0,01 – kierują pracę do moderacji.
 
 **Z rubryką** dostajesz po jednym polu punktów i komentarzu **na kryterium**, a sumę liczy serwer i to
 ona jest oceną. Panel pokazuje podgląd sumy i mówi, czy mieści się w skali.
 
 > **Suma musi należeć do skali.** Cztery punkty przy skali 0/2/5/6 kończą się odmową z listą
 > dopuszczalnych wartości. **System nie zaokrągla** — to byłaby zmiana Twojej decyzji, a nie pomoc.
+> W etapie z dowolnymi wartościami suma musi jedynie **mieścić się w zakresie** zadania (punkty za
+> kryteria są liczbami całkowitymi).
 
 Szkic przyjmuje rubrykę niekompletną; **wystawienie oceny** — nie.
 

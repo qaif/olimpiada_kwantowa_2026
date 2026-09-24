@@ -59,6 +59,10 @@ class ScoringScaleInline(admin.StackedInline):
     model = ScoringScale
     extra = 0
     can_delete = False
+    # Tryb oceniania przełącza się wyłącznie ekranem skali koordynatora (``set_scoring_scale``):
+    # tylko tam stoi odmowa powrotu do trybu skali przy ocenach spoza skali. Pole edytowalne
+    # w ``/admin/`` byłoby drogą na skróty do etapu z ocenami 4,25 w trybie „tylko ze skali”.
+    readonly_fields = ("free_values",)
 
 
 class QualificationRuleInline(admin.StackedInline):

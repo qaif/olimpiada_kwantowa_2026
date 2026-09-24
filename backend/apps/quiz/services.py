@@ -685,9 +685,11 @@ def stage_scores(stage: Stage) -> dict[int, int]:
     - podejścia **przeterminowane liczą się normalnie** (patrz ``AttemptStatus``); pomijamy
       wyłącznie te wciąż trwające, bo nie są jeszcze ocenione,
     - wynik jest **zaokrąglany do pełnych punktów** (w górę przy połówce). Nie dlatego, że tak
-      jest ładniej: ``StageEntry.total_points`` jest polem całkowitym wspólnym dla wszystkich form
-      etapu, a tabela wyników i progi kwalifikacji operują na punktach całkowitych od pierwszej
-      edycji. Wynik dokładny, z częściami setnymi, zostaje na ekranie wyników testu.
+      jest ładniej: tabela wyników i progi kwalifikacji testu operują na punktach całkowitych od
+      pierwszej edycji. ``StageEntry.total_points`` jest od wydania 0.35.0 dziesiętne (dowolne
+      wartości ocen **recenzentów**), ale tamta prośba nie dotyczyła testów – zmiana tej reguły
+      byłaby zmianą zasad testu, a nie skutkiem ubocznym innej funkcji. Wynik dokładny, z częściami
+      setnymi, zostaje na ekranie wyników testu.
     """
     quiz = quiz_for_stage(stage)
     if quiz is None:

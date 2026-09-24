@@ -33,6 +33,7 @@ from apps.competitions.models import (
     Stage,
     default_scoring_values,
 )
+from apps.competitions.scoring import problem_maximum, stage_free_values, stage_maximum_total
 from apps.competitions.services import (
     create_problem,
     create_stage,
@@ -52,6 +53,8 @@ from apps.grading.rubric import set_criteria
 from apps.grading.snippets import set_problem_snippets
 from apps.web.coordinator_forms import ProblemWeightForm
 from apps.web.forms import (
+    SCORING_MODE_FREE,
+    SCORING_MODE_SCALE,
     InterviewSlotsForm,
     ProblemForm,
     RegistrationSettingsForm,
@@ -155,10 +158,15 @@ def render_scale_page(
         # Podgląd pokazuje skalę **po zapisie**, a nie tę z bazy: koordynator ma zobaczyć skutek
         # tego, co wpisał, zanim kliknie „Zapisz” drugi raz po odmowie.
         "preview": _scale_preview(stage, form),
-        # Zadania z własną skalą – bo dla nich zmiana na tym ekranie niczego nie znaczy.
+        # Zadania z własną skalą – bo dla nich zmiana na tym ekranie niczego nie znaczy. Od wydania
+        # 0.35.0 także zadania z samym maksimum (tryb dowolny): ich zakres to 0–maksimum zadania,
+        # a nie zakres etapu. ``maximum`` z reguły oceny, żeby lista mówiła to samo, co recenzent.
         "overrides": [
-            problem for problem in stage.problems.order_by("number", "id") if problem.has_own_scale
+            {"problem": problem, "maximum": problem_maximum(stage, problem), "max_only": problem.has_own_max}
+            for problem in stage.problems.order_by("number", "id")
+            if problem.has_own_scale or problem.has_own_max
         ],
+        "free_values": stage_free_values(stage),
         **weighted_section(stage, weight_forms),
     }
     return TemplateResponse(request, SCALE_TEMPLATE, context, status=status)
@@ -189,14 +197,23 @@ def _problem_counts(stage: Stage) -> dict[int, int]:
 def render_problem_list(request, stage: Stage, form: ProblemForm, *, status: int = 200):
     """Strona listy zadań etapu. Wspólna dla dodawania i dla nieudanego usunięcia."""
     counts = _problem_counts(stage)
+    problems = list(stage.problems.order_by("number", "id"))
     context = {
         "stage": stage,
         "form": form,
         "now": timezone.now(),
+        # Maksimum każdego zadania z reguły oceny – zadania mogą mieć różną liczbę punktów
+        # (wydanie 0.35.0), więc lista zadań mówi ją wprost, a suma maksimów stoi pod tabelą.
         "rows": [
-            {"problem": problem, "submissions": counts.get(problem.pk, 0)}
-            for problem in stage.problems.order_by("number", "id")
+            {
+                "problem": problem,
+                "submissions": counts.get(problem.pk, 0),
+                "maximum": problem_maximum(stage, problem),
+            }
+            for problem in problems
         ],
+        "max_total": stage_maximum_total(stage, problems),
+        "free_values": stage_free_values(stage),
     }
     return TemplateResponse(request, PROBLEMS_TEMPLATE, context, status=status)
 
@@ -272,6 +289,7 @@ class StageScaleView(CoordinatorRequiredMixin, View):
                 form.cleaned_data["max_value"],
                 actor=request.user,
                 request=request,
+                free_values=form.free_values(),
             )
         except DomainError as exc:
             messages.error(request, str(exc.detail))
@@ -290,8 +308,13 @@ def _scale_initial(stage: Stage) -> dict:
         return {
             "values": format_scale_lines(default_scoring_values()),
             "max_value": DEFAULT_MAX_VALUE,
+            "mode": SCORING_MODE_SCALE,
         }
-    return {"values": format_scale_lines(scale.values), "max_value": scale.max_value}
+    return {
+        "values": format_scale_lines(scale.values),
+        "max_value": scale.max_value,
+        "mode": SCORING_MODE_FREE if scale.free_values else SCORING_MODE_SCALE,
+    }
 
 
 def _scale_preview(stage: Stage, form: ScoringScaleForm) -> list[dict]:

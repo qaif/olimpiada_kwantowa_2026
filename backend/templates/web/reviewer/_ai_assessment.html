@@ -17,7 +17,7 @@
 {% endcomment %}
 <details class="card card--quiet ai-assessment">
   <summary><strong>{% translate "Ocena AI (sugestia, niewiążąca)" %}</strong>
-    – {% blocktranslate trimmed with points=ai.assessment.proposed_points|floatformat:"-2" maximum=ai.assessment.max_points|floatformat:"-2" %}
+    – {% blocktranslate trimmed with points=ai.assessment.proposed_points|points maximum=ai.assessment.max_points|points %}
       {{ points }} z {{ maximum }} pkt
     {% endblocktranslate %}</summary>
   <p class="hint">{% blocktranslate trimmed with model=ai.assessment.model when=ai.assessment.finished_at|local_datetime confidence=ai.assessment.get_confidence_display %}
@@ -27,8 +27,8 @@
   {% include "web/_ai_assessment_body.html" with assessment=ai.assessment %}
   {% if ai.prefill_value is not None %}
     <p><button type="button" class="btn btn--secondary btn--small" hidden
-               data-ai-prefill="{{ ai.prefill_value }}"
-               data-ai-target="review-form">{% blocktranslate trimmed with value=ai.prefill_value %}
+               data-ai-prefill="{{ ai.prefill_value|points_input }}"
+               data-ai-target="review-form">{% blocktranslate trimmed with value=ai.prefill_value|points %}
       Wstaw punkty AI jako punkt wyjścia ({{ value }} pkt)
     {% endblocktranslate %}</button></p>
   {% endif %}

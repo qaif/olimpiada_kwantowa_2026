@@ -27,6 +27,8 @@ import re
 from dataclasses import dataclass, field
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
+from apps.core.points import points_csv
+
 from .models import AiConfidence
 
 #: Twarde limity API na jedno żądanie. Margines pod limitem całkowitym bierze na siebie prompt
@@ -176,8 +178,12 @@ class ProblemMaterials:
     model_solution_pdf: bytes
     reviewer_notes: str
     scale_items: list[dict]
-    max_points: int
+    #: Maksimum zadania – ``Decimal`` od wydania 0.35.0 (zadanie z samym maksimum 12,5).
+    max_points: Decimal
     rubric: list[dict]
+    #: Czy etap ocenia dowolnymi wartościami (``ScoringScale.free_values``). Wtedy pozycje skali są
+    #: dla modelu – tak jak dla recenzenta – orientacyjne, a nie listą zamkniętą.
+    free_values: bool = False
 
 
 def _b64(raw: bytes) -> str:
@@ -219,11 +225,24 @@ def _text_block(text: str) -> Blocks:
 
 def scale_text(materials: ProblemMaterials) -> str:
     """Skala, rubryka i uwagi – tekst **deterministyczny** (ta sama treść dla każdej pracy zadania)."""
+    # ``points_csv``: kropka dziesiętna i bez zbędnych zer – maksimum 6 zapisuje się jak przed
+    # wydaniem 0.35.0 („6”), więc tekst promptu (i jego pamięć podręczna) dla etapów „tylko ze
+    # skali” nie zmienia się ani o znak.
     lines = [
         f"Zadanie {materials.number}: {materials.title}",
-        f"Maksymalna liczba punktów za zadanie: {materials.max_points}.",
+        f"Maksymalna liczba punktów za zadanie: {points_csv(materials.max_points)}.",
     ]
-    if materials.scale_items:
+    if materials.free_values:
+        lines.append(
+            f"Ocena łączna może być dowolną liczbą od 0 do {points_csv(materials.max_points)} "
+            "z dokładnością do 0.01 punktu."
+        )
+    if materials.scale_items and materials.free_values:
+        lines.append("Wartości orientacyjne (opisy poziomów rozwiązania):")
+        for item in materials.scale_items:
+            label = f" – {item['label']}" if item.get("label") else ""
+            lines.append(f"- {item['value']} pkt{label}")
+    elif materials.scale_items:
         lines.append("Dopuszczalne oceny łączne (skala zadania):")
         for item in materials.scale_items:
             label = f" – {item['label']}" if item.get("label") else ""

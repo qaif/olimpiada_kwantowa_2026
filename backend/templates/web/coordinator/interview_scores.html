@@ -1,4 +1,5 @@
 {% extends "web/coordinator/base.html" %}
+{% load web_extras %}
 {% comment %}
   Punkty komisji z rozmów: wybór komponentu i tabela wpisów z terminami.
 
@@ -64,7 +65,7 @@
                 {% endif %}
               </td>
               <td class="num total">
-                {% if row.score %}{{ row.score.points }} / {{ row.score.max_points }}{% else %}—{% endif %}
+                {% if row.score %}{{ row.score.points|points }} / {{ row.score.max_points|points }}{% else %}—{% endif %}
               </td>
               <td>{% if row.score %}{{ row.score.note|default:"—" }}{% else %}—{% endif %}</td>
             </tr>
@@ -88,9 +89,15 @@
         </div>
       </form>
     </div>
+    {% if score_widget.free %}
+    <p class="hint">W tym etapie wolno wpisać dowolną liczbę od {{ score_widget.minimum|points }}
+      do {{ score_widget.maximum|points }}, co 0,01 (np. 7,5) – przecinek albo kropka. To ten sam
+      zakres, według którego ocenia się prace.</p>
+    {% else %}
     <p class="hint">Dopuszczalne wartości w tym etapie:
       {% for value in allowed %}<code>{{ value }}</code>{% if not forloop.last %}, {% endif %}{% endfor %}.
       To ta sama skala, według której ocenia się prace.</p>
+    {% endif %}
   </section>
 {% else %}
   <p class="hint">Ten etap nie ma ani jednego komponentu rozmowy. Komponenty dokłada się na

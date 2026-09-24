@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
+from decimal import Decimal
 
 from django.db import transaction
 from django.db.models import Count, Prefetch, ProtectedError
@@ -39,6 +40,7 @@ from .models import (
     StageEntry,
     StageEntryStatus,
 )
+from .scoring import score_rule
 from .video import PRECHECK_TEXT, meeting_url_for_slot, precheck_url
 
 logger = logging.getLogger(__name__)
@@ -559,26 +561,20 @@ def _assert_scorable(entry: StageEntry, component: StageComponent, stage: Stage)
         raise _conflict("Ten wpis nie należy do etapu tego komponentu.", "ENTRY_NOT_IN_STAGE")
 
 
-def _validated_points(stage: Stage, points) -> tuple[int, int]:
-    """Ocena sprowadzona do skali etapu: para (punkty, maksimum skali).
+def _validated_points(stage: Stage, points) -> tuple[Decimal, int]:
+    """Ocena sprowadzona do reguły etapu: para (punkty, maksimum skali).
 
-    Skala jest **ta sama**, którą zna ocenianie prac (``grading.services.allowed_scores``), i to
-    jest cała reguła: konkurs ma jedną skalę na etap, a rozmowa nie jest od niej wyjątkiem.
-    Import jest lokalny, bo ``apps.grading`` zaciąga ``apps.competitions`` przy starcie – zależność
-    w drugą stronę na poziomie modułu byłaby cyklem.
+    Reguła jest **ta sama**, którą zna ocenianie prac (``apps.competitions.scoring.score_rule``),
+    i to jest cała zasada: konkurs ma jedną skalę na etap, a rozmowa nie jest od niej wyjątkiem –
+    także co do trybu. W etapie z dowolnymi wartościami komisja wpisuje więc 7,5, a w etapie „tylko
+    ze skali” wyłącznie wartość skali (wydanie 0.35.0).
 
-    Zbiór wraca w postaci **przechowywanej** (z przesunięciem skali, § 1.2.6 b), czyli dokładnie
-    w tej, w której punkty leżą w kolumnie ``score`` recenzji – i w tej, w której leżą tutaj.
+    Punkty wracają w postaci **przechowywanej** (z przesunięciem skali, § 1.2.6 b), czyli dokładnie
+    w tej, w której leżą w kolumnie ``score`` recenzji – i w tej, w której leżą tutaj. Maksimum
+    jest całkowite, bo jest największą wartością skali (``InterviewScore.max_points``).
     """
-    from apps.grading.services import allowed_scores
-
-    values = allowed_scores(stage)
-    if not isinstance(points, int) or isinstance(points, bool) or points not in values:
-        raise _bad_request(
-            f"Ocena {points} nie należy do skali {sorted(values)}.",
-            "SCORE_NOT_IN_SCALE",
-        )
-    return points, max(values)
+    rule = score_rule(stage)
+    return rule.clean(points), int(rule.maximum)
 
 
 @transaction.atomic
@@ -630,7 +626,7 @@ def record_interview_score(
     return score
 
 
-def interview_scores_for(stage: Stage) -> dict[int, dict[int, int]]:
+def interview_scores_for(stage: Stage) -> dict[int, dict[int, Decimal]]:
     """Punkty z rozmów całego etapu: ``{id komponentu: {id wpisu: punkty}}``, jedno zapytanie.
 
     Kształt jest podyktowany jedynym czytelnikiem liczącym – ``results.services`` sumuje etap
@@ -638,12 +634,12 @@ def interview_scores_for(stage: Stage) -> dict[int, dict[int, int]]:
     wyniku nie ma tu klucza i to jest różnica, której nie wolno zgubić: „zero punktów” i „komisja
     jeszcze nie wpisała” to dwie różne rzeczy (patrz ``StageComponent.required``).
     """
-    scores: dict[int, dict[int, int]] = {}
+    scores: dict[int, dict[int, Decimal]] = {}
     rows = InterviewScore.objects.filter(component__stage=stage).values_list(
         "component_id", "entry_id", "points"
     )
     for component_id, entry_id, points in rows:
-        scores.setdefault(component_id, {})[entry_id] = int(points)
+        scores.setdefault(component_id, {})[entry_id] = points
     return scores
 
 

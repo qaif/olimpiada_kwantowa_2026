@@ -59,7 +59,7 @@
     <p class="hint">Widok wyłącznie dla koordynatora – zawiera dane osobowe i nie jest publikacją.</p>
     <div class="scroll">
       <table class="table table--rank">
-        <thead><tr><th>Miejsce</th><th>Kod</th><th>Imię i nazwisko</th><th>Szkoła</th><th>Województwo</th><th>Razem</th></tr></thead>
+        <thead><tr><th>Miejsce</th><th>Kod</th><th>Imię i nazwisko</th><th>Szkoła</th><th>Województwo</th><th>Razem{% if preview.max_total is not None %} <span class="hint">(max {{ preview.max_total|points }})</span>{% endif %}</th></tr></thead>
         <tbody>
           {% for row in preview.rows %}
             <tr>
@@ -68,7 +68,7 @@
               <td>{{ row.first_name }} {{ row.last_name }}</td>
               <td>{{ row.school }}</td>
               <td>{{ row.district }}</td>
-              <td class="num total">{{ row.total }}</td>
+              <td class="num total">{{ row.total|points }}</td>
             </tr>
           {% empty %}
             <tr><td colspan="6" class="empty">Do tego etapu nikt się nie zapisał – nie ma czego

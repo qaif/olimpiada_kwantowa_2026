@@ -3877,3 +3877,31 @@ msgstr "Your student status certificate (edition %(edition)s) was not accepted. 
 #: apps/student_status/notifications.py
 msgid "Popraw zaświadczenie i wgraj nowy plik w panelu uczestnika. Brak zaświadczenia nie blokuje oddawania rozwiązań."
 msgstr "Correct the certificate and upload a new file in the participant panel. A missing certificate does not stop you from submitting solutions."
+
+#: templates/web/reviewer/detail.html
+#, python-format
+msgid "Punkty (max %(maximum)s)"
+msgstr "Score (max %(maximum)s)"
+
+#: templates/web/reviewer/detail.html
+#, python-format
+msgid "Ocena: dowolna liczba od %(minimum)s do %(maximum)s, co 0,01 (np. 4,25)"
+msgstr "Score: any number from %(minimum)s to %(maximum)s, in steps of 0.01 (e.g. 4.25)"
+
+#: templates/web/reviewer/detail.html
+msgid "Najwyżej dwa miejsca po przecinku. Możesz wpisać przecinek albo kropkę."
+msgstr "At most two decimal places. You can type a comma or a dot."
+
+#: templates/web/reviewer/detail.html
+msgid "Poziomy rozwiązania ze skali etapu – podpowiedź, nie lista do wyboru:"
+msgstr "Solution levels from the stage scale – a hint, not a list to choose from:"
+
+#: templates/web/reviewer/detail.html
+#, python-format
+msgid "Maksimum za to zadanie: %(maximum)s pkt."
+msgstr "Maximum for this problem: %(maximum)s pts."
+
+#: templates/web/reviewer/_rubric.html
+#, python-format
+msgid "Punkty przyznajesz kryterium po kryterium. Ocenę pracy wylicza system jako sumę – musi ona mieścić się w zakresie od %(minimum)s do %(maximum)s pkt."
+msgstr "You award points criterion by criterion. The system computes the score as their sum – it must lie between %(minimum)s and %(maximum)s pts."

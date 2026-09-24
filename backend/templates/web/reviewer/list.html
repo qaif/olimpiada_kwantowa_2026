@@ -212,7 +212,7 @@
                   {% else %}
                     <td><span class="{{ row.review.status|badge_class }}">{{ row.review.get_status_display }}</span></td>
                   {% endif %}
-                  <td class="num total">{% if row.review.score is not None %}{{ row.review.score }}{% else %}—{% endif %}</td>
+                  <td class="num total">{% if row.review.score is not None %}{{ row.review.score|points }}{% else %}—{% endif %}</td>
                   <td>
                     {% if tab.key == "cancelled" %}
                       <span class="hint">{{ row.reason }}</span>

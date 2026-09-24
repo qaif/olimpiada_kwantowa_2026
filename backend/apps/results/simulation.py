@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import logging
 from collections import Counter
+from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -61,7 +62,9 @@ logger = logging.getLogger(__name__)
 UNKNOWN_DISTRICT_LABEL = "— brak województwa —"
 
 
-def build_rule(stage: Stage, mode: str, min_points: int | None, top_n: int | None) -> QualificationRule:
+def build_rule(
+    stage: Stage, mode: str, min_points: Decimal | int | None, top_n: int | None
+) -> QualificationRule:
     """Niezapisana reguła do symulacji. Sprawdza komplet parametrów trybu, tak jak zapis.
 
     Walidację robi ``full_clean`` modelu, a nie własny zestaw ``if``-ów: reguła „tryb TOP_N wymaga
@@ -158,7 +161,7 @@ def _preview(stage: Stage, qualify) -> dict:
     }
 
 
-def simulate(stage: Stage, mode: str, min_points: int | None, top_n: int | None) -> dict:
+def simulate(stage: Stage, mode: str, min_points: Decimal | int | None, top_n: int | None) -> dict:
     """Podgląd kwalifikacji dla zadanej reguły. Nic nie zapisuje, niczego nie ogłasza.
 
     Zdyskwalifikowani są poza progiem – tak samo, jak w ``apply_qualification``: dyskwalifikacja
@@ -183,7 +186,7 @@ def build_transition_rule(
     stage: Stage,
     mode: str,
     *,
-    min_points: int | None = None,
+    min_points: Decimal | int | None = None,
     top_n: int | None = None,
     percentile: int | None = None,
     group_by: str = "",
@@ -254,7 +257,7 @@ def simulate_transition(stage: Stage, rules=None) -> dict:
 def apply_rule(
     stage: Stage,
     mode: str,
-    min_points: int | None,
+    min_points: Decimal | int | None,
     top_n: int | None,
     *,
     actor=None,

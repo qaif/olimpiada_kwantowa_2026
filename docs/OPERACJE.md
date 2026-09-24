@@ -1644,3 +1644,62 @@ identyfikatorze wsparcie Anthropic znajduje żądanie. Treści pracy ani odpowie
 Zużycie tokenów i szacowany koszt liczy aplikacja (stawki w `apps.ai_grading.models.PRICING_USD_PER_MTOK`,
 stan z 24.09.2026 – przy zmianie cennika Anthropic poprawić tę tabelę); fakturę wystawia Anthropic
 organizatorowi, na którego jest klucz.
+
+## 18. Dowolne wartości ocen: migracja kolumn punktów (v0.35.0)
+
+Wydanie zmienia typ kolumn punktów z liczb całkowitych na `numeric(p, 2)` (oceny 4,25) i dokłada
+przełącznik etapu `ScoringScale.free_values`. Migracje: `competitions.0032_free_scores`,
+`grading.0011_decimal_scores`, `appeals.0003_decimal_new_score`. Żadnej flagi, żadnej zmiany `.env`,
+żadnego nowego zadania beat. Każdy istniejący etap zostaje w trybie „tylko wartości ze skali” –
+przełącza go dopiero organizator na ekranie skali.
+
+### 18.1. Co robi migracja z danymi i ile trwa
+
+`ALTER TABLE … ALTER COLUMN … TYPE numeric(7|10, 2)` jest **rzutowaniem bezstratnym** (5 → 5.00),
+ale PostgreSQL **przepisuje przy nim całą tabelę** pod blokadą `ACCESS EXCLUSIVE` – na czas
+przepisania ani odczyt, ani zapis tej tabeli nie przejdzie. Dotknięte tabele:
+
+| Tabela | Kolumny | Rząd wielkości (produkcja) | Szacowany czas |
+|---|---|---|---|
+| `grading_review` | `score` | ~2 recenzje × prace edycji: dziesiątki tysięcy | < 1–3 s |
+| `grading_finalgrade` | `score` | liczba prac: tysiące – dziesiątki tysięcy | < 1 s |
+| `competitions_stageentry` | `total_points` | wpisy do etapów: tysiące – dziesiątki tysięcy | < 1 s |
+| `competitions_problem`, `…_qualificationrule`, `…_transitionrule`, `…_interviewscore`, `appeals_appealdecision` | maksima, progi, punkty | dziesiątki – setki | pomijalny |
+
+Szacunek przy przepustowości przepisania rzędu 50–100 tys. wierszy/s na tym VPS-ie (z zapasem na
+kradzież CPU hosta, patrz § 11); dokłada się do tego walidacja nowych więzów `CHECK (… >= 0)` – jedno
+przejście po tabeli, bez blokady dłuższej niż samo przepisanie. Wdrożenie mimo to **poza godzinami
+oceniania** (recenzent zapisujący ocenę w trakcie przepisania `grading_review` dostanie czekanie
+zakończone zapisem albo – po `statement_timeout` – błąd z prośbą o ponowienie).
+
+Przed wdrożeniem, na produkcji, sprawdź liczność tabel (odczyt, bez blokad):
+
+```bash
+docker compose exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT relname, n_live_tup FROM pg_stat_user_tables WHERE relname IN ('grading_review','grading_finalgrade','competitions_stageentry') ORDER BY 1;"
+```
+
+Powyżej ~1 mln wierszy w którejś z nich zaplanuj okno serwisowe.
+
+### 18.2. Po wdrożeniu
+
+```bash
+docker compose exec -T web python manage.py showmigrations competitions grading appeals | tail -n 5
+docker compose exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT data_type, numeric_precision, numeric_scale FROM information_schema.columns WHERE table_name='grading_review' AND column_name='score';"
+```
+
+Oczekiwane: `numeric`, `7`, `2`. Ogłoszone tabele wyników (snapshoty JSON) **nie są** przepisywane –
+liczby całkowite zostają w nich liczbami całkowitymi i renderują się jak dotąd.
+
+### 18.3. Rollback
+
+Cofnięcie migracji (`migrate grading 0010`, `migrate appeals 0002`, `migrate competitions 0031`)
+zamienia kolumny z powrotem na całkowite; **ocena ułamkowa wystawiona po wdrożeniu zostałaby wtedy
+zaokrąglona przez bazę**, a zadanie z samym maksimum 12,5 – ucięte. Cofać wolno wyłącznie, dopóki
+żaden etap nie został przełączony na dowolne wartości:
+
+```bash
+docker compose exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT count(*) FROM competitions_scoringscale WHERE free_values;"
+```
+
+musi dać `0`. Jeśli nie daje – nie cofaj, napraw w przód: kod v0.34.0 na kolumnach dziesiętnych
+co prawda wystartuje, ale oceny ułamkowej nie przyjmie ani poprawnie nie pokaże („5,00”).

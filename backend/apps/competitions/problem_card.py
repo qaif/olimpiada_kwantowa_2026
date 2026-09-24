@@ -48,17 +48,25 @@ def _scale(problem: Problem) -> dict:
     from apps.core.api import DomainError
     from apps.grading.services import allowed_scores, scale_items
 
+    from .scoring import problem_maximum, stage_free_values, uses_own_range
+
     stage = problem.stage
     try:
         values = sorted(allowed_scores(stage, problem))
     except DomainError:
         values = []
     scale = getattr(stage, "scoring_scale", None)
+    free = stage_free_values(stage)
     return {
         "values": values,
         "items": scale_items(stage, problem),
-        "source": "problem" if problem.has_own_scale else "stage",
-        "max_points": problem.max_points if problem.has_own_scale else getattr(scale, "max_value", None),
+        # Zadanie z samym maksimum (tryb dowolny, wydanie 0.35.0) też ma zakres „własny” – zmiana
+        # skali etapu go nie ruszy, i to jest dokładnie to, o co pyta koordynator.
+        "source": "problem" if uses_own_range(problem, free=free) else "stage",
+        # Maksimum z reguły oceny (``scoring.problem_maximum``), a nie z pola: to ta sama liczba,
+        # którą widzi recenzent przy polu punktów i tabela wyników w nagłówku kolumny.
+        "max_points": problem_maximum(stage, problem),
+        "free_values": free,
         "stage_has_scale": scale is not None,
     }
 
@@ -121,9 +129,15 @@ def _submission_rows(problem: Problem, query: str) -> list[dict]:
         for row in stage_assignment_rows(problem.stage, query)
         if row["submission"].problem_id == problem.pk
     ]
+    from .scoring import coordinator_score_widget, safe_score_rule
+
     scale_values = _scale(problem)["values"]
+    # Tryb etapu i zakres zadania (wydanie 0.35.0) – ten sam kształt pola, co na ekranie
+    # przydziałów (``templates/web/coordinator/_score_input.html``).
+    widget = coordinator_score_widget(safe_score_rule(problem.stage, problem))
     for row in rows:
         row["scale_values"] = scale_values
+        row["score_widget"] = widget
         row["participant_url"] = participant_card(row["submission"].entry.participant)
     return rows
 

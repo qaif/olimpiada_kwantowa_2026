@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n web_extras %}
 {% comment %}
   Sugestia AI dla uczestnika – osobna sekcja **pod** oficjalnymi ocenami, nigdy obok liczby
   punktów zadania. Powstaje wyłącznie wtedy, gdy koordynator włączył ją dla etapu, a wyniki są
@@ -19,7 +19,7 @@
         <h3 class="mt-0 card__title">{% blocktranslate trimmed with number=item.number title=item.title %}
           Zadanie {{ number }}: {{ title }}
         {% endblocktranslate %}</h3>
-        <span class="badge badge--info">{% blocktranslate trimmed with points=item.proposed_points|floatformat:"-2" maximum=item.max_points|floatformat:"-2" %}
+        <span class="badge badge--info">{% blocktranslate trimmed with points=item.proposed_points|points maximum=item.max_points|points %}
           sugestia AI: {{ points }} z {{ maximum }} pkt
         {% endblocktranslate %}</span>
       </div>

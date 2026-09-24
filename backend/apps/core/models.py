@@ -17,6 +17,8 @@ from django.utils import timezone
 
 from apps.tenancy.managers import CompetitionScopedQuerySet
 
+from .points import jsonable_points
+
 logger = logging.getLogger(__name__)
 
 #: Nagłówek, w którym proxy (Caddy) podaje adres klienta. Czytany wyłącznie od zaufanego nadawcy.
@@ -187,13 +189,16 @@ def audit(actor, action: str, obj, diff: dict | None = None, request=None) -> Au
     """
     if actor is not None and not getattr(actor, "is_authenticated", False):
         actor = None
+    # Punkty bywają od wydania 0.35.0 ``Decimal`` (ocena 4,25), a ``diff`` jest JSON-em bez
+    # własnego enkodera. Zamiana w jednym miejscu, a nie w każdym wołającym: wpis audytu z oceną
+    # całkowitą ma wyglądać dokładnie tak, jak przed tym wydaniem (``5``, nie ``"5.00"``).
     return AuditLog.objects.create(
         competition=audit_competition(request),
         actor=actor,
         action=action,
         target_type=f"{obj._meta.app_label}.{obj._meta.model_name}",
         target_id=str(obj.pk),
-        diff=diff or {},
+        diff=jsonable_points(diff or {}),
         ip=client_ip(request),
         at=timezone.now(),
     )

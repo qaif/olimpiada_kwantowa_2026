@@ -1,4 +1,5 @@
 {% extends "web/coordinator/base.html" %}
+{% load web_extras %}
 {% load static %}
 {% comment %}
   Symulacja progu kwalifikacji. Parametry jadą formularzem GET, więc wynik da się odświeżyć,
@@ -51,7 +52,7 @@
       <span class="kpi__label">Poza progiem</span>
     </li>
     <li class="kpi__item">
-      <span class="kpi__value">{% if result.cutoff is not None %}{{ result.cutoff }}{% else %}—{% endif %}</span>
+      <span class="kpi__value">{% if result.cutoff is not None %}{{ result.cutoff|points }}{% else %}—{% endif %}</span>
       <span class="kpi__label">Punkt odcięcia</span>
     </li>
     <li class="kpi__item{% if result.ungraded %} kpi__item--attention{% endif %}">
@@ -131,7 +132,7 @@
               <td><span class="code-chip">{{ row.public_code }}</span></td>
               <td>{{ row.first_name }} {{ row.last_name }}</td>
               <td>{{ row.district }}</td>
-              <td class="num total">{{ row.total }}</td>
+              <td class="num total">{{ row.total|points }}</td>
               <td>
                 {% if row.qualified %}
                   <span class="badge badge--ok">kwalifikuje się</span>
@@ -181,7 +182,7 @@
         <form method="post" action="{% url 'web:coordinator-stage-rule-apply' stage.pk %}">
           {% csrf_token %}
           <input type="hidden" name="mode" value="{{ applied.mode }}">
-          <input type="hidden" name="min_points" value="{{ applied.min_points|default_if_none:'' }}">
+          <input type="hidden" name="min_points" value="{{ applied.min_points|points }}">
           <input type="hidden" name="top_n" value="{{ applied.top_n|default_if_none:'' }}">
           <button type="submit" class="btn btn--primary">Zastosuj tę regułę do etapu</button>
         </form>
