@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load web_extras %}
 {% load static %}
 {% comment %}
   Panel opiekuna szkolnego: uczniowie, którzy wskazali ten adres e-mail, i stan ich prac.
@@ -94,7 +95,7 @@
           </ol>
           {% if item.published %}
             <p class="status-track__note">Wyniki ogłoszone. Suma punktów:
-              <strong>{% if item.total_points is not None %}{{ item.total_points }}{% else %}—{% endif %}</strong>,
+              <strong>{% if item.total_points is not None %}{{ item.total_points|points }}{% else %}—{% endif %}</strong>,
               status: {{ item.entry.get_status_display }}.</p>
           {% endif %}
         </div>

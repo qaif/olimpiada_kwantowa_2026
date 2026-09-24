@@ -1,0 +1,15 @@
+{% load web_extras %}{% comment %}
+  Pole punktów na ekranach koordynatora (wydanie 0.35.0) – jedno dla przydziałów, karty zadania,
+  karty recenzenta i karty uczestnika, żeby tryb etapu nie był rozstrzygany czterema kopiami ``if``.
+
+  Parametry: ``widget`` (``apps.competitions.scoring.coordinator_score_widget``), ``id_prefix``
+  z ``id_pk`` (identyfikator pola, np. ``score-`` + id recenzji) i ``current`` – bieżąca ocena w postaci przechowywanej (albo nic). Etap „tylko ze skali”: lista
+  wyboru z wartościami skali, jak dotąd. Etap z dowolnymi wartościami: pole liczbowe co 0,01
+  z granicami zakresu zadania; ``points_input`` w atrybutach, bo pole liczbowe czyta wyłącznie
+  kropkę, a serwer i tak przyjmie też przecinek.
+{% endcomment %}{% if widget.free %}<input type="number" id="{{ id_prefix }}{{ id_pk }}" name="score" class="score-input"
+       step="0.01" min="{{ widget.minimum|points_input }}" max="{{ widget.maximum|points_input }}"
+       inputmode="decimal" autocomplete="off" value="{{ current|points_input }}" required
+       title="od {{ widget.minimum|points }} do {{ widget.maximum|points }}, co 0,01">{% else %}<select id="{{ id_prefix }}{{ id_pk }}" name="score">
+  {% for value in widget.values %}<option value="{{ value }}"{% if current == value %} selected{% endif %}>{{ value }}</option>{% endfor %}
+</select>{% endif %}

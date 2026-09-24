@@ -123,6 +123,57 @@ kolejność stosują wszystkie zapisy ocen oraz listy wyboru punktów w panelu r
 w ocenie końcowej. Dokładanie wartości i poprawianie opisów jest wolne zawsze. Blokada działa w obie
 strony: skala etapu patrzy na oceny zadań, które ją **dziedziczą**.
 
+#### Dowolne wartości ocen (od v0.35.0)
+
+Na tym samym ekranie stoi przełącznik **„Jakie oceny wolno wystawić”**:
+
+| Tryb | Co wpisuje recenzent | Rola wartości skali |
+|---|---|---|
+| **tylko wartości ze skali** (domyślny, także dla nowych etapów) | jedną z wartości skali, np. 0, 2, 5, 6 | lista do wyboru |
+| **dowolna wartość od min do max (co 0,01)** | dowolną liczbę od najniższej do najwyższej wartości skali, z najwyżej dwoma miejscami po przecinku, np. **4,25** | **podpowiedź** obok pola („5 – rozwiązanie pełne z drobnymi usterkami”) |
+
+Tryb dotyczy **całego etapu** – wszystkich zadań, także tych z własną skalą (dla nich granicami są
+najniższa i najwyższa wartość ich skali). Ten sam tryb obowiązuje każdego, kto wpisuje punkty w tym
+etapie: recenzentów, koordynatora (korekta recenzji, ocena końcowa, rozstrzygnięcie rozjazdu), komisję
+odwoławczą, komisję rozmów i klientów API.
+
+- **Przełączenie na dowolne wartości** jest zawsze możliwe – każda wystawiona ocena ze skali mieści się
+  w jej zakresie.
+- **Powrót do „tylko wartości ze skali”** system **odrzuca** (odmowa `FREE_VALUES_IN_USE`), dopóki
+  w etapie jest choć jedna ocena spoza skali (recenzja, ocena końcowa, nowa punktacja z reklamacji,
+  punkty z rozmowy) albo zadanie z samym maksimum. Komunikat podaje, ile ich jest. Popraw te oceny
+  (albo dopisz ich wartość do skali – wartości skali są liczbami całkowitymi) i nadaj takim zadaniom
+  skalę albo wyczyść ich maksimum, a potem przełącz tryb ponownie.
+- W trybie dowolnym obniżenie maksimum skali poniżej wystawionej już oceny jest odmową
+  (`SCALE_LOCKED`) – usunięcie pojedynczej wartości ze skali już nie, bo ocena 5 mieści się w 0–6
+  także bez pozycji „5”.
+- **Suma etapu** z ocen ułamkowych jest dokładna (4,25 + 3,5 = 7,75). Gdy konkurs liczy **wagi zadań**,
+  suma ważona jest zaokrąglana **raz, na końcu, połówka w górę**: do **0,01** w etapie z dowolnymi
+  wartościami i – jak dotąd – do **pełnego punktu** w etapie „tylko ze skali”. Ta sama reguła stoi
+  w podglądzie wyników, publikacji, symulacji progu i w maksimum etapu.
+- **Próg kwalifikacji** (i reguły przejścia) przyjmuje liczbę z przecinkiem, np. „co najmniej 38,5”.
+- Punkty wyświetlają się bez zbędnych zer: „5”, „4,25”, „3,5” (w wersji angielskiej z kropką).
+  **Eksport CSV** zapisuje je **z kropką** („4.25”) – plik czytają też skrypty i kuratoria, a przecinek
+  dziesiętny w pliku rozdzielanym średnikami bywa odczytywany jako koniec kolumny. Otwierając CSV
+  w polskim Excelu, wskaż w imporcie separator dziesiętny „.” – albo pobierz **XLSX**, w którym punkty
+  są od razu liczbami.
+- Test online (etap w formie testu) nie zmienia się: jego wynik nadal jest zaokrąglany do pełnych
+  punktów.
+
+**Zadania mogą mieć różną liczbę punktów.** W etapie z dowolnymi wartościami zadanie może dostać
+**samo „Maksimum punktów tego zadania”** – bez listy wartości skali – np. **7** albo **12,5**. Takie
+zadanie ocenia się dowolną liczbą od **0** do swojego maksimum, co 0,01 (także gdy skala etapu ma punkty
+ujemne – samo maksimum jest zakresem zadania, a nie wariantem skali etapu, więc przesunięcie skali go nie
+dotyczy). Recenzent nie widzi przy nim podpowiedzi ze skali etapu, bo opisywałyby inny zakres. W etapie
+„tylko ze skali” formularz zadania samego maksimum nie przyjmie – trzeba podać też skalę. Maksimum każdego
+zadania widać:
+
+- w **liście zadań** etapu (kolumna „Maks. punktów”, z dopiskiem „(własne)” i sumą maksimów pod tabelą),
+- na **karcie zadania** i przy polu oceny u **recenzenta** („Punkty (max 12,5)”),
+- w nagłówkach **tabel wyników** – ogłoszonej („Zad. 3 (max 12,5)”, „Razem (max 40)”) i w podglądzie
+  koordynatora („Razem (max 40)”). Maksimum sumy to suma maksimów zadań (z wagami, gdy konkurs je ma),
+  liczona tą samą arytmetyką, co suma uczestnika.
+
 **Uwaga proceduralna:** progi kwalifikacji podaje się w punktach **bezwzględnych**, więc zmiana skali
 **nie przelicza ich automatycznie** — po zmianie skali sprawdź próg.
 
@@ -148,7 +199,9 @@ Co ustawia się przy zadaniu:
 
 **Rubryka zmienia ekran recenzenta**: zamiast listy ocen ze skali dostaje po jednym polu punktów
 i komentarzu na kryterium, a sumę liczy serwer. **Suma musi należeć do skali** — system nie zaokrągla,
-bo to byłaby zmiana decyzji recenzenta. Zadanie bez kryteriów ocenia się dokładnie jak dotąd.
+bo to byłaby zmiana decyzji recenzenta. W etapie z dowolnymi wartościami ocen (§ 2.3) suma musi
+**mieścić się w zakresie** zadania. Punkty za kryteria są liczbami całkowitymi w obu trybach. Zadanie
+bez kryteriów ocenia się dokładnie jak dotąd.
 
 Poprawienie tytułu kryterium **nie zrywa** powiązania z zapisanymi już punktami. Zapis szablonów
 wspólnych **nie rusza** prywatnych szablonów recenzentów.
@@ -722,8 +775,9 @@ do punktu i w granicy 1 pkt) — to miara zaufania do narzędzia na tym zadaniu,
 
 **Recenzent** widzi gotową sugestię przy **tej wersji pracy, którą ma przydzieloną**, w zwiniętym
 panelu „Ocena AI (sugestia, niewiążąca)” z modelem i datą. Formularz oceny nie wypełnia się sam;
-przycisk „Wstaw punkty AI jako punkt wyjścia” jedynie zaznacza najbliższą wartość skali (przy zadaniu
-z rubryką przycisku nie ma). Szczegóły: `PODRECZNIK-RECENZENTA.md` § 3a.
+przycisk „Wstaw punkty AI jako punkt wyjścia” jedynie zaznacza najbliższą wartość skali – a w etapie
+z dowolnymi wartościami ocen wpisuje do pola samą propozycję, przyciętą do zakresu zadania i sprowadzoną
+do 0,01 (przy zadaniu z rubryką przycisku nie ma). Szczegóły: `PODRECZNIK-RECENZENTA.md` § 3a.
 
 **Uczestnicy — domyślnie nie widzą niczego.** Sekcja „Widoczność dla uczestników” ma przy każdym
 etapie bieżącej edycji przycisk **„Pokaż uczestnikom ocenę AI”** (domyślnie wyłączony). Po włączeniu

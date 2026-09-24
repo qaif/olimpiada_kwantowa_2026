@@ -19,6 +19,7 @@ from __future__ import annotations
 from rest_framework import serializers
 
 from apps.competitions.models import Edition, Stage
+from apps.core.points_api import PointsDictField, PointsField
 
 from .models import SCOPES, WEBHOOK_EVENTS
 
@@ -111,8 +112,8 @@ class V1ResultRowSerializer(serializers.Serializer):
 
     rank = serializers.IntegerField()
     display = serializers.CharField()
-    points = serializers.DictField(child=serializers.IntegerField(), help_text="Numer zadania → punkty.")
-    total = serializers.IntegerField()
+    points = PointsDictField(help_text="Numer zadania → punkty (liczba, najwyżej 2 miejsca po przecinku).")
+    total = PointsField()
     qualified = serializers.BooleanField()
     manual = serializers.BooleanField(help_text="Czy o wierszu rozstrzygnęła decyzja komitetu.")
     voivodeship = serializers.CharField(
@@ -177,9 +178,9 @@ class V1StatsSerializer(serializers.Serializer):
     problems = V1ProblemDistributionSerializer(many=True)
     mean = serializers.FloatField(allow_null=True)
     median = serializers.FloatField(allow_null=True)
-    max_total = serializers.IntegerField(allow_null=True)
+    max_total = PointsField(allow_null=True)
     qualified = serializers.IntegerField()
-    threshold = serializers.IntegerField(allow_null=True)
+    threshold = PointsField(allow_null=True)
     districts = serializers.ListField(child=serializers.DictField())
 
 

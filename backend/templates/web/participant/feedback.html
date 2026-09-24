@@ -25,14 +25,14 @@
     </div>
     <dl class="meta-list">
       <dt>{% translate "Suma punktów" %}</dt>
-      <dd>{% blocktranslate trimmed with points=feedback.total %}{{ points }} pkt{% endblocktranslate %}</dd>
+      <dd>{% blocktranslate trimmed with points=feedback.total|points %}{{ points }} pkt{% endblocktranslate %}</dd>
       <dt>{% translate "Miejsce w ogłoszonej tabeli" %}</dt>
       <dd>{% if feedback.rank %}{% blocktranslate trimmed with rank=feedback.rank total=feedback.rank_of %}{{ rank }} z {{ total }}{% endblocktranslate %}{% else %}
         <span class="hint">{% translate "nie ustalono – Twojego wyniku nie ma w ogłoszonej tabeli" %}</span>{% endif %}</dd>
       {% if feedback.threshold %}
         <dt>{% translate "Próg kwalifikacji" %}</dt>
         <dd>{{ feedback.threshold }}{% if feedback.cutoff_total is not None %};
-          {% blocktranslate trimmed with cutoff=feedback.cutoff_total %}
+          {% blocktranslate trimmed with cutoff=feedback.cutoff_total|points %}
             najniższy wynik wśród zakwalifikowanych w tej tabeli: {{ cutoff }} pkt
           {% endblocktranslate %}{% endif %}</dd>
       {% endif %}
@@ -43,7 +43,7 @@
       niż pokazanie obu (PROJEKT.md 2.4).
     {% endcomment %}
     {% if feedback.differs_from_published %}
-      <p class="msg msg-warning">{% blocktranslate trimmed with published=feedback.published_total current=feedback.total %}
+      <p class="msg msg-warning">{% blocktranslate trimmed with published=feedback.published_total|points current=feedback.total|points %}
         W ogłoszonej tabeli masz {{ published }} pkt. Różnica wynika z decyzji podjętej po
         publikacji – obowiązuje wynik bieżący ({{ current }} pkt), a tabela pozostaje taka,
         jaką ogłoszono.
@@ -65,7 +65,7 @@
         <h3 class="mt-0 card__title">{% blocktranslate trimmed with number=problem.number title=problem.title %}
           Zadanie {{ number }}: {{ title }}
         {% endblocktranslate %}</h3>
-        <span class="result-summary__points">{% blocktranslate trimmed with points=problem.score %}{{ points }} pkt{% endblocktranslate %}</span>
+        <span class="result-summary__points">{% blocktranslate trimmed with points=problem.score|points %}{{ points }} pkt{% endblocktranslate %}</span>
       </div>
       {% if problem.missing %}
         <p class="hint">{% translate "Nie oddałeś rozwiązania tego zadania." %}</p>

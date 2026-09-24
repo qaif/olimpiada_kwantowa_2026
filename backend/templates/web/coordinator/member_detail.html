@@ -226,7 +226,7 @@
               {% if row.review.cancel_reason %}<span class="hint">{{ row.review.get_cancel_reason_display }}</span>{% endif %}
             </td>
             <td class="num workload-num">
-              {% if row.review.score is not None %}{{ row.review.score }} pkt{% else %}—{% endif %}
+              {% if row.review.score is not None %}{{ row.review.score|points }} pkt{% else %}—{% endif %}
             </td>
             <td>
               {% if row.review.due_at %}{{ row.review.due_at|local_datetime }}{% else %}<span class="hint">bez terminu</span>{% endif %}
@@ -234,15 +234,11 @@
             </td>
             <td>{% if row.review.revised_at %}{{ row.review.revised_at|local_datetime }}{% else %}—{% endif %}</td>
             <td>
-              {% if row.scale_values %}
+              {% if row.score_widget %}
                 <form method="post" action="{% url 'web:coordinator-review-score' row.review.pk %}" class="cell-form">
                   {% csrf_token %}
                   <label class="visually-hidden" for="score-{{ row.review.pk }}">Punkty</label>
-                  <select id="score-{{ row.review.pk }}" name="score">
-                    {% for value in row.scale_values %}
-                      <option value="{{ value }}"{% if row.review.score == value %} selected{% endif %}>{{ value }}</option>
-                    {% endfor %}
-                  </select>
+                  {% include "web/coordinator/_score_input.html" with widget=row.score_widget id_prefix="score-" id_pk=row.review.pk current=row.review.score %}
                   <button type="submit" class="btn btn--secondary btn--small">Zmień punkty</button>
                 </form>
               {% endif %}

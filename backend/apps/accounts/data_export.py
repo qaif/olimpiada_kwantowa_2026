@@ -271,6 +271,7 @@ def _results_section(participant) -> list[dict]:
     if participant is None:
         return []
     from apps.competitions.models import Stage, StageEntry
+    from apps.core.points import points_json
     from apps.results.feedback import participant_feedback
 
     stage_ids = (
@@ -288,7 +289,7 @@ def _results_section(participant) -> list[dict]:
                 "etap": stage.display_name,
                 "wyniki_ogloszone": _moment(stage.results_published_at),
                 "moj_wiersz_tabeli": {
-                    "suma_punktow": feedback.published_total,
+                    "suma_punktow": points_json(feedback.published_total),
                     "miejsce": feedback.rank,
                     "wierszy_w_tabeli": feedback.rank_of,
                     "zakwalifikowany": feedback.qualified,
@@ -297,7 +298,7 @@ def _results_section(participant) -> list[dict]:
                     {
                         "zadanie_numer": problem.number,
                         "zadanie_tytul": problem.title,
-                        "punkty": problem.score,
+                        "punkty": points_json(problem.score),
                         "praca_nieoddana": problem.missing,
                         "komentarze_dla_mnie": [
                             {"recenzent": review.label, "komentarz": review.comment}

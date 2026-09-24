@@ -45,6 +45,7 @@ from apps.competitions.interviews import (
     record_interview_score,
 )
 from apps.competitions.models import Problem, Stage, StageComponent, StageEntry, TieBreak
+from apps.competitions.scoring import coordinator_score_widget, safe_score_rule
 from apps.core.api import DomainError
 from apps.core.models import audit
 from apps.grading.models import ReviewerRole
@@ -273,6 +274,9 @@ def _render_interview_scores(request, stage: Stage, component, form, *, status: 
         # Skala w postaci, w której ekran ją **przyjmuje** – tej samej, którą sprawdza serwis.
         # Druga lista, przeliczona po swojemu, rozjechałaby się przy pierwszej zmianie skali.
         "allowed": sorted(allowed_scores(stage)) if component is not None else [],
+        # Tryb etapu i granice zakresu (wydanie 0.35.0): w etapie z dowolnymi wartościami podpowiedź
+        # pod formularzem mówi „od … do …, co 0,01”, a nie wylicza samych wartości skali.
+        "score_widget": coordinator_score_widget(safe_score_rule(stage)) if component is not None else None,
     }
     return TemplateResponse(request, INTERVIEW_SCORES_TEMPLATE, context, status=status)
 

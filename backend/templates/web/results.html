@@ -32,8 +32,8 @@
       <th>Miejsce</th>
       <th>Uczestnik</th>
       <th>Województwo</th>
-      {% for number in problem_numbers %}<th>Zad. {{ number }}</th>{% endfor %}
-      <th>Razem</th>
+      {% for number in problem_numbers %}<th>Zad. {{ number }}{% with maximum=problem_maxima|dict_get:number %}{% if maximum is not None %} <span class="hint">(max {{ maximum|points }})</span>{% endif %}{% endwith %}</th>{% endfor %}
+      <th>Razem{% if max_total is not None %} <span class="hint">(max {{ max_total|points }})</span>{% endif %}</th>
       <th>Kwalifikacja</th>
     </tr>
   </thead>
@@ -43,8 +43,8 @@
         <td>{{ row.rank }}</td>
         <td>{{ row.display }}</td>
         <td>{{ row.district }}</td>
-        {% for number in problem_numbers %}<td class="num">{{ row.points|dict_get:number }}</td>{% endfor %}
-        <td class="num total">{{ row.total }}</td>
+        {% for number in problem_numbers %}<td class="num">{{ row.points|dict_get:number|points }}</td>{% endfor %}
+        <td class="num total">{{ row.total|points }}</td>
         <td>
           {% if row.qualified %}
             <span class="badge badge--ok">zakwalifikowany</span>

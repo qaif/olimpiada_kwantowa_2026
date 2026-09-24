@@ -17,6 +17,7 @@ from apps.core.api import DomainError
 from apps.grading.models import ROUND_BLIND, ReviewStatus
 from apps.web.forms import AppealDecideForm
 from apps.web.mixins import ActionViewMixin, AppealsCommitteeRequiredMixin
+from apps.web.points_fields import score_form_error
 
 
 def _round_one_reviews(appeal: Appeal) -> list[dict]:
@@ -67,7 +68,10 @@ class AppealDecideView(ActionViewMixin, AppealsCommitteeRequiredMixin, View):
         appeal = get_object_or_404(appeals_queue(self.member, self.competition), pk=pk)
         form = AppealDecideForm(request.POST)
         if not form.is_valid():
-            raise DomainError("Decyzja wymaga rozstrzygnięcia i uzasadnienia.", "INVALID_DECISION")
+            raise DomainError(
+                score_form_error(form, "Decyzja wymaga rozstrzygnięcia i uzasadnienia.", field="new_score"),
+                "INVALID_DECISION",
+            )
         decide_appeal(
             appeal,
             self.member,

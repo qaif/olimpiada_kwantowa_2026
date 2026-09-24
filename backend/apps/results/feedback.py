@@ -24,6 +24,7 @@ Zasady, na których ten moduł stoi:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from decimal import Decimal
 
 from django.db.models import Prefetch
 
@@ -34,6 +35,7 @@ from apps.competitions.models import (
     StageEntry,
     StageEntryStatus,
 )
+from apps.core.points import format_points, to_points
 from apps.grading.code_view import public_line_notes
 from apps.grading.models import Review, ReviewStatus
 from apps.submissions.models import Submission, SubmissionStatus
@@ -72,7 +74,7 @@ class ProblemFeedback:
 
     number: int
     title: str
-    score: int
+    score: Decimal
     reviews: list[ReviewFeedback] = field(default_factory=list)
     #: ``True``, gdy do zadania nie ma żadnej wersji pracy – zero punktów za brak, a nie za błąd.
     missing: bool = False
@@ -90,10 +92,10 @@ class StageFeedback:
     publication: ResultsPublication
     entry: StageEntry
     problems: list[ProblemFeedback]
-    total: int
+    total: Decimal
     #: Suma z ogłoszonej tabeli. ``None``, gdy publikacja nie zna tego wpisu (tabela sprzed
     #: wprowadzenia ``entry_totals`` albo wpis utworzony po publikacji).
-    published_total: int | None
+    published_total: Decimal | None
     rank: int | None
     #: Liczba wierszy ogłoszonej tabeli – „miejsce 7 na 312” mówi więcej niż samo „miejsce 7”.
     rank_of: int
@@ -102,7 +104,7 @@ class StageFeedback:
     #: Opis progu kwalifikacji zdaniem albo pusty napis, gdy etap progu nie ma (np. finał).
     threshold: str
     #: Najniższa suma wśród zakwalifikowanych w ogłoszonej tabeli – faktyczna granica awansu.
-    cutoff_total: int | None
+    cutoff_total: Decimal | None
 
     @property
     def differs_from_published(self) -> bool:
@@ -120,21 +122,24 @@ def describe_threshold(stage: Stage) -> str:
     rule = getattr(stage, "qualification_rule", None)
     if rule is None:
         return ""
+    # Próg bywa od wydania 0.35.0 ułamkowy (38,5) – przez ``format_points``, żeby zdanie nie
+    # mówiło „38.50 pkt” ani „38,50 pkt”, tylko tak, jak pokazujemy punkty wszędzie indziej.
+    minimum = format_points(rule.min_points)
     if rule.mode == QualificationMode.MIN_POINTS:
-        return f"do następnego etapu przechodzą osoby z wynikiem co najmniej {rule.min_points} pkt"
+        return f"do następnego etapu przechodzą osoby z wynikiem co najmniej {minimum} pkt"
     if rule.mode == QualificationMode.TOP_N:
         return f"do następnego etapu przechodzi {rule.top_n} najlepszych wyników"
     if rule.mode == QualificationMode.TOP_N_PER_DISTRICT:
         return f"do następnego etapu przechodzi {rule.top_n} najlepszych wyników w każdym województwie"
     if rule.mode == QualificationMode.HYBRID:
         return (
-            f"do następnego etapu przechodzą osoby z wynikiem co najmniej {rule.min_points} pkt, "
+            f"do następnego etapu przechodzą osoby z wynikiem co najmniej {minimum} pkt, "
             f"mieszczące się jednocześnie w pierwszej {rule.top_n}"
         )
     return ""
 
 
-def _rank_from_snapshot(publication: ResultsPublication, published_total: int | None) -> int | None:
+def _rank_from_snapshot(publication: ResultsPublication, published_total: Decimal | None) -> int | None:
     """Miejsce uczestnika odczytane z zamrożonej tabeli.
 
     Wiersze snapshotu są anonimowe i **nie da się** ich przypisać do osoby – i tak ma zostać.
@@ -143,11 +148,15 @@ def _rank_from_snapshot(publication: ResultsPublication, published_total: int | 
     pierwszy wiersz z sumą uczestnika, którą znamy z ``entry_totals``.
 
     ``None``, gdy sumy nie znamy albo gdy tabela takiej sumy nie ma – nie zgadujemy miejsca.
+
+    Porównanie idzie przez ``to_points``: snapshot niesie ``int`` albo ``float`` (``4.25``),
+    a ``Decimal("4.25") == 4.25`` w Pythonie **nie** jest prawdą – dopiero po sprowadzeniu obu
+    stron do ``Decimal`` przez tekst liczby są równe tak, jak widzi je człowiek.
     """
     if published_total is None:
         return None
     for row in publication.rows:
-        if row.get("total") == published_total:
+        if to_points(row.get("total")) == published_total:
             rank = row.get("rank")
             return int(rank) if isinstance(rank, int) else None
     return None
@@ -160,8 +169,8 @@ def _cutoff_from_snapshot(publication: ResultsPublication) -> int | None:
     gdzie ta reguła faktycznie przecięła tabelę. Przy trybie „N najlepszych” to jedyna postać
     progu, którą da się w ogóle podać liczbą.
     """
-    totals = [row.get("total") for row in publication.rows if row.get("qualified")]
-    numbers = [int(total) for total in totals if isinstance(total, int)]
+    totals = [to_points(row.get("total")) for row in publication.rows if row.get("qualified")]
+    numbers = [total for total in totals if total is not None]
     return min(numbers) if numbers else None
 
 
@@ -239,11 +248,11 @@ def participant_feedback(participant, stage: Stage) -> StageFeedback | None:
 
     latest = _latest_submissions(entry)
     problems: list[ProblemFeedback] = []
-    total = 0
+    total = Decimal(0)
     for problem in Problem.objects.filter(stage=stage).order_by("number", "id"):
         submission = latest.get(problem.pk)
         grade = getattr(submission, "final_grade", None) if submission is not None else None
-        score = int(grade.score) if grade is not None else 0
+        score = grade.score if grade is not None else Decimal(0)
         total += score
         problems.append(
             ProblemFeedback(
@@ -255,8 +264,7 @@ def participant_feedback(participant, stage: Stage) -> StageFeedback | None:
             )
         )
 
-    raw_total = (publication.entry_totals or {}).get(str(entry.pk))
-    published_total = int(raw_total) if raw_total is not None else None
+    published_total = to_points((publication.entry_totals or {}).get(str(entry.pk)))
     return StageFeedback(
         stage=entry.stage,
         publication=publication,

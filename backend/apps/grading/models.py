@@ -17,6 +17,7 @@ from django.utils import timezone
 from apps.accounts.models import CommitteeMember
 from apps.competitions.models import Problem
 from apps.competitions.scoping import competition_scoped_manager, resolve_competition
+from apps.core.points import POINTS_PLACES, SCORE_MAX_DIGITS
 from apps.submissions.models import Submission
 from apps.tenancy.managers import CompetitionScopedQuerySet
 
@@ -159,7 +160,13 @@ class Review(models.Model):
         on_delete=models.PROTECT,
         related_name="reviews",
     )
-    score = models.PositiveSmallIntegerField("punkty", null=True, blank=True)
+    # Ocena w postaci **przechowywanej** (przesuniętej o ``ScoringScale.offset``). Dziesiętna od
+    # wydania 0.35.0: w etapie z dowolnymi wartościami recenzent wpisuje np. 4,25. Dwa miejsca po
+    # przecinku są granicą **wejścia** (``apps.core.points.parse_points`` odmawia trzeciego), a nie
+    # zaokrągleniem bazy. Więz „nie mniej niż zero” stoi w ``Meta``.
+    score = models.DecimalField(
+        "punkty", max_digits=SCORE_MAX_DIGITS, decimal_places=POINTS_PLACES, null=True, blank=True
+    )
     comment_internal = models.TextField("komentarz wewnętrzny", blank=True)
     comment_for_participant = models.TextField("komentarz dla uczestnika", blank=True)
     annotations = models.JSONField("adnotacje", default=default_annotations, blank=True)
@@ -220,6 +227,11 @@ class Review(models.Model):
                 condition=~Q(status=ReviewStatus.SUBMITTED) | Q(score__isnull=False),
                 name="grading_review_submitted_has_score",
             ),
+            # Ta sama gwarancja, którą do 0.35.0 dawał ``PositiveSmallIntegerField``: ocena ujemna
+            # nie ma prawa trafić do bazy (punkty ujemne skali leżą tu przesunięte o offset).
+            models.CheckConstraint(
+                condition=Q(score__isnull=True) | Q(score__gte=0), name="grading_review_score_non_negative"
+            ),
         ]
 
     def __str__(self) -> str:
@@ -254,7 +266,8 @@ class FinalGrade(models.Model):
     """Ocena uzgodniona rozwiązania. Jedna na ``Submission`` – relacja pilnuje tego w bazie."""
 
     submission = models.OneToOneField(Submission, on_delete=models.CASCADE, related_name="final_grade")
-    score = models.PositiveSmallIntegerField("punkty")
+    #: Postać przechowywana, dziesiętna – jak ``Review.score`` (wydanie 0.35.0).
+    score = models.DecimalField("punkty", max_digits=SCORE_MAX_DIGITS, decimal_places=POINTS_PLACES)
     method = models.CharField("tryb ustalenia", max_length=16, choices=GradeMethod.choices)
     # CONSENSUS nie ma człowieka podejmującego decyzję – zgodność dwóch ocen wynika z reguły,
     # a nie z czyjegoś rozstrzygnięcia. Stąd pole jest nullable.
@@ -276,6 +289,9 @@ class FinalGrade(models.Model):
         verbose_name = "ocena uzgodniona"
         verbose_name_plural = "oceny uzgodnione"
         ordering = ("-decided_at", "-id")
+        constraints = [
+            models.CheckConstraint(condition=Q(score__gte=0), name="grading_finalgrade_score_non_negative"),
+        ]
 
     def __str__(self) -> str:
         return f"{self.score} pkt ({self.method}) dla zgł. {self.submission_id}"

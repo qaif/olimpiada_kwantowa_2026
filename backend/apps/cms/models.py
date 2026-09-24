@@ -40,6 +40,7 @@ from wagtail.search import index
 
 from apps.competitions.models import Edition, Stage
 from apps.competitions.scoping import scope_to_competition
+from apps.competitions.scoring import problem_maxima_by_number
 from apps.competitions.services import current_edition, current_stage, training_stage
 from apps.results.models import ResultsPublication
 from apps.tenancy.managers import CompetitionScopedManager
@@ -1302,7 +1303,11 @@ class ResultsPage(CMSPage):
                 ResultsPublication.objects.filter(stage__results_published_at__isnull=False),
                 competition,
             )
-            .select_related("stage", "stage__edition")
+            .select_related("stage", "stage__edition", "stage__scoring_scale")
+            # Zadania etapów jednym zapytaniem na całą stronę – czyta je ``problem_maxima_by_number``
+            # (nagłówki „Zad. 3 (max 12,5)”, wydanie 0.35.0). Bez tego każda tabela dokładałaby dwa
+            # zapytania, a liczba zapytań rosłaby z liczbą ogłoszonych etapów.
+            .prefetch_related("stage__problems")
             .order_by("-stage__results_published_at", "-stage_id")
         )
         tables: list[dict] = []
@@ -1320,6 +1325,9 @@ class ResultsPage(CMSPage):
                             {key for row in rows for key in (row.get("points") or {})},
                             key=lambda value: (len(value), value),
                         ),
+                        # Maksima zadań do nagłówków kolumn („Zad. 3 (max 12,5)”, wydanie 0.35.0) –
+                        # opis skali, nie dane uczestnika, więc wolno je czytać obok snapshotu.
+                        "problem_maxima": problem_maxima_by_number(stage),
                     }
                 )
             else:

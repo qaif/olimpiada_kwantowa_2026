@@ -30,11 +30,13 @@ sekcji „województwa” po prostu nie ma – i to jest poprawna odpowiedź, ni
 from __future__ import annotations
 
 from collections import Counter
+from decimal import Decimal
 from statistics import mean, median
 
 from django.core.cache import cache
 
 from apps.competitions.models import Stage
+from apps.core.points import points_json, to_points
 from apps.core.text import fold
 
 from .models import ResultsPublication
@@ -89,20 +91,27 @@ def _distribution(rows: list[dict], number: str) -> dict:
     Wartości bierzemy z danych, a nie ze ``ScoringScale``: snapshot jest zamrożony, a skala etapu
     bywa później poprawiana – histogram ma opisywać ogłoszoną tabelę, a nie dzisiejszą definicję
     punktacji. Braki (praca bez oceny tego zadania) po prostu nie wchodzą do rozkładu.
+
+    Kluczem jest ``Decimal`` z ``to_points``, a nie ``int``: od wydania 0.35.0 ocena bywa
+    ułamkowa i ``int(4.25)`` wrzucałby ją do słupka „4”, czyli pokazywał rozkład, którego w tabeli
+    nie ma. Snapshot sprzed tego wydania (same ``int``) daje te same słupki, co dotąd.
     """
     counts = Counter()
     for row in rows:
         value = _points_of(row).get(number)
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             continue
-        counts[int(value)] += 1
+        counts[to_points(value)] += 1
     total = sum(counts.values())
     return {
         "number": number,
         "total": total,
         "bars": [
             {
-                "value": value,
+                # Liczba JSON (``4`` albo ``4.25``), bo ten słownik wychodzi także przez API
+                # (``/api/v1/…/stats/``) jako surowy słownik, a ``Decimal`` zapisałby się jako
+                # ``4.0``. Szablon pokazuje ją filtrem ``points`` – postać jest mu obojętna.
+                "value": points_json(value),
                 "count": counts[value],
                 "share": round(_share(counts[value], total), 1),
                 "width": width_class(_share(counts[value], total)),
@@ -168,11 +177,16 @@ def _categories(rows: list[dict]) -> list[dict]:
     ]
 
 
-def _totals(rows: list[dict]) -> list[int]:
-    return [int(row["total"]) for row in rows if isinstance(row.get("total"), (int, float))]
+def _totals(rows: list[dict]) -> list[Decimal]:
+    """Sumy wierszy jako ``Decimal`` – średnia i mediana liczą się wtedy bez ``float``."""
+    return [
+        to_points(row["total"])
+        for row in rows
+        if isinstance(row.get("total"), (int, float)) and not isinstance(row.get("total"), bool)
+    ]
 
 
-def _threshold(rows: list[dict]) -> int | None:
+def _threshold(rows: list[dict]) -> Decimal | None:
     """Próg kwalifikacji **faktycznie osiągnięty**: najniższa suma wśród zakwalifikowanych.
 
     Liczymy go z tabeli, a nie z ``QualificationRule``, i to jest świadome. Reguła bywa hybrydowa
@@ -180,7 +194,12 @@ def _threshold(rows: list[dict]) -> int | None:
     województwo” nie ma jednej liczby. Z ogłoszonej tabeli wynika natomiast jedno zdanie, które
     czytelnik rozumie bez znajomości regulaminu: „najsłabszy zakwalifikowany miał tyle punktów”.
     """
-    qualified = [int(row["total"]) for row in rows if row.get("qualified") and "total" in row]
+    qualified = [
+        value
+        for row in rows
+        if row.get("qualified") and "total" in row
+        if (value := to_points(row["total"])) is not None
+    ]
     return min(qualified) if qualified else None
 
 

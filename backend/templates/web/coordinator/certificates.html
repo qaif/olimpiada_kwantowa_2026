@@ -1,4 +1,5 @@
 {% extends "web/coordinator/base.html" %}
+{% load web_extras %}
 {% load coordinator_extras %}
 {% load static %}
 {% comment %}
@@ -57,7 +58,7 @@
             <td>{{ row.rank }}</td>
             <td><span class="code-chip">{{ row.public_code }}</span></td>
             <td>{{ row.first_name }} {{ row.last_name }}</td>
-            <td class="num total">{{ row.total }}</td>
+            <td class="num total">{{ row.total|points }}</td>
             <td>
               {% for certificate in row.certificates %}
                 <a href="{% url 'web:coordinator-certificate-download' certificate.pk %}">

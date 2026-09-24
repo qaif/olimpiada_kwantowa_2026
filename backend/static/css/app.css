@@ -4339,6 +4339,29 @@ fieldset:disabled .score-option {
   cursor: not-allowed;
 }
 
+/* Etap z dowolnymi wartościami ocen (0.35.0): wartości skali są podpowiedzią obok pola liczbowego,
+   a nie listą do kliknięcia – ta sama typografia, bez obramowania i bez kursora „rączki”. */
+.scale--hints {
+  list-style: none;
+  padding: 0;
+}
+
+.score-option--hint {
+  grid-template-columns: auto 1fr;
+  cursor: default;
+  border-style: dashed;
+}
+
+.score-option--hint:hover {
+  border-color: var(--line-strong);
+  background: var(--surface);
+}
+
+.score-input {
+  width: 8rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .actions--sticky {
   position: sticky;
   bottom: 0;

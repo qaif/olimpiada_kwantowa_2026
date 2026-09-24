@@ -33,6 +33,7 @@ from django.utils import timezone
 
 from apps.accounts.models import Voivodeship
 from apps.core.exports import Dataset
+from apps.core.points import format_points, points_json
 
 logger = logging.getLogger(__name__)
 
@@ -229,7 +230,7 @@ def render_stage_protocol(stage) -> bytes:
                 f"{row['first_name']} {row['last_name']}".strip(),
                 row["school"],
                 row["district"],
-                str(row["total"]),
+                format_points(row["total"]),
                 qualification,
             ]
         )
@@ -568,7 +569,7 @@ def _entry_rows(stage_ids: list[int]) -> list[dict]:
             "voivodeship": row["participant__district"],
             "grade": row["participant__grade"],
             "status": row["status"],
-            "total_points": row["total_points"],
+            "total_points": points_json(row["total_points"]),
         }
         for row in StageEntry.objects.filter(stage_id__in=stage_ids)
         .values(
@@ -606,7 +607,7 @@ def _stage_export(stage, publications: dict, entries_by_stage: dict) -> dict:
                 "number": problem.number,
                 "title": problem.title,
                 "allowed_formats": list(problem.allowed_formats or []),
-                "max_points": problem.max_points,
+                "max_points": points_json(problem.max_points),
             }
             for problem in stage.problems.all()
         ],
