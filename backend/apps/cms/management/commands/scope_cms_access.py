@@ -1,173 +1,203 @@
-"""``manage.py scope_cms_access`` — zawęża dostęp do ``/cms/`` koordynatorom jednego konkursu.
+"""``manage.py scope_cms_access`` — zawęża ``/cms/`` każdego koordynatora do jego konkursu.
 
-Grupa ``cms:<slug>`` (``apps.cms.permissions``) **dokłada** uprawnienia: koordynator, który do niej
-wejdzie, a zostanie w globalnej grupie ``coordinator``, dalej widzi strony i media wszystkich
-konkursów, bo tamta grupa ma prawa na korzeniu drzewa i na korzeniu kolekcji (``cms.0003``).
-Zawężenie polega więc na **odebraniu globalnej grupy** — a to jest czynność, która komuś coś
-zabiera, więc nie dzieje się sama: ani przy zakładaniu konkursu, ani przy przełączaniu flagi.
-Robi ją człowiek, tą komendą, po przeczytaniu listy z ``--dry-run``
-(``docs/UNIWERSALNY-ETAP-2.md`` § 1.1.5). Wzorzec jest ten sam, co ``check_memberships --fix``.
+Do tego wydania globalna grupa ``coordinator`` miała prawa Wagtaila na **korzeniu** drzewa stron
+i kolekcji (``cms.0003``), więc koordynator drugiego konkursu edytował strony i media pierwszego.
+Komenda przestawia instalację na stan docelowy (``apps/cms/permissions.py``, docstring modułu)
+w jednej transakcji:
 
-**Trzy odmowy, wszystkie twarde i wszystkie w kodzie, a nie w dokumentacji.**
+1. zakłada grupę ``superkoordynator`` z prawami do korzenia (``ensure_super_coordinator_group``)
+   — wcześniej komenda ``superkoordynator --all-current-coordinators`` wpisała do niej obecnych
+   koordynatorów, więc żaden z nich niczego nie traci,
+2. zakłada każdemu konkursowi grupę ``cms:<slug>`` i kolekcję mediów,
+3. przenosi obrazy i dokumenty z korzenia kolekcji do kolekcji konkursu — sama przy jednym
+   konkursie, przy kilku wyłącznie wskazanemu (``--root-media-to``),
+4. zabiera globalnej grupie ``coordinator`` uprawnienia ``/cms/`` (sama grupa zostaje — jest rolą),
+5. wpisuje koordynatorów każdego konkursu do jego grupy (dalej robią to sygnały,
+   ``apps/cms/signals.py``).
 
-1. **Konkurs #1.** ``--competition kwantowa`` jest odrzucane bez wyjątków: zestaw uprawnień grupy
-   ``coordinator`` Olimpiady Kwantowej ma zostać identyczny (§ 0.2 punkt 9, § 0.5 punkt 20).
-2. **Wyłączona flaga ``scoped_cms_permissions``.** Bez niej konkurs nie ma własnej kolekcji
-   w torze wgrywania plików, więc koordynator po odebraniu globalnej grupy wgrywałby pliki do
-   kolekcji, do której sam nie ma prawa. Kolejność jest jedna: najpierw flaga, potem komenda.
-3. **Wyłączona flaga ``memberships_enforced``.** Przy niej wyłączonej o roli rozstrzyga **grupa
-   Django** (``apps.accounts.services.has_role``), więc odebranie grupy ``coordinator`` nie
-   zawęziłoby dostępu do ``/cms/``, tylko odebrało rolę koordynatora w całości — razem z panelem,
-   wynikami i recenzjami. To jest różnica między „widzisz mniej” a „nie jesteś już koordynatorem”.
+**Kontrola „przed i po” jest częścią komendy, a nie testu.** Dla każdego koordynatora bez
+``is_superuser`` komenda liczy macierz możliwości (``cms_abilities``: każda strona, obraz,
+dokument, komunikat i ustawienia witryny × czynność) przed zmianą i po niej, w tej samej
+transakcji. W instalacji z **jednym** konkursem obie macierze mają być identyczne — inaczej
+komenda wycofuje całość i wypisuje różnicę. W instalacji z kilkoma konkursami różnica jest celem
+(koordynator traci cudze strony i media), więc jest wypisywana; **zyskać** nie może nikt w żadnym
+układzie — to zawężenie, nie nadanie.
 
-**Kogo komenda pomija.** Osobę, która jest koordynatorem także w **innym** konkursie, którego
-odebranie globalnej grupy by dotknęło (bo tamten konkurs nie ma obu flag). Zgadywanie kończyłoby
-się odcięciem człowieka od konkursu, o którym komenda nie była pytana; taka osoba jest wypisana
-z powodem i nie zmienia się jej ani jeden wiersz.
-
-Komenda **niczego nie kasuje poza przynależnością do grupy**: nie rusza członkostw, nie przenosi
-mediów między kolekcjami i nie dotyka migracji ``cms.0003``.
+``--dry-run`` wykonuje wszystko i wycofuje transakcję: raport pokazuje to, co zrobiłaby baza.
+Komenda jest idempotentna — drugi przebieg niczego nie zmienia i mówi o tym.
 """
 
 from __future__ import annotations
 
-from django.contrib.auth.models import Group
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from wagtail.models import Collection
 
-from apps.accounts.models import GROUP_COORDINATOR
-from apps.cms.permissions import FEATURE, cms_group_name, ensure_cms_group
+from apps.accounts.models import User
+from apps.accounts.super_coordinator import current_coordinators, is_super_coordinator
+from apps.cms.permissions import (
+    adopt_root_media,
+    cms_abilities,
+    cms_group_name,
+    ensure_cms_group,
+    ensure_super_coordinator_group,
+    global_coordinator_cms_rows,
+    strip_global_coordinator,
+    sync_competition_cms_group,
+)
 from apps.tenancy.models import Competition
 
-#: Konkurs #1. Slug jest tu literałem celowo: to jest warunek ciągłości Olimpiady Kwantowej,
-#: a nie parametr konfiguracji, który ktoś mógłby przestawić razem z resztą ustawień.
-PROTECTED_SLUG = "kwantowa"
+
+class ScopeMismatch(CommandError):
+    """Macierz możliwości po zmianie nie zgadza się z oczekiwaną — transakcja jest wycofana."""
 
 
 class Command(BaseCommand):
     help = (
-        "Przenosi koordynatorów konkursu z globalnej grupy „coordinator” do grupy cms:<slug>, "
-        "czyli zawęża ich dostęp w /cms/ do stron i mediów tego konkursu. --dry-run tylko wypisuje."
+        "Zawęża /cms/ koordynatorów do ich konkursów: grupy cms:<slug>, kolekcje konkursów, "
+        "globalna grupa coordinator bez uprawnień /cms/. Najpierw: superkoordynator "
+        "--all-current-coordinators. --dry-run tylko pokazuje."
     )
 
     def add_arguments(self, parser):
         parser.add_argument(
-            "--competition",
-            required=True,
-            help="Identyfikator konkursu (slug), którego koordynatorów zawężamy.",
-        )
-        parser.add_argument(
             "--dry-run",
             action="store_true",
-            help="Wypisz, kto co straci, i nie zapisuj niczego.",
+            help="Wykonaj i wycofaj — pokaż, co by się zmieniło, niczego nie zapisując.",
+        )
+        parser.add_argument(
+            "--root-media-to",
+            metavar="SLUG",
+            help=(
+                "Konkurs, do którego kolekcji trafią obrazy i dokumenty z korzenia kolekcji. "
+                "Przy jednym konkursie domyślnie on; przy kilku bez tej opcji pliki zostają "
+                "w korzeniu (widzi je tylko superkoordynator)."
+            ),
         )
 
     def handle(self, *args, **options):
-        competition = self._competition(options["competition"])
+        competitions = list(Competition.objects.select_related("site").order_by("pk"))
+        if not competitions:
+            raise CommandError("W bazie nie ma żadnego konkursu — nie ma czego zawężać.")
+        media_target = self._media_target(competitions, options["root_media_to"])
         dry_run = options["dry_run"]
 
-        # Wycofanie **po** wykonaniu całości, a nie pominięcie zapisów — ten sam wzorzec, co
-        # ``create_competition --dry-run``: próba na sucho ma pokazać to, co zrobi baza (więzy,
-        # unikalność, istniejące wiersze), a nie to, co pamiętamy o bazie.
-        with transaction.atomic():
-            moved, skipped = self._scope(competition, dry_run=dry_run)
-            if dry_run:
-                transaction.set_rollback(True)
+        try:
+            with transaction.atomic():
+                self._scope(competitions, media_target)
+                if dry_run:
+                    transaction.set_rollback(True)
+        except ScopeMismatch:
+            self.stderr.write(self.style.ERROR("Wycofano — nic nie zapisano."))
+            raise
 
-        summary = f"Konkurs {competition.slug}: zawężonych koordynatorów {moved}, pominiętych {skipped}."
         if dry_run:
-            self.stdout.write(self.style.WARNING(summary + " Próba na sucho — nic nie zapisano."))
+            self.stdout.write(self.style.WARNING("Próba na sucho — nic nie zapisano."))
         else:
-            self.stdout.write(self.style.SUCCESS(summary))
+            self.stdout.write(self.style.SUCCESS("Gotowe: /cms/ jest zawężone do konkursów."))
 
-    # --- odmowy -------------------------------------------------------------------------------
-    def _competition(self, slug: str) -> Competition:
-        slug = (slug or "").strip().lower()
-        if slug == PROTECTED_SLUG:
-            raise CommandError(
-                "Odmawiam zawężenia dostępu dla Konkursu #1 („kwantowa”). Zestaw uprawnień grupy "
-                "„coordinator” Olimpiady Kwantowej ma zostać niezmieniony — to jest warunek "
-                "ciągłości z docs/UNIWERSALNY-ETAP-2.md § 0.2 punkt 9, a nie zalecenie."
-            )
-        competition = Competition.objects.select_related("site").filter(slug=slug).first()
-        if competition is None:
+    # --- kroki ------------------------------------------------------------------------------------
+    def _media_target(self, competitions, slug):
+        if slug:
+            for competition in competitions:
+                if competition.slug == slug.strip().lower():
+                    return competition
             raise CommandError(f"Nie ma konkursu o identyfikatorze „{slug}”.")
-        if not competition.has_feature(FEATURE):
-            raise CommandError(
-                f"Konkurs „{slug}” ma wyłączoną flagę {FEATURE}, więc nie ma własnej kolekcji "
-                "mediów w torze wgrywania plików. Najpierw flaga, potem ta komenda."
-            )
-        if not competition.has_feature("memberships_enforced"):
-            raise CommandError(
-                f"Konkurs „{slug}” ma wyłączoną flagę memberships_enforced, więc o roli "
-                "koordynatora rozstrzyga globalna grupa Django. Odebranie jej nie zawęziłoby "
-                "dostępu do /cms/, tylko odebrało rolę koordynatora w całości."
-            )
-        return competition
+        return competitions[0] if len(competitions) == 1 else None
 
-    # --- przeniesienie ------------------------------------------------------------------------
-    def _scope(self, competition: Competition, *, dry_run: bool) -> tuple[int, int]:
-        from apps.accounts.models import CompetitionRole, Membership
+    def _scope(self, competitions, media_target) -> None:
+        watched = self._watched_accounts()
+        before = {user.pk: cms_abilities(user) for user in watched}
 
-        group = ensure_cms_group(competition)
-        global_group = Group.objects.filter(name=GROUP_COORDINATOR).first()
-        rows = (
-            Membership.objects.filter(competition=competition, role=CompetitionRole.COORDINATOR)
-            .select_related("user")
-            .order_by("user__email")
+        ensure_super_coordinator_group()
+        for competition in competitions:
+            ensure_cms_group(competition)
+
+        self._adopt_media(media_target)
+        self._strip()
+        for competition in competitions:
+            added, removed = sync_competition_cms_group(competition)
+            name = cms_group_name(competition)
+            for email in added:
+                self.stdout.write(f"{'dopisuję':<11}{email} → „{name}”")
+            for email in removed:
+                self.stdout.write(f"{'wypisuję':<11}{email} z „{name}” (nie koordynuje tego konkursu)")
+
+        self._compare(watched, before, single=len(competitions) == 1)
+
+    def _watched_accounts(self) -> list[User]:
+        """Koordynatorzy, którym zawężenie może coś zmienić: aktywni i bez ``is_superuser``."""
+        rows = [user for user in current_coordinators() if user.is_active and not user.is_superuser]
+        supers = [user.email for user in rows if is_super_coordinator(user)]
+        if supers:
+            self.stdout.write(f"Superkoordynatorzy (zachowują dostęp do wszystkiego): {', '.join(supers)}")
+        return rows
+
+    def _adopt_media(self, media_target) -> None:
+        from wagtail.documents import get_document_model
+        from wagtail.images import get_image_model
+
+        root = Collection.get_first_root_node()
+        waiting = (
+            get_image_model().objects.filter(collection=root).count()
+            + get_document_model().objects.filter(collection=root).count()
         )
-
-        moved = 0
-        skipped = 0
-        for membership in rows:
-            user = membership.user
-            blocking = self._blocking_competitions(user, competition)
-            if blocking:
-                skipped += 1
-                self.stdout.write(
-                    self.style.WARNING(
-                        f"{'pomijam':<11}{user.email}: koordynuje też {', '.join(blocking)} — tamten "
-                        "konkurs nie ma obu flag, a odebranie globalnej grupy dotknęłoby i jego."
-                    )
-                )
-                continue
-
-            in_global = global_group is not None and user.groups.filter(pk=global_group.pk).exists()
-            user.groups.add(group)
-            if in_global:
-                user.groups.remove(global_group)
-            moved += 1
-            verb = "zawęziłbym" if dry_run else "zawężam"
-            loses = (
-                "traci prawa do stron i mediów pozostałych konkursów"
-                if in_global
-                else "globalnej grupy i tak nie miał(a)"
-            )
+        if not waiting:
+            return
+        if media_target is None:
             self.stdout.write(
-                f"{verb:<11}{user.email}: „{cms_group_name(competition)}” "
-                f"zamiast „{GROUP_COORDINATOR}” — {loses}."
+                self.style.WARNING(
+                    f"W korzeniu kolekcji leży {waiting} plików, a konkursów jest kilka — zostają "
+                    "tam (widzi je superkoordynator). Wskaż właściciela opcją --root-media-to."
+                )
             )
-        return moved, skipped
-
-    def _blocking_competitions(self, user, competition: Competition) -> list[str]:
-        """Konkursy, w których ta osoba koordynuje, a które ucierpiałyby po odebraniu grupy.
-
-        Konkurs nie przeszkadza, jeżeli ma obie flagi — wtedy jego dostęp i tak stoi na własnej
-        grupie ``cms:<slug>`` albo stanie po uruchomieniu tej komendy dla niego. Każdy inny
-        przeszkadza, bo o roli albo o kolekcji rozstrzyga tam jeszcze grupa globalna.
-        """
-        from apps.accounts.models import CompetitionRole, Membership
-
-        others = (
-            Membership.objects.filter(user=user, role=CompetitionRole.COORDINATOR)
-            .exclude(competition=competition)
-            .select_related("competition")
-            .order_by("competition__slug")
+            return
+        moved = adopt_root_media(media_target)
+        self.stdout.write(
+            f"{'przenoszę':<11}{moved['images']} obrazów i {moved['documents']} dokumentów z korzenia "
+            f"do kolekcji „{media_target.name}”"
         )
-        return [
-            row.competition.slug
-            for row in others
-            if not (
-                row.competition.has_feature(FEATURE) and row.competition.has_feature("memberships_enforced")
+
+    def _strip(self) -> None:
+        rows = global_coordinator_cms_rows()
+        if not any(rows.values()):
+            self.stdout.write("Grupa „coordinator” nie ma już uprawnień /cms/ — bez zmian.")
+            return
+        for permission in rows["permissions"]:
+            self.stdout.write(
+                f"{'zabieram':<11}„coordinator”: {permission.content_type.app_label}.{permission.codename}"
             )
-        ]
+        for row in rows["pages"]:
+            self.stdout.write(
+                f"{'zabieram':<11}„coordinator”: {row.permission.codename} na stronie „{row.page.title}”"
+            )
+        for row in rows["collections"]:
+            self.stdout.write(
+                f"{'zabieram':<11}„coordinator”: {row.permission.codename} w kolekcji „{row.collection.name}”"
+            )
+        strip_global_coordinator()
+
+    def _compare(self, watched, before, *, single: bool) -> None:
+        problems = []
+        for user in watched:
+            after = cms_abilities(User.objects.get(pk=user.pk))
+            lost = before[user.pk] - after
+            gained = after - before[user.pk]
+            if gained:
+                problems.append(
+                    f"{user.email} zyskałby {len(gained)} pozycji, np. {sorted(gained, key=str)[:3]}"
+                )
+            if lost and single:
+                problems.append(
+                    f"{user.email} straciłby {len(lost)} pozycji, np. {sorted(lost, key=str)[:3]}"
+                )
+            elif lost:
+                self.stdout.write(
+                    f"{'zawężam':<11}{user.email}: traci {len(lost)} pozycji w innych konkursach"
+                )
+            else:
+                self.stdout.write(f"{'bez zmian':<11}{user.email}: te same możliwości w /cms/")
+        if problems:
+            raise ScopeMismatch(
+                "Macierz możliwości po zawężeniu różni się od oczekiwanej:\n" + "\n".join(problems)
+            )

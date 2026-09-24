@@ -35,7 +35,7 @@ from .activation import (
     send_email_change_confirmation,
     send_email_changed_notice,
 )
-from .models import GROUP_COORDINATOR, CommitteeMember, CommitteeStatus, ConsentRecord, Participant, User
+from .models import COORDINATOR_GROUPS, CommitteeMember, CommitteeStatus, ConsentRecord, Participant, User
 from .phones import normalize_phone
 
 #: Pola, których **wartości** nie trafiają do audytu – tylko informacja, że się zmieniły.
@@ -86,7 +86,7 @@ def anonymised_email_domain(competition=None) -> str:
 
 
 def _is_coordinator(user: User) -> bool:
-    return user.is_superuser or user.groups.filter(name=GROUP_COORDINATOR).exists()
+    return user.is_superuser or user.groups.filter(name__in=COORDINATOR_GROUPS).exists()
 
 
 # --- edycja własnych danych ---------------------------------------------------------------------

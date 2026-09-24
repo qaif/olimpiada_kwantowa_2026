@@ -25,7 +25,7 @@ from django.utils import timezone
 from rest_framework import status as http
 
 from apps.accounts.models import (
-    GROUP_COORDINATOR,
+    COORDINATOR_GROUPS,
     GROUP_REVIEWER,
     CommitteeMember,
     CommitteeStatus,
@@ -138,7 +138,7 @@ def _cancel_review(review: Review, *, reason: str) -> None:
 def is_coordinator(user) -> bool:
     if not user or not user.is_authenticated or not user.is_active:
         return False
-    return user.groups.filter(name=GROUP_COORDINATOR).exists()
+    return user.groups.filter(name__in=COORDINATOR_GROUPS).exists()
 
 
 def _lock_stage_for_assignment(stage: Stage) -> None:

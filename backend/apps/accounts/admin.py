@@ -3,10 +3,12 @@
 Kod zaproszenia nie jest w bazie ani w adminie – widoczny jest wyłącznie skrót sha256.
 """
 
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
+from django.core.exceptions import PermissionDenied
 from django.utils.translation import gettext_lazy as _
 
+from . import super_coordinator
 from .models import (
     CommitteeMember,
     ConsentDefinition,
@@ -37,6 +39,39 @@ class UserAdmin(DjangoUserAdmin):
         (_("Important dates"), {"fields": ("last_login", "date_joined")}),
     )
     add_fieldsets = ((None, {"classes": ("wide",), "fields": ("email", "password1", "password2")}),)
+    actions = ("grant_super_coordinator", "revoke_super_coordinator")
+
+    def has_superuser_permission(self, request) -> bool:
+        """Obie akcje roli superkoordynatora wyłącznie dla superużytkownika (``permissions=``).
+
+        ``/admin/`` otwiera się każdemu z ``is_staff``, a rola daje dostęp do paneli i treści
+        **wszystkich** konkursów — nadawać ją może tylko operator platformy, tak samo jak komenda
+        ``manage.py superkoordynator``, którą uruchamia się z konta na serwerze. Django chowa akcję
+        bez tego uprawnienia z listy i odrzuca jej ``POST``.
+        """
+        return request.user.is_superuser
+
+    @admin.action(description="Nadaj rolę superkoordynatora (wszystkie konkursy)", permissions=["superuser"])
+    def grant_super_coordinator(self, request, queryset):
+        self._change_super_coordinator(request, queryset, super_coordinator.grant, "nadano")
+
+    @admin.action(description="Odbierz rolę superkoordynatora", permissions=["superuser"])
+    def revoke_super_coordinator(self, request, queryset):
+        self._change_super_coordinator(request, queryset, super_coordinator.revoke, "odebrano")
+
+    def _change_super_coordinator(self, request, queryset, change, verb: str) -> None:
+        """Wspólna droga obu akcji: ten sam serwis, co komenda — więc ten sam wpis audytu."""
+        if not request.user.is_superuser:  # pragma: no cover - ``permissions=["superuser"]`` już odmówił
+            raise PermissionDenied
+        changed = [
+            user.email for user in queryset if change(user, actor=request.user, via="admin", request=request)
+        ]
+        if changed:
+            self.message_user(
+                request, f"Rolę superkoordynatora {verb}: {', '.join(changed)}.", messages.SUCCESS
+            )
+        else:
+            self.message_user(request, "Nic się nie zmieniło — zaznaczone konta już były w tym stanie.")
 
 
 class ConsentRecordInline(admin.TabularInline):

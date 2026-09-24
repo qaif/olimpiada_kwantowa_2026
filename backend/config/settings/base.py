@@ -216,6 +216,11 @@ MIDDLEWARE = [
     "apps.accounts.twofactor.TwoFactorMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Zasięg redaktora w ``/cms/``: dwa adresy Wagtaila, których nie zawężają haki (wybór strony
+    # z rodzicem w adresie, raport „Użycie typów stron”) – apps/cms/middleware.py. Wyłącznie
+    # ``process_view`` i wyłącznie dla tych adresów; **za** ``AuthenticationMiddleware`` i za
+    # drugim składnikiem, bo pyta o uprawnienia zalogowanego konta.
+    "apps.cms.middleware.CmsScopeMiddleware",
     # Wymagana przez allauth: ustawia kontekst żądania (``allauth.core.context``), z którego
     # korzystają adaptery i przepływ social login. Nie montuje żadnego adresu i nie zmienia
     # obsługi 404 – przekierowanie „/accounts/ → logowanie” włącza się dopiero, gdy istnieje

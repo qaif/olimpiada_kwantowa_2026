@@ -2,38 +2,52 @@
 
 Cały ten moduł pilnuje jednej reguły w dwóch kierunkach (``docs/UNIWERSALNY-ETAP-2.md`` § 1.1.5):
 
-- **w stronę Konkursu #1**: nic się nie zmienia. Grupa ``coordinator`` ma po tej zmianie dokładnie
-  te uprawnienia, które wpisała jej migracja ``cms.0003``, kolekcje mediów są te, co były, a nowe
-  pliki dalej lądują w korzeniu. Test § 5.5 porównuje trzy zbiory **w obie strony**,
+- **w stronę Konkursu #1**: przed komendą nic się nie zmienia (grupa ``coordinator`` ma dokładnie
+  to, co wpisała jej migracja ``cms.0003``), a po komendzie koordynator może w ``/cms/`` dokładnie
+  to samo — macierz możliwości przed i po jest równa, co sprawdza test **i sama komenda**,
 - **w stronę konkursu drugiego**: grupa ``cms:<slug>`` daje te same czynności, ale wyłącznie
   w poddrzewie jego witryny i w jego kolekcji — nigdy na korzeniu drzewa.
 
-Komenda ``scope_cms_access`` jest tu jedynym miejscem, które komuś coś **odbiera**, i dlatego ma
-najwięcej testów odmowy: Konkurs #1, wyłączona flaga zakresu, wyłączone członkostwa i koordynator
-związany z innym konkursem.
+Przegląd wycieków między dwoma konkursami (strony, media, okna wyboru, raporty, dziennik) jest
+w ``test_cms_permissions_per_competition.py``.
 """
 
 from __future__ import annotations
 
+import io
+
 import pytest
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, Permission
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from wagtail.models import Collection, GroupCollectionPermission, GroupPagePermission, Page
+from PIL import Image as PILImage
+from wagtail.documents import get_document_model
+from wagtail.images import get_image_model
+from wagtail.models import (
+    Collection,
+    CollectionViewRestriction,
+    GroupCollectionPermission,
+    GroupPagePermission,
+    Page,
+)
 
-from apps.accounts.models import GROUP_COORDINATOR, CompetitionRole
-from apps.accounts.services import grant_role
+from apps.accounts.models import GROUP_COORDINATOR, CompetitionRole, User
+from apps.accounts.services import grant_role, has_role
 from apps.accounts.tests.factories import UserFactory
 from apps.cms.attachments import ensure_document
+from apps.cms.models import ContentPage
 from apps.cms.permissions import (
     GROUP_PREFIX,
     SOURCE_GROUPS,
+    cms_abilities,
     cms_group_name,
     collection_name,
     ensure_cms_group,
     ensure_collection,
     upload_collection,
 )
+from apps.cms.tests.factories import AnnouncementFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -240,78 +254,220 @@ def test_an_existing_document_keeps_its_collection(competition, other_competitio
 
 
 # --- 4. komenda scope_cms_access ------------------------------------------------------------------
+#
+# Po wydaniu „uprawnienia CMS per konkurs” komenda działa na całą instalację: zabiera globalnej
+# grupie ``coordinator`` uprawnienia ``/cms/`` i przenosi redakcję do grup ``cms:<slug>``. Warunek
+# ciągłości Olimpiady Kwantowej nie jest już odmową, tylko **dowodem**: macierz możliwości przed
+# i po przebiegu ma być identyczna, a komenda sama się wycofuje, gdy nie jest.
 
 
-def _coordinator_of(competition, email: str):
-    user = UserFactory(email=email)
-    grant_role(user, CompetitionRole.COORDINATOR, competition=competition)
-    return user
+def _image(title: str, collection):
+    buffer = io.BytesIO()
+    PILImage.new("RGB", (8, 8), (1, 2, 3)).save(buffer, format="PNG")
+    return get_image_model().objects.create(
+        title=title,
+        collection=collection,
+        file=SimpleUploadedFile(f"{title}.png", buffer.getvalue(), content_type="image/png"),
+    )
 
 
-def test_scope_cms_access_refuses_competition_one(competition):
-    """Twardy warunek w kodzie, nie w README: Konkurs #1 nie daje się zawęzić."""
-    with pytest.raises(CommandError, match="Konkursu #1"):
-        call_command("scope_cms_access", "--competition", "kwantowa")
+def _document(title: str, collection):
+    return get_document_model().objects.create(
+        title=title,
+        collection=collection,
+        file=SimpleUploadedFile(f"{title}.pdf", b"%PDF-1.4 x", content_type="application/pdf"),
+    )
 
 
-def test_scope_cms_access_refuses_a_competition_without_the_flag(other_competition):
-    with pytest.raises(CommandError, match="scoped_cms_permissions"):
-        call_command("scope_cms_access", "--competition", other_competition.slug)
+@pytest.fixture
+def kwantowa_only(competition, settings, tmp_path):
+    """Instalacja jak dzisiejsza produkcja: jeden konkurs, role z grup, media w korzeniu kolekcji."""
+    settings.MEDIA_ROOT = str(tmp_path)
+    root = Collection.get_first_root_node()
+    coordinator = UserFactory(email="koordynator-kwantowa@example.test", groups=[GROUP_COORDINATOR])
+    home = Page.objects.get(pk=competition.site.root_page_id)
+    home.add_child(instance=ContentPage(title="Regulamin testowy", slug="regulamin-testowy"))
+    _image("logo-kwantowa", root)
+    _document("regulamin-kwantowa", root)
+    AnnouncementFactory(competition=competition, text="Komunikat kwantowy")
+    return coordinator
 
 
-def test_scope_cms_access_refuses_without_memberships_enforced(other_competition):
-    """Bez ``memberships_enforced`` odebranie grupy odbiera **rolę**, a nie zasięg w ``/cms/``."""
-    _scoped(other_competition, memberships=False)
-
-    with pytest.raises(CommandError, match="memberships_enforced"):
-        call_command("scope_cms_access", "--competition", other_competition.slug)
+def _fresh(user):
+    """Świeży obiekt konta — Wagtail zapamiętuje uprawnienia na obiekcie (patrz ``cms_abilities``)."""
+    return User.objects.get(pk=user.pk)
 
 
-def test_scope_cms_access_refuses_an_unknown_competition():
-    with pytest.raises(CommandError, match="Nie ma konkursu"):
-        call_command("scope_cms_access", "--competition", "nie-ma-takiego")
+def test_competition_one_coordinator_keeps_identical_abilities(kwantowa_only, competition):
+    """Główny warunek wydania: koordynator Olimpiady Kwantowej po komendzie może **dokładnie** to samo.
+
+    Macierz: każda strona poniżej korzenia × 12 czynności, każdy obraz i dokument × zmiana, usunięcie,
+    wybór, wgrywanie, komunikaty, ustawienia witryn i wejście do panelu.
+    """
+    before = cms_abilities(_fresh(kwantowa_only))
+
+    call_command("scope_cms_access", stdout=io.StringIO())
+
+    after = cms_abilities(_fresh(kwantowa_only))
+    assert after == before
+    assert ("admin", "access") in before
+    assert any(len(row) == 3 and row[0] == "page" and row[2] == "publish" for row in before)
+    assert any(len(row) == 3 and row[0] == "image" and row[2] == "change" for row in before)
+    # …ale przez inną grupę: globalna nie daje już niczego w ``/cms/``.
+    assert cms_group_name(competition) in set(kwantowa_only.groups.values_list("name", flat=True))
+    assert not GroupPagePermission.objects.filter(group__name=GROUP_COORDINATOR).exists()
+    assert not GroupCollectionPermission.objects.filter(group__name=GROUP_COORDINATOR).exists()
 
 
-def test_scope_cms_access_moves_the_coordinator_to_the_group_of_the_competition(other_competition):
-    competition = _scoped(other_competition)
-    user = _coordinator_of(competition, "koordynator-obcy@example.test")
-    assert user.groups.filter(name=GROUP_COORDINATOR).exists()
+def test_competition_one_super_coordinator_path_loses_nothing(kwantowa_only):
+    """Kolejność z ``docs/OPERACJE.md``: najpierw superkoordynator, potem zawężenie.
 
-    call_command("scope_cms_access", "--competition", competition.slug)
+    Nic nie ubywa; przybywa wyłącznie to, co rola superkoordynatora daje z definicji — komunikaty
+    i ustawienia serwisu (``SUPER_COORDINATOR_MODEL_PERMISSIONS``).
+    """
+    before = cms_abilities(_fresh(kwantowa_only))
 
-    names = set(user.groups.values_list("name", flat=True))
-    assert cms_group_name(competition) in names
-    assert GROUP_COORDINATOR not in names
+    call_command("superkoordynator", "--all-current-coordinators", stdout=io.StringIO())
+    call_command("scope_cms_access", stdout=io.StringIO())
 
-
-def test_scope_cms_access_dry_run_changes_nothing(other_competition, capsys):
-    competition = _scoped(other_competition)
-    user = _coordinator_of(competition, "koordynator-suchy@example.test")
-
-    call_command("scope_cms_access", "--competition", competition.slug, "--dry-run")
-
-    assert set(user.groups.values_list("name", flat=True)) == {GROUP_COORDINATOR}
-    assert not Group.objects.filter(name=cms_group_name(competition)).exists()
-    assert "koordynator-suchy@example.test" in capsys.readouterr().out
+    after = cms_abilities(_fresh(kwantowa_only))
+    assert before <= after
+    assert {row[0] for row in after - before} <= {"announcement", "site_settings"}
 
 
-def test_scope_cms_access_skips_a_coordinator_of_another_competition(competition, other_competition):
-    """Osoba koordynująca też Konkurs #1 zostaje nietknięta — odebranie grupy dotknęłoby i jego."""
-    scoped = _scoped(other_competition)
-    user = _coordinator_of(scoped, "koordynator-dwoch@example.test")
-    grant_role(user, CompetitionRole.COORDINATOR, competition=competition)
+def test_the_command_keeps_the_role_group_and_non_cms_permissions(kwantowa_only):
+    """Grupa ``coordinator`` zostaje (jest rolą) razem z uprawnieniami spoza ``/cms/``."""
+    group = Group.objects.get(name=GROUP_COORDINATOR)
+    foreign = Permission.objects.get(content_type__app_label="auth", codename="view_group")
+    group.permissions.add(foreign)
 
-    call_command("scope_cms_access", "--competition", scoped.slug)
+    call_command("scope_cms_access", stdout=io.StringIO())
 
-    assert set(user.groups.values_list("name", flat=True)) == {GROUP_COORDINATOR}
+    assert kwantowa_only.groups.filter(name=GROUP_COORDINATOR).exists()
+    assert set(group.permissions.values_list("codename", flat=True)) == {"view_group"}
+    assert has_role(_fresh(kwantowa_only), None, CompetitionRole.COORDINATOR)
 
 
-def test_scope_cms_access_does_not_touch_competition_one_coordinators(competition, other_competition):
-    """Po przebiegu dla konkursu obcego uprawnienia grupy ``coordinator`` są nadal te same."""
-    scoped = _scoped(other_competition)
-    _coordinator_of(scoped, "koordynator-inny@example.test")
+def test_the_command_moves_root_media_into_the_single_competition(kwantowa_only, competition):
+    root = Collection.get_first_root_node()
+
+    call_command("scope_cms_access", stdout=io.StringIO())
+
+    target = ensure_collection(competition)
+    assert not get_image_model().objects.filter(collection=root).exists()
+    assert not get_document_model().objects.filter(collection=root).exists()
+    assert get_image_model().objects.filter(collection=target).exists()
+
+
+def test_the_command_copies_the_root_view_restriction(kwantowa_only, competition):
+    """Dokument „tylko dla zalogowanych” nie może po przeniesieniu stać się publiczny."""
+    root = Collection.get_first_root_node()
+    CollectionViewRestriction.objects.create(
+        collection=root, restriction_type=CollectionViewRestriction.LOGIN
+    )
+
+    call_command("scope_cms_access", stdout=io.StringIO())
+
+    assert ensure_collection(competition).get_view_restrictions().exists()
+
+
+def test_dry_run_changes_nothing(kwantowa_only, competition):
     before = _snapshot(Group.objects.get(name=GROUP_COORDINATOR))
+    out = io.StringIO()
 
-    call_command("scope_cms_access", "--competition", scoped.slug)
+    call_command("scope_cms_access", "--dry-run", stdout=out)
 
     assert _snapshot(Group.objects.get(name=GROUP_COORDINATOR)) == before
+    assert not Group.objects.filter(name=cms_group_name(competition)).exists()
+    assert get_image_model().objects.filter(collection=Collection.get_first_root_node()).exists()
+    text = out.getvalue()
+    assert "Próba na sucho" in text
+    assert "koordynator-kwantowa@example.test" in text
+    assert "zabieram" in text
+
+
+def test_the_command_is_idempotent(kwantowa_only):
+    call_command("scope_cms_access", stdout=io.StringIO())
+    groups = set(kwantowa_only.groups.values_list("name", flat=True))
+    out = io.StringIO()
+
+    call_command("scope_cms_access", stdout=out)
+
+    assert set(kwantowa_only.groups.values_list("name", flat=True)) == groups
+    assert "bez zmian" in out.getvalue()
+
+
+def test_the_command_rolls_back_when_a_coordinator_would_lose_something(kwantowa_only, competition):
+    """Siatka bezpieczeństwa: strona **poza** witryną konkursu (na produkcji jej nie ma — ale gdyby
+    była, koordynator by ją stracił). Komenda ma odmówić i nie zapisać niczego."""
+    Page.get_first_root_node().add_child(instance=Page(title="Sierota", slug="sierota"))
+    before = _snapshot(Group.objects.get(name=GROUP_COORDINATOR))
+
+    with pytest.raises(CommandError, match="straciłby"):
+        call_command("scope_cms_access", stdout=io.StringIO(), stderr=io.StringIO())
+
+    assert _snapshot(Group.objects.get(name=GROUP_COORDINATOR)) == before
+    assert not Group.objects.filter(name=cms_group_name(competition)).exists()
+
+
+def test_before_the_command_nothing_changes(kwantowa_only, competition):
+    """Wdrożenie bez komendy: grupa globalna ma prawa jak zawsze, żadna grupa konkursu nie powstaje,
+    nowe pliki lądują w korzeniu, a zasięg ``/cms/`` jest bez ograniczeń."""
+    from apps.cms.scope import cms_scope
+
+    assert GroupPagePermission.objects.filter(group__name=GROUP_COORDINATOR).exists()
+    assert not Group.objects.filter(name=cms_group_name(competition)).exists()
+    assert upload_collection(competition).pk == Collection.get_first_root_node().pk
+    assert cms_scope(_fresh(kwantowa_only)) is None
+
+
+def test_after_the_command_new_uploads_land_in_the_competition_collection(kwantowa_only, competition):
+    call_command("scope_cms_access", stdout=io.StringIO())
+
+    assert upload_collection(competition).pk == ensure_collection(competition).pk
+
+
+def test_a_coordinator_granted_after_the_command_gets_the_cms_group(kwantowa_only, competition):
+    """Sygnały: rola nadana po komendzie daje ``/cms/`` bez ponownego przebiegu, a odebrana — zabiera."""
+    call_command("scope_cms_access", stdout=io.StringIO())
+    newcomer = UserFactory(email="nowy-koordynator@example.test")
+
+    grant_role(newcomer, CompetitionRole.COORDINATOR, competition=competition)
+    assert newcomer.groups.filter(name=cms_group_name(competition)).exists()
+
+    newcomer.groups.remove(Group.objects.get(name=GROUP_COORDINATOR))
+    assert not newcomer.groups.filter(name=cms_group_name(competition)).exists()
+
+
+def test_memberships_follow_the_flag_switch(competition, other_competition):
+    """Przełączenie ``memberships_enforced`` zmienia źródło roli — a razem z nim skład grupy."""
+    call_command("scope_cms_access", "--root-media-to", competition.slug, stdout=io.StringIO())
+    global_only = UserFactory(email="tylko-grupa@example.test", groups=[GROUP_COORDINATOR])
+    assert global_only.groups.filter(name=cms_group_name(other_competition)).exists()
+
+    other_competition.feature_flags = {"memberships_enforced": True}
+    other_competition.save()
+
+    assert not global_only.groups.filter(name=cms_group_name(other_competition)).exists()
+    assert global_only.groups.filter(name=cms_group_name(competition)).exists()
+
+
+def test_several_competitions_narrow_but_never_widen(competition, other_competition):
+    """Przy dwóch konkursach różnica jest celem — ale wyłącznie w stronę „mniej”."""
+    for row in (competition, other_competition):
+        row.feature_flags = {"memberships_enforced": True}
+        row.save()
+    user = UserFactory(email="koordynator-obcy@example.test")
+    grant_role(user, CompetitionRole.COORDINATOR, competition=other_competition)
+    before = cms_abilities(_fresh(user))
+
+    out = io.StringIO()
+    call_command("scope_cms_access", stdout=out)
+    after = cms_abilities(_fresh(user))
+
+    assert after < before
+    assert "zawężam" in out.getvalue()
+    home_a = Page.objects.get(pk=competition.site.root_page_id)
+    assert not home_a.permissions_for_user(_fresh(user)).can_edit()
+    root_b = Page.objects.get(pk=other_competition.site.root_page_id)
+    assert root_b.permissions_for_user(_fresh(user)).can_edit()
