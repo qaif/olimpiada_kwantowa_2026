@@ -529,6 +529,10 @@ które **ogląda się wyłącznie po zalogowaniu** na stronie **`/warsztaty/mate
 przełącznikiem konkursu `workshop_materials` — dopóki operator go nie włączy, ekranu, pozycji w menu
 i strony dla uczestników nie ma.
 
+**Gdzie uczestnik je znajdzie.** Odnośnik „Materiały z warsztatów” w pasku konta (każda zalogowana
+osoba z rolą w konkursie), kafel na pulpicie uczestnika i ramka na stronie `/warsztaty/` — odnośnik
+i kafel pojawiają się, gdy opublikujesz pierwszy materiał (i znikają, gdy zdejmiesz ostatni).
+
 **Kto widzi materiały.** Każde zalogowane konto, które **w tym konkursie** jest uczestnikiem, opiekunem
 szkolnym, recenzentem, członkiem komisji odwoławczej albo koordynatorem. Konto spoza konkursu (np.
 uczestnik innej olimpiady na tej samej platformie) dostaje „brak dostępu”. Gość na stronie

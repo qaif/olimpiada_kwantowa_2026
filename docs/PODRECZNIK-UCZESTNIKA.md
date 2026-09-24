@@ -208,8 +208,11 @@ wyraziłeś zgody na publikację pełnych danych.
 
 ### Materiały z warsztatów — `/warsztaty/materialy/`
 
-Nagrania warsztatów, slajdy i pliki do ćwiczeń są na stronie **Warsztaty** → ramka **„Materiały
-z warsztatów”** (albo wprost pod adresem `/warsztaty/materialy/`). **Trzeba być zalogowanym** — gość
+Nagrania warsztatów, slajdy i pliki do ćwiczeń są pod adresem `/warsztaty/materialy/`. Trafisz tam
+na trzy sposoby: odnośnikiem **„Materiały z warsztatów”** w pasku konta (u góry każdej strony, obok
+„Mój panel”), kaflem **„Materiały z warsztatów”** na swoim pulpicie (`/me/`) albo ramką na stronie
+**Warsztaty**. Odnośnik i kafel pojawiają się dopiero wtedy, gdy organizator opublikuje pierwszy
+materiał — jeśli ich nie widzisz, materiałów jeszcze nie ma. **Trzeba być zalogowanym** — gość
 widzi tylko zaproszenie do logowania. Materiały widzą uczestnicy, ich opiekunowie i komitet tego
 konkursu. Jeśli strony nie ma („nie znaleziono”), ten konkurs nie udostępnia materiałów.
 

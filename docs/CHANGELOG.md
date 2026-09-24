@@ -40,6 +40,12 @@ nada sesja główna.
   komisja, koordynator); inne konto – 403, anonim – logowanie. Wszystkie odpowiedzi `no-store`; żadna
   z tych ścieżek nie jest na allow-liście pamięci stron. Gość na `/warsztaty/` widzi ramkę „zaloguj się,
   aby obejrzeć” z liczbą materiałów, bez adresów (pamięć stron unieważniana przy zapisie materiału).
+- **Odnośniki** (decyzja organizatora z 24.09.2026): „Materiały z warsztatów” w pasku konta (konto z rolą
+  w konkursie) i kafel na pulpicie uczestnika `/me/` – tylko przy włączonej fladze i co najmniej jednym
+  opublikowanym, gotowym materiale. Odpowiedź z pamięci podręcznej per konkurs (godzina, kasowana
+  sygnałem przy zapisie/usunięciu materiału, `apps.workshop_materials.availability`, procesor kontekstu
+  `workshop_materials_link`, wartość leniwa); przy wyłączonej fladze zero zapytań i zero odczytów
+  z pamięci – `QUERY_BUDGET` bez zmian (nowy test w `test_invariants.py`).
 - **Statystyki**: wyświetlenia i liczba różnych widzów na materiał; widz zapisany wyłącznie jako
   pseudonim HMAC pary (materiał, konto), kasowany po 12 miesiącach; koordynator nie jest liczony.
   Rejestr czynności przetwarzania **1.7** – wiersz warunkowy „Statystyka wyświetleń materiałów

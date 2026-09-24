@@ -278,6 +278,10 @@ TEMPLATES = [
                 # szkolnego. Wartość leniwa, z pamięci podręcznej unieważnianej przy zapisie plakatu
                 # (``apps.promo.availability``).
                 "apps.promo.availability.promo_materials",
+                # Czy pokazać odnośnik „Materiały z warsztatów” w pasku konta i na pulpicie
+                # uczestnika – przełącznik konkursu i pamięć podręczna unieważniana przy zapisie
+                # materiału (``apps.workshop_materials.availability``); wartość leniwa.
+                "apps.workshop_materials.availability.workshop_materials_link",
                 # Nazwa serwisu, hasło i dane organizatora – ``cms.SiteSettings`` edytowane
                 # w ``/cms/`` (Ustawienia → Serwis). Szablony czytają je jako
                 # ``settings.cms.SiteSettings``; nic z tego nie jest zaszyte w kodzie.
