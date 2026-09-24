@@ -37,7 +37,19 @@ HOST_B = HOST_OTHER_COMPETITION
 #: Helpery budujące świat dwóch konkursów są re-eksportowane, bo korzystają z nich testy tego
 #: pakietu (``from .conftest import make_site``). ``__all__`` mówi zarazem lintowi, że import
 #: bez użycia w tym module jest tu celem, a nie zapomnianym wierszem.
-__all__ = ["HOST_A", "HOST_B", "make_competition", "make_site", "root_page"]
+__all__ = ["HOST_A", "HOST_B", "make_competition", "make_site", "open_path_prefixes", "root_page"]
+
+
+def open_path_prefixes(host_competition):
+    """Włącza konkursowi-gospodarzowi ``path_prefix_routing`` – bramkę trybu prefiksu (uwaga T43).
+
+    Pod hostem konkursu bez tej flagi prefiks ścieżki nie rozstrzyga niczego
+    (``apps.tenancy.resolution.hosts_path_prefixes``), więc test konkursu pod prefiksem zaczyna
+    od otwarcia bramki – dokładnie tak, jak robi to ``create_competition --path-prefix``.
+    """
+    host_competition.feature_flags = {**(host_competition.feature_flags or {}), "path_prefix_routing": True}
+    host_competition.save(update_fields=["feature_flags"])
+    return host_competition
 
 
 @pytest.fixture(autouse=True)

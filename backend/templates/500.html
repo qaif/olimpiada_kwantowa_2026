@@ -24,7 +24,7 @@
     <p>Serwer nie mógł obsłużyć tego żądania. Spróbuj ponownie za chwilę. Jeśli błąd się powtarza,
       napisz do organizatora: <a href="mailto:{{ email }}">{{ email }}</a>.</p>
     {% endwith %}
-    <p><a href="/">Wróć na stronę główną</a></p>
+    <p><a href="{{ site_root|default:"/" }}">Wróć na stronę główną</a></p>
   </main>
 </body>
 </html>

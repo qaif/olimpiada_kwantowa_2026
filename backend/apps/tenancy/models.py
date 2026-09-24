@@ -122,8 +122,12 @@ class RoutingMode(models.TextChoices):
 #: ``feature_flags`` i co znaczy brak wpisu. Flaga spoza katalogu jest błędem wołającego, a nie
 #: wyłączoną funkcją – ``has_feature`` powie o tym wprost, zamiast po cichu oddać ``False``.
 FEATURE_DEFAULTS: dict[str, bool] = {
-    # Rozstrzyganie konkursu po pierwszym segmencie ścieżki (§ 2.3). Wyłączone: Konkurs #1 ma
-    # własną domenę, a tryb prefiksu nie rozdziela ciasteczek sesji.
+    # Bramka **gospodarza** trybu prefiksu ścieżki (§ 2.3, uwaga T43): pod hostem konkursu z tą flagą
+    # rozstrzyga się inne konkursy po pierwszym segmencie ścieżki (``/druga/…``). Czytana wyłącznie
+    # w ``apps.tenancy.resolution.hosts_path_prefixes``; sam konkurs pod prefiksem mówi o sobie
+    # ``routing_mode=PATH``. Wyłączona: tryb prefiksu nie rozdziela ciasteczek sesji, więc gospodarz
+    # dzieli je z konkursem pod prefiksem wyłącznie z wyboru (``create_competition --path-prefix``
+    # włącza ją konkursowi witryny domyślnej).
     "path_prefix_routing": False,
     # Autoryzacja po ``accounts.Membership`` zamiast po globalnej grupie Django. Przełącza się na
     # ``True`` dopiero po backfillu członkostw (T2) – do tego czasu regułą są grupy.

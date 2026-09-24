@@ -235,10 +235,10 @@ def test_competition_one_coordinator_menu_has_no_stage_two_items(panel, second):
 def test_the_second_competition_answers_under_its_path_prefix(panel, second):
     """Prefiks ścieżki rozstrzyga konkurs: pulpit pod ``/druga/`` opisuje edycję konkursu drugiego.
 
-    Przedmiotem jest **rozstrzygnięcie**, a nie marka strony głównej: pod prefiksem ścieżki
-    ``Site.find_for_request`` dopasowuje nadal witrynę platformy (host się nie zmienił), więc
-    drzewo stron CMS jest drzewem platformy. Rozstrzyganie konkursu idzie osobną drogą
-    (``apps.tenancy.resolution``) i to ono decyduje o danych zawodów — patrz raport T43.
+    Przedmiotem jest **rozstrzygnięcie** danych zawodów. Drzewo stron CMS pod prefiksem jest od
+    uwagi T43 drzewem **tego** konkursu (warstwa podmienia witrynę żądania) – sprawdza to osobno
+    ``apps/tenancy/tests/test_path_prefix_cms.py``; tutaj wystarcza, że strona główna pod
+    prefiksem jest stroną główną jego witryny.
     """
     response = panel.get(path("/coordinator/"))
 
@@ -247,6 +247,9 @@ def test_the_second_competition_answers_under_its_path_prefix(panel, second):
     # Adresy złożone przez ``reverse`` w tym żądaniu niosą prefiks (``set_script_prefix``),
     # inaczej każdy odnośnik w panelu wracałby do Konkursu #1.
     assert f'href="/{SECOND_PREFIX}/coordinator/' in response.content.decode()
+    home = panel.get(path("/"))
+    assert home.status_code == 200
+    assert home.context["page"].pk == second.site.root_page_id
 
 
 def test_every_flagged_screen_of_the_second_competition_answers(panel, second):

@@ -167,11 +167,23 @@ def _base_url_without_request(competition) -> str:
     witryny jeszcze nie ma, i jest **zdefiniowane** (``https://{SITE_DOMAIN}``), więc instalacja
     naprawia się sama, bez nowej zmiennej środowiskowej.
     """
+    from apps.tenancy.models import RoutingMode
+
     if competition is not None:
+        if competition.routing_mode == RoutingMode.PATH and competition.path_prefix:
+            # Konkurs pod prefiksem ścieżki odpowiada pod adresem **platformy** (§ 2.3, uwaga T43),
+            # a ``primary_domain`` jest domeną, na którą dopiero czeka – link pod nią prowadziłby
+            # donikąd. Ścieżka z ``reverse()`` poza żądaniem prefiksu nie ma, więc niesie go podstawa.
+            return f"{_platform_base_url()}/{competition.path_prefix}"
         if competition.primary_domain:
             return f"https://{competition.primary_domain}"
         if competition.site_id:
             return _site_base_url(competition.site)
+    return _platform_base_url()
+
+
+def _platform_base_url() -> str:
+    """Adres platformy: witryna domyślna, a bez niej ``WAGTAILADMIN_BASE_URL``."""
     try:
         from wagtail.models import Site
 

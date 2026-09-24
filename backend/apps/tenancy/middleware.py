@@ -101,4 +101,17 @@ class CompetitionMiddleware:
         # aplikacji zamontowanej pod podścieżką (``FORCE_SCRIPT_NAME``). Bez niego formularze
         # POST-owałyby pod adres bez prefiksu, czyli do innego konkursu.
         set_script_prefix(request.competition_script_prefix)
+        # Drzewo stron **tego** konkursu. ``Site.find_for_request`` zapamiętuje witrynę na żądaniu
+        # (``request._wagtail_site``), a czyta ją stamtąd wszystko, co wybiera drzewo stron:
+        # ``wagtail.views.serve`` (strona pod adresem), menu, ustawienia witryny
+        # (``SiteSettings.for_request``), przekierowania i adresy stron. Dopasowanie po hoście
+        # oddałoby tu witrynę **platformy**, czyli stronę konkursu-gospodarza pod adresem konkursu
+        # z prefiksem – i odwrotnie, stron tego konkursu nie dałoby się otworzyć wcale. Podmieniamy
+        # zapamiętaną wartość, a nie regułę dopasowania: Wagtail nie ma innego miejsca, w którym
+        # dałoby się powiedzieć „ta witryna, choć host jest cudzy”.
+        request._wagtail_site = resolution.competition.site
+        # Witryna hosta zostaje pod ręką: adres bezwzględny strony konkursu pod prefiksem zaczyna
+        # się od adresu platformy (``apps.tenancy.page_urls``), a sprawdzenie subdomen platformy
+        # (``platform_subdomain_miss``) pyta o witrynę dopasowaną po hoście, a nie o podmienioną.
+        request.competition_host_site = resolution.host_site
         return resolution.competition

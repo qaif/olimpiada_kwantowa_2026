@@ -1946,6 +1946,29 @@ kluczowany parą (zgłoszenie, komponent); `email_subject_prefix` konkursu **nie
 tematów (dziś żaden list Konkursu #1 go nie niesie); dane szczególne w formularzu przyjazdu są za
 osobnym przełącznikiem `LogisticsSettings.collect_special_needs` (domyślnie wyłączone).
 
+**Uwaga T43 – zamknięta** (`CHANGELOG.md`, „drzewo CMS konkursu pod prefiksem”). Raport T43
+zostawił lukę: konkurs w trybie prefiksu ścieżki miał własną witrynę i strony (zakłada je
+`create_competition`), ale pod `/<prefiks>/` Wagtail serwował drzewo **gospodarza**, bo witrynę
+wybiera po hoście; flaga `path_prefix_routing` nie miała czytelnika. Rozstrzygnięcie:
+
+- `CompetitionMiddleware` pod prefiksem podmienia witrynę żądania (`request._wagtail_site`) na
+  witrynę konkursu – `wagtail.views.serve`, menu, `SiteSettings.for_request`, przekierowania
+  i analityka czytają od tej chwili jego drzewo. Strona gospodarza pod prefiksem daje 404 i odwrotnie.
+- `Page.get_url_parts` (opakowany w `apps/tenancy/page_urls.py`) liczy adres z prefiksem **strony**,
+  a nie żądania: `pageurl`, `page.url`, `full_url`, podgląd w `/cms/` i „Zobacz na żywo” prowadzą pod
+  `https://<platforma>/<prefiks>/…`. Konkurs z własną domeną i instalacja z jedną witryną nie
+  wchodzą w nową gałąź (zero zapytań; budżety § 5.6 bez zmian).
+- `path_prefix_routing` jest czytana – jako bramka **gospodarza** (konkursu, pod którego hostem
+  stoi konkurs z prefiksem i z którym dzieli ciasteczka), w `apps.tenancy.resolution`, bez
+  dodatkowego zapytania. Konkurs pod prefiksem opisuje `routing_mode=PATH`; druga flaga z tą samą
+  treścią byłaby drugim źródłem prawdy. `create_competition --path-prefix` otwiera bramkę konkursowi
+  witryny domyślnej, a migracja `tenancy.0010` – instalacjom, na których konkurs `PATH` już stoi.
+- Przekierowania (`apps.cms.redirects`), klucz pamięci stron, klucz paska harmonogramu, odnośniki
+  szablonu bazowego (`site_root`), `LOGIN_URL`/`LOGIN_REDIRECT_URL`/`LOGOUT_REDIRECT_URL` i linki
+  w listach poza żądaniem niosą prefiks; nic z tego nie wyprowadza z konkursu do gospodarza.
+
+Testy: `apps/tenancy/tests/test_path_prefix_cms.py`; runbook: `OPERACJE.md` § 6.6.
+
 ---
 
 ## 4. Podział prac

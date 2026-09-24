@@ -353,8 +353,11 @@ zdecyduje (`docs/UNIWERSALNY-ETAP-1.md` § 2.3):
   nie jest to dziura – ale rozdziału sesji ten tryb nie daje i dlatego nie jest domyślny.
 - **prefiks zajmuje pierwszy segment adresu.** Nie może to być slug zarezerwowany (`login`, `me`,
   `coordinator`, `api`, …) ani slug strony drugiego poziomu w innym konkursie – komenda odmawia.
-- **linki w listach wysyłanych spoza żądania** (zadania Celery) budują adres z `primary_domain`
-  konkursu, więc konkurs w tym trybie powinien mieć wpisaną domenę platformy.
+- **gospodarz musi się zgodzić.** Prefiks działa wyłącznie pod domeną konkursu z przełącznikiem
+  `path_prefix_routing` (konkurs witryny domyślnej – komenda włącza go sama i mówi o tym w wydruku).
+  Pod prefiksem konkurs ma **własne drzewo stron CMS** (strona główna, menu, dokumenty,
+  przekierowania), a linki – także w listach spoza żądania – prowadzą pod
+  `https://<domena platformy>/fizyczna/…`. Runbook: [`docs/OPERACJE.md`](docs/OPERACJE.md) § 6.6.
 
 ### Własne Jitsi Meet do rozmów kwalifikacyjnych (`scripts/deploy_jitsi.sh`)
 

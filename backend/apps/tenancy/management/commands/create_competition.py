@@ -224,6 +224,13 @@ class Command(BaseCommand):
                 f"/{competition.path_prefix}/ na domenie platformy. Sesja i CSRF stoją wtedy na "
                 f"jednym haszczu ciasteczek ze wszystkimi konkursami tej domeny (README § 3)."
             )
+            if result.platform is not None:
+                state = "włączono mu teraz" if result.opened_platform else "był już włączony"
+                write(
+                    f"     Konkurs platformy: {result.platform.slug} – przełącznik path_prefix_routing "
+                    f"{state} (bez niego prefiks pod jego domeną daje 404). Własne drzewo stron CMS "
+                    f"konkursu: /{competition.path_prefix}/ (strona główna „{competition.slug}”)."
+                )
         elif not result.env_lines:
             # Subdomena platformy przy włączonym ``PLATFORM_SUBDOMAINS``: rekord wieloznaczny
             # w DNS-ie i wildcard w ustawieniach już ten adres obejmują, a certyfikat Caddy pobiera

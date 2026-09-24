@@ -14,7 +14,7 @@ from apps.tenancy.context import current_competition
 from apps.tenancy.middleware import CompetitionMiddleware
 from apps.tenancy.models import Competition, RoutingMode
 
-from .conftest import HOST_A
+from .conftest import HOST_A, open_path_prefixes
 
 
 def run(request, *, view=None):
@@ -73,6 +73,7 @@ def test_host_without_competition_sets_none(db):
 
 
 def test_path_prefix_is_stripped_before_the_urlconf(competition, other_competition):
+    open_path_prefixes(competition)
     other_competition.routing_mode = RoutingMode.PATH
     other_competition.path_prefix = "fizyczna"
     other_competition.save()
@@ -90,6 +91,7 @@ def test_path_prefix_is_stripped_before_the_urlconf(competition, other_competiti
 
 def test_prefix_without_a_trailing_slash_still_leaves_a_path(competition, other_competition):
     """``/fizyczna`` ma zostać ścieżką ``/`` – pusty napis nie pasuje do żadnego wzorca urlconfa."""
+    open_path_prefixes(competition)
     other_competition.routing_mode = RoutingMode.PATH
     other_competition.path_prefix = "fizyczna"
     other_competition.save()
@@ -100,6 +102,7 @@ def test_prefix_without_a_trailing_slash_still_leaves_a_path(competition, other_
 
 
 def test_script_prefix_does_not_leak_to_the_next_request(competition, other_competition):
+    open_path_prefixes(competition)
     other_competition.routing_mode = RoutingMode.PATH
     other_competition.path_prefix = "fizyczna"
     other_competition.save()

@@ -56,6 +56,29 @@ class Resolution:
     competition: Competition | None
     #: Niepusty wyłącznie w trybie ``PATH`` i wyłącznie wtedy, gdy adres faktycznie go niósł.
     path_prefix: str = ""
+    #: Witryna dopasowana po **hoście** – przy prefiksie ścieżki jest to witryna platformy, a nie
+    #: witryna konkursu. Warstwa potrzebuje jej do adresów bezwzględnych stron tego konkursu
+    #: (``apps.tenancy.page_urls``): konkurs pod prefiksem odpowiada pod hostem platformy, więc
+    #: i jego ``full_url`` ma się zaczynać od adresu platformy, a nie od domeny, na którą czeka.
+    host_site: Site | None = None
+
+
+#: Przełącznik konkursu **platformy** (tego, którego witryna odpowiada pod danym hostem), który
+#: otwiera ten host dla konkursów adresowanych prefiksem ścieżki (§ 2.3). Czytany wyłącznie tutaj.
+PATH_PREFIX_FLAG = "path_prefix_routing"
+
+
+def hosts_path_prefixes(host_competition: Competition | None) -> bool:
+    """Czy pod hostem tego konkursu wolno rozstrzygać inne konkursy po prefiksie ścieżki.
+
+    Bramka stoi po stronie **gospodarza**, a nie konkursu pod prefiksem, bo to gospodarz płaci
+    cenę: w trybie ``PATH`` sesja i CSRF stoją na jego hoście, więc zalogowanie w konkursie pod
+    prefiksem jest zalogowaniem u niego (§ 2.3, „ciasteczka są wspólne”). Konkurs pod prefiksem
+    mówi o sobie ``routing_mode=PATH`` – druga flaga z tą samą treścią byłaby drugim źródłem tej
+    samej prawdy. Bez bramki każdy host z konkursem (także cudza domena organizatora) serwowałby
+    pod ``/<prefiks>/`` obcy konkurs pod swoją marką i ze swoimi ciasteczkami.
+    """
+    return host_competition is not None and host_competition.has_feature(PATH_PREFIX_FLAG)
 
 
 def first_path_segment(path_info: str) -> str:
@@ -68,7 +91,9 @@ def resolve_for_request(request) -> Resolution:
 
     Pierwszeństwo ma **prefiks ścieżki**, bo jest jawnym wskazaniem w adresie: konkurs czekający
     na własny DNS chodzi pod domeną platformy, więc dopasowanie po hoście oddałoby konkurs
-    platformy, a nie ten, o który poprosił adres.
+    platformy, a nie ten, o który poprosił adres. Prefiks liczy się jednak **wyłącznie** pod hostem,
+    którego konkurs ma włączone ``path_prefix_routing`` (:func:`hosts_path_prefixes`) – bramka nie
+    kosztuje zapytania, bo konkurs hosta przychodzi tym samym zapytaniem, co konkurs prefiksu.
 
     Błąd bazy nie wywraca żądania: warstwa wyżej ma prawo nie znać konkursu (dokładnie tak, jak
     nie znała go przed tą zmianą), a stronę błędu i tak złoży ten sam mechanizm, co dla każdego
@@ -79,7 +104,9 @@ def resolve_for_request(request) -> Resolution:
     zmianą. Rozstrzyganie konkursu nie może być **nowym** miejscem, w którym żądanie się kończy.
     """
     try:
-        site = Site.find_for_request(request)
+        # Po przejściu warstwy żądanie pod prefiksem ma podmienioną witrynę (drzewo stron konkursu);
+        # pierwszeństwo reguły „prefiks pod hostem gospodarza” liczy się od witryny **hosta**.
+        site = getattr(request, "competition_host_site", None) or Site.find_for_request(request)
     except (DatabaseError, DisallowedHost):
         logger.warning("Nie udało się rozstrzygnąć witryny żądania.", exc_info=True)
         return Resolution(None)
@@ -117,15 +144,23 @@ def resolve_for_request(request) -> Resolution:
         logger.warning("Nie udało się odczytać konkursu dla żądania.", exc_info=True)
         return Resolution(None)
 
-    for competition in found:
-        if competition.routing_mode == RoutingMode.PATH and competition.path_prefix == segment:
-            return Resolution(competition, segment)
-    for competition in found:
-        if site is not None and competition.site_id == site.pk:
-            return Resolution(competition)
-    if aliases:
-        return Resolution(_alias_competition(found))
-    return Resolution(None)
+    def by_prefix(competition) -> bool:
+        return (
+            bool(segment)
+            and competition.routing_mode == RoutingMode.PATH
+            and competition.path_prefix == segment
+        )
+
+    # Konkurs hosta: witryna główna albo – pod drugą domeną językową – alias (§ 1.6.2). Wiersz
+    # dopasowany prefiksem nie może być gospodarzem aliasu tylko dlatego, że stoi w tym samym wyniku.
+    host = next((c for c in found if site is not None and c.site_id == site.pk), None)
+    if host is None and aliases:
+        host = _alias_competition([c for c in found if not by_prefix(c)])
+    if hosts_path_prefixes(host):
+        for competition in found:
+            if competition is not host and by_prefix(competition):
+                return Resolution(competition, segment, host_site=site)
+    return Resolution(host, host_site=site if host is not None else None)
 
 
 def _english_interface_subquery():
@@ -252,7 +287,9 @@ def platform_subdomain_miss(request, competition) -> bool:
     if not host or not platform_subdomain_label(host) or _host_is_configured(host):
         return False
     try:
-        site = Site.find_for_request(request)
+        # Pod prefiksem ścieżki warstwa podmienia witrynę żądania na witrynę konkursu (drzewo stron),
+        # a tu pytamy o witrynę **hosta** – tę, którą warstwa zapamiętała przed podmianą.
+        site = getattr(request, "competition_host_site", None) or Site.find_for_request(request)
     except (DatabaseError, DisallowedHost):  # pragma: no cover - baza bez witryn
         # „Nie wiem” nie może tu znaczyć „404”: stronę błędu i tak złoży ten sam mechanizm,
         # co dla każdego innego zapytania, a 404 z powodu awarii bazy byłby diagnozą fałszywą.
