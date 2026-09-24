@@ -7,7 +7,7 @@ HTML-a i to, co pasek konta pokazuje, a czego nie.
 
 Trzy rzeczy, o które chodzi tu najbardziej:
 
-- **wyłączone forum znaczy 404 pod każdym z ośmiu adresów i brak pozycji w pasku konta.** Flaga,
+- **wyłączone forum znaczy 404 pod każdym z dziewięciu adresów i brak pozycji w pasku konta.** Flaga,
   która chowa link, ale zostawia działający adres, jest funkcją włączoną po cichu,
 - **strona wątku nie wypisuje adresu e-mail, szkoły ani kodu ``OLM-…``** – to jest najważniejszy
   test tego pliku i ma własne uzasadnienie przy sobie,
@@ -49,7 +49,7 @@ MINE_URL = "/forum/mine/"
 #: pozycja „Forum” ma się pojawiać tam, gdzie stoją pozostałe pozycje konta.
 ACCOUNT_SCREEN_URL = "/me/"
 
-#: Wszystkie osiem adresów forum, każdy w postaci gotowej do wpisania. Identyfikatory są zmyślone
+#: Wszystkie dziewięć adresów forum, każdy w postaci gotowej do wpisania. Identyfikatory są zmyślone
 #: i tak ma być: przy wyłączonym przełączniku odmowa pada **przed** sięgnięciem do bazy
 #: (``ForumAccessMixin``), więc test nie musi zakładać ani jednego wiersza, żeby ją sprawdzić.
 ALL_FORUM_URLS = (
@@ -57,6 +57,9 @@ ALL_FORUM_URLS = (
     NEW_THREAD_URL,
     MINE_URL,
     "/forum/t/1/",
+    # „Obserwuj wątek” (powiadomienia z 25.09.2026) – ta sama bramka, co reszta. Wypisu
+    # (``/forum/unsubscribe/…``) tu nie ma świadomie: ma działać bez logowania i bez flagi.
+    "/forum/t/1/follow/",
     "/forum/p/1/edit/",
     "/forum/p/1/delete/",
     "/forum/p/1/report/",
@@ -136,7 +139,7 @@ def category_url(category) -> str:
 def test_without_the_flag_every_forum_address_is_a_404(web_client, competition, url):
     """Wyłączone forum ma znaczyć „pod tym adresem w tym konkursie nic nie stoi” – wszędzie.
 
-    Osiem adresów, bo osiem ich jest: jeden zapomniany byłby dziurą wyglądającą jak działająca
+    Dziewięć adresów, bo dziewięć ich jest: jeden zapomniany byłby dziurą wyglądającą jak działająca
     funkcja, a odmowa pada tu **przed** sprawdzeniem roli, więc nie da się jej pomylić z 403.
     """
     profile = participant_of(competition)
@@ -511,7 +514,7 @@ def test_a_post_that_is_not_published_cannot_be_reported(web_client, competition
 
 @override_settings(REST_FRAMEWORK=rest_framework_with(forum="3/hour"))
 def test_replies_are_throttled_like_every_other_form(web_client, competition):
-    """Limit nie chroni tu cudzej skrzynki – forum nie wysyła listów – tylko kolejkę moderacyjną.
+    """Limit nie chroni tu cudzej skrzynki – listy forum są zbiorcze – tylko kolejkę moderacyjną.
 
     Stawkę podmieniamy przez ``REST_FRAMEWORK``, czyli przez tę samą konfigurację, z której
     korzysta DRF. To jest część asercji: gdyby formularze forum miały własne ustawienie, ten

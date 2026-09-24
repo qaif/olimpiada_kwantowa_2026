@@ -69,8 +69,16 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: którzy mają klucz API **i** potwierdzoną przez organizatora umowę powierzenia – bo tylko do nich
 #: mogą trafić prace uczestników. Nowi odbiorcy (każdy poza EOG albo z przetwarzaniem poza EOG) to
 #: zmiana materialna, a nie doprecyzowanie.
-REGISTER_VERSION = "1.8"
-REGISTER_DATE = date(2026, 9, 24)
+#: 1.9 (25.09.2026) – powiadomienia e-mail z forum (``apps.forum.notifications``). **Nowego celu nie
+#: ma** i dlatego nie ma nowego wiersza: list o odpowiedzi w obserwowanym wątku albo o decyzji
+#: moderatora jest częścią celu „sprawna komunikacja w czasie zawodów”, na tej samej podstawie
+#: (art. 6 ust. 1 lit. f), z prawem sprzeciwu w postaci wypisu jednym kliknięciem w każdym liście.
+#: Wiersz forum dostaje za to nowego **odbiorcę** (dostawca poczty wychodzącej – przez niego idzie
+#: temat wątku i sam fakt udziału w rozmowie) i nową **kategorię danych** (obserwowane wątki,
+#: ustawienia powiadomień, znaczniki wysyłki). Nowy odbiorca to zmiana materialna – ta sama
+#: reguła, co przy wersji 1.8.
+REGISTER_VERSION = "1.9"
+REGISTER_DATE = date(2026, 9, 25)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
 #: domyślna wartość ``Edition.data_retention_months`` – gdyby organizator zmienił ją dla rocznika,
@@ -543,9 +551,13 @@ FORUM_ACTIVITY = _activity(
         "data napisania i data poprawki wypowiedzi",
         "treść zgłoszenia wpisu do moderatora wraz z tożsamością zgłaszającego",
         "decyzja moderacyjna: stan wpisu, osoba i czas decyzji oraz uzasadnienie dla autora",
+        "powiadomienia e-mail: obserwowane wątki, ustawienia powiadomień konta i znaczniki czasu "
+        "wysyłki – bez kopii treści wpisów",
     ],
     recipients=[
         HOSTING_RECIPIENT,
+        MAIL_RECIPIENT + " – powiadomienia z forum: temat opublikowanego wątku, liczba nowych "
+        "wpisów i uzasadnienie decyzji moderatora dla autora; nigdy treść wpisu",
         "pozostali zalogowani uczestnicy tego konkursu oraz członkowie jego komitetu – forum nie "
         "jest publiczne, nie da się go przeczytać bez konta i nie jest indeksowane przez "
         "wyszukiwarki",
@@ -574,6 +586,10 @@ FORUM_ACTIVITY = _activity(
         "usunięcie własnej wypowiedzi jest natychmiastowe dla czytelników; wiersz zostaje wyłącznie "
         "po to, żeby zgłoszony wpis nie znikał na żądanie autora",
         "każda decyzja moderatora zostawia wpis w dzienniku zdarzeń **bez kopii treści** wypowiedzi",
+        "powiadomienia e-mail są zbiorcze i nie niosą treści wypowiedzi – forum da się przeczytać "
+        "wyłącznie po zalogowaniu także wtedy, gdy list trafi do cudzej skrzynki; nic "
+        "niepublikowanego nie wychodzi pocztą, a każdy list ma wypis jednym kliknięciem (bez "
+        "logowania) – to jest forma prawa sprzeciwu z art. 21 RODO",
     ],
 )
 

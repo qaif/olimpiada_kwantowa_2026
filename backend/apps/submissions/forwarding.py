@@ -66,8 +66,9 @@ FORWARD_SUBJECT_TEMPLATE = "Nowe rozwiązanie: %(stage)s – zadanie %(number)s 
 def subject_for(submission, competition=None) -> str:
     """Temat listu razem z prefiksem konkursu (``[Olimpiada Kwantowa] `` dla Konkursu #1).
 
-    Prefiks doklejamy **tutaj**, a nie w wysyłce, i jest to jedyne miejsce w serwisie, które to
-    robi. ``django.core.mail.send_mail`` prefiksu nigdy nie używał (robią to wyłącznie
+    Prefiks doklejamy **tutaj**, a nie w wysyłce (tę samą regułę stosują od 25.09.2026 listy
+    z forum – ``apps.forum.notifications._subject``). ``django.core.mail.send_mail`` prefiksu
+    nigdy nie używał (robią to wyłącznie
     ``mail_admins``/``mail_managers``), więc żaden dotychczasowy temat się od tego nie zmienia –
     a ten list jest nowy i nie ma odbiorcy, któremu zmieniłaby się reguła w skrzynce. Organizator
     prosił wprost o prefiks w nawiasie kwadratowym, a ``Competition.email_subject_prefix`` jest

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% comment %}
+  Wypis z listów forum z linku w liście – bez logowania (``apps.web.views.forum.ForumUnsubscribeView``).
+
+  Strona ma **jeden przycisk** i nic nie zmienia, dopóki się go nie kliknie: skaner odnośników
+  w skrzynce szkolnej otwiera każdy link w liście, a wypis wykonany przez skaner byłby wypisem,
+  o który nikt nie prosił. Klient poczty, który obsługuje nagłówek ``List-Unsubscribe-Post``,
+  wysyła ``POST`` sam i tej strony w ogóle nie pokazuje.
+
+  Strona nie wypisuje adresu e-mail ani imienia: link bywa przekazany dalej razem z listem,
+  a ten, kto go otworzył, nie musi być właścicielem skrzynki.
+{% endcomment %}
+{% block title %}{% translate "Powiadomienia z forum" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Forum" %}</span>
+  <h1>{% translate "Powiadomienia z forum" %}</h1>
+</div>
+
+<section class="section">
+  <div class="card">
+    {% if done %}
+      {% if scope_thread %}
+        <p>{% translate "Gotowe – nie obserwujesz już tego wątku i nie dostaniesz o nim więcej listów." %}</p>
+      {% elif scope_moderation %}
+        <p>{% translate "Gotowe – listy o wpisach czekających na moderację są wyłączone. Kolejka nadal czeka w panelu koordynatora." %}</p>
+      {% else %}
+        <p>{% translate "Gotowe – nie będziemy już wysyłać listów z forum na ten adres." %}</p>
+      {% endif %}
+      <p class="hint">{% translate "Zmienisz to w każdej chwili na ekranie „Edycja danych” po zalogowaniu." %}</p>
+    {% else %}
+      {% if scope_thread %}
+        <p>{% translate "Czy przestać obserwować ten wątek? Nie dostaniesz już listów o nowych odpowiedziach w nim." %}</p>
+      {% elif scope_moderation %}
+        <p>{% translate "Czy wyłączyć listy o wpisach czekających na moderację?" %}</p>
+      {% else %}
+        <p>{% translate "Czy wyłączyć wszystkie listy z forum? Nie dostaniesz już listów o odpowiedziach w obserwowanych wątkach ani o decyzjach organizatora w sprawie Twoich wpisów." %}</p>
+      {% endif %}
+      <form method="post" action="{% url 'web:forum-unsubscribe' token %}">
+        <p class="actions">
+          <button type="submit" class="btn btn--primary">{% translate "Tak, wypisz mnie" %}</button>
+        </p>
+      </form>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

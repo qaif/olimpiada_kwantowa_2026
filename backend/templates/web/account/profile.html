@@ -78,6 +78,26 @@
 </section>
 
 {% comment %}
+  Powiadomienia z forum stoją zaraz pod adresem e-mail, bo dotyczą tej samej skrzynki. Blok jest
+  tylko wtedy, gdy konkurs prowadzi forum, a ta osoba może je czytać – kontekst przychodzi
+  z ``apps.web.views.forum.notification_settings_context``. Formularz wysyła się pod własny adres,
+  tak jak zmiana adresu e-mail: to osobne ustawienie, a nie kolejne pole danych osobowych.
+{% endcomment %}
+{% if forum_notifications_form %}
+<section class="section" id="powiadomienia-forum">
+  <div class="card">
+    <h2 class="mt-0">{% translate "Powiadomienia z forum" %}</h2>
+    <p class="hint">{% translate "Piszemy o nowych odpowiedziach w wątkach, które obserwujesz (swoje wątki i te, w których pisałeś, obserwujesz automatycznie), oraz o decyzji organizatora w sprawie Twojego wpisu. List nie zawiera treści wpisów – tylko temat wątku i odnośnik. Każdy list ma link do wypisania się jednym kliknięciem." %}</p>
+    <form method="post" action="{% url 'web:forum-notifications' %}" class="form">
+      {% csrf_token %}
+      {{ forum_notifications_form.as_p }}
+      <button type="submit" class="btn btn--secondary">{% translate "Zapisz ustawienia powiadomień" %}</button>
+    </form>
+  </div>
+</section>
+{% endif %}
+
+{% comment %}
   Drugi składnik logowania stoi **przed** eksportem i usunięciem konta, bo to jedyna pozycja na
   tej stronie, która coś na koncie poprawia, a nie kończy. Sam ekran jest osobny (kod QR, kody
   zapasowe), więc tutaj jest wyłącznie odnośnik – rozwinięcie tego bloku w miejscu znaczyłoby

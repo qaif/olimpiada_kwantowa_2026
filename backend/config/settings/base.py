@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 
 import environ
+from celery.schedules import crontab
 from wagtail.embeds import oembed_providers
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -497,7 +498,32 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.ai_grading.tasks.pump_ai_assessments",
         "schedule": 300.0,
     },
+    # Powiadomienia z forum (apps/forum/tasks.py): list o kolejce moderacji do koordynatorów
+    # i listy „na bieżąco” o obserwowanych wątkach i decyzjach moderatora. Co dwie minuty, bo
+    # przebieg jest zegarem dwóch opóźnień liczonych w minutach (``FORUM_MODERATION_DIGEST_*``);
+    # częstotliwość wysyłki wyznaczają limity w ``apps.forum.notifications``, a nie ten przebieg.
+    # Konkurs bez forum kosztuje zero zapytań – flaga jest polem wiersza konkursu.
+    "forum-notifications": {
+        "task": "apps.forum.tasks.send_forum_notifications",
+        "schedule": 120.0,
+    },
+    # Dzienne podsumowanie forum dla kont „raz dziennie” – o stałej porze, a nie „co 24 godziny
+    # od startu beatu”: podsumowanie, które raz przychodzi rano, a po restarcie serwera w nocy,
+    # nie jest podsumowaniem dnia. Godzina w UTC, bo w UTC chodzi beat (``CELERY_TIMEZONE``).
+    "forum-daily-digest": {
+        "task": "apps.forum.tasks.send_daily_forum_digest",
+        "schedule": crontab(minute=0, hour=env.int("FORUM_DAILY_DIGEST_HOUR_UTC", default=5)),
+    },
 }
+
+# --- powiadomienia z forum (``apps.forum.notifications``) ---------------------------------------
+# Pierwszy list o kolejce moderacji wychodzi, gdy najstarsza pozycja czeka co najmniej tyle minut:
+# koordynator, który siedzi w panelu, zdąży ją rozpatrzyć, zanim list w ogóle powstanie.
+FORUM_MODERATION_DIGEST_DELAY_MINUTES = env.int("FORUM_MODERATION_DIGEST_DELAY_MINUTES", default=10)
+# Kolejne listy o kolejce – najwyżej jeden na tyle godzin, dopóki coś czeka.
+FORUM_MODERATION_DIGEST_INTERVAL_HOURS = env.int("FORUM_MODERATION_DIGEST_INTERVAL_HOURS", default=3)
+# O jednym obserwowanym wątku najwyżej jeden list na tyle godzin (konta „na bieżąco”).
+FORUM_THREAD_NOTIFY_INTERVAL_HOURS = env.int("FORUM_THREAD_NOTIFY_INTERVAL_HOURS", default=4)
 
 # Adresy dyżurnych, na które watchdog wysyła alarmy (przecinkami). **Pusta lista wyłącza wysyłkę**
 # i to jest domyślne zachowanie: instalacja deweloperska nie ma nikogo budzić, a na produkcji
@@ -964,7 +990,8 @@ REST_FRAMEWORK = {
         # drugie zgłoszenie w tej samej sprawie, a odbicie go limitem byłoby karą za problem.
         "support": "10/hour",
         # Pisanie na forum uczestników (wątek, odpowiedź, zgłoszenie wpisu). Limit nie chroni tu
-        # cudzej skrzynki – forum nie wysyła listów – tylko **kolejkę moderacyjną i rozmowę**:
+        # cudzej skrzynki – listy forum są zbiorcze i nie rosną z liczbą wpisów
+        # (``apps.forum.notifications``) – tylko **kolejkę moderacyjną i rozmowę**:
         # trzydzieści wpisów w godzinę to więcej, niż napisze uczestnik czytający odpowiedzi,
         # a mniej, niż potrzeba, żeby zasypać dział albo wyczerpać dyżur koordynatora. Stawka jest
         # wyższa niż przy zgłoszeniach, bo tam jedno zdanie kończy sprawę, a tu toczy się rozmowa.

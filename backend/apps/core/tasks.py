@@ -21,7 +21,7 @@ import logging
 from celery import shared_task
 from django.conf import settings
 from django.core.cache import cache
-from django.core.mail import send_mail
+from django.core.mail import EmailMessage, send_mail
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -73,7 +73,12 @@ def mail_from(competition=None) -> str | None:
     max_retries=MAX_RETRIES,
 )
 def send_mail_task(
-    self, subject: str, message: str, recipient_list: list[str], from_email: str | None = None
+    self,
+    subject: str,
+    message: str,
+    recipient_list: list[str],
+    from_email: str | None = None,
+    headers: dict[str, str] | None = None,
 ) -> int:
     """Wysyła jedną wiadomość tekstową. Zwraca liczbę dostarczonych listów (0 albo 1).
 
@@ -98,14 +103,29 @@ def send_mail_task(
     wykonuje ponowienia synchronicznie i **ignoruje** ``countdown``, więc test nigdy nie czeka;
     po wyczerpaniu prób leci oryginalny wyjątek (``CELERY_TASK_EAGER_PROPAGATES``), a nie
     ``Retry``. Przy backendzie ``locmem`` wysyłka i tak nie zawodzi – testy widzą jedno wywołanie.
+
+    ``headers`` (od 25.09.2026) to dodatkowe nagłówki listu – dziś wyłącznie ``List-Unsubscribe``
+    i ``List-Unsubscribe-Post`` powiadomień forum (``apps.forum.notifications``). Słownik napisów,
+    a nie obiekt, z tego samego powodu co reszta argumentów: jedzie przez JSON brokera. Bez
+    nagłówków list idzie **tą samą** drogą co dotąd (``send_mail``), więc żaden istniejący list
+    nie zmienia się ani o bajt.
     """
-    sent = send_mail(
-        subject,
-        message,
-        from_email or settings.DEFAULT_FROM_EMAIL,
-        list(recipient_list or []),
-        fail_silently=False,
-    )
+    if headers:
+        sent = EmailMessage(
+            subject,
+            message,
+            from_email or settings.DEFAULT_FROM_EMAIL,
+            list(recipient_list or []),
+            headers=dict(headers),
+        ).send(fail_silently=False)
+    else:
+        sent = send_mail(
+            subject,
+            message,
+            from_email or settings.DEFAULT_FROM_EMAIL,
+            list(recipient_list or []),
+            fail_silently=False,
+        )
     logger.info(
         "Wysłano %s wiadomości do %s odbiorców (próba %s).",
         sent,

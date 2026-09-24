@@ -265,6 +265,13 @@ etapu go nie przesuwa; po przydziale widzisz go w komunikacie i w wierszu kolejk
 - jeśli nie zdążysz, napisz do koordynatora **zanim** minie termin: praca da się przekazać komuś innemu
   bez utraty Twoich notatek.
 
+**Forum uczestników** (jeżeli konkurs je prowadzi): gdy odpowiesz w wątku, zaczynasz go **obserwować**
+i o kolejnych odpowiedziach dostaniesz list zbiorczy (najwyżej jeden o wątku na kilka godzin, bez treści
+wpisów). Twoja odpowiedź ma przy podpisie odznakę **„Komitet”**, a autor wątku dostaje list z tematem
+„komitet odpowiedział w wątku …”. Listów o kolejce moderacji komitet nie dostaje — forum moderuje
+koordynator. Częstotliwość (na bieżąco / raz dziennie / nigdy) ustawisz na `/account/profile/`, blok
+„Powiadomienia z forum”; każdy list ma też link „wypisz się”.
+
 ---
 
 ## 9. Zgłoszenie problemu z pracą

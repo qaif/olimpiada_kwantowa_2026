@@ -13,8 +13,15 @@ wszystkich konkursów w instalacji – czyli wyciekiem widocznym w źródle stro
 from __future__ import annotations
 
 from django import forms
+from django.utils.translation import gettext_lazy
 
-from .models import MAX_POST_LENGTH, MAX_REASON_LENGTH, MAX_TITLE_LENGTH, ModerationMode
+from .models import (
+    MAX_POST_LENGTH,
+    MAX_REASON_LENGTH,
+    MAX_TITLE_LENGTH,
+    ModerationMode,
+    NotificationFrequency,
+)
 
 #: Klasa CSS markera pola obowiązkowego – ta sama, co w pozostałych formularzach serwisu.
 REQUIRED_CSS_CLASS = "required"
@@ -87,6 +94,38 @@ class ForumSettingsForm(forms.Form):
         required=False,
         help_text="Rozmowy zostają do przeczytania, ale nikt nie doda nowego wpisu.",
     )
+
+
+class NotificationSettingsForm(forms.Form):
+    """Ustawienia powiadomień e-mail z forum na ekranie „Edycja danych”.
+
+    W odróżnieniu od reszty formularzy forum etykiety **są tłumaczone**: stoją na ekranie konta,
+    który ma wersję angielską (``apps.accounts.preferences`` – zakres tłumaczenia), a nie na
+    ekranie forum. Pole listów o kolejce moderacji dostaje tylko koordynator – u pozostałych kont
+    nie ma czego ustawiać, bo tych listów i tak nie dostają.
+    """
+
+    frequency = forms.ChoiceField(
+        label=gettext_lazy("Listy o obserwowanych wątkach i decyzjach moderatora"),
+        choices=(
+            (
+                NotificationFrequency.IMMEDIATE,
+                gettext_lazy("na bieżąco (o jednym wątku najwyżej co kilka godzin)"),
+            ),
+            (NotificationFrequency.DAILY, gettext_lazy("raz dziennie – jedno podsumowanie")),
+            (NotificationFrequency.NEVER, gettext_lazy("nigdy")),
+        ),
+        widget=forms.RadioSelect,
+    )
+    moderation_digest = forms.BooleanField(
+        label=gettext_lazy("Listy o wpisach czekających na moderację"),
+        required=False,
+    )
+
+    def __init__(self, *args, moderator: bool = False, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not moderator:
+            del self.fields["moderation_digest"]
 
 
 class CategoryForm(forms.Form):

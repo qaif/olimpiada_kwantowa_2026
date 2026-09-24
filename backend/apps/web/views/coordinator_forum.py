@@ -27,6 +27,7 @@ potrzeby i jeden warunek stojący między uczestnikiem a ukrytą wypowiedzią.
 
 from __future__ import annotations
 
+from django.conf import settings
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.http import Http404
@@ -157,6 +158,10 @@ class CoordinatorForumView(CoordinatorForumMixin, View):
                 {"report": report, "author": display_author(report.post.author)} for report in reports
             ],
             "queue_total": len(threads) + len(posts) + len(reports),
+            # Rytm listów o kolejce (``apps.forum.notifications``) – z ustawień, a nie literałem
+            # w szablonie, bo instalacja może go zmienić zmienną środowiskową.
+            "digest_delay_minutes": settings.FORUM_MODERATION_DIGEST_DELAY_MINUTES,
+            "digest_interval_hours": settings.FORUM_MODERATION_DIGEST_INTERVAL_HOURS,
         }
         return TemplateResponse(request, QUEUE_TEMPLATE, context)
 

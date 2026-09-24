@@ -41,4 +41,5 @@ def test_the_row_names_anthropic_as_processor_and_the_transfer(competition):
 
 
 def test_register_version_was_bumped_for_the_new_processing():
-    assert REGISTER_VERSION == "1.8"
+    # 1.9 (25.09.2026): powiadomienia z forum dołożyły odbiorcę w wierszu forum – wersja poszła dalej.
+    assert REGISTER_VERSION == "1.9"
