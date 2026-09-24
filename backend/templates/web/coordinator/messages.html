@@ -4,7 +4,8 @@
   Wysyłka komunikatu do grupy odbiorców. Ekran jest dwustopniowy: pierwszy przycisk („Podgląd”)
   pokazuje liczbę odbiorców i treść tak, jak pójdzie w liście, drugi („Wyślij”) wysyła naprawdę.
   Oba są zwykłym POST-em tego samego formularza – różni je pole ``action``, więc nie ma tu stanu
-  w sesji i nie da się wysłać czegoś innego, niż się obejrzało.
+  w sesji. Żeby nie dało się wysłać czegoś innego, niż się obejrzało, podgląd dokłada podpis
+  (``preview_signature``), a wysyłka go sprawdza.
 
   Adresów odbiorców ekran **nie pokazuje**, i to nie z oszczędności miejsca: lista kilku tysięcy
   adresów wyświetlona bez żadnej potrzeby byłaby wyciągiem z bazy kontaktów. Koordynator sprawdza
@@ -14,8 +15,9 @@
 {% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
 {% block panel_title %}Komunikaty{% endblock %}
 {% block panel_lead %}
-  <p class="lead">List do grupy uczestników albo do komitetu. Każdy odbiorca dostaje osobną
-    kopertę – w nagłówku listu nie ma adresów pozostałych osób.</p>
+  <p class="lead">List do wszystkich uczestników konkursu, do wybranej grupy uczestników, do opiekunów
+    szkolnych albo do komitetu. Każdy odbiorca dostaje osobną kopertę – w nagłówku listu nie ma
+    adresów pozostałych osób.</p>
 {% endblock %}
 {% block panel_content %}
 
@@ -25,9 +27,23 @@
     {% if edition %}<p class="hint">Bieżąca edycja: {{ edition.year_label }}</p>{% endif %}
   </div>
   <div class="card">
-    <form method="post" class="form">
+    {% comment %}
+      Pola renderowane pętlą, a nie ``as_p``, z jednego powodu: pola doprecyzowujące grupę (etap,
+      województwo, region, szkoła, klasa, warsztat, lista adresów) dostają punkt zaczepienia
+      ``data-broadcast-param``. Skrypt ``broadcast-groups.js`` pokazuje z nich wyłącznie to, którego
+      wymaga wybrana grupa – mapę „grupa → pole” liczy formularz (``BroadcastForm.parameter_map``),
+      więc ekran nie może rozjechać się z walidacją. **Bez JavaScriptu widać wszystkie pola**,
+      a serwer i tak bierze pod uwagę tylko pole wybranej grupy – strona działa, jest tylko dłuższa.
+    {% endcomment %}
+    <form method="post" class="form" data-broadcast-form>
       {% csrf_token %}
-      {{ form.as_p }}
+      {{ form.non_field_errors }}
+      {% for field in form %}
+        <div class="field"{% if field.name in parameter_fields %} data-broadcast-param="{{ field.name }}"{% endif %}>
+          {{ field.as_field_group }}
+        </div>
+      {% endfor %}
+      {{ parameter_map|json_script:"broadcast-parameters" }}
       {% comment %}
         Konta nieaktywne i te bez potwierdzonego adresu są z wysyłki wyłączone (apps/accounts/
         messaging.py). Zdanie stoi przy formularzu, bo inaczej różnica między liczbą uczestników
@@ -38,6 +54,12 @@
       <div class="actions">
         <button type="submit" name="action" value="preview" class="btn btn--secondary">Podgląd</button>
         {% if preview %}
+          {% comment %}
+            Podpis tego, co widać w podglądzie (``preview_signature`` w widoku). Zmiana grupy, jej
+            parametru, tematu albo treści po podglądzie unieważnia go i „Wyślij” pokaże podgląd
+            na nowo, zamiast wysłać list, którego nikt nie obejrzał.
+          {% endcomment %}
+          <input type="hidden" name="preview_signature" value="{{ preview.signature }}">
           <button type="submit" name="action" value="send" class="btn btn--primary">Wyślij</button>
         {% endif %}
       </div>
@@ -52,6 +74,12 @@
       <span class="badge {% if preview.count %}badge--ok{% else %}badge--danger{% endif %}">{{ preview.count }} odbiorców</span>
     </div>
     <div class="card">
+      {% comment %}
+        Grupa z parametrem stoi nad tematem, bo to ona jest tu przedmiotem sprawdzenia: liczba
+        odbiorców bez nazwy szkoły (etapu, warsztatu) nie odróżnia „tej szkoły” od szkoły o podobnej
+        nazwie z sąsiedniego miasta. Ten sam opis trafi do historii wysyłek.
+      {% endcomment %}
+      <p><strong>Odbiorcy:</strong> {{ preview.group }}{% if preview.target.label %}: {{ preview.target.label }}{% endif %}</p>
       <p><strong>Temat:</strong> {{ form.cleaned_data.subject }}</p>
       <pre class="mail-preview">{{ form.cleaned_data.body }}</pre>
       {% if not preview.count %}
@@ -85,7 +113,7 @@
           <tr>
             <td class="audit-when">{{ row.created_at|local_datetime }}</td>
             <th scope="row">{{ row.subject }}</th>
-            <td>{{ row.get_group_display }}</td>
+            <td>{{ row.get_group_display }}{% if row.target_label %}: <strong>{{ row.target_label }}</strong>{% endif %}</td>
             <td class="num">{{ row.recipient_count }}</td>
             <td class="num">{{ row.sent_count }}</td>
             <td>{{ row.get_status_display }}</td>
@@ -98,4 +126,7 @@
     </table>
   </div>
 </section>
+{% endblock %}
+{% block page_scripts %}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/broadcast-groups.js' %}"></script>
 {% endblock %}
