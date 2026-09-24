@@ -117,8 +117,13 @@ def test_upload_is_audited_without_the_file_name(participant, edition):
 
 
 def test_reupload_replaces_a_pending_version_and_removes_its_file(
-    participant, edition, django_capture_on_commit_callbacks
+    participant, edition, django_capture_on_commit_callbacks, monkeypatch
 ):
+    # Wywołania po commicie zlecają skan antywirusowy, a w testach Celery działa synchronicznie –
+    # bez podmiany test zależałby od działającego clamd (lokalnie jest, w CI go nie ma).
+    from apps.student_status import tasks
+
+    monkeypatch.setattr(tasks, "scan_stream", lambda stream, **kwargs: ("CLEAN", ""))
     with django_capture_on_commit_callbacks(execute=True):
         first = services.upload_scan(participant, edition, upload("a.pdf", PDF_BYTES))
     first_key = first.object_key
