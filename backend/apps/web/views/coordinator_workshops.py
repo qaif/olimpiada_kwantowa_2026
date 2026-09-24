@@ -34,6 +34,7 @@ from apps.core.models import audit
 from apps.results.certificates import build_certificates_zip, issue_workshop_certificates
 from apps.web.certificate_forms import WorkshopAttendanceImportForm
 from apps.web.mixins import CoordinatorRequiredMixin
+from apps.workshop_materials.access import feature_enabled
 
 TEMPLATE = "web/coordinator/workshop_attendance.html"
 
@@ -192,6 +193,8 @@ class WorkshopAttendanceView(CoordinatorRequiredMixin, View):
             "page_number": page_number,
             "page_count": max(1, -(-len(participants) // PAGE_SIZE)),
             "total": len(participants),
+            # Odnośnik do materiałów z warsztatów – wyłącznie gdy ekran istnieje (flaga konkursu).
+            "materials_enabled": feature_enabled(request.competition),
             "rows": [
                 {
                     "participant": participant,

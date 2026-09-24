@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% comment %}
+  „Materiały z warsztatów” dla zalogowanych. Warsztaty w kolejności harmonogramu, pod każdym jego
+  materiały. Na tej stronie **nie ma** żadnego adresu pliku: film otwiera się na stronie materiału
+  (tam powstaje podpisany adres), plik i odnośnik idą przez ``workshop-material-open``, który liczy
+  wyświetlenie i dopiero wtedy przekierowuje.
+{% endcomment %}
+{% block title %}Materiały z warsztatów{% endblock %}
+{% block description %}Nagrania i materiały z warsztatów olimpiady – dla zalogowanych uczestników i opiekunów.{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="/warsztaty/">Warsztaty</a></span>
+  <h1>Materiały z warsztatów</h1>
+  <p class="lead">Nagrania zajęć, slajdy i pliki do ćwiczeń. Materiały są przeznaczone wyłącznie dla
+    uczestników olimpiady i ich opiekunów – prosimy nie udostępniać ich dalej.</p>
+</div>
+
+{% for group in groups %}
+  <section class="section" aria-labelledby="warsztat-{{ forloop.counter }}">
+    <div class="section__head">
+      <h2 class="mt-0" id="warsztat-{{ forloop.counter }}">{{ group.topic }}</h2>
+      <p class="hint">{% if group.date_value %}{{ group.date_value|date:"j E Y" }}{% endif %}{% if group.lecturer %} · {{ group.lecturer }}{% endif %}</p>
+    </div>
+    <ul class="cards">
+      {% for material in group.materials %}
+        <li>
+          <article class="card">
+            <h3 class="card__title">{{ material.title }}</h3>
+            <p class="card__meta">{{ material.get_kind_display|capfirst }}{% if material.format_label %} · {{ material.format_label }}{% endif %}{% if material.size_bytes %} · {{ material.size_bytes|filesizeformat }}{% endif %}</p>
+            {% if material.description %}<p>{{ material.description|linebreaksbr }}</p>{% endif %}
+            <p>
+              {% if material.kind == kinds.VIDEO %}
+                <a class="btn btn--primary" href="{% url 'web:workshop-material' material.pk %}">Obejrzyj<span class="visually-hidden">: {{ material.title }}</span></a>
+              {% elif material.kind == kinds.FILE %}
+                <a class="btn btn--primary" href="{% url 'web:workshop-material-open' material.pk %}">{% if material.format.inline %}Otwórz{% else %}Pobierz{% endif %}<span class="visually-hidden">: {{ material.title }}</span></a>
+              {% else %}
+                <a class="btn btn--primary" href="{% url 'web:workshop-material-open' material.pk %}" rel="noopener noreferrer">Przejdź do materiału<span class="visually-hidden">: {{ material.title }}</span></a>
+              {% endif %}
+            </p>
+          </article>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+{% empty %}
+  <div class="empty">
+    <span class="empty__title">Nie ma jeszcze materiałów</span>
+    <p class="empty__text">Nagrania i pliki pojawiają się tu zwykle kilka dni po warsztatach.
+      Harmonogram jest na stronie <a href="/warsztaty/">Warsztaty</a>.</p>
+  </div>
+{% endfor %}
+{% endblock %}

@@ -211,6 +211,15 @@ FEATURE_DEFAULTS: dict[str, bool] = {
     # znaczyłoby otwarcie takiego miejsca w chwili, w której nikt go jeszcze nie pilnuje — dlatego
     # otwiera je świadomy wpis w panelu, a nie data wydania.
     "participant_forum": False,
+    # --- materiały z warsztatów -------------------------------------------------------------------
+    # Nagrania, pliki i odnośniki z warsztatów dla zalogowanych (prośba organizatora z 24.09.2026,
+    # ``apps.workshop_materials``). Wyłączona znaczy, że adresów ``/warsztaty/materialy/…``
+    # i ``/coordinator/workshops/materials/…`` **nie ma** (404), a strona „Warsztaty” i menu wyglądają
+    # co do bajtu jak dziś. Domyślnie wyłączona, bo włączenie ma sens dopiero po dopisaniu uprawnień
+    # wgrywania wieloczęściowego do polityki MinIO (``deploy/minio/policy-submissions.json``) i po
+    # sprawdzeniu miejsca na dysku serwera (``docs/OPERACJE.md``) – czyli po kroku operatora,
+    # którego wdrożenie samo nie wykona.
+    "workshop_materials": False,
 }
 
 

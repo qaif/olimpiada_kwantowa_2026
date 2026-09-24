@@ -1,0 +1,18 @@
+/* =================================================================================================
+   Materiały z warsztatów (/warsztaty/materialy/<id>/) – odtwarzacz filmu.
+
+   Jedyna rzecz, której system interfejsu nie ma: **odtwarzacz na całą szerokość kolumny** w stałej
+   proporcji 16:9. Atrybuty ``width``/``height`` na ``<video>`` rezerwują miejsce przed wczytaniem
+   metadanych (strona nie skacze), a ta reguła skaluje go do kolumny na telefonie i na monitorze.
+   Tło z tokenu – w trybie ciemnym i wysokiego kontrastu pusty odtwarzacz nie świeci bielą.
+   ============================================================================================== */
+
+.workshop-video {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  margin: 0 0 var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-inset);
+}

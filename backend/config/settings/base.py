@@ -134,6 +134,12 @@ INSTALLED_APPS = [
     # plik w storage prywatnym, własne zdarzenia (pobrania) i własne reguły prywatności liczenia
     # (``apps.promo.tracking``). Z domeną zawodów łączy ją wyłącznie konkurs.
     "apps.promo",
+    # Materiały z warsztatów: nagrania, pliki i odnośniki dla zalogowanych (prośba organizatora
+    # z 24.09.2026, flaga ``workshop_materials``). Osobna aplikacja z tego samego powodu, co
+    # ``apps.promo``: własne modele, własny magazyn (wgrywanie z przeglądarki prosto do MinIO)
+    # i własne reguły dostępu. Z CMS-em łączy ją wyłącznie **odczyt** harmonogramu warsztatów
+    # (``apps.cms.workshops``) – dlatego stoi po nim, a przed ``apps.web``, który ją wyświetla.
+    "apps.workshop_materials",
     # Warstwa integracyjna: klucze API dla systemów zewnętrznych, webhooki i eksporty na zewnątrz.
     # **Po** aplikacjach domeny, bo czyta je wszystkie (edycje, wyniki, zgłoszenia), a żadna z nich
     # nie czyta jej – zależność idzie w jedną stronę i kolejność w tej liście ma to pokazywać.
@@ -370,6 +376,9 @@ CELERY_TASK_ROUTES = {
     # wysyłka listu (z załącznikiem sięgającym po plik do S3), a nie praca domenowa – na kolejce
     # ``scan`` blokowałaby przyjmowanie kolejnych prac na czas rozmowy z MTA.
     "apps.submissions.tasks.forward_submission_file": {"queue": "mail"},
+    # Skan pliku materiału z warsztatów – ta sama kolejka, co skan rozwiązań: to ta sama praca
+    # (strumień z MinIO do clamd), a osobny worker ``scan`` pilnuje, żeby nie zajęła kolejki ogólnej.
+    "apps.workshop_materials.tasks.scan_material": {"queue": "scan"},
 }
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_TIMEZONE = "UTC"
@@ -422,6 +431,13 @@ CELERY_BEAT_SCHEDULE = {
     "promo-clear-expired-ip-hashes": {
         "task": "apps.promo.tasks.clear_expired_ip_hashes",
         "schedule": 86400.0,
+    },
+    # Materiały z warsztatów (apps/workshop_materials/tasks.py): porzucone wgrywania (wiersz
+    # „wgrywanie” starszy niż doba – części w MinIO, obiekt i wiersz) oraz pseudonimy widzów po
+    # okresie retencji. Co godzinę, bo porzucone wgrywanie filmu to bywają gigabajty na dysku.
+    "workshop-materials-cleanup": {
+        "task": "apps.workshop_materials.tasks.cleanup",
+        "schedule": 3600.0,
     },
     # Puls workera zapisywany w cache'u – z niego strona ``/status/`` czyta, czy kolejka zadań
     # w ogóle żyje (apps/core/tasks.py). Co minutę, bo próg „brak pulsu” na stronie statusu jest
@@ -679,6 +695,14 @@ CLAMAV_PORT = env.int("CLAMAV_PORT", default=3310)
 # ``StreamMaxLength`` clamd (obraz clamav 1.4 → 100 MB). Powyżej tej wartości clamd zrywa połączenie
 # w trakcie INSTREAM, co wyglądałoby jak awaria usługi i uruchamiało bezsensowne retry.
 CLAMAV_STREAM_MAX_BYTES = env.int("CLAMAV_STREAM_MAX_BYTES", default=100 * 1024 * 1024)
+
+# Materiały z warsztatów (``apps.workshop_materials``): limity rozmiaru w MB. Film nie przechodzi
+# przez serwer aplikacji (wgrywanie częściami prosto do MinIO), więc jego limit chroni wyłącznie dysk
+# serwera – 4 GB to dwugodzinne nagranie 1080p z zapasem. Plik (PDF, prezentacja) jest skanowany
+# ClamAV-em, więc jego limit i tak jest przycinany do ``CLAMAV_STREAM_MAX_BYTES``
+# (``apps.workshop_materials.formats.file_max_bytes``).
+WORKSHOP_VIDEO_MAX_MB = env.int("WORKSHOP_VIDEO_MAX_MB", default=4096)
+WORKSHOP_FILE_MAX_MB = env.int("WORKSHOP_FILE_MAX_MB", default=100)
 
 # --- Strona błędu serwera (templates/500.html) -------------------------------------------------
 # Adres kontaktowy pokazywany na stronie 500. Ustawienie, a nie pole konkursu: ta strona renderuje

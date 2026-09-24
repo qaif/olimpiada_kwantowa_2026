@@ -206,6 +206,23 @@ z uzasadnieniem dostajesz listem i widzisz w tej samej zakładce.
 Dokument pobiera się w PDF-ie; strona weryfikacyjna **nie pokazuje imienia i nazwiska**, dopóki nie
 wyraziłeś zgody na publikację pełnych danych.
 
+### Materiały z warsztatów — `/warsztaty/materialy/`
+
+Nagrania warsztatów, slajdy i pliki do ćwiczeń są na stronie **Warsztaty** → ramka **„Materiały
+z warsztatów”** (albo wprost pod adresem `/warsztaty/materialy/`). **Trzeba być zalogowanym** — gość
+widzi tylko zaproszenie do logowania. Materiały widzą uczestnicy, ich opiekunowie i komitet tego
+konkursu. Jeśli strony nie ma („nie znaleziono”), ten konkurs nie udostępnia materiałów.
+
+- Materiały są pogrupowane po warsztatach, w kolejności harmonogramu.
+- **Film** oglądasz na stronie, w odtwarzaczu — można go przewijać, zatrzymywać i włączyć na pełny
+  ekran. Filmu nie da się pobrać przyciskiem; jeśli odtwarzanie zatrzyma się po dłuższej przerwie
+  (ponad dwie godziny), **odśwież stronę**.
+- **Plik** (PDF, prezentacja, notatnik) otwiera się albo pobiera przyciskiem „Otwórz” / „Pobierz”.
+- **Odnośnik** prowadzi do nagrania w innym serwisie.
+
+Materiały są przeznaczone **wyłącznie dla uczestników olimpiady** — nie nagrywaj ich i nie udostępniaj
+dalej. Serwis nie zapisuje, kto co oglądał; organizator widzi tylko liczbę wyświetleń.
+
 ---
 
 ## 8. Forum — `/forum/`

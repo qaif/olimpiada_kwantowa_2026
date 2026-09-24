@@ -44,6 +44,13 @@ www.{$SITE_DOMAIN} {
 # Publiczny endpoint S3 dla presigned URL (podpis SigV4 obejmuje host, więc osobny adres, nie podścieżka).
 # S3_PUBLIC_ADDRESS: `s3.<domena>` (rekord DNS A) albo `<domena>:9000` (ten sam certyfikat, osobny port),
 # spójne z S3_PUBLIC_ENDPOINT_URL w .env. Bucket `submissions` jest prywatny: bez podpisu MinIO odpowiada 403.
+#
+# Materiały z warsztatów (apps/workshop_materials): przeglądarka koordynatora wysyła tu film **częściami**
+# po 16 MB (`PART_SIZE` w apps/workshop_materials/storage.py) na adresy podpisane przez serwer, więc limit
+# niżej dotyczy jednej części, nie całego filmu – MAX_UPLOAD_MB musi zostać **powyżej** 16 (domyślnie 25).
+# Oglądanie idzie tym samym adresem (GET z podpisem, przewijanie żądaniami `Range`), bez `encode`:
+# film jest już skompresowany, a kompresja w locie psułaby odpowiedzi częściowe (206).
+# Access logu Caddy nie włączamy (brak dyrektywy `log`) – adresy z podpisem nie lądują w żadnym pliku.
 {$S3_PUBLIC_ADDRESS} {
     request_body {
         max_size {$MAX_UPLOAD_MB}MB

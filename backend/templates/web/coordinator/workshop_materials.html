@@ -1,0 +1,88 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Materiały z warsztatów: lista warsztatów z harmonogramu, pod każdym jego materiały z akcjami.
+
+  Warsztat bez materiałów też stoi na liście – przy nim jest „Dodaj materiał” z warsztatem już
+  wybranym (``?workshop=<klucz>``). Akcje w wierszach to małe formularze POST na adres listy (pole
+  ``action``) – ten sam wzorzec, co plakaty. Usunięcie pyta o potwierdzenie (``confirmSubmit``).
+
+  Sekcja „bez warsztatu w harmonogramie” zbiera materiały przypięte do klucza, którego nie ma już
+  na stronie „Warsztaty” (zmieniony temat albo data). Widzowie nadal je widzą – pod tematem i datą
+  z chwili przypięcia – a tu jest lista wyboru „przepnij do…” z podpowiedzią wiersza o tej samej dacie.
+{% endcomment %}
+{% block title %}Materiały z warsztatów – panel koordynatora{% endblock %}
+{% block panel_title %}Materiały z warsztatów{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Nagrania, slajdy i inne pliki z warsztatów. Opublikowane materiały widzi każdy
+    zalogowany uczestnik, opiekun i członek komitetu tego konkursu na stronie
+    <a href="{% url 'web:workshop-materials' %}">/warsztaty/materialy/</a>; goście widzą na stronie
+    <a href="/warsztaty/">/warsztaty/</a> tylko zaproszenie do zalogowania.</p>
+{% endblock %}
+{% block panel_actions %}
+  <a class="btn btn--primary" href="{% url 'web:coordinator-workshop-material-new' %}">Dodaj materiał</a>
+  <a class="btn btn--secondary" href="{% url 'web:coordinator-workshop-attendance' %}">Obecność na warsztatach</a>
+{% endblock %}
+{% block panel_content %}
+
+{% if not groups and not orphans %}
+  <div class="empty">
+    <span class="empty__title">Harmonogram warsztatów jest pusty</span>
+    <p class="empty__text">Materiał przypina się do wiersza bloku „harmonogram” na stronie
+      <a href="/warsztaty/">/warsztaty/</a>, który ma wypełniony termin w postaci maszynowej
+      (pole „termin (data)”). Dopisz warsztaty w <a href="/cms/">/cms/</a>, a pojawią się tutaj.</p>
+  </div>
+{% endif %}
+
+{% for group in groups %}
+  <section class="section" aria-labelledby="warsztat-{{ forloop.counter }}">
+    <div class="section__head">
+      <h2 class="mt-0" id="warsztat-{{ forloop.counter }}">{{ group.topic }}</h2>
+      <p class="hint">{{ group.date_value|date:"j E Y" }}{% if group.lecturer %} · {{ group.lecturer }}{% endif %}</p>
+    </div>
+    {% include "web/coordinator/_workshop_material_rows.html" with materials=group.materials %}
+    <p><a class="btn btn--small btn--secondary" href="{% url 'web:coordinator-workshop-material-new' %}?workshop={{ group.key|urlencode }}">Dodaj materiał do tego warsztatu</a></p>
+  </section>
+{% endfor %}
+
+{% if orphans %}
+  <section class="section" aria-labelledby="osierocone">
+    <div class="section__head">
+      <h2 class="mt-0" id="osierocone">Materiały bez warsztatu w harmonogramie</h2>
+    </div>
+    <div class="alert alert--warning">
+      <p>Te materiały były przypięte do warsztatu, którego temat albo data zmieniły się na stronie
+        „Warsztaty” (klucz warsztatu powstaje z daty i tematu). Uczestnicy nadal je widzą – pod dawnym
+        tematem i datą. Przepnij je do właściwego wiersza harmonogramu.</p>
+    </div>
+    {% for group in orphans %}
+      <div class="card card--quiet">
+        <h3 class="mt-0">{{ group.topic }}{% if group.date_value %} · {{ group.date_value|date:"j E Y" }}{% endif %}</h3>
+        {% if rows %}
+          <form method="post" class="form form--inline">
+            {% csrf_token %}
+            <label for="attach-{{ forloop.counter }}">Przepnij wszystkie do</label>
+            <select id="attach-{{ forloop.counter }}" name="workshop">
+              {% for row in rows %}
+                <option value="{{ row.key }}" {% if row.key == group.suggested_key %}selected{% endif %}>{{ row.topic }} · {{ row.date_value|date:"d.m.Y" }}</option>
+              {% endfor %}
+            </select>
+            {% for material in group.materials %}<input type="hidden" name="pk" value="{{ material.pk }}">{% endfor %}
+            <button type="submit" name="action" value="attach" class="btn btn--secondary btn--small">Przepnij</button>
+          </form>
+          {% if group.suggested_key %}<p class="hint">Podpowiedź: w harmonogramie jest dokładnie jeden warsztat z tą samą datą – jest wybrany na liście.</p>{% endif %}
+        {% endif %}
+        {% include "web/coordinator/_workshop_material_rows.html" with materials=group.materials %}
+      </div>
+    {% endfor %}
+  </section>
+{% endif %}
+
+<ul class="hint">
+  <li><strong>Wyświetlenia</strong> – otwarcia odtwarzacza filmu, pobrania pliku i przejścia pod
+    odnośnik przez zalogowanych. Twoich wyświetleń jako koordynatora nie liczymy.</li>
+  <li><strong>Widzowie</strong> – liczba różnych kont, które otworzyły materiał. Nie zapisujemy, kto
+    to był: serwis trzyma wyłącznie pseudonim, kasowany po 12 miesiącach.</li>
+  <li>Film jest widoczny od razu po wgraniu (sprawdzamy jego format). Plik przechodzi jeszcze
+    sprawdzenie antywirusowe – zwykle kilkanaście sekund; odśwież stronę, żeby zobaczyć wynik.</li>
+</ul>
+{% endblock %}

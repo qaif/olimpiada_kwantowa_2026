@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load wagtailcore_tags %}
+{% load wagtailcore_tags workshop_materials %}
 {% block title %}{{ page.title }} – {{ settings.cms.SiteSettings.site_name }}{% endblock %}
 {% block description %}{{ page.search_description|default:page.title }} – {{ settings.cms.SiteSettings.site_name }}.{% endblock %}
 {% block content %}
@@ -18,6 +18,12 @@
     {% if page.intro %}<div class="cms-body prose doc-intro">{{ page.intro|richtext }}</div>{% endif %}
 
     {% include "cms/_attachments.html" %}
+    {% comment %}
+      Zapowiedź materiałów z warsztatów (nagrania, pliki) – ten sam wzorzec warunku na slug, co
+      ikony na stronie „Kontakt” niżej. Znacznik sam sprawdza przełącznik konkursu i przy wyłączonym
+      nie oddaje niczego (``apps.workshop_materials.templatetags``).
+    {% endcomment %}
+    {% if page.slug == "warsztaty" %}{% workshop_materials_teaser %}{% endif %}
   </div>
 
   {% if page.chapters %}

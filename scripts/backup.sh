@@ -123,7 +123,14 @@ docker run --rm --network "$NETWORK" \
             # Zwykłe wyjście mc to jedna linia na plik, czyli w logu crona kilkadziesiąt tysięcy
             # linii co noc. Wyrzucamy je, ale WYŁĄCZNIE ze standardowego wyjścia – błędy idą na
             # stderr i zostają, a `set -e` nadal przerwie przebieg na niezerowym kodzie.
-            mc mirror --overwrite --remove "src/$bucket" "/backup/$bucket" >/dev/null
+            #
+            # `workshop-materials/` (nagrania i pliki z warsztatów, apps/workshop_materials) jest
+            # WYŁĄCZONE z kopii nocnej: to materiały organizatora, których oryginały ma organizator
+            # (platforma wideo, dysk prowadzącego), a pojedyncze nagranie waży gigabajty. Kopia jest
+            # co noc pełna (lustro do katalogu tymczasowego → tar → gpg → 7 dni lokalnie + 30 dni
+            # poza serwerem), więc 20 GB filmów to ~60 GB chwilowo na dysku i 600 GB u dostawcy.
+            # Po odtworzeniu z kopii materiały trzeba wgrać ponownie – docs/OPERACJE.md § 15.
+            mc mirror --overwrite --remove --exclude "workshop-materials/*" "src/$bucket" "/backup/$bucket" >/dev/null
         done
     '
 # tar przed szyfrowaniem: gpg szyfruje jeden strumień, a kubełki to tysiące małych plików.

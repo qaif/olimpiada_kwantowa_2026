@@ -148,14 +148,17 @@ FLAG_ITEMS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "competition_creation": (frozenset({"Nowy konkurs"}), frozenset({"Nowy konkurs"})),
     # --- forum uczestników (prośba organizatora z 21.09.2026) ------------------------------------
     "participant_forum": (frozenset({"Forum uczestników"}), frozenset({"Forum uczestników"})),
+    # --- materiały z warsztatów (prośba organizatora z 24.09.2026) ---------------------------------
+    "workshop_materials": (frozenset({"Materiały z warsztatów"}), frozenset({"Materiały z warsztatów"})),
 }
 
 #: Flagi spoza etapu 2, które mimo to dokładają pozycję menu i dlatego stoją w tabeli wyżej.
-#: Dziś są dwie: ``competition_creation`` (ekran „Nowy konkurs”, subdomeny platformy) i
-#: ``participant_forum`` (moderacja forum, prośba organizatora z 21.09.2026). Stała istnieje po to,
+#: Dziś są trzy: ``competition_creation`` (ekran „Nowy konkurs”, subdomeny platformy),
+#: ``participant_forum`` (moderacja forum, prośba organizatora z 21.09.2026) i ``workshop_materials``
+#: (materiały z warsztatów, prośba organizatora z 24.09.2026). Stała istnieje po to,
 #: żeby licznik niżej nadal mówił o **etapie 2** – inaczej trzeba by przy każdym kolejnym ekranie
 #: poprawiać liczbę, o której dokument mówi, że jest ceną świadomie zapłaconą.
-LATER_FLAGS = frozenset({"competition_creation", "participant_forum"})
+LATER_FLAGS = frozenset({"competition_creation", "participant_forum", "workshop_materials"})
 
 #: Klucze odznak w menu. Piąta i szósta pozycja tej listy to dwa różne rodzaje wyjątku, więc obie
 #: mają tu własne zdanie:

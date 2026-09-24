@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+  Strona jednego materiału. Film: ``<video>`` z adresem podpisanym na dwie godziny (powstaje przy
+  każdym wyświetleniu tej strony; strona ma ``no-store``). ``controlsList="nodownload"`` zdejmuje
+  przycisk „Pobierz” z odtwarzacza, ``preload="metadata"`` pobiera na start tylko nagłówek pliku –
+  reszta idzie żądaniami ``Range`` w miarę oglądania i przewijania. Adres nie jest nigdzie wypisany
+  jako link. To nie jest zabezpieczenie przed zapisaniem filmu (patrz
+  ``apps.workshop_materials.viewing``) – to utrudnienie i brak stałego adresu do rozesłania.
+
+  Menu kontekstowego nie blokujemy: strict CSP nie dopuszcza skryptu inline, a osobny skrypt tylko
+  po to dawałby złudzenie ochrony, której nie ma.
+{% endcomment %}
+{% block title %}{{ material.title }} – Materiały z warsztatów{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/workshop-materials.css' %}">{% endblock %}
+{% block description %}Materiał z warsztatu „{{ workshop.topic }}”.{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:workshop-materials' %}">Materiały z warsztatów</a></span>
+  <h1>{{ material.title }}</h1>
+  <p class="lead">{{ workshop.topic }}{% if workshop.date_value %} · {{ workshop.date_value|date:"j E Y" }}{% endif %}{% if workshop.lecturer %} · {{ workshop.lecturer }}{% endif %}</p>
+</div>
+
+{% if material.kind == kinds.VIDEO %}
+  <div class="section">
+    <video class="workshop-video" src="{{ video_url }}" controls controlslist="nodownload" preload="metadata"
+           playsinline width="1280" height="720">
+      Twoja przeglądarka nie odtwarza filmów w formacie {{ material.format_label }}.
+    </video>
+    <p class="hint">Film jest dostępny wyłącznie dla zalogowanych uczestników i opiekunów – prosimy go nie
+      nagrywać ani nie udostępniać dalej. Jeśli odtwarzanie zatrzyma się po dłuższej przerwie, odśwież stronę.</p>
+  </div>
+{% endif %}
+
+{% if material.description %}
+  <div class="section prose"><p>{{ material.description|linebreaksbr }}</p></div>
+{% endif %}
+
+{% if material.kind == kinds.FILE %}
+  <p><a class="btn btn--primary" href="{% url 'web:workshop-material-open' material.pk %}">{% if material.format.inline %}Otwórz{% else %}Pobierz{% endif %} ({{ material.format_label }}, {{ material.size_bytes|filesizeformat }})</a></p>
+{% elif material.kind == kinds.LINK %}
+  <p><a class="btn btn--primary" href="{% url 'web:workshop-material-open' material.pk %}" rel="noopener noreferrer">Przejdź do materiału</a></p>
+{% endif %}
+
+<p><a href="{% url 'web:workshop-materials' %}">← Wszystkie materiały z warsztatów</a></p>
+{% endblock %}

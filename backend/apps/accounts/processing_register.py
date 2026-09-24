@@ -48,8 +48,12 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: adresów IP** w dowolnym okresie, więc przy każdym pobraniu zostaje pseudonim adresu IP (HMAC
 #: z kluczem serwera). Nowa kategoria danych o osobach, które nie mają w serwisie konta, i nowy
 #: termin usunięcia – zmiana materialna, a nie doprecyzowanie wiersza „serwis”.
-REGISTER_VERSION = "1.6"
-REGISTER_DATE = date(2026, 9, 23)
+#: 1.7 (24.09.2026) – materiały z warsztatów (``apps.workshop_materials``, flaga
+#: ``workshop_materials``) liczą **unikalnych widzów** materiału, więc przy pierwszym wyświetleniu
+#: zostaje pseudonim pary (materiał, konto). Nowa kategoria danych z własnym terminem usunięcia –
+#: zmiana materialna, choć wiersz wchodzi do rejestru wyłącznie konkursom z włączoną funkcją.
+REGISTER_VERSION = "1.7"
+REGISTER_DATE = date(2026, 9, 24)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
 #: domyślna wartość ``Edition.data_retention_months`` – gdyby organizator zmienił ją dla rocznika,
@@ -557,6 +561,50 @@ FORUM_ACTIVITY = _activity(
 )
 
 
+#: Czynność **warunkowa**: statystyka oglądania materiałów z warsztatów. Wchodzi do rejestru wyłącznie
+#: konkursom z włączonym przełącznikiem ``workshop_materials`` – ten sam powód, co przy forum wyżej:
+#: konkurs bez tej funkcji nie zapisuje ani jednego pseudonimu widza.
+#:
+#: Sama treść materiałów (nagrania, slajdy) **nie** jest tu opisana: to materiały organizatora, nie
+#: dane uczestników. Opisana jest wyłącznie statystyka, bo tylko ona dotyka osób, które oglądają.
+WORKSHOP_MATERIALS_ACTIVITY = _activity(
+    key="materialy-z-warsztatow",
+    name="Statystyka wyświetleń materiałów z warsztatów",
+    purpose=(
+        "Policzenie, ile razy i ile różnych kont otworzyło nagrania i pliki z warsztatów – do oceny, "
+        "które materiały są potrzebne uczestnikom i czy warto nagrywać kolejne zajęcia."
+    ),
+    legal_basis=(
+        "art. 6 ust. 1 lit. f RODO (prawnie uzasadniony interes administratora – ocena przydatności "
+        "materiałów edukacyjnych udostępnianych uczestnikom)"
+    ),
+    subjects="zalogowani uczestnicy, opiekunowie szkolni i członkowie komitetu oglądający materiały",
+    categories=[
+        "pseudonim pary (materiał, konto): HMAC-SHA256 z kluczem przechowywanym wyłącznie po stronie "
+        "serwera – bez identyfikatora konta, adresu IP i nagłówka przeglądarki; ta sama osoba przy "
+        "dwóch materiałach ma dwa niepowiązane pseudonimy",
+        "chwila pierwszego wyświetlenia materiału (do terminu usunięcia)",
+    ],
+    recipients=[
+        HOSTING_RECIPIENT,
+        "koordynator konkursu – wyłącznie liczby zbiorcze przy materiale (wyświetlenia i liczba "
+        "różnych widzów); pojedynczych pseudonimów nie widzi nikt w interfejsie",
+    ],
+    retention=(
+        "pseudonim widza – 12 miesięcy od pierwszego wyświetlenia, po czym jest automatycznie "
+        "kasowany (zadanie cogodzinne) albo wcześniej razem z materiałem; licznik wyświetleń bez "
+        "żadnej informacji o osobie zostaje przy materiale"
+    ),
+    measures=[
+        "funkcja jest domyślnie wyłączona – bez decyzji organizatora nie powstaje ani jeden pseudonim",
+        "w bazie nie ma identyfikatora konta przy wyświetleniu – wyłącznie HMAC z kluczem "
+        "wyprowadzonym z sekretu aplikacji, którego nie ma w bazie ani w jej kopii",
+        "materiał wchodzi do skrótu, więc z tabeli nie da się złożyć historii oglądania jednej osoby",
+        "wyświetlenia koordynatora nie są zapisywane",
+    ],
+)
+
+
 def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
     """Rejestr **tego** konkursu: czynności wspólne plus te, które wynikają z jego konfiguracji.
 
@@ -576,6 +624,8 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
         activities = (*activities, ONSITE_LOGISTICS_ACTIVITY)
     if competition is not None and competition.has_feature(FORUM_FLAG):
         activities = (*activities, FORUM_ACTIVITY)
+    if competition is not None and competition.has_feature("workshop_materials"):
+        activities = (*activities, WORKSHOP_MATERIALS_ACTIVITY)
     return activities
 
 

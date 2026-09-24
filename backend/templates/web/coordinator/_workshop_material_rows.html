@@ -1,0 +1,89 @@
+{% comment %}
+  Tabela materiałów jednego warsztatu (także „osieroconego”) na ekranie koordynatora.
+  ``materials`` – lista w kolejności listy; każdy materiał ma dołożone ``unique_viewers``.
+{% endcomment %}
+{% if materials %}
+  <div class="scroll">
+    <table class="table table--compact">
+      <caption class="visually-hidden">Materiały warsztatu: rodzaj, stan, wyświetlenia i działania.</caption>
+      <thead>
+        <tr>
+          <th scope="col">Materiał</th>
+          <th scope="col" class="num">Wyświetlenia</th>
+          <th scope="col" class="num">Widzowie</th>
+          <th scope="col">Działania</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for material in materials %}
+          <tr>
+            <td>
+              <strong>{{ material.title }}</strong>
+              <span class="hint">
+                {{ material.get_kind_display|capfirst }}{% if material.format_label %} · {{ material.format_label }}{% endif %}{% if material.size_bytes %} · {{ material.size_bytes|filesizeformat }}{% endif %}
+              </span>
+              {% if material.status == status.READY %}
+                {% if material.is_published %}<span class="badge badge--ok">opublikowany</span>{% else %}<span class="badge badge--neutral">szkic</span>{% endif %}
+              {% elif material.status == status.SCANNING %}
+                <span class="badge badge--info">sprawdzanie antywirusowe</span>{% if material.is_published %} <span class="hint">– opublikuje się po sprawdzeniu</span>{% endif %}
+              {% elif material.status == status.UPLOADING %}
+                <span class="badge badge--warn">wgrywanie niedokończone</span>
+                <span class="hint">– przerwane wgrywanie znika samo po dobie; możesz je też usunąć.</span>
+              {% else %}
+                <span class="badge badge--danger">odrzucony</span>
+                {% if material.status_note %}<span class="hint">{{ material.status_note }}</span>{% endif %}
+              {% endif %}
+            </td>
+            <td class="num">{{ material.view_count }}</td>
+            <td class="num">{{ material.unique_viewers }}</td>
+            <td>
+              <div class="actions">
+                <form method="post" class="inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="pk" value="{{ material.pk }}">
+                  <button type="submit" name="action" value="up" class="btn btn--ghost btn--small"
+                          {% if forloop.first %}disabled{% endif %}
+                          aria-label="Przesuń „{{ material.title }}” wyżej">↑</button>
+                  <button type="submit" name="action" value="down" class="btn btn--ghost btn--small"
+                          {% if forloop.last %}disabled{% endif %}
+                          aria-label="Przesuń „{{ material.title }}” niżej">↓</button>
+                </form>
+                {% if material.status == status.READY %}
+                  <a class="btn btn--ghost btn--small" href="{% url 'web:coordinator-workshop-material-preview' material.pk %}" target="_blank" rel="noopener">Podgląd</a>
+                {% endif %}
+                <a class="btn btn--ghost btn--small" href="{% url 'web:coordinator-workshop-material-edit' material.pk %}">Zmień</a>
+                {% if material.status != status.REJECTED %}
+                  <form method="post" class="inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="pk" value="{{ material.pk }}">
+                    {% if material.is_published %}
+                      <button type="submit" name="action" value="unpublish" class="btn btn--secondary btn--small">Zdejmij</button>
+                    {% else %}
+                      <button type="submit" name="action" value="publish" class="btn btn--secondary btn--small">Opublikuj</button>
+                    {% endif %}
+                  </form>
+                {% endif %}
+                {% if material.status == status.SCANNING %}
+                  <form method="post" class="inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="pk" value="{{ material.pk }}">
+                    <button type="submit" name="action" value="rescan" class="btn btn--ghost btn--small">Sprawdź ponownie</button>
+                  </form>
+                {% endif %}
+                <form method="post" class="inline"
+                      x-data="confirmSubmit" x-on:submit="check"
+                      data-confirm="Usunąć materiał „{{ material.title }}” razem z plikiem? Tego nie da się cofnąć.">
+                  {% csrf_token %}
+                  <input type="hidden" name="pk" value="{{ material.pk }}">
+                  <button type="submit" name="action" value="delete" class="btn btn--ghost btn--small">Usuń</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p class="hint">Brak materiałów.</p>
+{% endif %}
