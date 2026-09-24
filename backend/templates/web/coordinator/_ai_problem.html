@@ -27,12 +27,12 @@
       <dt>Koszt tego zadania (szacunek)</dt><dd class="workload-num">{{ ai.cost_usd|floatformat:2 }} USD{% if not ai.cost_known %} <span class="badge badge--warn">część kosztu nieznana</span>{% endif %}</dd>
       {% if ai.agreement %}
         <dt>Zgodność z oceną końcową</dt>
-        <dd>{{ ai.agreement.count }} prac: średnia różnica {{ ai.agreement.mean_abs_diff }} pkt,
+        <dd>{{ ai.agreement.count }} prac: średnia różnica {{ ai.agreement.mean_abs_diff|points }} pkt,
           zgodnie co do punktu {{ ai.agreement.exact_share }}%, różnica ≤ 1 pkt {{ ai.agreement.within_one_share }}%</dd>
       {% endif %}
       {% for item in ai.agreement_by_model %}
         <dt>Zgodność: {{ item.provider }} <code>{{ item.model }}</code></dt>
-        <dd>{{ item.count }} prac: średnia różnica {{ item.mean_abs_diff }} pkt, zgodnie co do punktu {{ item.exact_share }}%, ≤ 1 pkt {{ item.within_one_share }}%</dd>
+        <dd>{{ item.count }} prac: średnia różnica {{ item.mean_abs_diff|points }} pkt, zgodnie co do punktu {{ item.exact_share }}%, ≤ 1 pkt {{ item.within_one_share }}%</dd>
       {% endfor %}
     </dl>
     {% if ai.in_progress %}
