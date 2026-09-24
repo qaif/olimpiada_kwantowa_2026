@@ -1,0 +1,40 @@
+{% load i18n %}
+{% comment %}
+  Przypomnienie „Status ucznia” na pulpicie. Włączane samym istnieniem klucza ``student_status``,
+  a ten powstaje wyłącznie w konkursie z flagą ``student_status_certificate`` i z edycją bieżącą
+  (``participant_student_status.student_status_card_context``). ``has_feature`` w szablonie nie
+  jest wołane i nie będzie (§ 2.1 punkt 3).
+
+  Przypomnienie, a nie blokada: dopóki status nie jest zaakceptowany, kafel mówi, co zrobić,
+  i prowadzi na stronę zaświadczenia. Po akceptacji zostaje jedna linia z odznaką – żeby uczestnik
+  wiedział, że sprawa jest załatwiona, i miał skąd wejść na stronę, jeśli koordynator ją kiedyś
+  otworzy ponownie.
+{% endcomment %}
+{% if student_status %}
+  <section class="section" id="status-ucznia">
+    {% if student_status.accepted %}
+      <p><span class="badge badge--ok">{% translate "Status ucznia potwierdzony" %}</span>
+        <a href="{% url 'web:student-status' %}">{% translate "Zaświadczenie o statusie ucznia" %}</a></p>
+    {% else %}
+      <div class="card card--quiet">
+        <h2 class="mt-0">{% translate "Zaświadczenie o statusie ucznia" %}</h2>
+        <p>
+          {% if student_status.state == "PENDING" %}
+            <span class="badge badge--info">{{ student_status.state_label }}</span>
+            {% translate "Wysłany plik czeka na sprawdzenie przez koordynatora." %}
+          {% elif student_status.state == "REJECTED" %}
+            <span class="badge badge--danger">{{ student_status.state_label }}</span>
+            {% translate "Koordynator odrzucił zaświadczenie – sprawdź powód i wgraj nowy plik." %}
+          {% else %}
+            <span class="badge badge--warn">{{ student_status.state_label }}</span>
+            {% translate "Pobierz wzór, podstempluj go w szkole i wgraj skan albo zdjęcie." %}
+          {% endif %}
+        </p>
+        <p class="actions">
+          <a class="btn btn--secondary btn--small" href="{% url 'web:student-status' %}">{% translate "Przejdź do zaświadczenia" %}</a>
+          <span class="hint">{% translate "Brak zaświadczenia nie blokuje oddawania rozwiązań." %}</span>
+        </p>
+      </div>
+    {% endif %}
+  </section>
+{% endif %}

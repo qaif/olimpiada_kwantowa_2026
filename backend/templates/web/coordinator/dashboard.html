@@ -180,10 +180,15 @@
               Etap w formie rozmowy nie ma prac do pobrania. W archiwum jest po jednej, najnowszej
               przeskanowanej wersji każdej pracy; nazwy plików są anonimowe.
             {% endcomment %}
-            {% if not row.stage.is_interview %}
+            {% if not row.stage.is_interview and not zip_scope_choice %}
               <a href="{% url 'web:coordinator-stage-download' row.stage.pk %}">Pobierz wszystkie prace (ZIP)</a>
             {% endif %}
           </p>
+          {# Wybór zakresu paczki (status ucznia) jest formularzem, więc stoi **za** akapitem odnośników. #}
+          {% if not row.stage.is_interview and zip_scope_choice %}
+            {% url 'web:coordinator-stage-download' row.stage.pk as zip_url %}
+            {% include "web/_zip_scope_form.html" with action=zip_url label="Pobierz prace (ZIP)" scope_id=row.stage.pk %}
+          {% endif %}
           <div class="stage-panel__actions">
             <form method="post" action="{% url 'web:coordinator-assign' row.stage.pk %}">
               {% csrf_token %}

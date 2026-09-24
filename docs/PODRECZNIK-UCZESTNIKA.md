@@ -172,6 +172,33 @@ czyta treść, widzi Twoje imię i szkołę, zaznacza pole i potwierdza. Ty dost
 - nie możesz być własnym opiekunem, a od osoby pełnoletniej zgody nie zbieramy w ogóle,
 - jest też **wersja do wydruku** pod `/dokumenty/zgoda-opiekuna/`, jeśli opiekun nie ma adresu e-mail.
 
+### 5a. Zaświadczenie o statusie ucznia — `/me/status-ucznia/`
+
+Tylko w konkursach, które o nie proszą: jeśli na pulpicie nie ma kafla **„Zaświadczenie o statusie
+ucznia”**, Twój konkurs go nie zbiera. Organizator chce wiedzieć, że **w tej edycji** (w tym roku
+szkolnym) jesteś uczniem lub uczennicą szkoły. **Brak zaświadczenia niczego nie blokuje** — rozwiązania
+wysyłasz tak samo z nim i bez niego.
+
+1. **„Pobierz wzór (PDF)”** — kartka ma już wpisane Twoje imię i nazwisko, datę urodzenia, szkołę
+   i rok szkolny z profilu. Jeśli coś się nie zgadza, popraw to najpierw w profilu (`/profile/`)
+   i pobierz wzór jeszcze raz.
+2. **Sekretariat szkoły** wpisuje klasę, przystawia pieczątkę, a dyrektor lub sekretarz podpisuje
+   i wpisuje datę.
+3. **Zeskanuj albo sfotografuj całą kartkę** (PDF, JPG albo PNG, do 10 MB — pieczątka i podpis muszą
+   być czytelne), zaznacz potwierdzenie i kliknij **„Wyślij zaświadczenie”**.
+
+Stan widać na tej samej stronie i na pulpicie:
+
+| Stan | Co to znaczy |
+|---|---|
+| **brak** | nic jeszcze nie wysłałeś(-aś) |
+| **oczekuje na weryfikację** | plik dotarł, koordynator go sprawdzi; możesz wgrać inny — zastąpi poprzedni |
+| **zaakceptowane** | sprawa załatwiona; dostajesz o tym e-mail, formularza już nie ma |
+| **odrzucone** | powód stoi na stronie i w e-mailu; popraw i wgraj nowy plik |
+
+Plik sprawdza skaner antywirusowy. Oglądać go może **wyłącznie koordynator** konkursu — recenzenci
+go nie widzą. Zaświadczenie dotyczy **jednej edycji**: w kolejnym roku szkolnym trzeba wgrać nowe.
+
 ---
 
 ## 6. Wyniki, informacja zwrotna, reklamacja

@@ -3704,3 +3704,176 @@ msgstr "Print them and put them up at your school – help us reach students who
 #: templates/web/posters.html
 msgid "Pliki pobiera się bez logowania. Wersje PDF są przygotowane do druku."
 msgstr "No login is needed to download. The PDF versions are print-ready."
+
+#: templates/web/participant/student_status.html
+msgid "Status ucznia"
+msgstr "Student status"
+
+#: templates/web/participant/student_status.html templates/web/participant/_student_status_card.html
+msgid "Zaświadczenie o statusie ucznia"
+msgstr "Student status certificate"
+
+#: templates/web/participant/student_status.html
+#, python-format
+msgid "Organizator prosi o potwierdzenie, że w edycji %(edition)s jesteś uczniem lub uczennicą szkoły. Brak zaświadczenia nie blokuje oddawania rozwiązań."
+msgstr "The organiser asks you to confirm that you are a school student in the %(edition)s edition. A missing certificate does not stop you from submitting solutions."
+
+#: templates/web/participant/student_status.html
+#, python-format
+msgid "Zaświadczenie zaakceptowane %(when)s. Nie musisz nic więcej robić."
+msgstr "Certificate accepted on %(when)s. There is nothing more you need to do."
+
+#: templates/web/participant/student_status.html
+#, python-format
+msgid "Plik wysłany %(when)s. Koordynator sprawdzi go i poinformuje Cię e-mailem o decyzji. Jeśli wysłałeś(-aś) nie ten plik, możesz wgrać nowy – zastąpi poprzedni."
+msgstr "File sent on %(when)s. The coordinator will check it and let you know the decision by e-mail. If you sent the wrong file, you can upload a new one – it will replace the previous one."
+
+#: templates/web/participant/student_status.html
+msgid "Zaświadczenie nie zostało zaakceptowane. Powód:"
+msgstr "The certificate was not accepted. Reason:"
+
+#: templates/web/participant/student_status.html
+msgid "Nie wgrałeś(-aś) jeszcze zaświadczenia."
+msgstr "You have not uploaded a certificate yet."
+
+#: templates/web/participant/student_status.html
+msgid "Popraw zaświadczenie i wgraj nowy plik poniżej."
+msgstr "Correct the certificate and upload a new file below."
+
+#: templates/web/participant/student_status.html
+msgid "Pobierz wysłany plik"
+msgstr "Download the file you sent"
+
+#: templates/web/participant/student_status.html
+msgid "Jak to zrobić"
+msgstr "How to do it"
+
+#: templates/web/participant/student_status.html
+msgid "Pobierz wzór zaświadczenia z Twoimi danymi i wydrukuj go:"
+msgstr "Download the certificate template with your details and print it:"
+
+#: templates/web/participant/student_status.html
+msgid "Pobierz wzór (PDF)"
+msgstr "Download the template (PDF)"
+
+#: templates/web/participant/student_status.html
+#, python-format
+msgid "Na wzorze są Twoje imię i nazwisko, data urodzenia i szkoła (%(school)s) z profilu. Jeśli coś się nie zgadza, popraw to najpierw w profilu."
+msgstr "The template shows your name, date of birth and school (%(school)s) from your profile. If anything is wrong, correct it in your profile first."
+
+#: templates/web/participant/student_status.html
+msgid "Zanieś go do sekretariatu szkoły: szkoła wpisuje klasę, przystawia pieczątkę, a dyrektor lub sekretarz podpisuje i wpisuje datę."
+msgstr "Take it to the school office: the school fills in your class and stamps it, and the head teacher or school secretary signs and dates it."
+
+#: templates/web/participant/student_status.html
+msgid "Zeskanuj albo sfotografuj całą kartkę tak, żeby pieczątka i podpis były czytelne, i wgraj plik poniżej."
+msgstr "Scan or photograph the whole sheet so that the stamp and signature are legible, and upload the file below."
+
+#: templates/web/participant/student_status.html
+msgid "Wgraj zaświadczenie"
+msgstr "Upload the certificate"
+
+#: templates/web/participant/student_status.html
+msgid "Wyślij zaświadczenie"
+msgstr "Send the certificate"
+
+#: templates/web/participant/student_status.html
+#, python-format
+msgid "Przyjmujemy PDF, JPG i PNG do %(limit)s MB. Plik sprawdza skaner antywirusowy, a oglądać go może wyłącznie koordynator konkursu – recenzenci go nie widzą."
+msgstr "We accept PDF, JPG and PNG up to %(limit)s MB. The file is checked by an antivirus scanner and only the competition coordinator can view it – reviewers never see it."
+
+#: templates/web/participant/student_status.html
+msgid "Poprzednie pliki"
+msgstr "Previous files"
+
+#: templates/web/participant/student_status.html
+msgid "Wysłany"
+msgstr "Sent"
+
+#: templates/web/participant/student_status.html
+msgid "Powód odrzucenia"
+msgstr "Reason for rejection"
+
+#: templates/web/participant/_student_status_card.html
+msgid "Status ucznia potwierdzony"
+msgstr "Student status confirmed"
+
+#: templates/web/participant/_student_status_card.html
+msgid "Wysłany plik czeka na sprawdzenie przez koordynatora."
+msgstr "The file you sent is waiting to be checked by the coordinator."
+
+#: templates/web/participant/_student_status_card.html
+msgid "Koordynator odrzucił zaświadczenie – sprawdź powód i wgraj nowy plik."
+msgstr "The coordinator rejected the certificate – check the reason and upload a new file."
+
+#: templates/web/participant/_student_status_card.html
+msgid "Pobierz wzór, podstempluj go w szkole i wgraj skan albo zdjęcie."
+msgstr "Download the template, have it stamped at school and upload a scan or photo."
+
+#: templates/web/participant/_student_status_card.html
+msgid "Przejdź do zaświadczenia"
+msgstr "Go to the certificate"
+
+#: templates/web/participant/_student_status_card.html
+msgid "Brak zaświadczenia nie blokuje oddawania rozwiązań."
+msgstr "A missing certificate does not stop you from submitting solutions."
+
+#: templates/web/_zip_scope_form.html
+msgid "Zakres paczki"
+msgstr "Package scope"
+
+#: templates/web/_zip_scope_form.html
+msgid "wszystkie prace"
+msgstr "all solutions"
+
+#: templates/web/_zip_scope_form.html
+msgid "tylko uczniowie z potwierdzonym statusem ucznia"
+msgstr "only students with a confirmed student status"
+
+#: apps/student_status/forms.py
+msgid "Skan albo zdjęcie zaświadczenia (PDF, JPG lub PNG, do 10 MB)"
+msgstr "Scan or photo of the certificate (PDF, JPG or PNG, up to 10 MB)"
+
+#: apps/student_status/forms.py
+msgid "Potwierdzam, że zaświadczenie ma pieczątkę szkoły i podpis, a plik jest czytelny"
+msgstr "I confirm that the certificate bears the school stamp and a signature, and that the file is legible"
+
+#: apps/student_status/forms.py
+msgid "Zaznacz potwierdzenie, że zaświadczenie jest podstemplowane i podpisane, a plik czytelny."
+msgstr "Tick the confirmation that the certificate is stamped and signed and the file is legible."
+
+#: apps/student_status/notifications.py
+msgid "Zaświadczenie o statusie ucznia zaakceptowane – Olimpiada Kwantowa"
+msgstr "Student status certificate accepted – Quantum Olympiad"
+
+#: apps/student_status/notifications.py
+msgid "Zaświadczenie o statusie ucznia odrzucone – Olimpiada Kwantowa"
+msgstr "Student status certificate rejected – Quantum Olympiad"
+
+#: apps/student_status/notifications.py
+#, python-format
+msgid "Zaświadczenie o statusie ucznia zaakceptowane – %(competition)s"
+msgstr "Student status certificate accepted – %(competition)s"
+
+#: apps/student_status/notifications.py
+#, python-format
+msgid "Zaświadczenie o statusie ucznia odrzucone – %(competition)s"
+msgstr "Student status certificate rejected – %(competition)s"
+
+#: apps/student_status/notifications.py
+#, python-format
+msgid "Twoje zaświadczenie o statusie ucznia (edycja %(edition)s) zostało sprawdzone i zaakceptowane. Nie musisz nic więcej robić."
+msgstr "Your student status certificate (edition %(edition)s) has been checked and accepted. There is nothing more you need to do."
+
+#: apps/student_status/notifications.py
+msgid "Stan zaświadczenia widzisz po zalogowaniu w panelu uczestnika:"
+msgstr "You can see the status of your certificate in the participant panel after logging in:"
+
+#: apps/student_status/notifications.py
+#, python-format
+msgid "Twoje zaświadczenie o statusie ucznia (edycja %(edition)s) nie zostało zaakceptowane. Powód:"
+msgstr "Your student status certificate (edition %(edition)s) was not accepted. Reason:"
+
+#: apps/student_status/notifications.py
+msgid "Popraw zaświadczenie i wgraj nowy plik w panelu uczestnika. Brak zaświadczenia nie blokuje oddawania rozwiązań."
+msgstr "Correct the certificate and upload a new file in the participant panel. A missing certificate does not stop you from submitting solutions."

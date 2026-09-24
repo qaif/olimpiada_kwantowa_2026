@@ -1,0 +1,23 @@
+{% load i18n %}
+{% comment %}
+  Pobranie paczki ZIP z wyborem zakresu: „wszystkie prace” albo „tylko uczniowie z potwierdzonym
+  statusem ucznia” (prośba organizatora z 24.09.2026). Włączane **wyłącznie** tam, gdzie widok
+  postawił ``zip_scope_choice`` (flaga ``student_status_certificate`` czytana w widoku, § 2.1
+  punkt 3); przy wyłączonej fladze szablon wołający rysuje dzisiejszy odnośnik co do znaku.
+
+  Formularz ``GET``, a nie odnośnik ze skryptem: działa bez JavaScriptu i pod ścisłą polityką CSP,
+  a wybrany zakres jedzie w adresie tak samo, jak ``?problem=`` – adres paczki da się skopiować.
+  Domyślnie zaznaczone „wszystkie prace”, bo tak działała paczka do tej pory.
+
+  Parametry: ``action`` (adres paczki), ``label`` (napis przycisku), ``scope_id`` (unikalny przyrostek
+  identyfikatora pola na stronie z kilkoma takimi formularzami), opcjonalnie ``problem_id``.
+{% endcomment %}
+<form method="get" action="{{ action }}" class="actions zip-scope">
+  {% if problem_id %}<input type="hidden" name="problem" value="{{ problem_id }}">{% endif %}
+  <label class="visually-hidden" for="zip-scope-{{ scope_id }}">{% translate "Zakres paczki" %}</label>
+  <select id="zip-scope-{{ scope_id }}" name="students">
+    <option value="all" selected>{% translate "wszystkie prace" %}</option>
+    <option value="verified">{% translate "tylko uczniowie z potwierdzonym statusem ucznia" %}</option>
+  </select>
+  <button type="submit" class="btn btn--secondary btn--small">{{ label }}</button>
+</form>

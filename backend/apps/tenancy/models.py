@@ -211,6 +211,20 @@ FEATURE_DEFAULTS: dict[str, bool] = {
     # znaczyłoby otwarcie takiego miejsca w chwili, w której nikt go jeszcze nie pilnuje — dlatego
     # otwiera je świadomy wpis w panelu, a nie data wydania.
     "participant_forum": False,
+    # --- zaświadczenie o statusie ucznia -----------------------------------------------------------
+    # Prośba organizatora z 24.09.2026 (``apps.student_status``): uczestnik pobiera imienny wzór
+    # zaświadczenia, szkoła je stempluje, uczestnik wgrywa skan, a koordynator go akceptuje albo
+    # odrzuca z powodem. Paczki prac (koordynator i komitet) dostają wybór „wszystkie prace” albo
+    # „tylko uczniowie z potwierdzonym statusem”. Wyłączona znaczy, że żadnego z tych adresów **nie
+    # ma** (404), w menu nie przybywa ani jedna pozycja, a paczki ZIP wyglądają co do przycisku tak,
+    # jak przed tym wydaniem.
+    #
+    # Domyślnie wyłączona z tego samego powodu, co forum: to jest nowa **kategoria danych osobowych**
+    # (skan dokumentu z pieczęcią szkoły, datą urodzenia i podpisem dyrektora), która wymaga wpisu
+    # w rejestrze czynności u tego administratora, który ją zbiera. Wpis zmienia się razem z flagą
+    # (``apps.accounts.processing_register.activities_for``), więc zapalenie jej jest decyzją
+    # organizatora o nowym przetwarzaniu, a nie skutkiem ubocznym wdrożenia.
+    "student_status_certificate": False,
 }
 
 

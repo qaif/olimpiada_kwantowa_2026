@@ -1,0 +1,163 @@
+{% extends "web/coordinator/base.html" %}
+{% load static web_extras coordinator_extras %}
+{% comment %}
+  Zaświadczenia o statusie ucznia jednej edycji: liczniki czterech stanów (zarazem filtr), wyszukiwarka
+  i tabela z decyzjami przy wierszach.
+
+  Liczniki są z **całej** edycji – odpowiadają na „ile mam jeszcze do przejrzenia” niezależnie od tego,
+  jaki filtr jest włączony (ten sam wzorzec, co na ekranie przydziałów). Kliknięcie włączonego
+  licznika zdejmuje filtr.
+
+  Podgląd skanu otwiera się w nowej karcie, a nie w ramce na tej stronie: ramka z plikiem od
+  uczestnika osadzona w panelu to kolejny kontekst, w którym ten plik działałby pod domeną panelu.
+  Nowa karta dostaje nagłówki bezpieczeństwa ustawione dla samego pliku (``sandbox`` dla obrazów).
+
+  „Odrzuć” ma pole powodu w tym samym formularzu – powód jest obowiązkowy i idzie do uczestnika
+  (panel i e-mail), więc nie może być osobnym krokiem, o którym da się zapomnieć.
+{% endcomment %}
+{% block title %}Status ucznia – panel koordynatora{% endblock %}
+{% block panel_head %}
+  <link rel="stylesheet" href="{% static 'css/assignments.css' %}">
+{% endblock %}
+{% block panel_title %}Status ucznia{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Zaświadczenia o statusie ucznia wgrane przez uczestników{% if edition %} w edycji
+    <strong>{{ edition.year_label }}</strong>{% endif %}. Akceptacja odblokowuje uczestnika w paczkach
+    ZIP „tylko uczniowie z potwierdzonym statusem”; brak zaświadczenia niczego uczestnikowi nie blokuje.</p>
+  <p class="hint"><span class="badge badge--danger">dane osobowe</span> Skany widzi wyłącznie koordynator.
+    Recenzenci i komisja dostają w paczkach sam filtr – nigdy skan ani nazwisko.</p>
+{% endblock %}
+{% block panel_content %}
+
+{% if not edition %}
+  <div class="card"><p class="empty">Ten konkurs nie ma jeszcze żadnej edycji.</p></div>
+{% else %}
+
+<nav class="asg-counters" aria-label="Zaświadczenia według stanu">
+  {% for item in filters %}
+    <a class="asg-counter{% if item.active %} asg-counter--active{% endif %}"
+       {% if item.active %}aria-current="true"{% endif %} href="{{ item.url }}">
+      <span class="asg-counter__value">{{ item.count }}</span>
+      <span class="asg-counter__label">{{ item.label }}</span>
+    </a>
+  {% endfor %}
+</nav>
+
+<form method="get" class="actions" role="search">
+  {% if editions|length > 1 %}
+    <label for="ss-edition">Edycja</label>
+    <select id="ss-edition" name="edition">
+      {% for item in editions %}
+        <option value="{{ item.pk }}"{% if item.pk == edition.pk %} selected{% endif %}>{{ item.year_label }}</option>
+      {% endfor %}
+    </select>
+  {% else %}
+    <input type="hidden" name="edition" value="{{ edition.pk }}">
+  {% endif %}
+  {% if state %}<input type="hidden" name="status" value="{{ state }}">{% endif %}
+  <label for="ss-q">Szukaj</label>
+  <input id="ss-q" type="search" name="q" value="{{ query }}" placeholder="nazwisko, e-mail, kod, szkoła">
+  <button type="submit" class="btn btn--secondary btn--small">Pokaż</button>
+  {% if query or state %}<a href="{{ all_url }}">wyczyść filtr</a>{% endif %}
+</form>
+
+<section class="section">
+  <div class="scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Uczestnik</th>
+          <th scope="col">Szkoła</th>
+          <th scope="col">Stan</th>
+          <th scope="col">Plik</th>
+          <th scope="col">Decyzja</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          {% with certificate=row.certificate %}
+          <tr id="ss-{{ row.participant.pk }}">
+            <th scope="row">
+              <a href="{% participant_card_url row.participant %}">{{ row.participant.user.get_full_name|default:row.participant.user.email }}</a><br>
+              <code>{{ row.participant.public_code }}</code>
+              {% if row.participant.birth_date %}<br><span class="hint">ur. {{ row.participant.birth_date|date:"d.m.Y" }}</span>{% endif %}
+            </th>
+            <td>{{ row.participant.school }}</td>
+            <td>
+              {% if row.state == accepted_status %}
+                <span class="badge badge--ok">{{ row.state_label }}</span>
+              {% elif row.state == pending_status %}
+                <span class="badge badge--info">{{ row.state_label }}</span>
+              {% elif row.state == rejected_status %}
+                <span class="badge badge--danger">{{ row.state_label }}</span>
+                {% if certificate.rejection_reason %}<br><span class="hint">{{ certificate.rejection_reason }}</span>{% endif %}
+              {% else %}
+                <span class="badge badge--neutral">{{ row.state_label }}</span>
+              {% endif %}
+              {% if certificate.decided_at %}
+                <br><span class="hint">{{ certificate.decided_at|local_datetime }}{% if certificate.decided_by %} · {{ certificate.decided_by.get_full_name|default:certificate.decided_by.email }}{% elif row.state == rejected_status %} · skaner antywirusowy{% endif %}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if not certificate %}
+                <span class="hint">—</span>
+              {% elif certificate.is_clean %}
+                <a href="{% url 'web:coordinator-student-status-file' certificate.pk %}" target="_blank" rel="noopener noreferrer">Podgląd</a>
+                · <a href="{% url 'web:coordinator-student-status-file' certificate.pk %}?download=1">Pobierz</a>
+                <br><span class="hint">v{{ certificate.version }}, {{ certificate.size_bytes|filesizeformat }}, wysłane {{ certificate.uploaded_at|local_datetime }}</span>
+              {% elif certificate.has_file %}
+                <span class="badge badge--warn">trwa skan antywirusowy</span>
+              {% else %}
+                <span class="hint">plik usunięty</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if certificate and certificate.is_clean %}
+                <div class="actions">
+                  {% if row.state != accepted_status %}
+                    <form method="post" action="{% url 'web:coordinator-student-status-accept' certificate.pk %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="return_query" value="{{ return_query }}">
+                      <button type="submit" class="btn btn--primary btn--small">Akceptuj</button>
+                    </form>
+                  {% endif %}
+                  {% if row.state != rejected_status %}
+                    <form method="post" action="{% url 'web:coordinator-student-status-reject' certificate.pk %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="return_query" value="{{ return_query }}">
+                      <label class="visually-hidden" for="ss-reason-{{ certificate.pk }}">Powód odrzucenia</label>
+                      <input id="ss-reason-{{ certificate.pk }}" type="text" name="reason" required
+                             maxlength="1000" placeholder="powód (zobaczy go uczestnik)">
+                      <button type="submit" class="btn btn--danger btn--small">Odrzuć</button>
+                    </form>
+                  {% endif %}
+                </div>
+              {% else %}
+                <span class="hint">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endwith %}
+        {% empty %}
+          <tr><td colspan="5" class="empty">Nikt nie pasuje do tego filtra.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if page_obj.has_other_pages %}
+    <p class="hint">
+      {% if page_obj.has_previous %}
+        <a class="btn btn--secondary btn--small"
+           href="?{% if filter_query %}{{ filter_query }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">Poprzednia</a>
+      {% endif %}
+      Strona {{ page_obj.number }} z {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} osób)
+      {% if page_obj.has_next %}
+        <a class="btn btn--secondary btn--small"
+           href="?{% if filter_query %}{{ filter_query }}&amp;{% endif %}page={{ page_obj.next_page_number }}">Następna</a>
+      {% endif %}
+    </p>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

@@ -618,6 +618,12 @@ z **różnicami** wobec wartości domyślnych. Pusty słownik `{}` znaczy „jak
   najmniej jeden dział (`/coordinator/forum/categories/`) — bez działu nikt nie napisze ani słowa.
   Szczegóły moderacji: `PODRECZNIK-ORGANIZATORA.md` § 6.4.
 
+- **`student_status_certificate`** — zaświadczenia o statusie ucznia (v0.34.0): strona uczestnika
+  `/me/status-ucznia/`, ekran koordynatora `/coordinator/student-status/`, wybór „tylko uczniowie
+  z potwierdzonym statusem” przy paczkach ZIP. Wyłączona znaczy, że adresów **nie ma** (404). Zapalenie
+  jest decyzją organizatora o **nowej kategorii danych** (skan dokumentu z datą urodzenia i podpisem
+  dyrektora szkoły) — rejestr czynności dostaje przy niej własny wiersz. Szczegóły: § 15.
+
 Po każdym przestawieniu flagi: zaloguj się na konto jednej osoby z każdej roli i sprawdź, że widzi
 to, co widziała. Flaga jest odwracalna w minutę, ale tylko wtedy, gdy ktoś zauważy w tej minucie.
 
@@ -1395,3 +1401,50 @@ Statystyka pobrań łącznie nie zmienia się.
 plakatu). Po imporcie z ominięciem sygnałów wystarczy `page_cache_clear` i odczekanie TTL albo
 restart Redisa.
 
+
+## 15. Zaświadczenia o statusie ucznia (v0.34.0)
+
+Aplikacja `apps.student_status`, opis dla organizatora: `PODRECZNIK-ORGANIZATORA.md` § 10a. Funkcja
+stoi za przełącznikiem konkursu **`student_status_certificate`** (domyślnie wyłączonym) — wdrożenie
+wersji niczego nie zmienia, dopóki operator go nie zapali.
+
+**Włączenie dla konkursu** (tu: Olimpiada Kwantowa, `slug=kwantowa`) — w `/admin/ → Konkursy →
+<konkurs> → przełączniki` dopisać `"student_status_certificate": true` do JSON-a albo z powłoki:
+
+```bash
+docker compose exec -T web python manage.py shell -c "from apps.tenancy.models import Competition; c = Competition.objects.get(slug='kwantowa'); c.feature_flags = {**(c.feature_flags or {}), 'student_status_certificate': True}; c.save(update_fields=['feature_flags']); print(c.has_feature('student_status_certificate'))"
+```
+
+Wyłączenie — ta sama linijka z `False`. Wyłączenie **nie kasuje** wgranych skanów (zostają w storage
+do retencji edycji albo usunięcia konta), tylko zamyka wszystkie adresy. Po zapaleniu: konto uczestnika
+→ pulpit ma kafel „Zaświadczenie o statusie ucznia”, `/me/status-ucznia/wzor.pdf` pobiera PDF; konto
+koordynatora → menu *Uczestnicy i konta* ma pozycję „Status ucznia”; `/coordinator/processing-register/`
+ma wiersz „Weryfikacja statusu ucznia”.
+
+**Migracje:** `student_status.0001_initial` (nowa pusta tabela) i `tenancy.0009_document_kind_student_status`
+(wyłącznie lista wyboru rodzaju dokumentu, bez zmiany kolumny). Obie są addytywne — wycofanie wersji
+nie wymaga cofania migracji.
+
+**Gdzie leżą pliki.** Storage rozwiązań (`SUBMISSION_STORAGE_BACKEND`, produkcyjnie bucket `submissions`
+na koncie `app-private`) pod prefiksem `student-status/<id konkursu>/<id edycji>/<kod uczestnika>/<uuid>/<sha256>.<ext>`.
+Nazwa pliku od uczestnika nie jest zapisywana nigdzie. Bucket jest już w kopii zapasowej (§ 1).
+Skany **są kasowane** przez aplikację (`DeleteObject`): po zastąpieniu nowszą wersją, po wykryciu wirusa,
+przy anonimizacji/usunięciu konta i przez zadanie retencji — polityka `deploy/minio/policy-submissions.json`
+ma to uprawnienie od początku, nic nie trzeba zmieniać.
+
+**Skan antywirusowy** idzie tą samą kolejką `scan` i tym samym clamd, co rozwiązania
+(`apps.student_status.tasks.scan_certificate_file`, ponowienia przy niedostępnym ClamAV jak w § o
+rozwiązaniach). Plik czeka na skan w stanie „trwa skan antywirusowy” — koordynator nie może go
+obejrzeć ani zaakceptować przed czystym wynikiem. Limit pliku 10 MB (poniżej `StreamMaxLength`).
+
+**Retencja.** Zadanie beat `student-status-purge-expired-scans` (raz na dobę,
+`apps.student_status.tasks.purge_expired_scans`) usuwa pliki edycji, którym upłynął okres retencji
+(ten sam termin, co anonimizacja kont, § 9.1 podręcznika organizatora). Ręcznie:
+
+```bash
+docker compose exec -T web python manage.py shell -c "from apps.student_status.services import purge_expired_scans; print(purge_expired_scans())"
+```
+
+**Harmonogram beat** jest w bazie (`django_celery_beat`, `DatabaseScheduler`) — wpis z
+`CELERY_BEAT_SCHEDULE` trafia tam przy starcie `beat`; po wdrożeniu sprawdź w `/admin/ → Periodic tasks`,
+że `student-status-purge-expired-scans` istnieje i jest włączony.

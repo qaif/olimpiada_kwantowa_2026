@@ -14,6 +14,7 @@ from django.views.generic import TemplateView
 from apps.competitions.models import Problem
 from apps.competitions.problem_card import problem_card
 from apps.grading.models import ReviewStatus
+from apps.student_status.models import enabled as student_status_enabled
 from apps.web.mixins import CoordinatorRequiredMixin
 
 PROBLEM_DETAIL_TEMPLATE = "web/coordinator/problem_detail.html"
@@ -50,6 +51,9 @@ class ProblemCardView(CoordinatorRequiredMixin, TemplateView):
                     ReviewStatus.DRAFT,
                     ReviewStatus.SUBMITTED,
                 ),
+                # Wybór zakresu paczki ZIP zadania („wszystkie prace” / „tylko potwierdzony status
+                # ucznia”) – flagę czyta widok, nie szablon (§ 2.1 punkt 3).
+                "zip_scope_choice": student_status_enabled(self.competition),
             }
         )
         return context

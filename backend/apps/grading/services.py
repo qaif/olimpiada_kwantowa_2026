@@ -1899,7 +1899,14 @@ def reviews_for_reviewer(member: CommitteeMember | None, competition=None):
 REVIEWER_ZIP_FILENAME = "moje-prace.zip"
 
 
-def build_reviewer_zip(member: CommitteeMember | None, *, actor=None, request=None):
+#: Nazwa paczki recenzenta zawężonej do uczniów z potwierdzonym statusem ucznia – inna niż
+#: :data:`REVIEWER_ZIP_FILENAME`, bo dwie paczki o różnej treści nie mogą w katalogu nosić jednej nazwy.
+REVIEWER_VERIFIED_ZIP_FILENAME = "moje-prace-status-potwierdzony.zip"
+
+
+def build_reviewer_zip(
+    member: CommitteeMember | None, *, actor=None, request=None, verified_only: bool = False
+):
     """Paczka ZIP ze wszystkimi pracami przydzielonymi recenzentowi (prośba organizatora).
 
     Zakres to dokładnie to, co recenzent widzi w panelu jako „do zrobienia i zrobione”: recenzje
@@ -1910,6 +1917,14 @@ def build_reviewer_zip(member: CommitteeMember | None, *, actor=None, request=No
     Nazwy plików są anonimowe (``<kod>_zad<numer>_v<wersja>``), bo ocenianie jest ślepe.
     ``README.txt`` wiąże numer recenzji z plikiem: bez tego recenzent z kilkunastoma pracami nie
     ma jak odnaleźć w panelu tej, którą właśnie przeczytał.
+
+    ``verified_only`` (prośba organizatora z 24.09.2026) zostawia w paczce wyłącznie prace uczniów
+    z **zaakceptowanym** zaświadczeniem o statusie ucznia w edycji tej pracy. Anonimowość zostaje
+    nietknięta: recenzent dostaje mniej plików o tych samych anonimowych nazwach, a nie skan,
+    nazwisko czy szkołę – o tym, kto ma status potwierdzony, rozstrzyga zapytanie po stronie
+    serwera, a do paczki trafia wyłącznie jego skutek. Jedyna wiedza, którą recenzent może z tego
+    wyprowadzić, to „ten pseudonim ma potwierdzony status” – informacja o **pseudonimie**, która nie
+    przybliża go do tożsamości autora.
 
     Pusta kolejka to 404, a nie pusty plik ZIP: „nie mam co pobierać” jest odpowiedzią, a archiwum
     z samym spisem treści wyglądałoby jak awaria pobierania.
@@ -1924,20 +1939,41 @@ def build_reviewer_zip(member: CommitteeMember | None, *, actor=None, request=No
             review_ids[review.submission_id] = []
             submissions.append(review.submission)
         review_ids[review.submission_id].append(review.pk)
+    if verified_only:
+        from apps.student_status.services import accepted_pairs
 
+        accepted = accepted_pairs(
+            {item.entry.participant_id for item in submissions if item.entry.participant_id}
+        )
+        submissions = [
+            item
+            for item in submissions
+            if (item.entry.participant_id, item.entry.stage.edition_id) in accepted
+        ]
+
+    header = "Prace przydzielone do oceny. Nazwy plików są anonimowe – ocenianie jest ślepe."
+    if verified_only:
+        header += " Wyłącznie prace uczniów z potwierdzonym statusem ucznia."
     package = build_zip(
         submissions,
         readme_lines=lambda submission, name: (
             f"recenzja {', '.join(str(value) for value in review_ids[submission.pk])} → {name}"
         ),
-        header="Prace przydzielone do oceny. Nazwy plików są anonimowe – ocenianie jest ślepe.",
+        header=header,
     )
     if package.count == 0:
         package.stream.close()
         raise DomainError(
-            "Brak przydzielonych prac do pobrania.", "NO_ASSIGNED_SUBMISSIONS", http.HTTP_404_NOT_FOUND
+            "Brak przydzielonych prac do pobrania."
+            + (" Żaden z autorów nie ma jeszcze potwierdzonego statusu ucznia." if verified_only else ""),
+            "NO_ASSIGNED_SUBMISSIONS",
+            http.HTTP_404_NOT_FOUND,
         )
-    audit(actor, "review.downloaded_zip", member, {"count": package.count}, request=request)
+    diff = {"count": package.count}
+    if verified_only:
+        # Klucz wyłącznie przy zawężeniu – wpis zwykłej paczki zostaje taki, jak przed tym wydaniem.
+        diff["verified_only"] = True
+    audit(actor, "review.downloaded_zip", member, diff, request=request)
     return package
 
 

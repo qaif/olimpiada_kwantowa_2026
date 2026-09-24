@@ -48,8 +48,14 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: adresów IP** w dowolnym okresie, więc przy każdym pobraniu zostaje pseudonim adresu IP (HMAC
 #: z kluczem serwera). Nowa kategoria danych o osobach, które nie mają w serwisie konta, i nowy
 #: termin usunięcia – zmiana materialna, a nie doprecyzowanie wiersza „serwis”.
-REGISTER_VERSION = "1.6"
-REGISTER_DATE = date(2026, 9, 23)
+#: 1.7 (24.09.2026) – zaświadczenie o statusie ucznia (``apps.student_status``): skan dokumentu
+#: z pieczątką szkoły, datą urodzenia i podpisem dyrektora oraz decyzja koordynatora. Nowa kategoria
+#: danych (obraz dokumentu wystawionego przez szkołę, dane pracownika szkoły w podpisie) i własny
+#: termin usunięcia pliku – zmiana materialna. Wiersz jest **warunkowy** (flaga
+#: ``student_status_certificate``), jak forum: konkurs, który zaświadczeń nie zbiera, nie ma go
+#: w rejestrze, ale numer wersji jest jeden dla całego dokumentu.
+REGISTER_VERSION = "1.7"
+REGISTER_DATE = date(2026, 9, 24)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
 #: domyślna wartość ``Edition.data_retention_months`` – gdyby organizator zmienił ją dla rocznika,
@@ -557,6 +563,69 @@ FORUM_ACTIVITY = _activity(
 )
 
 
+#: Czynność **warunkowa**: zaświadczenia o statusie ucznia (prośba organizatora z 24.09.2026,
+#: flaga ``student_status_certificate``). Obok :data:`ACTIVITIES` z tego samego powodu, co forum:
+#: rejestr opisuje przetwarzanie, które **naprawdę zachodzi**, a konkurs bez flagi nie zbiera ani
+#: jednego skanu.
+#:
+#: Skan jest tu ostrożniejszy od pozostałych kategorii z jednego powodu: to obraz **dokumentu**,
+#: więc niesie więcej, niż serwis prosi – pieczątkę szkoły, podpis i nazwisko dyrektora albo
+#: sekretarza (dane osoby trzeciej, pracownika szkoły), czasem dopiski odręczne. Dlatego wśród
+#: środków stoi to, czego ten plik **nie** robi: nie trafia do recenzentów, nie jest przekazywany
+#: e-mailem i nie przeżywa ani zastąpienia nowszym, ani terminu retencji edycji.
+STUDENT_STATUS_ACTIVITY = _activity(
+    key="status-ucznia",
+    name="Weryfikacja statusu ucznia (zaświadczenie ze szkoły)",
+    purpose=(
+        "Potwierdzenie, że uczestnik jest w danym roku szkolnym uczniem szkoły – warunek udziału "
+        "wynikający z Regulaminu – oraz możliwość przekazania komitetowi do oceny wyłącznie prac "
+        "uczniów z potwierdzonym statusem."
+    ),
+    legal_basis=(
+        "art. 6 ust. 1 lit. b RODO (wykonanie umowy – weryfikacja warunków udziału w zawodach "
+        "określonych Regulaminem); dane pracownika szkoły w podpisie – art. 6 ust. 1 lit. f RODO "
+        "(prawnie uzasadniony interes administratora: wiarygodność dokumentu)"
+    ),
+    subjects=(
+        "uczestnicy konkursu; dyrektorzy i sekretarze szkół podpisujący zaświadczenie (w zakresie "
+        "podpisu i pieczątki)"
+    ),
+    categories=[
+        "skan albo zdjęcie zaświadczenia: imię i nazwisko, data urodzenia, nazwa szkoły, klasa, rok "
+        "szkolny, pieczątka szkoły, data oraz podpis dyrektora lub sekretarza szkoły",
+        "metadane pliku: skrót SHA-256, rozmiar, typ, wynik skanu antywirusowego, data przesłania",
+        "decyzja koordynatora: stan (oczekuje, zaakceptowane, odrzucone), powód odrzucenia, osoba "
+        "i czas decyzji",
+    ],
+    recipients=[
+        HOSTING_RECIPIENT,
+        MAIL_RECIPIENT + " – wyłącznie powiadomienie o decyzji, bez załącznika",
+        "koordynator konkursu – jedyna rola, która widzi skan; członkowie komitetu i komisji "
+        "odwoławczej dostają wyłącznie paczkę prac zawężoną filtrem, bez skanu i bez danych "
+        "osobowych",
+    ],
+    retention=(
+        "plik zastąpiony nowszym – usuwany natychmiast; pozostałe pliki – do upływu okresu "
+        "przechowywania danych uczestników edycji (" + PARTICIPANT_RETENTION.split(" (")[0] + "), po "
+        "czym usuwane automatycznie (zadanie dobowe); przy usunięciu albo anonimizacji konta – "
+        "natychmiast, razem z zapisem decyzji. Zapis decyzji bez pliku zostaje do anonimizacji konta"
+    ),
+    measures=[
+        "funkcja jest domyślnie **wyłączona**; bez świadomej decyzji organizatora nie ma adresu, "
+        "pod którym dałoby się przesłać albo obejrzeć skan",
+        "plik w prywatnym magazynie, bez publicznego adresu; odczyt wyłącznie przez aplikację, po "
+        "uprawnieniu koordynatora tego konkursu, każde otwarcie zapisywane w dzienniku zdarzeń",
+        "format rozpoznawany po treści (PDF, JPG, PNG), limit 10 MB, skan antywirusowy przed "
+        "udostępnieniem koordynatorowi; plik zainfekowany jest usuwany",
+        "nazwa pliku od uczestnika nie jest zapisywana; klucz w magazynie składa się z identyfikatorów "
+        "technicznych i skrótu treści",
+        "recenzenci i komisja nie mają dostępu do skanu ani do stanu zaświadczenia poszczególnych "
+        "osób – filtr paczki działa po stronie serwera, a pliki w paczce zostają anonimowe",
+        "dziennik zdarzeń notuje wgranie, podgląd i decyzję bez treści powodu odrzucenia",
+    ],
+)
+
+
 def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
     """Rejestr **tego** konkursu: czynności wspólne plus te, które wynikają z jego konfiguracji.
 
@@ -576,6 +645,10 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
         activities = (*activities, ONSITE_LOGISTICS_ACTIVITY)
     if competition is not None and competition.has_feature(FORUM_FLAG):
         activities = (*activities, FORUM_ACTIVITY)
+    from apps.student_status.models import enabled as student_status_enabled
+
+    if student_status_enabled(competition):
+        activities = (*activities, STUDENT_STATUS_ACTIVITY)
     return activities
 
 

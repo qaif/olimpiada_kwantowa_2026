@@ -38,10 +38,20 @@
     </p>
   </div>
   {% if reviews %}
+    {% if zip_scope_choice %}
+      {# Formularz wyboru zakresu nie może stać w akapicie – stąd ``div`` w miejsce ``p``. #}
+      <div class="queue-summary__actions">
+        {% url 'web:review-download' as zip_url %}
+        {% translate "Pobierz moje prace (ZIP)" as zip_label %}
+        {% include "web/_zip_scope_form.html" with action=zip_url label=zip_label scope_id="review" %}
+        <span class="hint">{% translate "Wszystkie przydzielone prace w jednym archiwum. Pliki są anonimowe." %}</span>
+      </div>
+    {% else %}
     <p class="queue-summary__actions">
       <a class="btn btn--secondary" href="{% url 'web:review-download' %}">{% translate "Pobierz moje prace (ZIP)" %}</a>
       <span class="hint">{% translate "Wszystkie przydzielone prace w jednym archiwum. Pliki są anonimowe." %}</span>
     </p>
+    {% endif %}
   {% endif %}
 </section>
 
