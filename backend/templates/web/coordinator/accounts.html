@@ -77,8 +77,8 @@
     (szkoła, województwo, klasa, zgoda opiekuna, liczba prac w bieżącej edycji). Każdy nagłówek
     poza operacjami sortuje – po stronie serwera, bo lista jest stronicowana.
   {% endcomment %}
-  <div class="scroll">
-    <table class="table table--compact" aria-label="Uczestnicy">
+  <div class="scroll scroll--tall" role="region" tabindex="0" aria-label="Uczestnicy – lista kont">
+    <table class="table table--compact table--sticky-first" aria-label="Uczestnicy">
       <thead>
         <tr>
           {% sort_header controls "kod" %}
@@ -112,7 +112,7 @@
             <td>{% if row.participant.guardian_consent %}tak{% else %}—{% endif %}</td>
             <td class="num">{{ row.works }}</td>
             <td>{{ row.status }}</td>
-            <td>{{ row.user.date_joined|local_datetime }}</td>
+            <td class="nowrap">{{ row.user.date_joined|local_datetime }}</td>
             <td>
               {% participant_card_url row.participant as card_url %}
               {% if card_url %}
@@ -129,8 +129,8 @@
     </table>
   </div>
   {% else %}
-  <div class="scroll">
-    <table class="table">
+  <div class="scroll scroll--tall" role="region" tabindex="0" aria-label="Konta">
+    <table class="table table--sticky-first" aria-label="Konta">
       <thead>
         <tr>
           {% sort_header controls "email" %}
@@ -163,7 +163,7 @@
             <td>{{ row.role }}{% if row.supervisor_school %} ({{ row.supervisor_school }}){% endif %}{% if row.protected %} <span class="badge badge--neutral">chronione</span>{% endif %}{% if row.participant.invited_at %} <span class="badge badge--info">z importu</span>{% endif %}</td>
             <td>{{ row.public_code|default:"—" }}</td>
             <td>{{ row.status }}</td>
-            <td>{{ row.user.date_joined|local_datetime }}</td>
+            <td class="nowrap">{{ row.user.date_joined|local_datetime }}</td>
             <td>
               <a class="btn btn--secondary btn--small"
                  href="{% url 'web:coordinator-account-edit' row.user.pk %}">{% if row.protected %}Podgląd{% else %}Edytuj{% endif %}</a>

@@ -164,7 +164,7 @@
     <form method="post" novalidate>
       {% csrf_token %}
       <input type="hidden" name="action" value="prices">
-      <div class="scroll">
+      <div class="scroll" role="region" tabindex="0" aria-label="Cennik modeli">
         <table class="table">
           <thead>
             <tr>
@@ -239,7 +239,7 @@
       że powstała. Po włączeniu dla etapu uczestnik zobaczy podsumowanie i proponowane punkty – dopiero
       po ogłoszeniu wyników, obok oficjalnej oceny i z podpisem „sugestia AI”. Oceny prac testowych
       nie są pokazywane nikomu poza koordynatorem.</p>
-    <div class="scroll">
+    <div class="scroll" role="region" tabindex="0" aria-label="Widoczność oceny AI dla uczestników">
       <table class="table">
         <thead>
           <tr>

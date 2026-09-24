@@ -72,6 +72,12 @@
   <script nonce="{{ request.csp_nonce }}" src="{% static 'js/consent.js' %}"></script>
   <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/sticky-bar.js' %}"></script>
   {% comment %}
+    Ramki przewijania tabel (``.scroll``) działają bez skryptu – tabela przewija się w swojej
+    ramce. Skrypt dokłada nazwę regionu, przystanek klawiatury **tylko** przy ramce, która się
+    naprawdę przewija, i podpowiedź „dalej są kolumny” (``data-scroll``, UI.md § 2.10).
+  {% endcomment %}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/table-scroll.js' %}"></script>
+  {% comment %}
     Linia czasu w nagłówku jest kompletna bez tego skryptu – serwer rysuje pasek, podpisy i
     głowicę. Skrypt dokłada dwie rzeczy, których serwer dać nie może: przesuwa głowicę w karcie
     zostawionej otwartej (bez przeładowania) i rysuje warstwę „pomiaru” pod kursorem.

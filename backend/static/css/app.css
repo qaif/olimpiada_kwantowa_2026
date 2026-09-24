@@ -1401,6 +1401,7 @@ hr {
 
 .page-head h1 {
   margin-bottom: var(--sp-2);
+  overflow-wrap: anywhere;
 }
 
 .footer {
@@ -1551,6 +1552,9 @@ h4 {
   line-height: 1.2;
   color: var(--ink);
   letter-spacing: -0.005em;
+  /* Nagłówek z adresem e-mail albo nazwą pliku („Konto jan.kowalski@…”) łamie się zamiast
+     rozpychać stronę – na 360 px taki ``<h1>`` miał 650 px. */
+  overflow-wrap: break-word;
   text-wrap: balance;
 }
 
@@ -2304,8 +2308,19 @@ form.inline input[type="text"] {
 }
 
 /* 6.4 Tabele */
-.scroll {
+/* Ramka przewijania tabeli. ``position: relative`` nie jest ozdobą: pola ``.visually-hidden``
+   w komórkach (etykiety kratek, „Operacje”) mają ``position: absolute`` i bez pozycjonowanego
+   przodka liczą się od początku dokumentu – ich pozycja statyczna w prawej części szerokiej tabeli
+   wystawała wtedy **poza** ramkę i dawała poziomy suwak całej stronie (przydziały, karta
+   uczestnika, zadanie: 580–1200 px szerokości przy ekranie 360 px). */
+.scroll,
+.table-scroll {
+  position: relative;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.scroll {
   border-radius: var(--radius);
   border: 1px solid var(--line);
   background: var(--surface);
@@ -2315,6 +2330,114 @@ form.inline input[type="text"] {
 .scroll .grid {
   border: 0;
   margin: 0;
+}
+
+/* Ramka, którą da się przewinąć, jest przystankiem klawiatury (``tabindex="0"`` z szablonu albo
+   z ``js/table-scroll.js``) – pierścień fokusu idzie **do środka**, bo na zewnątrz zjadłoby go
+   wygaszenie krawędzi niżej. */
+:is(.scroll, .table-scroll):focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: -3px;
+}
+
+/* Podpowiedź „tabela jedzie dalej”: skrypt ``js/table-scroll.js`` ustawia na ramce
+   ``data-scroll="start|middle|end"`` (brak atrybutu = tabela się mieści albo skrypt się nie
+   wczytał – wtedy nie ma czego podpowiadać). Krawędź, za którą są jeszcze kolumny, wygasa ku
+   przezroczystości: to działa w każdym motywie i w trybie wysokiego kontrastu bez jednego koloru,
+   bo maska zmienia wyłącznie krycie. Tabela z przyklejoną pierwszą kolumną nie wygasza lewej
+   krawędzi (wygasiłaby nazwiska) – tam granicę rysuje sama kolumna (``.table--sticky-first``). */
+:is(.scroll, .table-scroll)[data-scroll="start"] {
+  -webkit-mask-image: linear-gradient(to left, rgb(0 0 0 / 0.2), #000 2.5rem);
+  mask-image: linear-gradient(to left, rgb(0 0 0 / 0.2), #000 2.5rem);
+}
+
+:is(.scroll, .table-scroll)[data-scroll="middle"] {
+  -webkit-mask-image: linear-gradient(to right, rgb(0 0 0 / 0.2), #000 2.5rem, #000 calc(100% - 2.5rem), rgb(0 0 0 / 0.2));
+  mask-image: linear-gradient(to right, rgb(0 0 0 / 0.2), #000 2.5rem, #000 calc(100% - 2.5rem), rgb(0 0 0 / 0.2));
+}
+
+:is(.scroll, .table-scroll)[data-scroll="end"] {
+  -webkit-mask-image: linear-gradient(to right, rgb(0 0 0 / 0.2), #000 2.5rem);
+  mask-image: linear-gradient(to right, rgb(0 0 0 / 0.2), #000 2.5rem);
+}
+
+:is(.scroll, .table-scroll)[data-scroll="middle"]:has(> .table--sticky-first) {
+  -webkit-mask-image: linear-gradient(to left, rgb(0 0 0 / 0.2), #000 2.5rem);
+  mask-image: linear-gradient(to left, rgb(0 0 0 / 0.2), #000 2.5rem);
+}
+
+:is(.scroll, .table-scroll)[data-scroll="end"]:has(> .table--sticky-first) {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+/* Szerokość kolumn w ramce przewijania. Do v0.35.0 komórki miały ``overflow-wrap: anywhere`` –
+   a ``anywhere`` zeruje minimalną szerokość treści, więc tabela **nigdy** nie sięgała po
+   przewijanie: dwunastokolumnowa lista kont na 1024 px ściskała e-mail, imię i szkołę do
+   60–90 px, a wiersz rósł do 360 px wysokości (tekst łamany co kilka liter), macierz obecności
+   na 360 px – do 270 px na wiersz.
+
+   W ramce, która umie przewijać, reguła jest inna: tabela nadal próbuje zmieścić się w szerokości
+   ramki (``width: 100%`` z komponentu), ale kolumna nie schodzi poniżej najdłuższego **słowa**
+   (``break-word`` nie zmienia minimalnej szerokości) – dopiero gdy suma takich minimów przekracza
+   ramkę, tabela przewija się w bok. Pojedynczy ciąg bez spacji (e-mail, nazwa pliku) nie rozpycha
+   kolumny ponad ``--cell-max``: tam łamie się w dowolnym miejscu. */
+.scroll > .table td,
+.table-scroll > .table td,
+.scroll > .table tbody th,
+.table-scroll > .table tbody th {
+  overflow-wrap: break-word;
+  max-width: var(--cell-max, 22rem);
+}
+
+/* Tabela, o której wiadomo, że się nie zmieści (lista kont, macierz, ranking, tabela robocza
+   z formularzami w komórkach), nie próbuje: dopasowanie do ramki dałoby jej wszystkie kolumny
+   w minimalnej szerokości **i** przewijanie naraz – najgorsze z obu. Każda kolumna dostaje
+   szerokość swojej treści (do ``--cell-max``), ``min-width: 100%`` trzyma krótką tabelę na całą
+   ramkę. Przyklejona kolumna, ranking i macierz włączają to same. */
+.scroll > :is(.table--wide, .table--sticky-first, .table--sticky-rank, .table--matrix),
+.table-scroll > :is(.table--wide, .table--sticky-first, .table--sticky-rank, .table--matrix) {
+  width: max-content;
+  min-width: 100%;
+}
+
+/* Tabela bez żadnego z tych modyfikatorów, która mimo dopasowania **nie** zmieściła się w ramce
+   (suma najdłuższych słów kolumn jest szersza od ramki), dostaje ten sam tryb od
+   ``js/table-scroll.js`` (``data-fit="wide"``). Bez skryptu zostaje dopasowanie – czytelne,
+   tylko wyższe. Poniżej 640 px ten tryb mają wszystkie tabele (niżej), więc atrybut jest zbędny. */
+@media (min-width: 640px) {
+  .scroll[data-fit="wide"] > .table,
+  .table-scroll[data-fit="wide"] > .table {
+    width: max-content;
+    min-width: 100%;
+  }
+}
+
+/* Na telefonie ramka ma ~340 px i dopasowanie ściska każdą tabelę od czterech kolumn w górę, więc
+   zasada „szerokość treści + przewijanie” obejmuje wszystkie tabele poza kartami i ``--fluid``.
+   Niższy sufit kolumny sprawia, że tabela dwukolumnowa z opisem nadal mieści się bez przewijania. */
+@media (max-width: 639.98px) {
+  .scroll,
+  .table-scroll {
+    --cell-max: 16rem;
+  }
+
+  .scroll > .table:not(.table--stack, .table--fluid),
+  .table-scroll > .table:not(.table--stack, .table--fluid) {
+    width: max-content;
+    min-width: 100%;
+  }
+}
+
+/* Wartości, które łamane w środku przestają być wartościami: liczby, daty, kody. ``<time>``
+   i ``.code-chip`` obejmują większość dat i kodów bez zmiany szablonów; ``.nowrap`` jest dla
+   reszty (np. „24.09.2026 12:30” wpisane zwykłym tekstem). */
+.table .num,
+.table time,
+.table .code-chip,
+.table .badge,
+.table .nowrap {
+  white-space: nowrap;
 }
 
 /* Przyklejony nagłówek tabeli działa dopiero wtedy, gdy jest **do czego** go przykleić: ``th``
@@ -2368,9 +2491,6 @@ form.inline input[type="text"] {
 
 .table th,
 .grid th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
   background: var(--surface-inset);
   color: var(--ink);
   font-weight: 600;
@@ -2383,12 +2503,268 @@ form.inline input[type="text"] {
   white-space: nowrap;
 }
 
+/* Przyklejony jest wyłącznie nagłówek **kolumn** (``thead``). Do v0.35.0 reguła łapała każde
+   ``th``, także ``<th scope="row">`` w treści – w ramce ``.scroll--tall`` nazwy wierszy kleiły
+   się wtedy do góry ramki jedna na drugiej. */
+.table thead th,
+.grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
 .table td,
 .grid td {
   padding: var(--sp-3);
   border-bottom: 1px solid var(--line);
   vertical-align: top;
   color: var(--ink-soft);
+}
+
+/* Nazwa wiersza (``<th scope="row">`` w ``tbody`` – kod, nazwisko, tytuł) czyta się jak komórka,
+   tylko wyraźniejsza: bez wersalików, tła nagłówka i zakazu łamania. Z nimi pierwsza kolumna
+   listy kont wyglądała jak drugi rząd nagłówków, a nazwisko w jednej linii rozpychało kolumnę
+   macierzy obecności do 550 px. Ten sam wygląd miały już ``.schedule`` i ``.problem-table`` –
+   tu staje się regułą, nie wyjątkiem. */
+.table tbody th,
+.grid tbody th {
+  background: transparent;
+  color: var(--ink);
+  font-size: inherit;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+  padding: var(--sp-3);
+  border-bottom: 1px solid var(--line);
+}
+
+.table--compact tbody th {
+  padding: var(--sp-1) var(--sp-2);
+}
+
+.table tbody tr:last-child th,
+.grid tbody tr:last-child th {
+  border-bottom: 0;
+}
+
+/* Przyklejona pierwsza kolumna – dla tabel szerszych od ekranu, w których pierwsza kolumna mówi,
+   **czyj** jest wiersz (nazwisko, kod, tytuł zadania). Bez niej na telefonie po przewinięciu
+   do piątej kolumny nie wiadomo, czyje punkty się czyta. Komórka musi mieć własne, nieprzezroczyste
+   tło (bierze je z wiersza: zebra, najechanie, „zakwalifikowany”), inaczej przewijana treść
+   prześwitywałaby pod nazwiskiem; granicę kolumny rysuje cień wewnętrzny, bo przy
+   ``border-collapse`` krawędź komórki przyklejonej zostaje w miejscu, a komórka odjeżdża. */
+.table--sticky-first tbody tr {
+  background: var(--surface);
+}
+
+.table--sticky-first tr > :first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: inherit;
+  box-shadow: inset -2px 0 0 var(--line-strong);
+}
+
+.table--sticky-first thead tr > :first-child {
+  z-index: 3;
+  background: var(--surface-inset);
+}
+
+/* Ranking: przyklejone są **dwie** kolumny – miejsce i uczestnik – bo samo „7.” po przewinięciu
+   do punktów za zadanie 4 nie mówi, czyj to wiersz. Kolumna miejsca ma stałą szerokość
+   (``--rank-col``), żeby druga kolumna wiedziała, gdzie się zaczyna. */
+.table--sticky-rank {
+  --rank-col: 6rem;
+}
+
+.table--sticky-rank tbody tr {
+  background: var(--surface);
+}
+
+.table.table--sticky-rank tr > :first-child {
+  box-sizing: border-box;
+  width: var(--rank-col);
+  min-width: var(--rank-col);
+  max-width: var(--rank-col);
+}
+
+.table--sticky-rank tr > :is(:first-child, :nth-child(2)) {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: inherit;
+}
+
+.table--sticky-rank tr > :nth-child(2) {
+  left: var(--rank-col);
+  box-shadow: inset -2px 0 0 var(--line-strong);
+}
+
+.table--sticky-rank thead tr > :is(:first-child, :nth-child(2)) {
+  z-index: 3;
+  background: var(--surface-inset);
+}
+
+/* Nagłówek „Miejsce” w stałej szerokości: gdyby krój się nie zmieścił, ucina się wielokropkiem
+   zamiast wjeżdżać pod kolumnę uczestnika. */
+.table--sticky-rank thead tr > :first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Na telefonie przyklejona kolumna nie może zjeść ekranu: 45 % szerokości, reszta łamie się.
+   Podwójna klasa, bo reguła szerokości komórek w ramce (``.scroll > .table tbody th``) jest
+   swoistsza od samej ``.table--sticky-first``. */
+@media (max-width: 639.98px) {
+  .table.table--sticky-first tr > :first-child {
+    max-width: 45vw;
+    min-width: 7rem;
+    white-space: normal;
+  }
+
+  .table--sticky-rank {
+    --rank-col: 4.5rem;
+  }
+
+  .table--sticky-rank tr > :first-child {
+    padding-left: var(--sp-2);
+    padding-right: var(--sp-2);
+  }
+
+  .table--sticky-rank thead tr > :first-child {
+    font-size: 0.75rem;
+    letter-spacing: 0;
+  }
+
+  .table.table--sticky-rank tr > :nth-child(2) {
+    max-width: 40vw;
+    white-space: normal;
+  }
+}
+
+/* Macierz (uczestnicy × warsztaty, prace × recenzenci): nagłówki kolumn są tematami, a nie
+   etykietami, więc się łamią – w wąskiej kolumnie z kratką zamiast w jednej linii na 500 px.
+   Komórki są gęstsze i wyśrodkowane, bo niosą znacznik, a nie tekst. */
+.table--matrix thead th {
+  white-space: normal;
+  min-width: 7rem;
+  max-width: 11rem;
+  vertical-align: bottom;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.table--matrix thead th:first-child {
+  vertical-align: bottom;
+}
+
+.table--matrix td {
+  padding: var(--sp-1) var(--sp-2);
+  text-align: center;
+  vertical-align: middle;
+}
+
+.table--matrix tbody th {
+  padding: var(--sp-1) var(--sp-2);
+  vertical-align: middle;
+}
+
+/* Lista rekordów na telefonie: poniżej 640 px każdy wiersz staje się kartą „etykieta: wartość”.
+   Etykietę bierze się z ``data-label`` komórki (szablon powtarza w nim nagłówek kolumny), więc
+   nie trzeba przewijać w bok, żeby zobaczyć status zgłoszenia. **Tylko** dla list rekordów –
+   macierz (obecność, przydziały) albo ranking straciłyby w kartach to, po co są tabelą:
+   porównanie w kolumnie. Nagłówek kolumn zostaje w drzewie dostępności (``.visually-hidden``
+   w wersji dla ``thead``), a ``th scope="row"`` otwiera kartę jak jej tytuł. */
+@media (max-width: 639.98px) {
+  .table--stack {
+    display: block;
+    width: 100%;
+  }
+
+  .table--stack caption {
+    display: block;
+  }
+
+  .table--stack.table--sticky-first tr > :first-child {
+    position: static;
+    max-width: none;
+    box-shadow: none;
+  }
+
+  .table--stack thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .table--stack tbody {
+    display: block;
+  }
+
+  /* Wiersz jest kolumną flex, żeby nazwa wiersza (``th scope="row"``) stanęła na górze karty jako
+     jej tytuł, nawet jeśli w tabeli jest trzecią kolumną (dziennik: „Kiedy”, „Kto”, **akcja**). */
+  .table--stack tbody tr {
+    display: flex;
+    flex-direction: column;
+    padding: var(--sp-2) 0;
+    border-bottom: 2px solid var(--line-strong);
+  }
+
+  .table--stack tbody th {
+    order: -1;
+  }
+
+  .table--stack tbody tr:last-child {
+    border-bottom: 0;
+  }
+
+  /* Podwójna klasa: reguła szerokości komórek w ramce (``.scroll > .table td``) jest swoistsza
+     od samego modyfikatora, a karta ma mieć całą szerokość ekranu, nie ``--cell-max``. */
+  .table.table--stack td,
+  .table.table--stack tbody th {
+    display: grid;
+    grid-template-columns: minmax(6.5rem, 38%) minmax(0, 1fr);
+    gap: var(--sp-2);
+    max-width: none;
+    padding: var(--sp-1) var(--sp-3);
+    border-bottom: 0;
+    text-align: left;
+  }
+
+  .table--stack td::before,
+  .table--stack tbody th::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+
+  /* Komórka bez etykiety (tytuł karty, operacje, pusty wynik) zajmuje całą szerokość. */
+  .table--stack td:not([data-label]),
+  .table--stack tbody th:not([data-label]) {
+    display: block;
+  }
+
+  .table--stack td:not([data-label])::before,
+  .table--stack tbody th:not([data-label])::before {
+    content: none;
+  }
+
+  .table--stack .num {
+    text-align: left;
+  }
+
+  /* W karcie kolumna wartości ma ~60 % ekranu – długa odznaka („wymagana dla niepełnoletnich”)
+     ma się w niej złamać, a nie wystawać. */
+  .table--stack .badge {
+    white-space: normal;
+  }
 }
 
 .table tbody tr:nth-child(even),
@@ -2501,7 +2877,12 @@ form.inline input[type="text"] {
   font-weight: 600;
   line-height: 1.5;
   letter-spacing: 0.02em;
-  white-space: nowrap;
+  /* Odznaka jest pudełkiem atomowym (``inline-flex``): krótka nigdy się nie łamie, tylko w całości
+     przechodzi do następnej linii. Łamie się dopiero ta, która sama jest szersza od kontenera
+     („niedostępny – brak pakietu … na serwerze” w nagłówku karty na 360 px) – z ``nowrap`` taka
+     wystawała poza stronę. W tabelach zostaje ``nowrap`` (sekcja 6.4). */
+  white-space: normal;
+  max-width: 100%;
   background: var(--neutral-soft);
   color: var(--neutral-ink);
   border-color: var(--line-strong);
@@ -3845,8 +4226,12 @@ td.empty,
    w dokumencie drukowanym. Od 1100 px (szerokość kontenera) przechodzi do lewej kolumny
    i przykleja się przy przewijaniu. Całość na samym CSS: żadnego skryptu, więc spis działa
    też przy wyłączonym JS i w widoku wydruku. */
+/* ``minmax(0, 1fr)`` także w układzie jednokolumnowym (poniżej 1100 px): niejawna kolumna
+   ``auto`` bierze szerokość najszerszej treści, więc harmonogram w ``.table-scroll`` rozpychał
+   całą stronę /warsztaty/ do 490 px na ekranie 360 px, zamiast przewijać się w swojej ramce. */
 .doc-layout {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--sp-6);
 }
 
@@ -4930,6 +5315,29 @@ fieldset:disabled .score-option {
     overflow: visible !important;
     max-height: none !important;
     border: 0;
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
+  }
+
+  /* Na papierze nie ma przewijania, więc tabela wraca do szerokości kartki (tryb „szerokości
+     treści” z ekranu ucięłby prawe kolumny), a przyklejone kolumny i nagłówek – na swoje miejsce. */
+  .scroll > .table,
+  .table-scroll > .table {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .table td,
+  .table tbody th {
+    max-width: none !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .table thead th,
+  .table--sticky-first tr > :first-child,
+  .table--sticky-rank tr > * {
+    position: static !important;
+    box-shadow: none !important;
   }
 
   .table,
@@ -5589,6 +5997,12 @@ img.captcha {
   outline-offset: 2px;
   background: #000;
   color: #fff;
+}
+
+/* Ramka przewijania tabeli: pierścień do środka, jak w zwykłym motywie – na zewnątrz zjadłoby
+   go wygaszenie krawędzi (``data-scroll``). */
+:root[data-contrast="high"] :is(.scroll, .table-scroll):is(:focus, :focus-visible) {
+  outline-offset: -4px;
 }
 
 /* Odznaki i komunikaty: znaczenie niesie tekst, więc tło znika, a zostaje ramka i kolor pisma.

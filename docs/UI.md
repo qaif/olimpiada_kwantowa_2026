@@ -232,7 +232,7 @@ znaczy, że to jest tabela, a nie przegląd.
 ### 2.10 Tabele
 
 ```html
-<div class="scroll">
+<div class="scroll" role="region" tabindex="0" aria-label="Zgłoszenia etapu I">
   <table class="table">
     <caption>Zgłoszenia etapu I</caption>
     <thead><tr><th scope="col">Uczestnik</th><th scope="col" class="num">Punkty</th></tr></thead>
@@ -245,15 +245,75 @@ znaczy, że to jest tabela, a nie przegląd.
 ```
 
 - `.scroll` **zawsze** wokół tabeli: przewija się tabela, a nie strona (na 360 px to jedyne, co
-  trzyma stronę bez poziomego suwaka),
-- `.scroll--tall` dodaje `max-height: 70vh` i wtedy **nagłówek klei się** wewnątrz ramki
-  (`th` ma `position: sticky` – bez ograniczenia wysokości nie ma się do czego kleić),
+  trzyma stronę bez poziomego suwaka). Ramka jest pozycjonowana (`position: relative`), więc
+  `.visually-hidden` w komórce liczy się od niej, a nie od dokumentu,
+- **ramka jest regionem:** `role="region"`, `tabindex="0"` (przewija się ją strzałkami) i
+  `aria-label` z nazwą tabeli. W kluczowych tabelach panelu koordynatora atrybuty stoją
+  w szablonie (pilnuje ich `apps/web/tests/test_responsive_tables.py`); w pozostałych dokłada je
+  `js/table-scroll.js` – nazwę bierze z `<caption>`, `aria-label` tabeli albo najbliższego nagłówka,
+  a `tabindex` daje **tylko** ramce, która naprawdę się przewija (i zdejmuje po poszerzeniu okna),
+- **podpowiedź przewijania:** skrypt ustawia na ramce `data-scroll="start|middle|end"`, a arkusz
+  wygasza krawędź, za którą są jeszcze kolumny (maska krycia – bez koloru, więc działa w trybie
+  ciemnym i wysokiego kontrastu). Bez skryptu tabela po prostu się przewija,
+- `.scroll--tall` dodaje `max-height: 70vh` i wtedy **nagłówek kolumn klei się** wewnątrz ramki
+  (`thead th` ma `position: sticky` – bez ograniczenia wysokości nie ma się do czego kleić). Dla
+  długich list (konta, komitet, macierz, obecność, przydziały),
 - `.num` na liczbach: do prawej, `tabular-nums`. `.total` pogrubia sumę,
-- pierwsza kolumna jako `<th scope="row">`, kiedy jest nazwą wiersza,
+- pierwsza kolumna jako `<th scope="row">`, kiedy jest nazwą wiersza – wygląda jak wyraźniejsza
+  komórka (bez wersalików i tła nagłówka) i łamie się normalnie,
 - zebra i `:hover` są w komponencie – nie dopisuj ich w arkuszu panelowym,
 - `.table--rank` – wąska pierwsza kolumna na miejsce w rankingu,
 - `.table--compact` – gęstszy wiersz dla tabel roboczych (listy plików, log operacji),
 - pusty wynik: `<td class="empty">` w tabeli albo `.empty` zamiast całej tabeli (2.12).
+
+**Szerokość kolumn.** W ramce tabela najpierw próbuje zmieścić się w jej szerokości, ale kolumna
+nie schodzi poniżej najdłuższego **słowa** (`overflow-wrap: break-word`), a ciąg bez spacji (e-mail,
+nazwa pliku) nie rozpycha jej ponad `--cell-max` (22 rem, na telefonie 16 rem). **Nie** wracaj
+w komórkach do `overflow-wrap: anywhere` – zeruje minimalną szerokość i tabela zamiast się
+przewinąć ściska kolumny do pojedynczych liter (lista kont w v0.35.0: 361 px na wiersz). Tabela,
+która się nie mieści, przechodzi w tryb „szerokości treści”: każda kolumna tyle, ile potrzebuje
+(do `--cell-max`), i przewijanie w ramce. Włączają go modyfikatory niżej, `.table--wide`, a dla
+reszty skrypt (`data-fit="wide"`, gdy dopasowanie się nie udało). Poniżej 640 px mają go wszystkie
+tabele poza kartami i `.table--fluid`.
+
+**Wartości nie łamią się w środku:** `.num`, `<time>`, `.code-chip`, `.badge` w tabeli mają
+`white-space: nowrap`; dla daty wpisanej tekstem (`|local_datetime`) dopisz `class="nowrap"`.
+
+#### Który wzorzec wybrać
+
+| Tabela | Wzorzec | Przykłady |
+| --- | --- | --- |
+| **lista rekordów**, kilka kolumn, czytana wiersz po wierszu | `.table--stack` + `data-label` na każdej `<td>` – poniżej 640 px karty „etykieta: wartość” | dziennik zdarzeń, zgłoszenia, komunikaty, zgody, statusy ucznia |
+| **szeroka lista**, porównywana w kolumnie albo sortowana nagłówkami | przewijanie + `.table--sticky-first` (pierwsza kolumna = nazwa wiersza) | konta, uczestnicy, komitet, kalibracja, obecność |
+| **macierz** (osoby × zajęcia, prace × recenzenci) | `.table--matrix` + `.table--sticky-first` + `.scroll--tall` | obecność na warsztatach |
+| **ranking** | `.table--rank` + `.table--sticky-rank` (miejsce i uczestnik zostają na ekranie) | wyniki publiczne, podgląd wyników |
+| tabela robocza z formularzami w komórkach | `.table--wide` | przydziały, ocena najnowszej wersji na karcie uczestnika |
+| dwie–trzy kolumny z długim opisem | nic (dopasowanie) albo `.table--fluid`, gdy ma się łamać także na telefonie | podsumowania, słowniki |
+
+Karty **tylko** dla list rekordów: macierz albo ranking w kartach traci to, po co jest tabelą –
+porównanie w kolumnie. W kartach nazwa wiersza (`th scope="row"`) staje na górze jako tytuł karty,
+komórka bez `data-label` (operacje, pusty wynik) zajmuje całą szerokość, a nagłówek kolumn znika
+z oczu, ale zostaje w drzewie dostępności.
+
+```html
+<div class="scroll" role="region" tabindex="0" aria-label="Dziennik zdarzeń">
+  <table class="table table--stack">
+    <thead><tr><th scope="col">Kiedy</th><th scope="col">Akcja</th><th scope="col">Obiekt</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="nowrap" data-label="Kiedy">24.09.2026 12:30</td>
+        <th scope="row">account.update</th>
+        <td data-label="Obiekt">User#12</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+```
+
+`.table--sticky-first` ma na telefonie najwyżej 45 % szerokości ekranu (reszta się łamie), a jego
+granicę rysuje cień wewnętrzny – przy `border-collapse` krawędź komórki przyklejonej zostałaby
+w miejscu. Tabela z dwoma wierszami nagłówka (`rowspan`/`colgroup`, np. statystyki plakatów) **nie**
+dostaje przyklejonej kolumny: pierwsza komórka drugiego wiersza nagłówka to już inna kolumna.
 
 ### 2.11 Pasek zaznaczenia (`.bulk-bar`)
 
@@ -392,7 +452,9 @@ jako **tekst** na własnym `-soft`. Te tokeny są kreską i obrysem; tekstem jes
 ## 4. Ekrany wąskie
 
 - każda tabela w `.scroll` – to jest jedyny wymóg, którego złamanie natychmiast widać
-  (poziomy suwak na całej stronie),
+  (poziomy suwak na całej stronie); przewijanie czy karty – tabela „Który wzorzec wybrać” w 2.10,
+- nagłówki (`h1`–`h4`) łamią długi e-mail albo nazwę pliku zamiast rozpychać stronę; odznaka
+  szersza od kontenera łamie się w środku (w tabelach – nie),
 - `.actions`, `.chips`, `.tabs`, `.kpi` zawijają się albo przewijają same,
 - pasek konta na 360 px: przyciski zawijają się i wyrównują do lewej, adres e-mail skraca się
   do 12 znaków z wielokropkiem,
@@ -427,7 +489,8 @@ takim przebiegu było widać, czy usterka jest w stronie, czy w skrypcie.
 `@media print` zdejmuje nawigację, paski, komunikaty i przyciski, a zostawia treść. Poza tym:
 
 - `.scroll` przestaje przewijać (na papierze nie ma czego przewijać), a `thead` powtarza się na
-  każdej kartce (`display: table-header-group`),
+  każdej kartce (`display: table-header-group`); tabela wraca do szerokości kartki, bez wygaszonych
+  krawędzi i bez przyklejonych kolumn,
 - odznaki drukują się jako ramka z tekstem (tło znika – drukarka atramentowa i tak by je zjadła),
 - strona wyników i weryfikacja dokumentu (`.page-head`, `.meta-list`, `.table--rank`) mają układ
   jednokolumnowy i czarny tekst,

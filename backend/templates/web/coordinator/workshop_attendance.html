@@ -67,8 +67,8 @@
     <input type="hidden" name="query" value="{{ query }}">
     <input type="hidden" name="page" value="{{ page_number }}">
     {% if controls.show_deleted %}<input type="hidden" name="usuniete" value="1">{% endif %}
-    <div class="scroll">
-      <table class="table">
+    <div class="scroll scroll--tall" role="region" tabindex="0" aria-label="Obecność uczestników na warsztatach">
+      <table class="table table--matrix table--sticky-first">
         <caption class="visually-hidden">Obecność uczestników na warsztatach</caption>
         <thead>
           <tr>
