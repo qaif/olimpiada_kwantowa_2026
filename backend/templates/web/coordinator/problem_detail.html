@@ -144,7 +144,7 @@
                   <td class="num">{{ criterion.order }}</td>
                   <th scope="row">{{ criterion.title }}</th>
                   <td>{{ criterion.description|default:"—" }}</td>
-                  <td class="num workload-num">{{ criterion.max_points }}</td>
+                  <td class="num workload-num">{{ criterion.max_points|points }}</td>
                 </tr>
               {% endfor %}
             </tbody>

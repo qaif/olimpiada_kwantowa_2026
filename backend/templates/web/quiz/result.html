@@ -34,7 +34,7 @@
       <dd>{{ attempt.submitted_at|local_datetime }}</dd>
       {% if show_score %}
         <dt>{% translate "Wynik" %}</dt>
-        <dd><strong>{% blocktranslate trimmed with score=attempt.score maximum=attempt.max_points %}
+        <dd><strong>{% blocktranslate trimmed with score=attempt.score|points maximum=attempt.max_points|points %}
           {{ score }} z {{ maximum }} pkt
         {% endblocktranslate %}</strong></dd>
       {% endif %}

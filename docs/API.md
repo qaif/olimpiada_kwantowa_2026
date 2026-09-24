@@ -496,8 +496,15 @@ w API panelu (`score`, `new_score`, `total_points`, `published_total`) i w zrzuc
 - ocena w API panelu jest w **postaci przechowywanej** – przesuniętej o przesunięcie skali, gdy
   konkurs ma punkty ujemne (`weighted_scoring`); przy skali bez punktów ujemnych to ta sama liczba,
   którą widzi recenzent,
-- powrót etapu z trybu dowolnego do „tylko ze skali” przy istniejących ocenach spoza skali:
-  `409 FREE_VALUES_IN_USE`,
+- **rubryka** (`rubric` w `POST …/reviews/{id}/submit/`, `…/revise/` i `PATCH` szkicu; od wersji po
+  `v0.35.0`): w etapie z dowolnymi wartościami `points` pozycji rubryki przyjmuje to samo, co `score`
+  – liczbę JSON albo tekst z kropką lub przecinkiem, od 0 do maksimum kryterium (bywa ułamkowe),
+  najwyżej dwa miejsca po przecinku; w odpowiedzi `rubric[].points` jest liczbą JSON (`2`, `1.75`).
+  W etapie „tylko ze skali” – jak dotąd – wyłącznie liczba całkowita. Odmowy: `400 INVALID_RUBRIC`
+  (kształt), `400 RUBRIC_POINTS_OUT_OF_RANGE` (poza 0–maksimum kryterium), `400
+  RUBRIC_TOTAL_NOT_IN_SCALE` (suma poza skalą albo zakresem zadania),
+- powrót etapu z trybu dowolnego do „tylko ze skali” przy istniejących ocenach spoza skali albo
+  kryteriach rubryk z ułamkowym maksimum: `409 FREE_VALUES_IN_USE`,
 - **eksporty CSV** z panelu (lista dla kuratorium, wyniki i recenzje etapu) zapisują punkty z
   **kropką** dziesiętną (`4.25`) niezależnie od języka interfejsu; XLSX niesie je jako liczby.
 

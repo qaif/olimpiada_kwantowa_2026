@@ -53,6 +53,8 @@ import re
 from dataclasses import dataclass, field
 from decimal import Decimal
 
+from apps.core.points import PointsError, parse_points
+
 from .grading import MULTIPLE_CHOICE, NUMERIC, SHORT_TEXT, SINGLE_CHOICE, parse_number
 
 #: Nazwy rodzajów pytań **po polsku** – tak, jak wpisze je człowiek w kolumnie ``rodzaj``.
@@ -111,12 +113,18 @@ def _attributes(line: str) -> tuple[dict[str, str], str]:
 
 
 def _points(raw: str | None, *, default: Decimal, line: int, label: str) -> Decimal:
+    """Punkty pytania z pliku – tym samym czytnikiem, co pole edytora (``apps.core.points.parse_points``).
+
+    Przecinek albo kropka („0,5”, „0.5”), najwyżej dwa miejsca po przecinku. Do ułamków w teście
+    (po wydaniu 0.35.0) stał tu czytnik odpowiedzi liczbowych, który przyjmował też „0,125”
+    – a trzecią cyfrę po cichu zaokrąglała dopiero kolumna ``numeric(6, 2)`` przy zapisie.
+    """
     if raw in (None, ""):
         return default
-    value = parse_number(raw)
-    if value is None:
-        raise ImportError_(f"Wiersz {line}: „{raw}” nie jest liczbą punktów ({label}).")
-    return value
+    try:
+        return parse_points(raw)
+    except PointsError as exc:
+        raise ImportError_(f"Wiersz {line}: „{raw}” nie jest liczbą punktów ({label}): {exc}") from exc
 
 
 def parse_markdown(text: str) -> list[ParsedQuestion]:

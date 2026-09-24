@@ -49,6 +49,47 @@ z nonce jak pozostałe; CSP bez zmian). Wzorzec i wybór między przewijaniem a 
   w środku wartości (`.nowrap`, `time`, `.num`, `.code-chip`, `.badge`).
 - Wydruk: tabela wraca do szerokości kartki, bez maski i przyklejonych kolumn.
 
+## [Unreleased] – ułamki w rubrykach i teście
+
+Dopełnienie wydania 0.35.0: przełącznik etapu **„dowolna wartość od min do max (co 0,01)”**
+obejmuje teraz także **rubryki oceniania** i **test online**, które dotąd liczyły w pełnych punktach.
+Etap „tylko ze skali” – czyli każdy, którego organizator nie przełączył – zachowuje się jak dotąd.
+
+Migracje: `grading.0012_rubric_decimal_points` (`RubricCriterion.max_points` `smallint` →
+`numeric(7,2)`, więz „maksimum dodatnie” jako `> 0`), `ai_grading.0003_points_precision`
+(`AiAssessment.proposed_points`/`max_points` `numeric(6,2)` → `numeric(7,2)`, jak maksimum zadania);
+obie bezstratne, na małych tabelach – `OPERACJE.md` § 18.4.
+
+- **Rubryka w etapie dowolnym**: maksimum kryterium może być ułamkiem (`2,5;Pomysł`, 0,01–1000),
+  a recenzent wpisuje punkty za kryterium co 0,01 z przecinkiem albo kropką (pole tekstowe
+  z klawiaturą dziesiętną, zakres pod polem, licznik sumy „4,25 pkt” z werdyktem „w zakresie / poza
+  zakresem zadania”). Punkty kryterium sprawdza jedna reguła – `competitions.scoring.criterion_rule`,
+  ta sama klasa `ScoreRule`, co ocena zadania; czyta je `grading.rubric.criterion_points` dla API,
+  szkicu i formularza panelu. Odmowy jak dotąd: `INVALID_RUBRIC` (kształt, także trzy miejsca po
+  przecinku), `RUBRIC_POINTS_OUT_OF_RANGE`, `RUBRIC_TOTAL_NOT_IN_SCALE` (suma dokładna, bez
+  zaokrąglania). `Review.rubric[].points` to liczba JSON: `int`, gdy całkowita, inaczej `float`
+  o ≤ 2 miejscach (`points_json`). W etapie skali ułamek przy kryterium odpada jak dotąd,
+  a ułamkowe maksimum w formularzu zadania – z wyjaśnieniem, że wymaga trybu dowolnego.
+- **Powrót etapu do trybu skali** jest odmawiany (`409 FREE_VALUES_IN_USE`) także wtedy, gdy któreś
+  kryterium rubryki ma ułamkowe maksimum (nowy licznik `criteria` w `free_values_blockers`).
+- **Test online słucha przełącznika etapu**: `quiz.services.stage_scores` oddaje wynik najlepszego
+  podejścia jako `Decimal` – w etapie skali zaokrąglony do pełnych punktów, połówka w górę (jak
+  dotąd), w etapie dowolnym co 0,01 – do tej samej kolumny `StageEntry.total_points`, tabeli
+  wyników, snapshotu i komponentu testowego. Każde zaokrąglenie w teście idzie przez
+  `apps.core.points.round_points` (`ROUND_HALF_UP` do 0,01): kwota za pytanie z oceną częściową
+  (dotąd bankierskie `ROUND_HALF_EVEN` – 0,125 dawało 0,12, teraz 0,13; zmienia się wyłącznie przy
+  ponownej ocenie podejścia) i suma podejścia.
+- **Punkty pytania z przecinkiem**: edytor pytań (`PointsField`, „0,5”, najwyżej dwa miejsca;
+  dotąd `forms.DecimalField` odrzucał przecinek) i import (`[pkt: 0,5]`; trzecie miejsce po
+  przecinku to błąd wiersza, a nie ciche zaokrąglenie w bazie).
+- **Wyświetlanie filtrem `points`**: maksimum i punkty kryterium (panel recenzenta, karta zadania,
+  formularz rubryki bez „4.00”), punkty pytań, maksimum testu, wynik podejścia i tabela wyników testu
+  („0,5”, a nie „0,50”). Prompt oceny AI podaje maksimum kryterium bez zbędnych zer (`2.5`, `4`) –
+  tekst dla rubryk całkowitych nie zmienia się ani o znak (pamięć podręczna promptu zostaje).
+- **Eksporty**: CSV wyników testu z kropką i bez zbędnych zer (`7.5`, `3` zamiast `7.50`, `3.00`);
+  eksport danych uczestnika (art. 15/20 RODO) niesie `proponowane_punkty` i `maksimum` sugestii AI
+  jako liczby JSON (`6`, `4.5`) zamiast tekstu z kolumny („6.00”), jak `suma_punktow` obok.
+
 ## v0.35.0 – 2026-09-24
 
 Wydanie zbiorcze z dwóch próśb organizatora z 24.09.2026. **Dowolne wartości ocen i różne maksima

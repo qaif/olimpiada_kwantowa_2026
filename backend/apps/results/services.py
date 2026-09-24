@@ -534,7 +534,7 @@ def _is_adult(birth_date, birth_year: int | None, today) -> bool:
     return today.year - int(birth_year) >= ADULT_AGE
 
 
-def _quiz_scores(stage: Stage, *, preview: bool) -> dict[int, int] | None:
+def _quiz_scores(stage: Stage, *, preview: bool) -> dict[int, Decimal] | None:
     """Punkty z testu online per wpis – albo ``None``, gdy etap nie jest testem.
 
     Jedyne miejsce, w którym wyniki wiedzą o istnieniu ``apps.quiz``, i cała jego wiedza mieści
@@ -587,7 +587,7 @@ def _components_of(stage: Stage) -> tuple:
     return tuple(stage.components.all())
 
 
-def _quiz_component_scores(stage: Stage, *, preview: bool) -> dict[int, int]:
+def _quiz_component_scores(stage: Stage, *, preview: bool) -> dict[int, Decimal]:
     """Punkty z testu dla **komponentu**, czyli bez pytania o ``Stage.format``.
 
     Szew z ``apps.quiz`` jest ten sam, co w ``_quiz_scores`` (``stage_scores`` i ``finalise_overdue``
@@ -627,7 +627,7 @@ def _component_sources(stage: Stage, components, *, preview: bool) -> dict[int, 
     moduł wyników czyta źródło punktów dopiero wtedy, gdy etap naprawdę ma taki komponent.
     """
     sources: dict[int, dict[int, int]] = {}
-    quiz_scores: dict[int, int] | None = None
+    quiz_scores: dict[int, Decimal] | None = None
     interview_scores: dict[int, dict[int, int]] | None = None
     for component in components:
         if component.kind == ComponentKind.QUIZ:

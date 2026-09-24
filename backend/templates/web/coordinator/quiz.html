@@ -46,7 +46,7 @@
       <dd>{{ quiz.draw_size }} z {{ quiz.questions.count }}
         {% if quiz.questions_per_attempt %}<span class="hint">(losowane: {{ quiz.questions_per_attempt }} z każdej puli)</span>{% endif %}</dd>
       <dt>Maksimum punktów</dt>
-      <dd>{{ quiz.max_points }}</dd>
+      <dd>{{ quiz.max_points|points }}</dd>
       <dt>Podejścia</dt>
       <dd>{{ quiz.attempts.count }}</dd>
     </dl>

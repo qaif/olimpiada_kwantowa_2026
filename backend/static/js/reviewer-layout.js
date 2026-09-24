@@ -122,14 +122,35 @@
         return !Number.isNaN(item);
       });
 
+    /* Zakres sumy w etapie z dowolnymi wartościami ocen – wtedy skali (listy) nie ma. */
+    var minimum = rubric.dataset.rubricMin === undefined ? NaN : Number(rubric.dataset.rubricMin);
+    var maximum = rubric.dataset.rubricMax === undefined ? NaN : Number(rubric.dataset.rubricMax);
+    /* Przecinek po polsku, kropka po angielsku – jak filtr ``points`` po stronie serwera. */
+    var comma = (document.documentElement.lang || "pl").toLowerCase().indexOf("en") !== 0;
+
+    /* Punkty kryterium w setnych częściach punktu. Pole bywa tekstowe (tryb dowolny) i wtedy
+       recenzent wpisuje „2,5” – przecinek zamieniamy na kropkę, jak robi to serwer
+       (``apps.core.points.parse_points``). Liczymy w setnych, bo 0,1 + 0,2 w liczbach
+       zmiennoprzecinkowych nie daje 0,3, a licznik ma pokazać dokładnie to, co policzy serwer. */
+    function cents(text) {
+      var normalised = String(text).trim().replace(",", ".");
+      if (normalised === "" || !/^-?\d+(\.\d+)?$/.test(normalised)) return null;
+      return Math.round(Number(normalised) * 100);
+    }
+
+    function formatPoints(hundredths) {
+      var text = String(hundredths / 100);
+      return comma ? text.replace(".", ",") : text;
+    }
+
     function update() {
       var filled = false;
-      var total = 0;
+      var sum = 0;
       inputs.forEach(function (input) {
-        var value = Number(input.value);
-        if (input.value !== "" && !Number.isNaN(value)) {
+        var value = cents(input.value);
+        if (value !== null) {
           filled = true;
-          total += value;
+          sum += value;
         }
       });
       if (!filled) {
@@ -137,8 +158,19 @@
         if (verdict) verdict.textContent = "";
         return;
       }
-      totalLabel.textContent = String(total) + " pkt";
-      if (!verdict || scale.length === 0) return;
+      var total = sum / 100;
+      totalLabel.textContent = formatPoints(sum) + " pkt";
+      if (!verdict) return;
+      if (scale.length === 0) {
+        if (Number.isNaN(minimum) || Number.isNaN(maximum)) return;
+        var outside = total < minimum || total > maximum;
+        verdict.textContent = outside
+          ? "poza zakresem zadania (" + formatPoints(Math.round(minimum * 100)) + "–" +
+            formatPoints(Math.round(maximum * 100)) + ")"
+          : "w zakresie zadania";
+        verdict.classList.toggle("is-invalid", outside);
+        return;
+      }
       /* Ostatnie słowo ma serwer – ten napis jest zapowiedzią jego odpowiedzi, nie bramką. */
       verdict.textContent =
         scale.indexOf(total) === -1

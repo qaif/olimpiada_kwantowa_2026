@@ -1204,10 +1204,13 @@ def _score_from_rubric(submission: Submission, score, rubric) -> tuple[int, list
     """
     if rubric is None:
         return score, None
-    items, total = validate_rubric(submission.problem, rubric)
+    # Reguła oceny zadania niesie też tryb etapu – ten sam, który rozstrzyga, czy kryterium
+    # przyjmie „2,5” (``rubric.criterion_points``). Jedno odczytanie etapu na obie decyzje.
+    rule = score_rule(submission.entry.stage, submission.problem)
+    items, total = validate_rubric(submission.problem, rubric, free=rule.free)
     if not items:
         return score, None
-    assert_total_in_scale(total, score_rule(submission.entry.stage, submission.problem))
+    assert_total_in_scale(total, rule)
     return total, items
 
 

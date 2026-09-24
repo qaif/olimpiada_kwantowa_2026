@@ -1920,7 +1920,9 @@ class ProblemForm(forms.ModelForm):
             "Puste = zadanie bez rubryki (recenzent wybiera ocenę wprost ze skali). Po jednym "
             "kryterium w wierszu, w postaci „punkty;tytuł;opis”, np. „2;Poprawność rachunków;"
             "liczy się wynik i jednostki”. Opis jest opcjonalny. Suma punktów z kryteriów musi "
-            "dać wartość ze skali tego zadania – inaczej recenzent dostanie błąd przy wysyłce."
+            "dać wartość ze skali tego zadania – inaczej recenzent dostanie błąd przy wysyłce. "
+            "W etapie z dowolnymi wartościami ocen punkty kryterium mogą być ułamkiem "
+            "(np. „2,5;Pomysł”), a suma musi mieścić się w zakresie zadania."
         ),
     )
     # Szablony komentarzy: ta sama konwencja zapisu, co rubryka (textarea, jedna pozycja w wierszu),
@@ -2061,8 +2063,11 @@ class ProblemForm(forms.ModelForm):
         text = (self.cleaned_data.get("rubric") or "").strip()
         if not text:
             return []
+        # Ułamkowe maksimum kryterium („2,5;Pomysł”) wolno wpisać wyłącznie w etapie z dowolnymi
+        # wartościami ocen – ten sam przełącznik, który dopuszcza ułamek w ocenie zadania.
+        free = self.stage is not None and stage_free_values(self.stage)
         try:
-            return parse_criteria_lines(text)
+            return parse_criteria_lines(text, free=free)
         except ValueError as exc:
             raise forms.ValidationError(str(exc)) from exc
 

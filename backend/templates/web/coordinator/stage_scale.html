@@ -22,9 +22,12 @@
     <li><strong>Dowolne wartości ocen</strong> (przełącznik niżej): recenzent wpisuje dowolną liczbę
       od najniższej do najwyższej wartości skali, co 0,01 (np. 4,25), a wartości skali stają się
       podpowiedzią. W tym trybie zadanie może też mieć <strong>samo maksimum punktów</strong>
-      (np. 12,5) – ustawia się je przy zadaniu. Powrót do „tylko wartości ze skali” system odrzuci
-      (<code>FREE_VALUES_IN_USE</code>), dopóki istnieje choć jedna ocena spoza skali albo zadanie
-      z samym maksimum – komunikat poda, ile ich jest.</li>
+      (np. 12,5) – ustawia się je przy zadaniu. Ułamki działają też w <strong>rubrykach</strong>
+      (punkty i maksimum kryterium, np. „2,5;Pomysł”) i w <strong>teście online</strong> (wynik
+      testu wchodzi do tabeli z dokładnością do 0,01 zamiast pełnych punktów). Powrót do „tylko
+      wartości ze skali” system odrzuci (<code>FREE_VALUES_IN_USE</code>), dopóki istnieje choć
+      jedna ocena spoza skali, zadanie z samym maksimum albo kryterium rubryki z ułamkowym
+      maksimum – komunikat poda, ile ich jest.</li>
   </ul>
   {% if free_values %}
     <p class="msg msg-info">Ten etap ocenia <strong>dowolnymi wartościami</strong> (co 0,01).</p>

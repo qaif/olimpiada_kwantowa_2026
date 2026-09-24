@@ -24,7 +24,7 @@ from __future__ import annotations
 import logging
 import random
 from datetime import timedelta
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 
 from django.db import transaction
 from django.db.models import Prefetch
@@ -34,6 +34,7 @@ from rest_framework import status as http
 from apps.competitions.models import Stage, StageEntry, StageFormat
 from apps.core.api import DomainError
 from apps.core.models import audit
+from apps.core.points import POINTS_QUANTUM, WHOLE_POINTS, points_csv, round_points
 
 from . import grading
 from .models import (
@@ -669,7 +670,7 @@ def regrade_quiz(*, quiz: Quiz, actor=None, request=None) -> dict:
 # --- wsad do wyników etapu ---------------------------------------------------------------------
 
 
-def stage_scores(stage: Stage) -> dict[int, int]:
+def stage_scores(stage: Stage) -> dict[int, Decimal]:
     """Punkty z testu per wpis do etapu – **jedyne** wejście testów do tabeli wyników.
 
     Kontrakt jest celowo wąski: ``{StageEntry.pk: punkty}``. ``apps.results.services`` nie wie
@@ -684,16 +685,31 @@ def stage_scores(stage: Stage) -> dict[int, int]:
       jeszcze raz, a średnia nie odpowiadałaby na żadne pytanie regulaminu,
     - podejścia **przeterminowane liczą się normalnie** (patrz ``AttemptStatus``); pomijamy
       wyłącznie te wciąż trwające, bo nie są jeszcze ocenione,
-    - wynik jest **zaokrąglany do pełnych punktów** (w górę przy połówce). Nie dlatego, że tak
-      jest ładniej: tabela wyników i progi kwalifikacji testu operują na punktach całkowitych od
-      pierwszej edycji. ``StageEntry.total_points`` jest od wydania 0.35.0 dziesiętne (dowolne
-      wartości ocen **recenzentów**), ale tamta prośba nie dotyczyła testów – zmiana tej reguły
-      byłaby zmianą zasad testu, a nie skutkiem ubocznym innej funkcji. Wynik dokładny, z częściami
-      setnymi, zostaje na ekranie wyników testu.
+    - wynik idzie do tabeli z dokładnością **trybu etapu** (``ScoringScale.free_values``) –
+      ``ROUND_HALF_UP`` (``apps.core.points.round_points``), ta sama metoda i ten sam przełącznik,
+      co suma ważona etapu pisemnego (``competitions.services.StageScoring.quantum``):
+
+      * etap „tylko ze skali” (stan każdego etapu, którego organizator nie przełączył) – **pełne
+        punkty**, połówka w górę, dokładnie jak od pierwszej edycji: 7,5 → 8, 7,49 → 7,
+      * etap z dowolnymi wartościami – **co 0,01**: 7,5 zostaje 7,5. Do wydania 0.35.0 włącznie
+        test zaokrąglał zawsze do pełnych punktów, więc przełącznik „dowolne wartości” nie działał
+        na etap w formie testu, choć organizator ustawiał go na tym samym ekranie skali, co dla
+        etapu pisemnego (prośba „ułamki w teście”, po wydaniu 0.35.0). Wynik podejścia ma już dwa
+        miejsca po przecinku (``grading.total_score``), więc w tym trybie nic się nie zaokrągla.
+
+      Wartości są ``Decimal`` w obu trybach – tak jak suma etapu pisemnego – i trafiają do tej
+      samej kolumny ``StageEntry.total_points`` (``numeric(10, 2)``). Wynik dokładny, z częściami
+      setnymi, zostaje na ekranie wyników testu także w trybie skali.
+
+    Tryb czyta jedno pole skali etapu (``stage.scoring_scale``) – zapytanie, którego nie ma, gdy
+    wołający załadował skalę razem z etapem (``select_related``).
     """
+    from apps.competitions.scoring import stage_free_values
+
     quiz = quiz_for_stage(stage)
     if quiz is None:
         return {}
+    quantum = POINTS_QUANTUM if stage_free_values(stage) else WHOLE_POINTS
     best: dict[int, Decimal] = {}
     rows = quiz.attempts.exclude(status=AttemptStatus.IN_PROGRESS).values_list("entry_id", "score")
     for entry_id, score in rows:
@@ -701,10 +717,7 @@ def stage_scores(stage: Stage) -> dict[int, int]:
             continue
         if entry_id not in best or score > best[entry_id]:
             best[entry_id] = score
-    return {
-        entry_id: int(score.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
-        for entry_id, score in best.items()
-    }
+    return {entry_id: round_points(score, quantum) for entry_id, score in best.items()}
 
 
 def is_quiz_stage(stage: Stage) -> bool:
@@ -840,8 +853,10 @@ def results_csv_rows(quiz: Quiz) -> list[list]:
                 row["public_code"],
                 row["first_name"],
                 row["last_name"],
-                f"{row['score']:.2f}" if row["score"] is not None else "",
-                f"{row['max_points']:.2f}",
+                # Punkty jak w każdym eksporcie od wydania 0.35.0 (``points_csv``): kropka
+                # dziesiętna, bez zbędnych zer – „7”, „7.5”, a nie „7.00”.
+                points_csv(row["score"]),
+                points_csv(row["max_points"]),
                 f"{row['percent']:.1f}",
                 row["attempts"],
                 timezone.localtime(row["submitted_at"]).strftime("%Y-%m-%d %H:%M")

@@ -3905,3 +3905,8 @@ msgstr "Maximum for this problem: %(maximum)s pts."
 #, python-format
 msgid "Punkty przyznajesz kryterium po kryterium. Ocenę pracy wylicza system jako sumę – musi ona mieścić się w zakresie od %(minimum)s do %(maximum)s pkt."
 msgstr "You award points criterion by criterion. The system computes the score as their sum – it must lie between %(minimum)s and %(maximum)s pts."
+
+#: templates/web/reviewer/_rubric.html
+#, python-format
+msgid "Od 0 do %(max)s, co 0,01 – np. 1,5."
+msgstr "From 0 to %(max)s, in steps of 0.01 – e.g. 1.5."
