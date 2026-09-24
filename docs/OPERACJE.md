@@ -1571,8 +1571,8 @@ Flaga konkursu **`ai_grading`**, domyślnie wyłączona (§ 6.4). **Nie zapalaj 
 przez organizatora warunków prawnych** z § 4.12 podręcznika organizatora (polityka prywatności,
 regulamin, podstawa prawna). Po zapaleniu koordynator widzi w menu „Ocenianie → Ocena AI”. Od wersji
 z dostawcami flaga **nie** wystarcza do wysyłania prac uczestników: każdy dostawca potrzebuje jeszcze
-**klucza API** i **potwierdzenia umowy powierzenia** (w panelu albo komendą z § 17.6). Bez nich
-dostawca może ocenić co najwyżej **pracę testową** koordynatora (§ 17.7).
+**klucza API** i **potwierdzenia umowy powierzenia** (koordynator w panelu; komenda z § 17.6 tylko
+wyjątkowo). Bez nich dostawca może ocenić co najwyżej **pracę testową** koordynatora (§ 17.7).
 
 ```json
 {"ai_grading": true}

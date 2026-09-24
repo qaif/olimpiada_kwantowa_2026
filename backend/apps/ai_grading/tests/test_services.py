@@ -650,6 +650,44 @@ def test_reviewer_prefill_only_without_a_rubric(ready, problem, coordinator, mod
     assert services.reviewer_context(review, ready, editable=True)["prefill_value"] is None
 
 
+def test_reviewer_panels_prefill_by_the_score_rule_for_every_provider(ready, problem, coordinator, model):
+    """Wydanie 0.35.0 (scalenie dostawców z dowolnymi ocenami): każdy panel – każdy dostawca – liczy
+    przycisk „punkty AI” tą samą regułą: najbliższa wartość skali w trybie skali, a w trybie
+    dowolnym sama propozycja sprowadzona do 0,01 i przycięta do zakresu zadania."""
+    from apps.competitions.services import set_scoring_scale
+    from apps.grading.models import Review
+    from apps.grading.tests.factories import ReviewFactory
+
+    values = [
+        {"value": 0, "label": "brak"},
+        {"value": 2, "label": "postęp"},
+        {"value": 5, "label": "usterki"},
+        {"value": 6, "label": "pełne"},
+    ]
+    set_scoring_scale(problem.stage, values, 6, actor=coordinator, free_values=False)
+    submission = make_submission(problem)
+    services.run_assessment(queued(problem, submission, coordinator).pk)
+    first = AiAssessment.objects.get(submission=submission)
+    AiAssessment.objects.filter(pk=first.pk).update(proposed_points=Decimal("4.37"))
+    second = AiAssessment.objects.get(pk=first.pk)
+    second.pk = None
+    second.provider, second.requested_model = "openai", "gpt-6-luna"
+    second.proposed_points = Decimal("3.5")
+    second.finished_at = first.finished_at + timedelta(minutes=1)
+    second.save()
+    review_pk = ReviewFactory(submission=submission).pk
+
+    def prefills():
+        context = services.reviewer_context(Review.objects.get(pk=review_pk), ready, editable=True)
+        return [(panel["assessment"].provider, panel["prefill_value"]) for panel in context["panels"]]
+
+    # Tryb skali: remis 3,5 między 2 a 5 rozstrzyga się w dół; 4,37 → 5.
+    assert prefills() == [("openai", 2), ("anthropic", 5)]
+
+    set_scoring_scale(problem.stage, values, 6, actor=coordinator, free_values=True)
+    assert prefills() == [("openai", Decimal("3.50")), ("anthropic", Decimal("4.37"))]
+
+
 def test_anonymisation_erases_the_participants_ai_assessments(ready, problem, coordinator, model):
     participant = ParticipantFactory()
     mine = make_submission(problem, participant=participant)
