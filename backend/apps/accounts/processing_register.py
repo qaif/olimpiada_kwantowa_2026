@@ -25,7 +25,7 @@ w nagłówku eksportu CSV.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date
 
 from apps.competitions.models import DEFAULT_RETENTION_MONTHS
@@ -64,7 +64,12 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #:   odbiorca, nowy cel pomocniczy i przekazanie do państwa trzeciego.
 #:
 #: Każda z nich osobno byłaby zmianą materialną; wchodzą w jednym wydaniu, więc w jednej wersji.
-REGISTER_VERSION = "1.7"
+#: 1.8 (24.09.2026) – ocena AI dostaje **innych dostawców** (OpenAI, Google, Meta obok Anthropic).
+#: Odbiorcy wiersza „ocena AI” przestają być stałą: rejestr konkursu wymienia wyłącznie dostawców,
+#: którzy mają klucz API **i** potwierdzoną przez organizatora umowę powierzenia – bo tylko do nich
+#: mogą trafić prace uczestników. Nowi odbiorcy (każdy poza EOG albo z przetwarzaniem poza EOG) to
+#: zmiana materialna, a nie doprecyzowanie.
+REGISTER_VERSION = "1.8"
 REGISTER_DATE = date(2026, 9, 24)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
@@ -708,14 +713,13 @@ AI_GRADING_ACTIVITY = _activity(
         "adresu e-mail, szkoły, kodu uczestnika i nazwy pliku nadanej przez uczestnika",
         "wygenerowana sugestia oceny: proponowane punkty, kryteria z komentarzami, podsumowanie, "
         "lista błędów, deklarowana pewność, znacznik podejrzenia próby manipulacji",
-        "metadane przetwarzania: data zlecenia i przekazania, model, identyfikator żądania, "
-        "zużycie tokenów i szacowany koszt",
+        "metadane przetwarzania: data zlecenia i przekazania, dostawca i model, identyfikator "
+        "żądania, zużycie tokenów i szacowany koszt",
     ],
     recipients=[
         HOSTING_RECIPIENT,
-        "Anthropic PBC (USA, dostawca modelu Claude) – podmiot przetwarzający na podstawie umowy "
-        "powierzenia (DPA w warunkach komercyjnych Anthropic); przekazanie do państwa trzeciego na "
-        "podstawie mechanizmu wskazanego w tej umowie (standardowe klauzule umowne)",
+        "dostawcy modeli językowych, z którymi organizator potwierdził umowę powierzenia – lista "
+        "w rejestrze konkursu (Anthropic, OpenAI, Google, Meta)",
         "członkowie komitetu recenzujący daną pracę i koordynator konkursu",
         "uczestnik – wyłącznie wtedy, gdy koordynator włączy widoczność dla etapu, i dopiero po "
         "ogłoszeniu wyników",
@@ -723,12 +727,16 @@ AI_GRADING_ACTIVITY = _activity(
     retention=(
         "sugestia jest przechowywana razem z pracą, której dotyczy, i znika wraz z nią; przy "
         "anonimizacji konta uczestnika (na żądanie albo po upływie okresu retencji edycji) jest "
-        "kasowana od razu. Po stronie dostawcy – zgodnie z warunkami umowy z Anthropic (okres "
-        "przechowywania danych wejściowych i wyjściowych API do potwierdzenia przez administratora)"
+        "kasowana od razu. Po stronie dostawcy – zgodnie z warunkami umowy z danym dostawcą (okres "
+        "przechowywania danych wejściowych i wyjściowych API, w tym na potrzeby wykrywania nadużyć, "
+        "do potwierdzenia przez administratora osobno dla każdego dostawcy)"
     ),
     measures=[
-        "funkcja jest domyślnie **wyłączona**; bez przełącznika konkursu i klucza API wpisanego przez "
-        "koordynatora żadna praca nie opuszcza serwera",
+        "funkcja jest domyślnie **wyłączona**; bez przełącznika konkursu, klucza API wpisanego przez "
+        "koordynatora i potwierdzonej umowy powierzenia z danym dostawcą żadna praca uczestnika nie "
+        "opuszcza serwera (potwierdzenie – z datą i osobą – zostaje w dzienniku zdarzeń)",
+        "tryb testowy (praca testowa koordynatora) nie przenosi danych uczestników: wymaga "
+        "oświadczenia koordynatora, a plik identyczny z pracą uczestnika jest odrzucany",
         "do dostawcy trafia wyłącznie plik pracy i materiały zadania – bez danych identyfikujących "
         "uczestnika; z odpowiedzi modelu serwer wymazuje imię, nazwisko, adres e-mail i szkołę "
         "autora, gdyby model przepisał je z pracy",
@@ -742,6 +750,31 @@ AI_GRADING_ACTIVITY = _activity(
         "i zmiana widoczności zostawia wpis w dzienniku zdarzeń",
     ],
 )
+
+
+def ai_grading_activity(competition=None) -> ProcessingActivity:
+    """Wiersz „ocena AI” **tego** konkursu: odbiorcami są dostawcy z kluczem i potwierdzoną umową.
+
+    Rejestr opisuje przetwarzanie, które naprawdę może zajść. Dostawca bez potwierdzonej umowy
+    powierzenia nie dostaje prac uczestników (bramka w ``apps.ai_grading.services``), więc nie jest
+    ich odbiorcą – dopisany „na zapas” byłby nieprawdą. Pusta lista to informacja, a nie brak
+    informacji: wiersz mówi wtedy wprost, że prace nie opuszczają serwera.
+    """
+    if competition is None:
+        return AI_GRADING_ACTIVITY
+    from apps.ai_grading.services import register_recipients
+
+    processors = [
+        f"{name} na podstawie umowy powierzenia potwierdzonej przez organizatora; przekazanie do "
+        "państwa trzeciego (poza EOG) na podstawie mechanizmu wskazanego w tej umowie (standardowe "
+        "klauzule umowne albo decyzja stwierdzająca odpowiedni stopień ochrony)"
+        for name in register_recipients(competition)
+    ] or [
+        "żaden dostawca modelu nie ma jednocześnie klucza API i potwierdzonej umowy powierzenia – "
+        "prace uczestników nie opuszczają serwera"
+    ]
+    base = AI_GRADING_ACTIVITY.recipients
+    return replace(AI_GRADING_ACTIVITY, recipients=[base[0], *processors, *base[2:]])
 
 
 def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
@@ -771,7 +804,7 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
     if competition is not None and competition.has_feature("workshop_materials"):
         activities = (*activities, WORKSHOP_MATERIALS_ACTIVITY)
     if competition is not None and competition.has_feature(AI_GRADING_FLAG):
-        activities = (*activities, AI_GRADING_ACTIVITY)
+        activities = (*activities, ai_grading_activity(competition))
     return activities
 
 

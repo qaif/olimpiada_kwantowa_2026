@@ -343,14 +343,32 @@ def submission_blocks(raw: bytes, mime: str, *, page_count: int | None = None) -
             items=[{"type": "image", "source": {"type": "base64", "media_type": mime, "data": data}}],
             size=len(data),
         )
-    if mime == NOTEBOOK_MIME:
-        return _text_block(f"[Notatnik Jupyter uczestnika]\n{neutralise_markers(notebook_text(raw))}")
-    if mime == PYTHON_MIME or mime.startswith("text/"):
-        code = neutralise_markers(raw.decode("utf-8", errors="replace"))
-        return _text_block(f"[Plik z kodem uczestnika]\n{code}")
-    raise MaterialError(
+    text = submission_text(raw, mime)
+    if text is not None:
+        return _text_block(text)
+    raise unsupported(mime)
+
+
+def unsupported(mime: str) -> MaterialError:
+    return MaterialError(
         "unsupported", f"Format pliku ({mime or 'nieznany'}) nie jest obsługiwany przez ocenę AI."
     )
+
+
+def submission_text(raw: bytes, mime: str) -> str | None:
+    """Praca tekstowa (notatnik, kod) jako tekst dla modelu – albo ``None`` dla PDF-a i zdjęcia.
+
+    Jedno brzmienie dla wszystkich dostawców: ta sama etykieta i to samo zneutralizowanie
+    podrobionych znaczników, więc obrona przed wstrzyknięciem poleceń nie zależy od tego, do kogo
+    praca idzie.
+    """
+    mime = (mime or "").lower()
+    if mime == NOTEBOOK_MIME:
+        return f"[Notatnik Jupyter uczestnika]\n{neutralise_markers(notebook_text(raw))}"
+    if mime == PYTHON_MIME or mime.startswith("text/"):
+        code = neutralise_markers(raw.decode("utf-8", errors="replace"))
+        return f"[Plik z kodem uczestnika]\n{code}"
+    return None
 
 
 def check_limits(total: Blocks) -> None:
@@ -406,6 +424,134 @@ def build_request(
         "betas": ["server-side-fallback-2026-07-01"],
         "fallbacks": "default",
     }
+
+
+# --- żądanie dla pozostałych dostawców ------------------------------------------------------------
+#
+# Bloki wyżej są w formacie Anthropic i zostają bajt w bajt takie, jakie były przed dodaniem innych
+# dostawców (od nich zależy trafienie w cache promptu i kontrakt sprawdzany w ``test_prompt``).
+# Pozostali dostawcy dostają **tę samą treść w tej samej kolejności** jako neutralne części
+# (:class:`Part`), a każdy z nich zamienia je na swój format – prompt systemowy, znaczniki pracy,
+# skala i rubryka mają jedno brzmienie niezależnie od tego, do kogo praca idzie.
+
+
+@dataclass(frozen=True)
+class Part:
+    """Jedna część wiadomości: ``pdf``, ``image`` albo ``text``.
+
+    ``stable`` oznacza prefiks wspólny dla wszystkich prac zadania (treść, wzorcówka, skala) – tam,
+    gdzie dostawca buforuje prefiks automatycznie, kolejność „stałe przed pracą” działa tak samo
+    jak ``cache_control`` u Anthropic. ``filename`` jest **naszą** nazwą („praca_uczestnika.pdf”),
+    nigdy nazwą nadaną przez uczestnika.
+    """
+
+    kind: str
+    text: str = ""
+    data: bytes = b""
+    mime: str = ""
+    title: str = ""
+    filename: str = ""
+    pages: int = 0
+    stable: bool = False
+
+    @property
+    def encoded_size(self) -> int:
+        """Ile część waży w żądaniu: base64 dla plików (4/3 bajtów), UTF-8 dla tekstu."""
+        if self.kind == "text":
+            return len(self.text.encode("utf-8"))
+        return (len(self.data) + 2) // 3 * 4
+
+
+def _pdf_part(raw: bytes, title: str, filename: str, *, stable: bool, pages=None) -> Part:
+    count = pages if pages is not None else pdf_pages(raw)
+    return Part(
+        "pdf", data=raw, mime=PDF_MIME, title=title, filename=filename, pages=count or 0, stable=stable
+    )
+
+
+def neutral_parts(grading) -> list[Part]:
+    """Treść wiadomości w kolejności Anthropic: stałe materiały → znacznik → praca → znacznik.
+
+    PDF-y idą jako pliki u każdego dostawcy – wszyscy czterej czytają PDF sam (tekst i obraz stron),
+    więc nie ma tu wyciągania tekstu po naszej stronie, które spłaszczałoby wzory i gubiło rysunki.
+    """
+    materials = grading.materials
+    parts: list[Part] = []
+    if materials.statement_pdf:
+        parts.append(_pdf_part(materials.statement_pdf, "Treść zadania", "tresc_zadania.pdf", stable=True))
+    if materials.model_solution_pdf:
+        parts.append(
+            _pdf_part(
+                materials.model_solution_pdf, "Rozwiązanie wzorcowe", "rozwiazanie_wzorcowe.pdf", stable=True
+            )
+        )
+    parts.append(Part("text", text=scale_text(materials), stable=True))
+    parts.append(Part("text", text=SUBMISSION_START))
+    mime = (grading.submission_mime or "").lower()
+    if mime == PDF_MIME:
+        parts.append(
+            _pdf_part(
+                grading.submission,
+                "Praca uczestnika",
+                "praca_uczestnika.pdf",
+                stable=False,
+                pages=grading.submission_pages,
+            )
+        )
+    elif mime in IMAGE_MIMES:
+        parts.append(Part("image", data=grading.submission, mime=mime, title="Praca uczestnika"))
+    else:
+        text = submission_text(grading.submission, mime)
+        if text is None:
+            raise unsupported(mime)
+        parts.append(Part("text", text=text))
+    parts.append(Part("text", text=SUBMISSION_END))
+    return parts
+
+
+def check_parts(parts: list[Part], limits, label: str) -> None:
+    """Limity dostawcy sprawdzone przed wysyłką – ten sam zamysł, co :func:`check_limits`."""
+    megabyte = 1024 * 1024
+    for part in parts:
+        if part.kind == "image" and part.encoded_size > limits.max_image_bytes:
+            raise MaterialError(
+                "too_large",
+                f"Zdjęcie pracy przekracza limit {label} dla jednego obrazu "
+                f"({limits.max_image_bytes // megabyte} MB) – oceń tę pracę innym dostawcą albo bez "
+                "sugestii AI.",
+            )
+        if limits.max_pages_per_pdf and part.kind == "pdf" and part.pages > limits.max_pages_per_pdf:
+            raise MaterialError(
+                "too_large",
+                f"{part.title}: PDF ma {part.pages} stron, a {label} czyta najwyżej "
+                f"{limits.max_pages_per_pdf} stron jednego PDF-a – reszta zostałaby pominięta. Oceń "
+                "tę pracę innym dostawcą albo bez sugestii AI.",
+            )
+        if limits.max_file_bytes and part.kind != "text" and len(part.data) > limits.max_file_bytes:
+            raise MaterialError(
+                "too_large",
+                f"Plik ({part.title}) przekracza limit {label} dla jednego pliku "
+                f"({limits.max_file_bytes // megabyte} MB).",
+            )
+    size = sum(part.encoded_size for part in parts)
+    if size > limits.max_request_bytes:
+        raise MaterialError(
+            "too_large",
+            f"Materiały zadania razem z pracą mają po zakodowaniu {round(size / megabyte, 1)} MB, a "
+            f"{label} przyjmuje najwyżej {limits.max_request_bytes // megabyte} MB w jednym żądaniu. "
+            "Oceń tę pracę innym dostawcą albo bez sugestii AI.",
+        )
+    pages = sum(part.pages for part in parts if part.kind == "pdf")
+    if limits.max_pdf_pages and pages > limits.max_pdf_pages:
+        raise MaterialError(
+            "too_large",
+            f"Dokumenty PDF mają razem {pages} stron, a {label} przyjmuje najwyżej "
+            f"{limits.max_pdf_pages} w jednym żądaniu.",
+        )
+
+
+def data_url(part: Part) -> str:
+    return f"data:{part.mime};base64,{_b64(part.data)}"
 
 
 # --- odpowiedź ------------------------------------------------------------------------------------

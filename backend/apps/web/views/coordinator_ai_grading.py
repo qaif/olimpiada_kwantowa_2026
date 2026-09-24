@@ -1,23 +1,25 @@
-"""Panel koordynatora: ocena AI – klucz API, model, limit wydatków, widoczność i zlecenia.
+"""Panel koordynatora: ocena AI – dostawcy (klucze i umowy), model, ceny, limit, widoczność, zlecenia.
 
-Trzy ekrany, jedna bramka. **Kolejność bramek** jest ta sama co przy moderacji forum: najpierw
+Cztery ekrany, jedna bramka. **Kolejność bramek** jest ta sama co przy moderacji forum: najpierw
 rola (``CoordinatorRequiredMixin`` – 403 dla każdego innego konta), potem przełącznik konkursu
 (404 przy wyłączonej ocenie AI). Odwrotna kolejność mówiłaby uczestnikowi odpowiedzią serwera,
 jak ten konkurs jest skonfigurowany.
 
-Klucz API jest **tylko do zapisu**. Formularz ma pole hasła bez ``render_value`` – po nieudanym
-zapisie pole wraca puste, a nie z tym, co wklejono – a ekran pokazuje wyłącznie „ustawiony,
-kończy się na …abcd”. Komunikaty po zapisie nie cytują klucza, a audyt zapisuje sam fakt.
+Klucze API są **tylko do zapisu**. Pole klucza jest polem hasła bez wartości początkowej – po
+nieudanym zapisie wraca puste, a nie z tym, co wklejono – a ekran pokazuje wyłącznie „ustawiony,
+kończy się na …abcd”. Komunikaty po zapisie nie cytują klucza, a audyt zapisuje sam fakt. Każdy
+dostawca ma własny klucz i własne potwierdzenie umowy powierzenia (DPA) – bez potwierdzenia
+dostawca nie pojawia się w wyborze przy zleceniu prac uczestników, a jedynie przy pracy testowej.
 
 Zlecenie jest **dwustopniowe**, tak jak wysyłka komunikatów (``coordinator_messages``): pierwszy
-POST pokazuje liczbę prac i szacowany koszt, dopiero drugi (``action=confirm``) zleca. Pieniądze
-wydane na API nie wracają, więc liczba i kwota przed kliknięciem są jedynym momentem, w którym
-pomyłka („nie to zadanie”, „z ponownym generowaniem”) jest jeszcze darmowa.
+POST pokazuje liczbę prac, dostawcę, model i szacowany koszt, dopiero drugi (``action=confirm``)
+zleca. Pieniądze wydane na API nie wracają, więc liczba i kwota przed kliknięciem są jedynym
+momentem, w którym pomyłka („nie to zadanie”, „nie ten model”) jest jeszcze darmowa.
 """
 
 from __future__ import annotations
 
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django import forms
 from django.contrib import messages
@@ -29,8 +31,10 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.generic import View
 
+from apps.ai_grading import providers as ai_providers
+from apps.ai_grading import sandbox
 from apps.ai_grading import services as ai
-from apps.ai_grading.models import AiModel
+from apps.ai_grading.models import AiAssessment, AiProvider, AiTestWork
 from apps.competitions.models import Problem, Stage
 from apps.competitions.services import current_edition
 from apps.core.api import DomainError
@@ -44,21 +48,41 @@ PROGRESS_TEMPLATE = "web/coordinator/_ai_problem.html"
 ACTION_CONFIRM = "confirm"
 
 
+def _model_choices(row) -> list:
+    """Modele z list dostawców pogrupowane po dostawcy; model spoza list – na początku grupy."""
+    groups = []
+    for provider in ai_providers.all_providers():
+        options = [(item.id, item.label) for item in provider.models]
+        if row is not None and row.provider == provider.name and row.model not in {m for m, _ in options}:
+            options.insert(0, (row.model, f"{row.model} (inny identyfikator)"))
+        groups.append((ai.provider_label(provider.name), options))
+    return groups
+
+
 class ApiKeyForm(forms.Form):
     """Pole klucza. ``render_value=False`` – klucz nie wraca do przeglądarki nawet po błędzie."""
 
+    provider = forms.ChoiceField(choices=AiProvider.choices, required=False)
     api_key = forms.CharField(
-        label="Klucz API Anthropic",
+        label="Klucz API",
         max_length=500,
         strip=True,
         widget=forms.PasswordInput(render_value=False, attrs={"autocomplete": "off", "spellcheck": "false"}),
-        help_text="Klucz zaczyna się od „sk-ant-”. Po zapisaniu nie da się go odczytać – można go "
-        "tylko zastąpić albo usunąć.",
     )
 
 
 class OptionsForm(forms.Form):
-    model = forms.ChoiceField(label="Model", choices=AiModel.choices)
+    model = forms.ChoiceField(label="Dostawca i model domyślny", choices=())
+    custom_model = forms.CharField(
+        label="Inny identyfikator modelu",
+        required=False,
+        max_length=100,
+        help_text="Identyfikatory modeli zmieniają się – jeśli dostawca wydał nowy model, wpisz jego "
+        "identyfikator (np. z dokumentacji dostawcy) i wybierz dostawcę obok.",
+    )
+    custom_provider = forms.ChoiceField(
+        label="Dostawca tego modelu", choices=AiProvider.choices, required=False
+    )
     spending_limit_usd = forms.DecimalField(
         label="Limit wydatków (USD)",
         required=False,
@@ -66,7 +90,30 @@ class OptionsForm(forms.Form):
         max_digits=10,
         decimal_places=2,
         help_text="Po jego osiągnięciu nowe zlecenia są odrzucane, a oceny czekające w kolejce "
-        "kończą się błędem zamiast wołać API. Puste = bez limitu.",
+        "kończą się błędem zamiast wołać API. Przy ustawionym limicie model bez ceny jest "
+        "niedostępny – limit nie widziałby jego kosztu. Puste = bez limitu.",
+    )
+
+    def __init__(self, *args, settings_row=None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.fields["model"].choices = _model_choices(settings_row)
+        # Model spoza list (np. zapisany wcześniej „inny identyfikator”) też jest poprawnym wyborem.
+        if self.data.get("model") and self.data.get("model") not in dict(
+            item for _, group in self.fields["model"].choices for item in group
+        ):
+            self.fields["model"].choices = [
+                *self.fields["model"].choices,
+                ("", [(self.data["model"], self.data["model"])]),
+            ]
+
+
+class TestWorkForm(forms.Form):
+    file = forms.FileField(label="Plik pracy testowej")
+    label = forms.CharField(label="Opis (dla siebie)", required=False, max_length=120)
+    no_personal_data = forms.BooleanField(
+        label="Oświadczam, że plik jest moim własnym przykładem i nie zawiera danych osobowych "
+        "uczestników (ani pracy uczestnika).",
+        required=False,
     )
 
 
@@ -97,9 +144,52 @@ def _stages(competition) -> list[Stage]:
     return list(Stage.objects.filter(edition=edition).order_by("opens_at", "id"))
 
 
+def _provider_name(request) -> str:
+    name = request.POST.get("provider") or AiProvider.ANTHROPIC
+    if name not in AiProvider.values:
+        raise Http404("Nie ma takiego dostawcy.")
+    return name
+
+
+def _decimal(value: str) -> Decimal | None:
+    value = (value or "").strip().replace(",", ".")
+    if not value:
+        return None
+    try:
+        number = Decimal(value)
+    except InvalidOperation:
+        raise DomainError("Cena musi być liczbą (USD za milion tokenów).", "AI_PRICE_INVALID") from None
+    if not number.is_finite() or number < 0 or number > Decimal("100000"):
+        raise DomainError("Cena musi być liczbą od 0 do 100 000 USD za milion tokenów.", "AI_PRICE_INVALID")
+    return number
+
+
+def _price_entries(request, row) -> dict:
+    """Pola tabeli cen → ``{"dostawca/model": (wejście, wyjście) | None}`` dla ``services.set_prices``."""
+    entries: dict = {}
+    for item in ai.price_table(row):
+        price_in = _decimal(request.POST.get(f"in__{item['field']}", ""))
+        price_out = _decimal(request.POST.get(f"out__{item['field']}", ""))
+        if price_in is None and price_out is None:
+            entries[item["field"]] = None
+        elif price_in is None or price_out is None:
+            raise DomainError("Podaj obie stawki modelu: wejście i wyjście.", "AI_PRICE_INVALID")
+        else:
+            entries[item["field"]] = (price_in, price_out)
+    new_model = (request.POST.get("new_model") or "").strip()
+    if new_model:
+        provider = request.POST.get("new_provider", "")
+        price_in = _decimal(request.POST.get("new_in", ""))
+        price_out = _decimal(request.POST.get("new_out", ""))
+        if price_in is None or price_out is None:
+            raise DomainError("Podaj obie stawki nowego modelu: wejście i wyjście.", "AI_PRICE_INVALID")
+        entries[f"{provider}/{new_model}"] = (price_in, price_out)
+    return entries
+
+
 @method_decorator(sensitive_post_parameters("api_key"), name="dispatch")
 class AiGradingSettingsView(AiCoordinatorMixin, View):
-    """``GET|POST /coordinator/ai-grading/`` – klucz, model, limit, widoczność dla uczestników.
+    """``GET|POST /coordinator/ai-grading/`` – dostawcy, model, ceny, limit, widoczność.
 
     ``sensitive_post_parameters``: raport błędu Django (list do ``ADMINS``) cytuje dane POST
     żądania, które się wywróciło – pole z kluczem ma w nim stać jako gwiazdki.
@@ -112,39 +202,92 @@ class AiGradingSettingsView(AiCoordinatorMixin, View):
     def post(self, request):
         competition = self.ai_competition
         action = request.POST.get("action", "")
-        key_form = None
         options_form = None
+        back = reverse("web:coordinator-ai-grading")
         try:
             if action == "set_key":
+                provider = _provider_name(request)
                 key_form = ApiKeyForm(request.POST)
-                if key_form.is_valid():
-                    ai.set_api_key(
-                        competition, key_form.cleaned_data["api_key"], actor=request.user, request=request
-                    )
-                    messages.success(
-                        request, "Klucz API zapisany. Użyj „Sprawdź klucz”, żeby potwierdzić, że działa."
-                    )
-                    return redirect(reverse("web:coordinator-ai-grading"))
-            elif action == "remove_key":
-                ai.remove_api_key(competition, actor=request.user, request=request)
-                messages.warning(request, "Klucz API usunięty – nowe oceny AI nie będą liczone.")
-                return redirect(reverse("web:coordinator-ai-grading"))
-            elif action == "check_key":
-                ok, message = ai.check_api_key(competition, actor=request.user, request=request)
+                if not key_form.is_valid():
+                    messages.error(request, "Wklej klucz API.")
+                    return redirect(f"{back}#dostawca-{provider}")
+                ai.set_api_key(
+                    competition,
+                    key_form.cleaned_data["api_key"],
+                    actor=request.user,
+                    request=request,
+                    provider=provider,
+                )
+                messages.success(
+                    request,
+                    f"Klucz API {ai.provider_label(provider)} zapisany. Użyj „Sprawdź klucz”, żeby "
+                    "potwierdzić, że działa.",
+                )
+                return redirect(f"{back}#dostawca-{provider}")
+            if action == "remove_key":
+                provider = _provider_name(request)
+                ai.remove_api_key(competition, actor=request.user, request=request, provider=provider)
+                messages.warning(
+                    request,
+                    f"Klucz API {ai.provider_label(provider)} usunięty – ten dostawca nie liczy już ocen.",
+                )
+                return redirect(f"{back}#dostawca-{provider}")
+            if action == "check_key":
+                provider = _provider_name(request)
+                ok, message = ai.check_api_key(
+                    competition, actor=request.user, request=request, provider=provider
+                )
                 (messages.success if ok else messages.error)(request, message)
-                return redirect(reverse("web:coordinator-ai-grading"))
-            elif action == "options":
-                options_form = OptionsForm(request.POST)
+                return redirect(f"{back}#dostawca-{provider}")
+            if action == "dpa":
+                provider = _provider_name(request)
+                confirmed = request.POST.get("confirmed") == "1"
+                if confirmed and request.POST.get("dpa_ack") != "on":
+                    messages.error(request, "Zaznacz oświadczenie o zawarciu umowy powierzenia.")
+                    return redirect(f"{back}#dostawca-{provider}")
+                ai.set_dpa_confirmation(
+                    competition,
+                    provider,
+                    confirmed,
+                    actor=request.user,
+                    note=request.POST.get("note", ""),
+                    request=request,
+                )
+                label = ai.provider_label(provider)
+                if confirmed:
+                    messages.success(
+                        request,
+                        f"Potwierdzenie umowy powierzenia z {label} zapisane – prace uczestników mogą "
+                        "trafiać do tego dostawcy.",
+                    )
+                else:
+                    messages.warning(
+                        request,
+                        f"Potwierdzenie umowy powierzenia z {label} wycofane – prace uczestników nie trafią "
+                        "już do tego dostawcy (oceny czekające w kolejce zakończą się błędem bez wysyłki).",
+                    )
+                return redirect(f"{back}#dostawca-{provider}")
+            if action == "options":
+                row = ai.settings_for(competition)
+                options_form = OptionsForm(request.POST, settings_row=row)
                 if options_form.is_valid():
+                    data = options_form.cleaned_data
+                    custom = (data.get("custom_model") or "").strip()
                     ai.update_options(
                         competition,
-                        model=options_form.cleaned_data["model"],
-                        spending_limit_usd=options_form.cleaned_data["spending_limit_usd"],
+                        model=custom or data["model"],
+                        provider=(data.get("custom_provider") or row.provider) if custom else None,
+                        spending_limit_usd=data["spending_limit_usd"],
                         actor=request.user,
                         request=request,
                     )
                     messages.success(request, "Ustawienia oceny AI zapisane.")
-                    return redirect(reverse("web:coordinator-ai-grading"))
+                    return redirect(back)
+            elif action == "prices":
+                row = ai.settings_for(competition)
+                ai.set_prices(competition, _price_entries(request, row), actor=request.user, request=request)
+                messages.success(request, "Ceny modeli zapisane.")
+                return redirect(f"{back}#ceny")
             elif action == "visibility":
                 stage_id = request.POST.get("stage", "")
                 if not stage_id.isdigit():
@@ -162,26 +305,38 @@ class AiGradingSettingsView(AiCoordinatorMixin, View):
                     messages.success(
                         request, f"Ocena AI jest ukryta przed uczestnikami etapu „{stage.display_name}”."
                     )
-                return redirect(reverse("web:coordinator-ai-grading"))
+                return redirect(back)
             else:
                 messages.error(request, "Nieznana czynność.")
-                return redirect(reverse("web:coordinator-ai-grading"))
+                return redirect(back)
         except DomainError as exc:
             messages.error(request, str(exc.detail))
-            return redirect(reverse("web:coordinator-ai-grading"))
-        return self._render(request, competition, key_form=key_form, options_form=options_form, status=400)
+            return redirect(back)
+        return self._render(request, competition, options_form=options_form, status=400)
 
-    def _render(self, request, competition, *, key_form=None, options_form=None, status: int = 200):
+    def _render(self, request, competition, *, options_form=None, status: int = 200):
         row = ai.settings_for(competition)
         stages = _stages(competition)
         visible = ai.visible_stage_ids(stages)
+        custom = row.provider != ai.provider_for_model(row.model)
         context = {
             "ai_settings": row,
-            "key_form": key_form or ApiKeyForm(),
+            "providers": ai.provider_states(competition),
             "options_form": options_form
-            or OptionsForm(initial={"model": row.model, "spending_limit_usd": row.spending_limit_usd}),
+            or OptionsForm(
+                settings_row=row,
+                initial={
+                    "model": row.model,
+                    "custom_provider": row.provider,
+                    "spending_limit_usd": row.spending_limit_usd,
+                },
+            ),
+            "default_label": f"{ai.provider_label(row.provider)} – {row.model}"
+            + (" (inny identyfikator)" if custom else ""),
+            "default_price": ai.price_for(row.provider, row.model, row),
+            "prices": ai.price_table(row),
+            "provider_choices": AiProvider.choices,
             "stages": [{"stage": stage, "visible": stage.pk in visible} for stage in stages],
-            "processor": ai.PROCESSOR_NAME,
         }
         return TemplateResponse(request, SETTINGS_TEMPLATE, context, status=status)
 
@@ -190,12 +345,15 @@ class AiGenerateView(AiCoordinatorMixin, View):
     """``POST /coordinator/problems/<pk>/ai/generate/`` – podgląd (liczba i koszt), potem zlecenie.
 
     Jedna praca albo całe zadanie: pole ``submission`` zawęża zlecenie do jednej wersji pracy
-    (przycisk przy wierszu), jego brak – do wszystkich najnowszych wersji zadania. Formularz jedzie
-    drugi raz w komplecie, więc nie da się zlecić czegoś innego, niż pokazał podgląd.
+    (przycisk przy wierszu), jego brak – do wszystkich najnowszych wersji zadania. Pole ``target``
+    (``dostawca:model``) wybiera dostawcę i model; bez niego – domyślne z ustawień. Formularz jedzie
+    drugi raz w komplecie, z **rozstrzygniętym** dostawcą i modelem, więc nie da się zlecić czegoś
+    innego, niż pokazał podgląd.
     """
 
     def post(self, request, pk: int):
         problem = self.problem(pk)
+        competition = self.ai_competition
         regenerate = request.POST.get("regenerate") == "on"
         submission_ids = None
         submission_id = request.POST.get("submission", "")
@@ -206,9 +364,21 @@ class AiGenerateView(AiCoordinatorMixin, View):
                 raise Http404("Nie ma takiej pracy.") from None
         back = reverse("web:coordinator-problem", kwargs={"pk": problem.pk}) + "#ocena-ai"
         try:
-            ai.assert_can_request(self.ai_competition)
+            if request.POST.get("target"):
+                provider, model = ai.parse_target(
+                    request.POST["target"], request.POST.get("custom_model", "")
+                )
+            else:
+                provider, model = ai.default_target(competition)
+            ai.assert_can_request(competition, provider, model)
             if request.POST.get("action") != ACTION_CONFIRM:
-                plan = ai.plan_generation(problem, regenerate=regenerate, submission_ids=submission_ids)
+                plan = ai.plan_generation(
+                    problem,
+                    regenerate=regenerate,
+                    submission_ids=submission_ids,
+                    provider=provider,
+                    model=model,
+                )
                 context = {
                     "problem": problem,
                     "stage": problem.stage,
@@ -216,6 +386,8 @@ class AiGenerateView(AiCoordinatorMixin, View):
                     "regenerate": regenerate,
                     "submission_id": submission_id,
                     "back_url": back,
+                    "targets": ai.targets(competition, for_tests=False),
+                    "unpriced_warning": plan.estimate_usd is None,
                 }
                 return TemplateResponse(request, CONFIRM_TEMPLATE, context)
             plan = ai.request_generation(
@@ -224,6 +396,8 @@ class AiGenerateView(AiCoordinatorMixin, View):
                 submission_ids=submission_ids,
                 actor=request.user,
                 request=request,
+                provider=provider,
+                model=model,
             )
         except DomainError as exc:
             messages.error(request, str(exc.detail))
@@ -231,14 +405,92 @@ class AiGenerateView(AiCoordinatorMixin, View):
         if plan.count:
             messages.success(
                 request,
-                f"Zlecono ocenę AI dla {plan.count} prac. Oceny liczą się po kolei w tle – postęp widać "
-                "w sekcji „Ocena AI” poniżej.",
+                f"Zlecono ocenę AI ({plan.provider_label}, {plan.model}) dla {plan.count} prac. Oceny liczą "
+                "się po kolei w tle – postęp widać w sekcji „Ocena AI” poniżej.",
             )
         else:
             messages.info(
-                request, "Nie było czego zlecić – wszystkie prace mają już ocenę AI albo są w toku."
+                request,
+                "Nie było czego zlecić – wszystkie prace mają już ocenę AI tym modelem albo są w toku.",
             )
         return redirect(back)
+
+
+class AiTestWorkView(AiCoordinatorMixin, View):
+    """``POST /coordinator/problems/<pk>/ai/test/`` – praca testowa: wgranie, ocena, usuwanie.
+
+    Ocena pracy testowej jest jednoetapowa (bez podglądu kosztu): to zawsze jedna praca, a wybór
+    dostawcy i modelu stoi przy przycisku. Bramka umowy powierzenia jej nie dotyczy
+    (``apps.ai_grading.sandbox``) – pozostałe bramki, w tym limit wydatków, tak.
+    """
+
+    def post(self, request, pk: int):
+        problem = self.problem(pk)
+        back = reverse("web:coordinator-problem", kwargs={"pk": problem.pk}) + "#ocena-ai-test"
+        action = request.POST.get("action", "")
+        try:
+            if action == "upload":
+                form = TestWorkForm(request.POST, request.FILES)
+                if not form.is_valid():
+                    messages.error(request, "Wybierz plik pracy testowej.")
+                    return redirect(back)
+                sandbox.upload_test_work(
+                    problem,
+                    form.cleaned_data["file"],
+                    actor=request.user,
+                    no_personal_data=form.cleaned_data["no_personal_data"],
+                    label=form.cleaned_data["label"],
+                    request=request,
+                )
+                messages.success(
+                    request,
+                    "Praca testowa wgrana. Po skanie antywirusowym można ją ocenić dowolnym dostawcą.",
+                )
+            elif action == "generate":
+                work = self._work(problem, request.POST.get("work", ""))
+                provider, model = ai.parse_target(
+                    request.POST.get("target", ""), request.POST.get("custom_model", "")
+                )
+                sandbox.request_test_assessment(
+                    work, provider=provider, model=model, actor=request.user, request=request
+                )
+                messages.success(
+                    request,
+                    f"Zlecono ocenę testową ({ai.provider_label(provider)}, {model}). Wynik pojawi się "
+                    "poniżej.",
+                )
+            elif action == "delete_work":
+                sandbox.delete_test_work(
+                    self._work(problem, request.POST.get("work", "")), actor=request.user, request=request
+                )
+                messages.success(request, "Praca testowa i jej oceny usunięte.")
+            elif action == "delete_assessment":
+                assessment = self._assessment(problem, request.POST.get("assessment", ""))
+                sandbox.delete_test_assessment(assessment, actor=request.user, request=request)
+                messages.success(request, "Ocena testowa usunięta.")
+            else:
+                messages.error(request, "Nieznana czynność.")
+        except DomainError as exc:
+            messages.error(request, str(exc.detail))
+        return redirect(back)
+
+    def _work(self, problem, value: str) -> AiTestWork:
+        if not value.isdigit():
+            raise Http404("Nie ma takiej pracy testowej.")
+        return get_object_or_404(
+            AiTestWork.objects.for_competition(self.ai_competition).select_related("competition", "problem"),
+            pk=int(value),
+            problem=problem,
+        )
+
+    def _assessment(self, problem, value: str) -> AiAssessment:
+        if not value.isdigit():
+            raise Http404("Nie ma takiej oceny.")
+        return get_object_or_404(
+            AiAssessment.objects.for_competition(self.ai_competition).select_related("test_work"),
+            pk=int(value),
+            test_work__problem=problem,
+        )
 
 
 class AiProblemProgressView(AiCoordinatorMixin, View):

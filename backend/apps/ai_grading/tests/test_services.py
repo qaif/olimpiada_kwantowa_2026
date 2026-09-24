@@ -22,6 +22,7 @@ from apps.ai_grading.models import (
     AiAssessment,
     AiAssessmentStatus,
     AiGradingSettings,
+    AiProviderAccount,
     AiStageVisibility,
 )
 from apps.core.api import DomainError
@@ -132,7 +133,7 @@ def test_flag_is_in_the_catalogue_and_off_by_default(competition):
 def test_key_is_stored_encrypted_with_only_the_last_four_characters_readable(competition, coordinator):
     row = with_key(competition, coordinator)
 
-    stored = AiGradingSettings.objects.get(pk=row.pk)
+    stored = AiProviderAccount.objects.get(pk=row.pk)
     assert FAKE_KEY not in stored.api_key_encrypted
     assert stored.api_key_last4 == "WXYZ"
     assert stored.masked_key == "…WXYZ"
@@ -161,7 +162,7 @@ def test_invalid_key_is_a_domain_error(competition, coordinator):
 
     assert info.value.machine_code == "AI_KEY_INVALID"
     assert (
-        not AiGradingSettings.objects.filter(competition=competition).exclude(api_key_encrypted="").exists()
+        not AiProviderAccount.objects.filter(competition=competition).exclude(api_key_encrypted="").exists()
     )
 
 
@@ -169,29 +170,30 @@ def test_check_key_stores_the_verdict(competition, coordinator, monkeypatch):
     with_key(competition, coordinator)
     seen = {}
 
-    def fake_check(key, model):
+    def fake_check(key, model, provider="anthropic"):
         seen["key"] = key.reveal()
         seen["model"] = model
+        seen["provider"] = provider
         return True, "Klucz działa."
 
     monkeypatch.setattr(services, "check_key", fake_check)
 
     ok, _ = services.check_api_key(competition, actor=coordinator)
 
-    row = services.settings_for(competition)
+    row = services.account_for(competition, "anthropic")
     assert ok is True and row.api_key_check_ok is True
-    assert seen == {"key": FAKE_KEY, "model": "claude-opus-5"}
+    assert seen == {"key": FAKE_KEY, "model": "claude-opus-5", "provider": "anthropic"}
 
 
 def test_replacing_the_key_clears_the_previous_check(competition, coordinator):
     row = with_key(competition, coordinator)
-    AiGradingSettings.objects.filter(pk=row.pk).update(
+    AiProviderAccount.objects.filter(pk=row.pk).update(
         api_key_check_ok=True, api_key_checked_at=timezone.now()
     )
 
     with_key(competition, coordinator)
 
-    assert services.settings_for(competition).api_key_check_ok is None
+    assert services.account_for(competition, "anthropic").api_key_check_ok is None
 
 
 # --- zlecenie -------------------------------------------------------------------------------------

@@ -78,3 +78,48 @@ def pump_ai_assessments() -> dict[str, int]:
     if recovered or dispatched:
         logger.info("Ocena AI: %s przerwanych, %s wypuszczonych do kolejki.", recovered, len(dispatched))
     return {"recovered": recovered, "dispatched": len(dispatched)}
+
+
+@shared_task(bind=True, max_retries=5)
+def scan_ai_test_work(self, work_id: int) -> str:
+    """Skan antywirusowy pracy testowej – kształt ponowień jak ``submissions.scan_submission_file``.
+
+    Kolejka ``scan`` (``CELERY_TASK_ROUTES``): ta sama praca na tym samym kliencie clamd, co skan
+    prac uczestników. Niedostępny ClamAV to ponowienie z rosnącym odstępem, brak obiektu albo plik
+    ponad limit strumienia clamd – błąd trwały (praca testowa nie trafi do żadnego dostawcy).
+    """
+    from apps.submissions.antivirus import ClamAVStreamTooLarge, ClamAVUnavailable, scan_stream
+    from apps.submissions.models import AvStatus
+    from apps.submissions.storage import get_submission_storage
+    from apps.submissions.tasks import (
+        RETRY_BASE_SECONDS,
+        RETRY_MAX_SECONDS,
+        SCAN_TIMEOUT_SECONDS,
+        MissingStorageObject,
+        _open_object,
+    )
+
+    from .models import AiTestWork
+    from .sandbox import apply_scan_verdict
+
+    work = AiTestWork.objects.filter(pk=work_id).first()
+    if work is None or work.av_status != AvStatus.PENDING or not work.object_key:
+        return "SKIPPED"
+    try:
+        stream = _open_object(get_submission_storage(), work.object_key)
+        try:
+            verdict, _signature = scan_stream(stream, timeout=SCAN_TIMEOUT_SECONDS, size=work.size_bytes)
+        finally:
+            close = getattr(stream, "close", None)
+            if callable(close):
+                close()
+    except (MissingStorageObject, ClamAVStreamTooLarge) as exc:
+        logger.error("Skan pracy testowej %s zamknięty błędem trwałym: %s", work_id, exc)
+        apply_scan_verdict(work_id, AvStatus.ERROR)
+        return AvStatus.ERROR
+    except ClamAVUnavailable as exc:
+        countdown = min(RETRY_BASE_SECONDS * (2**self.request.retries), RETRY_MAX_SECONDS)
+        logger.warning("ClamAV niedostępny przy skanie pracy testowej %s: %s", work_id, exc)
+        raise self.retry(exc=exc, countdown=countdown) from exc
+    apply_scan_verdict(work_id, verdict)
+    return verdict

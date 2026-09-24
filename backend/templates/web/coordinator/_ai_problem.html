@@ -1,16 +1,19 @@
 {% load web_extras %}
 {% comment %}
-  Sekcja „Ocena AI” na karcie zadania – postęp, zlecenia i sugestie przy każdej pracy.
+  Sekcja „Ocena AI” na karcie zadania – postęp, zlecenia, sugestie przy każdej pracy i prace
+  testowe.
 
   Ten sam fragment wydaje widok ``coordinator-ai-problem``: dopóki coś się liczy, sekcja sama
   odpytuje go co 15 sekund (htmx, bez własnego skryptu) i podmienia się w całości. Gdy kolejka
   jest pusta, atrybutów odpytywania nie ma – strona przestaje pytać serwer.
 
+  Przy pracy może stać kilka ocen (różni dostawcy albo modele – porównanie), najnowsza pierwsza.
   Koordynator widzi tu kod uczestnika (na karcie zadania i tak widzi nazwisko). Recenzent tej
-  sekcji nie widzi nigdy – jego panel pokazuje sugestię bez niczego, co identyfikuje autora.
+  sekcji nie widzi nigdy – jego panel pokazuje sugestie bez niczego, co identyfikuje autora.
+  Oceny prac **testowych** stoją wyłącznie tutaj, z plakietką „TEST”.
 {% endcomment %}
 <section class="section" id="ocena-ai"
-  {% if ai.in_progress %}hx-get="{% url 'web:coordinator-ai-problem' problem.pk %}" hx-trigger="every 15s" hx-swap="outerHTML"{% endif %}>
+  {% if ai.in_progress or ai.test_in_progress %}hx-get="{% url 'web:coordinator-ai-problem' problem.pk %}" hx-trigger="every 15s" hx-swap="outerHTML"{% endif %}>
   <div class="section__head">
     <h2 class="mt-0">Ocena AI</h2>
     <span class="badge badge--info">sugestia, niewiążąca</span>
@@ -21,22 +24,29 @@
       <dt>Oczekuje / w toku</dt><dd class="workload-num">{{ ai.counts.PENDING }} / {{ ai.counts.RUNNING }}</dd>
       <dt>Błąd</dt><dd class="workload-num">{{ ai.counts.ERROR }}</dd>
       <dt>Bez oceny AI</dt><dd class="workload-num">{{ ai.missing }}</dd>
-      <dt>Koszt tego zadania (szacunek)</dt><dd class="workload-num">{{ ai.cost_usd|floatformat:2 }} USD</dd>
+      <dt>Koszt tego zadania (szacunek)</dt><dd class="workload-num">{{ ai.cost_usd|floatformat:2 }} USD{% if not ai.cost_known %} <span class="badge badge--warn">część kosztu nieznana</span>{% endif %}</dd>
       {% if ai.agreement %}
         <dt>Zgodność z oceną końcową</dt>
         <dd>{{ ai.agreement.count }} prac: średnia różnica {{ ai.agreement.mean_abs_diff }} pkt,
           zgodnie co do punktu {{ ai.agreement.exact_share }}%, różnica ≤ 1 pkt {{ ai.agreement.within_one_share }}%</dd>
       {% endif %}
+      {% for item in ai.agreement_by_model %}
+        <dt>Zgodność: {{ item.provider }} <code>{{ item.model }}</code></dt>
+        <dd>{{ item.count }} prac: średnia różnica {{ item.mean_abs_diff }} pkt, zgodnie co do punktu {{ item.exact_share }}%, ≤ 1 pkt {{ item.within_one_share }}%</dd>
+      {% endfor %}
     </dl>
     {% if ai.in_progress %}
       <p class="hint">Oceny liczą się w tle, po kolei. Ta sekcja odświeża się sama.</p>
     {% endif %}
-    {% if not ai_settings.has_key %}
-      <p class="msg msg-warning">Brak klucza API – dodaj go w <a href="{% url 'web:coordinator-ai-grading' %}">ustawieniach oceny AI</a>.</p>
+    {% if not ai.can_generate %}
+      <p class="msg msg-warning">Żaden dostawca nie ma jeszcze klucza API i potwierdzonej umowy powierzenia –
+        ustaw je w <a href="{% url 'web:coordinator-ai-grading' %}">ustawieniach oceny AI</a>. Do wypróbowania
+        dostawców służy praca testowa niżej.</p>
     {% else %}
       <form method="post" action="{% url 'web:coordinator-ai-generate' problem.pk %}" class="cell-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="preview">
+        {% include "web/coordinator/_ai_target_select.html" with targets=ai.targets field_id="cel-zadania" %}
         <label><input type="checkbox" name="regenerate"> wygeneruj ponownie także istniejące</label>
         <button type="submit" class="btn btn--primary">Wygeneruj ocenę AI</button>
       </form>
@@ -49,6 +59,7 @@
         <tr>
           <th scope="col">Kod</th>
           <th scope="col">Wersja</th>
+          <th scope="col">Dostawca i model</th>
           <th scope="col">Stan</th>
           <th scope="col">Propozycja AI</th>
           <th scope="col">Ocena końcowa</th>
@@ -58,54 +69,131 @@
       </thead>
       <tbody>
         {% for row in ai.rows %}
-          {% with assessment=row.assessment %}
-          <tr>
-            <th scope="row">{{ row.submission.entry.participant.public_code }}</th>
-            <td class="num workload-num">{{ row.submission.version }}</td>
-            <td>
-              {% if assessment %}
+          {% for assessment in row.assessments %}
+            <tr>
+              {% if forloop.first %}
+                <th scope="row" rowspan="{{ row.assessments|length }}">{{ row.submission.entry.participant.public_code }}</th>
+                <td class="num workload-num" rowspan="{{ row.assessments|length }}">{{ row.submission.version }}</td>
+              {% endif %}
+              <td>{{ assessment.provider_label }}<br><code>{{ assessment.requested_model }}</code></td>
+              <td>
                 <span class="badge {% if assessment.status == 'DONE' %}badge--ok{% elif assessment.status == 'ERROR' %}badge--danger{% else %}badge--neutral{% endif %}">{{ assessment.get_status_display }}</span>
                 {% if assessment.status == 'ERROR' %}<p class="hint">{{ assessment.error_message }}</p>{% endif %}
-              {% elif not row.has_file %}
-                <span class="hint">brak pliku po skanie</span>
-              {% else %}
-                <span class="hint">brak</span>
+              </td>
+              <td class="workload-num">
+                {% if assessment.status == 'DONE' %}
+                  <strong>{{ assessment.proposed_points|floatformat:"-2" }}</strong> / {{ assessment.max_points|floatformat:"-2" }} pkt
+                  <span class="hint">(pewność: {{ assessment.get_confidence_display }})</span>
+                  {% if assessment.injection_suspected %}<span class="badge badge--danger">podejrzenie manipulacji</span>{% endif %}
+                {% else %}—{% endif %}
+              </td>
+              {% if forloop.first %}
+                <td class="workload-num" rowspan="{{ row.assessments|length }}">{% if row.final is not None %}{{ row.final }} pkt{% else %}—{% endif %}</td>
               {% endif %}
-            </td>
-            <td class="workload-num">
-              {% if assessment.status == 'DONE' %}
-                <strong>{{ assessment.proposed_points|floatformat:"-2" }}</strong> / {{ assessment.max_points|floatformat:"-2" }} pkt
-                <span class="hint">(pewność: {{ assessment.get_confidence_display }})</span>
-                {% if assessment.injection_suspected %}<span class="badge badge--danger">podejrzenie manipulacji</span>{% endif %}
-              {% else %}—{% endif %}
-            </td>
-            <td class="workload-num">{% if row.final is not None %}{{ row.final }} pkt{% else %}—{% endif %}</td>
-            <td>
-              {% if assessment.status == 'DONE' %}
-                <details>
-                  <summary>Uzasadnienie</summary>
-                  {% include "web/_ai_assessment_body.html" with assessment=assessment %}
-                  <p class="hint">{{ assessment.model }} · {{ assessment.finished_at|local_datetime }} · koszt ok. {{ assessment.cost_usd|floatformat:3 }} USD</p>
-                </details>
+              <td>
+                {% if assessment.status == 'DONE' %}
+                  <details>
+                    <summary>Uzasadnienie</summary>
+                    {% include "web/_ai_assessment_body.html" with assessment=assessment %}
+                    <p class="hint">{{ assessment.model }} · {{ assessment.finished_at|local_datetime }} · {% if assessment.cost_known %}koszt ok. {{ assessment.cost_usd|floatformat:3 }} USD{% else %}koszt nieznany ({{ assessment.input_tokens|add:assessment.output_tokens }} tokenów){% endif %}</p>
+                  </details>
+                {% endif %}
+              </td>
+              {% if forloop.first %}
+                <td rowspan="{{ row.assessments|length }}">
+                  {% include "web/coordinator/_ai_row_button.html" %}
+                </td>
               {% endif %}
-            </td>
-            <td>
-              {% if ai_settings.has_key and row.has_file and not assessment.is_in_progress %}
-                <form method="post" action="{% url 'web:coordinator-ai-generate' problem.pk %}">
-                  {% csrf_token %}
-                  <input type="hidden" name="action" value="preview">
-                  <input type="hidden" name="submission" value="{{ row.submission.pk }}">
-                  {% if assessment %}<input type="hidden" name="regenerate" value="on">{% endif %}
-                  <button type="submit" class="btn btn--secondary btn--small">{% if assessment %}Wygeneruj ponownie{% else %}Wygeneruj{% endif %}</button>
-                </form>
-              {% endif %}
-            </td>
-          </tr>
-          {% endwith %}
+            </tr>
+          {% empty %}
+            <tr>
+              <th scope="row">{{ row.submission.entry.participant.public_code }}</th>
+              <td class="num workload-num">{{ row.submission.version }}</td>
+              <td>—</td>
+              <td>{% if not row.has_file %}<span class="hint">brak pliku po skanie</span>{% else %}<span class="hint">brak</span>{% endif %}</td>
+              <td class="workload-num">—</td>
+              <td class="workload-num">{% if row.final is not None %}{{ row.final }} pkt{% else %}—{% endif %}</td>
+              <td></td>
+              <td>{% include "web/coordinator/_ai_row_button.html" %}</td>
+            </tr>
+          {% endfor %}
         {% empty %}
-          <tr><td colspan="7" class="empty">Do tego zadania nikt jeszcze nie oddał pracy.</td></tr>
+          <tr><td colspan="8" class="empty">Do tego zadania nikt jeszcze nie oddał pracy.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+
+  <div class="section__head" id="ocena-ai-test">
+    <h3 class="mt-0">Prace testowe</h3>
+    <span class="badge badge--warn">TEST – widzi tylko koordynator</span>
+  </div>
+  <div class="card card--quiet">
+    <p class="hint">Własny przykładowy plik (PDF, JPG, PNG, .py, .ipynb) do wypróbowania dostawców –
+      <strong>każdym dostawcą z kluczem, także przed potwierdzeniem umowy powierzenia</strong>, bo praca
+      testowa nie niesie danych uczestników. Nie wgrywaj tu prac uczestników (plik identyczny z pracą
+      uczestnika zostanie odrzucony). Oceny testowe kosztują jak każde inne (liczą się do limitu
+      wydatków), nie widzą ich recenzenci ani uczestnicy i nie wchodzą do statystyk zgodności.</p>
+    <form method="post" action="{% url 'web:coordinator-ai-test' problem.pk %}" enctype="multipart/form-data" class="form form--wide">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="upload">
+      <p><label for="praca-testowa-plik">Plik pracy testowej</label>
+        <input type="file" name="file" id="praca-testowa-plik" accept=".pdf,.jpg,.jpeg,.png,.py,.ipynb" required></p>
+      <p><label for="praca-testowa-opis">Opis (dla siebie)</label>
+        <input type="text" name="label" id="praca-testowa-opis" maxlength="120"></p>
+      <p><label><input type="checkbox" name="no_personal_data" required> Oświadczam, że plik jest moim własnym
+        przykładem i nie zawiera danych osobowych uczestników (ani pracy uczestnika).</label></p>
+      <div class="actions"><button type="submit" class="btn btn--secondary">Wgraj pracę testową</button></div>
+    </form>
+  </div>
+  {% for item in ai.test_works %}
+    <div class="card">
+      <div class="card__head">
+        <h4 class="mt-0 card__title"><span class="badge badge--warn">TEST</span>
+          {{ item.work.label|default:"praca testowa" }} <span class="hint">({{ item.work.mime }}, {{ item.work.uploaded_at|local_datetime }})</span></h4>
+        {% if item.work.av_status == 'CLEAN' %}<span class="badge badge--ok">skan: czysty</span>
+        {% elif item.work.av_status == 'PENDING' %}<span class="badge badge--neutral">skan w toku</span>
+        {% else %}<span class="badge badge--danger">skan: {{ item.work.get_av_status_display }}</span>{% endif %}
+      </div>
+      <div class="actions">
+        {% if item.work.is_clean and ai.can_test %}
+          <form method="post" action="{% url 'web:coordinator-ai-test' problem.pk %}" class="cell-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="generate">
+            <input type="hidden" name="work" value="{{ item.work.pk }}">
+            {% include "web/coordinator/_ai_target_select.html" with targets=ai.test_targets field_id=item.work.pk|stringformat:"s"|add:"-test" %}
+            <button type="submit" class="btn btn--primary btn--small">Wygeneruj ocenę testową</button>
+          </form>
+        {% elif not ai.can_test %}
+          <p class="hint">Żaden dostawca nie ma klucza API – dodaj klucz w ustawieniach oceny AI.</p>
+        {% endif %}
+        <form method="post" action="{% url 'web:coordinator-ai-test' problem.pk %}">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete_work">
+          <input type="hidden" name="work" value="{{ item.work.pk }}">
+          <button type="submit" class="btn btn--danger btn--small">Usuń pracę testową</button>
+        </form>
+      </div>
+      {% for assessment in item.assessments %}
+        <details class="card card--quiet"{% if forloop.first %} open{% endif %}>
+          <summary><span class="badge badge--warn">TEST</span> <strong>{{ assessment.provider_label }} {{ assessment.requested_model }}</strong> –
+            <span class="badge {% if assessment.status == 'DONE' %}badge--ok{% elif assessment.status == 'ERROR' %}badge--danger{% else %}badge--neutral{% endif %}">{{ assessment.get_status_display }}</span>
+            {% if assessment.status == 'DONE' %}{{ assessment.proposed_points|floatformat:"-2" }} / {{ assessment.max_points|floatformat:"-2" }} pkt{% endif %}</summary>
+          {% if assessment.status == 'ERROR' %}<p class="hint">{{ assessment.error_message }}</p>{% endif %}
+          {% if assessment.status == 'DONE' %}
+            {% include "web/_ai_assessment_body.html" with assessment=assessment %}
+            <p class="hint">{{ assessment.model }} · {{ assessment.finished_at|local_datetime }} · {% if assessment.cost_known %}koszt ok. {{ assessment.cost_usd|floatformat:3 }} USD{% else %}koszt nieznany{% endif %}</p>
+          {% endif %}
+          {% if not assessment.is_in_progress %}
+            <form method="post" action="{% url 'web:coordinator-ai-test' problem.pk %}">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="delete_assessment">
+              <input type="hidden" name="assessment" value="{{ assessment.pk }}">
+              <button type="submit" class="btn btn--ghost btn--small">Usuń tę ocenę testową</button>
+            </form>
+          {% endif %}
+        </details>
+      {% endfor %}
+    </div>
+  {% endfor %}
 </section>

@@ -8,6 +8,55 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – inni dostawcy AI
+
+Prośby organizatora z 24.09.2026: „Pozwól też na użycie innych dostawców AI, jak OpenAI, Google
+i Meta.” oraz „włącz wszystkich dostawców dla testów”. Ocena AI (flaga `ai_grading`) przestaje być
+wyłącznie Claude'em: koordynator wybiera dostawcę i model przy każdym zleceniu, a tę samą pracę może
+ocenić kilkoma modelami, żeby je porównać.
+
+- **Dostawcy** (`apps.ai_grading.providers`): wspólny kontrakt – jedno neutralne wejście (prompt
+  systemowy, materiały zadania, praca), jeden wynik (JSON wg tego samego schematu, zużycie z cache,
+  identyfikator żądania, odmowa/ucięcie w słowniku Anthropic) i rodzaje błędów (auth / rate limit /
+  transient / permanent / refusal / too large), od których zależy ponowienie. **Anthropic** – żądanie
+  bajt w bajt jak w v0.34.0 (`client.py` bez zmian w wywołaniu). **OpenAI** – Responses API
+  (`responses.stream`, `text.format` json_schema strict, `store: false`, `reasoning.effort: high`,
+  PDF `input_file`, obraz `input_image`, `prompt_cache_key`). **Google** – `google-genai`
+  (`generate_content`, `response_json_schema`, `thinking_level: high` dla `gemini-3*`, pliki inline,
+  blokady `SAFETY`/`PROHIBITED_CONTENT`… jako odmowa). **Meta** – Meta Model API przez SDK OpenAI
+  (Chat Completions, `response_format` json_schema, PDF jako część `file`); dawne Llama API Meta
+  wyłączyła 6.07.2026. Limity plików per dostawca sprawdzane przed wysyłką (Google 20 MB, Meta PDF do
+  50 stron). Modele z list (stan 24.09.2026) plus „inny identyfikator modelu”; warstwa Meta
+  `-contributor` odrzucana.
+- **Klucze i umowy powierzenia per dostawca** (`AiProviderAccount`): klucz tylko do zapisu (ten sam
+  Fernet), „Sprawdź klucz” bez kosztu, oraz **„Potwierdzam zawarcie umowy powierzenia (DPA)
+  z <dostawca>”** z datą i osobą (dziennik zdarzeń). Bez potwierdzenia dostawca **nie dostaje prac
+  uczestników**; wycofanie zatrzymuje prace czekające w kolejce przed wysyłką.
+- **Tryb testowy** (`apps.ai_grading.sandbox`): praca testowa koordynatora (PDF/JPG/PNG/py/ipynb,
+  walidacja i skan jak prace uczestników, oświadczenie o braku danych uczestników, odmowa pliku
+  identycznego z pracą uczestnika) oceniana **każdym dostawcą z kluczem, także bez umowy**. Oceny
+  testowe widzi tylko koordynator (plakietka TEST), nie wchodzą do eksportu ani statystyk, liczą się
+  do zużycia i limitu wydatków, można je usunąć.
+- **Porównanie**: kluczem oceny jest (wersja pracy, dostawca, model); panel recenzenta pokazuje
+  osobne panele „Ocena AI – <dostawca> <model> (sugestia, niewiążąca)”, najnowszy pierwszy; karta
+  zadania – zgodność z oceną końcową osobno dla każdego modelu; uczestnik (gdy włączone) – najnowszą.
+- **Ceny**: tabela cen per model w ustawieniach (domyślne z cenników z 24.09.2026, do nadpisania).
+  Model bez ceny – koszt „nieznany”, liczone tokeny i licznik wywołań bez ceny; przy ustawionym limicie
+  wydatków taki model jest odrzucany (`AI_PRICE_UNKNOWN`).
+- **RODO**: rejestr czynności **1.8** – odbiorcy wiersza „ocena AI” liczeni dynamicznie (tylko dostawcy
+  z kluczem i potwierdzoną umową); eksport danych uczestnika wymienia dostawcę i podmiot przetwarzający
+  przy każdej ocenie; podręcznik organizatora § 4.12 – co sprawdzić u każdego dostawcy (DPA, SCC,
+  retencja, trenowanie, brak retencji, **ograniczenia wieku w warunkach Google i Mety**).
+- **Operator**: komenda `confirm_ai_provider_dpa` (OPERACJE § 17.6) – potwierdzenie umowy jak z panelu,
+  idempotentne. **Po wdrożeniu żaden dostawca, także Anthropic, nie ma potwierdzonej umowy** – migracja
+  celowo tego nie domniemywa; komendę trzeba uruchomić dla `kwantowa` (organizator potwierdził umowy
+  24.09.2026).
+
+Migracje: `ai_grading.0002_providers` (klucz Anthropic przeniesiony do `AiProviderAccount` bez
+odszyfrowania, `AiAssessment` z konkursem, dostawcą i modelem zamówionym, `AiTestWork`). Nowe
+zależności: `openai>=3.19,<4`, `google-genai>=2.25,<3` (import leniwy). Nowa trasa Celery:
+`apps.ai_grading.tasks.scan_ai_test_work` → kolejka `scan`.
+
 ## v0.34.0 – 2026-09-24
 
 Wydanie zbiorcze z próśb i zgłoszeń organizatora z 24.09.2026. Dwie zmiany działają od wdrożenia,

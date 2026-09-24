@@ -139,7 +139,7 @@ def test_key_is_write_only_on_the_screen(web, competition, coordinator):
     assert response.status_code == 200
     assert FAKE_KEY not in content
     assert "kończy się na …WXYZ" in content
-    assert services.settings_for(competition).has_key
+    assert services.account_for(competition, "anthropic").has_key
 
 
 def test_invalid_key_is_refused_and_not_echoed_back(web, competition, coordinator):
@@ -150,20 +150,24 @@ def test_invalid_key_is_refused_and_not_echoed_back(web, competition, coordinato
     content = response.content.decode()
 
     assert "moje-tajne-haslo-123" not in content
-    assert not services.settings_for(competition).has_key
+    assert not services.account_for(competition, "anthropic").has_key
 
 
 def test_key_can_be_removed_and_checked(web, competition, coordinator, monkeypatch):
     enable_ai(competition)
     with_key(competition, coordinator)
-    monkeypatch.setattr(services, "check_key", lambda key, model: (False, "Anthropic odrzucił klucz API."))
+    monkeypatch.setattr(
+        services,
+        "check_key",
+        lambda key, model, provider="anthropic": (False, "Anthropic odrzucił klucz API."),
+    )
     web.force_login(coordinator)
 
     checked = web.post(SETTINGS_URL, {"action": "check_key"}, follow=True).content.decode()
     assert "Anthropic odrzucił klucz API." in checked
 
     web.post(SETTINGS_URL, {"action": "remove_key"})
-    assert not services.settings_for(competition).has_key
+    assert not services.account_for(competition, "anthropic").has_key
 
 
 def test_model_and_limit_are_saved(web, competition, coordinator):
@@ -236,7 +240,7 @@ def test_reviewer_sees_the_suggestion_for_an_assigned_work_without_identity(web,
 
     content = web.get(f"/review/{review.pk}/").content.decode()
 
-    assert "Ocena AI (sugestia, niewiążąca)" in content
+    assert "Ocena AI – Anthropic claude-opus-5 (sugestia, niewiążąca)" in content
     assert SENTINEL_SUMMARY in content
     assert 'data-ai-prefill="5"' in content
     participant = done.entry.participant

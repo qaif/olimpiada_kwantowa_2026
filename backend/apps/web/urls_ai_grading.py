@@ -28,4 +28,9 @@ urlpatterns = [
         coordinator_ai_grading.AiGenerateView.as_view(),
         name="coordinator-ai-generate",
     ),
+    path(
+        "coordinator/problems/<int:pk>/ai/test/",
+        coordinator_ai_grading.AiTestWorkView.as_view(),
+        name="coordinator-ai-test",
+    ),
 ]

@@ -96,8 +96,8 @@ Kolejność w panelu odpowiada kolejności czynności:
 1. **nagłówek** — kod pracy, etap, runda, wersja, termin i licznik „5 z 18 w tym zadaniu”
    z odnośnikami **„← Poprzednia praca”** / **„Następna praca →”**,
 2. zwinięte **„Rozwiązanie wzorcowe i uwagi dla recenzentów”** (gdy koordynator je wgrał),
-   a pod nim — gdy organizator korzysta z oceny AI — zwinięta **„Ocena AI (sugestia, niewiążąca)”**
-   (§ 3a),
+   a pod nim — gdy organizator korzysta z oceny AI — zwinięte panele **„Ocena AI – <dostawca>
+   <model> (sugestia, niewiążąca)”** (§ 3a),
 3. **„Rubryka oceniania”** albo lista punktów ze skali etapu,
 4. **komentarz dla uczestnika** — z szablonami tuż pod polem,
 5. **komentarz wewnętrzny** — dla komitetu; uczestnik **nigdy** go nie zobaczy,
@@ -119,14 +119,17 @@ tekstowym.
 to, żeby organizator umiał zaplanować obciążenie komitetu („ile godzin zajmuje ocena zadania 3”).
 Nie zapisujemy tego, co piszesz, ani gdzie klikasz; po pięciu minutach bez ruchu licznik przestaje liczyć.
 
-### 3a. Panel „Ocena AI (sugestia, niewiążąca)”
+### 3a. Panele „Ocena AI – <dostawca> <model> (sugestia, niewiążąca)”
 
 Gdy organizator korzysta z oceny AI, a koordynator ją dla tej pracy wygenerował, pod wzorcówką stoi
-zwinięty panel **„Ocena AI (sugestia, niewiążąca)”** z propozycją punktów, np. „5 z 6 pkt”. Po
-rozwinięciu: model i data wygenerowania, **pewność** deklarowana przez model (niska / średnia /
-wysoka), krótkie podsumowanie, punkty i komentarz przy każdym kryterium (albo części rozwiązania)
-oraz lista błędów, które model znalazł. Panelu nie ma, gdy sugestii nie wygenerowano — to nic nie
-znaczy o pracy.
+zwinięty panel, np. **„Ocena AI – Anthropic claude-opus-5 (sugestia, niewiążąca)”**, z propozycją
+punktów, np. „5 z 6 pkt”. W nagłówku jest **dostawca i model**, który przygotował sugestię —
+organizator może korzystać z kilku dostawców (Anthropic, OpenAI, Google, Meta) i ocenić tę samą pracę
+kilkoma modelami, żeby je porównać. Wtedy paneli jest kilka, **najnowszy pierwszy**; każdy jest
+osobną sugestią innego modelu, a ich zgodność nie czyni z nich oceny. Po rozwinięciu: model i data
+wygenerowania, **pewność** deklarowana przez model (niska / średnia / wysoka), krótkie podsumowanie,
+punkty i komentarz przy każdym kryterium (albo części rozwiązania) oraz lista błędów, które model
+znalazł. Panelu nie ma, gdy sugestii nie wygenerowano — to nic nie znaczy o pracy.
 
 Jak to czytać:
 
@@ -144,8 +147,8 @@ Jak to czytać:
 - **nie kopiuj** tekstu sugestii do komentarza dla uczestnika bez przeczytania go: komentarz podpisuje
   komitet.
 
-Przycisk **„Wstaw punkty AI jako punkt wyjścia”** zaznacza w formularzu najbliższą propozycji
-wartość skali — i nic poza tym: niczego nie zapisuje ani nie wysyła, a zaznaczenie zmienisz jednym
+Przycisk **„Wstaw punkty AI jako punkt wyjścia”** (w każdym panelu osobno) zaznacza w formularzu
+najbliższą propozycji wartość skali — i nic poza tym: niczego nie zapisuje ani nie wysyła, a zaznaczenie zmienisz jednym
 kliknięciem. Przy zadaniu z rubryką przycisku nie ma (model dzieli rozwiązanie po swojemu, a nie
 według kryteriów komitetu). Nic w formularzu nie wypełnia się samo.
 
