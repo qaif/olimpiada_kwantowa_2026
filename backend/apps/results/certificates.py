@@ -281,8 +281,11 @@ def supervisors_with_participants(edition: Edition) -> list[dict]:
     counts: dict[str, int] = {}
     # Para (uczestnik, adres) z ``distinct``, a nie same adresy: złączenie po wpisach do etapów
     # powiela uczestnika tyle razy, w ilu etapach startuje, a my liczymy **uczniów**, nie starty.
+    # Bez kont po anonimizacji – uczeń, który usunął konto, nie jest już uczniem tego opiekuna
+    # (ta sama reguła, co w panelu „Moi uczniowie”, ``apps.accounts.supervisors.students_of``).
     students = (
         Participant.objects.filter(stage_entries__stage__edition=edition)
+        .exclude_anonymised()
         .exclude(supervisor_email="")
         .values_list("id", "supervisor_email")
         .distinct()
@@ -339,7 +342,14 @@ def participants_with_workshops(edition: Edition) -> list[dict]:
 
     Uczestnik bez żadnego wpisu w edycji nie dostanie zaświadczenia i tak ma być: system nie wie
     wtedy, do której edycji dokument przypisać, a warsztaty odbywają się w rytmie edycji.
+
+    Bez kont po anonimizacji (decyzja organizatora z 24.09.2026, v0.34.0): zaświadczenie jest
+    dokumentem **imiennym** wystawianym na żądanie organizatora dziś, a osoba, która usunęła konto,
+    nie ma już imienia, adresu ani panelu, z którego by je pobrała – wystawienie go znaczyłoby
+    nowy dokument o człowieku, który skorzystał z prawa do usunięcia danych. Zaświadczenia wydane
+    **przed** usunięciem konta zostają (weryfikacja pokazuje numer, bez nazwiska).
     """
+    from apps.accounts.anonymised import anonymised_q
     from apps.cms.models import WorkshopAttendance
 
     participant_ids = set(WorkshopAttendance.objects.values_list("participant_id", flat=True).distinct())
@@ -348,6 +358,7 @@ def participants_with_workshops(edition: Edition) -> list[dict]:
     rows: dict[int, StageEntry] = {}
     for entry in (
         StageEntry.objects.filter(participant_id__in=participant_ids, stage__edition=edition)
+        .exclude(anonymised_q("participant__user"))
         .select_related("participant__user", "stage")
         .order_by("stage__opens_at", "stage_id")
     ):

@@ -177,3 +177,21 @@ def test_uczestnik_bez_wpisu_w_edycji_nie_dostaje_zaswiadczenia():
 
     assert participants_with_workshops(stage.edition) == []
     assert issue_workshop_certificates(stage.edition) == []
+
+
+def test_konto_usuniete_nie_dostaje_zaswiadczenia_z_warsztatow():
+    """Decyzja organizatora z 24.09.2026 (v0.34.0): nowy dokument imienny nie powstaje dla osoby,
+    która usunęła konto – obecność zostaje w bazie, ale lista wystawiania jej nie widzi."""
+    from apps.accounts.profile import anonymise_account
+
+    page = workshops_page()
+    stage = make_stage(problems=1)
+    present = participant_with_entry(stage)
+    deleted = participant_with_entry(stage, first_name="Jan", last_name="Usunięty")
+    for participant in (present, deleted):
+        WorkshopAttendance.objects.create(participant=participant, workshop_key=workshop_rows(page)[0]["key"])
+    anonymise_account(deleted.user)
+
+    assert [row["participant"].pk for row in participants_with_workshops(stage.edition)] == [present.pk]
+    certificates = issue_workshop_certificates(stage.edition)
+    assert [certificate.entry.participant_id for certificate in certificates] == [present.pk]
