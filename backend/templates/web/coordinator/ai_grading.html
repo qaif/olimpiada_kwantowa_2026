@@ -1,5 +1,6 @@
 {% extends "web/coordinator/base.html" %}
 {% load web_extras %}
+{% load coordinator_extras %}
 {% comment %}
   Ustawienia oceny AI jednego konkursu: klucz API (tylko do zapisu), model, limit wydatków,
   zużycie i widoczność dla uczestników per etap.
@@ -48,7 +49,7 @@
     {% if ai_settings.has_key %}
       <dl class="meta-list">
         <dt>Ustawiony</dt>
-        <dd>{{ ai_settings.api_key_set_at|local_datetime }}{% if ai_settings.api_key_set_by %} – {{ ai_settings.api_key_set_by.email }}{% endif %}</dd>
+        <dd>{{ ai_settings.api_key_set_at|local_datetime }}{% if ai_settings.api_key_set_by %} – {{ ai_settings.api_key_set_by|account_email }}{% endif %}</dd>
         <dt>Ostatnie sprawdzenie</dt>
         <dd>
           {% if ai_settings.api_key_checked_at %}

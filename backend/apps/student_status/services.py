@@ -522,11 +522,16 @@ def edition_participants(edition):
     (``apps.accounts.messaging.resolve_recipients``): ktoś, kto się do niej zapisał, a nie ktoś, kto
     kiedyś założył konto. Druga połowa warunku jest dla osoby, która wgrała zaświadczenie przed
     zapisem do etapu – jej plik musi dać się rozpatrzyć, nawet jeśli do zawodów jeszcze nie stanęła.
+
+    Bez kont po anonimizacji (v0.34.0, ``exclude_anonymised``): ich zaświadczenia znikają razem
+    z kontem (:func:`erase_for_user`), więc na liście stałyby wyłącznie jako „brak zaświadczenia”
+    i zawyżały licznik osób, od których koordynator czeka na papier – od kogoś, kto już nie istnieje.
     """
     from apps.accounts.models import Participant
 
     return (
         Participant.objects.filter(competition_id=edition.competition_id)
+        .exclude_anonymised()
         .filter(Q(stage_entries__stage__edition=edition) | Q(student_status_certificates__edition=edition))
         .distinct()
     )

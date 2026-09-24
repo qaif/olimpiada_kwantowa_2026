@@ -1,5 +1,5 @@
 {% extends "web/coordinator/base.html" %}
-{% load static web_extras %}
+{% load static web_extras coordinator_extras %}
 {% comment %}
   Wysyłka komunikatu do grupy odbiorców. Ekran jest dwustopniowy: pierwszy przycisk („Podgląd”)
   pokazuje liczbę odbiorców i treść tak, jak pójdzie w liście, drugi („Wyślij”) wysyła naprawdę.
@@ -117,7 +117,7 @@
             <td class="num">{{ row.recipient_count }}</td>
             <td class="num">{{ row.sent_count }}</td>
             <td>{{ row.get_status_display }}</td>
-            <td>{{ row.created_by.email|default:"—" }}</td>
+            <td>{{ row.created_by|account_email|default:"—" }}</td>
           </tr>
         {% empty %}
           <tr><td colspan="7" class="empty">Nie wysłano jeszcze żadnego komunikatu.</td></tr>

@@ -95,7 +95,7 @@
                 <span class="badge badge--neutral">{{ row.state_label }}</span>
               {% endif %}
               {% if certificate.decided_at %}
-                <br><span class="hint">{{ certificate.decided_at|local_datetime }}{% if certificate.decided_by %} · {{ certificate.decided_by.get_full_name|default:certificate.decided_by.email }}{% elif row.state == rejected_status %} · skaner antywirusowy{% endif %}</span>
+                <br><span class="hint">{{ certificate.decided_at|local_datetime }}{% if certificate.decided_by %} · {{ certificate.decided_by|person }}{% elif row.state == rejected_status %} · skaner antywirusowy{% endif %}</span>
               {% endif %}
             </td>
             <td>

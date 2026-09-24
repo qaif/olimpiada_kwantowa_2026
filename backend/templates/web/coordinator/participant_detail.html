@@ -175,7 +175,7 @@
                 <th scope="row">{{ row.version }}{% if row.is_current %} <span class="badge badge--neutral">bieżąca</span>{% endif %}</th>
                 <td>{{ row.uploaded_at|local_datetime }}</td>
                 <td>{{ row.get_status_display }}</td>
-                <td>{% if row.decided_at %}{{ row.decided_at|local_datetime }}{% if row.decided_by %} · {{ row.decided_by.get_full_name|default:row.decided_by.email }}{% endif %}{% else %}—{% endif %}</td>
+                <td>{% if row.decided_at %}{{ row.decided_at|local_datetime }}{% if row.decided_by %} · {{ row.decided_by|person }}{% endif %}{% else %}—{% endif %}</td>
                 <td>{{ row.rejection_reason|default:"—" }}</td>
               </tr>
             {% endfor %}

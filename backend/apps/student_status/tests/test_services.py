@@ -314,6 +314,23 @@ def test_coordinator_rows_cover_the_edition_and_count_every_state(participant, e
     assert [row.participant.pk for row in missing] == [entered.pk]
 
 
+def test_coordinator_rows_skip_deleted_accounts(participant, edition, competition):
+    """v0.34.0: konto usunięte na żądanie nie wisi na liście jako „brak zaświadczenia”."""
+    from apps.accounts.profile import anonymise_account
+    from apps.competitions.tests.factories import StageEntryFactory
+
+    stage = StageFactory(competition=competition, edition=edition)
+    deleted = ParticipantFactory(competition=competition)
+    StageEntryFactory(participant=deleted, stage=stage)
+    StageEntryFactory(participant=participant, stage=stage)
+    anonymise_account(deleted.user)
+
+    rows, counts = services.coordinator_rows(edition)
+
+    assert [row.participant.pk for row in rows] == [participant.pk]
+    assert counts["brak"] == 1
+
+
 # --- RODO -----------------------------------------------------------------------------------------
 
 

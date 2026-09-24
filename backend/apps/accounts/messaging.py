@@ -237,8 +237,12 @@ def school_choices(competition) -> list[tuple[str, str, int]]:
     Trzy zapytania grupujące (wykaz SIO, słownik organizatora, nazwa wpisana ręcznie) zamiast
     jednego: każde grupuje po innej kolumnie, a jedno zapytanie z ``CASE`` byłoby trudniejsze do
     przeczytania niż trzy proste.
+
+    Bez kont po anonimizacji (v0.34.0): ich profil ma w miejscu szkoły znacznik zamiast nazwy,
+    więc stałby na liście jako „szkoła wpisana ręcznie”, a liczby przy prawdziwych szkołach
+    liczyłyby osoby, do których i tak nic nie wyjdzie (konto nieaktywne, adres ``.invalid``).
     """
-    participants = Participant.objects.for_competition(competition)
+    participants = Participant.objects.for_competition(competition).exclude_anonymised()
     rows: list[tuple[str, str, int]] = []
     for row in (
         participants.filter(school_ref__isnull=False)
@@ -281,6 +285,7 @@ def grade_choices(competition) -> list[tuple[int, str]]:
     """
     grades = (
         Participant.objects.for_competition(competition)
+        .exclude_anonymised()
         .exclude(grade=None)
         .values_list("grade", flat=True)
         .distinct()

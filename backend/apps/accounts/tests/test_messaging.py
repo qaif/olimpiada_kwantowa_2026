@@ -390,6 +390,19 @@ def test_grade_group(competition):
     assert grade_choices(competition) == [(1, "klasa 1"), (3, "klasa 3")]
 
 
+def test_school_and_grade_lists_skip_deleted_accounts(competition):
+    """v0.34.0: profil po anonimizacji nie dokłada szkoły (znacznika) ani klasy do list wyboru."""
+    from apps.accounts.messaging import grade_choices, school_choices
+    from apps.accounts.profile import anonymise_account
+
+    _plain("zostaje@example.test", school="LO nr 1", grade=1)
+    deleted = _plain("usuniety@example.test", school="LO nr 1", grade=2)
+    anonymise_account(deleted.user)
+
+    assert school_choices(competition) == [("name:LO nr 1", "LO nr 1 (nazwa wpisana ręcznie)", 1)]
+    assert grade_choices(competition) == [(1, "klasa 1")]
+
+
 def test_workshop_group_takes_attendees_of_this_competition_only(competition, other_competition):
     from apps.cms.models import WorkshopAttendance
 
