@@ -29,9 +29,12 @@ ocenić kilkoma modelami, żeby je porównać.
   50 stron). Modele z list (stan 24.09.2026) plus „inny identyfikator modelu”; warstwa Meta
   `-contributor` odrzucana.
 - **Klucze i umowy powierzenia per dostawca** (`AiProviderAccount`): klucz tylko do zapisu (ten sam
-  Fernet), „Sprawdź klucz” bez kosztu, oraz **„Potwierdzam zawarcie umowy powierzenia (DPA)
-  z <dostawca>”** z datą i osobą (dziennik zdarzeń). Bez potwierdzenia dostawca **nie dostaje prac
-  uczestników**; wycofanie zatrzymuje prace czekające w kolejce przed wysyłką.
+  Fernet), „Sprawdź klucz” bez kosztu. Umowę powierzenia potwierdza **koordynator osobiście**, w dwóch
+  krokach: strona z informacją o dostawcy (`apps.ai_grading.disclosures`: dane, odbiorca, transfer
+  poza EOG, DPA, retencja, trenowanie, brak retencji; **ostrzeżenie 18+ przy Google i Mecie**, zmiana
+  Llama API → Meta Model API), wymagane oświadczenie i „Potwierdzam”; zapis z datą, kontem i wersją
+  (skrótem) pokazanej informacji. Bez potwierdzenia dostawca **nie dostaje prac uczestników**;
+  wycofanie (jedno kliknięcie z pytaniem) zatrzymuje prace czekające w kolejce przed wysyłką.
 - **Tryb testowy** (`apps.ai_grading.sandbox`): praca testowa koordynatora (PDF/JPG/PNG/py/ipynb,
   walidacja i skan jak prace uczestników, oświadczenie o braku danych uczestników, odmowa pliku
   identycznego z pracą uczestnika) oceniana **każdym dostawcą z kluczem, także bez umowy**. Oceny
@@ -47,10 +50,10 @@ ocenić kilkoma modelami, żeby je porównać.
   z kluczem i potwierdzoną umową); eksport danych uczestnika wymienia dostawcę i podmiot przetwarzający
   przy każdej ocenie; podręcznik organizatora § 4.12 – co sprawdzić u każdego dostawcy (DPA, SCC,
   retencja, trenowanie, brak retencji, **ograniczenia wieku w warunkach Google i Mety**).
-- **Operator**: komenda `confirm_ai_provider_dpa` (OPERACJE § 17.6) – potwierdzenie umowy jak z panelu,
-  idempotentne. **Po wdrożeniu żaden dostawca, także Anthropic, nie ma potwierdzonej umowy** – migracja
-  celowo tego nie domniemywa; komendę trzeba uruchomić dla `kwantowa` (organizator potwierdził umowy
-  24.09.2026).
+- **Operator**: komenda `confirm_ai_provider_dpa` (OPERACJE § 17.6) – wyłącznie na sytuacje
+  wyjątkowe, idempotentna, bez wersji informacji. **Po wdrożeniu żaden dostawca, także Anthropic, nie
+  ma potwierdzonej umowy** – migracja celowo tego nie domniemywa, a zgodnie z decyzją organizatora
+  potwierdza koordynator w panelu (nie operator komendą).
 
 Migracje: `ai_grading.0002_providers` (klucz Anthropic przeniesiony do `AiProviderAccount` bez
 odszyfrowania, `AiAssessment` z konkursem, dostawcą i modelem zamówionym, `AiTestWork`). Nowe

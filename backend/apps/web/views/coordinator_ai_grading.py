@@ -239,33 +239,17 @@ class AiGradingSettingsView(AiCoordinatorMixin, View):
                 )
                 (messages.success if ok else messages.error)(request, message)
                 return redirect(f"{back}#dostawca-{provider}")
-            if action == "dpa":
+            if action == "dpa_revoke":
+                # Potwierdzenie idzie osobnym ekranem (``AiDpaConfirmView``); stąd wyłącznie wycofanie –
+                # jedno kliknięcie z pytaniem w przeglądarce, bo wycofanie tylko zamyka drogę danym.
                 provider = _provider_name(request)
-                confirmed = request.POST.get("confirmed") == "1"
-                if confirmed and request.POST.get("dpa_ack") != "on":
-                    messages.error(request, "Zaznacz oświadczenie o zawarciu umowy powierzenia.")
-                    return redirect(f"{back}#dostawca-{provider}")
-                ai.set_dpa_confirmation(
-                    competition,
-                    provider,
-                    confirmed,
-                    actor=request.user,
-                    note=request.POST.get("note", ""),
-                    request=request,
+                ai.set_dpa_confirmation(competition, provider, False, actor=request.user, request=request)
+                messages.warning(
+                    request,
+                    f"Potwierdzenie umowy powierzenia z {ai.provider_label(provider)} wycofane – prace "
+                    "uczestników nie trafią już do tego dostawcy (oceny czekające w kolejce zakończą się "
+                    "błędem bez wysyłki).",
                 )
-                label = ai.provider_label(provider)
-                if confirmed:
-                    messages.success(
-                        request,
-                        f"Potwierdzenie umowy powierzenia z {label} zapisane – prace uczestników mogą "
-                        "trafiać do tego dostawcy.",
-                    )
-                else:
-                    messages.warning(
-                        request,
-                        f"Potwierdzenie umowy powierzenia z {label} wycofane – prace uczestników nie trafią "
-                        "już do tego dostawcy (oceny czekające w kolejce zakończą się błędem bez wysyłki).",
-                    )
                 return redirect(f"{back}#dostawca-{provider}")
             if action == "options":
                 row = ai.settings_for(competition)
@@ -339,6 +323,80 @@ class AiGradingSettingsView(AiCoordinatorMixin, View):
             "stages": [{"stage": stage, "visible": stage.pk in visible} for stage in stages],
         }
         return TemplateResponse(request, SETTINGS_TEMPLATE, context, status=status)
+
+
+class AiDpaConfirmView(AiCoordinatorMixin, View):
+    """``GET|POST /coordinator/ai-grading/dpa/<dostawca>/`` – potwierdzenie umowy powierzenia.
+
+    Decyzja organizatora: koordynator potwierdza umowę **osobiście, po zobaczeniu informacji**
+    o dostawcy (co wychodzi z serwisu, odbiorca, przekazanie poza EOG, linki do DPA i warunków,
+    retencja, trenowanie, brak retencji, ograniczenia wieku). Dlatego potwierdzenie ma własny ekran,
+    a nie pole na liście ustawień: GET pokazuje informację, POST przyjmuje wyłącznie formularz
+    z zaznaczonym oświadczeniem **i** z wersją informacji równą bieżącej – formularz otwarty przed
+    zmianą treści (nowe wydanie) jest odrzucany, żeby zapisana wersja była tą, którą naprawdę
+    pokazano. Strona działa bez JavaScriptu.
+    """
+
+    template_name = "web/coordinator/ai_dpa_confirm.html"
+
+    def _disclosure(self, provider: str):
+        from apps.ai_grading.disclosures import DISCLOSURES
+
+        if provider not in DISCLOSURES:
+            raise Http404("Nie ma takiego dostawcy.")
+        return DISCLOSURES[provider]
+
+    def get(self, request, provider: str):
+        competition = self.ai_competition
+        return self._render(request, competition, self._disclosure(provider))
+
+    def post(self, request, provider: str):
+        competition = self.ai_competition
+        info = self._disclosure(provider)
+        back = reverse("web:coordinator-ai-grading") + f"#dostawca-{provider}"
+        if request.POST.get("ack") != "on":
+            return self._render(
+                request,
+                competition,
+                info,
+                error="Zaznacz oświadczenie, że zapoznałeś(-aś) się z informacjami i że umowa jest zawarta.",
+                status=400,
+            )
+        if request.POST.get("info_version") != info.version:
+            return self._render(
+                request,
+                competition,
+                info,
+                error="Informacja o dostawcy zmieniła się od otwarcia tej strony – przeczytaj ją ponownie.",
+                status=409,
+            )
+        try:
+            account, changed = ai.set_dpa_confirmation(
+                competition,
+                provider,
+                True,
+                actor=request.user,
+                note=request.POST.get("note", ""),
+                info_version=info.version,
+                request=request,
+            )
+        except DomainError as exc:
+            messages.error(request, str(exc.detail))
+            return redirect(back)
+        if changed:
+            messages.success(
+                request,
+                f"Potwierdzenie umowy powierzenia z {info.label} zapisane – prace uczestników mogą trafiać "
+                "do tego dostawcy.",
+            )
+        else:
+            messages.info(request, f"Umowa powierzenia z {info.label} była już potwierdzona.")
+        return redirect(back)
+
+    def _render(self, request, competition, info, *, error: str = "", status: int = 200):
+        account = ai.accounts_for(competition)[info.provider]
+        context = {"info": info, "account": account, "error": error}
+        return TemplateResponse(request, self.template_name, context, status=status)
 
 
 class AiGenerateView(AiCoordinatorMixin, View):

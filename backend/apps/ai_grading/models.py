@@ -191,6 +191,9 @@ class AiProviderAccount(models.Model):
         verbose_name="umowę potwierdził",
     )
     dpa_note = models.CharField("uwaga do potwierdzenia", max_length=300, blank=True)
+    #: Wersja (skrót) informacji o dostawcy pokazanej koordynatorowi przy potwierdzeniu
+    #: (``apps.ai_grading.disclosures``). Pusta – potwierdzenie wpisane komendą operatora.
+    dpa_info_version = models.CharField("wersja informacji przy potwierdzeniu", max_length=40, blank=True)
 
     objects = competition_scoped_manager("competition")
 

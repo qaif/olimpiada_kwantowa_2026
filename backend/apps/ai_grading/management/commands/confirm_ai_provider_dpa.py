@@ -1,18 +1,20 @@
 """Potwierdzenie umowy powierzenia (DPA) z dostawcą AI – komenda operatora.
 
-Organizator potwierdza umowy zwykle sam, w panelu (``/coordinator/ai-grading/``, pole
-„Potwierdzam zawarcie umowy powierzenia (DPA) z …”). Komenda istnieje dla sytuacji, w której
-oświadczenie organizatora przychodzi **inną drogą** (rozmowa, e-mail) i operator ma je wpisać – np.
-po wdrożeniu wersji z dostawcami, bo migracja celowo niczego nie „domniemywa”:
+**Zwykłą drogą jest potwierdzenie koordynatora w panelu** (decyzja organizatora z 24.09.2026):
+``/coordinator/ai-grading/`` → „Potwierdź umowę powierzenia” → strona z informacją o dostawcy
+(``apps.ai_grading.disclosures``) → oświadczenie → „Potwierdzam”; zapis niesie wersję pokazanej
+informacji. Komenda zostaje wyłącznie na sytuacje wyjątkowe (panel niedostępny, a organizator
+potwierdził umowę na piśmie) – operator nie wpisuje nią potwierdzeń za koordynatora na co dzień:
 
     python manage.py confirm_ai_provider_dpa --competition kwantowa --provider all \\
         --confirmed-by koordynator@example.com --note "potwierdzone przez organizatora w rozmowie 24.09.2026"
 
-Zapis jest **dokładnie ten sam** co z panelu (``services.set_dpa_confirmation``): data, konto
+Zapis idzie tą samą funkcją co z panelu (``services.set_dpa_confirmation``): data, konto
 potwierdzającego i wpis ``ai_grading.dpa_confirmed`` w dzienniku zdarzeń z uwagą i znacznikiem
-``via: "command"``. Komenda jest idempotentna – umowa już potwierdzona zostaje z pierwotną datą
-i osobą, bez nowego wpisu. Konto potwierdzającego musi istnieć i być aktywne: oświadczenie prawne
-ma mieć autora, a nie „operatora”.
+``via: "command"`` – ale **bez** wersji informacji (``info_version`` puste), bo operator informacji
+koordynatorowi nie pokazał; karta dostawcy pisze wtedy „wpisane komendą operatora”. Komenda jest
+idempotentna – umowa już potwierdzona zostaje z pierwotną datą i osobą, bez nowego wpisu. Konto
+potwierdzającego musi istnieć i być aktywne: oświadczenie prawne ma mieć autora, a nie „operatora”.
 """
 
 from __future__ import annotations

@@ -83,6 +83,7 @@
             <span class="badge badge--ok">potwierdzona</span>
             {{ state.account.dpa_confirmed_at|local_datetime }}{% if state.account.dpa_confirmed_by %} – {{ state.account.dpa_confirmed_by|account_email }}{% endif %}
             {% if state.account.dpa_note %}<span class="hint">({{ state.account.dpa_note }})</span>{% endif %}
+            <span class="hint">{% if state.account.dpa_info_version %}– po zapoznaniu się z informacją w wersji <code>{{ state.account.dpa_info_version }}</code>{% else %}– wpisane komendą operatora{% endif %}</span>
           {% else %}<span class="badge badge--warn">niepotwierdzona</span>{% endif %}
         </dd>
       </dl>
@@ -115,28 +116,22 @@
           <button type="submit" class="btn btn--primary">{% if state.account.has_key %}Zastąp klucz{% else %}Zapisz klucz{% endif %}</button>
         </div>
       </form>
-      <form method="post" class="form form--wide">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="dpa">
-        <input type="hidden" name="provider" value="{{ state.name }}">
-        {% if state.account.dpa_confirmed %}
-          <input type="hidden" name="confirmed" value="0">
-          <div class="actions">
-            <button type="submit" class="btn btn--secondary">Wycofaj potwierdzenie umowy powierzenia</button>
-          </div>
-        {% else %}
-          <input type="hidden" name="confirmed" value="1">
-          <p><label><input type="checkbox" name="dpa_ack" required>
-            Potwierdzam zawarcie umowy powierzenia (DPA) z {{ state.label }}</label></p>
-          <p>
-            <label for="dpa-uwaga-{{ state.name }}">Uwaga (np. data i forma zawarcia umowy)</label>
-            <input type="text" name="note" id="dpa-uwaga-{{ state.name }}" maxlength="300">
-          </p>
-          <div class="actions">
-            <button type="submit" class="btn btn--secondary">Zapisz potwierdzenie</button>
-          </div>
-        {% endif %}
-      </form>
+      {% if state.account.dpa_confirmed %}
+        <form method="post" class="inline"
+              x-data="confirmSubmit" x-on:submit="check"
+              data-confirm="Wycofać potwierdzenie umowy powierzenia z {{ state.label }}? Prace uczestników przestaną trafiać do tego dostawcy.">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="dpa_revoke">
+          <input type="hidden" name="provider" value="{{ state.name }}">
+          <button type="submit" class="btn btn--secondary">Wycofaj potwierdzenie umowy powierzenia</button>
+        </form>
+      {% else %}
+        <p class="hint">Umowę potwierdza koordynator osobiście – po zapoznaniu się z informacją o dostawcy
+          (co wychodzi z serwisu, retencja, przekazanie poza EOG{% if state.name == 'google' or state.name == 'meta' %}, <strong>ograniczenie wieku w warunkach dostawcy</strong>{% endif %}).</p>
+        <div class="actions">
+          <a class="btn btn--secondary" href="{% url 'web:coordinator-ai-dpa' state.name %}">Potwierdź umowę powierzenia</a>
+        </div>
+      {% endif %}
     </div>
   {% endfor %}
 </section>

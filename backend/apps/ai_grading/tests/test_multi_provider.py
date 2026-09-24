@@ -108,7 +108,7 @@ def test_dpa_confirmation_is_audited_with_who_and_when_and_is_idempotent(competi
     assert again.dpa_confirmed_at == account.dpa_confirmed_at
     entry = AuditLog.objects.get(action="ai_grading.dpa_confirmed")
     assert entry.actor == coordinator
-    assert entry.diff == {"provider": "google", "note": "umowa z 1.09", "via": "panel"}
+    assert entry.diff == {"provider": "google", "note": "umowa z 1.09", "via": "panel", "info_version": None}
 
 
 def test_revoking_the_dpa_stops_queued_work_before_it_is_sent(ready, problem, coordinator, model):
@@ -385,24 +385,108 @@ def test_settings_page_lists_every_provider_and_marks_unavailable_packages(
     for label in ("Anthropic", "OpenAI", "Google", "Meta"):
         assert f'id="dostawca-{label.lower()}"' in content
     assert "niedostępny – brak pakietu „google-genai”" in content
-    assert "Potwierdzam zawarcie umowy powierzenia (DPA) z Meta" in content
+    assert "Potwierdź umowę powierzenia" in content
 
 
-def test_dpa_checkbox_in_the_panel(competition, coordinator, web):
+def dpa_url(provider: str) -> str:
+    return f"/coordinator/ai-grading/dpa/{provider}/"
+
+
+def test_settings_page_links_to_the_confirmation_page_instead_of_a_checkbox(competition, coordinator, web):
     enable_ai(competition)
 
-    web.post(SETTINGS_URL, {"action": "dpa", "provider": "openai", "confirmed": "1"})  # bez zaznaczenia
+    content = web.get(SETTINGS_URL).content.decode()
+
+    for provider in ("anthropic", "openai", "google", "meta"):
+        assert f'href="{dpa_url(provider)}"' in content
+    assert 'name="ack"' not in content  # oświadczenie jest wyłącznie na ekranie informacji
+
+
+@pytest.mark.parametrize("provider", ["anthropic", "openai", "google", "meta"])
+def test_confirmation_page_shows_the_provider_specific_information(competition, coordinator, web, provider):
+    from apps.ai_grading.disclosures import AGE_WARNING, DISCLOSURES
+
+    enable_ai(competition)
+    info = DISCLOSURES[provider]
+
+    response = web.get(dpa_url(provider))
+    content = response.content.decode()
+
+    assert response.status_code == 200
+    assert info.recipient in content and info.retention in content and info.training in content
+    assert info.zero_retention in content and info.transfer in content
+    for _label, url in info.links:
+        assert f'href="{url}"' in content
+    assert "praca uczestnika" in content.lower() or "plik pracy uczestnika" in content
+    assert (
+        f"potwierdzam, że organizator zawarł umowę\n          powierzenia z {info.label} obejmującą tę usługę"
+        in content
+    )
+    assert f'name="info_version" value="{info.version}"' in content
+    assert (AGE_WARNING in content) is (provider in ("google", "meta"))
+    if provider == "meta":
+        assert "Llama API" in content and "Meta Model API" in content
+
+
+def test_confirmation_without_the_checkbox_is_refused(competition, coordinator, web):
+    from apps.ai_grading.disclosures import DISCLOSURES
+
+    enable_ai(competition)
+
+    response = web.post(dpa_url("google"), {"info_version": DISCLOSURES["google"].version})
+
+    assert response.status_code == 400
+    assert not services.account_for(competition, "google").dpa_confirmed
+    assert not AuditLog.objects.filter(action="ai_grading.dpa_confirmed").exists()
+
+
+def test_confirmation_with_an_outdated_information_version_is_refused(competition, coordinator, web):
+    enable_ai(competition)
+
+    response = web.post(dpa_url("openai"), {"ack": "on", "info_version": "2026-01-01/0000"})
+
+    assert response.status_code == 409
     assert not services.account_for(competition, "openai").dpa_confirmed
 
-    web.post(
-        SETTINGS_URL, {"action": "dpa", "provider": "openai", "confirmed": "1", "dpa_ack": "on", "note": "x"}
-    )
-    account = services.account_for(competition, "openai")
-    assert account.dpa_confirmed and account.dpa_confirmed_by == coordinator
 
-    web.post(SETTINGS_URL, {"action": "dpa", "provider": "openai", "confirmed": "0"})
+def test_confirmation_records_who_when_and_the_information_version(competition, coordinator, web):
+    from apps.ai_grading.disclosures import DISCLOSURES
+
+    enable_ai(competition)
+    version = DISCLOSURES["meta"].version
+
+    response = web.post(dpa_url("meta"), {"ack": "on", "info_version": version, "note": "umowa 1.09"})
+
+    assert response.status_code == 302
+    account = services.account_for(competition, "meta")
+    assert account.dpa_confirmed and account.dpa_confirmed_by == coordinator
+    assert account.dpa_info_version == version
+    entry = AuditLog.objects.get(action="ai_grading.dpa_confirmed")
+    assert entry.diff == {"provider": "meta", "note": "umowa 1.09", "via": "panel", "info_version": version}
+
+
+def test_revoking_is_one_click_on_the_settings_page(competition, coordinator, web):
+    enable_ai(competition)
+    with_key(competition, coordinator, provider="openai")
+
+    content = web.get(SETTINGS_URL).content.decode()
+    assert 'value="dpa_revoke"' in content and "data-confirm=" in content
+
+    web.post(SETTINGS_URL, {"action": "dpa_revoke", "provider": "openai"})
+
     assert not services.account_for(competition, "openai").dpa_confirmed
     assert AuditLog.objects.filter(action="ai_grading.dpa_revoked").count() == 1
+
+
+def test_confirmation_page_is_for_coordinators_and_known_providers_only(competition, coordinator, web):
+    enable_ai(competition)
+    assert web.get(dpa_url("mistral")).status_code == 404
+
+    participant = ParticipantFactory()
+    grant_membership(participant.user, competition, CompetitionRole.PARTICIPANT)
+    client = Client()
+    client.force_login(participant.user)
+    assert client.post(dpa_url("openai"), {"ack": "on"}).status_code == 403
 
 
 # --- ceny i model bez ceny ---------------------------------------------------------------------------
@@ -531,6 +615,9 @@ def test_command_confirms_every_provider_idempotently(competition, coordinator):
     entries = AuditLog.objects.filter(action="ai_grading.dpa_confirmed")
     assert entries.count() == 4
     assert all(entry.diff["via"] == "command" and entry.diff["note"] == note for entry in entries)
+    # Operator informacji nie widział – wersja pusta, a ekran pisze „wpisane komendą operatora”.
+    assert all(entry.diff["info_version"] is None for entry in entries)
+    assert all(row.dpa_info_version == "" for row in rows)
     assert all(entry.competition_id == competition.pk for entry in entries)
 
 
