@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from django import forms
 
+from apps.accounts.messaging import EDITION_SCOPED_GROUPS, STAGE_GROUPS
 from apps.accounts.models import BroadcastGroup, ConsentDefinition, Region, RegistrationProfile
 from apps.competitions.models import (
     Category,
@@ -42,17 +43,41 @@ from .forms import VOIVODESHIP_CHOICES
 #: i rozesłaniem go tysiącom osób.
 MAX_BODY_LENGTH = 100_000
 
-#: Grupy, które bez wskazanego etapu nie mają sensu – ekran wymaga wtedy wyboru etapu.
-STAGE_REQUIRED_GROUPS = frozenset({BroadcastGroup.STAGE_REGISTERED, BroadcastGroup.STAGE_QUALIFIED})
+#: Komunikat, gdy grupa wymaga parametru, a pole zostało puste – po jednym na pole. Województwo ma
+#: dwa brzmienia, bo służy dwóm grupom: komitetowi i uczestnikom.
+PARAMETER_REQUIRED = {
+    "stage": "Ta grupa odbiorców wymaga wskazania etapu.",
+    "region": "Wybierz region uczestników.",
+    "school": "Wybierz szkołę.",
+    "grade": "Wybierz klasę.",
+    "workshop": "Wybierz warsztat.",
+    "addresses": "Wklej przynajmniej jeden adres.",
+}
+DISTRICT_REQUIRED = {
+    BroadcastGroup.COMMITTEE_DISTRICT: "Wybierz województwo komitetu.",
+    BroadcastGroup.REGION_PARTICIPANTS: "Wybierz województwo uczestników.",
+}
 
 
 class BroadcastForm(forms.Form):
     """Komunikat do grupy odbiorców: grupa, doprecyzowanie grupy, temat i treść.
 
-    Pola doprecyzowujące (etap, województwo, wklejona lista) są **opcjonalne na poziomie pola**,
-    a wymagane dopiero wtedy, gdy wybrana grupa ich potrzebuje – sprawdza to ``clean``. Gdyby były
-    wymagane zawsze, koordynator wysyłający list do całego komitetu musiałby wskazać etap,
-    który nie ma z tym listem nic wspólnego.
+    Pola doprecyzowujące (etap, województwo, region, szkoła, klasa, warsztat, wklejona lista) są
+    **opcjonalne na poziomie pola**, a wymagane dopiero wtedy, gdy wybrana grupa ich potrzebuje –
+    sprawdza to ``clean``. Gdyby były wymagane zawsze, koordynator wysyłający list do całego
+    komitetu musiałby wskazać etap, który nie ma z tym listem nic wspólnego. Które pole należy do
+    której grupy, mówi :meth:`parameter_field` – jedno miejsce dla walidacji, dla wywołania
+    ``resolve_recipients`` (:meth:`recipient_kwargs`), dla historii (:meth:`target`) i dla skryptu,
+    który chowa na ekranie pola nienależące do wybranej grupy (``parameter_map``).
+
+    Pole wypełnione, ale **nienależące** do wybranej grupy (koordynator wybrał etap, potem zmienił
+    grupę na „wszyscy uczestnicy”) jest ignorowane – do zapytania i do historii idzie wyłącznie
+    parametr wybranej grupy. Inaczej historia twierdziłaby, że list do wszystkich dotyczył etapu.
+
+    Listy wyboru (etapy, regiony, szkoły, klasy, warsztaty) **podaje widok**, a nie formularz:
+    formularz nie ma wiedzieć, który konkurs obsługuje ani która edycja jest bieżąca, a test chce
+    móc podać własny zestaw bez ustawiania globalnego stanu. Każda z tych list jest zamknięta
+    i policzona w obrębie ``request.competition`` – wartość spoza niej odpada na walidacji pola.
 
     Treść jest czystym tekstem. Listy transakcyjne w tym serwisie są tekstowe (patrz
     ``apps.core.tasks.send_mail_task``), a komunikat organizatora nie ma powodu być wyjątkiem:
@@ -68,6 +93,34 @@ class BroadcastForm(forms.Form):
         empty_label="— wybierz etap —",
     )
     district = forms.ChoiceField(label="Województwo", choices=VOIVODESHIP_CHOICES, required=False)
+    region = forms.ModelChoiceField(
+        label="Region",
+        queryset=Region.objects.none(),
+        required=False,
+        empty_label="— wybierz region —",
+    )
+    school = forms.ChoiceField(
+        label="Szkoła",
+        required=False,
+        help_text=(
+            "Szkoły, z których są uczestnicy tego konkursu; w nawiasie liczba uczestników ze "
+            "wszystkich edycji – ilu z nich dostanie list, pokaże podgląd."
+        ),
+    )
+    grade = forms.TypedChoiceField(label="Klasa", required=False, coerce=int, empty_value=None)
+    workshop = forms.ChoiceField(
+        label="Warsztat",
+        required=False,
+        help_text="Odbiorcy to osoby odhaczone w tabeli obecności na warsztatach.",
+    )
+    include_past_editions = forms.BooleanField(
+        label="także uczestnicy poprzednich edycji",
+        required=False,
+        help_text=(
+            "Bez zaznaczenia list dostają wyłącznie uczestnicy bieżącej edycji: zapisani do jej "
+            "etapu albo zarejestrowani w niej."
+        ),
+    )
     addresses = forms.CharField(
         label="Lista adresów",
         required=False,
@@ -81,26 +134,134 @@ class BroadcastForm(forms.Form):
         widget=forms.Textarea(attrs={"rows": 12}),
     )
 
-    def __init__(self, *args, stages=None, **kwargs):
-        """``stages`` zawęża listę etapów do bieżącej edycji – innych i tak nie wolno wybrać.
+    def __init__(self, *args, stages=None, regions=None, schools=(), grades=(), workshops=(), **kwargs):
+        """Listy wyboru grup z parametrem – każda policzona przez widok w obrębie konkursu.
 
-        Queryset podawany z zewnątrz, a nie liczony w polu: formularz nie ma wiedzieć, która
-        edycja jest bieżąca (to pytanie do ``apps.competitions.services``), a test chce móc podać
-        własny zestaw etapów bez ustawiania globalnego stanu.
+        ``regions=None`` znaczy „konkurs bez własnego podziału terytorialnego” (flaga
+        ``custom_regions`` wyłączona) i wtedy pola „Region” **nie ma** – grupę regionalną
+        doprecyzowuje województwo, dokładnie tak, jak czytają je dziś wszystkie inne ekrany.
+        ``schools`` to trójki ``(klucz, nazwa, liczba)`` z ``apps.accounts.messaging.school_choices``,
+        ``grades`` i ``workshops`` – pary ``(wartość, etykieta)``.
         """
         super().__init__(*args, **kwargs)
         self.fields["stage"].queryset = stages if stages is not None else Stage.objects.none()
+        if regions is None:
+            del self.fields["region"]
+        else:
+            self.fields["region"].queryset = regions
+        self.school_labels = {key: name for key, name, _ in schools}
+        self.fields["school"].choices = [
+            ("", "— wybierz szkołę —"),
+            *[(key, f"{name} ({count})") for key, name, count in schools],
+        ]
+        self.fields["grade"].choices = [("", "— wybierz klasę —"), *grades]
+        self.workshop_labels = dict(workshops)
+        self.fields["workshop"].choices = [("", "— wybierz warsztat —"), *workshops]
+
+    def parameter_field(self, group: str | None) -> str | None:
+        """Nazwa pola, które doprecyzowuje grupę – albo ``None`` dla grupy bez parametru.
+
+        Region ma dwa pola i to jest jedyna gałąź zależna od konkursu: przy własnym podziale
+        (``custom_regions``) grupę doprecyzowuje ``region``, bez niego – ``district``.
+        """
+        if group in STAGE_GROUPS:
+            return "stage"
+        if group == BroadcastGroup.REGION_PARTICIPANTS:
+            return "region" if "region" in self.fields else "district"
+        return {
+            BroadcastGroup.COMMITTEE_DISTRICT: "district",
+            BroadcastGroup.SCHOOL_PARTICIPANTS: "school",
+            BroadcastGroup.GRADE_PARTICIPANTS: "grade",
+            BroadcastGroup.WORKSHOP_ATTENDEES: "workshop",
+            BroadcastGroup.CUSTOM: "addresses",
+        }.get(group)
+
+    @staticmethod
+    def edition_scoped(group: str | None) -> bool:
+        """Czy grupa słucha pola „także uczestnicy poprzednich edycji” (``EDITION_SCOPED_GROUPS``)."""
+        return group in EDITION_SCOPED_GROUPS
+
+    def parameter_map(self) -> dict[str, list[str]]:
+        """``{grupa: [pola]}`` dla skryptu ``broadcast-groups.js`` – które kontrolki należą do grupy.
+
+        Liczone z :meth:`parameter_field` i :meth:`edition_scoped`, a nie przepisane do szablonu,
+        żeby ekran nie mógł się rozjechać z walidacją ani z tym, co trafia do zapytania: pole
+        widoczne przy grupie jest dokładnie tym, które ``recipient_kwargs`` przekaże dalej.
+        """
+        mapping: dict[str, list[str]] = {}
+        for value, _ in BroadcastGroup.choices:
+            fields = [field] if (field := self.parameter_field(value)) is not None else []
+            if self.edition_scoped(value):
+                fields.append("include_past_editions")
+            if fields:
+                mapping[value] = fields
+        return mapping
 
     def clean(self) -> dict:
         cleaned = super().clean()
         group = cleaned.get("group")
-        if group in STAGE_REQUIRED_GROUPS and not cleaned.get("stage"):
-            self.add_error("stage", "Ta grupa odbiorców wymaga wskazania etapu.")
-        if group == BroadcastGroup.COMMITTEE_DISTRICT and not cleaned.get("district"):
-            self.add_error("district", "Wybierz województwo komitetu.")
-        if group == BroadcastGroup.CUSTOM and not (cleaned.get("addresses") or "").strip():
-            self.add_error("addresses", "Wklej przynajmniej jeden adres.")
+        field = self.parameter_field(group)
+        if field is None or field in self.errors:
+            return cleaned
+        value = cleaned.get(field)
+        if field == "addresses":
+            value = (value or "").strip()
+        if value in (None, ""):
+            message = DISTRICT_REQUIRED[group] if field == "district" else PARAMETER_REQUIRED[field]
+            self.add_error(field, message)
         return cleaned
+
+    def recipient_kwargs(self) -> dict:
+        """Parametr wybranej grupy jako argumenty ``resolve_recipients`` – i **tylko** on.
+
+        Przełącznik edycji jedzie **zawsze** przy grupach, których dotyczy – także jako ``False`` –
+        bo z tych argumentów liczy się też podpis podglądu (``preview_signature``): odhaczenie
+        „także poprzednich edycji” po podglądzie ma unieważnić podpis tak samo jak zmiana szkoły.
+        """
+        group = self.cleaned_data.get("group")
+        field = self.parameter_field(group)
+        kwargs = {} if field is None else {field: self.cleaned_data.get(field)}
+        if self.edition_scoped(group):
+            kwargs["include_past_editions"] = bool(self.cleaned_data.get("include_past_editions"))
+        return kwargs
+
+    def target(self) -> dict:
+        """Parametr wybranej grupy do rejestru wysyłek: identyfikator i etykieta z chwili wysyłki.
+
+        Przy grupach zależnych od edycji dochodzi ``past_editions`` (``True``/``False``) i dopisek
+        w etykiecie („bieżąca edycja” albo „także poprzednie edycje”) – historia ma mówić, czy list
+        do „wszystkich uczestników” objął jeden rocznik, czy kilka.
+
+        Wklejona lista adresów nie zostawia tu **niczego** – adresów spoza systemu nie zapisujemy
+        nigdzie (``BroadcastGroup``), więc historia mówi o niej wyłącznie „wklejona lista, N
+        odbiorców”.
+        """
+        group = self.cleaned_data.get("group")
+        target = self._parameter_target()
+        if not self.edition_scoped(group):
+            return target
+        past = bool(self.cleaned_data.get("include_past_editions"))
+        scope = "także poprzednie edycje" if past else "bieżąca edycja"
+        label = target.get("label")
+        return {**target, "past_editions": past, "label": f"{label} ({scope})" if label else scope}
+
+    def _parameter_target(self) -> dict:
+        """Sam parametr grupy (etap, województwo, region, szkoła, klasa, warsztat) z etykietą."""
+        field = self.parameter_field(self.cleaned_data.get("group"))
+        value = self.cleaned_data.get(field) if field else None
+        if field is None or field == "addresses" or value in (None, ""):
+            return {}
+        if field == "stage":
+            return {"stage": value.pk, "label": str(value)}
+        if field == "region":
+            return {"region": value.code, "label": value.name}
+        if field == "district":
+            return {"district": value, "label": dict(VOIVODESHIP_CHOICES).get(value, value)}
+        if field == "school":
+            return {"school": value, "label": self.school_labels.get(value, value)}
+        if field == "grade":
+            return {"grade": value, "label": f"klasa {value}"}
+        return {"workshop": value, "label": self.workshop_labels.get(value, value)}
 
 
 class AuditFilterForm(forms.Form):

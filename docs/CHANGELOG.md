@@ -37,6 +37,55 @@ to błąd. Koordynator przeglądając uczestników powinien mieć możliwość i
   (karta członka komisji wypisywała tam adres oglądanej osoby).
 - Podręcznik organizatora § 10.1.
 
+## [Unreleased] – wysyłka do grup
+
+Prośba organizatora z 24.09.2026: „koordynator dostaje funkcję wysyłania maili do poszczególnych grup
+uczestników, w tym do wszystkich”. Rozbudowa istniejącego ekranu **`/coordinator/messages/`**
+(Komunikacja → Komunikaty; bez flagi, działa w każdym konkursie):
+
+- **nowe grupy odbiorców** (`BroadcastGroup`): **„wszyscy uczestnicy konkursu”** – pierwsza na liście,
+  uczestnicy bieżącej edycji także bez wpisu do etapu (patrz niżej); „zapisani do etapu, bez wysłanej
+  pracy” (wpis zarejestrowany/zakwalifikowany bez żadnej pracy w etapie, praca odrzucona przez antywirusa
+  się nie liczy – przypomnienie przed terminem); uczestnicy z wybranego **województwa** (przy fladze
+  `custom_regions` – **regionu**, łącznie z profilami sprzed flagi); z wybranej **szkoły** (lista wyłącznie
+  szkół, z których są uczestnicy tego konkursu, z liczbą w nawiasie; wykaz SIO, słownik organizatora
+  i nazwa wpisana ręcznie jako osobne pozycje); z wybranej **klasy**; **obecni na wybranym warsztacie**
+  (tabela obecności `cms.WorkshopAttendance`, warsztaty z harmonogramu tego konkursu); **opiekunowie
+  szkolni** (profil `SchoolSupervisor` tego konkursu + rola `supervisor`, z członkostwami przy
+  `memberships_enforced`). Dotychczasowa grupa edycyjna zmienia etykietę na „uczestnicy bieżącej edycji
+  (zapisani do etapu)”;
+- **parametr grupy w historii i audycie**: nowe pole `MessageBroadcast.target` (JSON, migracja
+  `accounts.0033_broadcast_target`) – identyfikator i etykieta etapu/regionu/szkoły/klasy/warsztatu
+  z chwili wysyłki; kolumna „Grupa” w „Wysłanych komunikatach”, podgląd („Odbiorcy: …”) i wpis
+  `broadcast.sent` pokazują, do kogo poszedł list. Adresów nadal nigdzie nie zapisujemy; pole
+  wypełnione, ale nienależące do wybranej grupy, jest ignorowane;
+- **zakres konkursu**: każda grupa liczona w obrębie `request.competition` (`resolve_recipients(…,
+  competition=…)`), a konto wybierane wyłącznie po identyfikatorze profilu z tego konkursu. Przy okazji
+  naprawione dwa przecieki istniejącego kodu: grupa „członkowie komitetu” nie miała zakresu konkursu
+  w ogóle, a wiersz rejestru brał konkurs z odwrotu `default_competition` zamiast z żądania; nieużywane
+  `recent_broadcasts()` wymaga odtąd konkursu. Etap albo region z innego konkursu daje pustą grupę;
+- **domyślnie bieżąca edycja** (decyzja organizatora z 24.09.2026): „wszyscy uczestnicy konkursu”
+  oraz grupy województwa/regionu, szkoły i klasy obejmują wyłącznie uczestników bieżącej edycji – profil
+  tego konkursu **i** (wpis do etapu bieżącej edycji **albo** konto założone nie wcześniej niż
+  `Edition.created_at`; `apps.accounts.messaging.current_edition_participants`). Pole „także uczestnicy
+  poprzednich edycji” (domyślnie odznaczone) zdejmuje zawężenie; wybór wchodzi do podpisu podglądu,
+  do `MessageBroadcast.target` (`past_editions`, dopisek w etykiecie) i do audytu. Bez bieżącej edycji
+  te grupy są puste, dopóki pole nie jest zaznaczone;
+- **podpis podglądu**: „Wyślij” przechodzi wyłącznie z ukrytym podpisem (HMAC) grupy, jej parametru,
+  tematu i treści z ostatniego podglądu – zmiana czegokolwiek po podglądzie (np. „szkoła X” →
+  „wszyscy uczestnicy”) niczego nie wysyła, tylko pokazuje podgląd na nowo. Wcześniej przycisk
+  „Wyślij” z poprzedniego podglądu wysyłał to, co akurat stało w formularzu;
+- formularz pokazuje wyłącznie pole wymagane przez wybraną grupę (`static/js/broadcast-groups.js`,
+  mapa „grupa → pole” z `BroadcastForm.parameter_map`; bez JavaScriptu widać wszystkie pola);
+- zapytania o odbiorców: jedno zapytanie z półzłączeniem (`User.pk IN (profile tego konkursu)`) na
+  grupę, bez `DISTINCT` po wpisach; listy wyboru szkół i klas – po jednym zapytaniu grupującym.
+
+Świadomie **bez** załączników (odnośnik do pliku z biblioteki dokumentów `/cms/` w treści), bez kopii do
+adresu opiekuna prawnego (`guardian_email` służy wyłącznie zgodzie – RODO), bez grupy „rocznik” (wiek
+zbieramy tylko do reguły zgody opiekuna), bez grupy „zapisani na warsztat, ale nieobecni” (warsztaty nie
+mają zapisów – jest tylko obecność) i bez wpisów drużynowych w grupach etapowych. Podręcznik
+organizatora § 6.1.
+
 ## Niewydane (po `v0.31.1`)
 
 | Wersja | Data | Zmiana |
