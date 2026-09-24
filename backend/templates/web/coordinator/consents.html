@@ -32,8 +32,8 @@
 {% endif %}
 
 <section class="section">
-  <div class="scroll">
-    <table class="table">
+  <div class="scroll" role="region" tabindex="0" aria-label="Definicje zgód tego konkursu">
+    <table class="table table--stack">
       <caption class="visually-hidden">Definicje zgód tego konkursu</caption>
       <thead>
         <tr>
@@ -52,16 +52,16 @@
             <th scope="row">
               <a href="{% url 'web:coordinator-consent-edit' definition.pk %}">{{ definition.get_kind_display }}</a>
             </th>
-            <td><code>{{ definition.field_name }}</code></td>
-            <td>
+            <td data-label="Pole formularza"><code>{{ definition.field_name }}</code></td>
+            <td data-label="Dokument">
               {% if definition.document_slug %}
                 <code>{{ definition.document_slug }}</code>
               {% else %}
                 —
               {% endif %}
             </td>
-            <td>{{ definition.version }}</td>
-            <td>
+            <td data-label="Wersja">{{ definition.version }}</td>
+            <td data-label="Wymagalność">
               {% if definition.required %}
                 <span class="badge badge--ok">wymagana</span>
               {% elif definition.required_for_minor %}
@@ -70,8 +70,8 @@
                 <span class="badge badge--neutral">dobrowolna</span>
               {% endif %}
             </td>
-            <td class="num">{{ definition.ordering }}</td>
-            <td>
+            <td class="num" data-label="Kolejność">{{ definition.ordering }}</td>
+            <td data-label="Stan">
               {% if definition.is_active %}
                 <span class="badge badge--ok">aktywna</span>
               {% else %}

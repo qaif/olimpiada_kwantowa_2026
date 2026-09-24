@@ -46,7 +46,8 @@
   <p class="hint">„Na antenie” znaczy: włączony i mieszczący się w swoim oknie czasowym.
     Komunikat poza oknem zostaje w bazie i wróci sam, kiedy nadejdzie jego termin.</p>
 
-  <table class="table">
+  <div class="scroll" role="region" tabindex="0" aria-label="Komunikaty w serwisie">
+  <table class="table table--stack">
     <thead>
       <tr>
         <th scope="col">Treść</th>
@@ -59,13 +60,13 @@
     <tbody>
       {% for row in rows %}
         <tr>
-          <td>{{ row.announcement.text|truncatechars:120 }}</td>
-          <td>{{ row.announcement.get_level_display }}</td>
-          <td>
+          <th scope="row">{{ row.announcement.text|truncatechars:120 }}</th>
+          <td data-label="Waga">{{ row.announcement.get_level_display }}</td>
+          <td data-label="Okno">
             {{ row.announcement.starts_at|local_datetime }}
             – {% if row.announcement.ends_at %}{{ row.announcement.ends_at|local_datetime }}{% else %}do wyłączenia{% endif %}
           </td>
-          <td>
+          <td data-label="Stan">
             {% if row.live %}
               <span class="badge badge--ok">na antenie</span>
             {% elif not row.announcement.is_active %}
@@ -75,7 +76,7 @@
             {% endif %}
             {% if not row.announcement.dismissible %}<span class="badge badge--warn">nie do zamknięcia</span>{% endif %}
           </td>
-          <td>
+          <td data-label="Działania">
             <a class="btn btn--ghost btn--small"
                href="{% url 'web:coordinator-announcements' %}?edit={{ row.announcement.pk }}">Zmień</a>
             {% comment %}
@@ -94,10 +95,11 @@
           </td>
         </tr>
       {% empty %}
-        <tr><td colspan="5">Nie ma jeszcze żadnych komunikatów.</td></tr>
+        <tr><td colspan="5" class="empty">Nie ma jeszcze żadnych komunikatów.</td></tr>
       {% endfor %}
     </tbody>
   </table>
+  </div>
 </section>
 
 <p class="hint">Stan usług serwisu (baza, kolejka zadań, storage) widać na publicznej stronie

@@ -22,8 +22,8 @@
         {{ table.publication.get_anonymization_display }}.
         <a href="{% url 'web:results' table.stage.pk %}">wersja pełnoekranowa</a></p>
     </div>
-    <div class="scroll">
-      <table class="table table--rank">
+    <div class="scroll" role="region" tabindex="0" aria-label="Tabela wyników: {{ table.stage.display_name }}">
+      <table class="table table--rank table--sticky-rank">
         <thead>
           <tr>
             <th>Miejsce</th>

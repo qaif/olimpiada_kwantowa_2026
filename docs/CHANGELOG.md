@@ -8,6 +8,47 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – responsywne tabele
+
+Prośba organizatora z 25.09.2026: **„Popraw responsywność, szczególnie w panelu koordynatora, jeśli
+chodzi o tabele”**. Bez migracji, bez zmian w widokach i bez flagi – zmiana dotyczy arkusza
+(`app.css` § 6.4), szablonów i jednego nowego skryptu (`js/table-scroll.js`, plik zewnętrzny
+z nonce jak pozostałe; CSP bez zmian). Wzorzec i wybór między przewijaniem a kartami:
+[`UI.md`](UI.md) § 2.10.
+
+- **Kolumny nie są już ściskane do pojedynczych liter.** `overflow-wrap: anywhere` w komórkach
+  zerował minimalną szerokość kolumny, więc tabela nigdy nie sięgała po przewijanie: lista kont
+  na 1024 px miała wiersze po 361 px (e-mail i imię łamane co kilka liter), przydziały na 360 px –
+  po 1900 px. W ramce `.scroll` kolumna nie schodzi poniżej najdłuższego słowa, a ciąg bez spacji
+  ma sufit `--cell-max`. Tabela, która się i tak nie mieści, dostaje kolumny w szerokości treści
+  i przewija się w ramce (listy kont i komitetu, macierz, ranking, przydziały – modyfikatorem;
+  pozostałe – przez skrypt, `data-fit="wide"`). Lista kont na 1024 px: 361 → 98 px na wiersz.
+- **Poziomego suwaka strony nie ma na żadnej ze sprawdzonych 72 stron** (360, 390, 768, 1024,
+  1280 px). Naprawione źródła: tabele bez ramki (zgłoszenia problemów, komunikaty w serwisie,
+  `/status/`), `.visually-hidden` w komórce liczone od dokumentu zamiast od ramki (przydziały 1211 px,
+  karta uczestnika 577 px, karta zadania 783 px przy ekranie 360 px), niejawna kolumna siatki na
+  `/warsztaty/` (491 px), e-mail w `<h1>` edycji konta (658 px na 360, 784 px na 768), długa odznaka
+  w nagłówku karty dostawcy AI (387 px).
+- **Macierz obecności na warsztatach** (`.table--matrix`): nagłówki-tematy łamią się w kolumnie
+  7–11 rem zamiast stać w jednej linii – tabela z 17 warsztatami 9487 → 3297 px, kolumna uczestnika
+  przyklejona i na telefonie nie szersza niż 45 % ekranu (556 → 162 px).
+- **Przyklejona pierwsza kolumna** (`.table--sticky-first`) na listach kont i uczestników, komitetu,
+  kalibracji, obecności i przyjazdów etapu, wynikach testu; **ranking** (`.table--sticky-rank`)
+  trzyma miejsce i uczestnika na podglądzie wyników i w publicznych wynikach (`/results/…`, strona
+  wyników w CMS). Nagłówek kolumn klei się w ramkach `.scroll--tall` (listy kont, komitet, macierz,
+  obecność, podgląd wyników, przydziały).
+- **Karty na telefonie** (`.table--stack` + `data-label`, poniżej 640 px): dziennik zdarzeń,
+  zgłoszenia problemów, komunikaty w serwisie, wysłane komunikaty, zgody konkursu, zaświadczenia
+  o statusie ucznia.
+- **Ramka jest regionem** z nazwą i przystankiem klawiatury: w kluczowych tabelach panelu
+  (`role="region" tabindex="0" aria-label`) wprost w szablonie, w pozostałych – ze skryptu,
+  który przystanek dokłada **tylko** tam, gdzie ramka naprawdę się przewija. Krawędź, za którą są
+  jeszcze kolumny, wygasa (`data-scroll`, maska – działa w trybie ciemnym i wysokiego kontrastu).
+- `<th scope="row">` w treści tabeli wygląda jak nazwa wiersza, a nie jak drugi rząd nagłówków
+  kolumn, i nie klei się do góry ramki; daty, liczby, kody i odznaki w tabelach nie łamią się
+  w środku wartości (`.nowrap`, `time`, `.num`, `.code-chip`, `.badge`).
+- Wydruk: tabela wraca do szerokości kartki, bez maski i przyklejonych kolumn.
+
 ## v0.35.0 – 2026-09-24
 
 Wydanie zbiorcze z dwóch próśb organizatora z 24.09.2026. **Dowolne wartości ocen i różne maksima
