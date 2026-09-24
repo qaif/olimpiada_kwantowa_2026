@@ -375,6 +375,7 @@ def export_payload(user: User) -> dict:
         "wyniki_ogloszone": _results_section(participant),
         "wpisy_na_forum": _forum_section(user),
         "zaswiadczenia_statusu_ucznia": _student_status_section(participant),
+        "oceny_ai": _ai_section(participant),
         "ustawienia_interfejsu": _preferences_section(user),
     }
 
@@ -417,6 +418,21 @@ def _student_status_section(participant) -> list[dict]:
         }
         for row in rows
     ]
+
+
+def _ai_section(participant) -> list[dict]:
+    """Oceny AI prac tej osoby – reguła w ``apps.ai_grading.services.export_section``.
+
+    Zawsze **fakt** przekazania pracy do podmiotu przetwarzającego (kiedy, komu, jakim modelem):
+    odbiorcy danych są informacją, do której osoba ma prawo z art. 15 ust. 1 lit. c RODO,
+    niezależnie od tego, co pokazuje ekran. Treść sugestii – wyłącznie tam, gdzie uczestnik widzi
+    ją i w panelu (koordynator włączył ją dla etapu, wyniki są ogłoszone): eksport nie może być
+    drugą, luźniejszą drogą do tego, czego ekran nie pokazuje. Pusta lista, gdy prace nigdy nie
+    wyszły do oceny AI – kształt pliku ma być ten sam dla każdego konta.
+    """
+    from apps.ai_grading.services import export_section
+
+    return export_section(participant)
 
 
 def _forum_section(user: User) -> list[dict]:

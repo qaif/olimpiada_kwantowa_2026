@@ -1,0 +1,29 @@
+{% load i18n %}
+{% comment %}
+  Sugestia AI dla uczestnika – osobna sekcja **pod** oficjalnymi ocenami, nigdy obok liczby
+  punktów zadania. Powstaje wyłącznie wtedy, gdy koordynator włączył ją dla etapu, a wyniki są
+  ogłoszone (``apps.ai_grading.services.participant_ai_feedback``).
+
+  Uczestnik dostaje podsumowanie i proponowane punkty – bez listy błędów i bez kryteriów, bo te
+  są materiałem roboczym dla komitetu. Podpis „sugestia AI” stoi przy każdej pozycji: liczba
+  bez podpisu byłaby brana za drugą ocenę.
+{% endcomment %}
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">{% translate "Ocena AI (sugestia, niewiążąca)" %}</h2>
+  </div>
+  <p class="hint">{% translate "Poniższe propozycje przygotował model językowy (Claude) jako pomoc dla komitetu. Nie są oceną: obowiązują wyłącznie punkty wystawione przez recenzentów, podane wyżej. Reklamacja dotyczy oficjalnej oceny, a nie sugestii AI." %}</p>
+  {% for item in ai_feedback %}
+    <article class="card card--quiet">
+      <div class="card__head">
+        <h3 class="mt-0 card__title">{% blocktranslate trimmed with number=item.number title=item.title %}
+          Zadanie {{ number }}: {{ title }}
+        {% endblocktranslate %}</h3>
+        <span class="badge badge--info">{% blocktranslate trimmed with points=item.proposed_points|floatformat:"-2" maximum=item.max_points|floatformat:"-2" %}
+          sugestia AI: {{ points }} z {{ maximum }} pkt
+        {% endblocktranslate %}</span>
+      </div>
+      {% if item.summary %}<p>{{ item.summary|linebreaksbr }}</p>{% endif %}
+    </article>
+  {% endfor %}
+</section>

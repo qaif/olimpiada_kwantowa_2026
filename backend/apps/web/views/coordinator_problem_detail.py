@@ -11,6 +11,7 @@ from __future__ import annotations
 from django.shortcuts import get_object_or_404
 from django.views.generic import TemplateView
 
+from apps.ai_grading import services as ai_grading
 from apps.competitions.models import Problem
 from apps.competitions.problem_card import problem_card
 from apps.grading.models import ReviewStatus
@@ -40,6 +41,11 @@ class ProblemCardView(CoordinatorRequiredMixin, TemplateView):
             pk=self.kwargs["pk"],
         )
         context.update(problem_card(problem, query=self.request.GET.get("q", "")))
+        # Sekcja „Ocena AI” istnieje wyłącznie w konkursie z włączoną flagą ``ai_grading`` – przy
+        # wyłączonej nie ma tu ani jednego zapytania więcej (``has_feature`` czyta pole wiersza).
+        if ai_grading.is_enabled(self.competition):
+            context["ai"] = ai_grading.problem_overview(problem)
+            context["ai_settings"] = ai_grading.settings_for(self.competition)
         context.update(
             {
                 "assigned_status": ReviewStatus.ASSIGNED,

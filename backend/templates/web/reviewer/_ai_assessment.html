@@ -1,0 +1,35 @@
+{% load i18n web_extras %}
+{% comment %}
+  Panel „Ocena AI (sugestia, niewiążąca)” przy pracy w panelu recenzenta.
+
+  Zwinięty ``<details>`` z tego samego powodu, co wzorcówka nad nim: recenzent ma najpierw
+  przeczytać pracę, a dopiero potem porównać swoje zdanie z sugestią – otwarta na starcie
+  propozycja punktów ustawiałaby mu kotwicę, zanim zajrzy do rozwiązania.
+
+  Sugestia **nigdy** nie wypełnia formularza sama. Przycisk „Wstaw punkty AI jako punkt wyjścia”
+  zaznacza najbliższą wartość skali i nic poza tym – nie wysyła, nie zapisuje szkicu. Bez
+  JavaScriptu przycisku nie ma (atrybut ``hidden`` zdejmuje ``review-ai.js``), bo przycisk, który
+  nic nie robi, obiecywałby czynność, której nie ma. Przy zadaniu z rubryką przycisku nie ma
+  wcale: sugestia dzieli rozwiązanie po swojemu, a nie według kryteriów komitetu.
+
+  W panelu nie ma niczego, co identyfikuje autora pracy – odpowiedź modelu przeszła przez
+  wymazanie danych osobowych uczestnika (``apps.ai_grading.prompt.redact``).
+{% endcomment %}
+<details class="card card--quiet ai-assessment">
+  <summary><strong>{% translate "Ocena AI (sugestia, niewiążąca)" %}</strong>
+    – {% blocktranslate trimmed with points=ai.assessment.proposed_points|floatformat:"-2" maximum=ai.assessment.max_points|floatformat:"-2" %}
+      {{ points }} z {{ maximum }} pkt
+    {% endblocktranslate %}</summary>
+  <p class="hint">{% blocktranslate trimmed with model=ai.assessment.model when=ai.assessment.finished_at|local_datetime confidence=ai.assessment.get_confidence_display %}
+    Model {{ model }}, wygenerowano {{ when }}. Pewność modelu: {{ confidence }}.
+  {% endblocktranslate %}</p>
+  <p class="hint">{% translate "To jest propozycja modelu językowego, a nie ocena komitetu. Punkty wystawiasz Ty – sprawdź każde twierdzenie w pracy, zanim się na nie powołasz." %}</p>
+  {% include "web/_ai_assessment_body.html" with assessment=ai.assessment %}
+  {% if ai.prefill_value is not None %}
+    <p><button type="button" class="btn btn--secondary btn--small" hidden
+               data-ai-prefill="{{ ai.prefill_value }}"
+               data-ai-target="review-form">{% blocktranslate trimmed with value=ai.prefill_value %}
+      Wstaw punkty AI jako punkt wyjścia ({{ value }} pkt)
+    {% endblocktranslate %}</button></p>
+  {% endif %}
+</details>

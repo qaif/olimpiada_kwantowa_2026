@@ -234,6 +234,14 @@ FEATURE_DEFAULTS: dict[str, bool] = {
     # sprawdzeniu miejsca na dysku serwera (``docs/OPERACJE.md``) – czyli po kroku operatora,
     # którego wdrożenie samo nie wykona.
     "workshop_materials": False,
+    # --- ocena AI ----------------------------------------------------------------------------------
+    # Sugestia punktów dla komitetu liczona przez Claude'a (prośba organizatora z 24.09.2026,
+    # ``apps.ai_grading``). Wyłączona znaczy, że adresów ``/coordinator/ai-grading/…`` **nie ma**
+    # (404), w menu i na kartach zadań nie ma ani jednej pozycji, a panel recenzenta i uczestnika
+    # wyglądają jak dziś. Domyślnie wyłączona, bo włączenie jest decyzją prawną, a nie techniczną:
+    # prace uczestników wychodzą wtedy do podmiotu przetwarzającego (Anthropic) poza organizatorem,
+    # co wymaga umowy powierzenia i zmiany polityki prywatności (``docs/OPERACJE.md``).
+    "ai_grading": False,
 }
 
 

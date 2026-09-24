@@ -1,0 +1,67 @@
+{% extends "web/coordinator/base.html" %}
+{% comment %}
+  Drugi krok zlecenia oceny AI: liczba prac i szacowany koszt **przed** wydaniem pieniędzy.
+
+  Formularz potwierdzenia niesie dokładnie te same pola, co pierwszy krok (zadanie w adresie,
+  „wygeneruj ponownie”, ewentualnie jedna praca) – nie ma tu stanu w sesji, więc nie da się
+  zlecić czegoś innego, niż pokazał ten ekran.
+{% endcomment %}
+{% block title %}Wygeneruj ocenę AI – zadanie {{ problem.number }} – panel koordynatora{% endblock %}
+{% block panel_title %}Wygeneruj ocenę AI: zadanie {{ problem.number }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">{{ stage.display_name }} · {{ problem.title }}</p>
+{% endblock %}
+{% block panel_content %}
+<section class="section">
+  <div class="card">
+    <dl class="fact-list">
+      <dt>Prace do oceny</dt>
+      <dd class="workload-num"><strong>{{ plan.count }}</strong></dd>
+      <dt>Model</dt>
+      <dd>{{ plan.model }}</dd>
+      <dt>Szacowany koszt</dt>
+      <dd class="workload-num"><strong>ok. {{ plan.estimate_usd|floatformat:2 }} USD</strong>
+        <span class="hint">– zgrubny szacunek (±50%), zależny od długości prac i odpowiedzi modelu</span></dd>
+      {% if plan.skipped_done %}
+        <dt>Pominięte – mają już ocenę AI</dt>
+        <dd class="workload-num">{{ plan.skipped_done }}</dd>
+      {% endif %}
+      {% if plan.skipped_in_progress %}
+        <dt>Pominięte – ocena w toku</dt>
+        <dd class="workload-num">{{ plan.skipped_in_progress }}</dd>
+      {% endif %}
+      {% if plan.without_file %}
+        <dt>Pominięte – bez pliku po skanie antywirusowym</dt>
+        <dd class="workload-num">{{ plan.without_file }}</dd>
+      {% endif %}
+    </dl>
+    {% if not plan.has_model_solution %}
+      <p class="msg msg-warning">To zadanie nie ma wgranego rozwiązania wzorcowego. Model oceni prace
+        na podstawie treści i skali – sugestie będą mniej pewne.</p>
+    {% endif %}
+    {% if not plan.has_statement %}
+      <p class="msg msg-warning">To zadanie nie ma wgranej treści (PDF).</p>
+    {% endif %}
+    {% if regenerate %}
+      <p class="hint">Z ponownym generowaniem: istniejące oceny AI zostaną zastąpione nowymi (koszt
+        poprzednich zostaje w licznikach).</p>
+    {% endif %}
+    <p class="hint">Oceny liczą się w tle, po jednej naraz, żeby nie blokować przyjmowania prac.
+      Przy kilkudziesięciu pracach to zwykle od kilkudziesięciu minut do kilku godzin.</p>
+    <div class="actions">
+      {% if plan.count %}
+        <form method="post" action="{% url 'web:coordinator-ai-generate' problem.pk %}">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="confirm">
+          {% if regenerate %}<input type="hidden" name="regenerate" value="on">{% endif %}
+          {% if submission_id %}<input type="hidden" name="submission" value="{{ submission_id }}">{% endif %}
+          <button type="submit" class="btn btn--primary">Zleć ocenę AI ({{ plan.count }})</button>
+        </form>
+      {% else %}
+        <p class="hint">Nie ma czego zlecić.</p>
+      {% endif %}
+      <a class="btn btn--ghost" href="{{ back_url }}">Wróć do zadania</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

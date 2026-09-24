@@ -152,6 +152,8 @@ FLAG_ITEMS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "student_status_certificate": (frozenset({"Status ucznia"}), frozenset({"Status ucznia"})),
     # --- materiały z warsztatów (prośba organizatora z 24.09.2026) ---------------------------------
     "workshop_materials": (frozenset({"Materiały z warsztatów"}), frozenset({"Materiały z warsztatów"})),
+    # --- ocena AI (prośba organizatora z 24.09.2026) ---------------------------------------------
+    "ai_grading": (frozenset({"Ocena AI"}), frozenset({"Ocena AI"})),
 }
 
 #: Flagi spoza etapu 2, które mimo to dokładają pozycję menu i dlatego stoją w tabeli wyżej.

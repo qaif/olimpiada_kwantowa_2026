@@ -212,6 +212,14 @@ Po ogłoszeniu wyników etapu:
   i decyzja. **Recenzenci są anonimowi** — podpisani „Recenzent A/B”,
 - **przed publikacją ten adres nie działa** i nie ma sposobu, żeby dowiedzieć się wyniku wcześniej,
 - publiczne **statystyki edycji** (rozkłady punktów, średnie, progi): `/statystyki/`.
+<!-- Dla organizatora: poniższy punkt rozsyłaj uczestnikom WYŁĄCZNIE wtedy, gdy w panelu włączono
+     „Pokaż uczestnikom ocenę AI” dla etapu (PODRECZNIK-ORGANIZATORA.md § 4.12). Przy wyłączonym
+     przełączniku uczestnik nie ma się z serwisu dowiedzieć, że ocena AI w ogóle powstała. -->
+- **ocena AI** — tylko jeśli organizator ją udostępnia dla danego etapu: pod ocenami recenzentów
+  pojawia się sekcja **„Ocena AI (sugestia, niewiążąca)”** z krótkim podsumowaniem i proponowanymi
+  punktami przygotowanymi przez model językowy (Claude) jako pomoc dla komitetu. To **nie jest
+  ocena**: obowiązują wyłącznie punkty wystawione przez recenzentów, a reklamacja dotyczy oceny
+  oficjalnej, nie sugestii.
 
 **Reklamacja** — zakładka **„Reklamacje”**, przycisk **„Złóż reklamację”** przy pracy. Jest możliwa
 wyłącznie w **oknie reklamacyjnym** wyznaczonym przez organizatora i dotyczy własnej, ocenionej pracy.

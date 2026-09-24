@@ -134,6 +134,61 @@ nada sesja główna.
   `WORKSHOP_FILE_MAX_MB`. Caddy i CSP bez zmian (limit części 16 MB < `MAX_UPLOAD_MB`; origin MinIO
   był już w `connect-src`/`media-src`). Operator: `OPERACJE.md` § 16; organizator:
   `PODRECZNIK-ORGANIZATORA.md` § 4.11; uczestnik: `PODRECZNIK-UCZESTNIKA.md` § 7.
+## [Unreleased] – ocena AI
+
+**Ocena AI – sugestia punktów dla komitetu** (prośba organizatora z 24.09.2026), za flagą konkursu
+`ai_grading` **domyślnie wyłączoną** (konkurs z domyślnymi przełącznikami nie zmienia się o ani jeden
+adres, pozycję menu ani zapytanie). Nowa aplikacja `apps.ai_grading` (modele `AiGradingSettings`,
+`AiStageVisibility`, `AiAssessment`, migracja `ai_grading.0001_initial`), nowa zależność
+`anthropic>=1.8,<2` (import leniwy).
+
+- **Klucz API per konkurs** na ekranie `/coordinator/ai-grading/` (Ocenianie → Ocena AI): zaszyfrowany
+  w bazie (Fernet z `DJANGO_SECRET_KEY`, własna etykieta), tylko do zapisu – ekran pokazuje „ustawiony,
+  kończy się na …abcd”; zastąp / usuń / „Sprawdź klucz” (`models.retrieve`, bez kosztu); klucz
+  administracyjny odrzucany; nigdy w logach, audycie, argumentach zadań Celery ani w szablonach.
+  Wybór modelu `claude-opus-5` (domyślny) / `claude-sonnet-5`, limit wydatków w USD, liczniki zużycia
+  i szacowany koszt (Opus 5: 5/25 USD, Sonnet 5: 2/10 USD za MTok, odczyt cache 0,1×, zapis 1,25×).
+- **Zlecenie z karty zadania** (`/coordinator/problems/<id>/`, sekcja „Ocena AI”): dla wszystkich
+  najnowszych wersji prac bez oceny AI (opcja „wygeneruj ponownie także istniejące”) albo dla jednej
+  pracy; dwustopniowe jak komunikaty – podgląd z liczbą prac i szacowanym kosztem, potem „Zleć”.
+  Idempotentne (prace w toku pomijane, przejęcie `PENDING → RUNNING` jednym `UPDATE`), blokada
+  doradcza per zadanie. Stany oczekuje / w toku / gotowa / błąd z komunikatem, sekcja odświeżana htmx,
+  zgodność AI z oceną końcową (średnia różnica, % zgodnych, % w granicy 1 pkt).
+- **Kolejka z ogranicznikiem**: jedno zadanie Celery na pracę, ale do brokera trafia ich najwyżej
+  `AI_GRADING_MAX_CONCURRENCY` (domyślnie 1) naraz – koniec oceny wypuszcza następną; beat
+  `ai-grading-pump` (5 min) domyka oceny osierocone przez restart workera. Ponowienia 429/5xx/sieć
+  z wykładniczym opóźnieniem (maks. 4, `retry-after` przycięty do 15 min); odmowa i `max_tokens` są
+  liczone, ale nie ponawiane; twardy limit zadania 16 min; limit wydatków zatrzymuje kolejkę bez
+  wołania API.
+- **Żądanie do modelu**: `client.beta.messages.stream(...)` + `get_final_message()`, `max_tokens`
+  32000, `thinking: adaptive`, `output_config` z `effort: high` i schematem JSON
+  (`proposed_points`, `max_points`, `criteria`, `summary`, `errors`, `confidence`,
+  `injection_suspected`; `additionalProperties: false`), beta `server-side-fallback-2026-07-01`
+  z `fallbacks: "default"`; materiały zadania (treść, wzorcówka jako dokumenty PDF, skala, rubryka,
+  uwagi) przed pracą, `cache_control` na ostatnim stałym bloku; praca jako dokument PDF, obraz albo
+  tekst (notatnik – komórki i wyniki tekstowe), bez nazwy pliku i danych uczestnika; limity 32 MB /
+  600 stron / 5 MB na zdjęcie sprawdzane przed wysyłką (błąd zamiast obcinania). Prompt po polsku
+  z osłoną przed wstrzyknięciem poleceń (praca = dane, próba zgłaszana w `injection_suspected`).
+  Odpowiedź walidowana po stronie serwera, punkty przycinane do `[0, maksimum skali]`, dane osobowe
+  autora wymazywane z tekstu odpowiedzi; `stop_reason` sprawdzany przed treścią (`refusal` z kategorią,
+  `max_tokens`), `request_id` w logu, łańcuch błędów SDK (401 → komunikat o kluczu, 429/5xx/sieć →
+  ponowienie, pozostałe 4xx → błąd).
+- **Panel recenzenta**: zwinięty panel „Ocena AI (sugestia, niewiążąca)” z modelem i datą – wyłącznie
+  przy przydzielonej wersji pracy, bez danych uczestnika; formularz nigdy nie wypełnia się sam,
+  przycisk „Wstaw punkty AI jako punkt wyjścia” tylko zaznacza najbliższą wartość skali
+  (`static/js/review-ai.js`; przy rubryce przycisku nie ma).
+- **Uczestnik**: przełącznik etapu „Pokaż uczestnikom ocenę AI”, **domyślnie wyłączony**; po włączeniu
+  i ogłoszeniu wyników – podsumowanie i proponowane punkty w osobnej sekcji informacji zwrotnej,
+  z podpisem „sugestia AI”. Przy wyłączonym nic o ocenie AI nie trafia na ekrany uczestnika, do tabel
+  wyników, dyplomów, reklamacji ani API uczestnika (test).
+- **RODO**: rejestr czynności przetwarzania w wersji **1.7** – warunkowy wiersz „Pomocnicza ocena prac
+  uczestników przez model językowy” (Anthropic jako podmiot przetwarzający, przekazanie poza EOG,
+  brak decyzji zautomatyzowanej); eksport danych konta – sekcja `oceny_ai` (fakt przekazania pracy,
+  odbiorca, model i data zawsze; treść sugestii tylko tam, gdzie uczestnik widzi ją w panelu);
+  anonimizacja konta kasuje oceny AI prac tej osoby. Audyt `ai_grading.*` bez wartości klucza.
+- Dokumentacja: `PODRECZNIK-ORGANIZATORA.md` § 4.11 (z listą warunków prawnych przed włączeniem),
+  `PODRECZNIK-RECENZENTA.md` § 3a, `PODRECZNIK-UCZESTNIKA.md` § 6 (akapit do rozsyłania wyłącznie
+  przy włączonym przełączniku), `OPERACJE.md` § 6.4 i § 15.
 
 ## Niewydane (po `v0.31.1`)
 

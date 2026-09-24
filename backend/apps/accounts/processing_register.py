@@ -680,6 +680,70 @@ WORKSHOP_MATERIALS_ACTIVITY = _activity(
 )
 
 
+#: Czynność **warunkowa**: wchodzi do rejestru wyłącznie konkursom z włączoną oceną AI
+#: (przełącznik ``ai_grading``, prośba organizatora z 24.09.2026) – z tego samego powodu, co forum:
+#: rejestr opisuje przetwarzanie, które naprawdę zachodzi.
+#:
+#: Podstawa prawna jest tu **propozycją do zatwierdzenia przez administratora**, a nie
+#: rozstrzygnięciem kodu: ocena AI jest narzędziem pomocniczym komitetu (interes administratora
+#: w sprawnym i spójnym ocenianiu), a nie warunkiem udziału w zawodach. Otwarte kwestie prawne –
+#: umowa powierzenia, przekazanie do państwa trzeciego, retencja po stronie dostawcy, zmiana
+#: polityki prywatności i regulaminu – stoją w ``docs/PODRECZNIK-ORGANIZATORA.md`` („Ocena AI”).
+AI_GRADING_ACTIVITY = _activity(
+    key="ocena_ai",
+    name="Pomocnicza ocena prac uczestników przez model językowy (ocena AI)",
+    purpose=(
+        "Przygotowanie dla członka komitetu niewiążącej sugestii oceny pracy uczestnika "
+        "(proponowane punkty, uzasadnienie, lista błędów) przez porównanie jej z rozwiązaniem "
+        "wzorcowym i skalą punktacji. Ocenę wystawia wyłącznie człowiek."
+    ),
+    legal_basis=(
+        "art. 6 ust. 1 lit. f RODO (prawnie uzasadniony interes administratora – sprawne i spójne "
+        "ocenianie prac w zawodach) – do potwierdzenia przez administratora; brak decyzji opartej "
+        "wyłącznie na zautomatyzowanym przetwarzaniu w rozumieniu art. 22 RODO"
+    ),
+    subjects="uczestnicy konkursu, których prace koordynator skierował do oceny AI",
+    categories=[
+        "treść pracy uczestnika (plik PDF, zdjęcie, kod albo notatnik) – bez imienia, nazwiska, "
+        "adresu e-mail, szkoły, kodu uczestnika i nazwy pliku nadanej przez uczestnika",
+        "wygenerowana sugestia oceny: proponowane punkty, kryteria z komentarzami, podsumowanie, "
+        "lista błędów, deklarowana pewność, znacznik podejrzenia próby manipulacji",
+        "metadane przetwarzania: data zlecenia i przekazania, model, identyfikator żądania, "
+        "zużycie tokenów i szacowany koszt",
+    ],
+    recipients=[
+        HOSTING_RECIPIENT,
+        "Anthropic PBC (USA, dostawca modelu Claude) – podmiot przetwarzający na podstawie umowy "
+        "powierzenia (DPA w warunkach komercyjnych Anthropic); przekazanie do państwa trzeciego na "
+        "podstawie mechanizmu wskazanego w tej umowie (standardowe klauzule umowne)",
+        "członkowie komitetu recenzujący daną pracę i koordynator konkursu",
+        "uczestnik – wyłącznie wtedy, gdy koordynator włączy widoczność dla etapu, i dopiero po "
+        "ogłoszeniu wyników",
+    ],
+    retention=(
+        "sugestia jest przechowywana razem z pracą, której dotyczy, i znika wraz z nią; przy "
+        "anonimizacji konta uczestnika (na żądanie albo po upływie okresu retencji edycji) jest "
+        "kasowana od razu. Po stronie dostawcy – zgodnie z warunkami umowy z Anthropic (okres "
+        "przechowywania danych wejściowych i wyjściowych API do potwierdzenia przez administratora)"
+    ),
+    measures=[
+        "funkcja jest domyślnie **wyłączona**; bez przełącznika konkursu i klucza API wpisanego przez "
+        "koordynatora żadna praca nie opuszcza serwera",
+        "do dostawcy trafia wyłącznie plik pracy i materiały zadania – bez danych identyfikujących "
+        "uczestnika; z odpowiedzi modelu serwer wymazuje imię, nazwisko, adres e-mail i szkołę "
+        "autora, gdyby model przepisał je z pracy",
+        "klucz API jest zaszyfrowany w bazie, tylko do zapisu (ekran pokazuje cztery ostatnie znaki), "
+        "nie trafia do kolejki zadań ani do logów",
+        "sugestia nigdy nie zapisuje się jako ocena – recenzent wystawia punkty sam, a przycisk "
+        "„wstaw punkty AI” jedynie wypełnia formularz",
+        "praca uczestnika jest dla modelu wyłącznie danymi: polecenia zapisane w pracy są ignorowane, "
+        "a próba wpłynięcia na ocenę jest zgłaszana recenzentowi",
+        "limit wydatków i ogranicznik współbieżności po stronie serwera; każde zlecenie, zmiana klucza "
+        "i zmiana widoczności zostawia wpis w dzienniku zdarzeń",
+    ],
+)
+
+
 def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
     """Rejestr **tego** konkursu: czynności wspólne plus te, które wynikają z jego konfiguracji.
 
@@ -691,6 +755,7 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
     ``None`` znaczy „nie wiadomo, o który konkurs chodzi” i daje rejestr podstawowy: to samo, co
     widział czytelnik przed etapem 2.
     """
+    from apps.ai_grading.models import AI_GRADING_FLAG
     from apps.competitions.logistics import collects_special_needs
     from apps.forum.models import FORUM_FLAG
 
@@ -705,6 +770,8 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
         activities = (*activities, STUDENT_STATUS_ACTIVITY)
     if competition is not None and competition.has_feature("workshop_materials"):
         activities = (*activities, WORKSHOP_MATERIALS_ACTIVITY)
+    if competition is not None and competition.has_feature(AI_GRADING_FLAG):
+        activities = (*activities, AI_GRADING_ACTIVITY)
     return activities
 
 

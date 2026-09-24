@@ -364,6 +364,19 @@ def groups(stages: list, competition=None) -> list[Group]:
                 ("coordinator-stage-reviewer-roles", "coordinator-reviewer-role-"),
             ),
         )
+    if competition is not None and competition.has_feature("ai_grading"):
+        # Ocena AI (prośba organizatora z 24.09.2026). W „Ocenianiu”, bo to jest narzędzie
+        # komitetu przy ocenie prac, a nie konfiguracja konkursu – mimo że ekran niesie klucz API.
+        # Bez warunku etapu: klucz, model i limit wydatków dotyczą całego konkursu, a zlecenia
+        # stoją na kartach zadań. Wzorzec ``coordinator-ai-`` łapie też ekran potwierdzenia
+        # zlecenia, który adresem wisi pod zadaniem.
+        quality += (
+            Item(
+                "Ocena AI",
+                ("web:coordinator-ai-grading",),
+                match=("coordinator-ai-grading", "coordinator-ai-"),
+            ),
+        )
     reports: tuple[Item, ...] = (
         Item(
             "Eksport danych", ("web:coordinator-export",), match=("coordinator-export", "coordinator-export-")

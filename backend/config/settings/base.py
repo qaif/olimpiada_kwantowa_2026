@@ -146,6 +146,11 @@ INSTALLED_APPS = [
     # i własne reguły dostępu. Z CMS-em łączy ją wyłącznie **odczyt** harmonogramu warsztatów
     # (``apps.cms.workshops``) – dlatego stoi po nim, a przed ``apps.web``, który ją wyświetla.
     "apps.workshop_materials",
+    # Ocena AI – sugestia punktów dla komitetu liczona przez Claude'a (prośba organizatora
+    # z 24.09.2026). Osobna aplikacja, bo ma własną zależność zewnętrzną (SDK ``anthropic``)
+    # i własną drogę danych poza serwer; **po** ``apps.grading`` i ``apps.results``, bo czyta
+    # skalę, rubrykę i publikację wyników, a żadna z nich nie czyta jej.
+    "apps.ai_grading",
     # Warstwa integracyjna: klucze API dla systemów zewnętrznych, webhooki i eksporty na zewnątrz.
     # **Po** aplikacjach domeny, bo czyta je wszystkie (edycje, wyniki, zgłoszenia), a żadna z nich
     # nie czyta jej – zależność idzie w jedną stronę i kolejność w tej liście ma to pokazywać.
@@ -482,6 +487,14 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.core.tasks.captcha_clean",
         "schedule": 3600.0,
     },
+    # Siatka asekuracyjna kolejki oceny AI (apps/ai_grading/tasks.py): domyka oceny osierocone
+    # przez restart workera i dopycha kolejkę, gdyby zadanie zniknęło z brokera. W normalnym
+    # przebiegu nie robi nic – kolejkę napędza koniec każdej oceny. Co pięć minut: przy
+    # ogranicznikach liczonych w dziesiątkach minut częstszy przebieg niczego nie przyspiesza.
+    "ai-grading-pump": {
+        "task": "apps.ai_grading.tasks.pump_ai_assessments",
+        "schedule": 300.0,
+    },
 }
 
 # Adresy dyżurnych, na które watchdog wysyła alarmy (przecinkami). **Pusta lista wyłącza wysyłkę**
@@ -709,6 +722,27 @@ SUBMISSION_STORAGE_BACKEND = env(
 # wiadomości na relayu w compose (``POSTFIX_message_size_limit``) trzeba trzymać **powyżej**
 # wyniku tego mnożenia, inaczej odrzucenie zobaczy dopiero worker w logu.
 SUBMISSION_FORWARD_MAX_ATTACHMENT_MB = env.int("SUBMISSION_FORWARD_MAX_ATTACHMENT_MB", default=20)
+
+# --- Ocena AI (apps/ai_grading) -----------------------------------------------------------------
+# Klucz API **nie** jest ustawieniem instalacji: wpisuje go koordynator konkursu w panelu i leży
+# zaszyfrowany w bazie (każdy organizator płaci za swoje zużycie i ma własną umowę z Anthropic).
+# Tutaj stoją wyłącznie granice pracy serwera.
+#
+# Ile ocen liczy się naraz w całej instalacji. Jedna, bo worker ma dwa miejsca
+# (``CELERY_CONCURRENCY``) i drugie ma zostać dla skanu antywirusowego i poczty – wywołanie
+# modelu trwa minuty. Podnosić razem z liczbą miejsc workera, nigdy do jej wartości.
+AI_GRADING_MAX_CONCURRENCY = env.int("AI_GRADING_MAX_CONCURRENCY", default=1)
+# Po ilu minutach ocena „w locie” uznawana jest za zgubioną (restart workera). Musi być dłuższe niż
+# twardy limit czasu zadania (16 min, ``apps.ai_grading.tasks``).
+AI_GRADING_STALE_MINUTES = env.int("AI_GRADING_STALE_MINUTES", default=30)
+# Limit czasu jednego żądania HTTP do API (sekundy) i ponowienia wewnątrz SDK. Dłuższe przerwy
+# obsługuje ponowienie zadania Celery z opóźnieniem.
+AI_GRADING_REQUEST_TIMEOUT = env.int("AI_GRADING_REQUEST_TIMEOUT", default=600)
+AI_GRADING_SDK_MAX_RETRIES = env.int("AI_GRADING_SDK_MAX_RETRIES", default=2)
+# Górna granica długości odpowiedzi (myślenie + JSON). Bezpiecznik kosztu jednej oceny.
+AI_GRADING_MAX_TOKENS = env.int("AI_GRADING_MAX_TOKENS", default=32000)
+# Najwięcej prac w jednym zleceniu – bezpiecznik na „kliknąłem nie ten etap”.
+AI_GRADING_MAX_BATCH = env.int("AI_GRADING_MAX_BATCH", default=500)
 
 CLAMAV_HOST = env("CLAMAV_HOST", default="clamav")
 CLAMAV_PORT = env.int("CLAMAV_PORT", default=3310)

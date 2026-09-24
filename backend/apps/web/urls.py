@@ -9,6 +9,7 @@ from django.urls import path
 # przestawiamy. Bramki flagi tu nie ma — o tym, czy ekran istnieje w tym konkursie, rozstrzyga
 # widok (§ 2.1), bo mapa adresów zależna od konkursu znaczyłaby ``reverse()`` dający raz adres,
 # a raz ``NoReverseMatch``.
+from .urls_ai_grading import urlpatterns as ai_grading_urlpatterns
 from .urls_competitions import urlpatterns as competition_urlpatterns
 from .urls_consents import urlpatterns as consent_urlpatterns
 from .urls_documents import urlpatterns as document_urlpatterns
@@ -1092,4 +1093,6 @@ urlpatterns = [
     *student_status_urlpatterns,
     # --- materiały z warsztatów (prośba organizatora z 24.09.2026, flaga ``workshop_materials``) --
     *workshop_material_urlpatterns,
+    # --- ocena AI (za flagą ``ai_grading``, prośba organizatora z 24.09.2026) --------------------
+    *ai_grading_urlpatterns,
 ]
