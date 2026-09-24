@@ -1,4 +1,5 @@
 {% extends "web/coordinator/base.html" %}
+{% load coordinator_extras %}
 {% load web_extras %}
 {% block title %}Rozmowy kwalifikacyjne: {{ stage.display_name }} – panel koordynatora{% endblock %}
 {% block panel_title %}Rozmowy kwalifikacyjne: {{ stage.display_name }}{% endblock %}
@@ -72,9 +73,13 @@
                 {% for booking in slot.bookings.all %}
                   <div>
                     <span class="code-chip">{{ booking.entry.participant.public_code }}</span>
-                    {{ booking.entry.participant.user.first_name }}
-                    {{ booking.entry.participant.user.last_name }}
-                    <span class="hint">{{ booking.entry.participant.user.email }}</span>
+                    {% if booking.entry.participant.user|is_deleted_account %}
+                      Konto usunięte
+                    {% else %}
+                      {{ booking.entry.participant.user.first_name }}
+                      {{ booking.entry.participant.user.last_name }}
+                      <span class="hint">{{ booking.entry.participant.user.email }}</span>
+                    {% endif %}
                   </div>
                 {% empty %}
                   <span class="hint">nikt się jeszcze nie zapisał</span>

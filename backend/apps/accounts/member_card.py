@@ -21,6 +21,7 @@ from __future__ import annotations
 from django.db.models import Count, Max, Q
 from django.utils import timezone
 
+from apps.accounts.anonymised import anonymised_q
 from apps.core.links import participant_card
 
 from .models import CommitteeMember
@@ -374,7 +375,9 @@ def member_card(member: CommitteeMember, *, now=None) -> dict:
     }
 
 
-def member_list_rows(*, status: str = "", stage_id: int | None = None, now=None) -> list[dict]:
+def member_list_rows(
+    *, status: str = "", stage_id: int | None = None, now=None, include_deleted: bool = False
+) -> list[dict]:
     """Lista wszystkich członków komisji z obciążeniem – materiał na ekran „Komitet → członkowie”.
 
     Wiersze powstają z **całej** tabeli członków, a nie z recenzji: osoba bez ani jednego przydziału
@@ -383,6 +386,10 @@ def member_list_rows(*, status: str = "", stage_id: int | None = None, now=None)
 
     ``stage_id`` zawęża **liczniki**, a nie listę osób: pytanie brzmi „ile ta osoba ma w tym
     etapie”, a odpowiedź „zero” jest właśnie tym, czego koordynator szuka, planując dosyłkę.
+
+    Członkowie z kontem usuniętym na żądanie (``apps.accounts.anonymised``) zostają w bazie, gdy
+    wystawili recenzje – ale to nie są już osoby, którym się dokłada pracy. Domyślnie ich tu nie
+    ma; ``include_deleted=True`` to przełącznik „Pokaż usunięte konta” z ekranu listy.
     """
     from apps.grading.models import Review, ReviewStatus
     from apps.grading.reports import overdue_filter
@@ -393,6 +400,8 @@ def member_list_rows(*, status: str = "", stage_id: int | None = None, now=None)
     )
     if status:
         members_qs = members_qs.filter(status=status)
+    if not include_deleted:
+        members_qs = members_qs.exclude(anonymised_q("user"))
     members = list(members_qs)
 
     reviews = Review.objects.filter(reviewer_id__in=[member.pk for member in members])

@@ -19,6 +19,8 @@ Trzy decyzje o kształcie ekranu:
 
 from __future__ import annotations
 
+from urllib.parse import quote
+
 from django.contrib import messages
 from django.http import FileResponse
 from django.shortcuts import redirect
@@ -33,6 +35,7 @@ from apps.competitions.services import current_edition
 from apps.core.models import audit
 from apps.results.certificates import build_certificates_zip, issue_workshop_certificates
 from apps.web.certificate_forms import WorkshopAttendanceImportForm
+from apps.web.list_controls import DELETED_PARAM, ListControls
 from apps.web.mixins import CoordinatorRequiredMixin
 
 TEMPLATE = "web/coordinator/workshop_attendance.html"
@@ -42,11 +45,17 @@ TEMPLATE = "web/coordinator/workshop_attendance.html"
 PAGE_SIZE = 100
 
 
-def _participants(competition, edition, query: str) -> list[Participant]:
+def _participants(
+    competition, edition, query: str, controls: ListControls | None = None
+) -> list[Participant]:
     """Uczestnicy z wpisem do dowolnego etapu edycji, przefiltrowani po nazwisku albo kodzie.
 
     Krąg jest ten sam, co krąg odbiorców zaświadczenia: dokument przypina się do wpisu w edycji,
     więc uczestnik bez wpisu nie miałby na czym go dostać i nie ma po co stać w tabeli.
+
+    Konta usunięte na żądanie (``apps.accounts.anonymised``) są schowane, dopóki ``controls``
+    (przełącznik „Pokaż usunięte konta”) ich nie przywróci – obecności nie odhacza się osobie,
+    której konta już nie ma, a jej wiersz z pustym nazwiskiem wyglądał w tabeli jak błąd.
     """
     if edition is None:
         return []
@@ -66,6 +75,8 @@ def _participants(competition, edition, query: str) -> list[Participant]:
             | Q(user__first_name__icontains=query)
             | Q(public_code__icontains=query)
         )
+    if controls is not None:
+        queryset = controls.filter_deleted(queryset, "user")
     return list(queryset)
 
 
@@ -167,14 +178,25 @@ class WorkshopAttendanceView(CoordinatorRequiredMixin, View):
         url = reverse("web:coordinator-workshop-attendance")
         query = request.POST.get("query") or ""
         page = request.POST.get("page") or ""
-        params = [part for part in (f"q={query}" if query else "", f"page={page}" if page else "") if part]
+        # Przełącznik kont usuniętych wraca razem z frazą i stroną – zapis nie zmienia widoku tabeli.
+        deleted = request.POST.get(DELETED_PARAM) == "1"
+        params = [
+            part
+            for part in (
+                f"q={quote(query)}" if query else "",
+                f"page={page}" if page.isdigit() else "",
+                f"{DELETED_PARAM}=1" if deleted else "",
+            )
+            if part
+        ]
         return f"{url}?{'&'.join(params)}" if params else url
 
     def _render(self, request, form, *, status: int = 200):
         edition = current_edition(request.competition)
         query = request.GET.get("q", "")
+        controls = ListControls(request, ())
         workshops = _workshops(request.competition)
-        participants = _participants(request.competition, edition, query)
+        participants = _participants(request.competition, edition, query, controls)
         page_number = max(1, int(request.GET.get("page") or 1))
         start = (page_number - 1) * PAGE_SIZE
         visible = participants[start : start + PAGE_SIZE]
@@ -188,6 +210,7 @@ class WorkshopAttendanceView(CoordinatorRequiredMixin, View):
             "edition": edition,
             "workshops": workshops,
             "query": query,
+            "controls": controls,
             "import_form": form,
             "page_number": page_number,
             "page_count": max(1, -(-len(participants) // PAGE_SIZE)),

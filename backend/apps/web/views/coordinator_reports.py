@@ -26,7 +26,7 @@ from django.urls import reverse
 from django.utils.http import urlencode
 from django.views.generic import TemplateView, View
 
-from apps.accounts.models import CommitteeMember, Voivodeship
+from apps.accounts.models import CommitteeMember, Participant, Voivodeship
 from apps.competitions.models import QualificationMode, Stage
 from apps.competitions.services import current_edition
 from apps.core import audit_browser, exports
@@ -36,6 +36,7 @@ from apps.grading.reports import FALLBACK_OVERDUE_DAYS, review_has_due_at, revie
 from apps.grading.worklog import format_duration, reviewer_seconds
 from apps.results.simulation import apply_rule, simulate
 from apps.web.coordinator_forms import AuditFilterForm, ManualQualificationForm, SimulationForm
+from apps.web.list_controls import DELETED_PARAM, ListControls
 from apps.web.mixins import ActionViewMixin, CoordinatorRequiredMixin
 
 PROGRESS_TEMPLATE = "web/coordinator/reports.html"
@@ -163,9 +164,23 @@ class ExportIndexView(CoordinatorRequiredMixin, TemplateView):
                 # zawężony do jednego terenu, więc wartość musi pochodzić stamtąd, skąd pochodzi
                 # województwo uczestnika.
                 "voivodeships": Voivodeship.choices,
+                # Przełącznik kont usuniętych dla arkusza uczestników – ten sam, co na listach
+                # (``apps.web.list_controls``): odnośniki pobrania niosą ``?usuniete=1``, gdy jest
+                # włączony, więc plik ma dokładnie te konta, które koordynator zamówił.
+                "controls": _participant_export_controls(self.request, edition),
             }
         )
         return context
+
+
+def _participant_export_controls(request, edition) -> ListControls:
+    """Stan przełącznika kont usuniętych na stronie eksportu, z liczbą kont, które plik pominie."""
+    controls = ListControls(request, ())
+    if edition is not None and not controls.show_deleted:
+        controls.hidden_deleted = (
+            Participant.objects.filter(stage_entries__stage__edition=edition).anonymised().distinct().count()
+        )
+    return controls
 
 
 class ExportDownloadView(CoordinatorRequiredMixin, View):
@@ -200,7 +215,8 @@ class ExportDownloadView(CoordinatorRequiredMixin, View):
             edition = current_edition(self.competition)
             if edition is None:
                 raise Http404("Brak bieżącej edycji.")
-            return exports.participant_dataset(edition), edition
+            include_deleted = request.GET.get(DELETED_PARAM) == "1"
+            return exports.participant_dataset(edition, include_deleted=include_deleted), edition
         if kind in ("results", "reviews"):
             stage = _stage(self.competition, self._stage_id(request))
             if kind == "results":

@@ -565,12 +565,18 @@ class FeeRefundView(FeeActionView):
 
 
 def _participants_of(edition):
-    """Uczestnicy z wpisem do któregokolwiek etapu tej edycji – bez duplikatów."""
+    """Uczestnicy z wpisem do któregokolwiek etapu tej edycji – bez duplikatów i bez kont usuniętych.
+
+    Konto usunięte na żądanie (``apps.accounts.anonymised``) nie dostaje nowego wpisowego: nie ma
+    już komu wysłać rachunku ani kogo rozliczać, a wiersz rejestru z samym kodem publicznym byłby
+    należnością, której nikt nie zapłaci. Opłaty naliczone **przed** usunięciem konta zostają
+    w rejestrze – to jest dokumentacja finansowa, a nie lista osób.
+    """
     from apps.accounts.models import Participant
     from apps.competitions.models import StageEntry
 
     ids = StageEntry.objects.filter(stage__edition=edition).values_list("participant_id", flat=True)
-    return Participant.objects.filter(pk__in=set(ids)).select_related("user")
+    return Participant.objects.filter(pk__in=set(ids)).exclude_anonymised().select_related("user")
 
 
 class FeeChargeView(FeeScreenMixin, View):

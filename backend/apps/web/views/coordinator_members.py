@@ -15,12 +15,14 @@ from __future__ import annotations
 from django.shortcuts import get_object_or_404
 from django.views.generic import TemplateView
 
+from apps.accounts.anonymised import anonymised_q
 from apps.accounts.member_card import member_card, member_list_rows
 from apps.accounts.models import CommitteeMember, CommitteeStatus, Region
 from apps.accounts.services import CUSTOM_REGIONS_FLAG
 from apps.competitions.services import current_edition
 from apps.grading.models import ReviewStatus
 from apps.web.forms import VOIVODESHIP_CHOICES
+from apps.web.list_controls import ListControls
 from apps.web.mixins import CoordinatorRequiredMixin
 
 MEMBERS_TEMPLATE = "web/coordinator/members.html"
@@ -36,6 +38,10 @@ class CommitteeMembersView(CoordinatorRequiredMixin, TemplateView):
     Stronicowania tu nie ma świadomie. Komisja olimpiady liczy kilkadziesiąt osób i cała mieści się
     na jednej stronie; podział na strony kosztowałby możliwość przejrzenia obciążenia jednym rzutem
     oka, czyli dokładnie to, po co ten ekran istnieje.
+
+    Członkowie z kontem usuniętym na żądanie są domyślnie schowani (przełącznik „Pokaż usunięte
+    konta”, ``apps.web.list_controls``); liczba ukrytych to jeden ``COUNT`` z tym samym filtrem
+    statusu, co lista.
     """
 
     template_name = MEMBERS_TEMPLATE
@@ -53,6 +59,10 @@ class CommitteeMembersView(CoordinatorRequiredMixin, TemplateView):
         stage_id = _int_or_none(params.get("stage"))
         if stage_id is not None and stage_id not in {stage.pk for stage in stages}:
             stage_id = None
+        controls = ListControls(self.request, ())
+        if not controls.show_deleted and self.competition is not None:
+            hidden = CommitteeMember.objects.for_competition(self.competition).filter(anonymised_q("user"))
+            controls.hidden_deleted = (hidden.filter(status=status) if status else hidden).count()
         context.update(
             {
                 # Wiersze przychodzą z serwisu kont (jedna definicja obciążenia dla panelu
@@ -61,10 +71,14 @@ class CommitteeMembersView(CoordinatorRequiredMixin, TemplateView):
                 # tanią odpowiedź – bez drugiej kopii reguły „aktywny recenzent” w panelu.
                 "rows": _with_region_labels(
                     _rows_of_competition(
-                        member_list_rows(status=status, stage_id=stage_id), self.competition
+                        member_list_rows(
+                            status=status, stage_id=stage_id, include_deleted=controls.show_deleted
+                        ),
+                        self.competition,
                     ),
                     self.competition,
                 ),
+                "controls": controls,
                 "status": status,
                 "status_choices": CommitteeStatus.choices,
                 "stages": stages,

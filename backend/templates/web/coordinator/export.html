@@ -1,5 +1,6 @@
 {% extends "web/coordinator/base.html" %}
 {% load static %}
+{% load list_controls %}
 {% comment %}
   Spis eksportów. Strona jest wyłącznie listą odnośników – plik buduje dopiero widok pobrania,
   bo policzenie tabeli wyników etapu trwa tyle, ile trwa, a spis ma się otwierać natychmiast.
@@ -29,11 +30,13 @@
     <div class="card">
       <p>Kod publiczny, imię i nazwisko, adres e-mail, szkoła, klasa, województwo, data i rok urodzenia,
         telefon, stan konta oraz komplet zgód wraz z wersją dokumentu i datą.</p>
-      <p class="hint">Uczestnikiem edycji jest ten, kto ma wpis do któregokolwiek z jej etapów.</p>
+      <p class="hint">Uczestnikiem edycji jest ten, kto ma wpis do któregokolwiek z jej etapów.
+        Konta usunięte na żądanie są w pliku pominięte, chyba że je włączysz przełącznikiem.</p>
+      {% deleted_toggle controls %}
       <p class="actions">
         {% for fmt in formats %}
           <a class="btn btn--secondary"
-             href="{% url 'web:coordinator-export-download' 'participants' fmt %}">Pobierz {{ fmt|upper }}</a>
+             href="{% url 'web:coordinator-export-download' 'participants' fmt %}{% if controls.show_deleted %}?usuniete=1{% endif %}">Pobierz {{ fmt|upper }}{% if controls.show_deleted %} (z kontami usuniętymi){% endif %}</a>
         {% endfor %}
       </p>
     </div>

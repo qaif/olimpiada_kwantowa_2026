@@ -1006,12 +1006,51 @@ czytelności” zamieniłoby ślad techniczny w wyciąg z bazy osobowej.
 
 | Ekran | Adres | Do czego |
 |---|---|---|
-| **Konta** | `/coordinator/accounts/` | wszystkie konta; wyszukiwarka `?q=`, filtr `?role=`, 50 na stronę |
-| Uczestnicy / Opiekunowie szkolni | ta sama lista z filtrem roli | osobny ekran powtarzałby wyszukiwarkę i kolumny |
+| **Konta** | `/coordinator/accounts/` | wszystkie konta; wyszukiwarka `?q=`, filtr `?role=`, sortowanie nagłówkami, 50 na stronę (§ 10.1) |
+| Uczestnicy / Opiekunowie szkolni | ta sama lista z filtrem roli | osobny ekran powtarzałby wyszukiwarkę i stronicowanie; uczestnicy mają własne kolumny profilu (§ 10.1) |
 | Edycja konta | `/coordinator/accounts/<id>/` | dane, „Konto aktywne”, dla uczestnika także telefon, województwo, szkoła, klasa, **data urodzenia**; dla członka komitetu status, komisja odwoławcza i województwo |
 | Usunięcie konta | `/coordinator/accounts/<id>/delete/` | strona potwierdzenia mówi, co się stanie |
 | **Konta oczekujące na aktywację** | `/coordinator/activations/` | „Aktywuj ręcznie”, „Wyślij link ponownie” |
 | **Karta uczestnika** | `/coordinator/participants/<id>/` | cały przebieg zawodów jednej osoby, wyłącznie do odczytu |
+
+### 10.1 Sortowanie list i konta usunięte
+
+**Sortowanie.** Na liście kont (`/coordinator/accounts/`) i na liście uczestników (pozycja menu
+„Uczestnicy”, czyli ta sama lista z `?role=participant`) **każdy nagłówek kolumny z ikoną ↕ jest
+odnośnikiem**: pierwsze kliknięcie sortuje rosnąco (▲), drugie malejąco (▼). Data rejestracji i liczba
+prac zaczynają od malejącego — od najnowszych i od najbardziej aktywnych. Sortuje serwer, więc porządek
+obejmuje **całą** listę, a nie tylko bieżącą stronę; przejście na kolejną stronę, nowa fraza
+w wyszukiwarce i zmiana filtra roli zachowują wybrany porządek (jest w adresie: `?sort=nazwisko`,
+`?sort=-zalozone`). Bez wyboru lista stoi jak dotąd — po adresie e-mail.
+
+| Lista | Kolumny sortowalne |
+|---|---|
+| Wszystkie konta | e-mail, imię i nazwisko (po nazwisku), kod publiczny, stan, data założenia |
+| Uczestnicy | kod, nazwisko, imię, e-mail, szkoła, województwo, klasa, zgoda opiekuna, prace, stan, data założenia |
+
+Lista uczestników ma własne kolumny profilu: szkoła, województwo, klasa, zgoda opiekuna („tak”, gdy jest
+potwierdzona) i **Prace** — liczba zadań, do których uczestnik oddał cokolwiek w **bieżącej edycji**
+(kilka wersji tego samego zadania to jedna praca). Kolumny „Rola” nie da się sortować — rola jest
+wyliczana z kilku źródeł naraz.
+
+**Konta usunięte.** Uczestnik albo recenzent, który usunął konto (albo którego konto usunął koordynator
+czy retencja), a zostawił ślad w zawodach, nie znika z bazy: zostaje pseudonimowy wiersz z kodem
+publicznym, bo pod tym kodem stoi w wynikach, recenzjach i odwołaniach. Takie konta są **domyślnie
+schowane** na liście kont, liście uczestników, w wyszukiwarce panelu, na liście członków komisji,
+w tabeli obecności na warsztatach i w arkuszu „Uczestnicy edycji” (`/coordinator/export/`). Nad każdą
+z tych list stoi przycisk **„Pokaż usunięte konta (N)”** — N to liczba kont usuniętych pasujących do
+bieżącego wyszukiwania i filtrów. Po kliknięciu lista pokazuje je z podpisem **„Konto usunięte”**
+i kodem publicznym, a przycisk zmienia się w **„Ukryj usunięte konta”**. Stan przełącznika jest
+w adresie (`?usuniete=1`), więc przeżywa stronicowanie, sortowanie i wyszukiwanie; na stronie eksportu
+przycisk decyduje, czy pobrany arkusz ma zawierać także konta usunięte.
+
+Tam, gdzie konto usunięte **musi** zostać — przydziały prac, moderacja, recenzje, wyniki, karta
+uczestnika, odwołania, audyt, eksport recenzji — wiersz zostaje, ale zamiast technicznego adresu
+`deleted-…@invalid.…` stoi „Konto usunięte” (przy pracy obok stoi kod publiczny). Kolejki do załatwienia
+(zatwierdzenia na ekranie „Komitet”, plakietka w menu, naliczanie wpisowego) pomijają konta usunięte
+bez przełącznika — osoby, której konta już nie ma, nie da się zatwierdzić ani obciążyć opłatą.
+Liczniki na ekranach słowników (placówki, regiony, kategorie) **liczą** konta usunięte, bo odpowiadają
+na pytanie „czy ten wiersz wolno skasować”, a profil usuniętego konta nadal się do niego odwołuje.
 
 Trzy rzeczy, które panel robi inaczej niż samoobsługa:
 

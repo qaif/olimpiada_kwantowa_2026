@@ -121,7 +121,7 @@
             <td>
               {% for rule in row.rules %}
                 <div class="actions">
-                  <a href="{% url 'web:coordinator-member' rule.reviewer.pk %}">{{ rule.reviewer.user.email }}</a>{% if rule.reviewer.district %}
+                  <a href="{% url 'web:coordinator-member' rule.reviewer.pk %}">{{ rule.reviewer.user|account_email }}</a>{% if rule.reviewer.district %}
                     <span class="hint">({{ rule.reviewer.get_district_display }}{% if not rule.reviewer.district_verified %}, niepotwierdzone{% endif %})</span>{% endif %}
                   <form method="post" action="{% url 'web:coordinator-problem-rule-remove' rule.pk %}">
                     {% csrf_token %}
@@ -282,7 +282,7 @@
               {% else %}
                 <span class="code-chip">{{ participant.public_code }}</span>
               {% endif %}
-              <span class="asg-who__name">{{ participant.user.get_full_name|default:participant.user.email }}</span>
+              <span class="asg-who__name">{{ participant.user|person }}</span>
             </th>
             <td>
               <a href="{% url 'web:coordinator-problem' submission.problem.pk %}">
@@ -315,7 +315,7 @@
               {% for review in row.reviews %}
                 <div class="asg-chip{% if review.status == cancelled_status %} asg-chip--off{% endif %}">
                   <a class="asg-chip__who"
-                     href="{% url 'web:coordinator-member' review.reviewer.pk %}">{{ review.reviewer.user.email }}</a>
+                     href="{% url 'web:coordinator-member' review.reviewer.pk %}">{{ review.reviewer.user|account_email }}</a>
                   <span class="asg-chip__status">{{ review.get_status_display }}{% if review.round != 1 %} · runda {{ review.round }}{% endif %}</span>
                   <span class="asg-chip__score">{% if review.score is not None %}{{ review.score }} pkt{% else %}— pkt{% endif %}</span>
                   {% if review.due_at and review.status != cancelled_status %}

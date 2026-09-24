@@ -1,0 +1,11 @@
+{% comment %}
+  Nagłówek sortowalnej kolumny (``{% sort_header controls "klucz" %}``, apps.web.templatetags.list_controls).
+
+  ``aria-sort`` stoi **wyłącznie** na kolumnie, po której lista jest posortowana – tak każe wzorzec
+  WAI-ARIA dla tabel: „none” na pozostałych nic nie dodaje, a czytnik ekranu ogłasza je jako szum.
+  Strzałka jest ozdobą (``aria-hidden``); kierunek i to, co zrobi kliknięcie, niesie tekst.
+  Odnośnik zwykły, bez skryptu: sortowanie jest po stronie serwera, bo lista jest stronicowana.
+{% endcomment %}
+<th scope="col"{% if column.aria_sort %} aria-sort="{{ column.aria_sort }}"{% endif %}{% if css_class %} class="{{ css_class }}"{% endif %}>
+  <a class="sort-link{% if column.active %} sort-link--active{% endif %}" href="{{ column.url }}">{{ column.label }}<span class="sort-link__arrow" aria-hidden="true">{% if column.active %}{% if column.descending %}▼{% else %}▲{% endif %}{% else %}↕{% endif %}</span><span class="visually-hidden">{% if column.active %}, posortowano {% if column.descending %}malejąco{% else %}rosnąco{% endif %}{% endif %} – kliknij, aby sortować {% if column.next_descending %}malejąco{% else %}rosnąco{% endif %}</span></a>
+</th>

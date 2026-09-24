@@ -8,6 +8,35 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – listy koordynatora
+
+Zgłoszenie organizatora z 24.09.2026: „Koordynator widzi skasowanych użytkowników jako ‚deleted’ –
+to błąd. Koordynator przeglądając uczestników powinien mieć możliwość ich sortowania po różnych polach.”
+
+- **Konta usunięte schowane domyślnie.** Jedna reguła rozpoznania konta po anonimizacji
+  (`apps.accounts.anonymised`: domena `@invalid.`, a nie puste imię ani `is_active`) – w Pythonie
+  (`is_anonymised`) i w zapytaniu (`anonymised_q`, `User.objects.exclude_anonymised()`,
+  `Participant.objects.exclude_anonymised()`); retencja korzysta z tej samej funkcji. Odsiewają ją:
+  lista kont i uczestników, wyszukiwarka panelu, lista członków komisji, tabela obecności na
+  warsztatach, arkusz „Uczestnicy edycji” – każda z przyciskiem **„Pokaż usunięte konta (N)”** /
+  „Ukryj usunięte konta” (`?usuniete=1`, przeżywa stronicowanie, sortowanie i filtry; N to jeden
+  `COUNT` na bieżącej liście). Bez przełącznika: kolejki ekranu „Komitet” i ich plakietka w menu,
+  naliczanie wpisowego.
+- **„Konto usunięte” zamiast `deleted-…@invalid.…`** tam, gdzie wiersz musi zostać: przydziały,
+  moderacja, kalibracja, zgłoszenia, karta problemu, rozmowy, dyplomy, karta uczestnika i członka
+  komisji, audyt, zgłoszenia pomocy, nagłówki edycji i usunięcia konta, eksport recenzji
+  (filtry szablonu `person`, `account_email`, `is_deleted_account` w `coordinator_extras`).
+  Wyniki zostają pod kodem publicznym.
+- **Sortowanie kolumn** listy kont i listy uczestników (`?role=participant`, nowe kolumny: szkoła,
+  województwo, klasa, zgoda opiekuna, prace w bieżącej edycji): nagłówki z `aria-sort` i strzałką,
+  sortowanie po stronie serwera wyłącznie po kluczach z listy dopuszczonych (`apps.web.list_controls`,
+  nieznany klucz = porządek domyślny, bez 500), remis rozstrzyga `pk`, stan w adresie przeżywa
+  stronicowanie i filtry. Liczba prac – jedno zapytanie zbiorcze na stronę; przy okazji lista kont
+  przestała robić dwa zapytania na wiersz (`is_protected` czyta grupy z prefetchu).
+- Pasek konta w nagłówku pokazuje zalogowanego (`request.user`), a nie konto z kontekstu widoku
+  (karta członka komisji wypisywała tam adres oglądanej osoby).
+- Podręcznik organizatora § 10.1.
+
 ## Niewydane (po `v0.31.1`)
 
 | Wersja | Data | Zmiana |

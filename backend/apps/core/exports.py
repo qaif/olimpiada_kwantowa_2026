@@ -202,8 +202,15 @@ PARTICIPANT_HEADER_BASE = [
 ]
 
 
-def participant_dataset(edition) -> Dataset:
+def participant_dataset(edition, *, include_deleted: bool = False) -> Dataset:
     """Uczestnicy edycji: dane kontaktowe, szkoła i komplet zgód z wersjami dokumentów.
+
+    Konta usunięte na żądanie (``apps.accounts.anonymised``) domyślnie **nie** trafiają do pliku:
+    to arkusz kontaktowy, a wiersz bez imienia, z adresem ``deleted-…@invalid.…`` i szkołą „—”
+    nie jest kontaktem, tylko szumem, który ktoś potem wklei do korespondencji seryjnej.
+    ``include_deleted=True`` (przełącznik „Pokaż usunięte konta” na stronie eksportu) dołącza je
+    z podpisem „Konto usunięte” w kolumnie adresu – kod publiczny i zgody (wycofane w chwili
+    anonimizacji) zostają, bo po to się taki plik pobiera: do sprawdzenia, co się z kontem stało.
 
     „Uczestnik edycji” to ktoś z wpisem do któregokolwiek jej etapu – ta sama definicja, co
     w wysyłce komunikatów (``apps.accounts.messaging``). Lista kont, które nigdy się nie zapisały,
@@ -214,6 +221,7 @@ def participant_dataset(edition) -> Dataset:
     wyłącznie rejestr zdarzeń. Z każdego rodzaju pokazujemy wpis najnowszy – ``prefetch_related``
     czyta je hurtem, więc kolumny zgód nie kosztują zapytania na wiersz.
     """
+    from apps.accounts.anonymised import DELETED_ACCOUNT_LABEL, is_anonymised
     from apps.accounts.consents import consent_set
     from apps.accounts.models import Participant
 
@@ -228,6 +236,8 @@ def participant_dataset(edition) -> Dataset:
         .distinct()
         .order_by("public_code")
     )
+    if not include_deleted:
+        participants = participants.exclude_anonymised()
 
     def _rows() -> Iterator[list]:
         for participant in participants:
@@ -241,7 +251,7 @@ def participant_dataset(edition) -> Dataset:
                 participant.public_code,
                 user.first_name,
                 user.last_name,
-                user.email,
+                DELETED_ACCOUNT_LABEL if is_anonymised(user) else user.email,
                 participant.school,
                 participant.grade,
                 participant.get_district_display(),
@@ -338,7 +348,11 @@ def stage_reviews_dataset(stage) -> Dataset:
     jedyna kolumna z danymi osobowymi i jedyny sposób, żeby powiedzieć, czyja to recenzja.
     Uczestnik występuje wyłącznie pod pseudonimem: ocenianie jest ślepe, a zestawienie recenzji
     nie jest powodem, żeby to znosić.
+
+    Recenzja wystawiona przez osobę, która potem usunęła konto, **zostaje** (to protokół oceny),
+    ale w kolumnie adresu stoi „Konto usunięte”, a nie adres techniczny ``deleted-…@invalid.…``.
     """
+    from apps.accounts.anonymised import DELETED_ACCOUNT_LABEL, is_anonymised
     from apps.grading.models import Review
 
     header = [
@@ -365,7 +379,7 @@ def stage_reviews_dataset(stage) -> Dataset:
                 review.submission.entry.participant.public_code,
                 review.submission.problem.number,
                 review.round,
-                review.reviewer.user.email,
+                DELETED_ACCOUNT_LABEL if is_anonymised(review.reviewer.user) else review.reviewer.user.email,
                 review.get_status_display(),
                 review.score,
                 review.assigned_at,
