@@ -157,8 +157,22 @@ odwoławczą, komisję rozmów i klientów API.
   dziesiętny w pliku rozdzielanym średnikami bywa odczytywany jako koniec kolumny. Otwierając CSV
   w polskim Excelu, wskaż w imporcie separator dziesiętny „.” – albo pobierz **XLSX**, w którym punkty
   są od razu liczbami.
-- Test online (etap w formie testu) nie zmienia się: jego wynik nadal jest zaokrąglany do pełnych
-  punktów.
+- **Test online** (etap w formie testu) słucha tego samego przełącznika (od wersji po v0.35.0):
+  w etapie „tylko ze skali” wynik testu wchodzi do tabeli wyników **zaokrąglony do pełnych punktów,
+  połówka w górę** (7,5 → 8) – jak dotąd; w etapie z dowolnymi wartościami wchodzi **co do 0,01**
+  (7,5 zostaje 7,5). Sam wynik podejścia (ekran wyników testu, eksport CSV testu) zawsze ma dwa
+  miejsca po przecinku. Etap testu dostaje skalę tak samo jak każdy etap – przełącznik jest na tym
+  samym ekranie `/coordinator/stages/<id>/scale/` (np. z pulpitu: „Skala punktacji”). Punkty pytania
+  i punkty ujemne wpisuje się w edytorze pytań z przecinkiem albo kropką („0,5”, „0,25”; najwyżej dwa
+  miejsca po przecinku, w obu trybach etapu) – tak samo w imporcie (`[pkt: 0,5]`, kolumna `punkty`).
+  Ocena częściowa pytania wielokrotnego wyboru (proporcjonalnie) i każda kwota za pytanie są
+  zaokrąglane do 0,01 **połówka w górę** (0,125 → 0,13) – tą samą metodą, co suma etapu; wcześniej
+  kwota za pytanie szła zaokrągleniem bankierskim (0,125 → 0,12), co może zmienić o 0,01 wynik podejścia
+  przeliczonego ponownie przyciskiem „Przelicz punkty”.
+- **Rubryki** w etapie z dowolnymi wartościami przyjmują ułamki: maksimum kryterium (np. `2,5;Pomysł`)
+  i punkty za kryterium (np. 1,75) – szczegóły w § 3 („Rubryka oceniania”). Powrót do „tylko wartości ze
+  skali” jest odmawiany także wtedy, gdy któreś kryterium ma ułamkowe maksimum (komunikat poda, ile ich
+  jest) – zaokrąglij je w rubryce zadania.
 
 **Zadania mogą mieć różną liczbę punktów.** W etapie z dowolnymi wartościami zadanie może dostać
 **samo „Maksimum punktów tego zadania”** – bez listy wartości skali – np. **7** albo **12,5**. Takie
@@ -200,8 +214,18 @@ Co ustawia się przy zadaniu:
 **Rubryka zmienia ekran recenzenta**: zamiast listy ocen ze skali dostaje po jednym polu punktów
 i komentarzu na kryterium, a sumę liczy serwer. **Suma musi należeć do skali** — system nie zaokrągla,
 bo to byłaby zmiana decyzji recenzenta. W etapie z dowolnymi wartościami ocen (§ 2.3) suma musi
-**mieścić się w zakresie** zadania. Punkty za kryteria są liczbami całkowitymi w obu trybach. Zadanie
-bez kryteriów ocenia się dokładnie jak dotąd.
+**mieścić się w zakresie** zadania. Zadanie bez kryteriów ocenia się dokładnie jak dotąd.
+
+**Ułamki w rubryce** (od wersji po v0.35.0) zależą od trybu etapu:
+
+| Tryb etapu | Maksimum kryterium (`punkty;tytuł`) | Punkty za kryterium (recenzent) |
+|---|---|---|
+| tylko wartości ze skali | liczba całkowita 1–1000, np. `2;Pomysł` (ułamek – błąd z wyjaśnieniem) | liczba całkowita od 0 do maksimum |
+| dowolna wartość (co 0,01) | także ułamek od 0,01 do 1000, np. `2,5;Pomysł` albo `2.5;Pomysł` | dowolna liczba od 0 do maksimum co 0,01, np. 1,75 |
+
+Suma kryteriów jest liczona dokładnie (1,75 + 2,5 = 4,25) i trafia do oceny recenzji bez zaokrąglania;
+suma poza zakresem zadania to odmowa, tak jak w trybie skali. Formularz zadania pokazuje zapisaną
+rubrykę bez zbędnych zer („4;Całość”, „2,5;Zapis”), a karta zadania – maksima w tej samej postaci.
 
 Poprawienie tytułu kryterium **nie zrywa** powiązania z zapisanymi już punktami. Zapis szablonów
 wspólnych **nie rusza** prywatnych szablonów recenzentów.

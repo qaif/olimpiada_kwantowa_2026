@@ -1792,3 +1792,50 @@ docker compose exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT 
 
 musi dać `0`. Jeśli nie daje – nie cofaj, napraw w przód: kod v0.34.0 na kolumnach dziesiętnych
 co prawda wystartuje, ale oceny ułamkowej nie przyjmie ani poprawnie nie pokaże („5,00”).
+
+### 18.4. Uzupełnienie: ułamki w rubrykach i teście (po v0.35.0)
+
+Dwie migracje, obie **bezstratne** i na małych tabelach – bez okna serwisowego:
+
+| Migracja | Tabela, kolumny | Zmiana | Rząd wielkości | Czas |
+|---|---|---|---|---|
+| `grading.0012_rubric_decimal_points` | `grading_rubriccriterion.max_points` | `smallint` → `numeric(7,2)`; więz `…_max_points_positive` z `>= 1` na `> 0` (ta sama nazwa) | dziesiątki – setki wierszy | pomijalny |
+| `ai_grading.0003_points_precision` | `ai_grading_aiassessment.proposed_points`, `max_points` | `numeric(6,2)` → `numeric(7,2)` (jak maksimum zadania) | setki – tysiące | < 1 s |
+
+Każda istniejąca wartość zostaje tą samą liczbą (4 → 4.00, 4.50 → 4.50). Punkty za kryteria
+zapisanych recenzji (`grading_review.rubric`, JSON) **nie są** przepisywane – liczby całkowite zostają
+w nich liczbami całkowitymi. Żadnej flagi, zmiany `.env`, zadania beat ani nowej zależności.
+
+**Zmiany zachowania, które warto zapowiedzieć organizatorowi**:
+
+- w etapie z **dowolnymi wartościami** wynik **testu online** wchodzi do tabeli wyników co do 0,01
+  (dotąd zawsze do pełnych punktów). Etapy „tylko ze skali” – bez zmian. Tabele **już ogłoszone**
+  (snapshoty) się nie zmieniają; zmienia się dopiero kolejne przeliczenie etapu testowego w trybie
+  dowolnym – sprawdź przed wdrożeniem, czy taki etap jest w toku:
+
+  ```bash
+  docker compose exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT s.id FROM competitions_stage s JOIN competitions_scoringscale sc ON sc.stage_id = s.id WHERE s.format = 'QUIZ' AND sc.free_values;"
+  ```
+
+- kwota za pytanie testu z oceną częściową jest zaokrąglana **połówka w górę** (0,125 → 0,13; dotąd
+  bankierskie 0,12). Zapisane wyniki podejść się nie zmieniają; „Przelicz punkty” po wdrożeniu może
+  przesunąć wynik podejścia o 0,01 – wpis audytu `quiz.regraded` poda liczbę zmienionych podejść,
+- eksport CSV wyników testu pisze punkty bez zbędnych zer (`7.5`, `3`), a eksport danych uczestnika
+  – punkty sugestii AI jako liczby JSON (`6`, `4.5`) zamiast tekstu („6.00”).
+
+Po wdrożeniu:
+
+```bash
+docker compose exec -T web python manage.py showmigrations grading ai_grading | tail -n 3
+docker compose exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT table_name, column_name, numeric_precision, numeric_scale FROM information_schema.columns WHERE (table_name, column_name) IN (('grading_rubriccriterion','max_points'),('ai_grading_aiassessment','proposed_points'),('ai_grading_aiassessment','max_points'));"
+```
+
+Oczekiwane: trzy wiersze `7`, `2`. **Rollback** (`migrate grading 0011`, `migrate ai_grading 0002`)
+wolno wykonać, dopóki żadne kryterium nie ma ułamkowego maksimum i żadna sugestia AI nie przekracza
+9 999,99 pkt – inaczej baza zaokrągli maksimum kryterium albo odmówi zawężenia kolumny:
+
+```bash
+docker compose exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT count(*) FROM grading_rubriccriterion WHERE max_points <> trunc(max_points);"
+```
+
+musi dać `0`.

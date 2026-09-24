@@ -212,6 +212,10 @@ Po ogłoszeniu wyników etapu:
   i decyzja. **Recenzenci są anonimowi** — podpisani „Recenzent A/B”,
 - **przed publikacją ten adres nie działa** i nie ma sposobu, żeby dowiedzieć się wyniku wcześniej,
 - publiczne **statystyki edycji** (rozkłady punktów, średnie, progi): `/statystyki/`.
+- **Punkty bywają ułamkami** („4,25”, „7,5”), jeśli organizator tak ustawił etap: dotyczy to ocen
+  zadań, punktów za kryteria oceny i **testu online** – wtedy wynik testu wchodzi do tabeli co do
+  setnej części punktu. W pozostałych etapach wynik testu jest zaokrąglany do pełnych punktów
+  (od połowy w górę: 7,5 → 8), a pytania za ułamek punktu („0,5 pkt”) są oznaczone przy treści.
 <!-- Dla organizatora: poniższy punkt rozsyłaj uczestnikom WYŁĄCZNIE wtedy, gdy w panelu włączono
      „Pokaż uczestnikom ocenę AI” dla etapu (PODRECZNIK-ORGANIZATORA.md § 4.12). Przy wyłączonym
      przełączniku uczestnik nie ma się z serwisu dowiedzieć, że ocena AI w ogóle powstała. -->

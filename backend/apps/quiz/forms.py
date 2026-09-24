@@ -19,13 +19,17 @@ przeklikiwanie pięciu pól.
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 from django import forms
 
 from apps.web.forms import LocalDateTimeField
+from apps.web.points_fields import PointsField
 
 from .grading import ALL_OR_NOTHING, PROPORTIONAL
 from .models import (
     DEFAULT_DURATION_MINUTES,
+    MAX_QUESTION_POINTS,
     NegativeFloor,
     QuestionKind,
     Quiz,
@@ -121,14 +125,25 @@ class QuestionForm(forms.Form):
     text = forms.CharField(label="Treść pytania", widget=forms.Textarea(attrs={"rows": 4}))
     image = forms.ImageField(label="Ilustracja", required=False)
     clear_image = forms.BooleanField(label="Usuń ilustrację", required=False)
-    points = forms.DecimalField(label="Punkty", min_value=0.01, max_value=100, decimal_places=2, initial=1)
-    negative_points = forms.DecimalField(
+    # ``PointsField`` zamiast ``forms.DecimalField``: ten drugi bez lokalizacji odrzuca przecinek,
+    # czyli „0,5” – pierwszą rzecz, jaką wpisze polski koordynator (ułamki w teście, po wydaniu
+    # 0.35.0). Czytnik jest ten sam, co przy ocenach recenzentów (``apps.core.points.parse_points``):
+    # przecinek albo kropka, najwyżej dwa miejsca po przecinku.
+    points = PointsField(
+        label="Punkty",
+        min_value=Decimal("0.01"),
+        max_value=MAX_QUESTION_POINTS,
+        initial=1,
+        help_text="Np. 1 albo 0,5 (co 0,01).",
+    )
+    negative_points = PointsField(
         label="Punkty ujemne za błędną odpowiedź",
-        min_value=0,
-        max_value=100,
-        decimal_places=2,
+        min_value=Decimal(0),
+        max_value=MAX_QUESTION_POINTS,
         initial=0,
-        help_text="Odejmowane za błędną odpowiedź. Zero = bez kary. Brak odpowiedzi nie jest karany.",
+        help_text=(
+            "Odejmowane za błędną odpowiedź, np. 0,25. Zero = bez kary. Brak odpowiedzi nie jest karany."
+        ),
     )
     options = forms.CharField(
         label="Warianty odpowiedzi",

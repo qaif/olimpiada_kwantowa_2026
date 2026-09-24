@@ -251,7 +251,10 @@ def scale_text(materials: ProblemMaterials) -> str:
         lines.append("Rubryka (kryteria oceny):")
         for criterion in materials.rubric:
             description = f": {criterion['description']}" if criterion.get("description") else ""
-            lines.append(f"- {criterion['title']} (maks. {criterion['max_points']} pkt){description}")
+            # ``points_csv`` jak przy maksimum zadania wyżej: kolumna kryterium jest dziesiętna, więc
+            # surowa wartość dałaby modelowi „maks. 2.00 pkt” – a ułamek ma iść z kropką („2.5”).
+            maximum = points_csv(criterion["max_points"])
+            lines.append(f"- {criterion['title']} (maks. {maximum} pkt){description}")
     else:
         lines.append("Zadanie nie ma rubryki – podziel rozwiązanie na logiczne części i oceń każdą z nich.")
     if materials.reviewer_notes.strip():

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static i18n %}
+{% load static i18n web_extras %}
 {% comment %}
   „Podgląd jako uczestnik” dla koordynatora: arkusz w takiej postaci, w jakiej zobaczy go
   uczestnik – ale **bez podejścia**, bez licznika i bez pól, które cokolwiek wysyłają.
@@ -42,7 +42,7 @@
   <section class="card quiz-question">
     <div class="card__head">
       <h2 class="mt-0 card__title">{% blocktranslate trimmed with number=forloop.counter %}Pytanie {{ number }}{% endblocktranslate %}</h2>
-      <span class="badge badge--neutral">{% blocktranslate trimmed with points=question.points %}{{ points }} pkt{% endblocktranslate %}</span>
+      <span class="badge badge--neutral">{% blocktranslate trimmed with points=question.points|points %}{{ points }} pkt{% endblocktranslate %}</span>
     </div>
     <p class="quiz-question__text">{{ question.text|linebreaksbr }}</p>
     {% if question.image %}

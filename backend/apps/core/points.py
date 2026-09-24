@@ -149,8 +149,10 @@ def round_points(value, quantum: Decimal = POINTS_QUANTUM) -> Decimal:
 
     ``ROUND_HALF_UP``, a nie bankierskie ``ROUND_HALF_EVEN`` (domyślne w ``decimal``): regulamin
     i protokół komisji liczą „od połowy w górę”, a tabela wyników, w której 2,5 daje 2, a 3,5
-    daje 4, wyglądałaby na błąd. Tą samą metodą sprowadza wynik testu do pełnych punktów
-    ``apps.quiz.services`` i sumę ważoną ``competitions.services.StageScoring``.
+    daje 4, wyglądałaby na błąd. Tą samą metodą liczą punkty testu online – za pytanie
+    (``apps.quiz.grading.award_points``, do 0,01) i do tabeli wyników (``apps.quiz.services
+    .stage_scores``, do pełnych punktów albo do 0,01 w etapie dowolnym) – i sumę ważoną
+    ``competitions.services.StageScoring``.
     """
     number = to_points(value)
     if number is None:

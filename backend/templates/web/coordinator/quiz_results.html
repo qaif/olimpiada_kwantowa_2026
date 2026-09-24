@@ -61,8 +61,8 @@
           <tr>
             <th scope="row">{{ row.public_code }}</th>
             <td>{{ row.first_name }} {{ row.last_name }}</td>
-            <td class="num">{{ row.score }}</td>
-            <td class="num">{{ row.max_points }}</td>
+            <td class="num">{{ row.score|points }}</td>
+            <td class="num">{{ row.max_points|points }}</td>
             <td class="num">{{ row.percent|floatformat:1 }}</td>
             <td class="num">{{ row.attempts }}</td>
             <td>{{ row.submitted_at|local_datetime }}</td>
