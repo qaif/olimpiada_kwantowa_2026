@@ -8,25 +8,48 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
-## [Unreleased] – listy koordynatora
+## v0.34.0 – 2026-09-24
 
-Zgłoszenie organizatora z 24.09.2026: „Koordynator widzi skasowanych użytkowników jako ‚deleted’ –
-to błąd. Koordynator przeglądając uczestników powinien mieć możliwość ich sortowania po różnych polach.”
+Wydanie zbiorcze z próśb i zgłoszeń organizatora z 24.09.2026. Dwie zmiany działają od wdrożenia,
+w każdym konkursie i bez flagi: **listy koordynatora** (konta usunięte schowane, sortowanie kolumn)
+i **wysyłka komunikatów do grup uczestników**. Trzy nowe funkcje stoją za flagami konkursu
+**domyślnie wyłączonymi** – `student_status_certificate`, `workshop_materials`, `ai_grading` – więc
+konkurs z domyślnymi przełącznikami nie zmienia się o ani jeden adres, pozycję menu ani zapytanie
+(budżety zapytań w `test_invariants.py` bez zmian). Zapalenie każdej z nich jest decyzją organizatora
+poprzedzoną krokiem operatora: `OPERACJE.md` § 6.4 oraz § 15 (status ucznia), § 16 (materiały
+z warsztatów), § 17 (ocena AI).
+
+Migracje: `accounts.0033_broadcast_target`, `accounts.0034_clear_anonymised_profile_data` (dane),
+`tenancy.0009_document_kind_student_status`, `student_status.0001_initial`,
+`workshop_materials.0001_initial`, `ai_grading.0001_initial`. Nowe zadania beat:
+`student-status-purge-expired-scans` (doba), `workshop-materials-cleanup` (godzina), `ai-grading-pump`
+(5 min). Nowa zależność `anthropic>=1.8,<2` (import leniwy). Rejestr czynności przetwarzania
+**1.7** – jedna wersja z trzema wierszami **warunkowymi** (każdy widoczny wyłącznie przy włączonej
+fladze): „Weryfikacja statusu ucznia”, „Statystyka wyświetleń materiałów z warsztatów”, „Pomocnicza
+ocena prac uczestników przez model językowy”.
+
+### Listy koordynatora: konta usunięte i sortowanie (bez flagi)
+
+Zgłoszenie organizatora: „Koordynator widzi skasowanych użytkowników jako ‚deleted’ – to błąd.
+Koordynator przeglądając uczestników powinien mieć możliwość ich sortowania po różnych polach.”
 
 - **Konta usunięte schowane domyślnie.** Jedna reguła rozpoznania konta po anonimizacji
   (`apps.accounts.anonymised`: domena `@invalid.`, a nie puste imię ani `is_active`) – w Pythonie
   (`is_anonymised`) i w zapytaniu (`anonymised_q`, `User.objects.exclude_anonymised()`,
   `Participant.objects.exclude_anonymised()`); retencja korzysta z tej samej funkcji. Odsiewają ją:
   lista kont i uczestników, wyszukiwarka panelu, lista członków komisji, tabela obecności na
-  warsztatach, arkusz „Uczestnicy edycji” – każda z przyciskiem **„Pokaż usunięte konta (N)”** /
-  „Ukryj usunięte konta” (`?usuniete=1`, przeżywa stronicowanie, sortowanie i filtry; N to jeden
-  `COUNT` na bieżącej liście). Bez przełącznika: kolejki ekranu „Komitet” i ich plakietka w menu,
-  naliczanie wpisowego.
+  warsztatach, arkusz „Uczestnicy edycji”, a od tego wydania także **przyjazdy i potrzeby** oraz
+  **obecność na etapie stacjonarnym** (razem z liczbami do zamówienia i listami PDF, które idą za
+  przełącznikiem) – każda z przyciskiem **„Pokaż usunięte konta (N)”** / „Ukryj usunięte konta”
+  (`?usuniete=1`, przeżywa stronicowanie, sortowanie i filtry; N to liczba schowanych na bieżącej
+  liście). Bez przełącznika, bo przeglądania tam nie ma: lista „Status ucznia” i jej liczniki, listy
+  wyboru szkół i klas przy komunikatach, kolejki ekranu „Komitet” i ich plakietka w menu, naliczanie
+  wpisowego.
 - **„Konto usunięte” zamiast `deleted-…@invalid.…`** tam, gdzie wiersz musi zostać: przydziały,
   moderacja, kalibracja, zgłoszenia, karta problemu, rozmowy, dyplomy, karta uczestnika i członka
-  komisji, audyt, zgłoszenia pomocy, nagłówki edycji i usunięcia konta, eksport recenzji
-  (filtry szablonu `person`, `account_email`, `is_deleted_account` w `coordinator_extras`).
-  Wyniki zostają pod kodem publicznym.
+  komisji, audyt, zgłoszenia pomocy, nagłówki edycji i usunięcia konta, eksport recenzji, historia
+  komunikatów, decyzje o zaświadczeniach, ustawienia oceny AI (filtry szablonu `person`,
+  `account_email`, `is_deleted_account` w `coordinator_extras`). Wyniki zostają pod kodem publicznym.
 - **Sortowanie kolumn** listy kont i listy uczestników (`?role=participant`, nowe kolumny: szkoła,
   województwo, klasa, zgoda opiekuna, prace w bieżącej edycji): nagłówki z `aria-sort` i strzałką,
   sortowanie po stronie serwera wyłącznie po kluczach z listy dopuszczonych (`apps.web.list_controls`,
@@ -35,166 +58,188 @@ to błąd. Koordynator przeglądając uczestników powinien mieć możliwość i
   przestała robić dwa zapytania na wiersz (`is_protected` czyta grupy z prefetchu).
 - Pasek konta w nagłówku pokazuje zalogowanego (`request.user`), a nie konto z kontekstu widoku
   (karta członka komisji wypisywała tam adres oglądanej osoby).
-- Podręcznik organizatora § 10.1.
 
-## [Unreleased] – wysyłka do grup
+### Usunięcie konta czyści resztę danych profilu (bez flagi)
 
-Prośba organizatora z 24.09.2026: „koordynator dostaje funkcję wysyłania maili do poszczególnych grup
-uczestników, w tym do wszystkich”. Rozbudowa istniejącego ekranu **`/coordinator/messages/`**
-(Komunikacja → Komunikaty; bez flagi, działa w każdym konkursie):
+Decyzja organizatora z 24.09.2026. `anonymise_account` wyciera odtąd także adres e-mail rodzica
+(`guardian_email`), adres opiekuna szkolnego (`supervisor_email`), nazwę placówki wpisaną ręcznie
+(`institution_name`) i dowiązanie do słownika placówek organizatora (`custom_institution_ref`), uwagę
+tekstową i potrzeby szczególne (dieta, dostępność) z formularzy przyjazdu oraz pseudonimy widza
+materiałów z warsztatów; zaświadczenia o statusie ucznia i oceny AI tej osoby znikają razem z kontem
+(z plikami). Skutek widoczny: **usunięty uczeń znika z panelu nauczyciela „Moi uczniowie”** i z jego
+liczników (dopasowanie szło po adresie opiekuna; `students_of` filtruje też `exclude_anonymised()`
+dla profili wytartych wcześniej), a zaświadczenia z warsztatów nie są wystawiane kontom usuniętym.
+Migracja danych `accounts.0034` wyrównuje do tej reguły profile zanonimizowane przed wydaniem.
+
+### Wysyłka komunikatów do grup uczestników (bez flagi)
+
+Prośba organizatora: „koordynator dostaje funkcję wysyłania maili do poszczególnych grup uczestników,
+w tym do wszystkich”. Rozbudowa ekranu **`/coordinator/messages/`** (Komunikacja → Komunikaty):
 
 - **nowe grupy odbiorców** (`BroadcastGroup`): **„wszyscy uczestnicy konkursu”** – pierwsza na liście,
-  uczestnicy bieżącej edycji także bez wpisu do etapu (patrz niżej); „zapisani do etapu, bez wysłanej
-  pracy” (wpis zarejestrowany/zakwalifikowany bez żadnej pracy w etapie, praca odrzucona przez antywirusa
-  się nie liczy – przypomnienie przed terminem); uczestnicy z wybranego **województwa** (przy fladze
-  `custom_regions` – **regionu**, łącznie z profilami sprzed flagi); z wybranej **szkoły** (lista wyłącznie
-  szkół, z których są uczestnicy tego konkursu, z liczbą w nawiasie; wykaz SIO, słownik organizatora
-  i nazwa wpisana ręcznie jako osobne pozycje); z wybranej **klasy**; **obecni na wybranym warsztacie**
-  (tabela obecności `cms.WorkshopAttendance`, warsztaty z harmonogramu tego konkursu); **opiekunowie
-  szkolni** (profil `SchoolSupervisor` tego konkursu + rola `supervisor`, z członkostwami przy
-  `memberships_enforced`). Dotychczasowa grupa edycyjna zmienia etykietę na „uczestnicy bieżącej edycji
-  (zapisani do etapu)”;
+  uczestnicy bieżącej edycji także bez wpisu do etapu; „zapisani do etapu, bez wysłanej pracy” (wpis
+  zarejestrowany/zakwalifikowany bez żadnej pracy w etapie, praca odrzucona przez antywirusa się nie
+  liczy – przypomnienie przed terminem); uczestnicy z wybranego **województwa** (przy fladze
+  `custom_regions` – **regionu**, łącznie z profilami sprzed flagi); z wybranej **szkoły** (lista
+  wyłącznie szkół, z których są uczestnicy tego konkursu, z liczbą w nawiasie; wykaz SIO, słownik
+  organizatora i nazwa wpisana ręcznie jako osobne pozycje); z wybranej **klasy**; **obecni na
+  wybranym warsztacie** (`cms.WorkshopAttendance`, warsztaty z harmonogramu tego konkursu);
+  **opiekunowie szkolni** (profil `SchoolSupervisor` tego konkursu + rola `supervisor`, z członkostwami
+  przy `memberships_enforced`). Dotychczasowa grupa edycyjna zmienia etykietę na „uczestnicy bieżącej
+  edycji (zapisani do etapu)”;
+- **domyślnie bieżąca edycja** (decyzja organizatora): „wszyscy uczestnicy konkursu” oraz grupy
+  województwa/regionu, szkoły i klasy obejmują wyłącznie uczestników bieżącej edycji – profil tego
+  konkursu **i** (wpis do etapu bieżącej edycji **albo** konto założone nie wcześniej niż
+  `Edition.created_at`; `apps.accounts.messaging.current_edition_participants`). Pole „także uczestnicy
+  poprzednich edycji” (domyślnie odznaczone) zdejmuje zawężenie; wybór wchodzi do podpisu podglądu,
+  do `MessageBroadcast.target` i do audytu. Bez bieżącej edycji te grupy są puste, dopóki pole nie
+  jest zaznaczone;
 - **parametr grupy w historii i audycie**: nowe pole `MessageBroadcast.target` (JSON, migracja
   `accounts.0033_broadcast_target`) – identyfikator i etykieta etapu/regionu/szkoły/klasy/warsztatu
   z chwili wysyłki; kolumna „Grupa” w „Wysłanych komunikatach”, podgląd („Odbiorcy: …”) i wpis
-  `broadcast.sent` pokazują, do kogo poszedł list. Adresów nadal nigdzie nie zapisujemy; pole
-  wypełnione, ale nienależące do wybranej grupy, jest ignorowane;
-- **zakres konkursu**: każda grupa liczona w obrębie `request.competition` (`resolve_recipients(…,
-  competition=…)`), a konto wybierane wyłącznie po identyfikatorze profilu z tego konkursu. Przy okazji
-  naprawione dwa przecieki istniejącego kodu: grupa „członkowie komitetu” nie miała zakresu konkursu
-  w ogóle, a wiersz rejestru brał konkurs z odwrotu `default_competition` zamiast z żądania; nieużywane
-  `recent_broadcasts()` wymaga odtąd konkursu. Etap albo region z innego konkursu daje pustą grupę;
-- **domyślnie bieżąca edycja** (decyzja organizatora z 24.09.2026): „wszyscy uczestnicy konkursu”
-  oraz grupy województwa/regionu, szkoły i klasy obejmują wyłącznie uczestników bieżącej edycji – profil
-  tego konkursu **i** (wpis do etapu bieżącej edycji **albo** konto założone nie wcześniej niż
-  `Edition.created_at`; `apps.accounts.messaging.current_edition_participants`). Pole „także uczestnicy
-  poprzednich edycji” (domyślnie odznaczone) zdejmuje zawężenie; wybór wchodzi do podpisu podglądu,
-  do `MessageBroadcast.target` (`past_editions`, dopisek w etykiecie) i do audytu. Bez bieżącej edycji
-  te grupy są puste, dopóki pole nie jest zaznaczone;
+  `broadcast.sent`. Adresów nadal nigdzie nie zapisujemy; pole wypełnione, ale nienależące do
+  wybranej grupy, jest ignorowane;
+- **zakres konkursu**: każda grupa liczona w obrębie `request.competition`, a konto wybierane wyłącznie
+  po identyfikatorze profilu z tego konkursu. Przy okazji naprawione dwa przecieki: grupa „członkowie
+  komitetu” nie miała zakresu konkursu w ogóle, a wiersz rejestru brał konkurs z odwrotu
+  `default_competition` zamiast z żądania; nieużywane `recent_broadcasts()` wymaga odtąd konkursu;
 - **podpis podglądu**: „Wyślij” przechodzi wyłącznie z ukrytym podpisem (HMAC) grupy, jej parametru,
-  tematu i treści z ostatniego podglądu – zmiana czegokolwiek po podglądzie (np. „szkoła X” →
-  „wszyscy uczestnicy”) niczego nie wysyła, tylko pokazuje podgląd na nowo. Wcześniej przycisk
-  „Wyślij” z poprzedniego podglądu wysyłał to, co akurat stało w formularzu;
-- formularz pokazuje wyłącznie pole wymagane przez wybraną grupę (`static/js/broadcast-groups.js`,
-  mapa „grupa → pole” z `BroadcastForm.parameter_map`; bez JavaScriptu widać wszystkie pola);
-- zapytania o odbiorców: jedno zapytanie z półzłączeniem (`User.pk IN (profile tego konkursu)`) na
-  grupę, bez `DISTINCT` po wpisach; listy wyboru szkół i klas – po jednym zapytaniu grupującym.
+  tematu i treści z ostatniego podglądu – zmiana czegokolwiek po podglądzie niczego nie wysyła, tylko
+  pokazuje podgląd na nowo (wcześniej „Wyślij” z poprzedniego podglądu wysyłał to, co akurat stało
+  w formularzu);
+- formularz pokazuje wyłącznie pole wymagane przez wybraną grupę (`static/js/broadcast-groups.js`;
+  bez JavaScriptu widać wszystkie pola); odbiorcy – jedno zapytanie z półzłączeniem na grupę, listy
+  wyboru szkół i klas – po jednym zapytaniu grupującym (bez kont usuniętych).
 
-Świadomie **bez** załączników (odnośnik do pliku z biblioteki dokumentów `/cms/` w treści), bez kopii do
-adresu opiekuna prawnego (`guardian_email` służy wyłącznie zgodzie – RODO), bez grupy „rocznik” (wiek
-zbieramy tylko do reguły zgody opiekuna), bez grupy „zapisani na warsztat, ale nieobecni” (warsztaty nie
-mają zapisów – jest tylko obecność) i bez wpisów drużynowych w grupach etapowych. Podręcznik
-organizatora § 6.1.
-## [Unreleased] – materiały z warsztatów
+Świadomie **bez** załączników, bez kopii do adresu opiekuna prawnego (`guardian_email` służy wyłącznie
+zgodzie – RODO), bez grupy „rocznik”, bez grupy „zapisani na warsztat, ale nieobecni” i bez wpisów
+drużynowych w grupach etapowych. Podręcznik organizatora § 6.1.
 
-Prośba organizatora z 24.09.2026: „Koordynator dostaje możliwość wgrywania materiałów z warsztatów,
-w tym filmów. Filmy powinny być możliwe do obejrzenia tylko na stronie po zalogowaniu.” Numer wersji
-nada sesja główna.
+### Zaświadczenie o statusie ucznia (flaga `student_status_certificate`)
 
-- **Nowa aplikacja `apps.workshop_materials`** (migracja `workshop_materials.0001_initial`: modele
-  `WorkshopMaterial` i `WorkshopMaterialViewer`), za flagą konkursu **`workshop_materials`, domyślnie
-  wyłączoną** – przy wyłączonej wszystkie nowe adresy dają 404, a menu i strona „Warsztaty” są bez zmian.
+Nowa aplikacja `apps.student_status` (model `StudentStatusCertificate` – wersje per uczestnik
+**i edycja**, bo zaświadczenie potwierdza rok szkolny; migracje `student_status.0001_initial`
+i `tenancy.0009_document_kind_student_status`).
+
+- **Uczestnik** (`/me/status-ucznia/`): imienny wzór PDF do podstemplowania (`wzor.pdf` – imię
+  i nazwisko, data urodzenia, szkoła, rok szkolny z edycji, puste miejsca na klasę, pieczątkę szkoły,
+  datę i podpis dyrektora/sekretarza; skład ReportLab na krojach DejaVu, tekst z nowego rodzaju
+  dokumentu `STUDENT_STATUS` w „Szablonach dokumentów” ze znacznikami `{birth_date}`
+  i `{school_year}`), wgranie skanu PDF/JPG/PNG do 10 MB (format po treści, prywatny storage
+  `student-status/…`, skan ClamAV kolejką `scan`, zainfekowany – odrzucony i usunięty), ponowne
+  wgranie zastępuje oczekujące/odrzucone (plik poprzedni usuwany, historia zostaje), stan brak /
+  oczekuje / zaakceptowane / odrzucone z powodem; przypomnienie na pulpicie do czasu akceptacji –
+  **nie blokuje** oddawania prac.
+- **Koordynator** (`/coordinator/student-status/`, *Uczestnicy i konta* → „Status ucznia”): liczniki
+  i filtry oczekujące / zaakceptowane / odrzucone / brak, wybór edycji, wyszukiwarka, podgląd skanu
+  (po czystym skanie; `nosniff`, obrazy z `CSP: sandbox`; audyt `student_status.viewed`),
+  **Akceptuj** / **Odrzuć z powodem** (e-mail do uczestnika, audyt `student_status.accepted/rejected`
+  bez treści powodu), sekcja „Status ucznia” na karcie uczestnika.
+- **Paczki ZIP**: przy każdym pobraniu prac koordynatora (etap, zadanie, zaznaczone) i komitetu
+  (`/review/download/` oraz `GET /api/grading/reviews/download/`) parametr `students=all|verified` –
+  „wszystkie prace” (domyślnie) albo „tylko uczniowie z potwierdzonym statusem ucznia”; nazwy plików
+  dalej anonimowe, recenzent nigdy nie widzi skanu; przy wyłączonej fladze `verified` to 404
+  z powodem, a przyciski wyglądają jak dotąd.
+- **RODO**: wiersz rejestru „Weryfikacja statusu ucznia (zaświadczenie ze szkoły)” (§ 9.2), eksport
+  danych z sekcją `zaswiadczenia_statusu_ucznia` i plikami, anonimizacja i usunięcie konta kasują
+  wiersze i pliki, zadanie beat `student-status-purge-expired-scans` usuwa pliki edycji po terminie
+  retencji; storage dostaje `delete()`. Tłumaczenia EN panelu uczestnika i listów.
+- Dokumentacja: PODRĘCZNIK-UCZESTNIKA § 5a, PODRĘCZNIK-ORGANIZATORA § 4.1, 7.2a, 9.1, 9.2, 10a,
+  PODRĘCZNIK-RECENZENTA § 2, OPERACJE § 6.4 i § 15.
+
+### Materiały z warsztatów (flaga `workshop_materials`)
+
+Prośba organizatora: „Koordynator dostaje możliwość wgrywania materiałów z warsztatów, w tym filmów.
+Filmy powinny być możliwe do obejrzenia tylko na stronie po zalogowaniu.” Nowa aplikacja
+`apps.workshop_materials` (migracja `workshop_materials.0001_initial`: modele `WorkshopMaterial`
+i `WorkshopMaterialViewer`).
+
 - **Koordynator** – `/coordinator/workshops/materials/` (Raporty → Materiały z warsztatów, odnośnik
-  także z ekranu obecności): lista warsztatów z harmonogramu (blok `schedule` strony „Warsztaty”),
-  pod każdym materiały – **film** (MP4/WebM do 4 GB), **plik** (PDF, PPTX, DOCX, XLSX, ODP/ODT/ODS, ZIP,
-  IPYNB, PNG/JPG do 100 MB) albo **odnośnik** (`https://`); tytuł, opis, kolejność w obrębie warsztatu,
-  publikacja, podgląd szkicu, usunięcie razem z obiektem w magazynie; audyt `workshop_material.*` bez
-  tytułu i nazwy pliku. Materiał jest przypięty kluczem warsztatu (data + temat, jak obecność) z
-  **migawką** tematu i daty – po zmianie wiersza w harmonogramie materiał nie znika u widzów, a
-  koordynator widzi sekcję „Materiały bez warsztatu w harmonogramie” z przepięciem całej grupy
-  (podpowiedź: jedyny wiersz z tą samą datą).
+  także z ekranu obecności): lista warsztatów z harmonogramu (blok `schedule` strony „Warsztaty”), pod
+  każdym materiały – **film** (MP4/WebM do 4 GB), **plik** (PDF, PPTX, DOCX, XLSX, ODP/ODT/ODS, ZIP,
+  IPYNB, PNG/JPG do 100 MB) albo **odnośnik** (`https://`); tytuł, opis, kolejność w obrębie
+  warsztatu, publikacja, podgląd szkicu, usunięcie razem z obiektem w magazynie; audyt
+  `workshop_material.*` bez tytułu i nazwy pliku. Materiał jest przypięty kluczem warsztatu (data +
+  temat, jak obecność) z **migawką** tematu i daty – po zmianie wiersza w harmonogramie materiał nie
+  znika u widzów, a koordynator widzi sekcję „Materiały bez warsztatu w harmonogramie” z przepięciem
+  całej grupy.
 - **Wgrywanie bez gunicorna**: przeglądarka wysyła plik częściami po 16 MB prosto do MinIO na adresy
   podpisane przez serwer (`static/js/workshop-material-upload.js`, trzy części naraz, ponowienia,
-  pasek postępu, „Przerwij”); krok „zakończ” bierze listę części od MinIO, składa plik, sprawdza
-  rozmiar i **format po treści** (MP4 z marką ISO BMFF albo WebM; MOV/MKV odrzucane z podpowiedzią
-  przepakowania), pod blokadą wiersza (podwójne „zakończ” nie kasuje poprawnego pliku). Pliki – skan
-  ClamAV (kolejka `scan`, zagrożenie → obiekt skasowany, materiał „odrzucony”); filmy bez ClamAV
-  (uzasadnienie w `apps/workshop_materials/tasks.py`). Bez transkodowania.
-- **Oglądanie po zalogowaniu**: `/warsztaty/materialy/` (lista po warsztatach), `/warsztaty/materialy/<id>/`
-  (odtwarzacz `<video controlslist="nodownload">` z adresem podpisanym na 2 h, przewijanie `Range`),
-  `/warsztaty/materialy/<id>/pobierz/` (plik – przekierowanie na podpis na 5 min; odnośnik – na adres
-  zewnętrzny). Widzi każde konto z rolą **w tym konkursie** (uczestnik z profilem, opiekun, recenzent,
-  komisja, koordynator); inne konto – 403, anonim – logowanie. Wszystkie odpowiedzi `no-store`; żadna
-  z tych ścieżek nie jest na allow-liście pamięci stron. Gość na `/warsztaty/` widzi ramkę „zaloguj się,
-  aby obejrzeć” z liczbą materiałów, bez adresów (pamięć stron unieważniana przy zapisie materiału).
-- **Odnośniki** (decyzja organizatora z 24.09.2026): „Materiały z warsztatów” w pasku konta (konto z rolą
-  w konkursie) i kafel na pulpicie uczestnika `/me/` – tylko przy włączonej fladze i co najmniej jednym
-  opublikowanym, gotowym materiale. Odpowiedź z pamięci podręcznej per konkurs (godzina, kasowana
-  sygnałem przy zapisie/usunięciu materiału, `apps.workshop_materials.availability`, procesor kontekstu
-  `workshop_materials_link`, wartość leniwa); przy wyłączonej fladze zero zapytań i zero odczytów
-  z pamięci – `QUERY_BUDGET` bez zmian (nowy test w `test_invariants.py`).
+  pasek postępu, „Przerwij”); krok „zakończ” składa plik, sprawdza rozmiar i **format po treści**
+  (MP4 z marką ISO BMFF albo WebM; MOV/MKV odrzucane z podpowiedzią przepakowania), pod blokadą
+  wiersza. Pliki – skan ClamAV (kolejka `scan`, zagrożenie → obiekt skasowany, materiał
+  „odrzucony”); filmy bez ClamAV (uzasadnienie w `apps/workshop_materials/tasks.py`). Bez
+  transkodowania.
+- **Oglądanie po zalogowaniu**: `/warsztaty/materialy/` (lista po warsztatach),
+  `/warsztaty/materialy/<id>/` (odtwarzacz `<video controlslist="nodownload">` z adresem podpisanym na
+  2 h, przewijanie `Range`), `/warsztaty/materialy/<id>/pobierz/` (plik – przekierowanie na podpis na
+  5 min; odnośnik – na adres zewnętrzny). Widzi każde konto z rolą **w tym konkursie**; inne konto –
+  403, anonim – logowanie. Wszystkie odpowiedzi `no-store`, żadna z tych ścieżek nie jest na
+  allow-liście pamięci stron. Gość na `/warsztaty/` widzi ramkę „zaloguj się, aby obejrzeć” z liczbą
+  materiałów, bez adresów.
+- **Odnośniki**: „Materiały z warsztatów” w pasku konta i kafel na pulpicie uczestnika `/me/` – tylko
+  przy włączonej fladze i co najmniej jednym opublikowanym, gotowym materiale (pamięć podręczna per
+  konkurs, kasowana sygnałem; przy wyłączonej fladze zero zapytań – nowy test w `test_invariants.py`).
 - **Statystyki**: wyświetlenia i liczba różnych widzów na materiał; widz zapisany wyłącznie jako
-  pseudonim HMAC pary (materiał, konto), kasowany po 12 miesiącach; koordynator nie jest liczony.
-  Rejestr czynności przetwarzania **1.7** – wiersz warunkowy „Statystyka wyświetleń materiałów
-  z warsztatów”.
+  pseudonim HMAC pary (materiał, konto), kasowany po 12 miesiącach albo przy usunięciu konta;
+  koordynator nie jest liczony. Wiersz rejestru „Statystyka wyświetleń materiałów z warsztatów”.
 - **Infrastruktura**: `deploy/minio/policy-submissions.json` + uprawnienia wgrywania wieloczęściowego
   (na produkcji: `docker compose run --rm minio-init`); `scripts/backup.sh` pomija prefiks
-  `workshop-materials/` w kopii nocnej; nowe zadanie beat `workshop-materials-cleanup` (co godzinę:
+  `workshop-materials/` w kopii nocnej; zadanie beat `workshop-materials-cleanup` (co godzinę:
   porzucone wgrywania > 24 h, pseudonimy > 12 mies.); ustawienia `WORKSHOP_VIDEO_MAX_MB`,
-  `WORKSHOP_FILE_MAX_MB`. Caddy i CSP bez zmian (limit części 16 MB < `MAX_UPLOAD_MB`; origin MinIO
-  był już w `connect-src`/`media-src`). Operator: `OPERACJE.md` § 16; organizator:
-  `PODRECZNIK-ORGANIZATORA.md` § 4.11; uczestnik: `PODRECZNIK-UCZESTNIKA.md` § 7.
-## [Unreleased] – ocena AI
+  `WORKSHOP_FILE_MAX_MB`. Caddy i CSP bez zmian.
+- Dokumentacja: `OPERACJE.md` § 16; `PODRECZNIK-ORGANIZATORA.md` § 4.11;
+  `PODRECZNIK-UCZESTNIKA.md` § 7.
 
-**Ocena AI – sugestia punktów dla komitetu** (prośba organizatora z 24.09.2026), za flagą konkursu
-`ai_grading` **domyślnie wyłączoną** (konkurs z domyślnymi przełącznikami nie zmienia się o ani jeden
-adres, pozycję menu ani zapytanie). Nowa aplikacja `apps.ai_grading` (modele `AiGradingSettings`,
-`AiStageVisibility`, `AiAssessment`, migracja `ai_grading.0001_initial`), nowa zależność
-`anthropic>=1.8,<2` (import leniwy).
+### Ocena AI – sugestia punktów dla komitetu (flaga `ai_grading`)
+
+Nowa aplikacja `apps.ai_grading` (modele `AiGradingSettings`, `AiStageVisibility`, `AiAssessment`,
+migracja `ai_grading.0001_initial`), zależność `anthropic>=1.8,<2`. Ocenę wystawia wyłącznie
+człowiek; sugestia jest niewiążąca.
 
 - **Klucz API per konkurs** na ekranie `/coordinator/ai-grading/` (Ocenianie → Ocena AI): zaszyfrowany
-  w bazie (Fernet z `DJANGO_SECRET_KEY`, własna etykieta), tylko do zapisu – ekran pokazuje „ustawiony,
-  kończy się na …abcd”; zastąp / usuń / „Sprawdź klucz” (`models.retrieve`, bez kosztu); klucz
-  administracyjny odrzucany; nigdy w logach, audycie, argumentach zadań Celery ani w szablonach.
-  Wybór modelu `claude-opus-5` (domyślny) / `claude-sonnet-5`, limit wydatków w USD, liczniki zużycia
-  i szacowany koszt (Opus 5: 5/25 USD, Sonnet 5: 2/10 USD za MTok, odczyt cache 0,1×, zapis 1,25×).
+  w bazie (Fernet z `DJANGO_SECRET_KEY`, własna etykieta), tylko do zapisu – ekran pokazuje
+  „ustawiony, kończy się na …abcd”; zastąp / usuń / „Sprawdź klucz” (`models.retrieve`, bez kosztu);
+  klucz administracyjny odrzucany; nigdy w logach, audycie, argumentach zadań Celery ani
+  w szablonach. Wybór modelu `claude-opus-5` (domyślny) / `claude-sonnet-5`, limit wydatków w USD,
+  liczniki zużycia i szacowany koszt (Opus 5: 5/25 USD, Sonnet 5: 2/10 USD za MTok, odczyt cache
+  0,1×, zapis 1,25×).
 - **Zlecenie z karty zadania** (`/coordinator/problems/<id>/`, sekcja „Ocena AI”): dla wszystkich
   najnowszych wersji prac bez oceny AI (opcja „wygeneruj ponownie także istniejące”) albo dla jednej
-  pracy; dwustopniowe jak komunikaty – podgląd z liczbą prac i szacowanym kosztem, potem „Zleć”.
-  Idempotentne (prace w toku pomijane, przejęcie `PENDING → RUNNING` jednym `UPDATE`), blokada
-  doradcza per zadanie. Stany oczekuje / w toku / gotowa / błąd z komunikatem, sekcja odświeżana htmx,
+  pracy; dwustopniowe – podgląd z liczbą prac i szacowanym kosztem, potem „Zleć”. Idempotentne,
+  blokada doradcza per zadanie; stany oczekuje / w toku / gotowa / błąd, sekcja odświeżana htmx,
   zgodność AI z oceną końcową (średnia różnica, % zgodnych, % w granicy 1 pkt).
-- **Kolejka z ogranicznikiem**: jedno zadanie Celery na pracę, ale do brokera trafia ich najwyżej
-  `AI_GRADING_MAX_CONCURRENCY` (domyślnie 1) naraz – koniec oceny wypuszcza następną; beat
-  `ai-grading-pump` (5 min) domyka oceny osierocone przez restart workera. Ponowienia 429/5xx/sieć
-  z wykładniczym opóźnieniem (maks. 4, `retry-after` przycięty do 15 min); odmowa i `max_tokens` są
-  liczone, ale nie ponawiane; twardy limit zadania 16 min; limit wydatków zatrzymuje kolejkę bez
-  wołania API.
+- **Kolejka z ogranicznikiem**: do brokera trafia najwyżej `AI_GRADING_MAX_CONCURRENCY` (domyślnie 1)
+  zadań naraz – koniec oceny wypuszcza następną; beat `ai-grading-pump` (5 min) domyka oceny
+  osierocone przez restart workera. Ponowienia wyłącznie 429/5xx/sieć (maks. 4, `retry-after`
+  przycięty do 15 min); odmowa i `max_tokens` nie są ponawiane; twardy limit zadania 16 min; limit
+  wydatków zatrzymuje kolejkę bez wołania API.
 - **Żądanie do modelu**: `client.beta.messages.stream(...)` + `get_final_message()`, `max_tokens`
-  32000, `thinking: adaptive`, `output_config` z `effort: high` i schematem JSON
-  (`proposed_points`, `max_points`, `criteria`, `summary`, `errors`, `confidence`,
-  `injection_suspected`; `additionalProperties: false`), beta `server-side-fallback-2026-07-01`
-  z `fallbacks: "default"`; materiały zadania (treść, wzorcówka jako dokumenty PDF, skala, rubryka,
-  uwagi) przed pracą, `cache_control` na ostatnim stałym bloku; praca jako dokument PDF, obraz albo
-  tekst (notatnik – komórki i wyniki tekstowe), bez nazwy pliku i danych uczestnika; limity 32 MB /
-  600 stron / 5 MB na zdjęcie sprawdzane przed wysyłką (błąd zamiast obcinania). Prompt po polsku
-  z osłoną przed wstrzyknięciem poleceń (praca = dane, próba zgłaszana w `injection_suspected`).
-  Odpowiedź walidowana po stronie serwera, punkty przycinane do `[0, maksimum skali]`, dane osobowe
-  autora wymazywane z tekstu odpowiedzi; `stop_reason` sprawdzany przed treścią (`refusal` z kategorią,
-  `max_tokens`), `request_id` w logu, łańcuch błędów SDK (401 → komunikat o kluczu, 429/5xx/sieć →
-  ponowienie, pozostałe 4xx → błąd).
-- **Panel recenzenta**: zwinięty panel „Ocena AI (sugestia, niewiążąca)” z modelem i datą – wyłącznie
-  przy przydzielonej wersji pracy, bez danych uczestnika; formularz nigdy nie wypełnia się sam,
-  przycisk „Wstaw punkty AI jako punkt wyjścia” tylko zaznacza najbliższą wartość skali
-  (`static/js/review-ai.js`; przy rubryce przycisku nie ma).
-- **Uczestnik**: przełącznik etapu „Pokaż uczestnikom ocenę AI”, **domyślnie wyłączony**; po włączeniu
-  i ogłoszeniu wyników – podsumowanie i proponowane punkty w osobnej sekcji informacji zwrotnej,
-  z podpisem „sugestia AI”. Przy wyłączonym nic o ocenie AI nie trafia na ekrany uczestnika, do tabel
-  wyników, dyplomów, reklamacji ani API uczestnika (test).
-- **RODO**: rejestr czynności przetwarzania w wersji **1.7** – warunkowy wiersz „Pomocnicza ocena prac
-  uczestników przez model językowy” (Anthropic jako podmiot przetwarzający, przekazanie poza EOG,
-  brak decyzji zautomatyzowanej); eksport danych konta – sekcja `oceny_ai` (fakt przekazania pracy,
-  odbiorca, model i data zawsze; treść sugestii tylko tam, gdzie uczestnik widzi ją w panelu);
-  anonimizacja konta kasuje oceny AI prac tej osoby. Audyt `ai_grading.*` bez wartości klucza.
-- Dokumentacja: `PODRECZNIK-ORGANIZATORA.md` § 4.11 (z listą warunków prawnych przed włączeniem),
-  `PODRECZNIK-RECENZENTA.md` § 3a, `PODRECZNIK-UCZESTNIKA.md` § 6 (akapit do rozsyłania wyłącznie
-  przy włączonym przełączniku), `OPERACJE.md` § 6.4 i § 15.
+  32000, `thinking: adaptive`, `output_config` z `effort: high` i schematem JSON, beta
+  `server-side-fallback-2026-07-01` z `fallbacks: "default"`; materiały zadania przed pracą,
+  `cache_control` na ostatnim stałym bloku; praca jako dokument PDF, obraz albo tekst, bez nazwy pliku
+  i danych uczestnika; limity API sprawdzane przed wysyłką. Prompt po polsku z osłoną przed
+  wstrzyknięciem poleceń; odpowiedź walidowana, punkty przycinane do skali, dane osobowe autora
+  wymazywane; `stop_reason` sprawdzany przed treścią, `request_id` w logu.
+- **Panel recenzenta**: zwinięty panel „Ocena AI (sugestia, niewiążąca)” – wyłącznie przy
+  przydzielonej wersji pracy, bez danych uczestnika; formularz nigdy nie wypełnia się sam, przycisk
+  „Wstaw punkty AI jako punkt wyjścia” tylko zaznacza najbliższą wartość skali (przy rubryce go nie ma).
+- **Uczestnik**: przełącznik etapu **„Pokaż uczestnikom ocenę AI”, domyślnie wyłączony** (decyzja
+  organizatora); po włączeniu i ogłoszeniu wyników – podsumowanie i proponowane punkty w osobnej
+  sekcji informacji zwrotnej z podpisem „sugestia AI”. Przy wyłączonym nic o ocenie AI nie trafia na
+  ekrany uczestnika, do tabel wyników, dyplomów, reklamacji ani API uczestnika (test).
+- **RODO**: wiersz rejestru „Pomocnicza ocena prac uczestników przez model językowy” (Anthropic jako
+  podmiot przetwarzający, przekazanie poza EOG, brak decyzji zautomatyzowanej); eksport danych konta –
+  sekcja `oceny_ai`; anonimizacja konta kasuje oceny AI prac tej osoby. Audyt `ai_grading.*` bez
+  wartości klucza.
+- Dokumentacja: `PODRECZNIK-ORGANIZATORA.md` § 4.12 (z listą warunków prawnych przed włączeniem),
+  `PODRECZNIK-RECENZENTA.md` § 3a, `PODRECZNIK-UCZESTNIKA.md` § 6, `OPERACJE.md` § 6.4 i § 17.
 
 ## Niewydane (po `v0.31.1`)
 
 | Wersja | Data | Zmiana |
 |---|---|---|
-| **v0.34.0** | 2026-09-24 | **zaświadczenie o statusie ucznia** (prośba organizatora z 24.09.2026), za nową flagą konkursu **`student_status_certificate`** (domyślnie wyłączoną; włączenie – `OPERACJE.md` § 15): nowa aplikacja `apps.student_status` (model `StudentStatusCertificate` – wersje per uczestnik **i edycja**, bo zaświadczenie potwierdza rok szkolny; migracje `student_status.0001_initial` i `tenancy.0009_document_kind_student_status`). **Uczestnik** (`/me/status-ucznia/`): imienny wzór PDF do podstemplowania (`wzor.pdf` – imię i nazwisko, data urodzenia, szkoła, rok szkolny z edycji, puste miejsca na klasę, pieczątkę szkoły, datę i podpis dyrektora/sekretarza; skład ReportLab na krojach DejaVu, tekst z nowego rodzaju dokumentu `STUDENT_STATUS` w „Szablonach dokumentów” ze znacznikami `{birth_date}` i `{school_year}`), wgranie skanu PDF/JPG/PNG do 10 MB (format po treści, prywatny storage `student-status/…`, skan ClamAV kolejką `scan`, zainfekowany – odrzucony i usunięty), ponowne wgranie zastępuje oczekujące/odrzucone (plik poprzedni usuwany, historia zostaje), stan brak / oczekuje / zaakceptowane / odrzucone z powodem; przypomnienie na pulpicie do czasu akceptacji – **nie blokuje** oddawania prac. **Koordynator** (`/coordinator/student-status/`, menu *Uczestnicy i konta* → „Status ucznia”): liczniki i filtry oczekujące / zaakceptowane / odrzucone / brak, wybór edycji, wyszukiwarka, podgląd skanu (po czystym skanie; `nosniff`, obrazy z `CSP: sandbox`; audyt `student_status.viewed`), **Akceptuj** / **Odrzuć z powodem** (e-mail do uczestnika, audyt `student_status.accepted/rejected` bez treści powodu), sekcja „Status ucznia” na karcie uczestnika. **Paczki ZIP**: przy każdym pobraniu prac koordynatora (etap, zadanie, zaznaczone) i komitetu (`/review/download/` oraz `GET /api/grading/reviews/download/`) parametr `students=all|verified` – „wszystkie prace” (domyślnie) albo „tylko uczniowie z potwierdzonym statusem ucznia”; nazwy plików dalej anonimowe, recenzent nigdy nie widzi skanu; przy wyłączonej fladze `verified` to 404 z powodem, a przyciski wyglądają jak dotąd. **RODO**: rejestr czynności **1.7** z warunkowym wierszem „Weryfikacja statusu ucznia” (§ 9.2), eksport danych z sekcją `zaswiadczenia_statusu_ucznia` i plikami, anonimizacja i usunięcie konta kasują wiersze i pliki, zadanie beat `student-status-purge-expired-scans` usuwa pliki edycji po terminie retencji; storage dostaje `delete()`. Budżety zapytań Konkursu #1 bez zmian (flaga wyłączona = zero zapytań). Tłumaczenia EN panelu uczestnika i listów; docs: PODRĘCZNIK-UCZESTNIKA § 5a, PODRĘCZNIK-ORGANIZATORA § 4.1, 7.2a, 9.1, 9.2, 10a, PODRĘCZNIK-RECENZENTA § 2, OPERACJE § 6.4 i § 15 |
+| **v0.34.0** | 2026-09-24 | **wydanie zbiorcze z 24.09.2026** (pełny opis w sekcji „v0.34.0 – 2026-09-24” wyżej): **listy koordynatora** – konta usunięte schowane domyślnie za przyciskiem „Pokaż usunięte konta (N)” na każdej liście osób (także przyjazdy i obecność na etapie stacjonarnym), „Konto usunięte” zamiast `deleted-…@invalid`, sortowanie kolumn listy kont i uczestników; **usunięcie konta** czyści też adres rodzica, adres opiekuna szkolnego, placówkę i dane szczególne logistyki – usunięty uczeń znika z panelu „Moi uczniowie” (migracja danych `accounts.0034`); **wysyłka komunikatów do grup** (wszyscy uczestnicy, bez pracy w etapie, województwo/region, szkoła, klasa, obecni na warsztacie, opiekunowie; domyślnie bieżąca edycja; podpis podglądu; `accounts.0033`); za flagami **domyślnie wyłączonymi**: **zaświadczenie o statusie ucznia** (`student_status_certificate`, filtr paczek ZIP „tylko z potwierdzonym statusem”; `OPERACJE.md` § 15), **materiały z warsztatów** (`workshop_materials`, filmy i pliki dla zalogowanych, wgrywanie częściami prosto do MinIO; § 16) i **ocena AI** (`ai_grading`, sugestia punktów Claude'a dla komitetu, przełącznik etapu „Pokaż uczestnikom ocenę AI” domyślnie wyłączony, zależność `anthropic`; § 17); rejestr czynności **1.7** z trzema wierszami warunkowymi |
 | **v0.33.0** | 2026-09-23 | **plakaty zgrupowane w karty** (prośba organizatora z 23.09.2026: „jedna karta na format, kilka przycisków” zamiast osobnej karty na każdy plik „A3 (JPG)”, „A3 (PDF)”, „A3 (PDF ze spadem 3 mm)”…): `PromoMaterial` dostaje dwa pola (migracja `promo.0002_group_variant_label`) – **`group`** („Karta (grupa plików)”, np. „A3 · 297×420 mm”: pliki jednego konkursu z identyczną, niepustą grupą stają na `/plakaty/` na **jednej karcie** – nagłówek to grupa, podgląd to pierwszy podgląd w grupie, opis pierwszy niepusty, pod spodem przycisk na każdy plik w kolejności koordynatora; karta stoi tam, gdzie jej pierwszy plik) i **`variant_label`** („Napis na przycisku”, np. „PDF ze spadem 3 mm”; puste = sam format JPG/PNG/PDF). Przycisk „Pobierz JPG · 1,7 MB” prowadzi do **własnego** adresu pobrania pliku, więc liczenie pobrań, limit, pseudonim IP i statystyki zostają per plik; nazwa dostępna przycisku niesie grupę („Pobierz A3 · 297×420 mm – PDF ze spadem 3 mm”). Plik bez grupy wygląda jak dotąd. Karty składa Python z tej samej jednej listy (`apps.promo.cards.build_cards`) – liczba zapytań `/plakaty/` bez zmian (test). Ekran koordynatora: oba pola w formularzu (z podpowiedzią `<datalist>` grup tego konkursu), linia „Karta: … · przycisk „…”” pod tytułem w tabeli, dwie nowe kolumny w eksporcie CSV („karta (grupa)”, „przycisk”); podręcznik organizatora § 4.10 |
 | **v0.32.0** | 2026-09-23 | **plakaty do pobrania** (prośba organizatora z 23.09.2026): nowa aplikacja `apps.promo` (modele `PromoMaterial` i `PromoDownload`, migracja promo.0001), strona publiczna **`/plakaty/`** (siatka kart: podgląd, tytuł, opis, format i rozmiar, „Pobierz”; 404, gdy konkurs nie ma opublikowanych plakatów; na allow-liście pamięci stron, unieważnianej przy każdym zapisie plakatu) i pobranie `/plakaty/<id>/pobierz/` (plik z prywatnego storage jako załącznik przez aplikację, `Cache-Control: no-store`, nigdy w pamięci stron); plik PDF/JPG/PNG do 50 MB rozpoznawany **po treści** (sygnatury `%PDF-`, `FF D8 FF`, PNG), miniatura JPG/PNG robiona automatycznie (Pillow), dla PDF-a opcjonalny własny podgląd albo ikona; odnośnik „Plakaty do pobrania” w stopce każdej strony i przycisk w panelu opiekuna szkolnego – tylko gdy jest opublikowany plakat (flaga w Redisie, unieważniana przy zapisie; budżety zapytań `/`, `/me/`, `/coordinator/` +1 na zimno, na ciepło zero). Ekran koordynatora **`/coordinator/posters/`** (Ustawienia → Plakaty do pobrania): dodanie, edycja, publikacja, kolejność, usunięcie (plakat z pobraniami trafia do archiwum ze statystykami), eksport CSV, audyt `promo.*`; statystyki **podwójne** – pobrania i **unikalne adresy IP** w oknach 7 dni / 30 dni / od początku (unikalność w całym oknie i w sumie między plakatami), kafelki, wykres dzienny obu szeregów (CSS, bez JS), eksport z tymi samymi kolumnami. Nie liczymy robotów, podglądów linków, `HEAD` ani koordynatora; podwójne kliknięcie (ten sam plakat i adres w 10 s) to jedno pobranie, a pobieranie ma limit 30/min na adres IP (scope `poster_download`, 429 bez zapisu pobrania); `HEAD` na plik brakujący w storage daje 404 jak `GET`. Adresu IP nie zapisujemy: zostaje **pseudonim** HMAC-SHA256 z kluczem z `SECRET_KEY`, zerowany po 12 miesiącach nowym zadaniem beat `promo-clear-expired-ip-hashes`; rejestr czynności przetwarzania 1.6 – nowa czynność „Statystyka pobrań materiałów promocyjnych” (art. 6 ust. 1 lit. f) |
 | **v0.31.2** | 2026-09-22 | strona rejestracji opiekuna szkolnego (`/register/supervisor/`) bez zaszytego w szablonie wstępu nad formularzem (organizator, 22.09.2026: „usuń tylko ten tekst nad formularzem”; „czy to intro mogę edytować z poziomu CMS”) – w jego miejsce pole `SiteSettings.supervisor_registration_intro` (`/cms/` → Ustawienia → Dane serwisu, sekcja „Rejestracja”; migracja cms.0027): domyślnie puste, czyli akapitu nie ma, a wpisany tekst (pogrubienie, kursywa, odnośnik) pojawia się nad formularzem bez wdrożenia; wyjaśnienie, skąd bierze się lista uczniów, zostaje w pustym stanie pulpitu opiekuna |
