@@ -525,7 +525,7 @@ Komenda nigdy nie kasuje członkostw — `--fix` wyłącznie dopisuje. Czytając
 - `UWAGA … bez członkostwa N z M` — **te osoby stracą dostęp** po przełączeniu flagi. Uruchom
   `--fix`, a potem komendę jeszcze raz bez flagi: ma wyjść zero.
 - `info … członkostw bez grupy Django` — to nie jest rozjazd ról. Przed `scope_cms_access`
-  (§ 6.6) oznacza brak dostępu do `/cms/` (panel redakcyjny wisi wtedy na uprawnieniach grupy
+  (§ 6.7) oznacza brak dostępu do `/cms/` (panel redakcyjny wisi wtedy na uprawnieniach grupy
   `coordinator`, migracja `cms.0003_coordinator_permissions`) i naprawia się dodaniem do grupy
   w `/admin/ → Użytkownicy`. Po `scope_cms_access` dostęp do `/cms/` daje grupa `cms:<slug>`,
   do której wpisuje sam serwis, więc wpis ma znaczenie wyłącznie dla ról czytanych z grup.
@@ -557,9 +557,9 @@ oznaczenie rocznika (`I edycja <rok>/<rok+1>`, liczone od września).
 
 `--coordinator-email` wymaga **istniejącego** konta: komenda kont nie zakłada. Nadaje rolę
 koordynatora w tym konkursie **i** dopisuje do grupy Django `coordinator`. Co to daje w `/cms/`,
-zależy od tego, czy instalacja przeszła już `scope_cms_access` (§ 6.6): **przed** komendą grupa
+zależy od tego, czy instalacja przeszła już `scope_cms_access` (§ 6.7): **przed** komendą grupa
 `coordinator` ma prawa na całym drzewie stron i we wszystkich kolekcjach, więc nowy koordynator
-redaguje wszystkie konkursy — dlatego drugi konkurs zakłada się **po** § 6.6. **Po** komendzie
+redaguje wszystkie konkursy — dlatego drugi konkurs zakłada się **po** § 6.7. **Po** komendzie
 grupa `coordinator` nie daje w `/cms/` niczego, a koordynator trafia do grupy `cms:<slug>` swojego
 konkursu: widzi i edytuje wyłącznie jego strony, obrazy i dokumenty.
 
@@ -791,7 +791,7 @@ poddrzew — tylko adresy dopisane z nazwy).
 
 ---
 
-### 6.6. Uprawnienia `/cms/` per konkurs i superkoordynator (wydanie „uprawnienia CMS per konkurs”)
+### 6.7. Uprawnienia `/cms/` per konkurs i superkoordynator (wydanie „uprawnienia CMS per konkurs”)
 
 Do tego wydania globalna grupa `coordinator` ma prawa Wagtaila na **korzeniu** drzewa stron
 i kolekcji mediów (`cms.0003`), więc koordynator drugiego konkursu edytowałby strony i media
@@ -1106,7 +1106,7 @@ podejrzanych.
 |---|---|---|
 | 1 | `per_competition_consents`, `document_templates` | `/coordinator/consents/` i `/coordinator/documents/` otwierają się; `/register/` konkursu pokazuje **te same** zgody, co przed zapaleniem (definicje są kopią zestawu domyślnego) |
 | 2 | `competition_branding_in_mail` | list aktywacyjny z rejestracji testowej ma temat i podpis tego konkursu, a nie platformy |
-| 3 | `scoped_cms_permissions` | od wydania „uprawnienia CMS per konkurs” flaga **nie jest potrzebna**, jeżeli instalacja przeszła § 6.6 (po `scope_cms_access` każdy konkurs jest zawężony). Przed § 6.6 flaga daje konkursowi grupę `cms:<slug>` **obok** grupy globalnej — czyli nic nie zawęża; nie zapalaj jej zamiast § 6.6 |
+| 3 | `scoped_cms_permissions` | od wydania „uprawnienia CMS per konkurs” flaga **nie jest potrzebna**, jeżeli instalacja przeszła § 6.7 (po `scope_cms_access` każdy konkurs jest zawężony). Przed § 6.7 flaga daje konkursowi grupę `cms:<slug>` **obok** grupy globalnej — czyli nic nie zawęża; nie zapalaj jej zamiast § 6.7 |
 | 4 | `custom_regions` | `/coordinator/regions/` pokazuje 18 wierszy startowych; lista województw w rejestracji nie zmienia się, dopóki regiony nie zostaną poprawione |
 | 5 | `institution_types`, `custom_school_directory` | `/coordinator/registration-profile/` i `/coordinator/institutions/`; **podgląd** wgrania wykazu (bez potwierdzenia) przed pierwszym prawdziwym importem |
 | 6 | `process_editor`, `categories` | `/coordinator/pipeline/` — konkurs założony komendą ma **pusty tor**: kroki dopisuje się przyciskiem „Dopisz krok”, po jednym na etap, zanim ktokolwiek policzy kwalifikację |

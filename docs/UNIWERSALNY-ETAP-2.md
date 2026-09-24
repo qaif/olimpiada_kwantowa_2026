@@ -597,7 +597,7 @@ nie jej obejście:
   ograniczeń, sygnały nic nie zapisują, pliki lądują w korzeniu — jak przed wydaniem. Flaga
   `scoped_cms_permissions` zostaje dla trybu z etapu 2 i po komendzie nie jest potrzebna.
 
-Runbook: `docs/OPERACJE.md` § 6.6. Testy: `apps/cms/tests/test_cms_scope.py` (komenda, macierz przed/po),
+Runbook: `docs/OPERACJE.md` § 6.7. Testy: `apps/cms/tests/test_cms_scope.py` (komenda, macierz przed/po),
 `apps/cms/tests/test_cms_permissions_per_competition.py` (koordynator A kontra B we wszystkich
 miejscach `/cms/`), `apps/accounts/tests/test_super_coordinator.py`.
 

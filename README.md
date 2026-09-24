@@ -263,7 +263,7 @@ Platforma obsługuje wiele niezależnych konkursów z jednej bazy i jednego wdro
 > tu nie ma: pre-flight `manage.py check_memberships` (kto straci dostęp, gdy o rolach przestanie
 > rozstrzygać globalna grupa Django), przełączenie flag `memberships_enforced`
 > i `competition_settings_page` w `/admin/` oraz jednorazowe zawężenie `/cms/` do konkursów
-> (§ 6.6: `superkoordynator --all-current-coordinators`, potem `scope_cms_access`) — bez niego
+> (§ 6.7: `superkoordynator --all-current-coordinators`, potem `scope_cms_access`) — bez niego
 > koordynator nowego konkursu dostałby razem z grupą `coordinator` dostęp do `/cms/` całej instalacji.
 
 Co powstaje razem z konkursem: witryna i drzewo stron (puste, o właściwych adresach),

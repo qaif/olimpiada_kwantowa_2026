@@ -350,7 +350,7 @@ superużytkownika. Obie drogi zapisują wpis audytu (`accounts.super_coordinator
 `.revoked`); ręczne dopisanie grupy w formularzu konta działa, ale bez śladu w audycie. Na liście
 `/coordinator/accounts/` konto ma rolę „superkoordynator”.
 
-**`/cms/` per konkurs.** Po jednorazowym `manage.py scope_cms_access` (`OPERACJE.md` § 6.6)
+**`/cms/` per konkurs.** Po jednorazowym `manage.py scope_cms_access` (`OPERACJE.md` § 6.7)
 koordynator konkursu redaguje w `/cms/` wyłącznie poddrzewo stron swojej witryny i kolekcję mediów
 swojego konkursu — przez grupę `cms:<slug>`, do której wpisuje i z której wypisuje go serwis przy
 każdej zmianie roli. Globalna grupa `coordinator` zostaje rolą, ale nie daje w `/cms/` niczego.

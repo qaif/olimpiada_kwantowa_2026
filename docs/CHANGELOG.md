@@ -176,7 +176,7 @@ w menu) i całe `/cms/`, bez `/admin/`; `manage.py superkoordynator --grant|--re
 i kolekcje, przenosi media z korzenia kolekcji do kolekcji konkursu (`--root-media-to` przy kilku
 konkursach), zabiera grupie `coordinator` uprawnienia `/cms/` i porównuje macierz możliwości każdego
 koordynatora przed i po — przy jednym konkursie różnica wycofuje całość. **Bez migracji.** Do
-chwili uruchomienia komend nic się nie zmienia. Kroki operatora: `OPERACJE.md` § 6.6 —
+chwili uruchomienia komend nic się nie zmienia. Kroki operatora: `OPERACJE.md` § 6.7 —
 wdrożenie → `superkoordynator --all-current-coordinators` → `scope_cms_access --dry-run` →
 `scope_cms_access` → sprawdzenie.
 

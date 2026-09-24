@@ -900,17 +900,39 @@ def competition_switcher(request) -> list[dict]:
     bramka widoku (``has_role``). Dla superkoordynatora: jedno zapytanie o listę konkursów.
     Sesja jest osobna dla każdej domeny, więc przejście pod adres innego konkursu może wymagać
     zalogowania — tak samo jak odnośniki na ekranie „Moje konkursy”.
+
+    Konkurs pod prefiksem ścieżki (§ 2.3, uwaga T43) odpowiada **wyłącznie** pod hostem platformy
+    (konkursu witryny domyślnej z otwartą bramką ``path_prefix_routing`` –
+    ``apps.tenancy.resolution.hosts_path_prefixes``), a jego ``primary_domain`` to domena, na którą
+    dopiero czeka. Adres jest więc bezwzględny, od hosta platformy: względne ``/<prefiks>/…``
+    oglądane pod domeną innego konkursu prowadziłoby pod jego host, gdzie prefiksu nikt nie
+    rozstrzyga. Przy zamkniętej bramce konkurs pod prefiksem nie ma adresu i nie trafia na listę.
+    Witryny przychodzą tym samym zapytaniem (``select_related``), więc koszt się nie zmienia.
     """
     from apps.accounts.super_coordinator import is_super_coordinator
     from apps.tenancy.models import Competition, RoutingMode
+    from apps.tenancy.resolution import hosts_path_prefixes
 
     if not is_super_coordinator(getattr(request, "user", None)):
         return []
     current = getattr(request, "competition", None)
+    competitions = list(
+        Competition.objects.filter(is_active=True).select_related("site").order_by("name", "pk")
+    )
+    platform = next(
+        (row for row in competitions if row.site is not None and row.site.is_default_site), None
+    )
+    platform_origin = ""
+    if platform is not None and hosts_path_prefixes(platform):
+        site = platform.site
+        host = site.hostname if site.port in (80, 443, None) else f"{site.hostname}:{site.port}"
+        platform_origin = f"{request.scheme}://{host}"
     rows = []
-    for competition in Competition.objects.filter(is_active=True).order_by("name", "pk"):
+    for competition in competitions:
         if competition.routing_mode == RoutingMode.PATH and competition.path_prefix:
-            url = f"/{competition.path_prefix}/coordinator/"
+            if not platform_origin or competition is platform:
+                continue
+            url = f"{platform_origin}/{competition.path_prefix}/coordinator/"
         elif competition.primary_domain:
             url = f"{request.scheme}://{competition.primary_domain}/coordinator/"
         else:

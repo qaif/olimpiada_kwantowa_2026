@@ -405,3 +405,65 @@ def test_prefixed_tree_is_a_separate_subtree(second, competition):
 
     assert not second_root.is_descendant_of(first_root)
     assert not first_root.is_descendant_of(second_root)
+
+
+# --- superkoordynator i /cms/ per konkurs (wydanie 0.36.0: prefiks ścieżki + zawężenie /cms/) ----
+
+
+@pytest.fixture
+def super_user():
+    from apps.accounts import super_coordinator
+    from apps.accounts.tests.factories import UserFactory
+
+    user = UserFactory(email="super-prefiks@example.test")
+    super_coordinator.grant(user)
+    return user
+
+
+def test_switcher_links_the_prefixed_competition_under_the_platform_host(
+    competition, other_competition, second, client_for, super_user
+):
+    """Konkurs pod prefiksem odpowiada wyłącznie pod hostem platformy – także z domeny innego konkursu.
+
+    Względne ``/druga/coordinator/`` pod domeną konkursu B trafiłoby w host, który prefiksu nie
+    rozstrzyga; ``primary_domain`` konkursu pod prefiksem to domena, na którą dopiero czeka.
+    """
+    expected = f'href="http://{HOST_A}/{PREFIX}/coordinator/"'
+    for client, path in (
+        (client_for(other_competition), "/coordinator/"),
+        (client_for(competition), f"/{PREFIX}/coordinator/"),
+        (client_for(competition), "/coordinator/"),
+    ):
+        client.force_login(super_user)
+        response = client.get(path)
+        assert response.status_code == 200, path
+        body = response.content.decode()
+        assert expected in body, path
+        assert f'href="/{PREFIX}/coordinator/"' not in body
+        assert f"{SECOND_DOMAIN}/coordinator/" not in body
+
+
+def test_switcher_skips_the_prefixed_competition_behind_a_closed_gate(competition, second, client_for, super_user):
+    competition.feature_flags = {**competition.feature_flags, "path_prefix_routing": False}
+    competition.save(update_fields=["feature_flags"])
+    client = client_for(competition)
+    client.force_login(super_user)
+
+    body = client.get("/coordinator/").content.decode()
+
+    assert "Konkursy platformy" in body
+    assert f"/{PREFIX}/coordinator/" not in body
+    assert f"{SECOND_DOMAIN}/coordinator/" not in body
+
+
+def test_coordinator_of_the_prefixed_competition_is_scoped_to_its_own_site_root(competition, second):
+    """Grupa ``cms:<slug>`` konkursu pod prefiksem ma prawa na korzeniu **jego** witryny, nie platformy."""
+    from wagtail.models import GroupPagePermission
+
+    from apps.cms.permissions import ensure_cms_group
+
+    group = ensure_cms_group(second)
+    page_ids = set(GroupPagePermission.objects.filter(group=group).values_list("page_id", flat=True))
+
+    assert page_ids == {second.site.root_page_id}
+    assert competition.site.root_page_id not in page_ids

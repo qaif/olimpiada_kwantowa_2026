@@ -8,7 +8,7 @@ Cztery czynności, dokładnie jedna na wywołanie::
     manage.py superkoordynator --list
 
 ``--all-current-coordinators`` jest krokiem wdrożenia wydania „uprawnienia CMS per konkurs”
-(``docs/OPERACJE.md`` § 6.2): uruchamia się go **raz, zaraz po wdrożeniu i przed**
+(``docs/OPERACJE.md`` § 6.7): uruchamia się go **raz, zaraz po wdrożeniu i przed**
 ``scope_cms_access``. Polecenie organizatora brzmi „obecny koordynator ma nim zostać” — więc
 każde konto, które dziś ma rolę koordynatora (``apps.accounts.super_coordinator.current_coordinators``),
 dostaje rolę platformy, zanim zawężenie ``/cms/`` zabierze globalnej grupie prawa do korzenia.
