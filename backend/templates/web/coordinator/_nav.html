@@ -74,5 +74,27 @@
         </ul>
       </details>
     {% endfor %}
+    {% if nav_competitions %}
+      {% comment %}
+        Przełącznik konkursów superkoordynatora (apps/web/coordinator_nav.py,
+        ``competition_switcher``). Lista adresów paneli, a nie tryb „pokaż inny konkurs tutaj”:
+        dane panelu są zawsze zawężone do konkursu z adresu.
+      {% endcomment %}
+      <details class="panel-nav__group" data-nav-group="konkursy-platformy" open>
+        <summary class="panel-nav__heading">
+          <span class="panel-nav__heading-label">Konkursy platformy</span>
+        </summary>
+        <ul class="panel-nav__list">
+          {% for row in nav_competitions %}
+            <li class="panel-nav__item">
+              <a class="panel-nav__link{% if row.current %} panel-nav__link--active{% endif %}"
+                 href="{{ row.url }}"{% if row.current %} aria-current="page"{% endif %}>
+                <span class="panel-nav__label">{{ row.name }}</span>
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      </details>
+    {% endif %}
   </div>
 </details>

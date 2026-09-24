@@ -160,6 +160,26 @@ Konkurs z własną domeną (Olimpiada Kwantowa) – bez zmian co do bajtu (testy
 - Testy `apps/tenancy/tests/test_path_prefix_cms.py`; runbook `OPERACJE.md` § 6.6 i flaga w § 6.4;
   `UNIWERSALNY-ETAP-2.md` § 3.1 (uwaga T43 zamknięta).
 
+## [Unreleased] – uprawnienia CMS per konkurs
+
+Domknięcie luki z `UNIWERSALNY-ETAP-2.md` § 1.1.5 („grupa `coordinator` jest globalna”) i prośba
+organizatora o **superkoordynatora**. Koordynator konkursu A redaguje w `/cms/` wyłącznie strony,
+obrazy i dokumenty konkursu A (grupa `cms:<slug>`: prawa na korzeniu witryny i na kolekcji
+konkursu), a okna wyboru stron/obrazów/dokumentów/komunikatów, wyszukiwarka, raporty „Zablokowane
+strony”, „Starzejące się strony”, „Historia serwisu” (także `ModelLogEntry`), API panelu i lista
+komunikatów nie pokazują obiektów konkursu B; raport „Użycie typów stron” przy kilku witrynach jest
+dla redaktora z ograniczeniami zamknięty. Nowa rola platformy **superkoordynator** (grupa
+`superkoordynator`): koordynator każdego konkursu w `/coordinator/` (przełącznik „Konkursy platformy”
+w menu) i całe `/cms/`, bez `/admin/`; `manage.py superkoordynator --grant|--revoke|--list|
+--all-current-coordinators [--dry-run]` i akcje w `/admin/` dla superużytkownika, z wpisem audytu.
+`manage.py scope_cms_access` działa teraz na całą instalację (bez `--competition`): zakłada grupy
+i kolekcje, przenosi media z korzenia kolekcji do kolekcji konkursu (`--root-media-to` przy kilku
+konkursach), zabiera grupie `coordinator` uprawnienia `/cms/` i porównuje macierz możliwości każdego
+koordynatora przed i po — przy jednym konkursie różnica wycofuje całość. **Bez migracji.** Do
+chwili uruchomienia komend nic się nie zmienia. Kroki operatora: `OPERACJE.md` § 6.6 —
+wdrożenie → `superkoordynator --all-current-coordinators` → `scope_cms_access --dry-run` →
+`scope_cms_access` → sprawdzenie.
+
 ## v0.35.0 – 2026-09-24
 
 Wydanie zbiorcze z dwóch próśb organizatora z 24.09.2026. **Dowolne wartości ocen i różne maksima

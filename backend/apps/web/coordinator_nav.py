@@ -884,4 +884,42 @@ def navigation(request) -> dict:
         "nav_counters": counters,
         "nav_search_url": resolve(("web:coordinator-search",)) or "",
         "nav_query": request.GET.get("q", "") if url_name == "coordinator-search" else "",
+        "nav_competitions": competition_switcher(request),
     }
+
+
+def competition_switcher(request) -> list[dict]:
+    """Przełącznik konkursów — wyłącznie dla superkoordynatora; pusta lista dla każdego innego.
+
+    Superkoordynator jest koordynatorem każdego konkursu (``apps.accounts.super_coordinator``),
+    ale dane panelu są zawsze zawężone do konkursu **żądania**, czyli adresu. Przełącznik jest więc
+    listą adresów paneli, a nie parametrem „pokaż mi konkurs B tutaj”: takiego trybu nie ma i mieć
+    nie powinien, bo każde zawężenie w serwisie czyta konkurs z adresu.
+
+    Koszt dla zwykłego koordynatora: zero zapytań — odpowiedź „czy superkoordynator” zapamiętała
+    bramka widoku (``has_role``). Dla superkoordynatora: jedno zapytanie o listę konkursów.
+    Sesja jest osobna dla każdej domeny, więc przejście pod adres innego konkursu może wymagać
+    zalogowania — tak samo jak odnośniki na ekranie „Moje konkursy”.
+    """
+    from apps.accounts.super_coordinator import is_super_coordinator
+    from apps.tenancy.models import Competition, RoutingMode
+
+    if not is_super_coordinator(getattr(request, "user", None)):
+        return []
+    current = getattr(request, "competition", None)
+    rows = []
+    for competition in Competition.objects.filter(is_active=True).order_by("name", "pk"):
+        if competition.routing_mode == RoutingMode.PATH and competition.path_prefix:
+            url = f"/{competition.path_prefix}/coordinator/"
+        elif competition.primary_domain:
+            url = f"{request.scheme}://{competition.primary_domain}/coordinator/"
+        else:
+            continue
+        rows.append(
+            {
+                "name": competition.name,
+                "url": url,
+                "current": current is not None and competition.pk == current.pk,
+            }
+        )
+    return rows

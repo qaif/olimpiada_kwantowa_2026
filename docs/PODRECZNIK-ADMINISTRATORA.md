@@ -338,6 +338,27 @@ komitetu powstaje **wyłącznie na kod zaproszenia**; konto uczestnika i opiekun
 rejestracji. Konta koordynatora i superużytkownika są w panelu **chronione**: widać je, ale nie da się
 ich usunąć ani edytować z `/coordinator/accounts/` (kod `COORDINATOR_PROTECTED`).
 
+**Superkoordynator** (grupa `superkoordynator`, `apps/accounts/super_coordinator.py`) to rola
+**platformy**, nie konkursu: koordynator **każdego** konkursu instalacji — panel `/coordinator/` pod
+adresem dowolnego konkursu (w menu sekcja „Konkursy platformy” z adresami paneli) i całe `/cms/`
+(wszystkie strony, kolekcje, komunikaty i ustawienia serwisu). Dane panelu są dalej zawężone do
+konkursu z adresu. Rola **nie** daje `/admin/` (to zostaje dla `is_superuser`) ani zarządzania
+kontami, grupami, witrynami i kolekcjami w `/cms/`. Nadaje i odbiera ją wyłącznie operator:
+`manage.py superkoordynator --grant|--revoke <e-mail>` (`--list` wypisuje obecnych) albo akcja
+„Nadaj/Odbierz rolę superkoordynatora” w `/admin/ → Użytkownicy`, widoczna tylko dla
+superużytkownika. Obie drogi zapisują wpis audytu (`accounts.super_coordinator.granted` /
+`.revoked`); ręczne dopisanie grupy w formularzu konta działa, ale bez śladu w audycie. Na liście
+`/coordinator/accounts/` konto ma rolę „superkoordynator”.
+
+**`/cms/` per konkurs.** Po jednorazowym `manage.py scope_cms_access` (`OPERACJE.md` § 6.6)
+koordynator konkursu redaguje w `/cms/` wyłącznie poddrzewo stron swojej witryny i kolekcję mediów
+swojego konkursu — przez grupę `cms:<slug>`, do której wpisuje i z której wypisuje go serwis przy
+każdej zmianie roli. Globalna grupa `coordinator` zostaje rolą, ale nie daje w `/cms/` niczego.
+Okna wyboru stron, obrazów, dokumentów i komunikatów, wyszukiwarka, raporty, API panelu i dziennik
+zdarzeń pokazują wyłącznie obiekty z zasięgu redaktora; cudzy komunikat pod znanym numerem to 404.
+Grupy `cms:<slug>` i `superkoordynator` są **systemowe**: serwis odtwarza ich uprawnienia, więc
+redaktor spoza roli koordynatora dostaje własną grupę założoną w `/cms/ → Ustawienia → Grupy`.
+
 **CSP.** `script-src` **bez** `'unsafe-inline'` i `'unsafe-eval'`, z nonce'ami i `'strict-dynamic'`;
 `default-src 'self'`, `object-src 'none'`, `base-uri 'self'`, `frame-ancestors 'none'` (w `/cms/`:
 `'self'`, bo Wagtail osadza podgląd własnej strony). Publiczny host MinIO dochodzi do `connect-src`,

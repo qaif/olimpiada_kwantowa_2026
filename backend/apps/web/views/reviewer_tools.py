@@ -19,7 +19,7 @@ from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.views.generic import View
 
-from apps.accounts.models import GROUP_COORDINATOR
+from apps.accounts.models import COORDINATOR_GROUPS
 from apps.accounts.services import active_reviewer_profile
 from apps.competitions.models import Problem
 from apps.core.api import DomainError
@@ -42,7 +42,7 @@ class CommitteeMaterialsMixin(RoleRequiredMixin):
     def has_role(self, user) -> bool:
         if active_reviewer_profile(user) is not None:
             return True
-        return bool(user.is_active and user.groups.filter(name=GROUP_COORDINATOR).exists())
+        return bool(user.is_active and user.groups.filter(name__in=COORDINATOR_GROUPS).exists())
 
 
 class ProblemModelSolutionView(CommitteeMaterialsMixin, View):

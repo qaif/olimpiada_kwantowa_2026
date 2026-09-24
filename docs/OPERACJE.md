@@ -524,9 +524,11 @@ Komenda nigdy nie kasuje członkostw — `--fix` wyłącznie dopisuje. Czytając
 
 - `UWAGA … bez członkostwa N z M` — **te osoby stracą dostęp** po przełączeniu flagi. Uruchom
   `--fix`, a potem komendę jeszcze raz bez flagi: ma wyjść zero.
-- `info … członkostw bez grupy Django` — to nie jest rozjazd ról, tylko brak dostępu do `/cms/`
-  (panel redakcyjny wisi na uprawnieniach grupy `coordinator`, migracja `cms.0003_coordinator_permissions`).
-  Dotyczy koordynatorów i naprawia się dodaniem do grupy w `/admin/ → Użytkownicy`.
+- `info … członkostw bez grupy Django` — to nie jest rozjazd ról. Przed `scope_cms_access`
+  (§ 6.6) oznacza brak dostępu do `/cms/` (panel redakcyjny wisi wtedy na uprawnieniach grupy
+  `coordinator`, migracja `cms.0003_coordinator_permissions`) i naprawia się dodaniem do grupy
+  w `/admin/ → Użytkownicy`. Po `scope_cms_access` dostęp do `/cms/` daje grupa `cms:<slug>`,
+  do której wpisuje sam serwis, więc wpis ma znaczenie wyłącznie dla ról czytanych z grup.
 
 Przy **jednym** konkursie w bazie komenda przyjmuje, że każdy członek globalnej grupy należy do
 niego (bo innego nie ma). Od drugiego konkursu przypisuje wyłącznie osoby, które mają w konkursie
@@ -554,9 +556,12 @@ bo są zastępcze. Harmonogram wpisuje koordynator w panelu; `--edition-label` n
 oznaczenie rocznika (`I edycja <rok>/<rok+1>`, liczone od września).
 
 `--coordinator-email` wymaga **istniejącego** konta: komenda kont nie zakłada. Nadaje rolę
-koordynatora w tym konkursie **i** dopisuje do grupy Django `coordinator` — ta grupa jest globalna,
-więc daje dostęp do `/cms/` całej instalacji. Jeżeli redakcje mają być rozdzielone, ogranicz temu
-kontu uprawnienia do stron w `/cms/ → Ustawienia → Grupy`.
+koordynatora w tym konkursie **i** dopisuje do grupy Django `coordinator`. Co to daje w `/cms/`,
+zależy od tego, czy instalacja przeszła już `scope_cms_access` (§ 6.6): **przed** komendą grupa
+`coordinator` ma prawa na całym drzewie stron i we wszystkich kolekcjach, więc nowy koordynator
+redaguje wszystkie konkursy — dlatego drugi konkurs zakłada się **po** § 6.6. **Po** komendzie
+grupa `coordinator` nie daje w `/cms/` niczego, a koordynator trafia do grupy `cms:<slug>` swojego
+konkursu: widzi i edytuje wyłącznie jego strony, obrazy i dokumenty.
 
 ### 6.3. `.env`, wdrożenie, DNS
 
@@ -786,6 +791,90 @@ poddrzew — tylko adresy dopisane z nazwy).
 
 ---
 
+### 6.6. Uprawnienia `/cms/` per konkurs i superkoordynator (wydanie „uprawnienia CMS per konkurs”)
+
+Do tego wydania globalna grupa `coordinator` ma prawa Wagtaila na **korzeniu** drzewa stron
+i kolekcji mediów (`cms.0003`), więc koordynator drugiego konkursu edytowałby strony i media
+Olimpiady Kwantowej. Wydanie niczego nie przestawia samo: po wdrożeniu `/cms/` działa **dokładnie
+jak przed nim**, dopóki operator nie wykona dwóch komend poniżej. Kolejność jest jedna.
+
+**Wdrożenie → superkoordynator → zawężenie → sprawdzenie.**
+
+```bash
+# na serwerze, w /opt/olimpiada — po zwykłym scripts/deploy.sh
+# 1. obecni koordynatorzy dostają rolę platformy (wszystkie konkursy, całe /cms/, bez /admin/)
+docker compose exec -T web python manage.py superkoordynator --all-current-coordinators --dry-run
+docker compose exec -T web python manage.py superkoordynator --all-current-coordinators
+docker compose exec -T web python manage.py superkoordynator --list
+
+# 2. zawężenie /cms/ — najpierw na sucho, wydruk przeczytać do końca
+docker compose exec -T web python manage.py scope_cms_access --dry-run
+docker compose exec -T web python manage.py scope_cms_access
+```
+
+**Dlaczego superkoordynator idzie pierwszy.** Polecenie organizatora: „obecny koordynator ma nim
+zostać”. `--all-current-coordinators` nadaje rolę każdemu **aktywnemu** kontu, które dziś ma rolę
+koordynatora (grupa `coordinator` albo członkostwo z tą rolą) i wypisuje listę; konta nieaktywne
+pomija z powodem. Uruchomiona **przed** zawężeniem sprawia, że nikt z obecnych koordynatorów ani
+przez chwilę nie widzi mniej niż dziś. Komenda jest idempotentna, każde nadanie ma wpis audytu
+`accounts.super_coordinator.granted` (`/coordinator/audit/`).
+
+**Co robi `scope_cms_access`** (jedna transakcja, idempotentna):
+
+1. zakłada grupę `superkoordynator` z prawami do korzenia drzewa i kolekcji oraz komunikatów
+   i ustawień serwisu,
+2. zakłada każdemu konkursowi grupę `cms:<slug>` (prawa do poddrzewa jego witryny) i kolekcję mediów,
+3. przenosi obrazy i dokumenty z **korzenia** kolekcji do kolekcji konkursu — przy jednym konkursie
+   sama; przy kilku tylko z `--root-media-to <slug>` (bez tej opcji pliki zostają w korzeniu i widzi
+   je wyłącznie superkoordynator). Ograniczenie widoczności korzenia („tylko zalogowani”) przechodzi
+   na kolekcję konkursu. Adresy obrazów i dokumentów na stronach się nie zmieniają,
+4. zabiera grupie `coordinator` wszystkie uprawnienia `/cms/` (wiersze stron i kolekcji, uprawnienia
+   modelowe Wagtaila i `apps.cms`); sama grupa **zostaje** — jest rolą koordynatora,
+5. wpisuje koordynatorów każdego konkursu do jego `cms:<slug>` (dalej robi to serwis sam, przy
+   każdej zmianie roli).
+
+**Kontrola „przed i po” jest w komendzie.** Dla każdego koordynatora bez `is_superuser` komenda
+liczy macierz możliwości (każda strona poniżej korzenia × 12 czynności, każdy obraz i dokument ×
+zmiana/usunięcie/wybór, wgrywanie, komunikaty, ustawienia witryn) przed zmianą i po niej. Przy
+**jednym** konkursie (dzisiejsza produkcja) macierze mają być równe — inaczej komenda wycofuje
+całość, wypisuje różnicę i kończy się kodem 1. Najczęstsza przyczyna: strona wisząca w drzewie poza
+witryną konkursu (bezpośrednio pod korzeniem). Wtedy przenieś ją pod stronę główną albo skasuj
+i uruchom ponownie. Wydruk kończy się wierszem `bez zmian <e-mail>: te same możliwości w /cms/` dla
+każdego koordynatora — to jest dowód dla organizatora.
+
+**Sprawdzenie po komendzie** (5 minut):
+
+- koordynator (konto bez roli superkoordynatora, jeżeli takie jest) loguje się do `/cms/`: widzi
+  stronę główną swojego konkursu, bibliotekę obrazów i dokumentów w kolekcji „<nazwa konkursu>”;
+  wgranie obrazu trafia do tej kolekcji,
+- superkoordynator widzi całe drzewo, wszystkie kolekcje, komunikaty i ustawienia serwisu;
+  w `/coordinator/` ma w menu sekcję „Konkursy platformy”,
+- `docker compose exec -T web python manage.py scope_cms_access --dry-run` wypisuje „bez zmian”.
+
+**Przed komendą nic się nie psuje.** Sygnały i zawężenie w `/cms/` rozpoznają stan „przed” po tym,
+że grupa `coordinator` ma jeszcze prawa do korzenia — i wtedy nie robią niczego. Wydanie można więc
+wdrożyć i zostawić bez komend; skutkiem jest wyłącznie dzisiejsze zachowanie.
+
+**Wycofanie.** Komenda nie jest migracją, więc nie cofa się jej `migrate`. W
+`/cms/ → Ustawienia → Grupy → coordinator` zaznacz ponownie „Dostęp do panelu”,
+uprawnienia obrazów i dokumentów, prawa do strony „Root” (dodawanie, edycja, publikacja, blokowanie,
+odblokowanie) i do kolekcji „Root”. Od chwili, w której grupa znów ma prawa do korzenia, instalacja
+zachowuje się jak przed komendą. Grup `cms:<slug>` i `superkoordynator` nie trzeba kasować.
+
+**Superkoordynator na co dzień.**
+
+```bash
+docker compose exec -T web python manage.py superkoordynator --grant adres@example.org
+docker compose exec -T web python manage.py superkoordynator --revoke adres@example.org
+docker compose exec -T web python manage.py superkoordynator --list
+```
+
+Albo w `/admin/ → Użytkownicy`: zaznacz konta i wybierz akcję „Nadaj rolę superkoordynatora” /
+„Odbierz rolę superkoordynatora” — akcje widzi wyłącznie superużytkownik. Obie drogi zapisują wpis
+audytu. Dopisanie grupy `superkoordynator` ręcznie w formularzu konta też działa, ale **bez** wpisu
+audytu — nie rób tego. Rola nie daje `/admin/` (to zostaje dla `is_superuser`) ani zarządzania
+kontami, grupami, witrynami i kolekcjami w `/cms/`.
+
 ## 7. Lista kontrolna incydentu
 
 Otwórz, gdy przyszedł alarm albo telefon „nie działa”. Kolejność jest od najtańszego do
@@ -873,8 +962,8 @@ przed tymi.
 powodu powtarzać jej ręcznie: katalog przełączników i menu koordynatora bez flag
 (`apps/tenancy/tests/test_golden_single_competition.py`, `apps/web/tests/test_coordinator_nav_flags.py`),
 kontrakt `/status.json` razem z kolejnością kluczy, jeden `Locale` i brak prefiksu języka
-(`apps/tenancy/tests/test_i18n.py`), uprawnienia grupy `coordinator` w `/cms/`
-(`apps/cms/tests/test_cms_scope.py`), 404 na `/setup/` przy skonfigurowanej instalacji
+(`apps/tenancy/tests/test_i18n.py`), uprawnienia grupy `coordinator` w `/cms/` przed i po `scope_cms_access`
+(`apps/cms/tests/test_cms_scope.py`, `apps/cms/tests/test_cms_permissions_per_competition.py`), 404 na `/setup/` przy skonfigurowanej instalacji
 (`apps/tenancy/tests/test_setup.py`) oraz przebieg dwóch konkursów obok siebie
 (`apps/web/tests/test_e2e_two_competitions.py`, `e2e/check_stage2_*.py`). **Tutaj stoi to, czego
 test sprawdzić nie może**: porównanie z produkcją sprzed wdrożenia i stan konkretnej bazy.
@@ -1017,7 +1106,7 @@ podejrzanych.
 |---|---|---|
 | 1 | `per_competition_consents`, `document_templates` | `/coordinator/consents/` i `/coordinator/documents/` otwierają się; `/register/` konkursu pokazuje **te same** zgody, co przed zapaleniem (definicje są kopią zestawu domyślnego) |
 | 2 | `competition_branding_in_mail` | list aktywacyjny z rejestracji testowej ma temat i podpis tego konkursu, a nie platformy |
-| 3 | `scoped_cms_permissions` | `manage.py scope_cms_access --competition <slug> --dry-run`, a po przeczytaniu wydruku bez `--dry-run`; koordynator widzi w `/cms/` wyłącznie swoje poddrzewo, a koordynator Konkursu #1 — swoje bez zmian |
+| 3 | `scoped_cms_permissions` | od wydania „uprawnienia CMS per konkurs” flaga **nie jest potrzebna**, jeżeli instalacja przeszła § 6.6 (po `scope_cms_access` każdy konkurs jest zawężony). Przed § 6.6 flaga daje konkursowi grupę `cms:<slug>` **obok** grupy globalnej — czyli nic nie zawęża; nie zapalaj jej zamiast § 6.6 |
 | 4 | `custom_regions` | `/coordinator/regions/` pokazuje 18 wierszy startowych; lista województw w rejestracji nie zmienia się, dopóki regiony nie zostaną poprawione |
 | 5 | `institution_types`, `custom_school_directory` | `/coordinator/registration-profile/` i `/coordinator/institutions/`; **podgląd** wgrania wykazu (bez potwierdzenia) przed pierwszym prawdziwym importem |
 | 6 | `process_editor`, `categories` | `/coordinator/pipeline/` — konkurs założony komendą ma **pusty tor**: kroki dopisuje się przyciskiem „Dopisz krok”, po jednym na etap, zanim ktokolwiek policzy kwalifikację |

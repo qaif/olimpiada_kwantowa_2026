@@ -14,7 +14,7 @@ from django.db import models
 from django.db.models import F, Q
 from django.utils import timezone
 
-from apps.accounts.models import GROUP_COORDINATOR, CommitteeStatus
+from apps.accounts.models import COORDINATOR_GROUPS, CommitteeStatus
 from apps.competitions.models import Problem, Stage, StageEntry
 from apps.competitions.scoping import (
     competition_scoped_manager,
@@ -94,7 +94,7 @@ class SubmissionQuerySet(CompetitionScopedQuerySet):
         scoped = scope_to_competition(self, competition)
         if not user or not user.is_authenticated or not user.is_active:
             return scoped.none()
-        if user.groups.filter(name=GROUP_COORDINATOR).exists():
+        if user.groups.filter(name__in=COORDINATOR_GROUPS).exists():
             return scoped
         conditions = []
         participant = participant_for(user, competition)

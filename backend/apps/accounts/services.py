@@ -32,7 +32,9 @@ from .consents import (
     required_kinds,
 )
 from .models import (
+    COORDINATOR_GROUPS,
     DIRECTORY_INSTITUTION_TYPES,
+    GROUP_SUPER_COORDINATOR,
     MAX_GRADE,
     MIN_BIRTH_DATE,
     MIN_GRADE,
@@ -611,9 +613,42 @@ def has_role(user, competition, role: str) -> bool:
     # ``CompetitionRole(...)`` sprawdza wartość: literówka w nazwie roli ma podnieść ``ValueError``
     # w miejscu wywołania, a nie po cichu oddać „nie ma takiej roli, czyli nie masz uprawnień”.
     role = CompetitionRole(role).value
+    if role == CompetitionRole.COORDINATOR:
+        return _is_coordinator_here(user, competition)
     if memberships_enforced(competition):
         return Membership.objects.filter(user=user, competition=competition, role=role).exists()
     return user.groups.filter(name=role).exists()
+
+
+def _is_coordinator_here(user, competition) -> bool:
+    """Rola koordynatora: ta sama reguła, co dla pozostałych ról, plus superkoordynator.
+
+    Superkoordynator (``apps.accounts.super_coordinator``) jest koordynatorem **każdego** konkursu.
+    Obie odpowiedzi — „koordynator tutaj” i „superkoordynator” — przychodzą **jednym** zapytaniem
+    (przy grupach ``name__in``, przy członkostwach ``UNION`` z grupą platformy), a druga z nich
+    zostaje zapamiętana na obiekcie konta. Bramka panelu stoi na każdym żądaniu ``/coordinator/``,
+    a menu panelu pyta chwilę później o superkoordynatora (przełącznik konkursów) — bez pamięci
+    byłoby to drugie zapytanie na każdej stronie, a budżet zapytań tego adresu jest twardą bramką
+    (``apps/tenancy/tests/test_invariants.py``).
+    """
+    from .super_coordinator import CACHE_ATTR
+
+    if memberships_enforced(competition):
+        # Grupa **pierwsza** w ``UNION``: zapytanie złożone bierze domyślne sortowanie z modelu
+        # pierwszej strony, a ``Membership.Meta.ordering`` sortuje po kolumnach, których ``UNION``
+        # nie wybiera (PostgreSQL odrzuca takie ``ORDER BY``). ``Group`` sortowania nie ma.
+        rows = (
+            Membership.objects.filter(user=user, competition=competition, role=CompetitionRole.COORDINATOR)
+            .order_by()
+            .values_list("role", flat=True)
+        )
+        platform = user.groups.filter(name=GROUP_SUPER_COORDINATOR).order_by().values_list("name", flat=True)
+        names = set(platform.union(rows))
+    else:
+        names = set(user.groups.filter(name__in=COORDINATOR_GROUPS).values_list("name", flat=True))
+    is_super = GROUP_SUPER_COORDINATOR in names
+    setattr(user, CACHE_ATTR, is_super)
+    return is_super or CompetitionRole.COORDINATOR.value in names
 
 
 def roles_for(user, competition) -> set[str]:
@@ -630,9 +665,22 @@ def roles_for(user, competition) -> set[str]:
         return set()
     known = set(CompetitionRole.values)
     if memberships_enforced(competition):
-        rows = Membership.objects.filter(user=user, competition=competition)
-        return set(rows.values_list("role", flat=True)) & known
-    return set(user.groups.values_list("name", flat=True)) & known
+        # Jedno zapytanie mimo dwóch tabel: ``UNION`` ról z członkostw i nazwy grupy
+        # superkoordynatora. Procesor kontekstu woła tę funkcję na każdej stronie serwisu.
+        # Grupa pierwsza — powód w ``_is_coordinator_here``.
+        rows = (
+            Membership.objects.filter(user=user, competition=competition)
+            .order_by()
+            .values_list("role", flat=True)
+        )
+        platform = user.groups.filter(name=GROUP_SUPER_COORDINATOR).order_by().values_list("name", flat=True)
+        names = set(platform.union(rows))
+    else:
+        names = set(user.groups.values_list("name", flat=True))
+    # Superkoordynator jest koordynatorem każdego konkursu (``apps.accounts.super_coordinator``).
+    if GROUP_SUPER_COORDINATOR in names:
+        names.add(CompetitionRole.COORDINATOR.value)
+    return names & known
 
 
 def participant_for(user, competition) -> Participant | None:
@@ -684,10 +732,11 @@ def grant_role(user: User, role: str, *, competition=None, granted_by: User | No
     """Nadaje rolę: wiersz ``Membership`` **i** przynależność do grupy Django. Oba, zawsze.
 
     Dlaczego oba, a nie samo członkostwo: od uprawnień grupy ``coordinator`` zależy dostęp do
-    ``/cms/`` (migracja ``cms.0003_coordinator_permissions``), a te uprawnienia są własnością
-    Wagtaila. Grupa jest więc dziś **uprawnieniem do panelu redakcyjnego**, a członkostwo – rolą
-    w konkursie; rozdzielenie jednego zapisu na dwa serwisy skończyłoby się kontem, które ma rolę,
-    ale nie ma panelu (albo odwrotnie).
+    ``/cms/`` (migracja ``cms.0003_coordinator_permissions``) — do chwili ``scope_cms_access``,
+    po której ``/cms/`` daje grupa ``cms:<slug>`` wyznaczana z tej samej roli
+    (``apps/cms/signals.py``) — a przy wyłączonym ``memberships_enforced`` grupa jest samą rolą.
+    Rozdzielenie jednego zapisu na dwa serwisy skończyłoby się kontem, które ma rolę, ale nie ma
+    panelu (albo odwrotnie).
 
     Brak konkursu (świeża instalacja przed ``tenancy.0002``, dwa konkursy bez wskazania) zapisuje
     **samą grupę** i nie podnosi wyjątku: zachowanie jest wtedy identyczne z tym sprzed T2, a

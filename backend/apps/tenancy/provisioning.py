@@ -562,10 +562,13 @@ def _ensure_cms_group(competition: Competition, coordinator) -> str:
     i zawsze **oprócz** grupy globalnej ``coordinator``, którą nadał ``grant_role``: § 1.1.5
     mówi wprost, że zawężenie dokłada, a nigdy nie odbiera.
     """
-    from apps.cms.permissions import ensure_cms_group
+    from apps.cms.permissions import ensure_cms_group, scoped_cms_permissions
 
     group = ensure_cms_group(competition)
-    if coordinator is not None and competition.has_feature("scoped_cms_permissions"):
+    # ``scoped_cms_permissions`` z ``apps.cms.permissions``, a nie sama flaga: w instalacji po
+    # ``scope_cms_access`` każdy konkurs jest zawężony i nowy koordynator bez tej grupy nie
+    # miałby ``/cms/`` wcale (grupa globalna nie daje już niczego).
+    if coordinator is not None and scoped_cms_permissions(competition):
         # ``add`` jest idempotentne — powtórzone wywołanie nie mnoży przynależności.
         coordinator.groups.add(group)
     return group.name
