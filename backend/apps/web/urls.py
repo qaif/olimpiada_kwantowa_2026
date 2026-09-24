@@ -17,6 +17,7 @@ from .urls_institutions import urlpatterns as institution_urlpatterns
 from .urls_pipeline import urlpatterns as pipeline_urlpatterns
 from .urls_regions import urlpatterns as region_urlpatterns
 from .urls_scoring import urlpatterns as scoring_urlpatterns
+from .urls_student_status import urlpatterns as student_status_urlpatterns
 from .views import (
     account,
     appeals,
@@ -1086,4 +1087,6 @@ urlpatterns = [
     *fee_urlpatterns,
     # --- konkursy w subdomenach platformy: spis konkursów koordynatora i „Nowy konkurs” ---------
     *competition_urlpatterns,
+    # --- zaświadczenie o statusie ucznia (prośba organizatora z 24.09.2026) ----------------------
+    *student_status_urlpatterns,
 ]

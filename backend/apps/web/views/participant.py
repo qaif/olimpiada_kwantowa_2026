@@ -67,6 +67,7 @@ from apps.competitions.video import PRECHECK_TEXT
 from apps.core.api import DomainError
 from apps.quiz.services import quiz_for_stage
 from apps.results.services import published_results, results_for_participant
+from apps.student_status.models import enabled as student_status_enabled
 from apps.submissions.preview import preview_for
 from apps.submissions.services import (
     UNDER_REVIEW_STATUSES,
@@ -81,6 +82,7 @@ from apps.web.participant_now import countdown_words, now_panel
 from apps.web.throttle import ThrottledFormMixin
 from apps.web.views.participant_fees import fee_card_context
 from apps.web.views.participant_logistics import arrival_card_context
+from apps.web.views.participant_student_status import student_status_card_context
 from apps.web.views.participant_teams import team_card_context
 
 #: Zakładki pulpitu. Klucz jest w adresie (``/me/?tab=wyniki``), więc jest po polsku i bez odmiany –
@@ -445,6 +447,12 @@ class MeView(ParticipantRequiredMixin, TemplateView):
         # Karta „Moja drużyna” (wydanie J, § 2.3) – ta sama zasada, co dwie wyżej: pusty słownik
         # bez ani jednego zapytania w konkursie bez flagi ``team_entries``.
         context.update(team_card_context(self.participant, self.competition))
+        # Przypomnienie o zaświadczeniu o statusie ucznia (prośba organizatora z 24.09.2026). Warunek
+        # stoi **przed** wywołaniem z tego samego powodu, co przy wpisowym: ``self.participant``
+        # kosztuje zapytanie, więc konkurs bez flagi nie może go płacić. Przy wyłączonej fladze –
+        # zero zapytań, a budżet ``/me/`` Konkursu #1 zostaje co do jednego.
+        if student_status_enabled(self.competition):
+            context.update(student_status_card_context(self.competition, self.participant, edition))
         context["now_panel"] = self._now_panel(context, now, stage, entry, can_register, upload_open)
         return context
 

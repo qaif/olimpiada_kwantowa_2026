@@ -489,6 +489,13 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
             withdrawn_at=now
         )
 
+    # Zaświadczenia o statusie ucznia znikają **całe** – wiersze i pliki (``apps.student_status``).
+    # Skan z datą urodzenia i podpisem dyrektora szkoły nie jest dokumentacją zawodów, tylko
+    # dokumentem tożsamości szkolnej; po anonimizacji nie ma czyj status potwierdzać.
+    from apps.student_status.services import erase_for_user
+
+    erase_for_user(user)
+
     _drop_credentials(user)
     audit(actor or user, "account.anonymised", user, {"user_id": user.pk}, request=request)
     return user
@@ -506,6 +513,11 @@ def _erase_account(user: User, *, actor: User | None = None, request=None) -> st
         anonymise_account(user, actor=actor, request=request)
         return "anonymised"
     pk = user.pk
+    # Pliki zaświadczeń o statusie ucznia **przed** kaskadą: ``user.delete()`` zabierze wiersze
+    # (``Participant`` → ``StudentStatusCertificate``), ale nie wie o obiektach w storage.
+    from apps.student_status.services import erase_for_user
+
+    erase_for_user(user)
     _drop_credentials(user)
     # Audyt **przed** skasowaniem wiersza: po ``delete()`` nie ma z czego wziąć ``target_type``,
     # a ``actor`` będący samym kasowanym kontem i tak zgaśnie na ``SET_NULL``. W ``diff`` jest

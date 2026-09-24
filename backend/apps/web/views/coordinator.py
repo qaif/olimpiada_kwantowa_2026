@@ -64,6 +64,7 @@ from apps.grading.services import (
 )
 from apps.results.models import ResultsPublication
 from apps.results.services import compute_stage_results, publish_results
+from apps.student_status.models import enabled as student_status_enabled
 from apps.submissions.services import (
     build_stage_zip,
     close_stage_now,
@@ -142,6 +143,11 @@ def dashboard_context(competition, extra: dict | None = None) -> dict:
         # pamięci podręcznej). Kolejki, do których prowadzą, mieszkają w ``coordinator_pages.py``.
         "attention": attention_rows(competition),
         "assign_form": AssignReviewersForm(),
+        # Wybór zakresu paczki ZIP („wszystkie prace” / „tylko potwierdzony status ucznia”) przy
+        # przyciskach pobrania. Flagę czyta widok, a nie szablon (§ 2.1 punkt 3); przy wyłączonej
+        # szablon rysuje dzisiejszy odnośnik co do znaku. Odczyt bez zapytania – flaga jest polem
+        # wiersza konkursu, który jest już w pamięci.
+        "zip_scope_choice": student_status_enabled(competition),
     }
     context.update(extra or {})
     return context
@@ -497,6 +503,12 @@ class StageDownloadView(CoordinatorRequiredMixin, View):
 
     Nazwy plików w paczce są anonimowe (``<kod>_zad<numer>_v<wersja>``) także dla koordynatora,
     choć on jedyny widzi nazwiska: paczka wędruje do komitetu i po drodze nikt jej nie przepakowuje.
+
+    Każdy z trzech zakresów przyjmuje parametr ``students`` (``all`` – domyślnie – albo
+    ``verified``): „wszystkie prace” albo „tylko uczniowie z potwierdzonym statusem ucznia” (prośba
+    organizatora z 24.09.2026). W ``GET`` jedzie w adresie, w ``POST`` – polem formularza
+    zaznaczonych wierszy. Przy wyłączonej fladze ``student_status_certificate`` wartość ``verified``
+    daje 404 z powodem, a nie cichą paczkę „wszystkich” (``student_status.services.wants_verified_only``).
     """
 
     def get(self, request, stage_id: int):
@@ -511,7 +523,7 @@ class StageDownloadView(CoordinatorRequiredMixin, View):
                 pk=raw if raw.isdigit() else 0,
                 stage=stage,
             )
-        return self._zip(request, stage, problem=problem)
+        return self._zip(request, stage, request.GET, problem=problem)
 
     def post(self, request, stage_id: int):
         stage = get_object_or_404(
@@ -521,16 +533,20 @@ class StageDownloadView(CoordinatorRequiredMixin, View):
         if not selected:
             messages.error(request, "Nie zaznaczono żadnej pracy.")
             return redirect(reverse("web:coordinator-stage-assignments", args=[stage.pk]))
-        return self._zip(request, stage, submission_ids=selected)
+        return self._zip(request, stage, request.POST, submission_ids=selected)
 
-    def _zip(self, request, stage: Stage, *, problem=None, submission_ids=None):
+    def _zip(self, request, stage: Stage, params, *, problem=None, submission_ids=None):
+        from apps.student_status.services import SCOPE_PARAM, wants_verified_only
+
         try:
+            verified_only = wants_verified_only(params.get(SCOPE_PARAM), request.competition)
             package = build_stage_zip(
                 stage,
                 actor=request.user,
                 request=request,
                 problem=problem,
                 submission_ids=submission_ids,
+                verified_only=verified_only,
             )
         except DomainError as exc:
             # 404 ze zdaniem o powodzie, a nie przekierowanie: pobranie, które nie ma czego oddać,
@@ -539,7 +555,9 @@ class StageDownloadView(CoordinatorRequiredMixin, View):
         return FileResponse(
             package.stream,
             as_attachment=True,
-            filename=stage_zip_filename(stage, problem=problem, selected=submission_ids is not None),
+            filename=stage_zip_filename(
+                stage, problem=problem, selected=submission_ids is not None, verified_only=verified_only
+            ),
             content_type="application/zip",
         )
 
@@ -628,6 +646,8 @@ class StageAssignmentsView(CoordinatorRequiredMixin, TemplateView):
                 ),
                 "scale_values": scores,
                 "results_published": ResultsPublication.objects.filter(stage=stage).exists(),
+                # Wybór zakresu paczek ZIP – patrz ``dashboard_context``.
+                "zip_scope_choice": student_status_enabled(self.request.competition),
             }
         )
         # Licznik reguł do podsumowania zwiniętego panelu: bez niego koordynator musiałby rozwinąć

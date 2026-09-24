@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% load i18n web_extras %}
+{% comment %}
+  „Status ucznia” w panelu uczestnika: stan zaświadczenia, trzy kroki (pobierz wzór → podstempluj
+  w szkole → wgraj skan), formularz wgrania i historia poprzednich plików.
+
+  Stan jest jednym z czterech z zamówienia organizatora: brak, oczekuje na weryfikację,
+  zaakceptowane, odrzucone (z powodem). Każdy ma inną rzecz do zrobienia, więc inne zdanie pod
+  odznaką. Formularza nie ma przy „zaakceptowane” – sprawa jest zamknięta, a podmianę papieru
+  zaczyna koordynator odrzuceniem z powodem (``apps.student_status.services.upload_scan``).
+
+  Zdanie „nie blokuje oddawania prac” stoi na stronie zawsze: bez niego uczeń czekający na
+  sekretariat ma prawo sądzić, że nie może jeszcze wysłać rozwiązania – a może.
+{% endcomment %}
+{% block title %}{% translate "Status ucznia" %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow"><a href="{% url 'web:me' %}">{% translate "Mój panel" %}</a></span>
+  <h1>{% translate "Zaświadczenie o statusie ucznia" %}</h1>
+  <p class="lead">
+    {% blocktranslate trimmed with edition=edition.year_label %}
+      Organizator prosi o potwierdzenie, że w edycji {{ edition }} jesteś uczniem lub uczennicą szkoły.
+      Brak zaświadczenia nie blokuje oddawania rozwiązań.
+    {% endblocktranslate %}</p>
+</div>
+
+<section class="section" id="stan">
+  <div class="card">
+    <h2 class="mt-0">{% translate "Stan" %}</h2>
+    <p>
+      {% if state == "ACCEPTED" %}
+        <span class="badge badge--ok">{{ state_label }}</span>
+        {% blocktranslate trimmed with when=certificate.decided_at|local_datetime %}
+          Zaświadczenie zaakceptowane {{ when }}. Nie musisz nic więcej robić.
+        {% endblocktranslate %}
+      {% elif state == "PENDING" %}
+        <span class="badge badge--info">{{ state_label }}</span>
+        {% blocktranslate trimmed with when=certificate.uploaded_at|local_datetime %}
+          Plik wysłany {{ when }}. Koordynator sprawdzi go i poinformuje Cię e-mailem o decyzji.
+          Jeśli wysłałeś(-aś) nie ten plik, możesz wgrać nowy – zastąpi poprzedni.
+        {% endblocktranslate %}
+      {% elif state == "REJECTED" %}
+        <span class="badge badge--danger">{{ state_label }}</span>
+        {% translate "Zaświadczenie nie zostało zaakceptowane. Powód:" %}
+      {% else %}
+        <span class="badge badge--neutral">{{ state_label }}</span>
+        {% translate "Nie wgrałeś(-aś) jeszcze zaświadczenia." %}
+      {% endif %}
+    </p>
+    {% if state == "REJECTED" %}
+      <blockquote class="card card--quiet">{{ certificate.rejection_reason|linebreaksbr }}</blockquote>
+      <p>{% translate "Popraw zaświadczenie i wgraj nowy plik poniżej." %}</p>
+    {% endif %}
+    {% if certificate and certificate.has_file %}
+      <p class="hint"><a href="{% url 'web:student-status-file' %}">{% translate "Pobierz wysłany plik" %}</a>
+        ({{ certificate.size_bytes|filesizeformat }})</p>
+    {% endif %}
+  </div>
+</section>
+
+{% if can_upload %}
+<section class="section" id="jak">
+  <div class="card">
+    <h2 class="mt-0">{% translate "Jak to zrobić" %}</h2>
+    <ol>
+      <li>
+        {% translate "Pobierz wzór zaświadczenia z Twoimi danymi i wydrukuj go:" %}
+        <a class="btn btn--secondary btn--small" href="{% url 'web:student-status-template' %}">{% translate "Pobierz wzór (PDF)" %}</a>
+        <p class="hint">
+          {% blocktranslate trimmed with school=participant.school %}
+            Na wzorze są Twoje imię i nazwisko, data urodzenia i szkoła ({{ school }}) z profilu.
+            Jeśli coś się nie zgadza, popraw to najpierw w profilu.
+          {% endblocktranslate %}
+          <a href="{% url 'web:profile' %}">{% translate "Edytuj dane" %}</a></p>
+      </li>
+      <li>{% translate "Zanieś go do sekretariatu szkoły: szkoła wpisuje klasę, przystawia pieczątkę, a dyrektor lub sekretarz podpisuje i wpisuje datę." %}</li>
+      <li>{% translate "Zeskanuj albo sfotografuj całą kartkę tak, żeby pieczątka i podpis były czytelne, i wgraj plik poniżej." %}</li>
+    </ol>
+  </div>
+</section>
+
+<section class="section" id="wgraj">
+  <div class="card">
+    <h2 class="mt-0">{% translate "Wgraj zaświadczenie" %}</h2>
+    <form method="post" enctype="multipart/form-data" class="form" novalidate>
+      {% csrf_token %}
+      <div>
+        <label for="{{ form.file.id_for_label }}">{{ form.file.label }}</label>
+        {{ form.file }}
+        {{ form.file.errors }}
+      </div>
+      <div>
+        {{ form.confirmed }}
+        <label for="{{ form.confirmed.id_for_label }}">{{ form.confirmed.label }}</label>
+        {{ form.confirmed.errors }}
+      </div>
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">{% translate "Wyślij zaświadczenie" %}</button>
+      </div>
+    </form>
+    <p class="hint">
+      {% blocktranslate trimmed with limit=max_file_mb %}
+        Przyjmujemy PDF, JPG i PNG do {{ limit }} MB. Plik sprawdza skaner antywirusowy, a oglądać go może
+        wyłącznie koordynator konkursu – recenzenci go nie widzą.
+      {% endblocktranslate %}</p>
+  </div>
+</section>
+{% endif %}
+
+{% if history %}
+<section class="section" id="historia">
+  <div class="card card--quiet">
+    <h2 class="mt-0">{% translate "Poprzednie pliki" %}</h2>
+    <div class="scroll">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">{% translate "Wersja" %}</th>
+            <th scope="col">{% translate "Wysłany" %}</th>
+            <th scope="col">{% translate "Stan" %}</th>
+            <th scope="col">{% translate "Powód odrzucenia" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in history %}
+            <tr>
+              <th scope="row">{{ row.version }}</th>
+              <td>{{ row.uploaded_at|local_datetime }}</td>
+              <td>{{ row.get_status_display }}</td>
+              <td>{{ row.rejection_reason|default:"—" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

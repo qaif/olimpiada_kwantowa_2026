@@ -38,8 +38,13 @@
   <a class="btn btn--secondary" href="{% url 'web:coordinator-problem-edit' problem.pk %}">Edytuj zadanie</a>
   <a class="btn btn--secondary" href="{% url 'web:coordinator-stage-problems' stage.pk %}">Zadania etapu</a>
   <a class="btn btn--secondary" href="{% url 'web:coordinator-stage-assignments' stage.pk %}">Przydziały etapu</a>
-  <a class="btn btn--secondary"
-     href="{% url 'web:coordinator-stage-download' stage.pk %}?problem={{ problem.pk }}">Pobierz ZIP zadania</a>
+  {% if zip_scope_choice %}
+    {% url 'web:coordinator-stage-download' stage.pk as zip_url %}
+    {% include "web/_zip_scope_form.html" with action=zip_url label="Pobierz ZIP zadania" problem_id=problem.pk scope_id="head" %}
+  {% else %}
+    <a class="btn btn--secondary"
+       href="{% url 'web:coordinator-stage-download' stage.pk %}?problem={{ problem.pk }}">Pobierz ZIP zadania</a>
+  {% endif %}
 {% endblock %}
 
 {% block panel_content %}
@@ -399,8 +404,13 @@
 <section class="section" id="pobierz">
   <div class="card">
     <h2 class="mt-0">Pobierz</h2>
-    <p><a class="btn btn--secondary"
-          href="{% url 'web:coordinator-stage-download' stage.pk %}?problem={{ problem.pk }}">Pobierz ZIP zadania</a></p>
+    {% if zip_scope_choice %}
+      {% url 'web:coordinator-stage-download' stage.pk as zip_url %}
+      {% include "web/_zip_scope_form.html" with action=zip_url label="Pobierz ZIP zadania" problem_id=problem.pk scope_id="body" %}
+    {% else %}
+      <p><a class="btn btn--secondary"
+            href="{% url 'web:coordinator-stage-download' stage.pk %}?problem={{ problem.pk }}">Pobierz ZIP zadania</a></p>
+    {% endif %}
     <p class="hint">Po jednej, najnowszej przeskanowanej wersji każdej pracy. Nazwy plików
       w archiwum są anonimowe (<code>kod_zadN_vM</code>) także dla koordynatora: paczka wędruje do
       komitetu i po drodze nikt jej nie przepakowuje.</p>

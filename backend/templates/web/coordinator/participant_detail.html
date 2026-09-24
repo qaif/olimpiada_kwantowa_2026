@@ -135,6 +135,58 @@
   </div>
 </section>
 
+{% comment %}
+  Zaświadczenie o statusie ucznia (flaga ``student_status_certificate``). Sekcja stoi wyłącznie
+  wtedy, gdy widok postawił ``student_status`` – flagę czyta widok, nie szablon. Decyzje zapadają
+  na liście ``/coordinator/student-status/`` (odnośnik z wyszukiwaniem po kodzie), tu jest stan
+  i historia wersji: to są akta sprawy, a nie drugi ekran decyzji.
+{% endcomment %}
+{% if student_status %}
+<section class="section" id="status-ucznia">
+  <div class="card">
+    <h2 class="mt-0">Status ucznia ({{ student_status.edition.year_label }})</h2>
+    <p>
+      {% if student_status.state == "ACCEPTED" %}<span class="badge badge--ok">{{ student_status.state_label }}</span>
+      {% elif student_status.state == "PENDING" %}<span class="badge badge--info">{{ student_status.state_label }}</span>
+      {% elif student_status.state == "REJECTED" %}<span class="badge badge--danger">{{ student_status.state_label }}</span>
+      {% else %}<span class="badge badge--neutral">{{ student_status.state_label }}</span>{% endif %}
+      {% with certificate=student_status.certificate %}
+        {% if certificate and certificate.is_clean %}
+          <a href="{% url 'web:coordinator-student-status-file' certificate.pk %}" target="_blank" rel="noopener noreferrer">podgląd skanu</a>
+        {% endif %}
+      {% endwith %}
+      · <a href="{% url 'web:coordinator-student-status' %}?edition={{ student_status.edition.pk }}&amp;q={{ participant.public_code|urlencode }}">rozpatrz na liście zaświadczeń</a>
+    </p>
+    {% if student_status_history %}
+      <div class="scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Wersja</th>
+              <th scope="col">Wysłane</th>
+              <th scope="col">Stan</th>
+              <th scope="col">Rozpatrzone</th>
+              <th scope="col">Powód odrzucenia</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in student_status_history %}
+              <tr>
+                <th scope="row">{{ row.version }}{% if row.is_current %} <span class="badge badge--neutral">bieżąca</span>{% endif %}</th>
+                <td>{{ row.uploaded_at|local_datetime }}</td>
+                <td>{{ row.get_status_display }}</td>
+                <td>{% if row.decided_at %}{{ row.decided_at|local_datetime }}{% if row.decided_by %} · {{ row.decided_by.get_full_name|default:row.decided_by.email }}{% endif %}{% else %}—{% endif %}</td>
+                <td>{{ row.rejection_reason|default:"—" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
 <section class="section" id="zgody">
   <div class="card">
     <h2 class="mt-0">Zgody</h2>

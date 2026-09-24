@@ -28,7 +28,7 @@ edycji i zgłoszenia po numerze. Fraza krótsza niż dwa znaki nie szuka niczego
 | **Pulpit** | Co wymaga uwagi |
 | **Etapy** | jeden wpis na etap, a pod nim: *Zadania* (albo *Rozmowy*), *Przydziały i oceny*, *Postęp*, *Wyniki* |
 | **Ocenianie** | Moderacja, Zgłoszone problemy, Kalibracja recenzentów, Podobieństwo rozwiązań |
-| **Uczestnicy i konta** | Uczestnicy, Wszystkie konta, Opiekunowie szkolni, Aktywacje |
+| **Uczestnicy i konta** | Uczestnicy, Wszystkie konta, Opiekunowie szkolni, Aktywacje, *Status ucznia* (tylko z włączonymi zaświadczeniami, § 10a) |
 | **Komitet** | Członkowie, Zatwierdzenia, Zaproszenia, Województwa |
 | **Komunikacja** | Komunikaty, Zgłoszenia, Ogłoszenia |
 | **Raporty** | Eksport danych, Audyt, Symulacja kwalifikacji, Dyplomy, Retencja danych, Rejestr czynności |
@@ -266,6 +266,15 @@ okno uploadu działa dalej. Pojedynczą pracę wciąga przycisk **„Zablokuj do
 > a praca wraca do stanu „oddane” i wymaga ponownego zablokowania. Uczestnik widzi przy uploadzie
 > ostrzeżenie, a recenzent w panelu — powód „Uczestnik wysłał nową wersję rozwiązania…”.
 > Praca **finalna, w reklamacji albo z ogłoszonymi wynikami** jest poza zasięgiem tej reguły.
+
+**Paczki ZIP z wyborem zakresu.** W konkursie, który zbiera zaświadczenia o statusie ucznia (§ 10a),
+każdy przycisk pobrania prac — karta etapu na pulpicie, **„Pobierz prace (ZIP)”** na ekranie przydziałów,
+paczka zadania (tabela reguł i karta zadania) oraz **„Pobierz zaznaczone (ZIP)”** — ma obok listę
+wyboru: **„wszystkie prace”** (domyślnie, paczka jak dotąd) albo **„tylko uczniowie z potwierdzonym
+statusem ucznia”** (w paczce zostają wyłącznie prace osób z **zaakceptowanym** zaświadczeniem w edycji
+tego etapu; nazwa pliku dostaje dopisek `-status-potwierdzony`, a `README.txt` zdanie o filtrze).
+Nazwy plików w paczce zostają anonimowe. Ten sam wybór ma komitet w swojej paczce „Pobierz moje prace
+(ZIP)” (`PODRECZNIK-RECENZENTA.md` § 2). Bez włączonych zaświadczeń przyciski wyglądają jak zawsze.
 
 ### 4.2 Przydział recenzentów
 
@@ -868,6 +877,20 @@ w spamie.
 **Wersja do wydruku** (PDF pod `/dokumenty/zgoda-opiekuna/`) zostaje jako droga zapasowa: dla rodzica bez
 adresu e-mail albo dla szkoły, która chce zgody w teczce.
 
+### 7.2a Wzór zaświadczenia o statusie ucznia — tekst na papierze
+
+Wzór, który uczestnik pobiera w `/me/status-ucznia/` (§ 10a), jest **imienny**: ma wpisane imię
+i nazwisko, datę urodzenia (albo miejsce do wpisania, gdy profil zna sam rocznik), szkołę, rok szkolny
+wyjęty z oznaczenia edycji („I edycja 2026/2027” → „2026/2027”), a puste pola na **klasę**, **pieczątkę
+szkoły**, **miejscowość i datę** oraz **podpis dyrektora lub sekretarza**. Na dole ramka dla ucznia:
+jak i gdzie wgrać skan, adres panelu i kod uczestnika.
+
+Tekst (tytuł, zdanie główne, linia podpisu, dopisek) ma dzisiejsze brzmienie wbudowane. Z włączonymi
+**Szablonami dokumentów** (flaga `document_templates`) zmienia się go na ekranie
+`/coordinator/documents/STUDENT_STATUS/` jak każdy inny dokument — z wersjami i podglądem. Poza
+znacznikami wspólnymi działają dwa własne: `{birth_date}` i `{school_year}`. Klasy nie podstawiamy
+nigdy — ma ją wpisać szkoła.
+
 ### 7.3 Dokumenty organizatora
 
 Regulamin, polityka RODO, standardy ochrony małoletnich, skład komitetów, polityka cookies — wszystko
@@ -982,6 +1005,12 @@ Konto opiekuna, które organizator chce mimo to wyczyścić, usuwa się **ręczn
 anonimizuje profil opiekuna (szkoła, telefon, zgody znikają; potwierdzenia udziału szkoły w
 edycjach zostają, jeśli takie są — patrz § 10).
 
+**Skany zaświadczeń o statusie ucznia** (§ 10a) znikają ze storage razem z terminem retencji edycji —
+także u osób, których konto zostaje, bo startują w edycji późniejszej (nocne zadanie
+`apps.student_status.tasks.purge_expired_scans`; zapis decyzji bez pliku zostaje). Plik zastąpiony
+nowszym albo odrzucony przez skaner antywirusowy znika od razu, a anonimizacja lub usunięcie konta
+zabiera zaświadczenia w całości.
+
 **Pseudonimy adresów IP przy pobraniach plakatów** (§ 4.10) mają **własny, stały termin**:
 12 miesięcy od pobrania, niezależnie od ustawień edycji. Kasuje je nocne zadanie
 `apps.promo.tasks.clear_expired_ip_hashes` — ten ekran ich nie pokazuje i nie trzeba go do tego
@@ -993,7 +1022,9 @@ Dokument wymagany art. 30 ust. 1 RODO, **gotowy do wydania na żądanie**. Obejm
 konta uczestników, dowody zgód, konta opiekunów szkolnych, przyjmowanie i ocenianie prac, ogłaszanie
 wyników i dokumenty, reklamacje, rozmowy kwalifikacyjne, konta komitetu, zgłoszenia i pomoc,
 utrzymanie serwisu oraz statystykę pobrań plakatów (wersja 1.6 z 23.09.2026 — pseudonim adresu IP
-przy pobraniu plakatu, kasowany po 12 miesiącach, § 4.10).
+przy pobraniu plakatu, kasowany po 12 miesiącach, § 4.10). Konkurs, który zbiera zaświadczenia
+o statusie ucznia (§ 10a), ma dodatkowy wiersz **„Weryfikacja statusu ucznia (zaświadczenie ze szkoły)”**
+(wersja 1.7 z 24.09.2026) — wiersz stoi w rejestrze wyłącznie przy włączonej funkcji, tak jak forum.
 Odbiorcy są wymienieni wprost (hosting, dostawca poczty, analityka wyłącznie po zgodzie). Dane
 administratora (nazwa, adres, KRS, kontakt) dokłada się **z ustawień serwisu w `/cms/`**, więc ich
 poprawka nie wymaga wydania aplikacji. `?format=csv` oddaje ten sam dokument jako plik otwierający się
@@ -1147,6 +1178,56 @@ ucznia: list z linkiem aktywacyjnym, 4 godziny na kliknięcie, w razie potrzeby 
 logowania. Strona „Konto zostało założone” tłumaczy nauczycielowi, co dalej: panel „Moi uczniowie” będzie
 pusty, dopóki uczniowie sami nie wpiszą jego adresu e-mail w swoim profilu — to oni decydują, kto widzi
 ich postęp, nie organizator ani nauczyciel.
+
+---
+
+## 10a. Zaświadczenia o statusie ucznia — `/coordinator/student-status/`
+
+**Tylko w konkursie z włączonymi zaświadczeniami** (przełącznik `student_status_certificate`, włącza go
+operator — `OPERACJE.md` § 15). Bez niego żadnego z tych ekranów nie ma, a paczki ZIP wyglądają jak
+zawsze.
+
+**Po co.** Organizator chce mieć potwierdzenie ze szkoły, że uczestnik **w tej edycji** jest uczniem.
+Status **nie blokuje** niczego po stronie uczestnika — prace oddaje się tak samo — a służy jako filtr
+paczek ZIP dla komitetu (§ 4.1): „wszystkie prace” albo „tylko uczniowie z potwierdzonym statusem”.
+Status jest **per edycja**: zeszłoroczne zaświadczenie nie potwierdza tego roku.
+
+**Droga uczestnika.** Pulpit przypomina o zaświadczeniu, dopóki nie jest zaakceptowane. Uczestnik
+pobiera imienny wzór (§ 7.2a), szkoła go stempluje i podpisuje, uczestnik wgrywa skan albo zdjęcie
+(PDF/JPG/PNG do 10 MB, format sprawdzany po treści, skan antywirusowy). Może wgrać nowy plik, dopóki
+zaświadczenie nie jest zaakceptowane — nowy zastępuje poprzedni (plik poprzedni znika, zapis zostaje
+w historii).
+
+**Ekran koordynatora.** Menu → *Uczestnicy i konta* → **Status ucznia**. Na górze cztery liczniki
+(zarazem filtr): **oczekujące**, **zaakceptowane**, **odrzucone**, **brak** — liczone z całej edycji.
+„Brak” to uczestnicy zapisani do któregokolwiek etapu edycji, którzy nic nie wgrali. Obok wybór edycji
+(domyślnie bieżąca) i wyszukiwarka (nazwisko, e-mail, kod, szkoła). W wierszu:
+
+- **„Podgląd”** otwiera skan w nowej karcie, **„Pobierz”** zapisuje go na dysk — oba dopiero po
+  czystym skanie antywirusowym (do tego czasu wiersz mówi „trwa skan antywirusowy”); każde otwarcie
+  zostawia wpis w audycie (`student_status.viewed`),
+- **„Akceptuj”** — uczestnik dostaje e-mail i widzi „zaakceptowane”; formularz wgrania znika,
+- **„Odrzuć”** z **obowiązkowym powodem** — powód zobaczy uczestnik w panelu i w e-mailu, więc pisz go do
+  niego („brak pieczątki szkoły”, „nieczytelne zdjęcie — zrób je przy świetle dziennym”). Odrzucić
+  wolno też zaakceptowane (pomyłka) — tylko tak uczestnik może wgrać papier ponownie; zaakceptować
+  wolno też odrzucone.
+
+Plik zainfekowany jest odrzucany **automatycznie** (powód: „odrzucony przez skaner antywirusowy”)
+i usuwany — w kolumnie decyzji stoi wtedy „skaner antywirusowy”.
+
+**Karta uczestnika** (`/coordinator/participants/<id>/`) ma sekcję **„Status ucznia”** ze stanem
+w bieżącej edycji, podglądem skanu i historią wersji; decyzje zapadają na liście (odnośnik z karty
+otwiera ją od razu z wyszukanym kodem uczestnika).
+
+**Kto widzi skany.** Wyłącznie koordynator. Recenzenci i komisja odwoławcza nie mają wstępu do tych
+adresów (403) i w swoich paczkach dostają sam filtr — anonimowe pliki, bez skanu, nazwiska i szkoły.
+
+**Audyt.** `student_status.uploaded`, `.viewed`, `.accepted`, `.rejected`, `.infected` — bez treści
+powodu odrzucenia i bez nazwy pliku od uczestnika.
+
+**RODO.** Rejestr czynności dostaje przy włączonej funkcji wiersz „Weryfikacja statusu ucznia” (§ 9.2);
+eksport danych uczestnika (art. 15/20) niesie sekcję `zaswiadczenia_statusu_ucznia` i same pliki;
+retencja i usunięcie konta — § 9.1.
 
 ---
 

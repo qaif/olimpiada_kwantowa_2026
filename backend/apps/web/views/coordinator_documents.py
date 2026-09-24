@@ -100,6 +100,10 @@ SAMPLE_CONTEXT: dict[str, str] = {
     "currency": "PLN",
     "vat_rate": "23%",
     "due_date": "26.05.2027",
+    # Znacznik własny zaświadczenia o statusie ucznia (``EXTRA_PLACEHOLDERS_BY_KIND``) – z tego
+    # samego powodu wpisany bezwarunkowo, co znaczniki faktury wyżej.
+    "birth_date": "14.03.2009",
+    "school_year": "2026/2027",
 }
 
 

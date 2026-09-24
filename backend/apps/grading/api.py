@@ -39,6 +39,7 @@ from .serializers import (
     SetReviewScoreSerializer,
 )
 from .services import (
+    REVIEWER_VERIFIED_ZIP_FILENAME,
     REVIEWER_ZIP_FILENAME,
     active_reviewer_profile,
     add_problem_reviewer_rule,
@@ -106,13 +107,22 @@ class MyReviewsDownloadView(ReviewerScopedMixin, GenericAPIView):
 
     @extend_schema(responses={(200, "application/zip"): bytes})
     def get(self, request):
+        # Ten sam parametr ``students`` (``all``/``verified``), co w panelu – bliźniak nie może
+        # umieć mniej niż oryginał. Odmowa ``verified`` przy wyłączonej fladze to ``DomainError``
+        # 404, który warstwa API zamienia na odpowiedź z kodem maszynowym.
+        from apps.student_status.services import SCOPE_PARAM, wants_verified_only
+
+        verified_only = wants_verified_only(request.query_params.get(SCOPE_PARAM), competition_of(request))
         package = build_reviewer_zip(
-            active_reviewer_profile(request.user), actor=request.user, request=request
+            active_reviewer_profile(request.user),
+            actor=request.user,
+            request=request,
+            verified_only=verified_only,
         )
         return FileResponse(
             package.stream,
             as_attachment=True,
-            filename=REVIEWER_ZIP_FILENAME,
+            filename=REVIEWER_VERIFIED_ZIP_FILENAME if verified_only else REVIEWER_ZIP_FILENAME,
             content_type="application/zip",
         )
 

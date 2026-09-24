@@ -677,6 +677,20 @@ def groups(stages: list, competition=None) -> list[Group]:
                 match=("coordinator-teams", "coordinator-team", "coordinator-team-"),
             ),
         )
+    if competition is not None and competition.has_feature("student_status_certificate"):
+        # Zaświadczenia o statusie ucznia (prośba organizatora z 24.09.2026) – w „Uczestnikach
+        # i kontach”, bo to jest papier **o osobie**, rozpatrywany wiersz po wierszu obok listy
+        # uczestników, a nie raport ani konfiguracja. Na końcu sekcji, za „Drużynami”, z tego samego
+        # powodu, co one: cztery pozycje przed nimi są dzisiejszym menu i mają zostać co do bajtu.
+        # Odznaki nie ma (§ 2.2): liczbę oczekujących pokazuje sam ekran, a pulpit nie płaci za nią
+        # zapytania przy każdym wejściu.
+        people_items += (
+            Item(
+                "Status ucznia",
+                ("web:coordinator-student-status",),
+                match=("coordinator-student-status", "coordinator-student-status-"),
+            ),
+        )
     stage_group: tuple[Item, ...] = stage_items(stages, competition)
     if competition is not None and competition.has_feature("process_editor"):
         # Edytor przebiegu (§ 1.2, T27). „Przebieg edycji” stoi **nad** listą etapów, bo opisuje

@@ -134,6 +134,12 @@ INSTALLED_APPS = [
     # plik w storage prywatnym, własne zdarzenia (pobrania) i własne reguły prywatności liczenia
     # (``apps.promo.tracking``). Z domeną zawodów łączy ją wyłącznie konkurs.
     "apps.promo",
+    # Zaświadczenie o statusie ucznia (prośba organizatora z 24.09.2026): skan podstemplowanego
+    # wzoru i decyzja koordynatora, za flagą ``student_status_certificate``. Osobna aplikacja, a nie
+    # model w ``apps.accounts``: ma własny plik w storage prywatnym, własny skan antywirusowy,
+    # własną retencję plików i własny wpis w rejestrze czynności – z kontami łączy ją jeden klucz
+    # obcy do profilu uczestnika, a z zawodami – klucz do edycji.
+    "apps.student_status",
     # Warstwa integracyjna: klucze API dla systemów zewnętrznych, webhooki i eksporty na zewnątrz.
     # **Po** aplikacjach domeny, bo czyta je wszystkie (edycje, wyniki, zgłoszenia), a żadna z nich
     # nie czyta jej – zależność idzie w jedną stronę i kolejność w tej liście ma to pokazywać.
@@ -370,6 +376,9 @@ CELERY_TASK_ROUTES = {
     # wysyłka listu (z załącznikiem sięgającym po plik do S3), a nie praca domenowa – na kolejce
     # ``scan`` blokowałaby przyjmowanie kolejnych prac na czas rozmowy z MTA.
     "apps.submissions.tasks.forward_submission_file": {"queue": "mail"},
+    # Skan antywirusowy zaświadczenia o statusie ucznia – ta sama praca na tym samym kliencie clamd,
+    # co skan rozwiązań, więc ta sama kolejka.
+    "apps.student_status.tasks.scan_certificate_file": {"queue": "scan"},
 }
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_TIMEZONE = "UTC"
@@ -421,6 +430,13 @@ CELERY_BEAT_SCHEDULE = {
     # Raz na dobę z tego samego powodu, co anonimizacja wyżej – termin jest liczony w miesiącach.
     "promo-clear-expired-ip-hashes": {
         "task": "apps.promo.tasks.clear_expired_ip_hashes",
+        "schedule": 86400.0,
+    },
+    # Retencja plików zaświadczeń o statusie ucznia (apps/student_status/tasks.py): skany edycji po
+    # terminie retencji danych uczestników znikają ze storage, także u osób, których konto zostaje,
+    # bo startują w późniejszej edycji. Raz na dobę – termin jest liczony w miesiącach.
+    "student-status-purge-expired-scans": {
+        "task": "apps.student_status.tasks.purge_expired_scans",
         "schedule": 86400.0,
     },
     # Puls workera zapisywany w cache'u – z niego strona ``/status/`` czyta, czy kolejka zadań

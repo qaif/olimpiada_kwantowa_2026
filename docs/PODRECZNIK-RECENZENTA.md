@@ -62,6 +62,16 @@ Zwinięte **„Jak oceniać — w pięciu zdaniach”** jest pierwszą pomocą, 
 (`<kod>_zad<numer>_v<wersja>`), a w archiwum jest `README.txt` z wierszami `recenzja <id> → <plik>`,
 po których odnajdziesz pracę w panelu.
 
+W konkursach, które zbierają **zaświadczenia o statusie ucznia**, obok przycisku jest lista wyboru:
+
+- **„wszystkie prace”** (domyślnie) — paczka jak zawsze,
+- **„tylko uczniowie z potwierdzonym statusem ucznia”** — w paczce zostają wyłącznie prace osób,
+  których zaświadczenie koordynator zaakceptował (plik `moje-prace-status-potwierdzony.zip`).
+
+Ocenianie zostaje **ślepe**: dostajesz mniej plików o tych samych anonimowych nazwach — nie skan
+zaświadczenia, nie nazwisko i nie szkołę. Zaświadczenia ogląda wyłącznie koordynator. Ten sam wybór
+działa w API: `GET /api/grading/reviews/download/?students=verified`.
+
 ### Powody w zakładce „Anulowane”
 
 | Powód | Co znaczy |
