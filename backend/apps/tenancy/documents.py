@@ -76,6 +76,11 @@ class DocumentKind(models.TextChoices):
     #: § 1.5.2, za flagą ``onsite_logistics`` – tytuł listy obecności (T48,
     #: ``apps.integrations.exports.logistics_list_title``).
     ATTENDANCE_LIST = "ATTENDANCE_LIST", "lista obecności"
+    #: Wzór „Zaświadczenia o statusie ucznia” do podstemplowania w szkole, za flagą
+    #: ``student_status_certificate`` (``apps.student_status.pdf``). Rodzaj w tej liście, a nie
+    #: osobny model tekstu: organizator poprawia zdanie zaświadczenia tym samym ekranem i z tym
+    #: samym wersjonowaniem, co zdanie na dyplomie – to jest ta sama czynność na innym papierze.
+    STUDENT_STATUS = "STUDENT_STATUS", "zaświadczenie o statusie ucznia"
 
 
 #: Znaczniki dozwolone w treści szablonu – **lista zamknięta**, sprawdzana przy zapisie.
@@ -108,6 +113,13 @@ EXTRA_PLACEHOLDERS_BY_KIND: dict[str, frozenset[str]] = {
     # płatności są pojęciami **należności**, a nie dyplomu: na fakturze muszą dać się wpisać,
     # a na dyplomie laureata nie mają czego znaczyć.
     DocumentKind.INVOICE: frozenset({"amount", "currency", "vat_rate", "due_date"}),
+    # Zaświadczenie o statusie ucznia (prośba organizatora z 24.09.2026). Data urodzenia jest
+    # pojęciem **tego** dokumentu – szkoła poświadcza tożsamość ucznia, a imię i nazwisko bez daty
+    # bywa niejednoznaczne w dużej szkole. Na dyplomie laureata data urodzenia nie ma czego szukać,
+    # więc nie może dać się tam wpisać. ``school_year`` to sam rok szkolny („2026/2027”) wyjęty
+    # z oznaczenia edycji („I edycja 2026/2027”): zdanie „uczeń w roku szkolnym I edycja 2026/2027”
+    # nie jest zdaniem, które szkoła podpisze.
+    DocumentKind.STUDENT_STATUS: frozenset({"birth_date", "school_year"}),
 }
 
 #: Pola szablonu niosące tekst z podstawieniami. Kolejność jest kolejnością czytania dokumentu.

@@ -85,6 +85,10 @@
 {% endcomment %}
 {% include "web/participant/_fees_card.html" %}
 {% include "web/participant/_arrival_card.html" %}
+{# Przypomnienie o zaświadczeniu o statusie ucznia – ta sama zasada, co dwa kafle wyżej: włącza je #}
+{# samo istnienie klucza ``student_status`` (flaga ``student_status_certificate``, czytana w widoku). #}
+{% include "web/participant/_student_status_card.html" %}
+{% include "web/participant/_workshop_materials_card.html" %}
 
 {% comment %}
   Karta „Moja drużyna” (wydanie J, § 2.3). Ta sama zasada, co przy dwóch kaflach wyżej: włącza ją

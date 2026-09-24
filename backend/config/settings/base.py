@@ -134,6 +134,23 @@ INSTALLED_APPS = [
     # plik w storage prywatnym, własne zdarzenia (pobrania) i własne reguły prywatności liczenia
     # (``apps.promo.tracking``). Z domeną zawodów łączy ją wyłącznie konkurs.
     "apps.promo",
+    # Zaświadczenie o statusie ucznia (prośba organizatora z 24.09.2026): skan podstemplowanego
+    # wzoru i decyzja koordynatora, za flagą ``student_status_certificate``. Osobna aplikacja, a nie
+    # model w ``apps.accounts``: ma własny plik w storage prywatnym, własny skan antywirusowy,
+    # własną retencję plików i własny wpis w rejestrze czynności – z kontami łączy ją jeden klucz
+    # obcy do profilu uczestnika, a z zawodami – klucz do edycji.
+    "apps.student_status",
+    # Materiały z warsztatów: nagrania, pliki i odnośniki dla zalogowanych (prośba organizatora
+    # z 24.09.2026, flaga ``workshop_materials``). Osobna aplikacja z tego samego powodu, co
+    # ``apps.promo``: własne modele, własny magazyn (wgrywanie z przeglądarki prosto do MinIO)
+    # i własne reguły dostępu. Z CMS-em łączy ją wyłącznie **odczyt** harmonogramu warsztatów
+    # (``apps.cms.workshops``) – dlatego stoi po nim, a przed ``apps.web``, który ją wyświetla.
+    "apps.workshop_materials",
+    # Ocena AI – sugestia punktów dla komitetu liczona przez Claude'a (prośba organizatora
+    # z 24.09.2026). Osobna aplikacja, bo ma własną zależność zewnętrzną (SDK ``anthropic``)
+    # i własną drogę danych poza serwer; **po** ``apps.grading`` i ``apps.results``, bo czyta
+    # skalę, rubrykę i publikację wyników, a żadna z nich nie czyta jej.
+    "apps.ai_grading",
     # Warstwa integracyjna: klucze API dla systemów zewnętrznych, webhooki i eksporty na zewnątrz.
     # **Po** aplikacjach domeny, bo czyta je wszystkie (edycje, wyniki, zgłoszenia), a żadna z nich
     # nie czyta jej – zależność idzie w jedną stronę i kolejność w tej liście ma to pokazywać.
@@ -272,6 +289,10 @@ TEMPLATES = [
                 # szkolnego. Wartość leniwa, z pamięci podręcznej unieważnianej przy zapisie plakatu
                 # (``apps.promo.availability``).
                 "apps.promo.availability.promo_materials",
+                # Czy pokazać odnośnik „Materiały z warsztatów” w pasku konta i na pulpicie
+                # uczestnika – przełącznik konkursu i pamięć podręczna unieważniana przy zapisie
+                # materiału (``apps.workshop_materials.availability``); wartość leniwa.
+                "apps.workshop_materials.availability.workshop_materials_link",
                 # Nazwa serwisu, hasło i dane organizatora – ``cms.SiteSettings`` edytowane
                 # w ``/cms/`` (Ustawienia → Serwis). Szablony czytają je jako
                 # ``settings.cms.SiteSettings``; nic z tego nie jest zaszyte w kodzie.
@@ -370,6 +391,12 @@ CELERY_TASK_ROUTES = {
     # wysyłka listu (z załącznikiem sięgającym po plik do S3), a nie praca domenowa – na kolejce
     # ``scan`` blokowałaby przyjmowanie kolejnych prac na czas rozmowy z MTA.
     "apps.submissions.tasks.forward_submission_file": {"queue": "mail"},
+    # Skan antywirusowy zaświadczenia o statusie ucznia – ta sama praca na tym samym kliencie clamd,
+    # co skan rozwiązań, więc ta sama kolejka.
+    "apps.student_status.tasks.scan_certificate_file": {"queue": "scan"},
+    # Skan pliku materiału z warsztatów – ta sama kolejka, co skan rozwiązań: to ta sama praca
+    # (strumień z MinIO do clamd), a osobny worker ``scan`` pilnuje, żeby nie zajęła kolejki ogólnej.
+    "apps.workshop_materials.tasks.scan_material": {"queue": "scan"},
 }
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_TIMEZONE = "UTC"
@@ -423,6 +450,20 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.promo.tasks.clear_expired_ip_hashes",
         "schedule": 86400.0,
     },
+    # Retencja plików zaświadczeń o statusie ucznia (apps/student_status/tasks.py): skany edycji po
+    # terminie retencji danych uczestników znikają ze storage, także u osób, których konto zostaje,
+    # bo startują w późniejszej edycji. Raz na dobę – termin jest liczony w miesiącach.
+    "student-status-purge-expired-scans": {
+        "task": "apps.student_status.tasks.purge_expired_scans",
+        "schedule": 86400.0,
+    },
+    # Materiały z warsztatów (apps/workshop_materials/tasks.py): porzucone wgrywania (wiersz
+    # „wgrywanie” starszy niż doba – części w MinIO, obiekt i wiersz) oraz pseudonimy widzów po
+    # okresie retencji. Co godzinę, bo porzucone wgrywanie filmu to bywają gigabajty na dysku.
+    "workshop-materials-cleanup": {
+        "task": "apps.workshop_materials.tasks.cleanup",
+        "schedule": 3600.0,
+    },
     # Puls workera zapisywany w cache'u – z niego strona ``/status/`` czyta, czy kolejka zadań
     # w ogóle żyje (apps/core/tasks.py). Co minutę, bo próg „brak pulsu” na stronie statusu jest
     # liczony w minutach; rzadszy przebieg zamieniłby zdrowy system w okresowo „niedostępny”.
@@ -445,6 +486,14 @@ CELERY_BEAT_SCHEDULE = {
     "captcha-clean": {
         "task": "apps.core.tasks.captcha_clean",
         "schedule": 3600.0,
+    },
+    # Siatka asekuracyjna kolejki oceny AI (apps/ai_grading/tasks.py): domyka oceny osierocone
+    # przez restart workera i dopycha kolejkę, gdyby zadanie zniknęło z brokera. W normalnym
+    # przebiegu nie robi nic – kolejkę napędza koniec każdej oceny. Co pięć minut: przy
+    # ogranicznikach liczonych w dziesiątkach minut częstszy przebieg niczego nie przyspiesza.
+    "ai-grading-pump": {
+        "task": "apps.ai_grading.tasks.pump_ai_assessments",
+        "schedule": 300.0,
     },
 }
 
@@ -674,11 +723,40 @@ SUBMISSION_STORAGE_BACKEND = env(
 # wyniku tego mnożenia, inaczej odrzucenie zobaczy dopiero worker w logu.
 SUBMISSION_FORWARD_MAX_ATTACHMENT_MB = env.int("SUBMISSION_FORWARD_MAX_ATTACHMENT_MB", default=20)
 
+# --- Ocena AI (apps/ai_grading) -----------------------------------------------------------------
+# Klucz API **nie** jest ustawieniem instalacji: wpisuje go koordynator konkursu w panelu i leży
+# zaszyfrowany w bazie (każdy organizator płaci za swoje zużycie i ma własną umowę z Anthropic).
+# Tutaj stoją wyłącznie granice pracy serwera.
+#
+# Ile ocen liczy się naraz w całej instalacji. Jedna, bo worker ma dwa miejsca
+# (``CELERY_CONCURRENCY``) i drugie ma zostać dla skanu antywirusowego i poczty – wywołanie
+# modelu trwa minuty. Podnosić razem z liczbą miejsc workera, nigdy do jej wartości.
+AI_GRADING_MAX_CONCURRENCY = env.int("AI_GRADING_MAX_CONCURRENCY", default=1)
+# Po ilu minutach ocena „w locie” uznawana jest za zgubioną (restart workera). Musi być dłuższe niż
+# twardy limit czasu zadania (16 min, ``apps.ai_grading.tasks``).
+AI_GRADING_STALE_MINUTES = env.int("AI_GRADING_STALE_MINUTES", default=30)
+# Limit czasu jednego żądania HTTP do API (sekundy) i ponowienia wewnątrz SDK. Dłuższe przerwy
+# obsługuje ponowienie zadania Celery z opóźnieniem.
+AI_GRADING_REQUEST_TIMEOUT = env.int("AI_GRADING_REQUEST_TIMEOUT", default=600)
+AI_GRADING_SDK_MAX_RETRIES = env.int("AI_GRADING_SDK_MAX_RETRIES", default=2)
+# Górna granica długości odpowiedzi (myślenie + JSON). Bezpiecznik kosztu jednej oceny.
+AI_GRADING_MAX_TOKENS = env.int("AI_GRADING_MAX_TOKENS", default=32000)
+# Najwięcej prac w jednym zleceniu – bezpiecznik na „kliknąłem nie ten etap”.
+AI_GRADING_MAX_BATCH = env.int("AI_GRADING_MAX_BATCH", default=500)
+
 CLAMAV_HOST = env("CLAMAV_HOST", default="clamav")
 CLAMAV_PORT = env.int("CLAMAV_PORT", default=3310)
 # ``StreamMaxLength`` clamd (obraz clamav 1.4 → 100 MB). Powyżej tej wartości clamd zrywa połączenie
 # w trakcie INSTREAM, co wyglądałoby jak awaria usługi i uruchamiało bezsensowne retry.
 CLAMAV_STREAM_MAX_BYTES = env.int("CLAMAV_STREAM_MAX_BYTES", default=100 * 1024 * 1024)
+
+# Materiały z warsztatów (``apps.workshop_materials``): limity rozmiaru w MB. Film nie przechodzi
+# przez serwer aplikacji (wgrywanie częściami prosto do MinIO), więc jego limit chroni wyłącznie dysk
+# serwera – 4 GB to dwugodzinne nagranie 1080p z zapasem. Plik (PDF, prezentacja) jest skanowany
+# ClamAV-em, więc jego limit i tak jest przycinany do ``CLAMAV_STREAM_MAX_BYTES``
+# (``apps.workshop_materials.formats.file_max_bytes``).
+WORKSHOP_VIDEO_MAX_MB = env.int("WORKSHOP_VIDEO_MAX_MB", default=4096)
+WORKSHOP_FILE_MAX_MB = env.int("WORKSHOP_FILE_MAX_MB", default=100)
 
 # --- Strona błędu serwera (templates/500.html) -------------------------------------------------
 # Adres kontaktowy pokazywany na stronie 500. Ustawienie, a nie pole konkursu: ta strona renderuje

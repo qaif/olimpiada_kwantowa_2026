@@ -66,6 +66,7 @@ from apps.integrations.exports import (
     logistics_list_filename,
     render_logistics_list,
 )
+from apps.web.list_controls import DELETED_PARAM, ListControls
 from apps.web.mixins import CoordinatorRequiredMixin
 
 VENUES_TEMPLATE = "web/coordinator/venues.html"
@@ -289,19 +290,25 @@ class StageLogisticsView(LogisticsScreenMixin, View):
 
     Wiersze i podsumowanie składa serwis (``arrival_rows``, ``needs_summary``), a nie widok:
     reguła „co pokazujemy o deklaracji” należy do obszaru, a ekran – do zadania montażowego.
+
+    Konta usunięte na żądanie są schowane (v0.34.0) – z listy i z liczb do zamówienia – dopóki
+    koordynator nie włączy „Pokaż usunięte konta” (``?usuniete=1``, jak na pozostałych listach).
     """
 
     def get(self, request, stage_id: int):
         competition = self.competition_or_404(request)
         stage = self.stage_or_404(competition, stage_id)
-        summary = needs_summary(stage)
-        rows = arrival_rows(stage)
+        controls = ListControls(request, ())
+        summary = needs_summary(stage, include_deleted=controls.show_deleted)
+        rows = _visible_rows(arrival_rows(stage), controls)
         return TemplateResponse(
             request,
             LOGISTICS_TEMPLATE,
             {
                 "stage": stage,
                 "rows": rows,
+                "controls": controls,
+                "list_urls": [(label, _list_url(stage, kind, controls)) for kind, label in LIST_KINDS],
                 "summary": summary,
                 # Podsumowanie jako pary (etykieta, liczba) w kolejności słownika potrzeb – szablon
                 # nie ma po czym rozwinąć kluczy ``TextChoices``, a kolejność jest treścią.
@@ -311,6 +318,26 @@ class StageLogisticsView(LogisticsScreenMixin, View):
                 "attendance_url": reverse("web:coordinator-stage-attendance", args=[stage.pk]),
             },
         )
+
+
+def _visible_rows(rows: list[dict], controls: ListControls) -> list[dict]:
+    """Wiersze bez kont usuniętych, chyba że koordynator włączył „Pokaż usunięte konta”.
+
+    Filtr w Pythonie, a nie w zapytaniu: serwis logistyki i tak oddaje gotowe wiersze (z flagą
+    ``deleted``), więc liczba schowanych do przycisku „Pokaż usunięte konta (N)” wychodzi z tej
+    samej listy bez drugiego zapytania ``COUNT``. Listy etapu stacjonarnego mają setki wierszy.
+    """
+    if controls.show_deleted:
+        return rows
+    visible = [row for row in rows if not row["deleted"]]
+    controls.hidden_deleted = len(rows) - len(visible)
+    return visible
+
+
+def _list_url(stage, kind: str, controls: ListControls) -> str:
+    """Adres listy PDF – z przełącznikiem kont usuniętych, żeby wydruk był tym, co widać na ekranie."""
+    url = reverse("web:coordinator-stage-logistics-list", args=[stage.pk, kind])
+    return f"{url}?{DELETED_PARAM}=1" if controls.show_deleted else url
 
 
 def _summary_rows(summary: dict[str, int]) -> list[tuple[str, int]]:
@@ -327,6 +354,9 @@ class LogisticsListView(LogisticsScreenMixin, View):
     Rodzaj jedzie w adresie **swoją wartością** (``attendance``, ``accommodation``, ``meal``), bo
     nie jest wierszem w bazie, tylko wyborem na ekranie i fragmentem nazwy pliku. Wartość spoza
     listy daje 404 – to jest literówka w adresie, a nie „jeszcze nieskonfigurowany” rodzaj.
+
+    Konta usunięte na żądanie wchodzą na wydruk wyłącznie z ``?usuniete=1`` – tym samym
+    przełącznikiem, co na ekranie, z którego lista jest pobierana.
     """
 
     def get(self, request, stage_id: int, kind: str):
@@ -334,7 +364,11 @@ class LogisticsListView(LogisticsScreenMixin, View):
         stage = self.stage_or_404(competition, stage_id)
         if kind not in dict(LIST_KINDS):
             raise Http404(f"Nie ma listy rodzaju {kind!r}.")
-        response = HttpResponse(render_logistics_list(stage, kind), content_type="application/pdf")
+        include_deleted = ListControls(request, ()).show_deleted
+        response = HttpResponse(
+            render_logistics_list(stage, kind, include_deleted=include_deleted),
+            content_type="application/pdf",
+        )
         response["Content-Disposition"] = f'attachment; filename="{logistics_list_filename(stage, kind)}"'
         return response
 
@@ -358,7 +392,7 @@ class StageAttendanceView(LogisticsScreenMixin, View):
     def get(self, request, stage_id: int):
         competition = self.competition_or_404(request)
         stage = self.stage_or_404(competition, stage_id)
-        return TemplateResponse(request, ATTENDANCE_TEMPLATE, self._context(stage))
+        return TemplateResponse(request, ATTENDANCE_TEMPLATE, self._context(request, stage))
 
     def post(self, request, stage_id: int):
         competition = self.competition_or_404(request)
@@ -366,7 +400,7 @@ class StageAttendanceView(LogisticsScreenMixin, View):
         form = AttendanceForm(request.POST)
         if not form.is_valid():
             messages.error(request, f"Obecności nie zapisano: {form_errors(form)}")
-            return TemplateResponse(request, ATTENDANCE_TEMPLATE, self._context(stage), status=400)
+            return TemplateResponse(request, ATTENDANCE_TEMPLATE, self._context(request, stage), status=400)
         entry = get_object_or_404(
             StageEntry.objects.for_competition(competition).select_related("participant"),
             pk=form.cleaned_data["entry"],
@@ -379,7 +413,7 @@ class StageAttendanceView(LogisticsScreenMixin, View):
         except DomainError as exc:
             messages.error(request, str(exc.detail))
             return TemplateResponse(
-                request, ATTENDANCE_TEMPLATE, self._context(stage), status=exc.status_code
+                request, ATTENDANCE_TEMPLATE, self._context(request, stage), status=exc.status_code
             )
         messages.success(
             request,
@@ -387,14 +421,19 @@ class StageAttendanceView(LogisticsScreenMixin, View):
             if form.cleaned_data["present"]
             else f"Odnotowano nieobecność: {entry.participant.public_code}.",
         )
-        return redirect(reverse("web:coordinator-stage-attendance", args=[stage.pk]))
+        # Przełącznik kont usuniętych wraca po zapisie – odhaczenie nie zmienia widoku tabeli.
+        url = reverse("web:coordinator-stage-attendance", args=[stage.pk])
+        return redirect(f"{url}?{DELETED_PARAM}=1" if request.POST.get(DELETED_PARAM) == "1" else url)
 
-    def _context(self, stage) -> dict:
-        rows = attendance_rows(stage)
+    def _context(self, request, stage) -> dict:
+        """Wiersze listy – bez kont usuniętych na żądanie, dopóki przełącznik ich nie pokaże (v0.34.0)."""
+        controls = ListControls(request, ())
+        rows = _visible_rows(attendance_rows(stage), controls)
         return {
             "stage": stage,
             "rows": rows,
+            "controls": controls,
             "present_count": sum(1 for row in rows if row["present"]),
-            "list_url": reverse("web:coordinator-stage-logistics-list", args=[stage.pk, LIST_ATTENDANCE]),
+            "list_url": _list_url(stage, LIST_ATTENDANCE, controls),
             "logistics_url": reverse("web:coordinator-stage-logistics", args=[stage.pk]),
         }

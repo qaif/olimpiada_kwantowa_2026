@@ -531,6 +531,7 @@ from apps.cms.tenancy import competition_for_page, competition_for_site  # noqa:
 from apps.competitions.models import Edition, EditionEvent, Stage  # noqa: E402
 from apps.promo.models import PromoMaterial  # noqa: E402
 from apps.results.models import ResultsPublication  # noqa: E402
+from apps.workshop_materials.models import WorkshopMaterial  # noqa: E402
 
 
 def _competition_id_for_page(page) -> int | None:
@@ -597,5 +598,22 @@ def _on_promo_material_changed(sender, instance, **kwargs) -> None:
     Stąd unieważnienie całej witryny konkursu, a nie samego adresu listy: strona główna zapisana
     w pamięci przed opublikowaniem pierwszego plakatu nie miałaby odnośnika w stopce przez cały
     czas życia wpisu, a po zdjęciu ostatniego – prowadziłaby w 404.
+    """
+    invalidate_competition(instance.competition_id)
+
+
+@receiver(
+    post_save, sender=WorkshopMaterial, dispatch_uid="web.page_cache.invalidate_on_workshop_material_save"
+)
+@receiver(
+    post_delete, sender=WorkshopMaterial, dispatch_uid="web.page_cache.invalidate_on_workshop_material_delete"
+)
+def _on_workshop_material_changed(sender, instance, **kwargs) -> None:
+    """Materiał z warsztatów zmienia zapowiedź na ``/warsztaty/`` („są materiały – zaloguj się”).
+
+    W pamięci siedzi wyłącznie wersja strony dla **gościa**: licznik materiałów i odnośnik do
+    logowania, bez żadnego podpisanego adresu (te powstają dopiero w widokach dla zalogowanych,
+    których ta warstwa nie obsługuje). Unieważniamy całą witrynę konkursu, bo tak robi każdy inny
+    odbiornik w tym pliku, a zapis materiału jest rzadki.
     """
     invalidate_competition(instance.competition_id)

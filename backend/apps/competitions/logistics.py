@@ -533,7 +533,23 @@ def save_arrival_form(
     return form
 
 
-def arrivals_for_stage(stage):
+def _without_deleted(queryset, user_path: str, include_deleted: bool):
+    """Odsiewa konta po anonimizacji (``apps.accounts.anonymised``), chyba że wołający chce wszystkich.
+
+    Listy logistyki (v0.34.0, decyzja organizatora z 24.09.2026) chowają konta usunięte na żądanie
+    tak samo jak pozostałe listy osób w panelu: osoba, która usunęła konto, nie przyjedzie, nie
+    zje obiadu i nie podpisze listy obecności. Domyślna wartość ``include_deleted=True`` zostawia
+    zachowanie sprzed tej zmiany wołającym, którzy o przełączniku nie wiedzą (API, testy); ekrany
+    koordynatora i listy PDF podają ją wprost z przełącznika „Pokaż usunięte konta”.
+    """
+    if include_deleted:
+        return queryset
+    from apps.accounts.anonymised import anonymised_q
+
+    return queryset.exclude(anonymised_q(user_path))
+
+
+def arrivals_for_stage(stage, *, include_deleted: bool = True):
     """Deklaracje przyjazdu jednego etapu – queryset gotowy do wyświetlenia, bez N+1.
 
     Zawężenie idzie przez etap, a nie przez konkurs: ekran dotyczy jednego etapu, a zakresowanie
@@ -541,27 +557,35 @@ def arrivals_for_stage(stage):
     """
     if not onsite_logistics_enabled(competition_of_stage(stage)):
         return ArrivalForm.objects.none()
-    return (
+    return _without_deleted(
         ArrivalForm.objects.filter(entry__stage=stage)
         .select_related("entry__participant__user", "venue")
-        .order_by("entry__participant__public_code")
+        .order_by("entry__participant__public_code"),
+        "entry__participant__user",
+        include_deleted,
     )
 
 
-def arrival_rows(stage) -> list[dict]:
+def arrival_rows(stage, *, include_deleted: bool = True) -> list[dict]:
     """Wiersze ekranu „Przyjazdy i potrzeby” – dane gotowe do pokazania koordynatorowi.
 
     ``note`` jest w wierszu **wyłącznie** wtedy, gdy konkurs zbiera potrzeby szczególne; przy
     wyłączonym zbieraniu klucza nie ma w ogóle, więc szablon nie ma czego pokazać nawet przez
     pomyłkę. Ekran jest koordynatorski i tylko koordynatorski (§ 1.5.2) – recenzent i opiekun nie
     mają do tych funkcji drogi.
+
+    ``deleted`` mówi, że konto przeszło anonimizację: ekran podpisuje taki wiersz „Konto usunięte”
+    i chowa go, dopóki koordynator nie włączy „Pokaż usunięte konta”.
     """
+    from apps.accounts.anonymised import is_anonymised
+
     special = collects_special_needs(competition_of_stage(stage))
     rows: list[dict] = []
-    for form in arrivals_for_stage(stage):
+    for form in arrivals_for_stage(stage, include_deleted=include_deleted):
         participant = form.entry.participant
         row = {
             "entry_id": form.entry_id,
+            "deleted": is_anonymised(participant.user),
             "public_code": participant.public_code,
             "first_name": participant.user.first_name,
             "last_name": participant.user.last_name,
@@ -578,7 +602,7 @@ def arrival_rows(stage) -> list[dict]:
     return rows
 
 
-def needs_summary(stage) -> dict[str, int]:
+def needs_summary(stage, *, include_deleted: bool = True) -> dict[str, int]:
     """Ile osób zgłosiło którą potrzebę – liczby, które organizator przepisuje do zamówienia.
 
     Zliczanie w Pythonie, a nie w bazie: potrzeby są listą w kolumnie JSON, a etap stacjonarny ma
@@ -586,7 +610,7 @@ def needs_summary(stage) -> dict[str, int]:
     i nieczytelne dla każdego, kto je kiedyś otworzy.
     """
     counts = dict.fromkeys(LogisticsNeed.values, 0)
-    for needs in arrivals_for_stage(stage).values_list("needs", flat=True):
+    for needs in arrivals_for_stage(stage, include_deleted=include_deleted).values_list("needs", flat=True):
         for value in validated_needs(needs):
             counts[value] += 1
     return counts
@@ -624,23 +648,29 @@ def record_attendance(entry, *, present: bool, actor=None, request=None, now=Non
     return record
 
 
-def attendance_rows(stage) -> list[dict]:
+def attendance_rows(stage, *, include_deleted: bool = True) -> list[dict]:
     """Wiersze listy obecności: **wszyscy** zapisani do etapu, a nie tylko odhaczeni.
 
     Lista obecności jest dokumentem, który komisja niesie na salę – ma na niej być każdy, kto ma
     prawo wejść, z pustą rubryką do podpisu. Dlatego chodzimy po wpisach do etapu i dokładamy
-    obecność, jeżeli już jest, a nie odwrotnie.
+    obecność, jeżeli już jest, a nie odwrotnie. Konto usunięte na żądanie prawa wejścia już nie
+    ma (nie ma kim się wylegitymować) – ekran i lista PDF chowają je domyślnie
+    (``include_deleted=False``), a wiersz pokazany przełącznikiem niesie ``deleted``.
     """
+    from apps.accounts.anonymised import is_anonymised
+
     from .models import StageEntry
 
     if not onsite_logistics_enabled(competition_of_stage(stage)):
         return []
     recorded = {row.entry_id: row for row in attendance_for_stage(stage)}
-    arrivals = {form.entry_id: form for form in arrivals_for_stage(stage)}
-    entries = (
+    arrivals = {form.entry_id: form for form in arrivals_for_stage(stage, include_deleted=include_deleted)}
+    entries = _without_deleted(
         StageEntry.objects.filter(stage=stage)
         .select_related("participant__user")
-        .order_by("participant__public_code")
+        .order_by("participant__public_code"),
+        "participant__user",
+        include_deleted,
     )
     rows: list[dict] = []
     for entry in entries:
@@ -649,6 +679,7 @@ def attendance_rows(stage) -> list[dict]:
         rows.append(
             {
                 "entry_id": entry.pk,
+                "deleted": is_anonymised(entry.participant.user),
                 "public_code": entry.participant.public_code,
                 "first_name": entry.participant.user.first_name,
                 "last_name": entry.participant.user.last_name,

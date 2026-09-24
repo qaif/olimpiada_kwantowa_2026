@@ -27,11 +27,11 @@ edycji i zgłoszenia po numerze. Fraza krótsza niż dwa znaki nie szuka niczego
 |---|---|
 | **Pulpit** | Co wymaga uwagi |
 | **Etapy** | jeden wpis na etap, a pod nim: *Zadania* (albo *Rozmowy*), *Przydziały i oceny*, *Postęp*, *Wyniki* |
-| **Ocenianie** | Moderacja, Zgłoszone problemy, Kalibracja recenzentów, Podobieństwo rozwiązań |
-| **Uczestnicy i konta** | Uczestnicy, Wszystkie konta, Opiekunowie szkolni, Aktywacje |
+| **Ocenianie** | Moderacja, Zgłoszone problemy, Kalibracja recenzentów, Podobieństwo rozwiązań; *Ocena AI* (tylko przy włączonej fladze `ai_grading`, § 4.12) |
+| **Uczestnicy i konta** | Uczestnicy, Wszystkie konta, Opiekunowie szkolni, Aktywacje, *Status ucznia* (tylko z włączonymi zaświadczeniami, § 10a) |
 | **Komitet** | Członkowie, Zatwierdzenia, Zaproszenia, Województwa |
 | **Komunikacja** | Komunikaty, Zgłoszenia, Ogłoszenia |
-| **Raporty** | Eksport danych, Audyt, Symulacja kwalifikacji, Dyplomy, Retencja danych, Rejestr czynności |
+| **Raporty** | Eksport danych, Audyt, Symulacja kwalifikacji, Dyplomy, Retencja danych, Rejestr czynności; *Materiały z warsztatów* (tylko przy włączonej fladze `workshop_materials`, § 4.11) |
 | **Ustawienia** | Rejestracja uczestników, Wydarzenia linii czasu, Skala punktacji, Slider sponsorów, Plakaty do pobrania |
 
 Przy czterech pozycjach (Moderacja, Aktywacje, Zatwierdzenia, Zgłoszenia) stoją **liczniki spraw
@@ -266,6 +266,15 @@ okno uploadu działa dalej. Pojedynczą pracę wciąga przycisk **„Zablokuj do
 > a praca wraca do stanu „oddane” i wymaga ponownego zablokowania. Uczestnik widzi przy uploadzie
 > ostrzeżenie, a recenzent w panelu — powód „Uczestnik wysłał nową wersję rozwiązania…”.
 > Praca **finalna, w reklamacji albo z ogłoszonymi wynikami** jest poza zasięgiem tej reguły.
+
+**Paczki ZIP z wyborem zakresu.** W konkursie, który zbiera zaświadczenia o statusie ucznia (§ 10a),
+każdy przycisk pobrania prac — karta etapu na pulpicie, **„Pobierz prace (ZIP)”** na ekranie przydziałów,
+paczka zadania (tabela reguł i karta zadania) oraz **„Pobierz zaznaczone (ZIP)”** — ma obok listę
+wyboru: **„wszystkie prace”** (domyślnie, paczka jak dotąd) albo **„tylko uczniowie z potwierdzonym
+statusem ucznia”** (w paczce zostają wyłącznie prace osób z **zaakceptowanym** zaświadczeniem w edycji
+tego etapu; nazwa pliku dostaje dopisek `-status-potwierdzony`, a `README.txt` zdanie o filtrze).
+Nazwy plików w paczce zostają anonimowe. Ten sam wybór ma komitet w swojej paczce „Pobierz moje prace
+(ZIP)” (`PODRECZNIK-RECENZENTA.md` § 2). Bez włączonych zaświadczeń przyciski wyglądają jak zawsze.
 
 ### 4.2 Przydział recenzentów
 
@@ -521,6 +530,223 @@ Każda zmiana zostawia wpis w audycie (`promo.created`, `promo.updated`, `promo.
 `promo.unpublished`, `promo.reordered`, `promo.archived`, `promo.deleted`, `promo.restored`; eksport —
 `export.generated`) z numerem plakatu i nazwami zmienionych pól, bez tytułu i nazwy pliku.
 
+### 4.11 Materiały z warsztatów — `/coordinator/workshops/materials/`
+
+Ekran **„Materiały z warsztatów”** (menu: Raporty → Materiały z warsztatów, zaraz pod „Obecnością na
+warsztatach”; przycisk jest też na ekranie obecności). Nagrania zajęć, slajdy, notatniki i odnośniki,
+które **ogląda się wyłącznie po zalogowaniu** na stronie **`/warsztaty/materialy/`**. Funkcja jest za
+przełącznikiem konkursu `workshop_materials` — dopóki operator go nie włączy, ekranu, pozycji w menu
+i strony dla uczestników nie ma.
+
+**Gdzie uczestnik je znajdzie.** Odnośnik „Materiały z warsztatów” w pasku konta (każda zalogowana
+osoba z rolą w konkursie), kafel na pulpicie uczestnika i ramka na stronie `/warsztaty/` — odnośnik
+i kafel pojawiają się, gdy opublikujesz pierwszy materiał (i znikają, gdy zdejmiesz ostatni).
+
+**Kto widzi materiały.** Każde zalogowane konto, które **w tym konkursie** jest uczestnikiem, opiekunem
+szkolnym, recenzentem, członkiem komisji odwoławczej albo koordynatorem. Konto spoza konkursu (np.
+uczestnik innej olimpiady na tej samej platformie) dostaje „brak dostępu”. Gość na stronie
+`/warsztaty/` widzi tylko ramkę „Materiały z warsztatów — zaloguj się, aby obejrzeć” z liczbą
+materiałów, bez tytułów i bez żadnego adresu pliku.
+
+**Materiał przypina się do warsztatu z harmonogramu.** Ekran pokazuje każdy wiersz tabeli
+„harmonogram” ze strony `/warsztaty/` (ten sam, z którego biorą się kolumny obecności) — także te bez
+materiałów, bo przy nich jest przycisk **„Dodaj materiał do tego warsztatu”**. Wiersz bez wypełnionego
+pola „termin (data)” nie ma tu miejsca — uzupełnij datę w `/cms/`.
+
+**Dodanie materiału** — „Dodaj materiał”:
+
+| Pole | Znaczenie |
+|---|---|
+| Warsztat | wiersz harmonogramu |
+| Rodzaj | **film**, **plik** albo **odnośnik** |
+| Tytuł, opis | nagłówek karty i kilka zdań pod nim (np. „od 12. minuty zadanie 3”). Z tytułu powstaje nazwa pobranego pliku |
+| Plik | **film:** MP4 (H.264 + AAC) albo WebM, najwyżej **4 GB**. **Plik:** PDF, PPTX, DOCX, XLSX, ODP, ODT, ODS, ZIP, IPYNB, PNG, JPG — najwyżej **100 MB** |
+| Adres odnośnika | tylko dla rodzaju „odnośnik”, np. nagranie niepubliczne w serwisie wideo; musi zaczynać się od `https://` |
+| Opublikowany | bez zaznaczenia materiał jest **szkicem** — widzisz go tylko tutaj |
+
+**Jak idzie wgrywanie filmu.** Po kliknięciu „Zapisz materiał” pod formularzem pojawia się **pasek
+postępu**. Plik idzie z Twojej przeglądarki **prosto do magazynu plików**, kawałkami po 16 MB (serwer
+tylko podpisuje kolejne kawałki), więc duży film nie obciąża serwisu, a chwilowe zerwanie połączenia
+nie przerywa całości — kawałek jest wysyłany ponownie. **Nie zamykaj karty**, dopóki pasek nie dojdzie
+do końca (przeglądarka ostrzeże przed zamknięciem). Na końcu serwer składa plik i sprawdza, czy to
+naprawdę MP4/WebM; potem wracasz na listę. Godzinne nagranie z platformy wideo (ok. 0,5–1 GB) przy
+łączu 20 Mb/s wgrywa się kilka minut. „Przerwij wgrywanie” kasuje wszystko, co już dotarło; wgrywanie
+porzucone (zamknięta karta) znika samo po dobie. Wgrywanie wymaga włączonego JavaScriptu.
+
+- **Format sprawdzamy po treści**, nie po rozszerzeniu. Plik **MOV** (QuickTime, np. z telefonu albo
+  Maca) i **MKV** (np. z OBS-a) zostaną odrzucone z podpowiedzią, jak je przepakować do MP4 — część
+  przeglądarek ich nie odtworzy. Najpewniejszy format: **MP4, wideo H.264, dźwięk AAC** (tak zapisują
+  Zoom, Teams i Google Meet). Nagranie, które już jest takim MP4, nie wymaga żadnej obróbki.
+- Film w H.265/HEVC przejdzie sprawdzenie (to też MP4), ale **nie odtworzy się w części przeglądarek**
+  (m.in. Firefox) — jeśli masz wybór, eksportuj H.264.
+- Serwis **nie przerabia** filmów (nie zmniejsza rozdzielczości, nie tnie) — oglądający dostaje dokładnie
+  ten plik, który wgrałeś. Na zajęcia z ekranem prowadzącego wystarczy 720p, a plik jest wtedy kilka
+  razy mniejszy.
+
+**Pliki (PDF, prezentacje…)** przechodzą po wgraniu jeszcze **sprawdzenie antywirusowe** (zwykle
+kilkanaście sekund; stan „sprawdzanie antywirusowe” na liście, odśwież stronę). Dopiero potem są widoczne.
+Plik z wykrytym zagrożeniem jest **kasowany** i zostaje na liście jako „odrzucony” z nazwą zagrożenia.
+Jeśli plik długo stoi w „sprawdzaniu”, użyj „Sprawdź ponownie”. **Filmy nie idą przez antywirusa**: są
+za duże dla skanera, a skaner nie ma w nich czego szukać — bramką jest sprawdzenie, że to naprawdę film
+MP4/WebM.
+
+Na liście w każdym wierszu: strzałki **↑ ↓** (kolejność w obrębie warsztatu), **Podgląd** (otwiera
+materiał także jako szkic; nie liczy się do statystyk), **Zmień** (tytuł, opis, warsztat, publikacja —
+**pliku nie podmienisz**: dodaj nowy materiał i usuń stary), **Opublikuj / Zdejmij** i **Usuń** (kasuje
+materiał razem z plikiem, nieodwracalnie). Materiał oznaczony jako opublikowany, który jeszcze się
+sprawdza, pojawi się u widzów sam, gdy skaner go przepuści.
+
+**Zmieniłeś temat albo datę warsztatu w harmonogramie?** Materiał jest przypięty do warsztatu kluczem
+złożonym z **daty i tematu** — tym samym, co obecność. Po poprawce tematu (nawet literówki) albo daty
+materiały „tracą” warsztat i trafiają na dół ekranu do sekcji **„Materiały bez warsztatu
+w harmonogramie”**. Nic nie znika: uczestnicy nadal je widzą, pod dawnym tematem i datą. W sekcji
+wybierz właściwy warsztat z listy (jeśli w harmonogramie jest dokładnie jeden warsztat z tą samą datą,
+jest już wybrany) i kliknij **„Przepnij”** — cała grupa przechodzi naraz. Serwis nie przepina sam, bo
+„ten sam dzień” nie zawsze znaczy „te same zajęcia”.
+
+**Statystyki.** Przy każdym materiale: **Wyświetlenia** (otwarcie odtwarzacza, pobranie pliku, przejście
+pod odnośnik) i **Widzowie** (ile różnych kont). Twoich wyświetleń nie liczymy. **Kto** oglądał — tego
+serwis nie wie i nie pokaże: zapisujemy wyłącznie pseudonim (skrót HMAC pary „materiał–konto”, inny dla
+każdego materiału), kasowany po 12 miesiącach. Obecność na zajęciach dalej odhacza się na ekranie
+obecności — obejrzenie nagrania nie jest obecnością. Czynność opisuje rejestr czynności przetwarzania
+(§ 9.2, wiersz „Statystyka wyświetleń materiałów z warsztatów” – tylko w konkursie z włączoną funkcją).
+
+**Czego ta funkcja nie gwarantuje.** Film ogląda się w odtwarzaczu na stronie, adres pliku jest ważny
+**2 godziny** i nie ma go nigdzie jako linku do skopiowania, a przycisk „Pobierz” w odtwarzaczu jest
+wyłączony. To utrudnia rozsyłanie nagrania, ale **nie uniemożliwia** jego zapisania: zalogowana osoba,
+która się uprze, wyciągnie adres z narzędzi przeglądarki albo nagra ekran. Jeżeli nagranie nie może
+wyjść poza uczestników pod żadnym pozorem (np. wizerunek osób bez zgody na udostępnienie), nie wgrywaj
+go. Odnośnik (rodzaj „odnośnik”) chroni jeszcze mniej: serwis wymaga logowania, żeby go **zobaczyć**,
+ale sam adres działa dla każdego, kto go dostanie.
+
+**Kopia zapasowa.** Materiały z warsztatów **nie wchodzą do nocnej kopii zapasowej** (pojedyncze
+nagranie to gigabajty). Zachowaj oryginały u siebie — po awarii serwera trzeba je będzie wgrać ponownie.
+
+Każda zmiana zostawia wpis w audycie (`workshop_material.created`, `.upload_started`, `.uploaded`,
+`.upload_rejected`, `.updated`, `.attached`, `.published`, `.unpublished`, `.reordered`, `.deleted`)
+z numerem materiału, rodzajem, formatem i rozmiarem — bez tytułu, opisu i nazwy pliku.
+### 4.12 Ocena AI — `/coordinator/ai-grading/`
+
+Prośba organizatora z 24.09.2026. Claude (model językowy firmy Anthropic) czyta pracę uczestnika obok
+treści zadania, rozwiązania wzorcowego, skali, rubryki i uwag dla recenzentów, a potem proponuje
+punkty z krótkim uzasadnieniem. **To jest sugestia dla recenzenta, a nie ocena**: sama nigdy nie trafia
+do punktacji, do tabeli wyników ani do dyplomu. Ocenę wystawia człowiek, tak jak dotąd.
+
+**Kiedy ekran istnieje.** Funkcja jest za przełącznikiem konkursu `ai_grading`, **domyślnie wyłączonym**
+— bez niego adresu nie ma (404), w menu nie ma pozycji „Ocena AI”, a karty zadań, panel recenzenta
+i panel uczestnika wyglądają jak dotąd. Przełącznik zapala operator platformy (`OPERACJE.md` § 6.4),
+i to **dopiero po** spełnieniu warunków prawnych z ramki „Zanim włączysz” niżej.
+
+> **Zanim włączysz — warunki prawne (do rozstrzygnięcia przez organizatora, nie przez system).**
+> Włączenie znaczy, że prace uczestników — w większości osób niepełnoletnich — wychodzą do **podmiotu
+> przetwarzającego spoza organizatora** (Anthropic PBC, USA). Potrzebne są:
+>
+> 1. **umowa powierzenia (DPA)** z Anthropic — jest częścią warunków komercyjnych Anthropic (Commercial
+>    Terms z Data Processing Addendum), przyjmowanych przy zakładaniu organizacji i klucza w konsoli
+>    Anthropic; organizacja ma być założona **przez organizatora**, a nie prywatnie przez koordynatora,
+> 2. **podstawa przekazania do państwa trzeciego** (rozdział V RODO) — mechanizm wskazany w DPA
+>    (standardowe klauzule umowne); do sprawdzenia przez organizatora,
+> 3. **aktualizacja polityki prywatności** (art. 13 RODO): nowy odbiorca (Anthropic), cel pomocniczy
+>    (sugestia oceny dla komitetu), przekazanie poza EOG i informacja, że decyzja o ocenie **nie**
+>    zapada w sposób zautomatyzowany (art. 22) — ocenia człowiek,
+> 4. **aktualizacja regulaminu**: komitet może korzystać z narzędzia AI jako pomocy przy ocenianiu;
+>    wiążąca jest wyłącznie ocena członków komitetu; reklamacja dotyczy oceny oficjalnej; prośba, żeby
+>    **nie podpisywać prac** imieniem i nazwiskiem (plik idzie do dostawcy taki, jaki wgrał uczestnik),
+> 5. potwierdzenie **podstawy prawnej** — rejestr czynności proponuje prawnie uzasadniony interes
+>    (art. 6 ust. 1 lit. f), a to administrator ma ją zatwierdzić (albo wybrać inną) po teście
+>    równowagi interesów, także z uwagi na wiek uczestników,
+> 6. sprawdzenie **okresu przechowywania danych po stronie Anthropic** (dane wejściowe i wyjściowe API)
+>    i ewentualnie wniosku o brak retencji (*zero data retention*).
+>
+> Rejestr czynności przetwarzania dostaje przy włączonej fladze nowy wiersz „Pomocnicza ocena prac
+> uczestników przez model językowy” (wersja rejestru 1.7, § 9.2).
+
+**Co wychodzi z serwisu, a co nie.** Do Anthropic trafia wyłącznie plik pracy (PDF, zdjęcie, kod,
+notatnik — notatnik jako tekst komórek), treść zadania, rozwiązanie wzorcowe, skala, rubryka i uwagi
+dla recenzentów. **Nie** wychodzi imię, nazwisko, e-mail, szkoła, kod `OLM-…` ani nazwa pliku nadana
+przez uczestnika. Gdyby model przepisał z pracy imię czy nazwę szkoły autora, serwer wymaże je
+z odpowiedzi, zanim zobaczy ją recenzent (anonimowość oceniania zostaje).
+
+**Klucz API.** Sekcja „Klucz API”: wklej klucz z konsoli Anthropic (zaczyna się od `sk-ant-`)
+i „Zapisz klucz”. Klucz jest **tylko do zapisu** — po zapisaniu ekran pokazuje wyłącznie „ustawiony,
+kończy się na …abcd”; nie da się go odczytać ani z panelu, ani z samej bazy. Można go **zastąpić**
+albo **usunąć**. Przycisk **„Sprawdź klucz”** pyta Anthropic o opis wybranego modelu — nic nie kosztuje,
+a potwierdza, że klucz działa i widzi model. Klucz administracyjny organizacji (`sk-ant-admin…`) jest
+odrzucany — potrzebny jest zwykły klucz API. Zmiana klucza serwera (`DJANGO_SECRET_KEY`) unieważnia
+zapisany klucz: ekran poprosi wtedy o wpisanie go ponownie.
+
+**Model i limit wydatków.** Domyślny model to **Claude Opus 5** (dokładniejszy); tańszy **Claude
+Sonnet 5** wybierasz świadomie. **Limit wydatków (USD)** jest bezpiecznikiem: po jego osiągnięciu
+nowe zlecenia są odrzucane, a oceny czekające w kolejce kończą się błędem zamiast wołać API. Puste
+pole = bez limitu — zalecamy ustawić limit przed pierwszym zleceniem.
+
+**Koszt.** Sekcja „Zużycie” pokazuje łączny **szacowany** koszt, liczbę wywołań i tokeny. Stawki
+użyte w szacunkach (24.09.2026): Opus 5 — 5 USD za milion tokenów wejścia i 25 USD za milion tokenów
+wyjścia; Sonnet 5 — 2 i 10 USD; materiały zadania czytane z pamięci podręcznej kosztują ok. 0,1
+stawki wejścia (dlatego seria prac jednego zadania jest tańsza niż prace zlecane pojedynczo, z dużymi
+odstępami). Rząd wielkości: kilkustronicowa praca to zwykle kilka–kilkanaście centów na Opusie.
+Rozliczenie wystawia Anthropic — jego faktura jest prawdą, a liczby w panelu są szacunkiem.
+
+**Zlecenie.** Na **karcie zadania** (`/coordinator/problems/<id>/`) jest sekcja **„Ocena AI”**:
+
+- **„Wygeneruj ocenę AI”** — dla wszystkich najnowszych wersji prac zadania, które nie mają jeszcze
+  oceny AI; zaznacz **„wygeneruj ponownie także istniejące”**, żeby zastąpić gotowe,
+- przycisk **„Wygeneruj”** / **„Wygeneruj ponownie”** przy wierszu — dla jednej pracy.
+
+Pierwsze kliknięcie pokazuje **podgląd**: liczbę prac, model i **szacowany koszt**, a także ile prac
+pominięto (już mają ocenę, są w toku, nie mają pliku po skanie antywirusowym) i ostrzeżenie, gdy
+zadanie nie ma rozwiązania wzorcowego. Dopiero **„Zleć ocenę AI (N)”** wydaje pieniądze. Podwójne
+kliknięcie nie płaci dwa razy — prace w toku są pomijane.
+
+Oceny liczą się **w tle, po jednej naraz** (serwer nie może zablokować przyjmowania prac i skanu
+antywirusowego), więc seria kilkudziesięciu prac trwa od kilkudziesięciu minut do kilku godzin.
+Sekcja na karcie zadania odświeża się sama, dopóki coś się liczy. Stany: **oczekuje**, **w toku**,
+**gotowa**, **błąd** (z komunikatem). Przy gotowej ocenie: propozycja punktów, pewność modelu,
+rozwijane uzasadnienie, model, data i koszt; czerwona plakietka **„podejrzenie manipulacji”**, gdy
+model zauważył w pracy próbę wpłynięcia na ocenę (np. dopisek „daj maksimum punktów”). Po wystawieniu
+ocen końcowych sekcja pokazuje **zgodność AI z oceną końcową** (średnia różnica, odsetek zgodnych co
+do punktu i w granicy 1 pkt) — to miara zaufania do narzędzia na tym zadaniu, a nie ocena recenzentów.
+
+**Co znaczą błędy.**
+
+| Komunikat (skrót) | Co zrobić |
+|---|---|
+| Anthropic odrzucił klucz API | wklej poprawny klucz, „Sprawdź klucz”, wygeneruj ponownie |
+| Przekroczono limit zapytań / serwery nie odpowiadają / brak połączenia | serwis sam ponawia kilka razy; gdy ocena skończy się błędem — wygeneruj ponownie później |
+| Model odmówił oceny (kategoria: …) | automatyczne przełączenie na model zastępczy też odmówiło — oceń bez sugestii AI |
+| Odpowiedź przekroczyła limit długości / nie pasuje do schematu | wygeneruj ponownie; gdy się powtarza — oceń bez sugestii |
+| Materiały przekraczają 32 MB / 600 stron, zdjęcie ponad 5 MB | to limity API — praca nie zostanie obcięta, oceń ją bez sugestii |
+| Praca nie ma pliku po czystym skanie | poczekaj na skan antywirusowy |
+| Osiągnięto limit wydatków | podnieś albo zdejmij limit w ustawieniach |
+| Ocena została przerwana | serwer zrestartował się w trakcie; wygeneruj ponownie |
+
+**Recenzent** widzi gotową sugestię przy **tej wersji pracy, którą ma przydzieloną**, w zwiniętym
+panelu „Ocena AI (sugestia, niewiążąca)” z modelem i datą. Formularz oceny nie wypełnia się sam;
+przycisk „Wstaw punkty AI jako punkt wyjścia” jedynie zaznacza najbliższą wartość skali (przy zadaniu
+z rubryką przycisku nie ma). Szczegóły: `PODRECZNIK-RECENZENTA.md` § 3a.
+
+**Uczestnicy — domyślnie nie widzą niczego.** Sekcja „Widoczność dla uczestników” ma przy każdym
+etapie bieżącej edycji przycisk **„Pokaż uczestnikom ocenę AI”** (domyślnie wyłączony). Po włączeniu
+uczestnik zobaczy na stronie informacji zwrotnej **podsumowanie i proponowane punkty** — dopiero po
+**ogłoszeniu wyników** etapu, w osobnej sekcji pod oficjalnymi ocenami, z podpisem „sugestia AI”.
+Listy błędów ani kryteriów uczestnik nie dostaje. Przy wyłączonym przełączniku uczestnik nie
+dowiaduje się z panelu, tabeli wyników, dyplomów ani reklamacji, że ocena AI powstała.
+
+**Eksport danych uczestnika (art. 15/20 RODO).** Paczka `/account/export/` zawiera zawsze sekcję
+`oceny_ai` z **faktem** przekazania pracy do oceny AI: zadanie, wersja, data, model i odbiorca
+(Anthropic) — bo informacja o odbiorcach danych przysługuje osobie z art. 15 ust. 1 lit. c
+niezależnie od ustawień ekranu. **Treść** sugestii (punkty, podsumowanie) jest w paczce tylko wtedy,
+gdy uczestnik widzi ją też w panelu (przełącznik etapu + ogłoszone wyniki). Gdyby uczestnik zażądał
+formalnie dostępu do treści sugestii przed publikacją albo przy wyłączonym przełączniku, rozstrzyga
+administrator (IOD) — treść jest dostępna koordynatorowi na karcie zadania.
+
+**Usunięcie danych.** Anonimizacja konta uczestnika (na żądanie albo po upływie retencji edycji,
+§ 9.1) **kasuje** oceny AI jego prac — w przeciwieństwie do samej pracy i ocen komitetu nie są one
+dokumentacją zawodów. Liczniki kosztu w ustawieniach zostają.
+
+**Audyt.** Zapis i usunięcie klucza (bez wartości), sprawdzenie klucza, zmiana modelu i limitu,
+zmiana widoczności etapu i każde zlecenie (z liczbą prac) zostawiają wpis `ai_grading.*`.
+
 ---
 
 ## 5. Wyniki
@@ -629,19 +855,58 @@ decyzja człowieka, a nie wynik obliczenia.
 
 ### 6.1 Komunikaty — listy do grupy
 
-Grupy odbiorców: uczestnicy bieżącej edycji, zapisani do etapu, zakwalifikowani do etapu, członkowie
-komitetu, komitet jednego województwa, wklejona lista adresów. „Uczestnik edycji” znaczy „ktoś z wpisem
-do któregokolwiek jej etapu”, a nie „ktoś, kto kiedykolwiek założył konto”. **Z wysyłki wypadają konta
-zablokowane i bez potwierdzonego adresu.**
+Menu **Komunikacja → Komunikaty**. Ekran nie jest za żadną flagą — działa w każdym konkursie.
+
+| Grupa odbiorców | Kto dostaje list | Trzeba wskazać |
+|---|---|---|
+| **wszyscy uczestnicy konkursu** (pierwsza na liście) | uczestnicy **bieżącej edycji**: zapisani do któregokolwiek jej etapu albo zarejestrowani w niej (konto założone po utworzeniu edycji), także jeszcze bez zapisu do etapu | — (opcjonalnie „także uczestnicy poprzednich edycji”) |
+| uczestnicy bieżącej edycji (zapisani do etapu) | ktoś z wpisem do któregokolwiek etapu bieżącej edycji | — |
+| zapisani do etapu | wpis do wskazanego etapu | etap |
+| zakwalifikowani do etapu | wpis ze statusem „zakwalifikowany” | etap |
+| **zapisani do etapu, bez wysłanej pracy** | wpis „zarejestrowany” albo „zakwalifikowany”, bez żadnej pracy w tym etapie (praca odrzucona przez antywirusa się nie liczy) — przypomnienie przed terminem | etap |
+| uczestnicy z wybranego województwa (regionu) | uczestnicy bieżącej edycji z tym województwem w profilu; przy włączonym własnym podziale (`custom_regions`) — region, łącznie z profilami sprzed włączenia | województwo albo region (opcjonalnie „także uczestnicy poprzednich edycji”) |
+| uczestnicy z wybranej szkoły (placówki) | uczestnicy bieżącej edycji z jednej szkoły; lista pokazuje **tylko szkoły, z których są uczestnicy** tego konkursu (w nawiasie ich liczba ze wszystkich edycji); szkoła z wykazu stoi z miejscowością, nazwa wpisana ręcznie — osobno | szkoła (opcjonalnie „także uczestnicy poprzednich edycji”) |
+| uczestnicy z wybranej klasy | uczestnicy bieżącej edycji z tą klasą w profilu; na liście tylko klasy, w których ktoś jest | klasa (opcjonalnie „także uczestnicy poprzednich edycji”) |
+| uczestnicy obecni na wybranym warsztacie | osoby odhaczone w tabeli obecności (`/coordinator/workshops/attendance/`) | warsztat |
+| **opiekunowie szkolni (nauczyciele)** | konta opiekunów tego konkursu z aktywną rolą | — |
+| członkowie komitetu / komitet jednego województwa | aktywni recenzenci tego konkursu | — / województwo |
+| wklejona lista adresów | adresy z pola (nigdzie niezapisywane) | lista |
+
+**Bieżąca edycja to ustawienie domyślne** (decyzja organizatora z 24.09.2026). „Wszyscy uczestnicy
+konkursu” oraz grupy regionu, szkoły i klasy obejmują uczestnika bieżącej edycji, czyli kogoś, kto
+jest zapisany do któregokolwiek jej etapu **albo** założył konto po utworzeniu tej edycji (zarejestrował
+się, ale do etapu jeszcze się nie zapisał). Osoba z poprzedniego roku, która w tej edycji nigdzie się
+nie zapisała, listu **nie** dostaje — chyba że zaznaczysz **„także uczestnicy poprzednich edycji”**
+(domyślnie odznaczone). Bez bieżącej edycji grupy te są puste, dopóki pola nie zaznaczysz. Wybór jest
+widoczny w podglądzie i w historii („bieżąca edycja” / „także poprzednie edycje”), a zmiana go po
+podglądzie unieważnia podgląd tak samo jak zmiana grupy. „Uczestnicy bieżącej edycji (zapisani do
+etapu)” zostają węższą grupą: wyłącznie osoby z wpisem do etapu. Po wybraniu grupy ekran pokazuje **tylko pole, którego ta grupa wymaga** (bez JavaScriptu
+widać wszystkie — liczy się wyłącznie pole wybranej grupy). **Z wysyłki wypadają konta zablokowane
+i bez potwierdzonego adresu**, a jedna osoba dostaje jeden list, choćby pasowała do grupy kilka razy.
+Każda grupa obejmuje wyłącznie osoby **tego** konkursu — uczestnik innej olimpiady na tej samej
+platformie nie dostanie listu, nawet jeśli ma tu konto.
+
+Rocznika (roku urodzenia) jako grupy nie ma celowo: datę urodzenia zbieramy wyłącznie do ustalenia,
+czy potrzebna jest zgoda opiekuna. Adresu **rodzica/opiekuna prawnego** komunikat też nie dostaje
+w kopii — jest podawany wyłącznie do potwierdzenia zgody.
 
 Ekran jest **dwustopniowy**: **„Podgląd”** pokazuje liczbę odbiorców i treść tak, jak pójdzie w liście,
-i dopiero **„Wyślij”** wysyła. To jedyny moment, w którym pomyłkę („uczestnicy edycji” zamiast „zapisani
-do etapu”) da się jeszcze cofnąć. **Adresów ekran nie pokazuje** — sprawdzasz rząd wielkości, nie wpisy.
+i dopiero **„Wyślij”** wysyła. Podgląd mówi też, **do kogo** („uczestnicy z wybranej szkoły: XIV LO…,
+Warszawa”). To jedyny moment, w którym pomyłkę („uczestnicy edycji” zamiast „zapisani do etapu”) da się
+jeszcze cofnąć. **Adresów ekran nie pokazuje** — sprawdzasz rząd wielkości, nie wpisy. Jeśli po podglądzie
+zmienisz grupę, jej parametr, pole „także uczestnicy poprzednich edycji”, temat albo treść, „Wyślij”
+**nic nie wyśle** — pokaże podgląd na nowo
+(„…zmieniły się od podglądu”) i dopiero kolejne „Wyślij” wysyła.
 
 Każdy odbiorca dostaje **osobną kopertę**. Wysyłka idzie porcjami, więc awaria jednej porcji nie kasuje
-reszty. Każda wysyłka zostaje w sekcji **„Wysłane komunikaty”** (autor, data, grupa, temat, treść, liczba
-odbiorców, stan) — **rejestr nie trzyma adresów**. Stan „przekazana do wysyłki” znaczy, że listy trafiły
-do kolejki; o doręczeniu rozstrzyga serwer odbiorcy.
+reszty. Każda wysyłka zostaje w sekcji **„Wysłane komunikaty”** (autor, data, grupa **z wybranym etapem,
+regionem, szkołą, klasą albo warsztatem**, temat, treść, liczba odbiorców, stan) — **rejestr nie trzyma
+adresów**. Ten sam opis grupy trafia do audytu (`broadcast.sent`). Stan „przekazana do wysyłki” znaczy,
+że listy trafiły do kolejki; o doręczeniu rozstrzyga serwer odbiorcy.
+
+**Załączników nie ma.** Plik (regulamin, instrukcja) wstaw do biblioteki dokumentów w `/cms/`
+i wklej do treści komunikatu odnośnik — jeden plik na serwerze zamiast kilku tysięcy kopii
+w skrzynkach i bez ryzyka, że duży załącznik zatrzyma list w filtrze antyspamowym.
 
 ### 6.2 Ogłoszenia — pasek w serwisie
 
@@ -829,6 +1094,20 @@ w spamie.
 **Wersja do wydruku** (PDF pod `/dokumenty/zgoda-opiekuna/`) zostaje jako droga zapasowa: dla rodzica bez
 adresu e-mail albo dla szkoły, która chce zgody w teczce.
 
+### 7.2a Wzór zaświadczenia o statusie ucznia — tekst na papierze
+
+Wzór, który uczestnik pobiera w `/me/status-ucznia/` (§ 10a), jest **imienny**: ma wpisane imię
+i nazwisko, datę urodzenia (albo miejsce do wpisania, gdy profil zna sam rocznik), szkołę, rok szkolny
+wyjęty z oznaczenia edycji („I edycja 2026/2027” → „2026/2027”), a puste pola na **klasę**, **pieczątkę
+szkoły**, **miejscowość i datę** oraz **podpis dyrektora lub sekretarza**. Na dole ramka dla ucznia:
+jak i gdzie wgrać skan, adres panelu i kod uczestnika.
+
+Tekst (tytuł, zdanie główne, linia podpisu, dopisek) ma dzisiejsze brzmienie wbudowane. Z włączonymi
+**Szablonami dokumentów** (flaga `document_templates`) zmienia się go na ekranie
+`/coordinator/documents/STUDENT_STATUS/` jak każdy inny dokument — z wersjami i podglądem. Poza
+znacznikami wspólnymi działają dwa własne: `{birth_date}` i `{school_year}`. Klasy nie podstawiamy
+nigdy — ma ją wpisać szkoła.
+
 ### 7.3 Dokumenty organizatora
 
 Regulamin, polityka RODO, standardy ochrony małoletnich, skład komitetów, polityka cookies — wszystko
@@ -943,6 +1222,12 @@ Konto opiekuna, które organizator chce mimo to wyczyścić, usuwa się **ręczn
 anonimizuje profil opiekuna (szkoła, telefon, zgody znikają; potwierdzenia udziału szkoły w
 edycjach zostają, jeśli takie są — patrz § 10).
 
+**Skany zaświadczeń o statusie ucznia** (§ 10a) znikają ze storage razem z terminem retencji edycji —
+także u osób, których konto zostaje, bo startują w edycji późniejszej (nocne zadanie
+`apps.student_status.tasks.purge_expired_scans`; zapis decyzji bez pliku zostaje). Plik zastąpiony
+nowszym albo odrzucony przez skaner antywirusowy znika od razu, a anonimizacja lub usunięcie konta
+zabiera zaświadczenia w całości.
+
 **Pseudonimy adresów IP przy pobraniach plakatów** (§ 4.10) mają **własny, stały termin**:
 12 miesięcy od pobrania, niezależnie od ustawień edycji. Kasuje je nocne zadanie
 `apps.promo.tasks.clear_expired_ip_hashes` — ten ekran ich nie pokazuje i nie trzeba go do tego
@@ -954,7 +1239,13 @@ Dokument wymagany art. 30 ust. 1 RODO, **gotowy do wydania na żądanie**. Obejm
 konta uczestników, dowody zgód, konta opiekunów szkolnych, przyjmowanie i ocenianie prac, ogłaszanie
 wyników i dokumenty, reklamacje, rozmowy kwalifikacyjne, konta komitetu, zgłoszenia i pomoc,
 utrzymanie serwisu oraz statystykę pobrań plakatów (wersja 1.6 z 23.09.2026 — pseudonim adresu IP
-przy pobraniu plakatu, kasowany po 12 miesiącach, § 4.10).
+przy pobraniu plakatu, kasowany po 12 miesiącach, § 4.10). Wersja 1.7 z 24.09.2026 dokłada trzy
+wiersze **warunkowe** — każdy stoi w rejestrze wyłącznie przy włączonej funkcji, tak jak forum:
+**„Weryfikacja statusu ucznia (zaświadczenie ze szkoły)”** (flaga `student_status_certificate`,
+§ 10a), **„Statystyka wyświetleń materiałów z warsztatów”** (flaga `workshop_materials`, § 4.11 —
+pseudonim pary materiał–konto, kasowany po 12 miesiącach) i **„Pomocnicza ocena prac uczestników przez
+model językowy”** (flaga `ai_grading`, § 4.12 — nowy podmiot przetwarzający, Anthropic, i przekazanie
+danych poza EOG).
 Odbiorcy są wymienieni wprost (hosting, dostawca poczty, analityka wyłącznie po zgodzie). Dane
 administratora (nazwa, adres, KRS, kontakt) dokłada się **z ustawień serwisu w `/cms/`**, więc ich
 poprawka nie wymaga wydania aplikacji. `?format=csv` oddaje ten sam dokument jako plik otwierający się
@@ -1006,12 +1297,51 @@ czytelności” zamieniłoby ślad techniczny w wyciąg z bazy osobowej.
 
 | Ekran | Adres | Do czego |
 |---|---|---|
-| **Konta** | `/coordinator/accounts/` | wszystkie konta; wyszukiwarka `?q=`, filtr `?role=`, 50 na stronę |
-| Uczestnicy / Opiekunowie szkolni | ta sama lista z filtrem roli | osobny ekran powtarzałby wyszukiwarkę i kolumny |
+| **Konta** | `/coordinator/accounts/` | wszystkie konta; wyszukiwarka `?q=`, filtr `?role=`, sortowanie nagłówkami, 50 na stronę (§ 10.1) |
+| Uczestnicy / Opiekunowie szkolni | ta sama lista z filtrem roli | osobny ekran powtarzałby wyszukiwarkę i stronicowanie; uczestnicy mają własne kolumny profilu (§ 10.1) |
 | Edycja konta | `/coordinator/accounts/<id>/` | dane, „Konto aktywne”, dla uczestnika także telefon, województwo, szkoła, klasa, **data urodzenia**; dla członka komitetu status, komisja odwoławcza i województwo |
 | Usunięcie konta | `/coordinator/accounts/<id>/delete/` | strona potwierdzenia mówi, co się stanie |
 | **Konta oczekujące na aktywację** | `/coordinator/activations/` | „Aktywuj ręcznie”, „Wyślij link ponownie” |
 | **Karta uczestnika** | `/coordinator/participants/<id>/` | cały przebieg zawodów jednej osoby, wyłącznie do odczytu |
+
+### 10.1 Sortowanie list i konta usunięte
+
+**Sortowanie.** Na liście kont (`/coordinator/accounts/`) i na liście uczestników (pozycja menu
+„Uczestnicy”, czyli ta sama lista z `?role=participant`) **każdy nagłówek kolumny z ikoną ↕ jest
+odnośnikiem**: pierwsze kliknięcie sortuje rosnąco (▲), drugie malejąco (▼). Data rejestracji i liczba
+prac zaczynają od malejącego — od najnowszych i od najbardziej aktywnych. Sortuje serwer, więc porządek
+obejmuje **całą** listę, a nie tylko bieżącą stronę; przejście na kolejną stronę, nowa fraza
+w wyszukiwarce i zmiana filtra roli zachowują wybrany porządek (jest w adresie: `?sort=nazwisko`,
+`?sort=-zalozone`). Bez wyboru lista stoi jak dotąd — po adresie e-mail.
+
+| Lista | Kolumny sortowalne |
+|---|---|
+| Wszystkie konta | e-mail, imię i nazwisko (po nazwisku), kod publiczny, stan, data założenia |
+| Uczestnicy | kod, nazwisko, imię, e-mail, szkoła, województwo, klasa, zgoda opiekuna, prace, stan, data założenia |
+
+Lista uczestników ma własne kolumny profilu: szkoła, województwo, klasa, zgoda opiekuna („tak”, gdy jest
+potwierdzona) i **Prace** — liczba zadań, do których uczestnik oddał cokolwiek w **bieżącej edycji**
+(kilka wersji tego samego zadania to jedna praca). Kolumny „Rola” nie da się sortować — rola jest
+wyliczana z kilku źródeł naraz.
+
+**Konta usunięte.** Uczestnik albo recenzent, który usunął konto (albo którego konto usunął koordynator
+czy retencja), a zostawił ślad w zawodach, nie znika z bazy: zostaje pseudonimowy wiersz z kodem
+publicznym, bo pod tym kodem stoi w wynikach, recenzjach i odwołaniach. Takie konta są **domyślnie
+schowane** na liście kont, liście uczestników, w wyszukiwarce panelu, na liście członków komisji,
+w tabeli obecności na warsztatach i w arkuszu „Uczestnicy edycji” (`/coordinator/export/`). Nad każdą
+z tych list stoi przycisk **„Pokaż usunięte konta (N)”** — N to liczba kont usuniętych pasujących do
+bieżącego wyszukiwania i filtrów. Po kliknięciu lista pokazuje je z podpisem **„Konto usunięte”**
+i kodem publicznym, a przycisk zmienia się w **„Ukryj usunięte konta”**. Stan przełącznika jest
+w adresie (`?usuniete=1`), więc przeżywa stronicowanie, sortowanie i wyszukiwanie; na stronie eksportu
+przycisk decyduje, czy pobrany arkusz ma zawierać także konta usunięte.
+
+Tam, gdzie konto usunięte **musi** zostać — przydziały prac, moderacja, recenzje, wyniki, karta
+uczestnika, odwołania, audyt, eksport recenzji — wiersz zostaje, ale zamiast technicznego adresu
+`deleted-…@invalid.…` stoi „Konto usunięte” (przy pracy obok stoi kod publiczny). Kolejki do załatwienia
+(zatwierdzenia na ekranie „Komitet”, plakietka w menu, naliczanie wpisowego) pomijają konta usunięte
+bez przełącznika — osoby, której konta już nie ma, nie da się zatwierdzić ani obciążyć opłatą.
+Liczniki na ekranach słowników (placówki, regiony, kategorie) **liczą** konta usunięte, bo odpowiadają
+na pytanie „czy ten wiersz wolno skasować”, a profil usuniętego konta nadal się do niego odwołuje.
 
 Trzy rzeczy, które panel robi inaczej niż samoobsługa:
 
@@ -1069,6 +1399,56 @@ ucznia: list z linkiem aktywacyjnym, 4 godziny na kliknięcie, w razie potrzeby 
 logowania. Strona „Konto zostało założone” tłumaczy nauczycielowi, co dalej: panel „Moi uczniowie” będzie
 pusty, dopóki uczniowie sami nie wpiszą jego adresu e-mail w swoim profilu — to oni decydują, kto widzi
 ich postęp, nie organizator ani nauczyciel.
+
+---
+
+## 10a. Zaświadczenia o statusie ucznia — `/coordinator/student-status/`
+
+**Tylko w konkursie z włączonymi zaświadczeniami** (przełącznik `student_status_certificate`, włącza go
+operator — `OPERACJE.md` § 15). Bez niego żadnego z tych ekranów nie ma, a paczki ZIP wyglądają jak
+zawsze.
+
+**Po co.** Organizator chce mieć potwierdzenie ze szkoły, że uczestnik **w tej edycji** jest uczniem.
+Status **nie blokuje** niczego po stronie uczestnika — prace oddaje się tak samo — a służy jako filtr
+paczek ZIP dla komitetu (§ 4.1): „wszystkie prace” albo „tylko uczniowie z potwierdzonym statusem”.
+Status jest **per edycja**: zeszłoroczne zaświadczenie nie potwierdza tego roku.
+
+**Droga uczestnika.** Pulpit przypomina o zaświadczeniu, dopóki nie jest zaakceptowane. Uczestnik
+pobiera imienny wzór (§ 7.2a), szkoła go stempluje i podpisuje, uczestnik wgrywa skan albo zdjęcie
+(PDF/JPG/PNG do 10 MB, format sprawdzany po treści, skan antywirusowy). Może wgrać nowy plik, dopóki
+zaświadczenie nie jest zaakceptowane — nowy zastępuje poprzedni (plik poprzedni znika, zapis zostaje
+w historii).
+
+**Ekran koordynatora.** Menu → *Uczestnicy i konta* → **Status ucznia**. Na górze cztery liczniki
+(zarazem filtr): **oczekujące**, **zaakceptowane**, **odrzucone**, **brak** — liczone z całej edycji.
+„Brak” to uczestnicy zapisani do któregokolwiek etapu edycji, którzy nic nie wgrali. Obok wybór edycji
+(domyślnie bieżąca) i wyszukiwarka (nazwisko, e-mail, kod, szkoła). W wierszu:
+
+- **„Podgląd”** otwiera skan w nowej karcie, **„Pobierz”** zapisuje go na dysk — oba dopiero po
+  czystym skanie antywirusowym (do tego czasu wiersz mówi „trwa skan antywirusowy”); każde otwarcie
+  zostawia wpis w audycie (`student_status.viewed`),
+- **„Akceptuj”** — uczestnik dostaje e-mail i widzi „zaakceptowane”; formularz wgrania znika,
+- **„Odrzuć”** z **obowiązkowym powodem** — powód zobaczy uczestnik w panelu i w e-mailu, więc pisz go do
+  niego („brak pieczątki szkoły”, „nieczytelne zdjęcie — zrób je przy świetle dziennym”). Odrzucić
+  wolno też zaakceptowane (pomyłka) — tylko tak uczestnik może wgrać papier ponownie; zaakceptować
+  wolno też odrzucone.
+
+Plik zainfekowany jest odrzucany **automatycznie** (powód: „odrzucony przez skaner antywirusowy”)
+i usuwany — w kolumnie decyzji stoi wtedy „skaner antywirusowy”.
+
+**Karta uczestnika** (`/coordinator/participants/<id>/`) ma sekcję **„Status ucznia”** ze stanem
+w bieżącej edycji, podglądem skanu i historią wersji; decyzje zapadają na liście (odnośnik z karty
+otwiera ją od razu z wyszukanym kodem uczestnika).
+
+**Kto widzi skany.** Wyłącznie koordynator. Recenzenci i komisja odwoławcza nie mają wstępu do tych
+adresów (403) i w swoich paczkach dostają sam filtr — anonimowe pliki, bez skanu, nazwiska i szkoły.
+
+**Audyt.** `student_status.uploaded`, `.viewed`, `.accepted`, `.rejected`, `.infected` — bez treści
+powodu odrzucenia i bez nazwy pliku od uczestnika.
+
+**RODO.** Rejestr czynności dostaje przy włączonej funkcji wiersz „Weryfikacja statusu ucznia” (§ 9.2);
+eksport danych uczestnika (art. 15/20) niesie sekcję `zaswiadczenia_statusu_ucznia` i same pliki;
+retencja i usunięcie konta — § 9.1.
 
 ---
 

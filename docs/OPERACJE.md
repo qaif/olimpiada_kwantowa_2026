@@ -617,6 +617,20 @@ z **różnicami** wobec wartości domyślnych. Pusty słownik `{}` znaczy „jak
   kto i jak często zagląda do `/coordinator/forum/`. Pierwszy krok **po** zapaleniu: założyć co
   najmniej jeden dział (`/coordinator/forum/categories/`) — bez działu nikt nie napisze ani słowa.
   Szczegóły moderacji: `PODRECZNIK-ORGANIZATORA.md` § 6.4.
+- **`student_status_certificate`** — zaświadczenia o statusie ucznia (v0.34.0): strona uczestnika
+  `/me/status-ucznia/`, ekran koordynatora `/coordinator/student-status/`, wybór „tylko uczniowie
+  z potwierdzonym statusem” przy paczkach ZIP. Wyłączona znaczy, że adresów **nie ma** (404). Zapalenie
+  jest decyzją organizatora o **nowej kategorii danych** (skan dokumentu z datą urodzenia i podpisem
+  dyrektora szkoły) — rejestr czynności dostaje przy niej własny wiersz. Szczegóły: § 15.
+- **`workshop_materials`** — materiały z warsztatów (v0.34.0): wgrywanie przez koordynatora
+  (`/coordinator/workshops/materials/`) i oglądanie po zalogowaniu (`/warsztaty/materialy/`).
+  Wyłączona znaczy, że tych adresów **nie ma** (404), a strona „Warsztaty” i menu wyglądają jak dotąd.
+  **Przed zapaleniem** trzy kroki operatora z § 16: polityka MinIO z uprawnieniami wgrywania
+  wieloczęściowego, sprawdzenie miejsca na dysku i świadomość, że materiały nie wchodzą do kopii nocnej.
+- **`ai_grading`** — ocena AI (sugestia punktów dla komitetu liczona przez Claude'a). Wyłączona
+  znaczy, że `/coordinator/ai-grading/…` odpowiada 404, a panele wyglądają jak dziś. Zapalenie
+  jest **decyzją prawną organizatora** (umowa powierzenia z Anthropic, polityka prywatności,
+  regulamin), a nie techniczną — nie zapalaj jej przed jej potwierdzeniem. Szczegóły serwerowe: § 17.
 
 Po każdym przestawieniu flagi: zaloguj się na konto jednej osoby z każdej roli i sprawdź, że widzi
 to, co widziała. Flaga jest odwracalna w minutę, ale tylko wtedy, gdy ktoś zauważy w tej minucie.
@@ -1395,3 +1409,238 @@ Statystyka pobrań łącznie nie zmienia się.
 plakatu). Po imporcie z ominięciem sygnałów wystarczy `page_cache_clear` i odczekanie TTL albo
 restart Redisa.
 
+## 15. Zaświadczenia o statusie ucznia (v0.34.0)
+
+Aplikacja `apps.student_status`, opis dla organizatora: `PODRECZNIK-ORGANIZATORA.md` § 10a. Funkcja
+stoi za przełącznikiem konkursu **`student_status_certificate`** (domyślnie wyłączonym) — wdrożenie
+wersji niczego nie zmienia, dopóki operator go nie zapali.
+
+**Włączenie dla konkursu** (tu: Olimpiada Kwantowa, `slug=kwantowa`) — w `/admin/ → Konkursy →
+<konkurs> → przełączniki` dopisać `"student_status_certificate": true` do JSON-a albo z powłoki:
+
+```bash
+docker compose exec -T web python manage.py shell -c "from apps.tenancy.models import Competition; c = Competition.objects.get(slug='kwantowa'); c.feature_flags = {**(c.feature_flags or {}), 'student_status_certificate': True}; c.save(update_fields=['feature_flags']); print(c.has_feature('student_status_certificate'))"
+```
+
+Wyłączenie — ta sama linijka z `False`. Wyłączenie **nie kasuje** wgranych skanów (zostają w storage
+do retencji edycji albo usunięcia konta), tylko zamyka wszystkie adresy. Po zapaleniu: konto uczestnika
+→ pulpit ma kafel „Zaświadczenie o statusie ucznia”, `/me/status-ucznia/wzor.pdf` pobiera PDF; konto
+koordynatora → menu *Uczestnicy i konta* ma pozycję „Status ucznia”; `/coordinator/processing-register/`
+ma wiersz „Weryfikacja statusu ucznia”.
+
+**Migracje:** `student_status.0001_initial` (nowa pusta tabela) i `tenancy.0009_document_kind_student_status`
+(wyłącznie lista wyboru rodzaju dokumentu, bez zmiany kolumny). Obie są addytywne — wycofanie wersji
+nie wymaga cofania migracji.
+
+**Gdzie leżą pliki.** Storage rozwiązań (`SUBMISSION_STORAGE_BACKEND`, produkcyjnie bucket `submissions`
+na koncie `app-private`) pod prefiksem `student-status/<id konkursu>/<id edycji>/<kod uczestnika>/<uuid>/<sha256>.<ext>`.
+Nazwa pliku od uczestnika nie jest zapisywana nigdzie. Bucket jest już w kopii zapasowej (§ 1).
+Skany **są kasowane** przez aplikację (`DeleteObject`): po zastąpieniu nowszą wersją, po wykryciu wirusa,
+przy anonimizacji/usunięciu konta i przez zadanie retencji — polityka `deploy/minio/policy-submissions.json`
+ma to uprawnienie od początku, nic nie trzeba zmieniać.
+
+**Skan antywirusowy** idzie tą samą kolejką `scan` i tym samym clamd, co rozwiązania
+(`apps.student_status.tasks.scan_certificate_file`, ponowienia przy niedostępnym ClamAV jak w § o
+rozwiązaniach). Plik czeka na skan w stanie „trwa skan antywirusowy” — koordynator nie może go
+obejrzeć ani zaakceptować przed czystym wynikiem. Limit pliku 10 MB (poniżej `StreamMaxLength`).
+
+**Retencja.** Zadanie beat `student-status-purge-expired-scans` (raz na dobę,
+`apps.student_status.tasks.purge_expired_scans`) usuwa pliki edycji, którym upłynął okres retencji
+(ten sam termin, co anonimizacja kont, § 9.1 podręcznika organizatora). Ręcznie:
+
+```bash
+docker compose exec -T web python manage.py shell -c "from apps.student_status.services import purge_expired_scans; print(purge_expired_scans())"
+```
+
+**Harmonogram beat** jest w bazie (`django_celery_beat`, `DatabaseScheduler`) — wpis z
+`CELERY_BEAT_SCHEDULE` trafia tam przy starcie `beat`; po wdrożeniu sprawdź w `/admin/ → Periodic tasks`,
+że `student-status-purge-expired-scans` istnieje i jest włączony.
+
+## 16. Materiały z warsztatów (flaga `workshop_materials`)
+
+Ekran koordynatora `/coordinator/workshops/materials/`, strona dla zalogowanych
+`/warsztaty/materialy/` (aplikacja `apps.workshop_materials`, opis dla organizatora:
+`PODRECZNIK-ORGANIZATORA.md` § 4.11). Flaga jest domyślnie **wyłączona**; zapalenie w `/admin/`
+(§ 6.4) po krokach niżej.
+
+### 16.1. Droga pliku – bez gunicorna, bez transkodowania
+
+Film (do 4 GB) **nie przechodzi przez aplikację**. Przeglądarka koordynatora wysyła go częściami
+po **16 MB** prosto do MinIO (`PUT` na adresy podpisane przez serwer, wgrywanie wieloczęściowe S3),
+przez Caddy na `S3_PUBLIC_ADDRESS` (u nas `olimpiadakwantowa.pl:9000`). Serwer tylko zakłada
+wgrywanie, podpisuje części (po 20 na żądanie, ważne godzinę) i w kroku „zakończ” pyta MinIO
+o listę części (`ListParts`), składa plik, sprawdza rozmiar (`HeadObject`) i pierwsze 4 KB
+(sygnatura MP4/WebM). Worker gunicorna jest zajęty milisekundy, nie minuty; pamięć `web` nie rośnie.
+**Serwer niczego nie transkoduje** (6 vCPU z dużym *steal*, § 11) – widz dostaje plik tak, jak go
+wgrano, a przewijanie działa żądaniami `Range` bezpośrednio do MinIO (odpowiedź 206).
+
+Pliki (PDF, prezentacje, do 100 MB) idą tą samą drogą, a po złożeniu – przez ClamAV (zadanie
+`apps.workshop_materials.tasks.scan_material`, kolejka `scan`). Filmy przez ClamAV **nie** idą:
+`StreamMaxLength` clamd to 100 MB, a skan gigabajtów to kilkanaście minut rdzenia; bramką filmu jest
+sygnatura kontenera, a adres dla widza wymusza `Content-Type: video/*` (uzasadnienie:
+`apps/workshop_materials/tasks.py`).
+
+Obiekty leżą w bucketcie **`submissions`** pod prefiksem **`workshop-materials/<id konkursu>/`**
+(losowe nazwy, bez nazwy pliku od przesyłającego), dostęp wyłącznie przez podpis konta `S3_PRIVATE_*`.
+Oglądanie: adres podpisany na **2 h** (film, osadzony w `<video>`) albo **5 min** (plik, przekierowanie).
+
+### 16.2. Przed zapaleniem flagi (jednorazowo)
+
+1. **Polityka MinIO.** Konto `app-private` potrzebuje trzech nowych uprawnień: `s3:AbortMultipartUpload`,
+   `s3:ListMultipartUploadParts` (na obiektach) i `s3:ListBucketMultipartUploads` (na buckecie) –
+   dopisane w `deploy/minio/policy-submissions.json`. `minio-init` nadpisuje politykę przy każdym
+   przebiegu, więc po wdrożeniu wystarczy:
+
+   ```bash
+   # na serwerze, w /opt/olimpiada
+   docker compose run --rm minio-init        # „Created policy `submissions-rw` successfully.”
+   ```
+
+   Bez tego wgrywanie kończy się błędem „Magazyn plików nie odpowiada” na kroku „zakończ”.
+
+2. **Miejsce na dysku.** Nagranie godzinnych zajęć z platformy wideo to zwykle 0,5–1 GB (720p) albo
+   1–2 GB (1080p); cykl 16 warsztatów to **10–30 GB** w wolumenie `minio_data`, plus chwilowo drugie
+   tyle na części w trakcie wgrywania. Sprawdź `df -h /var/lib/docker` przed zapaleniem flagi i dopisz
+   ten wolumen do obserwacji (watchdog alarmuje o wolnym miejscu – § 3.2). Limit pojedynczego filmu:
+   `WORKSHOP_VIDEO_MAX_MB` w `.env` (domyślnie 4096), pliku: `WORKSHOP_FILE_MAX_MB` (domyślnie 100,
+   i tak przycinane do limitu ClamAV).
+
+3. **Kopia zapasowa.** `scripts/backup.sh` **pomija** prefiks `workshop-materials/`
+   (`mc mirror --exclude "workshop-materials/*"`). Kopia nocna jest pełna (lustro → tar → gpg, 7 dni
+   lokalnie, 30 dni poza serwerem), więc 20 GB filmów znaczyłoby ~60 GB chwilowo na dysku co noc
+   i ~600 GB u dostawcy kopii. Po odtworzeniu z kopii wiersze materiałów zostają, a pliku nie ma –
+   odtwarzacz pokaże błąd; koordynator usuwa materiał i wgrywa oryginał ponownie. Jednorazowa kopia
+   materiałów, jeśli organizator jej chce:
+
+   ```bash
+   docker run --rm --network olimpiada_internal -v /opt/olimpiada-backups/materialy:/backup \
+     -e MC_HOST_src="http://$MINIO_ROOT_USER:$MINIO_ROOT_PASSWORD@minio:9000" \
+     minio/mc mirror --overwrite src/submissions/workshop-materials /backup
+   ```
+
+### 16.3. Caddy, CSP, CORS
+
+- **Caddy** (`deploy/Caddyfile`, blok `{$S3_PUBLIC_ADDRESS}`): `request_body max_size {$MAX_UPLOAD_MB}MB`
+  dotyczy **jednej części** (16 MB), nie całego filmu – `MAX_UPLOAD_MB` musi zostać **> 16** (domyślnie
+  25). Bez zmian w konfiguracji. Bez `encode` w tym bloku (kompresja psułaby odpowiedzi 206) i bez
+  `log` – podpisane adresy nie lądują w logu dostępu.
+- **CSP** (`apps/web/middleware.py`): `connect-src` (PUT części) i `media-src` (`<video>`) zawierają
+  origin `S3_PUBLIC_ENDPOINT_URL` od dawna (ta sama reguła co pdf.js przy rozwiązaniach) – bez zmian.
+  Sprawdzenie na produkcji: w nagłówku `Content-Security-Policy` strony
+  `/warsztaty/materialy/<id>/` musi stać `https://olimpiadakwantowa.pl:9000` w `media-src`.
+- **CORS**: przeglądarka wysyła `PUT` z `https://olimpiadakwantowa.pl` na `…:9000` (inny origin).
+  MinIO domyślnie odpowiada na preflight `OPTIONS` dla każdego originu (`MINIO_API_CORS_ALLOW_ORIGIN`
+  domyślnie `*`); nagłówka `ETag` z odpowiedzi skrypt **nie** potrzebuje (serwer bierze ETagi
+  z `ListParts`), więc nie trzeba ustawiać `Expose-Headers`. Jeżeli kiedyś zawęzicie CORS MinIO,
+  dopiszcie origin serwisu.
+
+### 16.4. Sprzątanie i porzucone wgrywania
+
+- Zadanie beat **`workshop-materials-cleanup`** (co godzinę, `apps.workshop_materials.tasks.cleanup`)
+  kasuje materiały w stanie „wgrywanie” starsze niż **24 h**: porzuca wgrywanie w MinIO (części
+  znikają od razu), kasuje obiekt i wiersz. To samo zadanie kasuje pseudonimy widzów starsze niż
+  12 miesięcy (rejestr czynności 1.7, wiersz warunkowy „Statystyka wyświetleń materiałów z warsztatów”).
+- Niezależnie od tego **MinIO sam** usuwa niezłożone części po dobie (`api stale_uploads_expiry`,
+  domyślnie 24 h) – porzucone wgrywanie bez wiersza w bazie (np. awaria między założeniem wgrywania
+  a zapisem wiersza) też nie zostaje na zawsze.
+- Usunięcie materiału w panelu kasuje obiekt od razu. Obiekt, którego nie udało się skasować, zostaje
+  w logu `web` (`Nie udało się skasować obiektu workshop-materials/…`) – do ręcznego `mc rm`.
+- Plik, który utknął w „sprawdzaniu antywirusowym” (ClamAV leżał dłużej niż ponowienia zadania),
+  koordynator odblokowuje przyciskiem „Sprawdź ponownie”; ręcznie:
+
+  ```bash
+  docker compose exec -T web python manage.py shell -c "from apps.workshop_materials.tasks import scan_material; scan_material.delay(<id>)"
+  ```
+
+### 16.5. Czego ta funkcja nie chroni
+
+Podpisany adres filmu jest ważny 2 h dla **każdego**, kto go ma – zalogowany widz może go wyciągnąć
+z narzędzi przeglądarki i przekazać dalej (działa do wygaśnięcia) albo nagrać ekran.
+`controlsList="nodownload"` zdejmuje tylko przycisk w odtwarzaczu. To jest ochrona przed stałym
+linkiem krążącym w sieci, nie DRM – organizator wie o tym z podręcznika (§ 4.11).
+
+## 17. Ocena AI (`apps.ai_grading`, prośba organizatora z 24.09.2026)
+
+Sugestia punktów dla komitetu liczona przez Claude'a (Anthropic). Opis funkcji dla organizatora:
+`PODRECZNIK-ORGANIZATORA.md` § 4.12; tutaj to, co dotyczy serwera.
+
+### 17.1. Przełącznik i warunek jego zapalenia
+
+Flaga konkursu **`ai_grading`**, domyślnie wyłączona (§ 6.4). **Nie zapalaj jej przed potwierdzeniem
+przez organizatora warunków prawnych** z § 4.12 podręcznika organizatora (umowa powierzenia z
+Anthropic, polityka prywatności, regulamin): od chwili, w której koordynator wklei klucz i zleci
+pierwszą ocenę, prace uczestników wychodzą do podmiotu przetwarzającego poza EOG. Po zapaleniu
+koordynator widzi w menu „Ocenianie → Ocena AI”; bez klucza API nic się nie dzieje.
+
+```json
+{"ai_grading": true}
+```
+
+### 17.2. Zależność
+
+Nowa zależność Pythona: **`anthropic>=1.8,<2`** (oficjalne SDK; ciągnie `httpx2`, `httpcore2`, `pydantic`, `jiter`,
+`anyio`, `truststore`, `docstring-parser`). Obraz produkcyjny instaluje ją przy zwykłym budowaniu
+(`uv pip install -r pyproject.toml`). Import jest leniwy – wewnątrz `apps.ai_grading.client` – więc
+konkurs bez oceny AI biblioteki w ogóle nie ładuje. Na stacji deweloperskiej za firmowym proxy TLS
+`docker compose build web` potrafi nie pobrać pakietu; testy klienta SDK (`test_client.py`) same się
+wtedy pomijają (`importorskip`), reszta testów oceny AI z SDK nie korzysta.
+
+### 17.3. Klucz API
+
+Klucz wpisuje **koordynator** w panelu – nie ma go w `.env` ani w żadnym ustawieniu instalacji. Leży
+w `ai_grading_aigradingsettings.api_key_encrypted` jako token Fernet z kluczem wyprowadzonym
+z `DJANGO_SECRET_KEY` (etykieta `ai-grading-api-key`, ten sam zabieg co przy 2FA, § 5.5).
+Konsekwencje:
+
+- **rotacja `DJANGO_SECRET_KEY` unieważnia zapisane klucze** – panel pokaże „wpisz klucz ponownie”,
+  a zlecone oceny skończą się błędem `key_unreadable` (bez wywołania API),
+- klucz **nie** jedzie przez Redisa: zadanie Celery dostaje wyłącznie identyfikator oceny i czyta
+  klucz z bazy samo,
+- klucz nie trafia do logów ani do audytu (wpis `ai_grading.key_set` ma tylko `{"replaced": …}`).
+  **Nie** ustawiaj na produkcji `ANTHROPIC_LOG=debug` – tryb diagnostyczny SDK loguje szczegóły
+  żądań.
+
+### 17.4. Celery: kolejka z ogranicznikiem
+
+Jedna ocena = jedno zadanie `apps.ai_grading.tasks.run_ai_assessment` na kolejce `default`. Zlecenie
+**nie** wrzuca wszystkich zadań naraz: oceny czekają w bazie jako `PENDING`, a do Celery trafia ich
+tyle, ile mieści `AI_GRADING_MAX_CONCURRENCY` (domyślnie **1** w całej instalacji). Koniec każdej
+oceny wypuszcza następną. Powód: worker ma dwa miejsca (`CELERY_CONCURRENCY=2`), wywołanie modelu
+trwa minuty, a drugie miejsce musi zostać dla skanu antywirusowego i poczty.
+
+| Ustawienie (`.env`) | Domyślnie | Znaczenie |
+|---|---|---|
+| `AI_GRADING_MAX_CONCURRENCY` | 1 | ile ocen liczy się naraz; podnosić **razem** z `CELERY_CONCURRENCY`, nigdy do jego wartości |
+| `AI_GRADING_STALE_MINUTES` | 30 | po ilu minutach ocena „w locie” jest uznana za zgubioną (> twardy limit zadania 16 min) |
+| `AI_GRADING_REQUEST_TIMEOUT` | 600 | limit czasu jednego żądania HTTP do API (s) |
+| `AI_GRADING_SDK_MAX_RETRIES` | 2 | ponowienia wewnątrz SDK (429, 5xx, sieć) w obrębie jednego wywołania |
+| `AI_GRADING_MAX_TOKENS` | 32000 | górna granica odpowiedzi – bezpiecznik kosztu jednej oceny |
+| `AI_GRADING_MAX_BATCH` | 500 | najwięcej prac w jednym zleceniu |
+
+Ponowienia: po 429, 5xx i błędach sieci zadanie ponawia się do 4 razy z wykładniczym opóźnieniem
+(60 s, 120 s, … maks. 15 min; `retry-after` z odpowiedzi 429 ma pierwszeństwo, przycięte do 15 min).
+Odpowiedź, którą API **oddało** (także odmowa i ucięcie na `max_tokens`), nie jest ponawiana
+automatycznie – jest policzona i kończy się błędem z komunikatem dla koordynatora. Zadanie ma twardy
+limit 16 minut (`soft_time_limit` 15 min).
+
+Siatka asekuracyjna: zadanie beat **`ai-grading-pump`** (co 5 min, `pump_ai_assessments`) zamienia
+oceny `RUNNING` starsze niż `AI_GRADING_STALE_MINUTES` w błąd „przerwana” (a nie w ponowienie –
+wywołanie mogło zostać policzone po stronie Anthropic, zanim worker padł) i wypuszcza oceny,
+których zadanie zniknęło z brokera. `DatabaseScheduler` dopisze wpis sam przy starcie beatu.
+
+Podgląd kolejki:
+
+```bash
+docker compose exec -T web python manage.py shell -c "from apps.ai_grading.models import AiAssessment as A; from django.db.models import Count; print(list(A.objects.values('status').annotate(n=Count('id'))))"
+```
+
+Awaryjne zatrzymanie wszystkiego bez wdrożenia: zdjąć flagę `ai_grading` (oceny czekające w kolejce
+skończą się błędem `disabled` bez wywołania API) albo ustawić koordynatorowi limit wydatków 0.
+
+### 17.5. Logi i koszt
+
+Każde wywołanie loguje model, `stop_reason` i `request_id` (`message._request_id`) – po tym
+identyfikatorze wsparcie Anthropic znajduje żądanie. Treści pracy ani odpowiedzi w logach nie ma.
+Zużycie tokenów i szacowany koszt liczy aplikacja (stawki w `apps.ai_grading.models.PRICING_USD_PER_MTOK`,
+stan z 24.09.2026 – przy zmianie cennika Anthropic poprawić tę tabelę); fakturę wystawia Anthropic
+organizatorowi, na którego jest klucz.

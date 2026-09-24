@@ -1,4 +1,5 @@
 {% extends "web/coordinator/base.html" %}
+{% load coordinator_extras %}
 {% load web_extras %}
 {% comment %}
   Wątek jednej sprawy widziany przez organizatora. Różni się od wersji uczestnika jedną rzeczą:
@@ -19,7 +20,7 @@
     {% if ticket.answered_at %}<span class="badge badge--neutral">odpowiedź: {{ ticket.answered_at|local_datetime }}</span>{% endif %}
   </p>
   <p class="hint">
-    {% if ticket.user %}{{ ticket.user.email }}{% else %}{{ ticket.email }} (zgłoszenie bez konta){% endif %}
+    {% if ticket.user %}{{ ticket.user|account_email }}{% else %}{{ ticket.email }} (zgłoszenie bez konta){% endif %}
     {% if ticket.role_snapshot %} · rola w chwili zgłoszenia: {{ ticket.role_snapshot }}{% endif %}
   </p>
 {% endblock %}
@@ -44,7 +45,7 @@
   <article class="card {% if message.from_coordinator %}card--accent{% else %}card--quiet{% endif %}">
     <p class="hint">
       {% if message.from_coordinator %}Organizator{% else %}Zgłaszający{% endif %}
-      {% if message.author %}({{ message.author.email }}){% endif %} · {{ message.created_at|local_datetime }}
+      {% if message.author %}({{ message.author|account_email }}){% endif %} · {{ message.created_at|local_datetime }}
     </p>
     <p class="quote">{{ message.body|linebreaksbr }}</p>
   </article>

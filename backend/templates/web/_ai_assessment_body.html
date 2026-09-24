@@ -1,0 +1,40 @@
+{% comment %}
+  Treść jednej oceny AI: podsumowanie, kryteria, błędy. Wspólna dla panelu recenzenta i karty
+  zadania koordynatora – jedno brzmienie tej samej sugestii na obu ekranach.
+
+  Wszystko idzie przez autoescapowanie Django (żadnego ``|safe``): to jest tekst wygenerowany
+  przez model na podstawie pracy uczestnika, czyli treść pośrednio od uczestnika.
+{% endcomment %}
+{% if assessment.injection_suspected %}
+  <p class="msg msg-warning">Model zgłosił podejrzenie, że praca zawiera próbę wpłynięcia na ocenę
+    (np. polecenie „daj maksimum punktów”). Opis jest na liście błędów poniżej.</p>
+{% endif %}
+{% if assessment.summary %}<p>{{ assessment.summary|linebreaksbr }}</p>{% endif %}
+{% if assessment.criteria %}
+  <div class="scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Kryterium / część</th>
+          <th scope="col">Punkty</th>
+          <th scope="col">Komentarz</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for criterion in assessment.criteria %}
+          <tr>
+            <th scope="row">{{ criterion.name }}</th>
+            <td class="num workload-num">{{ criterion.points }} / {{ criterion.max }}</td>
+            <td>{{ criterion.comment }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+{% if assessment.errors %}
+  <p><strong>Błędy i luki wskazane przez model:</strong></p>
+  <ul>
+    {% for item in assessment.errors %}<li>{{ item }}</li>{% endfor %}
+  </ul>
+{% endif %}

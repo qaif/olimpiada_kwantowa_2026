@@ -436,13 +436,39 @@ def selected_submissions(stage: Stage, submission_ids) -> list[Submission]:
     return sorted(rows, key=lambda item: (item.entry.participant.public_code, item.problem.number))
 
 
-def stage_zip_filename(stage: Stage, *, problem: Problem | None = None, selected: bool = False) -> str:
-    """Nazwa pobieranego archiwum. Sama mówi, co jest w środku – bez otwierania go."""
+#: Dopisek w nazwie i w spisie treści paczki zawężonej do uczniów z potwierdzonym statusem ucznia.
+VERIFIED_ONLY_SUFFIX = "-status-potwierdzony"
+VERIFIED_ONLY_HEADER = " Wyłącznie prace uczniów z potwierdzonym statusem ucznia."
+
+
+def stage_zip_filename(
+    stage: Stage, *, problem: Problem | None = None, selected: bool = False, verified_only: bool = False
+) -> str:
+    """Nazwa pobieranego archiwum. Sama mówi, co jest w środku – bez otwierania go.
+
+    Paczka zawężona do uczniów z potwierdzonym statusem ma w nazwie dopisek: dwie paczki tego
+    samego etapu leżące obok siebie w katalogu komitetu nie mogą się nazywać tak samo, skoro
+    zawierają co innego.
+    """
+    suffix = VERIFIED_ONLY_SUFFIX if verified_only else ""
     if selected:
-        return f"etap-{stage.pk}-zaznaczone.zip"
+        return f"etap-{stage.pk}-zaznaczone{suffix}.zip"
     if problem is not None:
-        return f"etap-{stage.pk}-zadanie-{problem.number}.zip"
-    return f"etap-{stage.pk}-rozwiazania.zip"
+        return f"etap-{stage.pk}-zadanie-{problem.number}{suffix}.zip"
+    return f"etap-{stage.pk}-rozwiazania{suffix}.zip"
+
+
+def only_verified_students(submissions: list[Submission], edition) -> list[Submission]:
+    """Prace uczniów z **zaakceptowanym** zaświadczeniem o statusie ucznia w tej edycji.
+
+    Jedno zapytanie na paczkę (``apps.student_status.services.accepted_participant_ids``). Wpis
+    drużynowy (bez uczestnika) nie przechodzi: zaświadczenie jest papierem jednej osoby, a „drużyna
+    z potwierdzonym statusem” nie jest pojęciem, o które ktokolwiek prosił.
+    """
+    from apps.student_status.services import accepted_participant_ids
+
+    accepted = accepted_participant_ids(edition)
+    return [item for item in submissions if item.entry.participant_id in accepted]
 
 
 def build_stage_zip(
@@ -452,11 +478,17 @@ def build_stage_zip(
     request=None,
     problem: Problem | None = None,
     submission_ids=None,
+    verified_only: bool = False,
 ) -> ZipPackage:
     """Paczka prac etapu dla koordynatora: całość, jedno zadanie albo zaznaczone wiersze.
 
     Trzy zakresy, jeden serwis i jedna nazwa pliku w archiwum – inaczej ta sama praca pobrana
     dwiema drogami miałaby dwie różne nazwy i nie dałoby się ich zestawić.
+
+    ``verified_only`` (prośba organizatora z 24.09.2026) zawęża **każdy** z trzech zakresów do prac
+    uczniów z zaakceptowanym zaświadczeniem o statusie ucznia w edycji tego etapu. Domyślnie
+    wyłączone – paczka jest wtedy dokładnie tym, czym była. O tym, czy filtr wolno w ogóle zamówić
+    (flaga konkursu), rozstrzyga widok (``apps.student_status.services.wants_verified_only``).
 
     Audyt (``stage.downloaded_zip``) notuje **liczbę** prac, zakres i ewentualne zadanie. Nazw
     plików tam nie ma: pseudonim uczestnika w zestawieniu z etapem i zadaniem jest już informacją
@@ -470,26 +502,35 @@ def build_stage_zip(
     else:
         submissions = downloadable_submissions(stage, problem=problem)
         scope = "problem" if problem is not None else "stage"
+    if verified_only:
+        submissions = only_verified_students(submissions, stage.edition)
     package = build_zip(
         submissions,
         header=(
             f"Rozwiązania etapu: {stage.display_name}"
             + (f", zadanie {problem.number}" if problem is not None else "")
             + ". Nazwy plików są anonimowe: <kod uczestnika>_zad<numer>_v<wersja>."
+            + (VERIFIED_ONLY_HEADER if verified_only else "")
         ),
     )
     if package.count == 0:
         package.stream.close()
         raise DomainError(
-            "Brak prac do pobrania w tym zakresie.", "NO_SUBMISSIONS", status.HTTP_404_NOT_FOUND
+            "Brak prac do pobrania w tym zakresie."
+            + (
+                " Żaden uczeń z pracą w tym zakresie nie ma jeszcze potwierdzonego statusu ucznia."
+                if verified_only
+                else ""
+            ),
+            "NO_SUBMISSIONS",
+            status.HTTP_404_NOT_FOUND,
         )
-    audit(
-        actor,
-        "stage.downloaded_zip",
-        stage,
-        {"count": package.count, "scope": scope, "problem": problem.pk if problem is not None else None},
-        request=request,
-    )
+    diff = {"count": package.count, "scope": scope, "problem": problem.pk if problem is not None else None}
+    if verified_only:
+        # Klucz dopisywany wyłącznie przy zawężeniu – wpis zwykłej paczki zostaje co do znaku taki,
+        # jak przed tym wydaniem.
+        diff["verified_only"] = True
+    audit(actor, "stage.downloaded_zip", stage, diff, request=request)
     return package
 
 

@@ -408,6 +408,23 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
     i Facebookiem, sesje. Zgody dostają ``withdrawn_at`` – dowód, że kiedyś obowiązywały, zostaje,
     ale żadna z nich nie jest już podstawą przetwarzania.
 
+    Od wydania v0.34.0 (decyzja organizatora z 24.09.2026) znika także **reszta** danych profilu,
+    które opisują osobę albo jej otoczenie: adres e-mail rodzica/opiekuna prawnego
+    (``guardian_email``), adres opiekuna szkolnego (``supervisor_email``), nazwa placówki wpisana
+    ręcznie (``institution_name``) i dowiązanie do słownika placówek organizatora
+    (``custom_institution_ref``). Adres opiekuna szkolnego ma przy tym skutek widoczny: panel
+    „Moi uczniowie” dopasowuje uczniów **po tym adresie** (``apps.accounts.supervisors``), więc
+    zostawiony adres trzymałby usuniętego ucznia na liście nauczyciela i w jego licznikach. Adres
+    rodzica to dana osoby trzeciej, która w ogóle nie ma w serwisie konta. Zostają pola bez wolnego
+    tekstu, które same nie identyfikują osoby: województwo, region, klasa, kraj.
+
+    Z tego samego powodu znika **uwaga tekstowa** z formularzy przyjazdu (``ArrivalForm.note``)
+    i potrzeby szczególne (dieta, dostępność) – to bywają dane o zdrowiu (art. 9 RODO), a lista
+    noclegowa po anonimizacji nie ma już komu ich służyć; zwykłe potrzeby (nocleg, posiłek, dojazd)
+    i daty zostają, bo są częścią rozliczenia pobytu. Pseudonimy widza materiałów z warsztatów
+    (``apps.workshop_materials``) są kasowane: z kluczem serwera da się z nich sprawdzić, czy to
+    konto oglądało dany materiał, a konto po anonimizacji dalej ma ten sam identyfikator.
+
     To samo dotyczy profilu **opiekuna szkolnego**, jeśli to konto go ma: szkoła, szkoła z rejestru
     i telefon znikają, a jego zgody (regulamin, RODO złożone przy ``/register/supervisor/``)
     dostają ``withdrawn_at`` tak samo jak zgody uczestnika. Wiersz ``SchoolSupervisor`` sam zostaje
@@ -433,6 +450,10 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
     akapitu, do którego ktoś się odniósł, zamienia je w bełkot. Sama treść przestaje być powiązana
     z osobą, więc żądanie z art. 17 jest spełnione – a uczestnik, który chce zdjąć konkretny wpis
     **przed** usunięciem konta, ma do tego własny przycisk na forum.
+
+    **Oceny AI** prac tej osoby (``apps.ai_grading``) są kasowane. Praca i jej oficjalne oceny
+    zostają jako dokumentacja zawodów, ale sugestia AI dokumentacją nie jest – nikt na niej nie
+    opiera kwalifikacji – więc po anonimizacji nie ma już żadnego celu, któremu służyłaby.
     """
     now = timezone.now()
     from apps.competitions.scoping import resolve_competition
@@ -465,6 +486,11 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
         # na jawnie nieprawdziwy, bo kolumna jest ``NOT NULL`` (patrz ``ANONYMISED_BIRTH_YEAR``).
         participant.birth_date = None
         participant.publish_full_name = False
+        # Pozostałe dane osobowe profilu (v0.34.0) – uzasadnienie w docstringu wyżej.
+        participant.guardian_email = ""
+        participant.supervisor_email = ""
+        participant.institution_name = ""
+        participant.custom_institution_ref = None
         participant.save(
             update_fields=[
                 "phone",
@@ -473,11 +499,16 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
                 "birth_date",
                 "birth_year",
                 "publish_full_name",
+                "guardian_email",
+                "supervisor_email",
+                "institution_name",
+                "custom_institution_ref",
             ]
         )
     ConsentRecord.objects.filter(participant__in=participants, withdrawn_at__isnull=True).update(
         withdrawn_at=now
     )
+    _erase_arrival_special_data(participants)
 
     supervisor = getattr(user, "school_supervisor", None)
     if supervisor is not None:
@@ -489,9 +520,49 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
             withdrawn_at=now
         )
 
+    # Zaświadczenia o statusie ucznia znikają **całe** – wiersze i pliki (``apps.student_status``).
+    # Skan z datą urodzenia i podpisem dyrektora szkoły nie jest dokumentacją zawodów, tylko
+    # dokumentem tożsamości szkolnej; po anonimizacji nie ma czyj status potwierdzać.
+    from apps.student_status.services import erase_for_user
+
+    erase_for_user(user)
+
+    # Oceny AI prac tej osoby (``apps.ai_grading``) – ta sama zasada: sugestia z uzasadnieniem
+    # opisuje pracę konkretnego ucznia, a po anonimizacji nie ma komu jej pokazywać.
+    from apps.ai_grading.services import erase_for_participants
+
+    erase_for_participants(participants)
+
+    # Pseudonimy widza materiałów z warsztatów (``apps.workshop_materials``) – licznik wyświetleń
+    # materiału zostaje, liczba unikalnych widzów spada o to konto.
+    from apps.workshop_materials.stats import erase_for_user as erase_workshop_views
+
+    erase_workshop_views(user)
+
     _drop_credentials(user)
     audit(actor or user, "account.anonymised", user, {"user_id": user.pk}, request=request)
     return user
+
+
+def _erase_arrival_special_data(participants) -> int:
+    """Czyści uwagę tekstową i potrzeby szczególne z formularzy przyjazdu tych profili.
+
+    Zwykłe potrzeby (nocleg, posiłek, dojazd) i daty zostają – to dane rozliczenia pobytu, a nie
+    opis osoby. Pętla po wierszach, a nie jedno ``update()``: ``needs`` jest listą w JSON-ie
+    i przefiltrowanie jej w SQL-u byłoby zależne od bazy; formularzy jednej osoby jest tyle, ile
+    etapów stacjonarnych, czyli zwykle zero albo jeden.
+    """
+    from apps.competitions.logistics import SPECIAL_NEEDS, ArrivalForm
+
+    changed = 0
+    for form in ArrivalForm.objects.filter(entry__participant__in=participants):
+        needs = [need for need in (form.needs or []) if need not in SPECIAL_NEEDS]
+        if form.note or needs != list(form.needs or []):
+            form.note = ""
+            form.needs = needs
+            form.save(update_fields=["note", "needs"])
+            changed += 1
+    return changed
 
 
 def _erase_account(user: User, *, actor: User | None = None, request=None) -> str:
@@ -506,6 +577,11 @@ def _erase_account(user: User, *, actor: User | None = None, request=None) -> st
         anonymise_account(user, actor=actor, request=request)
         return "anonymised"
     pk = user.pk
+    # Pliki zaświadczeń o statusie ucznia **przed** kaskadą: ``user.delete()`` zabierze wiersze
+    # (``Participant`` → ``StudentStatusCertificate``), ale nie wie o obiektach w storage.
+    from apps.student_status.services import erase_for_user
+
+    erase_for_user(user)
     _drop_credentials(user)
     # Audyt **przed** skasowaniem wiersza: po ``delete()`` nie ma z czego wziąć ``target_type``,
     # a ``actor`` będący samym kasowanym kontem i tak zgaśnie na ``SET_NULL``. W ``diff`` jest

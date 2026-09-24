@@ -1,4 +1,5 @@
 {% extends "web/coordinator/base.html" %}
+{% load coordinator_extras %}
 {% load static %}
 {% load web_extras %}
 {% comment %}
@@ -37,8 +38,13 @@
   <a class="btn btn--secondary" href="{% url 'web:coordinator-problem-edit' problem.pk %}">Edytuj zadanie</a>
   <a class="btn btn--secondary" href="{% url 'web:coordinator-stage-problems' stage.pk %}">Zadania etapu</a>
   <a class="btn btn--secondary" href="{% url 'web:coordinator-stage-assignments' stage.pk %}">Przydziały etapu</a>
-  <a class="btn btn--secondary"
-     href="{% url 'web:coordinator-stage-download' stage.pk %}?problem={{ problem.pk }}">Pobierz ZIP zadania</a>
+  {% if zip_scope_choice %}
+    {% url 'web:coordinator-stage-download' stage.pk as zip_url %}
+    {% include "web/_zip_scope_form.html" with action=zip_url label="Pobierz ZIP zadania" problem_id=problem.pk scope_id="head" %}
+  {% else %}
+    <a class="btn btn--secondary"
+       href="{% url 'web:coordinator-stage-download' stage.pk %}?problem={{ problem.pk }}">Pobierz ZIP zadania</a>
+  {% endif %}
 {% endblock %}
 
 {% block panel_content %}
@@ -187,7 +193,7 @@
           {% for rule in rules.rows %}
             <tr>
               <th scope="row">
-                <a href="{% url 'web:coordinator-member' rule.reviewer.pk %}">{{ rule.reviewer.user.email }}</a>
+                <a href="{% url 'web:coordinator-member' rule.reviewer.pk %}">{{ rule.reviewer.user|account_email }}</a>
               </th>
               <td>
                 {% if rule.reviewer.district %}
@@ -290,7 +296,7 @@
                 {{ row.submission.entry.participant.public_code }}
               {% endif %}
             </th>
-            <td>{{ row.submission.entry.participant.user.get_full_name|default:row.submission.entry.participant.user.email }}</td>
+            <td>{{ row.submission.entry.participant.user|person }}</td>
             <td class="num workload-num">{{ row.submission.version }}</td>
             <td>{{ row.submission.get_status_display }}</td>
             <td>
@@ -307,7 +313,7 @@
               {% for review in row.reviews %}
                 <div class="cell-form">
                   <span>
-                    <a href="{% url 'web:coordinator-member' review.reviewer.pk %}">{{ review.reviewer.user.email }}</a>
+                    <a href="{% url 'web:coordinator-member' review.reviewer.pk %}">{{ review.reviewer.user|account_email }}</a>
                     – {{ review.get_status_display }}{% if review.round != 1 %} (runda {{ review.round }}){% endif %}:
                     <strong class="workload-num">{% if review.score is not None %}{{ review.score }} pkt{% else %}—{% endif %}</strong>
                   </span>
@@ -394,12 +400,22 @@
   </div>
 </section>
 
+{# --- 5a. Ocena AI (za flagą ``ai_grading``) ------------------------------------------------------ #}
+{% if ai %}
+  {% include "web/coordinator/_ai_problem.html" %}
+{% endif %}
+
 {# --- 6. Pobierz i podobieństwa ---------------------------------------------------------------- #}
 <section class="section" id="pobierz">
   <div class="card">
     <h2 class="mt-0">Pobierz</h2>
-    <p><a class="btn btn--secondary"
-          href="{% url 'web:coordinator-stage-download' stage.pk %}?problem={{ problem.pk }}">Pobierz ZIP zadania</a></p>
+    {% if zip_scope_choice %}
+      {% url 'web:coordinator-stage-download' stage.pk as zip_url %}
+      {% include "web/_zip_scope_form.html" with action=zip_url label="Pobierz ZIP zadania" problem_id=problem.pk scope_id="body" %}
+    {% else %}
+      <p><a class="btn btn--secondary"
+            href="{% url 'web:coordinator-stage-download' stage.pk %}?problem={{ problem.pk }}">Pobierz ZIP zadania</a></p>
+    {% endif %}
     <p class="hint">Po jednej, najnowszej przeskanowanej wersji każdej pracy. Nazwy plików
       w archiwum są anonimowe (<code>kod_zadN_vM</code>) także dla koordynatora: paczka wędruje do
       komitetu i po drodze nikt jej nie przepakowuje.</p>

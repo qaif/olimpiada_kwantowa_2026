@@ -348,7 +348,9 @@ def logistics_list_filename(stage, kind: str) -> str:
     return f"lista-{kind}-etap-{stage.pk}-{timezone.localtime().strftime('%Y%m%d')}.pdf"
 
 
-def logistics_list_rows(stage, kind: str) -> tuple[list[str], list[list[str]]]:
+def logistics_list_rows(
+    stage, kind: str, *, include_deleted: bool = True
+) -> tuple[list[str], list[list[str]]]:
     """Nagłówek i wiersze jednej listy. Rozdzielone od składu, bo to jest to, co się sprawdza.
 
     Reguła danych szczególnych (decyzja organizatora D21) jest widoczna w kształcie wyniku:
@@ -356,7 +358,12 @@ def logistics_list_rows(stage, kind: str) -> tuple[list[str], list[list[str]]]:
     świadomie włączył zbieranie potrzeb szczególnych. Tam jest jedyne miejsce, w którym ta treść ma
     adresata – kuchnia musi wiedzieć, co przygotować. Na liście obecności i noclegowej uwagi nie ma
     w żadnym wariancie, bo tam nie jest do niczego potrzebna, a lista obecności krąży po sali.
+
+    ``include_deleted`` – czy na liście stoją konta usunięte na żądanie (v0.34.0). Ekran
+    koordynatora podaje tu stan przełącznika „Pokaż usunięte konta”, więc domyślnie wydruk ich
+    nie ma; pokazane dostają w kolumnie nazwiska „Konto usunięte” zamiast pustego pola.
     """
+    from apps.accounts.anonymised import DELETED_ACCOUNT_LABEL
     from apps.competitions.logistics import (
         LogisticsNeed,
         arrival_rows,
@@ -372,13 +379,13 @@ def logistics_list_rows(stage, kind: str) -> tuple[list[str], list[list[str]]]:
             [
                 str(number),
                 row["public_code"],
-                f"{row['first_name']} {row['last_name']}".strip(),
+                _logistics_name(row, DELETED_ACCOUNT_LABEL),
                 row["school"],
                 row["venue"],
                 "obecny" if row["present"] else "",
                 "",
             ]
-            for number, row in enumerate(attendance_rows(stage), start=1)
+            for number, row in enumerate(attendance_rows(stage, include_deleted=include_deleted), start=1)
         ]
         return header, rows
 
@@ -388,13 +395,17 @@ def logistics_list_rows(stage, kind: str) -> tuple[list[str], list[list[str]]]:
             [
                 str(number),
                 row["public_code"],
-                f"{row['first_name']} {row['last_name']}".strip(),
+                _logistics_name(row, DELETED_ACCOUNT_LABEL),
                 row["venue"],
                 row["arrives_on"].isoformat() if row["arrives_on"] else "",
                 row["departs_on"].isoformat() if row["departs_on"] else "",
             ]
             for number, row in enumerate(
-                [row for row in arrival_rows(stage) if LogisticsNeed.ACCOMMODATION in row["needs"]],
+                [
+                    row
+                    for row in arrival_rows(stage, include_deleted=include_deleted)
+                    if LogisticsNeed.ACCOMMODATION in row["needs"]
+                ],
                 start=1,
             )
         ]
@@ -408,12 +419,17 @@ def logistics_list_rows(stage, kind: str) -> tuple[list[str], list[list[str]]]:
         meal_needs = {LogisticsNeed.MEAL, LogisticsNeed.DIET}
         rows = []
         for number, row in enumerate(
-            [row for row in arrival_rows(stage) if meal_needs & set(row["needs"])], start=1
+            [
+                row
+                for row in arrival_rows(stage, include_deleted=include_deleted)
+                if meal_needs & set(row["needs"])
+            ],
+            start=1,
         ):
             line = [
                 str(number),
                 row["public_code"],
-                f"{row['first_name']} {row['last_name']}".strip(),
+                _logistics_name(row, DELETED_ACCOUNT_LABEL),
                 ", ".join(need_labels(row["needs"])),
             ]
             if special:
@@ -424,7 +440,14 @@ def logistics_list_rows(stage, kind: str) -> tuple[list[str], list[list[str]]]:
     raise ValueError(f"Nieznany rodzaj listy: {kind}")
 
 
-def render_logistics_list(stage, kind: str) -> bytes:
+def _logistics_name(row: dict, deleted_label: str) -> str:
+    """Imię i nazwisko do kolumny listy; konto po anonimizacji – neutralny podpis zamiast pustki."""
+    if row.get("deleted"):
+        return deleted_label
+    return f"{row['first_name']} {row['last_name']}".strip()
+
+
+def render_logistics_list(stage, kind: str, *, include_deleted: bool = True) -> bytes:
     """Składa listę do druku i zwraca bajty PDF-a – ta sama ścieżka, co protokół etapu.
 
     Szerokości kolumn liczone są z ich liczby, a nie wypisane per lista: kolumn jest od czterech do
@@ -440,7 +463,7 @@ def render_logistics_list(stage, kind: str) -> bytes:
     from apps.results.certificates import FONT_BOLD, FONT_REGULAR, register_fonts
 
     register_fonts()
-    header, rows = logistics_list_rows(stage, kind)
+    header, rows = logistics_list_rows(stage, kind, include_deleted=include_deleted)
     title = logistics_list_title(stage, kind)
 
     title_style = ParagraphStyle("title", fontName=FONT_BOLD, fontSize=15, leading=19, spaceAfter=6)

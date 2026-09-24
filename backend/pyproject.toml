@@ -93,6 +93,13 @@ dependencies = [
     # (``CERT_SIGN_P12_PATH``): bez niego moduł oddaje plik bez zmian, a import biblioteki
     # w ogóle nie następuje – jest leniwy, wewnątrz funkcji podpisującej.
     "pyhanko>=0.21,<1",
+    # Ocena AI (``apps.ai_grading``) – oficjalne SDK Anthropic. W zwykłych zależnościach, bo sugestie
+    # liczy worker produkcyjny; funkcja jest jednak domyślnie wyłączona (flaga ``ai_grading``),
+    # a import biblioteki jest leniwy – wewnątrz ``apps.ai_grading.client`` – więc konkurs bez
+    # oceny AI nie ładuje jej nigdy. Linia 1.x: pierwsza z parametrami ``fallbacks`` i
+    # ``output_config`` w ``beta.messages.stream`` (sprawdzone na 1.8.0 z 24.09.2026). Górna granica
+    # przy następnej wersji głównej, jak wszędzie w tym pliku.
+    "anthropic>=1.8,<2",
 ]
 
 [project.optional-dependencies]

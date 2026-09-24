@@ -11,9 +11,11 @@ from __future__ import annotations
 from django.shortcuts import get_object_or_404
 from django.views.generic import TemplateView
 
+from apps.ai_grading import services as ai_grading
 from apps.competitions.models import Problem
 from apps.competitions.problem_card import problem_card
 from apps.grading.models import ReviewStatus
+from apps.student_status.models import enabled as student_status_enabled
 from apps.web.mixins import CoordinatorRequiredMixin
 
 PROBLEM_DETAIL_TEMPLATE = "web/coordinator/problem_detail.html"
@@ -39,6 +41,11 @@ class ProblemCardView(CoordinatorRequiredMixin, TemplateView):
             pk=self.kwargs["pk"],
         )
         context.update(problem_card(problem, query=self.request.GET.get("q", "")))
+        # Sekcja „Ocena AI” istnieje wyłącznie w konkursie z włączoną flagą ``ai_grading`` – przy
+        # wyłączonej nie ma tu ani jednego zapytania więcej (``has_feature`` czyta pole wiersza).
+        if ai_grading.is_enabled(self.competition):
+            context["ai"] = ai_grading.problem_overview(problem)
+            context["ai_settings"] = ai_grading.settings_for(self.competition)
         context.update(
             {
                 "assigned_status": ReviewStatus.ASSIGNED,
@@ -50,6 +57,9 @@ class ProblemCardView(CoordinatorRequiredMixin, TemplateView):
                     ReviewStatus.DRAFT,
                     ReviewStatus.SUBMITTED,
                 ),
+                # Wybór zakresu paczki ZIP zadania („wszystkie prace” / „tylko potwierdzony status
+                # ucznia”) – flagę czyta widok, nie szablon (§ 2.1 punkt 3).
+                "zip_scope_choice": student_status_enabled(self.competition),
             }
         )
         return context

@@ -1,4 +1,5 @@
 {% extends "web/coordinator/base.html" %}
+{% load coordinator_extras %}
 {% load static web_extras %}
 {% comment %}
   Przeglądarka śladu audytowego. Filtr jest formularzem GET, a stronicowanie zwykłymi odnośnikami:
@@ -76,7 +77,7 @@
         {% for row in rows %}
           <tr>
             <td class="audit-when">{{ row.at|local_datetime }}</td>
-            <td>{{ row.actor.email|default:"system" }}</td>
+            <td>{% if row.actor %}{{ row.actor|account_email }}{% else %}system{% endif %}</td>
             <th scope="row">{{ row.action }}</th>
             <td>{{ row.target_type }}#{{ row.target_id }}</td>
             <td>

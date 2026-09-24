@@ -1,6 +1,8 @@
 {% extends "web/coordinator/base.html" %}
+{% load coordinator_extras %}
 {% load static %}
 {% load web_extras %}
+{% load list_controls %}
 {% comment %}
   Lista członków komisji: kto jest w komitecie, w jakim stanie i ile ma na głowie. Ekran odpowiada
   na jedno pytanie – „do kogo zadzwonić i komu dołożyć pracy” – więc kolejność wierszy jest
@@ -59,13 +61,15 @@
           {% endfor %}
         </select>
       </p>
+      {% if controls.show_deleted %}<input type="hidden" name="usuniete" value="1">{% endif %}
       <div class="actions">
         <button type="submit" class="btn btn--secondary">Pokaż</button>
-        {% if status or stage_id %}
+        {% if status or stage_id or controls.show_deleted %}
           <a class="btn btn--ghost" href="{% url 'web:coordinator-members' %}">Wyczyść</a>
         {% endif %}
       </div>
     </form>
+    {% deleted_toggle controls %}
   </div>
 </section>
 
@@ -90,8 +94,14 @@
         {% for row in rows %}
           <tr>
             <th scope="row">
-              <a href="{% url 'web:coordinator-member' row.member.pk %}">{{ row.member.user.get_full_name|default:row.member.user.email }}</a>
-              <span class="hint">{{ row.member.user.email }}</span>
+              {% comment %}Konto usunięte (tylko przy włączonym przełączniku): neutralny podpis zamiast adresu „deleted-…”.{% endcomment %}
+              {% if row.member.user|is_deleted_account %}
+                <a href="{% url 'web:coordinator-member' row.member.pk %}">Konto usunięte</a>
+                <span class="badge badge--neutral">usunięte</span>
+              {% else %}
+                <a href="{% url 'web:coordinator-member' row.member.pk %}">{{ row.member.user.get_full_name|default:row.member.user.email }}</a>
+                <span class="hint">{{ row.member.user.email }}</span>
+              {% endif %}
             </th>
             <td>
               <span class="{{ row.member.status|badge_class }}">{{ row.member.get_status_display }}</span>

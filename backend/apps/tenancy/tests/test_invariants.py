@@ -407,6 +407,48 @@ def test_query_counts_unchanged_on_the_coordinator_dashboard(
         assert client.get("/coordinator/").status_code == 200
 
 
+def test_workshop_materials_link_does_not_change_the_participant_panel_budget(
+    client_for, competition, golden, django_assert_max_num_queries
+):
+    """Odnośnik „Materiały z warsztatów” (pasek konta i kafel na ``/me/``) w budżecie panelu.
+
+    Dwie strony tej samej prawdy. Konkurs #1 z domyślnymi przełącznikami (flaga
+    ``workshop_materials`` wyłączona) nie pyta o materiały **ani razu** – ``QUERY_BUDGET["/me/"]``
+    zostaje bez zmian, co sprawdza test wyżej. Konkurs z włączoną flagą płaci jedno ``EXISTS``
+    przy pierwszym żądaniu po zimnym starcie, a potem czyta odpowiedź z pamięci podręcznej
+    (``apps.workshop_materials.availability``) – rozgrzany panel mieści się w tym samym budżecie
+    i nie dotyka tabeli materiałów.
+    """
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    from apps.workshop_materials.models import MaterialStatus, WorkshopMaterial
+
+    client = client_for(competition)
+    client.force_login(golden.participants[0].user)
+    with CaptureQueriesContext(connection) as cold_flag_off:
+        assert client.get("/me/").status_code == 200
+    assert not [q for q in cold_flag_off.captured_queries if "workshop_materials_" in q["sql"]]
+
+    competition.feature_flags = {**(competition.feature_flags or {}), "workshop_materials": True}
+    competition.save(update_fields=["feature_flags"])
+    WorkshopMaterial.objects.create(
+        competition=competition,
+        workshop_key="2026-11-12-kubity",
+        kind="link",
+        title="Nagranie",
+        url="https://example.com/nagranie",
+        status=MaterialStatus.READY,
+        is_published=True,
+    )
+    assert "/warsztaty/materialy/" in client.get("/me/").content.decode()  # rozgrzanie pamięci
+
+    with django_assert_max_num_queries(QUERY_BUDGET["/me/"]):
+        with CaptureQueriesContext(connection) as warm:
+            assert client.get("/me/").status_code == 200
+    assert not [q for q in warm.captured_queries if "workshop_materials_" in q["sql"]]
+
+
 def test_panel_query_count_does_not_grow_with_participants(
     client_for, competition, golden, django_assert_max_num_queries
 ):

@@ -62,8 +62,13 @@
            inputmode="numeric">
     <button type="submit" class="btn btn--primary btn--small">Przydziel recenzentów</button>
   </form>
-  <a class="btn btn--secondary btn--small"
-     href="{% url 'web:coordinator-stage-download' stage.pk %}">Pobierz wszystkie prace (ZIP)</a>
+  {% if zip_scope_choice %}
+    {% url 'web:coordinator-stage-download' stage.pk as zip_url %}
+    {% include "web/_zip_scope_form.html" with action=zip_url label="Pobierz prace (ZIP)" scope_id="stage" %}
+  {% else %}
+    <a class="btn btn--secondary btn--small"
+       href="{% url 'web:coordinator-stage-download' stage.pk %}">Pobierz wszystkie prace (ZIP)</a>
+  {% endif %}
 {% endblock %}
 
 {% block panel_content %}
@@ -121,7 +126,7 @@
             <td>
               {% for rule in row.rules %}
                 <div class="actions">
-                  <a href="{% url 'web:coordinator-member' rule.reviewer.pk %}">{{ rule.reviewer.user.email }}</a>{% if rule.reviewer.district %}
+                  <a href="{% url 'web:coordinator-member' rule.reviewer.pk %}">{{ rule.reviewer.user|account_email }}</a>{% if rule.reviewer.district %}
                     <span class="hint">({{ rule.reviewer.get_district_display }}{% if not rule.reviewer.district_verified %}, niepotwierdzone{% endif %})</span>{% endif %}
                   <form method="post" action="{% url 'web:coordinator-problem-rule-remove' rule.pk %}">
                     {% csrf_token %}
@@ -147,9 +152,18 @@
               </form>
             </td>
             <td>
-              <a class="btn btn--secondary btn--small"
-                 href="{% url 'web:coordinator-stage-download' stage.pk %}?problem={{ row.problem.pk }}">
-                Pobierz ZIP zadania {{ row.problem.number }}</a>
+              {% if zip_scope_choice %}
+                {% url 'web:coordinator-stage-download' stage.pk as zip_url %}
+                {% with number=row.problem.number|stringformat:"s" %}
+                  {% with zip_label="Pobierz ZIP zadania "|add:number %}
+                    {% include "web/_zip_scope_form.html" with action=zip_url label=zip_label problem_id=row.problem.pk scope_id=row.problem.pk %}
+                  {% endwith %}
+                {% endwith %}
+              {% else %}
+                <a class="btn btn--secondary btn--small"
+                   href="{% url 'web:coordinator-stage-download' stage.pk %}?problem={{ row.problem.pk }}">
+                  Pobierz ZIP zadania {{ row.problem.number }}</a>
+              {% endif %}
             </td>
           </tr>
         {% empty %}
@@ -238,6 +252,15 @@
         Odbierz zaznaczone</button>
       <button type="submit" name="action" value="lock" class="btn btn--secondary btn--small">
         Zablokuj zaznaczone do oceny</button>
+      {% if zip_scope_choice %}
+        {# Zakres paczki zaznaczonych wierszy jedzie polem tego samego formularza – „Przydziel” #}
+        {# i „Odbierz” go nie czytają, a paczka zaznaczonych czyta go tak samo, jak paczka etapu. #}
+        <label class="visually-hidden" for="zip-scope-selected">Zakres paczki</label>
+        <select id="zip-scope-selected" name="students">
+          <option value="all" selected>wszystkie zaznaczone</option>
+          <option value="verified">tylko uczniowie z potwierdzonym statusem ucznia</option>
+        </select>
+      {% endif %}
       <button type="submit" class="btn btn--secondary btn--small"
               formaction="{% url 'web:coordinator-stage-download' stage.pk %}">
         Pobierz zaznaczone (ZIP)</button>
@@ -282,7 +305,7 @@
               {% else %}
                 <span class="code-chip">{{ participant.public_code }}</span>
               {% endif %}
-              <span class="asg-who__name">{{ participant.user.get_full_name|default:participant.user.email }}</span>
+              <span class="asg-who__name">{{ participant.user|person }}</span>
             </th>
             <td>
               <a href="{% url 'web:coordinator-problem' submission.problem.pk %}">
@@ -315,7 +338,7 @@
               {% for review in row.reviews %}
                 <div class="asg-chip{% if review.status == cancelled_status %} asg-chip--off{% endif %}">
                   <a class="asg-chip__who"
-                     href="{% url 'web:coordinator-member' review.reviewer.pk %}">{{ review.reviewer.user.email }}</a>
+                     href="{% url 'web:coordinator-member' review.reviewer.pk %}">{{ review.reviewer.user|account_email }}</a>
                   <span class="asg-chip__status">{{ review.get_status_display }}{% if review.round != 1 %} · runda {{ review.round }}{% endif %}</span>
                   <span class="asg-chip__score">{% if review.score is not None %}{{ review.score }} pkt{% else %}— pkt{% endif %}</span>
                   {% if review.due_at and review.status != cancelled_status %}

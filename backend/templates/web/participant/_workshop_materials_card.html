@@ -1,0 +1,20 @@
+{% load i18n %}
+{% comment %}
+  Kafel „Materiały z warsztatów” na pulpicie uczestnika (decyzja organizatora z 24.09.2026).
+  Wyłącznie wtedy, gdy jest dokąd prowadzić: przełącznik ``workshop_materials`` włączony i choć
+  jeden opublikowany, gotowy materiał. ``workshop_materials_available`` jest leniwe i czytane
+  z pamięci podręcznej unieważnianej przy zapisie materiału (``apps.workshop_materials.availability``),
+  więc pulpit nie płaci za ten kafel zapytaniem na odsłonę, a w konkursie bez tej funkcji –
+  nawet odczytem z pamięci.
+{% endcomment %}
+{% if workshop_materials_available %}
+  <section class="section" id="materialy-z-warsztatow">
+    <div class="card card--accent">
+      <h2 class="card__title">{% translate "Materiały z warsztatów" %}</h2>
+      <p>{% translate "Nagrania zajęć, slajdy i pliki do ćwiczeń – do obejrzenia po zalogowaniu." %}</p>
+      <p class="actions">
+        <a class="btn btn--primary btn--small" href="{% url 'web:workshop-materials' %}">{% translate "Zobacz materiały" %}</a>
+      </p>
+    </div>
+  </section>
+{% endif %}

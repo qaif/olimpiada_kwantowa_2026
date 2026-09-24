@@ -51,7 +51,32 @@ class CoordinatorParticipantView(CoordinatorRequiredMixin, View):
         participant = get_object_or_404(queryset, pk=pk)
         context = participant_card(participant)
         context["region_label"] = participant.region.name if by_region and participant.region_id else ""
+        context.update(self._student_status(request, participant))
         return TemplateResponse(request, TEMPLATE, context)
+
+    @staticmethod
+    def _student_status(request, participant) -> dict:
+        """Stan zaświadczenia o statusie ucznia w edycji bieżącej – albo nic, bez ani jednego zapytania.
+
+        Tylko w konkursie z flagą ``student_status_certificate`` (czyta ją widok, nie szablon –
+        § 2.1). Karta pokazuje stan i historię wersji; decyzje zapadają na ekranie
+        ``/coordinator/student-status/``, do którego karta prowadzi odnośnikiem – jedno miejsce
+        decyzji, tak jak przy pozostałych czynnościach karty.
+        """
+        from apps.competitions.services import current_edition
+        from apps.student_status import services as student_status
+        from apps.student_status.models import enabled
+
+        competition = getattr(request, "competition", None)
+        if not enabled(competition):
+            return {}
+        edition = current_edition(competition)
+        if edition is None:
+            return {}
+        return {
+            "student_status": student_status.status_summary(participant, edition),
+            "student_status_history": student_status.history(participant, edition),
+        }
 
     @staticmethod
     def _regions_enabled(request) -> bool:

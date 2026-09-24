@@ -130,6 +130,7 @@ def attention_counters(stage_ids: list[int] | None = None, competition=None) -> 
     cached = cache.get(key)
     if cached is not None:
         return cached
+    from apps.accounts.anonymised import anonymised_q
     from apps.accounts.models import CommitteeMember, CommitteeStatus
     from apps.forum.services import moderation_count
     from apps.grading.issues import open_issue_count
@@ -147,8 +148,12 @@ def attention_counters(stage_ids: list[int] | None = None, competition=None) -> 
             "activations": users_for_competition(competition)
             .filter(is_active=False, email_verified_at__isnull=True)
             .count(),
+            # Bez kont usuniętych na żądanie – tak samo jak kolejka na ekranie „Komitet”
+            # (``CoordinatorCommitteeView``); inaczej plakietka obiecywałaby wniosek, którego
+            # w kolejce nie ma i którego nie da się zatwierdzić.
             "committee": CommitteeMember.objects.for_competition(competition)
             .filter(status=CommitteeStatus.PENDING)
+            .exclude(anonymised_q("user"))
             .count(),
             "issues": open_issue_count(stage_ids),
             "tickets": open_ticket_count(competition),
@@ -357,6 +362,19 @@ def groups(stages: list, competition=None) -> list[Group]:
                 ("web:coordinator-stage-reviewer-roles",),
                 stage_args,
                 ("coordinator-stage-reviewer-roles", "coordinator-reviewer-role-"),
+            ),
+        )
+    if competition is not None and competition.has_feature("ai_grading"):
+        # Ocena AI (prośba organizatora z 24.09.2026). W „Ocenianiu”, bo to jest narzędzie
+        # komitetu przy ocenie prac, a nie konfiguracja konkursu – mimo że ekran niesie klucz API.
+        # Bez warunku etapu: klucz, model i limit wydatków dotyczą całego konkursu, a zlecenia
+        # stoją na kartach zadań. Wzorzec ``coordinator-ai-`` łapie też ekran potwierdzenia
+        # zlecenia, który adresem wisi pod zadaniem.
+        quality += (
+            Item(
+                "Ocena AI",
+                ("web:coordinator-ai-grading",),
+                match=("coordinator-ai-grading", "coordinator-ai-"),
             ),
         )
     reports: tuple[Item, ...] = (
@@ -615,6 +633,19 @@ def groups(stages: list, competition=None) -> list[Group]:
             ("web:coordinator-workshop-attendance",),
             match=("coordinator-workshop-attendance", "coordinator-workshop-certificates"),
         ),
+    )
+    if competition is not None and competition.has_feature("workshop_materials"):
+        # Materiały z warsztatów (prośba organizatora z 24.09.2026) – zaraz pod obecnością, bo oba
+        # ekrany są o tych samych warsztatach z tego samego harmonogramu. Bramka ta sama, co
+        # w widoku: przy wyłączonej fladze ekran oddaje 404, więc pozycja prowadziłaby donikąd.
+        reports += (
+            Item(
+                "Materiały z warsztatów",
+                ("web:coordinator-workshop-materials",),
+                match=("coordinator-workshop-materials", "coordinator-workshop-material-"),
+            ),
+        )
+    reports += (
         Item(
             "Zaświadczenia opiekunów",
             ("web:coordinator-supervisors",),
@@ -672,6 +703,20 @@ def groups(stages: list, competition=None) -> list[Group]:
                 match=("coordinator-teams", "coordinator-team", "coordinator-team-"),
             ),
         )
+    if competition is not None and competition.has_feature("student_status_certificate"):
+        # Zaświadczenia o statusie ucznia (prośba organizatora z 24.09.2026) – w „Uczestnikach
+        # i kontach”, bo to jest papier **o osobie**, rozpatrywany wiersz po wierszu obok listy
+        # uczestników, a nie raport ani konfiguracja. Na końcu sekcji, za „Drużynami”, z tego samego
+        # powodu, co one: cztery pozycje przed nimi są dzisiejszym menu i mają zostać co do bajtu.
+        # Odznaki nie ma (§ 2.2): liczbę oczekujących pokazuje sam ekran, a pulpit nie płaci za nią
+        # zapytania przy każdym wejściu.
+        people_items += (
+            Item(
+                "Status ucznia",
+                ("web:coordinator-student-status",),
+                match=("coordinator-student-status", "coordinator-student-status-"),
+            ),
+        )
     stage_group: tuple[Item, ...] = stage_items(stages, competition)
     if competition is not None and competition.has_feature("process_editor"):
         # Edytor przebiegu (§ 1.2, T27). „Przebieg edycji” stoi **nad** listą etapów, bo opisuje
@@ -707,7 +752,8 @@ def groups(stages: list, competition=None) -> list[Group]:
             "Uczestnicy i konta",
             (
                 # Listy uczestników i opiekunów to ta sama lista kont z ustawionym filtrem roli –
-                # osobny ekran powtarzałby jej wyszukiwarkę, stronicowanie i kolumny.
+                # osobny ekran powtarzałby jej wyszukiwarkę, stronicowanie i sortowanie. Filtr
+                # „uczestnicy” dokłada kolumny profilu (``coordinator_accounts.PARTICIPANT_SORT_KEYS``).
                 Item("Uczestnicy", ("web:coordinator-accounts",), query="role=participant"),
                 Item(
                     "Wszystkie konta",

@@ -24,6 +24,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import TemplateView, View
 
+from apps.ai_grading.services import reviewer_context as ai_reviewer_context
 from apps.core.api import DomainError
 from apps.grading.code_view import code_listing, line_notes
 from apps.grading.comparison import comparison_context
@@ -40,6 +41,7 @@ from apps.grading.navigation import group_by_problem, queue_position
 from apps.grading.rubric import rubric_from_post, rubric_rows
 from apps.grading.services import (
     GRADE_CHANGE_BLOCK_MESSAGES,
+    REVIEWER_VERIFIED_ZIP_FILENAME,
     REVIEWER_ZIP_FILENAME,
     build_reviewer_zip,
     cancel_message,
@@ -200,6 +202,12 @@ class ReviewListView(ReviewerScopedMixin, TemplateView):
         # Zgłoszone problemy z pracami – jedno zapytanie na całą listę, bo marker stoi przy
         # wierszach, a przydziałów bywa kilkaset. Szablon pyta o pojedynczy wiersz, stąd słownik.
         context["open_issues"] = open_issues_for_reviewer(self.reviewer)
+        # Wybór zakresu paczki „Pobierz moje prace (ZIP)” – wszystkie albo wyłącznie prace uczniów
+        # z potwierdzonym statusem ucznia. Flagę czyta widok, nigdy szablon (§ 2.1 punkt 3); przy
+        # wyłączonej przycisk jest co do znaku dzisiejszym odnośnikiem.
+        from apps.student_status.models import enabled as student_status_enabled
+
+        context["zip_scope_choice"] = student_status_enabled(self.competition)
         return context
 
 
@@ -213,14 +221,22 @@ class ReviewQueueDownloadView(ReviewerScopedMixin, View):
     """
 
     def get(self, request):
+        from apps.student_status.services import SCOPE_PARAM, wants_verified_only
+
         try:
-            package = build_reviewer_zip(self.reviewer, actor=request.user, request=request)
+            # „Wszystkie prace” albo „tylko uczniowie z potwierdzonym statusem ucznia” (prośba
+            # organizatora z 24.09.2026). Parametr jest danymi od klienta, a o tym, czy filtr w ogóle
+            # istnieje w tym konkursie, rozstrzyga flaga – ``wants_verified_only`` odmawia 404.
+            verified_only = wants_verified_only(request.GET.get(SCOPE_PARAM), self.competition)
+            package = build_reviewer_zip(
+                self.reviewer, actor=request.user, request=request, verified_only=verified_only
+            )
         except DomainError as exc:
             return TemplateResponse(request, "404.html", {"reason": str(exc.detail)}, status=404)
         return FileResponse(
             package.stream,
             as_attachment=True,
-            filename=REVIEWER_ZIP_FILENAME,
+            filename=REVIEWER_VERIFIED_ZIP_FILENAME if verified_only else REVIEWER_ZIP_FILENAME,
             content_type="application/zip",
         )
 
@@ -336,6 +352,14 @@ class ReviewDetailView(ReviewerScopedMixin, TemplateView):
                 # dozwolone (patrz ``apps.grading.issues``).
                 "open_issue": review.issues.filter(status=WorkIssueStatus.OPEN).first(),
                 "issue_kinds": WorkIssueKind.choices,
+                # Sugestia AI tej wersji pracy – wyłącznie gotowa i wyłącznie przy włączonej
+                # fladze konkursu; ``None`` znaczy „panelu nie ma”. Recenzja pochodzi z własnych
+                # przydziałów recenzenta (``get_review``), więc cudzej pracy tu nie zobaczy.
+                # Przycisk „wstaw punkty AI” tylko wypełnia formularz i tylko wtedy, gdy ten jest
+                # do zapisania – ocena wystawiona na stałe nie ma czego wypełniać.
+                "ai": ai_reviewer_context(
+                    review, self.competition, editable=editable or block_reason is None
+                ),
             }
         )
         return context

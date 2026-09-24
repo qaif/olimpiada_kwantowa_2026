@@ -1,4 +1,5 @@
 {% extends "web/coordinator/base.html" %}
+{% load coordinator_extras %}
 {% load static %}
 {% comment %}
   Kalibracja recenzentów jednego etapu. Ekran jest wyłącznie odczytem: nie zmienia ocen, nie
@@ -63,7 +64,7 @@
       <tbody>
         {% for row in rows %}
           <tr>
-            <th scope="row">{{ row.reviewer.user.get_full_name|default:row.reviewer.user.email }}</th>
+            <th scope="row">{{ row.reviewer.user|person }}</th>
             <td class="num">{{ row.reviews }}</td>
             <td class="num">
               {% if row.mean_vs_peer is not None %}{{ row.mean_vs_peer|floatformat:2 }}{% else %}—{% endif %}

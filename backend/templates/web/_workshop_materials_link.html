@@ -1,0 +1,19 @@
+{% comment %}
+  „Materiały z warsztatów” w pasku konta (decyzja organizatora z 24.09.2026). Dwa warunki naraz:
+
+  - rola w tym konkursie – te same klucze, co reszta paska (``apps.web.context_processors.roles``,
+    już policzone). Sprawdzane **najpierw**, więc konto bez roli nie płaci nawet odczytu z pamięci,
+  - ``workshop_materials_available`` – przełącznik ``workshop_materials`` i choć jeden opublikowany,
+    gotowy materiał; leniwe, z pamięci podręcznej (``apps.workshop_materials.availability``).
+
+  Nawigacja nie jest zabezpieczeniem: dostęp rozstrzyga widok (``access.can_view``). Osobny plik,
+  a nie wiersze w ``base.html`` – ten sam powód, co ``_forum_link.html``: szablon bazowy zmienia
+  równolegle więcej niż jedna para rąk, więc dokładamy do niego jedną linijkę.
+{% endcomment %}
+{% if is_participant or is_supervisor or is_coordinator or is_reviewer or is_appeals_committee %}
+  {% if workshop_materials_available %}
+    {% url 'web:workshop-materials' as workshop_materials_url %}
+    <a class="account-bar__link" href="{{ workshop_materials_url }}"
+       {% if request.path == workshop_materials_url %}aria-current="page"{% endif %}>Materiały z warsztatów</a>
+  {% endif %}
+{% endif %}

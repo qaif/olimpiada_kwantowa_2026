@@ -1,4 +1,5 @@
 {% extends "web/coordinator/base.html" %}
+{% load coordinator_extras %}
 {% load static %}
 {% load web_extras %}
 {% comment %}
@@ -16,13 +17,13 @@
   Sekcje długie są w ``<details>``, a nie chowane skryptem: polityka CSP nie dopuszcza skryptów
   ani stylów inline, a strona ma działać także z wyłączonym JavaScriptem.
 {% endcomment %}
-{% block title %}Karta członka komisji {{ user.email }} – panel koordynatora{% endblock %}
+{% block title %}Karta członka komisji {{ user|account_email }} – panel koordynatora{% endblock %}
 
 {% block panel_head %}
   <link rel="stylesheet" href="{% static 'css/coordinator-cards.css' %}">
 {% endblock %}
 
-{% block panel_title %}{{ user.get_full_name|default:user.email }}{% endblock %}
+{% block panel_title %}{{ user|person }}{% endblock %}
 
 {% block panel_lead %}
   <p class="lead">Członek komitetu ·
@@ -61,7 +62,7 @@
       <dt>Imię i nazwisko</dt>
       <dd>{{ user.get_full_name|default:"—" }}</dd>
       <dt>Adres e-mail</dt>
-      <dd><a href="mailto:{{ user.email }}">{{ user.email }}</a></dd>
+      <dd>{% if user|is_deleted_account %}Konto usunięte{% else %}<a href="mailto:{{ user.email }}">{{ user.email }}</a>{% endif %}</dd>
       <dt>Aktywacja konta</dt>
       <dd>
         {% if user.email_verified_at %}
@@ -79,7 +80,7 @@
       <dd>
         <span class="{{ member.status|badge_class }}">{{ member.get_status_display }}</span>
         {% if member.approved_at %}
-          <span class="hint">zatwierdzony {{ member.approved_at|local_datetime }}{% if member.approved_by %} przez {{ member.approved_by.email }}{% endif %}</span>
+          <span class="hint">zatwierdzony {{ member.approved_at|local_datetime }}{% if member.approved_by %} przez {{ member.approved_by|account_email }}{% endif %}</span>
         {% endif %}
         {% if member.status == pending_status %}
           <form method="post" action="{% url 'web:coordinator-approve' member.pk %}" class="cell-form">
@@ -489,7 +490,7 @@
         <li>
           <time datetime="{{ entry.at|date:'c' }}">{{ entry.at|local_datetime }}</time>
           <strong>{{ entry.action }}</strong>
-          — {% if entry.actor %}{{ entry.actor.email }}{% else %}system{% endif %}
+          — {% if entry.actor %}{{ entry.actor|account_email }}{% else %}system{% endif %}
           <span class="hint">{{ entry.target_type }}#{{ entry.target_id }}</span>
           {% if entry.diff %}
             <details><summary>Szczegóły</summary><pre>{{ entry.diff }}</pre></details>

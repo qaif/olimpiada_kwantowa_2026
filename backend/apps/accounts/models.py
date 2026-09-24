@@ -312,7 +312,27 @@ def region_for_district(competition, district: str | None) -> Region | None:
     return None
 
 
-class UserManager(BaseUserManager):
+class UserQuerySet(models.QuerySet):
+    """Queryset kont ze skrótami reguły „konto po anonimizacji” (``apps.accounts.anonymised``).
+
+    Skróty, a nie osobna reguła: warunek mieszka w ``anonymised_q`` i tu jest tylko podpięty,
+    żeby listy panelu pisały ``User.objects.exclude_anonymised()`` zamiast składać ``Q`` ręcznie.
+    """
+
+    def exclude_anonymised(self):
+        """Bez kont po anonimizacji – domyślny widok każdej listy osób w panelu koordynatora."""
+        from .anonymised import anonymised_q
+
+        return self.exclude(anonymised_q())
+
+    def anonymised(self):
+        """Wyłącznie konta po anonimizacji – do licznika „ukrytych” przy przełączniku listy."""
+        from .anonymised import anonymised_q
+
+        return self.filter(anonymised_q())
+
+
+class UserManager(BaseUserManager.from_queryset(UserQuerySet)):
     """Manager użytkownika logującego się adresem e-mail."""
 
     use_in_migrations = True
@@ -489,6 +509,24 @@ class Membership(models.Model):
         return f"{self.user_id} → {self.competition_id}: {self.role}"
 
 
+class ParticipantQuerySet(CompetitionScopedQuerySet):
+    """Profile uczestników: zakresowanie konkursem plus reguła „konto po anonimizacji”.
+
+    Profil po anonimizacji zostaje w bazie (kod publiczny wiąże go z ogłoszonymi wynikami), więc
+    każda lista **przeglądania** uczestników musi go odsiać sama – patrz ``apps.accounts.anonymised``.
+    """
+
+    def exclude_anonymised(self):
+        from .anonymised import anonymised_q
+
+        return self.exclude(anonymised_q("user"))
+
+    def anonymised(self):
+        from .anonymised import anonymised_q
+
+        return self.filter(anonymised_q("user"))
+
+
 class Participant(models.Model):
     """Profil uczestnika. ``public_code`` jest jedynym identyfikatorem w publikowanych wynikach.
 
@@ -661,7 +699,8 @@ class Participant(models.Model):
     invitation_sent_at = models.DateTimeField("zaproszenie wysłane", null=True, blank=True)
 
     #: Własna kolumna konkursu, więc domyślna ścieżka ``competition`` z queryseta wystarcza.
-    objects = CompetitionScopedManager()
+    #: Queryset dokłada do zakresowania skróty reguły „konto po anonimizacji”.
+    objects = models.Manager.from_queryset(ParticipantQuerySet)()
 
     class Meta:
         verbose_name = "uczestnik"
@@ -1392,11 +1431,27 @@ class BroadcastGroup(models.TextChoices):
     ``CUSTOM`` (wklejona lista adresów) jest wyjątkiem świadomym: organizator musi móc odpisać
     grupie osób, której system nie zna (opiekunowie, patroni, dziennikarze). Adresy z tej listy
     **nie są nigdzie zapisywane** – jadą prosto do zadania wysyłkowego.
+
+    **Kolejność członków jest kolejnością listy wyboru na ekranie** i jest decyzją, a nie
+    przypadkiem. Na górze stoi grupa najszersza i najczęściej potrzebna („wszyscy uczestnicy
+    konkursu” – prośba organizatora z 24.09.2026), pod nią zawężenia uczestników, potem opiekunowie
+    i komitet, a na końcu wklejona lista – wyjątek od zasady zamkniętej listy.
+
+    Grupy z parametrem (etap, region, szkoła, klasa, warsztat) zapisują ten parametr obok grupy
+    (``MessageBroadcast.target``): sama etykieta „uczestnicy z wybranej szkoły” w historii wysyłek
+    nie odpowiada na pytanie, **której** szkoły dotyczył list.
     """
 
-    EDITION_PARTICIPANTS = "EDITION_PARTICIPANTS", "uczestnicy bieżącej edycji"
+    ALL_PARTICIPANTS = "ALL_PARTICIPANTS", "wszyscy uczestnicy konkursu"
+    EDITION_PARTICIPANTS = "EDITION_PARTICIPANTS", "uczestnicy bieżącej edycji (zapisani do etapu)"
     STAGE_REGISTERED = "STAGE_REGISTERED", "zapisani do etapu"
     STAGE_QUALIFIED = "STAGE_QUALIFIED", "zakwalifikowani do etapu"
+    STAGE_NO_SUBMISSION = "STAGE_NO_SUBMISSION", "zapisani do etapu, bez wysłanej pracy"
+    REGION_PARTICIPANTS = "REGION_PARTICIPANTS", "uczestnicy z wybranego województwa (regionu)"
+    SCHOOL_PARTICIPANTS = "SCHOOL_PARTICIPANTS", "uczestnicy z wybranej szkoły (placówki)"
+    GRADE_PARTICIPANTS = "GRADE_PARTICIPANTS", "uczestnicy z wybranej klasy"
+    WORKSHOP_ATTENDEES = "WORKSHOP_ATTENDEES", "uczestnicy obecni na wybranym warsztacie"
+    SUPERVISORS = "SUPERVISORS", "opiekunowie szkolni (nauczyciele)"
     COMMITTEE = "COMMITTEE", "członkowie komitetu"
     COMMITTEE_DISTRICT = "COMMITTEE_DISTRICT", "komitet jednego województwa"
     CUSTOM = "CUSTOM", "wklejona lista adresów"
@@ -1455,6 +1510,19 @@ class MessageBroadcast(models.Model):
     )
     created_at = models.DateTimeField("wysłana", default=timezone.now, db_index=True)
     group = models.CharField("grupa odbiorców", max_length=32, choices=BroadcastGroup.choices)
+    #: Parametr grupy **tak, jak wyglądał w chwili wysyłki**: ``{"stage": 12, "label": "etap I
+    #: (eliminacje)"}``, ``{"school": "sio:345", "label": "XIV LO im. …, Warszawa"}`` itd. Pusty
+    #: słownik przy grupach bez parametru (komitet, opiekunowie, wklejona lista). Grupy zależne od
+    #: edycji (wszyscy uczestnicy, region, szkoła, klasa) niosą też ``"past_editions": true/false`` –
+    #: czy list objął wyłącznie bieżącą edycję, czy także poprzednie.
+    #:
+    #: Po co kopia etykiety, skoro jest identyfikator: bo historia ma odpowiadać na pytanie „do kogo
+    #: poszło”, także wtedy, gdy etap przemianowano, harmonogram warsztatów zredagowano, a szkoła
+    #: zniknęła ze słownika. Identyfikator zostaje obok, żeby grupę dało się odtworzyć zapytaniem.
+    #:
+    #: Czego tu **nie ma i nie będzie**: adresów. Parametr opisuje grupę (szkoła, region, warsztat),
+    #: nigdy osobę – ta sama zasada, co przy ``recipient_count`` zamiast listy odbiorców.
+    target = models.JSONField("parametry grupy", default=dict, blank=True)
     subject = models.CharField("temat", max_length=200)
     body = models.TextField("treść")
     recipient_count = models.PositiveIntegerField("liczba odbiorców", default=0)
@@ -1473,6 +1541,11 @@ class MessageBroadcast(models.Model):
 
     def __str__(self) -> str:
         return f"{self.subject} → {self.recipient_count} odbiorców"
+
+    @property
+    def target_label(self) -> str:
+        """Parametr grupy do pokazania w historii – pusty napis, gdy grupa parametru nie ma."""
+        return str((self.target or {}).get("label") or "")
 
 
 # Drugi składnik logowania (TOTP) mieszka razem z resztą swojej logiki w ``apps.accounts.twofactor``

@@ -257,3 +257,68 @@ def test_entry_of_another_stage_cannot_be_checked_in(coordinator_client, partici
     assert response.status_code == 404
     assert not AttendanceRecord.objects.filter(entry=foreign_entry).exists()
     assert not ArrivalForm.objects.exists()
+
+
+# --- konta usunięte na żądanie (v0.34.0) ----------------------------------------------------------
+
+
+def _deleted_entrant(elim_stage, venue):
+    """Uczestnik z deklaracją przyjazdu, który potem usunął konto (anonimizacja)."""
+    from apps.accounts.profile import anonymise_account
+
+    entry = StageEntryFactory(stage=elim_stage, participant=ParticipantFactory())
+    save_arrival_form(entry, venue=venue, needs=[LogisticsNeed.ACCOMMODATION, LogisticsNeed.MEAL])
+    anonymise_account(entry.participant.user)
+    return entry
+
+
+def test_logistics_lists_hide_deleted_accounts_behind_the_toggle(
+    coordinator_client, competition, entry, elim_stage, venue
+):
+    """Przyjazdy i obecność chowają konta usunięte, jak pozostałe listy osób w panelu (v0.34.0)."""
+    save_arrival_form(entry, venue=venue, needs=[LogisticsNeed.ACCOMMODATION])
+    deleted = _deleted_entrant(elim_stage, venue)
+
+    for url in (logistics_url(elim_stage), attendance_url(elim_stage)):
+        hidden = coordinator_client.get(url).content.decode()
+        shown = coordinator_client.get(f"{url}?usuniete=1").content.decode()
+
+        assert entry.participant.public_code in hidden
+        assert deleted.participant.public_code not in hidden
+        assert "Pokaż usunięte konta (1)" in hidden
+        assert deleted.participant.public_code in shown
+        assert "Konto usunięte" in shown
+        assert "Ukryj usunięte konta" in shown
+
+    # Liczby do zamówienia (noclegi) liczą tylko widocznych – usunięty nie przyjedzie.
+    summary = dict(coordinator_client.get(logistics_url(elim_stage)).context["summary_rows"])
+    assert summary["nocleg"] == 1
+
+
+def test_print_lists_follow_the_deleted_toggle(coordinator_client, entry, elim_stage, venue):
+    from apps.integrations.exports import logistics_list_rows
+
+    save_arrival_form(entry, venue=venue, needs=[LogisticsNeed.ACCOMMODATION])
+    deleted = _deleted_entrant(elim_stage, venue)
+    code = deleted.participant.public_code
+
+    for kind in ("attendance", "accommodation"):
+        _header, default_rows = logistics_list_rows(elim_stage, kind, include_deleted=False)
+        _header, all_rows = logistics_list_rows(elim_stage, kind, include_deleted=True)
+        assert code not in {row[1] for row in default_rows}
+        assert [row[2] for row in all_rows if row[1] == code] == ["Konto usunięte"]
+
+    shown = coordinator_client.get(attendance_url(elim_stage) + "?usuniete=1").content.decode()
+    assert f"{logistics_url(elim_stage)}attendance/?usuniete=1" in shown
+    response = coordinator_client.get(f"{logistics_url(elim_stage)}attendance/")
+    assert response.status_code == 200
+    assert response.content.startswith(b"%PDF")
+
+
+def test_check_in_keeps_the_deleted_toggle(coordinator_client, entry, elim_stage):
+    response = coordinator_client.post(
+        attendance_url(elim_stage), {"entry": entry.pk, "present": "1", "usuniete": "1"}
+    )
+
+    assert response.status_code == 302
+    assert response["Location"].endswith("?usuniete=1")

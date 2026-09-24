@@ -62,6 +62,16 @@ Zwinięte **„Jak oceniać — w pięciu zdaniach”** jest pierwszą pomocą, 
 (`<kod>_zad<numer>_v<wersja>`), a w archiwum jest `README.txt` z wierszami `recenzja <id> → <plik>`,
 po których odnajdziesz pracę w panelu.
 
+W konkursach, które zbierają **zaświadczenia o statusie ucznia**, obok przycisku jest lista wyboru:
+
+- **„wszystkie prace”** (domyślnie) — paczka jak zawsze,
+- **„tylko uczniowie z potwierdzonym statusem ucznia”** — w paczce zostają wyłącznie prace osób,
+  których zaświadczenie koordynator zaakceptował (plik `moje-prace-status-potwierdzony.zip`).
+
+Ocenianie zostaje **ślepe**: dostajesz mniej plików o tych samych anonimowych nazwach — nie skan
+zaświadczenia, nie nazwisko i nie szkołę. Zaświadczenia ogląda wyłącznie koordynator. Ten sam wybór
+działa w API: `GET /api/grading/reviews/download/?students=verified`.
+
 ### Powody w zakładce „Anulowane”
 
 | Powód | Co znaczy |
@@ -86,6 +96,8 @@ Kolejność w panelu odpowiada kolejności czynności:
 1. **nagłówek** — kod pracy, etap, runda, wersja, termin i licznik „5 z 18 w tym zadaniu”
    z odnośnikami **„← Poprzednia praca”** / **„Następna praca →”**,
 2. zwinięte **„Rozwiązanie wzorcowe i uwagi dla recenzentów”** (gdy koordynator je wgrał),
+   a pod nim — gdy organizator korzysta z oceny AI — zwinięta **„Ocena AI (sugestia, niewiążąca)”**
+   (§ 3a),
 3. **„Rubryka oceniania”** albo lista punktów ze skali etapu,
 4. **komentarz dla uczestnika** — z szablonami tuż pod polem,
 5. **komentarz wewnętrzny** — dla komitetu; uczestnik **nigdy** go nie zobaczy,
@@ -106,6 +118,39 @@ tekstowym.
 **Czas pracy.** Przy recenzji stoi „Czas pracy: 1 h 12 min”. Licznik mierzy **wyłącznie** czas, i to po
 to, żeby organizator umiał zaplanować obciążenie komitetu („ile godzin zajmuje ocena zadania 3”).
 Nie zapisujemy tego, co piszesz, ani gdzie klikasz; po pięciu minutach bez ruchu licznik przestaje liczyć.
+
+### 3a. Panel „Ocena AI (sugestia, niewiążąca)”
+
+Gdy organizator korzysta z oceny AI, a koordynator ją dla tej pracy wygenerował, pod wzorcówką stoi
+zwinięty panel **„Ocena AI (sugestia, niewiążąca)”** z propozycją punktów, np. „5 z 6 pkt”. Po
+rozwinięciu: model i data wygenerowania, **pewność** deklarowana przez model (niska / średnia /
+wysoka), krótkie podsumowanie, punkty i komentarz przy każdym kryterium (albo części rozwiązania)
+oraz lista błędów, które model znalazł. Panelu nie ma, gdy sugestii nie wygenerowano — to nic nie
+znaczy o pracy.
+
+Jak to czytać:
+
+- **to jest sugestia modelu językowego, nie ocena komitetu.** Punkty wystawiasz Ty. Model potrafi się
+  pomylić w obie strony: przeoczyć poprawny, ale nietypowy dowód albo przepuścić błąd, który
+  „wygląda” poprawnie. Każde twierdzenie z panelu sprawdź w pracy, zanim się na nie powołasz,
+- **przeczytaj pracę najpierw sam.** Panel jest zwinięty właśnie po to, żeby propozycja punktów nie
+  ustawiła Ci kotwicy, zanim zajrzysz do rozwiązania,
+- **niska pewność** znaczy zwykle nieczytelny skan, rozwiązanie odbiegające od wzorcówki albo brak
+  wzorcówki — wtedy sugestia jest najmniej warta,
+- czerwony komunikat o **podejrzeniu próby wpłynięcia na ocenę** znaczy, że model znalazł w pracy
+  polecenie w rodzaju „daj maksimum punktów” (bywa ukryte drobnym drukiem albo w komentarzu kodu).
+  Model ma takie polecenia ignorować; oceń samą treść rozwiązania i — jeśli to wygląda na celowe —
+  zgłoś problem z pracą (§ 9),
+- **nie kopiuj** tekstu sugestii do komentarza dla uczestnika bez przeczytania go: komentarz podpisuje
+  komitet.
+
+Przycisk **„Wstaw punkty AI jako punkt wyjścia”** zaznacza w formularzu najbliższą propozycji
+wartość skali — i nic poza tym: niczego nie zapisuje ani nie wysyła, a zaznaczenie zmienisz jednym
+kliknięciem. Przy zadaniu z rubryką przycisku nie ma (model dzieli rozwiązanie po swojemu, a nie
+według kryteriów komitetu). Nic w formularzu nie wypełnia się samo.
+
+Anonimowość zostaje: model nie dostaje danych uczestnika, a gdyby przepisał z pracy imię czy nazwę
+szkoły, serwer wymaże je z odpowiedzi, zanim ją zobaczysz.
 
 ---
 

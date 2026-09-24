@@ -211,6 +211,37 @@ FEATURE_DEFAULTS: dict[str, bool] = {
     # znaczyłoby otwarcie takiego miejsca w chwili, w której nikt go jeszcze nie pilnuje — dlatego
     # otwiera je świadomy wpis w panelu, a nie data wydania.
     "participant_forum": False,
+    # --- zaświadczenie o statusie ucznia -----------------------------------------------------------
+    # Prośba organizatora z 24.09.2026 (``apps.student_status``): uczestnik pobiera imienny wzór
+    # zaświadczenia, szkoła je stempluje, uczestnik wgrywa skan, a koordynator go akceptuje albo
+    # odrzuca z powodem. Paczki prac (koordynator i komitet) dostają wybór „wszystkie prace” albo
+    # „tylko uczniowie z potwierdzonym statusem”. Wyłączona znaczy, że żadnego z tych adresów **nie
+    # ma** (404), w menu nie przybywa ani jedna pozycja, a paczki ZIP wyglądają co do przycisku tak,
+    # jak przed tym wydaniem.
+    #
+    # Domyślnie wyłączona z tego samego powodu, co forum: to jest nowa **kategoria danych osobowych**
+    # (skan dokumentu z pieczęcią szkoły, datą urodzenia i podpisem dyrektora), która wymaga wpisu
+    # w rejestrze czynności u tego administratora, który ją zbiera. Wpis zmienia się razem z flagą
+    # (``apps.accounts.processing_register.activities_for``), więc zapalenie jej jest decyzją
+    # organizatora o nowym przetwarzaniu, a nie skutkiem ubocznym wdrożenia.
+    "student_status_certificate": False,
+    # --- materiały z warsztatów -------------------------------------------------------------------
+    # Nagrania, pliki i odnośniki z warsztatów dla zalogowanych (prośba organizatora z 24.09.2026,
+    # ``apps.workshop_materials``). Wyłączona znaczy, że adresów ``/warsztaty/materialy/…``
+    # i ``/coordinator/workshops/materials/…`` **nie ma** (404), a strona „Warsztaty” i menu wyglądają
+    # co do bajtu jak dziś. Domyślnie wyłączona, bo włączenie ma sens dopiero po dopisaniu uprawnień
+    # wgrywania wieloczęściowego do polityki MinIO (``deploy/minio/policy-submissions.json``) i po
+    # sprawdzeniu miejsca na dysku serwera (``docs/OPERACJE.md``) – czyli po kroku operatora,
+    # którego wdrożenie samo nie wykona.
+    "workshop_materials": False,
+    # --- ocena AI ----------------------------------------------------------------------------------
+    # Sugestia punktów dla komitetu liczona przez Claude'a (prośba organizatora z 24.09.2026,
+    # ``apps.ai_grading``). Wyłączona znaczy, że adresów ``/coordinator/ai-grading/…`` **nie ma**
+    # (404), w menu i na kartach zadań nie ma ani jednej pozycji, a panel recenzenta i uczestnika
+    # wyglądają jak dziś. Domyślnie wyłączona, bo włączenie jest decyzją prawną, a nie techniczną:
+    # prace uczestników wychodzą wtedy do podmiotu przetwarzającego (Anthropic) poza organizatorem,
+    # co wymaga umowy powierzenia i zmiany polityki prywatności (``docs/OPERACJE.md``).
+    "ai_grading": False,
 }
 
 

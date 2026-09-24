@@ -77,6 +77,17 @@ class SubmissionStorage(ABC):
     def exists(self, key: str) -> bool:
         """Czy obiekt istnieje. Używane w smoke testach i w adminie."""
 
+    @abstractmethod
+    def delete(self, key: str) -> None:
+        """Usuwa obiekt. Brak obiektu nie jest błędem – usunięcie ma być idempotentne.
+
+        Rozwiązań ta metoda nie dotyka i dotykać nie ma: praca jest dokumentacją zawodów i zostaje
+        także po anonimizacji konta. Woła ją wyłącznie ``apps.student_status`` – skan zaświadczenia
+        z datą urodzenia i podpisem dyrektora szkoły znika po zastąpieniu nowszym, po retencji
+        edycji i przy usunięciu konta (art. 5 ust. 1 lit. c i e RODO). Idempotencja jest warunkiem,
+        a nie wygodą: usunięcie idzie po commicie transakcji i bywa ponawiane.
+        """
+
     def healthy(self) -> bool:
         """Czy storage w ogóle odpowiada. Dla strony statusu (``/status/``), nie dla domeny.
 
@@ -193,6 +204,12 @@ class S3SubmissionStorage(SubmissionStorage):
             return False
         return True
 
+    def delete(self, key: str) -> None:
+        # ``DeleteObject`` na nieistniejącym kluczu odpowiada w S3 i w MinIO sukcesem (204), więc
+        # idempotencja jest za darmo. Konto ``app-private`` ma ``s3:DeleteObject`` na tym buckecie
+        # (``deploy/minio/policy-submissions.json``).
+        self.client.delete_object(Bucket=self.bucket, Key=key)
+
     def healthy(self) -> bool:
         """``HeadBucket`` – jedno żądanie bez treści, sprawdzające i połączenie, i poświadczenia.
 
@@ -246,6 +263,9 @@ class LocalSubmissionStorage(SubmissionStorage):
 
     def exists(self, key: str) -> bool:
         return self._path(key).is_file()
+
+    def delete(self, key: str) -> None:
+        self._path(key).unlink(missing_ok=True)
 
 
 def get_submission_storage() -> SubmissionStorage:

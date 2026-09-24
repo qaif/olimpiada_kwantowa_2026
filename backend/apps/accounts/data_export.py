@@ -374,8 +374,65 @@ def export_payload(user: User) -> dict:
         "zgloszenia_do_etapow": _entries_section(participant),
         "wyniki_ogloszone": _results_section(participant),
         "wpisy_na_forum": _forum_section(user),
+        "zaswiadczenia_statusu_ucznia": _student_status_section(participant),
+        "oceny_ai": _ai_section(participant),
         "ustawienia_interfejsu": _preferences_section(user),
     }
+
+
+def _student_status_section(participant) -> list[dict]:
+    """Zaświadczenia o statusie ucznia tego profilu – każda wersja, z decyzją i powodem odrzucenia.
+
+    Sekcja jest w pliku **zawsze** (pusta lista przy konkursie bez tej funkcji), bo kształt pliku ma
+    być ten sam dla każdego konta. Wszystkie wersje, a nie tylko bieżąca: każdą z nich uczestnik
+    przesłał i każda decyzja dotyczyła jego. Nie ma tu tożsamości koordynatora, który rozpatrzył
+    zaświadczenie – to dane pracownika organizatora, a nie uczestnika (ta sama granica, co
+    „Recenzent A/B” przy ocenach). Sam plik, o ile jeszcze istnieje, jedzie w ``pliki/``.
+    """
+    if participant is None:
+        return []
+    from apps.student_status.models import StudentStatusCertificate
+
+    rows = (
+        StudentStatusCertificate.objects.filter(participant=participant)
+        .select_related("edition")
+        .order_by("edition_id", "version")
+    )
+    return [
+        {
+            "edycja": row.edition.year_label,
+            "wersja": row.version,
+            "biezaca": row.is_current,
+            "stan": row.get_status_display(),
+            "przeslano": _moment(row.uploaded_at),
+            "rozpatrzono": _moment(row.decided_at),
+            "powod_odrzucenia": row.rejection_reason or None,
+            "plik": {
+                "sha256": row.sha256,
+                "rozmiar_bajty": row.size_bytes,
+                "typ": row.mime,
+                "skan_antywirusowy": row.scan_status,
+                "w_paczce": row.is_clean,
+                "usuniety": _moment(row.file_removed_at),
+            },
+        }
+        for row in rows
+    ]
+
+
+def _ai_section(participant) -> list[dict]:
+    """Oceny AI prac tej osoby – reguła w ``apps.ai_grading.services.export_section``.
+
+    Zawsze **fakt** przekazania pracy do podmiotu przetwarzającego (kiedy, komu, jakim modelem):
+    odbiorcy danych są informacją, do której osoba ma prawo z art. 15 ust. 1 lit. c RODO,
+    niezależnie od tego, co pokazuje ekran. Treść sugestii – wyłącznie tam, gdzie uczestnik widzi
+    ją i w panelu (koordynator włączył ją dla etapu, wyniki są ogłoszone): eksport nie może być
+    drugą, luźniejszą drogą do tego, czego ekran nie pokazuje. Pusta lista, gdy prace nigdy nie
+    wyszły do oceny AI – kształt pliku ma być ten sam dla każdego konta.
+    """
+    from apps.ai_grading.services import export_section
+
+    return export_section(participant)
 
 
 def _forum_section(user: User) -> list[dict]:
@@ -502,11 +559,46 @@ def build_export_zip(user: User) -> ExportArchive:
                 finally:
                     source.close()
                 count += 1
+            count += _add_student_status_files(archive, participant, used)
     except BaseException:
         stream.close()
         raise
     stream.seek(0)
     return ExportArchive(stream=stream, files=count)
+
+
+def _add_student_status_files(archive, participant, used: set[str]) -> int:
+    """Skany zaświadczeń o statusie ucznia – wyłącznie te, które jeszcze są i przeszły skan.
+
+    Nazwa w paczce powstaje z edycji i wersji (``pliki/zaswiadczenie-status-ucznia-e<id>-v<n>.<ext>``),
+    a nie z nazwy od uczestnika – tej serwis nie zapisuje. Brak obiektu w storage nie wywraca eksportu:
+    metryka i tak jest w ``dane.json``, a paczka bez jednego pliku jest lepsza niż brak paczki.
+    """
+    if participant is None:
+        return 0
+    from apps.student_status.models import StudentStatusCertificate
+    from apps.student_status.services import open_scan
+
+    added = 0
+    for row in StudentStatusCertificate.objects.filter(participant=participant).order_by(
+        "edition_id", "version"
+    ):
+        if not row.is_clean:
+            continue
+        name = f"{FILES_PREFIX}zaswiadczenie-status-ucznia-e{row.edition_id}-v{row.version}.{row.extension}"
+        if name in used:  # pragma: no cover - para (edycja, wersja) jest unikalna
+            continue
+        source = open_scan(row)
+        if source is None:
+            continue
+        used.add(name)
+        try:
+            with archive.open(name, "w") as target:
+                _copy_file(source, target)
+        finally:
+            source.close()
+        added += 1
+    return added
 
 
 def export_filename(user: User) -> str:

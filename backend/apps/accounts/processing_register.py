@@ -48,8 +48,24 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: adresów IP** w dowolnym okresie, więc przy każdym pobraniu zostaje pseudonim adresu IP (HMAC
 #: z kluczem serwera). Nowa kategoria danych o osobach, które nie mają w serwisie konta, i nowy
 #: termin usunięcia – zmiana materialna, a nie doprecyzowanie wiersza „serwis”.
-REGISTER_VERSION = "1.6"
-REGISTER_DATE = date(2026, 9, 23)
+#: 1.7 (24.09.2026, wydanie v0.34.0) – trzy nowe czynności, każda **warunkowa** (jak forum: wiersz
+#: wchodzi do rejestru wyłącznie konkursom z włączoną flagą, bo rejestr opisuje przetwarzanie, które
+#: naprawdę zachodzi), a numer wersji jest jeden dla całego dokumentu:
+#:
+#: - zaświadczenie o statusie ucznia (``apps.student_status``, flaga ``student_status_certificate``):
+#:   skan dokumentu z pieczątką szkoły, datą urodzenia i podpisem dyrektora oraz decyzja
+#:   koordynatora – nowa kategoria danych (obraz dokumentu, dane pracownika szkoły w podpisie)
+#:   i własny termin usunięcia pliku,
+#: - materiały z warsztatów (``apps.workshop_materials``, flaga ``workshop_materials``) liczą
+#:   **unikalnych widzów** materiału, więc przy pierwszym wyświetleniu zostaje pseudonim pary
+#:   (materiał, konto) – nowa kategoria danych z własnym terminem usunięcia,
+#: - ocena AI (``apps.ai_grading``, flaga ``ai_grading``) przekazuje **prace uczestników** nowemu
+#:   podmiotowi przetwarzającemu (Anthropic) poza serwerem organizatora, w tym poza EOG – nowy
+#:   odbiorca, nowy cel pomocniczy i przekazanie do państwa trzeciego.
+#:
+#: Każda z nich osobno byłaby zmianą materialną; wchodzą w jednym wydaniu, więc w jednej wersji.
+REGISTER_VERSION = "1.7"
+REGISTER_DATE = date(2026, 9, 24)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
 #: domyślna wartość ``Edition.data_retention_months`` – gdyby organizator zmienił ją dla rocznika,
@@ -557,6 +573,177 @@ FORUM_ACTIVITY = _activity(
 )
 
 
+#: Czynność **warunkowa**: zaświadczenia o statusie ucznia (prośba organizatora z 24.09.2026,
+#: flaga ``student_status_certificate``). Obok :data:`ACTIVITIES` z tego samego powodu, co forum:
+#: rejestr opisuje przetwarzanie, które **naprawdę zachodzi**, a konkurs bez flagi nie zbiera ani
+#: jednego skanu.
+#:
+#: Skan jest tu ostrożniejszy od pozostałych kategorii z jednego powodu: to obraz **dokumentu**,
+#: więc niesie więcej, niż serwis prosi – pieczątkę szkoły, podpis i nazwisko dyrektora albo
+#: sekretarza (dane osoby trzeciej, pracownika szkoły), czasem dopiski odręczne. Dlatego wśród
+#: środków stoi to, czego ten plik **nie** robi: nie trafia do recenzentów, nie jest przekazywany
+#: e-mailem i nie przeżywa ani zastąpienia nowszym, ani terminu retencji edycji.
+STUDENT_STATUS_ACTIVITY = _activity(
+    key="status-ucznia",
+    name="Weryfikacja statusu ucznia (zaświadczenie ze szkoły)",
+    purpose=(
+        "Potwierdzenie, że uczestnik jest w danym roku szkolnym uczniem szkoły – warunek udziału "
+        "wynikający z Regulaminu – oraz możliwość przekazania komitetowi do oceny wyłącznie prac "
+        "uczniów z potwierdzonym statusem."
+    ),
+    legal_basis=(
+        "art. 6 ust. 1 lit. b RODO (wykonanie umowy – weryfikacja warunków udziału w zawodach "
+        "określonych Regulaminem); dane pracownika szkoły w podpisie – art. 6 ust. 1 lit. f RODO "
+        "(prawnie uzasadniony interes administratora: wiarygodność dokumentu)"
+    ),
+    subjects=(
+        "uczestnicy konkursu; dyrektorzy i sekretarze szkół podpisujący zaświadczenie (w zakresie "
+        "podpisu i pieczątki)"
+    ),
+    categories=[
+        "skan albo zdjęcie zaświadczenia: imię i nazwisko, data urodzenia, nazwa szkoły, klasa, rok "
+        "szkolny, pieczątka szkoły, data oraz podpis dyrektora lub sekretarza szkoły",
+        "metadane pliku: skrót SHA-256, rozmiar, typ, wynik skanu antywirusowego, data przesłania",
+        "decyzja koordynatora: stan (oczekuje, zaakceptowane, odrzucone), powód odrzucenia, osoba "
+        "i czas decyzji",
+    ],
+    recipients=[
+        HOSTING_RECIPIENT,
+        MAIL_RECIPIENT + " – wyłącznie powiadomienie o decyzji, bez załącznika",
+        "koordynator konkursu – jedyna rola, która widzi skan; członkowie komitetu i komisji "
+        "odwoławczej dostają wyłącznie paczkę prac zawężoną filtrem, bez skanu i bez danych "
+        "osobowych",
+    ],
+    retention=(
+        "plik zastąpiony nowszym – usuwany natychmiast; pozostałe pliki – do upływu okresu "
+        "przechowywania danych uczestników edycji (" + PARTICIPANT_RETENTION.split(" (")[0] + "), po "
+        "czym usuwane automatycznie (zadanie dobowe); przy usunięciu albo anonimizacji konta – "
+        "natychmiast, razem z zapisem decyzji. Zapis decyzji bez pliku zostaje do anonimizacji konta"
+    ),
+    measures=[
+        "funkcja jest domyślnie **wyłączona**; bez świadomej decyzji organizatora nie ma adresu, "
+        "pod którym dałoby się przesłać albo obejrzeć skan",
+        "plik w prywatnym magazynie, bez publicznego adresu; odczyt wyłącznie przez aplikację, po "
+        "uprawnieniu koordynatora tego konkursu, każde otwarcie zapisywane w dzienniku zdarzeń",
+        "format rozpoznawany po treści (PDF, JPG, PNG), limit 10 MB, skan antywirusowy przed "
+        "udostępnieniem koordynatorowi; plik zainfekowany jest usuwany",
+        "nazwa pliku od uczestnika nie jest zapisywana; klucz w magazynie składa się z identyfikatorów "
+        "technicznych i skrótu treści",
+        "recenzenci i komisja nie mają dostępu do skanu ani do stanu zaświadczenia poszczególnych "
+        "osób – filtr paczki działa po stronie serwera, a pliki w paczce zostają anonimowe",
+        "dziennik zdarzeń notuje wgranie, podgląd i decyzję bez treści powodu odrzucenia",
+    ],
+)
+
+
+#: Czynność **warunkowa**: statystyka oglądania materiałów z warsztatów. Wchodzi do rejestru wyłącznie
+#: konkursom z włączonym przełącznikiem ``workshop_materials`` – ten sam powód, co przy forum wyżej:
+#: konkurs bez tej funkcji nie zapisuje ani jednego pseudonimu widza.
+#:
+#: Sama treść materiałów (nagrania, slajdy) **nie** jest tu opisana: to materiały organizatora, nie
+#: dane uczestników. Opisana jest wyłącznie statystyka, bo tylko ona dotyka osób, które oglądają.
+WORKSHOP_MATERIALS_ACTIVITY = _activity(
+    key="materialy-z-warsztatow",
+    name="Statystyka wyświetleń materiałów z warsztatów",
+    purpose=(
+        "Policzenie, ile razy i ile różnych kont otworzyło nagrania i pliki z warsztatów – do oceny, "
+        "które materiały są potrzebne uczestnikom i czy warto nagrywać kolejne zajęcia."
+    ),
+    legal_basis=(
+        "art. 6 ust. 1 lit. f RODO (prawnie uzasadniony interes administratora – ocena przydatności "
+        "materiałów edukacyjnych udostępnianych uczestnikom)"
+    ),
+    subjects="zalogowani uczestnicy, opiekunowie szkolni i członkowie komitetu oglądający materiały",
+    categories=[
+        "pseudonim pary (materiał, konto): HMAC-SHA256 z kluczem przechowywanym wyłącznie po stronie "
+        "serwera – bez identyfikatora konta, adresu IP i nagłówka przeglądarki; ta sama osoba przy "
+        "dwóch materiałach ma dwa niepowiązane pseudonimy",
+        "chwila pierwszego wyświetlenia materiału (do terminu usunięcia)",
+    ],
+    recipients=[
+        HOSTING_RECIPIENT,
+        "koordynator konkursu – wyłącznie liczby zbiorcze przy materiale (wyświetlenia i liczba "
+        "różnych widzów); pojedynczych pseudonimów nie widzi nikt w interfejsie",
+    ],
+    retention=(
+        "pseudonim widza – 12 miesięcy od pierwszego wyświetlenia, po czym jest automatycznie "
+        "kasowany (zadanie cogodzinne) albo wcześniej razem z materiałem; licznik wyświetleń bez "
+        "żadnej informacji o osobie zostaje przy materiale"
+    ),
+    measures=[
+        "funkcja jest domyślnie wyłączona – bez decyzji organizatora nie powstaje ani jeden pseudonim",
+        "w bazie nie ma identyfikatora konta przy wyświetleniu – wyłącznie HMAC z kluczem "
+        "wyprowadzonym z sekretu aplikacji, którego nie ma w bazie ani w jej kopii",
+        "materiał wchodzi do skrótu, więc z tabeli nie da się złożyć historii oglądania jednej osoby",
+        "wyświetlenia koordynatora nie są zapisywane",
+    ],
+)
+
+
+#: Czynność **warunkowa**: wchodzi do rejestru wyłącznie konkursom z włączoną oceną AI
+#: (przełącznik ``ai_grading``, prośba organizatora z 24.09.2026) – z tego samego powodu, co forum:
+#: rejestr opisuje przetwarzanie, które naprawdę zachodzi.
+#:
+#: Podstawa prawna jest tu **propozycją do zatwierdzenia przez administratora**, a nie
+#: rozstrzygnięciem kodu: ocena AI jest narzędziem pomocniczym komitetu (interes administratora
+#: w sprawnym i spójnym ocenianiu), a nie warunkiem udziału w zawodach. Otwarte kwestie prawne –
+#: umowa powierzenia, przekazanie do państwa trzeciego, retencja po stronie dostawcy, zmiana
+#: polityki prywatności i regulaminu – stoją w ``docs/PODRECZNIK-ORGANIZATORA.md`` („Ocena AI”).
+AI_GRADING_ACTIVITY = _activity(
+    key="ocena_ai",
+    name="Pomocnicza ocena prac uczestników przez model językowy (ocena AI)",
+    purpose=(
+        "Przygotowanie dla członka komitetu niewiążącej sugestii oceny pracy uczestnika "
+        "(proponowane punkty, uzasadnienie, lista błędów) przez porównanie jej z rozwiązaniem "
+        "wzorcowym i skalą punktacji. Ocenę wystawia wyłącznie człowiek."
+    ),
+    legal_basis=(
+        "art. 6 ust. 1 lit. f RODO (prawnie uzasadniony interes administratora – sprawne i spójne "
+        "ocenianie prac w zawodach) – do potwierdzenia przez administratora; brak decyzji opartej "
+        "wyłącznie na zautomatyzowanym przetwarzaniu w rozumieniu art. 22 RODO"
+    ),
+    subjects="uczestnicy konkursu, których prace koordynator skierował do oceny AI",
+    categories=[
+        "treść pracy uczestnika (plik PDF, zdjęcie, kod albo notatnik) – bez imienia, nazwiska, "
+        "adresu e-mail, szkoły, kodu uczestnika i nazwy pliku nadanej przez uczestnika",
+        "wygenerowana sugestia oceny: proponowane punkty, kryteria z komentarzami, podsumowanie, "
+        "lista błędów, deklarowana pewność, znacznik podejrzenia próby manipulacji",
+        "metadane przetwarzania: data zlecenia i przekazania, model, identyfikator żądania, "
+        "zużycie tokenów i szacowany koszt",
+    ],
+    recipients=[
+        HOSTING_RECIPIENT,
+        "Anthropic PBC (USA, dostawca modelu Claude) – podmiot przetwarzający na podstawie umowy "
+        "powierzenia (DPA w warunkach komercyjnych Anthropic); przekazanie do państwa trzeciego na "
+        "podstawie mechanizmu wskazanego w tej umowie (standardowe klauzule umowne)",
+        "członkowie komitetu recenzujący daną pracę i koordynator konkursu",
+        "uczestnik – wyłącznie wtedy, gdy koordynator włączy widoczność dla etapu, i dopiero po "
+        "ogłoszeniu wyników",
+    ],
+    retention=(
+        "sugestia jest przechowywana razem z pracą, której dotyczy, i znika wraz z nią; przy "
+        "anonimizacji konta uczestnika (na żądanie albo po upływie okresu retencji edycji) jest "
+        "kasowana od razu. Po stronie dostawcy – zgodnie z warunkami umowy z Anthropic (okres "
+        "przechowywania danych wejściowych i wyjściowych API do potwierdzenia przez administratora)"
+    ),
+    measures=[
+        "funkcja jest domyślnie **wyłączona**; bez przełącznika konkursu i klucza API wpisanego przez "
+        "koordynatora żadna praca nie opuszcza serwera",
+        "do dostawcy trafia wyłącznie plik pracy i materiały zadania – bez danych identyfikujących "
+        "uczestnika; z odpowiedzi modelu serwer wymazuje imię, nazwisko, adres e-mail i szkołę "
+        "autora, gdyby model przepisał je z pracy",
+        "klucz API jest zaszyfrowany w bazie, tylko do zapisu (ekran pokazuje cztery ostatnie znaki), "
+        "nie trafia do kolejki zadań ani do logów",
+        "sugestia nigdy nie zapisuje się jako ocena – recenzent wystawia punkty sam, a przycisk "
+        "„wstaw punkty AI” jedynie wypełnia formularz",
+        "praca uczestnika jest dla modelu wyłącznie danymi: polecenia zapisane w pracy są ignorowane, "
+        "a próba wpłynięcia na ocenę jest zgłaszana recenzentowi",
+        "limit wydatków i ogranicznik współbieżności po stronie serwera; każde zlecenie, zmiana klucza "
+        "i zmiana widoczności zostawia wpis w dzienniku zdarzeń",
+    ],
+)
+
+
 def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
     """Rejestr **tego** konkursu: czynności wspólne plus te, które wynikają z jego konfiguracji.
 
@@ -568,6 +755,7 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
     ``None`` znaczy „nie wiadomo, o który konkurs chodzi” i daje rejestr podstawowy: to samo, co
     widział czytelnik przed etapem 2.
     """
+    from apps.ai_grading.models import AI_GRADING_FLAG
     from apps.competitions.logistics import collects_special_needs
     from apps.forum.models import FORUM_FLAG
 
@@ -576,6 +764,14 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
         activities = (*activities, ONSITE_LOGISTICS_ACTIVITY)
     if competition is not None and competition.has_feature(FORUM_FLAG):
         activities = (*activities, FORUM_ACTIVITY)
+    from apps.student_status.models import enabled as student_status_enabled
+
+    if student_status_enabled(competition):
+        activities = (*activities, STUDENT_STATUS_ACTIVITY)
+    if competition is not None and competition.has_feature("workshop_materials"):
+        activities = (*activities, WORKSHOP_MATERIALS_ACTIVITY)
+    if competition is not None and competition.has_feature(AI_GRADING_FLAG):
+        activities = (*activities, AI_GRADING_ACTIVITY)
     return activities
 
 

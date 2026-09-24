@@ -172,6 +172,33 @@ czyta treść, widzi Twoje imię i szkołę, zaznacza pole i potwierdza. Ty dost
 - nie możesz być własnym opiekunem, a od osoby pełnoletniej zgody nie zbieramy w ogóle,
 - jest też **wersja do wydruku** pod `/dokumenty/zgoda-opiekuna/`, jeśli opiekun nie ma adresu e-mail.
 
+### 5a. Zaświadczenie o statusie ucznia — `/me/status-ucznia/`
+
+Tylko w konkursach, które o nie proszą: jeśli na pulpicie nie ma kafla **„Zaświadczenie o statusie
+ucznia”**, Twój konkurs go nie zbiera. Organizator chce wiedzieć, że **w tej edycji** (w tym roku
+szkolnym) jesteś uczniem lub uczennicą szkoły. **Brak zaświadczenia niczego nie blokuje** — rozwiązania
+wysyłasz tak samo z nim i bez niego.
+
+1. **„Pobierz wzór (PDF)”** — kartka ma już wpisane Twoje imię i nazwisko, datę urodzenia, szkołę
+   i rok szkolny z profilu. Jeśli coś się nie zgadza, popraw to najpierw w profilu (`/profile/`)
+   i pobierz wzór jeszcze raz.
+2. **Sekretariat szkoły** wpisuje klasę, przystawia pieczątkę, a dyrektor lub sekretarz podpisuje
+   i wpisuje datę.
+3. **Zeskanuj albo sfotografuj całą kartkę** (PDF, JPG albo PNG, do 10 MB — pieczątka i podpis muszą
+   być czytelne), zaznacz potwierdzenie i kliknij **„Wyślij zaświadczenie”**.
+
+Stan widać na tej samej stronie i na pulpicie:
+
+| Stan | Co to znaczy |
+|---|---|
+| **brak** | nic jeszcze nie wysłałeś(-aś) |
+| **oczekuje na weryfikację** | plik dotarł, koordynator go sprawdzi; możesz wgrać inny — zastąpi poprzedni |
+| **zaakceptowane** | sprawa załatwiona; dostajesz o tym e-mail, formularza już nie ma |
+| **odrzucone** | powód stoi na stronie i w e-mailu; popraw i wgraj nowy plik |
+
+Plik sprawdza skaner antywirusowy. Oglądać go może **wyłącznie koordynator** konkursu — recenzenci
+go nie widzą. Zaświadczenie dotyczy **jednej edycji**: w kolejnym roku szkolnym trzeba wgrać nowe.
+
 ---
 
 ## 6. Wyniki, informacja zwrotna, reklamacja
@@ -185,6 +212,14 @@ Po ogłoszeniu wyników etapu:
   i decyzja. **Recenzenci są anonimowi** — podpisani „Recenzent A/B”,
 - **przed publikacją ten adres nie działa** i nie ma sposobu, żeby dowiedzieć się wyniku wcześniej,
 - publiczne **statystyki edycji** (rozkłady punktów, średnie, progi): `/statystyki/`.
+<!-- Dla organizatora: poniższy punkt rozsyłaj uczestnikom WYŁĄCZNIE wtedy, gdy w panelu włączono
+     „Pokaż uczestnikom ocenę AI” dla etapu (PODRECZNIK-ORGANIZATORA.md § 4.12). Przy wyłączonym
+     przełączniku uczestnik nie ma się z serwisu dowiedzieć, że ocena AI w ogóle powstała. -->
+- **ocena AI** — tylko jeśli organizator ją udostępnia dla danego etapu: pod ocenami recenzentów
+  pojawia się sekcja **„Ocena AI (sugestia, niewiążąca)”** z krótkim podsumowaniem i proponowanymi
+  punktami przygotowanymi przez model językowy (Claude) jako pomoc dla komitetu. To **nie jest
+  ocena**: obowiązują wyłącznie punkty wystawione przez recenzentów, a reklamacja dotyczy oceny
+  oficjalnej, nie sugestii.
 
 **Reklamacja** — zakładka **„Reklamacje”**, przycisk **„Złóż reklamację”** przy pracy. Jest możliwa
 wyłącznie w **oknie reklamacyjnym** wyznaczonym przez organizatora i dotyczy własnej, ocenionej pracy.
@@ -205,6 +240,26 @@ z uzasadnieniem dostajesz listem i widzisz w tej samej zakładce.
 
 Dokument pobiera się w PDF-ie; strona weryfikacyjna **nie pokazuje imienia i nazwiska**, dopóki nie
 wyraziłeś zgody na publikację pełnych danych.
+
+### Materiały z warsztatów — `/warsztaty/materialy/`
+
+Nagrania warsztatów, slajdy i pliki do ćwiczeń są pod adresem `/warsztaty/materialy/`. Trafisz tam
+na trzy sposoby: odnośnikiem **„Materiały z warsztatów”** w pasku konta (u góry każdej strony, obok
+„Mój panel”), kaflem **„Materiały z warsztatów”** na swoim pulpicie (`/me/`) albo ramką na stronie
+**Warsztaty**. Odnośnik i kafel pojawiają się dopiero wtedy, gdy organizator opublikuje pierwszy
+materiał — jeśli ich nie widzisz, materiałów jeszcze nie ma. **Trzeba być zalogowanym** — gość
+widzi tylko zaproszenie do logowania. Materiały widzą uczestnicy, ich opiekunowie i komitet tego
+konkursu. Jeśli strony nie ma („nie znaleziono”), ten konkurs nie udostępnia materiałów.
+
+- Materiały są pogrupowane po warsztatach, w kolejności harmonogramu.
+- **Film** oglądasz na stronie, w odtwarzaczu — można go przewijać, zatrzymywać i włączyć na pełny
+  ekran. Filmu nie da się pobrać przyciskiem; jeśli odtwarzanie zatrzyma się po dłuższej przerwie
+  (ponad dwie godziny), **odśwież stronę**.
+- **Plik** (PDF, prezentacja, notatnik) otwiera się albo pobiera przyciskiem „Otwórz” / „Pobierz”.
+- **Odnośnik** prowadzi do nagrania w innym serwisie.
+
+Materiały są przeznaczone **wyłącznie dla uczestników olimpiady** — nie nagrywaj ich i nie udostępniaj
+dalej. Serwis nie zapisuje, kto co oglądał; organizator widzi tylko liczbę wyświetleń.
 
 ---
 
