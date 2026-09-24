@@ -1,4 +1,5 @@
 """Jednorazowy pomiar czasów testów dla pytest-split (format pliku .test_durations)."""
+
 import json
 from collections import defaultdict
 

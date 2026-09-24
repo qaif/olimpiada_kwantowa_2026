@@ -10,11 +10,31 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 
 ## v0.35.0 – 2026-09-24
 
+Wydanie zbiorcze z dwóch próśb organizatora z 24.09.2026. **Dowolne wartości ocen i różne maksima
+zadań** działają bez flagi konkursu, ale za przełącznikiem **przy etapie**, który dla każdego
+istniejącego i nowego etapu stoi w dotychczasowym trybie „tylko wartości ze skali” – do chwili
+przełączenia żadna liczba, ekran ani odpowiedź API etapu się nie zmienia. **Inni dostawcy AI**
+(OpenAI, Google, Meta) i tryb testowy rozszerzają ocenę AI, więc stoją za tą samą, domyślnie
+wyłączoną flagą `ai_grading`. Obie zmiany spotykają się w jednym miejscu: propozycję punktów
+**każdego** dostawcy serwer przycina do maksimum zadania z reguły oceny
+(`competitions.scoring.ScoreRule`, maksimum ułamkowe, np. 12,5), a w etapie z dowolnymi wartościami
+przycisk „punkty AI” wpisuje propozycję sprowadzoną do 0,01 zamiast najbliższej wartości skali.
+
+Migracje: `competitions.0032_free_scores`, `grading.0011_decimal_scores`,
+`appeals.0003_decimal_new_score` (typ kolumn punktów – przepisanie tabel pod blokadą, `OPERACJE.md`
+§ 18), `ai_grading.0002_providers`. Nowe zależności: `openai>=3.19,<4`, `google-genai>=2.25,<3`
+(import leniwy; `anthropic>=1.8,<2` bez zmian). Nowa trasa Celery `apps.ai_grading.tasks.scan_ai_test_work`
+→ kolejka `scan`. Rejestr czynności przetwarzania **1.8**. Kroki operatora: `OPERACJE.md` § 18
+(przed wdrożeniem – liczność tabel, wdrożenie poza godzinami oceniania) oraz § 17.2 i § 17.6
+(zależności; **potwierdzenie umów powierzenia komendą `confirm_ai_provider_dpa`** – po wdrożeniu żaden
+dostawca, także Anthropic, nie ma potwierdzonej umowy).
+
+### Dowolne wartości ocen i różne maksima zadań (bez flagi; przełącznik etapu)
+
 Prośby organizatora z 24.09.2026: **„Pozwól na dowolne wartości ocen”** i **„zadania mogą mieć różną
-ilość punktów”**. Bez flagi konkursu: przełącznik stoi **przy etapie**, a każdy istniejący i każdy nowy
-etap startuje w dotychczasowym trybie „tylko wartości ze skali”, więc do chwili, w której organizator
-go przełączy, żadna liczba, ekran ani odpowiedź API etapu się nie zmienia (oceny całkowite
-wyświetlają się jak dotąd – „5”, a nie „5,00” – a snapshoty i odpowiedzi API niosą je jako `int`).
+ilość punktów”**. Etap w dotychczasowym trybie „tylko wartości ze skali” wygląda jak przed wydaniem:
+oceny całkowite wyświetlają się jak dotąd – „5”, a nie „5,00” – a snapshoty i odpowiedzi API niosą je
+jako `int`.
 
 Migracje: `competitions.0032_free_scores`, `grading.0011_decimal_scores`,
 `appeals.0003_decimal_new_score` – kolumny punktów `Review.score`, `FinalGrade.score`,
@@ -63,6 +83,55 @@ pod blokadą – szacunek i rollback w `OPERACJE.md` § 18.
   bez przesunięcia.
 - Podręczniki: organizatora § 2.3 („Dowolne wartości ocen”, „Zadania mogą mieć różną liczbę punktów”),
   recenzenta § 4; `API.md` § 6.2; `OPERACJE.md` § 18.
+
+### Inni dostawcy AI i tryb testowy (flaga `ai_grading`)
+
+Prośby organizatora z 24.09.2026: „Pozwól też na użycie innych dostawców AI, jak OpenAI, Google
+i Meta.” oraz „włącz wszystkich dostawców dla testów”. Ocena AI (flaga `ai_grading`) przestaje być
+wyłącznie Claude'em: koordynator wybiera dostawcę i model przy każdym zleceniu, a tę samą pracę może
+ocenić kilkoma modelami, żeby je porównać.
+
+- **Dostawcy** (`apps.ai_grading.providers`): wspólny kontrakt – jedno neutralne wejście (prompt
+  systemowy, materiały zadania, praca), jeden wynik (JSON wg tego samego schematu, zużycie z cache,
+  identyfikator żądania, odmowa/ucięcie w słowniku Anthropic) i rodzaje błędów (auth / rate limit /
+  transient / permanent / refusal / too large), od których zależy ponowienie. **Anthropic** – żądanie
+  bajt w bajt jak w v0.34.0 (`client.py` bez zmian w wywołaniu). **OpenAI** – Responses API
+  (`responses.stream`, `text.format` json_schema strict, `store: false`, `reasoning.effort: high`,
+  PDF `input_file`, obraz `input_image`, `prompt_cache_key`). **Google** – `google-genai`
+  (`generate_content`, `response_json_schema`, `thinking_level: high` dla `gemini-3*`, pliki inline,
+  blokady `SAFETY`/`PROHIBITED_CONTENT`… jako odmowa). **Meta** – Meta Model API przez SDK OpenAI
+  (Chat Completions, `response_format` json_schema, PDF jako część `file`); dawne Llama API Meta
+  wyłączyła 6.07.2026. Limity plików per dostawca sprawdzane przed wysyłką (Google 20 MB, Meta PDF do
+  50 stron). Modele z list (stan 24.09.2026) plus „inny identyfikator modelu”; warstwa Meta
+  `-contributor` odrzucana.
+- **Klucze i umowy powierzenia per dostawca** (`AiProviderAccount`): klucz tylko do zapisu (ten sam
+  Fernet), „Sprawdź klucz” bez kosztu, oraz **„Potwierdzam zawarcie umowy powierzenia (DPA)
+  z <dostawca>”** z datą i osobą (dziennik zdarzeń). Bez potwierdzenia dostawca **nie dostaje prac
+  uczestników**; wycofanie zatrzymuje prace czekające w kolejce przed wysyłką.
+- **Tryb testowy** (`apps.ai_grading.sandbox`): praca testowa koordynatora (PDF/JPG/PNG/py/ipynb,
+  walidacja i skan jak prace uczestników, oświadczenie o braku danych uczestników, odmowa pliku
+  identycznego z pracą uczestnika) oceniana **każdym dostawcą z kluczem, także bez umowy**. Oceny
+  testowe widzi tylko koordynator (plakietka TEST), nie wchodzą do eksportu ani statystyk, liczą się
+  do zużycia i limitu wydatków, można je usunąć.
+- **Porównanie**: kluczem oceny jest (wersja pracy, dostawca, model); panel recenzenta pokazuje
+  osobne panele „Ocena AI – <dostawca> <model> (sugestia, niewiążąca)”, najnowszy pierwszy; karta
+  zadania – zgodność z oceną końcową osobno dla każdego modelu; uczestnik (gdy włączone) – najnowszą.
+- **Ceny**: tabela cen per model w ustawieniach (domyślne z cenników z 24.09.2026, do nadpisania).
+  Model bez ceny – koszt „nieznany”, liczone tokeny i licznik wywołań bez ceny; przy ustawionym limicie
+  wydatków taki model jest odrzucany (`AI_PRICE_UNKNOWN`).
+- **RODO**: rejestr czynności **1.8** – odbiorcy wiersza „ocena AI” liczeni dynamicznie (tylko dostawcy
+  z kluczem i potwierdzoną umową); eksport danych uczestnika wymienia dostawcę i podmiot przetwarzający
+  przy każdej ocenie; podręcznik organizatora § 4.12 – co sprawdzić u każdego dostawcy (DPA, SCC,
+  retencja, trenowanie, brak retencji, **ograniczenia wieku w warunkach Google i Mety**).
+- **Operator**: komenda `confirm_ai_provider_dpa` (OPERACJE § 17.6) – potwierdzenie umowy jak z panelu,
+  idempotentne. **Po wdrożeniu żaden dostawca, także Anthropic, nie ma potwierdzonej umowy** – migracja
+  celowo tego nie domniemywa; komendę trzeba uruchomić dla `kwantowa` (organizator potwierdził umowy
+  24.09.2026).
+
+Migracje: `ai_grading.0002_providers` (klucz Anthropic przeniesiony do `AiProviderAccount` bez
+odszyfrowania, `AiAssessment` z konkursem, dostawcą i modelem zamówionym, `AiTestWork`). Nowe
+zależności: `openai>=3.19,<4`, `google-genai>=2.25,<3` (import leniwy). Nowa trasa Celery:
+`apps.ai_grading.tasks.scan_ai_test_work` → kolejka `scan`.
 
 ## v0.34.0 – 2026-09-24
 
@@ -295,7 +364,7 @@ człowiek; sugestia jest niewiążąca.
 
 | Wersja | Data | Zmiana |
 |---|---|---|
-| **v0.35.0** | 2026-09-24 | **dowolne wartości ocen i różne maksima zadań** (prośby organizatora z 24.09.2026; pełny opis w sekcji „v0.35.0 – 2026-09-24” wyżej): przełącznik etapu „tylko wartości ze skali” / „dowolna wartość od min do max (co 0,01)” na ekranie skali (domyślnie – także dla nowych etapów – tryb skali; powrót odmawiany `409 FREE_VALUES_IN_USE` przy ocenach spoza skali albo zadaniach z samym maksimum); jedna reguła oceny `competitions.scoring.ScoreRule` dla recenzji, korekt, moderacji, reklamacji, rozmów, rubryki i API (przecinek normalizowany, trzecie miejsce po przecinku = `SCORE_INVALID`); zadanie z samym maksimum (np. 12,5) i maksima w liście zadań, u recenzenta i w nagłówkach tabel wyników; kolumny punktów `numeric(p,2)` (migracje `competitions.0032`, `grading.0011`, `appeals.0003`, `OPERACJE.md` § 18); sumy w `Decimal`, suma ważona połówka w górę do 0,01 (tryb dowolny) albo do pełnego punktu (tryb skali); filtr `points` („5”, „4,25”), CSV z kropką, JSON/API jako liczby (`API.md` § 6.2) |
+| **v0.35.0** | 2026-09-24 | **wydanie zbiorcze z 24.09.2026** (pełny opis w sekcji „v0.35.0 – 2026-09-24” wyżej): **dowolne wartości ocen i różne maksima zadań** – przełącznik etapu „tylko wartości ze skali” / „dowolna wartość od min do max (co 0,01)” na ekranie skali (domyślnie – także dla nowych etapów – tryb skali; powrót odmawiany `409 FREE_VALUES_IN_USE` przy ocenach spoza skali albo zadaniach z samym maksimum); jedna reguła oceny `competitions.scoring.ScoreRule` dla recenzji, korekt, moderacji, reklamacji, rozmów, rubryki i API (przecinek normalizowany, trzecie miejsce po przecinku = `SCORE_INVALID`); zadanie z samym maksimum (np. 12,5) i maksima w liście zadań, u recenzenta i w nagłówkach tabel wyników; kolumny punktów `numeric(p,2)` (migracje `competitions.0032`, `grading.0011`, `appeals.0003`, `OPERACJE.md` § 18); sumy w `Decimal`, suma ważona połówka w górę do 0,01 (tryb dowolny) albo do pełnego punktu (tryb skali); filtr `points` („5”, „4,25”), CSV z kropką, JSON/API jako liczby (`API.md` § 6.2); **inni dostawcy AI** (flaga `ai_grading`): OpenAI (Responses API), Google (`google-genai`) i Meta (Meta Model API przez SDK OpenAI) obok Anthropic, wybór dostawcy i modelu przy zleceniu i porównanie kilku modeli na tej samej pracy (osobne panele u recenzenta), klucz i potwierdzenie umowy powierzenia per dostawca (`AiProviderAccount`; bez potwierdzenia brak prac uczestników; komenda `confirm_ai_provider_dpa`, `OPERACJE.md` § 17.6), tryb testowy z pracą testową koordynatora dla każdego dostawcy z kluczem, tabela cen per model (`AI_PRICE_UNKNOWN` przy limicie), rejestr czynności 1.8, migracja `ai_grading.0002_providers`, zależności `openai>=3.19,<4` i `google-genai>=2.25,<3`; propozycja punktów każdego dostawcy przycinana do maksimum z `ScoreRule` |
 | **v0.34.0** | 2026-09-24 | **wydanie zbiorcze z 24.09.2026** (pełny opis w sekcji „v0.34.0 – 2026-09-24” wyżej): **listy koordynatora** – konta usunięte schowane domyślnie za przyciskiem „Pokaż usunięte konta (N)” na każdej liście osób (także przyjazdy i obecność na etapie stacjonarnym), „Konto usunięte” zamiast `deleted-…@invalid`, sortowanie kolumn listy kont i uczestników; **usunięcie konta** czyści też adres rodzica, adres opiekuna szkolnego, placówkę i dane szczególne logistyki – usunięty uczeń znika z panelu „Moi uczniowie” (migracja danych `accounts.0034`); **wysyłka komunikatów do grup** (wszyscy uczestnicy, bez pracy w etapie, województwo/region, szkoła, klasa, obecni na warsztacie, opiekunowie; domyślnie bieżąca edycja; podpis podglądu; `accounts.0033`); za flagami **domyślnie wyłączonymi**: **zaświadczenie o statusie ucznia** (`student_status_certificate`, filtr paczek ZIP „tylko z potwierdzonym statusem”; `OPERACJE.md` § 15), **materiały z warsztatów** (`workshop_materials`, filmy i pliki dla zalogowanych, wgrywanie częściami prosto do MinIO; § 16) i **ocena AI** (`ai_grading`, sugestia punktów Claude'a dla komitetu, przełącznik etapu „Pokaż uczestnikom ocenę AI” domyślnie wyłączony, zależność `anthropic`; § 17); rejestr czynności **1.7** z trzema wierszami warunkowymi |
 | **v0.33.0** | 2026-09-23 | **plakaty zgrupowane w karty** (prośba organizatora z 23.09.2026: „jedna karta na format, kilka przycisków” zamiast osobnej karty na każdy plik „A3 (JPG)”, „A3 (PDF)”, „A3 (PDF ze spadem 3 mm)”…): `PromoMaterial` dostaje dwa pola (migracja `promo.0002_group_variant_label`) – **`group`** („Karta (grupa plików)”, np. „A3 · 297×420 mm”: pliki jednego konkursu z identyczną, niepustą grupą stają na `/plakaty/` na **jednej karcie** – nagłówek to grupa, podgląd to pierwszy podgląd w grupie, opis pierwszy niepusty, pod spodem przycisk na każdy plik w kolejności koordynatora; karta stoi tam, gdzie jej pierwszy plik) i **`variant_label`** („Napis na przycisku”, np. „PDF ze spadem 3 mm”; puste = sam format JPG/PNG/PDF). Przycisk „Pobierz JPG · 1,7 MB” prowadzi do **własnego** adresu pobrania pliku, więc liczenie pobrań, limit, pseudonim IP i statystyki zostają per plik; nazwa dostępna przycisku niesie grupę („Pobierz A3 · 297×420 mm – PDF ze spadem 3 mm”). Plik bez grupy wygląda jak dotąd. Karty składa Python z tej samej jednej listy (`apps.promo.cards.build_cards`) – liczba zapytań `/plakaty/` bez zmian (test). Ekran koordynatora: oba pola w formularzu (z podpowiedzią `<datalist>` grup tego konkursu), linia „Karta: … · przycisk „…”” pod tytułem w tabeli, dwie nowe kolumny w eksporcie CSV („karta (grupa)”, „przycisk”); podręcznik organizatora § 4.10 |
 | **v0.32.0** | 2026-09-23 | **plakaty do pobrania** (prośba organizatora z 23.09.2026): nowa aplikacja `apps.promo` (modele `PromoMaterial` i `PromoDownload`, migracja promo.0001), strona publiczna **`/plakaty/`** (siatka kart: podgląd, tytuł, opis, format i rozmiar, „Pobierz”; 404, gdy konkurs nie ma opublikowanych plakatów; na allow-liście pamięci stron, unieważnianej przy każdym zapisie plakatu) i pobranie `/plakaty/<id>/pobierz/` (plik z prywatnego storage jako załącznik przez aplikację, `Cache-Control: no-store`, nigdy w pamięci stron); plik PDF/JPG/PNG do 50 MB rozpoznawany **po treści** (sygnatury `%PDF-`, `FF D8 FF`, PNG), miniatura JPG/PNG robiona automatycznie (Pillow), dla PDF-a opcjonalny własny podgląd albo ikona; odnośnik „Plakaty do pobrania” w stopce każdej strony i przycisk w panelu opiekuna szkolnego – tylko gdy jest opublikowany plakat (flaga w Redisie, unieważniana przy zapisie; budżety zapytań `/`, `/me/`, `/coordinator/` +1 na zimno, na ciepło zero). Ekran koordynatora **`/coordinator/posters/`** (Ustawienia → Plakaty do pobrania): dodanie, edycja, publikacja, kolejność, usunięcie (plakat z pobraniami trafia do archiwum ze statystykami), eksport CSV, audyt `promo.*`; statystyki **podwójne** – pobrania i **unikalne adresy IP** w oknach 7 dni / 30 dni / od początku (unikalność w całym oknie i w sumie między plakatami), kafelki, wykres dzienny obu szeregów (CSS, bez JS), eksport z tymi samymi kolumnami. Nie liczymy robotów, podglądów linków, `HEAD` ani koordynatora; podwójne kliknięcie (ten sam plakat i adres w 10 s) to jedno pobranie, a pobieranie ma limit 30/min na adres IP (scope `poster_download`, 429 bez zapisu pobrania); `HEAD` na plik brakujący w storage daje 404 jak `GET`. Adresu IP nie zapisujemy: zostaje **pseudonim** HMAC-SHA256 z kluczem z `SECRET_KEY`, zerowany po 12 miesiącach nowym zadaniem beat `promo-clear-expired-ip-hashes`; rejestr czynności przetwarzania 1.6 – nowa czynność „Statystyka pobrań materiałów promocyjnych” (art. 6 ust. 1 lit. f) |

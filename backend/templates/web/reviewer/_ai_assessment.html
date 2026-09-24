@@ -1,8 +1,11 @@
 {% load i18n web_extras %}
 {% comment %}
-  Panel „Ocena AI (sugestia, niewiążąca)” przy pracy w panelu recenzenta.
+  Panele „Ocena AI – <dostawca> <model> (sugestia, niewiążąca)” przy pracy w panelu recenzenta –
+  po jednym na każdą gotową ocenę tej wersji pracy (kilku dostawców albo modeli), najnowszy
+  pierwszy. Nazwa dostawcy i modelu stoi w nagłówku, bo recenzent ma wiedzieć, **czyja** to
+  propozycja – modele różnią się jakością, a porównanie dwóch sugestii ma sens tylko podpisane.
 
-  Zwinięty ``<details>`` z tego samego powodu, co wzorcówka nad nim: recenzent ma najpierw
+  Zwinięte ``<details>`` z tego samego powodu, co wzorcówka nad nimi: recenzent ma najpierw
   przeczytać pracę, a dopiero potem porównać swoje zdanie z sugestią – otwarta na starcie
   propozycja punktów ustawiałaby mu kotwicę, zanim zajrzy do rozwiązania.
 
@@ -13,23 +16,28 @@
   wcale: sugestia dzieli rozwiązanie po swojemu, a nie według kryteriów komitetu.
 
   W panelu nie ma niczego, co identyfikuje autora pracy – odpowiedź modelu przeszła przez
-  wymazanie danych osobowych uczestnika (``apps.ai_grading.prompt.redact``).
+  wymazanie danych osobowych uczestnika (``apps.ai_grading.prompt.redact``). Ocen prac testowych
+  koordynatora tu nie ma nigdy (nie mają pracy uczestnika).
 {% endcomment %}
+{% for panel in ai.panels %}
 <details class="card card--quiet ai-assessment">
-  <summary><strong>{% translate "Ocena AI (sugestia, niewiążąca)" %}</strong>
-    – {% blocktranslate trimmed with points=ai.assessment.proposed_points|points maximum=ai.assessment.max_points|points %}
+  <summary><strong>{% blocktranslate trimmed with provider=panel.provider_label model=panel.assessment.requested_model %}
+      Ocena AI – {{ provider }} {{ model }} (sugestia, niewiążąca)
+    {% endblocktranslate %}</strong>
+    – {% blocktranslate trimmed with points=panel.assessment.proposed_points|points maximum=panel.assessment.max_points|points %}
       {{ points }} z {{ maximum }} pkt
     {% endblocktranslate %}</summary>
-  <p class="hint">{% blocktranslate trimmed with model=ai.assessment.model when=ai.assessment.finished_at|local_datetime confidence=ai.assessment.get_confidence_display %}
+  <p class="hint">{% blocktranslate trimmed with model=panel.assessment.model when=panel.assessment.finished_at|local_datetime confidence=panel.assessment.get_confidence_display %}
     Model {{ model }}, wygenerowano {{ when }}. Pewność modelu: {{ confidence }}.
   {% endblocktranslate %}</p>
   <p class="hint">{% translate "To jest propozycja modelu językowego, a nie ocena komitetu. Punkty wystawiasz Ty – sprawdź każde twierdzenie w pracy, zanim się na nie powołasz." %}</p>
-  {% include "web/_ai_assessment_body.html" with assessment=ai.assessment %}
-  {% if ai.prefill_value is not None %}
+  {% include "web/_ai_assessment_body.html" with assessment=panel.assessment %}
+  {% if panel.prefill_value is not None %}
     <p><button type="button" class="btn btn--secondary btn--small" hidden
-               data-ai-prefill="{{ ai.prefill_value|points_input }}"
-               data-ai-target="review-form">{% blocktranslate trimmed with value=ai.prefill_value|points %}
+               data-ai-prefill="{{ panel.prefill_value|points_input }}"
+               data-ai-target="review-form">{% blocktranslate trimmed with value=panel.prefill_value|points %}
       Wstaw punkty AI jako punkt wyjścia ({{ value }} pkt)
     {% endblocktranslate %}</button></p>
   {% endif %}
 </details>
+{% endfor %}

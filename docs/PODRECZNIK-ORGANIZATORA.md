@@ -680,126 +680,197 @@ Każda zmiana zostawia wpis w audycie (`workshop_material.created`, `.upload_sta
 z numerem materiału, rodzajem, formatem i rozmiarem — bez tytułu, opisu i nazwy pliku.
 ### 4.12 Ocena AI — `/coordinator/ai-grading/`
 
-Prośba organizatora z 24.09.2026. Claude (model językowy firmy Anthropic) czyta pracę uczestnika obok
-treści zadania, rozwiązania wzorcowego, skali, rubryki i uwag dla recenzentów, a potem proponuje
-punkty z krótkim uzasadnieniem. **To jest sugestia dla recenzenta, a nie ocena**: sama nigdy nie trafia
-do punktacji, do tabeli wyników ani do dyplomu. Ocenę wystawia człowiek, tak jak dotąd.
+Prośby organizatora z 24.09.2026. Model językowy wybranego dostawcy — **Anthropic** (Claude),
+**OpenAI** (GPT), **Google** (Gemini) albo **Meta** (Muse Spark) — czyta pracę uczestnika obok treści
+zadania, rozwiązania wzorcowego, skali, rubryki i uwag dla recenzentów, a potem proponuje punkty
+z krótkim uzasadnieniem. **To jest sugestia dla recenzenta, a nie ocena**: sama nigdy nie trafia do
+punktacji, do tabeli wyników ani do dyplomu. Ocenę wystawia człowiek, tak jak dotąd.
 
 **Kiedy ekran istnieje.** Funkcja jest za przełącznikiem konkursu `ai_grading`, **domyślnie wyłączonym**
 — bez niego adresu nie ma (404), w menu nie ma pozycji „Ocena AI”, a karty zadań, panel recenzenta
-i panel uczestnika wyglądają jak dotąd. Przełącznik zapala operator platformy (`OPERACJE.md` § 6.4),
-i to **dopiero po** spełnieniu warunków prawnych z ramki „Zanim włączysz” niżej.
+i panel uczestnika wyglądają jak dotąd. Przełącznik zapala operator platformy (`OPERACJE.md` § 6.4).
+Wszyscy czterej dostawcy są dostępni od razu (o ile serwer ma ich pakiety SDK); żaden dostawca nie
+dostaje jednak **ani jednej pracy uczestnika**, dopóki nie ma **klucza API** i **potwierdzonej umowy
+powierzenia** (niżej).
 
-> **Zanim włączysz — warunki prawne (do rozstrzygnięcia przez organizatora, nie przez system).**
-> Włączenie znaczy, że prace uczestników — w większości osób niepełnoletnich — wychodzą do **podmiotu
-> przetwarzającego spoza organizatora** (Anthropic PBC, USA). Potrzebne są:
+> **Zanim potwierdzisz umowę z dostawcą — warunki prawne (do rozstrzygnięcia przez organizatora, nie
+> przez system).** Każdy dostawca to **osobny podmiot przetwarzający**, a prace uczestników — w
+> większości osób niepełnoletnich — trafiają do niego i (w całości albo częściowo) poza EOG.
+> Potwierdzenie w panelu jest oświadczeniem organizatora, że dla **tego** dostawcy:
 >
-> 1. **umowa powierzenia (DPA)** z Anthropic — jest częścią warunków komercyjnych Anthropic (Commercial
->    Terms z Data Processing Addendum), przyjmowanych przy zakładaniu organizacji i klucza w konsoli
->    Anthropic; organizacja ma być założona **przez organizatora**, a nie prywatnie przez koordynatora,
-> 2. **podstawa przekazania do państwa trzeciego** (rozdział V RODO) — mechanizm wskazany w DPA
->    (standardowe klauzule umowne); do sprawdzenia przez organizatora,
-> 3. **aktualizacja polityki prywatności** (art. 13 RODO): nowy odbiorca (Anthropic), cel pomocniczy
->    (sugestia oceny dla komitetu), przekazanie poza EOG i informacja, że decyzja o ocenie **nie**
->    zapada w sposób zautomatyzowany (art. 22) — ocenia człowiek,
-> 4. **aktualizacja regulaminu**: komitet może korzystać z narzędzia AI jako pomocy przy ocenianiu;
->    wiążąca jest wyłącznie ocena członków komitetu; reklamacja dotyczy oceny oficjalnej; prośba, żeby
->    **nie podpisywać prac** imieniem i nazwiskiem (plik idzie do dostawcy taki, jaki wgrał uczestnik),
-> 5. potwierdzenie **podstawy prawnej** — rejestr czynności proponuje prawnie uzasadniony interes
->    (art. 6 ust. 1 lit. f), a to administrator ma ją zatwierdzić (albo wybrać inną) po teście
->    równowagi interesów, także z uwagi na wiek uczestników,
-> 6. sprawdzenie **okresu przechowywania danych po stronie Anthropic** (dane wejściowe i wyjściowe API)
->    i ewentualnie wniosku o brak retencji (*zero data retention*).
+> 1. zawarta jest **umowa powierzenia (DPA)** — z organizacji/konta założonego **przez organizatora**,
+>    a nie prywatnie przez koordynatora,
+> 2. jest **podstawa przekazania poza EOG** (rozdział V RODO) — mechanizm wskazany w DPA (standardowe
+>    klauzule umowne albo decyzja stwierdzająca odpowiedni stopień ochrony),
+> 3. sprawdzony jest **okres przechowywania** danych wejściowych i wyjściowych API u dostawcy (także na
+>    potrzeby wykrywania nadużyć) i to, że dostawca **nie uczy modeli** na danych z API; w razie
+>    potrzeby — złożony wniosek o **brak retencji** (*zero data retention*),
+> 4. **polityka prywatności** (art. 13 RODO) wymienia tego dostawcę jako odbiorcę, cel pomocniczy
+>    (sugestia oceny dla komitetu), przekazanie poza EOG i to, że decyzja o ocenie **nie** zapada w
+>    sposób zautomatyzowany (art. 22) — ocenia człowiek,
+> 5. **regulamin** mówi, że komitet może korzystać z narzędzi AI jako pomocy przy ocenianiu, wiążąca
+>    jest wyłącznie ocena komitetu, reklamacja dotyczy oceny oficjalnej, i prosi, żeby **nie podpisywać
+>    prac** imieniem i nazwiskiem (plik idzie do dostawcy taki, jaki wgrał uczestnik),
+> 6. potwierdzona jest **podstawa prawna** — rejestr czynności proponuje prawnie uzasadniony interes
+>    (art. 6 ust. 1 lit. f); administrator ma ją zatwierdzić (albo wybrać inną) po teście równowagi
+>    interesów, także z uwagi na wiek uczestników,
+> 7. warunki dostawcy **dopuszczają** takie użycie (niżej: ograniczenia wieku u Google i Mety).
 >
-> Rejestr czynności przetwarzania dostaje przy włączonej fladze nowy wiersz „Pomocnicza ocena prac
-> uczestników przez model językowy” (wersja rejestru 1.7, § 9.2).
+> Co sprawdzić u poszczególnych dostawców (stan stron z 24.09.2026 — **pozycje do weryfikacji przez
+> organizatora/IOD**, nie rozstrzygnięcia systemu):
+>
+> | Dostawca | Umowa i DPA | Retencja i trenowanie | Do sprawdzenia szczególnie |
+> |---|---|---|---|
+> | **Anthropic** | [Commercial Terms](https://www.anthropic.com/legal/commercial-terms) włączają [DPA](https://www.anthropic.com/legal/data-processing-addendum) | wg [centrum prywatności](https://privacy.claude.com/en/articles/7996866-how-long-do-you-store-my-organization-s-data) wejścia i wyjścia API kasowane do 30 dni (dłużej przy naruszeniu zasad — do 2 lat); Commercial Terms: bez trenowania na treściach klienta; brak retencji — po osobnym uzgodnieniu | umowa zawarta na organizację organizatora |
+> | **OpenAI** | [Services Agreement](https://cdn.openai.com/osa/openai-services-agreement.pdf) i [DPA](https://cdn.openai.com/pdf/openai-data-processing-addendum.pdf) (klienci z EOG — OpenAI Ireland Ltd.; przekazanie: SCC albo decyzja o adekwatności); [podwykonawcy](https://openai.com/policies/sub-processor-list/) | [Your data](https://developers.openai.com/api/docs/guides/your-data): dane API nie służą do trenowania (bez zgody), logi nadużyć do 30 dni; brak retencji (ZDR) i przetwarzanie w EOG (`eu.api.openai.com`) — po zgodzie OpenAI | serwis wysyła `store: false`; pliki i obrazy są skanowane pod kątem CSAM (oznaczone zostają mimo ZDR); regionalne przetwarzanie +10% ceny |
+> | **Google** | [Gemini API Additional Terms](https://ai.google.dev/gemini-api/terms) + [Cloud Data Processing Addendum](https://business.safety.google/processorterms/) (obejmuje „Gemini API Paid Services” — [lista](https://business.safety.google/services/)) | [zasady użycia](https://ai.google.dev/gemini-api/docs/usage-policies): prompty i odpowiedzi przechowywane 55 dni na potrzeby wykrywania nadużyć; [brak retencji](https://ai.google.dev/gemini-api/docs/zdr) w Gemini API ograniczony (pełny — Vertex AI); dla użytkowników z EOG obowiązują warunki danych warstwy płatnej | **warunki Gemini API wymagają ukończonych 18 lat i zakazują usług „skierowanych do” osób poniżej 18 lat** — do oceny prawnika (konto i użytkownicy narzędzia to dorośli z komitetu, ale serwis jest dla uczniów); Polska na [liście regionów](https://ai.google.dev/gemini-api/docs/available-regions) |
+> | **Meta** | [Meta Model API Terms](https://dev.meta.ai/legal/terms-of-service) (EOG — Meta Platforms Ireland Ltd.) włączają [Meta Global Processor Terms](https://www.facebook.com/legal/terms/Meta-Global-Processor-Terms) i [Data Security Terms](https://www.facebook.com/legal/terms/data_security_terms) | warstwa standardowa: Meta jako podmiot przetwarzający, bez trenowania; retencja „tyle, ile potrzeba” (bez okresu); [brak retencji](https://dev.meta.ai/help/policies-and-privacy/zero-data-retention) tylko dla kwalifikowanych kont, a treści oznaczone jako naruszenie do 2 lat | **§ 10.1 warunków: użytkownicy końcowi 18+ i zakaz produktów kierowanych do osób poniżej 18 lat** — do oceny prawnika; usługa w wersji zapoznawczej; [polityka geograficzna](https://dev.meta.ai/legal/geographic-use-policy) nie publikuje listy krajów — dostępność w Polsce sprawdzić kluczem; warstwę `-contributor` (Meta może uczyć na danych) serwis odrzuca |
+>
+> Dawne **Llama API** Mety (`api.llama.com`) zostało wyłączone 6.07.2026 — dostawca „Meta” w serwisie
+> to jego następca, **Meta Model API** (modele Muse Spark), a nie modele Llama.
+>
+> Rejestr czynności przetwarzania (wersja **1.8**, § 9.2) wymienia w wierszu „Pomocnicza ocena prac
+> uczestników przez model językowy” jako odbiorców **wyłącznie** dostawców, którzy mają w tym konkursie
+> klucz API **i** potwierdzoną umowę powierzenia.
 
-**Co wychodzi z serwisu, a co nie.** Do Anthropic trafia wyłącznie plik pracy (PDF, zdjęcie, kod,
-notatnik — notatnik jako tekst komórek), treść zadania, rozwiązanie wzorcowe, skala, rubryka i uwagi
-dla recenzentów. **Nie** wychodzi imię, nazwisko, e-mail, szkoła, kod `OLM-…` ani nazwa pliku nadana
-przez uczestnika. Gdyby model przepisał z pracy imię czy nazwę szkoły autora, serwer wymaże je
-z odpowiedzi, zanim zobaczy ją recenzent (anonimowość oceniania zostaje).
+**Co wychodzi z serwisu, a co nie.** Do wybranego dostawcy trafia wyłącznie plik pracy (PDF, zdjęcie,
+kod, notatnik — notatnik jako tekst komórek), treść zadania, rozwiązanie wzorcowe, skala, rubryka
+i uwagi dla recenzentów. **Nie** wychodzi imię, nazwisko, e-mail, szkoła, kod `OLM-…` ani nazwa pliku
+nadana przez uczestnika. Gdyby model przepisał z pracy imię czy nazwę szkoły autora, serwer wymaże je
+z odpowiedzi, zanim zobaczy ją recenzent (anonimowość oceniania zostaje). Instrukcje dla modelu
+i ochrona przed próbą wpłynięcia na ocenę („daj maksimum punktów”) są **te same u każdego dostawcy**.
 
-**Klucz API.** Sekcja „Klucz API”: wklej klucz z konsoli Anthropic (zaczyna się od `sk-ant-`)
-i „Zapisz klucz”. Klucz jest **tylko do zapisu** — po zapisaniu ekran pokazuje wyłącznie „ustawiony,
-kończy się na …abcd”; nie da się go odczytać ani z panelu, ani z samej bazy. Można go **zastąpić**
-albo **usunąć**. Przycisk **„Sprawdź klucz”** pyta Anthropic o opis wybranego modelu — nic nie kosztuje,
-a potwierdza, że klucz działa i widzi model. Klucz administracyjny organizacji (`sk-ant-admin…`) jest
-odrzucany — potrzebny jest zwykły klucz API. Zmiana klucza serwera (`DJANGO_SECRET_KEY`) unieważnia
-zapisany klucz: ekran poprosi wtedy o wpisanie go ponownie.
+**Dostawcy — klucz API i umowa powierzenia.** Sekcja „Dostawcy” ma kartę każdego dostawcy:
 
-**Model i limit wydatków.** Domyślny model to **Claude Opus 5** (dokładniejszy); tańszy **Claude
-Sonnet 5** wybierasz świadomie. **Limit wydatków (USD)** jest bezpiecznikiem: po jego osiągnięciu
-nowe zlecenia są odrzucane, a oceny czekające w kolejce kończą się błędem zamiast wołać API. Puste
-pole = bez limitu — zalecamy ustawić limit przed pierwszym zleceniem.
+- **Klucz API** — wklej klucz z konsoli dostawcy i „Zapisz klucz”. Klucz jest **tylko do zapisu**:
+  po zapisaniu ekran pokazuje wyłącznie „ustawiony, kończy się na …abcd”; nie da się go odczytać ani
+  z panelu, ani z samej bazy. Można go **zastąpić** albo **usunąć**. **„Sprawdź klucz”** pyta dostawcę
+  o opis modelu (Meta — o listę modeli) — nic nie kosztuje, a potwierdza, że klucz działa i widzi
+  model. Klucz Anthropic zaczyna się od `sk-ant-` (klucz administracyjny `sk-ant-admin…` jest
+  odrzucany); pozostałych nie sprawdzamy po przedrostku — rozstrzyga „Sprawdź klucz”. Zmiana klucza
+  serwera (`DJANGO_SECRET_KEY`) unieważnia zapisane klucze: ekran poprosi o wpisanie ich ponownie.
+- **„Potwierdzam zawarcie umowy powierzenia (DPA) z <dostawca>”** — pole z datą i uwagą (np. „umowa
+  z 1.09.2026, podpisana elektronicznie”). Ekran pokazuje, **kto i kiedy** potwierdził; to samo trafia
+  do dziennika zdarzeń. Potwierdzenie można **wycofać** — prace czekające w kolejce do tego dostawcy
+  skończą się wtedy błędem, **zanim** zostaną wysłane. Operator może wpisać potwierdzenie komendą
+  (`OPERACJE.md` § 17.6), gdy organizator oświadczył je inną drogą.
+- Plakietka przy dostawcy: **gotowy do ocen prac** (klucz + umowa), **tylko prace testowe** (klucz, bez
+  umowy), **brak klucza**, **niedostępny** (serwer nie ma pakietu SDK — sprawa dla operatora).
 
-**Koszt.** Sekcja „Zużycie” pokazuje łączny **szacowany** koszt, liczbę wywołań i tokeny. Stawki
-użyte w szacunkach (24.09.2026): Opus 5 — 5 USD za milion tokenów wejścia i 25 USD za milion tokenów
-wyjścia; Sonnet 5 — 2 i 10 USD; materiały zadania czytane z pamięci podręcznej kosztują ok. 0,1
-stawki wejścia (dlatego seria prac jednego zadania jest tańsza niż prace zlecane pojedynczo, z dużymi
-odstępami). Rząd wielkości: kilkustronicowa praca to zwykle kilka–kilkanaście centów na Opusie.
-Rozliczenie wystawia Anthropic — jego faktura jest prawdą, a liczby w panelu są szacunkiem.
+**Dostawca i model domyślny.** Sekcja „Dostawca i model domyślny” — lista modeli każdego dostawcy
+(stan z 24.09.2026) i pole **„Inny identyfikator modelu”** z wyborem dostawcy: identyfikatory modeli
+zmieniają się szybciej niż wydania serwisu, więc nowy model wpisuje się z dokumentacji dostawcy.
+Domyślny jest wyłącznie **wstępnie zaznaczony** przy zleceniu. Modele z listy:
+
+| Dostawca | Modele (pierwszy — domyślny) |
+|---|---|
+| Anthropic | `claude-opus-5` (dokładniejszy), `claude-sonnet-5` (tańszy) |
+| OpenAI | `gpt-6-astra` (najdokładniejszy), `gpt-6-sol`, `gpt-6-luna` (najtańszy) |
+| Google | `gemini-3.8-flash` (stabilny), `gemini-3.1-pro-preview` (wersja zapoznawcza), `gemini-3.5-flash-lite` (najtańszy) |
+| Meta | `muse-spark-1.3`, `muse-spark-1.2` (ta sama cena; tańszej warstwy standardowej nie ma) |
+
+Ograniczenia plików zależą od dostawcy i są sprawdzane **przed** wysyłką (praca nie jest obcinana —
+dostaje błąd z nazwą limitu): Anthropic — 32 MB żądania, 600 stron PDF, zdjęcie do 5 MB; OpenAI —
+pliki żądania razem do 50 MB; Google — **20 MB** całego żądania, 1000 stron; Meta — pliki do 50 MB,
+**PDF najwyżej 50 stron** (dłuższy Meta czytałaby tylko częściowo, więc go odrzucamy).
+
+**Ceny modeli i limit wydatków.** Tabela **„Ceny modeli”** ma stawki w USD za milion tokenów wejścia
+i wyjścia, wypełnione z cenników dostawców z 24.09.2026 i **do poprawienia** przez koordynatora (np.
+stawki `gemini-3.8-flash` rosną 1.01.2027). Ostatni wiersz dodaje cenę modelu spoza listy. Pusta cena
+znaczy **koszt nieznany**: taki model liczy się wyłącznie w tokenach, ekran pisze „koszt nieznany”,
+a sekcja „Zużycie” pokazuje liczbę wywołań bez ceny. **Limit wydatków (USD)** jest bezpiecznikiem: po
+jego osiągnięciu nowe zlecenia są odrzucane, a oceny czekające w kolejce kończą się błędem zamiast
+wołać API. Limit liczy tylko to, co ma cenę — dlatego **przy ustawionym limicie model bez ceny jest
+niedostępny** (wpisz jego cenę albo zdejmij limit). Zalecamy ustawić limit przed pierwszym zleceniem.
+Rozliczenie wystawia dostawca — jego faktura jest prawdą, a liczby w panelu są szacunkiem.
 
 **Zlecenie.** Na **karcie zadania** (`/coordinator/problems/<id>/`) jest sekcja **„Ocena AI”**:
 
-- **„Wygeneruj ocenę AI”** — dla wszystkich najnowszych wersji prac zadania, które nie mają jeszcze
-  oceny AI; zaznacz **„wygeneruj ponownie także istniejące”**, żeby zastąpić gotowe,
-- przycisk **„Wygeneruj”** / **„Wygeneruj ponownie”** przy wierszu — dla jednej pracy.
+- **„Wygeneruj ocenę AI”** z wyborem **dostawcy i modelu** (lista zawiera wyłącznie dostawców z kluczem
+  i potwierdzoną umową) — dla wszystkich najnowszych wersji prac zadania, które nie mają jeszcze oceny
+  **tym modelem**; zaznacz **„wygeneruj ponownie także istniejące”**, żeby zastąpić gotowe,
+- przycisk przy wierszu — dla jednej pracy.
 
-Pierwsze kliknięcie pokazuje **podgląd**: liczbę prac, model i **szacowany koszt**, a także ile prac
-pominięto (już mają ocenę, są w toku, nie mają pliku po skanie antywirusowym) i ostrzeżenie, gdy
+Pierwsze kliknięcie pokazuje **podgląd**: liczbę prac, dostawcę i model (do zmiany: „Przelicz
+podgląd”), **szacowany koszt** (albo „nieznany” z liczbą tokenów), pominięte prace i ostrzeżenie, gdy
 zadanie nie ma rozwiązania wzorcowego. Dopiero **„Zleć ocenę AI (N)”** wydaje pieniądze. Podwójne
-kliknięcie nie płaci dwa razy — prace w toku są pomijane.
+kliknięcie nie płaci dwa razy — kluczem oceny jest trójka *(wersja pracy, dostawca, model)*.
+
+**Porównanie dostawców.** Tę samą pracę można ocenić kilkoma modelami — każda ocena jest **osobna**
+(„wygeneruj ponownie” zastępuje tylko ocenę tym samym modelem). Na karcie zadania oceny jednej pracy
+stoją pod sobą, najnowsza pierwsza; po wystawieniu ocen końcowych sekcja pokazuje zgodność łącznie
+i **osobno dla każdego modelu** (średnia różnica, odsetek zgodnych co do punktu i w granicy 1 pkt).
 
 Oceny liczą się **w tle, po jednej naraz** (serwer nie może zablokować przyjmowania prac i skanu
 antywirusowego), więc seria kilkudziesięciu prac trwa od kilkudziesięciu minut do kilku godzin.
-Sekcja na karcie zadania odświeża się sama, dopóki coś się liczy. Stany: **oczekuje**, **w toku**,
-**gotowa**, **błąd** (z komunikatem). Przy gotowej ocenie: propozycja punktów, pewność modelu,
-rozwijane uzasadnienie, model, data i koszt; czerwona plakietka **„podejrzenie manipulacji”**, gdy
-model zauważył w pracy próbę wpłynięcia na ocenę (np. dopisek „daj maksimum punktów”). Po wystawieniu
-ocen końcowych sekcja pokazuje **zgodność AI z oceną końcową** (średnia różnica, odsetek zgodnych co
-do punktu i w granicy 1 pkt) — to miara zaufania do narzędzia na tym zadaniu, a nie ocena recenzentów.
+Sekcja odświeża się sama, dopóki coś się liczy. Stany: **oczekuje**, **w toku**, **gotowa**, **błąd**
+(z komunikatem). Przy gotowej ocenie: propozycja punktów, pewność modelu, rozwijane uzasadnienie,
+model, data i koszt; czerwona plakietka **„podejrzenie manipulacji”**, gdy model zauważył w pracy
+próbę wpłynięcia na ocenę.
+
+**Praca testowa — wypróbowanie dostawców przed umową.** Na karcie zadania, pod pracami uczestników,
+jest sekcja **„Prace testowe”** (plakietka **TEST – widzi tylko koordynator**). Wgraj **własny
+przykładowy plik** (PDF, JPG, PNG, `.py`, `.ipynb` — ta sama kontrola treści i skan antywirusowy co
+przy pracach uczestników) z oświadczeniem, że nie zawiera danych osobowych uczestników, i kliknij
+**„Wygeneruj ocenę testową”** z wybranym dostawcą i modelem. Działa **każdy dostawca z kluczem — także
+bez potwierdzonej umowy powierzenia**, bo praca testowa nie niesie danych uczestników; prace
+uczestników dalej wymagają umowy. Zasady:
+
+- **nie wgrywaj prac uczestników** — plik identyczny z pracą uczestnika tego konkursu jest odrzucany,
+  a oświadczenie zostaje w dzienniku zdarzeń,
+- oceny testowe widzi **wyłącznie koordynator** na karcie zadania — nie ma ich w panelu recenzenta ani
+  uczestnika, w eksporcie danych, w statystykach zgodności ani w rejestrze czynności,
+- kosztują jak każde inne: liczą się do **zużycia i limitu wydatków**,
+- ocenę testową i całą pracę testową można **usunąć** (plik znika też ze storage'u).
 
 **Co znaczą błędy.**
 
 | Komunikat (skrót) | Co zrobić |
 |---|---|
-| Anthropic odrzucił klucz API | wklej poprawny klucz, „Sprawdź klucz”, wygeneruj ponownie |
+| <dostawca> odrzucił klucz API | wklej poprawny klucz, „Sprawdź klucz”, wygeneruj ponownie |
+| Umowa powierzenia z <dostawca> nie jest potwierdzona | potwierdź umowę w ustawieniach (po sprawdzeniu warunków) albo wybierz innego dostawcę |
+| Konto <dostawca> nie ma środków / przekroczyło limit u dostawcy | uzupełnij środki w konsoli dostawcy; serwis nie ponawia |
 | Przekroczono limit zapytań / serwery nie odpowiadają / brak połączenia | serwis sam ponawia kilka razy; gdy ocena skończy się błędem — wygeneruj ponownie później |
-| Model odmówił oceny (kategoria: …) | automatyczne przełączenie na model zastępczy też odmówiło — oceń bez sugestii AI |
+| Model odmówił oceny / zablokował ją filtr bezpieczeństwa (kategoria: …) | oceń bez sugestii AI albo innym dostawcą (Anthropic próbuje sam modelu zastępczego) |
 | Odpowiedź przekroczyła limit długości / nie pasuje do schematu | wygeneruj ponownie; gdy się powtarza — oceń bez sugestii |
-| Materiały przekraczają 32 MB / 600 stron, zdjęcie ponad 5 MB | to limity API — praca nie zostanie obcięta, oceń ją bez sugestii |
+| Materiały przekraczają limit <dostawca> (MB, strony, zdjęcie) | to limity dostawcy — praca nie zostanie obcięta; wybierz innego dostawcę albo oceń bez sugestii |
+| Model … nie ma ceny, a ustawiony jest limit wydatków | wpisz cenę modelu w tabeli cen albo zdejmij limit |
+| Dostawca niedostępny: brak pakietu na serwerze | sprawa dla operatora (`OPERACJE.md` § 17.2) |
 | Praca nie ma pliku po czystym skanie | poczekaj na skan antywirusowy |
 | Osiągnięto limit wydatków | podnieś albo zdejmij limit w ustawieniach |
 | Ocena została przerwana | serwer zrestartował się w trakcie; wygeneruj ponownie |
 
-**Recenzent** widzi gotową sugestię przy **tej wersji pracy, którą ma przydzieloną**, w zwiniętym
-panelu „Ocena AI (sugestia, niewiążąca)” z modelem i datą. Formularz oceny nie wypełnia się sam;
-przycisk „Wstaw punkty AI jako punkt wyjścia” jedynie zaznacza najbliższą wartość skali – a w etapie
-z dowolnymi wartościami ocen wpisuje do pola samą propozycję, przyciętą do zakresu zadania i sprowadzoną
-do 0,01 (przy zadaniu z rubryką przycisku nie ma). Szczegóły: `PODRECZNIK-RECENZENTA.md` § 3a.
+**Recenzent** widzi gotowe sugestie przy **tej wersji pracy, którą ma przydzieloną** — każdą
+w osobnym, zwiniętym panelu **„Ocena AI – <dostawca> <model> (sugestia, niewiążąca)”**, najnowszą
+pierwszą. Formularz oceny nie wypełnia się sam; przycisk „Wstaw punkty AI jako punkt wyjścia” jedynie
+zaznacza najbliższą wartość skali – a w etapie z dowolnymi wartościami ocen wpisuje do pola samą
+propozycję, przyciętą do zakresu zadania i sprowadzoną do 0,01 (tak samo dla każdego dostawcy; przy
+zadaniu z rubryką przycisku nie ma). Szczegóły: `PODRECZNIK-RECENZENTA.md` § 3a.
 
 **Uczestnicy — domyślnie nie widzą niczego.** Sekcja „Widoczność dla uczestników” ma przy każdym
 etapie bieżącej edycji przycisk **„Pokaż uczestnikom ocenę AI”** (domyślnie wyłączony). Po włączeniu
-uczestnik zobaczy na stronie informacji zwrotnej **podsumowanie i proponowane punkty** — dopiero po
-**ogłoszeniu wyników** etapu, w osobnej sekcji pod oficjalnymi ocenami, z podpisem „sugestia AI”.
-Listy błędów ani kryteriów uczestnik nie dostaje. Przy wyłączonym przełączniku uczestnik nie
-dowiaduje się z panelu, tabeli wyników, dyplomów ani reklamacji, że ocena AI powstała.
+uczestnik zobaczy na stronie informacji zwrotnej **podsumowanie i proponowane punkty najnowszej
+sugestii** (z nazwą dostawcy i modelu) — dopiero po **ogłoszeniu wyników** etapu, w osobnej sekcji
+pod oficjalnymi ocenami, z podpisem „sugestia AI”. Listy błędów ani kryteriów uczestnik nie dostaje.
+Przy wyłączonym przełączniku uczestnik nie dowiaduje się z panelu, tabeli wyników, dyplomów ani
+reklamacji, że ocena AI powstała.
 
 **Eksport danych uczestnika (art. 15/20 RODO).** Paczka `/account/export/` zawiera zawsze sekcję
-`oceny_ai` z **faktem** przekazania pracy do oceny AI: zadanie, wersja, data, model i odbiorca
-(Anthropic) — bo informacja o odbiorcach danych przysługuje osobie z art. 15 ust. 1 lit. c
-niezależnie od ustawień ekranu. **Treść** sugestii (punkty, podsumowanie) jest w paczce tylko wtedy,
-gdy uczestnik widzi ją też w panelu (przełącznik etapu + ogłoszone wyniki). Gdyby uczestnik zażądał
-formalnie dostępu do treści sugestii przed publikacją albo przy wyłączonym przełączniku, rozstrzyga
-administrator (IOD) — treść jest dostępna koordynatorowi na karcie zadania.
+`oceny_ai` z **faktem** przekazania pracy — **osobno dla każdego dostawcy**, do którego praca trafiła:
+zadanie, wersja, data, dostawca, model i odbiorca (pełna nazwa podmiotu przetwarzającego) — bo
+informacja o odbiorcach danych przysługuje osobie z art. 15 ust. 1 lit. c niezależnie od ustawień
+ekranu. **Treść** sugestii jest w paczce tylko wtedy, gdy uczestnik widzi ją też w panelu. Gdyby
+uczestnik zażądał formalnie dostępu do treści sugestii przed publikacją albo przy wyłączonym
+przełączniku, rozstrzyga administrator (IOD) — treść jest dostępna koordynatorowi na karcie zadania.
 
 **Usunięcie danych.** Anonimizacja konta uczestnika (na żądanie albo po upływie retencji edycji,
-§ 9.1) **kasuje** oceny AI jego prac — w przeciwieństwie do samej pracy i ocen komitetu nie są one
-dokumentacją zawodów. Liczniki kosztu w ustawieniach zostają.
+§ 9.1) **kasuje** oceny AI jego prac u wszystkich dostawców (po stronie serwisu) — w przeciwieństwie
+do samej pracy i ocen komitetu nie są one dokumentacją zawodów. Liczniki kosztu w ustawieniach zostają.
 
-**Audyt.** Zapis i usunięcie klucza (bez wartości), sprawdzenie klucza, zmiana modelu i limitu,
-zmiana widoczności etapu i każde zlecenie (z liczbą prac) zostawiają wpis `ai_grading.*`.
+**Audyt.** Zapis i usunięcie klucza (bez wartości, z nazwą dostawcy), sprawdzenie klucza,
+potwierdzenie i wycofanie umowy powierzenia (kto, kiedy, uwaga, panel czy komenda), zmiana dostawcy,
+modelu, cen i limitu, zmiana widoczności etapu, każde zlecenie (z dostawcą, modelem i liczbą prac)
+oraz wgranie, ocena i usunięcie pracy testowej zostawiają wpis `ai_grading.*`.
 
 ---
 
@@ -1298,8 +1369,11 @@ wiersze **warunkowe** — każdy stoi w rejestrze wyłącznie przy włączonej f
 **„Weryfikacja statusu ucznia (zaświadczenie ze szkoły)”** (flaga `student_status_certificate`,
 § 10a), **„Statystyka wyświetleń materiałów z warsztatów”** (flaga `workshop_materials`, § 4.11 —
 pseudonim pary materiał–konto, kasowany po 12 miesiącach) i **„Pomocnicza ocena prac uczestników przez
-model językowy”** (flaga `ai_grading`, § 4.12 — nowy podmiot przetwarzający, Anthropic, i przekazanie
-danych poza EOG).
+model językowy”** (flaga `ai_grading`, § 4.12 — nowy podmiot przetwarzający i przekazanie danych poza
+EOG). Wersja **1.8** z 24.09.2026 (inni dostawcy AI) zmienia w tym wierszu odbiorców: zamiast stałego
+„Anthropic” rejestr konkursu wymienia **każdego dostawcę, który ma klucz API i potwierdzoną umowę
+powierzenia** (Anthropic, OpenAI, Google, Meta) — a gdy takiego nie ma, mówi wprost, że prace nie
+opuszczają serwera.
 Odbiorcy są wymienieni wprost (hosting, dostawca poczty, analityka wyłącznie po zgodzie). Dane
 administratora (nazwa, adres, KRS, kontakt) dokłada się **z ustawień serwisu w `/cms/`**, więc ich
 poprawka nie wymaga wydania aplikacji. `?format=csv` oddaje ten sam dokument jako plik otwierający się

@@ -397,6 +397,8 @@ CELERY_TASK_ROUTES = {
     # Skan pliku materiału z warsztatów – ta sama kolejka, co skan rozwiązań: to ta sama praca
     # (strumień z MinIO do clamd), a osobny worker ``scan`` pilnuje, żeby nie zajęła kolejki ogólnej.
     "apps.workshop_materials.tasks.scan_material": {"queue": "scan"},
+    # Skan pracy testowej oceny AI (``apps.ai_grading.sandbox``) – ta sama praca, ta sama kolejka.
+    "apps.ai_grading.tasks.scan_ai_test_work": {"queue": "scan"},
 }
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_TIMEZONE = "UTC"

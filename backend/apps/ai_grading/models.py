@@ -9,17 +9,20 @@ rozstrzygnięte w tym module i powód każdej z nich:
   klucza obcego do recenzji: nie ma ścieżki, którą propozycja mogłaby się „przelać” w wynik,
   a panel recenzenta może co najwyżej **wypełnić formularz** jako punkt wyjścia (art. 22 RODO:
   żadna decyzja nie zapada tu wyłącznie automatycznie),
-- **jeden wiersz na wersję pracy** (``OneToOne`` z ``Submission``, a każda wersja jest osobną
-  pracą). „Wygeneruj ponownie” nadpisuje ten sam wiersz zamiast dokładać historię: recenzent ma
-  widzieć jedną, aktualną sugestię, a nie wybierać spośród kilku. Koszt poprzednich przebiegów
-  nie ginie – liczniki zużycia rosną w ``AiGradingSettings`` i przy samej ocenie,
-- **klucz API jest per konkurs i leży zaszyfrowany** (``apps.ai_grading.crypto``). Każdy
-  organizator płaci za własne zużycie i odpowiada za własną umowę powierzenia z Anthropic – klucz
-  wspólny dla instalacji znaczyłby, że prace uczestników konkursu A idą na rachunek i na
-  warunkach umowy organizatora B.
+- **jeden wiersz na (wersję pracy, dostawcę, model)**. Do v0.34.0 był jeden wiersz na wersję
+  pracy; prośba o innych dostawców („żeby porównać”) dołożyła do klucza dostawcę i zamówiony
+  model. „Wygeneruj ponownie” dalej nadpisuje wiersz **tej samej** trójki zamiast dokładać
+  historię, a ocena innym modelem jest osobnym panelem obok. Koszt poprzednich przebiegów nie
+  ginie – liczniki zużycia rosną w ``AiGradingSettings`` i przy samej ocenie,
+- **klucze API są per konkurs i per dostawca, zaszyfrowane** (``apps.ai_grading.crypto``,
+  :class:`AiProviderAccount`). Każdy organizator płaci za własne zużycie i odpowiada za własną
+  umowę powierzenia z każdym dostawcą – klucz wspólny dla instalacji znaczyłby, że prace
+  uczestników konkursu A idą na rachunek i na warunkach umowy organizatora B. Dostawca bez
+  potwierdzonej umowy powierzenia nie dostaje ani jednej pracy uczestnika (wyjątek: **praca
+  testowa** koordynatora, :class:`AiTestWork`, która danych uczestnika nie niesie).
 
 Osobna aplikacja, a nie modele w ``apps.grading``: funkcja jest opcjonalna (flaga ``ai_grading``,
-domyślnie wyłączona), ma własną zależność zewnętrzną (SDK ``anthropic``) i własną ścieżkę danych
+domyślnie wyłączona), ma własne zależności zewnętrzne (SDK dostawców) i własną ścieżkę danych
 poza serwer. Trzymanie jej obok recenzji wiązałoby rdzeń oceniania z dostawcą, którego konkurs
 może w ogóle nie używać.
 """
@@ -34,16 +37,26 @@ from django.utils import timezone
 
 from apps.competitions.models import Stage
 from apps.competitions.scoping import competition_scoped_manager
-from apps.submissions.models import Submission
+from apps.submissions.models import AvStatus, Submission
 
 #: Przełącznik konkursu (``apps.tenancy.models.FEATURE_DEFAULTS``). Stała, a nie napis powtórzony
 #: w każdym widoku: wyłączona funkcja ma znaczyć 404 pod **każdym** adresem i brak pozycji w menu.
 AI_GRADING_FLAG = "ai_grading"
 
 
-class AiModel(models.TextChoices):
-    """Modele do wyboru. Identyfikatory dokładnie takie, jakie przyjmuje API – bez sufiksu daty.
+class AiProvider(models.TextChoices):
+    """Dostawcy modelu. Wartość jest kluczem rejestru ``apps.ai_grading.providers``."""
 
+    ANTHROPIC = "anthropic", "Anthropic (Claude)"
+    OPENAI = "openai", "OpenAI (GPT)"
+    GOOGLE = "google", "Google (Gemini)"
+    META = "meta", "Meta (Muse Spark)"
+
+
+class AiModel(models.TextChoices):
+    """Modele Anthropic z v0.34.0. Identyfikatory dokładnie takie, jakie przyjmuje API.
+
+    Zostaje jako stała zgodności; katalog wszystkich dostawców stoi w ``apps.ai_grading.catalog``.
     Domyślny jest Opus: ocenianie rozwiązań olimpijskich to zadanie, w którym dokładność jest
     ważniejsza od ceny, a o zejściu na tańszy model decyduje koordynator, nie kod.
     """
@@ -52,20 +65,8 @@ class AiModel(models.TextChoices):
     SONNET = "claude-sonnet-5", "Claude Sonnet 5 (tańszy)"
 
 
-#: Cennik w USD za milion tokenów: (wejście, wyjście). Stan z 24.09.2026. Służy **wyłącznie**
-#: szacunkom na ekranie koordynatora – rozliczenie wystawia Anthropic i to jego faktura jest
-#: prawdą. Model spoza tabeli (np. ten, na który przełączył żądanie mechanizm ``fallbacks``)
-#: liczymy stawkami modelu wybranego przez koordynatora: szacunek ma być zachowawczy, a nie pusty.
-PRICING_USD_PER_MTOK: dict[str, tuple[Decimal, Decimal]] = {
-    AiModel.OPUS.value: (Decimal("5"), Decimal("25")),
-    AiModel.SONNET.value: (Decimal("2"), Decimal("10")),
-    # Cel przełączenia ``fallbacks: "default"`` przy odmowie kategorii „cyber” – te same stawki co
-    # Opus 5, więc rachunek po przełączeniu nie kłamie.
-    "claude-opus-4-8": (Decimal("5"), Decimal("25")),
-}
-#: Zapis do cache promptu kosztuje 1,25 stawki wejścia, odczyt – 0,1.
-CACHE_WRITE_MULTIPLIER = Decimal("1.25")
-CACHE_READ_MULTIPLIER = Decimal("0.1")
+#: Najdłuższy identyfikator modelu, jaki przyjmujemy („inny identyfikator modelu”).
+MODEL_ID_MAX_LENGTH = 100
 
 
 class AiAssessmentStatus(models.TextChoices):
@@ -84,12 +85,10 @@ class AiConfidence(models.TextChoices):
 
 
 class AiGradingSettings(models.Model):
-    """Ustawienia oceny AI jednego konkursu: klucz, model, limit wydatków i liczniki zużycia.
+    """Ustawienia oceny AI jednego konkursu: dostawca i model domyślne, ceny, limit i liczniki.
 
-    Klucz jest **tylko do zapisu**: w bazie leży token Fernet (``api_key_encrypted``) i cztery
-    ostatnie znaki do rozpoznania („kończy się na …abcd”). Pełnej wartości nie oddaje żaden ekran,
-    eksport ani log – odszyfrowanie następuje wyłącznie w chwili budowania klienta SDK
-    (``apps.ai_grading.client``).
+    Klucze dostawców leżą w :class:`AiProviderAccount` (do v0.34.0 był tu jeden klucz Anthropic –
+    migracja ``0002`` przeniosła go bez odszyfrowywania).
 
     Liczniki zużycia są tutaj, a nie wyłącznie przy ocenach, bo ocena potrafi zniknąć (kaskada po
     skasowanej pracy, anonimizacja konta), a pytanie „ile nas to już kosztowało” ma mieć odpowiedź
@@ -102,6 +101,71 @@ class AiGradingSettings(models.Model):
         related_name="ai_grading_settings",
         verbose_name="konkurs",
     )
+    #: Dostawca i model **domyślne** – preselekcja w potwierdzeniu zlecenia. Model jest zwykłym
+    #: napisem, nie wyborem z listy: identyfikatory modeli zmieniają się szybciej niż wydania
+    #: serwisu, więc obok kuratorowanej listy jest „inny identyfikator modelu”.
+    provider = models.CharField(
+        "dostawca domyślny", max_length=16, choices=AiProvider.choices, default=AiProvider.ANTHROPIC
+    )
+    model = models.CharField("model domyślny", max_length=MODEL_ID_MAX_LENGTH, default=AiModel.OPUS)
+    #: Ceny nadpisane przez koordynatora: ``{"dostawca/model": ["wejście", "wyjście"]}`` w USD za
+    #: milion tokenów. Klucz bez wpisu bierze cenę domyślną z ``catalog.DEFAULT_PRICES``.
+    price_overrides = models.JSONField("ceny modeli (nadpisane)", default=dict, blank=True)
+    #: Twardy limit wydatków w USD (szacunek z liczników niżej). Puste = bez limitu. Po jego
+    #: przekroczeniu nowe zlecenia są odrzucane, a oceny czekające w kolejce kończą się błędem
+    #: zamiast wołać API – to jest bezpiecznik na „kliknąłem 400 prac i poszło”.
+    spending_limit_usd = models.DecimalField(
+        "limit wydatków (USD)", max_digits=10, decimal_places=2, null=True, blank=True
+    )
+    total_calls = models.PositiveIntegerField("wywołań API", default=0)
+    total_input_tokens = models.PositiveBigIntegerField("tokeny wejścia", default=0)
+    total_output_tokens = models.PositiveBigIntegerField("tokeny wyjścia", default=0)
+    total_cache_write_tokens = models.PositiveBigIntegerField("tokeny zapisu cache", default=0)
+    total_cache_read_tokens = models.PositiveBigIntegerField("tokeny odczytu cache", default=0)
+    total_cost_usd = models.DecimalField(
+        "szacowany koszt (USD)", max_digits=12, decimal_places=6, default=Decimal("0")
+    )
+    #: Wywołania modeli **bez ceny** – ich koszt nie wszedł do ``total_cost_usd``, więc limit
+    #: wydatków ich nie widzi. Ekran pokazuje tę liczbę obok kwoty jako ostrzeżenie.
+    total_unpriced_calls = models.PositiveIntegerField("wywołań bez znanej ceny", default=0)
+    updated_at = models.DateTimeField("zmienione", default=timezone.now)
+
+    objects = competition_scoped_manager("competition")
+
+    class Meta:
+        verbose_name = "ustawienia oceny AI"
+        verbose_name_plural = "ustawienia oceny AI"
+
+    def __str__(self) -> str:
+        return f"ocena AI: {self.competition_id}"
+
+    @property
+    def limit_reached(self) -> bool:
+        return self.spending_limit_usd is not None and self.total_cost_usd >= self.spending_limit_usd
+
+
+class AiProviderAccount(models.Model):
+    """Klucz API i potwierdzenie umowy powierzenia **jednego** dostawcy w jednym konkursie.
+
+    Klucz jest **tylko do zapisu**: w bazie leży token Fernet (``api_key_encrypted``) i cztery
+    ostatnie znaki do rozpoznania („kończy się na …abcd”). Pełnej wartości nie oddaje żaden ekran,
+    eksport ani log – odszyfrowanie następuje wyłącznie w chwili budowania klienta SDK.
+
+    Potwierdzenie umowy powierzenia (DPA) jest **oświadczeniem organizatora**, a nie ustawieniem
+    technicznym: kto i kiedy potwierdził, stoi tutaj i w dzienniku zdarzeń. Bez niego dostawca nie
+    dostaje ani jednej pracy uczestnika – każdy dostawca jest osobnym podmiotem przetwarzającym,
+    w tym poza EOG, więc potwierdzenie jednego nie przenosi się na drugiego. Nie ma migracji, która
+    by je „domniemała”: stan prawny wpisuje człowiek (panel albo komenda operatora
+    ``confirm_ai_provider_dpa``).
+    """
+
+    competition = models.ForeignKey(
+        "tenancy.Competition",
+        on_delete=models.CASCADE,
+        related_name="ai_provider_accounts",
+        verbose_name="konkurs",
+    )
+    provider = models.CharField("dostawca", max_length=16, choices=AiProvider.choices)
     api_key_encrypted = models.TextField("klucz API (zaszyfrowany)", blank=True)
     api_key_last4 = models.CharField("ostatnie znaki klucza", max_length=4, blank=True)
     api_key_set_at = models.DateTimeField("klucz ustawiony", null=True, blank=True)
@@ -117,31 +181,29 @@ class AiGradingSettings(models.Model):
     api_key_checked_at = models.DateTimeField("klucz sprawdzony", null=True, blank=True)
     api_key_check_ok = models.BooleanField("klucz działa", null=True, blank=True)
     api_key_check_message = models.CharField("wynik sprawdzenia", max_length=300, blank=True)
-    model = models.CharField("model", max_length=40, choices=AiModel.choices, default=AiModel.OPUS)
-    #: Twardy limit wydatków w USD (szacunek z liczników niżej). Puste = bez limitu. Po jego
-    #: przekroczeniu nowe zlecenia są odrzucane, a oceny czekające w kolejce kończą się błędem
-    #: zamiast wołać API – to jest bezpiecznik na „kliknąłem 400 prac i poszło”.
-    spending_limit_usd = models.DecimalField(
-        "limit wydatków (USD)", max_digits=10, decimal_places=2, null=True, blank=True
+    dpa_confirmed_at = models.DateTimeField("umowa powierzenia potwierdzona", null=True, blank=True)
+    dpa_confirmed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="umowę potwierdził",
     )
-    total_calls = models.PositiveIntegerField("wywołań API", default=0)
-    total_input_tokens = models.PositiveBigIntegerField("tokeny wejścia", default=0)
-    total_output_tokens = models.PositiveBigIntegerField("tokeny wyjścia", default=0)
-    total_cache_write_tokens = models.PositiveBigIntegerField("tokeny zapisu cache", default=0)
-    total_cache_read_tokens = models.PositiveBigIntegerField("tokeny odczytu cache", default=0)
-    total_cost_usd = models.DecimalField(
-        "szacowany koszt (USD)", max_digits=12, decimal_places=6, default=Decimal("0")
-    )
-    updated_at = models.DateTimeField("zmienione", default=timezone.now)
+    dpa_note = models.CharField("uwaga do potwierdzenia", max_length=300, blank=True)
 
     objects = competition_scoped_manager("competition")
 
     class Meta:
-        verbose_name = "ustawienia oceny AI"
-        verbose_name_plural = "ustawienia oceny AI"
+        verbose_name = "konto dostawcy AI"
+        verbose_name_plural = "konta dostawców AI"
+        ordering = ("competition_id", "provider")
+        constraints = [
+            models.UniqueConstraint(fields=["competition", "provider"], name="ai_provider_account_unique"),
+        ]
 
     def __str__(self) -> str:
-        return f"ocena AI: {self.competition_id}"
+        return f"{self.provider}: {self.competition_id}"
 
     @property
     def has_key(self) -> bool:
@@ -153,8 +215,65 @@ class AiGradingSettings(models.Model):
         return f"…{self.api_key_last4}" if self.api_key_encrypted and self.api_key_last4 else ""
 
     @property
-    def limit_reached(self) -> bool:
-        return self.spending_limit_usd is not None and self.total_cost_usd >= self.spending_limit_usd
+    def dpa_confirmed(self) -> bool:
+        return self.dpa_confirmed_at is not None
+
+
+class AiTestWork(models.Model):
+    """Praca testowa koordynatora: własny przykładowy plik do wypróbowania dostawców.
+
+    Prośba organizatora („włącz wszystkich dostawców dla testów”): przed potwierdzeniem umów
+    powierzenia organizator chce zobaczyć, jak oceniają poszczególne modele. Praca testowa **nie**
+    jest pracą uczestnika – nie ma wpisu na etap, kodu ani wersji – więc nie niesie danych osoby,
+    której dotyczy umowa powierzenia, i dlatego bramka DPA jej nie dotyczy. Warunki, które to
+    utrzymują w mocy (oświadczenie przy wgraniu, odmowa pliku identycznego z pracą uczestnika),
+    stoją w ``services.upload_test_work``.
+
+    Plik przechodzi tę samą walidację treści i ten sam skan antywirusowy, co praca uczestnika,
+    i leży w tym samym prywatnym storage'u pod osobnym prefiksem ``ai-test/``.
+    """
+
+    competition = models.ForeignKey(
+        "tenancy.Competition", on_delete=models.CASCADE, related_name="+", verbose_name="konkurs"
+    )
+    problem = models.ForeignKey(
+        "competitions.Problem",
+        on_delete=models.CASCADE,
+        related_name="ai_test_works",
+        verbose_name="zadanie",
+    )
+    label = models.CharField("opis", max_length=120, blank=True)
+    object_key = models.CharField("klucz obiektu", max_length=255, blank=True)
+    sha256 = models.CharField("skrót SHA-256", max_length=64)
+    mime = models.CharField("typ", max_length=60)
+    size_bytes = models.PositiveBigIntegerField("rozmiar (B)")
+    page_count = models.PositiveIntegerField("liczba stron", null=True, blank=True)
+    av_status = models.CharField(
+        "skan antywirusowy", max_length=16, choices=AvStatus.choices, default=AvStatus.PENDING
+    )
+    uploaded_at = models.DateTimeField("wgrana", default=timezone.now)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="wgrał",
+    )
+
+    objects = competition_scoped_manager("competition")
+
+    class Meta:
+        verbose_name = "praca testowa AI"
+        verbose_name_plural = "prace testowe AI"
+        ordering = ("-uploaded_at", "-id")
+
+    def __str__(self) -> str:
+        return f"praca testowa {self.pk} (zadanie {self.problem_id})"
+
+    @property
+    def is_clean(self) -> bool:
+        return self.av_status == AvStatus.CLEAN
 
 
 class AiStageVisibility(models.Model):
@@ -200,15 +319,39 @@ class AiAssessment(models.Model):
     którą recenzent i tak ma przydzieloną, więc anonimowość oceniania zostaje nietknięta.
     """
 
-    submission = models.OneToOneField(
-        Submission, on_delete=models.CASCADE, related_name="ai_assessment", verbose_name="praca"
+    #: Konkurs wprost (kolumna denormalizacyjna), bo ocena pracy **testowej** nie ma pracy
+    #: uczestnika, przez którą dało się dotąd dojść do konkursu.
+    competition = models.ForeignKey(
+        "tenancy.Competition", on_delete=models.CASCADE, related_name="+", verbose_name="konkurs"
     )
+    #: Praca uczestnika **albo** praca testowa – dokładnie jedno z dwóch (ograniczenie niżej).
+    submission = models.ForeignKey(
+        Submission,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="ai_assessments",
+        verbose_name="praca",
+    )
+    test_work = models.ForeignKey(
+        AiTestWork,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="assessments",
+        verbose_name="praca testowa",
+    )
+    provider = models.CharField(
+        "dostawca", max_length=16, choices=AiProvider.choices, default=AiProvider.ANTHROPIC
+    )
+    #: Model **zamówiony** – część klucza idempotencji (praca, dostawca, model).
+    requested_model = models.CharField("model zamówiony", max_length=MODEL_ID_MAX_LENGTH, blank=True)
     status = models.CharField(
         "status", max_length=16, choices=AiAssessmentStatus.choices, default=AiAssessmentStatus.PENDING
     )
     #: Model, który **faktycznie** odpowiedział (``message.model``) – przy odmowie i przełączeniu
     #: ``fallbacks`` bywa inny niż zamówiony. Przed odpowiedzią: model zamówiony.
-    model = models.CharField("model", max_length=60, blank=True)
+    model = models.CharField("model", max_length=MODEL_ID_MAX_LENGTH, blank=True)
     requested_at = models.DateTimeField("zlecona", default=timezone.now)
     requested_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -222,9 +365,9 @@ class AiAssessment(models.Model):
     #: miejsce” – ogranicznik współbieżności (``services.pump``) wypuszcza prace po kolei.
     dispatched_at = models.DateTimeField("przekazana do kolejki", null=True, blank=True)
     started_at = models.DateTimeField("rozpoczęta", null=True, blank=True)
-    #: Kiedy materiały pracy **wyszły do Anthropic** – fakt przetwarzania przez podmiot
+    #: Kiedy materiały pracy **wyszły do dostawcy** – fakt przetwarzania przez podmiot
     #: przetwarzający, który trafia do eksportu danych uczestnika (art. 15 ust. 1 lit. c RODO).
-    sent_at = models.DateTimeField("przekazana do Anthropic", null=True, blank=True)
+    sent_at = models.DateTimeField("przekazana do dostawcy", null=True, blank=True)
     finished_at = models.DateTimeField("zakończona", null=True, blank=True)
     attempts = models.PositiveSmallIntegerField("próby", default=0)
 
@@ -250,18 +393,50 @@ class AiAssessment(models.Model):
     cache_read_tokens = models.PositiveIntegerField("tokeny odczytu cache", default=0)
     #: Koszt **wszystkich** przebiegów tej pracy (szacunek). Rośnie przy „wygeneruj ponownie”.
     cost_usd = models.DecimalField("szacowany koszt (USD)", max_digits=10, decimal_places=6, default=0)
+    #: ``False``, gdy choć jeden przebieg dotyczył modelu bez ceny – ``cost_usd`` jest wtedy
+    #: dolnym oszacowaniem, a ekran pisze „koszt nieznany”.
+    cost_known = models.BooleanField("koszt znany", default=True)
 
-    #: Przez pracę, czyli przez jej kolumnę denormalizacyjną – jedno złączenie, nie cztery.
-    objects = competition_scoped_manager("submission__competition")
+    objects = competition_scoped_manager("competition")
 
     class Meta:
         verbose_name = "ocena AI"
         verbose_name_plural = "oceny AI"
-        ordering = ("submission_id",)
+        ordering = ("submission_id", "-requested_at", "-id")
         indexes = [models.Index(fields=["status", "dispatched_at"], name="ai_assessment_queue_idx")]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(submission__isnull=False, test_work__isnull=True)
+                    | models.Q(submission__isnull=True, test_work__isnull=False)
+                ),
+                name="ai_assessment_one_source",
+            ),
+            models.UniqueConstraint(
+                fields=["submission", "provider", "requested_model"],
+                condition=models.Q(submission__isnull=False),
+                name="ai_assessment_unique_submission_model",
+            ),
+            models.UniqueConstraint(
+                fields=["test_work", "provider", "requested_model"],
+                condition=models.Q(test_work__isnull=False),
+                name="ai_assessment_unique_test_model",
+            ),
+        ]
 
     def __str__(self) -> str:
-        return f"ocena AI pracy {self.submission_id} ({self.status})"
+        source = (
+            f"pracy {self.submission_id}" if self.submission_id else f"pracy testowej {self.test_work_id}"
+        )
+        return f"ocena AI {source} – {self.provider} {self.requested_model} ({self.status})"
+
+    @property
+    def is_test(self) -> bool:
+        return self.test_work_id is not None
+
+    @property
+    def provider_label(self) -> str:
+        return AiProvider(self.provider).label if self.provider in AiProvider.values else self.provider
 
     @property
     def is_done(self) -> bool:

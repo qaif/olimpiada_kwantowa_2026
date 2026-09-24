@@ -1,0 +1,14 @@
+{% comment %}
+  „Wygeneruj” / „Wygeneruj ponownie” przy jednej pracy – prowadzi do podglądu, gdzie wybiera się
+  dostawcę i model. „Ponownie” dotyczy wyłącznie oceny **tym samym** modelem; ocena innym modelem
+  jest nową oceną obok.
+{% endcomment %}
+{% if ai.can_generate and row.has_file %}
+  <form method="post" action="{% url 'web:coordinator-ai-generate' problem.pk %}">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="preview">
+    <input type="hidden" name="submission" value="{{ row.submission.pk }}">
+    {% if row.assessments %}<input type="hidden" name="regenerate" value="on">{% endif %}
+    <button type="submit" class="btn btn--secondary btn--small">{% if row.assessments %}Wygeneruj ponownie / innym modelem{% else %}Wygeneruj{% endif %}</button>
+  </form>
+{% endif %}
