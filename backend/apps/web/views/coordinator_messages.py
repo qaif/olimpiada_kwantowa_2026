@@ -218,6 +218,6 @@ class CoordinatorMessagesView(CoordinatorRequiredMixin, View):
             # Mapa „grupa → pole” dla skryptu, który chowa pola nienależące do wybranej grupy,
             # i zbiór tych pól dla szablonu (tylko one dostają punkt zaczepienia skryptu).
             "parameter_map": parameter_map,
-            "parameter_fields": sorted(set(parameter_map.values())),
+            "parameter_fields": sorted({field for fields in parameter_map.values() for field in fields}),
         }
         return TemplateResponse(request, TEMPLATE, context)

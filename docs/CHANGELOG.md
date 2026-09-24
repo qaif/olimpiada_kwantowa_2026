@@ -15,7 +15,7 @@ uczestników, w tym do wszystkich”. Rozbudowa istniejącego ekranu **`/coordin
 (Komunikacja → Komunikaty; bez flagi, działa w każdym konkursie):
 
 - **nowe grupy odbiorców** (`BroadcastGroup`): **„wszyscy uczestnicy konkursu”** – pierwsza na liście,
-  każdy profil uczestnika tego konkursu bez względu na wpisy do etapów; „zapisani do etapu, bez wysłanej
+  uczestnicy bieżącej edycji także bez wpisu do etapu (patrz niżej); „zapisani do etapu, bez wysłanej
   pracy” (wpis zarejestrowany/zakwalifikowany bez żadnej pracy w etapie, praca odrzucona przez antywirusa
   się nie liczy – przypomnienie przed terminem); uczestnicy z wybranego **województwa** (przy fladze
   `custom_regions` – **regionu**, łącznie z profilami sprzed flagi); z wybranej **szkoły** (lista wyłącznie
@@ -35,6 +35,13 @@ uczestników, w tym do wszystkich”. Rozbudowa istniejącego ekranu **`/coordin
   naprawione dwa przecieki istniejącego kodu: grupa „członkowie komitetu” nie miała zakresu konkursu
   w ogóle, a wiersz rejestru brał konkurs z odwrotu `default_competition` zamiast z żądania; nieużywane
   `recent_broadcasts()` wymaga odtąd konkursu. Etap albo region z innego konkursu daje pustą grupę;
+- **domyślnie bieżąca edycja** (decyzja organizatora z 24.09.2026): „wszyscy uczestnicy konkursu”
+  oraz grupy województwa/regionu, szkoły i klasy obejmują wyłącznie uczestników bieżącej edycji – profil
+  tego konkursu **i** (wpis do etapu bieżącej edycji **albo** konto założone nie wcześniej niż
+  `Edition.created_at`; `apps.accounts.messaging.current_edition_participants`). Pole „także uczestnicy
+  poprzednich edycji” (domyślnie odznaczone) zdejmuje zawężenie; wybór wchodzi do podpisu podglądu,
+  do `MessageBroadcast.target` (`past_editions`, dopisek w etykiecie) i do audytu. Bez bieżącej edycji
+  te grupy są puste, dopóki pole nie jest zaznaczone;
 - **podpis podglądu**: „Wyślij” przechodzi wyłącznie z ukrytym podpisem (HMAC) grupy, jej parametru,
   tematu i treści z ostatniego podglądu – zmiana czegokolwiek po podglądzie (np. „szkoła X” →
   „wszyscy uczestnicy”) niczego nie wysyła, tylko pokazuje podgląd na nowo. Wcześniej przycisk

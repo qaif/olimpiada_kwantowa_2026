@@ -264,7 +264,7 @@ def test_school_of_another_competition_is_not_a_valid_choice(web_client, coordin
     assert "Wybierz poprawną wartość" in response.content.decode()
 
 
-def test_region_screen_uses_custom_regions_when_the_flag_is_on(web_client, coordinator, competition):
+def test_region_screen_uses_custom_regions_when_the_flag_is_on(web_client, coordinator, competition, edition):
     north = Region.objects.create(competition=competition, code="okreg-polnoc", name="Okręg Północ")
     ParticipantFactory(user=UserFactory(email="polnoc@example.test"), region=north)
     web_client.force_login(coordinator)
@@ -283,7 +283,7 @@ def test_region_screen_uses_custom_regions_when_the_flag_is_on(web_client, coord
 
 
 def test_send_to_a_school_records_which_school_in_the_history(
-    web_client, coordinator, django_capture_on_commit_callbacks
+    web_client, coordinator, edition, django_capture_on_commit_callbacks
 ):
     from apps.schools.tests.factories import SchoolFactory
 
@@ -301,11 +301,12 @@ def test_send_to_a_school_records_which_school_in_the_history(
     assert "XIV LO im. Staszica, Warszawa" in preview
     assert [message.to for message in mail.outbox] == [["staszic@example.test"]]
     broadcast = MessageBroadcast.objects.get()
-    assert broadcast.target == {"school": f"sio:{school.pk}", "label": "XIV LO im. Staszica, Warszawa"}
+    label = "XIV LO im. Staszica, Warszawa (bieżąca edycja)"
+    assert broadcast.target == {"school": f"sio:{school.pk}", "past_editions": False, "label": label}
     history = web_client.get("/coordinator/messages/").content.decode()
-    assert "XIV LO im. Staszica, Warszawa" in history
+    assert label in history
     log = AuditLog.objects.get(action="broadcast.sent")
-    assert log.diff["target"]["label"] == "XIV LO im. Staszica, Warszawa"
+    assert log.diff["target"]["label"] == label
 
 
 def test_stage_parameter_is_recorded_for_the_no_submission_reminder(
@@ -338,7 +339,8 @@ def test_parameter_of_another_group_is_ignored(
 
     broadcast = MessageBroadcast.objects.get()
     assert broadcast.recipient_count == 2
-    assert broadcast.target == {}
+    # Z parametrów zostaje wyłącznie zakres edycji – jedyne pole, które należy do tej grupy.
+    assert broadcast.target == {"past_editions": False, "label": "bieżąca edycja"}
 
 
 def test_workshop_group_on_the_screen(web_client, coordinator, django_capture_on_commit_callbacks):
@@ -429,8 +431,87 @@ def test_broadcast_belongs_to_the_competition_of_the_request(
     mail.outbox.clear()
 
     with django_capture_on_commit_callbacks(execute=True):
-        response = _post(client, {**BASE, "group": BroadcastGroup.ALL_PARTICIPANTS}, action="send")
+        # Konkurs B nie ma bieżącej edycji – bez przełącznika grupa byłaby pusta.
+        response = _post(
+            client,
+            {**BASE, "group": BroadcastGroup.ALL_PARTICIPANTS, "include_past_editions": "on"},
+            action="send",
+        )
 
     assert response.status_code == 302
     assert [message.to for message in mail.outbox] == [["w-b@example.test"]]
     assert MessageBroadcast.objects.get().competition == other_competition
+
+
+# --- zakres edycji (decyzja organizatora z 24.09.2026) ----------------------------------------------
+
+
+def _veteran(email: str):
+    """Uczestnik z konta sprzed bieżącej edycji, bez wpisu do jej etapów."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    return ParticipantFactory(user=UserFactory(email=email, date_joined=timezone.now() - timedelta(days=400)))
+
+
+def test_all_participants_default_to_the_current_edition_and_the_switch_widens_it(
+    web_client, coordinator, entry, django_capture_on_commit_callbacks
+):
+    _veteran("zeszloroczny@example.test")
+    web_client.force_login(coordinator)
+    mail.outbox.clear()
+    data = {**BASE, "group": BroadcastGroup.ALL_PARTICIPANTS}
+
+    narrow = _post(web_client, data).content.decode()
+    wide = _post(web_client, {**data, "include_past_editions": "on"}).content.decode()
+    with django_capture_on_commit_callbacks(execute=True):
+        _post(web_client, {**data, "include_past_editions": "on"}, action="send")
+
+    assert "1 odbiorców" in narrow
+    assert "wszyscy uczestnicy konkursu: bieżąca edycja" in narrow
+    assert "2 odbiorców" in wide
+    assert "wszyscy uczestnicy konkursu: także poprzednie edycje" in wide
+    broadcast = MessageBroadcast.objects.get()
+    assert broadcast.recipient_count == 2
+    assert broadcast.target == {"past_editions": True, "label": "także poprzednie edycje"}
+    assert AuditLog.objects.get(action="broadcast.sent").diff["target"]["past_editions"] is True
+    assert "także poprzednie edycje" in web_client.get("/coordinator/messages/").content.decode()
+
+
+def test_ticking_past_editions_after_the_preview_does_not_send(
+    web_client, coordinator, entry, django_capture_on_commit_callbacks
+):
+    """Podgląd „bieżąca edycja” nie jest przepustką dla listu do wszystkich roczników."""
+    _veteran("zeszloroczny@example.test")
+    web_client.force_login(coordinator)
+    mail.outbox.clear()
+    data = {**BASE, "group": BroadcastGroup.ALL_PARTICIPANTS}
+    signature = SIGNATURE.search(_post(web_client, data).content.decode()).group(1)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        response = web_client.post(
+            "/coordinator/messages/",
+            {**data, "include_past_editions": "on", "action": "send", "preview_signature": signature},
+        )
+
+    assert "zmieniły się od podglądu" in response.content.decode()
+    assert not mail.outbox
+    assert not MessageBroadcast.objects.exists()
+
+
+def test_past_editions_switch_is_offered_only_to_the_groups_it_affects(web_client, coordinator):
+    import json
+
+    web_client.force_login(coordinator)
+    content = web_client.get("/coordinator/messages/").content.decode()
+    mapping = json.loads(re.search(r'id="broadcast-parameters"[^>]*>(.*?)</script>', content, re.S).group(1))
+
+    with_switch = {group for group, fields in mapping.items() if "include_past_editions" in fields}
+    assert with_switch == {
+        BroadcastGroup.ALL_PARTICIPANTS,
+        BroadcastGroup.REGION_PARTICIPANTS,
+        BroadcastGroup.SCHOOL_PARTICIPANTS,
+        BroadcastGroup.GRADE_PARTICIPANTS,
+    }
+    assert 'data-broadcast-param="include_past_editions"' in content

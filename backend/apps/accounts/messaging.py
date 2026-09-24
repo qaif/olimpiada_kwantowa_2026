@@ -90,6 +90,18 @@ STAGE_GROUPS = frozenset(
     }
 )
 
+#: Grupy, które domyślnie obejmują **wyłącznie bieżącą edycję**, a na życzenie – także poprzednie
+#: (decyzja organizatora z 24.09.2026, pole „także uczestnicy poprzednich edycji”). Pozostałe grupy
+#: uczestników są edycyjne z definicji (etap, warsztat), więc przełącznik ich nie dotyczy.
+EDITION_SCOPED_GROUPS = frozenset(
+    {
+        BroadcastGroup.ALL_PARTICIPANTS,
+        BroadcastGroup.REGION_PARTICIPANTS,
+        BroadcastGroup.SCHOOL_PARTICIPANTS,
+        BroadcastGroup.GRADE_PARTICIPANTS,
+    }
+)
+
 #: Prefiksy klucza szkoły w liście wyboru (``school_choices``). Wykazy placówek są dwa (rejestr SIO
 #: i słownik organizatora), a do tego dochodzi nazwa wpisana ręcznie – klucz musi mówić, do której
 #: kolumny ``Participant`` się odnosi, bo identyfikator 17 w jednym wykazie i 17 w drugim to dwie
@@ -143,6 +155,34 @@ def _participant_emails(participants) -> list[str]:
         User.objects.filter(DELIVERABLE, pk__in=participants.values("user_id")).values_list(
             "email", flat=True
         )
+    )
+
+
+def current_edition_participants(participants, edition):
+    """Zawęża profile do **uczestników bieżącej edycji** – albo do nikogo, gdy edycji nie ma.
+
+    Profil uczestnika nie ma kolumny edycji (należy do konkursu, nie do rocznika – patrz
+    ``Participant``), więc „uczestnik tej edycji” trzeba zdefiniować po śladach, które edycja
+    zostawia. Są dwa i wystarczy jeden z nich:
+
+    - **wpis do któregokolwiek etapu bieżącej edycji** – ktoś, kto w tej edycji startuje (przy
+      etapie eliminacyjnym wpis powstaje już przy rejestracji, więc to jest przypadek typowy),
+    - **konto założone nie wcześniej niż powstała bieżąca edycja** (``User.date_joined >=
+      Edition.created_at``) – ktoś, kto zarejestrował się w tej edycji, ale do etapu jeszcze się nie
+      zapisał. Data konta, a nie profilu, bo profil daty nie ma; wniosek jest mimo to ścisły: profil
+      powstaje zawsze po koncie, więc konto młodsze od edycji znaczy profil młodszy od edycji.
+
+    Kogo ta definicja **nie** obejmuje – i to jest jej cel: kogoś, kto założył konto w poprzedniej
+    edycji i w tej nie zapisał się do żadnego etapu. Organizator chce do niego pisać wyłącznie
+    świadomie („także uczestnicy poprzednich edycji”), bo list o terminach tegorocznych zawodów do
+    zeszłorocznego maturzysty jest w najlepszym razie szumem.
+
+    Brak bieżącej edycji to pusty wynik, a nie „wszyscy”: domyślnie zamknięte, tak jak w całym module.
+    """
+    if edition is None:
+        return participants.none()
+    return participants.filter(
+        Q(stage_entries__stage__edition=edition) | Q(user__date_joined__gte=edition.created_at)
     )
 
 
@@ -277,6 +317,7 @@ def resolve_recipients(
     grade: int | None = None,
     workshop: str | None = None,
     addresses: str = "",
+    include_past_editions: bool = False,
 ) -> list[str]:
     """Adresy odbiorców dla wybranej grupy. Nieznana grupa to pusta lista, nigdy wyjątek widoku.
 
@@ -291,6 +332,13 @@ def resolve_recipients(
     ktoś z wpisem do któregokolwiek etapu tej edycji. Zawężenia (region, szkoła, klasa) liczą się od
     grupy szerszej, bo tak brzmi prośba organizatora („uczestnicy z wybranego województwa”, a nie
     „zapisani do etapu z wybranego województwa”).
+
+    **Edycja** (decyzja organizatora z 24.09.2026): „wszyscy uczestnicy konkursu” i zawężenia
+    regionu, szkoły i klasy obejmują domyślnie wyłącznie uczestników **bieżącej edycji** – definicję
+    podaje :func:`current_edition_participants`, a edycją jest ``edition`` (ekran podaje bieżącą).
+    ``include_past_editions=True`` („także uczestnicy poprzednich edycji”) zdejmuje to zawężenie
+    i wraca do każdego profilu w konkursie. Domyślna wartość jest węższa celowo: zapomniany
+    przełącznik ma kosztować list za mało, a nie list do kilku roczników wstecz.
 
     Grupy etapowe idą wyłącznie po wpisach **uczestnika** (``StageEntry.participant``). Wpis
     drużynowy (flaga ``team_entries``) nie ma jednego adresata – Konkurs #1 drużyn nie ma, a list
@@ -307,6 +355,8 @@ def resolve_recipients(
     if competition is None:
         return []
     participants = Participant.objects.for_competition(competition)
+    if group in EDITION_SCOPED_GROUPS and not include_past_editions:
+        participants = current_edition_participants(participants, edition)
 
     if group == BroadcastGroup.ALL_PARTICIPANTS:
         return _participant_emails(participants)

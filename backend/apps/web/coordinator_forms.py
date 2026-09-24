@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from django import forms
 
-from apps.accounts.messaging import STAGE_GROUPS
+from apps.accounts.messaging import EDITION_SCOPED_GROUPS, STAGE_GROUPS
 from apps.accounts.models import BroadcastGroup, ConsentDefinition, Region, RegistrationProfile
 from apps.competitions.models import (
     Category,
@@ -102,13 +102,24 @@ class BroadcastForm(forms.Form):
     school = forms.ChoiceField(
         label="Szkoła",
         required=False,
-        help_text="Szkoły, z których są uczestnicy tego konkursu; w nawiasie liczba uczestników.",
+        help_text=(
+            "Szkoły, z których są uczestnicy tego konkursu; w nawiasie liczba uczestników ze "
+            "wszystkich edycji – ilu z nich dostanie list, pokaże podgląd."
+        ),
     )
     grade = forms.TypedChoiceField(label="Klasa", required=False, coerce=int, empty_value=None)
     workshop = forms.ChoiceField(
         label="Warsztat",
         required=False,
         help_text="Odbiorcy to osoby odhaczone w tabeli obecności na warsztatach.",
+    )
+    include_past_editions = forms.BooleanField(
+        label="także uczestnicy poprzednich edycji",
+        required=False,
+        help_text=(
+            "Bez zaznaczenia list dostają wyłącznie uczestnicy bieżącej edycji: zapisani do jej "
+            "etapu albo zarejestrowani w niej."
+        ),
     )
     addresses = forms.CharField(
         label="Lista adresów",
@@ -165,18 +176,26 @@ class BroadcastForm(forms.Form):
             BroadcastGroup.CUSTOM: "addresses",
         }.get(group)
 
-    def parameter_map(self) -> dict[str, str]:
-        """``{grupa: pole}`` dla skryptu ``broadcast-groups.js`` – która kontrolka należy do której grupy.
+    @staticmethod
+    def edition_scoped(group: str | None) -> bool:
+        """Czy grupa słucha pola „także uczestnicy poprzednich edycji” (``EDITION_SCOPED_GROUPS``)."""
+        return group in EDITION_SCOPED_GROUPS
 
-        Liczone z :meth:`parameter_field`, a nie przepisane do szablonu, żeby ekran nie mógł się
-        rozjechać z walidacją: pole widoczne przy grupie jest dokładnie tym, którego ``clean``
-        od tej grupy wymaga.
+    def parameter_map(self) -> dict[str, list[str]]:
+        """``{grupa: [pola]}`` dla skryptu ``broadcast-groups.js`` – które kontrolki należą do grupy.
+
+        Liczone z :meth:`parameter_field` i :meth:`edition_scoped`, a nie przepisane do szablonu,
+        żeby ekran nie mógł się rozjechać z walidacją ani z tym, co trafia do zapytania: pole
+        widoczne przy grupie jest dokładnie tym, które ``recipient_kwargs`` przekaże dalej.
         """
-        return {
-            value: field
-            for value, _ in BroadcastGroup.choices
-            if (field := self.parameter_field(value)) is not None
-        }
+        mapping: dict[str, list[str]] = {}
+        for value, _ in BroadcastGroup.choices:
+            fields = [field] if (field := self.parameter_field(value)) is not None else []
+            if self.edition_scoped(value):
+                fields.append("include_past_editions")
+            if fields:
+                mapping[value] = fields
+        return mapping
 
     def clean(self) -> dict:
         cleaned = super().clean()
@@ -193,19 +212,41 @@ class BroadcastForm(forms.Form):
         return cleaned
 
     def recipient_kwargs(self) -> dict:
-        """Parametr wybranej grupy jako argument ``resolve_recipients`` – i **tylko** on."""
-        field = self.parameter_field(self.cleaned_data.get("group"))
-        if field is None:
-            return {}
-        return {field: self.cleaned_data.get(field)}
+        """Parametr wybranej grupy jako argumenty ``resolve_recipients`` – i **tylko** on.
+
+        Przełącznik edycji jedzie **zawsze** przy grupach, których dotyczy – także jako ``False`` –
+        bo z tych argumentów liczy się też podpis podglądu (``preview_signature``): odhaczenie
+        „także poprzednich edycji” po podglądzie ma unieważnić podpis tak samo jak zmiana szkoły.
+        """
+        group = self.cleaned_data.get("group")
+        field = self.parameter_field(group)
+        kwargs = {} if field is None else {field: self.cleaned_data.get(field)}
+        if self.edition_scoped(group):
+            kwargs["include_past_editions"] = bool(self.cleaned_data.get("include_past_editions"))
+        return kwargs
 
     def target(self) -> dict:
         """Parametr wybranej grupy do rejestru wysyłek: identyfikator i etykieta z chwili wysyłki.
+
+        Przy grupach zależnych od edycji dochodzi ``past_editions`` (``True``/``False``) i dopisek
+        w etykiecie („bieżąca edycja” albo „także poprzednie edycje”) – historia ma mówić, czy list
+        do „wszystkich uczestników” objął jeden rocznik, czy kilka.
 
         Wklejona lista adresów nie zostawia tu **niczego** – adresów spoza systemu nie zapisujemy
         nigdzie (``BroadcastGroup``), więc historia mówi o niej wyłącznie „wklejona lista, N
         odbiorców”.
         """
+        group = self.cleaned_data.get("group")
+        target = self._parameter_target()
+        if not self.edition_scoped(group):
+            return target
+        past = bool(self.cleaned_data.get("include_past_editions"))
+        scope = "także poprzednie edycje" if past else "bieżąca edycja"
+        label = target.get("label")
+        return {**target, "past_editions": past, "label": f"{label} ({scope})" if label else scope}
+
+    def _parameter_target(self) -> dict:
+        """Sam parametr grupy (etap, województwo, region, szkoła, klasa, warsztat) z etykietą."""
         field = self.parameter_field(self.cleaned_data.get("group"))
         value = self.cleaned_data.get(field) if field else None
         if field is None or field == "addresses" or value in (None, ""):

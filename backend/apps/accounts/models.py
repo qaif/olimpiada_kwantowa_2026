@@ -1473,7 +1473,9 @@ class MessageBroadcast(models.Model):
     group = models.CharField("grupa odbiorców", max_length=32, choices=BroadcastGroup.choices)
     #: Parametr grupy **tak, jak wyglądał w chwili wysyłki**: ``{"stage": 12, "label": "etap I
     #: (eliminacje)"}``, ``{"school": "sio:345", "label": "XIV LO im. …, Warszawa"}`` itd. Pusty
-    #: słownik przy grupach bez parametru (wszyscy uczestnicy, komitet, wklejona lista).
+    #: słownik przy grupach bez parametru (komitet, opiekunowie, wklejona lista). Grupy zależne od
+    #: edycji (wszyscy uczestnicy, region, szkoła, klasa) niosą też ``"past_editions": true/false`` –
+    #: czy list objął wyłącznie bieżącą edycję, czy także poprzednie.
     #:
     #: Po co kopia etykiety, skoro jest identyfikator: bo historia ma odpowiadać na pytanie „do kogo
     #: poszło”, także wtedy, gdy etap przemianowano, harmonogram warsztatów zredagowano, a szkoła

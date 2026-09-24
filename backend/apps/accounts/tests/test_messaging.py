@@ -157,6 +157,11 @@ def test_register_keeps_the_content_but_never_the_addresses(django_capture_on_co
 # ważniejszy – list do niewłaściwej osoby jest nieodwracalny, a brak listu da się naprawić drugim.
 
 
+#: Zdejmuje zawężenie do bieżącej edycji w testach, których przedmiotem jest coś innego (zakres
+#: konkursu, szkoła, region) – edycja ma własne testy niżej.
+ALL_EDITIONS = {"include_past_editions": True}
+
+
 def _plain(email: str, **participant_kwargs):
     """Uczestnik bez żadnego wpisu do etapu – zarejestrowany i nic poza tym."""
     return ParticipantFactory(user=UserFactory(email=email), **participant_kwargs)
@@ -166,7 +171,9 @@ def test_all_participants_takes_profiles_without_any_stage_entry(competition, st
     with_entry = _participant(stage, "z-wpisem@example.test")
     without_entry = _plain("bez-wpisu@example.test")
 
-    recipients = resolve_recipients(BroadcastGroup.ALL_PARTICIPANTS, competition=competition)
+    recipients = resolve_recipients(
+        BroadcastGroup.ALL_PARTICIPANTS, competition=competition, edition=stage.edition
+    )
 
     assert recipients == sorted([with_entry.user.email, without_entry.user.email])
     # Grupa edycyjna zostaje tym, czym była: wyłącznie osoby z wpisem.
@@ -183,16 +190,65 @@ def test_all_participants_skips_blocked_unverified_and_non_participants(competit
     CoordinatorFactory(email="koordynator@example.test")
     ActiveReviewerFactory(user__email="recenzent@example.test")
 
-    assert resolve_recipients(BroadcastGroup.ALL_PARTICIPANTS, competition=competition) == [active.user.email]
+    assert resolve_recipients(BroadcastGroup.ALL_PARTICIPANTS, competition=competition, **ALL_EDITIONS) == [
+        active.user.email
+    ]
 
 
 def test_all_participants_never_reaches_another_competition(competition, other_competition):
     here = _plain("tutaj@example.test")
     ParticipantFactory(user=UserFactory(email="sasiad@example.test"), competition=other_competition)
 
-    assert resolve_recipients(BroadcastGroup.ALL_PARTICIPANTS, competition=competition) == [here.user.email]
-    assert resolve_recipients(BroadcastGroup.ALL_PARTICIPANTS, competition=other_competition) == [
-        "sasiad@example.test"
+    assert resolve_recipients(BroadcastGroup.ALL_PARTICIPANTS, competition=competition, **ALL_EDITIONS) == [
+        here.user.email
+    ]
+    assert resolve_recipients(
+        BroadcastGroup.ALL_PARTICIPANTS, competition=other_competition, **ALL_EDITIONS
+    ) == ["sasiad@example.test"]
+
+
+def _veteran(email: str, **participant_kwargs):
+    """Uczestnik z konta założonego ponad rok temu – sprzed bieżącej edycji."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    joined = timezone.now() - timedelta(days=400)
+    return ParticipantFactory(user=UserFactory(email=email, date_joined=joined), **participant_kwargs)
+
+
+def test_edition_scoped_groups_default_to_the_current_edition(competition, stage):
+    """Domyślnie: wpis do etapu bieżącej edycji **albo** konto założone w tej edycji. Nic więcej."""
+    from apps.competitions.tests.factories import EditionFactory
+
+    returning = _veteran("wraca@example.test", school="LO nr 1")
+    StageEntryFactory(participant=returning, stage=stage)
+    newcomer = _plain("nowy@example.test", school="LO nr 1")
+    _veteran("zeszloroczny@example.test", school="LO nr 1")
+    old_stage = StageFactory(edition=EditionFactory(), kind=StageKind.ELIM)
+    StageEntryFactory(
+        participant=_veteran("tylko-dawny-etap@example.test", school="LO nr 1"), stage=old_stage
+    )
+
+    current = sorted([returning.user.email, newcomer.user.email])
+    everyone = sorted([*current, "zeszloroczny@example.test", "tylko-dawny-etap@example.test"])
+    for group, extra in (
+        (BroadcastGroup.ALL_PARTICIPANTS, {}),
+        (BroadcastGroup.REGION_PARTICIPANTS, {"district": Voivodeship.MAZOWIECKIE}),
+        (BroadcastGroup.SCHOOL_PARTICIPANTS, {"school": "name:LO nr 1"}),
+        (BroadcastGroup.GRADE_PARTICIPANTS, {"grade": 3}),
+    ):
+        kwargs = {"competition": competition, "edition": stage.edition, **extra}
+        assert resolve_recipients(group, **kwargs) == current, group
+        assert resolve_recipients(group, **kwargs, include_past_editions=True) == everyone, group
+
+
+def test_without_a_current_edition_only_the_past_editions_switch_reaches_anyone(competition):
+    person = _plain("ktos@example.test")
+
+    assert resolve_recipients(BroadcastGroup.ALL_PARTICIPANTS, competition=competition) == []
+    assert resolve_recipients(BroadcastGroup.ALL_PARTICIPANTS, competition=competition, **ALL_EDITIONS) == [
+        person.user.email
     ]
 
 
@@ -204,9 +260,9 @@ def test_one_person_in_several_participations_gets_one_letter(competition, other
     StageEntryFactory(participant=mine, stage=stage)
     StageEntryFactory(participant=mine, stage=StageFactory(edition=stage.edition, kind=StageKind.FINAL))
 
-    assert resolve_recipients(BroadcastGroup.ALL_PARTICIPANTS, competition=competition) == [
-        "wielokrotny@example.test"
-    ]
+    assert resolve_recipients(
+        BroadcastGroup.ALL_PARTICIPANTS, competition=competition, edition=stage.edition
+    ) == ["wielokrotny@example.test"]
     assert resolve_recipients(BroadcastGroup.EDITION_PARTICIPANTS, edition=stage.edition) == [
         "wielokrotny@example.test"
     ]
@@ -253,11 +309,13 @@ def test_region_group_by_voivodeship(competition):
     _plain("pomorze@example.test", district=Voivodeship.POMORSKIE)
 
     recipients = resolve_recipients(
-        BroadcastGroup.REGION_PARTICIPANTS, competition=competition, district="Mazowieckie"
+        BroadcastGroup.REGION_PARTICIPANTS, competition=competition, district="Mazowieckie", **ALL_EDITIONS
     )
 
     assert recipients == [here.user.email]
-    assert resolve_recipients(BroadcastGroup.REGION_PARTICIPANTS, competition=competition) == []
+    assert (
+        resolve_recipients(BroadcastGroup.REGION_PARTICIPANTS, competition=competition, **ALL_EDITIONS) == []
+    )
 
 
 def test_region_group_by_custom_region_includes_profiles_from_before_the_flag(competition, other_competition):
@@ -271,11 +329,14 @@ def test_region_group_by_custom_region_includes_profiles_from_before_the_flag(co
     foreign = Region.objects.create(competition=other_competition, code="okreg-polnoc", name="Cudzy")
 
     assert resolve_recipients(
-        BroadcastGroup.REGION_PARTICIPANTS, competition=competition, region=north
+        BroadcastGroup.REGION_PARTICIPANTS, competition=competition, region=north, **ALL_EDITIONS
     ) == sorted([tagged.user.email, legacy.user.email])
     # Region cudzego konkursu przy zakresie tego konkursu – nikt.
     assert (
-        resolve_recipients(BroadcastGroup.REGION_PARTICIPANTS, competition=competition, region=foreign) == []
+        resolve_recipients(
+            BroadcastGroup.REGION_PARTICIPANTS, competition=competition, region=foreign, **ALL_EDITIONS
+        )
+        == []
     )
 
 
@@ -292,16 +353,20 @@ def test_school_group_tells_registry_schools_from_hand_typed_names(competition, 
     )
 
     assert resolve_recipients(
-        BroadcastGroup.SCHOOL_PARTICIPANTS, competition=competition, school=f"sio:{school.pk}"
+        BroadcastGroup.SCHOOL_PARTICIPANTS, competition=competition, school=f"sio:{school.pk}", **ALL_EDITIONS
     ) == [registered.user.email]
     assert resolve_recipients(
-        BroadcastGroup.SCHOOL_PARTICIPANTS, competition=competition, school="name:LO nr 1"
+        BroadcastGroup.SCHOOL_PARTICIPANTS, competition=competition, school="name:LO nr 1", **ALL_EDITIONS
     ) == [typed.user.email]
     assert (
-        resolve_recipients(BroadcastGroup.SCHOOL_PARTICIPANTS, competition=competition, school="sio:abc")
+        resolve_recipients(
+            BroadcastGroup.SCHOOL_PARTICIPANTS, competition=competition, school="sio:abc", **ALL_EDITIONS
+        )
         == []
     )
-    assert resolve_recipients(BroadcastGroup.SCHOOL_PARTICIPANTS, competition=competition) == []
+    assert (
+        resolve_recipients(BroadcastGroup.SCHOOL_PARTICIPANTS, competition=competition, **ALL_EDITIONS) == []
+    )
 
     choices = school_choices(competition)
     assert (f"sio:{school.pk}", "LO nr 1, Gdańsk", 1) in choices
@@ -316,10 +381,12 @@ def test_grade_group(competition):
     third = _plain("trzecia@example.test", grade=3)
     _plain("pierwsza@example.test", grade=1)
 
-    assert resolve_recipients(BroadcastGroup.GRADE_PARTICIPANTS, competition=competition, grade=3) == [
-        third.user.email
-    ]
-    assert resolve_recipients(BroadcastGroup.GRADE_PARTICIPANTS, competition=competition) == []
+    assert resolve_recipients(
+        BroadcastGroup.GRADE_PARTICIPANTS, competition=competition, grade=3, **ALL_EDITIONS
+    ) == [third.user.email]
+    assert (
+        resolve_recipients(BroadcastGroup.GRADE_PARTICIPANTS, competition=competition, **ALL_EDITIONS) == []
+    )
     assert grade_choices(competition) == [(1, "klasa 1"), (3, "klasa 3")]
 
 

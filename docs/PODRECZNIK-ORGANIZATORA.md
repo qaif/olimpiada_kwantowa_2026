@@ -633,21 +633,28 @@ Menu **Komunikacja → Komunikaty**. Ekran nie jest za żadną flagą — dział
 
 | Grupa odbiorców | Kto dostaje list | Trzeba wskazać |
 |---|---|---|
-| **wszyscy uczestnicy konkursu** (pierwsza na liście) | każdy, kto ma w tym konkursie profil uczestnika — także bez zapisu do etapu i z poprzednich edycji | — |
+| **wszyscy uczestnicy konkursu** (pierwsza na liście) | uczestnicy **bieżącej edycji**: zapisani do któregokolwiek jej etapu albo zarejestrowani w niej (konto założone po utworzeniu edycji), także jeszcze bez zapisu do etapu | — (opcjonalnie „także uczestnicy poprzednich edycji”) |
 | uczestnicy bieżącej edycji (zapisani do etapu) | ktoś z wpisem do któregokolwiek etapu bieżącej edycji | — |
 | zapisani do etapu | wpis do wskazanego etapu | etap |
 | zakwalifikowani do etapu | wpis ze statusem „zakwalifikowany” | etap |
 | **zapisani do etapu, bez wysłanej pracy** | wpis „zarejestrowany” albo „zakwalifikowany”, bez żadnej pracy w tym etapie (praca odrzucona przez antywirusa się nie liczy) — przypomnienie przed terminem | etap |
-| uczestnicy z wybranego województwa (regionu) | województwo z profilu; przy włączonym własnym podziale (`custom_regions`) — region, łącznie z profilami sprzed włączenia | województwo albo region |
-| uczestnicy z wybranej szkoły (placówki) | uczniowie jednej szkoły; lista pokazuje **tylko szkoły, z których są uczestnicy** tego konkursu (w nawiasie ich liczba); szkoła z wykazu stoi z miejscowością, nazwa wpisana ręcznie — osobno | szkoła |
-| uczestnicy z wybranej klasy | klasa z profilu; na liście tylko klasy, w których ktoś jest | klasa |
+| uczestnicy z wybranego województwa (regionu) | uczestnicy bieżącej edycji z tym województwem w profilu; przy włączonym własnym podziale (`custom_regions`) — region, łącznie z profilami sprzed włączenia | województwo albo region (opcjonalnie „także uczestnicy poprzednich edycji”) |
+| uczestnicy z wybranej szkoły (placówki) | uczestnicy bieżącej edycji z jednej szkoły; lista pokazuje **tylko szkoły, z których są uczestnicy** tego konkursu (w nawiasie ich liczba ze wszystkich edycji); szkoła z wykazu stoi z miejscowością, nazwa wpisana ręcznie — osobno | szkoła (opcjonalnie „także uczestnicy poprzednich edycji”) |
+| uczestnicy z wybranej klasy | uczestnicy bieżącej edycji z tą klasą w profilu; na liście tylko klasy, w których ktoś jest | klasa (opcjonalnie „także uczestnicy poprzednich edycji”) |
 | uczestnicy obecni na wybranym warsztacie | osoby odhaczone w tabeli obecności (`/coordinator/workshops/attendance/`) | warsztat |
 | **opiekunowie szkolni (nauczyciele)** | konta opiekunów tego konkursu z aktywną rolą | — |
 | członkowie komitetu / komitet jednego województwa | aktywni recenzenci tego konkursu | — / województwo |
 | wklejona lista adresów | adresy z pola (nigdzie niezapisywane) | lista |
 
-Grupy regionu, szkoły i klasy liczą się od „wszystkich uczestników konkursu”, a nie od zapisanych
-do etapu. Po wybraniu grupy ekran pokazuje **tylko pole, którego ta grupa wymaga** (bez JavaScriptu
+**Bieżąca edycja to ustawienie domyślne** (decyzja organizatora z 24.09.2026). „Wszyscy uczestnicy
+konkursu” oraz grupy regionu, szkoły i klasy obejmują uczestnika bieżącej edycji, czyli kogoś, kto
+jest zapisany do któregokolwiek jej etapu **albo** założył konto po utworzeniu tej edycji (zarejestrował
+się, ale do etapu jeszcze się nie zapisał). Osoba z poprzedniego roku, która w tej edycji nigdzie się
+nie zapisała, listu **nie** dostaje — chyba że zaznaczysz **„także uczestnicy poprzednich edycji”**
+(domyślnie odznaczone). Bez bieżącej edycji grupy te są puste, dopóki pola nie zaznaczysz. Wybór jest
+widoczny w podglądzie i w historii („bieżąca edycja” / „także poprzednie edycje”), a zmiana go po
+podglądzie unieważnia podgląd tak samo jak zmiana grupy. „Uczestnicy bieżącej edycji (zapisani do
+etapu)” zostają węższą grupą: wyłącznie osoby z wpisem do etapu. Po wybraniu grupy ekran pokazuje **tylko pole, którego ta grupa wymaga** (bez JavaScriptu
 widać wszystkie — liczy się wyłącznie pole wybranej grupy). **Z wysyłki wypadają konta zablokowane
 i bez potwierdzonego adresu**, a jedna osoba dostaje jeden list, choćby pasowała do grupy kilka razy.
 Każda grupa obejmuje wyłącznie osoby **tego** konkursu — uczestnik innej olimpiady na tej samej
@@ -661,7 +668,8 @@ Ekran jest **dwustopniowy**: **„Podgląd”** pokazuje liczbę odbiorców i tr
 i dopiero **„Wyślij”** wysyła. Podgląd mówi też, **do kogo** („uczestnicy z wybranej szkoły: XIV LO…,
 Warszawa”). To jedyny moment, w którym pomyłkę („uczestnicy edycji” zamiast „zapisani do etapu”) da się
 jeszcze cofnąć. **Adresów ekran nie pokazuje** — sprawdzasz rząd wielkości, nie wpisy. Jeśli po podglądzie
-zmienisz grupę, jej parametr, temat albo treść, „Wyślij” **nic nie wyśle** — pokaże podgląd na nowo
+zmienisz grupę, jej parametr, pole „także uczestnicy poprzednich edycji”, temat albo treść, „Wyślij”
+**nic nie wyśle** — pokaże podgląd na nowo
 („…zmieniły się od podglądu”) i dopiero kolejne „Wyślij” wysyła.
 
 Każdy odbiorca dostaje **osobną kopertę**. Wysyłka idzie porcjami, więc awaria jednej porcji nie kasuje
