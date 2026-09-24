@@ -48,12 +48,22 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: adresów IP** w dowolnym okresie, więc przy każdym pobraniu zostaje pseudonim adresu IP (HMAC
 #: z kluczem serwera). Nowa kategoria danych o osobach, które nie mają w serwisie konta, i nowy
 #: termin usunięcia – zmiana materialna, a nie doprecyzowanie wiersza „serwis”.
-#: 1.7 (24.09.2026) – zaświadczenie o statusie ucznia (``apps.student_status``): skan dokumentu
-#: z pieczątką szkoły, datą urodzenia i podpisem dyrektora oraz decyzja koordynatora. Nowa kategoria
-#: danych (obraz dokumentu wystawionego przez szkołę, dane pracownika szkoły w podpisie) i własny
-#: termin usunięcia pliku – zmiana materialna. Wiersz jest **warunkowy** (flaga
-#: ``student_status_certificate``), jak forum: konkurs, który zaświadczeń nie zbiera, nie ma go
-#: w rejestrze, ale numer wersji jest jeden dla całego dokumentu.
+#: 1.7 (24.09.2026, wydanie v0.34.0) – trzy nowe czynności, każda **warunkowa** (jak forum: wiersz
+#: wchodzi do rejestru wyłącznie konkursom z włączoną flagą, bo rejestr opisuje przetwarzanie, które
+#: naprawdę zachodzi), a numer wersji jest jeden dla całego dokumentu:
+#:
+#: - zaświadczenie o statusie ucznia (``apps.student_status``, flaga ``student_status_certificate``):
+#:   skan dokumentu z pieczątką szkoły, datą urodzenia i podpisem dyrektora oraz decyzja
+#:   koordynatora – nowa kategoria danych (obraz dokumentu, dane pracownika szkoły w podpisie)
+#:   i własny termin usunięcia pliku,
+#: - materiały z warsztatów (``apps.workshop_materials``, flaga ``workshop_materials``) liczą
+#:   **unikalnych widzów** materiału, więc przy pierwszym wyświetleniu zostaje pseudonim pary
+#:   (materiał, konto) – nowa kategoria danych z własnym terminem usunięcia,
+#: - ocena AI (``apps.ai_grading``, flaga ``ai_grading``) przekazuje **prace uczestników** nowemu
+#:   podmiotowi przetwarzającemu (Anthropic) poza serwerem organizatora, w tym poza EOG – nowy
+#:   odbiorca, nowy cel pomocniczy i przekazanie do państwa trzeciego.
+#:
+#: Każda z nich osobno byłaby zmianą materialną; wchodzą w jednym wydaniu, więc w jednej wersji.
 REGISTER_VERSION = "1.7"
 REGISTER_DATE = date(2026, 9, 24)
 
@@ -626,6 +636,50 @@ STUDENT_STATUS_ACTIVITY = _activity(
 )
 
 
+#: Czynność **warunkowa**: statystyka oglądania materiałów z warsztatów. Wchodzi do rejestru wyłącznie
+#: konkursom z włączonym przełącznikiem ``workshop_materials`` – ten sam powód, co przy forum wyżej:
+#: konkurs bez tej funkcji nie zapisuje ani jednego pseudonimu widza.
+#:
+#: Sama treść materiałów (nagrania, slajdy) **nie** jest tu opisana: to materiały organizatora, nie
+#: dane uczestników. Opisana jest wyłącznie statystyka, bo tylko ona dotyka osób, które oglądają.
+WORKSHOP_MATERIALS_ACTIVITY = _activity(
+    key="materialy-z-warsztatow",
+    name="Statystyka wyświetleń materiałów z warsztatów",
+    purpose=(
+        "Policzenie, ile razy i ile różnych kont otworzyło nagrania i pliki z warsztatów – do oceny, "
+        "które materiały są potrzebne uczestnikom i czy warto nagrywać kolejne zajęcia."
+    ),
+    legal_basis=(
+        "art. 6 ust. 1 lit. f RODO (prawnie uzasadniony interes administratora – ocena przydatności "
+        "materiałów edukacyjnych udostępnianych uczestnikom)"
+    ),
+    subjects="zalogowani uczestnicy, opiekunowie szkolni i członkowie komitetu oglądający materiały",
+    categories=[
+        "pseudonim pary (materiał, konto): HMAC-SHA256 z kluczem przechowywanym wyłącznie po stronie "
+        "serwera – bez identyfikatora konta, adresu IP i nagłówka przeglądarki; ta sama osoba przy "
+        "dwóch materiałach ma dwa niepowiązane pseudonimy",
+        "chwila pierwszego wyświetlenia materiału (do terminu usunięcia)",
+    ],
+    recipients=[
+        HOSTING_RECIPIENT,
+        "koordynator konkursu – wyłącznie liczby zbiorcze przy materiale (wyświetlenia i liczba "
+        "różnych widzów); pojedynczych pseudonimów nie widzi nikt w interfejsie",
+    ],
+    retention=(
+        "pseudonim widza – 12 miesięcy od pierwszego wyświetlenia, po czym jest automatycznie "
+        "kasowany (zadanie cogodzinne) albo wcześniej razem z materiałem; licznik wyświetleń bez "
+        "żadnej informacji o osobie zostaje przy materiale"
+    ),
+    measures=[
+        "funkcja jest domyślnie wyłączona – bez decyzji organizatora nie powstaje ani jeden pseudonim",
+        "w bazie nie ma identyfikatora konta przy wyświetleniu – wyłącznie HMAC z kluczem "
+        "wyprowadzonym z sekretu aplikacji, którego nie ma w bazie ani w jej kopii",
+        "materiał wchodzi do skrótu, więc z tabeli nie da się złożyć historii oglądania jednej osoby",
+        "wyświetlenia koordynatora nie są zapisywane",
+    ],
+)
+
+
 def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
     """Rejestr **tego** konkursu: czynności wspólne plus te, które wynikają z jego konfiguracji.
 
@@ -649,6 +703,8 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
 
     if student_status_enabled(competition):
         activities = (*activities, STUDENT_STATUS_ACTIVITY)
+    if competition is not None and competition.has_feature("workshop_materials"):
+        activities = (*activities, WORKSHOP_MATERIALS_ACTIVITY)
     return activities
 
 

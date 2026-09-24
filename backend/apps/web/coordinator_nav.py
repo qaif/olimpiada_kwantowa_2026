@@ -620,6 +620,19 @@ def groups(stages: list, competition=None) -> list[Group]:
             ("web:coordinator-workshop-attendance",),
             match=("coordinator-workshop-attendance", "coordinator-workshop-certificates"),
         ),
+    )
+    if competition is not None and competition.has_feature("workshop_materials"):
+        # Materiały z warsztatów (prośba organizatora z 24.09.2026) – zaraz pod obecnością, bo oba
+        # ekrany są o tych samych warsztatach z tego samego harmonogramu. Bramka ta sama, co
+        # w widoku: przy wyłączonej fladze ekran oddaje 404, więc pozycja prowadziłaby donikąd.
+        reports += (
+            Item(
+                "Materiały z warsztatów",
+                ("web:coordinator-workshop-materials",),
+                match=("coordinator-workshop-materials", "coordinator-workshop-material-"),
+            ),
+        )
+    reports += (
         Item(
             "Zaświadczenia opiekunów",
             ("web:coordinator-supervisors",),

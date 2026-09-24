@@ -150,15 +150,26 @@ FLAG_ITEMS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "participant_forum": (frozenset({"Forum uczestników"}), frozenset({"Forum uczestników"})),
     # --- zaświadczenie o statusie ucznia (prośba organizatora z 24.09.2026) -------------------------
     "student_status_certificate": (frozenset({"Status ucznia"}), frozenset({"Status ucznia"})),
+    # --- materiały z warsztatów (prośba organizatora z 24.09.2026) ---------------------------------
+    "workshop_materials": (frozenset({"Materiały z warsztatów"}), frozenset({"Materiały z warsztatów"})),
 }
 
 #: Flagi spoza etapu 2, które mimo to dokładają pozycję menu i dlatego stoją w tabeli wyżej.
-#: Dziś są trzy: ``competition_creation`` (ekran „Nowy konkurs”, subdomeny platformy),
-#: ``participant_forum`` (moderacja forum, prośba organizatora z 21.09.2026) i
-#: ``student_status_certificate`` (zaświadczenia o statusie ucznia, 24.09.2026). Stała istnieje po to,
-#: żeby licznik niżej nadal mówił o **etapie 2** – inaczej trzeba by przy każdym kolejnym ekranie
-#: poprawiać liczbę, o której dokument mówi, że jest ceną świadomie zapłaconą.
-LATER_FLAGS = frozenset({"competition_creation", "participant_forum", "student_status_certificate"})
+#: Dziś jest ich pięć: ``competition_creation`` (ekran „Nowy konkurs”, subdomeny platformy),
+#: ``participant_forum`` (moderacja forum, prośba organizatora z 21.09.2026) oraz trzy z prośby
+#: organizatora z 24.09.2026 (wydanie v0.34.0): ``student_status_certificate`` (zaświadczenia
+#: o statusie ucznia), ``workshop_materials`` (materiały z warsztatów) i ``ai_grading`` (ocena AI).
+#: Stała istnieje po to, żeby licznik niżej nadal mówił o **etapie 2** – inaczej trzeba by przy
+#: każdym kolejnym ekranie poprawiać liczbę, o której dokument mówi, że jest ceną świadomie zapłaconą.
+LATER_FLAGS = frozenset(
+    {
+        "competition_creation",
+        "participant_forum",
+        "student_status_certificate",
+        "workshop_materials",
+        "ai_grading",
+    }
+)
 
 #: Klucze odznak w menu. Piąta i szósta pozycja tej listy to dwa różne rodzaje wyjątku, więc obie
 #: mają tu własne zdanie:

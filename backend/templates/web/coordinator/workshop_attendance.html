@@ -21,6 +21,9 @@
     tutaj przepisujesz ją albo importujesz, żeby dało się wystawić zaświadczenia. Kolumny biorą się
     z harmonogramu na stronie <a href="/warsztaty/">/warsztaty/</a>.</p>
 {% endblock %}
+{% block panel_actions %}
+  {% if materials_enabled %}<a class="btn btn--secondary" href="{% url 'web:coordinator-workshop-materials' %}">Materiały z warsztatów</a>{% endif %}
+{% endblock %}
 {% block panel_content %}
 
 {% if not edition %}

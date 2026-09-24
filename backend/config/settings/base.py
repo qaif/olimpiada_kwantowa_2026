@@ -140,6 +140,12 @@ INSTALLED_APPS = [
     # własną retencję plików i własny wpis w rejestrze czynności – z kontami łączy ją jeden klucz
     # obcy do profilu uczestnika, a z zawodami – klucz do edycji.
     "apps.student_status",
+    # Materiały z warsztatów: nagrania, pliki i odnośniki dla zalogowanych (prośba organizatora
+    # z 24.09.2026, flaga ``workshop_materials``). Osobna aplikacja z tego samego powodu, co
+    # ``apps.promo``: własne modele, własny magazyn (wgrywanie z przeglądarki prosto do MinIO)
+    # i własne reguły dostępu. Z CMS-em łączy ją wyłącznie **odczyt** harmonogramu warsztatów
+    # (``apps.cms.workshops``) – dlatego stoi po nim, a przed ``apps.web``, który ją wyświetla.
+    "apps.workshop_materials",
     # Warstwa integracyjna: klucze API dla systemów zewnętrznych, webhooki i eksporty na zewnątrz.
     # **Po** aplikacjach domeny, bo czyta je wszystkie (edycje, wyniki, zgłoszenia), a żadna z nich
     # nie czyta jej – zależność idzie w jedną stronę i kolejność w tej liście ma to pokazywać.
@@ -278,6 +284,10 @@ TEMPLATES = [
                 # szkolnego. Wartość leniwa, z pamięci podręcznej unieważnianej przy zapisie plakatu
                 # (``apps.promo.availability``).
                 "apps.promo.availability.promo_materials",
+                # Czy pokazać odnośnik „Materiały z warsztatów” w pasku konta i na pulpicie
+                # uczestnika – przełącznik konkursu i pamięć podręczna unieważniana przy zapisie
+                # materiału (``apps.workshop_materials.availability``); wartość leniwa.
+                "apps.workshop_materials.availability.workshop_materials_link",
                 # Nazwa serwisu, hasło i dane organizatora – ``cms.SiteSettings`` edytowane
                 # w ``/cms/`` (Ustawienia → Serwis). Szablony czytają je jako
                 # ``settings.cms.SiteSettings``; nic z tego nie jest zaszyte w kodzie.
@@ -379,6 +389,9 @@ CELERY_TASK_ROUTES = {
     # Skan antywirusowy zaświadczenia o statusie ucznia – ta sama praca na tym samym kliencie clamd,
     # co skan rozwiązań, więc ta sama kolejka.
     "apps.student_status.tasks.scan_certificate_file": {"queue": "scan"},
+    # Skan pliku materiału z warsztatów – ta sama kolejka, co skan rozwiązań: to ta sama praca
+    # (strumień z MinIO do clamd), a osobny worker ``scan`` pilnuje, żeby nie zajęła kolejki ogólnej.
+    "apps.workshop_materials.tasks.scan_material": {"queue": "scan"},
 }
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_TIMEZONE = "UTC"
@@ -438,6 +451,13 @@ CELERY_BEAT_SCHEDULE = {
     "student-status-purge-expired-scans": {
         "task": "apps.student_status.tasks.purge_expired_scans",
         "schedule": 86400.0,
+    },
+    # Materiały z warsztatów (apps/workshop_materials/tasks.py): porzucone wgrywania (wiersz
+    # „wgrywanie” starszy niż doba – części w MinIO, obiekt i wiersz) oraz pseudonimy widzów po
+    # okresie retencji. Co godzinę, bo porzucone wgrywanie filmu to bywają gigabajty na dysku.
+    "workshop-materials-cleanup": {
+        "task": "apps.workshop_materials.tasks.cleanup",
+        "schedule": 3600.0,
     },
     # Puls workera zapisywany w cache'u – z niego strona ``/status/`` czyta, czy kolejka zadań
     # w ogóle żyje (apps/core/tasks.py). Co minutę, bo próg „brak pulsu” na stronie statusu jest
@@ -695,6 +715,14 @@ CLAMAV_PORT = env.int("CLAMAV_PORT", default=3310)
 # ``StreamMaxLength`` clamd (obraz clamav 1.4 → 100 MB). Powyżej tej wartości clamd zrywa połączenie
 # w trakcie INSTREAM, co wyglądałoby jak awaria usługi i uruchamiało bezsensowne retry.
 CLAMAV_STREAM_MAX_BYTES = env.int("CLAMAV_STREAM_MAX_BYTES", default=100 * 1024 * 1024)
+
+# Materiały z warsztatów (``apps.workshop_materials``): limity rozmiaru w MB. Film nie przechodzi
+# przez serwer aplikacji (wgrywanie częściami prosto do MinIO), więc jego limit chroni wyłącznie dysk
+# serwera – 4 GB to dwugodzinne nagranie 1080p z zapasem. Plik (PDF, prezentacja) jest skanowany
+# ClamAV-em, więc jego limit i tak jest przycinany do ``CLAMAV_STREAM_MAX_BYTES``
+# (``apps.workshop_materials.formats.file_max_bytes``).
+WORKSHOP_VIDEO_MAX_MB = env.int("WORKSHOP_VIDEO_MAX_MB", default=4096)
+WORKSHOP_FILE_MAX_MB = env.int("WORKSHOP_FILE_MAX_MB", default=100)
 
 # --- Strona błędu serwera (templates/500.html) -------------------------------------------------
 # Adres kontaktowy pokazywany na stronie 500. Ustawienie, a nie pole konkursu: ta strona renderuje

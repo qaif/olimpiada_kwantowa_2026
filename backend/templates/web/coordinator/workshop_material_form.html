@@ -1,0 +1,66 @@
+{% extends "web/coordinator/base.html" %}
+{% load static %}
+{% comment %}
+  Dodanie i edycja materiału z warsztatu. Formularz przez ``as_p`` (``docs/UI.md`` § 2.13).
+
+  Nowy **film albo plik** nie jest wysyłany tym formularzem do serwera: skrypt
+  ``static/js/workshop-material-upload.js`` przechwytuje wysłanie, zakłada wgrywanie
+  (``data-start-url``), wysyła plik częściami **prosto do magazynu plików** i na końcu prosi serwer
+  o sprawdzenie (``complete``). Pasek postępu i komunikaty są w ``[data-upload-status]``. Odnośnik
+  i edycja idą zwykłym POST-em. Bez JavaScriptu film/plik nie da się wgrać – mówi to ``<noscript>``.
+
+  ``enctype`` zostaje ``urlencoded``: pole pliku istnieje wyłącznie dla przeglądarki i nie może
+  zostać wysłane do serwera nawet wtedy, gdy skrypt się nie wczyta.
+{% endcomment %}
+{% block title %}{% if editing %}Materiał „{{ material.title }}”{% else %}Nowy materiał z warsztatu{% endif %} – panel koordynatora{% endblock %}
+{% block panel_eyebrow %}<a href="{% url 'web:coordinator-workshop-materials' %}">Materiały z warsztatów</a>{% endblock %}
+{% block panel_title %}{% if editing %}Materiał „{{ material.title }}”{% else %}Nowy materiał z warsztatu{% endif %}{% endblock %}
+{% block panel_lead %}
+  {% if editing %}
+    <p class="lead">Zmieniasz opis i przypięcie materiału. Żeby podmienić plik, dodaj nowy materiał
+      i usuń ten – nowy plik przejdzie wtedy całe sprawdzenie od początku.</p>
+  {% else %}
+    <p class="lead">Film (MP4/WebM), plik (PDF, prezentacja, notatnik, archiwum) albo odnośnik do
+      nagrania w innym serwisie. Duży film wgrywa się kilka–kilkadziesiąt minut; nie zamykaj tej karty,
+      dopóki pasek nie dojdzie do końca.</p>
+  {% endif %}
+{% endblock %}
+{% block panel_content %}
+<div class="card">
+  {% if not has_schedule and not editing %}
+    <p class="hint">Harmonogram warsztatów jest pusty – materiał przypina się do wiersza bloku
+      „harmonogram” na stronie <a href="/warsztaty/">/warsztaty/</a> z wypełnionym polem „termin (data)”.</p>
+  {% else %}
+    {% if editing %}
+      <p class="hint">{{ material.get_kind_display|capfirst }}{% if material.format_label %}, {{ material.format_label }}{% endif %}{% if material.size_bytes %}, {{ material.size_bytes|filesizeformat }}{% endif %}.
+        {% if material.status == "ready" %}<a href="{% url 'web:coordinator-workshop-material-preview' material.pk %}" target="_blank" rel="noopener">Podgląd</a> (nie liczy się do statystyk).{% endif %}</p>
+    {% endif %}
+    <form method="post" class="form form--wide" novalidate
+          {% if not editing %}
+            data-upload-form
+            data-start-url="{% url 'web:coordinator-workshop-material-upload-start' %}"
+            data-list-url="{% url 'web:coordinator-workshop-materials' %}"
+          {% endif %}>
+      {% csrf_token %}
+      <p class="form__required-note">Pola oznaczone * są obowiązkowe.</p>
+      {{ form.as_p }}
+      {% if not editing %}
+        <noscript><p class="alert alert--warning">Film i plik wgrywa się skryptem przeglądarki, prosto do
+          magazynu plików – włącz JavaScript. Odnośnik zapiszesz bez niego.</p></noscript>
+        <div class="upload-status" data-upload-status hidden>
+          <progress max="100" value="0" data-upload-progress aria-label="Postęp wgrywania"></progress>
+          <p class="hint" data-upload-message aria-live="polite"></p>
+        </div>
+      {% endif %}
+      <div class="actions">
+        <button type="submit" class="btn btn--primary" data-upload-submit>{% if editing %}Zapisz zmiany{% else %}Zapisz materiał{% endif %}</button>
+        {% if not editing %}<button type="button" class="btn btn--secondary" data-upload-cancel hidden>Przerwij wgrywanie</button>{% endif %}
+        <a class="btn btn--ghost" href="{% url 'web:coordinator-workshop-materials' %}">Anuluj</a>
+      </div>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}{{ block.super }}
+  {% if not editing %}<script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/workshop-material-upload.js' %}"></script>{% endif %}
+{% endblock %}

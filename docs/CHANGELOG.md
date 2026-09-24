@@ -85,6 +85,55 @@ adresu opiekuna prawnego (`guardian_email` służy wyłącznie zgodzie – RODO)
 zbieramy tylko do reguły zgody opiekuna), bez grupy „zapisani na warsztat, ale nieobecni” (warsztaty nie
 mają zapisów – jest tylko obecność) i bez wpisów drużynowych w grupach etapowych. Podręcznik
 organizatora § 6.1.
+## [Unreleased] – materiały z warsztatów
+
+Prośba organizatora z 24.09.2026: „Koordynator dostaje możliwość wgrywania materiałów z warsztatów,
+w tym filmów. Filmy powinny być możliwe do obejrzenia tylko na stronie po zalogowaniu.” Numer wersji
+nada sesja główna.
+
+- **Nowa aplikacja `apps.workshop_materials`** (migracja `workshop_materials.0001_initial`: modele
+  `WorkshopMaterial` i `WorkshopMaterialViewer`), za flagą konkursu **`workshop_materials`, domyślnie
+  wyłączoną** – przy wyłączonej wszystkie nowe adresy dają 404, a menu i strona „Warsztaty” są bez zmian.
+- **Koordynator** – `/coordinator/workshops/materials/` (Raporty → Materiały z warsztatów, odnośnik
+  także z ekranu obecności): lista warsztatów z harmonogramu (blok `schedule` strony „Warsztaty”),
+  pod każdym materiały – **film** (MP4/WebM do 4 GB), **plik** (PDF, PPTX, DOCX, XLSX, ODP/ODT/ODS, ZIP,
+  IPYNB, PNG/JPG do 100 MB) albo **odnośnik** (`https://`); tytuł, opis, kolejność w obrębie warsztatu,
+  publikacja, podgląd szkicu, usunięcie razem z obiektem w magazynie; audyt `workshop_material.*` bez
+  tytułu i nazwy pliku. Materiał jest przypięty kluczem warsztatu (data + temat, jak obecność) z
+  **migawką** tematu i daty – po zmianie wiersza w harmonogramie materiał nie znika u widzów, a
+  koordynator widzi sekcję „Materiały bez warsztatu w harmonogramie” z przepięciem całej grupy
+  (podpowiedź: jedyny wiersz z tą samą datą).
+- **Wgrywanie bez gunicorna**: przeglądarka wysyła plik częściami po 16 MB prosto do MinIO na adresy
+  podpisane przez serwer (`static/js/workshop-material-upload.js`, trzy części naraz, ponowienia,
+  pasek postępu, „Przerwij”); krok „zakończ” bierze listę części od MinIO, składa plik, sprawdza
+  rozmiar i **format po treści** (MP4 z marką ISO BMFF albo WebM; MOV/MKV odrzucane z podpowiedzią
+  przepakowania), pod blokadą wiersza (podwójne „zakończ” nie kasuje poprawnego pliku). Pliki – skan
+  ClamAV (kolejka `scan`, zagrożenie → obiekt skasowany, materiał „odrzucony”); filmy bez ClamAV
+  (uzasadnienie w `apps/workshop_materials/tasks.py`). Bez transkodowania.
+- **Oglądanie po zalogowaniu**: `/warsztaty/materialy/` (lista po warsztatach), `/warsztaty/materialy/<id>/`
+  (odtwarzacz `<video controlslist="nodownload">` z adresem podpisanym na 2 h, przewijanie `Range`),
+  `/warsztaty/materialy/<id>/pobierz/` (plik – przekierowanie na podpis na 5 min; odnośnik – na adres
+  zewnętrzny). Widzi każde konto z rolą **w tym konkursie** (uczestnik z profilem, opiekun, recenzent,
+  komisja, koordynator); inne konto – 403, anonim – logowanie. Wszystkie odpowiedzi `no-store`; żadna
+  z tych ścieżek nie jest na allow-liście pamięci stron. Gość na `/warsztaty/` widzi ramkę „zaloguj się,
+  aby obejrzeć” z liczbą materiałów, bez adresów (pamięć stron unieważniana przy zapisie materiału).
+- **Odnośniki** (decyzja organizatora z 24.09.2026): „Materiały z warsztatów” w pasku konta (konto z rolą
+  w konkursie) i kafel na pulpicie uczestnika `/me/` – tylko przy włączonej fladze i co najmniej jednym
+  opublikowanym, gotowym materiale. Odpowiedź z pamięci podręcznej per konkurs (godzina, kasowana
+  sygnałem przy zapisie/usunięciu materiału, `apps.workshop_materials.availability`, procesor kontekstu
+  `workshop_materials_link`, wartość leniwa); przy wyłączonej fladze zero zapytań i zero odczytów
+  z pamięci – `QUERY_BUDGET` bez zmian (nowy test w `test_invariants.py`).
+- **Statystyki**: wyświetlenia i liczba różnych widzów na materiał; widz zapisany wyłącznie jako
+  pseudonim HMAC pary (materiał, konto), kasowany po 12 miesiącach; koordynator nie jest liczony.
+  Rejestr czynności przetwarzania **1.7** – wiersz warunkowy „Statystyka wyświetleń materiałów
+  z warsztatów”.
+- **Infrastruktura**: `deploy/minio/policy-submissions.json` + uprawnienia wgrywania wieloczęściowego
+  (na produkcji: `docker compose run --rm minio-init`); `scripts/backup.sh` pomija prefiks
+  `workshop-materials/` w kopii nocnej; nowe zadanie beat `workshop-materials-cleanup` (co godzinę:
+  porzucone wgrywania > 24 h, pseudonimy > 12 mies.); ustawienia `WORKSHOP_VIDEO_MAX_MB`,
+  `WORKSHOP_FILE_MAX_MB`. Caddy i CSP bez zmian (limit części 16 MB < `MAX_UPLOAD_MB`; origin MinIO
+  był już w `connect-src`/`media-src`). Operator: `OPERACJE.md` § 16; organizator:
+  `PODRECZNIK-ORGANIZATORA.md` § 4.11; uczestnik: `PODRECZNIK-UCZESTNIKA.md` § 7.
 
 ## Niewydane (po `v0.31.1`)
 

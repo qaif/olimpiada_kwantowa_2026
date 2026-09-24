@@ -530,6 +530,102 @@ Każda zmiana zostawia wpis w audycie (`promo.created`, `promo.updated`, `promo.
 `promo.unpublished`, `promo.reordered`, `promo.archived`, `promo.deleted`, `promo.restored`; eksport —
 `export.generated`) z numerem plakatu i nazwami zmienionych pól, bez tytułu i nazwy pliku.
 
+### 4.11 Materiały z warsztatów — `/coordinator/workshops/materials/`
+
+Ekran **„Materiały z warsztatów”** (menu: Raporty → Materiały z warsztatów, zaraz pod „Obecnością na
+warsztatach”; przycisk jest też na ekranie obecności). Nagrania zajęć, slajdy, notatniki i odnośniki,
+które **ogląda się wyłącznie po zalogowaniu** na stronie **`/warsztaty/materialy/`**. Funkcja jest za
+przełącznikiem konkursu `workshop_materials` — dopóki operator go nie włączy, ekranu, pozycji w menu
+i strony dla uczestników nie ma.
+
+**Gdzie uczestnik je znajdzie.** Odnośnik „Materiały z warsztatów” w pasku konta (każda zalogowana
+osoba z rolą w konkursie), kafel na pulpicie uczestnika i ramka na stronie `/warsztaty/` — odnośnik
+i kafel pojawiają się, gdy opublikujesz pierwszy materiał (i znikają, gdy zdejmiesz ostatni).
+
+**Kto widzi materiały.** Każde zalogowane konto, które **w tym konkursie** jest uczestnikiem, opiekunem
+szkolnym, recenzentem, członkiem komisji odwoławczej albo koordynatorem. Konto spoza konkursu (np.
+uczestnik innej olimpiady na tej samej platformie) dostaje „brak dostępu”. Gość na stronie
+`/warsztaty/` widzi tylko ramkę „Materiały z warsztatów — zaloguj się, aby obejrzeć” z liczbą
+materiałów, bez tytułów i bez żadnego adresu pliku.
+
+**Materiał przypina się do warsztatu z harmonogramu.** Ekran pokazuje każdy wiersz tabeli
+„harmonogram” ze strony `/warsztaty/` (ten sam, z którego biorą się kolumny obecności) — także te bez
+materiałów, bo przy nich jest przycisk **„Dodaj materiał do tego warsztatu”**. Wiersz bez wypełnionego
+pola „termin (data)” nie ma tu miejsca — uzupełnij datę w `/cms/`.
+
+**Dodanie materiału** — „Dodaj materiał”:
+
+| Pole | Znaczenie |
+|---|---|
+| Warsztat | wiersz harmonogramu |
+| Rodzaj | **film**, **plik** albo **odnośnik** |
+| Tytuł, opis | nagłówek karty i kilka zdań pod nim (np. „od 12. minuty zadanie 3”). Z tytułu powstaje nazwa pobranego pliku |
+| Plik | **film:** MP4 (H.264 + AAC) albo WebM, najwyżej **4 GB**. **Plik:** PDF, PPTX, DOCX, XLSX, ODP, ODT, ODS, ZIP, IPYNB, PNG, JPG — najwyżej **100 MB** |
+| Adres odnośnika | tylko dla rodzaju „odnośnik”, np. nagranie niepubliczne w serwisie wideo; musi zaczynać się od `https://` |
+| Opublikowany | bez zaznaczenia materiał jest **szkicem** — widzisz go tylko tutaj |
+
+**Jak idzie wgrywanie filmu.** Po kliknięciu „Zapisz materiał” pod formularzem pojawia się **pasek
+postępu**. Plik idzie z Twojej przeglądarki **prosto do magazynu plików**, kawałkami po 16 MB (serwer
+tylko podpisuje kolejne kawałki), więc duży film nie obciąża serwisu, a chwilowe zerwanie połączenia
+nie przerywa całości — kawałek jest wysyłany ponownie. **Nie zamykaj karty**, dopóki pasek nie dojdzie
+do końca (przeglądarka ostrzeże przed zamknięciem). Na końcu serwer składa plik i sprawdza, czy to
+naprawdę MP4/WebM; potem wracasz na listę. Godzinne nagranie z platformy wideo (ok. 0,5–1 GB) przy
+łączu 20 Mb/s wgrywa się kilka minut. „Przerwij wgrywanie” kasuje wszystko, co już dotarło; wgrywanie
+porzucone (zamknięta karta) znika samo po dobie. Wgrywanie wymaga włączonego JavaScriptu.
+
+- **Format sprawdzamy po treści**, nie po rozszerzeniu. Plik **MOV** (QuickTime, np. z telefonu albo
+  Maca) i **MKV** (np. z OBS-a) zostaną odrzucone z podpowiedzią, jak je przepakować do MP4 — część
+  przeglądarek ich nie odtworzy. Najpewniejszy format: **MP4, wideo H.264, dźwięk AAC** (tak zapisują
+  Zoom, Teams i Google Meet). Nagranie, które już jest takim MP4, nie wymaga żadnej obróbki.
+- Film w H.265/HEVC przejdzie sprawdzenie (to też MP4), ale **nie odtworzy się w części przeglądarek**
+  (m.in. Firefox) — jeśli masz wybór, eksportuj H.264.
+- Serwis **nie przerabia** filmów (nie zmniejsza rozdzielczości, nie tnie) — oglądający dostaje dokładnie
+  ten plik, który wgrałeś. Na zajęcia z ekranem prowadzącego wystarczy 720p, a plik jest wtedy kilka
+  razy mniejszy.
+
+**Pliki (PDF, prezentacje…)** przechodzą po wgraniu jeszcze **sprawdzenie antywirusowe** (zwykle
+kilkanaście sekund; stan „sprawdzanie antywirusowe” na liście, odśwież stronę). Dopiero potem są widoczne.
+Plik z wykrytym zagrożeniem jest **kasowany** i zostaje na liście jako „odrzucony” z nazwą zagrożenia.
+Jeśli plik długo stoi w „sprawdzaniu”, użyj „Sprawdź ponownie”. **Filmy nie idą przez antywirusa**: są
+za duże dla skanera, a skaner nie ma w nich czego szukać — bramką jest sprawdzenie, że to naprawdę film
+MP4/WebM.
+
+Na liście w każdym wierszu: strzałki **↑ ↓** (kolejność w obrębie warsztatu), **Podgląd** (otwiera
+materiał także jako szkic; nie liczy się do statystyk), **Zmień** (tytuł, opis, warsztat, publikacja —
+**pliku nie podmienisz**: dodaj nowy materiał i usuń stary), **Opublikuj / Zdejmij** i **Usuń** (kasuje
+materiał razem z plikiem, nieodwracalnie). Materiał oznaczony jako opublikowany, który jeszcze się
+sprawdza, pojawi się u widzów sam, gdy skaner go przepuści.
+
+**Zmieniłeś temat albo datę warsztatu w harmonogramie?** Materiał jest przypięty do warsztatu kluczem
+złożonym z **daty i tematu** — tym samym, co obecność. Po poprawce tematu (nawet literówki) albo daty
+materiały „tracą” warsztat i trafiają na dół ekranu do sekcji **„Materiały bez warsztatu
+w harmonogramie”**. Nic nie znika: uczestnicy nadal je widzą, pod dawnym tematem i datą. W sekcji
+wybierz właściwy warsztat z listy (jeśli w harmonogramie jest dokładnie jeden warsztat z tą samą datą,
+jest już wybrany) i kliknij **„Przepnij”** — cała grupa przechodzi naraz. Serwis nie przepina sam, bo
+„ten sam dzień” nie zawsze znaczy „te same zajęcia”.
+
+**Statystyki.** Przy każdym materiale: **Wyświetlenia** (otwarcie odtwarzacza, pobranie pliku, przejście
+pod odnośnik) i **Widzowie** (ile różnych kont). Twoich wyświetleń nie liczymy. **Kto** oglądał — tego
+serwis nie wie i nie pokaże: zapisujemy wyłącznie pseudonim (skrót HMAC pary „materiał–konto”, inny dla
+każdego materiału), kasowany po 12 miesiącach. Obecność na zajęciach dalej odhacza się na ekranie
+obecności — obejrzenie nagrania nie jest obecnością. Czynność opisuje rejestr czynności przetwarzania
+(§ 9.2, wiersz „Statystyka wyświetleń materiałów z warsztatów” – tylko w konkursie z włączoną funkcją).
+
+**Czego ta funkcja nie gwarantuje.** Film ogląda się w odtwarzaczu na stronie, adres pliku jest ważny
+**2 godziny** i nie ma go nigdzie jako linku do skopiowania, a przycisk „Pobierz” w odtwarzaczu jest
+wyłączony. To utrudnia rozsyłanie nagrania, ale **nie uniemożliwia** jego zapisania: zalogowana osoba,
+która się uprze, wyciągnie adres z narzędzi przeglądarki albo nagra ekran. Jeżeli nagranie nie może
+wyjść poza uczestników pod żadnym pozorem (np. wizerunek osób bez zgody na udostępnienie), nie wgrywaj
+go. Odnośnik (rodzaj „odnośnik”) chroni jeszcze mniej: serwis wymaga logowania, żeby go **zobaczyć**,
+ale sam adres działa dla każdego, kto go dostanie.
+
+**Kopia zapasowa.** Materiały z warsztatów **nie wchodzą do nocnej kopii zapasowej** (pojedyncze
+nagranie to gigabajty). Zachowaj oryginały u siebie — po awarii serwera trzeba je będzie wgrać ponownie.
+
+Każda zmiana zostawia wpis w audycie (`workshop_material.created`, `.upload_started`, `.uploaded`,
+`.upload_rejected`, `.updated`, `.attached`, `.published`, `.unpublished`, `.reordered`, `.deleted`)
+z numerem materiału, rodzajem, formatem i rozmiarem — bez tytułu, opisu i nazwy pliku.
+
 ---
 
 ## 5. Wyniki

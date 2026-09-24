@@ -201,6 +201,7 @@
              {% if request.path == coordinator_url %}aria-current="page"{% endif %}>Koordynator</a>
         {% endif %}
         {% include "web/_forum_link.html" %}
+        {% include "web/_workshop_materials_link.html" %}
         {% include "web/_support_link.html" %}
         <span class="account-bar__sep" aria-hidden="true"></span>
         {% comment %}``request.user``, a nie ``user``: widok może podać w kontekście własne ``user`` (karta członka

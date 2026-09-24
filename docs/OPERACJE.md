@@ -617,12 +617,16 @@ z **różnicami** wobec wartości domyślnych. Pusty słownik `{}` znaczy „jak
   kto i jak często zagląda do `/coordinator/forum/`. Pierwszy krok **po** zapaleniu: założyć co
   najmniej jeden dział (`/coordinator/forum/categories/`) — bez działu nikt nie napisze ani słowa.
   Szczegóły moderacji: `PODRECZNIK-ORGANIZATORA.md` § 6.4.
-
 - **`student_status_certificate`** — zaświadczenia o statusie ucznia (v0.34.0): strona uczestnika
   `/me/status-ucznia/`, ekran koordynatora `/coordinator/student-status/`, wybór „tylko uczniowie
   z potwierdzonym statusem” przy paczkach ZIP. Wyłączona znaczy, że adresów **nie ma** (404). Zapalenie
   jest decyzją organizatora o **nowej kategorii danych** (skan dokumentu z datą urodzenia i podpisem
   dyrektora szkoły) — rejestr czynności dostaje przy niej własny wiersz. Szczegóły: § 15.
+- **`workshop_materials`** — materiały z warsztatów (v0.34.0): wgrywanie przez koordynatora
+  (`/coordinator/workshops/materials/`) i oglądanie po zalogowaniu (`/warsztaty/materialy/`).
+  Wyłączona znaczy, że tych adresów **nie ma** (404), a strona „Warsztaty” i menu wyglądają jak dotąd.
+  **Przed zapaleniem** trzy kroki operatora z § 16: polityka MinIO z uprawnieniami wgrywania
+  wieloczęściowego, sprawdzenie miejsca na dysku i świadomość, że materiały nie wchodzą do kopii nocnej.
 
 Po każdym przestawieniu flagi: zaloguj się na konto jednej osoby z każdej roli i sprawdź, że widzi
 to, co widziała. Flaga jest odwracalna w minutę, ale tylko wtedy, gdy ktoś zauważy w tej minucie.
@@ -1401,7 +1405,6 @@ Statystyka pobrań łącznie nie zmienia się.
 plakatu). Po imporcie z ominięciem sygnałów wystarczy `page_cache_clear` i odczekanie TTL albo
 restart Redisa.
 
-
 ## 15. Zaświadczenia o statusie ucznia (v0.34.0)
 
 Aplikacja `apps.student_status`, opis dla organizatora: `PODRECZNIK-ORGANIZATORA.md` § 10a. Funkcja
@@ -1448,3 +1451,107 @@ docker compose exec -T web python manage.py shell -c "from apps.student_status.s
 **Harmonogram beat** jest w bazie (`django_celery_beat`, `DatabaseScheduler`) — wpis z
 `CELERY_BEAT_SCHEDULE` trafia tam przy starcie `beat`; po wdrożeniu sprawdź w `/admin/ → Periodic tasks`,
 że `student-status-purge-expired-scans` istnieje i jest włączony.
+
+## 16. Materiały z warsztatów (flaga `workshop_materials`)
+
+Ekran koordynatora `/coordinator/workshops/materials/`, strona dla zalogowanych
+`/warsztaty/materialy/` (aplikacja `apps.workshop_materials`, opis dla organizatora:
+`PODRECZNIK-ORGANIZATORA.md` § 4.11). Flaga jest domyślnie **wyłączona**; zapalenie w `/admin/`
+(§ 6.4) po krokach niżej.
+
+### 16.1. Droga pliku – bez gunicorna, bez transkodowania
+
+Film (do 4 GB) **nie przechodzi przez aplikację**. Przeglądarka koordynatora wysyła go częściami
+po **16 MB** prosto do MinIO (`PUT` na adresy podpisane przez serwer, wgrywanie wieloczęściowe S3),
+przez Caddy na `S3_PUBLIC_ADDRESS` (u nas `olimpiadakwantowa.pl:9000`). Serwer tylko zakłada
+wgrywanie, podpisuje części (po 20 na żądanie, ważne godzinę) i w kroku „zakończ” pyta MinIO
+o listę części (`ListParts`), składa plik, sprawdza rozmiar (`HeadObject`) i pierwsze 4 KB
+(sygnatura MP4/WebM). Worker gunicorna jest zajęty milisekundy, nie minuty; pamięć `web` nie rośnie.
+**Serwer niczego nie transkoduje** (6 vCPU z dużym *steal*, § 11) – widz dostaje plik tak, jak go
+wgrano, a przewijanie działa żądaniami `Range` bezpośrednio do MinIO (odpowiedź 206).
+
+Pliki (PDF, prezentacje, do 100 MB) idą tą samą drogą, a po złożeniu – przez ClamAV (zadanie
+`apps.workshop_materials.tasks.scan_material`, kolejka `scan`). Filmy przez ClamAV **nie** idą:
+`StreamMaxLength` clamd to 100 MB, a skan gigabajtów to kilkanaście minut rdzenia; bramką filmu jest
+sygnatura kontenera, a adres dla widza wymusza `Content-Type: video/*` (uzasadnienie:
+`apps/workshop_materials/tasks.py`).
+
+Obiekty leżą w bucketcie **`submissions`** pod prefiksem **`workshop-materials/<id konkursu>/`**
+(losowe nazwy, bez nazwy pliku od przesyłającego), dostęp wyłącznie przez podpis konta `S3_PRIVATE_*`.
+Oglądanie: adres podpisany na **2 h** (film, osadzony w `<video>`) albo **5 min** (plik, przekierowanie).
+
+### 16.2. Przed zapaleniem flagi (jednorazowo)
+
+1. **Polityka MinIO.** Konto `app-private` potrzebuje trzech nowych uprawnień: `s3:AbortMultipartUpload`,
+   `s3:ListMultipartUploadParts` (na obiektach) i `s3:ListBucketMultipartUploads` (na buckecie) –
+   dopisane w `deploy/minio/policy-submissions.json`. `minio-init` nadpisuje politykę przy każdym
+   przebiegu, więc po wdrożeniu wystarczy:
+
+   ```bash
+   # na serwerze, w /opt/olimpiada
+   docker compose run --rm minio-init        # „Created policy `submissions-rw` successfully.”
+   ```
+
+   Bez tego wgrywanie kończy się błędem „Magazyn plików nie odpowiada” na kroku „zakończ”.
+
+2. **Miejsce na dysku.** Nagranie godzinnych zajęć z platformy wideo to zwykle 0,5–1 GB (720p) albo
+   1–2 GB (1080p); cykl 16 warsztatów to **10–30 GB** w wolumenie `minio_data`, plus chwilowo drugie
+   tyle na części w trakcie wgrywania. Sprawdź `df -h /var/lib/docker` przed zapaleniem flagi i dopisz
+   ten wolumen do obserwacji (watchdog alarmuje o wolnym miejscu – § 3.2). Limit pojedynczego filmu:
+   `WORKSHOP_VIDEO_MAX_MB` w `.env` (domyślnie 4096), pliku: `WORKSHOP_FILE_MAX_MB` (domyślnie 100,
+   i tak przycinane do limitu ClamAV).
+
+3. **Kopia zapasowa.** `scripts/backup.sh` **pomija** prefiks `workshop-materials/`
+   (`mc mirror --exclude "workshop-materials/*"`). Kopia nocna jest pełna (lustro → tar → gpg, 7 dni
+   lokalnie, 30 dni poza serwerem), więc 20 GB filmów znaczyłoby ~60 GB chwilowo na dysku co noc
+   i ~600 GB u dostawcy kopii. Po odtworzeniu z kopii wiersze materiałów zostają, a pliku nie ma –
+   odtwarzacz pokaże błąd; koordynator usuwa materiał i wgrywa oryginał ponownie. Jednorazowa kopia
+   materiałów, jeśli organizator jej chce:
+
+   ```bash
+   docker run --rm --network olimpiada_internal -v /opt/olimpiada-backups/materialy:/backup \
+     -e MC_HOST_src="http://$MINIO_ROOT_USER:$MINIO_ROOT_PASSWORD@minio:9000" \
+     minio/mc mirror --overwrite src/submissions/workshop-materials /backup
+   ```
+
+### 16.3. Caddy, CSP, CORS
+
+- **Caddy** (`deploy/Caddyfile`, blok `{$S3_PUBLIC_ADDRESS}`): `request_body max_size {$MAX_UPLOAD_MB}MB`
+  dotyczy **jednej części** (16 MB), nie całego filmu – `MAX_UPLOAD_MB` musi zostać **> 16** (domyślnie
+  25). Bez zmian w konfiguracji. Bez `encode` w tym bloku (kompresja psułaby odpowiedzi 206) i bez
+  `log` – podpisane adresy nie lądują w logu dostępu.
+- **CSP** (`apps/web/middleware.py`): `connect-src` (PUT części) i `media-src` (`<video>`) zawierają
+  origin `S3_PUBLIC_ENDPOINT_URL` od dawna (ta sama reguła co pdf.js przy rozwiązaniach) – bez zmian.
+  Sprawdzenie na produkcji: w nagłówku `Content-Security-Policy` strony
+  `/warsztaty/materialy/<id>/` musi stać `https://olimpiadakwantowa.pl:9000` w `media-src`.
+- **CORS**: przeglądarka wysyła `PUT` z `https://olimpiadakwantowa.pl` na `…:9000` (inny origin).
+  MinIO domyślnie odpowiada na preflight `OPTIONS` dla każdego originu (`MINIO_API_CORS_ALLOW_ORIGIN`
+  domyślnie `*`); nagłówka `ETag` z odpowiedzi skrypt **nie** potrzebuje (serwer bierze ETagi
+  z `ListParts`), więc nie trzeba ustawiać `Expose-Headers`. Jeżeli kiedyś zawęzicie CORS MinIO,
+  dopiszcie origin serwisu.
+
+### 16.4. Sprzątanie i porzucone wgrywania
+
+- Zadanie beat **`workshop-materials-cleanup`** (co godzinę, `apps.workshop_materials.tasks.cleanup`)
+  kasuje materiały w stanie „wgrywanie” starsze niż **24 h**: porzuca wgrywanie w MinIO (części
+  znikają od razu), kasuje obiekt i wiersz. To samo zadanie kasuje pseudonimy widzów starsze niż
+  12 miesięcy (rejestr czynności 1.7, wiersz warunkowy „Statystyka wyświetleń materiałów z warsztatów”).
+- Niezależnie od tego **MinIO sam** usuwa niezłożone części po dobie (`api stale_uploads_expiry`,
+  domyślnie 24 h) – porzucone wgrywanie bez wiersza w bazie (np. awaria między założeniem wgrywania
+  a zapisem wiersza) też nie zostaje na zawsze.
+- Usunięcie materiału w panelu kasuje obiekt od razu. Obiekt, którego nie udało się skasować, zostaje
+  w logu `web` (`Nie udało się skasować obiektu workshop-materials/…`) – do ręcznego `mc rm`.
+- Plik, który utknął w „sprawdzaniu antywirusowym” (ClamAV leżał dłużej niż ponowienia zadania),
+  koordynator odblokowuje przyciskiem „Sprawdź ponownie”; ręcznie:
+
+  ```bash
+  docker compose exec -T web python manage.py shell -c "from apps.workshop_materials.tasks import scan_material; scan_material.delay(<id>)"
+  ```
+
+### 16.5. Czego ta funkcja nie chroni
+
+Podpisany adres filmu jest ważny 2 h dla **każdego**, kto go ma – zalogowany widz może go wyciągnąć
+z narzędzi przeglądarki i przekazać dalej (działa do wygaśnięcia) albo nagrać ekran.
+`controlsList="nodownload"` zdejmuje tylko przycisk w odtwarzaczu. To jest ochrona przed stałym
+linkiem krążącym w sieci, nie DRM – organizator wie o tym z podręcznika (§ 4.11).
+
