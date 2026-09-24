@@ -19,6 +19,7 @@ from django.db.models import F, Q
 from django.utils import timezone
 
 from apps.accounts.models import GROUP_COORDINATOR, Participant, generate_public_code
+from apps.core.points import POINTS_PLACES, SCORE_MAX_DIGITS, TOTAL_MAX_DIGITS
 from apps.tenancy.managers import CompetitionScopedQuerySet
 
 from .scoping import (
@@ -711,15 +712,27 @@ class ScoringScale(models.Model):
     max_value = models.PositiveSmallIntegerField("maksimum", default=DEFAULT_MAX_VALUE)
     # Przesunięcie skali (etap 2 § 1.2.6 b, decyzja organizatora D10). ``values`` trzyma skalę
     # **taką, jaką wpisał organizator** – z punktami ujemnymi, gdy konkurs je ma. W bazie ocen
-    # punkt ujemny nie ma gdzie stanąć: ``Review.score`` i ``FinalGrade.score`` są
-    # ``PositiveSmallIntegerField``, a ``StageEntry.total_points`` – ``PositiveIntegerField``.
-    # Zmiana typu tych kolumn dotknęłaby każdej tabeli wyników i każdego snapshotu, a przy okazji
-    # zdjęłaby bazodanową gwarancję „punkt nie bywa ujemny”, która dziś łapie błąd serwisu, zanim
-    # dojdzie do tabeli wyników. Dlatego ocena leży w bazie **przesunięta**: zapisujemy
-    # ``wartość + offset``, czytamy ``wartość_z_bazy - offset``, a ``offset`` jest dokładnie tą
-    # liczbą, która najniższą wartość skali sprowadza do zera (``required_scale_offset``).
-    # Konkurs #1 ma ``offset = 0`` i przy zerze żadne z tych działań nie zmienia ani jednej liczby.
+    # punkt ujemny nie ma gdzie stanąć: ``Review.score``, ``FinalGrade.score`` i
+    # ``StageEntry.total_points`` mają więz „nie mniej niż zero” (od wydania 0.35.0 są
+    # ``DecimalField`` z jawnym ``CheckConstraint``, wcześniej ``Positive*IntegerField``). Ta
+    # bazodanowa gwarancja łapie błąd serwisu, zanim dojdzie do tabeli wyników, więc zostaje.
+    # Dlatego ocena leży w bazie **przesunięta**: zapisujemy ``wartość + offset``, czytamy
+    # ``wartość_z_bazy - offset``, a ``offset`` jest dokładnie tą liczbą, która najniższą wartość
+    # skali sprowadza do zera (``required_scale_offset``). Konkurs #1 ma ``offset = 0`` i przy
+    # zerze żadne z tych działań nie zmienia ani jednej liczby.
     offset = models.SmallIntegerField("przesunięcie skali", default=0)
+    # Tryb oceniania etapu (prośba organizatora z 2026-09-24, wydanie 0.35.0). ``False`` – „tylko
+    # wartości ze skali” – jest zachowaniem sprzed tego wydania i wartością **każdego** etapu, także
+    # nowego: dowolne wartości są decyzją organizatora, a nie stanem wyjściowym. ``True`` znaczy
+    # „dowolna wartość od minimum do maksimum skali, co 0,01”: recenzent wpisuje np. 4,25, a pozycje
+    # ``values`` zostają przy polu oceny jako **podpowiedź** („5 – rozwiązanie pełne z drobnymi
+    # usterkami”), a nie lista zamknięta.
+    #
+    # Tryb jest cechą **etapu**, a nie zadania: zadanie z własną skalą bierze z niej granice
+    # (minimum i maksimum), ale o tym, czy między nimi wolno wpisać 4,25, rozstrzyga etap. Jedno
+    # pytanie „jak się tu ocenia” ma jedną odpowiedź dla całej komisji etapu. Regułę składa
+    # ``apps.competitions.scoring.score_rule`` i nikt poza nią.
+    free_values = models.BooleanField("dowolne wartości", default=False)
 
     #: Droga przez etap. Skali nie czyta dziś żaden ekran „po konkursie” – zakres jest tu po to,
     #: żeby audyt izolacji (§ 3.9) nie natrafił na model, o którym nie wiadomo, czyj jest.
@@ -750,6 +763,18 @@ class ScoringScale(models.Model):
         """
         offset = self.offset or 0
         return {value + offset for value in self.allowed_values()}
+
+    @property
+    def stored_minimum(self) -> int:
+        """Najniższa ocena skali w postaci przechowywanej (przy poprawnej skali: zero)."""
+        values = self.stored_allowed_values()
+        return min(values) if values else 0
+
+    @property
+    def stored_maximum(self) -> int:
+        """Najwyższa ocena skali w postaci przechowywanej: ``max_value`` powiększone o offset."""
+        values = self.stored_allowed_values()
+        return max(values) if values else (self.max_value or 0) + (self.offset or 0)
 
     def clean(self) -> None:
         super().clean()
@@ -792,7 +817,16 @@ class QualificationRule(models.Model):
     mode = models.CharField(
         "tryb", max_length=32, choices=QualificationMode.choices, default=QualificationMode.MIN_POINTS
     )
-    min_points = models.PositiveIntegerField("minimum punktów", null=True, blank=True)
+    # Próg jest liczbą dziesiętną od wydania 0.35.0: suma etapu w trybie dowolnych wartości bywa
+    # ułamkowa (38,75), więc próg „co najmniej 38,5” musi dać się zapisać. Nieujemność pilnuje
+    # więz w bazie – ta sama gwarancja, którą wcześniej dawał ``PositiveIntegerField``.
+    min_points = models.DecimalField(
+        "minimum punktów",
+        max_digits=TOTAL_MAX_DIGITS,
+        decimal_places=POINTS_PLACES,
+        null=True,
+        blank=True,
+    )
     top_n = models.PositiveIntegerField("liczba kwalifikowanych", null=True, blank=True)
 
     #: Jw. – próg należy do etapu, a etap do edycji. Reguł kwalifikacji ta zmiana nie dotyka.
@@ -801,6 +835,12 @@ class QualificationRule(models.Model):
     class Meta:
         verbose_name = "próg kwalifikacji"
         verbose_name_plural = "progi kwalifikacji"
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(min_points__isnull=True) | Q(min_points__gte=0),
+                name="competitions_qualificationrule_min_points_non_negative",
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"{self.get_mode_display()} (min={self.min_points}, top={self.top_n})"
@@ -885,7 +925,19 @@ class Problem(models.Model):
     # kopia skali etapu w każdym zadaniu zamroziłaby ją w chwili dodania zadania i zmiana skali
     # etapu przestałaby cokolwiek znaczyć.
     scoring_values = models.JSONField("skala punktacji zadania", null=True, blank=True)
-    max_points = models.PositiveSmallIntegerField("maksimum punktów", null=True, blank=True)
+    # Maksimum zadania. Z wypełnioną ``scoring_values`` jest maksimum **jego skali** (musi równać
+    # się największej wartości). Od wydania 0.35.0 może stać **samo** – bez listy wartości – i to
+    # wyłącznie w etapie w trybie dowolnych wartości (``ScoringScale.free_values``): „zadania mogą
+    # mieć różną ilość punktów” (prośba organizatora z 2026-09-24). Zadanie ocenia się wtedy
+    # dowolną liczbą od 0 do tego maksimum, co 0,01. Stąd typ dziesiętny: maksimum 12,5 jest
+    # równie dobrym maksimum jak 7. Nieujemność – więz w bazie, jak przy każdej kolumnie punktów.
+    max_points = models.DecimalField(
+        "maksimum punktów",
+        max_digits=SCORE_MAX_DIGITS,
+        decimal_places=POINTS_PLACES,
+        null=True,
+        blank=True,
+    )
     # Waga zadania w sumie etapu (etap 2 § 1.2.6 a) – **ułamek zwykły**, a nie liczba
     # zmiennoprzecinkowa, i to jest decyzja, nie przesada: waga ``1/3`` zapisana jako ``0.333…``
     # daje sumę zależną od kolejności dodawania, czyli tabelę wyników zmieniającą się przy
@@ -920,6 +972,10 @@ class Problem(models.Model):
             models.CheckConstraint(
                 condition=Q(weight_denominator__gte=1),
                 name="competitions_problem_weight_denominator_positive",
+            ),
+            models.CheckConstraint(
+                condition=Q(max_points__isnull=True) | Q(max_points__gte=0),
+                name="competitions_problem_max_points_non_negative",
             ),
         ]
 
@@ -974,6 +1030,16 @@ class Problem(models.Model):
         return bool(self.scoring_values)
 
     @property
+    def has_own_max(self) -> bool:
+        """Czy zadanie ma **samo** maksimum, bez listy wartości (tryb dowolnych wartości, 0.35.0).
+
+        Czy takie zadanie rządzi się własnym zakresem, rozstrzyga ``scoring.uses_own_range`` –
+        zależy to od trybu etapu, którego model zadania nie czyta sam (kosztowałoby to zapytanie
+        przy każdym odczycie).
+        """
+        return not self.scoring_values and self.max_points is not None
+
+    @property
     def weight(self) -> Fraction:
         """Waga zadania jako ułamek zwykły. ``1`` dla każdego zadania, które wagi nie dostało.
 
@@ -1011,11 +1077,22 @@ class Problem(models.Model):
             raise ValidationError({"weight_denominator": "Mianownik wagi musi być dodatni."})
         # Skala i jej maksimum są jedną informacją zapisaną w dwóch polach – tak samo jak w etapie.
         # Puste **oba** znaczą „dziedzicz po etapie”; wypełnione jedno byłoby nadpisaniem bez treści.
+        # Wyjątek od 0.35.0: w etapie z dowolnymi wartościami samo maksimum **jest** treścią
+        # („to zadanie punktujemy od 0 do 12,5”), więc przechodzi bez listy wartości.
         if not self.scoring_values and self.max_points is None:
             return
         if not self.scoring_values:
+            if self._stage_has_free_values():
+                if self.max_points <= 0:
+                    raise ValidationError({"max_points": "Maksimum punktów zadania musi być dodatnie."})
+                return
             raise ValidationError(
-                {"scoring_values": "Podaj wartości skali zadania albo wyczyść maksimum punktów."}
+                {
+                    "scoring_values": (
+                        "Podaj wartości skali zadania albo wyczyść maksimum punktów. Samo maksimum "
+                        "wolno podać tylko w etapie z dowolnymi wartościami ocen."
+                    )
+                }
             )
         validate_scoring_values(
             self.scoring_values,
@@ -1023,6 +1100,16 @@ class Problem(models.Model):
             values_field="scoring_values",
             max_field="max_points",
         )
+
+    def _stage_has_free_values(self) -> bool:
+        """Czy etap tego zadania ocenia dowolnymi wartościami. Etap bez skali – nie.
+
+        Jedno zapytanie (skala etapu), płacone wyłącznie przez zadanie z samym maksimum: tylko
+        takie zadanie o to pyta. Zadanie ze skalą albo bez nadpisania do tej metody nie dochodzi.
+        """
+        if not self.stage_id:
+            return False
+        return ScoringScale.objects.filter(stage_id=self.stage_id, free_values=True).exists()
 
 
 # =================================================================================================
@@ -1391,7 +1478,18 @@ class StageEntry(models.Model):
     status = models.CharField(
         "status", max_length=16, choices=StageEntryStatus.choices, default=StageEntryStatus.REGISTERED
     )
-    total_points = models.PositiveIntegerField("suma punktów", null=True, blank=True)
+    # Suma etapu. Dziesiętna od wydania 0.35.0, bo w trybie dowolnych wartości suma ocen 4,25
+    # i 3,5 jest 7,75 – a suma ważona zaokrągla się wtedy do 0,01, a nie do pełnego punktu
+    # (``competitions.services.StageScoring``). W etapie „tylko ze skali” leżą tu dalej liczby
+    # całkowite. Więz „nie mniej niż zero” stoi w ``Meta`` – ten sam, który dawał wcześniej
+    # ``PositiveIntegerField``.
+    total_points = models.DecimalField(
+        "suma punktów",
+        max_digits=TOTAL_MAX_DIGITS,
+        decimal_places=POINTS_PLACES,
+        null=True,
+        blank=True,
+    )
     created_at = models.DateTimeField("utworzony", default=timezone.now)
     # Kategoria startowa (etap 2, § 1.2.4). Przypisanie jest przy **wpisie**, a nie przy
     # uczestniku, bo uczeń zmienia klasę między edycjami – ta sama osoba startuje raz
@@ -1482,6 +1580,10 @@ class StageEntry(models.Model):
                 condition=Q(participant__isnull=False, team__isnull=True)
                 | Q(participant__isnull=True, team__isnull=False),
                 name="competitions_stageentry_single_owner",
+            ),
+            models.CheckConstraint(
+                condition=Q(total_points__isnull=True) | Q(total_points__gte=0),
+                name="competitions_stageentry_total_points_non_negative",
             ),
             # Decyzja bez uzasadnienia nie jest decyzją, tylko przestawionym polem. Ostatnia linia
             # obrony przed zapisem z pominięciem serwisu (``apps.results.manual``): pusta decyzja
@@ -1809,7 +1911,14 @@ class TransitionRule(models.Model):
         related_name="transition_rules",
         verbose_name="kategoria",
     )
-    min_points = models.PositiveIntegerField("minimum punktów", null=True, blank=True)
+    #: Dziesiętny z tego samego powodu, co ``QualificationRule.min_points`` (wydanie 0.35.0).
+    min_points = models.DecimalField(
+        "minimum punktów",
+        max_digits=TOTAL_MAX_DIGITS,
+        decimal_places=POINTS_PLACES,
+        null=True,
+        blank=True,
+    )
     top_n = models.PositiveIntegerField("liczba kwalifikowanych", null=True, blank=True)
     percentile = models.PositiveSmallIntegerField("procent", null=True, blank=True)
     position = models.PositiveSmallIntegerField("kolejność", default=0)
@@ -1830,6 +1939,10 @@ class TransitionRule(models.Model):
             models.CheckConstraint(
                 condition=Q(top_n__isnull=True) | Q(top_n__gte=1),
                 name="competitions_transitionrule_top_n_positive",
+            ),
+            models.CheckConstraint(
+                condition=Q(min_points__isnull=True) | Q(min_points__gte=0),
+                name="competitions_transitionrule_min_points_non_negative",
             ),
         ]
 
@@ -2033,7 +2146,10 @@ class InterviewScore(models.Model):
         related_name="interview_scores",
         verbose_name="komponent",
     )
-    points = models.PositiveSmallIntegerField("punkty")
+    #: Dziesiętne od wydania 0.35.0: rozmowa w etapie z dowolnymi wartościami ocen bywa oceniona
+    #: na 7,5. ``max_points`` zostaje całkowite – to kopia maksimum **skali** etapu, a wartości
+    #: skali są liczbami całkowitymi.
+    points = models.DecimalField("punkty", max_digits=SCORE_MAX_DIGITS, decimal_places=POINTS_PLACES)
     max_points = models.PositiveSmallIntegerField("maksimum")
     #: Krótka uwaga komisji – **bez danych osobowych i bez uzasadnień o zdrowiu czy poglądach**.
     #: Pole jest krótkie z rozmysłem: protokół rozmowy nie jest przedmiotem tej tabeli, a notatka,
@@ -2066,6 +2182,9 @@ class InterviewScore(models.Model):
             models.CheckConstraint(
                 condition=Q(points__lte=F("max_points")),
                 name="competitions_interviewscore_points_within_max",
+            ),
+            models.CheckConstraint(
+                condition=Q(points__gte=0), name="competitions_interviewscore_points_non_negative"
             ),
         ]
 

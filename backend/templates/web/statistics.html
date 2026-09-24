@@ -37,9 +37,9 @@
 
       <dl class="stat-facts">
         <div><dt>{% translate "Uczestnicy w tabeli" %}</dt><dd>{{ stage.participants }}</dd></div>
-        <div><dt>{% translate "Średnia punktów" %}</dt><dd>{{ stage.mean|default_if_none:"—" }}</dd></div>
-        <div><dt>{% translate "Mediana punktów" %}</dt><dd>{{ stage.median|default_if_none:"—" }}</dd></div>
-        <div><dt>{% translate "Najwyższy wynik" %}</dt><dd>{{ stage.max_total|default_if_none:"—" }}</dd></div>
+        <div><dt>{% translate "Średnia punktów" %}</dt><dd>{% if stage.mean is not None %}{{ stage.mean|points }}{% else %}—{% endif %}</dd></div>
+        <div><dt>{% translate "Mediana punktów" %}</dt><dd>{% if stage.median is not None %}{{ stage.median|points }}{% else %}—{% endif %}</dd></div>
+        <div><dt>{% translate "Najwyższy wynik" %}</dt><dd>{% if stage.max_total is not None %}{{ stage.max_total|points }}{% else %}—{% endif %}</dd></div>
         <div><dt>{% translate "Zakwalifikowani" %}</dt><dd>{{ stage.qualified }}</dd></div>
         {% comment %}
           Próg jest liczony z tabeli („najsłabszy zakwalifikowany miał tyle punktów”), a nie
@@ -48,7 +48,7 @@
         {% endcomment %}
         <div>
           <dt>{% translate "Próg kwalifikacji" %}</dt>
-          <dd>{{ stage.threshold|default_if_none:"—" }}
+          <dd>{% if stage.threshold is not None %}{{ stage.threshold|points }}{% else %}—{% endif %}
             <span class="hint">{% translate "najniższy wynik wśród zakwalifikowanych" %}</span></dd>
         </div>
       </dl>
@@ -72,7 +72,7 @@
             <tbody>
               {% for bar in problem.bars %}
                 <tr>
-                  <th scope="row" class="num">{{ bar.value }}</th>
+                  <th scope="row" class="num">{{ bar.value|points }}</th>
                   <td class="num">{{ bar.count }}</td>
                   <td>
                     {# Słupek jest ozdobą liczby obok – dlatego ``aria-hidden``. #}

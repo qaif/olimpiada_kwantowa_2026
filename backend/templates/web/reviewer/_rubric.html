@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n web_extras %}
 {% comment %}
   Rubryka oceniania jednej pracy: po jednym polu punktów i jednym komentarzu na kryterium zadania.
 
@@ -13,13 +13,23 @@
   kryteriami tak, jak stała dotąd.
 
   Nazwy pól (``rubric-<id>-points``) czyta ``apps.grading.rubric.rubric_from_post``.
+
+  W etapie z dowolnymi wartościami ocen (wydanie 0.35.0) suma nie musi być wartością skali, tylko
+  mieścić się w zakresie zadania – ``data-rubric-scale`` jest wtedy pusty, więc licznik pokazuje
+  samą sumę, bez werdyktu „poza skalą”, który byłby tu nieprawdą.
 {% endcomment %}
 <div class="rubric" data-rubric
-     data-rubric-scale="{% for option in scale_options %}{{ option.value }}{% if not forloop.last %},{% endif %}{% endfor %}">
+     data-rubric-scale="{% if not score_widget.free %}{% for option in scale_options %}{{ option.value }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}">
   <h3>{% translate "Rubryka oceniania" %}</h3>
+  {% if score_widget.free %}
+  <p class="hint">{% blocktranslate trimmed with minimum=score_widget.minimum|points maximum=score_widget.maximum|points %}
+    Punkty przyznajesz kryterium po kryterium. Ocenę pracy wylicza system jako sumę – musi ona mieścić się w zakresie od {{ minimum }} do {{ maximum }} pkt.
+  {% endblocktranslate %}</p>
+  {% else %}
   <p class="hint">{% translate "Punkty przyznajesz kryterium po kryterium. Ocenę pracy wylicza system jako sumę – musi ona należeć do skali tego zadania" %}{% if scale_options %}:
     {% for option in scale_options %}{{ option.value }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}.
     {% translate "Jeżeli suma wypadnie poza skalę, zapis się nie uda i poprawisz punkty przy kryteriach." %}</p>
+  {% endif %}
 
   {% for row in rubric_rows %}
     <fieldset class="rubric__item">
@@ -60,7 +70,7 @@
   </p>
 
   <p class="hint">{% translate "Zapisana ocena tej recenzji:" %}
-    <strong>{% if review.score is not None %}{% blocktranslate trimmed with score=review.score %}
+    <strong>{% if review.score is not None %}{% blocktranslate trimmed with score=review.score|points %}
       {{ score }} pkt
     {% endblocktranslate %}{% else %}{% translate "jeszcze nie wystawiona" %}{% endif %}</strong>.</p>
 </div>

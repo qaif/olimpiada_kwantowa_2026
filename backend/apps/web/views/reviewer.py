@@ -25,6 +25,7 @@ from django.utils.translation import gettext_lazy as _
 from django.views.generic import TemplateView, View
 
 from apps.ai_grading.services import reviewer_context as ai_reviewer_context
+from apps.competitions.scoring import safe_score_rule
 from apps.core.api import DomainError
 from apps.grading.code_view import code_listing, line_notes
 from apps.grading.comparison import comparison_context
@@ -57,6 +58,7 @@ from apps.grading.snippets import snippets_for
 from apps.grading.worklog import format_duration, review_seconds
 from apps.web.forms import ReviewDraftForm, ReviewSubmitForm
 from apps.web.mixins import ReviewerRequiredMixin
+from apps.web.points_fields import score_form_error
 
 
 class ReviewerScopedMixin(ReviewerRequiredMixin):
@@ -256,13 +258,51 @@ def _preview_kind(submission_file) -> str:
 
 
 def _scale_options(review) -> list[dict]:
-    """Pozycje obowiązującej skali – radio z etykietami, nie wolne pole liczbowe.
+    """Pozycje obowiązującej skali – radio z etykietami albo (tryb dowolny) podpowiedź przy polu.
 
     Skala bierze się z ``grading.services.scale_items``, więc zadanie z własną skalą pokazuje
     recenzentowi swoje wartości, a nie wartości etapu. Ekran nie może oferować oceny, której
     ``submit_review`` by nie przyjął.
     """
     return scale_items(review.submission.entry.stage, review.submission.problem)
+
+
+def score_widget(stage, problem, stored_score) -> dict | None:
+    """Wszystko, czego szablon potrzebuje do pola oceny – w postaci **do pokazania**.
+
+    Dwa kształty jednego pola (wydanie 0.35.0): w etapie „tylko ze skali” lista radio z wartościami
+    skali, jak dotąd; w etapie z dowolnymi wartościami ``<input type="number" step="0.01">``
+    z granicami zakresu i wartościami skali obok jako podpowiedzią. Maksimum zadania stoi przy
+    polu w obu trybach („max 12,5”), bo zadania mogą mieć różną liczbę punktów.
+
+    Liczby są w postaci wystawionej przez recenzenta (``ScoreRule.to_display``) – z minusem, gdy
+    skala go ma – a widok zapisu przelicza je z powrotem (``stored_score``). ``None``, gdy etap nie
+    ma skali: formularz pokazuje wtedy komunikat zamiast pola.
+    """
+    rule = safe_score_rule(stage, problem)
+    if rule is None:
+        return None
+    return {
+        "free": rule.free,
+        "items": [dict(item) for item in rule.items],
+        "minimum": rule.display_minimum,
+        "maximum": rule.display_maximum,
+        "current": rule.to_display(stored_score),
+    }
+
+
+def stored_score(stage, problem, value):
+    """Ocena z formularza (postać do pokazania) → postać przechowywana, którą przyjmuje serwis.
+
+    Jedyne miejsce panelu, w którym ocena wpisana przez człowieka dostaje przesunięcie skali
+    (``ScoringScale.offset``). Przy ``offset = 0`` – czyli w każdym konkursie bez punktów ujemnych –
+    wartość przechodzi bez zmian. ``None`` (puste pole szkicu) przechodzi bez zmian, a brak skali
+    zostawia liczbę serwisowi, który odmówi jej właściwym komunikatem.
+    """
+    if value is None:
+        return None
+    rule = safe_score_rule(stage, problem)
+    return rule.to_stored(value) if rule is not None else value
 
 
 class ReviewDetailView(ReviewerScopedMixin, TemplateView):
@@ -292,6 +332,11 @@ class ReviewDetailView(ReviewerScopedMixin, TemplateView):
                 "problem": review.submission.problem,
                 "public_code": review.submission.entry.participant.public_code,
                 "scale_options": _scale_options(review),
+                # Pole oceny w postaci do pokazania: radio skali albo pole liczbowe z zakresem
+                # (tryb dowolny, wydanie 0.35.0) i maksimum zadania obok.
+                "score_widget": score_widget(
+                    review.submission.entry.stage, review.submission.problem, review.score
+                ),
                 "file_available": submission_file is not None and submission_file.is_clean,
                 # Zdjęcie rozwiązania (JPEG) ma ten sam ekran, co PDF: inny jest wyłącznie sposób
                 # narysowania strony. Warstwa adnotacji zostaje – obrazek jest jedną stroną.
@@ -391,10 +436,13 @@ class ReviewDraftView(ReviewerScopedMixin, View):
         form = ReviewDraftForm(request.POST)
         error = None
         if form.is_valid():
+            submission = review.submission
             try:
                 review = save_draft(
                     review,
-                    score=form.cleaned_data["score"],
+                    score=stored_score(
+                        submission.entry.stage, submission.problem, form.cleaned_data["score"]
+                    ),
                     comment_internal=form.cleaned_data["comment_internal"],
                     comment_for_participant=form.cleaned_data["comment_for_participant"],
                     annotations=form.cleaned_data["annotations"],
@@ -421,7 +469,7 @@ class ReviewSubmitView(ReviewerScopedMixin, View):
             messages.error(request, str(exc.detail))
             return redirect(reverse("web:review-detail", kwargs={"pk": pk}))
         if not form.is_valid():
-            messages.error(request, "Wybierz ocenę ze skali przed wysłaniem.")
+            messages.error(request, score_form_error(form, "Wybierz ocenę ze skali przed wysłaniem."))
             return redirect(reverse("web:review-detail", kwargs={"pk": pk}))
         # Puste pole adnotacji oznacza „nie przysłano”, nie „skasuj”: ``submit_review`` nadpisuje
         # listę bezwarunkowo, więc brak wartości zastępujemy stanem z bazy. Inaczej wysłanie oceny
@@ -429,10 +477,11 @@ class ReviewSubmitView(ReviewerScopedMixin, View):
         annotations = form.cleaned_data["annotations"]
         if annotations is None:
             annotations = review.annotations
+        submission = review.submission
         try:
             submit_review(
                 review,
-                form.cleaned_data["score"],
+                stored_score(submission.entry.stage, submission.problem, form.cleaned_data["score"]),
                 form.cleaned_data["comment_internal"],
                 form.cleaned_data["comment_for_participant"],
                 annotations,
@@ -462,15 +511,16 @@ class ReviewReviseView(ReviewerScopedMixin, View):
             messages.error(request, str(exc.detail))
             return redirect(reverse("web:review-detail", kwargs={"pk": pk}))
         if not form.is_valid():
-            messages.error(request, "Wybierz ocenę ze skali przed wysłaniem.")
+            messages.error(request, score_form_error(form, "Wybierz ocenę ze skali przed wysłaniem."))
             return redirect(reverse("web:review-detail", kwargs={"pk": pk}))
         annotations = form.cleaned_data["annotations"]
         if annotations is None:
             annotations = review.annotations
+        submission = review.submission
         try:
             revise_review(
                 review,
-                form.cleaned_data["score"],
+                stored_score(submission.entry.stage, submission.problem, form.cleaned_data["score"]),
                 form.cleaned_data["comment_internal"],
                 form.cleaned_data["comment_for_participant"],
                 annotations,

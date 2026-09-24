@@ -13,6 +13,7 @@ from django.urls import reverse
 from apps.accounts.models import GROUP_SUPERVISOR, SchoolParticipation, SchoolSupervisor, User
 from apps.accounts.tests.factories import ParticipantFactory, UserFactory
 from apps.competitions.tests.factories import StageEntryFactory
+from apps.core.points import format_points
 from apps.results.models import Anonymization
 from apps.results.services import publish_results
 from apps.submissions.models import SubmissionStatus
@@ -136,7 +137,9 @@ def test_po_publikacji_panel_pokazuje_ta_sama_liczbe_co_tabela(
     body = web_client.get(reverse("web:supervisor")).content.decode()
 
     assert "Wyniki ogłoszone" in body
-    assert str(entry.total_points) in body
+    # Suma w postaci, w jakiej ją pokazujemy („0”, „7,75”) – od wydania 0.35.0 kolumna jest dziesiętna,
+    # więc ``str`` dałby „0.00”, którego żaden ekran nie wypisuje.
+    assert format_points(entry.total_points) in body
 
 
 def test_potwierdzenie_udzialu_szkoly_przelacza_sie(web_client, logged_supervisor, edition):

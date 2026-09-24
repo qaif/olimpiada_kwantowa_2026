@@ -247,11 +247,17 @@ def _published_result(entry) -> dict | None:
     publication = getattr(entry.stage, "results_publication", None)
     if publication is None:
         return None
+    from apps.core.points import to_points
+
     totals = publication.entry_totals if isinstance(publication.entry_totals, dict) else {}
-    total = totals.get(str(entry.pk))
+    # ``to_points`` po obu stronach: snapshot sprzed 0.35.0 niesie ``int``, nowszy także ``float``
+    # (4.25), a porównanie ma być porównaniem liczb, a nie typów JSON-a.
+    total = to_points(totals.get(str(entry.pk)))
     rank = None
     if total is not None:
-        rank = next((row.get("rank") for row in publication.rows if row.get("total") == total), None)
+        rank = next(
+            (row.get("rank") for row in publication.rows if to_points(row.get("total")) == total), None
+        )
     return {
         "publication": publication,
         "in_table": total is not None,
@@ -273,6 +279,7 @@ def _problem_blocks(entry, submissions: list, reviews: dict, grades: dict, appea
     rozstrzyga serwis. Tutaj decydują wyłącznie o tym, czy stawiać formularz, którego zapis
     i tak by odmówił.
     """
+    from apps.competitions.scoring import coordinator_score_widget, safe_score_rule
     from apps.grading.services import scale_items
     from apps.submissions.models import AvStatus, SubmissionStatus
 
@@ -308,6 +315,9 @@ def _problem_blocks(entry, submissions: list, reviews: dict, grades: dict, appea
                 "final_grade": grades.get(latest.pk),
                 "appeals": appeals.get(latest.pk, []),
                 "scale_items": scale_items(entry.stage, problem),
+                # Tryb etapu (wydanie 0.35.0): w etapie z dowolnymi wartościami formularze korekt
+                # mają pole liczbowe z zakresem zadania zamiast listy skali.
+                "score_widget": coordinator_score_widget(safe_score_rule(entry.stage, problem)),
                 "assignable": latest.status in (SubmissionStatus.LOCKED, SubmissionStatus.IN_REVIEW),
                 "lockable": latest.status == SubmissionStatus.SUBMITTED,
             }

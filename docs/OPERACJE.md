@@ -1561,44 +1561,74 @@ linkiem krążącym w sieci, nie DRM – organizator wie o tym z podręcznika (�
 
 ## 17. Ocena AI (`apps.ai_grading`, prośba organizatora z 24.09.2026)
 
-Sugestia punktów dla komitetu liczona przez Claude'a (Anthropic). Opis funkcji dla organizatora:
-`PODRECZNIK-ORGANIZATORA.md` § 4.12; tutaj to, co dotyczy serwera.
+Sugestia punktów dla komitetu liczona przez model językowy jednego z czterech dostawców: Anthropic
+(Claude), OpenAI (GPT), Google (Gemini) albo Meta (Meta Model API, modele Muse Spark). Opis funkcji
+dla organizatora: `PODRECZNIK-ORGANIZATORA.md` § 4.12; tutaj to, co dotyczy serwera.
 
 ### 17.1. Przełącznik i warunek jego zapalenia
 
 Flaga konkursu **`ai_grading`**, domyślnie wyłączona (§ 6.4). **Nie zapalaj jej przed potwierdzeniem
-przez organizatora warunków prawnych** z § 4.12 podręcznika organizatora (umowa powierzenia z
-Anthropic, polityka prywatności, regulamin): od chwili, w której koordynator wklei klucz i zleci
-pierwszą ocenę, prace uczestników wychodzą do podmiotu przetwarzającego poza EOG. Po zapaleniu
-koordynator widzi w menu „Ocenianie → Ocena AI”; bez klucza API nic się nie dzieje.
+przez organizatora warunków prawnych** z § 4.12 podręcznika organizatora (polityka prywatności,
+regulamin, podstawa prawna). Po zapaleniu koordynator widzi w menu „Ocenianie → Ocena AI”. Od wersji
+z dostawcami flaga **nie** wystarcza do wysyłania prac uczestników: każdy dostawca potrzebuje jeszcze
+**klucza API** i **potwierdzenia umowy powierzenia** (koordynator w panelu; komenda z § 17.6 tylko
+wyjątkowo). Bez nich dostawca może ocenić co najwyżej **pracę testową** koordynatora (§ 17.7).
 
 ```json
 {"ai_grading": true}
 ```
 
-### 17.2. Zależność
+### 17.2. Zależności
 
-Nowa zależność Pythona: **`anthropic>=1.8,<2`** (oficjalne SDK; ciągnie `httpx2`, `httpcore2`, `pydantic`, `jiter`,
-`anyio`, `truststore`, `docstring-parser`). Obraz produkcyjny instaluje ją przy zwykłym budowaniu
-(`uv pip install -r pyproject.toml`). Import jest leniwy – wewnątrz `apps.ai_grading.client` – więc
-konkurs bez oceny AI biblioteki w ogóle nie ładuje. Na stacji deweloperskiej za firmowym proxy TLS
-`docker compose build web` potrafi nie pobrać pakietu; testy klienta SDK (`test_client.py`) same się
-wtedy pomijają (`importorskip`), reszta testów oceny AI z SDK nie korzysta.
+Zależności Pythona (oficjalne SDK dostawców, w zwykłych `dependencies` `pyproject.toml`):
 
-### 17.3. Klucz API
+| Pakiet | Dostawca | Uwagi |
+|---|---|---|
+| `anthropic>=1.8,<2` | Anthropic | ciągnie `httpx2`, `httpcore2`, `pydantic`, `jiter`, `anyio`, `truststore`, `docstring-parser` |
+| `openai>=3.19,<4` | OpenAI **i Meta** | Meta Model API jest zgodne z SDK OpenAI (adres `https://api.meta.ai/v1`); linia 3.x używa `httpx2` jak `anthropic` |
+| `google-genai>=2.25,<3` | Google | ciągnie `httpx`, `google-auth`, `requests`, `websockets`, `tenacity` |
 
-Klucz wpisuje **koordynator** w panelu – nie ma go w `.env` ani w żadnym ustawieniu instalacji. Leży
-w `ai_grading_aigradingsettings.api_key_encrypted` jako token Fernet z kluczem wyprowadzonym
-z `DJANGO_SECRET_KEY` (etykieta `ai-grading-api-key`, ten sam zabieg co przy 2FA, § 5.5).
-Konsekwencje:
+Pakietu `llama-api-client` **nie** dokładamy: rozmawia z Llama API, które Meta wyłączyła 6.07.2026.
+
+Obraz produkcyjny instaluje wszystko przy zwykłym budowaniu (`uv pip install -r pyproject.toml`).
+Import każdego SDK jest leniwy – wewnątrz `apps.ai_grading.providers.<dostawca>` – więc konkurs bez
+oceny AI bibliotek w ogóle nie ładuje, a **brak pakietu wyłącza jednego dostawcę** (panel pokazuje
+„niedostępny – brak pakietu …”, zlecenie kończy się `AI_PROVIDER_UNAVAILABLE`), a nie serwis.
+
+Na stacji deweloperskiej za firmowym proxy TLS `pip`/`docker compose build web` potrafi nie pobrać
+pakietów. Testy z prawdziwymi klasami SDK uruchamia się wtedy z pakietami zainstalowanymi obok,
+w katalogu roboczym, i dołączonymi na **koniec** `sys.path` (plik `.pth`, żeby nie przesłonić wersji
+z obrazu):
+
+```bash
+uv pip install --system-certs --target sdk --python-platform x86_64-manylinux_2_28 --python-version 3.12 \
+  "anthropic>=1.8,<2" "openai>=3.19,<4" "google-genai>=2.25,<3"
+docker run --rm --user root -v "$PWD/backend:/app" -v "$PWD/sdk:/sdk:ro" -w /app --network olimpiadaclade_internal \
+  -e DATABASE_URL=postgres://…@db:5432/olimpiada_ai --entrypoint "" olimpiada/web:dev \
+  sh -c 'echo /sdk > /opt/venv/lib/python3.12/site-packages/zz_sdk.pth; pytest -q apps/ai_grading'
+```
+
+Bez pakietów testy wymagające SDK same się pomijają (`importorskip`); reszta testów oceny AI z SDK nie
+korzysta (model jest podmieniony na poziomie dyspozytora `services.call_model`).
+
+### 17.3. Klucze API
+
+Klucze wpisuje **koordynator** w panelu, osobno dla każdego dostawcy – nie ma ich w `.env` ani w
+żadnym ustawieniu instalacji. Leżą w `ai_grading_aiprovideraccount.api_key_encrypted` (wiersz na
+konkurs i dostawcę) jako token Fernet z kluczem wyprowadzonym z `DJANGO_SECRET_KEY` (etykieta
+`ai-grading-api-key`, ten sam zabieg co przy 2FA, § 5.5). Migracja `ai_grading.0002_providers`
+przeniosła tam klucz Anthropic z v0.34.0 bez odszyfrowywania. Konsekwencje:
 
 - **rotacja `DJANGO_SECRET_KEY` unieważnia zapisane klucze** – panel pokaże „wpisz klucz ponownie”,
   a zlecone oceny skończą się błędem `key_unreadable` (bez wywołania API),
 - klucz **nie** jedzie przez Redisa: zadanie Celery dostaje wyłącznie identyfikator oceny i czyta
   klucz z bazy samo,
-- klucz nie trafia do logów ani do audytu (wpis `ai_grading.key_set` ma tylko `{"replaced": …}`).
-  **Nie** ustawiaj na produkcji `ANTHROPIC_LOG=debug` – tryb diagnostyczny SDK loguje szczegóły
-  żądań.
+- klucz nie trafia do logów ani do audytu (wpis `ai_grading.key_set` ma tylko
+  `{"replaced": …, "provider": …}`); komunikaty błędów są **nasze** – treść wyjątku SDK (która bywa
+  cytatem odpowiedzi HTTP) nie trafia ani do bazy, ani do logu, loguje się kod, klasa wyjątku
+  i identyfikator żądania. Klucz Google idzie nagłówkiem `x-goog-api-key`, nie w adresie.
+  **Nie** ustawiaj na produkcji trybów diagnostycznych SDK (`ANTHROPIC_LOG=debug`,
+  `OPENAI_LOG=debug`) ani poziomu `DEBUG` dla loggerów `httpx`/`httpx2` – logują szczegóły żądań.
 
 ### 17.4. Celery: kolejka z ogranicznikiem
 
@@ -1617,30 +1647,148 @@ trwa minuty, a drugie miejsce musi zostać dla skanu antywirusowego i poczty.
 | `AI_GRADING_MAX_TOKENS` | 32000 | górna granica odpowiedzi – bezpiecznik kosztu jednej oceny |
 | `AI_GRADING_MAX_BATCH` | 500 | najwięcej prac w jednym zleceniu |
 
-Ponowienia: po 429, 5xx i błędach sieci zadanie ponawia się do 4 razy z wykładniczym opóźnieniem
-(60 s, 120 s, … maks. 15 min; `retry-after` z odpowiedzi 429 ma pierwszeństwo, przycięte do 15 min).
-Odpowiedź, którą API **oddało** (także odmowa i ucięcie na `max_tokens`), nie jest ponawiana
+Ponowienia są niezależne od dostawcy: każdy dostawca tłumaczy wyjątki swojego SDK na jeden z rodzajów
+(`apps.ai_grading.providers.base.FailureKind`): **auth**, **rate_limit**, **transient**, **permanent**,
+**refusal**, **too_large**. Ponawiane są wyłącznie `rate_limit` (429) i `transient` (5xx, sieć, czas)
+– do 4 razy z wykładniczym opóźnieniem (60 s, 120 s, … maks. 15 min; `retry-after` z odpowiedzi ma
+pierwszeństwo, przycięte do 15 min). 429 oznaczający **wyczerpane środki** u dostawcy
+(`insufficient_quota` i pokrewne u OpenAI, 402 u Google i Mety) nie jest ponawiany. Odpowiedź, którą
+API **oddało** (także odmowa, blokada filtra bezpieczeństwa i ucięcie na limicie), nie jest ponawiana
 automatycznie – jest policzona i kończy się błędem z komunikatem dla koordynatora. Zadanie ma twardy
 limit 16 minut (`soft_time_limit` 15 min).
 
 Siatka asekuracyjna: zadanie beat **`ai-grading-pump`** (co 5 min, `pump_ai_assessments`) zamienia
 oceny `RUNNING` starsze niż `AI_GRADING_STALE_MINUTES` w błąd „przerwana” (a nie w ponowienie –
-wywołanie mogło zostać policzone po stronie Anthropic, zanim worker padł) i wypuszcza oceny,
+wywołanie mogło zostać policzone po stronie dostawcy, zanim worker padł) i wypuszcza oceny,
 których zadanie zniknęło z brokera. `DatabaseScheduler` dopisze wpis sam przy starcie beatu.
 
 Podgląd kolejki:
 
 ```bash
-docker compose exec -T web python manage.py shell -c "from apps.ai_grading.models import AiAssessment as A; from django.db.models import Count; print(list(A.objects.values('status').annotate(n=Count('id'))))"
+docker compose exec -T web python manage.py shell -c "from apps.ai_grading.models import AiAssessment as A; from django.db.models import Count; print(list(A.objects.values('provider', 'status').annotate(n=Count('id'))))"
 ```
 
 Awaryjne zatrzymanie wszystkiego bez wdrożenia: zdjąć flagę `ai_grading` (oceny czekające w kolejce
-skończą się błędem `disabled` bez wywołania API) albo ustawić koordynatorowi limit wydatków 0.
+skończą się błędem `disabled` bez wywołania API) albo ustawić koordynatorowi limit wydatków 0. Jednego
+dostawcy – koordynator usuwa jego klucz albo wycofuje potwierdzenie umowy (prace czekające w kolejce
+kończą się błędem `no_key` / `dpa` przed wysyłką).
 
 ### 17.5. Logi i koszt
 
-Każde wywołanie loguje model, `stop_reason` i `request_id` (`message._request_id`) – po tym
-identyfikatorze wsparcie Anthropic znajduje żądanie. Treści pracy ani odpowiedzi w logach nie ma.
-Zużycie tokenów i szacowany koszt liczy aplikacja (stawki w `apps.ai_grading.models.PRICING_USD_PER_MTOK`,
-stan z 24.09.2026 – przy zmianie cennika Anthropic poprawić tę tabelę); fakturę wystawia Anthropic
-organizatorowi, na którego jest klucz.
+Każde wywołanie loguje dostawcę, model, `stop_reason` i identyfikator żądania (Anthropic
+`request-id`, OpenAI i Meta `x-request-id`, Google `response_id`) – po nim wsparcie dostawcy znajduje
+żądanie. Treści pracy ani odpowiedzi w logach nie ma. Zużycie tokenów i szacowany koszt liczy
+aplikacja: stawki domyślne w `apps.ai_grading.catalog.DEFAULT_PRICES` (stan z 24.09.2026, źródła
+w docstringu modułu), nadpisywane przez koordynatora w tabeli cen (`AiGradingSettings.price_overrides`);
+mnożniki cache są własnością dostawcy (`providers.<dostawca>.cache_*_multiplier`). Model bez ceny ma
+koszt „nieznany”: tokeny się liczą, kwota nie, a licznik `total_unpriced_calls` rośnie – przy
+ustawionym limicie wydatków taki model jest odrzucany przed wysyłką (`AI_PRICE_UNKNOWN`). Przy zmianie
+cennika dostawcy poprawić `DEFAULT_PRICES` (wydanie) albo tabelę w panelu (od razu). Fakturę wystawia
+dostawca organizatorowi, na którego jest klucz.
+
+### 17.6. Potwierdzenie umowy powierzenia komendą (`confirm_ai_provider_dpa`)
+
+Potwierdzenie umowy powierzenia (DPA) z dostawcą jest **oświadczeniem organizatora**, więc żadna
+migracja go nie wpisuje – także dla Anthropic z v0.34.0. Po wdrożeniu wersji z dostawcami **żaden
+dostawca nie dostaje prac uczestników**, dopóki go nie potwierdzi **koordynator osobiście w panelu**
+(`/coordinator/ai-grading/` → „Potwierdź umowę powierzenia” → strona z informacją o dostawcy →
+oświadczenie → „Potwierdzam”; zapis niesie wersję pokazanej informacji). **To jest zwykła droga –
+decyzja organizatora z 24.09.2026: operator nie wpisuje potwierdzeń za koordynatora.** Komenda niżej
+zostaje wyłącznie na sytuacje wyjątkowe (np. panel niedostępny, a organizator potwierdził umowę
+na piśmie) i zapisuje potwierdzenie **bez** wersji informacji – karta dostawcy pokazuje wtedy
+„wpisane komendą operatora”:
+
+```bash
+docker compose exec -T web python manage.py confirm_ai_provider_dpa \
+  --competition kwantowa --provider all \
+  --confirmed-by <e-mail konta organizatora> \
+  --note "potwierdzone przez organizatora w rozmowie 24.09.2026"
+```
+
+- `--provider` – `anthropic`, `openai`, `google`, `meta` albo `all`,
+- `--confirmed-by` – adres **istniejącego, aktywnego** konta; to ono figuruje jako potwierdzający
+  (konto bez roli koordynatora w tym konkursie dostaje ostrzeżenie, ale zapis przechodzi),
+- zapis jest dokładnie taki jak z panelu: data, konto i wpis `ai_grading.dpa_confirmed` w dzienniku
+  zdarzeń konkursu z uwagą i `"via": "command"`,
+- komenda jest **idempotentna**: umowa już potwierdzona zostaje z pierwotną datą i osobą, bez nowego
+  wpisu; nieznany konkurs albo adres kończy się błędem bez żadnego zapisu,
+- dostawca bez klucza API zostaje potwierdzony, ale działa dopiero po dodaniu klucza (komenda to
+  wypisuje).
+
+Wycofanie potwierdzenia – wyłącznie w panelu (świadoma decyzja koordynatora, też w dzienniku).
+
+### 17.7. Tryb testowy (praca testowa koordynatora)
+
+Koordynator może wgrać na karcie zadania **pracę testową** (własny przykład: PDF, JPG, PNG, `.py`,
+`.ipynb`) i ocenić ją **każdym dostawcą z kluczem – bez potwierdzonej umowy powierzenia**. Po stronie
+serwera:
+
+- plik przechodzi walidację treści prac uczestników (`apps.submissions.validators`; PNG – sygnatura)
+  i skan antywirusowy zadaniem `apps.ai_grading.tasks.scan_ai_test_work` na kolejce **`scan`**
+  (plik zainfekowany jest od razu usuwany ze storage'u),
+- leży w buckecie prac (`S3_SUBMISSIONS_BUCKET`) pod prefiksem **`ai-test/<konkurs>/<zadanie>/`** –
+  żaden mechanizm prac uczestników (paczki ZIP, przekazywanie, retencja) go nie czyta; usunięcie
+  pracy testowej w panelu kasuje obiekt po zatwierdzeniu transakcji,
+- plik o tym samym SHA-256 co plik pracy uczestnika konkursu jest odrzucany (`AI_TEST_IS_SUBMISSION`),
+- oceny testowe idą tą samą kolejką (ten sam ogranicznik) i liczą się do zużycia i limitu wydatków;
+  w bazie to wiersze `AiAssessment` z `test_work` zamiast `submission`, więc nie ma ich w panelu
+  recenzenta, uczestnika, eksporcie danych ani statystykach.
+
+## 18. Dowolne wartości ocen: migracja kolumn punktów (v0.35.0)
+
+Wydanie zmienia typ kolumn punktów z liczb całkowitych na `numeric(p, 2)` (oceny 4,25) i dokłada
+przełącznik etapu `ScoringScale.free_values`. Migracje: `competitions.0032_free_scores`,
+`grading.0011_decimal_scores`, `appeals.0003_decimal_new_score`. Żadnej flagi, żadnej zmiany `.env`,
+żadnego nowego zadania beat. Każdy istniejący etap zostaje w trybie „tylko wartości ze skali” –
+przełącza go dopiero organizator na ekranie skali.
+
+### 18.1. Co robi migracja z danymi i ile trwa
+
+`ALTER TABLE … ALTER COLUMN … TYPE numeric(7|10, 2)` jest **rzutowaniem bezstratnym** (5 → 5.00),
+ale PostgreSQL **przepisuje przy nim całą tabelę** pod blokadą `ACCESS EXCLUSIVE` – na czas
+przepisania ani odczyt, ani zapis tej tabeli nie przejdzie. Dotknięte tabele:
+
+| Tabela | Kolumny | Rząd wielkości (produkcja) | Szacowany czas |
+|---|---|---|---|
+| `grading_review` | `score` | ~2 recenzje × prace edycji: dziesiątki tysięcy | < 1–3 s |
+| `grading_finalgrade` | `score` | liczba prac: tysiące – dziesiątki tysięcy | < 1 s |
+| `competitions_stageentry` | `total_points` | wpisy do etapów: tysiące – dziesiątki tysięcy | < 1 s |
+| `competitions_problem`, `…_qualificationrule`, `…_transitionrule`, `…_interviewscore`, `appeals_appealdecision` | maksima, progi, punkty | dziesiątki – setki | pomijalny |
+
+Szacunek przy przepustowości przepisania rzędu 50–100 tys. wierszy/s na tym VPS-ie (z zapasem na
+kradzież CPU hosta, patrz § 11); dokłada się do tego walidacja nowych więzów `CHECK (… >= 0)` – jedno
+przejście po tabeli, bez blokady dłuższej niż samo przepisanie. Wdrożenie mimo to **poza godzinami
+oceniania** (recenzent zapisujący ocenę w trakcie przepisania `grading_review` dostanie czekanie
+zakończone zapisem albo – po `statement_timeout` – błąd z prośbą o ponowienie).
+
+Przed wdrożeniem, na produkcji, sprawdź liczność tabel (odczyt, bez blokad):
+
+```bash
+docker compose exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT relname, n_live_tup FROM pg_stat_user_tables WHERE relname IN ('grading_review','grading_finalgrade','competitions_stageentry') ORDER BY 1;"
+```
+
+Powyżej ~1 mln wierszy w którejś z nich zaplanuj okno serwisowe.
+
+### 18.2. Po wdrożeniu
+
+```bash
+docker compose exec -T web python manage.py showmigrations competitions grading appeals | tail -n 5
+docker compose exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT data_type, numeric_precision, numeric_scale FROM information_schema.columns WHERE table_name='grading_review' AND column_name='score';"
+```
+
+Oczekiwane: `numeric`, `7`, `2`. Ogłoszone tabele wyników (snapshoty JSON) **nie są** przepisywane –
+liczby całkowite zostają w nich liczbami całkowitymi i renderują się jak dotąd.
+
+### 18.3. Rollback
+
+Cofnięcie migracji (`migrate grading 0010`, `migrate appeals 0002`, `migrate competitions 0031`)
+zamienia kolumny z powrotem na całkowite; **ocena ułamkowa wystawiona po wdrożeniu zostałaby wtedy
+zaokrąglona przez bazę**, a zadanie z samym maksimum 12,5 – ucięte. Cofać wolno wyłącznie, dopóki
+żaden etap nie został przełączony na dowolne wartości:
+
+```bash
+docker compose exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT count(*) FROM competitions_scoringscale WHERE free_values;"
+```
+
+musi dać `0`. Jeśli nie daje – nie cofaj, napraw w przód: kod v0.34.0 na kolumnach dziesiętnych
+co prawda wystartuje, ale oceny ułamkowej nie przyjmie ani poprawnie nie pokaże („5,00”).

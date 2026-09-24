@@ -2,22 +2,23 @@
 {% load web_extras %}
 {% load coordinator_extras %}
 {% comment %}
-  Ustawienia oceny AI jednego konkursu: klucz API (tylko do zapisu), model, limit wydatków,
+  Ustawienia oceny AI jednego konkursu: dostawcy (klucz API tylko do zapisu i potwierdzenie umowy
+  powierzenia – osobno dla każdego), dostawca i model domyślne, ceny modeli, limit wydatków,
   zużycie i widoczność dla uczestników per etap.
 
   Klucz nie wraca na ekran w żadnej postaci poza „kończy się na …abcd” – pole formularza jest
-  polem hasła bez wartości początkowej. Blok „Co wychodzi z serwisu” stoi **nad** formularzem
-  klucza: wklejenie klucza jest decyzją o przekazywaniu prac uczestników podmiotowi
-  przetwarzającemu, więc koordynator ma wiedzieć, na co się zgadza, zanim to zrobi.
+  polem hasła bez wartości początkowej. Blok „Co wychodzi z serwisu” stoi **nad** dostawcami:
+  wklejenie klucza i potwierdzenie umowy są decyzjami o przekazywaniu prac uczestników
+  podmiotowi przetwarzającemu, więc koordynator ma wiedzieć, na co się zgadza, zanim to zrobi.
 
   Bez stylów w atrybutach i bez skryptów – panel chodzi pod ścisłą polityką CSP.
 {% endcomment %}
 {% block title %}Ocena AI – panel koordynatora{% endblock %}
 {% block panel_title %}Ocena AI{% endblock %}
 {% block panel_lead %}
-  <p class="lead">Claude porównuje pracę uczestnika z rozwiązaniem wzorcowym i skalą, a recenzent
-    widzi jego propozycję jako <strong>sugestię, niewiążącą</strong>. Oceny wystawiają ludzie –
-    sugestia nigdy nie trafia do punktacji sama.</p>
+  <p class="lead">Model językowy wybranego dostawcy porównuje pracę uczestnika z rozwiązaniem
+    wzorcowym i skalą, a recenzent widzi jego propozycję jako <strong>sugestię, niewiążącą</strong>.
+    Oceny wystawiają ludzie – sugestia nigdy nie trafia do punktacji sama.</p>
 {% endblock %}
 {% block panel_content %}
 
@@ -25,68 +26,121 @@
   <div class="card card--quiet">
     <h2 class="mt-0">Co wychodzi z serwisu</h2>
     <ul class="hint">
-      <li>Do {{ processor }} trafia <strong>plik pracy</strong> (PDF, zdjęcie, kod albo notatnik),
+      <li>Do wybranego dostawcy trafia <strong>plik pracy</strong> (PDF, zdjęcie, kod albo notatnik),
         treść zadania, rozwiązanie wzorcowe, skala, rubryka i uwagi dla recenzentów.</li>
       <li><strong>Nie</strong> wychodzi: imię, nazwisko, adres e-mail, szkoła ani kod uczestnika,
         ani nazwa pliku nadana przez uczestnika.</li>
-      <li>Przed włączeniem organizator musi mieć umowę powierzenia z Anthropic (DPA w warunkach
-        komercyjnych) i zaktualizowaną politykę prywatności oraz regulamin – patrz podręcznik
-        organizatora.</li>
+      <li>Każdy dostawca jest <strong>osobnym podmiotem przetwarzającym</strong>, w tym poza EOG. Prace
+        uczestników trafiają wyłącznie do dostawcy z kluczem <strong>i</strong> potwierdzoną umową
+        powierzenia (DPA). Co sprawdzić u każdego dostawcy przed potwierdzeniem – podręcznik
+        organizatora, § 4.12.</li>
+      <li>Do wypróbowania dostawcy przed potwierdzeniem umowy służy <strong>praca testowa</strong> na
+        karcie zadania (własny przykład, bez danych uczestników).</li>
     </ul>
   </div>
 </section>
 
-<section class="section" id="klucz">
+<section class="section" id="dostawcy">
   <div class="section__head">
-    <h2 class="mt-0">Klucz API</h2>
-    {% if ai_settings.has_key %}
-      <span class="badge badge--ok">ustawiony, kończy się na {{ ai_settings.masked_key }}</span>
-    {% else %}
-      <span class="badge badge--warn">brak klucza</span>
-    {% endif %}
+    <h2 class="mt-0">Dostawcy</h2>
   </div>
-  <div class="card">
-    {% if ai_settings.has_key %}
+  {% for state in providers %}
+    <div class="card" id="dostawca-{{ state.name }}">
+      <div class="card__head">
+        <h3 class="mt-0 card__title">{{ state.label }}</h3>
+        {% if not state.available %}
+          <span class="badge badge--danger">niedostępny – brak pakietu „{{ state.provider.sdk_package }}” na serwerze</span>
+        {% elif state.usable_for_submissions %}
+          <span class="badge badge--ok">gotowy do ocen prac</span>
+        {% elif state.usable_for_tests %}
+          <span class="badge badge--warn">tylko prace testowe – umowa powierzenia niepotwierdzona</span>
+        {% else %}
+          <span class="badge badge--neutral">brak klucza</span>
+        {% endif %}
+      </div>
+      {% if state.provider.note %}<p class="hint">{{ state.provider.note }}</p>{% endif %}
       <dl class="meta-list">
-        <dt>Ustawiony</dt>
-        <dd>{{ ai_settings.api_key_set_at|local_datetime }}{% if ai_settings.api_key_set_by %} – {{ ai_settings.api_key_set_by|account_email }}{% endif %}</dd>
-        <dt>Ostatnie sprawdzenie</dt>
+        <dt>Klucz API</dt>
         <dd>
-          {% if ai_settings.api_key_checked_at %}
-            {{ ai_settings.api_key_checked_at|local_datetime }}:
-            {% if ai_settings.api_key_check_ok %}<span class="badge badge--ok">działa</span>{% else %}<span class="badge badge--danger">nie działa</span>{% endif %}
-            {{ ai_settings.api_key_check_message }}
-          {% else %}<span class="hint">nie sprawdzano od ostatniej zmiany</span>{% endif %}
+          {% if state.account.has_key %}
+            <span class="badge badge--ok">ustawiony, kończy się na {{ state.account.masked_key }}</span>
+            {{ state.account.api_key_set_at|local_datetime }}{% if state.account.api_key_set_by %} – {{ state.account.api_key_set_by|account_email }}{% endif %}
+          {% else %}<span class="hint">brak</span>{% endif %}
+        </dd>
+        {% if state.account.has_key %}
+          <dt>Ostatnie sprawdzenie</dt>
+          <dd>
+            {% if state.account.api_key_checked_at %}
+              {{ state.account.api_key_checked_at|local_datetime }}:
+              {% if state.account.api_key_check_ok %}<span class="badge badge--ok">działa</span>{% else %}<span class="badge badge--danger">nie działa</span>{% endif %}
+              {{ state.account.api_key_check_message }}
+            {% else %}<span class="hint">nie sprawdzano od ostatniej zmiany</span>{% endif %}
+          </dd>
+        {% endif %}
+        <dt>Umowa powierzenia (DPA)</dt>
+        <dd>
+          {% if state.account.dpa_confirmed %}
+            <span class="badge badge--ok">potwierdzona</span>
+            {{ state.account.dpa_confirmed_at|local_datetime }}{% if state.account.dpa_confirmed_by %} – {{ state.account.dpa_confirmed_by|account_email }}{% endif %}
+            {% if state.account.dpa_note %}<span class="hint">({{ state.account.dpa_note }})</span>{% endif %}
+            <span class="hint">{% if state.account.dpa_info_version %}– po zapoznaniu się z informacją w wersji <code>{{ state.account.dpa_info_version }}</code>{% else %}– wpisane komendą operatora{% endif %}</span>
+          {% else %}<span class="badge badge--warn">niepotwierdzona</span>{% endif %}
         </dd>
       </dl>
       <div class="actions">
-        <form method="post">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="check_key">
-          <button type="submit" class="btn btn--secondary">Sprawdź klucz</button>
-        </form>
-        <form method="post">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="remove_key">
-          <button type="submit" class="btn btn--danger">Usuń klucz</button>
-        </form>
+        {% if state.account.has_key %}
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="check_key">
+            <input type="hidden" name="provider" value="{{ state.name }}">
+            <button type="submit" class="btn btn--secondary">Sprawdź klucz</button>
+          </form>
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="remove_key">
+            <input type="hidden" name="provider" value="{{ state.name }}">
+            <button type="submit" class="btn btn--danger">Usuń klucz</button>
+          </form>
+        {% endif %}
       </div>
-      <h3>Zastąp klucz</h3>
-    {% endif %}
-    <form method="post" class="form form--wide" autocomplete="off" novalidate>
-      {% csrf_token %}
-      <input type="hidden" name="action" value="set_key">
-      {{ key_form.as_p }}
-      <div class="actions">
-        <button type="submit" class="btn btn--primary">{% if ai_settings.has_key %}Zastąp klucz{% else %}Zapisz klucz{% endif %}</button>
-      </div>
-    </form>
-  </div>
+      <form method="post" class="form form--wide" autocomplete="off" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="set_key">
+        <input type="hidden" name="provider" value="{{ state.name }}">
+        <p>
+          <label for="klucz-{{ state.name }}">{% if state.account.has_key %}Zastąp klucz API {{ state.label }}{% else %}Klucz API {{ state.label }}{% endif %}</label>
+          <input type="password" name="api_key" id="klucz-{{ state.name }}" maxlength="500" autocomplete="off" spellcheck="false">
+          <span class="helptext">Po zapisaniu klucza nie da się go odczytać – można go tylko zastąpić albo usunąć.</span>
+        </p>
+        <div class="actions">
+          <button type="submit" class="btn btn--primary">{% if state.account.has_key %}Zastąp klucz{% else %}Zapisz klucz{% endif %}</button>
+        </div>
+      </form>
+      {% if state.account.dpa_confirmed %}
+        <form method="post" class="inline"
+              x-data="confirmSubmit" x-on:submit="check"
+              data-confirm="Wycofać potwierdzenie umowy powierzenia z {{ state.label }}? Prace uczestników przestaną trafiać do tego dostawcy.">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="dpa_revoke">
+          <input type="hidden" name="provider" value="{{ state.name }}">
+          <button type="submit" class="btn btn--secondary">Wycofaj potwierdzenie umowy powierzenia</button>
+        </form>
+      {% else %}
+        <p class="hint">Umowę potwierdza koordynator osobiście – po zapoznaniu się z informacją o dostawcy
+          (co wychodzi z serwisu, retencja, przekazanie poza EOG{% if state.name == 'google' or state.name == 'meta' %}, <strong>ograniczenie wieku w warunkach dostawcy</strong>{% endif %}).</p>
+        <div class="actions">
+          <a class="btn btn--secondary" href="{% url 'web:coordinator-ai-dpa' state.name %}">Potwierdź umowę powierzenia</a>
+        </div>
+      {% endif %}
+    </div>
+  {% endfor %}
 </section>
 
 <section class="section" id="model">
   <div class="card">
-    <h2 class="mt-0">Model i limit wydatków</h2>
+    <h2 class="mt-0">Dostawca i model domyślny, limit wydatków</h2>
+    <p>Teraz: <strong>{{ default_label }}</strong>{% if default_price %} – {{ default_price.input }} / {{ default_price.output }} USD za milion tokenów wejścia / wyjścia{% else %} – <span class="badge badge--warn">cena nieznana</span>{% endif %}.
+      Przy zleceniu można wybrać innego dostawcę i model; domyślny jest tylko wstępnie zaznaczony.</p>
     <form method="post" class="form form--wide" novalidate>
       {% csrf_token %}
       <input type="hidden" name="action" value="options">
@@ -95,10 +149,60 @@
         <button type="submit" class="btn btn--primary">Zapisz</button>
       </div>
     </form>
-    <p class="hint">Cennik użyty do szacunków: Claude Opus 5 – 5 USD za milion tokenów wejścia i 25 USD
-      za milion tokenów wyjścia; Claude Sonnet 5 – 2 i 10 USD. Materiały zadania czytane z pamięci
-      podręcznej kosztują ok. 0,1 stawki wejścia. Rozliczenie wystawia Anthropic – jego faktura jest
-      prawdą, a liczby tutaj są szacunkiem.</p>
+  </div>
+</section>
+
+<section class="section" id="ceny">
+  <div class="card">
+    <h2 class="mt-0">Ceny modeli (USD za milion tokenów)</h2>
+    <p class="hint">Ceny służą wyłącznie szacunkom na ekranie i limitowi wydatków – fakturę wystawia
+      dostawca i to ona jest prawdą. Wartości domyślne pochodzą z cenników dostawców z 24.09.2026;
+      popraw je, gdy dostawca zmieni cennik. Pusta cena = <strong>koszt nieznany</strong>: taki model
+      liczy się wyłącznie w tokenach, a przy ustawionym limicie wydatków nie da się go użyć (limit
+      nie widziałby jego kosztu). Odczyt z pamięci podręcznej kosztuje ułamek stawki wejścia
+      (Anthropic i OpenAI 0,1, Google 0,1, Meta ok. 0,12).</p>
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="action" value="prices">
+      <div class="scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Dostawca</th>
+              <th scope="col">Model</th>
+              <th scope="col">Wejście</th>
+              <th scope="col">Wyjście</th>
+              <th scope="col"><span class="visually-hidden">Stan</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in prices %}
+              <tr>
+                <td>{{ item.provider_label }}</td>
+                <th scope="row"><code>{{ item.model }}</code></th>
+                <td><input type="text" inputmode="decimal" name="in__{{ item.field }}" value="{{ item.input|default_if_none:'' }}" aria-label="Cena wejścia {{ item.model }}" size="8"></td>
+                <td><input type="text" inputmode="decimal" name="out__{{ item.field }}" value="{{ item.output|default_if_none:'' }}" aria-label="Cena wyjścia {{ item.model }}" size="8"></td>
+                <td>{% if item.input is None %}<span class="badge badge--warn">nieznana</span>{% elif not item.is_default %}<span class="badge badge--info">zmieniona</span>{% endif %}</td>
+              </tr>
+            {% endfor %}
+            <tr>
+              <td>
+                <select name="new_provider" aria-label="Dostawca nowego modelu">
+                  {% for value, label in provider_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                </select>
+              </td>
+              <td><input type="text" name="new_model" maxlength="100" placeholder="inny identyfikator modelu" aria-label="Identyfikator nowego modelu"></td>
+              <td><input type="text" inputmode="decimal" name="new_in" aria-label="Cena wejścia nowego modelu" size="8"></td>
+              <td><input type="text" inputmode="decimal" name="new_out" aria-label="Cena wyjścia nowego modelu" size="8"></td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">Zapisz ceny</button>
+      </div>
+    </form>
   </div>
 </section>
 
@@ -111,7 +215,12 @@
     <dl class="fact-list">
       <dt>Szacowany koszt łącznie</dt>
       <dd class="workload-num">{{ ai_settings.total_cost_usd|floatformat:2 }} USD{% if ai_settings.spending_limit_usd is not None %} z limitu {{ ai_settings.spending_limit_usd|floatformat:2 }} USD{% endif %}</dd>
-      <dt>Wywołania API</dt>
+      {% if ai_settings.total_unpriced_calls %}
+        <dt>Wywołania modeli bez ceny</dt>
+        <dd class="workload-num"><span class="badge badge--warn">{{ ai_settings.total_unpriced_calls }}</span>
+          <span class="hint">– ich kosztu nie ma w kwocie wyżej ani w limicie wydatków; policzone są tylko tokeny</span></dd>
+      {% endif %}
+      <dt>Wywołania API (wszyscy dostawcy, także prace testowe)</dt>
       <dd class="workload-num">{{ ai_settings.total_calls }}</dd>
       <dt>Tokeny wejścia / wyjścia</dt>
       <dd class="workload-num">{{ ai_settings.total_input_tokens }} / {{ ai_settings.total_output_tokens }}</dd>
@@ -128,7 +237,8 @@
   <div class="card">
     <p class="hint">Domyślnie uczestnik <strong>nie widzi</strong> oceny AI i nie dowiaduje się z serwisu,
       że powstała. Po włączeniu dla etapu uczestnik zobaczy podsumowanie i proponowane punkty – dopiero
-      po ogłoszeniu wyników, obok oficjalnej oceny i z podpisem „sugestia AI”.</p>
+      po ogłoszeniu wyników, obok oficjalnej oceny i z podpisem „sugestia AI”. Oceny prac testowych
+      nie są pokazywane nikomu poza koordynatorem.</p>
     <div class="scroll">
       <table class="table">
         <thead>
@@ -168,7 +278,8 @@
     <h2 class="mt-0">Jak zlecić ocenę</h2>
     <p>Oceny AI zleca się z <strong>karty zadania</strong> (Etapy → zadania etapu → zadanie), sekcja
       „Ocena AI”: dla wszystkich prac zadania albo dla jednej pracy. Przed zleceniem ekran pokazuje
-      liczbę prac i szacowany koszt.</p>
+      liczbę prac, dostawcę i model (do zmiany) oraz szacowany koszt. Tę samą pracę można ocenić kilkoma
+      modelami – każda ocena jest osobnym panelem. Tam też jest <strong>praca testowa</strong>.</p>
   </div>
 </section>
 {% endblock %}

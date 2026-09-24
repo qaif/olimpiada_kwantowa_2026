@@ -238,13 +238,13 @@
 
       <dl class="card-facts">
         <dt>Suma punktów (bieżąca)</dt>
-        <dd>{% if block.entry.total_points is not None %}{{ block.entry.total_points }} pkt
+        <dd>{% if block.entry.total_points is not None %}{{ block.entry.total_points|points }} pkt
           {% else %}<span class="hint">jeszcze nieliczona</span>{% endif %}</dd>
         <dt>Próg kwalifikacji</dt>
         <dd>
           {% if block.rule %}
             {{ block.rule.get_mode_display }}{% if block.rule.min_points is not None %},
-              minimum {{ block.rule.min_points }} pkt{% endif %}{% if block.rule.top_n %},
+              minimum {{ block.rule.min_points|points }} pkt{% endif %}{% if block.rule.top_n %},
               pierwszych {{ block.rule.top_n }}{% endif %}
           {% else %}
             <span class="hint">etap nie ma jeszcze reguły kwalifikacji</span>
@@ -359,22 +359,27 @@
                       {% if review.cancel_reason %}
                         <span class="hint">{{ review.get_cancel_reason_display }}</span>
                       {% endif %}</td>
-                    <td class="num">{% if review.score is not None %}{{ review.score }}{% else %}—{% endif %}</td>
+                    <td class="num">{% if review.score is not None %}{{ review.score|points }}{% else %}—{% endif %}</td>
                     <td>{{ review.due_at|local_datetime|default:"—" }}</td>
                     <td>
                       <div class="actions">
-                        {% if problem.scale_items %}
+                        {% if problem.scale_items or problem.score_widget.free %}
                           {# Punkty ze skali **zadania** (a w jej braku – etapu), nie wolne pole:
-                             ocena spoza skali i tak nie przeszłaby przez serwis. #}
+                             ocena spoza skali i tak nie przeszłaby przez serwis. W etapie
+                             z dowolnymi wartościami (0.35.0) – pole liczbowe z zakresem. #}
                           <form method="post" action="{% url 'web:coordinator-review-score' review.pk %}">
                             {% csrf_token %}
                             <label class="visually-hidden" for="score-{{ review.pk }}">Punkty recenzji</label>
+                            {% if problem.score_widget.free %}
+                              {% include "web/coordinator/_score_input.html" with widget=problem.score_widget id_prefix="score-" id_pk=review.pk current=review.score %}
+                            {% else %}
                             <select id="score-{{ review.pk }}" name="score">
                               {% for item in problem.scale_items %}
                                 <option value="{{ item.value }}"{% if review.score == item.value %} selected{% endif %}>
                                   {{ item.value }}{% if item.label %} – {{ item.label }}{% endif %}</option>
                               {% endfor %}
                             </select>
+                            {% endif %}
                             <button type="submit" class="btn btn--secondary btn--small">Zapisz</button>
                           </form>
                         {% endif %}
@@ -401,7 +406,7 @@
             <p>
               <strong>Ocena końcowa:</strong>
               {% if problem.final_grade %}
-                {{ problem.final_grade.score }} pkt ({{ problem.final_grade.get_method_display }}){% if problem.final_grade.decided_at %},
+                {{ problem.final_grade.score|points }} pkt ({{ problem.final_grade.get_method_display }}){% if problem.final_grade.decided_at %},
                 {{ problem.final_grade.decided_at|local_datetime }}{% endif %}{% if problem.final_grade.decided_by %},
                 {{ problem.final_grade.decided_by|account_email }}{% endif %}
               {% else %}
@@ -441,7 +446,7 @@
               {% endif %}
             </div>
 
-            {% if not problem.lockable and problem.scale_items %}
+            {% if not problem.lockable and problem.scale_items or not problem.lockable and problem.score_widget.free %}
               <details class="participant-override">
                 <summary>Korekta oceny końcowej</summary>
                 <form method="post" action="{% url 'web:coordinator-final-grade' problem.latest.pk %}" class="stack">
@@ -450,12 +455,16 @@
                     także dla pracy bez recenzji. Niewystawione recenzje zostaną anulowane.</p>
                   <p>
                     <label for="final-score-{{ problem.latest.pk }}">Punkty</label>
+                    {% if problem.score_widget.free %}
+                      {% include "web/coordinator/_score_input.html" with widget=problem.score_widget id_prefix="final-score-" id_pk=problem.latest.pk current=problem.final_grade.score %}
+                    {% else %}
                     <select id="final-score-{{ problem.latest.pk }}" name="score">
                       {% for item in problem.scale_items %}
                         <option value="{{ item.value }}"{% if problem.final_grade.score == item.value %} selected{% endif %}>
                           {{ item.value }}{% if item.label %} – {{ item.label }}{% endif %}</option>
                       {% endfor %}
                     </select>
+                    {% endif %}
                   </p>
                   <p>
                     <label for="final-why-{{ problem.latest.pk }}">Uzasadnienie (wymagane)</label>
@@ -475,7 +484,7 @@
                   reklamacja z {{ appeal.filed_at|local_datetime }}
                   {% if appeal.decision %}
                     – rozstrzygnięta {{ appeal.decision.decided_at|local_datetime }}{% if appeal.decision.new_score is not None %},
-                    nowa punktacja {{ appeal.decision.new_score }} pkt{% endif %}
+                    nowa punktacja {{ appeal.decision.new_score|points }} pkt{% endif %}
                   {% endif %}
                 </li>
               {% endfor %}
@@ -520,7 +529,7 @@
                 <td>{{ block.result.publication.published_at|local_datetime }}</td>
                 {% if block.result.in_table %}
                   <td class="num">{{ block.result.rank|default:"—" }}</td>
-                  <td class="num">{{ block.result.total }}</td>
+                  <td class="num">{{ block.result.total|points }}</td>
                 {% else %}
                   {% comment %}
                     Wpisu nie było w ogłoszonej tabeli: albo powstał po publikacji (kwalifikacja
@@ -577,7 +586,7 @@
               <td>
                 {% if appeal.decision %}
                   {{ appeal.decision.decided_at|local_datetime }}{% if appeal.decision.new_score is not None %} ·
-                    nowa punktacja {{ appeal.decision.new_score }} pkt{% endif %}
+                    nowa punktacja {{ appeal.decision.new_score|points }} pkt{% endif %}
                   <details>
                     <summary>Uzasadnienie</summary>
                     <p class="quote">{{ appeal.decision.justification }}</p>

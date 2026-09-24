@@ -36,6 +36,7 @@ from apps.accounts.activation import (
 from apps.accounts.consents import ConsentSource
 from apps.accounts.services import register_committee, register_participant
 from apps.cms.models import SiteSettings
+from apps.competitions.scoring import problem_maxima_by_number, stage_maximum_total
 from apps.core.api import DomainError
 from apps.core.models import audit
 from apps.results.models import ResultsPublication
@@ -404,6 +405,9 @@ class PublicResultsView(TemplateView):
                 "stage": publication.stage,
                 "rows": rows,
                 "problem_numbers": problem_numbers,
+                # „Zad. 3 (max 12,5)” – zadania mogą mieć różną liczbę punktów (wydanie 0.35.0).
+                "problem_maxima": problem_maxima_by_number(publication.stage),
+                "max_total": stage_maximum_total(publication.stage, publication.stage.problems.all()),
             }
         )
         return context

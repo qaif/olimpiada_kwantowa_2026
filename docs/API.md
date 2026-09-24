@@ -187,6 +187,10 @@ curl -s https://olimpiadakwantowa.pl/api/v1/stages/12/results/ -H "Authorization
 (kod, inicjały ze szkołą albo pełne nazwisko w finale). API nie widzi tu więcej niż publiczna
 strona wyników. Pole `voivodeship` występuje tylko w tabelach anonimizowanych kodem.
 
+`points` i `total` są liczbami JSON: całkowitymi w etapie „tylko wartości ze skali”, a w etapie
+z dowolnymi wartościami ocen także ułamkowymi (`{"1": 4.25, "2": 3.5}`, `"total": 7.75`) – patrz
+§ 6.2.
+
 ### 2.5. Oddane prace — `read:submissions_meta`
 
 Metadane, nigdy pliki:
@@ -420,7 +424,7 @@ Nie wszystko musi iść integracją. Koordynator ma w panelu (**Raporty → Eksp
 pliki dla odbiorców zewnętrznych:
 
 - **lista dla kuratorium** (CSV/XLSX, zawsze jedno województwo): kod, imię, nazwisko, szkoła,
-  miejscowość, klasa, wynik, kwalifikacja,
+  miejscowość, klasa, wynik, kwalifikacja (wynik ułamkowy w CSV z kropką – § 6.2),
 - **protokół etapu** (PDF): tabela wyników z blokiem podpisów Komitetu Sterującego,
 - **zrzut edycji** (JSON, `format: "olimpiada.edition.v1"`): struktura zawodów, etapy, zadania,
   wpisy uczestników pod kodami publicznymi i ogłoszone tabele — bez danych osobowych. To jest
@@ -464,6 +468,38 @@ webhookiem.
 - zmiana łamiąca kontrakt to `/api/v2/` wystawione obok `v1`; o wycofaniu starej wersji
   organizator uprzedza z wyprzedzeniem i nie robi tego w trakcie trwającej edycji,
 - nazwy zakresów i zdarzeń są częścią kontraktu — aktualną listę zawsze zwraca `GET /api/v1/`.
+
+### 6.2. Punkty dziesiętne (od wydania `v0.35.0`)
+
+Organizator może przełączyć etap w tryb **„dowolna wartość od min do max (co 0,01)”**: ocena może
+wtedy mieć do dwóch miejsc po przecinku (np. 4,25), a zadanie – własne maksimum (np. 12,5). Kontrakt
+dla **każdego** pola punktów – w `/api/v1/` (`points`, `total`, histogram i próg w statystykach),
+w API panelu (`score`, `new_score`, `total_points`, `published_total`) i w zrzucie edycji JSON
+(`total_points`, `max_points`, wiersze ogłoszonych tabel):
+
+- **wyjście: liczba JSON, nie tekst.** Ocena całkowita jest liczbą całkowitą (`5` – dokładnie jak
+  przed tym wydaniem), ułamkowa – liczbą z najwyżej dwoma miejscami po przecinku (`4.25`, `3.5`).
+  Typ pola się nie zmienił (to nadal liczba), zmieniło się tylko to, że w etapie z dowolnymi
+  wartościami bywa ułamkowa. Etap „tylko ze skali” – czyli każdy, którego organizator nie
+  przełączył – dalej daje same liczby całkowite,
+- **rachunek po stronie klienta:** czytaj te liczby jako dziesiętne (`Decimal` w Pythonie,
+  `BigDecimal` w Javie, `decimal.js`/tekst w JavaScripcie), a nie przez arytmetykę `float` – suma
+  `0.1 + 0.2` w liczbach binarnych nie daje `0.3`. Serwer liczy wszystko w dziesiętnych: sumy są
+  dokładne, a suma **ważona** jest zaokrąglana raz, na końcu, **połówka w górę** – do 0,01 w etapie
+  z dowolnymi wartościami i do pełnego punktu w etapie „tylko ze skali”,
+- **wejście** (pola `score`/`new_score` w API panelu): liczba JSON (`4.25`) albo tekst z kropką
+  lub przecinkiem (`"4.25"`, `"4,25"`). Odmowy – zawsze `400` z kodem:
+  - `SCORE_INVALID` – to nie jest liczba albo ma więcej niż dwa miejsca po przecinku (`4.255`
+    nie jest zaokrąglane, tylko odrzucane),
+  - `SCORE_NOT_IN_SCALE` – liczba spoza skali (etap „tylko ze skali”; `4.5` przy skali 0/2/5/6)
+    albo spoza zakresu zadania (etap z dowolnymi wartościami; `6.5` przy maksimum 6),
+- ocena w API panelu jest w **postaci przechowywanej** – przesuniętej o przesunięcie skali, gdy
+  konkurs ma punkty ujemne (`weighted_scoring`); przy skali bez punktów ujemnych to ta sama liczba,
+  którą widzi recenzent,
+- powrót etapu z trybu dowolnego do „tylko ze skali” przy istniejących ocenach spoza skali:
+  `409 FREE_VALUES_IN_USE`,
+- **eksporty CSV** z panelu (lista dla kuratorium, wyniki i recenzje etapu) zapisują punkty z
+  **kropką** dziesiętną (`4.25`) niezależnie od języka interfejsu; XLSX niesie je jako liczby.
 
 ### 6.1. Rejestracja uczestnika (`POST /api/auth/register/participant/`)
 

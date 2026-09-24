@@ -164,17 +164,24 @@ def _workload(reviews: list, now) -> list[dict]:
 
 def _review_rows(reviews: list, now) -> list[dict]:
     """Tabela „Recenzje”: jeden wiersz na recenzję, z kodem uczestnika i listą punktów do korekty."""
+    from apps.competitions.scoring import coordinator_score_widget, safe_score_rule
+
     rows = []
     # Skalę liczymy raz na zadanie, a nie raz na wiersz: recenzent finału ma kilkadziesiąt recenzji
     # z tych samych kilku zadań, a pierwszeństwo „skala zadania przed skalą etapu” jest przy każdym
     # z nich takie samo.
     scales: dict[int, list[int]] = {}
+    # Pole punktów w trybie etapu (wydanie 0.35.0) – lista skali albo pole liczbowe z zakresem.
+    widgets: dict[int, dict | None] = {}
     for review in reviews:
         submission = review.submission
         participant = submission.entry.participant
         stage = submission.entry.stage
         if submission.problem_id not in scales:
             scales[submission.problem_id] = _scale_values(stage, submission.problem)
+            widgets[submission.problem_id] = coordinator_score_widget(
+                safe_score_rule(stage, submission.problem)
+            )
         seconds = _work_seconds(review)
         rows.append(
             {
@@ -186,6 +193,7 @@ def _review_rows(reviews: list, now) -> list[dict]:
                 "participant_url": participant_card(participant),
                 "overdue": _is_overdue(review, now),
                 "scale_values": scales[submission.problem_id],
+                "score_widget": widgets[submission.problem_id],
                 "work_time": format_work_time(seconds) if seconds else "",
             }
         )

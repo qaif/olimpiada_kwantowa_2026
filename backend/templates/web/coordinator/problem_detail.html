@@ -117,7 +117,7 @@
           <li><strong class="workload-num">{{ item.value }}</strong> – {{ item.label }}</li>
         {% endfor %}
       </ul>
-      {% if scale.max_points %}<p class="hint">Maksimum: {{ scale.max_points }} pkt.</p>{% endif %}
+      {% if scale.max_points %}<p class="hint">Maksimum: {{ scale.max_points|points }} pkt.</p>{% endif %}
     {% else %}
       <p class="hint">Ani zadanie, ani etap nie mają skali punktacji – formularze ocen przy pracach
         nie stoją, dopóki jej nie ustawisz.</p>
@@ -315,17 +315,13 @@
                   <span>
                     <a href="{% url 'web:coordinator-member' review.reviewer.pk %}">{{ review.reviewer.user|account_email }}</a>
                     – {{ review.get_status_display }}{% if review.round != 1 %} (runda {{ review.round }}){% endif %}:
-                    <strong class="workload-num">{% if review.score is not None %}{{ review.score }} pkt{% else %}—{% endif %}</strong>
+                    <strong class="workload-num">{% if review.score is not None %}{{ review.score|points }} pkt{% else %}—{% endif %}</strong>
                   </span>
-                  {% if row.scale_values %}
+                  {% if row.score_widget %}
                     <form method="post" action="{% url 'web:coordinator-review-score' review.pk %}" class="cell-form">
                       {% csrf_token %}
                       <label class="visually-hidden" for="score-{{ review.pk }}">Punkty</label>
-                      <select id="score-{{ review.pk }}" name="score">
-                        {% for value in row.scale_values %}
-                          <option value="{{ value }}"{% if review.score == value %} selected{% endif %}>{{ value }}</option>
-                        {% endfor %}
-                      </select>
+                      {% include "web/coordinator/_score_input.html" with widget=row.score_widget id_prefix="score-" id_pk=review.pk current=review.score %}
                       <button type="submit" class="btn btn--secondary btn--small">Zapisz</button>
                     </form>
                   {% endif %}
@@ -343,22 +339,18 @@
             </td>
             <td>
               {% if row.final_grade %}
-                <p><strong class="workload-num">{{ row.final_grade.score }} pkt</strong>
+                <p><strong class="workload-num">{{ row.final_grade.score|points }} pkt</strong>
                   ({{ row.final_grade.get_method_display }})</p>
               {% else %}
                 <p class="hint">brak oceny końcowej</p>
               {% endif %}
               {% if row.lockable %}
                 <p class="hint">Praca nie jest jeszcze w ocenie – najpierw „Zablokuj do oceny”.</p>
-              {% elif row.scale_values %}
+              {% elif row.score_widget %}
                 <form method="post" action="{% url 'web:coordinator-final-grade' row.submission.pk %}" class="stack">
                   {% csrf_token %}
                   <label for="final-score-{{ row.submission.pk }}">Punkty</label>
-                  <select id="final-score-{{ row.submission.pk }}" name="score">
-                    {% for value in row.scale_values %}
-                      <option value="{{ value }}"{% if row.final_grade.score == value %} selected{% endif %}>{{ value }}</option>
-                    {% endfor %}
-                  </select>
+                  {% include "web/coordinator/_score_input.html" with widget=row.score_widget id_prefix="final-score-" id_pk=row.submission.pk current=row.final_grade.score %}
                   <label for="final-why-{{ row.submission.pk }}">Uzasadnienie (wymagane)</label>
                   <textarea id="final-why-{{ row.submission.pk }}" name="rationale" rows="2" required></textarea>
                   <button type="submit" class="btn btn--primary btn--small">Zapisz korektę</button>
@@ -433,14 +425,14 @@
   <div class="section__head">
     <h2 class="mt-0">Statystyki</h2>
     <p class="hint">Ocen końcowych: {{ distribution.total }}{% if distribution.mean is not None %} ·
-      średnia {{ distribution.mean }} pkt{% endif %}</p>
+      średnia {{ distribution.mean|points }} pkt{% endif %}</p>
   </div>
   <div class="card">
     {% if distribution.total %}
       <ul class="score-bars">
         {% for bar in distribution.bars %}
           <li>
-            <span class="score-bars__label">{{ bar.value }} pkt</span>
+            <span class="score-bars__label">{{ bar.value|points }} pkt</span>
             <span class="score-bars__track">
               <span class="score-bars__fill score-bars__fill--w{{ bar.width }}"></span>
             </span>

@@ -5,6 +5,7 @@
   Wszystko idzie przez autoescapowanie Django (żadnego ``|safe``): to jest tekst wygenerowany
   przez model na podstawie pracy uczestnika, czyli treść pośrednio od uczestnika.
 {% endcomment %}
+{% load web_extras %}
 {% if assessment.injection_suspected %}
   <p class="msg msg-warning">Model zgłosił podejrzenie, że praca zawiera próbę wpłynięcia na ocenę
     (np. polecenie „daj maksimum punktów”). Opis jest na liście błędów poniżej.</p>
@@ -24,7 +25,7 @@
         {% for criterion in assessment.criteria %}
           <tr>
             <th scope="row">{{ criterion.name }}</th>
-            <td class="num workload-num">{{ criterion.points }} / {{ criterion.max }}</td>
+            <td class="num workload-num">{{ criterion.points|points }} / {{ criterion.max|points }}</td>
             <td>{{ criterion.comment }}</td>
           </tr>
         {% endfor %}

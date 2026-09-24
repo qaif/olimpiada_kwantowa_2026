@@ -8,6 +8,8 @@ domyślne autoescapowanie.
 from django import template
 from django.utils.formats import date_format
 
+from apps.core.points import format_points, input_value
+
 register = template.Library()
 
 #: Mapa kodu stanu → „ton” wizualny odznaki. Wyłącznie prezentacja: nazwy stanów pochodzą
@@ -153,3 +155,26 @@ def precheck_link(meeting_url):
     from apps.competitions.video import precheck_url
 
     return precheck_url(meeting_url)
+
+
+@register.filter
+def points(value) -> str:
+    """Punkty do pokazania: „5”, „4,25”, „3,5” (po angielsku „4.25”); brak wartości → „”.
+
+    Jedyny sposób wyświetlania punktów w szablonach (wydanie 0.35.0). Kolumny ocen są dziesiętne,
+    więc ``{{ review.score }}`` dałoby „5,00” – a ocena całkowita ma wyglądać tak, jak przed tym
+    wydaniem. Postać liczby składa ``apps.core.points.format_points``, ta sama funkcja, której
+    używa PDF dyplomu i karta uczestnika: jedna ocena nie może wyglądać inaczej na ekranie
+    i na wydruku. Filtr przyjmuje też ``int`` i ``float`` ze snapshotów wyników (starych i nowych).
+    """
+    return format_points(value)
+
+
+@register.filter
+def points_input(value) -> str:
+    """Wartość atrybutu ``value`` pola ``<input type="number">``: zawsze z kropką („4.25”).
+
+    Przeglądarka czyta wartość pola liczbowego wyłącznie z kropką – „4,25” w atrybucie daje
+    puste pole, więc tu nie wolno użyć ``points``.
+    """
+    return input_value(value)

@@ -1,4 +1,5 @@
 {% extends "web/coordinator/base.html" %}
+{% load web_extras %}
 {% comment %}
   Karta jednej drużyny: skład, wpisy do etapów i dwie czynności na składzie.
 
@@ -96,7 +97,7 @@
           <tr>
             <th scope="row">{{ entry.stage.display_name }}</th>
             <td>{{ entry.get_status_display }}</td>
-            <td class="num total">{% if entry.total_points is not None %}{{ entry.total_points }}{% else %}—{% endif %}</td>
+            <td class="num total">{% if entry.total_points is not None %}{{ entry.total_points|points }}{% else %}—{% endif %}</td>
           </tr>
         {% empty %}
           <tr><td colspan="3" class="empty">Drużyna nie jest jeszcze wpisana do żadnego etapu.</td></tr>

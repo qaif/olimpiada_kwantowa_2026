@@ -1,4 +1,9 @@
-"""Jedyne miejsce, w którym serwis rozmawia z API Anthropic.
+"""Jedyne miejsce, w którym serwis rozmawia z API Anthropic (dostawca ``anthropic``).
+
+Moduł został po dodaniu innych dostawców dokładnie taki, jaki był – to jest gwarancja, że żądanie
+do Claude'a nie zmieniło się ani o bajt. Opakowuje go ``providers.anthropic``; typy wyniku
+i błędów (``Usage``, ``CallResult``, ``ApiFailure``) mieszkają we wspólnym ``providers.base``
+i są stąd dalej importowalne.
 
 Wszystko, co wie o SDK ``anthropic``, stoi tutaj: budowa klienta, strumień odpowiedzi, klasy
 wyjątków i to, które z nich warto ponawiać. Reszta aplikacji dostaje :class:`CallResult` albo
@@ -17,53 +22,15 @@ W logach stoi ``request_id`` (``message._request_id``), bo to jego zna wsparcie 
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 
 from django.conf import settings
 
 from .crypto import ApiKey
+from .providers.base import ApiFailure, CallResult, Usage, retry_after_seconds
+
+__all__ = ["ApiFailure", "CallResult", "Usage", "call_model", "check_key", "translate_error"]
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True)
-class Usage:
-    input_tokens: int = 0
-    output_tokens: int = 0
-    cache_write_tokens: int = 0
-    cache_read_tokens: int = 0
-
-
-@dataclass(frozen=True)
-class CallResult:
-    """Odpowiedź modelu po przeczytaniu strumienia. ``text`` ma sens wyłącznie przy ``end_turn``."""
-
-    stop_reason: str
-    text: str
-    model: str
-    request_id: str
-    usage: Usage
-    refusal_category: str | None = None
-
-
-class ApiFailure(Exception):
-    """Wywołanie się nie udało. ``retryable`` rozstrzyga, czy zadanie Celery spróbuje jeszcze raz."""
-
-    def __init__(
-        self,
-        code: str,
-        message: str,
-        *,
-        retryable: bool = False,
-        retry_after: int | None = None,
-        request_id: str = "",
-    ) -> None:
-        super().__init__(message)
-        self.code = code
-        self.message = message
-        self.retryable = retryable
-        self.retry_after = retry_after
-        self.request_id = request_id or ""
 
 
 def _client(api_key: ApiKey, *, timeout: float, max_retries: int):
@@ -73,13 +40,7 @@ def _client(api_key: ApiKey, *, timeout: float, max_retries: int):
 
 
 def _retry_after(exc) -> int | None:
-    response = getattr(exc, "response", None)
-    headers = getattr(response, "headers", None) or {}
-    try:
-        value = int(float(headers.get("retry-after", "")))
-    except (TypeError, ValueError):
-        return None
-    return max(1, min(value, 3600))
+    return retry_after_seconds(getattr(getattr(exc, "response", None), "headers", None))
 
 
 def translate_error(exc: Exception) -> ApiFailure:

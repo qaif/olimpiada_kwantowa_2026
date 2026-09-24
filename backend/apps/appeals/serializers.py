@@ -13,6 +13,7 @@ Dwie reguły kształtu odpowiedzi:
 from django.urls import reverse
 from rest_framework import serializers
 
+from apps.core.points_api import PointsField
 from apps.grading.models import ROUND_BLIND
 
 from .models import DECIDABLE_STATUSES, MAX_TEXT_LENGTH, MIN_ARGUMENT_LENGTH, Appeal
@@ -25,7 +26,7 @@ class AppealDecisionSerializer(serializers.Serializer):
     odczyt decyzji nie dociągał reklamacji dodatkowym zapytaniem.
     """
 
-    new_score = serializers.IntegerField(read_only=True, allow_null=True)
+    new_score = PointsField(read_only=True, allow_null=True)
     justification = serializers.CharField(read_only=True)
     decided_at = serializers.DateTimeField(read_only=True)
 
@@ -80,14 +81,14 @@ class AppealReviewSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     round = serializers.IntegerField(read_only=True)
     status = serializers.CharField(read_only=True)
-    score = serializers.IntegerField(read_only=True, allow_null=True)
+    score = PointsField(read_only=True, allow_null=True)
     comment_internal = serializers.CharField(read_only=True)
     comment_for_participant = serializers.CharField(read_only=True)
     submitted_at = serializers.DateTimeField(read_only=True, allow_null=True)
 
 
 class AppealFinalGradeSerializer(serializers.Serializer):
-    score = serializers.IntegerField(read_only=True)
+    score = PointsField(read_only=True)
     method = serializers.CharField(read_only=True)
     decided_at = serializers.DateTimeField(read_only=True)
     rationale = serializers.CharField(read_only=True)
@@ -170,5 +171,5 @@ class AppealDecideSerializer(serializers.Serializer):
     """Wejście decyzji komisji. Zgodność ``new_score`` ze skalą sprawdza serwis."""
 
     status = serializers.ChoiceField(choices=[(item.value, item.label) for item in DECIDABLE_STATUSES])
-    new_score = serializers.IntegerField(required=False, allow_null=True, default=None)
+    new_score = PointsField(required=False, allow_null=True, default=None)
     justification = serializers.CharField(max_length=MAX_TEXT_LENGTH, trim_whitespace=True)

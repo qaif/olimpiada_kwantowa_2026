@@ -19,6 +19,11 @@ urlpatterns = [
         name="coordinator-ai-grading",
     ),
     path(
+        "coordinator/ai-grading/dpa/<slug:provider>/",
+        coordinator_ai_grading.AiDpaConfirmView.as_view(),
+        name="coordinator-ai-dpa",
+    ),
+    path(
         "coordinator/problems/<int:pk>/ai/",
         coordinator_ai_grading.AiProblemProgressView.as_view(),
         name="coordinator-ai-problem",
@@ -27,5 +32,10 @@ urlpatterns = [
         "coordinator/problems/<int:pk>/ai/generate/",
         coordinator_ai_grading.AiGenerateView.as_view(),
         name="coordinator-ai-generate",
+    ),
+    path(
+        "coordinator/problems/<int:pk>/ai/test/",
+        coordinator_ai_grading.AiTestWorkView.as_view(),
+        name="coordinator-ai-test",
     ),
 ]

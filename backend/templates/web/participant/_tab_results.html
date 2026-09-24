@@ -16,7 +16,7 @@
           {% if result.qualified %}{% translate "zakwalifikowany" %}{% else %}{% translate "bez kwalifikacji" %}{% endif %}</span>
       </div>
       <p class="result-summary">
-        <span class="result-summary__points">{% blocktranslate trimmed with points=result.total_points %}
+        <span class="result-summary__points">{% blocktranslate trimmed with points=result.total_points|points %}
           razem {{ points }} pkt
         {% endblocktranslate %}</span>
         <a class="btn btn--secondary btn--small"
@@ -28,7 +28,7 @@
         niż pokazanie obu (PROJEKT.md 2.4).
       {% endcomment %}
       {% if result.differs_from_published %}
-        <p class="msg msg-warning">{% blocktranslate trimmed with published=result.published_total current=result.total_points %}
+        <p class="msg msg-warning">{% blocktranslate trimmed with published=result.published_total|points current=result.total_points|points %}
           W ogłoszonej tabeli masz {{ published }} pkt. Obowiązuje wynik bieżący ({{ current }} pkt) –
           różnica wynika z decyzji podjętej po publikacji.
         {% endblocktranslate %}</p>
@@ -46,7 +46,7 @@
               {% for problem in result.problems %}
                 <tr>
                   <td>{{ problem.number }}. {{ problem.title }}</td>
-                  <td class="num total">{{ problem.score }}</td>
+                  <td class="num total">{{ problem.score|points }}</td>
                   <td>
                     {% for item in problem.feedback %}
                       {% if item.comment_for_participant or item.annotations %}

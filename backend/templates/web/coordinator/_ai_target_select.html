@@ -1,0 +1,18 @@
+{% comment %}
+  Wybór „dostawca i model” (wartość ``dostawca:model``) plus „inny identyfikator modelu” dla
+  dostawcy wybranego na liście. Lista pochodzi z ``services.targets`` – przy pracach uczestników
+  są na niej wyłącznie dostawcy z kluczem i potwierdzoną umową powierzenia. ``selected`` nadpisuje
+  zaznaczenie domyślne (podgląd pokazuje wybór, a nie ustawienie domyślne).
+{% endcomment %}
+<label for="{{ field_id }}">Dostawca i model</label>
+<select name="target" id="{{ field_id }}">
+  {% for group in targets %}
+    <optgroup label="{{ group.label }}">
+      {% for option in group.options %}
+        <option value="{{ option.value }}"{% if selected %}{% if option.value == selected %} selected{% endif %}{% elif option.selected %} selected{% endif %}>{{ option.label }}{% if not option.price_known %} – cena nieznana{% endif %}</option>
+      {% endfor %}
+    </optgroup>
+  {% endfor %}
+</select>
+<label for="{{ field_id }}-inny">inny identyfikator modelu (opcjonalnie)</label>
+<input type="text" name="custom_model" id="{{ field_id }}-inny" maxlength="100" size="18">

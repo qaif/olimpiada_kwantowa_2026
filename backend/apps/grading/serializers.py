@@ -12,7 +12,13 @@ własną recenzję i nie ma pola z ocenami pozostałych recenzentów.
 from django.urls import reverse
 from rest_framework import serializers
 
+from apps.core.points_api import PointsField
+
 from .models import FinalGrade, ProblemReviewerRule, Review
+
+#: Techniczne granice punktów na wejściu API – te same, co dawne ``IntegerField(max_value=1000)``.
+#: Dolna jest symetryczna z tego samego powodu, co w formularzu szkicu: kształt, a nie skala.
+SCORE_LIMIT = 1000
 
 
 class ReviewSerializer(serializers.ModelSerializer):
@@ -28,6 +34,9 @@ class ReviewSerializer(serializers.ModelSerializer):
     problem_number = serializers.IntegerField(source="submission.problem.number", read_only=True)
     problem_title = serializers.CharField(source="submission.problem.title", read_only=True)
     submission_status = serializers.CharField(source="submission.status", read_only=True)
+    # Liczba JSON (``5`` albo ``4.25``), a nie tekst ``"5.00"`` domyślnego pola dziesiętnego –
+    # kontrakt w ``apps.core.points_api`` i ``docs/API.md`` (wydanie 0.35.0).
+    score = PointsField(read_only=True, allow_null=True)
     download_url = serializers.SerializerMethodField()
     file_available = serializers.SerializerMethodField()
 
@@ -82,7 +91,7 @@ class ReviewSerializer(serializers.ModelSerializer):
 class ReviewDraftSerializer(serializers.Serializer):
     """Zapis szkicu (PATCH): każde pole opcjonalne, bez walidacji finalnej oceny."""
 
-    score = serializers.IntegerField(required=False, allow_null=True, min_value=0, max_value=1000)
+    score = PointsField(required=False, allow_null=True, min_value=0, max_value=SCORE_LIMIT)
     comment_internal = serializers.CharField(required=False, allow_blank=True)
     comment_for_participant = serializers.CharField(required=False, allow_blank=True)
     annotations = serializers.ListField(child=serializers.DictField(), required=False)
@@ -98,9 +107,12 @@ class ReviewSubmitSerializer(serializers.Serializer):
     ``score`` zostaje obowiązkowy także przy rubryce: zadanie bez kryteriów ocenia się wyłącznie
     nim, a gdy rubryka przyjdzie, serwis i tak liczy sumę sam (przysłana ocena jest wtedy
     ignorowana – patrz ``services._score_from_rubric``).
+
+    Od wydania 0.35.0 ``score`` przyjmuje liczbę dziesiętną (``4.25``) albo tekst (``"4,25"``);
+    w etapie „tylko ze skali” serwis nadal przyjmie wyłącznie wartość skali.
     """
 
-    score = serializers.IntegerField()
+    score = PointsField()
     comment_internal = serializers.CharField(required=False, allow_blank=True, default="")
     comment_for_participant = serializers.CharField(required=False, allow_blank=True, default="")
     annotations = serializers.ListField(child=serializers.DictField(), required=False, default=list)
@@ -146,6 +158,7 @@ class ModerationReviewSerializer(serializers.ModelSerializer):
 
     reviewer_id = serializers.IntegerField(read_only=True)
     reviewer_email = serializers.EmailField(source="reviewer.user.email", read_only=True)
+    score = PointsField(read_only=True, allow_null=True)
 
     class Meta:
         model = Review
@@ -176,7 +189,7 @@ class ModerationSubmissionSerializer(serializers.Serializer):
 
 
 class ResolveModerationSerializer(serializers.Serializer):
-    score = serializers.IntegerField()
+    score = PointsField()
     rationale = serializers.CharField(required=False, allow_blank=True, default="")
 
 
@@ -222,6 +235,7 @@ class ProblemRuleResultSerializer(serializers.Serializer):
 
 class FinalGradeSerializer(serializers.ModelSerializer):
     submission_id = serializers.IntegerField(read_only=True)
+    score = PointsField(read_only=True)
 
     class Meta:
         model = FinalGrade
@@ -237,7 +251,7 @@ class DisputeReviewSerializer(serializers.Serializer):
     dopisanie kiedykolwiek pola do ``ReviewSerializer`` nie przecieknie do tej odpowiedzi.
     """
 
-    score = serializers.IntegerField(read_only=True)
+    score = PointsField(read_only=True)
     comment_internal = serializers.CharField(read_only=True, allow_blank=True)
 
 
@@ -248,14 +262,14 @@ class SetReviewScoreSerializer(serializers.Serializer):
     trafia do komentarza wewnętrznego recenzji wpisanej za recenzenta i do audytu.
     """
 
-    score = serializers.IntegerField()
+    score = PointsField()
     rationale = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class OverrideFinalGradeSerializer(serializers.Serializer):
     """Korekta oceny końcowej. Uzasadnienie jest obowiązkowe – długość sprawdza serwis."""
 
-    score = serializers.IntegerField()
+    score = PointsField()
     rationale = serializers.CharField()
 
 

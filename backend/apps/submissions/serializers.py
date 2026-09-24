@@ -14,6 +14,9 @@ Relacje ``final_grade`` i ``appeals`` są odwrotnymi stronami FK z ``apps.gradin
 
 from rest_framework import serializers
 
+from apps.core.points import points_json
+from apps.core.points_api import PointsField
+
 from .models import Submission, SubmissionFile
 
 #: Jedyny tryb ustalenia oceny, przy którym ``FinalGrade.rationale`` powstaje z tekstu *pisanego do
@@ -33,7 +36,7 @@ class SubmissionFileSerializer(serializers.ModelSerializer):
 class SubmissionFinalGradeSerializer(serializers.Serializer):
     """Ocena uzgodniona w wersji dla uczestnika: punkty, tryb i – warunkowo – uzasadnienie."""
 
-    score = serializers.IntegerField(read_only=True)
+    score = PointsField(read_only=True)
     method = serializers.CharField(read_only=True)
     decided_at = serializers.DateTimeField(read_only=True)
     rationale = serializers.SerializerMethodField()
@@ -71,9 +74,9 @@ class SubmissionAppealSerializer(serializers.Serializer):
         decision = self._decision(obj)
         return decision.justification if decision is not None else None
 
-    def get_new_score(self, obj) -> int | None:
+    def get_new_score(self, obj) -> int | float | None:
         decision = self._decision(obj)
-        return decision.new_score if decision is not None else None
+        return points_json(decision.new_score) if decision is not None else None
 
     def get_decided_at(self, obj) -> str | None:
         decision = self._decision(obj)

@@ -43,9 +43,11 @@ from apps.accounts.services import (
     verify_committee_district,
 )
 from apps.competitions.models import Problem, Stage
+from apps.competitions.scoring import coordinator_score_widget, safe_score_rule
 from apps.competitions.services import current_edition, missing_stage_kinds
 from apps.core.api import DomainError
 from apps.core.models import AuditLog
+from apps.core.points import format_points
 from apps.grading.models import ProblemReviewerRule, Review, ReviewStatus
 from apps.grading.services import (
     ASSIGNMENT_STATUS_FILTERS,
@@ -86,6 +88,7 @@ from apps.web.forms import (
     VerifyDistrictForm,
 )
 from apps.web.mixins import ActionViewMixin, CoordinatorRequiredMixin
+from apps.web.points_fields import score_form_error
 from apps.web.scoping import reviewer_pool_for
 from apps.web.templatetags.web_extras import LOCAL_TIME_LABEL, local_time
 from apps.web.views.coordinator_accounts import users_for_competition
@@ -336,15 +339,20 @@ def _attach_problem_scales(stage: Stage, rows: list[dict], *, fallback: list[int
     Skala bywa nadpisana per zadanie, więc jedna lista dla całego ekranu pokazywałaby przy części
     prac wartości, których zapis by nie przyjął. Liczymy ją raz na zadanie, a nie raz na wiersz:
     etap finału ma tysiące prac i kilka zadań.
+
+    ``score_widget`` (wydanie 0.35.0) niesie obok listy tryb etapu i granice zakresu – w etapie
+    z dowolnymi wartościami formularz ma pole liczbowe, a zadanie z samym maksimum nie ma listy
+    wartości wcale, więc samo ``scale_values`` nie odróżniałoby go od zadania bez skali.
     """
     scales: dict[int, list[int]] = {}
+    widgets: dict[int, dict | None] = {}
     for problem in stage.problems.order_by("number", "id"):
-        try:
-            scales[problem.pk] = sorted(allowed_scores(stage, problem))
-        except DomainError:
-            scales[problem.pk] = []
+        rule = safe_score_rule(stage, problem)
+        scales[problem.pk] = sorted(rule.values) if rule is not None else []
+        widgets[problem.pk] = coordinator_score_widget(rule)
     for row in rows:
         row["scale_values"] = scales.get(row["submission"].problem_id, fallback)
+        row["score_widget"] = widgets.get(row["submission"].problem_id)
 
 
 #: Ile wierszy na stronę ekranu przydziałów. Sto, bo tyle prac komisja przerabia za jednym
@@ -822,7 +830,7 @@ class SetReviewScoreView(StageAssignmentActionView):
         self.stage_id = review.submission.entry.stage_id
         form = SetReviewScoreForm(request.POST)
         if not form.is_valid():
-            raise DomainError("Podaj punkty ze skali etapu.", "SCORE_REQUIRED")
+            raise DomainError(score_form_error(form, "Podaj punkty ze skali etapu."), "SCORE_REQUIRED")
         set_review_score(
             review,
             form.cleaned_data["score"],
@@ -832,7 +840,7 @@ class SetReviewScoreView(StageAssignmentActionView):
         )
         return (
             f"Praca {review.submission.entry.participant.public_code}: "
-            f"{form.cleaned_data['score']} pkt w recenzji {review.reviewer.user.email}."
+            f"{format_points(form.cleaned_data['score'])} pkt w recenzji {review.reviewer.user.email}."
         )
 
 
@@ -851,7 +859,9 @@ class OverrideFinalGradeView(StageAssignmentActionView):
         self.stage_id = submission.entry.stage_id
         form = OverrideFinalGradeForm(request.POST)
         if not form.is_valid():
-            raise DomainError("Podaj punkty i uzasadnienie korekty.", "RATIONALE_REQUIRED")
+            raise DomainError(
+                score_form_error(form, "Podaj punkty i uzasadnienie korekty."), "RATIONALE_REQUIRED"
+            )
         result = override_final_grade(
             submission,
             form.cleaned_data["score"],
@@ -984,7 +994,7 @@ class ResolveModerationView(CoordinatorActionView):
         )
         form = ResolveModerationForm(request.POST)
         if not form.is_valid():
-            raise DomainError("Podaj punkty ze skali etapu.", "SCORE_REQUIRED")
+            raise DomainError(score_form_error(form, "Podaj punkty ze skali etapu."), "SCORE_REQUIRED")
         resolve_moderation(
             submission,
             request.user,

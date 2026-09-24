@@ -33,11 +33,41 @@ from apps.submissions.tests.factories import PDF_BYTES, SubmissionFactory, Submi
 
 #: Wygląda jak klucz Anthropic, ale nim nie jest. Końcówka ``WXYZ`` jest tym, co wolno pokazać.
 FAKE_KEY = "sk-ant-api03-TESTTESTTESTTESTTESTTESTTESTTESTTEST-WXYZ"
+#: Fałszywe klucze pozostałych dostawców – każdy z inną końcówką, żeby test wycieku wiedział,
+#: którego szuka.
+PROVIDER_KEYS = {
+    "anthropic": FAKE_KEY,
+    "openai": "sk-proj-TESTOPENAITESTOPENAITESTOPENAI-OPN1",
+    "google": "AIzaTESTGOOGLETESTGOOGLETESTGOOGLE-GGL2",
+    "meta": "LLM|TESTMETATESTMETATESTMETATESTMETA|MTA3",
+}
 
 _emails = itertools.count(1)
 
 #: Znacznik treści sugestii – po nim testy szukają wycieku na ekranach uczestnika.
 SENTINEL_SUMMARY = "SENTINEL-AI-7f3c: brak uzasadnienia kroku indukcyjnego"
+
+
+@pytest.fixture(autouse=True)
+def clamd(monkeypatch):
+    """Skan antywirusowy podmieniony zawsze (w CI nie ma clamd): ``clamd.verdict`` steruje werdyktem.
+
+    Podmiana w module ``antivirus``, bo skan pracy testowej importuje ``scan_stream`` leniwie,
+    a w ``submissions.tasks`` – bo tamtędy idzie skan prac uczestników.
+    """
+    from types import SimpleNamespace
+
+    from apps.submissions.antivirus import VERDICT_CLEAN
+
+    state = SimpleNamespace(verdict=(VERDICT_CLEAN, ""), scanned=[])
+
+    def _scan_stream(fileobj, **kwargs):
+        state.scanned.append(fileobj.read())
+        return state.verdict
+
+    monkeypatch.setattr("apps.submissions.antivirus.scan_stream", _scan_stream)
+    monkeypatch.setattr("apps.submissions.tasks.scan_stream", _scan_stream)
+    return state
 
 
 def enable_ai(competition):
@@ -47,8 +77,21 @@ def enable_ai(competition):
     return competition
 
 
-def with_key(competition, actor=None):
-    return services.set_api_key(competition, FAKE_KEY, actor=actor)
+def with_key(
+    competition, actor=None, *, provider: str = "anthropic", dpa: bool = True, key: str | None = None
+):
+    """Klucz dostawcy i – domyślnie – potwierdzona umowa powierzenia (bramka prac uczestników).
+
+    Do v0.34.0 klucz był jedynym warunkiem zlecenia; od dodania dostawców drugim jest umowa
+    powierzenia. Testy sprzed tej zmiany dostają oba warunki naraz, a testy bramki DPA wołają
+    ``with_key(..., dpa=False)``.
+    """
+    account = services.set_api_key(
+        competition, key or PROVIDER_KEYS.get(provider, FAKE_KEY), actor=actor, provider=provider
+    )
+    if dpa:
+        account, _ = services.set_dpa_confirmation(competition, provider, True, actor=actor)
+    return account
 
 
 @pytest.fixture

@@ -29,7 +29,7 @@
         </tr></thead>
         <tbody>
           {% for row in dispute_rows %}
-            <tr><td class="num total">{{ row.score }}</td><td>{{ row.comment_internal }}</td></tr>
+            <tr><td class="num total">{{ row.score|points }}</td><td>{{ row.comment_internal }}</td></tr>
           {% empty %}
             <tr><td colspan="2" class="empty">{% translate "Brak wystawionych ocen rundy 1." %}</td></tr>
           {% endfor %}
@@ -249,14 +249,45 @@
             do rozjazdu między rubryką a zaznaczonym radiem.
           {% endcomment %}
           {% include "web/reviewer/_rubric.html" %}
+        {% elif score_widget and score_widget.free %}
+        {% comment %}
+          Etap z dowolnymi wartościami ocen (wydanie 0.35.0): pole liczbowe z krokiem 0,01 i granicami
+          zakresu zadania. ``type="number"`` daje strzałki i klawiaturę numeryczną; serwer przyjmuje
+          też przecinek („4,25”), gdyby przeglądarka przepuściła go dosłownie. Wartości skali stoją
+          obok jako **podpowiedź** – opis poziomu rozwiązania, a nie lista zamknięta.
+          ``points_input`` w atrybutach, bo pole liczbowe czyta wartość wyłącznie z kropką.
+        {% endcomment %}
+        <legend>{% blocktranslate trimmed with maximum=score_widget.maximum|points %}Punkty (max {{ maximum }}){% endblocktranslate %}</legend>
+        <p class="field">
+          <label for="id_score">{% blocktranslate trimmed with minimum=score_widget.minimum|points maximum=score_widget.maximum|points %}Ocena: dowolna liczba od {{ minimum }} do {{ maximum }}, co 0,01 (np. 4,25){% endblocktranslate %}</label>
+          <input type="number" id="id_score" name="score" class="score-input"
+                 step="0.01" min="{{ score_widget.minimum|points_input }}" max="{{ score_widget.maximum|points_input }}"
+                 inputmode="decimal" autocomplete="off"
+                 value="{{ score_widget.current|points_input }}">
+          <span class="helptext">{% translate "Najwyżej dwa miejsca po przecinku. Możesz wpisać przecinek albo kropkę." %}</span>
+        </p>
+        {% if score_widget.items %}
+          <p class="helptext">{% translate "Poziomy rozwiązania ze skali etapu – podpowiedź, nie lista do wyboru:" %}</p>
+          <ul class="scale scale--hints">
+            {% for option in score_widget.items %}
+              <li class="score-option score-option--hint">
+                <span class="score-option__value">{{ option.value|points }}</span>
+                <span class="score-option__label">{{ option.label }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
         {% else %}
         <legend>{% translate "Punkty (skala etapu)" %}</legend>
         <p class="helptext">{% translate "Skala etapu: wolno wystawić wyłącznie jedną z poniższych wartości. Skalę ustala koordynator przy etapie albo przy zadaniu." %}</p>
+        {% if score_widget %}
+          <p class="helptext">{% blocktranslate trimmed with maximum=score_widget.maximum|points %}Maksimum za to zadanie: {{ maximum }} pkt.{% endblocktranslate %}</p>
+        {% endif %}
         <div class="scale">
           {% for option in scale_options %}
             <label class="score-option">
               <input type="radio" name="score" value="{{ option.value }}"
-                     {% if review.score == option.value %}checked{% endif %}>
+                     {% if score_widget.current == option.value %}checked{% endif %}>
               <span class="score-option__value">{{ option.value }}</span>
               <span class="score-option__label">{{ option.label }}</span>
             </label>

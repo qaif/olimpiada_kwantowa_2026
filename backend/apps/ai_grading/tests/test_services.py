@@ -22,6 +22,7 @@ from apps.ai_grading.models import (
     AiAssessment,
     AiAssessmentStatus,
     AiGradingSettings,
+    AiProviderAccount,
     AiStageVisibility,
 )
 from apps.core.api import DomainError
@@ -132,7 +133,7 @@ def test_flag_is_in_the_catalogue_and_off_by_default(competition):
 def test_key_is_stored_encrypted_with_only_the_last_four_characters_readable(competition, coordinator):
     row = with_key(competition, coordinator)
 
-    stored = AiGradingSettings.objects.get(pk=row.pk)
+    stored = AiProviderAccount.objects.get(pk=row.pk)
     assert FAKE_KEY not in stored.api_key_encrypted
     assert stored.api_key_last4 == "WXYZ"
     assert stored.masked_key == "…WXYZ"
@@ -161,7 +162,7 @@ def test_invalid_key_is_a_domain_error(competition, coordinator):
 
     assert info.value.machine_code == "AI_KEY_INVALID"
     assert (
-        not AiGradingSettings.objects.filter(competition=competition).exclude(api_key_encrypted="").exists()
+        not AiProviderAccount.objects.filter(competition=competition).exclude(api_key_encrypted="").exists()
     )
 
 
@@ -169,29 +170,30 @@ def test_check_key_stores_the_verdict(competition, coordinator, monkeypatch):
     with_key(competition, coordinator)
     seen = {}
 
-    def fake_check(key, model):
+    def fake_check(key, model, provider="anthropic"):
         seen["key"] = key.reveal()
         seen["model"] = model
+        seen["provider"] = provider
         return True, "Klucz działa."
 
     monkeypatch.setattr(services, "check_key", fake_check)
 
     ok, _ = services.check_api_key(competition, actor=coordinator)
 
-    row = services.settings_for(competition)
+    row = services.account_for(competition, "anthropic")
     assert ok is True and row.api_key_check_ok is True
-    assert seen == {"key": FAKE_KEY, "model": "claude-opus-5"}
+    assert seen == {"key": FAKE_KEY, "model": "claude-opus-5", "provider": "anthropic"}
 
 
 def test_replacing_the_key_clears_the_previous_check(competition, coordinator):
     row = with_key(competition, coordinator)
-    AiGradingSettings.objects.filter(pk=row.pk).update(
+    AiProviderAccount.objects.filter(pk=row.pk).update(
         api_key_check_ok=True, api_key_checked_at=timezone.now()
     )
 
     with_key(competition, coordinator)
 
-    assert services.settings_for(competition).api_key_check_ok is None
+    assert services.account_for(competition, "anthropic").api_key_check_ok is None
 
 
 # --- zlecenie -------------------------------------------------------------------------------------
@@ -646,6 +648,44 @@ def test_reviewer_prefill_only_without_a_rubric(ready, problem, coordinator, mod
 
     RubricCriterion.objects.create(problem=problem, title="Równanie", max_points=6)
     assert services.reviewer_context(review, ready, editable=True)["prefill_value"] is None
+
+
+def test_reviewer_panels_prefill_by_the_score_rule_for_every_provider(ready, problem, coordinator, model):
+    """Wydanie 0.35.0 (scalenie dostawców z dowolnymi ocenami): każdy panel – każdy dostawca – liczy
+    przycisk „punkty AI” tą samą regułą: najbliższa wartość skali w trybie skali, a w trybie
+    dowolnym sama propozycja sprowadzona do 0,01 i przycięta do zakresu zadania."""
+    from apps.competitions.services import set_scoring_scale
+    from apps.grading.models import Review
+    from apps.grading.tests.factories import ReviewFactory
+
+    values = [
+        {"value": 0, "label": "brak"},
+        {"value": 2, "label": "postęp"},
+        {"value": 5, "label": "usterki"},
+        {"value": 6, "label": "pełne"},
+    ]
+    set_scoring_scale(problem.stage, values, 6, actor=coordinator, free_values=False)
+    submission = make_submission(problem)
+    services.run_assessment(queued(problem, submission, coordinator).pk)
+    first = AiAssessment.objects.get(submission=submission)
+    AiAssessment.objects.filter(pk=first.pk).update(proposed_points=Decimal("4.37"))
+    second = AiAssessment.objects.get(pk=first.pk)
+    second.pk = None
+    second.provider, second.requested_model = "openai", "gpt-6-luna"
+    second.proposed_points = Decimal("3.5")
+    second.finished_at = first.finished_at + timedelta(minutes=1)
+    second.save()
+    review_pk = ReviewFactory(submission=submission).pk
+
+    def prefills():
+        context = services.reviewer_context(Review.objects.get(pk=review_pk), ready, editable=True)
+        return [(panel["assessment"].provider, panel["prefill_value"]) for panel in context["panels"]]
+
+    # Tryb skali: remis 3,5 między 2 a 5 rozstrzyga się w dół; 4,37 → 5.
+    assert prefills() == [("openai", 2), ("anthropic", 5)]
+
+    set_scoring_scale(problem.stage, values, 6, actor=coordinator, free_values=True)
+    assert prefills() == [("openai", Decimal("3.50")), ("anthropic", Decimal("4.37"))]
 
 
 def test_anonymisation_erases_the_participants_ai_assessments(ready, problem, coordinator, model):

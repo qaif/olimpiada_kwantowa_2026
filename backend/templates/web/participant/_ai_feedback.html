@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n web_extras %}
 {% comment %}
   Sugestia AI dla uczestnika – osobna sekcja **pod** oficjalnymi ocenami, nigdy obok liczby
   punktów zadania. Powstaje wyłącznie wtedy, gdy koordynator włączył ją dla etapu, a wyniki są
@@ -12,18 +12,21 @@
   <div class="section__head">
     <h2 class="mt-0">{% translate "Ocena AI (sugestia, niewiążąca)" %}</h2>
   </div>
-  <p class="hint">{% translate "Poniższe propozycje przygotował model językowy (Claude) jako pomoc dla komitetu. Nie są oceną: obowiązują wyłącznie punkty wystawione przez recenzentów, podane wyżej. Reklamacja dotyczy oficjalnej oceny, a nie sugestii AI." %}</p>
+  <p class="hint">{% translate "Poniższe propozycje przygotował model językowy jako pomoc dla komitetu. Nie są oceną: obowiązują wyłącznie punkty wystawione przez recenzentów, podane wyżej. Reklamacja dotyczy oficjalnej oceny, a nie sugestii AI." %}</p>
   {% for item in ai_feedback %}
     <article class="card card--quiet">
       <div class="card__head">
         <h3 class="mt-0 card__title">{% blocktranslate trimmed with number=item.number title=item.title %}
           Zadanie {{ number }}: {{ title }}
         {% endblocktranslate %}</h3>
-        <span class="badge badge--info">{% blocktranslate trimmed with points=item.proposed_points|floatformat:"-2" maximum=item.max_points|floatformat:"-2" %}
+        <span class="badge badge--info">{% blocktranslate trimmed with points=item.proposed_points|points maximum=item.max_points|points %}
           sugestia AI: {{ points }} z {{ maximum }} pkt
         {% endblocktranslate %}</span>
       </div>
       {% if item.summary %}<p>{{ item.summary|linebreaksbr }}</p>{% endif %}
+      <p class="hint">{% blocktranslate trimmed with provider=item.provider_label model=item.model %}
+        Model: {{ provider }}, {{ model }}.
+      {% endblocktranslate %}</p>
     </article>
   {% endfor %}
 </section>

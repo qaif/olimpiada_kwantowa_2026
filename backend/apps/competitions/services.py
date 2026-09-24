@@ -7,7 +7,7 @@ domenowe (``DomainError``) żyją tutaj. Czas zawsze przez ``timezone.now()``.
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 from fractions import Fraction
 
 from django.core.exceptions import ValidationError
@@ -17,6 +17,7 @@ from rest_framework import status
 
 from apps.accounts.models import Participant, generate_public_code
 from apps.core.api import DomainError
+from apps.core.points import POINTS_QUANTUM, WHOLE_POINTS, format_points, round_points, to_points
 
 from .models import (
     DEFAULT_MAX_VALUE,
@@ -266,32 +267,26 @@ def ensure_stage_defaults(stage: Stage) -> None:
 # --- skala punktacji --------------------------------------------------------------------------
 
 
-def _stage_allowed_values(stage: Stage) -> set[int]:
-    """Oceny dopuszczalne przez skalę etapu – **w postaci, w jakiej leżą w bazie**.
-
-    Postać przechowywana, a nie wpisana przez organizatora, bo jedynym czytelnikiem tego zbioru
-    jest porównanie z ``scores_in_use``, a tam stoją wartości z kolumn ``score``. Przy
-    ``offset = 0`` (Konkurs #1 i każda skala bez punktów ujemnych) oba zbiory są tym samym zbiorem.
-    """
-    scale = getattr(stage, "scoring_scale", None)
-    return scale.stored_allowed_values() if scale is not None else set()
-
-
-def scores_in_use(stage: Stage, *, problem: Problem | None = None) -> set[int]:
+def scores_in_use(stage: Stage, *, problem: Problem | None = None) -> set[Decimal]:
     """Oceny, które **już padły** w tym etapie: punkty recenzji i oceny końcowe.
 
-    Bez ``problem`` pytamy wyłącznie o zadania **dziedziczące** skalę etapu – zadanie z własną
-    skalą nie jest przez skalę etapu rządzone, więc jego oceny nie mogą blokować zmiany w etapie.
-    Z ``problem`` pytamy o to jedno zadanie.
+    Bez ``problem`` pytamy wyłącznie o zadania **dziedziczące** zakres etapu – zadanie z własną
+    skalą (albo, w trybie dowolnym, z samym maksimum) nie jest przez skalę etapu rządzone, więc
+    jego oceny nie mogą blokować zmiany w etapie. Z ``problem`` pytamy o to jedno zadanie.
 
     Recenzje anulowane też się liczą. Ich punkty nie wchodzą do oceny końcowej, ale zostają
     w tabeli przydziałów jako historia – wartość spoza skali wyglądałaby tam na uszkodzone dane,
     a koordynator nie ma jak jej poprawić (recenzji anulowanej się nie edytuje).
 
+    Zbiór niesie ``Decimal`` z kolumn dziesiętnych (wydanie 0.35.0). Porównanie ze skalą całkowitą
+    działa wprost (``Decimal("5.00") in {5}``), więc ``ScoreRule.accepts`` nie potrzebuje rzutowania.
+
     Import jest lokalny: ``apps.grading`` zależy od ``apps.competitions``, więc zależność w drugą
     stronę na poziomie modułu byłaby cyklem przy starcie aplikacji.
     """
     from apps.grading.models import FinalGrade, Review
+
+    from .scoring import stage_free_values, uses_own_range
 
     reviews = Review.objects.filter(submission__entry__stage=stage, score__isnull=False)
     grades = FinalGrade.objects.filter(submission__entry__stage=stage)
@@ -299,31 +294,116 @@ def scores_in_use(stage: Stage, *, problem: Problem | None = None) -> set[int]:
         reviews = reviews.filter(submission__problem=problem)
         grades = grades.filter(submission__problem=problem)
     else:
-        reviews = reviews.filter(submission__problem__scoring_values__isnull=True)
-        grades = grades.filter(submission__problem__scoring_values__isnull=True)
+        free = stage_free_values(stage)
+        own = [item.pk for item in stage.problems.all() if uses_own_range(item, free=free)]
+        reviews = reviews.exclude(submission__problem__in=own)
+        grades = grades.exclude(submission__problem__in=own)
     return set(reviews.values_list("score", flat=True)) | set(grades.values_list("score", flat=True))
 
 
-def assert_scale_covers_existing_scores(used: set[int], allowed: set[int], *, subject: str) -> None:
-    """Odmawia zdjęcia ze skali wartości, którą ktoś już komuś wystawił.
+def assert_scale_covers_existing_scores(used: set, rule, *, subject: str) -> None:
+    """Odmawia zmiany skali, po której już wystawiona ocena przestałaby być dopuszczalna.
 
     Dokładanie wartości i zmiana etykiet są zawsze wolne – nic nie unieważniają. Usunięcie
     wartości już wystawionej zostawiłoby w bazie oceny spoza skali: tabela wyników liczyłaby się
     z nich dalej, a koordynator zobaczyłby w formularzu listę bez tej wartości i nie miałby jak
     wybrać tego, co faktycznie stoi w recenzji. Dlatego jest to ``409``, a nie ostrzeżenie.
+
+    ``rule`` to ``scoring.ScoreRule`` **po** zmianie (``None`` = skali nie ma, więc nic nie jest
+    dopuszczalne). W trybie dowolnym sprawdzenie dotyczy zakresu: zdjęcie wartości 5 ze skali 0–6
+    niczego nie psuje, bo ocena 5 nadal mieści się w 0–6 – ale obniżenie maksimum do 4 już tak.
     """
-    orphaned = sorted(used - allowed)
+    orphaned = sorted(value for value in used if rule is None or not rule.accepts(value))
     if orphaned:
         raise DomainError(
-            f"Wartości {', '.join(str(value) for value in orphaned)} są już wystawione w ocenach "
-            f"({subject}) – nie można ich usunąć ze skali. Najpierw popraw te oceny.",
+            f"Wartości {', '.join(format_points(value) for value in orphaned)} są już wystawione "
+            f"w ocenach ({subject}) – nie można ich usunąć ze skali. Najpierw popraw te oceny.",
             "SCALE_LOCKED",
             status.HTTP_409_CONFLICT,
         )
 
 
+def free_values_blockers(stage: Stage, scale: ScoringScale | None = None) -> dict[str, int]:
+    """Co blokuje powrót etapu do trybu „tylko wartości ze skali” – liczniki, bez danych osobowych.
+
+    ``scores`` – ile ocen (recenzje, oceny końcowe, nowe punktacje z reklamacji, punkty z rozmów)
+    nie należy do skali, która obowiązywałaby po przełączeniu: każdą z nich trzeba by było po cichu
+    uznać za błędną albo zaokrąglić, a oba wyjścia zmieniają decyzję recenzenta bez jego udziału.
+    ``problems`` – ile zadań ma samo maksimum bez listy wartości; w trybie skali takie zadanie nie
+    ma czym być ocenione.
+
+    Każde zadanie sprawdzane jest **swoją** regułą w trybie skali (``ScoreRule`` z ``free=False``),
+    bo tryb jest etapowy, a wartości skali – czasem własne zadania. Zapytań jest stała liczba
+    niezależnie od liczby prac: po jednym na rodzaj oceny, a reguły liczymy raz na zadanie.
+
+    ``scale`` – skala, wobec której liczymy (domyślnie zapisana skala etapu); ``set_scoring_scale``
+    podaje tu skalę po zmianie, jeszcze przed zapisem.
+    """
+    from dataclasses import replace
+
+    from apps.appeals.models import AppealDecision
+    from apps.grading.models import FinalGrade, Review
+
+    from .scoring import score_rule
+
+    if scale is None:
+        scale = getattr(stage, "scoring_scale", None)
+    problems = list(stage.problems.all())
+    max_only = sum(1 for problem in problems if problem.has_own_max)
+    if scale is None:
+        return {"scores": 0, "problems": max_only}
+    rules = {}
+    for problem in problems:
+        if problem.has_own_max:
+            continue
+        try:
+            rules[problem.pk] = replace(score_rule(stage, problem, scale=scale), free=False)
+        except DomainError:
+            continue
+    stage_rule = None
+    try:
+        stage_rule = replace(score_rule(stage, scale=scale), free=False)
+    except DomainError:
+        pass
+
+    def outside(rows) -> int:
+        count = 0
+        for problem_id, value in rows:
+            if value is None:
+                continue
+            rule = rules.get(problem_id)
+            if rule is None or not rule.accepts(value):
+                count += 1
+        return count
+
+    scores = outside(
+        Review.objects.filter(submission__entry__stage=stage, score__isnull=False).values_list(
+            "submission__problem_id", "score"
+        )
+    )
+    scores += outside(
+        FinalGrade.objects.filter(submission__entry__stage=stage).values_list(
+            "submission__problem_id", "score"
+        )
+    )
+    scores += outside(
+        AppealDecision.objects.filter(
+            appeal__submission__entry__stage=stage, new_score__isnull=False
+        ).values_list("appeal__submission__problem_id", "new_score")
+    )
+    # Rozmowa kwalifikacyjna nie ma zadania – ocenia ją skala etapu (``interviews._validated_points``).
+    from .models import InterviewScore
+
+    for (points,) in InterviewScore.objects.filter(entry__stage=stage).values_list("points"):
+        if stage_rule is None or not stage_rule.accepts(points):
+            scores += 1
+    return {"scores": scores, "problems": max_only}
+
+
 @transaction.atomic
-def set_scoring_scale(stage: Stage, values, max_value, *, actor, request=None) -> ScoringScale:
+def set_scoring_scale(
+    stage: Stage, values, max_value, *, actor, request=None, free_values: bool | None = None
+) -> ScoringScale:
     """Zapisuje skalę punktacji etapu – tworząc ją, jeśli etapu jeszcze jej nie ma.
 
     Etap bez skali jest stanem do naprawienia (nie da się w nim ocenić ani jednej pracy), więc
@@ -337,19 +417,34 @@ def set_scoring_scale(stage: Stage, values, max_value, *, actor, request=None) -
     funkcja ze skali, którą dostała, i tylko wtedy, gdy konkurs ma flagę ``weighted_scoring``.
     Przy wyłączonej fladze zostaje zero, więc skala z punktem ujemnym odpada z dzisiejszym
     komunikatem („Pole 'value' musi być nieujemną liczbą całkowitą”) zamiast wejść bokiem.
+
+    ``free_values`` (wydanie 0.35.0) przełącza tryb oceniania etapu; ``None`` znaczy „bez zmiany”,
+    więc wywołania sprzed tego wydania zachowują się tak samo. Przejście na dowolne wartości jest
+    zawsze wolne – każda ocena ze skali mieści się w jej zakresie. Powrót do „tylko ze skali” jest
+    odmawiany (``409 FREE_VALUES_IN_USE``), gdy istnieje choć jedna ocena spoza skali albo zadanie
+    z samym maksimum – z licznikami w komunikacie, żeby koordynator wiedział, ile ma do poprawienia.
     """
     from apps.core.models import audit
 
+    from .scoring import score_rule
+
     scale = ScoringScale.objects.select_for_update().filter(stage=stage).first()
     before = (
-        {"values": scale.values, "max_value": scale.max_value, "offset": scale.offset}
+        {
+            "values": scale.values,
+            "max_value": scale.max_value,
+            "offset": scale.offset,
+            "free_values": scale.free_values,
+        }
         if scale is not None
-        else {"values": None, "max_value": None, "offset": None}
+        else {"values": None, "max_value": None, "offset": None, "free_values": None}
     )
     if scale is None:
         scale = ScoringScale(stage=stage)
     scale.values = values
     scale.max_value = max_value
+    if free_values is not None:
+        scale.free_values = bool(free_values)
     weighted = weighted_scoring_enabled(stage.edition.competition)
     scale.offset = required_scale_offset(values) if weighted else 0
     try:
@@ -358,6 +453,23 @@ def set_scoring_scale(stage: Stage, values, max_value, *, actor, request=None) -
         raise DomainError(
             "; ".join(exc.messages), "SCORING_SCALE_INVALID", status.HTTP_400_BAD_REQUEST
         ) from exc
+    if before["free_values"] and not scale.free_values:
+        # Liczone na skali **po** zmianie: koordynator, który w tym samym zapisie dopisuje do skali
+        # wartość 4, zdejmuje tym samym blokadę z ocen 4 – dopisana wartość jest już dopuszczalna.
+        blockers = free_values_blockers(stage, scale)
+        if blockers["scores"] or blockers["problems"]:
+            reasons = []
+            if blockers["scores"]:
+                reasons.append(f"oceny spoza skali: {blockers['scores']}")
+            if blockers["problems"]:
+                reasons.append(f"zadania z samym maksimum punktów: {blockers['problems']}")
+            raise DomainError(
+                "Nie można wrócić do trybu „tylko wartości ze skali” – w tym etapie są "
+                f"{'; '.join(reasons)}. Popraw te oceny (albo dopisz ich wartości do skali) "
+                "i nadaj zadaniom skalę albo wyczyść ich maksimum, a potem przełącz tryb ponownie.",
+                "FREE_VALUES_IN_USE",
+                status.HTTP_409_CONFLICT,
+            )
     used = scores_in_use(stage)
     if scale.offset != (before["offset"] or 0) and used:
         # Przesunięcie jest częścią znaczenia liczby leżącej w kolumnie ``score``: przy
@@ -373,7 +485,7 @@ def set_scoring_scale(stage: Stage, values, max_value, *, actor, request=None) -
             status.HTTP_409_CONFLICT,
         )
     assert_scale_covers_existing_scores(
-        used, scale.stored_allowed_values(), subject=f"etap {stage.display_name}"
+        used, score_rule(stage, scale=scale), subject=f"etap {stage.display_name}"
     )
     scale.save()
     audit(
@@ -382,7 +494,12 @@ def set_scoring_scale(stage: Stage, values, max_value, *, actor, request=None) -
         stage,
         {
             "from": before,
-            "to": {"values": scale.values, "max_value": scale.max_value, "offset": scale.offset},
+            "to": {
+                "values": scale.values,
+                "max_value": scale.max_value,
+                "offset": scale.offset,
+                "free_values": scale.free_values,
+            },
         },
         request=request,
     )
@@ -424,44 +541,47 @@ class StageScoring:
     offsets: dict[int, int] = field(default_factory=dict)
     #: ``Problem.pk`` → waga zadania w sumie etapu.
     weights: dict[int, Fraction] = field(default_factory=dict)
+    #: Krok, do którego zaokrągla się suma **ważona** (wydanie 0.35.0): pełny punkt w etapie „tylko
+    #: ze skali” – dokładnie jak przed tym wydaniem – i 0,01 w etapie z dowolnymi wartościami, gdzie
+    #: pojedyncza ocena i tak ma dwa miejsca po przecinku, a zaokrąglenie sumy do pełnych punktów
+    #: kasowałoby to, o co organizator prosił.
+    quantum: Decimal = WHOLE_POINTS
 
-    def score(self, problem_id: int, stored: int) -> int:
+    def score(self, problem_id: int, stored) -> Decimal:
         """Ocena taka, jaką wystawił recenzent: wartość z bazy pomniejszona o przesunięcie skali.
 
         To jest liczba do pokazania w tabeli i do wzięcia do sumy. Bez flagi (i przy skali bez
-        punktów ujemnych) jest identyczna z wartością z bazy.
+        punktów ujemnych) jest identyczna z wartością z bazy. ``Decimal``, bo kolumna ocen jest od
+        wydania 0.35.0 dziesiętna – ocena 4,25 nie może tu stracić ćwiartki.
         """
-        return int(stored) - self.offsets.get(problem_id, 0)
+        return to_points(stored) - self.offsets.get(problem_id, 0)
 
-    def total(self, scores: Mapping[int, int]) -> int:
+    def total(self, scores: Mapping) -> Decimal:
         """Suma etapu z ocen ``{Problem.pk: ocena}`` **takich, jakie leżą w bazie**.
 
         Przesunięcie odejmuje ta funkcja, a nie wołający – ma być jedno miejsce, w którym liczba
         z kolumny ``score`` staje się punktem, żeby nie dało się odjąć przesunięcia dwa razy ani
         ani razu. Wołający używa ``score`` wyłącznie do **pokazania** oceny w tabeli.
 
-        Bez flagi jest to dzisiejsze sumowanie ``int`` co do działania, a nie „nowa droga ustawiona
-        tak, żeby wyszło to samo”. Z flagą suma idzie przez ``Fraction``, więc nie zależy od
-        kolejności dodawania, a zaokrąglenie zapada **raz**, na końcu, ``ROUND_HALF_UP`` – tą samą
-        metodą, którą ``apps.quiz.services.stage_scores`` sprowadza wynik testu do pełnych punktów.
+        Bez flagi jest to zwykłe sumowanie ocen co do działania – w ``Decimal``, bo oceny są
+        dziesiętne; suma liczb o dwóch miejscach po przecinku ma dwa miejsca i nie wymaga
+        zaokrąglania. Z flagą suma idzie przez ``Fraction``, więc nie zależy od kolejności
+        dodawania, a zaokrąglenie zapada **raz**, na końcu, ``ROUND_HALF_UP`` do ``quantum`` (pełny
+        punkt albo 0,01) – tą samą metodą, którą ``apps.quiz.services.stage_scores`` sprowadza wynik
+        testu do pełnych punktów (``apps.core.points.round_points``).
 
         Suma nie schodzi poniżej zera i to jest decyzja, nie skutek uboczny: ``StageEntry
-        .total_points`` jest ``PositiveIntegerField`` (§ 1.2.6, decyzja D10 – kolumny zostają
-        ``Positive*``), a regulaminowo punkty ujemne mają odbierać zdobyte, a nie robić z uczestnika
-        dłużnika. Dla Konkursu #1 ta gałąź nie może się wykonać: bez ujemnych ocen suma ujemna nie
-        powstaje.
+        .total_points`` ma więz „nie mniej niż zero” (§ 1.2.6, decyzja D10), a regulaminowo punkty
+        ujemne mają odbierać zdobyte, a nie robić z uczestnika dłużnika. Dla Konkursu #1 ta gałąź
+        nie może się wykonać: bez ujemnych ocen suma ujemna nie powstaje.
         """
         if not self.weighted:
-            return sum(scores.values())
+            return sum((to_points(value) for value in scores.values()), Decimal(0))
         total = Fraction(0)
         for problem_id, stored in scores.items():
             total += Fraction(self.score(problem_id, stored)) * self.weights.get(problem_id, Fraction(1))
-        rounded = int(
-            (Decimal(total.numerator) / Decimal(total.denominator)).quantize(
-                Decimal("1"), rounding=ROUND_HALF_UP
-            )
-        )
-        return max(rounded, 0)
+        rounded = round_points(Decimal(total.numerator) / Decimal(total.denominator), self.quantum)
+        return max(rounded, Decimal(0))
 
 
 #: Punktacja sprzed etapu 2: bez wag, bez przesunięć. Jedna instancja dla całego procesu – obiekt
@@ -481,17 +601,23 @@ def stage_scoring(stage: Stage, *, competition=None, problems=None) -> StageScor
     Punkty ujemne w skali pojedynczego zadania wymagałyby przesunięcia per zadanie, czyli kolumny,
     której § 1.2.6 nie zakłada – do czasu jej powstania skala zadania zostaje nieujemna.
     """
+    from .scoring import uses_own_range
+
     if competition is None:
         competition = stage.edition.competition
     if not weighted_scoring_enabled(competition):
         return PLAIN_SCORING
     scale = getattr(stage, "scoring_scale", None)
     stage_offset = (scale.offset or 0) if scale is not None else 0
+    free = bool(scale is not None and scale.free_values)
     problems = list(stage.problems.all()) if problems is None else list(problems)
     return StageScoring(
         weighted=True,
-        offsets={problem.pk: 0 if problem.has_own_scale else stage_offset for problem in problems},
+        offsets={
+            problem.pk: 0 if uses_own_range(problem, free=free) else stage_offset for problem in problems
+        },
         weights={problem.pk: problem.weight for problem in problems},
+        quantum=POINTS_QUANTUM if free else WHOLE_POINTS,
     )
 
 
@@ -1186,11 +1312,13 @@ def update_problem(
     if "scoring_values" in diff or "max_points" in diff:
         # Ta sama reguła, co przy skali etapu: wolno dokładać wartości i zmieniać etykiety, nie
         # wolno zdjąć wartości, którą ktoś już wystawił. Dotyczy też wyczyszczenia nadpisania –
-        # po powrocie do skali etapu oceny zadania muszą się w niej mieścić.
-        allowed = locked.allowed_values() or _stage_allowed_values(locked.stage)
+        # po powrocie do skali etapu oceny zadania muszą się w niej mieścić. W trybie dowolnym to
+        # samo pytanie dotyczy zakresu: obniżenie maksimum poniżej wystawionej oceny jest odmową.
+        from .scoring import safe_score_rule
+
         assert_scale_covers_existing_scores(
             scores_in_use(locked.stage, problem=locked),
-            allowed,
+            safe_score_rule(locked.stage, locked),
             subject=f"zadanie {locked.number}",
         )
     try:

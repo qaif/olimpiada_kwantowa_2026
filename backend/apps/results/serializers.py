@@ -13,6 +13,8 @@ Trzy kształty odpowiedzi, trzy różne zakresy danych:
 
 from rest_framework import serializers
 
+from apps.core.points_api import PointsDictField, PointsField
+
 from .models import Anonymization, ResultsPublication
 
 
@@ -31,8 +33,8 @@ class PublicResultRowSerializer(serializers.Serializer):
     # wyłącznie w konkursie z kategoriami (§ 1.2.4), a snapshoty Olimpiady Kwantowej nie niosą jej
     # nigdy. Brak klucza to pominięte pole w odpowiedzi, nie błąd.
     category = serializers.CharField(read_only=True, required=False, allow_blank=True)
-    points = serializers.DictField(child=serializers.IntegerField(), read_only=True)
-    total = serializers.IntegerField(read_only=True)
+    points = PointsDictField(read_only=True)
+    total = PointsField(read_only=True)
     qualified = serializers.BooleanField(read_only=True)
     # Czy o wierszu rozstrzygnęła decyzja komitetu, a nie próg punktowy. ``required=False``
     # i domyślne ``False``, bo snapshoty zapisane przed wprowadzeniem kwalifikacji ręcznej
@@ -69,8 +71,8 @@ class StageResultRowSerializer(serializers.Serializer):
     # a nie identyfikator: to jest odpowiedź do pokazania człowiekowi, a nie klucz do łączenia.
     category = serializers.CharField(read_only=True, required=False, allow_blank=True)
     status = serializers.CharField(read_only=True)
-    points = serializers.DictField(child=serializers.IntegerField(), read_only=True)
-    total = serializers.IntegerField(read_only=True)
+    points = PointsDictField(read_only=True)
+    total = PointsField(read_only=True)
 
 
 class StageResultsPreviewSerializer(serializers.Serializer):
@@ -114,7 +116,7 @@ class MyProblemResultSerializer(serializers.Serializer):
     problem_id = serializers.IntegerField(read_only=True)
     number = serializers.IntegerField(read_only=True)
     title = serializers.CharField(read_only=True)
-    score = serializers.IntegerField(read_only=True)
+    score = PointsField(read_only=True)
     feedback = ResultFeedbackSerializer(many=True, read_only=True)
 
 
@@ -134,7 +136,7 @@ class MyStageResultSerializer(serializers.Serializer):
     results_published_at = serializers.DateTimeField(read_only=True)
     status = serializers.CharField(read_only=True)
     qualified = serializers.BooleanField(read_only=True)
-    total_points = serializers.IntegerField(read_only=True)
-    published_total = serializers.IntegerField(read_only=True, allow_null=True)
+    total_points = PointsField(read_only=True)
+    published_total = PointsField(read_only=True, allow_null=True)
     differs_from_published = serializers.BooleanField(read_only=True)
     problems = MyProblemResultSerializer(many=True, read_only=True)

@@ -1,4 +1,4 @@
-"""Klucz API Anthropic: szyfrowanie w bazie, maskowanie na ekranie i opakowanie w pamięci.
+"""Klucze API dostawców modelu: szyfrowanie w bazie, maskowanie na ekranie i opakowanie w pamięci.
 
 Szyfrowanie jest tym samym zabiegiem, co przy sekretach drugiego składnika
 (``apps.accounts.twofactor._fernet_for``): Fernet z kluczem wyprowadzonym z ``SECRET_KEY``,
@@ -71,6 +71,23 @@ def normalise_key(raw: str) -> str:
         raise InvalidApiKey(f"Klucz API Anthropic zaczyna się od „{KEY_PREFIX}”.")
     if not (MIN_KEY_LENGTH <= len(value) <= MAX_KEY_LENGTH) or not value.isascii():
         raise InvalidApiKey("To nie wygląda na klucz API Anthropic – sprawdź, czy wkleiłeś go w całości.")
+    return value
+
+
+def generic_key(raw: str, label: str) -> str:
+    """Klucz dostawcy bez własnego przedrostka – sprawdzenie „czy to w ogóle wygląda na klucz”.
+
+    Te same zasady, co w :func:`normalise_key`: białe znaki zdejmujemy (klucz wkleja się z konsoli
+    i z maila), wartości **nie cytujemy** w komunikacie, a o ważności rozstrzyga „Sprawdź klucz”.
+    Przedrostków OpenAI, Google i Meta nie sprawdzamy ściśle: zmieniały się już kilka razy
+    (``sk-``, ``sk-proj-``, ``AIza…``), a odrzucenie działającego klucza z powodu nowego formatu
+    byłoby gorsze niż przyjęcie śmieci, które „Sprawdź klucz” i tak od razu wskaże.
+    """
+    value = "".join((raw or "").split())
+    if not value:
+        raise InvalidApiKey("Wklej klucz API.")
+    if not (MIN_KEY_LENGTH <= len(value) <= MAX_KEY_LENGTH) or not value.isascii():
+        raise InvalidApiKey(f"To nie wygląda na klucz API {label} – sprawdź, czy wkleiłeś go w całości.")
     return value
 
 
