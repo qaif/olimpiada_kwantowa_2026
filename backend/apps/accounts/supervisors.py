@@ -327,12 +327,19 @@ def students_of(supervisor: SchoolSupervisor) -> list[Participant]:
     Adres bierzemy z **konta** opiekuna, a nie z osobnego pola profilu: zmiana adresu e-mail
     przechodzi przez potwierdzenie na nowej skrzynce, więc jest tak samo wiarygodna jak adres
     z rejestracji, a drugie pole prędzej czy później rozjechałoby się z pierwszym.
+
+    Bez kont po anonimizacji (``exclude_anonymised``): uczeń, który usunął konto, nie jest już
+    uczniem tego nauczyciela – ani na liście, ani w licznikach panelu. Od v0.34.0
+    ``anonymise_account`` czyści też ``supervisor_email``, więc nowe anonimizacje wypadają stąd
+    same; filtr zostaje dla profili wytartych wcześniej i jako druga zapora na wypadek, gdyby
+    adres wrócił do profilu inną drogą.
     """
     email = normalize_supervisor_email(supervisor.user.email)
     if not email:
         return []
     return list(
         Participant.objects.filter(supervisor_email__iexact=email)
+        .exclude_anonymised()
         .select_related("user")
         .order_by("user__last_name", "user__first_name", "public_code")
     )

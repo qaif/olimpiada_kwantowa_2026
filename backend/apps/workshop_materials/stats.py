@@ -69,6 +69,25 @@ def record_view(material: WorkshopMaterial, user) -> None:
         logger.warning("Nie udało się zapisać wyświetlenia materiału #%s.", material.pk, exc_info=True)
 
 
+def erase_for_user(user) -> int:
+    """Kasuje pseudonimy widza tego konta przy wszystkich materiałach (anonimizacja konta).
+
+    Pseudonim nie zawiera identyfikatora konta, ale z kluczem serwera da się go policzyć od nowa –
+    i tak samo da się tu: skrót pary (materiał, konto) dla każdego materiału instalacji, a potem
+    jedno ``DELETE`` po liście skrótów. Materiałów jest kilkadziesiąt, nie miliony, więc liczenie
+    skrótów w Pythonie kosztuje mniej niż jedno zapytanie. Licznik wyświetleń (``view_count``)
+    zostaje – nie mówi niczego o osobie. Zwraca liczbę skasowanych wierszy.
+    """
+    if user is None or user.pk is None:
+        return 0
+    material_ids = list(WorkshopMaterial.objects.values_list("pk", flat=True))
+    if not material_ids:
+        return 0
+    hashes = [viewer_hash(material_id, user.pk) for material_id in material_ids]
+    deleted, _ = WorkshopMaterialViewer.objects.filter(viewer_hash__in=hashes).delete()
+    return deleted
+
+
 def unique_viewers(materials) -> dict[int, int]:
     """``{id materiału: liczba unikalnych widzów}`` jednym zapytaniem dla całej listy."""
     ids = [material.pk for material in materials]
