@@ -31,7 +31,7 @@ kopii przed migracjami (dopiero po zatrzymaniu aplikacji), migracji i podmiany k
 bez zmian poza tym, że krok 2/8 omija katalog `maintenance/`, a krok 4/8 dopisuje token i kopiuje
 stronę. Testy: `scripts/tests/render_caddyfile_test.sh` (zakres importu, `caddy validate`,
 kolejność tras po `caddy adapt`), `scripts/tests/maintenance_pg18_rehearsal.sh` (próba na stosie
-compose). Caddy 2.8.4: `handle_errors` z listą kodów nadpisuje zagnieżdżone matchery – stąd matcher
+compose, 44/44 z wycofaniem `--rollback`). Caddy 2.8.4: `handle_errors` z listą kodów nadpisuje zagnieżdżone matchery – stąd matcher
 kodu w środku. `OPERACJE.md` § 19.4 (kolejność), § 20; `PODRECZNIK-ADMINISTRATORA.md` § 5.1.
 
 ## [Unreleased] – PostgreSQL 18

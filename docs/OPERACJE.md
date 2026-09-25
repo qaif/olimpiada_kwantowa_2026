@@ -2181,13 +2181,18 @@ proxy co ~0,5 s), po czym puszcza `upgrade_postgres18.sh` i sprawdza:
 - start obu zrzutów **po** włączeniu strony, SHA-256 odtworzonego pliku = zapisany w `dumps.sha256`,
 - **każdy** potwierdzony zapis pisarza jest w 18, w tym ostatni sprzed włączenia strony,
 - ani jednej odpowiedzi 502/504; w przerwie 503 + JSON `maintenance` i 503 + strona HTML; strona
-  tylko między włączeniem a wyłączeniem; na końcu 200 i flaga zdjęta.
+  tylko między włączeniem a wyłączeniem; na końcu 200 i flaga zdjęta,
+- potem `--rollback --yes`: ta sama kolejność (strona → stop → zrzut 18 → 16 → kontrole → strona
+  wyłączona), baza 16 z przypięciem, wszystkie zapisy sprzed przejścia na miejscu, 0 × 502.
 
-Wynik lokalny (25.09.2026, 176 tabel): 34 z 34 kontroli; ostatni zapis 0,02 s przed włączeniem
-strony jest w 18 (26 zapisów, 0 brakujących); zrzut do odtworzenia zaczęty 14,7 s po włączeniu
-strony; 218 próbek proxy – 36 × 200, 182 × 503, 0 × 502; przerwa 2 min 3 s (aplikacja healthy po
-50 s, reszta to czekanie na `status=ok` kolejki). Uruchomienie: `scripts/tests/maintenance_pg18_rehearsal.sh`
-(`--keep` zostawia stos, `REHEARSAL_WEB_IMAGE=` wskazuje obraz aplikacji).
+Wynik lokalny (25.09.2026, 176 tabel): 44 z 44 kontroli (dwa pełne przebiegi przejścia, jeden
+z wycofaniem); ostatni zapis 0,02–0,63 s przed włączeniem strony jest w 18 (26 zapisów, 0
+brakujących); zrzut do odtworzenia zaczęty ~15 s po włączeniu strony; ~216 próbek proxy na
+przebieg – ~37 × 200, ~180 × 503, 0 × 502; przerwa 2 min 2 s (aplikacja healthy po 49 s, reszta to
+czekanie na `status=ok` kolejki); wycofanie ok. 40 s. Uruchomienie:
+`scripts/tests/maintenance_pg18_rehearsal.sh` (`--keep` zostawia stos, `REHEARSAL_WEB_IMAGE=`
+wskazuje obraz aplikacji). W Git Bashu brak bazy stref czasowych – planowana godzina końca jest
+wtedy pomijana (na serwerze Ubuntu: CET/CEST).
 
 ### 19.4. Przejście na produkcji
 

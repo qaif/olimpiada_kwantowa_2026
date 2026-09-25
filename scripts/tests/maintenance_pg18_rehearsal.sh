@@ -125,12 +125,33 @@ say "Start stosu na PostgreSQL 16 (db redis minio minio-init web worker beat pro
 (cd "$APP" && bash scripts/maintenance.sh sync) >/dev/null
 # Po kolei: na pustej bazie entrypointy web, worker i beat migrowałyby równocześnie (wyścig przy
 # pierwszym `migrate`), a `up` całości kończy się błędem, gdy web chwilę dłużej nie jest healthy.
+healthy() { dc ps --format '{{.Service}}={{.Health}}' 2>/dev/null | grep -qx "$1=healthy"; }
+wait_healthy() {  # wait_healthy <usługa> <sekundy>
+  local i
+  for i in $(seq 1 $(( $2 / 3 ))); do healthy "$1" && return 0; sleep 3; done
+  return 1
+}
 dc up -d db redis minio minio-init >/dev/null 2>&1 || { dc ps; echo "up (dane) nie wyszedł"; exit 1; }
-dc up -d --no-deps web >/dev/null 2>&1 || { dc ps; echo "up web nie wyszedł"; exit 1; }
-for _ in $(seq 1 90); do
-  dc ps --format '{{.Service}}={{.Health}}' | grep -qx 'web=healthy' && break
-  sleep 4
+# Baza MUSI być healthy (i przyjmować połączenia po TCP), zanim wystartuje web – entrypoint web
+# ma ograniczoną liczbę prób, a na obciążonym Docker Desktop pierwszy start bazy bywa wolny.
+wait_healthy db 120 || { dc ps; echo "db nie jest healthy"; exit 1; }
+for _ in $(seq 1 40); do
+  sql 'SELECT 1' >/dev/null 2>&1 && break
+  sleep 3
 done
+# web: do dwóch podejść – drugie z odtworzonym kontenerem (świeże połączenia i DNS sieci compose).
+web_ok=0
+for attempt in 1 2; do
+  if [ "$attempt" = 1 ]; then
+    dc up -d --no-deps web >/dev/null 2>&1
+  else
+    echo "web nie wstał w 1. podejściu – odtwarzam kontener (ostatnie linie logu niżej)"
+    dc logs --tail 5 web 2>&1 | sed 's/^/  | /'
+    dc up -d --no-deps --force-recreate web >/dev/null 2>&1
+  fi
+  wait_healthy web 240 && { web_ok=1; break; }
+done
+[ "$web_ok" = 1 ] || { dc ps; dc logs --tail 30 web; echo "web nie wstał w dwóch podejściach"; exit 1; }
 dc up -d worker beat proxy >/dev/null 2>&1 || { dc ps; dc logs --tail 30 web; echo "up worker/beat/proxy nie wyszedł"; exit 1; }
 for _ in $(seq 1 90); do
   dc ps --format '{{.Service}}={{.Health}}' | grep -qx 'web=healthy' \
@@ -276,6 +297,48 @@ tail -n 1 "$PROBE_LOG" | grep -q 'json=200 json_maint=0 html=200 html_maint=0'
 check "po przejściu: /healthz/ i / -> 200 bez strony prac technicznych" $?
 [ ! -f "$APP/maintenance/on" ]
 check "strona prac technicznych wyłączona na końcu" $?
+
+say "Wycofanie: scripts/upgrade_postgres18.sh --rollback --yes (ta sama kolejność ze stroną)"
+PROBE_LOG="$WORK/probe-rollback.log"
+: > "$PROBE_LOG"
+(
+  while :; do
+    ts="$(date +%s.%N)"
+    j="$(curl -s -w ' %{http_code}' --max-time 5 "$BASE_URL/healthz/" 2>/dev/null | tr -d '\n')"
+    jm=0; case "$j" in *'"maintenance"'*) jm=1 ;; esac
+    echo "$ts json=${j##* } json_maint=$jm" >> "$PROBE_LOG"
+    sleep 0.5
+  done
+) &
+PROBE_PID=$!
+(
+  cd "$APP" && BACKUP_DIR="$WORK/backups" MAINTENANCE_CHECK_URL="$BASE_URL" \
+    bash scripts/upgrade_postgres18.sh --rollback --yes
+) > "$WORK/rollback.out" 2>&1
+rc=$?
+sed 's/^/  | /' "$WORK/rollback.out" | grep -E '^  \| (==>|    sha256|UWAGA|BŁĄD|!!!)' || true
+kill "$PROBE_PID" 2>/dev/null; wait "$PROBE_PID" 2>/dev/null; PROBE_PID=""
+check "--rollback --yes zakończony kodem 0 (jest $rc)" "$rc"
+RB_DIR="$(ls -1dt "$WORK"/backups/pg18-rollback-* 2>/dev/null | head -1)"
+TL="$RB_DIR/timeline.txt"
+prev=""
+for ev in maintenance_on app_stopped dump_pg18_rollback_start dump_pg18_rollback_end app_healthy checks_ok maintenance_off; do
+  cur="$(t "$ev")"
+  if [ -n "$prev" ]; then
+    after "$cur" "$(t "$prev")"
+    check "wycofanie: $ev po $prev" $?
+  fi
+  prev="$ev"
+done
+[ "$(sql 'SHOW server_version_num' | cut -c1-2)" = "16" ] && grep -q '^POSTGRES_VOLUME=pg_data' "$APP/.env"
+check "po wycofaniu: PostgreSQL 16 i przypięcie w .env" $?
+missing="$(comm -23 <(sort "$WORK/acked_ids.txt") <(sql "SELECT id FROM rehearsal_marker ORDER BY id" | sort) | wc -l)"
+[ "$missing" -eq 0 ]
+check "po wycofaniu: wszystkie zapisy sprzed przejścia są w 16 (brakuje: $missing)" $?
+! grep -qE 'json=(502|504) ' "$PROBE_LOG" && grep -q 'json=503 json_maint=1' "$PROBE_LOG"
+check "wycofanie: 503 maintenance w przerwie, ani jednego 502/504" $?
+tail -n 1 "$PROBE_LOG" | grep -q 'json=200 json_maint=0' && [ ! -f "$APP/maintenance/on" ]
+check "po wycofaniu: /healthz/ 200, strona wyłączona" $?
 
 if [ "$failures" -ne 0 ]; then
   printf '\n%d test(ów) nie przeszło. Wyjście skryptu: %s\n' "$failures" "$WORK/upgrade.out"
