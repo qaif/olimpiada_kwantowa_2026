@@ -8,6 +8,14 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## v0.36.1 – 2026-09-25
+
+Zadania treningowe: każde z czterech zadań (P1–P4) ma własny plik z treścią
+(`apps/competitions/fixtures/training/zadanie-P1.pdf` … `zadanie-P4.pdf`) zamiast wspólnego arkusza
+`zadania-przykladowe.pdf` (nowe pliki organizatora z 25.09.2026, m.in. nowy rysunek funkcji falowej
+w P1). Tytuły bez zmian. Na produkcji: `manage.py seed_training_problems` podmienia treść
+wszystkich czterech zadań.
+
 ## v0.36.0 – 2026-09-25
 
 Wydanie zbiorcze z próśb organizatora i długu technicznego z 25.09.2026 – sześć zmian. Bez flagi

@@ -2020,9 +2020,9 @@ Usunięcie piaskownicy po testach: koordynator kasuje zadania z `/coordinator/st
 (możliwe, dopóki nie ma do nich prac), a sam etap — z `/admin/competitions/stage/`. Kasowanie etapu
 zabiera ze sobą wpisy, zgłoszenia i recenzje treningowe, i o to chodzi.
 
-Treść zadań: plik organizatora `fixtures/training/zadania-przykladowe.pdf` („Zadania
-przykładowe”, P1–P4) — jeden PDF wspólny dla czterech zadań, bo rysunki i treści przechodzą między
-stronami. Podmiana pliku w repozytorium plus ponowne uruchomienie komendy wgrywa nową wersję;
+Treść zadań: pliki organizatora `fixtures/training/zadanie-P1.pdf` … `zadanie-P4.pdf` („Zadania
+przykładowe”, od 25.09.2026 osobny PDF na każde zadanie). Podmiana pliku w repozytorium plus ponowne
+uruchomienie komendy wgrywa nową wersję (tylko tym zadaniom, których bajty się zmieniły);
 tytuły zadań są w `apps/competitions/training.py` (koordynator może je zmienić w panelu, ale kolejny
 przebieg komendy przywróci te z kodu).
 

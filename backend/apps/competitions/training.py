@@ -6,10 +6,10 @@ w ``models.StageKind``, a kontekst karty na pulpicie liczy sobie ``apps.web.view
 Tutaj zostaje jedno: **czym jest arkusz treningowy** – żeby komenda siejąca i testy czytały tę samą
 listę zamiast dwóch jej kopii.
 
-Treść pochodzi z pliku organizatora „Zadania przykładowe” (I Olimpiada Kwantowa, P1–P4). To jeden
-PDF na cztery zadania: rysunek do P2 i treść P3 przechodzą między stronami, więc cięcie na osobne
-pliki rozrywałoby zadania. Każde zadanie wskazuje ten sam plik, a numer i tytuł w ``Problem``
-mówią uczestnikowi, które z czterech ma rozwiązać.
+Treść pochodzi z „Zadań przykładowych” organizatora (I Olimpiada Kwantowa, P1–P4). Do 25.09.2026
+był to jeden PDF na cztery zadania (rysunek do P2 i treść P3 przechodziły między stronami); od tego
+dnia organizator dostarcza **osobny plik na każde zadanie** (``zadanie-P1.pdf`` … ``zadanie-P4.pdf``),
+więc uczestnik pobiera przy zadaniu dokładnie jego treść.
 """
 
 from __future__ import annotations
@@ -24,17 +24,13 @@ TRAINING_DIR = Path(__file__).resolve().parent / "fixtures" / "training"
 #: („Trening”), bo w panelu stoi obok etapów zawodów i ma się od nich odróżniać jednym spojrzeniem.
 TRAINING_STAGE_NAME = "Zadania treningowe"
 
-#: Plik organizatora z kompletem czterech zadań przykładowych.
-ORGANISER_PDF = "zadania-przykladowe.pdf"
-
-
 @dataclass(frozen=True)
 class TrainingProblem:
     """Jedno zadanie arkusza treningowego: numer, tytuł i nazwa pliku z treścią."""
 
     number: int
     title: str
-    file: str = ORGANISER_PDF
+    file: str
 
     @property
     def statement(self) -> str:
@@ -49,10 +45,10 @@ class TrainingProblem:
 #: ma); koordynator może je zmienić w panelu, a kolejny przebieg komendy je przywróci – dlatego
 #: zmianę tytułu na stałe robi się tutaj.
 TRAINING_PROBLEMS: tuple[TrainingProblem, ...] = (
-    TrainingProblem(1, "P1. Cząstka w nieskończonej studni potencjału"),
-    TrainingProblem(2, "P2. Polaryzatory i pojedynczy foton"),
-    TrainingProblem(3, "P3. Bramki H, Z, H na kubicie"),
-    TrainingProblem(4, "P4. Obwód dwukubitowy z bramką RY(θ) i CNOT"),
+    TrainingProblem(1, "P1. Cząstka w nieskończonej studni potencjału", "zadanie-P1.pdf"),
+    TrainingProblem(2, "P2. Polaryzatory i pojedynczy foton", "zadanie-P2.pdf"),
+    TrainingProblem(3, "P3. Bramki H, Z, H na kubicie", "zadanie-P3.pdf"),
+    TrainingProblem(4, "P4. Obwód dwukubitowy z bramką RY(θ) i CNOT", "zadanie-P4.pdf"),
 )
 
 
