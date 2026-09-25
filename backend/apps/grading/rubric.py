@@ -17,14 +17,30 @@ Dwie zasady tego modułu:
 
 Moduł nie importuje ``apps.grading.services`` (to serwisy wołają rubrykę, nie odwrotnie), więc
 skalę dostaje z zewnątrz – patrz ``assert_total_in_scale``.
+
+**Ułamki w kryteriach (po wydaniu 0.35.0).** W etapie z dowolnymi wartościami ocen
+(``ScoringScale.free_values``) punkty za kryterium i samo maksimum kryterium mogą być ułamkami
+(„2,5 z 3”) – co 0,01, z przecinkiem albo kropką. Wydanie 0.35.0 dopuściło ułamek w ocenie
+zadania, ale rubryka dalej liczyła w pełnych punktach, więc recenzent oceniający według kryteriów
+nie miał jak wystawić 4,25, którą bez rubryki wpisałby jednym polem. Punkty kryterium sprawdza
+``apps.competitions.scoring.criterion_rule`` – ta sama klasa ``ScoreRule``, która sprawdza ocenę
+zadania, więc „2,5” znaczy w obu miejscach to samo. W etapie „tylko ze skali” wszystko zostaje po
+staremu: kryteria w pełnych punktach, suma z listy wartości skali.
+
+W ``Review.rubric`` punkty leżą jako liczba JSON: ``int``, gdy całkowita (tak jak przed tą
+zmianą), a ``float`` o najwyżej dwóch miejscach, gdy ułamkowa (``apps.core.points.points_json``).
 """
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 from rest_framework import status as http
 
+from apps.competitions.scoring import criterion_rule, stage_free_values
 from apps.core.api import DomainError
 from apps.core.models import audit
+from apps.core.points import PointsError, format_points, parse_points, points_json
 
 from .models import RubricCriterion
 
@@ -38,6 +54,8 @@ MAX_CRITERIA = 30
 
 #: Górna granica punktów za jedno kryterium. Ta sama, co przy wartościach skali w panelu.
 MAX_CRITERION_POINTS = 1000
+#: Najmniejsze maksimum kryterium w etapie dowolnym: 0,01 pkt. W etapie „tylko ze skali” – 1.
+MIN_FREE_CRITERION_POINTS = Decimal("0.01")
 
 
 def _bad_request(detail: str, code: str) -> DomainError:
@@ -51,7 +69,54 @@ def criteria_for(problem) -> list[RubricCriterion]:
     return list(RubricCriterion.objects.filter(problem=problem).order_by("order", "id"))
 
 
-def validate_rubric(problem, raw, *, partial: bool = False) -> tuple[list[dict], int]:
+def rubric_free(problem) -> bool:
+    """Czy kryteria tego zadania liczy się w ułamkach – czyli czy etap zadania ocenia dowolnymi wartościami.
+
+    Tryb jest trybem **etapu** (``ScoringScale.free_values``), tak samo jak dla oceny zadania – jedna
+    odpowiedź na pytanie „jak się tu ocenia” dla całej komisji etapu. Zadanie bez etapu liczy
+    w pełnych punktach, jak przed tą zmianą.
+    """
+    stage = getattr(problem, "stage", None) if problem is not None else None
+    return stage is not None and stage_free_values(stage)
+
+
+def criterion_points(criterion, raw, *, free: bool) -> Decimal:
+    """Punkty za jedno kryterium (JSON z API albo tekst z formularza) → ``Decimal`` albo ``DomainError`` 400.
+
+    Jedyne miejsce, które czyta punkty kryterium – woła je ``validate_rubric`` dla API, szkicu
+    i formularza panelu (``rubric_from_post`` przekazuje tam tekst). Dwa kroki:
+
+    - **kształt**: w etapie dowolnym liczba albo tekst z przecinkiem („2,5”), najwyżej dwa miejsca
+      po przecinku (``apps.core.points.parse_points``); w etapie „tylko ze skali” – wyłącznie
+      liczba całkowita, jak przed tą zmianą. Odmowa: ``INVALID_RUBRIC``,
+    - **zakres**: od 0 do maksimum kryterium według ``criterion_rule`` – tej samej klasy reguły,
+      którą sprawdzana jest ocena zadania. Odmowa: ``RUBRIC_POINTS_OUT_OF_RANGE``, z brzmieniem jak
+      dotąd (maksimum pokazane jak na ekranie: „0–2,5”, a nie „0–2.50”).
+    """
+    if free:
+        try:
+            number = parse_points(raw)
+        except PointsError as exc:
+            raise _bad_request(f"Punkty za kryterium „{criterion.title}”: {exc}", "INVALID_RUBRIC") from exc
+    else:
+        if not isinstance(raw, int) or isinstance(raw, bool):
+            raise _bad_request(
+                f"Punkty za kryterium „{criterion.title}” muszą być liczbą całkowitą.",
+                "INVALID_RUBRIC",
+            )
+        number = Decimal(raw)
+    if not criterion_rule(criterion.max_points, free=free).accepts(number):
+        raise _bad_request(
+            f"Punkty za kryterium „{criterion.title}” muszą mieścić się w "
+            f"0–{format_points(criterion.max_points)}.",
+            "RUBRIC_POINTS_OUT_OF_RANGE",
+        )
+    return number
+
+
+def validate_rubric(
+    problem, raw, *, partial: bool = False, free: bool | None = None
+) -> tuple[list[dict], Decimal]:
     """Sprowadza punkty cząstkowe do kanonicznego kształtu i liczy sumę.
 
     Zwraca ``(items, total)``: listę ``{criterion_id, points, comment}`` w kolejności kryteriów
@@ -61,12 +126,18 @@ def validate_rubric(problem, raw, *, partial: bool = False) -> tuple[list[dict],
 
     Kolejność wyniku bierze się z kryteriów, a nie z kolejności pól w żądaniu – dzięki temu zapis
     w bazie czyta się tak samo, jak rubrykę na ekranie, niezależnie od tego, co przysłał klient.
+
+    ``free`` – tryb etapu (ułamki w kryteriach); ``None`` znaczy „odczytaj z etapu zadania”
+    (``rubric_free``). Wołający, który zna już regułę oceny, podaje go wprost i oszczędza zapytanie.
+    Suma jest ``Decimal`` – w etapie „tylko ze skali” zawsze całkowita, jak dotąd.
     """
     criteria = criteria_for(problem)
     if not criteria:
         if raw:
             raise _bad_request("To zadanie nie ma rubryki oceniania.", "RUBRIC_NOT_APPLICABLE")
-        return [], 0
+        return [], Decimal(0)
+    if free is None:
+        free = rubric_free(problem)
     if raw is None:
         raw = []
     if not isinstance(raw, list):
@@ -91,7 +162,7 @@ def validate_rubric(problem, raw, *, partial: bool = False) -> tuple[list[dict],
         by_criterion[criterion_id] = item
 
     items: list[dict] = []
-    total = 0
+    total = Decimal(0)
     for criterion in criteria:
         item = by_criterion.get(criterion.pk)
         points = item.get("points") if item is not None else None
@@ -102,17 +173,10 @@ def validate_rubric(problem, raw, *, partial: bool = False) -> tuple[list[dict],
             if not partial:
                 raise _bad_request(f"Uzupełnij punkty za kryterium „{criterion.title}”.", "RUBRIC_INCOMPLETE")
         else:
-            if not isinstance(points, int) or isinstance(points, bool):
-                raise _bad_request(
-                    f"Punkty za kryterium „{criterion.title}” muszą być liczbą całkowitą.",
-                    "INVALID_RUBRIC",
-                )
-            if not 0 <= points <= criterion.max_points:
-                raise _bad_request(
-                    f"Punkty za kryterium „{criterion.title}” muszą mieścić się w 0–{criterion.max_points}.",
-                    "RUBRIC_POINTS_OUT_OF_RANGE",
-                )
-            total += points
+            number = criterion_points(criterion, points, free=free)
+            total += number
+            # Liczba JSON, a nie tekst: ``2`` jak dotąd, ``2.5`` dla ułamka (``points_json``).
+            points = points_json(number)
         items.append(
             {
                 "criterion_id": criterion.pk,
@@ -128,7 +192,7 @@ def is_complete(items) -> bool:
     return bool(items) and all(item.get("points") is not None for item in items)
 
 
-def assert_total_in_scale(total: int, rule) -> int:
+def assert_total_in_scale(total, rule):
     """Suma z rubryki musi być dopuszczalną oceną. Bez zaokrąglania – z tym, co wolno, w błędzie.
 
     Reguła przychodzi z zewnątrz (``apps.competitions.scoring.score_rule``), bo to tam stoi
@@ -143,14 +207,14 @@ def assert_total_in_scale(total: int, rule) -> int:
             values = ", ".join(str(value) for value in sorted(rule.values))
             where = f"nie należy do skali tego zadania: {values}"
         raise _bad_request(
-            f"Suma punktów z rubryki ({total}) {where}. "
+            f"Suma punktów z rubryki ({format_points(total)}) {where}. "
             "Popraw punkty przy kryteriach – system nie zaokrągla oceny za Ciebie.",
             "RUBRIC_TOTAL_NOT_IN_SCALE",
         )
     return total
 
 
-def rubric_from_post(problem, data) -> list[dict] | None:
+def rubric_from_post(problem, data, *, free: bool | None = None) -> list[dict] | None:
     """Odczytuje rubrykę z formularza panelu (``rubric-<id>-points`` / ``rubric-<id>-comment``).
 
     Zwraca ``None``, gdy zadanie nie ma rubryki **albo** gdy w żądaniu nie ma ani jednego jej pola:
@@ -158,11 +222,15 @@ def rubric_from_post(problem, data) -> list[dict] | None:
     Puste pole punktów to ``None`` (kryterium jeszcze nieocenione), co ma znaczenie przy szkicu.
 
     Wartości nieliczbowe są odrzucane tutaj, a nie w ``validate_rubric``: tam przychodzi JSON z API
-    (gdzie liczba jest liczbą), a stąd – tekst z formularza HTML.
+    (gdzie liczba jest liczbą), a stąd – tekst z formularza HTML. Wyjątkiem jest etap z dowolnymi
+    wartościami: tekst („2,5”) idzie dalej bez zmian i czyta go ``criterion_points`` – ten sam
+    czytnik, co dla JSON-a z API, więc formularz i API nie mogą różnie rozumieć tej samej liczby.
     """
     criteria = criteria_for(problem)
     if not criteria:
         return None
+    if free is None:
+        free = rubric_free(problem)
     prefix_seen = False
     items: list[dict] = []
     for criterion in criteria:
@@ -171,10 +239,12 @@ def rubric_from_post(problem, data) -> list[dict] | None:
         if points_raw is None and comment is None:
             continue
         prefix_seen = True
-        points: int | None
+        points: int | str | None
         text = (points_raw or "").strip()
         if not text:
             points = None
+        elif free:
+            points = text
         else:
             try:
                 points = int(text)
@@ -207,8 +277,12 @@ def rubric_rows(review) -> list[dict]:
     ]
 
 
-def parse_criteria_lines(text: str) -> list[dict]:
+def parse_criteria_lines(text: str, *, free: bool = False) -> list[dict]:
     """Zamienia tekst „punkty;tytuł;opis” (po jednej pozycji w wierszu) na listę kryteriów.
+
+    ``free`` – etap z dowolnymi wartościami ocen: maksimum kryterium wolno wtedy podać ułamkiem
+    („2,5;Pomysł”, co 0,01; przecinek nie koliduje z zapisem, bo człony dzieli średnik) i wraca ono
+    jako ``Decimal``. Bez ``free`` – jak przed tą zmianą: liczba całkowita 1–1000 jako ``int``.
 
     Textarea zamiast formsetu – z tego samego powodu, co przy skali punktacji: dodawanie i kasowanie
     wierszy formsetu kosztowałoby wyspę JavaScriptu, a strict CSP nie ma tu na nią miejsca dla
@@ -230,12 +304,29 @@ def parse_criteria_lines(text: str) -> list[dict]:
                 f"Wiersz {number}: brakuje średnika. Zapis to „punkty;tytuł;opis”, "
                 "np. „2;Poprawność rachunków;liczy się wynik i jednostki”."
             )
-        try:
-            points = int(parts[0])
-        except ValueError as exc:
-            raise ValueError(f"Wiersz {number}: „{parts[0]}” nie jest liczbą całkowitą.") from exc
-        if not 1 <= points <= MAX_CRITERION_POINTS:
-            raise ValueError(f"Wiersz {number}: punkty muszą mieścić się w 1–{MAX_CRITERION_POINTS}.")
+        points: int | Decimal
+        if free:
+            try:
+                points = parse_points(parts[0])
+            except PointsError as exc:
+                raise ValueError(f"Wiersz {number}: „{parts[0]}” – {exc}") from exc
+            if not MIN_FREE_CRITERION_POINTS <= points <= MAX_CRITERION_POINTS:
+                raise ValueError(
+                    f"Wiersz {number}: punkty muszą mieścić się w "
+                    f"{format_points(MIN_FREE_CRITERION_POINTS)}–{MAX_CRITERION_POINTS}."
+                )
+        else:
+            try:
+                points = int(parts[0])
+            except ValueError as exc:
+                hint = (
+                    " – ułamki są dozwolone wyłącznie w etapie z dowolnymi wartościami ocen"
+                    if _looks_fractional(parts[0])
+                    else ""
+                )
+                raise ValueError(f"Wiersz {number}: „{parts[0]}” nie jest liczbą całkowitą{hint}.") from exc
+            if not 1 <= points <= MAX_CRITERION_POINTS:
+                raise ValueError(f"Wiersz {number}: punkty muszą mieścić się w 1–{MAX_CRITERION_POINTS}.")
         if not parts[1]:
             raise ValueError(f"Wiersz {number}: brakuje tytułu kryterium.")
         items.append(
@@ -250,10 +341,25 @@ def parse_criteria_lines(text: str) -> list[dict]:
     return items
 
 
+def _looks_fractional(text: str) -> bool:
+    """Czy tekst jest ułamkiem („2,5”, „2.5”) – żeby odmowa w etapie skali mówiła, dlaczego."""
+    try:
+        parse_points(text)
+    except PointsError:
+        return False
+    return True
+
+
 def format_criteria_lines(criteria) -> str:
-    """Odwrotność ``parse_criteria_lines`` – rubryka z bazy w postaci, w jakiej wraca do formularza."""
+    """Odwrotność ``parse_criteria_lines`` – rubryka z bazy w postaci, w jakiej wraca do formularza.
+
+    Maksimum przez ``format_points``: kolumna jest dziesiętna, więc surowe ``2.00`` wróciłoby do
+    formularza jako tekst, którego ``parse_criteria_lines`` w etapie skali nie przyjmie. Po polsku
+    ułamek ma przecinek („2,5;Pomysł”) – czytnik przyjmuje go z powrotem bez zmian.
+    """
     return "\n".join(
-        f"{item.max_points};{item.title}" + (f";{item.description}" if item.description else "")
+        f"{format_points(item.max_points)};{item.title}"
+        + (f";{item.description}" if item.description else "")
         for item in criteria
     )
 
@@ -271,6 +377,9 @@ def set_criteria(problem, items, *, actor=None, request=None) -> int:
     się zmieniła – otwarcie i zapisanie formularza bez zmian nie jest zdarzeniem.
     """
     existing = criteria_for(problem)
+    # Maksimum z kolumny dziesiętnej (``Decimal("2.00")``) jest równe ``2`` z formularza, więc zapis
+    # bez zmian nadal nie jest zdarzeniem; do audytu ``Decimal`` trafia przez ``jsonable_points``
+    # w ``audit`` – jako ``2`` albo ``2.5``.
     before = [
         {"max_points": item.max_points, "title": item.title, "description": item.description}
         for item in existing

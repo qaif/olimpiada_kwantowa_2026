@@ -424,3 +424,48 @@ def test_drugie_podejscie_nie_powstaje_przy_limicie_jednego(web_client, particip
     web_client.post(reverse("web:quiz-start", args=[quiz.stage.pk]))
 
     assert QuizAttempt.objects.filter(entry=quiz_entry).count() == 1
+
+
+# --- ułamki w teście (po wydaniu 0.35.0) ----------------------------------------------------------
+
+
+def test_ekrany_koordynatora_pokazuja_punkty_ulamkowe_filtrem_punktow(
+    web_client, coordinator, quiz, quiz_entry
+):
+    """„0,5 / −0,25” i wynik „0,5” – ta sama postać, co oceny recenzentów, a nie „0.50” z kolumny."""
+    question = numeric_question(quiz, answer="1", points=Decimal("0.5"), negative_points=Decimal("0.25"))
+    attempt = services.start_attempt(quiz=quiz, entry=quiz_entry)
+    services.save_answers(attempt=attempt, answers={str(question.pk): {"value": "1"}})
+    services.submit_attempt(attempt=attempt)
+    _login(web_client, coordinator)
+
+    questions = web_client.get(reverse("web:coordinator-stage-quiz-questions", args=[quiz.stage.pk]))
+    results = web_client.get(reverse("web:coordinator-stage-quiz-results", args=[quiz.stage.pk]))
+
+    assert questions.status_code == 200 and results.status_code == 200
+    questions_html = questions.content.decode()
+    assert "0,5 / −0,25" in questions_html
+    assert "0,50" not in questions_html and "0.50" not in questions_html
+    assert '<td class="num">0,5</td>' in results.content.decode()
+
+
+def test_edytor_zapisuje_punkty_pytania_wpisane_z_przecinkiem(web_client, coordinator, quiz):
+    _login(web_client, coordinator)
+
+    response = web_client.post(
+        reverse("web:coordinator-stage-quiz-question-new", args=[quiz.stage.pk]),
+        {
+            "kind": "SINGLE_CHOICE",
+            "pool": "",
+            "order": 1,
+            "text": "Ile trwa spadek?",
+            "points": "0,5",
+            "negative_points": "0,25",
+            "options": "1 s\n*2 s",
+            "partial_credit": "ALL_OR_NOTHING",
+        },
+    )
+
+    assert response.status_code == 302
+    question = QuizQuestion.objects.get(quiz=quiz)
+    assert (question.points, question.negative_points) == (Decimal("0.5"), Decimal("0.25"))

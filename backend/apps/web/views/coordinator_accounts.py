@@ -31,7 +31,7 @@ from django.views.generic import View
 
 from apps.accounts.anonymised import is_anonymised
 from apps.accounts.guardian import STATUS_MISSING, STATUS_PENDING, guardian_status
-from apps.accounts.models import GROUP_COORDINATOR, Participant, User, Voivodeship
+from apps.accounts.models import COORDINATOR_GROUPS, GROUP_SUPER_COORDINATOR, Participant, User, Voivodeship
 from apps.accounts.profile import (
     competition_footprint,
     delete_account_by_coordinator,
@@ -114,6 +114,8 @@ ROLE_CHOICES = (
 )
 
 ROLE_COORDINATOR = "koordynator"
+#: Rola platformy (``apps.accounts.super_coordinator``): koordynator każdego konkursu instalacji.
+ROLE_SUPER_COORDINATOR = "superkoordynator"
 ROLE_APPEALS = "komisja odwoławcza"
 ROLE_COMMITTEE = "członek komitetu"
 ROLE_PARTICIPANT = "uczestnik"
@@ -346,8 +348,23 @@ def is_protected(user: User) -> bool:
         return True
     prefetched = getattr(user, "_prefetched_objects_cache", {}).get("groups")
     if prefetched is not None:
-        return any(group.name == GROUP_COORDINATOR for group in prefetched)
-    return user.groups.filter(name=GROUP_COORDINATOR).exists()
+        return any(group.name in COORDINATOR_GROUPS for group in prefetched)
+    return user.groups.filter(name__in=COORDINATOR_GROUPS).exists()
+
+
+def is_super_coordinator_account(user: User) -> bool:
+    """Czy konto ma rolę superkoordynatora — do etykiety na liście kont, nie do bramki.
+
+    Ta sama przynależność do grupy, którą czyta ``apps.accounts.super_coordinator``, ale bez
+    warunku ``is_active``: lista ma pokazać rolę także zablokowanemu kontu, bo pytanie „kto ma
+    klucze do wszystkich konkursów” dotyczy również kont, które dziś się nie zalogują. Grupy
+    czytamy z prefetchu listy, więc etykieta nie kosztuje zapytania na wiersz (patrz
+    :func:`is_protected`).
+    """
+    prefetched = getattr(user, "_prefetched_objects_cache", {}).get("groups")
+    if prefetched is not None:
+        return any(group.name == GROUP_SUPER_COORDINATOR for group in prefetched)
+    return user.groups.filter(name=GROUP_SUPER_COORDINATOR).exists()
 
 
 def two_factor_feature() -> bool:
@@ -413,6 +430,8 @@ def account_role(user: User, competition, participant) -> str:
     dostałoby na liście Olimpiady Kwantowej etykietę, której dziś tam nie ma (§ 0). Zakres
     konkursu wchodzi więc przez profile, a nie przez podmianę ich źródła.
     """
+    if is_super_coordinator_account(user):
+        return ROLE_SUPER_COORDINATOR
     if is_protected(user):
         return ROLE_COORDINATOR
     member = profile_here(user, "committee_member", competition)
@@ -775,9 +794,10 @@ class CoordinatorPasswordResetView(CoordinatorRequiredMixin, View):
     22.09.2026).
 
     **Koordynator nie ustawia hasła ani nie widzi linku.** Widok woła ten sam formularz Django
-    (``PasswordResetForm``) z tymi samymi szablonami listu, co samoobsługowy ``PasswordResetView``
-    (``apps.web.views.public``) – list jest bajt w bajt identyczny z tym, który wysyła sobie sam
-    uczestnik, a token nigdy nie trafia do odpowiedzi HTTP ani do audytu. Inny efekt tego samego
+    (``QueuedPasswordResetForm``) z tymi samymi szablonami listu, co samoobsługowy
+    ``PasswordResetView`` (``apps.web.views.public``) – list jest bajt w bajt identyczny z tym,
+    który wysyła sobie sam uczestnik, idzie tą samą drogą (kolejka ``mail``, po commicie), a token
+    nigdy nie trafia do odpowiedzi HTTP ani do audytu. Inny efekt tego samego
     kliknięcia (ustawienie hasła wprost przez koordynatora) uczyniłby go posiadaczem hasła, które
     powinno znać wyłącznie właściciel konta.
 
@@ -799,9 +819,9 @@ class CoordinatorPasswordResetView(CoordinatorRequiredMixin, View):
     """
 
     def post(self, request, pk: int):
-        from django.contrib.auth.forms import PasswordResetForm
         from django.contrib.auth.tokens import default_token_generator
 
+        from apps.accounts.password_reset import QueuedPasswordResetForm
         from apps.web.views.public import PasswordResetView as SelfServicePasswordResetView
         from apps.web.views.public import service_name
 
@@ -837,7 +857,7 @@ class CoordinatorPasswordResetView(CoordinatorRequiredMixin, View):
             )
             return redirect(edit_url)
 
-        form = PasswordResetForm(data={"email": user.email})
+        form = QueuedPasswordResetForm(data={"email": user.email})
         if not form.is_valid():
             # Nie powinno się zdarzyć – adres pochodzi z naszej własnej bazy – ale ``form.save()``
             # poniżej milczy przy braku dopasowania, więc jawny błąd jest tu bezpieczniejszy niż

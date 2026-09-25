@@ -9,6 +9,7 @@ bywają poprawne:
   swój konkurs (``Competition.site``, relacja jeden do jednego).
 
 W normalnym przebiegu oba wskazują to samo: ``wagtail.views.serve`` dopasowuje witrynę po hoście
+(a pod prefiksem ścieżki – witrynę konkursu z prefiksu, którą podstawia warstwa konkursu, uwaga T43)
 i dopiero w jej poddrzewie szuka adresu, więc strona **nie może** przyjść z witryny innej niż ta
 z żądania. Różnią się dokładnie tam, gdzie strona jest renderowana poza swoim adresem: w podglądzie
 z panelu redakcyjnego i w kodzie wołanym bez żądania (komenda, zadanie, test jednostkowy).

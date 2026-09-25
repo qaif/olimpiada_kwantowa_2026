@@ -14,7 +14,7 @@
 {% block panel_title %}Pytania testu: {{ quiz.title }}{% endblock %}
 {% block panel_lead %}
   <p class="lead">{{ quiz.questions.count }} pytań w {{ pools|length }} pulach.
-    Jedno podejście dostaje {{ quiz.draw_size }} pytań za maksymalnie {{ quiz.max_points }} pkt.</p>
+    Jedno podejście dostaje {{ quiz.draw_size }} pytań za maksymalnie {{ quiz.max_points|points }} pkt.</p>
 {% endblock %}
 {% block panel_actions %}
   {% if not has_attempts %}
@@ -43,7 +43,7 @@
   <section class="section">
     <div class="section__head">
       <h2 class="mt-0">{% if pool.name %}Pula: {{ pool.name }}{% else %}Pula domyślna{% endif %}</h2>
-      <span class="badge badge--neutral">{{ pool.questions|length }} pyt. / {{ pool.points }} pkt</span>
+      <span class="badge badge--neutral">{{ pool.questions|length }} pyt. / {{ pool.points|points }} pkt</span>
     </div>
     <div class="scroll">
       <table class="table">
@@ -83,7 +83,7 @@
                   {% endwith %}
                 {% endif %}
               </td>
-              <td class="num">{{ question.points }}{% if question.negative_points %} / −{{ question.negative_points }}{% endif %}</td>
+              <td class="num">{{ question.points|points }}{% if question.negative_points %} / −{{ question.negative_points|points }}{% endif %}</td>
               <td class="actions">
                 {% if not has_attempts %}
                   <a class="btn btn--small btn--secondary"

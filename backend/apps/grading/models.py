@@ -17,7 +17,7 @@ from django.utils import timezone
 from apps.accounts.models import CommitteeMember
 from apps.competitions.models import Problem
 from apps.competitions.scoping import competition_scoped_manager, resolve_competition
-from apps.core.points import POINTS_PLACES, SCORE_MAX_DIGITS
+from apps.core.points import POINTS_PLACES, SCORE_MAX_DIGITS, format_points
 from apps.submissions.models import Submission
 from apps.tenancy.managers import CompetitionScopedQuerySet
 
@@ -367,6 +367,13 @@ class RubricCriterion(models.Model):
     ``max_points`` kryterium nie jest wiązane ze skalą zadania w bazie: suma maksimów bywa większa
     od maksymalnej oceny (recenzent dzieli punkty, a nie sumuje wszystko do końca), a dopuszczalność
     samej **sumy** sprawdza ``apps.grading.rubric.validate_rubric`` przy każdym zapisie oceny.
+
+    ``max_points`` jest ``numeric(7, 2)`` (migracja ``0012_rubric_decimal_points``, po wydaniu
+    0.35.0): w etapie z dowolnymi wartościami ocen kryterium bywa warte 2,5 pkt, a recenzent
+    przyznaje za nie np. 1,75. W etapie „tylko ze skali” maksimum dalej jest liczbą całkowitą –
+    pilnuje tego formularz rubryki (``rubric.parse_criteria_lines``), a nie baza, bo tryb jest cechą
+    etapu i więz jednego wiersza nie ma jak go przeczytać. Więz bazy mówi tylko to, co prawdziwe
+    w obu trybach: maksimum jest dodatnie.
     """
 
     problem = models.ForeignKey(Problem, on_delete=models.CASCADE, related_name="rubric_criteria")
@@ -376,7 +383,9 @@ class RubricCriterion(models.Model):
     order = models.PositiveSmallIntegerField("kolejność", default=1)
     title = models.CharField("kryterium", max_length=200)
     description = models.TextField("opis", blank=True)
-    max_points = models.PositiveSmallIntegerField("maksimum punktów")
+    max_points = models.DecimalField(
+        "maksimum punktów", max_digits=SCORE_MAX_DIGITS, decimal_places=POINTS_PLACES
+    )
     created_at = models.DateTimeField("utworzone", default=timezone.now)
 
     #: Przez zadanie, bo rubryka jest opisem **tego** zadania, a zadanie należy do etapu.
@@ -387,13 +396,14 @@ class RubricCriterion(models.Model):
         verbose_name_plural = "kryteria rubryki"
         ordering = ("problem", "order", "id")
         constraints = [
+            # Dodatnie, a nie „co najmniej 1”: w etapie dowolnym kryterium bywa warte 0,5 pkt.
             models.CheckConstraint(
-                condition=Q(max_points__gte=1), name="grading_rubric_criterion_max_points_positive"
+                condition=Q(max_points__gt=0), name="grading_rubric_criterion_max_points_positive"
             )
         ]
 
     def __str__(self) -> str:
-        return f"{self.title} (maks. {self.max_points} pkt)"
+        return f"{self.title} (maks. {format_points(self.max_points)} pkt)"
 
 
 class ReviewNote(models.Model):

@@ -26,7 +26,7 @@
       <span class="{{ submission.status|badge_class }}">{{ submission.get_status_display }}</span>
     </div>
     <p class="hint">{{ submission.entry.stage.display_name }}</p>
-    <div class="scroll">
+    <div class="scroll" role="region" tabindex="0" aria-label="Oceny recenzentów tej pracy">
       <table class="table">
         <thead><tr><th>Recenzent</th><th>Runda</th><th>Punkty</th><th>Komentarz wewnętrzny</th></tr></thead>
         <tbody>

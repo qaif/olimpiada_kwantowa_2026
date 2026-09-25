@@ -4,6 +4,14 @@ DEBUG = False
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
+# Testy bez puli połączeń (``config.dbpool``). Każdy test i tak trzyma jedno połączenie przez cały
+# czas trwania (transakcja wycofywana na końcu), więc pula nie miałaby czego współdzielić, a jej
+# wątki tła przeżywałyby między testami tworzenie i kasowanie testowej bazy. Reguły doboru puli
+# mają własne testy (``apps/core/tests/test_dbpool.py``), a to, że pula naprawdę działa, sprawdza
+# się na stosie compose'a – docs/OPERACJE.md § 11.2.
+DATABASES["default"]["OPTIONS"].pop("pool", None)  # noqa: F405 - z ``base`` przez gwiazdkę
+# Wartość sprzed puli (ta sama, co w procesach Celery), żeby suita nie zmieniła zachowania razem z nią.
+DATABASES["default"]["CONN_MAX_AGE"] = env.int("DB_CONN_MAX_AGE", default=60)  # noqa: F405
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     # Osobny katalog (``MEDIA_ROOT/private``), a nie ten sam co ``default``. Rozdział buckietów

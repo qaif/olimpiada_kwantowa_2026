@@ -35,7 +35,7 @@ from .activation import (
     send_email_change_confirmation,
     send_email_changed_notice,
 )
-from .models import GROUP_COORDINATOR, CommitteeMember, CommitteeStatus, ConsentRecord, Participant, User
+from .models import COORDINATOR_GROUPS, CommitteeMember, CommitteeStatus, ConsentRecord, Participant, User
 from .phones import normalize_phone
 
 #: Pola, których **wartości** nie trafiają do audytu – tylko informacja, że się zmieniły.
@@ -86,7 +86,7 @@ def anonymised_email_domain(competition=None) -> str:
 
 
 def _is_coordinator(user: User) -> bool:
-    return user.is_superuser or user.groups.filter(name=GROUP_COORDINATOR).exists()
+    return user.is_superuser or user.groups.filter(name__in=COORDINATOR_GROUPS).exists()
 
 
 # --- edycja własnych danych ---------------------------------------------------------------------
@@ -538,6 +538,13 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
     from apps.workshop_materials.stats import erase_for_user as erase_workshop_views
 
     erase_workshop_views(user)
+
+    # Stan powiadomień forum (``apps.forum.notifications``, v0.36.0): obserwowane wątki, ustawienia
+    # i decyzje czekające na list. Wpisy zostają bez podpisu (docstring wyżej), ale lista wątków,
+    # którymi ta osoba się interesowała, nie jest częścią rozmowy.
+    from apps.forum.notifications import erase_for_user as erase_forum_notifications
+
+    erase_forum_notifications(user)
 
     _drop_credentials(user)
     audit(actor or user, "account.anonymised", user, {"user_id": user.pk}, request=request)

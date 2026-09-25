@@ -62,8 +62,8 @@
 </form>
 
 <section class="section">
-  <div class="scroll">
-    <table class="table">
+  <div class="scroll" role="region" tabindex="0" aria-label="Zaświadczenia o statusie ucznia">
+    <table class="table table--stack">
       <thead>
         <tr>
           <th scope="col">Uczestnik</th>
@@ -82,8 +82,8 @@
               <code>{{ row.participant.public_code }}</code>
               {% if row.participant.birth_date %}<br><span class="hint">ur. {{ row.participant.birth_date|date:"d.m.Y" }}</span>{% endif %}
             </th>
-            <td>{{ row.participant.school }}</td>
-            <td>
+            <td data-label="Szkoła">{{ row.participant.school }}</td>
+            <td data-label="Stan">
               {% if row.state == accepted_status %}
                 <span class="badge badge--ok">{{ row.state_label }}</span>
               {% elif row.state == pending_status %}
@@ -98,7 +98,7 @@
                 <br><span class="hint">{{ certificate.decided_at|local_datetime }}{% if certificate.decided_by %} · {{ certificate.decided_by|person }}{% elif row.state == rejected_status %} · skaner antywirusowy{% endif %}</span>
               {% endif %}
             </td>
-            <td>
+            <td data-label="Plik">
               {% if not certificate %}
                 <span class="hint">—</span>
               {% elif certificate.is_clean %}
@@ -111,7 +111,7 @@
                 <span class="hint">plik usunięty</span>
               {% endif %}
             </td>
-            <td>
+            <td data-label="Decyzja">
               {% if certificate and certificate.is_clean %}
                 <div class="actions">
                   {% if row.state != accepted_status %}

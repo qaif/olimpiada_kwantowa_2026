@@ -31,12 +31,18 @@ ALERT_ADDRESS = "dyzurny@example.test"
 
 
 @pytest.fixture(autouse=True)
-def _healthy_baseline(settings):
+def _healthy_baseline(settings, monkeypatch):
     """Instalacja „zdrowa”: puls workera świeży, kopia zapasowa zgłoszona przed chwilą.
 
     Bez tego **każdy** test w tym pliku startowałby z trzema alertami w tle (martwa kolejka, brak
     kopii, brak testu odtwarzania) i asercje mówiłyby o czymś innym, niż im się wydaje.
+
+    Zajętość połączeń z Postgresem jest podmieniona na niską: testowy serwer bazy bywa wspólny
+    z innymi przebiegami suity i jego prawdziwa zajętość zapalałaby tu alarm przypadkiem.
     """
+    from apps.core import dbconnections
+
+    monkeypatch.setattr(dbconnections, "_fetch", lambda: [(100, 3, "olimpiada-web", "idle", 5)])
     settings.ALERT_EMAILS = [ALERT_ADDRESS]
     heartbeat()
     backup.record(ok=True)

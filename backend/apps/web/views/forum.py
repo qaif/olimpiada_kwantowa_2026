@@ -20,16 +20,20 @@ from __future__ import annotations
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core import signing
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.http import Http404
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from django.urls import reverse
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 
 from apps.core.api import DomainError
-from apps.forum.forms import PostForm, ReportForm, ThreadForm
+from apps.forum import notifications
+from apps.forum.forms import NotificationSettingsForm, PostForm, ReportForm, ThreadForm
 from apps.forum.models import (
     FORUM_FLAG,
     POSTS_PER_PAGE,
@@ -245,6 +249,9 @@ class ForumThreadView(ForumAccessMixin, ThrottledFormMixin, View):
             "paginator": paginator,
             "entries": render_posts(page.object_list, request.user, self.competition),
             "form": form,
+            # Przycisk „Obserwuj wątek” / „Przestań obserwować” – tylko pod wątkiem opublikowanym:
+            # o wątku czekającym na moderację i tak nie wyjdzie żaden list (nikt w nim nie pisze).
+            "is_following": thread.is_published and notifications.is_following(request.user, thread),
             # Trzy warunki, a nie dwa: „tylko do odczytu” jest tą samą odmową, co zamknięty wątek,
             # i musi stać **tutaj**, a nie w szablonie. Inaczej każdy kolejny szablon forum
             # wyprowadzałby tę regułę od nowa, a pierwszy, który o niej zapomni, pokaże formularz
@@ -404,9 +411,10 @@ class ForumPostReportView(ForumAccessMixin, ThrottledFormMixin, View):
 class ForumMyPostsView(ForumAccessMixin, View):
     """``/forum/mine/`` – „Twoje wpisy” razem ze stanem i notatką moderatora.
 
-    To jest **jedyne** miejsce, w którym autor dowiaduje się, że jego wpis został odrzucony i
-    dlaczego. Listu o tym nie wysyłamy (uzasadnienie w docstringu ``apps.forum.services``), więc
-    ten ekran musi być kompletny: są tu wpisy czekające, odrzucone, ukryte i opublikowane.
+    To jest **jedyne pewne** miejsce, w którym autor dowiaduje się, że jego wpis został odrzucony
+    i dlaczego. List o decyzji (``apps.forum.notifications``) przychodzi tylko temu, kto listów nie
+    wyłączył, i nie mówi o ukryciu – więc ten ekran musi być kompletny: są tu wpisy czekające,
+    odrzucone, ukryte i opublikowane.
 
     **Dwie listy, nie jedna**, bo odrzucenie wątku i odrzucenie wpisu są dwiema różnymi decyzjami
     i niosą dwa różne uzasadnienia. Wątek odrzucony **po** zatwierdzeniu swojego pierwszego wpisu
@@ -435,3 +443,136 @@ class ForumMyPostsView(ForumAccessMixin, View):
             ],
         }
         return TemplateResponse(request, MINE_TEMPLATE, context)
+
+
+# --- powiadomienia e-mail ------------------------------------------------------------------------------
+
+UNSUBSCRIBE_TEMPLATE = "web/forum/unsubscribe.html"
+
+
+class ForumThreadFollowView(ForumAccessMixin, View):
+    """``/forum/t/<id>/follow/`` – „Obserwuj wątek” / „Przestań obserwować”.
+
+    Wątek bierzemy z ``visible_threads`` – tej samej bramki, co strona wątku – więc obserwować
+    można wyłącznie to, co da się przeczytać. Cudzy albo niewidoczny wątek to 404, z tego samego
+    powodu, co na stronie wątku (identyfikatory są kolejne). Wątek czekający na moderację też:
+    o nim żaden list i tak nie wyjdzie, więc przycisk byłby obietnicą bez pokrycia.
+    """
+
+    def post(self, request, pk: int):
+        thread = (
+            visible_threads(self.competition, request.user)
+            .filter(pk=pk, status=ModerationStatus.PUBLISHED)
+            .first()
+        )
+        if thread is None:
+            raise Http404("Nie ma takiego wątku.")
+        follow = request.POST.get("follow") == "1"
+        notifications.set_following(request.user, thread, follow)
+        if follow:
+            messages.success(request, "Obserwujesz ten wątek – o nowych odpowiedziach napiszemy e-mailem.")
+        else:
+            messages.success(request, "Nie obserwujesz już tego wątku.")
+        return redirect(reverse("web:forum-thread", args=[thread.pk]))
+
+
+def notification_settings_context(request) -> dict:
+    """Blok „Powiadomienia z forum” na ekranie „Edycja danych” – albo pusty słownik.
+
+    Blok jest tylko tam, gdzie forum **jest**: konkurs z włączonym forum i osoba, która może je
+    czytać. Ustawienie listów z forum, którego w tym konkursie nie ma, byłoby pytaniem o coś, czego
+    ta osoba nigdy nie widziała. Pole listów o kolejce moderacji dostaje wyłącznie koordynator.
+
+    Funkcja, a nie procesor kontekstu: pyta o role i o wiersz ustawień, a potrzebne jest wyłącznie
+    na dwóch ekranach profilu (``apps.web.views.account``).
+    """
+    from apps.accounts.models import CompetitionRole
+    from apps.accounts.services import has_role
+
+    competition = getattr(request, "competition", None)
+    user = request.user
+    if competition is None or not competition.has_feature(FORUM_FLAG) or not can_read(user, competition):
+        return {}
+    moderator = has_role(user, competition, CompetitionRole.COORDINATOR)
+    current = notifications.preferences_for(user)
+    form = NotificationSettingsForm(
+        initial={"frequency": current.frequency, "moderation_digest": current.moderation_digest},
+        moderator=moderator,
+    )
+    return {"forum_notifications_form": form}
+
+
+class ForumNotificationSettingsView(LoginRequiredMixin, View):
+    """``/account/forum-notifications/`` – zapis ustawień powiadomień z forum.
+
+    Tylko ``POST``: formularz stoi na ekranie „Edycja danych”, a ten adres jest wyłącznie jego
+    celem. Po zapisie wracamy tam, skąd formularz przyszedł – na profil uczestnika albo konta.
+    Ustawienie należy do konta, a nie do konkursu (``ForumNotificationSettings``), więc zapis nie
+    stoi za flagą forum: osoba, której konkurs forum wyłączył, ma prawo wyłączyć listy i tak.
+    """
+
+    def post(self, request):
+        from apps.accounts.models import CompetitionRole
+        from apps.accounts.services import has_role
+        from apps.web.views.account import profile_url
+
+        competition = getattr(request, "competition", None)
+        moderator = has_role(request.user, competition, CompetitionRole.COORDINATOR)
+        form = NotificationSettingsForm(request.POST, moderator=moderator)
+        target = f"{profile_url(request)}#powiadomienia-forum"
+        if not form.is_valid():
+            messages.error(request, "Nie udało się zapisać ustawień powiadomień – wybierz jedną z opcji.")
+            return redirect(target)
+        current = notifications.preferences_for(request.user)
+        notifications.save_preferences(
+            request.user,
+            frequency=form.cleaned_data["frequency"],
+            # Pole jest tylko w formularzu koordynatora; pozostali zachowują to, co mieli.
+            moderation_digest=form.cleaned_data.get("moderation_digest", current.moderation_digest),
+        )
+        messages.success(request, "Ustawienia powiadomień z forum zostały zapisane.")
+        return redirect(target)
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class ForumUnsubscribeView(View):
+    """``/forum/unsubscribe/<token>/`` – wypis z listów forum **bez logowania**.
+
+    ``GET`` pokazuje stronę z jednym przyciskiem i niczego nie zmienia: skanery odnośników
+    w skrzynkach firmowych i szkolnych otwierają każdy link w liście, a wypis wykonany przez
+    skaner byłby wypisem, o który nikt nie prosił. ``POST`` wypisuje – i to jest ta sama droga,
+    którą idzie klient poczty z nagłówka ``List-Unsubscribe-Post`` (RFC 8058).
+
+    Bez CSRF, i to jest świadome: klient poczty wysyłający ``POST`` z nagłówka nie ma skąd wziąć
+    tokenu formularza. Uprawnieniem jest tu **podpis** w adresie, a jedyne, co da się nim zrobić,
+    to wyłączyć listy jednej osobie – czyli to, o co ta osoba (albo ktoś, komu przekazała list)
+    właśnie prosi. Nieprawidłowy podpis to 404: strona nie mówi, czy konto istnieje.
+
+    Bez flagi forum i bez logowania: link z listu wysłanego wczoraj ma działać także wtedy, gdy
+    organizator dziś forum wyłączył, i na telefonie, na którym nikt nie jest zalogowany.
+    """
+
+    def get(self, request, token: str):
+        _user_id, scope = self._read(token)
+        return self._render(request, token, scope, done=False)
+
+    def post(self, request, token: str):
+        user_id, scope = self._read(token)
+        notifications.apply_unsubscribe(user_id, scope)
+        return self._render(request, token, scope, done=True)
+
+    def _read(self, token: str) -> tuple[int, str]:
+        try:
+            return notifications.read_unsubscribe_token(token)
+        except signing.BadSignature as exc:
+            raise Http404("Nieprawidłowy link wypisu.") from exc
+
+    def _render(self, request, token: str, scope: str, *, done: bool):
+        context = {
+            "token": token,
+            "done": done,
+            "scope_all": scope == notifications.SCOPE_ALL,
+            "scope_moderation": scope == notifications.SCOPE_MODERATION,
+            "scope_thread": scope.startswith(notifications.SCOPE_THREAD_PREFIX),
+        }
+        return TemplateResponse(request, UNSUBSCRIBE_TEMPLATE, context)

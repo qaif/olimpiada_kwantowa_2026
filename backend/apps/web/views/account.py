@@ -118,6 +118,16 @@ def two_factor_section_visible() -> bool:
     return is_enabled()
 
 
+def forum_notification_context(request) -> dict:
+    """Blok ustawień powiadomień z forum – ten sam na obu ekranach profilu (``web/account/profile.html``).
+
+    Import lokalny: moduł widoków forum importuje ten moduł (``profile_url``) przy zapisie ustawień.
+    """
+    from apps.web.views.forum import notification_settings_context
+
+    return notification_settings_context(request)
+
+
 class ParticipantProfileView(ParticipantRequiredMixin, ServiceFormMixin, FormView):
     """``/me/profile/`` – edycja własnych danych uczestnika."""
 
@@ -136,6 +146,7 @@ class ParticipantProfileView(ParticipantRequiredMixin, ServiceFormMixin, FormVie
         # to osobna operacja z osobnym potwierdzeniem, a nie kolejne pole tych danych.
         context.setdefault("email_form", EmailChangeForm())
         context["two_factor_enabled"] = two_factor_section_visible()
+        context.update(forum_notification_context(self.request))
         return context
 
     def call_service(self, form):
@@ -169,6 +180,7 @@ class AccountProfileView(LoginRequiredMixin, ServiceFormMixin, FormView):
         context["committee"] = getattr(self.request.user, "committee_member", None)
         context.setdefault("email_form", EmailChangeForm())
         context["two_factor_enabled"] = two_factor_section_visible()
+        context.update(forum_notification_context(self.request))
         return context
 
     def call_service(self, form):

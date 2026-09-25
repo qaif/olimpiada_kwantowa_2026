@@ -122,6 +122,87 @@ def test_draft_saves_an_unfinished_rubric(web_client, review, criteria):
     assert review.rubric[0]["comment"] == "pomysł jest"
 
 
+# --- ułamki w rubryce (po wydaniu 0.35.0) -----------------------------------------------------------
+
+
+def _free(stage):
+    from apps.accounts.tests.factories import CoordinatorFactory
+    from apps.competitions.services import set_scoring_scale
+
+    set_scoring_scale(
+        stage,
+        [
+            {"value": 0, "label": "a"},
+            {"value": 2, "label": "b"},
+            {"value": 5, "label": "c"},
+            {"value": 6, "label": "d"},
+        ],
+        6,
+        actor=CoordinatorFactory(),
+        free_values=True,
+    )
+
+
+def test_rubric_in_a_scale_stage_keeps_whole_number_fields(web_client, review, criteria):
+    """Etap „tylko ze skali”: pole liczbowe z krokiem 1 i maksimum „4”, a nie „4.00” z kolumny."""
+    web_client.force_login(review.reviewer.user)
+
+    content = web_client.get(f"/review/{review.pk}/").content.decode()
+
+    assert 'max="4"' in content and 'step="1"' in content
+    assert "(0–4 pkt)" in content
+    assert "4.00" not in content and "4,00" not in content
+
+
+def test_rubric_in_a_free_stage_takes_decimal_text_fields(web_client, review, problems):
+    _free(problems[0].stage)
+    criteria = [
+        RubricCriterion.objects.create(problem=problems[0], order=1, title="Pomysł", max_points="2.5"),
+        RubricCriterion.objects.create(problem=problems[0], order=2, title="Wykonanie", max_points="3.5"),
+    ]
+    web_client.force_login(review.reviewer.user)
+    web_client.post(f"/review/{review.pk}/draft/", rubric_post(criteria, "1,5", ""))
+
+    content = web_client.get(f"/review/{review.pk}/").content.decode()
+
+    assert 'inputmode="decimal"' in content
+    assert f'name="rubric-{criteria[0].pk}-points"' in content
+    assert 'value="1,5"' in content
+    assert "(0–2,5 pkt)" in content
+    assert 'data-rubric-min="0" data-rubric-max="6"' in content
+
+
+def test_submitting_a_decimal_rubric_computes_a_decimal_score(web_client, review, problems):
+    from decimal import Decimal
+
+    _free(problems[0].stage)
+    criteria = [
+        RubricCriterion.objects.create(problem=problems[0], order=1, title="Pomysł", max_points="2.5"),
+        RubricCriterion.objects.create(problem=problems[0], order=2, title="Wykonanie", max_points="3.5"),
+    ]
+    web_client.force_login(review.reviewer.user)
+
+    response = web_client.post(f"/review/{review.pk}/submit/", rubric_post(criteria, "1,5", "2.75"))
+
+    review.refresh_from_db()
+    assert response.status_code == 302
+    assert review.status == ReviewStatus.SUBMITTED
+    assert review.score == Decimal("4.25")
+    assert [item["points"] for item in review.rubric] == [1.5, 2.75]
+
+
+def test_coordinator_problem_card_shows_criterion_maximum_as_points(web_client, coordinator, problems):
+    _free(problems[0].stage)
+    RubricCriterion.objects.create(problem=problems[0], order=1, title="Zapis", max_points="2.5")
+    RubricCriterion.objects.create(problem=problems[0], order=2, title="Całość", max_points=4)
+    web_client.force_login(coordinator)
+
+    content = web_client.get(f"/coordinator/problems/{problems[0].pk}/").content.decode()
+
+    assert '<td class="num workload-num">2,5</td>' in content
+    assert '<td class="num workload-num">4</td>' in content
+
+
 # --- wzorcówka i uwagi dla recenzentów ----------------------------------------------------------
 
 
@@ -316,6 +397,50 @@ def test_coordinator_form_reports_a_malformed_rubric_line(web_client, coordinato
 
     assert response.status_code == 400
     assert "brakuje średnika" in response.content.decode()
+    assert criteria_for(problem) == []
+
+
+def _problem_post(problem, rubric):
+    return {
+        "number": problem.number,
+        "title": problem.title,
+        "allowed_formats": ["pdf"],
+        "max_file_mb": 20,
+        "scoring_values": "",
+        "max_points": "",
+        "reviewer_notes": "",
+        "rubric": rubric,
+    }
+
+
+def test_coordinator_form_takes_a_fractional_criterion_in_a_free_stage(web_client, coordinator, problems):
+    from decimal import Decimal
+
+    problem = problems[0]
+    _free(problem.stage)
+    web_client.force_login(coordinator)
+
+    response = web_client.post(
+        f"/coordinator/problems/{problem.pk}/edit/", _problem_post(problem, "2,5;Pomysł\n3.5;Wykonanie")
+    )
+
+    assert response.status_code == 302
+    assert [item.max_points for item in criteria_for(problem)] == [Decimal("2.5"), Decimal("3.5")]
+    # Formularz wraca z rubryką bez zbędnych zer i z przecinkiem – do ponownego zapisania bez zmian.
+    form_html = web_client.get(f"/coordinator/problems/{problem.pk}/edit/").content.decode()
+    assert "2,5;Pomysł\n3,5;Wykonanie" in form_html
+
+
+def test_coordinator_form_refuses_a_fractional_criterion_in_a_scale_stage(web_client, coordinator, problems):
+    problem = problems[0]
+    web_client.force_login(coordinator)
+
+    response = web_client.post(
+        f"/coordinator/problems/{problem.pk}/edit/", _problem_post(problem, "2,5;Pomysł")
+    )
+
+    assert response.status_code == 400
+    assert "etapie z dowolnymi wartościami" in response.content.decode()
     assert criteria_for(problem) == []
 
 

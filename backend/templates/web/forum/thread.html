@@ -49,6 +49,27 @@
   <p class="notice">{% translate "Ten wątek czeka na zatwierdzenie przez organizatora. Widzisz go tylko Ty – do czasu decyzji nikt inny nie może go przeczytać ani nic w nim dopisać." %}</p>
 {% endif %}
 
+{% comment %}
+  „Obserwuj wątek” / „Przestań obserwować” – formularz, a nie odnośnik, bo zmienia stan
+  (``apps.web.views.forum.ForumThreadFollowView``). Tylko pod wątkiem opublikowanym: o wątku
+  czekającym na moderację żaden list i tak nie wyjdzie. Częstotliwość listów ustawia się na
+  ekranie „Edycja danych”, więc obok stoi odnośnik tam, a nie drugi formularz tych samych ustawień.
+{% endcomment %}
+{% if thread.is_published %}
+  <form method="post" action="{% url 'web:forum-thread-follow' thread.pk %}" class="row">
+    {% csrf_token %}
+    {% if is_following %}
+      <input type="hidden" name="follow" value="0">
+      <button type="submit" class="btn btn--small btn--ghost">{% translate "Przestań obserwować" %}</button>
+      <span class="hint">{% translate "Obserwujesz ten wątek – o nowych odpowiedziach napiszemy e-mailem." %}</span>
+    {% else %}
+      <input type="hidden" name="follow" value="1">
+      <button type="submit" class="btn btn--small btn--secondary">{% translate "Obserwuj wątek" %}</button>
+    {% endif %}
+    <a class="hint" href="{% url 'web:account-profile' %}#powiadomienia-forum">{% translate "Ustawienia powiadomień" %}</a>
+  </form>
+{% endif %}
+
 <section class="section">
   <div class="section__head"><h2>{% translate "Wypowiedzi" %}</h2></div>
 

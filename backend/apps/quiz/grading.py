@@ -40,6 +40,7 @@ import unicodedata
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 
+from apps.core.points import round_points
 from apps.core.text import fold
 
 #: Wartości ``settings["partial_credit"]``. Powtórzone tu jako napisy, a nie wzięte z ``models``:
@@ -321,7 +322,14 @@ def award_points(
     - brak odpowiedzi → zero. Nigdy kara: patrz nagłówek modułu,
     - odpowiedź poprawna (także częściowo) → ``ratio × points``. Kwota jest zaokrąglana do dwóch
       miejsc, bo tyle mieści kolumna w bazie, a ``1/3`` maksimum musi dać tę samą liczbę przy
-      każdym przeliczeniu – inaczej „Przelicz punkty” zmieniałoby wyniki bez zmiany klucza,
+      każdym przeliczeniu – inaczej „Przelicz punkty” zmieniałoby wyniki bez zmiany klucza.
+      Metoda: **połówka w górę** (``ROUND_HALF_UP``, ``apps.core.points.round_points``) – ta sama,
+      którą liczy się suma etapu i każde inne zaokrąglenie punktów w systemie. Do wydania 0.35.0
+      stało tu domyślne ``quantize`` (bankierskie ``ROUND_HALF_EVEN``): pytanie za 0,5 pkt
+      z jednym z czterech poprawnych wariantów trafionym dawało 0,12, a nie 0,13, choć regulamin
+      liczy „od połowy w górę”. Różnica dotyczy wyłącznie kwot kończących się dokładnie na pół
+      setnej i podejść ocenionych od nowa (``grade_attempt``/``regrade_quiz``) – punkty już
+      zapisane w bazie nie zmieniają się same,
     - odpowiedź błędna → ``−negative_points``, a przy podłodze ``QUESTION`` przycięte do zera.
       Przy podłodze ``QUIZ`` wartość zostaje ujemna i przycięcie robi dopiero ``total_score``.
 
@@ -332,12 +340,12 @@ def award_points(
     if not score.answered:
         return QuestionScore(ZERO, None)
     if score.ratio > ZERO:
-        awarded = (points * score.ratio).quantize(Decimal("0.01"))
+        awarded = round_points(points * score.ratio)
         return QuestionScore(awarded, score.is_correct, score.ratio)
     penalty = -abs(negative_points)
     if floor == FLOOR_QUESTION:
         penalty = max(penalty, ZERO)
-    return QuestionScore(penalty.quantize(Decimal("0.01")), False, ZERO)
+    return QuestionScore(round_points(penalty), False, ZERO)
 
 
 def total_score(points: list[Decimal], *, floor: str) -> Decimal:
@@ -347,11 +355,14 @@ def total_score(points: list[Decimal], *, floor: str) -> Decimal:
     i musi stać obok pierwszej (``award_points``). Rozdzielone między dwa moduły dałyby się
     rozjechać: ktoś dołożyłby trzeci tryb podłogi w jednym z nich i test przestałby ją stosować
     dokładnie w połowie przypadków.
+
+    Składniki mają już po dwa miejsca po przecinku (``award_points``), więc ``round_points`` na
+    końcu niczego nie zaokrągla – sprowadza tylko postać do ``0.01`` (``ROUND_HALF_UP``, jak wyżej).
     """
     total = sum(points, ZERO)
     if floor == FLOOR_QUIZ:
         total = max(total, ZERO)
-    return Decimal(total).quantize(Decimal("0.01"))
+    return round_points(Decimal(total))
 
 
 def validate_question_settings(kind: str, settings: dict) -> dict:

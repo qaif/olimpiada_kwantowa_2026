@@ -375,6 +375,7 @@ def export_payload(user: User) -> dict:
         "zgloszenia_do_etapow": _entries_section(participant),
         "wyniki_ogloszone": _results_section(participant),
         "wpisy_na_forum": _forum_section(user),
+        "powiadomienia_z_forum": _forum_notifications_section(user),
         "zaswiadczenia_statusu_ucznia": _student_status_section(participant),
         "oceny_ai": _ai_section(participant),
         "ustawienia_interfejsu": _preferences_section(user),
@@ -474,6 +475,68 @@ def _forum_section(user: User) -> list[dict]:
         }
         for post in posts
     ]
+
+
+def _forum_notifications_section(user: User) -> dict:
+    """Powiadomienia e-mail z forum: ustawienia konta, obserwowane wątki i decyzje czekające na list.
+
+    To są kategorie danych, które rejestr czynności (wersja 1.9, wiersz forum) dopisał razem
+    z powiadomieniami – ``apps.forum.notifications``. Tak jak przy wpisach: **wszystkie konkursy**
+    i wyłącznie dane tej osoby. Temat wątku stoi przy obserwacji tylko wtedy, gdy ta osoba może go
+    przeczytać (wątek opublikowany albo jej własny) – obserwacja wątku, który moderator potem
+    odrzucił albo ukrył, nie może wynieść w paczce tematu cudzej, niepublikowanej wypowiedzi.
+
+    Brak wiersza ustawień znaczy „ustawienia domyślne” (``preferences_for``) – paczka mówi wtedy,
+    jakie to są wartości, i zaznacza, że konto ich nie zmieniało (``zmienione: null``).
+    """
+    from apps.forum.models import ForumDecisionNotice, ForumSubscription, ModerationStatus
+    from apps.forum.notifications import preferences_for
+
+    preferences = preferences_for(user)
+    subscriptions = (
+        ForumSubscription.objects.filter(user=user)
+        .select_related("thread", "thread__category", "competition")
+        .order_by("created_at", "id")
+    )
+    notices = (
+        ForumDecisionNotice.objects.filter(user=user)
+        .select_related("competition")
+        .order_by("created_at", "id")
+    )
+
+    def readable_title(thread) -> str | None:
+        if thread.status == ModerationStatus.PUBLISHED or thread.author_id == user.pk:
+            return thread.title
+        return None
+
+    return {
+        "ustawienia": {
+            "listy_o_obserwowanych_watkach": preferences.get_frequency_display(),
+            "listy_o_kolejce_moderacji": preferences.moderation_digest,
+            "zmienione": _moment(preferences.updated_at) if preferences.pk else None,
+        },
+        "obserwowane_watki": [
+            {
+                "konkurs": subscription.competition.name,
+                "dzial": subscription.thread.category.name,
+                "watek": readable_title(subscription.thread),
+                "obserwuje": subscription.is_active,
+                "od": _moment(subscription.created_at),
+                "nowosci_od": _moment(subscription.pending_since),
+                "ostatni_list": _moment(subscription.last_notified_at),
+            }
+            for subscription in subscriptions
+        ],
+        "decyzje_moderatora_do_powiadomienia": [
+            {
+                "konkurs": notice.competition.name,
+                "decyzja": notice.get_kind_display(),
+                "zapisana": _moment(notice.created_at),
+                "obsluzona": _moment(notice.handled_at),
+            }
+            for notice in notices
+        ],
+    }
 
 
 @dataclass(frozen=True)

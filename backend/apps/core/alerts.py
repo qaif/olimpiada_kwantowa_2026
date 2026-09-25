@@ -7,7 +7,7 @@ sto żądań skończyło się błędem 500 ani że worker przyjmuje zadania i wy
 To są awarie, które dojrzewają godzinami i wybuchają w noc przed deadline'em. Tę połowę widać
 wyłącznie od środka i dlatego stoi tu, a nie tam.
 
-Zakres jest domknięty świadomie – pięć rzeczy, z których każda ma jedną, konkretną reakcję
+Zakres jest domknięty świadomie – sześć rzeczy, z których każda ma jedną, konkretną reakcję
 opisaną w ``docs/OPERACJE.md``:
 
 1. **podsystemy** – dokładnie te same sprawdzenia, co ``/status/`` (``apps.core.status.services``).
@@ -19,7 +19,10 @@ opisaną w ``docs/OPERACJE.md``:
    przyjmuje i gubi, wygląda z zewnątrz identycznie jak kolejka zdrowa,
 4. **odsetek odpowiedzi 5xx** – licznik z ``apps.core.middleware``. Awaria jednego widoku nie
    ruszy ani ``/healthz/``, ani ``/status/``,
-5. **kopie zapasowe** – ``apps.core.backup``: brak kopii i brak testu odtwarzania.
+5. **kopie zapasowe** – ``apps.core.backup``: brak kopii i brak testu odtwarzania,
+6. **połączenia z Postgresem** – ``apps.core.dbconnections``: zajętość ``max_connections``
+   powyżej progu. Incydent z 09.09.2026 („too many clients already”) dojrzewał dobę, a każde
+   ze sprawdzeń wyżej mówiło przez ten czas „baza odpowiada”.
 
 **Wyciszenie (cooldown) jest per klucz alertu i wynosi godzinę.** Bez niego pierwsza awaria
 zamieniłaby skrzynkę organizatora w strumień dwustu ośmiu identycznych listów dziennie, a skutek
@@ -180,6 +183,8 @@ def evaluate() -> list[Alert]:
             )
         )
 
+    alerts.extend(_db_connection_alerts())
+
     backup = backup_state()
     if not backup.backup_fresh:
         when = timezone.localtime(backup.last_ok).strftime("%Y-%m-%d %H:%M") if backup.last_ok else "nigdy"
@@ -200,6 +205,40 @@ def evaluate() -> list[Alert]:
         )
 
     return alerts
+
+
+def _db_connection_alerts() -> list[Alert]:
+    """Zajętość połączeń z Postgresem ponad próg (``apps.core.dbconnections``) – odczyt świeży.
+
+    Osobne klucze dla ostrzeżenia i stanu krytycznego, a nie jeden: przejście z 80 % na 95 %
+    w ciągu godziny to eskalacja, o której dyżurny ma się dowiedzieć od razu, a wspólny klucz
+    wyciszyłby ją na resztę godziny po pierwszym liście. Treść niesie liczby i podział na usługi
+    (``application_name``), bo pierwsze pytanie przy tym alarmie brzmi „kto je trzyma” – a od
+    odpowiedzi zależy, który kontener zrestartować (docs/OPERACJE.md § 3.2).
+
+    Brak odczytu (``None``) nie jest tu alarmem: niedziałającą bazę zgłasza już
+    ``service:database`` wyżej, a drugi list o tym samym byłby szumem.
+    """
+    from apps.core import dbconnections
+
+    current = dbconnections.usage(fresh=True)
+    if current is None or current.level == dbconnections.LEVEL_OK:
+        return []
+    if current.level == dbconnections.LEVEL_CRITICAL:
+        return [
+            Alert(
+                key="db-connections:critical",
+                title="kończą się połączenia z bazą danych",
+                detail=current.summary(),
+            )
+        ]
+    return [
+        Alert(
+            key="db-connections:warn",
+            title="wysoka liczba połączeń z bazą danych",
+            detail=current.summary(),
+        )
+    ]
 
 
 def recipients() -> list[str]:

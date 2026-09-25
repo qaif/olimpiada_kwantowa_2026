@@ -167,11 +167,23 @@ def _base_url_without_request(competition) -> str:
     witryny jeszcze nie ma, i jest **zdefiniowane** (``https://{SITE_DOMAIN}``), więc instalacja
     naprawia się sama, bez nowej zmiennej środowiskowej.
     """
+    from apps.tenancy.models import RoutingMode
+
     if competition is not None:
+        if competition.routing_mode == RoutingMode.PATH and competition.path_prefix:
+            # Konkurs pod prefiksem ścieżki odpowiada pod adresem **platformy** (§ 2.3, uwaga T43),
+            # a ``primary_domain`` jest domeną, na którą dopiero czeka – link pod nią prowadziłby
+            # donikąd. Ścieżka z ``reverse()`` poza żądaniem prefiksu nie ma, więc niesie go podstawa.
+            return f"{_platform_base_url()}/{competition.path_prefix}"
         if competition.primary_domain:
             return f"https://{competition.primary_domain}"
         if competition.site_id:
             return _site_base_url(competition.site)
+    return _platform_base_url()
+
+
+def _platform_base_url() -> str:
+    """Adres platformy: witryna domyślna, a bez niej ``WAGTAILADMIN_BASE_URL``."""
     try:
         from wagtail.models import Site
 
@@ -199,8 +211,20 @@ def absolute_url(path: str, request=None, competition=None) -> str:
     if request is not None:
         return request.build_absolute_uri(path)
     from apps.tenancy.context import current_competition
+    from apps.tenancy.models import RoutingMode
 
-    base = _base_url_without_request(competition or current_competition()).rstrip("/")
+    competition = competition or current_competition()
+    base = _base_url_without_request(competition).rstrip("/")
+    if (
+        competition is not None
+        and competition.routing_mode == RoutingMode.PATH
+        and competition.path_prefix
+        and path.startswith(f"/{competition.path_prefix}/")
+    ):
+        # Podstawa konkursu pod prefiksem niesie już ``/<prefiks>`` – a ``reverse()`` wołane
+        # **w żądaniu** pod tym prefiksem (decyzja koordynatora, list bez ``request``) też go
+        # dokłada przez prefiks skryptu. Bez tego link wychodziłby z prefiksem podwójnym.
+        path = path[len(competition.path_prefix) + 1 :]
     return f"{base}{path}" if base else path
 
 
@@ -305,7 +329,9 @@ def email_changed_notice(new_email: str, competition=None) -> str:
     )
 
 
-def queue_mail(subject: str, message: str, recipient: str, *, competition=None) -> None:
+def queue_mail(
+    subject: str, message: str, recipient: str, *, competition=None, headers: dict[str, str] | None = None
+) -> None:
     """Kolejkuje list **po commicie** – wzorzec z ``apps.competitions.interviews._send_confirmation``.
 
     Wysyłka jest skutkiem ubocznym rejestracji, a nie jej warunkiem: niedostępny MTA nie może
@@ -318,6 +344,10 @@ def queue_mail(subject: str, message: str, recipient: str, *, competition=None) 
     z kontekstu (:func:`mail_competition`), więc wołający sprzed etapu 2 – np.
     ``apps.accounts.bulk_registration`` – dostaje nadawcę swojego konkursu bez żadnej zmiany
     w swoim kodzie.
+
+    ``headers`` – dodatkowe nagłówki listu (``List-Unsubscribe`` powiadomień forum). Brak znaczy
+    „jak dotąd”: zadanie dostaje wtedy dokładnie te same argumenty, co przed tą zmianą, więc testy
+    i listy, które nagłówków nie potrzebują, nie widzą różnicy.
     """
     if not recipient:
         return
@@ -339,7 +369,12 @@ def queue_mail(subject: str, message: str, recipient: str, *, competition=None) 
     def _enqueue() -> None:
         from apps.core.tasks import send_mail_task
 
-        send_mail_task.delay(subject_text, message_text, [recipient], from_email)
+        if headers:
+            # Słowem kluczowym, nie pozycyjnie: piąty argument pozycyjny zadania to ``html_message``
+            # (list resetu hasła, wydanie 0.36.0) – nagłówki podane pozycyjnie trafiłyby w treść HTML.
+            send_mail_task.delay(subject_text, message_text, [recipient], from_email, headers=dict(headers))
+        else:
+            send_mail_task.delay(subject_text, message_text, [recipient], from_email)
 
     transaction.on_commit(_enqueue)
 

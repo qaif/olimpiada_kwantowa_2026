@@ -175,8 +175,9 @@ EXPECTED_SERVICE_SUBJECTS = {
     "interview_reminder": f"Jutro rozmowa kwalifikacyjna: {STAGE_MARK}",
     "reviews_overdue": f"Olimpiada Kwantowa: {COUNT_MARK} recenzji po terminie",
     "reviews_due_soon": "Olimpiada Kwantowa: zbliża się termin recenzji",
-    # Przekazanie przyjętego rozwiązania na skrzynkę organizatora (prośba z 20.09.2026). Jedyny
-    # temat w całym serwisie z **prefiksem** konkursu (``[Olimpiada Kwantowa] ``): odbiorcą jest
+    # Przekazanie przyjętego rozwiązania na skrzynkę organizatora (prośba z 20.09.2026). Pierwszy
+    # temat w serwisie z **prefiksem** konkursu (``[Olimpiada Kwantowa] ``; od 25.09.2026 niosą go
+    # też listy z forum – ``EXPECTED_FORUM_SUBJECTS`` niżej): odbiorcą jest
     # komitet, który tych listów dostaje setki i filtruje je po nawiasie kwadratowym. Uzasadnienie
     # stoi przy ``apps.submissions.forwarding.subject_for``; treść sprawdza
     # ``apps/submissions/tests/test_forwarding.py``.
@@ -185,10 +186,30 @@ EXPECTED_SERVICE_SUBJECTS = {
     ),
 }
 
-#: Komplet tematów wychodzących z instalacji – siedemnaście rodzajów listu, z których jeden
+#: Znacznik tematu wątku w tematach listów z forum – dana uczestnika, nie brzmienie zdania.
+TITLE_MARK = "<temat>"
+
+#: Siedem tematów listów z forum (prośba organizatora z 25.09.2026, ``apps.forum.notifications``).
+#: Niosą **prefiks** konkursu z tego samego powodu, co przekazanie rozwiązania: to są listy nowe,
+#: więc prefiks nie zmienia nikomu istniejącej reguły w skrzynce, a „[Olimpiada Kwantowa] Forum:”
+#: jest dokładnie tym, po czym odbiorca odfiltruje całą rodzinę naraz. Brzmienia sprawdza
+#: ``test_forum_subjects_unchanged`` niżej; wysyłkę – ``apps/forum/tests/test_notifications.py``.
+EXPECTED_FORUM_SUBJECTS = {
+    "forum_moderation": f"{EXPECTED_SUBJECT_PREFIX}Forum: wpisy czekają na moderację ({COUNT_MARK})",
+    "forum_reply": f"{EXPECTED_SUBJECT_PREFIX}Forum: nowe odpowiedzi w wątku „{TITLE_MARK}”",
+    "forum_reply_coordinator": (
+        f"{EXPECTED_SUBJECT_PREFIX}Forum: organizator odpowiedział w wątku „{TITLE_MARK}”"
+    ),
+    "forum_reply_committee": f"{EXPECTED_SUBJECT_PREFIX}Forum: komitet odpowiedział w wątku „{TITLE_MARK}”",
+    "forum_decisions": f"{EXPECTED_SUBJECT_PREFIX}Forum: decyzja organizatora w sprawie Twojego wpisu",
+    "forum_news": f"{EXPECTED_SUBJECT_PREFIX}Forum: nowości w obserwowanych wątkach",
+    "forum_daily": f"{EXPECTED_SUBJECT_PREFIX}Forum: podsumowanie dnia",
+}
+
+#: Komplet tematów wychodzących z instalacji – dwadzieścia cztery rodzaje listu, z których jeden
 #: (przypomnienie o recenzjach) niesie dwa brzmienia. Stała jest jedna, żeby dopisanie
-#: dziewiętnastego listu bez wiersza w teście było widoczne w jednym miejscu.
-ALL_EXPECTED_SUBJECTS = {**EXPECTED_SUBJECTS, **EXPECTED_SERVICE_SUBJECTS}
+#: kolejnego listu bez wiersza w teście było widoczne w jednym miejscu.
+ALL_EXPECTED_SUBJECTS = {**EXPECTED_SUBJECTS, **EXPECTED_SERVICE_SUBJECTS, **EXPECTED_FORUM_SUBJECTS}
 
 
 def test_email_subjects_unchanged(settings):
@@ -221,8 +242,28 @@ def test_competition_one_keeps_the_installation_mail_settings(competition, setti
     assert competition.email_subject_prefix == EXPECTED_SUBJECT_PREFIX
 
 
+def test_forum_subjects_unchanged(competition):
+    """Tematy listów z forum – z prefiksem Konkursu #1, tak, jak dochodzą do skrzynki."""
+    from apps.forum import notifications as forum_mail
+
+    def subject(template, **values):
+        return forum_mail._subject(template, competition, **values)
+
+    actual = {
+        "forum_moderation": subject(forum_mail.SUBJECT_MODERATION, count=COUNT_MARK),
+        "forum_reply": subject(forum_mail.SUBJECT_REPLY, title=TITLE_MARK),
+        "forum_reply_coordinator": subject(forum_mail.SUBJECT_REPLY_COORDINATOR, title=TITLE_MARK),
+        "forum_reply_committee": subject(forum_mail.SUBJECT_REPLY_COMMITTEE, title=TITLE_MARK),
+        "forum_decisions": subject(forum_mail.SUBJECT_DECISIONS),
+        "forum_news": subject(forum_mail.SUBJECT_NEWS),
+        "forum_daily": subject(forum_mail.SUBJECT_DAILY),
+    }
+
+    assert actual == EXPECTED_FORUM_SUBJECTS
+
+
 def test_every_outgoing_subject_is_frozen():
-    """Osiemnaście napisów na siedemnaście rodzajów listu – i ani jednego więcej bez wiersza tutaj.
+    """Dwadzieścia pięć napisów na dwadzieścia cztery rodzaje listu – i ani jednego bez wiersza tutaj.
 
     Test pilnuje **listy**, a nie treści: treści pilnują ``test_email_subjects_unchanged`` (stałe
     modułów), ``test_branding.py`` (tematy składane w serwisie, czytane z ``mail.outbox``)
@@ -232,7 +273,8 @@ def test_every_outgoing_subject_is_frozen():
     """
     assert len(EXPECTED_SUBJECTS) == 11
     assert len(EXPECTED_SERVICE_SUBJECTS) == 7
-    assert len(ALL_EXPECTED_SUBJECTS) == 18
+    assert len(EXPECTED_FORUM_SUBJECTS) == 7
+    assert len(ALL_EXPECTED_SUBJECTS) == 25
     # Żaden temat nie jest pusty i żaden nie powtarza się pod dwoma kluczami: powtórzenie znaczyłoby,
     # że dwa różne zdarzenia dają w skrzynce ten sam wiersz i nie da się ich rozróżnić filtrem.
     assert all(ALL_EXPECTED_SUBJECTS.values())

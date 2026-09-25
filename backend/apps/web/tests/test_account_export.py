@@ -147,6 +147,97 @@ def test_the_forum_section_is_an_empty_list_for_an_account_that_never_wrote(web_
     assert payload(web_client.get(EXPORT_URL))["wpisy_na_forum"] == []
 
 
+def test_the_forum_notification_state_is_in_the_package(web_client, participant, competition):
+    """Ustawienia powiadomień i obserwowane wątki – kategorie danych z rejestru czynności 1.9.
+
+    Temat wątku stoi przy obserwacji wyłącznie wtedy, gdy ta osoba może go przeczytać: obserwacja
+    cudzego wątku, który moderator potem odrzucił, nie może wynieść w paczce jego tematu.
+    """
+    from apps.forum.models import (
+        DecisionKind,
+        ForumDecisionNotice,
+        ForumSubscription,
+        ModerationStatus,
+        NotificationFrequency,
+    )
+    from apps.forum.notifications import save_preferences
+    from apps.forum.tests.factories import ForumThreadFactory
+
+    user = participant.user
+    save_preferences(user, frequency=NotificationFrequency.DAILY, moderation_digest=False)
+    visible = ForumThreadFactory(competition=competition, title="WATEK-OPUBLIKOWANY")
+    rejected = ForumThreadFactory(
+        competition=competition, title="CUDZY-ODRZUCONY", status=ModerationStatus.REJECTED
+    )
+    own_pending = ForumThreadFactory(
+        competition=competition, author=user, title="MOJ-CZEKAJACY", status=ModerationStatus.PENDING
+    )
+    for thread in (visible, rejected, own_pending):
+        ForumSubscription.objects.create(competition=competition, thread=thread, user=user)
+    ForumSubscription.objects.filter(thread=rejected).update(is_active=False)
+    ForumDecisionNotice.objects.create(
+        competition=competition, user=user, kind=DecisionKind.THREAD_APPROVED, thread=visible
+    )
+    web_client.force_login(user)
+
+    data = payload(web_client.get(EXPORT_URL))
+    section = data["powiadomienia_z_forum"]
+
+    assert section["ustawienia"]["listy_o_obserwowanych_watkach"] == "raz dziennie"
+    assert section["ustawienia"]["listy_o_kolejce_moderacji"] is False
+    assert section["ustawienia"]["zmienione"] is not None
+    titles = [row["watek"] for row in section["obserwowane_watki"]]
+    assert titles == ["WATEK-OPUBLIKOWANY", None, "MOJ-CZEKAJACY"]
+    assert [row["obserwuje"] for row in section["obserwowane_watki"]] == [True, False, True]
+    assert "CUDZY-ODRZUCONY" not in json.dumps(data)
+    assert section["decyzje_moderatora_do_powiadomienia"][0]["decyzja"] == "wątek zatwierdzony"
+    assert section["decyzje_moderatora_do_powiadomienia"][0]["obsluzona"] is None
+
+
+def test_the_forum_notification_section_shows_the_defaults_of_an_untouched_account(web_client, participant):
+    """Brak wiersza ustawień to „domyślne”, a nie brak danych – kształt pliku ten sam dla każdego konta."""
+    web_client.force_login(participant.user)
+
+    section = payload(web_client.get(EXPORT_URL))["powiadomienia_z_forum"]
+
+    assert section == {
+        "ustawienia": {
+            "listy_o_obserwowanych_watkach": "na bieżąco",
+            "listy_o_kolejce_moderacji": True,
+            "zmienione": None,
+        },
+        "obserwowane_watki": [],
+        "decyzje_moderatora_do_powiadomienia": [],
+    }
+
+
+def test_anonymisation_erases_the_forum_notification_state(participant, competition):
+    """Po anonimizacji nie zostaje, które wątki ta osoba obserwowała – wpisy zostają bez podpisu."""
+    from apps.accounts.profile import anonymise_account
+    from apps.forum.models import (
+        ForumNotificationSettings,
+        ForumSubscription,
+        NotificationFrequency,
+    )
+    from apps.forum.notifications import save_preferences
+    from apps.forum.tests.factories import ForumThreadFactory
+
+    user = participant.user
+    save_preferences(user, frequency=NotificationFrequency.IMMEDIATE, moderation_digest=True)
+    ForumSubscription.objects.create(
+        competition=competition, thread=ForumThreadFactory(competition=competition), user=user
+    )
+    other = ForumSubscription.objects.create(
+        competition=competition, thread=ForumThreadFactory(competition=competition), user=UserFactory()
+    )
+
+    anonymise_account(user)
+
+    assert not ForumSubscription.objects.filter(user=user).exists()
+    assert not ForumNotificationSettings.objects.filter(user=user).exists()
+    assert ForumSubscription.objects.filter(pk=other.pk).exists()
+
+
 def test_consents_come_with_the_document_version_and_both_timestamps(web_client, participant):
     ConsentRecord.objects.create(
         participant=participant,

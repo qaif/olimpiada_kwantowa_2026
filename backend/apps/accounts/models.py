@@ -39,6 +39,15 @@ RBAC_GROUPS = (
     GROUP_COORDINATOR,
     GROUP_SUPERVISOR,
 )
+#: Superkoordynator – rola **platformy**, a nie konkursu, i dlatego nie stoi w ``RBAC_GROUPS`` ani
+#: w ``CompetitionRole``: nie ma wiersza ``Membership``, bo nie należy do żadnego konkursu, tylko
+#: obejmuje wszystkie. Znaczenie i droga nadania: ``apps/accounts/super_coordinator.py``.
+GROUP_SUPER_COORDINATOR = "superkoordynator"
+#: Grupy, które dają rolę koordynatora tam, gdzie o roli rozstrzyga jeszcze grupa Django
+#: (``memberships_enforced`` wyłączone, bramki zbiorów danych w modelach). Jedna krotka, żeby
+#: każde miejsce pytało o ten sam zbiór – pominięcie superkoordynatora w jednym z nich byłoby 403
+#: albo pustą listą w środku panelu, do którego przepuściła go bramka widoku.
+COORDINATOR_GROUPS = (GROUP_COORDINATOR, GROUP_SUPER_COORDINATOR)
 
 
 class CompetitionRole(models.TextChoices):

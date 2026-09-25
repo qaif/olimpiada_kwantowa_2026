@@ -106,8 +106,13 @@ def coordinated_competitions(user):
     odpowiedzią na pytanie „w których konkursach jestem koordynatorem”.
     """
     from apps.accounts.models import CompetitionRole
+    from apps.accounts.super_coordinator import is_super_coordinator
     from apps.tenancy.models import Competition
 
+    # Superkoordynator koordynuje każdy konkurs instalacji (``apps.accounts.super_coordinator``),
+    # więc jego spis jest spisem wszystkich — bez tego ekran twierdziłby, że nie prowadzi żadnego.
+    if is_super_coordinator(user):
+        return Competition.objects.select_related("site").order_by("name", "id")
     return (
         Competition.objects.filter(
             memberships__user=user,
@@ -132,6 +137,18 @@ class CompetitionListView(CompetitionCreationMixin, View):
         competition = self.competition_or_404(request)
         created_slug = (request.GET.get(CREATED_QUERY_PARAM) or "").strip().lower()
         rows = list(coordinated_competitions(request.user))
+        # Konkurs pod prefiksem ścieżki odpowiada pod hostem platformy, a nie pod ``primary_domain``
+        # (domeną, na którą czeka) – ta sama reguła, co przełącznik „Konkursy platformy”.
+        from apps.tenancy.models import RoutingMode
+        from apps.web.coordinator_nav import competition_base_urls
+
+        bases = competition_base_urls(request, rows)
+        for row in rows:
+            row.prefix_url = (
+                f"{bases[row.pk]}/"
+                if row.routing_mode == RoutingMode.PATH and row.path_prefix and row.pk in bases
+                else ""
+            )
         context = {
             "competition": competition,
             "rows": rows,

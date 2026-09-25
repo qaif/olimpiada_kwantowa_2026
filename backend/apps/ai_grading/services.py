@@ -55,6 +55,7 @@ from rest_framework import status as http
 
 from apps.core.api import DomainError
 from apps.core.models import audit
+from apps.core.points import points_json
 from apps.submissions.models import AvStatus, Submission, SubmissionFile, SubmissionStatus
 
 from . import prompt, providers
@@ -1616,8 +1617,11 @@ def export_section(participant) -> list[dict]:
                 ),
                 "tresc": (
                     {
-                        "proponowane_punkty": str(row.proposed_points),
-                        "maksimum": str(row.max_points),
+                        # Liczby JSON jak w reszcie eksportu od wydania 0.35.0 (``points_json``):
+                        # ``6``, a nie „6.00”, i ``4.5`` dla ułamka. Tekst z kolumny dziesiętnej
+                        # był czytelny dla maszyny, ale niespójny z ``suma_punktow`` obok.
+                        "proponowane_punkty": points_json(row.proposed_points),
+                        "maksimum": points_json(row.max_points),
                         "podsumowanie": row.summary,
                     }
                     if shown

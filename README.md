@@ -107,7 +107,7 @@ Uwagi:
 | <http://localhost:8000/cms/> | panel redakcyjny Wagtaila (grupa `coordinator`) |
 | <http://localhost:8000/admin/> | panel Django (`is_staff`) |
 | <http://localhost:8000/api/docs/> | Swagger UI |
-| <http://localhost:8000/healthz/> | healthcheck (`{"status":"ok","db":true,"redis":true}`) |
+| <http://localhost:8000/healthz/> | healthcheck (`{"status":"ok","db":true,"redis":true,"db_connections":"ok"}`) |
 | <http://localhost:9001/> | konsola MinIO (`MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD`) |
 | <http://localhost:8025/> | Mailpit – tylko przy `--profile dev` |
 
@@ -262,8 +262,9 @@ Platforma obsługuje wiele niezależnych konkursów z jednej bazy i jednego wdro
 > tej samej instalacji”).** Ta sekcja opisuje **komendę**; runbook opisuje **kolejność** i to, czego
 > tu nie ma: pre-flight `manage.py check_memberships` (kto straci dostęp, gdy o rolach przestanie
 > rozstrzygać globalna grupa Django), przełączenie flag `memberships_enforced`
-> i `competition_settings_page` w `/admin/` oraz to, że grupa `coordinator` jest globalna, więc
-> koordynator nowego konkursu dostaje razem z nią dostęp do `/cms/` całej instalacji.
+> i `competition_settings_page` w `/admin/` oraz jednorazowe zawężenie `/cms/` do konkursów
+> (`docs/OPERACJE.md` § 6.7: `superkoordynator --all-current-coordinators`, potem `scope_cms_access`) — bez niego
+> koordynator nowego konkursu dostałby razem z grupą `coordinator` dostęp do `/cms/` całej instalacji.
 
 Co powstaje razem z konkursem: witryna i drzewo stron (puste, o właściwych adresach),
 `cms.SiteSettings`, wiersz `tenancy.Competition` oraz **pierwsza edycja z etapami szablonu**.
@@ -353,8 +354,11 @@ zdecyduje (`docs/UNIWERSALNY-ETAP-1.md` § 2.3):
   nie jest to dziura – ale rozdziału sesji ten tryb nie daje i dlatego nie jest domyślny.
 - **prefiks zajmuje pierwszy segment adresu.** Nie może to być slug zarezerwowany (`login`, `me`,
   `coordinator`, `api`, …) ani slug strony drugiego poziomu w innym konkursie – komenda odmawia.
-- **linki w listach wysyłanych spoza żądania** (zadania Celery) budują adres z `primary_domain`
-  konkursu, więc konkurs w tym trybie powinien mieć wpisaną domenę platformy.
+- **gospodarz musi się zgodzić.** Prefiks działa wyłącznie pod domeną konkursu z przełącznikiem
+  `path_prefix_routing` (konkurs witryny domyślnej – komenda włącza go sama i mówi o tym w wydruku).
+  Pod prefiksem konkurs ma **własne drzewo stron CMS** (strona główna, menu, dokumenty,
+  przekierowania), a linki – także w listach spoza żądania – prowadzą pod
+  `https://<domena platformy>/fizyczna/…`. Runbook: [`docs/OPERACJE.md`](docs/OPERACJE.md) § 6.6.
 
 ### Własne Jitsi Meet do rozmów kwalifikacyjnych (`scripts/deploy_jitsi.sh`)
 
@@ -393,6 +397,10 @@ i `environment` w compose; w obrazie nie ma żadnego sekretu.
 | `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE` | `0` | w produkcji `1` |
 | `WEB_WORKERS` | `3` | procesy gunicorna |
 | `CELERY_CONCURRENCY` | `2` | wątki workera |
+| `DB_POOL` | `1` w `web`, `0` w `worker`/`beat` (i bez pakietu `psycopg_pool`) | pula połączeń psycopg (`docs/OPERACJE.md` § 11.2) |
+| `DB_POOL_MAX_SIZE` / `DB_POOL_MIN_SIZE` / `DB_POOL_TIMEOUT` | `WEB_THREADS` / `1` / `10` | rozmiar puli na worker gunicorna i czekanie na połączenie (s) |
+| `DB_CONN_MAX_AGE` | `60` | trwałość połączenia – **tylko** w procesach bez puli (`worker`, `beat`) |
+| `DB_CONNECTIONS_WARN_PERCENT` / `DB_CONNECTIONS_CRITICAL_PERCENT` | `80` / `95` | progi alarmu zajętości `max_connections` |
 | `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | `olimpiada` / `olimpiada` / – | baza |
 | `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` | – | konto administracyjne MinIO; backend go **nie** używa (tylko `minio-init`) |
 | `S3_PUBLIC_ACCESS_KEY` / `S3_PUBLIC_SECRET_KEY` | `wagtail-media` / – | konto serwisowe bucketu `public-media` (media Wagtaila) |
@@ -402,7 +410,7 @@ i `environment` w compose; w obrazie nie ma żadnego sekretu.
 | `TRUSTED_PROXY_IPS` | podsieci compose | komu wolno podać `X-Real-IP` |
 | `EMAIL_URL` | `consolemail://` (dev `.env`: `smtp://mailpit:1025`; produkcja z `deploy.sh`: `smtp://mail:587`) | poczta wychodząca – patrz 4.1 |
 | `DEFAULT_FROM_EMAIL` | `noreply@localhost` (dev `.env`: `olimpiada@localhost`) | nadawca listów (także `SERVER_EMAIL`); domena musi mieć SPF/DKIM – patrz 4.2 |
-| `EMAIL_TIMEOUT` | `10` | limit sekund na połączenie SMTP (wysyłka jest synchroniczna w żądaniu) |
+| `EMAIL_TIMEOUT` | `10` | limit sekund na połączenie SMTP (wysyłka idzie w workerze Celery, kolejka `mail`) |
 | `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` | puste | logowanie przez Google; puste = przycisk się nie pokazuje – patrz 4.4 |
 | `FACEBOOK_APP_ID` / `FACEBOOK_APP_SECRET` | puste | logowanie przez Facebooka; puste = przycisk się nie pokazuje – patrz 4.4 |
 | `E2E_MODE` | (nieustawiona) | **tylko dev**: odblokowuje `manage.py e2e_timeline`. W produkcji nigdy |

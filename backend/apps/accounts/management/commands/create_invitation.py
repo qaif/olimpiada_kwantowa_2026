@@ -8,7 +8,7 @@ from datetime import timedelta
 from django.core.management.base import BaseCommand, CommandError
 
 from apps.accounts.models import (
-    GROUP_COORDINATOR,
+    COORDINATOR_GROUPS,
     InvitationGrantsStatus,
     User,
     Voivodeship,
@@ -46,7 +46,7 @@ class Command(BaseCommand):
             creator = User.objects.get(email=options["email"].strip().lower())
         except User.DoesNotExist as exc:
             raise CommandError(f"Nie znaleziono użytkownika {options['email']}.") from exc
-        if not creator.groups.filter(name=GROUP_COORDINATOR).exists():
+        if not creator.groups.filter(name__in=COORDINATOR_GROUPS).exists():
             raise CommandError("Kody zaproszeń może tworzyć wyłącznie koordynator.")
 
         # Przyjmujemy też etykietę i formę przymiotnikową („woj. mazowieckie”, „mazowiecki”) –

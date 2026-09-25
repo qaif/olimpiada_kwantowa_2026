@@ -45,6 +45,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from django.db import models
+from django.urls import get_script_prefix
 from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.safestring import SafeString
@@ -418,6 +419,31 @@ def organizer_name(competition=None) -> str:
     return settings_row.organizer_name or DEFAULT_ORGANIZER_NAME
 
 
+def _documents():
+    """Opublikowane strony dokumentów z drzewa **bieżącego** konkursu.
+
+    Dokumenty szukamy po slugu, a slug ``regulamin`` ma w instalacji wielokonkursowej każde drzewo
+    stron – bez zawężenia etykieta zgody w konkursie drugim prowadziłaby do regulaminu pierwszego
+    (tego, który stoi w bazie wcześniej). Zawężenie idzie przez ścieżkę treebearda korzenia witryny
+    konkursu, podaną **podzapytaniem**: ``Competition.site`` przychodzi z warstwy razem z konkursem,
+    więc to wciąż jedno zapytanie, tak jak przed zawężeniem. Bez konkursu (komenda, test jednostkowy)
+    pytanie zostaje globalne – dokładnie tak, jak było.
+    """
+    from django.db.models import Subquery
+    from wagtail.models import Page
+
+    from apps.cms.models import DocumentPage
+    from apps.tenancy.context import current_competition
+
+    pages = DocumentPage.objects.live()
+    competition = current_competition()
+    root_page_id = getattr(getattr(competition, "site", None), "root_page_id", None)
+    if root_page_id is not None:
+        root_path = Page.objects.filter(pk=root_page_id).values("path")[:1]
+        pages = pages.filter(path__startswith=Subquery(root_path))
+    return pages
+
+
 def document_url(slug: str) -> str:
     """Adres strony dokumentu o tym slugu. Pusty slug = zgoda bez dokumentu.
 
@@ -428,11 +454,11 @@ def document_url(slug: str) -> str:
     """
     if not slug:
         return ""
-    fallback = f"{DOCUMENTS_PATH}{slug}/"
+    # Adres kanoniczny liczony od korzenia **tego** konkursu: pod prefiksem ścieżki ``/druga/``
+    # (uwaga T43), pod własną domeną ``/`` – czyli dokładnie dawny ``/dokumenty/<slug>/``.
+    fallback = f"{get_script_prefix()}{DOCUMENTS_PATH.lstrip('/')}{slug}/"
     try:
-        from apps.cms.models import DocumentPage
-
-        page = DocumentPage.objects.live().filter(slug=slug).first()
+        page = _documents().filter(slug=slug).first()
     except Exception:  # noqa: BLE001 - brak tabeli stron nie może zablokować rejestracji
         return fallback
     if page is None:
@@ -460,9 +486,7 @@ def document_link(slug: str) -> str:
     if not slug:
         return ""
     try:
-        from apps.cms.models import DocumentPage
-
-        documents = DocumentPage.objects.live().prefetch_related("attachments__document")
+        documents = _documents().prefetch_related("attachments__document")
         page = documents.filter(slug=slug).first()
         if page is not None:
             # ``attachments.all()`` czyta bufor ``prefetch_related``; ``.filter()`` puściłby

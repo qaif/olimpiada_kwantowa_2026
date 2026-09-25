@@ -4,6 +4,9 @@ import logging
 from pathlib import Path
 
 import environ
+from celery.schedules import crontab
+from django.urls import get_script_prefix, reverse_lazy
+from django.utils.functional import lazy
 from wagtail.embeds import oembed_providers
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -216,6 +219,11 @@ MIDDLEWARE = [
     "apps.accounts.twofactor.TwoFactorMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Zasięg redaktora w ``/cms/``: dwa adresy Wagtaila, których nie zawężają haki (wybór strony
+    # z rodzicem w adresie, raport „Użycie typów stron”) – apps/cms/middleware.py. Wyłącznie
+    # ``process_view`` i wyłącznie dla tych adresów; **za** ``AuthenticationMiddleware`` i za
+    # drugim składnikiem, bo pyta o uprawnienia zalogowanego konta.
+    "apps.cms.middleware.CmsScopeMiddleware",
     # Wymagana przez allauth: ustawia kontekst żądania (``allauth.core.context``), z którego
     # korzystają adaptery i przepływ social login. Nie montuje żadnego adresu i nie zmienia
     # obsługi 404 – przekierowanie „/accounts/ → logowanie” włącza się dopiero, gdy istnieje
@@ -237,7 +245,9 @@ MIDDLEWARE = [
     # obsłużyć adresu, sprawdzamy, czy nie jest to adres strony przeniesionej w drzewie.
     # Przy trafieniu cache'a ta warstwa w ogóle nie widzi żądania (patrz warstwa wyżej) – i to jest
     # poprawne: trafienie istnieje wyłącznie dla adresów, o których już wiadomo, że dają 200.
-    "wagtail.contrib.redirects.middleware.RedirectMiddleware",
+    # Podklasa warstwy Wagtaila, która zna prefiks ścieżki konkursu (apps/cms/redirects.py); bez
+    # prefiksu woła dokładnie ``RedirectMiddleware.process_response``.
+    "apps.cms.redirects.CompetitionRedirectMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -332,20 +342,64 @@ DATABASES = {
 #    żądaniu – więc trwałe połączenie znów ma sens (jeden wątek = jedno długożyjące połączenie,
 #    zamykane przez ``close_old_connections`` w tym samym wątku, który je otworzył).
 #
-# Budżet połączeń Postgresa (``max_connections=100``) przy domyślnych wartościach:
-#   web:    WEB_WORKERS × WEB_THREADS = 4 × 4 = 16
-#   worker: CELERY_CONCURRENCY = 2
+# 4. Pula połączeń (``psycopg_pool``, po v0.35.0). Trwałe połączenie per wątek ogranicza liczbę
+#    połączeń tylko **pośrednio** – przez to, ile wątków żyje i czy każdy z nich pamięta posprzątać.
+#    Punkt 2 pokazał, co się dzieje, gdy jedno z tych założeń pęka. Pula ogranicza je **wprost**:
+#    proces nie otworzy więcej niż ``max_size`` połączeń, niezależnie od modelu wątków, a nadwyżkę
+#    ponad ``min_size`` zamyka sama, stopniowo (jedno na 10 min bezczynności – ``max_idle``).
+#    Połączenie wraca do puli na końcu żądania (``request_finished`` → ``close()`` → ``putconn``),
+#    a nie zostaje przy wątku.
+#
+# **Pula i ``CONN_MAX_AGE`` wykluczają się** – Django przy puli wymaga ``CONN_MAX_AGE=0`` i bez
+# tego rzuca ``ImproperlyConfigured("Pooling doesn't support persistent connections.")`` przy
+# pierwszym zapytaniu. Dlatego przy włączonej puli ``DB_CONN_MAX_AGE`` jest **ignorowane** (zero
+# ustawiamy tu sami), a działa wyłącznie w procesach bez puli: ``worker`` i ``beat`` (Celery –
+# uzasadnienie w ``config.dbpool.pool_enabled_by_default``) oraz awaryjnie przy ``DB_POOL=0``.
+#
+# Rozmiar: ``DB_POOL_MAX_SIZE`` domyślnie = ``WEB_THREADS``, bo pula jest **per proces** (jedna na
+# worker gunicorna, wspólna dla jego wątków), a wątek trzyma najwyżej jedno połączenie naraz.
+# Mniej niż liczba wątków znaczy, że wątek czeka na połączenie (do ``DB_POOL_TIMEOUT``, potem 500);
+# więcej – że pula nigdy nie użyje nadwyżki, ale budżet musi ją policzyć.
+#
+# Budżet połączeń Postgresa (``max_connections=100``, domyślne Postgresa – compose go nie zmienia)
+# przy domyślnych wartościach (pełny rachunek: docs/OPERACJE.md § 11.2):
+#   web:    WEB_WORKERS × DB_POOL_MAX_SIZE = 4 × 4 = 16 (w spoczynku WEB_WORKERS × 1 = 4)
+#   worker: CELERY_CONCURRENCY = 2 (+ proces główny, który bazy zwykle nie trzyma)
 #   beat:   1 (proces jednowątkowy)
-#   razem:  ok. 19–20 z 20–25 zarezerwowanych na aplikację (zapas na `manage.py shell`,
-#           migracje ręczne i drugie takie samo wdrożenie w trakcie rolloutu) – reszta limitu
-#           zostaje dla Postgresa samego i dla awaryjnych połączeń administracyjnych.
-# 60 s (nie 0, nie kilka minut): wystarczy, żeby wątek obsługujący kolejne żądania nie płacił
-# nowym uściskiem dłoni TCP+TLS-do-bazy za każdym razem, a jednocześnie połączenie bezczynnego
-# wątku (np. workera, który akurat nie ma zadań) nie stoi otwarte godzinami. ``CONN_HEALTH_CHECKS``
-# dokłada tani ``SELECT 1`` przed ponownym użyciem połączenia starszego niż moment ostatniego
-# błędu – bez tego martwe połączenie (np. po restarcie Postgresa) ujawniłoby się dopiero
-# wyjątkiem w środku żądania użytkownika, a z włączonym sprawdzeniem Django po cichu otwiera nowe.
-DATABASES["default"]["CONN_MAX_AGE"] = env.int("DB_CONN_MAX_AGE", default=60)
+#   razem:  ok. 20 z 100 – reszta to zapas na ``manage.py`` (entrypoint, shell, komendy
+#           operatora – każda z własną pulą ``min_size``), ``pg_dump`` kopii zapasowej, ``psql``
+#           w trakcie incydentu i ``superuser_reserved_connections`` (3).
+# Przekroczenie 80 % ``max_connections`` zgłasza ``apps.core.dbconnections`` (``/healthz/``,
+# ``/status.json``, watchdog ``apps.core.alerts``).
+#
+# ``CONN_HEALTH_CHECKS`` dokłada tani ``SELECT 1`` przed ponownym użyciem połączenia – bez tego
+# martwe połączenie (np. po restarcie Postgresa) ujawniłoby się dopiero wyjątkiem w środku żądania
+# użytkownika. Przy puli to samo robi ``check`` puli (Django ustawia go z tej samej flagi).
+from config.dbpool import (  # noqa: E402 - moduł pomocniczy ustawień, patrz jego docstring
+    DEFAULT_MIN_SIZE,
+    DEFAULT_TIMEOUT_SECONDS,
+    pool_enabled_by_default,
+    pool_options,
+)
+
+DB_POOL = env.bool("DB_POOL", default=pool_enabled_by_default())
+DATABASES["default"].setdefault("OPTIONS", {})
+# Nazwa usługi w ``pg_stat_activity.application_name`` – bez niej operator widzi w bazie sto
+# identycznych połączeń i nie wie, który kontener je trzyma. Compose ustawia ją per usługa
+# (``olimpiada-web``, ``olimpiada-worker``, ``olimpiada-beat``); ``manage.py db_connections``
+# i list alarmowy liczą połączenia właśnie po tej nazwie.
+DATABASES["default"]["OPTIONS"]["application_name"] = env("DB_APPLICATION_NAME", default="olimpiada")
+if DB_POOL:
+    DATABASES["default"]["OPTIONS"]["pool"] = pool_options(
+        min_size=env.int("DB_POOL_MIN_SIZE", default=DEFAULT_MIN_SIZE),
+        max_size=env.int("DB_POOL_MAX_SIZE", default=env.int("WEB_THREADS", default=4)),
+        timeout=env.float("DB_POOL_TIMEOUT", default=DEFAULT_TIMEOUT_SECONDS),
+    )
+    DATABASES["default"]["CONN_MAX_AGE"] = 0
+else:
+    # 60 s (nie 0, nie kilka minut): wątek obsługujący kolejne zadania nie płaci za nowe
+    # połączenie za każdym razem, a połączenie bezczynnego procesu nie stoi otwarte godzinami.
+    DATABASES["default"]["CONN_MAX_AGE"] = env.int("DB_CONN_MAX_AGE", default=60)
 DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
 DATABASES["default"]["ATOMIC_REQUESTS"] = False
 
@@ -497,12 +551,44 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.ai_grading.tasks.pump_ai_assessments",
         "schedule": 300.0,
     },
+    # Powiadomienia z forum (apps/forum/tasks.py): list o kolejce moderacji do koordynatorów
+    # i listy „na bieżąco” o obserwowanych wątkach i decyzjach moderatora. Co dwie minuty, bo
+    # przebieg jest zegarem dwóch opóźnień liczonych w minutach (``FORUM_MODERATION_DIGEST_*``);
+    # częstotliwość wysyłki wyznaczają limity w ``apps.forum.notifications``, a nie ten przebieg.
+    # Konkurs bez forum kosztuje zero zapytań – flaga jest polem wiersza konkursu.
+    "forum-notifications": {
+        "task": "apps.forum.tasks.send_forum_notifications",
+        "schedule": 120.0,
+    },
+    # Dzienne podsumowanie forum dla kont „raz dziennie” – o stałej porze, a nie „co 24 godziny
+    # od startu beatu”: podsumowanie, które raz przychodzi rano, a po restarcie serwera w nocy,
+    # nie jest podsumowaniem dnia. Godzina w UTC, bo w UTC chodzi beat (``CELERY_TIMEZONE``).
+    "forum-daily-digest": {
+        "task": "apps.forum.tasks.send_daily_forum_digest",
+        "schedule": crontab(minute=0, hour=env.int("FORUM_DAILY_DIGEST_HOUR_UTC", default=5)),
+    },
 }
+
+# --- powiadomienia z forum (``apps.forum.notifications``) ---------------------------------------
+# Pierwszy list o kolejce moderacji wychodzi, gdy najstarsza pozycja czeka co najmniej tyle minut:
+# koordynator, który siedzi w panelu, zdąży ją rozpatrzyć, zanim list w ogóle powstanie.
+FORUM_MODERATION_DIGEST_DELAY_MINUTES = env.int("FORUM_MODERATION_DIGEST_DELAY_MINUTES", default=10)
+# Kolejne listy o kolejce – najwyżej jeden na tyle godzin, dopóki coś czeka.
+FORUM_MODERATION_DIGEST_INTERVAL_HOURS = env.int("FORUM_MODERATION_DIGEST_INTERVAL_HOURS", default=3)
+# O jednym obserwowanym wątku najwyżej jeden list na tyle godzin (konta „na bieżąco”).
+FORUM_THREAD_NOTIFY_INTERVAL_HOURS = env.int("FORUM_THREAD_NOTIFY_INTERVAL_HOURS", default=4)
 
 # Adresy dyżurnych, na które watchdog wysyła alarmy (przecinkami). **Pusta lista wyłącza wysyłkę**
 # i to jest domyślne zachowanie: instalacja deweloperska nie ma nikogo budzić, a na produkcji
 # adresy wpisuje ten, kto bierze na siebie odbieranie tych listów.
 ALERT_EMAILS = env.list("ALERT_EMAILS", default=[])
+# Progi zajętości połączeń z Postgresem w procentach ``max_connections`` (``apps.core.dbconnections``).
+# 80 % to ostrzeżenie z zapasem na reakcję: przy budżecie z komentarza przy ``DATABASES`` (ok. 20
+# ze 100) taki poziom znaczy, że coś trzyma połączenia wbrew budżetowi – dokładnie obraz sprzed
+# incydentu z 09.09.2026, na długo przed „too many clients already”. 95 % to stan, w którym
+# następne wdrożenie albo ``psql`` dyżurnego może już nie wejść.
+DB_CONNECTIONS_WARN_PERCENT = env.int("DB_CONNECTIONS_WARN_PERCENT", default=80)
+DB_CONNECTIONS_CRITICAL_PERCENT = env.int("DB_CONNECTIONS_CRITICAL_PERCENT", default=95)
 
 # --- Logowanie dwuskładnikowe (TOTP, apps/accounts/twofactor.py) -------------------------------
 # Wyłącznik główny całej funkcji. **Domyślnie wyłączony** – decyzja organizatora („autoryzacja
@@ -553,8 +639,10 @@ TWO_FACTOR_REQUIRED_ROLES = env.list("TWO_FACTOR_REQUIRED_ROLES", default=[])
 # zawsze „działa”, a brak konfiguracji widać w logu, a nie w błędzie 500.
 _email = env.email_url("EMAIL_URL", default="consolemail://")
 _email_backend = _email["EMAIL_BACKEND"]
-# Bez limitu czasu wysyłka wisi na gnieździe tak długo, jak pozwoli sieć – a robimy ją synchronicznie
-# w żądaniu POST /password-reset/, więc worker gunicorna zostałby zajęty na czas dowolnie długi.
+# Bez limitu czasu wysyłka wisi na gnieździe tak długo, jak pozwoli sieć. Od wydania po v0.35.0
+# żaden list aplikacji nie wychodzi już w żądaniu HTTP (ostatni – reset hasła – idzie przez kolejkę
+# ``mail``), więc limit chroni proces workera Celery (i synchroniczne listy watchdoga,
+# ``apps.core.alerts``) przed zawieszeniem na martwym relayu, a nie wątek gunicorna.
 _email_timeout = env.int("EMAIL_TIMEOUT", default=10)
 # ``environ`` zwraca ``None`` dla brakujących części adresu; backend SMTP oczekuje w ``OPTIONS``
 # łańcuchów i liczb, więc normalizujemy je tutaj, a nie w miejscu wysyłki. Wartości domyślne są
@@ -835,9 +923,13 @@ WAGTAILEMBEDS_FINDERS = [
 ]
 
 # Logowanie sesyjne interfejsu WWW (apps.web). Niezalogowany dostaje 302 na /login/?next=...
-LOGIN_URL = "/login/"
-LOGIN_REDIRECT_URL = "/me/"
-LOGOUT_REDIRECT_URL = "/"
+# Wartości **leniwe**, liczone w chwili użycia: w konkursie pod prefiksem ścieżki
+# (``apps.tenancy.middleware``) ``reverse()`` i ``get_script_prefix()`` niosą prefiks żądania, więc
+# przekierowanie na logowanie nie wyprowadza z konkursu do konkursu-gospodarza. Bez prefiksu wartości
+# są co do znaku te same, co dawne napisy ``/login/``, ``/me/`` i ``/``.
+LOGIN_URL = reverse_lazy("web:login")
+LOGIN_REDIRECT_URL = reverse_lazy("web:me")
+LOGOUT_REDIRECT_URL = lazy(get_script_prefix, str)()
 
 # --- Logowanie przez Google i Facebooka (django-allauth, wyłącznie socialaccount) --------------
 #
@@ -964,7 +1056,8 @@ REST_FRAMEWORK = {
         # drugie zgłoszenie w tej samej sprawie, a odbicie go limitem byłoby karą za problem.
         "support": "10/hour",
         # Pisanie na forum uczestników (wątek, odpowiedź, zgłoszenie wpisu). Limit nie chroni tu
-        # cudzej skrzynki – forum nie wysyła listów – tylko **kolejkę moderacyjną i rozmowę**:
+        # cudzej skrzynki – listy forum są zbiorcze i nie rosną z liczbą wpisów
+        # (``apps.forum.notifications``) – tylko **kolejkę moderacyjną i rozmowę**:
         # trzydzieści wpisów w godzinę to więcej, niż napisze uczestnik czytający odpowiedzi,
         # a mniej, niż potrzeba, żeby zasypać dział albo wyczerpać dyżur koordynatora. Stawka jest
         # wyższa niż przy zgłoszeniach, bo tam jedno zdanie kończy sprawę, a tu toczy się rozmowa.

@@ -466,10 +466,15 @@ def test_the_coordinator_cannot_delete_another_coordinator(web_client, coordinat
 # --- reset hasła ---------------------------------------------------------------------------------
 
 
-def test_the_coordinator_sends_a_working_password_reset_link(web_client, coordinator, participant):
+def test_the_coordinator_sends_a_working_password_reset_link(
+    web_client, coordinator, participant, django_capture_on_commit_callbacks
+):
     web_client.force_login(coordinator)
 
-    response = web_client.post(password_reset_url(participant.user))
+    # List idzie przez ``transaction.on_commit`` → ``send_mail_task`` (kolejka ``mail``), tą samą
+    # drogą co reset samoobsługowy – w teście commit trzeba wykonać jawnie.
+    with django_capture_on_commit_callbacks(execute=True):
+        response = web_client.post(password_reset_url(participant.user))
 
     assert response.status_code == 302
     assert response["Location"] == edit_url(participant.user)

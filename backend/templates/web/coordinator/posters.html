@@ -46,7 +46,7 @@
 <section class="section">
   <div class="section__head"><h2 class="mt-0">Plakaty na stronie</h2></div>
   {% if active_rows %}
-    <div class="scroll">
+    <div class="scroll" role="region" tabindex="0" aria-label="Plakaty na stronie i ich pobrania">
       <table class="table table--compact poster-stats">
         <caption class="visually-hidden">Plakaty do pobrania: stan i liczba pobrań oraz unikalnych adresów IP w trzech okresach.</caption>
         <thead>
@@ -157,7 +157,7 @@
   <div class="section__head"><h2 class="mt-0">Archiwum</h2></div>
   <p class="hint">Plakaty usunięte po tym, jak ktoś je już pobrał. Nie ma ich na stronie, ale ich
     pobrania zostają w statystykach i w eksporcie. „Przywróć” wraca plakat na listę jako szkic.</p>
-  <div class="scroll">
+  <div class="scroll" role="region" tabindex="0" aria-label="Archiwum plakatów">
     <table class="table table--compact">
       <caption class="visually-hidden">Plakaty w archiwum i ich pobrania.</caption>
       <thead>

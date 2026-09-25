@@ -189,8 +189,15 @@ ona jest oceną. Panel pokazuje podgląd sumy i mówi, czy mieści się w skali.
 
 > **Suma musi należeć do skali.** Cztery punkty przy skali 0/2/5/6 kończą się odmową z listą
 > dopuszczalnych wartości. **System nie zaokrągla** — to byłaby zmiana Twojej decyzji, a nie pomoc.
-> W etapie z dowolnymi wartościami suma musi jedynie **mieścić się w zakresie** zadania (punkty za
-> kryteria są liczbami całkowitymi).
+> W etapie z dowolnymi wartościami suma musi jedynie **mieścić się w zakresie** zadania.
+
+**Ułamki przy kryteriach.** W etapie z dowolnymi wartościami ocen punkty za kryterium też mogą być
+ułamkiem: od 0 do maksimum kryterium (które bywa ułamkowe, np. „0–2,5 pkt”), co 0,01 – wpisz „1,75” albo
+„1.75”, pole przyjmie przecinek i kropkę. Pod polem stoi zakres, a licznik sumy pokazuje wynik po polsku
+(„4,25 pkt”) i mówi, czy mieści się w zakresie zadania. Trzecie miejsce po przecinku („1,755”) albo
+liczba ponad maksimum kryterium kończy się odmową z nazwą kryterium. Suma (1,75 + 2,5 = 4,25) staje się
+oceną dokładnie, bez zaokrąglania. W etapie „tylko ze skali” punkty za kryteria są – jak dotąd –
+liczbami całkowitymi.
 
 Szkic przyjmuje rubrykę niekompletną; **wystawienie oceny** — nie.
 
@@ -264,6 +271,13 @@ etapu go nie przesuwa; po przydziale widzisz go w komunikacie i w wierszu kolejk
   ma chronić,
 - jeśli nie zdążysz, napisz do koordynatora **zanim** minie termin: praca da się przekazać komuś innemu
   bez utraty Twoich notatek.
+
+**Forum uczestników** (jeżeli konkurs je prowadzi): gdy odpowiesz w wątku, zaczynasz go **obserwować**
+i o kolejnych odpowiedziach dostaniesz list zbiorczy (najwyżej jeden o wątku na kilka godzin, bez treści
+wpisów). Twoja odpowiedź ma przy podpisie odznakę **„Komitet”**, a autor wątku dostaje list z tematem
+„komitet odpowiedział w wątku …”. Listów o kolejce moderacji komitet nie dostaje — forum moderuje
+koordynator. Częstotliwość (na bieżąco / raz dziennie / nigdy) ustawisz na `/account/profile/`, blok
+„Powiadomienia z forum”; każdy list ma też link „wypisz się”.
 
 ---
 

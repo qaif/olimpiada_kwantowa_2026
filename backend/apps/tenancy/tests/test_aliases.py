@@ -180,7 +180,10 @@ def test_path_prefix_still_wins_over_the_alias(competition, other_competition, i
     """Pierwszeństwo z etapu 1 § 2.3 zostaje: jawne wskazanie w adresie bije dopasowanie hosta."""
     from apps.tenancy.models import RoutingMode
 
+    from .conftest import open_path_prefixes
+
     attach_alias(competition)
+    open_path_prefixes(competition)
     other_competition.routing_mode = RoutingMode.PATH
     other_competition.path_prefix = "inny"
     other_competition.save(update_fields=["routing_mode", "path_prefix"])

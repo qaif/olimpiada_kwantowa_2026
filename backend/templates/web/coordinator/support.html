@@ -39,7 +39,8 @@
 <p class="hint">Otwartych zgłoszeń w serwisie: <strong>{{ open_count }}</strong>. Odpowiedź
   organizatora przestawia sprawę na „odpowiedziane”, a dopisek zgłaszającego wraca ją do kolejki.</p>
 
-<table class="table">
+<div class="scroll" role="region" tabindex="0" aria-label="Zgłoszenia problemów">
+<table class="table table--stack">
   <thead>
     <tr>
       <th scope="col">#</th>
@@ -53,10 +54,10 @@
   <tbody>
     {% for ticket in tickets %}
       <tr>
-        <td><a href="{% url 'web:coordinator-support-detail' ticket.pk %}">{{ ticket.pk }}</a></td>
-        <td><a href="{% url 'web:coordinator-support-detail' ticket.pk %}">{{ ticket.subject }}</a></td>
-        <td>{{ ticket.get_category_display }}</td>
-        <td>
+        <td class="num" data-label="#"><a href="{% url 'web:coordinator-support-detail' ticket.pk %}">{{ ticket.pk }}</a></td>
+        <th scope="row"><a href="{% url 'web:coordinator-support-detail' ticket.pk %}">{{ ticket.subject }}</a></th>
+        <td data-label="Kategoria">{{ ticket.get_category_display }}</td>
+        <td data-label="Zgłaszający">
           {% comment %}
             Adres zgłaszającego jest tu jawny i tak ma być: to jedyny ekran, na którym organizator
             ma z kim wyjaśnić sprawę. Rola jest ta z chwili zgłoszenia, nie dzisiejsza.
@@ -64,15 +65,16 @@
           {% if ticket.user %}{{ ticket.user|account_email }}{% else %}{{ ticket.email }} <span class="badge badge--neutral">bez konta</span>{% endif %}
           {% if ticket.role_snapshot %}<span class="hint">{{ ticket.role_snapshot }}</span>{% endif %}
         </td>
-        <td>
+        <td data-label="Stan">
           <span class="badge {% if ticket.is_open %}badge--warn{% elif ticket.is_closed %}badge--neutral{% else %}badge--ok{% endif %}">
             {{ ticket.get_status_display }}</span>
         </td>
-        <td>{{ ticket.created_at|local_datetime }}</td>
+        <td class="nowrap" data-label="Zgłoszone">{{ ticket.created_at|local_datetime }}</td>
       </tr>
     {% empty %}
-      <tr><td colspan="6">Brak zgłoszeń w tym zestawieniu.</td></tr>
+      <tr><td colspan="6" class="empty">Brak zgłoszeń w tym zestawieniu.</td></tr>
     {% endfor %}
   </tbody>
 </table>
+</div>
 {% endblock %}

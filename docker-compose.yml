@@ -29,6 +29,9 @@ x-app-env: &app-env
   CLAMAV_PORT: "3310"
   # Backend honoruje X-Real-IP tylko z tych adresów (sieci compose poniżej mają stałe podsieci).
   TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-172.30.1.0/24,172.30.2.0/24}
+  # Nazwa usługi w `pg_stat_activity.application_name` – `worker` i `beat` nadpisują ją niżej.
+  # Po niej `manage.py db_connections` i list alarmowy mówią, **który** kontener trzyma połączenia.
+  DB_APPLICATION_NAME: olimpiada-web
 
 x-app-base: &app-base
   build:
@@ -100,9 +103,9 @@ services:
     # 300–600% CPU z samego przełączania wątków, a `DB_CONN_MAX_AGE` trzeba było trzymać na 0 (patrz
     # niżej), bo trwałe połączenie przypięte do wątku zostawało otwarte długo po żądaniu.
     # `gthread` daje worker **wielowątkowy** bez zmiany w kodzie widoków: concurrency procesu to
-    # `--workers` razy `--threads` (4×4 = 16 równoległych żądań), a wątek roboczy żyje w puli
-    # workera (nie ginie po żądaniu jak wątek ASGI), więc trwałe połączenie znów ma sens – patrz
-    # `DB_CONN_MAX_AGE` w `backend/config/settings/base.py`.
+    # `--workers` razy `--threads` (4×4 = 16 równoległych żądań). Połączenia z bazą bierze z puli
+    # psycopg (jedna na proces, domyślnie `DB_POOL_MAX_SIZE` = `WEB_THREADS`) – patrz `DATABASES`
+    # w `backend/config/settings/base.py`.
     command: >
       gunicorn config.wsgi:application
       --bind 0.0.0.0:8000 --workers ${WEB_WORKERS:-4} --threads ${WEB_THREADS:-4}
@@ -144,6 +147,11 @@ services:
       <<: *app-env
       RUN_MIGRATIONS: "0"
       RUN_COLLECTSTATIC: "0"
+      # Bez puli połączeń: Celery (prefork) zamyka pulę przed i po każdym zadaniu, więc pula
+      # byłaby tu droższa niż zwykłe połączenie – uzasadnienie w backend/config/dbpool.py.
+      # Połączeniem rządzi wtedy DB_CONN_MAX_AGE (jedno na proces potomny, CELERY_CONCURRENCY).
+      DB_POOL: "0"
+      DB_APPLICATION_NAME: olimpiada-worker
     depends_on:
       db:     { condition: service_healthy }
       redis:  { condition: service_healthy }
@@ -163,6 +171,9 @@ services:
       <<: *app-env
       RUN_MIGRATIONS: "0"
       RUN_COLLECTSTATIC: "0"
+      # Jeden wątek, jedno połączenie – pula nie miałaby czego współdzielić (patrz `worker`).
+      DB_POOL: "0"
+      DB_APPLICATION_NAME: olimpiada-beat
     healthcheck:
       test: ["CMD-SHELL", "pgrep -f 'celery.*beat' >/dev/null || exit 1"]
       interval: 30s
@@ -171,6 +182,11 @@ services:
 
   db:
     image: postgres:16-alpine
+    # `max_connections` zostaje domyślne (100) – świadomie nie ustawiamy go tu, bo zmiana
+    # polecenia tej usługi oznacza restart Postgresa przy wdrożeniu. Budżet aplikacji przy
+    # domyślnych wartościach to ok. 20 (web 4×4 z puli, worker 2, beat 1 – docs/OPERACJE.md
+    # § 11.2), więc limitu nie trzeba podnosić. Zajętość powyżej 80 % zgłasza watchdog
+    # (apps/core/dbconnections.py, `manage.py db_connections`).
     restart: unless-stopped
     logging: *default-logging
     environment:

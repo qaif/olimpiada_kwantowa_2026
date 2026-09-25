@@ -17,8 +17,16 @@ class TenancyConfig(AppConfig):
         modułu. Bez tej linijki tabela nie powstałaby w migracjach, a błąd wyglądałby jak brak
         modelu, nie jak brak importu.
         """
+        from wagtail.models import Page
+
         from . import aliases, documents, signals  # noqa: F401 - rejestracja przez import, patrz docstring
+        from .page_urls import install as install_page_urls
         from .setup import announce_setup_token
+
+        # Adresy stron konkursu pod prefiksem ścieżki (uwaga T43): ``Page.get_url_parts`` dostaje
+        # prefiks **strony** zamiast prefiksu żądania. Uzasadnienie podmiany metody klasy bazowej
+        # zamiast nadpisania w podklasie – docstring ``apps/tenancy/page_urls.py``.
+        install_page_urls(Page)
 
         # Token kreatora ``/setup/`` wypisany raz na start kontenera (§ 1.7.1, decyzja D20).
         # Funkcja **nie pyta bazy** – na tym etapie nie wolno – i nie pisze do logu nic, gdy token

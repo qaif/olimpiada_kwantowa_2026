@@ -567,6 +567,40 @@ twardy warunek w kodzie, nie w dokumentacji. Wzorzec jest ten sam, co `check_mem
 przenosimy istniejących mediów między kolekcjami, nie odbieramy nikomu uprawnień automatycznie, nie
 zmieniamy `WAGTAILDOCS_SERVE_METHOD` ani polityki widoczności kolekcji.
 
+**Domknięcie (wydanie „uprawnienia CMS per konkurs”, po etapie 2).** Luka „grupa `coordinator` jest
+globalna” jest zamknięta, ale inną drogą niż opisana wyżej — i to jest świadoma zmiana decyzji,
+nie jej obejście:
+
+- **odbieramy grupie, a nie ludziom.** Wyjęcie koordynatora z grupy `coordinator` przy wyłączonym
+  `memberships_enforced` odbierałoby mu rolę w całości (tak jak ostrzegała stara odmowa komendy).
+  Dlatego `scope_cms_access` zostawia wszystkich w grupie `coordinator` i zabiera **grupie**
+  uprawnienia `/cms/`; redakcję daje wyłącznie `cms:<slug>`, do której członków wyznacza serwis
+  z roli koordynatora (`apps/cms/permissions.py` `sync_user_cms_groups`, sygnały `apps/cms/signals.py`),
+- **Konkurs #1 nie jest już wyjątkiem w kodzie — jest dowodem w komendzie.** Zamiast odmowy dla
+  `kwantowa` komenda liczy macierz możliwości każdego koordynatora (`cms_abilities`) przed i po
+  i przy jednym konkursie wycofuje całość, gdy różni się choć jedną pozycją. Test
+  `test_competition_one_coordinator_keeps_identical_abilities` sprawdza to samo na bazie z migracji,
+- **media z korzenia kolekcji przechodzą do kolekcji konkursu** — przy jednym konkursie same, przy
+  kilku tylko wskazane (`--root-media-to`), razem z ograniczeniem widoczności korzenia. Bez tego
+  zawężenie zabrałoby koordynatorowi Konkursu #1 jego bibliotekę,
+- **szerokość „wszystkie konkursy” ma imię**: rola platformy *superkoordynator* (grupa
+  `superkoordynator`, `apps/accounts/super_coordinator.py`), nadawana komendą z wpisem audytu.
+  Obecni koordynatorzy dostają ją **przed** zawężeniem (`superkoordynator
+  --all-current-coordinators`, polecenie organizatora „obecny koordynator ma nim zostać”),
+- **wyciek tytułów poza drzewem i kolekcjami** zamyka `apps/cms/scope.py` (zasięg redaktora liczony
+  z jego `GroupPagePermission`/`GroupCollectionPermission`) z hakami w `apps/cms/wagtail_hooks.py`
+  (wybór strony, polityka i widoki komunikatów, okno wyboru komunikatu, API panelu) i warstwą
+  `apps/cms/middleware.py` (rodzic w wyborze strony, raport „Użycie typów stron”); dziennik
+  `ModelLogEntry` zawęża podmiana `viewable_by_user`,
+- **wsteczna zgodność bez flagi:** stan „po komendzie” rozpoznaje się z danych — grupa `coordinator`
+  bez `GroupPagePermission` (`global_coordinator_scoped`). Przed komendą zasięg `/cms/` jest bez
+  ograniczeń, sygnały nic nie zapisują, pliki lądują w korzeniu — jak przed wydaniem. Flaga
+  `scoped_cms_permissions` zostaje dla trybu z etapu 2 i po komendzie nie jest potrzebna.
+
+Runbook: `docs/OPERACJE.md` § 6.7. Testy: `apps/cms/tests/test_cms_scope.py` (komenda, macierz przed/po),
+`apps/cms/tests/test_cms_permissions_per_competition.py` (koordynator A kontra B we wszystkich
+miejscach `/cms/`), `apps/accounts/tests/test_super_coordinator.py`.
+
 ---
 
 ### 1.2. Konfigurowalny przebieg zawodów (edytor procesu)
@@ -1945,6 +1979,29 @@ pochodzi z `ERROR_PAGE_CONTACT_EMAIL` z domyślną dzisiejszą wartością; `Int
 kluczowany parą (zgłoszenie, komponent); `email_subject_prefix` konkursu **nie** jest doklejany do
 tematów (dziś żaden list Konkursu #1 go nie niesie); dane szczególne w formularzu przyjazdu są za
 osobnym przełącznikiem `LogisticsSettings.collect_special_needs` (domyślnie wyłączone).
+
+**Uwaga T43 – zamknięta** (`CHANGELOG.md`, „drzewo CMS konkursu pod prefiksem”). Raport T43
+zostawił lukę: konkurs w trybie prefiksu ścieżki miał własną witrynę i strony (zakłada je
+`create_competition`), ale pod `/<prefiks>/` Wagtail serwował drzewo **gospodarza**, bo witrynę
+wybiera po hoście; flaga `path_prefix_routing` nie miała czytelnika. Rozstrzygnięcie:
+
+- `CompetitionMiddleware` pod prefiksem podmienia witrynę żądania (`request._wagtail_site`) na
+  witrynę konkursu – `wagtail.views.serve`, menu, `SiteSettings.for_request`, przekierowania
+  i analityka czytają od tej chwili jego drzewo. Strona gospodarza pod prefiksem daje 404 i odwrotnie.
+- `Page.get_url_parts` (opakowany w `apps/tenancy/page_urls.py`) liczy adres z prefiksem **strony**,
+  a nie żądania: `pageurl`, `page.url`, `full_url`, podgląd w `/cms/` i „Zobacz na żywo” prowadzą pod
+  `https://<platforma>/<prefiks>/…`. Konkurs z własną domeną i instalacja z jedną witryną nie
+  wchodzą w nową gałąź (zero zapytań; budżety § 5.6 bez zmian).
+- `path_prefix_routing` jest czytana – jako bramka **gospodarza** (konkursu, pod którego hostem
+  stoi konkurs z prefiksem i z którym dzieli ciasteczka), w `apps.tenancy.resolution`, bez
+  dodatkowego zapytania. Konkurs pod prefiksem opisuje `routing_mode=PATH`; druga flaga z tą samą
+  treścią byłaby drugim źródłem prawdy. `create_competition --path-prefix` otwiera bramkę konkursowi
+  witryny domyślnej, a migracja `tenancy.0010` – instalacjom, na których konkurs `PATH` już stoi.
+- Przekierowania (`apps.cms.redirects`), klucz pamięci stron, klucz paska harmonogramu, odnośniki
+  szablonu bazowego (`site_root`), `LOGIN_URL`/`LOGIN_REDIRECT_URL`/`LOGOUT_REDIRECT_URL` i linki
+  w listach poza żądaniem niosą prefiks; nic z tego nie wyprowadza z konkursu do gospodarza.
+
+Testy: `apps/tenancy/tests/test_path_prefix_cms.py`; runbook: `OPERACJE.md` § 6.6.
 
 ---
 

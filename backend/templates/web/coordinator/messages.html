@@ -95,8 +95,8 @@
     <p class="hint">„Przekazana do wysyłki” znaczy, że listy trafiły do kolejki – o doręczeniu
       rozstrzyga serwer odbiorcy.</p>
   </div>
-  <div class="scroll">
-    <table class="table">
+  <div class="scroll" role="region" tabindex="0" aria-label="Wysłane komunikaty">
+    <table class="table table--stack">
       <thead>
         <tr>
           <th scope="col">Kiedy</th>
@@ -111,13 +111,13 @@
       <tbody>
         {% for row in broadcasts %}
           <tr>
-            <td class="audit-when">{{ row.created_at|local_datetime }}</td>
+            <td class="audit-when nowrap" data-label="Kiedy">{{ row.created_at|local_datetime }}</td>
             <th scope="row">{{ row.subject }}</th>
-            <td>{{ row.get_group_display }}{% if row.target_label %}: <strong>{{ row.target_label }}</strong>{% endif %}</td>
-            <td class="num">{{ row.recipient_count }}</td>
-            <td class="num">{{ row.sent_count }}</td>
-            <td>{{ row.get_status_display }}</td>
-            <td>{{ row.created_by|account_email|default:"—" }}</td>
+            <td data-label="Grupa">{{ row.get_group_display }}{% if row.target_label %}: <strong>{{ row.target_label }}</strong>{% endif %}</td>
+            <td class="num" data-label="Odbiorców">{{ row.recipient_count }}</td>
+            <td class="num" data-label="W kolejce">{{ row.sent_count }}</td>
+            <td data-label="Stan">{{ row.get_status_display }}</td>
+            <td data-label="Wysłał">{{ row.created_by|account_email|default:"—" }}</td>
           </tr>
         {% empty %}
           <tr><td colspan="7" class="empty">Nie wysłano jeszcze żadnego komunikatu.</td></tr>

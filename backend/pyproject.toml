@@ -19,7 +19,10 @@ dependencies = [
     # ale nie były testowane przeciwko 6.1 – a to ten pakiet czyta ``DATABASE_URL``/``EMAIL_URL``,
     # czyli całą konfigurację środowiska.
     "django-environ>=0.14,<0.15",
-    "psycopg[binary]>=3.2,<3.3",
+    # Ekstra ``pool`` dociąga ``psycopg-pool`` – pulę połączeń, której używa Django
+    # (``DATABASES["default"]["OPTIONS"]["pool"]``, patrz ``config/settings/base.py``). Bez niej
+    # ustawienie puli kończy się ``ImproperlyConfigured`` przy pierwszym zapytaniu, a nie przy starcie.
+    "psycopg[binary,pool]>=3.2,<3.3",
     "redis>=5.0,<6.0",
     # 7.0: pierwsza linia z ``Django>=5.2`` w metadanych; 5.4 nie instaluje się obok Django 6.1.
     "django-redis>=7.0,<7.1",

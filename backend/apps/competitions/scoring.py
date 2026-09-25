@@ -213,6 +213,35 @@ def score_rule(stage, problem=None, *, scale=None) -> ScoreRule:
     )
 
 
+def criterion_rule(max_points, *, free: bool) -> ScoreRule:
+    """Reguła punktów za **jedno kryterium rubryki**: od 0 do maksimum kryterium.
+
+    Ta sama klasa, co ocena całego zadania, i to jest cały powód istnienia tej funkcji (prośba
+    organizatora po wydaniu 0.35.0 – „ułamki także w rubrykach”): gdyby kryterium miało własną
+    kopię reguły „dwa miejsca po przecinku, przecinek albo kropka”, rozjechałaby się ona z oceną
+    zadania przy pierwszej poprawce, a recenzent dostałby dwie różne odpowiedzi na to samo „2,5”.
+
+    Tryb jest trybem **etapu** (``ScoringScale.free_values``), tak samo jak dla oceny zadania:
+
+    - etap „tylko ze skali” – pełne punkty ``0, 1, …, max`` (zachowanie sprzed tej zmiany; maksimum
+      kryterium jest wtedy liczbą całkowitą, pilnuje tego ``grading.rubric.parse_criteria_lines``),
+    - etap dowolny – każda liczba od 0 do maksimum co 0,01, także gdy samo maksimum jest ułamkiem.
+
+    Przesunięcia nie ma: punkty kryterium nie leżą w kolumnie ``score``, tylko w ``Review.rubric``,
+    a do kolumny trafia dopiero ich suma, sprawdzana osobno regułą zadania (``score_rule``).
+    """
+    maximum = to_points(max_points) or Decimal(0)
+    if free:
+        return ScoreRule(free=True, minimum=Decimal(0), maximum=maximum)
+    whole = int(maximum)
+    return ScoreRule(
+        free=False,
+        values=frozenset(range(whole + 1)),
+        minimum=Decimal(0),
+        maximum=Decimal(whole),
+    )
+
+
 def safe_score_rule(stage, problem=None) -> ScoreRule | None:
     """``score_rule`` dla ekranów: brak skali to ``None``, a nie wyjątek.
 

@@ -157,8 +157,22 @@ odwoławczą, komisję rozmów i klientów API.
   dziesiętny w pliku rozdzielanym średnikami bywa odczytywany jako koniec kolumny. Otwierając CSV
   w polskim Excelu, wskaż w imporcie separator dziesiętny „.” – albo pobierz **XLSX**, w którym punkty
   są od razu liczbami.
-- Test online (etap w formie testu) nie zmienia się: jego wynik nadal jest zaokrąglany do pełnych
-  punktów.
+- **Test online** (etap w formie testu) słucha tego samego przełącznika (od wersji po v0.35.0):
+  w etapie „tylko ze skali” wynik testu wchodzi do tabeli wyników **zaokrąglony do pełnych punktów,
+  połówka w górę** (7,5 → 8) – jak dotąd; w etapie z dowolnymi wartościami wchodzi **co do 0,01**
+  (7,5 zostaje 7,5). Sam wynik podejścia (ekran wyników testu, eksport CSV testu) zawsze ma dwa
+  miejsca po przecinku. Etap testu dostaje skalę tak samo jak każdy etap – przełącznik jest na tym
+  samym ekranie `/coordinator/stages/<id>/scale/` (np. z pulpitu: „Skala punktacji”). Punkty pytania
+  i punkty ujemne wpisuje się w edytorze pytań z przecinkiem albo kropką („0,5”, „0,25”; najwyżej dwa
+  miejsca po przecinku, w obu trybach etapu) – tak samo w imporcie (`[pkt: 0,5]`, kolumna `punkty`).
+  Ocena częściowa pytania wielokrotnego wyboru (proporcjonalnie) i każda kwota za pytanie są
+  zaokrąglane do 0,01 **połówka w górę** (0,125 → 0,13) – tą samą metodą, co suma etapu; wcześniej
+  kwota za pytanie szła zaokrągleniem bankierskim (0,125 → 0,12), co może zmienić o 0,01 wynik podejścia
+  przeliczonego ponownie przyciskiem „Przelicz punkty”.
+- **Rubryki** w etapie z dowolnymi wartościami przyjmują ułamki: maksimum kryterium (np. `2,5;Pomysł`)
+  i punkty za kryterium (np. 1,75) – szczegóły w § 3 („Rubryka oceniania”). Powrót do „tylko wartości ze
+  skali” jest odmawiany także wtedy, gdy któreś kryterium ma ułamkowe maksimum (komunikat poda, ile ich
+  jest) – zaokrąglij je w rubryce zadania.
 
 **Zadania mogą mieć różną liczbę punktów.** W etapie z dowolnymi wartościami zadanie może dostać
 **samo „Maksimum punktów tego zadania”** – bez listy wartości skali – np. **7** albo **12,5**. Takie
@@ -200,8 +214,18 @@ Co ustawia się przy zadaniu:
 **Rubryka zmienia ekran recenzenta**: zamiast listy ocen ze skali dostaje po jednym polu punktów
 i komentarzu na kryterium, a sumę liczy serwer. **Suma musi należeć do skali** — system nie zaokrągla,
 bo to byłaby zmiana decyzji recenzenta. W etapie z dowolnymi wartościami ocen (§ 2.3) suma musi
-**mieścić się w zakresie** zadania. Punkty za kryteria są liczbami całkowitymi w obu trybach. Zadanie
-bez kryteriów ocenia się dokładnie jak dotąd.
+**mieścić się w zakresie** zadania. Zadanie bez kryteriów ocenia się dokładnie jak dotąd.
+
+**Ułamki w rubryce** (od wersji po v0.35.0) zależą od trybu etapu:
+
+| Tryb etapu | Maksimum kryterium (`punkty;tytuł`) | Punkty za kryterium (recenzent) |
+|---|---|---|
+| tylko wartości ze skali | liczba całkowita 1–1000, np. `2;Pomysł` (ułamek – błąd z wyjaśnieniem) | liczba całkowita od 0 do maksimum |
+| dowolna wartość (co 0,01) | także ułamek od 0,01 do 1000, np. `2,5;Pomysł` albo `2.5;Pomysł` | dowolna liczba od 0 do maksimum co 0,01, np. 1,75 |
+
+Suma kryteriów jest liczona dokładnie (1,75 + 2,5 = 4,25) i trafia do oceny recenzji bez zaokrąglania;
+suma poza zakresem zadania to odmowa, tak jak w trybie skali. Formularz zadania pokazuje zapisaną
+rubrykę bez zbędnych zer („4;Całość”, „2,5;Zapis”), a karta zadania – maksima w tej samej postaci.
 
 Poprawienie tytułu kryterium **nie zrywa** powiązania z zapisanymi już punktami. Zapis szablonów
 wspólnych **nie rusza** prywatnych szablonów recenzentów.
@@ -729,7 +753,7 @@ powierzenia** (niżej).
 > Dawne **Llama API** Mety (`api.llama.com`) zostało wyłączone 6.07.2026 — dostawca „Meta” w serwisie
 > to jego następca, **Meta Model API** (modele Muse Spark), a nie modele Llama.
 >
-> Rejestr czynności przetwarzania (wersja **1.8**, § 9.2) wymienia w wierszu „Pomocnicza ocena prac
+> Rejestr czynności przetwarzania (od wersji **1.8**, § 9.2) wymienia w wierszu „Pomocnicza ocena prac
 > uczestników przez model językowy” jako odbiorców **wyłącznie** dostawców, którzy mają w tym konkursie
 > klucz API **i** potwierdzoną umowę powierzenia.
 
@@ -1132,14 +1156,45 @@ przeczytałeś. Dalsze wpisy tego wątku przechodzą kolejkę osobno.
 wypowiedzi. Automatyczne zdejmowanie po zgłoszeniu dałoby każdemu uczestnikowi przycisk „usuń cudzy
 wpis”, a na forum, na którym toczy się rywalizacja, ktoś by go w końcu użył.
 
-**Forum nie wysyła listów — ani do Ciebie, ani do autorów.** Decyzja jest świadoma: konkurs ma już dwa
-kanały poczty (komunikaty i zgłoszenia), a trzeci, wyzwalany każdym akapitem nastolatka, zamieniłby Twoją
-skrzynkę w kanał RSS i skończył się regułą „do kosza”. W zamian:
+**Powiadomienia e-mail (od 25.09.2026) — zbiorcze, nigdy „za każdy wpis”.** Pierwsza wersja forum nie
+wysyłała listów wcale, żeby Twoja skrzynka nie zamieniła się w kanał RSS. Listy doszły z tym samym
+warunkiem: każdy z nich zbiera wszystko, co się uzbierało, i ma limit.
 
-- **odznaka przy „Forum uczestników”** w menu panelu mówi, ile pozycji czeka. To jedyny sygnał, więc przy
-  trybie „przed publikacją” zaglądaj do kolejki tak, jak zaglądasz do zgłoszeń,
-- **autor znajduje Twoje uzasadnienie** na swoim ekranie `/forum/mine/` — i to jedyne miejsce, w którym
-  się o odrzuceniu dowie. Odrzucenie bez uzasadnienia jest niemożliwe (formularz odmówi).
+| List | Do kogo | Kiedy | Co zawiera |
+|---|---|---|---|
+| **Wpisy czekają na moderację** | koordynatorzy **tego** konkursu (komitet nie — moderujesz tylko Ty) | pierwszy, gdy najstarsza pozycja czeka **10 min**; kolejne najwyżej **co 3 godz.**, dopóki coś czeka | same liczby (wątki, odpowiedzi, zgłoszenia), od kiedy czeka najstarsza pozycja, odnośnik do kolejki — **bez tematów i treści** |
+| **Nowe odpowiedzi w obserwowanym wątku** | każdy, kto wątek obserwuje (autor wątku i każdy, kto w nim pisał, obserwują automatycznie; przycisk „Obserwuj wątek” / „Przestań obserwować” pod tematem) | najwyżej jeden list o wątku **co 4 godz.**; kilka wątków jedzie w jednym liście | temat wątku, liczba nowych wpisów, odnośnik; osobny temat listu, gdy odpowiedział **organizator** albo **komitet** |
+| **Decyzja organizatora w sprawie wpisu** | autor wpisu albo wątku z kolejki | przy najbliższym przebiegu (co 2 min); zatwierdzenie zbiorcze to **jeden** list na autora | zatwierdzenie z tematem i odnośnikiem albo odrzucenie z **Twoim uzasadnieniem** — bez tematu odrzuconego wątku |
+
+Czego list **nie niesie nigdy**: treści wpisów (także opublikowanych — forum czyta się wyłącznie po
+zalogowaniu, a list bywa przekazany dalej), imion piszących i czegokolwiek, co nie jest opublikowane.
+Stan sprawdzamy w chwili wysyłki: wpis zatwierdzony i zaraz ukryty nie wyjdzie. Konta nieaktywne,
+z niepotwierdzonym adresem, po anonimizacji i osoby bez roli w konkursie nie dostają nic. Temat każdego
+listu zaczyna się od prefiksu konkursu i słowa „Forum:” (np. `[Olimpiada Kwantowa] Forum: …`) — po tym
+da się je odfiltrować. Język listu to język konta odbiorcy, a bez wyboru — język konkursu.
+
+**Ustawienia** ma każdy na ekranie „Edycja danych” (`/account/profile/` albo `/me/profile/`, blok
+„Powiadomienia z forum”): listy o wątkach i decyzjach **na bieżąco** (domyślnie), **raz dziennie**
+(jedno podsumowanie rano, ok. 7:00 czasu letniego) albo **nigdy**; koordynator ma dodatkowo przełącznik
+listów o kolejce (domyślnie włączony). **Każdy list ma link „wypisz się”**, działający bez logowania,
+i nagłówek `List-Unsubscribe` (klient poczty pokaże przycisk „Anuluj subskrypcję”).
+
+Rytm zmienia administrator instalacji zmiennymi środowiskowymi: `FORUM_MODERATION_DIGEST_DELAY_MINUTES`
+(10), `FORUM_MODERATION_DIGEST_INTERVAL_HOURS` (3), `FORUM_THREAD_NOTIFY_INTERVAL_HOURS` (4),
+`FORUM_DAILY_DIGEST_HOUR_UTC` (5).
+
+Listy są dodatkiem, nie jedynym sygnałem:
+
+- **odznaka przy „Forum uczestników”** w menu panelu nadal mówi, ile pozycji czeka — przy trybie „przed
+  publikacją” zaglądaj do kolejki tak, jak zaglądasz do zgłoszeń, także gdy listy o kolejce wyłączysz,
+- **autor znajduje Twoje uzasadnienie** na swoim ekranie `/forum/mine/` także wtedy, gdy listy wyłączył.
+  Odrzucenie bez uzasadnienia jest niemożliwe (formularz odmówi). Ukrycie wpisu już opublikowanego nie
+  idzie listem — autor widzi je na `/forum/mine/`.
+
+**RODO:** listy są kontaktem w ramach forum, z którego ta osoba korzysta — ten sam cel i ta sama podstawa
+(art. 6 ust. 1 lit. f), więc bez nowej czynności w rejestrze; wiersz „Forum uczestników” dostał w wersji
+**1.9** rejestru nowego odbiorcę (dostawca poczty wychodzącej) i kategorię danych (obserwowane wątki,
+ustawienia powiadomień). Wypis jednym kliknięciem jest formą prawa sprzeciwu z art. 21.
 
 **Czego forum nie ma i w wersji pierwszej mieć nie będzie:** wiadomości prywatnych (rozmowa
 niepełnoletnich bez świadków jest dokładnie tym, czego moderacja nie widzi), załączników i HTML-a
@@ -1385,6 +1440,10 @@ EOG). Wersja **1.8** z 24.09.2026 (inni dostawcy AI) zmienia w tym wierszu odbio
 „Anthropic” rejestr konkursu wymienia **każdego dostawcę, który ma klucz API i potwierdzoną umowę
 powierzenia** (Anthropic, OpenAI, Google, Meta) — a gdy takiego nie ma, mówi wprost, że prace nie
 opuszczają serwera.
+Wersja **1.9** z 25.09.2026 (powiadomienia e-mail z forum) nie dodaje celu przetwarzania: wiersz
+forum dostaje nowego odbiorcę (dostawca poczty wychodzącej – temat wątku i sam fakt udziału w rozmowie,
+nigdy treść wpisu) i nową kategorię danych (obserwowane wątki, ustawienia powiadomień, znaczniki
+wysyłki; wchodzą do eksportu danych konta i znikają przy jego usunięciu).
 Odbiorcy są wymienieni wprost (hosting, dostawca poczty, analityka wyłącznie po zgodzie). Dane
 administratora (nazwa, adres, KRS, kontakt) dokłada się **z ustawień serwisu w `/cms/`**, więc ich
 poprawka nie wymaga wydania aplikacji. `?format=csv` oddaje ten sam dokument jako plik otwierający się

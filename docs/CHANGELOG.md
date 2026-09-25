@@ -8,6 +8,250 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## v0.36.0 – 2026-09-25
+
+Wydanie zbiorcze z próśb organizatora i długu technicznego z 25.09.2026 – sześć zmian. Bez flagi
+i od wdrożenia działają: **responsywne tabele**, **ułamki w rubrykach i teście** (za istniejącym
+przełącznikiem etapu „dowolna wartość”, czyli dla etapu, którego nikt nie przełączył, bez zmian),
+**pula połączeń z Postgresem** z alarmem zajętości i **reset hasła w tle**. **Drzewo CMS konkursu
+pod prefiksem** dotyczy wyłącznie konkursów `routing_mode=PATH` (produkcja z jednym konkursem – bez
+zmian co do bajtu). **Uprawnienia `/cms/` per konkurs i superkoordynator** nie zmieniają niczego do
+chwili uruchomienia dwóch komend operatora. **Powiadomienia z forum** działają wyłącznie w konkursie
+z włączoną flagą `participant_forum` (domyślnie wyłączona).
+
+Migracje: `grading.0012_rubric_decimal_points`, `ai_grading.0003_points_precision` (obie bezstratne,
+małe tabele – `OPERACJE.md` § 18.4), `tenancy.0010_path_prefix_routing_on_platform` (dane; baza bez
+konkursu `PATH` – bez zmian), `forum.0002_forum_notifications` (4 nowe tabele). Nowa zależność:
+ekstra `pool` przy `psycopg` (`psycopg[binary,pool]` → `psycopg-pool`) – **obraz trzeba
+przebudować**. Nowe zadania beat: `forum-notifications` (co 2 min) i `forum-daily-digest`
+(codziennie o `FORUM_DAILY_DIGEST_HOUR_UTC`, domyślnie 5:00 UTC). `send_mail_task` ma dwa nowe
+opcjonalne argumenty (`html_message`, `headers`), których stary worker nie zna – **`web`, `worker`
+i `beat` wdrażać razem** (to jeden obraz). Rejestr czynności przetwarzania **1.9** (wiersz forum:
+nowy odbiorca – dostawca poczty – i nowa kategoria danych, bez nowego celu).
+
+Kroki operatora po `scripts/deploy.sh`, w tej kolejności: sprawdzenie puli (`OPERACJE.md` § 11.2:
+`import psycopg_pool`, `manage.py db_connections`, `/healthz/`), potem § 6.7: `superkoordynator
+--all-current-coordinators` (`--dry-run`, właściwe, `--list`) → `scope_cms_access --dry-run` →
+`scope_cms_access` → drugi `--dry-run` z wynikiem „bez zmian”.
+
+### Responsywne tabele (bez flagi)
+
+Prośba organizatora z 25.09.2026: **„Popraw responsywność, szczególnie w panelu koordynatora, jeśli
+chodzi o tabele”**. Bez migracji, bez zmian w widokach i bez flagi – zmiana dotyczy arkusza
+(`app.css` § 6.4), szablonów i jednego nowego skryptu (`js/table-scroll.js`, plik zewnętrzny
+z nonce jak pozostałe; CSP bez zmian). Wzorzec i wybór między przewijaniem a kartami:
+[`UI.md`](UI.md) § 2.10.
+
+- **Kolumny nie są już ściskane do pojedynczych liter.** `overflow-wrap: anywhere` w komórkach
+  zerował minimalną szerokość kolumny, więc tabela nigdy nie sięgała po przewijanie: lista kont
+  na 1024 px miała wiersze po 361 px (e-mail i imię łamane co kilka liter), przydziały na 360 px –
+  po 1900 px. W ramce `.scroll` kolumna nie schodzi poniżej najdłuższego słowa, a ciąg bez spacji
+  ma sufit `--cell-max`. Tabela, która się i tak nie mieści, dostaje kolumny w szerokości treści
+  i przewija się w ramce (listy kont i komitetu, macierz, ranking, przydziały – modyfikatorem;
+  pozostałe – przez skrypt, `data-fit="wide"`). Lista kont na 1024 px: 361 → 98 px na wiersz.
+- **Poziomego suwaka strony nie ma na żadnej ze sprawdzonych 72 stron** (360, 390, 768, 1024,
+  1280 px). Naprawione źródła: tabele bez ramki (zgłoszenia problemów, komunikaty w serwisie,
+  `/status/`), `.visually-hidden` w komórce liczone od dokumentu zamiast od ramki (przydziały 1211 px,
+  karta uczestnika 577 px, karta zadania 783 px przy ekranie 360 px), niejawna kolumna siatki na
+  `/warsztaty/` (491 px), e-mail w `<h1>` edycji konta (658 px na 360, 784 px na 768), długa odznaka
+  w nagłówku karty dostawcy AI (387 px).
+- **Macierz obecności na warsztatach** (`.table--matrix`): nagłówki-tematy łamią się w kolumnie
+  7–11 rem zamiast stać w jednej linii – tabela z 17 warsztatami 9487 → 3297 px, kolumna uczestnika
+  przyklejona i na telefonie nie szersza niż 45 % ekranu (556 → 162 px).
+- **Przyklejona pierwsza kolumna** (`.table--sticky-first`) na listach kont i uczestników, komitetu,
+  kalibracji, obecności i przyjazdów etapu, wynikach testu; **ranking** (`.table--sticky-rank`)
+  trzyma miejsce i uczestnika na podglądzie wyników i w publicznych wynikach (`/results/…`, strona
+  wyników w CMS). Nagłówek kolumn klei się w ramkach `.scroll--tall` (listy kont, komitet, macierz,
+  obecność, podgląd wyników, przydziały).
+- **Karty na telefonie** (`.table--stack` + `data-label`, poniżej 640 px): dziennik zdarzeń,
+  zgłoszenia problemów, komunikaty w serwisie, wysłane komunikaty, zgody konkursu, zaświadczenia
+  o statusie ucznia.
+- **Ramka jest regionem** z nazwą i przystankiem klawiatury: w kluczowych tabelach panelu
+  (`role="region" tabindex="0" aria-label`) wprost w szablonie, w pozostałych – ze skryptu,
+  który przystanek dokłada **tylko** tam, gdzie ramka naprawdę się przewija. Krawędź, za którą są
+  jeszcze kolumny, wygasa (`data-scroll`, maska – działa w trybie ciemnym i wysokiego kontrastu).
+- `<th scope="row">` w treści tabeli wygląda jak nazwa wiersza, a nie jak drugi rząd nagłówków
+  kolumn, i nie klei się do góry ramki; daty, liczby, kody i odznaki w tabelach nie łamią się
+  w środku wartości (`.nowrap`, `time`, `.num`, `.code-chip`, `.badge`).
+- Wydruk: tabela wraca do szerokości kartki, bez maski i przyklejonych kolumn.
+
+### Ułamki w rubrykach i teście (za przełącznikiem etapu)
+
+Dopełnienie wydania 0.35.0: przełącznik etapu **„dowolna wartość od min do max (co 0,01)”**
+obejmuje teraz także **rubryki oceniania** i **test online**, które dotąd liczyły w pełnych punktach.
+Etap „tylko ze skali” – czyli każdy, którego organizator nie przełączył – zachowuje się jak dotąd.
+
+Migracje: `grading.0012_rubric_decimal_points` (`RubricCriterion.max_points` `smallint` →
+`numeric(7,2)`, więz „maksimum dodatnie” jako `> 0`), `ai_grading.0003_points_precision`
+(`AiAssessment.proposed_points`/`max_points` `numeric(6,2)` → `numeric(7,2)`, jak maksimum zadania);
+obie bezstratne, na małych tabelach – `OPERACJE.md` § 18.4.
+
+- **Rubryka w etapie dowolnym**: maksimum kryterium może być ułamkiem (`2,5;Pomysł`, 0,01–1000),
+  a recenzent wpisuje punkty za kryterium co 0,01 z przecinkiem albo kropką (pole tekstowe
+  z klawiaturą dziesiętną, zakres pod polem, licznik sumy „4,25 pkt” z werdyktem „w zakresie / poza
+  zakresem zadania”). Punkty kryterium sprawdza jedna reguła – `competitions.scoring.criterion_rule`,
+  ta sama klasa `ScoreRule`, co ocena zadania; czyta je `grading.rubric.criterion_points` dla API,
+  szkicu i formularza panelu. Odmowy jak dotąd: `INVALID_RUBRIC` (kształt, także trzy miejsca po
+  przecinku), `RUBRIC_POINTS_OUT_OF_RANGE`, `RUBRIC_TOTAL_NOT_IN_SCALE` (suma dokładna, bez
+  zaokrąglania). `Review.rubric[].points` to liczba JSON: `int`, gdy całkowita, inaczej `float`
+  o ≤ 2 miejscach (`points_json`). W etapie skali ułamek przy kryterium odpada jak dotąd,
+  a ułamkowe maksimum w formularzu zadania – z wyjaśnieniem, że wymaga trybu dowolnego.
+- **Powrót etapu do trybu skali** jest odmawiany (`409 FREE_VALUES_IN_USE`) także wtedy, gdy któreś
+  kryterium rubryki ma ułamkowe maksimum (nowy licznik `criteria` w `free_values_blockers`).
+- **Test online słucha przełącznika etapu**: `quiz.services.stage_scores` oddaje wynik najlepszego
+  podejścia jako `Decimal` – w etapie skali zaokrąglony do pełnych punktów, połówka w górę (jak
+  dotąd), w etapie dowolnym co 0,01 – do tej samej kolumny `StageEntry.total_points`, tabeli
+  wyników, snapshotu i komponentu testowego. Każde zaokrąglenie w teście idzie przez
+  `apps.core.points.round_points` (`ROUND_HALF_UP` do 0,01): kwota za pytanie z oceną częściową
+  (dotąd bankierskie `ROUND_HALF_EVEN` – 0,125 dawało 0,12, teraz 0,13; zmienia się wyłącznie przy
+  ponownej ocenie podejścia) i suma podejścia.
+- **Punkty pytania z przecinkiem**: edytor pytań (`PointsField`, „0,5”, najwyżej dwa miejsca;
+  dotąd `forms.DecimalField` odrzucał przecinek) i import (`[pkt: 0,5]`; trzecie miejsce po
+  przecinku to błąd wiersza, a nie ciche zaokrąglenie w bazie).
+- **Wyświetlanie filtrem `points`**: maksimum i punkty kryterium (panel recenzenta, karta zadania,
+  formularz rubryki bez „4.00”), punkty pytań, maksimum testu, wynik podejścia i tabela wyników testu
+  („0,5”, a nie „0,50”). Prompt oceny AI podaje maksimum kryterium bez zbędnych zer (`2.5`, `4`) –
+  tekst dla rubryk całkowitych nie zmienia się ani o znak (pamięć podręczna promptu zostaje).
+- **Eksporty**: CSV wyników testu z kropką i bez zbędnych zer (`7.5`, `3` zamiast `7.50`, `3.00`);
+  eksport danych uczestnika (art. 15/20 RODO) niesie `proponowane_punkty` i `maksimum` sugestii AI
+  jako liczby JSON (`6`, `4.5`) zamiast tekstu z kolumny („6.00”), jak `suma_punktow` obok.
+
+### Pula połączeń i reset hasła w tle (bez flagi)
+
+Dwie pozycje długu technicznego z `BACKLOG.md`. Bez migracji. Nowa zależność: ekstra `pool` przy
+`psycopg` (`psycopg[binary,pool]` – dociąga `psycopg-pool`), więc **obraz trzeba przebudować**.
+`web`, `worker` i `beat` wdrażać razem (to jeden obraz): `send_mail_task` ma nowy argument
+`html_message`, którego stary worker nie zna. Kroki operatora: `OPERACJE.md` § 11.2.
+
+#### Pula połączeń z Postgresem i alarm zajętości
+
+- **Pula psycopg w `web`** (`DATABASES["default"]["OPTIONS"]["pool"]`, reguły w
+  `backend/config/dbpool.py`): jedna pula na proces gunicorna, `DB_POOL_MAX_SIZE` domyślnie
+  `WEB_THREADS`, `DB_POOL_MIN_SIZE=1`, `DB_POOL_TIMEOUT=10`. Przy puli `CONN_MAX_AGE` jest zawsze
+  0 (wymóg Django), a `DB_CONN_MAX_AGE` działa już tylko w procesach bez puli.
+- **`worker` i `beat` bez puli** (`DB_POOL=0` w `docker-compose.yml`, a ustawienia rozpoznają proces
+  Celery także same): Celery 5.6 w workerze `prefork` zamyka pulę przed i po każdym zadaniu.
+- **`application_name` per usługa** (`DB_APPLICATION_NAME`: `olimpiada-web`, `olimpiada-worker`,
+  `olimpiada-beat`) – w `pg_stat_activity` widać, kto trzyma połączenia.
+- **Alarm zajętości** (`apps/core/dbconnections.py`): jedno zapytanie do `pg_stat_activity`,
+  buforowane 30 s. `/healthz/` i `/status.json` dostają pole `db_connections`
+  (`ok|warn|critical|unknown`, wyłącznie poziom – bez liczb; `/status.json` dokłada je jako ostatni
+  klucz, a kod `/healthz/` się nie zmienia). Watchdog pisze na `ALERT_EMAILS` od 80 %
+  (`db-connections:warn`) i od 95 % (`db-connections:critical`) z podziałem na usługi i stany.
+  Nowa komenda `manage.py db_connections` (kod wyjścia = poziom). Progi:
+  `DB_CONNECTIONS_WARN_PERCENT`, `DB_CONNECTIONS_CRITICAL_PERCENT`.
+- Budżet przy domyślnych wartościach: ok. 20 połączeń aplikacji ze 100 (`web` 4×4 z puli, `worker`
+  2, `beat` 1) – `max_connections` bez zmian.
+
+#### Reset hasła w tle
+
+- `POST /password-reset/` i `/coordinator/accounts/<pk>/password-reset/` nie wysyłają już listu
+  w żądaniu: `QueuedPasswordResetForm` (`apps/accounts/password_reset.py`) renderuje ten sam list
+  (szablony, kontekst, token – bez zmian) i kolejkuje go w `send_mail_task` na kolejce `mail` po
+  commicie. Treść, temat, nadawca i część HTML są identyczne z listem wysyłanym dotąd (test porównuje
+  oba). Odpowiedź, limit `password_reset` i brak enumeracji kont bez zmian – a czas odpowiedzi nie
+  zależy już od rozmowy z MTA; błąd brokera jest połykany i logowany po kluczu konta.
+- `send_mail_task` przyjmuje opcjonalne `html_message` (alternatywa `text/html`).
+
+### Drzewo CMS konkursu pod prefiksem (uwaga T43)
+
+Zamyka uwagę T43: konkurs adresowany prefiksem ścieżki (`https://<platforma>/<prefiks>/…`,
+`routing_mode=PATH`) ma pod prefiksem **własne drzewo stron CMS**. Do tej pory Wagtail wybierał
+witrynę po hoście, więc pod `/<prefiks>/` serwował stronę główną, menu i dokumenty konkursu-gospodarza.
+Konkurs z własną domeną (Olimpiada Kwantowa) – bez zmian co do bajtu (testy złote, budżety zapytań).
+
+- **Serwowanie:** `CompetitionMiddleware` pod prefiksem podstawia witrynę konkursu jako witrynę żądania
+  (`request._wagtail_site`) – strony, menu, `SiteSettings`, przekierowania i analityka pochodzą z jego
+  drzewa. Strona gospodarza pod prefiksem = 404, strona konkursu pod prefiksem bez prefiksu = 404.
+- **Adresy stron:** `Page.get_url_parts` opakowany w `apps/tenancy/page_urls.py` – `pageurl`,
+  `page.url`, `full_url`, podgląd i „Zobacz na żywo” w `/cms/` niosą prefiks **strony** (a nie
+  żądania) i adres platformy zamiast domeny, na którą konkurs czeka. Mapa „witryna → prefiks”
+  w pamięci podręcznej (unieważniana sygnałami), czytana wyłącznie przy linkach między witrynami
+  i bez żądania; instalacja z jedną witryną nie płaci nic.
+- **`path_prefix_routing` ma czytelnika:** jest bramką **gospodarza** – prefiks rozstrzyga konkurs
+  wyłącznie pod hostem, którego konkurs ma tę flagę (ciasteczka sesji są wtedy wspólne, więc to jego
+  wybór). Bez dodatkowego zapytania. `create_competition --path-prefix` włącza ją konkursowi witryny
+  domyślnej (i mówi o tym w wydruku; bez konkursu platformy – odmowa), migracja danych
+  `tenancy.0010_path_prefix_routing_on_platform` robi to na bazach, w których konkurs `PATH` już stoi
+  (baza z jednym konkursem – bez zmian). Prefiks pod domeną innego konkursu przestaje działać.
+- **Przekierowania** (`apps.cms.redirects.CompetitionRedirectMiddleware` zamiast warstwy Wagtaila):
+  pod prefiksem dopasowanie po adresie bez prefiksu, cel względny dostaje prefiks, bezwzględny bez zmian.
+- **Nie wyprowadza z prefiksu:** logo, „Strona główna”, linki RODO/cookies w stopce i stronach błędów
+  (`site_root` z procesora `apps.tenancy.context_processors.competition`), domek w menu, pasek
+  harmonogramu, `LOGIN_URL`/`LOGIN_REDIRECT_URL`/`LOGOUT_REDIRECT_URL` (leniwe `reverse`),
+  wylogowanie, odnośniki zgód do dokumentów (teraz z drzewa **tego** konkursu), linki w listach spoza
+  żądania (`https://<platforma>/<prefiks>/…`).
+- **Pamięć podręczna:** klucz pamięci stron anonimowych i klucz paska harmonogramu dostają człon
+  prefiksu – wyłącznie pod prefiksem, więc klucze konkursu z domeną są te same.
+- Testy `apps/tenancy/tests/test_path_prefix_cms.py`; runbook `OPERACJE.md` § 6.6 i flaga w § 6.4;
+  `UNIWERSALNY-ETAP-2.md` § 3.1 (uwaga T43 zamknięta).
+
+### Uprawnienia `/cms/` per konkurs i superkoordynator (bez migracji, komendy operatora)
+
+Domknięcie luki z `UNIWERSALNY-ETAP-2.md` § 1.1.5 („grupa `coordinator` jest globalna”) i prośba
+organizatora o **superkoordynatora**. Koordynator konkursu A redaguje w `/cms/` wyłącznie strony,
+obrazy i dokumenty konkursu A (grupa `cms:<slug>`: prawa na korzeniu witryny i na kolekcji
+konkursu), a okna wyboru stron/obrazów/dokumentów/komunikatów, wyszukiwarka, raporty „Zablokowane
+strony”, „Starzejące się strony”, „Historia serwisu” (także `ModelLogEntry`), API panelu i lista
+komunikatów nie pokazują obiektów konkursu B; raport „Użycie typów stron” przy kilku witrynach jest
+dla redaktora z ograniczeniami zamknięty. Nowa rola platformy **superkoordynator** (grupa
+`superkoordynator`): koordynator każdego konkursu w `/coordinator/` (przełącznik „Konkursy platformy”
+w menu) i całe `/cms/`, bez `/admin/`; `manage.py superkoordynator --grant|--revoke|--list|
+--all-current-coordinators [--dry-run]` i akcje w `/admin/` dla superużytkownika, z wpisem audytu.
+`manage.py scope_cms_access` działa teraz na całą instalację (bez `--competition`): zakłada grupy
+i kolekcje, przenosi media z korzenia kolekcji do kolekcji konkursu (`--root-media-to` przy kilku
+konkursach), zabiera grupie `coordinator` uprawnienia `/cms/` i porównuje macierz możliwości każdego
+koordynatora przed i po — przy jednym konkursie różnica wycofuje całość. **Bez migracji.** Do
+chwili uruchomienia komend nic się nie zmienia. Kroki operatora: `OPERACJE.md` § 6.7 —
+wdrożenie → `superkoordynator --all-current-coordinators` → `scope_cms_access --dry-run` →
+`scope_cms_access` → sprawdzenie.
+
+### Powiadomienia z forum (flaga `participant_forum`)
+
+Prośba organizatora z 25.09.2026: forum (flaga `participant_forum`) dostaje powiadomienia e-mail,
+**zbiorcze i z limitami** – żaden list nie wychodzi „za wpis”. Trzy rodzaje: **list o kolejce moderacji**
+do koordynatorów tego konkursu (pierwszy po 10 min czekania najstarszej pozycji, kolejne najwyżej co
+3 godz., same liczby i odnośnik), **nowe odpowiedzi w obserwowanych wątkach** (automatyczna obserwacja po
+napisaniu, przyciski „Obserwuj wątek” / „Przestań obserwować”, najwyżej jeden list o wątku co 4 godz.,
+osobny temat, gdy odpowiedział organizator albo komitet) i **decyzja moderatora** o wpisie z kolejki
+(zatwierdzenie zbiorcze = jeden list na autora, odrzucenie z uzasadnieniem). Listy **nie niosą treści
+wpisów** ani niczego nieopublikowanego; stan sprawdzany jest w chwili wysyłki; konta nieaktywne,
+niepotwierdzone, zanonimizowane i bez roli w konkursie nie dostają nic. Ustawienia konta na ekranie
+„Edycja danych” (na bieżąco / raz dziennie / nigdy, u koordynatora także listy o kolejce), wypis jednym
+kliknięciem bez logowania w każdym liście (podpisany token, `List-Unsubscribe` + `List-Unsubscribe-Post`,
+RFC 8058). Tematy z prefiksem konkursu (`[Olimpiada Kwantowa] Forum: …`), język odbiorcy. Nowe:
+migracja `forum.0002_forum_notifications` (4 tabele), zadania beatu `forum-notifications` (co 2 min)
+i `forum-daily-digest` (codziennie, `FORUM_DAILY_DIGEST_HOUR_UTC`), ustawienia
+`FORUM_MODERATION_DIGEST_DELAY_MINUTES` / `_INTERVAL_HOURS`, `FORUM_THREAD_NOTIFY_INTERVAL_HOURS`;
+`send_mail_task` i `queue_mail` przyjmują opcjonalne nagłówki (bez nich list idzie dotychczasową drogą).
+Rejestr czynności **1.9**: wiersz forum z nowym odbiorcą (dostawca poczty) i kategorią danych – bez
+nowego celu przetwarzania.
+
+### Poprawki przy scalaniu wydania
+
+- **Przełącznik „Konkursy platformy” a konkurs pod prefiksem**: link do panelu konkursu `PATH` jest
+  bezwzględny, od hosta platformy (`http(s)://<platforma>/<prefiks>/coordinator/`), a nie względny
+  `/<prefiks>/coordinator/`, który pod domeną innego konkursu trafiał w host nierozstrzygający
+  prefiksu. Przy zamkniętej bramce `path_prefix_routing` konkurs pod prefiksem nie ma adresu i nie
+  trafia na listę. Bez dodatkowego zapytania (`select_related("site")`).
+- **Ekran „Moje konkursy”** (`/coordinator/competitions/`, u superkoordynatora – wszystkie konkursy)
+  linkuje konkurs pod prefiksem tą samą regułą (`apps.web.coordinator_nav.competition_base_urls`),
+  a nie pod domeną, na którą konkurs dopiero czeka.
+- **Linki w listach konkursu pod prefiksem składanych w żądaniu bez `request`** (np. decyzja
+  koordynatora o zaświadczeniu, przekazanie pracy): `absolute_url` nie dokleja prefiksu drugi raz,
+  gdy ścieżka z `reverse()` już go niesie (`https://<platforma>/<prefiks>/…`, a nie `/<prefiks>/<prefiks>/…`).
+- **`send_mail_task`**: nagłówki `List-Unsubscribe` forum idą do zadania słowem kluczowym
+  (`headers=`) – pozycyjnie trafiały w nowy argument `html_message` z resetu hasła. Zadanie składa
+  list z nagłówkami i – jeśli podana – częścią HTML naraz.
+- **Eksport danych konta** (art. 15/20 RODO) dostaje sekcję `powiadomienia_z_forum`: ustawienia
+  powiadomień (albo wartości domyślne, `zmienione: null`), obserwowane wątki ze wszystkich konkursów
+  (temat tylko wątku opublikowanego albo własnego) i decyzje moderatora czekające na list.
+  **Anonimizacja konta** kasuje ten sam stan (`apps.forum.notifications.erase_for_user`); wpisy
+  zostają bez podpisu jak dotąd.
+- `OPERACJE.md`: runbook uprawnień `/cms/` i superkoordynatora to **§ 6.7** (oba runbooki miały § 6.6);
+  odwołania w README, podręczniku administratora, `UNIWERSALNY-ETAP-2.md` i komendzie
+  `superkoordynator` poprawione.
+
 ## v0.35.0 – 2026-09-24
 
 Wydanie zbiorcze z dwóch próśb organizatora z 24.09.2026. **Dowolne wartości ocen i różne maksima
@@ -368,16 +612,17 @@ człowiek; sugestia jest niewiążąca.
 
 | Wersja | Data | Zmiana |
 |---|---|---|
+| **v0.36.0** | 2026-09-25 | **wydanie zbiorcze z 25.09.2026** (pełny opis w sekcji „v0.36.0 – 2026-09-25” wyżej): **responsywne tabele** w panelu koordynatora i na stronach publicznych (ramki przewijane z regionem i przystankiem klawiatury, przyklejona pierwsza kolumna i ranking, karty na telefonie, `js/table-scroll.js`; bez poziomego suwaka strony na 72 sprawdzonych stronach); **ułamki w rubrykach i teście** w etapie „dowolna wartość” (maksimum kryterium i punkty co 0,01, wynik testu co 0,01, połówka w górę; migracje `grading.0012`, `ai_grading.0003`, `OPERACJE.md` § 18.4); **pula połączeń psycopg** w `web` (`psycopg[binary,pool]`, `worker`/`beat` bez puli, `application_name` per usługa, alarm zajętości 80/95 % w `/healthz/`, `/status.json`, watchdogu i `manage.py db_connections`; `OPERACJE.md` § 11.2) i **reset hasła w tle** (kolejka `mail`, ten sam list); **drzewo CMS konkursu pod prefiksem** (uwaga T43: własne strony, menu, przekierowania i adresy pod `/<prefiks>/`, `path_prefix_routing` jako bramka gospodarza, migracja danych `tenancy.0010`; § 6.6); **uprawnienia `/cms/` per konkurs i rola superkoordynatora** (grupa `cms:<slug>` na korzeniu witryny i kolekcji konkursu, przełącznik „Konkursy platformy”, komendy `superkoordynator` i `scope_cms_access` z kontrolą macierzy przed/po; § 6.7); **powiadomienia e-mail z forum** (flaga `participant_forum`: list o kolejce moderacji, obserwowane wątki na bieżąco/raz dziennie/nigdy, decyzje moderatora, wypis jednym kliknięciem z `List-Unsubscribe`, migracja `forum.0002`, zadania beat `forum-notifications` i `forum-daily-digest`, stan powiadomień w eksporcie danych i kasowany przy anonimizacji); rejestr czynności **1.9**; obraz do przebudowy, `web`+`worker`+`beat` razem |
 | **v0.35.0** | 2026-09-24 | **wydanie zbiorcze z 24.09.2026** (pełny opis w sekcji „v0.35.0 – 2026-09-24” wyżej): **dowolne wartości ocen i różne maksima zadań** – przełącznik etapu „tylko wartości ze skali” / „dowolna wartość od min do max (co 0,01)” na ekranie skali (domyślnie – także dla nowych etapów – tryb skali; powrót odmawiany `409 FREE_VALUES_IN_USE` przy ocenach spoza skali albo zadaniach z samym maksimum); jedna reguła oceny `competitions.scoring.ScoreRule` dla recenzji, korekt, moderacji, reklamacji, rozmów, rubryki i API (przecinek normalizowany, trzecie miejsce po przecinku = `SCORE_INVALID`); zadanie z samym maksimum (np. 12,5) i maksima w liście zadań, u recenzenta i w nagłówkach tabel wyników; kolumny punktów `numeric(p,2)` (migracje `competitions.0032`, `grading.0011`, `appeals.0003`, `OPERACJE.md` § 18); sumy w `Decimal`, suma ważona połówka w górę do 0,01 (tryb dowolny) albo do pełnego punktu (tryb skali); filtr `points` („5”, „4,25”), CSV z kropką, JSON/API jako liczby (`API.md` § 6.2); **inni dostawcy AI** (flaga `ai_grading`): OpenAI (Responses API), Google (`google-genai`) i Meta (Meta Model API przez SDK OpenAI) obok Anthropic, wybór dostawcy i modelu przy zleceniu i porównanie kilku modeli na tej samej pracy (osobne panele u recenzenta), klucz i umowa powierzenia per dostawca (`AiProviderAccount`), potwierdzana przez koordynatora w dwóch krokach – strona informacji o dostawcy (`apps.ai_grading.disclosures`, ostrzeżenie 18+ przy Google i Mecie) i „Potwierdzam” z zapisem wersji informacji (bez potwierdzenia brak prac uczestników; komenda `confirm_ai_provider_dpa` tylko awaryjnie, `OPERACJE.md` § 17.6), tryb testowy z pracą testową koordynatora dla każdego dostawcy z kluczem, tabela cen per model (`AI_PRICE_UNKNOWN` przy limicie), rejestr czynności 1.8, migracja `ai_grading.0002_providers`, zależności `openai>=3.19,<4` i `google-genai>=2.25,<3`; propozycja punktów każdego dostawcy przycinana do maksimum z `ScoreRule` |
 | **v0.34.0** | 2026-09-24 | **wydanie zbiorcze z 24.09.2026** (pełny opis w sekcji „v0.34.0 – 2026-09-24” wyżej): **listy koordynatora** – konta usunięte schowane domyślnie za przyciskiem „Pokaż usunięte konta (N)” na każdej liście osób (także przyjazdy i obecność na etapie stacjonarnym), „Konto usunięte” zamiast `deleted-…@invalid`, sortowanie kolumn listy kont i uczestników; **usunięcie konta** czyści też adres rodzica, adres opiekuna szkolnego, placówkę i dane szczególne logistyki – usunięty uczeń znika z panelu „Moi uczniowie” (migracja danych `accounts.0034`); **wysyłka komunikatów do grup** (wszyscy uczestnicy, bez pracy w etapie, województwo/region, szkoła, klasa, obecni na warsztacie, opiekunowie; domyślnie bieżąca edycja; podpis podglądu; `accounts.0033`); za flagami **domyślnie wyłączonymi**: **zaświadczenie o statusie ucznia** (`student_status_certificate`, filtr paczek ZIP „tylko z potwierdzonym statusem”; `OPERACJE.md` § 15), **materiały z warsztatów** (`workshop_materials`, filmy i pliki dla zalogowanych, wgrywanie częściami prosto do MinIO; § 16) i **ocena AI** (`ai_grading`, sugestia punktów Claude'a dla komitetu, przełącznik etapu „Pokaż uczestnikom ocenę AI” domyślnie wyłączony, zależność `anthropic`; § 17); rejestr czynności **1.7** z trzema wierszami warunkowymi |
 | **v0.33.0** | 2026-09-23 | **plakaty zgrupowane w karty** (prośba organizatora z 23.09.2026: „jedna karta na format, kilka przycisków” zamiast osobnej karty na każdy plik „A3 (JPG)”, „A3 (PDF)”, „A3 (PDF ze spadem 3 mm)”…): `PromoMaterial` dostaje dwa pola (migracja `promo.0002_group_variant_label`) – **`group`** („Karta (grupa plików)”, np. „A3 · 297×420 mm”: pliki jednego konkursu z identyczną, niepustą grupą stają na `/plakaty/` na **jednej karcie** – nagłówek to grupa, podgląd to pierwszy podgląd w grupie, opis pierwszy niepusty, pod spodem przycisk na każdy plik w kolejności koordynatora; karta stoi tam, gdzie jej pierwszy plik) i **`variant_label`** („Napis na przycisku”, np. „PDF ze spadem 3 mm”; puste = sam format JPG/PNG/PDF). Przycisk „Pobierz JPG · 1,7 MB” prowadzi do **własnego** adresu pobrania pliku, więc liczenie pobrań, limit, pseudonim IP i statystyki zostają per plik; nazwa dostępna przycisku niesie grupę („Pobierz A3 · 297×420 mm – PDF ze spadem 3 mm”). Plik bez grupy wygląda jak dotąd. Karty składa Python z tej samej jednej listy (`apps.promo.cards.build_cards`) – liczba zapytań `/plakaty/` bez zmian (test). Ekran koordynatora: oba pola w formularzu (z podpowiedzią `<datalist>` grup tego konkursu), linia „Karta: … · przycisk „…”” pod tytułem w tabeli, dwie nowe kolumny w eksporcie CSV („karta (grupa)”, „przycisk”); podręcznik organizatora § 4.10 |
 | **v0.32.0** | 2026-09-23 | **plakaty do pobrania** (prośba organizatora z 23.09.2026): nowa aplikacja `apps.promo` (modele `PromoMaterial` i `PromoDownload`, migracja promo.0001), strona publiczna **`/plakaty/`** (siatka kart: podgląd, tytuł, opis, format i rozmiar, „Pobierz”; 404, gdy konkurs nie ma opublikowanych plakatów; na allow-liście pamięci stron, unieważnianej przy każdym zapisie plakatu) i pobranie `/plakaty/<id>/pobierz/` (plik z prywatnego storage jako załącznik przez aplikację, `Cache-Control: no-store`, nigdy w pamięci stron); plik PDF/JPG/PNG do 50 MB rozpoznawany **po treści** (sygnatury `%PDF-`, `FF D8 FF`, PNG), miniatura JPG/PNG robiona automatycznie (Pillow), dla PDF-a opcjonalny własny podgląd albo ikona; odnośnik „Plakaty do pobrania” w stopce każdej strony i przycisk w panelu opiekuna szkolnego – tylko gdy jest opublikowany plakat (flaga w Redisie, unieważniana przy zapisie; budżety zapytań `/`, `/me/`, `/coordinator/` +1 na zimno, na ciepło zero). Ekran koordynatora **`/coordinator/posters/`** (Ustawienia → Plakaty do pobrania): dodanie, edycja, publikacja, kolejność, usunięcie (plakat z pobraniami trafia do archiwum ze statystykami), eksport CSV, audyt `promo.*`; statystyki **podwójne** – pobrania i **unikalne adresy IP** w oknach 7 dni / 30 dni / od początku (unikalność w całym oknie i w sumie między plakatami), kafelki, wykres dzienny obu szeregów (CSS, bez JS), eksport z tymi samymi kolumnami. Nie liczymy robotów, podglądów linków, `HEAD` ani koordynatora; podwójne kliknięcie (ten sam plakat i adres w 10 s) to jedno pobranie, a pobieranie ma limit 30/min na adres IP (scope `poster_download`, 429 bez zapisu pobrania); `HEAD` na plik brakujący w storage daje 404 jak `GET`. Adresu IP nie zapisujemy: zostaje **pseudonim** HMAC-SHA256 z kluczem z `SECRET_KEY`, zerowany po 12 miesiącach nowym zadaniem beat `promo-clear-expired-ip-hashes`; rejestr czynności przetwarzania 1.6 – nowa czynność „Statystyka pobrań materiałów promocyjnych” (art. 6 ust. 1 lit. f) |
 | **v0.31.2** | 2026-09-22 | strona rejestracji opiekuna szkolnego (`/register/supervisor/`) bez zaszytego w szablonie wstępu nad formularzem (organizator, 22.09.2026: „usuń tylko ten tekst nad formularzem”; „czy to intro mogę edytować z poziomu CMS”) – w jego miejsce pole `SiteSettings.supervisor_registration_intro` (`/cms/` → Ustawienia → Dane serwisu, sekcja „Rejestracja”; migracja cms.0027): domyślnie puste, czyli akapitu nie ma, a wpisany tekst (pogrubienie, kursywa, odnośnik) pojawia się nad formularzem bez wdrożenia; wyjaśnienie, skąd bierze się lista uczniów, zostaje w pustym stanie pulpitu opiekuna |
 
-Nie zlecone: drzewo CMS dla konkursu w trybie prefiksu ścieżki (uwaga T43), edytor przebiegu
-przenoszący „przypisz kategorie” do warstwy serwisów. Forum w wersji pierwszej świadomie **nie ma**
-powiadomień e-mail, wiadomości prywatnych, załączników, polubień ani rankingów — uzasadnienie
-każdej z tych decyzji stoi w `PODRECZNIK-ORGANIZATORA.md` § 6.4.
+Nie zlecone: edytor przebiegu przenoszący „przypisz kategorie” do warstwy serwisów (drzewo CMS
+konkursu pod prefiksem ścieżki, uwaga T43 – zrobione w v0.36.0). Forum w wersji pierwszej świadomie **nie miało**
+powiadomień e-mail (doszły w v0.36.0, zbiorcze) i nadal nie ma wiadomości prywatnych, załączników, polubień ani
+rankingów — uzasadnienie każdej z tych decyzji stoi w `PODRECZNIK-ORGANIZATORA.md` § 6.4.
 
 ## Wydania
 

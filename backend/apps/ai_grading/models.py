@@ -37,6 +37,7 @@ from django.utils import timezone
 
 from apps.competitions.models import Stage
 from apps.competitions.scoping import competition_scoped_manager
+from apps.core.points import POINTS_PLACES, SCORE_MAX_DIGITS
 from apps.submissions.models import AvStatus, Submission
 
 #: Przełącznik konkursu (``apps.tenancy.models.FEATURE_DEFAULTS``). Stała, a nie napis powtórzony
@@ -374,10 +375,20 @@ class AiAssessment(models.Model):
     finished_at = models.DateTimeField("zakończona", null=True, blank=True)
     attempts = models.PositiveSmallIntegerField("próby", default=0)
 
+    # ``numeric(7, 2)`` – ta sama precyzja, co maksimum zadania i ocena recenzenta
+    # (``apps.core.points.SCORE_MAX_DIGITS``, migracja ``0003_points_precision``). Do wydania 0.35.0
+    # stało tu ``numeric(6, 2)`` i zadanie z maksimum 12 345,5 dawało propozycję, której kolumna
+    # nie mieściła: zapis sugestii kończył się błędem bazy, a nie komunikatem.
     proposed_points = models.DecimalField(
-        "proponowane punkty", max_digits=6, decimal_places=2, null=True, blank=True
+        "proponowane punkty",
+        max_digits=SCORE_MAX_DIGITS,
+        decimal_places=POINTS_PLACES,
+        null=True,
+        blank=True,
     )
-    max_points = models.DecimalField("maksimum", max_digits=6, decimal_places=2, null=True, blank=True)
+    max_points = models.DecimalField(
+        "maksimum", max_digits=SCORE_MAX_DIGITS, decimal_places=POINTS_PLACES, null=True, blank=True
+    )
     criteria = models.JSONField("kryteria", default=list, blank=True)
     summary = models.TextField("podsumowanie", blank=True)
     errors = models.JSONField("błędy w pracy", default=list, blank=True)

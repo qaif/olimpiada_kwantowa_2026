@@ -13,7 +13,7 @@ from wagtail.models import Site
 from apps.tenancy.models import Competition, RoutingMode
 from apps.tenancy.resolution import resolve_competition, resolve_for_request
 
-from .conftest import HOST_A, HOST_B, make_site
+from .conftest import HOST_A, HOST_B, make_site, open_path_prefixes
 
 
 def request_for(host: str, path: str = "/"):
@@ -78,6 +78,7 @@ def test_a_segment_that_is_nobodys_prefix_changes_nothing(competition):
 
 def test_path_prefix_wins_over_the_host(competition, other_competition):
     """Konkurs w trybie prefiksu stoi na domenie platformy – host oddałby konkurs platformy."""
+    open_path_prefixes(competition)
     with_path_prefix(other_competition, "fizyczna")
 
     resolution = resolve_for_request(request_for(HOST_A, "/fizyczna/me/"))
@@ -104,3 +105,45 @@ def test_root_path_is_not_treated_as_a_prefix(competition, other_competition):
 
     assert resolution.competition == competition
     assert resolution.path_prefix == ""
+
+
+def test_prefix_is_ignored_under_a_host_that_does_not_open_the_gate(competition, other_competition):
+    """Bramka ``path_prefix_routing`` gospodarza (uwaga T43): bez niej prefiks nic nie rozstrzyga.
+
+    Konkurs-gospodarz dzieli z konkursem pod prefiksem ciasteczka sesji, więc tryb ``PATH`` pod jego
+    hostem jest jego wyborem – samo ``routing_mode=PATH`` cudzego konkursu go nie otwiera.
+    """
+    with_path_prefix(other_competition, "fizyczna")
+
+    resolution = resolve_for_request(request_for(HOST_A, "/fizyczna/me/"))
+
+    assert resolution.competition == competition
+    assert resolution.path_prefix == ""
+
+
+def test_prefix_is_honoured_only_under_the_host_that_opened_the_gate(competition, other_competition):
+    """Trzeci konkurs z własną domeną nie serwuje konkursu pod prefiksem pod swoją marką."""
+    from .conftest import make_competition
+
+    open_path_prefixes(competition)
+    with_path_prefix(other_competition, "fizyczna")
+    make_competition("trzeci.test", "trzeci")
+
+    under_platform = resolve_for_request(request_for(HOST_A, "/fizyczna/me/"))
+    under_third = resolve_for_request(request_for("trzeci.test", "/fizyczna/me/"))
+
+    assert under_platform.competition == other_competition
+    assert under_platform.host_site == competition.site
+    assert under_third.competition.slug == "trzeci"
+    assert under_third.path_prefix == ""
+
+
+def test_the_gate_costs_no_extra_query(competition, other_competition, django_assert_num_queries):
+    """Konkurs gospodarza przychodzi tym samym zapytaniem, co konkurs prefiksu – bramka jest darmowa."""
+    open_path_prefixes(competition)
+    with_path_prefix(other_competition, "fizyczna")
+    request = request_for(HOST_A, "/fizyczna/me/")
+    Site.find_for_request(request)
+
+    with django_assert_num_queries(1):
+        resolve_for_request(request)

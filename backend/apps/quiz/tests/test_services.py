@@ -385,7 +385,8 @@ def test_stage_scores_oddaje_najlepsze_podejscie_zaokraglone_do_pelnych_punktow(
     _answer(drugie, question, {"value": "1"})
     services.submit_attempt(attempt=drugie)
 
-    # 2,50 zaokrąglone „w górę przy połówce” → 3; ``StageEntry.total_points`` jest polem całkowitym.
+    # 2,50 zaokrąglone „w górę przy połówce” → 3: etap bez przełącznika „dowolne wartości” liczy
+    # test w pełnych punktach (tryb dowolny – ``test_decimal_quiz.py``).
     assert services.stage_scores(quiz.stage) == {entry.pk: 3}
 
 

@@ -13,11 +13,13 @@ kwadrans, zanim moderator go zdejmie, zdąży zostać przeczytany przez tych, kt
 oddali pracy. Odwrócenie tej reguły („ufamy uczestnikom”) kosztowałoby unieważnienie etapu, a nie
 jeden nieprzyjemny wątek.
 
-**Czego tu nie ma:** wysyłki listów. Forum nie pisze do nikogo – ani do moderatora o nowym wpisie,
-ani do autora o odrzuceniu. Odrzucony wpis razem z notatką moderatora czeka na autora na ekranie
-„Twoje wpisy”. Decyzja jest świadoma i opisana w ``docs/PODRECZNIK-ORGANIZATORA.md``: konkurs ma
-już dwa kanały poczty (komunikaty i zgłoszenia), a trzeci, wyzwalany każdym akapitem nastolatka,
-zamieniłby skrzynkę koordynatora w kanał RSS i skończył się regułą „do kosza”.
+**Czego tu nie ma:** wysyłki listów. Do 25.09.2026 forum nie pisało do nikogo, bo trzeci kanał
+poczty, wyzwalany każdym akapitem nastolatka, zamieniłby skrzynkę koordynatora w kanał RSS.
+Powiadomienia doszły na prośbę organizatora, ale ta obawa została warunkiem ich kształtu: ten
+moduł **nie wysyła** niczego – w chwili publikacji albo decyzji zostawia wyłącznie ślad
+(``apps.forum.notifications.post_published``, ``record_decision``), a zbiorczy list składa
+później zadanie okresowe (``apps.forum.tasks``). Odrzucony wpis razem z notatką moderatora nadal
+czeka na autora także na ekranie „Twoje wpisy” – list jest dodatkiem, nie jedyną drogą.
 """
 
 from __future__ import annotations
@@ -34,12 +36,14 @@ from rest_framework import status as http
 from apps.core.api import DomainError
 from apps.core.models import audit
 
+from . import notifications
 from .models import (
     EDIT_WINDOW_MINUTES,
     MAX_POST_LENGTH,
     MAX_REASON_LENGTH,
     MAX_TITLE_LENGTH,
     PENDING_STATUSES,
+    DecisionKind,
     ForumCategory,
     ForumPost,
     ForumReport,
@@ -270,7 +274,8 @@ def own_threads(user, competition):
     Bez tej funkcji autor, któremu moderator odrzucił cały temat, nie miałby w serwisie ani
     jednego miejsca, w którym się o tym dowie – wątek znika mu z działu, a lista wpisów pokazuje
     jego pierwszy wpis jako „opublikowany”, bo ``moderate_thread`` nie rusza wpisów już
-    zatwierdzonych. Forum nie wysyła listów, więc cisza w tym miejscu byłaby ciszą ostateczną.
+    zatwierdzonych. List o decyzji (``apps.forum.notifications``) dostaje wyłącznie ten, kto
+    listów nie wyłączył – dla pozostałych cisza w tym miejscu byłaby ciszą ostateczną.
     """
     if not _identified(user):
         return ForumThread.objects.none()
@@ -376,6 +381,9 @@ def create_thread(*, user, competition, category, title: str, body: str, request
         created_at=now,
         status=status,
     )
+    # Autor obserwuje swój wątek od pierwszej chwili: odpowiedź na własne pytanie jest tym,
+    # o czym chce się dowiedzieć, nawet jeśli nie zajrzy na forum przez tydzień.
+    notifications.follow_on_posting(user, thread)
     return thread
 
 
@@ -402,8 +410,10 @@ def reply(*, user, competition, thread: ForumThread, body: str, request=None) ->
         created_at=now,
         status=status,
     )
+    notifications.follow_on_posting(user, thread)
     if status == ModerationStatus.PUBLISHED:
         _touch(thread, now)
+        notifications.post_published(post, now)
     return post
 
 
@@ -532,6 +542,12 @@ def moderate_post(
     post.save(update_fields=["status", "moderated_by", "moderated_at", "moderation_note"])
     if status == ModerationStatus.PUBLISHED:
         _touch(post.thread, max(post.created_at, post.thread.last_activity_at))
+        if before != ModerationStatus.PUBLISHED:
+            notifications.post_published(post, now)
+    if before == ModerationStatus.PENDING and status in _DECISION_NOTICES["post"]:
+        notifications.record_decision(
+            kind=_DECISION_NOTICES["post"][status], thread=post.thread, post=post, actor=actor
+        )
     audit(
         actor,
         _POST_ACTIONS[status],
@@ -557,6 +573,22 @@ _THREAD_ACTIONS = {
     ModerationStatus.REJECTED: AUDIT_THREAD_REJECTED,
     ModerationStatus.HIDDEN: AUDIT_THREAD_HIDDEN,
     ModerationStatus.PENDING: AUDIT_THREAD_RESTORED,
+}
+
+#: Które decyzje o pozycji z kolejki idą listem do autora. Tylko dwie – zatwierdzenie
+#: i odrzucenie – i tylko **z kolejki** (stan przed decyzją ``PENDING``): to są odpowiedzi na
+#: pytanie „co z moim wpisem”, na które autor czeka. Ukrycie wpisu już wiszącego jest decyzją
+#: porządkową moderatora i list o nim byłby zaproszeniem do sporu mailowego – autor widzi ją na
+#: ekranie „Twoje wpisy”.
+_DECISION_NOTICES = {
+    "post": {
+        ModerationStatus.PUBLISHED: DecisionKind.POST_APPROVED,
+        ModerationStatus.REJECTED: DecisionKind.POST_REJECTED,
+    },
+    "thread": {
+        ModerationStatus.PUBLISHED: DecisionKind.THREAD_APPROVED,
+        ModerationStatus.REJECTED: DecisionKind.THREAD_REJECTED,
+    },
 }
 
 
@@ -588,6 +620,12 @@ def moderate_thread(
     if first is not None and first.status == ModerationStatus.PENDING:
         ForumPost.objects.filter(pk=first.pk).update(
             status=status, moderated_by=actor, moderated_at=now, moderation_note=note_text
+        )
+    if before == ModerationStatus.PENDING and status in _DECISION_NOTICES["thread"]:
+        # Jedna decyzja, jeden wiersz: pierwszy wpis zatwierdzany razem z wątkiem nie dokłada
+        # drugiej pozycji „Twój wpis został zatwierdzony” – autor napisał jedną rzecz.
+        notifications.record_decision(
+            kind=_DECISION_NOTICES["thread"][status], thread=thread, post=None, actor=actor
         )
     audit(
         actor,

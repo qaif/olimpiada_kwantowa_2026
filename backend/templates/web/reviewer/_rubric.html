@@ -17,9 +17,15 @@
   W etapie z dowolnymi wartościami ocen (wydanie 0.35.0) suma nie musi być wartością skali, tylko
   mieścić się w zakresie zadania – ``data-rubric-scale`` jest wtedy pusty, więc licznik pokazuje
   samą sumę, bez werdyktu „poza skalą”, który byłby tu nieprawdą.
+
+  W tym samym trybie punkty za **kryterium** też mogą być ułamkiem („2,5”, co 0,01) – pole jest
+  wtedy tekstowe z klawiaturą dziesiętną (``inputmode="decimal"``), tak jak pole oceny zadania,
+  bo pole ``number`` bywa bezradne wobec przecinka. Zakres sumy (``data-rubric-min``/``-max``) daje
+  licznikowi werdykt „poza zakresem”. W etapie „tylko ze skali” pole zostaje liczbowe z krokiem 1.
 {% endcomment %}
 <div class="rubric" data-rubric
-     data-rubric-scale="{% if not score_widget.free %}{% for option in scale_options %}{{ option.value }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}">
+     data-rubric-scale="{% if not score_widget.free %}{% for option in scale_options %}{{ option.value }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}"
+     {% if score_widget.free %}data-rubric-min="{{ score_widget.minimum|points_input }}" data-rubric-max="{{ score_widget.maximum|points_input }}"{% endif %}>
   <h3>{% translate "Rubryka oceniania" %}</h3>
   {% if score_widget.free %}
   <p class="hint">{% blocktranslate trimmed with minimum=score_widget.minimum|points maximum=score_widget.maximum|points %}
@@ -34,20 +40,34 @@
   {% for row in rubric_rows %}
     <fieldset class="rubric__item">
       <legend>{{ row.criterion.title }}
-        <span class="hint">{% blocktranslate trimmed with max=row.criterion.max_points %}
+        <span class="hint">{% blocktranslate trimmed with max=row.criterion.max_points|points %}
           (0–{{ max }} pkt)
         {% endblocktranslate %}</span></legend>
       {% if row.criterion.description %}<p class="hint">{{ row.criterion.description }}</p>{% endif %}
       <p class="field">
         <label for="id_rubric_{{ row.criterion.pk }}_points">{% translate "Punkty" %}</label>
+        {% if score_widget.free %}
+        <input type="text"
+               inputmode="decimal"
+               autocomplete="off"
+               id="id_rubric_{{ row.criterion.pk }}_points"
+               name="rubric-{{ row.criterion.pk }}-points"
+               data-rubric-points
+               aria-describedby="id_rubric_{{ row.criterion.pk }}_hint"
+               value="{% if row.points is not None %}{{ row.points|points }}{% endif %}">
+        <span class="helptext" id="id_rubric_{{ row.criterion.pk }}_hint">{% blocktranslate trimmed with max=row.criterion.max_points|points %}
+          Od 0 do {{ max }}, co 0,01 – np. 1,5.
+        {% endblocktranslate %}</span>
+        {% else %}
         <input type="number"
                id="id_rubric_{{ row.criterion.pk }}_points"
                name="rubric-{{ row.criterion.pk }}-points"
                min="0"
-               max="{{ row.criterion.max_points }}"
+               max="{{ row.criterion.max_points|points_input }}"
                step="1"
                data-rubric-points
-               value="{% if row.points is not None %}{{ row.points }}{% endif %}">
+               value="{% if row.points is not None %}{{ row.points|points_input }}{% endif %}">
+        {% endif %}
       </p>
       <p class="field">
         <label for="id_rubric_{{ row.criterion.pk }}_comment">{% translate "Komentarz do kryterium" %}</label>

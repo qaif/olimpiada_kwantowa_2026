@@ -18,7 +18,7 @@ from django.db import models
 from django.db.models import F, Q
 from django.utils import timezone
 
-from apps.accounts.models import GROUP_COORDINATOR, Participant, generate_public_code
+from apps.accounts.models import COORDINATOR_GROUPS, Participant, generate_public_code
 from apps.core.points import POINTS_PLACES, SCORE_MAX_DIGITS, TOTAL_MAX_DIGITS
 from apps.tenancy.managers import CompetitionScopedQuerySet
 
@@ -1429,7 +1429,7 @@ class StageEntryQuerySet(CompetitionScopedQuerySet):
         scoped = scope_to_competition(self, competition)
         if not user or not user.is_authenticated or not user.is_active:
             return scoped.none()
-        if user.groups.filter(name=GROUP_COORDINATOR).exists():
+        if user.groups.filter(name__in=COORDINATOR_GROUPS).exists():
             return scoped
         # ``participant_for`` zamiast ``user.participant``: profil jest odtąd profilem **w tym
         # konkursie**, a relacja jeden-do-jednego oddawałaby po wydaniu D dowolny z nich.

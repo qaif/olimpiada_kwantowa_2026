@@ -212,6 +212,10 @@ Po ogłoszeniu wyników etapu:
   i decyzja. **Recenzenci są anonimowi** — podpisani „Recenzent A/B”,
 - **przed publikacją ten adres nie działa** i nie ma sposobu, żeby dowiedzieć się wyniku wcześniej,
 - publiczne **statystyki edycji** (rozkłady punktów, średnie, progi): `/statystyki/`.
+- **Punkty bywają ułamkami** („4,25”, „7,5”), jeśli organizator tak ustawił etap: dotyczy to ocen
+  zadań, punktów za kryteria oceny i **testu online** – wtedy wynik testu wchodzi do tabeli co do
+  setnej części punktu. W pozostałych etapach wynik testu jest zaokrąglany do pełnych punktów
+  (od połowy w górę: 7,5 → 8), a pytania za ułamek punktu („0,5 pkt”) są oznaczone przy treści.
 <!-- Dla organizatora: poniższy punkt rozsyłaj uczestnikom WYŁĄCZNIE wtedy, gdy w panelu włączono
      „Pokaż uczestnikom ocenę AI” dla etapu (PODRECZNIK-ORGANIZATORA.md § 4.12). Przy wyłączonym
      przełączniku uczestnik nie ma się z serwisu dowiedzieć, że ocena AI w ogóle powstała. -->
@@ -284,9 +288,24 @@ i podaje nazwę etapu, którego zakaz dotyczy.
 **Zwykle wpis nie pojawia się od razu.** W trybie moderacji wstępnej widzisz go tylko Ty, z dopiskiem
 „czeka na moderację”, dopóki organizator go nie przepuści. Nie pisz go drugi raz — jest na miejscu.
 
-**O decyzjach nie wysyłamy listów.** Jeżeli chcesz wiedzieć, co się stało z Twoją wypowiedzią, zajrzyj
-na `/forum/mine/`: to jedyne miejsce, w którym zobaczysz stan wpisu i uzasadnienie, gdyby organizator go
-odrzucił.
+**Powiadomienia e-mail.** Wątek, który założysz albo w którym coś napiszesz, **obserwujesz
+automatycznie**; pod tematem każdego wątku jest przycisk **„Obserwuj wątek”** / **„Przestań
+obserwować”**. Napiszemy do Ciebie, gdy:
+
+- w obserwowanym wątku pojawią się **nowe odpowiedzi** — najwyżej jeden list o wątku na kilka godzin,
+  a kilka wątków w jednym liście; temat listu mówi wprost, gdy odpowiedział **organizator** albo
+  **komitet**,
+- organizator **zatwierdzi albo odrzuci** Twój wpis czekający na moderację — przy odrzuceniu z jego
+  uzasadnieniem.
+
+W liście **nie ma treści wpisów** — tylko temat wątku i odnośnik; przeczytasz je po zalogowaniu. Nigdy nie
+dostaniesz listu o własnym wpisie ani o czymś, czego jeszcze nie opublikowano. Częstotliwość ustawisz na
+ekranie **„Edycja danych”** (`/me/profile/`, blok „Powiadomienia z forum”): **na bieżąco** (domyślnie),
+**raz dziennie** (jedno podsumowanie rano) albo **nigdy**. Każdy list ma też link „wypisz się”, który
+działa bez logowania.
+
+Stan każdego wpisu i uzasadnienie organizatora zawsze znajdziesz na `/forum/mine/` — także wtedy, gdy
+listy wyłączysz.
 
 **Kilka reguł, które warto znać:**
 

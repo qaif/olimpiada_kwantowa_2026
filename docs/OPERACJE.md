@@ -203,6 +203,7 @@ Widzi to, czego nie widać z zewnątrz:
 | odpowiedzi 5xx | ≥ 10 w 15 min | ktoś właśnie nie może oddać pracy |
 | brak kopii zapasowej | > 36 h | patrz § 1 |
 | brak testu odtwarzania | > 10 dni | patrz § 1.4 |
+| połączenia z Postgresem | ≥ 80 % / ≥ 95 % `max_connections` | patrz § 11.2 – „Alarm zajętości połączeń” |
 
 Włączenie: w `.env` na serwerze
 
@@ -223,6 +224,7 @@ informacji o kończącym się dysku. Każdy wysłany alarm zostaje w audycie jak
 curl -s https://olimpiadakwantowa.pl/status.json | python3 -m json.tool
 docker compose ps --format 'table {{.Service}}\t{{.State}}\t{{.Health}}'
 docker compose exec web python manage.py record_backup_status --show
+docker compose exec web python manage.py db_connections     # połączenia z bazą: ile z ilu, kto trzyma
 docker compose exec -T web python -c \
   "from apps.core.alerts import evaluate; print([a.title for a in evaluate()] or 'brak alarmów')"
 ```
@@ -522,9 +524,11 @@ Komenda nigdy nie kasuje członkostw — `--fix` wyłącznie dopisuje. Czytając
 
 - `UWAGA … bez członkostwa N z M` — **te osoby stracą dostęp** po przełączeniu flagi. Uruchom
   `--fix`, a potem komendę jeszcze raz bez flagi: ma wyjść zero.
-- `info … członkostw bez grupy Django` — to nie jest rozjazd ról, tylko brak dostępu do `/cms/`
-  (panel redakcyjny wisi na uprawnieniach grupy `coordinator`, migracja `cms.0003_coordinator_permissions`).
-  Dotyczy koordynatorów i naprawia się dodaniem do grupy w `/admin/ → Użytkownicy`.
+- `info … członkostw bez grupy Django` — to nie jest rozjazd ról. Przed `scope_cms_access`
+  (§ 6.7) oznacza brak dostępu do `/cms/` (panel redakcyjny wisi wtedy na uprawnieniach grupy
+  `coordinator`, migracja `cms.0003_coordinator_permissions`) i naprawia się dodaniem do grupy
+  w `/admin/ → Użytkownicy`. Po `scope_cms_access` dostęp do `/cms/` daje grupa `cms:<slug>`,
+  do której wpisuje sam serwis, więc wpis ma znaczenie wyłącznie dla ról czytanych z grup.
 
 Przy **jednym** konkursie w bazie komenda przyjmuje, że każdy członek globalnej grupy należy do
 niego (bo innego nie ma). Od drugiego konkursu przypisuje wyłącznie osoby, które mają w konkursie
@@ -552,9 +556,12 @@ bo są zastępcze. Harmonogram wpisuje koordynator w panelu; `--edition-label` n
 oznaczenie rocznika (`I edycja <rok>/<rok+1>`, liczone od września).
 
 `--coordinator-email` wymaga **istniejącego** konta: komenda kont nie zakłada. Nadaje rolę
-koordynatora w tym konkursie **i** dopisuje do grupy Django `coordinator` — ta grupa jest globalna,
-więc daje dostęp do `/cms/` całej instalacji. Jeżeli redakcje mają być rozdzielone, ogranicz temu
-kontu uprawnienia do stron w `/cms/ → Ustawienia → Grupy`.
+koordynatora w tym konkursie **i** dopisuje do grupy Django `coordinator`. Co to daje w `/cms/`,
+zależy od tego, czy instalacja przeszła już `scope_cms_access` (§ 6.7): **przed** komendą grupa
+`coordinator` ma prawa na całym drzewie stron i we wszystkich kolekcjach, więc nowy koordynator
+redaguje wszystkie konkursy — dlatego drugi konkurs zakłada się **po** § 6.7. **Po** komendzie
+grupa `coordinator` nie daje w `/cms/` niczego, a koordynator trafia do grupy `cms:<slug>` swojego
+konkursu: widzi i edytuje wyłącznie jego strony, obrazy i dokumenty.
 
 ### 6.3. `.env`, wdrożenie, DNS
 
@@ -608,6 +615,11 @@ z **różnicami** wobec wartości domyślnych. Pusty słownik `{}` znaczy „jak
   (`/coordinator/competition/`): marka, organizator, kontakt. Adresowania (witryna, identyfikator,
   tryb, prefiks) nie ma tam z założenia — zmiana domeny wymaga dostępu do serwera, więc należy do
   operatora platformy, nie do koordynatora.
+- **`path_prefix_routing`** — ustawiana **konkursowi platformy** (witryny domyślnej, u nas Olimpiadzie
+  Kwantowej), a nie konkursowi pod prefiksem: otwiera jego domenę dla konkursów adresowanych
+  prefiksem ścieżki (`/<prefiks>/…`, § 6.6). Wyłączona znaczy, że pod tą domeną `/<prefiks>/` jest
+  zwykłym adresem jej drzewa stron (czyli 404). `create_competition --path-prefix` włącza ją sama
+  i mówi o tym w wydruku. Wyłączenie zdejmuje z domeny **wszystkie** konkursy pod prefiksem naraz.
 - **`participant_forum`** — otwiera forum uczestników (`/forum/`) i jego moderację
   (`/coordinator/forum/`). Wyłączona znaczy, że tych adresów **nie ma** (404) i że w żadnym menu nie
   przybywa ani jedna pozycja. Ta flaga różni się od pozostałych jednym: jej zapalenie nie jest
@@ -733,7 +745,135 @@ i bez bloku wieloznacznego (pilnuje tego `scripts/tests/render_caddyfile_test.sh
 z własnymi domenami i `EXTRA_DOMAINS` działają niezmiennie; te w subdomenach tracą adres do czasu,
 aż przełącznik wróci. Rekord DNS `*` może zostać — sam z siebie niczego nie obsługuje.
 
+### 6.6. Konkurs pod prefiksem ścieżki (`/<prefiks>/` na domenie platformy)
+
+Tryb dla konkursu, który czeka na własny DNS (`docs/UNIWERSALNY-ETAP-1.md` § 2.3): adresy
+`https://olimpiadakwantowa.pl/fizyczna/…`, bez wpisu w `.env`, bez Caddy'ego i bez DNS-u. Od zmiany
+„drzewo CMS konkursu pod prefiksem” (`CHANGELOG.md`, uwaga T43) taki konkurs ma pod prefiksem
+**własne drzewo stron CMS** — stronę główną, menu, dokumenty, przekierowania i ustawienia witryny
+swojej, a nie platformy.
+
+```bash
+docker compose exec -T web python manage.py create_competition   --slug fizyczna --name "Olimpiada Fizyczna" --domain olimpiadafizyczna.pl   --path-prefix fizyczna --from-template przedmiotowa   --coordinator-email koordynator@example.org --dry-run      # potem bez --dry-run
+```
+
+- `--domain` jest domeną, **na którą konkurs czeka** — trafia do jego witryny Wagtaila
+  (`/cms/ → Ustawienia → Witryny`). Do czasu DNS-u nic pod nią nie odpowiada i nie trzeba jej nigdzie
+  wpisywać.
+- Komenda zakłada witrynę konkursu z **własną stroną główną** i sekcjami z szablonu (drzewo obok
+  drzewa platformy, nie pod nim) i włącza konkursowi platformy `path_prefix_routing` (§ 6.4) —
+  wydruk mówi „włączono mu teraz” albo „był już włączony”. Bez konkursu platformy (brak aktywnego
+  konkursu witryny domyślnej) komenda odmawia.
+- Prefiks nie może być slugiem strony drugiego poziomu platformy ani adresem aplikacji
+  (`Competition.clean`), a redaktor platformy nie założy potem strony o slugu równym prefiksowi
+  (`CMSPage.clean`).
+
+**Sprawdzenie po założeniu** (dwie minuty, w przeglądarce):
+
+1. `https://<platforma>/fizyczna/` — strona główna **Olimpiady Fizycznej** (tytuł, menu z jej sekcji;
+   logo i „Strona główna” prowadzą pod `/fizyczna/`).
+2. `https://<platforma>/fizyczna/zadania/` — sekcja z jej drzewa; `https://<platforma>/fizyczna/<slug
+   strony platformy>/` — **404** (strony platformy nie przeciekają pod prefiks, i odwrotnie).
+3. W `/cms/` strona konkursu → „Podgląd” i „Zobacz na żywo” — adres pod `/fizyczna/`.
+4. Wylogowany: `https://<platforma>/fizyczna/me/` przekierowuje na `/fizyczna/login/?next=…`.
+
+**Czego ten tryb nie daje** — i dlatego nie jest domyślny: sesja i CSRF są **wspólne** z platformą
+(jeden host, ciasteczka na ścieżce `/`), więc zalogowanie się w jednym konkursie loguje w drugim
+(konto i tak jest jedno, § 3.8 etapu 1). Linki w listach wysyłanych poza żądaniem prowadzą pod
+`https://<platforma>/fizyczna/…`.
+
+**Przejście na własną domenę** (gdy DNS zadziała): § 6.3 dla domeny z `--domain`, potem w `/admin/ →
+Konkursy` `routing_mode` = „własna domena” (prefiks można zostawić pusty). Drzewo stron zostaje to
+samo — witryna już ma tę domenę. Stare adresy `/fizyczna/…` pod domeną platformy przestają wtedy
+działać: jeśli były rozesłane, dopisz w `/cms/ → Ustawienia → Przekierowania` witryny **platformy**
+przekierowanie `/fizyczna` na `https://olimpiadafizyczna.pl/` (Wagtail nie przekierowuje całych
+poddrzew — tylko adresy dopisane z nazwy).
+
 ---
+
+### 6.7. Uprawnienia `/cms/` per konkurs i superkoordynator (wydanie „uprawnienia CMS per konkurs”)
+
+Do tego wydania globalna grupa `coordinator` ma prawa Wagtaila na **korzeniu** drzewa stron
+i kolekcji mediów (`cms.0003`), więc koordynator drugiego konkursu edytowałby strony i media
+Olimpiady Kwantowej. Wydanie niczego nie przestawia samo: po wdrożeniu `/cms/` działa **dokładnie
+jak przed nim**, dopóki operator nie wykona dwóch komend poniżej. Kolejność jest jedna.
+
+**Wdrożenie → superkoordynator → zawężenie → sprawdzenie.**
+
+```bash
+# na serwerze, w /opt/olimpiada — po zwykłym scripts/deploy.sh
+# 1. obecni koordynatorzy dostają rolę platformy (wszystkie konkursy, całe /cms/, bez /admin/)
+docker compose exec -T web python manage.py superkoordynator --all-current-coordinators --dry-run
+docker compose exec -T web python manage.py superkoordynator --all-current-coordinators
+docker compose exec -T web python manage.py superkoordynator --list
+
+# 2. zawężenie /cms/ — najpierw na sucho, wydruk przeczytać do końca
+docker compose exec -T web python manage.py scope_cms_access --dry-run
+docker compose exec -T web python manage.py scope_cms_access
+```
+
+**Dlaczego superkoordynator idzie pierwszy.** Polecenie organizatora: „obecny koordynator ma nim
+zostać”. `--all-current-coordinators` nadaje rolę każdemu **aktywnemu** kontu, które dziś ma rolę
+koordynatora (grupa `coordinator` albo członkostwo z tą rolą) i wypisuje listę; konta nieaktywne
+pomija z powodem. Uruchomiona **przed** zawężeniem sprawia, że nikt z obecnych koordynatorów ani
+przez chwilę nie widzi mniej niż dziś. Komenda jest idempotentna, każde nadanie ma wpis audytu
+`accounts.super_coordinator.granted` (`/coordinator/audit/`).
+
+**Co robi `scope_cms_access`** (jedna transakcja, idempotentna):
+
+1. zakłada grupę `superkoordynator` z prawami do korzenia drzewa i kolekcji oraz komunikatów
+   i ustawień serwisu,
+2. zakłada każdemu konkursowi grupę `cms:<slug>` (prawa do poddrzewa jego witryny) i kolekcję mediów,
+3. przenosi obrazy i dokumenty z **korzenia** kolekcji do kolekcji konkursu — przy jednym konkursie
+   sama; przy kilku tylko z `--root-media-to <slug>` (bez tej opcji pliki zostają w korzeniu i widzi
+   je wyłącznie superkoordynator). Ograniczenie widoczności korzenia („tylko zalogowani”) przechodzi
+   na kolekcję konkursu. Adresy obrazów i dokumentów na stronach się nie zmieniają,
+4. zabiera grupie `coordinator` wszystkie uprawnienia `/cms/` (wiersze stron i kolekcji, uprawnienia
+   modelowe Wagtaila i `apps.cms`); sama grupa **zostaje** — jest rolą koordynatora,
+5. wpisuje koordynatorów każdego konkursu do jego `cms:<slug>` (dalej robi to serwis sam, przy
+   każdej zmianie roli).
+
+**Kontrola „przed i po” jest w komendzie.** Dla każdego koordynatora bez `is_superuser` komenda
+liczy macierz możliwości (każda strona poniżej korzenia × 12 czynności, każdy obraz i dokument ×
+zmiana/usunięcie/wybór, wgrywanie, komunikaty, ustawienia witryn) przed zmianą i po niej. Przy
+**jednym** konkursie (dzisiejsza produkcja) macierze mają być równe — inaczej komenda wycofuje
+całość, wypisuje różnicę i kończy się kodem 1. Najczęstsza przyczyna: strona wisząca w drzewie poza
+witryną konkursu (bezpośrednio pod korzeniem). Wtedy przenieś ją pod stronę główną albo skasuj
+i uruchom ponownie. Wydruk kończy się wierszem `bez zmian <e-mail>: te same możliwości w /cms/` dla
+każdego koordynatora — to jest dowód dla organizatora.
+
+**Sprawdzenie po komendzie** (5 minut):
+
+- koordynator (konto bez roli superkoordynatora, jeżeli takie jest) loguje się do `/cms/`: widzi
+  stronę główną swojego konkursu, bibliotekę obrazów i dokumentów w kolekcji „<nazwa konkursu>”;
+  wgranie obrazu trafia do tej kolekcji,
+- superkoordynator widzi całe drzewo, wszystkie kolekcje, komunikaty i ustawienia serwisu;
+  w `/coordinator/` ma w menu sekcję „Konkursy platformy”,
+- `docker compose exec -T web python manage.py scope_cms_access --dry-run` wypisuje „bez zmian”.
+
+**Przed komendą nic się nie psuje.** Sygnały i zawężenie w `/cms/` rozpoznają stan „przed” po tym,
+że grupa `coordinator` ma jeszcze prawa do korzenia — i wtedy nie robią niczego. Wydanie można więc
+wdrożyć i zostawić bez komend; skutkiem jest wyłącznie dzisiejsze zachowanie.
+
+**Wycofanie.** Komenda nie jest migracją, więc nie cofa się jej `migrate`. W
+`/cms/ → Ustawienia → Grupy → coordinator` zaznacz ponownie „Dostęp do panelu”,
+uprawnienia obrazów i dokumentów, prawa do strony „Root” (dodawanie, edycja, publikacja, blokowanie,
+odblokowanie) i do kolekcji „Root”. Od chwili, w której grupa znów ma prawa do korzenia, instalacja
+zachowuje się jak przed komendą. Grup `cms:<slug>` i `superkoordynator` nie trzeba kasować.
+
+**Superkoordynator na co dzień.**
+
+```bash
+docker compose exec -T web python manage.py superkoordynator --grant adres@example.org
+docker compose exec -T web python manage.py superkoordynator --revoke adres@example.org
+docker compose exec -T web python manage.py superkoordynator --list
+```
+
+Albo w `/admin/ → Użytkownicy`: zaznacz konta i wybierz akcję „Nadaj rolę superkoordynatora” /
+„Odbierz rolę superkoordynatora” — akcje widzi wyłącznie superużytkownik. Obie drogi zapisują wpis
+audytu. Dopisanie grupy `superkoordynator` ręcznie w formularzu konta też działa, ale **bez** wpisu
+audytu — nie rób tego. Rola nie daje `/admin/` (to zostaje dla `is_superuser`) ani zarządzania
+kontami, grupami, witrynami i kolekcjami w `/cms/`.
 
 ## 7. Lista kontrolna incydentu
 
@@ -822,8 +962,8 @@ przed tymi.
 powodu powtarzać jej ręcznie: katalog przełączników i menu koordynatora bez flag
 (`apps/tenancy/tests/test_golden_single_competition.py`, `apps/web/tests/test_coordinator_nav_flags.py`),
 kontrakt `/status.json` razem z kolejnością kluczy, jeden `Locale` i brak prefiksu języka
-(`apps/tenancy/tests/test_i18n.py`), uprawnienia grupy `coordinator` w `/cms/`
-(`apps/cms/tests/test_cms_scope.py`), 404 na `/setup/` przy skonfigurowanej instalacji
+(`apps/tenancy/tests/test_i18n.py`), uprawnienia grupy `coordinator` w `/cms/` przed i po `scope_cms_access`
+(`apps/cms/tests/test_cms_scope.py`, `apps/cms/tests/test_cms_permissions_per_competition.py`), 404 na `/setup/` przy skonfigurowanej instalacji
 (`apps/tenancy/tests/test_setup.py`) oraz przebieg dwóch konkursów obok siebie
 (`apps/web/tests/test_e2e_two_competitions.py`, `e2e/check_stage2_*.py`). **Tutaj stoi to, czego
 test sprawdzić nie może**: porównanie z produkcją sprzed wdrożenia i stan konkretnej bazy.
@@ -966,7 +1106,7 @@ podejrzanych.
 |---|---|---|
 | 1 | `per_competition_consents`, `document_templates` | `/coordinator/consents/` i `/coordinator/documents/` otwierają się; `/register/` konkursu pokazuje **te same** zgody, co przed zapaleniem (definicje są kopią zestawu domyślnego) |
 | 2 | `competition_branding_in_mail` | list aktywacyjny z rejestracji testowej ma temat i podpis tego konkursu, a nie platformy |
-| 3 | `scoped_cms_permissions` | `manage.py scope_cms_access --competition <slug> --dry-run`, a po przeczytaniu wydruku bez `--dry-run`; koordynator widzi w `/cms/` wyłącznie swoje poddrzewo, a koordynator Konkursu #1 — swoje bez zmian |
+| 3 | `scoped_cms_permissions` | od wydania „uprawnienia CMS per konkurs” flaga **nie jest potrzebna**, jeżeli instalacja przeszła § 6.7 (po `scope_cms_access` każdy konkurs jest zawężony). Przed § 6.7 flaga daje konkursowi grupę `cms:<slug>` **obok** grupy globalnej — czyli nic nie zawęża; nie zapalaj jej zamiast § 6.7 |
 | 4 | `custom_regions` | `/coordinator/regions/` pokazuje 18 wierszy startowych; lista województw w rejestracji nie zmienia się, dopóki regiony nie zostaną poprawione |
 | 5 | `institution_types`, `custom_school_directory` | `/coordinator/registration-profile/` i `/coordinator/institutions/`; **podgląd** wgrania wykazu (bez potwierdzenia) przed pierwszym prawdziwym importem |
 | 6 | `process_editor`, `categories` | `/coordinator/pipeline/` — konkurs założony komendą ma **pusty tor**: kroki dopisuje się przyciskiem „Dopisz krok”, po jednym na etap, zanim ktokolwiek policzy kwalifikację |
@@ -1225,28 +1365,107 @@ ma 6 vCPU – 4 workery zostawiają margines pozostałym usługom: `worker`, `be
 `minio`, `clamav`), **wątki** skalują z udziałem czasu żądania spędzanym na I/O (baza, S3, SMTP) –
 podnoszenie ich ponad ok. 8 przestaje pomagać, bo GIL i tak serializuje część pracy w Pythonie.
 
-### 11.2. Budżet połączeń z Postgresem
+### 11.2. Budżet połączeń z Postgresem i pula połączeń
 
-`max_connections=100`. Przy domyślnych wartościach:
+**Pula (od wydania po v0.35.0).** `web` bierze połączenia z puli `psycopg_pool`
+(`DATABASES["default"]["OPTIONS"]["pool"]`, `backend/config/settings/base.py`, reguły doboru
+w `backend/config/dbpool.py`). Pula jest **jedna na proces** gunicorna i wspólna dla jego wątków:
+połączenie wraca do niej na końcu każdego żądania, proces nigdy nie otworzy więcej niż
+`DB_POOL_MAX_SIZE`, a bezczynny nadmiar ponad `DB_POOL_MIN_SIZE` pula zamyka sama, stopniowo – jedno
+połączenie na każde 10 minut, w których nie było potrzebne (po szczycie ruchu proces wraca z 4 do 1
+w ok. pół godziny; granicę górną pula trzyma zawsze).
+To jest różnica wobec `CONN_MAX_AGE`, które ogranicza liczbę połączeń tylko pośrednio (tyle, ile
+żyje wątków, i pod warunkiem, że każdy posprząta) – dokładnie to założenie pękło w incydencie
+z 09.09.2026 (92 bezczynne połączenia, „too many clients already”).
 
-| Usługa | Wzór | Połączenia |
+| Zmienna | Domyślnie | Znaczenie |
 |---|---|---|
-| `web` | `WEB_WORKERS × WEB_THREADS` = 4×4 | 16 |
-| `worker` | `CELERY_CONCURRENCY` | 2 |
-| `beat` | proces jednowątkowy | 1 |
-| **razem** | | **ok. 19–20** |
+| `DB_POOL` | `1` (w procesach Celery i w obrazie bez `psycopg_pool`: `0`) | pula włączona; compose ustawia `DB_POOL=0` dla `worker` i `beat` |
+| `DB_POOL_MAX_SIZE` | `WEB_THREADS` (4) | najwięcej połączeń na proces `web`; mniej niż wątków = wątki czekają |
+| `DB_POOL_MIN_SIZE` | `1` | połączenia trzymane bez ruchu, na proces |
+| `DB_POOL_TIMEOUT` | `10` | sekundy czekania na wolne połączenie, potem błąd 500 (licznik 5xx watchdoga) |
+| `DB_CONN_MAX_AGE` | `60` | **tylko** procesy bez puli (`worker`, `beat`); przy puli ignorowane |
+| `DB_APPLICATION_NAME` | per usługa w compose | `pg_stat_activity.application_name`: `olimpiada-web`, `olimpiada-worker`, `olimpiada-beat` |
 
-Zapas do 100 jest świadomie duży: administracyjne połączenia (`manage.py shell`, `psql` ręcznie
-w trakcie incydentu) i chwila nakładania się dwóch wdrożeń (stary kontener kończy żądania, nowy już
-przyjmuje) nie mogą wypchnąć aplikacji z puli. Podnoszenie `WEB_WORKERS`/`WEB_THREADS` powyżej ok.
-6×8 zbliża budżet do granicy i wymaga podniesienia `max_connections` w Postgresie razem z tym.
+**Pula i `CONN_MAX_AGE` wykluczają się**: Django przy puli wymaga `CONN_MAX_AGE=0` (inaczej
+`ImproperlyConfigured` przy pierwszym zapytaniu – każda strona 500). Ustawienia robią to same:
+przy `DB_POOL=1` zero jest wpisywane niezależnie od `DB_CONN_MAX_AGE`.
 
-`DB_CONN_MAX_AGE=60` (`config/settings/base.py`) i `CONN_HEALTH_CHECKS=True` są bezpieczne właśnie
-dzięki `gthread`: wątek roboczy **żyje w puli workera** (nie ginie po żądaniu, jak wątek pod ASGI),
-więc trwałe połączenie ma kto zamknąć przy wygaśnięciu. Incydent, który kiedyś to wyłączył (92
-bezczynne połączenia z `web` po dobie, „too many clients already”), miał inną przyczynę – wątek
-ASGI ginął, a jego połączenie zostawało otwarte aż do wygaśnięcia po stronie Pythona. Pełna historia
-stoi w komentarzu przy `DATABASES["default"]["CONN_MAX_AGE"]`.
+**Dlaczego `worker` i `beat` bez puli.** Pula ma wątki tła, a wątki nie przeżywają `fork()` –
+Celery 5.6 wie o tym i w workerze `prefork` **zamyka całą pulę przed i po każdym zadaniu**
+(`DjangoWorkerFixup._close_database`). Pula w workerze to więc otwarcie i zamknięcie połączeń przy
+każdym zadaniu – drożej niż jedno zwykłe połączenie. `beat` jest jednym wątkiem z jednym
+połączeniem, więc pula nie miałaby tam czego współdzielić. Poza `DB_POOL=0` w compose ustawienia
+rozpoznają proces Celery same (`celery …` w `sys.argv`) – nowa usługa Celery bez tej zmiennej też
+nie dostanie puli. Tak samo obraz **bez** pakietu `psycopg_pool` (nieprzebudowany po aktualizacji):
+domyślnie chodzi wtedy bez puli, jak przed nią, zamiast dawać 500 na pierwszym zapytaniu – dlatego
+po wdrożeniu sprawdź `import psycopg_pool` (niżej).
+
+**Budżet** przy `max_connections=100` (domyślne Postgresa – `docker-compose.yml` go nie zmienia,
+bo zmiana polecenia usługi `db` to restart bazy przy wdrożeniu):
+
+| Usługa | Wzór | Połączenia (maks.) | W spoczynku |
+|---|---|---|---|
+| `web` | `WEB_WORKERS × DB_POOL_MAX_SIZE` = 4×4 | 16 | `WEB_WORKERS × DB_POOL_MIN_SIZE` = 4 |
+| `worker` | `CELERY_CONCURRENCY` (proces główny bazy zwykle nie trzyma) | 2–3 | 0–2 |
+| `beat` | proces jednowątkowy | 1 | 0–1 |
+| `manage.py` (entrypoint, shell, komendy operatora) | własna pula na proces | 1–2 na proces | 0 |
+| kopia zapasowa (`pg_dump`), `psql` dyżurnego | – | 1–2 | 0 |
+| `superuser_reserved_connections` | ustawienie Postgresa | 3 | 3 |
+| **razem** | | **ok. 25–27** | **ok. 8–10** |
+
+Zapas do 100 jest świadomie duży: chwila nakładania się starego i nowego procesu przy rotacji
+`--max-requests` albo przy wdrożeniu nie może wypchnąć aplikacji z puli. Podnosząc `WEB_WORKERS`
+albo `WEB_THREADS`, licz `WEB_WORKERS × DB_POOL_MAX_SIZE`: powyżej ok. 6×8 (48) budżet zbliża się
+do progu ostrzeżenia (80) i trzeba podnieść `max_connections` razem z nim.
+
+#### Alarm zajętości połączeń
+
+`backend/apps/core/dbconnections.py`: jedno zapytanie do `pg_stat_activity` (połączenia klientów
+całego serwera, pogrupowane po `application_name` i stanie) plus `max_connections`, wynik
+buforowany 30 s we wspólnym cache'u – dowolnie częste pukanie w `/healthz/` to najwyżej jedno
+zapytanie na pół minuty.
+
+| Gdzie | Co widać | Dla kogo |
+|---|---|---|
+| `/healthz/` | `"db_connections"`: `ok` / `warn` / `critical` / `unknown` – **kod HTTP się nie zmienia** | orkiestrator, monitor zewnętrzny |
+| `/status.json` | to samo pole, ostatni klucz; **nie** wpływa na `"status"` | monitor zewnętrzny (§ 3.1) |
+| list watchdoga (`ALERT_EMAILS`) | liczby, progi, podział na usługi i stany | dyżurny |
+| `manage.py db_connections` | to samo co list, odczyt świeży; kod wyjścia 0/1/2/3 = ok/warn/critical/brak odczytu | operator na serwerze |
+
+Publiczne odpowiedzi niosą **wyłącznie poziom**: liczba połączeń i nazwy usług mówiłyby obcemu,
+ile brakuje do położenia serwisu. Progi: `DB_CONNECTIONS_WARN_PERCENT` (80) i
+`DB_CONNECTIONS_CRITICAL_PERCENT` (95), włącznie. Ostrzeżenie i stan krytyczny mają **osobne**
+klucze wyciszenia (`db-connections:warn`, `db-connections:critical`), więc eskalacja z 80 % na 95 %
+w ciągu godziny daje drugi list. `unknown` (odczyt się nie udał) nie jest osobnym alarmem –
+niedziałającą bazę zgłasza już `service:database`.
+
+**Jak czytać alarm i co zrobić:**
+
+```bash
+# na serwerze, w /opt/olimpiada
+docker compose exec web python manage.py db_connections
+```
+
+- trzyma **`olimpiada-web`** i jest go więcej niż `WEB_WORKERS × DB_POOL_MAX_SIZE` – coś omija pulę
+  albo działa drugi komplet kontenerów `web` (np. zawieszone wdrożenie): `docker compose ps`,
+  potem `docker compose restart web`,
+- trzyma **`olimpiada-worker`** / **`olimpiada-beat`** – `docker compose restart worker beat`,
+- dużo **`idle in transaction`** – żądanie albo zadanie trzyma transakcję otwartą (błąd w kodzie):
+  logi `web`/`worker` z tej samej minuty, restart zwalnia połączenia doraźnie,
+- dużo **`(bez nazwy)`** – nie aplikacja: ręczne `psql`, kopia zapasowa, narzędzie spoza compose'a;
+  szczegóły: `docker compose exec db psql -U "$POSTGRES_USER" -c "select pid, usename, client_addr,
+  backend_start, state from pg_stat_activity where application_name = ''"`,
+- budżet po prostu wyrósł (podniesione `WEB_WORKERS`/`WEB_THREADS`) – obniż je albo podnieś
+  `max_connections` (restart `db`, poza godzinami oddawania prac).
+
+**Sprawdzenie po wdrożeniu**, że pula działa (liczby dla domyślnych 4×4):
+
+```bash
+docker compose exec web python -c "import psycopg_pool"    # obraz ma psycopg[pool]
+docker compose exec web python manage.py db_connections    # olimpiada-web: od 4 do 16 (+1–2 samej komendy)
+curl -s https://<domena>/healthz/                          # … "db_connections": "ok"
+```
 
 ### 11.3. Rollback
 
@@ -1256,6 +1475,16 @@ podejrzenie, że nowa wartość przeciąża bazę albo maszynę) nie wymaga wdro
 ```bash
 # na serwerze, w /opt/olimpiada
 sed -i 's/^WEB_WORKERS=.*/WEB_WORKERS=2/; s/^WEB_THREADS=.*/WEB_THREADS=2/' .env
+docker compose up -d web
+```
+
+Tak samo bez wdrożenia wyłącza się **pulę połączeń** (§ 11.2) – np. przy podejrzeniu, że to ona
+zwraca błędy `PoolTimeout`/500 pod obciążeniem. `web` wraca wtedy do trwałych połączeń per wątek
+(`DB_CONN_MAX_AGE`, domyślnie 60 s), czyli do stanu sprzed puli:
+
+```bash
+# na serwerze, w /opt/olimpiada
+echo 'DB_POOL=0' >> .env
 docker compose up -d web
 ```
 
@@ -1792,3 +2021,50 @@ docker compose exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT 
 
 musi dać `0`. Jeśli nie daje – nie cofaj, napraw w przód: kod v0.34.0 na kolumnach dziesiętnych
 co prawda wystartuje, ale oceny ułamkowej nie przyjmie ani poprawnie nie pokaże („5,00”).
+
+### 18.4. Uzupełnienie: ułamki w rubrykach i teście (po v0.35.0)
+
+Dwie migracje, obie **bezstratne** i na małych tabelach – bez okna serwisowego:
+
+| Migracja | Tabela, kolumny | Zmiana | Rząd wielkości | Czas |
+|---|---|---|---|---|
+| `grading.0012_rubric_decimal_points` | `grading_rubriccriterion.max_points` | `smallint` → `numeric(7,2)`; więz `…_max_points_positive` z `>= 1` na `> 0` (ta sama nazwa) | dziesiątki – setki wierszy | pomijalny |
+| `ai_grading.0003_points_precision` | `ai_grading_aiassessment.proposed_points`, `max_points` | `numeric(6,2)` → `numeric(7,2)` (jak maksimum zadania) | setki – tysiące | < 1 s |
+
+Każda istniejąca wartość zostaje tą samą liczbą (4 → 4.00, 4.50 → 4.50). Punkty za kryteria
+zapisanych recenzji (`grading_review.rubric`, JSON) **nie są** przepisywane – liczby całkowite zostają
+w nich liczbami całkowitymi. Żadnej flagi, zmiany `.env`, zadania beat ani nowej zależności.
+
+**Zmiany zachowania, które warto zapowiedzieć organizatorowi**:
+
+- w etapie z **dowolnymi wartościami** wynik **testu online** wchodzi do tabeli wyników co do 0,01
+  (dotąd zawsze do pełnych punktów). Etapy „tylko ze skali” – bez zmian. Tabele **już ogłoszone**
+  (snapshoty) się nie zmieniają; zmienia się dopiero kolejne przeliczenie etapu testowego w trybie
+  dowolnym – sprawdź przed wdrożeniem, czy taki etap jest w toku:
+
+  ```bash
+  docker compose exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT s.id FROM competitions_stage s JOIN competitions_scoringscale sc ON sc.stage_id = s.id WHERE s.format = 'QUIZ' AND sc.free_values;"
+  ```
+
+- kwota za pytanie testu z oceną częściową jest zaokrąglana **połówka w górę** (0,125 → 0,13; dotąd
+  bankierskie 0,12). Zapisane wyniki podejść się nie zmieniają; „Przelicz punkty” po wdrożeniu może
+  przesunąć wynik podejścia o 0,01 – wpis audytu `quiz.regraded` poda liczbę zmienionych podejść,
+- eksport CSV wyników testu pisze punkty bez zbędnych zer (`7.5`, `3`), a eksport danych uczestnika
+  – punkty sugestii AI jako liczby JSON (`6`, `4.5`) zamiast tekstu („6.00”).
+
+Po wdrożeniu:
+
+```bash
+docker compose exec -T web python manage.py showmigrations grading ai_grading | tail -n 3
+docker compose exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT table_name, column_name, numeric_precision, numeric_scale FROM information_schema.columns WHERE (table_name, column_name) IN (('grading_rubriccriterion','max_points'),('ai_grading_aiassessment','proposed_points'),('ai_grading_aiassessment','max_points'));"
+```
+
+Oczekiwane: trzy wiersze `7`, `2`. **Rollback** (`migrate grading 0011`, `migrate ai_grading 0002`)
+wolno wykonać, dopóki żadne kryterium nie ma ułamkowego maksimum i żadna sugestia AI nie przekracza
+9 999,99 pkt – inaczej baza zaokrągli maksimum kryterium albo odmówi zawężenia kolumny:
+
+```bash
+docker compose exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT count(*) FROM grading_rubriccriterion WHERE max_points <> trunc(max_points);"
+```
+
+musi dać `0`.

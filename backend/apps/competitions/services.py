@@ -330,7 +330,8 @@ def free_values_blockers(stage: Stage, scale: ScoringScale | None = None) -> dic
     nie należy do skali, która obowiązywałaby po przełączeniu: każdą z nich trzeba by było po cichu
     uznać za błędną albo zaokrąglić, a oba wyjścia zmieniają decyzję recenzenta bez jego udziału.
     ``problems`` – ile zadań ma samo maksimum bez listy wartości; w trybie skali takie zadanie nie
-    ma czym być ocenione.
+    ma czym być ocenione. ``criteria`` – ile kryteriów rubryk ma ułamkowe maksimum (ułamki
+    w rubrykach, po wydaniu 0.35.0; patrz ``_fractional_criteria``).
 
     Każde zadanie sprawdzane jest **swoją** regułą w trybie skali (``ScoreRule`` z ``free=False``),
     bo tryb jest etapowy, a wartości skali – czasem własne zadania. Zapytań jest stała liczba
@@ -351,7 +352,7 @@ def free_values_blockers(stage: Stage, scale: ScoringScale | None = None) -> dic
     problems = list(stage.problems.all())
     max_only = sum(1 for problem in problems if problem.has_own_max)
     if scale is None:
-        return {"scores": 0, "problems": max_only}
+        return {"scores": 0, "problems": max_only, "criteria": _fractional_criteria(stage)}
     rules = {}
     for problem in problems:
         if problem.has_own_max:
@@ -397,7 +398,24 @@ def free_values_blockers(stage: Stage, scale: ScoringScale | None = None) -> dic
     for (points,) in InterviewScore.objects.filter(entry__stage=stage).values_list("points"):
         if stage_rule is None or not stage_rule.accepts(points):
             scores += 1
-    return {"scores": scores, "problems": max_only}
+    return {"scores": scores, "problems": max_only, "criteria": _fractional_criteria(stage)}
+
+
+def _fractional_criteria(stage: Stage) -> int:
+    """Ile kryteriów rubryk tego etapu ma ułamkowe maksimum („2,5;Pomysł”) – jedno zapytanie.
+
+    Takie kryterium jest poprawne wyłącznie w etapie z dowolnymi wartościami ocen
+    (``grading.rubric.parse_criteria_lines``). Po powrocie do trybu skali recenzent nie mógłby go
+    wypełnić (pełne punkty 0…2 przy maksimum 2,5), a koordynator nie mógłby zapisać formularza
+    zadania bez przepisania rubryki – dlatego blokuje przełączenie tak samo, jak zadanie z samym
+    maksimum. Punkty ułamkowe w **zapisanych** rubrykach recenzji nie blokują: liczy się ich suma,
+    czyli ocena, a tę sprawdza licznik ``scores``.
+    """
+    from apps.core.points import is_whole
+    from apps.grading.models import RubricCriterion
+
+    maxima = RubricCriterion.objects.filter(problem__stage=stage).values_list("max_points", flat=True)
+    return sum(1 for maximum in maxima if not is_whole(maximum))
 
 
 @transaction.atomic
@@ -457,16 +475,19 @@ def set_scoring_scale(
         # Liczone na skali **po** zmianie: koordynator, który w tym samym zapisie dopisuje do skali
         # wartość 4, zdejmuje tym samym blokadę z ocen 4 – dopisana wartość jest już dopuszczalna.
         blockers = free_values_blockers(stage, scale)
-        if blockers["scores"] or blockers["problems"]:
+        if blockers["scores"] or blockers["problems"] or blockers["criteria"]:
             reasons = []
             if blockers["scores"]:
                 reasons.append(f"oceny spoza skali: {blockers['scores']}")
             if blockers["problems"]:
                 reasons.append(f"zadania z samym maksimum punktów: {blockers['problems']}")
+            if blockers["criteria"]:
+                reasons.append(f"kryteria rubryk z ułamkowym maksimum: {blockers['criteria']}")
             raise DomainError(
                 "Nie można wrócić do trybu „tylko wartości ze skali” – w tym etapie są "
-                f"{'; '.join(reasons)}. Popraw te oceny (albo dopisz ich wartości do skali) "
-                "i nadaj zadaniom skalę albo wyczyść ich maksimum, a potem przełącz tryb ponownie.",
+                f"{'; '.join(reasons)}. Popraw te oceny (albo dopisz ich wartości do skali), "
+                "nadaj zadaniom skalę albo wyczyść ich maksimum i zaokrąglij maksima kryteriów "
+                "w rubrykach, a potem przełącz tryb ponownie.",
                 "FREE_VALUES_IN_USE",
                 status.HTTP_409_CONFLICT,
             )
@@ -567,8 +588,8 @@ class StageScoring:
         dziesiętne; suma liczb o dwóch miejscach po przecinku ma dwa miejsca i nie wymaga
         zaokrąglania. Z flagą suma idzie przez ``Fraction``, więc nie zależy od kolejności
         dodawania, a zaokrąglenie zapada **raz**, na końcu, ``ROUND_HALF_UP`` do ``quantum`` (pełny
-        punkt albo 0,01) – tą samą metodą, którą ``apps.quiz.services.stage_scores`` sprowadza wynik
-        testu do pełnych punktów (``apps.core.points.round_points``).
+        punkt albo 0,01) – tą samą metodą i tym samym krokiem, którymi ``apps.quiz.services.stage_scores``
+        sprowadza wynik testu (``apps.core.points.round_points``).
 
         Suma nie schodzi poniżej zera i to jest decyzja, nie skutek uboczny: ``StageEntry
         .total_points`` ma więz „nie mniej niż zero” (§ 1.2.6, decyzja D10), a regulaminowo punkty

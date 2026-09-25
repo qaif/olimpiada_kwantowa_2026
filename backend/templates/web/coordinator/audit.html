@@ -62,8 +62,8 @@
 </section>
 
 <section class="section">
-  <div class="scroll">
-    <table class="table">
+  <div class="scroll" role="region" tabindex="0" aria-label="Dziennik zdarzeń">
+    <table class="table table--stack">
       <thead>
         <tr>
           <th scope="col">Kiedy</th>
@@ -76,11 +76,11 @@
       <tbody>
         {% for row in rows %}
           <tr>
-            <td class="audit-when">{{ row.at|local_datetime }}</td>
-            <td>{% if row.actor %}{{ row.actor|account_email }}{% else %}system{% endif %}</td>
+            <td class="audit-when nowrap" data-label="Kiedy">{{ row.at|local_datetime }}</td>
+            <td data-label="Wykonawca">{% if row.actor %}{{ row.actor|account_email }}{% else %}system{% endif %}</td>
             <th scope="row">{{ row.action }}</th>
-            <td>{{ row.target_type }}#{{ row.target_id }}</td>
-            <td>
+            <td data-label="Obiekt">{{ row.target_type }}#{{ row.target_id }}</td>
+            <td data-label="Zmiana">
               {% if row.diff %}
                 <details class="audit-diff">
                   <summary class="audit-diff__summary">pokaż</summary>
