@@ -79,11 +79,20 @@ services:
       - static_files:/srv/static:ro
       - caddy_data:/data
       - caddy_config:/config
+      # Strona „Prace techniczne” (docs/OPERACJE.md § 20): flaga `on`, komunikat operatora
+      # i kopia deploy/maintenance/ (page/). Katalog stanu, a nie kod z repozytorium: krok 2/8
+      # scripts/deploy.sh kasuje katalogi z kodem i rozpakowuje je od nowa, a działający kontener
+      # widziałby wtedy stary, skasowany katalog aż do restartu – czyli bez strony. Ten katalog
+      # deploy.sh omija, a treść strony odświeża w nim `scripts/maintenance.sh sync` (krok 4/8).
+      - ${MAINTENANCE_DIR:-./maintenance}:/srv/maintenance:ro
     environment:
       SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
       S3_PUBLIC_ADDRESS: ${S3_PUBLIC_ADDRESS:-s3.${SITE_DOMAIN:-localhost}}
       ACME_EMAIL: ${ACME_EMAIL:-}
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-25}
+      # Przepustka operatora przez stronę prac technicznych (nagłówek X-Maintenance-Bypass albo
+      # ciasteczko z /__maintenance/bypass?token=…). Pusta albo krótsza niż 32 znaki = nikt.
+      MAINTENANCE_BYPASS_TOKEN: ${MAINTENANCE_BYPASS_TOKEN:-}
     networks: [edge, internal]   # internal: trasa s3.<domena> -> minio
     depends_on:
       web: { condition: service_healthy }
@@ -181,7 +190,23 @@ services:
       retries: 3
 
   db:
-    image: postgres:16-alpine
+    # PostgreSQL 18 (do 25.09.2026 był 16). Obraz i wolumen są **parametrami** tylko po to,
+    # żeby przejście 16 → 18 i jego wycofanie były jedną linijką w .env, a nie edycją tego pliku
+    # na serwerze (którą następne wdrożenie i tak by nadpisało) – docs/OPERACJE.md § 19:
+    #   - bez obu zmiennych (instalacja nowa i produkcja po przejściu) – PostgreSQL 18 na
+    #     wolumenie `pg18_data`;
+    #   - `POSTGRES_IMAGE=postgres:16-alpine` + `POSTGRES_VOLUME=pg_data:/var/lib/postgresql/data`
+    #     – stara baza 16 na starym, nietkniętym wolumenie. Tak wygląda serwer, który dostał ten
+    #     kod, ale nie przeszedł jeszcze `scripts/upgrade_postgres18.sh` (wpisuje to
+    #     `scripts/deploy.sh`, gdy znajdzie wolumen `pg_data` bez `pg18_data`), i tak wygląda
+    #     wycofanie (`scripts/upgrade_postgres18.sh --rollback`).
+    # Nowy wolumen, a nie ten sam: obraz 18 trzyma dane w `/var/lib/postgresql/18/docker`
+    # (PGDATA zależne od wersji) i deklaruje VOLUME `/var/lib/postgresql`, a pliki klastra 16 są
+    # nieczytelne dla serwera 18 – przejście to zrzut i odtworzenie, a stary wolumen zostaje
+    # nietknięty jako droga powrotu. Montaż całego `/var/lib/postgresql` (nie `…/18/docker`)
+    # zgodnie z dokumentacją obrazu: przy następnej wersji głównej dane 19 lądują obok 18 na tym
+    # samym wolumenie, co pozwala na `pg_upgrade --link`, gdy baza urośnie za duża na zrzut.
+    image: ${POSTGRES_IMAGE:-postgres:18-alpine}
     # `max_connections` zostaje domyślne (100) – świadomie nie ustawiamy go tu, bo zmiana
     # polecenia tej usługi oznacza restart Postgresa przy wdrożeniu. Budżet aplikacji przy
     # domyślnych wartościach to ok. 20 (web 4×4 z puli, worker 2, beat 1 – docs/OPERACJE.md
@@ -201,7 +226,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_INITDB_ARGS: "--locale=pl_PL.utf8 --encoding=UTF8"
     volumes:
-      - pg_data:/var/lib/postgresql/data
+      - ${POSTGRES_VOLUME:-pg18_data:/var/lib/postgresql}
     networks: [internal]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
@@ -415,6 +440,12 @@ networks:
         - subnet: 172.30.2.0/24
 
 volumes:
+  # PostgreSQL 18 – dane bazy (patrz komentarz przy usłudze `db`).
+  pg18_data:
+  # PostgreSQL 16 – dane sprzed przejścia na 18. Zadeklarowany dalej, bo jest drogą
+  # wycofania (`POSTGRES_VOLUME=pg_data:/var/lib/postgresql/data`). Na nowej instalacji compose
+  # go nie zakłada, dopóki żadna usługa go nie montuje. Skasowanie po okresie próbnym:
+  # docs/OPERACJE.md § 19.6.
   pg_data:
   redis_data:
   minio_data:

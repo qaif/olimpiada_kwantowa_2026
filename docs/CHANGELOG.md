@@ -8,6 +8,53 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – strona „Prace techniczne”
+
+Prośba organizatora z 25.09.2026: zamiast gołego 502 z Caddy'ego – strona „Prace techniczne – serwis
+wróci za kilka minut” (`deploy/maintenance/index.html`: PL + zdanie EN, contact@qaif.org, logo
+i CSS w pliku, zero zewnętrznych żądań, jasny/ciemny motyw, odświeżanie co 45 s). Podaje ją Caddy
+(fragment `(maintenance)` w `deploy/Caddyfile`, `import` w bloku domeny głównej, w domenach
+z `EXTRA_DOMAINS` i w bloku `*.` – nie w `meet.`, `monitor.` ani S3): **503**, `Retry-After: 60`,
+`Cache-Control: no-store`, własne CSP; dla `/status.json`, `/healthz/`, `/api/*` – JSON
+`{"status":"maintenance"}`. Tryb planowy: flaga `/opt/olimpiada/maintenance/on`
+(`scripts/maintenance.sh on|off|status [--message] [--until]`, bez przeładowania proxy), z wyjątkiem
+wyzwania ACME i operatora z przepustką `MAINTENANCE_BYPASS_TOKEN` (nagłówek `X-Maintenance-Bypass`
+albo ciasteczko z `/__maintenance/bypass?token=`; token generuje `deploy.sh`). Tryb nieplanowy:
+`handle_errors` dla 502/503/504 z upstreamu – także krótka przerwa przy restarcie `web` w zwykłym
+wdrożeniu. `scripts/upgrade_postgres18.sh`: wymuszona kolejność (wymóg organizatora) – kontrole →
+strona włączona → stop aplikacji i zero klientów bazy (maruderzy rozłączani) → zrzuty końcowe (czas
+startu > włączenia strony, SHA-256, stan 16 niezmieniony w trakcie) → odtworzenie **tego** zrzutu
+(SHA-256 przed `pg_restore`) → porównanie z zatrzymaną 16 → start i kontrole przez proxy
+z przepustką → strona wyłączona; po błędzie strona zostaje włączona (ramka `!!!`), `timeline.txt`
+z czasem każdego etapu, `--no-maintenance`. `scripts/deploy.sh --maintenance`: strona na czas
+kopii przed migracjami (dopiero po zatrzymaniu aplikacji), migracji i podmiany kontenerów; bez flagi
+bez zmian poza tym, że krok 2/8 omija katalog `maintenance/`, a krok 4/8 dopisuje token i kopiuje
+stronę. Testy: `scripts/tests/render_caddyfile_test.sh` (zakres importu, `caddy validate`,
+kolejność tras po `caddy adapt`), `scripts/tests/maintenance_pg18_rehearsal.sh` (próba na stosie
+compose, 44/44 z wycofaniem `--rollback`). Caddy 2.8.4: `handle_errors` z listą kodów nadpisuje zagnieżdżone matchery – stąd matcher
+kodu w środku. `OPERACJE.md` § 19.4 (kolejność), § 20; `PODRECZNIK-ADMINISTRATORA.md` § 5.1.
+
+## [Unreleased] – PostgreSQL 18
+
+Baza: `postgres:16-alpine` → `postgres:18-alpine` (18.6), zrzutem i odtworzeniem do **nowego**
+wolumenu `pg18_data` (obraz 18 ma PGDATA `/var/lib/postgresql/18/docker` i VOLUME
+`/var/lib/postgresql`); stary wolumen `pg_data` zostaje nietknięty jako droga powrotu. Kod
+aplikacji bez zmian, zero migracji; pełny zestaw testów na 18.6 z produkcyjnym `command` i locale –
+6152 passed. `docker-compose.yml`: obraz i wolumen usługi `db` z `POSTGRES_IMAGE` /
+`POSTGRES_VOLUME` (domyślnie 18 na `pg18_data`), `max_locks_per_transaction=256` bez zmian.
+**Samo wdrożenie niczego w bazie nie zmienia:** `scripts/deploy.sh` (krok 4/8) wpisuje do `.env`
+przypięcie do 16, gdy serwer ma `pg_data` bez `pg18_data`. Przejście to osobna czynność operatora:
+`scripts/upgrade_postgres18.sh` (kontrole wstępne, `--dry-run`, zrzuty klientem 16 i 18 do
+`/opt/olimpiada-backups/pg18-upgrade-*/`, porównanie liczby wierszy każdej tabeli, sekwencji,
+rozszerzeń, ról i obiektów 16 ↔ 18, `ANALYZE`, `/status.json`; błąd przed przełączeniem sam wraca na
+16), wycofanie `--rollback --yes`, stan `--status`. Przestój 2–5 min (próba lokalna: 1 min 8 s).
+Nowy klaster ma sumy kontrolne stron (`data_checksums = on`, domyślne w 18); porządek sortowania
+(musl, bajtowy) i `pg_trgm` 1.6 – bez zmian. `backup_verify.sh` stawia tymczasowy Postgres
+w wersji z `.env` (domyślnie 18) i montuje tmpfs tam, gdzie obraz deklaruje VOLUME; CI testuje na
+`postgres:18-alpine`; `e2e.sh` (reset) kasuje `pg18_data` i `pg_data`. Zrzut `-Fc` z produkcji na 18
+nie da się odtworzyć `pg_restore` 16 – lokalne środowisko też przechodzi na 18 (`OPERACJE.md`
+§ 19.7). Runbook, próba generalna, wycofanie i skasowanie `pg_data` po 14 dniach: `OPERACJE.md` § 19.
+
 ## v0.36.1 – 2026-09-25
 
 Zadania treningowe: każde z czterech zadań (P1–P4) ma własny plik z treścią

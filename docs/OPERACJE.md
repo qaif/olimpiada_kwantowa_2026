@@ -1152,7 +1152,7 @@ kończy się sześcioma błędami. Żadna migracja **naszych** aplikacji nie pow
 (`makemigrations --check --dry-run` jest czysty), żaden test nie został złagodzony.
 
 Wymagania środowiska, które trzeba znać przed wdrożeniem: Django 6.1 wymaga **Pythona ≥ 3.12**
-(obraz ma 3.12.14) i **PostgreSQL-a ≥ 15** (compose stawia `postgres:16-alpine`, produkcja ma 16).
+(obraz ma 3.12.14) i **PostgreSQL-a ≥ 15** (compose stawiał wtedy `postgres:16-alpine`; od § 19 – `postgres:18-alpine`).
 Obie granice są spełnione — ale gdyby ktoś kiedyś cofnął bazę do 14, aplikacja nie wstanie.
 
 ### 9.2. Obejście `django-celery-beat` (i kiedy je usunąć)
@@ -1505,9 +1505,9 @@ zakłada sama migracja (`django.contrib.postgres.operations.TrigramExtension`,
 `CREATE EXTENSION IF NOT EXISTS pg_trgm`) — nic nie trzeba robić ręcznie przed wdrożeniem, o ile
 spełniony jest jeden warunek środowiska:
 
-- **obraz bazy ma zawierać `pg_trgm`.** Obraz `postgres:16-alpine`, którego używa
-  `docker-compose.yml` i produkcja (§ 9.1: PostgreSQL ≥ 15, produkcja ma 16), zawiera go w pakiecie
-  `contrib` domyślnie — nie trzeba doinstalowywać żadnego pakietu systemowego,
+- **obraz bazy ma zawierać `pg_trgm`.** Obraz `postgres:18-alpine`, którego używa
+  `docker-compose.yml` i produkcja (§ 19; wcześniej `postgres:16-alpine` – oba mają `pg_trgm` 1.6),
+  zawiera go w pakiecie `contrib` domyślnie — nie trzeba doinstalowywać żadnego pakietu systemowego,
 - **rola aplikacyjna nie potrzebuje uprawnień superużytkownika.** `pg_trgm` jest rozszerzeniem
   *zaufanym* (*trusted*) od PostgreSQL 13 — właściciel bazy (rola, na której działa aplikacja) może
   je założyć sam, tak jak każdą inną migrację. Gdyby instalacja kiedyś trafiła na PostgreSQL < 13
@@ -2061,3 +2061,381 @@ docker compose exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT 
 ```
 
 musi dać `0`.
+
+## 19. PostgreSQL 16 → 18 (zrzut i odtworzenie, `scripts/upgrade_postgres18.sh`)
+
+Usługa `db` przechodzi z `postgres:16-alpine` (produkcja: 16.15) na `postgres:18-alpine`
+(18.6 w chwili przejścia). Aplikacja nie zmienia się ani o linijkę: pełny zestaw testów przechodzi
+na 18 bez zmian, migracje od zera też. Zmienia się **gdzie leżą dane** i **jak na nie przejść** –
+stąd osobny skrypt i ten rozdział zamiast zwykłego wdrożenia.
+
+### 19.1. Co się zmienia
+
+- **Nowy wolumen `pg18_data`, montowany w `/var/lib/postgresql`.** Obraz 18 ma PGDATA zależne od
+  wersji (`/var/lib/postgresql/18/docker`) i deklaruje VOLUME `/var/lib/postgresql` – nie
+  `/var/lib/postgresql/data` jak 16 (sprawdzone na obrazie: `docker image inspect postgres:18-alpine`,
+  i w dokumentacji obrazu). Pliki klastra 16 są dla serwera 18 nieczytelne, więc przejście to zrzut
+  i odtworzenie do **nowego** wolumenu; stary `pg_data` zostaje nietknięty jako droga powrotu.
+  Montaż całego `/var/lib/postgresql`, a nie `…/18/docker`: przy następnej wersji głównej dane 19
+  wylądują obok 18 na tym samym wolumenie, co pozwoli na `pg_upgrade --link`, gdy baza urośnie za
+  duża na zrzut.
+- **Obraz i wolumen są parametrami compose** (`POSTGRES_IMAGE`, `POSTGRES_VOLUME` w `.env`). Bez nich
+  – 18 na `pg18_data`. Przypięcie do 16 (`POSTGRES_IMAGE=postgres:16-alpine`,
+  `POSTGRES_VOLUME=pg_data:/var/lib/postgresql/data`) wpisuje `scripts/deploy.sh` (krok 4/8, przez
+  `scripts/upgrade_postgres18.sh --pin-if-needed`) na serwerze, który ma wolumen `pg_data` i nie ma
+  `pg18_data` – **samo wdrożenie tej wersji niczego w bazie nie zmienia**, kontener `db` nie jest
+  nawet odtwarzany. Bez tego zabezpieczenia pierwsze `up -d db` postawiłoby pustą bazę 18,
+  a entrypoint `web` zmigrowałby ją od zera – serwis wstałby pusty.
+- **Porządek sortowania bez zmian.** Obraz alpine (musl) nie ma locale libc: `--locale=pl_PL.utf8`
+  z `POSTGRES_INITDB_ARGS` przechodzi, ale porównanie tekstu jest w obu wersjach bajtowe (kolejność
+  „Ala, Lublin, Zz, Ząb, ala, cebula, zebra, ó, ćma, Łódź, żaba” – identyczna na 16 i 18,
+  sprawdzone). `upper()`/`lower()` polskich liter działa w obu tak samo. Aplikacja nie używa
+  jawnych collation (ICU jest w obrazie, ale nieużywane). Indeksy są budowane od nowa przy
+  odtwarzaniu, więc nie ma ryzyka indeksu zbudowanego pod inną kolejność.
+- **Sumy kontrolne stron danych włączone.** PostgreSQL 18 domyślnie robi `initdb --data-checksums`
+  (16 – nie). Klaster po przejściu ma `data_checksums = on`: cicha korupcja pliku na dysku kończy
+  się błędem zapytania zamiast złej odpowiedzi. Koszt CPU przy tej bazie pomijalny.
+- **Hasła: SCRAM, bez zmian.** Konto aplikacji ma hasło w SCRAM-SHA-256 od początku (domyślne
+  `password_encryption` od PostgreSQL 14), `pg_hba.conf` obrazu 18 to nadal
+  `host all all all scram-sha-256`. Ostrzeżenia 18 o wycofywaniu MD5 nas nie dotyczą.
+- **Rozszerzenia:** jedyne to `pg_trgm` (`schools.0006`, § 12) – wersja 1.6 w obu obrazach.
+- **Narzędzia kopii zapasowych.** `pg_dump`/`pg_restore` biegną **w kontenerze `db`**
+  (`backup.sh`, `restore.sh`, `deploy.sh` krok 4a, `pull_prod_data.sh`) – klient ma więc zawsze
+  wersję serwera; obraz aplikacji nie ma `postgresql-client` i nie potrzebuje. `backup_verify.sh`
+  stawia tymczasowy Postgres w wersji z `.env` (`POSTGRES_IMAGE`, domyślnie `postgres:18-alpine`)
+  i montuje tmpfs tam, gdzie obraz deklaruje VOLUME (16 i 18 mają to w innym miejscu).
+  **Uwaga dla `pull_prod_data.sh`:** zrzut `-Fc` z produkcji na 18 ma format archiwum, którego
+  `pg_restore` 16 nie przeczyta („unsupported version (1.16) in file header”) – lokalne środowisko
+  musi być na 18 (§ 19.7) albo odtwarzać klientem 18.
+- **CI**: usługa `postgres` w `.github/workflows/ci.yml` – `postgres:18-alpine`.
+
+### 19.2. Dlaczego zrzut i odtworzenie, a nie `pg_upgrade`
+
+Baza ma ok. 1,4 MB w zrzucie gzip (kilkadziesiąt MB na dysku, ~175 tabel). `pg_dump` + `pg_restore`
+trwa przy tym rozmiarze sekundy, a daje rzeczy, których `pg_upgrade` nie daje:
+
+- stary klaster zostaje **nietknięty** (`pg_upgrade --link` go unieważnia; bez `--link` i tak trzeba
+  dwóch kopii) – wycofanie to przestawienie dwóch zmiennych, nie odtwarzanie,
+- nie wymaga binariów **obu** wersji w jednym kontenerze (oficjalny obraz ma jedną; `pg_upgrade`
+  w Dockerze to osobny obraz społeczności i ręczne montowanie obu katalogów),
+- klaster 18 powstaje od nowa z domyślnymi ustawieniami 18 (sumy kontrolne – `pg_upgrade` wymaga
+  zgodności ustawienia z klastrem 16, czyli przeniósłby „off”),
+- indeksy i tabele są zbudowane od nowa (bez rozdęcia), a porównanie liczby wierszy **każdej** tabeli
+  16 ↔ 18 jest prostym, pełnym dowodem, że nic nie zginęło.
+
+Ceną jest przestój na czas zrzutu i odtworzenia – przy tej bazie pomijalny w porównaniu ze startem
+`web`. `pg_upgrade --link` ma sens dopiero przy bazie rzędu dziesiątek GB; układ wolumenu
+(`/var/lib/postgresql`) jest na to przygotowany na przyszłość.
+
+Zrzut do odtworzenia robi **klient 18** (`pg_dump` z obrazu 18 łączący się z serwerem 16 w sieci
+compose) – tak zaleca dokumentacja PostgreSQL. Obok powstaje zrzut **klientem 16** (w kontenerze
+`db`), bo tylko ten przeczyta `pg_restore` 16 przy ewentualnym powrocie.
+
+### 19.3. Próba generalna (lokalnie, 25.09.2026)
+
+Izolowany projekt compose (`pg18rh`, własne podsieci, bez `clamav`/`mail`/`proxy`) z kodem tej
+gałęzi, produkcyjnymi ustawieniami (`config.settings.production`), bazą 16 na `pg_data`
+zmigrowaną i zasianą (`seed_cms`, `seed_regulamin`, `seed_edition_kwantowa`, `seed_schools`,
+`seed_demo`: 175 tabel, 9 634 wiersze, 32 MB):
+
+1. `--pin-if-needed` wpisał przypięcie, drugie wywołanie – „bez zmian”, `docker compose up -d` nie
+   odtworzył kontenera `db` (ten sam identyfikator, nadal 16.15),
+2. `backup.sh` + `backup_verify.sh` na przypiętej 16 – test odtwarzania na `postgres:16-alpine` OK,
+3. `--dry-run` – kontrole wstępne i plan, nic nie zmienione,
+4. **awaria wstrzyknięta** (`PG18_IMAGE=postgres:17-alpine`: nowa baza nie wstaje w kroku 5) –
+   skrypt sam wrócił na 16, skasował utworzony w tym przebiegu `pg18_data`, podniósł aplikację,
+5. przejście właściwe: wszystkie 7 porównań zgodne (175 tabel, 157 sekwencji, rozszerzenia, role,
+   obiekty), `/status.json` → `ok` (database/cache/storage/queue: true), `db_connections` → `ok`;
+   **przerwa 1 min 8 s**, cały skrypt z kontrolami wstępnymi 109 s,
+6. na 18: `manage.py check`, `showmigrations` (0 niezastosowanych), `makemigrations --check`,
+   `db_connections`, `scope_cms_access --dry-run`, `check_memberships`, wyszukiwarka szkół
+   (plan zapytania używa `schools_search_trgm_idx`), strony publiczne i panel,
+7. `backup.sh` + `backup_verify.sh` na 18 (tymczasowy `postgres:18-alpine`) – OK,
+8. konto założone na 18, potem `--rollback --yes` (cały przebieg 42 s) → 16 na `pg_data`
+   ze stanem sprzed przejścia (konta nie ma – zgodnie z § 19.5, jest w zrzucie
+   `pg18-rollback-*.dump`), aplikacja zdrowa; drugie `--rollback --yes` – „nic do zrobienia”;
+   ponowne przejście odmówiło bez `--recreate-pg18-volume`, z flagą – przeszło (przerwa 47 s);
+   kolejne uruchomienie – „przejście zostało zrobione wcześniej” (kod 0).
+
+Niezależnie: pełny zestaw testów na `postgres:18-alpine` 18.6 z tym samym `command` i locale co
+produkcja – **6152 passed, 0 failed**; `migrate` od zera (378 migracji, `pg_trgm` 1.6), `check`,
+`makemigrations --check` – czyste.
+
+### 19.3a. Próba kolejności ze stroną prac technicznych (`scripts/tests/maintenance_pg18_rehearsal.sh`)
+
+Wymóg organizatora (25.09.2026): na 18 trafia wyłącznie zrzut zrobiony po włączeniu strony prac
+technicznych i zatrzymaniu aplikacji. Skrypt próby stawia osobny projekt compose (`olimpmaint`,
+własne podsieci, proxy na `127.0.0.1:18443`) z bazą 16, uruchamia **pisarza** (zapis znacznika do
+bazy co ~0,2 s aż do pojawienia się flagi `maintenance/on`) i **sondę** (`/healthz/` i `/` przez
+proxy co ~0,5 s), po czym puszcza `upgrade_postgres18.sh` i sprawdza:
+
+- kolejność etapów z `timeline.txt` (strona → stop → zero klientów → zrzut 16 → zrzut 18 →
+  odtworzenie → porównanie → przełączenie → healthy → kontrole → strona wyłączona),
+- start obu zrzutów **po** włączeniu strony, SHA-256 odtworzonego pliku = zapisany w `dumps.sha256`,
+- **każdy** potwierdzony zapis pisarza jest w 18, w tym ostatni sprzed włączenia strony,
+- ani jednej odpowiedzi 502/504; w przerwie 503 + JSON `maintenance` i 503 + strona HTML; strona
+  tylko między włączeniem a wyłączeniem; na końcu 200 i flaga zdjęta,
+- potem `--rollback --yes`: ta sama kolejność (strona → stop → zrzut 18 → 16 → kontrole → strona
+  wyłączona), baza 16 z przypięciem, wszystkie zapisy sprzed przejścia na miejscu, 0 × 502.
+
+Wynik lokalny (25.09.2026, 176 tabel): 44 z 44 kontroli (dwa pełne przebiegi przejścia, jeden
+z wycofaniem); ostatni zapis 0,02–0,63 s przed włączeniem strony jest w 18 (26 zapisów, 0
+brakujących); zrzut do odtworzenia zaczęty ~15 s po włączeniu strony; ~216 próbek proxy na
+przebieg – ~37 × 200, ~180 × 503, 0 × 502; przerwa 2 min 2 s (aplikacja healthy po 49 s, reszta to
+czekanie na `status=ok` kolejki); wycofanie ok. 40 s. Uruchomienie:
+`scripts/tests/maintenance_pg18_rehearsal.sh` (`--keep` zostawia stos, `REHEARSAL_WEB_IMAGE=`
+wskazuje obraz aplikacji). W Git Bashu brak bazy stref czasowych – planowana godzina końca jest
+wtedy pomijana (na serwerze Ubuntu: CET/CEST).
+
+### 19.4. Przejście na produkcji
+
+**Kiedy:** poza godzinami zgłoszeń i oceniania, nie w oknie kopii nocnej (3:15, w niedzielę też
+4:40 – skrypt odmówi, gdy kopia trwa). Dzień wcześniej koordynator może wystawić komunikat na
+stronie („przerwa techniczna ok. 5 minut o …”). Przez czas przerwy proxy podaje stronę
+**„Prace techniczne”** (503, § 20) z planowaną godziną końca – włącza ją i wyłącza sam skrypt.
+
+**Kolejność jest wymuszona** (wymóg organizatora z 25.09.2026): na 18 trafia **wyłącznie zrzut
+zrobiony po włączeniu strony prac technicznych i zatrzymaniu aplikacji** – i dokładnie ten zrzut.
+Wcześniejsze kopie (nocna, `pre-deploy-*` z wdrożenia) są dobre jako zabezpieczenie, ale nigdy
+nie są odtwarzane na 18. Skrypt przerywa przebieg, gdy którykolwiek warunek nie jest spełniony:
+
+1. kontrole wstępne – serwis działa normalnie (w tym: proxy widzi katalog strony, jest przepustka
+   `MAINTENANCE_BYPASS_TOKEN`),
+2. **strona prac technicznych WŁĄCZONA** (`scripts/maintenance.sh on`; proxy potwierdza flagę),
+3. stop `web`/`worker`/`beat`; w `pg_stat_activity` nie może zostać żaden klient poza skryptem –
+   30 s na rozejście się, potem `pg_terminate_backend` maruderów, a jeśli ktoś wciąż się łączy –
+   przerwanie,
+4. **zrzuty końcowe** (ten do odtworzenia klientem 18 + droga powrotu klientem 16): przed każdym
+   ponowna kontrola „strona włączona, aplikacja stoi, zero klientów”; znacznik startu zrzutu musi
+   być późniejszy niż włączenie strony; SHA-256 i rozmiar do `dumps.sha256`; ponowny stan 16 po
+   zrzutach musi być identyczny ze stanem sprzed nich,
+5. odtworzenie **tego** zrzutu na 18 – SHA-256 sprawdzany tuż przed `pg_restore`,
+6. porównanie liczby wierszy każdej tabeli (i sekwencji, ról, obiektów) z **zatrzymaną** 16, do
+   której nikt już nie może pisać,
+7. przełączenie, start aplikacji, kontrole od środka i **przez proxy z przepustką operatora**,
+8. **strona prac technicznych WYŁĄCZONA**.
+
+Każdy etap ma znacznik czasu w `timeline.txt` katalogu przebiegu. Po błędzie od kroku 2 strona
+**zostaje włączona** (skrypt mówi to głośno ramką `!!!`) – operator sprawdza serwis z przepustką
+i wyłącza ją sam. Dowód kolejności na prawdziwym stosie: `scripts/tests/maintenance_pg18_rehearsal.sh`
+(§ 19.3a).
+
+**Szacowany przestój: 2–5 minut** (próba lokalna: 1 min 8 s; na produkcji dłuższy start `web`
+– entrypoint robi `migrate` i `collectstatic`, a VPS traci część CPU na rzecz hosta, § 11 / notatka
+o kradzieży vCPU). Zrzut i odtworzenie tej bazy to kilka–kilkanaście sekund.
+
+Kolejność (z komputera operatora, potem na serwerze):
+
+```bash
+# 0. Wdrożenie kodu z PostgreSQL 18 – NIE zmienia bazy (krok 4/8 wpisuje przypięcie do 16)
+SSH_KEY=~/.ssh/olimpiada_deploy scripts/deploy.sh root@169.58.242.197
+#    w logu kroku 4/8: „PostgreSQL: dane są na 16 (wolumen olimpiada_pg_data) … przypinam 16 w .env”
+
+ssh -i ~/.ssh/olimpiada_deploy root@169.58.242.197
+cd /opt/olimpiada
+scripts/upgrade_postgres18.sh --status       # przypięcie 16, pg_data jest, pg18_data brak, 16.15
+scripts/upgrade_postgres18.sh --dry-run      # kontrole wstępne + plan; kod 0 = można
+scripts/maintenance.sh status                # proxy widzi katalog strony, przepustka ustawiona
+docker pull postgres:18-alpine               # (robi to też skrypt, przed przerwą)
+
+# 1. Przejście (przerwa = strona „Prace techniczne” od kroku 1/9 do 9/9)
+MAINTENANCE_MINUTES=10 scripts/upgrade_postgres18.sh
+#    koniec: „Gotowe: PostgreSQL 18.x na wolumenie olimpiada_pg18_data.” + czas przerwy
+#    ślad: /opt/olimpiada-backups/pg18-upgrade-<data>/{upgrade.log,timeline.txt,dumps.sha256}
+
+# 2. Po przejściu
+scripts/upgrade_postgres18.sh --status       # bez przypięcia, 18.x
+curl -fsS https://olimpiadakwantowa.pl/status.json
+docker compose exec -T web python manage.py db_connections
+scripts/backup.sh && scripts/backup_verify.sh   # pierwsza kopia z 18 i test jej odtworzenia
+```
+
+Co robi skrypt (każdy krok drukuje polecenia i wyniki; log, stany, zrzuty, `timeline.txt`
+i `dumps.sha256` w `/opt/olimpiada-backups/pg18-upgrade-<data>/`):
+
+| Krok | Co | Zatrzymuje się, gdy |
+|---|---|---|
+| 0 | kontrole: przypięcie 16, wolumeny, wersja serwera = 16, miejsce (≥ 5× baza, min. 2 GB) na katalogu kopii i Dockera, kopia nocna ≤ 26 h (`--allow-stale-backup` świadomie), nie trwa `backup.sh`, `docker pull` obrazu 18, każde rozszerzenie bazy jest w obrazie 18, proxy widzi `/srv/maintenance`, `MAINTENANCE_BYPASS_TOKEN` ≥ 32 znaki | cokolwiek się nie zgadza – **przed** przerwą |
+| 1 | `scripts/maintenance.sh on` (komunikat + planowany koniec = teraz + `MAINTENANCE_MINUTES`) | proxy nie potwierdza flagi – nic jeszcze nie zatrzymane |
+| 2 | `stop web worker beat`, czeka aż zniknie każde połączenie klienta; po 30 s `pg_terminate_backend` maruderów | po rozłączeniu wciąż ktoś podłączony |
+| 3 | stan 16: `count(*)` każdej tabeli, `last_value` każdej sekwencji, rozszerzenia, role, kodowanie/locale, ustawienia ról/bazy, liczby obiektów schematu | – |
+| 4 | **zrzuty końcowe**: `pg_dump -Fc` klientem 16 (powrót), `pg_dumpall --roles-only` i `pg_dump -Fc` klientem 18 (do odtworzenia); przed każdym: strona włączona (host i proxy), aplikacja stoi, zero klientów, czas > włączenia strony; SHA-256 + rozmiar do `dumps.sha256`; spis treści przez `pg_restore -l` 18; ponowny stan 16 = stan sprzed zrzutów | którykolwiek warunek / pusty zrzut / nieczytelny spis / stan 16 się zmienił |
+| 5 | `stop db` (16), `up -d db` z obrazem 18 na `pg18_data` (ten sam `command`, locale, hasło – z compose); czeka na TCP (nie na gniazdo – patrz komentarz w skrypcie) | serwer nie wstaje / wersja ≠ 18 / baza nie jest pusta |
+| 6 | `sha256sum -c dumps.sha256`, role, `pg_restore --exit-on-error --single-transaction` **tego** zrzutu (właściciele bez zmian), `ANALYZE` | suma się nie zgadza / pierwszy błąd odtwarzania |
+| 7 | stan 18 i `diff` ze stanem zatrzymanej 16 | **jakakolwiek** różnica |
+| 8 | zdjęcie przypięcia z `.env` (kopia `env.before-upgrade`), `up -d db web worker beat`, `web` healthy, `db_connections`, `showmigrations`, `/status.json` = `ok` od środka (do 5 min – kolejka wstaje ostatnia) i `https://<domena>/status.json` **przez proxy z nagłówkiem `X-Maintenance-Bypass`** | web nie wstaje / status nie `ok` |
+| 9 | `scripts/maintenance.sh off` | proxy nie potwierdza wyłączenia |
+
+**Błąd w krokach 2–7 sam przywraca bazę sprzed przejścia:** `.env` wciąż przypina 16, więc skrypt
+robi `up -d db` (16 na `pg_data`), kasuje `pg18_data` utworzony w tym przebiegu (niesie najwyżej
+częściowe odtworzenie; zrzuty zostają w katalogu przebiegu), podnosi aplikację i kończy się kodem
+≠ 0. Po usunięciu przyczyny – uruchomić ponownie. Błąd w kroku 8 (po zdjęciu przypięcia) **nie**
+wycofuje sam: baza jest już na 18 i mogła przyjąć zapisy – decyzja należy do operatora (§ 19.5).
+**Po każdym błędzie od kroku 1 strona prac technicznych zostaje włączona** (ramka `!!!` na końcu
+logu): sprawdzić serwis z przepustką (`curl -H "X-Maintenance-Bypass: <token>"
+https://olimpiadakwantowa.pl/status.json` albo przeglądarką przez
+`/__maintenance/bypass?token=<token>`) i dopiero wtedy `scripts/maintenance.sh off`.
+`--no-maintenance` wyłącza stronę w tym skrypcie (np. proxy sprzed tej funkcji) – przerwa jest
+wtedy gołym 502, ale kolejka zatrzymanie → zero klientów → zrzut → odtworzenie zostaje ta sama.
+
+### 19.5. Wycofanie (powrót na 16)
+
+```bash
+cd /opt/olimpiada
+scripts/upgrade_postgres18.sh --rollback --dry-run   # plan
+scripts/upgrade_postgres18.sh --rollback --yes
+```
+
+Włącza stronę prac technicznych, zatrzymuje aplikację (zero klientów bazy), robi zrzut bazy 18
+(`pg18-rollback-<data>/pg18-rollback-*.dump`, SHA-256 w `dumps.sha256`), wpisuje przypięcie 16 do
+`.env`, stawia 16 na **starym** wolumenie `pg_data`, sprawdza wersję, podnosi aplikację, sprawdza
+`/status.json` od środka i przez proxy z przepustką, wyłącza stronę (przestój ~1–3 min). Wolumen
+`pg18_data` zostaje nietknięty. Błąd po włączeniu strony zostawia ją włączoną (jak wyżej).
+
+**Zapisy wykonane na 18 od chwili przejścia nie wracają same** – baza 16 ma stan z chwili przejścia.
+Są w zrzucie `pg18-rollback-*.dump`; przeniesienie ich na 16 jest ręczne (np. `pg_restore -t
+<tabela>` klientem 18 do bazy pomocniczej i `INSERT … SELECT`), dlatego decyzję o wycofaniu
+podejmuje się **zaraz** po przejściu (w pierwszych godzinach), a nie po tygodniu. Bez skryptu,
+ręcznie: dopisać do `.env` dwie linijki `POSTGRES_IMAGE=postgres:16-alpine`
+i `POSTGRES_VOLUME=pg_data:/var/lib/postgresql/data`, potem `docker compose up -d db web worker beat`.
+
+Ponowne przejście po wycofaniu: `scripts/upgrade_postgres18.sh --recreate-pg18-volume` (bez flagi
+skrypt odmawia, bo `pg18_data` niesie dane z pierwszego podejścia).
+
+### 19.6. Sprzątanie: stary wolumen `pg_data`
+
+Najwcześniej **14 dni** po przejściu bez wycofania, i dopiero gdy: `scripts/upgrade_postgres18.sh
+--status` pokazuje 18 bez przypięcia, w tym czasie przeszło co najmniej jedno niedzielne
+`backup_verify.sh` na 18 (`/status.json`: `backup_last_verified: true`), a zrzut klientem 16
+z przejścia (`/opt/olimpiada-backups/pg18-upgrade-*/db-pg16-*.dump`) jest skopiowany poza serwer:
+
+```bash
+cd /opt/olimpiada
+scripts/upgrade_postgres18.sh --status
+docker volume rm olimpiada_pg_data           # nieodwracalne – koniec drogi powrotu na 16
+```
+
+Wpis `pg_data:` w `docker-compose.yml` może zostać (compose nie zakłada wolumenu, którego nic nie
+montuje) – usunąć go razem z wariantem 16 w komentarzach przy następnej porządkowej zmianie.
+Katalogi `pg18-upgrade-*`/`pg18-rollback-*` nie podlegają retencji `backup.sh` (ta sprząta tylko
+`*.gpg`) – skasować ręcznie po tym samym terminie, bo zawierają niezaszyfrowane zrzuty i kopię `.env` (`env.before-upgrade`).
+
+### 19.7. Środowisko deweloperskie
+
+Lokalny stos na 16 po pobraniu tej wersji bez przygotowania wstałby na **pustym** `pg18_data`.
+Dwie drogi:
+
+```bash
+# a) przejść tak jak produkcja (dane zostają; zrzuty poza repozytorium)
+export COMPOSE_FILE="docker-compose.yml;docker-compose.dev.yml"   # Windows; Linux/macOS: ':'
+bash scripts/upgrade_postgres18.sh --pin-if-needed
+# --no-maintenance: lokalny stos zwykle nie ma proxy, a bez niego nie ma kto podać strony (§ 20)
+BACKUP_DIR="$HOME/olimpiada-pg18-upgrade" bash scripts/upgrade_postgres18.sh --allow-stale-backup --no-maintenance
+# b) zostać na 16: wpisać przypięcie do .env (jak w § 19.5) i przejść później
+```
+
+`scripts/e2e.sh` (reset) kasuje oba wolumeny – `pg18_data` i `pg_data`.
+
+## 20. Strona „Prace techniczne” (`scripts/maintenance.sh`, prośba organizatora z 25.09.2026)
+
+Zamiast gołego **502** z Caddy'ego – w czasie wdrożenia, przejścia na PostgreSQL 18 czy awarii
+`web` – uczestnik widzi stronę „Prace techniczne – serwis wróci za kilka minut” (PL + jedno zdanie
+EN, kontakt contact@qaif.org, odświeżanie co 45 s, jasny/ciemny motyw). Stronę podaje **Caddy**, nie
+Django, więc działa, gdy `web` i baza leżą. Odpowiedź: **503**, `Retry-After: 60`,
+`Cache-Control: no-store`, własne CSP (bez skryptów, bez zasobów z zewnątrz). Dla `/status.json`,
+`/healthz/` i `/api/*` – JSON `{"status":"maintenance","retry_after":60}` z tym samym 503, żeby
+monitoring i klienci API rozumieli, co się dzieje (Uptime Kuma zgłosi przerwę – to prawda).
+
+### 20.1. Dwa tryby
+
+| Tryb | Kiedy | Kto włącza |
+|---|---|---|
+| **planowy** | istnieje plik `/opt/olimpiada/maintenance/on` | `scripts/maintenance.sh on`, `upgrade_postgres18.sh`, `deploy.sh --maintenance` |
+| **nieplanowy** | `web` nie odpowiada: Caddy dostaje błąd połączenia/timeout (502/503/504) | nikt – działa zawsze (`handle_errors` w `deploy/Caddyfile`) |
+
+Tryb nieplanowy zasłania też krótką przerwę przy restarcie `web` w **zwykłym** wdrożeniu (krok 4b).
+Odpowiedzi, które wysłała sama aplikacja (także jej własne 500/503), przechodzą bez zmian.
+
+Zakres: domena główna, domeny z `EXTRA_DOMAINS` i subdomeny platformy (`import maintenance`
+w każdym bloku aplikacji; generator `scripts/render_caddyfile.sh`). **Nie** dotyczy: `meet.`
+(Jitsi), `monitor.` (monitoring ma działać właśnie wtedy) i endpointu S3 (`:9000`/`s3.`) –
+przerwane wgrywanie ma się skończyć zwykłym błędem, a nie stroną HTML. Wyzwanie ACME
+(`/.well-known/acme-challenge/*`) nigdy nie jest przechwytywane. W trybie planowym strona
+zasłania także `/static/*` (strona i tak niczego stamtąd nie wczytuje).
+
+### 20.2. Polecenia (na serwerze, w `/opt/olimpiada`)
+
+```bash
+scripts/maintenance.sh on --message "Aktualizacja bazy danych." --until "21:30"   # czas polski
+scripts/maintenance.sh status      # stan, od kiedy, komunikat; co widzi proxy; kody HTTP
+scripts/maintenance.sh off
+```
+
+Przełączenie to utworzenie/skasowanie pliku – Caddy sprawdza go przy **każdym** żądaniu (matcher
+`file`), więc nie ma przeładowania ani restartu (sprawdzone na działającym proxy: odpowiedź zmienia
+się przy następnym żądaniu). Skrypt po każdej zmianie pyta kontener proxy, czy widzi to samo co
+host; jeśli nie – kod 2 i podpowiedź `docker compose up -d --force-recreate proxy` (katalog
+skasowany i utworzony od nowa po starcie proxy). `--message` (do 300 znaków) i `--until` trafiają na
+stronę; znaki HTML i klamry są zamieniane na encje (plik przechodzi przez `templates` Caddy'ego).
+
+**Przepustka operatora** – żeby obejrzeć serwis przed zdjęciem strony. Token
+`MAINTENANCE_BYPASS_TOKEN` w `.env` (≥ 32 znaki; generuje go `deploy.sh`, krok 4/8):
+
+```bash
+TOKEN="$(sed -n 's/^MAINTENANCE_BYPASS_TOKEN=//p' /opt/olimpiada/.env)"
+curl -H "X-Maintenance-Bypass: $TOKEN" https://olimpiadakwantowa.pl/status.json
+# przeglądarka: https://olimpiadakwantowa.pl/__maintenance/bypass?token=<token>
+#   -> ciasteczko olimpiada_maintenance_bypass (Secure, HttpOnly, 12 h) i przekierowanie na /
+```
+
+Token pusty albo krótszy niż 32 znaki nie przepuszcza **nikogo**. Zmiana tokenu: nowa wartość w
+`.env`, potem `docker compose up -d proxy` (proxy czyta go ze środowiska). Adres z tokenem zostaje
+w historii przeglądarki – po przerwie można go zmienić.
+
+### 20.3. Wdrożenie z `--maintenance`
+
+```bash
+SSH_KEY=~/.ssh/olimpiada_deploy scripts/deploy.sh --maintenance root@169.58.242.197
+# opcjonalnie: MAINTENANCE_MESSAGE="…" MAINTENANCE_MINUTES=15
+```
+
+Bez flagi wdrożenie przebiega jak dotąd (kopia `pre-deploy-*` przy działającej aplikacji, restart
+`web` zasłonięty trybem nieplanowym). Z flagą – ta sama zasada co przy PostgreSQL 18 (§ 19.4):
+po zbudowaniu obrazu **strona włączona** → stop `web`/`worker`/`beat` → zero klientów bazy (30 s,
+potem rozłączenie maruderów, inaczej przerwanie) → **kopia przed migracjami** (krok 4a; wolno ją
+zrobić wyłącznie przy włączonej stronie i zatrzymanej aplikacji, jej znacznik musi być późniejszy
+niż włączenie strony; SHA-256 obok pliku: `pre-deploy-*.dump.sha256`) → start z migracjami (4b) →
+`web` healthy i `https://<domena>/healthz/` = 200 **z przepustką** → **strona wyłączona** (krok
+5a). Błąd w którymkolwiek miejscu zostawia stronę włączoną i kończy wdrożenie ramką `!!!` z
+poleceniami `status`/`off`. `--maintenance` wymaga proxy, które już ma montaż `/srv/maintenance` –
+pierwsze wdrożenie tej wersji robi się **bez** flagi.
+
+### 20.4. Jak to jest zbudowane
+
+- Treść: `deploy/maintenance/index.html` (jeden plik, CSS i logo w środku, zero zewnętrznych żądań).
+- Stan: `/opt/olimpiada/maintenance/` (w repozytorium – `.gitignore`), montowany do proxy tylko do
+  odczytu jako `/srv/maintenance` (`MAINTENANCE_DIR` zmienia położenie). Zawiera `on` (flaga +
+  kto/od kiedy/komunikat), `info.html` (komunikat na stronę) i `page/` (kopia strony).
+- Dlaczego kopia, a nie montaż `deploy/maintenance`: krok 2/8 `deploy.sh` kasuje katalogi z kodem
+  i rozpakowuje je od nowa, a działający kontener widziałby wtedy stary, skasowany (pusty) katalog
+  aż do restartu – czyli strona zniknęłaby właśnie po wdrożeniu. Katalog `maintenance/` krok 2/8
+  omija, a `scripts/maintenance.sh sync` (krok 4/8) nadpisuje w nim pliki w miejscu.
+- Caddy 2.8: `handle_errors` **bez** listy kodów i własny matcher kodu – wariant `handle_errors 502
+  503 504` nadpisuje w 2.8.4 matchery zagnieżdżonych `handle` (sprawdzone `caddy adapt`; JSON łapał
+  wtedy każde żądanie). Pilnuje tego `scripts/tests/render_caddyfile_test.sh` (także `caddy
+  validate` i kolejność tras po `caddy adapt`, gdy jest Docker).
+
+### 20.5. Na serwerze po pierwszym wdrożeniu tej wersji
+
+Nic ręcznie: krok 2/8 zostawia `maintenance/`, krok 4/8 dopisuje `MAINTENANCE_BYPASS_TOKEN` do
+`.env` i kopiuje stronę, krok 4b odtwarza proxy (nowy montaż i zmienna – kilka sekund bez HTTPS,
+jednorazowo). Sprawdzenie:
+
+```bash
+cd /opt/olimpiada
+scripts/maintenance.sh status          # „wyłączone”, proxy: flaga off, strona: jest
+scripts/maintenance.sh on --message "Test strony prac technicznych." && sleep 5 && scripts/maintenance.sh off
+```
+
+Zapisz token (`grep MAINTENANCE_BYPASS_TOKEN .env`) w menedżerze haseł organizatora razem z
+`BACKUP_PASSPHRASE`.

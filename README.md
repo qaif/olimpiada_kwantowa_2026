@@ -3736,7 +3736,7 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest d
                               # nie został jeszcze zamknięty (np. po awarii w połowie przebiegu)
 ```
 
-Skrypt kasuje wolumeny `pg_data`, `minio_data` i `redis_data`, a **zostawia** `clamav_db` – pierwsze
+Skrypt kasuje wolumeny `pg18_data` (i `pg_data` sprzed PostgreSQL 18), `minio_data` i `redis_data`, a **zostawia** `clamav_db` – pierwsze
 pobranie sygnatur trwa kilka minut i nie ma powodu robić go przy każdym przebiegu.
 
 Zmierzony czas (Docker Desktop na Windows 11, rozgrzany ClamAV i cache obrazów): **~60 s** na cały

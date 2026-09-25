@@ -20,7 +20,12 @@ REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 cd "$REPO_DIR"
 
 BACKUP_DIR="${BACKUP_DIR:-/opt/olimpiada-backups}"
-PG_IMAGE="${PG_IMAGE:-postgres:16-alpine}"
+# Obraz tymczasowego Postgresa: ta sama wersja główna, na której stoi produkcja – test ma iść
+# drogą prawdziwej awarii, a w niej zrzut wraca na tę samą wersję. Bez PG_IMAGE bierzemy
+# POSTGRES_IMAGE z .env (serwer przypięty do 16 przed przejściem albo po wycofaniu – docs/OPERACJE.md
+# § 19), a bez niego postgres:18-alpine, czyli to, co stawia docker-compose.yml. Wartość ustalamy
+# po wczytaniu .env (niżej).
+PG_IMAGE_OVERRIDE="${PG_IMAGE:-}"
 # Ile wierszy w accounts_user wystarcza, żeby uznać zrzut za „nie pusty”. Jeden: konto koordynatora
 # istnieje zawsze, także przed pierwszą rejestracją uczestnika. Wyższy próg kazałby przestawiać
 # skrypt przed startem edycji, czyli dokładnie wtedy, gdy nikt na niego nie patrzy.
@@ -42,6 +47,7 @@ set -a
 . ./.env
 set +a
 : "${BACKUP_PASSPHRASE:?BACKUP_PASSPHRASE musi być w .env}"
+PG_IMAGE="${PG_IMAGE_OVERRIDE:-${POSTGRES_IMAGE:-postgres:18-alpine}}"
 
 DUMP_PATH="${1:-$(ls -1t "$BACKUP_DIR"/db-*.dump.gpg 2>/dev/null | head -1 || true)}"
 [ -n "$DUMP_PATH" ] && [ -f "$DUMP_PATH" ] || die "nie znalazłem kopii bazy w ${BACKUP_DIR}"
@@ -54,7 +60,7 @@ chmod 700 "$WORK_DIR"
 # Sprzątanie bezwarunkowe: nieudany test nie może zostawić na maszynie działającego Postgresa
 # z kompletem danych osobowych i hasłem z tego skryptu.
 cleanup() {
-    docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
+    docker rm -f -v "$CONTAINER" >/dev/null 2>&1 || true
     docker network rm "$NETWORK" >/dev/null 2>&1 || true
     rm -rf "$WORK_DIR"
 }
@@ -72,16 +78,25 @@ printf '%s' "$BACKUP_PASSPHRASE" | gpg --batch --yes --quiet \
 # pojawiać się w `docker inspect` ani w liście procesów.
 TEST_PASSWORD="$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')"
 log "2/4 Tymczasowy Postgres (${PG_IMAGE})"
+docker image inspect "$PG_IMAGE" >/dev/null 2>&1 || docker pull -q "$PG_IMAGE" >/dev/null
+# tmpfs w miejscu, które obraz deklaruje jako VOLUME – a to zależy od wersji: 16 ma
+# /var/lib/postgresql/data, 18 ma /var/lib/postgresql (PGDATA /var/lib/postgresql/18/docker).
+# Odczytane z obrazu, a nie wpisane na sztywno: ścieżka wpisana dla 16 dawałaby na 18 dane na
+# dysku, w anonimowym wolumenie, który przeżywa kontener – z kompletem danych osobowych.
+PG_VOLUME_PATH="$(docker image inspect -f '{{range $path, $_ := .Config.Volumes}}{{$path}}{{"\n"}}{{end}}' "$PG_IMAGE" | head -1)"
+PG_VOLUME_PATH="${PG_VOLUME_PATH:-/var/lib/postgresql/data}"
 docker network create "$NETWORK" >/dev/null
 docker run -d --name "$CONTAINER" --network "$NETWORK" \
     -e POSTGRES_PASSWORD="$TEST_PASSWORD" -e POSTGRES_USER=verify -e POSTGRES_DB=verify \
-    --tmpfs /var/lib/postgresql/data:rw,size=4g \
+    --tmpfs "${PG_VOLUME_PATH}:rw,size=4g" \
     "$PG_IMAGE" >/dev/null
+# `-h 127.0.0.1` (TCP): przy pierwszym starcie entrypoint obrazu stawia na chwilę serwer bez TCP
+# (initdb, zakładanie bazy) i restartuje go – gniazdo odpowiadałoby już wtedy.
 for _ in $(seq 1 60); do
-    docker exec "$CONTAINER" pg_isready -U verify -d verify >/dev/null 2>&1 && break
+    docker exec "$CONTAINER" pg_isready -h 127.0.0.1 -U verify -d verify >/dev/null 2>&1 && break
     sleep 1
 done
-docker exec "$CONTAINER" pg_isready -U verify -d verify >/dev/null 2>&1 \
+docker exec "$CONTAINER" pg_isready -h 127.0.0.1 -U verify -d verify >/dev/null 2>&1 \
     || die "tymczasowy Postgres nie wystartował"
 
 # --- 3. pg_restore ---------------------------------------------------------------------------

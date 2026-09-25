@@ -168,7 +168,9 @@ EOF
     # Blok aplikacji: ten sam co bloku domeny głównej, łącznie z limitem rozmiaru żądania
     # i nagłówkami bezpieczeństwa. Powtórzony, a nie wyciągnięty do wspólnego fragmentu
     # (`import`), bo blok domeny głównej ma zostać w pliku źródłowym literalnie taki, jaki
-    # jest dzisiaj – to jest warunek zadania T6 (§ 6).
+    # jest dzisiaj – to jest warunek zadania T6 (§ 6). Wyjątek: `import maintenance` (strona
+    # „Prace techniczne”, fragment zdefiniowany w deploy/Caddyfile) – konkurs z EXTRA_DOMAINS
+    # ma w czasie przerwy pokazywać to samo co domena główna, a nie pusty błąd 502.
     cat >> "$tmp" <<EOF
 
 # Wygenerowane przez scripts/render_caddyfile.sh z EXTRA_DOMAINS – nie edytuj tego pliku.
@@ -178,6 +180,7 @@ EOF
     # kopią `deploy/Caddyfile` co do bajtu, a endpoint i tak nie istnieje w konfiguracji proxy.
     if [ "$SUBDOMAINS_ON" = "1" ]; then internal_guard >> "$tmp"; fi
     cat >> "$tmp" <<EOF
+    import maintenance
     encode gzip zstd
     request_body {
         max_size {\$MAX_UPLOAD_MB}MB
@@ -225,6 +228,7 @@ if [ "$SUBDOMAINS_ON" = "1" ]; then
 EOF
   internal_guard >> "$tmp"
   cat >> "$tmp" <<'EOF'
+    import maintenance
     encode gzip zstd
     request_body {
         max_size {$MAX_UPLOAD_MB}MB
