@@ -539,6 +539,13 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
 
     erase_workshop_views(user)
 
+    # Stan powiadomień forum (``apps.forum.notifications``, v0.36.0): obserwowane wątki, ustawienia
+    # i decyzje czekające na list. Wpisy zostają bez podpisu (docstring wyżej), ale lista wątków,
+    # którymi ta osoba się interesowała, nie jest częścią rozmowy.
+    from apps.forum.notifications import erase_for_user as erase_forum_notifications
+
+    erase_forum_notifications(user)
+
     _drop_credentials(user)
     audit(actor or user, "account.anonymised", user, {"user_id": user.pk}, request=request)
     return user

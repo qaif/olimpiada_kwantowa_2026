@@ -148,6 +148,19 @@ def _drop_pending_for(user_id: int) -> None:
     )
 
 
+def erase_for_user(user) -> int:
+    """Kasuje stan powiadomień konta: ustawienia, obserwacje i decyzje czekające na list.
+
+    Woła to anonimizacja konta (``apps.accounts.profile``). Wpisy zostają bez podpisu, ale to,
+    **które wątki** ta osoba obserwowała i kiedy dostała list, nie jest częścią rozmowy – to stan
+    wysyłki do skrzynki, której już nie ma. Zwraca liczbę skasowanych wierszy.
+    """
+    removed = 0
+    for model in (ForumSubscription, ForumDecisionNotice, ForumNotificationSettings):
+        removed += model.objects.filter(user=user).delete()[0]
+    return removed
+
+
 def _identified(user) -> bool:
     return user is not None and getattr(user, "is_authenticated", False)
 

@@ -502,7 +502,12 @@ def test_undeliverable_accounts_get_nothing(competition, django_capture_on_commi
         run(django_capture_on_commit_callbacks)
 
     assert [m for m in mail.outbox if email in m.to] == []
-    assert ForumSubscription.objects.get(thread=thread, user=author).pending_since is None
+    subscription = ForumSubscription.objects.filter(thread=thread, user=author).first()
+    if state == "anonymised":
+        # Anonimizacja kasuje stan powiadomień konta (``apps.forum.notifications.erase_for_user``).
+        assert subscription is None
+    else:
+        assert subscription.pending_since is None
 
 
 def test_a_person_who_lost_the_role_gets_nothing(competition, django_capture_on_commit_callbacks):
