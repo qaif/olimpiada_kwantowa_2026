@@ -8,7 +8,58 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
-## [Unreleased] – strona „Prace techniczne”
+## v0.37.0 – 2026-09-25
+
+Wydanie infrastrukturalne z 25.09.2026 – cztery zmiany, żadna nie zmienia zachowania aplikacji dla
+użytkownika, żadnej migracji: **Python 3.14** (obraz do przebudowy), **PostgreSQL 18** (kod gotowy,
+samo wdrożenie zostawia bazę na 16 – przejście to osobny krok operatora), **strona „Prace
+techniczne”** (prośba organizatora) i **szybsza, mniej krucha suita testów** z nowym podziałem
+w CI. Przy okazji: **9 nowych angielskich tematów listów** – warianty z marką konkursu
+(`*_SUBJECT_TEMPLATE`, używane przy `competition_branding_in_mail`) nie miały dotąd tłumaczenia
+i przy języku EN szły po polsku.
+
+Kolejność na produkcji (szczegóły: `OPERACJE.md` § 20.5, § 21.2, § 19.4):
+1. `scripts/deploy.sh` **bez** `--maintenance` – przebudowa obrazu na 3.14, jednorazowe odtworzenie
+   proxy (montaż `maintenance/`, `MAINTENANCE_BYPASS_TOKEN`), baza zostaje na 16 (przypięcie
+   w `.env`);
+2. kontrole po wdrożeniu: `python -VV` w `web`, `scripts/maintenance.sh status` i próba on/off;
+3. osobno, w oknie serwisowym: `scripts/upgrade_postgres18.sh` (strona prac technicznych włączana
+   i wyłączana przez skrypt), potem kopia i `backup_verify.sh` na 18.
+
+### Python 3.14
+
+Interpreter 3.12.14 → **3.14.7**: obraz `python:3.12-slim-bookworm` → `python:3.14-slim-trixie`
+(Debian 13 – bieżąca baza oficjalnych obrazów; na niej stoi też tag `3.14-slim`), CI
+`PYTHON_VERSION` 3.14, `requires-python = ">=3.14"`, ruff `target-version = "py314"`. Wszystkie
+zależności mają koła dla CPythona 3.14 (rozwiązanie zależności na 3.12 i 3.14 identyczne,
+żadnego budowania ze źródeł); podniesione dolne granice: `psycopg[binary,pool]>=3.2.10` (pierwsze
+koła `cp314`), `ruff>=0.12` (pierwszy, który zna `py314`). Kod: dwie adnotacje bez cudzysłowów
+(PEP 649) i `ruff format` pod `py314` – `except (A, B):` → `except A, B:` (PEP 758, 34 linie,
+znaczenie bez zmian). Bez migracji i bez zmian zachowania. Wdrożenie: zwykłe `scripts/deploy.sh`
+(przebudowuje obraz); powrót: poprzedni tag obrazu – `OPERACJE.md` § 21.
+
+### PostgreSQL 18
+
+Baza: `postgres:16-alpine` → `postgres:18-alpine` (18.6), zrzutem i odtworzeniem do **nowego**
+wolumenu `pg18_data` (obraz 18 ma PGDATA `/var/lib/postgresql/18/docker` i VOLUME
+`/var/lib/postgresql`); stary wolumen `pg_data` zostaje nietknięty jako droga powrotu. Kod
+aplikacji bez zmian, zero migracji; pełny zestaw testów na 18.6 z produkcyjnym `command` i locale –
+6152 passed. `docker-compose.yml`: obraz i wolumen usługi `db` z `POSTGRES_IMAGE` /
+`POSTGRES_VOLUME` (domyślnie 18 na `pg18_data`), `max_locks_per_transaction=256` bez zmian.
+**Samo wdrożenie niczego w bazie nie zmienia:** `scripts/deploy.sh` (krok 4/8) wpisuje do `.env`
+przypięcie do 16, gdy serwer ma `pg_data` bez `pg18_data`. Przejście to osobna czynność operatora:
+`scripts/upgrade_postgres18.sh` (kontrole wstępne, `--dry-run`, zrzuty klientem 16 i 18 do
+`/opt/olimpiada-backups/pg18-upgrade-*/`, porównanie liczby wierszy każdej tabeli, sekwencji,
+rozszerzeń, ról i obiektów 16 ↔ 18, `ANALYZE`, `/status.json`; błąd przed przełączeniem sam wraca na
+16), wycofanie `--rollback --yes`, stan `--status`. Przestój 2–5 min (próba lokalna: 1 min 8 s).
+Nowy klaster ma sumy kontrolne stron (`data_checksums = on`, domyślne w 18); porządek sortowania
+(musl, bajtowy) i `pg_trgm` 1.6 – bez zmian. `backup_verify.sh` stawia tymczasowy Postgres
+w wersji z `.env` (domyślnie 18) i montuje tmpfs tam, gdzie obraz deklaruje VOLUME; CI testuje na
+`postgres:18-alpine`; `e2e.sh` (reset) kasuje `pg18_data` i `pg_data`. Zrzut `-Fc` z produkcji na 18
+nie da się odtworzyć `pg_restore` 16 – lokalne środowisko też przechodzi na 18 (`OPERACJE.md`
+§ 19.7). Runbook, próba generalna, wycofanie i skasowanie `pg_data` po 14 dniach: `OPERACJE.md` § 19.
+
+### Strona „Prace techniczne”
 
 Prośba organizatora z 25.09.2026: zamiast gołego 502 z Caddy'ego – strona „Prace techniczne – serwis
 wróci za kilka minut” (`deploy/maintenance/index.html`: PL + zdanie EN, contact@qaif.org, logo
@@ -34,26 +85,23 @@ kolejność tras po `caddy adapt`), `scripts/tests/maintenance_pg18_rehearsal.sh
 compose, 44/44 z wycofaniem `--rollback`). Caddy 2.8.4: `handle_errors` z listą kodów nadpisuje zagnieżdżone matchery – stąd matcher
 kodu w środku. `OPERACJE.md` § 19.4 (kolejność), § 20; `PODRECZNIK-ADMINISTRATORA.md` § 5.1.
 
-## [Unreleased] – PostgreSQL 18
+### Testy i CI
 
-Baza: `postgres:16-alpine` → `postgres:18-alpine` (18.6), zrzutem i odtworzeniem do **nowego**
-wolumenu `pg18_data` (obraz 18 ma PGDATA `/var/lib/postgresql/18/docker` i VOLUME
-`/var/lib/postgresql`); stary wolumen `pg_data` zostaje nietknięty jako droga powrotu. Kod
-aplikacji bez zmian, zero migracji; pełny zestaw testów na 18.6 z produkcyjnym `command` i locale –
-6152 passed. `docker-compose.yml`: obraz i wolumen usługi `db` z `POSTGRES_IMAGE` /
-`POSTGRES_VOLUME` (domyślnie 18 na `pg18_data`), `max_locks_per_transaction=256` bez zmian.
-**Samo wdrożenie niczego w bazie nie zmienia:** `scripts/deploy.sh` (krok 4/8) wpisuje do `.env`
-przypięcie do 16, gdy serwer ma `pg_data` bez `pg18_data`. Przejście to osobna czynność operatora:
-`scripts/upgrade_postgres18.sh` (kontrole wstępne, `--dry-run`, zrzuty klientem 16 i 18 do
-`/opt/olimpiada-backups/pg18-upgrade-*/`, porównanie liczby wierszy każdej tabeli, sekwencji,
-rozszerzeń, ról i obiektów 16 ↔ 18, `ANALYZE`, `/status.json`; błąd przed przełączeniem sam wraca na
-16), wycofanie `--rollback --yes`, stan `--status`. Przestój 2–5 min (próba lokalna: 1 min 8 s).
-Nowy klaster ma sumy kontrolne stron (`data_checksums = on`, domyślne w 18); porządek sortowania
-(musl, bajtowy) i `pg_trgm` 1.6 – bez zmian. `backup_verify.sh` stawia tymczasowy Postgres
-w wersji z `.env` (domyślnie 18) i montuje tmpfs tam, gdzie obraz deklaruje VOLUME; CI testuje na
-`postgres:18-alpine`; `e2e.sh` (reset) kasuje `pg18_data` i `pg_data`. Zrzut `-Fc` z produkcji na 18
-nie da się odtworzyć `pg_restore` 16 – lokalne środowisko też przechodzi na 18 (`OPERACJE.md`
-§ 19.7). Runbook, próba generalna, wycofanie i skasowanie `pg_data` po 14 dniach: `OPERACJE.md` § 19.
+Pełny przebieg w jednym procesie: 40:31 → ok. 20 min; `-n auto` (xdist) kilka minut; szybka pętla
+`-m "not slow"` ok. 3 min (`docs/TESTY.md`). Testy migracji (70 % czasu) przewijają bazę raz na
+moduł w jednej transakcji wycofywanej na końcu (`apps/core/tests/migration_helpers.py`, marker
+`migrations`, każdy test w savepoincie) zamiast migrate + flush na każdy test; po teście
+transakcyjnym baza wraca z migawki z początku sesji (Konkurs #1 i drzewo stron nie znikają,
+wynik nie zależy od kolejności); ClamAV podstawiony na poziomie gniazda (prawdziwy tylko
+z markerem `clamav`); `.mo` kompiluje sam pytest; testy AI bez SDK dostawców. Asercje per
+element zamiast ręcznie liczonych sum: tematy listów wykrywane w kodzie (3 nowo zamrożone:
+status ucznia przyjęty/odrzucony, zaproszenie ucznia przez nauczyciela; wymóg wersji EN dla
+każdego tematu – stąd 9 tłumaczeń wyżej), flagi etapu 2, wersja rejestru czynności, budżety
+zapytań w jednej tabeli (`apps/core/tests/query_budgets.py`). CI: `-n auto` w każdym z 5 shardów,
+podział `duration_based_chunks` (ciągłe kawałki), Postgres testowy z `max_locks_per_transaction
+= 256` i bez `fsync`, bez osobnych kroków `.mo`/`collectstatic`; `backend/.test_durations`
+odświeżone. Nazwy wymaganych checków bez zmian. Na tej wersji (Python 3.14 + PostgreSQL 18):
+{TOTALS}.
 
 ## v0.36.1 – 2026-09-25
 

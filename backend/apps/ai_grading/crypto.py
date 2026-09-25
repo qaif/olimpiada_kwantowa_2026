@@ -131,6 +131,6 @@ def decrypt_key(token: str) -> ApiKey | None:
 
     try:
         return ApiKey(_fernet_for(settings.SECRET_KEY).decrypt(token.encode("ascii")).decode("ascii"))
-    except (InvalidToken, ValueError, UnicodeDecodeError):
+    except InvalidToken, ValueError, UnicodeDecodeError:
         logger.warning("Ocena AI: nie udało się odszyfrować klucza API (zmiana SECRET_KEY?).")
         return None

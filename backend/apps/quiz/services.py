@@ -477,7 +477,7 @@ def save_answers(*, attempt: QuizAttempt, answers: dict, now=None) -> int:
         for raw_id, payload in (answers or {}).items():
             try:
                 question_id = int(raw_id)
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 continue
             question = questions.get(question_id)
             if question is None:

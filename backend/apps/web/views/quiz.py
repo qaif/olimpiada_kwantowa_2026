@@ -612,7 +612,7 @@ class QuizAutosaveView(_ParticipantQuizMixin, View):
         attempt = self.own_attempt(attempt_id)
         try:
             payload = json.loads(request.body.decode("utf-8") or "{}")
-        except (ValueError, UnicodeDecodeError):
+        except ValueError, UnicodeDecodeError:
             return JsonResponse({"code": "INVALID_JSON", "detail": "Nieczytelne dane."}, status=400)
         answers = payload.get("answers") if isinstance(payload, dict) else None
         if not isinstance(answers, dict):

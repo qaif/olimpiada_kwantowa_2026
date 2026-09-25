@@ -1823,11 +1823,11 @@ w katalogu roboczym, i dołączonymi na **koniec** `sys.path` (plik `.pth`, żeb
 z obrazu):
 
 ```bash
-uv pip install --system-certs --target sdk --python-platform x86_64-manylinux_2_28 --python-version 3.12 \
+uv pip install --system-certs --target sdk --python-platform x86_64-manylinux_2_28 --python-version 3.14 \
   "anthropic>=1.8,<2" "openai>=3.19,<4" "google-genai>=2.25,<3"
 docker run --rm --user root -v "$PWD/backend:/app" -v "$PWD/sdk:/sdk:ro" -w /app --network olimpiadaclade_internal \
   -e DATABASE_URL=postgres://…@db:5432/olimpiada_ai --entrypoint "" olimpiada/web:dev \
-  sh -c 'echo /sdk > /opt/venv/lib/python3.12/site-packages/zz_sdk.pth; pytest -q apps/ai_grading'
+  sh -c 'echo /sdk > /opt/venv/lib/python3.14/site-packages/zz_sdk.pth; pytest -q apps/ai_grading'
 ```
 
 Bez pakietów testy wymagające SDK same się pomijają (`importorskip`); reszta testów oceny AI z SDK nie
@@ -2439,3 +2439,73 @@ scripts/maintenance.sh on --message "Test strony prac technicznych." && sleep 5 
 
 Zapisz token (`grep MAINTENANCE_BYPASS_TOKEN .env`) w menedżerze haseł organizatora razem z
 `BACKUP_PASSPHRASE`.
+
+## 21. Python 3.14 (interpreter obrazu)
+
+### 21.1. Co się zmieniło
+
+| Gdzie | Było | Jest |
+|---|---|---|
+| obraz (`backend/Dockerfile`, oba etapy) | `python:3.12-slim-bookworm` (3.12.14, Debian 12) | `python:3.14-slim-trixie` (3.14.7, Debian 13) |
+| CI (`.github/workflows/ci.yml`, `PYTHON_VERSION`) | `3.12` | `3.14` |
+| `backend/pyproject.toml` | `requires-python = ">=3.12"`, ruff `py312` | `">=3.14"`, ruff `py314` |
+
+Baza Debiana: `trixie`, bo na niej stoją tagi bez sufiksu (`3.14-slim`, `3-slim`) oficjalnych
+obrazów (`docker-library/python`, sprawdzone 25.09.2026); `bookworm` jest już `oldstable`. Pakiety
+z warstwy apt (`libpq5`, `curl`, `procps`, `gettext`) są w trixie pod tymi samymi nazwami –
+Dockerfile poza linijkami `FROM` się nie zmienił. Kroje dla reportlaba (DejaVu) leżą
+w repozytorium (`backend/static/fonts/`), `psycopg-binary` ma własny `libpq`, a klient ClamAV to
+nasz kod na gołym gnieździe (`apps.submissions.antivirus`) – żadna z tych rzeczy nie zależy od
+pakietów systemu obrazu.
+
+Zależności: rozwiązanie `pyproject.toml` dla 3.12 i dla 3.14 daje **identyczny** zestaw wersji,
+a każdy pakiet binarny instaluje się z gotowego koła `cp314`/`abi3` (nic nie buduje się ze źródeł).
+Podniesione są tylko dwie dolne granice: `psycopg[binary,pool]>=3.2.10` (starsze wydania nie mają
+koła dla 3.14, a `psycopg-binary` nie wychodzi jako źródła) i `ruff>=0.12` (starszy nie zna `py314`).
+
+Kod: bez zmian zachowania. `ruff` pod `py314` zdjął cudzysłowy z dwóch adnotacji (odwołania
+w przód są w 3.14 leniwe – PEP 649), a `ruff format` zapisuje wyjątki bez nawiasów:
+`except (A, B):` → `except A, B:` (PEP 758 – składnia 3.14 o tym samym znaczeniu; przy `as`
+nawiasy zostają). Dlatego `requires-python` jest twarde: na 3.12 te pliki się nie parsują.
+
+### 21.2. Wdrożenie
+
+Nic ponad zwykłe `scripts/deploy.sh`: krok 4/8 robi `docker compose build --pull web`, czyli
+pobiera nowy obraz bazowy i instaluje zależności od zera. Pierwszy build po zmianie trwa dłużej
+(pobranie `python:3.14-slim-trixie`). Migracji nie ma. Po wdrożeniu:
+
+```bash
+docker compose exec -T web python -VV          # Python 3.14.x
+docker compose ps                              # web, worker, beat: healthy
+docker compose logs --since 10m worker beat | grep -iE 'error|traceback' || echo czysto
+```
+
+### 21.3. Rollback
+
+Wydanie nie zmienia bazy, więc powrót to sam obraz – bez odtwarzania kopii. `scripts/deploy.sh`
+zostawia na serwerze tag poprzedniej wersji (§ 11.3), zbudowany jeszcze na 3.12:
+
+```bash
+# na serwerze, w /opt/olimpiada
+docker compose stop web worker beat
+sed -i 's/^APP_VERSION=.*/APP_VERSION=<poprzednia-wersja>/' .env
+docker compose up -d web worker beat
+```
+
+Gdy tamtego tagu już nie ma: `scripts/deploy.sh` z commitu sprzed zmiany (`git checkout
+<poprzedni-tag>`). Cache w Redisie (strony, sesje) jest serializowany `pickle`, którego protokół
+jest wspólny dla 3.12 i 3.14 – przełączenie w żadną stronę nie wymaga czyszczenia cache.
+
+### 21.4. Lokalne środowisko (lint poza kontenerem)
+
+Venv w `backend/.venv` trzeba **utworzyć od nowa** – interpretera w istniejącym venvie się nie
+podmienia. `uv` sam pobierze Pythona 3.14, jeśli nie ma go w systemie; za firmowym proxy TLS
+dopisz `--system-certs` do obu poleceń `uv`:
+
+```bash
+cd backend
+rm -rf .venv
+uv venv --python 3.14 .venv
+uv pip install --python .venv -r pyproject.toml --extra dev
+.venv/Scripts/ruff.exe check . && .venv/Scripts/ruff.exe format --check .   # Linux: .venv/bin/ruff
+```

@@ -44,7 +44,7 @@ olimpiady, pod warunkiem udostępnienia źródeł swojej wersji użytkownikom se
 | RAM | ≥ 6 GB dla Dockera | ClamAV trzyma bazę sygnatur w pamięci (~1,5 GB) |
 | Dysk | ≥ 10 GB | obrazy, sygnatury ClamAV, wolumeny danych |
 | Powłoka | Git Bash / WSL / dowolna POSIX-owa | skrypty w `scripts/` są bashowe |
-| (opcjonalnie) Python 3.12 + `ruff` | – | wyłącznie do lintu poza kontenerem |
+| (opcjonalnie) Python 3.14 + `ruff` (venv przez `uv`) | – | wyłącznie do lintu poza kontenerem; tworzenie venv – § 7 |
 
 Systemu **nie da się** sensownie uruchomić bez Dockera: deadline, skan antywirusowy i prywatny
 storage wymagają Postgresa, Redisa, MinIO i ClamAV-a, a nie ich atrap.
@@ -3706,7 +3706,9 @@ docker compose exec -T web pytest -q -n auto -m "not slow"   # szybka pętla (be
 # Pokrycie
 docker compose exec -T web pytest -q --cov=apps --cov-report=term-missing:skip-covered
 
-# Lint i formatowanie (host, wirtualne środowisko w backend/.venv)
+# Lint i formatowanie (host, wirtualne środowisko w backend/.venv – Python 3.14, jak obraz).
+# Venv (także po zmianie wersji Pythona – stary trzeba skasować; za proxy TLS: --system-certs):
+#   cd backend && rm -rf .venv && uv venv --python 3.14 .venv && uv pip install --python .venv -r pyproject.toml --extra dev
 cd backend && .venv/Scripts/ruff.exe format . && .venv/Scripts/ruff.exe check .
 # Linux/WSL: cd backend && ruff format . && ruff check .
 

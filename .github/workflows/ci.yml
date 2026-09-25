@@ -29,9 +29,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Ta sama wersja, co w obrazie (backend/Dockerfile, `requires-python = ">=3.12"`). Testy
+  # Ta sama wersja, co w obrazie (backend/Dockerfile, `requires-python = ">=3.14"`). Testy
   # przechodzące na innej wersji niż produkcja niczego o produkcji nie dowodzą.
-  PYTHON_VERSION: "3.12"
+  PYTHON_VERSION: "3.14"
 
 jobs:
   lint:

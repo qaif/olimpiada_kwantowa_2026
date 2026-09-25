@@ -1205,7 +1205,7 @@ class Category(models.Model):
         return not (self.grade_max is not None and grade > self.grade_max)
 
     @classmethod
-    def auto_for_grade(cls, competition, grade) -> "Category | None":
+    def auto_for_grade(cls, competition, grade) -> Category | None:
         """Kategoria wyliczona z klasy uczestnika albo ``None``, gdy żadna reguła nie pasuje.
 
         Jedyne miejsce, w którym stoi reguła automatycznego przypisania – wołają ją rejestracja,

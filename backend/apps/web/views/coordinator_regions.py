@@ -183,7 +183,7 @@ def _stage_or_none(stages: list, raw):
         return None
     try:
         stage_id = int(raw)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
     return next((stage for stage in stages if stage.pk == stage_id), None)
 

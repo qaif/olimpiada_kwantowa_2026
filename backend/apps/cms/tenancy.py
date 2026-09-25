@@ -97,7 +97,7 @@ def competition_for_page(page, request=None) -> Competition | None:
         return None
     try:
         return competition_for_site(page.get_site())
-    except (DatabaseError, AttributeError):  # pragma: no cover - baza bez drzewa stron
+    except DatabaseError, AttributeError:  # pragma: no cover - baza bez drzewa stron
         logger.warning("Nie udało się ustalić konkursu strony %s.", getattr(page, "pk", "?"))
         return None
 

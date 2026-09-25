@@ -453,7 +453,7 @@ def price_for(provider: str, model: str, row: AiGradingSettings | None = None) -
         if isinstance(override, list | tuple) and len(override) == 2:
             try:
                 return Price(Decimal(str(override[0])), Decimal(str(override[1])))
-            except (InvalidOperation, ValueError):
+            except InvalidOperation, ValueError:
                 pass
     return DEFAULT_PRICES.get((provider, model))
 

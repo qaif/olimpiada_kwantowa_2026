@@ -128,7 +128,7 @@ def _ids(request, field: str) -> list[int]:
     for raw in request.POST.getlist(field):
         try:
             values.append(int(raw))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             continue
     return values
 
@@ -259,7 +259,7 @@ def _pk(raw) -> int:
     """
     try:
         return int(raw)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return -1
 
 

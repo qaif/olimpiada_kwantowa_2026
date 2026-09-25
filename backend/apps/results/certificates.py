@@ -712,7 +712,7 @@ def _image_bytes(field) -> bytes | None:
     try:
         with field.open("rb") as handle:
             return handle.read()
-    except (OSError, ValueError):
+    except OSError, ValueError:
         logger.warning("Nie udało się wczytać pliku szablonu dyplomu: %s.", getattr(field, "name", "?"))
         return None
 
@@ -1019,7 +1019,7 @@ def _merge_background(overlay: bytes, template: CertificateTemplate | None) -> b
         merged = BytesIO()
         writer.write(merged)
         return merged.getvalue()
-    except (PyPdfError, IndexError, ValueError):
+    except PyPdfError, IndexError, ValueError:
         # Uszkodzone albo puste tło nie może zabrać uczestnikowi dyplomu – wychodzi sam tekst.
         logger.warning("Nie udało się nałożyć dokumentu na tło PDF szablonu %s.", template.pk)
         return overlay
