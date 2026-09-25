@@ -42,14 +42,29 @@ zakłada `scripts/deploy.sh` w kroku 8/8; przebieg loguje się do `/var/log/olim
 2. `mc mirror` obu kubełków MinIO → katalog lokalny → `tar`,
 3. **szyfrowanie** obu paczek: `gpg --symmetric --cipher-algo AES256` hasłem `BACKUP_PASSPHRASE`
    z `.env`,
-4. wysyłka `rclone` do kubełka S3-kompatybilnego **u innego dostawcy** (`offsite:<BUCKET>/daily/`);
-   pierwszego dnia miesiąca dodatkowo do `monthly/`,
-5. retencja: zdalnie 30 dni w `daily/` i 365 dni w `monthly/`, lokalnie 7 dni,
-6. meldunek do aplikacji: `manage.py record_backup_status --ok`.
+4. wysyłka `rclone` **poza serwer** – do kubełka S3-kompatybilnego u innego dostawcy (§ 1.3) albo na
+   **Dysk Google** konta Fundacji (§ 1.6) – do `daily/`, pierwszego dnia miesiąca także do
+   `monthly/`; po wysyłce `rclone check` porównuje rozmiar i sumę kontrolną każdej paczki po tamtej
+   stronie,
+5. retencja: zdalnie 30 dni w `daily/` i 365 dni w `monthly/` (`REMOTE_DAILY_KEEP_DAYS`,
+   `REMOTE_MONTHLY_KEEP_DAYS`), lokalnie 7 dni (`LOCAL_KEEP_DAYS`); zdalna rusza **wyłącznie** po
+   udanej i sprawdzonej wysyłce,
+6. meldunek do aplikacji: `manage.py record_backup_status --ok --offsite` (kopia jest też poza
+   serwerem) albo `--ok` (kopia wyłącznie lokalna).
 
-**Bez `BACKUP_REMOTE_URL` skrypt robi wyłącznie kopię lokalną** i mówi o tym na stdout. Taka kopia
+Miejsce wybiera `BACKUP_REMOTE_TYPE=s3|drive|none`; bez tej zmiennej: `s3`, gdy jest
+`BACKUP_REMOTE_URL`, `drive`, gdy jest token Dysku (`secrets/rclone/rclone.conf` albo
+`BACKUP_DRIVE_TOKEN`), w pozostałych przypadkach `none`. Kod: `scripts/lib/backup_offsite.sh`
+(wspólny dla `backup.sh` i `restore.sh`).
+
+**Bez kopii zdalnej skrypt robi wyłącznie kopię lokalną** i mówi o tym na stdout. Taka kopia
 chroni przed „skasowałem nie tę edycję”, ale ginie razem z serwerem – czyli nie chroni przed tym,
 przed czym kopie zapasowe mają chronić.
+
+**Skonfigurowana, a nieudana wysyłka to nieudana kopia.** Skrypt kończy się kodem 1 i melduje
+`--failed` z notatką („kopia lokalna … jest, poza serwer NIE dotarła: …”), więc znacznik ostatniej
+kopii się nie przesuwa i po 36 h watchdog wysyła „brak świeżej kopii zapasowej” razem z tą
+notatką. Kopia lokalna z tej nocy zostaje na dysku, a stare kopie zdalne nie są kasowane.
 
 ### 1.3. Konfiguracja (co wpisać w `.env` na serwerze)
 
@@ -65,7 +80,9 @@ ssh -i ~/.ssh/olimpiada_deploy root@olimpiadakwantowa.pl 'grep BACKUP_PASSPHRASE
 > Odwrotna strona tej samej monety: hasło leży na tym samym serwerze, co dane, więc chroni kopię
 > **u dostawcy zewnętrznego**, a nie przed kimś, kto przejął serwer. To jest zamierzony zakres.
 
-Cztery pozostałe wartości wpisuje się ręcznie (deploy zostawia je w `.env` zakomentowane):
+Kopia poza serwerem – **wariant S3** poniżej; **wariant Dysk Google** (konto Fundacji, bez
+płatnego kubełka) opisuje § 1.6. Dla S3 cztery wartości wpisuje się ręcznie (deploy zostawia je
+w `.env` zakomentowane):
 
 ```ini
 BACKUP_REMOTE_URL=https://s3.eu-central-003.backblazeb2.com
@@ -110,9 +127,257 @@ ls -lh /opt/olimpiada-backups/
 tail -50 /var/log/olimpiada-backup.log
 ```
 
-`/status.json` (publiczny) niesie `backup_last_ok` i `backup_last_verified` jako **wartości
-logiczne**. Dat tam nie ma świadomie: strona jest publiczna, a data ostatniej kopii mówi obcemu,
+`/status.json` (publiczny) niesie `backup_last_ok`, `backup_last_verified` i `backup_offsite`
+(ostatnia kopia wyjechała poza serwer i zgadza się tam suma kontrolna, nie starsza niż 36 h) jako
+**wartości logiczne**. Dat tam nie ma świadomie: strona jest publiczna, a data ostatniej kopii mówi obcemu,
 kiedy uderzenie zaboli najbardziej.
+
+
+### 1.6. Kopia poza serwerem na Dysku Google (prośba organizatora z 25.09.2026)
+
+Drugie – obok kubełka S3 z § 1.3 – miejsce na kopię poza serwerem: **Dysk Google konta Fundacji**
+(Workspace `qaif.org`). Kopie są małe (ok. 50 MB na noc), więc płatny kubełek nie jest potrzebny.
+Instrukcja krok po kroku dla organizatora (bez tła technicznego) jest też w
+`PODRECZNIK-ADMINISTRATORA.md` § 6.4 – te same polecenia.
+
+#### 1.6.1. Co leży na Dysku i kto może to przeczytać
+
+| Folder na Dysku | Co | Jak długo |
+|---|---|---|
+| `Olimpiada-kopie-zapasowe/daily/` | co noc dwie paczki: `db-<data>.dump.gpg` (baza – konta, zgłoszenia, oceny, decyzje komisji, audyt) i `files-<data>.tar.gpg` (prace uczestników i pliki CMS-u) | 30 dni |
+| `Olimpiada-kopie-zapasowe/monthly/` | te same paczki z pierwszego dnia każdego miesiąca | 365 dni |
+
+Obie paczki są **zaszyfrowane na serwerze, przed wysyłką** (`gpg`, AES-256) hasłem
+`BACKUP_PASSPHRASE`. Google przechowuje wyłącznie szyfrogram – nie przeczyta z niego ani jednego
+nazwiska. Odwrotna strona: **bez tego hasła kopie są bezużyteczne** także dla nas. Hasło musi
+leżeć w menedżerze haseł Fundacji (§ 1.3), osobno od konta Google – ktoś, kto ma dostęp do
+Dysku, nie powinien mieć przy okazji hasła.
+
+Miejsce na Dysku: ok. **50 MB × (30 kopii dziennych + 12 miesięcznych) ≈ 2 GB**. Paczka plików
+rośnie razem z liczbą oddanych prac (jest co noc pełna) – w sezonie zawodów policz raczej
+100–200 MB na noc, czyli 4–8 GB. Kosz nie jest używany (§ 1.6.5), więc to jest cała zajętość.
+
+#### 1.6.2. Założenia (dlaczego tak, a nie inaczej)
+
+- **Zakres `drive.file`** (najmniejszy możliwy): rclone widzi i może zmieniać **wyłącznie pliki
+  i foldery, które sam założył**. Token, który wycieknie z serwera, nie otwiera reszty Dysku
+  Fundacji – ani dokumentów, ani cudzych folderów. Konsekwencja: folderu **nie zakłada się ręcznie**
+  w przeglądarce. Zakłada go rclone przy pierwszej wysyłce (`Olimpiada-kopie-zapasowe` w „Mój
+  dysk”; inna nazwa: `BACKUP_DRIVE_FOLDER`). Folder założony ręcznie byłby dla rclone niewidoczny,
+  więc `root_folder_id` przy tym zakresie nie ma zastosowania i skrypt go nie używa.
+- **Token w pliku, nie w `.env`** – świadomy wyjątek od zasady „sekrety wyłącznie w `.env`”.
+  Token OAuth to para: `access_token` (ważny godzinę) i `refresh_token` (długi). rclone przy
+  każdym przebiegu wymienia go na świeży i **zapisuje wynik do swojego pliku konfiguracji**.
+  Do zmiennej środowiskowej zapisać nie umie, a zmienna ma w rclone pierwszeństwo przed plikiem,
+  więc token trzymany tylko w `.env` przykrywałby odświeżony. Poza tym `.env` trafia do
+  kontenerów `web`/`worker`/`beat` (`env_file`) – token w pliku nie trafia nigdzie poza rclone.
+  - plik: **`/opt/olimpiada/secrets/rclone/rclone.conf`**, właściciel `root`, katalogi `secrets/`
+    i `secrets/rclone/` – `700`, plik – `600` (skrypt pilnuje tego przy każdym przebiegu);
+  - do kontenera rclone montowany jest **katalog** `secrets/rclone` (rclone zapisuje przez plik
+    tymczasowy i `rename`, co na pojedynczym zamontowanym pliku się nie udaje);
+  - krok 2/8 wdrożenia omija `secrets/` tak samo jak `.env`; w repozytorium jest w `.gitignore`.
+  - Alternatywa dla administratora: `BACKUP_DRIVE_TOKEN='{"access_token":…}'` w `.env` (koniecznie
+    w apostrofach). Skrypt przepisuje go do pliku przy pierwszym przebiegu i ponownie **tylko**
+    wtedy, gdy w `.env` pojawi się token z innym `refresh_token` (nowa autoryzacja).
+- **Klient OAuth**: domyślnie wbudowany klient rclone (wspólny limit zapytań wszystkich
+  użytkowników rclone – przy dwóch paczkach na noc bez znaczenia). Własny klient (§ 1.6.7) jest
+  opcjonalny.
+
+#### 1.6.3. Uruchomienie – zalecane: autoryzacja na serwerze, token nigdy niewyświetlany
+
+Token powstaje na serwerze i trafia **potokiem prosto do pliku** – nie pojawia się na ekranie,
+w schowku, w historii ani w żadnej wiadomości. Przeglądarka organizatora dociera do rclone na
+serwerze tunelem SSH (rclone po zalogowaniu przekierowuje Google na `http://127.0.0.1:53682/`).
+
+1. **Tunel** – na własnym komputerze (Windows: PowerShell; Mac/Linux: terminal), sesja zostaje
+   otwarta do końca:
+
+   ```bash
+   ssh -L 53682:127.0.0.1:53682 root@olimpiadakwantowa.pl
+   ```
+
+2. **Autoryzacja** – w tej samej sesji, już na serwerze:
+
+   ```bash
+   cd /opt/olimpiada
+   docker run --rm --network host rclone/rclone:1.69 authorize drive --drive-scope drive.file --auth-no-open-browser \
+     | grep -o '{.*}' | scripts/backup.sh --drive-token
+   ```
+
+   Na ekranie pojawi się link `http://127.0.0.1:53682/auth?state=…` – otwórz go w przeglądarce
+   **na swoim komputerze** (tunel zaprowadzi go na serwer). Dalej:
+   - wybierz konto **Fundacji w domenie `qaif.org`** (to samo, na które ma trafiać kopia – nie
+     prywatne konto Gmail),
+   - ekran zgody Google: aplikacja „rclone” prosi o dostęp typu *„Wyświetlanie, edytowanie,
+     tworzenie i usuwanie tylko tych plików z Dysku Google, których używasz w tej aplikacji”* –
+     to jest właśnie zakres `drive.file`. Jeśli ekran prosi o dostęp do **wszystkich** plików,
+     przerwij: w poleceniu zabrakło `--drive-scope drive.file`,
+   - „Zezwól”. Przeglądarka pokaże „Success”, a terminal: `Zapisano token Dysku Google:
+     /opt/olimpiada/secrets/rclone/rclone.conf`.
+
+   `--network host` jest potrzebne, bo rclone nasłuchuje na `127.0.0.1` i opublikowany port
+   kontenera by do niego nie doszedł. Port 53682 musi być na serwerze wolny (nic go nie używa).
+   Jeśli Workspace ma zablokowane aplikacje zewnętrzne, Google pokaże „Dostęp zablokowany” –
+   administrator Workspace zezwala na rclone w *Konsola administracyjna → Bezpieczeństwo → Dostęp
+   do danych i kontrola → Ustawienia API → Zarządzaj dostępem aplikacji innych firm* (albo
+   korzystamy z własnego klienta, § 1.6.7).
+
+3. **Test** (bez czekania na noc) – plik próbny zapisany, wylistowany, odczytany i skasowany:
+
+   ```bash
+   scripts/backup.sh --offsite-test
+   ```
+
+   Oczekiwane zakończenie: `Test udany: zapis, lista, odczyt i kasowanie działają.`
+
+4. **Pierwsza prawdziwa kopia i test odtwarzania** (kilka minut; kolejne robi cron o 3:15):
+
+   ```bash
+   scripts/backup.sh
+   scripts/backup_verify.sh
+   docker compose exec web python manage.py record_backup_status --show
+   ```
+
+   `backup.sh` kończy się `Gotowe: kopia lokalna + poza serwerem, zweryfikowana sumą kontrolną`,
+   a `--show` pokazuje wiersz „ostatnia kopia poza serw.” z dzisiejszą datą. Zamknij sesję SSH
+   (tunel jest potrzebny tylko w kroku 2).
+
+5. **Podgląd na Dysku**: <https://drive.google.com> (konto Fundacji) → „Mój dysk” → folder
+   `Olimpiada-kopie-zapasowe` → `daily/`. Pliki `.gpg` nie mają podglądu – to szyfrogram.
+   Nie przenoś ani nie zmieniaj nazw tych plików: retencja szuka ich w tych miejscach.
+
+#### 1.6.4. Wariant: autoryzacja na własnym komputerze
+
+Gdy tunel SSH nie wchodzi w grę. Token przechodzi wtedy przez ekran i schowek organizatora –
+wklej go wyłącznie w terminal serwera, nigdzie indziej (ani w maila, ani w czat, ani do asystenta).
+
+1. Pobierz rclone dla Windows: <https://rclone.org/downloads/> → „Windows – Intel/AMD 64 bit”,
+   rozpakuj ZIP (np. do `C:\rclone`).
+2. W PowerShellu, w tym katalogu:
+
+   ```powershell
+   .\rclone.exe authorize "drive" --drive-scope drive.file
+   ```
+
+   Otworzy się przeglądarka – konto Fundacji i ekran zgody jak w § 1.6.3 krok 2.
+3. W terminalu pojawi się `Paste the following into your remote machine --->`, pod spodem jedna
+   linia `{"access_token":…}`, potem `<---End paste`. Skopiuj **tylko tę linię** (od `{` do `}`).
+4. Na serwerze: `cd /opt/olimpiada && scripts/backup.sh --drive-token`, wklej linię, Enter.
+5. Dalej jak w § 1.6.3, kroki 3–5. Zamknij okno PowerShella (token jest w jego historii
+   przewijania) i skasuj katalog `C:\rclone`, jeśli nie będzie więcej potrzebny.
+
+#### 1.6.5. Retencja i kosz
+
+Retencja kasuje paczki starsze niż 30 dni (`daily/`) i 365 dni (`monthly/`) **na stałe, z pominięciem
+kosza** (`use_trash=false`, zmienna `BACKUP_DRIVE_USE_TRASH`, domyślnie `false`). Powody:
+
+- plik w koszu Dysku nadal zajmuje miejsce przez 30 dni – z koszem zajętość kopii dziennych się
+  podwaja, a kosz konta Fundacji zapełnia się co miesiąc ~60 plikami `.gpg`, wśród których giną
+  pliki skasowane przez ludzi,
+- ochrona, którą dałby kosz, jest pozorna: przy zakresie `drive.file` ten sam token może skasować
+  swoje pliki na stałe z pominięciem kosza, więc kosz nie chroni przed kimś, kto przejął serwer,
+- przed błędem samej retencji chronią dwa bezpieczniki: retencja rusza **tylko po udanej
+  i sprawdzonej sumą wysyłce** (dzisiejsza kopia na pewno jest po tamtej stronie), a wartości
+  `REMOTE_*_KEEP_DAYS` muszą być liczbą ≥ 1 (`0` albo pusta wartość = odmowa, nic nie jest kasowane).
+
+Ochrona przed przejęciem serwera, jeśli jest potrzebna: raz na kwartał skopiuj w przeglądarce jedną
+paczkę z `monthly/` („Utwórz kopię”) do **innego** folderu. Kopia zrobiona ręcznie nie jest plikiem
+rclone, więc token z serwera jej nie widzi i nie skasuje.
+
+#### 1.6.6. Odtworzenie z Dysku
+
+Z serwera (działającego albo nowego): `scripts/restore.sh --list`, potem
+`scripts/restore.sh --fetch <plik>` (§ 2.2) – ściąga do `/opt/olimpiada-backups/` i sprawdza sumą.
+
+Ręcznie, bez serwera: w przeglądarce pobierz parę `db-<data>.dump.gpg` i `files-<data>.tar.gpg`
+z tej samej nocy, wgraj je na serwer do `/opt/olimpiada-backups/` (np. `scp`) i dalej jak w § 2.2
+(`restore.sh --dry-run`, potem właściwe odtworzenie). Rozszyfrowanie wymaga `BACKUP_PASSPHRASE`.
+
+#### 1.6.7. Opcjonalnie: własny klient OAuth w Google Cloud (Workspace `qaif.org`)
+
+Po co: własny limit zapytań zamiast wspólnego limitu rclone, na ekranie zgody nazwa Fundacji
+zamiast „rclone”, a administrator Workspace może dopuścić dokładnie tego klienta.
+
+1. <https://console.cloud.google.com/> na koncie Fundacji → nowy projekt (np. `olimpiada-kopie`).
+2. *Interfejsy API i usługi → Biblioteka* → „Google Drive API” → Włącz.
+3. *Ekran zgody OAuth* (Google Auth Platform): typ użytkownika **Wewnętrzny** (*Internal*) – tylko
+   konta `qaif.org`, bez weryfikacji przez Google i **bez 7-dniowego wygasania tokenów**, które
+   dotyczy aplikacji zewnętrznych w stanie „Testowanie”. Zakres: `.../auth/drive.file`.
+4. *Dane logowania → Utwórz dane logowania → Identyfikator klienta OAuth* → typ **Aplikacja
+   komputerowa** → zapisz identyfikator klienta i tajny klucz klienta.
+5. Do `/opt/olimpiada/.env`:
+
+   ```ini
+   BACKUP_DRIVE_CLIENT_ID=123456789-abc.apps.googleusercontent.com
+   BACKUP_DRIVE_CLIENT_SECRET=GOCSPX-...
+   ```
+
+6. Autoryzacja jak w § 1.6.3, z identyfikatorem i kluczem w poleceniu (po `drive`):
+
+   ```bash
+   docker run --rm --network host rclone/rclone:1.69 authorize drive "$ID" "$SECRET" --drive-scope drive.file --auth-no-open-browser \
+     | grep -o '{.*}' | scripts/backup.sh --drive-token
+   ```
+
+   (`ID`/`SECRET` ustaw wcześniej w tej sesji, np. `set -a; . ./.env; set +a;
+   ID=$BACKUP_DRIVE_CLIENT_ID SECRET=$BACKUP_DRIVE_CLIENT_SECRET`).
+
+**Uwaga przy zmianie klienta:** zakres `drive.file` jest przypisany do klienta OAuth. Pliki wysłane
+wcześniej klientem rclone są dla nowego klienta **niewidoczne** – retencja ich nie skasuje,
+a `restore.sh --list` ich nie pokaże. Po zmianie ustaw nowy folder (`BACKUP_DRIVE_FOLDER=…`),
+a stary skasuj ręcznie w przeglądarce po 30 dniach (albo po roku, jeśli chcesz zachować `monthly/`).
+
+#### 1.6.8. Zmienne
+
+| Zmienna | Domyślnie | Znaczenie |
+|---|---|---|
+| `BACKUP_REMOTE_TYPE` | automatycznie | `s3`, `drive` albo `none`; potrzebna, gdy skonfigurowane są oba warianty |
+| `BACKUP_DRIVE_FOLDER` | `Olimpiada-kopie-zapasowe` | folder w „Mój dysk” (albo na dysku współdzielonym); zakłada go rclone |
+| `BACKUP_DRIVE_TEAM_DRIVE` | – | identyfikator dysku współdzielonego (końcówka adresu `drive.google.com/drive/folders/<ID>` dysku współdzielonego) zamiast „Mój dysk” |
+| `BACKUP_DRIVE_CLIENT_ID` / `_CLIENT_SECRET` | klient rclone | własny klient OAuth (§ 1.6.7) |
+| `BACKUP_DRIVE_USE_TRASH` | `false` | `true` = retencja przenosi do kosza (§ 1.6.5) |
+| `BACKUP_DRIVE_TOKEN` | – | token w `.env` zamiast `--drive-token` (w apostrofach) |
+| `BACKUP_DRIVE_SCOPE` | `drive.file` | nie zmieniać bez powodu |
+| `REMOTE_DAILY_KEEP_DAYS` / `REMOTE_MONTHLY_KEEP_DAYS` | `30` / `365` | retencja zdalna (także S3) |
+
+Dysk współdzielony (*shared drive*) ma tę zaletę, że kopie nie są własnością jednej osoby – przy
+odejściu właściciela konta pliki zostają w organizacji. Wymaga uprawnienia „Menedżer treści” dla
+konta, którym robiono autoryzację.
+
+#### 1.6.9. Utrzymanie i awarie
+
+- **Wygaśnięcie / cofnięcie dostępu.** Token przestaje działać, gdy ktoś usunie dostęp rclone
+  na <https://myaccount.google.com/permissions>, konto Fundacji zostanie zawieszone, administrator
+  Workspace zablokuje aplikację albo token nie będzie używany przez 6 miesięcy (cron używa go co
+  noc). Objaw: `backup.sh` kończy się kodem 1 z `invalid_grant` w logu, po 36 h przychodzi alarm
+  „brak świeżej kopii zapasowej” z notatką „poza serwer NIE dotarła”. Naprawa: § 1.6.3 kroki 1–3
+  jeszcze raz (nowy token zastępuje stary; pliki na Dysku zostają widoczne, bo klient ten sam).
+- **Zmiana hasła konta Google** nie unieważnia tokenu z zakresem Dysku.
+- **Wyłączenie kopii na Dysk**: usuń `/opt/olimpiada/secrets/rclone/rclone.conf` (i ewentualne
+  `BACKUP_DRIVE_TOKEN` z `.env`) albo ustaw `BACKUP_REMOTE_TYPE=none`, potem cofnij dostęp na
+  stronie uprawnień konta Google.
+- **Alarm „kopia zapasowa przestała wyjeżdżać poza serwer”**: nocna kopia lokalna się udaje, ale
+  od ponad 36 h nic nie dotarło na Dysk – zwykle ktoś usunął plik tokenu albo zmienił
+  `BACKUP_REMOTE_TYPE`. `/status.json` pokazuje wtedy `backup_offsite: false`.
+
+#### 1.6.10. RODO
+
+- **Google jest podmiotem przetwarzającym** Fundacji na podstawie umowy powierzenia Workspace
+  (*Cloud Data Processing Addendum*). Sprawdź w *Konsola administracyjna → Konto → Ustawienia
+  konta → Informacje prawne i zgodność*, że jest zaakceptowana, i dopisz „kopie zapasowe platformy
+  (zaszyfrowane) – Google Workspace” do rejestru czynności przetwarzania (odbiorcy / miejsca
+  przechowywania).
+- Dane są **zaszyfrowane przed wysyłką** kluczem, którego Google nie ma (art. 32 ust. 1 lit. a
+  RODO). Dla Google to nieczytelny szyfrogram; wyciek z Dysku nie jest wyciekiem danych osobowych
+  w rozumieniu praktycznym, dopóki `BACKUP_PASSPHRASE` jest bezpieczne.
+- **Region danych**: jeśli edycja Workspace Fundacji oferuje regiony danych (*Konsola
+  administracyjna → Dane → Zgodność → Regiony danych*), ustaw „Europa” dla jednostki, w której
+  jest konto robiące kopie. Jeśli edycja tego nie oferuje, dane mogą leżeć poza EOG – przekazanie
+  obejmuje umowa powierzenia Google (standardowe klauzule umowne / EU-US Data Privacy Framework),
+  a szyfrowanie po naszej stronie ogranicza ryzyko do minimum.
+- **Retencja** kopii (30 dni / 12 miesięcy) jest ograniczona w czasie; dane usunięte z bazy
+  (anonimizacja, żądanie usunięcia) znikają z kopii najpóźniej po roku – ten termin powinien być
+  wpisany w politykę prywatności / rejestr.
 
 ---
 
@@ -137,16 +402,19 @@ cd /opt/olimpiada
 Po przebiegu istnieje baza `restore_20260117_031500` i kubełek
 `submissions-restore-20260117-031500`. Serwis **nadal działa na danych bieżących**.
 
-Kopię zdalną trzeba najpierw ściągnąć (skrypt czyta katalog lokalny):
+Kopię zdalną (S3 albo Dysk Google – ta sama konfiguracja, którą wysyła `backup.sh`) trzeba
+najpierw ściągnąć, bo skrypt czyta katalog lokalny. `--fetch` szuka pliku w `daily/`, potem
+w `monthly/`, ściąga go do `/opt/olimpiada-backups/` i sprawdza sumą kontrolną:
 
 ```bash
-docker run --rm -v /opt/olimpiada-backups:/data \
-  -e RCLONE_CONFIG_OFFSITE_TYPE=s3 \
-  -e RCLONE_CONFIG_OFFSITE_ENDPOINT="$BACKUP_REMOTE_URL" \
-  -e RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID="$BACKUP_ACCESS_KEY" \
-  -e RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY="$BACKUP_SECRET_KEY" \
-  rclone/rclone:1.69 copy "offsite:$BACKUP_BUCKET/daily/db-20260117T031500Z.dump.gpg" /data/
+./scripts/restore.sh --list
+./scripts/restore.sh --fetch db-20260117T031500Z.dump.gpg --fetch files-20260117T031500Z.tar.gpg
 ```
+
+Odtwarzanie na **nowym** serwerze (starego już nie ma): wdrożenie (`scripts/deploy.sh`), w
+`/opt/olimpiada/.env` to samo `BACKUP_PASSPHRASE` z menedżera haseł, token Dysku jak w § 1.6
+krok 2 (autoryzacja od nowa), potem powyższe `--list` / `--fetch`. Bez żadnego serwera paczki da
+się też pobrać ręcznie z Dysku (§ 1.6.6).
 
 ### 2.3. Przełączenie serwisu na odtworzone dane (krok ręczny, z przerwą w działaniu)
 
@@ -203,6 +471,7 @@ Widzi to, czego nie widać z zewnątrz:
 | odpowiedzi 5xx | ≥ 10 w 15 min | ktoś właśnie nie może oddać pracy |
 | brak kopii zapasowej | > 36 h | patrz § 1 |
 | brak testu odtwarzania | > 10 dni | patrz § 1.4 |
+| kopia przestała wyjeżdżać poza serwer | > 36 h od ostatniej kopii zdalnej, przy świeżej lokalnej | patrz § 1.6 (tylko gdy kopia zdalna kiedyś działała) |
 | połączenia z Postgresem | ≥ 80 % / ≥ 95 % `max_connections` | patrz § 11.2 – „Alarm zajętości połączeń” |
 
 Włączenie: w `.env` na serwerze

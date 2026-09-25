@@ -8,6 +8,40 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – kopie zapasowe na Dysku Google
+
+Prośba organizatora z 25.09.2026: nocna kopia (`scripts/backup.sh`) może wyjeżdżać poza serwer na
+**Dysk Google konta Fundacji** (Workspace `qaif.org`) – obok dotychczasowego kubełka S3. Dziś
+produkcja robi kopię wyłącznie lokalną. Bez migracji, bez przebudowy obrazu; po wdrożeniu
+organizator raz wykonuje `OPERACJE.md` § 1.6.3 (albo `PODRECZNIK-ADMINISTRATORA.md` § 6.4).
+
+- **Wybór miejsca** `BACKUP_REMOTE_TYPE=s3|drive|none` (bez niej: s3 przy `BACKUP_REMOTE_URL`,
+  drive przy tokenie Dysku, inaczej none). Wspólny kod wysyłki i ściągania:
+  `scripts/lib/backup_offsite.sh`.
+- **Dysk Google przez rclone z zakresem `drive.file`** – rclone widzi wyłącznie pliki, które sam
+  założył (folder `Olimpiada-kopie-zapasowe/` z `daily/` i `monthly/`, zakłada go rclone). Token
+  w `/opt/olimpiada/secrets/rclone/rclone.conf` (`600`, katalog `700`), bo rclone zapisuje tam
+  odświeżony token – świadomy wyjątek od „sekrety tylko w `.env`”; krok 2/8 wdrożenia omija
+  `secrets/`. Opcjonalnie: własny klient OAuth, dysk współdzielony, inny folder.
+- **`scripts/backup.sh --drive-token`** – token ze stdin (zalecane: `rclone authorize` na serwerze
+  przez tunel SSH, wynik potokiem prosto do pliku – token nie pojawia się na ekranie);
+  **`--offsite-test`** – plik próbny: zapis, lista, odczyt, kasowanie, bez czekania na noc.
+- **Weryfikacja wysyłki** `rclone check --one-way` (rozmiar + MD5/ETag) dla S3 i Dysku.
+- **Nieudana wysyłka = nieudana kopia**: kod 1, meldunek `--failed` z notatką (watchdog alarmuje
+  po 36 h), kopia lokalna zostaje, retencja zdalna nie rusza. Wcześniej błąd wysyłki S3 przerywał
+  skrypt przed meldunkiem i przed retencją lokalną.
+- **Retencja** 30 dni / 365 dni (`REMOTE_DAILY_KEEP_DAYS`, `REMOTE_MONTHLY_KEEP_DAYS`, wartości
+  < 1 odrzucane), na Dysku bez kosza (`BACKUP_DRIVE_USE_TRASH=false`, uzasadnienie w § 1.6.5).
+- **`scripts/restore.sh --fetch <plik>`** – ściągnięcie paczki z S3 albo Dysku (z `daily/` lub
+  `monthly/`) i sprawdzenie sumą; `--list` pokazuje też kopie na Dysku.
+- **Aplikacja**: `record_backup_status --ok --offsite`, znacznik `backup:last_offsite_at`,
+  `/status.json` z nowym ostatnim kluczem **`backup_offsite`** (wartość logiczna), wiersz w `--show`
+  i alarm watchdoga `backup-offsite` („kopia przestała wyjeżdżać poza serwer” – tylko gdy kopia
+  zdalna kiedyś działała, a lokalna jest świeża).
+- Testy: `scripts/tests/backup_offsite_test.sh` (66 sprawdzeń na atrapach docker/gpg),
+  `scripts/tests/backup_offsite_e2e_test.sh` (prawdziwy obraz `rclone/rclone:1.69`, lokalny
+  katalog w miejscu Dysku), pytest: `test_backup_status`, `test_alerts`, kontrakt `/status.json`.
+
 ## v0.37.1 – 2026-09-25
 
 `scripts/deploy.sh`: zmienne przekazywane przez SSH do kroku 4/8 są cytowane (`printf %q`) – domyślny
