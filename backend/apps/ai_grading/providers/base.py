@@ -130,7 +130,7 @@ def retry_after_seconds(headers) -> int | None:
     """``retry-after`` z odpowiedzi 429/503, przycięty do godziny. Brak albo śmieci → ``None``."""
     try:
         value = int(float((headers or {}).get("retry-after", "")))
-    except (TypeError, ValueError, AttributeError):
+    except TypeError, ValueError, AttributeError:
         return None
     return max(1, min(value, 3600))
 
@@ -238,7 +238,7 @@ class Provider:
         """Czy SDK jest zainstalowane. ``find_spec`` nie wykonuje modułu – sprawdzenie jest tanie."""
         try:
             return importlib.util.find_spec(self.sdk_module) is not None
-        except (ImportError, ValueError):
+        except ImportError, ValueError:
             return False
 
     # -- klucz --

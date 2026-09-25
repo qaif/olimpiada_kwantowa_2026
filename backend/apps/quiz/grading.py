@@ -159,7 +159,7 @@ def parse_number(value) -> Decimal | None:
         return None
     try:
         number = Decimal(text)
-    except (InvalidOperation, ValueError):
+    except InvalidOperation, ValueError:
         return None
     # ``Decimal("nan")`` i ``Decimal("inf")`` konstruują się bez błędu, a potem przewracają
     # porównanie z tolerancją (NaN nie jest równe niczemu, także sobie). To nie są liczby,
@@ -187,7 +187,7 @@ def selected_option_ids(payload) -> list[int]:
     for item in raw:
         try:
             value = int(item)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             continue
         if value not in result:
             result.append(value)

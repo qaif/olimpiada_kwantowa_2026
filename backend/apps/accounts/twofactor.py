@@ -134,7 +134,7 @@ def decrypt_secret(token: str) -> str | None:
 
     try:
         return _fernet_for(settings.SECRET_KEY).decrypt(token.encode("ascii")).decode("ascii")
-    except (InvalidToken, ValueError, UnicodeDecodeError):
+    except InvalidToken, ValueError, UnicodeDecodeError:
         logger.warning("2FA: nie udało się odszyfrować sekretu (zmiana SECRET_KEY?).")
         return None
 

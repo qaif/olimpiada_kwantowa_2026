@@ -217,7 +217,7 @@ class PosterFileView(_PostersMixin, View):
         material = self._material(pk)
         try:
             handle = material.file.open("rb")
-        except (FileNotFoundError, OSError):
+        except FileNotFoundError, OSError:
             raise Http404("Plik plakatu jest niedostępny w storage.") from None
         response = FileResponse(
             handle,

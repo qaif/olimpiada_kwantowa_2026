@@ -103,7 +103,7 @@ def count_pdf_pages(data: bytes) -> int | None:
         # ``strict=False``: dokument z drobną niezgodnością ze specyfikacją (typowy eksport
         # z edytora tekstu) ma podać liczbę stron, a nie wywrócić się na ostrzeżeniu.
         return len(PdfReader(io.BytesIO(data), strict=False).pages)
-    except (PyPdfError, ValueError, OSError, RecursionError):
+    except PyPdfError, ValueError, OSError, RecursionError:
         logger.info("Nie udało się policzyć stron PDF-a do podglądu.")
         return None
 
@@ -122,7 +122,7 @@ def image_size(data: bytes) -> tuple[int, int] | None:
     try:
         with Image.open(io.BytesIO(data)) as image:
             return int(image.width), int(image.height)
-    except (UnidentifiedImageError, OSError, ValueError):
+    except UnidentifiedImageError, OSError, ValueError:
         logger.info("Nie udało się odczytać wymiarów zdjęcia do podglądu.")
         return None
 

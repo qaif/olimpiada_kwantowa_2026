@@ -60,7 +60,7 @@ def _stored_bytes(problem) -> bytes | None:
     try:
         with problem.statement_pdf.open("rb") as stored:
             return stored.read()
-    except (FileNotFoundError, OSError):
+    except FileNotFoundError, OSError:
         return None
 
 
