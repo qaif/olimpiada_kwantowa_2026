@@ -910,8 +910,7 @@ def competition_switcher(request) -> list[dict]:
     Witryny przychodzą tym samym zapytaniem (``select_related``), więc koszt się nie zmienia.
     """
     from apps.accounts.super_coordinator import is_super_coordinator
-    from apps.tenancy.models import Competition, RoutingMode
-    from apps.tenancy.resolution import hosts_path_prefixes
+    from apps.tenancy.models import Competition
 
     if not is_super_coordinator(getattr(request, "user", None)):
         return []
@@ -920,26 +919,53 @@ def competition_switcher(request) -> list[dict]:
         Competition.objects.filter(is_active=True).select_related("site").order_by("name", "pk")
     )
     platform = next((row for row in competitions if row.site is not None and row.site.is_default_site), None)
+    bases = competition_base_urls(request, competitions, platform=platform)
+    return [
+        {
+            "name": competition.name,
+            "url": f"{bases[competition.pk]}/coordinator/",
+            "current": current is not None and competition.pk == current.pk,
+        }
+        for competition in competitions
+        if bases.get(competition.pk)
+    ]
+
+
+def competition_base_urls(request, competitions, *, platform=None) -> dict[int, str]:
+    """Adres, pod którym **naprawdę** odpowiada każdy z konkursów – bez końcowego ukośnika.
+
+    Jedna reguła dla przełącznika konkursów i ekranu „Moje konkursy”:
+
+    - konkurs z własną domeną – ``<schemat żądania>://<primary_domain>``,
+    - konkurs pod prefiksem ścieżki (§ 2.3, uwaga T43) – ``<schemat>://<host platformy>/<prefiks>``.
+      Odpowiada wyłącznie pod hostem konkursu witryny domyślnej z otwartą bramką
+      ``path_prefix_routing`` (``apps.tenancy.resolution.hosts_path_prefixes``), a jego
+      ``primary_domain`` jest domeną, na którą dopiero czeka. Przy zamkniętej bramce (albo bez
+      konkursu platformy) taki konkurs **nie ma** adresu i słownik go pomija.
+
+    ``platform`` – konkurs witryny domyślnej, jeśli wołający już go ma (przełącznik ma go na liście);
+    inaczej jedno zapytanie, i to tylko wtedy, gdy na liście jest konkurs pod prefiksem.
+    """
+    from apps.tenancy.models import Competition, RoutingMode
+    from apps.tenancy.resolution import hosts_path_prefixes
+
+    prefixed = [c for c in competitions if c.routing_mode == RoutingMode.PATH and c.path_prefix]
+    if prefixed and platform is None:
+        platform = (
+            Competition.objects.filter(site__is_default_site=True, is_active=True)
+            .select_related("site")
+            .first()
+        )
     platform_origin = ""
-    if platform is not None and hosts_path_prefixes(platform):
+    if prefixed and platform is not None and platform.site is not None and hosts_path_prefixes(platform):
         site = platform.site
         host = site.hostname if site.port in (80, 443, None) else f"{site.hostname}:{site.port}"
         platform_origin = f"{request.scheme}://{host}"
-    rows = []
+    bases: dict[int, str] = {}
     for competition in competitions:
         if competition.routing_mode == RoutingMode.PATH and competition.path_prefix:
-            if not platform_origin or competition is platform:
-                continue
-            url = f"{platform_origin}/{competition.path_prefix}/coordinator/"
+            if platform_origin and (platform is None or competition.pk != platform.pk):
+                bases[competition.pk] = f"{platform_origin}/{competition.path_prefix}"
         elif competition.primary_domain:
-            url = f"{request.scheme}://{competition.primary_domain}/coordinator/"
-        else:
-            continue
-        rows.append(
-            {
-                "name": competition.name,
-                "url": url,
-                "current": current is not None and competition.pk == current.pk,
-            }
-        )
-    return rows
+            bases[competition.pk] = f"{request.scheme}://{competition.primary_domain}"
+    return bases

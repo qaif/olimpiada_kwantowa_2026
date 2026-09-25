@@ -234,6 +234,12 @@ nowego celu przetwarzania.
   `/<prefiks>/coordinator/`, który pod domeną innego konkursu trafiał w host nierozstrzygający
   prefiksu. Przy zamkniętej bramce `path_prefix_routing` konkurs pod prefiksem nie ma adresu i nie
   trafia na listę. Bez dodatkowego zapytania (`select_related("site")`).
+- **Ekran „Moje konkursy”** (`/coordinator/competitions/`, u superkoordynatora – wszystkie konkursy)
+  linkuje konkurs pod prefiksem tą samą regułą (`apps.web.coordinator_nav.competition_base_urls`),
+  a nie pod domeną, na którą konkurs dopiero czeka.
+- **Linki w listach konkursu pod prefiksem składanych w żądaniu bez `request`** (np. decyzja
+  koordynatora o zaświadczeniu, przekazanie pracy): `absolute_url` nie dokleja prefiksu drugi raz,
+  gdy ścieżka z `reverse()` już go niesie (`https://<platforma>/<prefiks>/…`, a nie `/<prefiks>/<prefiks>/…`).
 - **`send_mail_task`**: nagłówki `List-Unsubscribe` forum idą do zadania słowem kluczowym
   (`headers=`) – pozycyjnie trafiały w nowy argument `html_message` z resetu hasła. Zadanie składa
   list z nagłówkami i – jeśli podana – częścią HTML naraz.

@@ -377,6 +377,25 @@ def test_mail_link_of_a_prefixed_competition_points_under_the_platform(second, c
     assert absolute_url("/me/", competition=competition) == f"https://{HOST_A}/me/"
 
 
+def test_mail_link_built_inside_a_prefixed_request_has_the_prefix_once(second):
+    """List składany w żądaniu pod prefiksem, ale bez ``request`` (np. decyzja koordynatora).
+
+    ``reverse()`` niesie wtedy prefiks skryptu, a podstawa konkursu – ten sam prefiks drugi raz.
+    """
+    from django.urls import reverse
+
+    from apps.accounts.activation import absolute_url
+
+    set_script_prefix(f"/{PREFIX}/")
+    try:
+        path = reverse("web:me")
+    finally:
+        set_script_prefix("/")
+
+    assert path == f"/{PREFIX}/me/"
+    assert absolute_url(path, competition=second) == f"https://{HOST_A}/{PREFIX}/me/"
+
+
 # --- migracja danych ------------------------------------------------------------------------------
 
 
@@ -445,6 +464,27 @@ def test_switcher_links_the_prefixed_competition_under_the_platform_host(
         # konta pod prefiksem ma swój względny „Koordynator” – to jest adres **bieżącego** hosta.)
         assert f'href="/{PREFIX}/coordinator/"' not in switcher
         assert f"{SECOND_DOMAIN}/coordinator/" not in body
+
+
+def test_my_competitions_screen_links_the_prefixed_competition_under_the_platform_host(
+    competition, second, client_for, super_user, settings
+):
+    """„Moje konkursy” – ta sama reguła co przełącznik; superkoordynator widzi tu każdy konkurs."""
+    from apps.web.views.coordinator_competitions import FEATURE
+
+    settings.PLATFORM_SUBDOMAINS = True
+    competition.refresh_from_db()  # ``second`` otworzył bramkę zapisem ``update()`` – obiekt jest stary
+    competition.feature_flags = {**competition.feature_flags, FEATURE: True}
+    competition.save(update_fields=["feature_flags"])
+    client = client_for(competition)
+    client.force_login(super_user)
+
+    response = client.get("/coordinator/competitions/")
+
+    assert response.status_code == 200
+    body = response.content.decode()
+    assert f'href="http://{HOST_A}/{PREFIX}/"' in body
+    assert f"https://{SECOND_DOMAIN}/" not in body
 
 
 def test_switcher_skips_the_prefixed_competition_behind_a_closed_gate(

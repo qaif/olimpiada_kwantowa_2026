@@ -753,7 +753,7 @@ powierzenia** (niżej).
 > Dawne **Llama API** Mety (`api.llama.com`) zostało wyłączone 6.07.2026 — dostawca „Meta” w serwisie
 > to jego następca, **Meta Model API** (modele Muse Spark), a nie modele Llama.
 >
-> Rejestr czynności przetwarzania (wersja **1.8**, § 9.2) wymienia w wierszu „Pomocnicza ocena prac
+> Rejestr czynności przetwarzania (od wersji **1.8**, § 9.2) wymienia w wierszu „Pomocnicza ocena prac
 > uczestników przez model językowy” jako odbiorców **wyłącznie** dostawców, którzy mają w tym konkursie
 > klucz API **i** potwierdzoną umowę powierzenia.
 
@@ -1440,6 +1440,10 @@ EOG). Wersja **1.8** z 24.09.2026 (inni dostawcy AI) zmienia w tym wierszu odbio
 „Anthropic” rejestr konkursu wymienia **każdego dostawcę, który ma klucz API i potwierdzoną umowę
 powierzenia** (Anthropic, OpenAI, Google, Meta) — a gdy takiego nie ma, mówi wprost, że prace nie
 opuszczają serwera.
+Wersja **1.9** z 25.09.2026 (powiadomienia e-mail z forum) nie dodaje celu przetwarzania: wiersz
+forum dostaje nowego odbiorcę (dostawca poczty wychodzącej – temat wątku i sam fakt udziału w rozmowie,
+nigdy treść wpisu) i nową kategorię danych (obserwowane wątki, ustawienia powiadomień, znaczniki
+wysyłki; wchodzą do eksportu danych konta i znikają przy jego usunięciu).
 Odbiorcy są wymienieni wprost (hosting, dostawca poczty, analityka wyłącznie po zgodzie). Dane
 administratora (nazwa, adres, KRS, kontakt) dokłada się **z ustawień serwisu w `/cms/`**, więc ich
 poprawka nie wymaga wydania aplikacji. `?format=csv` oddaje ten sam dokument jako plik otwierający się

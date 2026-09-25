@@ -62,7 +62,11 @@
             <td>{{ row.name }}</td>
             <td><code>{{ row.slug }}</code></td>
             <td>
-              {% if row.primary_domain %}
+              {% if row.prefix_url %}
+                <a href="{{ row.prefix_url }}">{{ row.prefix_url }}</a>
+              {% elif row.path_prefix and row.routing_mode == "PATH" %}
+                /{{ row.path_prefix }}/
+              {% elif row.primary_domain %}
                 <a href="https://{{ row.primary_domain }}/">{{ row.primary_domain }}</a>
               {% else %}
                 /{{ row.path_prefix }}/

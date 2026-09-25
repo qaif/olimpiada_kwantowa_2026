@@ -211,8 +211,20 @@ def absolute_url(path: str, request=None, competition=None) -> str:
     if request is not None:
         return request.build_absolute_uri(path)
     from apps.tenancy.context import current_competition
+    from apps.tenancy.models import RoutingMode
 
-    base = _base_url_without_request(competition or current_competition()).rstrip("/")
+    competition = competition or current_competition()
+    base = _base_url_without_request(competition).rstrip("/")
+    if (
+        competition is not None
+        and competition.routing_mode == RoutingMode.PATH
+        and competition.path_prefix
+        and path.startswith(f"/{competition.path_prefix}/")
+    ):
+        # Podstawa konkursu pod prefiksem niesie już ``/<prefiks>`` – a ``reverse()`` wołane
+        # **w żądaniu** pod tym prefiksem (decyzja koordynatora, list bez ``request``) też go
+        # dokłada przez prefiks skryptu. Bez tego link wychodziłby z prefiksem podwójnym.
+        path = path[len(competition.path_prefix) + 1 :]
     return f"{base}{path}" if base else path
 
 
