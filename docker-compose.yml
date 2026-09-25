@@ -187,6 +187,12 @@ services:
     # domyślnych wartościach to ok. 20 (web 4×4 z puli, worker 2, beat 1 – docs/OPERACJE.md
     # § 11.2), więc limitu nie trzeba podnosić. Zajętość powyżej 80 % zgłasza watchdog
     # (apps/core/dbconnections.py, `manage.py db_connections`).
+    # `max_locks_per_transaction` podniesione z domyślnych 64 do 256 (decyzja organizatora
+    # z 25.09.2026): migracje i operacje hurtowe na wielu tabelach (np. zmiana typów kolumn ocen
+    # w v0.35.0, testy cofania migracji) potrafią trzymać tysiące blokad w jednej transakcji,
+    # a przy domyślnym limicie kończą się „out of shared memory”. Koszt: tablica blokad rośnie
+    # o kilka MB pamięci współdzielonej. Zmiana polecenia = restart Postgresa przy wdrożeniu.
+    command: ["postgres", "-c", "max_locks_per_transaction=256"]
     restart: unless-stopped
     logging: *default-logging
     environment:
