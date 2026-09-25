@@ -149,6 +149,13 @@ urlpatterns = [
         participant_extras.PreferencesView.as_view(),
         name="account-preferences",
     ),
+    # Powiadomienia e-mail z forum – cel formularza z ekranu „Edycja danych”
+    # (``apps.web.views.forum.ForumNotificationSettingsView``).
+    path(
+        "account/forum-notifications/",
+        forum.ForumNotificationSettingsView.as_view(),
+        name="forum-notifications",
+    ),
     # --- zgłoszenia i pomoc (wszystkie role, także bez konta) --------------------------------
     # ``new/`` i ``sent/`` stoją **przed** wzorcem z identyfikatorem – ``<int:pk>`` i tak nie
     # dopasuje słowa, ale kolejność mówi, co jest wejściem, a co szczegółem.
@@ -168,6 +175,11 @@ urlpatterns = [
     path("forum/new/", forum.ForumThreadCreateView.as_view(), name="forum-thread-new"),
     path("forum/mine/", forum.ForumMyPostsView.as_view(), name="forum-mine"),
     path("forum/t/<int:pk>/", forum.ForumThreadView.as_view(), name="forum-thread"),
+    path("forum/t/<int:pk>/follow/", forum.ForumThreadFollowView.as_view(), name="forum-thread-follow"),
+    # Wypis z listów forum – bez logowania i bez flagi forum (``ForumUnsubscribeView``). Adres
+    # trafia do każdego listu i do nagłówka ``List-Unsubscribe``, więc ma działać także wtedy,
+    # gdy forum w tym konkursie ktoś już wyłączył. Dwa człony, więc ``<slug>`` działu go nie łapie.
+    path("forum/unsubscribe/<str:token>/", forum.ForumUnsubscribeView.as_view(), name="forum-unsubscribe"),
     path("forum/p/<int:pk>/edit/", forum.ForumPostEditView.as_view(), name="forum-post-edit"),
     path("forum/p/<int:pk>/delete/", forum.ForumPostDeleteView.as_view(), name="forum-post-delete"),
     path("forum/p/<int:pk>/report/", forum.ForumPostReportView.as_view(), name="forum-post-report"),

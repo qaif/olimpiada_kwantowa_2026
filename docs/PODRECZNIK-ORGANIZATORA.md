@@ -1156,14 +1156,45 @@ przeczytałeś. Dalsze wpisy tego wątku przechodzą kolejkę osobno.
 wypowiedzi. Automatyczne zdejmowanie po zgłoszeniu dałoby każdemu uczestnikowi przycisk „usuń cudzy
 wpis”, a na forum, na którym toczy się rywalizacja, ktoś by go w końcu użył.
 
-**Forum nie wysyła listów — ani do Ciebie, ani do autorów.** Decyzja jest świadoma: konkurs ma już dwa
-kanały poczty (komunikaty i zgłoszenia), a trzeci, wyzwalany każdym akapitem nastolatka, zamieniłby Twoją
-skrzynkę w kanał RSS i skończył się regułą „do kosza”. W zamian:
+**Powiadomienia e-mail (od 25.09.2026) — zbiorcze, nigdy „za każdy wpis”.** Pierwsza wersja forum nie
+wysyłała listów wcale, żeby Twoja skrzynka nie zamieniła się w kanał RSS. Listy doszły z tym samym
+warunkiem: każdy z nich zbiera wszystko, co się uzbierało, i ma limit.
 
-- **odznaka przy „Forum uczestników”** w menu panelu mówi, ile pozycji czeka. To jedyny sygnał, więc przy
-  trybie „przed publikacją” zaglądaj do kolejki tak, jak zaglądasz do zgłoszeń,
-- **autor znajduje Twoje uzasadnienie** na swoim ekranie `/forum/mine/` — i to jedyne miejsce, w którym
-  się o odrzuceniu dowie. Odrzucenie bez uzasadnienia jest niemożliwe (formularz odmówi).
+| List | Do kogo | Kiedy | Co zawiera |
+|---|---|---|---|
+| **Wpisy czekają na moderację** | koordynatorzy **tego** konkursu (komitet nie — moderujesz tylko Ty) | pierwszy, gdy najstarsza pozycja czeka **10 min**; kolejne najwyżej **co 3 godz.**, dopóki coś czeka | same liczby (wątki, odpowiedzi, zgłoszenia), od kiedy czeka najstarsza pozycja, odnośnik do kolejki — **bez tematów i treści** |
+| **Nowe odpowiedzi w obserwowanym wątku** | każdy, kto wątek obserwuje (autor wątku i każdy, kto w nim pisał, obserwują automatycznie; przycisk „Obserwuj wątek” / „Przestań obserwować” pod tematem) | najwyżej jeden list o wątku **co 4 godz.**; kilka wątków jedzie w jednym liście | temat wątku, liczba nowych wpisów, odnośnik; osobny temat listu, gdy odpowiedział **organizator** albo **komitet** |
+| **Decyzja organizatora w sprawie wpisu** | autor wpisu albo wątku z kolejki | przy najbliższym przebiegu (co 2 min); zatwierdzenie zbiorcze to **jeden** list na autora | zatwierdzenie z tematem i odnośnikiem albo odrzucenie z **Twoim uzasadnieniem** — bez tematu odrzuconego wątku |
+
+Czego list **nie niesie nigdy**: treści wpisów (także opublikowanych — forum czyta się wyłącznie po
+zalogowaniu, a list bywa przekazany dalej), imion piszących i czegokolwiek, co nie jest opublikowane.
+Stan sprawdzamy w chwili wysyłki: wpis zatwierdzony i zaraz ukryty nie wyjdzie. Konta nieaktywne,
+z niepotwierdzonym adresem, po anonimizacji i osoby bez roli w konkursie nie dostają nic. Temat każdego
+listu zaczyna się od prefiksu konkursu i słowa „Forum:” (np. `[Olimpiada Kwantowa] Forum: …`) — po tym
+da się je odfiltrować. Język listu to język konta odbiorcy, a bez wyboru — język konkursu.
+
+**Ustawienia** ma każdy na ekranie „Edycja danych” (`/account/profile/` albo `/me/profile/`, blok
+„Powiadomienia z forum”): listy o wątkach i decyzjach **na bieżąco** (domyślnie), **raz dziennie**
+(jedno podsumowanie rano, ok. 7:00 czasu letniego) albo **nigdy**; koordynator ma dodatkowo przełącznik
+listów o kolejce (domyślnie włączony). **Każdy list ma link „wypisz się”**, działający bez logowania,
+i nagłówek `List-Unsubscribe` (klient poczty pokaże przycisk „Anuluj subskrypcję”).
+
+Rytm zmienia administrator instalacji zmiennymi środowiskowymi: `FORUM_MODERATION_DIGEST_DELAY_MINUTES`
+(10), `FORUM_MODERATION_DIGEST_INTERVAL_HOURS` (3), `FORUM_THREAD_NOTIFY_INTERVAL_HOURS` (4),
+`FORUM_DAILY_DIGEST_HOUR_UTC` (5).
+
+Listy są dodatkiem, nie jedynym sygnałem:
+
+- **odznaka przy „Forum uczestników”** w menu panelu nadal mówi, ile pozycji czeka — przy trybie „przed
+  publikacją” zaglądaj do kolejki tak, jak zaglądasz do zgłoszeń, także gdy listy o kolejce wyłączysz,
+- **autor znajduje Twoje uzasadnienie** na swoim ekranie `/forum/mine/` także wtedy, gdy listy wyłączył.
+  Odrzucenie bez uzasadnienia jest niemożliwe (formularz odmówi). Ukrycie wpisu już opublikowanego nie
+  idzie listem — autor widzi je na `/forum/mine/`.
+
+**RODO:** listy są kontaktem w ramach forum, z którego ta osoba korzysta — ten sam cel i ta sama podstawa
+(art. 6 ust. 1 lit. f), więc bez nowej czynności w rejestrze; wiersz „Forum uczestników” dostał w wersji
+**1.9** rejestru nowego odbiorcę (dostawca poczty wychodzącej) i kategorię danych (obserwowane wątki,
+ustawienia powiadomień). Wypis jednym kliknięciem jest formą prawa sprzeciwu z art. 21.
 
 **Czego forum nie ma i w wersji pierwszej mieć nie będzie:** wiadomości prywatnych (rozmowa
 niepełnoletnich bez świadków jest dokładnie tym, czego moderacja nie widzi), załączników i HTML-a

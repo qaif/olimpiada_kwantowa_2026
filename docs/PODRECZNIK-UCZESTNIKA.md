@@ -288,9 +288,24 @@ i podaje nazwę etapu, którego zakaz dotyczy.
 **Zwykle wpis nie pojawia się od razu.** W trybie moderacji wstępnej widzisz go tylko Ty, z dopiskiem
 „czeka na moderację”, dopóki organizator go nie przepuści. Nie pisz go drugi raz — jest na miejscu.
 
-**O decyzjach nie wysyłamy listów.** Jeżeli chcesz wiedzieć, co się stało z Twoją wypowiedzią, zajrzyj
-na `/forum/mine/`: to jedyne miejsce, w którym zobaczysz stan wpisu i uzasadnienie, gdyby organizator go
-odrzucił.
+**Powiadomienia e-mail.** Wątek, który założysz albo w którym coś napiszesz, **obserwujesz
+automatycznie**; pod tematem każdego wątku jest przycisk **„Obserwuj wątek”** / **„Przestań
+obserwować”**. Napiszemy do Ciebie, gdy:
+
+- w obserwowanym wątku pojawią się **nowe odpowiedzi** — najwyżej jeden list o wątku na kilka godzin,
+  a kilka wątków w jednym liście; temat listu mówi wprost, gdy odpowiedział **organizator** albo
+  **komitet**,
+- organizator **zatwierdzi albo odrzuci** Twój wpis czekający na moderację — przy odrzuceniu z jego
+  uzasadnieniem.
+
+W liście **nie ma treści wpisów** — tylko temat wątku i odnośnik; przeczytasz je po zalogowaniu. Nigdy nie
+dostaniesz listu o własnym wpisie ani o czymś, czego jeszcze nie opublikowano. Częstotliwość ustawisz na
+ekranie **„Edycja danych”** (`/me/profile/`, blok „Powiadomienia z forum”): **na bieżąco** (domyślnie),
+**raz dziennie** (jedno podsumowanie rano) albo **nigdy**. Każdy list ma też link „wypisz się”, który
+działa bez logowania.
+
+Stan każdego wpisu i uzasadnienie organizatora zawsze znajdziesz na `/forum/mine/` — także wtedy, gdy
+listy wyłączysz.
 
 **Kilka reguł, które warto znać:**
 

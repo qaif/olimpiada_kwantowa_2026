@@ -180,6 +180,27 @@ chwili uruchomienia komend nic się nie zmienia. Kroki operatora: `OPERACJE.md` 
 wdrożenie → `superkoordynator --all-current-coordinators` → `scope_cms_access --dry-run` →
 `scope_cms_access` → sprawdzenie.
 
+## [Unreleased] – powiadomienia z forum
+
+Prośba organizatora z 25.09.2026: forum (flaga `participant_forum`) dostaje powiadomienia e-mail,
+**zbiorcze i z limitami** – żaden list nie wychodzi „za wpis”. Trzy rodzaje: **list o kolejce moderacji**
+do koordynatorów tego konkursu (pierwszy po 10 min czekania najstarszej pozycji, kolejne najwyżej co
+3 godz., same liczby i odnośnik), **nowe odpowiedzi w obserwowanych wątkach** (automatyczna obserwacja po
+napisaniu, przyciski „Obserwuj wątek” / „Przestań obserwować”, najwyżej jeden list o wątku co 4 godz.,
+osobny temat, gdy odpowiedział organizator albo komitet) i **decyzja moderatora** o wpisie z kolejki
+(zatwierdzenie zbiorcze = jeden list na autora, odrzucenie z uzasadnieniem). Listy **nie niosą treści
+wpisów** ani niczego nieopublikowanego; stan sprawdzany jest w chwili wysyłki; konta nieaktywne,
+niepotwierdzone, zanonimizowane i bez roli w konkursie nie dostają nic. Ustawienia konta na ekranie
+„Edycja danych” (na bieżąco / raz dziennie / nigdy, u koordynatora także listy o kolejce), wypis jednym
+kliknięciem bez logowania w każdym liście (podpisany token, `List-Unsubscribe` + `List-Unsubscribe-Post`,
+RFC 8058). Tematy z prefiksem konkursu (`[Olimpiada Kwantowa] Forum: …`), język odbiorcy. Nowe:
+migracja `forum.0002_forum_notifications` (4 tabele), zadania beatu `forum-notifications` (co 2 min)
+i `forum-daily-digest` (codziennie, `FORUM_DAILY_DIGEST_HOUR_UTC`), ustawienia
+`FORUM_MODERATION_DIGEST_DELAY_MINUTES` / `_INTERVAL_HOURS`, `FORUM_THREAD_NOTIFY_INTERVAL_HOURS`;
+`send_mail_task` i `queue_mail` przyjmują opcjonalne nagłówki (bez nich list idzie dotychczasową drogą).
+Rejestr czynności **1.9**: wiersz forum z nowym odbiorcą (dostawca poczty) i kategorią danych – bez
+nowego celu przetwarzania.
+
 ## v0.35.0 – 2026-09-24
 
 Wydanie zbiorcze z dwóch próśb organizatora z 24.09.2026. **Dowolne wartości ocen i różne maksima

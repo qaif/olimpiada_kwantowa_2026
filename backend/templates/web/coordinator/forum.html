@@ -27,8 +27,10 @@
 {% block title %}Forum uczestników – panel koordynatora{% endblock %}
 {% block panel_title %}Forum uczestników{% endblock %}
 {% block panel_lead %}
-  <p class="lead">Wątki, wpisy i zgłoszenia czekające na Twoją decyzję. Forum nie wysyła listów –
-    ten ekran jest jedynym miejscem, w którym widać, że ktoś coś napisał.</p>
+  <p class="lead">Wątki, wpisy i zgłoszenia czekające na Twoją decyzję. O kolejce piszemy
+    zbiorczo: pierwszy list po {{ digest_delay_minutes }} min od pojawienia się pozycji, kolejne
+    najwyżej co {{ digest_interval_hours }} godz., dopóki coś czeka. Listy wyłączysz na ekranie
+    <a href="{% url 'web:account-profile' %}#powiadomienia-forum">„Edycja danych”</a>.</p>
 {% endblock %}
 {% block panel_actions %}
   <a class="btn btn--small btn--secondary" href="{% url 'web:coordinator-forum-threads' %}">Wszystkie wątki</a>

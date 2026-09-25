@@ -21,7 +21,7 @@ import logging
 from celery import shared_task
 from django.conf import settings
 from django.core.cache import cache
-from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives, send_mail
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -79,6 +79,7 @@ def send_mail_task(
     recipient_list: list[str],
     from_email: str | None = None,
     html_message: str | None = None,
+    headers: dict[str, str] | None = None,
 ) -> int:
     """Wysyła jedną wiadomość tekstową. Zwraca liczbę dostarczonych listów (0 albo 1).
 
@@ -110,15 +111,35 @@ def send_mail_task(
     wykonuje ponowienia synchronicznie i **ignoruje** ``countdown``, więc test nigdy nie czeka;
     po wyczerpaniu prób leci oryginalny wyjątek (``CELERY_TASK_EAGER_PROPAGATES``), a nie
     ``Retry``. Przy backendzie ``locmem`` wysyłka i tak nie zawodzi – testy widzą jedno wywołanie.
+
+    ``headers`` (od 25.09.2026) to dodatkowe nagłówki listu – dziś wyłącznie ``List-Unsubscribe``
+    i ``List-Unsubscribe-Post`` powiadomień forum (``apps.forum.notifications``). Słownik napisów,
+    a nie obiekt, z tego samego powodu co reszta argumentów: jedzie przez JSON brokera. Bez
+    nagłówków list idzie **tą samą** drogą co dotąd (``send_mail``), więc żaden istniejący list
+    nie zmienia się ani o bajt.
     """
-    sent = send_mail(
-        subject,
-        message,
-        from_email or settings.DEFAULT_FROM_EMAIL,
-        list(recipient_list or []),
-        fail_silently=False,
-        html_message=html_message,
-    )
+    if headers:
+        # Ten sam kształt, który ``send_mail`` składa dla ``html_message`` (alternatywa
+        # ``text/html``), tylko z nagłówkami – oba argumenty są niezależne i mogą przyjść razem.
+        email = EmailMultiAlternatives(
+            subject,
+            message,
+            from_email or settings.DEFAULT_FROM_EMAIL,
+            list(recipient_list or []),
+            headers=dict(headers),
+        )
+        if html_message:
+            email.attach_alternative(html_message, "text/html")
+        sent = email.send(fail_silently=False)
+    else:
+        sent = send_mail(
+            subject,
+            message,
+            from_email or settings.DEFAULT_FROM_EMAIL,
+            list(recipient_list or []),
+            fail_silently=False,
+            html_message=html_message,
+        )
     logger.info(
         "Wysłano %s wiadomości do %s odbiorców (próba %s).",
         sent,

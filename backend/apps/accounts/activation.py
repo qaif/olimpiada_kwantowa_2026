@@ -317,7 +317,9 @@ def email_changed_notice(new_email: str, competition=None) -> str:
     )
 
 
-def queue_mail(subject: str, message: str, recipient: str, *, competition=None) -> None:
+def queue_mail(
+    subject: str, message: str, recipient: str, *, competition=None, headers: dict[str, str] | None = None
+) -> None:
     """Kolejkuje list **po commicie** – wzorzec z ``apps.competitions.interviews._send_confirmation``.
 
     Wysyłka jest skutkiem ubocznym rejestracji, a nie jej warunkiem: niedostępny MTA nie może
@@ -330,6 +332,10 @@ def queue_mail(subject: str, message: str, recipient: str, *, competition=None) 
     z kontekstu (:func:`mail_competition`), więc wołający sprzed etapu 2 – np.
     ``apps.accounts.bulk_registration`` – dostaje nadawcę swojego konkursu bez żadnej zmiany
     w swoim kodzie.
+
+    ``headers`` – dodatkowe nagłówki listu (``List-Unsubscribe`` powiadomień forum). Brak znaczy
+    „jak dotąd”: zadanie dostaje wtedy dokładnie te same argumenty, co przed tą zmianą, więc testy
+    i listy, które nagłówków nie potrzebują, nie widzą różnicy.
     """
     if not recipient:
         return
@@ -351,7 +357,10 @@ def queue_mail(subject: str, message: str, recipient: str, *, competition=None) 
     def _enqueue() -> None:
         from apps.core.tasks import send_mail_task
 
-        send_mail_task.delay(subject_text, message_text, [recipient], from_email)
+        if headers:
+            send_mail_task.delay(subject_text, message_text, [recipient], from_email, dict(headers))
+        else:
+            send_mail_task.delay(subject_text, message_text, [recipient], from_email)
 
     transaction.on_commit(_enqueue)
 

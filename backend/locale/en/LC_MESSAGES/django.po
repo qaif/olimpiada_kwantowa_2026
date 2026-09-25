@@ -3910,3 +3910,175 @@ msgstr "You award points criterion by criterion. The system computes the score a
 #, python-format
 msgid "Od 0 do %(max)s, co 0,01 – np. 1,5."
 msgstr "From 0 to %(max)s, in steps of 0.01 – e.g. 1.5."
+
+# --- Powiadomienia z forum (apps/forum/notifications.py, apps/forum/forms.py, profil konta) ---
+
+#: apps/forum/notifications.py
+#, python-format
+msgid "Forum: wpisy czekają na moderację (%(count)s)"
+msgstr "Forum: posts awaiting moderation (%(count)s)"
+
+#: apps/forum/notifications.py
+#, python-format
+msgid "Forum: nowe odpowiedzi w wątku „%(title)s”"
+msgstr "Forum: new replies in “%(title)s”"
+
+#: apps/forum/notifications.py
+#, python-format
+msgid "Forum: organizator odpowiedział w wątku „%(title)s”"
+msgstr "Forum: the organiser replied in “%(title)s”"
+
+#: apps/forum/notifications.py
+#, python-format
+msgid "Forum: komitet odpowiedział w wątku „%(title)s”"
+msgstr "Forum: the committee replied in “%(title)s”"
+
+#: apps/forum/notifications.py
+msgid "Forum: decyzja organizatora w sprawie Twojego wpisu"
+msgstr "Forum: the organiser's decision on your post"
+
+#: apps/forum/notifications.py
+msgid "Forum: nowości w obserwowanych wątkach"
+msgstr "Forum: news in the threads you follow"
+
+#: apps/forum/notifications.py
+msgid "Forum: podsumowanie dnia"
+msgstr "Forum: daily summary"
+
+#: apps/forum/notifications.py
+msgid "Na forum czekają pozycje do Twojej decyzji:"
+msgstr "Items on the forum are waiting for your decision:"
+
+#: apps/forum/notifications.py
+#, python-format
+msgid "- nowe wątki: %(count)s"
+msgstr "- new threads: %(count)s"
+
+#: apps/forum/notifications.py
+#, python-format
+msgid "- odpowiedzi: %(count)s"
+msgstr "- replies: %(count)s"
+
+#: apps/forum/notifications.py
+#, python-format
+msgid "- zgłoszenia wpisów: %(count)s"
+msgstr "- reported posts: %(count)s"
+
+#: apps/forum/notifications.py
+#, python-format
+msgid "Najstarsza pozycja czeka od %(moment)s."
+msgstr "The oldest item has been waiting since %(moment)s."
+
+#: apps/forum/notifications.py
+msgid "Kolejka moderacji:"
+msgstr "Moderation queue:"
+
+#: apps/forum/notifications.py
+#, python-format
+msgid "Kolejny list o kolejce wyślemy najwcześniej za %(hours)s godz. – i tylko wtedy, gdy coś nadal będzie czekać."
+msgstr "We will write about the queue again in %(hours)s h at the earliest – and only if something is still waiting."
+
+#: apps/forum/notifications.py
+#, python-format
+msgid "Ustawienia powiadomień: %(link)s"
+msgstr "Notification settings: %(link)s"
+
+#: apps/forum/notifications.py
+#, python-format
+msgid "Wyłącz listy o kolejce moderacji: %(link)s"
+msgstr "Turn off e-mails about the moderation queue: %(link)s"
+
+#: apps/forum/notifications.py
+#, python-format
+msgid "- Twój wpis w wątku „%(title)s” został zatwierdzony i jest widoczny dla innych."
+msgstr "- Your post in “%(title)s” has been approved and is now visible to others."
+
+#: apps/forum/notifications.py
+#, python-format
+msgid "- Twój wątek „%(title)s” został zatwierdzony i jest widoczny dla innych."
+msgstr "- Your thread “%(title)s” has been approved and is now visible to others."
+
+#: apps/forum/notifications.py
+#, python-format
+msgid "- Twój wpis w wątku „%(title)s” nie został opublikowany."
+msgstr "- Your post in “%(title)s” was not published."
+
+#: apps/forum/notifications.py
+msgid "- Twój wpis nie został opublikowany."
+msgstr "- Your post was not published."
+
+#: apps/forum/notifications.py
+#, python-format
+msgid "  Uzasadnienie organizatora: %(note)s"
+msgstr "  The organiser's reason: %(note)s"
+
+#: apps/forum/notifications.py
+msgid "- Twój nowy wątek nie został opublikowany."
+msgstr "- Your new thread was not published."
+
+#: apps/forum/notifications.py
+msgid "Nowe odpowiedzi w wątkach, które obserwujesz:"
+msgstr "New replies in the threads you follow:"
+
+#: apps/forum/notifications.py
+msgid "odpowiedział organizator"
+msgstr "the organiser replied"
+
+#: apps/forum/notifications.py
+msgid "odpowiedział członek komitetu"
+msgstr "a committee member replied"
+
+#: apps/forum/notifications.py
+#, python-format
+msgid "- „%(title)s” – nowe wpisy: %(count)s"
+msgstr "- “%(title)s” – new posts: %(count)s"
+
+#: apps/forum/notifications.py
+#, python-format
+msgid "Przestań obserwować ten wątek: %(link)s"
+msgstr "Stop following this thread: %(link)s"
+
+#: apps/forum/notifications.py
+msgid "Decyzje organizatora w sprawie Twoich wpisów:"
+msgstr "The organiser's decisions on your posts:"
+
+#: apps/forum/notifications.py
+msgid "Treści wpisów nie przesyłamy pocztą – forum można czytać wyłącznie po zalogowaniu."
+msgstr "We never send the content of posts by e-mail – the forum can only be read after signing in."
+
+#: apps/forum/notifications.py
+#, python-format
+msgid "Wyłącz wszystkie listy z forum: %(link)s"
+msgstr "Turn off all forum e-mails: %(link)s"
+
+#: apps/forum/forms.py
+msgid "Listy o obserwowanych wątkach i decyzjach moderatora"
+msgstr "E-mails about followed threads and moderation decisions"
+
+#: apps/forum/forms.py
+msgid "na bieżąco (o jednym wątku najwyżej co kilka godzin)"
+msgstr "as they happen (at most one e-mail per thread every few hours)"
+
+#: apps/forum/forms.py
+msgid "raz dziennie – jedno podsumowanie"
+msgstr "once a day – a single summary"
+
+#: apps/forum/forms.py
+msgid "nigdy"
+msgstr "never"
+
+#: apps/forum/forms.py
+msgid "Listy o wpisach czekających na moderację"
+msgstr "E-mails about posts awaiting moderation"
+
+#: templates/web/account/profile.html
+msgid "Powiadomienia z forum"
+msgstr "Forum notifications"
+
+#: templates/web/account/profile.html
+msgid "Piszemy o nowych odpowiedziach w wątkach, które obserwujesz (swoje wątki i te, w których pisałeś, obserwujesz automatycznie), oraz o decyzji organizatora w sprawie Twojego wpisu. List nie zawiera treści wpisów – tylko temat wątku i odnośnik. Każdy list ma link do wypisania się jednym kliknięciem."
+msgstr "We write about new replies in the threads you follow (you follow your own threads and the ones you have posted in automatically) and about the organiser's decision on your post. The e-mail does not contain the content of posts – only the thread title and a link. Every e-mail has a one-click unsubscribe link."
+
+#: templates/web/account/profile.html
+msgid "Zapisz ustawienia powiadomień"
+msgstr "Save notification settings"
