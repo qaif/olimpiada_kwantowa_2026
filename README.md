@@ -3699,8 +3699,9 @@ zapisuje — także dla etapu w formie testu.
 > uruchamianym workflow – opis razem z listą sekretów: [`docs/OPERACJE.md`](docs/OPERACJE.md) § 4.
 
 ```bash
-# Testy jednostkowe i integracyjne (w kontenerze – tak jak w CI)
-docker compose exec -T web pytest -q
+# Testy jednostkowe i integracyjne (w kontenerze – tak jak w CI); przebiegi i markery: docs/TESTY.md
+docker compose exec -T web pytest -q -n auto            # pełny, równolegle
+docker compose exec -T web pytest -q -n auto -m "not slow"   # szybka pętla (bez migracji i transakcyjnych)
 
 # Pokrycie
 docker compose exec -T web pytest -q --cov=apps --cov-report=term-missing:skip-covered

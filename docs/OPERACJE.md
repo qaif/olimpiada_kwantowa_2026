@@ -1321,21 +1321,14 @@ niczego nie zapisuje w bazie, a dokumenty powstają od nowa przy każdym pobrani
 ## 10. CI: podział testów na shardy (v0.27.3)
 
 Zadanie `pytest` w `.github/workflows/ci.yml` idzie w pięciu równoległych shardach
-(`pytest-split`), a wymaganym statusem jest jeden: „pytest (wynik zbiorczy)”. Podział jest po
-**zmierzonym czasie** – czasy testów leżą w `backend/.test_durations` i to według nich
-`--splitting-algorithm least_duration` układa shardy.
+(`pytest-split`), a wymaganym statusem jest jeden: „pytest (wynik zbiorczy)”. Od 25.09.2026 każdy
+shard biegnie dodatkowo równolegle (`-n auto`, pytest-xdist, własna baza na worker), a podział jest
+na ciągłe kawałki zbioru według zmierzonych czasów (`backend/.test_durations`,
+`--splitting-algorithm duration_based_chunks`). Postgres CI dostaje przed testami
+`max_locks_per_transaction = 256` (jak produkcja i dev) i wyłączony `fsync`.
 
-Plik nie musi być aktualny co do testu (nowy test dostaje czas średni). Odświeża się go, gdy shardy
-znów wyraźnie się rozjadą – np. najdłuższy trwa dwa razy dłużej niż najkrótszy:
-
-```bash
-docker compose exec -T web python -m pytest -q --create-db -p ci_durations_plugin -p no:cacheprovider
-```
-
-Polecenie uruchamia cały zbiór w lokalnym środowisku (ok. pół godziny) i nadpisuje
-`backend/.test_durations`; wtyczka `backend/ci_durations_plugin.py` sumuje czas przygotowania,
-wykonania i sprzątania każdego testu. Plik commituje się jak każdy inny. Czasy z maszyny lokalnej
-różnią się od czasów w CI co do wartości, ale nie co do proporcji – a podział zależy tylko od nich.
+Uruchamianie lokalne (szybka pętla, xdist, markery), odświeżanie pliku czasów i zasady dopisywania
+testów: **[`docs/TESTY.md`](TESTY.md)**.
 
 ## 11. Wydajność: WSGI, wątki, połączenia (v0.31.0)
 

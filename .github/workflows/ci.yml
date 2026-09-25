@@ -131,12 +131,13 @@ jobs:
     # osobnej nazwy.
     #
     # Podział jest po **zmierzonym czasie**, nie po liczbie testów: `backend/.test_durations`
-    # niesie czas każdego testu, a `--splitting-algorithm least_duration` rozkłada testy tak, żeby
-    # shardy kończyły mniej więcej razem. Podział po liczbie dawał shardy od 2 do 17 minut, bo
+    # niesie czas każdego testu, a `--splitting-algorithm duration_based_chunks` tnie zbiór na ciągłe
+    # kawałki tak, żeby shardy kończyły mniej więcej razem. W każdym shardzie testy idą dodatkowo
+    # równolegle (`-n auto`, pytest-xdist) – docs/TESTY.md. Podział po liczbie dawał shardy od 2 do 17 minut, bo
     # testy PDF-ów, pieczęci elektronicznej i cofania migracji ważą wielokrotnie więcej niż reszta
     # i stoją obok siebie. Test, którego w pliku nie ma (nowy), dostaje czas średni – plik nie
     # musi więc być aktualny co do testu, wystarczy odświeżyć go, gdy shardy znów się rozjadą:
-    # pełny przebieg z wtyczką zapisującą czasy (opis w `docs/OPERACJE.md`, § CI).
+    # pełny przebieg z wtyczką zapisującą czasy (opis w `docs/TESTY.md`).
     name: "pytest (shard ${{ matrix.shard }}/${{ strategy.job-total }})"
     runs-on: ubuntu-latest
     strategy:
@@ -227,30 +228,47 @@ jobs:
       - name: Instalacja gettext
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gettext
 
-      - name: Kompilacja katalogów tłumaczeń
-        working-directory: backend
+      # Katalogi tłumaczeń (``.mo``) kompiluje sam pytest na starcie sesji (``backend/conftest.py``,
+      # ``_compile_translations``) – ten sam krok działa więc w CI, w kontenerze i przy ręcznym
+      # uruchomieniu, a CI potrzebuje od siebie tylko programu ``msgfmt`` (krok wyżej).
+      # ``collectstatic`` nie jest potrzebne: jedyne testy, które pobierają ``/static/...``, włączają
+      # findery WhiteNoise same (``apps/web/tests/test_ui_system.py``, ``test_public.py``).
+
+      # Postgres pod testy – dwie zmiany, obie wyłącznie w tym kontenerze:
+      # - ``max_locks_per_transaction = 256`` – ta sama wartość, co produkcja i dev
+      #   (``docker-compose.yml``). Test migracji trzyma przewiniętą bazę w jednej transakcji
+      #   (``apps/core/tests/migration_helpers.py``, ok. 3000 blokad), a pod ``-n auto`` kilka
+      #   takich modułów biegnie naraz; domyślne 64 × 100 połączeń to za mało miejsca,
+      # - ``fsync``/``synchronous_commit``/``full_page_writes`` wyłączone: baza żyje tyle, co ten job,
+      #   a każdy worker zakłada swoją od zera (setki migracji = tysiące commitów).
+      # Blok ``services`` nie przyjmuje argumentów polecenia, więc ustawienia idą przez
+      # ``ALTER SYSTEM`` i restart kontenera – kilka sekund.
+      - name: Postgres pod testy
+        env:
+          PG: ${{ job.services.postgres.id }}
         run: |
           set -eu
-          for po in locale/*/LC_MESSAGES/django.po; do
-            [ -e "$po" ] || continue
-            msgfmt -o "${po%.po}.mo" "$po"
+          for setting in "max_locks_per_transaction = 256" "fsync = off" \
+                         "synchronous_commit = off" "full_page_writes = off"; do
+            docker exec "$PG" psql -U olimpiada -d olimpiada -c "ALTER SYSTEM SET $setting"
           done
+          docker restart "$PG"
+          until docker exec "$PG" pg_isready -U olimpiada -d olimpiada; do sleep 1; done
+          docker exec "$PG" psql -U olimpiada -d olimpiada -Atc "SHOW max_locks_per_transaction"
 
-      # WhiteNoise w trybie bez finderów (`WHITENOISE_USE_FINDERS = DEBUG`, a `DEBUG=False` w
-      # testach) serwuje pliki wyłącznie z `STATIC_ROOT` – czyli z tego, co zostawił
-      # `collectstatic`. W obrazie robi to `entrypoint.sh` przy starcie kontenera; tutaj nikt tego
-      # nie wołał, więc `apps/web/tests/test_ui_system.py::test_stylesheet_is_served` (i każdy
-      # inny test czytający `/static/...`) dostawał 404 na pusty katalog.
-      - name: collectstatic
-        working-directory: backend
-        run: python manage.py collectstatic --noinput
-
+      # ``-n auto`` = tyle workerów, ile rdzeni ma runner (4); każdy dostaje własną bazę testową.
+      # ``conftest.py`` zamienia ``-n`` na ``--dist loadgroup``, więc moduł testów migracji idzie
+      # w całości do jednego workera (przewinięcie bazy liczy się raz na moduł).
+      #
+      # ``duration_based_chunks``, a nie ``least_duration``: shard dostaje **ciągły** kawałek zbioru,
+      # więc moduł z drogą fiksturą modułu (przewinięta baza) nie jest rozrzucany po pięciu
+      # shardach, z których każdy płaciłby za nią osobno.
       - name: pytest
         working-directory: backend
         run: >-
-          python -m pytest -q --create-db --durations=20
+          python -m pytest -q --create-db --durations=20 -n auto
           --splits ${{ strategy.job-total }} --group ${{ matrix.shard }}
-          --splitting-algorithm least_duration
+          --splitting-algorithm duration_based_chunks
 
   pytest-ok:
     # Jeden wymagany check zamiast pięciu (nazwy shardów zmieniają się z liczbą shardów w matrixie,
