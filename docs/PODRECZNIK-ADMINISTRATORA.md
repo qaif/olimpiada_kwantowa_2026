@@ -23,7 +23,7 @@ opiekun i uczestnik logują się tym samym kontem, a uprawnienia rozstrzygają g
 | Powłoka | Git Bash / WSL / dowolna POSIX-owa | skrypty w `scripts/` są bashowe |
 | Serwer produkcyjny | Ubuntu z publicznym IPv4, porty 22/80/443/9000 | skrypt wdrożeniowy sam instaluje Dockera i `ufw` |
 | Domena | własna, z dostępem do strefy DNS | potrzebne **co najmniej dwa** rekordy A (niżej) |
-| Python 3.12 + `ruff` | opcjonalnie | wyłącznie do lintu poza kontenerem |
+| Python 3.14 + `ruff` | opcjonalnie | wyłącznie do lintu poza kontenerem (ta sama wersja co obraz) |
 
 Deadline, skan antywirusowy i prywatny magazyn plików wymagają Postgresa, Redisa, MinIO i ClamAV-a —
 atrapy nie wystarczą, więc środowisko deweloperskie stoi na tych samych usługach co produkcja.

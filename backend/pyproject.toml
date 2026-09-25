@@ -6,9 +6,14 @@ description = "Platforma olimpiady: etapy, upload rozwiązań, ocenianie 0-2-5-6
 # w ``docs/LICENCJA-UZASADNIENIE.md``. Zapis tabelą (``{ text = … }``), a nie samym napisem, bo
 # tak wymaga PEP 621 — a pyproject czyta tu uv, nie budowanie pakietu.
 license = { text = "AGPL-3.0-or-later" }
-requires-python = ">=3.12"
+# Python 3.14 (od 25.09.2026, wcześniej 3.12): obraz ``python:3.14-slim-trixie`` (backend/Dockerfile), CI
+# (``PYTHON_VERSION`` w .github/workflows/ci.yml) i lokalny venv – jedna wersja wszędzie. Dolna
+# granica jest tu twarda, a nie „co najmniej 3.12”, bo kod może już korzystać z 3.14 (m.in.
+# leniwe adnotacje z PEP 649 – bez cudzysłowów przy odwołaniach w przód, ruff ``py314``),
+# a na starszym interpreterze takie odwołanie wywróciłoby import modułu, a nie jeden test.
+requires-python = ">=3.14"
 dependencies = [
-    # Django 6.1 (v0.26.0). Wymaga Pythona ≥ 3.12 (obraz ma 3.12) i PostgreSQL-a ≥ 15
+    # Django 6.1 (v0.26.0). Wymaga Pythona ≥ 3.12 (obraz ma 3.14) i PostgreSQL-a ≥ 15
     # (compose i produkcja mają 16) – obie granice są spełnione z zapasem. Górna granica przy
     # następnej wersji mniejszej, jak wszędzie w tym pliku: łatki (6.1.x) wchodzą same,
     # a przeskok na 6.2 ma być świadomą decyzją i osobnym przebiegiem testów.
@@ -22,7 +27,10 @@ dependencies = [
     # Ekstra ``pool`` dociąga ``psycopg-pool`` – pulę połączeń, której używa Django
     # (``DATABASES["default"]["OPTIONS"]["pool"]``, patrz ``config/settings/base.py``). Bez niej
     # ustawienie puli kończy się ``ImproperlyConfigured`` przy pierwszym zapytaniu, a nie przy starcie.
-    "psycopg[binary,pool]>=3.2,<3.3",
+    # 3.2.10: pierwsze wydanie z kołami ``psycopg-binary`` dla CPythona 3.14 (``cp314``); starsze
+    # nie mają ani koła, ani źródeł (``psycopg-binary`` wychodzi wyłącznie jako koła), więc na
+    # 3.14 w ogóle się nie instalują.
+    "psycopg[binary,pool]>=3.2.10,<3.3",
     "redis>=5.0,<6.0",
     # 7.0: pierwsza linia z ``Django>=5.2`` w metadanych; 5.4 nie instaluje się obok Django 6.1.
     "django-redis>=7.0,<7.1",
@@ -126,7 +134,8 @@ dev = [
     "pytest-split>=0.10,<1.0",
     "factory-boy>=3.3",
     "freezegun>=1.5",
-    "ruff>=0.6",
+    # 0.12: pierwsza linia, która zna ``target-version = "py314"`` (0.11 odrzuca konfigurację).
+    "ruff>=0.12",
     # Skład PDF-ów zadań treningowych (``apps.competitions.training_pdf`` i wołający go skrypt
     # ``scripts/build_training_problem_pdfs.py``). Świadomie **tylko** w ekstrze dev: gotowe PDF-y
     # leżą w repozytorium, a produkcja je wgrywa, więc obraz produkcyjny nie musi umieć składać
@@ -158,7 +167,7 @@ override-dependencies = ["django>=6.1,<6.2"]
 
 [tool.ruff]
 line-length = 110
-target-version = "py312"
+target-version = "py314"
 extend-exclude = ["**/migrations/**"]
 
 [tool.ruff.lint]

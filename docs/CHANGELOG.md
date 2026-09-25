@@ -8,6 +8,18 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Python 3.14
+
+Interpreter 3.12.14 → **3.14.7**: obraz `python:3.12-slim-bookworm` → `python:3.14-slim-trixie`
+(Debian 13 – bieżąca baza oficjalnych obrazów; na niej stoi też tag `3.14-slim`), CI
+`PYTHON_VERSION` 3.14, `requires-python = ">=3.14"`, ruff `target-version = "py314"`. Wszystkie
+zależności mają koła dla CPythona 3.14 (rozwiązanie zależności na 3.12 i 3.14 identyczne,
+żadnego budowania ze źródeł); podniesione dolne granice: `psycopg[binary,pool]>=3.2.10` (pierwsze
+koła `cp314`), `ruff>=0.12` (pierwszy, który zna `py314`). Kod: dwie adnotacje bez cudzysłowów
+(PEP 649) i `ruff format` pod `py314` – `except (A, B):` → `except A, B:` (PEP 758, 34 linie,
+znaczenie bez zmian). Bez migracji i bez zmian zachowania. Wdrożenie: zwykłe `scripts/deploy.sh`
+(przebudowuje obraz); powrót: poprzedni tag obrazu – `OPERACJE.md` § 19.
+
 ## v0.36.1 – 2026-09-25
 
 Zadania treningowe: każde z czterech zadań (P1–P4) ma własny plik z treścią
