@@ -1,9 +1,10 @@
 """Wspólna mechanika testów migracji: przewijanie w transakcji i zastany Konkurs #1.
 
-Urosło z wydania D – cztery aplikacje tamtego zadania (``core``, ``support``, ``integrations``, ``results``) sprawdzają
-swoje backfille tak samo: przewiń bazę tuż przed migracją danych, wstaw wiersze „sprzed
-wdrożenia”, przewiń o jedną migrację dalej, przeczytaj wynik. Cztery kopie tej mechaniki różniłyby
-się po pierwszej poprawce, a poprawka w teście migracji jest rzadka i trudna do zauważenia.
+Urosło z wydania D – cztery aplikacje tamtego zadania (``core``, ``support``, ``integrations``,
+``results``) sprawdzają swoje backfille tak samo: przewiń bazę tuż przed migracją danych, wstaw
+wiersze „sprzed wdrożenia”, przewiń o jedną migrację dalej, przeczytaj wynik. Cztery kopie tej
+mechaniki różniłyby się po pierwszej poprawce, a poprawka w teście migracji jest rzadka i trudna
+do zauważenia.
 
 Dwie rzeczy są tu mniej oczywiste, niż wyglądają, i obie wynikają z tego, jak działa
 ``MigrationExecutor``:
