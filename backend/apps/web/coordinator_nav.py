@@ -919,9 +919,7 @@ def competition_switcher(request) -> list[dict]:
     competitions = list(
         Competition.objects.filter(is_active=True).select_related("site").order_by("name", "pk")
     )
-    platform = next(
-        (row for row in competitions if row.site is not None and row.site.is_default_site), None
-    )
+    platform = next((row for row in competitions if row.site is not None and row.site.is_default_site), None)
     platform_origin = ""
     if platform is not None and hosts_path_prefixes(platform):
         site = platform.site

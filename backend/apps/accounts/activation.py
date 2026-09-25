@@ -358,7 +358,9 @@ def queue_mail(
         from apps.core.tasks import send_mail_task
 
         if headers:
-            send_mail_task.delay(subject_text, message_text, [recipient], from_email, dict(headers))
+            # Słowem kluczowym, nie pozycyjnie: piąty argument pozycyjny zadania to ``html_message``
+            # (list resetu hasła, wydanie 0.36.0) – nagłówki podane pozycyjnie trafiłyby w treść HTML.
+            send_mail_task.delay(subject_text, message_text, [recipient], from_email, headers=dict(headers))
         else:
             send_mail_task.delay(subject_text, message_text, [recipient], from_email)
 

@@ -438,12 +438,18 @@ def test_switcher_links_the_prefixed_competition_under_the_platform_host(
         response = client.get(path)
         assert response.status_code == 200, path
         body = response.content.decode()
-        assert expected in body, path
-        assert f'href="/{PREFIX}/coordinator/"' not in body
+        start = body.index('data-nav-group="konkursy-platformy"')
+        switcher = body[start : body.index("</details>", start)]
+        assert expected in switcher, path
+        # W przełączniku ani adresu względnego, ani domeny, na którą konkurs dopiero czeka. (Pasek
+        # konta pod prefiksem ma swój względny „Koordynator” – to jest adres **bieżącego** hosta.)
+        assert f'href="/{PREFIX}/coordinator/"' not in switcher
         assert f"{SECOND_DOMAIN}/coordinator/" not in body
 
 
-def test_switcher_skips_the_prefixed_competition_behind_a_closed_gate(competition, second, client_for, super_user):
+def test_switcher_skips_the_prefixed_competition_behind_a_closed_gate(
+    competition, second, client_for, super_user
+):
     competition.feature_flags = {**competition.feature_flags, "path_prefix_routing": False}
     competition.save(update_fields=["feature_flags"])
     client = client_for(competition)

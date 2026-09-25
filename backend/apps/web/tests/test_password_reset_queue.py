@@ -122,6 +122,24 @@ def test_the_task_attaches_the_html_part_only_when_given():
     assert plain.alternatives == []
 
 
+def test_the_task_takes_html_and_headers_together_and_keeps_them_apart():
+    """Wydanie 0.36.0 złożyło dwa nowe argumenty tego samego zadania: ``html_message`` (reset hasła)
+    i ``headers`` (``List-Unsubscribe`` forum). Oba są niezależne – nagłówki nie mogą trafić w treść
+    HTML ani odwrotnie, a list z samymi nagłówkami zostaje wyłącznie tekstowy."""
+    headers = {"List-Unsubscribe": "<https://example.test/wypisz/>"}
+    send_mail_task.delay(
+        "Temat", "Treść", ["a@example.test"], None, html_message="<p>Treść</p>", headers=headers
+    )
+    send_mail_task.delay("Temat", "Treść", ["b@example.test"], None, headers=headers)
+
+    both, headers_only = mail.outbox
+    assert both.alternatives[0][0] == "<p>Treść</p>"
+    assert both.extra_headers == headers
+    assert headers_only.alternatives == []
+    assert headers_only.extra_headers == headers
+    assert "List-Unsubscribe" in headers_only.message().as_string()
+
+
 # --- ten sam list, co przed zmianą ---------------------------------------------------------------
 
 
