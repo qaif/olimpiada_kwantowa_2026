@@ -4082,3 +4082,48 @@ msgstr "We write about new replies in the threads you follow (you follow your ow
 #: templates/web/account/profile.html
 msgid "Zapisz ustawienia powiadomień"
 msgstr "Save notification settings"
+
+#: apps/accounts/activation.py
+#, python-format
+msgid "Aktywuj konto – %(competition)s"
+msgstr "Activate your account – %(competition)s"
+
+#: apps/accounts/activation.py
+#, python-format
+msgid "Potwierdź nowy adres e-mail – %(competition)s"
+msgstr "Confirm your new e-mail address – %(competition)s"
+
+#: apps/accounts/activation.py
+#, python-format
+msgid "Adres e-mail konta został zmieniony – %(competition)s"
+msgstr "Account e-mail address changed – %(competition)s"
+
+#: apps/accounts/guardian.py
+#, python-format
+msgid "Prośba o zgodę opiekuna – %(competition)s"
+msgstr "Request for guardian consent – %(competition)s"
+
+#: apps/accounts/guardian.py
+#, python-format
+msgid "Zgoda opiekuna została potwierdzona – %(competition)s"
+msgstr "Guardian consent confirmed – %(competition)s"
+
+#: apps/submissions/notifications.py
+#, python-format
+msgid "Rozwiązanie przyjęte – %(competition)s"
+msgstr "Solution accepted – %(competition)s"
+
+#: apps/submissions/notifications.py
+#, python-format
+msgid "Plik odrzucony przez skan antywirusowy – %(competition)s"
+msgstr "File rejected by the antivirus scan – %(competition)s"
+
+#: apps/submissions/notifications.py
+#, python-format
+msgid "Wyniki etapu ogłoszone – %(competition)s"
+msgstr "Stage results announced – %(competition)s"
+
+#: apps/submissions/notifications.py
+#, python-format
+msgid "Decyzja w sprawie reklamacji – %(competition)s"
+msgstr "Decision on your appeal – %(competition)s"

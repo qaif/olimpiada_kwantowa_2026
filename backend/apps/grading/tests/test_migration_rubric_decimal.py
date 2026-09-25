@@ -17,7 +17,7 @@ from django.utils import timezone
 
 from apps.ai_grading.models import AiAssessment, AiAssessmentStatus
 from apps.competitions.tests.factories import ProblemFactory, ScoringScaleFactory, StageFactory
-from apps.core.tests.migration_helpers import migrate_to, migrate_to_head
+from apps.core.tests.migration_helpers import migrate_to
 from apps.grading.models import RubricCriterion
 from apps.submissions.tests.factories import SubmissionFactory
 
@@ -33,7 +33,8 @@ AFTER = [
 ]
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
+@pytest.mark.migrations
 def test_migracja_przenosi_maksima_kryteriow_i_punkty_ai_co_do_wartosci(competition):
     stage = StageFactory()
     ScoringScaleFactory(stage=stage)
@@ -49,32 +50,27 @@ def test_migracja_przenosi_maksima_kryteriow_i_punkty_ai_co_do_wartosci(competit
         finished_at=timezone.now(),
     )
 
-    try:
-        migrate_to(BEFORE)
-        assert column("grading_rubriccriterion", "max_points")[0] == "smallint"
-        assert value("grading_rubriccriterion", "max_points", criterion.pk) == 4
-        assert column("ai_grading_aiassessment", "proposed_points") == ("numeric", 6, 2)
+    migrate_to(BEFORE)
+    assert column("grading_rubriccriterion", "max_points")[0] == "smallint"
+    assert value("grading_rubriccriterion", "max_points", criterion.pk) == 4
+    assert column("ai_grading_aiassessment", "proposed_points") == ("numeric", 6, 2)
 
-        migrate_to(AFTER)
+    migrate_to(AFTER)
 
-        assert column("grading_rubriccriterion", "max_points") == ("numeric", 7, 2)
-        assert value("grading_rubriccriterion", "max_points", criterion.pk) == Decimal("4.00")
-        assert column("ai_grading_aiassessment", "proposed_points") == ("numeric", 7, 2)
-        assert column("ai_grading_aiassessment", "max_points") == ("numeric", 7, 2)
-        assert value("ai_grading_aiassessment", "proposed_points", assessment.pk) == Decimal("4.50")
-        assert value("ai_grading_aiassessment", "max_points", assessment.pk) == Decimal("6.00")
+    assert column("grading_rubriccriterion", "max_points") == ("numeric", 7, 2)
+    assert value("grading_rubriccriterion", "max_points", criterion.pk) == Decimal("4.00")
+    assert column("ai_grading_aiassessment", "proposed_points") == ("numeric", 7, 2)
+    assert column("ai_grading_aiassessment", "max_points") == ("numeric", 7, 2)
+    assert value("ai_grading_aiassessment", "proposed_points", assessment.pk) == Decimal("4.50")
+    assert value("ai_grading_aiassessment", "max_points", assessment.pk) == Decimal("6.00")
 
-        # Więz „maksimum dodatnie” stoi po zmianie typu – już jako ``> 0``: 0,5 przechodzi, 0 nie.
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "UPDATE grading_rubriccriterion SET max_points = 0.5 WHERE id = %s", [criterion.pk]
-            )
-        with pytest.raises(IntegrityError), transaction.atomic(), connection.cursor() as cursor:
-            cursor.execute("UPDATE grading_rubriccriterion SET max_points = 0 WHERE id = %s", [criterion.pk])
-        # Suma cyfr (7, 2): 12 345,5 – maksimum zadania, które ``numeric(6, 2)`` by odrzuciło.
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "UPDATE ai_grading_aiassessment SET max_points = 12345.5 WHERE id = %s", [assessment.pk]
-            )
-    finally:
-        migrate_to_head()
+    # Więz „maksimum dodatnie” stoi po zmianie typu – już jako ``> 0``: 0,5 przechodzi, 0 nie.
+    with connection.cursor() as cursor:
+        cursor.execute("UPDATE grading_rubriccriterion SET max_points = 0.5 WHERE id = %s", [criterion.pk])
+    with pytest.raises(IntegrityError), transaction.atomic(), connection.cursor() as cursor:
+        cursor.execute("UPDATE grading_rubriccriterion SET max_points = 0 WHERE id = %s", [criterion.pk])
+    # Suma cyfr (7, 2): 12 345,5 – maksimum zadania, które ``numeric(6, 2)`` by odrzuciło.
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "UPDATE ai_grading_aiassessment SET max_points = 12345.5 WHERE id = %s", [assessment.pk]
+        )

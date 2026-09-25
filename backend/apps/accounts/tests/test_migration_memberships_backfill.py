@@ -5,9 +5,8 @@ wskazanego administratora danych, a każda rola nadana przez ostatnie lata istni
 o **konkursie**, a nie o instalacji. Wiersz pominięty przez backfill to albo konto bez panelu, albo
 – po wydaniu D, które domyka kolumnę na ``NOT NULL`` – wdrożenie zatrzymane w połowie.
 
-Test wygląda inaczej niż reszta pakietu z tych samych powodów, co ``test_migrations.py``:
-przewijanie migracji wymaga ``transaction=True``, a fikstura przywraca czoło migracji także wtedy,
-gdy test przerwie się w połowie.
+Bazę przewija raz na moduł fikstura :func:`before_backfill`, w transakcji wycofywanej na końcu
+modułu (``apps/core/tests/migration_helpers.py``); każdy test zastaje ją w punkcie :data:`BEFORE`.
 
 **Uczestnika i konkurs bierzemy modelami historycznymi** (``Participant``, ``Competition``), a resztę
 – prawdziwymi klasami. Do etapu 2 historycznych modeli nie było tu wcale i było to uzasadnione:
@@ -25,7 +24,6 @@ import pytest
 from django.apps import apps as django_apps
 from django.contrib.auth.models import Group
 from django.db import connection
-from django.db.migrations.executor import MigrationExecutor
 
 from apps.accounts.models import (
     GROUP_COORDINATOR,
@@ -35,6 +33,7 @@ from apps.accounts.models import (
     Voivodeship,
     generate_public_code,
 )
+from apps.core.tests.migration_helpers import applied_state_model, migrate_to, rewound_database
 
 from .factories import UserFactory
 
@@ -43,15 +42,6 @@ AFTER = ("accounts", "0020_backfill_competition_and_memberships")
 
 #: Nazwa modułu zaczyna się od cyfry, więc ``from … import …`` jest tu składniowo niemożliwe.
 backfill = importlib.import_module(f"apps.accounts.migrations.{AFTER[1]}")
-
-
-def migrate_to(target):
-    """Przewija bazę do wskazanej migracji i zwraca stan aplikacji z tamtego momentu."""
-    executor = MigrationExecutor(connection)
-    executor.loader.build_graph()
-    executor.migrate([target])
-    executor.loader.build_graph()
-    return executor.loader.project_state([target]).apps
 
 
 def participants(historical):
@@ -76,34 +66,19 @@ def make_participant(historical, competition):
     return participant
 
 
-def migrate_to_head() -> None:
-    """Przywraca czoło migracji **wszystkich** aplikacji, nie tylko przewijanej.
-
-    Cofnięcie jednej aplikacji zdejmuje po drodze każdą migrację z innych aplikacji, która od niej
-    zależy, a powrót do konkretnego celu przywraca wyłącznie jego przodków. Reszta pakietu
-    zastawałaby wtedy bazę bez tamtych tabel – i wywracałaby się w innym miejscu.
-    """
-    executor = MigrationExecutor(connection)
-    executor.loader.build_graph()
-    executor.migrate(executor.loader.graph.leaf_nodes())
-    executor.loader.build_graph()
-
-
-@pytest.fixture
-def before_backfill(transactional_db, competition):  # noqa: ARG001 - baza, używana przez efekt uboczny
+@pytest.fixture(scope="module")
+def before_backfill(django_db_setup, django_db_blocker):
     """Baza cofnięta do stanu sprzed backfillu: kolumny są, właścicieli nie ma.
 
-    Fikstura ``competition`` idzie **przed** przewinięciem, bo Konkurs #1 zakłada migracja
-    ``tenancy.0002``, a test transakcyjny bywa uruchomiony na bazie już raz wyczyszczonej.
-    Cofnięcie ``0020`` zdejmuje wtedy właścicieli i członkostwa – czyli robi dokładnie to, co
-    ma zrobić ``backwards``.
+    Konkurs #1 bierzemy **przed** przewinięciem (``rewound_database``). Cofnięcie ``0020`` zdejmuje
+    wtedy właścicieli i członkostwa – czyli robi dokładnie to, co ma zrobić ``backwards``.
     """
-    historical = migrate_to(BEFORE)
-    yield competition, historical
-    migrate_to_head()
+    with rewound_database(django_db_blocker, BEFORE) as db:
+        yield db.competition, db.apps
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
+@pytest.mark.migrations
 def test_the_backfill_assigns_the_existing_data_to_competition_one(before_backfill):
     """Profile bez właściciela dostają Konkurs #1, a grupy zamieniają się w członkostwa."""
     competition, historical = before_backfill
@@ -125,7 +100,8 @@ def test_the_backfill_assigns_the_existing_data_to_competition_one(before_backfi
     assert Membership.objects.filter(granted_by__isnull=False).count() == 0
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
+@pytest.mark.migrations
 def test_the_backfill_does_not_touch_rows_that_already_have_an_owner(before_backfill):
     """Wydania B i C stoją obok siebie: wiersz zapisany przez nowy kod ma zostać nietknięty."""
     competition, historical = before_backfill
@@ -136,7 +112,8 @@ def test_the_backfill_does_not_touch_rows_that_already_have_an_owner(before_back
     assert participants(historical).get(pk=mine.pk).competition_id == competition.pk
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
+@pytest.mark.migrations
 def test_running_the_backfill_twice_changes_nothing(before_backfill):
     """Idempotencja: powtórzone ``migrate`` na tej samej bazie nie dokłada drugiego członkostwa."""
     competition, _ = before_backfill
@@ -151,7 +128,8 @@ def test_running_the_backfill_twice_changes_nothing(before_backfill):
     assert Membership.objects.filter(competition=competition).count() == first
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
+@pytest.mark.migrations
 def test_the_backfill_is_reversible(before_backfill):
     """Cofnięcie wraca do stanu, w którym rolę niosą wyłącznie grupy – a nie do noopa."""
     competition, historical = before_backfill
@@ -170,19 +148,24 @@ def test_the_backfill_is_reversible(before_backfill):
     assert competition.pk is not None
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
+@pytest.mark.migrations
 def test_the_backfill_on_an_empty_database_does_nothing(before_backfill):
     """Świeża instalacja bez drzewa stron nie ma konkursu – i to jest odpowiedź poprawna.
 
     Migracja ma wtedy przejść bez wyjątku, bo inaczej ``migrate`` na pustej bazie (pierwsze
     wdrożenie, baza testowa) zatrzymałby się na pierwszym uruchomieniu.
 
-    Kasujemy modelami historycznymi także konkurs: prawdziwa klasa zebrałaby przy kasowaniu również
-    definicje zgód (``accounts.0023``), a tej tabeli na stanie ``0019`` jeszcze nie ma.
+    Konkurs kasujemy modelem w kształcie **zastosowanych** migracji (``applied_state_model``):
+    prawdziwa klasa zebrałaby przy kasowaniu również definicje zgód (``accounts.0023``), których
+    tabeli na stanie ``0019`` jeszcze nie ma, a model ze stanu ``0019`` nie zna tabel dołożonych
+    później poza tą gałęzią (szablony dokumentów konkursu, ``tenancy``) i zostawiłby w nich wiersze
+    wskazujące kasowany konkurs. Do 25.09.2026 test przechodził tylko dlatego, że wcześniejszy test
+    transakcyjny zdążył te tabele wyczyścić ``flush``-em.
     """
     _, historical = before_backfill
     participants(historical).all().delete()
-    historical.get_model("tenancy", "Competition").objects.all().delete()
+    applied_state_model("tenancy", "Competition").objects.all().delete()
     UserFactory(groups=[GROUP_COORDINATOR])
 
     migrate_to(AFTER)

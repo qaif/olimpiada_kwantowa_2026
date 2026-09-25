@@ -10,14 +10,16 @@ Ostatnia grupa jest najważniejsza i najłatwiejsza do zepsucia: gdyby migracja 
 „domknąć” takie wiersze przez przypisanie ich do jedynego konkursu instalacji, ślad po skasowanym
 obiekcie stałby się w bazie wielokonkursowej cudzą własnością.
 
-Test wygląda inaczej niż reszta pakietu z tych samych powodów, co ``apps/accounts/tests/
-test_migrations.py``: przewijanie migracji to DDL po DML, więc potrzebny jest ``transaction=True``.
+Bazę przewija fikstura modułu w transakcji wycofywanej na końcu modułu – wycofanie przywraca czoło
+migracji bez ``migrate`` i bez ``flush`` (``apps/core/tests/migration_helpers.py``).
 """
 
 import pytest
 from django.utils import timezone
 
-from .migration_helpers import ensure_competition, migrate_to, migrate_to_head
+from .migration_helpers import MIGRATION_TESTS, ensure_competition, migrate_to, rewound_database
+
+pytestmark = MIGRATION_TESTS
 
 #: Stan „tuż przed backfillem”. Celów jest kilka, bo ``executor.migrate`` przewija **wyłącznie
 #: przodków** podanego węzła: sam ``core.0002`` zabrałby z bazy kolumny konkursu w ``competitions``
@@ -33,10 +35,10 @@ BEFORE = [
 AFTER = [("core", "0003_backfill_auditlog_competition")]
 
 
-@pytest.fixture
-def rewound_apps(transactional_db):  # noqa: ARG001 - fikstura bazy, używana przez efekt uboczny
-    yield migrate_to(BEFORE)
-    migrate_to_head()
+@pytest.fixture(scope="module")
+def rewound_apps(django_db_setup, django_db_blocker):
+    with rewound_database(django_db_blocker, BEFORE) as db:
+        yield db.apps
 
 
 def make_entry(AuditLog, target_type: str, target_id) -> object:
@@ -49,7 +51,6 @@ def make_entry(AuditLog, target_type: str, target_id) -> object:
     )
 
 
-@pytest.mark.django_db(transaction=True)
 def test_entries_get_the_competition_of_their_target(rewound_apps):
     Edition = rewound_apps.get_model("competitions", "Edition")
     AuditLog = rewound_apps.get_model("core", "AuditLog")

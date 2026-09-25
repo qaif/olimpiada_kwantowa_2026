@@ -40,6 +40,16 @@ def test_the_row_names_anthropic_as_processor_and_the_transfer(competition):
     assert AI_GRADING_ACTIVITY.categories and AI_GRADING_ACTIVITY.measures
 
 
+#: Wersja rejestru, w której weszła ocena AI (``apps.accounts.processing_register``, 1.7 z 24.09.2026).
+AI_GRADING_REGISTER_VERSION = (1, 7)
+
+
 def test_register_version_was_bumped_for_the_new_processing():
-    # 1.9 (25.09.2026): powiadomienia z forum dołożyły odbiorcę w wierszu forum – wersja poszła dalej.
-    assert REGISTER_VERSION == "1.9"
+    """Rejestr z wierszem oceny AI ma wersję **co najmniej** tę, w której ten wiersz wszedł.
+
+    Porównanie „nie mniejsza niż”, a nie równość: do 25.09.2026 stało tu ``== "1.9"``, więc każda
+    kolejna materialna zmiana rejestru (forum, plakaty, …) musiała poprawiać test oceny AI, który
+    z nią nie miał nic wspólnego. Reguła tego testu brzmi „ocena AI podbiła wersję” – i tyle
+    sprawdza; to, że wersja rośnie przy każdej zmianie, jest regułą rejestru, nie tego pliku.
+    """
+    assert tuple(int(part) for part in REGISTER_VERSION.split(".")) >= AI_GRADING_REGISTER_VERSION

@@ -124,6 +124,11 @@ dev = [
     # job `tests`, `--splits`/`--group`). Bez pliku `.test_durations` dzieli po liczbie testów,
     # nie po zmierzonym czasie – patrz komentarz przy jobie.
     "pytest-split>=0.10,<1.0",
+    # Równoległy przebieg (``-n auto``) – lokalnie i w każdym shardzie CI. Każdy worker dostaje
+    # własną bazę testową (``test_<nazwa>_gw0`` …, robi to pytest-django), a ``conftest.py``
+    # przełącza ``-n`` na ``--dist loadgroup``, żeby moduł testów migracji szedł do jednego workera
+    # (docs/TESTY.md).
+    "pytest-xdist>=3.6,<4",
     "factory-boy>=3.3",
     "freezegun>=1.5",
     "ruff>=0.6",
@@ -175,5 +180,14 @@ python_files = ["test_*.py"]
 # --ds jest konieczne, bo w kontenerach compose ustawia DJANGO_SETTINGS_MODULE=config.settings.production,
 # a w pytest-django zmienna środowiskowa ma pierwszeństwo przed ini. Bez tego testy szłyby na prawdziwy
 # MinIO/Redis i nie miałyby CELERY_TASK_ALWAYS_EAGER.
-addopts = "-ra --strict-markers -p no:cacheprovider --ds=config.settings.test"
-markers = ["slow: testy wymagające zewnętrznych usług"]
+#
+# Bez ``-p no:cacheprovider`` (do 25.09.2026 był tu): pamięć podręczna pytesta daje ``--lf``
+# („tylko czerwone z poprzedniego przebiegu”) i ``--ff``, czyli najtańszą pętlę po poprawce.
+# Katalog ``.pytest_cache/`` jest w ``.gitignore``.
+addopts = "-ra --strict-markers --ds=config.settings.test"
+# Opis markerów i przebiegów (szybka pętla, pełny, xdist): docs/TESTY.md.
+markers = [
+    "slow: test drogi z natury (transakcyjny albo migracji) – CI go uruchamia, szybka pętla lokalna (-m \"not slow\") pomija; testy transakcyjne i migracji dostają go automatycznie (conftest.py)",
+    "migrations: test przewija migracje w transakcji fikstury modułu (apps/core/tests/migration_helpers.py)",
+    "clamav: test rozmawia z prawdziwym clamd zamiast z podstawionym (conftest.py, _fake_clamd); bez clamd się pomija",
+]

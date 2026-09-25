@@ -50,6 +50,11 @@ def test_appeal_queue_query_count_does_not_grow_with_appeals(client, open_stage)
     member = AppealsCommitteeMemberFactory()
 
     pending_appeals(open_stage, 2)
+    # Rozgrzewka: pierwsze żądanie w procesie wypełnia pamięci podręczne Django (typy treści),
+    # więc bywa o jedno zapytanie droższe od każdego następnego. Ten test jest o tym, jak koszt
+    # zależy od **liczby reklamacji**, a nie od tego, który test pierwszy trafił w ten proces –
+    # pod xdist to drugie zmienia się z każdym przebiegiem.
+    queries_for_queue(client, member, expected=2)
     baseline = queries_for_queue(client, member, expected=2)
 
     pending_appeals(open_stage, 8)

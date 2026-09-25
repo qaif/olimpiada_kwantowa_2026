@@ -14,9 +14,8 @@ migracji uruchomionej przy zakładaniu bazy testowej):
 - **odwrót nie traci informacji.** ``district`` zostaje nietknięte, więc cofnięcie wdrożenia
   oddaje bazę w stanie, z którego da się ruszyć drugi raz.
 
-Kształt testu (``transaction=True``, przywracanie czoła migracji w fiksturze) jest przepisany
-z ``apps/accounts/tests/test_migrations.py`` i z tych samych powodów: przewijanie migracji to DDL
-po DML, a czoło trzeba przywrócić także wtedy, gdy test przerwie się w połowie.
+Bazę przewija raz na moduł fikstura :func:`rewound`, w transakcji wycofywanej na końcu modułu
+(``apps/core/tests/migration_helpers.py``); każdy test zastaje ją w punkcie :data:`BEFORE`.
 
 Modele bierzemy **zwykłe** wszędzie tam, gdzie tabela nie zmieniła się po ``0026``. ``Participant``
 jest wyjątkiem i musi być brany **historycznie**: przewinięcie do ``0025`` zdejmuje wszystkie
@@ -25,6 +24,8 @@ i ``institution_name``, § 1.3.2). Model na żywo wstawiałby wtedy do ``INSERT`
 w przewiniętej bazie nie ma – i test przewracałby się na cudzej zmianie zamiast sprawdzać swoją.
 """
 
+import functools
+
 import pytest
 from django.conf import settings
 from django.db import connection
@@ -32,7 +33,10 @@ from django.db.migrations.executor import MigrationExecutor
 from wagtail.models import Locale, Page, Site
 
 from apps.accounts.models import CommitteeMember, Region, Voivodeship
+from apps.core.tests.migration_helpers import MIGRATION_TESTS, migrate_to, rewound_database
 from apps.tenancy.models import Competition
+
+pytestmark = MIGRATION_TESTS
 
 BEFORE = ("accounts", "0025_region")
 AFTER = ("accounts", "0026_regions_from_voivodeships")
@@ -41,37 +45,22 @@ COUNTRY_CODE = "pl"
 ABROAD_CODE = "poza-polska"
 
 
-def migrate_to(target) -> None:
-    """Przewija bazę do wskazanej migracji."""
-    executor = MigrationExecutor(connection)
-    executor.loader.build_graph()
-    executor.migrate([target])
-    executor.loader.build_graph()
-
-
-def migrate_to_head() -> None:
-    """Przywraca czoło migracji **wszystkich** aplikacji, nie tylko przewijanej."""
-    executor = MigrationExecutor(connection)
-    executor.loader.build_graph()
-    executor.migrate(executor.loader.graph.leaf_nodes())
-    executor.loader.build_graph()
-
-
-@pytest.fixture
-def rewound(transactional_db):  # noqa: ARG001 - fikstura bazy, używana przez efekt uboczny
+@pytest.fixture(scope="module")
+def rewound(django_db_setup, django_db_blocker):
     """Baza cofnięta do stanu sprzed wpisania regionów – tabela stoi, wierszy nie ma."""
-    migrate_to(BEFORE)
-    yield
-    migrate_to_head()
+    with rewound_database(django_db_blocker, BEFORE) as db:
+        yield db
 
 
+@functools.cache
 def participants_at(target):
     """Model ``Participant`` **ze stanu** wskazanej migracji – bez kolumn dołożonych później.
 
     Kolumny ``country`` i ``institution_name`` dokłada ``accounts.0028`` (§ 1.3.2), a przewinięcie
     do ``0025`` zdejmuje je razem z całą resztą. Historia w tym miejscu nie jest ostrożnością na
     zapas: ten test wpisuje wiersze **przed** migracją i czyta je **po** niej, więc w obu punktach
-    musi patrzeć na tabelę taką, jaka wtedy jest.
+    musi patrzeć na tabelę taką, jaka wtedy jest. Stan zależy wyłącznie od plików migracji, więc
+    składamy go raz na punkt, a nie przy każdym odczycie.
     """
     executor = MigrationExecutor(connection)
     executor.loader.build_graph()
@@ -135,7 +124,6 @@ def codes_of(competition) -> list[str]:
     )
 
 
-@pytest.mark.django_db(transaction=True)
 def test_every_competition_gets_the_set_mirroring_the_voivodeships(rewound):  # noqa: ARG001 - jw.
     first = make_competition("pierwsza")
     second = make_competition("druga")
@@ -151,7 +139,6 @@ def test_every_competition_gets_the_set_mirroring_the_voivodeships(rewound):  # 
         assert (abroad.is_active, abroad.counts_for_conflict) == (False, False)
 
 
-@pytest.mark.django_db(transaction=True)
 def test_profiles_keep_their_district_and_gain_the_matching_region(rewound):  # noqa: ARG001 - jw.
     """Backfill jest złączeniem po ``district`` – i ``district`` po nim zostaje bez zmiany."""
     competition = make_competition("pierwsza")
@@ -173,7 +160,6 @@ def test_profiles_keep_their_district_and_gain_the_matching_region(rewound):  # 
     assert other.region_id != participant.region_id
 
 
-@pytest.mark.django_db(transaction=True)
 def test_a_member_without_a_district_stays_without_a_region(rewound):  # noqa: ARG001 - jw.
     """Brak okręgu u członka komitetu nie wyklucza go z niczego – i nie jest zgadywany."""
     competition = make_competition("pierwsza")
@@ -185,7 +171,6 @@ def test_a_member_without_a_district_stays_without_a_region(rewound):  # noqa: A
     assert member.region_id is None
 
 
-@pytest.mark.django_db(transaction=True)
 def test_a_non_canonical_district_still_finds_its_region(rewound):  # noqa: ARG001 - jw.
     """Zapisy sprzed ``accounts.0007`` („woj. Mazowieckie”) trafiają tam, gdzie trafiają dziś."""
     competition = make_competition("pierwsza")
@@ -201,7 +186,6 @@ def test_a_non_canonical_district_still_finds_its_region(rewound):  # noqa: ARG0
     assert legacy.district == "woj. Mazowieckie"
 
 
-@pytest.mark.django_db(transaction=True)
 def test_the_migration_repeated_does_not_multiply_regions(rewound):  # noqa: ARG001 - jw.
     competition = make_competition("pierwsza")
     migrate_to(AFTER)
@@ -214,7 +198,6 @@ def test_the_migration_repeated_does_not_multiply_regions(rewound):  # noqa: ARG
     assert codes_of(competition) == list(Voivodeship.values)
 
 
-@pytest.mark.django_db(transaction=True)
 def test_running_the_forwards_step_again_does_not_overwrite_a_region_chosen_by_hand(rewound):  # noqa: ARG001 - jw.
     """Backfill dotyka wyłącznie wierszy **bez** regionu – wybór człowieka nie jest nadpisywany.
 
@@ -243,7 +226,6 @@ def test_running_the_forwards_step_again_does_not_overwrite_a_region_chosen_by_h
     assert Region.objects.filter(competition=competition).count() == before
 
 
-@pytest.mark.django_db(transaction=True)
 def test_reversing_the_migration_keeps_every_district(rewound):  # noqa: ARG001 - jw.
     """Odwrót zabiera regiony, a ``district`` zostawia – dlatego cofnięcie nic nie traci."""
     competition = make_competition("pierwsza")

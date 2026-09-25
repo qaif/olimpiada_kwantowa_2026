@@ -70,6 +70,42 @@ def clamd(monkeypatch):
     return state
 
 
+#: Moduły SDK dostawców (``Provider.sdk_module`` i rodzic ``google``) – patrz ``_sdk_installed``.
+SDK_MODULES = frozenset({"anthropic", "openai", "google", "google.genai"})
+
+
+@pytest.fixture(autouse=True)
+def _sdk_installed(monkeypatch):
+    """Dostawcy widzą swoje SDK jako zainstalowane – także na maszynie, na której go nie ma.
+
+    Dostępność dostawcy to ``importlib.util.find_spec(sdk_module)`` (``providers.base``), a prawie
+    każdy test tego pakietu zakłada dostawcę dostępnego: żaden nie woła prawdziwego API
+    (``services.call_model`` i fabryka klienta są podmieniane). Bez tej fikstury wynik ~40 testów
+    zależał od tego, czy w środowisku stoją pakiety ``anthropic``/``openai``/``google-genai`` –
+    obraz deweloperski zbudowany przed ich dodaniem (24.09.2026) dawał czerwone testy usług, które
+    z SDK nie mają nic wspólnego. W CI pakiety są zawsze (``pyproject.toml``).
+
+    Testy, które naprawdę składają obiekty SDK, same się pomijają bez pakietu
+    (``pytest.importorskip``); test braku SDK (``test_providers.py``) podmienia ``find_spec``
+    jeszcze raz, na tej podmianie.
+    """
+    import importlib.machinery
+    import importlib.util
+
+    real = importlib.util.find_spec
+
+    def find_spec(name, *args, **kwargs):
+        try:
+            spec = real(name, *args, **kwargs)
+        except ModuleNotFoundError:
+            spec = None
+        if spec is None and name in SDK_MODULES:
+            return importlib.machinery.ModuleSpec(name, loader=None)
+        return spec
+
+    monkeypatch.setattr(importlib.util, "find_spec", find_spec)
+
+
 def enable_ai(competition):
     """Konkurs z włączoną oceną AI – zapisany, bo flagę czyta middleware z bazy."""
     competition.feature_flags = {**(competition.feature_flags or {}), "ai_grading": True}

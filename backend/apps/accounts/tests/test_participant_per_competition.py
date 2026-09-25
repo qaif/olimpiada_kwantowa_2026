@@ -13,14 +13,14 @@ którą § 6 (T2) wymienia jako największe ryzyko całego etapu:
 """
 
 import pytest
-from django.db import IntegrityError, connection, transaction
+from django.db import IntegrityError, transaction
 
 from apps.accounts import services
 from apps.accounts.models import PUBLIC_CODE_PREFIX, Participant, generate_public_code
 from apps.accounts.services import participant_for, participations_of
+from apps.core.tests.migration_helpers import migrate_to, rewound_database
 
 from .factories import ParticipantFactory, UserFactory
-from .test_migrations import migrate_to, migrate_to_head
 
 BEFORE = ("accounts", "0021_participant_per_competition")
 AFTER = ("accounts", "0022_competition_not_null")
@@ -127,15 +127,16 @@ def test_a_code_generated_without_a_competition_falls_back_to_the_module_constan
 
 # --- zapytanie kontrolne przed ``NOT NULL`` (§ 4.4) ----------------------------------------------
 #
-# Test wygląda inaczej niż reszta pakietu z tych samych powodów, co ``test_migrations.py``:
-# przewijanie migracji to DDL po DML, więc potrzebny jest ``transaction=True``, a fikstura
-# przywraca czoło migracji także wtedy, gdy test przerwie się w połowie.
+# Dwa testy migracji w module, który poza nimi ma zwykłe testy – dlatego przewinięcie jest
+# fiksturą **testu**, a nie modułu: przewinięta baza nie może zostać pod testami, które jej nie
+# zamawiały. Transakcja fikstury jest wycofywana po teście, a z nią przewinięcie
+# (``apps/core/tests/migration_helpers.py``).
 
 
 @pytest.fixture
-def rewound_apps(transactional_db):  # noqa: ARG001 - fikstura bazy, używana przez efekt uboczny
-    yield migrate_to(BEFORE)
-    migrate_to_head()
+def rewound_apps(django_db_setup, django_db_blocker):
+    with rewound_database(django_db_blocker, BEFORE) as db:
+        yield db.apps
 
 
 def _orphan_participant(apps) -> int:
@@ -153,7 +154,8 @@ def _orphan_participant(apps) -> int:
     ).pk
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
+@pytest.mark.migrations
 def test_the_control_query_stops_the_deployment_and_names_the_table(rewound_apps):
     """Niezerowy wynik zapytania kontrolnego = ``RuntimeError`` **przed** zmianą schematu.
 
@@ -166,14 +168,12 @@ def test_the_control_query_stops_the_deployment_and_names_the_table(rewound_apps
     with pytest.raises(RuntimeError) as exc:
         migrate_to(AFTER)
     assert "accounts_participant" in str(exc.value)
-
-    # Sprzątamy **sami**: fikstura przywraca czoło migracji, a czoło zawiera ``NOT NULL``, więc
-    # zostawiony wiersz przewróciłby jej sprzątanie zamiast tego testu.
-    with connection.cursor() as cursor:
-        cursor.execute("DELETE FROM accounts_participant WHERE id = %s", [pk])
+    # Wdrożenie stanęło przed zmianą schematu: wiersz czeka na poprawkę, nic nie zostało skasowane.
+    assert rewound_apps.get_model("accounts", "Participant").objects.filter(pk=pk).exists()
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
+@pytest.mark.migrations
 def test_a_database_without_orphans_migrates_cleanly(rewound_apps):  # noqa: ARG001 - jw.
     """Ta sama migracja na bazie po backfillu przechodzi i domyka kolumnę na ``NOT NULL``."""
     migrate_to(AFTER)

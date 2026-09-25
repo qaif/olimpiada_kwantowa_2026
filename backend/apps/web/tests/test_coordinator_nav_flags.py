@@ -156,20 +156,31 @@ FLAG_ITEMS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "ai_grading": (frozenset({"Ocena AI"}), frozenset({"Ocena AI"})),
 }
 
-#: Flagi spoza etapu 2, które mimo to dokładają pozycję menu i dlatego stoją w tabeli wyżej.
-#: Dziś jest ich pięć: ``competition_creation`` (ekran „Nowy konkurs”, subdomeny platformy),
-#: ``participant_forum`` (moderacja forum, prośba organizatora z 21.09.2026) oraz trzy z prośby
-#: organizatora z 24.09.2026 (wydanie v0.34.0): ``student_status_certificate`` (zaświadczenia
-#: o statusie ucznia), ``workshop_materials`` (materiały z warsztatów) i ``ai_grading`` (ocena AI).
-#: Stała istnieje po to, żeby licznik niżej nadal mówił o **etapie 2** – inaczej trzeba by przy
-#: każdym kolejnym ekranie poprawiać liczbę, o której dokument mówi, że jest ceną świadomie zapłaconą.
-LATER_FLAGS = frozenset(
+#: Piętnaście flag **etapu 2** – zdanie z ``docs/UNIWERSALNY-ETAP-2.md`` § 0.6 („piętnaście flag to
+#: dużo i to jest świadoma cena”), zamrożone jako lista nazw, a nie jako liczba do odejmowania.
+#:
+#: Do 25.09.2026 stała tu odwrotna lista – ``LATER_FLAGS``, flagi dołożone **po** etapie 2 – i test
+#: liczył ``len(katalog - LATER_FLAGS) == 15``. Każdy nowy ekran za flagą musiał więc dopisać się
+#: także do tej listy, a dwa równoległe zadania z nowymi flagami gwarantowały konflikt w jednym
+#: wierszu. Etap 2 się nie zmienia, więc zamrożona jest jego lista; nowa flaga dopisuje tylko swój
+#: wiersz do ``FLAG_ITEMS``.
+STAGE_TWO_FLAGS = frozenset(
     {
-        "competition_creation",
-        "participant_forum",
-        "student_status_certificate",
-        "workshop_materials",
-        "ai_grading",
+        "per_competition_consents",
+        "competition_branding_in_mail",
+        "document_templates",
+        "scoped_cms_permissions",
+        "custom_regions",
+        "institution_types",
+        "custom_school_directory",
+        "process_editor",
+        "categories",
+        "team_entries",
+        "weighted_scoring",
+        "reviewer_roles",
+        "fees",
+        "onsite_logistics",
+        "content_translations",
     }
 )
 
@@ -337,10 +348,10 @@ def test_the_table_of_flags_covers_the_whole_stage_two_catalogue():
     catalogue = set(FEATURE_DEFAULTS) - STAGE_ONE_FLAGS
 
     assert set(FLAG_ITEMS) == catalogue
-    # § 0.6: „Piętnaście flag to dużo i to jest świadoma cena”. Liczymy **etap 2**, więc flagi
-    # dołożone później (``LATER_FLAGS``) odejmujemy – mają własne wiersze w tabeli wyżej, ale nie
-    # zmieniają zdania, które dokument postawił o etapie 2.
-    assert len(catalogue - LATER_FLAGS) == 15
+    # § 0.6: „Piętnaście flag to dużo i to jest świadoma cena” – zdanie o **etapie 2**. Flagi
+    # dołożone później mają własne wiersze w tabeli wyżej i tego zdania nie zmieniają.
+    assert STAGE_TWO_FLAGS <= catalogue
+    assert len(STAGE_TWO_FLAGS) == 15
 
 
 @pytest.mark.parametrize("flag", sorted(FLAG_ITEMS))

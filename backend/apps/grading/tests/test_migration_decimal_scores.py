@@ -6,8 +6,9 @@ w miejsce tych, które dawał typ ``Positive*``. Dane zakładamy na czole (fabry
 migracje – wtedy kolumny są znów całkowite i trzymają te same liczby – i sprawdzamy przejście w przód
 zapytaniami SQL, bez modeli, bo model bieżący zna już tylko typ dziesiętny.
 
-Tak jak w ``competitions/tests/test_pipeline_migration.py``: przewijanie to DDL po DML, więc test jest
-transakcyjny, a czoło migracji wraca w ``finally``.
+Przewinięcie dzieje się w punkcie zapisu testu (marker ``migrations``): po teście transakcja jest
+wycofywana, a z nią przewinięcie i dane – czoło migracji wraca bez ``migrate`` i bez ``flush``
+(``apps/core/tests/migration_helpers.py``).
 """
 
 from __future__ import annotations
@@ -24,7 +25,7 @@ from apps.competitions.tests.factories import (
     StageEntryFactory,
     StageFactory,
 )
-from apps.core.tests.migration_helpers import migrate_to, migrate_to_head
+from apps.core.tests.migration_helpers import migrate_to
 from apps.grading.models import ReviewStatus
 from apps.grading.tests.factories import FinalGradeFactory, ReviewFactory
 from apps.submissions.models import SubmissionStatus
@@ -58,7 +59,8 @@ def value(table: str, name: str, pk: int):
         return cursor.fetchone()[0]
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
+@pytest.mark.migrations
 def test_migracja_przenosi_oceny_calkowite_co_do_wartosci(competition):  # noqa: ARG001 - Konkurs #1
     stage = StageFactory()
     ScoringScaleFactory(stage=stage)
@@ -71,28 +73,25 @@ def test_migracja_przenosi_oceny_calkowite_co_do_wartosci(competition):  # noqa:
     review = ReviewFactory(submission=submission, status=ReviewStatus.SUBMITTED, score=5)
     grade = FinalGradeFactory(submission=submission, score=6)
 
-    try:
-        migrate_to(BEFORE)
-        assert column("grading_review", "score")[0] == "smallint"
-        assert value("grading_review", "score", review.pk) == 5
+    migrate_to(BEFORE)
+    assert column("grading_review", "score")[0] == "smallint"
+    assert value("grading_review", "score", review.pk) == 5
 
-        migrate_to(AFTER)
+    migrate_to(AFTER)
 
-        assert column("grading_review", "score") == ("numeric", 7, 2)
-        assert column("grading_finalgrade", "score") == ("numeric", 7, 2)
-        assert column("competitions_stageentry", "total_points") == ("numeric", 10, 2)
-        assert column("competitions_qualificationrule", "min_points") == ("numeric", 10, 2)
-        assert column("competitions_problem", "max_points") == ("numeric", 7, 2)
-        assert column("appeals_appealdecision", "new_score") == ("numeric", 7, 2)
-        assert value("grading_review", "score", review.pk) == Decimal("5.00")
-        assert value("grading_finalgrade", "score", grade.pk) == Decimal("6.00")
-        assert value("competitions_stageentry", "total_points", entry.pk) == Decimal("11.00")
-        assert value("competitions_qualificationrule", "min_points", rule.pk) == Decimal("40.00")
-        assert value("competitions_problem", "max_points", problem.pk) == Decimal("7.00")
-        assert value("competitions_scoringscale", "free_values", stage.scoring_scale.pk) is False
+    assert column("grading_review", "score") == ("numeric", 7, 2)
+    assert column("grading_finalgrade", "score") == ("numeric", 7, 2)
+    assert column("competitions_stageentry", "total_points") == ("numeric", 10, 2)
+    assert column("competitions_qualificationrule", "min_points") == ("numeric", 10, 2)
+    assert column("competitions_problem", "max_points") == ("numeric", 7, 2)
+    assert column("appeals_appealdecision", "new_score") == ("numeric", 7, 2)
+    assert value("grading_review", "score", review.pk) == Decimal("5.00")
+    assert value("grading_finalgrade", "score", grade.pk) == Decimal("6.00")
+    assert value("competitions_stageentry", "total_points", entry.pk) == Decimal("11.00")
+    assert value("competitions_qualificationrule", "min_points", rule.pk) == Decimal("40.00")
+    assert value("competitions_problem", "max_points", problem.pk) == Decimal("7.00")
+    assert value("competitions_scoringscale", "free_values", stage.scoring_scale.pk) is False
 
-        # Więz „nie mniej niż zero” stoi po zmianie typu tak, jak stał dzięki ``Positive*``.
-        with pytest.raises(IntegrityError), transaction.atomic(), connection.cursor() as cursor:
-            cursor.execute("UPDATE grading_review SET score = -1 WHERE id = %s", [review.pk])
-    finally:
-        migrate_to_head()
+    # Więz „nie mniej niż zero” stoi po zmianie typu tak, jak stał dzięki ``Positive*``.
+    with pytest.raises(IntegrityError), transaction.atomic(), connection.cursor() as cursor:
+        cursor.execute("UPDATE grading_review SET score = -1 WHERE id = %s", [review.pk])

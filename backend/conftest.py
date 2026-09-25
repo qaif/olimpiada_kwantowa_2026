@@ -5,8 +5,220 @@
 # uruchomienia. Import na starcie sesji ustala prawdziwy zegar raz na zawsze.
 import rest_framework.throttling  # isort: skip
 
+import os
+import shutil
+import subprocess
+import tempfile
+from pathlib import Path
+
 import pytest
 from django.core.cache import cache
+
+#: Katalog ``backend/`` – tu leżą ``locale/`` i ``static/``, niezależnie od katalogu, z którego
+#: ktoś uruchomił pytest.
+BACKEND_DIR = Path(__file__).resolve().parent
+
+
+# =================================================================================================
+# Infrastruktura przebiegu (``docs/TESTY.md``)
+# =================================================================================================
+
+
+def pytest_configure(config):
+    _compile_translations(config)
+    _group_scoped_tests_under_xdist(config)
+
+
+def _compile_translations(config) -> None:
+    """Kompiluje ``locale/*/LC_MESSAGES/django.po`` do ``.mo``, gdy ``.mo`` brakuje albo jest starszy.
+
+    Obraz robi to przy budowaniu, a CI w osobnym kroku – ale lokalny przebieg w kontenerze
+    z zamontowanym kodem nie robi tego nigdzie, a brak ``.mo`` nie jest błędem Django: angielski
+    po prostu cicho oddaje polskie napisy, więc testy języka listów i panelu padały z komunikatem
+    o treści, a nie o brakującym pliku. Kompilacja trwa ułamek sekundy i dzieje się raz na sesję
+    (pod xdist – w procesie sterującym, zanim wystartują workery).
+
+    Brak ``msgfmt`` (host bez gettext) nie przerywa sesji, tylko zostawia ostrzeżenie z nazwą
+    narzędzia – testy tłumaczeń powiedzą wtedy same, czego im brakuje.
+    """
+    if hasattr(config, "workerinput"):  # worker xdist: kompilował już proces sterujący
+        return
+    stale = [
+        po
+        for po in sorted(BACKEND_DIR.glob("locale/*/LC_MESSAGES/*.po"))
+        if not po.with_suffix(".mo").exists() or po.with_suffix(".mo").stat().st_mtime < po.stat().st_mtime
+    ]
+    if not stale:
+        return
+    msgfmt = shutil.which("msgfmt")
+    if msgfmt is None:
+        config.issue_config_time_warning(
+            pytest.PytestConfigWarning(
+                "Brak skompilowanych katalogów tłumaczeń (.mo) i brak programu msgfmt (pakiet gettext) – "
+                "testy wersji angielskiej nie przejdą. Uruchom testy w kontenerze albo doinstaluj gettext."
+            ),
+            stacklevel=2,
+        )
+        return
+    for po in stale:
+        # Zapis przez plik tymczasowy i ``os.replace``: dwie sesje uruchomione naraz na tym samym
+        # katalogu nie zobaczą nigdy połowy pliku.
+        fd, tmp = tempfile.mkstemp(suffix=".mo", dir=po.parent)
+        os.close(fd)
+        try:
+            subprocess.run([msgfmt, "-o", tmp, str(po)], check=True)  # noqa: S603 - ścieżka z which
+            os.replace(tmp, po.with_suffix(".mo"))
+        finally:
+            if os.path.exists(tmp):
+                os.remove(tmp)
+    # Katalog mógł zostać wczytany (bez pliku) jeszcze przy ``django.setup()`` – zapominamy go,
+    # żeby pierwsze ``activate("en")`` sięgnęło po świeżo skompilowany plik.
+    from django.utils.translation import trans_real
+
+    trans_real._translations = {}
+
+
+def _group_scoped_tests_under_xdist(config) -> None:
+    """``-n N`` bez ``--dist`` rozdziela testy po jednym – zamieniamy to na ``loadgroup``.
+
+    ``loadgroup`` rozdziela dokładnie tak samo jak ``load``, z jednym wyjątkiem: testy z tym samym
+    ``xdist_group`` idą do jednego workera. Tak oznaczamy moduły z fiksturą o zasięgu modułu,
+    która jest droga (przewinięta baza w testach migracji, ``migration_helpers``) – rozrzucone po
+    workerach płaciłyby za nią tyle razy, ilu workerów dotknęły.
+    """
+    if getattr(config.option, "dist", "no") == "load":
+        config.option.dist = "loadgroup"
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_collection_modifyitems(config, items):
+    # ``tryfirst``: worker xdist dokleja grupę do identyfikatora testu we własnym
+    # ``pytest_collection_modifyitems`` – marker ``xdist_group`` dołożony po nim nie miałby skutku.
+    """Markery wynikające z **kształtu** testu, a nie z pamięci autora (``docs/TESTY.md``).
+
+    - ``slow`` dostaje każdy test transakcyjny (``transaction=True``/``transactional_db``: po
+      teście ``TRUNCATE`` wszystkich tabel i odtworzenie uprawnień) i każdy test migracji
+      (``migrations``: przewijanie bazy). Szybka pętla lokalna to ``-m "not slow"``; CI uruchamia
+      wszystko.
+    - test migracji dostaje ``xdist_group`` swojego modułu: przewinięta baza jest fiksturą modułu
+      i ma powstać raz, a nie raz na worker,
+    - w obrębie modułu testy migracji idą **po** pozostałych: fikstura modułu trzyma bazę
+      przewiniętą aż do ostatniego testu modułu, więc zwykły test po niej zastałby cudzy schemat
+      (pilnuje tego też ``_bind_competition`` – zwykły test na przewiniętej bazie kończy się
+      błędem, a nie wynikiem z przypadku).
+    """
+    slow = pytest.mark.slow
+    for item in items:
+        is_migration = item.get_closest_marker("migrations") is not None
+        if (_is_transactional(item) or is_migration) and item.get_closest_marker("slow") is None:
+            item.add_marker(slow)
+        if is_migration:
+            item.add_marker(pytest.mark.xdist_group(name=item.module.__name__))
+    items[:] = _migration_tests_last_in_their_module(items)
+
+
+def _migration_tests_last_in_their_module(items):
+    """Stabilnie: w każdym ciągłym bloku testów jednego modułu testy ``migrations`` na koniec."""
+    ordered, block = [], []
+
+    def flush():
+        ordered.extend(item for item in block if item.get_closest_marker("migrations") is None)
+        ordered.extend(item for item in block if item.get_closest_marker("migrations") is not None)
+        block.clear()
+
+    for item in items:
+        if block and getattr(item, "module", None) is not getattr(block[0], "module", None):
+            flush()
+        block.append(item)
+    flush()
+    return ordered
+
+
+def _is_transactional(item) -> bool:
+    """Czy test kończy się ``flush``-em (``TransactionTestCase``), a nie wycofaniem transakcji."""
+    db_marker = item.get_closest_marker("django_db")
+    if db_marker is not None and db_marker.kwargs.get("transaction"):
+        return True
+    return "transactional_db" in getattr(item, "fixturenames", ())
+
+
+# --- baza po teście transakcyjnym --------------------------------------------------------------
+#
+# Test transakcyjny kończy się ``flush``-em: pusta **każda** tabela, a potem ``post_migrate`` odtwarza
+# typy treści i uprawnienia – ale nie wiersze wpisane migracjami (Konkurs #1 z ``tenancy.0002``,
+# drzewo stron z ``cms.0002``, ustawienia serwisu). Do 25.09.2026 zostawało to tak, a kolejne testy
+# w tym samym procesie dostawały konkurs „odtworzony” przez ``restored_competition`` – bez nadawcy,
+# bez prefiksu tematów, bez stron. Wynik testu zależał więc od tego, czy **przed nim** w tym samym
+# procesie biegł test transakcyjny: w jednym procesie kolejność była stała, pod xdist i w shardach
+# CI – nie. ``--reuse-db`` utrwalał ten stan między sesjami.
+#
+# Teraz baza wraca do stanu po migracjach dokładnie: migawka (Django ``serialize_db_to_string``,
+# ten sam mechanizm co ``serialized_rollback``) powstaje raz na sesję – tylko wtedy, gdy w zbiorze
+# jest choć jeden test transakcyjny – a po każdym takim teście baza jest czyszczona bez
+# ``post_migrate`` i ładowana z migawki (z typami treści i uprawnieniami o tych samych kluczach).
+
+_db_snapshot: dict[str, str] = {}
+
+#: Moduł, którego fikstura trzyma w tej chwili przewiniętą bazę (``migration_helpers.rewound_database``).
+REWOUND_DATABASE: dict[str, str | None] = {"module": None}
+
+
+@pytest.fixture(scope="session")
+def django_db_setup(django_db_setup, django_db_blocker, request):  # noqa: ARG001 - nadpisanie fikstury
+    """Baza testowa pytest-django + migawka stanu po migracjach (patrz komentarz wyżej)."""
+    if any(_is_transactional(item) for item in request.session.items):
+        from django.db import connection
+
+        with django_db_blocker.unblock():
+            _db_snapshot["default"] = connection.creation.serialize_db_to_string()
+    yield
+
+
+@pytest.hookimpl(wrapper=True)
+def pytest_runtest_teardown(item, nextitem):
+    try:
+        return (yield)
+    finally:
+        # ``nextitem is None`` – koniec sesji: bez ``--reuse-db`` baza testowa właśnie zniknęła,
+        # z nim zostaje dla następnej sesji i ma zostać w stanie po migracjach.
+        keeps_db = item.config.getoption("reuse_db") and not item.config.getoption("create_db")
+        if "default" in _db_snapshot and _is_transactional(item) and (nextitem is not None or keeps_db):
+            _restore_db_snapshot(item.config)
+
+
+def _restore_db_snapshot(config) -> None:
+    from django.core.management import call_command
+    from django.db import connection
+    from pytest_django.plugin import blocking_manager_key
+
+    with config.stash[blocking_manager_key].unblock():
+        call_command(
+            "flush", interactive=False, inhibit_post_migrate=True, reset_sequences=False, verbosity=0
+        )
+        connection.creation.deserialize_db_from_string(_db_snapshot["default"])
+
+
+@pytest.fixture
+def django_assert_num_queries():
+    """Jak w pytest-django, ale niepowodzenie pokazuje zapytania zawsze, a nie tylko z ``-v``.
+
+    Raport (powtórzenia na górze, potem pełna lista) składa ``apps/core/tests/query_budgets.py``.
+    """
+    from functools import partial
+
+    from apps.core.tests.query_budgets import assert_queries
+
+    return partial(assert_queries, exact=True)
+
+
+@pytest.fixture
+def django_assert_max_num_queries():
+    """Jak ``django_assert_num_queries`` wyżej, dla progu „najwyżej N”."""
+    from functools import partial
+
+    from apps.core.tests.query_budgets import assert_queries
+
+    return partial(assert_queries, exact=False)
 
 
 @pytest.fixture(autouse=True)
@@ -20,6 +232,127 @@ def _clear_cache():
     cache.clear()
     yield
     cache.clear()
+
+
+@pytest.fixture(autouse=True)
+def _clear_process_caches():
+    """Pamięci podręczne **procesu** (poza ``django.core.cache``) – od zera w każdym teście.
+
+    Dwa przełączniki czytane przy każdej odpowiedzi HTML trzymają wynik przez 30 s w słowniku
+    modułu: identyfikator GA4 (``apps.cms.analytics``) i rejestracja opiekunów
+    (``apps.accounts.supervisors``). Wycofanie transakcji ich nie czyści, a klucz (identyfikator
+    witryny domyślnej) jest w każdym teście ten sam – więc bez tego wynik testu zależał od tego,
+    co przed nim biegło w **tym samym procesie**. Pod xdist kolejność zmienia się z każdym
+    przebiegiem, więc zależność od kolejności zamieniłaby się w losowe czerwone testy.
+    """
+    from apps.accounts.supervisors import reset_registration_cache
+    from apps.cms import analytics
+
+    analytics._cache.clear()
+    reset_registration_cache()
+    yield
+    analytics._cache.clear()
+    reset_registration_cache()
+
+
+# =================================================================================================
+# Skaner antywirusowy: podmieniony na poziomie gniazda dla każdego testu
+# =================================================================================================
+
+#: Fragment wzorca EICAR – po nim podstawiony clamd rozpoznaje „wirusa”, jak prawdziwy.
+EICAR_MARK = b"EICAR-STANDARD-ANTIVIRUS-TEST-FILE"
+#: Sygnatura, którą podstawiony clamd zgłasza dla EICAR-a (ta sama, co w clamav 1.4).
+FAKE_CLAMD_SIGNATURE = "Win.Test.EICAR_HDB-1"
+
+
+class FakeClamdConnection:
+    """Gniazdo „do clamd”, które mówi protokołem ``zINSTREAM``/``zPING`` bez sieci.
+
+    Ramki są parsowane **ściśle** (4-bajtowa długość, porcja, zero na końcu), więc test przez ten
+    obiekt sprawdza też sposób, w jaki ``scan_stream`` pakuje dane – a nie tylko to, co zadanie
+    robi z werdyktem.
+    """
+
+    def __init__(self):
+        self.sent = bytearray()
+        self._answered = False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def settimeout(self, timeout):
+        pass
+
+    def sendall(self, data):
+        self.sent += data
+
+    def close(self):
+        pass
+
+    def recv(self, bufsize):
+        if self._answered:
+            return b""
+        self._answered = True
+        return self._answer()
+
+    def _answer(self) -> bytes:
+        data = bytes(self.sent)
+        if data.startswith(b"zPING\0"):
+            return b"PONG\0"
+        if not data.startswith(b"zINSTREAM\0"):
+            return b"UNKNOWN COMMAND\0"
+        payload, offset = bytearray(), len(b"zINSTREAM\0")
+        while True:
+            if offset + 4 > len(data):
+                return b"INSTREAM: truncated frame ERROR\0"
+            size = int.from_bytes(data[offset : offset + 4], "big")
+            offset += 4
+            if size == 0:
+                break
+            payload += data[offset : offset + size]
+            offset += size
+        if EICAR_MARK in payload:
+            return f"stream: {FAKE_CLAMD_SIGNATURE} FOUND\0".encode()
+        return b"stream: OK\0"
+
+
+class FakeClamdSocketModule:
+    """To, czego ``apps.submissions.antivirus`` używa z modułu ``socket`` – i nic więcej."""
+
+    def __init__(self):
+        self.connections: list[FakeClamdConnection] = []
+
+    def create_connection(self, address, timeout=None):
+        connection = FakeClamdConnection()
+        self.connections.append(connection)
+        return connection
+
+
+@pytest.fixture(autouse=True)
+def _fake_clamd(request, monkeypatch):
+    """Żaden test nie rozmawia z prawdziwym clamd – chyba że poprosi o to markerem ``clamav``.
+
+    Podmiana jest na poziomie **gniazda** w ``apps.submissions.antivirus``, a nie funkcji
+    ``scan_stream``: tę funkcję importuje po nazwie pięć modułów (i każdy nowy zrobi to samo),
+    więc podmiana nazwy łatałaby tylko te, o których ktoś pamiętał. Wcześniej testy uploadu spoza
+    ``apps/submissions`` szły do prawdziwego ``clamav:3310`` – w kontenerze compose działały (wolno),
+    w CI kończyły się ponowieniami zadania, a na maszynie bez compose zależały od DNS-u.
+
+    Pakiety, które sterują werdyktem (``clamd`` w ``apps/submissions/tests/conftest.py``
+    i ``apps/ai_grading/tests/conftest.py``), dalej podmieniają ``scan_stream`` – ta fikstura
+    jest siatką pod spodem, a nie ich zastępstwem.
+    """
+    if request.node.get_closest_marker("clamav"):
+        yield None
+        return
+    from apps.submissions import antivirus
+
+    fake = FakeClamdSocketModule()
+    monkeypatch.setattr(antivirus, "socket", fake)
+    yield fake
 
 
 # =================================================================================================
@@ -122,7 +455,7 @@ def existing_competition():
     """Konkurs #1 tak, jak stoi w bazie testowej, albo ``None``. **Niczego nie tworzy.**
 
     Brak konkursu jest tu odpowiedzią poprawną, a nie stanem do naprawienia: baza po teście
-    transakcyjnym (``apps/tenancy/tests/test_migration_0002.py``) bywa pusta, a założenie w takiej
+    transakcyjnym przerwanym w połowie (``--reuse-db``) bywa pusta, a założenie w takiej
     chwili konkursu „na wszelki wypadek” podstawiałoby testowi świat, którego nie zamawiał.
     """
     from apps.tenancy.models import Competition
@@ -143,6 +476,10 @@ def restored_competition():
 
     Odtworzenie jest tym samym, co ``root_page`` robi dla drzewa stron: przywróceniem stanu, który
     migracje gwarantują, a nie podstawieniem testowi świata, którego nie zamawiał.
+
+    Od 25.09.2026 to jest już tylko siatka bezpieczeństwa: po każdym teście transakcyjnym baza wraca
+    do stanu po migracjach z migawki (``_restore_db_snapshot``), więc ta ścieżka zadziała wyłącznie na
+    bazie ``--reuse-db`` zostawionej przez przerwany przebieg.
     """
     return make_competition(HOST_COMPETITION, "kwantowa", default_site=True)
 
@@ -173,6 +510,11 @@ def competition(db):  # noqa: ARG001 - fikstura bazy, używana przez efekt ubocz
     tę samą. Przypięcie dotyczy wyłącznie testów, które tę fiksturę **zamówiły** – autouse niżej
     wiąże kontekst bez ruszania czegokolwiek w bazie.
     """
+    return pinned_competition()
+
+
+def pinned_competition():
+    """Ciało fikstury ``competition`` – osobno, bo woła je też fikstura modułu testów migracji."""
     from wagtail.models import Site
 
     from apps.tenancy.models import Competition
@@ -334,6 +676,27 @@ def _bind_competition(request):
 
     if not _wants_database(request) or "unbound_competition" in request.fixturenames:
         yield None
+        return
+    rewound_module = REWOUND_DATABASE.get("module")
+    if rewound_module is not None and not request.node.get_closest_marker("migrations"):
+        pytest.fail(
+            f"Test bez markera ``migrations`` biegnie na bazie przewiniętej przez fiksturę modułu "
+            f"{rewound_module} – oznacz go ``@pytest.mark.migrations`` albo przenieś do innego modułu."
+        )
+    if request.node.get_closest_marker("migrations"):
+        # Test migracji zastaje bazę **przewiniętą** fiksturą modułu (``migration_helpers``), a żywy
+        # model konkursu pyta o kolumny, których w tej chwili w tabeli nie ma. Kontekst wiąże wtedy
+        # sama fikstura modułu – tutaj tylko przełączamy więzy na natychmiastowe (powód przy
+        # ``migration_helpers.immediate_constraints``).
+        from apps.core.tests.migration_helpers import immediate_constraints
+
+        request.getfixturevalue("db")
+        immediate_constraints()
+        if "competition" in request.fixturenames:
+            with competition_context(request.getfixturevalue("competition")) as current:
+                yield current
+        else:
+            yield None
         return
     request.getfixturevalue("db")
     # Test, który sam zamówił ``competition``, dostaje konkurs z **przypiętym** hostem – ten sam
