@@ -37,7 +37,7 @@ atrapy nie wystarczą, więc środowisko deweloperskie stoi na tych samych usłu
 `9001`, `8000` i montuje kod z hosta. Rozmowy kwalifikacyjne na własnym Jitsi to **osobny** projekt
 compose (`deploy/jitsi/`).
 
-Wolumeny z danymi: `pg_data`, `minio_data`, `redis_data`, `mail_dkim`, `mail_spool`, `caddy_data`,
+Wolumeny z danymi: `pg18_data` (PostgreSQL 18; `pg_data` = baza 16 sprzed przejścia, droga wycofania – `OPERACJE.md` § 19), `minio_data`, `redis_data`, `mail_dkim`, `mail_spool`, `caddy_data`,
 `caddy_config`, `static_files`, `clamav_db`.
 
 ---
@@ -396,7 +396,7 @@ Szczegóły — [`PODRECZNIK-ORGANIZATORA.md`](PODRECZNIK-ORGANIZATORA.md) § 9.
 
 | Co | Gdzie | Uwagi |
 |---|---|---|
-| Konta, profile, zgody (`ConsentRecord`), zgłoszenia, recenzje, oceny, audyt, snapshoty wyników | PostgreSQL, wolumen `pg_data` | jedyne źródło prawdy o zawodach |
+| Konta, profile, zgody (`ConsentRecord`), zgłoszenia, recenzje, oceny, audyt, snapshoty wyników | PostgreSQL 18, wolumen `pg18_data` | jedyne źródło prawdy o zawodach |
 | Prace uczestników, treści zadań, rozwiązania wzorcowe | MinIO, bucket `submissions` (wolumen `minio_data`) | brak publicznych adresów; wyłącznie widoki aplikacji i presigned URL |
 | Media redakcyjne (obrazy, PDF-y dokumentów) | MinIO, bucket `public-media` | publiczne z założenia |
 | Sesje, pamięć podręczna, kolejki Celery | Redis (`redis_data`) | dane ulotne |

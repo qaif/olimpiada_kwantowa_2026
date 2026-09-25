@@ -160,7 +160,7 @@ jobs:
       # `S3_*`/`MINIO_*` niżej to inna sprawa – nie jest to usługa, tylko **poświadczenia**, których
       # potrzebuje kilka testów offline (patrz `env` joba).
       postgres:
-        image: postgres:16-alpine
+        image: postgres:18-alpine
         env:
           POSTGRES_DB: olimpiada
           POSTGRES_USER: olimpiada

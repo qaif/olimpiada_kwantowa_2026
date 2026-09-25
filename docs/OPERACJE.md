@@ -1152,7 +1152,7 @@ kończy się sześcioma błędami. Żadna migracja **naszych** aplikacji nie pow
 (`makemigrations --check --dry-run` jest czysty), żaden test nie został złagodzony.
 
 Wymagania środowiska, które trzeba znać przed wdrożeniem: Django 6.1 wymaga **Pythona ≥ 3.12**
-(obraz ma 3.12.14) i **PostgreSQL-a ≥ 15** (compose stawia `postgres:16-alpine`, produkcja ma 16).
+(obraz ma 3.12.14) i **PostgreSQL-a ≥ 15** (compose stawiał wtedy `postgres:16-alpine`; od § 19 – `postgres:18-alpine`).
 Obie granice są spełnione — ale gdyby ktoś kiedyś cofnął bazę do 14, aplikacja nie wstanie.
 
 ### 9.2. Obejście `django-celery-beat` (i kiedy je usunąć)
@@ -1512,9 +1512,9 @@ zakłada sama migracja (`django.contrib.postgres.operations.TrigramExtension`,
 `CREATE EXTENSION IF NOT EXISTS pg_trgm`) — nic nie trzeba robić ręcznie przed wdrożeniem, o ile
 spełniony jest jeden warunek środowiska:
 
-- **obraz bazy ma zawierać `pg_trgm`.** Obraz `postgres:16-alpine`, którego używa
-  `docker-compose.yml` i produkcja (§ 9.1: PostgreSQL ≥ 15, produkcja ma 16), zawiera go w pakiecie
-  `contrib` domyślnie — nie trzeba doinstalowywać żadnego pakietu systemowego,
+- **obraz bazy ma zawierać `pg_trgm`.** Obraz `postgres:18-alpine`, którego używa
+  `docker-compose.yml` i produkcja (§ 19; wcześniej `postgres:16-alpine` – oba mają `pg_trgm` 1.6),
+  zawiera go w pakiecie `contrib` domyślnie — nie trzeba doinstalowywać żadnego pakietu systemowego,
 - **rola aplikacyjna nie potrzebuje uprawnień superużytkownika.** `pg_trgm` jest rozszerzeniem
   *zaufanym* (*trusted*) od PostgreSQL 13 — właściciel bazy (rola, na której działa aplikacja) może
   je założyć sam, tak jak każdą inną migrację. Gdyby instalacja kiedyś trafiła na PostgreSQL < 13
@@ -2068,3 +2068,212 @@ docker compose exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT 
 ```
 
 musi dać `0`.
+
+## 19. PostgreSQL 16 → 18 (zrzut i odtworzenie, `scripts/upgrade_postgres18.sh`)
+
+Usługa `db` przechodzi z `postgres:16-alpine` (produkcja: 16.15) na `postgres:18-alpine`
+(18.6 w chwili przejścia). Aplikacja nie zmienia się ani o linijkę: pełny zestaw testów przechodzi
+na 18 bez zmian, migracje od zera też. Zmienia się **gdzie leżą dane** i **jak na nie przejść** –
+stąd osobny skrypt i ten rozdział zamiast zwykłego wdrożenia.
+
+### 19.1. Co się zmienia
+
+- **Nowy wolumen `pg18_data`, montowany w `/var/lib/postgresql`.** Obraz 18 ma PGDATA zależne od
+  wersji (`/var/lib/postgresql/18/docker`) i deklaruje VOLUME `/var/lib/postgresql` – nie
+  `/var/lib/postgresql/data` jak 16 (sprawdzone na obrazie: `docker image inspect postgres:18-alpine`,
+  i w dokumentacji obrazu). Pliki klastra 16 są dla serwera 18 nieczytelne, więc przejście to zrzut
+  i odtworzenie do **nowego** wolumenu; stary `pg_data` zostaje nietknięty jako droga powrotu.
+  Montaż całego `/var/lib/postgresql`, a nie `…/18/docker`: przy następnej wersji głównej dane 19
+  wylądują obok 18 na tym samym wolumenie, co pozwoli na `pg_upgrade --link`, gdy baza urośnie za
+  duża na zrzut.
+- **Obraz i wolumen są parametrami compose** (`POSTGRES_IMAGE`, `POSTGRES_VOLUME` w `.env`). Bez nich
+  – 18 na `pg18_data`. Przypięcie do 16 (`POSTGRES_IMAGE=postgres:16-alpine`,
+  `POSTGRES_VOLUME=pg_data:/var/lib/postgresql/data`) wpisuje `scripts/deploy.sh` (krok 4/8, przez
+  `scripts/upgrade_postgres18.sh --pin-if-needed`) na serwerze, który ma wolumen `pg_data` i nie ma
+  `pg18_data` – **samo wdrożenie tej wersji niczego w bazie nie zmienia**, kontener `db` nie jest
+  nawet odtwarzany. Bez tego zabezpieczenia pierwsze `up -d db` postawiłoby pustą bazę 18,
+  a entrypoint `web` zmigrowałby ją od zera – serwis wstałby pusty.
+- **Porządek sortowania bez zmian.** Obraz alpine (musl) nie ma locale libc: `--locale=pl_PL.utf8`
+  z `POSTGRES_INITDB_ARGS` przechodzi, ale porównanie tekstu jest w obu wersjach bajtowe (kolejność
+  „Ala, Lublin, Zz, Ząb, ala, cebula, zebra, ó, ćma, Łódź, żaba” – identyczna na 16 i 18,
+  sprawdzone). `upper()`/`lower()` polskich liter działa w obu tak samo. Aplikacja nie używa
+  jawnych collation (ICU jest w obrazie, ale nieużywane). Indeksy są budowane od nowa przy
+  odtwarzaniu, więc nie ma ryzyka indeksu zbudowanego pod inną kolejność.
+- **Sumy kontrolne stron danych włączone.** PostgreSQL 18 domyślnie robi `initdb --data-checksums`
+  (16 – nie). Klaster po przejściu ma `data_checksums = on`: cicha korupcja pliku na dysku kończy
+  się błędem zapytania zamiast złej odpowiedzi. Koszt CPU przy tej bazie pomijalny.
+- **Hasła: SCRAM, bez zmian.** Konto aplikacji ma hasło w SCRAM-SHA-256 od początku (domyślne
+  `password_encryption` od PostgreSQL 14), `pg_hba.conf` obrazu 18 to nadal
+  `host all all all scram-sha-256`. Ostrzeżenia 18 o wycofywaniu MD5 nas nie dotyczą.
+- **Rozszerzenia:** jedyne to `pg_trgm` (`schools.0006`, § 12) – wersja 1.6 w obu obrazach.
+- **Narzędzia kopii zapasowych.** `pg_dump`/`pg_restore` biegną **w kontenerze `db`**
+  (`backup.sh`, `restore.sh`, `deploy.sh` krok 4a, `pull_prod_data.sh`) – klient ma więc zawsze
+  wersję serwera; obraz aplikacji nie ma `postgresql-client` i nie potrzebuje. `backup_verify.sh`
+  stawia tymczasowy Postgres w wersji z `.env` (`POSTGRES_IMAGE`, domyślnie `postgres:18-alpine`)
+  i montuje tmpfs tam, gdzie obraz deklaruje VOLUME (16 i 18 mają to w innym miejscu).
+  **Uwaga dla `pull_prod_data.sh`:** zrzut `-Fc` z produkcji na 18 ma format archiwum, którego
+  `pg_restore` 16 nie przeczyta („unsupported version (1.16) in file header”) – lokalne środowisko
+  musi być na 18 (§ 19.7) albo odtwarzać klientem 18.
+- **CI**: usługa `postgres` w `.github/workflows/ci.yml` – `postgres:18-alpine`.
+
+### 19.2. Dlaczego zrzut i odtworzenie, a nie `pg_upgrade`
+
+Baza ma ok. 1,4 MB w zrzucie gzip (kilkadziesiąt MB na dysku, ~175 tabel). `pg_dump` + `pg_restore`
+trwa przy tym rozmiarze sekundy, a daje rzeczy, których `pg_upgrade` nie daje:
+
+- stary klaster zostaje **nietknięty** (`pg_upgrade --link` go unieważnia; bez `--link` i tak trzeba
+  dwóch kopii) – wycofanie to przestawienie dwóch zmiennych, nie odtwarzanie,
+- nie wymaga binariów **obu** wersji w jednym kontenerze (oficjalny obraz ma jedną; `pg_upgrade`
+  w Dockerze to osobny obraz społeczności i ręczne montowanie obu katalogów),
+- klaster 18 powstaje od nowa z domyślnymi ustawieniami 18 (sumy kontrolne – `pg_upgrade` wymaga
+  zgodności ustawienia z klastrem 16, czyli przeniósłby „off”),
+- indeksy i tabele są zbudowane od nowa (bez rozdęcia), a porównanie liczby wierszy **każdej** tabeli
+  16 ↔ 18 jest prostym, pełnym dowodem, że nic nie zginęło.
+
+Ceną jest przestój na czas zrzutu i odtworzenia – przy tej bazie pomijalny w porównaniu ze startem
+`web`. `pg_upgrade --link` ma sens dopiero przy bazie rzędu dziesiątek GB; układ wolumenu
+(`/var/lib/postgresql`) jest na to przygotowany na przyszłość.
+
+Zrzut do odtworzenia robi **klient 18** (`pg_dump` z obrazu 18 łączący się z serwerem 16 w sieci
+compose) – tak zaleca dokumentacja PostgreSQL. Obok powstaje zrzut **klientem 16** (w kontenerze
+`db`), bo tylko ten przeczyta `pg_restore` 16 przy ewentualnym powrocie.
+
+### 19.3. Próba generalna (lokalnie, 25.09.2026)
+
+Izolowany projekt compose (`pg18rh`, własne podsieci, bez `clamav`/`mail`/`proxy`) z kodem tej
+gałęzi, produkcyjnymi ustawieniami (`config.settings.production`), bazą 16 na `pg_data`
+zmigrowaną i zasianą (`seed_cms`, `seed_regulamin`, `seed_edition_kwantowa`, `seed_schools`,
+`seed_demo`: 175 tabel, 9 634 wiersze, 32 MB):
+
+1. `--pin-if-needed` wpisał przypięcie, drugie wywołanie – „bez zmian”, `docker compose up -d` nie
+   odtworzył kontenera `db` (ten sam identyfikator, nadal 16.15),
+2. `backup.sh` + `backup_verify.sh` na przypiętej 16 – test odtwarzania na `postgres:16-alpine` OK,
+3. `--dry-run` – kontrole wstępne i plan, nic nie zmienione,
+4. **awaria wstrzyknięta** (`PG18_IMAGE=postgres:17-alpine`: nowa baza nie wstaje w kroku 5) –
+   skrypt sam wrócił na 16, skasował utworzony w tym przebiegu `pg18_data`, podniósł aplikację,
+5. przejście właściwe: wszystkie 7 porównań zgodne (175 tabel, 157 sekwencji, rozszerzenia, role,
+   obiekty), `/status.json` → `ok` (database/cache/storage/queue: true), `db_connections` → `ok`;
+   **przerwa 1 min 8 s**, cały skrypt z kontrolami wstępnymi 109 s,
+6. na 18: `manage.py check`, `showmigrations` (0 niezastosowanych), `makemigrations --check`,
+   `db_connections`, `scope_cms_access --dry-run`, `check_memberships`, wyszukiwarka szkół
+   (plan zapytania używa `schools_search_trgm_idx`), strony publiczne i panel,
+7. `backup.sh` + `backup_verify.sh` na 18 (tymczasowy `postgres:18-alpine`) – OK,
+8. konto założone na 18, potem `--rollback --yes` (cały przebieg 42 s) → 16 na `pg_data`
+   ze stanem sprzed przejścia (konta nie ma – zgodnie z § 19.5, jest w zrzucie
+   `pg18-rollback-*.dump`), aplikacja zdrowa; drugie `--rollback --yes` – „nic do zrobienia”;
+   ponowne przejście odmówiło bez `--recreate-pg18-volume`, z flagą – przeszło (przerwa 47 s);
+   kolejne uruchomienie – „przejście zostało zrobione wcześniej” (kod 0).
+
+Niezależnie: pełny zestaw testów na `postgres:18-alpine` 18.6 z tym samym `command` i locale co
+produkcja – **6152 passed, 0 failed**; `migrate` od zera (378 migracji, `pg_trgm` 1.6), `check`,
+`makemigrations --check` – czyste.
+
+### 19.4. Przejście na produkcji
+
+**Kiedy:** poza godzinami zgłoszeń i oceniania, nie w oknie kopii nocnej (3:15, w niedzielę też
+4:40 – skrypt odmówi, gdy kopia trwa). Dzień wcześniej koordynator może wystawić komunikat na
+stronie („przerwa techniczna ok. 5 minut o …”) – projekt nie ma strony serwisowej: przez czas
+przerwy proxy odpowiada **502**.
+
+**Szacowany przestój: 2–5 minut** (próba lokalna: 1 min 8 s; na produkcji dłuższy start `web`
+– entrypoint robi `migrate` i `collectstatic`, a VPS traci część CPU na rzecz hosta, § 11 / notatka
+o kradzieży vCPU). Zrzut i odtworzenie tej bazy to kilka–kilkanaście sekund.
+
+Kolejność (z komputera operatora, potem na serwerze):
+
+```bash
+# 0. Wdrożenie kodu z PostgreSQL 18 – NIE zmienia bazy (krok 4/8 wpisuje przypięcie do 16)
+SSH_KEY=~/.ssh/olimpiada_deploy scripts/deploy.sh root@169.58.242.197
+#    w logu kroku 4/8: „PostgreSQL: dane są na 16 (wolumen olimpiada_pg_data) … przypinam 16 w .env”
+
+ssh -i ~/.ssh/olimpiada_deploy root@169.58.242.197
+cd /opt/olimpiada
+scripts/upgrade_postgres18.sh --status       # przypięcie 16, pg_data jest, pg18_data brak, 16.15
+scripts/upgrade_postgres18.sh --dry-run      # kontrole wstępne + plan; kod 0 = można
+docker pull postgres:18-alpine               # (robi to też skrypt, przed przerwą)
+
+# 1. Przejście (przerwa zaczyna się w kroku 1/8, kończy po 8/8)
+scripts/upgrade_postgres18.sh
+#    koniec: „Gotowe: PostgreSQL 18.x na wolumenie olimpiada_pg18_data.” + czas przerwy
+
+# 2. Po przejściu
+scripts/upgrade_postgres18.sh --status       # bez przypięcia, 18.x
+curl -fsS https://olimpiadakwantowa.pl/status.json
+docker compose exec -T web python manage.py db_connections
+scripts/backup.sh && scripts/backup_verify.sh   # pierwsza kopia z 18 i test jej odtworzenia
+```
+
+Co robi skrypt (każdy krok drukuje polecenia i wyniki; log, stany i zrzuty w
+`/opt/olimpiada-backups/pg18-upgrade-<data>/`, `upgrade.log`):
+
+| Krok | Co | Zatrzymuje się, gdy |
+|---|---|---|
+| 0 | kontrole: przypięcie 16, wolumeny, wersja serwera = 16, miejsce (≥ 5× baza, min. 2 GB) na katalogu kopii i Dockera, kopia nocna ≤ 26 h (`--allow-stale-backup` świadomie), nie trwa `backup.sh`, `docker pull` obrazu 18, każde rozszerzenie bazy jest w obrazie 18 | cokolwiek się nie zgadza – **przed** przerwą |
+| 1 | `stop web worker beat`, czeka aż zniknie każde połączenie klienta | po 30 s wciąż ktoś podłączony |
+| 2 | stan 16: `count(*)` każdej tabeli, `last_value` każdej sekwencji, rozszerzenia, role, kodowanie/locale, ustawienia ról/bazy, liczby obiektów schematu | – |
+| 3 | `pg_dump -Fc` klientem 16 (powrót), `pg_dumpall --roles-only` i `pg_dump -Fc` klientem 18; kontrola spisu treści zrzutu przez `pg_restore -l` 18 | pusty zrzut / nieczytelny spis |
+| 4–5 | `stop db` (16), `up -d db` z obrazem 18 na `pg18_data` (ten sam `command`, locale, hasło – z compose); czeka na TCP (nie na gniazdo – patrz komentarz w skrypcie) | serwer nie wstaje / wersja ≠ 18 / baza nie jest pusta |
+| 6 | role, `pg_restore --exit-on-error --single-transaction` (właściciele bez zmian), `ANALYZE` | pierwszy błąd odtwarzania |
+| 7 | stan 18 i `diff` z 16 | **jakakolwiek** różnica |
+| 8 | zdjęcie przypięcia z `.env` (kopia `env.before-upgrade`), `up -d db web worker beat`, `web` healthy, `db_connections`, `showmigrations`, `/status.json` = `ok` (do 5 min – kolejka wstaje ostatnia), `https://<domena>/status.json` | web nie wstaje / status nie `ok` |
+
+**Błąd w krokach 1–7 sam przywraca stan sprzed przejścia:** `.env` wciąż przypina 16, więc skrypt
+robi `up -d db` (16 na `pg_data`), kasuje `pg18_data` utworzony w tym przebiegu (niesie najwyżej
+częściowe odtworzenie; zrzuty zostają w katalogu przebiegu), podnosi aplikację i kończy się kodem
+≠ 0. Po usunięciu przyczyny – uruchomić ponownie. Błąd w kroku 8 (po zdjęciu przypięcia) **nie**
+wycofuje sam: baza jest już na 18 i mogła przyjąć zapisy – decyzja należy do operatora (§ 19.5).
+
+### 19.5. Wycofanie (powrót na 16)
+
+```bash
+cd /opt/olimpiada
+scripts/upgrade_postgres18.sh --rollback --dry-run   # plan
+scripts/upgrade_postgres18.sh --rollback --yes
+```
+
+Zatrzymuje aplikację, robi zrzut bazy 18 (`pg18-rollback-<data>/pg18-rollback-*.dump`), wpisuje
+przypięcie 16 do `.env`, stawia 16 na **starym** wolumenie `pg_data`, sprawdza wersję, podnosi
+aplikację (przestój ~1–3 min). Wolumen `pg18_data` zostaje nietknięty.
+
+**Zapisy wykonane na 18 od chwili przejścia nie wracają same** – baza 16 ma stan z chwili przejścia.
+Są w zrzucie `pg18-rollback-*.dump`; przeniesienie ich na 16 jest ręczne (np. `pg_restore -t
+<tabela>` klientem 18 do bazy pomocniczej i `INSERT … SELECT`), dlatego decyzję o wycofaniu
+podejmuje się **zaraz** po przejściu (w pierwszych godzinach), a nie po tygodniu. Bez skryptu,
+ręcznie: dopisać do `.env` dwie linijki `POSTGRES_IMAGE=postgres:16-alpine`
+i `POSTGRES_VOLUME=pg_data:/var/lib/postgresql/data`, potem `docker compose up -d db web worker beat`.
+
+Ponowne przejście po wycofaniu: `scripts/upgrade_postgres18.sh --recreate-pg18-volume` (bez flagi
+skrypt odmawia, bo `pg18_data` niesie dane z pierwszego podejścia).
+
+### 19.6. Sprzątanie: stary wolumen `pg_data`
+
+Najwcześniej **14 dni** po przejściu bez wycofania, i dopiero gdy: `scripts/upgrade_postgres18.sh
+--status` pokazuje 18 bez przypięcia, w tym czasie przeszło co najmniej jedno niedzielne
+`backup_verify.sh` na 18 (`/status.json`: `backup_last_verified: true`), a zrzut klientem 16
+z przejścia (`/opt/olimpiada-backups/pg18-upgrade-*/db-pg16-*.dump`) jest skopiowany poza serwer:
+
+```bash
+cd /opt/olimpiada
+scripts/upgrade_postgres18.sh --status
+docker volume rm olimpiada_pg_data           # nieodwracalne – koniec drogi powrotu na 16
+```
+
+Wpis `pg_data:` w `docker-compose.yml` może zostać (compose nie zakłada wolumenu, którego nic nie
+montuje) – usunąć go razem z wariantem 16 w komentarzach przy następnej porządkowej zmianie.
+Katalogi `pg18-upgrade-*`/`pg18-rollback-*` nie podlegają retencji `backup.sh` (ta sprząta tylko
+`*.gpg`) – skasować ręcznie po tym samym terminie, bo zawierają niezaszyfrowane zrzuty i kopię `.env` (`env.before-upgrade`).
+
+### 19.7. Środowisko deweloperskie
+
+Lokalny stos na 16 po pobraniu tej wersji bez przygotowania wstałby na **pustym** `pg18_data`.
+Dwie drogi:
+
+```bash
+# a) przejść tak jak produkcja (dane zostają; zrzuty poza repozytorium)
+export COMPOSE_FILE="docker-compose.yml;docker-compose.dev.yml"   # Windows; Linux/macOS: ':'
+bash scripts/upgrade_postgres18.sh --pin-if-needed
+BACKUP_DIR="$HOME/olimpiada-pg18-upgrade" bash scripts/upgrade_postgres18.sh --allow-stale-backup
+# b) zostać na 16: wpisać przypięcie do .env (jak w § 19.5) i przejść później
+```
+
+`scripts/e2e.sh` (reset) kasuje oba wolumeny – `pg18_data` i `pg_data`.

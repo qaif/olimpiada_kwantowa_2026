@@ -48,15 +48,25 @@ check "udało się wyciąć zdalny skrypt kroku 4/8 z deploy.sh" $?
 mkdir -p "$SRV/scripts" "$SRV/deploy" "$WORK/bin"
 
 # Atrapa `docker`: zapisuje wywołanie i udaje zdrową bazę (krok czeka na `db=healthy`).
+# `compose config` podaje nazwę projektu, a `volume inspect` odpowiada według DOCKER_VOLUMES –
+# tyle potrzebuje `scripts/upgrade_postgres18.sh --pin-if-needed` (PostgreSQL 16 -> 18).
 cat >"$WORK/bin/docker" <<'STUB'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$DOCKER_LOG"
 case "$*" in
   *"compose ps"*) echo "db=healthy" ;;
+  "compose config") echo "name: olimpiada" ;;
+  "volume inspect "*)
+    case " ${DOCKER_VOLUMES:-} " in *" $3 "*) exit 0 ;; *) exit 1 ;; esac ;;
 esac
 exit 0
 STUB
 chmod +x "$WORK/bin/docker"
+
+# Przypięcie PostgreSQL-a 16 woła PRAWDZIWY skrypt (to jego zachowanie jest tu sprawdzane),
+# z prawdziwym docker-compose.yml – skrypt odmawia pracy z plikiem, który nie zna POSTGRES_VOLUME.
+cp "$ROOT/scripts/upgrade_postgres18.sh" "$SRV/scripts/"
+cp "$ROOT/docker-compose.yml" "$SRV/"
 
 # Atrapa generatora Caddy'ego: jego własny test jest osobno (render_caddyfile_test.sh).
 cat >"$SRV/scripts/render_caddyfile.sh" <<'STUB'
@@ -65,19 +75,25 @@ cat >"$SRV/scripts/render_caddyfile.sh" <<'STUB'
 STUB
 
 krok4() {
-  # krok4 "<WEB_IMAGE>" – jeden przebieg kroku 4/8 w piaskownicy; zwraca kod wyjścia skryptu.
+  # krok4 "<WEB_IMAGE>" ["<istniejące wolumeny>"] – jeden przebieg kroku 4/8 w piaskownicy;
+  # zwraca kod wyjścia skryptu.
   : >"$LOG"
   ( cd "$SRV" && PATH="$WORK/bin:$PATH" DOCKER_LOG="$LOG" REMOTE_DIR="$SRV" WEB_IMAGE="$1" \
-      bash "$WORK/krok4.sh" ) >"$WORK/stdout" 2>&1
+      DOCKER_VOLUMES="${2:-}" bash "$WORK/krok4.sh" ) >"$WORK/stdout" 2>&1
 }
 
-# Dzisiejszy przebieg kroku 4/8, co do wywołania: build na serwerze, start bazy, dwa odpytania
-# o stan (pętla oczekiwania + twarde sprawdzenie przed kopią z kroku 4a).
+# Dzisiejszy przebieg kroku 4/8, co do wywołania: build na serwerze, sprawdzenie, czy bazę trzeba
+# przypiąć do PostgreSQL-a 16 (nazwa projektu + wolumen `pg_data` – na czystym serwerze go nie ma),
+# start bazy, dwa odpytania o stan (pętla oczekiwania + twarde sprawdzenie przed kopią z kroku 4a).
 DZISIAJ='compose build --pull web
+compose config
+volume inspect olimpiada_pg_data
 compose up -d db
 compose ps --format {{.Service}}={{.Health}}
 compose ps --format {{.Service}}={{.Health}}'
 Z_REJESTRU='compose pull web
+compose config
+volume inspect olimpiada_pg_data
 compose up -d db
 compose ps --format {{.Service}}={{.Health}}
 compose ps --format {{.Service}}={{.Health}}'
@@ -118,6 +134,30 @@ check "wdrożenie bez WEB_IMAGE wraca do budowania i kasuje wpis z .env" $?
 # 5. Nagłówek skryptu opisuje zmienną – wdrożenie bywa czytane wtedy, gdy nie ma czasu na docs/.
 grep -q 'WEB_IMAGE=ghcr.io/' "$DEPLOY"
 check "deploy.sh ma w nagłówku przykład użycia WEB_IMAGE" $?
+
+# 6. PostgreSQL 16 -> 18: serwer z danymi na 16 (`pg_data`, bez `pg18_data`) dostaje przypięcie
+#    do 16 PRZED `up -d db` – inaczej wdrożenie postawiłoby pustą bazę 18 (docs/OPERACJE.md § 19).
+krok4 "" "olimpiada_pg_data"
+check "krok 4/8 na serwerze z bazą 16 kończy się powodzeniem" $?
+grep -qx 'POSTGRES_IMAGE=postgres:16-alpine' "$SRV/.env" &&
+  grep -qx 'POSTGRES_VOLUME=pg_data:/var/lib/postgresql/data' "$SRV/.env"
+check "serwer z pg_data i bez pg18_data dostaje w .env przypięcie do 16" $?
+[ "$(sed -n '/compose up -d db/=' "$LOG")" -gt "$(sed -n '/volume inspect olimpiada_pg18_data/=' "$LOG")" ]
+check "przypięcie zapada przed startem bazy" $?
+
+# 7. Kolejne wdrożenie: przypięcie już jest – bez drugiego wpisu i bez pytania o wolumeny.
+krok4 "" "olimpiada_pg_data"
+[ "$(grep -c '^POSTGRES_VOLUME=' "$SRV/.env")" = "1" ] && ! grep -q 'volume inspect' "$LOG"
+check "przypięcie nie jest dopisywane drugi raz" $?
+
+# 8. Po przejściu (jest pg18_data, przypięcia brak) i na nowej instalacji – .env bez przypięcia.
+sed -i '/^POSTGRES_IMAGE=/d; /^POSTGRES_VOLUME=/d' "$SRV/.env"
+krok4 "" "olimpiada_pg_data olimpiada_pg18_data"
+! grep -qE '^POSTGRES_(IMAGE|VOLUME)=' "$SRV/.env"
+check "po przejściu na 18 wdrożenie nie przypina 16" $?
+krok4 ""
+! grep -qE '^POSTGRES_(IMAGE|VOLUME)=' "$SRV/.env"
+check "nowa instalacja (bez wolumenów) nie dostaje przypięcia" $?
 
 if [ "$failures" -ne 0 ]; then
   printf '\n%d test(ów) nie przeszło.\n' "$failures"

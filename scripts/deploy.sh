@@ -230,6 +230,12 @@ else
   fi
   docker compose build --pull web
 fi
+# PostgreSQL 16 -> 18: docker-compose.yml stawia domyślnie 18 na NOWYM wolumenie `pg18_data`.
+# Serwer, którego dane leżą jeszcze na 16 (`pg_data`), dostaje w .env przypięcie do 16 – inaczej
+# `up -d db` niżej postawiłby pustą bazę 18, a entrypoint web zmigrowałby ją od zera. Samo
+# przejście (zrzut, odtworzenie, porównanie) to osobna czynność operatora:
+# scripts/upgrade_postgres18.sh, docs/OPERACJE.md § 19. Na nowej instalacji i po przejściu – no-op.
+bash scripts/upgrade_postgres18.sh --pin-if-needed
 docker compose up -d db
 for _ in $(seq 1 30); do
   docker compose ps --format '{{.Service}}={{.Health}}' | grep -q 'db=healthy' && break
@@ -441,7 +447,7 @@ fi
 
 mkdir -p /opt/olimpiada-backups
 chmod 700 /opt/olimpiada-backups
-chmod +x scripts/backup.sh scripts/restore.sh scripts/backup_verify.sh 2>/dev/null || true
+chmod +x scripts/backup.sh scripts/restore.sh scripts/backup_verify.sh scripts/upgrade_postgres18.sh 2>/dev/null || true
 
 # Godziny: kopia o 3:15 (najniższy ruch, po nocnych zadaniach beatu), test odtwarzania w niedzielę
 # o 4:40 – po kopii, żeby sprawdzał paczkę z tej samej nocy, i nie w tej samej minucie, bo oba

@@ -8,6 +8,27 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – PostgreSQL 18
+
+Baza: `postgres:16-alpine` → `postgres:18-alpine` (18.6), zrzutem i odtworzeniem do **nowego**
+wolumenu `pg18_data` (obraz 18 ma PGDATA `/var/lib/postgresql/18/docker` i VOLUME
+`/var/lib/postgresql`); stary wolumen `pg_data` zostaje nietknięty jako droga powrotu. Kod
+aplikacji bez zmian, zero migracji; pełny zestaw testów na 18.6 z produkcyjnym `command` i locale –
+6152 passed. `docker-compose.yml`: obraz i wolumen usługi `db` z `POSTGRES_IMAGE` /
+`POSTGRES_VOLUME` (domyślnie 18 na `pg18_data`), `max_locks_per_transaction=256` bez zmian.
+**Samo wdrożenie niczego w bazie nie zmienia:** `scripts/deploy.sh` (krok 4/8) wpisuje do `.env`
+przypięcie do 16, gdy serwer ma `pg_data` bez `pg18_data`. Przejście to osobna czynność operatora:
+`scripts/upgrade_postgres18.sh` (kontrole wstępne, `--dry-run`, zrzuty klientem 16 i 18 do
+`/opt/olimpiada-backups/pg18-upgrade-*/`, porównanie liczby wierszy każdej tabeli, sekwencji,
+rozszerzeń, ról i obiektów 16 ↔ 18, `ANALYZE`, `/status.json`; błąd przed przełączeniem sam wraca na
+16), wycofanie `--rollback --yes`, stan `--status`. Przestój 2–5 min (próba lokalna: 1 min 8 s).
+Nowy klaster ma sumy kontrolne stron (`data_checksums = on`, domyślne w 18); porządek sortowania
+(musl, bajtowy) i `pg_trgm` 1.6 – bez zmian. `backup_verify.sh` stawia tymczasowy Postgres
+w wersji z `.env` (domyślnie 18) i montuje tmpfs tam, gdzie obraz deklaruje VOLUME; CI testuje na
+`postgres:18-alpine`; `e2e.sh` (reset) kasuje `pg18_data` i `pg_data`. Zrzut `-Fc` z produkcji na 18
+nie da się odtworzyć `pg_restore` 16 – lokalne środowisko też przechodzi na 18 (`OPERACJE.md`
+§ 19.7). Runbook, próba generalna, wycofanie i skasowanie `pg_data` po 14 dniach: `OPERACJE.md` § 19.
+
 ## v0.36.1 – 2026-09-25
 
 Zadania treningowe: każde z czterech zadań (P1–P4) ma własny plik z treścią
