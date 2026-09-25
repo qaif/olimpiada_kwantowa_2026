@@ -24,6 +24,7 @@ TRAINING_DIR = Path(__file__).resolve().parent / "fixtures" / "training"
 #: („Trening”), bo w panelu stoi obok etapów zawodów i ma się od nich odróżniać jednym spojrzeniem.
 TRAINING_STAGE_NAME = "Zadania treningowe"
 
+
 @dataclass(frozen=True)
 class TrainingProblem:
     """Jedno zadanie arkusza treningowego: numer, tytuł i nazwa pliku z treścią."""
