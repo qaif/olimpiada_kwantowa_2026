@@ -199,9 +199,9 @@ def test_seed_training_problems_tworzy_etap_i_cztery_zadania():
     problems = list(stage.problems.order_by("number"))
     assert [problem.number for problem in problems] == [1, 2, 3, 4]
     assert all(problem.statement_pdf for problem in problems)
-    # Cztery zadania organizatora z jednego wspólnego pliku „Zadania przykładowe”.
+    # Cztery zadania organizatora, każde z własnym plikiem (zadanie-P1.pdf … zadanie-P4.pdf).
     assert [problem.title[:3] for problem in problems] == ["P1.", "P2.", "P3.", "P4."]
-    assert len({problem.statement_pdf.read() for problem in problems}) == 1
+    assert len({problem.statement_pdf.read() for problem in problems}) == 4
     for problem in problems:
         with problem.statement_pdf.open("rb") as handle:
             assert handle.read(5) == b"%PDF-"
