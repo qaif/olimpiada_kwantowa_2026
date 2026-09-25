@@ -144,6 +144,35 @@ def test_a_backup_that_was_never_restored_is_a_separate_alert():
     assert "backup" not in found
 
 
+def test_an_installation_that_never_had_an_offsite_copy_gets_no_offsite_alert():
+    """Kopia wyłącznie lokalna to stan znany z konfiguracji (widać go w ``/status.json``), a nie
+    awaria, o której trzeba budzić dyżurnego co godzinę."""
+    cache.delete(backup.LAST_OFFSITE_KEY)
+
+    assert "backup-offsite" not in keys_of(alerts.evaluate())
+
+
+def test_an_offsite_copy_that_stopped_is_an_alert_even_when_the_local_one_is_fresh():
+    """Nocna kopia dalej się udaje, ale od trzech dni nie wyjeżdża z serwera – ginie razem z nim."""
+    backup.record(ok=True, offsite=True, at=timezone.now() - timedelta(days=3))
+    backup.record(ok=True)
+
+    found = keys_of(alerts.evaluate())
+
+    assert "backup-offsite" in found
+    assert "backup" not in found
+
+
+def test_a_missing_backup_does_not_also_send_the_offsite_alert():
+    """Brak kopii w ogóle mówi już alarm ``backup`` – drugi list o tym samym byłby szumem."""
+    backup.record(ok=True, offsite=True, at=timezone.now() - timedelta(days=3))
+
+    found = keys_of(alerts.evaluate())
+
+    assert "backup" in found
+    assert "backup-offsite" not in found
+
+
 # --- licznik odpowiedzi 5xx ----------------------------------------------------------------------
 
 

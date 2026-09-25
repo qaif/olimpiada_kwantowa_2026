@@ -1422,7 +1422,7 @@ zapytanie na pół minuty.
 | Gdzie | Co widać | Dla kogo |
 |---|---|---|
 | `/healthz/` | `"db_connections"`: `ok` / `warn` / `critical` / `unknown` – **kod HTTP się nie zmienia** | orkiestrator, monitor zewnętrzny |
-| `/status.json` | to samo pole, ostatni klucz; **nie** wpływa na `"status"` | monitor zewnętrzny (§ 3.1) |
+| `/status.json` | to samo pole, przedostatni klucz (za nim `backup_offsite`, § 1.5); **nie** wpływa na `"status"` | monitor zewnętrzny (§ 3.1) |
 | list watchdoga (`ALERT_EMAILS`) | liczby, progi, podział na usługi i stany | dyżurny |
 | `manage.py db_connections` | to samo co list, odczyt świeży; kod wyjścia 0/1/2/3 = ok/warn/critical/brak odczytu | operator na serwerze |
 

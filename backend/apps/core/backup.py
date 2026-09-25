@@ -18,6 +18,11 @@ Dwa znaczniki, nie jeden, bo to dwa różne fakty i mylenie ich jest klasyczną 
   wiersze (``scripts/backup_verify.sh``). Mówi, że kopia jest coś warta. Kopia, której nikt nigdy
   nie odtworzył, jest hipotezą, a nie kopią.
 
+Trzeci znacznik, ``backup:last_offsite_at``, jest doprecyzowaniem pierwszego: kopia powstała
+**i wyjechała poza serwer** (S3 albo Dysk Google), a suma kontrolna po tamtej stronie się zgadza.
+Instalacja bez skonfigurowanej kopii zdalnej melduje samo ``--ok`` i tego znacznika nie ma wcale –
+to jest stan „kopia wyłącznie lokalna”, widoczny w ``/status.json`` jako ``backup_offsite: false``.
+
 Stan trzymamy w cache'u, a nie w bazie, i to jest świadome: w scenariuszu, w którym te znaczniki
 są naprawdę potrzebne (baza padła), wiersz w bazie byłby nieczytelny razem z nią. Cena jest znana
 i wpisana w progi niżej: wyczyszczenie Redisa kasuje znaczniki, a stan „nie wiem” jest wtedy
@@ -40,6 +45,7 @@ logger = logging.getLogger(__name__)
 LAST_OK_KEY = "backup:last_ok_at"
 LAST_VERIFIED_KEY = "backup:last_verified_at"
 LAST_NOTE_KEY = "backup:last_note"
+LAST_OFFSITE_KEY = "backup:last_offsite_at"
 
 #: Ile żyje meldunek. Sto dwadzieścia dni, czyli znacznie dłużej niż którykolwiek próg niżej:
 #: wpis ma **przeżyć** moment, w którym staje się nieświeży, bo inaczej „kopia sprzed pół roku”
@@ -63,6 +69,7 @@ class BackupState:
     last_ok: datetime | None
     last_verified: datetime | None
     note: str = ""
+    last_offsite: datetime | None = None
 
     @property
     def backup_fresh(self) -> bool:
@@ -73,6 +80,26 @@ class BackupState:
     def verify_fresh(self) -> bool:
         """Czy ostatni **udany test odtwarzania** mieści się w progu. Brak meldunku = nie."""
         return _within(self.last_verified, timedelta(days=MAX_VERIFY_AGE_DAYS))
+
+    @property
+    def offsite_fresh(self) -> bool:
+        """Czy ostatnia kopia, która **wyjechała poza serwer**, mieści się w progu kopii (36 h).
+
+        Próg ten sam, co dla ``backup_fresh``: kopia poza serwerem jest tą samą kopią nocną, tylko
+        potwierdzoną po drugiej stronie. Brak meldunku = nie.
+        """
+        return _within(self.last_offsite, timedelta(hours=MAX_BACKUP_AGE_HOURS))
+
+    @property
+    def offsite_lost(self) -> bool:
+        """Kopia poza serwerem **kiedyś działała**, a teraz nie jest świeża.
+
+        To jest powód do alarmu osobnego od „brak kopii”: nocna kopia może się udawać (``--ok``)
+        i jednocześnie przestać wyjeżdżać z serwera – np. ktoś wykomentował konfigurację albo
+        skasował token. Instalacja, która nigdy kopii zdalnej nie miała, nie dostaje tego alarmu
+        co godzinę; jej stan widać w ``/status.json`` (``backup_offsite: false``).
+        """
+        return self.last_offsite is not None and not self.offsite_fresh
 
 
 def _within(moment: datetime | None, window: timedelta) -> bool:
@@ -97,18 +124,32 @@ def _read(key: str) -> datetime | None:
     return parsed if timezone.is_aware(parsed) else timezone.make_aware(parsed)
 
 
-def record(*, ok: bool = False, verified: bool = False, note: str = "", at: datetime | None = None) -> None:
+def record(
+    *,
+    ok: bool = False,
+    verified: bool = False,
+    offsite: bool = False,
+    note: str = "",
+    at: datetime | None = None,
+) -> None:
     """Zapisuje meldunek skryptu kopii zapasowych.
 
     ``ok`` i ``verified`` są rozłączne w praktyce (melduje je inny skrypt), ale nie wykluczają się
     w podpisie: udany test odtwarzania **nie** jest dowodem na to, że dzisiejsza kopia powstała,
     i odwrotnie. Obu znaczników nie wolno więc odświeżać jednym zdarzeniem.
+
+    ``offsite`` znaczy „ta kopia jest też poza serwerem, sprawdzona sumą kontrolną” i ma sens
+    wyłącznie razem z ``ok`` – kopia zdalna bez kopii nie istnieje.
     """
+    if offsite and not ok:
+        raise ValueError("offsite=True wymaga ok=True: kopia poza serwerem jest tą samą kopią nocną")
     moment = (at or timezone.now()).isoformat()
     if ok:
         cache.set(LAST_OK_KEY, moment, STATE_TTL_SECONDS)
     if verified:
         cache.set(LAST_VERIFIED_KEY, moment, STATE_TTL_SECONDS)
+    if offsite:
+        cache.set(LAST_OFFSITE_KEY, moment, STATE_TTL_SECONDS)
     if note:
         cache.set(LAST_NOTE_KEY, note[:500], STATE_TTL_SECONDS)
 
@@ -119,4 +160,9 @@ def state() -> BackupState:
         note = cache.get(LAST_NOTE_KEY) or ""
     except Exception:  # noqa: BLE001 - jak wyżej
         note = ""
-    return BackupState(last_ok=_read(LAST_OK_KEY), last_verified=_read(LAST_VERIFIED_KEY), note=str(note))
+    return BackupState(
+        last_ok=_read(LAST_OK_KEY),
+        last_verified=_read(LAST_VERIFIED_KEY),
+        note=str(note),
+        last_offsite=_read(LAST_OFFSITE_KEY),
+    )

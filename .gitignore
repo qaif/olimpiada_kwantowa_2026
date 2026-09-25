@@ -1,4 +1,6 @@
 .env
+# Sekrety spoza .env (token Dysku Google dla kopii poza serwerem – scripts/lib/backup_offsite.sh).
+/secrets/
 __pycache__/
 *.pyc
 .venv/

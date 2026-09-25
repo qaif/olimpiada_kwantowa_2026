@@ -225,4 +225,7 @@ def test_the_json_variant_carries_no_infrastructure_details(web_client):
         # Poziom zajętości połączeń z Postgresem (``ok|warn|critical|unknown``) – bez liczb
         # (apps/core/dbconnections.py).
         "db_connections",
+        # Czy ostatnia kopia wyjechała poza serwer (S3 / Dysk Google) – wartość logiczna, bez dat
+        # (apps/core/status.py, ``as_json``).
+        "backup_offsite",
     }
