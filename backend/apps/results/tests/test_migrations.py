@@ -5,14 +5,21 @@ należał do nikogo, a to właśnie na nim kończy dopasowanie ``resolve_templat
 organizatora A trafiłaby na dyplom organizatora B bez żadnego kliknięcia. Backfill ma go przypisać
 jedynemu konkursowi instalacji, a nie zostawić pustego.
 
-Test wygląda inaczej niż reszta pakietu z tych samych powodów, co ``apps/accounts/tests/
-test_migrations.py``: przewijanie migracji to DDL po DML, więc potrzebny jest ``transaction=True``.
+Bazę przewija fikstura modułu w transakcji wycofywanej na końcu modułu – wycofanie przywraca czoło
+migracji bez ``migrate`` i bez ``flush`` (``apps/core/tests/migration_helpers.py``).
 """
 
 import pytest
 from django.utils import timezone
 
-from apps.core.tests.migration_helpers import ensure_competition, migrate_to, migrate_to_head
+from apps.core.tests.migration_helpers import (
+    MIGRATION_TESTS,
+    ensure_competition,
+    migrate_to,
+    rewound_database,
+)
+
+pytestmark = MIGRATION_TESTS
 
 #: Cel przewinięcia jest listą, bo backfill idzie drogą przez **wypełnioną** kolumnę
 #: ``Edition.competition`` – sam ``results.0004`` zdjąłby ją z bazy razem z resztą wydania B.
@@ -23,13 +30,12 @@ BEFORE = [
 AFTER = [("results", "0005_certificatetemplate_competition")]
 
 
-@pytest.fixture
-def rewound_apps(transactional_db):  # noqa: ARG001 - fikstura bazy, używana przez efekt uboczny
-    yield migrate_to(BEFORE)
-    migrate_to_head()
+@pytest.fixture(scope="module")
+def rewound_apps(django_db_setup, django_db_blocker):
+    with rewound_database(django_db_blocker, BEFORE) as db:
+        yield db.apps
 
 
-@pytest.mark.django_db(transaction=True)
 def test_templates_get_a_competition_including_those_without_an_edition(rewound_apps):
     Edition = rewound_apps.get_model("competitions", "Edition")
     CertificateTemplate = rewound_apps.get_model("results", "CertificateTemplate")

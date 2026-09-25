@@ -9,18 +9,19 @@ wypowiedziane **przed** dotknięciem schematu.
 Test jest więc testem **procedury wdrożeniowej**, a nie modelu: sprawdza, że wdrożenie zatrzymuje
 się na kontroli, i że po naprawieniu danych przechodzi.
 
-Kształt (przewijanie migracji, ``transaction=True``, fikstura przywracająca czoło także po
-przerwanym teście) jest ten sam, co w ``test_migration_edition_competition.py`` i w
-``apps/accounts/tests/test_migrations.py`` – i z tych samych powodów.
+Kształt (baza przewinięta raz na moduł w transakcji wycofywanej na końcu modułu,
+``apps/core/tests/migration_helpers.py``) jest ten sam, co w ``test_migration_edition_competition.py``.
 """
 
 import pytest
-from django.db import IntegrityError, connection, transaction
-from django.db.migrations.executor import MigrationExecutor
+from django.db import IntegrityError, transaction
 
 from apps.competitions.models import Edition
+from apps.core.tests.migration_helpers import MIGRATION_TESTS, migrate_to, rewound_database
 
 from .factories import EditionFactory
+
+pytestmark = MIGRATION_TESTS
 
 #: Stan sprzed domknięcia: kolumny są, backfill przeszedł, ``NULL`` jest jeszcze dozwolony.
 BEFORE = ("competitions", "0020_backfill_edition_competition")
@@ -28,30 +29,13 @@ AFTER = ("competitions", "0021_edition_competition_not_null")
 SUBMISSIONS_AFTER = ("submissions", "0007_submission_competition_not_null")
 
 
-def migrate_to(target) -> None:
-    executor = MigrationExecutor(connection)
-    executor.loader.build_graph()
-    executor.migrate([target])
-    executor.loader.build_graph()
+@pytest.fixture(scope="module")
+def before_not_null(django_db_setup, django_db_blocker):
+    """Baza cofnięta przed ``NOT NULL``. Konkurs #1 bierzemy przed przewinięciem."""
+    with rewound_database(django_db_blocker, BEFORE) as db:
+        yield db.competition
 
 
-def migrate_to_head() -> None:
-    """Przywraca czoło migracji **wszystkich** aplikacji, nie tylko przewijanej."""
-    executor = MigrationExecutor(connection)
-    executor.loader.build_graph()
-    executor.migrate(executor.loader.graph.leaf_nodes())
-    executor.loader.build_graph()
-
-
-@pytest.fixture
-def before_not_null(transactional_db, competition):  # noqa: ARG001 - baza, używana przez efekt uboczny
-    """Baza cofnięta przed ``NOT NULL``. Fikstura ``competition`` idzie przed przewinięciem."""
-    migrate_to(BEFORE)
-    yield competition
-    migrate_to_head()
-
-
-@pytest.mark.django_db(transaction=True)
 def test_the_control_query_stops_the_deployment_on_an_edition_without_a_competition(before_not_null):
     """Jedna edycja bez właściciela wystarczy, żeby wdrożenie stanęło – z nazwą tabeli w komunikacie."""
     competition = before_not_null
@@ -70,7 +54,6 @@ def test_the_control_query_stops_the_deployment_on_an_edition_without_a_competit
     assert Edition.objects.get(pk=edition.pk).competition_id == competition.pk
 
 
-@pytest.mark.django_db(transaction=True)
 def test_the_deployment_goes_through_once_every_row_has_an_owner(before_not_null):
     """Kontrola pozytywna: komplet właścicieli znaczy, że ``NOT NULL`` wchodzi bez przeszkód."""
     competition = before_not_null

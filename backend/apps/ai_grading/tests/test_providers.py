@@ -391,6 +391,8 @@ def openai_error(cls, status: int, *, code: str | None = None, headers: dict | N
     ],
 )
 def test_openai_errors_become_retry_categories_without_the_key(openai_client, caplog, make, code, kind):
+    # Klasyfikacja błędów czyta klasy wyjątków SDK – bez pakietu ``openai`` nie ma czego sprawdzać.
+    pytest.importorskip("openai")
     caplog.set_level(logging.DEBUG)
     openai_client["stream"] = FakeStream(error=make())
 

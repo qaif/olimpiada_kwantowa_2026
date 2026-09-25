@@ -5,26 +5,31 @@ konkurs znaczy „sprawa do operatora platformy”. Gdyby backfill nie zadziała
 korespondencja Olimpiady Kwantowej – razem z otwartymi sprawami i ich licznikiem – zniknęłaby
 z panelu w dniu wdrożenia. To jest dokładnie ta klasa regresji, której zabrania § 0.
 
-Test wygląda inaczej niż reszta pakietu z tych samych powodów, co ``apps/accounts/tests/
-test_migrations.py``: przewijanie migracji to DDL po DML, więc potrzebny jest ``transaction=True``,
-a fikstura przywraca czoło migracji także wtedy, gdy test przerwie się w połowie.
+Bazę przewija fikstura modułu w transakcji wycofywanej na końcu modułu – wycofanie przywraca czoło
+migracji bez ``migrate`` i bez ``flush`` (``apps/core/tests/migration_helpers.py``).
 """
 
 import pytest
 
-from apps.core.tests.migration_helpers import ensure_competition, migrate_to, migrate_to_head
+from apps.core.tests.migration_helpers import (
+    MIGRATION_TESTS,
+    ensure_competition,
+    migrate_to,
+    rewound_database,
+)
+
+pytestmark = MIGRATION_TESTS
 
 BEFORE = [("support", "0002_supportticket_competition")]
 AFTER = [("support", "0003_backfill_supportticket_competition")]
 
 
-@pytest.fixture
-def rewound_apps(transactional_db):  # noqa: ARG001 - fikstura bazy, używana przez efekt uboczny
-    yield migrate_to(BEFORE)
-    migrate_to_head()
+@pytest.fixture(scope="module")
+def rewound_apps(django_db_setup, django_db_blocker):
+    with rewound_database(django_db_blocker, BEFORE) as db:
+        yield db.apps
 
 
-@pytest.mark.django_db(transaction=True)
 def test_existing_tickets_get_the_sole_competition(rewound_apps):
     """Sprawa sprzed wdrożenia dostaje Konkurs #1, a sprawa z kodu zostaje nietknięta.
 

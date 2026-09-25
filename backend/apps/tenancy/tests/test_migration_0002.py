@@ -7,10 +7,11 @@ produkcja, a nie dane wpisane w kodzie. Dlatego sprawdzamy dwa kształty bazy:
 - **produkcyjny** – witryna z domeną organizatora i wypełnione ``cms.SiteSettings``,
 - **pusty** – witryna bez ustawień serwisu (świeża instalacja, baza testowa).
 
-Test wygląda inaczej niż reszta pakietu z tych samych powodów, co ``apps/cms/tests/test_migrations.py``:
-przewijanie migracji to DDL po DML, więc potrzebny jest ``transaction=True``, testy transakcyjne
-czyszczą bazę po sobie (nie zakładamy więc niczego o jej zawartości i budujemy wiersze sami),
-a fikstura przywraca czoło migracji także wtedy, gdy test przerwie się w połowie.
+Bazę przewija **raz na moduł** fikstura :func:`rewound` – w transakcji, którą na końcu modułu
+wycofuje (``apps/core/tests/migration_helpers.py``: DDL w Postgresie jest transakcyjny, więc
+wycofanie przywraca czoło migracji bez ``migrate`` i bez ``flush``). Każdy test biegnie w swoim
+punkcie zapisu, więc zastaje bazę dokładnie w punkcie :data:`BEFORE`, bez witryn i ustawień
+serwisu, niezależnie od tego, co zrobił test przed nim.
 
 Do **odczytu** bierzemy modele zwykłe, a nie historyczne: w punkcie ``AFTER`` schemat tabeli
 konkursu jest dokładnie taki, jaki zna żywy model. Stan historyczny z ``project_state`` zawierałby
@@ -25,13 +26,20 @@ import importlib
 import pytest
 from django.conf import settings
 from django.db import connection
-from django.db.migrations.executor import MigrationExecutor
 from django.db.migrations.loader import MigrationLoader
 from wagtail.images.models import Image
 from wagtail.models import Collection, Locale, Page, Site
 
 from apps.cms.models import SiteSettings
+from apps.core.tests.migration_helpers import (
+    MIGRATION_TESTS,
+    applied_state_model,
+    migrate_to,
+    rewound_database,
+)
 from apps.tenancy.models import Competition
+
+pytestmark = MIGRATION_TESTS
 
 BEFORE = ("tenancy", "0001_initial")
 
@@ -85,23 +93,10 @@ SITE_SETTINGS = {
 }
 
 
-def historical_model(app_label: str, model_name: str):
-    """Model w kształcie, jaki baza ma **teraz** – złożony z migracji faktycznie zastosowanych.
-
-    Potrzebny wszędzie tam, gdzie test wstawia wiersz do tabeli, której schemat jest w tej chwili
-    starszy niż żywy model: żywy model wstawiałby kolumny, których w bazie jeszcze (albo już) nie
-    ma. Dwóch takich miejsc jest dwa – ustawienia serwisu i drugi konkurs – i oba mają ten sam
-    powód, więc mają też jedną funkcję.
-    """
-    executor = MigrationExecutor(connection)
-    graph = executor.loader.graph
-    # Tylko węzły obecne w grafie: ewidencja pamięta też migracje zastąpione przez ``squash``
-    # (np. stare ``wagtailcore``), których w grafie już nie ma.
-    applied = {node for node in executor.loader.applied_migrations if node in graph.nodes}
-    leaves = [
-        node for node in applied if not any(child in applied for child in graph.node_map[node].children)
-    ]
-    return executor.loader.project_state(leaves).apps.get_model(app_label, model_name)
+#: Model w kształcie, jaki baza ma **teraz** – złożony z migracji faktycznie zastosowanych. Potrzebny
+#: wszędzie tam, gdzie test wstawia wiersz do tabeli, której schemat jest w tej chwili starszy niż
+#: żywy model: ustawienia serwisu i drugi konkurs.
+historical_model = applied_state_model
 
 
 def create_site_settings(site, **fields) -> None:
@@ -118,44 +113,24 @@ def create_site_settings(site, **fields) -> None:
     model.objects.create(site_id=site.pk, **renamed)
 
 
-def migrate_to(target) -> None:
-    """Przewija bazę do wskazanej migracji."""
-    executor = MigrationExecutor(connection)
-    executor.loader.build_graph()
-    executor.migrate([target])
-    executor.loader.build_graph()
+def _without_sites(_state) -> None:
+    """Czyścimy witryny i ustawienia serwisu, żeby to **test** opisywał kształt bazy.
 
-
-def migrate_to_head() -> None:
-    """Przywraca czoło migracji **wszystkich** aplikacji, nie tylko przewijanej.
-
-    ``migrate_to(AFTER)`` nie wystarcza: cofnięcie jednej aplikacji zdejmuje po drodze każdą
-    migrację z innych aplikacji, która od niej zależy, a powrót do konkretnego celu przywraca
-    wyłącznie jego przodków.
+    Po cofnięciu ``0002`` konkurs znika, ale witryna postawiona przy zakładaniu bazy testowej
+    zostaje. Surowy SQL, nie ORM: kolektor ``Site.delete()`` zagląda do każdej tabeli z kluczem do
+    witryny, także tych z późniejszych migracji ``tenancy`` (aliasy witryn), których po cofnięciu
+    do ``0001`` w bazie nie ma. Kolejność: najpierw ustawienia (klucz do witryny), potem witryny.
     """
-    executor = MigrationExecutor(connection)
-    executor.loader.build_graph()
-    executor.migrate(executor.loader.graph.leaf_nodes())
-    executor.loader.build_graph()
-
-
-@pytest.fixture
-def rewound(transactional_db):  # noqa: ARG001 - fixture bazy, używana przez efekt uboczny
-    """Baza cofnięta do stanu sprzed powstania Konkursu #1 i bez ani jednej witryny.
-
-    Czyścimy witryny i ustawienia serwisu, żeby to **test** opisywał kształt bazy, a nie
-    kolejność uruchomienia pakietu: po cofnięciu ``0002`` konkurs znika, ale witryna postawiona
-    przy zakładaniu bazy testowej zostaje.
-    """
-    migrate_to(BEFORE)
-    # Surowy SQL, nie ORM: kolektor ``Site.delete()`` zagląda do każdej tabeli z kluczem do witryny,
-    # także tych z późniejszych migracji ``tenancy`` (aliasy witryn), których po cofnięciu do
-    # ``0001`` w bazie nie ma. Kolejność: najpierw ustawienia (klucz do witryny), potem witryny.
     with connection.cursor() as cursor:
         cursor.execute(f'DELETE FROM "{SiteSettings._meta.db_table}"')
         cursor.execute(f'DELETE FROM "{Site._meta.db_table}"')
-    yield
-    migrate_to_head()
+
+
+@pytest.fixture(scope="module")
+def rewound(django_db_setup, django_db_blocker):
+    """Baza cofnięta do stanu sprzed powstania Konkursu #1 i bez ani jednej witryny."""
+    with rewound_database(django_db_blocker, BEFORE, prepare=_without_sites) as db:
+        yield db
 
 
 def make_site(hostname: str) -> Site:
@@ -175,7 +150,6 @@ def make_site(hostname: str) -> Site:
     )
 
 
-@pytest.mark.django_db(transaction=True)
 def test_competition_is_built_from_the_existing_site_and_settings(rewound):
     """Kształt produkcji: konkurs dostaje dane organizatora z ``SiteSettings``, nie z kodu."""
     site = make_site(PRODUCTION_HOST)
@@ -206,7 +180,6 @@ def test_competition_is_built_from_the_existing_site_and_settings(rewound):
     assert competition.default_language == "pl"
 
 
-@pytest.mark.django_db(transaction=True)
 def test_competition_is_created_on_a_database_without_site_settings(rewound):
     """Świeża instalacja: nazwa bierze się z witryny, reszta zostaje pusta – nic nie zgadujemy."""
     make_site("localhost")
@@ -221,7 +194,6 @@ def test_competition_is_created_on_a_database_without_site_settings(rewound):
     assert competition.logo_id is None
 
 
-@pytest.mark.django_db(transaction=True)
 def test_database_without_a_site_gets_no_competition(rewound):
     """Konkurs bez witryny nie miałby ani strony głównej, ani domeny – więc nie powstaje."""
     migrate_to(AFTER)
@@ -229,7 +201,6 @@ def test_database_without_a_site_gets_no_competition(rewound):
     assert not Competition.objects.exists()
 
 
-@pytest.mark.django_db(transaction=True)
 def test_the_logo_points_at_the_same_image_as_the_footer(rewound):
     """Logo jest wskazaniem obrazu z biblioteki, a nie kopią pliku."""
     site = make_site(PRODUCTION_HOST)
@@ -248,7 +219,6 @@ def test_the_logo_points_at_the_same_image_as_the_footer(rewound):
     assert Competition.objects.get().logo_id == image.pk
 
 
-@pytest.mark.django_db(transaction=True)
 def test_reverse_removes_only_what_the_migration_created(rewound):
     """Cofnięcie jest cofnięciem jednego kroku wdrożenia, a nie czyszczeniem instalacji.
 
@@ -285,15 +255,7 @@ def test_reverse_removes_only_what_the_migration_created(rewound):
     # migracji tabeli konkursu – w przeciwieństwie do ``get()``, który pyta o komplet kolumn.
     assert list(Competition.objects.values_list("slug", flat=True)) == ["fizyczna"]
 
-    # Sprzątanie przed powrotem do czoła (fixture ``rewound``): backfille wydania B odmawiają pracy
-    # na bazie z dwoma konkursami, a ``0002`` założy Konkurs #1 od nowa obok tamtego. Surowy
-    # SQL, bo po cofnięciu do ``0001`` tabel późniejszych relacji jeszcze nie ma.
-    with connection.cursor() as cursor:
-        cursor.execute(f'DELETE FROM "{Competition._meta.db_table}" WHERE slug = %s', ["fizyczna"])
-        cursor.execute(f'DELETE FROM "{Site._meta.db_table}" WHERE id = %s', [other_site.pk])
 
-
-@pytest.mark.django_db(transaction=True)
 def test_running_the_migration_twice_does_not_duplicate_the_competition(rewound):
     """Idempotencja: powtórzony przebieg nie dokłada drugiego właściciela tych samych danych.
 
