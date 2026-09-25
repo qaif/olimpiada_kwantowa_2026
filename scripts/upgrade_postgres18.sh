@@ -13,26 +13,45 @@
 #   --recreate-pg18-volume  wolumen `pg18_data` już istnieje (np. po wycofaniu) – skasuj go i zacznij
 #                           od zera. Wolumen po wycofaniu niesie dane zapisane na 18 – zrzut z nich
 #                           robi `--rollback` (pg18-rollback-*.dump), więc skasowanie nie jest ślepe.
+#   --no-maintenance        bez strony „Prace techniczne” (proxy sprzed tej funkcji) – przez przerwę
+#                           serwis odpowiada wtedy 502. Domyślnie strona jest włączana i wymagana.
+# Zmienne: MAINTENANCE_MESSAGE (komunikat na stronie), MAINTENANCE_MINUTES (planowany czas, dom. 10),
+#          MAINTENANCE_CHECK_URL (adres kontroli przez proxy, dom. https://<SITE_DOMAIN>).
 #
 # Jak to działa (docs/OPERACJE.md § 19): usługa `db` w docker-compose.yml bierze obraz i wolumen
 # ze zmiennych POSTGRES_IMAGE / POSTGRES_VOLUME; bez nich – PostgreSQL 18 na wolumenie `pg18_data`.
 # Serwer, który przed tym wydaniem działał na 16, ma w .env przypięcie (wpisuje je `--pin-if-needed`
-# z scripts/deploy.sh), więc samo wdrożenie niczego w bazie nie zmienia. Ten skrypt:
-#   1. kontrole wstępne (wersja, wolumeny, miejsce na dysku, świeżość kopii nocnej, obraz 18),
-#   2. zatrzymuje web/worker/beat (proxy zostaje – odpowiada 502 do końca przerwy),
-#   3. zapisuje stan bazy 16 (liczby wierszy KAŻDEJ tabeli, sekwencje, rozszerzenia, role, obiekty),
-#   4. robi zrzuty do BACKUP_DIR: `pg_dump -Fc` klientem 16 (droga powrotu, czyta go pg_restore 16)
-#      oraz `pg_dumpall --roles-only` i `pg_dump -Fc` klientem 18 (tym się odtwarza – dokumentacja
-#      PostgreSQL każe zrzucać narzędziami NOWSZEJ wersji),
-#   5. zatrzymuje 16 i stawia 18 na nowym wolumenie (to samo polecenie, locale, hasło – z compose),
-#   6. odtwarza role i bazę (`pg_restore --exit-on-error --single-transaction`), ANALYZE,
-#   7. porównuje stan 18 ze stanem 16 – każda różnica przerywa skrypt,
-#   8. zdejmuje przypięcie z .env, uruchamia aplikację i czeka na /healthz/ + /status.json.
+# z scripts/deploy.sh), więc samo wdrożenie niczego w bazie nie zmienia.
+#
+# Kolejność jest wymuszona (wymóg organizatora z 25.09.2026, OPERACJE § 19.4): odtwarzany jest
+# WYŁĄCZNIE zrzut zrobiony PO włączeniu strony prac technicznych i zatrzymaniu aplikacji – każde
+# odstępstwo przerywa skrypt:
+#   0. kontrole wstępne – bez przerwy (wersja, wolumeny, miejsce, kopia nocna, obraz 18, proxy
+#      widzi katalog strony, jest przepustka operatora),
+#   1. strona „Prace techniczne” WŁĄCZONA (scripts/maintenance.sh on) – od tej chwili 503,
+#   2. stop web/worker/beat; w bazie nie może zostać żaden klient poza tym skryptem
+#      (pg_stat_activity; maruderzy po 30 s są rozłączani, a jeśli to nie pomoże – przerwanie),
+#   3. stan bazy 16 (liczby wierszy KAŻDEJ tabeli, sekwencje, rozszerzenia, role, obiekty),
+#   4. ZRZUTY KOŃCOWE: `pg_dump -Fc` klientem 16 (droga powrotu) oraz `pg_dumpall --roles-only`
+#      i `pg_dump -Fc` klientem 18 (ten jest odtwarzany); przed każdym – kontrola, że strona wciąż
+#      jest włączona, aplikacja stoi i nie ma klientów; znacznik czasu każdego zrzutu musi być
+#      późniejszy niż włączenie strony; SHA-256 i rozmiar do dumps.sha256; po zrzutach ponowny
+#      stan 16 – musi być identyczny (nikt nie pisał w trakcie),
+#   5. stop 16, start 18 na nowym wolumenie (to samo polecenie, locale, hasło – z compose),
+#   6. odtworzenie DOKŁADNIE tego zrzutu (SHA-256 sprawdzany tuż przed `pg_restore`), ANALYZE,
+#   7. porównanie stanu 18 ze stanem zatrzymanej 16 – każda różnica przerywa skrypt,
+#   8. zdjęcie przypięcia z .env, start aplikacji, /healthz/ + /status.json od środka i przez proxy
+#      z przepustką operatora (X-Maintenance-Bypass),
+#   9. strona „Prace techniczne” WYŁĄCZONA.
+# Przebieg (czasy każdego etapu) trafia do timeline.txt w katalogu przebiegu.
 # Błąd w krokach 2–7 (przed zdjęciem przypięcia) sam przywraca bazę 16 i aplikację – .env wciąż
 # wskazuje 16, więc `docker compose up -d` wraca na stary wolumen, którego nic nie dotknęło.
+# Po KAŻDYM błędzie po kroku 1 strona prac technicznych ZOSTAJE WŁĄCZONA (skrypt mówi to głośno):
+# operator sprawdza serwis z przepustką i wyłącza ją sam (scripts/maintenance.sh off).
 #
 # Szacowany czas przerwy (baza ~1,4 MB gzip): 2–5 minut, z czego większość to start `web`
-# (migracje + collectstatic w entrypoincie). Próba generalna: docs/OPERACJE.md § 19.3.
+# (migracje + collectstatic w entrypoincie). Próba generalna: docs/OPERACJE.md § 19.3,
+# test kolejności: scripts/tests/maintenance_pg18_rehearsal.sh.
 set -Eeuo pipefail
 # Każde nieobsłużone polecenie z błędem mówi, gdzie padło – `set -e` sam kończy skrypt po cichu.
 trap 'printf "BŁĄD: polecenie w linii %s zakończyło się kodem %s\n" "$LINENO" "$?" >&2' ERR
@@ -57,6 +76,12 @@ DRY_RUN=0
 YES=0
 ALLOW_STALE_BACKUP=0
 RECREATE_PG18=0
+MAINTENANCE=1
+MAINTENANCE_MESSAGE="${MAINTENANCE_MESSAGE:-Aktualizacja bazy danych (PostgreSQL 18).}"
+MAINTENANCE_MINUTES="${MAINTENANCE_MINUTES:-10}"
+# Stan strony prac technicznych w tym przebiegu: 1 = włączył ją ten skrypt i jeszcze nie wyłączył.
+MAINT_ON=0
+MAINT_ON_AT=""
 
 log() { printf '==> %s\n' "$*"; }
 info() { printf '    %s\n' "$*"; }
@@ -82,7 +107,8 @@ while [ $# -gt 0 ]; do
         --pin-if-needed) MODE=pin ;;
         --allow-stale-backup) ALLOW_STALE_BACKUP=1 ;;
         --recreate-pg18-volume) RECREATE_PG18=1 ;;
-        -h|--help) sed -n '2,36p' "${BASH_SOURCE[0]}"; exit 0 ;;
+        --no-maintenance) MAINTENANCE=0 ;;
+        -h|--help) sed -n '2,54p' "${BASH_SOURCE[0]}"; exit 0 ;;
         *) die "nieznany argument: $1 (pomoc: --help)" ;;
     esac
     shift
@@ -250,6 +276,133 @@ PY
 }
 
 # --------------------------------------------------------------------------------------------
+# Strona „Prace techniczne” i pilnowanie kolejności (OPERACJE § 19.4, § 20)
+# --------------------------------------------------------------------------------------------
+BYPASS_TOKEN="$(env_get MAINTENANCE_BYPASS_TOKEN | tr -d '\042\047')"
+CHECK_URL="${MAINTENANCE_CHECK_URL:-}"
+if [ -z "$CHECK_URL" ] && [ -n "$SITE_DOMAIN" ] && [ "$SITE_DOMAIN" != "localhost" ]; then
+    CHECK_URL="https://${SITE_DOMAIN}"
+fi
+TIMELINE=""
+now_ts() { date +%s.%N; }
+# Znacznik etapu: „<zdarzenie> <epoch z nanosekundami> <ISO>” – z tego pliku test kolejności
+# (scripts/tests/maintenance_pg18_rehearsal.sh) sprawdza, że zrzut powstał po włączeniu strony.
+mark() {  # mark <zdarzenie> [<epoch>]
+    local ts="${2:-$(now_ts)}"
+    [ -n "$TIMELINE" ] && printf '%s %s %s\n' "$1" "$ts" "$(date -d "@${ts%.*}" -Iseconds)" >> "$TIMELINE"
+    return 0
+}
+ts_after() { awk -v a="$1" -v b="$2" 'BEGIN { exit !(a + 0 > b + 0) }'; }  # a > b
+# `test` w kontenerze proxy. MSYS_NO_PATHCONV tylko tutaj: w Git Bashu (lokalna próba) ścieżka
+# kontenera zamieniłaby się w ścieżkę Windows; globalnie nie wolno, bo `--env-file` klienta 18
+# potrzebuje właśnie tej zamiany. Na Linuksie zmienna nic nie robi.
+proxy_test() { MSYS_NO_PATHCONV=1 docker compose exec -T proxy test "$@" </dev/null; }
+
+maintenance_preflight() {
+    [ "$MAINTENANCE" = "1" ] || { warn "--no-maintenance: przez całą przerwę serwis odpowiada 502 (bez strony prac technicznych)"; return 0; }
+    [ -x scripts/maintenance.sh ] || [ -f scripts/maintenance.sh ] \
+        || die "brak scripts/maintenance.sh – wdróż kod ze stroną prac technicznych albo użyj --no-maintenance"
+    [ "${#BYPASS_TOKEN}" -ge 32 ] \
+        || die "MAINTENANCE_BYPASS_TOKEN w .env pusty albo krótszy niż 32 znaki – bez niego nie sprawdzę serwisu przez proxy przed zdjęciem strony (scripts/deploy.sh generuje go sam; po dopisaniu ręcznym: docker compose up -d proxy)"
+    [ -n "$(dc ps -q --status running proxy 2>/dev/null)" ] || die "kontener proxy nie działa – strona prac technicznych nie miałaby kto podać"
+    proxy_test -d /srv/maintenance \
+        || die "proxy nie ma montażu /srv/maintenance – najpierw wdrożenie z tą funkcją (proxy odtworzone), albo --no-maintenance"
+    run bash scripts/maintenance.sh sync
+    if [ -n "$CHECK_URL" ]; then
+        info "kontrola przez proxy: $CHECK_URL (z przepustką operatora)"
+    else
+        warn "SITE_DOMAIN=${SITE_DOMAIN:-brak} i brak MAINTENANCE_CHECK_URL – kontrola przez proxy zostanie pominięta"
+    fi
+}
+
+maintenance_on() {  # maintenance_on "<komunikat>"
+    [ "$MAINTENANCE" = "1" ] || return 0
+    MAINT_ON_AT="$(now_ts)"
+    # Niepowodzenie `on` cofa flagę (proxy jej nie widzi = strony nie ma), więc stan jest „wyłączone”.
+    bash scripts/maintenance.sh on --message "$1" --in "$MAINTENANCE_MINUTES" \
+        || die "nie udało się włączyć strony prac technicznych (proxy jej nie widzi?) – NIC jeszcze nie zatrzymano"
+    MAINT_ON=1
+    mark maintenance_on "$MAINT_ON_AT"
+}
+
+maintenance_off() {
+    [ "$MAINTENANCE" = "1" ] || return 0
+    bash scripts/maintenance.sh off || die "strona prac technicznych: wyłączenie nie potwierdzone przez proxy (scripts/maintenance.sh status)"
+    MAINT_ON=0
+    mark maintenance_off
+}
+
+maintenance_left_on_banner() {
+    printf '\n' >&2
+    printf '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n' >&2
+    printf '!!! STRONA „PRACE TECHNICZNE” JEST NADAL WŁĄCZONA – serwis odpowiada wszystkim 503.\n' >&2
+    printf '!!! Sprawdź serwis z przepustką:  curl -H "X-Maintenance-Bypass: <token z .env>" %s/status.json\n' "${CHECK_URL:-https://<domena>}" >&2
+    printf '!!! Gdy wszystko działa:          scripts/maintenance.sh off\n' >&2
+    printf '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n' >&2
+}
+
+client_count() {
+    dbq "SELECT count(*) FROM pg_stat_activity WHERE datname IS NOT NULL AND pid <> pg_backend_pid() AND backend_type = 'client backend'"
+}
+
+wait_no_clients() {
+    # Aplikacja stoi – w bazie nie może zostać żaden klient poza tym skryptem. 30 s na rozejście się
+    # połączeń, potem rozłączenie maruderów (pg_terminate_backend) i ostatnia kontrola.
+    local others i
+    for i in $(seq 1 30); do
+        others="$(client_count)"
+        [ "$others" = "0" ] && { info "brak klientów bazy poza tym skryptem"; return 0; }
+        sleep 1
+    done
+    warn "po 30 s wciąż $others klient(ów): $(dbq "SELECT string_agg(DISTINCT coalesce(nullif(application_name, ''), '?') || '@' || coalesce(client_addr::text, 'socket'), ', ') FROM pg_stat_activity WHERE datname IS NOT NULL AND pid <> pg_backend_pid() AND backend_type = 'client backend'") – rozłączam"
+    dbq "SELECT count(pg_terminate_backend(pid)) FROM pg_stat_activity WHERE datname IS NOT NULL AND pid <> pg_backend_pid() AND backend_type = 'client backend'" >/dev/null
+    for i in $(seq 1 10); do
+        others="$(client_count)"
+        [ "$others" = "0" ] && { info "maruderzy rozłączeni – brak klientów bazy poza tym skryptem"; return 0; }
+        sleep 1
+    done
+    die "do bazy wciąż ktoś się łączy ($others) mimo rozłączenia – przerywam, zanim powstanie zrzut"
+}
+
+assert_quiesced() {  # assert_quiesced "<czego dotyczy>" – warunki zrobienia zrzutu KOŃCOWEGO
+    local what="$1" running
+    if [ "$MAINTENANCE" = "1" ]; then
+        { [ "$MAINT_ON" = "1" ] && [ -f "$(maintenance_dir)/on" ]; } \
+            || die "$what: strona prac technicznych nie jest włączona – zrzut do odtworzenia wolno zrobić wyłącznie po jej włączeniu"
+        proxy_test -f /srv/maintenance/on \
+            || die "$what: proxy nie widzi flagi prac technicznych – przerywam"
+        ts_after "$(now_ts)" "$MAINT_ON_AT" || die "$what: znacznik czasu nie jest późniejszy niż włączenie strony ($MAINT_ON_AT)"
+    fi
+    running="$(dc ps --status running --services 2>/dev/null | grep -xE 'web|worker|beat' | tr '\n' ' ' || true)"
+    [ -z "$running" ] || die "$what: działa jeszcze: $running– zrzut wolno zrobić wyłącznie przy zatrzymanej aplikacji"
+    [ "$(client_count)" = "0" ] || die "$what: w bazie są klienci poza tym skryptem – przerywam"
+}
+
+maintenance_dir() {
+    local d
+    d="${MAINTENANCE_DIR:-$(env_get MAINTENANCE_DIR | tr -d '\042\047')}"
+    d="${d:-./maintenance}"
+    case "$d" in /*) printf '%s' "$d" ;; *) printf '%s/%s' "$REPO_DIR" "${d#./}" ;; esac
+}
+
+proxy_status_ok() {
+    # /status.json przez proxy (tak, jak widzi go monitoring) z przepustką operatora – strona prac
+    # technicznych jest jeszcze włączona, więc bez przepustki odpowiedź to 503 {"status":"maintenance"}.
+    [ -n "$CHECK_URL" ] || { warn "kontrola przez proxy pominięta (brak adresu – MAINTENANCE_CHECK_URL)"; return 0; }
+    command -v curl >/dev/null 2>&1 || { warn "kontrola przez proxy pominięta (brak curl)"; return 0; }
+    local body code
+    if [ "$MAINTENANCE" = "1" ]; then
+        code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$CHECK_URL/status.json" || true)"
+        info "$CHECK_URL/status.json bez przepustki: $code (oczekiwane 503 – strona wciąż włączona)"
+        body="$(curl -fsS --max-time 15 -H "X-Maintenance-Bypass: $BYPASS_TOKEN" "$CHECK_URL/status.json" 2>&1)" || { info "$body"; return 1; }
+    else
+        body="$(curl -fsS --max-time 15 "$CHECK_URL/status.json" 2>&1)" || { info "$body"; return 1; }
+    fi
+    info "$CHECK_URL/status.json przez proxy: $(printf '%s' "$body" | tr -d '\n' | cut -c1-200)"
+    printf '%s' "$body" | grep -qE '"status" *: *"ok"'
+}
+
+# --------------------------------------------------------------------------------------------
 # --pin-if-needed: woła scripts/deploy.sh przed `docker compose up -d db`. Serwer z danymi na 16
 # (wolumen pg_data jest, pg18_data nie ma) i bez przypięcia dostaje je w .env – inaczej pierwsze
 # `up -d db` po wdrożeniu postawiłoby PUSTĄ bazę 18, a entrypoint web zmigrowałby ją od zera.
@@ -312,22 +465,48 @@ if [ "$MODE" = "rollback" ]; then
     fi
     run mkdir -p "$WORK"
     [ "$DRY_RUN" = "1" ] || chmod 700 "$WORK"
-    log "1/4 Zatrzymanie aplikacji (web, worker, beat)"
+    [ "$DRY_RUN" = "1" ] || TIMELINE="$WORK/timeline.txt"
+    # Błąd po włączeniu strony prac technicznych zostawia ją włączoną – i mówi to głośno.
+    rollback_exit() {
+        local rc=$?
+        if [ "$rc" -ne 0 ] && [ "$MAINT_ON" = "1" ]; then
+            printf '
+!!! Wycofanie przerwane (kod %s).
+' "$rc" >&2
+            maintenance_left_on_banner
+        fi
+    }
+    trap rollback_exit EXIT
+    log "0/6 Kontrole: strona prac technicznych"
+    maintenance_preflight
+    log "1/6 Strona „Prace techniczne” – WŁĄCZENIE"
+    if [ "$DRY_RUN" = "1" ]; then
+        info "[próba] scripts/maintenance.sh on --message \"$MAINTENANCE_MESSAGE\" (od tej chwili 503)"
+    else
+        maintenance_on "Przywracanie poprzedniej wersji bazy danych."
+    fi
+    log "2/6 Zatrzymanie aplikacji (web, worker, beat)"
     run dc stop web worker beat
+    mark app_stopped
     if db_running; then
-        log "2/4 Zrzut bazy 18 przed wycofaniem"
+        [ "$DRY_RUN" = "1" ] || wait_no_clients
+        log "3/6 Zrzut bazy 18 przed wycofaniem"
         if [ "$DRY_RUN" = "1" ]; then
             info "[próba] pg_dump -Fc > ${WORK}/pg18-rollback-${STAMP}.dump"
         else
+            assert_quiesced "zrzut bazy 18 przed wycofaniem"
+            mark dump_pg18_rollback_start
             dc exec -T db pg_dump -U "$PG_USER" -d "$PG_DB" -Fc </dev/null > "${WORK}/pg18-rollback-${STAMP}.dump"
             chmod 600 "${WORK}/pg18-rollback-${STAMP}.dump"
             [ -s "${WORK}/pg18-rollback-${STAMP}.dump" ] || die "zrzut bazy 18 jest pusty – przerywam, NIC nie zostało przełączone"
+            mark dump_pg18_rollback_end
+            ( cd "$WORK" && sha256sum "pg18-rollback-${STAMP}.dump" ) | tee "$WORK/dumps.sha256" | sed 's/^/    sha256 /'
             ls -lh "${WORK}/pg18-rollback-${STAMP}.dump"
         fi
     else
         warn "usługa db nie działa – wycofuję bez zrzutu bazy 18"
     fi
-    log "3/4 Przypięcie 16 w .env i start bazy na $VOL16"
+    log "4/6 Przypięcie 16 w .env i start bazy na $VOL16"
     if [ "$DRY_RUN" = "1" ]; then
         info "[próba] cp .env ${WORK}/env.before-rollback; dopisanie POSTGRES_IMAGE=$PG16_IMAGE, POSTGRES_VOLUME=$PG16_VOLUME"
     else
@@ -341,11 +520,25 @@ if [ "$MODE" = "rollback" ]; then
         [ "${v:0:2}" = "16" ] || die "po wycofaniu baza zgłasza wersję $v, a nie 16"
         info "baza: $(dbq 'SELECT version()')"
     fi
-    log "4/4 Start aplikacji"
+    log "5/6 Start aplikacji i kontrole (przez proxy z przepustką operatora)"
     run dc up -d web worker beat
     if [ "$DRY_RUN" != "1" ]; then
         wait_web_healthy || die "web nie jest healthy po ${WEB_HEALTH_TIMEOUT}s – docker compose logs web"
+        mark app_healthy
         dc exec -T web python manage.py db_connections </dev/null || true
+        ok=0
+        for _ in $(seq 1 $((STATUS_TIMEOUT / 10))); do
+            if status_json_ok && proxy_status_ok; then ok=1; break; fi
+            sleep 10
+        done
+        [ "$ok" = "1" ] || die "/status.json nie wróciło do status=ok w ${STATUS_TIMEOUT}s (od środka albo przez proxy)"
+        mark checks_ok
+    fi
+    log "6/6 Strona „Prace techniczne” – WYŁĄCZENIE"
+    if [ "$DRY_RUN" = "1" ]; then
+        info "[próba] scripts/maintenance.sh off"
+    else
+        maintenance_off
     fi
     log "Wycofanie zakończone: PostgreSQL 16, wolumen $VOL16. Wolumen $VOL18 został nietknięty."
     exit 0
@@ -354,7 +547,7 @@ fi
 # --------------------------------------------------------------------------------------------
 # Przejście 16 -> 18
 # --------------------------------------------------------------------------------------------
-log "0/8 Kontrole wstępne (projekt $PROJECT, katalog kopii $BACKUP_DIR)"
+log "0/9 Kontrole wstępne – bez przerwy (projekt $PROJECT, katalog kopii $BACKUP_DIR)"
 command -v docker >/dev/null 2>&1 || die "brak dockera"
 info "$(docker compose version)"
 
@@ -433,21 +626,30 @@ NETWORK="$(docker inspect -f '{{range $name, $_ := .NetworkSettings.Networks}}{{
     "$(dc ps -q db)" | grep -E '_internal$' | head -1)"
 [ -n "$NETWORK" ] || die "nie znalazłem sieci compose 'internal' kontenera db"
 
+# Strona prac technicznych: proxy musi widzieć katalog i musi istnieć przepustka operatora – inaczej
+# krok 8 nie sprawdziłby serwisu przez proxy przed zdjęciem strony. Sprawdzane PRZED przerwą.
+maintenance_preflight
+
 if [ "$DRY_RUN" = "1" ]; then
     cat <<PLAN
 ==> Plan (tryb próbny – nic nie zostało zmienione):
-    1/8 docker compose stop web worker beat                 (od tej chwili serwis odpowiada 502)
-    2/8 stan bazy 16 -> ${WORK}/state-16/
-    3/8 pg_dump -Fc (klient 16)            -> ${WORK}/db-pg16-${STAMP}.dump   (droga powrotu)
+    1/9 scripts/maintenance.sh on --message "$MAINTENANCE_MESSAGE"   (od tej chwili 503 „Prace techniczne”)
+    2/9 docker compose stop web worker beat; w bazie zero klientów poza skryptem (maruderzy rozłączani po 30 s)
+    3/9 stan bazy 16 -> ${WORK}/state-16/
+    4/9 ZRZUTY KOŃCOWE (każdy: strona włączona, aplikacja stoi, zero klientów, czas > włączenia strony)
+        pg_dump -Fc (klient 16)            -> ${WORK}/db-pg16-${STAMP}.dump   (droga powrotu)
         pg_dumpall --roles-only (klient 18) -> ${WORK}/roles-${STAMP}.sql
-        pg_dump -Fc (klient 18, sieć $NETWORK) -> ${WORK}/db-for-pg18-${STAMP}.dump
-    4/8 docker compose stop db   (16; wolumen $VOL16 zostaje nietknięty)
-    5/8 POSTGRES_IMAGE=$PG18_IMAGE POSTGRES_VOLUME=$PG18_VOLUME docker compose up -d --no-deps db
-    6/8 role + pg_restore --single-transaction --exit-on-error, ANALYZE
-    7/8 stan bazy 18 -> ${WORK}/state-18/ i porównanie z 16 (wiersze, sekwencje, rozszerzenia, role, obiekty)
-    8/8 zdjęcie przypięcia z .env (kopia: ${WORK}/env.before-upgrade), docker compose up -d db web worker beat,
-        /healthz/ + /status.json + manage.py db_connections
-    Błąd w krokach 1–7: automatyczny powrót na 16 (.env nadal przypina 16).
+        pg_dump -Fc (klient 18, sieć $NETWORK) -> ${WORK}/db-for-pg18-${STAMP}.dump   (TEN jest odtwarzany)
+        SHA-256 + rozmiar -> ${WORK}/dumps.sha256; ponowny stan 16 musi być identyczny
+    5/9 docker compose stop db   (16; wolumen $VOL16 zostaje nietknięty)
+        POSTGRES_IMAGE=$PG18_IMAGE POSTGRES_VOLUME=$PG18_VOLUME docker compose up -d --no-deps db
+    6/9 SHA-256 zrzutu = zapisany w kroku 4, role + pg_restore --single-transaction --exit-on-error, ANALYZE
+    7/9 stan bazy 18 -> ${WORK}/state-18/ i porównanie z zatrzymaną 16 (wiersze, sekwencje, rozszerzenia, role, obiekty)
+    8/9 zdjęcie przypięcia z .env (kopia: ${WORK}/env.before-upgrade), docker compose up -d db web worker beat,
+        /healthz/ + /status.json + manage.py db_connections, ${CHECK_URL:-<adres>}/status.json z przepustką operatora
+    9/9 scripts/maintenance.sh off
+    Błąd w krokach 2–7: automatyczny powrót na 16 (.env nadal przypina 16).
+    Po każdym błędzie od kroku 1: strona prac technicznych ZOSTAJE włączona (wyłączenie ręczne).
 PLAN
     exit 0
 fi
@@ -462,6 +664,7 @@ fi
 mkdir -p "$WORK"
 chmod 700 "$WORK"
 exec > >(tee -a "$WORK/upgrade.log") 2>&1
+TIMELINE="$WORK/timeline.txt"
 T0="$(date +%s)"
 CREATED_PG18=0
 COMMITTED=0
@@ -483,28 +686,36 @@ on_exit() {
         fi
         docker compose up -d web worker beat || true
         printf '!!! Stan: PostgreSQL 16 na %s, aplikacja uruchomiona. Log i zrzuty: %s\n' "$VOL16" "$WORK" >&2
+    elif [ "$rc" -ne 0 ]; then
+        printf '\n!!! Przejście przerwane (kod %s) PO przełączeniu – baza stoi na 18. Log: %s\n' "$rc" "$WORK" >&2
+    fi
+    if [ "$rc" -ne 0 ] && [ "$MAINT_ON" = "1" ]; then
+        mark failed_maintenance_left_on
+        maintenance_left_on_banner
     fi
 }
 trap on_exit EXIT
 
-log "1/8 Przerwa: zatrzymanie web, worker, beat (proxy zostaje – 502 do końca przerwy)"
-run dc stop web worker beat
-# Połączenia aplikacji muszą zniknąć, zanim zrobimy zrzut: po nim nic nie może już pisać.
-for _ in $(seq 1 30); do
-    others="$(dbq "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid() AND backend_type = 'client backend'")"
-    [ "$others" = "0" ] && break
-    sleep 1
-done
-[ "$others" = "0" ] || die "do bazy wciąż są podłączeni klienci ($others): $(dbq "SELECT string_agg(DISTINCT application_name, ', ') FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid()")"
-info "brak połączeń aplikacji – baza 16 jest nieruchoma"
+log "1/9 Strona „Prace techniczne” – WŁĄCZENIE (od tej chwili serwis odpowiada 503)"
+maintenance_on "$MAINTENANCE_MESSAGE"
 
-log "2/8 Stan bazy 16"
+log "2/9 Zatrzymanie web, worker, beat i kontrola klientów bazy"
+run dc stop web worker beat
+mark app_stopped
+# Połączenia aplikacji muszą zniknąć, zanim zrobimy zrzut: po nim nic nie może już pisać.
+wait_no_clients
+mark no_clients
+
+log "3/9 Stan bazy 16 (zatrzymanej – nikt poza skryptem nie jest podłączony)"
 snapshot "$WORK/state-16"
 info "tabel: $(wc -l < "$WORK/state-16/rows.txt"), wierszy razem: $(awk '{s+=$2} END {print s+0}' "$WORK/state-16/rows.txt"), rozszerzenia: $(tr '\n' ' ' < "$WORK/state-16/extensions.txt")"
 
-log "3/8 Zrzuty do $WORK"
+log "4/9 Zrzuty KOŃCOWE do $WORK (po włączeniu strony i zatrzymaniu aplikacji)"
 DUMP16="$WORK/db-pg16-${STAMP}.dump"
+assert_quiesced "zrzut klientem 16"
+mark dump16_start
 dc exec -T db pg_dump -U "$PG_USER" -d "$PG_DB" -Fc </dev/null > "$DUMP16"
+mark dump16_end
 [ -s "$DUMP16" ] || die "zrzut klientem 16 jest pusty"
 # Hasło do klienta 18 przez plik z uprawnieniami 600 (--env-file), a nie w argumencie `-e`:
 # argumenty procesu widać w `ps`, a plik znika w on_exit.
@@ -512,19 +723,39 @@ dc exec -T db pg_dump -U "$PG_USER" -d "$PG_DB" -Fc </dev/null > "$DUMP16"
 pg18_client() { docker run --rm -i --network "$NETWORK" --env-file "$PGENV" "$PG18_IMAGE" "$@"; }
 ROLES="$WORK/roles-${STAMP}.sql"
 DUMP18="$WORK/db-for-pg18-${STAMP}.dump"
+assert_quiesced "zrzut klientem 18 (ten będzie odtwarzany)"
+DUMP18_STARTED="$(now_ts)"
+mark dump18_start "$DUMP18_STARTED"
 pg18_client pg_dumpall -h db -U "$PG_USER" --roles-only </dev/null > "$ROLES"
 pg18_client pg_dump -h db -U "$PG_USER" -d "$PG_DB" -Fc </dev/null > "$DUMP18"
+mark dump18_end
 [ -s "$DUMP18" ] || die "zrzut klientem 18 jest pusty"
 chmod 600 "$DUMP16" "$DUMP18" "$ROLES"
-ls -lh "$DUMP16" "$DUMP18" "$ROLES" | sed 's/^/    /'
+# Znacznik zrzutu do odtworzenia musi być późniejszy niż włączenie strony – to jest ten warunek,
+# który wymusza cała kolejność. Przy --no-maintenance porównanie ze stopem aplikacji.
+if [ "$MAINTENANCE" = "1" ]; then
+    ts_after "$DUMP18_STARTED" "$MAINT_ON_AT" \
+        || die "zrzut do odtworzenia ($DUMP18_STARTED) nie jest późniejszy niż włączenie strony ($MAINT_ON_AT)"
+    info "zrzut do odtworzenia zaczęty $(awk -v a="$DUMP18_STARTED" -v b="$MAINT_ON_AT" 'BEGIN { printf "%.1f", a - b }') s po włączeniu strony prac technicznych"
+fi
+# SHA-256 i rozmiar: krok 6 sprawdza sumę tuż przed `pg_restore`, więc odtwarzany jest dokładnie
+# ten plik, a nie wcześniejszy zrzut (np. z kopii nocnej albo kroku 4a wdrożenia) o tej samej nazwie.
+( cd "$WORK" && sha256sum "$(basename "$DUMP18")" "$(basename "$ROLES")" "$(basename "$DUMP16")" ) > "$WORK/dumps.sha256"
+sed 's/^/    sha256 /' "$WORK/dumps.sha256"
+ls -l "$DUMP16" "$DUMP18" "$ROLES" | awk '{print "    rozmiar", $5, $NF}'
 # Kontrola czytelności: spis treści zrzutu przez pg_restore 18 (ten sam, który będzie odtwarzał).
 TOC_ENTRIES="$(pg18_client pg_restore -l < "$DUMP18" | grep -vc '^;')"
 info "spis treści zrzutu dla 18: ${TOC_ENTRIES} pozycji"
+# Ponowny stan 16 PO zrzutach: identyczny = nikt nie pisał do bazy w trakcie zrzucania.
+snapshot "$WORK/state-16-after-dump"
+for f in rows sequences; do
+    diff -u "$WORK/state-16/$f.txt" "$WORK/state-16-after-dump/$f.txt" >&2 \
+        || die "stan bazy 16 zmienił się w trakcie zrzutów ($f) – ktoś pisał mimo zatrzymanej aplikacji"
+done
+info "stan 16 po zrzutach identyczny ze stanem sprzed nich"
 
-log "4/8 Zatrzymanie PostgreSQL 16 (wolumen $VOL16 zostaje nietknięty)"
+log "5/9 Zatrzymanie PostgreSQL 16 (wolumen $VOL16 zostaje nietknięty) i start 18 na $VOL18"
 run dc stop db
-
-log "5/8 Start PostgreSQL 18 na wolumenie $VOL18"
 if volume_exists "$VOL18"; then
     run dc rm -f -s db
     run docker volume rm "$VOL18"
@@ -540,7 +771,11 @@ info "checksums: $(dbq 'SHOW data_checksums'), locale: $(dbq "SELECT datcollate 
 [ "$(dbq "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public'")" = "0" ] \
     || die "baza $PG_DB na 18 nie jest pusta – to nie jest świeży klaster"
 
-log "6/8 Odtworzenie: role, baza, ANALYZE"
+log "6/9 Odtworzenie zrzutu końcowego: role, baza, ANALYZE"
+( cd "$WORK" && sha256sum -c --quiet dumps.sha256 ) \
+    || die "suma SHA-256 zrzutu nie zgadza się z zapisaną w kroku 4 – nie odtwarzam"
+info "SHA-256 zgodne: $(cut -c1-16 < "$WORK/dumps.sha256" | head -1)… $(basename "$DUMP18")"
+mark restore_start
 # Konto aplikacji zakłada entrypoint obrazu (POSTGRES_USER z .env); zrzut ról zakłada **pozostałe**
 # i ustawia atrybuty wszystkich. Linijka CREATE ROLE konta aplikacji wypada, bo rola już istnieje,
 # a psql z ON_ERROR_STOP zatrzymałby się na niej.
@@ -549,25 +784,28 @@ grep -v -E "^CREATE ROLE \"?${PG_USER}\"?;$" "$ROLES" \
 # --single-transaction + --exit-on-error: albo cała baza, albo nic (nigdy „prawie cała”).
 # Właściciele obiektów zostają (bez --no-owner) – te same role co na 16.
 dc exec -T db pg_restore -U "$PG_USER" -d "$PG_DB" --exit-on-error --single-transaction < "$DUMP18"
+mark restore_end
 info "pg_restore zakończony"
 dbq "ANALYZE" >/dev/null
 info "ANALYZE zakończony (statystyki planisty – zrzut ich nie przenosi)"
 
-log "7/8 Porównanie stanu 18 ze stanem 16"
+log "7/9 Porównanie stanu 18 ze stanem zatrzymanej 16"
 snapshot "$WORK/state-18"
 compare_snapshots "$WORK/state-16" "$WORK/state-18" || die "stan bazy 18 różni się od 16 (szczegóły wyżej, pliki w $WORK)"
+mark compare_ok
 
-log "8/8 Przełączenie: zdjęcie przypięcia z .env i start aplikacji"
+log "8/9 Przełączenie: zdjęcie przypięcia z .env, start aplikacji, kontrole z przepustką operatora"
 cp -p .env "$WORK/env.before-upgrade"
 pin_remove
 pinned && die "nie udało się zdjąć przypięcia z .env"
 COMMITTED=1
+mark switched
 # Bez przypięcia compose sam wskazuje 18 na pg18_data – to jest ten sam kontener co w kroku 5,
 # więc `up -d` go nie odtwarza (brak zmian w konfiguracji).
 run dc up -d db web worker beat
 wait_web_healthy || die "web nie jest healthy po ${WEB_HEALTH_TIMEOUT}s. Baza stoi na 18. Diagnoza: docker compose logs web. Wycofanie: scripts/upgrade_postgres18.sh --rollback --yes"
+mark app_healthy
 T_UP="$(date +%s)"
-info "przerwa w działaniu serwisu: ok. $(( (T_UP - T0) / 60 )) min $(( (T_UP - T0) % 60 )) s"
 dc exec -T web python manage.py db_connections </dev/null | sed 's/^/    /' || warn "manage.py db_connections nie zadziałało"
 UNAPPLIED="$(dc exec -T web python manage.py showmigrations --plan </dev/null | grep -c '^\[ \]' || true)"
 [ "${UNAPPLIED:-0}" = "0" ] || warn "niezastosowane migracje: $UNAPPLIED (entrypoint web powinien był je wykonać)"
@@ -578,14 +816,18 @@ for _ in $(seq 1 $((STATUS_TIMEOUT / 10))); do
     sleep 10
 done
 [ "$ok" = "1" ] || die "/status.json nie wróciło do status=ok w ${STATUS_TIMEOUT}s. Baza stoi na 18. Wycofanie: scripts/upgrade_postgres18.sh --rollback --yes"
-if [ -n "$SITE_DOMAIN" ] && [ "$SITE_DOMAIN" != "localhost" ] && command -v curl >/dev/null 2>&1; then
-    curl -fsS --max-time 15 "https://${SITE_DOMAIN}/status.json" >/dev/null \
-        && info "https://${SITE_DOMAIN}/status.json: 200 (przez proxy)" \
-        || warn "https://${SITE_DOMAIN}/status.json z zewnątrz nie odpowiada 200 – sprawdź proxy"
-fi
+# Przez proxy – tak, jak zobaczą to uczestnicy po zdjęciu strony. Z przepustką, bo strona jeszcze
+# wisi; niepowodzenie zostawia ją włączoną (on_exit).
+proxy_status_ok || die "$CHECK_URL/status.json przez proxy (z przepustką) nie daje status=ok – strona prac technicznych zostaje"
+mark checks_ok
+
+log "9/9 Strona „Prace techniczne” – WYŁĄCZENIE"
+maintenance_off
+T_END="$(date +%s)"
+info "przerwa w działaniu serwisu: ok. $(( (T_END - T0) / 60 )) min $(( (T_END - T0) % 60 )) s (aplikacja healthy po $(( T_UP - T0 )) s)"
 
 log "Gotowe: PostgreSQL $(dbq 'SHOW server_version') na wolumenie $VOL18."
-info "Ślad przejścia (log, stany, zrzuty): $WORK"
+info "Ślad przejścia (log, stany, zrzuty, timeline.txt, dumps.sha256): $WORK"
 info "Stary wolumen $VOL16 zostaje nietknięty – droga powrotu: scripts/upgrade_postgres18.sh --rollback --yes"
 info "Następnie: scripts/backup.sh && scripts/backup_verify.sh (pierwsza kopia z 18 i test jej odtworzenia)"
 info "Skasowanie $VOL16 najwcześniej po 14 dniach bez wycofania – docs/OPERACJE.md § 19.6"

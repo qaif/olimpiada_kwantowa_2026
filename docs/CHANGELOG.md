@@ -8,6 +8,32 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – strona „Prace techniczne”
+
+Prośba organizatora z 25.09.2026: zamiast gołego 502 z Caddy'ego – strona „Prace techniczne – serwis
+wróci za kilka minut” (`deploy/maintenance/index.html`: PL + zdanie EN, contact@qaif.org, logo
+i CSS w pliku, zero zewnętrznych żądań, jasny/ciemny motyw, odświeżanie co 45 s). Podaje ją Caddy
+(fragment `(maintenance)` w `deploy/Caddyfile`, `import` w bloku domeny głównej, w domenach
+z `EXTRA_DOMAINS` i w bloku `*.` – nie w `meet.`, `monitor.` ani S3): **503**, `Retry-After: 60`,
+`Cache-Control: no-store`, własne CSP; dla `/status.json`, `/healthz/`, `/api/*` – JSON
+`{"status":"maintenance"}`. Tryb planowy: flaga `/opt/olimpiada/maintenance/on`
+(`scripts/maintenance.sh on|off|status [--message] [--until]`, bez przeładowania proxy), z wyjątkiem
+wyzwania ACME i operatora z przepustką `MAINTENANCE_BYPASS_TOKEN` (nagłówek `X-Maintenance-Bypass`
+albo ciasteczko z `/__maintenance/bypass?token=`; token generuje `deploy.sh`). Tryb nieplanowy:
+`handle_errors` dla 502/503/504 z upstreamu – także krótka przerwa przy restarcie `web` w zwykłym
+wdrożeniu. `scripts/upgrade_postgres18.sh`: wymuszona kolejność (wymóg organizatora) – kontrole →
+strona włączona → stop aplikacji i zero klientów bazy (maruderzy rozłączani) → zrzuty końcowe (czas
+startu > włączenia strony, SHA-256, stan 16 niezmieniony w trakcie) → odtworzenie **tego** zrzutu
+(SHA-256 przed `pg_restore`) → porównanie z zatrzymaną 16 → start i kontrole przez proxy
+z przepustką → strona wyłączona; po błędzie strona zostaje włączona (ramka `!!!`), `timeline.txt`
+z czasem każdego etapu, `--no-maintenance`. `scripts/deploy.sh --maintenance`: strona na czas
+kopii przed migracjami (dopiero po zatrzymaniu aplikacji), migracji i podmiany kontenerów; bez flagi
+bez zmian poza tym, że krok 2/8 omija katalog `maintenance/`, a krok 4/8 dopisuje token i kopiuje
+stronę. Testy: `scripts/tests/render_caddyfile_test.sh` (zakres importu, `caddy validate`,
+kolejność tras po `caddy adapt`), `scripts/tests/maintenance_pg18_rehearsal.sh` (próba na stosie
+compose). Caddy 2.8.4: `handle_errors` z listą kodów nadpisuje zagnieżdżone matchery – stąd matcher
+kodu w środku. `OPERACJE.md` § 19.4 (kolejność), § 20; `PODRECZNIK-ADMINISTRATORA.md` § 5.1.
+
 ## [Unreleased] – PostgreSQL 18
 
 Baza: `postgres:16-alpine` → `postgres:18-alpine` (18.6), zrzutem i odtworzeniem do **nowego**

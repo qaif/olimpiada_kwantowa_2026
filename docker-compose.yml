@@ -79,11 +79,20 @@ services:
       - static_files:/srv/static:ro
       - caddy_data:/data
       - caddy_config:/config
+      # Strona „Prace techniczne” (docs/OPERACJE.md § 20): flaga `on`, komunikat operatora
+      # i kopia deploy/maintenance/ (page/). Katalog stanu, a nie kod z repozytorium: krok 2/8
+      # scripts/deploy.sh kasuje katalogi z kodem i rozpakowuje je od nowa, a działający kontener
+      # widziałby wtedy stary, skasowany katalog aż do restartu – czyli bez strony. Ten katalog
+      # deploy.sh omija, a treść strony odświeża w nim `scripts/maintenance.sh sync` (krok 4/8).
+      - ${MAINTENANCE_DIR:-./maintenance}:/srv/maintenance:ro
     environment:
       SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
       S3_PUBLIC_ADDRESS: ${S3_PUBLIC_ADDRESS:-s3.${SITE_DOMAIN:-localhost}}
       ACME_EMAIL: ${ACME_EMAIL:-}
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-25}
+      # Przepustka operatora przez stronę prac technicznych (nagłówek X-Maintenance-Bypass albo
+      # ciasteczko z /__maintenance/bypass?token=…). Pusta albo krótsza niż 32 znaki = nikt.
+      MAINTENANCE_BYPASS_TOKEN: ${MAINTENANCE_BYPASS_TOKEN:-}
     networks: [edge, internal]   # internal: trasa s3.<domena> -> minio
     depends_on:
       web: { condition: service_healthy }

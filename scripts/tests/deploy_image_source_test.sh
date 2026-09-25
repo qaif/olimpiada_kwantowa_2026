@@ -55,6 +55,7 @@ cat >"$WORK/bin/docker" <<'STUB'
 printf '%s\n' "$*" >> "$DOCKER_LOG"
 case "$*" in
   *"compose ps"*) echo "db=healthy" ;;
+  *"exec -T db psql"*) echo 0 ;;   # liczba klientów bazy przy --maintenance
   "compose config") echo "name: olimpiada" ;;
   "volume inspect "*)
     case " ${DOCKER_VOLUMES:-} " in *" $3 "*) exit 0 ;; *) exit 1 ;; esac ;;
@@ -67,6 +68,10 @@ chmod +x "$WORK/bin/docker"
 # z prawdziwym docker-compose.yml – skrypt odmawia pracy z plikiem, który nie zna POSTGRES_VOLUME.
 cp "$ROOT/scripts/upgrade_postgres18.sh" "$SRV/scripts/"
 cp "$ROOT/docker-compose.yml" "$SRV/"
+# Strona „Prace techniczne”: krok 4/8 kopiuje ją do katalogu stanu (prawdziwy skrypt, bez dockera).
+cp "$ROOT/scripts/maintenance.sh" "$SRV/scripts/"
+mkdir -p "$SRV/deploy/maintenance"
+cp "$ROOT/deploy/maintenance/index.html" "$SRV/deploy/maintenance/"
 
 # Atrapa generatora Caddy'ego: jego własny test jest osobno (render_caddyfile_test.sh).
 cat >"$SRV/scripts/render_caddyfile.sh" <<'STUB'
@@ -79,7 +84,8 @@ krok4() {
   # zwraca kod wyjścia skryptu.
   : >"$LOG"
   ( cd "$SRV" && PATH="$WORK/bin:$PATH" DOCKER_LOG="$LOG" REMOTE_DIR="$SRV" WEB_IMAGE="$1" \
-      DOCKER_VOLUMES="${2:-}" bash "$WORK/krok4.sh" ) >"$WORK/stdout" 2>&1
+      DOCKER_VOLUMES="${2:-}" MAINTENANCE="${MAINTENANCE:-0}" MAINTENANCE_MESSAGE="Test." \
+      MAINTENANCE_MINUTES=10 bash "$WORK/krok4.sh" ) >"$WORK/stdout" 2>&1
 }
 
 # Dzisiejszy przebieg kroku 4/8, co do wywołania: build na serwerze, sprawdzenie, czy bazę trzeba
@@ -110,6 +116,11 @@ check "bez WEB_IMAGE polecenia docker są dokładnie dzisiejsze" $?
 check "bez WEB_IMAGE w .env nie pojawia się wpis o obrazie" $?
 grep -qE '^EXTRA_DOMAINS=' "$SRV/.env" && grep -qE '^CADDYFILE_PATH=' "$SRV/.env"
 check "krok nadal dokłada do .env EXTRA_DOMAINS i CADDYFILE_PATH" $?
+grep -qE '^MAINTENANCE_BYPASS_TOKEN=[A-Za-z0-9]{40}$' "$SRV/.env"
+check "krok dopisuje do .env przepustkę MAINTENANCE_BYPASS_TOKEN (40 znaków)" $?
+cmp -s "$ROOT/deploy/maintenance/index.html" "$SRV/maintenance/page/index.html" && [ ! -e "$SRV/maintenance/on" ]
+check "krok kopiuje stronę prac technicznych do maintenance/page i jej NIE włącza" $?
+token_before="$(grep '^MAINTENANCE_BYPASS_TOKEN=' "$SRV/.env")"
 
 # 2. Z WEB_IMAGE – pobranie zamiast budowania i wpis do .env dla kolejnych wywołań compose'a.
 krok4 "ghcr.io/qaif/olimpiada-web:v9.9.9"
@@ -130,6 +141,22 @@ check "drugie wdrożenie z rejestru podmienia wpis w .env" $?
 krok4 ""
 [ "$(cat "$LOG")" = "$DZISIAJ" ] && ! grep -qE '^WEB_IMAGE=' "$SRV/.env"
 check "wdrożenie bez WEB_IMAGE wraca do budowania i kasuje wpis z .env" $?
+[ "$(grep -c '^MAINTENANCE_BYPASS_TOKEN=' "$SRV/.env")" = "1" ] && [ "$(grep '^MAINTENANCE_BYPASS_TOKEN=' "$SRV/.env")" = "$token_before" ]
+check "kolejne wdrożenia nie zmieniają ani nie dublują przepustki" $?
+
+# 4a. --maintenance: strona włączona i aplikacja zatrzymana PRZED startem bazy i kopią z kroku 4a.
+MAINTENANCE=1 krok4 ""
+check "krok 4/8 z --maintenance kończy się powodzeniem" $?
+[ -f "$SRV/maintenance/on" ] && [ -f "$SRV/maintenance/.deploy-maintenance-on" ]
+check "--maintenance: flaga prac technicznych i znacznik czasu włączenia są na miejscu" $?
+stop_line="$(grep -n '^compose stop web worker beat$' "$LOG" | cut -d: -f1)"
+up_line="$(grep -n '^compose up -d db$' "$LOG" | cut -d: -f1)"
+build_line="$(grep -n '^compose build --pull web$' "$LOG" | cut -d: -f1)"
+[ -n "$stop_line" ] && [ -n "$up_line" ] && [ "$build_line" -lt "$stop_line" ] && [ "$stop_line" -lt "$up_line" ]
+check "--maintenance: build -> stop web/worker/beat -> up -d db (kolejność w logu docker)" $?
+grep -q 'exec -T db psql' "$LOG" && grep -q 'zero klientów' "$WORK/stdout"
+check "--maintenance: kontrola klientów bazy przed kopią" $?
+rm -f "$SRV/maintenance/on" "$SRV/maintenance/.deploy-maintenance-on" "$SRV/maintenance/info.html"
 
 # 5. Nagłówek skryptu opisuje zmienną – wdrożenie bywa czytane wtedy, gdy nie ma czasu na docs/.
 grep -q 'WEB_IMAGE=ghcr.io/' "$DEPLOY"

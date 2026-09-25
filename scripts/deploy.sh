@@ -45,15 +45,52 @@
 #
 # Krok 7 wypisuje i zapisuje do <REMOTE_DIR>/mail-dns.txt rekordy SPF/DKIM/DMARC/PTR dla usługi
 # `mail` (własny Postfix). Dopóki ich nie dodasz w DNS-ie, poczta idzie do spamu albo jest odrzucana.
+#
+# Strona „Prace techniczne” (docs/OPERACJE.md § 20). Bez flagi wdrożenie przebiega jak dotąd, a krótką
+# przerwę przy restarcie `web` (krok 4b) zasłania strona zastępcza proxy (tryb nieplanowy, 502 -> 503).
+# Z flagą `--maintenance` ryzykowna część jest owinięta stroną w trybie planowym:
+#   scripts/deploy.sh --maintenance root@<host>
+#   [MAINTENANCE_MESSAGE="…"] [MAINTENANCE_MINUTES=10]
+# Kolejność (ta sama zasada co w scripts/upgrade_postgres18.sh): po zbudowaniu obrazu strona WŁĄCZONA
+# -> stop web/worker/beat -> w bazie zero klientów -> kopia przed migracjami (krok 4a: dopiero teraz,
+# ze znacznikiem czasu późniejszym niż włączenie strony, SHA-256) -> start z migracjami (4b) ->
+# healthy + /healthz/ przez proxy z przepustką operatora -> strona WYŁĄCZONA. Błąd po włączeniu
+# zostawia stronę włączoną i mówi to głośno. Wymaga proxy, które już ma montaż /srv/maintenance
+# (czyli co najmniej jednego wdrożenia tej wersji BEZ flagi).
 set -euo pipefail
 
-TARGET="${1:?użycie: scripts/deploy.sh user@host}"
+MAINTENANCE=0
+ARGS=()
+for arg in "$@"; do
+  case "$arg" in
+    --maintenance) MAINTENANCE=1 ;;
+    *) ARGS+=("$arg") ;;
+  esac
+done
+set -- "${ARGS[@]+"${ARGS[@]}"}"
+TARGET="${1:?użycie: scripts/deploy.sh [--maintenance] user@host}"
 SSH_KEY="${SSH_KEY:-$HOME/.ssh/olimpiada_deploy}"
 REMOTE_DIR="${REMOTE_DIR:-/opt/olimpiada}"
 SSH=(ssh -i "$SSH_KEY" -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$TARGET")
 APP_VERSION="${APP_VERSION:-$(git describe --tags --always)}"
 
 log() { printf '\n==> %s\n' "$*"; }
+
+# 1 od chwili, gdy strona prac technicznych MOGŁA zostać włączona na serwerze (--maintenance),
+# do jej potwierdzonego wyłączenia. Każde wyjście z błędem w tym czasie kończy się głośnym komunikatem.
+MAINT_MAYBE_ON=0
+maintenance_exit() {
+  local rc=$?
+  if [ "$rc" -ne 0 ] && [ "$MAINT_MAYBE_ON" = "1" ]; then
+    printf '\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n' >&2
+    printf '!!! Wdrożenie przerwane (kod %s), a strona „PRACE TECHNICZNE” jest (najpewniej) WŁĄCZONA.\n' "$rc" >&2
+    printf '!!! Stan:      ssh %s "cd %s && scripts/maintenance.sh status"\n' "$TARGET" "$REMOTE_DIR" >&2
+    printf '!!! Wyłącz po sprawdzeniu serwisu z przepustką (X-Maintenance-Bypass):\n' >&2
+    printf '!!!            ssh %s "cd %s && scripts/maintenance.sh off"\n' "$TARGET" "$REMOTE_DIR" >&2
+    printf '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n' >&2
+  fi
+}
+trap maintenance_exit EXIT
 
 log "1/8 Docker na serwerze"
 "${SSH[@]}" bash -s <<'REMOTE'
@@ -76,7 +113,9 @@ fi
 REMOTE
 
 log "2/8 Kod: git archive HEAD -> $REMOTE_DIR"
-"${SSH[@]}" "mkdir -p '$REMOTE_DIR' && find '$REMOTE_DIR' -mindepth 1 -maxdepth 1 ! -name .env ! -name 'e2e' -exec rm -rf {} +"
+# `maintenance` (stan strony prac technicznych: flaga, komunikat, kopia strony) zostaje: montuje go
+# działające proxy, a katalog skasowany i utworzony od nowa proxy widziałoby jako pusty (bez strony).
+"${SSH[@]}" "mkdir -p '$REMOTE_DIR' && find '$REMOTE_DIR' -mindepth 1 -maxdepth 1 ! -name .env ! -name 'e2e' ! -name maintenance -exec rm -rf {} +"
 git archive --format=tar HEAD | "${SSH[@]}" "tar -x -C '$REMOTE_DIR'"
 
 log "3/8 .env (tworzony tylko przy pierwszym wdrożeniu)"
@@ -147,9 +186,27 @@ fi
 # migracje uruchamia entrypoint kontenera `web` (backend/entrypoint.sh), więc jedyne miejsce, w
 # którym da się zrobić kopię bazy **sprzed** migracji, jest między startem `db` a startem `web`.
 # Polecenie startujące komplet usług (krok 4b) zostaje co do znaku takie, jakie było.
-"${SSH[@]}" env REMOTE_DIR="$REMOTE_DIR" WEB_IMAGE="${WEB_IMAGE:-}" bash -s <<'REMOTE'
+[ "$MAINTENANCE" = "1" ] && MAINT_MAYBE_ON=1
+"${SSH[@]}" env REMOTE_DIR="$REMOTE_DIR" WEB_IMAGE="${WEB_IMAGE:-}" MAINTENANCE="$MAINTENANCE" \
+  MAINTENANCE_MESSAGE="${MAINTENANCE_MESSAGE:-Aktualizacja serwisu.}" MAINTENANCE_MINUTES="${MAINTENANCE_MINUTES:-10}" bash -s <<'REMOTE'
 set -euo pipefail
 cd "$REMOTE_DIR"
+# Przepustka operatora przez stronę „Prace techniczne” (docs/OPERACJE.md § 20): tworzona raz, jak
+# pozostałe sekrety; istniejącej wartości skrypt nie rusza. Proxy dostaje ją ze środowiska
+# (docker-compose.yml), więc nowa wartość działa po odtworzeniu proxy w kroku 4b.
+if ! grep -qE '^MAINTENANCE_BYPASS_TOKEN=.' .env; then
+  sed -i '/^MAINTENANCE_BYPASS_TOKEN=$/d' .env
+  {
+    echo
+    echo "# Przepustka operatora przez stronę „Prace techniczne” (nagłówek X-Maintenance-Bypass albo"
+    echo "# https://<domena>/__maintenance/bypass?token=…). Wygenerowane przez scripts/deploy.sh."
+    echo "MAINTENANCE_BYPASS_TOKEN=$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 40)"
+  } >> .env
+  chmod 600 .env
+fi
+# Treść strony do katalogu stanu (<REMOTE_DIR>/maintenance/page), który krok 2/8 omija: działające
+# proxy widzi nową wersję strony bez restartu (scripts/maintenance.sh, funkcja sync_page).
+bash scripts/maintenance.sh sync
 # Dwie zmienne wielokonkursowości dokładane do .env **tylko wtedy, gdy ich nie ma**. Istniejących
 # wartości ten skrypt nie rusza (tak samo jak krok 3/8 nie rusza całego pliku), a serwer, na
 # którym .env powstał przed wielokonkursowością, dostaje je przy pierwszym wdrożeniu po zmianie –
@@ -230,6 +287,15 @@ else
   fi
   docker compose build --pull web
 fi
+if [ "${MAINTENANCE:-0}" = "1" ]; then
+  # --maintenance: strona włączona, zanim cokolwiek z aplikacji zostanie zatrzymane, i PRZED kopią
+  # z kroku 4a – kopia ma odpowiadać stanowi, którego nikt już nie zmieni (OPERACJE § 20.3).
+  # Proxy, które nie widzi flagi (sprzed tej funkcji), kończy się tu kodem 2 – nic nie jest jeszcze
+  # zatrzymane, wystarczy wdrożyć raz bez --maintenance.
+  bash scripts/maintenance.sh on --message "$MAINTENANCE_MESSAGE" --in "$MAINTENANCE_MINUTES"
+  date +%s.%N > maintenance/.deploy-maintenance-on
+  docker compose stop web worker beat
+fi
 # PostgreSQL 16 -> 18: docker-compose.yml stawia domyślnie 18 na NOWYM wolumenie `pg18_data`.
 # Serwer, którego dane leżą jeszcze na 16 (`pg_data`), dostaje w .env przypięcie do 16 – inaczej
 # `up -d db` niżej postawiłby pustą bazę 18, a entrypoint web zmigrowałby ją od zera. Samo
@@ -243,6 +309,24 @@ for _ in $(seq 1 30); do
 done
 # Twardo: bez działającej bazy nie ma kopii z kroku 4a, a bez kopii nie wolno migrować.
 docker compose ps --format '{{.Service}}={{.Health}}' | grep -q 'db=healthy'
+if [ "${MAINTENANCE:-0}" = "1" ]; then
+  # Aplikacja stoi – w bazie nie może zostać żaden klient. 30 s na rozejście się połączeń, potem
+  # rozłączenie maruderów i ostatnia kontrola; ktoś, kto wciąż pisze, zatrzymuje wdrożenie.
+  PG_USER="$(sed -n 's/^POSTGRES_USER=//p' .env | tail -n 1)"
+  PG_DB="$(sed -n 's/^POSTGRES_DB=//p' .env | tail -n 1)"
+  q() { docker compose exec -T db psql -X -U "$PG_USER" -d "$PG_DB" -Atc "$1" </dev/null | tr -d '\r'; }
+  CLIENTS="SELECT count(*) FROM pg_stat_activity WHERE datname IS NOT NULL AND pid <> pg_backend_pid() AND backend_type = 'client backend'"
+  n="?"
+  for _ in $(seq 1 30); do n="$(q "$CLIENTS")"; [ "$n" = "0" ] && break; sleep 1; done
+  if [ "$n" != "0" ]; then
+    echo "UWAGA: po 30 s wciąż $n klient(ów) bazy – rozłączam"
+    q "SELECT count(pg_terminate_backend(pid)) FROM pg_stat_activity WHERE datname IS NOT NULL AND pid <> pg_backend_pid() AND backend_type = 'client backend'" >/dev/null
+    sleep 3
+    n="$(q "$CLIENTS")"
+    [ "$n" = "0" ] || { echo "BŁĄD: do bazy wciąż ktoś się łączy ($n) – przerywam przed kopią i migracjami"; exit 1; }
+  fi
+  echo "aplikacja zatrzymana, w bazie zero klientów – strona prac technicznych włączona"
+fi
 REMOTE
 
 log "4a/8 Kopia bazy przed migracjami (pg_dump -Fc)"
@@ -250,7 +334,7 @@ log "4a/8 Kopia bazy przed migracjami (pg_dump -Fc)"
 # co przy pomyłce w migracji jest różnicą między dziesięcioma minutami a wieczorem. Kopia jest
 # **warunkiem** wdrożenia (`set -e` + sprawdzenie rozmiaru): niepowodzenie zatrzymuje skrypt,
 # zanim entrypoint `web` wykona `migrate` (docs/UNIWERSALNY-ETAP-1.md § 0.2).
-"${SSH[@]}" env REMOTE_DIR="$REMOTE_DIR" APP_VERSION="$APP_VERSION" BACKUP_DIR="${BACKUP_DIR:-/opt/olimpiada-backups}" bash -s <<'REMOTE'
+"${SSH[@]}" env REMOTE_DIR="$REMOTE_DIR" APP_VERSION="$APP_VERSION" BACKUP_DIR="${BACKUP_DIR:-/opt/olimpiada-backups}" MAINTENANCE="$MAINTENANCE" bash -s <<'REMOTE'
 set -euo pipefail
 cd "$REMOTE_DIR"
 PG_USER="$(grep -E '^POSTGRES_USER=' .env | cut -d= -f2-)"
@@ -261,15 +345,41 @@ chmod 700 "$BACKUP_DIR"
 # bo przy odtwarzaniu pytanie brzmi „sprzed której wersji”, a nie „z której godziny”.
 STAMP="$(date +%Y%m%d-%H%M%S)-$(printf '%s' "$APP_VERSION" | tr -cs 'A-Za-z0-9._-' '-')"
 DUMP="$BACKUP_DIR/pre-deploy-$STAMP.dump"
+if [ "${MAINTENANCE:-0}" = "1" ]; then
+  # Warunki kopii przy --maintenance – każdy niespełniony zatrzymuje wdrożenie przed migracjami:
+  # strona włączona (host i proxy), aplikacja zatrzymana, zero klientów bazy, czas > włączenia strony.
+  [ -f maintenance/on ] && [ -f maintenance/.deploy-maintenance-on ] \
+    || { echo "BŁĄD: strona prac technicznych nie jest włączona – kopii przed migracjami nie robię"; exit 1; }
+  docker compose exec -T proxy test -f /srv/maintenance/on </dev/null \
+    || { echo "BŁĄD: proxy nie widzi flagi prac technicznych – przerywam"; exit 1; }
+  running="$(docker compose ps --status running --services | grep -xE 'web|worker|beat' | tr '\n' ' ' || true)"
+  [ -z "$running" ] || { echo "BŁĄD: działa jeszcze: $running– kopia wyłącznie przy zatrzymanej aplikacji"; exit 1; }
+  n="$(docker compose exec -T db psql -X -U "$PG_USER" -d "$PG_DB" -Atc "SELECT count(*) FROM pg_stat_activity WHERE datname IS NOT NULL AND pid <> pg_backend_pid() AND backend_type = 'client backend'" </dev/null | tr -d '\r')"
+  [ "$n" = "0" ] || { echo "BŁĄD: w bazie są klienci ($n) – przerywam"; exit 1; }
+  MAINT_ON_AT="$(cat maintenance/.deploy-maintenance-on)"
+  DUMP_START="$(date +%s.%N)"
+  awk -v a="$DUMP_START" -v b="$MAINT_ON_AT" 'BEGIN { exit !(a + 0 > b + 0) }' \
+    || { echo "BŁĄD: znacznik kopii nie jest późniejszy niż włączenie strony"; exit 1; }
+  echo "kopia zaczęta $(awk -v a="$DUMP_START" -v b="$MAINT_ON_AT" 'BEGIN { printf "%.1f", a - b }') s po włączeniu strony prac technicznych (aplikacja zatrzymana, zero klientów)"
+fi
 # </dev/null: `exec` nie może czytać stdin, bo to strumień tego skryptu.
 docker compose exec -T db pg_dump -U "$PG_USER" -d "$PG_DB" -Fc > "$DUMP" </dev/null
 chmod 600 "$DUMP"
 [ -s "$DUMP" ] || { echo "Kopia przed migracjami jest pusta – przerywam wdrożenie."; exit 1; }
 ls -lh "$DUMP"
+if [ "${MAINTENANCE:-0}" = "1" ]; then
+  # Suma obok kopii: przy odtwarzaniu po nieudanej migracji wiadomo, że to ten plik (sha256sum -c).
+  ( cd "$BACKUP_DIR" && sha256sum "$(basename "$DUMP")" > "$(basename "$DUMP").sha256" )
+  echo "sha256 $(cut -c1-64 "$DUMP.sha256")"
+fi
 # Zostaje dziesięć ostatnich kopii przedwdrożeniowych. Bez tego katalog rośnie o pełny zrzut bazy
 # przy każdym wdrożeniu i po pół roku to on wywoła awarię, przed którą miał chronić. Kopie
 # nocne (scripts/backup.sh) są osobnym zestawem plików i ten limit ich nie dotyczy.
 ls -1t "$BACKUP_DIR"/pre-deploy-*.dump 2>/dev/null | tail -n +11 | xargs -r rm -f
+for sum in "$BACKUP_DIR"/pre-deploy-*.dump.sha256; do
+  [ -e "$sum" ] && [ ! -e "${sum%.sha256}" ] && rm -f "$sum"
+done
+true
 echo "Odtworzenie: docker compose exec -T db pg_restore -U $PG_USER -d $PG_DB --clean --if-exists < $DUMP"
 REMOTE
 
@@ -286,6 +396,32 @@ for i in \$(seq 1 60); do
   sleep 5
 done
 REMOTE
+
+if [ "$MAINTENANCE" = "1" ]; then
+  log "5a/8 Kontrola z przepustką operatora i wyłączenie strony „Prace techniczne”"
+  # Strona schodzi dopiero, gdy web jest healthy, a /healthz/ PRZEZ PROXY (z przepustką, bo strona
+  # wciąż wisi) odpowiada 200 – czyli wtedy, gdy uczestnik po jej zdjęciu zobaczy działający serwis.
+  # Niepowodzenie zostawia stronę włączoną (komunikat pułapki EXIT).
+  "${SSH[@]}" env REMOTE_DIR="$REMOTE_DIR" bash -s <<'REMOTE'
+set -euo pipefail
+cd "$REMOTE_DIR"
+docker compose ps --format '{{.Service}}={{.Health}}' | grep -qx 'web=healthy' \
+  || { echo "BŁĄD: web nie jest healthy – strona prac technicznych zostaje włączona (docker compose logs web)"; exit 1; }
+DOMAIN="$(sed -n 's/^SITE_DOMAIN=//p' .env | tail -n 1 | tr -d '\r\042\047')"
+TOKEN="$(sed -n 's/^MAINTENANCE_BYPASS_TOKEN=//p' .env | tail -n 1 | tr -d '\r\042\047')"
+ok=0
+for _ in $(seq 1 12); do
+  code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 -H "X-Maintenance-Bypass: $TOKEN" "https://$DOMAIN/healthz/" || true)"
+  [ "$code" = "200" ] && { ok=1; break; }
+  sleep 5
+done
+echo "https://$DOMAIN/healthz/ z przepustką operatora: ${code:-?}"
+[ "$ok" = "1" ] || { echo "BŁĄD: serwis przez proxy nie odpowiada 200 – strona prac technicznych zostaje włączona"; exit 1; }
+bash scripts/maintenance.sh off
+rm -f maintenance/.deploy-maintenance-on
+REMOTE
+  MAINT_MAYBE_ON=0
+fi
 
 log "6/8 Seedy treści i konto koordynatora"
 # Seedy treści (seed_cms, seed_regulamin, seed_legacy_content, seed_partners) są narzędziami

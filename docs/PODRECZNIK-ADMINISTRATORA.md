@@ -263,6 +263,29 @@ Wycofanie wydania: wdróż wcześniejszy tag (`APP_VERSION=v0.17.1 scripts/deplo
 `HEAD`). Migracji danych zwykle **nie da się** cofnąć automatycznie — przy zmianie schematu wycofanie
 oznacza odtworzenie bazy z kopii (§ 6).
 
+### 5.1 Strona „Prace techniczne”
+
+W czasie przerwy serwis nie odpowiada pustym błędem 502, tylko stroną **„Prace techniczne – serwis
+wróci za kilka minut”** (503, podaje ją proxy Caddy – działa także, gdy aplikacja i baza leżą).
+Pokazuje się sama, gdy aplikacja nie odpowiada (restart przy wdrożeniu, awaria), a na czas prac
+planowych włącza się ją ręcznie (na serwerze, w `/opt/olimpiada`):
+
+```bash
+scripts/maintenance.sh on --message "Aktualizacja bazy danych." --until "21:30"   # czas polski
+scripts/maintenance.sh status
+scripts/maintenance.sh off
+```
+
+Włączenie i wyłączenie działa natychmiast, bez restartu czegokolwiek. W czasie przerwy administrator
+ogląda serwis z **przepustką** – token `MAINTENANCE_BYPASS_TOKEN` z `.env` (nagłówek
+`X-Maintenance-Bypass` albo w przeglądarce `https://<domena>/__maintenance/bypass?token=<token>`).
+Strony nie ma na `meet.` (Jitsi), `monitor.` i endpoincie S3. `scripts/upgrade_postgres18.sh`
+włącza i wyłącza ją sam; zwykłe wdrożenie może ją włączyć flagą:
+`scripts/deploy.sh --maintenance root@<adres-serwera>` (wtedy kopia bazy przed migracjami powstaje
+dopiero po włączeniu strony i zatrzymaniu aplikacji). **Jeśli skrypt skończy się błędem, strona
+zostaje włączona** – sprawdź serwis z przepustką i wyłącz ją `scripts/maintenance.sh off`.
+Szczegóły: `docs/OPERACJE.md` § 20.
+
 ---
 
 ## 6. Kopie zapasowe, monitoring, rotacja

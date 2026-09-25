@@ -2168,12 +2168,59 @@ Niezależnie: pełny zestaw testów na `postgres:18-alpine` 18.6 z tym samym `co
 produkcja – **6152 passed, 0 failed**; `migrate` od zera (378 migracji, `pg_trgm` 1.6), `check`,
 `makemigrations --check` – czyste.
 
+### 19.3a. Próba kolejności ze stroną prac technicznych (`scripts/tests/maintenance_pg18_rehearsal.sh`)
+
+Wymóg organizatora (25.09.2026): na 18 trafia wyłącznie zrzut zrobiony po włączeniu strony prac
+technicznych i zatrzymaniu aplikacji. Skrypt próby stawia osobny projekt compose (`olimpmaint`,
+własne podsieci, proxy na `127.0.0.1:18443`) z bazą 16, uruchamia **pisarza** (zapis znacznika do
+bazy co ~0,2 s aż do pojawienia się flagi `maintenance/on`) i **sondę** (`/healthz/` i `/` przez
+proxy co ~0,5 s), po czym puszcza `upgrade_postgres18.sh` i sprawdza:
+
+- kolejność etapów z `timeline.txt` (strona → stop → zero klientów → zrzut 16 → zrzut 18 →
+  odtworzenie → porównanie → przełączenie → healthy → kontrole → strona wyłączona),
+- start obu zrzutów **po** włączeniu strony, SHA-256 odtworzonego pliku = zapisany w `dumps.sha256`,
+- **każdy** potwierdzony zapis pisarza jest w 18, w tym ostatni sprzed włączenia strony,
+- ani jednej odpowiedzi 502/504; w przerwie 503 + JSON `maintenance` i 503 + strona HTML; strona
+  tylko między włączeniem a wyłączeniem; na końcu 200 i flaga zdjęta.
+
+Wynik lokalny (25.09.2026, 176 tabel): 34 z 34 kontroli; ostatni zapis 0,02 s przed włączeniem
+strony jest w 18 (26 zapisów, 0 brakujących); zrzut do odtworzenia zaczęty 14,7 s po włączeniu
+strony; 218 próbek proxy – 36 × 200, 182 × 503, 0 × 502; przerwa 2 min 3 s (aplikacja healthy po
+50 s, reszta to czekanie na `status=ok` kolejki). Uruchomienie: `scripts/tests/maintenance_pg18_rehearsal.sh`
+(`--keep` zostawia stos, `REHEARSAL_WEB_IMAGE=` wskazuje obraz aplikacji).
+
 ### 19.4. Przejście na produkcji
 
 **Kiedy:** poza godzinami zgłoszeń i oceniania, nie w oknie kopii nocnej (3:15, w niedzielę też
 4:40 – skrypt odmówi, gdy kopia trwa). Dzień wcześniej koordynator może wystawić komunikat na
-stronie („przerwa techniczna ok. 5 minut o …”) – projekt nie ma strony serwisowej: przez czas
-przerwy proxy odpowiada **502**.
+stronie („przerwa techniczna ok. 5 minut o …”). Przez czas przerwy proxy podaje stronę
+**„Prace techniczne”** (503, § 20) z planowaną godziną końca – włącza ją i wyłącza sam skrypt.
+
+**Kolejność jest wymuszona** (wymóg organizatora z 25.09.2026): na 18 trafia **wyłącznie zrzut
+zrobiony po włączeniu strony prac technicznych i zatrzymaniu aplikacji** – i dokładnie ten zrzut.
+Wcześniejsze kopie (nocna, `pre-deploy-*` z wdrożenia) są dobre jako zabezpieczenie, ale nigdy
+nie są odtwarzane na 18. Skrypt przerywa przebieg, gdy którykolwiek warunek nie jest spełniony:
+
+1. kontrole wstępne – serwis działa normalnie (w tym: proxy widzi katalog strony, jest przepustka
+   `MAINTENANCE_BYPASS_TOKEN`),
+2. **strona prac technicznych WŁĄCZONA** (`scripts/maintenance.sh on`; proxy potwierdza flagę),
+3. stop `web`/`worker`/`beat`; w `pg_stat_activity` nie może zostać żaden klient poza skryptem –
+   30 s na rozejście się, potem `pg_terminate_backend` maruderów, a jeśli ktoś wciąż się łączy –
+   przerwanie,
+4. **zrzuty końcowe** (ten do odtworzenia klientem 18 + droga powrotu klientem 16): przed każdym
+   ponowna kontrola „strona włączona, aplikacja stoi, zero klientów”; znacznik startu zrzutu musi
+   być późniejszy niż włączenie strony; SHA-256 i rozmiar do `dumps.sha256`; ponowny stan 16 po
+   zrzutach musi być identyczny ze stanem sprzed nich,
+5. odtworzenie **tego** zrzutu na 18 – SHA-256 sprawdzany tuż przed `pg_restore`,
+6. porównanie liczby wierszy każdej tabeli (i sekwencji, ról, obiektów) z **zatrzymaną** 16, do
+   której nikt już nie może pisać,
+7. przełączenie, start aplikacji, kontrole od środka i **przez proxy z przepustką operatora**,
+8. **strona prac technicznych WYŁĄCZONA**.
+
+Każdy etap ma znacznik czasu w `timeline.txt` katalogu przebiegu. Po błędzie od kroku 2 strona
+**zostaje włączona** (skrypt mówi to głośno ramką `!!!`) – operator sprawdza serwis z przepustką
+i wyłącza ją sam. Dowód kolejności na prawdziwym stosie: `scripts/tests/maintenance_pg18_rehearsal.sh`
+(§ 19.3a).
 
 **Szacowany przestój: 2–5 minut** (próba lokalna: 1 min 8 s; na produkcji dłuższy start `web`
 – entrypoint robi `migrate` i `collectstatic`, a VPS traci część CPU na rzecz hosta, § 11 / notatka
@@ -2190,11 +2237,13 @@ ssh -i ~/.ssh/olimpiada_deploy root@169.58.242.197
 cd /opt/olimpiada
 scripts/upgrade_postgres18.sh --status       # przypięcie 16, pg_data jest, pg18_data brak, 16.15
 scripts/upgrade_postgres18.sh --dry-run      # kontrole wstępne + plan; kod 0 = można
+scripts/maintenance.sh status                # proxy widzi katalog strony, przepustka ustawiona
 docker pull postgres:18-alpine               # (robi to też skrypt, przed przerwą)
 
-# 1. Przejście (przerwa zaczyna się w kroku 1/8, kończy po 8/8)
-scripts/upgrade_postgres18.sh
+# 1. Przejście (przerwa = strona „Prace techniczne” od kroku 1/9 do 9/9)
+MAINTENANCE_MINUTES=10 scripts/upgrade_postgres18.sh
 #    koniec: „Gotowe: PostgreSQL 18.x na wolumenie olimpiada_pg18_data.” + czas przerwy
+#    ślad: /opt/olimpiada-backups/pg18-upgrade-<data>/{upgrade.log,timeline.txt,dumps.sha256}
 
 # 2. Po przejściu
 scripts/upgrade_postgres18.sh --status       # bez przypięcia, 18.x
@@ -2203,25 +2252,33 @@ docker compose exec -T web python manage.py db_connections
 scripts/backup.sh && scripts/backup_verify.sh   # pierwsza kopia z 18 i test jej odtworzenia
 ```
 
-Co robi skrypt (każdy krok drukuje polecenia i wyniki; log, stany i zrzuty w
-`/opt/olimpiada-backups/pg18-upgrade-<data>/`, `upgrade.log`):
+Co robi skrypt (każdy krok drukuje polecenia i wyniki; log, stany, zrzuty, `timeline.txt`
+i `dumps.sha256` w `/opt/olimpiada-backups/pg18-upgrade-<data>/`):
 
 | Krok | Co | Zatrzymuje się, gdy |
 |---|---|---|
-| 0 | kontrole: przypięcie 16, wolumeny, wersja serwera = 16, miejsce (≥ 5× baza, min. 2 GB) na katalogu kopii i Dockera, kopia nocna ≤ 26 h (`--allow-stale-backup` świadomie), nie trwa `backup.sh`, `docker pull` obrazu 18, każde rozszerzenie bazy jest w obrazie 18 | cokolwiek się nie zgadza – **przed** przerwą |
-| 1 | `stop web worker beat`, czeka aż zniknie każde połączenie klienta | po 30 s wciąż ktoś podłączony |
-| 2 | stan 16: `count(*)` każdej tabeli, `last_value` każdej sekwencji, rozszerzenia, role, kodowanie/locale, ustawienia ról/bazy, liczby obiektów schematu | – |
-| 3 | `pg_dump -Fc` klientem 16 (powrót), `pg_dumpall --roles-only` i `pg_dump -Fc` klientem 18; kontrola spisu treści zrzutu przez `pg_restore -l` 18 | pusty zrzut / nieczytelny spis |
-| 4–5 | `stop db` (16), `up -d db` z obrazem 18 na `pg18_data` (ten sam `command`, locale, hasło – z compose); czeka na TCP (nie na gniazdo – patrz komentarz w skrypcie) | serwer nie wstaje / wersja ≠ 18 / baza nie jest pusta |
-| 6 | role, `pg_restore --exit-on-error --single-transaction` (właściciele bez zmian), `ANALYZE` | pierwszy błąd odtwarzania |
-| 7 | stan 18 i `diff` z 16 | **jakakolwiek** różnica |
-| 8 | zdjęcie przypięcia z `.env` (kopia `env.before-upgrade`), `up -d db web worker beat`, `web` healthy, `db_connections`, `showmigrations`, `/status.json` = `ok` (do 5 min – kolejka wstaje ostatnia), `https://<domena>/status.json` | web nie wstaje / status nie `ok` |
+| 0 | kontrole: przypięcie 16, wolumeny, wersja serwera = 16, miejsce (≥ 5× baza, min. 2 GB) na katalogu kopii i Dockera, kopia nocna ≤ 26 h (`--allow-stale-backup` świadomie), nie trwa `backup.sh`, `docker pull` obrazu 18, każde rozszerzenie bazy jest w obrazie 18, proxy widzi `/srv/maintenance`, `MAINTENANCE_BYPASS_TOKEN` ≥ 32 znaki | cokolwiek się nie zgadza – **przed** przerwą |
+| 1 | `scripts/maintenance.sh on` (komunikat + planowany koniec = teraz + `MAINTENANCE_MINUTES`) | proxy nie potwierdza flagi – nic jeszcze nie zatrzymane |
+| 2 | `stop web worker beat`, czeka aż zniknie każde połączenie klienta; po 30 s `pg_terminate_backend` maruderów | po rozłączeniu wciąż ktoś podłączony |
+| 3 | stan 16: `count(*)` każdej tabeli, `last_value` każdej sekwencji, rozszerzenia, role, kodowanie/locale, ustawienia ról/bazy, liczby obiektów schematu | – |
+| 4 | **zrzuty końcowe**: `pg_dump -Fc` klientem 16 (powrót), `pg_dumpall --roles-only` i `pg_dump -Fc` klientem 18 (do odtworzenia); przed każdym: strona włączona (host i proxy), aplikacja stoi, zero klientów, czas > włączenia strony; SHA-256 + rozmiar do `dumps.sha256`; spis treści przez `pg_restore -l` 18; ponowny stan 16 = stan sprzed zrzutów | którykolwiek warunek / pusty zrzut / nieczytelny spis / stan 16 się zmienił |
+| 5 | `stop db` (16), `up -d db` z obrazem 18 na `pg18_data` (ten sam `command`, locale, hasło – z compose); czeka na TCP (nie na gniazdo – patrz komentarz w skrypcie) | serwer nie wstaje / wersja ≠ 18 / baza nie jest pusta |
+| 6 | `sha256sum -c dumps.sha256`, role, `pg_restore --exit-on-error --single-transaction` **tego** zrzutu (właściciele bez zmian), `ANALYZE` | suma się nie zgadza / pierwszy błąd odtwarzania |
+| 7 | stan 18 i `diff` ze stanem zatrzymanej 16 | **jakakolwiek** różnica |
+| 8 | zdjęcie przypięcia z `.env` (kopia `env.before-upgrade`), `up -d db web worker beat`, `web` healthy, `db_connections`, `showmigrations`, `/status.json` = `ok` od środka (do 5 min – kolejka wstaje ostatnia) i `https://<domena>/status.json` **przez proxy z nagłówkiem `X-Maintenance-Bypass`** | web nie wstaje / status nie `ok` |
+| 9 | `scripts/maintenance.sh off` | proxy nie potwierdza wyłączenia |
 
-**Błąd w krokach 1–7 sam przywraca stan sprzed przejścia:** `.env` wciąż przypina 16, więc skrypt
+**Błąd w krokach 2–7 sam przywraca bazę sprzed przejścia:** `.env` wciąż przypina 16, więc skrypt
 robi `up -d db` (16 na `pg_data`), kasuje `pg18_data` utworzony w tym przebiegu (niesie najwyżej
 częściowe odtworzenie; zrzuty zostają w katalogu przebiegu), podnosi aplikację i kończy się kodem
 ≠ 0. Po usunięciu przyczyny – uruchomić ponownie. Błąd w kroku 8 (po zdjęciu przypięcia) **nie**
 wycofuje sam: baza jest już na 18 i mogła przyjąć zapisy – decyzja należy do operatora (§ 19.5).
+**Po każdym błędzie od kroku 1 strona prac technicznych zostaje włączona** (ramka `!!!` na końcu
+logu): sprawdzić serwis z przepustką (`curl -H "X-Maintenance-Bypass: <token>"
+https://olimpiadakwantowa.pl/status.json` albo przeglądarką przez
+`/__maintenance/bypass?token=<token>`) i dopiero wtedy `scripts/maintenance.sh off`.
+`--no-maintenance` wyłącza stronę w tym skrypcie (np. proxy sprzed tej funkcji) – przerwa jest
+wtedy gołym 502, ale kolejka zatrzymanie → zero klientów → zrzut → odtworzenie zostaje ta sama.
 
 ### 19.5. Wycofanie (powrót na 16)
 
@@ -2231,9 +2288,11 @@ scripts/upgrade_postgres18.sh --rollback --dry-run   # plan
 scripts/upgrade_postgres18.sh --rollback --yes
 ```
 
-Zatrzymuje aplikację, robi zrzut bazy 18 (`pg18-rollback-<data>/pg18-rollback-*.dump`), wpisuje
-przypięcie 16 do `.env`, stawia 16 na **starym** wolumenie `pg_data`, sprawdza wersję, podnosi
-aplikację (przestój ~1–3 min). Wolumen `pg18_data` zostaje nietknięty.
+Włącza stronę prac technicznych, zatrzymuje aplikację (zero klientów bazy), robi zrzut bazy 18
+(`pg18-rollback-<data>/pg18-rollback-*.dump`, SHA-256 w `dumps.sha256`), wpisuje przypięcie 16 do
+`.env`, stawia 16 na **starym** wolumenie `pg_data`, sprawdza wersję, podnosi aplikację, sprawdza
+`/status.json` od środka i przez proxy z przepustką, wyłącza stronę (przestój ~1–3 min). Wolumen
+`pg18_data` zostaje nietknięty. Błąd po włączeniu strony zostawia ją włączoną (jak wyżej).
 
 **Zapisy wykonane na 18 od chwili przejścia nie wracają same** – baza 16 ma stan z chwili przejścia.
 Są w zrzucie `pg18-rollback-*.dump`; przeniesienie ich na 16 jest ręczne (np. `pg_restore -t
@@ -2272,8 +2331,113 @@ Dwie drogi:
 # a) przejść tak jak produkcja (dane zostają; zrzuty poza repozytorium)
 export COMPOSE_FILE="docker-compose.yml;docker-compose.dev.yml"   # Windows; Linux/macOS: ':'
 bash scripts/upgrade_postgres18.sh --pin-if-needed
-BACKUP_DIR="$HOME/olimpiada-pg18-upgrade" bash scripts/upgrade_postgres18.sh --allow-stale-backup
+# --no-maintenance: lokalny stos zwykle nie ma proxy, a bez niego nie ma kto podać strony (§ 20)
+BACKUP_DIR="$HOME/olimpiada-pg18-upgrade" bash scripts/upgrade_postgres18.sh --allow-stale-backup --no-maintenance
 # b) zostać na 16: wpisać przypięcie do .env (jak w § 19.5) i przejść później
 ```
 
 `scripts/e2e.sh` (reset) kasuje oba wolumeny – `pg18_data` i `pg_data`.
+
+## 20. Strona „Prace techniczne” (`scripts/maintenance.sh`, prośba organizatora z 25.09.2026)
+
+Zamiast gołego **502** z Caddy'ego – w czasie wdrożenia, przejścia na PostgreSQL 18 czy awarii
+`web` – uczestnik widzi stronę „Prace techniczne – serwis wróci za kilka minut” (PL + jedno zdanie
+EN, kontakt contact@qaif.org, odświeżanie co 45 s, jasny/ciemny motyw). Stronę podaje **Caddy**, nie
+Django, więc działa, gdy `web` i baza leżą. Odpowiedź: **503**, `Retry-After: 60`,
+`Cache-Control: no-store`, własne CSP (bez skryptów, bez zasobów z zewnątrz). Dla `/status.json`,
+`/healthz/` i `/api/*` – JSON `{"status":"maintenance","retry_after":60}` z tym samym 503, żeby
+monitoring i klienci API rozumieli, co się dzieje (Uptime Kuma zgłosi przerwę – to prawda).
+
+### 20.1. Dwa tryby
+
+| Tryb | Kiedy | Kto włącza |
+|---|---|---|
+| **planowy** | istnieje plik `/opt/olimpiada/maintenance/on` | `scripts/maintenance.sh on`, `upgrade_postgres18.sh`, `deploy.sh --maintenance` |
+| **nieplanowy** | `web` nie odpowiada: Caddy dostaje błąd połączenia/timeout (502/503/504) | nikt – działa zawsze (`handle_errors` w `deploy/Caddyfile`) |
+
+Tryb nieplanowy zasłania też krótką przerwę przy restarcie `web` w **zwykłym** wdrożeniu (krok 4b).
+Odpowiedzi, które wysłała sama aplikacja (także jej własne 500/503), przechodzą bez zmian.
+
+Zakres: domena główna, domeny z `EXTRA_DOMAINS` i subdomeny platformy (`import maintenance`
+w każdym bloku aplikacji; generator `scripts/render_caddyfile.sh`). **Nie** dotyczy: `meet.`
+(Jitsi), `monitor.` (monitoring ma działać właśnie wtedy) i endpointu S3 (`:9000`/`s3.`) –
+przerwane wgrywanie ma się skończyć zwykłym błędem, a nie stroną HTML. Wyzwanie ACME
+(`/.well-known/acme-challenge/*`) nigdy nie jest przechwytywane. W trybie planowym strona
+zasłania także `/static/*` (strona i tak niczego stamtąd nie wczytuje).
+
+### 20.2. Polecenia (na serwerze, w `/opt/olimpiada`)
+
+```bash
+scripts/maintenance.sh on --message "Aktualizacja bazy danych." --until "21:30"   # czas polski
+scripts/maintenance.sh status      # stan, od kiedy, komunikat; co widzi proxy; kody HTTP
+scripts/maintenance.sh off
+```
+
+Przełączenie to utworzenie/skasowanie pliku – Caddy sprawdza go przy **każdym** żądaniu (matcher
+`file`), więc nie ma przeładowania ani restartu (sprawdzone na działającym proxy: odpowiedź zmienia
+się przy następnym żądaniu). Skrypt po każdej zmianie pyta kontener proxy, czy widzi to samo co
+host; jeśli nie – kod 2 i podpowiedź `docker compose up -d --force-recreate proxy` (katalog
+skasowany i utworzony od nowa po starcie proxy). `--message` (do 300 znaków) i `--until` trafiają na
+stronę; znaki HTML i klamry są zamieniane na encje (plik przechodzi przez `templates` Caddy'ego).
+
+**Przepustka operatora** – żeby obejrzeć serwis przed zdjęciem strony. Token
+`MAINTENANCE_BYPASS_TOKEN` w `.env` (≥ 32 znaki; generuje go `deploy.sh`, krok 4/8):
+
+```bash
+TOKEN="$(sed -n 's/^MAINTENANCE_BYPASS_TOKEN=//p' /opt/olimpiada/.env)"
+curl -H "X-Maintenance-Bypass: $TOKEN" https://olimpiadakwantowa.pl/status.json
+# przeglądarka: https://olimpiadakwantowa.pl/__maintenance/bypass?token=<token>
+#   -> ciasteczko olimpiada_maintenance_bypass (Secure, HttpOnly, 12 h) i przekierowanie na /
+```
+
+Token pusty albo krótszy niż 32 znaki nie przepuszcza **nikogo**. Zmiana tokenu: nowa wartość w
+`.env`, potem `docker compose up -d proxy` (proxy czyta go ze środowiska). Adres z tokenem zostaje
+w historii przeglądarki – po przerwie można go zmienić.
+
+### 20.3. Wdrożenie z `--maintenance`
+
+```bash
+SSH_KEY=~/.ssh/olimpiada_deploy scripts/deploy.sh --maintenance root@169.58.242.197
+# opcjonalnie: MAINTENANCE_MESSAGE="…" MAINTENANCE_MINUTES=15
+```
+
+Bez flagi wdrożenie przebiega jak dotąd (kopia `pre-deploy-*` przy działającej aplikacji, restart
+`web` zasłonięty trybem nieplanowym). Z flagą – ta sama zasada co przy PostgreSQL 18 (§ 19.4):
+po zbudowaniu obrazu **strona włączona** → stop `web`/`worker`/`beat` → zero klientów bazy (30 s,
+potem rozłączenie maruderów, inaczej przerwanie) → **kopia przed migracjami** (krok 4a; wolno ją
+zrobić wyłącznie przy włączonej stronie i zatrzymanej aplikacji, jej znacznik musi być późniejszy
+niż włączenie strony; SHA-256 obok pliku: `pre-deploy-*.dump.sha256`) → start z migracjami (4b) →
+`web` healthy i `https://<domena>/healthz/` = 200 **z przepustką** → **strona wyłączona** (krok
+5a). Błąd w którymkolwiek miejscu zostawia stronę włączoną i kończy wdrożenie ramką `!!!` z
+poleceniami `status`/`off`. `--maintenance` wymaga proxy, które już ma montaż `/srv/maintenance` –
+pierwsze wdrożenie tej wersji robi się **bez** flagi.
+
+### 20.4. Jak to jest zbudowane
+
+- Treść: `deploy/maintenance/index.html` (jeden plik, CSS i logo w środku, zero zewnętrznych żądań).
+- Stan: `/opt/olimpiada/maintenance/` (w repozytorium – `.gitignore`), montowany do proxy tylko do
+  odczytu jako `/srv/maintenance` (`MAINTENANCE_DIR` zmienia położenie). Zawiera `on` (flaga +
+  kto/od kiedy/komunikat), `info.html` (komunikat na stronę) i `page/` (kopia strony).
+- Dlaczego kopia, a nie montaż `deploy/maintenance`: krok 2/8 `deploy.sh` kasuje katalogi z kodem
+  i rozpakowuje je od nowa, a działający kontener widziałby wtedy stary, skasowany (pusty) katalog
+  aż do restartu – czyli strona zniknęłaby właśnie po wdrożeniu. Katalog `maintenance/` krok 2/8
+  omija, a `scripts/maintenance.sh sync` (krok 4/8) nadpisuje w nim pliki w miejscu.
+- Caddy 2.8: `handle_errors` **bez** listy kodów i własny matcher kodu – wariant `handle_errors 502
+  503 504` nadpisuje w 2.8.4 matchery zagnieżdżonych `handle` (sprawdzone `caddy adapt`; JSON łapał
+  wtedy każde żądanie). Pilnuje tego `scripts/tests/render_caddyfile_test.sh` (także `caddy
+  validate` i kolejność tras po `caddy adapt`, gdy jest Docker).
+
+### 20.5. Na serwerze po pierwszym wdrożeniu tej wersji
+
+Nic ręcznie: krok 2/8 zostawia `maintenance/`, krok 4/8 dopisuje `MAINTENANCE_BYPASS_TOKEN` do
+`.env` i kopiuje stronę, krok 4b odtwarza proxy (nowy montaż i zmienna – kilka sekund bez HTTPS,
+jednorazowo). Sprawdzenie:
+
+```bash
+cd /opt/olimpiada
+scripts/maintenance.sh status          # „wyłączone”, proxy: flaga off, strona: jest
+scripts/maintenance.sh on --message "Test strony prac technicznych." && sleep 5 && scripts/maintenance.sh off
+```
+
+Zapisz token (`grep MAINTENANCE_BYPASS_TOKEN .env`) w menedżerze haseł organizatora razem z
+`BACKUP_PASSPHRASE`.

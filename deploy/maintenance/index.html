@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Strona „Prace techniczne” (docs/OPERACJE.md § 20). Podaje ją Caddy, nie Django:
+     musi działać, gdy web i baza leżą. Zero zewnętrznych żądań – CSS i logo są w tym pliku.
+     Odświeżenie co 45 s zwykłym meta refresh (CSP tej odpowiedzi nie dopuszcza żadnego skryptu).
+     Plik przechodzi przez `templates` Caddy'ego: jedyną akcją jest wstawka z komunikatem
+     operatora niżej; w treści nie może się pojawić podwójna klamra otwierająca. -->
+<meta http-equiv="refresh" content="45">
+<meta name="robots" content="noindex">
+<meta name="color-scheme" content="light dark">
+<title>Prace techniczne – Olimpiada Kwantowa</title>
+<style>
+  :root {
+    --bg: #f6f4ee;
+    --surface: #fffefb;
+    --ink: #171d27;
+    --muted: #5d6472;
+    --line: #dcd6c8;
+    --brand: #12233f;
+    --brand-ink: #f4f1e8;
+    --accent: #a10f0f;
+    --rule: #d43228;
+    --link: #1d4a86;
+    --info-bg: #f8eed9;
+    --info-ink: #7a4f0c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1726;
+      --surface: #162032;
+      --ink: #e9edf5;
+      --muted: #9fabbf;
+      --line: #27334c;
+      --brand: #17243d;
+      --brand-ink: #eef1f7;
+      --accent: #ef8a82;
+      --rule: #d9483c;
+      --link: #9cc0f2;
+      --info-bg: #2c2210;
+      --info-ink: #edc078;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.55 system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  header {
+    background: var(--brand);
+    color: var(--brand-ink);
+    border-bottom: 3px solid var(--rule);
+    padding: 12px 16px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 640px;
+    margin: 0 auto;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    font-size: 15px;
+    line-height: 1.15;
+  }
+  .brand svg { flex: none; width: 40px; height: 40px; }
+  .brand .red { color: #ef8a82; }
+  main {
+    flex: 1;
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 40px 16px 32px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-top: 4px solid var(--accent);
+    border-radius: 10px;
+    padding: 28px 24px;
+    box-shadow: 0 2px 4px rgba(18, 35, 63, 0.06), 0 8px 24px rgba(18, 35, 63, 0.07);
+  }
+  h1 {
+    margin: 0 0 8px;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(1.6rem, 6vw, 2.1rem);
+    line-height: 1.2;
+    color: var(--ink);
+  }
+  .lead { margin: 0 0 16px; font-size: 1.125rem; }
+  .en { margin: 0 0 16px; color: var(--muted); }
+  .info {
+    margin: 0 0 16px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: var(--info-bg);
+    color: var(--info-ink);
+  }
+  .info p { margin: 0; }
+  .info p + p { margin-top: 4px; }
+  .small { margin: 0; color: var(--muted); font-size: 0.925rem; }
+  a { color: var(--link); text-underline-offset: 2px; }
+  .spinner {
+    display: inline-block;
+    width: 0.8em;
+    height: 0.8em;
+    margin-right: 6px;
+    vertical-align: -0.05em;
+    border: 2px solid var(--line);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 1.2s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+  footer { padding: 0 16px 24px; text-align: center; color: var(--muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <svg viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+      <g fill="none" stroke="currentColor">
+        <circle cx="24" cy="26" r="19.5" stroke-width="1.8"/>
+        <ellipse cx="24" cy="26" rx="19.5" ry="3.6" stroke-width="1"/>
+        <ellipse cx="24" cy="26" rx="3.8" ry="19.5" stroke-width="1"/>
+      </g>
+      <g fill="#ef8a82">
+        <rect x="23.3" y="4.2" width="1.4" height="21.8"/>
+        <rect x="23.3" y="15" width="1.2" height="22" transform="rotate(48 24 26)"/>
+        <rect x="23.3" y="15" width="1.2" height="22" transform="rotate(-48 24 26)"/>
+        <path d="M20.9 5.2 L27.1 5.2 L24 0.4 Z"/>
+      </g>
+    </svg>
+    <span>OLIMPIADA<br><span class="red">KWANTOWA</span></span>
+  </div>
+</header>
+<main>
+  <div class="card" role="status" aria-live="polite">
+    <h1>Prace techniczne</h1>
+    <p class="lead">Serwis wróci za kilka minut.</p>
+    {{if fileExists "/on"}}{{if fileExists "/info.html"}}{{include "/info.html"}}{{end}}{{end}}
+    <p class="en" lang="en">Scheduled maintenance – the site will be back in a few minutes.</p>
+    <p class="small"><span class="spinner" aria-hidden="true"></span>Strona odświeży się sama –
+      nic nie trzeba robić.</p>
+  </div>
+</main>
+<footer>
+  Pytania: <a href="mailto:contact@qaif.org">contact@qaif.org</a>
+</footer>
+</body>
+</html>
