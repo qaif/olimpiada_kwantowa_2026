@@ -12,6 +12,7 @@ import pytest
 from apps.accounts.models import CommitteeStatus, Voivodeship
 from apps.accounts.tests.factories import ActiveReviewerFactory, CommitteeMemberFactory
 from apps.core.models import audit
+from apps.core.tests.query_budgets import budget
 from apps.grading.models import ProblemReviewerRule, ReviewStatus
 from apps.grading.tests.factories import ReviewFactory
 from apps.submissions.models import SubmissionStatus
@@ -266,11 +267,11 @@ def test_card_query_count_does_not_grow_with_reviews(
     # jak koszt zależy od **danych**, więc rozgrzewka odbywa się przed pomiarem.
     web_client.get(member_url(reviewer))
 
-    with django_assert_max_num_queries(45) as few:
+    with django_assert_max_num_queries(budget("coordinator/member-card")) as few:
         assert web_client.get(member_url(reviewer)).status_code == 200
 
     _add_reviews(entry, problems, reviewer, 18, start=2)
-    with django_assert_max_num_queries(45) as many:
+    with django_assert_max_num_queries(budget("coordinator/member-card")) as many:
         assert web_client.get(member_url(reviewer)).status_code == 200
 
     assert len(many.captured_queries) == len(few.captured_queries)
@@ -285,12 +286,12 @@ def test_list_query_count_does_not_grow_with_members(web_client, coordinator, dj
     # jak koszt zależy od **danych**, więc rozgrzewka odbywa się przed pomiarem.
     web_client.get(MEMBERS_URL)
 
-    with django_assert_max_num_queries(30) as few:
+    with django_assert_max_num_queries(budget("coordinator/members")) as few:
         assert web_client.get(MEMBERS_URL).status_code == 200
 
     for _ in range(9):
         ActiveReviewerFactory()
-    with django_assert_max_num_queries(30) as many:
+    with django_assert_max_num_queries(budget("coordinator/members")) as many:
         assert web_client.get(MEMBERS_URL).status_code == 200
 
     assert len(many.captured_queries) == len(few.captured_queries)

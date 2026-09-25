@@ -32,6 +32,7 @@ from apps.competitions.tests.factories import (
     StageEntryFactory,
 )
 from apps.core.models import audit
+from apps.core.tests.query_budgets import budget
 from apps.grading.models import ReviewStatus
 from apps.grading.tests.factories import FinalGradeFactory, ReviewFactory
 from apps.results.models import Anonymization, ResultsPublication
@@ -380,5 +381,5 @@ def test_page_query_budget_is_bounded(
     _fill_stage(participant, elim_stage, problems, versions=3)
 
     web_client.force_login(coordinator)
-    with django_assert_max_num_queries(60):
+    with django_assert_max_num_queries(budget("coordinator/participant-card")):
         assert web_client.get(card_url(participant)).status_code == 200
