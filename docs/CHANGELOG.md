@@ -8,6 +8,13 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## v0.37.1 – 2026-09-25
+
+`scripts/deploy.sh`: zmienne przekazywane przez SSH do kroku 4/8 są cytowane (`printf %q`) – domyślny
+komunikat strony „Prace techniczne” („Aktualizacja serwisu.”) zawiera spację, którą powłoka zdalna
+rozcinała na dwa słowa, więc pierwsze wdrożenie v0.37.0 zatrzymało się na początku kroku 4/8 (serwis
+działał dalej na v0.36.1; przypięcie PostgreSQL 16 wykonane ręcznie przed ponownym wdrożeniem).
+
 ## v0.37.0 – 2026-09-25
 
 Wydanie infrastrukturalne z 25.09.2026 – cztery zmiany, żadna nie zmienia zachowania aplikacji dla
