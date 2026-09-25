@@ -156,7 +156,7 @@ class GoogleProvider(Provider):
             reason = _name(getattr(exc, "status", ""))
             try:
                 details = json.dumps(getattr(exc, "details", None), default=str)
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 details = ""
             headers = getattr(getattr(exc, "response", None), "headers", None)
             if status in (401, 403) or "API_KEY_INVALID" in details or reason == "UNAUTHENTICATED":

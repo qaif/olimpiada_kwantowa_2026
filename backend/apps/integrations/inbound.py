@@ -118,7 +118,7 @@ def parse_signature(header: str) -> tuple[int, str] | None:
             parts[name.strip()] = value.strip()
     try:
         timestamp = int(parts["t"])
-    except (KeyError, ValueError):
+    except KeyError, ValueError:
         return None
     digest = parts.get("v1")
     if not digest:

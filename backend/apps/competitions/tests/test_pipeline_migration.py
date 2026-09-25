@@ -11,9 +11,8 @@ ze źródłem**, a nie sprawdzenie, że cokolwiek powstało. Pytamy o cztery rze
 4. nic w ``Stage`` ani w ``QualificationRule`` nie drgnęło, a flaga ``process_editor`` została
    wyłączona.
 
-Kształt testu jest ten sam, co w ``test_migration_edition_competition.py``: przewijanie migracji to
-DDL po DML, więc potrzebny jest ``transaction=True``, a fikstura przywraca czoło także wtedy, gdy
-test przerwie się w połowie.
+Kształt testu jest ten sam, co w ``test_migration_edition_competition.py``: bazę przewija raz na
+moduł fikstura w transakcji wycofywanej na końcu modułu (``apps/core/tests/migration_helpers.py``).
 """
 
 import importlib
@@ -22,7 +21,6 @@ from datetime import timedelta
 import pytest
 from django.apps import apps as django_apps
 from django.db import connection
-from django.db.migrations.executor import MigrationExecutor
 from django.utils import timezone
 
 from apps.competitions.models import (
@@ -37,6 +35,7 @@ from apps.competitions.models import (
     TransitionMode,
     TransitionRule,
 )
+from apps.core.tests.migration_helpers import migrate_to, rewound_database
 from apps.results.services import STAGE_ORDER, next_stage_of
 
 from .factories import CurrentEditionFactory, EditionFactory, QualificationRuleFactory, StageFactory
@@ -48,32 +47,15 @@ AFTER = ("competitions", "0024_pipeline_from_stages")
 pipeline_from_stages = importlib.import_module(f"apps.competitions.migrations.{AFTER[1]}")
 
 
-def migrate_to(target) -> None:
-    """Przewija bazę do wskazanej migracji."""
-    executor = MigrationExecutor(connection)
-    executor.loader.build_graph()
-    executor.migrate([target])
-    executor.loader.build_graph()
-
-
-def migrate_to_head() -> None:
-    """Przywraca czoło migracji **wszystkich** aplikacji, nie tylko przewijanej."""
-    executor = MigrationExecutor(connection)
-    executor.loader.build_graph()
-    executor.migrate(executor.loader.graph.leaf_nodes())
-    executor.loader.build_graph()
-
-
-@pytest.fixture
-def before_pipeline(transactional_db, competition):  # noqa: ARG001 - baza, używana przez efekt uboczny
+@pytest.fixture(scope="module")
+def before_pipeline(django_db_setup, django_db_blocker):
     """Baza cofnięta do stanu sprzed wpisania przebiegu: tabele są, wierszy nie ma.
 
-    Fikstura ``competition`` idzie **przed** przewinięciem, bo Konkurs #1 zakłada migracja
-    ``tenancy.0002``, a test transakcyjny bywa uruchomiony na bazie już raz wyczyszczonej.
+    Konkurs #1 bierzemy **przed** przewinięciem (``rewound_database``) – po nim żywy model
+    konkursu nie musi już zgadzać się ze schematem.
     """
-    migrate_to(BEFORE)
-    yield competition
-    migrate_to_head()
+    with rewound_database(django_db_blocker, BEFORE) as db:
+        yield db.competition
 
 
 def build_todays_edition(competition, **kwargs) -> dict[str, Stage]:
@@ -114,7 +96,8 @@ def build_todays_edition(competition, **kwargs) -> dict[str, Stage]:
 # --- przebieg Konkursu #1 --------------------------------------------------------------------
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
+@pytest.mark.migrations
 def test_the_migration_writes_todays_pipeline_of_competition_one(before_pipeline):
     """Trzy kroki toru w kolejności zawodów i jeden krok poza torem – nic więcej."""
     stages = build_todays_edition(before_pipeline)
@@ -135,7 +118,8 @@ def test_the_migration_writes_todays_pipeline_of_competition_one(before_pipeline
     )
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
+@pytest.mark.migrations
 def test_pipeline_matches_stage_order(before_pipeline):
     """Kolejność z danych jest **tą samą** kolejnością, co krotka w serwisie i co ``next_stage_of``.
 
@@ -159,7 +143,8 @@ def test_pipeline_matches_stage_order(before_pipeline):
     assert next_stage_of(stages["training"]) is None
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
+@pytest.mark.migrations
 def test_the_training_stage_stays_outside_the_pipeline(before_pipeline):
     """``off_pipeline=True`` znaczy dokładnie to, co dziś znaczy nieobecność w ``STAGE_ORDER``.
 
@@ -179,7 +164,8 @@ def test_the_training_stage_stays_outside_the_pipeline(before_pipeline):
 # --- odwzorowanie progów ----------------------------------------------------------------------
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
+@pytest.mark.migrations
 @pytest.mark.parametrize(
     ("mode", "fields", "expected"),
     [
@@ -219,13 +205,13 @@ def test_every_qualification_mode_maps_one_to_one(before_pipeline, mode, fields,
     assert rule.category_id is None
 
 
-@pytest.mark.django_db(transaction=True)
 def test_the_mapping_covers_every_mode_of_today():
     """Tryb bez odwzorowania przerwałby wdrożenie, więc pilnujemy kompletu bez ruszania bazy."""
     assert set(pipeline_from_stages.MODE_MAP) == set(QualificationMode.values)
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
+@pytest.mark.migrations
 def test_a_stage_without_a_threshold_gets_no_rule(before_pipeline):
     """Finał nie ma dokąd kwalifikować – i nie dostaje pustej reguły „na wszelki wypadek”."""
     stages = build_todays_edition(before_pipeline)
@@ -239,7 +225,8 @@ def test_a_stage_without_a_threshold_gets_no_rule(before_pipeline):
 # --- co migracja zostawia w spokoju --------------------------------------------------------------
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
+@pytest.mark.migrations
 def test_the_migration_changes_no_stage_and_no_threshold(before_pipeline):
     """Punkt 6 z § 0.2: migracja pisze **tylko** wiersze opisujące przebieg."""
     stages = build_todays_edition(before_pipeline)
@@ -259,7 +246,8 @@ def test_the_migration_changes_no_stage_and_no_threshold(before_pipeline):
     assert stages["district"].format == StageFormat.INTERVIEW
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
+@pytest.mark.migrations
 def test_the_migration_does_not_switch_the_flag_on(before_pipeline):
     """Dane wchodzą, zachowanie nie: czytelnika tych wierszy włącza dopiero organizator."""
     build_todays_edition(before_pipeline)
@@ -270,7 +258,8 @@ def test_the_migration_does_not_switch_the_flag_on(before_pipeline):
     assert before_pipeline.has_feature("process_editor") is False
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
+@pytest.mark.migrations
 def test_running_the_migration_twice_changes_nothing(before_pipeline):
     """Idempotencja: powtórzony przebieg nie duplikuje kroków ani nie przestawia reguł."""
     stages = build_todays_edition(before_pipeline)
@@ -292,7 +281,8 @@ def test_running_the_migration_twice_changes_nothing(before_pipeline):
     )
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
+@pytest.mark.migrations
 def test_archival_editions_get_their_own_pipeline(before_pipeline):
     """Migracja chodzi po **każdej** edycji – rocznik sprzed lat też ma opisany przebieg."""
     build_todays_edition(before_pipeline)

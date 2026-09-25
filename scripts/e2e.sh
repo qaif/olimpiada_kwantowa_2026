@@ -104,8 +104,10 @@ if [[ $RESET -eq 1 ]]; then
 
   # Kasujemy po etykietach compose, a nie po sklejonej nazwie: filtr projektu chroni wolumeny
   # innych projektów, które mają wolumen o tej samej nazwie logicznej.
-  echo "==> Kasuję dane projektu ${PROJECT} (pg_data, minio_data, redis_data). clamav_db zostaje."
-  for volume in pg_data minio_data redis_data; do
+  echo "==> Kasuję dane projektu ${PROJECT} (pg18_data, pg_data, minio_data, redis_data). clamav_db zostaje."
+  # `pg_data` (PostgreSQL 16) obok `pg18_data`: środowisko przypięte do 16 w .env (docs/OPERACJE.md
+  # § 19) trzyma bazę w starym wolumenie – reset ma skasować tę, na której faktycznie stoi.
+  for volume in pg18_data pg_data minio_data redis_data; do
     for name in $(docker volume ls -q \
         --filter "label=com.docker.compose.project=${PROJECT}" \
         --filter "label=com.docker.compose.volume=${volume}"); do

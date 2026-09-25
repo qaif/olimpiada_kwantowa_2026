@@ -5,10 +5,11 @@ termin rozmowy i wydarzenie dochodzą do konkursu przez edycję (§ 3.4). Edycja
 backfill to więc nie jeden wiersz bez etykiety, tylko cały rocznik niewidoczny dla
 ``current_edition()`` – a po wydaniu D wdrożenie zatrzymane na kontroli przed ``NOT NULL``.
 
-Kształt testu jest ten sam, co w ``accounts/tests/test_migration_memberships_backfill.py``:
-przewijanie migracji wymaga ``transaction=True``, a fikstura przywraca czoło także wtedy, gdy test
-przerwie się w połowie. Historycznych modeli nie używamy świadomie – ``0019`` dokłada wyłącznie
-kolumnę, więc na tym stanie prawdziwe klasy opisują bazę tak samo, a czytają się lepiej.
+Kształt testu jest ten sam, co w ``accounts/tests/test_migration_memberships_backfill.py``: bazę
+przewija raz na moduł fikstura w transakcji wycofywanej na końcu modułu
+(``apps/core/tests/migration_helpers.py``). Historycznych modeli nie używamy świadomie –
+``0019`` dokłada wyłącznie kolumnę, więc na tym stanie prawdziwe klasy opisują bazę tak samo,
+a czytają się lepiej.
 """
 
 import importlib
@@ -16,9 +17,9 @@ import importlib
 import pytest
 from django.apps import apps as django_apps
 from django.db import connection
-from django.db.migrations.executor import MigrationExecutor
 
 from apps.competitions.models import Edition
+from apps.core.tests.migration_helpers import applied_state_model, migrate_to, rewound_database
 from apps.tenancy.models import Competition
 
 from .factories import EditionFactory, StageFactory
@@ -30,40 +31,18 @@ AFTER = ("competitions", "0020_backfill_edition_competition")
 backfill = importlib.import_module(f"apps.competitions.migrations.{AFTER[1]}")
 
 
-def migrate_to(target) -> None:
-    """Przewija bazę do wskazanej migracji."""
-    executor = MigrationExecutor(connection)
-    executor.loader.build_graph()
-    executor.migrate([target])
-    executor.loader.build_graph()
-
-
-def migrate_to_head() -> None:
-    """Przywraca czoło migracji **wszystkich** aplikacji, nie tylko przewijanej.
-
-    Cofnięcie jednej aplikacji zdejmuje po drodze każdą migrację, która od niej zależy (tutaj:
-    backfill prac w ``submissions``), a powrót do konkretnego celu przywraca wyłącznie jego
-    przodków. Reszta pakietu zastawałaby wtedy bazę bez tamtych kolumn.
-    """
-    executor = MigrationExecutor(connection)
-    executor.loader.build_graph()
-    executor.migrate(executor.loader.graph.leaf_nodes())
-    executor.loader.build_graph()
-
-
-@pytest.fixture
-def before_backfill(transactional_db, competition):  # noqa: ARG001 - baza, używana przez efekt uboczny
+@pytest.fixture(scope="module")
+def before_backfill(django_db_setup, django_db_blocker):
     """Baza cofnięta do stanu sprzed backfillu: kolumna jest, właścicieli nie ma.
 
-    Fikstura ``competition`` idzie **przed** przewinięciem, bo Konkurs #1 zakłada migracja
-    ``tenancy.0002``, a test transakcyjny bywa uruchomiony na bazie już raz wyczyszczonej.
+    Konkurs #1 bierzemy **przed** przewinięciem (``rewound_database``).
     """
-    migrate_to(BEFORE)
-    yield competition
-    migrate_to_head()
+    with rewound_database(django_db_blocker, BEFORE) as db:
+        yield db.competition
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
+@pytest.mark.migrations
 def test_the_backfill_assigns_every_edition_to_competition_one(before_backfill):
     """Baza jednokonkursowa: wszystko, co w niej stoi, należy do jedynego konkursu."""
     competition = before_backfill
@@ -77,7 +56,8 @@ def test_the_backfill_assigns_every_edition_to_competition_one(before_backfill):
     assert list(stage.__class__.objects.for_competition(competition)) == [stage]
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
+@pytest.mark.migrations
 def test_the_backfill_does_not_touch_rows_that_already_have_an_owner(before_backfill):
     """Wydania B i C stoją obok siebie: wiersz zapisany przez nowy kod ma zostać nietknięty."""
     competition = before_backfill
@@ -88,7 +68,8 @@ def test_the_backfill_does_not_touch_rows_that_already_have_an_owner(before_back
     assert Edition.objects.get(pk=edition.pk).competition_id == competition.pk
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
+@pytest.mark.migrations
 def test_running_the_backfill_twice_changes_nothing(before_backfill):
     """Idempotencja: powtórzone wywołanie na tej samej bazie niczego nie przestawia."""
     competition = before_backfill
@@ -101,7 +82,8 @@ def test_running_the_backfill_twice_changes_nothing(before_backfill):
     assert Edition.objects.filter(competition=competition).count() == 1
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
+@pytest.mark.migrations
 def test_the_backfill_is_reversible(before_backfill):
     """Cofnięcie zdejmuje właścicieli – a nie jest ``noop``, bo kolumna zostaje na miejscu."""
     competition = before_backfill
@@ -117,22 +99,23 @@ def test_the_backfill_is_reversible(before_backfill):
     assert Competition.objects.filter(pk=competition.pk).exists()
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
+@pytest.mark.migrations
 def test_the_backfill_on_an_empty_database_does_nothing(before_backfill):  # noqa: ARG001
     """Świeża instalacja bez drzewa stron nie ma konkursu – i to jest odpowiedź poprawna.
 
     Migracja ma wtedy przejść bez wyjątku, bo inaczej ``migrate`` na pustej bazie (pierwsze
     wdrożenie, baza testowa) zatrzymałby się na pierwszym uruchomieniu.
 
-    Kasujemy wprost w SQL, a nie ``Model.objects.delete()``, i to jest cena przewijania migracji:
-    baza stoi na ``0019``, więc nie ma jeszcze kolumn dołożonych w wydaniu D (m.in.
+    Kasujemy modelami w kształcie **zastosowanych** migracji (``applied_state_model``), a nie
+    dzisiejszymi: baza stoi na ``0019``, więc nie ma jeszcze kolumn dołożonych w wydaniu D (m.in.
     ``grading_commentsnippet.competition_id``), a kolektor kasowania Django buduje zapytania
-    z **dzisiejszych** modeli i pytałby o kolumnę, której w tej chwili nie ma. Wiersze do
-    skasowania są tu dwa i bez zależności, więc ``DELETE`` mówi dokładnie to, co trzeba.
+    z modeli i pytałby o kolumnę, której w tej chwili nie ma. Do 25.09.2026 stał tu surowy
+    ``DELETE`` – przechodził tylko dlatego, że wcześniejszy test transakcyjny zdążył wyczyścić
+    ``flush``-em tabele wskazujące konkurs (szablony dokumentów), których ``DELETE`` nie znał.
     """
-    with connection.cursor() as cursor:
-        cursor.execute("DELETE FROM competitions_edition")
-        cursor.execute("DELETE FROM tenancy_competition")
+    applied_state_model("competitions", "Edition").objects.all().delete()
+    applied_state_model("tenancy", "Competition").objects.all().delete()
 
     migrate_to(AFTER)
 

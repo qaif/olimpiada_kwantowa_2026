@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 # Etap 1: instalacja zależności z uv (szybka, powtarzalna; warstwa cache'owana po pyproject)
-FROM python:3.12-slim-bookworm AS builder
+FROM python:3.14-slim-trixie AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.4 /uv /bin/uv
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 WORKDIR /app
@@ -13,7 +13,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # tłumaczeń (``.mo``), a w repozytorium trzymamy źródła (``.po``) – tylko one dają się czytać
 # i recenzować w diffie. Kompilacja jest krokiem budowania obrazu (niżej), więc plik binarny
 # nigdy nie rozjedzie się ze źródłem: nie da się wydać obrazu z nieaktualnym tłumaczeniem.
-FROM python:3.12-slim-bookworm AS runtime
+FROM python:3.14-slim-trixie AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PATH="/opt/venv/bin:$PATH"
 RUN apt-get update && apt-get install -y --no-install-recommends libpq5 curl procps gettext \
     && rm -rf /var/lib/apt/lists/* \

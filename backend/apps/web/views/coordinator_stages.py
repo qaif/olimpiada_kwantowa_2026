@@ -354,7 +354,7 @@ class StageCreateView(CoordinatorRequiredMixin, View):
         data = dict(form.cleaned_data)
         try:
             stage = create_stage(edition=self.edition, **data)
-        except (ValidationError, IntegrityError):
+        except ValidationError, IntegrityError:
             # Wyścig o ostatni wolny rodzaj etapu: para (edycja, rodzaj) jest unikalna w bazie.
             form.add_error("kind", "Ten rodzaj etapu istnieje już w bieżącej edycji.")
             return self._render(request, form, status=409)

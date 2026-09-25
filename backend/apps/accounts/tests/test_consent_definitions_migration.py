@@ -12,9 +12,8 @@ wynik migracji uruchomionej przy zakładaniu bazy testowej):
 - **odwrót kasuje definicje, a dowodów nie rusza.** To jest cała różnica między definicją
   a dowodem: ``ConsentRecord`` mówi, na co ktoś zgodził się **wtedy**.
 
-Kształt testu (``transaction=True``, przywracanie czoła migracji w fiksturze) jest przepisany
-z ``apps/accounts/tests/test_migrations.py`` i z tych samych powodów: przewijanie migracji to DDL
-po DML, a czoło trzeba przywrócić także wtedy, gdy test przerwie się w połowie.
+Bazę przewija raz na moduł fikstura :func:`rewound`, w transakcji wycofywanej na końcu modułu
+(``apps/core/tests/migration_helpers.py``); każdy test zastaje ją w punkcie :data:`BEFORE`.
 
 Modele bierzemy **zwykłe**, a nie historyczne – tak samo jak ``apps/tenancy/tests/test_migration_0002.py``
 i z tego samego powodu: przewijana jest wyłącznie migracja **danych**, więc schemat w obu punktach
@@ -23,15 +22,16 @@ jest ten sam, a stan historyczny nie zna modeli spoza przodków migracji.
 
 import pytest
 from django.conf import settings
-from django.db import connection
-from django.db.migrations.executor import MigrationExecutor
 from wagtail.models import Locale, Page, Site
 
 from apps.accounts.consents import DEFAULT_CONSENTS
 from apps.accounts.models import ConsentDefinition
+from apps.core.tests.migration_helpers import MIGRATION_TESTS, migrate_to, rewound_database
 from apps.tenancy.models import Competition
 
 from .factories import UserFactory
+
+pytestmark = MIGRATION_TESTS
 
 BEFORE = ("accounts", "0023_consent_definitions")
 AFTER = ("accounts", "0024_consent_definitions_from_the_constant")
@@ -49,28 +49,11 @@ CONTENT_FIELDS = (
 )
 
 
-def migrate_to(target):
-    """Przewija bazę do wskazanej migracji i zwraca stan aplikacji z tamtego momentu."""
-    executor = MigrationExecutor(connection)
-    executor.loader.build_graph()
-    executor.migrate([target])
-    executor.loader.build_graph()
-    return executor.loader.project_state([target]).apps
-
-
-def migrate_to_head() -> None:
-    """Przywraca czoło migracji **wszystkich** aplikacji, nie tylko przewijanej."""
-    executor = MigrationExecutor(connection)
-    executor.loader.build_graph()
-    executor.migrate(executor.loader.graph.leaf_nodes())
-    executor.loader.build_graph()
-
-
-@pytest.fixture
-def rewound(transactional_db):  # noqa: ARG001 - fikstura bazy, używana przez efekt uboczny
+@pytest.fixture(scope="module")
+def rewound(django_db_setup, django_db_blocker):
     """Baza cofnięta do stanu sprzed wpisania definicji zgód – tabela stoi, wierszy nie ma."""
-    yield migrate_to(BEFORE)
-    migrate_to_head()
+    with rewound_database(django_db_blocker, BEFORE) as db:
+        yield db
 
 
 def make_competition(slug: str) -> Competition:
@@ -138,7 +121,6 @@ def constant_rows() -> list[tuple]:
     ]
 
 
-@pytest.mark.django_db(transaction=True)
 def test_every_competition_gets_the_set_from_the_constant(rewound):  # noqa: ARG001 - jw.
     first = make_competition("pierwsza")
     second = make_competition("druga")
@@ -149,7 +131,6 @@ def test_every_competition_gets_the_set_from_the_constant(rewound):  # noqa: ARG
     assert rows_of(second) == constant_rows()
 
 
-@pytest.mark.django_db(transaction=True)
 def test_the_migration_repeated_restores_the_text_from_the_constant(rewound):  # noqa: ARG001 - jw.
     """Idempotencja ma tu znaczenie praktyczne: wdrożenie wolno powtórzyć po przerwanej migracji."""
     competition = make_competition("pierwsza")
@@ -163,7 +144,6 @@ def test_the_migration_repeated_restores_the_text_from_the_constant(rewound):  #
     assert rows_of(competition) == constant_rows()
 
 
-@pytest.mark.django_db(transaction=True)
 def test_reversing_the_migration_keeps_the_proofs(rewound):
     """Odwrót zabiera definicje, a dowody zostawia – to jest reguła, a nie szczegół wykonania.
 
@@ -174,9 +154,9 @@ def test_reversing_the_migration_keeps_the_proofs(rewound):
     którym modelem go czytamy – to on jest przedmiotem testu, nie kolumny dołożone później.
     """
     competition = make_competition("pierwsza")
-    participant = make_participant(rewound, competition)
+    participant = make_participant(rewound.apps, competition)
     record = make_consent_record(
-        rewound,
+        rewound.apps,
         participant_id=participant.pk,
         kind="TERMS",
         version=DEFAULT_CONSENTS[0].version,
@@ -186,5 +166,5 @@ def test_reversing_the_migration_keeps_the_proofs(rewound):
     migrate_to(BEFORE)
 
     assert not ConsentDefinition.objects.filter(competition=competition).exists()
-    kept = rewound.get_model("accounts", "ConsentRecord").objects.get(pk=record.pk)
+    kept = rewound.apps.get_model("accounts", "ConsentRecord").objects.get(pk=record.pk)
     assert kept.document_version == DEFAULT_CONSENTS[0].version

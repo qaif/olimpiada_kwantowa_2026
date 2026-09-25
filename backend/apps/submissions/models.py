@@ -218,7 +218,7 @@ class Submission(models.Model):
         return super().save(*args, **kwargs)
 
     @property
-    def latest_file(self) -> "SubmissionFile | None":
+    def latest_file(self) -> SubmissionFile | None:
         """Najnowszy plik zgłoszenia. W praktyce jest dokładnie jeden, ale kolejność musi być jawna.
 
         Porządek malejący po ``id`` zamiast domyślnego: jeśli kiedykolwiek pojawi się drugi plik,

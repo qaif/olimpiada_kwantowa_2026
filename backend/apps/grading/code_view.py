@@ -124,7 +124,7 @@ def notebook_source(payload: str) -> str:
     """
     try:
         document = json.loads(payload)
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         return payload
     cells = document.get("cells") if isinstance(document, dict) else None
     if not isinstance(cells, list):

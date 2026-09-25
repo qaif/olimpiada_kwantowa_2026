@@ -27,6 +27,7 @@ from pathlib import Path
 
 import pytest
 from django.contrib.staticfiles import finders
+from django.test import override_settings
 
 pytestmark = pytest.mark.django_db
 
@@ -163,8 +164,16 @@ def test_stylesheet_is_linked(web_client):
     assert "css/app.css" in html
 
 
+@override_settings(WHITENOISE_USE_FINDERS=True, WHITENOISE_AUTOREFRESH=True)
 def test_stylesheet_is_served(client):
-    """Arkusz jest serwowany pod swoim adresem (WhiteNoise/staticfiles w trybie deweloperskim)."""
+    """Arkusz jest serwowany pod swoim adresem (WhiteNoise/staticfiles w trybie deweloperskim).
+
+    Findery włączone jawnie, jak w ``test_public.py`` (nagłówek CSP pliku statycznego): bez nich
+    WhiteNoise serwuje wyłącznie zawartość ``STATIC_ROOT``, czyli to, co zostawił ``collectstatic``
+    – a wtedy wynik testu zależał od tego, czy ktoś go na tej maszynie uruchomił (lokalnie
+    w kontenerze z zamontowanym kodem zwykle nie). Przedmiotem testu jest to, że arkusz istnieje
+    pod tym adresem i dochodzi do przeglądarki, a nie krok wdrożenia.
+    """
     response = client.get("/static/css/app.css")
     assert response.status_code == 200
 

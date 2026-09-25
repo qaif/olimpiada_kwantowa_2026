@@ -17,6 +17,8 @@ trzech rzeczy:
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from apps.accounts.processing_register import (
@@ -108,8 +110,13 @@ def test_csv_rows_match_the_activities():
 
 
 def test_the_version_is_set():
-    """Wersja odpowiada na pytanie „czy czytam aktualny rejestr” i stoi w nazwie pliku CSV."""
-    assert REGISTER_VERSION
+    """Wersja odpowiada na pytanie „czy czytam aktualny rejestr” i stoi w nazwie pliku CSV.
+
+    Kształt ``główna.poboczna`` – bo tak ją porównują testy czynności warunkowych („wersja co
+    najmniej ta, w której wszedł wiersz”), a nie konkretną wartość, którą każda zmiana rejestru
+    musiałaby poprawiać w kilku plikach.
+    """
+    assert re.fullmatch(r"\d+\.\d+", REGISTER_VERSION)
 
 
 # --- forum uczestników: czynność warunkowa -------------------------------------------------------

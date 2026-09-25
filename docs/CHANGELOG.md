@@ -8,6 +8,110 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## v0.37.0 – 2026-09-25
+
+Wydanie infrastrukturalne z 25.09.2026 – cztery zmiany, żadna nie zmienia zachowania aplikacji dla
+użytkownika, żadnej migracji: **Python 3.14** (obraz do przebudowy), **PostgreSQL 18** (kod gotowy,
+samo wdrożenie zostawia bazę na 16 – przejście to osobny krok operatora), **strona „Prace
+techniczne”** (prośba organizatora) i **szybsza, mniej krucha suita testów** z nowym podziałem
+w CI. Przy okazji: **9 nowych angielskich tematów listów** – warianty z marką konkursu
+(`*_SUBJECT_TEMPLATE`, używane przy `competition_branding_in_mail`) nie miały dotąd tłumaczenia
+i przy języku EN szły po polsku.
+
+Kolejność na produkcji (szczegóły: `OPERACJE.md` § 20.5, § 21.2, § 19.4):
+1. `scripts/deploy.sh` **bez** `--maintenance` – przebudowa obrazu na 3.14, jednorazowe odtworzenie
+   proxy (montaż `maintenance/`, `MAINTENANCE_BYPASS_TOKEN`), baza zostaje na 16 (przypięcie
+   w `.env`);
+2. kontrole po wdrożeniu: `python -VV` w `web`, `scripts/maintenance.sh status` i próba on/off;
+3. osobno, w oknie serwisowym: `scripts/upgrade_postgres18.sh` (strona prac technicznych włączana
+   i wyłączana przez skrypt), potem kopia i `backup_verify.sh` na 18.
+
+**Po przejściu na PostgreSQL 18 nie wdrażaj kodu sprzed v0.37.0** – jego `docker-compose.yml` nie
+zna `POSTGRES_IMAGE`/`POSTGRES_VOLUME` i postawi 16 na starym `pg_data` (stan sprzed przejścia).
+Powrót aplikacji wyłącznie tagiem obrazu (`APP_VERSION`) albo `WEB_IMAGE=…` z kodem v0.37.0+
+(`OPERACJE.md` § 11.3, § 21.3).
+
+### Python 3.14
+
+Interpreter 3.12.14 → **3.14.7**: obraz `python:3.12-slim-bookworm` → `python:3.14-slim-trixie`
+(Debian 13 – bieżąca baza oficjalnych obrazów; na niej stoi też tag `3.14-slim`), CI
+`PYTHON_VERSION` 3.14, `requires-python = ">=3.14"`, ruff `target-version = "py314"`. Wszystkie
+zależności mają koła dla CPythona 3.14 (rozwiązanie zależności na 3.12 i 3.14 identyczne,
+żadnego budowania ze źródeł); podniesione dolne granice: `psycopg[binary,pool]>=3.2.10` (pierwsze
+koła `cp314`), `ruff>=0.12` (pierwszy, który zna `py314`). Kod: dwie adnotacje bez cudzysłowów
+(PEP 649) i `ruff format` pod `py314` – `except (A, B):` → `except A, B:` (PEP 758, 34 linie,
+znaczenie bez zmian). Bez migracji i bez zmian zachowania. Wdrożenie: zwykłe `scripts/deploy.sh`
+(przebudowuje obraz); powrót: poprzedni tag obrazu – `OPERACJE.md` § 21.
+
+### PostgreSQL 18
+
+Baza: `postgres:16-alpine` → `postgres:18-alpine` (18.6), zrzutem i odtworzeniem do **nowego**
+wolumenu `pg18_data` (obraz 18 ma PGDATA `/var/lib/postgresql/18/docker` i VOLUME
+`/var/lib/postgresql`); stary wolumen `pg_data` zostaje nietknięty jako droga powrotu. Kod
+aplikacji bez zmian, zero migracji; pełny zestaw testów na 18.6 z produkcyjnym `command` i locale –
+6152 passed. `docker-compose.yml`: obraz i wolumen usługi `db` z `POSTGRES_IMAGE` /
+`POSTGRES_VOLUME` (domyślnie 18 na `pg18_data`), `max_locks_per_transaction=256` bez zmian.
+**Samo wdrożenie niczego w bazie nie zmienia:** `scripts/deploy.sh` (krok 4/8, jako pierwsza czynność –
+przed buildem, żeby nieudany build nie zostawił serwera z nowym compose bez przypięcia) wpisuje
+do `.env` przypięcie do 16, gdy serwer ma `pg_data` bez `pg18_data`. Przejście to osobna czynność operatora:
+`scripts/upgrade_postgres18.sh` (kontrole wstępne, `--dry-run`, zrzuty klientem 16 i 18 do
+`/opt/olimpiada-backups/pg18-upgrade-*/`, porównanie liczby wierszy każdej tabeli, sekwencji,
+rozszerzeń, ról i obiektów 16 ↔ 18, `ANALYZE`, `/status.json`; błąd przed przełączeniem sam wraca na
+16), wycofanie `--rollback --yes`, stan `--status`. Przestój 2–5 min (próba lokalna: 1 min 8 s).
+Nowy klaster ma sumy kontrolne stron (`data_checksums = on`, domyślne w 18); porządek sortowania
+(musl, bajtowy) i `pg_trgm` 1.6 – bez zmian. `backup_verify.sh` stawia tymczasowy Postgres
+w wersji z `.env` (domyślnie 18) i montuje tmpfs tam, gdzie obraz deklaruje VOLUME; CI testuje na
+`postgres:18-alpine`; `e2e.sh` (reset) kasuje `pg18_data` i `pg_data`. Zrzut `-Fc` z produkcji na 18
+nie da się odtworzyć `pg_restore` 16 – lokalne środowisko też przechodzi na 18 (`OPERACJE.md`
+§ 19.7). Runbook, próba generalna, wycofanie i skasowanie `pg_data` po 14 dniach: `OPERACJE.md` § 19.
+
+### Strona „Prace techniczne”
+
+Prośba organizatora z 25.09.2026: zamiast gołego 502 z Caddy'ego – strona „Prace techniczne – serwis
+wróci za kilka minut” (`deploy/maintenance/index.html`: PL + zdanie EN, contact@qaif.org, logo
+i CSS w pliku, zero zewnętrznych żądań, jasny/ciemny motyw, odświeżanie co 45 s). Podaje ją Caddy
+(fragment `(maintenance)` w `deploy/Caddyfile`, `import` w bloku domeny głównej, w domenach
+z `EXTRA_DOMAINS` i w bloku `*.` – nie w `meet.`, `monitor.` ani S3): **503**, `Retry-After: 60`,
+`Cache-Control: no-store`, własne CSP; dla `/status.json`, `/healthz/`, `/api/*` – JSON
+`{"status":"maintenance"}`. Tryb planowy: flaga `/opt/olimpiada/maintenance/on`
+(`scripts/maintenance.sh on|off|status [--message] [--until]`, bez przeładowania proxy), z wyjątkiem
+wyzwania ACME i operatora z przepustką `MAINTENANCE_BYPASS_TOKEN` (nagłówek `X-Maintenance-Bypass`
+albo ciasteczko z `/__maintenance/bypass?token=`; token generuje `deploy.sh`). Tryb nieplanowy:
+`handle_errors` dla 502/503/504 z upstreamu – także krótka przerwa przy restarcie `web` w zwykłym
+wdrożeniu. `scripts/upgrade_postgres18.sh`: wymuszona kolejność (wymóg organizatora) – kontrole →
+strona włączona → stop aplikacji i zero klientów bazy (maruderzy rozłączani) → zrzuty końcowe (czas
+startu > włączenia strony, SHA-256, stan 16 niezmieniony w trakcie) → odtworzenie **tego** zrzutu
+(SHA-256 przed `pg_restore`) → porównanie z zatrzymaną 16 → start i kontrole przez proxy
+z przepustką → strona wyłączona; po błędzie strona zostaje włączona (ramka `!!!`), `timeline.txt`
+z czasem każdego etapu, `--no-maintenance`. `scripts/deploy.sh --maintenance`: strona na czas
+kopii przed migracjami (dopiero po zatrzymaniu aplikacji), migracji i podmiany kontenerów; bez flagi
+bez zmian poza tym, że krok 2/8 omija katalog `maintenance/`, a krok 4/8 dopisuje token i kopiuje
+stronę. Testy: `scripts/tests/render_caddyfile_test.sh` (zakres importu, `caddy validate`,
+kolejność tras po `caddy adapt`), `scripts/tests/maintenance_pg18_rehearsal.sh` (próba na stosie
+compose, 44/44 z wycofaniem `--rollback`). Caddy 2.8.4: `handle_errors` z listą kodów nadpisuje
+zagnieżdżone matchery – stąd matcher kodu w środku. Ramka „strona włączona” po błędzie
+`deploy.sh --maintenance` tylko wtedy, gdy flaga na serwerze naprawdę istnieje. `OPERACJE.md` § 19.4 (kolejność), § 20; `PODRECZNIK-ADMINISTRATORA.md` § 5.1.
+
+### Testy i CI
+
+Pełny przebieg w jednym procesie: 40:31 → ok. 20 min; `-n auto` (xdist) kilka minut; szybka pętla
+`-m "not slow"` ok. 3 min (`docs/TESTY.md`). Testy migracji (70 % czasu) przewijają bazę raz na
+moduł w jednej transakcji wycofywanej na końcu (`apps/core/tests/migration_helpers.py`, marker
+`migrations`, każdy test w savepoincie) zamiast migrate + flush na każdy test; po teście
+transakcyjnym baza wraca z migawki z początku sesji (Konkurs #1 i drzewo stron nie znikają,
+wynik nie zależy od kolejności); ClamAV podstawiony na poziomie gniazda (prawdziwy tylko
+z markerem `clamav`); `.mo` kompiluje sam pytest; testy AI bez SDK dostawców. Asercje per
+element zamiast ręcznie liczonych sum: tematy listów wykrywane w kodzie (3 nowo zamrożone:
+status ucznia przyjęty/odrzucony, zaproszenie ucznia przez nauczyciela; wymóg wersji EN dla
+każdego tematu – stąd 9 tłumaczeń wyżej), flagi etapu 2, wersja rejestru czynności, budżety
+zapytań w jednej tabeli (`apps/core/tests/query_budgets.py`). CI: `-n auto` w każdym z 5 shardów,
+podział `duration_based_chunks` (ciągłe kawałki), Postgres testowy z `max_locks_per_transaction
+= 256` i bez `fsync`, bez osobnych kroków `.mo`/`collectstatic`; `backend/.test_durations`
+odświeżone. Nazwy wymaganych checków bez zmian. Na tej wersji (Python 3.14 + PostgreSQL 18):
+6157 passed, 1 skipped (clamd) z 6158 – `-n auto` (32 workery) 4:53; podział jak w CI
+(5 shardów × `-n 4`, `duration_based_chunks`): 888 + 128 + 464 + 1844 + 2833 passed + 1 skipped,
+shardy 3:12–4:07.
+
 ## v0.36.1 – 2026-09-25
 
 Zadania treningowe: każde z czterech zadań (P1–P4) ma własny plik z treścią
@@ -624,6 +728,7 @@ człowiek; sugestia jest niewiążąca.
 
 | Wersja | Data | Zmiana |
 |---|---|---|
+| **v0.37.0** | 2026-09-25 | **wydanie infrastrukturalne z 25.09.2026** (pełny opis w sekcji „v0.37.0 – 2026-09-25” wyżej): **Python 3.14** (`python:3.14-slim-trixie`, CI 3.14, `requires-python >=3.14`, ruff `py314`, `psycopg>=3.2.10`; obraz do przebudowy; `OPERACJE.md` § 21); **PostgreSQL 18** (`postgres:18-alpine` na nowym wolumenie `pg18_data`, `POSTGRES_IMAGE`/`POSTGRES_VOLUME`, wdrożenie przypina 16 do czasu `scripts/upgrade_postgres18.sh` – zrzut i odtworzenie z porównaniem 16 ↔ 18, `--rollback`; § 19); **strona „Prace techniczne”** (Caddy 503 w trybie planowym – `scripts/maintenance.sh on|off|status`, przepustka `MAINTENANCE_BYPASS_TOKEN` – i nieplanowym przy 502/503/504, `deploy.sh --maintenance`, wymuszona kolejność przejścia na 18; § 20); **szybsza suita testów** (migracje w jednej wycofywanej transakcji na moduł, migawka po testach transakcyjnych, atrapa clamd, markery `slow`/`migrations`/`clamav`, budżety zapytań w jednej tabeli, xdist w każdym z 5 shardów CI, `docs/TESTY.md`); **9 angielskich tematów listów** z marką konkursu i 3 nowo zamrożone tematy; bez migracji |
 | **v0.36.0** | 2026-09-25 | **wydanie zbiorcze z 25.09.2026** (pełny opis w sekcji „v0.36.0 – 2026-09-25” wyżej): **responsywne tabele** w panelu koordynatora i na stronach publicznych (ramki przewijane z regionem i przystankiem klawiatury, przyklejona pierwsza kolumna i ranking, karty na telefonie, `js/table-scroll.js`; bez poziomego suwaka strony na 72 sprawdzonych stronach); **ułamki w rubrykach i teście** w etapie „dowolna wartość” (maksimum kryterium i punkty co 0,01, wynik testu co 0,01, połówka w górę; migracje `grading.0012`, `ai_grading.0003`, `OPERACJE.md` § 18.4); **pula połączeń psycopg** w `web` (`psycopg[binary,pool]`, `worker`/`beat` bez puli, `application_name` per usługa, alarm zajętości 80/95 % w `/healthz/`, `/status.json`, watchdogu i `manage.py db_connections`; `OPERACJE.md` § 11.2) i **reset hasła w tle** (kolejka `mail`, ten sam list); **drzewo CMS konkursu pod prefiksem** (uwaga T43: własne strony, menu, przekierowania i adresy pod `/<prefiks>/`, `path_prefix_routing` jako bramka gospodarza, migracja danych `tenancy.0010`; § 6.6); **uprawnienia `/cms/` per konkurs i rola superkoordynatora** (grupa `cms:<slug>` na korzeniu witryny i kolekcji konkursu, przełącznik „Konkursy platformy”, komendy `superkoordynator` i `scope_cms_access` z kontrolą macierzy przed/po; § 6.7); **powiadomienia e-mail z forum** (flaga `participant_forum`: list o kolejce moderacji, obserwowane wątki na bieżąco/raz dziennie/nigdy, decyzje moderatora, wypis jednym kliknięciem z `List-Unsubscribe`, migracja `forum.0002`, zadania beat `forum-notifications` i `forum-daily-digest`, stan powiadomień w eksporcie danych i kasowany przy anonimizacji); rejestr czynności **1.9**; obraz do przebudowy, `web`+`worker`+`beat` razem |
 | **v0.35.0** | 2026-09-24 | **wydanie zbiorcze z 24.09.2026** (pełny opis w sekcji „v0.35.0 – 2026-09-24” wyżej): **dowolne wartości ocen i różne maksima zadań** – przełącznik etapu „tylko wartości ze skali” / „dowolna wartość od min do max (co 0,01)” na ekranie skali (domyślnie – także dla nowych etapów – tryb skali; powrót odmawiany `409 FREE_VALUES_IN_USE` przy ocenach spoza skali albo zadaniach z samym maksimum); jedna reguła oceny `competitions.scoring.ScoreRule` dla recenzji, korekt, moderacji, reklamacji, rozmów, rubryki i API (przecinek normalizowany, trzecie miejsce po przecinku = `SCORE_INVALID`); zadanie z samym maksimum (np. 12,5) i maksima w liście zadań, u recenzenta i w nagłówkach tabel wyników; kolumny punktów `numeric(p,2)` (migracje `competitions.0032`, `grading.0011`, `appeals.0003`, `OPERACJE.md` § 18); sumy w `Decimal`, suma ważona połówka w górę do 0,01 (tryb dowolny) albo do pełnego punktu (tryb skali); filtr `points` („5”, „4,25”), CSV z kropką, JSON/API jako liczby (`API.md` § 6.2); **inni dostawcy AI** (flaga `ai_grading`): OpenAI (Responses API), Google (`google-genai`) i Meta (Meta Model API przez SDK OpenAI) obok Anthropic, wybór dostawcy i modelu przy zleceniu i porównanie kilku modeli na tej samej pracy (osobne panele u recenzenta), klucz i umowa powierzenia per dostawca (`AiProviderAccount`), potwierdzana przez koordynatora w dwóch krokach – strona informacji o dostawcy (`apps.ai_grading.disclosures`, ostrzeżenie 18+ przy Google i Mecie) i „Potwierdzam” z zapisem wersji informacji (bez potwierdzenia brak prac uczestników; komenda `confirm_ai_provider_dpa` tylko awaryjnie, `OPERACJE.md` § 17.6), tryb testowy z pracą testową koordynatora dla każdego dostawcy z kluczem, tabela cen per model (`AI_PRICE_UNKNOWN` przy limicie), rejestr czynności 1.8, migracja `ai_grading.0002_providers`, zależności `openai>=3.19,<4` i `google-genai>=2.25,<3`; propozycja punktów każdego dostawcy przycinana do maksimum z `ScoreRule` |
 | **v0.34.0** | 2026-09-24 | **wydanie zbiorcze z 24.09.2026** (pełny opis w sekcji „v0.34.0 – 2026-09-24” wyżej): **listy koordynatora** – konta usunięte schowane domyślnie za przyciskiem „Pokaż usunięte konta (N)” na każdej liście osób (także przyjazdy i obecność na etapie stacjonarnym), „Konto usunięte” zamiast `deleted-…@invalid`, sortowanie kolumn listy kont i uczestników; **usunięcie konta** czyści też adres rodzica, adres opiekuna szkolnego, placówkę i dane szczególne logistyki – usunięty uczeń znika z panelu „Moi uczniowie” (migracja danych `accounts.0034`); **wysyłka komunikatów do grup** (wszyscy uczestnicy, bez pracy w etapie, województwo/region, szkoła, klasa, obecni na warsztacie, opiekunowie; domyślnie bieżąca edycja; podpis podglądu; `accounts.0033`); za flagami **domyślnie wyłączonymi**: **zaświadczenie o statusie ucznia** (`student_status_certificate`, filtr paczek ZIP „tylko z potwierdzonym statusem”; `OPERACJE.md` § 15), **materiały z warsztatów** (`workshop_materials`, filmy i pliki dla zalogowanych, wgrywanie częściami prosto do MinIO; § 16) i **ocena AI** (`ai_grading`, sugestia punktów Claude'a dla komitetu, przełącznik etapu „Pokaż uczestnikom ocenę AI” domyślnie wyłączony, zależność `anthropic`; § 17); rejestr czynności **1.7** z trzema wierszami warunkowymi |

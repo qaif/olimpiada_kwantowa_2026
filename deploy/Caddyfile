@@ -4,12 +4,108 @@
     email {$ACME_EMAIL}
 }
 
+# Strona „Prace techniczne” (docs/OPERACJE.md § 20) – fragment wstawiany (`import maintenance`) do
+# każdego bloku **aplikacji**: domena główna, domeny z EXTRA_DOMAINS i blok `*.` subdomen platformy
+# (scripts/render_caddyfile.sh). Celowo NIE do `meet.` (Jitsi), `monitor.` (monitoring ma działać
+# właśnie wtedy) ani do bloku S3 (`{$S3_PUBLIC_ADDRESS}`) – wgrywanie przerwane przez awarię ma się
+# skończyć zwykłym błędem, a nie stroną HTML, której klient S3 nie zrozumie.
+#
+# Stronę podaje Caddy, nie Django: działa, gdy `web` albo baza leżą. Katalog /srv/maintenance to
+# <REMOTE_DIR>/maintenance/ na hoście (docker-compose.yml) – poza plikami z repozytorium, bo krok 2/8
+# scripts/deploy.sh kasuje i rozpakowuje kod od nowa, a kontener widziałby wtedy pusty, skasowany
+# katalog aż do restartu proxy. Treść strony kopiuje tam `scripts/maintenance.sh sync` (woła go też
+# deploy.sh, krok 4/8) z deploy/maintenance/.
+#
+# Dwa tryby, ta sama strona (503, Retry-After, no-store; JSON dla /status.json, /healthz/, /api/*):
+# 1. planowy – istnieje plik /srv/maintenance/on (`scripts/maintenance.sh on|off`). Matcher `file`
+#    sprawdza plik przy każdym żądaniu, więc przełączenie nie wymaga przeładowania Caddy'ego.
+#    Wyjątki: wyzwanie ACME i operator z tokenem MAINTENANCE_BYPASS_TOKEN (z .env) w nagłówku
+#    `X-Maintenance-Bypass` albo w ciasteczku `olimpiada_maintenance_bypass` – ustawia je wejście na
+#    /__maintenance/bypass?token=<token>. Token krótszy niż 32 znaki (albo pusty) nie przepuszcza
+#    nikogo, więc brak wpisu w .env nie otwiera furtki. Kolejność `handle` (sprawdzona
+#    `caddy adapt`): logowanie tokenem, potem przerwa, dopiero potem /static/* i aplikacja – przerwa
+#    zasłania więc też pliki statyczne, a strona i tak nie wczytuje niczego z zewnątrz.
+# 2. nieplanowy – `web` nie odpowiada (restart przy wdrożeniu, awaria): reverse_proxy zwraca błąd
+#    502/504 (albo 503), a `handle_errors` podaje tę samą stronę zamiast pustego 502. Odpowiedzi,
+#    które aplikacja wysłała sama (także jej 500/503), przechodzą bez zmian – `handle_errors` widzi
+#    wyłącznie błędy Caddy'ego.
+(maintenance) {
+    @maintenance_bypass_login {
+        path /__maintenance/bypass
+        expression `"{$MAINTENANCE_BYPASS_TOKEN}".size() >= 32 && {http.request.uri.query.token} == "{$MAINTENANCE_BYPASS_TOKEN}"`
+    }
+    handle @maintenance_bypass_login {
+        header Set-Cookie "olimpiada_maintenance_bypass={$MAINTENANCE_BYPASS_TOKEN}; Path=/; Max-Age=43200; Secure; HttpOnly; SameSite=Lax"
+        header Cache-Control "no-store"
+        redir * / 303
+    }
+    @maintenance {
+        file {
+            root /srv/maintenance
+            try_files /on
+        }
+        not path /.well-known/acme-challenge/*
+        not expression `"{$MAINTENANCE_BYPASS_TOKEN}".size() >= 32 && ({http.request.header.X-Maintenance-Bypass} == "{$MAINTENANCE_BYPASS_TOKEN}" || {http.request.cookie.olimpiada_maintenance_bypass} == "{$MAINTENANCE_BYPASS_TOKEN}")`
+    }
+    handle @maintenance {
+        error 503
+    }
+    # `handle_errors` bez listy kodów i własny matcher kodu: w Caddym 2.8 (`handle_errors 502 503
+    # 504`) lista kodów NADPISUJE matchery zagnieżdżonych `handle` (sprawdzone `caddy adapt` na
+    # 2.8.4 – wariant JSON łapał wtedy każde żądanie). Błędy o innych kodach (np. 404 z /static/)
+    # nie pasują do niczego tutaj i kończą się tak, jak przed tą zmianą: sam kod, pusta treść.
+    handle_errors {
+        @maintenance_error expression `{http.error.status_code} in [502, 503, 504]`
+        handle @maintenance_error {
+            # Nagłówki bezpieczeństwa powtórzone: odpowiedź błędu nie przechodzi przez `header`
+            # bloku. CSP tylko dla tej strony – bez skryptów i zasobów z zewnątrz (meta refresh).
+            header {
+                Cache-Control "no-store"
+                Retry-After "60"
+                Strict-Transport-Security "max-age=31536000"
+                X-Content-Type-Options "nosniff"
+                Referrer-Policy "same-origin"
+                X-Frame-Options "DENY"
+                Content-Security-Policy "default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+            }
+            @maintenance_json path /status.json /healthz /healthz/* /api/*
+            handle @maintenance_json {
+                header Content-Type "application/json"
+                respond `{"status":"maintenance","retry_after":60}` 503
+            }
+            # Katalog strony jeszcze nie skopiowany (serwer przed pierwszym `maintenance.sh sync`):
+            # zwykły tekst zamiast 404 z pustą treścią.
+            @maintenance_no_page not file {
+                root /srv/maintenance/page
+                try_files /index.html
+            }
+            handle @maintenance_no_page {
+                header Content-Type "text/plain; charset=utf-8"
+                respond "Prace techniczne – serwis wróci za kilka minut. Maintenance – back in a few minutes. contact@qaif.org" 503
+            }
+            handle {
+                root * /srv/maintenance/page
+                rewrite * /index.html
+                # Wstawka komunikatu operatora (plik info.html, który pisze scripts/maintenance.sh,
+                # z treścią zamienioną na encje – także klamry, więc nie da się nią wywołać szablonu).
+                templates {
+                    root /srv/maintenance
+                }
+                file_server {
+                    status 503
+                }
+            }
+        }
+    }
+}
+
 # Przekierowanie www -> domena główna (jeden kanoniczny adres, jeden certyfikat w linkach).
 www.{$SITE_DOMAIN} {
     redir https://{$SITE_DOMAIN}{uri} permanent
 }
 
 {$SITE_DOMAIN} {
+    import maintenance
     encode gzip zstd
     request_body {
         max_size {$MAX_UPLOAD_MB}MB

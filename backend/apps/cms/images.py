@@ -173,7 +173,7 @@ def ensure_image(title: str, source: Path, *, description: str = "", competition
     try:
         with image.file.open("rb") as handle:
             current = _digest_file(handle)
-    except (FileNotFoundError, OSError):
+    except FileNotFoundError, OSError:
         # Rekord bez pliku w storage (przeniesiona baza, wyczyszczony bucket) – wgrywamy na nowo.
         current = None
 

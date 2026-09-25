@@ -107,7 +107,7 @@ def resolve_for_request(request) -> Resolution:
         # Po przejściu warstwy żądanie pod prefiksem ma podmienioną witrynę (drzewo stron konkursu);
         # pierwszeństwo reguły „prefiks pod hostem gospodarza” liczy się od witryny **hosta**.
         site = getattr(request, "competition_host_site", None) or Site.find_for_request(request)
-    except (DatabaseError, DisallowedHost):
+    except DatabaseError, DisallowedHost:
         logger.warning("Nie udało się rozstrzygnąć witryny żądania.", exc_info=True)
         return Resolution(None)
 
@@ -290,7 +290,7 @@ def platform_subdomain_miss(request, competition) -> bool:
         # Pod prefiksem ścieżki warstwa podmienia witrynę żądania na witrynę konkursu (drzewo stron),
         # a tu pytamy o witrynę **hosta** – tę, którą warstwa zapamiętała przed podmianą.
         site = getattr(request, "competition_host_site", None) or Site.find_for_request(request)
-    except (DatabaseError, DisallowedHost):  # pragma: no cover - baza bez witryn
+    except DatabaseError, DisallowedHost:  # pragma: no cover - baza bez witryn
         # „Nie wiem” nie może tu znaczyć „404”: stronę błędu i tak złoży ten sam mechanizm,
         # co dla każdego innego zapytania, a 404 z powodu awarii bazy byłby diagnozą fałszywą.
         return False

@@ -97,7 +97,7 @@ class PosterDownloadView(ThrottledFormMixin, View):
         material = self._material(request, pk)
         try:
             handle = material.file.open("rb")
-        except (FileNotFoundError, OSError):
+        except FileNotFoundError, OSError:
             # Wiersz bez pliku (skasowany ręcznie z magazynu, awaria storage) to stan danych,
             # nie błąd programu – 404 dla czytelnika, ślad w logu dla operatora. Pobranie się nie
             # liczy, bo żadnego pliku nikt nie dostał.

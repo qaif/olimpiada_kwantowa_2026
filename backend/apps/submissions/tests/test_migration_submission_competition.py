@@ -6,6 +6,9 @@ kolumnę **denormalizacyjną**, więc jej wartość nie jest decyzją – jest f
 ``entry.stage.edition.competition``. Przepisanie jej z „jedynego konkursu” dałoby ten sam wynik na
 dzisiejszej produkcji i błędny dzień po dołożeniu drugiego konkursu; stąd test, który uruchamia
 backfill na bazie **dwukonkursowej** i sprawdza, że nikt nie przejął cudzych prac.
+
+Bazę przewija raz na moduł fikstura w transakcji wycofywanej na końcu modułu
+(``apps/core/tests/migration_helpers.py``).
 """
 
 import importlib
@@ -13,12 +16,14 @@ import importlib
 import pytest
 from django.apps import apps as django_apps
 from django.db import connection
-from django.db.migrations.executor import MigrationExecutor
 
 from apps.competitions.tests.factories import StageFactory
+from apps.core.tests.migration_helpers import MIGRATION_TESTS, migrate_to, rewound_database
 from apps.submissions.models import Submission
 
 from .factories import SubmissionFactory
+
+pytestmark = MIGRATION_TESTS
 
 BEFORE = ("submissions", "0005_submission_competition")
 AFTER = ("submissions", "0006_backfill_submission_competition")
@@ -27,27 +32,11 @@ AFTER = ("submissions", "0006_backfill_submission_competition")
 backfill = importlib.import_module(f"apps.submissions.migrations.{AFTER[1]}")
 
 
-def migrate_to(target) -> None:
-    executor = MigrationExecutor(connection)
-    executor.loader.build_graph()
-    executor.migrate([target])
-    executor.loader.build_graph()
-
-
-def migrate_to_head() -> None:
-    """Przywraca czoło migracji **wszystkich** aplikacji – patrz bliźniaczy test w ``competitions``."""
-    executor = MigrationExecutor(connection)
-    executor.loader.build_graph()
-    executor.migrate(executor.loader.graph.leaf_nodes())
-    executor.loader.build_graph()
-
-
-@pytest.fixture
-def before_backfill(transactional_db, competition):  # noqa: ARG001 - baza, używana przez efekt uboczny
+@pytest.fixture(scope="module")
+def before_backfill(django_db_setup, django_db_blocker):
     """Baza cofnięta do stanu sprzed backfillu prac: kolumna jest, właścicieli nie ma."""
-    migrate_to(BEFORE)
-    yield competition
-    migrate_to_head()
+    with rewound_database(django_db_blocker, BEFORE) as db:
+        yield db.competition
 
 
 def _orphan(**kwargs) -> Submission:
@@ -61,7 +50,6 @@ def _orphan(**kwargs) -> Submission:
     return submission
 
 
-@pytest.mark.django_db(transaction=True)
 def test_the_backfill_copies_the_owner_from_the_stage(before_backfill):
     competition = before_backfill
     submission = _orphan(competition=competition)
@@ -71,7 +59,6 @@ def test_the_backfill_copies_the_owner_from_the_stage(before_backfill):
     assert Submission.objects.get(pk=submission.pk).competition_id == competition.pk
 
 
-@pytest.mark.django_db(transaction=True)
 def test_the_backfill_never_moves_work_between_competitions(before_backfill, other_competition):
     """Dwa konkursy naraz: każda praca ma dostać właściciela **swojego** etapu.
 
@@ -88,7 +75,6 @@ def test_the_backfill_never_moves_work_between_competitions(before_backfill, oth
     assert Submission.objects.get(pk=theirs.pk).competition_id == other_competition.pk
 
 
-@pytest.mark.django_db(transaction=True)
 def test_running_the_backfill_twice_changes_nothing(before_backfill):
     """Idempotencja: wydania B i C stoją obok siebie, więc drugi przebieg jest normalną sytuacją."""
     competition = before_backfill
@@ -101,7 +87,6 @@ def test_running_the_backfill_twice_changes_nothing(before_backfill):
     assert Submission.objects.get(pk=submission.pk).competition_id == competition.pk
 
 
-@pytest.mark.django_db(transaction=True)
 def test_the_backfill_is_reversible(before_backfill):
     """Cofnięcie zdejmuje właścicieli, bo kolumna zostaje – ``noop`` zostawiłby stan pośredni."""
     competition = before_backfill
@@ -113,7 +98,6 @@ def test_the_backfill_is_reversible(before_backfill):
     assert Submission.objects.get(pk=submission.pk).competition_id is None
 
 
-@pytest.mark.django_db(transaction=True)
 def test_the_backfill_on_an_empty_database_does_nothing(before_backfill):  # noqa: ARG001
     """Świeża instalacja: brak prac i brak konkursu to nie jest błąd, tylko pusta baza."""
     from apps.tenancy.models import Competition

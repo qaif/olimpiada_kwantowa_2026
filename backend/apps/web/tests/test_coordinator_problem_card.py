@@ -10,6 +10,7 @@ import pytest
 
 from apps.accounts.tests.factories import ActiveReviewerFactory
 from apps.competitions.problem_card import bar_width
+from apps.core.tests.query_budgets import budget
 from apps.grading.models import ProblemReviewerRule, ReviewStatus, RubricCriterion
 from apps.grading.tests.factories import FinalGradeFactory, ReviewFactory
 from apps.submissions.models import SubmissionStatus
@@ -276,11 +277,11 @@ def test_card_query_count_does_not_grow_with_works(
     # jak koszt zależy od **danych**, więc rozgrzewka odbywa się przed pomiarem.
     web_client.get(problem_url(problems[0]))
 
-    with django_assert_max_num_queries(45) as few:
+    with django_assert_max_num_queries(budget("coordinator/problem-card")) as few:
         assert web_client.get(problem_url(problems[0])).status_code == 200
 
     _add_works(entry, problems[0], reviewer, 9, start=1)
-    with django_assert_max_num_queries(45) as many:
+    with django_assert_max_num_queries(budget("coordinator/problem-card")) as many:
         assert web_client.get(problem_url(problems[0])).status_code == 200
 
     assert len(many.captured_queries) == len(few.captured_queries)

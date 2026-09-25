@@ -44,7 +44,7 @@ olimpiady, pod warunkiem udostępnienia źródeł swojej wersji użytkownikom se
 | RAM | ≥ 6 GB dla Dockera | ClamAV trzyma bazę sygnatur w pamięci (~1,5 GB) |
 | Dysk | ≥ 10 GB | obrazy, sygnatury ClamAV, wolumeny danych |
 | Powłoka | Git Bash / WSL / dowolna POSIX-owa | skrypty w `scripts/` są bashowe |
-| (opcjonalnie) Python 3.12 + `ruff` | – | wyłącznie do lintu poza kontenerem |
+| (opcjonalnie) Python 3.14 + `ruff` (venv przez `uv`) | – | wyłącznie do lintu poza kontenerem; tworzenie venv – § 7 |
 
 Systemu **nie da się** sensownie uruchomić bez Dockera: deadline, skan antywirusowy i prywatny
 storage wymagają Postgresa, Redisa, MinIO i ClamAV-a, a nie ich atrap.
@@ -3699,13 +3699,16 @@ zapisuje — także dla etapu w formie testu.
 > uruchamianym workflow – opis razem z listą sekretów: [`docs/OPERACJE.md`](docs/OPERACJE.md) § 4.
 
 ```bash
-# Testy jednostkowe i integracyjne (w kontenerze – tak jak w CI)
-docker compose exec -T web pytest -q
+# Testy jednostkowe i integracyjne (w kontenerze – tak jak w CI); przebiegi i markery: docs/TESTY.md
+docker compose exec -T web pytest -q -n auto            # pełny, równolegle
+docker compose exec -T web pytest -q -n auto -m "not slow"   # szybka pętla (bez migracji i transakcyjnych)
 
 # Pokrycie
 docker compose exec -T web pytest -q --cov=apps --cov-report=term-missing:skip-covered
 
-# Lint i formatowanie (host, wirtualne środowisko w backend/.venv)
+# Lint i formatowanie (host, wirtualne środowisko w backend/.venv – Python 3.14, jak obraz).
+# Venv (także po zmianie wersji Pythona – stary trzeba skasować; za proxy TLS: --system-certs):
+#   cd backend && rm -rf .venv && uv venv --python 3.14 .venv && uv pip install --python .venv -r pyproject.toml --extra dev
 cd backend && .venv/Scripts/ruff.exe format . && .venv/Scripts/ruff.exe check .
 # Linux/WSL: cd backend && ruff format . && ruff check .
 
@@ -3735,7 +3738,7 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest d
                               # nie został jeszcze zamknięty (np. po awarii w połowie przebiegu)
 ```
 
-Skrypt kasuje wolumeny `pg_data`, `minio_data` i `redis_data`, a **zostawia** `clamav_db` – pierwsze
+Skrypt kasuje wolumeny `pg18_data` (i `pg_data` sprzed PostgreSQL 18), `minio_data` i `redis_data`, a **zostawia** `clamav_db` – pierwsze
 pobranie sygnatur trwa kilka minut i nie ma powodu robić go przy każdym przebiegu.
 
 Zmierzony czas (Docker Desktop na Windows 11, rozgrzany ClamAV i cache obrazów): **~60 s** na cały

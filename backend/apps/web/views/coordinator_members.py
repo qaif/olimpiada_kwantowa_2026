@@ -176,5 +176,5 @@ def _int_or_none(raw) -> int | None:
     """Parametr zapytania jako liczba albo ``None``. Śmieci w adresie nie są błędem użytkownika."""
     try:
         return int(raw)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None

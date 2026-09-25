@@ -23,7 +23,7 @@ opiekun i uczestnik logują się tym samym kontem, a uprawnienia rozstrzygają g
 | Powłoka | Git Bash / WSL / dowolna POSIX-owa | skrypty w `scripts/` są bashowe |
 | Serwer produkcyjny | Ubuntu z publicznym IPv4, porty 22/80/443/9000 | skrypt wdrożeniowy sam instaluje Dockera i `ufw` |
 | Domena | własna, z dostępem do strefy DNS | potrzebne **co najmniej dwa** rekordy A (niżej) |
-| Python 3.12 + `ruff` | opcjonalnie | wyłącznie do lintu poza kontenerem |
+| Python 3.14 + `ruff` | opcjonalnie | wyłącznie do lintu poza kontenerem (ta sama wersja co obraz) |
 
 Deadline, skan antywirusowy i prywatny magazyn plików wymagają Postgresa, Redisa, MinIO i ClamAV-a —
 atrapy nie wystarczą, więc środowisko deweloperskie stoi na tych samych usługach co produkcja.
@@ -37,7 +37,7 @@ atrapy nie wystarczą, więc środowisko deweloperskie stoi na tych samych usłu
 `9001`, `8000` i montuje kod z hosta. Rozmowy kwalifikacyjne na własnym Jitsi to **osobny** projekt
 compose (`deploy/jitsi/`).
 
-Wolumeny z danymi: `pg_data`, `minio_data`, `redis_data`, `mail_dkim`, `mail_spool`, `caddy_data`,
+Wolumeny z danymi: `pg18_data` (PostgreSQL 18; `pg_data` = baza 16 sprzed przejścia, droga wycofania – `OPERACJE.md` § 19), `minio_data`, `redis_data`, `mail_dkim`, `mail_spool`, `caddy_data`,
 `caddy_config`, `static_files`, `clamav_db`.
 
 ---
@@ -261,7 +261,33 @@ Zasady, które warto znać przed aktualizacją:
 
 Wycofanie wydania: wdróż wcześniejszy tag (`APP_VERSION=v0.17.1 scripts/deploy.sh …` z wcześniejszego
 `HEAD`). Migracji danych zwykle **nie da się** cofnąć automatycznie — przy zmianie schematu wycofanie
-oznacza odtworzenie bazy z kopii (§ 6).
+oznacza odtworzenie bazy z kopii (§ 6). **Po przejściu na PostgreSQL 18 nie wdrażaj kodu sprzed
+v0.37.0** – jego `docker-compose.yml` postawi bazę 16 ze starego wolumenu `pg_data` (stan sprzed
+przejścia, zapisy z 18 znikają z widoku); starszą wersję aplikacji uruchamia się wtedy tagiem obrazu
+(`APP_VERSION` w `.env`, `OPERACJE.md` § 11.3 i § 21.3).
+
+### 5.1 Strona „Prace techniczne”
+
+W czasie przerwy serwis nie odpowiada pustym błędem 502, tylko stroną **„Prace techniczne – serwis
+wróci za kilka minut”** (503, podaje ją proxy Caddy – działa także, gdy aplikacja i baza leżą).
+Pokazuje się sama, gdy aplikacja nie odpowiada (restart przy wdrożeniu, awaria), a na czas prac
+planowych włącza się ją ręcznie (na serwerze, w `/opt/olimpiada`):
+
+```bash
+scripts/maintenance.sh on --message "Aktualizacja bazy danych." --until "21:30"   # czas polski
+scripts/maintenance.sh status
+scripts/maintenance.sh off
+```
+
+Włączenie i wyłączenie działa natychmiast, bez restartu czegokolwiek. W czasie przerwy administrator
+ogląda serwis z **przepustką** – token `MAINTENANCE_BYPASS_TOKEN` z `.env` (nagłówek
+`X-Maintenance-Bypass` albo w przeglądarce `https://<domena>/__maintenance/bypass?token=<token>`).
+Strony nie ma na `meet.` (Jitsi), `monitor.` i endpoincie S3. `scripts/upgrade_postgres18.sh`
+włącza i wyłącza ją sam; zwykłe wdrożenie może ją włączyć flagą:
+`scripts/deploy.sh --maintenance root@<adres-serwera>` (wtedy kopia bazy przed migracjami powstaje
+dopiero po włączeniu strony i zatrzymaniu aplikacji). **Jeśli skrypt skończy się błędem, strona
+zostaje włączona** – sprawdź serwis z przepustką i wyłącz ją `scripts/maintenance.sh off`.
+Szczegóły: `docs/OPERACJE.md` § 20.
 
 ---
 
@@ -396,7 +422,7 @@ Szczegóły — [`PODRECZNIK-ORGANIZATORA.md`](PODRECZNIK-ORGANIZATORA.md) § 9.
 
 | Co | Gdzie | Uwagi |
 |---|---|---|
-| Konta, profile, zgody (`ConsentRecord`), zgłoszenia, recenzje, oceny, audyt, snapshoty wyników | PostgreSQL, wolumen `pg_data` | jedyne źródło prawdy o zawodach |
+| Konta, profile, zgody (`ConsentRecord`), zgłoszenia, recenzje, oceny, audyt, snapshoty wyników | PostgreSQL 18, wolumen `pg18_data` (do przejścia: 16 na `pg_data`, `OPERACJE.md` § 19) | jedyne źródło prawdy o zawodach |
 | Prace uczestników, treści zadań, rozwiązania wzorcowe | MinIO, bucket `submissions` (wolumen `minio_data`) | brak publicznych adresów; wyłącznie widoki aplikacji i presigned URL |
 | Media redakcyjne (obrazy, PDF-y dokumentów) | MinIO, bucket `public-media` | publiczne z założenia |
 | Sesje, pamięć podręczna, kolejki Celery | Redis (`redis_data`) | dane ulotne |

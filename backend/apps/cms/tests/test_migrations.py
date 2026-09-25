@@ -5,23 +5,20 @@ decyduje o tym, czy po wdrożeniu link do regulaminu w wersji .docx nadal jest n
 Test cofa bazę do stanu sprzed migracji, tworzy tam dokument z załącznikiem i sprawdza, co
 zastanie po ponownym „migrate” do przodu.
 
-Dwie rzeczy, przez które ten test wygląda inaczej niż reszta pakietu:
-
-- **``transaction=True``.** Przewijanie migracji to DDL po DML; PostgreSQL odmawia wtedy
-  ``ALTER TABLE`` w tej samej transakcji („pending trigger events”), więc test musi commitować,
-- **własne dane od zera.** Testy transakcyjne czyszczą bazę po sobie, więc drzewo stron
-  i kolekcja Root utworzone przez migracje mogą już nie istnieć w chwili, gdy ten test rusza.
-  Nie zakładamy więc niczego o zawartości bazy i budujemy komplet wierszy sami.
-
-Fixture przywraca czoło migracji także wtedy, gdy test przerwie się w połowie – inaczej cały
-dalszy przebieg pakietu zastałby bazę bez tabel z ``0007``.
+Przewijanie migracji to DDL po DML; PostgreSQL odmawia wtedy ``ALTER TABLE`` w tej samej transakcji
+(„pending trigger events”) – do 25.09.2026 był to powód, dla którego test był transakcyjny. Dziś
+bazę przewija fikstura modułu w transakcji z więzami przełączonymi na natychmiastowe, a na końcu
+modułu wycofuje ją razem z przewinięciem (``apps/core/tests/migration_helpers.py``). Wiersze test
+buduje sam, od zera – nie zakłada niczego o drzewie stron zbudowanym przez migracje.
 """
 
 import uuid
 
 import pytest
-from django.db import connection
-from django.db.migrations.executor import MigrationExecutor
+
+from apps.core.tests.migration_helpers import MIGRATION_TESTS, migrate_to, rewound_database
+
+pytestmark = MIGRATION_TESTS
 
 BEFORE = ("cms", "0006_site_settings_defaults")
 AFTER = ("cms", "0007_page_attachments")
@@ -31,36 +28,12 @@ AFTER = ("cms", "0007_page_attachments")
 TEST_PATH = "ZZZZ"
 
 
-def migrate_to(target):
-    """Przewija bazę do wskazanej migracji i zwraca stan aplikacji z tamtego momentu."""
-    executor = MigrationExecutor(connection)
-    executor.loader.build_graph()
-    executor.migrate([target])
-    executor.loader.build_graph()
-    return executor.loader.project_state([target]).apps
+@pytest.fixture(scope="module")
+def rewound_apps(django_db_setup, django_db_blocker):
+    with rewound_database(django_db_blocker, BEFORE) as db:
+        yield db.apps
 
 
-def migrate_to_head() -> None:
-    """Przywraca czoło migracji **wszystkich** aplikacji, nie tylko przewijanej.
-
-    ``migrate_to(AFTER)`` nie wystarcza: cofnięcie jednej aplikacji zdejmuje po drodze każdą
-    migrację z innych aplikacji, która od niej zależy, a powrót do konkretnego celu przywraca
-    wyłącznie jego przodków. Reszta pakietu zastawała wtedy bazę bez tamtych tabel – i wywracała
-    się w zupełnie innym miejscu, kilka minut później.
-    """
-    executor = MigrationExecutor(connection)
-    executor.loader.build_graph()
-    executor.migrate(executor.loader.graph.leaf_nodes())
-    executor.loader.build_graph()
-
-
-@pytest.fixture
-def rewound_apps(transactional_db):  # noqa: ARG001 - fixture bazy, używana przez efekt uboczny
-    yield migrate_to(BEFORE)
-    migrate_to_head()
-
-
-@pytest.mark.django_db(transaction=True)
 def test_migration_moves_the_single_attachment_into_the_inline_list(rewound_apps):
     Collection = rewound_apps.get_model("wagtailcore", "Collection")
     ContentType = rewound_apps.get_model("contenttypes", "ContentType")

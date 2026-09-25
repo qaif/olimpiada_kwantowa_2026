@@ -6,50 +6,27 @@ zostało puste dla kont, które już działają, cała dotychczasowa baza uczest
 zostałaby w jednej chwili odcięta od panelu – bez niczyjej winy i bez linku w skrzynce, bo listy
 aktywacyjne nigdy do nich nie poszły.
 
-Test wygląda inaczej niż reszta pakietu z tych samych powodów, co ``apps/cms/tests/test_migrations.py``:
-przewijanie migracji to DDL po DML, więc potrzebny jest ``transaction=True``, a fixture przywraca
-czoło migracji także wtedy, gdy test przerwie się w połowie.
+Bazę przewija fikstura :func:`rewound_apps` w transakcji wycofywanej na końcu modułu – wycofanie
+przywraca czoło migracji (``apps/core/tests/migration_helpers.py``).
 """
 
 import pytest
-from django.db import connection
-from django.db.migrations.executor import MigrationExecutor
 from django.utils import timezone
+
+from apps.core.tests.migration_helpers import MIGRATION_TESTS, migrate_to, rewound_database
+
+pytestmark = MIGRATION_TESTS
 
 BEFORE = ("accounts", "0009_participant_consents")
 AFTER = ("accounts", "0010_activation_and_phone")
 
 
-def migrate_to(target):
-    """Przewija bazę do wskazanej migracji i zwraca stan aplikacji z tamtego momentu."""
-    executor = MigrationExecutor(connection)
-    executor.loader.build_graph()
-    executor.migrate([target])
-    executor.loader.build_graph()
-    return executor.loader.project_state([target]).apps
+@pytest.fixture(scope="module")
+def rewound_apps(django_db_setup, django_db_blocker):
+    with rewound_database(django_db_blocker, BEFORE) as db:
+        yield db.apps
 
 
-def migrate_to_head() -> None:
-    """Przywraca czoło migracji **wszystkich** aplikacji, nie tylko przewijanej.
-
-    ``migrate_to(AFTER)`` nie wystarcza: cofnięcie jednej aplikacji zdejmuje po drodze każdą
-    migrację z innych aplikacji, która od niej zależy, a powrót do konkretnego celu przywraca
-    wyłącznie jego przodków. Reszta pakietu zastawała wtedy bazę bez tamtych tabel – i wywracała
-    się w zupełnie innym miejscu, kilka minut później.
-    """
-    executor = MigrationExecutor(connection)
-    executor.loader.build_graph()
-    executor.migrate(executor.loader.graph.leaf_nodes())
-    executor.loader.build_graph()
-
-
-@pytest.fixture
-def rewound_apps(transactional_db):  # noqa: ARG001 - fixture bazy, używana przez efekt uboczny
-    yield migrate_to(BEFORE)
-    migrate_to_head()
-
-
-@pytest.mark.django_db(transaction=True)
 def test_existing_accounts_keep_access_after_the_migration(rewound_apps):
     User = rewound_apps.get_model("accounts", "User")
     joined = timezone.now().replace(microsecond=0)

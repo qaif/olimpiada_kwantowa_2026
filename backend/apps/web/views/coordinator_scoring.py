@@ -258,7 +258,7 @@ def _selected_component(stage: Stage, raw) -> StageComponent | None:
         return None
     try:
         wanted = int(raw)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return components[0]
     return next((item for item in components if item.pk == wanted), components[0])
 
@@ -378,7 +378,7 @@ class ReviewerRolesView(ScoringScreenMixin, View):
             role.full_clean()
             with transaction.atomic():
                 role.save()
-        except (ValidationError, IntegrityError):
+        except ValidationError, IntegrityError:
             # Kod roli jest unikalny w etapie i to jedyna reguła, którą da się tu złamać dwiema
             # drogami naraz (formularz nie zna etapu, więc walidacja unikalności go nie obejmuje).
             form.add_error("code", "Rola o tym kodzie już istnieje w tym etapie.")

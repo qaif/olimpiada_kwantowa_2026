@@ -21,24 +21,11 @@ import re
 
 import pytest
 
-from apps.accounts.activation import (
-    ACTIVATION_SUBJECT,
-    EMAIL_CHANGE_SUBJECT,
-    EMAIL_CHANGED_NOTICE_SUBJECT,
-)
 from apps.accounts.consents import CONSENTS
-from apps.accounts.guardian import GUARDIAN_CONFIRMED_SUBJECT, GUARDIAN_SUBJECT
 from apps.accounts.models import PUBLIC_CODE_PREFIX, generate_public_code
-from apps.accounts.services import INVITATION_SUBJECT
 from apps.cms.context_processors import FALLBACK_MENU
-from apps.grading.reports import REMINDER_SUBJECT
+from apps.core.tests.query_budgets import budget
 from apps.results.models import CERTIFICATE_NUMBER_PREFIX
-from apps.submissions.notifications import (
-    APPEAL_DECIDED_SUBJECT,
-    RESULTS_PUBLISHED_SUBJECT,
-    SUBMISSION_INFECTED_SUBJECT,
-    SUBMISSION_RECEIVED_SUBJECT,
-)
 from apps.tenancy.tests.golden import build_golden
 
 pytestmark = pytest.mark.django_db
@@ -139,6 +126,14 @@ EXPECTED_SUBJECTS = {
     "submission_infected": "Plik odrzucony przez skan antywirusowy – Olimpiada Kwantowa",
     "results_published": "Wyniki etapu ogłoszone – Olimpiada Kwantowa",
     "appeal_decided": "Decyzja w sprawie reklamacji – Olimpiada Kwantowa",
+    # Zaświadczenie o statusie ucznia (``apps.student_status.notifications``, v0.34.0). Do 25.09.2026
+    # tych dwóch tematów tu nie było: test liczył wiersze tej tabeli, a nie stałe w kodzie, więc
+    # nowy list przeszedł obok niego. Znalazł je ``test_every_subject_in_the_code_is_frozen``.
+    "student_status_accepted": "Zaświadczenie o statusie ucznia zaakceptowane – Olimpiada Kwantowa",
+    "student_status_rejected": "Zaświadczenie o statusie ucznia odrzucone – Olimpiada Kwantowa",
+    # Zaproszenie ucznia założonego przez nauczyciela (``apps.accounts.bulk_registration``). Temat
+    # stoi w pliku szablonu, a nie w stałej – z tego samego powodu nikt go dotąd nie porównywał.
+    "student_invitation": "Zaproszenie do Olimpiady Kwantowej",
 }
 
 #: Znaczniki podstawień w tematach składanych w serwisie. Porównujemy **wzorzec**, a nie wynik:
@@ -206,26 +201,96 @@ EXPECTED_FORUM_SUBJECTS = {
     "forum_daily": f"{EXPECTED_SUBJECT_PREFIX}Forum: podsumowanie dnia",
 }
 
-#: Komplet tematów wychodzących z instalacji – dwadzieścia cztery rodzaje listu, z których jeden
-#: (przypomnienie o recenzjach) niesie dwa brzmienia. Stała jest jedna, żeby dopisanie
-#: kolejnego listu bez wiersza w teście było widoczne w jednym miejscu.
+#: Komplet tematów wychodzących z instalacji. **Liczby tu nie ma i ma jej nie być**: do 25.09.2026
+#: test porównywał długości tych słowników z literałami (11/7/7/25), więc każdy nowy list wymagał
+#: poprawienia liczby w miejscu, które z tym listem nie miało nic wspólnego – a przy tym niczego nie
+#: pilnował, bo liczył wiersze tabeli, a nie tematy w kodzie (trzy tematy przeszły obok niego).
+#: Kompletności pilnuje dziś ``test_every_subject_in_the_code_is_frozen`` niżej.
 ALL_EXPECTED_SUBJECTS = {**EXPECTED_SUBJECTS, **EXPECTED_SERVICE_SUBJECTS, **EXPECTED_FORUM_SUBJECTS}
+
+#: Każda stała tematu listu w kodzie (nazwa z ``SUBJECT``) → klucz zamrożonego brzmienia wyżej.
+#: Wariant z marką konkursu (``*_TEMPLATE`` z ``%(competition)s``) wskazuje ten sam klucz co stała
+#: bez marki: to jest ten sam list, a jego brzmienie dla Konkursu #1 ma być identyczne. Wartość
+#: kończąca się na ``.txt`` to ścieżka szablonu tematu – porównujemy wtedy wyrenderowany tekst.
+#:
+#: **Nowy list** = nowy wiersz w ``EXPECTED_*`` wyżej i nowy wiersz tutaj. Nic więcej – żadnej
+#: liczby do poprawienia. Zapomniany wiersz wskaże z nazwy ``test_every_subject_in_the_code_is_frozen``.
+SUBJECT_CONSTANTS = {
+    "apps.accounts.activation.ACTIVATION_SUBJECT": "activation",
+    "apps.accounts.activation.ACTIVATION_SUBJECT_TEMPLATE": "activation",
+    "apps.accounts.activation.EMAIL_CHANGE_SUBJECT": "email_change",
+    "apps.accounts.activation.EMAIL_CHANGE_SUBJECT_TEMPLATE": "email_change",
+    "apps.accounts.activation.EMAIL_CHANGED_NOTICE_SUBJECT": "email_changed_notice",
+    "apps.accounts.activation.EMAIL_CHANGED_NOTICE_SUBJECT_TEMPLATE": "email_changed_notice",
+    "apps.accounts.bulk_registration.INVITE_SUBJECT_TEMPLATE": "student_invitation",
+    "apps.accounts.guardian.GUARDIAN_SUBJECT": "guardian",
+    "apps.accounts.guardian.GUARDIAN_SUBJECT_TEMPLATE": "guardian",
+    "apps.accounts.guardian.GUARDIAN_CONFIRMED_SUBJECT": "guardian_confirmed",
+    "apps.accounts.guardian.GUARDIAN_CONFIRMED_SUBJECT_TEMPLATE": "guardian_confirmed",
+    "apps.accounts.services.INVITATION_SUBJECT": "invitation",
+    "apps.accounts.services.INVITATION_SUBJECT_TEMPLATE": "invitation",
+    "apps.forum.notifications.SUBJECT_MODERATION": "forum_moderation",
+    "apps.forum.notifications.SUBJECT_REPLY": "forum_reply",
+    "apps.forum.notifications.SUBJECT_REPLY_COORDINATOR": "forum_reply_coordinator",
+    "apps.forum.notifications.SUBJECT_REPLY_COMMITTEE": "forum_reply_committee",
+    "apps.forum.notifications.SUBJECT_DECISIONS": "forum_decisions",
+    "apps.forum.notifications.SUBJECT_NEWS": "forum_news",
+    "apps.forum.notifications.SUBJECT_DAILY": "forum_daily",
+    "apps.grading.deadlines.OVERDUE_SUBJECT": "reviews_overdue",
+    "apps.grading.deadlines.OVERDUE_SUBJECT_TEMPLATE": "reviews_overdue",
+    "apps.grading.deadlines.DUE_SOON_SUBJECT": "reviews_due_soon",
+    "apps.grading.deadlines.DUE_SOON_SUBJECT_TEMPLATE": "reviews_due_soon",
+    "apps.grading.reports.REMINDER_SUBJECT": "review_reminder",
+    "apps.grading.reports.REMINDER_SUBJECT_TEMPLATE": "review_reminder",
+    "apps.student_status.notifications.ACCEPTED_SUBJECT": "student_status_accepted",
+    "apps.student_status.notifications.ACCEPTED_SUBJECT_TEMPLATE": "student_status_accepted",
+    "apps.student_status.notifications.REJECTED_SUBJECT": "student_status_rejected",
+    "apps.student_status.notifications.REJECTED_SUBJECT_TEMPLATE": "student_status_rejected",
+    "apps.submissions.forwarding.FORWARD_SUBJECT_TEMPLATE": "submission_forwarded",
+    "apps.submissions.notifications.SUBMISSION_RECEIVED_SUBJECT": "submission_received",
+    "apps.submissions.notifications.SUBMISSION_RECEIVED_SUBJECT_TEMPLATE": "submission_received",
+    "apps.submissions.notifications.SUBMISSION_INFECTED_SUBJECT": "submission_infected",
+    "apps.submissions.notifications.SUBMISSION_INFECTED_SUBJECT_TEMPLATE": "submission_infected",
+    "apps.submissions.notifications.RESULTS_PUBLISHED_SUBJECT": "results_published",
+    "apps.submissions.notifications.RESULTS_PUBLISHED_SUBJECT_TEMPLATE": "results_published",
+    "apps.submissions.notifications.APPEAL_DECIDED_SUBJECT": "appeal_decided",
+    "apps.submissions.notifications.APPEAL_DECIDED_SUBJECT_TEMPLATE": "appeal_decided",
+    "apps.support.services.TICKET_OPENED_SUBJECT": "support_opened",
+    "apps.support.services.TICKET_OPENED_SUBJECT_TEMPLATE": "support_opened",
+    "apps.support.services.TICKET_ANSWERED_SUBJECT": "support_answered",
+    "apps.support.services.TICKET_ANSWERED_SUBJECT_TEMPLATE": "support_answered",
+}
+
+#: Stałe z ``SUBJECT`` w nazwie, które **nie są** tematem wychodzącego listu – każda z powodem.
+NOT_MAIL_SUBJECTS = {
+    "apps.cms.management.commands.build_guardian_consent_pdf.PDF_SUBJECT": "metadane PDF-a (pole Subject)",
+    "apps.forum.notifications.SUBJECT_TITLE_LIMIT": "limit długości tytułu wątku wstawianego do tematu",
+}
+
+#: Wartości podstawień dla Konkursu #1 i znaczniki danych konkretnego listu – te same, co w wierszach
+#: ``EXPECTED_*`` (numer sprawy, etap, liczba, zadanie, kod i tytuł wątku to dane, nie brzmienie).
+SUBJECT_PLACEHOLDERS = {
+    "competition": "Olimpiada Kwantowa",
+    "competition_genitive": "Olimpiady Kwantowej",
+    "ticket": TICKET_MARK.removeprefix("#"),
+    "stage": STAGE_MARK,
+    "count": COUNT_MARK,
+    "number": PROBLEM_MARK,
+    "code": CODE_MARK,
+    "title": TITLE_MARK,
+}
 
 
 def test_email_subjects_unchanged(settings):
-    actual = {
-        "activation": str(ACTIVATION_SUBJECT),
-        "email_change": str(EMAIL_CHANGE_SUBJECT),
-        "email_changed_notice": str(EMAIL_CHANGED_NOTICE_SUBJECT),
-        "guardian": str(GUARDIAN_SUBJECT),
-        "guardian_confirmed": str(GUARDIAN_CONFIRMED_SUBJECT),
-        "invitation": str(INVITATION_SUBJECT),
-        "review_reminder": str(REMINDER_SUBJECT),
-        "submission_received": str(SUBMISSION_RECEIVED_SUBJECT),
-        "submission_infected": str(SUBMISSION_INFECTED_SUBJECT),
-        "results_published": str(RESULTS_PUBLISHED_SUBJECT),
-        "appeal_decided": str(APPEAL_DECIDED_SUBJECT),
-    }
+    """Tematy stałych modułów, czytane ze stałych wskazanych w ``SUBJECT_CONSTANTS``.
+
+    Słownik ``actual`` nie jest już przepisywany ręcznie: nowy temat dopisuje się w jednym miejscu
+    (``EXPECTED_SUBJECTS`` + jego źródło), a nie w trzech.
+    """
+    actual = {}
+    for dotted, key in sorted(SUBJECT_CONSTANTS.items(), key=lambda item: item[0].endswith("_TEMPLATE")):
+        if key in EXPECTED_SUBJECTS:
+            actual.setdefault(key, _rendered_subject(dotted))
 
     assert actual == EXPECTED_SUBJECTS
     assert settings.EMAIL_SUBJECT_PREFIX == EXPECTED_SUBJECT_PREFIX
@@ -262,23 +327,100 @@ def test_forum_subjects_unchanged(competition):
     assert actual == EXPECTED_FORUM_SUBJECTS
 
 
-def test_every_outgoing_subject_is_frozen():
-    """Dwadzieścia pięć napisów na dwadzieścia cztery rodzaje listu – i ani jednego bez wiersza tutaj.
+#: Stała modułu z ``SUBJECT`` w nazwie – tak, jak stoi w pliku (``NAZWA = …`` od pierwszej kolumny).
+_SUBJECT_CONSTANT = re.compile(r"^(?P<name>[A-Z0-9_]*SUBJECT[A-Z0-9_]*)\s*(?::[^=\n]+)?=", re.MULTILINE)
 
-    Test pilnuje **listy**, a nie treści: treści pilnują ``test_email_subjects_unchanged`` (stałe
-    modułów), ``test_branding.py`` (tematy składane w serwisie, czytane z ``mail.outbox``)
-    i ``apps/submissions/tests/test_forwarding.py`` (przekazanie rozwiązania). Bez tego liczenia
-    dopisanie kolejnego rodzaju listu byłoby zmianą, po której nadal wszystko przechodzi – bo
-    nowego tematu po prostu nikt by nie porównywał.
+
+def _subject_constants_in_the_code() -> set[str]:
+    """Kropkowane ścieżki wszystkich stałych tematów w ``apps/`` (bez testów i migracji)."""
+    from pathlib import Path
+
+    apps_dir = Path(__file__).resolve().parents[2]
+    found = set()
+    for path in apps_dir.rglob("*.py"):
+        relative = path.relative_to(apps_dir.parent)
+        if "tests" in relative.parts or "migrations" in relative.parts:
+            continue
+        module = ".".join(relative.with_suffix("").parts)
+        for match in _SUBJECT_CONSTANT.finditer(path.read_text(encoding="utf-8")):
+            found.add(f"{module}.{match['name']}")
+    return found
+
+
+def _rendered_subject(dotted: str) -> str:
+    """Temat z danej stałej tak, jak dojdzie do skrzynki odbiorcy Konkursu #1 (bez danych listu)."""
+    from django.template.loader import render_to_string
+    from django.utils.module_loading import import_string
+
+    value = import_string(dotted)
+    text = render_to_string(value).strip() if str(value).endswith(".txt") else str(value)
+    return text % SUBJECT_PLACEHOLDERS if "%(" in text else text
+
+
+def test_every_subject_in_the_code_is_frozen():
+    """Każdy temat listu w kodzie ma zamrożone brzmienie – i dla Konkursu #1 brzmi dokładnie tak.
+
+    Test szuka stałych w **kodzie**, a nie liczy wierszy tabeli: nowy list bez wiersza w
+    ``SUBJECT_CONSTANTS`` kończy się tu komunikatem z nazwą stałej. Porównanie jest per temat, więc
+    dopisanie listu nie zmienia żadnej innej asercji. Prefiks ``[Olimpiada Kwantowa] `` doklejają
+    listy komitetu i forum przy wysyłce (``_subject``, ``subject_for``) – stała go nie niesie.
     """
-    assert len(EXPECTED_SUBJECTS) == 11
-    assert len(EXPECTED_SERVICE_SUBJECTS) == 7
-    assert len(EXPECTED_FORUM_SUBJECTS) == 7
-    assert len(ALL_EXPECTED_SUBJECTS) == 25
-    # Żaden temat nie jest pusty i żaden nie powtarza się pod dwoma kluczami: powtórzenie znaczyłoby,
-    # że dwa różne zdarzenia dają w skrzynce ten sam wiersz i nie da się ich rozróżnić filtrem.
+    in_code = _subject_constants_in_the_code()
+
+    unregistered = sorted(in_code - set(SUBJECT_CONSTANTS) - set(NOT_MAIL_SUBJECTS))
+    assert not unregistered, (
+        f"Tematy listów bez zamrożonego brzmienia: {unregistered}. Dopisz brzmienie do EXPECTED_* "
+        "i stałą do SUBJECT_CONSTANTS (albo do NOT_MAIL_SUBJECTS z powodem, jeśli to nie jest temat listu)."
+    )
+    stale = sorted((set(SUBJECT_CONSTANTS) | set(NOT_MAIL_SUBJECTS)) - in_code)
+    assert not stale, f"Wiersze dla stałych, których w kodzie już nie ma: {stale}"
+
+    for dotted, key in SUBJECT_CONSTANTS.items():
+        expected = ALL_EXPECTED_SUBJECTS[key]
+        rendered = _rendered_subject(dotted)
+        if expected.startswith(EXPECTED_SUBJECT_PREFIX) and not rendered.startswith(EXPECTED_SUBJECT_PREFIX):
+            rendered = EXPECTED_SUBJECT_PREFIX + rendered
+        assert rendered == expected, dotted
+
+
+def test_every_translatable_subject_has_an_english_version():
+    """Temat przepuszczany przez ``gettext`` (stała leniwa albo szablon ``.txt``) ma wersję angielską.
+
+    Sprawdzane per temat, więc nowy list dostaje tę asercję sam, przez wiersz w
+    ``SUBJECT_CONSTANTS`` – bez liczby do poprawienia. Tematy zwykłymi napisami (komitet,
+    recenzenci, zgłoszenia) są świadomie tylko po polsku i tej reguły nie dotyczą.
+    """
+    from django.utils.functional import Promise
+    from django.utils.module_loading import import_string
+    from django.utils.translation import override
+
+    untranslated = []
+    for dotted in SUBJECT_CONSTANTS:
+        value = import_string(dotted)
+        if not (isinstance(value, Promise) or str(value).endswith(".txt")):
+            continue
+        with override("pl"):
+            polish = _rendered_subject(dotted)
+        with override("en"):
+            english = _rendered_subject(dotted)
+        if english == polish:
+            untranslated.append(dotted)
+
+    assert not untranslated, f"Tematy bez tłumaczenia w locale/en/LC_MESSAGES/django.po: {untranslated}"
+
+
+def test_every_frozen_subject_is_distinct_and_has_a_source():
+    """Żaden temat nie jest pusty ani nie powtarza się pod dwoma kluczami – i każdy ma źródło.
+
+    Powtórzenie znaczyłoby, że dwa różne zdarzenia dają w skrzynce ten sam wiersz i nie da się ich
+    rozróżnić filtrem. Wiersz bez źródła w ``SUBJECT_CONSTANTS`` jest dozwolony wyłącznie dla
+    tematów składanych w serwisie bez stałej (rozmowy kwalifikacyjne) – te czyta z ``outbox``
+    ``test_branding.py``.
+    """
     assert all(ALL_EXPECTED_SUBJECTS.values())
     assert len(set(ALL_EXPECTED_SUBJECTS.values())) == len(ALL_EXPECTED_SUBJECTS)
+    without_source = set(ALL_EXPECTED_SUBJECTS) - set(SUBJECT_CONSTANTS.values())
+    assert without_source <= {"interview_booked", "interview_reminder"}, sorted(without_source)
 
 
 # --- 4. i 5. prefiksy identyfikatorów -------------------------------------------------------------
@@ -341,48 +483,9 @@ def test_menu_matches_seeded_tree(competition):
 #: **Jak zmienić świadomie:** najpierw sprawdź, czy przyrost nie jest zapytaniem na wiersz
 #: (dołóż uczestnika do złotej fikstury i zobacz, czy liczba rośnie). Jeśli nie rośnie – podnieś
 #: próg w tym samym commicie i napisz w opisie, co go podniosło.
-QUERY_BUDGET = {
-    # Zmierzone na złotej fiksturze (wydanie B, po T2 i T3): 29 / 43 / 45. Zapas trzech zapytań
-    # jest miejscem na odczyt konkursu, który zakresowanie dokłada w T4/T5 – po tych zadaniach
-    # próg wraca do wartości zmierzonej, a nie zostaje „na wszelki wypadek”.
-    #
-    # +1 od 21.09.2026: slider sponsorów w menu (``apps.cms.sponsor_slider``, procesor kontekstu
-    # w ``templates/base.html``, czyli na **każdej** stronie serwisu). Ładunek kosztuje dwa nowe
-    # zapytania – ``SiteSettings.for_site`` (włącznik/sekundy/poziomy) i ``PartnersPage…first()``
-    # (lista partnerów) – ale na stronie głównej jedno z nich trafia w ustawienia już wczytane
-    # przez Wagtaila dla tej samej instancji ``Site`` (``{% get_settings %}`` w tym samym
-    # szablonie), więc widoczny przyrost to tu tylko jedno zapytanie. Panel koordynatora
-    # i uczestnika (niżej) nie mają tego współdzielenia – tam widać oba.
-    #
-    # +1 od 22.09.2026: pozycja menu „Dla nauczycieli” (``apps.cms.context_processors.
-    # _supervisor_menu_item``) pyta o przełącznik ``SiteSettings.supervisor_registration_enabled``
-    # **od razu**, a nie leniwie jak procesor ``apps.web.context_processors.supervisor_registration`` –
-    # menu musi znać wynik, żeby wiedzieć, czy w ogóle dołożyć pozycję. Pytanie ma trzydziestosekundową
-    # pamięć podręczną na proces (``apps.accounts.supervisors._registration_cache``), więc to jest
-    # jedno zapytanie na pół minuty na instalację, nie jedno na żądanie – próg mierzy tu jednak stan
-    # zimny (patrz ``_reset_panel_counters`` niżej), bo inaczej wynik zależałby od tego, co przed tym
-    # testem zdążyło wygrzać pamięć w tym samym procesie.
-    #
-    # +1 od 23.09.2026: odnośnik „Plakaty do pobrania” w stopce **każdej** strony
-    # (``apps.promo.availability``, procesor ``promo_materials``) pyta „czy konkurs ma choć jeden
-    # opublikowany plakat”. Odpowiedź leży w pamięci podręcznej przez godzinę, jest unieważniana
-    # i od razu przeliczana przy każdym zapisie plakatu – w ruchu produkcyjnym to zero zapytań na
-    # odsłonę. Próg mierzy jednak stan zimny (``backend/conftest.py`` czyści pamięć przed każdym
-    # testem), więc widać tu to jedno ``EXISTS`` pierwszego żądania po zimnym starcie. Że drugie
-    # żądanie go już nie płaci, sprawdza ``apps/web/tests/test_posters_public.py``
-    # (``test_warm_page_does_not_ask_about_posters``). Ten sam przyrost i ten sam powód przy
-    # ``/me/`` i ``/coordinator/`` niżej – stopka jest w ``templates/base.html``.
-    "/": 35,
-    # 47 = 46 + zapytanie nagłówka CSP o identyfikator GA4, liczone od 21.09.2026 zawsze na zimno
-    # (patrz ``_reset_panel_counters``). To nie jest nowy koszt strony, tylko koniec zależności
-    # pomiaru od kolejności testów.
-    # +2 od 21.09.2026: slider sponsorów – ``SiteSettings.for_site`` i ``PartnersPage…first()``,
-    # patrz komentarz przy ``"/"`` wyżej.
-    # +1 od 23.09.2026: odnośnik „Plakaty do pobrania” w stopce – patrz komentarz przy ``"/"``.
-    "/me/": 50,
-    # 50 + 1 od 23.09.2026: odnośnik „Plakaty do pobrania” w stopce – patrz komentarz przy ``"/"``.
-    "/coordinator/": 51,
-}
+#: Wartości (i historia każdego podniesienia) stoją w **jednej** tabeli budżetów całej suity –
+#: ``apps/core/tests/query_budgets.py``. Tutaj jest tylko wybór ekranów tego pliku.
+QUERY_BUDGET = {path: budget(path) for path in ("/", "/me/", "/coordinator/")}
 
 
 @pytest.fixture

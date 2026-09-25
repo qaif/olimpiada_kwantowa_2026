@@ -245,7 +245,7 @@ def cms_menu(request) -> dict:
             # panelu uczestnika).
             home = get_script_prefix()
             items.insert(0, {**_menu_item("", HOME_ITEM_TITLE, home, request), "home": True})
-    except (DatabaseError, Site.DoesNotExist, AttributeError):  # pragma: no cover - baza bez drzewa
+    except DatabaseError, Site.DoesNotExist, AttributeError:  # pragma: no cover - baza bez drzewa
         # Witryny nie znamy, więc nie wiemy też, czy to ta domyślna – a lista zapasowa opisuje
         # wyłącznie jej drzewo. Puste menu jest tu jedyną odpowiedzią, która nie może być cudza.
         logger.warning("Menu CMS niedostępne – nagłówek zostaje bez pozycji.")

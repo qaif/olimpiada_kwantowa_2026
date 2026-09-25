@@ -54,30 +54,14 @@ ANTISPAM_MIN_FILL_SECONDS = 3
 # ``SimpleRateThrottle.allow_request`` przy ``rate is None`` wychodzi zanim dotknie zegara – dzięki
 # temu test pod ``freeze_time`` nie trafia na ``SimpleRateThrottle.timer`` zamrożone przez freezegun.
 #
-# **Ten słownik wymienia dokładnie te same scope'y, co ``base.py``** – pilnuje tego
-# ``apps/web/tests/test_throttle.py::test_test_settings_list_the_same_throttle_scopes_as_base``.
-# Powód jest praktyczny: ``ScopedRateThrottle`` szuka stawki po nazwie i **brak klucza jest u niego
-# wyjątkiem**, a nie „bez limitu”, więc scope dopisany w ``base.py`` i pominięty tutaj wywraca
-# każdy test, który dotknie jego widoku – i to pięćsetką, czyli komunikatem nie o tym.
+# **Scope'y są wzięte z ``base.py``, a nie przepisane tutaj.** ``ScopedRateThrottle`` szuka stawki
+# po nazwie i **brak klucza jest u niego wyjątkiem**, a nie „bez limitu”, więc scope dopisany
+# w ``base.py`` i pominięty w tym pliku wywracał pięćsetką każdy test swojego widoku. Do 25.09.2026
+# stała tu przepisana lista, którą każdy nowy scope musiał poprawić w drugim pliku; teraz zestaw
+# jest ten sam z konstrukcji (pilnuje tego nadal
+# ``apps/web/tests/test_throttle.py::test_test_settings_list_the_same_throttle_scopes_as_base``).
 REST_FRAMEWORK = {
     **REST_FRAMEWORK,
     "DEFAULT_THROTTLE_CLASSES": [],
-    "DEFAULT_THROTTLE_RATES": {
-        "anon": None,
-        "register": None,
-        "login": None,
-        "upload": None,
-        "password_reset": None,
-        "support": None,
-        # Pisanie na forum uczestników.
-        "forum": None,
-        "schools": None,
-        "two_factor": None,
-        # Webhook płatności (T49).
-        "payments": None,
-        # Zakładanie konkursu z panelu koordynatora (subdomeny platformy).
-        "competition_create": None,
-        # Pobieranie plakatów do pobrania (``/plakaty/<id>/pobierz/``).
-        "poster_download": None,
-    },
+    "DEFAULT_THROTTLE_RATES": dict.fromkeys(REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]),
 }

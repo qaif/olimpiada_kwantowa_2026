@@ -28,7 +28,7 @@ from config.settings import base as settings_module
     [
         (["/opt/venv/bin/celery", "-A", "config", "worker", "-Q", "default,scan,mail"], True),
         (["/opt/venv/bin/celery", "-A", "config", "beat"], True),
-        (["/opt/venv/lib/python3.12/site-packages/celery/__main__.py", "-A", "config", "worker"], True),
+        (["/opt/venv/lib/python3.14/site-packages/celery/__main__.py", "-A", "config", "worker"], True),
         (["/opt/venv/bin/gunicorn", "config.wsgi:application"], False),
         (["manage.py", "migrate"], False),
         (["/opt/venv/bin/pytest", "-q"], False),

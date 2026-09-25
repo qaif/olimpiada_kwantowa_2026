@@ -101,7 +101,7 @@ def ensure_document(title: str, source: Path, *, competition=None):
     try:
         with document.file.open("rb") as handle:
             current = _digest(handle)
-    except (FileNotFoundError, OSError):
+    except FileNotFoundError, OSError:
         # Rekord bez pliku w storage (przeniesiona baza, wyczyszczony bucket) – wgrywamy na nowo.
         current = None
     if current == wanted:

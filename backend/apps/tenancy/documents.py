@@ -201,7 +201,7 @@ def _format(text: str, values: dict[str, str]) -> str:
         return text
     try:
         return text.format_map(_SafeSubstitutions(values))
-    except (ValueError, IndexError, AttributeError, TypeError):
+    except ValueError, IndexError, AttributeError, TypeError:
         logger.warning("Nie udało się podstawić wartości we wzorcu dokumentu: %r.", text)
         return text
 

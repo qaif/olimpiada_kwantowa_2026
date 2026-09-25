@@ -38,7 +38,7 @@ Uzasadnienie:
 | `web` | build z `./backend` (gunicorn + uvicorn workers) | Django + Wagtail + DRF |
 | `worker` | ten sam obraz, `celery worker` | skan antywirusowy uploadów, zamykanie etapów, finalizacja okien reklamacji (e‑maile i PDF wyników: backlog) |
 | `beat` | ten sam obraz, `celery beat` | harmonogram: `close_due_stages` (co 60 s), `finalize_closed_appeal_windows` (co 5 min) |
-| `db` | postgres:16 | dane |
+| `db` | postgres:18 (do 25.09.2026: 16) | dane |
 | `redis` | redis:7 | broker Celery, cache, rate limiting |
 | `minio` | minio/minio | prywatny bucket `submissions` (presigned URL, brak publicznego dostępu), bucket `public-media` dla Wagtail |
 | `clamav` | clamav/clamav | skan każdego pliku przed udostępnieniem recenzentom |

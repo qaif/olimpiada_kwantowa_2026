@@ -37,6 +37,7 @@ from apps.accounts.services import (
     registration_profile,
 )
 from apps.core.api import DomainError
+from apps.core.tests.query_budgets import budget
 from apps.schools.models import InstitutionType
 from apps.schools.tests.factories import SchoolFactory
 
@@ -342,7 +343,7 @@ def test_without_the_regions_flag_registration_writes_no_region(
     dodatkowe zapytanie paść nie ma prawa, a rejestracja jest ścieżką, którą przechodzi każdy
     uczestnik.
     """
-    with django_assert_max_num_queries(40):
+    with django_assert_max_num_queries(budget("registration/without-regions")):
         participant = register_participant(**kwargs())
 
     assert participant.region_id is None
