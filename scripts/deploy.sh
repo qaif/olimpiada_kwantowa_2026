@@ -128,7 +128,9 @@ REMOTE
 log "2/8 Kod: git archive HEAD -> $REMOTE_DIR"
 # `maintenance` (stan strony prac technicznych: flaga, komunikat, kopia strony) zostaje: montuje go
 # działające proxy, a katalog skasowany i utworzony od nowa proxy widziałoby jako pusty (bez strony).
-"${SSH[@]}" "mkdir -p '$REMOTE_DIR' && find '$REMOTE_DIR' -mindepth 1 -maxdepth 1 ! -name .env ! -name 'e2e' ! -name maintenance -exec rm -rf {} +"
+# `secrets` (token Dysku Google dla kopii poza serwerem, odświeżany przez rclone – scripts/lib/
+# backup_offsite.sh) zostaje z tego samego powodu, co `.env`: nie ma go w repozytorium.
+"${SSH[@]}" "mkdir -p '$REMOTE_DIR' && find '$REMOTE_DIR' -mindepth 1 -maxdepth 1 ! -name .env ! -name 'e2e' ! -name maintenance ! -name secrets -exec rm -rf {} +"
 git archive --format=tar HEAD | "${SSH[@]}" "tar -x -C '$REMOTE_DIR'"
 
 log "3/8 .env (tworzony tylko przy pierwszym wdrożeniu)"
@@ -591,8 +593,9 @@ if ! grep -qE '^BACKUP_PASSPHRASE=' .env; then
     echo "# Hasło do szyfrowania kopii zapasowych (gpg AES-256). Wygenerowane przez scripts/deploy.sh."
     echo "# JEGO UTRATA = UTRATA WSZYSTKICH KOPII. Zapisz je w menedżerze haseł organizatora."
     echo "BACKUP_PASSPHRASE=$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 48)"
-    echo "# Kopia poza serwerem – bez tych czterech wartości scripts/backup.sh robi tylko kopię"
-    echo "# lokalną, która ginie razem z maszyną (docs/OPERACJE.md § Kopie zapasowe)."
+    echo "# Kopia poza serwerem – bez niej scripts/backup.sh robi tylko kopię lokalną, która ginie"
+    echo "# razem z maszyną (docs/OPERACJE.md § 1). Wariant S3: cztery wartości niżej. Wariant Dysk"
+    echo "# Google: scripts/backup.sh --drive-token (token trafia do secrets/, nie do .env) – § 1.6."
     echo "# BACKUP_REMOTE_URL="
     echo "# BACKUP_ACCESS_KEY="
     echo "# BACKUP_SECRET_KEY="
@@ -606,6 +609,9 @@ fi
 
 mkdir -p /opt/olimpiada-backups
 chmod 700 /opt/olimpiada-backups
+# Katalog sekretów spoza .env (token Dysku Google dla kopii poza serwerem): tylko root.
+mkdir -p secrets
+chmod 700 secrets
 chmod +x scripts/backup.sh scripts/restore.sh scripts/backup_verify.sh scripts/upgrade_postgres18.sh 2>/dev/null || true
 
 # Godziny: kopia o 3:15 (najniższy ruch, po nocnych zadaniach beatu), test odtwarzania w niedzielę

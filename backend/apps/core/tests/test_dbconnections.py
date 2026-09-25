@@ -187,13 +187,15 @@ def test_healthz_stays_200_even_when_connections_are_critical(client, fetched):
     assert response.json()["db_connections"] == dbconnections.LEVEL_CRITICAL
 
 
-def test_status_json_carries_the_level_as_its_last_key(client, fetched):
+def test_status_json_carries_the_level_after_the_older_keys(client, fetched):
     heartbeat()
     fetched["rows"] = rows(olimpiada_web__idle=96, olimpiada_worker__idle=1)
 
     payload = json.loads(client.get("/status.json").content)
 
-    assert list(payload)[-1] == "db_connections"
+    # Dołożony na końcu kontraktu w swoim wydaniu – za nim jest już tylko ``backup_offsite``
+    # (kopia poza serwerem, wydanie „kopie zapasowe na Dysku Google”).
+    assert list(payload)[-2:] == ["db_connections", "backup_offsite"]
     assert payload["db_connections"] == dbconnections.LEVEL_CRITICAL
     # Poziom nie gasi całej strony: przy braku połączeń zgaśnie i tak ``services.database``.
     assert payload["status"] == "ok"

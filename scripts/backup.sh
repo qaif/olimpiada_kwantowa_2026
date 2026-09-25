@@ -16,18 +16,42 @@
 # jego regulamin i jego administrator. Hasło (BACKUP_PASSPHRASE) nie wyjeżdża razem z paczką –
 # i dlatego jego utrata jest równoznaczna z utratą kopii. Patrz docs/OPERACJE.md § „Kopie zapasowe”.
 #
+# Użycie:
+#   scripts/backup.sh                  nocna kopia (cron): zrzut, szyfrowanie, wysyłka, retencja
+#   scripts/backup.sh --offsite-test   tylko sprawdzenie miejsca poza serwerem: plik próbny
+#                                      zapisany, wylistowany, odczytany i skasowany (bez zrzutu)
+#   scripts/backup.sh --drive-token    wklejenie tokenu Dysku Google z `rclone authorize`
+#                                      (docs/OPERACJE.md § 1.6) – zapis do secrets/rclone/
+#
 # Wymagane w .env (poza tym, co już tam jest na potrzeby compose):
 #   BACKUP_PASSPHRASE    hasło do symetrycznego szyfrowania paczek (gpg AES-256)
-# Opcjonalne – bez nich skrypt robi wyłącznie kopię lokalną i mówi o tym na stdout:
-#   BACKUP_REMOTE_URL    endpoint S3-kompatybilny, np. https://s3.eu-central-003.backblazeb2.com
-#   BACKUP_ACCESS_KEY / BACKUP_SECRET_KEY    poświadczenia do tego endpointu
-#   BACKUP_BUCKET        nazwa kubełka po tamtej stronie
-#   BACKUP_REMOTE_REGION region (część dostawców jej wymaga; domyślnie pusta)
+# Kopia poza serwerem – jedno z dwóch miejsc (BACKUP_REMOTE_TYPE=s3|drive|none; bez tej zmiennej
+# wybór automatyczny, szczegóły w scripts/lib/backup_offsite.sh). Bez żadnego skrypt robi wyłącznie
+# kopię lokalną i mówi o tym na stdout.
+#   S3:  BACKUP_REMOTE_URL (endpoint, np. https://s3.eu-central-003.backblazeb2.com),
+#        BACKUP_ACCESS_KEY / BACKUP_SECRET_KEY, BACKUP_BUCKET, opcjonalnie BACKUP_REMOTE_REGION
+#   Dysk Google: token z `scripts/backup.sh --drive-token` (albo BACKUP_DRIVE_TOKEN w .env),
+#        opcjonalnie BACKUP_DRIVE_FOLDER, BACKUP_DRIVE_CLIENT_ID / _CLIENT_SECRET,
+#        BACKUP_DRIVE_TEAM_DRIVE, BACKUP_DRIVE_USE_TRASH
 #
-# Retencja: 30 kopii dziennych i 12 miesięcznych po stronie zdalnej, 7 dni lokalnie.
+# Retencja: 30 dni kopii dziennych i 365 dni miesięcznych po stronie zdalnej (REMOTE_DAILY_KEEP_DAYS,
+# REMOTE_MONTHLY_KEEP_DAYS), 7 dni lokalnie (LOCAL_KEEP_DAYS).
+#
+# Nieudana wysyłka poza serwer to nieudana kopia: kod wyjścia 1 i meldunek `--failed` (watchdog
+# alarmuje brakiem świeżej kopii). Kopia lokalna z tej nocy zostaje – jest jedyną, jaka powstała.
 set -euo pipefail
 
+MODE=backup
+case "${1:-}" in
+    "") ;;
+    --offsite-test) MODE=offsite-test ;;
+    --drive-token) MODE=drive-token ;;
+    -h|--help) sed -n '2,/^set -euo/p' "${BASH_SOURCE[0]}" | sed '$d'; exit 0 ;;
+    *) printf 'BŁĄD: nieznany argument: %s (scripts/backup.sh --help)\n' "$1" >&2; exit 2 ;;
+esac
+
 REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$REPO_DIR"
 
 # Katalog kopii lokalnych. POZA katalogiem repozytorium, bo krok 2/7 wdrożenia czyści /opt/olimpiada
@@ -54,6 +78,54 @@ set -a
 . ./.env
 set +a
 
+# shellcheck source=lib/backup_offsite.sh
+. "${SCRIPT_DIR}/lib/backup_offsite.sh"
+
+STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+
+# --- Tryb: wklejenie tokenu Dysku Google -----------------------------------------------------
+# Token przychodzi przez stdin (wklejenie w terminalu albo potok), a nie w argumencie: argumenty
+# procesu widzi każdy `ps` na maszynie i zapisuje historia powłoki.
+if [ "$MODE" = "drive-token" ]; then
+    if [ -t 0 ]; then
+        printf 'Wklej token z „rclone authorize” (jedna linia zaczynająca się od {) i naciśnij Enter:\n'
+    fi
+    IFS= read -r TOKEN || true
+    # Końcowe spacje i CR (wklejenie z Windowsa) nie są częścią tokenu.
+    TOKEN="$(printf '%s' "$TOKEN" | tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+    drive_token_check "$TOKEN" || exit 1
+    # Token w .env z INNYM refresh_token nadpisałby wklejony przy najbliższym przebiegu (patrz
+    # drive_conf_prepare). Lepiej powiedzieć to teraz niż odkryć jutro rano.
+    if [ -n "${BACKUP_DRIVE_TOKEN:-}" ] \
+        && [ "$(drive_refresh_token_of "$BACKUP_DRIVE_TOKEN")" != "$(drive_refresh_token_of "$TOKEN")" ]; then
+        die "w ${REPO_DIR}/.env jest inny BACKUP_DRIVE_TOKEN – usuń tę linię z .env i wklej token ponownie"
+    fi
+    drive_conf_write "$TOKEN" || exit 1
+    log "Zapisano token Dysku Google: ${DRIVE_CONF} (tylko root, uprawnienia 600)."
+    if [ -n "${BACKUP_REMOTE_URL:-}" ] && [ "${BACKUP_REMOTE_TYPE:-}" != "drive" ]; then
+        log "UWAGA: w .env jest też BACKUP_REMOTE_URL (S3) – żeby kopie szły na Dysk, dopisz do .env BACKUP_REMOTE_TYPE=drive"
+    fi
+    log "Teraz sprawdź połączenie: scripts/backup.sh --offsite-test"
+    exit 0
+fi
+
+# --- Tryb: test miejsca poza serwerem --------------------------------------------------------
+if [ "$MODE" = "offsite-test" ]; then
+    command -v docker >/dev/null 2>&1 || die "brak dockera na hoście"
+    offsite_configure || exit 1
+    [ "$OFFSITE_TYPE" != "none" ] \
+        || die "kopia poza serwerem nie jest skonfigurowana (brak BACKUP_REMOTE_URL i tokenu Dysku) – docs/OPERACJE.md § 1.3 / § 1.6"
+    log "Test kopii poza serwerem: $(offsite_describe)"
+    offsite_selftest "$STAMP" || exit 1
+    # Stan bez zmian – tylko informacja, ile kopii już tam leży (przy pierwszym teście: zero).
+    for prefix in daily monthly; do
+        count="$(offsite_rclone lsf "${OFFSITE_ROOT}/${prefix}/" 2>/dev/null | grep -c . || true)"
+        log "    ${prefix}/: ${count:-0} plików"
+    done
+    log "Test udany: zapis, lista, odczyt i kasowanie działają."
+    exit 0
+fi
+
 : "${POSTGRES_USER:?POSTGRES_USER musi być w .env}"
 : "${POSTGRES_DB:?POSTGRES_DB musi być w .env}"
 : "${BACKUP_PASSPHRASE:?BACKUP_PASSPHRASE musi być w .env – bez hasła nie szyfrujemy, a bez szyfrowania nie wysyłamy}"
@@ -61,8 +133,14 @@ set +a
 command -v gpg >/dev/null 2>&1 || die "brak gpg na hoście (apt-get install -y gnupg)"
 command -v docker >/dev/null 2>&1 || die "brak dockera na hoście"
 
-STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 DAY_OF_MONTH="$(date -u +%d)"
+
+# Konfiguracja miejsca poza serwerem sprawdzana PRZED zrzutem, ale jej błąd zrzutu nie zatrzymuje:
+# kopia lokalna ma powstać zawsze, a zła konfiguracja wysyłki wychodzi w kroku 3 jako awaria.
+OFFSITE_STATUS=pending
+if ! offsite_configure; then
+    OFFSITE_STATUS=failed
+fi
 mkdir -p "$BACKUP_DIR"
 chmod 700 "$BACKUP_DIR"
 
@@ -143,45 +221,28 @@ encrypt "$FILES_PLAIN" "$FILES_FILE"
 log "    $(du -h "$FILES_FILE" | cut -f1) -> $FILES_FILE"
 
 # --- 3. Wysyłka poza serwer ------------------------------------------------------------------
-REMOTE_OK=0
-if [ -z "${BACKUP_REMOTE_URL:-}" ]; then
-    log "3/5 BACKUP_REMOTE_URL nie jest ustawione – kopia zostaje WYŁĄCZNIE lokalnie (${BACKUP_DIR})."
+# Dokąd i jak – scripts/lib/backup_offsite.sh (S3 albo Dysk Google, konfiguracja wybrana wyżej).
+DUMP_NAME="$(basename "$DUMP_FILE")"
+FILES_NAME="$(basename "$FILES_FILE")"
+if [ "$OFFSITE_STATUS" = "failed" ]; then
+    log "3/5 Wysyłka poza serwer POMINIĘTA – błąd konfiguracji: ${OFFSITE_ERROR}"
+elif [ "$OFFSITE_TYPE" = "none" ]; then
+    OFFSITE_STATUS=none
+    log "3/5 Kopia poza serwerem nie jest skonfigurowana – kopia zostaje WYŁĄCZNIE lokalnie (${BACKUP_DIR})."
     log "    To nie jest kopia zapasowa w sensie, w jakim potrzebuje jej olimpiada: ginie razem"
-    log "    z serwerem. Konfiguracja zdalna: docs/OPERACJE.md § Kopie zapasowe."
+    log "    z serwerem. Konfiguracja: docs/OPERACJE.md § 1.3 (S3) albo § 1.6 (Dysk Google)."
 else
-    : "${BACKUP_ACCESS_KEY:?BACKUP_ACCESS_KEY wymagane razem z BACKUP_REMOTE_URL}"
-    : "${BACKUP_SECRET_KEY:?BACKUP_SECRET_KEY wymagane razem z BACKUP_REMOTE_URL}"
-    : "${BACKUP_BUCKET:?BACKUP_BUCKET wymagane razem z BACKUP_REMOTE_URL}"
-
-    # rclone konfigurujemy zmiennymi środowiskowymi (RCLONE_CONFIG_<REMOTE>_<OPCJA>), a nie plikiem
-    # rclone.conf: plik byłby kolejnym miejscem, w którym leżą poświadczenia, i trzeba by pilnować
-    # jego uprawnień. Zmienne żyją tyle, co proces kontenera.
-    rclone() {
-        docker run --rm \
-            -v "${BACKUP_DIR}:/data:ro" \
-            -e RCLONE_CONFIG_OFFSITE_TYPE=s3 \
-            -e RCLONE_CONFIG_OFFSITE_PROVIDER="${BACKUP_REMOTE_PROVIDER:-Other}" \
-            -e RCLONE_CONFIG_OFFSITE_ENDPOINT="$BACKUP_REMOTE_URL" \
-            -e RCLONE_CONFIG_OFFSITE_REGION="${BACKUP_REMOTE_REGION:-}" \
-            -e RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID="$BACKUP_ACCESS_KEY" \
-            -e RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY="$BACKUP_SECRET_KEY" \
-            -e RCLONE_CONFIG_OFFSITE_ACL=private \
-            -e RCLONE_CONFIG_OFFSITE_NO_CHECK_BUCKET=true \
-            "$RCLONE_IMAGE" "$@"
-    }
-    log "3/5 Wysyłka do offsite:${BACKUP_BUCKET}/daily/"
-    rclone copy "/data/$(basename "$DUMP_FILE")" "offsite:${BACKUP_BUCKET}/daily/"
-    rclone copy "/data/$(basename "$FILES_FILE")" "offsite:${BACKUP_BUCKET}/daily/"
-    REMOTE_OK=1
+    log "3/5 Wysyłka: $(offsite_describe) -> daily/"
+    OFFSITE_STATUS=ok
+    offsite_upload daily "$DUMP_NAME" "$FILES_NAME" || OFFSITE_STATUS=failed
 
     # Kopia miesięczna pierwszego dnia miesiąca. Osobny prefiks, a nie dłuższa retencja dzienna:
     # awarie, które wychodzą po kwartale (cicha korupcja danych, skasowana edycja sprzed roku),
     # wymagają punktu odniesienia starszego niż 30 dni, a trzymanie 365 kopii dziennych jest
     # trzydziestokrotnie droższe od trzymania dwunastu miesięcznych.
-    if [ "$DAY_OF_MONTH" = "01" ]; then
+    if [ "$OFFSITE_STATUS" = "ok" ] && [ "$DAY_OF_MONTH" = "01" ]; then
         log "    Pierwszy dzień miesiąca – kopia także do monthly/"
-        rclone copy "/data/$(basename "$DUMP_FILE")" "offsite:${BACKUP_BUCKET}/monthly/"
-        rclone copy "/data/$(basename "$FILES_FILE")" "offsite:${BACKUP_BUCKET}/monthly/"
+        offsite_upload monthly "$DUMP_NAME" "$FILES_NAME" || OFFSITE_STATUS=failed
     fi
 
     # --- 4. Retencja zdalna -------------------------------------------------------------------
@@ -189,26 +250,49 @@ else
     # jest niewidoczna z tego repozytorium i po zmianie dostawcy trzeba ją założyć od nowa (i nikt
     # o tym nie pamięta). Jeśli dostawca ma lifecycle i ktoś je włączy, te dwa polecenia po prostu
     # nie znajdą nic do skasowania – nie kolidują.
-    log "4/5 Retencja zdalna: daily > ${REMOTE_DAILY_KEEP_DAYS}d, monthly > ${REMOTE_MONTHLY_KEEP_DAYS}d"
-    rclone delete "offsite:${BACKUP_BUCKET}/daily/" --min-age "${REMOTE_DAILY_KEEP_DAYS}d"
-    rclone delete "offsite:${BACKUP_BUCKET}/monthly/" --min-age "${REMOTE_MONTHLY_KEEP_DAYS}d"
+    #
+    # Retencja rusza WYŁĄCZNIE po udanej i zweryfikowanej wysyłce: skoro dzisiejsza kopia leży po
+    # tamtej stronie, kasowanie najstarszych nie zostawi pustego miejsca. Po nieudanej wysyłce stare
+    # kopie są jedynymi, jakie są poza serwerem – nie kasujemy ich.
+    if [ "$OFFSITE_STATUS" = "ok" ]; then
+        log "4/5 Retencja zdalna: daily > ${REMOTE_DAILY_KEEP_DAYS}d, monthly > ${REMOTE_MONTHLY_KEEP_DAYS}d"
+        offsite_retention || OFFSITE_STATUS=failed
+    else
+        log "4/5 Retencja zdalna POMINIĘTA – wysyłka się nie powiodła"
+    fi
 fi
 
 # --- 5. Retencja lokalna i ślad w aplikacji --------------------------------------------------
+# Lokalna retencja idzie także po nieudanej wysyłce: kasuje paczki starsze niż LOCAL_KEEP_DAYS,
+# a dzisiejsza (świeża) zostaje. Bez tego seria nieudanych nocy zapełniłaby dysk.
 log "5/5 Retencja lokalna: > ${LOCAL_KEEP_DAYS} dni"
 find "$BACKUP_DIR" -maxdepth 1 -type f -name '*.gpg' -mtime "+${LOCAL_KEEP_DAYS}" -print -delete
 
 # Znacznik dla /status.json i dla watchdoga alertów. Zapisujemy go dopiero tutaj, po wszystkich
 # krokach: „ostatnia udana kopia” ma znaczyć kopię kompletną, a nie moment rozpoczęcia przebiegu.
-# Błąd tego kroku nie unieważnia samej kopii, więc nie przerywa skryptu – ale idzie na stderr.
-if docker compose exec -T web python manage.py record_backup_status --ok </dev/null; then
-    :
-else
-    printf 'UWAGA: nie udało się zapisać znacznika kopii w aplikacji (kopia sama jest zrobiona).\n' >&2
-fi
-
-if [ "$REMOTE_OK" = "1" ]; then
-    log "Gotowe: kopia lokalna + zdalna (${STAMP})."
-else
-    log "Gotowe: kopia WYŁĄCZNIE lokalna (${STAMP})."
-fi
+# Błąd samego zapisu znacznika nie unieważnia kopii, więc nie przerywa skryptu – ale idzie na stderr.
+#
+# Skonfigurowana, a nieudana wysyłka poza serwer to NIEUDANA kopia: `--failed` nie przesuwa
+# znacznika, więc po progu (36 h) watchdog alarmuje, a notatka mówi, co się stało. Kopia lokalna
+# istnieje, ale kopia, która ginie razem z serwerem, nie jest tą, którą obiecuje konfiguracja.
+record_status() {
+    if ! docker compose exec -T web python manage.py record_backup_status "$@" </dev/null; then
+        printf 'UWAGA: nie udało się zapisać znacznika kopii w aplikacji.\n' >&2
+    fi
+}
+case "$OFFSITE_STATUS" in
+    ok)
+        record_status --ok --offsite --note "poza serwerem: $(offsite_describe) (${STAMP})"
+        log "Gotowe: kopia lokalna + poza serwerem, zweryfikowana sumą kontrolną (${STAMP})."
+        ;;
+    none)
+        record_status --ok
+        log "Gotowe: kopia WYŁĄCZNIE lokalna (${STAMP})."
+        ;;
+    *)
+        record_status --failed --note "kopia lokalna ${STAMP} jest, poza serwer NIE dotarła: ${OFFSITE_ERROR:-nieznany błąd}"
+        printf 'BŁĄD: kopia poza serwerem nie powiodła się (%s). Kopia lokalna: %s, %s\n' \
+            "${OFFSITE_ERROR:-nieznany błąd}" "$DUMP_FILE" "$FILES_FILE" >&2
+        exit 1
+        ;;
+esac

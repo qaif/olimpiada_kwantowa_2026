@@ -126,6 +126,9 @@ def test_status_json_keeps_its_contract(anon, golden):
         # Poziom zajętości połączeń z Postgresem (``ok|warn|critical|unknown``) – bez liczb
         # (apps/core/dbconnections.py).
         "db_connections",
+        # Czy ostatnia kopia wyjechała poza serwer (S3 / Dysk Google) – wartość logiczna, bez dat
+        # (apps/core/status.py, ``as_json``).
+        "backup_offsite",
     }
     assert payload["edition"] == golden.edition.year_label
     # Konkurs #1 jest skonfigurowany, więc kreatora nie ma – to ta sama odpowiedź, co 404 na
@@ -303,6 +306,7 @@ EXPECTED_STATUS_KEYS = (
     "announcements",
     "setup_pending",
     "db_connections",
+    "backup_offsite",
 )
 
 

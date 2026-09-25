@@ -19,7 +19,8 @@ opisaną w ``docs/OPERACJE.md``:
    przyjmuje i gubi, wygląda z zewnątrz identycznie jak kolejka zdrowa,
 4. **odsetek odpowiedzi 5xx** – licznik z ``apps.core.middleware``. Awaria jednego widoku nie
    ruszy ani ``/healthz/``, ani ``/status/``,
-5. **kopie zapasowe** – ``apps.core.backup``: brak kopii i brak testu odtwarzania,
+5. **kopie zapasowe** – ``apps.core.backup``: brak kopii, brak testu odtwarzania i kopia, która
+   przestała wyjeżdżać poza serwer,
 6. **połączenia z Postgresem** – ``apps.core.dbconnections``: zajętość ``max_connections``
    powyżej progu. Incydent z 09.09.2026 („too many clients already”) dojrzewał dobę, a każde
    ze sprawdzeń wyżej mówiło przez ten czas „baza odpowiada”.
@@ -201,6 +202,19 @@ def evaluate() -> list[Alert]:
                 key="backup-verify",
                 title="kopia zapasowa nie została sprawdzona odtworzeniem",
                 detail=f"ostatni udany test: {when} (próg: {MAX_VERIFY_AGE_DAYS} dni)",
+            )
+        )
+    # Kopia poza serwerem, która kiedyś działała, a przestała – osobny klucz, bo nocna kopia może
+    # się dalej udawać lokalnie (``backup`` milczy), a ginie wtedy razem z serwerem. Gdy nie ma
+    # świeżej kopii w ogóle, alarm ``backup`` wyżej już to mówi i drugi list byłby szumem.
+    if backup.backup_fresh and backup.offsite_lost:
+        when = timezone.localtime(backup.last_offsite).strftime("%Y-%m-%d %H:%M")
+        detail = f"ostatnia kopia poza serwerem: {when} (próg: {MAX_BACKUP_AGE_HOURS} h). {backup.note}"
+        alerts.append(
+            Alert(
+                key="backup-offsite",
+                title="kopia zapasowa przestała wyjeżdżać poza serwer",
+                detail=detail.strip(),
             )
         )
 

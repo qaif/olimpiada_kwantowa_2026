@@ -3,6 +3,8 @@
 #
 # Użycie (z katalogu /opt/olimpiada):
 #   scripts/restore.sh --list                         # co jest do odtworzenia (lokalnie i zdalnie)
+#   scripts/restore.sh --fetch db-20260117T030000Z.dump.gpg   # ściągnięcie paczki spoza serwera
+#                                                     # (S3 albo Dysk Google) do katalogu kopii
 #   scripts/restore.sh --dry-run                      # co by się stało z najnowszą kopią
 #   scripts/restore.sh --dump db-20260117T030000Z.dump.gpg --files files-20260117T030000Z.tar.gpg
 #   scripts/restore.sh --dump ... --db olimpiada_restore --bucket submissions-restore
@@ -18,6 +20,7 @@
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$REPO_DIR"
 
 BACKUP_DIR="${BACKUP_DIR:-/opt/olimpiada-backups}"
@@ -26,6 +29,7 @@ RCLONE_IMAGE="${RCLONE_IMAGE:-rclone/rclone:1.69}"
 
 DRY_RUN=0
 LIST_ONLY=0
+FETCH_NAMES=()
 DUMP_NAME=""
 FILES_NAME=""
 TARGET_DB=""
@@ -48,6 +52,7 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --dry-run) DRY_RUN=1 ;;
         --list) LIST_ONLY=1 ;;
+        --fetch) FETCH_NAMES+=("${2:?--fetch wymaga nazwy pliku}"); shift ;;
         --dump) DUMP_NAME="${2:?--dump wymaga nazwy pliku}"; shift ;;
         --files) FILES_NAME="${2:?--files wymaga nazwy pliku}"; shift ;;
         --db) TARGET_DB="${2:?--db wymaga nazwy bazy}"; shift ;;
@@ -67,28 +72,53 @@ set +a
 : "${POSTGRES_USER:?POSTGRES_USER musi być w .env}"
 : "${BACKUP_PASSPHRASE:?BACKUP_PASSPHRASE musi być w .env – bez hasła paczek nie da się otworzyć}"
 
-rclone_offsite() {
-    docker run --rm \
-        -v "${BACKUP_DIR}:/data" \
-        -e RCLONE_CONFIG_OFFSITE_TYPE=s3 \
-        -e RCLONE_CONFIG_OFFSITE_PROVIDER="${BACKUP_REMOTE_PROVIDER:-Other}" \
-        -e RCLONE_CONFIG_OFFSITE_ENDPOINT="${BACKUP_REMOTE_URL:-}" \
-        -e RCLONE_CONFIG_OFFSITE_REGION="${BACKUP_REMOTE_REGION:-}" \
-        -e RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID="${BACKUP_ACCESS_KEY:-}" \
-        -e RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY="${BACKUP_SECRET_KEY:-}" \
-        "$RCLONE_IMAGE" "$@"
-}
+# Kopia poza serwerem (S3 albo Dysk Google) – ten sam kod, którym wysyła scripts/backup.sh.
+# shellcheck source=lib/backup_offsite.sh
+. "${SCRIPT_DIR}/lib/backup_offsite.sh"
 
 if [ "$LIST_ONLY" = "1" ]; then
     log "Kopie lokalne (${BACKUP_DIR}):"
     ls -1sh "$BACKUP_DIR"/*.gpg 2>/dev/null || echo "    (brak)"
-    if [ -n "${BACKUP_REMOTE_URL:-}" ]; then
-        log "Kopie zdalne (offsite:${BACKUP_BUCKET}):"
-        rclone_offsite lsl "offsite:${BACKUP_BUCKET}/daily/" || true
-        rclone_offsite lsl "offsite:${BACKUP_BUCKET}/monthly/" || true
+    if ! offsite_configure; then
+        log "Kopii spoza serwera nie da się wylistować: ${OFFSITE_ERROR}"
+    elif [ "$OFFSITE_TYPE" = "none" ]; then
+        log "Kopia poza serwerem nie jest skonfigurowana – kopii zdalnych nie ma."
     else
-        log "BACKUP_REMOTE_URL nie jest ustawione – kopii zdalnych nie ma."
+        log "Kopie poza serwerem ($(offsite_describe)):"
+        for prefix in daily monthly; do
+            log "  ${prefix}/"
+            offsite_rclone lsl "${OFFSITE_ROOT}/${prefix}/" || true
+        done
     fi
+    exit 0
+fi
+
+# Ściągnięcie paczek spoza serwera do katalogu kopii. Najpierw daily/, potem monthly/ – ta sama
+# nazwa bywa w obu (kopia z pierwszego dnia miesiąca) i jest wtedy tym samym plikiem. Po
+# ściągnięciu `rclone check` tej paczki (suma kontrolna): obcięty plik wychodzi inaczej dopiero
+# błędem gpg w połowie odtwarzania, czyli w najgorszym możliwym momencie.
+if [ "${#FETCH_NAMES[@]}" -gt 0 ]; then
+    offsite_configure || die "konfiguracja kopii poza serwerem: ${OFFSITE_ERROR}"
+    [ "$OFFSITE_TYPE" != "none" ] || die "kopia poza serwerem nie jest skonfigurowana – nie ma skąd ściągać"
+    mkdir -p "$BACKUP_DIR"
+    OFFSITE_DATA_MODE=rw
+    for name in "${FETCH_NAMES[@]}"; do
+        case "$name" in */*) die "--fetch przyjmuje samą nazwę pliku (bez katalogu): $name" ;; esac
+        fetched=0
+        for prefix in daily monthly; do
+            listing="$(offsite_rclone lsf "${OFFSITE_ROOT}/${prefix}/" --include "/${name}" 2>/dev/null || true)"
+            printf '%s\n' "$listing" | grep -qxF "$name" || continue
+            log "Ściągam ${prefix}/${name} -> ${BACKUP_DIR}/"
+            offsite_rclone copy "${OFFSITE_ROOT}/${prefix}/${name}" /data/ || die "ściąganie ${name} nie powiodło się"
+            offsite_rclone check "${OFFSITE_ROOT}/${prefix}/" /data --one-way --include "/${name}" \
+                || die "ściągnięty ${name} ma inną sumę kontrolną niż oryginał"
+            chmod 600 "${BACKUP_DIR}/${name}" 2>/dev/null || true
+            fetched=1
+            break
+        done
+        [ "$fetched" = "1" ] || die "nie ma ${name} ani w daily/, ani w monthly/ (scripts/restore.sh --list)"
+    done
+    log "Gotowe. Dalej: scripts/restore.sh --dry-run --dump <plik db-…> [--files <plik files-…>]"
     exit 0
 fi
 

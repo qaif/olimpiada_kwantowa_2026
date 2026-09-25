@@ -293,8 +293,10 @@ Szczegóły: `docs/OPERACJE.md` § 20.
 
 ## 6. Kopie zapasowe, monitoring, rotacja
 
-> Szczegółowe procedury operacyjne (harmonogram kopii, próbne odtworzenia, dyżury) mają trafić do
-> `docs/OPERACJE.md`. Dopóki tego pliku nie ma, obowiązuje ten rozdział i README § 6.1–6.2.
+> Szczegółowe procedury operacyjne (harmonogram kopii, próbne odtworzenia, dyżury) są w
+> `docs/OPERACJE.md` § 1–3. Na produkcji kopie robi `scripts/backup.sh` z crona (szyfrowanie,
+> wysyłka poza serwer – kubełek S3 albo **Dysk Google**, § 6.4), a test odtwarzania
+> `scripts/backup_verify.sh`. Polecenia z § 6.1 to kopia ręczna, np. na maszynie deweloperskiej.
 
 ### 6.1 Kopia zapasowa
 
@@ -350,6 +352,91 @@ o infrastrukturze jest binarne „działa / nie działa”.
   zgoda opiekuna). Rób ją świadomie, najlepiej poza oknem rejestracji i deadline'em,
 - hasła OAuth i SMTP wchodzą przez `env_file` — wystarczy odtworzyć procesy aplikacji,
 - skan sekretów w katalogu roboczym i w historii gita: `gitleaks` (README § 7).
+
+### 6.4 Kopie zapasowe na Dysku Google – krok po kroku (dla organizatora)
+
+Serwer co noc o 3:15 robi kopię (`scripts/backup.sh`): baza + prace uczestników i pliki CMS-u, obie
+paczki **zaszyfrowane** hasłem `BACKUP_PASSPHRASE`. Dopóki kopia leży tylko na serwerze, zginie
+razem z nim. Poniższe kroki robi się **raz**: od tej chwili każda nocna kopia trafia też na Dysk
+Google Fundacji. Tło, uzasadnienia i szczegóły: `OPERACJE.md` § 1.6.
+
+**Przed startem sprawdź trzy rzeczy:**
+
+- masz hasło `BACKUP_PASSPHRASE` w menedżerze haseł Fundacji. Jeśli nie: na serwerze
+  `grep BACKUP_PASSPHRASE /opt/olimpiada/.env` i zapisz je teraz. **Bez tego hasła kopie na Dysku
+  są bezużyteczne – nikt ich nie otworzy, łącznie z nami.** Nie trzymaj go na tym samym Dysku,
+- możesz zalogować się na serwer przez SSH (`ssh root@olimpiadakwantowa.pl` działa),
+- znasz hasło do konta Google **Fundacji** w domenie `qaif.org` – tam trafią kopie (nie do
+  prywatnego Gmaila).
+
+**Krok 1. Połączenie z tunelem.** Na swoim komputerze otwórz PowerShell (Windows) albo Terminal
+(Mac) i wpisz – okno zostaw otwarte do końca:
+
+```bash
+ssh -L 53682:127.0.0.1:53682 root@olimpiadakwantowa.pl
+```
+
+**Krok 2. Zgoda Google.** W tym samym oknie (jesteś już na serwerze) wklej:
+
+```bash
+cd /opt/olimpiada
+docker run --rm --network host rclone/rclone:1.69 authorize drive --drive-scope drive.file --auth-no-open-browser \
+  | grep -o '{.*}' | scripts/backup.sh --drive-token
+```
+
+Pojawi się adres zaczynający się od `http://127.0.0.1:53682/auth?state=` – skopiuj go do przeglądarki
+na swoim komputerze. Wybierz konto Fundacji. Google zapyta, czy „rclone” może *wyświetlać, edytować,
+tworzyć i usuwać tylko te pliki z Dysku Google, których używasz w tej aplikacji* – to jest dokładnie
+to, czego chcemy: program zobaczy wyłącznie kopie, które sam wyśle, a **nie** resztę Dysku Fundacji.
+(Jeśli Google pyta o dostęp do *wszystkich* plików – przerwij i sprawdź, czy polecenie zostało wklejone
+w całości.) Kliknij „Zezwól”. W przeglądarce pojawi się „Success”, a w oknie terminala:
+`Zapisano token Dysku Google`.
+
+Token (klucz dostępu) zapisuje się sam, w pliku dostępnym tylko dla administratora serwera – nie
+widzisz go i nie musisz go nigdzie przepisywać. **Nie wysyłaj go nikomu**, także asystentowi.
+
+**Krok 3. Test.** W tym samym oknie:
+
+```bash
+scripts/backup.sh --offsite-test
+```
+
+Na końcu ma być: `Test udany: zapis, lista, odczyt i kasowanie działają.`
+
+**Krok 4. Pierwsza kopia i próba jej odtworzenia** (kilka minut):
+
+```bash
+scripts/backup.sh
+scripts/backup_verify.sh
+```
+
+Pierwsze kończy się `Gotowe: kopia lokalna + poza serwerem, zweryfikowana sumą kontrolną`, drugie
+`Test odtwarzania zakończony powodzeniem.` Teraz możesz zamknąć okno (`exit`).
+
+**Krok 5. Zobacz kopie na Dysku.** <https://drive.google.com> → „Mój dysk” → folder
+`Olimpiada-kopie-zapasowe` → `daily`: dwa pliki z dzisiejszą datą (`db-….dump.gpg` i
+`files-….tar.gpg`). Nie da się ich podejrzeć – są zaszyfrowane, i o to chodzi. Nie przenoś ich
+i nie zmieniaj nazw. Folder `monthly` pojawi się pierwszego dnia miesiąca.
+
+**Co dalej dzieje się samo:** co noc dwie nowe paczki, kopie dzienne starsze niż 30 dni i miesięczne
+starsze niż rok są kasowane (na stałe, bez kosza). Zajętość: ok. 2 GB, w sezonie zawodów kilka GB.
+Jeśli wysyłka się nie uda, na adresy z `ALERT_EMAILS` przyjdzie alarm „brak świeżej kopii zapasowej”
+z dopiskiem „poza serwer NIE dotarła”; najczęstsza przyczyna to cofnięty dostęp – wtedy powtórz kroki
+1–3.
+
+**Nie masz SSH z tunelem?** Da się zrobić zgodę na własnym komputerze (program rclone dla Windows
+z <https://rclone.org/downloads/>, polecenie `.\rclone.exe authorize "drive" --drive-scope drive.file`,
+potem wklejenie wyniku na serwerze w `scripts/backup.sh --drive-token`) – `OPERACJE.md` § 1.6.4.
+Token przechodzi wtedy przez Twój ekran i schowek, dlatego zalecana jest droga z kroków 1–2.
+
+**Odtworzenie z Dysku**: na serwerze `scripts/restore.sh --list`, potem
+`scripts/restore.sh --fetch <nazwa pliku>` i dalej `OPERACJE.md` § 2.2. Bez serwera: pobierz obie
+paczki z tej samej nocy z Dysku w przeglądarce – do ich otwarcia potrzebne jest `BACKUP_PASSPHRASE`.
+
+**RODO w skrócie:** Google przechowuje kopie jako podmiot przetwarzający Fundacji (umowa powierzenia
+Workspace – sprawdź w konsoli administracyjnej, że jest zaakceptowana), widzi wyłącznie szyfrogram,
+a dane usunięte z serwisu znikają z kopii najpóźniej po roku. Dopisz kopie na Dysku do rejestru
+czynności przetwarzania; region danych i szczegóły: `OPERACJE.md` § 1.6.10.
 
 ---
 
@@ -428,7 +515,8 @@ Szczegóły — [`PODRECZNIK-ORGANIZATORA.md`](PODRECZNIK-ORGANIZATORA.md) § 9.
 | Sesje, pamięć podręczna, kolejki Celery | Redis (`redis_data`) | dane ulotne |
 | Kolejka i klucz DKIM poczty | `mail_spool`, `mail_dkim` | klucz DKIM jest **stały** — skasowanie wolumenu unieważnia rekord w DNS-ie |
 | Certyfikaty TLS | `caddy_data` | odtwarzalne |
-| Sekrety | `.env` na serwerze (`600`) | **poza** kopią zapasową bazy |
+| Sekrety | `.env` na serwerze (`600`); token Dysku Google dla kopii w `secrets/rclone/rclone.conf` (`600`, katalog `700`) | **poza** kopią zapasową bazy |
+| Kopie zapasowe | `/opt/olimpiada-backups` (7 dni) i poza serwerem: S3 albo Dysk Google Fundacji (30 dni / 12 miesięcy), zaszyfrowane `BACKUP_PASSPHRASE` | dane usunięte z bazy znikają z kopii najpóźniej po roku |
 | Zdarzenia Google Analytics | u Google, **wyłącznie po zgodzie**, retencja 14 miesięcy | bez identyfikatora GA4 nie ma ani skryptu, ani hostów w CSP |
 
 Dyplomy i zaświadczenia są w bazie jako **rejestr, nie plik** (`results.Certificate`): PDF powstaje przy
@@ -577,11 +665,9 @@ Poniższe elementy były **dopiero w budowie**, gdy powstawał ten podręcznik (
 Opis pochodzi z ich zamówienia, **nie z działającego kodu** — zanim się na nich oprzesz, sprawdź, co
 faktycznie trafiło do repozytorium, i uzupełnij ten rozdział o prawdziwe polecenia i adresy.
 
-**Skrypt kopii zapasowej `scripts/backup.sh` (w przygotowaniu).** Ma zamknąć procedurę z § 6.1
-w jednym poleceniu uruchamianym z crona na serwerze: zrzut bazy w formacie `custom`, lustro obu bucketów
-MinIO, wspólny znacznik czasu dla obu części, rotacja starszych kopii i niezerowy kod wyjścia, gdy
-którakolwiek część się nie powiodła. Do tego czasu obowiązują polecenia wypisane wyżej — i obowiązuje
-zasada, że kopia niesprawdzona próbnym odtworzeniem nie jest kopią.
+**Skrypt kopii zapasowej `scripts/backup.sh`** – już działa (cron o 3:15, wysyłka poza serwer na S3
+albo Dysk Google, cotygodniowy test odtwarzania); opis: `OPERACJE.md` § 1 i § 6.4 wyżej. Zasada
+zostaje: kopia niesprawdzona próbnym odtworzeniem nie jest kopią.
 
 **Monitoring `deploy/monitoring` (w przygotowaniu).** Ma dołożyć do compose gotowy zestaw zbierający
 metryki i alerty (m.in. liczbę połączeń do Postgresa — patrz incydent § 9.4 — wiek pulsu kolejki, stan

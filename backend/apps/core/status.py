@@ -296,4 +296,9 @@ def as_json(data: dict) -> dict:
         # trzyma) są w liście watchdoga i w ``manage.py db_connections`` – publicznie powiedziałyby
         # obcemu, ile brakuje do położenia serwisu.
         "db_connections": db_connections_level(),
+        # Czy ostatnia kopia nocna wyjechała **poza serwer** (S3 albo Dysk Google) i zgadza się tam
+        # suma kontrolna – wartość logiczna, z tego samego powodu co dwa pola ``backup_*`` wyżej.
+        # ``false`` znaczy „kopia wyłącznie lokalna albo wysyłka nie dotarła”: ginie razem z
+        # serwerem. Dołożony na końcu, jak dwa klucze wyżej – kolejność jest kontraktem.
+        "backup_offsite": backup.offsite_fresh,
     }

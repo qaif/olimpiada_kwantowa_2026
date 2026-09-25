@@ -1,6 +1,7 @@
 """``manage.py record_backup_status`` – meldunek skryptu kopii zapasowych do aplikacji.
 
-Woła ją ``scripts/backup.sh`` (``--ok``) i ``scripts/backup_verify.sh`` (``--verified``
+Woła ją ``scripts/backup.sh`` (``--ok``, z ``--offsite``, gdy kopia wyjechała też poza serwer,
+albo ``--failed``, gdy wysyłka poza serwer się nie udała) i ``scripts/backup_verify.sh`` (``--verified``
 albo ``--failed``). Jest to jedyna droga, którą wynik pracy crona hosta trafia do
 ``/status.json`` i do watchdoga alertów – uzasadnienie tego podziału stoi w ``apps.core.backup``.
 
@@ -29,6 +30,11 @@ class Command(BaseCommand):
             help="kopię odtworzono do tymczasowej bazy i policzono w niej wiersze",
         )
         parser.add_argument(
+            "--offsite",
+            action="store_true",
+            help="(razem z --ok) kopia wyjechała też poza serwer i zgadza się tam suma kontrolna",
+        )
+        parser.add_argument(
             "--failed",
             action="store_true",
             help="przebieg się nie powiódł – zapisuje wyłącznie notatkę, żadnego znacznika czasu",
@@ -43,6 +49,8 @@ class Command(BaseCommand):
         if options["show"]:
             self._show()
             return
+        if options["offsite"] and not options["ok"]:
+            raise CommandError("--offsite ma sens wyłącznie razem z --ok")
 
         note = options["note"].strip()
         if options["failed"]:
@@ -53,8 +61,12 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR("Zapisano notatkę o nieudanym przebiegu."))
             return
 
-        record(ok=options["ok"], verified=options["verified"], note=note)
-        labels = (("kopia", options["ok"]), ("test odtwarzania", options["verified"]))
+        record(ok=options["ok"], verified=options["verified"], offsite=options["offsite"], note=note)
+        labels = (
+            ("kopia", options["ok"]),
+            ("poza serwerem", options["offsite"]),
+            ("test odtwarzania", options["verified"]),
+        )
         what = " i ".join(label for label, flag in labels if flag)
         when = timezone.localtime().strftime("%Y-%m-%d %H:%M")
         self.stdout.write(self.style.SUCCESS(f"Zapisano meldunek: {what} ({when})."))
@@ -70,6 +82,12 @@ class Command(BaseCommand):
                 current.last_verified,
                 current.verify_fresh,
                 f"{MAX_VERIFY_AGE_DAYS} dni",
+            ),
+            (
+                "ostatnia kopia poza serw.",
+                current.last_offsite,
+                current.offsite_fresh,
+                f"{MAX_BACKUP_AGE_HOURS} h",
             ),
         )
         for label, moment, fresh, window in rows:

@@ -97,6 +97,68 @@ def test_a_failed_run_does_not_move_any_timestamp():
     assert "brak miejsca" in state.note
 
 
+def test_the_command_records_an_offsite_copy_together_with_the_backup():
+    """``scripts/backup.sh`` po udanej i zweryfikowanej wysyłce na S3 / Dysk Google."""
+    call_command(
+        "record_backup_status", "--ok", "--offsite", "--note", "poza serwerem: Dysk", stdout=StringIO()
+    )
+
+    state = backup.state()
+    assert state.backup_fresh is True
+    assert state.offsite_fresh is True
+    assert state.offsite_lost is False
+
+
+def test_a_local_only_backup_is_fresh_but_not_offsite():
+    call_command("record_backup_status", "--ok", stdout=StringIO())
+
+    state = backup.state()
+    assert state.backup_fresh is True
+    assert state.last_offsite is None
+    assert state.offsite_fresh is False
+    # „Nigdy nie było” to nie „przestało działać” – alarm dostaje wyłącznie to drugie.
+    assert state.offsite_lost is False
+
+
+def test_offsite_without_ok_is_refused():
+    """Kopia poza serwerem bez kopii nie istnieje – taki meldunek to błąd skryptu, nie stan."""
+    with pytest.raises(CommandError):
+        call_command("record_backup_status", "--offsite", stdout=StringIO())
+    with pytest.raises(ValueError):
+        backup.record(offsite=True)
+
+    assert backup.state().last_offsite is None
+
+
+def test_a_failed_offsite_upload_keeps_the_last_offsite_timestamp_where_it_was():
+    """Nieudana wysyłka melduje ``--failed``: żaden znacznik – ani kopii, ani kopii zdalnej – się
+    nie przesuwa, a notatka mówi, gdzie leży kopia lokalna."""
+    moment = timezone.now() - timedelta(hours=30)
+    backup.record(ok=True, offsite=True, at=moment)
+
+    call_command(
+        "record_backup_status",
+        "--failed",
+        "--note",
+        "kopia lokalna 20260925T031500Z jest, poza serwer NIE dotarła: token",
+        stdout=StringIO(),
+    )
+
+    state = backup.state()
+    assert abs((state.last_offsite - moment).total_seconds()) < 1
+    assert abs((state.last_ok - moment).total_seconds()) < 1
+    assert "NIE dotarła" in state.note
+
+
+def test_an_offsite_copy_that_stopped_is_lost():
+    backup.record(ok=True, offsite=True, at=timezone.now() - timedelta(hours=backup.MAX_BACKUP_AGE_HOURS + 1))
+    backup.record(ok=True)
+
+    state = backup.state()
+    assert state.backup_fresh is True
+    assert state.offsite_lost is True
+
+
 def test_the_show_mode_prints_dates_for_the_operator():
     backup.record(ok=True, verified=True)
     out = StringIO()
@@ -121,6 +183,18 @@ def test_the_public_status_reports_booleans_never_dates(client):
     # ostatniej kopii mówiłaby obcemu, kiedy uderzenie zaboli najbardziej.
     assert payload["backup_last_ok"] is True
     assert payload["backup_last_verified"] is True
+    # Kopia bez ``offsite`` jest wyłącznie lokalna – i to widać publicznie, też jako wartość logiczna.
+    assert payload["backup_offsite"] is False
+
+
+def test_the_public_status_reports_an_offsite_copy_as_a_boolean(client):
+    heartbeat()
+    backup.record(ok=True, offsite=True)
+
+    payload = json.loads(client.get("/status.json").content)
+
+    assert payload["backup_offsite"] is True
+    assert payload["status"] == "ok"
 
 
 def test_a_missing_backup_does_not_turn_the_public_page_red(client):
