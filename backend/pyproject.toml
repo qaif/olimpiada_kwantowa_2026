@@ -14,7 +14,7 @@ license = { text = "AGPL-3.0-or-later" }
 requires-python = ">=3.14"
 dependencies = [
     # Django 6.1 (v0.26.0). Wymaga Pythona ≥ 3.12 (obraz ma 3.14) i PostgreSQL-a ≥ 15
-    # (compose i produkcja mają 16) – obie granice są spełnione z zapasem. Górna granica przy
+    # (compose: 18; produkcja 16 do przejścia – docs/OPERACJE.md § 19) – obie granice są spełnione z zapasem. Górna granica przy
     # następnej wersji mniejszej, jak wszędzie w tym pliku: łatki (6.1.x) wchodzą same,
     # a przeskok na 6.2 ma być świadomą decyzją i osobnym przebiegiem testów.
     "django>=6.1,<6.2",

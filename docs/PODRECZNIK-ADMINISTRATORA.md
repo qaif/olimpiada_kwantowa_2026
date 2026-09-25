@@ -261,7 +261,10 @@ Zasady, które warto znać przed aktualizacją:
 
 Wycofanie wydania: wdróż wcześniejszy tag (`APP_VERSION=v0.17.1 scripts/deploy.sh …` z wcześniejszego
 `HEAD`). Migracji danych zwykle **nie da się** cofnąć automatycznie — przy zmianie schematu wycofanie
-oznacza odtworzenie bazy z kopii (§ 6).
+oznacza odtworzenie bazy z kopii (§ 6). **Po przejściu na PostgreSQL 18 nie wdrażaj kodu sprzed
+v0.37.0** – jego `docker-compose.yml` postawi bazę 16 ze starego wolumenu `pg_data` (stan sprzed
+przejścia, zapisy z 18 znikają z widoku); starszą wersję aplikacji uruchamia się wtedy tagiem obrazu
+(`APP_VERSION` w `.env`, `OPERACJE.md` § 11.3 i § 21.3).
 
 ### 5.1 Strona „Prace techniczne”
 
@@ -419,7 +422,7 @@ Szczegóły — [`PODRECZNIK-ORGANIZATORA.md`](PODRECZNIK-ORGANIZATORA.md) § 9.
 
 | Co | Gdzie | Uwagi |
 |---|---|---|
-| Konta, profile, zgody (`ConsentRecord`), zgłoszenia, recenzje, oceny, audyt, snapshoty wyników | PostgreSQL 18, wolumen `pg18_data` | jedyne źródło prawdy o zawodach |
+| Konta, profile, zgody (`ConsentRecord`), zgłoszenia, recenzje, oceny, audyt, snapshoty wyników | PostgreSQL 18, wolumen `pg18_data` (do przejścia: 16 na `pg_data`, `OPERACJE.md` § 19) | jedyne źródło prawdy o zawodach |
 | Prace uczestników, treści zadań, rozwiązania wzorcowe | MinIO, bucket `submissions` (wolumen `minio_data`) | brak publicznych adresów; wyłącznie widoki aplikacji i presigned URL |
 | Media redakcyjne (obrazy, PDF-y dokumentów) | MinIO, bucket `public-media` | publiczne z założenia |
 | Sesje, pamięć podręczna, kolejki Celery | Redis (`redis_data`) | dane ulotne |

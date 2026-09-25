@@ -76,11 +76,24 @@ APP_VERSION="${APP_VERSION:-$(git describe --tags --always)}"
 
 log() { printf '\n==> %s\n' "$*"; }
 
-# 1 od chwili, gdy strona prac technicznych MOGŁA zostać włączona na serwerze (--maintenance),
-# do jej potwierdzonego wyłączenia. Każde wyjście z błędem w tym czasie kończy się głośnym komunikatem.
+# Stan strony prac technicznych przy --maintenance, dla komunikatu po błędzie:
+#   0 – na pewno nie włączona przez to wdrożenie;
+#   2 – krok 4/8 w toku: `maintenance.sh on` jest w środku tego kroku (po buildzie), więc przy
+#       błędzie pytamy serwer, czy flaga faktycznie istnieje (nieudany build albo `on` z kodem 2
+#       przy proxy bez montażu nie zostawiają strony włączonej – wtedy ramki nie ma);
+#   1 – strona włączona (krok 4/8 zakończony) aż do potwierdzonego wyłączenia w 5a.
 MAINT_MAYBE_ON=0
 maintenance_exit() {
   local rc=$?
+  if [ "$rc" -ne 0 ] && [ "$MAINT_MAYBE_ON" = "2" ]; then
+    if "${SSH[@]}" "test -f '$REMOTE_DIR/maintenance/on'" 2>/dev/null; then
+      MAINT_MAYBE_ON=1
+    else
+      printf '
+Strona „Prace techniczne” nie została włączona (brak flagi %s/maintenance/on).
+' "$REMOTE_DIR" >&2
+    fi
+  fi
   if [ "$rc" -ne 0 ] && [ "$MAINT_MAYBE_ON" = "1" ]; then
     printf '\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n' >&2
     printf '!!! Wdrożenie przerwane (kod %s), a strona „PRACE TECHNICZNE” jest (najpewniej) WŁĄCZONA.\n' "$rc" >&2
@@ -186,11 +199,19 @@ fi
 # migracje uruchamia entrypoint kontenera `web` (backend/entrypoint.sh), więc jedyne miejsce, w
 # którym da się zrobić kopię bazy **sprzed** migracji, jest między startem `db` a startem `web`.
 # Polecenie startujące komplet usług (krok 4b) zostaje co do znaku takie, jakie było.
-[ "$MAINTENANCE" = "1" ] && MAINT_MAYBE_ON=1
+[ "$MAINTENANCE" = "1" ] && MAINT_MAYBE_ON=2
 "${SSH[@]}" env REMOTE_DIR="$REMOTE_DIR" WEB_IMAGE="${WEB_IMAGE:-}" MAINTENANCE="$MAINTENANCE" \
   MAINTENANCE_MESSAGE="${MAINTENANCE_MESSAGE:-Aktualizacja serwisu.}" MAINTENANCE_MINUTES="${MAINTENANCE_MINUTES:-10}" bash -s <<'REMOTE'
 set -euo pipefail
 cd "$REMOTE_DIR"
+# PostgreSQL 16 -> 18: docker-compose.yml stawia domyślnie 18 na NOWYM wolumenie `pg18_data`.
+# Serwer, którego dane leżą jeszcze na 16 (`pg_data`), dostaje w .env przypięcie do 16 – inaczej
+# `up -d db` niżej postawiłby pustą bazę 18, a entrypoint web zmigrowałby ją od zera. Pierwsza
+# rzecz w tym kroku, przed jakimkolwiek innym `docker compose`: od tej chwili każde polecenie
+# compose na serwerze (także ręczne, po przerwanym wdrożeniu) widzi bazę 16. Samo przejście
+# (zrzut, odtworzenie, porównanie) to osobna czynność operatora: scripts/upgrade_postgres18.sh,
+# docs/OPERACJE.md § 19. Na nowej instalacji i po przejściu – no-op.
+bash scripts/upgrade_postgres18.sh --pin-if-needed
 # Przepustka operatora przez stronę „Prace techniczne” (docs/OPERACJE.md § 20): tworzona raz, jak
 # pozostałe sekrety; istniejącej wartości skrypt nie rusza. Proxy dostaje ją ze środowiska
 # (docker-compose.yml), więc nowa wartość działa po odtworzeniu proxy w kroku 4b.
@@ -296,12 +317,6 @@ if [ "${MAINTENANCE:-0}" = "1" ]; then
   date +%s.%N > maintenance/.deploy-maintenance-on
   docker compose stop web worker beat
 fi
-# PostgreSQL 16 -> 18: docker-compose.yml stawia domyślnie 18 na NOWYM wolumenie `pg18_data`.
-# Serwer, którego dane leżą jeszcze na 16 (`pg_data`), dostaje w .env przypięcie do 16 – inaczej
-# `up -d db` niżej postawiłby pustą bazę 18, a entrypoint web zmigrowałby ją od zera. Samo
-# przejście (zrzut, odtworzenie, porównanie) to osobna czynność operatora:
-# scripts/upgrade_postgres18.sh, docs/OPERACJE.md § 19. Na nowej instalacji i po przejściu – no-op.
-bash scripts/upgrade_postgres18.sh --pin-if-needed
 docker compose up -d db
 for _ in $(seq 1 30); do
   docker compose ps --format '{{.Service}}={{.Health}}' | grep -q 'db=healthy' && break
@@ -328,6 +343,8 @@ if [ "${MAINTENANCE:-0}" = "1" ]; then
   echo "aplikacja zatrzymana, w bazie zero klientów – strona prac technicznych włączona"
 fi
 REMOTE
+# Krok 4/8 zakończony: przy --maintenance strona jest na pewno włączona.
+[ "$MAINTENANCE" = "1" ] && MAINT_MAYBE_ON=1
 
 log "4a/8 Kopia bazy przed migracjami (pg_dump -Fc)"
 # Format `custom` (-Fc), a nie zwykły SQL: pozwala odtworzyć wybraną tabelę zamiast całej bazy,

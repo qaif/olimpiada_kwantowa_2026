@@ -32,8 +32,8 @@ def pytest_configure(config):
 def _compile_translations(config) -> None:
     """Kompiluje ``locale/*/LC_MESSAGES/django.po`` do ``.mo``, gdy ``.mo`` brakuje albo jest starszy.
 
-    Obraz robi to przy budowaniu, a CI w osobnym kroku – ale lokalny przebieg w kontenerze
-    z zamontowanym kodem nie robi tego nigdzie, a brak ``.mo`` nie jest błędem Django: angielski
+    Obraz robi to przy budowaniu, a CI i lokalny przebieg – ten conftest (CI tylko instaluje
+    ``msgfmt``). Bez tego kontener z zamontowanym kodem nie miałby ``.mo`` nigdzie, a brak ``.mo`` nie jest błędem Django: angielski
     po prostu cicho oddaje polskie napisy, więc testy języka listów i panelu padały z komunikatem
     o treści, a nie o brakującym pliku. Kompilacja trwa ułamek sekundy i dzieje się raz na sesję
     (pod xdist – w procesie sterującym, zanim wystartują workery).

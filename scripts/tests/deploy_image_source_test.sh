@@ -88,18 +88,19 @@ krok4() {
       MAINTENANCE_MINUTES=10 bash "$WORK/krok4.sh" ) >"$WORK/stdout" 2>&1
 }
 
-# Dzisiejszy przebieg kroku 4/8, co do wywołania: build na serwerze, sprawdzenie, czy bazę trzeba
-# przypiąć do PostgreSQL-a 16 (nazwa projektu + wolumen `pg_data` – na czystym serwerze go nie ma),
-# start bazy, dwa odpytania o stan (pętla oczekiwania + twarde sprawdzenie przed kopią z kroku 4a).
-DZISIAJ='compose build --pull web
-compose config
+# Dzisiejszy przebieg kroku 4/8, co do wywołania: najpierw sprawdzenie, czy bazę trzeba przypiąć do
+# PostgreSQL-a 16 (nazwa projektu + wolumen `pg_data` – na czystym serwerze go nie ma; pierwsze, żeby
+# nieudany build nie zostawił serwera z nowym compose i bez przypięcia), build na serwerze, start
+# bazy, dwa odpytania o stan (pętla oczekiwania + twarde sprawdzenie przed kopią z kroku 4a).
+DZISIAJ='compose config
 volume inspect olimpiada_pg_data
+compose build --pull web
 compose up -d db
 compose ps --format {{.Service}}={{.Health}}
 compose ps --format {{.Service}}={{.Health}}'
-Z_REJESTRU='compose pull web
-compose config
+Z_REJESTRU='compose config
 volume inspect olimpiada_pg_data
+compose pull web
 compose up -d db
 compose ps --format {{.Service}}={{.Health}}
 compose ps --format {{.Service}}={{.Health}}'

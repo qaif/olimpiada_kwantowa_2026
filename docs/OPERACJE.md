@@ -1152,7 +1152,7 @@ kończy się sześcioma błędami. Żadna migracja **naszych** aplikacji nie pow
 (`makemigrations --check --dry-run` jest czysty), żaden test nie został złagodzony.
 
 Wymagania środowiska, które trzeba znać przed wdrożeniem: Django 6.1 wymaga **Pythona ≥ 3.12**
-(obraz ma 3.12.14) i **PostgreSQL-a ≥ 15** (compose stawiał wtedy `postgres:16-alpine`; od § 19 – `postgres:18-alpine`).
+(obraz ma 3.12.14; od § 21 – 3.14) i **PostgreSQL-a ≥ 15** (compose stawiał wtedy `postgres:16-alpine`; od § 19 – `postgres:18-alpine`).
 Obie granice są spełnione — ale gdyby ktoś kiedyś cofnął bazę do 14, aplikacja nie wstanie.
 
 ### 9.2. Obejście `django-celery-beat` (i kiedy je usunąć)
@@ -1495,6 +1495,11 @@ docker compose up -d web worker beat
 
 Dwa kroki wcześniej (obraz już skasowany) wymaga ponownego budowania z odpowiedniego commitu –
 `git checkout <tag>` na kopii repozytorium i `scripts/deploy.sh` bez `WEB_IMAGE`.
+**Po przejściu na PostgreSQL 18 (§ 19.4) nie wdrażaj w ten sposób kodu sprzed v0.37.0** – jego
+`docker-compose.yml` nie zna `POSTGRES_IMAGE`/`POSTGRES_VOLUME` i postawi 16 na starym `pg_data`
+(stan sprzed przejścia, zapisy z 18 znikają z widoku; po sprzątnięciu `pg_data` z § 19.6 – pusta
+baza). Starszą wersję aplikacji uruchamia się wtedy wyłącznie przez tag obrazu (`APP_VERSION`,
+wyżej) albo `WEB_IMAGE=…` wdrażane kodem v0.37.0 lub nowszym.
 
 ## 12. Wyszukiwarka szkół: rozszerzenie `pg_trgm` (v0.31.0)
 
@@ -2081,8 +2086,8 @@ stąd osobny skrypt i ten rozdział zamiast zwykłego wdrożenia.
   duża na zrzut.
 - **Obraz i wolumen są parametrami compose** (`POSTGRES_IMAGE`, `POSTGRES_VOLUME` w `.env`). Bez nich
   – 18 na `pg18_data`. Przypięcie do 16 (`POSTGRES_IMAGE=postgres:16-alpine`,
-  `POSTGRES_VOLUME=pg_data:/var/lib/postgresql/data`) wpisuje `scripts/deploy.sh` (krok 4/8, przez
-  `scripts/upgrade_postgres18.sh --pin-if-needed`) na serwerze, który ma wolumen `pg_data` i nie ma
+  `POSTGRES_VOLUME=pg_data:/var/lib/postgresql/data`) wpisuje `scripts/deploy.sh` (krok 4/8 – pierwsza czynność, przed
+  buildem obrazu; przez `scripts/upgrade_postgres18.sh --pin-if-needed`) na serwerze, który ma wolumen `pg_data` i nie ma
   `pg18_data` – **samo wdrożenie tej wersji niczego w bazie nie zmienia**, kontener `db` nie jest
   nawet odtwarzany. Bez tego zabezpieczenia pierwsze `up -d db` postawiłoby pustą bazę 18,
   a entrypoint `web` zmigrowałby ją od zera – serwis wstałby pusty.
@@ -2492,8 +2497,12 @@ sed -i 's/^APP_VERSION=.*/APP_VERSION=<poprzednia-wersja>/' .env
 docker compose up -d web worker beat
 ```
 
-Gdy tamtego tagu już nie ma: `scripts/deploy.sh` z commitu sprzed zmiany (`git checkout
-<poprzedni-tag>`). Cache w Redisie (strony, sesje) jest serializowany `pickle`, którego protokół
+Gdy tamtego tagu już nie ma i baza jest **jeszcze na 16**: `scripts/deploy.sh` z commitu sprzed
+zmiany (`git checkout <poprzedni-tag>`). **Po przejściu na PostgreSQL 18 (§ 19.4) nie wdrażaj kodu
+sprzed v0.37.0** – jego `docker-compose.yml` nie zna `POSTGRES_IMAGE`/`POSTGRES_VOLUME` i postawi
+16 na starym `pg_data` (stan sprzed przejścia; zapisy z 18 znikają z widoku, a po § 19.6 – pusta
+baza). Powrót Pythona wyłącznie przez tag obrazu (`APP_VERSION`, wyżej) albo `WEB_IMAGE=…`
+z kodem v0.37.0 lub nowszym. Cache w Redisie (strony, sesje) jest serializowany `pickle`, którego protokół
 jest wspólny dla 3.12 i 3.14 – przełączenie w żadną stronę nie wymaga czyszczenia cache.
 
 ### 21.4. Lokalne środowisko (lint poza kontenerem)

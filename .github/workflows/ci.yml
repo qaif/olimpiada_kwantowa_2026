@@ -221,10 +221,11 @@ jobs:
         run: uv pip install --system -r pyproject.toml --extra dev
 
       # `backend/Dockerfile` kompiluje katalogi tłumaczeń przy budowaniu obrazu (`gettext` jest
-      # w warstwie runtime); tutaj testy odpalają się bez obrazu, więc bez tego kroku katalog
-      # angielski zostaje wyłącznie źródłem (`.po`) i Django cicho oddaje polskie napisy –
-      # dokładnie to sprawdzają `apps/accounts/tests/test_mail_language.py` i
-      # `apps/web/tests/test_preferences_i18n.py`.
+      # w warstwie runtime); tutaj testy odpalają się bez obrazu, a `.mo` kompiluje `conftest.py`
+      # (`_compile_translations`) programem `msgfmt` z tego pakietu. Bez niego sesja startuje
+      # tylko z ostrzeżeniem, katalog angielski zostaje wyłącznie źródłem (`.po`) i Django cicho
+      # oddaje polskie napisy – dokładnie to sprawdzają `apps/accounts/tests/test_mail_language.py`
+      # i `apps/web/tests/test_preferences_i18n.py`.
       - name: Instalacja gettext
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gettext
 
