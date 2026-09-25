@@ -200,8 +200,14 @@ fi
 # którym da się zrobić kopię bazy **sprzed** migracji, jest między startem `db` a startem `web`.
 # Polecenie startujące komplet usług (krok 4b) zostaje co do znaku takie, jakie było.
 [ "$MAINTENANCE" = "1" ] && MAINT_MAYBE_ON=2
-"${SSH[@]}" env REMOTE_DIR="$REMOTE_DIR" WEB_IMAGE="${WEB_IMAGE:-}" MAINTENANCE="$MAINTENANCE" \
-  MAINTENANCE_MESSAGE="${MAINTENANCE_MESSAGE:-Aktualizacja serwisu.}" MAINTENANCE_MINUTES="${MAINTENANCE_MINUTES:-10}" bash -s <<'REMOTE'
+# ssh skleja argumenty w JEDEN napis dla powłoki zdalnej – wartość ze spacją („Aktualizacja
+# serwisu.”) rozpadłaby się tam na dwa słowa i `env` próbowałby uruchomić „serwisu.” jako program
+# (tak padło pierwsze wdrożenie v0.37.0). Każda wartość idzie więc zacytowana przez printf %q.
+printf -v REMOTE_ENV '%q ' \
+  "REMOTE_DIR=$REMOTE_DIR" "WEB_IMAGE=${WEB_IMAGE:-}" "MAINTENANCE=$MAINTENANCE" \
+  "MAINTENANCE_MESSAGE=${MAINTENANCE_MESSAGE:-Aktualizacja serwisu.}" \
+  "MAINTENANCE_MINUTES=${MAINTENANCE_MINUTES:-10}"
+"${SSH[@]}" "env $REMOTE_ENV bash -s" <<'REMOTE'
 set -euo pipefail
 cd "$REMOTE_DIR"
 # PostgreSQL 16 -> 18: docker-compose.yml stawia domyślnie 18 na NOWYM wolumenie `pg18_data`.
