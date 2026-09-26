@@ -174,6 +174,13 @@ if [ "$DRY_RUN" = "0" ]; then
         && die "baza ${TARGET_DB} już istnieje – podaj inną przez --db"
 fi
 run docker compose exec -T db createdb -U "$POSTGRES_USER" "$TARGET_DB"
+# Nowa baza ma domyślne uprawnienia, czyli CONNECT dla PUBLIC – każda rola z LOGIN w tym klastrze
+# (także `olimpiada_djcms` wersji porównawczej, docs/tasks/DJ-01.md § 8.9) mogłaby się połączyć
+# z pełną kopią danych uczestników. Odbieramy go od razu, **przed** pg_restore. Konto aplikacji
+# (`POSTGRES_USER`) jest superuserem i właścicielem tej bazy, więc je to nie dotyczy.
+# Identyfikator w cudzysłowie z podwojonym `"` – nazwa z `--db` bywa dowolna.
+run docker compose exec -T db psql -X -q -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d postgres \
+    -c "REVOKE CONNECT ON DATABASE \"${TARGET_DB//\"/\"\"}\" FROM PUBLIC" </dev/null
 
 log "3/4 pg_restore -> ${TARGET_DB}"
 if [ "$DRY_RUN" = "1" ]; then

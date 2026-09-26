@@ -12,11 +12,16 @@ Czego paczka **nie** niesie i dlaczego:
 - **dokumentów (PDF/DOCX).** To dokumenty urzędowe (regulamin podpisany przez organizatora, RODO,
   standardy ochrony małoletnich). Druga kopia byłaby drugą wersją dokumentu prawnego, która przy
   pierwszej podmianie pliku w Wagtailu stałaby się nieaktualna. Manifest podaje więc bezwzględny
-  adres na domenie głównej, gdzie widok ``apps.cms.views.serve`` dalej pilnuje widoczności
-  kolekcji. Dokument z kolekcji zastrzeżonej nie trafia nawet do manifestu – blok i załącznik
-  z takim plikiem są pomijane, a pominięcie ląduje w raporcie,
+  adres w aplikacji głównej – pod adresem konkursu (``competition_public_base``) – gdzie widok
+  ``apps.cms.views.serve`` dalej pilnuje widoczności kolekcji. Dokument z kolekcji zastrzeżonej
+  nie trafia nawet do manifestu – blok i załącznik z takim plikiem są pomijane, a pominięcie ląduje
+  w raporcie,
 - **wersji roboczych.** Wyłącznie ``live()``: szkic nie może wyciec na drugą wersję serwisu tylną
   furtką importu. Z tego samego powodu odnośnik w tekście do strony nieopublikowanej traci ``<a>``,
+- **stron z ograniczonym dostępem.** Wyłącznie ``public()``: strona za hasłem, za logowaniem albo
+  dla wybranych grup (także z ograniczeniem odziedziczonym po przodku) jest na domenie głównej
+  zamknięta, a na ``dj.`` stałaby otworem – ``PageViewRestriction`` nie ma odpowiednika po imporcie.
+  Pominięcie ląduje w raporcie, a odnośnik w tekście do takiej strony traci ``<a>`` jak do szkicu,
 - **danych aplikacji** – ustawień witryny, komunikatów, obecności na warsztatach. Wersja ``dj.``
   czyta je na żywo z API (``apps.cms.djcms_api``), bo jedno źródło prawdy ma zostać jedno.
 
@@ -55,7 +60,7 @@ from .context_processors import (
     PRIMARY_MENU_SLUGS,
     PROMOTED_DOCUMENT_SLUGS,
 )
-from .djcms_api.serializers import _served_by_app
+from .djcms_api.serializers import PublicBase, _served_by_app, as_public_base, competition_public_base
 from .views import is_public_document
 
 #: Nazwa i wersja formatu. Importer odrzuca paczkę z inną parą – zmiana kształtu, która nie jest
@@ -89,6 +94,20 @@ class BundleReport:
     skipped: list[str] = field(default_factory=list)
 
 
+class NoPublicUrl(Exception):  # noqa: N818 - nazwa mówi, czego brakuje
+    """Konkurs nie ma adresu w aplikacji głównej (``competition_public_base`` dał ``None``)."""
+
+
+def public_pages(root):
+    """Strony, które trafiają do paczki: opublikowane **i** bez ograniczenia widoczności.
+
+    ``public()`` Wagtaila wyklucza każdą stronę pod ``PageViewRestriction`` – hasło, logowanie,
+    grupy – razem z całym poddrzewem strony ograniczonej, więc ograniczenie odziedziczone po
+    przodku też się liczy.
+    """
+    return Page.objects.live().public().descendant_of(root, inclusive=True)
+
+
 def site_path(page, root) -> str:
     """Ścieżka strony względem korzenia witryny: ``/``, ``/regulamin/``, ``/dokumenty/rodo/``.
 
@@ -99,8 +118,8 @@ def site_path(page, root) -> str:
     return page.url_path[len(root.url_path) - 1 :] or "/"
 
 
-def _front_href(href: str, main_public_url: str) -> str:
-    """Zwykły odnośnik z tekstu: adres aplikacji (``/register/``) → bezwzględny na domenie głównej.
+def _front_href(href: str, base: PublicBase) -> str:
+    """Zwykły odnośnik z tekstu: adres aplikacji (``/register/``) → bezwzględny pod adresem konkursu.
 
     Ścieżki stron Wagtaila, kotwice i adresy bezwzględne zostają bez zmian – strony po imporcie
     stoją na ``dj.`` pod tą samą ścieżką, a reszta i tak prowadzi tam, dokąd prowadziła.
@@ -108,21 +127,22 @@ def _front_href(href: str, main_public_url: str) -> str:
     if not href.startswith("/") or href.startswith("//"):
         return href
     path = href.split("#", 1)[0].split("?", 1)[0] or "/"
-    return f"{main_public_url.rstrip('/')}{href}" if _served_by_app(path) else href
+    return base.url(href) if _served_by_app(path) else href
 
 
 def export_richtext(
     html: str,
     *,
     site,
-    main_public_url: str,
+    main_public_url: PublicBase | str,
     page_paths: dict[int, str] | None = None,
     document_urls: dict[int, str | None] | None = None,
 ) -> str:
     """Tekst z formatu bazy Wagtaila do HTML-a frontowego z adresami działającymi na ``dj.``.
 
     - ``<a linktype="page" id=N>`` → ``href`` = ścieżka strony względem korzenia witryny (z kotwicą,
-      jeśli odnośnik ją niesie); strona nieopublikowana albo spoza witryny → sam tekst bez ``<a>``,
+      jeśli odnośnik ją niesie); strona nieopublikowana, z ograniczonym dostępem albo spoza witryny
+      → sam tekst bez ``<a>`` (na ``dj.`` takiej ścieżki nie będzie),
     - ``<a linktype="document" id=N>`` → bezwzględny adres dokumentu na domenie głównej; dokument
       nieistniejący albo z kolekcji zastrzeżonej → sam tekst,
     - ``<a>`` z innym ``linktype`` (nieznany typ) → sam tekst: Wagtail rysuje go jako pusty ``<a>``,
@@ -134,11 +154,10 @@ def export_richtext(
     """
     if not html:
         return ""
+    base = as_public_base(main_public_url)
     if page_paths is None:
         root = site.root_page
-        page_paths = {
-            page.pk: site_path(page, root) for page in Page.objects.live().descendant_of(root, inclusive=True)
-        }
+        page_paths = {page.pk: site_path(page, root) for page in public_pages(root)}
     if document_urls is None:
         document_urls = {}
 
@@ -150,7 +169,7 @@ def export_richtext(
             href = attrs.get("href")
             if href is None:
                 return match.group(0)
-            new_href = _front_href(href, main_public_url)
+            new_href = _front_href(href, base)
             if new_href == href:
                 return match.group(0)
             opening = HREF_ATTR_RE.sub(lambda _m: f'href="{escape(new_href)}"', match.group(1), count=1)
@@ -163,7 +182,7 @@ def export_richtext(
             href = f"{path}#{anchor}" if anchor else path
             return f'<a href="{escape(href)}">{inner}</a>'
         if linktype == "document":
-            url = _document_url(_int(attrs.get("id")), main_public_url, document_urls)
+            url = _document_url(_int(attrs.get("id")), base, document_urls)
             return f'<a href="{escape(url)}">{inner}</a>' if url else inner
         return inner
 
@@ -177,16 +196,14 @@ def _int(value) -> int | None:
         return None
 
 
-def _document_url(document_id: int | None, main_public_url: str, cache: dict[int, str | None]) -> str | None:
+def _document_url(document_id: int | None, base: PublicBase, cache: dict[int, str | None]) -> str | None:
     """Bezwzględny adres **publicznego** dokumentu albo ``None``. Wynik zostaje w buforze wołającego."""
     if document_id is None:
         return None
     if document_id not in cache:
         document = get_document_model().objects.filter(pk=document_id).select_related("collection").first()
         cache[document_id] = (
-            f"{main_public_url.rstrip('/')}{document.url}"
-            if document is not None and is_public_document(document)
-            else None
+            base.url(document.url) if document is not None and is_public_document(document) else None
         )
     return cache[document_id]
 
@@ -194,7 +211,7 @@ def _document_url(document_id: int | None, main_public_url: str, cache: dict[int
 class _Exporter:
     """Jeden przebieg eksportu: zbiera obrazy i dokumenty w trakcie serializacji stron."""
 
-    def __init__(self, competition, archive: zipfile.ZipFile, main_public_url: str):
+    def __init__(self, competition, archive: zipfile.ZipFile, main_public_url: PublicBase):
         self.competition = competition
         self.site = competition.site
         self.root = self.site.root_page
@@ -269,7 +286,7 @@ class _Exporter:
             "filename": document.filename,
             "extension": document.file_extension.lower(),
             "size": size,
-            "url": f"{self.main_public_url.rstrip('/')}{document.url}",
+            "url": self.main_public_url.url(document.url),
         }
         self.report.documents += 1
         return {"document_id": document.pk}
@@ -330,13 +347,24 @@ class _Exporter:
     # --- strony ---------------------------------------------------------------------------------
 
     def pages(self) -> list[dict]:
-        """Opublikowane strony witryny w kolejności drzewa. Strona pod nieopublikowanym rodzicem
-        wypada: importer nie miałby jej gdzie powiesić."""
+        """Opublikowane i publiczne strony witryny w kolejności drzewa.
+
+        Wypadają (z wpisem w raporcie): strona z ograniczonym dostępem – każda z osobna, także
+        ta, która ograniczenie dziedziczy po przodku, żeby redaktor widział w raporcie pełną listę –
+        i strona pod nieopublikowanym rodzicem, bo importer nie miałby jej gdzie powiesić.
+        """
         live = list(Page.objects.live().descendant_of(self.root, inclusive=True).order_by("path").specific())
+        public_ids = set(public_pages(self.root).values_list("pk", flat=True))
         ids_by_path = {page.path: page.pk for page in live}
         exported: list = []
         known: set[int] = set()
         for page in live:
+            if page.pk not in public_ids:
+                self.report.skipped.append(
+                    f"strona „{page.title}” ({page.url_path}): ograniczony dostęp "
+                    "(hasło, logowanie albo grupy)"
+                )
+                continue
             parent_id = None
             if page.pk != self.root.pk:
                 # Rodzic bez zapytania: ścieżka treebearda bez ostatniego kroku.
@@ -477,16 +505,29 @@ def vocabularies() -> dict:
     }
 
 
-def build_bundle(competition, *, stream: IO[bytes], main_public_url: str | None = None) -> BundleReport:
+def build_bundle(
+    competition, *, stream: IO[bytes], main_public_url: PublicBase | str | None = None
+) -> BundleReport:
     """Zapisuje paczkę treści konkursu do ``stream`` i oddaje raport.
 
     Strumień nie musi umieć ``seek`` (``--output -`` pisze na standardowe wyjście) – ``zipfile``
     dopisuje wtedy deskryptory danych za każdym członkiem. Manifest jest zapisywany **na końcu**:
     dopiero po przejściu stron wiadomo, które obrazy i dokumenty są w użyciu.
+
+    Bez ``main_public_url`` adresy dokumentów i widoków aplikacji idą pod adres **tego** konkursu
+    (``competition_public_base``) – ``DJCMS_MAIN_PUBLIC_URL`` opisuje tylko konkurs domeny głównej.
+    Konkurs bez adresu → ``NoPublicUrl``, zanim cokolwiek trafi do strumienia.
     """
-    main_public_url = main_public_url or settings.DJCMS_MAIN_PUBLIC_URL
+    if main_public_url is None:
+        main_public_url = competition_public_base(competition)
+        if main_public_url is None:
+            raise NoPublicUrl(
+                f"Konkurs „{competition.slug}” nie ma adresu w aplikacji głównej (domena albo prefiks "
+                "ścieżki z otwartą bramką path_prefix_routing) – odnośniki w paczce prowadziłyby donikąd."
+            )
+    base = as_public_base(main_public_url)
     with zipfile.ZipFile(stream, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        exporter = _Exporter(competition, archive, main_public_url)
+        exporter = _Exporter(competition, archive, base)
         pages = exporter.pages()
         manifest = {
             "format": BUNDLE_FORMAT,
@@ -494,7 +535,7 @@ def build_bundle(competition, *, stream: IO[bytes], main_public_url: str | None 
             "exported_at": timezone.localtime().isoformat(),
             "source": {
                 "site_domain": settings.SITE_DOMAIN,
-                "main_public_url": main_public_url,
+                "main_public_url": str(base),
                 "competition_slug": competition.slug,
                 "root_page_id": exporter.root.pk,
             },

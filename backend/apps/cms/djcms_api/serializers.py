@@ -12,11 +12,16 @@ Trzy reguły wspólne dla każdej funkcji tego modułu:
   dopóki ktoś świadomie nie dopisze go tutaj,
 - **adresy przez ``api_href``.** Pod ``dj.`` istnieją wyłącznie strony z drzewa Wagtaila (po
   imporcie), więc tylko ich ścieżki zostają względne; każdy adres aplikacji (logowanie, wyniki,
-  PDF zadania, dokument, media) staje się bezwzględnym adresem domeny głównej.
+  PDF zadania, dokument, media) staje się bezwzględnym adresem **konkursu, którego dane API
+  oddaje** (``competition_public_base``) – a nie „domeny głównej” w ogóle.
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any
 from urllib.parse import urlsplit
@@ -37,9 +42,118 @@ WAGTAIL_SERVE_URL_NAME = "wagtail_serve"
 SAFE_SCHEMES = frozenset({"http", "https"})
 
 
+def _is_asset_path(path: str) -> bool:
+    """Czy ścieżka to plik statyczny albo medium (``STATIC_URL``/``MEDIA_URL``), a nie widok."""
+    for prefix in (settings.MEDIA_URL, settings.STATIC_URL):
+        if prefix and prefix.startswith("/") and path.startswith(prefix):
+            return True
+    return False
+
+
+@dataclass(frozen=True)
+class PublicBase:
+    """Adres, pod którym aplikacja główna **naprawdę** obsługuje konkurs API.
+
+    Dwie części, a nie jeden napis, bo konkurs pod prefiksem ścieżki (§ 2.3, uwaga T43) ma adresy
+    widoków pod ``https://<platforma>/<prefiks>/…``, ale pliki statyczne i media – bez prefiksu:
+    WhiteNoise odpowiada na ``/static/…`` przed warstwą konkursu, więc ``/<prefiks>/static/…``
+    byłoby 404.
+    """
+
+    #: ``https://olimpiadakwantowa.pl`` – schemat, host i ewentualny port, bez ukośnika na końcu.
+    origin: str
+    #: ``""`` albo ``"/druga"`` (tryb ``PATH``).
+    path_prefix: str = ""
+
+    def __str__(self) -> str:
+        return f"{self.origin}{self.path_prefix}"
+
+    @classmethod
+    def from_url(cls, value: str) -> PublicBase:
+        return cls((value or "").rstrip("/"))
+
+    def url(self, path: str) -> str:
+        """Bezwzględny adres ścieżki zaczynającej się od ``/``."""
+        if self.path_prefix and _is_asset_path(path):
+            return f"{self.origin}{path}"
+        return f"{self.origin}{self.path_prefix}{path}"
+
+
+def as_public_base(value: PublicBase | str) -> PublicBase:
+    """Napis (adres z ustawień, argument testu) albo gotowy ``PublicBase`` → ``PublicBase``."""
+    return value if isinstance(value, PublicBase) else PublicBase.from_url(value)
+
+
+def competition_public_base(competition) -> PublicBase | None:
+    """Adres aplikacji głównej dla konkursu API albo ``None``, gdy go nie da się ustalić.
+
+    ``DJCMS_MAIN_PUBLIC_URL`` opisuje **domenę główną**, czyli konkurs witryny domyślnej. Konkurs
+    wybrany przez ``DJCMS_COMPETITION_SLUG`` stoi gdzie indziej, a linki „Zaloguj”, „Wyniki”,
+    PDF zadania pod domeną główną prowadziłyby do cudzego konkursu. Reguły są te same, co przy
+    linkach w listach wysyłanych spoza żądania (``apps.accounts.activation._base_url_without_request``)
+    i w przełączniku konkursów (``apps.web.coordinator_nav.competition_base_urls``):
+
+    - konkurs witryny domyślnej (albo brak konkursu) – ``DJCMS_MAIN_PUBLIC_URL`` bez zmian,
+    - konkurs pod prefiksem ścieżki – host platformy (origin ``DJCMS_MAIN_PUBLIC_URL``)
+      + ``/<prefiks>``, ale **wyłącznie** gdy konkurs platformy ma otwartą bramkę
+      ``path_prefix_routing`` (``hosts_path_prefixes``). Przy zamkniętej konkurs nie ma adresu,
+    - konkurs z własną domeną (także subdomeną platformy) – ``primary_domain`` ze schematem
+      i portem ``DJCMS_MAIN_PUBLIC_URL``: wszystkie konkursy obsługuje ten sam serwer (Caddy albo
+      ``runserver`` w devie), więc schemat i port są wspólne.
+
+    ``None`` = konkurs nie ma adresu, pod którym aplikacja go obsługuje. API odpowiada wtedy 503
+    (``views.endpoint``), a komenda eksportu kończy się błędem – odnośniki w nieznane byłyby
+    gorsze niż komunikat o niedostępności.
+    """
+    from apps.tenancy.models import Competition, RoutingMode
+    from apps.tenancy.resolution import hosts_path_prefixes
+
+    configured = PublicBase.from_url(settings.DJCMS_MAIN_PUBLIC_URL)
+    site = getattr(competition, "site", None)
+    if competition is None or (site is not None and site.is_default_site):
+        return configured
+    parts = urlsplit(configured.origin)
+    scheme = parts.scheme or "https"
+    if competition.routing_mode == RoutingMode.PATH and competition.path_prefix:
+        platform = (
+            Competition.objects.filter(site__is_default_site=True, is_active=True)
+            .select_related("site")
+            .first()
+        )
+        if not hosts_path_prefixes(platform) or not parts.netloc:
+            return None
+        return PublicBase(f"{scheme}://{parts.netloc}", f"/{competition.path_prefix}")
+    if competition.primary_domain:
+        port = f":{parts.port}" if parts.port else ""
+        return PublicBase(f"{scheme}://{competition.primary_domain.strip().rstrip('.')}{port}")
+    return None
+
+
+#: Adres konkursu bieżącego żądania API – ustawia go ``views.endpoint`` na czas widoku. Zmienna
+#: kontekstowa, a nie argument, bo ``api_href`` woła się głęboko w serializatorach (także przez
+#: ``jsonable`` na słownikach liczonych gdzie indziej) i przeciąganie adresu przez każdy z nich
+#: byłoby kilkunastoma sygnaturami do zmiany przy każdej nowej funkcji.
+_PUBLIC_BASE: ContextVar[PublicBase | None] = ContextVar("djcms_public_base", default=None)
+
+
+@contextmanager
+def public_base_context(base: PublicBase) -> Iterator[PublicBase]:
+    """Na czas bloku ``main_url``/``api_href`` budują adresy pod ``base``."""
+    token = _PUBLIC_BASE.set(base)
+    try:
+        yield base
+    finally:
+        _PUBLIC_BASE.reset(token)
+
+
+def current_public_base() -> PublicBase:
+    """Adres z kontekstu widoku, a poza nim – ``DJCMS_MAIN_PUBLIC_URL`` (domena główna)."""
+    return _PUBLIC_BASE.get() or PublicBase.from_url(settings.DJCMS_MAIN_PUBLIC_URL)
+
+
 def main_url(path: str) -> str:
-    """Adres na domenie głównej: ``DJCMS_MAIN_PUBLIC_URL`` + ścieżka zaczynająca się od ``/``."""
-    return f"{settings.DJCMS_MAIN_PUBLIC_URL.rstrip('/')}{path}"
+    """Adres w aplikacji głównej: podstawa konkursu API + ścieżka zaczynająca się od ``/``."""
+    return current_public_base().url(path)
 
 
 def _served_by_app(path: str) -> bool:
@@ -50,9 +164,8 @@ def _served_by_app(path: str) -> bool:
     ``resolve`` oddałby catch-all Wagtaila – i obraz z wersji deweloperskiej zostałby na ``dj.``
     adresem względnym, pod którym nic nie ma.
     """
-    for prefix in (settings.MEDIA_URL, settings.STATIC_URL):
-        if prefix and prefix.startswith("/") and path.startswith(prefix):
-            return True
+    if _is_asset_path(path):
+        return True
     try:
         match = resolve(path)
     except Resolver404:
@@ -65,7 +178,7 @@ def api_href(url: str | None) -> str:
 
     - ścieżka strony Wagtaila (``/warsztaty/``) zostaje **względna** – po imporcie istnieje też tam,
     - każda inna ścieżka (``/results/5/``, ``/register/``, ``/documents/…``, ``/media/…``) staje się
-      bezwzględna na domenie głównej,
+      bezwzględna pod adresem konkursu API (``main_url``),
     - adres bezwzględny ``http(s)`` (rendition w publicznym kubełku S3) zostaje bez zmian,
     - każdy inny schemat, adres protokołowo-względny (``//host``) i napis niebędący ścieżką dają
       pusty napis – czyli „bez odnośnika”, a nie odnośnik w nieznane.

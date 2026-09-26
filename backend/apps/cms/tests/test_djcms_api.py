@@ -23,8 +23,8 @@ from django.test import Client
 from django.utils import timezone
 
 from apps.cms.checks import check_djcms_token
-from apps.cms.djcms_api.serializers import api_href, row_dto
-from apps.cms.models import ArchiveEditionPage, ContentPage
+from apps.cms.djcms_api.serializers import PublicBase, api_href, public_base_context, row_dto
+from apps.cms.models import ArchiveEditionPage, ContentPage, ContentPageAttachment
 from apps.cms.tests.factories import AnnouncementFactory
 from apps.competitions.tests.factories import (
     CurrentEditionFactory,
@@ -513,3 +513,161 @@ def test_export_returns_a_zip_bundle(competition):  # noqa: ARG001
 )
 def test_api_href(url, expected):
     assert api_href(url) == expected
+
+
+# --- adres konkursu API (DJCMS_COMPETITION_SLUG ≠ konkurs domeny głównej) --------------------------
+
+
+def test_app_links_of_another_competition_go_to_its_own_domain(settings, competition, other_competition):  # noqa: ARG001
+    """``DJCMS_MAIN_PUBLIC_URL`` opisuje domenę główną – linki konkursu #2 idą pod jego domenę."""
+    settings.DJCMS_COMPETITION_SLUG = other_competition.slug
+    domain = other_competition.primary_domain
+
+    links = get_json("chrome")["links"]
+
+    assert links["login"] == f"https://{domain}/login/"
+    assert links["register"] == f"https://{domain}/register/"
+    assert links["main_home"] == f"https://{domain}/"
+    assert MAIN not in json.dumps(get_json("chrome"))
+    assert get_json("workshops")["materials"]["login_url"].startswith(f"https://{domain}/login/?next=/")
+
+
+def test_another_competition_keeps_the_scheme_and_port_of_the_main_url(
+    settings, competition, other_competition
+):  # noqa: ARG001
+    """Wszystkie konkursy obsługuje ten sam serwer – w devie ``http`` i port ``runserver``."""
+    settings.DJCMS_MAIN_PUBLIC_URL = "http://localhost:8000"
+    settings.DJCMS_COMPETITION_SLUG = other_competition.slug
+
+    assert get_json("chrome")["links"]["login"] == f"http://{other_competition.primary_domain}:8000/login/"
+
+
+def test_the_default_competition_named_by_slug_still_uses_the_main_url(settings, competition):
+    settings.DJCMS_COMPETITION_SLUG = competition.slug
+
+    assert get_json("chrome")["links"]["login"] == f"{MAIN}/login/"
+
+
+def test_a_path_prefix_competition_links_under_the_platform_host_with_its_prefix(
+    settings, competition, other_competition
+):
+    from apps.tenancy.models import RoutingMode
+
+    competition.feature_flags = {**(competition.feature_flags or {}), "path_prefix_routing": True}
+    competition.save(update_fields=["feature_flags"])
+    other_competition.routing_mode = RoutingMode.PATH
+    other_competition.path_prefix = "druga"
+    other_competition.save(update_fields=["routing_mode", "path_prefix"])
+    settings.DJCMS_COMPETITION_SLUG = other_competition.slug
+
+    links = get_json("chrome")["links"]
+
+    assert links["login"] == f"{MAIN}/druga/login/"
+    assert links["main_home"] == f"{MAIN}/druga/"
+
+
+def test_prefix_is_not_added_to_static_files_and_media():
+    """WhiteNoise odpowiada na ``/static/…`` przed warstwą konkursu – z prefiksem byłoby 404."""
+    base = PublicBase(MAIN, "/druga")
+
+    with public_base_context(base):
+        assert api_href("/results/5/") == f"{MAIN}/druga/results/5/"
+        assert api_href("/media/images/logo.png") == f"{MAIN}/media/images/logo.png"
+        assert api_href("/static/img/x.svg") == f"{MAIN}/static/img/x.svg"
+        assert api_href("/warsztaty/") == "/warsztaty/"
+    assert api_href("/results/5/") == f"{MAIN}/results/5/"
+
+
+@pytest.mark.parametrize("case", ["prefiks-bez-bramki", "bez-domeny"])
+def test_a_competition_without_a_public_address_is_refused(settings, competition, other_competition, case):  # noqa: ARG001
+    from apps.tenancy.models import Competition, RoutingMode
+
+    if case == "prefiks-bez-bramki":
+        # Konkurs platformy bez ``path_prefix_routing``: pod ``/<prefiks>/`` nikt go nie rozstrzyga.
+        Competition.objects.filter(pk=other_competition.pk).update(
+            routing_mode=RoutingMode.PATH, path_prefix="druga"
+        )
+    else:
+        Competition.objects.filter(pk=other_competition.pk).update(primary_domain="")
+    settings.DJCMS_COMPETITION_SLUG = other_competition.slug
+
+    for endpoint in [*JSON_ENDPOINTS, "export"]:
+        response = internal().get(BASE + endpoint)
+        assert response.status_code == 503, endpoint
+        assert response.json() == {"api_version": 1, "error": "no-public-url"}
+
+
+def test_export_of_another_competition_points_documents_at_its_domain(
+    settings, competition, other_competition
+):  # noqa: ARG001
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from wagtail.documents import get_document_model
+    from wagtail.models import Collection
+
+    document = get_document_model().objects.create(
+        title="regulamin",
+        collection=Collection.get_first_root_node(),
+        file=SimpleUploadedFile("regulamin.pdf", b"%PDF-1.4", content_type="application/pdf"),
+    )
+    root = other_competition.site.root_page
+    info = root.add_child(
+        instance=ContentPage(
+            title="Info",
+            slug="info",
+            intro=f'<p><a linktype="document" id="{document.pk}">regulamin</a> '
+            f'<a href="/register/">rejestracja</a></p>',
+        )
+    )
+    ContentPageAttachment.objects.create(page=info, document=document, label="PDF")
+    settings.DJCMS_COMPETITION_SLUG = other_competition.slug
+
+    response = internal().get(BASE + "export")
+
+    manifest = json.loads(
+        zipfile.ZipFile(io.BytesIO(b"".join(response.streaming_content))).read("manifest.json")
+    )
+    domain = f"https://{other_competition.primary_domain}"
+    assert manifest["source"]["main_public_url"] == domain
+    intro = next(page for page in manifest["pages"] if page["slug"] == "info")["fields"]["intro"]
+    assert f'href="{domain}/documents/{document.pk}/' in intro
+    assert f'href="{domain}/register/"' in intro
+    assert manifest["documents"][str(document.pk)]["url"].startswith(f"{domain}/documents/")
+
+
+def test_workshops_page_path_skips_a_restricted_page(competition, home_page):  # noqa: ARG001
+    from wagtail.models import PageViewRestriction
+
+    page = home_page.add_child(instance=ContentPage(title="Warsztaty", slug="warsztaty"))
+    assert get_json("workshops")["page_path"] == "/warsztaty/"
+
+    PageViewRestriction.objects.create(page=page, restriction_type=PageViewRestriction.LOGIN)
+
+    assert get_json("workshops")["page_path"] is None
+
+
+# --- adresy nieistniejące -------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        BASE + "nie-ma",
+        BASE + "nie-ma/",
+        BASE + "chrome/",
+        BASE + "editions/abc/results",
+        BASE + "editions/1/results/",
+        "/internal/djcms/v1",
+        "/internal/djcms/",
+        "/internal/djcms",
+        "/internal/djcms/v2/chrome",
+    ],
+)
+@pytest.mark.parametrize(
+    "client_kwargs", [{}, {"token": None}, {"host": "testserver"}], ids=["ok", "bez-tokenu", "publiczny"]
+)
+def test_unknown_paths_are_the_same_empty_404_as_a_closed_gate(competition, path, client_kwargs):  # noqa: ARG001
+    for method in ("get", "post", "head"):
+        response = getattr(internal(**client_kwargs), method)(path)
+        assert response.status_code == 404, (method, path)
+        assert response.content == b"", (method, path)
+        assert "Location" not in response

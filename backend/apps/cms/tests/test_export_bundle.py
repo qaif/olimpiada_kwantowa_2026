@@ -21,15 +21,16 @@ import zipfile
 from datetime import date
 
 import pytest
+from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import CommandError, call_command
 from PIL import Image as PILImage
 from wagtail.documents import get_document_model
 from wagtail.embeds.blocks import EmbedValue
 from wagtail.images import get_image_model
-from wagtail.models import Collection, CollectionViewRestriction
+from wagtail.models import Collection, CollectionViewRestriction, PageViewRestriction
 
-from apps.cms.export_bundle import build_bundle, export_richtext
+from apps.cms.export_bundle import NoPublicUrl, build_bundle, export_richtext
 from apps.cms.models import (
     ArchiveDocument,
     ArchiveEditionPage,
@@ -266,6 +267,103 @@ def test_only_live_pages_are_exported_and_orphans_are_reported(competition, worl
     assert "sierota" not in slugs
     assert any("Sierota" in line for line in report.skipped)
     assert report.pages == len(manifest["pages"])
+
+
+def restrict(page, restriction_type: str) -> PageViewRestriction:
+    """Ograniczenie widoczności strony każdego rodzaju, jaki zna Wagtail."""
+    restriction = PageViewRestriction.objects.create(
+        page=page,
+        restriction_type=restriction_type,
+        password="haslo-testowe" if restriction_type == PageViewRestriction.PASSWORD else "",
+    )
+    if restriction_type == PageViewRestriction.GROUPS:
+        restriction.groups.add(Group.objects.create(name="Komitet – test ograniczeń"))
+    return restriction
+
+
+@pytest.mark.parametrize(
+    "restriction_type",
+    [PageViewRestriction.PASSWORD, PageViewRestriction.LOGIN, PageViewRestriction.GROUPS],
+)
+def test_pages_with_a_view_restriction_are_not_exported(competition, world, restriction_type):
+    """Strona zamknięta na domenie głównej nie może stanąć otworem na ``dj.`` – ani jej poddrzewo."""
+    home = world["home"]
+    closed = home.add_child(instance=ContentPage(title="Dla komitetu", slug="dla-komitetu"))
+    inherited = closed.add_child(instance=ContentPage(title="Protokół", slug="protokol"))
+    restrict(closed, restriction_type)
+
+    manifest, _, report = export(competition)
+    slugs = {page["slug"] for page in manifest["pages"]}
+
+    assert "dla-komitetu" not in slugs
+    assert "protokol" not in slugs, "ograniczenie dziedziczone po przodku też zamyka stronę"
+    assert {"warsztaty", "regulamin", "faq"} <= slugs
+    restricted_lines = [line for line in report.skipped if "ograniczony dostęp" in line]
+    assert any("Dla komitetu" in line for line in restricted_lines)
+    assert any("Protokół" in line for line in restricted_lines)
+    assert report.pages == len(manifest["pages"])
+    assert inherited.pk not in {page["id"] for page in manifest["pages"]}
+
+
+@pytest.mark.parametrize(
+    "restriction_type",
+    [PageViewRestriction.PASSWORD, PageViewRestriction.LOGIN, PageViewRestriction.GROUPS],
+)
+def test_richtext_links_to_restricted_pages_lose_the_anchor(competition, world, restriction_type):
+    """Tak samo jak odnośnik do szkicu: sam tekst, bo na ``dj.`` tej ścieżki nie będzie."""
+    home = world["home"]
+    closed = home.add_child(instance=ContentPage(title="Dla komitetu", slug="dla-komitetu"))
+    inherited = closed.add_child(instance=ContentPage(title="Protokół", slug="protokol"))
+    restrict(closed, restriction_type)
+    home.hero_text = (
+        f'<p><a linktype="page" id="{closed.pk}">komitet</a>, '
+        f'<a linktype="page" id="{inherited.pk}" anchor="punkt-2">protokół</a>, '
+        f'<a linktype="page" id="{world["problems"].pk}">zadania</a></p>'
+    )
+    home.save()
+
+    manifest, _, _ = export(competition)
+
+    expected = '<p>komitet, protokół, <a href="/zadania/">zadania</a></p>'
+    assert manifest["pages"][0]["fields"]["hero_text"] == expected
+    assert export_richtext(home.hero_text, site=competition.site, main_public_url=MAIN) == expected
+
+
+# --- adres konkursu ---------------------------------------------------------------------------------
+
+
+def test_bundle_of_another_competition_links_to_its_own_domain(competition, other_competition, world):  # noqa: ARG001
+    """``DJCMS_MAIN_PUBLIC_URL`` to domena główna – dokumenty konkursu #2 idą pod jego domenę."""
+    doc = world["public_doc"]
+    info = other_competition.site.root_page.add_child(
+        instance=ContentPage(
+            title="Info",
+            slug="info",
+            intro=f'<p><a linktype="document" id="{doc.pk}">regulamin</a> <a href="/register/">konto</a></p>',
+        )
+    )
+    ContentPageAttachment.objects.create(page=info, document=doc, label="PDF")
+
+    manifest, _, _ = export(other_competition)
+
+    domain = f"https://{other_competition.primary_domain}"
+    assert manifest["source"]["main_public_url"] == domain
+    intro = page_by_slug(manifest, "info")["fields"]["intro"]
+    assert f'<a href="{domain}/documents/{doc.pk}/{doc.filename}">regulamin</a>' in intro
+    assert f'<a href="{domain}/register/">konto</a>' in intro
+    assert manifest["documents"][str(doc.pk)]["url"] == f"{domain}/documents/{doc.pk}/{doc.filename}"
+
+
+def test_bundle_of_a_competition_without_an_address_is_refused(competition, other_competition, tmp_path):  # noqa: ARG001
+    type(other_competition).objects.filter(pk=other_competition.pk).update(primary_domain="")
+    other_competition.refresh_from_db()
+
+    with pytest.raises(NoPublicUrl):
+        build_bundle(other_competition, stream=io.BytesIO())
+    target = tmp_path / "paczka.zip"
+    with pytest.raises(CommandError, match="nie ma adresu"):
+        call_command("export_cms_bundle", "--competition", other_competition.slug, "--output", str(target))
+    assert not target.exists(), "odmowa przed otwarciem pliku – bez pustego ZIP-a"
 
 
 # --- tekst formatowany ----------------------------------------------------------------------------

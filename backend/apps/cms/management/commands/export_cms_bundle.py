@@ -6,7 +6,8 @@ instalacjami bez sieci compose'a. Raport idzie na **stderr**, bo stdout bywa sam
 (``--output -``): tekst wymieszany z bajtami ZIP-a dałby plik, którego nie otworzy żaden importer.
 
 Konkurs domyślny jest ten sam, co w API (``djcms_competition``): ``DJCMS_COMPETITION_SLUG`` albo
-konkurs witryny domyślnej.
+konkurs witryny domyślnej. Adresy aplikacji w paczce idą pod adres **tego** konkursu
+(``competition_public_base``); konkurs bez adresu kończy się błędem, zanim powstanie plik.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from pathlib import Path
 from django.core.management.base import BaseCommand, CommandError
 
 from apps.cms.djcms_api.auth import djcms_competition
+from apps.cms.djcms_api.serializers import competition_public_base
 from apps.cms.export_bundle import build_bundle
 from apps.tenancy.context import competition_context
 
@@ -40,16 +42,25 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         competition = self._competition(options["competition"])
         output = options["output"]
+        # Przed otwarciem pliku: konkurs bez adresu nie może zostawić po sobie pustego ZIP-a.
+        base = competition_public_base(competition)
+        if base is None:
+            raise CommandError(
+                f"Konkurs „{competition.slug}” nie ma adresu w aplikacji głównej (domena albo prefiks "
+                "ścieżki z otwartą bramką path_prefix_routing konkursu platformy)."
+            )
         with competition_context(competition):
             if output == "-":
                 # ``OutputWrapper`` Django pisze tekst; paczka jest binarna, więc piszemy do
                 # strumienia pod spodem (``sys.stdout.buffer`` albo strumień bajtów podany w teście).
                 target = self.stdout._out
-                report = build_bundle(competition, stream=getattr(target, "buffer", target))
+                report = build_bundle(
+                    competition, stream=getattr(target, "buffer", target), main_public_url=base
+                )
             else:
                 path = Path(output)
                 with path.open("wb") as handle:
-                    report = build_bundle(competition, stream=handle)
+                    report = build_bundle(competition, stream=handle, main_public_url=base)
         self.stderr.write(
             f"Paczka konkursu „{competition.slug}”: {report.pages} stron, {report.images} obrazów, "
             f"{report.documents} dokumentów."

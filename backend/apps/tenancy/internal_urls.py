@@ -21,11 +21,15 @@ strona CMS o takim adresie nie powstanie i nie przykryje tego wzorca.
 
 from __future__ import annotations
 
-from django.urls import include, path
+from django.urls import include, path, re_path
 
+from apps.cms.djcms_api.views import not_found as djcms_not_found
 from apps.tenancy.internal_views import tls_allowed
 
 urlpatterns = [
     path("tls-allowed", tls_allowed, name="tls-allowed"),
     path("djcms/v1/", include("apps.cms.djcms_api.urls")),
+    # Reszta gałęzi ``djcms`` (``/internal/djcms``, ``…/v1`` bez ukośnika, ``…/v2/…``): ta sama pusta
+    # 404, co pod ``v1/`` – inaczej 301 z ``APPEND_SLASH`` zdradzałby, że gałąź w ogóle istnieje.
+    re_path(r"^djcms(?:/.*)?$", djcms_not_found),
 ]

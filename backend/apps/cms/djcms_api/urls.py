@@ -6,7 +6,7 @@ Bez przestrzeni nazw i bez nazw wzorców: tych adresów nikt w aplikacji nie bud
 
 from __future__ import annotations
 
-from django.urls import path
+from django.urls import path, re_path
 
 from . import views
 
@@ -19,4 +19,7 @@ urlpatterns = [
     path("editions/<int:edition_id>/results", views.edition_results),
     path("workshops", views.workshops),
     path("export", views.export),
+    # Na końcu, zawsze: każdy inny adres gałęzi (także prawdziwy z ukośnikiem na końcu) to ta sama
+    # pusta 404, co porażka bramki – a nie 301 z ``APPEND_SLASH`` i strona 404 Wagtaila.
+    re_path(r"^.*$", views.not_found),
 ]

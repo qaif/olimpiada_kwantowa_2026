@@ -383,6 +383,35 @@ REPO_DIR="$CASE/repo" BACKUP_DIR="$CASE/backups" PATH="$BIN:$PATH" bash "$ROOT/s
 [ $rc -ne 0 ] && grep -q 'ani w daily/, ani w monthly/' "$CASE/out.txt"
 check "restore.sh --fetch: brak pliku = czytelny błąd" $?
 
+# --- 11. restore.sh: nowa baza bez CONNECT dla PUBLIC (docs/tasks/DJ-01.md § 8.9) ---------------
+# Baza odtworzona z kopii to pełne dane uczestników; w tym samym klastrze stoi rola z LOGIN wersji
+# porównawczej (`olimpiada_djcms`). CONNECT dla PUBLIC ma zniknąć zaraz po `createdb`, przed
+# `pg_restore` – a nazwa z `--db` ma trafić do SQL-a jako identyfikator w cudzysłowie.
+setup_case restore-acl
+printf 'PGDMP-atrapa' >"$CASE/backups/db-20260101T030000Z.dump.gpg"
+restore() {
+  REPO_DIR="$CASE/repo" BACKUP_DIR="$CASE/backups" PATH="$BIN:$PATH" bash "$ROOT/scripts/restore.sh" \
+    --dump db-20260101T030000Z.dump.gpg --files brak.tar.gpg "$@" >"$CASE/out.txt" 2>&1
+}
+restore; rc=$?
+create_line="$(grep -n 'compose exec -T db createdb -U olimpiada restore_20260101_030000$' "$DOCKER_LOG" | cut -d: -f1)"
+revoke_line="$(grep -nF 'REVOKE CONNECT ON DATABASE "restore_20260101_030000" FROM PUBLIC' "$DOCKER_LOG" | cut -d: -f1)"
+restore_line="$(grep -n 'compose exec -T db pg_restore' "$DOCKER_LOG" | cut -d: -f1)"
+[ $rc -eq 0 ] && [ -n "$create_line" ] && [ -n "$revoke_line" ] && [ -n "$restore_line" ] \
+  && [ "$revoke_line" -eq $((create_line + 1)) ] && [ "$revoke_line" -lt "$restore_line" ]
+check "restore.sh: REVOKE CONNECT FROM PUBLIC zaraz po createdb, przed pg_restore" $?
+grep -F 'REVOKE CONNECT' "$DOCKER_LOG" | grep -q -- '-U olimpiada -d postgres'
+check "restore.sh: REVOKE jako konto aplikacji (superuser, właściciel bazy), z bazy postgres" $?
+: >"$DOCKER_LOG"
+restore --db 'odtw"orzona'; rc=$?
+[ $rc -eq 0 ] && grep -qF 'REVOKE CONNECT ON DATABASE "odtw""orzona" FROM PUBLIC' "$DOCKER_LOG"
+check "restore.sh --db: nazwa bazy jako identyfikator z podwojonym cudzysłowem" $?
+: >"$DOCKER_LOG"
+restore --dry-run; rc=$?
+[ $rc -eq 0 ] && grep -q '\[próba\] docker compose exec -T db psql .*REVOKE CONNECT ON DATABASE "restore_20260101_030000" FROM PUBLIC' "$CASE/out.txt" \
+  && ! grep -q 'REVOKE\|createdb' "$DOCKER_LOG"
+check "restore.sh --dry-run: REVOKE tylko wypisany, nic nie wykonane" $?
+
 echo
 if [ "$failures" -eq 0 ]; then
   echo "Wszystkie sprawdzenia przeszły."

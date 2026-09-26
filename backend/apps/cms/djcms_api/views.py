@@ -8,6 +8,10 @@ Każdy widok:
   czytający „konkurs na teraz” (``current_edition(None)``, ``resolve_competition()``) widzi ten sam
   konkurs, co przy stronie Wagtaila. Brak konkursu → ``503 {"error": "no-competition"}``, a wersja
   ``dj.`` pokazuje wtedy komunikat o niedostępności zamiast cudzych danych,
+- buduje adresy aplikacji pod adresem **tego** konkursu (``serializers.competition_public_base``),
+  a nie pod ``DJCMS_MAIN_PUBLIC_URL``, które opisuje wyłącznie konkurs domeny głównej. Konkurs bez
+  ustalonego adresu → ``503 {"error": "no-public-url"}``: odnośniki „Zaloguj” czy „Wyniki” pod
+  cudzą domeną byłyby gorsze niż komunikat o niedostępności,
 - formatuje w języku polskim niezależnie od nagłówków żądania: wołający (klient ``dj.``) nie
   wysyła ``Accept-Language``, a napisy mają brzmieć tak samo jak na polskiej stronie Wagtaila,
 - oddaje ``Cache-Control: no-store``: stan etapu zmienia się z zegarem, a buforowanie jest
@@ -27,7 +31,7 @@ import tempfile
 from functools import wraps
 from urllib.parse import quote
 
-from django.http import FileResponse, JsonResponse
+from django.http import FileResponse, HttpResponseNotFound, JsonResponse
 from django.urls import reverse
 from django.utils import timezone, translation
 from django.utils.formats import date_format
@@ -83,7 +87,16 @@ def endpoint(view):
         competition = djcms_competition()
         if competition is None:
             return _json({"api_version": API_VERSION, "error": "no-competition"}, status=503)
-        with competition_context(competition), translation.override("pl"):
+        base = s.competition_public_base(competition)
+        if base is None:
+            logger.warning(
+                "Konkurs „%s” (DJCMS_COMPETITION_SLUG) nie ma adresu w aplikacji głównej – API dla dj. "
+                "odpowiada 503. Potrzebna domena konkursu albo prefiks ścieżki z otwartą bramką "
+                "path_prefix_routing konkursu platformy.",
+                competition.slug,
+            )
+            return _json({"api_version": API_VERSION, "error": "no-public-url"}, status=503)
+        with competition_context(competition), s.public_base_context(base), translation.override("pl"):
             return view(request, competition, *args, **kwargs)
 
     return wrapped
@@ -313,14 +326,26 @@ def edition_results(request, competition, edition_id: int):
     )
 
 
-def _page_path(page) -> str | None:
-    """Ścieżka strony względem korzenia jej witryny (``/warsztaty/``) – taka sama po imporcie na ``dj.``."""
+def _page_path(page, competition) -> str | None:
+    """Ścieżka strony względem korzenia witryny konkursu (``/warsztaty/``) – ta sama, co w paczce.
+
+    Z ``url_path`` (``export_bundle.site_path``), a nie z ``get_url_parts``: dla konkursu pod
+    prefiksem ścieżki Wagtail (przez ``apps.tenancy.page_urls``) dokleja ``/<prefiks>/``, którego
+    na ``dj.`` nie ma. Strona z ograniczonym dostępem (hasło, logowanie, grupy – także odziedziczone
+    po przodku) nie trafia do paczki, więc i jej ścieżki nie podajemy: na ``dj.`` byłaby 404.
+    """
+    from wagtail.models import Page
+
+    from apps.cms.export_bundle import site_path
+
     if page is None:
         return None
-    parts = page.get_url_parts()
-    if parts is None:
+    root = competition.site.root_page
+    if not page.url_path.startswith(root.url_path):
         return None
-    return s.api_href(parts[2]) or None
+    if not Page.objects.live().public().filter(pk=page.pk).exists():
+        return None
+    return site_path(page, root)
 
 
 def _materials_dto(competition) -> dict:
@@ -356,13 +381,27 @@ def workshops(request, competition):
     return _json(
         _envelope(
             {
-                "page_path": _page_path(page),
+                "page_path": _page_path(page, competition),
                 "upcoming": [s.workshop_dto(row) for row in upcoming_workshops(page)],
                 "rows": [s.workshop_dto(row) for row in workshop_rows(page)],
                 "materials": _materials_dto(competition),
             }
         )
     )
+
+
+# --- adres nieistniejący -------------------------------------------------------------------------
+
+
+def not_found(request, *args, **kwargs):
+    """Pusta 404 dla każdego adresu gałęzi, którego nie ma w ``urls.urlpatterns``.
+
+    Bez tego wzorca ``CommonMiddleware`` (``APPEND_SLASH``) odpowiadał na ``…/v1/nie-ma`` 301 na
+    adres z ukośnikiem (dopasowuje go catch-all Wagtaila), a tam – stroną 404 z marką konkursu. Adres
+    prawdziwy za zamkniętą bramką odpowiada pustą 404, więc różnica mówiła, które nazwy istnieją.
+    Bez bramek: odpowiedź i tak jest jedna, niezależnie od hosta, tokenu i metody.
+    """
+    return HttpResponseNotFound()
 
 
 # --- eksport treści (DJ-01b) ---------------------------------------------------------------------
@@ -379,7 +418,7 @@ def export(request, competition):
     from apps.cms.export_bundle import build_bundle
 
     spool = tempfile.SpooledTemporaryFile(max_size=EXPORT_SPOOL_BYTES)  # noqa: SIM115 - zamyka FileResponse
-    report = build_bundle(competition, stream=spool)
+    report = build_bundle(competition, stream=spool, main_public_url=s.current_public_base())
     spool.seek(0)
     logger.info(
         "Eksport paczki CMS dla dj.: %s stron, %s obrazów, %s dokumentów, %s pominięć.",

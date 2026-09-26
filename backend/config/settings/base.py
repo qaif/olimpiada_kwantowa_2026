@@ -902,10 +902,12 @@ if PLATFORM_SUBDOMAINS:
 #   ale niepusty token zgłasza ``manage.py check`` (``cms.W010``): to literówka, nie wyłączenie,
 # - ``DJCMS_COMPETITION_SLUG`` – konkurs, którego dane oddaje API. Puste = konkurs witryny
 #   domyślnej (ten, który stoi pod ``SITE_DOMAIN``), czyli Konkurs #1,
-# - ``DJCMS_MAIN_PUBLIC_URL`` – publiczny adres tej aplikacji. API zamienia na bezwzględne (z tym
-#   przedrostkiem) każdy adres aplikacji (logowanie, wyniki, PDF zadania, dokument), bo pod
+# - ``DJCMS_MAIN_PUBLIC_URL`` – publiczny adres tej aplikacji dla konkursu **domeny głównej**. API
+#   zamienia na bezwzględne każdy adres aplikacji (logowanie, wyniki, PDF zadania, dokument), bo pod
 #   ``dj.`` tych adresów nie ma – zostają względne wyłącznie ścieżki stron Wagtaila, które po
-#   imporcie istnieją także tam.
+#   imporcie istnieją także tam. Konkurs spoza domeny głównej (``DJCMS_COMPETITION_SLUG``) dostaje
+#   adres ze swojej domeny albo prefiksu ścieżki, a stąd bierze się tylko schemat i port
+#   (``apps.cms.djcms_api.serializers.competition_public_base``).
 DJCMS_INTERNAL_TOKEN = env("DJCMS_INTERNAL_TOKEN", default="")
 DJCMS_COMPETITION_SLUG = env("DJCMS_COMPETITION_SLUG", default="")
 DJCMS_MAIN_PUBLIC_URL = env("DJCMS_MAIN_PUBLIC_URL", default=f"https://{SITE_DOMAIN}")
