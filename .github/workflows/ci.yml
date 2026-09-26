@@ -96,6 +96,35 @@ jobs:
           DJANGO_SETTINGS_MODULE: config.settings.test
         run: python manage.py makemigrations --check --dry-run
 
+  djcms-routes:
+    name: djcms_routes --check (kontrakt tras)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/pyproject.toml
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Instalacja zależności
+        working-directory: backend
+        run: uv pip install --system -r pyproject.toml --extra dev
+
+      # Pliki `backend/djcms_contract/app_routes.{json,env}` mówią Caddy'emu i djcms, które adresy
+      # należą do aplikacji (docs/tasks/DJ-02.md § 6). Nowy ekran bez `djcms_routes --write` to
+      # adres, który po przełączeniu na django CMS trafiłby do djcms – czyli awaria widoczna
+      # dopiero na produkcji. Tak jak `makemigrations --check`: bez bazy, sam urlconf.
+      - name: Czy pliki kontraktu tras są aktualne
+        working-directory: backend
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.test
+        run: python manage.py djcms_routes --check
+
   translations:
     name: msgfmt (tłumaczenia)
     runs-on: ubuntu-latest

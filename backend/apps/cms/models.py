@@ -55,34 +55,66 @@ from .workshops import WORKSHOP_KEY_LENGTH, WORKSHOPS_SLUG, upcoming_workshops
 
 #: Adresy pierwszego segmentu, które należą do aplikacji (``config/urls.py`` + ``apps/web/urls.py``).
 #: Strona CMS z takim slugiem na drugim poziomie drzewa byłaby martwa – patrz docstring modułu.
-#: Lista jest jawna, a nie wyprowadzana z urlconfa: ``reverse()`` nie zna adresów, które dopiero
-#: powstaną, a slug raz opublikowany zostaje w linkach i w wyszukiwarkach.
+#: Lista jest jawna, a nie wyprowadzana z urlconfa w locie: slug raz opublikowany zostaje w linkach
+#: i w wyszukiwarkach, więc rezerwacja ma być decyzją widoczną w przeglądzie zmian, a nie skutkiem
+#: ubocznym dopisania wzorca. Kompletność wobec urlconfu pilnuje manifest tras
+#: (``apps.core.app_routes``, DJ-02 § 6): test ``apps/core/tests/test_app_routes.py`` i kontrola
+#: ``cms.W011`` wypisują każdy pierwszy segment aplikacji, którego tu brakuje. Do DJ-02a brakowało
+#: ich siedemnastu – strona „/forum/” czy „/konto/” dawała redaktorowi „opublikowano”, a czytelnikowi
+#: ekran aplikacji.
 RESERVED_SLUGS = frozenset(
     {
+        # Wzorce ``_util/…`` z ``wagtail.urls`` (logowanie do stron z ograniczonym dostępem) stoją
+        # przed catch-allem Wagtaila, więc i one są adresem aplikacji.
+        "_util",
+        "account",
+        # ``/accounts/<dostawca>/login/…`` – logowanie przez Google/Facebooka (``apps.web.social_urls``).
+        "accounts",
+        "activate",
         "admin",
         "api",
         "appeals",
+        "captcha",
         "cms",
         "coordinator",
+        # Adresy aplikacyjne serwisu na django CMS (admin, podgląd, SSO, statyki – DJ-02 § 1.2 D2).
+        # W ``web`` nie ma wzorca pod tym segmentem, ale Caddy kieruje ``/djcms/*`` do djcms
+        # w każdym bloku aplikacji, więc strona Wagtaila o tym slugu byłaby martwa tak samo.
+        "djcms",
         "documents",
+        "dyplomy",
+        "forum",
         "healthz",
+        "i18n",
         # Gałąź adresów wewnętrznych platformy (``/internal/tls-allowed`` – pytanie Caddy'ego
         # o certyfikat konkursu w subdomenie). Woła ją infrastruktura, nie człowiek, więc strona
         # CMS o tym slugu byłaby martwa **i** przykryłaby adres, od którego zależy TLS.
         "internal",
+        "konto",
         "login",
         "logout",
         "me",
+        # Wzorzec istnieje tylko przy ``DEBUG`` (``static(MEDIA_URL)``), ale slug zostaje zajęty
+        # zawsze: strona, która działa na produkcji, a znika na laptopie, to gorszy błąd niż brak.
         "media",
+        "password-reset",
+        "plakaty",
         "register",
+        "rejestracja",
+        "reset",
         "results",
         "review",
+        # Statyki podaje Caddy przed ``web`` – wzorca w urlconfie nie ma, adres jest zajęty.
         "static",
         # Strona statusu serwisu i zgłoszenia do organizatora – oba adresy obsługuje aplikacja
         # (``config/urls.py`` i ``apps/web/urls.py``), więc strona CMS o takim slugu byłaby martwa.
         "setup",
         "status",
+        "statystyki",
+        "supervisor",
         "support",
+        "zaproszenie",
+        "zgoda",
     }
 )
 

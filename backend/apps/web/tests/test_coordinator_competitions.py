@@ -161,7 +161,9 @@ def test_the_list_does_not_show_a_competition_of_someone_else(coordinator_client
 # --- walidacja identyfikatora ----------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("slug", ["www", "mail", "ns1", "admin", "cms", "internal", "setup", "dj"])
+@pytest.mark.parametrize(
+    "slug", ["www", "mail", "ns1", "admin", "cms", "internal", "setup", "dj", "djcms", "forum", "plakaty"]
+)
 def test_a_reserved_label_is_refused(coordinator_client, slug):
     """Nazwy poczty, serwerów nazw i adresów aplikacji nie mogą zostać identyfikatorem konkursu."""
     client, _ = coordinator_client
