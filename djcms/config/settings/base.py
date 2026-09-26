@@ -47,6 +47,8 @@ INSTALLED_APPS = [
     "filer",
     "easy_thumbnails",
     "apps.pages",
+    # Klient API aplikacji głównej i rama z endpointu ``chrome`` (DJ-01d); wtyczki żywe – DJ-01f.
+    "apps.live",
 ]
 
 MIDDLEWARE = [
@@ -56,6 +58,9 @@ MIDDLEWARE = [
     # dostać także pliki statyczne, odmowy CSRF i strony błędów.
     "apps.pages.middleware.ContentSecurityPolicyMiddleware",
     "apps.pages.middleware.NoIndexMiddleware",
+    # ``X-Djcms-Degraded: 1`` na stronie złożonej bez świeżych danych z API (§ 8.3) – nagłówek
+    # czyta dopiero po wyrenderowaniu szablonu, więc wystarczy, że stoi na zewnątrz widoku.
+    "apps.live.middleware.DegradedHeaderMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     # Wymagane przez ``cms check`` (lista w ``cms/utils/check.py`` 5.1.3), mimo jednego języka.
@@ -88,6 +93,8 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "cms.context_processors.cms_settings",
                 "sekizai.context_processors.sekizai",
+                # ``dj_chrome`` – leniwe dane ramy z API (nie pyta API, dopóki szablon nie sięgnie).
+                "apps.live.context_processors.chrome",
             ],
         },
     }
@@ -244,8 +251,8 @@ STORAGES = {
 }
 
 # --- Aplikacja główna (API wewnętrzne, § 8.3) --------------------------------------------------
-# Klient API powstaje w DJ-01d; zmienne są tu od szkieletu, żeby compose i ustawienia miały jeden
-# kontrakt od początku.
+# Klient: ``apps/live/client.py``. ``DJCMS_API_TIMEOUT`` to limit **całego** żądania; pojedyncza
+# operacja gniazda (połączenie, odczyt) ma najwyżej 1 s (``client.CONNECT_TIMEOUT_SECONDS``).
 DJCMS_MAIN_API_URL = env("DJCMS_MAIN_API_URL", default="http://web:8000/internal/djcms/v1/")
 DJCMS_INTERNAL_TOKEN = env("DJCMS_INTERNAL_TOKEN", default="")
 DJCMS_MAIN_PUBLIC_URL = env("DJCMS_MAIN_PUBLIC_URL", default="http://localhost:8000")

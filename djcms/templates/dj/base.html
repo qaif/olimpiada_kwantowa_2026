@@ -1,27 +1,201 @@
-{% load cms_tags sekizai_tags %}<!doctype html>
+{% load static cms_tags menu_tags sekizai_tags dj_live dj_pages %}<!doctype html>
 {% comment %}
-  Szkielet ramy djcms (DJ-01c). Pełny port ``backend/templates/base.html`` (nagłówek, menu, stopka,
-  komunikaty, slider, pasek osi czasu – karmione z API ``chrome``) przychodzi w DJ-01d.
-  Tu są już elementy, których wymaga bezpieczeństwo, więc nie mogą czekać na port:
-  - ``<meta name="robots">`` – druga z trzech dróg noindex (reguła 10),
-  - ``nonce`` na każdym ``<script>`` publicznego szablonu (reguła 6) – ``request.csp_nonce``
-    nadaje ``apps.pages.middleware.ContentSecurityPolicyMiddleware``,
-  - ``{% cms_toolbar %}`` i bloki sekizai – bez nich redaktor nie ma paska narzędzi.
+  Rama serwisu dj. – PORT ``backend/templates/base.html`` (DJ-01 § 8.5). Klasy CSS i struktura DOM
+  jak w oryginale, bo arkusz jest ten sam (``backend/static`` montowany/kopiowany do
+  ``DJCMS_SHARED_STATIC_DIR``). Zmieniając ramę głównej aplikacji, zmień też ten plik (ryzyko 3 speca).
+
+  Różnice wobec oryginału – wszystkie celowe:
+  - dane ramy (nazwa, organizator, rejestracja, komunikaty, slider, pasek osi czasu) przychodzą
+    z API ``chrome`` (``dj_chrome`` = ``apps.live.chrome.LiveChrome``, leniwie, raz na odsłonę); przy
+    martwym API rama zostaje, a znika to, czego nie da się pokazać bez danych (§ 8.3),
+  - menu z drzewa django CMS (``show_menu`` + ``apps.pages.cms_menus.DjMenuModifier``),
+  - pasek konta zawsze w wariancie anonimowym i bez przełączników języka/kontrastu (to funkcje
+    konta aplikacji głównej); logowanie, rejestracja i „Zgłoś problem” prowadzą na domenę główną,
+  - bez Google Analytics, HTMX i Alpine'a (żaden publiczny szablon ``cms/`` ich nie używa);
+    pasek cookie w wariancie „tylko niezbędne”,
+  - ``<meta name="robots">`` (druga z trzech dróg noindex, reguła 10), ``{% templatetag openblock %} cms_toolbar {% templatetag closeblock %}``
+    i bloki sekizai (pasek narzędzi redaktora),
+  - w stopce zamiast numeru wersji: odnośnik do tej samej strony w wersji Wagtail i dopisek o wersji testowej.
+
+  Każdy ``<script>`` ma ``nonce="{{ request.csp_nonce }}"`` – publiczna polityka CSP nie ma
+  ``'unsafe-inline'`` (reguła 6; pilnuje test ``apps/pages/tests/test_frame.py``). Skrypty
+  dokładane przez wtyczki blokiem sekizai ``js`` muszą nieść ten sam nonce.
 {% endcomment %}
 <html lang="pl">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
-  <title>{% block title %}{% page_attribute "page_title" %}{% endblock %}</title>
-  {% block meta_description %}<meta name="description" content="{% page_attribute "meta_description" %}">{% endblock %}
+  <title>{% block title %}{% page_attribute "page_title" %} – {{ dj_chrome.site_name }}{% endblock %}</title>
+  <meta name="theme-color" content="#12233f" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f1726" media="(prefers-color-scheme: dark)">
+  {% page_attribute "meta_description" as page_description %}
+  <meta name="description" content="{% block description %}{{ page_description|default:"Ogólnopolska olimpiada dla uczniów szkół ponadpodstawowych: terminy etapów, zadania, wyniki oraz panel uczestnika, recenzenta i komitetu." }}{% endblock %}">
+  <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
+  <link rel="icon" href="{% static 'img/logo-mark-512.png' %}" type="image/png" sizes="512x512">
+  <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
+  <meta property="og:site_name" content="{{ dj_chrome.site_name }}">
+  <meta property="og:title" content="{% block og_title %}{{ dj_chrome.site_name }}{% endblock %}">
+  <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'img/og-image.png' %}">
+  <meta property="og:type" content="website">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="{% static 'fonts/inter-latin-ext-400.woff2' %}">
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="{% static 'fonts/source-serif-4-latin-ext-700.woff2' %}">
   {% render_block "css" %}
+  {% comment %}
+    Te same skrypty i w tej samej kolejności co w oryginale (uzasadnienia przy każdym tam), bez
+    ``analytics.js``, HTMX i Alpine'a. ``app.js`` rejestruje komponenty Alpine'a na zdarzeniu
+    ``alpine:init`` – bez Alpine'a to zdarzenie po prostu nie nadchodzi, a reszta pliku to
+    nasłuch zdarzeń HTMX, które też nie nadejdą. ``consent.js`` jedyny bez ``defer`` (pasek cookie).
+  {% endcomment %}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/app.js' %}"></script>
+  <script nonce="{{ request.csp_nonce }}" src="{% static 'js/consent.js' %}"></script>
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/sticky-bar.js' %}"></script>
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/table-scroll.js' %}"></script>
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/timeline-strip.js' %}"></script>
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/announcements.js' %}"></script>
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/sponsor-slider.js' %}"></script>
+  {% block page_scripts %}{% endblock %}
+  {% block head %}{% endblock %}
 </head>
 <body>
-  {% cms_toolbar %}
-  <main id="main-content">
-    {% block content %}{% endblock %}
-  </main>
-  {% render_block "js" %}
+{% cms_toolbar %}
+<a class="skip-link" href="#tresc">Przejdź do treści</a>
+<div class="topbar topbar--account">
+  <div class="topbar__account">
+    <div class="topbar__account-inner">
+    <a class="brand" href="/">
+      <span class="brand__logo"><img src="{% static 'img/logo-olimpiada-kwantowa.png' %}"
+           srcset="{% static 'img/logo-olimpiada-kwantowa.png' %} 1x, {% static 'img/logo-olimpiada-kwantowa@2x.png' %} 2x"
+           alt="" width="600" height="231"></span>
+      <span class="brand__mark visually-hidden">{{ dj_chrome.site_name }}</span>
+      {% if dj_chrome.edition %}<span class="brand__sub">{{ dj_chrome.edition.title }}</span>{% endif %}
+    </a>
+    {% show_menu 0 1 1 1 "dj/menu/primary.html" %}
+    <nav class="account-bar" aria-label="Konto">
+      {% comment %}
+        Zawsze wariant anonimowy: konta ``dj.`` (redaktorzy django CMS) nie mają nic wspólnego
+        z kontami uczestników. Kolejność jak w oryginale: zgłoszenie problemu, logowanie,
+        rejestracja. Przy martwym API zostaje samo „Zaloguj się” z adresem zapasowym (§ 8.3) –
+        o stanie rejestracji bez API nie wiemy nic, więc przycisku nie zgadujemy.
+      {% endcomment %}
+      {% with links=dj_chrome.links registration=dj_chrome.registration %}
+        {% if links.support %}<a class="account-bar__link" href="{{ links.support }}">Zgłoś problem</a>{% endif %}
+        <a class="btn btn--small btn--secondary account-bar__btn" href="{{ dj_chrome.login_url }}">Zaloguj się</a>
+        {% if links.register %}
+          {% if registration.is_open %}
+            <a class="btn btn--small btn--accent account-bar__btn" href="{{ links.register }}">Zarejestruj się</a>
+          {% elif registration.reason == "not_yet" %}
+            <a class="btn btn--small btn--accent account-bar__btn" href="{{ links.register }}">Rejestracja rusza {{ registration.opens_at_display }}</a>
+          {% endif %}
+        {% endif %}
+      {% endwith %}
+    </nav>
+    </div>
+  </div>
+</div>
+<header class="topbar">
+  <div class="topbar__inner">
+    <nav class="nav nav--cms" aria-label="Serwis">
+      {% show_menu 0 1 1 1 "dj/menu/nav.html" %}
+      {% comment %}
+        „Dla szkół/nauczycieli” – ostatnia pozycja, lista rozwijana jak w oryginale
+        (``_supervisor_menu_item``). Nie jest stroną drzewa: pozycje prowadzą na domenę główną
+        i zależą od stanu serwisu (przełącznik rejestracji opiekunów, opublikowane plakaty).
+      {% endcomment %}
+      {% with kids=dj_chrome.supervisor_menu %}{% if kids %}
+        <details class="nav-menu">
+          <summary class="nav__link nav-menu__summary">Dla szkół/nauczycieli</summary>
+          <ul class="nav-menu__list">
+            {% for kid in kids %}
+              <li><a class="nav-menu__link" href="{{ kid.url }}">{{ kid.title }}</a></li>
+            {% endfor %}
+          </ul>
+        </details>
+      {% endif %}{% endwith %}
+      {% include "dj/partials/_sponsor_slider.html" with sponsor_slider=dj_chrome.sponsor_slider %}
+    </nav>
+  </div>
+</header>
+
+{% include "dj/partials/_announcements.html" with announcements=dj_chrome.announcements %}
+
+{% if messages %}
+  <ul class="messages">
+    {% for message in messages %}
+      <li class="msg msg-{{ message.tags }}">{{ message }}</li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
+<main class="page" id="tresc">
+  {% block content %}{% endblock %}
+</main>
+
+<div class="timeline-dock">{% block timeline_strip %}{% include "dj/partials/_timeline_strip.html" with strip=dj_chrome.timeline_strip %}{% endblock %}</div>
+
+<footer class="footer">
+  <div class="footer__inner">
+    {% with site=dj_chrome.site links=dj_chrome.links %}
+    <div>
+      <p><strong>{{ dj_chrome.site_name }}</strong>{% if site.tagline %} – {{ site.tagline }}{% endif %}</p>
+      <p>Dane osobowe uczestników są przetwarzane zgodnie z zasadą minimalizacji (RODO): w publicznych tabelach wyników występuje wyłącznie kod uczestnika, a pełne dane widzi jedynie koordynator.</p>
+      {% comment %}
+        RODO i cookies – ścieżki **względne**: po imporcie te strony istnieją na ``dj.`` pod tym
+        samym adresem (§ 8.5). „Zgłoś problem” i plakaty to widoki aplikacji – na domenę główną.
+      {% endcomment %}
+      <p class="footer__links">
+        <a href="/dokumenty/rodo/">Polityka prywatności (RODO)</a>
+        <a href="/dokumenty/cookies/">Polityka plików cookie</a>
+        {% if links.support %}<a class="footer__link" href="{{ links.support }}">Zgłoś problem</a>{% endif %}
+        {% if links.posters %}<a href="{{ links.posters }}">Plakaty do pobrania</a>{% endif %}
+      </p>
+      {% include "dj/partials/_social_links.html" with links=site.social_links css_class="footer__social" %}
+    </div>
+    <div>
+      {% if site.organizer_name %}
+        <p class="footer__meta footer__organizer">
+          {% if site.organizer_logo.src %}
+            <span class="footer__logo"><img src="{{ site.organizer_logo.src }}" width="{{ site.organizer_logo.width }}" height="{{ site.organizer_logo.height }}" alt="" loading="lazy"></span>
+          {% endif %}
+          <span>Organizator: <strong>{{ site.organizer_name }}</strong></span>
+        </p>
+      {% endif %}
+      {% if site.organizer_address %}<p class="footer__meta">{{ site.organizer_address }}</p>{% endif %}
+      {% if site.organizer_registry %}<p class="footer__meta">{{ site.organizer_registry }}</p>{% endif %}
+      {% if site.contact_email or site.contact_phone or site.contact_url %}
+        <p class="footer__meta">
+          {% if site.contact_email %}<a href="mailto:{{ site.contact_email }}">{{ site.contact_email }}</a>{% endif %}
+          {% if site.contact_phone %}· <a href="tel:{{ site.contact_phone|cut:' ' }}">{{ site.contact_phone }}</a>{% endif %}
+          {% if site.contact_url %}· <a href="{{ site.contact_url }}">{{ site.contact_url }}</a>{% endif %}
+        </p>
+      {% endif %}
+      {% comment %}
+        Tu w oryginale stoi numer wersji aplikacji. Na ``dj.`` w tym miejscu: droga do tej samej
+        strony w wersji Wagtail (porównanie obok siebie) i informacja, czym jest ta wersja.
+      {% endcomment %}
+      <p class="footer__meta"><a href="{{ dj_chrome.main_page_url }}">Ta strona w wersji Wagtail</a></p>
+      <p class="footer__meta">Wersja testowa (django CMS) – nieindeksowana</p>
+    </div>
+    {% endwith %}
+  </div>
+</footer>
+{% comment %}
+  Pasek cookie – wariant „tylko niezbędne” z oryginału (bez identyfikatora GA): ``dj.`` stawia
+  wyłącznie ciasteczka niezbędne (sesja i CSRF redaktora), więc to informacja, nie pytanie o zgodę.
+{% endcomment %}
+<div class="cookie-notice" data-cookie-notice role="region" aria-label="Informacja o plikach cookie">
+  <div class="cookie-notice__inner">
+    <p class="cookie-notice__text">Ten serwis używa wyłącznie niezbędnych plików cookie (sesja
+      logowania, zabezpieczenie formularzy). Nie używamy cookies reklamowych ani analitycznych.
+      <a class="cookie-notice__link" href="/dokumenty/cookies/">Polityka plików cookie</a></p>
+    <button type="button" class="btn btn--small btn--accent cookie-notice__ok"
+            data-cookie-notice-dismiss>Rozumiem</button>
+  </div>
+</div>
+{% block scripts %}{% endblock %}
+{% render_block "js" %}
 </body>
 </html>

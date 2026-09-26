@@ -1,0 +1,113 @@
+{% comment %}
+  PORT dla dj. (DJ-01 § 8.5) – ``backend/templates/cms/_timeline_strip.html``. Słownik ``chrome.timeline_strip`` liczy aplikacja
+  główna tą samą funkcją, co dla stron Wagtaila; daty osi przychodzą jako ``YYYY-MM-DD`` (bez filtra ``date``),
+  a adresy (``url``) już przez ``api_href`` – strony drzewa względne, widoki aplikacji na domenę główną.
+  Znaczniki i klasy CSS identyczne z oryginałem (ten sam arkusz); zmieniając oryginał, zmień też ten plik.
+{% endcomment %}
+{% comment %}
+  Linia czasu edycji w nagłówku każdej strony – wzorowana na pasku z oi.edu.pl, liczona z bazy.
+
+  **W spoczynku to jedna linia i nic więcej.** Nagłówek serwisu ma zachować swoją wysokość, więc
+  poza kursorem widać wyłącznie wykres w klamrach: ``=`` za nami, ``>`` dzisiaj, ``.`` przed nami,
+  a wydarzenia jako kreski ``|``. Wiersze „kodu” (``rok_szkolny(…)``), legenda terminów i warstwa
+  „pomiaru” siedzą w panelu zwiniętym do zera wysokości (``.tl-panel``, ``grid-template-rows: 0fr``).
+
+  **Panel rozwija się w dół** po najechaniu na pasek, po wejściu w niego klawiszem
+  (``:focus-within``) i – na ekranach dotykowych, gdzie najechania nie ma – po dotknięciu kreski
+  (klasa ``is-open`` ze static/js/timeline-strip.js). Rozwija się **pod** paskiem, więc sam wykres
+  nie drgnie; szerokość nie zmienia się nigdy, bo panel jest w tej samej kolumnie co pasek.
+
+  Legenda zastąpiła dymki przypięte do kresek. Dymek był nakładką nad jednym znacznikiem: przy
+  kilkunastu warsztatach – a każdy jest od tej zmiany osobnym wydarzeniem – trzeba było najechać
+  na każdą kreskę z osobna, żeby dowiedzieć się, co to za termin. Legenda pokazuje wszystkie naraz,
+  w kolejności chronologicznej, a najechanie na kreskę podświetla jej chip (i odwrotnie).
+
+  Dwie postacie tej samej treści, rozłączne – zawsze dokładnie jedna jest w drzewie dostępności:
+
+  - ``<pre class="tl--bar">`` + panel – od 640 px w górę. Znaki wykresu są ``aria-hidden`` (czytnik
+    ekranu przeczytałby z nich ciąg kropek), a nazwę i termin niesie ``aria-label`` kreski. Panel
+    jest w całości ``aria-hidden``, bo powtarza dokładnie to, co już stoi w tych etykietach,
+  - ``<details class="tl-list">`` – zwinięty kalendarz poniżej 640 px, gdzie 102 znaki miałyby
+    wysokość dwóch pikseli. Arkusz chowa wtedy wykres (``display: none``, czyli także poza drzewem
+    dostępności – nic nie jest czytane dwa razy).
+
+  ``{% templatetag openblock %} spaceless {% templatetag closeblock %}`` wokół samego wykresu nie
+  jest kosmetyką: w ``<pre>`` każdy odstęp między znacznikami byłby widocznym znakiem, a bez tego
+  cały wykres musiałby stać w jednym nieczytelnym wierszu źródła.
+
+  Wszystko poniżej jest policzone na serwerze: strona bez JavaScriptu ma komplet terminów,
+  właściwie ustawioną głowicę i rozwijający się panel (rozwija go sam CSS). Skrypt dokłada trzy
+  rzeczy: przesuwa głowicę w karcie zostawionej otwartej, rysuje warstwę „pomiaru” pod kursorem
+  i wiąże kreskę z chipem (podświetlenie oraz dotknięcie na ekranie bez najechania).
+{% endcomment %}
+{% if strip %}
+<div class="timeline-strip" data-timeline-strip
+     data-axis-start="{{ strip.axis_start }}"
+     data-axis-end="{{ strip.axis_end }}"
+     data-head="{{ strip.head }}"
+     data-size="{{ strip.size }}">
+  {% comment %}
+    Warstwa „pomiaru”: płótno rysowane wyłącznie przez skrypt i wyłącznie pod kursorem. Jest
+    ułożone bezwzględnie (``position: absolute``), więc nie zajmuje ani piksela układu – ani
+    w spoczynku, ani po rozwinięciu panelu. Bez skryptu, na dotyku i przy
+    ``prefers-reduced-motion`` zostaje pustym elementem bez rozmiaru.
+  {% endcomment %}
+  <canvas class="tl__quantum" data-tl-quantum aria-hidden="true" width="0" height="0"></canvas>
+  <p class="visually-hidden">Pomiar: funkcja falowa zapada się na wskazanym wydarzeniu.</p>
+  <pre class="tl tl--bar">{% spaceless %}<span class="tl__bar"><span class="tl__bracket" aria-hidden="true">[</span>
+    {% for cell in strip.cells %}
+      {% if cell.url %}
+        <a class="{{ cell.css_class }}" href="{{ cell.url }}" data-tl-cell="{{ cell.index }}" data-tl-mark data-tl-items="{{ cell.indexes }}" aria-label="{{ cell.label }}">{{ cell.char }}</a>
+      {% elif cell.items %}
+        <button type="button" class="{{ cell.css_class }}" data-tl-cell="{{ cell.index }}" data-tl-mark data-tl-items="{{ cell.indexes }}" aria-label="{{ cell.label }}">{{ cell.char }}</button>
+      {% else %}
+        <span class="{{ cell.css_class }}" data-tl-cell="{{ cell.index }}" aria-hidden="true">{{ cell.char }}</span>
+      {% endif %}
+    {% endfor %}<span class="tl__bracket" aria-hidden="true">]</span></span>{% endspaceless %}</pre>
+  <div class="tl-panel" aria-hidden="true">
+    <div class="tl-panel__inner">
+      <pre class="tl tl--code">{% for line in strip.header_lines %}{{ line }}{% if not forloop.last %}
+{% endif %}{% endfor %}</pre>
+      {% comment %}
+        Legenda: zwykły zawijany rząd chipów w kolejności chronologicznej. Zawijany, a nie
+        pozycjonowany procentowo – dwa terminy tego samego tygodnia stanęłyby jeden na drugim,
+        a przy kilkunastu warsztatach nie byłoby ich w ogóle jak rozstawić na osi bez nachodzenia.
+        Chip nie jest odnośnikiem: klikalna jest kreska na pasku, a legenda tylko ją tłumaczy.
+      {% endcomment %}
+      <ul class="tl-legend">
+        {% for item in strip.items %}
+          <li class="tl-legend__chip tl-legend__chip--{{ item.status }}" data-tl-chip="{{ item.index }}">
+            <span class="tl-legend__title">{{ item.title }}</span>
+            <span class="tl-legend__dates">{{ item.dates }}</span>
+            {% if item.note %}<span class="tl-legend__note">{{ item.note }}</span>{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% comment %}
+    Postać telefonowa: zwinięty kalendarz. ``<details>`` zamiast rozwiniętej listy, bo edycja ma
+    kilkanaście terminów i rozwinięta lista zajmowałaby pół pierwszego ekranu na **każdej** stronie
+    serwisu. Zwinięta pokazuje jedno zdanie – to, które odpowiada na pytanie „gdzie jesteśmy”.
+    Rozwijanie robi przeglądarka: ``<details>`` działa dotknięciem i klawiszem, bez JavaScriptu
+    i bez atrybutów ARIA – tak samo, jak rozwijana pozycja menu serwisu w tym samym nagłówku.
+  {% endcomment %}
+  <details class="tl-list">
+    <summary class="tl-list__summary">
+      {% if strip.lead %}<span class="tl-list__mark tl-list__mark--{{ strip.lead.status }}" aria-hidden="true">&gt;</span>
+        <span class="tl-list__title">{{ strip.lead.title }}</span>
+        <span class="tl-list__dates">{{ strip.lead.dates }}</span>{% else %}Kalendarz edycji {{ strip.edition }}{% endif %}
+    </summary>
+    <ul class="tl-list__items" aria-label="Kalendarz edycji {{ strip.edition }}">
+      {% for item in strip.items %}
+        <li class="tl-list__item tl-list__item--{{ item.status }}">
+          <span class="tl-list__mark" aria-hidden="true">&gt;</span>
+          {% if item.url %}<a class="tl-list__title" href="{{ item.url }}"{% if request and item.url == request.path %} aria-current="page"{% endif %}>{{ item.title }}</a>{% else %}<span class="tl-list__title">{{ item.title }}</span>{% endif %}
+          <span class="tl-list__dates">{{ item.dates }}</span>
+          {% if item.note %}<span class="tl-list__note">{{ item.note }}</span>{% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  </details>
+</div>
+{% endif %}
