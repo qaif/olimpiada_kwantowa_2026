@@ -1,0 +1,15 @@
+{% load cms_tags dj_pages %}{% comment %}
+  Karta „Do pobrania” – PORT ``backend/templates/cms/_attachments.html``, wspólna dla dokumentu
+  (``dj/pages/document.html``) i strony treści (``dj/pages/content.html``). Wiersze to wtyczki
+  „Plik do pobrania” w slocie ``attachments`` (``dj/blocks/attachment.html``); karta stoi tylko
+  wtedy, gdy slot coś wyrenderował – w trybie edycji zawsze, żeby było gdzie dodać pierwszy plik.
+{% endcomment %}
+{% dj_capture as attachments_html %}{% placeholder "attachments" %}{% end_dj_capture %}
+{% if attachments_html|dj_filled %}
+  <div class="card card--accent doc-download">
+    <p class="doc-download__title">Do pobrania</p>
+    <ul class="doc-files">
+      {{ attachments_html }}
+    </ul>
+  </div>
+{% endif %}

@@ -1,0 +1,21 @@
+<!doctype html>
+{% comment %}
+  Strona 500 djcms (DJ-02 § 8: statyczna, bez API i bez zapytań). Django renderuje ją **bez
+  kontekstu** (``handler500`` nie ma żądania w szablonie), więc tylko statyczny tekst – żadnych
+  tagów zależnych od żądania czy bazy. Noindex zawsze – strona błędu nie jest treścią; nagłówek
+  ``X-Robots-Tag`` dokłada warstwa wyłącznie w ``preview``.
+{% endcomment %}
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Błąd serwera</title>
+</head>
+<body>
+  <main>
+    <h1>Coś poszło nie tak</h1>
+    <p>Spróbuj ponownie za chwilę. <a href="/">Wróć na stronę główną</a>.</p>
+  </main>
+</body>
+</html>

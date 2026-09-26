@@ -1,0 +1,53 @@
+{% extends "dj/base.html" %}
+{% load cms_tags dj_pages %}
+{% comment %}
+  „Dokumenty (spis)” (CMS_TEMPLATES) – PORT ``backend/templates/cms/document_index_page.html``
+  (uzasadnienia układu karty tam). Slot ``intro`` (tekst). Karty: opublikowane strony-dzieci typu
+  „Dokument” w kolejności drzewa – metryka ``DocumentMeta``, zajawka (28 słów wprowadzenia albo
+  opis SEO) i przyciski plików z ich slotu ``attachments`` (``apps.pages.content.document_cards``).
+{% endcomment %}
+{% block description %}Dokumenty Olimpiady: regulamin, polityka RODO, standardy ochrony małoletnich i skład komitetów – do przeczytania na stronie i do pobrania.{% endblock %}
+{% block content %}
+{% dj_document_cards as documents %}
+{% dj_capture as intro %}{% placeholder "intro" %}{% end_dj_capture %}
+
+<div class="page-head">
+  <span class="eyebrow">Organizator</span>
+  <h1>{% page_attribute "title" %}</h1>
+  {% if intro|dj_filled %}<div class="cms-body prose">{{ intro }}</div>{% endif %}
+</div>
+
+<ul class="cards cards--wide doc-index">
+  {% for document in documents %}
+    <li>
+      <article class="card doc-card">
+        <h2 class="doc-card__title"><a href="{{ document.url }}">{{ document.title }}</a></h2>
+
+        {% with meta=document.meta %}{% if meta.is_filled %}
+          <p class="article__meta doc-card__meta">
+            {% if meta.version_label %}<span class="doc-meta__item">Wersja {{ meta.version_label }}</span>{% endif %}
+            {% if meta.document_date %}
+              <time class="doc-meta__item" datetime="{{ meta.document_date|date:'Y-m-d' }}">{{ meta.document_date }}</time>
+            {% endif %}
+            {% if meta.status_label %}<span class="tag">{{ meta.status_label }}</span>{% endif %}
+          </p>
+        {% endif %}{% endwith %}
+
+        {% if document.summary %}<p class="doc-card__lead">{{ document.summary }}</p>{% endif %}
+
+        <div class="card__foot doc-card__actions">
+          <a class="btn btn--small btn--primary" href="{{ document.url }}">Czytaj</a>
+          {% for item in document.attachments %}
+            <a class="btn btn--small btn--secondary" href="{{ item.href }}" download
+               title="{{ item.label|default:item.file_title }}">Pobierz {{ item.file_extension|upper }}</a>
+          {% endfor %}
+        </div>
+      </article>
+    </li>
+  {% empty %}
+    <li class="empty"><span class="empty__title">Brak dokumentów</span>
+      Nie opublikowano jeszcze żadnego dokumentu w tej sekcji.</li>
+  {% endfor %}
+</ul>
+
+{% endblock %}

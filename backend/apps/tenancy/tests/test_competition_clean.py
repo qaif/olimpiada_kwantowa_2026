@@ -44,9 +44,12 @@ def test_prefix_equal_to_an_existing_page_slug_is_rejected(competition):
     assert "adresem strony" in excinfo.value.message_dict["path_prefix"][0]
 
 
-def test_prefix_from_the_application_reserved_list_keeps_its_own_message(competition):
+@pytest.mark.parametrize("prefix", ["coordinator", "djcms", "forum", "konto"])
+def test_prefix_from_the_application_reserved_list_keeps_its_own_message(competition, prefix):
+    """``djcms`` to adresy aplikacyjne django CMS (DJ-02 D2), ``forum``/``konto`` – segmenty,
+    których ręczna lista nie znała przed DJ-02a; prefiks konkursu przechwyciłby je wszystkie."""
     with pytest.raises(ValidationError) as excinfo:
-        _competition_with_prefix("coordinator").clean()
+        _competition_with_prefix(prefix).clean()
 
     assert "adresów aplikacji" in excinfo.value.message_dict["path_prefix"][0]
 

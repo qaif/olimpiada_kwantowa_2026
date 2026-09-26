@@ -38,11 +38,7 @@ from wagtail.fields import RichTextField, StreamField
 from wagtail.models import Orderable, Page
 from wagtail.search import index
 
-from apps.competitions.models import Edition, Stage
-from apps.competitions.scoping import scope_to_competition
-from apps.competitions.scoring import problem_maxima_by_number
-from apps.competitions.services import current_edition, current_stage, training_stage
-from apps.results.models import ResultsPublication
+from apps.competitions.models import Edition
 from apps.tenancy.managers import CompetitionScopedManager
 
 from .blocks import (
@@ -53,40 +49,72 @@ from .blocks import (
     PartnersStreamBlock,
     StepsStreamBlock,
 )
+from .live_data import archive_result_links, competition_state, problems_state, results_state
 from .tenancy import competition_for_page, resolve_competition
-from .timeline import stage_rows
 from .workshops import WORKSHOP_KEY_LENGTH, WORKSHOPS_SLUG, upcoming_workshops
 
 #: Adresy pierwszego segmentu, które należą do aplikacji (``config/urls.py`` + ``apps/web/urls.py``).
 #: Strona CMS z takim slugiem na drugim poziomie drzewa byłaby martwa – patrz docstring modułu.
-#: Lista jest jawna, a nie wyprowadzana z urlconfa: ``reverse()`` nie zna adresów, które dopiero
-#: powstaną, a slug raz opublikowany zostaje w linkach i w wyszukiwarkach.
+#: Lista jest jawna, a nie wyprowadzana z urlconfa w locie: slug raz opublikowany zostaje w linkach
+#: i w wyszukiwarkach, więc rezerwacja ma być decyzją widoczną w przeglądzie zmian, a nie skutkiem
+#: ubocznym dopisania wzorca. Kompletność wobec urlconfu pilnuje manifest tras
+#: (``apps.core.app_routes``, DJ-02 § 6): test ``apps/core/tests/test_app_routes.py`` i kontrola
+#: ``cms.W011`` wypisują każdy pierwszy segment aplikacji, którego tu brakuje. Do DJ-02a brakowało
+#: ich siedemnastu – strona „/forum/” czy „/konto/” dawała redaktorowi „opublikowano”, a czytelnikowi
+#: ekran aplikacji.
 RESERVED_SLUGS = frozenset(
     {
+        # Wzorce ``_util/…`` z ``wagtail.urls`` (logowanie do stron z ograniczonym dostępem) stoją
+        # przed catch-allem Wagtaila, więc i one są adresem aplikacji.
+        "_util",
+        "account",
+        # ``/accounts/<dostawca>/login/…`` – logowanie przez Google/Facebooka (``apps.web.social_urls``).
+        "accounts",
+        "activate",
         "admin",
         "api",
         "appeals",
+        "captcha",
         "cms",
         "coordinator",
+        # Adresy aplikacyjne serwisu na django CMS (admin, podgląd, SSO, statyki – DJ-02 § 1.2 D2).
+        # W ``web`` nie ma wzorca pod tym segmentem, ale Caddy kieruje ``/djcms/*`` do djcms
+        # w każdym bloku aplikacji, więc strona Wagtaila o tym slugu byłaby martwa tak samo.
+        "djcms",
         "documents",
+        "dyplomy",
+        "forum",
         "healthz",
+        "i18n",
         # Gałąź adresów wewnętrznych platformy (``/internal/tls-allowed`` – pytanie Caddy'ego
         # o certyfikat konkursu w subdomenie). Woła ją infrastruktura, nie człowiek, więc strona
         # CMS o tym slugu byłaby martwa **i** przykryłaby adres, od którego zależy TLS.
         "internal",
+        "konto",
         "login",
         "logout",
         "me",
+        # Wzorzec istnieje tylko przy ``DEBUG`` (``static(MEDIA_URL)``), ale slug zostaje zajęty
+        # zawsze: strona, która działa na produkcji, a znika na laptopie, to gorszy błąd niż brak.
         "media",
+        "password-reset",
+        "plakaty",
         "register",
+        "rejestracja",
+        "reset",
         "results",
         "review",
+        # Statyki podaje Caddy przed ``web`` – wzorca w urlconfie nie ma, adres jest zajęty.
         "static",
         # Strona statusu serwisu i zgłoszenia do organizatora – oba adresy obsługuje aplikacja
         # (``config/urls.py`` i ``apps/web/urls.py``), więc strona CMS o takim slugu byłaby martwa.
         "setup",
         "status",
+        "statystyki",
+        "supervisor",
         "support",
+        "zaproszenie",
+        "zgoda",
     }
 )
 
@@ -511,6 +539,21 @@ class CMSPage(Page):
     class Meta:
         abstract = True
 
+    # Zamrożenie edycji po przełączeniu na django CMS (``apps.cms.freeze``, DJ-02 § 1.2 D9). Obie
+    # metody są punktami rozszerzeń Wagtaila: tester uprawnień decyduje o każdym przycisku i każdym
+    # sprawdzeniu w widokach panelu, a blokada robi z ekranu edycji podgląd tylko do odczytu. Przy
+    # wyłączonym zamrożeniu obie oddają dokładnie to, co oddałby Wagtail.
+
+    def permissions_for_user(self, user):
+        from .freeze import frozen_permission_tester
+
+        return frozen_permission_tester(self, user) or super().permissions_for_user(user)
+
+    def get_lock(self):
+        from .freeze import freeze_lock
+
+        return freeze_lock(self) or super().get_lock()
+
     def is_second_level(self) -> bool:
         """Czy strona jest (albo dopiero będzie) bezpośrednim dzieckiem strony głównej."""
         if self.depth:
@@ -660,14 +703,17 @@ class HomePage(CMSPage):
         # Edycja **tego** konkursu, a nie „bieżąca w bazie”: w instalacji wielokonkursowej
         # pierwsza z brzegu jest cudza, a strona główna konkursu A pokazywałaby wtedy harmonogram
         # konkursu B. Konkurs bierzemy z żądania (za darmo) – patrz ``apps.cms.tenancy``.
-        competition = competition_for_page(self, request)
-        edition = current_edition(competition)
+        #
+        # Edycję, etap bieżący i wiersze osi czasu liczy ``apps.cms.live_data`` – ta sama funkcja
+        # karmi wersję porównawczą na django CMS (``dj.``), więc obie strony główne pokazują ten
+        # sam harmonogram.
+        state = competition_state(competition_for_page(self, request), now)
         context.update(
             {
                 "now": now,
-                "edition": edition,
-                "current_stage": current_stage(edition, now) if edition else None,
-                "stage_rows": stage_rows(edition, now),
+                "edition": state.edition,
+                "current_stage": state.current_stage,
+                "stage_rows": state.stage_rows,
                 "latest_news": NewsPage.objects.live().descendant_of(self).order_by("-date", "-pk")[:3],
                 # Newsroom nie ma już pozycji w menu (uwagi organizatora z 21.09.2026) – drogą do
                 # pełnej listy jest panel „Aktualności” na stronie głównej, więc panel potrzebuje
@@ -929,42 +975,29 @@ class ProblemsPage(CMSPage):
     def get_context(self, request, *args, **kwargs):
         context = super().get_context(request, *args, **kwargs)
         now = timezone.now()
-        edition = current_edition(competition_for_page(self, request))
-        stage = current_stage(edition, now) if edition else None
-        # Jedyne miejsce decydujące o jawności treści. ``problems`` zostaje puste, dopóki etap
-        # się nie otworzy – szablon nie ma z czego zrenderować ani tytułu, ani linku do PDF.
-        has_opened = bool(stage and stage.has_opened(now))
+        # Jedyne miejsce decydujące o jawności treści to ``apps.cms.live_data.problems_state``:
+        # ``problems`` zostaje puste, dopóki etap się nie otworzy – szablon nie ma z czego
+        # zrenderować ani tytułu, ani linku do PDF. Ta sama funkcja karmi wersję ``dj.`` (API),
+        # więc reguła jawności jest jedna dla obu wersji serwisu. Etap treningowy (druga sekcja
+        # strony) podlega tej samej regule – patrz docstring funkcji.
+        state = problems_state(competition_for_page(self, request), now)
         context.update(
             {
                 "now": now,
-                "edition": edition,
-                "stage": stage,
-                "stage_has_opened": has_opened,
-                "problems": list(stage.problems.order_by("number")) if has_opened else [],
+                "edition": state.edition,
+                "stage": state.stage,
+                "stage_has_opened": state.stage_has_opened,
+                "problems": state.problems,
                 "notice": self.closed_notice
                 or (
                     "Zadań jeszcze nie ogłoszono. Treści zadań tego etapu zostaną opublikowane "
                     "w chwili jego otwarcia."
                 ),
+                "training_stage": state.training_stage,
+                "training_problems": state.training_problems,
             }
         )
-        context.update(self._training_context(edition, now))
         return context
-
-    def _training_context(self, edition, now) -> dict:
-        """Etap treningowy i jego zadania – druga sekcja strony, niezależna od etapu bieżącego.
-
-        ``has_opened`` sprawdzamy tak samo jak dla etapu zawodów: to ta sama reguła jawności
-        treści, co w ``ProblemStatementView`` (link do PDF-a przed otwarciem etapu i tak dałby 404,
-        więc strona nie może go pokazać). W praktyce trening jest otwarty od chwili posiania,
-        ale reguła ma być jedna, a nie „jedna dla zawodów, druga dla treningu”.
-        """
-        stage = training_stage(edition)
-        has_opened = bool(stage and stage.has_opened(now))
-        return {
-            "training_stage": stage,
-            "training_problems": list(stage.problems.order_by("number")) if has_opened else [],
-        }
 
 
 class DocumentIndexPage(CMSPage):
@@ -1219,13 +1252,7 @@ class ArchiveEditionPage(CMSPage):
         Bez publikacji nie ma linku: publiczny widok ``/results/<id>/`` i tak odpowiada 404,
         a martwy odnośnik sugerowałby, że wyniki są, tylko schowane.
         """
-        if self.edition_id is None:
-            return []
-        stages = list(Stage.objects.filter(edition_id=self.edition_id).order_by("opens_at", "id"))
-        published = set(
-            ResultsPublication.objects.filter(stage__in=stages).values_list("stage_id", flat=True)
-        )
-        return [{"stage": stage} for stage in stages if stage.pk in published]
+        return archive_result_links(self.edition_id)
 
 
 class ArchiveDocument(Orderable):
@@ -1288,51 +1315,12 @@ class ResultsPage(CMSPage):
 
     def get_context(self, request, *args, **kwargs):
         context = super().get_context(request, *args, **kwargs)
-        competition = competition_for_page(self, request)
-        edition = current_edition(competition)
-        # Filtr po ``results_published_at`` zostaje: znacznik na etapie jest tym, co koordynator
-        # zdejmuje, żeby wycofać ogłoszenie, a sam rekord publikacji ma zostać jako ślad.
-        #
-        # Zawężenie do konkursu jest **drugim** filtrem i musi być: sekcja „Archiwum” wymienia
-        # wszystkie ogłoszone etapy, także z dawnych roczników, więc bez niego tabela wyników
-        # jednej olimpiady wyliczałaby etapy drugiej – razem z odnośnikami do jej publikacji.
-        # Drogę do konkursu (``stage__edition__competition``) zna manager modelu, a regułę
-        # odwrotów dla instalacji bez konkursów – ``scope_to_competition``.
-        publications = (
-            scope_to_competition(
-                ResultsPublication.objects.filter(stage__results_published_at__isnull=False),
-                competition,
-            )
-            .select_related("stage", "stage__edition", "stage__scoring_scale")
-            # Zadania etapów jednym zapytaniem na całą stronę – czyta je ``problem_maxima_by_number``
-            # (nagłówki „Zad. 3 (max 12,5)”, wydanie 0.35.0). Bez tego każda tabela dokładałaby dwa
-            # zapytania, a liczba zapytań rosłaby z liczbą ogłoszonych etapów.
-            .prefetch_related("stage__problems")
-            .order_by("-stage__results_published_at", "-stage_id")
-        )
-        tables: list[dict] = []
-        archive: list[dict] = []
-        for publication in publications:
-            stage = publication.stage
-            if edition is not None and stage.edition_id == edition.pk:
-                rows = publication.rows
-                tables.append(
-                    {
-                        "stage": stage,
-                        "publication": publication,
-                        "rows": rows,
-                        "problem_numbers": sorted(
-                            {key for row in rows for key in (row.get("points") or {})},
-                            key=lambda value: (len(value), value),
-                        ),
-                        # Maksima zadań do nagłówków kolumn („Zad. 3 (max 12,5)”, wydanie 0.35.0) –
-                        # opis skali, nie dane uczestnika, więc wolno je czytać obok snapshotu.
-                        "problem_maxima": problem_maxima_by_number(stage),
-                    }
-                )
-            else:
-                archive.append({"stage": stage, "publication": publication})
-        context.update({"edition": edition, "tables": tables, "archive": archive})
+        # Zapytanie (publikacje zawężone do konkursu, jedno na całą stronę) i podział na tabele
+        # bieżącej edycji i archiwum są w ``apps.cms.live_data.results_state`` – tam też stoi
+        # uzasadnienie obu filtrów. Ta sama funkcja karmi wersję ``dj.``, więc obie wersje serwisu
+        # czytają wyłącznie ten sam snapshot.
+        state = results_state(competition_for_page(self, request))
+        context.update({"edition": state.edition, "tables": state.tables, "archive": state.archive})
         return context
 
 
@@ -1632,3 +1620,37 @@ class WorkshopAttendance(models.Model):
 
     def __str__(self) -> str:
         return f"{self.participant_id} @ {self.workshop_key}"
+
+
+class EditingFreeze(models.Model):
+    """Zamrożenie edycji stron Wagtaila po przełączeniu serwisu na django CMS (DJ-02 § 1.2 D9).
+
+    Jeden wiersz na instalację (klucz ``1``, pilnuje tego constraint). Stan jest w bazie, a nie
+    w ``.env``, bo przełącza go skrypt przełączenia (``manage.py cms_freeze on|off``) **bez**
+    restartu ``web`` – wszystkie procesy czytają ten sam wiersz, każdy z pamięcią na 10 s
+    (``apps.cms.freeze``). Brak wiersza znaczy „nie zamrożono”: świeża instalacja i baza sprzed
+    tej migracji zachowują się dokładnie tak, jak przed DJ-02.
+    """
+
+    SINGLETON_PK = 1
+
+    id = models.PositiveSmallIntegerField(primary_key=True, default=SINGLETON_PK, editable=False)
+    active = models.BooleanField("zamrożone", default=False)
+    message = models.CharField(
+        "komunikat na banerze",
+        max_length=500,
+        blank=True,
+        help_text="Pierwsze zdanie banera w /cms/. Puste = tekst domyślny.",
+    )
+    changed_at = models.DateTimeField("zmieniono", null=True, blank=True)
+    changed_by = models.CharField("zmienił", max_length=150, blank=True)
+
+    class Meta:
+        verbose_name = "zamrożenie edycji stron"
+        verbose_name_plural = "zamrożenie edycji stron"
+        constraints = [
+            models.CheckConstraint(condition=Q(id=1), name="cms_editing_freeze_singleton"),
+        ]
+
+    def __str__(self) -> str:
+        return "zamrożone" if self.active else "edycja otwarta"

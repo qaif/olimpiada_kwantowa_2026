@@ -1,0 +1,7 @@
+{% comment %}Wiersz harmonogramu (``schedule.html``); kolumny godzin i prowadzącego jak u rodzica.{% endcomment %}
+<tr>
+  <th scope="row" class="schedule__topic">{{ instance.topic }}</th>
+  <td class="schedule__date">{{ instance.date }}</td>
+  {% if has_time %}<td class="schedule__time">{{ instance.time }}</td>{% endif %}
+  {% if has_lecturer %}<td class="schedule__lecturer">{{ instance.lecturer }}</td>{% endif %}
+</tr>

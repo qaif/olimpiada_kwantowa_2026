@@ -26,6 +26,8 @@ wdrożenie `scripts/deploy.sh` z kluczem `~/.ssh/olimpiada_deploy`.
 | Baza (`pg_dump -Fc`) | usługa `db` | konta, zgłoszenia, oceny, decyzje komisji, audyt |
 | Kubełek `submissions` | MinIO | **prace uczestników** – w bazie są tylko ich metryki |
 | Kubełek `public-media` | MinIO | obrazy i dokumenty z CMS-u |
+| Baza `olimpiada_djcms` (`pg_dump -Fc`) – **tylko przy `DJCMS_ENABLED=1`** | usługa `db` | strony, wtyczki i wersje redakcji wersji porównawczej `dj.` (§ 22) |
+| Wolumen `djcms_media` (`tar` z kontenera `djcms`) – **tylko przy `DJCMS_ENABLED=1`** | usługa `djcms` | obrazy wgrane przez redaktorów `dj.` (filer) |
 
 Czego **nie** kopiujemy i dlaczego: obrazu aplikacji (odtwarza go `git` + `docker build`),
 certyfikatów TLS (Caddy wystawia je na nowo w kilka sekund), kluczy DKIM (odtworzenie znaczy
@@ -51,6 +53,18 @@ zakłada `scripts/deploy.sh` w kroku 8/8; przebieg loguje się do `/var/log/olim
    udanej i sprawdzonej wysyłce,
 6. meldunek do aplikacji: `manage.py record_backup_status --ok --offsite` (kopia jest też poza
    serwerem) albo `--ok` (kopia wyłącznie lokalna).
+
+**Wersja porównawcza `dj.` (§ 22).** Przy `DJCMS_ENABLED=1` w `.env` i istniejącej bazie
+`olimpiada_djcms` dochodzą podkroki: **1b** – `pg_dump -Fc` tej bazy (kontem aplikacji) →
+`djcms-db-<stamp>.dump.gpg`, **2b** – `tar` wolumenu `djcms_media` z działającego kontenera `djcms`
+→ `djcms-files-<stamp>.tar.gpg`. Obie paczki mają ten sam znacznik co kopia główna, to samo
+szyfrowanie, tę samą wysyłkę (`daily/`, `monthly/`, `rclone check`) i retencję. Bez przełącznika
+skrypt nie wykonuje **żadnego** polecenia djcms (także zapytania o bazę) – po wyłączeniu `dj.`
+(§ 22.6) ostatnią kopią jego danych jest kopia z ostatniej nocy przed wyłączeniem. Awaria po
+stronie `dj.` (djcms nie działa, zrzut albo `tar` nieudany) **nie zatrzymuje** kopii głównej –
+ta powstaje i wyjeżdża – ale przebieg kończy się kodem 1 i meldunkiem `--failed` z notatką „kopia
+główna … jest, kopia dj. NIE: …”, czyli po 36 h alarmem watchdoga. `DJCMS_ENABLED=1`, a bazy
+jeszcze nie ma (przed pierwszym wdrożeniem z `dj.`) – tylko wpis w logu, bez błędu.
 
 Miejsce wybiera `BACKUP_REMOTE_TYPE=s3|drive|none`; bez tej zmiennej: `s3`, gdy jest
 `BACKUP_REMOTE_URL`, `drive`, gdy jest token Dysku (`secrets/rclone/rclone.conf` albo
@@ -113,6 +127,13 @@ przejmie serwer, nie skasuje kopii tym samym kluczem, którym je wysyłał.
 **tymczasowego** kontenera Postgresa (dane na `tmpfs`, kontener kasowany bezwarunkowo) i liczy
 wiersze w `accounts_user`, `accounts_participant`, `competitions_stage`, `submissions_submission`
 i `core_auditlog`. Wynik melduje przez `record_backup_status --verified` (albo `--failed`).
+
+Gdy obok sprawdzanej paczki leży `djcms-db-<ten sam stamp>.dump.gpg` (kopia z `dj.`), ten sam
+tymczasowy Postgres dostaje drugą bazę: `pg_restore` i wymóg co najmniej jednej strony
+w `cms_page`; paczka `djcms-files-<stamp>.tar.gpg` musi się rozszyfrować i dać przeczytać
+w całości (`tar -tf`). Brak paczki plików przy obecnej bazie, zero stron albo nieudany
+`pg_restore` = test nieudany (`--failed`, powód w notatce). Kopie przedwdrożeniowe
+`djcms-db-pre-*.dump` nie biorą w tym udziału.
 
 Po co, skoro `backup.sh` kończy się bez błędu: „`pg_dump` zwrócił 0” nie znaczy „z tej paczki da
 się odtworzyć olimpiadę”. Kopia potrafi być pusta, obcięta albo zaszyfrowana hasłem, którego nikt
@@ -434,6 +455,42 @@ curl -s https://olimpiadakwantowa.pl/status.json
 
 Starej bazy **nie kasuj** przez co najmniej tydzień. To jedyny ślad tego, co było przed awarią,
 a pytanie „czy na pewno nic nie zginęło” pada zawsze po kilku dniach, nigdy od razu.
+
+### 2.4. Wersja porównawcza `dj.` (baza `olimpiada_djcms` i wolumen `djcms_media`)
+
+Osobny przebieg `restore.sh` (nie łączy się z `--dump`/`--files`), ta sama zasada: nowa baza
+i nowy katalog, nic „na miejsce”. Wymaga roli `olimpiada_djcms` w klastrze – na nowym serwerze
+najpierw wdrożenie z `DJCMS_ENABLE=1` (§ 22.2), potem odtwarzanie.
+
+```bash
+cd /opt/olimpiada
+./scripts/restore.sh --fetch djcms-db-20260117T031500Z.dump.gpg --fetch djcms-files-20260117T031500Z.tar.gpg   # gdy tylko poza serwerem
+./scripts/restore.sh --dry-run --djcms-dump djcms-db-20260117T031500Z.dump.gpg --djcms-files djcms-files-20260117T031500Z.tar.gpg
+./scripts/restore.sh --djcms-dump djcms-db-20260117T031500Z.dump.gpg --djcms-files djcms-files-20260117T031500Z.tar.gpg
+```
+
+Po przebiegu istnieje baza `olimpiada_djcms_restore_20260117_031500` (właścicielem jej i każdego
+obiektu jest rola `olimpiada_djcms` – `createdb -O` i `pg_restore --role`; `CONNECT` dla PUBLIC
+odebrany zaraz po `createdb`) i katalog `/opt/olimpiada-backups/djcms-media-restore-20260117_031500/`
+(tylko root) z plikami redaktorów. `dj.` działa dalej na danych bieżących. Skrypt kończy się
+wypisaniem poleceń podmiany z nazwami z tego serwera; ich postać:
+
+```bash
+docker compose stop djcms
+docker compose exec -T db psql -U olimpiada -d postgres \
+  -c 'ALTER DATABASE olimpiada_djcms RENAME TO olimpiada_djcms_przed_awaria' \
+  -c 'ALTER DATABASE "olimpiada_djcms_restore_20260117_031500" RENAME TO olimpiada_djcms'
+# wolumen: bieżąca zawartość do katalogu „…-przed”, potem pliki z kopii (właściciel uid 1000 = app)
+docker run --rm -v olimpiada_djcms_media:/m \
+  -v /opt/olimpiada-backups/djcms-media-restore-20260117_031500:/src:ro \
+  -v /opt/olimpiada-backups/djcms-media-restore-20260117_031500-przed:/old postgres:18-alpine \
+  sh -c 'cp -a /m/. /old/ && find /m -mindepth 1 -delete && cp -a /src/. /m/ && chown -R 1000:1000 /m'
+docker compose up -d djcms
+```
+
+Bazę `olimpiada_djcms_przed_awaria` i katalog `…-przed` trzymaj tydzień, jak przy bazie głównej.
+Sama baza bez plików jest dopuszczalna (`--djcms-dump` bez `--djcms-files`) – strony wrócą,
+obrazy wgrane po ostatniej kopii plików nie.
 
 ---
 
@@ -848,7 +905,7 @@ Django dokłada stąd hosty do `DJANGO_ALLOWED_HOSTS` i origins `https://…` do
 psuje, wartości ręczne zostają na początku list. Potem:
 
 ```bash
-./scripts/render_caddyfile.sh && docker compose up -d proxy web worker beat
+bash scripts/proxy_config.sh update && docker compose up -d web worker beat   # proxy: caddy reload
 docker compose exec -T web python manage.py check_domains --all       # kontrola trzech miejsc
 ```
 
@@ -938,19 +995,23 @@ zastępuje ani nie zmienia.
 
    ```dotenv
    PLATFORM_SUBDOMAINS=1
-   CADDYFILE_PATH=./deploy/Caddyfile.generated   # wdrożenie ustawia to samo
+   CADDY_CONFIG_DIR=./caddy   # wdrożenie ustawia to samo (§ 23)
    ```
 
-3. **Wdrożenie** (`scripts/deploy.sh root@<host>`) albo, na miejscu, samo przegenerowanie proxy:
+3. **Wdrożenie** (`scripts/deploy.sh root@<host>`) albo, na miejscu, samo przegenerowanie proxy
+   (render + `caddy validate` + `caddy reload`, bez restartu proxy – § 23):
 
    ```bash
-   cd /opt/olimpiada && ./scripts/render_caddyfile.sh && docker compose up -d proxy web
+   cd /opt/olimpiada && bash scripts/proxy_config.sh update && docker compose up -d web
    ```
 
    Krok 4/8 wdrożenia generuje wtedy konfigurację Caddy'ego z opcją globalną
    `on_demand_tls { ask http://web:8000/internal/tls-allowed }` i blokiem `*.<domena>`
    (`tls { on_demand }`). Na koniec wdrożenie wypisuje przypomnienie o rekordzie DNS — tylko wtedy,
-   gdy przełącznik jest włączony.
+   gdy przełącznik jest włączony. Bloki nazw stałych (`www.`, sama domena, `meet.`, `monitor.`,
+   blok S3, `dj.`) dostają wtedy `tls { key_type p256 }` – wartość domyślną, ale zapisaną jawnie:
+   dzięki niej ich certyfikaty są zwykłe (wystawiane przy starcie i odnawiane ~30 dni przed końcem),
+   a nie on-demand z bloku `*.`, bo `/internal/tls-allowed` tych nazw nie zna i by ich odmówił.
 4. **Flaga `competition_creation`** na konkursie, **którego** koordynatorzy mają zakładać kolejne
    (`/admin/ → Konkursy → <konkurs> → feature_flags`, § 6.4):
 
@@ -2787,3 +2848,512 @@ uv venv --python 3.14 .venv
 uv pip install --python .venv -r pyproject.toml --extra dev
 .venv/Scripts/ruff.exe check . && .venv/Scripts/ruff.exe format --check .   # Linux: .venv/bin/ruff
 ```
+
+---
+
+## 22. Wersja porównawcza na django CMS (`dj.<domena>`, docs/tasks/DJ-01.md)
+
+Równoległa, publiczna, ale **nieindeksowana** wersja części informacyjnej serwisu pod
+`dj.olimpiadakwantowa.pl`, redagowana w django CMS – do porównania z Wagtailem (`/cms/`). Treść
+redakcyjna żyje w osobnej bazie `olimpiada_djcms` (stan początkowy z importu drzewa Wagtaila), dane
+zawodów (terminy, zadania, wyniki, komunikaty) djcms pobiera na żywo z wewnętrznego API aplikacji
+głównej (`/internal/djcms/v2/`, per konkurs, token w nagłówku; API v1 z DJ-01 usunięte w DJ-02k).
+Logowanie, rejestracja i panele zostają w aplikacji głównej.
+
+**Domyślnie wyłączone.** Bez `DJCMS_ENABLED=1` w `/opt/olimpiada/.env` konfiguracja proxy,
+`docker compose config` i przebieg `scripts/deploy.sh` są co do polecenia takie jak przed DJ-01
+(pilnują tego `scripts/tests/render_caddyfile_test.sh`, `compose_profiles_test.sh`
+i `deploy_djcms_test.sh`). **Włączenie na produkcji wymaga zgody organizatora** (DJ-01 § 11 p. 6).
+
+### 22.1. Co robi przełącznik `DJCMS_ENABLED=1`
+
+| Miejsce | Zmiana |
+|---|---|
+| Caddy (`scripts/render_caddyfile.sh`) | od DJ-02: w **każdym** bloku aplikacji (domena główna, `EXTRA_DOMAINS`, `*.`) sekcja tras djcms – `/djcms/media/*` z wolumenu `djcms_media`, `/djcms/*` do `djcms:8000`, adresy aplikacji do `web`, strony publiczne wg `DJCMS_PRIMARY` i ciasteczka `djcms_view` (§ 22.8); blok `dj.{$SITE_DOMAIN}` już tylko przekierowuje (302) na `/djcms/preview/` domeny głównej; odmowa `/internal/*` (404) w każdym bloku |
+| `.env` (krok 4/8 wdrożenia, tylko dopisuje) | `DJCMS_SECRET_KEY` (64), `DJCMS_DB_PASSWORD` (32), `DJCMS_INTERNAL_TOKEN` (48), `DJCMS_SSO_KEY` (64, § 22.3) – istniejących nie rusza; `DJCMS_INITIAL_IMPORT=pending`; `COMPOSE_FILE=docker-compose.yml:docker-compose.djcms.yml`; `COMPOSE_PROFILES=djcms` |
+| compose | usługa `djcms` (profil `djcms`) i nakładka `docker-compose.djcms.yml` – montaż `djcms_media` do `proxy` tylko do odczytu i stały adres `proxy` w sieci `internal` (`DJCMS_PROXY_IP`, domyślnie 172.30.2.250 – jedyny adres, od którego djcms przyjmuje `X-Real-IP` i `X-Djcms-Mode`). Oba przez `COMPOSE_FILE`/`COMPOSE_PROFILES` w `.env`, więc **każde** `docker compose …` w `/opt/olimpiada` (także ręczne i `scripts/backup.sh`) widzi djcms |
+| baza | rola i baza `olimpiada_djcms` w tym samym kontenerze `db` (`scripts/djcms_db.sh`, idempotentnie, przy każdym wdrożeniu) |
+| wdrożenie | build obrazu `djcms` (albo `DJCMS_IMAGE` z rejestru), kopia `djcms-db-pre-<stamp>.dump` obok `pre-deploy-*` (10 ostatnich), start `djcms` w 4b (migracje w entrypoincie), czekanie na `djcms=healthy`, na końcu krok „dj.”: grupy redakcji (`setup_djcms_groups`, § 22.3), konto administratora (gdy podano), rejestr konkursów (`sync_competitions --import-missing` – treść dla witryn bez stron, § 22.8), **jednorazowy** import treści |
+
+Pliki redaktorów (`/djcms/media/*`, od DJ-02 na każdym hoście konkursu) podaje Caddy z nagłówkiem
+`X-Content-Type-Options: nosniff`, a wszystko poza PDF-em dodatkowo z
+`Content-Security-Policy: default-src 'none'; …; sandbox` – wgrany SVG albo HTML otwarty wprost nie
+wykona skryptu w origin aplikacji (DJ-01 § 7 reguła 12, DJ-02 S9).
+
+### 22.2. Włączenie (jednorazowo, z komputera operatora)
+
+1. **DNS.** Rekord `*` (albo `dj`) → adres serwera. Dla olimpiadakwantowa.pl `*` już istnieje
+   (`deploy/dns-olimpiadakwantowa.pl.zone`); sprawdzenie: `dig +short dj.olimpiadakwantowa.pl`.
+2. **Wdrożenie z przełącznikiem i kontem administratora dj.** (konto tylko djcms – osobne od kont
+   aplikacji głównej; hasło przechodzi przez stdin ssh, nie przez argumenty procesów):
+
+   ```bash
+   DJCMS_ENABLE=1 DJCMS_ADMIN_EMAIL=redakcja@qaif.org DJCMS_ADMIN_PASSWORD='…' \
+     SSH_KEY=~/.ssh/olimpiada_deploy scripts/deploy.sh root@169.58.242.197
+   ```
+
+   `DJCMS_ENABLE=1` dopisuje `DJCMS_ENABLED=1` do `.env` – kolejne wdrożenia idą już bez tej
+   zmiennej (i bez `DJCMS_ADMIN_*`, chyba że trzeba dołożyć konto). Inna wartość niż `1/true`
+   zatrzymuje wdrożenie, zanim cokolwiek dotknie serwera – wyłączenia nie robi się tą zmienną
+   (§ 22.6).
+3. Co zobaczysz w logu: `dj.: wygenerowano DJCMS_…` (krok 4/8), budowanie obrazu djcms,
+   `djcms_db: rola i baza olimpiada_djcms gotowe`, kopię `djcms-db-pre-*.dump` (4a), a na końcu
+   krok `==> dj. Wersja porównawcza django CMS…` z importem i adresem.
+   **Pierwsze włączenie odtwarza kontener `proxy`** (nowy montaż) – kilka sekund bez HTTPS na
+   wszystkich domenach, jak przy każdej zmianie konfiguracji proxy; certyfikat `dj.` (HTTP-01)
+   powstaje zaraz po jego starcie.
+4. **Sprawdzenie:**
+
+   ```bash
+   curl -sI https://dj.olimpiadakwantowa.pl/zadania/ | grep -iE '^(HTTP|location)'  # 302 → https://olimpiadakwantowa.pl/djcms/preview/?next=/zadania/
+   curl -sI https://olimpiadakwantowa.pl/ | grep -i x-djcms-mode                    # nic (PRIMARY=0, bez ciasteczka – Wagtail)
+   curl -sI -H 'Cookie: djcms_view=dj' https://olimpiadakwantowa.pl/ | grep -iE '^(x-djcms-mode|x-robots-tag)'   # preview, noindex
+   curl -s -o /dev/null -w '%{http_code}\n' https://olimpiadakwantowa.pl/djcms/healthz/                 # 200
+   curl -s -o /dev/null -w '%{http_code}\n' https://olimpiadakwantowa.pl/internal/djcms/v2/competitions     # 404
+   curl -s -o /dev/null -w '%{http_code}\n' https://dj.olimpiadakwantowa.pl/internal/djcms/v2/competitions  # 404
+   # na serwerze, w /opt/olimpiada:
+   docker compose ps djcms                     # healthy
+   grep '^DJCMS_INITIAL_IMPORT=' .env          # done
+   ```
+
+Gdy import się nie uda (najczęściej: brak konta superusera djcms, bo nie podano `DJCMS_ADMIN_*`),
+wdrożenie kończy się kodem ≠ 0 **po** wszystkich krokach głównego serwisu, a `.env` zostaje
+z `DJCMS_INITIAL_IMPORT=pending` – kolejne wdrożenie (z `DJCMS_ADMIN_*`) spróbuje ponownie.
+
+### 22.3. Redaktorzy: logowanie z `/cms/` (SSO) i uprawnienia per konkurs
+
+**Redaktorzy nie mają w djcms kont zakładanych ręcznie ani haseł** (DJ-02 D6, decyzja organizatora
+z 26.09.2026). Kto redaguje który konkurs, rozstrzyga aplikacja główna – tym samym pytaniem, co
+dostęp do `/cms/` – i przekazuje wynik jednorazowym tokenem przy każdym wejściu.
+
+Jak wchodzi redaktor (instrukcja dla redakcji: docs/PODRECZNIK-ORGANIZATORA.md § 7.3a):
+
+1. `/cms/` **swojego** konkursu, na jego hoście (`https://fizyczna.olimpiadakwantowa.pl/cms/`,
+   konkurs pod prefiksem: `https://olimpiadakwantowa.pl/druga/cms/`),
+2. w menu Wagtaila **„Edytuj w django CMS”** (`/cms/django-cms/`) → przycisk przejścia (POST z CSRF),
+3. przeglądarka sama wysyła formularz z tokenem na `/djcms/sso/` **tego samego** hosta i trafia do
+   listy stron witryny konkursu w `/djcms/admin/`.
+
+Pozycja menu jest widoczna tylko przy ustawionym kluczu i dla konta, które może edytować korzeń
+drzewa stron witryny konkursu. Konto bez tego prawa dostaje na `/cms/django-cms/` stronę odmowy
+(403), a przy pustym kluczu – stronę „przejście wyłączone” (503).
+
+**Konto w djcms** powstaje przy pierwszym wejściu: `web:<id konta w aplikacji>`, „W zespole”, bez
+hasła, nigdy superużytkownik; e-mail, imię i nazwisko aktualizuje każde wejście. **Hasłem loguje się
+wyłącznie techniczny superużytkownik** (`bootstrap_djcms_admin`, `DJCMS_ADMIN_*` przy wdrożeniu) –
+konto personelu z hasłem ustawionym ręcznie w panelu i tak się nim nie zaloguje (liczy się jak
+nieudana próba). Po 5 nieudanych próbach na parę (IP, login) logowanie jest blokowane na 15 minut.
+Hasło superużytkownika zmienione w panelu **nie** jest nadpisywane kolejnym wdrożeniem
+z `DJCMS_ADMIN_*` (ręcznie: `bootstrap_djcms_admin --reset-password`).
+
+**Grupy** – przy każdym wejściu **zastępowane** listą z tokenu (także grupa dopisana ręcznie
+w panelu djcms znika, uprawnienia indywidualne konta są czyszczone):
+
+| Prawo w `/cms/` (korzeń witryny konkursu) | Grupa w djcms | Zasięg |
+|---|---|---|
+| edycja i publikacja | `redakcja:<slug>` | strony witryny konkursu: dodawanie, zmiana, usuwanie, przenoszenie, publikacja |
+| edycja bez publikacji | `redakcja:<slug>:bez-publikacji` | to samo bez publikacji |
+| konto bez ograniczeń w `/cms/` (superużytkownik, superkoordynator, grupa z prawami do korzenia drzewa) **i** edycja z publikacją w każdym aktywnym konkursie | `redakcja:platforma` | wszystkie witryny i wszystkie foldery |
+
+Każda grupa konkursu ma `GlobalPagePermission` zawężone do witryny konkursu (nigdy uprawnienia na
+pojedynczych stronach – bufor uprawnień django CMS nie rozróżnia witryn) i uprawnienia modeli
+treści (strony, wtyczki, wersje, pliki, przekierowania); **bez** zarządzania uprawnieniami, kontami
+i grupami. Redaktor widzi panel wyłącznie pod hostami swoich konkursów: witryna spoza zasięgu
+(także przez `?site=` w drzewie stron), obiekt innej witryny (strona, wtyczka, wersja,
+przekierowanie) i folder filera innego konkursu → 403 (DJ-02 S12).
+
+**Pliki (filer)**: każdy konkurs ma folder najwyższego poziomu `Konkurs: <nazwa> (<slug>)` (tam też
+trafiają obrazy z importu) – odczyt, zmiana i podfoldery dla obu jego grup; konkurs domeny głównej
+dodatkowo folder importu sprzed DJ-02 („Import z Wagtaila”). Folder **„Wspólne”** – do odczytu dla
+każdego redaktora, zapis: `redakcja:platforma` i superużytkownik. Uprawnienia folderów porządkują
+bibliotekę redakcji, a **nie** ukrywają plików: każdy plik filera jest publiczny pod
+`/djcms/media/…` (DJ-01 § 7 reguła 12, przełącznik „prywatny” jest ukryty i zablokowany).
+
+**`setup_djcms_groups`** zakłada i aktualizuje grupy `redakcja:*`, ich uprawnienia i uprawnienia
+folderów **przy każdym wdrożeniu** (idempotentnie; zestaw uprawnień grupy wynika z kodu – ręczna
+zmiana w panelu zniknie). Przy pierwszym uruchomieniu po DJ-02g usuwa grupę **„Redaktorzy”** z DJ-01
+(przy `CMS_PERMISSION = True` i tak nie dawała żadnej strony). Grupy nowego konkursu powstają też
+same przy pierwszym wejściu jego redaktora. Ręcznie: `docker compose exec -T djcms python manage.py
+setup_djcms_groups`.
+
+**Klucz i sesja:**
+
+- `DJCMS_SSO_KEY` – klucz HMAC tokenu, **ten sam** w `web` (czyta `.env`) i w `djcms` (compose
+  przekazuje ten sam wpis). Generuje go wdrożenie (krok 4/8, 64 znaki); ręcznie: co najmniej
+  32 znaki, inny niż `DJCMS_INTERNAL_TOKEN`, `DJANGO_SECRET_KEY` i `DJCMS_SECRET_KEY` (ostrzeżenia
+  `cms.W013` w `web` i `dj_sites.W001` w djcms). Pusty albo krótszy = przejście wyłączone. Po
+  zmianie klucza w `.env`: `docker compose up -d` (odtwarza `web` i `djcms`; oba muszą mieć tę samą
+  wartość – inaczej każde wejście kończy się „Link logowania jest nieważny”).
+- `DJCMS_SSO_SESSION_SECONDS` (opcjonalnie, domyślnie `7200` = 2 h) – najdłuższa sesja po wejściu,
+  liczona **od logowania**, nie od ostatniego kliknięcia. Po niej djcms wylogowuje, a redaktor wchodzi
+  ponownie przez `/cms/` (uprawnienia liczone od nowa). Wylogowanie z aplikacji głównej (strona,
+  `/cms/`) kończy sesję djcms na tym samym hoście od razu.
+- Token: ważny 60 s, jednorazowy (nonce), tylko dla hosta, na którym go wystawiono, wyłącznie `POST`
+  z nagłówkiem `Origin` tego hosta; nie trafia do adresu ani do dzienników (format: docs/API.md § 8.6).
+
+**Odebranie uprawnień** działa w djcms przy **najbliższym wejściu** przez `/cms/` (grupy
+zastępowane), a w sesji otwartej wcześniej – **najpóźniej po `DJCMS_SSO_SESSION_SECONDS`**.
+Natychmiastowa blokada konta (np. wyciek, odejście z redakcji):
+
+1. superużytkownik djcms: `https://<domena>/djcms/admin/` → Użytkownicy → `web:<id>` → odznacz
+   „Aktywny” → Zapisz. Sesja tego konta przestaje działać od następnego żądania, a kolejne wejście
+   z `/cms/` kończy się „Konto w django CMS jest zablokowane” – SSO konta **nie** odblokowuje
+   (odblokowanie: zaznacz „Aktywny” z powrotem),
+2. w aplikacji głównej odbierz prawa w `/cms/` (grupa, konto) – inaczej po odblokowaniu konto
+   wróciłoby z dotychczasowym zasięgiem.
+
+Identyfikator konta (`<id>`) jest w dzienniku djcms (`SSO djcms: web:<id> zalogowany (konkurs …)`)
+i w dzienniku `web` (`SSO do django CMS: konto #<id>, host …`).
+
+### 22.4. Import treści z Wagtaila
+
+Wdrożenie importuje **raz** (`DJCMS_INITIAL_IMPORT=pending` → `done`), komendą
+`import_cms_bundle --from-api --if-empty` – istniejących stron dj. nigdy nie nadpisuje. Pełny
+ponowny import (kasuje strony dj. i obrazy z folderu „Import z Wagtaila”, **cała redakcja w dj.
+przepada**) – wyłącznie ręcznie, po kopii:
+
+```bash
+cd /opt/olimpiada
+docker compose exec -T djcms python manage.py import_cms_bundle --from-api --dry-run   # raport bez zapisu
+docker compose exec -T djcms python manage.py import_cms_bundle --from-api --replace
+```
+
+Zmieniając szablon w `backend/templates/cms/`, zmień też port w `djcms/templates/dj/` – wygląd
+dwóch wersji nie synchronizuje się sam (DJ-01 § 13, ryzyko 3).
+
+### 22.5. Kopie
+
+Przed każdą migracją wdrożenie robi `djcms-db-pre-<stamp>.dump` w katalogu kopii (10 ostatnich);
+polecenie odtworzenia wypisuje log kroku 4a.
+
+Kopia nocna (`scripts/backup.sh`, § 1.2) przy `DJCMS_ENABLED=1` obejmuje bazę
+(`djcms-db-<stamp>.dump.gpg`) i wolumen plików (`djcms-files-<stamp>.tar.gpg`) – zaszyfrowane,
+wysyłane i sprzątane razem z kopią główną; cotygodniowy test odtwarzania sprawdza je razem z nią
+(§ 1.4). Kopia plików wymaga **działającego** kontenera `djcms` – zatrzymany `djcms` w nocy daje
+przebieg nieudany (kopia główna mimo to powstaje). Odtwarzanie: § 2.4.
+
+```bash
+ls -lh /opt/olimpiada-backups/djcms-*                         # paczki djcms z ostatnich 7 dni
+grep -E '1b/5|2b/5|UWAGA' /var/log/olimpiada-backup.log | tail  # co zrobiła ostatnia noc
+```
+
+### 22.6. Wyłączenie i usunięcie
+
+Wyłączenie (dane zostają – ponowne `DJCMS_ENABLE=1` wraca do tego samego stanu; sekrety bazy
+i klucz zostają w `.env`, token API trzeba wtedy wygenerować od nowa – wdrożenie zrobi to samo):
+
+```bash
+cd /opt/olimpiada
+docker compose stop djcms && docker compose rm -f djcms       # póki COMPOSE_* jeszcze są w .env
+sed -i 's/^DJCMS_ENABLED=.*/DJCMS_ENABLED=0/' .env
+sed -i '/^COMPOSE_FILE=docker-compose.yml:docker-compose.djcms.yml$/d; /^COMPOSE_PROFILES=djcms$/d' .env
+sed -i '/^DJCMS_INTERNAL_TOKEN=/d' .env                        # brak tokenu = API wyłączone w web
+bash scripts/proxy_config.sh update && docker compose up -d web
+```
+
+Od tej chwili konfiguracja proxy i compose'a jest ta sama co przed DJ-01, a wdrożenia nie wykonują
+żadnego polecenia djcms. `COMPOSE_FILE`/`COMPOSE_PROFILES`, które operator zmienił ręcznie (np.
+dopisany profil `monitoring`), popraw ręcznie zamiast drugiego `sed`.
+
+Po wyłączeniu kopia nocna nie obejmuje już `dj.` (§ 1.2) – ostatnie paczki `djcms-*` to te
+z nocy przed wyłączeniem (lokalnie 7 dni, poza serwerem 30 dni w `daily/`, miesięczne rok).
+
+Usunięcie danych (po decyzji organizatora, po ostatniej kopii z § 22.5):
+
+```bash
+cd /opt/olimpiada
+docker compose exec -T db psql -U olimpiada -d olimpiada -c 'DROP DATABASE olimpiada_djcms' -c 'DROP ROLE olimpiada_djcms'
+docker volume rm olimpiada_djcms_media
+sed -i '/^DJCMS_/d' .env                                       # po wyłączeniu wyżej
+docker image ls 'olimpiada/djcms' -q | xargs -r docker rmi
+```
+
+### 22.7. Jak to jest zbudowane (dla utrzymującego skrypty)
+
+- `scripts/render_caddyfile.sh` czyta `DJCMS_ENABLED` jak `PLATFORM_SUBDOMAINS` (środowisko > `.env`,
+  `1|true|yes|on` / `''|0|false|no|off`, inna wartość = błąd). Przy obu włączonych odmowa
+  `/internal/*` trafia do bloku głównego **raz**; `dj.` jako nazwa dosłowna wygrywa z `*.`.
+- CSP `sandbox` dla `/media/*` poza PDF-em, a nie dla listy rozszerzeń z DJ-01 § 8.8: `*` w środku
+  wzorca `path` Caddy'ego nie przechodzi przez `/`, więc `path /media/*.svg` nie pasował do żadnego
+  pliku filera (`/media/filer_public/…/x.svg`) – sprawdzone na działającym caddy:2.8 w teście.
+- Montaż mediów w nakładce, a nie w `docker-compose.yml`: wpis w pliku podstawowym zmieniałby
+  konfigurację `proxy` na każdej instalacji (i odtwarzał proxy), także bez dj. Serwowanie mediów
+  przez samego djcms odrzucone – `static.serve` przez gunicorna nie jest do produkcji, a WhiteNoise
+  nie widzi plików wgranych po starcie procesu.
+- `scripts/deploy.sh` czyta przełącznik z `.env` serwera raz, po kroku 4/8 (jedno `ssh … sed`, bez
+  dockera); przy wyłączonym każde kolejne polecenie jest znak w znak dzisiejsze. Krok „dj.” stoi
+  na samym końcu (DJ-01 § 8.10 przewidywał krok 6), żeby błąd wersji porównawczej nie zatrzymał
+  kroków 6a–8/8 głównego serwisu.
+- `--maintenance`: `djcms` jest zatrzymywany razem z `web/worker/beat` (inaczej kontrola „zero
+  klientów bazy” by nie przeszła). Od DJ-02 trasy djcms są w blokach aplikacji, więc przerwę
+  (planową i 502/503/504 z djcms) zasłania ta sama strona „Prace techniczne”; `dj.` tylko przekierowuje.
+- Konfiguracja proxy (trasy djcms, tryb `DJCMS_PRIMARY`) jest w `caddy/Caddyfile` i trafia do
+  działającego Caddy'ego przy **każdym** wdrożeniu (krok 4c/8, `caddy reload`) – § 23. Dawny krok
+  „dj.” porównujący sumy i odtwarzający `proxy` (tylko przy `DJCMS_ENABLED=1`) został zastąpiony
+  tym mechanizmem. Generator i przełącznik piszą plik **w miejscu** (`cat >`).
+
+### 22.8. Serwis publiczny na django CMS: trasy, podgląd, przełącznik `DJCMS_PRIMARY` (DJ-02)
+
+djcms odpowiada na **prawdziwych hostach konkursów** (domena główna, subdomeny platformy,
+`EXTRA_DOMAINS`, konkursy pod prefiksem ścieżki). Która aplikacja podaje daną ścieżkę, rozstrzyga
+Caddy (docs/tasks/DJ-02.md § 3); `web` nie widzi żadnego nowego hosta.
+
+| Ścieżka (w każdym bloku aplikacji) | `DJCMS_PRIMARY=0` | `DJCMS_PRIMARY=1` |
+|---|---|---|
+| `/internal/*` | 404 | 404 |
+| `/static/*` | pliki `web` | pliki `web` |
+| `/djcms/media/*` | pliki redaktorów (CSP `sandbox` poza PDF, `nosniff`, `max-age=86400`) | to samo |
+| `/djcms/*` (na domenie głównej także `/<prefiks>/djcms/*`) | djcms, `X-Djcms-Mode: preview` | djcms, `primary` |
+| adresy aplikacji – `APP_RE` z `backend/djcms_contract/app_routes.env` (na domenie głównej także `APP_RE_PREFIXED`: `/<prefiks>/login/` …) | `web` | `web` |
+| pozostałe (strony, `/robots.txt`, `/sitemap.xml`, `/favicon.ico`) | `web`; z ciasteczkiem `djcms_view=dj` – djcms (`preview`, noindex) | djcms (`primary`); z `djcms_view=wagtail` – `web` |
+| `dj.<domena>/*` | 302 → `https://<domena>/djcms/preview/?next=<adres>` | 302 → `https://<domena><adres>` |
+
+- `X-Djcms-Mode` ustawia wyłącznie Caddy (`request_header -X-Djcms-Mode` zdejmuje wartość od
+  klienta z każdego żądania, `header_up` nadaje ją przy djcms); djcms ufa mu tylko od adresu
+  `proxy` (`TRUSTED_PROXY_IPS` = `DJCMS_PROXY_IP`), w każdym innym przypadku przyjmuje `preview`.
+- Odpowiedzi poza statykami mają `Vary: Cookie` (ta sama ścieżka – różna treść zależnie od
+  ciasteczka `djcms_view`).
+- Podgląd: ciasteczko `djcms_view` ustawia djcms (`/djcms/preview/` na hoście konkursu, formularz
+  POST z CSRF, `HttpOnly`, `Secure`, `SameSite=Lax`, 8 h) – jest host-only, więc każdy host
+  włącza się osobno; strona `/djcms/preview/` domeny głównej wymienia wszystkie konkursy.
+  Ciasteczko nie jest zabezpieczeniem (treść publiczna); roboty go nie wysyłają.
+- Nowy adres aplikacji w `web` = `manage.py djcms_routes --write` (CI pilnuje `--check`) i wdrożenie
+  – generator wkleja wyrażenia do każdego bloku przy każdym wdrożeniu.
+
+Przełącznik (na serwerze, `cd /opt/olimpiada`; **na produkcji wyłącznie po zgodzie organizatora**,
+zwykle przez `scripts/djcms_cutover.sh` – zamrożenie Wagtaila, import, weryfikacja, `on`):
+
+```bash
+bash scripts/djcms_switch.sh status   # .env, plik wygenerowany, co widzi proxy, zamrożenie Wagtaila
+bash scripts/djcms_switch.sh on       # strony publiczne z djcms (DJCMS_PRIMARY=1)
+bash scripts/djcms_switch.sh off      # powrót do Wagtaila (~2 s), działa też przy leżącym djcms
+bash scripts/djcms_switch.sh check    # sama kontrola dymna trybu z .env
+```
+
+`on`/`off`: plik kandydujący + `caddy validate` w kontenerze proxy (błąd = nic nie zmienione) →
+`DJCMS_PRIMARY` w `.env` → render w miejscu + sprawdzenie, że proxy widzi tę treść → `caddy reload`
+(bez restartu `web`/`djcms`, bez zrywania połączeń) → kontrola dymna przez `https://<host>` na
+127.0.0.1 dla hostów z `sync_competitions --list-hosts` (`/` i `/<prefiks>/` z djcms albo z `web`,
+`/login/` z `web`, `/static/css/app.css` 200, `/internal/tls-allowed` 404, `/robots.txt` przy `on`).
+Porażka po `on` = automatyczny powrót do `DJCMS_PRIMARY=0` i kod 1. `off` nie wymaga zdrowego djcms
+(hosty wtedy z `SITE_DOMAIN`/`EXTRA_DOMAINS`), a proxy ze starą treścią pliku odtwarza samo.
+Wycofanie jest stratne: Wagtail pokazuje treść z chwili zamrożenia; edycję w `/cms/` odblokowuje
+dopiero `docker compose exec -T web python manage.py cms_freeze off` (po decyzji).
+Wdrożenie trybu nie zmienia: przy `DJCMS_PRIMARY=1` kończy się `djcms_switch.sh check`.
+
+Rejestr witryn przy każdym wdrożeniu: `sync_competitions --import-missing` – witryna nowego
+konkursu i treść dla **każdej** aktywnej witryny, która nie ma ani jednej strony (drzewo startowe
+z eksportu tego konkursu). Witryn ze stronami wdrożenie nie rusza. Obraz djcms sprzed tej flagi
+(np. `DJCMS_IMAGE` w starszej wersji) dostaje samo `sync_competitions` – wdrożenie sprawdza flagę
+w `--help`.
+
+Zachowanie przełącznika przy awariach: `on` dopisuje do `.env` `DJCMS_EVER_PRIMARY=<czas>` (raz,
+przed zmianą trybu – znacznik „djcms był publiczny” dla `djcms_cutover.sh`); przerwanie `on` sygnałem
+(Ctrl-C, zerwane ssh, `kill`) od zmiany `.env` do końca kontroli dymnej wraca do Wagtaila jak
+porażka kontroli. Kontrola dymna traktuje błąd uścisku TLS / certyfikatu (curl 35, 60) jako
+ostrzeżenie dla tej nazwy, a nie błąd tras – ale bez ani jednego sprawdzonego hosta nie przechodzi.
+Przepustka prac technicznych idzie do curla konfiguracją na stdin (`-K -`), nie w argumentach
+widocznych w `ps`. Wdrożenie z `.env` w innym trybie niż konfiguracja w działającym proxy
+(przerwane przełączenie, ręczna zmiana `DJCMS_PRIMARY`) staje w kroku 4/8 (§ 23). Wdrożenie przy
+`DJCMS_PRIMARY=1` porównuje też kontrakt tras na hoście (`backend/djcms_contract/app_routes.env`)
+z obrazem `web` – rozjazd (np. `WEB_IMAGE` w innej wersji niż kod) to kod ≠ 0 z podpowiedzią `off`.
+
+### 22.9. Przełączenie serwisu publicznego na django CMS (`scripts/djcms_cutover.sh`)
+
+Jedno polecenie na serwerze robi całe przejście: kopia → zamrożenie edycji stron w Wagtailu →
+końcowy import z Wagtaila → weryfikacja → przełącznik. **Na produkcji wyłącznie po zgodzie
+organizatora** (DJ-02 § 12 p. 7). Treść djcms do chwili przełączenia jest jednorazowa – końcowy
+import ją **zastępuje** (DJ-02 D8); od chwili przełączenia źródłem prawdy jest djcms.
+
+Przed (dzień wcześniej):
+
+1. Uprzedź redakcje: od chwili przełączenia strony w `/cms/` są tylko do odczytu; edycja w djcms
+   (`/cms/` konkursu → „Edytuj w django CMS”, § 22.3). Zmiany zrobione w djcms **w czasie
+   podglądu** zostaną nadpisane – chyba że konkurs pójdzie z `--skip <slug>` (jego treść djcms
+   zostaje, bez importu).
+2. Próba bez zmian (kilka minut – z testem odtwarzania ostatniej kopii):
+
+   ```bash
+   cd /opt/olimpiada
+   bash scripts/djcms_cutover.sh --check                         # same kontrole, kod 0/1
+   bash scripts/djcms_cutover.sh --dry-run [--skip fizyczna]      # kontrole + plan z dokładnymi poleceniami
+   ```
+
+   Kontrole (każda `ok`/`FAIL`, porażki zebrane w jednym przebiegu): `DJCMS_ENABLED=1`, proxy montuje
+   katalog `caddy/` (`CADDY_CONFIG_DIR=./caddy`, § 23) i widzi bieżącą treść `caddy/Caddyfile`, `web` i `djcms` healthy, `cms_freeze status`
+   odpowiada, `djcms_routes --check` w `web` i `backend/djcms_contract/app_routes.env` na hoście =
+   kontrakt z obrazu `web`, brak aliasów językowych aktywnych konkursów (D12), API v2 i rejestr
+   (`sync_competitions --dry-run`), `import_cms_bundle --all --replace --dry-run` (każda paczka
+   pobrana i zaimportowana w wycofanej transakcji), wolne miejsce (≥ 2048 MB w katalogu instalacji
+   i w `/opt/olimpiada-backups`, `DJCMS_CUTOVER_MIN_FREE_MB`), `backup_verify.sh` ostatniej kopii
+   (`--no-backup-verify` pomija – szybka próba).
+
+Przełączenie – **w `tmux`/`screen`** (albo `setsid`), nie wprost w sesji ssh: zerwane połączenie
+wysyła SIGHUP i przerywa przebieg w środku (skrypt kończy się wtedy ramką `!!!` ze stanem, a
+przerwany przełącznik wraca do Wagtaila – ale kopia, import i weryfikacja zostają do powtórzenia):
+
+```bash
+tmux new -s cutover            # po zerwaniu: tmux attach -t cutover
+cd /opt/olimpiada
+bash scripts/djcms_cutover.sh [--skip SLUG …]      # pyta: wpisz PRZEŁĄCZ; bez terminala: --yes
+# bez tmux: setsid -w bash scripts/djcms_cutover.sh --yes [--skip …] </dev/null   (dziennik – niżej)
+```
+
+| Krok | Co | Błąd = |
+|---|---|---|
+| 0 | kontrole jak `--check` (bez testu odtwarzania) | nic nie zmienione |
+| 1/7 | `scripts/backup.sh` (baza główna, baza i pliki djcms) + `scripts/backup_verify.sh` **tej** kopii | nic w serwisie nie zmienione |
+| 2/7 | `cms_freeze on --message "Edycja treści przeniesiona do django CMS" --wait` (`--wait`: 12 s, aż zamrożenie zobaczą wszystkie workery `web` – zapis strony tuż przed nim nie minie importu) | stan zamrożenia niepewny – `djcms_switch.sh status` |
+| 3/7 | `sync_competitions` (djcms) | Wagtail zamrożony, publicznie dalej Wagtail |
+| 4/7 | `import_cms_bundle --from-api --all --replace [--skip …]` – każdy konkurs we własnej transakcji | jw.; konkursy z błędem mają poprzednią treść djcms |
+| 5/7 | `verify_cutover` – tabela per konkurs (strony djcms/paczka, adresy 200, przekierowania) | jw.; porażka konkursu z `--skip` to tylko ostrzeżenie (liczba stron z definicji inna) |
+| 6/7 | `DJCMS_CUTOVER_DONE=<czas>` w `.env` (PRZED przełącznikiem – przerwanie po nim nie gubi znacznika), potem `bash scripts/djcms_switch.sh on` (§ 22.8) | przełącznik sam wraca do `DJCMS_PRIMARY=0`; Wagtail zamrożony; ponowienie samego przełączenia: `djcms_switch.sh on` (pełny przebieg – tylko z `--force-reimport`) |
+| 7/7 | podsumowanie | – |
+
+Przy każdym błędzie skrypt kończy się kodem ≠ 0 i ramką `!!!` z opisem stanu i dwiema drogami
+dalej. Strony publiczne **nigdy** nie zostają w stanie pośrednim: do kroku 6 podaje je Wagtail.
+Zamrożenia skrypt sam **nie** zdejmuje (decyzja operatora, DJ-02 § 10.1 p. 5):
+
+- poprawka i ponowienie – bezpieczne (zamrożenie idempotentne, `--replace` daje ten sam stan):
+  `bash scripts/djcms_cutover.sh [--skip …]`,
+- rezygnacja – `bash scripts/djcms_cutover.sh --rollback --unfreeze` (edycja w `/cms/` znów otwarta).
+
+Ponowne uruchomienie po udanym przełączeniu (`DJCMS_PRIMARY=1`) nic nie robi (kod 0) – import
+skasowałby redakcję djcms – **o ile Wagtail jest zamrożony**: `DJCMS_PRIMARY=1` przy otwartej edycji
+w `/cms/` (np. po ręcznym `djcms_switch.sh on`) to kod 1 z poleceniem `cms_freeze on` (skrypt nie
+zamraża sam). Pełny przebieg odmawia bez `--force-reimport` także wtedy, gdy w `.env` jest
+`DJCMS_EVER_PRIMARY` – ślad po `djcms_switch.sh on` wywołanym ręcznie, poza tym skryptem.
+Dziennik całego przebiegu: `/var/log/olimpiada-djcms-cutover-<data>.log` (`DJCMS_CUTOVER_LOG_DIR`).
+
+Jedna blokada zmian serwisu publicznego – `caddy/.lock` (katalog stanu, § 23): biorą ją ten skrypt,
+`djcms_switch.sh`, `proxy_config.sh` i **wdrożenie** (od kroku 2/8 do końca). Przełączenie w trakcie
+wdrożenia (albo wdrożenie w trakcie przełączenia) odmawia od razu (`--rollback` i `djcms_switch.sh
+off` czekają do 2 min); przełącznik wołany przez ten skrypt dziedziczy blokadę.
+
+Po przełączeniu: `bash scripts/djcms_switch.sh status`, w przeglądarce kilka stron każdego konkursu,
+`/robots.txt`, `/sitemap.xml`, logowanie i panel (`/login/`, `/me/`, `/coordinator/`). Porównanie
+z Wagtailem: `/djcms/preview/` na hoście konkursu (ciasteczko `djcms_view=wagtail`).
+
+W czasie zamrożenia: konkurs założony po przełączeniu dostaje w Wagtailu strony startowe (zamrożone,
+bez edycji), a djcms buduje jego drzewo startowe sam, kilka sekund po pierwszej wizycie na jego
+adresie – stron-danych (warsztaty, partnerzy) taki konkurs nie ma do DJ-03. Strony-dane – jedyny
+wyjątek od zamrożenia – edytuje się i publikuje w `/cms/` dalej, ale nie zdejmuje z publikacji
+(dla aplikacji to ich usunięcie), a
+`publish_scheduled` platforma nie uruchamia – nie uruchamiaj go ręcznie, dopóki Wagtail jest zamrożony.
+
+### 22.10. Wycofanie (powrót do Wagtaila)
+
+```bash
+cd /opt/olimpiada
+bash scripts/djcms_cutover.sh --rollback              # = djcms_switch.sh off (~2 s), Wagtail zostaje zamrożony
+bash scripts/djcms_cutover.sh --rollback --unfreeze   # dodatkowo cms_freeze off – dopiero po decyzji
+```
+
+`--rollback` nie wymaga zdrowego djcms (to droga ratunkowa – przełącznik sam odtwarza proxy ze starą
+treścią pliku), niczego nie importuje i nie kasuje. Woła `djcms_switch.sh off` **zawsze** (przy
+`DJCMS_ENABLED=1`), także gdy `.env` mówi już `DJCMS_PRIMARY=0` – po przerwanym przełączeniu `.env`,
+`caddy/Caddyfile` i konfiguracja załadowana w proxy mogą się różnić, a `off` jest idempotentne. **Wycofanie jest stratne**: Wagtail pokazuje
+treść z chwili zamrożenia, a zmiany zrobione w djcms po przełączeniu do Wagtaila **nie wracają**
+(D8). Dopóki Wagtail jest zamrożony, redakcja nie ma gdzie poprawiać stron publicznych – odmrażaj
+wyłącznie, gdy powrót ma potrwać dłużej.
+
+Ponowne przejście na djcms po wycofaniu:
+
+- **bez utraty zmian z djcms** (zwykła droga – treść djcms jest ta sama, co przed `off`):
+  `bash scripts/djcms_switch.sh on`,
+- **od nowa z Wagtaila** (np. redakcja pracowała w odmrożonym `/cms/`): `bash scripts/djcms_cutover.sh
+  --force-reimport [--skip SLUG …]` – bez `--force-reimport` skrypt odmawia, bo w `.env` jest
+  `DJCMS_CUTOVER_DONE` (albo `DJCMS_EVER_PRIMARY`) i ponowny import skasowałby redakcję djcms.
+
+Monitoring trybu (zalecane po przełączeniu): w Uptime Kuma monitor HTTP(s) na `https://<domena>/`,
+który sprawdza **nagłówek odpowiedzi** `X-Djcms-Mode: primary` (monitor „HTTP(s) – Keyword” czyta
+treść, nie nagłówki – najprościej monitor typu „Push” zasilany z crona sondą
+`curl -sI https://<domena>/ | grep -qi '^x-djcms-mode: primary'`). Brak nagłówka przy
+`DJCMS_PRIMARY=1` znaczy, że djcms przestał ufać proxy (np. proxy straciło stały adres w sieci
+`internal` z nakładki docker-compose.djcms.yml) i podaje strony jak w podglądzie – z `noindex`.
+Znane ograniczenie: ciasteczka djcms (`djcms_view`, sesja) nie mają prefiksu `__Host-` – środowisko
+deweloperskie działa po HTTP, a prefiks wymaga `Secure`.
+
+## 23. Konfiguracja proxy: `caddy reload` przy każdym wdrożeniu (`scripts/proxy_config.sh`)
+
+### 23.1. Błąd, który to naprawia
+
+Krok 2/8 `scripts/deploy.sh` kasuje katalog `deploy/` na serwerze i rozpakowuje go od nowa. Proxy
+montowało wygenerowany plik `deploy/Caddyfile.generated` jako **pojedynczy plik** – bind mount
+trzyma i-węzeł z chwili startu kontenera, więc po wdrożeniu Caddy widział skasowaną, **starą**
+treść. `docker compose up -d` w kroku 4b odtwarza kontener wyłącznie przy zmianie jego
+konfiguracji compose'a (obraz, montaże, środowisko), a nie treści pliku – nowe nagłówki, trasy
+i domeny nie docierały na produkcję aż do ręcznego `docker compose up -d --force-recreate proxy`.
+Na gałęzi djcms naprawione było to tylko przy `DJCMS_ENABLED=1` (porównanie sum i odtworzenie).
+
+### 23.2. Jak jest teraz
+
+| Element | Stan |
+|---|---|
+| Plik konfiguracji | `/opt/olimpiada/caddy/Caddyfile` – składany z `deploy/Caddyfile` i `.env` (`EXTRA_DOMAINS`, `PLATFORM_SUBDOMAINS`, `DJCMS_*`) przez `scripts/render_caddyfile.sh` |
+| Montaż w `proxy` | **katalog** `${CADDY_CONFIG_DIR:-./deploy}` → `/etc/caddy` (tylko do odczytu); serwer ma w `.env` `CADDY_CONFIG_DIR=./caddy`, środowisko deweloperskie montuje `deploy/` z plikiem źródłowym |
+| Krok 2/8 | omija `caddy/` (jak `maintenance/`, `secrets/`, `.env`) – katalog, który montuje działający kontener, nigdy nie znika |
+| Krok 4/8 | `bash scripts/proxy_config.sh render`: plik obok (`caddy/Caddyfile.next`) → `caddy validate` w działającym proxy → dopiero wtedy zapis do `caddy/Caddyfile` (w miejscu). Odrzucony = wdrożenie staje **przed** budowaniem i przed stroną prac technicznych; plik i proxy bez zmian |
+| Krok 4c/8 | `bash scripts/proxy_config.sh apply` po starcie usług: kontener widzi ten sam plik → `caddy reload` (bez restartu, bez zrywania połączeń; niezmieniona konfiguracja = no-op). Kontener nie działa albo widzi inną treść → `up -d --force-recreate --no-deps proxy` (kilka sekund bez HTTPS) i ponowne sprawdzenie sumy |
+| Punkty powrotu | pierwszy `render` na serwerze zaczyna od kopii tego, co widzi działające proxy (katalog `caddy/` montowany po zmianie `.env` nigdy nie jest pusty); każda nowa treść zostawia poprzednią w `caddy/Caddyfile.prev`. Reload odrzucony albo Caddy niewstający po odtworzeniu → `caddy/Caddyfile` wraca do `.prev` (przy odtworzeniu proxy startuje z niej ponownie), kod 1 |
+
+Rozważone warianty: (a) przy każdym wdrożeniu porównywać sumę pliku z tym, co widzi kontener,
+i przy różnicy odtwarzać `proxy` – proste, ale **każda** zmiana konfiguracji to kilka sekund bez
+HTTPS na wszystkich domenach (zerwane wgrywania, połączenia odrzucone jeszcze przed stroną prac
+technicznych); (b) montaż katalogu, który krok 2/8 omija, i `caddy reload` – bez przerwy.
+Wybrane (b), z (a) jako drogą awaryjną w 4c/8. Sam montaż **katalogu** `deploy/` niczego by nie
+naprawił: krok 2/8 kasuje także ten katalog, a bind mount katalogu też trzyma stary i-węzeł –
+dlatego konfiguracja mieszka w katalogu stanu poza kodem.
+
+Kolejność z `--maintenance` (§ 20.3) się nie zmienia: walidacja w 4/8 jest przed włączeniem strony
+(odrzucona konfiguracja = strona w ogóle nie jest włączana), `caddy reload` w 4c/8 jest po starcie
+usług i **przed** kontrolą z przepustką (5a), więc `https://<domena>/healthz/` przechodzi już przez
+nową konfigurację. Błąd reloadu po włączeniu strony zostawia ją włączoną z komunikatem pułapki –
+jak każdy inny błąd po 4/8.
+
+### 23.3. Polecenia (na serwerze, `cd /opt/olimpiada`)
+
+```bash
+bash scripts/proxy_config.sh status   # CADDY_CONFIG_DIR, czy plik zgadza się z .env, co widzi kontener
+bash scripts/proxy_config.sh update   # po zmianie EXTRA_DOMAINS / PLATFORM_SUBDOMAINS w .env: render + reload
+bash scripts/proxy_config.sh render   # sam render z walidacją (bez przeładowania)
+bash scripts/proxy_config.sh apply    # samo przeładowanie (albo odtworzenie kontenera, gdy trzeba)
+```
+
+- Generator czyta **wyłącznie** `.env` – zmienna z powłoki operatora nie wygrywa z plikiem.
+- `scripts/djcms_switch.sh on|off` zmienia ten sam plik; blokadę `caddy/.lock` biorą `proxy_config.sh`,
+  `djcms_switch.sh`, `djcms_cutover.sh` i wdrożenie – to ostatnie od kroku 2/8 do końca (sesja ssh
+  w tle; `proxy_config.sh` w krokach wdrożenia dziedziczy ją przez `OLIMPIADA_PROXY_LOCK=held`).
+  Wdrożenie czeka na cudzą zmianę do 2 min, potem odmawia – zanim cokolwiek skasuje (§ 22.9).
+- Przy `DJCMS_ENABLED=1` `render` porównuje tryb z `.env` (`DJCMS_PRIMARY`) z trybem konfiguracji
+  w **działającym** proxy (`header_up X-Djcms-Mode …`): różne = przerwane przełączenie albo ręczna
+  zmiana `.env` – odmowa (kod 1, nic nie zapisane) z poleceniem `djcms_switch.sh on|off`. Tryb
+  zmienia wyłącznie przełącznik (kontrola dymna, powrót przy porażce), nigdy wdrożenie.
+- `caddy validate` idzie w obrazie i środowisku **działającego** kontenera. Wydanie, które zmienia
+  wersję obrazu `caddy` albo dokłada zmienną środowiskową proxy, sprawdza nowy plik starszym
+  Caddym; taki kontener i tak jest odtwarzany w 4b (zmiana konfiguracji compose'a), a ewentualny
+  błąd pokaże `docker compose logs proxy` i krok 5/8.
+- Nie edytuj `caddy/Caddyfile` ręcznie – kolejne wdrożenie złoży go od nowa z `deploy/Caddyfile`
+  i `.env`. Zmiana konfiguracji = zmiana `deploy/Caddyfile` w repozytorium albo `.env`.
+
+### 23.4. Pierwsze wdrożenie tej wersji
+
+Nic ręcznie. Krok 4/8 usuwa z `.env` dawny wpis `CADDYFILE_PATH=./deploy/Caddyfile.generated`
+(z jego dwulinijkowym komentarzem) i dopisuje `CADDY_CONFIG_DIR=./caddy`; `render` kopiuje do
+`caddy/Caddyfile` konfigurację, którą widzi stary kontener (punkt powrotu), a walidacja nowej idzie
+jeszcze w starym kontenerze. W 4b `up -d` **jednorazowo** odtwarza `proxy` (zmienił się montaż –
+kilka sekund bez HTTPS, po tym, jak `web` jest healthy), a 4c/8 kończy się `caddy reload` bez
+zmian. Gdyby nowy Caddy nie wstał, 4c/8 wraca do skopiowanej konfiguracji i odtwarza proxy z niej.
+`CADDYFILE_PATH` wpisany ręcznie z inną wartością (własny plik proxy) zatrzymuje wdrożenie przed
+budowaniem – przenieś zmiany do `deploy/Caddyfile` i usuń tę linijkę. Sprawdzenie po wdrożeniu:
+
+```bash
+cd /opt/olimpiada
+bash scripts/proxy_config.sh status   # „zgodny”, „kontener proxy: widzi caddy/Caddyfile”
+docker compose config proxy | grep -A3 'target: /etc/caddy'   # source: /opt/olimpiada/caddy
+```
+
+Testy: `scripts/tests/proxy_config_test.sh` (skrypt na atrapie dockera) i
+`scripts/tests/deploy_djcms_test.sh` część 10 (całe wdrożenie na atrapach ssh/dockera: zmiana
+`deploy/Caddyfile` dochodzi do proxy przez reload, stary montaż, migracja `.env`, odrzucona
+walidacja i odrzucony reload – także z `--maintenance`).

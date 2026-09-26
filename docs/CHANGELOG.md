@@ -8,6 +8,180 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – konfiguracja proxy przy każdym wdrożeniu (`caddy reload`)
+
+- **Poprawka:** zmiany `deploy/Caddyfile` (nagłówki, trasy, domeny) nie docierały na produkcję –
+  krok 2/8 kasował `deploy/`, a proxy trzymało montaż pojedynczego pliku ze starym i-węzłem, którego
+  `up -d` nie odtwarzało. Proxy montuje teraz katalog stanu `caddy/` (`CADDY_CONFIG_DIR=./caddy`),
+  który krok 2/8 omija; nowy `scripts/proxy_config.sh` składa plik z walidacją (`caddy validate`
+  przed budowaniem) i ładuje go `caddy reload` w nowym kroku 4c/8 – bez restartu proxy. Odtworzenie
+  kontenera zostaje drogą awaryjną. `.env` migrowany sam (`CADDYFILE_PATH` → `CADDY_CONFIG_DIR`);
+  pierwsze wdrożenie jednorazowo odtwarza `proxy`. Punkty powrotu: kopia konfiguracji działającego
+  proxy przy pierwszym renderze, `caddy/Caddyfile.prev` przy odrzuconym reloadzie albo niewstającym
+  Caddym. `OPERACJE.md` § 23.
+- **Poprawka:** przy `PLATFORM_SUBDOMAINS=1` nazwy dosłowne (`www.`, `dj.`, `meet.`, `monitor.`,
+  `s3.`) mogły trafić do polityki TLS on-demand bloku `*.<domena>`, której `ask` (`/internal/tls-allowed`)
+  odmawia – bez certyfikatu. Adapter Caddy'ego 2.8 wcina ich politykę do domyślnej (stojącej za `*.`),
+  gdy istnieje polityka domyślna – np. przy `local_certs` (E2E); przy produkcyjnym ACME z `email`
+  nazwy mają dziś własną politykę. `scripts/render_caddyfile.sh` przypina im jawnie `tls { key_type p256 }`
+  (wartość domyślna – ten sam certyfikat), więc polityka jest osobna i stoi przed `*.`;
+  `render_caddyfile_test.sh` sprawdza polityki po `caddy adapt` (ACME i `local_certs`, S3 pod `s3.`
+  i pod `<domena>:9000`), a `djcms_routing_test.sh` – na żywym Caddym z domeną `olimpiada.test`
+  i `ask` odmawiającym nazwom stałym (dawniej atrapa zgadzała się na wszystko, a `localhost` Caddy
+  traktuje jak nazwę wewnętrzną – błąd nie wychodził).
+- **Bezpieczeństwo (djcms, proxy):** odmowa `/<prefiks>/internal/…` w bloku domeny głównej (kontrakt
+  tras kierował ją do web, chroniła tylko bramka hosta); przepustka prac technicznych do curla przez
+  stdin (`-K -`), nie argumenty widoczne w `ps` (`djcms_switch.sh`, krok 5a wdrożenia).
+- **Przełączenie djcms – odporność:** jedna blokada zmian serwisu `caddy/.lock` (wdrożenie od kroku
+  2/8 do końca, `djcms_switch.sh`, `djcms_cutover.sh`, `proxy_config.sh`; dziedziczona przez
+  `OLIMPIADA_PROXY_LOCK=held`); `djcms_switch.sh on` wraca do Wagtaila po przerwaniu sygnałem,
+  zapisuje `DJCMS_EVER_PRIMARY`, a błąd TLS hosta w kontroli dymnej to ostrzeżenie; `off`
+  i `--rollback` czekają na blokadę do 2 min; `render` (wdrożenie) odmawia, gdy tryb w `.env` ≠ tryb
+  w działającym proxy; `djcms_cutover.sh`: przy `DJCMS_PRIMARY=1` wymaga zamrożonego Wagtaila,
+  znacznik `DJCMS_CUTOVER_DONE` przed krokiem 6, `DJCMS_EVER_PRIMARY` też wymaga `--force-reimport`,
+  `--rollback` zawsze woła `djcms_switch.sh off`; wdrożenie przy `DJCMS_PRIMARY=1` porównuje kontrakt
+  tras hosta z obrazem web. `OPERACJE.md` § 22.8–22.10, § 23.
+
+## [Unreleased] – serwis publiczny na django CMS dla wszystkich konkursów (DJ-02)
+
+djcms z DJ-01 staje się **pełnym zamiennikiem publicznej części Wagtaila dla każdego konkursu**
+platformy (domena główna, subdomeny, `EXTRA_DOMAINS`, konkursy pod prefiksem ścieżki), na ich
+prawdziwych hostach. Które strony podaje djcms, a które Wagtail, rozstrzyga jedna zmienna
+`DJCMS_PRIMARY` przełączana `scripts/djcms_switch.sh on|off` (render Caddyfile'a i `caddy reload`,
+bez restartu usług); adresy aplikacji (logowanie, panele, `/cms/`, `/api/…`) zawsze obsługuje `web`.
+**Domyślnie nic się nie zmienia:** przy `DJCMS_ENABLED=0` konfiguracja Caddy'ego, compose'a
+i wdrożenia jest ta sama co przed DJ-01; przełączenie na produkcji wyłącznie po zgodzie
+organizatora (`scripts/djcms_cutover.sh`, `OPERACJE.md` § 22.9). Specyfikacja:
+[`tasks/DJ-02.md`](tasks/DJ-02.md) (odchylenia przy realizacji – § 15).
+
+- **Trasy z jednego źródła** (DJ-02a): `manage.py djcms_routes --write|--check` zapisuje adresy
+  aplikacji z urlconfu `web` do `backend/djcms_contract/app_routes.{json,env}` (Caddy i djcms
+  czytają te same pliki; CI pilnuje `--check`). `RESERVED_SLUGS` uzupełnione do pełnej listy
+  pierwszych segmentów urlconfu i `djcms`; `djcms` zarezerwowane też jako etykieta subdomeny.
+- **API v2 per konkurs** (DJ-02b): `GET /internal/djcms/v2/competitions` (hosty, tryb, adres
+  publiczny, `linked_paths`, `fingerprint`, także konkursy nieaktywne) i
+  `/internal/djcms/v2/c/<slug>/{chrome,stages,problems,results,editions,editions/<id>/results,
+  workshops,partners,export}` – te same bramki co w DJ-01; paczka `olimpiada-cms-bundle` **v2**
+  (konkurs, strony-dane, przekierowania Wagtaila). Wspólne wektory rozstrzygania hosta
+  `backend/djcms_contract/resolution_cases.json` testowane w obu projektach.
+- **Zamrożenie edycji Wagtaila** (DJ-02c): `manage.py cms_freeze on|off|status` (wiersz w bazie, bez
+  restartu) – strony w `/cms/` tylko do odczytu, egzekwowane po stronie serwera, z banerem;
+  wyjątki: strona „warsztaty” i strona partnerów (dane aplikacji pokazywane w djcms na żywo) –
+  edycja i publikacja tak, zdjęcie z publikacji nie; akcje API panelu (`/cms/api/main/pages/…/action/`)
+  zamrożone w całości; `cms_freeze on --wait` czeka, aż stan zobaczą wszystkie workery `web`.
+- **djcms – wiele witryn** (DJ-02d–f): witryna django CMS per konkurs (bez `SITE_ID`), rejestr
+  konkursów z API (`sync_competitions`, leniwe założenie witryny nowego konkursu z drzewem
+  startowym), wszystkie adresy djcms pod `/djcms/` (admin, statyki, media, `healthz`, `preview`,
+  `sso`), import wielowitrynowy (`import_cms_bundle --competition/--all/--skip`, paczka v1 i v2),
+  `verify_cutover`; tryb `preview`/`primary` z nagłówka `X-Djcms-Mode` od zaufanego proxy, noindex
+  tylko w podglądzie, canonical/og/GA jak w Wagtailu, `robots.txt` i `sitemap.xml` per witryna,
+  przekierowania starych adresów (`dj_seo.Redirect`, import i automatyczne po zmianie adresu),
+  404 w ramie konkursu, podgląd ciasteczkiem `djcms_view` (`/djcms/preview/`).
+- **Caddy i skrypty** (DJ-02h, DJ-02i): sekcja tras djcms w każdym bloku aplikacji, `dj.` już tylko
+  przekierowuje (302), `scripts/djcms_switch.sh on|off|status|check` z automatycznym powrotem przy
+  nieudanej kontroli, `scripts/djcms_cutover.sh` (`--check`, `--dry-run`, `--skip`, `--rollback`).
+- **Redaktorzy przez SSO z `/cms/`, uprawnienia per konkurs** (DJ-02g): pozycja menu Wagtaila
+  „Edytuj w django CMS” (`/cms/django-cms/`) wystawia jednorazowy token HMAC (60 s, nonce, host,
+  lista konkursów z prawem edycji/publikacji) wysyłany formularzem `POST` na `/djcms/sso/` tego
+  samego hosta; djcms zakłada konto `web:<id>` bez hasła i **zastępuje** jego grupy grupami
+  `redakcja:<slug>`, `redakcja:<slug>:bez-publikacji` albo `redakcja:platforma` (bez publikacji:
+  usuwanie i przenoszenie tylko stron bez opublikowanej wersji, jak w Wagtailu). Sesja z SSO trwa
+  najwyżej `DJCMS_SSO_SESSION_SECONDS` (domyślnie 2 h), a wylogowanie z aplikacji głównej kończy ją
+  od razu. Lokalnych kont redaktorów w djcms nie ma –
+  hasłem loguje się wyłącznie techniczny superużytkownik. `manage.py setup_djcms_groups` (każde
+  wdrożenie) zakłada grupy i foldery filera per konkurs (+ folder „Wspólne” do odczytu) i usuwa
+  grupę „Redaktorzy” z DJ-01 (`OPERACJE.md` § 22.3).
+- **Konfiguracja djcms**: `CMS_PERMISSION = True` (było `False`) – `GlobalPagePermission` zawężone
+  do witryny konkursu, nigdy uprawnienia na pojedynczych stronach; `FILER_ENABLE_PERMISSIONS = True`
+  (było `False`) – folder `Konkurs: <nazwa> (<slug>)` należy do redakcji konkursu. Pliki dalej są
+  wyłącznie publiczne.
+- **System checki**:
+  - `dj_blocks.E001` – **zmiana znaczenia**: było „`FILER_ENABLE_PERMISSIONS` musi być wyłączone”,
+    jest „pliki filera wyłącznie publiczne” (`FILER_IS_PUBLIC_DEFAULT = True` i ukryty przełącznik
+    „prywatny” w panelu filera, który przy włączonych uprawnieniach filer sam by pokazał),
+  - `dj_blocks.E002` (nowy) – `FILER_ENABLE_PERMISSIONS` musi być włączone,
+  - `dj_sites.E001` (nowy) – `CMS_PERMISSION` musi być włączone,
+  - `dj_sites.W001` (nowy) – `DJCMS_SSO_KEY` krótszy niż 32 znaki albo równy innemu sekretowi djcms,
+  - `cms.W013` (nowy, `web`) – to samo dla `DJCMS_SSO_KEY` w aplikacji głównej,
+  - `cms.W011` (nowy) – adres aplikacji bez wpisu w `RESERVED_SLUGS`,
+  - `cms.W012` (nowy w DJ-02a, **rozszerzony** w DJ-02g) – opublikowana strona Wagtaila pod adresem
+    aplikacji **albo djcms**: `/djcms/…` pod każdym hostem i `/<cokolwiek>/djcms/…` pod `SITE_DOMAIN`
+    (Caddy kieruje te adresy do djcms, więc strona zniknęłaby po włączeniu),
+  - `dj_pages.W003` (nowy) – ścieżka z `linked_paths` bez opublikowanej strony w djcms.
+- **Reguła `linked_paths`** (lista stron, do których linkuje aplikacja; sprawdzają ją `dj_pages.W003`
+  i `verify_cutover`): dokumenty zgód i literały z szablonów aplikacji (`/dokumenty/rodo/`, `/faq/`,
+  `/harmonogram/`, `/warsztaty/`) trafiają na listę **tylko wtedy, gdy stoi pod nimi opublikowana,
+  publiczna strona Wagtaila** – adres, który dziś w Wagtailu daje 404 (np. `/faq/` konkursu
+  założonego z szablonu), nie blokuje przełączenia; konkurs pod prefiksem ścieżki nie dziedziczy
+  literałów szablonów (te prowadzą do konkursu-gospodarza).
+- **Usunięte (DJ-02k)**: wewnętrzne API **v1** (`/internal/djcms/v1/*` – teraz ta sama pusta 404 co
+  każdy nieznany adres gałęzi), eksport paczki v1 (`export_cms_bundle --bundle-version`; komenda
+  buduje zawsze v2, bez `--competition` – aktywny konkurs witryny domyślnej), ustawienie
+  `DJCMS_COMPETITION_SLUG` (konkurs stoi w ścieżce API) i `DJCMS_MAIN_PUBLIC_URL` **w djcms**
+  (adresy aplikacji z `public_base` konkursu, bez niego – względne na tym samym hoście; w `web`
+  zmienna zostaje – opisuje adres konkursu domeny głównej). Importer djcms dalej przyjmuje paczki v1
+  (kopie sprzed DJ-02). Wpisy `DJCMS_COMPETITION_SLUG` w `.env` serwera są ignorowane – można je usunąć.
+- Nowe zmienne `.env`: `DJCMS_PRIMARY`, `DJCMS_SSO_KEY` (generuje wdrożenie), `DJCMS_WORKERS`,
+  `DJCMS_THREADS`, opcjonalnie `DJCMS_PROXY_IP`, `DJCMS_SSO_SESSION_SECONDS`.
+
+**Zmiany decyzji DJ-01** (DJ-02 § 1.3):
+
+| DJ-01 | DJ-02 |
+|---|---|
+| `dj.` serwuje treść, admin pod `dj./admin/`, media pod `dj./media/` | `dj.` = przekierowanie; djcms na każdym hoście konkursu pod `/djcms/*` |
+| noindex zawsze | noindex tylko w trybie `preview` |
+| stopka „Ta strona w wersji Wagtail” | w `preview`: pasek „Wyłącz podgląd”; w `primary`: brak |
+| `SITE_ID = 1`, `CMS_PERMISSION = False`, `FILER_ENABLE_PERMISSIONS = False` | brak `SITE_ID`, `True`, `True` |
+| API dla jednego konkursu (`DJCMS_COMPETITION_SLUG`) | API v2 per konkurs; v1 i `DJCMS_COMPETITION_SLUG` usunięte |
+| jedna grupa „Redaktorzy”, konta redaktorów zakłada administrator | grupy per konkurs, redaktorzy wyłącznie przez SSO z `/cms/` |
+| tabela warsztatów redakcyjna (import) | na żywo z API (także partnerzy) |
+
+## [Unreleased] – wersja porównawcza na django CMS (`dj.<domena>`, DJ-01)
+
+Równoległa, publiczna, **nieindeksowana** wersja części informacyjnej serwisu pod
+`dj.olimpiadakwantowa.pl`, redagowana w django CMS – do porównania z Wagtailem (`/cms/`) przed
+decyzją, który CMS zostaje. **Domyślnie wyłączona:** bez `DJCMS_ENABLED=1` konfiguracja Caddy'ego,
+`docker compose config`, przebieg wdrożenia i kopii zapasowych są co do polecenia takie jak
+dotąd. Włączenie na produkcji wymaga zgody organizatora (`OPERACJE.md` § 22.2). Specyfikacja:
+[`tasks/DJ-01.md`](tasks/DJ-01.md).
+
+- **Wewnętrzne API aplikacji głównej** `GET /internal/djcms/v1/{chrome,stages,problems,results,editions,workshops,export}`
+  (`apps/cms/djcms_api/`; w DJ-02 zastąpione API v2 per konkurs, v1 usunięte – wyżej): bramka hosta wewnętrznego, tokenu
+  `DJCMS_INTERNAL_TOKEN` (≥ 32 zn., nagłówek `X-Djcms-Token`) i metody `GET` – każda porażka to
+  pusta 404; wyniki przez białą listę kluczy, zadania dopiero po `opens_at`. Dane zawodów liczą te
+  same funkcje co strony Wagtaila (`apps/cms/live_data.py`, refaktoryzacja bez zmiany wyglądu).
+  Eksport drzewa Wagtaila do paczki `olimpiada-cms-bundle` v1 (`manage.py export_cms_bundle`;
+  od DJ-02k paczka v2).
+- **Projekt `djcms/`** (Django 6.1, django CMS 5.1.3, osobny obraz i usługa `djcms` w profilu
+  compose'a, osobna baza `olimpiada_djcms` i rola bez dostępu do bazy głównej – `scripts/djcms_db.sh`):
+  wtyczki treści odpowiadające blokom Wagtaila, wtyczki danych na żywo z API (bufor 60 s + kopia
+  awaryjna 600 s; przy niedostępnym `web` strony odpowiadają 200 z komunikatem), import treści
+  z Wagtaila (`import_cms_bundle`), CSP z `nonce`, `noindex` na każdej odpowiedzi, blokada prób
+  logowania w bazie.
+- **Proxy i wdrożenie** za przełącznikiem: blok `dj.` w Caddyfile, odmowa `/internal/*` w każdym
+  bloku publicznym, pliki redaktorów z CSP `sandbox`; `DJCMS_ENABLE=1 scripts/deploy.sh …` włącza
+  i generuje sekrety, buduje obraz, zakłada bazę, robi kopię przed migracjami i jednorazowy import.
+- **Kopie zapasowe** (DJ-01i): przy `DJCMS_ENABLED=1` nocna kopia obejmuje bazę
+  (`djcms-db-<stamp>.dump.gpg`) i wolumen plików redaktorów (`djcms-files-<stamp>.tar.gpg`) –
+  szyfrowanie, wysyłka poza serwer, retencja jak kopia główna; awaria po stronie `dj.` nie zatrzymuje
+  kopii głównej, ale kończy przebieg meldunkiem `--failed`. Cotygodniowy test odtwarzania sprawdza
+  bazę djcms (`cms_page` > 0) i czytelność paczki plików. `scripts/restore.sh --djcms-dump …
+  [--djcms-files …]` odtwarza do nowej bazy (właściciel `olimpiada_djcms`, bez `CONNECT` dla
+  PUBLIC) i nowego katalogu, z wypisanymi poleceniami podmiany (`OPERACJE.md` § 2.4). Baza
+  odtworzeniowa aplikacji głównej też traci `CONNECT` dla PUBLIC zaraz po `createdb`.
+- **Import paczki** (`import_cms_bundle --from-api` i `-`): plik tymczasowy na wolumenie
+  `djcms_media` zamiast `/tmp` kontenera (tmpfs 64 MB przy limicie paczki 500 MB), bez nazwy
+  w katalogu mediów; import przerywa się czytelnym błędem, zanim dysk (wspólny z bazą) zejdzie
+  poniżej 256 MB wolnego miejsca.
+- `dj` jest zarezerwowanym slugiem konkursu. Nowe zmienne `.env`: `DJCMS_ENABLED`,
+  `DJCMS_SECRET_KEY`, `DJCMS_DB_PASSWORD`, `DJCMS_INTERNAL_TOKEN`, `DJCMS_MAIN_PUBLIC_URL`,
+  opcjonalnie `DJCMS_COMPETITION_SLUG` (usunięte w DJ-02k), `DJCMS_IMAGE`, `EXTRA_CA_FILE` (dev).
+- Testy: `docker compose exec -T djcms pytest -q` (job `djcms` w CI), `test_live_data.py`,
+  `test_djcms_api.py`, `test_export_bundle.py`; skrypty: `render_caddyfile_test.sh`,
+  `compose_profiles_test.sh`, `djcms_db_test.sh`, `deploy_djcms_test.sh`,
+  `backup_offsite_test.sh` (przypadki 12–15; z `BACKUP_BASELINE_REF=<rewizja>` porównanie
+  przebiegu bez `dj.` ze skryptami sprzed zmiany).
+
 ## [Unreleased] – kopie zapasowe na Dysku Google
 
 Prośba organizatora z 25.09.2026: nocna kopia (`scripts/backup.sh`) może wyjeżdżać poza serwer na

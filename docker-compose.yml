@@ -69,13 +69,14 @@ services:
       - "443:443"
       - "9000:9000"   # publiczny endpoint S3 (S3_PUBLIC_ADDRESS=<domena>:9000), gdy brak rekordu DNS s3.<domena>
     volumes:
-      # Domyślnie plik źródłowy – instalacja z jednym konkursem nie potrzebuje niczego generować
-      # i dostaje dokładnie tę konfigurację, którą widać w repozytorium. Instalacja z wieloma
-      # konkursami ustawia w .env CADDYFILE_PATH=./deploy/Caddyfile.generated (plik składa
-      # scripts/render_caddyfile.sh z deploy/Caddyfile + EXTRA_DOMAINS; robi to scripts/deploy.sh
-      # przed startem usług). Zmienna, a nie drugi montaż na sztywno: bind na nieistniejący plik
-      # daje katalog, a katalog w miejscu Caddyfile'a to proxy, które nie wstaje.
-      - ${CADDYFILE_PATH:-./deploy/Caddyfile}:/etc/caddy/Caddyfile:ro
+      # KATALOG z plikiem `Caddyfile`, a nie pojedynczy plik (docs/OPERACJE.md § 23). Domyślnie
+      # deploy/ z repozytorium – środowisko deweloperskie dostaje dokładnie deploy/Caddyfile.
+      # Serwer ma w .env CADDY_CONFIG_DIR=./caddy: katalog stanu, który krok 2/8 scripts/deploy.sh
+      # omija (jak maintenance/), a plik w nim składa scripts/proxy_config.sh (deploy/Caddyfile
+      # + .env, caddy validate). Montaż pojedynczego pliku z deploy/ trzymał i-węzeł z chwili startu
+      # kontenera – po wdrożeniu Caddy widział skasowaną, starą treść. Katalog, który nie znika,
+      # widzi każdą nową wersję, więc wdrożenie ładuje ją przez `caddy reload`, bez restartu proxy.
+      - ${CADDY_CONFIG_DIR:-./deploy}:/etc/caddy:ro
       - static_files:/srv/static:ro
       - caddy_data:/data
       - caddy_config:/config
@@ -413,6 +414,83 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  djcms:
+    # Wersja porównawcza serwisu na django CMS pod dj.<SITE_DOMAIN> (docs/tasks/DJ-01.md).
+    # Profil `djcms` = usługa **nie** wstaje przy zwykłym `docker compose up`; włącza ją świadomie
+    # `DJCMS_ENABLED=1` (scripts/deploy.sh) albo ręcznie `--profile djcms`. Bez profilu zestaw usług,
+    # konfiguracja pozostałych usług i przebieg wdrożenia są takie jak przed DJ-01
+    # (scripts/tests/compose_profiles_test.sh).
+    #
+    # Zmienne **bez** `${…:?}`: interpolacja obejmuje cały plik niezależnie od profilu, więc
+    # wymagalna zmienna wywróciłaby `docker compose config` każdemu, kto djcms nie używa. Brak
+    # sekretu wykrywa djcms sam przy starcie (djcms/config/settings/production.py).
+    #
+    # Rozdział sekretów (reguła 11): **bez** `env_file: .env` – wyłącznie jawna lista niżej. Djcms
+    # nie dostaje ani DJANGO_SECRET_KEY, ani poświadczeń bazy aplikacji głównej, MinIO czy Redisa;
+    # ma własną rolę Postgresa `olimpiada_djcms` (scripts/djcms_db.sh) bez praw do bazy `olimpiada`.
+    profiles: [djcms]
+    build:
+      context: .
+      dockerfile: djcms/Dockerfile
+      target: runtime
+    image: ${DJCMS_IMAGE:-olimpiada/djcms:${APP_VERSION:-dev}}
+    command: >
+      gunicorn config.wsgi:application --bind 0.0.0.0:8000
+      --workers ${DJCMS_WORKERS:-3} --threads ${DJCMS_THREADS:-4}
+      --worker-class gthread --timeout 60 --graceful-timeout 20 --access-logfile -
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DJCMS_SECRET_KEY: ${DJCMS_SECRET_KEY:-}
+      DATABASE_URL: postgres://olimpiada_djcms:${DJCMS_DB_PASSWORD:-}@db:5432/olimpiada_djcms
+      # Hosty djcms (DJ-02 § 5.4): te same zmienne co aplikacja główna – djcms odpowiada pod każdym
+      # hostem konkursu (+ dj.<SITE_DOMAIN>). DJCMS_ALLOWED_HOSTS tylko dokłada wpisy.
+      SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
+      EXTRA_DOMAINS: ${EXTRA_DOMAINS:-}
+      PLATFORM_SUBDOMAINS: ${PLATFORM_SUBDOMAINS:-0}
+      DJCMS_ALLOWED_HOSTS: dj.${SITE_DOMAIN:-localhost},127.0.0.1,localhost
+      DJCMS_CSRF_TRUSTED_ORIGINS: https://dj.${SITE_DOMAIN:-localhost}
+      DJCMS_MAIN_API_URL: http://web:8000/internal/djcms/v2/
+      DJCMS_INTERNAL_TOKEN: ${DJCMS_INTERNAL_TOKEN:-}
+      # Klucz tokenu SSO z `/cms/` (DJ-02 D6) – ten sam wpis `.env` czyta `web` (env_file).
+      DJCMS_SSO_KEY: ${DJCMS_SSO_KEY:-}
+      # Najdłuższa sesja redaktora po SSO (sekundy od logowania; potem powrót przez `/cms/`).
+      DJCMS_SSO_SESSION_SECONDS: ${DJCMS_SSO_SESSION_SECONDS:-7200}
+      DJCMS_MAIN_MEDIA_ORIGIN: ${S3_PUBLIC_ENDPOINT_URL:-https://s3.${SITE_DOMAIN:-localhost}}
+      # Zaufane proxy = WYŁĄCZNIE kontener `proxy` (Caddy): od niego djcms przyjmuje `X-Real-IP`
+      # (blokada prób logowania) i `X-Djcms-Mode` (tryb preview/primary, DJ-02 D10 – od tego zależy
+      # noindex). Nie całe podsieci compose'a (jak `TRUSTED_PROXY_IPS` aplikacji głównej): w sieci
+      # `internal` stoją też web, worker, minio, clamav, mail… i każdy z nich mógłby udawać Caddy'ego.
+      # Adres `proxy` w sieci `internal` przypina nakładka docker-compose.djcms.yml – ta sama
+      # zmienna, ta sama wartość domyślna (scripts/tests/compose_profiles_test.sh pilnuje zgodności).
+      TRUSTED_PROXY_IPS: ${DJCMS_PROXY_IP:-172.30.2.250}
+    volumes:
+      - djcms_media:/app/media
+    # Tylko `internal` (bez wyjścia do internetu): djcms rozmawia wyłącznie z `db` i z API `web`.
+    networks: [internal]
+    restart: unless-stopped
+    logging: *default-logging
+    read_only: true
+    # `/tmp` zapisywalny: bufor plikowy blokady logowania (djcms/apps/pages/auth.py) i pliki
+    # tymczasowe uploadu filera.
+    tmpfs: ["/tmp:size=64m"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    # DJ-02 § 10.6: serwis publiczny wszystkich konkursów – domyślnie 3 workery gthread × 4 wątki
+    # (DJCMS_WORKERS/DJCMS_THREADS w .env), ~200 MB na worker z zapasem. Budżet połączeń
+    # Postgresa: +≤ 12 (3×4, CONN_MAX_AGE=0) przy max_connections=100.
+    mem_limit: 768m
+    depends_on:
+      db: { condition: service_healthy }
+    healthcheck:
+      # /djcms/healthz/ sprawdza wyłącznie bazę djcms – nie API aplikacji głównej (niedostępny `web`
+      # to degradacja sekcji żywych, a nie powód do restartu djcms) i nie rejestr konkursów.
+      # Wszystkie adresy aplikacyjne djcms są pod /djcms/ (DJ-02 D2).
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/djcms/healthz/', timeout=3).status==200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
   mailpit:
     profiles: [dev]
     image: axllent/mailpit:v1.24
@@ -458,3 +536,6 @@ volumes:
   # Baza Uptime Kuma (monitory, historia, konta). Wolumen nazwany, bo historia dostępności jest
   # jedyną rzeczą, która po incydencie odpowiada na pytanie „jak długo to nie działało”.
   monitor_data:
+  # Pliki wgrane przez redaktorów djcms (filer). Compose zakłada wolumen dopiero wtedy, gdy montuje
+  # go uruchamiana usługa – bez profilu `djcms` nie powstaje.
+  djcms_media:

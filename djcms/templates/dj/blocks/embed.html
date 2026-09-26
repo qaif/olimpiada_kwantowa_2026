@@ -1,0 +1,8 @@
+{% comment %}
+  Odpowiednik ``EmbedBlock`` przy ``WAGTAILEMBEDS_RESPONSIVE_HTML = True``: to samo opakowanie
+  ``.responsive-object`` i ramka o wymiarach, które YouTube oddaje w oEmbed bez ``maxwidth``.
+  Różnica jest jedna i celowa: ``src`` pochodzi z **wzorca** (``apps/blocks/embeds.py``), a nie
+  z HTML-a dostawcy – do strony nie trafia ani jeden obcy znacznik. Adres spoza YouTube/Vimeo
+  (wiersz zapisany z pominięciem formularza) = brak ramki.
+{% endcomment %}
+{% with src=instance.src %}{% if src %}<div style="padding-bottom: 56.25%;" class="responsive-object"><iframe width="200" height="113" src="{{ src }}" title="{{ instance.title }}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>{% endif %}{% endwith %}

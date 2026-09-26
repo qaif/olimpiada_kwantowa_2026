@@ -57,6 +57,38 @@
 # healthy + /healthz/ przez proxy z przepustką operatora -> strona WYŁĄCZONA. Błąd po włączeniu
 # zostawia stronę włączoną i mówi to głośno. Wymaga proxy, które już ma montaż /srv/maintenance
 # (czyli co najmniej jednego wdrożenia tej wersji BEZ flagi).
+#
+# Wersja porównawcza na django CMS pod dj.<domena> (docs/tasks/DJ-01.md § 8.10, docs/OPERACJE.md
+# § 22) – DOMYŚLNIE WYŁĄCZONA. Wszystko, co jej dotyczy, wykonuje się wyłącznie przy
+# `DJCMS_ENABLED=1` w <REMOTE_DIR>/.env; bez tego wpisu przebieg wdrożenia jest co do polecenia
+# dockera ten, co przed DJ-01 (scripts/tests/deploy_djcms_test.sh). Włączenie z wdrożenia:
+#   DJCMS_ENABLE=1 DJCMS_ADMIN_EMAIL=redakcja@example.org DJCMS_ADMIN_PASSWORD='…' \
+#     scripts/deploy.sh root@<host>
+# `DJCMS_ENABLE=1` dopisuje `DJCMS_ENABLED=1` do .env (kolejne wdrożenia już bez tej zmiennej),
+# krok 4/8 generuje sekrety djcms (DJCMS_SECRET_KEY, DJCMS_DB_PASSWORD, DJCMS_INTERNAL_TOKEN –
+# istniejących nie rusza), dopisuje nakładkę docker-compose.djcms.yml do COMPOSE_FILE, buduje obraz
+# djcms (albo pobiera DJCMS_IMAGE z rejestru) i zakłada bazę (scripts/djcms_db.sh); 4a robi też kopię
+# bazy djcms; 4b startuje usługę `djcms` (migracje w jej entrypoincie); krok „dj.” na końcu ustawia
+# grupę „Redaktorzy”, konto administratora (DJCMS_ADMIN_* – tylko gdy podane, idempotentnie)
+# i jednorazowo importuje treść z Wagtaila (`import_cms_bundle --from-api --if-empty`).
+# Wyłączenie i usunięcie – ręcznie, docs/OPERACJE.md § 22.6.
+#
+# Serwis publiczny na django CMS (docs/tasks/DJ-02.md § 3, § 10) – `DJCMS_PRIMARY` w .env (0/1) czyta
+# generator konfiguracji proxy w kroku 4/8 (1 bez DJCMS_ENABLED=1 zatrzymuje wdrożenie przed
+# budowaniem). Wdrożenie trybu NIE zmienia – przełącza scripts/djcms_switch.sh on|off (bez restartu
+# kontenerów). Przy DJCMS_ENABLED=1 krok „dj.” dodatkowo uzgadnia rejestr konkursów djcms
+# (`sync_competitions --import-missing` – treść dla witryn bez stron; flaga tylko przy obrazie
+# djcms, który ją zna), a przy DJCMS_PRIMARY=1 kończy kontrolą dymną (`djcms_switch.sh check`).
+# Samo przełączenie treści i trybu: scripts/djcms_cutover.sh (docs/OPERACJE.md § 22.9).
+#
+# Konfiguracja proxy (docs/OPERACJE.md § 23) – przy KAŻDYM wdrożeniu, bez przełącznika. Krok 4/8
+# składa <REMOTE_DIR>/caddy/Caddyfile (scripts/proxy_config.sh render: deploy/Caddyfile + .env,
+# `caddy validate` w działającym proxy – odrzucona konfiguracja zatrzymuje wdrożenie, zanim
+# cokolwiek zostanie zbudowane albo zatrzymane), a krok 4c/8, po starcie usług, ładuje ją
+# `caddy reload` (bez restartu proxy i bez zrywania połączeń). Proxy montuje katalog caddy/
+# (CADDY_CONFIG_DIR=./caddy w .env), który krok 2/8 omija; dawny montaż pojedynczego pliku
+# z deploy/ zostawał po kroku 2/8 przy skasowanej, starej treści. Kontener, który mimo to widzi
+# inną treść (albo nie działa), 4c/8 odtwarza – kilka sekund bez HTTPS.
 set -euo pipefail
 
 MAINTENANCE=0
@@ -75,6 +107,16 @@ SSH=(ssh -i "$SSH_KEY" -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$TA
 APP_VERSION="${APP_VERSION:-$(git describe --tags --always)}"
 
 log() { printf '\n==> %s\n' "$*"; }
+
+# DJCMS_ENABLE umie wyłącznie WŁĄCZYĆ dj. – sprawdzane tutaj, zanim cokolwiek dotknie serwera.
+# Wyłączenie to więcej niż wpis w .env (zatrzymanie usługi, nakładka compose'a, decyzja o danych),
+# więc nie udaje go żadna wartość tej zmiennej (docs/OPERACJE.md § 22.6).
+if [ -n "${DJCMS_ENABLE:-}" ]; then
+  case "$(printf '%s' "$DJCMS_ENABLE" | tr '[:upper:]' '[:lower:]')" in
+    1|true|yes|on) DJCMS_ENABLE=1 ;;
+    *) echo "deploy: DJCMS_ENABLE=„$DJCMS_ENABLE” – wdrożenie umie tylko włączyć dj. (DJCMS_ENABLE=1); wyłączenie: docs/OPERACJE.md § 22.6" >&2; exit 2 ;;
+  esac
+fi
 
 # Stan strony prac technicznych przy --maintenance, dla komunikatu po błędzie:
 #   0 – na pewno nie włączona przez to wdrożenie;
@@ -126,11 +168,34 @@ fi
 REMOTE
 
 log "2/8 Kod: git archive HEAD -> $REMOTE_DIR"
+# Blokada zmian serwisu publicznego (<REMOTE_DIR>/caddy/.lock – ta sama, którą biorą
+# scripts/djcms_switch.sh, scripts/djcms_cutover.sh i scripts/proxy_config.sh), trzymana od tej
+# chwili do końca wdrożenia: wdrożenie w trakcie przełączenia restartowałoby web/djcms w środku
+# importu, składało konfigurację proxy z połowicznie zmienionego .env i ścigało się z `sed -i .env`.
+# Kroki są osobnymi sesjami ssh, więc blokadę trzyma osobna sesja w tle (flock + `cat` czekający na
+# koniec wejścia) – zamknięcie wejścia przy wyjściu z tego skryptu (także po błędzie albo zerwaniu
+# połączenia) ją zwalnia. Kroki, które same biorą tę blokadę (proxy_config.sh), dostają
+# OLIMPIADA_PROXY_LOCK=held. Czekanie do 2 min; dłużej = inny proces zmienia serwis – przerwanie,
+# zanim cokolwiek zostanie skasowane. Bez flock na serwerze – bez blokady (z komunikatem).
+# shellcheck disable=SC2016
+# Sesja blokady kończy się WYŁĄCZNIE zamknięciem wejścia (także po nieudanym flock – `zajete`
+# i czekanie), więc tablica PROXY_LOCK nie znika, zanim odczytamy odpowiedź.
+coproc PROXY_LOCK { "${SSH[@]}" "mkdir -p '$REMOTE_DIR/caddy' && if command -v flock >/dev/null 2>&1; then flock -w 120 '$REMOTE_DIR/caddy/.lock' sh -c 'echo zablokowane; exec cat >/dev/null' || { echo zajete; exec cat >/dev/null; }; else echo bez-flock; exec cat >/dev/null; fi" 2>&1; }
+LOCK_STATE=""
+IFS= read -r -t 150 LOCK_STATE <&"${PROXY_LOCK[0]:-}" || true
+case "$LOCK_STATE" in
+  zablokowane) echo "blokada zmian serwisu ($REMOTE_DIR/caddy/.lock) – wzięta na czas wdrożenia" ;;
+  bez-flock) echo "UWAGA: brak flock na serwerze – wdrożenie bez blokady zmian serwisu" ;;
+  *) echo "BŁĄD: od 2 min serwis zmienia inny proces (djcms_cutover.sh, djcms_switch.sh albo drugie wdrożenie) – nic nie zostało zmienione, ponów później${LOCK_STATE:+ ($LOCK_STATE)}" >&2
+     exit 1 ;;
+esac
 # `maintenance` (stan strony prac technicznych: flaga, komunikat, kopia strony) zostaje: montuje go
 # działające proxy, a katalog skasowany i utworzony od nowa proxy widziałoby jako pusty (bez strony).
 # `secrets` (token Dysku Google dla kopii poza serwerem, odświeżany przez rclone – scripts/lib/
 # backup_offsite.sh) zostaje z tego samego powodu, co `.env`: nie ma go w repozytorium.
-"${SSH[@]}" "mkdir -p '$REMOTE_DIR' && find '$REMOTE_DIR' -mindepth 1 -maxdepth 1 ! -name .env ! -name 'e2e' ! -name maintenance ! -name secrets -exec rm -rf {} +"
+# `caddy` (konfiguracja proxy, scripts/proxy_config.sh) – jak `maintenance`: montuje go działające
+# proxy, a katalog skasowany i utworzony od nowa widziałoby jako stary (OPERACJE § 23).
+"${SSH[@]}" "mkdir -p '$REMOTE_DIR' && find '$REMOTE_DIR' -mindepth 1 -maxdepth 1 ! -name .env ! -name 'e2e' ! -name maintenance ! -name secrets ! -name caddy -exec rm -rf {} +"
 git archive --format=tar HEAD | "${SSH[@]}" "tar -x -C '$REMOTE_DIR'"
 
 log "3/8 .env (tworzony tylko przy pierwszym wdrożeniu)"
@@ -208,7 +273,11 @@ fi
 printf -v REMOTE_ENV '%q ' \
   "REMOTE_DIR=$REMOTE_DIR" "WEB_IMAGE=${WEB_IMAGE:-}" "MAINTENANCE=$MAINTENANCE" \
   "MAINTENANCE_MESSAGE=${MAINTENANCE_MESSAGE:-Aktualizacja serwisu.}" \
-  "MAINTENANCE_MINUTES=${MAINTENANCE_MINUTES:-10}"
+  "MAINTENANCE_MINUTES=${MAINTENANCE_MINUTES:-10}" "OLIMPIADA_PROXY_LOCK=held"
+# Zmienne dj. dokładane do polecenia **tylko wtedy, gdy są ustawione** – bez nich polecenie ssh
+# jest znak w znak takie, jak przed DJ-01.
+[ -n "${DJCMS_ENABLE:-}" ] && printf -v REMOTE_ENV '%s%q ' "$REMOTE_ENV" "DJCMS_ENABLE=$DJCMS_ENABLE"
+[ -n "${DJCMS_IMAGE:-}" ] && printf -v REMOTE_ENV '%s%q ' "$REMOTE_ENV" "DJCMS_IMAGE=$DJCMS_IMAGE"
 "${SSH[@]}" "env $REMOTE_ENV bash -s" <<'REMOTE'
 set -euo pipefail
 cd "$REMOTE_DIR"
@@ -268,25 +337,139 @@ if ! grep -qE '^#? *PLATFORM_SUBDOMAINS=' .env; then
   } >> .env
   chmod 600 .env
 fi
-if ! grep -qE '^CADDYFILE_PATH=' .env; then
+# Katalog konfiguracji proxy (OPERACJE § 23). Dawny wpis CADDYFILE_PATH (montaż pojedynczego pliku
+# z deploy/, który krok 2/8 kasuje) wpisało to samo wdrożenie – znika razem ze swoim komentarzem,
+# bo compose już go nie czyta. Wartość inną niż ta, którą wdrożenie wpisało, ustawił ktoś ręcznie
+# (własny plik proxy) – nie wyrzucamy jej po cichu, tylko zatrzymujemy się z instrukcją.
+if grep -qE '^CADDYFILE_PATH=' .env; then
+  case "$(sed -n 's/^CADDYFILE_PATH=//p' .env | tail -n 1 | tr -d '\r\042\047')" in
+    ./deploy/Caddyfile.generated|deploy/Caddyfile.generated) ;;
+    *) echo "BŁĄD: CADDYFILE_PATH w .env wskazuje własny plik proxy – przenieś go do deploy/Caddyfile albo usuń tę linijkę (docs/OPERACJE.md § 23)"; exit 1 ;;
+  esac
+  sed -i -e '/^# Konfiguracja proxy montowana do kontenera: plik składany z deploy\/Caddyfile$/d' \
+    -e '/^# i EXTRA_DOMAINS przez scripts\/render_caddyfile.sh (patrz docker-compose.yml)\.$/d' \
+    -e '/^CADDYFILE_PATH=/d' .env
+  chmod 600 .env
+fi
+if ! grep -qE '^CADDY_CONFIG_DIR=' .env; then
   {
-    echo "# Konfiguracja proxy montowana do kontenera: plik składany z deploy/Caddyfile"
-    echo "# i EXTRA_DOMAINS przez scripts/render_caddyfile.sh (patrz docker-compose.yml)."
-    echo "CADDYFILE_PATH=./deploy/Caddyfile.generated"
+    echo "# Konfiguracja proxy: katalog caddy/ (plik Caddyfile składany z deploy/Caddyfile i tego .env"
+    echo "# przez scripts/proxy_config.sh) montowany do kontenera jako /etc/caddy – OPERACJE § 23."
+    echo "CADDY_CONFIG_DIR=./caddy"
   } >> .env
   chmod 600 .env
 fi
-# Generator chodzi przy każdym wdrożeniu, także gdy EXTRA_DOMAINS jest puste: krok 2/8 czyści
-# katalog z wszystkiego poza .env, a plik wynikowy nie jest w repozytorium. Przy pustej liście
-# i wyłączonym PLATFORM_SUBDOMAINS wynik jest kopią deploy/Caddyfile co do bajtu
-# (scripts/tests/render_caddyfile_test.sh).
+# --- Wersja porównawcza django CMS (dj.<domena>, docs/tasks/DJ-01.md § 8.10) ---------------------
+# Cały blok działa wyłącznie przy DJCMS_ENABLED=1 w .env (albo DJCMS_ENABLE=1 z wdrożenia, które ten
+# wpis dopisuje). Przy wyłączonym przełączniku nie zmienia w .env ani bajtu i nie woła dockera –
+# żadnego „przygotowania na zapas”: .env serwera, na którym dj. nigdy nie włączono, ma zostać
+# taki, jaki był (scripts/tests/deploy_djcms_test.sh porównuje go przed i po).
+if [ "${DJCMS_ENABLE:-}" = "1" ]; then
+  if grep -qE '^DJCMS_ENABLED=' .env; then
+    sed -i 's/^DJCMS_ENABLED=.*/DJCMS_ENABLED=1/' .env
+  else
+    {
+      echo
+      echo "# Wersja porównawcza na django CMS pod dj.<SITE_DOMAIN> (docs/OPERACJE.md § 22). Wpisane"
+      echo "# przez scripts/deploy.sh (DJCMS_ENABLE=1). Wyłączenie to więcej niż zmiana na 0 – § 22.6."
+      echo "DJCMS_ENABLED=1"
+    } >> .env
+  fi
+  chmod 600 .env
+fi
+# Odczyt jak w scripts/render_caddyfile.sh (ostatnie wystąpienie, bez cudzysłowów i CR). Wartość
+# spoza listy nie jest tu błędem tylko dlatego, że zaraz niżej zatrzyma ją generator konfiguracji
+# proxy – z komunikatem, zanim cokolwiek zostanie zbudowane.
+DJCMS_FLAG="$(sed -n 's/^DJCMS_ENABLED=//p' .env | tail -n 1 | tr -d '\r\042\047[:space:]' | tr '[:upper:]' '[:lower:]')"
+case "$DJCMS_FLAG" in 1|true|yes|on) DJCMS_ON=1 ;; *) DJCMS_ON=0 ;; esac
+if [ "$DJCMS_ON" = "1" ]; then
+  # Sekrety djcms – wzorzec MAINTENANCE_BYPASS_TOKEN: tworzone raz, istniejącej wartości skrypt
+  # nie rusza (zmiana DJCMS_SECRET_KEY wylogowuje redaktorów, zmiana hasła bazy wymaga ponownego
+  # scripts/djcms_db.sh – ten i tak biegnie niżej). Pusta linijka (np. z kopii .env.example) jest
+  # zastępowana. Wyłącznie [A-Za-z0-9]: hasło trafia do DATABASE_URL w docker-compose.yml, gdzie
+  # `@ : / # ? %` zmieniają znaczenie adresu (scripts/djcms_db.sh odmawia takiego hasła).
+  djcms_secret() {  # djcms_secret <NAZWA> <długość> <opis do komentarza>
+    if ! grep -qE "^$1=." .env; then
+      sed -i "/^$1=\$/d" .env
+      {
+        echo
+        echo "# $3 Wygenerowane przez scripts/deploy.sh (DJCMS_ENABLED=1)."
+        echo "$1=$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c "$2")"
+      } >> .env
+      chmod 600 .env
+      echo "dj.: wygenerowano $1"
+    fi
+  }
+  djcms_secret DJCMS_SECRET_KEY 64 "Klucz Django serwisu dj. (djcms) – osobny od DJANGO_SECRET_KEY."
+  djcms_secret DJCMS_DB_PASSWORD 32 "Hasło roli Postgresa olimpiada_djcms (scripts/djcms_db.sh)."
+  djcms_secret DJCMS_INTERNAL_TOKEN 48 "Token wewnętrznego API /internal/djcms/ (web i djcms; < 32 znaki = API wyłączone)."
+  djcms_secret DJCMS_SSO_KEY 64 "Klucz tokenu SSO redaktorów z /cms/ do djcms (web i djcms; osobny od pozostałych sekretów)."
+  # Wartości wpisane ręcznie sprawdzamy od razu, a nie dopiero przy starcie djcms: krótki token
+  # nie daje błędu, tylko po cichu wyłączone API (dj. bez terminów i wyników), a hasło ze znakiem
+  # spoza listy – rolę z jednym hasłem i adres bazy z innym.
+  djv() { sed -n "s/^$1=//p" .env | tail -n 1 | tr -d '\r\042\047'; }
+  printf '%s' "$(djv DJCMS_DB_PASSWORD)" | grep -Eq '^[A-Za-z0-9_-]{16,}$' \
+    || { echo "BŁĄD: DJCMS_DB_PASSWORD w .env – wyłącznie [A-Za-z0-9_-], co najmniej 16 znaków"; exit 1; }
+  DJ_TOKEN="$(djv DJCMS_INTERNAL_TOKEN)"
+  [ "${#DJ_TOKEN}" -ge 32 ] \
+    || { echo "BŁĄD: DJCMS_INTERNAL_TOKEN w .env krótszy niż 32 znaki – API dla dj. byłoby wyłączone"; exit 1; }
+  unset DJ_TOKEN
+  # Znacznik jednorazowego importu treści z Wagtaila (krok „dj.” na końcu wdrożenia): `pending`
+  # przy pierwszym włączeniu, `done` po udanym imporcie. W .env, a nie jako plik w katalogu
+  # wdrożenia, bo krok 2/8 kasuje wszystko poza .env – przerwane wdrożenie zgubiłoby znacznik.
+  if ! grep -qE '^DJCMS_INITIAL_IMPORT=' .env; then
+    {
+      echo
+      echo "# Pierwszy import treści Wagtaila do dj. (scripts/deploy.sh, import_cms_bundle --if-empty):"
+      echo "# pending = przy najbliższym wdrożeniu, done = wykonany. Pełny ponowny import: OPERACJE § 22.4."
+      echo "DJCMS_INITIAL_IMPORT=pending"
+    } >> .env
+    chmod 600 .env
+  fi
+  # Nakładka docker-compose.djcms.yml (montaż wolumenu `djcms_media` do proxy – pliki redaktorów
+  # pod dj.<domena>/media/) i profil `djcms` – przez COMPOSE_FILE / COMPOSE_PROFILES w .env, bo
+  # docker compose czyta je stamtąd sam. Dzięki temu KAŻDE polecenie compose'a na serwerze (to
+  # wdrożenie, scripts/backup.sh, ręczne `docker compose up -d proxy` po awarii) widzi tę samą
+  # konfigurację, a nie tylko te, które ktoś pamiętał wywołać z `-f … --profile djcms`. Przy
+  # wyłączonym przełączniku obu linijek nie ma, więc `docker compose config` jest ten sam co
+  # przed DJ-01 (scripts/tests/compose_profiles_test.sh). Wartości już ustawionej inaczej nie
+  # przerabiamy sedem (cudzysłowy, własne nakładki operatora) – zatrzymujemy się z instrukcją.
+  if ! grep -qE '^COMPOSE_FILE=' .env; then
+    {
+      echo
+      echo "# Nakładka dj. (docs/OPERACJE.md § 22) – wpisane przez scripts/deploy.sh przy DJCMS_ENABLED=1."
+      echo "COMPOSE_FILE=docker-compose.yml:docker-compose.djcms.yml"
+    } >> .env
+    chmod 600 .env
+  else
+    case "$(djv COMPOSE_FILE)" in
+      *docker-compose.djcms.yml*) ;;
+      *) echo "BŁĄD: COMPOSE_FILE w .env nie zawiera docker-compose.djcms.yml – dopisz „:docker-compose.djcms.yml” ręcznie"; exit 1 ;;
+    esac
+  fi
+  if ! grep -qE '^COMPOSE_PROFILES=' .env; then
+    echo "COMPOSE_PROFILES=djcms" >> .env
+    chmod 600 .env
+  else
+    case ",$(djv COMPOSE_PROFILES | tr -d '[:space:]')," in
+      *,djcms,*) ;;
+      *) echo "BŁĄD: COMPOSE_PROFILES w .env nie zawiera profilu djcms – dopisz „,djcms” ręcznie"; exit 1 ;;
+    esac
+  fi
+fi
+# Generator chodzi przy każdym wdrożeniu, także gdy EXTRA_DOMAINS jest puste: deploy/Caddyfile
+# mogło się zmienić razem z kodem. Przy pustej liście i wyłączonym PLATFORM_SUBDOMAINS wynik jest
+# kopią deploy/Caddyfile co do bajtu (scripts/tests/render_caddyfile_test.sh).
 #
 # Obie zmienne generator czyta **sam**, z <REMOTE_DIR>/.env: skrypt wywołuje go z katalogu
 # wdrożenia, więc jego `ROOT` to ten katalog. Dlatego PLATFORM_SUBDOMAINS trafia do konfiguracji
 # proxy tą samą drogą co EXTRA_DOMAINS i wdrożenie nie musi nic przekazywać przez środowisko
 # (ani nie da się przez pomyłkę nadpisać wartości z serwera zmienną z własnej powłoki).
-chmod +x scripts/render_caddyfile.sh
-./scripts/render_caddyfile.sh
+#
+# Nowy plik trafia do caddy/Caddyfile dopiero po `caddy validate` w działającym proxy; odrzucony
+# zatrzymuje wdrożenie TUTAJ – przed budowaniem i przed stroną prac technicznych. Proxy ładuje go
+# w kroku 4c/8 (po starcie usług, z których nowa konfiguracja może korzystać).
+bash scripts/proxy_config.sh render </dev/null
 # Źródło obrazu aplikacji: rejestr albo build na miejscu. Rozgałęzienie, a nie podmiana – bez
 # WEB_IMAGE wykonuje się dokładnie to polecenie, które wykonywało się dotąd
 # (docs/UNIWERSALNY-ETAP-2.md § 0.2 pkt 11 i § 1.7.2).
@@ -316,6 +499,30 @@ else
   fi
   docker compose build --pull web
 fi
+if [ "$DJCMS_ON" = "1" ]; then
+  # Obraz djcms – to samo rozgałęzienie co dla `web` wyżej: rejestr (DJCMS_IMAGE, zapamiętany
+  # w .env dla kolejnych poleceń compose'a) albo build na serwerze (wpis z .env znika). Przed
+  # stroną prac technicznych, jak build `web`: budowanie nie wymaga zatrzymania czegokolwiek.
+  # `--profile djcms` jawnie, choć COMPOSE_PROFILES w .env już go włącza – polecenie ma działać
+  # niezależnie od tego, co ktoś zrobił z tą linijką.
+  if [ -n "${DJCMS_IMAGE:-}" ]; then
+    if grep -qE '^DJCMS_IMAGE=' .env; then
+      sed -i "s|^DJCMS_IMAGE=.*|DJCMS_IMAGE=$DJCMS_IMAGE|" .env
+    else
+      {
+        echo "# Obraz djcms z rejestru zamiast budowanego na serwerze – wpisuje scripts/deploy.sh (DJCMS_IMAGE=…)."
+        echo "DJCMS_IMAGE=$DJCMS_IMAGE"
+      } >> .env
+    fi
+    chmod 600 .env
+    docker compose --profile djcms pull djcms
+  else
+    if grep -qE '^DJCMS_IMAGE=' .env; then
+      sed -i '/^DJCMS_IMAGE=/d' .env
+    fi
+    docker compose --profile djcms build --pull djcms
+  fi
+fi
 if [ "${MAINTENANCE:-0}" = "1" ]; then
   # --maintenance: strona włączona, zanim cokolwiek z aplikacji zostanie zatrzymane, i PRZED kopią
   # z kroku 4a – kopia ma odpowiadać stanowi, którego nikt już nie zmieni (OPERACJE § 20.3).
@@ -324,14 +531,30 @@ if [ "${MAINTENANCE:-0}" = "1" ]; then
   bash scripts/maintenance.sh on --message "$MAINTENANCE_MESSAGE" --in "$MAINTENANCE_MINUTES"
   date +%s.%N > maintenance/.deploy-maintenance-on
   docker compose stop web worker beat
+  # djcms też: jego połączenia z bazą (healthcheck co 15 s) zatrzymałyby kontrolę „zero klientów”
+  # niżej, a kopia bazy djcms z kroku 4a ma powstać przed migracjami jego entrypointu (4b).
+  # `dj.` nie ma strony prac technicznych – na czas przerwy odpowiada błędem proxy.
+  if [ "$DJCMS_ON" = "1" ]; then docker compose stop djcms; fi
 fi
 docker compose up -d db
+# Stan usług do zmiennej, a nie `docker compose ps | grep -q`: grep kończy czytanie po pierwszym
+# trafieniu, a `docker` piszący dalej (i atrapa w scripts/tests/deploy_djcms_test.sh – bash pisze
+# linijka po linijce) dostaje SIGPIPE; pod `pipefail` potok jest wtedy fałszywy mimo trafienia –
+# pętla robi zbędny obrót (dodatkowe `ps`), a kontrola twarda niżej przerywa wdrożenie.
 for _ in $(seq 1 30); do
-  docker compose ps --format '{{.Service}}={{.Health}}' | grep -q 'db=healthy' && break
+  PS_OUT="$(docker compose ps --format '{{.Service}}={{.Health}}')" || PS_OUT=""
+  grep -q 'db=healthy' <<<"$PS_OUT" && break
   sleep 2
 done
 # Twardo: bez działającej bazy nie ma kopii z kroku 4a, a bez kopii nie wolno migrować.
-docker compose ps --format '{{.Service}}={{.Health}}' | grep -q 'db=healthy'
+PS_OUT="$(docker compose ps --format '{{.Service}}={{.Health}}')"
+grep -q 'db=healthy' <<<"$PS_OUT"
+if [ "$DJCMS_ON" = "1" ]; then
+  # Rola i baza `olimpiada_djcms` (idempotentnie; hasło z .env ustawiane przy każdym przebiegu).
+  # Przed kontrolą klientów przy --maintenance: psql skryptu kończy się, zanim ona zacznie liczyć.
+  # </dev/null: skrypt nie może czytać stdin, bo to strumień tego skryptu.
+  bash scripts/djcms_db.sh </dev/null
+fi
 if [ "${MAINTENANCE:-0}" = "1" ]; then
   # Aplikacja stoi – w bazie nie może zostać żaden klient. 30 s na rozejście się połączeń, potem
   # rozłączenie maruderów i ostatnia kontrola; ktoś, kto wciąż pisze, zatrzymuje wdrożenie.
@@ -353,6 +576,16 @@ fi
 REMOTE
 # Krok 4/8 zakończony: przy --maintenance strona jest na pewno włączona.
 [ "$MAINTENANCE" = "1" ] && MAINT_MAYBE_ON=1
+
+# Czy dj. (django CMS) jest włączone – odczyt <REMOTE_DIR>/.env po kroku 4/8 (DJCMS_ENABLE=1 już
+# dopisał tam wpis, a wartość spoza listy zatrzymała generator Caddy'ego). Jedno odczytanie,
+# bez dockera; od niego zależą dalsze kroki, a przy wyłączonym przełączniku każde z ich poleceń
+# jest znak w znak takie jak przed DJ-01 (scripts/tests/deploy_djcms_test.sh).
+# Przypisanie, a nie `case "$(…)"`: nieudane ssh zatrzymuje wtedy wdrożenie (set -e), zamiast
+# po cichu dać „wyłączone” na serwerze, na którym dj. działa.
+DJCMS_FLAG="$("${SSH[@]}" "sed -n 's/^DJCMS_ENABLED=//p' '$REMOTE_DIR/.env' | tail -n 1" | tr -d '\r\042\047[:space:]' | tr '[:upper:]' '[:lower:]')"
+DJCMS_ON=0
+case "$DJCMS_FLAG" in 1|true|yes|on) DJCMS_ON=1 ;; esac
 
 log "4a/8 Kopia bazy przed migracjami (pg_dump -Fc)"
 # Format `custom` (-Fc), a nie zwykły SQL: pozwala odtworzyć wybraną tabelę zamiast całej bazy,
@@ -408,16 +641,63 @@ true
 echo "Odtworzenie: docker compose exec -T db pg_restore -U $PG_USER -d $PG_DB --clean --if-exists < $DUMP"
 REMOTE
 
+if [ "$DJCMS_ON" = "1" ]; then
+  # Kopia bazy djcms przed migracjami (entrypoint `djcms` wykonuje je w 4b) – osobne wywołanie,
+  # żeby skrypt kopii bazy głównej wyżej został taki, jaki był. Ten sam format, katalog i limit
+  # dziesięciu plików; osobny prefiks, więc limity obu zestawów się nie mieszają. Przy
+  # --maintenance djcms stoi od kroku 4/8, więc kopia odpowiada stanowi sprzed wdrożenia.
+  log "4a/8 dj.: kopia bazy olimpiada_djcms przed migracjami"
+  "${SSH[@]}" env REMOTE_DIR="$REMOTE_DIR" APP_VERSION="$APP_VERSION" BACKUP_DIR="${BACKUP_DIR:-/opt/olimpiada-backups}" bash -s <<'REMOTE'
+set -euo pipefail
+cd "$REMOTE_DIR"
+PG_USER="$(grep -E '^POSTGRES_USER=' .env | cut -d= -f2-)"
+PG_DB="$(grep -E '^POSTGRES_DB=' .env | cut -d= -f2-)"
+exists="$(docker compose exec -T db psql -X -U "$PG_USER" -d "$PG_DB" -Atc "SELECT 1 FROM pg_database WHERE datname = 'olimpiada_djcms'" </dev/null | tr -d '\r')"
+if [ "$exists" != "1" ]; then
+  echo "baza olimpiada_djcms nie istnieje – nie ma czego kopiować"
+  exit 0
+fi
+STAMP="$(date +%Y%m%d-%H%M%S)-$(printf '%s' "$APP_VERSION" | tr -cs 'A-Za-z0-9._-' '-')"
+DUMP="$BACKUP_DIR/djcms-db-pre-$STAMP.dump"
+docker compose exec -T db pg_dump -U "$PG_USER" -d olimpiada_djcms -Fc > "$DUMP" </dev/null
+chmod 600 "$DUMP"
+[ -s "$DUMP" ] || { echo "Kopia bazy djcms przed migracjami jest pusta – przerywam wdrożenie."; exit 1; }
+ls -lh "$DUMP"
+ls -1t "$BACKUP_DIR"/djcms-db-pre-*.dump 2>/dev/null | tail -n +11 | xargs -r rm -f
+echo "Odtworzenie: docker compose exec -T db pg_restore -U $PG_USER -d olimpiada_djcms --clean --if-exists < $DUMP"
+REMOTE
+fi
+
 log "4b/8 Start usług (migracje wykonuje entrypoint kontenera web)"
-"${SSH[@]}" "cd '$REMOTE_DIR' && docker compose up -d --remove-orphans db redis minio minio-init clamav mail web worker beat proxy"
+# Przy DJCMS_ENABLED=1 lista dostaje `djcms` na końcu; bez niego polecenie jest znak w znak dzisiejsze.
+DJCMS_SVC=""
+[ "$DJCMS_ON" = "1" ] && DJCMS_SVC=" djcms"
+"${SSH[@]}" "cd '$REMOTE_DIR' && docker compose up -d --remove-orphans db redis minio minio-init clamav mail web worker beat proxy$DJCMS_SVC"
+
+log "4c/8 Konfiguracja proxy: caddy reload"
+# `up -d` wyżej odtwarza proxy wyłącznie przy zmianie jego konfiguracji compose'a (obraz, montaże,
+# środowisko) – zmiana samej treści caddy/Caddyfile z kroku 4/8 do działającego Caddy'ego nie
+# dochodzi bez przeładowania. `caddy reload` podmienia konfigurację bez restartu kontenera i bez
+# zrywania połączeń (niezmieniona = no-op). Proxy, które nie działa albo widzi inną treść (montaż
+# sprzed CADDY_CONFIG_DIR), skrypt odtwarza. Po starcie usług, a nie w kroku 4/8: nowe trasy mogą
+# prowadzić do usług, które dopiero wstały. Przy --maintenance: przed kontrolą z przepustką (5a),
+# więc ta sprawdza serwis już przez nową konfigurację; błąd zostawia stronę włączoną (pułapka EXIT).
+# Nowa konfiguracja odrzucona przez reload albo niewstające po odtworzeniu proxy: caddy/Caddyfile
+# wraca do poprzedniej treści (caddy/Caddyfile.prev), proxy działa na niej, wdrożenie – kod 1.
+"${SSH[@]}" "cd '$REMOTE_DIR' && OLIMPIADA_PROXY_LOCK=held bash scripts/proxy_config.sh apply </dev/null"
 
 log "5/8 Oczekiwanie na healthy"
+# Przy DJCMS_ENABLED=1 warunek dostaje trzeci człon (djcms=healthy); bez niego tekst skryptu jest
+# znak w znak dzisiejszy. Pojedyncze cudzysłowy: `$s` ma się rozwinąć na serwerze, nie tutaj.
+DJCMS_WAIT=""
+# shellcheck disable=SC2016
+[ "$DJCMS_ON" = "1" ] && DJCMS_WAIT=' && echo "$s" | grep -q '\''djcms=healthy'\'''
 "${SSH[@]}" bash -s <<REMOTE
 set -euo pipefail
 cd '$REMOTE_DIR'
 for i in \$(seq 1 60); do
   s=\$(docker compose ps --format '{{.Service}}={{.Health}}' | tr '\n' ' ')
-  echo "\$s" | grep -q 'web=healthy' && echo "\$s" | grep -q 'proxy=healthy' && { echo "\$s"; break; }
+  echo "\$s" | grep -q 'web=healthy' && echo "\$s" | grep -q 'proxy=healthy'$DJCMS_WAIT && { echo "\$s"; break; }
   sleep 5
 done
 REMOTE
@@ -430,13 +710,16 @@ if [ "$MAINTENANCE" = "1" ]; then
   "${SSH[@]}" env REMOTE_DIR="$REMOTE_DIR" bash -s <<'REMOTE'
 set -euo pipefail
 cd "$REMOTE_DIR"
-docker compose ps --format '{{.Service}}={{.Health}}' | grep -qx 'web=healthy' \
+# Do zmiennej, nie `| grep -q` (SIGPIPE pod pipefail – komentarz w kroku 4/8).
+PS_OUT="$(docker compose ps --format '{{.Service}}={{.Health}}' || true)"
+grep -qx 'web=healthy' <<<"$PS_OUT" \
   || { echo "BŁĄD: web nie jest healthy – strona prac technicznych zostaje włączona (docker compose logs web)"; exit 1; }
 DOMAIN="$(sed -n 's/^SITE_DOMAIN=//p' .env | tail -n 1 | tr -d '\r\042\047')"
 TOKEN="$(sed -n 's/^MAINTENANCE_BYPASS_TOKEN=//p' .env | tail -n 1 | tr -d '\r\042\047')"
 ok=0
 for _ in $(seq 1 12); do
-  code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 -H "X-Maintenance-Bypass: $TOKEN" "https://$DOMAIN/healthz/" || true)"
+  # Przepustka konfiguracją curla na stdin (`-K -`), nie w argumentach – te widzi `ps` każdego konta.
+  code="$(printf 'header = "X-Maintenance-Bypass: %s"\n' "$TOKEN" | curl -s -o /dev/null -w '%{http_code}' --max-time 10 -K - "https://$DOMAIN/healthz/" || true)"
   [ "$code" = "200" ] && { ok=1; break; }
   sleep 5
 done
@@ -694,5 +977,104 @@ case "$FLAG" in
     ;;
 esac
 REMOTE
+
+if [ "$DJCMS_ON" = "1" ]; then
+  # Na samym końcu, a nie w kroku 6 (jak w DJ-01 § 8.10): błąd wersji porównawczej – np. import
+  # bez konta administratora – nie może zatrzymać kroków 6a–8/8 głównego serwisu (konkurs, DNS
+  # poczty, cron kopii). Tu kończy się już tylko samo wdrożenie, kodem ≠ 0 i z komunikatem.
+  log "dj. django CMS: grupa redaktorów, administrator, rejestr konkursów, pierwszy import, tryb serwisu"
+  # Dane administratora przez STANDARDOWE WEJŚCIE (pierwsze linijki skryptu), a nie jak
+  # COORDINATOR_* w argumentach `env` po ssh: argumenty procesu widzi `ps` każdego konta na
+  # serwerze przez cały czas trwania kroku. Wartości zacytowane printf %q (wartość ze spacją albo
+  # apostrofem nie rozpada się w powłoce zdalnej); do `docker compose exec` idą jako `-e NAZWA`
+  # bez wartości – compose bierze ją ze środowiska, więc i tam nie ma jej w argumentach.
+  {
+    printf 'REMOTE_DIR=%q\n' "$REMOTE_DIR"
+    printf 'DJCMS_ADMIN_EMAIL=%q\n' "${DJCMS_ADMIN_EMAIL:-}"
+    printf 'DJCMS_ADMIN_PASSWORD=%q\n' "${DJCMS_ADMIN_PASSWORD:-}"
+    cat <<'REMOTE'
+set -euo pipefail
+export DJCMS_ADMIN_EMAIL DJCMS_ADMIN_PASSWORD
+cd "$REMOTE_DIR"
+# Do zmiennej, nie `| grep -q` (SIGPIPE pod pipefail – komentarz w kroku 4/8).
+PS_OUT="$(docker compose ps --format '{{.Service}}={{.Health}}' || true)"
+grep -qx 'djcms=healthy' <<<"$PS_OUT" \
+  || { echo "BŁĄD: djcms nie jest healthy – docker compose logs djcms"; exit 1; }
+# Konfiguracja proxy (trasy djcms, tryb DJCMS_PRIMARY) jest już załadowana – krok 4c/8.
+# </dev/null: exec nie może czytać stdin, bo to strumień tego skryptu.
+# Grupa „Redaktorzy” przy każdym wdrożeniu: jej uprawnienia wynikają z kodu (nowe wtyczki).
+docker compose exec -T djcms python manage.py setup_djcms_groups </dev/null
+if [ -n "$DJCMS_ADMIN_EMAIL" ] && [ -n "$DJCMS_ADMIN_PASSWORD" ]; then
+  # Idempotentne: istniejące konto dostaje uprawnienia, hasła nie zmienia (--reset-password ręcznie).
+  docker compose exec -T -e DJCMS_ADMIN_EMAIL -e DJCMS_ADMIN_PASSWORD djcms \
+    python manage.py bootstrap_djcms_admin </dev/null
+fi
+# Rejestr konkursów djcms (DJ-02 D7): witryny nowych konkursów, hosty, wygaszenie nieaktywnych – przy
+# każdym wdrożeniu, PRZED importem (import potrzebuje witryny konkursu). Idempotentne.
+# `--import-missing` (DJ-02e): każda aktywna witryna BEZ ŻADNEJ strony dostaje treść z eksportu
+# swojego konkursu (drzewo startowe nowego konkursu; bez limitu stron, który obowiązuje w żądaniu).
+# Witryn ze stronami nie rusza – redakcji djcms żadne wdrożenie nie nadpisuje. Flaga tylko wtedy,
+# gdy obraz djcms ją zna (`--help`): obraz sprzed DJ-02e odrzuciłby nieznany argument, a wdrożenie
+# kodu i obrazu z rejestru (DJCMS_IMAGE) w różnych wersjach nie może przez to paść.
+# Pomoc do zmiennej, a nie `| grep -q`: grep kończący czytanie po pierwszym trafieniu mógłby zabić
+# docker SIGPIPE-em, a pipefail zamieniłby to w „flagi nie ma”.
+SYNC_ARGS=""
+SYNC_HELP="$(docker compose exec -T djcms python manage.py sync_competitions --help </dev/null 2>/dev/null || true)"
+case "$SYNC_HELP" in *--import-missing*) SYNC_ARGS="--import-missing" ;; esac
+# shellcheck disable=SC2086 # SYNC_ARGS: zero albo jeden argument bez spacji
+docker compose exec -T djcms python manage.py sync_competitions $SYNC_ARGS </dev/null
+IMPORT="$(sed -n 's/^DJCMS_INITIAL_IMPORT=//p' .env | tail -n 1 | tr -d '\r\042\047')"
+if [ "$IMPORT" = "pending" ]; then
+  # Pierwszy import treści Wagtaila – raz, przy pierwszym włączeniu (znacznik z DJ-01h zostaje dla
+  # konkursu domyślnego). Po `sync_competitions --import-missing` wyżej witryna domyślna ma już
+  # strony, więc to jest no-op (kod 0), który tylko przestawia znacznik na `done`. `--if-empty`: gdyby w dj.
+  # były już strony (np. import ręczny), komenda kończy się bez zmian; treści redakcji dj. żadne
+  # wdrożenie nie nadpisuje. Pełny ponowny import (`--replace`) jest wyłącznie ręczny (§ 22.4).
+  if docker compose exec -T djcms python manage.py import_cms_bundle --from-api --if-empty </dev/null; then
+    sed -i 's/^DJCMS_INITIAL_IMPORT=.*/DJCMS_INITIAL_IMPORT=done/' .env
+  else
+    echo "BŁĄD: pierwszy import treści do dj. nie powiódł się (wpis DJCMS_INITIAL_IMPORT=pending zostaje –"
+    echo "      kolejne wdrożenie spróbuje ponownie). Import potrzebuje konta superusera djcms: podaj"
+    echo "      DJCMS_ADMIN_EMAIL i DJCMS_ADMIN_PASSWORD przy wdrożeniu (docs/OPERACJE.md § 22.2)."
+    exit 1
+  fi
+else
+  echo "dj.: pierwszy import treści już wykonany (DJCMS_INITIAL_IMPORT=${IMPORT:-brak}) – pomijam"
+fi
+DOMAIN="$(sed -n 's/^SITE_DOMAIN=//p' .env | tail -n 1 | tr -d '\r\042\047')"
+# Tryb serwisu publicznego (DJ-02): przy DJCMS_PRIMARY=1 strony publiczne podaje djcms – kontrola
+# dymna przez proxy, ta sama co po `djcms_switch.sh on`. Porażka = kod ≠ 0 z podpowiedzią; trybu
+# wdrożenie samo nie zmienia (decyzja operatora: `djcms_switch.sh off`).
+PRIMARY="$(sed -n 's/^DJCMS_PRIMARY=//p' .env | tail -n 1 | tr -d '\r\042\047[:space:]' | tr '[:upper:]' '[:lower:]')"
+case "$PRIMARY" in
+  1|true|yes|on)
+    # Kontrakt tras na hoście (z niego generator robi Caddyfile – krok 4/8) = kontrakt z obrazu web.
+    # Rozjazd (np. WEB_IMAGE z rejestru w innej wersji niż kod) = adres aplikacji, który proxy wysyła
+    # do djcms – ta sama kontrola co w scripts/djcms_cutover.sh.
+    WEB_ROUTES="$(docker compose exec -T web python manage.py djcms_routes --format env </dev/null 2>/dev/null | tr -d '\r' || true)"
+    if [ -z "$WEB_ROUTES" ] || [ "$WEB_ROUTES" != "$(tr -d '\r' <backend/djcms_contract/app_routes.env)" ]; then
+      echo "BŁĄD: backend/djcms_contract/app_routes.env (kod na serwerze) różni się od kontraktu tras obrazu web"
+      echo "      (albo web nie odpowiada) – adresy aplikacji mogą trafiać do djcms. Wdróż kod i obraz tej samej"
+      echo "      wersji; do tego czasu: cd $REMOTE_DIR && bash scripts/djcms_switch.sh off"
+      exit 1
+    fi
+    bash scripts/djcms_switch.sh check </dev/null || {
+      echo "BŁĄD: serwis publiczny na djcms (DJCMS_PRIMARY=1) nie przechodzi kontroli dymnej."
+      echo "      Powrót do Wagtaila: cd $REMOTE_DIR && bash scripts/djcms_switch.sh off"
+      exit 1
+    }
+    echo
+    echo "==> Serwis publiczny: django CMS (DJCMS_PRIMARY=1). Wycofanie: bash scripts/djcms_switch.sh off"
+    ;;
+  *)
+    echo
+    echo "==> Serwis publiczny: Wagtail (DJCMS_PRIMARY=0). Podgląd djcms: https://dj.${DOMAIN:-<domena>}/"
+    echo "    (przekierowanie na https://${DOMAIN:-<domena>}/djcms/preview/), redakcja: /djcms/admin/;"
+    echo "    rekord DNS dj.${DOMAIN:-<domena>} (albo *.${DOMAIN:-<domena>}) musi wskazywać na ten serwer"
+    ;;
+esac
+REMOTE
+  } | "${SSH[@]}" bash -s
+fi
 
 log "Gotowe: https://${SITE_DOMAIN:-<domena z .env>}/  (panel: /coordinator/, CMS: /cms/, admin: /admin/)"

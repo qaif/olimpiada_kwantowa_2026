@@ -1,0 +1,15 @@
+{% comment %}
+  PORT dla dj. (DJ-01f) – ``backend/templates/cms/_workshop_materials_teaser.html`` w wariancie dla
+  gościa (na ``dj.`` nikt nie jest zalogowany do aplikacji głównej). Tylko liczba i odnośnik do
+  logowania na domenie głównej z ``next`` na listę materiałów – adresy plików powstają wyłącznie
+  w widokach dla zalogowanych. Dane z ``GET workshops`` (``materials``), znacznik
+  ``dj_live.dj_workshop_materials_teaser``.
+{% endcomment %}
+{% if show %}
+  <aside class="card card--accent" aria-labelledby="materialy-z-warsztatow">
+    <h2 class="card__title" id="materialy-z-warsztatow">Materiały z warsztatów</h2>
+    <p>Do warsztatów są nagrania i materiały do pobrania ({{ count }}). Oglądać je można wyłącznie
+      po zalogowaniu na konto uczestnika albo opiekuna.</p>
+    <p><a class="btn btn--primary" href="{{ login_url }}">Zaloguj się, aby obejrzeć</a></p>
+  </aside>
+{% endif %}

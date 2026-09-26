@@ -201,6 +201,10 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Wylogowanie zamyka też sesję w django CMS na tym samym hoście (ciasteczko ``djcms_sessionid``,
+    # apps/cms/djcms_sso.py). Działa wyłącznie na odpowiedzi żądania, w którym padło ``logout()`` –
+    # tuż za uwierzytelnieniem, żeby objąć wylogowanie z każdego widoku i każdej niższej warstwy.
+    "apps.cms.djcms_sso.DjcmsLogoutMiddleware",
     # Konkurs żądania: ``request.competition`` i zmienna kontekstowa dla kodu, który żądania nie
     # widzi (poczta, zadania). **Za** ``AuthenticationMiddleware``, bo rozstrzygnięcie ma docelowo
     # móc zależeć od użytkownika (przełącznik konkursu przy kilku członkostwach), i **przed**
@@ -224,6 +228,11 @@ MIDDLEWARE = [
     # ``process_view`` i wyłącznie dla tych adresów; **za** ``AuthenticationMiddleware`` i za
     # drugim składnikiem, bo pyta o uprawnienia zalogowanego konta.
     "apps.cms.middleware.CmsScopeMiddleware",
+    # Zamrożenie edycji stron Wagtaila po przełączeniu na django CMS (DJ-02 § 1.2 D9, S13):
+    # widoki ``/cms/`` zmieniające stan strony → 403, gdy ``manage.py cms_freeze on``. Tuż obok
+    # zasięgu redaktora i z tego samego powodu za uwierzytelnieniem; poza adresami z listy
+    # (apps/cms/middleware.py) nie wykonuje żadnego zapytania.
+    "apps.cms.middleware.CmsFreezeMiddleware",
     # Wymagana przez allauth: ustawia kontekst żądania (``allauth.core.context``), z którego
     # korzystają adaptery i przepływ social login. Nie montuje żadnego adresu i nie zmienia
     # obsługi 404 – przekierowanie „/accounts/ → logowanie” włącza się dopiero, gdy istnieje
@@ -890,6 +899,31 @@ PLATFORM_SUBDOMAINS = env.bool("PLATFORM_SUBDOMAINS", default=False)
 if PLATFORM_SUBDOMAINS:
     ALLOWED_HOSTS = list(dict.fromkeys([*ALLOWED_HOSTS, f".{SITE_DOMAIN}"]))
     CSRF_TRUSTED_ORIGINS = list(dict.fromkeys([*CSRF_TRUSTED_ORIGINS, f"https://*.{SITE_DOMAIN}"]))
+
+# --- serwis publiczny na django CMS (``djcms``, docs/tasks/DJ-02.md) -----------------------------
+# Osobny projekt (``djcms/``) czyta dane zawodów i ramę serwisu każdego konkursu z wewnętrznego API
+# tej aplikacji (``/internal/djcms/v2/…``, ``apps/cms/djcms_api``). Dwa ustawienia, każde
+# z bezpiecznym domyślnym:
+#
+# - ``DJCMS_INTERNAL_TOKEN`` – wspólny sekret nagłówka ``X-Djcms-Token``. **Pusty (albo krótszy
+#   niż 32 znaki) wyłącza API całkowicie** – każdy adres gałęzi odpowiada wtedy pustą 404, więc
+#   instalacja bez djcms wygląda dokładnie tak, jak przed jego dodaniem. Krótki, ale niepusty token
+#   zgłasza ``manage.py check`` (``cms.W010``): to literówka, nie wyłączenie,
+# - ``DJCMS_MAIN_PUBLIC_URL`` – publiczny adres tej aplikacji dla konkursu **domeny głównej**. API
+#   zamienia na bezwzględne każdy adres aplikacji (logowanie, wyniki, PDF zadania, dokument) pod
+#   adresem konkursu (``public_base`` w liście ``competitions``); zostają względne wyłącznie ścieżki
+#   stron Wagtaila, które po imporcie istnieją także w djcms. Konkurs spoza domeny głównej dostaje
+#   adres ze swojej domeny albo prefiksu ścieżki, a stąd bierze się tylko schemat i port
+#   (``apps.cms.djcms_api.serializers.competition_public_base``).
+#
+# ``DJCMS_COMPETITION_SLUG`` (API v1, jeden konkurs) usunięte w DJ-02k – konkurs stoi w ścieżce API.
+DJCMS_INTERNAL_TOKEN = env("DJCMS_INTERNAL_TOKEN", default="")
+DJCMS_MAIN_PUBLIC_URL = env("DJCMS_MAIN_PUBLIC_URL", default=f"https://{SITE_DOMAIN}")
+# Przejście redaktora z ``/cms/`` do django CMS (SSO, DJ-02 D6, ``apps.cms.djcms_sso``): klucz HMAC
+# jednorazowego tokenu, **ten sam** w ``web`` (tu, z ``.env``) i w djcms (compose przekazuje go
+# jawnie). Co najmniej 32 znaki i inny niż pozostałe sekrety (``cms.W013``); pusty albo krótszy =
+# przejście wyłączone (pozycja menu „Edytuj w django CMS” znika).
+DJCMS_SSO_KEY = env("DJCMS_SSO_KEY", default="")
 
 WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", default="Olimpiada Kwantowa")
 WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL", default=f"https://{SITE_DOMAIN}")

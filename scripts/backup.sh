@@ -37,6 +37,12 @@
 # Retencja: 30 dni kopii dziennych i 365 dni miesięcznych po stronie zdalnej (REMOTE_DAILY_KEEP_DAYS,
 # REMOTE_MONTHLY_KEEP_DAYS), 7 dni lokalnie (LOCAL_KEEP_DAYS).
 #
+# Wersja porównawcza django CMS (dj.<domena>, docs/OPERACJE.md § 22): przy DJCMS_ENABLED=1 w .env
+# i istniejącej bazie `olimpiada_djcms` dochodzą dwie paczki – `djcms-db-<stamp>.dump.gpg` (podkrok
+# 1b) i `djcms-files-<stamp>.tar.gpg` z wolumenu `djcms_media` (podkrok 2b) – wysyłane i sprzątane
+# razem z pozostałymi. Bez przełącznika skrypt nie wykonuje żadnego polecenia djcms
+# (scripts/tests/backup_offsite_test.sh, przypadek 12).
+#
 # Nieudana wysyłka poza serwer to nieudana kopia: kod wyjścia 1 i meldunek `--failed` (watchdog
 # alarmuje brakiem świeżej kopii). Kopia lokalna z tej nocy zostaje – jest jedyną, jaka powstała.
 set -euo pipefail
@@ -172,6 +178,54 @@ docker compose exec -T db pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc </de
 encrypt "$DUMP_PLAIN" "$DUMP_FILE"
 log "    $(du -h "$DUMP_FILE" | cut -f1) -> $DUMP_FILE"
 
+# --- 1b. Baza wersji porównawczej django CMS (tylko przy DJCMS_ENABLED=1) ----------------------
+# Przełącznik czytany tak samo jak w scripts/deploy.sh (1/true/yes/on, bez względu na wielkość
+# liter). Wyłączony = ani jednego polecenia więcej niż przed DJ-01 – także zapytania „czy baza
+# istnieje”: przebieg kopii instalacji bez dj. ma być co do polecenia dzisiejszy.
+#
+# Świadomie przełącznik, a nie samo istnienie bazy (DJ-01 § 8.11 mówił o samym istnieniu): po
+# wyłączeniu dj. (§ 22.6) baza i wolumen zostają „na przechowanie” do decyzji o usunięciu, a ich
+# ostatnia kopia to ta sprzed wyłączenia (30 dni w daily/, 365 w monthly/). Kopiowanie co noc danych
+# serwisu, którego nikt już nie redaguje, dawałoby wyłącznie identyczne paczki.
+#
+# Błąd któregokolwiek kroku djcms NIE przerywa kopii głównej: jej wysyłka poza serwer jest ważniejsza
+# od wersji porównawczej. Zapisujemy go w DJCMS_ERROR, a na końcu przebieg melduje `--failed`
+# i kończy się kodem 1 – kopia, która miała objąć dj., a nie objęła, nie jest kopią „ok”.
+DJCMS_ON=0
+case "$(printf '%s' "${DJCMS_ENABLED:-}" | tr '[:upper:]' '[:lower:]')" in 1|true|yes|on) DJCMS_ON=1 ;; esac
+DJCMS_DB=olimpiada_djcms
+DJCMS_ERROR=""
+DJCMS_DUMP_FILE=""
+DJCMS_FILES_FILE=""
+if [ "$DJCMS_ON" = "1" ]; then
+    # Zapytanie w warunku `if`: jego błąd (baza przed chwilą oddała zrzut, więc to rzadkość) nie
+    # przerywa skryptu przez `set -e`, tylko zamienia się niżej w DJCMS_ERROR.
+    if ! djcms_exists="$(docker compose exec -T db psql -X -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc \
+        "SELECT 1 FROM pg_database WHERE datname = '${DJCMS_DB}'" </dev/null)"; then
+        DJCMS_ERROR="nie udało się sprawdzić, czy baza ${DJCMS_DB} istnieje"
+        printf 'UWAGA: %s – kopia główna idzie dalej.\n' "$DJCMS_ERROR" >&2
+    elif [ "$(printf '%s' "$djcms_exists" | tr -d '\r')" = "1" ]; then
+        log "1b/5 Zrzut bazy ${DJCMS_DB} (wersja porównawcza dj.)"
+        DJCMS_DUMP_PLAIN="${WORK_DIR}/djcms-db-${STAMP}.dump"
+        DJCMS_DUMP_FILE="${BACKUP_DIR}/djcms-db-${STAMP}.dump.gpg"
+        # Konto aplikacji (superuser klastra), a nie rola `olimpiada_djcms`: jej hasło nie musi być
+        # znane temu skryptowi, a superuser czyta każdą bazę. Ten sam format -Fc co baza główna.
+        if docker compose exec -T db pg_dump -U "$POSTGRES_USER" -d "$DJCMS_DB" -Fc </dev/null > "$DJCMS_DUMP_PLAIN" \
+            && [ -s "$DJCMS_DUMP_PLAIN" ]; then
+            encrypt "$DJCMS_DUMP_PLAIN" "$DJCMS_DUMP_FILE"
+            log "    $(du -h "$DJCMS_DUMP_FILE" | cut -f1) -> $DJCMS_DUMP_FILE"
+        else
+            DJCMS_ERROR="zrzut bazy ${DJCMS_DB} nie powiódł się"
+            DJCMS_DUMP_FILE=""
+            printf 'UWAGA: %s – kopia główna idzie dalej.\n' "$DJCMS_ERROR" >&2
+        fi
+    else
+        # DJCMS_ENABLED=1, a bazy nie ma: przełącznik wpisany ręcznie przed pierwszym wdrożeniem
+        # z dj. (bazę zakłada scripts/djcms_db.sh w kroku 4/8). Nie ma czego kopiować – to nie błąd.
+        log "1b/5 DJCMS_ENABLED=1, ale baza ${DJCMS_DB} nie istnieje – kopia dj. pominięta"
+    fi
+fi
+
 # --- 2. Lustro kubełków MinIO ----------------------------------------------------------------
 # Prace uczestników NIE są w bazie – w bazie są tylko metryki plików. Kopia samej bazy dałaby więc
 # po odtworzeniu komplet wpisów „uczestnik oddał rozwiązanie zadania 2” bez ani jednego pliku.
@@ -220,10 +274,46 @@ tar --sort=name -cf "$FILES_PLAIN" -C "${WORK_DIR}/buckets" .
 encrypt "$FILES_PLAIN" "$FILES_FILE"
 log "    $(du -h "$FILES_FILE" | cut -f1) -> $FILES_FILE"
 
+# --- 2b. Pliki redaktorów dj. (wolumen djcms_media) ------------------------------------------
+# Obrazy wgrane w dj. (filer) nie są w MinIO, tylko na wolumenie `djcms_media` – baza djcms bez
+# nich odtworzyłaby strony z pustymi ramkami w miejscu zdjęć. Tylko wtedy, gdy powstał zrzut bazy
+# z 1b: pliki bez bazy, która je opisuje, są bezużyteczne (filer nie ma ich w indeksie).
+#
+# `tar` wewnątrz działającego kontenera `djcms` (obraz ma GNU tar), strumieniem na stdout – ten sam
+# wzorzec co zrzut bazy przez `exec -T db pg_dump`. Kontener ma system plików tylko do odczytu
+# i 64 MB /tmp, więc paczka nie może powstać w środku; wolumenu nie montujemy też do osobnego
+# kontenera, bo nazwa wolumenu zależy od nazwy projektu compose'a, a to jedno miejsce więcej, które
+# może się rozjechać. `--profile djcms` jawnie, choć COMPOSE_PROFILES w .env już go włącza (jak
+# w scripts/deploy.sh) – polecenie ma działać także przy ręcznie poprawionym COMPOSE_PROFILES.
+#
+# djcms nie działa, a baza jest → ostrzeżenie i przebieg nieudany (DJCMS_ERROR). Kopia plików
+# ze starego stanu byłaby gorsza niż żadna, a „jakoś się uda” o trzeciej w nocy nikt nie sprawdzi.
+if [ -n "$DJCMS_DUMP_FILE" ]; then
+    log "2b/5 Pliki dj. (wolumen djcms_media)"
+    DJCMS_FILES_PLAIN="${WORK_DIR}/djcms-files-${STAMP}.tar"
+    if [ -z "$(docker compose --profile djcms ps -q --status running djcms </dev/null 2>/dev/null || true)" ]; then
+        DJCMS_ERROR="kontener djcms nie działa – brak kopii plików dj. (baza ${DJCMS_DB} skopiowana)"
+        printf 'UWAGA: %s.\n' "$DJCMS_ERROR" >&2
+    elif docker compose --profile djcms exec -T djcms tar --sort=name -C /app/media -cf - . </dev/null > "$DJCMS_FILES_PLAIN" \
+        && [ -s "$DJCMS_FILES_PLAIN" ]; then
+        DJCMS_FILES_FILE="${BACKUP_DIR}/djcms-files-${STAMP}.tar.gpg"
+        encrypt "$DJCMS_FILES_PLAIN" "$DJCMS_FILES_FILE"
+        log "    $(du -h "$DJCMS_FILES_FILE" | cut -f1) -> $DJCMS_FILES_FILE"
+    else
+        DJCMS_ERROR="tar wolumenu djcms_media nie powiódł się"
+        printf 'UWAGA: %s – kopia główna idzie dalej.\n' "$DJCMS_ERROR" >&2
+    fi
+fi
+
 # --- 3. Wysyłka poza serwer ------------------------------------------------------------------
 # Dokąd i jak – scripts/lib/backup_offsite.sh (S3 albo Dysk Google, konfiguracja wybrana wyżej).
 DUMP_NAME="$(basename "$DUMP_FILE")"
 FILES_NAME="$(basename "$FILES_FILE")"
+# Lista paczek tej nocy: zawsze baza i kubełki, przy dj. także jego baza i pliki (1b/2b) – te,
+# które powstały. Bez dj. lista jest ta sama co przed DJ-01, więc i polecenia rclone są te same.
+UPLOAD_NAMES=("$DUMP_NAME" "$FILES_NAME")
+[ -z "$DJCMS_DUMP_FILE" ] || UPLOAD_NAMES+=("$(basename "$DJCMS_DUMP_FILE")")
+[ -z "$DJCMS_FILES_FILE" ] || UPLOAD_NAMES+=("$(basename "$DJCMS_FILES_FILE")")
 if [ "$OFFSITE_STATUS" = "failed" ]; then
     log "3/5 Wysyłka poza serwer POMINIĘTA – błąd konfiguracji: ${OFFSITE_ERROR}"
 elif [ "$OFFSITE_TYPE" = "none" ]; then
@@ -234,7 +324,7 @@ elif [ "$OFFSITE_TYPE" = "none" ]; then
 else
     log "3/5 Wysyłka: $(offsite_describe) -> daily/"
     OFFSITE_STATUS=ok
-    offsite_upload daily "$DUMP_NAME" "$FILES_NAME" || OFFSITE_STATUS=failed
+    offsite_upload daily "${UPLOAD_NAMES[@]}" || OFFSITE_STATUS=failed
 
     # Kopia miesięczna pierwszego dnia miesiąca. Osobny prefiks, a nie dłuższa retencja dzienna:
     # awarie, które wychodzą po kwartale (cicha korupcja danych, skasowana edycja sprzed roku),
@@ -242,7 +332,7 @@ else
     # trzydziestokrotnie droższe od trzymania dwunastu miesięcznych.
     if [ "$OFFSITE_STATUS" = "ok" ] && [ "$DAY_OF_MONTH" = "01" ]; then
         log "    Pierwszy dzień miesiąca – kopia także do monthly/"
-        offsite_upload monthly "$DUMP_NAME" "$FILES_NAME" || OFFSITE_STATUS=failed
+        offsite_upload monthly "${UPLOAD_NAMES[@]}" || OFFSITE_STATUS=failed
     fi
 
     # --- 4. Retencja zdalna -------------------------------------------------------------------
@@ -280,6 +370,18 @@ record_status() {
         printf 'UWAGA: nie udało się zapisać znacznika kopii w aplikacji.\n' >&2
     fi
 }
+
+# Kopia dj., która się nie udała (DJCMS_ERROR z 1b/2b), przy udanej kopii głównej to także przebieg
+# NIEUDANY: znaczniki stoją, notatka mówi, że kopia główna jest, a czego brakuje. Przebieg „ok”
+# z brakującą bazą albo plikami dj. znaczyłby, że po awarii serwera wersji porównawczej nie ma
+# z czego odtworzyć, a nikt się o tym nie dowiedział (DJ-01 § 8.11: „status nie ok”).
+if [ -n "$DJCMS_ERROR" ] && { [ "$OFFSITE_STATUS" = "ok" ] || [ "$OFFSITE_STATUS" = "none" ]; }; then
+    if [ "$OFFSITE_STATUS" = "ok" ]; then where="lokalnie i poza serwerem"; else where="wyłącznie lokalnie"; fi
+    record_status --failed --note "kopia główna ${STAMP} jest (${where}), kopia dj. NIE: ${DJCMS_ERROR}"
+    printf 'BŁĄD: kopia wersji porównawczej dj. niepełna (%s). Kopia główna: %s, %s (%s).\n' \
+        "$DJCMS_ERROR" "$DUMP_FILE" "$FILES_FILE" "$where" >&2
+    exit 1
+fi
 case "$OFFSITE_STATUS" in
     ok)
         record_status --ok --offsite --note "poza serwerem: $(offsite_describe) (${STAMP})"
@@ -290,7 +392,7 @@ case "$OFFSITE_STATUS" in
         log "Gotowe: kopia WYŁĄCZNIE lokalna (${STAMP})."
         ;;
     *)
-        record_status --failed --note "kopia lokalna ${STAMP} jest, poza serwer NIE dotarła: ${OFFSITE_ERROR:-nieznany błąd}"
+        record_status --failed --note "kopia lokalna ${STAMP} jest, poza serwer NIE dotarła: ${OFFSITE_ERROR:-nieznany błąd}${DJCMS_ERROR:+; dj.: ${DJCMS_ERROR}}"
         printf 'BŁĄD: kopia poza serwerem nie powiodła się (%s). Kopia lokalna: %s, %s\n' \
             "${OFFSITE_ERROR:-nieznany błąd}" "$DUMP_FILE" "$FILES_FILE" >&2
         exit 1

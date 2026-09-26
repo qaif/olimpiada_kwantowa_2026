@@ -1,0 +1,39 @@
+{% comment %}
+  Pozycje menu serwisu (``<nav class="nav nav--cms">`` w ``dj/base.html``) – port pętli po ``cms_menu``
+  z ``backend/templates/base.html``. Znaczniki i klasy identyczne, bo arkusz jest ten sam.
+
+  Węzły przychodzą z ``{% templatetag openblock %} show_menu 0 1 1 1 "dj/menu/nav.html" {% templatetag closeblock %}``
+  już ułożone przez ``apps.pages.cms_menus.DjMenuModifier`` (domek, wyniesione, reszta drzewa)
+  i z flagami ``attr.dj_*`` z ``MenuExtension``. Dzieci rysujemy wyłącznie przy „liście rozwijanej”
+  (``dj_expand``) – w Wagtailu tylko spis dokumentów, a nie np. aktualności z dziesiątkami podstron.
+{% endcomment %}
+{% for child in children %}
+  {% if child.attr.dj_expand and child.children %}
+    <details class="nav-menu">
+      <summary class="nav__link nav-menu__summary{% if child.attr.dj_active %} nav-menu__summary--active{% endif %}">{{ child.get_menu_title }}</summary>
+      <ul class="nav-menu__list">
+        {% for kid in child.children %}
+          <li><a class="nav-menu__link" href="{{ kid.attr.redirect_url|default:kid.get_absolute_url }}"
+                 {% if kid.selected %}aria-current="page"{% endif %}>{{ kid.get_menu_title }}</a></li>
+        {% endfor %}
+      </ul>
+    </details>
+  {% elif child.attr.is_home %}
+    {% comment %}
+      Strona główna jako domek – ta sama nazwa „Strona główna” co w Wagtailu (``HOME_ITEM_TITLE``),
+      niezależnie od tytułu strony głównej w drzewie; nazwa w ``visually-hidden`` i ``title``.
+    {% endcomment %}
+    <a class="nav__link nav__link--home" href="{{ child.get_absolute_url }}" title="Strona główna"
+       {% if child.get_absolute_url == request.path %}aria-current="page"{% endif %}>
+      <svg class="nav__home-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"
+           focusable="false" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h5v-6h4v6h5V9.5"/>
+      </svg>
+      <span class="visually-hidden">Strona główna</span>
+    </a>
+  {% else %}
+    <a class="nav__link" href="{{ child.attr.redirect_url|default:child.get_absolute_url }}"
+       {% if child.get_absolute_url == request.path %}aria-current="page"{% endif %}>{{ child.get_menu_title }}</a>
+  {% endif %}
+{% endfor %}

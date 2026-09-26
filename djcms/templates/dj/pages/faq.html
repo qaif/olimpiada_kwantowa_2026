@@ -1,0 +1,44 @@
+{% extends "dj/base.html" %}
+{% load cms_tags dj_live dj_pages %}
+{% comment %}
+  „Najczęstsze pytania” (CMS_TEMPLATES) – PORT ``backend/templates/cms/faq_page.html``
+  (uzasadnienia tam: ``<details>`` bez skryptu, kotwica pytania do odesłania w odpowiedzi).
+  Sloty: ``intro`` (tekst), ``faq`` (wtyczki „Pytanie i odpowiedź”).
+
+  Sekcje w kolejności **pierwszego wystąpienia** liczy ``apps.pages.content.faq_sections`` (port
+  ``FAQPage.sections``), każde pytanie rysuje szablon wtyczki. W trybie edycji slot stoi płasko –
+  z tego samego powodu co partnerzy (``dj/pages/partners.html``). „Zgłoś problem” to widok
+  aplikacji – adres z ramy (``chrome.links.support``), a bez API – ta sama ścieżka na domenie głównej.
+{% endcomment %}
+{% block title %}{% page_attribute "title" %}{% endblock %}
+{% block content %}
+{% dj_capture as intro %}{% placeholder "intro" %}{% end_dj_capture %}
+<div class="page-head">
+  <h1>{% page_attribute "title" %}</h1>
+  {% if intro|dj_filled %}<div class="lead">{{ intro }}</div>{% endif %}
+</div>
+
+{% if request.toolbar.edit_mode_active %}
+  <section class="section">
+    {% placeholder "faq" %}
+  </section>
+{% else %}
+  {% dj_faq_sections as sections %}
+  {% for group in sections %}
+    <section class="section">
+      {% if group.section %}<h2>{{ group.section }}</h2>{% endif %}
+      {% for entry in group.entries %}{% render_plugin entry %}{% endfor %}
+    </section>
+  {% empty %}
+    <p class="empty">
+      <span class="empty__title">Nie ma jeszcze żadnych pytań</span>
+      Redakcja dopisuje je w panelu treści.
+    </p>
+  {% endfor %}
+{% endif %}
+
+<div class="card card--quiet">
+  <p>Nie znalazłeś odpowiedzi? <a href="{% if dj_chrome.links.support %}{{ dj_chrome.links.support }}{% else %}{% dj_main_href "/support/new/" %}{% endif %}">Zgłoś problem organizatorowi</a> –
+    opiszemy sprawę wspólnie, a odpowiedź dostaniesz e-mailem.</p>
+</div>
+{% endblock %}

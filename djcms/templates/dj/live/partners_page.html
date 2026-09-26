@@ -1,0 +1,18 @@
+{% extends "dj/base.html" %}
+{% load cms_tags %}
+{% comment %}
+  „Partnerzy (z systemu)” (CMS_TEMPLATES, DJ-02 D9) – strona partnerów, której treść jest **w całości**
+  danymi z Wagtaila (``PartnersPage`` redagowana dalej w ``/cms/``). Nagłówek jak w
+  ``dj/pages/partners.html``, a pod nim jeden slot ``partners`` z wtyczką ``PartnersLivePlugin``
+  (wprowadzenie, grupy kart, „Zostań partnerem” – ``dj/live/partners.html``). Importer zakłada ten
+  szablon dla strony wskazanej w ``data_pages.partners`` paczki v2; redakcyjny ``partners.html``
+  zostaje dla konkursów, które prowadzą listę partnerów w djcms.
+{% endcomment %}
+{% block description %}{% page_attribute "meta_description" as meta_description %}{% page_attribute "title" as page_title %}{{ meta_description|default:page_title }} – {{ dj_chrome.site_name }}.{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{% page_attribute "title" %}</h1>
+</div>
+
+{% placeholder "partners" %}
+{% endblock %}

@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "description": "Wspólne wektory rozstrzygania host + ścieżka -> konkurs (docs/tasks/DJ-02.md § 2.1, D11). Aplikacja główna (web) jest autorytatywna: apps/tenancy/tests/test_resolution_contract.py buduje każdy świat w bazie i sprawdza przypadki przez resolve_for_request (+ ALLOWED_HOSTS i platform_subdomain_miss, czyli to, co naprawdę odpowiada na żądanie), a lista konkursów świata musi być dokładnie tym, co zwraca GET /internal/djcms/v2/competitions (pola z 'competitions'). djcms uruchamia te same przypadki przez apps.sites.resolution.resolve na rejestrze zbudowanym z 'competitions'. Hosty wyłącznie djcms-owe (nazwa usługi 'djcms') i hosty, do których Caddy nigdy nie kieruje ruchu (www., domena konkursu pod prefiksem bez rekordu DNS), celowo poza wektorami.",
+  "algorithm": [
+    "host: bez portu, małymi literami, bez kropki końcowej",
+    "1. host należy do 'hosts' konkursu -> konkurs hosta (tylko is_active; nieaktywny = brak konkursu)",
+    "2. host w {localhost, 127.0.0.1} i brak trafienia -> konkurs is_default (tylko is_active)",
+    "3. konkurs hosta ma hosts_path_prefixes i pierwszy segment ścieżki == path_prefix aktywnego konkursu z routing_mode=PATH (inny niż konkurs hosta; porównanie z rozróżnieniem wielkości liter) -> ten konkurs + path_prefix",
+    "4. inaczej konkurs hosta albo null (pusta 404)"
+  ],
+  "worlds": [
+    {
+      "id": "subdomeny-platformy",
+      "description": "PLATFORM_SUBDOMAINS=1: konkurs domyślny z otwartą bramką path_prefix_routing, konkurs w subdomenie, konkurs z własną domeną (też z bramką), konkurs pod prefiksem, konkursy nieaktywne.",
+      "platform": {"site_domain": "olimpiada.test", "platform_subdomains": true, "default_slug": "kwantowa"},
+      "competitions": [
+        {"slug": "kwantowa", "is_active": true, "is_default": true, "routing_mode": "DOMAIN", "path_prefix": "",
+         "hosts": ["olimpiada.test"], "hosts_path_prefixes": true, "site_hostname": "olimpiada.test"},
+        {"slug": "fizyczna", "is_active": true, "is_default": false, "routing_mode": "DOMAIN", "path_prefix": "",
+         "hosts": ["fizyczna.olimpiada.test"], "hosts_path_prefixes": false, "site_hostname": "fizyczna.olimpiada.test"},
+        {"slug": "wlasna", "is_active": true, "is_default": false, "routing_mode": "DOMAIN", "path_prefix": "",
+         "hosts": ["olimpiada-wlasna.example"], "hosts_path_prefixes": true, "site_hostname": "olimpiada-wlasna.example"},
+        {"slug": "druga", "is_active": true, "is_default": false, "routing_mode": "PATH", "path_prefix": "druga",
+         "hosts": ["druga.olimpiada.test"], "hosts_path_prefixes": false, "site_hostname": "druga.olimpiada.test"},
+        {"slug": "trzecia", "is_active": false, "is_default": false, "routing_mode": "PATH", "path_prefix": "trzecia",
+         "hosts": ["trzecia.olimpiada.test"], "hosts_path_prefixes": false, "site_hostname": "trzecia.olimpiada.test"},
+        {"slug": "uspiona", "is_active": false, "is_default": false, "routing_mode": "DOMAIN", "path_prefix": "",
+         "hosts": ["uspiona.olimpiada.test"], "hosts_path_prefixes": false, "site_hostname": "uspiona.olimpiada.test"}
+      ],
+      "cases": [
+        {"id": "domena-glowna", "host": "olimpiada.test", "path": "/", "expect": {"slug": "kwantowa", "path_prefix": ""}},
+        {"id": "domena-glowna-strona", "host": "olimpiada.test", "path": "/zadania/", "expect": {"slug": "kwantowa", "path_prefix": ""}},
+        {"id": "prefiks", "host": "olimpiada.test", "path": "/druga/", "expect": {"slug": "druga", "path_prefix": "druga"}},
+        {"id": "prefiks-bez-ukosnika", "host": "olimpiada.test", "path": "/druga", "expect": {"slug": "druga", "path_prefix": "druga"}},
+        {"id": "prefiks-strona", "host": "olimpiada.test", "path": "/druga/zadania/", "expect": {"slug": "druga", "path_prefix": "druga"}},
+        {"id": "prefiks-wielkie-litery", "host": "olimpiada.test", "path": "/DRUGA/", "expect": {"slug": "kwantowa", "path_prefix": ""}},
+        {"id": "prefiks-dluzszy-segment", "host": "olimpiada.test", "path": "/drugaa/", "expect": {"slug": "kwantowa", "path_prefix": ""}},
+        {"id": "prefiks-drugi-segment", "host": "olimpiada.test", "path": "/zadania/druga/", "expect": {"slug": "kwantowa", "path_prefix": ""}},
+        {"id": "prefiks-nieaktywnego", "host": "olimpiada.test", "path": "/trzecia/", "expect": {"slug": "kwantowa", "path_prefix": ""}},
+        {"id": "slug-konkursu-domenowego-to-nie-prefiks", "host": "olimpiada.test", "path": "/fizyczna/", "expect": {"slug": "kwantowa", "path_prefix": ""}},
+        {"id": "host-wielkimi-literami", "host": "OLIMPIADA.TEST", "path": "/", "expect": {"slug": "kwantowa", "path_prefix": ""}},
+        {"id": "host-z-kropka-koncowa", "host": "olimpiada.test.", "path": "/druga/", "expect": {"slug": "druga", "path_prefix": "druga"}},
+        {"id": "subdomena", "host": "fizyczna.olimpiada.test", "path": "/", "expect": {"slug": "fizyczna", "path_prefix": ""}},
+        {"id": "subdomena-z-portem", "host": "fizyczna.olimpiada.test:8443", "path": "/zadania/", "expect": {"slug": "fizyczna", "path_prefix": ""}},
+        {"id": "subdomena-bez-bramki-nie-rozstrzyga-prefiksu", "host": "fizyczna.olimpiada.test", "path": "/druga/", "expect": {"slug": "fizyczna", "path_prefix": ""}},
+        {"id": "wlasna-domena", "host": "olimpiada-wlasna.example", "path": "/", "expect": {"slug": "wlasna", "path_prefix": ""}},
+        {"id": "wlasna-domena-z-bramka-rozstrzyga-prefiks", "host": "olimpiada-wlasna.example", "path": "/druga/", "expect": {"slug": "druga", "path_prefix": "druga"}},
+        {"id": "konkurs-pod-prefiksem-pod-wlasnym-hostem", "host": "druga.olimpiada.test", "path": "/", "expect": {"slug": "druga", "path_prefix": ""}},
+        {"id": "host-nieaktywnego", "host": "uspiona.olimpiada.test", "path": "/", "expect": {"slug": null, "path_prefix": ""}},
+        {"id": "host-nieaktywnego-pod-prefiksem", "host": "trzecia.olimpiada.test", "path": "/", "expect": {"slug": null, "path_prefix": ""}},
+        {"id": "nieznana-subdomena", "host": "nieznana.olimpiada.test", "path": "/", "expect": {"slug": null, "path_prefix": ""}},
+        {"id": "nieznana-subdomena-z-prefiksem", "host": "nieznana.olimpiada.test", "path": "/druga/", "expect": {"slug": null, "path_prefix": ""}},
+        {"id": "subdomena-dwuczlonowa", "host": "a.fizyczna.olimpiada.test", "path": "/", "expect": {"slug": null, "path_prefix": ""}},
+        {"id": "obca-domena", "host": "obca.example", "path": "/", "expect": {"slug": null, "path_prefix": ""}},
+        {"id": "localhost", "host": "localhost", "path": "/", "expect": {"slug": "kwantowa", "path_prefix": ""}},
+        {"id": "localhost-z-portem-i-prefiksem", "host": "localhost:8000", "path": "/druga/", "expect": {"slug": "druga", "path_prefix": "druga"}},
+        {"id": "adres-petli", "host": "127.0.0.1", "path": "/zadania/", "expect": {"slug": "kwantowa", "path_prefix": ""}}
+      ]
+    },
+    {
+      "id": "bez-subdomen",
+      "description": "PLATFORM_SUBDOMAINS=0, bramka path_prefix_routing zamknięta: prefiks nie rozstrzyga niczego.",
+      "platform": {"site_domain": "olimpiada.test", "platform_subdomains": false, "default_slug": "kwantowa"},
+      "competitions": [
+        {"slug": "kwantowa", "is_active": true, "is_default": true, "routing_mode": "DOMAIN", "path_prefix": "",
+         "hosts": ["olimpiada.test"], "hosts_path_prefixes": false, "site_hostname": "olimpiada.test"},
+        {"slug": "druga", "is_active": true, "is_default": false, "routing_mode": "PATH", "path_prefix": "druga",
+         "hosts": ["druga.invalid"], "hosts_path_prefixes": false, "site_hostname": "druga.invalid"}
+      ],
+      "cases": [
+        {"id": "domena-glowna", "host": "olimpiada.test", "path": "/", "expect": {"slug": "kwantowa", "path_prefix": ""}},
+        {"id": "prefiks-przy-zamknietej-bramce", "host": "olimpiada.test", "path": "/druga/", "expect": {"slug": "kwantowa", "path_prefix": ""}},
+        {"id": "localhost-prefiks-przy-zamknietej-bramce", "host": "localhost", "path": "/druga/", "expect": {"slug": "kwantowa", "path_prefix": ""}},
+        {"id": "subdomena-bez-przelacznika", "host": "fizyczna.olimpiada.test", "path": "/", "expect": {"slug": null, "path_prefix": ""}}
+      ]
+    },
+    {
+      "id": "domyslny-nieaktywny",
+      "description": "Konkurs witryny domyślnej wyłączony: ani jego host, ani adresy deweloperskie nie dostają konkursu.",
+      "platform": {"site_domain": "olimpiada.test", "platform_subdomains": true, "default_slug": "kwantowa"},
+      "competitions": [
+        {"slug": "kwantowa", "is_active": false, "is_default": true, "routing_mode": "DOMAIN", "path_prefix": "",
+         "hosts": ["olimpiada.test"], "hosts_path_prefixes": true, "site_hostname": "olimpiada.test"},
+        {"slug": "druga", "is_active": true, "is_default": false, "routing_mode": "PATH", "path_prefix": "druga",
+         "hosts": ["druga.olimpiada.test"], "hosts_path_prefixes": false, "site_hostname": "druga.olimpiada.test"}
+      ],
+      "cases": [
+        {"id": "domena-glowna", "host": "olimpiada.test", "path": "/", "expect": {"slug": null, "path_prefix": ""}},
+        {"id": "prefiks-pod-wylaczonym-gospodarzem", "host": "olimpiada.test", "path": "/druga/", "expect": {"slug": null, "path_prefix": ""}},
+        {"id": "localhost", "host": "localhost", "path": "/", "expect": {"slug": null, "path_prefix": ""}},
+        {"id": "konkurs-pod-prefiksem-pod-wlasnym-hostem", "host": "druga.olimpiada.test", "path": "/", "expect": {"slug": "druga", "path_prefix": ""}}
+      ]
+    }
+  ]
+}

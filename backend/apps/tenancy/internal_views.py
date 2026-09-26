@@ -71,7 +71,7 @@ def tls_allowed(request):
     najostrożniejszego: host żądania (nagłówek, zero zapytań), przełącznik instalacji (ustawienie),
     kształt nazwy (napis), dopiero na końcu baza — i ta jedna odpowiedź jedzie do bufora.
     """
-    if not _from_internal_host(request):
+    if not from_internal_host(request):
         return HttpResponseNotFound()
     if not platform_subdomains_enabled():
         # Przełącznik czytamy **przed** buforem, a nie w funkcji buforowanej: inaczej odpowiedź
@@ -90,10 +90,19 @@ def tls_allowed(request):
     return HttpResponse(status=200) if allowed else HttpResponseNotFound()
 
 
-def _from_internal_host(request) -> bool:
-    """Czy żądanie przyszło na adres wewnętrzny kontenera, a nie na domenę publiczną."""
+def from_internal_host(request) -> bool:
+    """Czy żądanie przyszło na adres wewnętrzny kontenera, a nie na domenę publiczną.
+
+    Publiczna, bo tę samą bramkę stawia drugie API z gałęzi ``/internal/``: dane dla wersji
+    porównawczej na django CMS (``apps.cms.djcms_api.auth``). Jedna definicja „adresu wewnętrznego”
+    dla obu – druga kopia listy hostów rozjechałaby się przy pierwszym dopisaniu nazwy.
+    """
     host = (request.get_host() or "").strip().lower()
     return host.partition(":")[0].rstrip(".") in INTERNAL_HOST_NAMES
+
+
+#: Dawna nazwa, zostawiona dla wołających sprzed upublicznienia (testy ``tls-allowed``).
+_from_internal_host = from_internal_host
 
 
 def _has_active_competition(domain: str) -> bool:

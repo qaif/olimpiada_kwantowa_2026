@@ -1,0 +1,24 @@
+{% comment %}
+  Pasek podglądu (DJ-02 § 8) – wyłącznie w trybie ``preview``, czyli przy ``DJCMS_PRIMARY=0``
+  i ciasteczku ``djcms_view=dj`` (D1). „Wyłącz podgląd” kasuje ciasteczko (``POST /djcms/preview/``
+  z CSRF) i wraca pod **ten sam adres** – tę samą stronę pokaże wtedy Wagtail, więc przycisk jest
+  jednocześnie porównaniem „ta strona w wersji Wagtail”.
+
+  Klasy baneru komunikatów (ten sam arkusz); ``role="region"`` z podpisem jak baner.
+  ``request.get_full_path`` to adres z prefiksem konkursu (ścieżka od korzenia hosta) –
+  ``preview.safe_next`` przyjmuje wyłącznie taką.
+{% endcomment %}
+<div class="announcements" role="region" aria-label="Podgląd wersji django CMS" data-djcms-preview-bar>
+  <div class="announcement">
+    <p class="announcement__text">
+      <strong>Podgląd wersji django CMS</strong> – ta strona nie jest jeszcze serwisem publicznym
+      i nie trafia do wyszukiwarek.
+    </p>
+    <form method="post" action="{% url 'preview' %}">
+      {% csrf_token %}
+      <input type="hidden" name="view" value="off">
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <button type="submit" class="btn btn--small btn--secondary">Wyłącz podgląd</button>
+    </form>
+  </div>
+</div>

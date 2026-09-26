@@ -1,0 +1,22 @@
+{% extends "dj/base.html" %}
+{% load cms_tags dj_live %}
+{% comment %}
+  „Zadania” (CMS_TEMPLATES) – PORT ``backend/templates/cms/problems_page.html`` (DJ-01f, tabela 6.1).
+  Sloty: ``intro`` (tekst), ``problems`` (wtyczka „Zadania etapu” – karta etapu, zadania dopiero po
+  ``opens_at``, arkusz treningowy; ``dj/live/problems.html``), ``body`` (treści dodatkowe).
+  Klasy CSS jak w oryginale; zmieniając oryginał, zmień też ten plik.
+{% endcomment %}
+{% block content %}
+{% dj_slot_filled "intro" as has_intro %}
+<div class="page-head">
+  <span class="eyebrow">Zadania</span>
+  <h1>{% page_attribute "title" %}</h1>
+  {% if has_intro %}<div class="lead">{% placeholder "intro" %}</div>{% endif %}
+</div>
+
+{% placeholder "problems" %}
+
+<div class="prose">
+  {% placeholder "body" %}
+</div>
+{% endblock %}

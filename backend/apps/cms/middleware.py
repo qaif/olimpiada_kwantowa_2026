@@ -17,15 +17,20 @@ pod prefiksem konkursu) i odpowiada, **zanim** widok Wagtaila zdąży cokolwiek 
 
 Konto bez ograniczeń (``apps.cms.scope.cms_scope`` = ``None``) przechodzi bez żadnego zapytania
 poza tym, które liczy zasięg — a ten liczony jest wyłącznie dla tych trzech adresów.
+
+Druga warstwa w tym module, :class:`CmsFreezeMiddleware`, działa tą samą metodą (nazwa adresu,
+odpowiedź przed widokiem) i egzekwuje zamrożenie edycji stron po przełączeniu serwisu na
+django CMS (``apps.cms.freeze``, DJ-02 § 1.2 D9, reguła S13).
 """
 
 from __future__ import annotations
 
 from django.core.exceptions import PermissionDenied
-from django.http import Http404, HttpResponseRedirect
+from django.http import Http404, HttpResponseRedirect, JsonResponse
+from django.template.response import TemplateResponse
 from django.urls import reverse
 
-from . import scope
+from . import freeze, scope
 
 CHOOSE_PAGE = "wagtailadmin_choose_page"
 CHOOSE_PAGE_CHILD = "wagtailadmin_choose_page_child"
@@ -93,3 +98,164 @@ class CmsScopeMiddleware:
         url = reverse(CHOOSE_PAGE_CHILD, args=(start,))
         query = request.GET.urlencode()
         return HttpResponseRedirect(f"{url}?{query}" if query else url)
+
+
+# --- zamrożenie edycji stron (DJ-02 § 1.2 D9, reguła S13) -------------------------------------------
+
+_PAGES = "wagtailadmin_pages:"
+
+#: Widoki zmieniające **drzewo**: zamrożone każdą metodą i bez wyjątków (także dla stron-danych).
+#: ``choose_parent`` i ``preview_on_add`` same niczego nie zapisują, ale są wyłącznie krokami
+#: tworzenia strony – ekran, który prowadzi donikąd, jest gorszy niż jasna odmowa.
+FROZEN_TREE_VIEWS = frozenset(
+    {
+        f"{_PAGES}add",
+        f"{_PAGES}add_subpage",
+        f"{_PAGES}choose_parent",
+        f"{_PAGES}preview_on_add",
+        f"{_PAGES}copy",
+        f"{_PAGES}move",
+        f"{_PAGES}move_confirm",
+        f"{_PAGES}set_page_position",
+        f"{_PAGES}delete",
+        f"{_PAGES}convert_alias",
+        # Tłumaczenie strony zakłada jej kopię w drzewie innego języka.
+        "simple_translation:submit_page_translation",
+    }
+)
+
+#: Cofnięcie publikacji – zamrożone także dla strony-danych: aplikacja czyta tylko strony
+#: opublikowane, więc dla niej to usunięcie strony (``apps.cms.freeze``, docstring modułu).
+UNPUBLISH_VIEW = f"{_PAGES}unpublish"
+
+#: Czynności na treści jednej strony bez ekranu „tylko do odczytu”: zamrożone każdą metodą
+#: (także ekran potwierdzenia), strona-dane przechodzi – poza :data:`UNPUBLISH_VIEW`.
+FROZEN_CONTENT_VIEWS = frozenset(
+    {
+        UNPUBLISH_VIEW,
+        f"{_PAGES}lock",
+        f"{_PAGES}unlock",
+        f"{_PAGES}set_privacy",
+        f"{_PAGES}revisions_unschedule",
+        f"{_PAGES}workflow_action",
+        f"{_PAGES}collect_workflow_action_data",
+        f"{_PAGES}confirm_workflow_cancellation",
+    }
+)
+
+#: Ekrany edycji: ``GET`` jest podglądem tylko do odczytu (``freeze.EditingFreezeLock``), zapis
+#: (każda metoda poza bezpiecznymi, w tym autozapis) – zamrożony; strona-dane przechodzi, o ile
+#: nie zmienia sluga.
+FROZEN_EDIT_VIEWS = frozenset({f"{_PAGES}edit", f"{_PAGES}revisions_revert"})
+
+#: Akcje zbiorcze (``/cms/bulk/<app>/<model>/<akcja>/``) – zamrożone dla modelu stron.
+BULK_ACTION_VIEW = "wagtail_bulk_action"
+BULK_PAGE_MODEL = ("wagtailcore", "page")
+
+#: API panelu Wagtaila – akcje na stronie (``POST /cms/api/main/pages/<pk>/action/<nazwa>/``:
+#: ``publish``, ``unpublish``, ``revert_to_page_revision``, ``move``, ``copy``, ``delete``,
+#: ``convert_alias``, ``create_alias``, ``copy_for_translation``). Część z nich sprawdza wyłącznie
+#: ``can_edit()``, które zamrożony tester zostawia (podgląd tylko do odczytu), a interfejs panelu
+#: z tego adresu nie korzysta – w czasie zamrożenia odmowa dla **każdej** akcji i każdej strony.
+API_ACTION_VIEW = "wagtailadmin_api:pages:action"
+
+SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+
+_WATCHED = FROZEN_TREE_VIEWS | FROZEN_CONTENT_VIEWS | FROZEN_EDIT_VIEWS | {BULK_ACTION_VIEW, API_ACTION_VIEW}
+
+
+class CmsFreezeMiddleware:
+    """Egzekwuje zamrożenie edycji stron (``apps.cms.freeze``) przed widokiem Wagtaila.
+
+    Rozpoznanie po **nazwie** adresu (jak ``CmsScopeMiddleware``), więc działa też pod prefiksem
+    konkursu. Nazwa spoza listy – bez żadnego zapytania; stan zamrożenia jest czytany dopiero dla
+    adresów z listy, a przy wyłączonym zamrożeniu warstwa niczego nie zmienia.
+
+    Konto niezalogowane przechodzi: te same widoki odsyłają je do logowania, a zapisać nie może
+    niczego i tak. Odmowa to 403 – ekran panelu z komunikatem albo JSON w kształcie błędu Wagtaila
+    (autozapis, okna modalne), żeby edytor pokazał powód, a nie „błąd sieci”.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        return self.get_response(request)
+
+    def process_view(self, request, view_func, view_args, view_kwargs):
+        match = getattr(request, "resolver_match", None)
+        if match is None or match.view_name not in _WATCHED:
+            return None
+        if not request.user.is_authenticated or not freeze.is_frozen():
+            return None
+        name = match.view_name
+
+        if name == BULK_ACTION_VIEW:
+            model = (view_kwargs.get("app_label", "").lower(), view_kwargs.get("model_name", "").lower())
+            if model == BULK_PAGE_MODEL:
+                return _denied(request, "Akcje zbiorcze na stronach są wyłączone.")
+            return None
+        if name == API_ACTION_VIEW:
+            return _denied(request, "Akcje na stronach przez API panelu są wyłączone.", as_json=True)
+        if name in FROZEN_TREE_VIEWS:
+            return _denied(
+                request,
+                "Tworzenie, przenoszenie, kopiowanie i usuwanie stron odbywa się teraz w django CMS.",
+            )
+        if name in FROZEN_EDIT_VIEWS and request.method in SAFE_METHODS:
+            return None
+
+        page = _page(view_kwargs)
+        if page is None:
+            return None  # nieistniejąca strona – 404 widoku Wagtaila
+        if not freeze.is_exempt(page):
+            return _denied(request, "Ta strona jest w Wagtailu tylko do odczytu.")
+        if name == UNPUBLISH_VIEW:
+            return _denied(
+                request,
+                f"Strony „{page.title}” nie można zdjąć z publikacji: aplikacja czyta z niej dane "
+                "(bez publikacji tak, jakby strony nie było). Treść można edytować i publikować dalej.",
+            )
+        if name in FROZEN_EDIT_VIEWS:
+            slug = request.POST.get("slug")
+            if slug is not None and slug != page.slug:
+                return _denied(
+                    request,
+                    f"Adres strony „{page.title}” nie może się zmienić: aplikacja i django CMS "
+                    f"znajdują ją po slugu „{page.slug}”. Treść można edytować dalej.",
+                )
+        return None
+
+
+def _page(view_kwargs):
+    """Strona z adresu – ``page_id`` w widokach panelu, ``pk`` w API panelu."""
+    from wagtail.models import Page
+
+    page_id = view_kwargs.get("page_id", view_kwargs.get("pk"))
+    if page_id is None:
+        return None
+    return Page.objects.filter(pk=page_id).first()
+
+
+def _denied(request, reason: str, *, as_json: bool = False):
+    state = freeze.freeze_state()
+    if as_json or not request.accepts("text/html"):
+        return JsonResponse(
+            {
+                "success": False,
+                "error_code": "editing_frozen",
+                "error_message": f"{state.banner_message} {reason}",
+            },
+            status=403,
+        )
+    return TemplateResponse(
+        request,
+        "cms/admin/editing_frozen.html",
+        {
+            "message": state.banner_message,
+            "reason": reason,
+            "djcms_url": freeze.djcms_url(),
+            "back_url": reverse("wagtailadmin_explore_root"),
+        },
+        status=403,
+    )

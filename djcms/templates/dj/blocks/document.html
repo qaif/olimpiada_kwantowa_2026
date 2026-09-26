@@ -1,0 +1,12 @@
+{% comment %}
+  PORT ``backend/templates/cms/blocks/document.html``. Adres: plik z biblioteki albo dokument na
+  domenie głównej (``LinkedFile.href``, tylko ``http(s)``). Rozmiar, gdy znany – przy adresie
+  podanym ręcznie bywa pusty, a „0 bajtów” wyglądałoby na zepsuty plik.
+{% endcomment %}
+{% if instance.href %}
+<p class="cms-doc">
+  <a class="btn btn--secondary" href="{{ instance.href }}">
+    Pobierz: {{ instance.label|default:instance.file_title }}</a>
+  <span class="hint">({{ instance.file_extension|upper }}{% if instance.size_bytes %}, {{ instance.size_bytes|filesizeformat }}{% endif %})</span>
+</p>
+{% endif %}

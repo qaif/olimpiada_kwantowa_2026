@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "generated_by": "backend/apps/cms/tests/test_djcms_sso.py::test_contract_vector_matches_issue_token",
+  "comment": "Tokeny SSO z /cms/ do django CMS (DJ-02g): wystawia backend/apps/cms/djcms_sso.py, weryfikuje djcms/apps/sites/sso.py. Klucz wyłącznie testowy.",
+  "key": "wektor-kontraktu-sso-0123456789abcdef0123456789abcdef",
+  "now": 1790000000,
+  "cases": [
+    {
+      "name": "redaktor-dwoch-konkursow",
+      "user": {
+        "pk": 42,
+        "email": "redaktorka@example.com",
+        "first_name": "Zofia",
+        "last_name": "Żółć"
+      },
+      "host": "olimpiadakwantowa.pl",
+      "platform": false,
+      "competitions": [
+        [
+          "fizyka",
+          [
+            "edit"
+          ]
+        ],
+        [
+          "kwantowa",
+          [
+            "edit",
+            "publish"
+          ]
+        ]
+      ],
+      "nonce": "nonce-wektora-0001-abcdefghijkl",
+      "token": "v1.eyJhdWQiOiJkamNtcyIsImNvbXBldGl0aW9ucyI6W3siYWJpbGl0aWVzIjpbImVkaXQiXSwic2x1ZyI6ImZpenlrYSJ9LHsiYWJpbGl0aWVzIjpbImVkaXQiLCJwdWJsaXNoIl0sInNsdWciOiJrd2FudG93YSJ9XSwiZW1haWwiOiJyZWRha3RvcmthQGV4YW1wbGUuY29tIiwiZXhwIjoxNzkwMDAwMDYwLCJmaXJzdF9uYW1lIjoiWm9maWEiLCJob3N0Ijoib2xpbXBpYWRha3dhbnRvd2EucGwiLCJpYXQiOjE3OTAwMDAwMDAsImlzcyI6IndlYiIsImxhc3RfbmFtZSI6Ilx1MDE3Ylx1MDBmM1x1MDE0Mlx1MDEwNyIsIm5vbmNlIjoibm9uY2Utd2VrdG9yYS0wMDAxLWFiY2RlZmdoaWprbCIsInBsYXRmb3JtIjpmYWxzZSwic3ViIjo0MiwidiI6MX0.M7UTQnoJ40xKv88DaIwLBG4igar0lSFh8dQ8t_YhLcA"
+    },
+    {
+      "name": "platforma",
+      "user": {
+        "pk": 1,
+        "email": "super@example.com",
+        "first_name": "",
+        "last_name": ""
+      },
+      "host": "fizyka.olimpiadakwantowa.pl",
+      "platform": true,
+      "competitions": [
+        [
+          "fizyka",
+          [
+            "edit",
+            "publish"
+          ]
+        ],
+        [
+          "kwantowa",
+          [
+            "edit",
+            "publish"
+          ]
+        ]
+      ],
+      "nonce": "nonce-wektora-0002-abcdefghijkl",
+      "token": "v1.eyJhdWQiOiJkamNtcyIsImNvbXBldGl0aW9ucyI6W3siYWJpbGl0aWVzIjpbImVkaXQiLCJwdWJsaXNoIl0sInNsdWciOiJmaXp5a2EifSx7ImFiaWxpdGllcyI6WyJlZGl0IiwicHVibGlzaCJdLCJzbHVnIjoia3dhbnRvd2EifV0sImVtYWlsIjoic3VwZXJAZXhhbXBsZS5jb20iLCJleHAiOjE3OTAwMDAwNjAsImZpcnN0X25hbWUiOiIiLCJob3N0IjoiZml6eWthLm9saW1waWFkYWt3YW50b3dhLnBsIiwiaWF0IjoxNzkwMDAwMDAwLCJpc3MiOiJ3ZWIiLCJsYXN0X25hbWUiOiIiLCJub25jZSI6Im5vbmNlLXdla3RvcmEtMDAwMi1hYmNkZWZnaGlqa2wiLCJwbGF0Zm9ybSI6dHJ1ZSwic3ViIjoxLCJ2IjoxfQ.1sDeMZ954xJwFDXeIy9qGUMbAZyjfQ7du0hRq-zPR_w"
+    }
+  ]
+}

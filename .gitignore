@@ -22,7 +22,9 @@ uv.lock
 # Wygenerowana konfiguracja Caddy'ego (scripts/render_caddyfile.sh): deploy/Caddyfile plus bloki
 # domen z EXTRA_DOMAINS. Jest wynikiem, a nie zrodlem - zrodlem jest deploy/Caddyfile i .env
 # konkretnego serwera, wiec ten plik rozni sie miedzy instalacjami i w repozytorium nie ma czego
-# szukac. scripts/deploy.sh generuje go na serwerze przed startem uslug.
+# szukac. scripts/proxy_config.sh (krok 4/8 wdrozenia) sklada go na serwerze w katalogu stanu
+# caddy/, ktory montuje proxy. deploy/Caddyfile.generated - miejsce sprzed tej zmiany.
+/caddy/
 deploy/Caddyfile.generated
 # Stan strony "Prace techniczne" (scripts/maintenance.sh): flaga `on`, komunikat, kopia strony.
 # Zrodlem strony jest deploy/maintenance/; ten katalog nalezy do serwera, nie do repozytorium.
@@ -31,3 +33,10 @@ deploy/Caddyfile.generated
 # przy budowaniu obrazu (msgfmt w backend/Dockerfile), wiec plik binarny nie ma tu czego
 # szukac - i nie da sie go zostawic nieaktualnego wzgledem zrodla.
 *.mo
+# Wersja porównawcza django CMS (djcms/, docs/tasks/DJ-01.md). ``uv.lock`` djcms JEST commitowany
+# (obraz instaluje zależności ``uv sync --frozen``), mimo globalnego ``uv.lock`` wyżej – backend
+# instaluje z zakresów w pyproject, djcms z dokładnej blokady.
+!djcms/uv.lock
+djcms/.venv/
+djcms/staticfiles/
+djcms/media/

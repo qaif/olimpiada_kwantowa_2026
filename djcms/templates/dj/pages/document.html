@@ -1,0 +1,65 @@
+{% extends "dj/base.html" %}
+{% load static cms_tags dj_pages %}
+{% comment %}
+  „Dokument” (CMS_TEMPLATES) – PORT ``backend/templates/cms/document_page.html`` (uzasadnienia tam:
+  metryka pod tytułem, „Pobierz PDF” nad treścią, przycisk „Drukuj” odsłaniany przez ``print.js``).
+  Sloty: ``intro`` (tekst), ``attachments`` (pliki karty „Do pobrania”), ``body`` (zestaw DOC).
+  Metryka z rozszerzenia treści ``DocumentMeta``; spis rozdziałów od pierwszego śródtytułu
+  (``DocumentPage.chapters``). ``print.js`` z tym samym nonce CSP co reszta skryptów ramy.
+{% endcomment %}
+{% block description %}{% page_attribute "title" %}{% dj_extension "documentmeta" as meta %}{% if meta.version_label %} (wersja {{ meta.version_label }}){% endif %} – dokument Olimpiady do przeczytania online i pobrania.{% endblock %}
+{% block page_scripts %}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/print.js' %}"></script>
+{% endblock %}
+{% block content %}
+{% dj_extension "documentmeta" as meta %}
+{% dj_chapters 1 as chapters %}
+{% dj_first_pdf as pdf_attachment %}
+{% dj_capture as intro %}{% placeholder "intro" %}{% end_dj_capture %}
+<div class="doc-layout">
+
+  <div class="doc-head">
+    <div class="page-head">
+      <span class="eyebrow">Dokument</span>
+      <h1>{% page_attribute "title" %}</h1>
+      {% if meta.is_filled %}
+        <p class="article__meta doc-meta">
+          {% if meta.version_label %}<span class="doc-meta__item">Wersja {{ meta.version_label }}</span>{% endif %}
+          {% if meta.document_date %}
+            <time class="doc-meta__item" datetime="{{ meta.document_date|date:'Y-m-d' }}">{{ meta.document_date }}</time>
+          {% endif %}
+          {% if meta.status_label %}<span class="tag">{{ meta.status_label }}</span>{% endif %}
+        </p>
+      {% endif %}
+    </div>
+
+    {% if intro|dj_filled %}<div class="cms-body prose doc-intro">{{ intro }}</div>{% endif %}
+
+    <p class="doc-print">
+      {% if pdf_attachment %}
+        <a class="btn btn--small btn--primary" href="{{ pdf_attachment.href }}" download>
+          Pobierz PDF</a>
+      {% endif %}
+      <button type="button" class="btn btn--small btn--secondary" data-print hidden>Drukuj</button>
+    </p>
+
+    {% include "dj/partials/_attachments.html" %}
+  </div>
+
+  {% if chapters %}
+    <nav class="doc-toc" aria-labelledby="spis-rozdzialow">
+      <h2 class="doc-toc__title" id="spis-rozdzialow">Spis rozdziałów</h2>
+      <ol class="doc-toc__list">
+        {% for chapter in chapters %}
+          <li><a href="#{{ chapter.anchor }}">{{ chapter.text }}</a></li>
+        {% endfor %}
+      </ol>
+    </nav>
+  {% endif %}
+
+  <div class="doc-body prose">
+    {% placeholder "body" %}
+  </div>
+
+</div>
+{% endblock %}

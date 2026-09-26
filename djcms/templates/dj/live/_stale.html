@@ -1,0 +1,5 @@
+{% comment %}
+  Dopisek przy danych z kopii awaryjnej klienta API (§ 8.3: „Dane stale pokazywane z dopiskiem
+  »stan na HH:MM«”). ``live`` = ``apps.live.data.LiveData``; dla danych świeżych nic nie rysuje.
+{% endcomment %}
+{% if live.stale_label %}<p class="hint dj-stale" role="note">Dane mogą być nieaktualne – {{ live.stale_label }}.</p>{% endif %}

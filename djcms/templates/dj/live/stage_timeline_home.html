@@ -1,0 +1,64 @@
+{% load dj_live %}{% comment %}
+  PORT dla dj. (DJ-01f) – sekcja „Przebieg zawodów” z ``backend/templates/cms/home_page.html``
+  (warunek ``page.show_timeline``). Na ``dj.`` odpowiednikiem ``show_timeline`` jest
+  obecność tej wtyczki (wariant „strona główna”) w slocie ``timeline`` strony głównej.
+  Wiersze i edycja z ``GET stages``; przycisk „Tabela wyników” prowadzi na domenę główną
+  (``results_url`` jest w odpowiedzi tylko przy ogłoszonej publikacji). Znaczniki i klasy CSS
+  identyczne z oryginałem. Zmieniając oryginał, zmień też ten plik.
+{% endcomment %}
+{% if not live.available %}
+  <section class="section">
+    {% dj_unavailable %}
+  </section>
+{% elif edition %}
+  <section class="section">
+    <div class="section__head">
+      <h2 class="mt-0">Przebieg zawodów: {{ edition.title }}</h2>
+      <p class="hint">Wszystkie godziny: czas polski.</p>
+    </div>
+    {% include "dj/live/_stale.html" %}
+    <ol class="timeline">
+      {% for row in rows %}
+        <li class="timeline__item {% if row.is_open %}timeline__item--open{% elif row.has_opened %}timeline__item--done{% else %}timeline__item--next{% endif %}">
+          <p class="timeline__kind">{{ row.stage.display_name }}</p>
+          {% if row.is_open %}
+            <span class="badge badge--accent">etap otwarty</span>
+          {% elif row.has_opened %}
+            <span class="badge badge--ok">zakończony</span>
+          {% else %}
+            <span class="badge badge--neutral">nadchodzący</span>
+          {% endif %}
+          <dl class="timeline__dates">
+            {% if row.stage.location %}
+              <div><dt>Miejsce</dt><dd>{{ row.stage.location }}</dd></div>
+            {% endif %}
+            {% if row.is_onsite_event %}
+              <div><dt>Termin</dt><dd>{{ row.date_range }}</dd></div>
+            {% else %}
+              {% if row.stage.is_interview %}
+                <div><dt>Forma</dt><dd>rozmowa kwalifikacyjna online</dd></div>
+              {% endif %}
+              <div><dt>Otwarcie</dt><dd>{{ row.stage.opens_at_local_datetime }}</dd></div>
+              {% if row.stage.is_interview %}
+                <div><dt>Rozmowy do</dt><dd>{{ row.stage.deadline_at_local_datetime }}</dd></div>
+              {% else %}
+                <div><dt>Deadline</dt><dd>{{ row.stage.deadline_at_local_datetime }}</dd></div>
+              {% endif %}
+            {% endif %}
+          </dl>
+          {% if row.has_results and row.stage.results_url %}
+            <a class="btn btn--secondary btn--small" href="{{ row.stage.results_url }}">Tabela wyników</a>
+          {% else %}
+            <p class="hint mt-0">Wyniki nieogłoszone.</p>
+          {% endif %}
+        </li>
+      {% empty %}
+        <li class="empty"><span class="empty__title">Brak etapów</span>
+          Ta edycja nie ma jeszcze zdefiniowanych etapów.</li>
+      {% endfor %}
+    </ol>
+  </section>
+{% else %}
+  {% include "dj/live/_stale.html" %}
+  <p class="notice">Nie ustawiono bieżącej edycji olimpiady.</p>
+{% endif %}

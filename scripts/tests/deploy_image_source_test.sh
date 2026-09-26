@@ -11,7 +11,7 @@
 #
 # Jak to jest uruchamiane bez serwera: krok 4/8 to skrypt wysyłany przez SSH here-documentem,
 # więc test wycina jego treść z `scripts/deploy.sh` (nie kopiuje jej!) i uruchamia w katalogu
-# tymczasowym na atrapach `docker` i generatora Caddy'ego. Sprawdzamy ten sam tekst, który
+# tymczasowym na atrapach `docker` i konfiguracji proxy (scripts/proxy_config.sh). Sprawdzamy ten sam tekst, który
 # pojedzie na produkcję – kopia w teście zestarzałaby się przy pierwszej poprawce skryptu.
 set -uo pipefail
 
@@ -38,8 +38,11 @@ bash -n "$DEPLOY"
 check "scripts/deploy.sh przechodzi bash -n" $?
 
 # Ciało zdalnego skryptu kroku 4/8: od linii `bash -s <<'REMOTE'` po zamykające `REMOTE`.
+# `bash -s"?`: od v0.37.0 polecenie kroku 4/8 jest jednym zacytowanym napisem
+# (`"env $REMOTE_ENV bash -s" <<'REMOTE'`) – wzorzec bez cudzysłowu łapał dopiero skrypt kroku 4a
+# i test padał na pierwszym sprawdzeniu (naprawione przy DJ-01h).
 awk '/log "4\/8 Konfiguracja proxy/ { seen = 1 }
-     seen && /bash -s <<.REMOTE.$/ { inside = 1; next }
+     seen && /bash -s"? <<.REMOTE.$/ { inside = 1; next }
      inside && /^REMOTE$/ { exit }
      inside { print }' "$DEPLOY" >"$WORK/krok4.sh"
 [ -s "$WORK/krok4.sh" ] && grep -q 'docker compose up -d db' "$WORK/krok4.sh"
@@ -73,10 +76,11 @@ cp "$ROOT/scripts/maintenance.sh" "$SRV/scripts/"
 mkdir -p "$SRV/deploy/maintenance"
 cp "$ROOT/deploy/maintenance/index.html" "$SRV/deploy/maintenance/"
 
-# Atrapa generatora Caddy'ego: jego własny test jest osobno (render_caddyfile_test.sh).
-cat >"$SRV/scripts/render_caddyfile.sh" <<'STUB'
+# Atrapa konfiguracji proxy (render + caddy validate): jej własne testy są osobno
+# (proxy_config_test.sh, render_caddyfile_test.sh, a pełne wdrożenie – deploy_djcms_test.sh § 10).
+cat >"$SRV/scripts/proxy_config.sh" <<'STUB'
 #!/usr/bin/env bash
-: > deploy/Caddyfile.generated
+mkdir -p caddy && : > caddy/Caddyfile
 STUB
 
 krok4() {
@@ -115,8 +119,8 @@ check "bez WEB_IMAGE polecenia docker są dokładnie dzisiejsze" $?
 [ "$(cat "$LOG")" = "$DZISIAJ" ] || { printf -- '--- wykonane:\n'; sed 's/^/     /' "$LOG"; }
 ! grep -qE '^WEB_IMAGE=' "$SRV/.env"
 check "bez WEB_IMAGE w .env nie pojawia się wpis o obrazie" $?
-grep -qE '^EXTRA_DOMAINS=' "$SRV/.env" && grep -qE '^CADDYFILE_PATH=' "$SRV/.env"
-check "krok nadal dokłada do .env EXTRA_DOMAINS i CADDYFILE_PATH" $?
+grep -qE '^EXTRA_DOMAINS=' "$SRV/.env" && grep -qxF 'CADDY_CONFIG_DIR=./caddy' "$SRV/.env" && ! grep -q 'CADDYFILE_PATH' "$SRV/.env"
+check "krok nadal dokłada do .env EXTRA_DOMAINS i CADDY_CONFIG_DIR=./caddy (bez dawnego CADDYFILE_PATH)" $?
 grep -qE '^MAINTENANCE_BYPASS_TOKEN=[A-Za-z0-9]{40}$' "$SRV/.env"
 check "krok dopisuje do .env przepustkę MAINTENANCE_BYPASS_TOKEN (40 znaków)" $?
 cmp -s "$ROOT/deploy/maintenance/index.html" "$SRV/maintenance/page/index.html" && [ ! -e "$SRV/maintenance/on" ]

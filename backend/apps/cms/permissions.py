@@ -474,7 +474,18 @@ def cms_abilities(user) -> frozenset[tuple]:
 
     Konto trzeba podać świeżo pobrane z bazy — Wagtail zapamiętuje uprawnienia na obiekcie konta
     i porównanie na tym samym obiekcie przed i po zmianie grup porównałoby pamięć, a nie bazę.
+
+    Macierz opisuje uprawnienia **z grup**, więc liczy się z pominięciem zamrożenia edycji stron
+    (``apps.cms.freeze.ignoring``): zamrożenie odbiera czynności wszystkim naraz i w jego trakcie
+    porównanie „przed i po” w ``scope_cms_access`` porównywałoby dwa zbiory bez stron.
     """
+    from apps.cms.freeze import ignoring
+
+    with ignoring():
+        return _cms_abilities(user)
+
+
+def _cms_abilities(user) -> frozenset[tuple]:
     from wagtail.contrib.settings.models import BaseSiteSetting  # noqa: F401 - rejestr polityk
     from wagtail.documents import get_document_model
     from wagtail.images import get_image_model

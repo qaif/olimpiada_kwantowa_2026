@@ -1,0 +1,15 @@
+{% load dj_pages %}
+{% comment %}
+  Przyklejony pasek najważniejszych pozycji (``nav--primary``) – port z ``backend/templates/base.html``.
+  Pozycje = strony z „w przyklejonym pasku” (``MenuExtension.primary``). Pokazuje je dopiero
+  ``static/js/sticky-bar.js`` po przyklejeniu paska; bez skryptu zostają ukryte, a dolne menu ma
+  wszystko. Brak takich stron = brak całego ``<nav>`` (jak ``{% templatetag openblock %} if cms_menu_primary {% templatetag closeblock %}``).
+{% endcomment %}
+{% with items=children|dj_primary_nodes %}{% if items %}
+  <nav class="nav nav--primary" aria-label="Najważniejsze" data-sticky-nav>
+    {% for item in items %}
+      <a class="nav__link nav__link--primary" href="{{ item.attr.redirect_url|default:item.get_absolute_url }}"
+         {% if item.attr.dj_active %}aria-current="page"{% endif %}>{{ item.get_menu_title }}</a>
+    {% endfor %}
+  </nav>
+{% endif %}{% endwith %}

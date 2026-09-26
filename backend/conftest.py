@@ -33,8 +33,9 @@ def _compile_translations(config) -> None:
     """Kompiluje ``locale/*/LC_MESSAGES/django.po`` do ``.mo``, gdy ``.mo`` brakuje albo jest starszy.
 
     Obraz robi to przy budowaniu, a CI i lokalny przebieg – ten conftest (CI tylko instaluje
-    ``msgfmt``). Bez tego kontener z zamontowanym kodem nie miałby ``.mo`` nigdzie, a brak ``.mo`` nie jest błędem Django: angielski
-    po prostu cicho oddaje polskie napisy, więc testy języka listów i panelu padały z komunikatem
+    ``msgfmt``). Bez tego kontener z zamontowanym kodem nie miałby ``.mo`` nigdzie, a brak ``.mo``
+    nie jest błędem Django: angielski po prostu cicho oddaje polskie napisy, więc testy języka
+    listów i panelu padały z komunikatem
     o treści, a nie o brakującym pliku. Kompilacja trwa ułamek sekundy i dzieje się raz na sesję
     (pod xdist – w procesie sterującym, zanim wystartują workery).
 
@@ -240,19 +241,22 @@ def _clear_process_caches():
 
     Dwa przełączniki czytane przy każdej odpowiedzi HTML trzymają wynik przez 30 s w słowniku
     modułu: identyfikator GA4 (``apps.cms.analytics``) i rejestracja opiekunów
-    (``apps.accounts.supervisors``). Wycofanie transakcji ich nie czyści, a klucz (identyfikator
-    witryny domyślnej) jest w każdym teście ten sam – więc bez tego wynik testu zależał od tego,
+    (``apps.accounts.supervisors``); trzeci – zamrożenie edycji stron (``apps.cms.freeze``, 10 s).
+    Wycofanie transakcji ich nie czyści, a klucz (identyfikator witryny domyślnej) jest w każdym
+    teście ten sam – więc bez tego wynik testu zależał od tego,
     co przed nim biegło w **tym samym procesie**. Pod xdist kolejność zmienia się z każdym
     przebiegiem, więc zależność od kolejności zamieniłaby się w losowe czerwone testy.
     """
     from apps.accounts.supervisors import reset_registration_cache
-    from apps.cms import analytics
+    from apps.cms import analytics, freeze
 
     analytics._cache.clear()
     reset_registration_cache()
+    freeze.reset_cache()
     yield
     analytics._cache.clear()
     reset_registration_cache()
+    freeze.reset_cache()
 
 
 # =================================================================================================

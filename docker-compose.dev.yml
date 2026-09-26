@@ -56,3 +56,38 @@ services:
     # nie ma po co, a bez PTR/SPF i tak psułby reputację adresu. Nienazwany profil `never`
     # wyłącza usługę z `docker compose up` przy tej nakładce.
     profiles: [never]
+  djcms:
+    # Wersja porównawcza na django CMS (docs/tasks/DJ-01.md): runserver na http://localhost:8100,
+    # kod z hosta i `backend/static` montowane na żywo. Wstaje wyłącznie z `--profile djcms`:
+    #   bash scripts/djcms_db.sh --allow-createdb
+    #   docker compose -f docker-compose.yml -f docker-compose.dev.yml --profile djcms up -d --build djcms
+    build:
+      # Opcjonalny certyfikat CA dla TLS w czasie budowania (antywirus przechwytujący HTTPS) –
+      # patrz `secrets:` na końcu pliku i komentarz w djcms/Dockerfile.
+      secrets: [extra_ca]
+    read_only: false
+    command: python manage.py runserver 0.0.0.0:8000
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.dev
+      DJCMS_DEBUG: "1"
+      DJCMS_ALLOWED_HOSTS: localhost,127.0.0.1,djcms
+      DJCMS_CSRF_TRUSTED_ORIGINS: http://localhost:8100
+      DJCMS_MAIN_MEDIA_ORIGIN: http://localhost:9000
+    volumes:
+      - ./djcms:/app
+      - ./backend/static:/opt/shared_static:ro
+      # Kontrakt tras aplikacji głównej (DJ-02 § 6) na żywo – obraz produkcyjny ma go skopiowanego.
+      - ./backend/djcms_contract:/opt/djcms_contract:ro
+      - djcms_media:/app/media
+    ports:
+      - "8100:8000"
+    # Jak minio: publikacja portu wymaga sieci nie-`internal`.
+    networks: [internal, edge]
+
+# Sekret BuildKit `extra_ca` dla obrazu djcms. `EXTRA_CA_FILE` w `.env` wskazuje plik PEM z dodatkowym
+# CA (np. Norton, który podpisuje przechwycony HTTPS i psuje `uv sync` błędem `UnknownIssuer`).
+# Nieustawiona = pusty plik z repozytorium, czyli zwykły magazyn CA obrazu. Certyfikat nie trafia
+# do obrazu ani do repozytorium – istnieje wyłącznie w czasie jednego kroku budowania.
+secrets:
+  extra_ca:
+    file: ${EXTRA_CA_FILE:-./djcms/docker/no-extra-ca.pem}

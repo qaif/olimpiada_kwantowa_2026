@@ -1,0 +1,155 @@
+{% extends "dj/base.html" %}
+{% load cms_tags dj_live %}
+{% comment %}
+  „Strona główna” (CMS_TEMPLATES) – PORT ``backend/templates/cms/home_page.html`` (DJ-01f, tabela 6.1).
+  Klasy CSS i kolejność sekcji jak w oryginale; zmieniając oryginał, zmień też ten plik.
+
+  Skąd co przychodzi:
+  - sloty redakcyjne: ``hero`` (wtyczka Hero – ``<h1>`` i ``.hero__text``; pusty slot = tytuł
+    strony), ``timeline`` (wtyczka „Terminy etapów” w wariancie „strona główna” – odpowiednik
+    ``show_timeline``; pusty slot = brak sekcji), ``steps`` (sekcja „Jak zacząć”), ``about``
+    („O Olimpiadzie”),
+  - dane zawodów z API: edycja w nadtytule i przycisk rejestracji (``chrome``, rama), etap bieżący
+    (``stages``), zapowiedź warsztatów (``workshops``: trzy najbliższe z tabeli Wagtaila – ryzyko 4
+    speca: tabela na ``/warsztaty/`` w ``dj.`` jest redakcyjna i jej edycja tej zapowiedzi nie zmienia),
+  - treść innych stron ``dj.``: aktualności, pas partnerów, dokumenty do pobrania
+    (``apps.live.homepage``).
+
+  Jedna świadoma różnica wobec oryginału: „O Olimpiadzie” jest samodzielną sekcją. W
+  ``home_page.html`` (stan z 26.09.2026) sekcja stoi wewnątrz ``{% templatetag openblock %} if workshops {% templatetag closeblock %}`` – bez
+  nadchodzących warsztatów znika razem z zapowiedzią – co wygląda na błąd scalenia, a nie na
+  zamiar (komentarz nad nią mówi, że ma stać „zaraz pod hasłem”). Kolejność zostaje ta sama.
+
+  Przy martwym API: strona się renderuje (200), nadtytuł, przycisk rejestracji, etap bieżący
+  i zapowiedź warsztatów znikają, a wtyczka terminów pokazuje komunikat o niedostępności.
+{% endcomment %}
+{% block title %}{{ dj_chrome.site_name }}{% endblock %}
+{% block content %}
+{% dj_live_data "stages" as stages %}
+{% dj_live_data "workshops" as workshops %}
+{% dj_home_sections as home %}
+
+<section class="hero">
+  <div class="hero__inner">
+    {% if dj_chrome.edition %}<span class="eyebrow">{{ dj_chrome.edition.title_cap }}</span>{% endif %}
+    {% placeholder "hero" or %}<h1>{% page_attribute "title" %}</h1>{% endplaceholder %}
+
+    <div class="hero__actions">
+      {% include "dj/live/_registration_button.html" %}
+      <a class="btn btn--secondary" href="{{ dj_chrome.login_url }}">Zaloguj się</a>
+    </div>
+
+    {% if dj_chrome.site.registration_note %}
+      <p class="hero__note">{{ dj_chrome.site.registration_note }}</p>
+    {% endif %}
+
+    {% if stages.data.current_stage %}
+      <p class="hero__status">Etap bieżący: <strong>{{ stages.data.current_stage.display_name }}</strong>
+        · termin oddania rozwiązań {{ stages.data.current_stage.deadline_at_local_time }}</p>
+    {% endif %}
+  </div>
+</section>
+
+{% placeholder "timeline" %}
+
+{% placeholder "steps" %}
+
+{% if workshops.data.upcoming %}
+  <section class="section" id="warsztaty">
+    <div class="section__head">
+      <h2 class="mt-0">Warsztaty online</h2>
+      <p class="hint">Bezpłatne spotkania przygotowujące do zawodów. Wszystkie godziny: czas polski.</p>
+    </div>
+    {% include "dj/live/_stale.html" with live=workshops %}
+    <ul class="cards">
+      {% for item in workshops.data.upcoming %}
+        <li>
+          <article class="card">
+            <h3 class="card__title mt-0">{{ item.topic }}</h3>
+            <p class="card__meta">{{ item.date }}{% if item.time %} · {{ item.time }}{% endif %}</p>
+          </article>
+        </li>
+      {% endfor %}
+    </ul>
+    {% if workshops.data.page_path %}
+      <p class="steps__cta"><a class="btn btn--secondary" href="{{ workshops.data.page_path }}">Zobacz wszystkie warsztaty</a></p>
+    {% endif %}
+  </section>
+{% endif %}
+
+{% placeholder "about" %}
+
+{% if home.news_index or home.latest_news %}
+  <section class="section" id="aktualnosci">
+    <div class="section__head">
+      <h2 class="mt-0">Aktualności</h2>
+      {% if home.news_index %}<a href="{{ home.news_index.url }}">Wszystkie aktualności</a>{% endif %}
+    </div>
+    {% if home.latest_news %}
+      <ul class="cards">
+        {% for item in home.latest_news %}
+          <li>
+            <article class="card news-card">
+              <span class="news-card__date">{{ item.date|default_if_none:"" }}</span>
+              <h3><a href="{{ item.url }}">{{ item.title }}</a></h3>
+              {% if item.lead %}<p>{{ item.lead }}</p>{% endif %}
+            </article>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty"><span class="empty__title">Brak aktualności</span>
+        Komunikaty organizatora – w tym linki do warsztatów – pojawią się tutaj.</p>
+    {% endif %}
+  </section>
+{% endif %}
+
+{% if home.partners %}
+  <section class="section">
+    <div class="section__head">
+      <h2 class="mt-0">Partnerzy</h2>
+      <p class="hint"><a href="{{ home.partners.url }}">Partnerzy i sponsorzy Olimpiady</a></p>
+    </div>
+    <ul class="partner-strip">
+      {% for partner in home.partners.entries %}
+        <li class="partner-strip__item{% if partner.is_wide %} partner-strip__item--wide{% endif %}">
+          {% if partner.url %}<a class="partner-strip__link" href="{{ partner.url }}" target="_blank" rel="noopener noreferrer">{% endif %}
+          {% if partner.logo %}
+            <span class="partner-strip__frame">
+              <img src="{{ partner.logo.src }}" width="{{ partner.logo.width }}" height="{{ partner.logo.height }}" alt="{{ partner.name }}" loading="lazy" class="partner-strip__logo">
+            </span>
+          {% endif %}
+          <span class="partner-strip__name">{{ partner.name }}</span>
+          {% if partner.url %}</a>{% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endif %}
+
+{% if home.downloads %}
+  <section class="section">
+    <div class="section__head">
+      <h2 class="mt-0">Dokumenty do pobrania</h2>
+      <p class="hint">Oficjalne dokumenty organizatora w wersji do wydruku.
+        {% if home.documents_index %}<a href="{{ home.documents_index.url }}">Wszystkie dokumenty</a>{% endif %}</p>
+    </div>
+    <div class="card doc-download doc-download--home">
+      <ul class="doc-files">
+        {% for row in home.downloads %}
+          <li class="doc-files__item doc-files__item--{{ row.extension|lower }}">
+            <div class="doc-files__meta">
+              <span class="doc-files__label"><a href="{{ row.url }}">{{ row.title }}</a></span>
+              <span class="hint doc-files__hint">{{ row.extension|upper }}{% if row.size_bytes %}
+                · {{ row.size_bytes|filesizeformat }}{% endif %}</span>
+            </div>
+            <a class="btn btn--small btn--secondary" href="{{ row.href }}"
+               download>Pobierz PDF</a>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </section>
+{% endif %}
+
+{% endblock %}

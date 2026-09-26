@@ -1,0 +1,14 @@
+{% comment %}
+  Jedna para listy definicji (``definitions.html``). Nagłówki kolumn („Cel”, „Podstawa”) przychodzą
+  od rodzica i powtarzają się przy każdej parze – jak w oryginale.
+{% endcomment %}
+<div class="definitions__row">
+  <dt class="definitions__term">
+    {% if term_label %}<span class="definitions__label">{{ term_label }}</span>{% endif %}
+    {{ instance.term }}
+  </dt>
+  <dd class="definitions__value">
+    {% if description_label %}<span class="definitions__label">{{ description_label }}</span>{% endif %}
+    {{ instance.description }}
+  </dd>
+</div>

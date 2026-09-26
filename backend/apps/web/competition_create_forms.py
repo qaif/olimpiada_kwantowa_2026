@@ -65,6 +65,15 @@ RESERVED_LABELS = frozenset(
         "autoconfig",
         "autodiscover",
         "cms",
+        # Wersja porównawcza serwisu na django CMS (``dj.<SITE_DOMAIN>``, docs/tasks/DJ-01.md).
+        # Blok Caddy'ego z tą nazwą wygrywa z ``*.<SITE_DOMAIN>``, więc konkurs pod tym adresem
+        # nigdy by się nie otworzył. Dziś odpadłby i tak na długości (min. 3 znaki) – wpis jest
+        # tu po to, żeby rezerwacja nie zależała od przypadkowej reguły kształtu.
+        "dj",
+        # Adresy aplikacyjne django CMS (``/djcms/…``, DJ-02 § 1.2 D2). Przychodzi też z
+        # ``RESERVED_SLUGS`` przez ``reserved_labels()``, ale tu stoi jawnie: nazwa należy do
+        # infrastruktury platformy, a nie tylko do urlconfu, i nie może zniknąć razem z listą slugów.
+        "djcms",
         "ftp",
         "imap",
         "internal",

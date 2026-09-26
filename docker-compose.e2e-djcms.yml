@@ -1,0 +1,65 @@
+# Nakładka E2E przełączenia serwisu publicznego Wagtail ⇄ django CMS (docs/tasks/DJ-02.md § 11,
+# podkrok DJ-02j). Używa jej WYŁĄCZNIE scripts/tests/djcms_primary_e2e.sh – nie do dev i nie na serwer.
+#
+# Jak: skrypt składa w katalogu roboczym (domyślnie runs/djcms-e2e/, poza gitem) „katalog instalacji”
+# jak /opt/olimpiada na serwerze – kopie scripts/, deploy/, backend/djcms_contract/, docker-compose.yml,
+# docker-compose.djcms.yml, tej nakładki i własny .env z
+#   COMPOSE_PROJECT_NAME=olimpiada-e2e-djcms
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.djcms.yml:docker-compose.e2e-djcms.yml
+#   COMPOSE_PROFILES=djcms
+# Dzięki temu scripts/djcms_switch.sh i scripts/djcms_cutover.sh działają tam BEZ ZMIAN (jak na
+# serwerze: `docker compose` bez `-f`, .env w katalogu bieżącym, konfiguracja proxy w caddy/Caddyfile),
+# a środowisko deweloperskie (projekt `olimpiadaclade`, jego .env i wolumeny) zostaje nietknięte.
+#
+# Co ta nakładka zmienia wobec pliku podstawowego + docker-compose.djcms.yml:
+# - obrazy budowane z drzewa roboczego repozytorium (E2E_REPO_DIR – ścieżka bezwzględna, bo katalog
+#   projektu to katalog roboczy E2E), tagi z WEB_IMAGE/DJCMS_IMAGE (`…:e2e-djcms`), żeby nie nadpisać
+#   obrazów `…:dev` środowiska deweloperskiego;
+# - `proxy`: zamiast 80/443/9000 na wszystkich interfejsach wyłącznie 127.0.0.1:443 (kontrola dymna
+#   djcms_switch.sh woła `curl --resolve <host>:443:127.0.0.1` z hosta – tak jak na serwerze);
+# - podsieci sieci compose'a przesunięte (172.30.x → 172.31.x): projekt dev ma na stałe
+#   172.30.1.0/24 i 172.30.2.0/24, a Docker nie założy drugiej sieci na tej samej podsieci.
+#   Adres `proxy` w `internal` (DJCMS_PROXY_IP – jedyne źródło X-Djcms-Mode, któremu ufa djcms)
+#   i TRUSTED_PROXY_IPS aplikacji głównej ustawia .env E2E na nowe podsieci;
+# - djcms: krótszy okres odświeżania rejestru witryn (nowy/wyłączony konkurs w kilka sekund, nie 60 s).
+# Wszystko inne – polecenia (gunicorn obu usług), ustawienia produkcyjne (DEBUG=0, bufor stron web),
+# healthchecki, limity pamięci – jak na produkcji.
+services:
+  proxy:
+    ports: !override
+      - "127.0.0.1:443:443"
+
+  web:
+    build:
+      context: ${E2E_REPO_DIR:?E2E_REPO_DIR – ustawia scripts/tests/djcms_primary_e2e.sh}/backend
+
+  worker:
+    build:
+      context: ${E2E_REPO_DIR}/backend
+
+  beat:
+    build:
+      context: ${E2E_REPO_DIR}/backend
+
+  djcms:
+    build:
+      context: ${E2E_REPO_DIR}
+      dockerfile: djcms/Dockerfile
+      # Opcjonalny certyfikat CA dla TLS w czasie budowania – jak w docker-compose.dev.yml.
+      secrets: [extra_ca]
+    environment:
+      DJCMS_SITES_REFRESH_SECONDS: "5"
+
+networks:
+  edge:
+    ipam: !override
+      config:
+        - subnet: ${E2E_EDGE_SUBNET:-172.31.1.0/24}
+  internal:
+    ipam: !override
+      config:
+        - subnet: ${E2E_INTERNAL_SUBNET:-172.31.2.0/24}
+
+secrets:
+  extra_ca:
+    file: ${EXTRA_CA_FILE:-${E2E_REPO_DIR}/djcms/docker/no-extra-ca.pem}

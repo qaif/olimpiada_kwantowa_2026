@@ -16,7 +16,7 @@ set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/backup-offsite-test.XXXXXX")"
-trap 'rm -rf "$WORK"' EXIT
+trap '[ -n "${KEEP_WORK:-}" ] || rm -rf "$WORK"' EXIT
 
 failures=0
 check() {
@@ -29,13 +29,13 @@ check() {
 }
 
 # 0. Składnia.
-for f in scripts/backup.sh scripts/restore.sh scripts/lib/backup_offsite.sh scripts/deploy.sh; do
+for f in scripts/backup.sh scripts/restore.sh scripts/backup_verify.sh scripts/lib/backup_offsite.sh scripts/deploy.sh; do
   bash -n "$ROOT/$f"
   check "$f przechodzi bash -n" $?
 done
 if command -v shellcheck >/dev/null 2>&1; then
-  shellcheck -x -S warning "$ROOT/scripts/backup.sh" "$ROOT/scripts/restore.sh" "$ROOT/scripts/lib/backup_offsite.sh"
-  check "shellcheck (warning) dla backup.sh, restore.sh i biblioteki" $?
+  shellcheck -x -S warning "$ROOT/scripts/backup.sh" "$ROOT/scripts/restore.sh" "$ROOT/scripts/backup_verify.sh" "$ROOT/scripts/lib/backup_offsite.sh"
+  check "shellcheck (warning) dla backup.sh, restore.sh, backup_verify.sh i biblioteki" $?
 else
   printf 'skip shellcheck – brak w PATH\n'
 fi
@@ -53,6 +53,25 @@ cat >"$BIN/docker" <<'STUB'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$DOCKER_LOG"
 case "$*" in
+  # --- wersja porównawcza dj. (przypadki 12–15); przed ogólnym `pg_dump`, bo ten łapie oba ---
+  "compose exec -T db psql -X -U olimpiada -d olimpiada -Atc SELECT 1 FROM pg_database WHERE datname = 'olimpiada_djcms'")
+    [ -z "${MOCK_DJCMS_DB_FAIL:-}" ] || exit 1
+    echo "${MOCK_DJCMS_DB:-}" ; exit 0 ;;
+  "compose exec -T db pg_dump -U olimpiada -d olimpiada_djcms -Fc")
+    [ -z "${MOCK_DJCMS_DUMP_FAIL:-}" ] || { echo "pg_dump: udawany błąd" >&2; exit 1; }
+    printf 'PGDMP-DJCMS' ; exit 0 ;;
+  "compose --profile djcms ps -q --status running djcms") echo "${MOCK_DJCMS_RUNNING-djcid}" ; exit 0 ;;
+  "compose --profile djcms exec -T djcms tar --sort=name -C /app/media -cf - .")
+    [ -z "${MOCK_DJCMS_TAR_FAIL:-}" ] || exit 1
+    tar -cf - -C "$FAKE_MEDIA" . ; exit $? ;;
+  "compose exec -T db psql -X -U olimpiada -d postgres -Atc SELECT 1 FROM pg_roles WHERE rolname = 'olimpiada_djcms'")
+    echo "${MOCK_DJCMS_ROLE-1}" ; exit 0 ;;
+  # --- backup_verify.sh: tymczasowy Postgres ---
+  "run -d --name olimpiada-restore-test-"*) exit 0 ;;
+  "exec olimpiada-restore-test-"*" psql -U verify -d djcms -Atc"*) echo "${MOCK_CMS_PAGES-16}" ; exit 0 ;;
+  "exec olimpiada-restore-test-"*" psql -U verify -d verify -Atc"*) echo 3 ; exit 0 ;;
+  "exec -i olimpiada-restore-test-"*" pg_restore -U verify -d djcms"*)
+    cat >/dev/null; [ -z "${MOCK_DJCMS_RESTORE_FAIL:-}" ] || exit 1; exit 0 ;;
   "compose exec -T db pg_dump"*) printf 'PGDUMP-DATA' ; exit 0 ;;
   "compose ps -q minio") echo cid123 ; exit 0 ;;
   "inspect -f"*) echo proj_internal ; exit 0 ;;
@@ -132,7 +151,11 @@ setup_case() {
     echo "BACKUP_PASSPHRASE=test-passphrase"
     for line in "$@"; do printf '%s\n' "$line"; done
   } >"$CASE/repo/.env"
-  export DOCKER_LOG="$CASE/docker.log" REMOTE="$CASE/remote"
+  export DOCKER_LOG="$CASE/docker.log" REMOTE="$CASE/remote" FAKE_MEDIA="$CASE/djcms-media"
+  # Wolumen djcms_media „w kontenerze” (przypadki 12–15): dwa pliki filera w podkatalogach.
+  mkdir -p "$FAKE_MEDIA/filer_public/ab/cd"
+  printf 'PNG-ATRAPA' >"$FAKE_MEDIA/filer_public/ab/cd/logo.png"
+  printf 'SVG-ATRAPA' >"$FAKE_MEDIA/filer_public/ab/cd/ikona.svg"
   : >"$DOCKER_LOG"
 }
 
@@ -382,6 +405,316 @@ check "restore.sh --fetch: paczka ściągnięta (montowanie rw) i sprawdzona sum
 REPO_DIR="$CASE/repo" BACKUP_DIR="$CASE/backups" PATH="$BIN:$PATH" bash "$ROOT/scripts/restore.sh" --fetch db-nie-ma.dump.gpg >"$CASE/out.txt" 2>&1; rc=$?
 [ $rc -ne 0 ] && grep -q 'ani w daily/, ani w monthly/' "$CASE/out.txt"
 check "restore.sh --fetch: brak pliku = czytelny błąd" $?
+
+# --- 11. restore.sh: nowa baza bez CONNECT dla PUBLIC (docs/tasks/DJ-01.md § 8.9) ---------------
+# Baza odtworzona z kopii to pełne dane uczestników; w tym samym klastrze stoi rola z LOGIN wersji
+# porównawczej (`olimpiada_djcms`). CONNECT dla PUBLIC ma zniknąć zaraz po `createdb`, przed
+# `pg_restore` – a nazwa z `--db` ma trafić do SQL-a jako identyfikator w cudzysłowie.
+setup_case restore-acl
+printf 'PGDMP-atrapa' >"$CASE/backups/db-20260101T030000Z.dump.gpg"
+restore() {
+  REPO_DIR="$CASE/repo" BACKUP_DIR="$CASE/backups" PATH="$BIN:$PATH" bash "$ROOT/scripts/restore.sh" \
+    --dump db-20260101T030000Z.dump.gpg --files brak.tar.gpg "$@" >"$CASE/out.txt" 2>&1
+}
+restore; rc=$?
+create_line="$(grep -n 'compose exec -T db createdb -U olimpiada restore_20260101_030000$' "$DOCKER_LOG" | cut -d: -f1)"
+revoke_line="$(grep -nF 'REVOKE CONNECT ON DATABASE "restore_20260101_030000" FROM PUBLIC' "$DOCKER_LOG" | cut -d: -f1)"
+restore_line="$(grep -n 'compose exec -T db pg_restore' "$DOCKER_LOG" | cut -d: -f1)"
+[ $rc -eq 0 ] && [ -n "$create_line" ] && [ -n "$revoke_line" ] && [ -n "$restore_line" ] \
+  && [ "$revoke_line" -eq $((create_line + 1)) ] && [ "$revoke_line" -lt "$restore_line" ]
+check "restore.sh: REVOKE CONNECT FROM PUBLIC zaraz po createdb, przed pg_restore" $?
+grep -F 'REVOKE CONNECT' "$DOCKER_LOG" | grep -q -- '-U olimpiada -d postgres'
+check "restore.sh: REVOKE jako konto aplikacji (superuser, właściciel bazy), z bazy postgres" $?
+: >"$DOCKER_LOG"
+restore --db 'odtw"orzona'; rc=$?
+[ $rc -eq 0 ] && grep -qF 'REVOKE CONNECT ON DATABASE "odtw""orzona" FROM PUBLIC' "$DOCKER_LOG"
+check "restore.sh --db: nazwa bazy jako identyfikator z podwojonym cudzysłowem" $?
+: >"$DOCKER_LOG"
+restore --dry-run; rc=$?
+[ $rc -eq 0 ] && grep -q '\[próba\] docker compose exec -T db psql .*REVOKE CONNECT ON DATABASE "restore_20260101_030000" FROM PUBLIC' "$CASE/out.txt" \
+  && ! grep -q 'REVOKE\|createdb' "$DOCKER_LOG"
+check "restore.sh --dry-run: REVOKE tylko wypisany, nic nie wykonane" $?
+
+# === Wersja porównawcza django CMS (dj., docs/tasks/DJ-01.md § 8.11, podkrok DJ-01i) =============
+# Maskowanie zmiennych części przebiegu: znacznik czasu, katalogi robocze, numer procesu w nazwie
+# kontenera testowego i jego jednorazowe hasło. Po zamaskowaniu dwa przebiegi w tej samej
+# piaskownicy dają ten sam tekst.
+mask() {
+  sed -E -e 's/[0-9]{8}T[0-9]{6}Z/STAMP/g' -e 's/\.work-[A-Za-z0-9]{6}/.work-X/g' \
+    -e 's/olimpiada-(verify|restore)-[A-Za-z0-9]{6}/olimpiada-\1-X/g' \
+    -e 's/olimpiada-restore-test-(net-)?[0-9]+/olimpiada-restore-test-\1PID/g' \
+    -e 's/POSTGRES_PASSWORD=[0-9a-f]+/POSTGRES_PASSWORD=X/g' "$@"
+}
+verify() {
+  REPO_DIR="$CASE/repo" BACKUP_DIR="$CASE/backups" PATH="$BIN:$PATH" \
+    bash "$ROOT/scripts/backup_verify.sh" "$@" >"$CASE/out.txt" 2>&1
+}
+djrestore() {
+  REPO_DIR="$CASE/repo" BACKUP_DIR="$CASE/backups" PATH="$BIN:$PATH" \
+    bash "$ROOT/scripts/restore.sh" "$@" >"$CASE/out.txt" 2>&1
+}
+line_of() { grep -n -- "$1" "$DOCKER_LOG" | head -1 | cut -d: -f1; }
+# Pierwsze linie wywołań dockera (skrypt `sh -c` dla mc jest wielolinijkowy – jego treść, wcięta,
+# odpada), po zamaskowaniu i z katalogiem przypadku zamienionym na CASE.
+docker_calls() { mask "$DOCKER_LOG" | sed -e "s|$CASE|CASE|g" -e "s/ *$//" | grep -Ev "^( |$)"; }
+
+# --- 12. dj. wyłączone: przebieg co do polecenia ten sam, co przed DJ-01 ------------------------
+# Lista poleceń dockera wpisana wprost – test mówi, co uznaje za „dzisiaj”. Warianty: bez zmiennej,
+# DJCMS_ENABLED=0 i DJCMS_ENABLED=off – za każdym razem baza djcms „istnieje” (atrapa odpowiada 1),
+# bo o kopii decyduje przełącznik, a nie sama baza.
+EXPECTED_OFF='compose exec -T db pg_dump -U olimpiada -d olimpiada -Fc
+compose ps -q minio
+inspect -f {{range $name, $_ := .NetworkSettings.Networks}}{{$name}}{{"\n"}}{{end}} cid123
+run --rm --network proj_internal -v CASE/backups/.work-X/buckets:/backup -e MC_HOST_src=http://minio:minio-secret@minio:9000 -e MC_QUIET=1 -e MC_NO_COLOR=1 --entrypoint sh minio/mc:RELEASE.2025-04-16T18-13-26Z -c
+compose exec -T web python manage.py record_backup_status --ok'
+for variant in "" "DJCMS_ENABLED=0" "DJCMS_ENABLED=off"; do
+  setup_case "dj-off-${variant#DJCMS_ENABLED=}" ${variant:+"$variant"}
+  MOCK_DJCMS_DB=1 run_backup; rc=$?
+  got="$(docker_calls)"
+  [ $rc -eq 0 ] && [ "$got" = "$EXPECTED_OFF" ]
+  check "dj. wyłączone (${variant:-bez zmiennej}): polecenia dockera znak w znak dzisiejsze" $?
+  [ "$got" = "$EXPECTED_OFF" ] || diff <(printf '%s\n' "$EXPECTED_OFF") <(printf '%s\n' "$got") | sed 's/^/     /'
+  ! grep -q 'djcms\|1b/5\|2b/5' "$DOCKER_LOG" "$CASE/out.txt" && [ "$(ls "$CASE/backups" | grep -c .)" -eq 2 ]
+  check "dj. wyłączone (${variant:-bez zmiennej}): ani słowa o djcms, dwie paczki" $?
+done
+
+# 12a. Porównanie z backup.sh / backup_verify.sh / restore.sh z innej rewizji (opcjonalne): cały
+# przebieg bez dj. (polecenia dockera, wyjście, kod, pliki w katalogu kopii) po zamaskowaniu musi
+# być identyczny. Rewizja sprzed DJ-01i:
+#   BACKUP_BASELINE_REF=f8768c6 scripts/tests/backup_offsite_test.sh
+if [ -n "${BACKUP_BASELINE_REF:-}" ]; then
+  BASE="$WORK/base/scripts"
+  mkdir -p "$BASE/lib"
+  rc=0
+  for f in backup.sh restore.sh backup_verify.sh lib/backup_offsite.sh; do
+    git -C "$ROOT" show "$BACKUP_BASELINE_REF:scripts/$f" >"$BASE/$f" 2>/dev/null || rc=1
+  done
+  check "skrypty kopii z rewizji $BACKUP_BASELINE_REF odczytane" $rc
+  compare_runs() {  # compare_runs <opis> <skrypt> [argumenty…]
+    local label="$1" script="$2" side scripts
+    shift 2
+    for side in base new; do
+      if [ "$side" = base ]; then scripts="$BASE"; else scripts="$ROOT/scripts"; fi
+      setup_case "baseline-$side" "BACKUP_DRIVE_TOKEN='$TOKEN_A'"
+      printf 'PGDMP-atrapa' >"$CASE/backups/db-20260101T030000Z.dump.gpg"
+      printf 'tar-atrapa' >"$CASE/backups/files-20260101T030000Z.tar.gpg"
+      MOCK_DJCMS_DB=1 REPO_DIR="$CASE/repo" BACKUP_DIR="$CASE/backups" PATH="$BIN:$PATH" \
+        bash "$scripts/$script" "$@" >"$CASE/run.txt" 2>&1
+      echo "rc=$?" >>"$CASE/run.txt"
+      { docker_calls; echo ---; mask "$CASE/run.txt"; echo ---; ls "$CASE/backups" | mask; } \
+        | sed -e "s|$CASE|CASE|g" -e "s|$scripts|SCRIPTS|g" >"$WORK/baseline-$side.txt"
+    done
+    diff "$WORK/baseline-base.txt" "$WORK/baseline-new.txt" >"$WORK/baseline.diff"
+    check "[$BACKUP_BASELINE_REF] $label: przebieg identyczny" $?
+    [ -s "$WORK/baseline.diff" ] && sed 's/^/     /' "$WORK/baseline.diff" | head -20
+  }
+  compare_runs "backup.sh (Dysk, bez dj.)" backup.sh
+  compare_runs "backup_verify.sh" backup_verify.sh
+  compare_runs "restore.sh --dump --files" restore.sh --dump db-20260101T030000Z.dump.gpg --files files-20260101T030000Z.tar.gpg
+  compare_runs "restore.sh --dry-run" restore.sh --dry-run
+  compare_runs "restore.sh --list" restore.sh --list
+fi
+
+# --- 13. dj. włączone: baza i pliki djcms w kopii, wysyłce i meldunku ---------------------------
+setup_case dj-on "BACKUP_DRIVE_TOKEN='$TOKEN_A'" "DJCMS_ENABLED=1"
+MOCK_DJCMS_DB=1 run_backup; rc=$?
+check "dj. włączone: kod 0" $rc
+ls "$CASE/backups"/djcms-db-*.dump.gpg "$CASE/backups"/djcms-files-*.tar.gpg >/dev/null 2>&1 \
+  && [ "$(ls "$CASE/backups" | grep -c .)" -eq 4 ]
+check "dj. włączone: cztery paczki (db, files, djcms-db, djcms-files)" $?
+STAMP_MAIN="$(ls "$CASE/backups" | sed -nE 's/^db-(.*)\.dump\.gpg$/\1/p')"
+[ -f "$CASE/backups/djcms-db-$STAMP_MAIN.dump.gpg" ] && [ -f "$CASE/backups/djcms-files-$STAMP_MAIN.tar.gpg" ]
+check "dj. włączone: paczki djcms z tym samym znacznikiem co kopia główna" $?
+[ "$(cat "$CASE/backups/djcms-db-$STAMP_MAIN.dump.gpg")" = "PGDMP-DJCMS" ]
+check "dj. włączone: zrzut bazy olimpiada_djcms (-Fc, kontem aplikacji)" $?
+tar -tf "$CASE/backups/djcms-files-$STAMP_MAIN.tar.gpg" | grep -q 'filer_public/ab/cd/logo.png'
+check "dj. włączone: paczka plików to tar wolumenu (/app/media) z plikami filera" $?
+[ "$(line_of 'pg_dump -U olimpiada -d olimpiada -Fc')" -lt "$(line_of 'datname = .olimpiada_djcms.')" ] \
+  && [ "$(line_of 'datname = .olimpiada_djcms.')" -lt "$(line_of 'pg_dump -U olimpiada -d olimpiada_djcms')" ] \
+  && [ "$(line_of 'pg_dump -U olimpiada -d olimpiada_djcms')" -lt "$(line_of 'compose ps -q minio')" ] \
+  && [ "$(line_of 'run --rm --network')" -lt "$(line_of 'ps -q --status running djcms')" ] \
+  && [ "$(line_of 'ps -q --status running djcms')" -lt "$(line_of 'exec -T djcms tar')" ] \
+  && [ "$(line_of 'exec -T djcms tar')" -lt "$(line_of 'rclone/rclone')" ]
+check "dj. włączone: kolejność 1 → 1b (czy baza jest, zrzut) → 2 → 2b (czy djcms działa, tar) → wysyłka" $?
+grep -q '^==> 1b/5 ' "$CASE/out.txt" && grep -q '^==> 2b/5 ' "$CASE/out.txt" && grep -q '^==> 5/5 ' "$CASE/out.txt"
+check "dj. włączone: podkroki 1b/5 i 2b/5, numeracja /5 zostaje" $?
+[ "$(rclone_calls | grep -c ' copy /data/.* offsite:Olimpiada-kopie-zapasowe/daily/')" -eq 4 ] \
+  && rclone_calls | grep ' check /data offsite:Olimpiada-kopie-zapasowe/daily/ --one-way' \
+     | grep -- "--include /djcms-db-$STAMP_MAIN.dump.gpg" | grep -q -- "--include /djcms-files-$STAMP_MAIN.tar.gpg"
+check "dj. włączone: cztery paczki do daily/, rclone check obejmuje obie paczki djcms" $?
+[ -f "$CASE/remote/Olimpiada-kopie-zapasowe/daily/djcms-files-$STAMP_MAIN.tar.gpg" ]
+check "dj. włączone: paczka plików djcms po „tamtej stronie”" $?
+record_calls | grep -q -- '--ok --offsite'
+check "dj. włączone: meldunek --ok --offsite" $?
+
+setup_case dj-on-monthly "BACKUP_DRIVE_TOKEN='$TOKEN_A'" "DJCMS_ENABLED=True"
+MOCK_DJCMS_DB=1 FAKE_DAY=01 run_backup; rc=$?
+[ $rc -eq 0 ] && [ "$(rclone_calls | grep -c 'copy /data/.* offsite:Olimpiada-kopie-zapasowe/monthly/')" -eq 4 ]
+check "dj. włączone (DJCMS_ENABLED=True): 1. dzień miesiąca – cztery paczki do monthly/" $?
+
+# Retencja lokalna obejmuje paczki djcms (wzorzec *.gpg), a kopii przedwdrożeniowych (*.dump) nie.
+setup_case dj-retention "DJCMS_ENABLED=1"
+for f in djcms-db-20200101T031500Z.dump.gpg djcms-files-20200101T031500Z.tar.gpg djcms-db-pre-20200101-000000-v1.dump; do
+  printf 'stara' >"$CASE/backups/$f"; touch -d '30 days ago' "$CASE/backups/$f"
+done
+MOCK_DJCMS_DB=1 run_backup; rc=$?
+[ $rc -eq 0 ] && [ ! -e "$CASE/backups/djcms-db-20200101T031500Z.dump.gpg" ] \
+  && [ ! -e "$CASE/backups/djcms-files-20200101T031500Z.tar.gpg" ] && [ -e "$CASE/backups/djcms-db-pre-20200101-000000-v1.dump" ]
+check "dj.: retencja lokalna kasuje stare paczki djcms, kopii przedwdrożeniowej nie rusza" $?
+
+# --- 13a. dj. włączone, a bazy jeszcze nie ma (przed pierwszym wdrożeniem z dj.) -----------------
+setup_case dj-nodb "DJCMS_ENABLED=1"
+MOCK_DJCMS_DB="" run_backup; rc=$?
+[ $rc -eq 0 ] && grep -q 'nie istnieje – kopia dj. pominięta' "$CASE/out.txt" \
+  && ! grep -q 'olimpiada_djcms -Fc\|djcms tar\|running djcms' "$DOCKER_LOG" && record_calls | grep -q -- '--ok'
+check "dj. włączone bez bazy: bez zrzutu i tar, kopia główna ok" $?
+
+# --- 13b. awarie po stronie dj.: kopia główna idzie dalej, przebieg nieudany --------------------
+setup_case dj-stopped "BACKUP_DRIVE_TOKEN='$TOKEN_A'" "DJCMS_ENABLED=1"
+MOCK_DJCMS_DB=1 MOCK_DJCMS_RUNNING="" run_backup; rc=$?
+[ $rc -eq 1 ] && ls "$CASE/backups"/djcms-db-*.dump.gpg >/dev/null 2>&1 && ! ls "$CASE/backups"/djcms-files-* >/dev/null 2>&1 \
+  && ! grep -q 'exec -T djcms' "$DOCKER_LOG"
+check "djcms nie działa: baza djcms skopiowana, bez tar, kod 1" $?
+[ "$(rclone_calls | grep -c ' copy /data/')" -eq 3 ] && rclone_calls | grep -q ' delete '
+check "djcms nie działa: trzy paczki wysłane i sprawdzone, retencja zdalna rusza (kopia główna jest)" $?
+record_calls | grep -q -- '--failed' && ! record_calls | grep -q -- '--ok' \
+  && record_calls | grep -q 'kopia główna .* jest (lokalnie i poza serwerem), kopia dj. NIE: kontener djcms nie działa'
+check "djcms nie działa: meldunek --failed z notatką (kopia główna jest, dj. nie)" $?
+grep -q 'UWAGA: kontener djcms nie działa' "$CASE/out.txt"
+check "djcms nie działa: ostrzeżenie w logu" $?
+
+setup_case dj-dump-fail "DJCMS_ENABLED=1"
+MOCK_DJCMS_DB=1 MOCK_DJCMS_DUMP_FAIL=1 run_backup; rc=$?
+[ $rc -eq 1 ] && ls "$CASE/backups"/db-*.dump.gpg "$CASE/backups"/files-*.tar.gpg >/dev/null 2>&1 \
+  && ! ls "$CASE/backups"/djcms-* >/dev/null 2>&1 && ! grep -q 'djcms tar' "$DOCKER_LOG" \
+  && record_calls | grep -q -- '--failed .*wyłącznie lokalnie), kopia dj. NIE: zrzut bazy olimpiada_djcms'
+check "zrzut bazy djcms nieudany: kopia główna jest, bez paczek djcms, --failed" $?
+
+setup_case dj-tar-fail "DJCMS_ENABLED=1"
+MOCK_DJCMS_DB=1 MOCK_DJCMS_TAR_FAIL=1 run_backup; rc=$?
+[ $rc -eq 1 ] && ls "$CASE/backups"/djcms-db-*.dump.gpg >/dev/null 2>&1 && ! ls "$CASE/backups"/djcms-files-* >/dev/null 2>&1 \
+  && record_calls | grep -q -- '--failed .*tar wolumenu djcms_media'
+check "tar wolumenu nieudany: baza djcms jest, plików nie, --failed" $?
+
+setup_case dj-query-fail "DJCMS_ENABLED=1"
+MOCK_DJCMS_DB_FAIL=1 run_backup; rc=$?
+[ $rc -eq 1 ] && ls "$CASE/backups"/db-*.dump.gpg >/dev/null 2>&1 && record_calls | grep -q -- '--failed .*nie udało się sprawdzić'
+check "zapytanie o bazę djcms nieudane: kopia główna jest, --failed" $?
+
+setup_case dj-upload-fail "BACKUP_DRIVE_TOKEN='$TOKEN_A'" "DJCMS_ENABLED=1"
+MOCK_DJCMS_DB=1 MOCK_DJCMS_RUNNING="" MOCK_FAIL="copy" run_backup; rc=$?
+[ $rc -eq 1 ] && record_calls | grep -q 'poza serwer NIE dotarła: .*; dj.: kontener djcms nie działa'
+check "wysyłka i dj. nieudane naraz: jedna notatka z oboma powodami" $?
+
+# --- 14. backup_verify.sh: baza i pliki djcms z tej samej nocy ----------------------------------
+setup_case verify-dj "DJCMS_ENABLED=1"
+MOCK_DJCMS_DB=1 run_backup
+: >"$DOCKER_LOG"
+verify; rc=$?
+[ $rc -eq 0 ] && grep -q 'createdb -U verify djcms' "$DOCKER_LOG" \
+  && grep -q 'pg_restore -U verify -d djcms --no-owner --exit-on-error' "$DOCKER_LOG" \
+  && grep -q 'psql -U verify -d djcms -Atc SELECT count(\*) FROM cms_page' "$DOCKER_LOG"
+check "backup_verify.sh: baza djcms w tym samym tymczasowym Postgresie (osobna baza), cms_page" $?
+record_calls | grep -q -- '--verified' && record_calls | grep -q 'djcms:cms_page=16 djcms:pliki=[0-9]'
+check "backup_verify.sh: --verified z liczbą stron i wpisów tar djcms" $?
+grep -q '^==> 4b/4 ' "$CASE/out.txt"
+check "backup_verify.sh: podkrok 4b/4" $?
+
+: >"$DOCKER_LOG"
+MOCK_CMS_PAGES=0 verify; rc=$?
+[ $rc -eq 1 ] && record_calls | grep -q -- '--failed .*djcms:cms_page(0)' && ! record_calls | grep -q -- '--verified'
+check "backup_verify.sh: zero stron djcms = test nieudany" $?
+: >"$DOCKER_LOG"
+MOCK_CMS_PAGES="" verify; rc=$?
+[ $rc -eq 1 ] && record_calls | grep -q -- 'djcms:cms_page(brak)'
+check "backup_verify.sh: brak tabeli cms_page = test nieudany" $?
+: >"$DOCKER_LOG"
+MOCK_DJCMS_RESTORE_FAIL=1 verify; rc=$?
+[ $rc -eq 1 ] && record_calls | grep -q -- 'djcms-db(pg_restore)'
+check "backup_verify.sh: nieudany pg_restore djcms = test nieudany (z meldunkiem, bez przerwania)" $?
+
+VSTAMP="$(ls "$CASE/backups" | sed -nE 's/^db-(.*)\.dump\.gpg$/\1/p')"
+rm -f "$CASE/backups/djcms-files-$VSTAMP.tar.gpg"
+: >"$DOCKER_LOG"
+verify; rc=$?
+[ $rc -eq 1 ] && record_calls | grep -q -- 'djcms-files(brak)'
+check "backup_verify.sh: baza djcms bez paczki plików = test nieudany" $?
+printf 'to nie jest tar' >"$CASE/backups/djcms-files-$VSTAMP.tar.gpg"
+: >"$DOCKER_LOG"
+verify; rc=$?
+[ $rc -eq 1 ] && record_calls | grep -q -- 'djcms-files(nieczytelne)'
+check "backup_verify.sh: nieczytelna paczka plików djcms = test nieudany" $?
+
+# Paczki djcms z innej nocy i kopie przedwdrożeniowe nie są brane pod uwagę.
+setup_case verify-other
+run_backup
+printf 'PGDMP' >"$CASE/backups/djcms-db-20200101T031500Z.dump.gpg"
+printf 'PGDMP' >"$CASE/backups/djcms-db-pre-20260101-000000-v1.dump"
+: >"$DOCKER_LOG"
+verify; rc=$?
+[ $rc -eq 0 ] && ! grep -q djcms "$DOCKER_LOG" && ! grep -q '4b/4' "$CASE/out.txt"
+check "backup_verify.sh: bez paczek djcms tej nocy – żadnego polecenia djcms" $?
+
+# --- 15. restore.sh --djcms-dump / --djcms-files ------------------------------------------------
+setup_case restore-dj
+printf 'PGDMP-djcms' >"$CASE/backups/djcms-db-20260101T030000Z.dump.gpg"
+tar -cf "$CASE/backups/djcms-files-20260101T030000Z.tar.gpg" -C "$FAKE_MEDIA" .
+djrestore --djcms-dump djcms-db-20260101T030000Z.dump.gpg --djcms-files djcms-files-20260101T030000Z.tar.gpg; rc=$?
+TDB=olimpiada_djcms_restore_20260101_030000
+create_line="$(grep -n "compose exec -T db createdb -U olimpiada -O olimpiada_djcms $TDB\$" "$DOCKER_LOG" | cut -d: -f1)"
+revoke_line="$(grep -nF "REVOKE CONNECT ON DATABASE \"$TDB\" FROM PUBLIC" "$DOCKER_LOG" | cut -d: -f1)"
+restore_line="$(grep -n "compose exec -T db pg_restore -U olimpiada -d $TDB --no-owner --role=olimpiada_djcms --exit-on-error" "$DOCKER_LOG" | cut -d: -f1)"
+[ $rc -eq 0 ] && [ -n "$create_line" ] && [ -n "$revoke_line" ] && [ -n "$restore_line" ] \
+  && [ "$revoke_line" -eq $((create_line + 1)) ] && [ "$revoke_line" -lt "$restore_line" ]
+check "restore.sh --djcms-dump: nowa baza (właściciel olimpiada_djcms), REVOKE PUBLIC, pg_restore --role" $?
+grep -q "psql -U olimpiada -d $TDB -Atc SELECT 'cms_page=' || count(\*) FROM cms_page" "$DOCKER_LOG"
+check "restore.sh --djcms-dump: licznik stron po odtworzeniu" $?
+MEDIA_OUT="$CASE/backups/djcms-media-restore-20260101_030000"
+[ "$(cat "$MEDIA_OUT/filer_public/ab/cd/logo.png" 2>/dev/null)" = "PNG-ATRAPA" ]
+check "restore.sh --djcms-files: pliki rozpakowane do djcms-media-restore-<stamp>/" $?
+if [ "$(uname -s)" = "Linux" ]; then
+  [ "$(stat -c %a "$MEDIA_OUT")" = "700" ]
+  check "restore.sh --djcms-files: katalog odtworzenia 700 mimo wpisu ./ w paczce" $?
+fi
+! grep -q 'minio\|olimpiada_djcms -Fc\|ALTER DATABASE\|^run \|compose stop\|compose up' "$DOCKER_LOG"
+check "restore.sh --djcms-dump: ani MinIO, ani podmiany – nic poza nową bazą" $?
+grep -qF "ALTER DATABASE olimpiada_djcms RENAME TO olimpiada_djcms_przed_awaria' -c 'ALTER DATABASE \"$TDB\" RENAME TO olimpiada_djcms'" "$CASE/out.txt" \
+  && grep -qF "docker run --rm -v repo_djcms_media:/m -v $MEDIA_OUT:/src:ro" "$CASE/out.txt" \
+  && grep -q 'docker compose stop djcms' "$CASE/out.txt" && grep -q 'docker compose up -d djcms' "$CASE/out.txt"
+check "restore.sh --djcms-dump: wypisane polecenia podmiany bazy i wolumenu" $?
+
+: >"$DOCKER_LOG"
+djrestore --djcms-dump djcms-db-20260101T030000Z.dump.gpg --djcms-files djcms-files-20260101T030000Z.tar.gpg --db inna; rc=$?
+[ $rc -ne 0 ] && grep -q 'djcms-media-restore-20260101_030000 już istnieje' "$CASE/out.txt" && ! grep -q createdb "$DOCKER_LOG"
+check "restore.sh --djcms-files: istniejący katalog odtworzenia = odmowa, zanim powstanie baza" $?
+
+setup_case restore-dj-dry
+printf 'PGDMP-djcms' >"$CASE/backups/djcms-db-20260101T030000Z.dump.gpg"
+tar -cf "$CASE/backups/djcms-files-20260101T030000Z.tar.gpg" -C "$FAKE_MEDIA" .
+djrestore --dry-run --djcms-dump djcms-db-20260101T030000Z.dump.gpg --djcms-files djcms-files-20260101T030000Z.tar.gpg; rc=$?
+[ $rc -eq 0 ] && ! grep -q 'createdb\|REVOKE\|pg_restore' "$DOCKER_LOG" \
+  && grep -q '\[próba\] docker compose exec -T db createdb -U olimpiada -O olimpiada_djcms' "$CASE/out.txt" \
+  && grep -q '\[próba\] tar --numeric-owner' "$CASE/out.txt" && grep -q 'w paczce: 2 plików' "$CASE/out.txt" \
+  && [ ! -e "$CASE/backups/djcms-media-restore-20260101_030000" ]
+check "restore.sh --djcms-dump --dry-run: rozszyfrowanie i liczenie, nic nie utworzone" $?
+
+MOCK_DJCMS_ROLE="" djrestore --djcms-dump djcms-db-20260101T030000Z.dump.gpg; rc=$?
+[ $rc -ne 0 ] && grep -q 'nie ma roli olimpiada_djcms' "$CASE/out.txt" && ! grep -q createdb "$DOCKER_LOG"
+check "restore.sh --djcms-dump: brak roli olimpiada_djcms = odmowa przed createdb" $?
+djrestore --djcms-files djcms-files-20260101T030000Z.tar.gpg; rc=$?
+[ $rc -ne 0 ] && grep -q 'wymaga --djcms-dump' "$CASE/out.txt"
+check "restore.sh --djcms-files bez --djcms-dump: odmowa" $?
+djrestore --djcms-dump djcms-db-20260101T030000Z.dump.gpg --dump db-x.dump.gpg; rc=$?
+[ $rc -ne 0 ] && grep -q 'osobnym przebiegiem' "$CASE/out.txt"
+check "restore.sh --djcms-dump z --dump: odmowa (osobne przebiegi)" $?
+printf 'PGDMP' >"$CASE/backups/djcms-db-pre-20260101-000000-v1.dump"
+djrestore --djcms-dump djcms-db-pre-20260101-000000-v1.dump; rc=$?
+[ $rc -ne 0 ] && grep -q 'oczekiwana kopia nocna' "$CASE/out.txt"
+check "restore.sh --djcms-dump: kopia przedwdrożeniowa (jawna) odrzucona z podpowiedzią" $?
+printf 'smieci' >"$CASE/backups/djcms-db-20260102T030000Z.dump.gpg"
+djrestore --dry-run --djcms-dump djcms-db-20260102T030000Z.dump.gpg; rc=$?
+[ $rc -ne 0 ] && grep -q 'brak nagłówka PGDMP' "$CASE/out.txt"
+check "restore.sh --djcms-dump: paczka bez nagłówka PGDMP odrzucona (także w trybie próbnym)" $?
 
 echo
 if [ "$failures" -eq 0 ]; then

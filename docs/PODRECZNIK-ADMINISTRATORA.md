@@ -289,6 +289,28 @@ dopiero po włączeniu strony i zatrzymaniu aplikacji). **Jeśli skrypt skończy
 zostaje włączona** – sprawdź serwis z przepustką i wyłącz ją `scripts/maintenance.sh off`.
 Szczegóły: `docs/OPERACJE.md` § 20.
 
+### 5.2 Przełączenie stron publicznych na django CMS
+
+Gdy działa wersja na django CMS (`DJCMS_ENABLED=1`, `OPERACJE.md` § 22), strony publiczne
+**wszystkich** konkursów przełącza się z Wagtaila na django CMS jednym poleceniem – wyłącznie po
+zgodzie organizatora, po uprzedzeniu redakcji (`PODRECZNIK-ORGANIZATORA.md` § 7.3a). Na serwerze,
+w `/opt/olimpiada`:
+
+```bash
+bash scripts/djcms_cutover.sh --check          # próba: same kontrole, nic nie zmienia (dzień wcześniej)
+bash scripts/djcms_cutover.sh                  # kopia → zamrożenie /cms/ → import → weryfikacja → przełączenie
+bash scripts/djcms_cutover.sh --skip fizyczna  # konkurs, którego redakcja już pracuje w djcms – bez importu
+bash scripts/djcms_cutover.sh --rollback       # powrót do Wagtaila (~2 s); --unfreeze odblokowuje /cms/
+```
+
+Przełączenie nie restartuje aplikacji i nie zmienia DNS-u; logowanie, panele i formularze zostają
+w aplikacji głównej. Błąd na dowolnym kroku zatrzymuje skrypt **przed** przełączeniem i wypisuje
+stan (najczęściej: `/cms/` zamrożony, serwis publiczny dalej na Wagtailu) z dwiema drogami dalej –
+ponowienie albo `--rollback --unfreeze`. **Wycofanie jest stratne**: Wagtail pokazuje treść z chwili
+zamrożenia, zmiany z django CMS do niego nie wracają; ponowne przejście na django CMS bez utraty
+tych zmian to `bash scripts/djcms_switch.sh on`. Pełny runbook z tabelą kroków: `OPERACJE.md`
+§ 22.9–22.10; dziennik przebiegu: `/var/log/olimpiada-djcms-cutover-<data>.log`.
+
 ---
 
 ## 6. Kopie zapasowe, monitoring, rotacja

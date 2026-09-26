@@ -96,6 +96,35 @@ jobs:
           DJANGO_SETTINGS_MODULE: config.settings.test
         run: python manage.py makemigrations --check --dry-run
 
+  djcms-routes:
+    name: djcms_routes --check (kontrakt tras)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/pyproject.toml
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Instalacja zależności
+        working-directory: backend
+        run: uv pip install --system -r pyproject.toml --extra dev
+
+      # Pliki `backend/djcms_contract/app_routes.{json,env}` mówią Caddy'emu i djcms, które adresy
+      # należą do aplikacji (docs/tasks/DJ-02.md § 6). Nowy ekran bez `djcms_routes --write` to
+      # adres, który po przełączeniu na django CMS trafiłby do djcms – czyli awaria widoczna
+      # dopiero na produkcji. Tak jak `makemigrations --check`: bez bazy, sam urlconf.
+      - name: Czy pliki kontraktu tras są aktualne
+        working-directory: backend
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.test
+        run: python manage.py djcms_routes --check
+
   translations:
     name: msgfmt (tłumaczenia)
     runs-on: ubuntu-latest
@@ -270,6 +299,67 @@ jobs:
           python -m pytest -q --create-db --durations=20 -n auto
           --splits ${{ strategy.job-total }} --group ${{ matrix.shard }}
           --splitting-algorithm duration_based_chunks
+
+  djcms:
+    # Wersja porównawcza na django CMS (`djcms/`, docs/tasks/DJ-01.md) – osobny projekt Django
+    # z własnymi zależnościami (dokładna blokada `djcms/uv.lock`), więc i osobny job: lint, checki,
+    # migracje i testy w jednym przebiegu. Testów jest kilkadziesiąt (sekundy), shardowanie jak
+    # w `tests` nie miałoby tu czego dzielić.
+    name: djcms (ruff, check, migracje, pytest)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: olimpiada_djcms
+          POSTGRES_USER: olimpiada_djcms
+          POSTGRES_PASSWORD: olimpiada_djcms
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U olimpiada_djcms -d olimpiada_djcms"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://olimpiada_djcms:olimpiada_djcms@localhost:5432/olimpiada_djcms
+      DJANGO_SETTINGS_MODULE: config.settings.test
+      # Te same arkusze co aplikacja główna – w obrazie kopiowane do /opt/shared_static, tutaj
+      # wskazane wprost w drzewie repozytorium (djcms/config/settings/base.py).
+      DJCMS_SHARED_STATIC_DIR: ../backend/static
+    defaults:
+      run:
+        working-directory: djcms
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: djcms/uv.lock
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      # `--frozen`: dokładnie te wersje, które instaluje obraz (djcms/Dockerfile). Blokada, która
+      # rozjechała się z pyproject.toml, ma tu wywrócić job, a nie zostać po cichu przeliczona.
+      - name: Instalacja zależności (uv.lock)
+        run: uv sync --frozen --extra dev --python "$(which python)"
+
+      - name: ruff check
+        run: .venv/bin/ruff check .
+
+      - name: ruff format --check
+        run: .venv/bin/ruff format --check .
+
+      - name: manage.py check
+        run: .venv/bin/python manage.py check --fail-level WARNING
+
+      - name: Czy modele mają komplet migracji
+        run: .venv/bin/python manage.py makemigrations --check --dry-run
+
+      - name: pytest
+        run: .venv/bin/python -m pytest -q --create-db
 
   pytest-ok:
     # Jeden wymagany check zamiast pięciu (nazwy shardów zmieniają się z liczbą shardów w matrixie,

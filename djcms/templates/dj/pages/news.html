@@ -1,0 +1,21 @@
+{% extends "dj/base.html" %}
+{% load cms_tags dj_pages %}
+{% comment %}
+  „Aktualność” (CMS_TEMPLATES) – PORT ``backend/templates/cms/news_page.html``. Slot ``body``
+  (zestaw ART). Data i lead z rozszerzenia treści ``NewsMeta`` (pasek narzędzi → Strona → „Data
+  i lead aktualności…”). Powrót do listy – do strony-rodzica, jak ``pageurl page.get_parent``.
+{% endcomment %}
+{% block content %}
+{% dj_extension "newsmeta" as meta %}
+{% dj_page as current %}
+<article class="article prose news">
+  <span class="eyebrow">Aktualność</span>
+  <h1>{% page_attribute "title" %}</h1>
+  {% if meta.date %}<p class="article__meta"><time datetime="{{ meta.date|date:'Y-m-d' }}">{{ meta.date }}</time></p>{% endif %}
+  {% if meta.lead %}<p class="article__lead">{{ meta.lead }}</p>{% endif %}
+  {% placeholder "body" %}
+</article>
+{% with parent=current.page.parent %}{% if parent %}
+<p><a class="backlink" href="{{ parent.get_absolute_url }}">← Wszystkie aktualności</a></p>
+{% endif %}{% endwith %}
+{% endblock %}

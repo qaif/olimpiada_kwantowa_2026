@@ -1,0 +1,15 @@
+{% load cms_tags %}{% comment %}
+  Sekcja „O Olimpiadzie” z ``backend/templates/cms/home_page.html``. ``id="o-olimpiadzie"`` jest
+  kotwicą, na którą przekierowuje stary adres ``/o-olimpiadzie/`` – nie zmieniać. Treść to
+  wtyczki-dzieci z zestawu DOC: każda rysuje własny szablon, jak ``include_block`` w oryginale.
+{% endcomment %}
+{% if instance.child_plugin_instances or request.toolbar.edit_mode_active %}
+  <section class="section" id="o-olimpiadzie">
+    <div class="section__head">
+      <h2 class="mt-0">{{ instance.title }}</h2>
+    </div>
+    <div class="cms-body prose">
+      {% for plugin in instance.child_plugin_instances %}{% render_plugin plugin %}{% endfor %}
+    </div>
+  </section>
+{% endif %}

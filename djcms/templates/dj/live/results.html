@@ -1,0 +1,81 @@
+{% load dj_live %}{% comment %}
+  PORT dla dj. (DJ-01f) – część danych ``backend/templates/cms/results_page.html``: tabele
+  ogłoszonych etapów bieżącej edycji, odnośniki do wcześniejszych edycji i stan „nic nie ogłoszono”.
+
+  Reguła 3 z § 7: wyłącznie zamrożony snapshot publikacji po białej liście kluczy aplikacji
+  głównej (``row_dto``). Komórki punktów i maksima to gotowe napisy z API (``points_display``,
+  ``problem_maxima``), złożone w kolumny w ``apps.live.data.results_context``. Odnośniki do tabel
+  prowadzą na domenę główną (``results_url``). Znaczniki i klasy CSS identyczne z oryginałem.
+  Zmieniając oryginał, zmień też ten plik.
+{% endcomment %}
+{% if not live.available %}
+  {% dj_unavailable %}
+{% else %}
+{% include "dj/live/_stale.html" %}
+{% for table in tables %}
+  <section class="results-block section">
+    <div class="section__head">
+      <h2 class="mt-0">{{ table.stage.display_name }} – {{ table.stage.edition_year_label }}
+        {% if table.stage.is_training %}<span class="badge badge--neutral">trening</span>{% endif %}</h2>
+      <p class="hint">Ogłoszone {{ table.publication.published_at_local_time }}, tryb prezentacji:
+        {{ table.publication.anonymization_display }}.
+        {% if table.stage.results_url %}<a href="{{ table.stage.results_url }}">wersja pełnoekranowa</a>{% endif %}</p>
+    </div>
+    <div class="scroll" role="region" tabindex="0" aria-label="Tabela wyników: {{ table.stage.display_name }}">
+      <table class="table table--rank table--sticky-rank">
+        <thead>
+          <tr>
+            <th>Miejsce</th>
+            <th>Uczestnik</th>
+            <th>Województwo</th>
+            {% for column in table.columns %}<th>Zad. {{ column.number }}{% if column.maximum %} <span class="hint">(max {{ column.maximum }})</span>{% endif %}</th>{% endfor %}
+            <th>Razem</th>
+            <th>Kwalifikacja</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in table.rows %}
+            <tr {% if row.qualified %}class="is-qualified"{% endif %}>
+              <td>{{ row.rank }}</td>
+              <td>{{ row.display }}</td>
+              <td>{{ row.district }}</td>
+              {% for cell in row.cells %}<td class="num">{{ cell }}</td>{% endfor %}
+              <td class="num total">{{ row.total_display }}</td>
+              <td>
+                {% if row.qualified %}
+                  <span class="badge badge--ok">zakwalifikowany</span>
+                {% else %}
+                  <span class="badge badge--neutral">nie</span>
+                {% endif %}
+                {% if row.manual %}
+                  <span class="badge badge--warn">kwalifikacja decyzją komitetu</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="{{ table.colspan }}" class="empty">Tabela jest pusta.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endfor %}
+
+{% if archive %}
+  <h2 class="section-heading">Wcześniejsze edycje</h2>
+  <ul class="results-list">
+    {% for item in archive %}
+      <li>
+        {% if item.stage.results_url %}<a href="{{ item.stage.results_url }}">{{ item.stage.edition_year_label }} –
+          {{ item.stage.display_name }}</a>{% else %}{{ item.stage.edition_year_label }} – {{ item.stage.display_name }}{% endif %}
+        <span class="hint">ogłoszone {{ item.publication.published_at_local_time }}</span>
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
+{% if not tables and not archive %}
+  <p class="empty"><span class="empty__title">Wyników jeszcze nie ogłoszono</span>
+    Tabela pojawi się tutaj po ogłoszeniu wyników pierwszego etapu przez koordynatora.</p>
+{% endif %}
+{% endif %}

@@ -1,0 +1,7 @@
+{% comment %}
+  Komunikat sekcji żywej przy niedostępnym API (§ 8.3 „Degradacja”). Treść stała, adres zbudowany
+  po stronie serwera (``dj_live.dj_unavailable``: adres publiczny konkursu + ta sama ścieżka) –
+  czytelnik ma od razu drogę do stanu „na teraz” na domenie głównej. Klasa ``notice`` to ten sam
+  komponent arkusza, którym strony Wagtaila pokazują komunikaty w treści.
+{% endcomment %}
+<p class="notice notice--warning dj-unavailable" role="status">Aktualne terminy, zadania i wyniki są chwilowo niedostępne w tej wersji serwisu. Zobacz je na <a href="{{ main_url }}">stronie głównej olimpiady</a>.</p>

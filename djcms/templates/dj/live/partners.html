@@ -1,0 +1,66 @@
+{% load dj_live %}{% comment %}
+  Strona partnerów na żywo (``PartnersLivePlugin``, DJ-02 D9) – PORT treści
+  ``backend/templates/cms/partners_page.html`` pod nagłówkiem strony (uzasadnienia układu tam:
+  odnośnik obejmuje znak i nazwę, opis poza odnośnikiem, ``partner--wide``, inicjały zamiast
+  brakującego znaku, pusty stan jako treść). Dane z ``GET partners``: grupy liczy
+  ``apps.live.data.partner_groups`` (kolejność ``levels``), adresy przez ``safe_href``, tekst
+  formatowany (``intro``, ``become_partner.body``) **po** sanityzatorze djangocms-text.
+
+  Konkurs bez strony partnerów w Wagtailu (``page`` = ``null``, np. nowy konkurs z szablonu) –
+  krótki pusty stan bez zaproszenia (tamto zdanie zapowiada treść, której wtedy nie ma).
+  Zmieniając oryginał, zmień też ten plik.
+{% endcomment %}{% if not live.available %}
+  {% dj_unavailable %}
+{% else %}
+{% include "dj/live/_stale.html" %}
+{% if intro %}<div class="cms-body prose doc-intro">{{ intro }}</div>{% endif %}
+
+{% for group in groups %}
+  <section class="section partners__group">
+    <div class="section__head">
+      <h2 class="mt-0" id="poziom-{{ group.level }}">{{ group.label|capfirst }}</h2>
+    </div>
+    <ul class="cards partners">
+      {% for partner in group.partners %}
+        <li{% if partner.is_wide %} class="partner--wide"{% endif %}>
+          <article class="card partner-card">
+            {% if partner.url %}<a class="partner-card__link" href="{{ partner.url }}" target="_blank" rel="noopener noreferrer">{% endif %}
+              <div class="partner-card__mark{% if partner.logo %} partner-card__mark--logo{% endif %}">
+                {% if partner.logo %}
+                  <img alt="{{ partner.name }}" class="partner-card__logo" height="{{ partner.logo.height }}" loading="lazy" src="{{ partner.logo.src }}" width="{{ partner.logo.width }}">
+                {% else %}
+                  <span class="partner-card__initials" aria-hidden="true">{{ partner.initials }}</span>
+                {% endif %}
+              </div>
+              <h3 class="partner-card__name">{{ partner.name }}</h3>
+            {% if partner.url %}</a>{% endif %}
+            {% if partner.description %}<p class="partner-card__text">{{ partner.description }}</p>{% endif %}
+          </article>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+{% empty %}
+  {% if has_page %}
+    <p class="empty"><span class="empty__title">Lista partnerów I edycji zostanie opublikowana wkrótce.</span>
+      Rozmowy o patronatach i współpracy trwają. Poniżej opisujemy, na czym może polegać.</p>
+  {% else %}
+    <p class="empty"><span class="empty__title">Lista partnerów zostanie opublikowana wkrótce.</span></p>
+  {% endif %}
+{% endfor %}
+
+{% if become_partner %}
+  <section class="section">
+    <div class="card card--accent partners-cta">
+      <h2 class="mt-0">{{ become_partner.title }}</h2>
+      <div class="prose">{{ become_partner.body }}</div>
+      {% if become_partner.contact_email %}
+        <p class="partners-cta__actions">
+          <a class="btn btn--accent" href="mailto:{{ become_partner.contact_email }}">Napisz do nas</a>
+          <span class="hint">{{ become_partner.contact_email }}</span>
+        </p>
+      {% endif %}
+    </div>
+  </section>
+{% endif %}
+{% endif %}

@@ -1,0 +1,33 @@
+{% extends "dj/base.html" %}
+{% load cms_tags dj_pages %}
+{% comment %}
+  „Archiwum (spis)” (CMS_TEMPLATES) – PORT ``backend/templates/cms/archive_index_page.html``.
+  Slot ``intro`` (tekst). Karty: opublikowane strony-dzieci typu „Edycja w archiwum” w kolejności
+  drzewa; nadtytuł z nazwą edycji z ``GET editions`` po ``ArchiveMeta.edition_id``
+  (``apps.pages.content.archive_cards``) – przy martwym API karta go po prostu nie ma.
+{% endcomment %}
+{% block content %}
+{% dj_archive_cards as editions %}
+{% dj_capture as intro %}{% placeholder "intro" %}{% end_dj_capture %}
+<div class="page-head">
+  <span class="eyebrow">Archiwum</span>
+  <h1>{% page_attribute "title" %}</h1>
+  {% if intro|dj_filled %}<div class="lead">{{ intro }}</div>{% endif %}
+</div>
+
+<ul class="cards archive-list">
+  {% for item in editions %}
+    <li>
+      <article class="card">
+        {% if item.edition %}<span class="news-card__date">{{ item.edition.year_label }}</span>{% endif %}
+        <h2 class="card__title"><a href="{{ item.url }}">{{ item.title }}</a></h2>
+        <p class="card__foot"><a href="{{ item.url }}">Materiały i wyniki</a></p>
+      </article>
+    </li>
+  {% empty %}
+    <li>
+      <p class="empty"><span class="empty__title">Pusto</span>Archiwum jest jeszcze puste.</p>
+    </li>
+  {% endfor %}
+</ul>
+{% endblock %}

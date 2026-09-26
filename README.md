@@ -229,8 +229,10 @@ obraz, uruchamia migracje (entrypoint `web`) i **nie rusza tego, co zmieniono na
 
 Kroki wdrożenia, o których warto wiedzieć:
 
-- **4/8** składa konfigurację proxy (`scripts/render_caddyfile.sh`: `deploy/Caddyfile` +
-  `EXTRA_DOMAINS`), buduje obraz i uruchamia **samą bazę**. Przy pustym `EXTRA_DOMAINS` wynik jest
+- **4/8** składa konfigurację proxy (`scripts/proxy_config.sh render`: `deploy/Caddyfile` +
+  `EXTRA_DOMAINS` do `caddy/Caddyfile`, po `caddy validate` w działającym proxy), buduje obraz
+  i uruchamia **samą bazę**; **4c/8** po starcie usług ładuje ją `caddy reload` – bez restartu
+  proxy (`docs/OPERACJE.md` § 23). Przy pustym `EXTRA_DOMAINS` wynik jest
   kopią `deploy/Caddyfile` co do bajtu – sprawdza to `scripts/tests/render_caddyfile_test.sh`.
   Obraz można **pobrać zamiast budować**: `WEB_IMAGE=ghcr.io/qaif/olimpiada-web:v0.24.0
   scripts/deploy.sh root@<host>` robi w tym kroku `docker compose pull web` i zapisuje wartość
@@ -238,8 +240,8 @@ Kroki wdrożenia, o których warto wiedzieć:
   wykonuje dokładnie to, co dotąd – `docker compose build --pull web` – i to jest droga domyślna
   dla Olimpiady Kwantowej; pilnuje tego `scripts/tests/deploy_image_source_test.sh`. Powrót do
   budowania: kolejne wdrożenie bez `WEB_IMAGE` (skrypt kasuje wtedy wpis z `.env`).
-  Krok dokłada też do `.env` brakujące `EXTRA_DOMAINS=` i `CADDYFILE_PATH=`; istniejących wartości
-  nie rusza.
+  Krok dokłada też do `.env` brakujące `EXTRA_DOMAINS=` i `CADDY_CONFIG_DIR=./caddy` (dawny wpis
+  `CADDYFILE_PATH`, który sam wpisał, zamienia na ten); pozostałych istniejących wartości nie rusza.
 - **4a/8 – kopia bazy przed migracjami.** `pg_dump -Fc` do
   `/opt/olimpiada-backups/pre-deploy-<data>-<wersja>.dump`, **zanim** entrypoint kontenera `web`
   wykona `migrate`. Niepowodzenie zatrzymuje wdrożenie: migracji bez kopii nie wykonujemy. Zostaje
@@ -322,8 +324,9 @@ DJANGO_CSRF_TRUSTED_ORIGINS=https://olimpiadakwantowa.pl,https://www.olimpiadakw
 Django dokłada do obu list wszystko, co stoi w `EXTRA_DOMAINS` (`config/settings/base.py`).
 Wpisanie ich wprost niczego nie psuje – wartości podane ręcznie zostają na początku list.
 
-**4. Proxy.** `./scripts/render_caddyfile.sh && docker compose up -d proxy web worker beat`
-(albo po prostu ponowne `scripts/deploy.sh`, które robi jedno i drugie). Caddy pobierze certyfikat
+**4. Proxy.** `bash scripts/proxy_config.sh update && docker compose up -d web worker beat`
+(albo po prostu ponowne `scripts/deploy.sh`, które robi jedno i drugie; proxy dostaje nową
+konfigurację przez `caddy reload`, bez restartu – `docs/OPERACJE.md` § 23). Caddy pobierze certyfikat
 sam, gdy DNS już wskazuje serwer. Kontrola na koniec: `docker compose exec web python manage.py
 check_domains --all`.
 
@@ -393,7 +396,7 @@ i `environment` w compose; w obrazie nie ma żadnego sekretu.
 | `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1,web` | lista hostów Django |
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | `https://localhost` | origin(y) z protokołem |
 | `EXTRA_DOMAINS` | puste | domeny kolejnych konkursów, **rozdzielone spacjami**; wchodzą do bloków Caddy'ego (`scripts/render_caddyfile.sh`) oraz do `ALLOWED_HOSTS` i `CSRF_TRUSTED_ORIGINS` – patrz sekcja 3 |
-| `CADDYFILE_PATH` | `./deploy/Caddyfile` | plik konfiguracji montowany do proxy; instalacja z `EXTRA_DOMAINS` używa `./deploy/Caddyfile.generated` |
+| `CADDY_CONFIG_DIR` | `./deploy` | katalog z plikiem `Caddyfile` montowany do proxy jako `/etc/caddy`; serwer (wdrożenie) używa `./caddy` z plikiem składanym przez `scripts/proxy_config.sh` (`docs/OPERACJE.md` § 23) |
 | `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE` | `0` | w produkcji `1` |
 | `WEB_WORKERS` | `3` | procesy gunicorna |
 | `CELERY_CONCURRENCY` | `2` | wątki workera |
