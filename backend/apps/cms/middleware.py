@@ -124,11 +124,15 @@ FROZEN_TREE_VIEWS = frozenset(
     }
 )
 
+#: Cofnięcie publikacji – zamrożone także dla strony-danych: aplikacja czyta tylko strony
+#: opublikowane, więc dla niej to usunięcie strony (``apps.cms.freeze``, docstring modułu).
+UNPUBLISH_VIEW = f"{_PAGES}unpublish"
+
 #: Czynności na treści jednej strony bez ekranu „tylko do odczytu”: zamrożone każdą metodą
-#: (także ekran potwierdzenia), strona-dane przechodzi.
+#: (także ekran potwierdzenia), strona-dane przechodzi – poza :data:`UNPUBLISH_VIEW`.
 FROZEN_CONTENT_VIEWS = frozenset(
     {
-        f"{_PAGES}unpublish",
+        UNPUBLISH_VIEW,
         f"{_PAGES}lock",
         f"{_PAGES}unlock",
         f"{_PAGES}set_privacy",
@@ -148,9 +152,16 @@ FROZEN_EDIT_VIEWS = frozenset({f"{_PAGES}edit", f"{_PAGES}revisions_revert"})
 BULK_ACTION_VIEW = "wagtail_bulk_action"
 BULK_PAGE_MODEL = ("wagtailcore", "page")
 
+#: API panelu Wagtaila – akcje na stronie (``POST /cms/api/main/pages/<pk>/action/<nazwa>/``:
+#: ``publish``, ``unpublish``, ``revert_to_page_revision``, ``move``, ``copy``, ``delete``,
+#: ``convert_alias``, ``create_alias``, ``copy_for_translation``). Część z nich sprawdza wyłącznie
+#: ``can_edit()``, które zamrożony tester zostawia (podgląd tylko do odczytu), a interfejs panelu
+#: z tego adresu nie korzysta – w czasie zamrożenia odmowa dla **każdej** akcji i każdej strony.
+API_ACTION_VIEW = "wagtailadmin_api:pages:action"
+
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
-_WATCHED = FROZEN_TREE_VIEWS | FROZEN_CONTENT_VIEWS | FROZEN_EDIT_VIEWS | {BULK_ACTION_VIEW}
+_WATCHED = FROZEN_TREE_VIEWS | FROZEN_CONTENT_VIEWS | FROZEN_EDIT_VIEWS | {BULK_ACTION_VIEW, API_ACTION_VIEW}
 
 
 class CmsFreezeMiddleware:
@@ -184,6 +195,8 @@ class CmsFreezeMiddleware:
             if model == BULK_PAGE_MODEL:
                 return _denied(request, "Akcje zbiorcze na stronach są wyłączone.")
             return None
+        if name == API_ACTION_VIEW:
+            return _denied(request, "Akcje na stronach przez API panelu są wyłączone.", as_json=True)
         if name in FROZEN_TREE_VIEWS:
             return _denied(
                 request,
@@ -197,6 +210,12 @@ class CmsFreezeMiddleware:
             return None  # nieistniejąca strona – 404 widoku Wagtaila
         if not freeze.is_exempt(page):
             return _denied(request, "Ta strona jest w Wagtailu tylko do odczytu.")
+        if name == UNPUBLISH_VIEW:
+            return _denied(
+                request,
+                f"Strony „{page.title}” nie można zdjąć z publikacji: aplikacja czyta z niej dane "
+                "(bez publikacji tak, jakby strony nie było). Treść można edytować i publikować dalej.",
+            )
         if name in FROZEN_EDIT_VIEWS:
             slug = request.POST.get("slug")
             if slug is not None and slug != page.slug:
@@ -209,17 +228,18 @@ class CmsFreezeMiddleware:
 
 
 def _page(view_kwargs):
+    """Strona z adresu – ``page_id`` w widokach panelu, ``pk`` w API panelu."""
     from wagtail.models import Page
 
-    page_id = view_kwargs.get("page_id")
+    page_id = view_kwargs.get("page_id", view_kwargs.get("pk"))
     if page_id is None:
         return None
     return Page.objects.filter(pk=page_id).first()
 
 
-def _denied(request, reason: str):
+def _denied(request, reason: str, *, as_json: bool = False):
     state = freeze.freeze_state()
-    if not request.accepts("text/html"):
+    if as_json or not request.accepts("text/html"):
         return JsonResponse(
             {
                 "success": False,

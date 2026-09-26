@@ -8,7 +8,8 @@ w członkostwo w grupach, a grupy – w uprawnienia django CMS i filera:
   **i publikacja** (odpowiednik ``cms:<slug>`` z Wagtaila: kopia grup ``Editors`` + ``Moderators``),
 - ``redakcja:<slug>:bez-publikacji`` – to samo bez publikacji (konto, które w ``/cms/`` edytuje,
   ale nie publikuje – np. własna grupa na wzór ``Editors``). Bez tej grupy takie konto dostałoby
-  tu więcej, niż ma w aplikacji głównej, albo nic,
+  tu więcej, niż ma w aplikacji głównej, albo nic. Usuwanie i przenoszenie – jak w Wagtailu tylko
+  stron bez opublikowanej wersji w poddrzewie (``apps.sites.live_guard``),
 - ``redakcja:platforma`` – wszystkie witryny (``GlobalPagePermission`` bez listy witryn), dla kont
   bez ograniczeń w ``/cms/`` (superkoordynator, superużytkownik aplikacji głównej).
 
@@ -66,6 +67,14 @@ EXCLUDED_MODELS = frozenset(
         ("cms", "pageuser"),
         ("cms", "pageusergroup"),
         ("filer", "folderpermission"),
+        # Schowek filera jest per konto (``Clipboard.user``), ale panel pokazuje każdy schowek temu,
+        # kto ma uprawnienie modelowe – także cudzy, z nazwami plików innych konkursów. Filer 3.6
+        # schowka nie używa (wgrywanie: ``filer.add_file`` + prawo do folderu), więc redakcji
+        # niczego nie zabiera.
+        ("filer", "clipboard"),
+        ("filer", "clipboarditem"),
+        # Presety miniatur są wspólne dla wszystkich witryn – zmienia je platforma, nie redakcja konkursu.
+        ("filer", "thumbnailoption"),
         ("dj_pages", "loginattempt"),
     }
 )

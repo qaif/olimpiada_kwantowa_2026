@@ -210,9 +210,10 @@ LOGIN_URL = "admin:login"
 # loguje się wyłącznie techniczny superużytkownik (``bootstrap_djcms_admin``, ``apps.pages.auth``).
 # ``DJCMS_SSO_KEY`` – ten sam klucz HMAC co w ``web`` (≥ 32 znaki, osobny od pozostałych sekretów –
 # ``dj_sites.W001``); pusty = logowanie redaktorów wyłączone. ``DJCMS_SSO_SESSION_SECONDS`` – sesja
-# z SSO trwa najwyżej tyle od logowania (odebranie roli w aplikacji głównej działa najpóźniej po nim).
+# z SSO trwa najwyżej tyle od logowania (odebranie roli w aplikacji głównej działa najpóźniej po nim);
+# wylogowanie z aplikacji głównej wygasza ją od razu (``apps.cms.djcms_sso.DjcmsLogoutMiddleware`` w web).
 DJCMS_SSO_KEY = env("DJCMS_SSO_KEY", default="")
-DJCMS_SSO_SESSION_SECONDS = env.int("DJCMS_SSO_SESSION_SECONDS", default=4 * 60 * 60)
+DJCMS_SSO_SESSION_SECONDS = env.int("DJCMS_SSO_SESSION_SECONDS", default=2 * 60 * 60)
 
 # Ciasteczka: **inne nazwy** niż w aplikacji głównej i bez ``*_COOKIE_DOMAIN`` (host-only).
 # Gdyby domena główna kiedyś ustawiła ciasteczko na ``.olimpiadakwantowa.pl``, trafiałoby ono

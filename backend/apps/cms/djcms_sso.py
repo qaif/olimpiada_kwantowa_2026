@@ -51,6 +51,8 @@ import time
 from dataclasses import dataclass
 
 from django.conf import settings
+from django.contrib.auth.signals import user_logged_out
+from django.dispatch import receiver
 from django.template.response import TemplateResponse
 from django.urls import get_script_prefix
 from django.views.decorators.cache import never_cache
@@ -296,3 +298,40 @@ def handoff(request):
     return TemplateResponse(
         request, "cms/admin/djcms_handoff.html", {**context, "state": "submit", "token": token}
     )
+
+
+# --- wylogowanie: także z django CMS ----------------------------------------------------------------
+
+#: Ciasteczko sesji djcms – ``SESSION_COOKIE_NAME`` w ``djcms/config/settings/base.py``: host-only
+#: (bez ``SESSION_COOKIE_DOMAIN``), ``Path=/`` (domyślne ``SESSION_COOKIE_PATH``), ``SameSite=Lax``.
+DJCMS_SESSION_COOKIE = "djcms_sessionid"
+_EXPIRE_DJCMS_SESSION = "_expire_djcms_session"
+
+
+@receiver(user_logged_out, dispatch_uid="cms_djcms_sso_logout")
+def _mark_djcms_session_for_expiry(sender, request=None, **kwargs) -> None:
+    if request is not None and DJCMS_SESSION_COOKIE in request.COOKIES:
+        setattr(request, _EXPIRE_DJCMS_SESSION, True)
+
+
+class DjcmsLogoutMiddleware:
+    """Wylogowanie z aplikacji głównej zamyka też sesję w django CMS na tym samym hoście.
+
+    Sesja redaktora w djcms powstaje z ``/cms/`` (SSO) **zawsze pod tym samym hostem** (djcms
+    przyjmuje token tylko od własnego hosta) i ma własne ciasteczko host-only ``djcms_sessionid``.
+    Bez tej warstwy przeżyłaby wylogowanie o ``DJCMS_SSO_SESSION_SECONDS`` – na wspólnym komputerze
+    następna osoba weszłaby do panelu djcms bez logowania. Każda droga wylogowania (strona, API,
+    ``/cms/logout/``, usunięcie konta) kończy się ``django.contrib.auth.logout`` i sygnałem
+    ``user_logged_out``; odbiornik zaznacza żądanie, a ta warstwa dokłada do odpowiedzi wygaszenie
+    ciasteczka (``Max-Age=0``, ta sama ścieżka i ``SameSite``). Sama sesja w bazie djcms wygasa
+    swoim terminem – bez ciasteczka nikt się do niej nie dostanie.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        if getattr(request, _EXPIRE_DJCMS_SESSION, False):
+            response.delete_cookie(DJCMS_SESSION_COOKIE, path="/", samesite="Lax")
+        return response

@@ -254,8 +254,9 @@ check "test odtwarzania raz – na świeżej kopii, nie na poprzedniej" $?
 check "kontrole (rejestr, import próbny) przed kopią" $?
 [ "$(env_line DJCMS_PRIMARY)" = 1 ] && env_line DJCMS_CUTOVER_DONE | grep -qE '^[0-9]{4}-[0-9]{2}-[0-9]{2}T' && [ -f "$STATE/frozen" ]
 check "stan końcowy: DJCMS_PRIMARY=1, znacznik DJCMS_CUTOVER_DONE, Wagtail zamrożony" $?
-grep -qF -- '--message Edycja treści przeniesiona do django CMS --by scripts/djcms_cutover.sh' "$STATE/frozen"
-check "cms_freeze on z komunikatem banera i autorem" $?
+grep -qF -- '--message Edycja treści przeniesiona do django CMS --by scripts/djcms_cutover.sh' "$STATE/frozen" &&
+  grep -qE -- ' --wait$' "$STATE/frozen"
+check "cms_freeze on z komunikatem banera, autorem i --wait (import dopiero, gdy zamrożenie widzą wszystkie workery)" $?
 grep -qE '^ +kwantowa +14/14 +18/18 +3/3 +OK' "$WORK/full.out" && grep -qF 'djcms_cutover.sh --rollback' "$WORK/full.out" &&
   grep -qF 'NIE wracają' "$WORK/full.out"
 check "podsumowanie: tabela stron i przekierowań, polecenie wycofania, ostrzeżenie o stratności" $?

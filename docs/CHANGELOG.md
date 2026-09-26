@@ -32,7 +32,9 @@ organizatora (`scripts/djcms_cutover.sh`, `OPERACJE.md` § 22.9). Specyfikacja:
   `backend/djcms_contract/resolution_cases.json` testowane w obu projektach.
 - **Zamrożenie edycji Wagtaila** (DJ-02c): `manage.py cms_freeze on|off|status` (wiersz w bazie, bez
   restartu) – strony w `/cms/` tylko do odczytu, egzekwowane po stronie serwera, z banerem;
-  wyjątki: strona „warsztaty” i strona partnerów (dane aplikacji pokazywane w djcms na żywo).
+  wyjątki: strona „warsztaty” i strona partnerów (dane aplikacji pokazywane w djcms na żywo) –
+  edycja i publikacja tak, zdjęcie z publikacji nie; akcje API panelu (`/cms/api/main/pages/…/action/`)
+  zamrożone w całości; `cms_freeze on --wait` czeka, aż stan zobaczą wszystkie workery `web`.
 - **djcms – wiele witryn** (DJ-02d–f): witryna django CMS per konkurs (bez `SITE_ID`), rejestr
   konkursów z API (`sync_competitions`, leniwe założenie witryny nowego konkursu z drzewem
   startowym), wszystkie adresy djcms pod `/djcms/` (admin, statyki, media, `healthz`, `preview`,
@@ -48,8 +50,10 @@ organizatora (`scripts/djcms_cutover.sh`, `OPERACJE.md` § 22.9). Specyfikacja:
   „Edytuj w django CMS” (`/cms/django-cms/`) wystawia jednorazowy token HMAC (60 s, nonce, host,
   lista konkursów z prawem edycji/publikacji) wysyłany formularzem `POST` na `/djcms/sso/` tego
   samego hosta; djcms zakłada konto `web:<id>` bez hasła i **zastępuje** jego grupy grupami
-  `redakcja:<slug>`, `redakcja:<slug>:bez-publikacji` albo `redakcja:platforma`. Sesja z SSO trwa
-  najwyżej `DJCMS_SSO_SESSION_SECONDS` (domyślnie 4 h). Lokalnych kont redaktorów w djcms nie ma –
+  `redakcja:<slug>`, `redakcja:<slug>:bez-publikacji` albo `redakcja:platforma` (bez publikacji:
+  usuwanie i przenoszenie tylko stron bez opublikowanej wersji, jak w Wagtailu). Sesja z SSO trwa
+  najwyżej `DJCMS_SSO_SESSION_SECONDS` (domyślnie 2 h), a wylogowanie z aplikacji głównej kończy ją
+  od razu. Lokalnych kont redaktorów w djcms nie ma –
   hasłem loguje się wyłącznie techniczny superużytkownik. `manage.py setup_djcms_groups` (każde
   wdrożenie) zakłada grupy i foldery filera per konkurs (+ folder „Wspólne” do odczytu) i usuwa
   grupę „Redaktorzy” z DJ-01 (`OPERACJE.md` § 22.3).

@@ -199,6 +199,46 @@ def test_missing_page_is_left_to_wagtail(admin_client, frozen):
     assert admin_client.post("/cms/pages/999999/unpublish/").status_code == 404
 
 
+def _api_action(page, action: str) -> str:
+    return f"/cms/api/main/pages/{page.pk}/action/{action}/"
+
+
+def _api_denied(response) -> bool:
+    return (
+        response.status_code == 403
+        and response["Content-Type"].startswith("application/json")
+        and json.loads(response.content)["error_code"] == "editing_frozen"
+    )
+
+
+@pytest.mark.parametrize("as_coordinator", [False, True])
+def test_admin_api_page_actions_are_refused(client, operator, as_coordinator, home, page, other_page):
+    """API panelu (``/cms/api/main/pages/<pk>/action/<akcja>/``) – każda akcja, także te, które
+    same sprawdzają wyłącznie ``can_edit()`` (przywrócenie rewizji, zamiana aliasu)."""
+    revision = page.save_revision(user=operator)
+    alias = page.create_alias(parent=other_page, update_slug="alias-zamrozenie")
+    freeze.set_frozen(True)
+    user = CoordinatorFactory() if as_coordinator else operator
+    assert client.login(email=user.email, password=DEFAULT_PASSWORD)
+    revisions_before = page.revisions.count()
+
+    for target, action, body in (
+        (page, "revert_to_page_revision", {"revision_id": revision.pk}),
+        (alias, "convert_alias", {}),
+        (page, "publish", {}),
+        (page, "unpublish", {}),
+        (page, "copy_for_translation", {"locale": "en"}),
+    ):
+        response = client.post(_api_action(target, action), json.dumps(body), content_type="application/json")
+        assert _api_denied(response), (action, response.status_code, response.content[:300])
+
+    assert page.revisions.count() == revisions_before
+    alias.refresh_from_db()
+    assert alias.alias_of_id == page.pk
+    page.refresh_from_db()
+    assert page.live
+
+
 def test_bulk_actions_on_other_models_are_not_frozen(admin_client, frozen):
     response = admin_client.get("/cms/bulk/wagtailimages/image/delete/?id=999999")
 
@@ -261,7 +301,57 @@ def test_data_pages_stay_editable_and_publishable(request, admin_client, frozen,
     data_page.refresh_from_db()
     assert data_page.title == "Nowy tytuł"
     assert data_page.live
-    assert admin_client.get(f"/cms/pages/{data_page.pk}/unpublish/").status_code == 200
+
+
+@pytest.mark.parametrize("fixture", ["workshops", "partners"])
+def test_data_pages_cannot_be_unpublished(request, admin_client, operator, frozen, fixture):
+    """Aplikacja czyta tylko strony opublikowane – zdjęcie strony-danych byłoby jej usunięciem."""
+    data_page = request.getfixturevalue(fixture)
+
+    for method, url in (
+        ("get", f"/cms/pages/{data_page.pk}/unpublish/"),
+        ("post", f"/cms/pages/{data_page.pk}/unpublish/"),
+        ("post", f"/cms/bulk/wagtailcore/page/unpublish/?id={data_page.pk}"),
+    ):
+        assert _denied(getattr(admin_client, method)(url)), (method, url)
+    assert _api_denied(admin_client.post(_api_action(data_page, "unpublish")))
+    data_page.refresh_from_db()
+    assert data_page.live
+    assert not data_page.permissions_for_user(operator).can_unpublish()
+
+
+def test_data_page_with_a_draft_under_another_slug_stays_editable(admin_client, operator, workshops):
+    """O wyjątku rozstrzyga opublikowany slug z bazy, a nie slug z najnowszej rewizji (szkicu)."""
+    draft = workshops.specific
+    draft.slug = "stary-slug"
+    draft.save_revision(user=operator)
+    freeze.set_frozen(True)
+
+    latest = Page.objects.get(pk=workshops.pk).specific.get_latest_revision_as_object()
+    assert latest.slug == "stary-slug"
+    assert freeze.is_exempt(latest)
+    assert latest.permissions_for_user(operator).can_publish()
+    assert latest.get_lock() is None
+    assert "content-locked" not in admin_client.get(f"/cms/pages/{workshops.pk}/edit/").content.decode()
+
+    # Szkic ze starym slugiem nie przejdzie do publikacji; z opublikowanym – tak.
+    assert _denied(_publish_with_title(admin_client, workshops, "Warsztaty"))
+    response = _publish_with_title(admin_client, workshops, "Warsztaty 2026", slug="warsztaty")
+    assert response.status_code == 302, response.content[:500]
+    workshops.refresh_from_db()
+    assert (workshops.slug, workshops.title) == ("warsztaty", "Warsztaty 2026")
+
+
+def test_draft_slug_does_not_make_an_ordinary_page_exempt(operator, page):
+    draft = page.specific
+    draft.slug = "warsztaty"
+    draft.save_revision(user=operator)
+    freeze.set_frozen(True)
+
+    latest = Page.objects.get(pk=page.pk).specific.get_latest_revision_as_object()
+    assert latest.slug == "warsztaty"
+    assert not freeze.is_exempt(latest)
+    assert isinstance(latest.get_lock(), freeze.EditingFreezeLock)
 
 
 def test_data_page_keeps_its_slug(admin_client, frozen, workshops):
@@ -384,7 +474,8 @@ def test_frozen_tester_and_lock(operator, frozen, page, workshops):
     assert page.get_lock().for_user(operator)
 
     data_tester = workshops.permissions_for_user(operator)
-    assert data_tester.can_edit() and data_tester.can_publish() and data_tester.can_unpublish()
+    assert data_tester.can_edit() and data_tester.can_publish()
+    assert not data_tester.can_unpublish()
     assert not data_tester.can_delete() and not data_tester.can_move() and not data_tester.can_copy()
     assert workshops.get_lock() is None
 
@@ -437,6 +528,22 @@ def test_command_default_message_and_operator():
     assert row.message == ""
     assert freeze.freeze_state().banner_message == freeze.DEFAULT_MESSAGE
     assert row.changed_by.startswith("manage.py cms_freeze")
+
+
+def test_command_wait_outlasts_the_cache_of_other_processes(monkeypatch, capsys):
+    """``on --wait`` wraca dopiero, gdy zamrożenie widzą wszystkie procesy web (skrypt przełączenia)."""
+    from apps.cms.management.commands import cms_freeze
+
+    slept = []
+    monkeypatch.setattr(cms_freeze.time, "sleep", slept.append)
+
+    call_command("cms_freeze", "on")
+    assert slept == []
+    call_command("cms_freeze", "on", "--wait")
+
+    assert slept == [freeze.CACHE_TTL_SECONDS + 2]
+    assert EditingFreeze.objects.get().active
+    assert "wszystkich procesach web" in capsys.readouterr().out
 
 
 def test_state_is_cached_for_ten_seconds(monkeypatch):
