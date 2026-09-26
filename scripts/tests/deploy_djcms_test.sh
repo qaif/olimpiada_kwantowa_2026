@@ -105,8 +105,7 @@ case "$*" in
   *"exec -T proxy cat /etc/caddy/Caddyfile"*)
     case "$(cat "$STUB_BOX/state")" in
       live) cat caddy/Caddyfile 2>/dev/null || exit 1 ;;
-      stale) printf '# stara treść (montaż sprzed CADDY_CONFIG_DIR)
-' ;;
+      stale) printf '# stara treść (montaż sprzed CADDY_CONFIG_DIR)\n' ;;
       *) exit 1 ;;
     esac ;;
   *"exec -T proxy sh -c "*"caddy validate"*) cat >"$STUB_BOX/validated"; exit "${STUB_VALIDATE_RC:-0}" ;;
@@ -122,6 +121,11 @@ case "$*" in
   *"compose up -d --remove-orphans "*" proxy"*)
     [ "$(cat "$STUB_BOX/state")" = down ] && { echo live >"$STUB_BOX/state"; cp caddy/Caddyfile "$STUB_BOX/loaded"; } ;;
   *"sync_competitions --list-hosts"*) printf 'bez zmian: kwantowa\nolimpiada.example kwantowa\n' ;;
+  # Pomoc komendy: obraz djcms z DJ-02e zna `--import-missing` (domyślnie); STUB_SYNC_OLD=1 – obraz
+  # sprzed DJ-02e (flagi nie ma – wdrożenie woła wtedy samo `sync_competitions`).
+  *"sync_competitions --help"*)
+    echo "usage: manage.py sync_competitions [-h] [--dry-run] [--list-hosts]"
+    [ "${STUB_SYNC_OLD:-0}" = 1 ] || echo "  --import-missing  Zaimportuj treść z API do witryn bez stron." ;;
   *"sync_competitions"*) exit "${STUB_SYNC_RC:-0}" ;;
 esac
 exit 0
@@ -201,10 +205,7 @@ run_deploy() {
   DOCKER_LOG="$WORK/$label.docker"; SSH_LOG="$WORK/$label.ssh"; OUT="$WORK/$label.out"
   : >"$DOCKER_LOG"; : >"$SSH_LOG"; rm -f "$DOCKER_LOG.sql" "$DOCKER_LOG.curl"
   ( env -u DJCMS_ENABLE -u DJCMS_IMAGE -u DJCMS_ADMIN_EMAIL -u DJCMS_ADMIN_PASSWORD -u WEB_IMAGE \
-      -u DJCMS_PRIMARY -u STUB_CURL_MODE -u STUB_SYNC_RC -u STUB_VALIDATE_RC -u STUB_RELOAD_RC \
-      -u STUB_HEALTHZ_CODE -u NEW_COMPETITION_SLUG -u COORDINATOR_EMAIL -u COORDINATOR_PASSWORD \
-      -u MAINTENANCE_MESSAGE -u MAINTENANCE_MINUTES \
-      PATH="$BIN:$PATH" DOCKER_LOG="$DOCKER_LOG" SSH_LOG="$SSH_LOG" SRC_TAR="${SRC_TAR:-$WORK/tree.tar}" \
+      -u DJCMS_PRIMARY -u STUB_CURL_MODE -u STUB_SYNC_RC -u STUB_SYNC_OLD -u STUB_VALIDATE_RC -u STUB_RELOAD_RC       -u STUB_HEALTHZ_CODE -u NEW_COMPETITION_SLUG -u COORDINATOR_EMAIL -u COORDINATOR_PASSWORD       -u MAINTENANCE_MESSAGE -u MAINTENANCE_MINUTES       PATH="$BIN:$PATH" DOCKER_LOG="$DOCKER_LOG" SSH_LOG="$SSH_LOG" SRC_TAR="${SRC_TAR:-$WORK/tree.tar}" \
       STUB_BOX="$BOX" \
       FAKE_HOME="$WORK/home" REMOTE_DIR="$SRV" BACKUP_DIR="$BAK" SSH_KEY=/dev/null \
       APP_VERSION=vtest MAIL_PUBLIC_IP=203.0.113.7 "$@" \
@@ -369,11 +370,12 @@ compose exec -T web python manage.py check_domains --all
 compose ps --format {{.Service}}={{.Health}}
 compose exec -T djcms python manage.py setup_djcms_groups
 compose exec -T -e DJCMS_ADMIN_EMAIL -e DJCMS_ADMIN_PASSWORD djcms python manage.py bootstrap_djcms_admin
-compose exec -T djcms python manage.py sync_competitions
+compose exec -T djcms python manage.py sync_competitions --help
+compose exec -T djcms python manage.py sync_competitions --import-missing
 compose exec -T djcms python manage.py import_cms_bundle --from-api --if-empty'
 [ "$(cat "$WORK/on.docker")" = "$WLACZONE" ]
 rc=$?
-check "z DJCMS_ENABLE=1: build djcms, baza, kopia, start (proxy uruchomione z bieżącym plikiem), grupy, administrator, rejestr, import – w tej kolejności" $rc
+check "z DJCMS_ENABLE=1: build djcms, baza, kopia, start (proxy uruchomione z bieżącym plikiem), grupy, administrator, rejestr (--import-missing), import – w tej kolejności" $rc
 [ $rc -eq 0 ] || diff <(printf '%s\n' "$WLACZONE") "$WORK/on.docker" | sed 's/^/     /'
 grep -q 'CREATE ROLE olimpiada_djcms' "$WORK/on.docker.sql" 2>/dev/null
 check "scripts/djcms_db.sh dostał SQL roli i bazy" $?
@@ -407,7 +409,7 @@ show_on_fail $rc "$WORK/again.out"
 cmp -s "$WORK/env.after-on" "$SRV/.env"
 check "kolejne wdrożenie nie zmienia .env (sekrety, znaczniki, COMPOSE_*)" $?
 grep -q 'compose up -d --remove-orphans .* proxy djcms$' "$WORK/again.docker" &&
-  grep -q 'setup_djcms_groups' "$WORK/again.docker" && grep -qx 'compose exec -T djcms python manage.py sync_competitions' "$WORK/again.docker"
+  grep -q 'setup_djcms_groups' "$WORK/again.docker" && grep -qx 'compose exec -T djcms python manage.py sync_competitions --import-missing' "$WORK/again.docker"
 check "kolejne wdrożenie startuje djcms, odświeża grupę redaktorów i rejestr konkursów" $?
 ! grep -qE 'bootstrap_djcms_admin|import_cms_bundle' "$WORK/again.docker"
 check "bez DJCMS_ADMIN_* nie ma zakładania konta, po imporcie – nie ma drugiego importu" $?
@@ -576,6 +578,18 @@ run_deploy "$DEPLOY" sync-bad STUB_SYNC_RC=1 STUB_CURL_MODE=primary
 rc=$?
 [ $rc -ne 0 ] && grep -q 'check_domains' "$WORK/sync-bad.docker" && ! grep -q 'import_cms_bundle' "$WORK/sync-bad.docker"
 check "nieudane sync_competitions: kod ≠ 0, po krokach głównego serwisu, bez importu" $?
+# 9e. Obraz djcms sprzed DJ-02e (bez `--import-missing`, np. DJCMS_IMAGE z rejestru w starszej wersji):
+#     wdrożenie woła samo `sync_competitions` – nieznany argument nie może go zatrzymać.
+run_deploy "$DEPLOY" sync-old STUB_SYNC_OLD=1 STUB_CURL_MODE=primary
+rc=$?
+[ $rc -eq 0 ] && grep -qx 'compose exec -T djcms python manage.py sync_competitions' "$WORK/sync-old.docker" &&
+  ! grep -q -- 'sync_competitions --import-missing' "$WORK/sync-old.docker"
+rc=$?
+check "obraz djcms bez --import-missing: samo sync_competitions, wdrożenie przechodzi" $rc
+show_on_fail $rc "$WORK/sync-old.out"
+grep -qx 'compose exec -T djcms python manage.py sync_competitions --help' "$WORK/prim.docker" &&
+  grep -qx 'compose exec -T djcms python manage.py sync_competitions --import-missing' "$WORK/prim.docker"
+check "obraz djcms z --import-missing: flaga sprawdzona (--help) i użyta" $?
 
 # ================================================================================================
 # 10. Konfiguracja proxy przy KAŻDYM wdrożeniu (docs/OPERACJE.md § 23), bez dj.: zmiana

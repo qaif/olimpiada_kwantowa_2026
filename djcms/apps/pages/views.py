@@ -159,11 +159,6 @@ def preview_toggle(request):
     return render(request, "dj/preview.html", context)
 
 
-def not_yet_available(request, *args, **kwargs):
-    """Adres zarezerwowany pod ``/djcms/`` na widok kolejnego kroku DJ-02 (SSO, DJ-02g) – pusta 404."""
-    return HttpResponseNotFound()
-
-
 # --- strony błędów -------------------------------------------------------------------------------
 
 

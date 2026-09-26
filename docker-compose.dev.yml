@@ -72,7 +72,6 @@ services:
       DJCMS_DEBUG: "1"
       DJCMS_ALLOWED_HOSTS: localhost,127.0.0.1,djcms
       DJCMS_CSRF_TRUSTED_ORIGINS: http://localhost:8100
-      DJCMS_MAIN_PUBLIC_URL: http://localhost:8000
       DJCMS_MAIN_MEDIA_ORIGIN: http://localhost:9000
     volumes:
       - ./djcms:/app

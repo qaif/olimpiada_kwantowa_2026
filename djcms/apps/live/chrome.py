@@ -10,7 +10,9 @@ zapasową, więc przy martwym API rama wygląda jak zwykle, tylko bez komunikat�
 osi czasu, przycisku rejestracji i danych organizatora (§ 8.3 „Degradacja”). Odnośniki zapasowe
 prowadzą pod adres publiczny **konkursu żądania** (``CompetitionSite.public_base`` z rejestru –
 ten sam host i prefiks, na którym działa aplikacja główna konkursu; DJ-02 § 8 „Odnośniki
-aplikacji”), a gdy konkurs go nie ma – na ``DJCMS_MAIN_PUBLIC_URL``.
+aplikacji”), a gdy konkurs go nie ma – względnie, pod prefiksem konkursu na tym samym hoście
+(djcms i aplikacja główna stoją pod tymi samymi hostami, DJ-02 D2). ``DJCMS_MAIN_PUBLIC_URL``
+(jeden adres dla jednego konkursu z DJ-01) usunięte w DJ-02k.
 """
 
 from __future__ import annotations
@@ -19,6 +21,7 @@ from functools import cached_property
 from urllib.parse import urlsplit
 
 from django.conf import settings
+from django.urls import get_script_prefix
 from django.utils import timezone
 from django.utils.encoding import escape_uri_path
 
@@ -30,9 +33,15 @@ FALLBACK_LOGIN_PATH = "/login/"
 
 
 def public_base(request=None) -> str:
-    """Baza adresów aplikacji głównej dla żądania: ``public_base`` konkursu albo ``DJCMS_MAIN_PUBLIC_URL``."""
+    """Baza adresów aplikacji głównej dla żądania: ``public_base`` konkursu albo prefiks tego hosta.
+
+    Bez ``public_base`` (rejestr odrzucił adres z API, żądanie poza witryną konkursu) – ścieżka
+    względna od prefiksu konkursu (``get_script_prefix``, ustawiany przez
+    ``CompetitionSiteMiddleware``): aplikacja główna odpowiada pod tym samym hostem co djcms,
+    a Caddy kieruje do niej adresy aplikacji (DJ-02 § 3).
+    """
     site = getattr(request, "competition_site", None) if request is not None else None
-    base = getattr(site, "public_base", "") or settings.DJCMS_MAIN_PUBLIC_URL or ""
+    base = getattr(site, "public_base", "") or get_script_prefix()
     return base.rstrip("/")
 
 

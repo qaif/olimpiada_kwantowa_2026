@@ -26,15 +26,22 @@ w instalacji z kilkoma witrynami (sam adres zamyka ``apps.cms.middleware``).
 ``/cms/``, objaśnienie na ekranie edycji strony-danych i menu akcji ograniczone do informacji
 o blokadzie. To jest warstwa **informacyjna** – zapis zamyka ``CmsFreezeMiddleware``, a przyciski
 chowa tester uprawnień stron.
+
+**Przejście do django CMS** (``apps.cms.djcms_sso``, DJ-02 D6): pozycja menu „Edytuj w django CMS”
+i widok ``cms_djcms_handoff`` pod ``/cms/django-cms/`` (nie ``/cms/djcms/``: pod ``SITE_DOMAIN``
+Caddy kieruje każdy adres ``/<segment>/djcms/…`` do djcms).
 """
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
+from django.urls import path, reverse
 from django.utils.html import format_html, json_script
 from django.utils.safestring import mark_safe
 from wagtail import hooks
+from wagtail.admin.menu import MenuItem
 from wagtail.admin.panels import FieldPanel, MultiFieldPanel
+from wagtail.admin.ui.sidebar import LinkMenuItem as LinkMenuItemComponent
 from wagtail.documents.api.admin.views import DocumentsAdminAPIViewSet
 from wagtail.images.api.admin.views import ImagesAdminAPIViewSet
 from wagtail.permission_policies import ModelPermissionPolicy
@@ -45,7 +52,7 @@ from wagtail.snippets.views import snippets as snippet_views
 from wagtail.snippets.views.chooser import SnippetChooserViewSet
 from wagtail.snippets.views.snippets import SnippetViewSet
 
-from . import freeze, scope
+from . import djcms_sso, freeze, scope
 from .models import Announcement
 
 
@@ -327,3 +334,47 @@ def freeze_page_action_menu(menu_items, request, context):
     if page is not None and freeze.is_exempt(page):
         return
     menu_items[:] = [item for item in menu_items if item.name == "action-page-locked"]
+
+
+# --- przejście do django CMS (SSO, DJ-02 D6) ------------------------------------------------------------
+
+
+@hooks.register("register_admin_urls")
+def djcms_handoff_urls():
+    """``/cms/django-cms/`` – Wagtail opakowuje adresy z tego haka w ``require_admin_access``."""
+    return [path("django-cms/", djcms_sso.handoff, name=freeze.DJCMS_HANDOFF_URL_NAME)]
+
+
+class DjcmsMenuItem(MenuItem):
+    """„Edytuj w django CMS” – tylko przy ustawionym kluczu i dla redaktora konkursu tego adresu.
+
+    Adres liczony **przy każdym renderowaniu**: Wagtail buduje menu raz na proces, a ``/cms/`` bywa
+    pod prefiksem konkursu (``/druga/cms/``) – adres z pierwszego żądania prowadziłby wszystkich
+    pod cudzy prefiks.
+    """
+
+    def is_shown(self, request):
+        competition = getattr(request, "competition", None)
+        if competition is None or not djcms_sso.sso_enabled():
+            return False
+        return bool(djcms_sso.competition_abilities(request.user, competition))
+
+    def is_active(self, request):
+        return request.path.startswith(reverse(freeze.DJCMS_HANDOFF_URL_NAME))
+
+    def render_component(self, request):
+        return LinkMenuItemComponent(
+            self.name,
+            self.label,
+            reverse(freeze.DJCMS_HANDOFF_URL_NAME),
+            icon_name=self.icon_name,
+            classname=self.classname,
+            attrs=self.attrs,
+        )
+
+
+@hooks.register("register_admin_menu_item")
+def djcms_menu_item():
+    return DjcmsMenuItem(
+        "Edytuj w django CMS", "", name="djcms-handoff", icon_name="link-external", order=250
+    )

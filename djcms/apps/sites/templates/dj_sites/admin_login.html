@@ -1,0 +1,13 @@
+{% extends "admin/login.html" %}
+{% comment %}
+  Logowanie hasłem do panelu djcms – wyłącznie techniczny superużytkownik (apps.pages.auth).
+  Redaktorzy wchodzą z /cms/ aplikacji głównej (SSO, apps.sites.views.sso_login), więc strona mówi
+  im to wprost, zamiast zostawić ich z formularzem, który dla nich nie zadziała.
+{% endcomment %}
+{% block content %}
+<p class="help">
+  Redaktorzy serwisu logują się w panelu <a href="{% url 'pages-root' %}cms/">/cms/</a>
+  i wybierają „Edytuj w django CMS”. Hasłem loguje się tu wyłącznie konto techniczne administratora.
+</p>
+{{ block.super }}
+{% endblock %}

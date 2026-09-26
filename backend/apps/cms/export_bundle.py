@@ -1,4 +1,4 @@
-"""Paczka treści redakcyjnej dla serwisu na django CMS (``olimpiada-cms-bundle`` v1 i v2).
+"""Paczka treści redakcyjnej dla serwisu na django CMS (``olimpiada-cms-bundle`` v2).
 
 Format i mapowania: ``docs/tasks/DJ-01.md`` § 5–6, wersja 2: ``docs/tasks/DJ-02.md`` § 4.4. ZIP
 z dwoma rodzajami członków:
@@ -26,7 +26,8 @@ Czego paczka **nie** niesie i dlaczego:
 - **danych aplikacji** – ustawień witryny, komunikatów, obecności na warsztatach. Wersja ``dj.``
   czyta je na żywo z API (``apps.cms.djcms_api``), bo jedno źródło prawdy ma zostać jedno.
 
-Wersja 2 jest **nadzbiorem** wersji 1 (importer przyjmuje obie) i dokłada trzy klucze:
+Wersja 2 jest **nadzbiorem** wersji 1 z DJ-01 (eksport v1 usunięty w DJ-02k; importer djcms
+przyjmuje obie) i dokłada trzy klucze:
 
 - ``competition`` – slug i nazwa konkursu (importer wielowitrynowy sprawdza, że paczka należy do
   witryny, do której ją wgrywa),
@@ -80,12 +81,10 @@ from .views import is_public_document
 #: Nazwa i wersja formatu. Importer odrzuca paczkę z inną parą – zmiana kształtu, która nie jest
 #: dopisaniem pola, podnosi wersję.
 BUNDLE_FORMAT = "olimpiada-cms-bundle"
-BUNDLE_VERSION = 1
-
-#: Wersja paczki dla API v2 (DJ-02 § 4.4). ``BUNDLE_VERSION`` zostaje domyślną do DJ-02k: v1 API
-#: i importer DJ-01 znają tylko wersję 1.
-BUNDLE_VERSION_V2 = 2
-SUPPORTED_BUNDLE_VERSIONS = (BUNDLE_VERSION, BUNDLE_VERSION_V2)
+#: Wersja 2 (DJ-02 § 4.4) – nadzbiór wersji 1 z DJ-01 o ``competition``, ``data_pages`` i ``redirects``.
+#: Eksport wersji 1 usunięto w DJ-02k razem z API v1; importer djcms nadal przyjmuje obie
+#: (paczki z kopii sprzed DJ-02).
+BUNDLE_VERSION = 2
 
 #: Schematy celu przekierowania-adresu, które przepuszczamy (ta sama reguła, co ``api_href``).
 SAFE_REDIRECT_SCHEMES = frozenset({"http", "https"})
@@ -607,7 +606,6 @@ def build_bundle(
     *,
     stream: IO[bytes],
     main_public_url: PublicBase | str | None = None,
-    version: int = BUNDLE_VERSION,
 ) -> BundleReport:
     """Zapisuje paczkę treści konkursu do ``stream`` i oddaje raport.
 
@@ -618,12 +616,7 @@ def build_bundle(
     Bez ``main_public_url`` adresy dokumentów i widoków aplikacji idą pod adres **tego** konkursu
     (``competition_public_base``) – ``DJCMS_MAIN_PUBLIC_URL`` opisuje tylko konkurs domeny głównej.
     Konkurs bez adresu → ``NoPublicUrl``, zanim cokolwiek trafi do strumienia.
-
-    ``version`` – 1 (DJ-01, domyślna do DJ-02k) albo 2 (nadzbiór: ``competition``, ``data_pages``,
-    ``redirects``). Inna wartość to błąd wołającego, a nie paczka, której nikt nie przeczyta.
     """
-    if version not in SUPPORTED_BUNDLE_VERSIONS:
-        raise ValueError(f"Nieznana wersja paczki: {version!r}.")
     if main_public_url is None:
         main_public_url = competition_public_base(competition)
         if main_public_url is None:
@@ -637,7 +630,7 @@ def build_bundle(
         pages = exporter.pages()
         manifest: dict[str, Any] = {
             "format": BUNDLE_FORMAT,
-            "version": version,
+            "version": BUNDLE_VERSION,
             "exported_at": timezone.localtime().isoformat(),
             "source": {
                 "site_domain": settings.SITE_DOMAIN,
@@ -649,11 +642,10 @@ def build_bundle(
             "images": exporter.images,
             "documents": exporter.documents,
             "pages": pages,
-        }
-        if version >= BUNDLE_VERSION_V2:
             # Po ``pages()``: oba klucze pytają ``page_paths``, czyli zbioru stron, które naprawdę weszły.
-            manifest["competition"] = {"slug": competition.slug, "name": competition.name}
-            manifest["data_pages"] = exporter.data_pages()
-            manifest["redirects"] = exporter.redirects()
+            "competition": {"slug": competition.slug, "name": competition.name},
+            "data_pages": exporter.data_pages(),
+            "redirects": exporter.redirects(),
+        }
         archive.writestr(MANIFEST_NAME, json.dumps(manifest, ensure_ascii=False, indent=1))
     return exporter.report

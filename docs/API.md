@@ -543,20 +543,21 @@ klucz, oraz identyfikator doręczenia (`X-Olimpiada-Delivery`), jeśli sprawa do
 
 ---
 
-## 8. API wewnętrzne wersji porównawczej `dj.` (`/internal/djcms/v1/`)
+## 8. API wewnętrzne serwisu na django CMS (`/internal/djcms/v2/`)
 
 **Nie jest to API integracji** i nie dostanie go żaden system zewnętrzny – ta sekcja jest dla
-utrzymującego platformę. Z tego API korzysta wyłącznie serwis `dj.<domena>` (django CMS, kontener
-`djcms`, docs/OPERACJE.md § 22): pobiera dane zawodów, których nie ma w swojej bazie (terminy,
-stany etapów, zadania, wyniki, warsztaty, komunikaty, rama serwisu), oraz jednorazowo paczkę treści
-Wagtaila do importu. Pełny kontrakt (kształt każdego obiektu, reguły bezpieczeństwa):
-[`docs/tasks/DJ-01.md`](tasks/DJ-01.md) § 3 i § 7. Kod: `backend/apps/cms/djcms_api/`, klient:
+utrzymującego platformę. Z tego API korzysta wyłącznie serwis publiczny na django CMS (kontener
+`djcms`, docs/OPERACJE.md § 22): pobiera listę konkursów platformy (rozstrzyganie hostów), dane
+zawodów, których nie ma w swojej bazie (terminy, stany etapów, zadania, wyniki, warsztaty,
+partnerzy, komunikaty, rama serwisu), oraz paczkę treści Wagtaila do importu. Pełny kontrakt:
+[`docs/tasks/DJ-02.md`](tasks/DJ-02.md) § 4 i § 7 (kształty obiektów wspólnych z DJ-01:
+[`docs/tasks/DJ-01.md`](tasks/DJ-01.md) § 3). Kod: `backend/apps/cms/djcms_api/`, klient:
 `djcms/apps/live/client.py`.
 
 ### 8.1. Dostęp – każda porażka to pusta 404
 
-Adres `http://web:8000/internal/djcms/v1/<endpoint>`, osiągalny wyłącznie z sieci compose'a.
-Bramki, sprawdzane w tej kolejności (`apps.cms.djcms_api.auth`):
+Adresy `http://web:8000/internal/djcms/v2/…`, osiągalne wyłącznie z sieci compose'a. Bramki,
+sprawdzane w tej kolejności (`apps.cms.djcms_api.auth`):
 
 1. **host wewnętrzny** (`web`, `localhost`, `127.0.0.1`) – ta sama reguła co `/internal/tls-allowed`;
    z domeny publicznej adres nie istnieje także z poprawnym tokenem. Caddy dodatkowo odpowiada 404
@@ -567,41 +568,90 @@ Bramki, sprawdzane w tej kolejności (`apps.cms.djcms_api.auth`):
 4. metoda **`GET`** – inna też daje 404, a nie 405 (405 zdradzałoby, że adres istnieje).
 
 Odpowiedź przy każdej porażce jest ta sama: `404` bez treści. Tak samo odpowiada każdy nieznany
-adres gałęzi `/internal/djcms/…` (bez przekierowania na adres z ukośnikiem).
+adres gałęzi `/internal/djcms/…` (bez przekierowania na adres z ukośnikiem) – także slug o złym
+kształcie (inny niż `[a-z0-9-]{1,50}`) i dawne adresy `/internal/djcms/v1/…` (§ 8.5).
 
-### 8.2. Endpointy
+### 8.2. `GET competitions` – konkursy platformy
+
+Lista **wszystkich** konkursów, także nieaktywnych (`is_active: false` – djcms wygasza wtedy ich
+hosty), posortowana po slugu, z danymi potrzebnymi do rozstrzygania hosta tą samą regułą co
+`apps.tenancy.resolution.resolve_for_request` (wspólne wektory:
+`backend/djcms_contract/resolution_cases.json`, testowane w obu projektach):
+
+```jsonc
+{"api_version": 2, "generated_at": "…",
+ "platform": {"site_domain": "olimpiadakwantowa.pl", "platform_subdomains": false, "default_slug": "kwantowa"},
+ "competitions": [
+   {"slug": "kwantowa", "name": "Olimpiada Kwantowa", "short_name": "OK",
+    "is_active": true, "is_default": true,
+    "routing_mode": "DOMAIN",                // "DOMAIN" | "PATH"
+    "path_prefix": "",                       // niepusty tylko przy PATH
+    "hosts": ["olimpiadakwantowa.pl"],       // hostname witryny ∪ primary_domain (∪ SITE_DOMAIN dla konkursu
+                                             // domyślnego); małe litery, bez portu, rozłączne między konkursami
+    "hosts_path_prefixes": true,             // bramka path_prefix_routing konkursu-gospodarza
+    "public_base": {"origin": "https://olimpiadakwantowa.pl", "path_prefix": ""},   // albo null
+    "site_hostname": "olimpiadakwantowa.pl",
+    "has_site_aliases": false,
+    "linked_paths": ["/dokumenty/regulamin/", "/faq/", "/harmonogram/", "/warsztaty/"],
+    "fingerprint": "<sha256 kanonicznego JSON-u pól powyżej>"}
+ ]}
+```
+
+**`linked_paths`** – ścieżki stron (względem korzenia witryny konkursu), do których linkuje
+**aplikacja**; djcms sprawdza, że pod każdą stoi opublikowana strona (`dj_pages.W003`,
+`verify_cutover`). Źródła i reguła:
+
+- strony dokumentów zgód konkursu (`consent_set`) – ścieżka strony dokumentu w drzewie konkursu,
+- strona warsztatów i `/warsztaty/` (pasek osi czasu) – gdy konkurs ma stronę warsztatów,
+- literały z szablonów aplikacji (`APP_LITERAL_PAGE_PATHS`: `/dokumenty/rodo/`, `/faq/`,
+  `/harmonogram/`, `/warsztaty/`) – **poza** konkursem pod prefiksem ścieżki (literał `/faq/` pod
+  `/<prefiks>/…` prowadzi do konkursu-gospodarza, więc wymienia go lista gospodarza). Test
+  przeszukuje szablony i pada przy literale spoza listy.
+
+**Dokumenty i literały trafiają na listę tylko wtedy, gdy stoi pod nimi opublikowana i publiczna
+strona Wagtaila.** Adres bez strony (albo ze stroną nieopublikowaną lub z ograniczonym dostępem,
+której eksport nie przenosi) daje dziś 404 w Wagtailu i tak samo odpowie w djcms, więc nie blokuje
+przełączenia – np. konkurs założony z szablonu nie ma stron `/faq/` ani `/harmonogram/`.
+
+`fingerprint` pozwala djcms nie zapisywać niczego, gdy konkurs się nie zmienił. Bez danych
+osobowych i bez adresów e-mail organizatora.
+
+### 8.3. `GET c/<slug>/<endpoint>` – dane jednego konkursu
 
 | Endpoint | Co oddaje |
 |---|---|
-| `chrome` | rama serwisu: konkurs, dane witryny (`SiteSettings`), edycja, stan rejestracji, odnośniki do aplikacji (logowanie, rejestracja, pomoc, plakaty), komunikaty, slider sponsorów, pasek osi czasu |
+| `chrome` | rama serwisu: `competition` (`slug`, `name`, `short_name`, `accent_colour`, `logo {src,width,height}`\|`null`, `favicon {src}`\|`null`), `site` (dane `SiteSettings` + `ga_measurement_id`), edycja, stan rejestracji, odnośniki do aplikacji (logowanie, rejestracja, pomoc, plakaty), komunikaty, slider sponsorów, pasek osi czasu, `seo` (`og_image`, `default_description`) |
 | `stages` | edycja, etap „na teraz” i wiersze osi czasu (stany etapów, czy są wyniki) |
 | `problems` | zadania etapu bieżącego i treningowego – **pusta lista przed `opens_at`** (ani tytułu, ani adresu PDF) |
 | `results` | ogłoszone tabele wyników bieżącej edycji i odnośniki archiwalne |
 | `editions` | edycje konkursu (lista wyboru archiwum) |
 | `editions/<id>/results` | odnośniki do ogłoszonych tabel jednej edycji; edycja innego konkursu = pusta lista |
-| `workshops` | najbliższe warsztaty (≤ 3), cały harmonogram, zapowiedź materiałów (liczba + odnośnik do logowania) |
-| `export` | paczka treści Wagtaila (`application/zip`, format `olimpiada-cms-bundle` v1) – tylko strony `live()` i publiczne |
+| `workshops` | najbliższe warsztaty (≤ 3), wiersze z datą, zapowiedź materiałów (liczba + odnośnik do logowania) oraz – na żywo ze strony „Warsztaty” Wagtaila – `page` (tytuł, wprowadzenie) i `schedules` (pełne tabele w kolejności strony); strona z ograniczonym dostępem = `page: null`, `schedules: []` |
+| `partners` | partnerzy ze strony `PartnersPage` konkursu (`live().public()`): `page_path`, `levels` (kolejność poziomów), `partners` (`name`, `level`, `logo`, `url` tylko `http(s)`, `description`, `initials`, `is_wide`) w kolejności strony, `page` (wprowadzenie, zaproszenie do współpracy) albo `null` |
+| `export` | paczka treści Wagtaila (`application/zip`, `olimpiada-cms-bundle` **v2**: strony `live()` i publiczne, obrazy, adresy dokumentów + `competition`, `data_pages`, `redirects`) |
 
-Każda odpowiedź JSON ma `api_version` (dziś `1`) i `generated_at` (ISO 8601 z przesunięciem),
+Każda odpowiedź JSON ma `api_version` (`2`) i `generated_at` (ISO 8601 z przesunięciem),
 nagłówki `Cache-Control: no-store` i `X-Content-Type-Options: nosniff`. Buforuje klient
-(60 s świeżo, do 600 s kopia awaryjna przy niedostępnym `web`), nie aplikacja.
+(60 s świeżo, do 600 s kopia awaryjna przy niedostępnym `web`), nie aplikacja. Każdy widok liczy
+dane w kontekście **tego** konkursu i w języku polskim; dwa konkursy nie widzą nawzajem swoich
+danych (test S1: żadna odpowiedź `c/A/*` nie zawiera napisu konkursu B).
 
-**Konkurs** wybiera konfiguracja, nie żądanie (nagłówek `Host: web:8000` z żadnym konkursem nie ma
-nic wspólnego): `DJCMS_COMPETITION_SLUG`, a gdy pusty – konkurs witryny domyślnej (`SITE_DOMAIN`).
-Adresy aplikacji w odpowiedziach (`/results/5/`, `/register/`) są bezwzględne pod adresem **tego**
-konkursu; ścieżki stron Wagtaila (`/warsztaty/`) zostają względne, bo po imporcie istnieją też
-na `dj.`; odnośnik o schemacie innym niż `http(s)` staje się pustym napisem.
+Adresy aplikacji w odpowiedziach (`/results/5/`, `/register/`) są bezwzględne pod adresem
+**tego** konkursu (`public_base` z § 8.2: domena konkursu albo host platformy + `/<prefiks>`;
+schemat i port z `DJCMS_MAIN_PUBLIC_URL`, który opisuje konkurs domeny głównej). Statyki
+i media – bez prefiksu. Ścieżki stron Wagtaila (`/warsztaty/`) zostają względne, bo po imporcie
+istnieją też w djcms; odnośnik o schemacie innym niż `http(s)` staje się pustym napisem.
 
-Błędy poza bramkami (JSON, kod `503`):
+Błędy **po** bramkach (JSON):
 
-| `error` | Znaczenie |
-|---|---|
-| `no-competition` | brak aktywnego konkursu (zły `DJCMS_COMPETITION_SLUG` albo konkurs nieaktywny) |
-| `no-public-url` | konkurs nie ma adresu w aplikacji głównej (ani domeny, ani prefiksu ścieżki) |
+| Kod | `error` | Znaczenie |
+|---|---|---|
+| 404 | `no-competition` | nie ma konkursu o tym slugu albo jest nieaktywny |
+| 503 | `no-public-url` | konkurs nie ma adresu w aplikacji głównej (ani domeny, ani prefiksu z otwartą bramką `path_prefix_routing`) |
 
-`dj.` pokazuje wtedy komunikat o niedostępności sekcji żywych – nie dane innego konkursu.
+djcms pokazuje wtedy komunikat o niedostępności sekcji żywych – nigdy danych innego konkursu.
 
-### 8.3. Dane osobowe – biała lista
+### 8.4. Dane osobowe – biała lista
 
 Żaden endpoint nie czyta kont ani prac: w odpowiedziach nie ma e-maili, imion, szkół,
 identyfikatorów uczestników, ocen ani wpisów do etapów. Wiersz tabeli wyników przechodzi przez
@@ -610,10 +660,59 @@ identyfikatorów uczestników, ocen ani wpisów do etapów. Wiersz tabeli wynik�
 to ta sama etykieta, która stoi w publicznej tabeli wyników (kod, inicjały albo nazwisko w finale).
 Czegokolwiek spoza listy serializator nie zna, więc nie ma jak tego oddać.
 
-### 8.4. Wersjonowanie
+### 8.5. Wersjonowanie
 
 Dopisanie pola nie zmienia wersji. Każda inna zmiana kształtu podnosi `api_version` **i** prefiks
-adresu (`/internal/djcms/v2/`); klient odrzuca odpowiedź z inną wersją niż oczekiwana (sekcje żywe
-`dj.` przechodzą wtedy w tryb degradacji, strona odpowiada 200 z `X-Djcms-Degraded: 1`). Wersja
-`v2` (serwis djcms dla wszystkich konkursów) jest opisana w [`docs/tasks/DJ-02.md`](tasks/DJ-02.md)
-§ 4; `v1` zostaje do jej wdrożenia.
+adresu; klient odrzuca odpowiedź z inną wersją niż oczekiwana (sekcje żywe djcms przechodzą wtedy
+w tryb degradacji, strona odpowiada 200 z `X-Djcms-Degraded: 1`).
+
+**v1 usunięte (DJ-02k).** API v1 z DJ-01 (`/internal/djcms/v1/{chrome,…,export}` dla jednego
+konkursu wybieranego ustawieniem `DJCMS_COMPETITION_SLUG`, paczka v1) odpowiada teraz tą samą
+pustą 404 co każdy nieznany adres; `DJCMS_COMPETITION_SLUG` nie jest już czytane. Ciała endpointów
+i ich reguły jawności są te same – v2 dołożyło konkurs w ścieżce i pola opisane w § 8.3.
+`manage.py export_cms_bundle [--competition SLUG] --output PATH|-` buduje zawsze paczkę v2 (bez
+`--competition` – aktywny konkurs witryny domyślnej). Importer djcms (`import_cms_bundle`) przyjmuje
+paczki v1 i v2 (kopie sprzed DJ-02).
+
+### 8.6. Token SSO redaktorów (`/cms/` → `/djcms/sso/`)
+
+Nie jest to endpoint API, ale drugi kontrakt między `web` i `djcms` (DJ-02 D6, S11): redaktor
+przechodzi z `/cms/` do django CMS jednorazowym tokenem. Wystawia go `web`
+(`backend/apps/cms/djcms_sso.py`, widok `/cms/django-cms/` – tylko po `POST` z CSRF, dla konta
+z `wagtailadmin.access_admin`), weryfikuje djcms (`djcms/apps/sites/sso.py`). Token jedzie
+w polu `token` formularza wysyłanego `POST`-em na `/djcms/sso/` **tego samego** hosta i prefiksu –
+nigdy w adresie ani w logu.
+
+```
+v1.<B>.<S>
+B = base64url(JSON bez dopełnienia „=”)
+S = base64url(HMAC-SHA256(DJCMS_SSO_KEY, "olimpiada/djcms-sso/v1." + B))
+```
+
+JSON – klucze posortowane, bez odstępów, ASCII:
+
+| Pole | Znaczenie |
+|---|---|
+| `v` | `1` |
+| `aud` / `iss` | `"djcms"` / `"web"` |
+| `sub` | id konta w aplikacji głównej (konto w djcms: `web:<sub>`) |
+| `email`, `first_name`, `last_name` | dane konta (imię i nazwisko najwyżej 150 znaków) |
+| `host` | host żądania – małe litery, bez portu i kropki końcowej |
+| `platform` | `true` = wszystkie konkursy (grupa `redakcja:platforma`) |
+| `competitions` | `[{"slug", "abilities": ["edit"] \| ["edit", "publish"]}]` – konkursy, których korzeń drzewa stron konto może edytować w `/cms/` (`publish` – także publikować) |
+| `nonce` | losowy, jednorazowy (`[A-Za-z0-9_-]{16,64}`) |
+| `iat` / `exp` | sekundy epoki; `exp - iat` = 60 |
+
+djcms odrzuca (403, bez logowania) token z innym podpisem, wersją, odbiorcą albo wystawcą, dla
+innego hosta, przeterminowany, z `iat` z przyszłości (tolerancja 5 s), z ważnością ponad 60 s,
+z użytym już `nonce`, z nieznaną umiejętnością albo wpisem `competitions` innego kształtu, a także
+żądanie inne niż `POST` albo z `Origin` różnym od `<schemat>://<host>` żądania. Token nigdy nie niesie roli
+superużytkownika. Grupy konta są **zastępowane** listą z tokenu przy każdym wejściu.
+Klucz: `DJCMS_SSO_KEY`, ten sam w obu projektach, ≥ 32 znaki, różny od pozostałych sekretów
+(`cms.W013`, `dj_sites.W001`); pusty = przejście wyłączone.
+
+Wspólny wektor testowy obu projektów: `backend/djcms_contract/sso_token_cases.json` (klucz
+wyłącznie testowy, `now`, dane konta i gotowe tokeny) – `web` sprawdza, że wystawia dokładnie te
+tokeny (`test_djcms_sso.py::test_contract_vector_matches_issue_token`), djcms – że je przyjmuje
+co do pola i odrzuca dla innego hosta i po terminie (`test_sso.py::test_contract_vector`). Zmiana
+formatu = nowy prefiks (`v2.`) i nowy kontekst podpisu w obu projektach naraz.

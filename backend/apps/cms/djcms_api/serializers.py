@@ -104,9 +104,9 @@ def platform_competition():
 def competition_public_base(competition, *, platform: Any = _PLATFORM_UNSET) -> PublicBase | None:
     """Adres aplikacji głównej dla konkursu API albo ``None``, gdy go nie da się ustalić.
 
-    ``DJCMS_MAIN_PUBLIC_URL`` opisuje **domenę główną**, czyli konkurs witryny domyślnej. Konkurs
-    wybrany przez ``DJCMS_COMPETITION_SLUG`` stoi gdzie indziej, a linki „Zaloguj”, „Wyniki”,
-    PDF zadania pod domeną główną prowadziłyby do cudzego konkursu. Reguły są te same, co przy
+    ``DJCMS_MAIN_PUBLIC_URL`` opisuje **domenę główną**, czyli konkurs witryny domyślnej. Każdy inny
+    konkurs stoi gdzie indziej, a linki „Zaloguj”, „Wyniki”, PDF zadania pod domeną główną
+    prowadziłyby do cudzego konkursu. Reguły są te same, co przy
     linkach w listach wysyłanych spoza żądania (``apps.accounts.activation._base_url_without_request``)
     i w przełączniku konkursów (``apps.web.coordinator_nav.competition_base_urls``):
 
@@ -119,7 +119,7 @@ def competition_public_base(competition, *, platform: Any = _PLATFORM_UNSET) -> 
       ``runserver`` w devie), więc schemat i port są wspólne.
 
     ``None`` = konkurs nie ma adresu, pod którym aplikacja go obsługuje. API odpowiada wtedy 503
-    (``views.endpoint``), a komenda eksportu kończy się błędem – odnośniki w nieznane byłyby
+    (``views.endpoint_v2``), a komenda eksportu kończy się błędem – odnośniki w nieznane byłyby
     gorsze niż komunikat o niedostępności.
 
     ``platform`` – konkurs platformy policzony wcześniej (``platform_competition()``): lista
@@ -147,7 +147,7 @@ def competition_public_base(competition, *, platform: Any = _PLATFORM_UNSET) -> 
     return None
 
 
-#: Adres konkursu bieżącego żądania API – ustawia go ``views.endpoint`` na czas widoku. Zmienna
+#: Adres konkursu bieżącego żądania API – ustawia go ``views.endpoint_v2`` na czas widoku. Zmienna
 #: kontekstowa, a nie argument, bo ``api_href`` woła się głęboko w serializatorach (także przez
 #: ``jsonable`` na słownikach liczonych gdzie indziej) i przeciąganie adresu przez każdy z nich
 #: byłoby kilkunastoma sygnaturami do zmiany przy każdej nowej funkcji.

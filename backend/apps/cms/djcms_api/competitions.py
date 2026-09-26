@@ -68,18 +68,23 @@ def linked_paths(competition) -> list[str]:
     Trzy źródła:
 
     - dokumenty zgód konkursu (``apps.accounts.consents.document_url`` dla slugów z
-      ``consent_set``) – strona dokumentu w drzewie konkursu, a bez niej adres kanoniczny
-      ``/dokumenty/<slug>/``, bo dokładnie tam prowadzi wtedy link przy zgodzie,
+      ``consent_set``) – ścieżka opublikowanej i publicznej strony dokumentu w drzewie konkursu,
     - strona warsztatów (``workshops_page``) i adres ``/warsztaty/``, który buduje pasek osi czasu
       (``apps.cms.timeline``),
     - literały z szablonów aplikacji (``APP_LITERAL_PAGE_PATHS``) – **poza** konkursem pod
       prefiksem: literał ``/faq/`` pod ``/<prefiks>/…`` prowadzi do konkursu-gospodarza, więc to
       jego lista go wymienia.
 
-    Strona z ograniczonym dostępem liczy się jak każda: aplikacja do niej linkuje, a djcms jej nie
-    dostanie (eksport pomija takie strony) – i właśnie o tym ma ostrzec ``dj_pages.W003``.
+    **Dokumenty i literały wyłącznie wtedy, gdy stoi pod nimi strona.** Lista służy
+    ``verify_cutover`` i ``dj_pages.W003`` do sprawdzenia **parytetu**: czy po przełączeniu adres,
+    który dziś działa w Wagtailu, działa też w djcms. Adres, pod którym strony nie ma (albo jest
+    nieopublikowana lub z ograniczonym dostępem – takich eksport nie przenosi), odpowiada dziś 404
+    w Wagtailu i tak samo odpowie w djcms; wymienienie go blokowałoby przełączenie z powodu, którego
+    przełączenie nie zmienia. Dotyczy to dokumentów zgód i **każdego** literału z szablonów
+    (``/dokumenty/rodo/``, ``/faq/``, ``/harmonogram/``, ``/warsztaty/``) – konkurs założony
+    z szablonu (``templates_catalog``) nie musi mieć tych stron.
     """
-    from apps.accounts.consents import DOCUMENTS_PATH, consent_set
+    from apps.accounts.consents import consent_set
     from apps.cms.export_bundle import site_path
     from apps.cms.models import DocumentPage
     from apps.cms.workshops import WORKSHOPS_SLUG, workshops_page
@@ -89,20 +94,38 @@ def linked_paths(competition) -> list[str]:
     paths: list[str] = []
     slugs = [consent.document_slug for consent in consent_set(competition) if consent.document_slug]
     if slugs:
-        found = {
-            page.slug: site_path(page, root)
+        paths.extend(
+            site_path(page, root)
             for page in DocumentPage.objects.live()
+            .public()
             .descendant_of(root, inclusive=True)
             .filter(slug__in=slugs)
             .order_by("path")
-        }
-        paths.extend(found.get(slug, f"{DOCUMENTS_PATH}{slug}/") for slug in slugs)
+        )
     workshops = workshops_page(competition)
     if workshops is not None:
         paths.extend([site_path(workshops, root), f"/{WORKSHOPS_SLUG}/"])
     if competition.routing_mode != RoutingMode.PATH:
-        paths.extend(APP_LITERAL_PAGE_PATHS)
+        paths.extend(_published_paths(root, list(APP_LITERAL_PAGE_PATHS)))
     return sorted(set(paths))
+
+
+def _published_paths(root, paths: list[str]) -> set[str]:
+    """Które z podanych ścieżek (względem korzenia witryny) mają opublikowaną, publiczną stronę."""
+    from wagtail.models import Page
+
+    if not paths:
+        return set()
+    base = root.url_path.rstrip("/")
+    wanted = {f"{base}{path}": path for path in paths}
+    found = (
+        Page.objects.live()
+        .public()
+        .descendant_of(root)
+        .filter(url_path__in=list(wanted))
+        .values_list("url_path", flat=True)
+    )
+    return {wanted[url_path] for url_path in found}
 
 
 def _hosts(competition, *, claimed: dict[str, int]) -> list[str]:

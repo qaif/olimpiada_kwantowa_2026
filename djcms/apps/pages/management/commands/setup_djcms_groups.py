@@ -1,73 +1,40 @@
-"""Grupa „Redaktorzy” djcms z uprawnieniami do stron, wtyczek, plików i wersji (idempotentne).
+"""Grupy redakcji per konkurs i uprawnienia folderów filera (DJ-02 D5) – idempotentne, woła je deploy.
 
-Decyzja z 26.09.2026: jedna grupa dla całej redakcji porównania, bez uprawnień per strona
-(``CMS_PERMISSION = False``) i per folder (``FILER_ENABLE_PERMISSIONS = False``). Uprawnienia
-są zwykłymi uprawnieniami modeli Django, wyliczanymi **z etykiet aplikacji**, a nie z listy
-modeli wpisanej tutaj – dzięki temu wtyczki i rozszerzenia stron dochodzące w DJ-01e/f
-(``dj_blocks``, ``dj_live``) trafiają do grupy po ponownym uruchomieniu komendy, bez jej edycji.
-Deploy woła ją przy każdym wdrożeniu (§ 8.10), więc zestaw jest zawsze aktualny.
+Od DJ-02g redaktorzy nie mają jednej wspólnej grupy: każdy konkurs ma ``redakcja:<slug>`` (z publikacją)
+i ``redakcja:<slug>:bez-publikacji``, a konta bez ograniczeń – ``redakcja:platforma``. Członków
+wyznacza wyłącznie logowanie z ``/cms/`` (SSO, ``apps.sites.sso``); ta komenda dba o to, żeby
+grupy, ich ``GlobalPagePermission`` (z listą witryn) i uprawnienia do folderów istniały i były
+takie, jak mówi kod (``apps.sites.permissions`` – tam uzasadnienie zestawu).
 
-Poza grupą zostaje **zarządzanie dostępem**: uprawnienia stron django CMS, użytkownicy i grupy
-CMS-a, uprawnienia folderów filera. Redaktor edytuje treść; konta i grupy zakłada administrator
-(superuser z ``bootstrap_djcms_admin``). Nowe konto redaktora wymaga w panelu ``is_staff``
-(„W zespole”) i członkostwa w tej grupie – grupa nie może nadać ``is_staff`` sama.
-
-``group.permissions.set(...)`` – zestaw jest **zastępowany**, nie dopisywany: ręcznie dodane
-w panelu uprawnienie znika przy następnym wdrożeniu. To celowe: stan grupy ma wynikać z kodu.
+Grupa „Redaktorzy” z DJ-01 (jedna dla wszystkich, bez ``GlobalPagePermission``) jest usuwana: przy
+``CMS_PERMISSION = True`` i tak nie daje żadnej strony, a zostawiona sugerowałaby, że daje.
 """
 
 from __future__ import annotations
 
-from django.contrib.auth.models import Group, Permission
+from django.contrib.auth.models import Group
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-GROUP_NAME = "Redaktorzy"
+from apps.sites.permissions import PLATFORM_GROUP, ensure_all
 
-#: Aplikacje, których modele redaktor edytuje w całości.
-EDITOR_APP_LABELS = (
-    "cms",
-    "djangocms_text",
-    "djangocms_versioning",
-    "filer",
-    "dj_pages",
-    "dj_blocks",
-    "dj_live",
-)
-
-#: Modele zarządzania dostępem – wyłączone z grupy (patrz docstring modułu) – oraz jeden model
-#: wewnętrzny django CMS (``UrlconfRevision``: znacznik przeładowania urlconfu apphooków), którego
-#: nikt nie edytuje ręcznie.
-EXCLUDED_MODELS = frozenset(
-    {
-        ("cms", "urlconfrevision"),
-        ("cms", "globalpagepermission"),
-        ("cms", "pagepermission"),
-        ("cms", "pageuser"),
-        ("cms", "pageusergroup"),
-        ("filer", "folderpermission"),
-    }
-)
-
-
-def editor_permissions():
-    perms = Permission.objects.filter(content_type__app_label__in=EDITOR_APP_LABELS).select_related(
-        "content_type"
-    )
-    return [
-        perm
-        for perm in perms
-        if (perm.content_type.app_label, perm.content_type.model) not in EXCLUDED_MODELS
-    ]
+#: Grupa z DJ-01 – usuwana przy pierwszym uruchomieniu po DJ-02g.
+LEGACY_GROUP_NAME = "Redaktorzy"
 
 
 class Command(BaseCommand):
-    help = "Zakłada/aktualizuje grupę „Redaktorzy” z uprawnieniami do treści djcms."
+    help = "Zakłada/aktualizuje grupy redakcji per konkurs (redakcja:<slug>) i uprawnienia folderów filera."
 
     @transaction.atomic
     def handle(self, *args, **options):
-        group, created = Group.objects.get_or_create(name=GROUP_NAME)
-        perms = editor_permissions()
-        group.permissions.set(perms)
-        verb = "utworzono" if created else "zaktualizowano"
-        self.stdout.write(self.style.SUCCESS(f"Grupa „{GROUP_NAME}” {verb}: {len(perms)} uprawnień."))
+        removed, _ = Group.objects.filter(name=LEGACY_GROUP_NAME).delete()
+        counts = ensure_all()
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Grupy redakcji: {counts['competitions']} konkursów (po dwie grupy) + {PLATFORM_GROUP}."
+            )
+        )
+        if removed:
+            self.stdout.write(
+                f"Usunięto grupę „{LEGACY_GROUP_NAME}” z DJ-01 (zastąpiona grupami redakcja:*)."
+            )

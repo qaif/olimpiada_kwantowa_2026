@@ -126,6 +126,8 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    # Termin sesji z SSO i panel wyłącznie pod witrynami redaktora (``?site=`` też) – DJ-02g, S12.
+    "apps.sites.middleware.EditorAccessMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     # Przekierowania starych adresów (``dj_seo.Redirect``, DJ-02 § 8) na 404 witryny konkursu – wewnątrz
     # ``CommonMiddleware``, żeby ``/regulamin`` trafił w przekierowanie od razu, a nie przez ``/regulamin/``.
@@ -201,6 +203,16 @@ DJCMS_LOGIN_WINDOW_SECONDS = env.int("DJCMS_LOGIN_WINDOW_SECONDS", default=15 * 
 DJCMS_LOGIN_USER_MAX_FAILURES = env.int("DJCMS_LOGIN_USER_MAX_FAILURES", default=50)
 DJCMS_LOGIN_USER_WINDOW_SECONDS = env.int("DJCMS_LOGIN_USER_WINDOW_SECONDS", default=60 * 60)
 LOGIN_URL = "admin:login"
+
+# --- Redaktorzy: logowanie z /cms/ aplikacji głównej (SSO, DJ-02 D6) --------------------------------
+# Redaktorzy nie mają tu haseł: wchodzą jednorazowym tokenem wystawionym przez ``/cms/`` (``POST
+# /djcms/sso/``, ``apps.sites.sso``), a uprawnienia dostają z tokenu przy każdym wejściu. Hasłem
+# loguje się wyłącznie techniczny superużytkownik (``bootstrap_djcms_admin``, ``apps.pages.auth``).
+# ``DJCMS_SSO_KEY`` – ten sam klucz HMAC co w ``web`` (≥ 32 znaki, osobny od pozostałych sekretów –
+# ``dj_sites.W001``); pusty = logowanie redaktorów wyłączone. ``DJCMS_SSO_SESSION_SECONDS`` – sesja
+# z SSO trwa najwyżej tyle od logowania (odebranie roli w aplikacji głównej działa najpóźniej po nim).
+DJCMS_SSO_KEY = env("DJCMS_SSO_KEY", default="")
+DJCMS_SSO_SESSION_SECONDS = env.int("DJCMS_SSO_SESSION_SECONDS", default=4 * 60 * 60)
 
 # Ciasteczka: **inne nazwy** niż w aplikacji głównej i bez ``*_COOKIE_DOMAIN`` (host-only).
 # Gdyby domena główna kiedyś ustawiła ciasteczko na ``.olimpiadakwantowa.pl``, trafiałoby ono
@@ -318,9 +330,11 @@ CMS_PLACEHOLDER_CONF = {
 # nieaktualny termin. Bufor placeholderów zostaje, bo wtyczki żywe mają ``cache = False``.
 CMS_PAGE_CACHE = False
 CMS_PLACEHOLDER_CACHE = True
-# Uprawnienia per strona wyłączone – jedna grupa „Redaktorzy” (decyzja z 26.09.2026) na zwykłych
-# uprawnieniach modeli Django (``manage.py setup_djcms_groups``).
-CMS_PERMISSION = False
+# Uprawnienia redaktorów per konkurs (DJ-02 D5): grupy ``redakcja:<slug>`` z ``GlobalPagePermission``
+# zawężonym do witryny konkursu (``apps.sites.permissions``, ``manage.py setup_djcms_groups``).
+# Wyłącznie uprawnienia globalne z listą witryn – nigdy ``PagePermission`` (bufor uprawnień django CMS
+# nie ma witryny w kluczu). Wyłączenie tej flagi = każdy personel redaguje każdą witrynę (``dj_sites.E001``).
+CMS_PERMISSION = True
 # Pasek narzędzi **nie** dla anonimów: jego skrypty wymagają luźnej polityki CSP, a publiczne
 # strony mają ścisłą. Redaktor loguje się pod ``/djcms/admin/`` i dopiero wtedy dostaje pasek.
 CMS_TOOLBAR_ANONYMOUS_ON = False
@@ -362,11 +376,12 @@ TEXT_PLUGIN_MODULE_NAME = "Treść"
 MEDIA_URL = "/djcms/media/"
 MEDIA_ROOT = env("DJCMS_MEDIA_ROOT", default="/app/media")
 # Wszystkie pliki filera są publiczne (reguła 12 – ``/djcms/media/*`` serwuje Caddy wprost z wolumenu).
-# Uprawnienia per folder wyłączone: redaktorzy są jedną grupą, a pliki i tak są dostępne pod
-# jawnym adresem. Flaga „prywatny” w filerze nie jest więc granicą bezpieczeństwa – jest ukryta
-# (filer chowa ją przy wyłączonych uprawnieniach) i zablokowana (``apps.blocks.files``); obu
-# ustawień pilnuje system check ``dj_blocks.E001``.
-FILER_ENABLE_PERMISSIONS = False
+# Uprawnienia folderów **włączone** (DJ-02 D5): folder ``Konkurs: <nazwa> (<slug>)`` należy do redakcji
+# konkursu, ``Wspólne`` – do odczytu dla wszystkich (``apps.sites.permissions``). Porządkują bibliotekę
+# redakcji, a nie chronią plików przed czytelnikiem: flaga „prywatny” nie jest granicą bezpieczeństwa,
+# więc jest ukryta w panelu i zablokowana w kodzie (``apps.blocks.files``). Obu ustawień pilnują
+# system checki ``dj_blocks.E001`` (pliki publiczne) i ``dj_blocks.E002`` (uprawnienia folderów).
+FILER_ENABLE_PERMISSIONS = True
 FILER_IS_PUBLIC_DEFAULT = True
 THUMBNAIL_PROCESSORS = (
     "easy_thumbnails.processors.colorspace",
@@ -412,7 +427,6 @@ STORAGES = {
 # operacja gniazda (połączenie, odczyt) ma najwyżej 1 s (``client.CONNECT_TIMEOUT_SECONDS``).
 DJCMS_MAIN_API_URL = env("DJCMS_MAIN_API_URL", default="http://web:8000/internal/djcms/v2/")
 DJCMS_INTERNAL_TOKEN = env("DJCMS_INTERNAL_TOKEN", default="")
-DJCMS_MAIN_PUBLIC_URL = env("DJCMS_MAIN_PUBLIC_URL", default="http://localhost:8000")
 # Origin publicznego kubełka mediów głównego serwisu (logo organizatora, slider sponsorów) –
 # trafia do ``img-src``/``media-src`` polityki CSP. Pusty = pominięty.
 DJCMS_MAIN_MEDIA_ORIGIN = env("DJCMS_MAIN_MEDIA_ORIGIN", default="")

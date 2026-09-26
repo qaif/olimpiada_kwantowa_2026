@@ -54,9 +54,30 @@ def test_admin_file_form_has_no_private_flag(client, superuser, media_root):
 
 def test_check_requires_public_only_filer(settings):
     assert checks.check_filer_is_public_only() == []
-    settings.FILER_ENABLE_PERMISSIONS = True
     settings.FILER_IS_PUBLIC_DEFAULT = False
-    assert [error.id for error in checks.check_filer_is_public_only()] == ["dj_blocks.E001", "dj_blocks.E001"]
+    assert [error.id for error in checks.check_filer_is_public_only()] == ["dj_blocks.E001"]
+
+
+def test_check_flags_a_private_toggle_left_in_the_admin():
+    from django.contrib.admin import AdminSite
+    from filer.admin.fileadmin import FileAdmin
+    from filer.admin.folderadmin import FolderAdmin
+    from filer.models import File, Folder
+
+    from apps.blocks.files import hide_private_toggle, private_toggle_visible
+
+    site = AdminSite(name="probe")
+    site.register(File, FileAdmin)
+    site.register(Folder, FolderAdmin)
+    assert private_toggle_visible(site) != []  # filer przy włączonych uprawnieniach pokazuje pole i akcje
+    hide_private_toggle(site)
+    assert private_toggle_visible(site) == []
+
+
+def test_check_requires_folder_permissions(settings):
+    assert checks.check_filer_folder_permissions() == []
+    settings.FILER_ENABLE_PERMISSIONS = False
+    assert [error.id for error in checks.check_filer_folder_permissions()] == ["dj_blocks.E002"]
 
 
 # --- szablony i sloty (tabela 6.1) ----------------------------------------------------------------

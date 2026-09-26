@@ -17,7 +17,6 @@ CACHES = {
 # Tokeny i adresy API stałe, niezależne od środowiska, w którym ktoś uruchomił testy.
 DJCMS_INTERNAL_TOKEN = "t" * 48
 DJCMS_MAIN_API_URL = "http://web:8000/internal/djcms/v2/"
-DJCMS_MAIN_PUBLIC_URL = "https://olimpiada.example"
 DJCMS_MAIN_MEDIA_ORIGIN = "https://s3.olimpiada.example"
 # Hosty konkursów w testach wielu witryn: ``testserver`` (konkurs z fixture'a), ``*.olimpiada.example``
 # i domena „własna” (``fizyka.example``).

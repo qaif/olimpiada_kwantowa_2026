@@ -1,13 +1,14 @@
-"""``manage.py export_cms_bundle [--competition SLUG] [--bundle-version 1|2] --output PATH|-`` – paczka CMS.
+"""``manage.py export_cms_bundle [--competition SLUG] --output PATH|-`` – paczka CMS (wersja 2).
 
-Ta sama paczka, którą oddaje ``GET /internal/djcms/v1/export`` (v2: ``…/v2/c/<slug>/export``), tylko
-do pliku albo na standardowe wyjście – dla importu ręcznego i dla przeniesienia treści między
-instalacjami bez sieci compose'a. Raport idzie na **stderr**, bo stdout bywa samą paczką
-(``--output -``): tekst wymieszany z bajtami ZIP-a dałby plik, którego nie otworzy żaden importer.
+Ta sama paczka, którą oddaje ``GET /internal/djcms/v2/c/<slug>/export``, tylko do pliku albo na
+standardowe wyjście – dla importu ręcznego i dla przeniesienia treści między instalacjami bez sieci
+compose'a. Raport idzie na **stderr**, bo stdout bywa samą paczką (``--output -``): tekst wymieszany
+z bajtami ZIP-a dałby plik, którego nie otworzy żaden importer.
 
-Konkurs domyślny jest ten sam, co w API (``djcms_competition``): ``DJCMS_COMPETITION_SLUG`` albo
-konkurs witryny domyślnej. Adresy aplikacji w paczce idą pod adres **tego** konkursu
-(``competition_public_base``); konkurs bez adresu kończy się błędem, zanim powstanie plik.
+Bez ``--competition`` – aktywny konkurs witryny domyślnej (ten spod ``SITE_DOMAIN``). Adresy
+aplikacji w paczce idą pod adres **tego** konkursu (``competition_public_base``); konkurs bez
+adresu kończy się błędem, zanim powstanie plik. Paczki wersji 1 (DJ-01) ta komenda już nie buduje
+– usunięta w DJ-02k razem z API v1.
 """
 
 from __future__ import annotations
@@ -16,9 +17,8 @@ from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
 
-from apps.cms.djcms_api.auth import djcms_competition
-from apps.cms.djcms_api.serializers import competition_public_base
-from apps.cms.export_bundle import BUNDLE_VERSION, SUPPORTED_BUNDLE_VERSIONS, build_bundle
+from apps.cms.djcms_api.serializers import competition_public_base, platform_competition
+from apps.cms.export_bundle import build_bundle
 from apps.tenancy.context import competition_context
 
 
@@ -30,14 +30,7 @@ class Command(BaseCommand):
             "--competition",
             metavar="SLUG",
             default="",
-            help="Identyfikator konkursu. Domyślnie DJCMS_COMPETITION_SLUG albo konkurs witryny domyślnej.",
-        )
-        parser.add_argument(
-            "--bundle-version",
-            type=int,
-            choices=SUPPORTED_BUNDLE_VERSIONS,
-            default=BUNDLE_VERSION,
-            help="Wersja paczki: 1 (DJ-01, domyślna do DJ-02k) albo 2 (przekierowania, strony-dane – DJ-02).",
+            help="Identyfikator konkursu. Domyślnie aktywny konkurs witryny domyślnej.",
         )
         parser.add_argument(
             "--output",
@@ -65,14 +58,11 @@ class Command(BaseCommand):
                     competition,
                     stream=getattr(target, "buffer", target),
                     main_public_url=base,
-                    version=options["bundle_version"],
                 )
             else:
                 path = Path(output)
                 with path.open("wb") as handle:
-                    report = build_bundle(
-                        competition, stream=handle, main_public_url=base, version=options["bundle_version"]
-                    )
+                    report = build_bundle(competition, stream=handle, main_public_url=base)
         self.stderr.write(
             f"Paczka konkursu „{competition.slug}”: {report.pages} stron, {report.images} obrazów, "
             f"{report.documents} dokumentów."
@@ -88,9 +78,7 @@ class Command(BaseCommand):
             if competition is None:
                 raise CommandError(f"Nie ma konkursu o identyfikatorze „{slug}”.")
             return competition
-        competition = djcms_competition()
+        competition = platform_competition()
         if competition is None:
-            raise CommandError(
-                "Nie udało się ustalić konkursu: ustaw DJCMS_COMPETITION_SLUG albo podaj --competition."
-            )
+            raise CommandError("Witryna domyślna nie ma aktywnego konkursu – podaj --competition.")
         return competition

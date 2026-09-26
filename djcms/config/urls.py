@@ -21,14 +21,15 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
-from apps.pages.views import healthz, not_yet_available, preview_toggle, robots_txt, sitemap_xml
+from apps.pages.views import healthz, preview_toggle, robots_txt, sitemap_xml
+from apps.sites.views import sso_login
 
 djcms_patterns = [
     path("healthz/", healthz, name="healthz"),
     # Włączenie/wyłączenie podglądu – ciasteczko ``djcms_view`` na hoście konkursu (DJ-02 D1).
     path("preview/", preview_toggle, name="preview"),
-    # Logowanie redaktorów z ``/cms/`` (SSO, DJ-02g) – adres zarezerwowany, do tego czasu pusta 404.
-    path("sso/", not_yet_available, name="sso"),
+    # Logowanie redaktorów tokenem z ``/cms/`` aplikacji głównej (SSO, DJ-02 D6) – wyłącznie ``POST``.
+    path("sso/", sso_login, name="sso"),
     path("admin/", admin.site.urls),
 ]
 

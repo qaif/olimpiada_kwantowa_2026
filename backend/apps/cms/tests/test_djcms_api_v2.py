@@ -2,7 +2,7 @@
 
 Grupy testów, w kolejności wagi:
 
-1. **bramki (S2)** – te same co w v1: host publiczny (także z dobrym tokenem), brak/zły/krótki token,
+1. **bramki (S2)** – te same co w DJ-01: host publiczny (także z dobrym tokenem), brak/zły/krótki token,
    metoda inna niż ``GET``, zły kształt sluga, nieznany adres → ta sama pusta 404. Dopiero **po**
    bramkach nieistniejący/nieaktywny konkurs → JSON 404 ``no-competition``,
 2. **brak przecieku między konkursami (S1)** – dwa konkursy z unikalnymi napisami: żadna odpowiedź
@@ -11,8 +11,8 @@ Grupy testów, w kolejności wagi:
    ``fingerprint``, brak danych osobowych,
 4. **nowe dane** – ``partners``, pola parytetu w ``chrome`` v2, pełna tabela warsztatów.
 
-Rdzeń endpointów jest wspólny z v1 (``views.py``), więc reguły jawności z DJ-01 (zadania po
-``opens_at``, wyniki z białej listy snapshotu) sprawdzają testy v1; tutaj – że v2 ich nie obchodzi.
+Reguły jawności z DJ-01 (zadania po ``opens_at``, wyniki z białej listy snapshotu) i kształt
+poszczególnych endpointów sprawdza ``test_djcms_api.py``; tutaj – to, co dotyczy wielu konkursów.
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ from django.urls import resolve
 from django.utils import timezone
 from PIL import Image as PILImage
 from wagtail.images import get_image_model
-from wagtail.models import PageViewRestriction
+from wagtail.models import Page, PageViewRestriction
 
 from apps.cms.djcms_api.competitions import APP_LITERAL_PAGE_PATHS, fingerprint
 from apps.cms.djcms_api.views import DEFAULT_DESCRIPTION
@@ -54,7 +54,6 @@ JSON_ENDPOINTS = ("chrome", "stages", "problems", "results", "editions", "worksh
 @pytest.fixture(autouse=True)
 def _api_settings(settings):
     settings.DJCMS_INTERNAL_TOKEN = TOKEN
-    settings.DJCMS_COMPETITION_SLUG = ""
     settings.DJCMS_MAIN_PUBLIC_URL = MAIN
 
 
@@ -210,14 +209,14 @@ def test_a_competition_without_a_public_address_is_503(competition, other_compet
         assert response.json() == {"api_version": 2, "error": "no-public-url"}
 
 
-def test_v1_is_untouched_by_v2(competition):  # noqa: ARG001
-    payload = internal().get("/internal/djcms/v1/chrome").json()
+@pytest.mark.parametrize("endpoint", ["chrome", "stages", "export", "partners", "nie-ma"])
+def test_the_removed_v1_is_an_empty_404(competition, endpoint):  # noqa: ARG001
+    """API v1 usunięte w DJ-02k: poprawny token i host wewnętrzny, a odpowiedź jak zamknięta bramka."""
+    response = internal().get(f"/internal/djcms/v1/{endpoint}")
 
-    assert payload["api_version"] == 1
-    assert set(payload["competition"]) == {"slug", "name"}
-    assert "seo" not in payload
-    assert "ga_measurement_id" not in payload["site"]
-    assert internal().get("/internal/djcms/v1/partners").status_code == 404
+    assert response.status_code == 404
+    assert response.content == b""
+    assert "Location" not in response
 
 
 # --- brak przecieku między konkursami (S1) ------------------------------------------------------
@@ -469,13 +468,52 @@ def test_linked_paths_follow_consent_documents_workshops_and_template_literals(c
 
     paths = competition_entry(get_json("competitions"), competition.slug)["linked_paths"]
 
-    # Dokument zgody stoi w drzewie gdzie indziej – liczy się jego prawdziwa ścieżka; dokument,
-    # którego nie ma, ma adres kanoniczny (dokładnie tam prowadzi wtedy link przy zgodzie).
+    # Dokument zgody stoi w drzewie gdzie indziej – liczy się jego prawdziwa ścieżka.
     assert "/pisma/regulamin/" in paths
-    assert "/dokumenty/rodo/" in paths
     assert "/warsztaty/" in paths
-    assert set(APP_LITERAL_PAGE_PATHS) <= set(paths)
     assert paths == sorted(set(paths))
+    # Dokumentów bez strony (RODO, zgoda opiekuna) nie ma – odpowiadają 404 po obu stronach
+    # przełączenia, więc nie ma czego porównywać (także literał ``/dokumenty/rodo/`` z szablonów).
+    assert not [path for path in paths if path.startswith("/dokumenty/")]
+
+
+def test_template_literals_are_listed_only_with_a_published_public_page(competition):
+    """Konkurs z szablonu nie musi mieć ``/faq/`` ani ``/harmonogram/`` – bez strony nie blokują."""
+    home = HomePage.objects.get(pk=competition.site.root_page_id)
+    Page.objects.child_of(home).filter(slug__in=["faq", "harmonogram", "warsztaty"]).delete()
+
+    paths = competition_entry(get_json("competitions"), competition.slug)["linked_paths"]
+    assert not set(APP_LITERAL_PAGE_PATHS) & set(paths)
+
+    home.add_child(instance=ContentPage(title="FAQ", slug="faq"))
+    schedule = home.add_child(instance=ContentPage(title="Harmonogram", slug="harmonogram"))
+    PageViewRestriction.objects.create(page=schedule, restriction_type=PageViewRestriction.LOGIN)
+    paths = competition_entry(get_json("competitions"), competition.slug)["linked_paths"]
+    assert "/faq/" in paths
+    assert "/harmonogram/" not in paths  # z ograniczonym dostępem – eksport jej nie przenosi
+    assert "/warsztaty/" not in paths
+
+
+def test_consent_documents_are_listed_only_with_a_published_public_page(competition):
+    home = HomePage.objects.get(pk=competition.site.root_page_id)
+    documents = home.add_child(instance=ContentPage(title="Dokumenty", slug="dokumenty"))
+    documents.add_child(instance=DocumentPage(title="Regulamin", slug="regulamin"))
+    rodo = documents.add_child(instance=DocumentPage(title="RODO", slug="rodo"))
+    guardian = documents.add_child(instance=DocumentPage(title="Zgoda", slug="zgoda-opiekuna"))
+    guardian.unpublish()
+    PageViewRestriction.objects.create(page=rodo, restriction_type=PageViewRestriction.LOGIN)
+
+    paths = competition_entry(get_json("competitions"), competition.slug)["linked_paths"]
+
+    assert "/dokumenty/regulamin/" in paths
+    # Nieopublikowana i z ograniczonym dostępem – eksport ich nie przenosi, Wagtail anonimowi ich
+    # nie pokazuje, więc parytet nie ma tu czego sprawdzać.
+    assert "/dokumenty/zgoda-opiekuna/" not in paths
+    assert "/dokumenty/rodo/" not in paths
+
+    PageViewRestriction.objects.filter(page=rodo).delete()
+    paths = competition_entry(get_json("competitions"), competition.slug)["linked_paths"]
+    assert "/dokumenty/rodo/" in paths
 
 
 def test_a_path_prefix_competition_does_not_inherit_template_literals(competition, other_competition):
@@ -488,6 +526,13 @@ def test_a_path_prefix_competition_does_not_inherit_template_literals(competitio
     paths = competition_entry(get_json("competitions"), other_competition.slug)["linked_paths"]
 
     assert "/faq/" not in paths and "/harmonogram/" not in paths
+    # Bez strony dokumentu – bez wpisu (patrz test wyżej); ze stroną – jej ścieżka w drzewie konkursu.
+    assert "/dokumenty/regulamin/" not in paths
+    root = Page.objects.get(pk=other_competition.site.root_page_id)
+    root.add_child(instance=ContentPage(title="Dokumenty", slug="dokumenty")).add_child(
+        instance=DocumentPage(title="Regulamin", slug="regulamin")
+    )
+    paths = competition_entry(get_json("competitions"), other_competition.slug)["linked_paths"]
     assert "/dokumenty/regulamin/" in paths
 
 
@@ -767,13 +812,3 @@ def test_export_v2_returns_a_v2_bundle_of_the_named_competition(competition, oth
     assert {"data_pages", "redirects"} <= set(manifest)
     assert [page["slug"] for page in manifest["pages"]][1:] == ["tylko-b"]
     assert competition.slug not in json.dumps(manifest["competition"])
-
-
-def test_export_v1_still_returns_a_v1_bundle(competition):  # noqa: ARG001
-    response = internal().get("/internal/djcms/v1/export")
-
-    manifest = json.loads(
-        zipfile.ZipFile(io.BytesIO(b"".join(response.streaming_content))).read("manifest.json")
-    )
-    assert manifest["version"] == 1
-    assert "redirects" not in manifest

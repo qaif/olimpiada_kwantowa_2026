@@ -21,8 +21,8 @@ Trzy reguły, których pilnują funkcje niżej (te same, co w docstringu ``apps/
   (PROJEKT.md 2.4).
 
 Funkcje przyjmują **konkurs**, a nie żądanie: strona Wagtaila bierze go z żądania albo z drzewa
-stron (``competition_for_page``), API – z ustawienia ``DJCMS_COMPETITION_SLUG`` albo z witryny
-domyślnej (``apps.cms.djcms_api.auth.djcms_competition``). Kolejność i kształt zapytań są
+stron (``competition_for_page``), API dla djcms – ze ścieżki (``/internal/djcms/v2/c/<slug>/…``,
+``apps.cms.djcms_api.views.endpoint_v2``). Kolejność i kształt zapytań są
 przeniesione bez zmian z dawnych ``get_context`` – budżety zapytań stron pilnują tego testami.
 """
 

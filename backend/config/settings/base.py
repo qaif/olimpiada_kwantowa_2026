@@ -896,26 +896,30 @@ if PLATFORM_SUBDOMAINS:
     ALLOWED_HOSTS = list(dict.fromkeys([*ALLOWED_HOSTS, f".{SITE_DOMAIN}"]))
     CSRF_TRUSTED_ORIGINS = list(dict.fromkeys([*CSRF_TRUSTED_ORIGINS, f"https://*.{SITE_DOMAIN}"]))
 
-# --- wersja porównawcza na django CMS (``dj.<SITE_DOMAIN>``, docs/tasks/DJ-01.md) ---------------
-# Osobny projekt (``djcms/``) czyta dane zawodów i ramę serwisu z wewnętrznego API tej aplikacji
-# (``/internal/djcms/v1/…``, ``apps/cms/djcms_api``). Trzy ustawienia, każde z bezpiecznym
-# domyślnym:
+# --- serwis publiczny na django CMS (``djcms``, docs/tasks/DJ-02.md) -----------------------------
+# Osobny projekt (``djcms/``) czyta dane zawodów i ramę serwisu każdego konkursu z wewnętrznego API
+# tej aplikacji (``/internal/djcms/v2/…``, ``apps/cms/djcms_api``). Dwa ustawienia, każde
+# z bezpiecznym domyślnym:
 #
 # - ``DJCMS_INTERNAL_TOKEN`` – wspólny sekret nagłówka ``X-Djcms-Token``. **Pusty (albo krótszy
 #   niż 32 znaki) wyłącza API całkowicie** – każdy adres gałęzi odpowiada wtedy pustą 404, więc
-#   instalacja bez tej wersji serwisu wygląda dokładnie tak, jak przed jej dodaniem. Krótki,
-#   ale niepusty token zgłasza ``manage.py check`` (``cms.W010``): to literówka, nie wyłączenie,
-# - ``DJCMS_COMPETITION_SLUG`` – konkurs, którego dane oddaje API. Puste = konkurs witryny
-#   domyślnej (ten, który stoi pod ``SITE_DOMAIN``), czyli Konkurs #1,
+#   instalacja bez djcms wygląda dokładnie tak, jak przed jego dodaniem. Krótki, ale niepusty token
+#   zgłasza ``manage.py check`` (``cms.W010``): to literówka, nie wyłączenie,
 # - ``DJCMS_MAIN_PUBLIC_URL`` – publiczny adres tej aplikacji dla konkursu **domeny głównej**. API
-#   zamienia na bezwzględne każdy adres aplikacji (logowanie, wyniki, PDF zadania, dokument), bo pod
-#   ``dj.`` tych adresów nie ma – zostają względne wyłącznie ścieżki stron Wagtaila, które po
-#   imporcie istnieją także tam. Konkurs spoza domeny głównej (``DJCMS_COMPETITION_SLUG``) dostaje
+#   zamienia na bezwzględne każdy adres aplikacji (logowanie, wyniki, PDF zadania, dokument) pod
+#   adresem konkursu (``public_base`` w liście ``competitions``); zostają względne wyłącznie ścieżki
+#   stron Wagtaila, które po imporcie istnieją także w djcms. Konkurs spoza domeny głównej dostaje
 #   adres ze swojej domeny albo prefiksu ścieżki, a stąd bierze się tylko schemat i port
 #   (``apps.cms.djcms_api.serializers.competition_public_base``).
+#
+# ``DJCMS_COMPETITION_SLUG`` (API v1, jeden konkurs) usunięte w DJ-02k – konkurs stoi w ścieżce API.
 DJCMS_INTERNAL_TOKEN = env("DJCMS_INTERNAL_TOKEN", default="")
-DJCMS_COMPETITION_SLUG = env("DJCMS_COMPETITION_SLUG", default="")
 DJCMS_MAIN_PUBLIC_URL = env("DJCMS_MAIN_PUBLIC_URL", default=f"https://{SITE_DOMAIN}")
+# Przejście redaktora z ``/cms/`` do django CMS (SSO, DJ-02 D6, ``apps.cms.djcms_sso``): klucz HMAC
+# jednorazowego tokenu, **ten sam** w ``web`` (tu, z ``.env``) i w djcms (compose przekazuje go
+# jawnie). Co najmniej 32 znaki i inny niż pozostałe sekrety (``cms.W013``); pusty albo krótszy =
+# przejście wyłączone (pozycja menu „Edytuj w django CMS” znika).
+DJCMS_SSO_KEY = env("DJCMS_SSO_KEY", default="")
 
 WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", default="Olimpiada Kwantowa")
 WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL", default=f"https://{SITE_DOMAIN}")
