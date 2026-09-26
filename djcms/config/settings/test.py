@@ -5,6 +5,9 @@ z ``web``. Baza: ``DATABASE_URL`` (w kontenerze rola ``olimpiada_djcms`` z ``CRE
 przez ``scripts/djcms_db.sh --allow-createdb``; w CI usługa postgres joba ``djcms``).
 """
 
+import tempfile
+from pathlib import Path
+
 from .base import *  # noqa: F401,F403
 
 DEBUG = False
@@ -30,3 +33,8 @@ TRUSTED_PROXY_IPS = ["172.30.1.0/24"]
 # ``STATIC_ROOT`` nie ma. Pliki (gdyby test ich potrzebował) biorą się z finderów.
 STATIC_ROOT = None
 WHITENOISE_USE_FINDERS = True
+# Pliki testów poza ``/app/media``: w CI testy biegną na hoście runnera (``/app`` nie istnieje
+# i nie da się go założyć), a w kontenerze nie zaśmiecają prawdziwego wolumenu mediów. filer
+# wylicza katalog plików prywatnych (``../smedia``) z ``MEDIA_ROOT`` przy starcie, więc ustawienie
+# musi paść tutaj, a nie dopiero w fixturze.
+MEDIA_ROOT = env("DJCMS_TEST_MEDIA_ROOT", default=str(Path(tempfile.gettempdir()) / "djcms-test" / "media"))  # noqa: F405
