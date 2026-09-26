@@ -20,9 +20,11 @@ class CmsConfig(AppConfig):
         # Czwarty: członkostwo w grupach ``cms:<slug>`` idzie za rolą koordynatora
         # (apps/cms/signals.py). Bez tego koordynator nadany po ``scope_cms_access`` nie miałby
         # ``/cms/`` do najbliższego ręcznego przebiegu komendy.
+        # Piąty: rejestracja kontroli ``manage.py check`` (apps/cms/checks.py, ``cms.W010``).
         from . import (  # noqa: F401
             analytics,
             announcements,
+            checks,
             signals,  # noqa: F401
             sponsor_slider,
         )

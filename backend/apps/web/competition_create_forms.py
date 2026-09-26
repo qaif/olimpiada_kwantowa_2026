@@ -65,6 +65,11 @@ RESERVED_LABELS = frozenset(
         "autoconfig",
         "autodiscover",
         "cms",
+        # Wersja porównawcza serwisu na django CMS (``dj.<SITE_DOMAIN>``, docs/tasks/DJ-01.md).
+        # Blok Caddy'ego z tą nazwą wygrywa z ``*.<SITE_DOMAIN>``, więc konkurs pod tym adresem
+        # nigdy by się nie otworzył. Dziś odpadłby i tak na długości (min. 3 znaki) – wpis jest
+        # tu po to, żeby rezerwacja nie zależała od przypadkowej reguły kształtu.
+        "dj",
         "ftp",
         "imap",
         "internal",

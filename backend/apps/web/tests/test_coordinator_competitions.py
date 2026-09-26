@@ -161,7 +161,7 @@ def test_the_list_does_not_show_a_competition_of_someone_else(coordinator_client
 # --- walidacja identyfikatora ----------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("slug", ["www", "mail", "ns1", "admin", "cms", "internal", "setup"])
+@pytest.mark.parametrize("slug", ["www", "mail", "ns1", "admin", "cms", "internal", "setup", "dj"])
 def test_a_reserved_label_is_refused(coordinator_client, slug):
     """Nazwy poczty, serwerów nazw i adresów aplikacji nie mogą zostać identyfikatorem konkursu."""
     client, _ = coordinator_client
@@ -170,6 +170,15 @@ def test_a_reserved_label_is_refused(coordinator_client, slug):
 
     assert response.status_code == 400
     assert not Competition.objects.filter(slug=slug).exists()
+
+
+def test_the_django_cms_comparison_label_is_reserved():
+    """``dj`` to adres wersji porównawczej na django CMS (DJ-01) – zarezerwowany jawnie, a nie tylko
+    przez to, że dwa znaki są dziś za krótkie na identyfikator."""
+    from apps.web.competition_create_forms import RESERVED_LABELS, reserved_labels
+
+    assert "dj" in RESERVED_LABELS
+    assert "dj" in reserved_labels()
 
 
 @pytest.mark.parametrize("slug", ["ab", "-fizyczna", "fizyczna-", "fi zyczna", "fizyczna!", "fizyczna."])
