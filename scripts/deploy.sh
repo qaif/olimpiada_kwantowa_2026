@@ -78,8 +78,10 @@
 # budowaniem). Wdrożenie trybu NIE zmienia – przełącza scripts/djcms_switch.sh on|off (bez restartu
 # kontenerów). Przy DJCMS_ENABLED=1 krok „dj.” dodatkowo: odtwarza `proxy`, gdy kontener widzi starą
 # treść Caddyfile'a (krok 2/8 tworzy katalog deploy/ od nowa, a montaż pojedynczego pliku zostaje
-# przy starym i-węźle), uzgadnia rejestr konkursów djcms (`sync_competitions`), a przy
-# DJCMS_PRIMARY=1 kończy kontrolą dymną (`djcms_switch.sh check`).
+# przy starym i-węźle), uzgadnia rejestr konkursów djcms (`sync_competitions --import-missing` –
+# treść dla witryn bez stron; flaga tylko przy obrazie djcms, który ją zna), a przy DJCMS_PRIMARY=1
+# kończy kontrolą dymną (`djcms_switch.sh check`). Samo przełączenie treści i trybu:
+# scripts/djcms_cutover.sh (docs/OPERACJE.md § 22.9).
 set -euo pipefail
 
 MAINTENANCE=0
@@ -955,11 +957,23 @@ if [ -n "$DJCMS_ADMIN_EMAIL" ] && [ -n "$DJCMS_ADMIN_PASSWORD" ]; then
 fi
 # Rejestr konkursów djcms (DJ-02 D7): witryny nowych konkursów, hosty, wygaszenie nieaktywnych – przy
 # każdym wdrożeniu, PRZED importem (import potrzebuje witryny konkursu). Idempotentne.
-# DJ-02e dokłada `--import-missing` (drzewa startowe nowych konkursów).
-docker compose exec -T djcms python manage.py sync_competitions </dev/null
+# `--import-missing` (DJ-02e): każda aktywna witryna BEZ ŻADNEJ strony dostaje treść z eksportu
+# swojego konkursu (drzewo startowe nowego konkursu; bez limitu stron, który obowiązuje w żądaniu).
+# Witryn ze stronami nie rusza – redakcji djcms żadne wdrożenie nie nadpisuje. Flaga tylko wtedy,
+# gdy obraz djcms ją zna (`--help`): obraz sprzed DJ-02e odrzuciłby nieznany argument, a wdrożenie
+# kodu i obrazu z rejestru (DJCMS_IMAGE) w różnych wersjach nie może przez to paść.
+# Pomoc do zmiennej, a nie `| grep -q`: grep kończący czytanie po pierwszym trafieniu mógłby zabić
+# docker SIGPIPE-em, a pipefail zamieniłby to w „flagi nie ma”.
+SYNC_ARGS=""
+SYNC_HELP="$(docker compose exec -T djcms python manage.py sync_competitions --help </dev/null 2>/dev/null || true)"
+case "$SYNC_HELP" in *--import-missing*) SYNC_ARGS="--import-missing" ;; esac
+# shellcheck disable=SC2086 # SYNC_ARGS: zero albo jeden argument bez spacji
+docker compose exec -T djcms python manage.py sync_competitions $SYNC_ARGS </dev/null
 IMPORT="$(sed -n 's/^DJCMS_INITIAL_IMPORT=//p' .env | tail -n 1 | tr -d '\r\042\047')"
 if [ "$IMPORT" = "pending" ]; then
-  # Pierwszy import treści Wagtaila – raz, przy pierwszym włączeniu. `--if-empty`: gdyby w dj.
+  # Pierwszy import treści Wagtaila – raz, przy pierwszym włączeniu (znacznik z DJ-01h zostaje dla
+  # konkursu domyślnego). Po `sync_competitions --import-missing` wyżej witryna domyślna ma już
+  # strony, więc to jest no-op (kod 0), który tylko przestawia znacznik na `done`. `--if-empty`: gdyby w dj.
   # były już strony (np. import ręczny), komenda kończy się bez zmian; treści redakcji dj. żadne
   # wdrożenie nie nadpisuje. Pełny ponowny import (`--replace`) jest wyłącznie ręczny (§ 22.4).
   if docker compose exec -T djcms python manage.py import_cms_bundle --from-api --if-empty </dev/null; then

@@ -1305,6 +1305,45 @@ Regulamin, polityka RODO, standardy ochrony małoletnich, skład komitetów, pol
 jako strony w `/dokumenty/` redagowane w `/cms/`, z załącznikami do pobrania (PDF, opcjonalnie DOCX).
 Kolejność, treść i załączniki należą do **redakcji**; wdrożenie aplikacji ich nie nadpisuje.
 
+### 7.3a Strony serwisu po przełączeniu na django CMS
+
+Część informacyjna serwisu (strona główna, regulamin w `/dokumenty/`, FAQ, aktualności i pozostałe
+strony redakcyjne) może zostać przeniesiona z Wagtaila (`/cms/`) do **django CMS**. Przełączenie
+robi administrator jednym poleceniem, **po zgodzie organizatora**, dla wszystkich konkursów naraz
+(`PODRECZNIK-ADMINISTRATORA.md` § 5.2). Adresy stron się nie zmieniają; logowanie, panele,
+zgłoszenia, wyniki i terminy działają dokładnie tak jak wcześniej — zmienia się wyłącznie miejsce,
+w którym redaguje się strony.
+
+**Przed przełączeniem (administrator poda termin):**
+
+- dokończ zmiany w `/cms/` – końcowy import bierze treść stron **z chwili przełączenia**,
+- **nie redaguj** stron w podglądzie django CMS – końcowy import je nadpisze. Jeśli redakcja
+  Twojego konkursu już tam pracuje, powiedz o tym administratorowi: przełączy Twój konkurs bez
+  importu (jego treść w django CMS zostanie taka, jak jest).
+
+**Po przełączeniu:**
+
+| Co | Gdzie |
+|---|---|
+| strony (tekst, zdjęcia, menu, nowe podstrony) | **django CMS**: `https://<adres konkursu>/djcms/admin/`; wejście z `/cms/` pozycją menu „Edytuj w django CMS” (bez osobnego hasła) – jeśli jej jeszcze nie widzisz, konto zakłada administrator |
+| tabela warsztatów (`/warsztaty/`) i partnerzy (`/partnerzy/`, slider sponsorów) | **nadal `/cms/`** – django CMS pokazuje je na bieżąco z aplikacji |
+| ustawienia serwisu (dane organizatora, logotyp), obrazy, dokumenty PDF | **nadal `/cms/`** |
+| terminy, zadania, wyniki, komunikaty | bez zmian – panel koordynatora |
+
+Pozostałe strony w `/cms/` są **tylko do odczytu**: na górze panelu stoi baner „Edycja treści
+przeniesiona do django CMS”, a przyciski edycji, publikacji, przenoszenia i usuwania stron są
+ukryte (próba zapisu kończy się odmową). Redaktor widzi i edytuje w django CMS wyłącznie strony
+**swojego** konkursu.
+
+**Gdyby trzeba było wrócić do Wagtaila** (decyzja organizatora, administrator robi to w kilka
+sekund): odwiedzający zobaczą strony w stanie z **chwili przełączenia** – zmiany zrobione później
+w django CMS do Wagtaila **nie wracają**. Dopóki administrator nie odblokuje edycji w `/cms/`,
+stron nie da się tam poprawiać; przy ponownym przejściu na django CMS wraca treść z django CMS.
+
+Zmieniając adres (slug) strony w django CMS, pamiętaj, że aplikacja linkuje do regulaminu
+i dokumentów zgód (`/dokumenty/…`) oraz do `/warsztaty/` – takie strony zostaw pod dotychczasowym
+adresem; stary adres innej strony przekierowuje się na nowy sam.
+
 ### 7.4 Zgoda opiekuna — jak serwis ustala pełnoletność
 
 Od wydania `v0.30.0` rejestracja pyta o **pełną datę urodzenia**, a nie o sam rocznik. Zmiana ma
