@@ -15,6 +15,8 @@ import copy
 import hashlib
 import io
 import json
+import shutil
+import sys
 import zipfile
 from datetime import date
 from pathlib import Path
@@ -448,7 +450,9 @@ def test_from_api_source(superuser, main_api):
     main_api.set("export", raw=build_zip())
     out = call("--from-api")
     assert "Pobrano paczkę z API" in out and "Strony: 16" in out
-    assert main_api.requests[0].get_header("Accept") == "application/zip"
+    # Najpierw lista konkursów (konkurs domyślny – DJ-02d), potem paczka.
+    assert main_api.requests[-1].full_url.endswith("/internal/djcms/v2/c/kwantowa/export")
+    assert main_api.requests[-1].get_header("Accept") == "application/zip"
 
 
 def test_from_api_failure_is_a_command_error(superuser, main_api):
@@ -475,6 +479,124 @@ def test_user_option(superuser, editor, bundle_file):
 def test_without_superuser_import_needs_user(db, bundle_file):
     with pytest.raises(CommandError, match="Brak aktywnego superusera"):
         call(str(bundle_file))
+
+
+# --- plik tymczasowy paczki: wolumen mediów, nie /tmp (tmpfs 64 MB w kontenerze) ------------------
+
+
+@pytest.fixture(autouse=True)
+def free_space(monkeypatch):
+    """Wolne miejsce na dysku mediów widziane przez komendę: domyślnie dużo.
+
+    Bez tego wynik testów zależałby od maszyny – w kontenerze djcms ``tmp_path`` pytesta leży na
+    tmpfs ``/tmp`` o pojemności 64 MB, czyli poniżej zapasu ``SPOOL_FREE_RESERVE_BYTES``. Test
+    ustawia ``free_space.values`` na listę kolejnych odpowiedzi (ostatnia się powtarza).
+    """
+    from apps.importer.management.commands import import_cms_bundle as command
+
+    usage = shutil.disk_usage(".")
+
+    class Free:
+        values = [10 * 2**30]
+        calls = 0
+
+        def __call__(self, _path):
+            value = self.values[min(self.calls, len(self.values) - 1)]
+            self.calls += 1
+            return usage._replace(free=value)
+
+    fake = Free()
+    monkeypatch.setattr(command.shutil, "disk_usage", fake)
+    return fake
+
+
+@pytest.fixture
+def spool_dirs(monkeypatch):
+    """Zapisuje ``dir`` każdego ``TemporaryFile`` komendy (prawdziwy plik powstaje dalej)."""
+    from apps.importer.management.commands import import_cms_bundle as command
+
+    seen: list = []
+    real = command.tempfile.TemporaryFile
+
+    def spy(*args, **kwargs):
+        seen.append(kwargs.get("dir"))
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(command.tempfile, "TemporaryFile", spy)
+    return seen
+
+
+def test_api_bundle_is_spooled_on_the_media_volume(superuser, main_api, media_root, spool_dirs):
+    main_api.set("export", raw=build_zip())
+    call("--from-api")
+    # Katalog wprost – nie ``None`` (= domyślne /tmp, w kontenerze tmpfs 64 MB przy limicie 500 MB).
+    assert [Path(d) for d in spool_dirs] == [media_root]
+    # Plik tymczasowy nie zostawia nazwy w katalogu mediów (Caddy podaje go pod /media/*).
+    assert not [path for path in media_root.iterdir() if path.is_file()]
+
+
+def test_stdin_bundle_is_spooled_on_the_media_volume(superuser, monkeypatch, media_root, spool_dirs):
+    class Stdin:
+        buffer = io.BytesIO(build_zip())
+
+    monkeypatch.setattr(sys, "stdin", Stdin)
+    call("-", "--dry-run")
+    assert [Path(d) for d in spool_dirs] == [media_root]
+    assert not [path for path in media_root.rglob("*") if path.is_file()]
+
+
+def test_spool_file_is_gone_after_a_failed_import(superuser, main_api, media_root):
+    main_api.set("export", raw=b"to nie jest zip")
+    with pytest.raises(CommandError, match="Paczka odrzucona"):
+        call("--from-api")
+    assert not [path for path in media_root.rglob("*") if path.is_file()]
+
+
+def test_spool_creates_missing_media_root(superuser, main_api, settings, tmp_path):
+    settings.MEDIA_ROOT = str(tmp_path / "jeszcze" / "nie-ma")
+    main_api.set("export", raw=build_zip())
+    assert "Strony: 16" in call("--from-api", "--dry-run")
+
+
+def test_full_disk_is_refused_before_download(superuser, main_api, free_space):
+    from apps.importer.management.commands import import_cms_bundle as command
+
+    free_space.values = [command.SPOOL_FREE_RESERVE_BYTES - 1]
+    main_api.set("export", raw=build_zip())
+    with pytest.raises(CommandError, match="Za mało miejsca"):
+        call("--from-api")
+    assert main_api.calls("export") == 0
+
+
+def test_disk_filling_up_during_download_is_a_clear_error(superuser, main_api, free_space, media_root):
+    from apps.importer.management.commands import import_cms_bundle as command
+
+    # Przed pobraniem miejsce jest, przy pierwszym zapisie już nie (paczka zjadłaby zapas).
+    data = build_zip()
+    free_space.values = [10 * 2**30, command.SPOOL_FREE_RESERVE_BYTES + len(data) - 1]
+    main_api.set("export", raw=data)
+    # „Za mało miejsca”, a nie „connection (OSError)” – tak kończył się pełny /tmp.
+    with pytest.raises(CommandError, match="Za mało miejsca"):
+        call("--from-api")
+    assert main_api.calls("export") == 1
+    assert not [path for path in media_root.rglob("*") if path.is_file()]
+
+
+def test_free_space_is_checked_again_every_few_megabytes(tmp_path, free_space):
+    from apps.importer.management.commands import import_cms_bundle as command
+
+    spool = command._GuardedSpool(io.BytesIO(), tmp_path)
+    chunk = b"x" * (64 * 1024)
+    for _ in range(command.SPOOL_CHECK_EVERY_BYTES // len(chunk) * 3):
+        spool.write(chunk)
+    assert free_space.calls == 3  # pierwszy zapis + co SPOOL_CHECK_EVERY_BYTES
+
+
+def test_bundle_given_as_path_is_read_in_place(superuser, bundle_file, free_space, spool_dirs):
+    # Plik z dysku nie potrzebuje kopii – ani pliku tymczasowego, ani sprawdzania miejsca.
+    assert "Strony: 16" in call(str(bundle_file), "--dry-run")
+    assert spool_dirs == []
+    assert free_space.calls == 0
 
 
 # --- walidacja paczki -----------------------------------------------------------------------------

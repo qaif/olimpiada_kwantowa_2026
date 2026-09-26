@@ -38,7 +38,7 @@
 {% endif %}
 
 <div class="card card--quiet">
-  <p>Nie znalazłeś odpowiedzi? <a href="{% if dj_chrome.links.support %}{{ dj_chrome.links.support }}{% else %}{{ "/support/new/"|dj_main_url }}{% endif %}">Zgłoś problem organizatorowi</a> –
+  <p>Nie znalazłeś odpowiedzi? <a href="{% if dj_chrome.links.support %}{{ dj_chrome.links.support }}{% else %}{% dj_main_href "/support/new/" %}{% endif %}">Zgłoś problem organizatorowi</a> –
     opiszemy sprawę wspólnie, a odpowiedź dostaniesz e-mailem.</p>
 </div>
 {% endblock %}

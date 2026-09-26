@@ -11,7 +11,7 @@ def check_filer_is_public_only(app_configs=None, **kwargs):
     """``dj_blocks.E001``: filer musi działać bez uprawnień i z plikami publicznymi (``files.py``).
 
     Błąd, a nie ostrzeżenie: włączenie uprawnień odsłoniłoby redaktorom pole „prywatny”, którego
-    na ``dj.`` nikt nie egzekwuje (``/media/*`` serwuje Caddy bez pytania Django o zgodę).
+    na ``dj.`` nikt nie egzekwuje (``/djcms/media/*`` serwuje Caddy bez pytania Django o zgodę).
     """
     errors = []
     if getattr(settings, "FILER_ENABLE_PERMISSIONS", False):

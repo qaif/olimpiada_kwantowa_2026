@@ -440,9 +440,14 @@ services:
       DJANGO_SETTINGS_MODULE: config.settings.production
       DJCMS_SECRET_KEY: ${DJCMS_SECRET_KEY:-}
       DATABASE_URL: postgres://olimpiada_djcms:${DJCMS_DB_PASSWORD:-}@db:5432/olimpiada_djcms
+      # Hosty djcms (DJ-02 § 5.4): te same zmienne co aplikacja główna – djcms odpowiada pod każdym
+      # hostem konkursu (+ dj.<SITE_DOMAIN>). DJCMS_ALLOWED_HOSTS tylko dokłada wpisy.
+      SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
+      EXTRA_DOMAINS: ${EXTRA_DOMAINS:-}
+      PLATFORM_SUBDOMAINS: ${PLATFORM_SUBDOMAINS:-0}
       DJCMS_ALLOWED_HOSTS: dj.${SITE_DOMAIN:-localhost},127.0.0.1,localhost
       DJCMS_CSRF_TRUSTED_ORIGINS: https://dj.${SITE_DOMAIN:-localhost}
-      DJCMS_MAIN_API_URL: http://web:8000/internal/djcms/v1/
+      DJCMS_MAIN_API_URL: http://web:8000/internal/djcms/v2/
       DJCMS_INTERNAL_TOKEN: ${DJCMS_INTERNAL_TOKEN:-}
       DJCMS_MAIN_PUBLIC_URL: ${DJCMS_MAIN_PUBLIC_URL:-https://${SITE_DOMAIN:-localhost}}
       DJCMS_MAIN_MEDIA_ORIGIN: ${S3_PUBLIC_ENDPOINT_URL:-https://s3.${SITE_DOMAIN:-localhost}}
@@ -464,9 +469,10 @@ services:
     depends_on:
       db: { condition: service_healthy }
     healthcheck:
-      # /healthz/ sprawdza wyłącznie bazę djcms – nie API aplikacji głównej (niedostępny `web`
-      # to degradacja sekcji żywych, a nie powód do restartu djcms).
-      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz/', timeout=3).status==200 else 1)"]
+      # /djcms/healthz/ sprawdza wyłącznie bazę djcms – nie API aplikacji głównej (niedostępny `web`
+      # to degradacja sekcji żywych, a nie powód do restartu djcms) i nie rejestr konkursów.
+      # Wszystkie adresy aplikacyjne djcms są pod /djcms/ (DJ-02 D2).
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/djcms/healthz/', timeout=3).status==200 else 1)"]
       interval: 15s
       timeout: 5s
       retries: 5

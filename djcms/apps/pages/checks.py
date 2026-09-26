@@ -1,10 +1,11 @@
 """System checki djcms.
 
-``dj_pages.W001`` – opublikowana strona pod adresem zarezerwowanym dla aplikacji (reguła 5 z § 7
-docs/tasks/DJ-01.md). ``config/urls.py`` i tak stawia adresy aplikacji przed ``cms.urls``, więc
-taka strona niczego nie przesłoni – ale jest **niewidoczna** (redaktor ją publikuje, a pod
-adresem jest panel albo healthcheck), a to chcemy zobaczyć w logu, nie w zgłoszeniu od redakcji.
-Import odrzuca takie slugi sam; ten check łapie strony utworzone ręcznie w panelu.
+``dj_pages.W001`` – opublikowana strona pod adresem, który należy do aplikacji (reguła 5 z § 7
+docs/tasks/DJ-01.md, S5 docs/tasks/DJ-02.md): pierwszy segment zarezerwowany albo ścieżka pasująca
+do tras aplikacji głównej z kontraktu (``apps.pages.validation.path_collides_with_app``). Caddy
+wysyła taki adres do ``web``, więc strona jest **niewidoczna** – redaktor ją publikuje, a pod
+adresem jest aplikacja. Formularze django CMS odrzucają taki adres już przy zapisie; ten check
+łapie strony sprzed reguły, z importu i z ręcznych zmian w bazie – w każdej witrynie.
 
 Check pyta bazę, więc jest oznaczony tagiem ``database`` i działa wtedy, gdy Django przekaże
 listę baz: przy ``migrate`` (entrypoint kontenera – czyli przy każdym starcie) i przy
@@ -14,9 +15,10 @@ w czasie budowania obrazu, bez bazy) go pomija.
 
 from __future__ import annotations
 
-from django.conf import settings
 from django.core.checks import Tags, Warning, register
 from django.db import DatabaseError
+
+from .validation import path_collides_with_app
 
 
 @register(Tags.database)
@@ -25,17 +27,19 @@ def reserved_slug_pages(app_configs=None, databases=None, **kwargs):
         return []
     from cms.models import PageContent, PageUrl
 
-    reserved = sorted(settings.DJ_RESERVED_SLUGS)
     try:
-        # ``path``, a nie ``slug`` + głębokość: przesłonięty jest **adres** – strona korzenia
-        # o slugu ``admin`` ma ``path == "admin"``, a dziecko strony głównej (której slug nie
-        # wchodzi do adresu dzieci) też może mieć taki ``path``.
-        urls = list(PageUrl.objects.filter(path__in=reserved).values_list("page_id", "path"))
+        # ``path``, a nie ``slug`` + głębokość: przesłonięty jest **adres** – dziecko strony
+        # głównej (której slug nie wchodzi do adresu dzieci) ma ``path`` równy swojemu slugowi.
+        urls = [
+            (page_id, site_id, path, reason)
+            for page_id, site_id, path in PageUrl.objects.values_list("page_id", "page__site_id", "path")
+            if (reason := path_collides_with_app(path))
+        ]
         if not urls:
             return []
         # ``PageContent.objects`` przy djangocms-versioning zwraca wyłącznie wersje opublikowane.
         published = set(
-            PageContent.objects.filter(page_id__in=[page_id for page_id, _ in urls]).values_list(
+            PageContent.objects.filter(page_id__in=[page_id for page_id, *_ in urls]).values_list(
                 "page_id", flat=True
             )
         )
@@ -44,14 +48,14 @@ def reserved_slug_pages(app_configs=None, databases=None, **kwargs):
         return []
     return [
         Warning(
-            f"Opublikowana strona (id={page_id}) ma adres /{path}/ zarezerwowany dla aplikacji djcms.",
+            f"Opublikowana strona (id={page_id}, witryna {site_id}) ma adres /{path}/: {reason}.",
             hint=(
-                "Adres należy do aplikacji (config/urls.py stoi przed cms.urls), więc strona jest "
-                "niewidoczna. Zmień jej slug w panelu. Zarezerwowane: " + ", ".join(reserved)
+                "Caddy kieruje ten adres do aplikacji głównej, więc strona jest niewidoczna. "
+                "Zmień jej slug (albo slug rodzica) w panelu djcms."
             ),
             obj=f"page:{page_id}",
             id="dj_pages.W001",
         )
-        for page_id, path in sorted(urls)
+        for page_id, site_id, path, reason in sorted(urls)
         if page_id in published
     ]

@@ -49,7 +49,7 @@ EMBED_FRAME_SOURCES = (
 ROBOTS_HEADER = "X-Robots-Tag"
 ROBOTS_VALUE = "noindex, nofollow, noarchive"
 
-FALLBACK_ADMIN_PREFIX = "/admin/"
+FALLBACK_ADMIN_PREFIX = "/djcms/admin/"
 
 
 def media_origin() -> str:

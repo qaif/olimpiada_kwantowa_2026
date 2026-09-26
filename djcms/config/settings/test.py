@@ -16,10 +16,16 @@ CACHES = {
 }
 # Tokeny i adresy API stałe, niezależne od środowiska, w którym ktoś uruchomił testy.
 DJCMS_INTERNAL_TOKEN = "t" * 48
-DJCMS_MAIN_API_URL = "http://web:8000/internal/djcms/v1/"
+DJCMS_MAIN_API_URL = "http://web:8000/internal/djcms/v2/"
 DJCMS_MAIN_PUBLIC_URL = "https://olimpiada.example"
 DJCMS_MAIN_MEDIA_ORIGIN = "https://s3.olimpiada.example"
-ALLOWED_HOSTS = ["testserver", "localhost", "127.0.0.1"]
+# Hosty konkursów w testach wielu witryn: ``testserver`` (konkurs z fixture'a), ``*.olimpiada.example``
+# i domena „własna” (``fizyka.example``).
+ALLOWED_HOSTS = ["testserver", "localhost", "127.0.0.1", "djcms", ".olimpiada.example", "fizyka.example"]
+# Bez odświeżania leniwego rejestru: testy ustawiają witryny wprost (``conftest.py``), a odświeżenie
+# pytałoby (zamockowane) API o listę konkursów przy każdym pierwszym żądaniu testu i otwierało
+# bezpiecznik. Testy odświeżania włączają je same.
+DJCMS_SITES_REFRESH_SECONDS = 0
 TRUSTED_PROXY_IPS = ["172.30.1.0/24"]
 # Testy nie robią ``collectstatic``, a WhiteNoise ostrzega przy każdym starcie middleware, gdy katalogu
 # ``STATIC_ROOT`` nie ma. Pliki (gdyby test ich potrzebował) biorą się z finderów.

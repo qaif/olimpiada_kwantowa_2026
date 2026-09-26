@@ -3,7 +3,8 @@
 #
 # Kontekst budowania = KORZEŃ repozytorium (nie ``djcms/``): obraz kopiuje ``backend/static``
 # do ``/opt/shared_static`` – te same arkusze, skrypty i fonty co aplikacja główna, bez kopii
-# w repozytorium, która mogłaby się rozjechać. Co wchodzi do kontekstu, mówi
+# w repozytorium, która mogłaby się rozjechać – oraz kontrakt tras ``backend/djcms_contract``
+# do ``/opt/djcms_contract`` (DJ-02 § 6). Co wchodzi do kontekstu, mówi
 # ``djcms/Dockerfile.dockerignore`` (BuildKit bierze plik ``<Dockerfile>.dockerignore`` zamiast
 # ``.dockerignore`` z korzenia).
 
@@ -41,6 +42,9 @@ RUN groupadd -g 1000 app && useradd -u 1000 -g app -m -s /usr/sbin/nologin app
 WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 COPY backend/static/ /opt/shared_static/
+# Kontrakt tras aplikacji głównej (``app_routes.json`` z ``manage.py djcms_routes --write``, DJ-02 § 6):
+# djcms odrzuca strony pod adresami aplikacji (S5). Bez pliku ustawienia nie wstają (poza budowaniem).
+COPY backend/djcms_contract/ /opt/djcms_contract/
 COPY --chown=app:app djcms/ /app/
 # ``/app/media`` należy do ``app``: nazwany wolumen ``djcms_media`` przy pierwszym montażu przejmuje
 # właściciela z obrazu – inaczej byłby rootowy i filer nie zapisałby ani jednego pliku.

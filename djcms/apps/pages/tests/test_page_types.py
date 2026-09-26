@@ -264,7 +264,7 @@ def test_document_page(client, make_page, superuser, main_api, chrome_payload):
     assert '<meta name="description" content="Regulamin (wersja 2.0) – dokument Olimpiady' in html
     # ``print.js`` ze wspólnym nonce – reguła 6.
     nonce = _nonce(response)
-    assert f'<script defer nonce="{nonce}" src="/static/js/print.js"></script>' in html
+    assert f'<script defer nonce="{nonce}" src="/djcms/static/js/print.js"></script>' in html
     for tag in re.findall(r"<script\b[^>]*>", html):
         assert f'nonce="{nonce}"' in tag, tag
 
@@ -306,7 +306,8 @@ def test_partners_grouped_by_level_order(client, make_page, superuser, media_roo
     assert f'{link} rel="noopener noreferrer">' in html
     assert '<div class="partner-card__mark partner-card__mark--logo">' in html
     assert re.search(
-        r'<img alt="Instytut Fizyki PAN" class="partner-card__logo" height="\d+" loading="lazy" src="/media/',
+        r'<img alt="Instytut Fizyki PAN" class="partner-card__logo" height="\d+" loading="lazy" '
+        r'src="/djcms/media/',
         html,
     )
     assert '<span class="partner-card__initials" aria-hidden="true">UT</span>' in html
@@ -452,7 +453,7 @@ def test_faq_anchor_survives_new_version(make_page, superuser):
 def test_extension_admin_refuses_published_content(client, make_page, superuser):
     _page, content, _ph = f.draft(make_page, "Aktualność", "aktualnosc", "dj/pages/news.html")
     client.force_login(superuser)
-    url = f"/admin/dj_pages/newsmeta/add/?extended_object={content.pk}"
+    url = f"/djcms/admin/dj_pages/newsmeta/add/?extended_object={content.pk}"
     response = client.post(url, {"date": "2026-09-01", "lead": "Szkic"})
     assert response.status_code == 302
     assert NewsMeta.objects.get(extended_object=content).lead == "Szkic"
@@ -460,7 +461,7 @@ def test_extension_admin_refuses_published_content(client, make_page, superuser)
     f.publish(content, superuser)
     meta = NewsMeta.objects.get(extended_object=content)
     response = client.post(
-        f"/admin/dj_pages/newsmeta/{meta.pk}/change/", {"date": "2026-09-02", "lead": "Po cichu"}
+        f"/djcms/admin/dj_pages/newsmeta/{meta.pk}/change/", {"date": "2026-09-02", "lead": "Po cichu"}
     )
     assert response.status_code == 403
     assert NewsMeta.objects.get(pk=meta.pk).lead == "Szkic"
@@ -470,7 +471,7 @@ def test_extension_admin_refuses_published_content(client, make_page, superuser)
 def test_archive_meta_form_offers_editions_from_api(client, make_page, superuser, main_api):
     _page, content, _ph = f.draft(make_page, "Edycja 0", "edycja-0", "dj/pages/archive_edition.html")
     client.force_login(superuser)
-    url = f"/admin/dj_pages/archivemeta/add/?extended_object={content.pk}"
+    url = f"/djcms/admin/dj_pages/archivemeta/add/?extended_object={content.pk}"
     html = client.get(url).content.decode()  # API martwe – zwykłe pole liczbowe
     assert 'type="number" name="edition_id"' in html
     assert "Lista edycji jest chwilowo niedostępna" in html
@@ -556,7 +557,7 @@ def test_editor_can_open_add_form_of_every_plugin(client, make_page, superuser, 
     _page, _content, ph = f.draft(make_page, "Strona", "strona", template)
     client.force_login(superuser)
     response = client.get(
-        "/admin/cms/placeholder/add-plugin/",
+        "/djcms/admin/cms/placeholder/add-plugin/",
         {
             "placeholder_id": ph[slot].pk,
             "plugin_type": plugin_type,
@@ -578,7 +579,7 @@ def test_editor_adds_notice_through_admin_form_and_html_is_cleaned(client, make_
         "&cms_path=/strona/"
     )
     response = client.post(
-        "/admin/cms/placeholder/add-plugin/" + query,
+        "/djcms/admin/cms/placeholder/add-plugin/" + query,
         {"tone": "warning", "text": "<p>Uwaga<script>alert(1)</script></p>"},
     )
     assert response.status_code == 200

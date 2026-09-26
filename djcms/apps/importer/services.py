@@ -52,6 +52,7 @@ from typing import IO, Any
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.management.base import CommandError
 from django.core.validators import validate_email, validate_slug
 from django.db import transaction
 from django.utils.text import get_valid_filename, slugify
@@ -104,8 +105,28 @@ class BundleError(Exception):
     """Paczka nie przeszła walidacji – nic nie zostało zapisane."""
 
 
-class ImportRefused(Exception):  # noqa: N818 - nazwa mówi, co się stało
-    """W witrynie są strony, a nie podano ``--replace`` (ani ``--if-empty``)."""
+class ImportRefused(CommandError):  # noqa: N818 - nazwa mówi, co się stało
+    """W witrynie są strony, a nie podano ``--replace`` (ani ``--if-empty``) – albo witryny nie ma.
+
+    Podklasa ``CommandError``: wołana z komendy (także spoza jej ``try``, np. z ``site_has_pages``
+    przy pustym rejestrze konkursów) kończy się czytelnym komunikatem i kodem 1, a nie śladem stosu.
+    """
+
+
+def target_site(site=None):
+    """Witryna importu: podana jawnie albo witryna konkursu domyślnego (``apps.sites.registry``).
+
+    Bez ``SITE_ID`` (DJ-02 D4) nie ma „witryny bieżącej” poza żądaniem – importer zawsze działa na
+    witrynie wskazanej wprost. Import wielowitrynowy (``--competition``/``--all``) – DJ-02e.
+    """
+    if site is not None:
+        return site
+    from apps.sites.registry import RegistryError, default_site
+
+    try:
+        return default_site()
+    except RegistryError as exc:
+        raise ImportRefused(f"Brak witryny do importu: {exc}") from None
 
 
 # --- raport ---------------------------------------------------------------------------------------
@@ -767,8 +788,9 @@ class _PageBuilder:
 
 
 class _Importer:
-    def __init__(self, bundle: Bundle, images: dict[int, Any], user, report: ImportReport):
+    def __init__(self, bundle: Bundle, images: dict[int, Any], user, report: ImportReport, site):
         self.bundle = bundle
+        self.site = site
         self.images = images
         self.user = user
         self.report = report
@@ -853,6 +875,9 @@ class _Importer:
             LANGUAGE,
             slug=dto["slug"],
             created_by=self.user,
+            # Witryna zawsze jawnie: bez ``SITE_ID`` ``create_page`` bez ``site`` i bez rodzica
+            # rzuciłby ``ImproperlyConfigured`` (bezpiecznik D4).
+            site=self.site,
             parent=parent,
             in_navigation=in_navigation,
             menu_title=menu_title,
@@ -947,9 +972,12 @@ class _Importer:
             b.faq()
 
 
-def import_pages(bundle: Bundle, images: dict[int, Any], user, report: ImportReport) -> list:
-    """Tworzy i publikuje strony paczki. Wymaga otwartej transakcji (``set_as_homepage``)."""
-    return _Importer(bundle, images, user, report).run()
+def import_pages(bundle: Bundle, images: dict[int, Any], user, report: ImportReport, site) -> list:
+    """Tworzy i publikuje strony paczki w witrynie ``site``.
+
+    Wymaga otwartej transakcji (``set_as_homepage``).
+    """
+    return _Importer(bundle, images, user, report, site).run()
 
 
 # --- przebieg całości -----------------------------------------------------------------------------
@@ -957,9 +985,8 @@ def import_pages(bundle: Bundle, images: dict[int, Any], user, report: ImportRep
 
 def site_has_pages(site=None) -> bool:
     from cms.models import Page
-    from django.contrib.sites.models import Site
 
-    return Page.objects.filter(site=site or Site.objects.get_current()).exists()
+    return Page.objects.filter(site=target_site(site)).exists()
 
 
 def wipe(site, report: ImportReport) -> list:
@@ -996,16 +1023,20 @@ def _delete_stored(files: list) -> None:
             continue
 
 
-def run_import(bundle: Bundle, *, user, replace: bool = False, dry_run: bool = False) -> ImportReport:
-    """Import w jednej transakcji. Bez ``replace`` i przy istniejących stronach → ``ImportRefused``."""
+def run_import(
+    bundle: Bundle, *, user, replace: bool = False, dry_run: bool = False, site=None
+) -> ImportReport:
+    """Import w jednej transakcji do witryny ``site`` (domyślnie: konkursu domyślnego).
+
+    Bez ``replace`` i przy istniejących stronach → ``ImportRefused``.
+    """
     from cms.models import Page
-    from django.contrib.sites.models import Site
     from menus.menu_pool import menu_pool
 
     report = ImportReport(dry_run=dry_run, source={**bundle.manifest.get("source", {})})
     report.source["exported_at"] = bundle.manifest.get("exported_at", "?")
     started = time.monotonic()
-    site = Site.objects.get_current()
+    site = target_site(site)
     created_images: list = []
     committed = False
     try:
@@ -1018,7 +1049,7 @@ def run_import(bundle: Bundle, *, user, replace: bool = False, dry_run: bool = F
                 removed = wipe(site, report)
                 transaction.on_commit(lambda: _delete_stored(removed))
             images = import_images(bundle, import_folder(), report, created=created_images)
-            import_pages(bundle, images, user, report)
+            import_pages(bundle, images, user, report, site)
             if dry_run:
                 transaction.set_rollback(True)
         committed = not dry_run

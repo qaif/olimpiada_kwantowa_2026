@@ -1,4 +1,13 @@
-"""Klient wewnętrznego API aplikacji głównej (``GET /internal/djcms/v1/…``, § 8.3 docs/tasks/DJ-01.md).
+"""Klient wewnętrznego API aplikacji głównej (``GET /internal/djcms/v2/…``, § 8.3 docs/tasks/DJ-01.md,
+§ 4.5 docs/tasks/DJ-02.md).
+
+API v2 jest per konkurs: ``c/<slug>/<endpoint>`` (``chrome``, ``stages``, …, ``export``) oraz jedna
+lista konkursów ``competitions`` (rejestr witryn, ``apps.sites.registry``). Konkurs jest w ścieżce,
+więc i w kluczu bufora (``djcms:api:v2:<slug>:<endpoint>``), i w pamięci odsłony (``(slug, endpoint)``).
+Bezpiecznik (``djcms:api:breaker``) jest **wspólny** – mówi o dostępności ``web``, nie konkursu;
+błąd dotyczący jednego konkursu (JSON ``{"error": "no-competition"}``) zamyka wyłącznie jego
+własny bezpiecznik (``djcms:api:breaker:<slug>``), żeby nieaktywny konkurs nie gasił danych
+pozostałych.
 
 Djcms nie ma żadnej innej drogi do danych zawodów: terminy, stan rejestracji, komunikaty, pasek osi
 czasu, zadania i wyniki liczy aplikacja główna tymi samymi funkcjami, co strony Wagtaila, a tu
@@ -47,8 +56,9 @@ from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
-#: Wersja kontraktu API – ta sama liczba, co ``API_VERSION`` w ``backend/apps/cms/djcms_api/views.py``.
-API_VERSION = 1
+#: Wersja kontraktu API – ta sama liczba, co ``"api_version"`` odpowiedzi ``/internal/djcms/v2/``
+#: (``backend/apps/cms/djcms_api``, DJ-02b).
+API_VERSION = 2
 
 TOKEN_HEADER = "X-Djcms-Token"
 
@@ -68,13 +78,26 @@ EXPORT_TIMEOUT_SECONDS = 120.0
 READ_CHUNK_BYTES = 64 * 1024
 
 CACHE_PREFIX = f"djcms:api:v{API_VERSION}:"
+#: Bezpiecznik dostępności ``web`` – wspólny dla wszystkich konkursów.
 BREAKER_KEY = "djcms:api:breaker"
+#: Bezpiecznik jednego konkursu (``BREAKER_KEY:<slug>``) – odpowiedź-błąd dotycząca tylko jego.
+SCOPED_BREAKER_PREFIX = f"{BREAKER_KEY}:"
 
-#: Dopuszczalne nazwy endpointów: ``chrome``, ``stages``, …, ``editions/<id>/results``. Nazwa trafia
-#: do adresu i do klucza bufora, więc nic spoza tego wzorca (``..``, ``?``, ``//host``) nie przejdzie.
+#: Zakres listy konkursów w kluczach bufora i pamięci odsłony (slug nigdy nie zawiera ``_``).
+PLATFORM_SCOPE = "_"
+COMPETITIONS_ENDPOINT = "competitions"
+
+#: Dopuszczalne nazwy endpointów konkursu: ``chrome``, ``stages``, …, ``editions/<id>/results``.
+#: Nazwa trafia do adresu i do klucza bufora, więc nic spoza tego wzorca (``..``, ``?``, ``//host``)
+#: nie przejdzie.
 ENDPOINT_RE = re.compile(r"^[a-z]+(?:/[0-9]{1,10}/[a-z]+)?$")
+#: Slug konkursu – ten sam wzorzec, co ``re_path`` API v2 po stronie aplikacji głównej.
+SLUG_RE = re.compile(r"^[a-z0-9-]{1,50}$")
 
-#: Atrybut żądania z wynikami pobranymi w trakcie tej odsłony (endpoint → ``ApiResult``).
+#: Limit ciała odpowiedzi-błędu, które czytamy, żeby odróżnić błąd konkursu od awarii ``web``.
+ERROR_BODY_BYTES = 4 * 1024
+
+#: Atrybut żądania z wynikami pobranymi w trakcie tej odsłony (``(slug, endpoint)`` → ``ApiResult``).
 REQUEST_MEMO_ATTR = "_dj_api"
 #: Atrybut żądania ustawiany, gdy któraś część strony dostała dane z kopii albo nie dostała ich
 #: wcale – ``apps.live.middleware.DegradedHeaderMiddleware`` dokleja wtedy ``X-Djcms-Degraded: 1``.
@@ -202,11 +225,34 @@ def _build_opener() -> urllib.request.OpenerDirector:
 
 
 class _Failure(Exception):
-    """Wewnętrzny sygnał porażki pobrania z kodem do ``ApiResult.error`` i logu."""
+    """Wewnętrzny sygnał porażki pobrania z kodem do ``ApiResult.error`` i logu.
 
-    def __init__(self, code: str):
+    ``scoped`` – porażka dotyczy **jednego konkursu**: ``web`` odpowiedział, i to odpowiedzią-błędem
+    w kształcie kontraktu v2 (``{"api_version": 2, "error": "no-competition"}``). Taka porażka nie
+    otwiera wspólnego bezpiecznika – ``web`` działa, a pozostałe konkursy mają swoje dane.
+    """
+
+    def __init__(self, code: str, *, scoped: bool = False):
         super().__init__(code)
         self.code = code
+        self.scoped = scoped
+
+
+def _check_slug(competition: str) -> str:
+    if not isinstance(competition, str) or not SLUG_RE.match(competition):
+        raise ValueError(f"Niedozwolony slug konkursu w API: {competition!r}")
+    return competition
+
+
+def _api_path(endpoint: str, competition: str | None) -> str:
+    """Ścieżka względem ``DJCMS_MAIN_API_URL``: ``c/<slug>/<endpoint>`` albo ``competitions``."""
+    if competition is None:
+        if endpoint != COMPETITIONS_ENDPOINT:
+            raise ValueError(f"Endpoint {endpoint!r} wymaga konkursu (competition=…).")
+        return endpoint
+    if not ENDPOINT_RE.match(endpoint or ""):
+        raise ValueError(f"Niedozwolona nazwa endpointu API: {endpoint!r}")
+    return f"c/{_check_slug(competition)}/{endpoint}"
 
 
 class MainApi:
@@ -225,37 +271,64 @@ class MainApi:
         return self._opener
 
     @staticmethod
-    def endpoint_url(endpoint: str) -> str:
-        if not ENDPOINT_RE.match(endpoint):
-            raise ValueError(f"Niedozwolona nazwa endpointu API: {endpoint!r}")
+    def endpoint_url(endpoint: str, competition: str | None = None) -> str:
+        path = _api_path(endpoint, competition)
         base = settings.DJCMS_MAIN_API_URL
         # Tylko ``http(s)``: ``urllib`` otworzyłby też ``file:`` czy ``ftp:`` z błędnej konfiguracji.
         if urlsplit(base).scheme not in ("http", "https"):
             raise ValueError("DJCMS_MAIN_API_URL musi być adresem http(s).")
-        return urljoin(base if base.endswith("/") else f"{base}/", endpoint)
+        return urljoin(base if base.endswith("/") else f"{base}/", path)
 
-    def _request(self, endpoint: str, accept: str) -> urllib.request.Request:
+    def _request(self, endpoint: str, competition: str | None, accept: str) -> urllib.request.Request:
         return urllib.request.Request(  # noqa: S310 - schemat http(s) sprawdza endpoint_url
-            self.endpoint_url(endpoint),
+            self.endpoint_url(endpoint, competition),
             headers={TOKEN_HEADER: settings.DJCMS_INTERNAL_TOKEN, "Accept": accept},
             method="GET",
         )
 
     # --- odczyt dla stron ------------------------------------------------------------------------
 
-    def get(self, endpoint: str, *, request=None) -> ApiResult:
-        """Dane endpointu: pamięć odsłony → bufor świeży → API → kopia „stale” → brak danych.
+    def get(self, endpoint: str, *, competition: str, request=None) -> ApiResult:
+        """Dane endpointu konkursu: pamięć odsłony → bufor świeży → API → kopia „stale” → brak danych.
 
-        Nigdy nie podnosi wyjątku (poza błędem programisty – niedozwoloną nazwą endpointu).
+        Nigdy nie podnosi wyjątku (poza błędem programisty – niedozwoloną nazwą endpointu/slugiem).
         """
-        self.endpoint_url(endpoint)  # walidacja nazwy przed jakimkolwiek odczytem bufora
+        _api_path(endpoint, competition)  # walidacja nazwy przed jakimkolwiek odczytem bufora
+        return self._get(competition, endpoint, request)
+
+    def competitions(self, *, request=None) -> ApiResult:
+        """Lista konkursów (``GET competitions``) – ta sama droga co ``get``: bufor, kopia, bezpiecznik."""
+        return self._get(None, COMPETITIONS_ENDPOINT, request)
+
+    def fetch_competitions(self) -> dict:
+        """Lista konkursów **teraz**, z pominięciem bufora i bezpiecznika – dla komend.
+
+        ``sync_competitions`` ma odpowiedzieć stanem aplikacji głównej z tej chwili albo zakończyć
+        się błędem (``MainApiError``), a nie po cichu uzgodnić rejestr z kopią sprzed 10 minut.
+        Sukces odświeża bufor (kolejne odsłony dostaną tę samą listę).
+        """
+        try:
+            data = self._fetch_json(COMPETITIONS_ENDPOINT, None)
+        except _Failure as failure:
+            raise MainApiError(failure.code) from None
+        self._store(self._cache_key(None, COMPETITIONS_ENDPOINT), data)
+        return data
+
+    @staticmethod
+    def _cache_key(competition: str | None, endpoint: str) -> str:
+        return f"{CACHE_PREFIX}{competition or PLATFORM_SCOPE}:{endpoint}"
+
+    def _get(self, competition: str | None, endpoint: str, request) -> ApiResult:
         memo = self._memo(request)
-        if memo is not None and endpoint in memo:
-            return memo[endpoint]
-        result = self._resolve(endpoint)
+        memo_key = (competition or PLATFORM_SCOPE, endpoint)
+        if memo is not None and memo_key in memo:
+            return memo[memo_key]
+        result = self._resolve(competition, endpoint)
         if memo is not None:
-            memo[endpoint] = result
-            if result.degraded:
+            memo[memo_key] = result
+            if result.degraded and competition is not None:
+                # Znacznik dotyczy **strony** (dane zawodów na niej) – lista konkursów czytana przez
+                # warstwę witryn nie jest częścią strony i jej kopia nie degraduje odsłony.
                 setattr(request, REQUEST_DEGRADED_ATTR, True)
         return result
 
@@ -269,8 +342,9 @@ class MainApi:
             setattr(request, REQUEST_MEMO_ATTR, memo)
         return memo
 
-    def _resolve(self, endpoint: str) -> ApiResult:
-        key = CACHE_PREFIX + endpoint
+    def _resolve(self, competition: str | None, endpoint: str) -> ApiResult:
+        key = self._cache_key(competition, endpoint)
+        label = f"{competition or PLATFORM_SCOPE}/{endpoint}"
         fresh = cache.get(key)
         if fresh is not None:
             return ApiResult(
@@ -281,39 +355,52 @@ class MainApi:
             # Bezpiecznik otwarty: API przed chwilą nie odpowiedziało – nie czekamy na kolejny
             # timeout w każdej odsłonie. Bez logu: pierwszy błąd już jest w logu, a tu byłby
             # jeden wpis na każdą odsłonę przez cały czas awarii.
-            return self._fallback(endpoint, "breaker-open")
+            return self._fallback(key, "breaker-open")
+        scoped_breaker = SCOPED_BREAKER_PREFIX + (competition or PLATFORM_SCOPE)
+        scoped_error = cache.get(scoped_breaker)
+        if scoped_error:
+            return self._fallback(key, scoped_error)
 
         try:
-            data = self._fetch_json(endpoint)
+            data = self._fetch_json(endpoint, competition)
         except _Failure as failure:
-            cache.set(BREAKER_KEY, True, settings.DJCMS_API_BREAKER_SECONDS)
+            if failure.scoped:
+                cache.set(scoped_breaker, failure.code, settings.DJCMS_API_BREAKER_SECONDS)
+            else:
+                cache.set(BREAKER_KEY, True, settings.DJCMS_API_BREAKER_SECONDS)
             logger.warning(
-                "API aplikacji głównej: %s – %s (bezpiecznik na %s s).",
-                endpoint,
+                "API aplikacji głównej: %s – %s (bezpiecznik%s na %s s).",
+                label,
                 failure.code,
+                " konkursu" if failure.scoped else "",
                 settings.DJCMS_API_BREAKER_SECONDS,
             )
-            return self._fallback(endpoint, failure.code)
+            return self._fallback(key, failure.code)
 
+        fetched_at = self._store(key, data)
+        return ApiResult(data=data, stale=False, fetched_at=fetched_at, error=None)
+
+    @staticmethod
+    def _store(key: str, data: dict) -> datetime:
         fetched_at = timezone.now()
         entry = {"data": data, "fetched_at": fetched_at.isoformat()}
         cache.set(key, entry, settings.DJCMS_API_CACHE_SECONDS)
         cache.set(key + ":stale", entry, settings.DJCMS_API_STALE_SECONDS)
-        return ApiResult(data=data, stale=False, fetched_at=fetched_at, error=None)
+        return fetched_at
 
     @staticmethod
-    def _fallback(endpoint: str, error: str) -> ApiResult:
-        stale = cache.get(CACHE_PREFIX + endpoint + ":stale")
+    def _fallback(key: str, error: str) -> ApiResult:
+        stale = cache.get(key + ":stale")
         if stale is not None:
             return ApiResult(
                 data=stale["data"], stale=True, fetched_at=_parse(stale["fetched_at"]), error=error
             )
         return ApiResult(data=None, stale=False, fetched_at=None, error=error)
 
-    def _fetch_json(self, endpoint: str) -> dict:
+    def _fetch_json(self, endpoint: str, competition: str | None) -> dict:
         total = float(settings.DJCMS_API_TIMEOUT)
         deadline = time.monotonic() + total
-        request = self._request(endpoint, "application/json")
+        request = self._request(endpoint, competition, "application/json")
         try:
             with self.opener.open(request, timeout=min(CONNECT_TIMEOUT_SECONDS, total)) as response:
                 if response.status != 200:
@@ -322,7 +409,7 @@ class MainApi:
         except _Failure:
             raise
         except urllib.error.HTTPError as exc:
-            raise _Failure(f"http-{exc.code}") from None
+            raise _http_failure(exc) from None
         except TimeoutError:
             raise _Failure("timeout") from None
         except urllib.error.URLError as exc:
@@ -335,28 +422,41 @@ class MainApi:
             raise _Failure("connection") from None
         except Exception as exc:  # noqa: BLE001 - § 8.3: błąd API nigdy nie dochodzi do szablonu
             # Nazwa klasy, bez treści wyjątku: treść mogłaby nieść adres albo nagłówki żądania.
-            logger.warning("API aplikacji głównej: %s – nieoczekiwany błąd %s.", endpoint, type(exc).__name__)
+            logger.warning(
+                "API aplikacji głównej: %s – nieoczekiwany błąd %s.",
+                f"{competition or PLATFORM_SCOPE}/{endpoint}",
+                type(exc).__name__,
+            )
             raise _Failure("unexpected") from None
-        try:
-            data: Any = json.loads(body.decode("utf-8"))
-        except UnicodeDecodeError, ValueError:
-            raise _Failure("bad-json") from None
-        if not isinstance(data, dict):
+        data = _json_object(body)
+        if data is None:
             raise _Failure("bad-json")
         if data.get("api_version") != API_VERSION:
             raise _Failure("version")
         return data
 
-    # --- paczka eksportu (import treści, DJ-01g) --------------------------------------------------
+    # --- paczka eksportu (import treści) --------------------------------------------------------
 
-    def download_export(self, dest: BinaryIO, *, limit_bytes: int) -> int:
-        """Pobiera paczkę ``GET export`` do ``dest``; zwraca liczbę bajtów.
+    def default_competition(self) -> str:
+        """Slug konkursu witryny domyślnej według aplikacji głównej (``platform.default_slug``)."""
+        platform = self.fetch_competitions().get("platform")
+        slug = platform.get("default_slug") if isinstance(platform, dict) else None
+        if not isinstance(slug, str) or not SLUG_RE.match(slug):
+            raise MainApiError("no-default", "lista konkursów bez poprawnego platform.default_slug")
+        return slug
+
+    def download_export(self, dest: BinaryIO, *, limit_bytes: int, competition: str | None = None) -> int:
+        """Pobiera paczkę ``GET c/<slug>/export`` do ``dest``; zwraca liczbę bajtów.
+
+        ``competition=None`` – konkurs witryny domyślnej (``platform.default_slug`` z listy
+        konkursów); tak woła to ``import_cms_bundle --from-api`` sprzed importu wielowitrynowego.
 
         W odróżnieniu od ``get`` błąd **podnosi** ``MainApiError`` – woła to komenda importu, która
         ma się zatrzymać z czytelnym powodem, a nie zaimportować połowę paczki. Bez bufora
         i bezpiecznika: to jednorazowa operacja administracyjna.
         """
-        request = self._request("export", "application/zip")
+        slug = _check_slug(competition) if competition is not None else self.default_competition()
+        request = self._request("export", slug, "application/zip")
         deadline = time.monotonic() + EXPORT_TIMEOUT_SECONDS
         written = 0
         try:
@@ -375,12 +475,39 @@ class MainApi:
         except MainApiError:
             raise
         except urllib.error.HTTPError as exc:
-            raise MainApiError(f"http-{exc.code}") from None
+            raise MainApiError(_http_failure(exc).code) from None
         except TimeoutError:
             raise MainApiError("timeout") from None
         except (urllib.error.URLError, OSError, ValueError, http.client.HTTPException) as exc:
             raise MainApiError("connection", type(exc).__name__) from None
         return written
+
+
+def _json_object(body: bytes) -> dict | None:
+    try:
+        data: Any = json.loads(body.decode("utf-8"))
+    except UnicodeDecodeError, ValueError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _http_failure(exc: urllib.error.HTTPError) -> _Failure:
+    """Kod HTTP ≠ 200: odpowiedź-błąd kontraktu v2 (błąd **konkursu**) albo cokolwiek innego.
+
+    Kontrakt v2 mówi o konkursie JSON-em ``{"api_version": 2, "error": "<kod>"}`` (404
+    ``no-competition``, 503 ``no-public-url``) – wtedy wynik to ``api-<kod>`` i bezpiecznik tylko tego
+    konkursu. Pusta 404 (bramka API: zły host/token) i każda inna odpowiedź to awaria dostępu do
+    ``web`` jako całości – wspólny bezpiecznik. Ciało czytamy najwyżej ``ERROR_BODY_BYTES``.
+    """
+    try:
+        body = exc.read(ERROR_BODY_BYTES) if exc.fp is not None else b""
+    except Exception:  # noqa: BLE001 - ciało błędu to wyłącznie podpowiedź
+        body = b""
+    data = _json_object(body or b"")
+    error = data.get("error") if data is not None and data.get("api_version") == API_VERSION else None
+    if isinstance(error, str) and re.fullmatch(r"[a-z0-9-]{1,40}", error):
+        return _Failure(f"api-{error}", scoped=True)
+    return _Failure(f"http-{exc.code}")
 
 
 def _read_limited(response, limit: int, deadline: float) -> bytes:
@@ -406,6 +533,24 @@ def _parse(value: str | None) -> datetime | None:
         return None
 
 
-def get(endpoint: str, *, request=None) -> ApiResult:
-    """Skrót dla szablonów, wtyczek i procesora kontekstu."""
-    return MainApi().get(endpoint, request=request)
+#: Wynik dla wywołania bez konkursu (żądanie, którego warstwa witryn nie rozstrzygnęła).
+NO_COMPETITION = ApiResult(data=None, stale=False, fetched_at=None, error="no-competition")
+
+
+def request_competition(request) -> str | None:
+    """Slug konkursu żądania – z ``request.competition_site`` (``CompetitionSiteMiddleware``)."""
+    site = getattr(request, "competition_site", None) if request is not None else None
+    slug = getattr(site, "slug", None)
+    return slug if isinstance(slug, str) and slug else None
+
+
+def get(endpoint: str, *, request=None, competition: str | None = None) -> ApiResult:
+    """Skrót dla szablonów, wtyczek i procesora kontekstu: konkurs z żądania, chyba że podany jawnie.
+
+    Bez konkursu nie ma czego pytać – ``NO_COMPETITION`` (rama degraduje), a nie zgadywanie
+    konkursu domyślnego: dane jednego konkursu nie mogą trafić na stronę drugiego.
+    """
+    slug = competition or request_competition(request)
+    if slug is None:
+        return NO_COMPETITION
+    return MainApi().get(endpoint, competition=slug, request=request)

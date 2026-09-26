@@ -16,13 +16,13 @@ from apps.live import client as api_client
 DEGRADED = "X-Djcms-Degraded"
 #: Skrypty ramy – ta sama lista i kolejność co w ``backend/templates/base.html``, bez GA/HTMX/Alpine.
 FRAME_SCRIPTS = [
-    "/static/js/app.js",
-    "/static/js/consent.js",
-    "/static/js/sticky-bar.js",
-    "/static/js/table-scroll.js",
-    "/static/js/timeline-strip.js",
-    "/static/js/announcements.js",
-    "/static/js/sponsor-slider.js",
+    "/djcms/static/js/app.js",
+    "/djcms/static/js/consent.js",
+    "/djcms/static/js/sticky-bar.js",
+    "/djcms/static/js/table-scroll.js",
+    "/djcms/static/js/timeline-strip.js",
+    "/djcms/static/js/announcements.js",
+    "/djcms/static/js/sponsor-slider.js",
 ]
 
 
@@ -103,7 +103,7 @@ def test_every_script_has_the_response_nonce(client, page, full_chrome):
 @pytest.mark.django_db
 def test_shared_stylesheet_and_meta(client, page, full_chrome):
     html = client.get("/o-olimpiadzie/").content.decode()
-    assert '<link rel="stylesheet" href="/static/css/app.css">' in html
+    assert '<link rel="stylesheet" href="/djcms/static/css/app.css">' in html
     assert '<meta name="robots" content="noindex, nofollow">' in html
     assert '<meta property="og:site_name" content="Olimpiada Testowa">' in html
 
@@ -198,7 +198,9 @@ def test_dead_api_second_page_does_not_wait_for_timeout(client, page, main_api):
 def test_stale_chrome_is_used_and_marked(client, page, main_api, chrome_payload):
     main_api.set("chrome", chrome_payload())
     client.get("/o-olimpiadzie/")
-    cache.delete(api_client.CACHE_PREFIX + "chrome")  # świeży bufor wygasł, kopia „stale” żyje
+    cache.delete(
+        api_client.MainApi._cache_key("kwantowa", "chrome")
+    )  # świeży bufor wygasł, kopia „stale” żyje
     main_api.fail("chrome", TimeoutError())
     response = client.get("/o-olimpiadzie/")
     assert response.status_code == 200
@@ -211,7 +213,7 @@ def test_stale_chrome_is_used_and_marked(client, page, main_api, chrome_payload)
 
 @pytest.mark.django_db
 def test_admin_does_not_call_api(client, main_api):
-    assert client.get("/admin/login/").status_code == 200
+    assert client.get("/djcms/admin/login/").status_code == 200
     assert main_api.requests == []
 
 

@@ -22,6 +22,9 @@ from .conftest import edition_dto, iso, problem_dto, stage_dto, stage_row
 
 pytestmark = pytest.mark.django_db
 
+#: Klucze bufora API konkursu z fixture'a (``kwantowa``) – ``djcms:api:v2:<slug>:<endpoint>``.
+COMPETITION_PREFIX = CACHE_PREFIX + "kwantowa:"
+
 UNAVAILABLE = "chwilowo niedostępne w tej wersji serwisu"
 SECRET_TITLE = "Tajne zadanie o splątaniu"
 
@@ -174,7 +177,7 @@ def test_problems_stale_copy_is_labelled(client, api_up, problems_page):
     api_up.set("problems", _problems_payload())
     assert SECRET_TITLE in _html(client.get("/zadania/"))
     # Świeży wpis wygasa, API pada: strona bierze kopię awaryjną z dopiskiem „stan na HH:MM”.
-    cache.delete(CACHE_PREFIX + "problems")
+    cache.delete(COMPETITION_PREFIX + "problems")
     api_up.fail("problems", urllib.error.URLError(TimeoutError()))
     response = client.get("/zadania/")
     html = _html(response)
@@ -188,7 +191,7 @@ def test_stale_copy_from_before_opening_cannot_show_problems(client, api_up, pro
     """Kopia zapisana przed otwarciem ma pustą listę – po wygaśnięciu bufora zadań nadal nie ma."""
     api_up.set("problems", _problems_payload(stage_has_opened=False, problems=[]))
     _html(client.get("/zadania/"))
-    cache.delete(CACHE_PREFIX + "problems")
+    cache.delete(COMPETITION_PREFIX + "problems")
     api_up.fail("problems", urllib.error.URLError(TimeoutError()))
     html = _html(client.get("/zadania/"))
     assert "stan na " in html
@@ -558,7 +561,7 @@ def test_home_api_dead(client, main_api, home_page):
 def test_home_stale(client, api_up, home_page):
     api_up.set("stages", _stages_payload())
     _html(client.get("/"))
-    cache.delete(CACHE_PREFIX + "stages")
+    cache.delete(COMPETITION_PREFIX + "stages")
     api_up.fail("stages", urllib.error.URLError(TimeoutError()))
     response = client.get("/")
     html = _html(response)
@@ -621,7 +624,11 @@ def test_stage_timeline_block_without_rows(client, api_up, live_page):
 def _render_teaser(rf):
     from django.template import engines
 
+    from apps.sites.models import CompetitionSite
+
     request = rf.get("/warsztaty/")
+    # To, co ustawia ``CompetitionSiteMiddleware`` – klient API bierze konkurs z żądania.
+    request.competition_site = CompetitionSite.objects.get(slug="kwantowa")
     template = engines["django"].from_string("{% load dj_live %}{% dj_workshop_materials_teaser %}")
     return template.render({}, request)
 

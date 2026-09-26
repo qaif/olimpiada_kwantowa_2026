@@ -92,7 +92,7 @@ def test_every_doc_plugin_renders_wagtail_markup(client, body_page):
     assert '<figure class="cms-figure">' in html
     image = re.search(r'<img alt="Schemat układu" height="(\d+)" src="([^"]+)" width="(\d+)">', html)
     assert image and image.group(3) == "900" and image.group(1) == "450"
-    assert image.group(2).startswith("/media/")
+    assert image.group(2).startswith("/djcms/media/")
     assert "<figcaption>Rysunek 1</figcaption>" in html
     # Dokument: adres na domenie głównej i plik z biblioteki – ten sam przycisk.
     assert '<p class="cms-doc">' in html

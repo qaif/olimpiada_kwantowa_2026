@@ -2,7 +2,7 @@
 
 Flaga ``is_public = False`` w filerze przenosi plik do osobnego magazynu i serwuje go przez widok
 Django z kontrolą uprawnień. Na ``dj.`` ta kontrola nie istnieje: uprawnienia filera są wyłączone
-(``FILER_ENABLE_PERMISSIONS = False`` – jedna grupa redaktorów), a ``/media/*`` serwuje Caddy
+(``FILER_ENABLE_PERMISSIONS = False`` – jedna grupa redaktorów), a ``/djcms/media/*`` serwuje Caddy
 wprost z wolumenu. Plik „prywatny” byłby więc albo zepsutym odnośnikiem, albo – gdyby ktoś kiedyś
 wystawił magazyn prywatny – plikiem publicznym z etykietą „prywatny”, która obiecuje coś, czego nikt
 nie egzekwuje. Dlatego flagi nie ma:

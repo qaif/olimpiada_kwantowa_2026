@@ -77,6 +77,8 @@ services:
     volumes:
       - ./djcms:/app
       - ./backend/static:/opt/shared_static:ro
+      # Kontrakt tras aplikacji głównej (DJ-02 § 6) na żywo – obraz produkcyjny ma go skopiowanego.
+      - ./backend/djcms_contract:/opt/djcms_contract:ro
       - djcms_media:/app/media
     ports:
       - "8100:8000"

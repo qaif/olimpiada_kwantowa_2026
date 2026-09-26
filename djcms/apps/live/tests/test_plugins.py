@@ -15,6 +15,13 @@ from apps.live.models import Problems, StageTimeline
 LIVE_PLUGINS = ("StageTimelinePlugin", "ProblemsPlugin", "ResultsPlugin", "ArchiveResultsPlugin")
 
 
+def _site():
+    """Witryna konkursu z fixture'a ``competition_site`` – sekcje strony głównej są per witryna."""
+    from django.contrib.sites.models import Site
+
+    return Site.objects.get(pk=1)
+
+
 @pytest.mark.parametrize("model", [StageTimeline, Problems])
 def test_live_plugin_models_have_no_date_or_number_fields(model):
     """Reguła 1 z § 7: redaktor nie może wpisać terminu ani punktów obok danych z systemu."""
@@ -42,7 +49,7 @@ def test_live_plugins_are_never_cached(name):
 
 @pytest.mark.django_db
 def test_home_sections_are_empty_without_pages():
-    assert homepage.home_sections() == {
+    assert homepage.home_sections(_site()) == {
         "latest_news": [],
         "news_index": None,
         "partners": None,
@@ -63,19 +70,19 @@ def test_latest_news_order_and_limit(make_page, monkeypatch):
         return dates.get(content.page.get_slug("pl")), leads.get(content.page.get_slug("pl"), "")
 
     monkeypatch.setattr(homepage, "_news_meta", fake_meta)
-    items = homepage.latest_news()
+    items = homepage.latest_news(_site())
     assert [item.title for item in items] == ["C", "B", "A"]
     assert items[2].lead == "Lead A"
     assert items[0].url == pages["c"].get_absolute_url("pl")
-    assert len(homepage.latest_news(limit=4)) == 4
-    assert homepage.latest_news(limit=4)[-1].title == "D"
+    assert len(homepage.latest_news(_site(), limit=4)) == 4
+    assert homepage.latest_news(_site(), limit=4)[-1].title == "D"
 
 
 @pytest.mark.django_db
 def test_unpublished_pages_are_ignored(make_page, monkeypatch):
     monkeypatch.setattr(homepage, "NEWS_TEMPLATE", "dj/pages/content.html")
     make_page("Szkic", "szkic", publish=False)
-    assert homepage.latest_news() == []
+    assert homepage.latest_news(_site()) == []
 
 
 def test_attachment_href_and_pdf_detection():
@@ -160,7 +167,7 @@ def test_home_sections_with_editorial_plugins(live_page, make_page, monkeypatch)
         ],
     )
 
-    sections = homepage.home_sections()
+    sections = homepage.home_sections(_site())
     assert [(item.title, item.date, item.lead) for item in sections["latest_news"]] == [
         ("Nowina", date(2026, 9, 20), "Krótko")
     ]

@@ -47,7 +47,7 @@ def test_flipping_existing_file_to_private_keeps_it_public_and_readable(media_ro
 def test_admin_file_form_has_no_private_flag(client, superuser, media_root):
     item = f.filer_file()
     client.force_login(superuser)
-    response = client.get(f"/admin/filer/file/{item.pk}/change/")
+    response = client.get(f"/djcms/admin/filer/file/{item.pk}/change/")
     assert response.status_code == 200
     assert 'name="is_public"' not in response.content.decode()
 

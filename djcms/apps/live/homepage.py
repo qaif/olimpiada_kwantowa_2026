@@ -10,6 +10,10 @@ Jak w Wagtailu żadna sekcja nie zna ani jednego sluga: typ strony rozpoznajemy 
 z DJ-01e (``NewsMeta``, ``PartnerPlugin``, ``AttachmentPlugin``). Liczą się wyłącznie
 **opublikowane** wersje treści (``PageContent.objects`` pod djangocms-versioning oddaje tylko je).
 
+Wszystko jest **per witryna** (DJ-02): sekcje strony głównej konkursu A biorą wyłącznie strony
+witryny A – te same szablony (``news.html``, ``partners.html``) stoją w drzewie każdego konkursu.
+Bez witryny (``site=None``) sekcje są puste, a nie „ze wszystkich witryn”.
+
 Moduł jest tolerancyjny wobec braków: rozszerzenie, którego strona nie ma, to pusta data/zajawka;
 wtyczka, której klasy nie ma w rejestrze, jest pomijana (``downcast_plugins``); logotyp, którego
 miniatury nie da się zrobić, to sam podpis. Strona główna ma się wyrenderować zawsze.
@@ -55,10 +59,12 @@ LATEST_NEWS_COUNT = 3
 PARTNER_LOGO_SIZE = (600, 240)
 
 
-def _published(template: str | tuple[str, ...]):
+def _published(template: str | tuple[str, ...], site):
+    if site is None:
+        return PageContent.objects.none()
     templates = (template,) if isinstance(template, str) else template
     return (
-        PageContent.objects.filter(language=LANGUAGE, template__in=templates)
+        PageContent.objects.filter(language=LANGUAGE, template__in=templates, page__site=site)
         .select_related("page")
         .order_by("page__path")
     )
@@ -68,8 +74,8 @@ def _url(content) -> str:
     return content.page.get_absolute_url(LANGUAGE)
 
 
-def _first(template: str) -> dict | None:
-    content = _published(template).first()
+def _first(template: str, site) -> dict | None:
+    content = _published(template, site).first()
     return {"title": content.title, "url": _url(content)} if content is not None else None
 
 
@@ -113,10 +119,10 @@ def _news_meta(content) -> tuple[date | None, str]:
     return (value if isinstance(value, date) else None), str(getattr(meta, "lead", "") or "")
 
 
-def latest_news(limit: int = LATEST_NEWS_COUNT) -> list[NewsItem]:
+def latest_news(site, limit: int = LATEST_NEWS_COUNT) -> list[NewsItem]:
     """Najnowsze aktualności: data malejąco, potem strona malejąco (``order_by("-date", "-pk")``)."""
     items = []
-    for content in _published(NEWS_TEMPLATE):
+    for content in _published(NEWS_TEMPLATE, site):
         news_date, lead = _news_meta(content)
         items.append(NewsItem(content.title, _url(content), news_date, lead, content.page_id))
     # Aktualność bez daty na końcu – w Wagtailu data jest wymagana, tu rozszerzenia może brakować.
@@ -143,9 +149,9 @@ def _logo(logo) -> dict | None:
     return {"src": thumb.url, "width": thumb.width, "height": thumb.height}
 
 
-def partners_strip() -> dict | None:
+def partners_strip(site) -> dict | None:
     """Strona partnerów **z co najmniej jednym wpisem** – inaczej ``None`` (sekcja znika)."""
-    page = _published(PARTNERS_TEMPLATE).first()
+    page = _published(PARTNERS_TEMPLATE, site).first()
     if page is None:
         return None
     entries = []
@@ -178,9 +184,9 @@ def _is_pdf(attachment) -> bool:
     return str(getattr(attachment, "extension", "") or "").lower() == "pdf"
 
 
-def download_rows() -> list[dict]:
+def download_rows(site) -> list[dict]:
     """Opublikowane strony z przypiętym PDF-em – pierwszy PDF każdej, w kolejności drzewa."""
-    contents = list(_published(ATTACHMENT_TEMPLATES))
+    contents = list(_published(ATTACHMENT_TEMPLATES, site))
     attachments = _plugins(contents, ATTACHMENTS_SLOT, ATTACHMENT_PLUGIN)
     rows = []
     for content in contents:
@@ -199,12 +205,12 @@ def download_rows() -> list[dict]:
     return rows
 
 
-def home_sections() -> dict:
-    """Kontekst trzech sekcji strony głównej – ``{% dj_home_sections as home %}``."""
+def home_sections(site) -> dict:
+    """Kontekst trzech sekcji strony głównej witryny ``site`` – ``{% dj_home_sections as home %}``."""
     return {
-        "latest_news": latest_news(),
-        "news_index": _first(NEWS_INDEX_TEMPLATE),
-        "partners": partners_strip(),
-        "downloads": download_rows(),
-        "documents_index": _first(DOCUMENT_INDEX_TEMPLATE),
+        "latest_news": latest_news(site),
+        "news_index": _first(NEWS_INDEX_TEMPLATE, site),
+        "partners": partners_strip(site),
+        "downloads": download_rows(site),
+        "documents_index": _first(DOCUMENT_INDEX_TEMPLATE, site),
     }

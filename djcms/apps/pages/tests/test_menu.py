@@ -198,14 +198,14 @@ def test_toolbar_offers_menu_settings_in_edit_mode(client, tree, superuser):
     assert response.status_code == 200
     html = response.content.decode()
     assert "Ustawienia menu (dj.)" in html
-    assert "/admin/dj_pages/menuextension/" in html
+    assert "/djcms/admin/dj_pages/menuextension/" in html
 
 
 @pytest.mark.django_db
 def test_menu_extension_admin_add_and_change(client, make_page, superuser):
     page = make_page("Kontakt", "kontakt")
     client.force_login(superuser)
-    url = f"/admin/dj_pages/menuextension/add/?extended_object={page.pk}"
+    url = f"/djcms/admin/dj_pages/menuextension/add/?extended_object={page.pk}"
     assert client.get(url).status_code == 200
     response = client.post(url, {"primary": "on"})
     assert response.status_code in (200, 302)

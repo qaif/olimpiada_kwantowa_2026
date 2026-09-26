@@ -4,7 +4,8 @@
   ścieżki na domenie głównej (§ 8.3 „Degradacja”). Używają go sekcje żywe (DJ-01f), gdy API nie
   oddało danych ani z bufora, ani z kopii,
 - ``result|dj_stale_label`` – dopisek „stan na HH:MM” przy danych z kopii zapasowej,
-- ``"/sciezka/"|dj_main_url`` – adres na domenie głównej,
+- ``"/sciezka/"|dj_main_url`` – adres w aplikacji głównej (``DJCMS_MAIN_PUBLIC_URL``); w szablonach
+  stron ``{% dj_main_href "/sciezka/" %}`` – to samo pod adresem publicznym konkursu żądania,
 - ``{% dj_live_data "stages" as stages %}`` – odpowiedź endpointu dla szablonu strony
   (``apps.live.data.LiveData``: ``available``, ``data``, ``stale_label``); to samo pobranie, co
   wtyczek tej odsłony (pamięć żądania),
@@ -21,10 +22,9 @@
 from __future__ import annotations
 
 from django import template
-from django.utils.encoding import escape_uri_path
 
 from .. import data, homepage
-from ..chrome import main_url, stale_label
+from ..chrome import main_url, request_page_path, stale_label
 
 register = template.Library()
 
@@ -33,8 +33,8 @@ register = template.Library()
 def dj_unavailable(context, path: str | None = None) -> dict:
     request = context.get("request")
     if path is None:
-        path = escape_uri_path(request.path) if request is not None else "/"
-    return {"main_url": main_url(path)}
+        path = request_page_path(request)
+    return {"main_url": main_url(path, request)}
 
 
 @register.filter
@@ -45,6 +45,11 @@ def dj_stale_label(result) -> str:
 @register.filter
 def dj_main_url(path: str) -> str:
     return main_url(str(path or "/"))
+
+
+@register.simple_tag(takes_context=True)
+def dj_main_href(context, path: str = "/") -> str:
+    return main_url(str(path or "/"), context.get("request"))
 
 
 @register.simple_tag(takes_context=True)
@@ -75,9 +80,11 @@ def dj_workshop_materials_teaser(context) -> dict:
     }
 
 
-@register.simple_tag
-def dj_home_sections() -> dict:
-    return homepage.home_sections()
+@register.simple_tag(takes_context=True)
+def dj_home_sections(context) -> dict:
+    """Sekcje strony głównej **tej** witryny – aktualności, partnerzy i dokumenty jednego konkursu."""
+    request = context.get("request")
+    return homepage.home_sections(getattr(request, "site", None))
 
 
 @register.simple_tag(takes_context=True)

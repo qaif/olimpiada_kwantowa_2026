@@ -15,7 +15,10 @@ class PagesConfig(AppConfig):
     def ready(self) -> None:
         from django.contrib import admin
 
-        from . import auth, checks  # noqa: F401 - rejestracja sygnałów i system checków
+        from . import auth, checks, validation  # noqa: F401 - rejestracja sygnałów i system checków
+
+        # Strona pod adresem aplikacji głównej odrzucona już w formularzu (S5, ``validation``).
+        validation.install_form_validation()
 
         # Formularz logowania panelu z czytelnym komunikatem o blokadzie. Sama blokada działa
         # niżej, w backendzie uwierzytelnienia (``auth.ThrottledModelBackend``), więc obejmuje też

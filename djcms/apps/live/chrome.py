@@ -8,7 +8,9 @@ sięgnie po pierwsze pole.
 Wszystko, czego rama potrzebuje „na pewno” (nazwa serwisu, odnośnik logowania), ma tu wartość
 zapasową, więc przy martwym API rama wygląda jak zwykle, tylko bez komunikatów, slidera, paska
 osi czasu, przycisku rejestracji i danych organizatora (§ 8.3 „Degradacja”). Odnośniki zapasowe
-prowadzą na domenę główną (``DJCMS_MAIN_PUBLIC_URL``), bo wszystkie funkcje aplikacji żyją tam.
+prowadzą pod adres publiczny **konkursu żądania** (``CompetitionSite.public_base`` z rejestru –
+ten sam host i prefiks, na którym działa aplikacja główna konkursu; DJ-02 § 8 „Odnośniki
+aplikacji”), a gdy konkurs go nie ma – na ``DJCMS_MAIN_PUBLIC_URL``.
 """
 
 from __future__ import annotations
@@ -27,14 +29,25 @@ from . import client
 FALLBACK_LOGIN_PATH = "/login/"
 
 
-def main_url(path: str = "/") -> str:
-    """Adres na domenie głównej: ``DJCMS_MAIN_PUBLIC_URL`` + ścieżka zaczynająca się od ``/``."""
-    base = (settings.DJCMS_MAIN_PUBLIC_URL or "").rstrip("/")
-    return f"{base}{path if path.startswith('/') else '/' + path}"
+def public_base(request=None) -> str:
+    """Baza adresów aplikacji głównej dla żądania: ``public_base`` konkursu albo ``DJCMS_MAIN_PUBLIC_URL``."""
+    site = getattr(request, "competition_site", None) if request is not None else None
+    base = getattr(site, "public_base", "") or settings.DJCMS_MAIN_PUBLIC_URL or ""
+    return base.rstrip("/")
+
+
+def main_url(path: str = "/", request=None) -> str:
+    """Adres w aplikacji głównej konkursu: baza (``public_base``) + ścieżka od korzenia konkursu."""
+    return f"{public_base(request)}{path if path.startswith('/') else '/' + path}"
+
+
+def request_page_path(request) -> str:
+    """Ścieżka bieżącej strony liczona od korzenia **konkursu** (bez prefiksu), bezpieczna w adresie."""
+    return escape_uri_path(request.path_info) if request is not None else "/"
 
 
 #: Klucze odpowiedzi ``chrome``, których wartości trafiają do ``href``/``src``.
-URL_KEYS = frozenset({"url", "src", "link_url", "contact_url"})
+URL_KEYS = frozenset({"url", "src", "link_url", "contact_url", "og_image"})
 
 
 def safe_href(value) -> str:
@@ -135,7 +148,7 @@ class LiveChrome:
 
     @property
     def login_url(self) -> str:
-        return self.links.get("login") or main_url(FALLBACK_LOGIN_PATH)
+        return self.links.get("login") or main_url(FALLBACK_LOGIN_PATH, self.request)
 
     @property
     def announcements(self) -> list:
@@ -167,9 +180,9 @@ class LiveChrome:
 
     @property
     def main_home_url(self) -> str:
-        return self.links.get("main_home") or main_url("/")
+        return self.links.get("main_home") or main_url("/", self.request)
 
     @property
     def main_page_url(self) -> str:
         """Ta sama ścieżka na domenie głównej – „Ta strona w wersji Wagtail” w stopce."""
-        return main_url(escape_uri_path(self.request.path))
+        return main_url(request_page_path(self.request), self.request)

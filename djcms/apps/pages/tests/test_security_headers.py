@@ -133,7 +133,7 @@ def test_500_has_noindex_header_and_meta(client):
 
 @pytest.mark.django_db
 def test_admin_login_gets_editor_policy_and_noindex(client):
-    response = client.get("/admin/login/")
+    response = client.get("/djcms/admin/login/")
     assert response.status_code == 200
     _assert_editor_policy(response)
     assert response["X-Robots-Tag"] == ROBOTS
@@ -142,7 +142,7 @@ def test_admin_login_gets_editor_policy_and_noindex(client):
 @pytest.mark.django_db
 def test_admin_404_still_editor_policy(client, superuser):
     client.force_login(superuser)
-    response = client.get("/admin/nie-ma-takiego-widoku/")
+    response = client.get("/djcms/admin/nie-ma-takiego-widoku/")
     assert response.status_code == 404
     _assert_editor_policy(response)
     assert response["X-Robots-Tag"] == ROBOTS

@@ -1,8 +1,9 @@
-# Kontekst obrazu djcms = korzeń repozytorium (djcms/Dockerfile). Wszystko poza dwoma katalogami
+# Kontekst obrazu djcms = korzeń repozytorium (djcms/Dockerfile). Wszystko poza trzema katalogami
 # jest wykluczone – w szczególności .env, backend/ (kod aplikacji głównej), secrets/, .git.
 *
 !djcms/
 !backend/static/
+!backend/djcms_contract/
 djcms/.venv
 djcms/media
 djcms/staticfiles

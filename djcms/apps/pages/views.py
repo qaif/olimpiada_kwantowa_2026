@@ -1,11 +1,11 @@
-"""Widoki aplikacyjne djcms spoza drzewa stron: healthcheck i ``robots.txt``."""
+"""Widoki aplikacyjne djcms spoza drzewa stron: healthcheck (``/djcms/healthz/``) i ``robots.txt``."""
 
 from __future__ import annotations
 
 import logging
 
 from django.db import connection
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, HttpResponseNotFound, JsonResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
@@ -25,6 +25,9 @@ def _ping_database() -> bool:
 def healthz(request):
     """Healthcheck compose'a: ``SELECT 1`` na bazie djcms – i **nic więcej**.
 
+    Poza rozstrzyganiem konkursu (``apps.sites.middleware``): odpowiada pod każdym hostem, także przy
+    pustym rejestrze konkursów – stan rejestru nie jest stanem zdrowia kontenera.
+
     Świadomie **nie** pyta API aplikacji głównej: niedostępny ``web`` to stan, w którym djcms ma
     działać dalej i degradować sekcje żywe (§ 8.3), a nie kontener „chory” do restartu. Gdyby
     healthcheck zależał od API, awaria głównego serwisu restartowałaby w pętli także ``dj.``.
@@ -41,3 +44,8 @@ def healthz(request):
 def robots_txt(request):
     """``Disallow: /`` dla wszystkich – trzecia droga noindex obok nagłówka i meta (reguła 10)."""
     return HttpResponse(ROBOTS_TXT, content_type="text/plain; charset=utf-8")
+
+
+def not_yet_available(request, *args, **kwargs):
+    """Adres zarezerwowany pod ``/djcms/`` na widok kolejnego kroku DJ-02 (podgląd, SSO) – pusta 404."""
+    return HttpResponseNotFound()

@@ -11,7 +11,9 @@ LOCKED = "Zbyt wiele nieudanych prób logowania"
 
 
 def _login(client, username, password, **extra):
-    return client.post("/admin/login/?next=/admin/", {"username": username, "password": password}, **extra)
+    return client.post(
+        "/djcms/admin/login/?next=/admin/", {"username": username, "password": password}, **extra
+    )
 
 
 def _fail(client, username, times, **extra):
@@ -109,7 +111,7 @@ def test_cms_toolbar_login_is_throttled_too(client, superuser):
 
 
 def test_backend_refuses_before_checking_password(rf):
-    request = rf.post("/admin/login/")
+    request = rf.post("/djcms/admin/login/")
     with (
         mock.patch.object(auth, "reserve_attempt", return_value=None),
         mock.patch("django.contrib.auth.backends.ModelBackend.authenticate") as parent,
@@ -133,7 +135,7 @@ def _backend_fail(rf, username, times, remote="203.0.113.50"):
     """Porażki wprost przez backend (szybciej niż formularz, ta sama ścieżka licznika)."""
     backend = auth.ThrottledModelBackend()
     for _ in range(times):
-        request = rf.post("/admin/login/", REMOTE_ADDR=remote)
+        request = rf.post("/djcms/admin/login/", REMOTE_ADDR=remote)
         try:
             assert backend.authenticate(request, username=username, password="zle-haslo") is None
         except auth.PermissionDenied:
@@ -187,7 +189,7 @@ def test_rejected_and_successful_attempts_leave_no_rows(client, superuser, rf):
     assert LoginAttempt.objects.count() == 5
     _backend_fail(rf, superuser.username, 3, remote="127.0.0.1")  # odrzucone w czasie blokady
     assert LoginAttempt.objects.count() == 5
-    other = rf.post("/admin/login/", REMOTE_ADDR="192.0.2.1")
+    other = rf.post("/djcms/admin/login/", REMOTE_ADDR="192.0.2.1")
     assert auth.ThrottledModelBackend().authenticate(other, username=superuser.username, password=PASSWORD)
     assert LoginAttempt.objects.count() == 5  # udane sprawdzenie hasła nie jest porażką
 
@@ -241,7 +243,7 @@ def test_concurrent_attempts_never_exceed_the_limit(superuser, rf):
 
     def worker():
         try:
-            request = rf.post("/admin/login/", REMOTE_ADDR="203.0.113.99")
+            request = rf.post("/djcms/admin/login/", REMOTE_ADDR="203.0.113.99")
             barrier.wait(timeout=10)
             try:
                 auth.ThrottledModelBackend().authenticate(
@@ -264,5 +266,5 @@ def test_concurrent_attempts_never_exceed_the_limit(superuser, rf):
 
     assert errors == []
     assert 1 <= len(checked) <= 5
-    request = rf.post("/admin/login/", REMOTE_ADDR="203.0.113.99")
+    request = rf.post("/djcms/admin/login/", REMOTE_ADDR="203.0.113.99")
     assert auth.is_locked(request, superuser.username) == (len(checked) == 5)

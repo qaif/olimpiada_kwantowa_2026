@@ -1,4 +1,4 @@
-"""``/healthz/`` i ``/robots.txt`` (reguły 5 i 10 z § 7 docs/tasks/DJ-01.md)."""
+"""``/djcms/healthz/`` i ``/robots.txt`` (reguły 5 i 10 z § 7 docs/tasks/DJ-01.md)."""
 
 from unittest import mock
 
@@ -10,7 +10,7 @@ from django.db import OperationalError
 def test_healthz_ok_without_touching_main_api(client):
     # Healthcheck NIE pyta API aplikacji głównej: każda próba wyjścia do sieci wywraca test.
     with mock.patch("urllib.request.urlopen", side_effect=AssertionError("healthz nie może pytać API")):
-        response = client.get("/healthz/")
+        response = client.get("/djcms/healthz/")
     assert response.status_code == 200
     assert response.json() == {"status": "ok", "db": True}
     assert "no-cache" in response["Cache-Control"]
@@ -19,14 +19,14 @@ def test_healthz_ok_without_touching_main_api(client):
 @pytest.mark.django_db
 def test_healthz_503_when_database_fails(client):
     with mock.patch("apps.pages.views._ping_database", side_effect=OperationalError("db down")):
-        response = client.get("/healthz/")
+        response = client.get("/djcms/healthz/")
     assert response.status_code == 503
     assert response.json() == {"status": "degraded", "db": False}
 
 
 @pytest.mark.django_db
 def test_healthz_rejects_post(client):
-    assert client.post("/healthz/").status_code == 405
+    assert client.post("/djcms/healthz/").status_code == 405
 
 
 @pytest.mark.django_db
