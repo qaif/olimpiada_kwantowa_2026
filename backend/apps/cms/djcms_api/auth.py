@@ -1,4 +1,4 @@
-"""Bramki wewnętrznego API i wybór konkursu, którego dane API oddaje.
+"""Bramki wewnętrznego API dla djcms.
 
 **Bramki, w tej kolejności, każda porażka = pusta 404** (``docs/tasks/DJ-01.md`` § 3.1):
 
@@ -23,17 +23,12 @@ from __future__ import annotations
 
 import hmac
 from functools import wraps
-from typing import TYPE_CHECKING
 
 from django.conf import settings
 from django.http import HttpResponseNotFound
 
 from apps.cms.checks import DJCMS_TOKEN_MIN_LENGTH
-from apps.cms.tenancy import competition_for_site
 from apps.tenancy.internal_views import from_internal_host
-
-if TYPE_CHECKING:  # pragma: no cover - wyłącznie dla podpowiedzi typów
-    from apps.tenancy.models import Competition
 
 #: Nagłówek z tokenem. W ``request.META`` Django trzyma go pod ``HTTP_X_DJCMS_TOKEN``.
 TOKEN_HEADER = "X-Djcms-Token"
@@ -68,28 +63,3 @@ def internal_api(view):
         return view(request, *args, **kwargs)
 
     return wrapped
-
-
-def djcms_competition() -> Competition | None:
-    """Konkurs, którego dane oddaje API – albo ``None`` (API odpowiada wtedy 503).
-
-    ``CompetitionMiddleware`` celowo **nie** rozstrzyga konkursu dla ``/internal/*``: wołający puka
-    z nagłówkiem ``Host: web:8000``, który z żadnym konkursem nie ma nic wspólnego. Konkurs wybiera
-    więc konfiguracja, a nie żądanie:
-
-    - ``DJCMS_COMPETITION_SLUG`` ustawiony – ten konkurs, o ile jest aktywny. Nieaktywny albo
-      nieistniejący daje ``None``, a nie „pierwszy z brzegu”: wersja ``dj.`` ma pokazać komunikat
-      o niedostępności, a nie cudze terminy,
-    - pusty – konkurs witryny **domyślnej**, czyli ten, który stoi pod ``SITE_DOMAIN`` (Konkurs #1).
-      To ta sama witryna, którą Wagtail wybiera dla hosta, którego nie zna.
-    """
-    from wagtail.models import Site
-
-    from apps.tenancy.models import Competition
-
-    slug = (getattr(settings, "DJCMS_COMPETITION_SLUG", "") or "").strip()
-    if slug:
-        return Competition.objects.filter(slug=slug, is_active=True).select_related("site").first()
-    site = Site.objects.filter(is_default_site=True).first()
-    competition = competition_for_site(site)
-    return competition if competition is not None and competition.is_active else None

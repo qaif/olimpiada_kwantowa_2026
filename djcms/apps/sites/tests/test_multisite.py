@@ -206,6 +206,22 @@ def test_main_links_use_the_competitions_public_base(client, three_sites):
     assert 'href="https://fizyka.example/login/"' in html
 
 
+def test_main_links_without_a_public_base_stay_on_the_same_host_and_prefix(client, three_sites):
+    """Konkurs bez ``public_base`` (adres odrzucony przez rejestr): odnośniki względne, z prefiksem.
+
+    ``DJCMS_MAIN_PUBLIC_URL`` (jeden adres z DJ-01) usunięte w DJ-02k – aplikacja główna odpowiada
+    pod tym samym hostem, a Caddy kieruje do niej adresy aplikacji.
+    """
+    CompetitionSite.objects.filter(slug__in=["druga", "fizyka"]).update(
+        public_origin="", public_path_prefix=""
+    )
+
+    html = client.get("/druga/zadania/").content.decode()
+    assert 'href="/druga/login/"' in html
+    html = client.get("/", HTTP_HOST="fizyka.example").content.decode()
+    assert 'href="/login/"' in html
+
+
 def test_placeholder_cache_is_keyed_and_cleared_per_site(client, make_page, fizyka, druga, superuser):
     """``CMS_PLACEHOLDER_CACHE``: render zapisuje pod witryną żądania, edycja czyści pod ``page.site_id``.
 

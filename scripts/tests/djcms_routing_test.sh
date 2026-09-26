@@ -111,7 +111,7 @@ ROWS+=(
   # dj.: wyłącznie przekierowanie (D1), odmowa /internal/* zostaje (S4).
   "D-page|https://dj.localhost/zadania/?a=1|-|-|302=https://localhost/djcms/preview/?next=/zadania/?a=1|302=https://localhost/zadania/?a=1"
   "D-root|https://dj.localhost/|djcms_view=dj|-|302=https://localhost/djcms/preview/?next=/|302=https://localhost/"
-  "D-internal|https://dj.localhost/internal/djcms/v1/chrome|-|-|404|404"
+  "D-internal|https://dj.localhost/internal/djcms/v2/competitions|-|-|404|404"
   # www. z EXTRA_DOMAINS – bez zmian (301 na domenę konkursu).
   "W-redirect|https://www.fizyczna.test/zadania/|-|-|301=https://fizyczna.test/zadania/|301=https://fizyczna.test/zadania/"
   # djcms leży: 502 z reverse_proxy → strona prac technicznych (503) – także dla stron publicznych

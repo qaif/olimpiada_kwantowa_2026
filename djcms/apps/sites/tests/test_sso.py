@@ -2,7 +2,8 @@
 
 Kolejno: udane logowanie (konto bez hasła, grupy z tokenu, sesja z terminem), każda przyczyna
 odmowy (403 bez logowania), jednorazowość, zastępowanie uprawnień (także przy odmowie), termin sesji,
-hasło tylko dla superużytkownika i wspólny wektor z aplikacją główną.
+hasło tylko dla superużytkownika, wspólny wektor z aplikacją główną i system checki
+``dj_sites.E001``/``W001``.
 """
 
 from __future__ import annotations
@@ -293,3 +294,29 @@ def test_contract_vector(settings):
         with pytest.raises(sso.SsoError):
             sso.verify_token(case["token"], host=case["host"], now=contract["now"] + 61)
     assert SSO_KEY != contract["key"]
+
+
+# --- system checki (DJ-02g) ---------------------------------------------------------------------
+
+
+def test_e001_requires_cms_permission(settings):
+    from apps.sites.checks import check_cms_permissions_enabled
+
+    assert check_cms_permissions_enabled() == []
+    settings.CMS_PERMISSION = False
+    assert [error.id for error in check_cms_permissions_enabled()] == ["dj_sites.E001"]
+
+
+def test_w001_flags_short_and_shared_sso_keys(settings):
+    from apps.sites.checks import check_sso_key
+
+    settings.DJCMS_SSO_KEY = ""
+    assert check_sso_key() == []  # pusty klucz = SSO wyłączone, stan poprawny
+    settings.DJCMS_SSO_KEY = SSO_KEY
+    assert check_sso_key() == []
+    settings.DJCMS_SSO_KEY = "k" * 31
+    assert [warning.id for warning in check_sso_key()] == ["dj_sites.W001"]
+    settings.DJCMS_SSO_KEY = settings.DJCMS_INTERNAL_TOKEN
+    assert [warning.id for warning in check_sso_key()] == ["dj_sites.W001"]
+    settings.DJCMS_SSO_KEY = settings.SECRET_KEY
+    assert [warning.id for warning in check_sso_key()] == ["dj_sites.W001"]

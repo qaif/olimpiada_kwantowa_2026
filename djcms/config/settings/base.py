@@ -427,7 +427,6 @@ STORAGES = {
 # operacja gniazda (połączenie, odczyt) ma najwyżej 1 s (``client.CONNECT_TIMEOUT_SECONDS``).
 DJCMS_MAIN_API_URL = env("DJCMS_MAIN_API_URL", default="http://web:8000/internal/djcms/v2/")
 DJCMS_INTERNAL_TOKEN = env("DJCMS_INTERNAL_TOKEN", default="")
-DJCMS_MAIN_PUBLIC_URL = env("DJCMS_MAIN_PUBLIC_URL", default="http://localhost:8000")
 # Origin publicznego kubełka mediów głównego serwisu (logo organizatora, slider sponsorów) –
 # trafia do ``img-src``/``media-src`` polityki CSP. Pusty = pominięty.
 DJCMS_MAIN_MEDIA_ORIGIN = env("DJCMS_MAIN_MEDIA_ORIGIN", default="")

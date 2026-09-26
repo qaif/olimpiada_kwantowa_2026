@@ -75,14 +75,16 @@ def linked_paths(competition) -> list[str]:
       prefiksem: literał ``/faq/`` pod ``/<prefiks>/…`` prowadzi do konkursu-gospodarza, więc to
       jego lista go wymienia.
 
-    **Dokumenty (``/dokumenty/…``) wyłącznie wtedy, gdy stoi pod nimi strona.** Lista służy
+    **Dokumenty i literały wyłącznie wtedy, gdy stoi pod nimi strona.** Lista służy
     ``verify_cutover`` i ``dj_pages.W003`` do sprawdzenia **parytetu**: czy po przełączeniu adres,
-    który dziś działa w Wagtailu, działa też w djcms. Dokument, którego strony nie ma (albo jest
+    który dziś działa w Wagtailu, działa też w djcms. Adres, pod którym strony nie ma (albo jest
     nieopublikowana lub z ograniczonym dostępem – takich eksport nie przenosi), odpowiada dziś 404
     w Wagtailu i tak samo odpowie w djcms; wymienienie go blokowałoby przełączenie z powodu, którego
-    przełączenie nie zmienia. Dotyczy to także literału ``/dokumenty/rodo/`` z szablonów.
+    przełączenie nie zmienia. Dotyczy to dokumentów zgód i **każdego** literału z szablonów
+    (``/dokumenty/rodo/``, ``/faq/``, ``/harmonogram/``, ``/warsztaty/``) – konkurs założony
+    z szablonu (``templates_catalog``) nie musi mieć tych stron.
     """
-    from apps.accounts.consents import DOCUMENTS_PATH, consent_set
+    from apps.accounts.consents import consent_set
     from apps.cms.export_bundle import site_path
     from apps.cms.models import DocumentPage
     from apps.cms.workshops import WORKSHOPS_SLUG, workshops_page
@@ -104,13 +106,7 @@ def linked_paths(competition) -> list[str]:
     if workshops is not None:
         paths.extend([site_path(workshops, root), f"/{WORKSHOPS_SLUG}/"])
     if competition.routing_mode != RoutingMode.PATH:
-        literal_documents = [path for path in APP_LITERAL_PAGE_PATHS if path.startswith(DOCUMENTS_PATH)]
-        published = _published_paths(root, literal_documents)
-        paths.extend(
-            path
-            for path in APP_LITERAL_PAGE_PATHS
-            if not path.startswith(DOCUMENTS_PATH) or path in published
-        )
+        paths.extend(_published_paths(root, list(APP_LITERAL_PAGE_PATHS)))
     return sorted(set(paths))
 
 

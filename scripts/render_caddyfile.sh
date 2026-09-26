@@ -185,7 +185,7 @@ apex_listed() {
 internal_guard() {
   # Odmowa dla `/internal/*` na **każdej** publicznej nazwie. Ten adres istnieje wyłącznie po to,
   # żeby Caddy mógł zapytać aplikację o zgodę na certyfikat (`on_demand_tls ask`), a djcms pobrać
-  # dane zawodów (`/internal/djcms/v1/`, token w nagłówku), i jest wołany po sieci wewnętrznej
+  # dane zawodów (`/internal/djcms/v2/`, token w nagłówku), i jest wołany po sieci wewnętrznej
   # compose, pod hostem `web:8000`. Aplikacja odmawia publicznym hostom sama (endpointy odpowiadają
   # tylko na `Host: web:8000`) – to jest druga zapora, nie jedyna.
   #

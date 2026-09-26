@@ -2853,8 +2853,8 @@ Równoległa, publiczna, ale **nieindeksowana** wersja części informacyjnej se
 `dj.olimpiadakwantowa.pl`, redagowana w django CMS – do porównania z Wagtailem (`/cms/`). Treść
 redakcyjna żyje w osobnej bazie `olimpiada_djcms` (stan początkowy z importu drzewa Wagtaila), dane
 zawodów (terminy, zadania, wyniki, komunikaty) djcms pobiera na żywo z wewnętrznego API aplikacji
-głównej (`/internal/djcms/v1/`, token w nagłówku). Logowanie, rejestracja i panele zostają na
-domenie głównej.
+głównej (`/internal/djcms/v2/`, per konkurs, token w nagłówku; API v1 z DJ-01 usunięte w DJ-02k).
+Logowanie, rejestracja i panele zostają w aplikacji głównej.
 
 **Domyślnie wyłączone.** Bez `DJCMS_ENABLED=1` w `/opt/olimpiada/.env` konfiguracja proxy,
 `docker compose config` i przebieg `scripts/deploy.sh` są co do polecenia takie jak przed DJ-01
@@ -2866,10 +2866,10 @@ i `deploy_djcms_test.sh`). **Włączenie na produkcji wymaga zgody organizatora*
 | Miejsce | Zmiana |
 |---|---|
 | Caddy (`scripts/render_caddyfile.sh`) | od DJ-02: w **każdym** bloku aplikacji (domena główna, `EXTRA_DOMAINS`, `*.`) sekcja tras djcms – `/djcms/media/*` z wolumenu `djcms_media`, `/djcms/*` do `djcms:8000`, adresy aplikacji do `web`, strony publiczne wg `DJCMS_PRIMARY` i ciasteczka `djcms_view` (§ 22.8); blok `dj.{$SITE_DOMAIN}` już tylko przekierowuje (302) na `/djcms/preview/` domeny głównej; odmowa `/internal/*` (404) w każdym bloku |
-| `.env` (krok 4/8 wdrożenia, tylko dopisuje) | `DJCMS_SECRET_KEY` (64), `DJCMS_DB_PASSWORD` (32), `DJCMS_INTERNAL_TOKEN` (48) – istniejących nie rusza; `DJCMS_INITIAL_IMPORT=pending`; `COMPOSE_FILE=docker-compose.yml:docker-compose.djcms.yml`; `COMPOSE_PROFILES=djcms` |
+| `.env` (krok 4/8 wdrożenia, tylko dopisuje) | `DJCMS_SECRET_KEY` (64), `DJCMS_DB_PASSWORD` (32), `DJCMS_INTERNAL_TOKEN` (48), `DJCMS_SSO_KEY` (64, § 22.3) – istniejących nie rusza; `DJCMS_INITIAL_IMPORT=pending`; `COMPOSE_FILE=docker-compose.yml:docker-compose.djcms.yml`; `COMPOSE_PROFILES=djcms` |
 | compose | usługa `djcms` (profil `djcms`) i nakładka `docker-compose.djcms.yml` – montaż `djcms_media` do `proxy` tylko do odczytu i stały adres `proxy` w sieci `internal` (`DJCMS_PROXY_IP`, domyślnie 172.30.2.250 – jedyny adres, od którego djcms przyjmuje `X-Real-IP` i `X-Djcms-Mode`). Oba przez `COMPOSE_FILE`/`COMPOSE_PROFILES` w `.env`, więc **każde** `docker compose …` w `/opt/olimpiada` (także ręczne i `scripts/backup.sh`) widzi djcms |
 | baza | rola i baza `olimpiada_djcms` w tym samym kontenerze `db` (`scripts/djcms_db.sh`, idempotentnie, przy każdym wdrożeniu) |
-| wdrożenie | build obrazu `djcms` (albo `DJCMS_IMAGE` z rejestru), kopia `djcms-db-pre-<stamp>.dump` obok `pre-deploy-*` (10 ostatnich), start `djcms` w 4b (migracje w entrypoincie), czekanie na `djcms=healthy`, na końcu krok „dj.”: grupa „Redaktorzy”, konto administratora (gdy podano), rejestr konkursów (`sync_competitions --import-missing` – treść dla witryn bez stron, § 22.8), **jednorazowy** import treści |
+| wdrożenie | build obrazu `djcms` (albo `DJCMS_IMAGE` z rejestru), kopia `djcms-db-pre-<stamp>.dump` obok `pre-deploy-*` (10 ostatnich), start `djcms` w 4b (migracje w entrypoincie), czekanie na `djcms=healthy`, na końcu krok „dj.”: grupy redakcji (`setup_djcms_groups`, § 22.3), konto administratora (gdy podano), rejestr konkursów (`sync_competitions --import-missing` – treść dla witryn bez stron, § 22.8), **jednorazowy** import treści |
 
 Pliki redaktorów (`/djcms/media/*`, od DJ-02 na każdym hoście konkursu) podaje Caddy z nagłówkiem
 `X-Content-Type-Options: nosniff`, a wszystko poza PDF-em dodatkowo z
@@ -2905,8 +2905,8 @@ wykona skryptu w origin aplikacji (DJ-01 § 7 reguła 12, DJ-02 S9).
    curl -sI https://olimpiadakwantowa.pl/ | grep -i x-djcms-mode                    # nic (PRIMARY=0, bez ciasteczka – Wagtail)
    curl -sI -H 'Cookie: djcms_view=dj' https://olimpiadakwantowa.pl/ | grep -iE '^(x-djcms-mode|x-robots-tag)'   # preview, noindex
    curl -s -o /dev/null -w '%{http_code}\n' https://olimpiadakwantowa.pl/djcms/healthz/                 # 200
-   curl -s -o /dev/null -w '%{http_code}\n' https://olimpiadakwantowa.pl/internal/djcms/v2/competitions  # 404
-   curl -s -o /dev/null -w '%{http_code}\n' https://dj.olimpiadakwantowa.pl/internal/djcms/v1/chrome     # 404
+   curl -s -o /dev/null -w '%{http_code}\n' https://olimpiadakwantowa.pl/internal/djcms/v2/competitions     # 404
+   curl -s -o /dev/null -w '%{http_code}\n' https://dj.olimpiadakwantowa.pl/internal/djcms/v2/competitions  # 404
    # na serwerze, w /opt/olimpiada:
    docker compose ps djcms                     # healthy
    grep '^DJCMS_INITIAL_IMPORT=' .env          # done
@@ -2916,15 +2916,89 @@ Gdy import się nie uda (najczęściej: brak konta superusera djcms, bo nie poda
 wdrożenie kończy się kodem ≠ 0 **po** wszystkich krokach głównego serwisu, a `.env` zostaje
 z `DJCMS_INITIAL_IMPORT=pending` – kolejne wdrożenie (z `DJCMS_ADMIN_*`) spróbuje ponownie.
 
-### 22.3. Konta redaktorów
+### 22.3. Redaktorzy: logowanie z `/cms/` (SSO) i uprawnienia per konkurs
 
-Administrator (superuser djcms) zakłada konta w `https://<domena>/djcms/admin/` (od DJ-02; wcześniej
-`https://dj.<domena>/admin/`) → Użytkownicy:
-zaznacz „W zespole” (`is_staff`) i dodaj do grupy **Redaktorzy**. Uprawnienia grupy wynikają
-z kodu (`manage.py setup_djcms_groups`) i są odtwarzane przy każdym wdrożeniu – ręcznie dodane
-uprawnienie grupy zniknie. Hasło administratora zmienione w panelu **nie** jest nadpisywane
-kolejnym wdrożeniem z `DJCMS_ADMIN_*` (ręcznie: `bootstrap_djcms_admin --reset-password`).
-Po 5 nieudanych próbach logowania na parę (IP, login) logowanie jest blokowane na 15 minut.
+**Redaktorzy nie mają w djcms kont zakładanych ręcznie ani haseł** (DJ-02 D6, decyzja organizatora
+z 26.09.2026). Kto redaguje który konkurs, rozstrzyga aplikacja główna – tym samym pytaniem, co
+dostęp do `/cms/` – i przekazuje wynik jednorazowym tokenem przy każdym wejściu.
+
+Jak wchodzi redaktor (instrukcja dla redakcji: docs/PODRECZNIK-ORGANIZATORA.md § 7.3a):
+
+1. `/cms/` **swojego** konkursu, na jego hoście (`https://fizyczna.olimpiadakwantowa.pl/cms/`,
+   konkurs pod prefiksem: `https://olimpiadakwantowa.pl/druga/cms/`),
+2. w menu Wagtaila **„Edytuj w django CMS”** (`/cms/django-cms/`) → przycisk przejścia (POST z CSRF),
+3. przeglądarka sama wysyła formularz z tokenem na `/djcms/sso/` **tego samego** hosta i trafia do
+   listy stron witryny konkursu w `/djcms/admin/`.
+
+Pozycja menu jest widoczna tylko przy ustawionym kluczu i dla konta, które może edytować korzeń
+drzewa stron witryny konkursu. Konto bez tego prawa dostaje na `/cms/django-cms/` stronę odmowy
+(403), a przy pustym kluczu – stronę „przejście wyłączone” (503).
+
+**Konto w djcms** powstaje przy pierwszym wejściu: `web:<id konta w aplikacji>`, „W zespole”, bez
+hasła, nigdy superużytkownik; e-mail, imię i nazwisko aktualizuje każde wejście. **Hasłem loguje się
+wyłącznie techniczny superużytkownik** (`bootstrap_djcms_admin`, `DJCMS_ADMIN_*` przy wdrożeniu) –
+konto personelu z hasłem ustawionym ręcznie w panelu i tak się nim nie zaloguje (liczy się jak
+nieudana próba). Po 5 nieudanych próbach na parę (IP, login) logowanie jest blokowane na 15 minut.
+Hasło superużytkownika zmienione w panelu **nie** jest nadpisywane kolejnym wdrożeniem
+z `DJCMS_ADMIN_*` (ręcznie: `bootstrap_djcms_admin --reset-password`).
+
+**Grupy** – przy każdym wejściu **zastępowane** listą z tokenu (także grupa dopisana ręcznie
+w panelu djcms znika, uprawnienia indywidualne konta są czyszczone):
+
+| Prawo w `/cms/` (korzeń witryny konkursu) | Grupa w djcms | Zasięg |
+|---|---|---|
+| edycja i publikacja | `redakcja:<slug>` | strony witryny konkursu: dodawanie, zmiana, usuwanie, przenoszenie, publikacja |
+| edycja bez publikacji | `redakcja:<slug>:bez-publikacji` | to samo bez publikacji |
+| konto bez ograniczeń w `/cms/` (superużytkownik, superkoordynator, grupa z prawami do korzenia drzewa) **i** edycja z publikacją w każdym aktywnym konkursie | `redakcja:platforma` | wszystkie witryny i wszystkie foldery |
+
+Każda grupa konkursu ma `GlobalPagePermission` zawężone do witryny konkursu (nigdy uprawnienia na
+pojedynczych stronach – bufor uprawnień django CMS nie rozróżnia witryn) i uprawnienia modeli
+treści (strony, wtyczki, wersje, pliki, przekierowania); **bez** zarządzania uprawnieniami, kontami
+i grupami. Redaktor widzi panel wyłącznie pod hostami swoich konkursów: witryna spoza zasięgu
+(także przez `?site=` w drzewie stron), obiekt innej witryny (strona, wtyczka, wersja,
+przekierowanie) i folder filera innego konkursu → 403 (DJ-02 S12).
+
+**Pliki (filer)**: każdy konkurs ma folder najwyższego poziomu `Konkurs: <nazwa> (<slug>)` (tam też
+trafiają obrazy z importu) – odczyt, zmiana i podfoldery dla obu jego grup; konkurs domeny głównej
+dodatkowo folder importu sprzed DJ-02 („Import z Wagtaila”). Folder **„Wspólne”** – do odczytu dla
+każdego redaktora, zapis: `redakcja:platforma` i superużytkownik. Uprawnienia folderów porządkują
+bibliotekę redakcji, a **nie** ukrywają plików: każdy plik filera jest publiczny pod
+`/djcms/media/…` (DJ-01 § 7 reguła 12, przełącznik „prywatny” jest ukryty i zablokowany).
+
+**`setup_djcms_groups`** zakłada i aktualizuje grupy `redakcja:*`, ich uprawnienia i uprawnienia
+folderów **przy każdym wdrożeniu** (idempotentnie; zestaw uprawnień grupy wynika z kodu – ręczna
+zmiana w panelu zniknie). Przy pierwszym uruchomieniu po DJ-02g usuwa grupę **„Redaktorzy”** z DJ-01
+(przy `CMS_PERMISSION = True` i tak nie dawała żadnej strony). Grupy nowego konkursu powstają też
+same przy pierwszym wejściu jego redaktora. Ręcznie: `docker compose exec -T djcms python manage.py
+setup_djcms_groups`.
+
+**Klucz i sesja:**
+
+- `DJCMS_SSO_KEY` – klucz HMAC tokenu, **ten sam** w `web` (czyta `.env`) i w `djcms` (compose
+  przekazuje ten sam wpis). Generuje go wdrożenie (krok 4/8, 64 znaki); ręcznie: co najmniej
+  32 znaki, inny niż `DJCMS_INTERNAL_TOKEN`, `DJANGO_SECRET_KEY` i `DJCMS_SECRET_KEY` (ostrzeżenia
+  `cms.W013` w `web` i `dj_sites.W001` w djcms). Pusty albo krótszy = przejście wyłączone. Po
+  zmianie klucza w `.env`: `docker compose up -d` (odtwarza `web` i `djcms`; oba muszą mieć tę samą
+  wartość – inaczej każde wejście kończy się „Link logowania jest nieważny”).
+- `DJCMS_SSO_SESSION_SECONDS` (opcjonalnie, domyślnie `14400` = 4 h) – najdłuższa sesja po wejściu,
+  liczona **od logowania**, nie od ostatniego kliknięcia. Po niej djcms wylogowuje, a redaktor wchodzi
+  ponownie przez `/cms/` (uprawnienia liczone od nowa).
+- Token: ważny 60 s, jednorazowy (nonce), tylko dla hosta, na którym go wystawiono, wyłącznie `POST`
+  z nagłówkiem `Origin` tego hosta; nie trafia do adresu ani do dzienników (format: docs/API.md § 8.6).
+
+**Odebranie uprawnień** działa w djcms przy **najbliższym wejściu** przez `/cms/` (grupy
+zastępowane), a w sesji otwartej wcześniej – **najpóźniej po `DJCMS_SSO_SESSION_SECONDS`**.
+Natychmiastowa blokada konta (np. wyciek, odejście z redakcji):
+
+1. superużytkownik djcms: `https://<domena>/djcms/admin/` → Użytkownicy → `web:<id>` → odznacz
+   „Aktywny” → Zapisz. Sesja tego konta przestaje działać od następnego żądania, a kolejne wejście
+   z `/cms/` kończy się „Konto w django CMS jest zablokowane” – SSO konta **nie** odblokowuje
+   (odblokowanie: zaznacz „Aktywny” z powrotem),
+2. w aplikacji głównej odbierz prawa w `/cms/` (grupa, konto) – inaczej po odblokowaniu konto
+   wróciłoby z dotychczasowym zasięgiem.
+
+Identyfikator konta (`<id>`) jest w dzienniku djcms (`SSO djcms: web:<id> zalogowany (konkurs …)`)
+i w dzienniku `web` (`SSO do django CMS: konto #<id>, host …`).
 
 ### 22.4. Import treści z Wagtaila
 
@@ -3079,8 +3153,9 @@ import ją **zastępuje** (DJ-02 D8); od chwili przełączenia źródłem prawdy
 Przed (dzień wcześniej):
 
 1. Uprzedź redakcje: od chwili przełączenia strony w `/cms/` są tylko do odczytu; edycja w djcms
-   (`/djcms/admin/` na hoście konkursu). Zmiany zrobione w djcms **w czasie podglądu** zostaną
-   nadpisane – chyba że konkurs pójdzie z `--skip <slug>` (jego treść djcms zostaje, bez importu).
+   (`/cms/` konkursu → „Edytuj w django CMS”, § 22.3). Zmiany zrobione w djcms **w czasie
+   podglądu** zostaną nadpisane – chyba że konkurs pójdzie z `--skip <slug>` (jego treść djcms
+   zostaje, bez importu).
 2. Próba bez zmian (kilka minut – z testem odtwarzania ostatniej kopii):
 
    ```bash

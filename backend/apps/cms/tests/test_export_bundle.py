@@ -1,4 +1,4 @@
-"""Paczka treści dla wersji ``dj.`` (``apps.cms.export_bundle``, komenda ``export_cms_bundle``, DJ-01 § 5).
+"""Paczka treści dla djcms (``apps.cms.export_bundle``, ``export_cms_bundle``; DJ-01 § 5, DJ-02 § 4.4).
 
 Świat testu to drzewo z migracji + ``seed_cms`` + po jednej stronie każdego typu, z blokami każdego
 rodzaju. Pilnujemy trzech rzeczy:
@@ -232,7 +232,8 @@ def page_by_slug(manifest: dict, slug: str) -> dict:
 def test_manifest_header_and_vocabularies(competition, world):  # noqa: ARG001
     manifest, archive, _ = export(competition)
 
-    assert (manifest["format"], manifest["version"]) == ("olimpiada-cms-bundle", 1)
+    assert (manifest["format"], manifest["version"]) == ("olimpiada-cms-bundle", 2)
+    assert manifest["competition"] == {"slug": competition.slug, "name": competition.name}
     assert manifest["source"]["competition_slug"] == competition.slug
     assert manifest["source"]["main_public_url"] == MAIN
     assert manifest["source"]["root_page_id"] == competition.site.root_page_id
@@ -504,31 +505,8 @@ def test_command_refuses_an_unknown_competition(tmp_path):
 
 
 def export_v2(competition) -> tuple[dict, object]:
-    stream = io.BytesIO()
-    report = build_bundle(competition, stream=stream, version=2)
-    return json.loads(zipfile.ZipFile(io.BytesIO(stream.getvalue())).read("manifest.json")), report
-
-
-def test_v1_stays_the_default_and_has_no_v2_keys(competition, world):  # noqa: ARG001
-    manifest, _archive, _report = export(competition)
-
-    assert manifest["version"] == 1
-    assert not {"competition", "data_pages", "redirects"} & set(manifest)
-
-
-def test_unknown_bundle_version_is_refused(competition):
-    with pytest.raises(ValueError, match="wersja"):
-        build_bundle(competition, stream=io.BytesIO(), version=3)
-
-
-def test_v2_is_a_superset_of_v1(competition, world):  # noqa: ARG001
-    v1, _archive, _report = export(competition)
-    v2, _report = export_v2(competition)
-
-    assert v2["version"] == 2
-    assert v2["competition"] == {"slug": competition.slug, "name": competition.name}
-    for key in ("format", "source", "vocabularies", "images", "documents", "pages"):
-        assert v2[key] == v1[key], key
+    manifest, _archive, report = export(competition)
+    return manifest, report
 
 
 def test_v2_names_the_data_pages_that_are_in_the_bundle(competition, world):  # noqa: ARG001
@@ -619,20 +597,35 @@ def test_v2_redirect_to_a_page_route_keeps_the_route(competition, world):
     assert manifest["redirects"][0]["target"] == {"page_id": world["problems"].pk, "route_path": "/archiwum/"}
 
 
-def test_command_writes_a_v2_bundle_on_request(competition, tmp_path):
+def test_command_writes_a_v2_bundle(competition, tmp_path):
     target = tmp_path / "paczka.zip"
 
     call_command(
-        "export_cms_bundle",
-        "--competition",
-        competition.slug,
-        "--bundle-version",
-        "2",
-        "--output",
-        str(target),
-        stderr=io.StringIO(),
+        "export_cms_bundle", "--competition", competition.slug, "--output", str(target), stderr=io.StringIO()
     )
 
     manifest = json.loads(zipfile.ZipFile(target).read("manifest.json"))
     assert manifest["version"] == 2
     assert manifest["competition"]["slug"] == competition.slug
+
+
+def test_command_has_no_bundle_version_option(competition, tmp_path):
+    with pytest.raises(CommandError):
+        call_command(
+            "export_cms_bundle",
+            "--competition",
+            competition.slug,
+            "--bundle-version",
+            "1",
+            "--output",
+            str(tmp_path / "x.zip"),
+        )
+
+
+def test_command_without_a_default_competition_asks_for_one(competition, tmp_path):
+    from apps.tenancy.models import Competition
+
+    Competition.objects.filter(pk=competition.pk).update(is_active=False)
+
+    with pytest.raises(CommandError, match="--competition"):
+        call_command("export_cms_bundle", "--output", str(tmp_path / "x.zip"))

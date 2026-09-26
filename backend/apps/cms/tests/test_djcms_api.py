@@ -1,6 +1,8 @@
-"""Wewnętrzne API dla wersji ``dj.`` (``/internal/djcms/v1/…``, DJ-01 § 3).
+"""Ciała endpointów wewnętrznego API dla djcms (``/internal/djcms/v2/c/<slug>/…``; DJ-01 § 3, DJ-02 § 4).
 
-Cztery grupy testów, w kolejności wagi:
+Testy powstały dla API v1 (DJ-01) i po jego usunięciu (DJ-02k) sprawdzają te same ciała przez v2.
+Sprawy wielu konkursów (przeciek między konkursami, lista ``competitions``, nowe pola) –
+``test_djcms_api_v2.py``. Cztery grupy testów, w kolejności wagi:
 
 1. **bramki** – każda porażka (host publiczny, brak/zły/krótki/pusty token, metoda inna niż GET)
    to pusta 404, nieodróżnialna od nieistniejącego adresu. Host publiczny odpada **także**
@@ -8,7 +10,8 @@ Cztery grupy testów, w kolejności wagi:
 2. **reguły jawności** – zadania dopiero po ``opens_at``, wyniki wyłącznie z białej listy kluczy
    snapshotu, żadnych danych osobowych w żadnym endpoincie, odnośnik komunikatu tylko ``http(s)``,
 3. **kształt** – ``api_version``, ``generated_at``, nagłówki, adresy przez ``api_href``,
-4. **wybór konkursu** – ``DJCMS_COMPETITION_SLUG`` albo witryna domyślna; brak konkursu = 503.
+4. **adres konkursu** – odnośniki pod domeną, schematem i portem albo prefiksem **tego** konkursu;
+   konkurs bez adresu = 503.
 """
 
 from __future__ import annotations
@@ -37,15 +40,15 @@ from apps.results.models import Anonymization, ResultsPublication
 pytestmark = pytest.mark.django_db
 
 TOKEN = "t" * 40
-BASE = "/internal/djcms/v1/"
-JSON_ENDPOINTS = ("chrome", "stages", "problems", "results", "editions", "workshops")
+SLUG = "kwantowa"
+BASE = f"/internal/djcms/v2/c/{SLUG}/"
+JSON_ENDPOINTS = ("chrome", "stages", "problems", "results", "editions", "workshops", "partners")
 MAIN = "https://olimpiada.example.test"
 
 
 @pytest.fixture(autouse=True)
 def _api_settings(settings):
     settings.DJCMS_INTERNAL_TOKEN = TOKEN
-    settings.DJCMS_COMPETITION_SLUG = ""
     settings.DJCMS_MAIN_PUBLIC_URL = MAIN
 
 
@@ -56,8 +59,12 @@ def internal(token: str | None = TOKEN, host: str = "web:8000") -> Client:
     return Client(**headers)
 
 
-def get_json(endpoint: str, client: Client | None = None) -> dict:
-    response = (client or internal()).get(BASE + endpoint)
+def base(slug: str = SLUG) -> str:
+    return f"/internal/djcms/v2/c/{slug}/"
+
+
+def get_json(endpoint: str, client: Client | None = None, *, slug: str = SLUG) -> dict:
+    response = (client or internal()).get(base(slug) + endpoint)
     assert response.status_code == 200, (endpoint, response.status_code)
     return response.json()
 
@@ -111,7 +118,7 @@ def test_a_valid_request_gets_versioned_json_that_is_never_cached(competition, e
     assert response["Cache-Control"] == "no-store"
     assert response["X-Content-Type-Options"] == "nosniff"
     payload = response.json()
-    assert payload["api_version"] == 1
+    assert payload["api_version"] == 2
     assert "+" in payload["generated_at"] or payload["generated_at"].endswith("Z")
 
 
@@ -129,37 +136,15 @@ def test_short_token_raises_the_system_check_warning(settings):
 # --- konkurs API --------------------------------------------------------------------------------
 
 
-def test_without_a_competition_the_api_answers_503(settings, competition):  # noqa: ARG001
-    settings.DJCMS_COMPETITION_SLUG = "nie-ma-takiego"
-
-    response = internal().get(BASE + "stages")
-
-    assert response.status_code == 503
-    assert response.json()["error"] == "no-competition"
-
-
-def test_the_default_site_competition_is_used_without_a_slug(competition):
-    CurrentEditionFactory(competition=competition, year_label="I edycja domyślna")
-
-    assert get_json("stages")["edition"]["year_label"] == "I edycja domyślna"
-    assert get_json("chrome")["competition"]["slug"] == competition.slug
-
-
-def test_the_slug_setting_selects_another_competition(settings, competition, other_competition):
+def test_the_slug_in_the_path_selects_the_competition(competition, other_competition):
     CurrentEditionFactory(competition=competition, year_label="Edycja konkursu pierwszego")
     CurrentEditionFactory(competition=other_competition, year_label="Edycja konkursu drugiego")
-    settings.DJCMS_COMPETITION_SLUG = other_competition.slug
+    other = other_competition.slug
 
-    assert get_json("stages")["edition"]["year_label"] == "Edycja konkursu drugiego"
-    assert get_json("chrome")["competition"]["slug"] == other_competition.slug
-
-
-def test_an_inactive_competition_is_not_served(settings, other_competition):
-    other_competition.is_active = False
-    other_competition.save(update_fields=["is_active"])
-    settings.DJCMS_COMPETITION_SLUG = other_competition.slug
-
-    assert internal().get(BASE + "chrome").status_code == 503
+    assert get_json("stages")["edition"]["year_label"] == "Edycja konkursu pierwszego"
+    assert get_json("chrome")["competition"]["slug"] == competition.slug
+    assert get_json("stages", slug=other)["edition"]["year_label"] == "Edycja konkursu drugiego"
+    assert get_json("chrome", slug=other)["competition"]["slug"] == other
 
 
 # --- stages ---------------------------------------------------------------------------------------
@@ -487,7 +472,7 @@ def test_export_returns_a_zip_bundle(competition):  # noqa: ARG001
     assert response["Cache-Control"] == "no-store"
     archive = zipfile.ZipFile(io.BytesIO(b"".join(response.streaming_content)))
     manifest = json.loads(archive.read("manifest.json"))
-    assert (manifest["format"], manifest["version"]) == ("olimpiada-cms-bundle", 1)
+    assert (manifest["format"], manifest["version"]) == ("olimpiada-cms-bundle", 2)
     assert manifest["pages"][0]["type"] == "cms.HomePage"
 
 
@@ -515,21 +500,23 @@ def test_api_href(url, expected):
     assert api_href(url) == expected
 
 
-# --- adres konkursu API (DJCMS_COMPETITION_SLUG ≠ konkurs domeny głównej) --------------------------
+# --- adres konkursu API (konkurs ≠ konkurs domeny głównej) ---------------------------------------
 
 
-def test_app_links_of_another_competition_go_to_its_own_domain(settings, competition, other_competition):  # noqa: ARG001
+def test_app_links_of_another_competition_go_to_its_own_domain(competition, other_competition):  # noqa: ARG001
     """``DJCMS_MAIN_PUBLIC_URL`` opisuje domenę główną – linki konkursu #2 idą pod jego domenę."""
-    settings.DJCMS_COMPETITION_SLUG = other_competition.slug
+    slug = other_competition.slug
     domain = other_competition.primary_domain
 
-    links = get_json("chrome")["links"]
+    links = get_json("chrome", slug=slug)["links"]
 
     assert links["login"] == f"https://{domain}/login/"
     assert links["register"] == f"https://{domain}/register/"
     assert links["main_home"] == f"https://{domain}/"
-    assert MAIN not in json.dumps(get_json("chrome"))
-    assert get_json("workshops")["materials"]["login_url"].startswith(f"https://{domain}/login/?next=/")
+    assert MAIN not in json.dumps(get_json("chrome", slug=slug))
+    assert get_json("workshops", slug=slug)["materials"]["login_url"].startswith(
+        f"https://{domain}/login/?next=/"
+    )
 
 
 def test_another_competition_keeps_the_scheme_and_port_of_the_main_url(
@@ -537,19 +524,18 @@ def test_another_competition_keeps_the_scheme_and_port_of_the_main_url(
 ):  # noqa: ARG001
     """Wszystkie konkursy obsługuje ten sam serwer – w devie ``http`` i port ``runserver``."""
     settings.DJCMS_MAIN_PUBLIC_URL = "http://localhost:8000"
-    settings.DJCMS_COMPETITION_SLUG = other_competition.slug
 
-    assert get_json("chrome")["links"]["login"] == f"http://{other_competition.primary_domain}:8000/login/"
+    links = get_json("chrome", slug=other_competition.slug)["links"]
+
+    assert links["login"] == f"http://{other_competition.primary_domain}:8000/login/"
 
 
-def test_the_default_competition_named_by_slug_still_uses_the_main_url(settings, competition):
-    settings.DJCMS_COMPETITION_SLUG = competition.slug
-
+def test_the_default_competition_uses_the_main_url(competition):  # noqa: ARG001
     assert get_json("chrome")["links"]["login"] == f"{MAIN}/login/"
 
 
 def test_a_path_prefix_competition_links_under_the_platform_host_with_its_prefix(
-    settings, competition, other_competition
+    competition, other_competition
 ):
     from apps.tenancy.models import RoutingMode
 
@@ -558,9 +544,8 @@ def test_a_path_prefix_competition_links_under_the_platform_host_with_its_prefix
     other_competition.routing_mode = RoutingMode.PATH
     other_competition.path_prefix = "druga"
     other_competition.save(update_fields=["routing_mode", "path_prefix"])
-    settings.DJCMS_COMPETITION_SLUG = other_competition.slug
 
-    links = get_json("chrome")["links"]
+    links = get_json("chrome", slug=other_competition.slug)["links"]
 
     assert links["login"] == f"{MAIN}/druga/login/"
     assert links["main_home"] == f"{MAIN}/druga/"
@@ -579,7 +564,7 @@ def test_prefix_is_not_added_to_static_files_and_media():
 
 
 @pytest.mark.parametrize("case", ["prefiks-bez-bramki", "bez-domeny"])
-def test_a_competition_without_a_public_address_is_refused(settings, competition, other_competition, case):  # noqa: ARG001
+def test_a_competition_without_a_public_address_is_refused(competition, other_competition, case):  # noqa: ARG001
     from apps.tenancy.models import Competition, RoutingMode
 
     if case == "prefiks-bez-bramki":
@@ -589,17 +574,14 @@ def test_a_competition_without_a_public_address_is_refused(settings, competition
         )
     else:
         Competition.objects.filter(pk=other_competition.pk).update(primary_domain="")
-    settings.DJCMS_COMPETITION_SLUG = other_competition.slug
 
     for endpoint in [*JSON_ENDPOINTS, "export"]:
-        response = internal().get(BASE + endpoint)
+        response = internal().get(base(other_competition.slug) + endpoint)
         assert response.status_code == 503, endpoint
-        assert response.json() == {"api_version": 1, "error": "no-public-url"}
+        assert response.json() == {"api_version": 2, "error": "no-public-url"}
 
 
-def test_export_of_another_competition_points_documents_at_its_domain(
-    settings, competition, other_competition
-):  # noqa: ARG001
+def test_export_of_another_competition_points_documents_at_its_domain(competition, other_competition):  # noqa: ARG001
     from django.core.files.uploadedfile import SimpleUploadedFile
     from wagtail.documents import get_document_model
     from wagtail.models import Collection
@@ -619,9 +601,8 @@ def test_export_of_another_competition_points_documents_at_its_domain(
         )
     )
     ContentPageAttachment.objects.create(page=info, document=document, label="PDF")
-    settings.DJCMS_COMPETITION_SLUG = other_competition.slug
 
-    response = internal().get(BASE + "export")
+    response = internal().get(base(other_competition.slug) + "export")
 
     manifest = json.loads(
         zipfile.ZipFile(io.BytesIO(b"".join(response.streaming_content))).read("manifest.json")
@@ -656,10 +637,14 @@ def test_workshops_page_path_skips_a_restricted_page(competition, home_page):  #
         BASE + "chrome/",
         BASE + "editions/abc/results",
         BASE + "editions/1/results/",
+        "/internal/djcms/v1/chrome",
+        "/internal/djcms/v1/export",
         "/internal/djcms/v1",
+        "/internal/djcms/v2",
         "/internal/djcms/",
         "/internal/djcms",
         "/internal/djcms/v2/chrome",
+        "/internal/djcms/v3/c/kwantowa/chrome",
     ],
 )
 @pytest.mark.parametrize(

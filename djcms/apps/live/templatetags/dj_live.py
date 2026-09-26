@@ -4,8 +4,8 @@
   ścieżki na domenie głównej (§ 8.3 „Degradacja”). Używają go sekcje żywe (DJ-01f), gdy API nie
   oddało danych ani z bufora, ani z kopii,
 - ``result|dj_stale_label`` – dopisek „stan na HH:MM” przy danych z kopii zapasowej,
-- ``"/sciezka/"|dj_main_url`` – adres w aplikacji głównej (``DJCMS_MAIN_PUBLIC_URL``); w szablonach
-  stron ``{% dj_main_href "/sciezka/" %}`` – to samo pod adresem publicznym konkursu żądania,
+- ``{% dj_main_href "/sciezka/" %}`` – adres w aplikacji głównej pod adresem publicznym konkursu
+  żądania (``apps.live.chrome.main_url``),
 - ``{% dj_live_data "stages" as stages %}`` – odpowiedź endpointu dla szablonu strony
   (``apps.live.data.LiveData``: ``available``, ``data``, ``stale_label``); to samo pobranie, co
   wtyczek tej odsłony (pamięć żądania),
@@ -40,11 +40,6 @@ def dj_unavailable(context, path: str | None = None) -> dict:
 @register.filter
 def dj_stale_label(result) -> str:
     return stale_label(result)
-
-
-@register.filter
-def dj_main_url(path: str) -> str:
-    return main_url(str(path or "/"))
 
 
 @register.simple_tag(takes_context=True)

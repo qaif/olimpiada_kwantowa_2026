@@ -1,33 +1,28 @@
-"""Widoki wewnętrznego API dla serwisu na django CMS – v1 (DJ-01 § 3.3) i v2 (DJ-02 § 4).
+"""Widoki wewnętrznego API v2 dla serwisu na django CMS (DJ-02 § 4).
 
-Dwie wersje tego samego rdzenia. Ciało każdego endpointu (``_chrome``, ``_stages``…) jest jedno
-i dostaje konkurs z zewnątrz; różnią się wyłącznie opakowania:
+Ciało każdego endpointu (``_chrome``, ``_stages``…) dostaje konkurs z zewnątrz; opakowanie
+``endpoint_v2`` (``/internal/djcms/v2/c/<slug>/<endpoint>``) bierze go **ze ścieżki**: klucz bufora,
+dziennik i test widzą go wprost (DJ-02 D11). Nieistniejący albo nieaktywny konkurs =
+``404 {"error": "no-competition"}`` – ale dopiero **po** bramkach, więc z domeny publicznej i bez
+tokenu odpowiedź jest ta sama pusta 404, co dla każdego innego adresu.
 
-- ``endpoint`` (v1, ``/internal/djcms/v1/<endpoint>``) – konkurs z konfiguracji
-  (``auth.djcms_competition``), brak konkursu = 503,
-- ``endpoint_v2`` (v2, ``/internal/djcms/v2/c/<slug>/<endpoint>``) – konkurs **ze ścieżki**:
-  klucz bufora, dziennik i test widzą go wprost (DJ-02 D11). Nieistniejący albo nieaktywny
-  konkurs = ``404 {"error": "no-competition"}`` – ale dopiero **po** bramkach, więc z domeny
-  publicznej i bez tokenu odpowiedź jest ta sama pusta 404, co dla każdego innego adresu.
-
-Wspólny rdzeń jest warunkiem niezmienników z DJ-01 § 7 w obu wersjach naraz: zadania po
-``opens_at``, wyniki ze snapshotu, brak danych osobowych – to są cechy ciał, nie opakowań.
-v1 zostaje bez zmian do DJ-02k (klient djcms przechodzi na v2 w DJ-02d).
+API v1 (DJ-01 § 3: jeden konkurs z ``DJCMS_COMPETITION_SLUG``, ``/internal/djcms/v1/…``) usunięto
+w DJ-02k; jego adresy kończą się pustą 404 catch-alla gałęzi (``apps/tenancy/internal_urls.py``).
+Niezmienniki z DJ-01 § 7 – zadania po ``opens_at``, wyniki ze snapshotu, brak danych osobowych –
+są cechami ciał, nie opakowania, więc obowiązują bez zmian.
 
 Każdy widok:
 
 - przechodzi przez bramki ``auth.internal_api`` (host wewnętrzny, token, ``GET``; porażka = 404),
-- ustala konkurs sam (v1: ``auth.djcms_competition``, v2: slug ze ścieżki) –
-  ``CompetitionMiddleware`` celowo nie rozstrzyga go dla ``/internal/*`` – i wykonuje się wewnątrz
-  ``competition_context``, więc kod
-  czytający „konkurs na teraz” (``current_edition(None)``, ``resolve_competition()``) widzi ten sam
-  konkurs, co przy stronie Wagtaila. Brak konkursu → ``503 {"error": "no-competition"}``, a wersja
-  ``dj.`` pokazuje wtedy komunikat o niedostępności zamiast cudzych danych,
+- ustala konkurs sam (slug ze ścieżki) – ``CompetitionMiddleware`` celowo nie rozstrzyga go dla
+  ``/internal/*`` – i wykonuje się wewnątrz ``competition_context``, więc kod czytający „konkurs na
+  teraz” (``current_edition(None)``, ``resolve_competition()``) widzi ten sam konkurs, co przy
+  stronie Wagtaila,
 - buduje adresy aplikacji pod adresem **tego** konkursu (``serializers.competition_public_base``),
   a nie pod ``DJCMS_MAIN_PUBLIC_URL``, które opisuje wyłącznie konkurs domeny głównej. Konkurs bez
   ustalonego adresu → ``503 {"error": "no-public-url"}``: odnośniki „Zaloguj” czy „Wyniki” pod
   cudzą domeną byłyby gorsze niż komunikat o niedostępności,
-- formatuje w języku polskim niezależnie od nagłówków żądania: wołający (klient ``dj.``) nie
+- formatuje w języku polskim niezależnie od nagłówków żądania: wołający (klient djcms) nie
   wysyła ``Accept-Language``, a napisy mają brzmieć tak samo jak na polskiej stronie Wagtaila,
 - oddaje ``Cache-Control: no-store``: stan etapu zmienia się z zegarem, a buforowanie jest
   zadaniem klienta (``djcms/apps/live/client.py``: 60 s świeże, 600 s kopia awaryjna).
@@ -56,16 +51,14 @@ from django.utils.formats import date_format
 from apps.tenancy.context import competition_context
 
 from . import serializers as s
-from .auth import djcms_competition, internal_api
+from .auth import internal_api
 
 logger = logging.getLogger(__name__)
 
-#: Wersja kontraktu. Klient ``dj.`` odrzuca odpowiedź z inną wartością („version”), więc zmiana
-#: kształtu, która nie jest dopisaniem pola, podnosi tę liczbę **i** prefiks adresu (``v2``).
-API_VERSION = 1
-
-#: Wersja kontraktu per konkurs (DJ-02 § 4) – adresy ``/internal/djcms/v2/…``.
-API_VERSION_V2 = 2
+#: Wersja kontraktu (DJ-02 § 4) – adresy ``/internal/djcms/v2/…``. Klient djcms odrzuca odpowiedź
+#: z inną wartością („version”), więc zmiana kształtu, która nie jest dopisaniem pola, podnosi tę
+#: liczbę **i** prefiks adresu.
+API_VERSION = 2
 
 #: Kształt sluga konkursu w ścieżce v2. Ten sam wzorzec stoi w ``urls_v2`` (``re_path``) – inny
 #: kształt nie dociera do widoku, tylko kończy się pustą 404 catch-alla.
@@ -110,13 +103,13 @@ def _json(payload: dict, *, status: int = 200) -> JsonResponse:
     return response
 
 
-def _envelope(payload: dict, api_version: int = API_VERSION) -> dict:
+def _envelope(payload: dict) -> dict:
     """Wspólne pola obiektu głównego: wersja kontraktu i chwila wygenerowania (ISO z offsetem)."""
-    return {"api_version": api_version, "generated_at": timezone.localtime().isoformat(), **payload}
+    return {"api_version": API_VERSION, "generated_at": timezone.localtime().isoformat(), **payload}
 
 
-def _serve(view, request, competition, api_version: int, *args, **kwargs):
-    """Wspólny rdzeń obu opakowań: adres konkursu, kontekst, język, koperta.
+def _serve(view, request, competition, *args, **kwargs):
+    """Rdzeń opakowania: adres konkursu, kontekst, język, koperta.
 
     Ciało endpointu oddaje słownik (treść JSON-a bez koperty) albo gotową odpowiedź (paczka ZIP).
     JSON powstaje **wewnątrz** kontekstów: napisy leniwe (``gettext_lazy``) zamieniają się w tekst
@@ -129,30 +122,16 @@ def _serve(view, request, competition, api_version: int, *args, **kwargs):
             "domena konkursu albo prefiks ścieżki z otwartą bramką path_prefix_routing konkursu platformy.",
             competition.slug,
         )
-        return _json({"api_version": api_version, "error": "no-public-url"}, status=503)
+        return _json({"api_version": API_VERSION, "error": "no-public-url"}, status=503)
     with competition_context(competition), s.public_base_context(base), translation.override("pl"):
-        result = view(request, competition, *args, api_version=api_version, **kwargs)
+        result = view(request, competition, *args, **kwargs)
         if isinstance(result, dict):
-            return _json(_envelope(result, api_version))
+            return _json(_envelope(result))
         return result
 
 
-def endpoint(view):
-    """v1: bramki + konkurs z konfiguracji + kontekst + język polski."""
-
-    @internal_api
-    @wraps(view)
-    def wrapped(request, *args, **kwargs):
-        competition = djcms_competition()
-        if competition is None:
-            return _json({"api_version": API_VERSION, "error": "no-competition"}, status=503)
-        return _serve(view, request, competition, API_VERSION, *args, **kwargs)
-
-    return wrapped
-
-
 def endpoint_v2(view):
-    """v2: bramki + konkurs **ze ścieżki** (``c/<slug>/…``) + kontekst + język polski.
+    """Bramki + konkurs **ze ścieżki** (``c/<slug>/…``) + kontekst + język polski.
 
     Kolejność ma znaczenie: bramki (``internal_api``) stoją **przed** odczytem konkursu, więc
     z domeny publicznej, bez tokenu albo z ``POST`` każdy slug – istniejący czy nie – daje tę samą
@@ -170,8 +149,8 @@ def endpoint_v2(view):
 
         competition = Competition.objects.filter(slug=slug, is_active=True).select_related("site").first()
         if competition is None:
-            return _json({"api_version": API_VERSION_V2, "error": "no-competition"}, status=404)
-        return _serve(view, request, competition, API_VERSION_V2, *args, **kwargs)
+            return _json({"api_version": API_VERSION, "error": "no-competition"}, status=404)
+        return _serve(view, request, competition, *args, **kwargs)
 
     return wrapped
 
@@ -182,7 +161,7 @@ def competitions(request):
     from .competitions import competitions_payload
 
     with translation.override("pl"):
-        return _json(_envelope(competitions_payload(), API_VERSION_V2))
+        return _json(_envelope(competitions_payload()))
 
 
 # --- rama serwisu --------------------------------------------------------------------------------
@@ -242,8 +221,8 @@ def _timeline_strip(competition) -> dict | None:
     return s.jsonable(strip) if strip is not None else None
 
 
-def _competition_v2(competition) -> dict:
-    """Marka konkursu w ramie v2: nazwy, kolor akcentu, logotyp i favikona (``Competition``).
+def _competition_dto(competition) -> dict:
+    """Marka konkursu w ramie: nazwy, kolor akcentu, logotyp i favikona (``Competition``).
 
     ``logo``/``favicon`` = ``None`` znaczy „brak własnego znaku” – djcms rysuje wtedy znak
     domyślny ze swoich statyków, tak jak ``templates/base.html`` (``img/logo-olimpiada-kwantowa.png``,
@@ -260,13 +239,13 @@ def _competition_v2(competition) -> dict:
     }
 
 
-def _chrome(request, competition, *, api_version):
+def _chrome(request, competition):
     """Rama serwisu: dane witryny, rejestracja, odnośniki, komunikaty, slider, pasek osi czasu.
 
-    v2 dokłada pola, które ``templates/base.html`` czyta poza tym, co v1 już niosło (parytet
-    ``<head>`` i stopki – DJ-02 § 4.3, § 8): markę konkursu (``competition.*``), identyfikator GA4
+    Wobec ramy DJ-01 dochodzą pola, które ``templates/base.html`` czyta dodatkowo (parytet
+    ``<head>`` i stopki – DJ-02 § 4.3, § 8): marka konkursu (``competition.*``), identyfikator GA4
     (``site.ga_measurement_id`` – ten sam warunek ładowania ``gtag``/``consent.js``) i ``seo``
-    (``og:image``, opis domyślny). Pola v1 zostają bez zmian – v1 nie dostaje żadnego z nowych.
+    (``og:image``, opis domyślny).
     """
     from apps.accounts.supervisors import registration_enabled
     from apps.cms.announcements import cached_announcements
@@ -280,17 +259,9 @@ def _chrome(request, competition, *, api_version):
     supervisor_enabled = registration_enabled(site.pk)
     slider = cached_payload(competition)
     site_dto = _site_dto(settings_row)
-    competition_dto = {"slug": competition.slug, "name": competition.name}
-    extra: dict = {}
-    if api_version >= API_VERSION_V2:
-        site_dto["ga_measurement_id"] = settings_row.ga_measurement_id or ""
-        competition_dto = _competition_v2(competition)
-        extra["seo"] = {
-            "og_image": s.api_href(static(OG_IMAGE_STATIC)),
-            "default_description": DEFAULT_DESCRIPTION,
-        }
+    site_dto["ga_measurement_id"] = settings_row.ga_measurement_id or ""
     return {
-        "competition": competition_dto,
+        "competition": _competition_dto(competition),
         "site": site_dto,
         "edition": s.edition_dto(current_edition(competition)),
         "registration": _registration_dto(competition),
@@ -320,14 +291,17 @@ def _chrome(request, competition, *, api_version):
             ],
         },
         "timeline_strip": _timeline_strip(competition),
-        **extra,
+        "seo": {
+            "og_image": s.api_href(static(OG_IMAGE_STATIC)),
+            "default_description": DEFAULT_DESCRIPTION,
+        },
     }
 
 
 # --- dane zawodów --------------------------------------------------------------------------------
 
 
-def _stages(request, competition, *, api_version):
+def _stages(request, competition):
     """Edycja, etap „na teraz” i wiersze osi czasu – ``live_data.competition_state``."""
     from apps.cms.live_data import competition_state
 
@@ -342,7 +316,7 @@ def _stages(request, competition, *, api_version):
     }
 
 
-def _problems(request, competition, *, api_version):
+def _problems(request, competition):
     """Zadania etapu bieżącego i treningowego – ``live_data.problems_state``.
 
     Lista ``problems`` jest pusta, dopóki etap się nie otworzy: funkcja wspólna nie oddaje zadań
@@ -362,7 +336,7 @@ def _problems(request, competition, *, api_version):
     }
 
 
-def _results(request, competition, *, api_version):
+def _results(request, competition):
     """Ogłoszone tabele bieżącej edycji i odnośniki archiwalne – ``live_data.results_state``."""
     from apps.cms.live_data import results_state
 
@@ -380,15 +354,15 @@ def _results(request, competition, *, api_version):
     }
 
 
-def _editions(request, competition, *, api_version):
-    """Edycje konkursu – lista wyboru w metadanych strony archiwum na ``dj.``."""
+def _editions(request, competition):
+    """Edycje konkursu – lista wyboru w metadanych strony archiwum w djcms."""
     from apps.competitions.models import Edition
 
     rows = Edition.objects.for_competition(competition).order_by("-created_at", "id")
     return {"editions": [s.edition_dto(edition) for edition in rows]}
 
 
-def _edition_results(request, competition, edition_id: int, *, api_version):
+def _edition_results(request, competition, edition_id: int):
     """Odnośniki do ogłoszonych tabel jednej edycji. Edycja cudzego konkursu = pusta odpowiedź."""
     from apps.cms.live_data import archive_result_links
     from apps.competitions.models import Edition
@@ -412,9 +386,9 @@ def _page_path(page, competition) -> str | None:
     """Ścieżka strony względem korzenia witryny konkursu (``/warsztaty/``) – ta sama, co w paczce.
 
     Z ``url_path`` (``export_bundle.site_path``), a nie z ``get_url_parts``: dla konkursu pod
-    prefiksem ścieżki Wagtail (przez ``apps.tenancy.page_urls``) dokleja ``/<prefiks>/``, którego
-    na ``dj.`` nie ma. Strona z ograniczonym dostępem (hasło, logowanie, grupy – także odziedziczone
-    po przodku) nie trafia do paczki, więc i jej ścieżki nie podajemy: na ``dj.`` byłaby 404.
+    prefiksem ścieżki Wagtail (przez ``apps.tenancy.page_urls``) dokleja ``/<prefiks>/``, a ścieżki
+    djcms liczy od korzenia konkursu. Strona z ograniczonym dostępem (hasło, logowanie, grupy – także
+    odziedziczone po przodku) nie trafia do paczki, więc i jej ścieżki nie podajemy: w djcms byłaby 404.
     """
     from wagtail.models import Page
 
@@ -463,7 +437,7 @@ def _richtext(value, competition) -> str:
 def _schedule_dto(value) -> dict:
     """Jeden blok ``schedule`` strony warsztatów – **cała** tabela, tak jak rysuje ją Wagtail.
 
-    ``rows`` (v1) to wiersze z datą, posortowane – do paska i zapowiedzi. Tabela na stronie
+    ``rows`` to wiersze z datą, posortowane – do paska i zapowiedzi. Tabela na stronie
     ``/warsztaty/`` pokazuje więcej: wiersze bez odczytanej daty („do potwierdzenia”), kolejność
     redakcyjną, podpis, własne nagłówki kolumn i ukrywanie pustych kolumn
     (``cms/blocks/schedule.html``). Wtyczka ``WorkshopSchedulePlugin`` rysuje ją z tych pól,
@@ -492,14 +466,14 @@ def _schedule_dto(value) -> dict:
     }
 
 
-def _workshops(request, competition, *, api_version):
+def _workshops(request, competition):
     """Najbliższe warsztaty (≤ 3), cały harmonogram i zapowiedź materiałów – z tabeli Wagtaila.
 
     ``upcoming`` liczy ta sama funkcja, co zapowiedź na stronie głównej (``upcoming_workshops``),
     która prowadzącego nie zwraca – pole ``lecturer`` jest tam puste. Pełne wiersze (z prowadzącym)
     są w ``rows``.
 
-    v2 dokłada ``schedules`` (bloki tabeli w kolejności strony) i ``page`` (tytuł i wprowadzenie):
+    ``schedules`` (bloki tabeli w kolejności strony) i ``page`` (tytuł i wprowadzenie) – DJ-02:
     strona „Warsztaty” zostaje redagowana w Wagtailu także po przełączeniu (decyzja użytkownika
     z 26.09.2026, DJ-02 D9), więc djcms pokazuje ją na żywo, a nie z jednorazowego importu.
     Strona z ograniczonym dostępem nie oddaje w nich nic – tak jak ``page_path``.
@@ -508,26 +482,22 @@ def _workshops(request, competition, *, api_version):
 
     page = workshops_page(competition)
     page_path = _page_path(page, competition)
-    payload = {
+    public = page is not None and page_path is not None
+    return {
         "page_path": page_path,
         "upcoming": [s.workshop_dto(row) for row in upcoming_workshops(page)],
         "rows": [s.workshop_dto(row) for row in workshop_rows(page)],
         "materials": _materials_dto(competition),
-    }
-    if api_version >= API_VERSION_V2:
-        public = page is not None and page_path is not None
-        payload["page"] = (
-            {"title": page.title, "intro": _richtext(page.intro, competition)} if public else None
-        )
-        payload["schedules"] = (
+        "page": {"title": page.title, "intro": _richtext(page.intro, competition)} if public else None,
+        "schedules": (
             [_schedule_dto(block.value) for block in page.body if block.block_type == "schedule"]
             if public
             else []
-        )
-    return payload
+        ),
+    }
 
 
-def _partners(request, competition, *, api_version):
+def _partners(request, competition):
     """Partnerzy konkursu na żywo ze strony ``PartnersPage`` Wagtaila (DJ-02 § 4.3, D9).
 
     To samo zapytanie, co ekran slidera w panelu koordynatora
@@ -569,7 +539,7 @@ def _partners(request, competition, *, api_version):
 def not_found(request, *args, **kwargs):
     """Pusta 404 dla każdego adresu gałęzi, którego nie ma w ``urls.urlpatterns``.
 
-    Bez tego wzorca ``CommonMiddleware`` (``APPEND_SLASH``) odpowiadał na ``…/v1/nie-ma`` 301 na
+    Bez tego wzorca ``CommonMiddleware`` (``APPEND_SLASH``) odpowiadał na ``…/v2/nie-ma`` 301 na
     adres z ukośnikiem (dopasowuje go catch-all Wagtaila), a tam – stroną 404 z marką konkursu. Adres
     prawdziwy za zamkniętą bramką odpowiada pustą 404, więc różnica mówiła, które nazwy istnieją.
     Bez bramek: odpowiedź i tak jest jedna, niezależnie od hosta, tokenu i metody.
@@ -580,24 +550,20 @@ def not_found(request, *args, **kwargs):
 # --- eksport treści (DJ-01b, v2: DJ-02 § 4.4) ----------------------------------------------------
 
 
-def _export(request, competition, *, api_version):
+def _export(request, competition):
     """Paczka treści redakcyjnej (``apps.cms.export_bundle``) – ZIP z manifestem i obrazami.
 
     Paczka powstaje w pliku tymczasowym (w pamięci do ``EXPORT_SPOOL_BYTES``), a nie w jednym
     ``bytes``: oryginały obrazów potrafią ważyć kilkadziesiąt megabajtów, a ten proces obsługuje
-    jednocześnie ruch uczestników. Wersja paczki idzie za wersją API: v1 oddaje paczkę 1 (importer
-    DJ-01 innej nie przyjmie), v2 – paczkę 2 (przekierowania, strony-dane).
+    jednocześnie ruch uczestników. Paczka w wersji 2 (przekierowania, strony-dane – DJ-02 § 4.4).
     """
     from apps.cms.export_bundle import build_bundle
 
     spool = tempfile.SpooledTemporaryFile(max_size=EXPORT_SPOOL_BYTES)  # noqa: SIM115 - zamyka FileResponse
-    report = build_bundle(
-        competition, stream=spool, main_public_url=s.current_public_base(), version=api_version
-    )
+    report = build_bundle(competition, stream=spool, main_public_url=s.current_public_base())
     spool.seek(0)
     logger.info(
-        "Eksport paczki CMS (v%s) konkursu %s dla djcms: %s stron, %s obrazów, %s dokumentów, %s pominięć.",
-        api_version,
+        "Eksport paczki CMS konkursu %s dla djcms: %s stron, %s obrazów, %s dokumentów, %s pominięć.",
         competition.slug,
         report.pages,
         report.images,
@@ -612,16 +578,7 @@ def _export(request, competition, *, api_version):
     return response
 
 
-# --- widoki v1 (``urls.py``) i v2 (``urls_v2.py``) – te same ciała --------------------------------
-
-chrome = endpoint(_chrome)
-stages = endpoint(_stages)
-problems = endpoint(_problems)
-results = endpoint(_results)
-editions = endpoint(_editions)
-edition_results = endpoint(_edition_results)
-workshops = endpoint(_workshops)
-export = endpoint(_export)
+# --- widoki (``urls_v2.py``) ---------------------------------------------------------------------
 
 chrome_v2 = endpoint_v2(_chrome)
 stages_v2 = endpoint_v2(_stages)

@@ -122,8 +122,8 @@ def _public_base(value, what: str) -> tuple[str, str]:
     """``(origin, prefiks)`` adresu publicznego albo ``("", "")``.
 
     Adres w złym kształcie **nie** odrzuca całej listy (wtedy żaden konkurs nie dostałby witryny) –
-    konkurs zostaje bez adresu publicznego (odnośniki do aplikacji wracają do
-    ``DJCMS_MAIN_PUBLIC_URL``), a powód trafia do logu. Do ``href`` trafia wyłącznie ``http(s)``.
+    konkurs zostaje bez adresu publicznego (odnośniki do aplikacji są wtedy względne – ten sam host,
+    ``apps.live.chrome.public_base``), a powód trafia do logu. Do ``href`` trafia wyłącznie ``http(s)``.
     """
     if value is None:
         return "", ""

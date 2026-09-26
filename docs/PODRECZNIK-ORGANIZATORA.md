@@ -1325,15 +1325,34 @@ w którym redaguje się strony.
 
 | Co | Gdzie |
 |---|---|
-| strony (tekst, zdjęcia, menu, nowe podstrony) | **django CMS**: `https://<adres konkursu>/djcms/admin/`; wejście z `/cms/` pozycją menu „Edytuj w django CMS” (bez osobnego hasła) – jeśli jej jeszcze nie widzisz, konto zakłada administrator |
+| strony (tekst, zdjęcia, menu, nowe podstrony) | **django CMS** – wejście wyłącznie z `/cms/` swojego konkursu, pozycją menu „Edytuj w django CMS” (niżej) |
 | tabela warsztatów (`/warsztaty/`) i partnerzy (`/partnerzy/`, slider sponsorów) | **nadal `/cms/`** – django CMS pokazuje je na bieżąco z aplikacji |
 | ustawienia serwisu (dane organizatora, logotyp), obrazy, dokumenty PDF | **nadal `/cms/`** |
 | terminy, zadania, wyniki, komunikaty | bez zmian – panel koordynatora |
 
 Pozostałe strony w `/cms/` są **tylko do odczytu**: na górze panelu stoi baner „Edycja treści
 przeniesiona do django CMS”, a przyciski edycji, publikacji, przenoszenia i usuwania stron są
-ukryte (próba zapisu kończy się odmową). Redaktor widzi i edytuje w django CMS wyłącznie strony
-**swojego** konkursu.
+ukryte (próba zapisu kończy się odmową).
+
+**Jak wejść do django CMS.** Zaloguj się do `/cms/` **swojego** konkursu (pod jego adresem, np.
+`https://fizyczna.olimpiadakwantowa.pl/cms/`), wybierz w menu **„Edytuj w django CMS”**, a potem
+„Przejdź do django CMS” – serwis zaloguje Cię tym samym kontem, bez osobnego hasła, i otworzy listę
+stron Twojego konkursu. Kont w django CMS nikt nie zakłada ręcznie i nie ma do nich haseł.
+
+- W django CMS możesz dokładnie to, co w `/cms/`: kto w `/cms/` edytuje i publikuje strony
+  konkursu, ten edytuje i publikuje je w django CMS; kto tylko edytuje – zapisuje wersje robocze,
+  a publikuje ktoś z prawem publikacji. Uprawnienia nadaje się **w `/cms/`** (jak dotąd) – django CMS
+  przejmuje je przy każdym wejściu.
+- Widzisz i edytujesz wyłącznie strony, pliki i przekierowania **swojego** konkursu. Pliki
+  wgrywaj do folderu `Konkurs: <nazwa konkursu> (…)`; folder „Wspólne” jest tylko do odczytu.
+  Każdy wgrany plik jest publiczny – nie wgrywaj niczego poufnego.
+- Sesja w django CMS trwa do 4 godzin od wejścia; potem wróć do `/cms/` i wejdź ponownie.
+- Nie widzisz pozycji „Edytuj w django CMS”? Twoje konto nie ma w `/cms/` prawa edycji stron tego
+  konkursu (poproś osobę, która zarządza redakcją) albo administrator jeszcze nie włączył przejścia.
+- Ktoś odszedł z redakcji: odbierz mu prawa w `/cms/` – w django CMS stracą ważność przy jego
+  następnym wejściu, a najpóźniej po 4 godzinach. Gdy trzeba natychmiast (np. wyciek hasła),
+  poproś administratora o zablokowanie konta w django CMS (`PODRECZNIK-ADMINISTRATORA.md`,
+  `docs/OPERACJE.md` § 22.3).
 
 **Gdyby trzeba było wrócić do Wagtaila** (decyzja organizatora, administrator robi to w kilka
 sekund): odwiedzający zobaczą strony w stanie z **chwili przełączenia** – zmiany zrobione później
