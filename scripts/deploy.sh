@@ -491,12 +491,18 @@ if [ "${MAINTENANCE:-0}" = "1" ]; then
   if [ "$DJCMS_ON" = "1" ]; then docker compose stop djcms; fi
 fi
 docker compose up -d db
+# Stan usług do zmiennej, a nie `docker compose ps | grep -q`: grep kończy czytanie po pierwszym
+# trafieniu, a `docker` piszący dalej (i atrapa w scripts/tests/deploy_djcms_test.sh – bash pisze
+# linijka po linijce) dostaje SIGPIPE; pod `pipefail` potok jest wtedy fałszywy mimo trafienia –
+# pętla robi zbędny obrót (dodatkowe `ps`), a kontrola twarda niżej przerywa wdrożenie.
 for _ in $(seq 1 30); do
-  docker compose ps --format '{{.Service}}={{.Health}}' | grep -q 'db=healthy' && break
+  PS_OUT="$(docker compose ps --format '{{.Service}}={{.Health}}')" || PS_OUT=""
+  grep -q 'db=healthy' <<<"$PS_OUT" && break
   sleep 2
 done
 # Twardo: bez działającej bazy nie ma kopii z kroku 4a, a bez kopii nie wolno migrować.
-docker compose ps --format '{{.Service}}={{.Health}}' | grep -q 'db=healthy'
+PS_OUT="$(docker compose ps --format '{{.Service}}={{.Health}}')"
+grep -q 'db=healthy' <<<"$PS_OUT"
 if [ "$DJCMS_ON" = "1" ]; then
   # Rola i baza `olimpiada_djcms` (idempotentnie; hasło z .env ustawiane przy każdym przebiegu).
   # Przed kontrolą klientów przy --maintenance: psql skryptu kończy się, zanim ona zacznie liczyć.
@@ -646,7 +652,9 @@ if [ "$MAINTENANCE" = "1" ]; then
   "${SSH[@]}" env REMOTE_DIR="$REMOTE_DIR" bash -s <<'REMOTE'
 set -euo pipefail
 cd "$REMOTE_DIR"
-docker compose ps --format '{{.Service}}={{.Health}}' | grep -qx 'web=healthy' \
+# Do zmiennej, nie `| grep -q` (SIGPIPE pod pipefail – komentarz w kroku 4/8).
+PS_OUT="$(docker compose ps --format '{{.Service}}={{.Health}}' || true)"
+grep -qx 'web=healthy' <<<"$PS_OUT" \
   || { echo "BŁĄD: web nie jest healthy – strona prac technicznych zostaje włączona (docker compose logs web)"; exit 1; }
 DOMAIN="$(sed -n 's/^SITE_DOMAIN=//p' .env | tail -n 1 | tr -d '\r\042\047')"
 TOKEN="$(sed -n 's/^MAINTENANCE_BYPASS_TOKEN=//p' .env | tail -n 1 | tr -d '\r\042\047')"
@@ -929,7 +937,9 @@ if [ "$DJCMS_ON" = "1" ]; then
 set -euo pipefail
 export DJCMS_ADMIN_EMAIL DJCMS_ADMIN_PASSWORD
 cd "$REMOTE_DIR"
-docker compose ps --format '{{.Service}}={{.Health}}' | grep -qx 'djcms=healthy' \
+# Do zmiennej, nie `| grep -q` (SIGPIPE pod pipefail – komentarz w kroku 4/8).
+PS_OUT="$(docker compose ps --format '{{.Service}}={{.Health}}' || true)"
+grep -qx 'djcms=healthy' <<<"$PS_OUT" \
   || { echo "BŁĄD: djcms nie jest healthy – docker compose logs djcms"; exit 1; }
 # Proxy montuje deploy/Caddyfile.generated jako pojedynczy plik, czyli i-węzeł z chwili startu
 # kontenera – a krok 2/8 tworzy katalog deploy/ od nowa. `up -d` w 4b odtwarza proxy tylko przy
@@ -943,7 +953,8 @@ if [ "$HOST_SUM" != "$BOX_SUM" ]; then
   echo "dj.: proxy widzi poprzednią wersję Caddyfile'a – odtwarzam kontener proxy"
   docker compose up -d --force-recreate --no-deps proxy </dev/null
   for _ in $(seq 1 30); do
-    docker compose ps --format '{{.Service}}={{.Health}}' | grep -qx 'proxy=healthy' && break
+    PS_OUT="$(docker compose ps --format '{{.Service}}={{.Health}}')" || PS_OUT=""
+    grep -qx 'proxy=healthy' <<<"$PS_OUT" && break
     sleep 2
   done
 fi

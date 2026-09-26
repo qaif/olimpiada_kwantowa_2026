@@ -48,7 +48,8 @@ case "$*" in
   "compose exec -T djcms python manage.py sync_competitions --list-hosts")
     [ "${STUB_DJCMS_HEALTH:-healthy}" = healthy ] || exit 1
     printf 'nowe: –\nbez zmian: kwantowa, fizyczna, e2e-druga\nwygaszone: –\n'
-    printf 'olimpiada.example kwantowa\nfizyczna.example fizyczna\nolimpiada.example/druga/ e2e-druga\n'
+    # e2e-druga.localhost – własna domena konkursu pod prefiksem: rejestr ją zna, proxy jej nie obsługuje.
+    printf 'olimpiada.example kwantowa\nfizyczna.example fizyczna\ne2e-druga.localhost e2e-druga\nolimpiada.example/druga/ e2e-druga\n'
     printf 'sync_competitions: gotowe.\n' ;;
   "compose exec -T web python manage.py cms_freeze status")
     if [ "${STUB_FREEZE_RC:-0}" = 0 ]; then echo "Edycja stron ZAMROŻONA od 2026-09-26"; else echo "Edycja stron otwarta."; fi
@@ -161,6 +162,8 @@ check "kontrola dymna idzie przez lokalne proxy (--resolve) z przepustką prac t
 check "kontrola dymna pomija przekierowania www." $?
 ! grep -q '^   FAIL' "$WORK/on.out"
 check "kontrola dymna bez porażek" $?
+! grep -q 'e2e-druga.localhost' "$WORK/on.curl" && grep -qF 'https://e2e-druga.localhost/ – pominięte' "$WORK/on.out"
+check "kontrola dymna pomija host z rejestru, którego proxy nie obsługuje (domena konkursu pod prefiksem)" $?
 
 # 4. status po on.
 run_switch st1 status

@@ -131,3 +131,88 @@ musiałaby poprawiać. Konkretnie:
   że przyrost nie rośnie z danymi.
 - **Pamięć podręczna procesu** (słownik modułu z TTL) – dopisz jej czyszczenie do
   `_clear_process_caches` w `conftest.py`, inaczej wynik testów zależy od kolejności pod xdist.
+
+## 7. E2E przełączenia Wagtail ⇄ django CMS (DJ-02j)
+
+`scripts/tests/djcms_primary_e2e.sh` – obowiązkowy przed DoD DJ-02 (docs/tasks/DJ-02.md § 11).
+Prawdziwy stos (web i djcms na gunicornie z `DEBUG=0`, Caddy z plikiem z `scripts/render_caddyfile.sh`
+przy `DJCMS_ENABLED=1`, `PLATFORM_SUBDOMAINS=1`, `SITE_DOMAIN=olimpiada.test`) w **osobnym projekcie
+compose** `olimpiada-e2e-djcms`: środowisko dev (`olimpiadaclade`) zostaje nietknięte (własne
+wolumeny, podsieci 172.31.x zamiast 172.30.x, obrazy `…:e2e-djcms`, na hoście wyłącznie
+`127.0.0.1:443`). Katalog roboczy `runs/djcms-e2e/install/` (poza gitem) udaje katalog instalacji
+serwera, więc `scripts/djcms_switch.sh` i `scripts/djcms_cutover.sh` idą w nim **bez zmian**.
+Nakładka compose: `docker-compose.e2e-djcms.yml` (tylko dla tego skryptu).
+
+| Polecenie | Co robi | Czas (26.09.2026) |
+|---|---|---|
+| `scripts/tests/djcms_primary_e2e.sh` | czyste wolumeny, budowanie, świat, scenariusz A–E, pomiar, `down -v` | ok. 10 min |
+| `… --keep` / `… --down` | jw., stos zostaje / tylko sprzątnięcie | |
+| `… --reuse` | scenariusz na stosie z poprzedniego `--keep` (bez budowania i seedów) – **tylko przed przełączeniem** (po pełnym przebiegu `.env` ma `DJCMS_CUTOVER_DONE`) | |
+| `… --up-only` | tylko stos i świat (do ręcznego klikania / debugowania) | ok. 3 min |
+| `… --no-bench` | bez pomiaru | −4 min |
+
+Wymagania: Docker, wolny port 443 na 127.0.0.1, Git Bash albo Linux (`openssl`, `gpg` – kopia
+w kroku przełączenia). Obraz `web`: `docker compose build web`; gdy budowanie nie przechodzi (antywirus
+przechwytujący HTTPS – `backend/Dockerfile` nie ma sekretu `extra_ca`), skrypt składa obraz z zależności
+`olimpiada/web:dev` (`DJCMS_E2E_WEB_BASE`) i kodu z drzewa roboczego. `EXTRA_CA_FILE` z `.env` trafia
+do budowania djcms i do `pip` kontenera klienta. Klient testów: kontener Playwrighta w sieci `edge`
+stosu; `*.olimpiada.test` → adres `proxy` (requests – podmienione `getaddrinfo`, Chromium –
+`--host-resolver-rules`), bez pliku hosts. Wyniki: `runs/djcms-e2e/artifacts/` (wyjście każdego kroku,
+`bench-*.json`, zrzuty ekranu).
+
+Świat: konkurs domyślny (seedy jak dev) pod `olimpiada.test`, `fizyczna` w subdomenie platformy,
+`e2e-druga` pod prefiksem `/druga/` (domena własna `e2e-druga.localhost`, jak `scripts/e2e.sh`).
+
+Scenariusz (każdy wiersz `ok`/`FAIL`, kod ≠ 0 przy którejkolwiek porażce):
+
+- **A. PRIMARY=0** – `djcms_switch.sh status|check`, `e2e/check_djcms_primary.py --phase preview`
+  (trzy konkursy × `/`, `/zadania/`, `/wyniki/`: Wagtail bez `X-Djcms-Mode`, `Vary: Cookie`;
+  `djcms_view=dj` → djcms `preview` z noindex w nagłówku i meta; przycisk na `/djcms/preview/`
+  ustawia/kasuje ciasteczko host-only; `robots.txt` w podglądzie `Disallow: /`, `sitemap.xml` 404;
+  adresy aplikacji niezależnie od ciasteczka z web: `/login/`, `/me/`, `/coordinator/`, `/cms/`,
+  `/api/…`, `/static/…`, `/documents/…`; `/internal/*` – pusta 404 z proxy; `dj.` → 302;
+  logowanie uczestnika i koordynatora w przeglądarce, marka konkursu, wylogowanie, `/cms/` bez banera),
+  `djcms_cutover.sh --check` i `--dry-run`.
+- **B.** `djcms_cutover.sh --yes` (kopia + `backup_verify`, `cms_freeze on`, import, `verify_cutover`,
+  `djcms_switch.sh on`) pod ruchem w tle (`--phase load`: GET `/` i `/login/` trzech konkursów, ≥ 200
+  żądań, zero 5xx i zerwań). Gdy `verify_cutover` zatrzyma przełączenie – FAIL i ponowienie z `--skip`.
+- **C. PRIMARY=1** – `--phase primary` (djcms `primary`, bez noindex, `canonical` na własny host
+  i prefiks, `robots.txt` z `Sitemap:`, `sitemap.xml` z adresami konkursu, `/djcms/static/` immutable,
+  `djcms_view=wagtail` → Wagtail, `/regulamin/` → 301, 404 z ramą, panele z web, `/cms/` z banerem
+  zamrożenia); nowy konkurs `ekologiczna` po przełączeniu (pierwsze wejście = drzewo startowe djcms)
+  i jego wyłączenie (→ 404).
+- **D.** pomiar (`scripts/djcms_bench.py`, niżej).
+- **E.** `djcms_cutover.sh --rollback --unfreeze` pod ruchem, `--phase wagtail`.
+
+**Pomiar** `scripts/djcms_bench.py` (sama biblioteka standardowa): N żądań GET po liście adresów, stała
+współbieżność (wątki z keep-alive), p50/p95/p99, req/s, kody i upstream (`X-Djcms-Mode`). Ręcznie
+(z kontenera w sieci stosu E2E):
+
+```bash
+docker exec olimpiada-e2e-djcms-runner python /scripts/djcms_bench.py --connect proxy \
+    --url https://olimpiada.test/ --url https://olimpiada.test/zadania/ --requests 300 --concurrency 8 \
+    [--cookie djcms_view=wagtail]
+docker exec olimpiada-e2e-djcms-runner python /scripts/djcms_bench.py --summary artifacts/djcms
+```
+
+**Wynik przebiegu 26.09.2026** (stacja deweloperska, 32 rdzenie; 615 s): A preview 96/97,
+C primary 108/109, E wagtail 96/97, ruch w tle przy przełączeniu i wycofaniu ~10 tys. żądań –
+0 × 5xx, 0 zerwań; `djcms_cutover.sh` pełny przebieg 79 s (z `--skip fizyczna`), wycofanie 18 s;
+nowy konkurs widoczny w djcms po 23 s, wyłączony → 404 po 61 s (bufory 60 s w web). Czerwone
+wyłącznie z powodu dwóch usterek poza testem: `dj.<domena>` bez certyfikatu przy
+`PLATFORM_SUBDOMAINS=1` (nazwy dosłowne podpadają pod politykę on-demand bloku `*.`, a `ask` im
+odmawia) i `verify_cutover` S16 dla konkursu z szablonu (`/faq/`, `/harmonogram/`, `/warsztaty/`
+w `linked_paths`, choć strony nie ma ani w Wagtailu).
+
+Pomiar (300 żądań na wiersz, `/`, `/zadania/`, `/wyniki/` domeny głównej, przez Caddy'ego, ms):
+
+| współbieżność | djcms p50 / p95 | Wagtail bez bufora p50 / p95 | Wagtail z buforem p50 / p95 | req/s djcms / Wagtail bez bufora |
+|---|---|---|---|---|
+| 1 | 34,7 / 66,2 | 26,0 / 48,2 | 7,6 / 29,9 | 24 / 32 |
+| 8 | 61,7 / 168,0 | 50,4 / 131,4 | 20,8 / 68,7 | 107 / 110 |
+| 16 | 112,4 / 224,3 | 105,1 / 191,0 | 35,2 / 106,3 | 122 / 135 |
+
+djcms jest ok. 1,2–1,4× wolniejszy od Wagtaila **bez** bufora (strona główna najdroższa: 59 vs
+43 ms przy c1) – poniżej progu 2× z DJ-02 § 10.6, więc bufor pełnostronicowy djcms nie jest warunkiem
+przełączenia. Wagtail z buforem stron jest 3–5× szybszy od obu. Liczby z maszyny deweloperskiej –
+porównywać stosunki, nie wartości (VPS: 6 vCPU z kradzieżą CPU 12–37 %).
