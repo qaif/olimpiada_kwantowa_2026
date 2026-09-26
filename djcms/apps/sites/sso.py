@@ -257,7 +257,7 @@ def session_seconds() -> int:
     uprawnienia od nowa, więc odebranie roli w aplikacji głównej zamyka dostęp najpóźniej po tym
     czasie, także w sesji otwartej wcześniej.
     """
-    return int(getattr(settings, "DJCMS_SSO_SESSION_SECONDS", 4 * 60 * 60))
+    return int(getattr(settings, "DJCMS_SSO_SESSION_SECONDS", 2 * 60 * 60))
 
 
 def start_session(request, user) -> None:

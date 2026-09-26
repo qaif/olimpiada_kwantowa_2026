@@ -31,7 +31,11 @@ treścią: ``ContentPage`` o slugu ``warsztaty`` (harmonogram = obecności i za�
 dalej edytuje się w Wagtailu: zapis, publikacja, rewizje, blokada, prywatność, przepływy.
 **Drzewa** nie zmienia się także przy nich – przeniesienie, kopia, usunięcie, nowe podstrony
 i zmiana sluga zostają zamrożone, bo adresem i miejscem w menu zarządza już django CMS, a strona
-„Warsztaty” pod innym slugiem przestałaby być znajdowana przez aplikację.
+„Warsztaty” pod innym slugiem przestałaby być znajdowana przez aplikację. Zamrożone jest też
+**cofnięcie publikacji**: aplikacja czyta wyłącznie strony opublikowane (``workshops_page()``
+filtruje ``.live()``, slider sponsorów – też), więc dla niej zdjęcie strony-danych to jej
+usunięcie. O wyjątku rozstrzyga strona **w bazie** (jej typ i opublikowany slug), a nie
+edytowana rewizja – szkic ze starym slugiem nie zamyka strony przed jej redakcją.
 
 **Nie zamrożone** (D9): ustawienia serwisu (``SiteSettings``), komunikaty (snippet), obrazy
 i dokumenty (``/documents/`` dalej serwuje ``web``, a django CMS do nich linkuje), kolekcje,
@@ -134,6 +138,7 @@ def is_frozen() -> bool:
 def reset_cache(**_kwargs) -> None:
     """Zapomina zapamiętany stan. Woła to zapis wiersza (w tym procesie) oraz testy."""
     _memo.clear()
+    _exempt_memo.clear()
 
 
 def set_frozen(active: bool, *, message: str = "", changed_by: str = "") -> FreezeState:
@@ -169,14 +174,39 @@ def ignoring() -> Iterator[None]:
 
 
 def is_exempt(page) -> bool:
-    """Czy strona jest stroną-danymi, której treść zostaje edytowalna mimo zamrożenia."""
+    """Czy strona jest stroną-danymi, której treść zostaje edytowalna mimo zamrożenia.
+
+    Slug – z bazy (:func:`_exempt_content_page_ids`), a nie z ``page``: ekran edycji i przywracanie
+    rewizji pracują na obiekcie z najnowszej rewizji (``get_latest_revision_as_object``), którego
+    slug bywa inny niż opublikowany. Typ strony rewizja zmienić nie może, więc ten – z obiektu.
+    """
     model = page.specific_class
     if model is None:
         return False
     label = model._meta.label_lower
     if label in EXEMPT_PAGE_MODELS:
         return True
-    return label == "cms.contentpage" and page.slug in EXEMPT_CONTENT_SLUGS
+    return label == "cms.contentpage" and page.pk is not None and page.pk in _exempt_content_page_ids()
+
+
+#: ``(monotoniczny znacznik czasu, identyfikatory)`` stron-danych typu ``ContentPage`` – jak ``_memo``.
+_exempt_memo: list[tuple[float, frozenset[int]]] = []
+
+
+def _exempt_content_page_ids() -> frozenset[int]:
+    """Strony ``ContentPage`` o slugu z :data:`EXEMPT_CONTENT_SLUGS` – w bazie, z pamięcią na TTL.
+
+    Jedno zapytanie na :data:`CACHE_TTL_SECONDS` zamiast jednego na wiersz listy stron. Slug takiej
+    strony w czasie zamrożenia się nie zmienia (``CmsFreezeMiddleware`` odrzuca zmianę sluga).
+    """
+    now = time.monotonic()
+    if _exempt_memo and now - _exempt_memo[0][0] < CACHE_TTL_SECONDS:
+        return _exempt_memo[0][1]
+    from .models import ContentPage
+
+    ids = frozenset(ContentPage.objects.filter(slug__in=EXEMPT_CONTENT_SLUGS).values_list("pk", flat=True))
+    _exempt_memo[:] = [(now, ids)]
+    return ids
 
 
 def djcms_url() -> str:
@@ -237,7 +267,8 @@ class FrozenPagePermissionTester(PagePermissionTester):
         return self.exempt and super().can_publish()
 
     def can_unpublish(self):
-        return self.exempt and super().can_unpublish()
+        # Także strona-dane: dla aplikacji zdjęcie z publikacji = usunięcie (docstring modułu).
+        return False
 
     def can_lock(self):
         return self.exempt and super().can_lock()

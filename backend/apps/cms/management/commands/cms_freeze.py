@@ -1,9 +1,14 @@
-"""Zamrożenie edycji stron Wagtaila: ``cms_freeze on [--message …] | off | status``.
+"""Zamrożenie edycji stron Wagtaila: ``cms_freeze on [--message …] [--wait] | off | status``.
 
-Wołają ją skrypty przełączenia na django CMS (``scripts/djcms_cutover.sh`` – krok 3,
+Wołają ją skrypty przełączenia na django CMS (``scripts/djcms_cutover.sh`` – krok 2,
 ``scripts/djcms_switch.sh status``) i operator przy wycofaniu (DJ-02 § 10). Stan jest wierszem
 w bazie (``cms.EditingFreeze``), więc zmiana nie wymaga restartu ``web`` – pozostałe procesy
 widzą ją najpóźniej po ``apps.cms.freeze.CACHE_TTL_SECONDS`` sekundach.
+
+``--wait`` (przy ``on``/``off``): po zapisie komenda czeka ``CACHE_TTL_SECONDS + 2`` s, zanim
+wróci. Do tej chwili inny worker ``web`` może jeszcze przyjąć zapis strony w Wagtailu z pamięci
+sprzed zamrożenia – skrypt przełączenia, który zaraz potem czyta treść do importu, musi zaczekać,
+inaczej taki zapis minąłby import i przepadł.
 
 Kody wyjścia:
 
@@ -15,11 +20,15 @@ from __future__ import annotations
 
 import getpass
 import sys
+import time
 
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from apps.cms import freeze
+
+#: Ile czeka ``--wait``: pamięć stanu w procesach ``web`` plus zapas na żądanie, które właśnie trwa.
+WAIT_SECONDS = freeze.CACHE_TTL_SECONDS + 2
 
 
 def _operator() -> str:
@@ -43,8 +52,16 @@ class Command(BaseCommand):
             help=f"Pierwsze zdanie banera w /cms/ (domyślnie: „{freeze.DEFAULT_MESSAGE}”).",
         )
         parser.add_argument("--by", default="", help="Kto zmienia stan (zapisywane w bazie).")
+        parser.add_argument(
+            "--wait",
+            action="store_true",
+            help=(
+                f"Przy on/off: po zapisie odczekaj {WAIT_SECONDS} s – aż zmianę zobaczą wszystkie "
+                "procesy web (pamięć stanu), zanim skrypt zrobi następny krok."
+            ),
+        )
 
-    def handle(self, *args, action, message, by, **options):
+    def handle(self, *args, action, message, by, wait=False, **options):
         if action == "status":
             freeze.reset_cache()
             state = freeze.freeze_state()
@@ -55,9 +72,16 @@ class Command(BaseCommand):
 
         state = freeze.set_frozen(action == "on", message=message.strip(), changed_by=by or _operator())
         self.stdout.write(self.style.SUCCESS(self._describe(state)))
-        self.stdout.write(
-            f"Pozostałe procesy web zobaczą zmianę najpóźniej po {freeze.CACHE_TTL_SECONDS} s (bez restartu)."
-        )
+        if wait:
+            self.stdout.write(f"Czekam {WAIT_SECONDS} s, aż zmianę zobaczą wszystkie procesy web…")
+            self.stdout.flush()
+            time.sleep(WAIT_SECONDS)
+            self.stdout.write("Zmiana obowiązuje we wszystkich procesach web.")
+        else:
+            self.stdout.write(
+                f"Pozostałe procesy web zobaczą zmianę najpóźniej po {freeze.CACHE_TTL_SECONDS} s "
+                "(bez restartu; --wait czeka na to)."
+            )
         if not state.active:
             self.stdout.write(
                 "Uwaga: Wagtail pokazuje treść z chwili zamrożenia – zmiany wprowadzone w django CMS "

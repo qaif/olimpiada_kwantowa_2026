@@ -201,6 +201,10 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Wylogowanie zamyka też sesję w django CMS na tym samym hoście (ciasteczko ``djcms_sessionid``,
+    # apps/cms/djcms_sso.py). Działa wyłącznie na odpowiedzi żądania, w którym padło ``logout()`` –
+    # tuż za uwierzytelnieniem, żeby objąć wylogowanie z każdego widoku i każdej niższej warstwy.
+    "apps.cms.djcms_sso.DjcmsLogoutMiddleware",
     # Konkurs żądania: ``request.competition`` i zmienna kontekstowa dla kodu, który żądania nie
     # widzi (poczta, zadania). **Za** ``AuthenticationMiddleware``, bo rozstrzygnięcie ma docelowo
     # móc zależeć od użytkownika (przełącznik konkursu przy kilku członkostwach), i **przed**

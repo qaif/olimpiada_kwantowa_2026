@@ -2,8 +2,14 @@
 admina – redaktor otwiera formularz z paska narzędzi strony (``cms_toolbars.py``), a nie z listy
 wszystkich rekordów.
 
+**Zasięg redaktora** (DJ-02g, S12): lista pod ``/djcms/admin/dj_pages/<model>/`` nadal istnieje
+(adres wpisany ręcznie), więc pokazuje wyłącznie rekordy witryn redaktora
+(``apps.sites.permissions.editable_site_ids``), a akcji zbiorczych nie ma wcale: ``delete_selected``
+usuwa ``QuerySet.delete()`` – z pominięciem ``delete_model`` i jego sprawdzenia uprawnień do strony
+(z ``select_across`` – rekordy wszystkich witryn naraz). Zostaje usuwanie pojedynczego rekordu.
+
 Rozszerzenia treści (``NewsMeta``, ``DocumentMeta``, ``ArchiveMeta``) należą do **wersji** treści,
-więc zapis wolno tylko do wersji roboczej: poprawka metryki opublikowanej wersji z pominięciem
+więc zapis i usunięcie wolno tylko w wersji roboczej: zmiana metryki opublikowanej wersji z pominięciem
 versioningu zmieniłaby stronę publiczną bez publikacji i bez śladu w historii. Pasek narzędzi i tak
 wyłącza tę pozycję poza trybem edycji (wersji roboczej) – panel pilnuje tego samego dla adresu
 wpisanego ręcznie.
@@ -18,13 +24,45 @@ from django.contrib import admin
 from django.core.exceptions import PermissionDenied
 
 from apps.live import client
+from apps.sites.permissions import editable_site_ids, object_site_id
 
 from .models import ArchiveMeta, DocumentMeta, MenuExtension, NewsMeta
 
 
+class SiteScopedExtensionAdmin:
+    """Lista rozszerzeń tylko z witryn redaktora i bez akcji zbiorczych (docstring modułu).
+
+    ``site_lookup`` – ścieżka od rozszerzenia do witryny strony. Superużytkownik i platforma
+    (``editable_site_ids`` → ``None``) widzą wszystko.
+    """
+
+    site_lookup = ""
+    #: ``None`` wyłącza także ``delete_selected`` z ``AdminSite`` (``ModelAdmin.get_actions`` → ``{}``).
+    actions = None
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        allowed = editable_site_ids(request.user)
+        if allowed is None:
+            return queryset
+        return queryset.filter(**{f"{self.site_lookup}__in": allowed})
+
+    def has_delete_permission(self, request, obj=None):
+        if obj is not None:
+            allowed = editable_site_ids(request.user)
+            if allowed is not None and object_site_id(obj) not in allowed:
+                return False
+        return super().has_delete_permission(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        # Akcji zbiorczych nie ma; gdyby wróciły – każdy rekord przez ``delete_model`` i jego sprawdzenia.
+        for obj in queryset:
+            self.delete_model(request, obj)
+
+
 @admin.register(MenuExtension)
-class MenuExtensionAdmin(PageExtensionAdmin):
-    pass
+class MenuExtensionAdmin(SiteScopedExtensionAdmin, PageExtensionAdmin):
+    site_lookup = "extended_object__site_id"
 
 
 def _is_draft(content: PageContent | None) -> bool:
@@ -39,8 +77,10 @@ def _is_draft(content: PageContent | None) -> bool:
         return False
 
 
-class DraftOnlyContentExtensionAdmin(PageContentExtensionAdmin):
-    """Zapis rozszerzenia treści tylko do wersji roboczej (docstring modułu)."""
+class DraftOnlyContentExtensionAdmin(SiteScopedExtensionAdmin, PageContentExtensionAdmin):
+    """Zapis i usunięcie rozszerzenia treści tylko w wersji roboczej (docstring modułu)."""
+
+    site_lookup = "extended_object__page__site_id"
 
     def _target_content(self, request, obj) -> PageContent | None:
         if obj is not None and obj.extended_object_id:
@@ -52,6 +92,17 @@ class DraftOnlyContentExtensionAdmin(PageContentExtensionAdmin):
         if not _is_draft(self._target_content(request, obj)):
             raise PermissionDenied("Metrykę strony zmienia się w wersji roboczej (tryb edycji).")
         super().save_model(request, obj, form, change)
+
+    def has_delete_permission(self, request, obj=None):
+        # Bez obiektu (lista) – jak w Django; z obiektem: tylko metryka wersji roboczej.
+        if obj is not None and not _is_draft(obj.extended_object):
+            return False
+        return super().has_delete_permission(request, obj)
+
+    def delete_model(self, request, obj):
+        if not _is_draft(obj.extended_object):
+            raise PermissionDenied("Metrykę strony usuwa się w wersji roboczej (tryb edycji).")
+        super().delete_model(request, obj)
 
 
 @admin.register(NewsMeta)

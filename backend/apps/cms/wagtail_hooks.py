@@ -279,12 +279,12 @@ DATA_PAGE_NOTES = {
     "cms.contentpage": (
         "Tę stronę edytujesz dalej w Wagtailu, mimo przeniesienia edycji do django CMS: tabela "
         "warsztatów jest danymi aplikacji (obecności, zaświadczenia, zapowiedź), a django CMS "
-        "pokazuje ją na żywo. Adresu strony (sluga) nie można zmienić."
+        "pokazuje ją na żywo. Adresu strony (sluga) nie można zmienić, a strony – zdjąć z publikacji."
     ),
     "cms.partnerspage": (
         "Tę stronę edytujesz dalej w Wagtailu, mimo przeniesienia edycji do django CMS: lista "
         "partnerów zasila slider sponsorów, a django CMS pokazuje ją na żywo. Adresu strony "
-        "(sluga) nie można zmienić."
+        "(sluga) nie można zmienić, a strony – zdjąć z publikacji."
     ),
 }
 

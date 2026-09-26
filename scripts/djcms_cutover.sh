@@ -29,8 +29,10 @@
 #      i rejestr (`sync_competitions --dry-run`), `import_cms_bundle --all --replace --dry-run`,
 #      wolne miejsce na dysku;
 #   1. kopia: scripts/backup.sh (baza główna + baza i pliki djcms) i scripts/backup_verify.sh na niej;
-#   2. `cms_freeze on` w web – od tej chwili strony w /cms/ tylko do odczytu (wyjątki D9: warsztaty,
-#      partnerzy); odwiedzający nic nie widzą – strony publiczne dalej podaje Wagtail;
+#   2. `cms_freeze on --wait` w web – od tej chwili strony w /cms/ tylko do odczytu (wyjątki D9:
+#      warsztaty, partnerzy); `--wait` czeka, aż zamrożenie zobaczą wszystkie workery web (pamięć
+#      stanu 10 s) – zapis przyjęty tuż przed nim minąłby końcowy import; odwiedzający nic nie
+#      widzą – strony publiczne dalej podaje Wagtail;
 #   3. `sync_competitions` w djcms – witryny wszystkich aktywnych konkursów;
 #   4. `import_cms_bundle --from-api --all --replace [--skip …]` – końcowy import (treść z chwili
 #      zamrożenia), każdy konkurs we własnej transakcji;
@@ -157,7 +159,7 @@ dc() { docker compose exec -T "$@" </dev/null; }
 SKIP_ARGS=()
 for s in "${SKIPS[@]+"${SKIPS[@]}"}"; do SKIP_ARGS+=(--skip "$s"); done
 IMPORT_CMD=(djcms python manage.py import_cms_bundle --from-api --all --replace "${SKIP_ARGS[@]+"${SKIP_ARGS[@]}"}")
-FREEZE_CMD=(web python manage.py cms_freeze on --message "$FREEZE_MESSAGE" --by "$FREEZE_BY")
+FREEZE_CMD=(web python manage.py cms_freeze on --message "$FREEZE_MESSAGE" --by "$FREEZE_BY" --wait)
 SKIP_LIST="${SKIPS[*]+"${SKIPS[*]}"}"
 
 freeze_state() {  # kod: 0 zamrożone, 1 otwarte, 2 nie wiadomo (web nie odpowiada); opis na stdout
@@ -271,7 +273,7 @@ if [ "$PRIMARY_NOW" = 1 ]; then
   case "$rc" in
     0) ;;
     1) die "serwis publiczny jest na django CMS (DJCMS_PRIMARY=1), a edycja stron w Wagtailu jest OTWARTA – zmiany w /cms/ nie są widoczne publicznie.
-    Zamrożenie: docker compose exec -T web python manage.py cms_freeze on --message \"$FREEZE_MESSAGE\"
+    Zamrożenie: docker compose exec -T web python manage.py cms_freeze on --message \"$FREEZE_MESSAGE\" --wait
     albo powrót do Wagtaila: bash scripts/djcms_cutover.sh --rollback" ;;
     *) die "serwis publiczny jest na django CMS (DJCMS_PRIMARY=1), a stanu zamrożenia Wagtaila nie da się odczytać (web działa? docker compose ps web): $desc" ;;
   esac
@@ -391,7 +393,7 @@ PY
 print_plan() {
   log "Plan pełnego przebiegu (--dry-run – nic z tego nie zostało wykonane)"
   say "1. bash scripts/backup.sh && bash scripts/backup_verify.sh"
-  say "2. docker compose exec -T web python manage.py cms_freeze on --message \"$FREEZE_MESSAGE\" --by \"$FREEZE_BY\""
+  say "2. docker compose exec -T web python manage.py cms_freeze on --message \"$FREEZE_MESSAGE\" --by \"$FREEZE_BY\" --wait"
   say "3. docker compose exec -T djcms python manage.py sync_competitions"
   say "4. docker compose exec -T ${IMPORT_CMD[*]}"
   say "5. docker compose exec -T djcms python manage.py verify_cutover${SKIP_LIST:+   (porażka konkursów z --skip: $SKIP_LIST – tylko ostrzeżenie)}"

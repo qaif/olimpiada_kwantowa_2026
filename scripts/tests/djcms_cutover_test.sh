@@ -266,8 +266,9 @@ grep -qx 'switch-widzi-znacznik on' "$STATE/switch-seen"
 check "znacznik DJCMS_CUTOVER_DONE zapisany PRZED djcms_switch.sh on (przerwanie po przełączeniu go nie gubi)" $?
 grep -qx 'switch-lock=held' "$STATE/switch-seen"
 check "przełącznik dziedziczy blokadę przebiegu (OLIMPIADA_PROXY_LOCK=held)" $?
-grep -qF -- '--message Edycja treści przeniesiona do django CMS --by scripts/djcms_cutover.sh' "$STATE/frozen"
-check "cms_freeze on z komunikatem banera i autorem" $?
+grep -qF -- '--message Edycja treści przeniesiona do django CMS --by scripts/djcms_cutover.sh' "$STATE/frozen" &&
+  grep -qE -- ' --wait$' "$STATE/frozen"
+check "cms_freeze on z komunikatem banera, autorem i --wait (import dopiero, gdy zamrożenie widzą wszystkie workery)" $?
 grep -qE '^ +kwantowa +14/14 +18/18 +3/3 +OK' "$WORK/full.out" && grep -qF 'djcms_cutover.sh --rollback' "$WORK/full.out" &&
   grep -qF 'NIE wracają' "$WORK/full.out"
 check "podsumowanie: tabela stron i przekierowań, polecenie wycofania, ostrzeżenie o stratności" $?

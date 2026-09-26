@@ -143,6 +143,148 @@ def test_draft_only_editor_cannot_publish(world, sso_editor):
     assert not user_can_publish_page(user(), world.page_a)
 
 
+# --- bez prawa publikacji: opublikowane adresy stoją (apps.sites.live_guard) --------------------------
+
+DRAFT_ONLY = ("kwantowa", "edit")
+
+
+def page_path(page) -> str:
+    from cms.models import PageUrl
+
+    return PageUrl.objects.get(page=page, language="pl").path
+
+
+def delete_page(client, page):
+    return client.post(f"/djcms/admin/cms/page/{page.pk}/delete/", {"post": "yes"})
+
+
+def move_page(client, page, target) -> int:
+    """Status przeniesienia – widok django CMS owija każdą odpowiedź w JSON 200 (``jsonify_request``)."""
+    response = client.post(
+        f"/djcms/admin/cms/page/{page.pk}/move-page/", {"target": target.pk, "position": 0}
+    )
+    assert response.status_code == 200
+    return response.json()["status"]
+
+
+def page_exists(page) -> bool:
+    from cms.models import Page
+
+    return Page.objects.filter(pk=page.pk).exists()
+
+
+def test_guard_is_installed_where_the_admin_and_toolbar_look():
+    from cms import cms_toolbars
+    from cms.utils import page_permissions
+
+    from apps.sites import live_guard
+
+    assert live_guard.is_installed()
+    assert cms_toolbars.user_can_delete_page is page_permissions.user_can_delete_page
+
+
+def test_draft_only_editor_cannot_delete_a_live_page(world, sso_editor, make_page):
+    live = make_page("Strona-Zywa", "zywa")
+    client = sso_editor(grant(*DRAFT_ONLY))
+
+    assert not live.has_delete_permission(user())
+    assert delete_page(client, live).status_code == 403
+    assert page_exists(live)
+
+
+def test_draft_only_editor_cannot_delete_a_draft_above_a_live_subpage(world, sso_editor, make_page):
+    make_page("Podstrona-Zywa", "pod", parent=world.page_a)
+    client = sso_editor(grant(*DRAFT_ONLY))
+
+    assert delete_page(client, world.page_a).status_code == 403
+    assert page_exists(world.page_a)
+
+
+def test_draft_only_editor_deletes_a_page_that_was_never_published(world, sso_editor):
+    """Jak w Wagtailu (``Editors``): własny szkic redaktor bez publikacji sprząta sam."""
+    client = sso_editor(grant(*DRAFT_ONLY))
+
+    assert delete_page(client, world.page_a).status_code == 302
+    assert not page_exists(world.page_a)
+
+
+def test_publisher_deletes_a_live_page(world, sso_editor, make_page):
+    live = make_page("Strona-Zywa", "zywa")
+    client = sso_editor(grant("kwantowa"))
+
+    assert delete_page(client, live).status_code == 302
+    assert not page_exists(live)
+
+
+def test_draft_only_editor_cannot_move_a_live_page(world, sso_editor, make_page):
+    live = make_page("Strona-Zywa", "zywa")
+    client = sso_editor(grant(*DRAFT_ONLY))
+
+    assert not live.has_move_page_permission(user())
+    assert move_page(client, live, world.page_a) == 403
+    assert page_path(live) == "zywa"
+
+
+def test_draft_only_editor_moves_a_page_that_was_never_published(world, sso_editor, make_page):
+    target = make_page("Cel", "cel")
+    client = sso_editor(grant(*DRAFT_ONLY))
+
+    assert move_page(client, world.page_a, target) == 200
+    world.page_a.refresh_from_db()
+    assert world.page_a.parent == target
+
+
+def test_publisher_moves_a_live_page(world, sso_editor, make_page):
+    live = make_page("Strona-Zywa", "zywa")
+    target = make_page("Cel", "cel")
+    client = sso_editor(grant("kwantowa"))
+
+    assert move_page(client, live, target) == 200
+    assert page_path(live) == "cel/zywa"
+
+
+def test_page_settings_do_not_change_a_live_address(world, sso_editor, make_page, superuser):
+    """Slug w ustawieniach: opublikowana treść jest tylko do odczytu (także dla publikującego),
+    a zmiana w szkicu zmienia adres dopiero po publikacji – czyli rękami kogoś z prawem publikacji.
+    """
+    from cms.models import PageContent
+    from djangocms_versioning.models import Version
+
+    live = make_page("Strona-Zywa", "zywa")
+    published = PageContent.admin_manager.get(page=live, language="pl")
+    client = sso_editor(grant(*DRAFT_ONLY))
+    form = {"title": "Strona-Zywa", "slug": "nowy-adres", "template": "dj/pages/content.html"}
+    url = "/djcms/admin/cms/pagecontent/{}/change/"
+
+    assert client.post(url.format(published.pk), form).status_code == 403
+    assert page_path(live) == "zywa"
+
+    draft = Version.objects.get_for_content(published).copy(user()).content
+    response = client.post(url.format(draft.pk), form)
+    assert response.status_code == 302, response.context["adminform"].form.errors
+    assert page_path(live) == "zywa"
+    Version.objects.get_for_content(draft).publish(superuser)
+    assert page_path(live) == "nowy-adres"
+
+
+def test_draft_only_editor_cannot_change_the_home_page(world, sso_editor, make_page):
+    home = make_page("Start", "start", home=True)
+    client = sso_editor(grant(*DRAFT_ONLY))
+
+    assert client.post(f"/djcms/admin/cms/page/{world.page_a.pk}/set-home/").status_code == 403
+    home.refresh_from_db()
+    assert home.is_home
+
+
+def test_publisher_changes_the_home_page(world, sso_editor, make_page):
+    home = make_page("Start", "start", home=True)
+    client = sso_editor(grant("kwantowa"))
+
+    assert client.post(f"/djcms/admin/cms/page/{world.page_a.pk}/set-home/").status_code in (200, 302)
+    home.refresh_from_db()
+    assert not home.is_home
+
+
 # --- przekierowania i filer -------------------------------------------------------------------------
 
 
@@ -183,6 +325,37 @@ def test_shared_folder_is_read_only_for_editors(world, as_a):
     assert not world.shared.has_edit_permission(request)
     assert world.folder_a.has_edit_permission(request)
     assert not world.folder_b.has_read_permission(request)
+
+
+def test_foreign_clipboard_and_thumbnail_presets_are_closed(world, as_a, superuser):
+    """Cudzy schowek filera (nazwy plików innego konkursu) i wspólne presety miniatur – poza redakcją."""
+    from filer.models import Clipboard, ClipboardItem, ThumbnailOption
+
+    clipboard = Clipboard.objects.create(user=superuser)
+    ClipboardItem.objects.create(clipboard=clipboard, file=world.file_b)
+    preset = ThumbnailOption.objects.create(name="Kafelek", width=100, height=100)
+
+    response = as_a.get(f"/djcms/admin/filer/clipboard/{clipboard.pk}/change/")
+    assert response.status_code in (302, 403, 404)
+    assert "Plik-Beta" not in response.content.decode()
+    as_a.post(f"/djcms/admin/filer/thumbnailoption/{preset.pk}/change/", {"name": "Podmieniony"})
+    assert ThumbnailOption.objects.get(pk=preset.pk).name == "Kafelek"
+    editor = user()
+    for codename in ("change_clipboard", "view_clipboarditem", "change_thumbnailoption"):
+        assert not editor.has_perm(f"filer.{codename}"), codename
+
+
+def test_editor_uploads_into_own_folder(world, as_a):
+    """Bez schowka wgrywanie działa: ``filer.add_file`` + prawo do folderu konkursu."""
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from filer.models import File
+
+    upload = SimpleUploadedFile("nowy.txt", b"tresc", content_type="text/plain")
+    response = as_a.post(
+        f"/djcms/admin/filer/clipboard/operations/upload/{world.folder_a.pk}/", {"file": upload}
+    )
+    assert response.status_code == 200, response.content[:300]
+    assert File.objects.filter(folder=world.folder_a, original_filename="nowy.txt").exists()
 
 
 # --- platforma i zasięg ----------------------------------------------------------------------------

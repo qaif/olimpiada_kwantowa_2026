@@ -289,6 +289,96 @@ def test_menu_item_only_for_editors_of_this_competition(competition, other_compe
     assert "Edytuj w django CMS" not in html
 
 
+def script_src(response) -> list[str]:
+    policy = response["Content-Security-Policy"]
+    directive = next(d.strip() for d in policy.split(";") if d.strip().startswith("script-src "))
+    return directive.split()[1:]
+
+
+def assert_auto_submit_runs(response) -> None:
+    """Skrypt wysyłający formularz przechodzi przez CSP tej odpowiedzi – i przez politykę z nonce."""
+    pattern = r'<script nonce="([^"]+)">document\.getElementById\("djcms-sso-form"\)'
+    match = re.search(pattern, response.content.decode())
+    assert match, "skrypt bez nonce"
+    nonce = match.group(1)
+    assert nonce == response.wsgi_request.csp_nonce
+    sources = script_src(response)
+    if any(source.startswith("'nonce-") for source in sources):
+        assert f"'nonce-{nonce}'" in sources
+    else:
+        assert "'unsafe-inline'" in sources
+
+
+def test_auto_submit_script_passes_the_csp(competition, other_competition, client_for):
+    """Pod ``/cms/`` (także z prefiksem konkursu) – polityka panelu z ``'unsafe-inline'``."""
+    client = client_for(competition)
+    client.force_login(editor_of(competition, other_competition))
+    assert_auto_submit_runs(client.post(URL))
+
+    competition.feature_flags = {**(competition.feature_flags or {}), "path_prefix_routing": True}
+    competition.save(update_fields=["feature_flags"])
+    Competition.objects.filter(pk=other_competition.pk).update(
+        routing_mode=RoutingMode.PATH, path_prefix="druga"
+    )
+    assert_auto_submit_runs(client.post(f"/druga{URL}"))
+
+
+def test_auto_submit_script_nonce_matches_the_public_policy(competition, client_for):
+    """Gdyby adres wypadł spoza panelu: polityka stron publicznych z nonce tego żądania wpuszcza skrypt."""
+    from apps.web.middleware import build_policy
+
+    client = client_for(competition)
+    client.force_login(editor_of(competition))
+    response = client.post(URL)
+
+    nonce = response.wsgi_request.csp_nonce
+    assert f'<script nonce="{nonce}">' in response.content.decode()
+    assert f"'nonce-{nonce}'" in build_policy(nonce)
+
+
+# --- wylogowanie zamyka sesję djcms ------------------------------------------------------------------
+
+
+def djcms_cookie(response):
+    return response.cookies.get(djcms_sso.DJCMS_SESSION_COOKIE)
+
+
+def assert_djcms_session_expired(response) -> None:
+    cookie = djcms_cookie(response)
+    assert cookie is not None, response.cookies
+    assert cookie.value == ""
+    assert cookie["max-age"] == 0
+    assert cookie["path"] == "/"
+    assert cookie["samesite"] == "Lax"
+
+
+@pytest.mark.parametrize(
+    ("url", "expected_status"),
+    [("/logout/", 302), ("/cms/logout/", 302), ("/api/auth/logout/", 204)],
+)
+def test_logout_expires_the_djcms_session(competition, client_for, url, expected_status):
+    client = client_for(competition)
+    client.force_login(editor_of(competition))
+    client.cookies[djcms_sso.DJCMS_SESSION_COOKIE] = "sesja-djcms"
+
+    response = client.post(url)
+
+    assert response.status_code == expected_status, response.content[:300]
+    assert "_auth_user_id" not in client.session
+    assert_djcms_session_expired(response)
+
+
+def test_no_djcms_cookie_is_touched_without_logout_or_without_a_session(competition, client_for):
+    client = client_for(competition)
+    client.force_login(editor_of(competition))
+    client.cookies[djcms_sso.DJCMS_SESSION_COOKIE] = "sesja-djcms"
+    assert djcms_cookie(client.get("/cms/")) is None
+
+    other = client_for(competition)
+    other.force_login(editor_of(competition))
+    assert djcms_cookie(other.post("/logout/")) is None
+
+
 # --- cms.W013 -----------------------------------------------------------------------------------
 
 

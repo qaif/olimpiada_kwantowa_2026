@@ -12,7 +12,8 @@ class SitesConfig(AppConfig):
 
     ``ready`` instaluje łatkę ``SiteManager.get_current`` (``apps.sites.patches``) – musi stać
     przed pierwszym żądaniem i przed pierwszym renderowaniem, więc właśnie tutaj, a nie w module
-    importowanym leniwie.
+    importowanym leniwie. Tak samo reguła „bez publikacji nie usuwa ani nie przenosi opublikowanych
+    stron” (``apps.sites.live_guard``).
     """
 
     name = "apps.sites"
@@ -22,8 +23,9 @@ class SitesConfig(AppConfig):
     def ready(self) -> None:
         from django.contrib import admin
 
-        from . import checks, patches  # noqa: F401 - rejestracja system checków
+        from . import checks, live_guard, patches  # noqa: F401 - rejestracja system checków
 
         patches.install()
+        live_guard.install()
         # Logowanie hasłem – wyłącznie konto techniczne; strona mówi redaktorom, że wchodzą z /cms/ (SSO).
         admin.site.login_template = "dj_sites/admin_login.html"

@@ -2984,9 +2984,10 @@ setup_djcms_groups`.
   `cms.W013` w `web` i `dj_sites.W001` w djcms). Pusty albo krótszy = przejście wyłączone. Po
   zmianie klucza w `.env`: `docker compose up -d` (odtwarza `web` i `djcms`; oba muszą mieć tę samą
   wartość – inaczej każde wejście kończy się „Link logowania jest nieważny”).
-- `DJCMS_SSO_SESSION_SECONDS` (opcjonalnie, domyślnie `14400` = 4 h) – najdłuższa sesja po wejściu,
+- `DJCMS_SSO_SESSION_SECONDS` (opcjonalnie, domyślnie `7200` = 2 h) – najdłuższa sesja po wejściu,
   liczona **od logowania**, nie od ostatniego kliknięcia. Po niej djcms wylogowuje, a redaktor wchodzi
-  ponownie przez `/cms/` (uprawnienia liczone od nowa).
+  ponownie przez `/cms/` (uprawnienia liczone od nowa). Wylogowanie z aplikacji głównej (strona,
+  `/cms/`) kończy sesję djcms na tym samym hoście od razu.
 - Token: ważny 60 s, jednorazowy (nonce), tylko dla hosta, na którym go wystawiono, wyłącznie `POST`
   z nagłówkiem `Origin` tego hosta; nie trafia do adresu ani do dzienników (format: docs/API.md § 8.6).
 
@@ -3202,7 +3203,7 @@ bash scripts/djcms_cutover.sh [--skip SLUG …]      # pyta: wpisz PRZEŁĄCZ; b
 |---|---|---|
 | 0 | kontrole jak `--check` (bez testu odtwarzania) | nic nie zmienione |
 | 1/7 | `scripts/backup.sh` (baza główna, baza i pliki djcms) + `scripts/backup_verify.sh` **tej** kopii | nic w serwisie nie zmienione |
-| 2/7 | `cms_freeze on --message "Edycja treści przeniesiona do django CMS"` | stan zamrożenia niepewny – `djcms_switch.sh status` |
+| 2/7 | `cms_freeze on --message "Edycja treści przeniesiona do django CMS" --wait` (`--wait`: 12 s, aż zamrożenie zobaczą wszystkie workery `web` – zapis strony tuż przed nim nie minie importu) | stan zamrożenia niepewny – `djcms_switch.sh status` |
 | 3/7 | `sync_competitions` (djcms) | Wagtail zamrożony, publicznie dalej Wagtail |
 | 4/7 | `import_cms_bundle --from-api --all --replace [--skip …]` – każdy konkurs we własnej transakcji | jw.; konkursy z błędem mają poprzednią treść djcms |
 | 5/7 | `verify_cutover` – tabela per konkurs (strony djcms/paczka, adresy 200, przekierowania) | jw.; porażka konkursu z `--skip` to tylko ostrzeżenie (liczba stron z definicji inna) |
@@ -3232,6 +3233,13 @@ off` czekają do 2 min); przełącznik wołany przez ten skrypt dziedziczy bloka
 Po przełączeniu: `bash scripts/djcms_switch.sh status`, w przeglądarce kilka stron każdego konkursu,
 `/robots.txt`, `/sitemap.xml`, logowanie i panel (`/login/`, `/me/`, `/coordinator/`). Porównanie
 z Wagtailem: `/djcms/preview/` na hoście konkursu (ciasteczko `djcms_view=wagtail`).
+
+W czasie zamrożenia: konkurs założony po przełączeniu dostaje w Wagtailu strony startowe (zamrożone,
+bez edycji), a djcms buduje jego drzewo startowe sam, kilka sekund po pierwszej wizycie na jego
+adresie – stron-danych (warsztaty, partnerzy) taki konkurs nie ma do DJ-03. Strony-dane – jedyny
+wyjątek od zamrożenia – edytuje się i publikuje w `/cms/` dalej, ale nie zdejmuje z publikacji
+(dla aplikacji to ich usunięcie), a
+`publish_scheduled` platforma nie uruchamia – nie uruchamiaj go ręcznie, dopóki Wagtail jest zamrożony.
 
 ### 22.10. Wycofanie (powrót do Wagtaila)
 

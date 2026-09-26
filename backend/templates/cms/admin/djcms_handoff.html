@@ -19,7 +19,8 @@
             </p>
             <p>
                 Uprawnienia w django CMS odpowiadają tym tutaj i są odświeżane przy każdym przejściu.
-                Sesja w django CMS wygasa po kilku godzinach – wtedy wróć tutaj i przejdź ponownie.
+                Sesja w django CMS wygasa przy wylogowaniu stąd i po pewnym czasie (zwykle dwóch
+                godzinach) – wtedy wróć tutaj i przejdź ponownie.
             </p>
             <form method="post">
                 {% csrf_token %}
@@ -31,7 +32,13 @@
                 <input type="hidden" name="token" value="{{ token }}">
                 <button type="submit" class="button">Dalej</button>
             </form>
-            <script>document.getElementById("djcms-sso-form").submit();</script>
+            {% comment %}
+                nonce: pod /cms/ obowiązuje polityka panelu ('unsafe-inline', bez nonce – atrybut
+                jest wtedy bez znaczenia), ale gdyby adres wypadł spoza panelu (is_admin_request
+                w apps/web/middleware.py), polityka stron publicznych wpuszcza wyłącznie skrypty
+                z nonce – bez niego formularz zostałby na ekranie z przyciskiem „Dalej”.
+            {% endcomment %}
+            <script nonce="{{ request.csp_nonce }}">document.getElementById("djcms-sso-form").submit();</script>
         {% elif state == "disabled" %}
             <p>
                 Logowanie do django CMS z tego panelu nie jest skonfigurowane (brak klucza

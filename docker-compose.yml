@@ -454,7 +454,7 @@ services:
       # Klucz tokenu SSO z `/cms/` (DJ-02 D6) – ten sam wpis `.env` czyta `web` (env_file).
       DJCMS_SSO_KEY: ${DJCMS_SSO_KEY:-}
       # Najdłuższa sesja redaktora po SSO (sekundy od logowania; potem powrót przez `/cms/`).
-      DJCMS_SSO_SESSION_SECONDS: ${DJCMS_SSO_SESSION_SECONDS:-14400}
+      DJCMS_SSO_SESSION_SECONDS: ${DJCMS_SSO_SESSION_SECONDS:-7200}
       DJCMS_MAIN_MEDIA_ORIGIN: ${S3_PUBLIC_ENDPOINT_URL:-https://s3.${SITE_DOMAIN:-localhost}}
       # Zaufane proxy = WYŁĄCZNIE kontener `proxy` (Caddy): od niego djcms przyjmuje `X-Real-IP`
       # (blokada prób logowania) i `X-Djcms-Mode` (tryb preview/primary, DJ-02 D10 – od tego zależy
