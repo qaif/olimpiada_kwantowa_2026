@@ -1,0 +1,660 @@
+{
+ "format": "olimpiada-cms-bundle",
+ "version": 1,
+ "exported_at": "2026-09-26T12:00:00+02:00",
+ "source": {
+  "site_domain": "olimpiada.example",
+  "main_public_url": "https://olimpiada.example",
+  "competition_slug": "kwantowa",
+  "root_page_id": 3
+ },
+ "vocabularies": {
+  "partner_levels": [
+   [
+    "patron-honorowy",
+    "patron honorowy"
+   ],
+   [
+    "partner-instytucjonalny",
+    "partner instytucjonalny"
+   ],
+   [
+    "partner-naukowy",
+    "partner naukowy"
+   ],
+   [
+    "sponsor-diamentowy",
+    "sponsor diamentowy"
+   ],
+   [
+    "sponsor-platynowy",
+    "sponsor platynowy"
+   ],
+   [
+    "sponsor-zloty",
+    "sponsor złoty"
+   ],
+   [
+    "partner-medialny",
+    "partner medialny"
+   ]
+  ],
+  "menu": {
+   "primary": [
+    "zadania",
+    "harmonogram",
+    "warsztaty",
+    "kontakt"
+   ],
+   "order": [
+    "komitety",
+    "partnerzy",
+    "harmonogram",
+    "zadania",
+    "wyniki",
+    "warsztaty",
+    "dokumenty",
+    "kontakt",
+    "faq"
+   ],
+   "titles": {
+    "komitety": "Komitety",
+    "faq": "FAQ"
+   },
+   "hidden": [
+    "aktualnosci",
+    "archiwum"
+   ],
+   "promoted_documents": [
+    "komitety"
+   ]
+  }
+ },
+ "images": {
+  "17": {
+   "title": "Logo partnera (pasek)",
+   "alt": "Logo partnera",
+   "path": "images/17-logo-pasek.png",
+   "sha1": "8f624a52317d20c8a44bddc2f5edb0f60ec40ee3",
+   "width": 120,
+   "height": 30
+  },
+  "18": {
+   "title": "Zdjęcie z finału",
+   "alt": "Uczestnicy finału przy tablicy",
+   "path": "images/18-foto.png",
+   "sha1": "16bab4bfaeff9c5d928937c1ac2729c4b7308686",
+   "width": 40,
+   "height": 40
+  }
+ },
+ "documents": {
+  "5": {
+   "title": "Regulamin (PDF)",
+   "filename": "regulamin.pdf",
+   "extension": "pdf",
+   "size": 254113,
+   "url": "https://olimpiada.example/documents/5/regulamin.pdf"
+  },
+  "7": {
+   "title": "Zły adres",
+   "filename": "x.pdf",
+   "extension": "pdf",
+   "size": 10,
+   "url": "javascript:alert(1)"
+  }
+ },
+ "pages": [
+  {
+   "id": 3,
+   "parent_id": null,
+   "depth": 2,
+   "tree_path": "00010001",
+   "type": "cms.HomePage",
+   "slug": "home",
+   "url_path": "/",
+   "title": "Olimpiada Testowa",
+   "seo_title": "",
+   "search_description": "",
+   "show_in_menus": false,
+   "fields": {
+    "hero_title": "Przyszłość ma naturę kwantową.",
+    "hero_text": "<p>Olimpiada dla uczniów <strong>szkół ponadpodstawowych</strong>.</p>",
+    "about_title": "O Olimpiadzie",
+    "about_body": [
+     {
+      "type": "heading",
+      "value": {
+       "text": "Dla kogo?",
+       "level": "2",
+       "anchor": "dla-kogo",
+       "in_toc": true
+      }
+     },
+     {
+      "type": "paragraph",
+      "value": "<p>Dla uczniów szkół ponadpodstawowych.</p>"
+     },
+     {
+      "type": "notice",
+      "value": {
+       "tone": "info",
+       "text": "<p><a href=\"mailto:kontakt@olimpiada.example\">kontakt@olimpiada.example</a></p>"
+      }
+     }
+    ],
+    "show_timeline": true,
+    "steps_title": "Jak zacząć w 3 krokach",
+    "steps": [
+     {
+      "type": "step",
+      "value": {
+       "title": "Załóż konto",
+       "text": "Wypełnij formularz ucznia."
+      }
+     },
+     {
+      "type": "step",
+      "value": {
+       "title": "Rozwiąż zadania",
+       "text": "Prześlij rozwiązania w systemie."
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": 4,
+   "parent_id": 3,
+   "depth": 3,
+   "tree_path": "000100010001",
+   "type": "cms.NewsIndexPage",
+   "slug": "aktualnosci",
+   "url_path": "/aktualnosci/",
+   "title": "Aktualności",
+   "seo_title": "",
+   "search_description": "",
+   "show_in_menus": true,
+   "fields": {
+    "intro": "<p>Wiadomości od organizatora.</p>"
+   }
+  },
+  {
+   "id": 8,
+   "parent_id": 4,
+   "depth": 4,
+   "tree_path": "0001000100010001",
+   "type": "cms.NewsPage",
+   "slug": "ruszyla-rejestracja",
+   "url_path": "/aktualnosci/ruszyla-rejestracja/",
+   "title": "Ruszyła rejestracja",
+   "seo_title": "",
+   "search_description": "",
+   "show_in_menus": false,
+   "fields": {
+    "date": "2026-09-01",
+    "lead": "Konto zakłada się samodzielnie.",
+    "body": [
+     {
+      "type": "paragraph",
+      "value": "<p>Zapisy trwają.<script>alert(1)</script></p><p><img src=\"x\" onerror=\"alert(2)\"></p><p><a href=\"javascript:alert(3)\">klik</a> <a href=\"/zadania/\">zadania</a></p>"
+     },
+     {
+      "type": "image",
+      "value": {
+       "image": {
+        "image_id": 18
+       },
+       "caption": "Finał 2026"
+      }
+     },
+     {
+      "type": "image",
+      "value": {
+       "image": null,
+       "caption": "bez pliku"
+      }
+     },
+     {
+      "type": "document",
+      "value": {
+       "document": {
+        "document_id": 5
+       },
+       "label": "Pobierz regulamin"
+      }
+     },
+     {
+      "type": "embed",
+      "value": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+     },
+     {
+      "type": "embed",
+      "value": "https://evil.example/video/1"
+     }
+    ]
+   }
+  },
+  {
+   "id": 5,
+   "parent_id": 3,
+   "depth": 3,
+   "tree_path": "000100010002",
+   "type": "cms.ProblemsPage",
+   "slug": "zadania",
+   "url_path": "/zadania/",
+   "title": "Zadania",
+   "seo_title": "",
+   "search_description": "",
+   "show_in_menus": true,
+   "fields": {
+    "intro": "<p>Treści zadań pojawiają się po otwarciu etapu.</p>",
+    "closed_notice": "Zadania pojawią się 1 października.",
+    "body": [
+     {
+      "type": "paragraph",
+      "value": "<p>Rozwiązania przesyłasz w panelu.</p>"
+     }
+    ]
+   }
+  },
+  {
+   "id": 6,
+   "parent_id": 3,
+   "depth": 3,
+   "tree_path": "000100010003",
+   "type": "cms.ArchiveIndexPage",
+   "slug": "archiwum",
+   "url_path": "/archiwum/",
+   "title": "Archiwum",
+   "seo_title": "",
+   "search_description": "",
+   "show_in_menus": true,
+   "fields": {
+    "intro": ""
+   }
+  },
+  {
+   "id": 30,
+   "parent_id": 6,
+   "depth": 4,
+   "tree_path": "0001000100030001",
+   "type": "cms.ArchiveEditionPage",
+   "slug": "edycja-0",
+   "url_path": "/archiwum/edycja-0/",
+   "title": "Edycja 0",
+   "seo_title": "",
+   "search_description": "",
+   "show_in_menus": false,
+   "fields": {
+    "summary": "<p>Edycja próbna.</p>"
+   },
+   "archive_documents": [
+    {
+     "kind": "PROBLEMS",
+     "title": "Zadania etapu I",
+     "document_id": 5
+    },
+    {
+     "kind": "WEIRD",
+     "title": "Inne",
+     "document_id": 5
+    },
+    {
+     "kind": "SOLUTIONS",
+     "title": "Zastrzeżone",
+     "document_id": 6
+    }
+   ],
+   "archive_edition_id": 2
+  },
+  {
+   "id": 31,
+   "parent_id": 6,
+   "depth": 4,
+   "tree_path": "0001000100030002",
+   "type": "cms.ArchiveEditionPage",
+   "slug": "edycja-1",
+   "url_path": "/archiwum/edycja-1/",
+   "title": "Edycja 1",
+   "seo_title": "",
+   "search_description": "",
+   "show_in_menus": false,
+   "fields": {
+    "summary": ""
+   },
+   "archive_documents": [],
+   "archive_edition_id": null
+  },
+  {
+   "id": 7,
+   "parent_id": 3,
+   "depth": 3,
+   "tree_path": "000100010004",
+   "type": "cms.ResultsPage",
+   "slug": "wyniki",
+   "url_path": "/wyniki/",
+   "title": "Wyniki",
+   "seo_title": "",
+   "search_description": "",
+   "show_in_menus": true,
+   "fields": {
+    "intro": "<p>Tabele wyników ogłoszonych etapów.</p>"
+   }
+  },
+  {
+   "id": 14,
+   "parent_id": 3,
+   "depth": 3,
+   "tree_path": "000100010005",
+   "type": "cms.ContentPage",
+   "slug": "harmonogram",
+   "url_path": "/harmonogram/",
+   "title": "Harmonogram",
+   "seo_title": "",
+   "search_description": "",
+   "show_in_menus": true,
+   "fields": {
+    "show_in_menu": true,
+    "intro": "<p>Terminy etapów.</p>",
+    "body": [
+     {
+      "type": "heading",
+      "value": {
+       "text": "Terminy",
+       "level": "2",
+       "anchor": "terminy",
+       "in_toc": true
+      }
+     },
+     {
+      "type": "stage_timeline",
+      "value": {
+       "heading": "Etapy bieżącej edycji"
+      }
+     },
+     {
+      "type": "heading",
+      "value": {
+       "text": "Zła kotwica",
+       "level": "3",
+       "anchor": "zła kotwica",
+       "in_toc": false
+      }
+     },
+     {
+      "type": "schedule",
+      "value": {
+       "caption": "Warsztaty",
+       "topic_label": "Temat",
+       "date_label": "Termin",
+       "time_label": "Godziny",
+       "lecturer_label": null,
+       "rows": [
+        {
+         "topic": "Liczby zespolone",
+         "date": "10 października 2026",
+         "date_value": "2026-10-10",
+         "time": "11:00–14:00",
+         "lecturer": null
+        },
+        {
+         "topic": "Algebra liniowa",
+         "date": "do potwierdzenia",
+         "date_value": null,
+         "time": null,
+         "lecturer": "dr X"
+        }
+       ]
+      }
+     },
+     {
+      "type": "definitions",
+      "value": {
+       "term_label": "Cel",
+       "description_label": "Podstawa",
+       "rows": [
+        {
+         "term": "Rejestracja",
+         "description": "art. 6 ust. 1 lit. b RODO"
+        },
+        {
+         "term": "Kontakt",
+         "description": "art. 6 ust. 1 lit. f RODO"
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "attachments": [
+    {
+     "document_id": 5,
+     "label": "PDF do druku"
+    }
+   ]
+  },
+  {
+   "id": 10,
+   "parent_id": 3,
+   "depth": 3,
+   "tree_path": "000100010006",
+   "type": "cms.DocumentIndexPage",
+   "slug": "dokumenty",
+   "url_path": "/dokumenty/",
+   "title": "Dokumenty",
+   "seo_title": "",
+   "search_description": "",
+   "show_in_menus": true,
+   "fields": {
+    "intro": "<p>Dokumenty organizatora.</p>"
+   }
+  },
+  {
+   "id": 11,
+   "parent_id": 10,
+   "depth": 4,
+   "tree_path": "0001000100060001",
+   "type": "cms.DocumentPage",
+   "slug": "regulamin",
+   "url_path": "/dokumenty/regulamin/",
+   "title": "Regulamin",
+   "seo_title": "",
+   "search_description": "",
+   "show_in_menus": false,
+   "fields": {
+    "intro": "<p>Regulamin Olimpiady.</p>",
+    "body": [
+     {
+      "type": "notice",
+      "value": {
+       "tone": "warning",
+       "text": "<p>Projekt dokumentu.</p>"
+      }
+     },
+     {
+      "type": "heading",
+      "value": {
+       "text": "Rozdział 1. Postanowienia",
+       "level": "2",
+       "anchor": "rozdzial-1",
+       "in_toc": true
+      }
+     },
+     {
+      "type": "paragraph",
+      "value": "<ol><li>Olimpiada jest bezpłatna.</li></ol>"
+     },
+     {
+      "type": "document",
+      "value": {
+       "document": {
+        "document_id": 6
+       },
+       "label": "zastrzeżony"
+      }
+     }
+    ],
+    "version_label": "1.0",
+    "document_date": "2026-09-20",
+    "status_label": "Projekt do zatwierdzenia"
+   },
+   "attachments": [
+    {
+     "document_id": 5,
+     "label": "PDF do druku"
+    },
+    {
+     "document_id": 7,
+     "label": ""
+    }
+   ]
+  },
+  {
+   "id": 13,
+   "parent_id": 10,
+   "depth": 4,
+   "tree_path": "0001000100060002",
+   "type": "cms.DocumentPage",
+   "slug": "komitety",
+   "url_path": "/dokumenty/komitety/",
+   "title": "Skład komitetów",
+   "seo_title": "",
+   "search_description": "",
+   "show_in_menus": false,
+   "fields": {
+    "intro": "",
+    "body": [
+     {
+      "type": "paragraph",
+      "value": "<p>Przewodniczący: prof. Y.</p>"
+     }
+    ],
+    "version_label": "",
+    "document_date": null,
+    "status_label": ""
+   },
+   "attachments": []
+  },
+  {
+   "id": 22,
+   "parent_id": 3,
+   "depth": 3,
+   "tree_path": "000100010007",
+   "type": "cms.PartnersPage",
+   "slug": "partnerzy",
+   "url_path": "/partnerzy/",
+   "title": "Partnerzy",
+   "seo_title": "",
+   "search_description": "",
+   "show_in_menus": true,
+   "fields": {
+    "intro": "<p>Partnerzy i sponsorzy.</p>",
+    "partners": [
+     {
+      "type": "partner",
+      "value": {
+       "name": "Instytut Testowy",
+       "level": "partner-naukowy",
+       "logo": {
+        "image_id": 17
+       },
+       "url": "https://instytut.example/",
+       "description": "Wsparcie merytoryczne."
+      }
+     },
+     {
+      "type": "partner",
+      "value": {
+       "name": "Fundacja Bez Logo",
+       "level": "sponsor-zloty",
+       "logo": null,
+       "url": "javascript:alert(1)",
+       "description": ""
+      }
+     }
+    ],
+    "become_partner_title": "Zostań partnerem",
+    "become_partner_body": "<p>Napisz do nas.</p>",
+    "contact_email": "partnerzy@olimpiada.example"
+   }
+  },
+  {
+   "id": 16,
+   "parent_id": 3,
+   "depth": 3,
+   "tree_path": "000100010008",
+   "type": "cms.ContentPage",
+   "slug": "kontakt",
+   "url_path": "/kontakt/",
+   "title": "Kontakt",
+   "seo_title": "",
+   "search_description": "",
+   "show_in_menus": true,
+   "fields": {
+    "show_in_menu": true,
+    "intro": "<p>Napisz do nas.</p>",
+    "body": []
+   },
+   "attachments": []
+  },
+  {
+   "id": 23,
+   "parent_id": 3,
+   "depth": 3,
+   "tree_path": "000100010009",
+   "type": "cms.FAQPage",
+   "slug": "faq",
+   "url_path": "/faq/",
+   "title": "Najczęstsze pytania",
+   "seo_title": "",
+   "search_description": "",
+   "show_in_menus": true,
+   "fields": {
+    "intro": "<p>Odpowiedzi na częste pytania.</p>"
+   },
+   "faq_entries": [
+    {
+     "id": 41,
+     "section": "Konto",
+     "question": "Nie dostałem listu?",
+     "answer": "<p>Sprawdź <strong>spam</strong>.</p>",
+     "anchor": "pytanie-41"
+    },
+    {
+     "id": 42,
+     "section": "Konto",
+     "question": "Literówka w e-mailu?",
+     "answer": "<p>Napisz do organizatora.</p>",
+     "anchor": "pytanie-42"
+    },
+    {
+     "id": 43,
+     "section": "Rozwiązania",
+     "question": "Jakie formaty?",
+     "answer": "<p>PDF.</p>",
+     "anchor": "pytanie-43"
+    }
+   ]
+  },
+  {
+   "id": 17,
+   "parent_id": 3,
+   "depth": 3,
+   "tree_path": "00010001000A",
+   "type": "cms.ContentPage",
+   "slug": "dla-nauczycieli",
+   "url_path": "/dla-nauczycieli/",
+   "title": "Dla nauczycieli",
+   "seo_title": "",
+   "search_description": "",
+   "show_in_menus": false,
+   "fields": {
+    "show_in_menu": false,
+    "intro": "",
+    "body": []
+   },
+   "attachments": []
+  }
+ ]
+}

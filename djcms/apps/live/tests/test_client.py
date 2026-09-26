@@ -21,6 +21,9 @@ from apps.live.client import ApiResult, MainApi, MainApiError
 
 TOKEN = "t" * 48  # config/settings/test.py
 
+#: Prawdziwy otwieracz – zapamiętany przy imporcie, zanim fixture ``main_api`` go podmieni.
+REAL_BUILD_OPENER = client._build_opener
+
 
 def _api():
     return MainApi()
@@ -171,6 +174,79 @@ def test_real_opener_has_no_proxy_and_refuses_redirects(monkeypatch):
     # ``ProxyHandler({})`` nie rejestruje żadnego ``*_open`` i blokuje domyślny ProxyHandler
     # (ze zmiennych ``http_proxy``) – w otwieraczu nie zostaje nic, co kierowałoby przez proxy.
     assert not any(isinstance(h, client.urllib.request.ProxyHandler) and h.proxies for h in opener.handlers)
+    # Domyślne obsługi HTTP(S) zastąpione wersjami z limitem czasu na rozwiązanie nazwy.
+    assert any(isinstance(h, client._BoundedHTTPHandler) for h in opener.handlers)
+    assert not any(type(h) is client.urllib.request.HTTPHandler for h in opener.handlers)
+
+
+# --- rozwiązanie nazwy w limicie czasu ------------------------------------------------------------
+
+
+@pytest.fixture
+def hanging_dns(monkeypatch):
+    """``getaddrinfo``, które nie odpowiada – jak DNS Dockera pytany o nazwę zatrzymanej usługi."""
+    import threading
+
+    release = threading.Event()
+    calls = []
+
+    def getaddrinfo(host, *args, **kwargs):
+        calls.append(host)
+        release.wait(10)
+        raise OSError("resolver: brak odpowiedzi")
+
+    monkeypatch.setattr(client.socket, "getaddrinfo", getaddrinfo)
+    yield calls
+    release.set()  # wątek-demon kończy się od razu po teście
+
+
+def test_name_resolution_is_bounded_by_timeout(hanging_dns):
+    import time
+
+    started = time.monotonic()
+    with pytest.raises(TimeoutError):
+        client._resolve("web", 8000, 0.2)
+    assert time.monotonic() - started < 1.0
+    assert hanging_dns == ["web"]
+
+
+def test_resolution_errors_and_results_pass_through(monkeypatch):
+    monkeypatch.setattr(client.socket, "getaddrinfo", lambda *a, **k: [(2, 1, 6, "", ("10.0.0.5", 8000))])
+    assert client._resolve("web", 8000, 1.0) == [(2, 1, 6, "", ("10.0.0.5", 8000))]
+
+    def fail(*args, **kwargs):
+        raise client.socket.gaierror(-2, "Name or service not known")
+
+    monkeypatch.setattr(client.socket, "getaddrinfo", fail)
+    with pytest.raises(client.socket.gaierror):
+        client._resolve("web", 8000, 1.0)
+
+
+def test_page_request_with_dead_dns_fails_within_connect_timeout(monkeypatch, hanging_dns, settings):
+    """Całe żądanie – z rozwiązaniem nazwy – mieści się w limicie; wcześniej DNS dokładał ~4 s."""
+    import time
+
+    settings.DJCMS_API_TIMEOUT = 0.3
+    monkeypatch.setattr(client, "_build_opener", REAL_BUILD_OPENER)
+    started = time.monotonic()
+    result = _api().get("chrome")
+    assert result.error == "timeout"
+    assert time.monotonic() - started < 1.5
+    assert hanging_dns == ["web"]
+
+
+def test_bounded_connection_connects_to_resolved_address():
+    """``_bounded_create_connection`` łączy się z adresem z ``_resolve`` (prawdziwe gniazdo lokalne)."""
+    import socket
+
+    server = socket.socket()
+    server.bind(("127.0.0.1", 0))
+    server.listen(1)
+    try:
+        sock = client._bounded_create_connection(("127.0.0.1", server.getsockname()[1]), 1.0)
+        sock.close()
+    finally:
+        server.close()
 
 
 # --- bezpiecznik i kopia „stale” ----------------------------------------------------------------

@@ -31,6 +31,8 @@ import http.client
 import json
 import logging
 import re
+import socket
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -54,8 +56,8 @@ TOKEN_HEADER = "X-Djcms-Token"
 #: limit chroni proces przed odpowiedzią, której nie powinno być (błąd konfiguracji, zły adres).
 MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 
-#: Limit **pojedynczej** operacji gniazda (połączenie, jeden odczyt). ``urllib`` ma jeden
-#: ``timeout`` na każdą operację, a nie na całe żądanie – całość pilnuje osobno termin
+#: Limit **pojedynczej** operacji gniazda (rozwiązanie nazwy, połączenie, jeden odczyt). ``urllib``
+#: ma jeden ``timeout`` na każdą operację, a nie na całe żądanie – całość pilnuje osobno termin
 #: ``DJCMS_API_TIMEOUT`` sprawdzany między kolejnymi porcjami odczytu (§ 2: 1 s / 2 s).
 CONNECT_TIMEOUT_SECONDS = 1.0
 
@@ -106,6 +108,82 @@ class ApiResult:
         return self.data is None or self.stale
 
 
+def _resolve(host: str, port: int, timeout: float | None) -> list[tuple]:
+    """``getaddrinfo`` z limitem czasu – ``socket`` go nie ma, a ``timeout`` gniazda go nie obejmuje.
+
+    Po co: przy zatrzymanej usłudze ``web`` wbudowany DNS Dockera nie zna tej nazwy i odsyła
+    pytanie do resolwerów hosta, a z sieci ``internal`` (bez wyjścia na świat) odpowiedź nie
+    przychodzi – ``getaddrinfo`` czekało ok. 4 s, zanim ``timeout`` połączenia w ogóle zaczął
+    działać. Pierwsza odsłona po awarii czekała więc dwa razy dłużej, niż obiecuje § 2 speca.
+
+    Rozwiązanie nazwy biegnie w wątku-demonie, a my czekamy na nie najwyżej ``timeout``. Wątek,
+    który nie zdąży, kończy się sam, gdy resolwer się podda (nie da się go przerwać) – nikt już
+    nie czeka na jego wynik, a bezpiecznik (``DJCMS_API_BREAKER_SECONDS``) sprawia, że kolejne
+    odsłony nie uruchamiają następnych.
+    """
+    outcome: dict[str, object] = {}
+    done = threading.Event()
+
+    def lookup() -> None:
+        try:
+            outcome["result"] = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM)
+        except OSError as exc:
+            outcome["error"] = exc
+        finally:
+            done.set()
+
+    threading.Thread(target=lookup, name="djcms-api-dns", daemon=True).start()
+    if not done.wait(timeout):
+        raise TimeoutError(f"rozwiązanie nazwy dłuższe niż {timeout} s")
+    if "error" in outcome:
+        raise outcome["error"]  # type: ignore[misc]
+    return outcome["result"]  # type: ignore[return-value]
+
+
+def _bounded_create_connection(
+    address, timeout=socket._GLOBAL_DEFAULT_TIMEOUT, source_address=None, **kwargs
+):
+    """``socket.create_connection`` z rozwiązaniem nazwy objętym tym samym limitem czasu."""
+    host, port = address
+    limit = None if timeout is socket._GLOBAL_DEFAULT_TIMEOUT else timeout
+    error: OSError | None = None
+    for family, type_, proto, _canonname, sockaddr in _resolve(host, port, limit):
+        sock = socket.socket(family, type_, proto)
+        try:
+            if limit is not None:
+                sock.settimeout(limit)
+            if source_address:
+                sock.bind(source_address)
+            sock.connect(sockaddr)
+            return sock
+        except OSError as exc:
+            error = exc
+            sock.close()
+    raise error or OSError(f"brak adresu dla {host}")
+
+
+class _BoundedHTTPConnection(http.client.HTTPConnection):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._create_connection = _bounded_create_connection
+
+
+class _BoundedHTTPSConnection(http.client.HTTPSConnection):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._create_connection = _bounded_create_connection
+
+
+class _BoundedHTTPHandler(urllib.request.HTTPHandler):
+    def http_open(self, req):
+        return self.do_open(_BoundedHTTPConnection, req)
+
+
+class _BoundedHTTPSHandler(urllib.request.HTTPSHandler):
+    def https_open(self, req):
+        return self.do_open(_BoundedHTTPSConnection, req, context=self._context)
+
+
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
     """Przekierowanie = błąd. API nigdy nie przekierowuje, a ``urllib`` przeniósłby token dalej."""
 
@@ -115,8 +193,12 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 
 def _build_opener() -> urllib.request.OpenerDirector:
     # ``ProxyHandler({})`` – bez proxy ze zmiennych środowiskowych: token idzie wprost do ``web``
-    # w sieci compose'a i nigdzie indziej.
-    return urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect())
+    # w sieci compose'a i nigdzie indziej. Własne obsługi HTTP(S) zastępują domyślne
+    # (``build_opener`` pomija domyślną, gdy dostanie jej podklasę) – rozwiązanie nazwy mieści się
+    # w limicie czasu połączenia (``_resolve``).
+    return urllib.request.build_opener(
+        urllib.request.ProxyHandler({}), _BoundedHTTPHandler(), _BoundedHTTPSHandler(), _NoRedirect()
+    )
 
 
 class _Failure(Exception):

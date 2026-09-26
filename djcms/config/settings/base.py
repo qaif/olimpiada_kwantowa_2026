@@ -54,6 +54,8 @@ INSTALLED_APPS = [
     "apps.blocks",
     # Klient API aplikacji głównej i rama z endpointu ``chrome`` (DJ-01d); wtyczki żywe – DJ-01f.
     "apps.live",
+    # Import treści z paczki Wagtaila – komenda ``import_cms_bundle`` (DJ-01g, § 5.3).
+    "apps.importer",
 ]
 
 MIDDLEWARE = [
