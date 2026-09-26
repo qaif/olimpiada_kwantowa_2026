@@ -18,6 +18,7 @@ Trzy reguły wspólne dla każdej funkcji tego modułu:
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -32,6 +33,8 @@ from django.utils import timezone
 
 from apps.core.points import format_points, points_json
 from apps.web.templatetags.web_extras import edition_title, event_dates, local_datetime, local_time
+
+logger = logging.getLogger(__name__)
 
 #: Nazwa wzorca catch-alla Wagtaila (``wagtail.urls``). Adres, który rozwiązuje się na niego, jest
 #: ścieżką strony z drzewa – ta sama ścieżka istnieje po imporcie na ``dj.``.
@@ -84,7 +87,21 @@ def as_public_base(value: PublicBase | str) -> PublicBase:
     return value if isinstance(value, PublicBase) else PublicBase.from_url(value)
 
 
-def competition_public_base(competition) -> PublicBase | None:
+#: Znacznik „wołający nie podał konkursu platformy” – ``None`` jest tu wartością znaczącą
+#: („platformy nie ma”), więc nie może pełnić roli wartości domyślnej.
+_PLATFORM_UNSET: Any = object()
+
+
+def platform_competition():
+    """Aktywny konkurs witryny domyślnej – gospodarz konkursów pod prefiksem ścieżki – albo ``None``."""
+    from apps.tenancy.models import Competition
+
+    return (
+        Competition.objects.filter(site__is_default_site=True, is_active=True).select_related("site").first()
+    )
+
+
+def competition_public_base(competition, *, platform: Any = _PLATFORM_UNSET) -> PublicBase | None:
     """Adres aplikacji głównej dla konkursu API albo ``None``, gdy go nie da się ustalić.
 
     ``DJCMS_MAIN_PUBLIC_URL`` opisuje **domenę główną**, czyli konkurs witryny domyślnej. Konkurs
@@ -104,8 +121,12 @@ def competition_public_base(competition) -> PublicBase | None:
     ``None`` = konkurs nie ma adresu, pod którym aplikacja go obsługuje. API odpowiada wtedy 503
     (``views.endpoint``), a komenda eksportu kończy się błędem – odnośniki w nieznane byłyby
     gorsze niż komunikat o niedostępności.
+
+    ``platform`` – konkurs platformy policzony wcześniej (``platform_competition()``): lista
+    ``competitions`` API v2 liczy adresy wszystkich konkursów naraz i nie ma powodu pytać bazy
+    o tego samego gospodarza raz na każdy konkurs pod prefiksem.
     """
-    from apps.tenancy.models import Competition, RoutingMode
+    from apps.tenancy.models import RoutingMode
     from apps.tenancy.resolution import hosts_path_prefixes
 
     configured = PublicBase.from_url(settings.DJCMS_MAIN_PUBLIC_URL)
@@ -115,11 +136,8 @@ def competition_public_base(competition) -> PublicBase | None:
     parts = urlsplit(configured.origin)
     scheme = parts.scheme or "https"
     if competition.routing_mode == RoutingMode.PATH and competition.path_prefix:
-        platform = (
-            Competition.objects.filter(site__is_default_site=True, is_active=True)
-            .select_related("site")
-            .first()
-        )
+        if platform is _PLATFORM_UNSET:
+            platform = platform_competition()
         if not hosts_path_prefixes(platform) or not parts.netloc:
             return None
         return PublicBase(f"{scheme}://{parts.netloc}", f"/{competition.path_prefix}")
@@ -391,6 +409,48 @@ def workshop_dto(row: dict) -> dict:
         "date_value": date_value.isoformat() if isinstance(date_value, date) else None,
         "time": row.get("time", "") or "",
         "lecturer": row.get("lecturer", "") or "",
+    }
+
+
+def rendition_dto(image, spec: str, *, label: str) -> dict | None:
+    """``{"src", "width", "height"}`` renditionu obrazu albo ``None``.
+
+    Plik, którego nie da się przygotować (brak w magazynie, uszkodzony), to brak obrazu, a nie
+    500 całej odpowiedzi: logotyp jest ozdobą ramy albo karty, a rama ma się pokazać i bez niego.
+    ``label`` trafia wyłącznie do dziennika – żeby ostrzeżenie mówiło, **który** obraz zawiódł.
+    """
+    if image is None:
+        return None
+    try:
+        rendition = image.get_rendition(spec)
+    except Exception:  # noqa: BLE001 - zepsuty plik w magazynie nie może położyć odpowiedzi API
+        logger.warning("Nie udało się przygotować obrazu #%s (%s) dla dj.", image.pk, label, exc_info=True)
+        return None
+    return {"src": api_href(rendition.url), "width": rendition.width, "height": rendition.height}
+
+
+#: Rendition logotypu partnera – ten sam, co na stronie ``/partnerzy/`` (``cms/partners_page.html``,
+#: ``{% image partner.logo max-600x240 %}``): wtyczka ``dj.`` rysuje tę samą kartę, więc dostaje
+#: ten sam plik, a nie mniejszy z paska sponsorów.
+PARTNER_LOGO_SPEC = "max-600x240"
+
+
+def partner_dto(value) -> dict:
+    """Jeden partner z bloku ``PartnersStreamBlock`` (``blocks.PartnerValue``) – biała lista pól.
+
+    ``initials`` i ``is_wide`` liczy ``PartnerValue`` (te same reguły, co karta na stronie Wagtaila),
+    więc szablon ``dj.`` nie ma własnej wersji tych reguł. Adres partnera tylko ``http(s)`` –
+    ``URLBlock`` przepuszcza też inne schematy, a szablon wstawia go do ``href``.
+    """
+    logo = value.get("logo")
+    return {
+        "name": value.get("name", "") or "",
+        "level": value.get("level", "") or "",
+        "logo": rendition_dto(logo, PARTNER_LOGO_SPEC, label="logotyp partnera"),
+        "url": safe_http_url(value.get("url")),
+        "description": value.get("description", "") or "",
+        "initials": value.initials,
+        "is_wide": value.is_wide,
     }
 
 

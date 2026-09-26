@@ -4,9 +4,10 @@ Osobny moduł z tego samego powodu, co ``apps/tenancy/setup_urls.py``: ``config/
 linijkę na gałąź, a co w gałęzi stoi, wie aplikacja. Dziś są tu dwie gałęzie:
 
 - ``tls-allowed`` – pytanie Caddy'ego o certyfikat konkursu w subdomenie (niżej),
-- ``djcms/v1/…`` – dane zawodów i ramy serwisu dla wersji porównawczej na django CMS
-  (``dj.<SITE_DOMAIN>``, ``docs/tasks/DJ-01.md`` § 3). Tylko ``GET``, za bramką hosta **i** tokenu
-  (``apps.cms.djcms_api.auth``); każda porażka bramki to pusta 404, tak samo jak tutaj.
+- ``djcms/v1/…`` i ``djcms/v2/…`` – dane zawodów i ramy serwisu dla serwisu na django CMS
+  (v1: jeden konkurs, ``docs/tasks/DJ-01.md`` § 3; v2: każdy konkurs, ``docs/tasks/DJ-02.md`` § 4).
+  Tylko ``GET``, za bramką hosta **i** tokenu (``apps.cms.djcms_api.auth``); każda porażka bramki
+  to pusta 404, tak samo jak tutaj.
 
 **Adres ``tls-allowed`` jest bez ukośnika na końcu i to jest kontrakt**, a nie przeoczenie: pyta
 pod niego Caddy (``on_demand_tls { ask http://web:8000/internal/tls-allowed }``), a dyrektywa
@@ -29,7 +30,9 @@ from apps.tenancy.internal_views import tls_allowed
 urlpatterns = [
     path("tls-allowed", tls_allowed, name="tls-allowed"),
     path("djcms/v1/", include("apps.cms.djcms_api.urls")),
-    # Reszta gałęzi ``djcms`` (``/internal/djcms``, ``…/v1`` bez ukośnika, ``…/v2/…``): ta sama pusta
-    # 404, co pod ``v1/`` – inaczej 301 z ``APPEND_SLASH`` zdradzałby, że gałąź w ogóle istnieje.
+    # v2 – per konkurs (``competitions``, ``c/<slug>/…``; DJ-02 § 4). v1 zostaje do DJ-02k.
+    path("djcms/v2/", include("apps.cms.djcms_api.urls_v2")),
+    # Reszta gałęzi ``djcms`` (``/internal/djcms``, ``…/v1``/``…/v2`` bez ukośnika, ``…/v3/…``): ta
+    # sama pusta 404, co pod ``v1/`` – inaczej 301 z ``APPEND_SLASH`` zdradzałby, że gałąź istnieje.
     re_path(r"^djcms(?:/.*)?$", djcms_not_found),
 ]

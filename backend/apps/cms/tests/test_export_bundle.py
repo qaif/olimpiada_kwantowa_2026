@@ -498,3 +498,141 @@ def test_command_writes_to_a_file_for_the_named_competition(competition, tmp_pat
 def test_command_refuses_an_unknown_competition(tmp_path):
     with pytest.raises(CommandError):
         call_command("export_cms_bundle", "--competition", "nie-ma", "--output", str(tmp_path / "x.zip"))
+
+
+# --- paczka v2 (DJ-02 § 4.4) ----------------------------------------------------------------------
+
+
+def export_v2(competition) -> tuple[dict, object]:
+    stream = io.BytesIO()
+    report = build_bundle(competition, stream=stream, version=2)
+    return json.loads(zipfile.ZipFile(io.BytesIO(stream.getvalue())).read("manifest.json")), report
+
+
+def test_v1_stays_the_default_and_has_no_v2_keys(competition, world):  # noqa: ARG001
+    manifest, _archive, _report = export(competition)
+
+    assert manifest["version"] == 1
+    assert not {"competition", "data_pages", "redirects"} & set(manifest)
+
+
+def test_unknown_bundle_version_is_refused(competition):
+    with pytest.raises(ValueError, match="wersja"):
+        build_bundle(competition, stream=io.BytesIO(), version=3)
+
+
+def test_v2_is_a_superset_of_v1(competition, world):  # noqa: ARG001
+    v1, _archive, _report = export(competition)
+    v2, _report = export_v2(competition)
+
+    assert v2["version"] == 2
+    assert v2["competition"] == {"slug": competition.slug, "name": competition.name}
+    for key in ("format", "source", "vocabularies", "images", "documents", "pages"):
+        assert v2[key] == v1[key], key
+
+
+def test_v2_names_the_data_pages_that_are_in_the_bundle(competition, world):  # noqa: ARG001
+    from apps.cms.models import PartnersPage
+
+    manifest, _report = export_v2(competition)
+
+    workshops = ContentPage.objects.get(slug="warsztaty")
+    partners = PartnersPage.objects.get()
+    assert manifest["data_pages"] == {"workshops": workshops.pk, "partners": partners.pk}
+    ids = {page["id"] for page in manifest["pages"]}
+    assert {workshops.pk, partners.pk} <= ids
+
+
+def test_v2_data_pages_are_null_when_the_page_did_not_make_it_into_the_bundle(competition, world):  # noqa: ARG001
+    from apps.cms.models import PartnersPage
+
+    restrict(ContentPage.objects.get(slug="warsztaty"), PageViewRestriction.LOGIN)
+    PartnersPage.objects.get().unpublish()
+
+    manifest, _report = export_v2(competition)
+
+    assert manifest["data_pages"] == {"workshops": None, "partners": None}
+
+
+def test_v2_redirects_of_the_site_and_global_ones_for_the_default_competition(competition, world):
+    from wagtail.contrib.redirects.models import Redirect
+
+    site = competition.site
+    Redirect.add_redirect("/regulamin/", world["problems"], site=None)
+    Redirect.add_redirect("/stary", "/#o-olimpiadzie", site=site, is_permanent=False)
+    Redirect.add_redirect("/zewnetrzny", "https://example.test/x", site=site)
+    Redirect.add_redirect("/do-szkicu", world["draft"], site=site)
+    Redirect.add_redirect("/skrypt", "javascript:alert(1)", site=site)
+    # Ta sama ścieżka globalnie i dla witryny – wygrywa wpis witryny (reguła Wagtaila).
+    Redirect.add_redirect("/wspolny", "/globalny/", site=None)
+    Redirect.add_redirect("/wspolny", "/witryny/", site=site)
+
+    manifest, report = export_v2(competition)
+
+    by_path = {item["old_path"]: item for item in manifest["redirects"]}
+    assert by_path["/regulamin"] == {
+        "old_path": "/regulamin",
+        "is_permanent": True,
+        "target": {"page_id": world["problems"].pk},
+    }
+    assert by_path["/stary"] == {
+        "old_path": "/stary",
+        "is_permanent": False,
+        "target": {"url": "/#o-olimpiadzie"},
+    }
+    assert by_path["/zewnetrzny"]["target"] == {"url": "https://example.test/x"}
+    assert by_path["/wspolny"]["target"] == {"url": "/witryny/"}
+    assert "/do-szkicu" not in by_path
+    assert "/skrypt" not in by_path
+    assert [item["old_path"] for item in manifest["redirects"]] == sorted(by_path)
+    assert any("/do-szkicu" in line for line in report.skipped)
+    assert any("/skrypt" in line for line in report.skipped)
+
+
+def test_v2_redirects_of_another_competition_skip_global_and_foreign_ones(
+    competition, other_competition, world
+):
+    from wagtail.contrib.redirects.models import Redirect
+
+    Redirect.add_redirect("/regulamin/", world["problems"], site=None)
+    Redirect.add_redirect("/cudzy", "/x/", site=competition.site)
+    own = other_competition.site.root_page.add_child(instance=ContentPage(title="Nowa", slug="nowa"))
+    Redirect.add_redirect("/stara", own, site=other_competition.site)
+    # Wpis witryny B wskazujący stronę z drzewa A – importer B nie ma takiej strony.
+    Redirect.add_redirect("/obca-strona", world["problems"], site=other_competition.site)
+
+    manifest, report = export_v2(other_competition)
+
+    assert manifest["redirects"] == [
+        {"old_path": "/stara", "is_permanent": True, "target": {"page_id": own.pk}}
+    ]
+    assert any("/obca-strona" in line for line in report.skipped)
+
+
+def test_v2_redirect_to_a_page_route_keeps_the_route(competition, world):
+    from wagtail.contrib.redirects.models import Redirect
+
+    Redirect.add_redirect("/trasa", world["problems"], site=competition.site, page_route_path="/archiwum/")
+
+    manifest, _report = export_v2(competition)
+
+    assert manifest["redirects"][0]["target"] == {"page_id": world["problems"].pk, "route_path": "/archiwum/"}
+
+
+def test_command_writes_a_v2_bundle_on_request(competition, tmp_path):
+    target = tmp_path / "paczka.zip"
+
+    call_command(
+        "export_cms_bundle",
+        "--competition",
+        competition.slug,
+        "--bundle-version",
+        "2",
+        "--output",
+        str(target),
+        stderr=io.StringIO(),
+    )
+
+    manifest = json.loads(zipfile.ZipFile(target).read("manifest.json"))
+    assert manifest["version"] == 2
+    assert manifest["competition"]["slug"] == competition.slug

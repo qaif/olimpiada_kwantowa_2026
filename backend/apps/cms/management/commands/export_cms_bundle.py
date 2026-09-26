@@ -1,6 +1,6 @@
-"""``manage.py export_cms_bundle [--competition SLUG] --output PATH|-`` – paczka treści dla ``dj.``.
+"""``manage.py export_cms_bundle [--competition SLUG] [--bundle-version 1|2] --output PATH|-`` – paczka CMS.
 
-Ta sama paczka, którą oddaje ``GET /internal/djcms/v1/export`` (``apps.cms.export_bundle``), tylko
+Ta sama paczka, którą oddaje ``GET /internal/djcms/v1/export`` (v2: ``…/v2/c/<slug>/export``), tylko
 do pliku albo na standardowe wyjście – dla importu ręcznego i dla przeniesienia treści między
 instalacjami bez sieci compose'a. Raport idzie na **stderr**, bo stdout bywa samą paczką
 (``--output -``): tekst wymieszany z bajtami ZIP-a dałby plik, którego nie otworzy żaden importer.
@@ -18,7 +18,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 from apps.cms.djcms_api.auth import djcms_competition
 from apps.cms.djcms_api.serializers import competition_public_base
-from apps.cms.export_bundle import build_bundle
+from apps.cms.export_bundle import BUNDLE_VERSION, SUPPORTED_BUNDLE_VERSIONS, build_bundle
 from apps.tenancy.context import competition_context
 
 
@@ -31,6 +31,13 @@ class Command(BaseCommand):
             metavar="SLUG",
             default="",
             help="Identyfikator konkursu. Domyślnie DJCMS_COMPETITION_SLUG albo konkurs witryny domyślnej.",
+        )
+        parser.add_argument(
+            "--bundle-version",
+            type=int,
+            choices=SUPPORTED_BUNDLE_VERSIONS,
+            default=BUNDLE_VERSION,
+            help="Wersja paczki: 1 (DJ-01, domyślna do DJ-02k) albo 2 (przekierowania, strony-dane – DJ-02).",
         )
         parser.add_argument(
             "--output",
@@ -55,12 +62,17 @@ class Command(BaseCommand):
                 # strumienia pod spodem (``sys.stdout.buffer`` albo strumień bajtów podany w teście).
                 target = self.stdout._out
                 report = build_bundle(
-                    competition, stream=getattr(target, "buffer", target), main_public_url=base
+                    competition,
+                    stream=getattr(target, "buffer", target),
+                    main_public_url=base,
+                    version=options["bundle_version"],
                 )
             else:
                 path = Path(output)
                 with path.open("wb") as handle:
-                    report = build_bundle(competition, stream=handle, main_public_url=base)
+                    report = build_bundle(
+                        competition, stream=handle, main_public_url=base, version=options["bundle_version"]
+                    )
         self.stderr.write(
             f"Paczka konkursu „{competition.slug}”: {report.pages} stron, {report.images} obrazów, "
             f"{report.documents} dokumentów."

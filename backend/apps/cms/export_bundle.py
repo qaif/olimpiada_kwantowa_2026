@@ -1,6 +1,7 @@
-"""Paczka treści redakcyjnej dla wersji porównawczej na django CMS (``olimpiada-cms-bundle`` v1).
+"""Paczka treści redakcyjnej dla serwisu na django CMS (``olimpiada-cms-bundle`` v1 i v2).
 
-Format i mapowania: ``docs/tasks/DJ-01.md`` § 5–6. ZIP z dwoma rodzajami członków:
+Format i mapowania: ``docs/tasks/DJ-01.md`` § 5–6, wersja 2: ``docs/tasks/DJ-02.md`` § 4.4. ZIP
+z dwoma rodzajami członków:
 
 - ``manifest.json`` – drzewo opublikowanych stron witryny konkursu z polami, blokami StreamField,
   załącznikami, pytaniami FAQ i słownikami (poziomy partnerów, reguły menu),
@@ -25,6 +26,17 @@ Czego paczka **nie** niesie i dlaczego:
 - **danych aplikacji** – ustawień witryny, komunikatów, obecności na warsztatach. Wersja ``dj.``
   czyta je na żywo z API (``apps.cms.djcms_api``), bo jedno źródło prawdy ma zostać jedno.
 
+Wersja 2 jest **nadzbiorem** wersji 1 (importer przyjmuje obie) i dokłada trzy klucze:
+
+- ``competition`` – slug i nazwa konkursu (importer wielowitrynowy sprawdza, że paczka należy do
+  witryny, do której ją wgrywa),
+- ``data_pages`` – identyfikatory stron-danych: strony „Warsztaty” i strony partnerów. Te dwie
+  zostają redagowane w Wagtailu także po przełączeniu (DJ-02 D9), więc importer zamienia ich
+  tabele na wtyczki żywe zamiast kopiować dane, które za tydzień byłyby nieaktualne,
+- ``redirects`` – przekierowania ``wagtail.contrib.redirects`` witryny konkursu (dla konkursu
+  witryny domyślnej także globalne, ``site IS NULL`` – z ``seed_legacy_content``). Cel-strona
+  tylko wtedy, gdy ta strona jest w paczce – inaczej przekierowanie prowadziłoby na 404.
+
 Tekst formatowany wychodzi w postaci **frontowej** (``export_richtext``), ale nie jest tu
 sanityzowany – robi to importer sanityzatorem ``djangocms-text`` przed zapisem, bo to on wie,
 co jego edytor dopuszcza.
@@ -39,11 +51,13 @@ import re
 import zipfile
 from dataclasses import dataclass, field
 from typing import IO, Any
+from urllib.parse import urlsplit
 
 from django.conf import settings
 from django.utils import timezone
 from django.utils.html import escape
 from wagtail import blocks
+from wagtail.contrib.redirects.models import Redirect
 from wagtail.documents import get_document_model
 from wagtail.documents.blocks import DocumentChooserBlock
 from wagtail.embeds.blocks import EmbedBlock
@@ -67,6 +81,14 @@ from .views import is_public_document
 #: dopisaniem pola, podnosi wersję.
 BUNDLE_FORMAT = "olimpiada-cms-bundle"
 BUNDLE_VERSION = 1
+
+#: Wersja paczki dla API v2 (DJ-02 § 4.4). ``BUNDLE_VERSION`` zostaje domyślną do DJ-02k: v1 API
+#: i importer DJ-01 znają tylko wersję 1.
+BUNDLE_VERSION_V2 = 2
+SUPPORTED_BUNDLE_VERSIONS = (BUNDLE_VERSION, BUNDLE_VERSION_V2)
+
+#: Schematy celu przekierowania-adresu, które przepuszczamy (ta sama reguła, co ``api_href``).
+SAFE_REDIRECT_SCHEMES = frozenset({"http", "https"})
 
 MANIFEST_NAME = "manifest.json"
 IMAGES_DIR = "images"
@@ -490,6 +512,81 @@ class _Exporter:
                 rows.append({"kind": item.kind, "title": item.title, "document_id": ref["document_id"]})
         return rows
 
+    # --- wersja 2: strony-dane i przekierowania -------------------------------------------------
+
+    def data_pages(self) -> dict:
+        """Identyfikatory stron-danych **w paczce** (``None``, gdy strony nie ma albo nie weszła).
+
+        Te same zapytania, co API (``workshops_page``, ``PartnersPage…child_of(root)``), więc
+        importer zamienia na wtyczkę żywą dokładnie tę stronę, z której API czyta dane.
+        """
+        from .models import PartnersPage
+        from .workshops import workshops_page
+
+        workshops = workshops_page(self.competition)
+        partners = PartnersPage.objects.live().public().child_of(self.root).first()
+        return {
+            "workshops": workshops.pk if workshops is not None and workshops.pk in self.page_paths else None,
+            "partners": partners.pk if partners is not None and partners.pk in self.page_paths else None,
+        }
+
+    def redirects(self) -> list[dict]:
+        """Przekierowania witryny konkursu (DJ-02 § 4.4) w kolejności ``old_path``.
+
+        - witryna konkursu **i** – dla konkursu witryny domyślnej – przekierowania globalne
+          (``site IS NULL``): powstały dla dawnego serwisu Olimpiady Kwantowej
+          (``seed_legacy_content``), a ich cele-strony leżą w drzewie witryny domyślnej. Innemu
+          konkursowi globalne przekierowanie wskazywałoby cudzą stronę,
+        - przy dwóch wpisach o tej samej ścieżce wygrywa wpis witryny – ta sama reguła, co
+          ``wagtail.contrib.redirects.middleware._get_redirect``,
+        - cel-strona tylko z paczki (``page_paths``); strona spoza niej (szkic, ograniczony dostęp,
+          cudze drzewo) → pominięcie w raporcie. Cel-adres tylko ``http(s)://`` z hostem albo
+          ścieżka od ``/`` (nie ``//``) – inne schematy też trafiają do raportu,
+        - ``old_path`` znormalizowane ``Redirect.normalise_path`` (jak przy zapisie w Wagtailu).
+        """
+        from django.db.models import Q
+
+        match = Q(site=self.site)
+        if self.site.is_default_site:
+            match |= Q(site__isnull=True)
+        chosen: dict[str, Any] = {}
+        for row in Redirect.objects.filter(match).order_by("old_path", "pk"):
+            path = Redirect.normalise_path(row.old_path)
+            current = chosen.get(path)
+            if current is None or (current.site_id is None and row.site_id is not None):
+                chosen[path] = row
+        result = []
+        for path in sorted(chosen):
+            row = chosen[path]
+            target = self._redirect_target(row, path)
+            if target is not None:
+                result.append({"old_path": path, "is_permanent": row.is_permanent, "target": target})
+        return result
+
+    def _redirect_target(self, row, path: str) -> dict | None:
+        """Cel przekierowania: ``{"page_id"[, "route_path"]}`` albo ``{"url"}``; ``None`` = pominięte."""
+        if row.redirect_page_id is not None:
+            if row.redirect_page_id not in self.page_paths:
+                self.report.skipped.append(
+                    f"przekierowanie {path}: strona docelowa #{row.redirect_page_id} poza paczką "
+                    "(szkic, ograniczony dostęp albo inna witryna)"
+                )
+                return None
+            target: dict[str, Any] = {"page_id": row.redirect_page_id}
+            if row.redirect_page_route_path:
+                target["route_path"] = row.redirect_page_route_path
+            return target
+        link = (row.redirect_link or "").strip()
+        parts = urlsplit(link)
+        if (link.startswith("/") and not link.startswith("//")) or (
+            parts.scheme.lower() in SAFE_REDIRECT_SCHEMES and parts.netloc
+        ):
+            return {"url": link}
+        self.report.skipped.append(
+            f"przekierowanie {path}: cel „{link}” nie jest adresem http(s) ani ścieżką"
+        )
+        return None
+
 
 def vocabularies() -> dict:
     """Słowniki, bez których importer nie odtworzy układu: poziomy partnerów i reguły menu."""
@@ -506,7 +603,11 @@ def vocabularies() -> dict:
 
 
 def build_bundle(
-    competition, *, stream: IO[bytes], main_public_url: PublicBase | str | None = None
+    competition,
+    *,
+    stream: IO[bytes],
+    main_public_url: PublicBase | str | None = None,
+    version: int = BUNDLE_VERSION,
 ) -> BundleReport:
     """Zapisuje paczkę treści konkursu do ``stream`` i oddaje raport.
 
@@ -517,7 +618,12 @@ def build_bundle(
     Bez ``main_public_url`` adresy dokumentów i widoków aplikacji idą pod adres **tego** konkursu
     (``competition_public_base``) – ``DJCMS_MAIN_PUBLIC_URL`` opisuje tylko konkurs domeny głównej.
     Konkurs bez adresu → ``NoPublicUrl``, zanim cokolwiek trafi do strumienia.
+
+    ``version`` – 1 (DJ-01, domyślna do DJ-02k) albo 2 (nadzbiór: ``competition``, ``data_pages``,
+    ``redirects``). Inna wartość to błąd wołającego, a nie paczka, której nikt nie przeczyta.
     """
+    if version not in SUPPORTED_BUNDLE_VERSIONS:
+        raise ValueError(f"Nieznana wersja paczki: {version!r}.")
     if main_public_url is None:
         main_public_url = competition_public_base(competition)
         if main_public_url is None:
@@ -529,9 +635,9 @@ def build_bundle(
     with zipfile.ZipFile(stream, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         exporter = _Exporter(competition, archive, base)
         pages = exporter.pages()
-        manifest = {
+        manifest: dict[str, Any] = {
             "format": BUNDLE_FORMAT,
-            "version": BUNDLE_VERSION,
+            "version": version,
             "exported_at": timezone.localtime().isoformat(),
             "source": {
                 "site_domain": settings.SITE_DOMAIN,
@@ -544,5 +650,10 @@ def build_bundle(
             "documents": exporter.documents,
             "pages": pages,
         }
+        if version >= BUNDLE_VERSION_V2:
+            # Po ``pages()``: oba klucze pytają ``page_paths``, czyli zbioru stron, które naprawdę weszły.
+            manifest["competition"] = {"slug": competition.slug, "name": competition.name}
+            manifest["data_pages"] = exporter.data_pages()
+            manifest["redirects"] = exporter.redirects()
         archive.writestr(MANIFEST_NAME, json.dumps(manifest, ensure_ascii=False, indent=1))
     return exporter.report
