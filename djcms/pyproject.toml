@@ -1,0 +1,77 @@
+[project]
+name = "olimpiada-djcms"
+version = "0.1.0"
+description = "Wersja porównawcza serwisu olimpiady na django CMS (dj.<SITE_DOMAIN>, docs/tasks/DJ-01.md)"
+license = { text = "AGPL-3.0-or-later" }
+# Ta sama wersja interpretera, co aplikacja główna i obraz (``python:3.14-slim-trixie``).
+requires-python = ">=3.14"
+# Piny **dokładne** (``==``) dla całego ekosystemu django CMS – inaczej niż w ``backend/``.
+# Powód: to projekt porównawczy, a porównanie ma dotyczyć konkretnej, nazwanej wersji
+# django CMS (docs/tasks/DJ-01.md § 1.1). Pakiety tej rodziny wydają się często i nie zawsze
+# równocześnie (versioning / text / filer / treebeard), więc zakres typu ``>=5.1,<5.2`` dawałby
+# przy każdym przebudowaniu obrazu inną kombinację, której nikt nie testował. Podbicie wersji
+# = zmiana tego pliku + ``uv lock`` + pełny przebieg testów djcms.
+# Stan na 26.09.2026 (PyPI): wszystkie piny niżej to najnowsze wydania.
+dependencies = [
+    # Django 6.1 – ta sama linia co aplikacja główna; django CMS 5.1.3 klasyfikuje 5.2/6.0/6.1.
+    "django==6.1.1",
+    "django-cms==5.1.3",
+    # django CMS 5.1.3 deklaruje ``django-treebeard>=4.3,<6`` – na PyPI są już 6.x i 7.x
+    # (7.0.2 z klasyfikatorem Django 6.1), ale granica jest w metadanych django CMS, więc
+    # najnowsze **dopuszczalne** to 5.3.1. Bez override'u: nie wiemy, czy django CMS działa
+    # na treebeard 6+ (zmiany API MP_Node), a to rdzeń drzewa stron.
+    "django-treebeard==5.3.1",
+    "django-sekizai==4.1.0",
+    "django-classy-tags==4.1.0",
+    "django-formtools==2.7",
+    # Edytor tekstu i ``HTMLField`` z sanityzacją przez ``nh3`` (reguła 4 z § 7 speca).
+    "djangocms-text==1.0.1",
+    # Wersje robocze / publikacja / historia – odpowiednik rewizji Wagtaila.
+    "djangocms-versioning==2.7.1",
+    "django-fsm-2==4.2.4",
+    # Biblioteka mediów (obrazy); dokumenty urzędowe zostają na domenie głównej (§ 1.2 p. 5).
+    "django-filer==3.6.0",
+    "easy-thumbnails==2.10.1",
+    "django-polymorphic==4.11.7",
+    "djangocms-simple-admin-style==2.1.1",
+    # Reszta – te same zakresy co w ``backend/pyproject.toml`` (uzasadnienia tam).
+    "django-environ>=0.14,<0.15",
+    "psycopg[binary]>=3.2.10,<3.3",
+    "gunicorn>=23.0,<24.0",
+    "whitenoise>=6.12,<7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-django>=4.9",
+    "ruff>=0.12",
+    "mypy>=1.11",
+    "django-stubs>=5.1",
+]
+
+# Projekt aplikacji, a nie pakiet do wydania: ``uv sync`` instaluje wyłącznie zależności,
+# bez budowania ``olimpiada-djcms`` jako paczki (nie ma tu ``[build-system]`` ani układu src/).
+[tool.uv]
+package = false
+
+[tool.ruff]
+# Kopia sekcji ``[tool.ruff]`` z ``backend/pyproject.toml`` (DJ-01 § 11 p. 1).
+line-length = 110
+target-version = "py314"
+extend-exclude = ["**/migrations/**"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "DJ", "S"]
+ignore = ["S101", "S105", "S106"]  # assert w testach, "hasła" w fixture'ach
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S", "B"]
+"config/settings/*.py" = ["F403", "F405"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.test"
+python_files = ["test_*.py"]
+# ``--ds`` z tego samego powodu co w backendzie: compose ustawia ``DJANGO_SETTINGS_MODULE``
+# (dev/production), a w pytest-django zmienna środowiskowa wygrywa z ini.
+addopts = "-ra --strict-markers --ds=config.settings.test"

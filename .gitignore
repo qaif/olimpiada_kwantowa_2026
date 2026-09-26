@@ -31,3 +31,10 @@ deploy/Caddyfile.generated
 # przy budowaniu obrazu (msgfmt w backend/Dockerfile), wiec plik binarny nie ma tu czego
 # szukac - i nie da sie go zostawic nieaktualnego wzgledem zrodla.
 *.mo
+# Wersja porównawcza django CMS (djcms/, docs/tasks/DJ-01.md). ``uv.lock`` djcms JEST commitowany
+# (obraz instaluje zależności ``uv sync --frozen``), mimo globalnego ``uv.lock`` wyżej – backend
+# instaluje z zakresów w pyproject, djcms z dokładnej blokady.
+!djcms/uv.lock
+djcms/.venv/
+djcms/staticfiles/
+djcms/media/

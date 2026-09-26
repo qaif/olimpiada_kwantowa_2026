@@ -1,0 +1,19 @@
+<!doctype html>
+{% comment %}
+  Strona 404 djcms – samodzielna (bez ``dj/base.html``), żeby błąd w ramie albo niedostępne API
+  nie zamieniły 404 w 500. Meta robots jak w ramie: 404 też ma nie trafić do indeksu (reguła 10).
+{% endcomment %}
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Nie znaleziono strony</title>
+</head>
+<body>
+  <main>
+    <h1>Nie znaleziono strony</h1>
+    <p>Ta strona nie istnieje w wersji testowej serwisu. <a href="/">Wróć na stronę główną</a>.</p>
+  </main>
+</body>
+</html>

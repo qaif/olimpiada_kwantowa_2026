@@ -1,0 +1,19 @@
+<!doctype html>
+{% comment %}
+  Strona 500 djcms. Django renderuje ją **bez kontekstu** (``handler500`` nie ma żądania
+  w szablonie), więc tylko statyczny tekst – żadnych tagów zależnych od żądania czy bazy.
+{% endcomment %}
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Błąd serwera</title>
+</head>
+<body>
+  <main>
+    <h1>Coś poszło nie tak</h1>
+    <p>Spróbuj ponownie za chwilę. <a href="/">Wróć na stronę główną</a>.</p>
+  </main>
+</body>
+</html>

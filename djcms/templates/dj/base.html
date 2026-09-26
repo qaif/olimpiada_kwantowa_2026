@@ -1,0 +1,27 @@
+{% load cms_tags sekizai_tags %}<!doctype html>
+{% comment %}
+  Szkielet ramy djcms (DJ-01c). Pełny port ``backend/templates/base.html`` (nagłówek, menu, stopka,
+  komunikaty, slider, pasek osi czasu – karmione z API ``chrome``) przychodzi w DJ-01d.
+  Tu są już elementy, których wymaga bezpieczeństwo, więc nie mogą czekać na port:
+  - ``<meta name="robots">`` – druga z trzech dróg noindex (reguła 10),
+  - ``nonce`` na każdym ``<script>`` publicznego szablonu (reguła 6) – ``request.csp_nonce``
+    nadaje ``apps.pages.middleware.ContentSecurityPolicyMiddleware``,
+  - ``{% cms_toolbar %}`` i bloki sekizai – bez nich redaktor nie ma paska narzędzi.
+{% endcomment %}
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block title %}{% page_attribute "page_title" %}{% endblock %}</title>
+  {% block meta_description %}<meta name="description" content="{% page_attribute "meta_description" %}">{% endblock %}
+  {% render_block "css" %}
+</head>
+<body>
+  {% cms_toolbar %}
+  <main id="main-content">
+    {% block content %}{% endblock %}
+  </main>
+  {% render_block "js" %}
+</body>
+</html>

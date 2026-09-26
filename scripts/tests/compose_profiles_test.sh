@@ -98,6 +98,34 @@ check "WEB_IMAGE podmienia obraz web, worker i beat naraz" $?
 docker compose --env-file "$ENV_FILE" -f "$BASE" -f "$ROOT/docker-compose.dev.yml" config -q 2>"$WORK/stderr"
 check "złożenie z docker-compose.dev.yml pozostaje poprawne" $?
 
+# 8. Wersja porównawcza django CMS (docs/tasks/DJ-01.md § 8.7): profil `djcms` dokłada **dokładnie**
+#    jedną usługę do zestawu dzisiejszego. Przypadek 1 wyżej pilnuje drugiej połowy kontraktu –
+#    bez profilu zestaw jest ten sam, co przed DJ-01.
+got="$(uslugi -f "$BASE" --profile djcms)"
+[ "$got" = "$(printf '%s\n' $DZISIAJ djcms | sort | tr '\n' ' ' | sed 's/ $//')" ]
+check "--profile djcms = zestaw dzisiejszy + djcms [$got]" $?
+
+# 9. Rozdział sekretów i utwardzenie usługi djcms (reguła 11 z § 7): bez `env_file` (żadnego
+#    sekretu aplikacji głównej z .env), system plików tylko do odczytu, bez uprawnień jądra,
+#    wyłącznie sieć `internal` (bez wyjścia do internetu).
+docker compose --env-file "$ENV_FILE" -f "$BASE" --profile djcms config 2>"$WORK/stderr" \
+  | awk '/^  djcms:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' >"$WORK/djcms.yml"
+# Blok usługi wycięty z YAML-a awk-iem, bez pythona i jq – skrypt biegnie też na serwerze
+# i w Git Bash. Wcięcia są kontraktem wyjścia `docker compose config`: klucze usługi 4 spacje,
+# elementy list i klucze map zagnieżdżonych 6.
+problemy=""
+grep -qE '^    env_file:' "$WORK/djcms.yml" && problemy="$problemy env_file;"
+grep -qE '^    read_only: true$' "$WORK/djcms.yml" || problemy="$problemy read_only;"
+awk '/^    cap_drop:$/ {on=1; next} on && /^    [^ ]/ {on=0} on' "$WORK/djcms.yml" | tr -d ' ' \
+  | grep -qxE -- '-ALL' || problemy="$problemy cap_drop;"
+sieci="$(awk '/^    networks:$/ {on=1; next} on && /^    [^ ]/ {on=0} on && /^      [^ ]/' "$WORK/djcms.yml" \
+  | sed 's/^ *//; s/:.*//' | sort | tr '\n' ' ' | sed 's/ $//')"
+[ "$sieci" = "internal" ] || problemy="$problemy sieci=[$sieci];"
+grep -qE '^      (POSTGRES_|MINIO_|S3_|DJANGO_SECRET|REDIS|CELERY)' "$WORK/djcms.yml" \
+  && problemy="$problemy zmienne aplikacji głównej;"
+[ -s "$WORK/djcms.yml" ] && [ -z "$problemy" ]
+check "djcms: bez env_file, read_only, cap_drop [ALL], tylko sieć internal, bez sekretów backendu [${problemy:-ok}]" $?
+
 if [ "$failures" -ne 0 ]; then
   printf '\n%d test(ów) nie przeszło.\n' "$failures"
   exit 1

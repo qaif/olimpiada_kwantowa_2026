@@ -1,0 +1,10 @@
+{% extends "dj/base.html" %}
+{% load cms_tags %}
+{% comment %}
+  Szablon strony treści – na etapie szkieletu (DJ-01c) jeden placeholder. Sloty z tabeli 6.1
+  (``intro``, ``attachments``, ``body``) i reszta typów stron przychodzą w DJ-01e.
+{% endcomment %}
+{% block content %}
+  <h1>{% page_attribute "title" %}</h1>
+  {% placeholder "body" %}
+{% endblock %}

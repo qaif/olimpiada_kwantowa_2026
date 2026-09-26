@@ -1,0 +1,13 @@
+# Kontekst obrazu djcms = korzeń repozytorium (djcms/Dockerfile). Wszystko poza dwoma katalogami
+# jest wykluczone – w szczególności .env, backend/ (kod aplikacji głównej), secrets/, .git.
+*
+!djcms/
+!backend/static/
+djcms/.venv
+djcms/media
+djcms/staticfiles
+djcms/.pytest_cache
+djcms/.ruff_cache
+djcms/.mypy_cache
+**/__pycache__
+**/*.pyc
