@@ -44,10 +44,9 @@ def test_app_urls_live_under_djcms_prefix():
 
 
 @pytest.mark.django_db
-def test_sso_is_a_reserved_placeholder(client):
-    response = client.get("/djcms/sso/")
-    assert response.status_code == 404
-    assert response.content == b""
+def test_sso_accepts_post_only(client):
+    """Logowanie tokenem z ``/cms/`` (DJ-02g) – token nigdy w adresie; reszta: ``apps/sites/tests``."""
+    assert client.get("/djcms/sso/").status_code == 405
 
 
 def test_reserved_slugs_cover_own_prefixes_and_every_app_segment():

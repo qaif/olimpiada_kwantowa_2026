@@ -330,7 +330,8 @@ def test_banner_only_while_frozen(admin_client):
 
     assert "cms-freeze-banner-data" in html
     assert "Edytuj w django CMS." in html
-    assert "/djcms/admin/" in html
+    # Baner prowadzi do przejścia SSO (DJ-02g, ``cms_djcms_handoff``), a nie wprost do panelu djcms.
+    assert "/cms/django-cms/" in html
 
 
 def test_banner_message_is_never_html(admin_client):
@@ -345,7 +346,7 @@ def test_banner_message_is_never_html(admin_client):
 def test_djcms_link_follows_the_script_prefix():
     set_script_prefix("/druga/")
     try:
-        assert freeze.djcms_url() == "/druga/djcms/admin/"
+        assert freeze.djcms_url() == "/druga/cms/django-cms/"
     finally:
         set_script_prefix("/")
 

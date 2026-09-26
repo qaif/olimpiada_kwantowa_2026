@@ -14,3 +14,7 @@ class BlocksConfig(AppConfig):
 
     def ready(self) -> None:
         from . import checks, files  # noqa: F401 - system checki i pilnowanie publicznych plików filera
+
+        # Uprawnienia folderów filera są włączone (DJ-02 D5), a pliki – wyłącznie publiczne: bez
+        # przełącznika „prywatny” w panelu (``files.hide_private_toggle``).
+        files.hide_private_toggle()

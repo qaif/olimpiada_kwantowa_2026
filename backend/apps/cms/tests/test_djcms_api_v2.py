@@ -32,7 +32,7 @@ from django.urls import resolve
 from django.utils import timezone
 from PIL import Image as PILImage
 from wagtail.images import get_image_model
-from wagtail.models import PageViewRestriction
+from wagtail.models import Page, PageViewRestriction
 
 from apps.cms.djcms_api.competitions import APP_LITERAL_PAGE_PATHS, fingerprint
 from apps.cms.djcms_api.views import DEFAULT_DESCRIPTION
@@ -469,13 +469,36 @@ def test_linked_paths_follow_consent_documents_workshops_and_template_literals(c
 
     paths = competition_entry(get_json("competitions"), competition.slug)["linked_paths"]
 
-    # Dokument zgody stoi w drzewie gdzie indziej – liczy się jego prawdziwa ścieżka; dokument,
-    # którego nie ma, ma adres kanoniczny (dokładnie tam prowadzi wtedy link przy zgodzie).
+    # Dokument zgody stoi w drzewie gdzie indziej – liczy się jego prawdziwa ścieżka.
     assert "/pisma/regulamin/" in paths
-    assert "/dokumenty/rodo/" in paths
     assert "/warsztaty/" in paths
-    assert set(APP_LITERAL_PAGE_PATHS) <= set(paths)
     assert paths == sorted(set(paths))
+    # Dokumentów bez strony (RODO, zgoda opiekuna) nie ma – odpowiadają 404 po obu stronach
+    # przełączenia, więc nie ma czego porównywać (także literał ``/dokumenty/rodo/`` z szablonów).
+    assert not [path for path in paths if path.startswith("/dokumenty/")]
+    assert {path for path in APP_LITERAL_PAGE_PATHS if not path.startswith("/dokumenty/")} <= set(paths)
+
+
+def test_consent_documents_are_listed_only_with_a_published_public_page(competition):
+    home = HomePage.objects.get(pk=competition.site.root_page_id)
+    documents = home.add_child(instance=ContentPage(title="Dokumenty", slug="dokumenty"))
+    documents.add_child(instance=DocumentPage(title="Regulamin", slug="regulamin"))
+    rodo = documents.add_child(instance=DocumentPage(title="RODO", slug="rodo"))
+    guardian = documents.add_child(instance=DocumentPage(title="Zgoda", slug="zgoda-opiekuna"))
+    guardian.unpublish()
+    PageViewRestriction.objects.create(page=rodo, restriction_type=PageViewRestriction.LOGIN)
+
+    paths = competition_entry(get_json("competitions"), competition.slug)["linked_paths"]
+
+    assert "/dokumenty/regulamin/" in paths
+    # Nieopublikowana i z ograniczonym dostępem – eksport ich nie przenosi, Wagtail anonimowi ich
+    # nie pokazuje, więc parytet nie ma tu czego sprawdzać.
+    assert "/dokumenty/zgoda-opiekuna/" not in paths
+    assert "/dokumenty/rodo/" not in paths
+
+    PageViewRestriction.objects.filter(page=rodo).delete()
+    paths = competition_entry(get_json("competitions"), competition.slug)["linked_paths"]
+    assert "/dokumenty/rodo/" in paths
 
 
 def test_a_path_prefix_competition_does_not_inherit_template_literals(competition, other_competition):
@@ -488,6 +511,13 @@ def test_a_path_prefix_competition_does_not_inherit_template_literals(competitio
     paths = competition_entry(get_json("competitions"), other_competition.slug)["linked_paths"]
 
     assert "/faq/" not in paths and "/harmonogram/" not in paths
+    # Bez strony dokumentu – bez wpisu (patrz test wyżej); ze stroną – jej ścieżka w drzewie konkursu.
+    assert "/dokumenty/regulamin/" not in paths
+    root = Page.objects.get(pk=other_competition.site.root_page_id)
+    root.add_child(instance=ContentPage(title="Dokumenty", slug="dokumenty")).add_child(
+        instance=DocumentPage(title="Regulamin", slug="regulamin")
+    )
+    paths = competition_entry(get_json("competitions"), other_competition.slug)["linked_paths"]
     assert "/dokumenty/regulamin/" in paths
 
 

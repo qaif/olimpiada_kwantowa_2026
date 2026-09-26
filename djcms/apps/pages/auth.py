@@ -1,4 +1,11 @@
-"""Blokada prób logowania do panelu djcms (reguła 13 z § 7 docs/tasks/DJ-01.md).
+"""Logowanie hasłem do panelu djcms: tylko superużytkownik i z blokadą prób (reguła 13 z § 7 DJ-01).
+
+**Hasłem loguje się wyłącznie superużytkownik** – techniczne konto operatora z
+``bootstrap_djcms_admin`` (DJ-02 D6, decyzja użytkownika z 26.09.2026: bez lokalnych kont redaktorów).
+Redaktorzy wchodzą z ``/cms/`` aplikacji głównej jednorazowym tokenem (``apps.sites.sso``) i hasła
+nie mają (``set_unusable_password``). Konto personelu z hasłem ustawionym ręcznie w panelu i tak się
+nim nie zaloguje: ``ThrottledModelBackend`` traktuje to jak nieudaną próbę – inaczej drugie źródło
+prawdy o redaktorach wróciłoby tylnymi drzwiami.
 
 ``/admin/`` na ``dj.`` jest publiczny i nie ma drugiego składnika, więc jedyną barierą przed
 zgadywaniem haseł redaktorów jest limit. Dwa progi:
@@ -276,13 +283,25 @@ class ThrottledModelBackend(ModelBackend):
         if username is None:
             username = kwargs.get(get_user_model().USERNAME_FIELD)
         if request is None:
-            return super().authenticate(request, username=username, password=password, **kwargs)
+            return self._superuser_only(
+                super().authenticate(request, username=username, password=password, **kwargs)
+            )
         attempt = reserve_attempt(request, username)
         if attempt is None:
             raise PermissionDenied(LOCKED_MESSAGE)
-        user = super().authenticate(request, username=username, password=password, **kwargs)
+        user = self._superuser_only(
+            super().authenticate(request, username=username, password=password, **kwargs)
+        )
         if user is not None:
             release_attempt(attempt)
+        return user
+
+    @staticmethod
+    def _superuser_only(user):
+        """Hasło otwiera wyłącznie konto superużytkownika (docstring modułu); inne – jak złe hasło."""
+        if user is not None and not user.is_superuser:
+            logger.warning("Logowanie hasłem djcms odrzucone: konto #%s nie jest superużytkownikiem", user.pk)
+            return None
         return user
 
 

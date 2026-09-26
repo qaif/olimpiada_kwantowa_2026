@@ -475,6 +475,36 @@ def test_w012_reports_published_pages_under_application_addresses(competition):
 
 
 @pytest.mark.django_db
+def test_w012_reports_pages_under_djcms_addresses(competition, other_competition):
+    """``/djcms/`` pod każdym hostem, ``/<segment>/djcms/`` wyłącznie pod ``SITE_DOMAIN`` (DJ-02 § 3, S6)."""
+    from wagtail.models import Page
+
+    home = HomePage.objects.get(pk=competition.site.root_page_id)
+    _page_with_forced_slug(home, "djcms")
+    about = ContentPage(title="O nas", slug="o-nas")
+    home.add_child(instance=about)
+    about.add_child(instance=ContentPage(title="Nasz CMS", slug="djcms"))
+    other_root = Page.objects.get(pk=other_competition.site.root_page_id)
+    _page_with_forced_slug(other_root, "djcms")
+    other_about = ContentPage(title="O nas", slug="o-nas")
+    other_root.add_child(instance=other_about)
+    # Pod hostem konkursu z własną domeną Caddy nie zabiera ``/<segment>/djcms/`` – strona zostaje.
+    other_about.add_child(instance=ContentPage(title="Nasz CMS", slug="djcms"))
+
+    messages = check_pages_under_app_routes(databases=["default"])
+
+    reported = sorted(
+        (re.search(r"witryny (\S+) ", m.msg).group(1), re.search(r"„([^”]+)”", m.msg).group(1))
+        for m in messages
+    )
+    assert reported == [
+        (other_competition.site.hostname, "/djcms/"),
+        (competition.site.hostname, "/djcms/"),
+        (competition.site.hostname, "/o-nas/djcms/"),
+    ]
+
+
+@pytest.mark.django_db
 def test_seeded_content_has_no_page_under_an_application_address(competition, regexes):
     """Seedy produkcyjne (``seed_cms``, ``seed_regulamin``, ``seed_legacy_content``, ``seed_partners``)
     nie zakładają strony, którą nowa lista zarezerwowanych slugów by unieważniła."""

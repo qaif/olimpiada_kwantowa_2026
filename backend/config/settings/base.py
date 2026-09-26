@@ -916,6 +916,11 @@ if PLATFORM_SUBDOMAINS:
 DJCMS_INTERNAL_TOKEN = env("DJCMS_INTERNAL_TOKEN", default="")
 DJCMS_COMPETITION_SLUG = env("DJCMS_COMPETITION_SLUG", default="")
 DJCMS_MAIN_PUBLIC_URL = env("DJCMS_MAIN_PUBLIC_URL", default=f"https://{SITE_DOMAIN}")
+# Przejście redaktora z ``/cms/`` do django CMS (SSO, DJ-02 D6, ``apps.cms.djcms_sso``): klucz HMAC
+# jednorazowego tokenu, **ten sam** w ``web`` (tu, z ``.env``) i w djcms (compose przekazuje go
+# jawnie). Co najmniej 32 znaki i inny niż pozostałe sekrety (``cms.W013``); pusty albo krótszy =
+# przejście wyłączone (pozycja menu „Edytuj w django CMS” znika).
+DJCMS_SSO_KEY = env("DJCMS_SSO_KEY", default="")
 
 WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", default="Olimpiada Kwantowa")
 WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL", default=f"https://{SITE_DOMAIN}")

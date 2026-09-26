@@ -1,0 +1,20 @@
+<!doctype html>
+{% comment %}
+  Odmowa logowania tokenem z /cms/ (apps.sites.views.sso_login, DJ-02 D6). Bez ramy i bez API;
+  jedno zdanie dla redaktora (powód szczegółowy jest wyłącznie w logu) i droga powrotu do /cms/.
+{% endcomment %}
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Logowanie do django CMS nieudane</title>
+</head>
+<body>
+  <main>
+    <h1>Logowanie do django CMS nieudane</h1>
+    <p>{{ message }}</p>
+    <p><a href="{% url 'pages-root' %}cms/">Wróć do panelu /cms/</a></p>
+  </main>
+</body>
+</html>

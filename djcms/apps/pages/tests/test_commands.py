@@ -4,7 +4,8 @@ import pytest
 from django.contrib.auth.models import Group, Permission
 from django.core.management import CommandError, call_command
 
-from apps.pages.management.commands.setup_djcms_groups import EXCLUDED_MODELS, GROUP_NAME
+from apps.pages.management.commands.setup_djcms_groups import LEGACY_GROUP_NAME
+from apps.sites.permissions import EXCLUDED_MODELS, PLATFORM_GROUP
 
 EMAIL = "Admin@Example.com"
 PASSWORD = "bardzo-dlugie-haslo-admina-2026"
@@ -62,11 +63,11 @@ def test_bootstrap_rejects_bad_input(monkeypatch, django_user_model, email, pass
 
 
 @pytest.mark.django_db
-def test_setup_groups_creates_editor_group_without_access_management():
+def test_setup_groups_creates_competition_groups_without_access_management(competition_site):
     call_command("setup_djcms_groups")
-    group = Group.objects.get(name=GROUP_NAME)
+    group = Group.objects.get(name="redakcja:kwantowa")
     codenames = set(group.permissions.values_list("content_type__app_label", "codename"))
-    # Treść: strony, ich zawartość, wtyczki, tekst, pliki, wersje.
+    # Treść: strony, ich zawartość, wtyczki, tekst, pliki, wersje, przekierowania.
     for expected in [
         ("cms", "change_page"),
         ("cms", "add_page"),
@@ -78,20 +79,28 @@ def test_setup_groups_creates_editor_group_without_access_management():
         ("filer", "change_folder"),
         ("djangocms_versioning", "change_version"),
         ("djangocms_versioning", "change_pagecontentversion"),
+        ("dj_seo", "change_redirect"),
     ]:
         assert expected in codenames, expected
     # Zarządzanie dostępem – poza grupą.
     models = set(group.permissions.values_list("content_type__app_label", "content_type__model"))
     assert models.isdisjoint(EXCLUDED_MODELS)
     assert not group.permissions.filter(content_type__app_label="auth").exists()
+    assert not group.permissions.filter(codename="change_page_permissions").exists()
+    # Wariant bez publikacji i grupa platformy.
+    draft = Group.objects.get(name="redakcja:kwantowa:bez-publikacji")
+    assert not draft.permissions.filter(codename="publish_page").exists()
+    assert Group.objects.filter(name=PLATFORM_GROUP).exists()
 
 
 @pytest.mark.django_db
-def test_setup_groups_is_idempotent_and_resets_manual_changes():
+def test_setup_groups_is_idempotent_resets_manual_changes_and_drops_the_dj01_group(competition_site):
+    Group.objects.create(name=LEGACY_GROUP_NAME)
     call_command("setup_djcms_groups")
-    group = Group.objects.get(name=GROUP_NAME)
+    group = Group.objects.get(name="redakcja:kwantowa")
     count = group.permissions.count()
     group.permissions.add(Permission.objects.get(content_type__app_label="auth", codename="add_user"))
     call_command("setup_djcms_groups")
-    assert Group.objects.filter(name=GROUP_NAME).count() == 1
+    assert Group.objects.filter(name="redakcja:kwantowa").count() == 1
     assert group.permissions.count() == count
+    assert not Group.objects.filter(name=LEGACY_GROUP_NAME).exists()

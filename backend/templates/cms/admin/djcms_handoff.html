@@ -1,0 +1,47 @@
+{% extends "wagtailadmin/base.html" %}
+{% comment %}
+    Przejście redaktora z /cms/ do django CMS (apps/cms/djcms_sso.py, DJ-02 D6). Cztery stany:
+    confirm (przycisk POST z CSRF), submit (token w polu formularza wysyłanego automatycznie na
+    /djcms/sso/ tego samego hosta), disabled (brak DJCMS_SSO_KEY), forbidden (konto nie redaguje
+    tego konkursu). Token nigdy nie trafia do adresu – wyłącznie do treści odpowiedzi na POST
+    (Cache-Control: no-store). Wszystkie wartości przez autoescape.
+{% endcomment %}
+{% block titletag %}Edytuj w django CMS{% endblock %}
+
+{% block content %}
+    {% include "wagtailadmin/shared/header.html" with title="Edytuj w django CMS" icon="link-external" %}
+
+    <div class="nice-padding" data-djcms-handoff="{{ state }}">
+        {% if state == "confirm" %}
+            <p>
+                Treść stron {% if competition %}konkursu „{{ competition.name }}”{% endif %} redagujesz
+                w django CMS. Zalogujemy Cię tam tym samym kontem – bez osobnego hasła.
+            </p>
+            <p>
+                Uprawnienia w django CMS odpowiadają tym tutaj i są odświeżane przy każdym przejściu.
+                Sesja w django CMS wygasa po kilku godzinach – wtedy wróć tutaj i przejdź ponownie.
+            </p>
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit" class="button">Przejdź do django CMS</button>
+            </form>
+        {% elif state == "submit" %}
+            <p>Przechodzisz do django CMS…</p>
+            <form id="djcms-sso-form" method="post" action="{{ sso_url }}">
+                <input type="hidden" name="token" value="{{ token }}">
+                <button type="submit" class="button">Dalej</button>
+            </form>
+            <script>document.getElementById("djcms-sso-form").submit();</script>
+        {% elif state == "disabled" %}
+            <p>
+                Logowanie do django CMS z tego panelu nie jest skonfigurowane (brak klucza
+                <code>DJCMS_SSO_KEY</code>). Zgłoś to administratorowi serwisu.
+            </p>
+        {% else %}
+            <p>
+                Nie redagujesz stron {% if competition %}konkursu „{{ competition.name }}”{% else %}tego adresu{% endif %},
+                więc nie masz czego edytować w jego django CMS.
+            </p>
+        {% endif %}
+    </div>
+{% endblock %}

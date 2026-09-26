@@ -1,9 +1,10 @@
 """Uzgadnianie rejestru konkursów z listą ``GET competitions`` aplikacji głównej (D7, DJ-02 § 1.2).
 
 ``sync_registry(payload)`` jest **idempotentne**: zakłada i aktualizuje ``django.contrib.sites.Site``,
-``CompetitionSite`` i ``CompetitionHost``, wygasza konkursy nieaktywne i te, których lista już nie
-zawiera. Wpis z tym samym odciskiem (``fingerprint``) co w bazie to zero zapisów – przy stałej
-liście uzgadnianie kosztuje jedno zapytanie. Nic nie jest kasowane: skasowanie konkursu (i jego
+``CompetitionSite``, ``CompetitionHost``, grupy redakcji i folder filera konkursu
+(``apps.sites.permissions``), wygasza konkursy nieaktywne i te, których lista już nie zawiera.
+Wpis z tym samym odciskiem (``fingerprint``) co w bazie to zero zapisów – przy stałej liście
+uzgadnianie kosztuje jedno zapytanie. Nic nie jest kasowane: skasowanie konkursu (i jego
 drzewa stron) to decyzja operatora (``sync_competitions --prune``, DJ-02e), nie skutek uboczny
 chwilowo pustej odpowiedzi API.
 
@@ -289,6 +290,12 @@ def _apply(entry: CompetitionEntry, current: CompetitionSite | None, now, report
     CompetitionHost.objects.bulk_create(
         [CompetitionHost(host=host, competition=current) for host in sorted(wanted - existing)]
     )
+
+    # Grupy redakcji, ``GlobalPagePermission`` na witrynie i folder filera konkursu (D5, D7) – przy
+    # każdej zmianie wpisu, bo nazwa konkursu jest też nazwą jego folderu.
+    from .permissions import ensure_site_permissions
+
+    ensure_site_permissions(current)
 
 
 def sync_registry(payload, *, dry_run: bool = False) -> SyncReport:
