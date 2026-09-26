@@ -26,7 +26,21 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   nazwy mają dziś własną politykę. `scripts/render_caddyfile.sh` przypina im jawnie `tls { key_type p256 }`
   (wartość domyślna – ten sam certyfikat), więc polityka jest osobna i stoi przed `*.`;
   `render_caddyfile_test.sh` sprawdza polityki po `caddy adapt` (ACME i `local_certs`, S3 pod `s3.`
-  i pod `<domena>:9000`).
+  i pod `<domena>:9000`), a `djcms_routing_test.sh` – na żywym Caddym z domeną `olimpiada.test`
+  i `ask` odmawiającym nazwom stałym (dawniej atrapa zgadzała się na wszystko, a `localhost` Caddy
+  traktuje jak nazwę wewnętrzną – błąd nie wychodził).
+- **Bezpieczeństwo (djcms, proxy):** odmowa `/<prefiks>/internal/…` w bloku domeny głównej (kontrakt
+  tras kierował ją do web, chroniła tylko bramka hosta); przepustka prac technicznych do curla przez
+  stdin (`-K -`), nie argumenty widoczne w `ps` (`djcms_switch.sh`, krok 5a wdrożenia).
+- **Przełączenie djcms – odporność:** jedna blokada zmian serwisu `caddy/.lock` (wdrożenie od kroku
+  2/8 do końca, `djcms_switch.sh`, `djcms_cutover.sh`, `proxy_config.sh`; dziedziczona przez
+  `OLIMPIADA_PROXY_LOCK=held`); `djcms_switch.sh on` wraca do Wagtaila po przerwaniu sygnałem,
+  zapisuje `DJCMS_EVER_PRIMARY`, a błąd TLS hosta w kontroli dymnej to ostrzeżenie; `off`
+  i `--rollback` czekają na blokadę do 2 min; `render` (wdrożenie) odmawia, gdy tryb w `.env` ≠ tryb
+  w działającym proxy; `djcms_cutover.sh`: przy `DJCMS_PRIMARY=1` wymaga zamrożonego Wagtaila,
+  znacznik `DJCMS_CUTOVER_DONE` przed krokiem 6, `DJCMS_EVER_PRIMARY` też wymaga `--force-reimport`,
+  `--rollback` zawsze woła `djcms_switch.sh off`; wdrożenie przy `DJCMS_PRIMARY=1` porównuje kontrakt
+  tras hosta z obrazem web. `OPERACJE.md` § 22.8–22.10, § 23.
 
 ## [Unreleased] – serwis publiczny na django CMS dla wszystkich konkursów (DJ-02)
 

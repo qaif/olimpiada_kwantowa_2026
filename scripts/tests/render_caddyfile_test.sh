@@ -175,6 +175,11 @@ pinned="$(awk '/^[^ #].* \{$/ { head = $0 } $0 == "        key_type p256" { prin
 [ "$pinned" = 'www.{$SITE_DOMAIN} {|{$SITE_DOMAIN} {|{$S3_PUBLIC_ADDRESS} {|meet.{$SITE_DOMAIN} {|monitor.{$SITE_DOMAIN} {|' ]
 check "PLATFORM_SUBDOMAINS=1: tls { key_type p256 } w www., domenie głównej, S3, meet., monitor. i nigdzie indziej (jest: $pinned)" $?
 
+# Odmowa `/<prefiks>/internal/…` (konkursy pod prefiksem ścieżki) – wyłącznie w bloku domeny głównej.
+[ "$(grep -c '^    @internal_prefixed path_regexp \^/\[^/\]+/internal(/\.\*)?\$$' "$WORK/sub-extra.caddy")" -eq 1 ] &&
+  awk '$0 == "{$SITE_DOMAIN} {" { m = 1 } m && /@internal_prefixed/ { found = 1 } m && /^}/ { exit } END { exit !found }' "$WORK/sub-extra.caddy"
+check "odmowa /<prefiks>/internal/* raz, w bloku domeny głównej" $?
+
 # 11. Wyłączony przełącznik przy obecnych EXTRA_DOMAINS: ani śladu po on-demand TLS.
 render "olimpiadafizyczna.pl" "$WORK/sub-off-extra.caddy" ""
 ! grep -qE 'on_demand|/internal/|key_type' "$WORK/sub-off-extra.caddy"
@@ -262,6 +267,7 @@ strip_djcms() {
     /^    # `\/internal\/\*` jest wyłącznie dla / { skip = 3 }
     skip > 0 { skip--; next }
     guards == "1" && $0 == "    handle /internal/* {" { g = 3 }
+    guards == "1" && $0 == "    @internal_prefixed path_regexp ^/[^/]+/internal(/.*)?$" { g = 4 }
     g > 0 { g--; next }
     $0 == "" { prev = $0; pending = 1; next }
     { print }

@@ -20,8 +20,13 @@
 #      `/` (i `/<prefiks>/`) z djcms (`X-Djcms-Mode: primary`) przy `on`, z web (bez nagłówka) przy
 #      `off`; `/login/` zawsze z web; `/static/css/app.css` 200; `/internal/tls-allowed` 404;
 #      `/robots.txt` 200 przy `on`.
-#   Błąd w krokach 3–5 przy `on` = automatyczny powrót do DJCMS_PRIMARY=0 (render + reload) i kod 1.
+#   Błąd w krokach 3–5 przy `on` – także przerwanie sygnałem (Ctrl-C, zerwane ssh) – = automatyczny
+#   powrót do DJCMS_PRIMARY=0 (render + reload) i kod 1. `on` dopisuje wcześniej DJCMS_EVER_PRIMARY
+#   (znacznik „djcms był publiczny” dla scripts/djcms_cutover.sh). Błąd TLS hosta (curl 35/60) w
+#   kontroli dymnej to ostrzeżenie; bez ani jednego sprawdzonego hosta – porażka.
 #   `off` niczego nie cofa (jest drogą powrotu) – błąd kontroli dymnej to kod 1 i komunikat.
+#   Blokada `caddy/.lock` (ta sama co wdrożenie, djcms_cutover.sh, proxy_config.sh): `on` odmawia od
+#   razu, `off` czeka do 2 min; OLIMPIADA_PROXY_LOCK=held = trzyma ją proces nadrzędny.
 #
 # Treść: `on` pokazuje to, co jest w djcms; `off` – Wagtail w stanie z chwili zamrożenia (zmiany
 # zrobione później w djcms do Wagtaila NIE wracają). Zamrożenie edycji Wagtaila przełącza osobno
@@ -149,12 +154,19 @@ proxy_serves() {  # proxy_serves <host>
   return 1
 }
 
-probe() {  # probe <host> <ścieżka> – nagłówki odpowiedzi (curl -D), pierwsza linijka = status
-  local args=(-sk --max-time 15 -o /dev/null -D - --resolve "$1:443:127.0.0.1")
-  [ "${#BYPASS}" -ge 32 ] && args+=(-H "X-Maintenance-Bypass: $BYPASS")
-  curl "${args[@]}" "https://$1$2" 2>/dev/null | tr -d '\r' || true
+bypass_config() {  # konfiguracja curla (`-K -`) z przepustką prac technicznych – przez stdin, nie argv
+  if [ "${#BYPASS}" -ge 32 ]; then printf 'header = "X-Maintenance-Bypass: %s"\n' "$BYPASS"; fi
+}
+probe() {  # probe <host> <ścieżka> – nagłówki odpowiedzi (curl -D), pierwsza linijka = status,
+  # ostatnia `curl-rc=<kod>`. Przepustka NIE w argumentach curla: argumenty procesu widzi `ps`
+  # każdego konta na serwerze – idzie konfiguracją na standardowym wejściu (`-K -`).
+  local out rc=0
+  out="$(bypass_config | curl -sk --max-time 15 -o /dev/null -D - --resolve "$1:443:127.0.0.1" -K - "https://$1$2" 2>/dev/null)" || rc=$?
+  printf '%s\n' "$out" | tr -d '\r'
+  printf 'curl-rc=%s\n' "$rc"
 }
 status_of() { printf '%s\n' "$1" | awk 'NR == 1 && /^HTTP\// { print $2; exit }'; }
+curl_rc() { printf '%s\n' "$1" | sed -n 's/^curl-rc=//p' | tail -n 1; }
 mode_header() { printf '%s\n' "$1" | awk -F': *' 'tolower($1) == "x-djcms-mode" { print $2; exit }'; }
 
 expect() {  # expect <opis> <warunek-spełniony 0/1>
@@ -176,6 +188,15 @@ smoke() {  # smoke <primary|preview>
     fi
     # Strona publiczna konkursu: primary → djcms z nagłówkiem trybu; preview → web (bez nagłówka).
     out="$(probe "$host" "$prefix")"; code="$(status_of "$out")"; mode="$(mode_header "$out")"
+    # Błąd uścisku TLS / certyfikatu (curl 35, 60) to nie błąd tras: certyfikat tej nazwy jeszcze
+    # nie powstał albo wygasł. Ostrzeżenie i następny host – ale bez ANI JEDNEGO sprawdzonego hosta
+    # (niżej) kontrola i tak nie przechodzi.
+    case "$(curl_rc "$out")" in
+      35|60)
+        printf '   UWAGA https://%s%s – błąd TLS (curl %s: uścisk/certyfikat), trasy tej nazwy nie sprawdzono (docker compose logs proxy)\n' \
+          "$host" "$prefix" "$(curl_rc "$out")"
+        continue ;;
+    esac
     if [ "$want" = primary ]; then
       [ "$mode" = primary ] && [ -n "$code" ] && [ "$code" -lt 500 ]
       expect "https://$host$prefix → djcms (X-Djcms-Mode: primary) [${code:-brak}, ${mode:-bez nagłówka}]" $?
@@ -201,7 +222,7 @@ smoke() {  # smoke <primary|preview>
       expect "https://$host/robots.txt → 200 z djcms [${code:-brak}, ${mode:-bez nagłówka}]" $?
     fi
   done < <(smoke_hosts)
-  [ "$seen_hosts" != " " ] || { printf '   FAIL brak hostów do sprawdzenia (SITE_DOMAIN w .env?)\n'; SMOKE_FAIL=1; }
+  [ "$seen_hosts" != " " ] || { printf '   FAIL żaden host nie został sprawdzony (SITE_DOMAIN w .env? błędy TLS wyżej?)\n'; SMOKE_FAIL=1; }
   return "$SMOKE_FAIL"
 }
 
@@ -260,14 +281,25 @@ esac
 
 # Jedna zmiana konfiguracji proxy naraz (dwa równoległe `on`/`off` zostawiłyby .env i plik w różnych
 # stanach) – ta sama blokada co w scripts/proxy_config.sh, które pisze ten sam plik przy wdrożeniu.
-if command -v flock >/dev/null 2>&1; then
+# Ta sama blokada trzyma też wdrożenie (od kroku 2/8 do końca) i scripts/djcms_cutover.sh; proces
+# nadrzędny, który ją już ma, mówi o tym OLIMPIADA_PROXY_LOCK=held (inaczej czekałby sam na siebie).
+# `on` – odmowa od razu; `off` (droga ratunkowa) czeka do 2 min na koniec cudzej zmiany.
+if [ "${OLIMPIADA_PROXY_LOCK:-}" = held ]; then
+  :
+elif command -v flock >/dev/null 2>&1; then
   mkdir -p "$(dirname "$GENERATED")"
   exec 9>"$(dirname "$GENERATED")/.lock"
-  flock -n 9 || die "konfigurację proxy zmienia właśnie inny proces (djcms_switch.sh albo wdrożenie – scripts/proxy_config.sh)"
+  if [ "$WANT" = 1 ]; then
+    flock -n 9 || die "konfigurację proxy zmienia właśnie inny proces (wdrożenie, djcms_cutover.sh albo drugi djcms_switch.sh) – ponów później"
+  else
+    flock -w 120 9 || die "konfigurację proxy od 2 min zmienia inny proces (wdrożenie? djcms_cutover.sh?) – sprawdź i ponów"
+  fi
 fi
 
 if [ "$WANT" = 1 ]; then
-  docker compose ps --format '{{.Service}}={{.Health}}' </dev/null | tr -d '\r' | grep -qx 'djcms=healthy' \
+  # Do zmiennej, nie `| grep -q` (SIGPIPE pod pipefail – jak w scripts/deploy.sh).
+  PS_OUT="$(docker compose ps --format '{{.Service}}={{.Health}}' </dev/null | tr -d '\r' || true)"
+  grep -qx 'djcms=healthy' <<<"$PS_OUT" \
     || die "djcms nie jest healthy (docker compose ps djcms; docker compose logs djcms) – nie przełączam"
   rc=0; desc="$(freeze_state)" || rc=$?
   if [ "$rc" != 0 ]; then
@@ -304,7 +336,23 @@ docker compose exec -T proxy sh -c 'cat > /tmp/Caddyfile.candidate && caddy vali
   die "caddy validate odrzucił nową konfigurację – nic nie zostało zmienione"
 }
 
+# Znacznik „djcms był serwisem publicznym” – przed zmianą .env, więc przetrwa każde przerwanie.
+# scripts/djcms_cutover.sh traktuje go jak wykonane przełączenie: ponowny import z Wagtaila
+# (`--replace`) skasowałby zmiany redakcji djcms, więc wymaga wtedy --force-reimport.
+mark_ever_primary() {
+  grep -qE '^DJCMS_EVER_PRIMARY=.' .env && return 0
+  sed -i '/^DJCMS_EVER_PRIMARY=$/d' .env
+  {
+    echo
+    echo "# djcms był serwisem publicznym (scripts/djcms_switch.sh on) – ponowny import treści z Wagtaila"
+    echo "# (scripts/djcms_cutover.sh) wymaga odtąd --force-reimport. Nie usuwaj ręcznie."
+    echo "DJCMS_EVER_PRIMARY=$(date -Iseconds)"
+  } >> .env
+  chmod 600 .env
+}
+
 apply() {  # apply <0|1> – .env, render w miejscu, kontener widzi plik, reload
+  [ "$1" = 1 ] && mark_ever_primary
   set_primary "$1"
   render "$GENERATED" >/dev/null
   cmp -s "$GENERATED" "$CANDIDATE" || [ "$1" != "$WANT" ] \
@@ -324,6 +372,13 @@ rollback() {
   exit 1
 }
 
+# Przerwanie `on` (Ctrl-C, zerwane ssh, kill) między zmianą .env a końcem kontroli dymnej zostawiłoby
+# DJCMS_PRIMARY=1 w .env przy proxy w innym trybie – wraca do Wagtaila jak przy porażce. Wdrożenie
+# z takim rozjazdem i tak odmawia (scripts/proxy_config.sh render porównuje tryb z działającym proxy).
+if [ "$WANT" = 1 ]; then
+  trap 'trap "" INT TERM HUP; echo "!!! Przerwano (sygnał) w trakcie przełączania" >&2; rollback' INT TERM HUP
+fi
+
 log "2/4 DJCMS_PRIMARY=$WANT w .env i $GENERATED (zapis w miejscu)"
 log "3/4 caddy reload"
 if ! apply "$WANT"; then
@@ -336,6 +391,7 @@ if ! smoke "$(mode_of "$WANT")"; then
   [ "$WANT" = 1 ] && rollback
   die "po przełączeniu na Wagtail kontrola dymna nie przeszła – sprawdź serwis (docker compose ps; logs proxy web)"
 fi
+trap - INT TERM HUP
 
 log "Gotowe w $(( $(date +%s) - T0 )) s: strony publiczne z $([ "$WANT" = 1 ] && echo 'django CMS (djcms)' || echo 'Wagtaila (web)')."
 if [ "$WANT" = 1 ]; then

@@ -80,13 +80,16 @@ host_sum() { sha256sum "$LIVE" | cut -d' ' -f1; }
 
 # Jedna zmiana konfiguracji proxy naraz: wdrożenie i scripts/djcms_switch.sh piszą ten sam plik.
 LOCKED=0
+# Tę samą blokadę trzyma wdrożenie (od kroku 2/8 do końca – scripts/deploy.sh) i przekazuje ją
+# swoim krokom przez OLIMPIADA_PROXY_LOCK=held; własny flock czekałby wtedy sam na siebie.
 lock() {
   [ "$LOCKED" = 1 ] && return 0
   LOCKED=1
   mkdir -p "$CONF_DIR"
+  [ "${OLIMPIADA_PROXY_LOCK:-}" = held ] && return 0
   if command -v flock >/dev/null 2>&1; then
     exec 9>"$CONF_DIR/.lock"
-    flock -w 120 9 || die "konfigurację proxy od 2 min zmienia inny proces (scripts/djcms_switch.sh?) – ponów"
+    flock -w 120 9 || die "konfigurację proxy od 2 min zmienia inny proces (djcms_switch.sh, djcms_cutover.sh albo wdrożenie) – ponów"
   fi
 }
 
@@ -97,21 +100,45 @@ lock() {
 # nie wstaje. Z kopią: odrzucona nowa konfiguracja zostawia tu działającą, a udana ma punkt powrotu.
 seed_live() {
   [ -f "$LIVE" ] && return 0
-  [ "$RUNNING" = 1 ] || return 0
-  if docker compose exec -T proxy cat "$BOX_FILE" </dev/null >"$LIVE.seed" 2>/dev/null && [ -s "$LIVE.seed" ]; then
-    mv "$LIVE.seed" "$LIVE"
-    say "$LIVE: kopia konfiguracji, którą widzi działające proxy (pierwsze uruchomienie – punkt powrotu)"
-  else
-    rm -f "$LIVE.seed"
-  fi
+  [ -s "$BOX_NOW" ] || return 0
+  cp "$BOX_NOW" "$LIVE"
+  say "$LIVE: kopia konfiguracji, którą widzi działające proxy (pierwsze uruchomienie – punkt powrotu)"
+}
+
+flag_on() {  # flag_on <wartość> – 0 dla 1/true/yes/on (jak render_caddyfile.sh)
+  case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')" in
+    1|true|yes|on) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Tryb serwisu publicznego (DJCMS_PRIMARY) zmienia WYŁĄCZNIE scripts/djcms_switch.sh on|off – z
+# kontrolą dymną i powrotem przy porażce. .env w innym trybie niż konfiguracja w działającym proxy
+# to przerwane przełączenie (albo ręczna edycja .env): render dokończyłby je po cichu, bez kontroli.
+mode_guard() {
+  local running want
+  flag_on "$(env_value DJCMS_ENABLED)" || return 0
+  [ -s "$BOX_NOW" ] || return 0
+  running="$(grep -m1 -oE 'header_up X-Djcms-Mode (preview|primary)' "$BOX_NOW" | awk '{ print $3 }' || true)"
+  [ -n "$running" ] || return 0
+  if flag_on "$(env_value DJCMS_PRIMARY)"; then want=primary; else want=preview; fi
+  [ "$running" = "$want" ] && return 0
+  die "DJCMS_PRIMARY w .env oznacza tryb $want, a działające proxy ma tryb $running – przerwane przełączenie albo ręczna zmiana .env. Tryb zmienia wyłącznie: bash scripts/djcms_switch.sh $([ "$want" = primary ] && echo on || echo off) (albo przywróć DJCMS_PRIMARY w .env), potem ponów"
 }
 
 render() {
   conf_dir_ok || die "CADDY_CONFIG_DIR w .env to „$(env_value CADDY_CONFIG_DIR)”, a nie ./caddy – proxy nie widziałoby tego pliku (wdrożenie dopisuje tę linijkę samo)"
   lock
-  trap 'rm -f "$NEXT" "$LIVE.seed" "${VALIDATE_OUT:-}"' EXIT
+  BOX_NOW="$(mktemp)"
+  trap 'rm -f "$NEXT" "$BOX_NOW" "${VALIDATE_OUT:-}"' EXIT
   RUNNING=0
   proxy_running && RUNNING=1
+  # Treść, którą widzi działające proxy – potrzebna do kopii przy pierwszym renderze i do kontroli
+  # trybu djcms; bez tych dwóch powodów (zwykłe wdrożenie bez dj.) nie pytamy kontenera.
+  if [ "$RUNNING" = 1 ] && { [ ! -f "$LIVE" ] || flag_on "$(env_value DJCMS_ENABLED)"; }; then
+    docker compose exec -T proxy cat "$BOX_FILE" </dev/null >"$BOX_NOW" 2>/dev/null || : >"$BOX_NOW"
+  fi
+  mode_guard
   seed_live
   # Generator czyta WYŁĄCZNIE .env – zmienna z powłoki operatora nie może po cichu wygrać z plikiem
   # (ta sama zasada co w scripts/djcms_switch.sh). Zła wartość w .env = kod ≠ 0 generatora.

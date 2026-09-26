@@ -350,6 +350,13 @@ if [ "$GUARD_ON" = "1" ]; then
         print "    handle /internal/* {"
         print "        respond 404"
         print "    }"
+        # Konkursy pod prefiksem ścieżki (tylko ten blok): `/<prefiks>/internal/…` trafiałoby do web
+        # (kontrakt tras djcms, APP_RE_PREFIXED) – web zdejmuje prefiks już po własnej kontroli
+        # `/internal/`, więc chroniłaby wyłącznie bramka hosta. Odmowa także tutaj.
+        print "    @internal_prefixed path_regexp ^/[^/]+/internal(/.*)?$"
+        print "    handle @internal_prefixed {"
+        print "        respond 404"
+        print "    }"
         guard = 1
       }
       print

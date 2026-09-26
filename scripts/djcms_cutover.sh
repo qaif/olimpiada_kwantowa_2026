@@ -36,19 +36,24 @@
 #      zamrożenia), każdy konkurs we własnej transakcji;
 #   5. `verify_cutover` – każda witryna: liczba stron, adresy 200, strona główna, S5, S16, sitemap,
 #      robots, przekierowania;
-#   6. `bash scripts/djcms_switch.sh on` – przełącznik (validate, reload, kontrola dymna; przy porażce
-#      sam wraca do DJCMS_PRIMARY=0);
-#   7. znacznik DJCMS_CUTOVER_DONE w .env i podsumowanie (strony i przekierowania per konkurs, czas).
+#   6. znacznik DJCMS_CUTOVER_DONE w .env (PRZED przełącznikiem – przerwanie po nim go nie gubi),
+#      `bash scripts/djcms_switch.sh on` – przełącznik (validate, reload, kontrola dymna; przy porażce
+#      albo przerwaniu sam wraca do DJCMS_PRIMARY=0);
+#   7. podsumowanie (strony i przekierowania per konkurs, czas).
 #
 # Przerwanie – co zostaje (skrypt wypisuje to sam przy każdym błędzie):
 #   krok 0–1: nic nie zmienione (serwis na Wagtailu, edycja otwarta);
 #   krok 2–5: Wagtail ZAMROŻONY, serwis publiczny dalej na Wagtailu, djcms częściowo/całkowicie
 #             zaimportowany (niepubliczny). Ponowienie jest bezpieczne (import --replace daje ten sam
 #             stan); rezygnacja: --rollback --unfreeze. Edycji nie odmrażamy sami (§ 10.1 p. 5).
-#   krok 6:   przełącznik wrócił do Wagtaila sam (DJCMS_PRIMARY=0) – jak wyżej.
+#   krok 6:   przełącznik wrócił do Wagtaila sam (DJCMS_PRIMARY=0); znacznik już jest, więc samo
+#             przełączenie ponawia `djcms_switch.sh on` (pełny przebieg – tylko z --force-reimport).
 #
 # Powtórne uruchomienie po udanym przełączeniu (DJCMS_PRIMARY=1) niczego nie robi (kod 0) – ponowny
-# import skasowałby redakcję djcms. Powrót na djcms po wycofaniu BEZ utraty zmian: djcms_switch.sh on.
+# import skasowałby redakcję djcms – o ile Wagtail jest zamrożony (otwarty = kod 1 z poleceniem).
+# DJCMS_CUTOVER_DONE albo DJCMS_EVER_PRIMARY (ślad `djcms_switch.sh on`, także ręcznego) w .env =
+# djcms był publiczny: pełny przebieg tylko z --force-reimport. Powrót na djcms po wycofaniu BEZ
+# utraty zmian: djcms_switch.sh on. Uruchamiaj w tmux/screen (zerwane ssh = SIGHUP w środku).
 #
 # Dziennik: całe wyjście idzie też do DJCMS_CUTOVER_LOG_DIR (domyślnie /var/log)
 # /olimpiada-djcms-cutover-<data>.log. Zmienne pomocnicze: BACKUP_DIR (jak scripts/backup.sh),
@@ -186,21 +191,39 @@ set_env_line() {  # set_env_line <NAZWA> <wartość> <komentarz> – jedna linij
 ENABLED=0; flag_on "$(env_value DJCMS_ENABLED)" && ENABLED=1
 PRIMARY_NOW=0; flag_on "$(env_value DJCMS_PRIMARY)" && PRIMARY_NOW=1
 CUTOVER_DONE="$(env_value DJCMS_CUTOVER_DONE)"
+# Znacznik `djcms_switch.sh on` (także ręcznego, poza tym skryptem): djcms był choć raz serwisem
+# publicznym, więc mógł dostać zmiany redakcji, których import z Wagtaila (--replace) nie zna.
+EVER_PRIMARY="$(env_value DJCMS_EVER_PRIMARY)"
 
 printf 'djcms_cutover (%s) – %s, katalog %s, dziennik %s\n' "$MODE" "$(date -Iseconds)" "$ROOT" "$LOG_FILE"
 [ -z "$SKIP_LIST" ] || printf 'Pominięte w imporcie (--skip): %s\n' "$SKIP_LIST"
 
-# Jeden przebieg naraz (dwa równoległe zamrażałyby i importowały na przemian). Tylko tryby, które
-# coś zmieniają; bez `flock` (Git Bash) – bez blokady.
+# Jedna blokada dla wszystkiego, co zmienia serwis publiczny: ten skrypt, scripts/djcms_switch.sh,
+# scripts/proxy_config.sh i wdrożenie (scripts/deploy.sh trzyma ją od kroku 2/8 do końca) – dwa
+# równoległe przebiegi zamrażałyby i importowały na przemian, a wdrożenie w trakcie przełączenia
+# restartowałoby web/djcms w środku importu. Plik w katalogu stanu caddy/ (krok 2/8 go omija; plik
+# w deploy/ znikałby przy każdym wdrożeniu). Przełącznik wołany niżej dziedziczy ją
+# (OLIMPIADA_PROXY_LOCK=held) zamiast czekać sam na siebie. Pełny przebieg – odmowa od razu;
+# --rollback (droga ratunkowa) czeka do 2 min. Tylko tryby, które coś zmieniają; bez `flock`
+# (Git Bash) – bez blokady.
 take_lock() {
-  if command -v flock >/dev/null 2>&1; then
-    # W katalogu stanu caddy/, a nie w deploy/: krok 2/8 wdrożenia kasuje deploy/ – plik blokady
-    # skasowany w trakcie przebiegu nie zatrzymałby drugiego.
+  if [ "${OLIMPIADA_PROXY_LOCK:-}" != held ] && command -v flock >/dev/null 2>&1; then
     mkdir -p caddy
-    exec 9>"caddy/.djcms_cutover.lock"
-    flock -n 9 || die "inny djcms_cutover.sh właśnie działa"
+    exec 9>"caddy/.lock"
+    if [ "$MODE" = rollback ]; then
+      flock -w 120 9 || die "od 2 min serwis zmienia inny proces (wdrożenie? djcms_switch.sh?) – sprawdź i ponów"
+    else
+      flock -n 9 || die "serwis zmienia właśnie inny proces (drugi djcms_cutover.sh, djcms_switch.sh albo wdrożenie) – ponów później"
+    fi
   fi
+  export OLIMPIADA_PROXY_LOCK=held
 }
+# Przerwanie sygnałem (Ctrl-C, zerwane ssh – uruchamiaj w tmux/screen, OPERACJE § 22.9) kończy
+# skrypt przez pułapkę EXIT, która opisuje stan serwisu. Przełącznik w kroku 6 ma własną pułapkę:
+# przerwany wraca do Wagtaila.
+trap 'exit 130' INT
+trap 'exit 143' TERM
+trap 'exit 129' HUP
 
 # ================================================================================================
 # Wycofanie: `--rollback [--unfreeze]` (DJ-02 § 10.4)
@@ -210,11 +233,11 @@ if [ "$MODE" = rollback ]; then
   log "Wycofanie: strony publiczne z powrotem z Wagtaila"
   if [ "$ENABLED" != 1 ]; then
     say "DJCMS_ENABLED nie jest 1 – trasy djcms nie istnieją, strony publiczne i tak podaje Wagtail."
-  elif [ "$PRIMARY_NOW" = 1 ] || grep -q 'header_up X-Djcms-Mode primary' "$GENERATED" 2>/dev/null; then
-    # Przełącznik jest drogą ratunkową: nie wymaga zdrowego djcms, proxy ze starą treścią odtwarza sam.
-    bash scripts/djcms_switch.sh off </dev/null || die "djcms_switch.sh off nie powiódł się – polecenia ręczne wypisał wyżej; stan: bash scripts/djcms_switch.sh status"
   else
-    say "DJCMS_PRIMARY=0 i konfiguracja proxy w trybie preview – strony publiczne już podaje Wagtail."
+    # ZAWSZE przełącznik (idempotentny), a nie decyzja z .env albo pliku: po przerwanym `on` .env,
+    # caddy/Caddyfile i konfiguracja załadowana w proxy mogą mówić co innego. `off` nie wymaga
+    # zdrowego djcms, proxy ze starą treścią odtwarza sam i kończy kontrolą dymną Wagtaila.
+    bash scripts/djcms_switch.sh off </dev/null || die "djcms_switch.sh off nie powiódł się – polecenia ręczne wypisał wyżej; stan: bash scripts/djcms_switch.sh status"
   fi
   if [ "$UNFREEZE" = 1 ]; then
     log "Odmrożenie edycji stron w Wagtailu (cms_freeze off)"
@@ -240,15 +263,28 @@ fi
 # ================================================================================================
 if [ "$PRIMARY_NOW" = 1 ]; then
   # Idempotencja: drugi przebieg po udanym przełączeniu to no-op, a nie ponowny import – od chwili
-  # przełączenia źródłem prawdy jest djcms (D8) i `--replace` skasowałby pracę redakcji.
+  # przełączenia źródłem prawdy jest djcms (D8) i `--replace` skasowałby pracę redakcji. Ale „nic do
+  # zrobienia” tylko przy ZAMROŻONYM Wagtailu: po ręcznym `djcms_switch.sh on` edycja w /cms/ może
+  # być otwarta – redakcja pracowałaby w Wagtailu, którego strony nie są już publiczne. Nie
+  # zamrażamy sami (decyzja operatora, jak przy przerwaniu) – kod 1 z poleceniami.
+  rc=0; desc="$(freeze_state)" || rc=$?
+  case "$rc" in
+    0) ;;
+    1) die "serwis publiczny jest na django CMS (DJCMS_PRIMARY=1), a edycja stron w Wagtailu jest OTWARTA – zmiany w /cms/ nie są widoczne publicznie.
+    Zamrożenie: docker compose exec -T web python manage.py cms_freeze on --message \"$FREEZE_MESSAGE\"
+    albo powrót do Wagtaila: bash scripts/djcms_cutover.sh --rollback" ;;
+    *) die "serwis publiczny jest na django CMS (DJCMS_PRIMARY=1), a stanu zamrożenia Wagtaila nie da się odczytać (web działa? docker compose ps web): $desc" ;;
+  esac
   log "Serwis publiczny jest już na django CMS (DJCMS_PRIMARY=1${CUTOVER_DONE:+, przełączenie $CUTOVER_DONE}) – nic do zrobienia."
+  say "Wagtail: edycja stron zamrożona – $desc"
   say "Stan: bash scripts/djcms_switch.sh status. Wycofanie: bash scripts/djcms_cutover.sh --rollback."
   exit 0
 fi
-if [ -n "$CUTOVER_DONE" ]; then
+if [ -n "$CUTOVER_DONE" ] || [ -n "$EVER_PRIMARY" ]; then
   say ""
-  say "UWAGA: przełączenie było już wykonane ($CUTOVER_DONE) i wycofane. djcms mógł dostać od tamtej"
-  say "       chwili zmiany redakcji – ponowny import z Wagtaila (--replace) je SKASUJE."
+  say "UWAGA: djcms był już serwisem publicznym (${CUTOVER_DONE:+przełączenie $CUTOVER_DONE}${CUTOVER_DONE:+${EVER_PRIMARY:+, }}${EVER_PRIMARY:+djcms_switch.sh on $EVER_PRIMARY}), a teraz"
+  say "       jest Wagtail. djcms mógł dostać od tamtej chwili zmiany redakcji – ponowny import z Wagtaila"
+  say "       (--replace) je SKASUJE."
   say "       Powrót na djcms BEZ utraty zmian: bash scripts/djcms_switch.sh on"
   say "       Świadomy ponowny import: --force-reimport (konkursy do zachowania: --skip SLUG)."
   if [ "$MODE" = run ] && [ "$FORCE_REIMPORT" != 1 ]; then
@@ -400,7 +436,12 @@ on_exit() {
       printf '!!! Ponowienie: bash scripts/djcms_cutover.sh … ; rezygnacja: bash scripts/djcms_cutover.sh --rollback --unfreeze\n' >&2 ;;
     sync|import|verify|switch)
       printf '!!! Wagtail: edycja stron ZAMROŻONA (skrypt jej nie odmraża – DJ-02 § 10.1 p. 5).\n' >&2
-      [ "$PHASE" = switch ] && printf '!!! djcms_switch.sh on nie przeszedł – przełącznik sam wrócił do DJCMS_PRIMARY=0 (sprawdź: bash scripts/djcms_switch.sh status).\n' >&2
+      if [ "$PHASE" = switch ]; then
+        printf '!!! djcms_switch.sh on nie przeszedł – przełącznik sam wrócił do DJCMS_PRIMARY=0 (sprawdź: bash scripts/djcms_switch.sh status).\n' >&2
+        printf '!!! Znacznik DJCMS_CUTOVER_DONE jest już w .env (zapis przed krokiem 6): treść jest zaimportowana i sprawdzona,\n' >&2
+        printf '!!! więc ponowienie samego przełączenia to: bash scripts/djcms_switch.sh on (bez ponownego importu);\n' >&2
+        printf '!!! pełny przebieg od nowa wymaga --force-reimport.\n' >&2
+      fi
       printf '!!! djcms: treść częściowo albo całkowicie zaimportowana, niepubliczna.\n' >&2
       printf '!!! Dalej – jedno z dwóch:\n' >&2
       printf '!!!   poprawka i ponowienie (bezpieczne, import --replace daje ten sam stan): bash scripts/djcms_cutover.sh%s\n' \
@@ -477,14 +518,18 @@ fi
 
 # --- 6. Przełączenie --------------------------------------------------------------------------------
 PHASE=switch
+# Znacznik PRZED przełącznikiem, nie po nim: przerwanie między `on` a zapisem (awaria, zerwane ssh)
+# zgubiłoby go, a kolejny przebieg zrobiłby `import --replace` na djcms, który był już publiczny.
+# Nieudane `on` (przełącznik sam wraca do Wagtaila) zostawia znacznik – ponowienie wymaga wtedy
+# --force-reimport, co przy djcms publicznym przez kilka sekund jest świadomą decyzją, a nie stratą.
+set_env_line DJCMS_CUTOVER_DONE "$(date -Iseconds)" \
+  "Przełączenie stron publicznych na django CMS (scripts/djcms_cutover.sh). Ponowny przebieg po wycofaniu wymaga --force-reimport."
 log "6/7 Przełączenie (scripts/djcms_switch.sh on)"
 bash scripts/djcms_switch.sh on </dev/null || die "djcms_switch.sh on nie powiódł się"
 
 # --- 7. Znacznik i podsumowanie ---------------------------------------------------------------------
 PHASE=done
-log "7/7 Znacznik przełączenia w .env i podsumowanie"
-set_env_line DJCMS_CUTOVER_DONE "$(date -Iseconds)" \
-  "Przełączenie stron publicznych na django CMS (scripts/djcms_cutover.sh). Ponowny przebieg po wycofaniu wymaga --force-reimport."
+log "7/7 Podsumowanie (znacznik DJCMS_CUTOVER_DONE w .env – zapisany przed krokiem 6)"
 trap - EXIT
 log "Gotowe w $(( $(date +%s) - T0 )) s: strony publiczne wszystkich konkursów podaje django CMS."
 say "Strony i przekierowania per konkurs (djcms/paczka Wagtaila):"

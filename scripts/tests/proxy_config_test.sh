@@ -250,6 +250,45 @@ run_pc seed3 render
 cmp -s "$ROOT/deploy/Caddyfile" "$SRV/caddy/Caddyfile" && ! grep -q 'proxy cat' "$WORK/seed3.docker" && [ ! -e "$SRV/caddy/Caddyfile.prev" ]
 check "pierwszy render przy niedziałającym proxy: bez kopii, nowa treść zainstalowana" $?
 
+# 13d. Tryb djcms: .env w innym trybie niż konfiguracja w działającym proxy (przerwane `djcms_switch.sh
+#      on` albo ręczna zmiana DJCMS_PRIMARY) – render odmawia, zanim cokolwiek zapisze; zgodny – przechodzi.
+{ cat "$WORK/env.fixture"; echo "DJCMS_ENABLED=1"; } >"$WORK/env.dj"
+reset_server "$WORK/env.dj"
+run_pc md0 render
+grep -q 'header_up X-Djcms-Mode preview' "$SRV/caddy/Caddyfile"
+check "render przy DJCMS_ENABLED=1: tryb preview w caddy/Caddyfile" $?
+cp "$SRV/caddy/Caddyfile" "$WORK/caddy.md0"
+echo "DJCMS_PRIMARY=1" >>"$SRV/.env"
+run_pc md1 render
+[ $? -ne 0 ] && cmp -s "$WORK/caddy.md0" "$SRV/caddy/Caddyfile" && grep -qF 'djcms_switch.sh on' "$WORK/md1.out" &&
+  grep -qF 'tryb primary, a działające proxy ma tryb preview' "$WORK/md1.out" && ! grep -q 'caddy validate' "$WORK/md1.docker"
+check "DJCMS_PRIMARY=1 w .env przy proxy w trybie preview – odmowa (djcms_switch.sh on), plik bez zmian" $?
+sed -i 's/^DJCMS_PRIMARY=1$/DJCMS_PRIMARY=0/' "$SRV/.env"
+run_pc md2 render
+check "tryb w .env zgodny z działającym proxy – render przechodzi" $?
+reset_server "$WORK/env.dj" down
+echo "DJCMS_PRIMARY=1" >>"$SRV/.env"
+run_pc md3 render
+[ $? -eq 0 ] && grep -q 'header_up X-Djcms-Mode primary' "$SRV/caddy/Caddyfile"
+check "proxy nie działa – nie ma z czym porównać trybu, render przechodzi" $?
+
+# 13e. Blokada trzymana przez wdrożenie (OLIMPIADA_PROXY_LOCK=held) – update bez własnego flock.
+reset_server
+run_pc held update OLIMPIADA_PROXY_LOCK=held
+check "update przy OLIMPIADA_PROXY_LOCK=held (blokada wdrożenia) przechodzi" $?
+if command -v flock >/dev/null 2>&1; then
+  reset_server
+  mkdir -p "$SRV/caddy"
+  ( exec 8>"$SRV/caddy/.lock"; flock 8; sleep 3 ) &
+  holder=$!
+  sleep 1
+  run_pc wait render
+  rc=$?
+  wait "$holder"
+  [ $rc -eq 0 ]
+  check "render czeka na blokadę trzymaną przez inny proces (flock -w) i przechodzi po jej zwolnieniu" $?
+fi
+
 # 14. apply bez pliku – odmowa bez dockera.
 reset_server
 run_pc nofile apply

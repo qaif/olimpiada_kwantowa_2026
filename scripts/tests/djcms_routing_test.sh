@@ -8,14 +8,16 @@
 #
 # Jak: jeden kontener `caddy:2.8` (obraz usługi `proxy` z docker-compose.yml), w nim
 # - Caddy z wygenerowanym plikiem (DJCMS_ENABLED=1, PLATFORM_SUBDOMAINS=1, EXTRA_DOMAINS
-#   „fizyczna.test www.fizyczna.test”, SITE_DOMAIN=localhost) + opcje globalne `local_certs`
+#   „fizyczna.test www.fizyczna.test”, SITE_DOMAIN=olimpiada.test) + opcje globalne `local_certs`
 #   i `skip_install_trust` (certyfikaty z własnego CA Caddy'ego, bez sieci) – to jedyna zmiana
 #   pliku na potrzeby testu;
 # - dwie atrapy upstreamów – osobne procesy Caddy'ego nasłuchujące na 127.0.0.2:8000 (`web`)
 #   i 127.0.0.3:8000 (`djcms`), nazwy rozwiązywane przez `--add-host`. Odpowiadają swoją nazwą,
 #   nagłówkiem `X-Djcms-Mode`, który do nich DOSZEDŁ, i adresem: `upstream=web mode=[] uri=/login/`.
-#   Atrapa `web` odpowiada 200 także na pytanie o zgodę na certyfikat (`ask`), więc blok `*.` wystawia
-#   certyfikat on-demand dla `ekologiczna.localhost`.
+#   Atrapa `web` odpowiada na pytanie o zgodę na certyfikat (`ask`, /internal/tls-allowed) jak
+#   aplikacja: 200 WYŁĄCZNIE dla `ekologiczna.olimpiada.test` (konkurs w subdomenie), 404 dla każdej innej
+#   nazwy – także `dj.`, `www.` itd. Nazwy stałe muszą więc mieć zwykły certyfikat, a nie on-demand
+#   z bloku `*.` (render_caddyfile.sh przypina im politykę TLS); nieznana subdomena – żadnego.
 # Tablica § 3 wiersz po wierszu, w obu trybach (DJCMS_PRIMARY=0 i 1): host (domena główna,
 # EXTRA_DOMAINS, subdomena platformy, `dj.`, `www.`) × ścieżka (strony publiczne, adresy aplikacji,
 # konkurs pod prefiksem, `/djcms/*`, pliki redaktorów, statyki, `/internal/*`) × ciasteczko
@@ -54,7 +56,12 @@ check() {
 #   media-csp / media-pdf – plik redaktora z /srv/djcms-media z CSP `sandbox` / bez (PDF)
 #   404, 503              – kod odpowiedzi
 #   302=<adres>, 301=<adres> – przekierowanie i pierwsze `Location`
-L=https://localhost F=https://fizyczna.test E=https://ekologiczna.localhost
+#   tls-refused           – brak odpowiedzi HTTP: certyfikatu nie ma (ask odmówił), uścisk TLS pada
+# Domena główna spoza nazw „wewnętrznych” Caddy'ego (localhost, *.local…): tylko wtedy adapter
+# układa polityki TLS jak dla domeny publicznej – na `localhost` błąd z nazwami stałymi pod `*.`
+# (on-demand zamiast zwykłego certyfikatu) nie wychodził.
+DOM=olimpiada.test
+L=https://$DOM F=https://fizyczna.test E=https://ekologiczna.$DOM
 MEDIA=/djcms/media/filer_public/ab/cd/0f1e
 ROWS=()
 for H in L F E; do
@@ -91,7 +98,7 @@ for H in L F E; do
     "$H-media-svg|$u$MEDIA/logo.svg|-|-|media-csp|media-csp"
     "$H-media-html|$u$MEDIA/Strona.HTML|-|-|media-csp|media-csp"
     "$H-media-pdf|$u$MEDIA/regulamin.PDF|-|-|media-pdf|media-pdf"
-    "$H-internal-tls|$u/internal/tls-allowed?domain=x.localhost|djcms_view=dj|-|404|404"
+    "$H-internal-tls|$u/internal/tls-allowed?domain=x.$DOM|djcms_view=dj|-|404|404"
     "$H-internal-api|$u/internal/djcms/v2/competitions|djcms_view=dj|-|404|404"
     "$H-prefix-page|$u/druga/zadania/|-|-|web+V|djcms:primary+V"
     "$H-prefix-page-dj|$u/druga/|djcms_view=dj|-|djcms:preview+V|djcms:primary+V"
@@ -104,14 +111,21 @@ ROWS+=(
   "L-prefix-login|$L/druga/login/|djcms_view=dj|primary|web|web"
   "L-prefix-me|$L/druga/me/|-|-|web|web"
   "L-prefix-status|$L/druga/status.json|djcms_view=dj|-|web|web"
+  # `/<prefiks>/internal/…` – odmowa w proxy (adres aplikacji z prefiksem nie może prowadzić do /internal/).
+  "L-prefix-internal|$L/druga/internal/djcms/v2/competitions|-|-|404|404"
+  "L-prefix-internal-tls|$L/druga/internal/tls-allowed?domain=ekologiczna.$DOM|djcms_view=dj|-|404|404"
   "L-prefix-djcms|$L/druga/djcms/admin/|-|primary|djcms:preview|djcms:primary"
   "F-prefix-login|$F/druga/login/|-|-|web+V|djcms:primary+V"
   "F-prefix-djcms|$F/druga/djcms/admin/|-|-|web+V|djcms:primary+V"
   "E-prefix-login|$E/druga/login/|djcms_view=dj|-|djcms:preview+V|djcms:primary+V"
   # dj.: wyłącznie przekierowanie (D1), odmowa /internal/* zostaje (S4).
-  "D-page|https://dj.localhost/zadania/?a=1|-|-|302=https://localhost/djcms/preview/?next=/zadania/?a=1|302=https://localhost/zadania/?a=1"
-  "D-root|https://dj.localhost/|djcms_view=dj|-|302=https://localhost/djcms/preview/?next=/|302=https://localhost/"
-  "D-internal|https://dj.localhost/internal/djcms/v2/competitions|-|-|404|404"
+  "D-page|https://dj.$DOM/zadania/?a=1|-|-|302=https://$DOM/djcms/preview/?next=/zadania/?a=1|302=https://$DOM/zadania/?a=1"
+  "D-root|https://dj.$DOM/|djcms_view=dj|-|302=https://$DOM/djcms/preview/?next=/|302=https://$DOM/"
+  "D-internal|https://dj.$DOM/internal/djcms/v2/competitions|-|-|404|404"
+  # www. domeny głównej – nazwa stała pod `*.`: zwykły certyfikat (ask by jej odmówił), 301.
+  "T-www|https://www.$DOM/zadania/|-|-|301=https://$DOM/zadania/|301=https://$DOM/zadania/"
+  # Subdomena bez konkursu: ask odmawia – certyfikatu nie ma, uścisk TLS pada (żadnej odpowiedzi).
+  "T-unknown|https://nieznany.$DOM/|-|-|tls-refused|tls-refused"
   # www. z EXTRA_DOMAINS – bez zmian (301 na domenę konkursu).
   "W-redirect|https://www.fizyczna.test/zadania/|-|-|301=https://fizyczna.test/zadania/|301=https://fizyczna.test/zadania/"
   # djcms leży: 502 z reverse_proxy → strona prac technicznych (503) – także dla stron publicznych
@@ -145,9 +159,17 @@ stub() {  # stub <nazwa> <adres>
 }
 :8000 {
 	bind $2
-	# Upstream z własnym `Vary` (jak Django) – `Vary: Cookie` od proxy ma zostać dopisane, nie zastąpione.
-	header Vary Accept-Language
-	respond "upstream=$1 mode=[{http.request.header.X-Djcms-Mode}] uri={uri}" 200
+	# Zgoda na certyfikat (on_demand_tls ask) jak w aplikacji: tylko konkurs w subdomenie platformy.
+	handle /internal/tls-allowed {
+		@tls_ok query domain=ekologiczna.olimpiada.test
+		respond @tls_ok 200
+		respond 404
+	}
+	handle {
+		# Upstream z własnym `Vary` (jak Django) – `Vary: Cookie` od proxy ma zostać dopisane, nie zastąpione.
+		header Vary Accept-Language
+		respond "upstream=$1 mode=[{http.request.header.X-Djcms-Mode}] uri={uri}" 200
+	}
 }
 EOF
   caddy run --config "/tmp/stub-$1" --adapter caddyfile >"/tmp/stub-$1.log" 2>&1 &
@@ -192,10 +214,11 @@ run_primary() {  # run_primary <0|1> – render, kontener, surowe wyjście w $WO
     printf '__REQUESTS__\n'
     cat "$WORK/inside.sh"
   } | MSYS_NO_PATHCONV=1 docker run --rm -i \
-      --add-host dj.localhost:127.0.0.1 --add-host ekologiczna.localhost:127.0.0.1 \
+      --add-host $DOM:127.0.0.1 --add-host dj.$DOM:127.0.0.1 --add-host ekologiczna.$DOM:127.0.0.1 \
+      --add-host www.$DOM:127.0.0.1 --add-host nieznany.$DOM:127.0.0.1 \
       --add-host fizyczna.test:127.0.0.1 --add-host www.fizyczna.test:127.0.0.1 \
       --add-host web:127.0.0.2 --add-host djcms:127.0.0.3 \
-      -e SITE_DOMAIN=localhost -e S3_PUBLIC_ADDRESS=localhost:9000 -e ACME_EMAIL=ops@example.org \
+      -e SITE_DOMAIN=$DOM -e S3_PUBLIC_ADDRESS=$DOM:9000 -e ACME_EMAIL=ops@example.org \
       -e MAX_UPLOAD_MB=25 "$CADDY_IMAGE" sh >"$WORK/p$p.out" 2>&1
 }
 
@@ -226,6 +249,10 @@ verify() {  # verify <plik> <id> <oczekiwane> – kod 0, gdy się zgadza; opis r
       else
         ! printf '%s\n' "$out" | grep -q 'Content-Security-Policy' || { echo "PDF z CSP"; return 1; }
       fi
+      ;;
+    tls-refused)
+      [ -z "$status" ] || { echo "status $status – certyfikat wystawiony mimo odmowy ask"; return 1; }
+      printf '%s\n' "$out" | grep -qiE 'ssl|tls|handshake|certificate|unable to establish' || { echo "brak błędu TLS w wyjściu wget"; return 1; }
       ;;
     30[12]=*)
       loc="$(printf '%s\n' "$out" | grep -m1 -E '^  Location: ' | sed 's/^  Location: //' | tr -d '\r')"

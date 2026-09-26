@@ -42,7 +42,9 @@ case "$*" in
   "compose exec -T proxy sh -c "*"caddy validate"*)
     cat >"$BOX/validated"; exit "${STUB_VALIDATE_RC:-0}" ;;
   "compose exec -T proxy caddy reload"*)
-    seen >"$BOX/loaded" ;;
+    seen >"$BOX/loaded"
+    # STUB_RELOAD_KILL=1: przełącznik dostaje SIGTERM zaraz po pierwszym reloadzie (przerwane `on`).
+    if [ "${STUB_RELOAD_KILL:-0}" = 1 ] && [ ! -e "$BOX/killed" ]; then touch "$BOX/killed"; kill -TERM "$PPID"; fi ;;
   "compose exec -T proxy wget"*) ;;
   "compose up -d --force-recreate --no-deps proxy")
     echo live >"$BOX/mount"; seen >"$BOX/loaded" ;;
@@ -62,7 +64,12 @@ STUB
 cat >"$BIN/curl" <<'STUB'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >>"$CURL_LOG"
+# Konfiguracja z `-K -` (przepustka prac technicznych) – do dziennika jako „config: …”.
+case " $* " in *" -K - "*) sed 's/^/config: /' >>"$CURL_LOG" ;; esac
 url="${!#}"; path="/${url#https://*/}"
+# STUB_CURL_TLS=<host>|ALL – błąd uścisku TLS (curl 35) dla tej nazwy / wszystkich.
+case "$url" in "https://${STUB_CURL_TLS:-@}/"*) exit 35 ;; esac
+[ "${STUB_CURL_TLS:-}" = ALL ] && exit 35
 [ "${STUB_CURL_BROKEN:-0}" = 1 ] && { printf 'HTTP/2 502\r\n\r\n'; exit 0; }
 primary=0; grep -q 'header_up X-Djcms-Mode primary' "$BOX/loaded" 2>/dev/null && primary=1
 case "$path" in
@@ -248,6 +255,71 @@ reset_server
 run_switch warn on STUB_FREEZE_RC=1
 [ $? -eq 0 ] && grep -qF 'nie jest zamrożona' "$WORK/warn.out" && [ "$(env_line DJCMS_PRIMARY)" = 1 ]
 check "on przy otwartej edycji Wagtaila: ostrzeżenie i przełączenie" $?
+
+# 12a. Przepustka prac technicznych nie trafia do argumentów curla (widać je w `ps`) – tylko do
+#      konfiguracji na stdin (`-K -`).
+reset_server
+run_switch tok on
+TOKEN="$(env_line MAINTENANCE_BYPASS_TOKEN)"
+[ -n "$TOKEN" ] && ! grep -v '^config: ' "$WORK/tok.curl" | grep -qF "$TOKEN" &&
+  grep -qxF "config: header = \"X-Maintenance-Bypass: $TOKEN\"" "$WORK/tok.curl"
+check "przepustka w konfiguracji curla na stdin, nie w argumentach" $?
+
+# 12b. Znacznik DJCMS_EVER_PRIMARY: dopisany przy on (raz), zostaje po off i po nieudanym on.
+[ -n "$(env_line DJCMS_EVER_PRIMARY)" ] && [ "$(grep -c '^DJCMS_EVER_PRIMARY=' "$SRV/.env")" = 1 ]
+check "on dopisuje DJCMS_EVER_PRIMARY" $?
+first="$(env_line DJCMS_EVER_PRIMARY)"
+run_switch tok-off off
+run_switch tok-on2 on
+[ "$(env_line DJCMS_EVER_PRIMARY)" = "$first" ] && [ "$(grep -c '^DJCMS_EVER_PRIMARY=' "$SRV/.env")" = 1 ]
+check "DJCMS_EVER_PRIMARY zostaje po off i nie jest dublowany przy kolejnym on" $?
+reset_server
+run_switch rb2 on STUB_CURL_BROKEN=1
+[ "$(env_line DJCMS_PRIMARY)" = 0 ] && [ -n "$(env_line DJCMS_EVER_PRIMARY)" ]
+check "nieudane on (powrót do Wagtaila) zostawia DJCMS_EVER_PRIMARY – djcms był chwilę publiczny" $?
+
+# 12c. Błąd TLS (curl 35) na jednym hoście – ostrzeżenie, reszta sprawdzona, przełączenie; na
+#      wszystkich – żaden host niesprawdzony = porażka i powrót do Wagtaila.
+reset_server
+run_switch tls1 on STUB_CURL_TLS=fizyczna.example
+rc=$?
+[ $rc -eq 0 ] && grep -qF 'UWAGA https://fizyczna.example/ – błąd TLS (curl 35' "$WORK/tls1.out" &&
+  grep -qF 'ok   https://olimpiada.example/ → djcms' "$WORK/tls1.out" && [ "$(env_line DJCMS_PRIMARY)" = 1 ]
+check "błąd TLS jednego hosta: ostrzeżenie, nie porażka tras" $rc
+show_on_fail $rc "$WORK/tls1.out"
+reset_server
+run_switch tlsall on STUB_CURL_TLS=ALL
+[ $? -ne 0 ] && grep -qF 'żaden host nie został sprawdzony' "$WORK/tlsall.out" && [ "$(env_line DJCMS_PRIMARY)" = 0 ]
+check "błąd TLS na wszystkich hostach: porażka kontroli i powrót do Wagtaila" $?
+
+# 12d. Przerwane on (SIGTERM po reloadzie, przed końcem kontroli dymnej) – powrót do Wagtaila:
+#      .env i załadowana konfiguracja w trybie preview.
+reset_server
+run_switch kill on STUB_RELOAD_KILL=1
+rc=$?
+[ $rc -ne 0 ] && [ "$(env_line DJCMS_PRIMARY)" = 0 ] && grep -q 'header_up X-Djcms-Mode preview' "$BOX/loaded" &&
+  grep -q 'header_up X-Djcms-Mode preview' "$SRV/caddy/Caddyfile" && grep -qF 'Przerwano (sygnał)' "$WORK/kill.out"
+rc=$?
+check "przerwane on (sygnał): powrót do DJCMS_PRIMARY=0, proxy w trybie preview" $rc
+show_on_fail $rc "$WORK/kill.out"
+
+# 12e. Blokada trzymana przez proces nadrzędny (wdrożenie, djcms_cutover.sh): OLIMPIADA_PROXY_LOCK=held
+#      – bez własnego flock (inaczej czekałby sam na siebie). Bez flock w systemie (Git Bash) sprawdza
+#      się tylko, że zmienna niczego nie psuje.
+reset_server
+run_switch held on OLIMPIADA_PROXY_LOCK=held
+[ $? -eq 0 ] && [ "$(env_line DJCMS_PRIMARY)" = 1 ]
+check "on przy OLIMPIADA_PROXY_LOCK=held (blokada nadrzędna) przechodzi" $?
+if command -v flock >/dev/null 2>&1; then
+  reset_server
+  ( exec 8>"$SRV/caddy/.lock"; flock 8; sleep 5 ) &
+  holder=$!
+  sleep 1
+  run_switch locked on
+  [ $? -ne 0 ] && grep -qF 'inny proces' "$WORK/locked.out"
+  check "on przy blokadzie trzymanej przez inny proces – odmowa od razu (flock -n)" $?
+  wait "$holder"
+fi
 
 # 12. Istniejąca linijka DJCMS_PRIMARY (np. z .env.example) jest zmieniana, nie dublowana; wartość
 #     ze zmiennej środowiskowej operatora nie wygrywa z .env.

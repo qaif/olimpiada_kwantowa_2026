@@ -168,6 +168,27 @@ fi
 REMOTE
 
 log "2/8 Kod: git archive HEAD -> $REMOTE_DIR"
+# Blokada zmian serwisu publicznego (<REMOTE_DIR>/caddy/.lock – ta sama, którą biorą
+# scripts/djcms_switch.sh, scripts/djcms_cutover.sh i scripts/proxy_config.sh), trzymana od tej
+# chwili do końca wdrożenia: wdrożenie w trakcie przełączenia restartowałoby web/djcms w środku
+# importu, składało konfigurację proxy z połowicznie zmienionego .env i ścigało się z `sed -i .env`.
+# Kroki są osobnymi sesjami ssh, więc blokadę trzyma osobna sesja w tle (flock + `cat` czekający na
+# koniec wejścia) – zamknięcie wejścia przy wyjściu z tego skryptu (także po błędzie albo zerwaniu
+# połączenia) ją zwalnia. Kroki, które same biorą tę blokadę (proxy_config.sh), dostają
+# OLIMPIADA_PROXY_LOCK=held. Czekanie do 2 min; dłużej = inny proces zmienia serwis – przerwanie,
+# zanim cokolwiek zostanie skasowane. Bez flock na serwerze – bez blokady (z komunikatem).
+# shellcheck disable=SC2016
+# Sesja blokady kończy się WYŁĄCZNIE zamknięciem wejścia (także po nieudanym flock – `zajete`
+# i czekanie), więc tablica PROXY_LOCK nie znika, zanim odczytamy odpowiedź.
+coproc PROXY_LOCK { "${SSH[@]}" "mkdir -p '$REMOTE_DIR/caddy' && if command -v flock >/dev/null 2>&1; then flock -w 120 '$REMOTE_DIR/caddy/.lock' sh -c 'echo zablokowane; exec cat >/dev/null' || { echo zajete; exec cat >/dev/null; }; else echo bez-flock; exec cat >/dev/null; fi" 2>&1; }
+LOCK_STATE=""
+IFS= read -r -t 150 LOCK_STATE <&"${PROXY_LOCK[0]:-}" || true
+case "$LOCK_STATE" in
+  zablokowane) echo "blokada zmian serwisu ($REMOTE_DIR/caddy/.lock) – wzięta na czas wdrożenia" ;;
+  bez-flock) echo "UWAGA: brak flock na serwerze – wdrożenie bez blokady zmian serwisu" ;;
+  *) echo "BŁĄD: od 2 min serwis zmienia inny proces (djcms_cutover.sh, djcms_switch.sh albo drugie wdrożenie) – nic nie zostało zmienione, ponów później${LOCK_STATE:+ ($LOCK_STATE)}" >&2
+     exit 1 ;;
+esac
 # `maintenance` (stan strony prac technicznych: flaga, komunikat, kopia strony) zostaje: montuje go
 # działające proxy, a katalog skasowany i utworzony od nowa proxy widziałoby jako pusty (bez strony).
 # `secrets` (token Dysku Google dla kopii poza serwerem, odświeżany przez rclone – scripts/lib/
@@ -252,7 +273,7 @@ fi
 printf -v REMOTE_ENV '%q ' \
   "REMOTE_DIR=$REMOTE_DIR" "WEB_IMAGE=${WEB_IMAGE:-}" "MAINTENANCE=$MAINTENANCE" \
   "MAINTENANCE_MESSAGE=${MAINTENANCE_MESSAGE:-Aktualizacja serwisu.}" \
-  "MAINTENANCE_MINUTES=${MAINTENANCE_MINUTES:-10}"
+  "MAINTENANCE_MINUTES=${MAINTENANCE_MINUTES:-10}" "OLIMPIADA_PROXY_LOCK=held"
 # Zmienne dj. dokładane do polecenia **tylko wtedy, gdy są ustawione** – bez nich polecenie ssh
 # jest znak w znak takie, jak przed DJ-01.
 [ -n "${DJCMS_ENABLE:-}" ] && printf -v REMOTE_ENV '%s%q ' "$REMOTE_ENV" "DJCMS_ENABLE=$DJCMS_ENABLE"
@@ -663,7 +684,7 @@ log "4c/8 Konfiguracja proxy: caddy reload"
 # więc ta sprawdza serwis już przez nową konfigurację; błąd zostawia stronę włączoną (pułapka EXIT).
 # Nowa konfiguracja odrzucona przez reload albo niewstające po odtworzeniu proxy: caddy/Caddyfile
 # wraca do poprzedniej treści (caddy/Caddyfile.prev), proxy działa na niej, wdrożenie – kod 1.
-"${SSH[@]}" "cd '$REMOTE_DIR' && bash scripts/proxy_config.sh apply </dev/null"
+"${SSH[@]}" "cd '$REMOTE_DIR' && OLIMPIADA_PROXY_LOCK=held bash scripts/proxy_config.sh apply </dev/null"
 
 log "5/8 Oczekiwanie na healthy"
 # Przy DJCMS_ENABLED=1 warunek dostaje trzeci człon (djcms=healthy); bez niego tekst skryptu jest
@@ -697,7 +718,8 @@ DOMAIN="$(sed -n 's/^SITE_DOMAIN=//p' .env | tail -n 1 | tr -d '\r\042\047')"
 TOKEN="$(sed -n 's/^MAINTENANCE_BYPASS_TOKEN=//p' .env | tail -n 1 | tr -d '\r\042\047')"
 ok=0
 for _ in $(seq 1 12); do
-  code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 -H "X-Maintenance-Bypass: $TOKEN" "https://$DOMAIN/healthz/" || true)"
+  # Przepustka konfiguracją curla na stdin (`-K -`), nie w argumentach – te widzi `ps` każdego konta.
+  code="$(printf 'header = "X-Maintenance-Bypass: %s"\n' "$TOKEN" | curl -s -o /dev/null -w '%{http_code}' --max-time 10 -K - "https://$DOMAIN/healthz/" || true)"
   [ "$code" = "200" ] && { ok=1; break; }
   sleep 5
 done
@@ -1026,6 +1048,16 @@ DOMAIN="$(sed -n 's/^SITE_DOMAIN=//p' .env | tail -n 1 | tr -d '\r\042\047')"
 PRIMARY="$(sed -n 's/^DJCMS_PRIMARY=//p' .env | tail -n 1 | tr -d '\r\042\047[:space:]' | tr '[:upper:]' '[:lower:]')"
 case "$PRIMARY" in
   1|true|yes|on)
+    # Kontrakt tras na hoście (z niego generator robi Caddyfile – krok 4/8) = kontrakt z obrazu web.
+    # Rozjazd (np. WEB_IMAGE z rejestru w innej wersji niż kod) = adres aplikacji, który proxy wysyła
+    # do djcms – ta sama kontrola co w scripts/djcms_cutover.sh.
+    WEB_ROUTES="$(docker compose exec -T web python manage.py djcms_routes --format env </dev/null 2>/dev/null | tr -d '\r' || true)"
+    if [ -z "$WEB_ROUTES" ] || [ "$WEB_ROUTES" != "$(tr -d '\r' <backend/djcms_contract/app_routes.env)" ]; then
+      echo "BŁĄD: backend/djcms_contract/app_routes.env (kod na serwerze) różni się od kontraktu tras obrazu web"
+      echo "      (albo web nie odpowiada) – adresy aplikacji mogą trafiać do djcms. Wdróż kod i obraz tej samej"
+      echo "      wersji; do tego czasu: cd $REMOTE_DIR && bash scripts/djcms_switch.sh off"
+      exit 1
+    fi
     bash scripts/djcms_switch.sh check </dev/null || {
       echo "BŁĄD: serwis publiczny na djcms (DJCMS_PRIMARY=1) nie przechodzi kontroli dymnej."
       echo "      Powrót do Wagtaila: cd $REMOTE_DIR && bash scripts/djcms_switch.sh off"

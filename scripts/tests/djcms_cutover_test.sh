@@ -88,6 +88,8 @@ make_script_stubs() {
   cat >"$SRV/scripts/djcms_switch.sh" <<'STUB'
 #!/usr/bin/env bash
 printf 'switch %s\n' "$*" >>"$DOCKER_LOG"
+grep -q '^DJCMS_CUTOVER_DONE=.' .env && printf 'switch-widzi-znacznik %s\n' "$1" >>"$STATE/switch-seen"
+printf 'switch-lock=%s\n' "${OLIMPIADA_PROXY_LOCK:-}" >>"$STATE/switch-seen"
 set_primary() { if grep -q '^DJCMS_PRIMARY=' .env; then sed -i "s/^DJCMS_PRIMARY=.*/DJCMS_PRIMARY=$1/" .env; else echo "DJCMS_PRIMARY=$1" >>.env; fi; }
 case "$1" in
   on)  if [ "${STUB_SWITCH_RC:-0}" != 0 ]; then echo "!!! Przełączenie nie powiodło się – wracam do DJCMS_PRIMARY=0 (Wagtail)"; set_primary 0; exit 1; fi
@@ -260,6 +262,10 @@ check "test odtwarzania raz – na świeżej kopii, nie na poprzedniej" $?
 check "kontrole (rejestr, import próbny) przed kopią" $?
 [ "$(env_line DJCMS_PRIMARY)" = 1 ] && env_line DJCMS_CUTOVER_DONE | grep -qE '^[0-9]{4}-[0-9]{2}-[0-9]{2}T' && [ -f "$STATE/frozen" ]
 check "stan końcowy: DJCMS_PRIMARY=1, znacznik DJCMS_CUTOVER_DONE, Wagtail zamrożony" $?
+grep -qx 'switch-widzi-znacznik on' "$STATE/switch-seen"
+check "znacznik DJCMS_CUTOVER_DONE zapisany PRZED djcms_switch.sh on (przerwanie po przełączeniu go nie gubi)" $?
+grep -qx 'switch-lock=held' "$STATE/switch-seen"
+check "przełącznik dziedziczy blokadę przebiegu (OLIMPIADA_PROXY_LOCK=held)" $?
 grep -qF -- '--message Edycja treści przeniesiona do django CMS --by scripts/djcms_cutover.sh' "$STATE/frozen"
 check "cms_freeze on z komunikatem banera i autorem" $?
 grep -qE '^ +kwantowa +14/14 +18/18 +3/3 +OK' "$WORK/full.out" && grep -qF 'djcms_cutover.sh --rollback' "$WORK/full.out" &&
@@ -270,11 +276,22 @@ check "podsumowanie: tabela stron i przekierowań, polecenie wycofania, ostrzeż
 cp "$SRV/.env" "$WORK/env.after"
 run_cut again --yes
 rc=$?
-[ $rc -eq 0 ] && [ ! -s "$WORK/again.docker" ] && cmp -s "$WORK/env.after" "$SRV/.env" && grep -qF 'nic do zrobienia' "$WORK/again.out"
-check "ponowny przebieg po przełączeniu – kod 0, żadnego polecenia (import skasowałby redakcję djcms)" $?
+[ $rc -eq 0 ] && [ "$(cat "$WORK/again.docker")" = "compose exec -T web python manage.py cms_freeze status" ] &&
+  cmp -s "$WORK/env.after" "$SRV/.env" && grep -qF 'nic do zrobienia' "$WORK/again.out"
+check "ponowny przebieg po przełączeniu – kod 0, tylko cms_freeze status (import skasowałby redakcję djcms)" $?
 run_cut again2 --check
-[ $? -eq 0 ] && [ ! -s "$WORK/again2.docker" ]
-check "--check po przełączeniu – kod 0, nic do sprawdzania" $?
+[ $? -eq 0 ] && [ "$(cat "$WORK/again2.docker")" = "compose exec -T web python manage.py cms_freeze status" ]
+check "--check po przełączeniu – kod 0, poza stanem zamrożenia nic do sprawdzania" $?
+# DJCMS_PRIMARY=1, a Wagtail OTWARTY (np. ręczne djcms_switch.sh on bez zamrożenia) – kod 1 z poleceniami,
+# bez zamrażania na własną rękę.
+rm -f "$STATE/frozen"
+run_cut open --yes
+[ $? -eq 1 ] && grep -qF 'edycja stron w Wagtailu jest OTWARTA' "$WORK/open.out" && grep -qF 'cms_freeze on --message' "$WORK/open.out" &&
+  [ -z "$(mutations open)" ] && [ ! -f "$STATE/frozen" ]
+check "DJCMS_PRIMARY=1 przy otwartym Wagtailu – kod 1 z poleceniem zamrożenia, nic nie zmienione" $?
+run_cut open2 --yes -- STUB_FREEZE_STATUS_RC=3
+[ $? -eq 1 ] && grep -qF 'stanu zamrożenia Wagtaila nie da się odczytać' "$WORK/open2.out"
+check "DJCMS_PRIMARY=1, stan zamrożenia nieznany – kod 1" $?
 
 # ================================================================================================
 # 5. Porażka każdego kroku: kod ≠ 0, nic po nim, stan opisany w komunikacie.
@@ -285,8 +302,12 @@ while IFS='|' read -r var absent msg frozen; do
   reset_server
   run_cut fail --yes -- "$var"
   rc=$?
+  # Znacznik przełączenia: dopiero przed krokiem 6, więc jest tylko przy porażce samego przełącznika.
+  marker_ok=1
+  if [ "$var" = STUB_SWITCH_RC=1 ]; then [ -n "$(env_line DJCMS_CUTOVER_DONE)" ] && marker_ok=0
+  else [ -z "$(env_line DJCMS_CUTOVER_DONE)" ] && marker_ok=0; fi
   [ $rc -ne 0 ] && ! grep -qE -- "$absent" "$WORK/fail.docker" && grep -qF -- "$msg" "$WORK/fail.out" &&
-    [ "$(env_line DJCMS_PRIMARY)" = 0 ] && [ -z "$(env_line DJCMS_CUTOVER_DONE)" ] &&
+    [ "$(env_line DJCMS_PRIMARY)" = 0 ] && [ "$marker_ok" = 0 ] &&
     { [ "$frozen" = 1 ] && [ -f "$STATE/frozen" ] || { [ "$frozen" = 0 ] && [ ! -f "$STATE/frozen" ]; }; }
   rc=$?
   check "porażka $var: kod ≠ 0, bez „$absent”, komunikat „$msg”, zamrożone=$frozen, DJCMS_PRIMARY=0" $rc
@@ -300,7 +321,7 @@ STUB_SYNC_RC=1|--replace$|--rollback --unfreeze|1
 STUB_IMPORT_RC=1|verify_cutover|--rollback --unfreeze|1
 STUB_VERIFY=kwantowa|^switch|nie przeszły witryny: fizyczna kwantowa|1
 STUB_VERIFY=crash|^switch|verify_cutover nie powiódł się|1
-STUB_SWITCH_RC=1|^switch off|przełącznik sam wrócił do DJCMS_PRIMARY=0|1
+STUB_SWITCH_RC=1|^switch off|bash scripts/djcms_switch.sh on (bez ponownego importu)|1
 CASES
 # Po przerwaniu w środku skrypt NIE odmraża Wagtaila sam (§ 10.1 p. 5) – decyzja operatora.
 reset_server
@@ -348,8 +369,8 @@ check "--rollback: switch off, Wagtail nadal zamrożony (z podpowiedzią), znacz
 show_on_fail $rc "$WORK/rb.out"
 run_cut rb2 --rollback --unfreeze
 rc=$?
-[ $rc -eq 0 ] && ! grep -q '^switch' "$WORK/rb2.docker" && grep -q 'cms_freeze off --by' "$WORK/rb2.docker" && [ ! -f "$STATE/frozen" ]
-check "--rollback --unfreeze przy DJCMS_PRIMARY=0: bez przełącznika (już Wagtail), cms_freeze off" $?
+[ $rc -eq 0 ] && grep -qx 'switch off' "$WORK/rb2.docker" && grep -q 'cms_freeze off --by' "$WORK/rb2.docker" && [ ! -f "$STATE/frozen" ]
+check "--rollback --unfreeze przy DJCMS_PRIMARY=0: przełącznik off i tak (idempotentny – .env nie jest źródłem prawdy), cms_freeze off" $?
 
 # Po wycofaniu: pełny przebieg odmawia bez --force-reimport (import skasowałby zmiany z djcms).
 cp "$SRV/.env" "$WORK/env.rb"
@@ -365,6 +386,19 @@ rc=$?
 [ $rc -eq 0 ] && [ "$(env_line DJCMS_PRIMARY)" = 1 ] && grep -q 'import_cms_bundle .*--replace$' "$WORK/reimp2.docker"
 check "po wycofaniu z --force-reimport – ponowne przełączenie" $rc
 show_on_fail $rc "$WORK/reimp2.out"
+
+# Ręczne djcms_switch.sh on + off bez skryptu przełączenia (DJCMS_EVER_PRIMARY, bez DJCMS_CUTOVER_DONE):
+# djcms był publiczny – pełny przebieg odmawia bez --force-reimport, jak po wycofaniu.
+reset_server
+printf 'DJCMS_EVER_PRIMARY=2026-09-20T10:00:00+02:00\n' >>"$SRV/.env"
+cp "$SRV/.env" "$WORK/env.ever"
+run_cut ever --yes
+[ $? -eq 1 ] && [ -z "$(mutations ever)" ] && ! grep -q 'import_cms_bundle .*--replace$' "$WORK/ever.docker" &&
+  grep -qF 'djcms_switch.sh on 2026-09-20' "$WORK/ever.out" && cmp -s "$WORK/env.ever" "$SRV/.env"
+check "DJCMS_EVER_PRIMARY (ręczne on) bez --force-reimport – kod 1, bez importu" $?
+run_cut ever2 --yes --force-reimport
+[ $? -eq 0 ] && [ "$(env_line DJCMS_PRIMARY)" = 1 ]
+check "DJCMS_EVER_PRIMARY z --force-reimport – przełączenie" $?
 
 # Nieudany switch off w --rollback – kod 1.
 run_cut rbbad --rollback -- STUB_SWITCH_OFF_RC=1

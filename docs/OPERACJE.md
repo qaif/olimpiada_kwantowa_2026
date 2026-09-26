@@ -3146,6 +3146,17 @@ z eksportu tego konkursu). Witryn ze stronami wdrożenie nie rusza. Obraz djcms 
 (np. `DJCMS_IMAGE` w starszej wersji) dostaje samo `sync_competitions` – wdrożenie sprawdza flagę
 w `--help`.
 
+Zachowanie przełącznika przy awariach: `on` dopisuje do `.env` `DJCMS_EVER_PRIMARY=<czas>` (raz,
+przed zmianą trybu – znacznik „djcms był publiczny” dla `djcms_cutover.sh`); przerwanie `on` sygnałem
+(Ctrl-C, zerwane ssh, `kill`) od zmiany `.env` do końca kontroli dymnej wraca do Wagtaila jak
+porażka kontroli. Kontrola dymna traktuje błąd uścisku TLS / certyfikatu (curl 35, 60) jako
+ostrzeżenie dla tej nazwy, a nie błąd tras – ale bez ani jednego sprawdzonego hosta nie przechodzi.
+Przepustka prac technicznych idzie do curla konfiguracją na stdin (`-K -`), nie w argumentach
+widocznych w `ps`. Wdrożenie z `.env` w innym trybie niż konfiguracja w działającym proxy
+(przerwane przełączenie, ręczna zmiana `DJCMS_PRIMARY`) staje w kroku 4/8 (§ 23). Wdrożenie przy
+`DJCMS_PRIMARY=1` porównuje też kontrakt tras na hoście (`backend/djcms_contract/app_routes.env`)
+z obrazem `web` – rozjazd (np. `WEB_IMAGE` w innej wersji niż kod) to kod ≠ 0 z podpowiedzią `off`.
+
 ### 22.9. Przełączenie serwisu publicznego na django CMS (`scripts/djcms_cutover.sh`)
 
 Jedno polecenie na serwerze robi całe przejście: kopia → zamrożenie edycji stron w Wagtailu →
@@ -3176,11 +3187,15 @@ Przed (dzień wcześniej):
    i w `/opt/olimpiada-backups`, `DJCMS_CUTOVER_MIN_FREE_MB`), `backup_verify.sh` ostatniej kopii
    (`--no-backup-verify` pomija – szybka próba).
 
-Przełączenie:
+Przełączenie – **w `tmux`/`screen`** (albo `setsid`), nie wprost w sesji ssh: zerwane połączenie
+wysyła SIGHUP i przerywa przebieg w środku (skrypt kończy się wtedy ramką `!!!` ze stanem, a
+przerwany przełącznik wraca do Wagtaila – ale kopia, import i weryfikacja zostają do powtórzenia):
 
 ```bash
+tmux new -s cutover            # po zerwaniu: tmux attach -t cutover
 cd /opt/olimpiada
 bash scripts/djcms_cutover.sh [--skip SLUG …]      # pyta: wpisz PRZEŁĄCZ; bez terminala: --yes
+# bez tmux: setsid -w bash scripts/djcms_cutover.sh --yes [--skip …] </dev/null   (dziennik – niżej)
 ```
 
 | Krok | Co | Błąd = |
@@ -3191,8 +3206,8 @@ bash scripts/djcms_cutover.sh [--skip SLUG …]      # pyta: wpisz PRZEŁĄCZ; b
 | 3/7 | `sync_competitions` (djcms) | Wagtail zamrożony, publicznie dalej Wagtail |
 | 4/7 | `import_cms_bundle --from-api --all --replace [--skip …]` – każdy konkurs we własnej transakcji | jw.; konkursy z błędem mają poprzednią treść djcms |
 | 5/7 | `verify_cutover` – tabela per konkurs (strony djcms/paczka, adresy 200, przekierowania) | jw.; porażka konkursu z `--skip` to tylko ostrzeżenie (liczba stron z definicji inna) |
-| 6/7 | `bash scripts/djcms_switch.sh on` (§ 22.8) | przełącznik sam wraca do `DJCMS_PRIMARY=0`; Wagtail zamrożony |
-| 7/7 | `DJCMS_CUTOVER_DONE=<czas>` w `.env`, podsumowanie | – |
+| 6/7 | `DJCMS_CUTOVER_DONE=<czas>` w `.env` (PRZED przełącznikiem – przerwanie po nim nie gubi znacznika), potem `bash scripts/djcms_switch.sh on` (§ 22.8) | przełącznik sam wraca do `DJCMS_PRIMARY=0`; Wagtail zamrożony; ponowienie samego przełączenia: `djcms_switch.sh on` (pełny przebieg – tylko z `--force-reimport`) |
+| 7/7 | podsumowanie | – |
 
 Przy każdym błędzie skrypt kończy się kodem ≠ 0 i ramką `!!!` z opisem stanu i dwiema drogami
 dalej. Strony publiczne **nigdy** nie zostają w stanie pośrednim: do kroku 6 podaje je Wagtail.
@@ -3203,8 +3218,16 @@ Zamrożenia skrypt sam **nie** zdejmuje (decyzja operatora, DJ-02 § 10.1 p. 5):
 - rezygnacja – `bash scripts/djcms_cutover.sh --rollback --unfreeze` (edycja w `/cms/` znów otwarta).
 
 Ponowne uruchomienie po udanym przełączeniu (`DJCMS_PRIMARY=1`) nic nie robi (kod 0) – import
-skasowałby redakcję djcms. Dziennik całego przebiegu: `/var/log/olimpiada-djcms-cutover-<data>.log`
-(`DJCMS_CUTOVER_LOG_DIR`). Jeden przebieg naraz (`flock` na `deploy/.djcms_cutover.lock`).
+skasowałby redakcję djcms – **o ile Wagtail jest zamrożony**: `DJCMS_PRIMARY=1` przy otwartej edycji
+w `/cms/` (np. po ręcznym `djcms_switch.sh on`) to kod 1 z poleceniem `cms_freeze on` (skrypt nie
+zamraża sam). Pełny przebieg odmawia bez `--force-reimport` także wtedy, gdy w `.env` jest
+`DJCMS_EVER_PRIMARY` – ślad po `djcms_switch.sh on` wywołanym ręcznie, poza tym skryptem.
+Dziennik całego przebiegu: `/var/log/olimpiada-djcms-cutover-<data>.log` (`DJCMS_CUTOVER_LOG_DIR`).
+
+Jedna blokada zmian serwisu publicznego – `caddy/.lock` (katalog stanu, § 23): biorą ją ten skrypt,
+`djcms_switch.sh`, `proxy_config.sh` i **wdrożenie** (od kroku 2/8 do końca). Przełączenie w trakcie
+wdrożenia (albo wdrożenie w trakcie przełączenia) odmawia od razu (`--rollback` i `djcms_switch.sh
+off` czekają do 2 min); przełącznik wołany przez ten skrypt dziedziczy blokadę.
 
 Po przełączeniu: `bash scripts/djcms_switch.sh status`, w przeglądarce kilka stron każdego konkursu,
 `/robots.txt`, `/sitemap.xml`, logowanie i panel (`/login/`, `/me/`, `/coordinator/`). Porównanie
@@ -3219,7 +3242,9 @@ bash scripts/djcms_cutover.sh --rollback --unfreeze   # dodatkowo cms_freeze off
 ```
 
 `--rollback` nie wymaga zdrowego djcms (to droga ratunkowa – przełącznik sam odtwarza proxy ze starą
-treścią pliku), niczego nie importuje i nie kasuje. **Wycofanie jest stratne**: Wagtail pokazuje
+treścią pliku), niczego nie importuje i nie kasuje. Woła `djcms_switch.sh off` **zawsze** (przy
+`DJCMS_ENABLED=1`), także gdy `.env` mówi już `DJCMS_PRIMARY=0` – po przerwanym przełączeniu `.env`,
+`caddy/Caddyfile` i konfiguracja załadowana w proxy mogą się różnić, a `off` jest idempotentne. **Wycofanie jest stratne**: Wagtail pokazuje
 treść z chwili zamrożenia, a zmiany zrobione w djcms po przełączeniu do Wagtaila **nie wracają**
 (D8). Dopóki Wagtail jest zamrożony, redakcja nie ma gdzie poprawiać stron publicznych – odmrażaj
 wyłącznie, gdy powrót ma potrwać dłużej.
@@ -3230,7 +3255,16 @@ Ponowne przejście na djcms po wycofaniu:
   `bash scripts/djcms_switch.sh on`,
 - **od nowa z Wagtaila** (np. redakcja pracowała w odmrożonym `/cms/`): `bash scripts/djcms_cutover.sh
   --force-reimport [--skip SLUG …]` – bez `--force-reimport` skrypt odmawia, bo w `.env` jest
-  `DJCMS_CUTOVER_DONE` i ponowny import skasowałby redakcję djcms.
+  `DJCMS_CUTOVER_DONE` (albo `DJCMS_EVER_PRIMARY`) i ponowny import skasowałby redakcję djcms.
+
+Monitoring trybu (zalecane po przełączeniu): w Uptime Kuma monitor HTTP(s) na `https://<domena>/`,
+który sprawdza **nagłówek odpowiedzi** `X-Djcms-Mode: primary` (monitor „HTTP(s) – Keyword” czyta
+treść, nie nagłówki – najprościej monitor typu „Push” zasilany z crona sondą
+`curl -sI https://<domena>/ | grep -qi '^x-djcms-mode: primary'`). Brak nagłówka przy
+`DJCMS_PRIMARY=1` znaczy, że djcms przestał ufać proxy (np. proxy straciło stały adres w sieci
+`internal` z nakładki docker-compose.djcms.yml) i podaje strony jak w podglądzie – z `noindex`.
+Znane ograniczenie: ciasteczka djcms (`djcms_view`, sesja) nie mają prefiksu `__Host-` – środowisko
+deweloperskie działa po HTTP, a prefiks wymaga `Secure`.
 
 ## 23. Konfiguracja proxy: `caddy reload` przy każdym wdrożeniu (`scripts/proxy_config.sh`)
 
@@ -3279,8 +3313,14 @@ bash scripts/proxy_config.sh apply    # samo przeładowanie (albo odtworzenie ko
 ```
 
 - Generator czyta **wyłącznie** `.env` – zmienna z powłoki operatora nie wygrywa z plikiem.
-- `scripts/djcms_switch.sh on|off` zmienia ten sam plik; oba skrypty biorą blokadę
-  `caddy/.lock` (wdrożenie czeka na przełącznik do 2 min).
+- `scripts/djcms_switch.sh on|off` zmienia ten sam plik; blokadę `caddy/.lock` biorą `proxy_config.sh`,
+  `djcms_switch.sh`, `djcms_cutover.sh` i wdrożenie – to ostatnie od kroku 2/8 do końca (sesja ssh
+  w tle; `proxy_config.sh` w krokach wdrożenia dziedziczy ją przez `OLIMPIADA_PROXY_LOCK=held`).
+  Wdrożenie czeka na cudzą zmianę do 2 min, potem odmawia – zanim cokolwiek skasuje (§ 22.9).
+- Przy `DJCMS_ENABLED=1` `render` porównuje tryb z `.env` (`DJCMS_PRIMARY`) z trybem konfiguracji
+  w **działającym** proxy (`header_up X-Djcms-Mode …`): różne = przerwane przełączenie albo ręczna
+  zmiana `.env` – odmowa (kod 1, nic nie zapisane) z poleceniem `djcms_switch.sh on|off`. Tryb
+  zmienia wyłącznie przełącznik (kontrola dymna, powrót przy porażce), nigdy wdrożenie.
 - `caddy validate` idzie w obrazie i środowisku **działającego** kontenera. Wydanie, które zmienia
   wersję obrazu `caddy` albo dokłada zmienną środowiskową proxy, sprawdza nowy plik starszym
   Caddym; taki kontener i tak jest odtwarzany w 4b (zmiana konfiguracji compose'a), a ewentualny

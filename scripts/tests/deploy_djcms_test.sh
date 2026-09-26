@@ -65,6 +65,8 @@ done
 cmd="$*"
 n=$(( $(wc -l <"$SSH_LOG") + 1 ))
 printf '%s\n' "$cmd" >>"$SSH_LOG"
+# Sesja blokady (krok 2/8, w tle do końca wdrożenia): wejście przechodzi wprost – czeka na jego koniec.
+case "$cmd" in *"/caddy/.lock'"*) cd "$FAKE_HOME" && exec bash -c "$cmd" ;; esac
 cat >"$SSH_LOG.stdin.$n"
 # Krok 1/8 (apt, ufw) i 8/8 (/etc/cron.d, /etc/logrotate.d) – pomijane, patrz nagłówek testu.
 # Rozpoznanie po treści skryptu kroku – ale tylko dla `bash -s` (paczka kodu z kroku 2/8 zawiera
@@ -120,6 +122,9 @@ case "$*" in
   # montażu katalogu (stan `stale` zostaje `stale`).
   *"compose up -d --remove-orphans "*" proxy"*)
     [ "$(cat "$STUB_BOX/state")" = down ] && { echo live >"$STUB_BOX/state"; cp caddy/Caddyfile "$STUB_BOX/loaded"; } ;;
+  # Kontrakt tras z obrazu web (krok dj. przy DJCMS_PRIMARY=1); STUB_ROUTES_DIFF=1 – obraz w innej wersji.
+  *"djcms_routes --format env"*)
+    if [ "${STUB_ROUTES_DIFF:-0}" = 1 ]; then echo "APP_RE='^/inny$'"; else cat backend/djcms_contract/app_routes.env; fi ;;
   *"sync_competitions --list-hosts"*) printf 'bez zmian: kwantowa\nolimpiada.example kwantowa\n' ;;
   # Pomoc komendy: obraz djcms z DJ-02e zna `--import-missing` (domyślnie); STUB_SYNC_OLD=1 – obraz
   # sprzed DJ-02e (flagi nie ma – wdrożenie woła wtedy samo `sync_competitions`).
@@ -144,6 +149,8 @@ STUB
 cat >"$BIN/curl" <<'STUB'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >>"$DOCKER_LOG.curl"
+# Konfiguracja z `-K -` (przepustka prac technicznych) – do dziennika jako „config: …”.
+case " $* " in *" -K - "*) sed 's/^/config: /' >>"$DOCKER_LOG.curl" ;; esac
 url="${!#}"; path="/${url#https://*/}"
 # Kontrola z przepustką przy --maintenance (krok 5a): `-w '%{http_code}' -o /dev/null`.
 case " $* " in *" %{http_code} "*) echo "${STUB_HEALTHZ_CODE:-200}"; exit 0 ;; esac
@@ -205,7 +212,7 @@ run_deploy() {
   DOCKER_LOG="$WORK/$label.docker"; SSH_LOG="$WORK/$label.ssh"; OUT="$WORK/$label.out"
   : >"$DOCKER_LOG"; : >"$SSH_LOG"; rm -f "$DOCKER_LOG.sql" "$DOCKER_LOG.curl"
   ( env -u DJCMS_ENABLE -u DJCMS_IMAGE -u DJCMS_ADMIN_EMAIL -u DJCMS_ADMIN_PASSWORD -u WEB_IMAGE \
-      -u DJCMS_PRIMARY -u STUB_CURL_MODE -u STUB_SYNC_RC -u STUB_SYNC_OLD -u STUB_VALIDATE_RC -u STUB_RELOAD_RC       -u STUB_HEALTHZ_CODE -u NEW_COMPETITION_SLUG -u COORDINATOR_EMAIL -u COORDINATOR_PASSWORD       -u MAINTENANCE_MESSAGE -u MAINTENANCE_MINUTES       PATH="$BIN:$PATH" DOCKER_LOG="$DOCKER_LOG" SSH_LOG="$SSH_LOG" SRC_TAR="${SRC_TAR:-$WORK/tree.tar}" \
+      -u DJCMS_PRIMARY -u STUB_CURL_MODE -u STUB_SYNC_RC -u STUB_SYNC_OLD -u STUB_VALIDATE_RC -u STUB_RELOAD_RC       -u STUB_HEALTHZ_CODE -u STUB_ROUTES_DIFF -u OLIMPIADA_PROXY_LOCK -u NEW_COMPETITION_SLUG -u COORDINATOR_EMAIL -u COORDINATOR_PASSWORD       -u MAINTENANCE_MESSAGE -u MAINTENANCE_MINUTES       PATH="$BIN:$PATH" DOCKER_LOG="$DOCKER_LOG" SSH_LOG="$SSH_LOG" SRC_TAR="${SRC_TAR:-$WORK/tree.tar}" \
       STUB_BOX="$BOX" \
       FAKE_HOME="$WORK/home" REMOTE_DIR="$SRV" BACKUP_DIR="$BAK" SSH_KEY=/dev/null \
       APP_VERSION=vtest MAIL_PUBLIC_IP=203.0.113.7 "$@" \
@@ -286,9 +293,9 @@ mask() {  # znaczniki czasu, rozmiary plików i wiersz z ls -lh zmieniają się 
 no_proxy_cfg() {  # no_proxy_cfg docker|ssh|env|out  (stdin → stdout)
   case "$1" in
     docker) grep -vE '^compose (ps -q --status running proxy|exec -T proxy (sh -c .*caddy validate|sha256sum /etc/caddy/Caddyfile|cat /etc/caddy/Caddyfile|caddy reload |wget )|up -d --force-recreate --no-deps proxy)' ;;
-    ssh) grep -vF 'bash scripts/proxy_config.sh apply' | sed 's/ ! -name caddy -exec/ -exec/' ;;
+    ssh) grep -vF 'bash scripts/proxy_config.sh apply' | grep -vF "/caddy/.lock'" | sed 's/ ! -name caddy -exec/ -exec/; s/ OLIMPIADA_PROXY_LOCK=held / /' ;;
     env) grep -vE '^(CADDYFILE_PATH=|CADDY_CONFIG_DIR=|# Konfiguracja proxy|# i EXTRA_DOMAINS przez scripts/render_caddyfile|# przez scripts/proxy_config\.sh)' ;;
-    out) grep -vE '^(proxy: |==> 4c/8 |$)' | sed -E 's/^render_caddyfile: [^ ]+ /render_caddyfile: OUT /' ;;
+    out) grep -vE '^(proxy: |==> 4c/8 |blokada zmian serwisu |UWAGA: brak flock na serwerze|$)' | sed -E 's/^render_caddyfile: [^ ]+ /render_caddyfile: OUT /' ;;
   esac
 }
 if [ -n "${DEPLOY_BASELINE_REF:-}" ]; then
@@ -554,7 +561,11 @@ check "DJCMS_PRIMARY=0 przy wyłączonym dj.: polecenia dzisiejsze, .env i Caddy
 # 9c. Włączone dj. i PRIMARY=1: tryb primary w konfiguracji proxy, kontrola dymna przez proxy.
 reset_server
 run_deploy "$DEPLOY" prim-enable DJCMS_ENABLE=1
+# Przełączenie jak `djcms_switch.sh on` (jego testy: djcms_switch_test.sh): .env i plik w działającym
+# proxy w trybie primary. Samo dopisanie DJCMS_PRIMARY=1 do .env wdrożenie odrzuca (9f).
 { echo; echo "DJCMS_PRIMARY=1"; } >>"$SRV/.env"
+( cd "$SRV" && env -u EXTRA_DOMAINS -u PLATFORM_SUBDOMAINS -u DJCMS_ENABLED -u DJCMS_PRIMARY -u DJCMS_ROUTES_ENV \
+    bash scripts/render_caddyfile.sh >/dev/null ) && cp "$SRV/caddy/Caddyfile" "$BOX/loaded"
 cp "$SRV/.env" "$WORK/env.prim"
 run_deploy "$DEPLOY" prim STUB_CURL_MODE=primary
 rc=$?
@@ -590,6 +601,35 @@ show_on_fail $rc "$WORK/sync-old.out"
 grep -qx 'compose exec -T djcms python manage.py sync_competitions --help' "$WORK/prim.docker" &&
   grep -qx 'compose exec -T djcms python manage.py sync_competitions --import-missing' "$WORK/prim.docker"
 check "obraz djcms z --import-missing: flaga sprawdzona (--help) i użyta" $?
+grep -qx 'compose exec -T web python manage.py djcms_routes --format env' "$WORK/prim.docker"
+check "PRIMARY=1: krok dj. porównuje kontrakt tras hosta z obrazem web" $?
+# 9f. Kontrakt tras obrazu web inny niż kod na serwerze (np. WEB_IMAGE z rejestru w innej wersji) –
+#     kod ≠ 0 po krokach głównego serwisu, przed kontrolą dymną, z podpowiedzią off.
+run_deploy "$DEPLOY" routes-diff STUB_ROUTES_DIFF=1 STUB_CURL_MODE=primary
+rc=$?
+[ $rc -ne 0 ] && grep -qF 'różni się od kontraktu tras obrazu web' "$WORK/routes-diff.out" &&
+  grep -q 'check_domains' "$WORK/routes-diff.docker" && [ ! -s "$WORK/routes-diff.docker.curl" ]
+check "PRIMARY=1, kontrakt tras obrazu web ≠ kod: kod ≠ 0 z komunikatem, bez kontroli dymnej" $?
+# 9g. .env w innym trybie niż działające proxy (przerwane `djcms_switch.sh on|off` albo ręczna zmiana
+#     DJCMS_PRIMARY): wdrożenie staje w kroku 4/8, zanim cokolwiek zbuduje – dokończyłoby przełączenie
+#     bez kontroli dymnej.
+sed -i 's/^DJCMS_PRIMARY=1$/DJCMS_PRIMARY=0/' "$SRV/.env"
+cp "$SRV/caddy/Caddyfile" "$WORK/caddy.mode"
+run_deploy "$DEPLOY" mode-diff
+rc=$?
+[ $rc -ne 0 ] && ! grep -q 'build' "$WORK/mode-diff.docker" && grep -qF 'djcms_switch.sh off' "$WORK/mode-diff.out" &&
+  cmp -s "$WORK/caddy.mode" "$SRV/caddy/Caddyfile"
+check "DJCMS_PRIMARY w .env ≠ tryb działającego proxy: odmowa w kroku 4/8 (djcms_switch.sh off), nic nie zbudowane" $?
+sed -i 's/^DJCMS_PRIMARY=0$/DJCMS_PRIMARY=1/' "$SRV/.env"
+
+# 9h. Blokada zmian serwisu: sesja w tle od kroku 2/8 (przed kasowaniem katalogu), kroki proxy z
+#     OLIMPIADA_PROXY_LOCK=held (inaczej czekałyby na blokadę wdrożenia).
+l="$(grep -nF "/caddy/.lock'" "$WORK/prim.ssh" | head -n 1 | cut -d: -f1)"
+f="$(grep -nF -- "-exec rm -rf" "$WORK/prim.ssh" | head -n 1 | cut -d: -f1)"
+[ -n "$l" ] && [ -n "$f" ] && [ "$l" -lt "$f" ] && grep -q 'OLIMPIADA_PROXY_LOCK=held.* bash -s$' "$WORK/prim.ssh" &&
+  grep -qF 'OLIMPIADA_PROXY_LOCK=held bash scripts/proxy_config.sh apply' "$WORK/prim.ssh" &&
+  grep -qE '^(blokada zmian serwisu .* wzięta|UWAGA: brak flock na serwerze)' "$WORK/prim.out"
+check "blokada zmian serwisu: sesja przed krokiem 2/8, kroki 4/8 i 4c/8 z OLIMPIADA_PROXY_LOCK=held" $?
 
 # ================================================================================================
 # 10. Konfiguracja proxy przy KAŻDYM wdrożeniu (docs/OPERACJE.md § 23), bez dj.: zmiana
