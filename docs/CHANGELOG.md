@@ -19,6 +19,14 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   pierwsze wdrożenie jednorazowo odtwarza `proxy`. Punkty powrotu: kopia konfiguracji działającego
   proxy przy pierwszym renderze, `caddy/Caddyfile.prev` przy odrzuconym reloadzie albo niewstającym
   Caddym. `OPERACJE.md` § 23.
+- **Poprawka:** przy `PLATFORM_SUBDOMAINS=1` nazwy dosłowne (`www.`, `dj.`, `meet.`, `monitor.`,
+  `s3.`) mogły trafić do polityki TLS on-demand bloku `*.<domena>`, której `ask` (`/internal/tls-allowed`)
+  odmawia – bez certyfikatu. Adapter Caddy'ego 2.8 wcina ich politykę do domyślnej (stojącej za `*.`),
+  gdy istnieje polityka domyślna – np. przy `local_certs` (E2E); przy produkcyjnym ACME z `email`
+  nazwy mają dziś własną politykę. `scripts/render_caddyfile.sh` przypina im jawnie `tls { key_type p256 }`
+  (wartość domyślna – ten sam certyfikat), więc polityka jest osobna i stoi przed `*.`;
+  `render_caddyfile_test.sh` sprawdza polityki po `caddy adapt` (ACME i `local_certs`, S3 pod `s3.`
+  i pod `<domena>:9000`).
 
 ## [Unreleased] – wersja porównawcza na django CMS (`dj.<domena>`, DJ-01)
 

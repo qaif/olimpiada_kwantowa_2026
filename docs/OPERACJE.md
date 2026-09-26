@@ -1008,7 +1008,10 @@ zastępuje ani nie zmienia.
    Krok 4/8 wdrożenia generuje wtedy konfigurację Caddy'ego z opcją globalną
    `on_demand_tls { ask http://web:8000/internal/tls-allowed }` i blokiem `*.<domena>`
    (`tls { on_demand }`). Na koniec wdrożenie wypisuje przypomnienie o rekordzie DNS — tylko wtedy,
-   gdy przełącznik jest włączony.
+   gdy przełącznik jest włączony. Bloki nazw stałych (`www.`, sama domena, `meet.`, `monitor.`,
+   blok S3, `dj.`) dostają wtedy `tls { key_type p256 }` – wartość domyślną, ale zapisaną jawnie:
+   dzięki niej ich certyfikaty są zwykłe (wystawiane przy starcie i odnawiane ~30 dni przed końcem),
+   a nie on-demand z bloku `*.`, bo `/internal/tls-allowed` tych nazw nie zna i by ich odmówił.
 4. **Flaga `competition_creation`** na konkursie, **którego** koordynatorzy mają zakładać kolejne
    (`/admin/ → Konkursy → <konkurs> → feature_flags`, § 6.4):
 

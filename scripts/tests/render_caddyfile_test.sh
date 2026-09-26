@@ -169,9 +169,15 @@ check "plik z EXTRA_DOMAINS i przełącznikiem kończy się domkniętym blokiem"
   "$(grep -n '^konkurs\.example {$' "$WORK/sub-extra.caddy" | cut -d: -f1)" ]
 check "blok wieloznaczny stoi za blokami z EXTRA_DOMAINS" $?
 
+# Przypięcie polityki TLS nazw dosłownych z pliku źródłowego (www., domena główna, blok S3, meet.,
+# monitor.) – po jednym, zaraz za nagłówkiem bloku; EXTRA_DOMAINS i `*.` bez niego (skutek – § 19).
+pinned="$(awk '/^[^ #].* \{$/ { head = $0 } $0 == "        key_type p256" { print head }' "$WORK/sub-extra.caddy" | tr '\n' '|')"
+[ "$pinned" = 'www.{$SITE_DOMAIN} {|{$SITE_DOMAIN} {|{$S3_PUBLIC_ADDRESS} {|meet.{$SITE_DOMAIN} {|monitor.{$SITE_DOMAIN} {|' ]
+check "PLATFORM_SUBDOMAINS=1: tls { key_type p256 } w www., domenie głównej, S3, meet., monitor. i nigdzie indziej (jest: $pinned)" $?
+
 # 11. Wyłączony przełącznik przy obecnych EXTRA_DOMAINS: ani śladu po on-demand TLS.
 render "olimpiadafizyczna.pl" "$WORK/sub-off-extra.caddy" ""
-! grep -qE 'on_demand|/internal/' "$WORK/sub-off-extra.caddy"
+! grep -qE 'on_demand|/internal/|key_type' "$WORK/sub-off-extra.caddy"
 check "wyłączony przełącznik nie zostawia on-demand TLS ani /internal/* w pliku z EXTRA_DOMAINS" $?
 
 # --- Strona „Prace techniczne” (fragment `(maintenance)`, docs/OPERACJE.md § 20) ------------------
@@ -349,6 +355,9 @@ check "opcja on_demand_tls nadal dokładnie raz" $?
 [ "$(grep -n '^dj\.{\$SITE_DOMAIN} {$' "$WORK/dj-both.caddy" | cut -d: -f1)" -gt \
   "$(grep -n '^\*\.{\$SITE_DOMAIN} {$' "$WORK/dj-both.caddy" | cut -d: -f1)" ]
 check "blok dj. stoi za blokiem wieloznacznym" $?
+block_body "$WORK/dj-both.caddy" 'dj.{$SITE_DOMAIN} {' | grep -qx '        key_type p256' &&
+  ! block_body "$WORK/dj-on.caddy" 'dj.{$SITE_DOMAIN} {' | grep -q 'key_type'
+check "blok dj.: przypięcie polityki TLS przy subdomenach platformy, bez nich – nie" $?
 strip_djcms "$WORK/dj-both.caddy" 0 | cmp -s - <(strip_djcms "$WORK/sub-extra.caddy" 0)
 check "przy subdomenach: wynik z DJCMS minus wstawki djcms = wynik bez DJCMS" $?
 render "$DJ_EXTRA" "$WORK/dj-both-true.caddy" "true" "TRUE"
@@ -494,7 +503,7 @@ if [ "${SKIP_CADDY_VALIDATE:-0}" != "1" ] && command -v docker >/dev/null 2>&1 &
   caddy_run() {  # caddy_run <plik> <polecenie caddy…>; plik na stdin, bez montowania (Windows)
     local file="$1"; shift
     MSYS_NO_PATHCONV=1 docker run --rm -i \
-      -e SITE_DOMAIN=example.org -e S3_PUBLIC_ADDRESS=example.org:9000 -e ACME_EMAIL=ops@example.org \
+      -e SITE_DOMAIN=example.org -e S3_PUBLIC_ADDRESS="${CADDY_S3:-example.org:9000}" -e ACME_EMAIL=ops@example.org \
       -e MAX_UPLOAD_MB=25 -e MAINTENANCE_BYPASS_TOKEN=abcdefghijklmnopqrstuvwxyz0123456789ABCD \
       "$CADDY_IMAGE" sh -c "cat > /tmp/Caddyfile && caddy $* --config /tmp/Caddyfile --adapter caddyfile" <"$file"
   }
@@ -600,6 +609,51 @@ if n != 1:
 sys.exit(errors)
 PY
       check "caddy adapt ($f): w każdym bloku aplikacji media → /internal,/static → djcms → aplikacja → publiczne → web; dj. = odmowa + 302" $?
+    done
+
+    # Polityki TLS przy PLATFORM_SUBDOMAINS=1: nazwy dosłowne (www., meet., monitor., s3., dj.,
+    # domena główna, EXTRA_DOMAINS) – zwykły certyfikat; on-demand (z `ask`) WYŁĄCZNIE nieznane
+    # subdomeny z bloku `*.`. Caddy bierze PIERWSZĄ politykę, której `subjects` pasują do nazwy
+    # (wzorzec `*.` = jedna etykieta, brak `subjects` = każda nazwa) – ten sam dobór sprawdza skrypt.
+    # Dwa warianty wystawcy: ACME (produkcja: `email`) i `local_certs` (E2E) – przy tym drugim
+    # adapter Caddy'ego 2.8 bez przypięcia z render_caddyfile.sh wcinał www./dj./… do polityki
+    # domyślnej za `*.` (on-demand, `ask` odmawia – brak certyfikatu). S3 pod `s3.` i pod host:port.
+    for f in sub-extra dj-both; do
+      awk '{ print } $0 == "    email {$ACME_EMAIL}" { print "    local_certs"; print "    skip_install_trust" }' \
+        "$WORK/$f.caddy" >"$WORK/$f-local.caddy"
+      for variant in "$f" "$f-local"; do
+        for s3 in example.org:9000 s3.example.org; do
+          CADDY_S3="$s3" caddy_run "$WORK/$variant.caddy" adapt 2>/dev/null | grep '^{' >"$WORK/tls-$variant.json"
+          names="www.example.org meet.example.org monitor.example.org example.org olimpiadafizyczna.pl konkurs.example"
+          [ "$s3" = s3.example.org ] && names="$names s3.example.org"
+          [ "$f" = dj-both ] && names="$names dj.example.org"
+          "$python_bin" - "$WORK/tls-$variant.json" "$names" <<'PY'
+import json, sys
+cfg = json.load(open(sys.argv[1], encoding="utf-8"))
+pols = cfg["apps"]["tls"]["automation"]["policies"]
+def matches(name, subj):  # certmagic.MatchWildcard: dokładnie albo `*.` = jedna etykieta
+    if name == subj:
+        return True
+    if subj.startswith("*."):
+        return "." in name and name.split(".", 1)[1] == subj[2:]
+    return False
+def policy(name):
+    return next((p for p in pols if not p.get("subjects") or any(matches(name, s) for s in p["subjects"])), None)
+errors = 0
+for name in sys.argv[2].split():
+    p = policy(name)
+    if p is None or p.get("on_demand"):
+        print(f"FAIL {name}: polityka {json.dumps(p)}"); errors += 1
+p = policy("nowy-konkurs.example.org")
+if p is None or not p.get("on_demand"):
+    print(f"FAIL nowy-konkurs.example.org (blok *.): polityka bez on_demand {json.dumps(p)}"); errors += 1
+if cfg["apps"]["tls"]["automation"].get("on_demand", {}).get("permission", {}).get("endpoint") != "http://web:8000/internal/tls-allowed":
+    print("FAIL on_demand bez endpointu zgody"); errors += 1
+sys.exit(errors)
+PY
+          check "caddy adapt ($variant, S3=$s3): nazwy dosłowne – zwykły certyfikat, on-demand tylko nieznane subdomeny *." $?
+        done
+      done
     done
   fi
 

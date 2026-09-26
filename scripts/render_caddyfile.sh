@@ -311,9 +311,38 @@ if [ "$GUARD_ON" = "1" ]; then
     why3="    # scripts/render_caddyfile.sh przy DJCMS_ENABLED=1."
   fi
   # Komentarze przez ENVIRON, a nie `awk -v`: `-v` interpretuje sekwencje z odwrotnym ukośnikiem.
+  #
+  # Przy PLATFORM_SUBDOMAINS=1 dochodzi jeszcze przypięcie polityki TLS (`tls_pin` niżej) w blokach
+  # nazw dosłownych z pliku źródłowego: `www.`, `meet.`, `monitor.`, `{$S3_PUBLIC_ADDRESS}` (bywa
+  # `s3.<domena>`) – plus `dj.` niżej – i w bloku domeny głównej. Powód: adapter
+  # Caddyfile'a (2.8, `consolidateAutomationPolicies`) wcina politykę TLS tych nazw do polityki
+  # domyślnej (bez `subjects`), gdy obie są identyczne – a polityka domyślna stoi ZA polityką
+  # `*.{$SITE_DOMAIN}` z `on_demand`. Caddy bierze pierwszą pasującą politykę, więc `www.`, `dj.`
+  # itd. trafiały do on-demand, a `ask` (/internal/tls-allowed) ich odmawia – certyfikatu nie ma.
+  # Politykę domyślną adapter tworzy np. przy `local_certs` (E2E; sprawdzone `caddy adapt`); przy
+  # samym `email` (produkcja) nazwy dosłowne mają dziś własną politykę, ale tylko z przypadku
+  # heurystyki adaptera. `key_type p256` to wartość DOMYŚLNA Caddy'ego (nic nie zmienia
+  # w certyfikacie) – wpis wyłącznie odróżnia politykę tych nazw, więc zostaje osobna i stoi
+  # PRZED `*.` (adapter sortuje polityki po liczbie nazw: tu ≥ 5, we wzorcu 1). Domena główna też:
+  # S3 bywa pod `<domena>:9000` (produkcja), a ta sama nazwa w dwóch blokach z różnymi ustawieniami
+  # TLS to błąd konfiguracji. Kontrola: render_caddyfile_test.sh (§ 19, polityki po `caddy adapt`
+  # przy ACME i local_certs, S3 pod `s3.` i pod `<domena>:9000`).
   WHY1="$why1" WHY2="$why2" WHY3="$why3" awk -v want_opts="$SUBDOMAINS_ON" '
-    BEGIN { opts = 0; guard = 0 }
+    function tls_pin() {
+      print "    # Zwykły certyfikat (nie on-demand bloku *.) – scripts/render_caddyfile.sh, PLATFORM_SUBDOMAINS=1."
+      print "    tls {"
+      print "        key_type p256"
+      print "    }"
+      pins++
+    }
+    BEGIN { opts = 0; guard = 0; pins = 0 }
     {
+      if (want_opts == "1" && ($0 == "www.{$SITE_DOMAIN} {" || $0 == "{$SITE_DOMAIN} {" || $0 == "meet.{$SITE_DOMAIN} {" ||
+          $0 == "monitor.{$SITE_DOMAIN} {" || $0 == "{$S3_PUBLIC_ADDRESS} {")) {
+        print
+        tls_pin()
+        next
+      }
       if (!guard && $0 == "    handle_path /static/* {") {
         print ENVIRON["WHY1"]
         print ENVIRON["WHY2"]
@@ -338,7 +367,7 @@ if [ "$GUARD_ON" = "1" ]; then
         opts = 1
       }
     }
-    END { if ((want_opts == "1" && !opts) || !guard) exit 3 }
+    END { if ((want_opts == "1" && (!opts || pins != 5)) || !guard) exit 3 }
   ' "$tmp" > "$tmp.sub" || {
     echo "render_caddyfile: nie znalazłem kotwic dla PLATFORM_SUBDOMAINS/DJCMS_ENABLED w $SRC – popraw generator razem z plikiem źródłowym" >&2
     exit 1
@@ -514,6 +543,13 @@ if [ "$DJCMS_ON" = "1" ]; then
 # na domenę główną. Nazwa dosłowna wygrywa z blokiem `*.{$SITE_DOMAIN}`; certyfikat zwykły (HTTP-01).
 dj.{$SITE_DOMAIN} {
 EOF
+  # Przy subdomenach platformy – to samo przypięcie polityki TLS co w `www.`/`meet.` (komentarz przy
+  # wstawkach awk wyżej): bez niego `dj.` dostawałby politykę on-demand bloku `*.`, której `ask` odmawia.
+  if [ "$SUBDOMAINS_ON" = "1" ]; then
+    printf '%s\n' \
+      '    # Zwykły certyfikat (nie on-demand bloku *.) – scripts/render_caddyfile.sh, PLATFORM_SUBDOMAINS=1.' \
+      '    tls {' '        key_type p256' '    }' >> "$tmp"
+  fi
   internal_guard >> "$tmp"
   printf '%s
 '     '    handle {'     "        redir $dj_target 302"     '    }'     '}' >> "$tmp"
