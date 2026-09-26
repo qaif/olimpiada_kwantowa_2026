@@ -1,0 +1,12 @@
+{% comment %}
+  Wiersz listy „Materiały” z ``backend/templates/cms/archive_edition_page.html``: rodzaj jako
+  znacznik, etykieta jako odnośnik do pliku, rozszerzenie w podpowiedzi. Listę
+  (``<ul class="doc-list">``) i pusty stan rysuje szablon strony.
+{% endcomment %}
+{% if instance.href %}
+<li>
+  <span class="tag">{{ instance.get_kind_display }}</span>
+  <a href="{{ instance.href }}">{{ instance.title }}</a>
+  <span class="hint">({{ instance.file_extension|upper }})</span>
+</li>
+{% endif %}

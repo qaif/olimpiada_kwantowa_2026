@@ -1,0 +1,21 @@
+{% load cms_tags %}{% comment %}
+  PORT ``backend/templates/cms/blocks/schedule.html`` (uzasadnienia znacznika tam: ``<th scope>``,
+  znikające kolumny, ``.table-scroll``). Wiersze to wtyczki-dzieci (``schedule_row.html``);
+  ``has_time``/``has_lecturer`` liczy model rodzica (``Schedule``) z wierszy.
+{% endcomment %}
+<div class="table-scroll">
+  <table class="table schedule">
+    {% if instance.caption %}<caption>{{ instance.caption }}</caption>{% endif %}
+    <thead>
+      <tr>
+        <th scope="col">{{ instance.topic_label|default:"Temat" }}</th>
+        <th scope="col">{{ instance.date_label|default:"Termin" }}</th>
+        {% if has_time %}<th scope="col">{{ instance.time_label|default:"Godziny" }}</th>{% endif %}
+        {% if has_lecturer %}<th scope="col">{{ instance.lecturer_label|default:"Prowadzący" }}</th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for plugin in instance.child_plugin_instances %}{% render_plugin plugin %}{% endfor %}
+    </tbody>
+  </table>
+</div>

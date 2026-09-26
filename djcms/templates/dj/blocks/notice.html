@@ -1,0 +1,6 @@
+{% comment %}
+  PORT ``backend/templates/cms/blocks/notice.html``. ``instance.text`` to ``HTMLField``
+  djangocms-text: HTML wyczyszczony przez ``nh3`` przy zapisie i oddany z bazy jako bezpieczny –
+  bez wyłączania autoescape'u w szablonie (reguła 4).
+{% endcomment %}
+<aside class="notice notice--{{ instance.tone }}">{{ instance.text }}</aside>

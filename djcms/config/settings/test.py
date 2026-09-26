@@ -10,14 +10,9 @@ from .base import *  # noqa: F401,F403
 DEBUG = False
 SECRET_KEY = "djcms-test-only-key-not-a-secret-0123456789-abcdefghijklmnopqrstuvwxyz"  # noqa: S105
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
-# Oba bufory w pamięci procesu – testy czyszczą je między sobą (``conftest.py``), a plikowy
-# bufor blokady logowania w ``/tmp`` przenosiłby stan między przebiegami.
+# Bufor w pamięci procesu – testy czyszczą go między sobą (``conftest.py``).
 CACHES = {
     "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "djcms-test-default"},
-    "throttle": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "djcms-test-throttle",
-    },
 }
 # Tokeny i adresy API stałe, niezależne od środowiska, w którym ktoś uruchomił testy.
 DJCMS_INTERNAL_TOKEN = "t" * 48

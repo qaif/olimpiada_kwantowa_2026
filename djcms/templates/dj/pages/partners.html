@@ -1,0 +1,47 @@
+{% extends "dj/base.html" %}
+{% load cms_tags dj_pages %}
+{% comment %}
+  „Partnerzy” (CMS_TEMPLATES) – PORT ``backend/templates/cms/partners_page.html`` (uzasadnienia
+  układu tam). Sloty: ``intro`` (tekst), ``partners`` (wtyczki „Partner”), ``become_partner``
+  (zaproszenie do współpracy).
+
+  Grupy po poziomie współpracy w kolejności ``PARTNER_LEVELS`` liczy ``apps.pages.content
+  .partner_groups`` (``{% templatetag openblock %} regroup {% templatetag closeblock %}`` grupowałby po kolejności dodania). Każdą kartę
+  rysuje szablon wtyczki (``render_plugin``). W **trybie edycji** slot stoi płasko, jedną listą
+  w kolejności slotu: django CMS wiąże podwójne kliknięcie i przeciąganie z renderem całego slotu,
+  a karty rozrzucone po grupach tego wiązania by nie miały. Podgląd i strona publiczna – z grupami.
+{% endcomment %}
+{% block description %}{% page_attribute "meta_description" as meta_description %}{% page_attribute "title" as page_title %}{{ meta_description|default:page_title }} – {{ dj_chrome.site_name }}.{% endblock %}
+{% block content %}
+{% dj_capture as intro %}{% placeholder "intro" %}{% end_dj_capture %}
+<div class="page-head">
+  <h1>{% page_attribute "title" %}</h1>
+</div>
+
+{% if intro|dj_filled %}<div class="cms-body prose doc-intro">{{ intro }}</div>{% endif %}
+
+{% if request.toolbar.edit_mode_active %}
+  <section class="section partners__group">
+    <ul class="cards partners">
+      {% placeholder "partners" %}
+    </ul>
+  </section>
+{% else %}
+  {% dj_partner_groups as groups %}
+  {% for group in groups %}
+    <section class="section partners__group">
+      <div class="section__head">
+        <h2 class="mt-0" id="poziom-{{ group.level }}">{{ group.label|capfirst }}</h2>
+      </div>
+      <ul class="cards partners">
+        {% for partner in group.partners %}{% render_plugin partner %}{% endfor %}
+      </ul>
+    </section>
+  {% empty %}
+    <p class="empty"><span class="empty__title">Lista partnerów I edycji zostanie opublikowana wkrótce.</span>
+      Rozmowy o patronatach i współpracy trwają. Poniżej opisujemy, na czym może polegać.</p>
+  {% endfor %}
+{% endif %}
+
+{% placeholder "become_partner" %}
+{% endblock %}

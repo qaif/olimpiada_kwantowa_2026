@@ -1,10 +1,49 @@
 {% extends "dj/base.html" %}
-{% load cms_tags %}
+{% load cms_tags dj_live dj_pages %}
 {% comment %}
-  Szablon strony treści – na etapie szkieletu (DJ-01c) jeden placeholder. Sloty z tabeli 6.1
-  (``intro``, ``attachments``, ``body``) i reszta typów stron przychodzą w DJ-01e.
+  „Strona treści” (CMS_TEMPLATES) – PORT ``backend/templates/cms/content_page.html`` (tabela 6.1).
+  Sloty: ``intro`` (tekst), ``attachments`` (pliki karty „Do pobrania”), ``body`` (zestaw DOC).
+  Układ ``doc-layout`` jak w oryginale: spis sekcji dopiero od trzech śródtytułów
+  (``ContentPage.MIN_CHAPTERS_FOR_TOC``), a bez spisu układ wraca do jednej kolumny.
+
+  Dwa warunki na slug – te same co w oryginale: zapowiedź materiałów z warsztatów na „Warsztatach”
+  (dane z API, znacznik z DJ-01f) i ikony mediów społecznościowych na „Kontakcie” (adresy z ramy
+  ``chrome``, jak w stopce). Klasy CSS jak w oryginale; zmieniając oryginał, zmień też ten plik.
 {% endcomment %}
+{% block description %}{% page_attribute "meta_description" as meta_description %}{% page_attribute "title" as page_title %}{{ meta_description|default:page_title }} – {{ dj_chrome.site_name }}.{% endblock %}
 {% block content %}
-  <h1>{% page_attribute "title" %}</h1>
-  {% placeholder "body" %}
+{% dj_page as current %}
+{% dj_chapters 3 as chapters %}
+{% dj_capture as intro %}{% placeholder "intro" %}{% end_dj_capture %}
+<div class="doc-layout{% if not chapters %} doc-layout--plain{% endif %}">
+
+  <div class="doc-head">
+    <div class="page-head">
+      <h1>{% page_attribute "title" %}</h1>
+    </div>
+    {% if intro|dj_filled %}<div class="cms-body prose doc-intro">{{ intro }}</div>{% endif %}
+
+    {% include "dj/partials/_attachments.html" %}
+    {% if current.slug == "warsztaty" %}{% dj_workshop_materials_teaser %}{% endif %}
+  </div>
+
+  {% if chapters %}
+    <nav class="doc-toc" aria-labelledby="spis-sekcji">
+      <h2 class="doc-toc__title" id="spis-sekcji">Na tej stronie</h2>
+      <ol class="doc-toc__list">
+        {% for chapter in chapters %}
+          <li><a href="#{{ chapter.anchor }}">{{ chapter.text }}</a></li>
+        {% endfor %}
+      </ol>
+    </nav>
+  {% endif %}
+
+  <div class="doc-body prose">
+    {% placeholder "body" %}
+    {% if current.slug == "kontakt" %}
+      {% include "dj/partials/_social_links.html" with links=dj_chrome.site.social_links %}
+    {% endif %}
+  </div>
+
+</div>
 {% endblock %}

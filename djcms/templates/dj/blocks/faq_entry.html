@@ -1,0 +1,10 @@
+{% comment %}
+  Pytanie z ``backend/templates/cms/faq_page.html``: ``<details>`` bez skryptu (działa przy
+  ścisłym CSP i bez JavaScriptu), kotwica ``id`` do odesłania w odpowiedzi na zgłoszenie.
+  ``instance.answer`` to ``HTMLField`` (wyczyszczony przy zapisie). Grupy po sekcjach rysuje
+  szablon strony (``dj/pages/faq.html``).
+{% endcomment %}
+<details class="card faq__item" id="{{ instance.anchor }}">
+  <summary class="faq__question">{{ instance.question }}</summary>
+  <div class="faq__answer">{{ instance.answer }}</div>
+</details>

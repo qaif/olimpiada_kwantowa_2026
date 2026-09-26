@@ -1,0 +1,7 @@
+{% load cms_tags %}{% comment %}
+  PORT ``backend/templates/cms/blocks/definitions.html``. Pary to wtyczki-dzieci
+  (``definition_item.html``) – każda rysuje swój ``<div class="definitions__row">``.
+{% endcomment %}
+<dl class="definitions">
+  {% for plugin in instance.child_plugin_instances %}{% render_plugin plugin %}{% endfor %}
+</dl>

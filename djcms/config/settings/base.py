@@ -12,6 +12,9 @@ from pathlib import Path
 
 import environ
 
+# Zestawy wtyczek ART/DOC (tabela 6.1) – moduł bez importów Django, bezpieczny do wczytania tutaj.
+from apps.blocks.plugin_sets import ART_PLUGINS, DOC_PLUGINS, TEXT_ONLY
+
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 env = environ.Env()
 
@@ -47,6 +50,8 @@ INSTALLED_APPS = [
     "filer",
     "easy_thumbnails",
     "apps.pages",
+    # Wtyczki redakcyjne – odpowiedniki bloków StreamField Wagtaila (DJ-01e, § 6.2).
+    "apps.blocks",
     # Klient API aplikacji głównej i rama z endpointu ``chrome`` (DJ-01d); wtyczki żywe – DJ-01f.
     "apps.live",
 ]
@@ -115,20 +120,13 @@ DATABASES["default"].setdefault("OPTIONS", {})["application_name"] = "olimpiada-
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # --- Bufor -----------------------------------------------------------------------------------
-# ``default`` – LocMem, świadomie bez Redisa: to bufor odpowiedzi API (per proces, 60 s + kopia
-# „stale”, § 8.3) i menu django CMS. Djcms nie dostaje dostępu do Redisa aplikacji głównej.
-#
-# ``throttle`` – licznik nieudanych logowań (``apps.pages.auth``). **Plikowy w ``/tmp``**, a nie
-# LocMem: gunicorn ma dwa procesy i przy liczniku w pamięci procesu limit „5 prób / 15 min”
-# byłby w praktyce limitem „5 prób na proces”, czyli 10. ``/tmp`` jest w kontenerze ``tmpfs``
-# (``read_only: true`` zostaje), wspólnym dla obu procesów, i znika z restartem – blokada
-# prób logowania nie jest stanem, który ma przetrwać wdrożenie.
+# LocMem, świadomie bez Redisa: to bufor odpowiedzi API (per proces, 60 s + kopia „stale”, § 8.3)
+# i menu django CMS. Djcms nie dostaje dostępu do Redisa aplikacji głównej. Licznik blokady
+# logowania **nie** jest w buforze – ma własną tabelę (``apps.pages.models.LoginAttempt``): bufor
+# wyrzuca wpisy po przekroczeniu limitu, a licznik, który da się wyrzucić zalewem śmieciowych
+# prób, nie jest blokadą (uzasadnienie w docstringu ``apps.pages.auth``).
 CACHES = {
     "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "djcms-default"},
-    "throttle": {
-        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
-        "LOCATION": env("DJCMS_THROTTLE_CACHE_DIR", default="/tmp/djcms-throttle"),  # noqa: S108
-    },
 }
 
 # --- Uwierzytelnienie ------------------------------------------------------------------------
@@ -139,9 +137,12 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
-# Reguła 13 (§ 7): 5 nieudanych prób na parę (IP, login) w oknie 15 minut.
+# Reguła 13 (§ 7): 5 nieudanych prób na parę (IP, login) w oknie 15 minut, plus sufit 50 porażek
+# na login w oknie godziny z dowolnych adresów (zgadywanie rozproszone – ``apps.pages.auth``).
 DJCMS_LOGIN_MAX_FAILURES = env.int("DJCMS_LOGIN_MAX_FAILURES", default=5)
 DJCMS_LOGIN_WINDOW_SECONDS = env.int("DJCMS_LOGIN_WINDOW_SECONDS", default=15 * 60)
+DJCMS_LOGIN_USER_MAX_FAILURES = env.int("DJCMS_LOGIN_USER_MAX_FAILURES", default=50)
+DJCMS_LOGIN_USER_WINDOW_SECONDS = env.int("DJCMS_LOGIN_USER_WINDOW_SECONDS", default=60 * 60)
 LOGIN_URL = "admin:login"
 
 # Ciasteczka: **inne nazwy** niż w aplikacji głównej i bez ``*_COOKIE_DOMAIN`` (host-only).
@@ -193,9 +194,67 @@ CMS_LANGUAGES = {
     ],
     "default": {"public": True, "hide_untranslated": False, "redirect_on_fallback": True},
 }
-# Szablony stron. Pełna lista (typy z tabeli 6.1) przychodzi w DJ-01e; na etapie szkieletu jest
-# jeden szablon, bo django CMS odmawia działania z pustym ``CMS_TEMPLATES``.
-CMS_TEMPLATES = [("dj/pages/content.html", "Strona treści")]
+# Szablony stron = typy stron Wagtaila (tabela 6.1). Szablon jest „typem”: po nim ``apps.pages
+# .content`` i ``apps.live.homepage`` rozpoznają aktualności, dokumenty czy stronę partnerów, a pasek
+# narzędzi – którą metrykę strony pokazać. Kolejność = kolejność na liście wyboru redaktora.
+# ``home``, ``problems``, ``results`` i ``archive_edition`` to szablony stron z danymi żywymi (DJ-01f).
+CMS_TEMPLATES = [
+    ("dj/pages/content.html", "Strona treści"),
+    ("dj/pages/home.html", "Strona główna"),
+    ("dj/pages/news_index.html", "Aktualności (lista)"),
+    ("dj/pages/news.html", "Aktualność"),
+    ("dj/pages/document_index.html", "Dokumenty (spis)"),
+    ("dj/pages/document.html", "Dokument"),
+    ("dj/pages/partners.html", "Partnerzy"),
+    ("dj/pages/faq.html", "Najczęstsze pytania"),
+    ("dj/pages/problems.html", "Zadania"),
+    ("dj/pages/results.html", "Wyniki"),
+    ("dj/pages/archive_index.html", "Archiwum (spis)"),
+    ("dj/pages/archive_edition.html", "Edycja w archiwum"),
+]
+
+
+def _slot(name: str, plugins: list[str], limit: int | None = None) -> dict:
+    conf: dict = {"name": name, "plugins": plugins}
+    if limit is not None:
+        conf["limits"] = {"global": limit}
+    return conf
+
+
+# Sloty szablonów i wtyczki dozwolone w każdym z nich (tabela 6.1). Klucze „szablon slot”, bo te
+# same nazwy slotów mają w różnych typach różne zestawy (``body`` aktualności to ART, ``body``
+# dokumentu – DOC). Zestawy ART/DOC: ``apps/blocks/plugin_sets.py``. Wtyczki-dzieci (pary definicji,
+# wiersze harmonogramu, kroki, treść „O Olimpiadzie”) dopuszcza ``child_classes`` rodzica.
+# Limit 1 tam, gdzie oryginał ma jedno pole, a nie listę (hasło, sekcje strony głównej, dane żywe).
+CMS_PLACEHOLDER_CONF = {
+    "dj/pages/home.html hero": _slot("Hasło", ["HeroPlugin"], 1),
+    "dj/pages/home.html timeline": _slot("Przebieg zawodów", ["StageTimelinePlugin"], 1),
+    "dj/pages/home.html steps": _slot("Jak zacząć", ["StepsSectionPlugin"], 1),
+    "dj/pages/home.html about": _slot("O Olimpiadzie", ["AboutSectionPlugin"], 1),
+    "dj/pages/news_index.html intro": _slot("Wprowadzenie", TEXT_ONLY),
+    "dj/pages/news.html body": _slot("Treść", ART_PLUGINS),
+    "dj/pages/content.html intro": _slot("Wprowadzenie", TEXT_ONLY),
+    "dj/pages/content.html attachments": _slot("Pliki do pobrania", ["AttachmentPlugin"]),
+    "dj/pages/content.html body": _slot("Treść", DOC_PLUGINS),
+    "dj/pages/partners.html intro": _slot("Wprowadzenie", TEXT_ONLY),
+    "dj/pages/partners.html partners": _slot("Partnerzy", ["PartnerPlugin"]),
+    "dj/pages/partners.html become_partner": _slot("Zostań partnerem", ["BecomePartnerPlugin"], 1),
+    "dj/pages/problems.html intro": _slot("Wprowadzenie", TEXT_ONLY),
+    "dj/pages/problems.html problems": _slot("Zadania (z systemu)", ["ProblemsPlugin"], 1),
+    "dj/pages/problems.html body": _slot("Treści dodatkowe", ART_PLUGINS),
+    "dj/pages/document_index.html intro": _slot("Wprowadzenie", TEXT_ONLY),
+    "dj/pages/document.html intro": _slot("Wprowadzenie", TEXT_ONLY),
+    "dj/pages/document.html attachments": _slot("Pliki do pobrania", ["AttachmentPlugin"]),
+    "dj/pages/document.html body": _slot("Treść", DOC_PLUGINS),
+    "dj/pages/archive_index.html intro": _slot("Wprowadzenie", TEXT_ONLY),
+    "dj/pages/archive_edition.html summary": _slot("Podsumowanie", TEXT_ONLY),
+    "dj/pages/archive_edition.html documents": _slot("Materiały", ["ArchiveDocumentPlugin"]),
+    "dj/pages/archive_edition.html results": _slot("Wyniki (z systemu)", ["ArchiveResultsPlugin"], 1),
+    "dj/pages/results.html intro": _slot("Wprowadzenie", TEXT_ONLY),
+    "dj/pages/results.html results": _slot("Wyniki (z systemu)", ["ResultsPlugin"], 1),
+    "dj/pages/faq.html intro": _slot("Wprowadzenie", TEXT_ONLY),
+    "dj/pages/faq.html faq": _slot("Pytania", ["FAQEntryPlugin"]),
+}
 # Bufor całych stron **wyłączony**: HTML niesie jednorazowy nonce CSP i dane zawodów z API
 # (terminy, stan rejestracji) – strona z bufora miałaby cudzy nonce (skrypty zablokowane) albo
 # nieaktualny termin. Bufor placeholderów zostaje, bo wtyczki żywe mają ``cache = False``.
@@ -215,14 +274,38 @@ DJANGOCMS_VERSIONING_ALLOW_DELETING_VERSIONS = False
 # djangocms-text 1.0.1: sanityzacja HTML (``nh3``) przy zapisie – reguła 4 z § 7. Domyślnie
 # włączona; wpisana jawnie, bo wyłączenie jej jest dokładnie tym, czego tu nie wolno.
 TEXT_HTML_SANITIZE = True
+# Edytor (tiptap, domyślny w 1.0.1) z tym samym zestawem formatowania co ``RICH_TEXT_FEATURES``
+# Wagtaila: nagłówki h2–h4, pogrubienie, kursywa, listy, linia pozioma, odnośnik, indeksy górny
+# i dolny, cytat. Bez obrazów, osadzeń, tabel, kolorów i źródła HTML – obraz i film to osobne
+# wtyczki (tak jak osobne bloki w Wagtailu), a redaktor nie pisze HTML-a. ``toolbar_CMS`` to
+# pasek wtyczki „Tekst”, ``toolbar_HTMLField`` – pól ``HTMLField`` naszych wtyczek (ramka, hasło,
+# odpowiedź FAQ, zaproszenie partnerów).
+_TEXT_TOOLBAR = [
+    ["Undo", "Redo"],
+    ["Paragraph", "Heading2", "Heading3", "Heading4"],
+    ["Bold", "Italic", "-", "Subscript", "Superscript"],
+    ["Link", "Unlink"],
+    ["NumberedList", "BulletedList"],
+    ["HorizontalRule", "-", "Blockquote"],
+]
+TEXT_EDITOR_SETTINGS = {"toolbar_CMS": _TEXT_TOOLBAR, "toolbar_HTMLField": _TEXT_TOOLBAR}
+# Wtyczki wewnątrz tekstu (obraz, odnośnik-wtyczka) wyłączone: tekst Wagtaila też ich nie ma.
+TEXT_CHILDREN_ENABLED = False
+# Bez automatycznego dzielenia wyrazów: djangocms-text wstawiałby do zapisanego HTML-a miękkie
+# łączniki (``&shy;``), których tekst po stronie Wagtaila nie ma – łamanie wierszy różniłoby obie
+# wersje, a porównanie ma dotyczyć edycji, nie składu.
+TEXT_AUTO_HYPHENATE = False
+TEXT_PLUGIN_NAME = "Tekst"
+TEXT_PLUGIN_MODULE_NAME = "Treść"
 
 # --- Pliki (filer) ---------------------------------------------------------------------------
 MEDIA_URL = "/media/"
 MEDIA_ROOT = env("DJCMS_MEDIA_ROOT", default="/app/media")
 # Wszystkie pliki filera są publiczne (reguła 12 – ``/media/*`` serwuje Caddy wprost z wolumenu).
 # Uprawnienia per folder wyłączone: redaktorzy są jedną grupą, a pliki i tak są dostępne pod
-# jawnym adresem. Flaga „prywatny” w filerze nie jest więc granicą bezpieczeństwa – DJ-01e ma
-# ją ukryć albo zablokować, zanim redaktorzy zaczną wgrywać pliki.
+# jawnym adresem. Flaga „prywatny” w filerze nie jest więc granicą bezpieczeństwa – jest ukryta
+# (filer chowa ją przy wyłączonych uprawnieniach) i zablokowana (``apps.blocks.files``); obu
+# ustawień pilnuje system check ``dj_blocks.E001``.
 FILER_ENABLE_PERMISSIONS = False
 FILER_IS_PUBLIC_DEFAULT = True
 THUMBNAIL_PROCESSORS = (

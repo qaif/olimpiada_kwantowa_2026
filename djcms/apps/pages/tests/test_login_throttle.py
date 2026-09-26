@@ -111,7 +111,7 @@ def test_cms_toolbar_login_is_throttled_too(client, superuser):
 def test_backend_refuses_before_checking_password(rf):
     request = rf.post("/admin/login/")
     with (
-        mock.patch.object(auth, "is_locked", return_value=True),
+        mock.patch.object(auth, "reserve_attempt", return_value=None),
         mock.patch("django.contrib.auth.backends.ModelBackend.authenticate") as parent,
     ):
         with pytest.raises(auth.PermissionDenied):
@@ -124,3 +124,145 @@ def test_counter_key_does_not_contain_login_or_ip(rf):
     key = auth._key(request, "redaktor@example.com")
     assert "redaktor" not in key
     assert "203.0.113.5" not in key
+
+
+# --- poprawki po przeglądzie: licznik w bazie, rezerwacja przed hasłem, sufit na login -----------
+
+
+def _backend_fail(rf, username, times, remote="203.0.113.50"):
+    """Porażki wprost przez backend (szybciej niż formularz, ta sama ścieżka licznika)."""
+    backend = auth.ThrottledModelBackend()
+    for _ in range(times):
+        request = rf.post("/admin/login/", REMOTE_ADDR=remote)
+        try:
+            assert backend.authenticate(request, username=username, password="zle-haslo") is None
+        except auth.PermissionDenied:
+            pass
+
+
+@pytest.mark.django_db
+def test_flood_of_junk_logins_does_not_reset_victims_lock(client, superuser, rf):
+    """Zalew porażek na setki wymyślonych loginów z tego samego adresu nie kasuje licznika ofiary.
+
+    Poprzedni licznik w buforze plikowym (``MAX_ENTRIES`` = 300) wyrzucał wtedy losową trzecią
+    część wpisów – w tym, z dużym prawdopodobieństwem, wpis zablokowanej pary.
+    """
+    _fail(client, superuser.username, 5)
+    for i in range(400):
+        _backend_fail(rf, f"smiec-{i}@example.com", 1, remote="127.0.0.1")
+    response = _login(client, superuser.username, PASSWORD)
+    assert LOCKED in response.content.decode()
+    assert "_auth_user_id" not in client.session
+
+
+@pytest.mark.django_db
+def test_distributed_guessing_hits_per_login_ceiling(client, superuser, rf, settings):
+    """Sufit na login: porażki z wielu adresów (po 4 z każdego – pod progiem pary) też blokują."""
+    settings.DJCMS_LOGIN_USER_MAX_FAILURES = 12
+    for n in range(3):
+        _backend_fail(rf, superuser.username, 4, remote=f"198.51.100.{n + 1}")
+    # Nowy adres, dobre hasło – a jednak blokada: login wyczerpał sufit.
+    response = _login(client, superuser.username, PASSWORD, REMOTE_ADDR="192.0.2.77")
+    assert LOCKED in response.content.decode()
+    # Inny login z tego samego adresu działa – sufit dotyczy loginu, nie adresu.
+    assert not auth.is_locked(rf.post("/", REMOTE_ADDR="192.0.2.77"), "inny@example.com")
+
+
+@pytest.mark.django_db
+def test_success_resets_pair_but_not_per_login_ceiling(client, superuser, rf, settings):
+    settings.DJCMS_LOGIN_USER_MAX_FAILURES = 8
+    _backend_fail(rf, superuser.username, 4, remote="198.51.100.1")
+    assert _login(client, superuser.username, PASSWORD, REMOTE_ADDR="198.51.100.1").status_code == 302
+    client.logout()
+    # Para wyzerowana, ale 4 porażki liczą się dalej do sufitu na login: 4 kolejne go wyczerpują.
+    _backend_fail(rf, superuser.username, 4, remote="198.51.100.2")
+    assert auth.is_locked(rf.post("/", REMOTE_ADDR="198.51.100.3"), superuser.username)
+
+
+@pytest.mark.django_db
+def test_rejected_and_successful_attempts_leave_no_rows(client, superuser, rf):
+    from apps.pages.models import LoginAttempt
+
+    _fail(client, superuser.username, 5)
+    assert LoginAttempt.objects.count() == 5
+    _backend_fail(rf, superuser.username, 3, remote="127.0.0.1")  # odrzucone w czasie blokady
+    assert LoginAttempt.objects.count() == 5
+    other = rf.post("/admin/login/", REMOTE_ADDR="192.0.2.1")
+    assert auth.ThrottledModelBackend().authenticate(other, username=superuser.username, password=PASSWORD)
+    assert LoginAttempt.objects.count() == 5  # udane sprawdzenie hasła nie jest porażką
+
+
+@pytest.mark.django_db
+def test_old_rows_are_pruned(rf):
+    from apps.pages.models import LoginAttempt
+
+    start = 2_000_000.0
+    with mock.patch("apps.pages.auth.time.time", return_value=start):
+        _backend_fail(rf, "ktos@example.com", 3)
+    with mock.patch("apps.pages.auth.time.time", return_value=start + 2 * 3600):
+        _backend_fail(rf, "ktos@example.com", 1)
+    assert LoginAttempt.objects.count() == 1
+
+
+def test_counter_keys_are_keyed_hashes(rf):
+    request = rf.get("/", REMOTE_ADDR="203.0.113.5")
+    import hashlib
+
+    plain = hashlib.sha256(b"203.0.113.5|redaktor@example.com").hexdigest()
+    assert auth._key(request, "redaktor@example.com") != plain
+    assert auth._user_key("Redaktor@Example.com") == auth._user_key(" redaktor@example.com ")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_concurrent_attempts_never_exceed_the_limit(superuser, rf):
+    """Dwanaście równoległych prób z jednej pary: do sprawdzenia hasła dochodzi najwyżej pięć.
+
+    Każdy wątek ma własne połączenie z bazą (jak procesy/wątki gunicorna). Sprawdzenie hasła
+    (``ModelBackend.authenticate``) jest podmienione na wolne i zawsze nieudane – okno wyścigu
+    między „sprawdź blokadę” a „zapisz porażkę” jest więc szerokie; stara wersja (odczyt licznika
+    przed hasłem, zapis po) przepuszczała tu praktycznie wszystkie próby. Wątków jest tyle, żeby
+    nie wyczerpać puli połączeń Postgresa współdzielonej w devie z aplikacją główną.
+    """
+    import threading
+    import time as time_module
+
+    from django.db import connection
+
+    threads_count = 12
+    barrier = threading.Barrier(threads_count)
+    checked, errors = [], []
+    lock = threading.Lock()
+
+    def slow_parent(self, request, username=None, password=None, **kwargs):
+        with lock:
+            checked.append(username)
+        time_module.sleep(0.05)
+        return None
+
+    def worker():
+        try:
+            request = rf.post("/admin/login/", REMOTE_ADDR="203.0.113.99")
+            barrier.wait(timeout=10)
+            try:
+                auth.ThrottledModelBackend().authenticate(
+                    request, username=superuser.username, password="zle"
+                )
+            except auth.PermissionDenied:
+                pass
+        except Exception as exc:  # noqa: BLE001 - błąd wątku ma wywrócić test, a nie zniknąć
+            with lock:
+                errors.append(repr(exc))
+        finally:
+            connection.close()
+
+    with mock.patch("django.contrib.auth.backends.ModelBackend.authenticate", slow_parent):
+        threads = [threading.Thread(target=worker) for _ in range(threads_count)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=30)
+
+    assert errors == []
+    assert 1 <= len(checked) <= 5
+    request = rf.post("/admin/login/", REMOTE_ADDR="203.0.113.99")
+    assert auth.is_locked(request, superuser.username) == (len(checked) == 5)

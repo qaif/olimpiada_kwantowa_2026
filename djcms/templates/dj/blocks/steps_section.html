@@ -1,0 +1,17 @@
+{% load cms_tags %}{% comment %}
+  Sekcja „Jak zacząć” z ``backend/templates/cms/home_page.html``. Kroki to wtyczki-dzieci
+  (``step.html``); bez kroków sekcji nie ma (``page.steps_title and page.steps``) – poza trybem
+  edycji, w którym redaktor musi widzieć, gdzie dodać pierwszy krok. Przycisk rejestracji pod
+  krokami: ten sam stan okna rejestracji co w ramie (``chrome``), wspólny fragment z DJ-01f.
+{% endcomment %}
+{% if instance.child_plugin_instances or request.toolbar.edit_mode_active %}
+  <section class="section">
+    <div class="section__head">
+      <h2 class="mt-0">{{ instance.title }}</h2>
+    </div>
+    <ol class="steps">
+      {% for plugin in instance.child_plugin_instances %}{% render_plugin plugin %}{% endfor %}
+    </ol>
+    {% include "dj/live/_registration_button.html" with wrap="steps" %}
+  </section>
+{% endif %}

@@ -1,0 +1,5 @@
+{% comment %}
+  PORT ``backend/templates/cms/blocks/heading.html``. Kotwica jest atrybutem ``id`` – ten sam
+  identyfikator, po który sięga spis rozdziałów (``dj_pages.dj_chapters``). Autoescape obejmuje
+  i tekst, i wartość ``id``.
+{% endcomment %}{% if instance.level == "3" %}<h3 class="doc-heading doc-heading--par" id="{{ instance.anchor }}">{{ instance.text }}</h3>{% else %}<h2 class="doc-heading doc-heading--chapter" id="{{ instance.anchor }}">{{ instance.text }}</h2>{% endif %}

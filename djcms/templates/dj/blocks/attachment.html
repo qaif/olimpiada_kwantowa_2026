@@ -1,0 +1,17 @@
+{% comment %}
+  Wiersz karty „Do pobrania” z ``backend/templates/cms/_attachments.html`` (uzasadnienia tam: PDF
+  z przyciskiem głównym, reszta pobocznym; ikona rodzaju pliku w CSS po klasie z rozszerzenia).
+  Kartę wokół rysuje ``dj/partials/_attachments.html``. Rozmiar tylko wtedy, gdy znany.
+{% endcomment %}
+{% if instance.href %}
+<li class="doc-files__item doc-files__item--{{ instance.file_extension }}">
+  <div class="doc-files__meta">
+    <span class="doc-files__label">{{ instance.label|default:instance.file_title }}</span>
+    <span class="hint doc-files__hint">{{ instance.filename }}
+      · {{ instance.file_extension|upper }}{% if instance.size_bytes %}
+      · {{ instance.size_bytes|filesizeformat }}{% endif %}</span>
+  </div>
+  <a class="btn btn--small {% if instance.is_pdf %}btn--primary{% else %}btn--secondary{% endif %}"
+     href="{{ instance.href }}" download>Pobierz {{ instance.file_extension|upper }}</a>
+</li>
+{% endif %}

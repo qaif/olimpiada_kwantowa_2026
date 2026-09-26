@@ -1,0 +1,8 @@
+{% load cms_tags %}{% comment %}
+  Hasło strony głównej – ``<h1>`` i ``.hero__text`` z ``backend/templates/cms/home_page.html``.
+  Stoi w slocie ``hero`` wewnątrz ``<div class="hero__inner">`` szablonu ``dj/pages/home.html``
+  (nadtytuł, przyciski i etap bieżący rysuje szablon z danych API). Puste hasło = tytuł strony,
+  jak ``page.hero_title|default:page.title``.
+{% endcomment %}
+<h1>{% if instance.title %}{{ instance.title }}{% else %}{% page_attribute "title" %}{% endif %}</h1>
+{% if instance.text %}<div class="hero__text">{{ instance.text }}</div>{% endif %}

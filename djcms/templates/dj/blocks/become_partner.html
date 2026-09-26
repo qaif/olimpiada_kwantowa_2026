@@ -1,0 +1,18 @@
+{% comment %}
+  Sekcja „Zostań partnerem” z ``backend/templates/cms/partners_page.html``. Jak w oryginale znika,
+  gdy brakuje nagłówka albo treści. ``instance.body`` to ``HTMLField`` (wyczyszczony przy zapisie).
+{% endcomment %}
+{% if instance.title and instance.body %}
+  <section class="section">
+    <div class="card card--accent partners-cta">
+      <h2 class="mt-0">{{ instance.title }}</h2>
+      <div class="prose">{{ instance.body }}</div>
+      {% if instance.contact_email %}
+        <p class="partners-cta__actions">
+          <a class="btn btn--accent" href="mailto:{{ instance.contact_email }}">Napisz do nas</a>
+          <span class="hint">{{ instance.contact_email }}</span>
+        </p>
+      {% endif %}
+    </div>
+  </section>
+{% endif %}

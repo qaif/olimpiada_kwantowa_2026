@@ -1,0 +1,34 @@
+{% extends "dj/base.html" %}
+{% load cms_tags dj_pages %}
+{% comment %}
+  „Aktualności (lista)” (CMS_TEMPLATES) – PORT ``backend/templates/cms/news_index_page.html``.
+  Slot ``intro`` (tekst). Lista: opublikowane strony-dzieci typu „Aktualność” z metryką
+  ``NewsMeta``, data malejąco, potem strona malejąco (``apps.pages.content.news_items``).
+{% endcomment %}
+{% block content %}
+{% dj_news_items as news %}
+{% dj_capture as intro %}{% placeholder "intro" %}{% end_dj_capture %}
+<div class="page-head">
+  <span class="eyebrow">Newsroom</span>
+  <h1>{% page_attribute "title" %}</h1>
+  {% if intro|dj_filled %}<div class="lead">{{ intro }}</div>{% endif %}
+</div>
+
+<ul class="cards cards--wide news-list">
+  {% for item in news %}
+    <li>
+      <article class="card news-card">
+        <span class="news-card__date">{{ item.date|default_if_none:"" }}</span>
+        <h2><a href="{{ item.url }}">{{ item.title }}</a></h2>
+        {% if item.lead %}<p>{{ item.lead }}</p>{% endif %}
+        <p class="card__foot"><a href="{{ item.url }}">Czytaj dalej</a></p>
+      </article>
+    </li>
+  {% empty %}
+    <li>
+      <p class="empty"><span class="empty__title">Cisza w eterze</span>
+        Nie ma jeszcze żadnych aktualności.</p>
+    </li>
+  {% endfor %}
+</ul>
+{% endblock %}

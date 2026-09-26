@@ -1,0 +1,10 @@
+{% comment %}
+  PORT ``backend/templates/cms/blocks/image.html``. Miniatura 900 px szerokości (``easy-thumbnails``,
+  bez powiększania – jak rendition ``width-900``), atrybuty ``<img>`` w tej kolejności, w jakiej
+  wypisuje je znacznik obrazu Wagtaila. ``alt`` = opis obrazu w bibliotece filera. Obraz, którego
+  nie da się przetworzyć, znika – podpis zostaje.
+{% endcomment %}
+<figure class="cms-figure">
+  {% if thumb %}<img alt="{{ alt }}" height="{{ thumb.height }}" src="{{ thumb.src }}" width="{{ thumb.width }}">{% endif %}
+  {% if instance.caption %}<figcaption>{{ instance.caption }}</figcaption>{% endif %}
+</figure>

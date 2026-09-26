@@ -87,12 +87,12 @@ def main_api(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _clear_caches():
-    """Bufory (także licznik blokady logowania) nie przenoszą stanu między testami."""
-    for alias in ("default", "throttle"):
-        caches[alias].clear()
+    """Bufory nie przenoszą stanu między testami (licznik blokady logowania jest w bazie testowej)."""
+    for cache in caches.all():
+        cache.clear()
     yield
-    for alias in ("default", "throttle"):
-        caches[alias].clear()
+    for cache in caches.all():
+        cache.clear()
 
 
 @pytest.fixture

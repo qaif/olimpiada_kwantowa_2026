@@ -1,29 +1,50 @@
 """Blokada prób logowania do panelu djcms (reguła 13 z § 7 docs/tasks/DJ-01.md).
 
 ``/admin/`` na ``dj.`` jest publiczny i nie ma drugiego składnika, więc jedyną barierą przed
-zgadywaniem haseł redaktorów jest limit: **5 nieudanych prób w oknie 15 minut na parę
-(adres IP, login)**. Para, a nie sam login – inaczej każdy z internetu mógłby zablokować
-redaktorowi konto, wpisując pięć razy złe hasło; para, a nie sam adres – bo redakcja siedzi
-czasem za jednym NAT-em szkoły czy uczelni.
+zgadywaniem haseł redaktorów jest limit. Dwa progi:
+
+- **5 nieudanych prób w oknie 15 minut na parę (adres IP, login)** – właściwa blokada. Para, a nie
+  sam login – inaczej każdy z internetu mógłby zablokować redaktorowi konto, wpisując pięć razy złe
+  hasło; para, a nie sam adres – bo redakcja siedzi czasem za jednym NAT-em szkoły czy uczelni,
+- **50 nieudanych prób w oknie godziny na login, z dowolnych adresów** – sufit na zgadywanie
+  rozproszone po wielu adresach (botnet, pula adresów IPv6), którego próg na parę nie widzi wcale.
+  Próg jest dziesięć razy wyższy, bo jego koszt uboczny jest realny: kto ma tyle adresów, może nim
+  zablokować redaktorowi logowanie na godzinę. To świadoma wymiana – godzina przestoju jednego konta
+  zamiast nieograniczonej liczby prób odgadnięcia hasła.
 
 Gdzie to działa: w **backendzie uwierzytelnienia** (``ThrottledModelBackend``), a nie w widoku.
 Django CMS ma drugą drogę logowania – formularz paska narzędzi (``cms_login`` w ``cms/urls.py``) –
 i blokada podpięta pod sam widok admina zostawiłaby ją otwartą. ``django.contrib.auth.authenticate``
-woła backend z każdej drogi. Liczenie idzie przez sygnał ``user_login_failed`` (wysyła go
-``authenticate`` po każdej porażce, niezależnie od drogi), a udane logowanie zeruje licznik.
+woła backend z każdej drogi; udane logowanie (sygnał ``user_logged_in``) zeruje licznik pary.
 
-Okno jest przesuwne: trzymamy znaczniki czasu porażek, a nie licznik z czasem życia klucza.
-Próby wykonane w czasie blokady **nie** są dopisywane – blokada mija 15 minut po najstarszej
+**Licznik jest w bazie djcms** (``LoginAttempt``), a nie w buforze. Poprzednia wersja trzymała go
+w buforze plikowym i miała dwie dziury (przegląd krytyka po DJ-01d):
+
+1. bufor plikowy ma limit wpisów (``MAX_ENTRIES`` = 300) i po jego przekroczeniu wyrzuca losową
+   trzecią część – atakujący zasypywał go porażkami na 300 wymyślonych loginów i w ten sposób
+   kasował licznik ofiary. Tabela nie ma limitu wpisów i nie wyrzuca niczego przed końcem okna,
+2. licznik był czytany i zapisywany osobno („odczyt → dopisz → zapis”), a blokada sprawdzana
+   przed hasłem – dziesięć równoległych prób widziało „4 porażki” i wszystkie dochodziły do
+   sprawdzenia hasła. Teraz próba **najpierw rezerwuje miejsce** (wiersz w tabeli, zatwierdzony od
+   razu), a dopiero potem liczy wiersze w oknie. Z równoległych prób ta, która zapisała się
+   ostatnia, widzi wszystkie wcześniejsze – więc do sprawdzenia hasła dochodzi najwyżej tyle prób,
+   ile wynosi limit, niezależnie od tego, jak się przeplotą. Wyścig może najwyżej odrzucić próbę,
+   która zmieściłaby się w limicie (dwie równoległe widzą nawzajem swoje rezerwacje) – nigdy
+   przepuścić o jedną za dużo.
+
+Okno jest przesuwne: wiersz to jedna porażka ze znacznikiem czasu. Próby odrzucone w czasie
+blokady **nie** zostają w tabeli (rezerwacja jest cofana) – blokada mija 15 minut po najstarszej
 z pięciu porażek, a nie przedłuża się w nieskończoność pod ciągłym pukaniem (to byłaby blokada
-konta na życzenie atakującego, tylko wolniejsza).
+konta na życzenie atakującego, tylko wolniejsza). Udane sprawdzenie hasła też cofa rezerwację:
+to nie była porażka.
 
-Bufor ``throttle`` (``config/settings/base.py``) jest plikowy w ``/tmp`` kontenera – wspólny dla
-procesów gunicorna, więc limit jest naprawdę 5, a nie 5 na proces.
+Gwarancja z punktu 2 zakłada, że ``authenticate`` nie biegnie wewnątrz transakcji
+(``ATOMIC_REQUESTS`` jest wyłączone, a widoki logowania admina i ``cms_login`` nie są atomowe) –
+w transakcji rezerwacja stałaby się widoczna dla innych dopiero przy jej zatwierdzeniu.
 """
 
 from __future__ import annotations
 
-import hashlib
 import ipaddress
 import logging
 import time
@@ -33,16 +54,17 @@ from django.conf import settings
 from django.contrib.admin.forms import AdminAuthenticationForm
 from django.contrib.auth import get_user_model
 from django.contrib.auth.backends import ModelBackend
-from django.contrib.auth.signals import user_logged_in, user_login_failed
-from django.core.cache import caches
+from django.contrib.auth.signals import user_logged_in
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.dispatch import receiver
+from django.utils.crypto import salted_hmac
 
 logger = logging.getLogger(__name__)
 
 REAL_IP_HEADER = "HTTP_X_REAL_IP"
-CACHE_ALIAS = "throttle"
-KEY_PREFIX = "djcms:login-fail:"
+#: Sól skrótów w tabeli ``LoginAttempt`` (``salted_hmac`` z ``SECRET_KEY``): zrzut bazy djcms nie
+#: zdradza, kto i skąd próbował się logować – skrótu bez sekretu nie da się odwrócić słownikiem.
+KEY_SALT = "djcms.login-throttle"
 
 LOCKED_MESSAGE = (
     "Zbyt wiele nieudanych prób logowania. Spróbuj ponownie za kilkanaście minut "
@@ -95,58 +117,99 @@ def client_ip(request) -> str:
 # --- licznik porażek --------------------------------------------------------------------------
 
 
-def _cache():
-    return caches[CACHE_ALIAS]
+def _normalized(username: str | None) -> str:
+    return (username or "").strip().lower()
+
+
+def _digest(raw: str) -> str:
+    return salted_hmac(KEY_SALT, raw, algorithm="sha256").hexdigest()
 
 
 def _key(request, username: str | None) -> str:
-    # Skrót, a nie login wprost: klucz trafia do nazwy pliku bufora w ``/tmp`` i nie może
-    # nieść ani znaków spoza ASCII, ani (w logach/zrzutach) samego loginu z adresem.
-    raw = f"{client_ip(request)}|{(username or '').strip().lower()}"
-    return KEY_PREFIX + hashlib.sha256(raw.encode()).hexdigest()
+    """Skrót pary (IP, login). Ani loginu, ani adresu wprost – patrz ``KEY_SALT``."""
+    return _digest(f"pair|{client_ip(request)}|{_normalized(username)}")
 
 
-def _window() -> int:
-    return int(settings.DJCMS_LOGIN_WINDOW_SECONDS)
+def _user_key(username: str | None) -> str:
+    return _digest(f"user|{_normalized(username)}")
 
 
-def _recent_failures(key: str, now: float) -> list[float]:
-    stamps = _cache().get(key) or []
-    return [stamp for stamp in stamps if now - stamp < _window()]
+def _pair_window() -> float:
+    return float(settings.DJCMS_LOGIN_WINDOW_SECONDS)
+
+
+def _user_window() -> float:
+    return float(settings.DJCMS_LOGIN_USER_WINDOW_SECONDS)
+
+
+def _attempts():
+    # Import w funkcji: ``AUTHENTICATION_BACKENDS`` bywa importowany, zanim rejestr aplikacji jest
+    # gotowy, a import modelu na poziomie modułu wywróciłby wtedy start.
+    from .models import LoginAttempt
+
+    return LoginAttempt.objects
+
+
+def _over_limit(pair_key: str, user_key: str, now: float) -> bool:
+    """Czy porażek (razem z ewentualną rezerwacją bieżącej próby) jest więcej, niż wolno."""
+    attempts = _attempts()
+    pair = attempts.filter(pair_key=pair_key, at__gt=now - _pair_window()).count()
+    if pair > settings.DJCMS_LOGIN_MAX_FAILURES:
+        return True
+    user = attempts.filter(user_key=user_key, at__gt=now - _user_window()).count()
+    return user > settings.DJCMS_LOGIN_USER_MAX_FAILURES
 
 
 def is_locked(request, username: str | None) -> bool:
-    """Czy para (IP, login) wyczerpała limit porażek w bieżącym oknie."""
+    """Czy następna próba zostałaby odrzucona (tylko odczyt – dla komunikatu formularza)."""
     if request is None:
         return False
-    return len(_recent_failures(_key(request, username), time.time())) >= settings.DJCMS_LOGIN_MAX_FAILURES
-
-
-def record_failure(request, username: str | None) -> None:
-    """Dopisuje porażkę – chyba że para jest już zablokowana (patrz docstring modułu)."""
-    if request is None:
-        return
-    key = _key(request, username)
     now = time.time()
-    stamps = _recent_failures(key, now)
-    if len(stamps) >= settings.DJCMS_LOGIN_MAX_FAILURES:
-        return
-    stamps.append(now)
-    _cache().set(key, stamps, timeout=_window())
-    if len(stamps) >= settings.DJCMS_LOGIN_MAX_FAILURES:
+    attempts = _attempts()
+    pair = attempts.filter(pair_key=_key(request, username), at__gt=now - _pair_window()).count()
+    if pair >= settings.DJCMS_LOGIN_MAX_FAILURES:
+        return True
+    user = attempts.filter(user_key=_user_key(username), at__gt=now - _user_window()).count()
+    return user >= settings.DJCMS_LOGIN_USER_MAX_FAILURES
+
+
+def reserve_attempt(request, username: str | None):
+    """Rezerwuje próbę logowania; zwraca wiersz rezerwacji albo ``None``, gdy limit jest wyczerpany.
+
+    Kolejność „zapisz, potem policz” jest istotą poprawki – patrz docstring modułu, punkt 2.
+    Zwrócony wiersz jest od razu porażką; ``release_attempt`` cofa go, gdy hasło okazało się dobre.
+    """
+    now = time.time()
+    pair_key, user_key = _key(request, username), _user_key(username)
+    attempts = _attempts()
+    # Sprzątanie przy okazji: wiersze starsze niż dłuższe z okien niczego już nie liczą.
+    attempts.filter(at__lt=now - max(_pair_window(), _user_window())).delete()
+    attempt = attempts.create(pair_key=pair_key, user_key=user_key, at=now)
+    if _over_limit(pair_key, user_key, now):
+        attempt.delete()
+        return None
+    if attempts.filter(pair_key=pair_key, at__gt=now - _pair_window()).count() >= (
+        settings.DJCMS_LOGIN_MAX_FAILURES
+    ):
         # Bez loginu i bez adresu w treści – log idzie do ``docker logs``, a to nie jest miejsce
-        # na dane osobowe. Skrót klucza wystarczy, żeby skorelować zdarzenia.
-        logger.warning("Blokada logowania djcms: limit porażek osiągnięty (klucz %s…)", key[-12:])
+        # na dane osobowe. Końcówka skrótu wystarczy, żeby skorelować zdarzenia.
+        logger.warning("Blokada logowania djcms: limit porażek osiągnięty (klucz …%s)", pair_key[-12:])
+    return attempt
+
+
+def release_attempt(attempt) -> None:
+    """Cofa rezerwację próby, która nie była porażką (hasło dobre)."""
+    if attempt is not None:
+        attempt.delete()
 
 
 def reset_failures(request, username: str | None) -> None:
+    """Udane logowanie zeruje licznik **pary**. Sufitu na login nie – patrz niżej."""
     if request is not None:
-        _cache().delete(_key(request, username))
-
-
-@receiver(user_login_failed)
-def _on_login_failed(sender, credentials, request=None, **kwargs):
-    record_failure(request, (credentials or {}).get(get_user_model().USERNAME_FIELD))
+        # Sufit na login (``user_key``) zostaje: gdyby zerowało go każde udane logowanie
+        # właściciela konta, zgadujący z wielu adresów dostawałby po nim świeże 50 prób. Dlatego
+        # wiersze nie są kasowane, tylko odpinane od pary – dalej liczą się do sufitu na login.
+        _attempts().filter(pair_key=_key(request, username)).update(pair_key="")
 
 
 @receiver(user_logged_in)
@@ -158,19 +221,29 @@ def _on_logged_in(sender, request, user, **kwargs):
 
 
 class ThrottledModelBackend(ModelBackend):
-    """``ModelBackend``, który odmawia **przed** sprawdzeniem hasła, gdy para jest zablokowana.
+    """``ModelBackend``, który rezerwuje próbę i odmawia **przed** sprawdzeniem hasła.
 
     Kolejność ma znaczenie: sprawdzenie hasła w czasie blokady zdradzałoby (czasem odpowiedzi
     i komunikatem), czy hasło było dobre – blokada przestałaby być blokadą, a stałaby się
     wolniejszą wyrocznią. ``PermissionDenied`` przerywa też przeszukiwanie kolejnych backendów.
+
+    Porażka jest zapisywana tutaj (rezerwacja), a nie w sygnale ``user_login_failed``: sygnał
+    przychodzi **po** sprawdzeniu hasła, więc licznik oparty na nim zawsze spóźniałby się
+    o równoległe próby. Bez ``request`` (komendy, powłoka) blokady nie ma – nie ma czego liczyć.
     """
 
     def authenticate(self, request, username=None, password=None, **kwargs):
         if username is None:
             username = kwargs.get(get_user_model().USERNAME_FIELD)
-        if is_locked(request, username):
+        if request is None:
+            return super().authenticate(request, username=username, password=password, **kwargs)
+        attempt = reserve_attempt(request, username)
+        if attempt is None:
             raise PermissionDenied(LOCKED_MESSAGE)
-        return super().authenticate(request, username=username, password=password, **kwargs)
+        user = super().authenticate(request, username=username, password=password, **kwargs)
+        if user is not None:
+            release_attempt(attempt)
+        return user
 
 
 class ThrottledAdminAuthenticationForm(AdminAuthenticationForm):
@@ -184,4 +257,7 @@ class ThrottledAdminAuthenticationForm(AdminAuthenticationForm):
     def clean(self):
         if is_locked(self.request, self.cleaned_data.get("username")):
             raise ValidationError(self.error_messages["locked"], code="locked")
+        # Wyścig (limit wyczerpała równoległa próba między sprawdzeniem wyżej a rezerwacją
+        # w backendzie) kończy się zwykłym „zły login lub hasło”: ``authenticate`` zamienia
+        # ``PermissionDenied`` backendu na ``None``. Następna próba dostanie już komunikat o blokadzie.
         return super().clean()
