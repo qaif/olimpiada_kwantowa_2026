@@ -684,9 +684,31 @@ def test_reserved_root_slug_is_rejected(slug):
         bundle(data)
 
 
-def test_reserved_slug_deeper_in_the_tree_is_allowed():
+def test_app_route_in_second_segment_is_rejected():
+    """S5 (DJ-02 D3): ``/dokumenty/admin/`` pod prefiksem konkursu idzie do aplikacji – odrzucone."""
     data = manifest()
     next(dto for dto in data["pages"] if dto["slug"] == "komitety")["slug"] = "admin"
+    with pytest.raises(services.BundleError, match="należy do aplikacji"):
+        bundle(data)
+
+
+def test_nested_app_route_is_rejected():
+    """``warsztaty/materialy`` to adres aplikacji pod stroną redakcyjną (``nested_paths``)."""
+    data = manifest()
+    kontakt = next(dto for dto in data["pages"] if dto["slug"] == "kontakt")
+    kontakt["slug"] = "warsztaty"
+    data["pages"].append(
+        {**copy.deepcopy(kontakt), "id": 900, "parent_id": kontakt["id"], "slug": "materialy"}
+    )
+    with pytest.raises(services.BundleError, match="należy do aplikacji"):
+        bundle(data)
+
+
+def test_reserved_slug_deeper_in_the_tree_is_allowed():
+    """Trzeci segment nie jest adresem aplikacji – ``/dokumenty/komitety/admin/`` wolno."""
+    data = manifest()
+    komitety = next(dto for dto in data["pages"] if dto["slug"] == "komitety")
+    data["pages"].append({**copy.deepcopy(komitety), "id": 900, "parent_id": komitety["id"], "slug": "admin"})
     assert bundle(data).pages
 
 

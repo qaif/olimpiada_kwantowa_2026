@@ -80,8 +80,12 @@ def test_full_frame_from_chrome(client, page, full_chrome):
     assert 'href="https://facebook.com/x" aria-label="Facebook"' in html
     assert '<a href="tel:+48500600700">' in html
     assert '<a href="https://olimpiada.example/plakaty/">Plakaty do pobrania</a>' in html
-    assert '<a href="https://olimpiada.example/o-olimpiadzie/">Ta strona w wersji Wagtail</a>' in html
-    assert "Wersja testowa (django CMS) – nieindeksowana" in html
+    # Tryb ``preview`` (klient testowy nie jest zaufanym proxy): pasek podglądu i dopisek w stopce
+    # zamiast numeru wersji (DJ-02 § 8); ustawienia podglądu z powrotem na tę samą stronę.
+    assert "data-djcms-preview-bar" in html
+    assert "Podgląd wersji django CMS – nieindeksowany" in html
+    assert 'href="/djcms/preview/?next=/o-olimpiadzie/">Ustawienia podglądu</a>' in html
+    assert "Ta strona w wersji Wagtail" not in html
     assert '<a href="/dokumenty/rodo/">' in html
 
 
@@ -183,7 +187,7 @@ def test_dead_api_keeps_frame_and_marks_degraded(client, page, main_api, setting
         assert missing not in html, missing
     # Stopka i nawigacja zostają.
     assert '<footer class="footer">' in html
-    assert "Ta strona w wersji Wagtail" in html
+    assert "Wyłącz podgląd" in html  # pasek podglądu nie zależy od API
     assert '<nav class="nav nav--cms"' in html
 
 
@@ -218,8 +222,48 @@ def test_admin_does_not_call_api(client, main_api):
 
 
 @pytest.mark.django_db
-def test_404_does_not_call_api_and_is_not_degraded(client, main_api):
-    response = client.get("/nie-ma-takiej-strony/")
+def test_app_path_404_is_plain_and_does_not_call_api(client, main_api):
+    response = client.get("/djcms/nie-ma-takiego-adresu/")
     assert response.status_code == 404
     assert main_api.requests == []
     assert DEGRADED not in response
+    assert '<nav class="nav nav--cms"' not in response.content.decode()
+
+
+# --- 404 z ramą konkursu (DJ-02 § 8) -------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_404_uses_the_competition_frame(client, full_chrome):
+    response = client.get("/nie-ma-takiej-strony/")
+    assert response.status_code == 404
+    html = response.content.decode()
+    assert "<title>Nie znaleziono strony</title>" in html
+    assert "Organizator: <strong>Fundacja Testowa</strong>" in html
+    assert '<a class="btn btn--primary" href="/">Strona główna</a>' in html
+    assert full_chrome.calls("chrome") == 1
+
+
+@pytest.mark.django_db
+def test_404_with_dead_api_keeps_fallback_frame(client, main_api, settings):
+    response = client.get("/nie-ma-takiej-strony/")
+    assert response.status_code == 404
+    html = response.content.decode()
+    assert "Nie znaleziono strony" in html
+    assert f"<strong>{settings.DJCMS_FALLBACK_SITE_NAME}</strong>" in html
+    assert response[DEGRADED] == "1"
+
+
+@pytest.mark.django_db
+def test_404_frame_failure_falls_back_to_plain_page(client, monkeypatch):
+    from apps.live.chrome import LiveChrome
+
+    def _boom(self):
+        raise RuntimeError("rama testowo zepsuta")
+
+    monkeypatch.setattr(LiveChrome, "site_name", property(_boom))
+    response = client.get("/nie-ma-takiej-strony/")
+    assert response.status_code == 404
+    html = response.content.decode()
+    assert "Nie znaleziono strony" in html
+    assert '<nav class="nav nav--cms"' not in html

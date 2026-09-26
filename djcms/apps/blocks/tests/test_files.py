@@ -90,7 +90,9 @@ def test_every_configured_plugin_is_registered():
     [
         ("dj/pages/news.html body", ART_PLUGINS),
         ("dj/pages/problems.html body", ART_PLUGINS),
-        ("dj/pages/content.html body", DOC_PLUGINS),
+        # Strona „Warsztaty” (DJ-02 D9): tabele na żywo z Wagtaila obok zestawu DOC.
+        ("dj/pages/content.html body", [*DOC_PLUGINS, "WorkshopSchedulePlugin"]),
+        ("dj/live/partners_page.html partners", ["PartnersLivePlugin"]),
         ("dj/pages/document.html body", DOC_PLUGINS),
         ("dj/pages/partners.html partners", ["PartnerPlugin"]),
         ("dj/pages/faq.html faq", ["FAQEntryPlugin"]),

@@ -1,44 +1,75 @@
-{% load static cms_tags menu_tags sekizai_tags dj_live dj_pages %}<!doctype html>
+{% load static cms_tags menu_tags sekizai_tags dj_live dj_pages %}{% dj_analytics_id as ga_id %}{% dj_seo as seo %}{% dj_canonical as canonical_url %}{% url 'pages-root' as site_root %}<!doctype html>
 {% comment %}
-  Rama serwisu dj. – PORT ``backend/templates/base.html`` (DJ-01 § 8.5). Klasy CSS i struktura DOM
-  jak w oryginale, bo arkusz jest ten sam (``backend/static`` montowany/kopiowany do
-  ``DJCMS_SHARED_STATIC_DIR``). Zmieniając ramę głównej aplikacji, zmień też ten plik (ryzyko 3 speca).
+  Rama serwisu djcms – PORT ``backend/templates/base.html`` (DJ-01 § 8.5, DJ-02 § 8). Klasy CSS
+  i struktura DOM jak w oryginale, bo arkusz jest ten sam (``backend/static`` montowany/kopiowany do
+  ``DJCMS_SHARED_STATIC_DIR``). Zmieniając ramę głównej aplikacji, zmień też ten plik (ryzyko 5 DJ-02).
 
-  Różnice wobec oryginału – wszystkie celowe:
+  Tryb (``request.djcms_primary`` – ``apps.pages.mode``, z nagłówka Caddy'ego):
+  - ``preview`` (podgląd przy ``DJCMS_PRIMARY=0``, ciasteczko ``djcms_view=dj``): ``<meta name="robots">``
+    noindex (druga z trzech dróg, S7), pasek „Podgląd wersji django CMS · Wyłącz podgląd”, w stopce
+    dopisek o podglądzie zamiast numeru wersji, bez Google Analytics,
+  - ``primary``: bez noindex, stopka jak w Wagtailu (numer wersji djcms), GA4 jak w oryginale.
+
+  Parytet ``<head>`` z Wagtailem: ``<title>`` (bloki szablonów stron), ``description`` (``chrome.seo
+  .default_description``; strona z opisem redakcyjnym – ``meta_description``), ``og:site_name``,
+  ``og:title``, ``og:image`` (``chrome.seo.og_image``), ``og:type``, ``lang="pl"``, favikony,
+  GA4 (``data-ga-id``, ``gtag/js``, ``analytics.js``, ``<meta name="ga-measurement-id">``, pasek
+  zgody i „Ustawienia cookies”). Ponad oryginał: ``<link rel="canonical">`` i ``og:url`` – adres
+  z ``public_base`` konkursu (``apps.pages.seo.canonical_url``), bez zapytania.
+
+  Pozostałe różnice wobec oryginału – wszystkie celowe:
   - dane ramy (nazwa, organizator, rejestracja, komunikaty, slider, pasek osi czasu) przychodzą
     z API ``chrome`` (``dj_chrome`` = ``apps.live.chrome.LiveChrome``, leniwie, raz na odsłonę); przy
     martwym API rama zostaje, a znika to, czego nie da się pokazać bez danych (§ 8.3),
   - menu z drzewa django CMS (``show_menu`` + ``apps.pages.cms_menus.DjMenuModifier``),
   - pasek konta zawsze w wariancie anonimowym i bez przełączników języka/kontrastu (to funkcje
-    konta aplikacji głównej); logowanie, rejestracja i „Zgłoś problem” prowadzą na domenę główną,
-  - bez Google Analytics, HTMX i Alpine'a (żaden publiczny szablon ``cms/`` ich nie używa);
-    pasek cookie w wariancie „tylko niezbędne”,
-  - ``<meta name="robots">`` (druga z trzech dróg noindex, reguła 10), ``{% templatetag openblock %} cms_toolbar {% templatetag closeblock %}``
-    i bloki sekizai (pasek narzędzi redaktora),
-  - w stopce zamiast numeru wersji: odnośnik do tej samej strony w wersji Wagtail i dopisek o wersji testowej.
+    konta aplikacji głównej; djcms nie czyta jej sesji – S10); logowanie, rejestracja i „Zgłoś
+    problem” prowadzą do aplikacji konkursu,
+  - bez HTMX i Alpine'a (żaden publiczny szablon ``cms/`` ich nie używa),
+  - ``{% templatetag openblock %} cms_toolbar {% templatetag closeblock %}`` i bloki sekizai (pasek narzędzi redaktora).
+
+  Adresy względem korzenia konkursu (``site_root`` = ``/`` albo ``/<prefiks>/`` – jak ``site_root``
+  w oryginale), nigdy literał ``/``: pod prefiksem ścieżki ``/`` to strona innego konkursu.
 
   Każdy ``<script>`` ma ``nonce="{{ request.csp_nonce }}"`` – publiczna polityka CSP nie ma
   ``'unsafe-inline'`` (reguła 6; pilnuje test ``apps/pages/tests/test_frame.py``). Skrypty
   dokładane przez wtyczki blokiem sekizai ``js`` muszą nieść ten sam nonce.
 {% endcomment %}
-<html lang="pl">
+<html lang="pl"{% if ga_id %} data-ga-id="{{ ga_id }}"{% endif %}>
 <head>
+  {% comment %}
+    Tag Google (gtag.js) jak w oryginale: zaraz po ``<head>``, z nonce, drugi znacznik to
+    ``static/js/analytics.js`` (tryb zgody). Tylko w ``primary`` i tylko z identyfikatorem
+    (``apps.pages.seo.analytics_id`` – ten sam tag włącza hosty GA w CSP tej odpowiedzi).
+  {% endcomment %}
+  {% if ga_id %}
+    <!-- Google tag (gtag.js) -->
+    <script async nonce="{{ request.csp_nonce }}" src="https://www.googletagmanager.com/gtag/js?id={{ ga_id }}"></script>
+    <script nonce="{{ request.csp_nonce }}" src="{% static 'js/analytics.js' %}"></script>
+  {% endif %}
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="robots" content="noindex, nofollow">
+  {% block robots %}{% if not request.djcms_primary %}<meta name="robots" content="noindex, nofollow">{% endif %}{% endblock %}
   <title>{% block title %}{% page_attribute "page_title" %} – {{ dj_chrome.site_name }}{% endblock %}</title>
   <meta name="theme-color" content="#12233f" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0f1726" media="(prefers-color-scheme: dark)">
   {% page_attribute "meta_description" as page_description %}
-  <meta name="description" content="{% block description %}{{ page_description|default:"Ogólnopolska olimpiada dla uczniów szkół ponadpodstawowych: terminy etapów, zadania, wyniki oraz panel uczestnika, recenzenta i komitetu." }}{% endblock %}">
+  <meta name="description" content="{% block description %}{{ page_description|default:seo.default_description }}{% endblock %}">
+  {% if canonical_url %}<link rel="canonical" href="{{ canonical_url }}">{% endif %}
   <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
   <link rel="icon" href="{% static 'img/logo-mark-512.png' %}" type="image/png" sizes="512x512">
   <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
   <meta property="og:site_name" content="{{ dj_chrome.site_name }}">
   <meta property="og:title" content="{% block og_title %}{{ dj_chrome.site_name }}{% endblock %}">
-  <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'img/og-image.png' %}">
+  {% if seo.og_image %}<meta property="og:image" content="{{ seo.og_image }}">{% endif %}
   <meta property="og:type" content="website">
+  {% if canonical_url %}<meta property="og:url" content="{{ canonical_url }}">{% endif %}
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  {% comment %}
+    Identyfikator jeszcze raz, jako ``<meta>``: czyta go pasek zgody (``static/js/consent.js``)
+    i to jego obecność zamienia pasek informacyjny w pytanie o zgodę (jak w oryginale).
+  {% endcomment %}
+  {% if ga_id %}<meta name="ga-measurement-id" content="{{ ga_id }}">{% endif %}
   <link rel="preload" as="font" type="font/woff2" crossorigin
         href="{% static 'fonts/inter-latin-ext-400.woff2' %}">
   <link rel="preload" as="font" type="font/woff2" crossorigin
@@ -63,10 +94,11 @@
 <body>
 {% cms_toolbar %}
 <a class="skip-link" href="#tresc">Przejdź do treści</a>
+{% if not request.djcms_primary %}{% include "dj/partials/_preview_bar.html" %}{% endif %}
 <div class="topbar topbar--account">
   <div class="topbar__account">
     <div class="topbar__account-inner">
-    <a class="brand" href="/">
+    <a class="brand" href="{{ site_root }}">
       <span class="brand__logo"><img src="{% static 'img/logo-olimpiada-kwantowa.png' %}"
            srcset="{% static 'img/logo-olimpiada-kwantowa.png' %} 1x, {% static 'img/logo-olimpiada-kwantowa@2x.png' %} 2x"
            alt="" width="600" height="231"></span>
@@ -143,14 +175,22 @@
       <p><strong>{{ dj_chrome.site_name }}</strong>{% if site.tagline %} – {{ site.tagline }}{% endif %}</p>
       <p>Dane osobowe uczestników są przetwarzane zgodnie z zasadą minimalizacji (RODO): w publicznych tabelach wyników występuje wyłącznie kod uczestnika, a pełne dane widzi jedynie koordynator.</p>
       {% comment %}
-        RODO i cookies – ścieżki **względne**: po imporcie te strony istnieją na ``dj.`` pod tym
-        samym adresem (§ 8.5). „Zgłoś problem” i plakaty to widoki aplikacji – na domenę główną.
+        RODO i cookies – ścieżki stron w drzewie witryny konkursu (po imporcie istnieją pod tym
+        samym adresem, § 8.5), od ``site_root`` jak w oryginale. „Zgłoś problem” i plakaty to
+        widoki aplikacji – adresy z API.
       {% endcomment %}
       <p class="footer__links">
-        <a href="/dokumenty/rodo/">Polityka prywatności (RODO)</a>
-        <a href="/dokumenty/cookies/">Polityka plików cookie</a>
+        <a href="{{ site_root }}dokumenty/rodo/">Polityka prywatności (RODO)</a>
+        <a href="{{ site_root }}dokumenty/cookies/">Polityka plików cookie</a>
         {% if links.support %}<a class="footer__link" href="{{ links.support }}">Zgłoś problem</a>{% endif %}
         {% if links.posters %}<a href="{{ links.posters }}">Plakaty do pobrania</a>{% endif %}
+        {% comment %}
+          „Ustawienia cookies” – jedyna droga wycofania zgody (art. 7 ust. 3 RODO); jak w oryginale
+          tylko z identyfikatorem GA, czyli tu wyłącznie w ``primary``.
+        {% endcomment %}
+        {% if ga_id %}
+          <button type="button" class="footer__link-button" data-cookie-settings>Ustawienia cookies</button>
+        {% endif %}
       </p>
       {% include "dj/partials/_social_links.html" with links=site.social_links css_class="footer__social" %}
     </div>
@@ -173,26 +213,44 @@
         </p>
       {% endif %}
       {% comment %}
-        Tu w oryginale stoi numer wersji aplikacji. Na ``dj.`` w tym miejscu: droga do tej samej
-        strony w wersji Wagtail (porównanie obok siebie) i informacja, czym jest ta wersja.
+        ``primary``: numer wersji jak w oryginale (wersja obrazu djcms – ``APP_VERSION``).
+        ``preview``: dopisek, czym jest ta wersja, i droga do ustawień podglądu – samo wyłączenie
+        (ta sama strona w Wagtailu, pod tym samym adresem) jest przyciskiem w pasku podglądu u góry.
       {% endcomment %}
-      <p class="footer__meta"><a href="{{ dj_chrome.main_page_url }}">Ta strona w wersji Wagtail</a></p>
-      <p class="footer__meta">Wersja testowa (django CMS) – nieindeksowana</p>
+      {% if request.djcms_primary %}
+        <p class="footer__meta">wersja {% dj_app_version %}</p>
+      {% else %}
+        <p class="footer__meta">Podgląd wersji django CMS – nieindeksowany ·
+          <a href="{% url 'preview' %}?next={{ request.get_full_path|urlencode }}">Ustawienia podglądu</a></p>
+      {% endif %}
     </div>
     {% endwith %}
   </div>
 </footer>
 {% comment %}
-  Pasek cookie – wariant „tylko niezbędne” z oryginału (bez identyfikatora GA): ``dj.`` stawia
-  wyłącznie ciasteczka niezbędne (sesja i CSRF redaktora), więc to informacja, nie pytanie o zgodę.
+  Pasek cookie – ten sam podział ról co w oryginale: bez identyfikatora GA informacja („tylko
+  niezbędne”), z identyfikatorem (tylko ``primary``) pytanie o zgodę. Odpowiedź zapisuje
+  ``static/js/consent.js`` w ``localStorage`` – nie jest kolejnym ciasteczkiem.
 {% endcomment %}
 <div class="cookie-notice" data-cookie-notice role="region" aria-label="Informacja o plikach cookie">
   <div class="cookie-notice__inner">
-    <p class="cookie-notice__text">Ten serwis używa wyłącznie niezbędnych plików cookie (sesja
-      logowania, zabezpieczenie formularzy). Nie używamy cookies reklamowych ani analitycznych.
-      <a class="cookie-notice__link" href="/dokumenty/cookies/">Polityka plików cookie</a></p>
-    <button type="button" class="btn btn--small btn--accent cookie-notice__ok"
-            data-cookie-notice-dismiss>Rozumiem</button>
+    {% if ga_id %}
+      <p class="cookie-notice__text">Używamy plików cookie niezbędnych do działania serwisu oraz –
+        za Twoją zgodą – Google Analytics do statystyk odwiedzin.
+        <a class="cookie-notice__link" href="{{ site_root }}dokumenty/cookies/">Polityka plików cookie</a></p>
+      <span class="cookie-notice__actions">
+        <button type="button" class="btn btn--small btn--accent cookie-notice__ok"
+                data-cookie-consent="all">Akceptuję wszystkie</button>
+        <button type="button" class="btn btn--small btn--secondary cookie-notice__ok"
+                data-cookie-consent="necessary">Tylko niezbędne</button>
+      </span>
+    {% else %}
+      <p class="cookie-notice__text">Ten serwis używa wyłącznie niezbędnych plików cookie (sesja
+        logowania, zabezpieczenie formularzy). Nie używamy cookies reklamowych ani analitycznych.
+        <a class="cookie-notice__link" href="{{ site_root }}dokumenty/cookies/">Polityka plików cookie</a></p>
+      <button type="button" class="btn btn--small btn--accent cookie-notice__ok"
+              data-cookie-notice-dismiss>Rozumiem</button>
+    {% endif %}
   </div>
 </div>
 {% block scripts %}{% endblock %}

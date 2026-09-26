@@ -11,3 +11,6 @@ class ImporterConfig(AppConfig):
     name = "apps.importer"
     label = "dj_importer"
     verbose_name = "Import treści z Wagtaila"
+
+    def ready(self) -> None:
+        from . import checks  # noqa: F401 - rejestracja ``dj_pages.W003`` (S16)

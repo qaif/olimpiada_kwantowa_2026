@@ -1,6 +1,7 @@
-"""Wtyczki żywe django CMS (§ 6.2 docs/tasks/DJ-01.md): terminy etapów, zadania, wyniki, archiwum.
+"""Wtyczki żywe django CMS (§ 6.2 docs/tasks/DJ-01.md): terminy etapów, zadania, wyniki, archiwum,
+a od DJ-02 (D9) także strony-dane redagowane dalej w Wagtailu: warsztaty i partnerzy.
 
-Wspólne dla wszystkich czterech:
+Wspólne dla wszystkich:
 
 - ``cache = False``. ``CMS_PLACEHOLDER_CACHE`` jest włączony dla treści redakcyjnej, a placeholder
   z choć jedną wtyczką bez bufora nie trafia do bufora w całości – stan etapu zmienia się z
@@ -19,7 +20,7 @@ from cms.plugin_base import CMSPluginBase
 from cms.plugin_pool import plugin_pool
 
 from . import data
-from .models import Problems, StageTimeline
+from .models import Problems, StageTimeline, WorkshopSchedule
 
 MODULE = "Dane zawodów (z systemu)"
 
@@ -108,4 +109,45 @@ class ArchiveResultsPlugin(LivePluginBase):
         context = super().render(context, instance, placeholder)
         source = getattr(placeholder, "source", None) or data.current_content(context)
         context["archive"] = data.archive_results(source, self.request_from(context))
+        return context
+
+
+@plugin_pool.register_plugin
+class WorkshopSchedulePlugin(LivePluginBase):
+    """Strona „Warsztaty” na żywo (``GET workshops``, DJ-02 D9): tabele harmonogramu albo wprowadzenie.
+
+    Tabela warsztatów w Wagtailu jest źródłem obecności i zaświadczeń w aplikacji głównej, więc
+    strona publiczna nie może pokazywać jej kopii z dnia importu. Wprowadzenie (``page.intro``)
+    przychodzi z API **bez** sanityzacji – przechodzi przez ``djangocms_text.html.clean_html``
+    (``data.rich_text``), zanim trafi do szablonu.
+    """
+
+    model = WorkshopSchedule
+    name = "Warsztaty (z systemu)"
+    render_template = "dj/live/workshop_schedule.html"
+    fields = ("part",)
+
+    def render(self, context, instance, placeholder):
+        context = super().render(context, instance, placeholder)
+        live = data.fetch("workshops", self.request_from(context))
+        context.update(data.workshops_context(live, instance.part))
+        return context
+
+
+@plugin_pool.register_plugin
+class PartnersLivePlugin(LivePluginBase):
+    """Strona partnerów na żywo (``GET partners``, DJ-02 D9): wprowadzenie, grupy kart, „Zostań partnerem”.
+
+    Partnerzy zostają redagowani w ``PartnersPage`` Wagtaila (ten sam wpis zasila slider sponsorów
+    w ramie), więc djcms ich nie kopiuje. Bez pól: wszystko, co rysuje, jest danymi z API, a tekst
+    formatowany (``intro``, ``become_partner_body``) przechodzi przez sanityzator (``data.rich_text``).
+    """
+
+    model = CMSPlugin
+    name = "Partnerzy (z systemu)"
+    render_template = "dj/live/partners.html"
+
+    def render(self, context, instance, placeholder):
+        context = super().render(context, instance, placeholder)
+        context.update(data.partners_context(data.fetch("partners", self.request_from(context))))
         return context

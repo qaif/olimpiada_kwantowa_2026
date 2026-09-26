@@ -1,0 +1,79 @@
+{% load static %}<!doctype html>
+{% comment %}
+  ``/djcms/preview/`` – włączenie i wyłączenie podglądu (DJ-02 D1; widok ``apps.pages.views.preview_toggle``).
+
+  Samodzielna strona (bez ramy i bez API): działa także przy martwym API i nie udaje strony
+  konkursu. Przyciski wysyłają ``POST`` z CSRF (``view`` = ``dj``/``wagtail``/``off``, ``next`` –
+  ścieżka powrotu, sprawdzona w widoku). Stan (``view``) pochodzi z ciasteczka ``djcms_view``
+  i służy wyłącznie do opisu – o trasie decyduje Caddy.
+
+  Na hoście platformy (konkurs domyślny, bez prefiksu) lista wszystkich konkursów z odnośnikami do
+  ich własnych ``/djcms/preview/`` – ciasteczko jest host-only, więc każdy host włącza się osobno.
+{% endcomment %}
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Podgląd serwisu na django CMS</title>
+  <link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body>
+<main class="page" id="tresc">
+  <div class="auth">
+    <div class="card">
+      <h1>Podgląd serwisu na django CMS</h1>
+      {% if competition %}<p class="auth__intro"><strong>{{ competition.name }}</strong> · {{ host }}</p>{% endif %}
+
+      {% if is_primary %}
+        <p>Strony publiczne tego serwisu obsługuje <strong>django CMS</strong>. Do porównania możesz
+          na {{ cookie_hours }} godzin przełączyć tę przeglądarkę na dawną wersję (Wagtail) – dotyczy
+          wyłącznie stron publicznych pod adresem {{ host }}; logowanie i panele działają bez zmian.</p>
+        {% if view == "wagtail" %}
+          <p class="msg msg-info">Ta przeglądarka pokazuje teraz wersję Wagtail.</p>
+        {% endif %}
+      {% else %}
+        <p>Strony publiczne tego serwisu obsługuje dziś <strong>Wagtail</strong>. Włączenie podglądu
+          zapisuje w tej przeglądarce ciasteczko <code>djcms_view</code> na {{ cookie_hours }} godzin:
+          strony publiczne pod adresem {{ host }} pokaże wtedy django CMS (wersja nieindeksowana),
+          a logowanie, panele i formularze działają jak zwykle.</p>
+        {% if view == "dj" %}
+          <p class="msg msg-info">Podgląd jest włączony w tej przeglądarce.</p>
+        {% endif %}
+      {% endif %}
+
+      <p class="actions">
+        {% if is_primary %}
+          {% if view == "wagtail" %}
+            {% include "dj/partials/_preview_button.html" with action="off" label="Wróć do django CMS" style="btn--primary" %}
+          {% else %}
+            {% include "dj/partials/_preview_button.html" with action="wagtail" label="Pokaż wersję Wagtail" style="btn--secondary" %}
+          {% endif %}
+        {% else %}
+          {% if view == "dj" %}
+            {% include "dj/partials/_preview_button.html" with action="off" label="Wyłącz podgląd" style="btn--secondary" %}
+          {% else %}
+            {% include "dj/partials/_preview_button.html" with action="dj" label="Włącz podgląd django CMS" style="btn--primary" %}
+          {% endif %}
+        {% endif %}
+        <a class="btn btn--secondary" href="{{ next }}">Wróć bez zmian</a>
+      </p>
+
+      {% if competitions %}
+        <h2>Wszystkie konkursy</h2>
+        <p>Podgląd włącza się osobno pod adresem każdego konkursu.</p>
+        <ul>
+          {% for item in competitions %}
+            <li>
+              {% if item.is_current %}<strong>{{ item.name }}</strong> (ten adres){% else %}<a href="{{ item.preview_url }}">{{ item.name }}</a>{% endif %}
+              · <a href="{{ item.home_url }}">{{ item.home_url }}</a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+  </div>
+</main>
+</body>
+</html>

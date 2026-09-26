@@ -97,6 +97,22 @@ def _parse_address(value: str | None):
         return None
 
 
+def trusted_proxy_networks() -> tuple:
+    """``settings.TRUSTED_PROXY_IPS`` jako sieci (``ip_network``); nieprawidłowe wpisy pominięte."""
+    return _parse_networks(tuple(getattr(settings, "TRUSTED_PROXY_IPS", ()) or ()))
+
+
+def is_trusted_proxy(request) -> bool:
+    """Czy połączenie przyszło od zaufanego proxy (Caddy) – ``REMOTE_ADDR`` w ``TRUSTED_PROXY_IPS``.
+
+    Jedyna podstawa zaufania do nagłówków, które ustawia Caddy (``X-Real-IP`` tutaj,
+    ``X-Djcms-Mode`` w ``apps.pages.mode``). Brak listy albo adres spoza niej = ``False``.
+    """
+    meta = getattr(request, "META", None) or {}
+    remote = _parse_address(meta.get("REMOTE_ADDR"))
+    return remote is not None and any(remote in network for network in trusted_proxy_networks())
+
+
 def client_ip(request) -> str:
     """Adres klienta: ``X-Real-IP`` **wyłącznie** od zaufanego proxy (Caddy), inaczej ``REMOTE_ADDR``.
 
@@ -107,8 +123,7 @@ def client_ip(request) -> str:
     remote = _parse_address(meta.get("REMOTE_ADDR"))
     if remote is None:
         return "unknown"
-    trusted = _parse_networks(tuple(getattr(settings, "TRUSTED_PROXY_IPS", ()) or ()))
-    if not any(remote in network for network in trusted):
+    if not is_trusted_proxy(request):
         return str(remote)
     forwarded = _parse_address(meta.get(REAL_IP_HEADER))
     return str(forwarded) if forwarded is not None else str(remote)
@@ -125,9 +140,34 @@ def _digest(raw: str) -> str:
     return salted_hmac(KEY_SALT, raw, algorithm="sha256").hexdigest()
 
 
+#: Długość prefiksu, do którego zwijamy adres IPv6 w kluczu pary. /64 to najmniejsza sieć, jaką
+#: dostawca przydziela jednemu łączu (RFC 6177, RIPE-690), więc dla licznika jest „jednym adresem”.
+IPV6_THROTTLE_PREFIX = 64
+
+
+def throttle_address(value: str) -> str:
+    """Adres klienta w kluczu pary: IPv4 bez zmian, IPv6 zwinięty do sieci /64.
+
+    Pojedynczy host IPv6 ma zwykle do dyspozycji całą /64 (2^64 adresów, SLAAC/adresy tymczasowe).
+    Klucz po pełnym adresie dawałby mu po 5 prób **na adres** – limit na parę nie ograniczałby
+    niczego, a sufit na login (50/h) stałby się narzędziem trwałej blokady konta redaktora z jednego
+    łącza. Adres IPv4 zapisany jako IPv6 (``::ffff:a.b.c.d`` – gniazdo dual-stack) to ten sam
+    klient co ``a.b.c.d``, więc wraca do postaci IPv4. Napis, który nie jest adresem
+    (``"unknown"``), zostaje bez zmian.
+    """
+    address = _parse_address(value)
+    if address is None:
+        return value
+    if isinstance(address, ipaddress.IPv6Address):
+        if address.ipv4_mapped is not None:
+            return str(address.ipv4_mapped)
+        return str(ipaddress.ip_network(f"{address}/{IPV6_THROTTLE_PREFIX}", strict=False))
+    return str(address)
+
+
 def _key(request, username: str | None) -> str:
-    """Skrót pary (IP, login). Ani loginu, ani adresu wprost – patrz ``KEY_SALT``."""
-    return _digest(f"pair|{client_ip(request)}|{_normalized(username)}")
+    """Skrót pary (IP, login) – IPv6 jako sieć /64 (``throttle_address``). Ani loginu, ani adresu wprost."""
+    return _digest(f"pair|{throttle_address(client_ip(request))}|{_normalized(username)}")
 
 
 def _user_key(username: str | None) -> str:

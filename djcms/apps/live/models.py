@@ -69,3 +69,31 @@ class Problems(CMSPlugin):
 
     def __str__(self) -> str:
         return "zadania etapu"
+
+
+class WorkshopSchedule(CMSPlugin):
+    """Strona „Warsztaty” na żywo z Wagtaila (``GET workshops``, DJ-02 D9) – jedna z dwóch części.
+
+    Strona-dana: tabela warsztatów jest źródłem obecności i zaświadczeń w aplikacji głównej, więc
+    zostaje redagowana w ``/cms/`` Wagtaila także po przełączeniu. Wtyczka nie przechowuje ani
+    jednego wiersza – rysuje przy każdym renderowaniu to, co oddaje API:
+
+    - ``schedule`` – wszystkie tabele harmonogramu strony (bloki ``schedule`` w kolejności strony);
+      nowa tabela dopisana w Wagtailu pojawia się bez ponownego importu,
+    - ``intro`` – wprowadzenie strony (``page.intro``); stoi w slocie ``intro`` szablonu treści.
+
+    Część to wybór redaktora (gdzie stoi), a nie dane – reguła 1 z § 7 DJ-01 obowiązuje.
+    """
+
+    class Part(models.TextChoices):
+        SCHEDULE = "schedule", "harmonogram warsztatów (tabele)"
+        INTRO = "intro", "wprowadzenie strony „Warsztaty”"
+
+    part = models.CharField("część strony", max_length=10, choices=Part.choices, default=Part.SCHEDULE)
+
+    class Meta:
+        verbose_name = "warsztaty (z systemu)"
+        verbose_name_plural = "warsztaty (z systemu)"
+
+    def __str__(self) -> str:
+        return self.get_part_display()

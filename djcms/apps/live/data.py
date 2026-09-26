@@ -19,6 +19,7 @@ odpowiada pustą wartością.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -56,16 +57,25 @@ def clean_urls(value: Any, key: str | None = None) -> Any:
     return value
 
 
+#: Endpointy, których listy **nie** wolno pokazać z kopii „stale” (``client.SHORT_TTL_ENDPOINT_RE``):
+#: zadania i tabele wyników. Otwarcie etapu albo publikację wyników da się w aplikacji głównej
+#: wycofać – kopia sprzed wycofania pokazywałaby przez ``DJCMS_API_STALE_SECONDS`` treść, której
+#: już nie ma. Przy braku świeżych danych strona mówi „chwilowo niedostępne”.
+FRESH_ONLY_ENDPOINT_RE = client.SHORT_TTL_ENDPOINT_RE
+
+
 @dataclass(frozen=True)
 class LiveData:
     """Jedna odpowiedź API przygotowana dla szablonu."""
 
     result: client.ApiResult
     data: dict = field(default_factory=dict)
+    #: Dane z kopii „stale” się nie liczą (``FRESH_ONLY_ENDPOINT_RE``) – ``available`` jest wtedy fałszem.
+    fresh_only: bool = False
 
     @property
     def available(self) -> bool:
-        return self.result.ok
+        return self.result.ok and not (self.fresh_only and self.result.stale)
 
     @property
     def stale(self) -> bool:
@@ -77,10 +87,16 @@ class LiveData:
 
 
 def fetch(endpoint: str, request) -> LiveData:
-    """Dane endpointu dla tej odsłony (pamięć żądania → bufor → API → kopia → brak)."""
+    """Dane endpointu dla tej odsłony (pamięć żądania → bufor → API → kopia → brak).
+
+    Zadania i wyniki (``FRESH_ONLY_ENDPOINT_RE``) z kopii „stale” = brak danych: pusty słownik
+    i ``available`` fałszywe – szablon pokazuje komunikat, a nie listę sprzed wycofania.
+    """
     result = client.get(endpoint, request=request)
-    data = clean_urls(result.data) if isinstance(result.data, dict) else {}
-    return LiveData(result=result, data=data)
+    fresh_only = bool(FRESH_ONLY_ENDPOINT_RE.match(endpoint))
+    usable = isinstance(result.data, dict) and not (fresh_only and result.stale)
+    data = clean_urls(result.data) if usable else {}
+    return LiveData(result=result, data=data, fresh_only=fresh_only)
 
 
 def dicts(value) -> list[dict]:
@@ -236,3 +252,181 @@ def archive_results(content, request) -> ArchiveResults:
     if edition_id is None:
         return ArchiveResults(edition_id=None, live=None)
     return ArchiveResults(edition_id=edition_id, live=fetch(f"editions/{edition_id}/results", request))
+
+
+# --- tekst formatowany z API i strony-dane (DJ-02 D9) ---------------------------------------------
+
+#: ``href`` ze ścieżką od korzenia witryny (``/zadania/``), a nie adresem bezwzględnym ani ``//host``.
+ROOT_HREF_RE = re.compile(r"""(\bhref\s*=\s*)(["'])/(?!/)""", re.IGNORECASE)
+
+
+def prefix_links(html: str, prefix: str) -> str:
+    """Odnośniki do stron od korzenia witryny (``href="/zadania/"``) pod prefiksem konkursu.
+
+    Tekst z Wagtaila (API i paczka) niesie ścieżki stron **względem korzenia witryny konkursu**
+    (``export_richtext``); konkurs pod prefiksem ścieżki (``/druga/``) ma je pod prefiksem – tak
+    jak rysuje je Wagtail (``apps.tenancy.page_urls``). Adresy aplikacji przychodzą już bezwzględne
+    (``_front_href``), kotwice i adresy z hostem zostają bez zmian. ``prefix`` = ``"/"`` – nic.
+    """
+    prefix = "/" + (prefix or "").strip("/")
+    if prefix == "/" or not html:
+        return html
+    return ROOT_HREF_RE.sub(lambda match: f"{match.group(1)}{match.group(2)}{prefix}/", html)
+
+
+def rich_text(value: Any) -> str:
+    """Tekst formatowany z API → HTML **po sanityzatorze** djangocms-text, gotowy do szablonu.
+
+    API oddaje pola ``RichTextField`` Wagtaila (``workshops.page.intro``, ``partners.page.intro``,
+    ``become_partner_body``) **bez** sanityzacji – robi ją odbiorca, tak jak przy imporcie paczki
+    (reguła 4 z § 7 DJ-01). Tu ta sama funkcja, co importer i pola ``HTMLField``:
+    ``djangocms_text.html.clean_html`` (``nh3``; przez ``sanitize_and_mark_safe``, żeby wynik –
+    i wyłącznie on – był oznaczony jako bezpieczny). ``<script>``, atrybuty ``on*`` i adresy
+    ``javascript:`` znikają. Prefiks konkursu dokładamy **przed** sanityzacją (``prefix_links``).
+    """
+    from django.urls import get_script_prefix
+    from djangocms_text.fields import sanitize_and_mark_safe
+
+    if not isinstance(value, str) or not value.strip():
+        return ""
+    return sanitize_and_mark_safe(prefix_links(value, get_script_prefix()))
+
+
+def _email(value: Any) -> str:
+    """Adres do ``mailto:`` – wyłącznie poprawny e-mail (API go nie sprawdza, pole Wagtaila tak)."""
+    from django.core.exceptions import ValidationError
+    from django.core.validators import validate_email
+
+    email = value.strip() if isinstance(value, str) else ""
+    try:
+        validate_email(email)
+    except ValidationError:
+        return ""
+    return email
+
+
+def _image(value: Any) -> dict | None:
+    """``{"src", "width", "height"}`` obrazu z API – ``src`` przez ``safe_href``, wymiary liczbami."""
+    if not isinstance(value, dict):
+        return None
+    src = safe_href(value.get("src"))
+    if not src:
+        return None
+    width, height = value.get("width"), value.get("height")
+    return {
+        "src": src,
+        "width": width if isinstance(width, int) and not isinstance(width, bool) else "",
+        "height": height if isinstance(height, int) and not isinstance(height, bool) else "",
+    }
+
+
+def _text(value: Any) -> str:
+    return value if isinstance(value, str) else ""
+
+
+def workshop_schedules(live: LiveData) -> list[dict]:
+    """Tabele harmonogramu (``schedules``) w kształcie ``cms/blocks/schedule.html``: napisy i flagi."""
+    tables = []
+    for raw in dicts(live.data.get("schedules")):
+        rows = [
+            {key: _text(row.get(key)) for key in ("topic", "date", "time", "lecturer")}
+            for row in dicts(raw.get("rows"))
+        ]
+        tables.append(
+            {
+                **{
+                    key: _text(raw.get(key)) for key in ("caption", "topic_label", "date_label", "time_label")
+                },
+                "lecturer_label": _text(raw.get("lecturer_label")),
+                # Ta sama reguła co ``ScheduleValue.has_time``/``has_lecturer`` – liczona tu z wierszy,
+                # a nie wzięta na wiarę z API (kolumna bez żadnej wartości znika w obu wersjach).
+                "has_time": any(row["time"].strip() for row in rows),
+                "has_lecturer": any(row["lecturer"].strip() for row in rows),
+                "rows": rows,
+            }
+        )
+    return tables
+
+
+def workshops_context(live: LiveData, part: str) -> dict:
+    """Kontekst wtyczki ``WorkshopSchedulePlugin``: wprowadzenie albo tabele strony „Warsztaty”.
+
+    ``page`` = ``None`` (konkurs bez opublikowanej, publicznej strony „Warsztaty” w Wagtailu – np.
+    nowy konkurs z szablonu, który jej nie zakłada) to stan pusty, a nie błąd: wprowadzenie nie
+    rysuje niczego, a harmonogram – komunikat „zostanie opublikowany”.
+    """
+    page = mapping(live.data.get("page")) if live.available else {}
+    return {
+        "live": live,
+        "part": part,
+        "has_page": bool(page),
+        "intro": rich_text(page.get("intro")),
+        "schedules": workshop_schedules(live) if page else [],
+    }
+
+
+def partner_groups(live: LiveData) -> list[dict]:
+    """Partnerzy pogrupowani po poziomie w kolejności ``levels`` (``PartnersPage.groups``).
+
+    Kolejność w grupie = kolejność na stronie Wagtaila (redakcyjna). Partner z poziomem spoza
+    słownika odpowiedzi nie trafia do żadnej grupy – tak samo jak w ``PartnersPage.groups``.
+    """
+    levels = [
+        (item[0], item[1])
+        for item in live.data.get("levels") or []
+        if isinstance(item, list) and len(item) == 2 and all(isinstance(x, str) for x in item)
+    ]
+    partners = [
+        {
+            "name": _text(item.get("name")),
+            "level": _text(item.get("level")),
+            "url": safe_href(item.get("url")),
+            "logo": _image(item.get("logo")),
+            "description": _text(item.get("description")),
+            "initials": _text(item.get("initials")),
+            "is_wide": item.get("is_wide") is True,
+        }
+        for item in dicts(live.data.get("partners"))
+    ]
+    groups = []
+    for key, label in levels:
+        members = [partner for partner in partners if partner["level"] == key]
+        if members:
+            groups.append({"level": key, "label": label, "partners": members})
+    return groups
+
+
+def partners_context(live: LiveData) -> dict:
+    """Kontekst wtyczki ``PartnersLivePlugin`` – cała treść strony partnerów z ``GET partners``.
+
+    Tekst formatowany (``intro``, ``become_partner_body``) przez sanityzator (``rich_text``);
+    ``contact_email`` tylko jako poprawny adres; zaproszenie „Zostań partnerem” – jak w Wagtailu –
+    dopiero przy nagłówku **i** treści.
+    """
+    page = mapping(live.data.get("page")) if live.available else {}
+    title = _text(page.get("become_partner_title")).strip()
+    body = rich_text(page.get("become_partner_body"))
+    return {
+        "live": live,
+        "has_page": bool(page),
+        "intro": rich_text(page.get("intro")),
+        "groups": partner_groups(live) if page else [],
+        "become_partner": {"title": title, "body": body, "contact_email": _email(page.get("contact_email"))}
+        if title and body
+        else None,
+    }
+
+
+def partners_strip_entries(live: LiveData) -> list[dict]:
+    """Pas partnerów strony głównej z ``GET partners`` (strona partnerów na żywo): kolejność strony."""
+    if not live.available or not mapping(live.data.get("page")):
+        return []
+    return [
+        {
+            "name": _text(item.get("name")),
+            "url": safe_href(item.get("url")),
+            "logo": _image(item.get("logo")),
+            "is_wide": item.get("is_wide") is True,
+        }
+        for item in dicts(live.data.get("partners"))
+    ]

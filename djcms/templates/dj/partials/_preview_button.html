@@ -1,0 +1,7 @@
+{% comment %}Przycisk strony podglądu: ``POST /djcms/preview/`` z CSRF, ``view`` i ścieżką powrotu ``next``.{% endcomment %}
+<form method="post" action="{% url 'preview' %}" style="display: inline">
+  {% csrf_token %}
+  <input type="hidden" name="view" value="{{ action }}">
+  <input type="hidden" name="next" value="{{ next }}">
+  <button type="submit" class="btn {{ style }}">{{ label }}</button>
+</form>

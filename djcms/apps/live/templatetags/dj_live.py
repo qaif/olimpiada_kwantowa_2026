@@ -84,7 +84,7 @@ def dj_workshop_materials_teaser(context) -> dict:
 def dj_home_sections(context) -> dict:
     """Sekcje strony głównej **tej** witryny – aktualności, partnerzy i dokumenty jednego konkursu."""
     request = context.get("request")
-    return homepage.home_sections(getattr(request, "site", None))
+    return homepage.home_sections(getattr(request, "site", None), request)
 
 
 @register.simple_tag(takes_context=True)

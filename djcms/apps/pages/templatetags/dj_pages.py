@@ -17,13 +17,68 @@ Rama (DJ-01d): ``dj_primary_nodes``. Typy stron redakcyjnych (DJ-01e) – dane l
 
 from __future__ import annotations
 
+import os
+
 from django import template
+from django.templatetags.static import static
 
 from apps.live import client
 
 from .. import content as page_content
+from .. import seo
 
 register = template.Library()
+
+#: Wersja wydania w stopce trybu ``primary`` – ta sama zmienna co ``APP_VERSION`` aplikacji głównej
+#: (``backend/apps/web/context_processors.py``), tu wersja obrazu djcms.
+APP_VERSION = os.environ.get("APP_VERSION", "dev")
+
+
+# --- SEO i tryb (DJ-02 § 8) ------------------------------------------------------------------------
+#
+# ``{% dj_canonical as url %}`` – adres kanoniczny bieżącej strony (pusty poza stroną CMS albo bez
+# adresu publicznego konkursu), ``{% dj_analytics_id as ga_id %}`` – identyfikator GA4 tej odsłony
+# (pusty w ``preview``, dla personelu i bez identyfikatora; niepusty przełącza CSP na hosty GA),
+# ``{% dj_seo as seo %}`` – ``og_image`` i ``default_description`` z ``chrome.seo`` z wartościami
+# zapasowymi, ``{% dj_app_version %}``.
+
+
+@register.simple_tag(takes_context=True)
+def dj_canonical(context) -> str:
+    request = context.get("request")
+    return seo.canonical_url(request) if request is not None else ""
+
+
+@register.simple_tag(takes_context=True)
+def dj_analytics_id(context) -> str:
+    return seo.analytics_id(context.get("request"), context.get("dj_chrome"))
+
+
+@register.simple_tag(takes_context=True)
+def dj_seo(context) -> dict:
+    """``chrome.seo`` (API v2) z wartościami zapasowymi na wypadek martwego API.
+
+    ``og_image`` przychodzi bezwzględny i przefiltrowany (``apps.live.chrome.safe_href``); zapasowy
+    obraz to własna kopia ze statyków djcms pod originem konkursu (nie z nagłówka ``Host``).
+    """
+    chrome = context.get("dj_chrome")
+    data = (getattr(chrome, "data", None) or {}).get("seo") or {}
+    request = context.get("request")
+    competition = getattr(request, "competition_site", None)
+    origin = (getattr(competition, "public_origin", "") or "").rstrip("/")
+    og_image = data.get("og_image") or (f"{origin}{static('img/og-image.png')}" if origin else "")
+    description = data.get("default_description")
+    return {
+        "og_image": og_image,
+        "default_description": description
+        if isinstance(description, str) and description
+        else seo.FALLBACK_DESCRIPTION,
+    }
+
+
+@register.simple_tag
+def dj_app_version() -> str:
+    return APP_VERSION
 
 
 @register.filter

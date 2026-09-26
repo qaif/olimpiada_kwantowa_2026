@@ -60,6 +60,11 @@ def safe_href(value) -> str:
     if not isinstance(value, str):
         return ""
     value = value.strip()
+    # Białe znaki i znaki sterujące w środku adresu – odmowa: przeglądarka wycina tabulator i nowe
+    # wiersze z adresu (WHATWG URL), więc ``/\t/evil.example`` staje się ``//evil.example`` – adresem
+    # bez schematu, czyli innym hostem. Poprawny adres ma je zakodowane (``%20``).
+    if any(ch.isspace() or ord(ch) < 32 or ord(ch) == 127 for ch in value):
+        return ""
     if value.startswith("/") and not value.startswith("//") and "\\" not in value:
         return value
     parts = urlsplit(value)

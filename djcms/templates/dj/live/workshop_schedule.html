@@ -1,0 +1,41 @@
+{% load dj_live %}{% comment %}
+  Strona „Warsztaty” na żywo (``WorkshopSchedulePlugin``, DJ-02 D9) – dwie części jednej wtyczki:
+
+  - ``intro``: wprowadzenie strony z Wagtaila (``page.intro``) – HTML **po** sanityzatorze
+    djangocms-text (``apps.live.data.rich_text``); stoi w slocie ``intro`` szablonu treści, który
+    sam owija je w ``doc-intro``. Bez danych nie rysuje niczego (slot znika jak puste pole),
+  - ``schedule``: tabele harmonogramu – znacznik 1:1 z ``backend/templates/cms/blocks/schedule.html``
+    (uzasadnienia tam: ``<th scope>``, znikające kolumny, ``.table-scroll``). Wartości to zwykły
+    tekst z autoescape'em. Zmieniając oryginał, zmień też ten plik.
+{% endcomment %}{% if part == "intro" %}{{ intro }}{% elif not live.available %}
+  {% dj_unavailable %}
+{% else %}
+{% include "dj/live/_stale.html" %}
+{% for value in schedules %}
+<div class="table-scroll">
+  <table class="table schedule">
+    {% if value.caption %}<caption>{{ value.caption }}</caption>{% endif %}
+    <thead>
+      <tr>
+        <th scope="col">{{ value.topic_label|default:"Temat" }}</th>
+        <th scope="col">{{ value.date_label|default:"Termin" }}</th>
+        {% if value.has_time %}<th scope="col">{{ value.time_label|default:"Godziny" }}</th>{% endif %}
+        {% if value.has_lecturer %}<th scope="col">{{ value.lecturer_label|default:"Prowadzący" }}</th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in value.rows %}
+        <tr>
+          <th scope="row" class="schedule__topic">{{ row.topic }}</th>
+          <td class="schedule__date">{{ row.date }}</td>
+          {% if value.has_time %}<td class="schedule__time">{{ row.time }}</td>{% endif %}
+          {% if value.has_lecturer %}<td class="schedule__lecturer">{{ row.lecturer }}</td>{% endif %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% empty %}
+<p class="empty"><span class="empty__title">Harmonogram warsztatów zostanie opublikowany wkrótce.</span></p>
+{% endfor %}
+{% endif %}

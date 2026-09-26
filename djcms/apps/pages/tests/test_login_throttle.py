@@ -268,3 +268,49 @@ def test_concurrent_attempts_never_exceed_the_limit(superuser, rf):
     assert 1 <= len(checked) <= 5
     request = rf.post("/djcms/admin/login/", REMOTE_ADDR="203.0.113.99")
     assert auth.is_locked(request, superuser.username) == (len(checked) == 5)
+
+
+# --- IPv6: klucz pary po sieci /64 (poprawka po przeglądzie DJ-02f) --------------------------------
+
+
+@pytest.mark.parametrize(
+    ("address", "expected"),
+    [
+        ("203.0.113.5", "203.0.113.5"),
+        ("2001:db8:1:2:aaaa:bbbb:cccc:dddd", "2001:db8:1:2::/64"),
+        ("2001:db8:1:2::1", "2001:db8:1:2::/64"),
+        ("::ffff:203.0.113.5", "203.0.113.5"),
+        ("unknown", "unknown"),
+    ],
+)
+def test_throttle_address_collapses_ipv6_to_64(address, expected):
+    assert auth.throttle_address(address) == expected
+
+
+def test_ipv6_addresses_in_one_64_share_the_pair_key(rf):
+    first = rf.get("/", REMOTE_ADDR="2001:db8:1:2::1")
+    second = rf.get("/", REMOTE_ADDR="2001:db8:1:2:ffff:ffff:ffff:fffe")
+    other_net = rf.get("/", REMOTE_ADDR="2001:db8:1:3::1")
+    login = "redaktor@example.com"
+    assert auth._key(first, login) == auth._key(second, login)
+    assert auth._key(first, login) != auth._key(other_net, login)
+
+
+def test_ipv4_mapped_ipv6_shares_the_key_with_ipv4(rf):
+    login = "redaktor@example.com"
+    mapped = rf.get("/", REMOTE_ADDR="::ffff:203.0.113.5")
+    plain = rf.get("/", REMOTE_ADDR="203.0.113.5")
+    assert auth._key(mapped, login) == auth._key(plain, login)
+
+
+@pytest.mark.django_db
+def test_rotating_ipv6_addresses_in_one_64_do_not_escape_the_lock(client, superuser):
+    # Pięć porażek z pięciu różnych adresów tej samej /64 – szósta próba (inny adres, dobre hasło)
+    # jest zablokowana. Przed poprawką każdy adres miał własny licznik.
+    for host in range(1, 6):
+        response = _login(client, superuser.username, "zle-haslo", REMOTE_ADDR=f"2001:db8:5:6::{host:x}")
+        assert response.status_code == 200
+    response = _login(client, superuser.username, PASSWORD, REMOTE_ADDR="2001:db8:5:6::abcd")
+    assert LOCKED in response.content.decode()
+    # Inna /64 – licznik osobny, dobre hasło działa.
+    assert _login(client, superuser.username, PASSWORD, REMOTE_ADDR="2001:db8:5:7::1").status_code == 302

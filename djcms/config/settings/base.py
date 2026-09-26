@@ -11,10 +11,12 @@ dlatego żadna zmienna tego pliku nie nazywa się tak jak zmienna backendu (``DJ
 ``POSTGRES_*``): usługa compose nie dostaje ``env_file: .env``, tylko jawną listę zmiennych.
 """
 
+import warnings as _warnings
 from pathlib import Path
 
 import environ
 from django.core.exceptions import ImproperlyConfigured
+from PIL import Image as _PILImage
 
 # Zestawy wtyczek ART/DOC (tabela 6.1) – moduł bez importów Django, bezpieczny do wczytania tutaj.
 from apps.blocks.plugin_sets import ART_PLUGINS, DOC_PLUGINS, TEXT_ONLY
@@ -95,19 +97,24 @@ INSTALLED_APPS = [
     "apps.live",
     # Import treści z paczki Wagtaila – komenda ``import_cms_bundle`` (DJ-01g, § 5.3).
     "apps.importer",
+    # Przekierowania starych adresów witryn konkursów (import z Wagtaila, automatyczne, redakcja) – DJ-02f.
+    "apps.seo",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Tryb ``preview``/``primary`` z nagłówka Caddy'ego (DJ-02 D10, tylko od ``TRUSTED_PROXY_IPS``)
+    # i noindex w ``preview`` (S7) – przed rozstrzyganiem witryny, żeby dostała je także pusta 404
+    # nieznanego hosta.
+    "apps.pages.middleware.RequestModeMiddleware",
+    "apps.pages.middleware.NoIndexMiddleware",
     # Witryna konkursu żądania (DJ-02 § 5.3): ``request.site``, ``request.competition_site``, prefiks
     # ścieżki i pusta 404 nieznanego hosta – przed wszystkim, co czyta witrynę albo renderuje ramę.
     # ``CurrentSiteMiddleware`` Django **nie** jest używane: robi to ta warstwa.
     "apps.sites.middleware.CompetitionSiteMiddleware",
-    # Oba nasze middleware stoją **na zewnątrz** wszystkiego, co może odpowiedzieć samo
-    # (WhiteNoise, CSRF, widok, konwersja wyjątku na 500): nagłówki CSP i ``X-Robots-Tag`` mają
-    # dostać także pliki statyczne, odmowy CSRF i strony błędów.
+    # CSP stoi **na zewnątrz** wszystkiego, co może odpowiedzieć samo (WhiteNoise, CSRF, widok,
+    # konwersja wyjątku na 500): nagłówek mają dostać także pliki statyczne, odmowy CSRF i strony błędów.
     "apps.pages.middleware.ContentSecurityPolicyMiddleware",
-    "apps.pages.middleware.NoIndexMiddleware",
     # ``X-Djcms-Degraded: 1`` na stronie złożonej bez świeżych danych z API (§ 8.3) – nagłówek
     # czyta dopiero po wyrenderowaniu szablonu, więc wystarczy, że stoi na zewnątrz widoku.
     "apps.live.middleware.DegradedHeaderMiddleware",
@@ -120,6 +127,9 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Przekierowania starych adresów (``dj_seo.Redirect``, DJ-02 § 8) na 404 witryny konkursu – wewnątrz
+    # ``CommonMiddleware``, żeby ``/regulamin`` trafił w przekierowanie od razu, a nie przez ``/regulamin/``.
+    "apps.seo.middleware.RedirectMiddleware",
     # Middleware django CMS 5.1.3 (ta sama lista co ``check_middlewares`` w ``cms/utils/check.py``).
     "cms.middleware.user.CurrentUserMiddleware",
     "cms.middleware.page.CurrentPageMiddleware",
@@ -250,6 +260,8 @@ CMS_TEMPLATES = [
     ("dj/pages/document_index.html", "Dokumenty (spis)"),
     ("dj/pages/document.html", "Dokument"),
     ("dj/pages/partners.html", "Partnerzy"),
+    # Strona-dana partnerów na żywo z Wagtaila (DJ-02 D9, ``PartnersLivePlugin``) – zakłada ją importer.
+    ("dj/live/partners_page.html", "Partnerzy (z systemu)"),
     ("dj/pages/faq.html", "Najczęstsze pytania"),
     ("dj/pages/problems.html", "Zadania"),
     ("dj/pages/results.html", "Wyniki"),
@@ -277,12 +289,14 @@ CMS_PLACEHOLDER_CONF = {
     "dj/pages/home.html about": _slot("O Olimpiadzie", ["AboutSectionPlugin"], 1),
     "dj/pages/news_index.html intro": _slot("Wprowadzenie", TEXT_ONLY),
     "dj/pages/news.html body": _slot("Treść", ART_PLUGINS),
-    "dj/pages/content.html intro": _slot("Wprowadzenie", TEXT_ONLY),
+    # Strona „Warsztaty” (DJ-02 D9): wprowadzenie i tabele na żywo z Wagtaila (``WorkshopSchedulePlugin``).
+    "dj/pages/content.html intro": _slot("Wprowadzenie", [*TEXT_ONLY, "WorkshopSchedulePlugin"]),
     "dj/pages/content.html attachments": _slot("Pliki do pobrania", ["AttachmentPlugin"]),
-    "dj/pages/content.html body": _slot("Treść", DOC_PLUGINS),
+    "dj/pages/content.html body": _slot("Treść", [*DOC_PLUGINS, "WorkshopSchedulePlugin"]),
     "dj/pages/partners.html intro": _slot("Wprowadzenie", TEXT_ONLY),
     "dj/pages/partners.html partners": _slot("Partnerzy", ["PartnerPlugin"]),
     "dj/pages/partners.html become_partner": _slot("Zostań partnerem", ["BecomePartnerPlugin"], 1),
+    "dj/live/partners_page.html partners": _slot("Partnerzy (z systemu)", ["PartnersLivePlugin"], 1),
     "dj/pages/problems.html intro": _slot("Wprowadzenie", TEXT_ONLY),
     "dj/pages/problems.html problems": _slot("Zadania (z systemu)", ["ProblemsPlugin"], 1),
     "dj/pages/problems.html body": _slot("Treści dodatkowe", ART_PLUGINS),
@@ -361,6 +375,20 @@ THUMBNAIL_PROCESSORS = (
     "easy_thumbnails.processors.filters",
 )
 THUMBNAIL_HIGH_RESOLUTION = True
+# Bomba dekompresyjna (obraz 12000×12000 px w kilkudziesięciu kilobajtach): Pillow domyślnie tylko
+# **ostrzega** między ~89 a ~179 Mpx, a pierwsza miniatura takiego obrazu (easy-thumbnails, strona
+# publiczna) zabija proces przez OOM. Limit 40 Mpx (zdjęcia z aparatu mają 12–24) i ostrzeżenie
+# jako błąd – dla miniatur, importu (``apps.importer.services.MAX_IMAGE_PIXELS``, ta sama wartość)
+# i wgrywania przez redaktorów (walidator filera ``apps.blocks.uploads``).
+DJ_MAX_IMAGE_PIXELS = 40_000_000
+_PILImage.MAX_IMAGE_PIXELS = DJ_MAX_IMAGE_PIXELS
+_warnings.simplefilter("error", _PILImage.DecompressionBombWarning)
+# Własny limit filera (``BaseImage.clean`` – formularze wgrywania): ta sama wartość.
+FILER_MAX_IMAGE_PIXELS = DJ_MAX_IMAGE_PIXELS
+FILER_ADD_FILE_VALIDATORS = {
+    mime: ["apps.blocks.uploads.validate_image_pixels"]
+    for mime in ("image/jpeg", "image/png", "image/gif", "image/webp", "image/x-png")
+}
 
 # --- Pliki statyczne -------------------------------------------------------------------------
 # Te same arkusze/skrypty/fonty co aplikacja główna (§ 1.2 p. 6): obraz kopiuje ``backend/static``

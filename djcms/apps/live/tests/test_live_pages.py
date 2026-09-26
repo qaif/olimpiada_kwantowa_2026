@@ -173,18 +173,18 @@ def test_problems_no_competition_503_degrades(client, api_up, problems_page):
     assert response[DEGRADED_HEADER] == "1"
 
 
-def test_problems_stale_copy_is_labelled(client, api_up, problems_page):
+def test_problems_stale_copy_is_never_shown(client, api_up, problems_page):
+    """Zadania z kopii „stale” – nie: otwarcie etapu da się wycofać, a kopia pokazywałaby je dalej."""
     api_up.set("problems", _problems_payload())
     assert SECRET_TITLE in _html(client.get("/zadania/"))
-    # Świeży wpis wygasa, API pada: strona bierze kopię awaryjną z dopiskiem „stan na HH:MM”.
+    # Świeży wpis wygasa, API pada: zamiast listy z kopii – komunikat „chwilowo niedostępne”.
     cache.delete(COMPETITION_PREFIX + "problems")
     api_up.fail("problems", urllib.error.URLError(TimeoutError()))
     response = client.get("/zadania/")
     html = _html(response)
     assert response[DEGRADED_HEADER] == "1"
-    assert "stan na " in html
-    assert SECRET_TITLE in html
-    assert UNAVAILABLE not in html
+    assert SECRET_TITLE not in html
+    assert UNAVAILABLE in html
 
 
 def test_stale_copy_from_before_opening_cannot_show_problems(client, api_up, problems_page):
@@ -194,8 +194,50 @@ def test_stale_copy_from_before_opening_cannot_show_problems(client, api_up, pro
     cache.delete(COMPETITION_PREFIX + "problems")
     api_up.fail("problems", urllib.error.URLError(TimeoutError()))
     html = _html(client.get("/zadania/"))
-    assert "stan na " in html
     assert SECRET_TITLE not in html
+    assert UNAVAILABLE in html
+
+
+def test_withdrawn_opening_disappears_after_short_fresh_ttl(client, api_up, problems_page, settings):
+    """Wycofane otwarcie etapu: po krótkim buforze świeżym (``problems`` – 15 s, nie 60 s) strona
+    pokazuje stan z API; kopia sprzed wycofania nie wraca ani ze świeżego bufora, ani ze „stale”."""
+    from apps.live import client as api_client
+
+    settings.DJCMS_API_CACHE_SECONDS = 60
+    assert api_client.fresh_seconds("problems") == api_client.SHORT_CACHE_SECONDS == 15
+    assert api_client.fresh_seconds("results") == 15
+    assert api_client.fresh_seconds("editions/3/results") == 15
+    assert api_client.fresh_seconds("chrome") == 60
+    api_up.set("problems", _problems_payload())
+    assert SECRET_TITLE in _html(client.get("/zadania/"))
+    # Otwarcie wycofane w aplikacji głównej; bufor świeży wygasł (tu: skasowany).
+    api_up.set("problems", _problems_payload(stage_has_opened=False, problems=[]))
+    cache.delete(COMPETITION_PREFIX + "problems")
+    assert SECRET_TITLE not in _html(client.get("/zadania/"))
+    # API pada – kopia „stale” (już po wycofaniu) i tak nie jest pokazywana jako lista.
+    cache.delete(COMPETITION_PREFIX + "problems")
+    api_up.fail("problems", urllib.error.URLError(TimeoutError()))
+    html = _html(client.get("/zadania/"))
+    assert SECRET_TITLE not in html and UNAVAILABLE in html
+
+
+def test_problems_fresh_cache_uses_the_short_ttl(api_up, rf):
+    from apps.live import client as api_client
+
+    api_up.set("problems", _problems_payload())
+    calls = []
+    real_set = cache.set
+
+    def spy(key, value, timeout=None, *args, **kwargs):
+        calls.append((key, timeout))
+        return real_set(key, value, timeout, *args, **kwargs)
+
+    cache.set = spy
+    try:
+        api_client.MainApi().get("problems", competition="kwantowa")
+    finally:
+        cache.set = real_set
+    assert (COMPETITION_PREFIX + "problems", 15) in calls
 
 
 # --- wyniki ---------------------------------------------------------------------------------------
@@ -315,6 +357,25 @@ def test_results_api_dead(client, main_api, results_page):
     response = client.get("/wyniki/")
     assert UNAVAILABLE in _html(response)
     assert response[DEGRADED_HEADER] == "1"
+
+
+def test_withdrawn_results_publication_is_not_shown_from_stale_copy(client, api_up, results_page):
+    """Publikacja wyników wycofana: świeży stan z API bez tabel; kopia „stale” sprzed wycofania
+    nigdy nie trafia na stronę jako tabela – przy martwym API komunikat, a nie wyniki."""
+    api_up.set("results", _results_payload())
+    assert "OLM-7Q2K" in _html(client.get("/wyniki/"))
+    api_up.set("results", {"edition": edition_dto(), "tables": [], "archive": []})
+    cache.delete(COMPETITION_PREFIX + "results")
+    html = _html(client.get("/wyniki/"))
+    assert "OLM-7Q2K" not in html and "Wyników jeszcze nie ogłoszono" in html
+    # Kopia „stale” z tabelą (sprzed wycofania) + martwe API → komunikat, bez tabeli.
+    api_up.set("results", _results_payload())
+    cache.delete(COMPETITION_PREFIX + "results")
+    _html(client.get("/wyniki/"))
+    cache.delete(COMPETITION_PREFIX + "results")
+    api_up.fail("results", urllib.error.URLError(TimeoutError()))
+    html = _html(client.get("/wyniki/"))
+    assert "OLM-7Q2K" not in html and UNAVAILABLE in html
 
 
 # --- archiwum edycji ------------------------------------------------------------------------------

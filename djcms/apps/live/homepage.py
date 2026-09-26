@@ -40,6 +40,8 @@ LANGUAGE = "pl"
 NEWS_TEMPLATE = "dj/pages/news.html"
 NEWS_INDEX_TEMPLATE = "dj/pages/news_index.html"
 PARTNERS_TEMPLATE = "dj/pages/partners.html"
+#: Strona partnerów na żywo z Wagtaila (DJ-02 D9) – dane pasa z ``GET partners``, nie z wtyczek.
+LIVE_PARTNERS_TEMPLATE = "dj/live/partners_page.html"
 DOCUMENT_INDEX_TEMPLATE = "dj/pages/document_index.html"
 #: Strony, przy których wisi lista załączników – ``_download_rows`` bierze ``DocumentPage`` i ``ContentPage``.
 ATTACHMENT_TEMPLATES = ("dj/pages/document.html", "dj/pages/content.html")
@@ -149,11 +151,21 @@ def _logo(logo) -> dict | None:
     return {"src": thumb.url, "width": thumb.width, "height": thumb.height}
 
 
-def partners_strip(site) -> dict | None:
-    """Strona partnerów **z co najmniej jednym wpisem** – inaczej ``None`` (sekcja znika)."""
-    page = _published(PARTNERS_TEMPLATE, site).first()
+def partners_strip(site, request=None) -> dict | None:
+    """Strona partnerów **z co najmniej jednym wpisem** – inaczej ``None`` (sekcja znika).
+
+    Strona partnerów na żywo (``LIVE_PARTNERS_TEMPLATE``, DJ-02 D9) bierze wpisy z ``GET partners``
+    – tego samego pobrania, co wtyczka na jej stronie; martwe API = brak sekcji (ozdoba strony
+    głównej, a nie dane zawodów).
+    """
+    page = _published((PARTNERS_TEMPLATE, LIVE_PARTNERS_TEMPLATE), site).first()
     if page is None:
         return None
+    if page.template == LIVE_PARTNERS_TEMPLATE:
+        from .data import fetch, partners_strip_entries
+
+        live = partners_strip_entries(fetch("partners", request)) if request is not None else []
+        return {"title": page.title, "url": _url(page), "entries": live} if live else None
     entries = []
     for plugin in _plugins([page], PARTNERS_SLOT, PARTNER_PLUGIN).get(page.pk, []):
         entries.append(
@@ -205,12 +217,12 @@ def download_rows(site) -> list[dict]:
     return rows
 
 
-def home_sections(site) -> dict:
+def home_sections(site, request=None) -> dict:
     """Kontekst trzech sekcji strony głównej witryny ``site`` – ``{% dj_home_sections as home %}``."""
     return {
         "latest_news": latest_news(site),
         "news_index": _first(NEWS_INDEX_TEMPLATE, site),
-        "partners": partners_strip(site),
+        "partners": partners_strip(site, request),
         "downloads": download_rows(site),
         "documents_index": _first(DOCUMENT_INDEX_TEMPLATE, site),
     }

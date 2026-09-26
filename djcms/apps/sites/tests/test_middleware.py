@@ -16,6 +16,12 @@ pytestmark = pytest.mark.django_db
 
 
 @pytest.fixture
+def media_root(settings, tmp_path):
+    settings.MEDIA_ROOT = str(tmp_path)
+    return tmp_path
+
+
+@pytest.fixture
 def druga(make_competition):
     """Konkurs pod prefiksem ``/druga/`` gospodarza ``kwantowa`` (bramka otwarta)."""
     CompetitionSite.objects.filter(slug="kwantowa").update(hosts_path_prefixes=True)
@@ -107,15 +113,25 @@ def test_inactive_competition_host_is_an_empty_404(main_api):
     assert (response.status_code, response.content) == (404, b"")
 
 
-def test_api_reactivates_a_competition_the_registry_had_switched_off(main_api):
+def _starter_export(main_api, slug: str, name: str) -> None:
+    """Eksport konkursu z API – witryna z listy API bez stron dostaje drzewo startowe (DJ-02e, D7)."""
+    from apps.importer.tests.bundles import build_zip, starter_manifest
+
+    main_api.set("export", raw=build_zip(starter_manifest(slug, name)), competition=slug)
+
+
+def test_api_reactivates_a_competition_the_registry_had_switched_off(main_api, media_root):
     # Lista z API jest autorytatywna: host aktywnego konkursu, wygaszonego w rejestrze, wraca.
     CompetitionSite.objects.filter(slug="kwantowa").update(is_active=False)
+    _starter_export(main_api, "kwantowa", "Olimpiada Kwantowa")
     response, seen = _run(RequestFactory().get("/", HTTP_HOST="testserver"))
     assert response.status_code == 200 and seen["competition"].slug == "kwantowa"
 
 
-def test_unknown_host_listed_by_api_is_synced_and_served(main_api):
+def test_unknown_host_listed_by_api_is_synced_and_served(main_api, media_root):
     from conftest import default_competitions_payload
+
+    _starter_export(main_api, "fizyka", "Fizyka")
 
     data = default_competitions_payload()
     data["competitions"].append(

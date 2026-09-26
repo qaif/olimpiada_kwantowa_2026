@@ -1,7 +1,7 @@
 """Warstwa witryny konkursu: host + prefiks → ``request.site`` / ``request.competition_site`` (DJ-02 § 5.3).
 
 Stoi zaraz za ``SecurityMiddleware``, **przed** wszystkim, co czyta witrynę (CSP i szablony przez
-procesor kontekstu, django CMS, menu, bufor placeholderów). Robi cztery rzeczy:
+procesor kontekstu, django CMS, menu, bufor placeholderów). Robi pięć rzeczy:
 
 1. raz na ``DJCMS_SITES_REFRESH_SECONDS`` odświeża rejestr z listy konkursów (``registry.refresh_if_due``),
 2. rozstrzyga konkurs (``resolution.resolve`` – jedno zapytanie); nieznany host, który świeża lista
@@ -16,7 +16,10 @@ procesor kontekstu, django CMS, menu, bufor placeholderów). Robi cztery rzeczy:
    ten sam mechanizm co ``CompetitionMiddleware`` aplikacji głównej: urlconf widzi adres od korzenia
    witryny konkursu, a ``reverse()``/``get_absolute_url()`` dokładają prefiks. ``request.path``
    zostaje z prefiksem (adres, o który prosiła przeglądarka). Prefiks skryptu jest stanem wątku –
-   przywracamy go w ``finally``, także po wyjątku.
+   przywracamy go w ``finally``, także po wyjątku,
+5. witryna konkursu z listy API bez żadnej strony dostaje drzewo startowe z eksportu tego konkursu
+   (``apps.importer.starter.ensure_content_for_request``, D7) – albo 503, gdy importu nie da się
+   zrobić w żądaniu.
 
 Wyjątek od pustej 404 – adresy rozstrzygane **miękko**: statyki (``/djcms/static/``), healthcheck
 (``/djcms/healthz/``) i media w devie (``/djcms/media/``). Nie zależą od konkursu, więc idą bez
@@ -84,6 +87,12 @@ class CompetitionSiteMiddleware:
             if resolution.site is None:
                 return HttpResponseNotFound()
             self._apply(request, resolution)
+            # Nowy konkurs z listy API bez żadnej strony: drzewo startowe z eksportu (D7, DJ-02e).
+            from apps.importer.starter import ensure_content_for_request
+
+            starter = ensure_content_for_request(resolution.site)
+            if starter is not None:
+                return starter
             return self.get_response(request)
         finally:
             set_script_prefix(previous_script_prefix)

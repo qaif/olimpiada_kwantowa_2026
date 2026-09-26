@@ -94,6 +94,13 @@ ENDPOINT_RE = re.compile(r"^[a-z]+(?:/[0-9]{1,10}/[a-z]+)?$")
 #: Slug konkursu – ten sam wzorzec, co ``re_path`` API v2 po stronie aplikacji głównej.
 SLUG_RE = re.compile(r"^[a-z0-9-]{1,50}$")
 
+#: Endpointy, których stan potrafi się **cofnąć** (wycofane otwarcie etapu, wycofana publikacja
+#: wyników): bufor świeży najwyżej ``SHORT_CACHE_SECONDS``, a kopia „stale” nigdy nie trafia na
+#: stronę jako lista (``apps.live.data.FRESH_ONLY_ENDPOINT_RE``) – tylko komunikat „niedostępne”.
+SHORT_TTL_ENDPOINT_RE = re.compile(r"^(?:problems|results|editions/[0-9]{1,10}/results)$")
+#: Domyślny bufor świeży tych endpointów (``DJCMS_API_SHORT_CACHE_SECONDS`` nadpisuje).
+SHORT_CACHE_SECONDS = 15
+
 #: Limit ciała odpowiedzi-błędu, które czytamy, żeby odróżnić błąd konkursu od awarii ``web``.
 ERROR_BODY_BYTES = 4 * 1024
 
@@ -377,14 +384,14 @@ class MainApi:
             )
             return self._fallback(key, failure.code)
 
-        fetched_at = self._store(key, data)
+        fetched_at = self._store(key, data, fresh_seconds(endpoint))
         return ApiResult(data=data, stale=False, fetched_at=fetched_at, error=None)
 
     @staticmethod
-    def _store(key: str, data: dict) -> datetime:
+    def _store(key: str, data: dict, seconds: int | None = None) -> datetime:
         fetched_at = timezone.now()
         entry = {"data": data, "fetched_at": fetched_at.isoformat()}
-        cache.set(key, entry, settings.DJCMS_API_CACHE_SECONDS)
+        cache.set(key, entry, settings.DJCMS_API_CACHE_SECONDS if seconds is None else seconds)
         cache.set(key + ":stale", entry, settings.DJCMS_API_STALE_SECONDS)
         return fetched_at
 
@@ -481,6 +488,14 @@ class MainApi:
         except (urllib.error.URLError, OSError, ValueError, http.client.HTTPException) as exc:
             raise MainApiError("connection", type(exc).__name__) from None
         return written
+
+
+def fresh_seconds(endpoint: str) -> int:
+    """Czas życia bufora świeżego endpointu: krótszy dla stanu, który potrafi się cofnąć."""
+    if SHORT_TTL_ENDPOINT_RE.match(endpoint):
+        short = int(getattr(settings, "DJCMS_API_SHORT_CACHE_SECONDS", SHORT_CACHE_SECONDS))
+        return min(short, int(settings.DJCMS_API_CACHE_SECONDS))
+    return int(settings.DJCMS_API_CACHE_SECONDS)
 
 
 def _json_object(body: bytes) -> dict | None:

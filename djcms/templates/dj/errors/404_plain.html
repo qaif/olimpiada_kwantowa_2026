@@ -1,0 +1,20 @@
+<!doctype html>
+{% comment %}
+  Prosta strona 404 – bez ramy i bez API: adresy aplikacyjne (``/djcms/…``), żądanie bez
+  rozstrzygniętego konkursu i awaria ramy konkursu (``apps.pages.views.page_not_found``).
+  Noindex zawsze – strona błędu nie jest treścią.
+{% endcomment %}
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Nie znaleziono strony</title>
+</head>
+<body>
+  <main>
+    <h1>Nie znaleziono strony</h1>
+    <p>Pod tym adresem nic nie ma. <a href="/">Wróć na stronę główną</a>.</p>
+  </main>
+</body>
+</html>

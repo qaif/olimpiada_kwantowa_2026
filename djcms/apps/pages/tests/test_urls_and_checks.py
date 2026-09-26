@@ -33,7 +33,9 @@ def test_app_urls_live_under_djcms_prefix():
     assert resolve("/djcms/admin/").namespace == "admin"
     assert resolve("/djcms/preview/").url_name == "preview"
     assert resolve("/djcms/sso/").url_name == "sso"
+    assert resolve("/djcms/preview/").func is views.preview_toggle
     assert resolve("/robots.txt").func is views.robots_txt
+    assert resolve("/sitemap.xml").func is views.sitemap_xml
     # Stare adresy DJ-01 nie należą już do djcms – pod nimi jest aplikacja główna (Caddy).
     for old in ("/admin/", "/healthz/"):
         assert resolve(old).url_name == "pages-details-by-slug"
@@ -42,11 +44,10 @@ def test_app_urls_live_under_djcms_prefix():
 
 
 @pytest.mark.django_db
-def test_preview_and_sso_are_reserved_placeholders(client):
-    for path in ("/djcms/preview/", "/djcms/sso/"):
-        response = client.get(path)
-        assert response.status_code == 404
-        assert response.content == b""
+def test_sso_is_a_reserved_placeholder(client):
+    response = client.get("/djcms/sso/")
+    assert response.status_code == 404
+    assert response.content == b""
 
 
 def test_reserved_slugs_cover_own_prefixes_and_every_app_segment():

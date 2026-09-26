@@ -1,4 +1,6 @@
-"""Import paczki treści z Wagtaila (``olimpiada-cms-bundle`` v1) do django CMS – § 5.3 docs/tasks/DJ-01.md.
+"""Import paczki treści z Wagtaila (``olimpiada-cms-bundle`` v1 i v2) do django CMS.
+
+Format i mapowania: § 5.3 docs/tasks/DJ-01.md; wiele witryn: § 4.4 i D7–D9 docs/tasks/DJ-02.md.
 
 Paczkę buduje aplikacja główna (``backend/apps/cms/export_bundle.py``); kształt manifestu jest tam,
 a nie tylko w specu – przy rozjeździe wygrywa implementacja eksportu. Trzy kroki, każdy osobno
@@ -26,6 +28,25 @@ djangocms-text (``djangocms_text.html.clean_html`` – ta sama funkcja, którą 
 ``add_plugin`` nie woła ``clean()`` modeli, więc reguły formularzy sprawdzamy tu sami: adres pliku
 wyłącznie ``http(s)``, film wyłącznie z YouTube/Vimeo, kotwice jako slug, e-mail jako e-mail.
 
+Wiele witryn (DJ-02): każdy import trafia do witryny **jednego** konkursu (``target_site``,
+``CompetitionSite`` z rejestru ``apps.sites``); ``--replace`` kasuje strony, przekierowania z importu
+i obrazy z folderu importu **tej** witryny (``Konkurs: <nazwa> (<slug>) / Import z Wagtaila``), a
+deduplikacja obrazów po SHA-1 nie sięga do folderów importu innych konkursów – ``--replace`` jednej
+witryny nie może skasować pliku, na który wskazuje druga. Paczka v2 dokłada (DJ-02 § 4.4):
+
+- ``competition`` – importer odmawia paczki innego konkursu niż witryna docelowa,
+- ``data_pages`` – strony-dane (D9) redagowane dalej w Wagtailu: strona „Warsztaty” dostaje
+  wtyczki żywe ``WorkshopSchedulePlugin`` (wprowadzenie i tabele harmonogramu z ``GET workshops``)
+  zamiast kopii tabel, a strona partnerów – szablon ``dj/live/partners_page.html`` z jedną wtyczką
+  ``PartnersLivePlugin`` (``GET partners``) zamiast kart partnerów,
+- ``redirects`` – przekierowania witryny (``apps.importer.services.resolve_redirects``: cel-strona
+  → ścieżka strony po imporcie), zapisywane w modelu ``dj_seo.Redirect`` (DJ-02f) ze źródłem
+  ``import``.
+
+Ścieżki stron sprawdza reguła S5 (``apps.pages.validation.path_collides_with_app``): strona pod
+adresem aplikacji głównej (pierwszy segment zarezerwowany, ``warsztaty/materialy``, drugi segment
+będący adresem aplikacji) odrzuca paczkę, zanim cokolwiek trafi do bazy.
+
 Układ drzewa (§ 5.3 p. 3): strona korzenia paczki (``HomePage``) staje się stroną główną
 (``set_as_homepage``), jej dzieci – stronami **na poziomie korzenia** (rodzeństwem strony głównej:
 ta sama ścieżka ``/zadania/``), głębiej – te same relacje rodzic/dziecko. Kolejność korzenia =
@@ -37,10 +58,10 @@ kolejność drzewa).
 from __future__ import annotations
 
 import hashlib
-import io
 import json
 import posixpath
 import re
+import tempfile
 import time
 import zipfile
 from collections import Counter
@@ -57,9 +78,10 @@ from django.core.validators import validate_email, validate_slug
 from django.db import transaction
 from django.utils.text import get_valid_filename, slugify
 
-#: Nazwa i wersja formatu – te same co ``BUNDLE_FORMAT``/``BUNDLE_VERSION`` w eksporcie.
+#: Nazwa i wersje formatu – te same co ``BUNDLE_FORMAT``/``SUPPORTED_BUNDLE_VERSIONS`` w eksporcie.
 BUNDLE_FORMAT = "olimpiada-cms-bundle"
-BUNDLE_VERSION = 1
+BUNDLE_VERSION = 2
+SUPPORTED_VERSIONS = (1, 2)
 MANIFEST_NAME = "manifest.json"
 IMAGES_PREFIX = "images/"
 
@@ -67,11 +89,38 @@ IMAGES_PREFIX = "images/"
 MAX_MEMBERS = 2000
 MAX_UNCOMPRESSED_BYTES = 500 * 1024 * 1024
 MAX_MANIFEST_BYTES = 50 * 1024 * 1024
+#: Największy obraz (szerokość × wysokość). Zdjęcia z aparatu mają 12–24 Mpx; więcej to albo
+#: pomyłka, albo bomba dekompresyjna. Ten sam limit ustawia ``PIL.Image.MAX_IMAGE_PIXELS``
+#: (``config/settings/base.py``) – dla miniatur i wgrywania przez redaktorów.
+MAX_IMAGE_PIXELS = 40_000_000
+#: Porcja strumieniowego czytania członków paczki (SHA-1, kopia obrazu).
+READ_CHUNK_BYTES = 1024 * 1024
+#: Kopia obrazu z paczki do filera: w pamięci do tej wielkości, powyżej – plik tymczasowy
+#: w ``MEDIA_ROOT`` (``/tmp`` kontenera to tmpfs 64 MB, czyli też pamięć).
+IMAGE_SPOOL_BYTES = 8 * 1024 * 1024
+#: Formaty obrazów (według Pillow, nie według nazwy pliku) → rozszerzenie pliku w filerze.
+IMAGE_EXTENSIONS = {"JPEG": "jpg", "MPO": "jpg", "PNG": "png", "GIF": "gif", "WEBP": "webp", "AVIF": "avif"}
 
 LANGUAGE = "pl"
-#: Folder filera na obrazy z importu. ``--replace`` kasuje wyłącznie jego zawartość – pliki, które
-#: redaktorzy ``dj.`` wgrali sami do innych folderów, zostają.
+#: Folder filera na obrazy z importu – podfolder folderu konkursu (``competition_folder``).
+#: ``--replace`` kasuje wyłącznie jego zawartość – pliki, które redaktorzy wgrali sami do innych
+#: folderów, zostają. Folder o tej nazwie w korzeniu biblioteki to import sprzed DJ-02 (jedna
+#: witryna): należy do konkursu domyślnego i jego ``--replace`` sprząta go razem z nowym.
 IMPORT_FOLDER_NAME = "Import z Wagtaila"
+#: Folder konkursu najwyższego poziomu (DJ-02 D5): ``Konkurs: <nazwa> (<slug>)``. Rozpoznawany po
+#: końcówce ``(<slug>)`` – nazwa konkursu może się zmienić, slug nie.
+COMPETITION_FOLDER_PREFIX = "Konkurs: "
+
+#: Strona-dana partnerów (DJ-02 D9): szablon z jedną wtyczką żywą zamiast kart partnerów.
+LIVE_PARTNERS_TEMPLATE = "dj/live/partners_page.html"
+LIVE_PARTNERS_SLOT = "partners"
+
+#: Źródło przekierowania zapisanego przez importer (``dj_seo.Redirect.source``, DJ-02 § 8).
+REDIRECT_SOURCE_IMPORT = "import"
+#: Limity ścieżek przekierowań – ścieżka dłuższa albo z bajtami sterującymi wypada z raportem.
+MAX_REDIRECT_PATH = 255
+
+SLUG_RE = re.compile(r"^[a-z0-9-]{1,50}$")
 
 #: Typ strony Wagtaila → szablon django CMS (tabela 6.1).
 TEMPLATES = {
@@ -117,7 +166,7 @@ def target_site(site=None):
     """Witryna importu: podana jawnie albo witryna konkursu domyślnego (``apps.sites.registry``).
 
     Bez ``SITE_ID`` (DJ-02 D4) nie ma „witryny bieżącej” poza żądaniem – importer zawsze działa na
-    witrynie wskazanej wprost. Import wielowitrynowy (``--competition``/``--all``) – DJ-02e.
+    witrynie wskazanej wprost (``--competition``/``--all`` – ``competition_site``).
     """
     if site is not None:
         return site
@@ -127,6 +176,27 @@ def target_site(site=None):
         return default_site()
     except RegistryError as exc:
         raise ImportRefused(f"Brak witryny do importu: {exc}") from None
+
+
+def competition_of(site):
+    """``CompetitionSite`` witryny albo ``None`` (witryna spoza rejestru – tylko w testach i ręcznie)."""
+    from apps.sites.models import CompetitionSite
+
+    return CompetitionSite.objects.filter(site=site).first() if site is not None else None
+
+
+def competition_site(slug: str):
+    """Konkurs z rejestru po slugu – **aktywny**; inaczej ``ImportRefused`` z instrukcją."""
+    from apps.sites.models import CompetitionSite
+
+    found = CompetitionSite.objects.filter(slug=slug).select_related("site").first()
+    if found is None:
+        raise ImportRefused(
+            f"Konkursu „{slug}” nie ma w rejestrze witryn – uruchom manage.py sync_competitions."
+        )
+    if not found.is_active:
+        raise ImportRefused(f"Konkurs „{slug}” jest nieaktywny – import pominięty.")
+    return found
 
 
 # --- raport ---------------------------------------------------------------------------------------
@@ -142,22 +212,34 @@ class ImportReport:
     images_reused: int = 0
     deleted_pages: int = 0
     deleted_files: int = 0
+    deleted_redirects: int = 0
+    redirects: int = 0
+    #: Strony-dane zamienione na wtyczki żywe (``warsztaty``/``partnerzy`` → ścieżka strony).
+    data_pages: dict[str, str] = field(default_factory=dict)
+    #: Ścieżki opublikowanych stron (``/``, ``/zadania/``) – dla ``verify_cutover``.
+    paths: list[str] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)
     sanitized: list[str] = field(default_factory=list)
     seconds: float = 0.0
     dry_run: bool = False
     source: dict = field(default_factory=dict)
+    version: int = BUNDLE_VERSION
+    #: Slug konkursu witryny, do której szedł import (``None`` – witryna spoza rejestru).
+    competition: str | None = None
 
     def lines(self) -> list[str]:
         source = self.source
+        target = f" → witryna konkursu „{self.competition}”" if self.competition else ""
         out = [
-            f"Paczka {BUNDLE_FORMAT} v{BUNDLE_VERSION}: konkurs „{source.get('competition_slug', '?')}”, "
-            f"źródło {source.get('main_public_url', '?')}, eksport {source.get('exported_at', '?')}.",
+            f"Paczka {BUNDLE_FORMAT} v{self.version}: konkurs „{source.get('competition_slug', '?')}”"
+            f"{target}, źródło {source.get('main_public_url', '?')}, "
+            f"eksport {source.get('exported_at', '?')}.",
         ]
-        if self.deleted_pages or self.deleted_files:
+        if self.deleted_pages or self.deleted_files or self.deleted_redirects:
             out.append(
                 f"--replace: skasowano stron {self.deleted_pages}, plików filera z folderu "
-                f"„{IMPORT_FOLDER_NAME}” {self.deleted_files}."
+                f"„{IMPORT_FOLDER_NAME}” {self.deleted_files}, "
+                f"przekierowań z importu {self.deleted_redirects}."
             )
         out.append(f"Strony: {sum(self.pages.values())}" + _counter_suffix(self.pages))
         out.append(f"Wtyczki: {sum(self.plugins.values())}" + _counter_suffix(self.plugins))
@@ -165,6 +247,10 @@ class ImportReport:
             f"Obrazy: {self.images_created + self.images_reused} "
             f"(nowe {self.images_created}, z biblioteki po SHA-1 {self.images_reused})."
         )
+        if self.data_pages:
+            pages = ", ".join(f"{key} {path}" for key, path in sorted(self.data_pages.items()))
+            out.append(f"Strony-dane na żywo z Wagtaila (D9): {pages}.")
+        out.append(f"Przekierowania: {self.redirects}.")
         out.append(f"Pominięcia: {len(self.skipped)}")
         out.extend(f"  - {item}" for item in self.skipped)
         out.append(f"Sanityzacja HTML (usunięte znaczniki/atrybuty): {len(self.sanitized)}")
@@ -187,8 +273,14 @@ def _counter_suffix(counter: Counter) -> str:
 @dataclass
 class Bundle:
     manifest: dict
-    #: Bajty obrazów po identyfikatorze Wagtaila (klucz manifestu ``images``) – już zweryfikowane.
-    images: dict[str, bytes]
+    #: Źródło paczki (ścieżka albo plik z ``seek``) – obrazy czytamy z niego **strumieniowo**, po
+    #: jednym, dopiero przy imporcie. Paczka potrafi ważyć setki megabajtów, a kontener djcms ma
+    #: limit pamięci (``mem_limit``): trzymanie bajtów wszystkich obrazów kończyło się zabiciem
+    #: procesu przez OOM. Wołający trzyma plik otwarty do końca ``run_import``.
+    source: Any = None
+    #: Format Pillow każdego obrazu (klucz manifestu ``images`` → ``"PNG"``, ``"JPEG"``, …) –
+    #: ustalony przy walidacji; od niego zależy rozszerzenie pliku w filerze.
+    image_formats: dict[str, str] = field(default_factory=dict)
 
     @property
     def pages(self) -> list[dict]:
@@ -201,6 +293,28 @@ class Bundle:
     @property
     def menu(self) -> dict:
         return self.manifest["vocabularies"]["menu"]
+
+    @property
+    def version(self) -> int:
+        return self.manifest["version"]
+
+    @property
+    def competition_slug(self) -> str | None:
+        """Konkurs paczki: ``competition.slug`` (v2) albo ``source.competition_slug`` (v1)."""
+        competition = self.manifest.get("competition")
+        if isinstance(competition, dict):
+            return competition["slug"]
+        slug = self.manifest.get("source", {}).get("competition_slug")
+        return slug if isinstance(slug, str) and slug else None
+
+    @property
+    def data_pages(self) -> dict[str, int | None]:
+        """Identyfikatory stron-danych (v2); paczka v1 ich nie ma – wszystko jest treścią."""
+        return self.manifest.get("data_pages") or {"workshops": None, "partners": None}
+
+    @property
+    def redirects(self) -> list:
+        return self.manifest.get("redirects") or []
 
 
 def _member_name_ok(name: str) -> bool:
@@ -244,9 +358,9 @@ def open_bundle(src: str | Path | IO[bytes]) -> Bundle:
             raise BundleError("brak manifest.json")
         manifest = _read_manifest(archive)
         _validate_manifest(manifest)
-        images = _read_images(archive, manifest, names)
+        formats = _verify_images(archive, manifest, names)
     _validate_pages(manifest)
-    return Bundle(manifest=manifest, images=images)
+    return Bundle(manifest=manifest, source=src, image_formats=formats)
 
 
 def _read(archive: zipfile.ZipFile, name: str, limit: int) -> bytes:
@@ -277,8 +391,9 @@ def _read_manifest(archive: zipfile.ZipFile) -> dict:
 def _validate_manifest(manifest: dict) -> None:
     if manifest.get("format") != BUNDLE_FORMAT:
         raise BundleError(f"nieznany format paczki: {manifest.get('format')!r} (oczekiwany {BUNDLE_FORMAT})")
-    if manifest.get("version") != BUNDLE_VERSION:
-        raise BundleError(f"nieobsługiwana wersja paczki: {manifest.get('version')!r} (obsługiwana 1)")
+    version = manifest.get("version")
+    if isinstance(version, bool) or version not in SUPPORTED_VERSIONS:
+        raise BundleError(f"nieobsługiwana wersja paczki: {version!r} (obsługiwane 1 i 2)")
     for key, kind in (("pages", list), ("images", dict), ("documents", dict), ("vocabularies", dict)):
         if not isinstance(manifest.get(key), kind):
             raise BundleError(f"manifest: pole {key!r} ma zły typ")
@@ -301,38 +416,152 @@ def _validate_manifest(manifest: dict) -> None:
     for key, document in manifest["documents"].items():
         if not isinstance(document, dict) or not str(key).isdigit():
             raise BundleError(f"manifest: dokument {key!r} ma zły kształt")
+    if version >= 2:
+        _validate_v2(manifest)
 
 
-def _read_images(archive: zipfile.ZipFile, manifest: dict, names: set[str]) -> dict[str, bytes]:
+def _validate_v2(manifest: dict) -> None:
+    """Klucze wersji 2 (DJ-02 § 4.4): kształt; odwołania do stron sprawdza ``_validate_pages``.
+
+    Pojedyncze przekierowanie w złym kształcie **nie** odrzuca paczki (to dane redakcji Wagtaila –
+    wypada z raportem przy imporcie, ``resolve_redirects``); zły typ całej listy – tak.
+    """
+    competition = manifest.get("competition")
+    if (
+        not isinstance(competition, dict)
+        or not isinstance(competition.get("slug"), str)
+        or not SLUG_RE.match(competition["slug"])
+        or not isinstance(competition.get("name", ""), str)
+    ):
+        raise BundleError("manifest: pole 'competition' ma zły kształt (v2 wymaga sluga konkursu)")
+    data_pages = manifest.get("data_pages")
+    if not isinstance(data_pages, dict):
+        raise BundleError("manifest: pole 'data_pages' ma zły typ")
+    for key in ("workshops", "partners"):
+        value = data_pages.get(key)
+        if value is not None and (not isinstance(value, int) or isinstance(value, bool)):
+            raise BundleError(f"manifest: data_pages.{key} nie jest identyfikatorem strony")
+    if not isinstance(manifest.get("redirects"), list):
+        raise BundleError("manifest: pole 'redirects' ma zły typ")
+
+
+def _spooled_member(archive: zipfile.ZipFile, path: str, sha1: str, label: str | None = None):
+    """Kopia członka paczki w pliku tymczasowym (pamięć do ``IMAGE_SPOOL_BYTES``, dalej ``MEDIA_ROOT``).
+
+    Kopiowanie porcjami ``READ_CHUNK_BYTES`` z SHA-1 liczonym po drodze i porównanym z manifestem –
+    przy walidacji i drugi raz przy imporcie (plik paczki na dysku mógł się zmienić między jednym
+    a drugim, a do filera ma trafić to, co sprawdzone). Pillow czyta potem **plik**, a nie członka
+    ZIP-a: ``ZipExtFile.seek`` do przodu dekompresuje całą odległość naraz (do 16 MB w pamięci).
+    """
+    Path(settings.MEDIA_ROOT).mkdir(parents=True, exist_ok=True)
+    spool = tempfile.SpooledTemporaryFile(max_size=IMAGE_SPOOL_BYTES, dir=settings.MEDIA_ROOT)  # noqa: SIM115
+    digest = hashlib.sha1(usedforsecurity=False)
+    try:
+        with archive.open(path) as handle:
+            while chunk := handle.read(READ_CHUNK_BYTES):
+                digest.update(chunk)
+                spool.write(chunk)
+    except (zipfile.BadZipFile, OSError, EOFError, ValueError) as exc:
+        spool.close()
+        raise BundleError(f"{path}: uszkodzony członek paczki ({exc})") from None
+    except BaseException:
+        spool.close()
+        raise
+    if digest.hexdigest() != sha1:
+        spool.close()
+        raise BundleError(
+            f"{label}: SHA-1 niezgodne z manifestem"
+            if label
+            else f"{path}: SHA-1 niezgodne z manifestem (paczka zmieniła się w trakcie importu)"
+        )
+    spool.seek(0)
+    return spool
+
+
+class _CappedReads:
+    """Plik, którego ``read(n)`` czyta najwyżej ``READ_CHUNK_BYTES`` naraz.
+
+    Filer liczy SHA-1 pętlą ``read(104857600)`` (``File.generate_sha1``), a ``read(n)`` na pliku
+    z dysku rezerwuje bufor ``n`` bajtów z góry – 100 MB na każdy obraz, także dwukilobajtowy.
+    Pętla filera działa tak samo przy krótszych porcjach (czyta do pustego wyniku).
+    """
+
+    def __init__(self, file):
+        self._file = file
+
+    def read(self, size: int | None = -1) -> bytes:
+        if size is not None and size > READ_CHUNK_BYTES:
+            size = READ_CHUNK_BYTES
+        return self._file.read(size)
+
+    def __getattr__(self, name):
+        return getattr(self._file, name)
+
+    def __iter__(self):
+        return iter(self._file)
+
+
+def _image_format(handle, label: str) -> str:
+    """Format obrazu według Pillow – po sprawdzeniu wymiarów (bomba dekompresyjna) i ``verify``.
+
+    Wymiary czytamy z nagłówka (``Image.open`` nie dekoduje pikseli) i odrzucamy obraz powyżej
+    ``MAX_IMAGE_PIXELS``, zanim cokolwiek go zdekoduje: ``verify`` Pillow tylko **ostrzega** między
+    ~89 a ~179 Mpx, a plik 12000×12000 przeszedłby i zabił proces przy pierwszej miniaturze
+    (``easy-thumbnails`` na stronie publicznej).
+    """
     from PIL import Image as PILImage
 
-    images: dict[str, bytes] = {}
+    try:
+        with PILImage.open(handle) as image:
+            width, height = image.size
+            if width * height > MAX_IMAGE_PIXELS:
+                raise BundleError(
+                    f"{label}: {width}×{height} px to więcej niż {MAX_IMAGE_PIXELS // 1_000_000} Mpx "
+                    "(ochrona przed bombą dekompresyjną)"
+                )
+            fmt = image.format or ""
+            image.verify()
+    except BundleError:
+        raise
+    except PILImage.DecompressionBombError, PILImage.DecompressionBombWarning:
+        raise BundleError(
+            f"{label}: więcej niż {MAX_IMAGE_PIXELS // 1_000_000} Mpx (ochrona przed bombą dekompresyjną)"
+        ) from None
+    except Exception as exc:  # noqa: BLE001 - Pillow zgłasza różne klasy wyjątków dla złego pliku
+        raise BundleError(f"{label} nie otwiera się w Pillow ({type(exc).__name__})") from None
+    if fmt not in IMAGE_EXTENSIONS:
+        raise BundleError(
+            f"{label}: format {fmt or '?'} spoza dozwolonych ({', '.join(sorted(IMAGE_EXTENSIONS))})"
+        )
+    return fmt
+
+
+def _verify_images(archive: zipfile.ZipFile, manifest: dict, names: set[str]) -> dict[str, str]:
+    """Każdy obraz: plik w paczce, SHA-1 zgodne z manifestem, Pillow – po jednym, bez bajtów w pamięci."""
+    formats: dict[str, str] = {}
     for key, meta in manifest["images"].items():
         if not str(key).isdigit() or not isinstance(meta, dict):
             raise BundleError(f"manifest: obraz {key!r} ma zły kształt")
         path = meta.get("path")
         if not isinstance(path, str) or not path.startswith(IMAGES_PREFIX) or path not in names:
             raise BundleError(f"obraz #{key}: brak pliku {path!r} w paczce")
-        data = _read(archive, path, MAX_UNCOMPRESSED_BYTES)
-        if hashlib.sha1(data, usedforsecurity=False).hexdigest() != meta.get("sha1"):
-            raise BundleError(f"obraz #{key} ({path}): SHA-1 niezgodne z manifestem")
-        try:
-            with PILImage.open(io.BytesIO(data)) as image:
-                image.verify()
-        except Exception as exc:  # noqa: BLE001 - Pillow zgłasza różne klasy wyjątków dla złego pliku
-            raise BundleError(
-                f"obraz #{key} ({path}) nie otwiera się w Pillow ({type(exc).__name__})"
-            ) from None
-        images[str(key)] = data
-    return images
+        label = f"obraz #{key} ({path})"
+        with _spooled_member(archive, path, meta.get("sha1"), label) as spool:
+            formats[str(key)] = _image_format(spool, label)
+    return formats
 
 
 def _validate_pages(manifest: dict) -> None:
-    """Drzewo spójne: jeden korzeń, rodzic przed dzieckiem, poprawne typy pól, słowniki i slugi."""
+    """Drzewo spójne: jeden korzeń, rodzic przed dzieckiem, poprawne typy pól, słowniki i slugi;
+    ścieżki stron poza adresami aplikacji (S5); strony-dane (v2) w paczce i właściwego typu."""
+    from apps.pages.validation import path_collides_with_app
+
     pages = manifest["pages"]
     if not pages:
         raise BundleError("paczka nie ma żadnej strony")
     seen: dict[int, dict] = {}
+    #: Ścieżka djcms strony (``PageUrl.path``): dzieci strony głównej Wagtaila stoją w korzeniu.
+    paths: dict[int, str] = {}
     roots = 0
     levels = {key for key, _ in manifest["vocabularies"]["partner_levels"]}
     reserved = set(settings.DJ_RESERVED_SLUGS)
@@ -370,9 +599,26 @@ def _validate_pages(manifest: dict) -> None:
             level = value.get("level") if isinstance(value, dict) else None
             if level not in levels:
                 raise BundleError(f"{label}: poziom partnera {level!r} spoza słownika paczki")
+        if parent_id is None:
+            paths[page_id] = ""
+        else:
+            parent_path = paths[parent_id]
+            paths[page_id] = f"{parent_path}/{dto['slug']}" if parent_path else dto["slug"]
+            # S5: pełna ścieżka, nie tylko pierwszy segment – ``warsztaty/materialy`` i reguła
+            # drugiego segmentu (``/o-nas/login/`` pod prefiksem konkursu idzie do aplikacji).
+            reason = path_collides_with_app(paths[page_id])
+            if reason:
+                raise BundleError(f"{label}: {reason} – zmień slug w Wagtailu przed importem")
         seen[page_id] = dto
     if roots != 1:
         raise BundleError(f"paczka ma {roots} stron bez rodzica (oczekiwana dokładnie jedna – strona główna)")
+    data_pages = manifest.get("data_pages") if manifest.get("version", 1) >= 2 else None
+    for key, page_type in (("workshops", "cms.ContentPage"), ("partners", "cms.PartnersPage")):
+        page_id = (data_pages or {}).get(key)
+        if page_id is None:
+            continue
+        if page_id not in seen or seen[page_id]["type"] != page_type or page_id == root_id:
+            raise BundleError(f"data_pages.{key}: strona #{page_id} spoza paczki albo nie typu {page_type}")
 
 
 # --- sanityzacja ----------------------------------------------------------------------------------
@@ -400,11 +646,17 @@ def _inventory(html: str) -> Counter:
     return parser.items
 
 
-def sanitize(html: str | None, where: str, report: ImportReport) -> str:
-    """HTML przez sanityzator djangocms-text; to, co usunął, trafia do raportu."""
+def sanitize(html: str | None, where: str, report: ImportReport, prefix: str = "") -> str:
+    """HTML przez sanityzator djangocms-text; to, co usunął, trafia do raportu.
+
+    ``prefix`` – prefiks ścieżki konkursu (``/druga``): odnośniki do stron od korzenia witryny
+    dostają go **przed** sanityzacją (``apps.live.data.prefix_links``), tak jak rysuje je Wagtail.
+    """
     from djangocms_text.html import clean_html
 
-    source = html or ""
+    from apps.live.data import prefix_links
+
+    source = prefix_links(html or "", prefix)
     cleaned = clean_html(source)
     removed = _inventory(source) - _inventory(cleaned)
     if removed:
@@ -416,11 +668,71 @@ def sanitize(html: str | None, where: str, report: ImportReport) -> str:
 # --- 2. obrazy ------------------------------------------------------------------------------------
 
 
-def import_folder():
+def competition_folder_name(competition) -> str:
+    return f"{COMPETITION_FOLDER_PREFIX}{competition.name} ({competition.slug})"[:255]
+
+
+def competition_folder(competition, *, create: bool = True):
+    """Folder konkursu najwyższego poziomu (DJ-02 D5): ``Konkurs: <nazwa> (<slug>)``.
+
+    Szukany po końcówce ``(<slug>)`` – po zmianie nazwy konkursu folder zostaje ten sam (nazwę
+    poprawiamy). ``create=False`` – ``None``, gdy folderu nie ma. Uprawnienia redakcji do folderu
+    (``FolderPermission`` dla ``redakcja:<slug>``) nadaje DJ-02g – tą samą funkcją.
+    """
     from filer.models import Folder
 
-    folder = Folder.objects.filter(name=IMPORT_FOLDER_NAME, parent__isnull=True).order_by("pk").first()
-    return folder or Folder.objects.create(name=IMPORT_FOLDER_NAME)
+    folder = (
+        Folder.objects.filter(
+            parent__isnull=True,
+            name__startswith=COMPETITION_FOLDER_PREFIX,
+            name__endswith=f"({competition.slug})",
+        )
+        .order_by("pk")
+        .first()
+    )
+    if folder is None:
+        return Folder.objects.create(name=competition_folder_name(competition)) if create else None
+    wanted = competition_folder_name(competition)
+    if folder.name != wanted:
+        folder.name = wanted
+        folder.save(update_fields=["name"])
+    return folder
+
+
+def legacy_import_folder():
+    """Folder importu sprzed DJ-02 (korzeń biblioteki) – należy do konkursu domyślnego."""
+    from filer.models import Folder
+
+    return Folder.objects.filter(name=IMPORT_FOLDER_NAME, parent__isnull=True).order_by("pk").first()
+
+
+def import_folder(competition=None, *, create: bool = True):
+    """Folder obrazów importu witryny: ``Konkurs: … / Import z Wagtaila`` (bez konkursu – w korzeniu)."""
+    from filer.models import Folder
+
+    if competition is None:
+        folder = legacy_import_folder()
+        if folder is None and create:
+            folder = Folder.objects.create(name=IMPORT_FOLDER_NAME)
+        return folder
+    parent = competition_folder(competition, create=create)
+    if parent is None:
+        return None
+    folder = Folder.objects.filter(name=IMPORT_FOLDER_NAME, parent=parent).order_by("pk").first()
+    if folder is None and create:
+        folder = Folder.objects.create(name=IMPORT_FOLDER_NAME, parent=parent)
+    return folder
+
+
+def _image_filename(meta: dict, key: str, fmt: str) -> str:
+    """Nazwa pliku z paczki (bez przedrostka ``<id>-``) z rozszerzeniem **formatu** wykrytego przez
+    Pillow – nie tym z nazwy: ``logo.png``, który jest JPEG-iem, trafia do filera jako ``logo.jpg``
+    (typ MIME przy podawaniu pliku bierze się z rozszerzenia)."""
+    basename = posixpath.basename(meta["path"])
+    prefix = f"{key}-"
+    original = basename[len(prefix) :] if basename.startswith(prefix) else basename
+    stem = original.rsplit(".", 1)[0] if "." in original else original
+    return get_valid_filename(f"{stem}.{IMAGE_EXTENSIONS[fmt]}") or f"obraz-{key}.{IMAGE_EXTENSIONS[fmt]}"
 
 
 def import_images(
@@ -428,36 +740,46 @@ def import_images(
 ) -> dict[int, Any]:
     """Obrazy z paczki → ``filer.Image``; istniejący plik o tym samym SHA-1 jest używany ponownie.
 
-    ``created`` dostaje każdy nowo zapisany obraz – wołający skasuje jego plik z magazynu, jeśli
-    transakcja zostanie wycofana (``--dry-run`` albo błąd).
+    Ponownie – z biblioteki, ale **nie** z folderu importu innej witryny: ``--replace`` tamtej
+    skasowałby plik, na który wskazywałyby wtyczki tej (obraz trafia wtedy drugi raz, do własnego
+    folderu). Obrazy idą **po jednym** strumieniem z paczki (``_spooled_member``) – w pamięci jest
+    najwyżej jeden, i to do ``IMAGE_SPOOL_BYTES``. ``created`` dostaje każdy nowo zapisany obraz –
+    wołający skasuje jego plik z magazynu, jeśli transakcja zostanie wycofana (``--dry-run`` albo błąd).
     """
-    from django.core.files.uploadedfile import SimpleUploadedFile
+    from django.core.files import File as DjangoFile
+    from django.db.models import Q
     from filer.models import Image
 
+    reusable = Q(folder__isnull=True) | ~Q(folder__name=IMPORT_FOLDER_NAME) | Q(folder=folder)
     result: dict[int, Any] = {}
-    for key, meta in bundle.manifest["images"].items():
-        data = bundle.images[str(key)]
-        existing = Image.objects.filter(sha1=meta["sha1"]).order_by("pk").first()
-        if existing is not None:
-            result[int(key)] = existing
-            report.images_reused += 1
-            continue
-        basename = posixpath.basename(meta["path"])
-        prefix = f"{key}-"
-        original = basename[len(prefix) :] if basename.startswith(prefix) else basename
-        filename = get_valid_filename(original) or f"obraz-{key}"
-        image = Image.objects.create(
-            folder=folder,
-            name=_text(meta.get("title"), 255),
-            default_alt_text=_text(meta.get("alt"), 255),
-            original_filename=filename[:255],
-            file=SimpleUploadedFile(filename, data),
-            is_public=True,
-        )
-        if created is not None:
-            created.append(image)
-        result[int(key)] = image
-        report.images_created += 1
+    if not bundle.manifest["images"]:
+        return result
+    source = bundle.source
+    if hasattr(source, "seek"):
+        source.seek(0)
+    with zipfile.ZipFile(source) as archive:
+        for key, meta in bundle.manifest["images"].items():
+            existing = Image.objects.filter(reusable, sha1=meta["sha1"]).order_by("pk").first()
+            if existing is not None:
+                result[int(key)] = existing
+                report.images_reused += 1
+                continue
+            filename = _image_filename(meta, str(key), bundle.image_formats[str(key)])
+            with _spooled_member(archive, meta["path"], meta["sha1"]) as spool:
+                upload = DjangoFile(_CappedReads(spool), name=filename)
+                upload.size = archive.getinfo(meta["path"]).file_size
+                image = Image.objects.create(
+                    folder=folder,
+                    name=_text(meta.get("title"), 255),
+                    default_alt_text=_text(meta.get("alt"), 255),
+                    original_filename=filename[:255],
+                    file=upload,
+                    is_public=True,
+                )
+            if created is not None:
+                created.append(image)
+            result[int(key)] = image
+            report.images_created += 1
     return result
 
 
@@ -532,7 +854,7 @@ class _PageBuilder:
         return self.importer.images.get(image_id) if isinstance(image_id, int) else None
 
     def html(self, value: Any, where: str) -> str:
-        return sanitize(_text(value), f"{self.label} {where}", self.report)
+        return sanitize(_text(value), f"{self.label} {where}", self.report, self.importer.prefix)
 
     def text(self, slot: str, value: Any, where: str, target=None) -> None:
         """Pole RichText → ``TextPlugin``. Puste pole = brak wtyczki (jak ``{% if page.intro %}``)."""
@@ -788,12 +1110,21 @@ class _PageBuilder:
 
 
 class _Importer:
-    def __init__(self, bundle: Bundle, images: dict[int, Any], user, report: ImportReport, site):
+    def __init__(
+        self, bundle: Bundle, images: dict[int, Any], user, report: ImportReport, site, prefix: str = ""
+    ):
         self.bundle = bundle
         self.site = site
         self.images = images
         self.user = user
         self.report = report
+        #: Prefiks ścieżki konkursu (``/druga``) dla odnośników w tekście – ``sanitize``.
+        self.prefix = prefix
+        data_pages = bundle.data_pages
+        self.workshops_id = data_pages.get("workshops")
+        self.partners_id = data_pages.get("partners")
+        #: Strona djcms po identyfikatorze strony Wagtaila – cele przekierowań.
+        self.pages_by_id: dict[int, Any] = {}
         menu = bundle.menu
         self.primary = set(menu.get("primary", []))
         self.order = {slug: rank for rank, slug in enumerate(menu.get("order", []))}
@@ -868,6 +1199,9 @@ class _Importer:
         if template is None:
             template = FALLBACK_TEMPLATE
             self.report.skipped.append(f"{label}: typ {page_type} bez mapowania – strona treści bez wtyczek")
+        live_partners = dto["id"] == self.partners_id
+        if live_partners:
+            template = LIVE_PARTNERS_TEMPLATE
         in_navigation, menu_title, flags = self.navigation(dto, level)
         page = create_page(
             _text(dto["title"], 255),
@@ -889,11 +1223,56 @@ class _Importer:
             MenuExtension.objects.create(extended_object=page, **flags)
         content = PageContent.admin_manager.get(page=page, language=LANGUAGE)
         builder = _PageBuilder(self, dto, content.rescan_placeholders())
-        if page_type in TEMPLATES:
+        if live_partners:
+            # Strona-dana (D9): cała treść na żywo z ``GET partners`` – karty, wprowadzenie
+            # i zaproszenie zostają w Wagtailu, tu żadnej kopii.
+            builder.add(LIVE_PARTNERS_SLOT, "PartnersLivePlugin")
+        elif dto["id"] == self.workshops_id:
+            self.fill_workshops(builder)
+        elif page_type in TEMPLATES:
             self.fill(builder, content, page_type)
         Version.objects.get_for_content(content).publish(self.user)
+        # Ścieżka dopiero po publikacji – versioning ustala ``PageUrl.path`` przy publikowaniu wersji.
+        path = _page_path(page)
+        if live_partners:
+            self.report.data_pages["partners"] = path
+        elif dto["id"] == self.workshops_id:
+            self.report.data_pages["warsztaty"] = path
         self.report.pages[page_type] += 1
+        self.report.paths.append(path)
+        self.pages_by_id[dto["id"]] = page
         return page
+
+    def fill_workshops(self, b: _PageBuilder) -> None:
+        """Strona „Warsztaty” (D9): wprowadzenie i tabele na żywo, reszta treści jak zwykła strona.
+
+        - ``intro`` → ``WorkshopSchedulePlugin`` (część „wprowadzenie”) – zawsze, także przy pustym
+          polu w chwili importu: redakcja dopisuje je w Wagtailu,
+        - bloki ``schedule`` → **jedna** wtyczka (część „harmonogram”) w miejscu pierwszego bloku;
+          rysuje wszystkie tabele strony z API, więc kolejne bloki wypadają (z wpisem w raporcie).
+          Strona bez bloku tabeli dostaje wtyczkę na końcu treści – tabela dopisana w Wagtailu ma
+          gdzie się pojawić,
+        - śródtytuły, akapity i załączniki – kopia z paczki jak na każdej stronie treści (API ich
+          nie oddaje; zmiana w Wagtailu wymaga ponownego importu).
+        """
+        from apps.live.models import WorkshopSchedule
+
+        f = b.dto["fields"]
+        b.add("intro", "WorkshopSchedulePlugin", part=WorkshopSchedule.Part.INTRO)
+        b.attachments()
+        placed = False
+        items = f.get("body") if isinstance(f.get("body"), list) else []
+        for index, item in enumerate(items):
+            if isinstance(item, dict) and item.get("type") == "schedule":
+                if placed:
+                    b.skip(f"treść[{index}] schedule: kolejna tabela – rysuje ją wtyczka żywa „Warsztaty”")
+                else:
+                    b.add("body", "WorkshopSchedulePlugin", part=WorkshopSchedule.Part.SCHEDULE)
+                    placed = True
+                continue
+            b.stream("body", [item], DOC_BLOCKS, f"treść[{index}]")
+        if not placed:
+            b.add("body", "WorkshopSchedulePlugin", part=WorkshopSchedule.Part.SCHEDULE)
 
     def fill(self, b: _PageBuilder, content, page_type: str) -> None:
         """Pola strony → sloty i rozszerzenia (tabela 6.1). Rozszerzenia na wersji roboczej."""
@@ -972,12 +1351,179 @@ class _Importer:
             b.faq()
 
 
-def import_pages(bundle: Bundle, images: dict[int, Any], user, report: ImportReport, site) -> list:
-    """Tworzy i publikuje strony paczki w witrynie ``site``.
+def _page_path(page) -> str:
+    """Ścieżka strony względem korzenia witryny: ``/``, ``/zadania/``, ``/dokumenty/regulamin/``.
+
+    Z ``PageUrl`` w bazie, a nie z ``Page.get_path``: obiekt strony zaraz po ``create_page`` ma
+    w pamięci adresy sprzed ustawienia ścieżki (``get_path`` oddawał ``""`` – stronę główną).
+    """
+    from cms.models import PageUrl
+
+    path = PageUrl.objects.filter(page=page, language=LANGUAGE).values_list("path", flat=True).first() or ""
+    return f"/{path}/" if path else "/"
+
+
+def import_pages(
+    bundle: Bundle, images: dict[int, Any], user, report: ImportReport, site, prefix: str = ""
+) -> dict[int, Any]:
+    """Tworzy i publikuje strony paczki w witrynie ``site``; zwraca stronę djcms po id strony Wagtaila.
 
     Wymaga otwartej transakcji (``set_as_homepage``).
     """
-    return _Importer(bundle, images, user, report, site).run()
+    importer = _Importer(bundle, images, user, report, site, prefix)
+    importer.run()
+    return importer.pages_by_id
+
+
+# --- przekierowania (paczka v2) ------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RedirectSpec:
+    """Przekierowanie gotowe do zapisu: ścieżka względem korzenia witryny → cel."""
+
+    old_path: str
+    new_path: str
+    is_permanent: bool
+
+
+def _redirect_path(value: Any) -> str | None:
+    """Ścieżka od ``/`` (nie ``//``), bez spacji, znaków sterujących i ``\\``, najwyżej 255 znaków."""
+    if not isinstance(value, str) or not value.startswith("/") or value.startswith("//"):
+        return None
+    if len(value) > MAX_REDIRECT_PATH or "\\" in value or any(ch.isspace() or ord(ch) < 32 for ch in value):
+        return None
+    return value
+
+
+def _normalise_redirect_path(path: str) -> str | None:
+    """``old_path`` w kształcie, w którym szuka go warstwa przekierowań (``dj_seo.normalise_path`` –
+    port ``Redirect.normalise_path`` Wagtaila). Eksport już normalizuje; tu – drugi raz, na wypadek
+    paczki spoza eksportu. Bez aplikacji ``dj_seo`` ścieżka zostaje, jaka jest."""
+    try:
+        from apps.seo.models import normalise_path
+    except ImportError:
+        return path
+    return _redirect_path(normalise_path(path))
+
+
+def _redirect_target(
+    target: dict, pages_by_id: dict[int, Any], where: str, report: ImportReport
+) -> str | None:
+    """Cel przekierowania w witrynie djcms albo ``None`` (powód w raporcie)."""
+    if "page_id" in target:
+        page_id = target.get("page_id")
+        page = pages_by_id.get(page_id) if isinstance(page_id, int) else None
+        route = target.get("route_path")
+        if page is None:
+            report.skipped.append(f"{where}: strona docelowa #{page_id} poza importem – pominięte")
+            return None
+        if isinstance(route, str) and route.strip("/"):
+            report.skipped.append(f"{where}: cel z podstroną routowalną {route[:80]!r} – brak odpowiednika")
+            return None
+        return _page_path(page)
+    url = target.get("url")
+    if isinstance(url, str):
+        url = url.strip()
+        new = _redirect_path(url) or (_http_url(url) if len(url) <= 500 else "")
+        if new:
+            return new
+        report.skipped.append(f"{where}: cel {url[:80]!r} nie jest ścieżką ani adresem http(s) – pominięte")
+        return None
+    report.skipped.append(f"{where}: brak celu – pominięte")
+    return None
+
+
+def resolve_redirects(
+    bundle: Bundle, pages_by_id: dict[int, Any], report: ImportReport
+) -> list[RedirectSpec]:
+    """Przekierowania paczki v2 z celami przełożonymi na witrynę djcms (DJ-02 § 4.4, § 8).
+
+    - ``old_path`` jak w Wagtailu (``Redirect.normalise_path`` eksportu: bez ukośnika końcowego,
+      zapytanie posortowane) – warstwa przekierowań ``dj_seo`` normalizuje żądanie tak samo,
+    - cel-strona → ścieżka **tej** strony po imporcie (``/dokumenty/regulamin/``), względem
+      korzenia witryny – prefiks konkursu dokłada warstwa przekierowań przy odpowiedzi. Strona
+      spoza importu albo podstrona routowalna (``route_path``, djcms nie ma odpowiednika) – raport,
+    - cel-adres: ścieżka od ``/`` albo ``http(s)://host…``; inne schematy – raport,
+    - pętla (cel = ta sama ścieżka) i powtórzona ścieżka – raport.
+
+    Żaden zły wpis nie odrzuca paczki: to dane redakcji Wagtaila, nie kontrakt.
+    """
+    specs: list[RedirectSpec] = []
+    seen: set[str] = set()
+    for index, item in enumerate(bundle.redirects):
+        where = f"przekierowanie[{index}]"
+        if not isinstance(item, dict):
+            report.skipped.append(f"{where}: zły kształt – pominięte")
+            continue
+        old = _redirect_path(item.get("old_path"))
+        if old is not None:
+            old = _normalise_redirect_path(old)
+        if old is None:
+            report.skipped.append(
+                f"{where}: ścieżka {str(item.get('old_path'))[:80]!r} niepoprawna – pominięte"
+            )
+            continue
+        where = f"przekierowanie {old}"
+        if old in seen:
+            report.skipped.append(f"{where}: powtórzona ścieżka – pominięte")
+            continue
+        target = item.get("target") if isinstance(item.get("target"), dict) else {}
+        new = _redirect_target(target, pages_by_id, where, report)
+        if new is None:
+            continue
+        if new.split("?", 1)[0].split("#", 1)[0].rstrip("/") == old.split("?", 1)[0].rstrip("/"):
+            report.skipped.append(f"{where}: cel to ta sama ścieżka (pętla) – pominięte")
+            continue
+        seen.add(old)
+        specs.append(
+            RedirectSpec(old_path=old, new_path=new, is_permanent=item.get("is_permanent") is not False)
+        )
+    return specs
+
+
+def redirect_model():
+    """``dj_seo.Redirect`` (DJ-02f) albo ``None``, gdy aplikacji przekierowań nie ma w projekcie."""
+    from django.apps import apps
+
+    try:
+        return apps.get_model("dj_seo", "Redirect")
+    except LookupError:
+        return None
+
+
+def store_redirects(site, specs: list[RedirectSpec], report: ImportReport) -> None:
+    """Zapis przekierowań witryny ze źródłem ``import``; ścieżka zajęta przez wpis redakcji – raport.
+
+    Przekierowania redakcji djcms (``auto``/``manual``) wygrywają z importem: ``--replace`` kasuje
+    wyłącznie wpisy ze źródłem ``import`` (``wipe``), a nowy import nie nadpisuje cudzych.
+    """
+    model = redirect_model()
+    if model is None:
+        if specs:
+            report.skipped.append(
+                f"przekierowania ({len(specs)}): brak modelu dj_seo.Redirect (DJ-02f) – nie zapisane"
+            )
+        return
+    taken = set(model.objects.filter(site=site).values_list("old_path", flat=True))
+    rows = []
+    for spec in specs:
+        if spec.old_path in taken:
+            report.skipped.append(
+                f"przekierowanie {spec.old_path}: ścieżka ma już przekierowanie redakcji – pominięte"
+            )
+            continue
+        rows.append(
+            model(
+                site=site,
+                old_path=spec.old_path,
+                new_path=spec.new_path,
+                is_permanent=spec.is_permanent,
+                source=REDIRECT_SOURCE_IMPORT,
+            )
+        )
+    model.objects.bulk_create(rows)
+    report.redirects = len(rows)
 
 
 # --- przebieg całości -----------------------------------------------------------------------------
@@ -989,11 +1535,21 @@ def site_has_pages(site=None) -> bool:
     return Page.objects.filter(site=target_site(site)).exists()
 
 
-def wipe(site, report: ImportReport) -> list:
-    """``--replace``: wszystkie strony witryny i pliki filera z folderu importu.
+def _import_folders(competition) -> list:
+    """Foldery importu witryny: własny, a dla konkursu domyślnego (i witryny spoza rejestru) także
+    folder sprzed DJ-02 w korzeniu biblioteki – tamten import był importem witryny domyślnej."""
+    folders = [import_folder(competition, create=False)] if competition is not None else []
+    if competition is None or competition.is_default:
+        folders.append(legacy_import_folder())
+    return [folder for folder in folders if folder is not None]
 
-    Zwraca skasowane obiekty plików – ich pliki w magazynie kasuje wołający dopiero po zatwierdzeniu
-    transakcji (wycofany import musi zostawić je na miejscu, bo wiersze wracają).
+
+def wipe(site, report: ImportReport, competition=None) -> list:
+    """``--replace``: strony witryny, jej przekierowania z importu i pliki z jej folderu importu.
+
+    Strony, przekierowania i pliki **innych** witryn zostają. Zwraca skasowane obiekty plików – ich
+    pliki w magazynie kasuje wołający dopiero po zatwierdzeniu transakcji (wycofany import musi
+    zostawić je na miejscu, bo wiersze wracają).
     """
     from cms.models import Page
     from filer.models import File
@@ -1001,7 +1557,10 @@ def wipe(site, report: ImportReport) -> list:
     report.deleted_pages = Page.objects.filter(site=site).count()
     for root in Page.get_root_nodes().filter(site=site):
         root.delete()
-    files = list(File.objects.filter(folder__name=IMPORT_FOLDER_NAME, folder__parent__isnull=True))
+    model = redirect_model()
+    if model is not None:
+        report.deleted_redirects, _ = model.objects.filter(site=site, source=REDIRECT_SOURCE_IMPORT).delete()
+    files = list(File.objects.filter(folder__in=_import_folders(competition)))
     File.objects.filter(pk__in=[item.pk for item in files]).delete()
     report.deleted_files = len(files)
     return files
@@ -1023,20 +1582,51 @@ def _delete_stored(files: list) -> None:
             continue
 
 
-def run_import(
-    bundle: Bundle, *, user, replace: bool = False, dry_run: bool = False, site=None
-) -> ImportReport:
-    """Import w jednej transakcji do witryny ``site`` (domyślnie: konkursu domyślnego).
+def link_prefix(competition) -> str:
+    """Prefiks odnośników w tekście: ``/druga`` dla konkursu pod prefiksem ścieżki, inaczej ``""``."""
+    from apps.sites.models import RoutingMode
 
-    Bez ``replace`` i przy istniejących stronach → ``ImportRefused``.
+    if competition is None or competition.routing_mode != RoutingMode.PATH:
+        return ""
+    return competition.public_path_prefix or f"/{competition.path_prefix}"
+
+
+def run_import(
+    bundle: Bundle,
+    *,
+    user,
+    replace: bool = False,
+    dry_run: bool = False,
+    site=None,
+    competition=None,
+) -> ImportReport:
+    """Import w jednej transakcji do witryny konkursu ``competition`` (albo witryny ``site``;
+    bez obu – konkursu domyślnego).
+
+    Bez ``replace`` i przy istniejących stronach → ``ImportRefused``. Paczka innego konkursu niż
+    konkurs witryny → ``ImportRefused`` (zanim cokolwiek trafi do bazy).
     """
     from cms.models import Page
+    from django.utils import timezone
     from menus.menu_pool import menu_pool
 
-    report = ImportReport(dry_run=dry_run, source={**bundle.manifest.get("source", {})})
+    report = ImportReport(
+        dry_run=dry_run, source={**bundle.manifest.get("source", {})}, version=bundle.version
+    )
     report.source["exported_at"] = bundle.manifest.get("exported_at", "?")
     started = time.monotonic()
-    site = target_site(site)
+    if competition is not None:
+        site = competition.site
+    else:
+        site = target_site(site)
+        competition = competition_of(site)
+    if competition is not None:
+        report.competition = competition.slug
+        if bundle.competition_slug and bundle.competition_slug != competition.slug:
+            raise ImportRefused(
+                f"paczka konkursu „{bundle.competition_slug}”, a witryna docelowa należy do "
+                f"„{competition.slug}” – import odrzucony"
+            )
     created_images: list = []
     committed = False
     try:
@@ -1046,10 +1636,13 @@ def run_import(
                     raise ImportRefused(
                         "w witrynie są już strony – użyj --replace (pełny re-import) albo --if-empty"
                     )
-                removed = wipe(site, report)
+                removed = wipe(site, report, competition)
                 transaction.on_commit(lambda: _delete_stored(removed))
-            images = import_images(bundle, import_folder(), report, created=created_images)
-            import_pages(bundle, images, user, report, site)
+            images = import_images(bundle, import_folder(competition), report, created=created_images)
+            pages_by_id = import_pages(bundle, images, user, report, site, link_prefix(competition))
+            store_redirects(site, resolve_redirects(bundle, pages_by_id, report), report)
+            if competition is not None:
+                type(competition).objects.filter(pk=competition.pk).update(content_imported_at=timezone.now())
             if dry_run:
                 transaction.set_rollback(True)
         committed = not dry_run
