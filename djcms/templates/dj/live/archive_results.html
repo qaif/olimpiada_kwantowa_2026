@@ -1,0 +1,18 @@
+{% load dj_live %}{% comment %}
+  PORT dla dj. (DJ-01f) – lista „Wyniki” z ``backend/templates/cms/archive_edition_page.html``
+  (``page.result_links``). Etapy edycji z **ogłoszoną** tabelą – bez publikacji nie ma odnośnika
+  (widok ``/results/<id>/`` i tak dałby 404). Edycja z rozszerzenia strony ``ArchiveMeta``;
+  strona bez powiązanej edycji ma pustą listę, jak w Wagtailu. Odnośniki na domenę główną.
+  Sekcja z nagłówkiem i ``<ul class="results-list">`` jest w szablonie strony
+  (``dj/pages/archive_edition.html``), stąd tu same elementy listy – i dlatego dopisek „stan na”
+  stoi w szablonie strony, nad listą (``<p>`` nie może być dzieckiem ``<ul>``).
+{% endcomment %}
+{% if archive.linked and not archive.available %}
+  <li>{% dj_unavailable %}</li>
+{% else %}
+  {% for link in archive.links %}
+    <li><a href="{{ link.results_url }}">{{ link.stage.display_name }} – tabela wyników</a></li>
+  {% empty %}
+    <li class="empty">Dla tej edycji nie ogłoszono tabel wyników.</li>
+  {% endfor %}
+{% endif %}

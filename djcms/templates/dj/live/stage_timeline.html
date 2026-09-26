@@ -1,0 +1,50 @@
+{% load dj_live %}{% comment %}
+  PORT dla dj. (DJ-01f) – ``backend/templates/cms/blocks/stage_timeline.html`` (``StageTimelineBlock``).
+  Wiersze z ``GET stages`` (``apps.cms.timeline.stage_rows`` po stronie aplikacji głównej – ta sama
+  funkcja, co blok Wagtaila); daty jako gotowe napisy ``*_local_datetime``, stan etapu jako
+  ``badge_class``/``status_label`` z API. Znaczniki i klasy CSS identyczne z oryginałem (ten sam
+  arkusz) – uzasadnienie układu (karty, trzy warianty rubryk, „Wyniki do”) w oryginale.
+  Zmieniając oryginał, zmień też ten plik.
+{% endcomment %}
+{% if instance.heading %}<h2 class="stage-timeline__heading">{{ instance.heading }}</h2>{% endif %}
+{% if not live.available %}
+  {% dj_unavailable %}
+{% elif rows %}
+  <p class="hint">Terminy obowiązujące w systemie zawodów. Wszystkie godziny: czas polski.</p>
+  {% include "dj/live/_stale.html" %}
+  <ol class="timeline">
+    {% for row in rows %}
+      <li class="timeline__item {% if row.is_open %}timeline__item--open{% elif row.has_opened %}timeline__item--done{% else %}timeline__item--next{% endif %}">
+        <p class="timeline__kind">{{ row.stage.display_name }}</p>
+        <span class="{{ row.badge_class }}">{{ row.status_label }}</span>
+        <dl class="timeline__dates">
+          {% if row.stage.location %}
+            <div><dt>Miejsce</dt><dd>{{ row.stage.location }}</dd></div>
+          {% endif %}
+          {% if row.is_onsite_event %}
+            <div><dt>Termin</dt><dd>{{ row.date_range }}</dd></div>
+          {% else %}
+            {% if row.stage.is_interview %}
+              <div><dt>Forma</dt><dd>rozmowa kwalifikacyjna online</dd></div>
+            {% endif %}
+            <div><dt>Otwarcie</dt><dd>{{ row.stage.opens_at_local_datetime }}</dd></div>
+            {% if row.stage.is_interview %}
+              <div><dt>Rozmowy do</dt><dd>{{ row.stage.deadline_at_local_datetime }}</dd></div>
+            {% else %}
+              <div><dt>Oddanie rozwiązań</dt><dd>{{ row.stage.deadline_at_local_datetime }}</dd></div>
+              {% if row.stage.grace_seconds %}
+                <div><dt>Upload zamyka się</dt>
+                  <dd>{{ row.stage.submission_deadline_local_datetime }}</dd></div>
+              {% endif %}
+            {% endif %}
+          {% endif %}
+          <div><dt>Wyniki do</dt><dd>{{ row.stage.review_deadline_at_local_datetime }}</dd></div>
+        </dl>
+      </li>
+    {% endfor %}
+  </ol>
+{% else %}
+  {% include "dj/live/_stale.html" %}
+  <p class="empty"><span class="empty__title">Terminy zostaną ogłoszone</span>
+    Organizator nie wprowadził jeszcze terminów etapów bieżącej edycji.</p>
+{% endif %}

@@ -1,0 +1,44 @@
+{% extends "dj/base.html" %}
+{% load cms_tags dj_live %}
+{% comment %}
+  „Edycja w archiwum” (CMS_TEMPLATES) – PORT ``backend/templates/cms/archive_edition_page.html``
+  (DJ-01f, tabela 6.1). Sloty: ``summary`` (tekst), ``documents`` (wtyczki „Dokument archiwum” –
+  każda rysuje jeden ``<li>`` listy ``doc-list``), ``results`` (wtyczka „Wyniki edycji archiwalnej”
+  – elementy listy ``results-list``). Edycję wskazuje rozszerzenie strony ``ArchiveMeta``; jej nazwa
+  w nadtytule i odnośniki do wyników przychodzą z ``GET editions/<id>/results``
+  (``{% templatetag openblock %} dj_archive_results {% templatetag closeblock %}`` – to samo pobranie, co wtyczki).
+
+  Pusty slot ``results`` (redaktor usunął wtyczkę) rysuje tę samą listę co wtyczka: odnośniki do
+  wyników są cechą edycji, a nie ozdobą, którą da się zgubić jednym kliknięciem.
+  Klasy CSS jak w oryginale; zmieniając oryginał, zmień też ten plik.
+{% endcomment %}
+{% block content %}
+{% dj_archive_results as archive %}
+{% dj_slot_filled "summary" as has_summary %}
+<div class="page-head">
+  <span class="eyebrow">Archiwum</span>
+  <h1>{% page_attribute "title" %}</h1>
+  {% if archive.edition %}<p class="lead">Edycja: {{ archive.edition.year_label }}</p>{% endif %}
+</div>
+
+{% if has_summary %}<div class="cms-body prose">{% placeholder "summary" %}</div>{% endif %}
+
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Materiały</h2></div>
+  <ul class="doc-list">
+    {% placeholder "documents" or %}
+      <li class="empty">Do tej edycji nie dołączono jeszcze dokumentów.</li>
+    {% endplaceholder %}
+  </ul>
+</section>
+
+<section class="section">
+  <div class="section__head"><h2 class="mt-0">Wyniki</h2></div>
+  {% include "dj/live/_stale.html" with live=archive.live %}
+  <ul class="results-list">
+    {% placeholder "results" or %}
+      {% include "dj/live/archive_results.html" %}
+    {% endplaceholder %}
+  </ul>
+</section>
+{% endblock %}

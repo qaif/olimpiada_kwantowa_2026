@@ -1,0 +1,105 @@
+{% load dj_live %}{% comment %}
+  PORT dla dj. (DJ-01f) – część danych ``backend/templates/cms/problems_page.html``: karta etapu
+  bieżącego, tabela zadań (dopiero po otwarciu) i arkusz treningowy. Nagłówek strony, wprowadzenie
+  i treści dodatkowe są w szablonie strony (``dj/pages/problems.html``) – tak jak w Wagtailu stoją
+  wokół tych sekcji.
+
+  Reguła 2 z § 7: tabela zadań stoi wyłącznie przy ``stage_has_opened`` policzonym w
+  ``apps.live.data.problems_context`` (API **i** zegar ``dj.``), a przed otwarciem – sam
+  komunikat, bez tytułu i bez odnośnika. PDF zawsze przez widok aplikacji głównej
+  (``statement_url`` → ``ProblemStatementView``, który sprawdza to samo), nigdy adres magazynu.
+  Znaczniki i klasy CSS identyczne z oryginałem. Zmieniając oryginał, zmień też ten plik.
+{% endcomment %}
+{% if not live.available %}
+  {% dj_unavailable %}
+{% else %}
+{% include "dj/live/_stale.html" %}
+{% if not stage %}
+  <p class="notice">Nie ustawiono bieżącej edycji ani etapu.</p>
+{% else %}
+  <section class="card card--accent">
+    <div class="card__head">
+      <h2 class="mt-0 card__title">{{ stage.display_name }} – {{ stage.edition_year_label }}</h2>
+      {% if stage_has_opened %}
+        <span class="badge badge--ok">etap otwarty</span>
+      {% else %}
+        <span class="badge badge--neutral">przed otwarciem</span>
+      {% endif %}
+    </div>
+    <dl class="meta-list">
+      {% if stage.event_range %}
+        <dt>Termin wydarzenia</dt><dd>{{ stage.event_dates }}</dd>
+      {% endif %}
+      {% if stage.location %}<dt>Miejsce</dt><dd>{{ stage.location }}</dd>{% endif %}
+      <dt>Otwarcie</dt><dd>{{ stage.opens_at_local_time }}</dd>
+      <dt>Termin oddania</dt><dd>{{ stage.deadline_at_local_time }}</dd>
+    </dl>
+  </section>
+
+  {% if stage_has_opened %}
+    <div class="scroll">
+      <table class="table">
+        <caption>Zadania etapu</caption>
+        <thead><tr><th>Nr</th><th>Tytuł</th><th>Treść</th><th>Formaty</th></tr></thead>
+        <tbody>
+          {% for problem in problems %}
+            <tr>
+              <td class="num">{{ problem.number }}</td>
+              <td>{{ problem.title }}</td>
+              <td>
+                {% if problem.statement_url %}
+                  <a class="btn btn--secondary btn--small" href="{{ problem.statement_url }}">PDF</a>
+                {% else %}
+                  <span class="hint">brak pliku</span>
+                {% endif %}
+              </td>
+              <td>{{ problem.allowed_formats|join:", " }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="empty">Ten etap nie ma jeszcze zadań.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {# Przed opens_at: żadnego tytułu, żadnego linku – tylko komunikat (reguła 2, kryterium 4). #}
+    <p class="notice">{{ notice }}</p>
+  {% endif %}
+{% endif %}
+
+{% if training_stage %}
+  <section class="section" id="zadania-treningowe">
+    <div class="section__head">
+      <h2 class="mt-0">Zadania treningowe</h2>
+      <span class="badge badge--neutral">trening</span>
+    </div>
+    <p class="hint">Bez terminu. Po zgłoszeniu się do treningu możesz wysyłać rozwiązania z panelu
+      uczestnika, ale <strong>nie będą one sprawdzane ani oceniane</strong> – zadania treningowe służą
+      do zapoznania się z zakresem materiału i nie liczą się do kwalifikacji.</p>
+    <div class="scroll">
+      <table class="table">
+        <caption>Arkusz treningowy: {{ training_stage.display_name }}</caption>
+        <thead><tr><th>Nr</th><th>Tytuł</th><th>Treść</th><th>Formaty</th></tr></thead>
+        <tbody>
+          {% for problem in training_problems %}
+            <tr>
+              <td class="num">{{ problem.number }}</td>
+              <td>{{ problem.title }}</td>
+              <td>
+                {% if problem.statement_url %}
+                  <a class="btn btn--secondary btn--small" href="{{ problem.statement_url }}">PDF</a>
+                {% else %}
+                  <span class="hint">brak pliku</span>
+                {% endif %}
+              </td>
+              <td>{{ problem.allowed_formats|join:", " }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="empty">Arkusz treningowy jest jeszcze pusty.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endif %}
+{% endif %}

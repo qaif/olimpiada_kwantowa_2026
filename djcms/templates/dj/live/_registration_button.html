@@ -1,0 +1,19 @@
+{% comment %}
+  Przycisk rejestracji ze strony głównej Wagtaila (hero i sekcja „Jak zacząć”). Stan okna
+  rejestracji z ``chrome.registration`` – ta sama funkcja, co procesor kontekstu aplikacji głównej:
+  otwarta → „Zarejestruj się”, przed terminem → „Rejestracja rusza <data>”, poza oknem – nic.
+  Formularz jest na domenie głównej (``chrome.links.register``). Przy martwym API przycisku nie ma
+  (§ 8.3); „Zaloguj się” stawia osobno szablon, który ten plik włącza.
+
+  Zmienna ``wrap="steps"`` (``include … with wrap="steps"``) owija przycisk w
+  ``<p class="steps__cta">`` – tak stoi pod krokami „Jak zacząć” (wtyczka sekcji kroków, DJ-01e).
+{% endcomment %}
+{% with reg=dj_chrome.registration register_url=dj_chrome.links.register %}
+{% if dj_chrome.available and register_url %}
+  {% if reg.is_open %}
+    {% if wrap == "steps" %}<p class="steps__cta">{% endif %}<a class="btn btn--accent" href="{{ register_url }}">Zarejestruj się</a>{% if wrap == "steps" %}</p>{% endif %}
+  {% elif reg.reason == "not_yet" %}
+    {% if wrap == "steps" %}<p class="steps__cta">{% endif %}<a class="btn btn--accent" href="{{ register_url }}">Rejestracja rusza {{ reg.opens_at_display }}</a>{% if wrap == "steps" %}</p>{% endif %}
+  {% endif %}
+{% endif %}
+{% endwith %}

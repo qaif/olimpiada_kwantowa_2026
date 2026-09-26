@@ -1,0 +1,17 @@
+{% extends "dj/base.html" %}
+{% load cms_tags dj_live %}
+{% comment %}
+  „Wyniki” (CMS_TEMPLATES) – PORT ``backend/templates/cms/results_page.html`` (DJ-01f, tabela 6.1).
+  Sloty: ``intro`` (tekst), ``results`` (wtyczka „Tabele wyników” – wyłącznie snapshot publikacji
+  z API; ``dj/live/results.html``). Klasy CSS jak w oryginale; zmieniając oryginał, zmień też ten plik.
+{% endcomment %}
+{% block content %}
+{% dj_slot_filled "intro" as has_intro %}
+<div class="page-head">
+  <span class="eyebrow">Wyniki</span>
+  <h1>{% page_attribute "title" %}</h1>
+  {% if has_intro %}<div class="lead">{% placeholder "intro" %}</div>{% endif %}
+</div>
+
+{% placeholder "results" %}
+{% endblock %}
