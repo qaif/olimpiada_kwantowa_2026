@@ -224,6 +224,11 @@ MIDDLEWARE = [
     # ``process_view`` i wyłącznie dla tych adresów; **za** ``AuthenticationMiddleware`` i za
     # drugim składnikiem, bo pyta o uprawnienia zalogowanego konta.
     "apps.cms.middleware.CmsScopeMiddleware",
+    # Zamrożenie edycji stron Wagtaila po przełączeniu na django CMS (DJ-02 § 1.2 D9, S13):
+    # widoki ``/cms/`` zmieniające stan strony → 403, gdy ``manage.py cms_freeze on``. Tuż obok
+    # zasięgu redaktora i z tego samego powodu za uwierzytelnieniem; poza adresami z listy
+    # (apps/cms/middleware.py) nie wykonuje żadnego zapytania.
+    "apps.cms.middleware.CmsFreezeMiddleware",
     # Wymagana przez allauth: ustawia kontekst żądania (``allauth.core.context``), z którego
     # korzystają adaptery i przepływ social login. Nie montuje żadnego adresu i nie zmienia
     # obsługi 404 – przekierowanie „/accounts/ → logowanie” włącza się dopiero, gdy istnieje

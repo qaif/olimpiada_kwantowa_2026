@@ -539,6 +539,21 @@ class CMSPage(Page):
     class Meta:
         abstract = True
 
+    # Zamrożenie edycji po przełączeniu na django CMS (``apps.cms.freeze``, DJ-02 § 1.2 D9). Obie
+    # metody są punktami rozszerzeń Wagtaila: tester uprawnień decyduje o każdym przycisku i każdym
+    # sprawdzeniu w widokach panelu, a blokada robi z ekranu edycji podgląd tylko do odczytu. Przy
+    # wyłączonym zamrożeniu obie oddają dokładnie to, co oddałby Wagtail.
+
+    def permissions_for_user(self, user):
+        from .freeze import frozen_permission_tester
+
+        return frozen_permission_tester(self, user) or super().permissions_for_user(user)
+
+    def get_lock(self):
+        from .freeze import freeze_lock
+
+        return freeze_lock(self) or super().get_lock()
+
     def is_second_level(self) -> bool:
         """Czy strona jest (albo dopiero będzie) bezpośrednim dzieckiem strony głównej."""
         if self.depth:
@@ -1605,3 +1620,37 @@ class WorkshopAttendance(models.Model):
 
     def __str__(self) -> str:
         return f"{self.participant_id} @ {self.workshop_key}"
+
+
+class EditingFreeze(models.Model):
+    """Zamrożenie edycji stron Wagtaila po przełączeniu serwisu na django CMS (DJ-02 § 1.2 D9).
+
+    Jeden wiersz na instalację (klucz ``1``, pilnuje tego constraint). Stan jest w bazie, a nie
+    w ``.env``, bo przełącza go skrypt przełączenia (``manage.py cms_freeze on|off``) **bez**
+    restartu ``web`` – wszystkie procesy czytają ten sam wiersz, każdy z pamięcią na 10 s
+    (``apps.cms.freeze``). Brak wiersza znaczy „nie zamrożono”: świeża instalacja i baza sprzed
+    tej migracji zachowują się dokładnie tak, jak przed DJ-02.
+    """
+
+    SINGLETON_PK = 1
+
+    id = models.PositiveSmallIntegerField(primary_key=True, default=SINGLETON_PK, editable=False)
+    active = models.BooleanField("zamrożone", default=False)
+    message = models.CharField(
+        "komunikat na banerze",
+        max_length=500,
+        blank=True,
+        help_text="Pierwsze zdanie banera w /cms/. Puste = tekst domyślny.",
+    )
+    changed_at = models.DateTimeField("zmieniono", null=True, blank=True)
+    changed_by = models.CharField("zmienił", max_length=150, blank=True)
+
+    class Meta:
+        verbose_name = "zamrożenie edycji stron"
+        verbose_name_plural = "zamrożenie edycji stron"
+        constraints = [
+            models.CheckConstraint(condition=Q(id=1), name="cms_editing_freeze_singleton"),
+        ]
+
+    def __str__(self) -> str:
+        return "zamrożone" if self.active else "edycja otwarta"

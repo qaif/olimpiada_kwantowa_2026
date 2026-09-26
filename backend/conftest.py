@@ -240,19 +240,22 @@ def _clear_process_caches():
 
     Dwa przełączniki czytane przy każdej odpowiedzi HTML trzymają wynik przez 30 s w słowniku
     modułu: identyfikator GA4 (``apps.cms.analytics``) i rejestracja opiekunów
-    (``apps.accounts.supervisors``). Wycofanie transakcji ich nie czyści, a klucz (identyfikator
-    witryny domyślnej) jest w każdym teście ten sam – więc bez tego wynik testu zależał od tego,
+    (``apps.accounts.supervisors``); trzeci – zamrożenie edycji stron (``apps.cms.freeze``, 10 s).
+    Wycofanie transakcji ich nie czyści, a klucz (identyfikator witryny domyślnej) jest w każdym
+    teście ten sam – więc bez tego wynik testu zależał od tego,
     co przed nim biegło w **tym samym procesie**. Pod xdist kolejność zmienia się z każdym
     przebiegiem, więc zależność od kolejności zamieniłaby się w losowe czerwone testy.
     """
     from apps.accounts.supervisors import reset_registration_cache
-    from apps.cms import analytics
+    from apps.cms import analytics, freeze
 
     analytics._cache.clear()
     reset_registration_cache()
+    freeze.reset_cache()
     yield
     analytics._cache.clear()
     reset_registration_cache()
+    freeze.reset_cache()
 
 
 # =================================================================================================

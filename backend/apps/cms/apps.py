@@ -21,10 +21,13 @@ class CmsConfig(AppConfig):
         # (apps/cms/signals.py). Bez tego koordynator nadany po ``scope_cms_access`` nie miałby
         # ``/cms/`` do najbliższego ręcznego przebiegu komendy.
         # Piąty: rejestracja kontroli ``manage.py check`` (apps/cms/checks.py, ``cms.W010``).
+        # Szósty: odbiorniki czyszczące pamięć stanu zamrożenia edycji stron po zapisie wiersza
+        # ``cms.EditingFreeze`` (apps/cms/freeze.py, DJ-02 § 1.2 D9).
         from . import (  # noqa: F401
             analytics,
             announcements,
             checks,
+            freeze,
             signals,  # noqa: F401
             sponsor_slider,
         )

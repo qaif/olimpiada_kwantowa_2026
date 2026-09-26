@@ -21,10 +21,18 @@ Pozostałe haki: wybór strony pokazuje wyłącznie poddrzewo redaktora i drogę
 wyboru komunikatu — komunikaty jego konkursów, API panelu (``/cms/api/main/images|documents/``) —
 pliki jego kolekcji, a raport „Użycie typów stron” znika z menu redaktora z ograniczeniami
 w instalacji z kilkoma witrynami (sam adres zamyka ``apps.cms.middleware``).
+
+**Zamrożenie edycji stron** (``apps.cms.freeze``, DJ-02 § 1.2 D9): baner nad każdym ekranem
+``/cms/``, objaśnienie na ekranie edycji strony-danych i menu akcji ograniczone do informacji
+o blokadzie. To jest warstwa **informacyjna** – zapis zamyka ``CmsFreezeMiddleware``, a przyciski
+chowa tester uprawnień stron.
 """
 
+from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
+from django.utils.html import format_html, json_script
+from django.utils.safestring import mark_safe
 from wagtail import hooks
 from wagtail.admin.panels import FieldPanel, MultiFieldPanel
 from wagtail.documents.api.admin.views import DocumentsAdminAPIViewSet
@@ -37,7 +45,7 @@ from wagtail.snippets.views import snippets as snippet_views
 from wagtail.snippets.views.chooser import SnippetChooserViewSet
 from wagtail.snippets.views.snippets import SnippetViewSet
 
-from . import scope
+from . import freeze, scope
 from .models import Announcement
 
 
@@ -215,3 +223,107 @@ def scope_admin_api(router):
     rejestracja jest ostatnim słowem (``WagtailAPIRouter.register_endpoint`` nadpisuje nazwę)."""
     router.register_endpoint("images", ScopedImagesAdminAPIViewSet)
     router.register_endpoint("documents", ScopedDocumentsAdminAPIViewSet)
+
+
+# --- zamrożenie edycji stron (DJ-02 § 1.2 D9) ---------------------------------------------------------
+
+#: Skrypt banera. Treść przychodzi w ``<script type="application/json">`` (``json_script`` escapuje
+#: ``<``, ``>`` i ``&``) i trafia do DOM-u wyłącznie przez ``textContent`` – komunikat operatora
+#: nie jest nigdy interpretowany jako HTML. Polityka CSP panelu dopuszcza skrypty inline
+#: (``apps.web.middleware.build_admin_policy``).
+FREEZE_BANNER_SCRIPT = """
+(function () {
+  var source = document.getElementById("cms-freeze-banner-data");
+  if (!source) { return; }
+  var data = JSON.parse(source.textContent);
+  function mount() {
+    var host = document.querySelector("#main .content");
+    if (!host || document.querySelector("[data-cms-freeze-banner]")) { return; }
+    var box = document.createElement("div");
+    box.setAttribute("data-cms-freeze-banner", "");
+    box.setAttribute("role", "status");
+    box.className = "help-block help-warning";
+    box.style.margin = "1rem";
+    var lead = document.createElement("strong");
+    lead.textContent = data.message;
+    box.appendChild(lead);
+    box.appendChild(document.createTextNode(" " + data.details + " "));
+    var link = document.createElement("a");
+    link.href = data.url;
+    link.textContent = data.link_label;
+    box.appendChild(link);
+    host.insertBefore(box, host.firstChild);
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", mount);
+  } else {
+    mount();
+  }
+})();
+"""
+
+FREEZE_BANNER_DETAILS = (
+    "Strony są tu tylko do odczytu. Wyjątki: „Warsztaty” i „Partnerzy” (dane aplikacji) – ich treść "
+    "edytujesz dalej tutaj. Ustawienia serwisu, komunikaty, obrazy i dokumenty działają bez zmian."
+)
+
+#: Objaśnienie na ekranie edycji strony-danych: co z niej trafia na stronę publiczną (ryzyko 8).
+DATA_PAGE_NOTES = {
+    "cms.contentpage": (
+        "Tę stronę edytujesz dalej w Wagtailu, mimo przeniesienia edycji do django CMS: tabela "
+        "warsztatów jest danymi aplikacji (obecności, zaświadczenia, zapowiedź), a django CMS "
+        "pokazuje ją na żywo. Adresu strony (sluga) nie można zmienić."
+    ),
+    "cms.partnerspage": (
+        "Tę stronę edytujesz dalej w Wagtailu, mimo przeniesienia edycji do django CMS: lista "
+        "partnerów zasila slider sponsorów, a django CMS pokazuje ją na żywo. Adresu strony "
+        "(sluga) nie można zmienić."
+    ),
+}
+
+
+@hooks.register("insert_global_admin_js")
+def editing_freeze_banner():
+    """Baner „edycja przeniesiona do django CMS” nad treścią każdego ekranu ``/cms/``."""
+    state = freeze.freeze_state()
+    if not state.active:
+        return ""
+    data = {
+        "message": state.banner_message,
+        "details": FREEZE_BANNER_DETAILS,
+        "url": freeze.djcms_url(),
+        "link_label": "Przejdź do django CMS",
+    }
+    return format_html(
+        "{}<script>{}</script>",
+        json_script(data, "cms-freeze-banner-data"),
+        mark_safe(FREEZE_BANNER_SCRIPT),  # noqa: S308 - stała modułu, bez danych z zewnątrz
+    )
+
+
+@hooks.register("before_edit_page")
+def explain_data_page_during_freeze(request, page):
+    """Na ekranie edycji strony-danych mówi, dlaczego ta jedna strona nie jest zamrożona."""
+    if request.method != "GET" or not request.accepts("text/html"):
+        return None
+    if not freeze.is_frozen() or not freeze.is_exempt(page):
+        return None
+    note = DATA_PAGE_NOTES.get(page.specific_class._meta.label_lower)
+    if note:
+        messages.info(request, note)
+    return None
+
+
+@hooks.register("construct_page_action_menu")
+def freeze_page_action_menu(menu_items, request, context):
+    """Menu akcji zamrożonej strony: wyłącznie informacja o blokadzie (bez zapisu i publikacji).
+
+    Blokada zamrożenia robi to już sama (Wagtail chowa pozycje przy ``locked_for_user``); hak
+    domyka pozycje dokładane przez inne haki i ekran tworzenia strony.
+    """
+    if not freeze.is_frozen():
+        return
+    page = context.get("page")
+    if page is not None and freeze.is_exempt(page):
+        return
+    menu_items[:] = [item for item in menu_items if item.name == "action-page-locked"]

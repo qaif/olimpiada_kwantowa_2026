@@ -1,0 +1,24 @@
+{% extends "wagtailadmin/base.html" %}
+{% comment %}
+    Odmowa czynności na stronie w czasie zamrożenia edycji (apps/cms/middleware.py,
+    CmsFreezeMiddleware; DJ-02 § 1.2 D9). Wszystkie wartości są zwykłym tekstem – autoescape.
+{% endcomment %}
+{% block titletag %}Edycja stron zamrożona{% endblock %}
+
+{% block content %}
+    {% include "wagtailadmin/shared/header.html" with title="Edycja stron zamrożona" icon="lock" %}
+
+    <div class="nice-padding" data-cms-freeze-denied>
+        <p><strong>{{ message }}</strong></p>
+        <p>{{ reason }}</p>
+        <p>
+            Wyjątki: strony „Warsztaty” i „Partnerzy” – ich treść nadal edytuje się tutaj, bo
+            aplikacja czyta z nich harmonogram warsztatów i listę sponsorów. Ustawienia serwisu,
+            komunikaty, obrazy i dokumenty działają bez zmian.
+        </p>
+        <p>
+            <a class="button" href="{{ djcms_url }}">Przejdź do django CMS</a>
+            <a class="button button-secondary" href="{{ back_url }}">Wróć do listy stron</a>
+        </p>
+    </div>
+{% endblock %}
