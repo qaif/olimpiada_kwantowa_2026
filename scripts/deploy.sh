@@ -76,10 +76,17 @@
 # Serwis publiczny na django CMS (docs/tasks/DJ-02.md § 3, § 10) – `DJCMS_PRIMARY` w .env (0/1) czyta
 # generator konfiguracji proxy w kroku 4/8 (1 bez DJCMS_ENABLED=1 zatrzymuje wdrożenie przed
 # budowaniem). Wdrożenie trybu NIE zmienia – przełącza scripts/djcms_switch.sh on|off (bez restartu
-# kontenerów). Przy DJCMS_ENABLED=1 krok „dj.” dodatkowo: odtwarza `proxy`, gdy kontener widzi starą
-# treść Caddyfile'a (krok 2/8 tworzy katalog deploy/ od nowa, a montaż pojedynczego pliku zostaje
-# przy starym i-węźle), uzgadnia rejestr konkursów djcms (`sync_competitions`), a przy
-# DJCMS_PRIMARY=1 kończy kontrolą dymną (`djcms_switch.sh check`).
+# kontenerów). Przy DJCMS_ENABLED=1 krok „dj.” dodatkowo uzgadnia rejestr konkursów djcms
+# (`sync_competitions`), a przy DJCMS_PRIMARY=1 kończy kontrolą dymną (`djcms_switch.sh check`).
+#
+# Konfiguracja proxy (docs/OPERACJE.md § 23) – przy KAŻDYM wdrożeniu, bez przełącznika. Krok 4/8
+# składa <REMOTE_DIR>/caddy/Caddyfile (scripts/proxy_config.sh render: deploy/Caddyfile + .env,
+# `caddy validate` w działającym proxy – odrzucona konfiguracja zatrzymuje wdrożenie, zanim
+# cokolwiek zostanie zbudowane albo zatrzymane), a krok 4c/8, po starcie usług, ładuje ją
+# `caddy reload` (bez restartu proxy i bez zrywania połączeń). Proxy montuje katalog caddy/
+# (CADDY_CONFIG_DIR=./caddy w .env), który krok 2/8 omija; dawny montaż pojedynczego pliku
+# z deploy/ zostawał po kroku 2/8 przy skasowanej, starej treści. Kontener, który mimo to widzi
+# inną treść (albo nie działa), 4c/8 odtwarza – kilka sekund bez HTTPS.
 set -euo pipefail
 
 MAINTENANCE=0
@@ -163,7 +170,9 @@ log "2/8 Kod: git archive HEAD -> $REMOTE_DIR"
 # działające proxy, a katalog skasowany i utworzony od nowa proxy widziałoby jako pusty (bez strony).
 # `secrets` (token Dysku Google dla kopii poza serwerem, odświeżany przez rclone – scripts/lib/
 # backup_offsite.sh) zostaje z tego samego powodu, co `.env`: nie ma go w repozytorium.
-"${SSH[@]}" "mkdir -p '$REMOTE_DIR' && find '$REMOTE_DIR' -mindepth 1 -maxdepth 1 ! -name .env ! -name 'e2e' ! -name maintenance ! -name secrets -exec rm -rf {} +"
+# `caddy` (konfiguracja proxy, scripts/proxy_config.sh) – jak `maintenance`: montuje go działające
+# proxy, a katalog skasowany i utworzony od nowa widziałoby jako stary (OPERACJE § 23).
+"${SSH[@]}" "mkdir -p '$REMOTE_DIR' && find '$REMOTE_DIR' -mindepth 1 -maxdepth 1 ! -name .env ! -name 'e2e' ! -name maintenance ! -name secrets ! -name caddy -exec rm -rf {} +"
 git archive --format=tar HEAD | "${SSH[@]}" "tar -x -C '$REMOTE_DIR'"
 
 log "3/8 .env (tworzony tylko przy pierwszym wdrożeniu)"
@@ -305,11 +314,25 @@ if ! grep -qE '^#? *PLATFORM_SUBDOMAINS=' .env; then
   } >> .env
   chmod 600 .env
 fi
-if ! grep -qE '^CADDYFILE_PATH=' .env; then
+# Katalog konfiguracji proxy (OPERACJE § 23). Dawny wpis CADDYFILE_PATH (montaż pojedynczego pliku
+# z deploy/, który krok 2/8 kasuje) wpisało to samo wdrożenie – znika razem ze swoim komentarzem,
+# bo compose już go nie czyta. Wartość inną niż ta, którą wdrożenie wpisało, ustawił ktoś ręcznie
+# (własny plik proxy) – nie wyrzucamy jej po cichu, tylko zatrzymujemy się z instrukcją.
+if grep -qE '^CADDYFILE_PATH=' .env; then
+  case "$(sed -n 's/^CADDYFILE_PATH=//p' .env | tail -n 1 | tr -d '\r\042\047')" in
+    ./deploy/Caddyfile.generated|deploy/Caddyfile.generated) ;;
+    *) echo "BŁĄD: CADDYFILE_PATH w .env wskazuje własny plik proxy – przenieś go do deploy/Caddyfile albo usuń tę linijkę (docs/OPERACJE.md § 23)"; exit 1 ;;
+  esac
+  sed -i -e '/^# Konfiguracja proxy montowana do kontenera: plik składany z deploy\/Caddyfile$/d' \
+    -e '/^# i EXTRA_DOMAINS przez scripts\/render_caddyfile.sh (patrz docker-compose.yml)\.$/d' \
+    -e '/^CADDYFILE_PATH=/d' .env
+  chmod 600 .env
+fi
+if ! grep -qE '^CADDY_CONFIG_DIR=' .env; then
   {
-    echo "# Konfiguracja proxy montowana do kontenera: plik składany z deploy/Caddyfile"
-    echo "# i EXTRA_DOMAINS przez scripts/render_caddyfile.sh (patrz docker-compose.yml)."
-    echo "CADDYFILE_PATH=./deploy/Caddyfile.generated"
+    echo "# Konfiguracja proxy: katalog caddy/ (plik Caddyfile składany z deploy/Caddyfile i tego .env"
+    echo "# przez scripts/proxy_config.sh) montowany do kontenera jako /etc/caddy – OPERACJE § 23."
+    echo "CADDY_CONFIG_DIR=./caddy"
   } >> .env
   chmod 600 .env
 fi
@@ -411,17 +434,19 @@ if [ "$DJCMS_ON" = "1" ]; then
     esac
   fi
 fi
-# Generator chodzi przy każdym wdrożeniu, także gdy EXTRA_DOMAINS jest puste: krok 2/8 czyści
-# katalog z wszystkiego poza .env, a plik wynikowy nie jest w repozytorium. Przy pustej liście
-# i wyłączonym PLATFORM_SUBDOMAINS wynik jest kopią deploy/Caddyfile co do bajtu
-# (scripts/tests/render_caddyfile_test.sh).
+# Generator chodzi przy każdym wdrożeniu, także gdy EXTRA_DOMAINS jest puste: deploy/Caddyfile
+# mogło się zmienić razem z kodem. Przy pustej liście i wyłączonym PLATFORM_SUBDOMAINS wynik jest
+# kopią deploy/Caddyfile co do bajtu (scripts/tests/render_caddyfile_test.sh).
 #
 # Obie zmienne generator czyta **sam**, z <REMOTE_DIR>/.env: skrypt wywołuje go z katalogu
 # wdrożenia, więc jego `ROOT` to ten katalog. Dlatego PLATFORM_SUBDOMAINS trafia do konfiguracji
 # proxy tą samą drogą co EXTRA_DOMAINS i wdrożenie nie musi nic przekazywać przez środowisko
 # (ani nie da się przez pomyłkę nadpisać wartości z serwera zmienną z własnej powłoki).
-chmod +x scripts/render_caddyfile.sh
-./scripts/render_caddyfile.sh
+#
+# Nowy plik trafia do caddy/Caddyfile dopiero po `caddy validate` w działającym proxy; odrzucony
+# zatrzymuje wdrożenie TUTAJ – przed budowaniem i przed stroną prac technicznych. Proxy ładuje go
+# w kroku 4c/8 (po starcie usług, z których nowa konfiguracja może korzystać).
+bash scripts/proxy_config.sh render </dev/null
 # Źródło obrazu aplikacji: rejestr albo build na miejscu. Rozgałęzienie, a nie podmiana – bez
 # WEB_IMAGE wykonuje się dokładnie to polecenie, które wykonywało się dotąd
 # (docs/UNIWERSALNY-ETAP-2.md § 0.2 pkt 11 i § 1.7.2).
@@ -619,6 +644,18 @@ log "4b/8 Start usług (migracje wykonuje entrypoint kontenera web)"
 DJCMS_SVC=""
 [ "$DJCMS_ON" = "1" ] && DJCMS_SVC=" djcms"
 "${SSH[@]}" "cd '$REMOTE_DIR' && docker compose up -d --remove-orphans db redis minio minio-init clamav mail web worker beat proxy$DJCMS_SVC"
+
+log "4c/8 Konfiguracja proxy: caddy reload"
+# `up -d` wyżej odtwarza proxy wyłącznie przy zmianie jego konfiguracji compose'a (obraz, montaże,
+# środowisko) – zmiana samej treści caddy/Caddyfile z kroku 4/8 do działającego Caddy'ego nie
+# dochodzi bez przeładowania. `caddy reload` podmienia konfigurację bez restartu kontenera i bez
+# zrywania połączeń (niezmieniona = no-op). Proxy, które nie działa albo widzi inną treść (montaż
+# sprzed CADDY_CONFIG_DIR), skrypt odtwarza. Po starcie usług, a nie w kroku 4/8: nowe trasy mogą
+# prowadzić do usług, które dopiero wstały. Przy --maintenance: przed kontrolą z przepustką (5a),
+# więc ta sprawdza serwis już przez nową konfigurację; błąd zostawia stronę włączoną (pułapka EXIT).
+# Nowa konfiguracja odrzucona przez reload albo niewstające po odtworzeniu proxy: caddy/Caddyfile
+# wraca do poprzedniej treści (caddy/Caddyfile.prev), proxy działa na niej, wdrożenie – kod 1.
+"${SSH[@]}" "cd '$REMOTE_DIR' && bash scripts/proxy_config.sh apply </dev/null"
 
 log "5/8 Oczekiwanie na healthy"
 # Przy DJCMS_ENABLED=1 warunek dostaje trzeci człon (djcms=healthy); bez niego tekst skryptu jest
@@ -913,7 +950,7 @@ if [ "$DJCMS_ON" = "1" ]; then
   # Na samym końcu, a nie w kroku 6 (jak w DJ-01 § 8.10): błąd wersji porównawczej – np. import
   # bez konta administratora – nie może zatrzymać kroków 6a–8/8 głównego serwisu (konkurs, DNS
   # poczty, cron kopii). Tu kończy się już tylko samo wdrożenie, kodem ≠ 0 i z komunikatem.
-  log "dj. django CMS: konfiguracja proxy, grupa redaktorów, administrator, rejestr konkursów, pierwszy import, tryb serwisu"
+  log "dj. django CMS: grupa redaktorów, administrator, rejestr konkursów, pierwszy import, tryb serwisu"
   # Dane administratora przez STANDARDOWE WEJŚCIE (pierwsze linijki skryptu), a nie jak
   # COORDINATOR_* w argumentach `env` po ssh: argumenty procesu widzi `ps` każdego konta na
   # serwerze przez cały czas trwania kroku. Wartości zacytowane printf %q (wartość ze spacją albo
@@ -929,22 +966,7 @@ export DJCMS_ADMIN_EMAIL DJCMS_ADMIN_PASSWORD
 cd "$REMOTE_DIR"
 docker compose ps --format '{{.Service}}={{.Health}}' | grep -qx 'djcms=healthy' \
   || { echo "BŁĄD: djcms nie jest healthy – docker compose logs djcms"; exit 1; }
-# Proxy montuje deploy/Caddyfile.generated jako pojedynczy plik, czyli i-węzeł z chwili startu
-# kontenera – a krok 2/8 tworzy katalog deploy/ od nowa. `up -d` w 4b odtwarza proxy tylko przy
-# zmianie jego konfiguracji compose'a, więc bez tego kontener czytałby starą treść: nowe trasy
-# (np. nowy adres aplikacji w kontrakcie tras) by nie działały, a scripts/djcms_switch.sh
-# przeładowałby starą konfigurację. Odtworzenie wyłącznie przy różnej treści (kilka sekund bez
-# HTTPS); niedziałające proxy = pusta suma = odtworzenie.
-HOST_SUM="$(sha256sum deploy/Caddyfile.generated | cut -d' ' -f1)"
-BOX_SUM="$(docker compose exec -T proxy sha256sum /etc/caddy/Caddyfile </dev/null | tr -d '\r' | cut -d' ' -f1 || true)"
-if [ "$HOST_SUM" != "$BOX_SUM" ]; then
-  echo "dj.: proxy widzi poprzednią wersję Caddyfile'a – odtwarzam kontener proxy"
-  docker compose up -d --force-recreate --no-deps proxy </dev/null
-  for _ in $(seq 1 30); do
-    docker compose ps --format '{{.Service}}={{.Health}}' | grep -qx 'proxy=healthy' && break
-    sleep 2
-  done
-fi
+# Konfiguracja proxy (trasy djcms, tryb DJCMS_PRIMARY) jest już załadowana – krok 4c/8.
 # </dev/null: exec nie może czytać stdin, bo to strumień tego skryptu.
 # Grupa „Redaktorzy” przy każdym wdrożeniu: jej uprawnienia wynikają z kodu (nowe wtyczki).
 docker compose exec -T djcms python manage.py setup_djcms_groups </dev/null

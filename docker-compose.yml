@@ -69,13 +69,14 @@ services:
       - "443:443"
       - "9000:9000"   # publiczny endpoint S3 (S3_PUBLIC_ADDRESS=<domena>:9000), gdy brak rekordu DNS s3.<domena>
     volumes:
-      # Domyślnie plik źródłowy – instalacja z jednym konkursem nie potrzebuje niczego generować
-      # i dostaje dokładnie tę konfigurację, którą widać w repozytorium. Instalacja z wieloma
-      # konkursami ustawia w .env CADDYFILE_PATH=./deploy/Caddyfile.generated (plik składa
-      # scripts/render_caddyfile.sh z deploy/Caddyfile + EXTRA_DOMAINS; robi to scripts/deploy.sh
-      # przed startem usług). Zmienna, a nie drugi montaż na sztywno: bind na nieistniejący plik
-      # daje katalog, a katalog w miejscu Caddyfile'a to proxy, które nie wstaje.
-      - ${CADDYFILE_PATH:-./deploy/Caddyfile}:/etc/caddy/Caddyfile:ro
+      # KATALOG z plikiem `Caddyfile`, a nie pojedynczy plik (docs/OPERACJE.md § 23). Domyślnie
+      # deploy/ z repozytorium – środowisko deweloperskie dostaje dokładnie deploy/Caddyfile.
+      # Serwer ma w .env CADDY_CONFIG_DIR=./caddy: katalog stanu, który krok 2/8 scripts/deploy.sh
+      # omija (jak maintenance/), a plik w nim składa scripts/proxy_config.sh (deploy/Caddyfile
+      # + .env, caddy validate). Montaż pojedynczego pliku z deploy/ trzymał i-węzeł z chwili startu
+      # kontenera – po wdrożeniu Caddy widział skasowaną, starą treść. Katalog, który nie znika,
+      # widzi każdą nową wersję, więc wdrożenie ładuje ją przez `caddy reload`, bez restartu proxy.
+      - ${CADDY_CONFIG_DIR:-./deploy}:/etc/caddy:ro
       - static_files:/srv/static:ro
       - caddy_data:/data
       - caddy_config:/config

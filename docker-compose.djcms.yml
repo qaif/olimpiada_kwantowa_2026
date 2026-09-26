@@ -28,7 +28,7 @@ services:
   proxy:
     volumes:
       # Pliki wgrane przez redaktorów djcms (filer) – tylko do odczytu; pisze do wolumenu wyłącznie
-      # djcms. Każdy blok aplikacji w deploy/Caddyfile.generated (scripts/render_caddyfile.sh)
+      # djcms. Każdy blok aplikacji w caddy/Caddyfile (scripts/render_caddyfile.sh)
       # podaje je pod /djcms/media/* (DJ-02 D2), z CSP `sandbox` poza PDF-em.
       - djcms_media:/srv/djcms-media:ro
     networks:

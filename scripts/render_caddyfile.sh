@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Generuje `deploy/Caddyfile.generated` = `deploy/Caddyfile` + blok serwerowy dla każdej domeny
-# z `EXTRA_DOMAINS`. Uruchamia go `scripts/deploy.sh` (krok 4/8); ręcznie po każdej zmianie
-# `EXTRA_DOMAINS` w `.env`, a potem `docker compose up -d proxy`.
+# Generuje `caddy/Caddyfile` = `deploy/Caddyfile` + blok serwerowy dla każdej domeny
+# z `EXTRA_DOMAINS`. Katalog `caddy/` montuje proxy (CADDY_CONFIG_DIR=./caddy → /etc/caddy).
+# Woła go `scripts/proxy_config.sh` (krok 4/8 wdrożenia) – z walidacją w działającym proxy
+# i `caddy reload`; ręcznie po zmianie `EXTRA_DOMAINS` w `.env`: `bash scripts/proxy_config.sh update`.
 #
 # Dlaczego generator, a nie sama konfiguracja Caddy'ego: adres bloku serwerowego jest w Caddyfile'u
 # **składnią**, a nie wartością – po zmiennej środowiskowej `{$EXTRA_DOMAINS}` nie da się iterować,
@@ -53,14 +54,14 @@
 #   CADDYFILE_OUT=/tmp/x scripts/render_caddyfile.sh
 #   DJCMS_ROUTES_ENV=/inny/app_routes.env …      # kontrakt tras (domyślnie backend/djcms_contract/)
 #
-# Plik wynikowy jest zapisywany **w miejscu** (`cat > "$OUT"`, ten sam i-węzeł): `proxy` montuje go
-# jako pojedynczy plik, a zastąpienie pliku nowym (mv, sed -i) zostawiłoby kontener przy starej
-# treści – `caddy reload` w `djcms_switch.sh` przeładowałby wtedy starą konfigurację.
+# Plik wynikowy jest zapisywany **w miejscu** (`cat > "$OUT"`, ten sam i-węzeł). Proxy montuje dziś
+# katalog `caddy/` i widzi także plik zastąpiony nowym, ale kontener sprzed tej zmiany (montaż
+# pojedynczego pliku, docs/OPERACJE.md § 23) – wyłącznie zapis w miejscu.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="${CADDYFILE_SRC:-$ROOT/deploy/Caddyfile}"
-OUT="${CADDYFILE_OUT:-$ROOT/deploy/Caddyfile.generated}"
+OUT="${CADDYFILE_OUT:-$ROOT/caddy/Caddyfile}"
 
 # Zmienna nieustawiona (a nie „ustawiona na pusto”) = czytamy `.env`. Rozróżnienie jest potrzebne,
 # bo `EXTRA_DOMAINS=` podane jawnie znaczy „wyczyść”, a nie „weź z pliku”.

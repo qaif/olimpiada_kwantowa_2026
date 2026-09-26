@@ -8,6 +8,18 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – konfiguracja proxy przy każdym wdrożeniu (`caddy reload`)
+
+- **Poprawka:** zmiany `deploy/Caddyfile` (nagłówki, trasy, domeny) nie docierały na produkcję –
+  krok 2/8 kasował `deploy/`, a proxy trzymało montaż pojedynczego pliku ze starym i-węzłem, którego
+  `up -d` nie odtwarzało. Proxy montuje teraz katalog stanu `caddy/` (`CADDY_CONFIG_DIR=./caddy`),
+  który krok 2/8 omija; nowy `scripts/proxy_config.sh` składa plik z walidacją (`caddy validate`
+  przed budowaniem) i ładuje go `caddy reload` w nowym kroku 4c/8 – bez restartu proxy. Odtworzenie
+  kontenera zostaje drogą awaryjną. `.env` migrowany sam (`CADDYFILE_PATH` → `CADDY_CONFIG_DIR`);
+  pierwsze wdrożenie jednorazowo odtwarza `proxy`. Punkty powrotu: kopia konfiguracji działającego
+  proxy przy pierwszym renderze, `caddy/Caddyfile.prev` przy odrzuconym reloadzie albo niewstającym
+  Caddym. `OPERACJE.md` § 23.
+
 ## [Unreleased] – wersja porównawcza na django CMS (`dj.<domena>`, DJ-01)
 
 Równoległa, publiczna, **nieindeksowana** wersja części informacyjnej serwisu pod

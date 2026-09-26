@@ -252,7 +252,7 @@ class Command(BaseCommand):
                 f"     (Django dokłada stąd „{domain}” do ALLOWED_HOSTS i „https://{domain}” "
                 f"do CSRF_TRUSTED_ORIGINS samo — config/settings/base.py.)"
             )
-            write("  3. ./scripts/render_caddyfile.sh && docker compose up -d proxy web worker beat")
+            write("  3. bash scripts/proxy_config.sh update && docker compose up -d web worker beat")
             write("     (Caddy pobierze certyfikat sam, gdy DNS już wskazuje serwer.)")
         write(
             f"  4. Dokumenty do wpisania w /cms/ przed otwarciem rejestracji: "

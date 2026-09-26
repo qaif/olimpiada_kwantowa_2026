@@ -8,12 +8,12 @@
 #   bash scripts/djcms_switch.sh check    # sama kontrola dymna dla trybu z .env (woła ją deploy.sh)
 #
 # Co robi `on`/`off` (nic poza tym – bez restartu `web` i `djcms`, bez DNS, bez certyfikatów):
-#   1. warunki: DJCMS_ENABLED=1, proxy montuje deploy/Caddyfile.generated (CADDYFILE_PATH), przy `on`
+#   1. warunki: DJCMS_ENABLED=1, proxy montuje katalog caddy/ (CADDY_CONFIG_DIR=./caddy), przy `on`
 #      także `djcms` healthy;
 #   2. plik kandydujący (scripts/render_caddyfile.sh z DJCMS_PRIMARY podanym jawnie) i `caddy validate`
 #      w kontenerze `proxy` – zła konfiguracja zatrzymuje przełącznik, ZANIM cokolwiek się zmieni;
-#   3. DJCMS_PRIMARY w .env (jedna linijka; dopisana, gdy jej nie ma), render pliku montowanego
-#      w `proxy` (zapis w miejscu – ten sam i-węzeł) i sprawdzenie, że kontener widzi nową treść;
+#   3. DJCMS_PRIMARY w .env (jedna linijka; dopisana, gdy jej nie ma), render caddy/Caddyfile
+#      (zapis w miejscu) i sprawdzenie, że kontener widzi nową treść;
 #   4. `caddy reload` – nowa konfiguracja bez zrywania połączeń;
 #   5. kontrola dymna przez proxy na tym serwerze (curl --resolve <host>:443:127.0.0.1) dla hostów
 #      konkursów (`sync_competitions --list-hosts` w djcms; bez djcms – SITE_DOMAIN i EXTRA_DOMAINS):
@@ -38,7 +38,7 @@ case "$ACTION" in
   *) echo "użycie: bash scripts/djcms_switch.sh on|off|status|check" >&2; exit 2 ;;
 esac
 
-GENERATED="deploy/Caddyfile.generated"
+GENERATED="caddy/Caddyfile"
 CANDIDATE="deploy/Caddyfile.candidate"
 T0="$(date +%s)"
 
@@ -88,8 +88,8 @@ caddy_reload() {
   docker compose exec -T proxy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile </dev/null
 }
 
-# Czy `proxy` widzi TĘ treść pliku, którą właśnie wygenerowaliśmy (montaż pojedynczego pliku: plik
-# zastąpiony nowym i-węzłem zostałby w kontenerze w starej wersji, a reload przeładowałby starą).
+# Czy `proxy` widzi TĘ treść pliku, którą właśnie wygenerowaliśmy (kontener sprzed montażu katalogu
+# caddy/ widziałby inny plik, a reload przeładowałby właśnie jego – docs/OPERACJE.md § 23).
 container_sees_generated() {
   local host_sum box_sum
   host_sum="$(sha256sum "$GENERATED" | cut -d' ' -f1)"
@@ -205,7 +205,7 @@ if [ "$ACTION" = status ]; then
     if container_sees_generated 2>/dev/null; then
       echo "proxy: widzi ten sam plik (po zmianie ręcznej: caddy reload – bash scripts/djcms_switch.sh on|off)"
     else
-      echo "proxy: nie działa albo widzi inny plik (CADDYFILE_PATH=$(env_value CADDYFILE_PATH))"
+      echo "proxy: nie działa albo widzi inny plik (CADDY_CONFIG_DIR=$(env_value CADDY_CONFIG_DIR); bash scripts/proxy_config.sh apply)"
     fi
   else
     echo "$GENERATED: brak (wdrożenie go tworzy)"
@@ -229,15 +229,17 @@ fi
 
 # on / off
 WANT=0; [ "$ACTION" = on ] && WANT=1
-case "$(env_value CADDYFILE_PATH)" in
-  ./deploy/Caddyfile.generated|deploy/Caddyfile.generated) ;;
-  *) die "proxy nie montuje $GENERATED (CADDYFILE_PATH=$(env_value CADDYFILE_PATH)) – przełącznik nie miałby skutku; wdróż (scripts/deploy.sh) albo ustaw CADDYFILE_PATH=./deploy/Caddyfile.generated" ;;
+case "$(env_value CADDY_CONFIG_DIR)" in
+  ./caddy|caddy|./caddy/|caddy/) ;;
+  *) die "proxy nie montuje katalogu z $GENERATED (CADDY_CONFIG_DIR=$(env_value CADDY_CONFIG_DIR)) – przełącznik nie miałby skutku; wdróż (scripts/deploy.sh dopisuje CADDY_CONFIG_DIR=./caddy)" ;;
 esac
 
-# Jeden przełącznik naraz (dwa równoległe `on`/`off` zostawiłyby .env i plik w różnych stanach).
+# Jedna zmiana konfiguracji proxy naraz (dwa równoległe `on`/`off` zostawiłyby .env i plik w różnych
+# stanach) – ta sama blokada co w scripts/proxy_config.sh, które pisze ten sam plik przy wdrożeniu.
 if command -v flock >/dev/null 2>&1; then
-  exec 9>"deploy/.djcms_switch.lock"
-  flock -n 9 || die "inny djcms_switch.sh właśnie działa"
+  mkdir -p "$(dirname "$GENERATED")"
+  exec 9>"$(dirname "$GENERATED")/.lock"
+  flock -n 9 || die "konfigurację proxy zmienia właśnie inny proces (djcms_switch.sh albo wdrożenie – scripts/proxy_config.sh)"
 fi
 
 if [ "$WANT" = 1 ]; then
@@ -250,15 +252,15 @@ if [ "$WANT" = 1 ]; then
   fi
 fi
 
-# `proxy` montuje plik pojedynczo, więc widzi i-węzeł z chwili startu kontenera. Krok 2/8 wdrożenia
-# tworzy katalog deploy/ od nowa – po wdrożeniu bez odtworzenia proxy (scripts/deploy.sh robi to
-# przy DJCMS_ENABLED=1) kontener czytałby starą treść i `caddy reload` przeładowałby właśnie ją.
-# `on` odmawia (nic nie zmienia); `off` jest drogą ratunkową, więc odtwarza proxy sam (kilka sekund
-# bez HTTPS na wszystkich domenach – to i tak mniej niż awaria, z powodu której ktoś robi `off`).
-[ -f "$GENERATED" ] || die "brak $GENERATED – wdróż (scripts/deploy.sh) albo bash scripts/render_caddyfile.sh"
+# `proxy` montuje katalog caddy/ i widzi każdą wersję pliku; kontener, który widzi inną treść, to
+# montaż sprzed tej zmiany albo proxy, które nie działa (docs/OPERACJE.md § 23; wdrożenie naprawia
+# to samo w kroku 4c/8). `on` odmawia (nic nie zmienia); `off` jest drogą ratunkową, więc odtwarza
+# proxy sam (kilka sekund bez HTTPS na wszystkich domenach – to i tak mniej niż awaria, z powodu
+# której ktoś robi `off`).
+[ -f "$GENERATED" ] || die "brak $GENERATED – wdróż (scripts/deploy.sh) albo bash scripts/proxy_config.sh update"
 if ! container_sees_generated; then
   if [ "$WANT" = 1 ]; then
-    die "proxy nie działa albo widzi inną treść /etc/caddy/Caddyfile niż $GENERATED (montaż pojedynczego pliku po wdrożeniu) – docker compose up -d --force-recreate --no-deps proxy (kilka sekund przerwy) i ponów"
+    die "proxy nie działa albo widzi inną treść /etc/caddy/Caddyfile niż $GENERATED – bash scripts/proxy_config.sh apply (odtworzy proxy: kilka sekund przerwy, docker compose up -d --force-recreate --no-deps proxy) i ponów"
   fi
   echo "UWAGA: proxy widzi inną treść /etc/caddy/Caddyfile niż $GENERATED – odtwarzam kontener proxy"
   docker compose up -d --force-recreate --no-deps proxy </dev/null
@@ -283,7 +285,7 @@ apply() {  # apply <0|1> – .env, render w miejscu, kontener widzi plik, reload
   render "$GENERATED" >/dev/null
   cmp -s "$GENERATED" "$CANDIDATE" || [ "$1" != "$WANT" ] \
     || { echo "wygenerowany plik różni się od kandydata (zmiana .env w trakcie?)" >&2; return 1; }
-  container_sees_generated || { echo "proxy widzi inną treść /etc/caddy/Caddyfile niż $GENERATED (montaż, i-węzeł)" >&2; return 1; }
+  container_sees_generated || { echo "proxy widzi inną treść /etc/caddy/Caddyfile niż $GENERATED (montaż – CADDY_CONFIG_DIR)" >&2; return 1; }
   caddy_reload
 }
 
@@ -293,7 +295,7 @@ rollback() {
     echo "!!! Wrócono do Wagtaila (DJCMS_PRIMARY=0). Sprawdź: bash scripts/djcms_switch.sh status" >&2
   else
     echo "!!! POWRÓT TEŻ SIĘ NIE UDAŁ – ręcznie: sed -i 's/^DJCMS_PRIMARY=.*/DJCMS_PRIMARY=0/' .env &&" >&2
-    echo "!!!   bash scripts/render_caddyfile.sh && docker compose exec -T proxy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile" >&2
+    echo "!!!   bash scripts/proxy_config.sh update" >&2
   fi
   exit 1
 }

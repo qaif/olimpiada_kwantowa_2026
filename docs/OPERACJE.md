@@ -905,7 +905,7 @@ Django dokłada stąd hosty do `DJANGO_ALLOWED_HOSTS` i origins `https://…` do
 psuje, wartości ręczne zostają na początku list. Potem:
 
 ```bash
-./scripts/render_caddyfile.sh && docker compose up -d proxy web worker beat
+bash scripts/proxy_config.sh update && docker compose up -d web worker beat   # proxy: caddy reload
 docker compose exec -T web python manage.py check_domains --all       # kontrola trzech miejsc
 ```
 
@@ -995,13 +995,14 @@ zastępuje ani nie zmienia.
 
    ```dotenv
    PLATFORM_SUBDOMAINS=1
-   CADDYFILE_PATH=./deploy/Caddyfile.generated   # wdrożenie ustawia to samo
+   CADDY_CONFIG_DIR=./caddy   # wdrożenie ustawia to samo (§ 23)
    ```
 
-3. **Wdrożenie** (`scripts/deploy.sh root@<host>`) albo, na miejscu, samo przegenerowanie proxy:
+3. **Wdrożenie** (`scripts/deploy.sh root@<host>`) albo, na miejscu, samo przegenerowanie proxy
+   (render + `caddy validate` + `caddy reload`, bez restartu proxy – § 23):
 
    ```bash
-   cd /opt/olimpiada && ./scripts/render_caddyfile.sh && docker compose up -d proxy web
+   cd /opt/olimpiada && bash scripts/proxy_config.sh update && docker compose up -d web
    ```
 
    Krok 4/8 wdrożenia generuje wtedy konfigurację Caddy'ego z opcją globalną
@@ -2969,7 +2970,7 @@ docker compose stop djcms && docker compose rm -f djcms       # póki COMPOSE_* 
 sed -i 's/^DJCMS_ENABLED=.*/DJCMS_ENABLED=0/' .env
 sed -i '/^COMPOSE_FILE=docker-compose.yml:docker-compose.djcms.yml$/d; /^COMPOSE_PROFILES=djcms$/d' .env
 sed -i '/^DJCMS_INTERNAL_TOKEN=/d' .env                        # brak tokenu = API wyłączone w web
-./scripts/render_caddyfile.sh && docker compose up -d proxy web
+bash scripts/proxy_config.sh update && docker compose up -d web
 ```
 
 Od tej chwili konfiguracja proxy i compose'a jest ta sama co przed DJ-01, a wdrożenia nie wykonują
@@ -3008,11 +3009,10 @@ docker image ls 'olimpiada/djcms' -q | xargs -r docker rmi
 - `--maintenance`: `djcms` jest zatrzymywany razem z `web/worker/beat` (inaczej kontrola „zero
   klientów bazy” by nie przeszła). Od DJ-02 trasy djcms są w blokach aplikacji, więc przerwę
   (planową i 502/503/504 z djcms) zasłania ta sama strona „Prace techniczne”; `dj.` tylko przekierowuje.
-- Proxy montuje `deploy/Caddyfile.generated` jako **pojedynczy plik** (i-węzeł z chwili startu
-  kontenera), a krok 2/8 wdrożenia tworzy katalog `deploy/` od nowa. Przy `DJCMS_ENABLED=1` krok
-  „dj.” porównuje sumę pliku na hoście i w kontenerze i przy różnicy odtwarza `proxy`
-  (`up -d --force-recreate --no-deps proxy`, kilka sekund bez HTTPS). Generator i przełącznik
-  piszą plik **w miejscu** (`cat >`), nigdy przez `mv`/`sed -i`.
+- Konfiguracja proxy (trasy djcms, tryb `DJCMS_PRIMARY`) jest w `caddy/Caddyfile` i trafia do
+  działającego Caddy'ego przy **każdym** wdrożeniu (krok 4c/8, `caddy reload`) – § 23. Dawny krok
+  „dj.” porównujący sumy i odtwarzający `proxy` (tylko przy `DJCMS_ENABLED=1`) został zastąpiony
+  tym mechanizmem. Generator i przełącznik piszą plik **w miejscu** (`cat >`).
 
 ### 22.8. Serwis publiczny na django CMS: trasy, podgląd, przełącznik `DJCMS_PRIMARY` (DJ-02)
 
@@ -3062,3 +3062,81 @@ Porażka po `on` = automatyczny powrót do `DJCMS_PRIMARY=0` i kod 1. `off` nie 
 Wycofanie jest stratne: Wagtail pokazuje treść z chwili zamrożenia; edycję w `/cms/` odblokowuje
 dopiero `docker compose exec -T web python manage.py cms_freeze off` (po decyzji).
 Wdrożenie trybu nie zmienia: przy `DJCMS_PRIMARY=1` kończy się `djcms_switch.sh check`.
+
+## 23. Konfiguracja proxy: `caddy reload` przy każdym wdrożeniu (`scripts/proxy_config.sh`)
+
+### 23.1. Błąd, który to naprawia
+
+Krok 2/8 `scripts/deploy.sh` kasuje katalog `deploy/` na serwerze i rozpakowuje go od nowa. Proxy
+montowało wygenerowany plik `deploy/Caddyfile.generated` jako **pojedynczy plik** – bind mount
+trzyma i-węzeł z chwili startu kontenera, więc po wdrożeniu Caddy widział skasowaną, **starą**
+treść. `docker compose up -d` w kroku 4b odtwarza kontener wyłącznie przy zmianie jego
+konfiguracji compose'a (obraz, montaże, środowisko), a nie treści pliku – nowe nagłówki, trasy
+i domeny nie docierały na produkcję aż do ręcznego `docker compose up -d --force-recreate proxy`.
+Na gałęzi djcms naprawione było to tylko przy `DJCMS_ENABLED=1` (porównanie sum i odtworzenie).
+
+### 23.2. Jak jest teraz
+
+| Element | Stan |
+|---|---|
+| Plik konfiguracji | `/opt/olimpiada/caddy/Caddyfile` – składany z `deploy/Caddyfile` i `.env` (`EXTRA_DOMAINS`, `PLATFORM_SUBDOMAINS`, `DJCMS_*`) przez `scripts/render_caddyfile.sh` |
+| Montaż w `proxy` | **katalog** `${CADDY_CONFIG_DIR:-./deploy}` → `/etc/caddy` (tylko do odczytu); serwer ma w `.env` `CADDY_CONFIG_DIR=./caddy`, środowisko deweloperskie montuje `deploy/` z plikiem źródłowym |
+| Krok 2/8 | omija `caddy/` (jak `maintenance/`, `secrets/`, `.env`) – katalog, który montuje działający kontener, nigdy nie znika |
+| Krok 4/8 | `bash scripts/proxy_config.sh render`: plik obok (`caddy/Caddyfile.next`) → `caddy validate` w działającym proxy → dopiero wtedy zapis do `caddy/Caddyfile` (w miejscu). Odrzucony = wdrożenie staje **przed** budowaniem i przed stroną prac technicznych; plik i proxy bez zmian |
+| Krok 4c/8 | `bash scripts/proxy_config.sh apply` po starcie usług: kontener widzi ten sam plik → `caddy reload` (bez restartu, bez zrywania połączeń; niezmieniona konfiguracja = no-op). Kontener nie działa albo widzi inną treść → `up -d --force-recreate --no-deps proxy` (kilka sekund bez HTTPS) i ponowne sprawdzenie sumy |
+| Punkty powrotu | pierwszy `render` na serwerze zaczyna od kopii tego, co widzi działające proxy (katalog `caddy/` montowany po zmianie `.env` nigdy nie jest pusty); każda nowa treść zostawia poprzednią w `caddy/Caddyfile.prev`. Reload odrzucony albo Caddy niewstający po odtworzeniu → `caddy/Caddyfile` wraca do `.prev` (przy odtworzeniu proxy startuje z niej ponownie), kod 1 |
+
+Rozważone warianty: (a) przy każdym wdrożeniu porównywać sumę pliku z tym, co widzi kontener,
+i przy różnicy odtwarzać `proxy` – proste, ale **każda** zmiana konfiguracji to kilka sekund bez
+HTTPS na wszystkich domenach (zerwane wgrywania, połączenia odrzucone jeszcze przed stroną prac
+technicznych); (b) montaż katalogu, który krok 2/8 omija, i `caddy reload` – bez przerwy.
+Wybrane (b), z (a) jako drogą awaryjną w 4c/8. Sam montaż **katalogu** `deploy/` niczego by nie
+naprawił: krok 2/8 kasuje także ten katalog, a bind mount katalogu też trzyma stary i-węzeł –
+dlatego konfiguracja mieszka w katalogu stanu poza kodem.
+
+Kolejność z `--maintenance` (§ 20.3) się nie zmienia: walidacja w 4/8 jest przed włączeniem strony
+(odrzucona konfiguracja = strona w ogóle nie jest włączana), `caddy reload` w 4c/8 jest po starcie
+usług i **przed** kontrolą z przepustką (5a), więc `https://<domena>/healthz/` przechodzi już przez
+nową konfigurację. Błąd reloadu po włączeniu strony zostawia ją włączoną z komunikatem pułapki –
+jak każdy inny błąd po 4/8.
+
+### 23.3. Polecenia (na serwerze, `cd /opt/olimpiada`)
+
+```bash
+bash scripts/proxy_config.sh status   # CADDY_CONFIG_DIR, czy plik zgadza się z .env, co widzi kontener
+bash scripts/proxy_config.sh update   # po zmianie EXTRA_DOMAINS / PLATFORM_SUBDOMAINS w .env: render + reload
+bash scripts/proxy_config.sh render   # sam render z walidacją (bez przeładowania)
+bash scripts/proxy_config.sh apply    # samo przeładowanie (albo odtworzenie kontenera, gdy trzeba)
+```
+
+- Generator czyta **wyłącznie** `.env` – zmienna z powłoki operatora nie wygrywa z plikiem.
+- `scripts/djcms_switch.sh on|off` zmienia ten sam plik; oba skrypty biorą blokadę
+  `caddy/.lock` (wdrożenie czeka na przełącznik do 2 min).
+- `caddy validate` idzie w obrazie i środowisku **działającego** kontenera. Wydanie, które zmienia
+  wersję obrazu `caddy` albo dokłada zmienną środowiskową proxy, sprawdza nowy plik starszym
+  Caddym; taki kontener i tak jest odtwarzany w 4b (zmiana konfiguracji compose'a), a ewentualny
+  błąd pokaże `docker compose logs proxy` i krok 5/8.
+- Nie edytuj `caddy/Caddyfile` ręcznie – kolejne wdrożenie złoży go od nowa z `deploy/Caddyfile`
+  i `.env`. Zmiana konfiguracji = zmiana `deploy/Caddyfile` w repozytorium albo `.env`.
+
+### 23.4. Pierwsze wdrożenie tej wersji
+
+Nic ręcznie. Krok 4/8 usuwa z `.env` dawny wpis `CADDYFILE_PATH=./deploy/Caddyfile.generated`
+(z jego dwulinijkowym komentarzem) i dopisuje `CADDY_CONFIG_DIR=./caddy`; `render` kopiuje do
+`caddy/Caddyfile` konfigurację, którą widzi stary kontener (punkt powrotu), a walidacja nowej idzie
+jeszcze w starym kontenerze. W 4b `up -d` **jednorazowo** odtwarza `proxy` (zmienił się montaż –
+kilka sekund bez HTTPS, po tym, jak `web` jest healthy), a 4c/8 kończy się `caddy reload` bez
+zmian. Gdyby nowy Caddy nie wstał, 4c/8 wraca do skopiowanej konfiguracji i odtwarza proxy z niej.
+`CADDYFILE_PATH` wpisany ręcznie z inną wartością (własny plik proxy) zatrzymuje wdrożenie przed
+budowaniem – przenieś zmiany do `deploy/Caddyfile` i usuń tę linijkę. Sprawdzenie po wdrożeniu:
+
+```bash
+cd /opt/olimpiada
+bash scripts/proxy_config.sh status   # „zgodny”, „kontener proxy: widzi caddy/Caddyfile”
+docker compose config proxy | grep -A3 'target: /etc/caddy'   # source: /opt/olimpiada/caddy
+```
+
+Testy: `scripts/tests/proxy_config_test.sh` (skrypt na atrapie dockera) i
+`scripts/tests/deploy_djcms_test.sh` część 10 (całe wdrożenie na atrapach ssh/dockera: zmiana
+`deploy/Caddyfile` dochodzi do proxy przez reload, stary montaż, migracja `.env`, odrzucona
+walidacja i odrzucony reload – także z `--maintenance`).

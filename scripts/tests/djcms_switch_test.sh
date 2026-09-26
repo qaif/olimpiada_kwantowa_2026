@@ -6,7 +6,8 @@
 #
 # Przełącznik biegnie naprawdę (z prawdziwym scripts/render_caddyfile.sh i kontraktem tras) w
 # piaskownicy udającej /opt/olimpiada, a `docker` i `curl` są atrapami, które modelują to, co ma
-# znaczenie: kontener `proxy` widzi plik przez montaż pojedynczego pliku (żywy albo „stary i-węzeł”),
+# znaczenie: kontener `proxy` widzi caddy/Caddyfile przez montaż katalogu (żywy) albo inną treść
+# (montaż sprzed CADDY_CONFIG_DIR – docs/OPERACJE.md § 23),
 # `caddy reload` ładuje to, co kontener widzi, a odpowiedzi przez proxy (curl) zależą od
 # załadowanej konfiguracji – strony publiczne z `X-Djcms-Mode: primary` tylko wtedy, gdy Caddy
 # naprawdę ma trasy trybu primary. Trasy same w sobie sprawdza scripts/tests/djcms_routing_test.sh.
@@ -32,7 +33,7 @@ check "scripts/djcms_switch.sh przechodzi bash -n" $?
 cat >"$BIN/docker" <<'STUB'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >>"$DOCKER_LOG"
-seen() { if [ "$(cat "$BOX/mount")" = live ]; then cat deploy/Caddyfile.generated; else cat "$BOX/stale"; fi; }
+seen() { if [ "$(cat "$BOX/mount")" = live ]; then cat caddy/Caddyfile; else cat "$BOX/stale"; fi; }
 case "$*" in
   "compose ps --format {{.Service}}={{.Health}}")
     printf 'web=healthy\nproxy=healthy\ndjcms=%s\n' "${STUB_DJCMS_HEALTH:-healthy}" ;;
@@ -76,7 +77,7 @@ cat >"$WORK/env.fixture" <<'ENV'
 SITE_DOMAIN=olimpiada.example
 ACME_EMAIL=ops@olimpiada.example
 EXTRA_DOMAINS=fizyczna.example www.fizyczna.example
-CADDYFILE_PATH=./deploy/Caddyfile.generated
+CADDY_CONFIG_DIR=./caddy
 MAINTENANCE_BYPASS_TOKEN=0123456789abcdefghijklmnopqrstuvwxyzABCD
 
 # dj.
@@ -95,8 +96,8 @@ reset_server() {  # reset_server [plik .env] – świeża instalacja: kod, .env,
   ( cd "$SRV" && env -u EXTRA_DOMAINS -u PLATFORM_SUBDOMAINS -u DJCMS_ENABLED -u DJCMS_PRIMARY \
       bash scripts/render_caddyfile.sh >/dev/null 2>&1 )
   echo live >"$BOX/mount"
-  cp "$SRV/deploy/Caddyfile.generated" "$BOX/loaded"
-  cp "$SRV/deploy/Caddyfile.generated" "$BOX/stale"
+  cp "$SRV/caddy/Caddyfile" "$BOX/loaded"
+  cp "$SRV/caddy/Caddyfile" "$BOX/stale"
 }
 
 run_switch() {  # run_switch <etykieta> <akcja> [ZMIENNA=wartość…] – kod wyjścia
@@ -139,7 +140,7 @@ show_on_fail $rc "$WORK/on.out"
 check ".env: DJCMS_PRIMARY=1 dopisane raz" $?
 head -c "$(wc -c <"$WORK/env.before-on")" "$SRV/.env" | cmp -s - "$WORK/env.before-on"
 check ".env: istniejące linijki nietknięte (przełącznik tylko dopisuje)" $?
-grep -q 'header_up X-Djcms-Mode primary' "$SRV/deploy/Caddyfile.generated" && grep -q 'header_up X-Djcms-Mode primary' "$BOX/loaded"
+grep -q 'header_up X-Djcms-Mode primary' "$SRV/caddy/Caddyfile" && grep -q 'header_up X-Djcms-Mode primary' "$BOX/loaded"
 check "plik wygenerowany i konfiguracja załadowana w proxy: tryb primary" $?
 grep -q 'header_up X-Djcms-Mode primary' "$BOX/validated"
 check "caddy validate dostał plik kandydujący trybu primary" $?
@@ -192,9 +193,9 @@ check "off przypomina: zmiany z djcms nie wracają, cms_freeze off osobno" $?
 
 # 7. on przy odrzuconej walidacji – nic się nie zmienia.
 reset_server
-cp "$SRV/.env" "$WORK/env.v"; before="$(sha "$SRV/deploy/Caddyfile.generated")"
+cp "$SRV/.env" "$WORK/env.v"; before="$(sha "$SRV/caddy/Caddyfile")"
 run_switch val on STUB_VALIDATE_RC=1
-[ $? -ne 0 ] && cmp -s "$WORK/env.v" "$SRV/.env" && [ "$before" = "$(sha "$SRV/deploy/Caddyfile.generated")" ] &&
+[ $? -ne 0 ] && cmp -s "$WORK/env.v" "$SRV/.env" && [ "$before" = "$(sha "$SRV/caddy/Caddyfile")" ] &&
   ! grep -q 'caddy reload' "$WORK/val.docker" && [ ! -e "$SRV/deploy/Caddyfile.candidate" ]
 check "odrzucony caddy validate: kod ≠ 0, .env i plik nietknięte, bez reload, bez pliku kandydującego" $?
 
@@ -203,7 +204,7 @@ reset_server
 run_switch rb on STUB_CURL_BROKEN=1
 rc=$?
 [ $rc -ne 0 ] && [ "$(env_line DJCMS_PRIMARY)" = 0 ] && grep -q 'header_up X-Djcms-Mode preview' "$BOX/loaded" &&
-  grep -q 'header_up X-Djcms-Mode preview' "$SRV/deploy/Caddyfile.generated" &&
+  grep -q 'header_up X-Djcms-Mode preview' "$SRV/caddy/Caddyfile" &&
   [ "$(grep -c 'caddy reload' "$WORK/rb.docker")" = 2 ] && grep -qF 'Wrócono do Wagtaila' "$WORK/rb.out"
 check "porażka kontroli dymnej po on: kod ≠ 0, powrót do DJCMS_PRIMARY=0 (render + drugi reload)" $?
 
@@ -218,25 +219,25 @@ reset_server "$WORK/env.off"
 run_switch dis on
 [ $? -ne 0 ] && grep -qF 'DJCMS_ENABLED' "$WORK/dis.out" && [ ! -s "$WORK/dis.docker" ]
 check "on przy DJCMS_ENABLED=0: odmowa bez dockera" $?
-sed 's|^CADDYFILE_PATH=.*|CADDYFILE_PATH=./deploy/Caddyfile|' "$WORK/env.fixture" >"$WORK/env.src"
+sed 's|^CADDY_CONFIG_DIR=.*|CADDY_CONFIG_DIR=./deploy|' "$WORK/env.fixture" >"$WORK/env.src"
 reset_server "$WORK/env.src"
 run_switch src on
-[ $? -ne 0 ] && grep -qF 'CADDYFILE_PATH' "$WORK/src.out" && ! grep -qE 'caddy (validate|reload)' "$WORK/src.docker"
-check "on, gdy proxy montuje deploy/Caddyfile (nie wygenerowany): odmowa" $?
+[ $? -ne 0 ] && grep -qF 'CADDY_CONFIG_DIR' "$WORK/src.out" && ! grep -qE 'caddy (validate|reload)' "$WORK/src.docker"
+check "on, gdy proxy montuje deploy/ (plik źródłowy, nie caddy/): odmowa" $?
 
-# 10. Stary i-węzeł w kontenerze (wdrożenie bez odtworzenia proxy): on odmawia, off odtwarza proxy.
+# 10. Kontener widzi inną treść (montaż sprzed CADDY_CONFIG_DIR): on odmawia, off odtwarza proxy.
 reset_server
 echo stale >"$BOX/mount"; echo "# stara treść" >>"$BOX/stale"
 cp "$SRV/.env" "$WORK/env.s"
 run_switch stale-on on
 [ $? -ne 0 ] && cmp -s "$WORK/env.s" "$SRV/.env" && grep -qF 'force-recreate' "$WORK/stale-on.out" &&
   ! grep -qE 'caddy reload|force-recreate' "$WORK/stale-on.docker"
-check "on przy starym i-węźle w proxy: odmowa z instrukcją, nic nie zmienione" $?
+check "on przy starym montażu w proxy: odmowa z instrukcją, nic nie zmienione" $?
 run_switch stale-off off
 rc=$?
 [ $rc -eq 0 ] && grep -qx 'compose up -d --force-recreate --no-deps proxy' "$WORK/stale-off.docker" &&
   [ "$(cat "$BOX/mount")" = live ] && grep -q 'header_up X-Djcms-Mode preview' "$BOX/loaded"
-check "off przy starym i-węźle: odtwarza proxy i kończy w trybie preview" $?
+check "off przy starym montażu: odtwarza proxy i kończy w trybie preview" $?
 show_on_fail $rc "$WORK/stale-off.out"
 
 # 11. on przy otwartej edycji Wagtaila – ostrzeżenie, ale przełączenie (decyzja operatora).
