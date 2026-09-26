@@ -129,22 +129,48 @@ grep -qE '^      (POSTGRES_|MINIO_|S3_|DJANGO_SECRET|REDIS|CELERY)' "$WORK/djcms
 [ -s "$WORK/djcms.yml" ] && [ -z "$problemy" ]
 check "djcms: bez env_file, read_only, cap_drop [ALL], tylko sieć internal, bez sekretów backendu [${problemy:-ok}]" $?
 
-# 10. Nakładka docker-compose.djcms.yml (DJ-01h): dokłada do konfiguracji WYŁĄCZNIE montaż wolumenu
-#     `djcms_media` do `proxy` (tylko do odczytu) – pliki redaktorów pod dj.<domena>/media/. Bez niej
-#     (dj. wyłączone) `proxy` jest ten sam co przed DJ-01; przypadek 1 i ten niżej razem to kontrakt.
+# 10. Nakładka docker-compose.djcms.yml (DJ-01h, DJ-02h): dokłada do konfiguracji WYŁĄCZNIE montaż
+#     wolumenu `djcms_media` do `proxy` (tylko do odczytu) – pliki redaktorów pod /djcms/media/ – i stały
+#     adres `proxy` w sieci `internal` (jedyne proxy, któremu ufa djcms). Bez niej (dj. wyłączone)
+#     `proxy` jest ten sam co przed DJ-01; przypadek 1 i ten niżej razem to kontrakt.
 DJ_OVERLAY="$ROOT/docker-compose.djcms.yml"
 docker compose --env-file "$ENV_FILE" -f "$BASE" --profile djcms config >"$WORK/dj-bez.yml" 2>/dev/null
 docker compose --env-file "$ENV_FILE" -f "$BASE" -f "$DJ_OVERLAY" --profile djcms config >"$WORK/dj-z.yml" 2>"$WORK/stderr"
 diff "$WORK/dj-bez.yml" "$WORK/dj-z.yml" | grep -E '^[<>]' >"$WORK/dj-diff.txt"
-[ "$(sed 's/^> *//' "$WORK/dj-diff.txt" | tr '\n' '|')" = "- type: volume|source: djcms_media|target: /srv/djcms-media|read_only: true|volume: {}|" ]
+[ "$(sed 's/^\([<>]\) */\1/' "$WORK/dj-diff.txt" | tr '\n' '|')" = "<internal: null|>internal:|>ipv4_address: 172.30.2.250|>- type: volume|>source: djcms_media|>target: /srv/djcms-media|>read_only: true|>volume: {}|" ]
 rc=$?
-check "nakładka djcms dokłada tylko montaż djcms_media:/srv/djcms-media:ro" $rc
+check "nakładka djcms dokłada tylko montaż djcms_media:/srv/djcms-media:ro i adres proxy w sieci internal" $rc
 [ $rc -eq 0 ] || sed 's/^/     /' "$WORK/dj-diff.txt"
 awk '/^  proxy:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$WORK/dj-z.yml" | grep -q 'target: /srv/djcms-media'
 check "montaż djcms_media trafia do usługi proxy" $?
 got="$(uslugi -f "$BASE" -f "$DJ_OVERLAY")"
 [ "$got" = "$DZISIAJ" ]
 check "sama nakładka (bez profilu) nie dokłada usług [$got]" $?
+
+# 10a. Zaufane proxy djcms (DJ-02 D10): djcms ufa `X-Real-IP` i `X-Djcms-Mode` WYŁĄCZNIE od adresu
+#      `proxy` przypiętego przez nakładkę – nie od podsieci compose'a, w której stoją też web, worker,
+#      minio, clamav i poczta. `TRUSTED_PROXY_IPS` djcms = ten jeden adres, równy `ipv4_address`
+#      proxy w sieci `internal` i leżący w jej podsieci – także przy innej wartości DJCMS_PROXY_IP
+#      (ta sama zmienna w obu plikach). Aplikacja główna (`web`) ufa jak dotąd.
+dj_trust() {  # dj_trust <plik config> – "TRUSTED_PROXY_IPS djcms|ipv4 proxy w internal|podsieć internal"
+  local cfg="$1" trusted proxy_ip subnet
+  trusted="$(awk '/^  djcms:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$cfg" | sed -n 's/^      TRUSTED_PROXY_IPS: //p' | tr -d '"')"
+  proxy_ip="$(awk '/^  proxy:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$cfg" \
+    | awk '/^      internal:$/ {on=1; next} on && /^        ipv4_address: / {print $2; exit} /^      [^ ]/ {on=0}')"
+  subnet="$(awk '/^networks:$/ {n=1} n && /^  internal:$/ {on=1; next} on && /subnet: / {print $NF; exit}' "$cfg")"
+  printf '%s|%s|%s' "$trusted" "$proxy_ip" "$subnet"
+}
+got="$(dj_trust "$WORK/dj-z.yml")"
+[ "$got" = "172.30.2.250|172.30.2.250|172.30.2.0/24" ]
+check "djcms ufa wyłącznie adresowi proxy przypiętemu w sieci internal [$got]" $?
+DJCMS_PROXY_IP=172.30.2.240 docker compose --env-file "$ENV_FILE" -f "$BASE" -f "$DJ_OVERLAY" --profile djcms config >"$WORK/dj-ip.yml" 2>/dev/null
+got="$(dj_trust "$WORK/dj-ip.yml")"
+[ "$got" = "172.30.2.240|172.30.2.240|172.30.2.0/24" ]
+check "DJCMS_PROXY_IP zmienia przypięcie i zaufanie razem [$got]" $?
+! awk '/^  proxy:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$WORK/dj-bez.yml" | grep -q 'ipv4_address'
+check "bez nakładki proxy nie ma stałego adresu (konfiguracja sprzed DJ-01)" $?
+awk '/^  web:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$WORK/dj-z.yml" | grep -qF 'TRUSTED_PROXY_IPS: 172.30.1.0/24,172.30.2.0/24'
+check "aplikacja główna (web) ufa proxy jak dotąd (podsieci z .env)" $?
 
 # 11. Włączenie przez .env – dokładnie te linijki, które dopisuje scripts/deploy.sh przy
 #     DJCMS_ENABLED=1 (wycięte z deploy.sh, nie przepisane): docker compose czyta COMPOSE_FILE

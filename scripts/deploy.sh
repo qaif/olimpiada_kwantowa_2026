@@ -72,6 +72,14 @@
 # grupę „Redaktorzy”, konto administratora (DJCMS_ADMIN_* – tylko gdy podane, idempotentnie)
 # i jednorazowo importuje treść z Wagtaila (`import_cms_bundle --from-api --if-empty`).
 # Wyłączenie i usunięcie – ręcznie, docs/OPERACJE.md § 22.6.
+#
+# Serwis publiczny na django CMS (docs/tasks/DJ-02.md § 3, § 10) – `DJCMS_PRIMARY` w .env (0/1) czyta
+# generator konfiguracji proxy w kroku 4/8 (1 bez DJCMS_ENABLED=1 zatrzymuje wdrożenie przed
+# budowaniem). Wdrożenie trybu NIE zmienia – przełącza scripts/djcms_switch.sh on|off (bez restartu
+# kontenerów). Przy DJCMS_ENABLED=1 krok „dj.” dodatkowo: odtwarza `proxy`, gdy kontener widzi starą
+# treść Caddyfile'a (krok 2/8 tworzy katalog deploy/ od nowa, a montaż pojedynczego pliku zostaje
+# przy starym i-węźle), uzgadnia rejestr konkursów djcms (`sync_competitions`), a przy
+# DJCMS_PRIMARY=1 kończy kontrolą dymną (`djcms_switch.sh check`).
 set -euo pipefail
 
 MAINTENANCE=0
@@ -348,7 +356,8 @@ if [ "$DJCMS_ON" = "1" ]; then
   }
   djcms_secret DJCMS_SECRET_KEY 64 "Klucz Django serwisu dj. (djcms) – osobny od DJANGO_SECRET_KEY."
   djcms_secret DJCMS_DB_PASSWORD 32 "Hasło roli Postgresa olimpiada_djcms (scripts/djcms_db.sh)."
-  djcms_secret DJCMS_INTERNAL_TOKEN 48 "Token wewnętrznego API /internal/djcms/v1/ (web i djcms; < 32 znaki = API wyłączone)."
+  djcms_secret DJCMS_INTERNAL_TOKEN 48 "Token wewnętrznego API /internal/djcms/ (web i djcms; < 32 znaki = API wyłączone)."
+  djcms_secret DJCMS_SSO_KEY 64 "Klucz tokenu SSO redaktorów z /cms/ do djcms (web i djcms; osobny od pozostałych sekretów)."
   # Wartości wpisane ręcznie sprawdzamy od razu, a nie dopiero przy starcie djcms: krótki token
   # nie daje błędu, tylko po cichu wyłączone API (dj. bez terminów i wyników), a hasło ze znakiem
   # spoza listy – rolę z jednym hasłem i adres bazy z innym.
@@ -904,7 +913,7 @@ if [ "$DJCMS_ON" = "1" ]; then
   # Na samym końcu, a nie w kroku 6 (jak w DJ-01 § 8.10): błąd wersji porównawczej – np. import
   # bez konta administratora – nie może zatrzymać kroków 6a–8/8 głównego serwisu (konkurs, DNS
   # poczty, cron kopii). Tu kończy się już tylko samo wdrożenie, kodem ≠ 0 i z komunikatem.
-  log "dj. Wersja porównawcza django CMS: grupa redaktorów, administrator, pierwszy import treści"
+  log "dj. django CMS: konfiguracja proxy, grupa redaktorów, administrator, rejestr konkursów, pierwszy import, tryb serwisu"
   # Dane administratora przez STANDARDOWE WEJŚCIE (pierwsze linijki skryptu), a nie jak
   # COORDINATOR_* w argumentach `env` po ssh: argumenty procesu widzi `ps` każdego konta na
   # serwerze przez cały czas trwania kroku. Wartości zacytowane printf %q (wartość ze spacją albo
@@ -920,6 +929,22 @@ export DJCMS_ADMIN_EMAIL DJCMS_ADMIN_PASSWORD
 cd "$REMOTE_DIR"
 docker compose ps --format '{{.Service}}={{.Health}}' | grep -qx 'djcms=healthy' \
   || { echo "BŁĄD: djcms nie jest healthy – docker compose logs djcms"; exit 1; }
+# Proxy montuje deploy/Caddyfile.generated jako pojedynczy plik, czyli i-węzeł z chwili startu
+# kontenera – a krok 2/8 tworzy katalog deploy/ od nowa. `up -d` w 4b odtwarza proxy tylko przy
+# zmianie jego konfiguracji compose'a, więc bez tego kontener czytałby starą treść: nowe trasy
+# (np. nowy adres aplikacji w kontrakcie tras) by nie działały, a scripts/djcms_switch.sh
+# przeładowałby starą konfigurację. Odtworzenie wyłącznie przy różnej treści (kilka sekund bez
+# HTTPS); niedziałające proxy = pusta suma = odtworzenie.
+HOST_SUM="$(sha256sum deploy/Caddyfile.generated | cut -d' ' -f1)"
+BOX_SUM="$(docker compose exec -T proxy sha256sum /etc/caddy/Caddyfile </dev/null | tr -d '\r' | cut -d' ' -f1 || true)"
+if [ "$HOST_SUM" != "$BOX_SUM" ]; then
+  echo "dj.: proxy widzi poprzednią wersję Caddyfile'a – odtwarzam kontener proxy"
+  docker compose up -d --force-recreate --no-deps proxy </dev/null
+  for _ in $(seq 1 30); do
+    docker compose ps --format '{{.Service}}={{.Health}}' | grep -qx 'proxy=healthy' && break
+    sleep 2
+  done
+fi
 # </dev/null: exec nie może czytać stdin, bo to strumień tego skryptu.
 # Grupa „Redaktorzy” przy każdym wdrożeniu: jej uprawnienia wynikają z kodu (nowe wtyczki).
 docker compose exec -T djcms python manage.py setup_djcms_groups </dev/null
@@ -928,6 +953,10 @@ if [ -n "$DJCMS_ADMIN_EMAIL" ] && [ -n "$DJCMS_ADMIN_PASSWORD" ]; then
   docker compose exec -T -e DJCMS_ADMIN_EMAIL -e DJCMS_ADMIN_PASSWORD djcms \
     python manage.py bootstrap_djcms_admin </dev/null
 fi
+# Rejestr konkursów djcms (DJ-02 D7): witryny nowych konkursów, hosty, wygaszenie nieaktywnych – przy
+# każdym wdrożeniu, PRZED importem (import potrzebuje witryny konkursu). Idempotentne.
+# DJ-02e dokłada `--import-missing` (drzewa startowe nowych konkursów).
+docker compose exec -T djcms python manage.py sync_competitions </dev/null
 IMPORT="$(sed -n 's/^DJCMS_INITIAL_IMPORT=//p' .env | tail -n 1 | tr -d '\r\042\047')"
 if [ "$IMPORT" = "pending" ]; then
   # Pierwszy import treści Wagtaila – raz, przy pierwszym włączeniu. `--if-empty`: gdyby w dj.
@@ -945,9 +974,27 @@ else
   echo "dj.: pierwszy import treści już wykonany (DJCMS_INITIAL_IMPORT=${IMPORT:-brak}) – pomijam"
 fi
 DOMAIN="$(sed -n 's/^SITE_DOMAIN=//p' .env | tail -n 1 | tr -d '\r\042\047')"
-echo
-echo "==> dj.: https://dj.${DOMAIN:-<domena>}/ (redakcja: /admin/) – nieindeksowane; rekord DNS"
-echo "    dj.${DOMAIN:-<domena>} (albo *.${DOMAIN:-<domena>}) musi wskazywać na ten serwer"
+# Tryb serwisu publicznego (DJ-02): przy DJCMS_PRIMARY=1 strony publiczne podaje djcms – kontrola
+# dymna przez proxy, ta sama co po `djcms_switch.sh on`. Porażka = kod ≠ 0 z podpowiedzią; trybu
+# wdrożenie samo nie zmienia (decyzja operatora: `djcms_switch.sh off`).
+PRIMARY="$(sed -n 's/^DJCMS_PRIMARY=//p' .env | tail -n 1 | tr -d '\r\042\047[:space:]' | tr '[:upper:]' '[:lower:]')"
+case "$PRIMARY" in
+  1|true|yes|on)
+    bash scripts/djcms_switch.sh check </dev/null || {
+      echo "BŁĄD: serwis publiczny na djcms (DJCMS_PRIMARY=1) nie przechodzi kontroli dymnej."
+      echo "      Powrót do Wagtaila: cd $REMOTE_DIR && bash scripts/djcms_switch.sh off"
+      exit 1
+    }
+    echo
+    echo "==> Serwis publiczny: django CMS (DJCMS_PRIMARY=1). Wycofanie: bash scripts/djcms_switch.sh off"
+    ;;
+  *)
+    echo
+    echo "==> Serwis publiczny: Wagtail (DJCMS_PRIMARY=0). Podgląd djcms: https://dj.${DOMAIN:-<domena>}/"
+    echo "    (przekierowanie na https://${DOMAIN:-<domena>}/djcms/preview/), redakcja: /djcms/admin/;"
+    echo "    rekord DNS dj.${DOMAIN:-<domena>} (albo *.${DOMAIN:-<domena>}) musi wskazywać na ten serwer"
+    ;;
+esac
 REMOTE
   } | "${SSH[@]}" bash -s
 fi

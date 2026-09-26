@@ -19,12 +19,23 @@
 # wyłącznie konkursy, które naprawdę istnieją. Bez tego przełącznika droga przez `EXTRA_DOMAINS`
 # zostaje jedyną i wynik generatora jest dokładnie ten, co dotąd.
 #
-# `DJCMS_ENABLED=1` – wersja porównawcza serwisu na django CMS pod `dj.<SITE_DOMAIN>`
-# (docs/tasks/DJ-01.md § 8.8), **wyłączona domyślnie**. Wtedy (i tylko wtedy) generator dokłada na
-# końcu pliku blok `dj.{$SITE_DOMAIN}` (proxy do usługi `djcms`, pliki redaktorów z wolumenu
-# `djcms_media`, `X-Robots-Tag: noindex`) oraz odmowę `/internal/*` w bloku domeny głównej i w każdym
-# bloku aplikacji z `EXTRA_DOMAINS`: pod `/internal/djcms/v1/` aplikacja główna oddaje djcms-owi dane
+# `DJCMS_ENABLED=1` – serwis na django CMS (docs/tasks/DJ-01.md § 8.8, DJ-02.md § 3), **wyłączony
+# domyślnie**. Wtedy (i tylko wtedy) generator dokłada sekcję tras djcms w blokach aplikacji (niżej),
+# na końcu pliku blok `dj.{$SITE_DOMAIN}` oraz odmowę `/internal/*` w bloku domeny głównej i w każdym
+# bloku aplikacji z `EXTRA_DOMAINS`: pod `/internal/djcms/` aplikacja główna oddaje djcms-owi dane
 # zawodów i ten adres nie może odpowiadać z żadnej nazwy publicznej.
+#
+# DJ-02 (docs/tasks/DJ-02.md § 3) zmienia rolę djcms: z osobnej witryny `dj.` w **pełny serwis
+# publiczny** każdego konkursu, na jego prawdziwym hoście. Przy `DJCMS_ENABLED=1` każdy blok
+# aplikacji (domena główna, EXTRA_DOMAINS, `*.`) dostaje sekcję tras djcms (`/djcms/media/*` z
+# wolumenu, `/djcms/*` do djcms, adresy aplikacji z kontraktu `backend/djcms_contract/app_routes.env`
+# do `web`, reszta – strony publiczne – wg `DJCMS_PRIMARY` i ciasteczka `djcms_view`), a blok `dj.`
+# już tylko przekierowuje (302) na stronę włączenia podglądu na domenie głównej. `DJCMS_PRIMARY`:
+#   0 (domyślnie) – strony publiczne z `web` (Wagtail); z ciasteczkiem `djcms_view=dj` – z djcms
+#                   (`X-Djcms-Mode: preview`, noindex po stronie djcms);
+#   1             – strony publiczne z djcms (`X-Djcms-Mode: primary`); z `djcms_view=wagtail` – z `web`.
+# Przełącza `scripts/djcms_switch.sh on|off` (render + `caddy reload`, bez restartu kontenerów).
+# `DJCMS_PRIMARY=1` bez `DJCMS_ENABLED=1` = błąd (kod 1).
 #
 # Kontrakt, na którym stoi test `scripts/tests/render_caddyfile_test.sh`:
 # **przy pustym `EXTRA_DOMAINS` i wyłączonych `PLATFORM_SUBDOMAINS` oraz `DJCMS_ENABLED` wynik jest
@@ -38,7 +49,13 @@
 #   EXTRA_DOMAINS="a.pl www.a.pl" scripts/render_caddyfile.sh
 #   PLATFORM_SUBDOMAINS=1 scripts/render_caddyfile.sh
 #   DJCMS_ENABLED=1 scripts/render_caddyfile.sh
+#   DJCMS_ENABLED=1 DJCMS_PRIMARY=1 scripts/render_caddyfile.sh
 #   CADDYFILE_OUT=/tmp/x scripts/render_caddyfile.sh
+#   DJCMS_ROUTES_ENV=/inny/app_routes.env …      # kontrakt tras (domyślnie backend/djcms_contract/)
+#
+# Plik wynikowy jest zapisywany **w miejscu** (`cat > "$OUT"`, ten sam i-węzeł): `proxy` montuje go
+# jako pojedynczy plik, a zastąpienie pliku nowym (mv, sed -i) zostawiłoby kontener przy starej
+# treści – `caddy reload` w `djcms_switch.sh` przeładowałby wtedy starą konfigurację.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -90,6 +107,53 @@ case "$(printf '%s' "${DJCMS_ENABLED:-}" | tr '[:upper:]' '[:lower:]' | tr -d '[
     ;;
 esac
 
+# `DJCMS_PRIMARY` (DJ-02 § 3) – ten sam odczyt i ta sama walidacja. Włączone bez `DJCMS_ENABLED`
+# to sprzeczność (strony publiczne do usługi, której nie ma), a nie „wyłączone” – błąd.
+if [ -z "${DJCMS_PRIMARY+x}" ] && [ -f "$ROOT/.env" ]; then
+  DJCMS_PRIMARY="$(sed -n 's/^DJCMS_PRIMARY=//p' "$ROOT/.env" | tail -n 1 | tr -d '\r\042\047')"
+fi
+case "$(printf '%s' "${DJCMS_PRIMARY:-}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')" in
+  1|true|yes|on)   PRIMARY_ON=1 ;;
+  ''|0|false|no|off) PRIMARY_ON=0 ;;
+  *)
+    echo "render_caddyfile: nie rozumiem DJCMS_PRIMARY=„${DJCMS_PRIMARY:-}” (użyj 1/true albo 0/false)" >&2
+    exit 1
+    ;;
+esac
+if [ "$PRIMARY_ON" = "1" ] && [ "$DJCMS_ON" != "1" ]; then
+  echo "render_caddyfile: DJCMS_PRIMARY=1 wymaga DJCMS_ENABLED=1 (strony publiczne do djcms, którego nie ma)" >&2
+  exit 1
+fi
+
+# Kontrakt tras aplikacji (DJ-02 § 6): dwa wyrażenia generowane z urlconfu `web` przez
+# `manage.py djcms_routes --write` i commitowane. Potrzebny wyłącznie przy DJCMS_ENABLED=1 – bez
+# przełącznika plik nie jest nawet czytany. Czytany `sed`-em, nie `source` (jak `.env`): wartość
+# ląduje w konfiguracji proxy jako składnia, więc przed użyciem sprawdzamy, że nie ma w niej znaków,
+# które w Caddyfile'u znaczą coś innego niż w wyrażeniu (odstęp kończy token, klamra otwiera blok
+# albo symbol zastępczy, cudzysłów/odwrócony apostrof – napis, `#` – komentarz).
+ROUTES_ENV="${DJCMS_ROUTES_ENV:-$ROOT/backend/djcms_contract/app_routes.env}"
+routes_value() {  # routes_value <NAZWA> – wartość `NAZWA='…'` z kontraktu (ostatnie wystąpienie)
+  sed -n "s/^$1='\\(.*\\)'\$/\\1/p" "$ROUTES_ENV" | tail -n 1 | tr -d '\r'
+}
+if [ "$DJCMS_ON" = "1" ]; then
+  [ -f "$ROUTES_ENV" ] || {
+    echo "render_caddyfile: brak kontraktu tras $ROUTES_ENV (manage.py djcms_routes --write)" >&2
+    exit 1
+  }
+  APP_RE="$(routes_value APP_RE)"
+  APP_RE_PREFIXED="$(routes_value APP_RE_PREFIXED)"
+  for name in APP_RE APP_RE_PREFIXED; do
+    value="${!name}"
+    case "$value" in
+      ''|[!^]*|*[[:space:]{}\"\'\`\#\;]*)
+        echo "render_caddyfile: $name w $ROUTES_ENV pusty albo z niedozwolonym znakiem – wygeneruj ponownie (djcms_routes --write)" >&2
+        exit 1
+        ;;
+    esac
+  done
+fi
+if [ "$PRIMARY_ON" = "1" ]; then DJCMS_MODE=primary; else DJCMS_MODE=preview; fi
+
 # Odmowa `/internal/*` w blokach aplikacji: potrzebna, gdy pod `/internal/` jest cokolwiek poza
 # siecią compose'a do ochrony – zgoda na certyfikat (subdomeny) albo API dla djcms. Jedna zmienna
 # dla obu przełączników, więc przy obu włączonych reguła trafia do każdego bloku **raz**.
@@ -136,8 +200,90 @@ internal_guard() {
 EOF
 }
 
+djcms_section() {
+  # djcms_section <wyrażenie adresów aplikacji> <wyrażenie adresów djcms> – sekcja tras djcms
+  # (DJ-02 § 3) do bloku aplikacji, między `handle_path /static/*` a domyślnym `handle` (web).
+  # **Ta sama** w każdym bloku; różni się tylko wyrażeniami w bloku domeny głównej (konkursy pod
+  # prefiksem ścieżki: `/<prefiks>/login/` do web, `/<prefiks>/djcms/…` do djcms). Znaczniki
+  # `>>>`/`<<<` na brzegach – po nich test wycina sekcję i porównuje resztę z wynikiem bez djcms.
+  #
+  # Kolejność `handle` (rozłączne, wygrywa pierwszy): odmowa /internal/* i /static/* (stoją wyżej)
+  # → pliki redaktorów → adresy djcms → adresy aplikacji → strony publiczne wg trybu → domyślny
+  # `handle` bloku (web). Caddy sortuje `handle` o jednej ścieżce po jej długości, a pozostałe
+  # zostawia w kolejności zapisu – kolejność po `caddy adapt` sprawdza render_caddyfile_test.sh,
+  # a działanie – djcms_routing_test.sh (żywy Caddy).
+  #
+  # - `request_header -X-Djcms-Mode`: nagłówek trybu ustawia wyłącznie proxy (`header_up` przy
+  #   djcms nadpisuje go i tak); zdjęty z każdego żądania, także tego do `web` (DJ-02 D10).
+  # - `Vary: Cookie` (dopisane do `Accept-Encoding` z `encode`): ta sama ścieżka publiczna daje
+  #   różną treść zależnie od ciasteczka `djcms_view`. Poza statykami i plikami redaktorów.
+  # - Pliki redaktorów (`/djcms/media/*`): Caddy z wolumenu `djcms_media` (nakładka
+  #   docker-compose.djcms.yml), `nosniff` z bloku i CSP `sandbox` dla wszystkiego poza PDF-em –
+  #   wgrany SVG/HTML otwarty wprost nie wykona skryptu w origin aplikacji (S9; uzasadnienie
+  #   odwróconej listy – komentarz przy tej regule w DJ-01h, docs/OPERACJE.md § 22.7).
+  # - Ciasteczko `djcms_view` przez `{http.request.cookie.…}` (parser ciasteczek Go), a nie
+  #   wyrażeniem na surowym nagłówku `Cookie`: wartość w cudzysłowie i kilka nagłówków `Cookie`
+  #   działają tak samo, jak odczyta je djcms. Ciasteczko nie jest granicą bezpieczeństwa.
+  local app_re="$1" own_re="$2" public desc
+  if [ "$PRIMARY_ON" = "1" ]; then
+    public='    @djcms_public expression `{http.request.cookie.djcms_view} != "wagtail"`'
+    desc='djcms, z ciasteczkiem djcms_view=wagtail – web'
+  else
+    public='    @djcms_public expression `{http.request.cookie.djcms_view} == "dj"`'
+    desc='web, z ciasteczkiem djcms_view=dj – djcms'
+  fi
+  printf '%s\n' \
+    "    # >>> django CMS (docs/tasks/DJ-02.md § 3), DJCMS_PRIMARY=$PRIMARY_ON – strony publiczne: $desc." \
+    '    # Wstawione przez scripts/render_caddyfile.sh przy DJCMS_ENABLED=1 – nie edytuj tego pliku.' \
+    '    request_header -X-Djcms-Mode' \
+    '    @djcms_vary not path /static/* /djcms/static/* /djcms/media/*' \
+    '    header @djcms_vary +Vary Cookie' \
+    '    @djcms_active_media {' \
+    '        path /djcms/media/*' \
+    '        not path_regexp (?i)\.pdf$' \
+    '    }' \
+    "    header @djcms_active_media Content-Security-Policy \"default-src 'none'; style-src 'unsafe-inline'; sandbox\"" \
+    '    handle_path /djcms/media/* {' \
+    '        header Cache-Control "public, max-age=86400"' \
+    '        root * /srv/djcms-media' \
+    '        file_server' \
+    '    }' \
+    "    @djcms_own path_regexp $own_re" \
+    '    handle @djcms_own {' \
+    '        reverse_proxy djcms:8000 {' \
+    '            header_up X-Forwarded-Proto {scheme}' \
+    '            header_up X-Real-IP {remote_host}' \
+    "            header_up X-Djcms-Mode $DJCMS_MODE" \
+    '        }' \
+    '    }' \
+    "    @djcms_app path_regexp $app_re" \
+    '    handle @djcms_app {' \
+    '        reverse_proxy web:8000 {' \
+    '            header_up X-Forwarded-Proto {scheme}' \
+    '            header_up X-Real-IP {remote_host}' \
+    '        }' \
+    '    }' \
+    "$public" \
+    '    handle @djcms_public {' \
+    '        reverse_proxy djcms:8000 {' \
+    '            header_up X-Forwarded-Proto {scheme}' \
+    '            header_up X-Real-IP {remote_host}' \
+    "            header_up X-Djcms-Mode $DJCMS_MODE" \
+    '        }' \
+    '    }' \
+    '    # <<< django CMS'
+}
+
+# Wyrażenia sekcji: bloki EXTRA_DOMAINS i `*.` – tylko adresy w korzeniu; blok domeny głównej
+# (jedyny host z konkursami pod prefiksem ścieżki, DJ-02 D3) – także `/<prefiks>/…`.
+if [ "$DJCMS_ON" = "1" ]; then
+  OWN_RE='^/djcms(?:/.*)?$'
+  OWN_RE_MAIN='^/(?:[^/]+/)?djcms(?:/.*)?$'
+  APP_RE_MAIN="$APP_RE|$APP_RE_PREFIXED"
+fi
+
 tmp="$(mktemp "${TMPDIR:-/tmp}/caddyfile.XXXXXX")"
-trap 'rm -f "$tmp" "$tmp.sub"' EXIT
+trap 'rm -f "$tmp" "$tmp.sub" "$tmp.sec"' EXIT
 cat "$SRC" > "$tmp"
 
 if [ "$GUARD_ON" = "1" ]; then
@@ -199,6 +345,30 @@ if [ "$GUARD_ON" = "1" ]; then
   cat "$tmp.sub" > "$tmp"
 fi
 
+if [ "$DJCMS_ON" = "1" ]; then
+  # Sekcja tras djcms w bloku domeny głównej: przed jego domyślnym `handle` (proxy do web) – kotwica
+  # to pierwsza linijka `    handle {` po nagłówku `{$SITE_DOMAIN} {`. Sekcja z pliku (getline),
+  # nie z `awk -v`: `-v` interpretuje odwrotne ukośniki, a wyrażenia ich pełno.
+  djcms_section "$APP_RE_MAIN" "$OWN_RE_MAIN" > "$tmp.sec"
+  awk -v sec="$tmp.sec" '
+    BEGIN { main = 0; done = 0 }
+    {
+      if ($0 == "{$SITE_DOMAIN} {") main = 1
+      if (main && !done && $0 == "    handle {") {
+        while ((getline line < sec) > 0) print line
+        done = 1
+      }
+      if (main && $0 == "}") main = 0
+      print
+    }
+    END { if (!done) exit 3 }
+  ' "$tmp" > "$tmp.sub" || {
+    echo "render_caddyfile: nie znalazłem kotwicy sekcji djcms (\`    handle {\` w bloku {\$SITE_DOMAIN}) w $SRC – popraw generator razem z plikiem źródłowym" >&2
+    exit 1
+  }
+  cat "$tmp.sub" > "$tmp"
+fi
+
 added=0
 for host in $EXTRA_DOMAINS; do
   if [ "${host#www.}" != "$host" ] && apex_listed "$host"; then
@@ -238,6 +408,10 @@ EOF
         root * /srv/static
         file_server
     }
+EOF
+    # Sekcja tras djcms (DJ-02 § 3) – ta sama co w bloku domeny głównej, bez wariantu prefiksu.
+    if [ "$DJCMS_ON" = "1" ]; then djcms_section "$APP_RE" "$OWN_RE" >> "$tmp"; fi
+    cat >> "$tmp" <<EOF
     handle {
         reverse_proxy web:8000 {
             header_up X-Forwarded-Proto {scheme}
@@ -286,6 +460,9 @@ EOF
         root * /srv/static
         file_server
     }
+EOF
+  if [ "$DJCMS_ON" = "1" ]; then djcms_section "$APP_RE" "$OWN_RE" >> "$tmp"; fi
+  cat >> "$tmp" <<'EOF'
     handle {
         reverse_proxy web:8000 {
             header_up X-Forwarded-Proto {scheme}
@@ -308,68 +485,37 @@ if [ "$DJCMS_ON" = "1" ]; then
   # zawsze wygrywa z `*.<domena>`, więc przy obu przełącznikach `dj.` nie trafia do aplikacji
   # głównej jako „konkurs o slugu dj” (slug `dj` jest zresztą zarezerwowany w formularzu konkursu).
   #
-  # Czego tu świadomie NIE ma:
-  # - `import maintenance` – przerwa techniczna głównego serwisu nie wyłącza `dj.`; djcms, gdy
-  #   API aplikacji głównej nie odpowiada, sam pokazuje stronę z komunikatem (DJ-01 § 8.3);
-  # - `tls { on_demand }` – zwykły certyfikat (HTTP-01) wystawiany przy starcie proxy; rekord DNS
-  #   `*.<domena>` już wskazuje serwer (deploy/dns-olimpiadakwantowa.pl.zone);
-  # - `/static/*` z wolumenu – statyki djcms serwuje WhiteNoise z obrazu djcms (DJ-01 § 1.1).
-  #
-  # `/media/*` (pliki wgrane przez redaktorów w filerze) podaje Caddy z wolumenu `djcms_media`
-  # zamontowanego do proxy tylko do odczytu przez nakładkę `docker-compose.djcms.yml` – montaż
-  # istnieje wyłącznie przy DJCMS_ENABLED=1 (scripts/deploy.sh dopisuje ją do COMPOSE_FILE
-  # w .env), więc przy wyłączonym przełączniku konfiguracja `proxy` jest ta sama co przed DJ-01.
-  # Plik od redaktora nie może wykonać skryptu w domenie `dj.` (reguła 12 z DJ-01 § 7):
-  # `nosniff` dla wszystkich i CSP z `sandbox` dla wszystkich **poza PDF** – plik otwarty wprost
-  # dostaje wtedy unikalny, pusty origin bez skryptów. Odwrócona lista (wszystko poza PDF), a nie
-  # lista typów aktywnych z DJ-01 § 8.8 (`path /media/*.svg …`), z dwóch powodów:
-  # 1. `*` w środku wzorca `path` Caddy'ego nie przechodzi przez `/` (semantyka `path.Match`),
-  #    a filer trzyma pliki w podkatalogach (`/media/filer_public/ab/cd/<uuid>/x.svg`) – wzorzec
-  #    ze specyfikacji nie pasował do żadnego prawdziwego pliku (sprawdzone na caddy:2.8,
-  #    test: scripts/tests/render_caddyfile_test.sh, przypadek z działającym Caddym);
-  # 2. typów, które przeglądarka wykona jako dokument, jest więcej niż sześć (XML z arkuszem
-  #    XSLT, `.xht`, `.shtml`, `.rdf`, `.mml` …), a obrazy i filmy CSP odpowiedzi nie dotyczy
-  #    (osadzone w `<img>`/`<video>` ignorują ją, otwarte wprost wyświetlają się bez skryptów).
-  # PDF-a nie: z `sandbox` przeglądarka (Chrome) odmawia wyświetlenia go w swoim podglądzie.
-  # `path_regexp` z `(?i)` – `.PDF` też jest PDF-em; `path` i tak nie rozróżnia wielkości liter.
+  # Od DJ-02 (decyzja D1) `dj.` nie serwuje treści – jest wyłącznie wejściem do podglądu. djcms
+  # odpowiada na prawdziwych hostach konkursów (sekcja tras wyżej), a podgląd włącza ciasteczko
+  # `djcms_view=dj` **na tym hoście** – ustawia je djcms (`POST /djcms/preview/`, CSRF, HttpOnly,
+  # Secure, SameSite=Lax, 8 h), bo ciasteczko ustawione tu, pod `dj.`, i tak nie trafiłoby na
+  # inną nazwę (ciasteczka host-only). Dlatego:
+  # - DJCMS_PRIMARY=0: 302 na stronę włączenia podglądu domeny głównej, z adresem, na który
+  #   ktoś wszedł (`next`) – strona wymienia też wszystkie konkursy z odnośnikami do ich
+  #   `/djcms/preview/`. `{uri}` (surowy RequestURI: ścieżka zakodowana tak, jak przyszła,
+  #   z zapytaniem), a nie `{path}` (zdekodowana – `%23`/`%26` rozbiłyby adres); Caddy 2.8 nie ma
+  #   symbolu zastępczego z kodowaniem do zapytania, więc parametry po pierwszym `&` zapytania
+  #   trafiają do widoku osobno – djcms i tak dopuszcza w `next` wyłącznie ścieżkę tego hosta.
+  # - DJCMS_PRIMARY=1: 302 na ten sam adres domeny głównej (stare zakładki z czasu porównania).
+  # 302, a nie 301: cel zależy od trybu, a przeglądarka zapamiętuje 301 na zawsze.
+  # Odmowa `/internal/*` zostaje (S4 – w każdym bloku). `redir` w `handle`, bo samo `redir`
+  # wykonuje się przed każdym `handle` i odmowa byłaby martwa. Bez `import maintenance`
+  # i bez treści – nie ma czego zasłaniać.
+  if [ "$PRIMARY_ON" = "1" ]; then
+    dj_target='https://{$SITE_DOMAIN}{uri}'
+  else
+    dj_target='https://{$SITE_DOMAIN}/djcms/preview/?next={uri}'
+  fi
   cat >> "$tmp" <<'EOF'
 
 # Wygenerowane przez scripts/render_caddyfile.sh przy DJCMS_ENABLED=1 – nie edytuj tego pliku.
-# Wersja porównawcza na django CMS (docs/tasks/DJ-01.md). Nieindeksowana. Nazwa dosłowna wygrywa
-# z blokiem `*.{$SITE_DOMAIN}`; certyfikat zwykły (HTTP-01), rekord DNS `*` już wskazuje serwer.
+# Wejście do podglądu serwisu na django CMS (docs/tasks/DJ-02.md D1): wyłącznie przekierowanie
+# na domenę główną. Nazwa dosłowna wygrywa z blokiem `*.{$SITE_DOMAIN}`; certyfikat zwykły (HTTP-01).
 dj.{$SITE_DOMAIN} {
-    encode gzip zstd
-    request_body {
-        max_size {$MAX_UPLOAD_MB}MB
-    }
 EOF
   internal_guard >> "$tmp"
-  cat >> "$tmp" <<'EOF'
-    @dj_active_media {
-        path /media/*
-        not path_regexp (?i)\.pdf$
-    }
-    header @dj_active_media Content-Security-Policy "default-src 'none'; style-src 'unsafe-inline'; sandbox"
-    handle_path /media/* {
-        header Cache-Control "public, max-age=86400"
-        root * /srv/djcms-media
-        file_server
-    }
-    handle {
-        reverse_proxy djcms:8000 {
-            header_up X-Forwarded-Proto {scheme}
-            # Adres klienta dla blokady prób logowania (djcms ufa mu tylko z adresu proxy).
-            header_up X-Real-IP {remote_host}
-        }
-    }
-    header {
-        Strict-Transport-Security "max-age=31536000"
-        X-Content-Type-Options "nosniff"
-        Referrer-Policy "same-origin"
-        X-Robots-Tag "noindex, nofollow, noarchive"
-    }
-}
-EOF
+  printf '%s
+'     '    handle {'     "        redir $dj_target 302"     '    }'     '}' >> "$tmp"
 fi
 
 mkdir -p "$(dirname "$OUT")"
@@ -378,5 +524,5 @@ cat "$tmp" > "$OUT"
 # co dotąd (log wdrożenia wygląda tak, jak wyglądał).
 extras=""
 [ "$SUBDOMAINS_ON" = "1" ] && extras="$extras, subdomeny platformy: włączone"
-[ "$DJCMS_ON" = "1" ] && extras="$extras, dj. (django CMS): włączone"
+[ "$DJCMS_ON" = "1" ] && extras="$extras, dj. (django CMS): włączone, DJCMS_PRIMARY=$PRIMARY_ON ($DJCMS_MODE)"
 echo "render_caddyfile: $OUT (domen dodatkowych: $added$extras)"

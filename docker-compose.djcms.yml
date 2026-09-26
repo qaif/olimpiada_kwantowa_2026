@@ -1,5 +1,5 @@
-# Nakładka wersji porównawczej na django CMS (dj.<SITE_DOMAIN>, docs/tasks/DJ-01.md, docs/OPERACJE.md
-# § 22). Włączana WYŁĄCZNIE przy DJCMS_ENABLED=1: scripts/deploy.sh dopisuje wtedy do .env serwera
+# Nakładka serwisu na django CMS (docs/tasks/DJ-01.md, DJ-02.md, docs/OPERACJE.md § 22). Włączana
+# WYŁĄCZNIE przy DJCMS_ENABLED=1: scripts/deploy.sh dopisuje wtedy do .env serwera
 #   COMPOSE_FILE=docker-compose.yml:docker-compose.djcms.yml
 #   COMPOSE_PROFILES=djcms
 # a docker compose czyta obie zmienne z .env sam – każde polecenie compose'a w katalogu instalacji
@@ -16,10 +16,22 @@
 # Widok `django.views.static.serve` jest wprost „nie do produkcji” (każdy plik przez gunicorna, 2×2
 # wątki na cały serwis), a WhiteNoise indeksuje katalog przy starcie procesu – plik wgrany po starcie
 # nie istniałby do restartu. Caddy podaje pliki sam, z nagłówkami z reguły 12 (CSP `sandbox`, nosniff).
+#
+# DJ-02: nakładka dokłada też **stały adres** `proxy` w sieci `internal` – djcms ufa nagłówkom
+# `X-Real-IP` i `X-Djcms-Mode` (tryb preview/primary, od którego zależy noindex) wyłącznie od tego
+# adresu (`TRUSTED_PROXY_IPS` usługi djcms w docker-compose.yml, ta sama zmienna DJCMS_PROXY_IP).
+# Bez przypięcia djcms musiałby ufać całej podsieci, czyli także web, workerowi, minio, clamav,
+# poczcie… Przypięcie tutaj, a nie w pliku podstawowym – z tego samego powodu co montaż wyżej:
+# bez dj. konfiguracja `proxy` ma zostać ta, co przed DJ-01. Adres z końca puli (Docker przydziela
+# dynamiczne od początku), zmiana tylko razem z DJCMS_PROXY_IP w .env.
 services:
   proxy:
     volumes:
-      # Pliki wgrane przez redaktorów dj. (filer) – tylko do odczytu; pisze do wolumenu wyłącznie djcms.
-      # Blok `dj.{$SITE_DOMAIN}` w deploy/Caddyfile.generated (scripts/render_caddyfile.sh) podaje je
-      # pod /media/*.
+      # Pliki wgrane przez redaktorów djcms (filer) – tylko do odczytu; pisze do wolumenu wyłącznie
+      # djcms. Każdy blok aplikacji w deploy/Caddyfile.generated (scripts/render_caddyfile.sh)
+      # podaje je pod /djcms/media/* (DJ-02 D2), z CSP `sandbox` poza PDF-em.
       - djcms_media:/srv/djcms-media:ro
+    networks:
+      edge:
+      internal:
+        ipv4_address: ${DJCMS_PROXY_IP:-172.30.2.250}

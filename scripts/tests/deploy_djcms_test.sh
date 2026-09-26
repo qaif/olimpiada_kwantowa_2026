@@ -85,6 +85,11 @@ case "$*" in
   *"exec -T db psql"*) echo 0 ;;
   *"exec -T db pg_dump"*) echo "PGDMP-atrapa" ;;
   *"import_cms_bundle"*) exit "${STUB_IMPORT_RC:-0}" ;;
+  # Kontener proxy: suma pliku, który widzi. Domyślnie „stary i-węzeł” (pusta) – tak jest po
+  # kroku 2/8 na prawdziwym serwerze; STUB_PROXY_FRESH=1 = widzi bieżący plik.
+  *"exec -T proxy sha256sum"*) [ "${STUB_PROXY_FRESH:-0}" = 1 ] && sha256sum deploy/Caddyfile.generated ;;
+  *"sync_competitions --list-hosts"*) printf 'bez zmian: kwantowa\nolimpiada.example kwantowa\n' ;;
+  *"sync_competitions"*) exit "${STUB_SYNC_RC:-0}" ;;
 esac
 exit 0
 STUB
@@ -97,11 +102,23 @@ case "$1" in
   *) echo "git (atrapa): $*" >&2; exit 1 ;;
 esac
 STUB
-chmod +x "$BIN/ssh" "$BIN/docker" "$BIN/git"
+# curl (kontrola dymna djcms_switch.sh check przy DJCMS_PRIMARY=1): strony publiczne z nagłówkiem
+# trybu z STUB_CURL_MODE (pusty = jak web), /login/ i /static/ – 200, /internal/ – 404.
+cat >"$BIN/curl" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >>"$DOCKER_LOG.curl"
+url="${!#}"; path="/${url#https://*/}"
+case "$path" in
+  /internal/*) printf 'HTTP/2 404\r\n\r\n' ;;
+  */login/|/static/*) printf 'HTTP/2 200\r\n\r\n' ;;
+  *) printf 'HTTP/2 200\r\n%s\r\n' "${STUB_CURL_MODE:+x-djcms-mode: $STUB_CURL_MODE}" ;;
+esac
+STUB
+chmod +x "$BIN/ssh" "$BIN/docker" "$BIN/git" "$BIN/curl"
 
 # Drzewo „z repozytorium”, które deploy rozpakowuje na serwerze: stan roboczy (także niezacommitowany).
 tar -C "$ROOT" -cf "$WORK/tree.tar" --exclude='deploy/Caddyfile.generated' \
-  scripts deploy docker-compose.yml docker-compose.djcms.yml
+  scripts deploy docker-compose.yml docker-compose.djcms.yml backend/djcms_contract
 
 # .env serwera po wcześniejszych wdrożeniach (bez dj.): wszystkie wpisy, które krok 4/8 dokłada
 # „jeśli brak”, już są – kolejne wdrożenie bez dj. ma go zostawić co do bajtu.
@@ -139,8 +156,9 @@ run_deploy() {
   # run_deploy <plik deploy.sh> <etykieta> [ZMIENNA=wartość…] – jeden pełny przebieg; kod wyjścia.
   local script="$1" label="$2"; shift 2
   DOCKER_LOG="$WORK/$label.docker"; SSH_LOG="$WORK/$label.ssh"; OUT="$WORK/$label.out"
-  : >"$DOCKER_LOG"; : >"$SSH_LOG"; rm -f "$DOCKER_LOG.sql"
+  : >"$DOCKER_LOG"; : >"$SSH_LOG"; rm -f "$DOCKER_LOG.sql" "$DOCKER_LOG.curl"
   ( env -u DJCMS_ENABLE -u DJCMS_IMAGE -u DJCMS_ADMIN_EMAIL -u DJCMS_ADMIN_PASSWORD -u WEB_IMAGE \
+      -u DJCMS_PRIMARY -u STUB_PROXY_FRESH -u STUB_CURL_MODE -u STUB_SYNC_RC \
       -u NEW_COMPETITION_SLUG -u COORDINATOR_EMAIL -u COORDINATOR_PASSWORD \
       PATH="$BIN:$PATH" DOCKER_LOG="$DOCKER_LOG" SSH_LOG="$SSH_LOG" SRC_TAR="${SRC_TAR:-$WORK/tree.tar}" \
       FAKE_HOME="$WORK/home" REMOTE_DIR="$SRV" BACKUP_DIR="$BAK" SSH_KEY=/dev/null \
@@ -245,8 +263,10 @@ env_line() { sed -n "s/^$1=//p" "$SRV/.env" | tail -n 1; }
 check ".env: DJCMS_ENABLED=1 dopisane raz" $?
 env_line DJCMS_SECRET_KEY | grep -qE '^[A-Za-z0-9]{64}$' &&
   env_line DJCMS_DB_PASSWORD | grep -qE '^[A-Za-z0-9]{32}$' &&
-  env_line DJCMS_INTERNAL_TOKEN | grep -qE '^[A-Za-z0-9]{48}$'
-check ".env: sekrety djcms (64/32/48 znaków [A-Za-z0-9])" $?
+  env_line DJCMS_INTERNAL_TOKEN | grep -qE '^[A-Za-z0-9]{48}$' &&
+  env_line DJCMS_SSO_KEY | grep -qE '^[A-Za-z0-9]{64}$' &&
+  [ "$(env_line DJCMS_SSO_KEY)" != "$(env_line DJCMS_SECRET_KEY)" ]
+check ".env: sekrety djcms (64/32/48/64 znaków [A-Za-z0-9], klucz SSO osobny)" $?
 env_line DJCMS_DB_PASSWORD | grep -qE '^[A-Za-z0-9_-]{16,}$'
 check ".env: DJCMS_DB_PASSWORD spełnia warunek scripts/djcms_db.sh" $?
 [ "$(env_line COMPOSE_FILE)" = "docker-compose.yml:docker-compose.djcms.yml" ] && [ "$(env_line COMPOSE_PROFILES)" = "djcms" ]
@@ -280,12 +300,16 @@ images --filter=reference=olimpiada/web --format {{.CreatedAt}}|{{.Repository}}:
 image prune -f
 compose exec -T web python manage.py check_domains --all
 compose ps --format {{.Service}}={{.Health}}
+compose exec -T proxy sha256sum /etc/caddy/Caddyfile
+compose up -d --force-recreate --no-deps proxy
+compose ps --format {{.Service}}={{.Health}}
 compose exec -T djcms python manage.py setup_djcms_groups
 compose exec -T -e DJCMS_ADMIN_EMAIL -e DJCMS_ADMIN_PASSWORD djcms python manage.py bootstrap_djcms_admin
+compose exec -T djcms python manage.py sync_competitions
 compose exec -T djcms python manage.py import_cms_bundle --from-api --if-empty'
 [ "$(cat "$WORK/on.docker")" = "$WLACZONE" ]
 rc=$?
-check "z DJCMS_ENABLE=1: build djcms, baza, kopia, start, grupy, administrator, import – w tej kolejności" $rc
+check "z DJCMS_ENABLE=1: build djcms, baza, kopia, start, proxy z bieżącym plikiem, grupy, administrator, rejestr, import – w tej kolejności" $rc
 [ $rc -eq 0 ] || diff <(printf '%s\n' "$WLACZONE") "$WORK/on.docker" | sed 's/^/     /'
 grep -q 'CREATE ROLE olimpiada_djcms' "$WORK/on.docker.sql" 2>/dev/null
 check "scripts/djcms_db.sh dostał SQL roli i bazy" $?
@@ -294,8 +318,14 @@ check "kopie przed migracjami: baza główna i baza djcms" $?
 ! grep -qF "$ADMIN_PW" "$WORK/on.ssh" "$WORK/on.docker" &&
   ! grep -qF "redakcja@olimpiada.example" "$WORK/on.ssh" "$WORK/on.docker"
 check "dane administratora nie pojawiają się w argumentach ssh ani docker (tylko stdin i środowisko)" $?
-grep -qE '^==> dj\. ' "$WORK/on.out" && grep -qF 'https://dj.olimpiada.example/' "$WORK/on.out"
-check "log wdrożenia ma krok dj. z adresem" $?
+grep -qE '^==> dj\. ' "$WORK/on.out" && grep -qF 'https://dj.olimpiada.example/' "$WORK/on.out" &&
+  grep -qF 'Serwis publiczny: Wagtail (DJCMS_PRIMARY=0)' "$WORK/on.out"
+check "log wdrożenia ma krok dj. z adresem i trybem serwisu (Wagtail)" $?
+grep -q 'header_up X-Djcms-Mode preview' "$SRV/deploy/Caddyfile.generated" &&
+  [ "$(grep -c '^    # >>> django CMS ' "$SRV/deploy/Caddyfile.generated")" -ge 1 ]
+check "konfiguracja proxy z sekcją tras djcms w trybie preview (kontrakt tras z paczki kodu)" $?
+[ ! -s "$WORK/on.docker.curl" ]
+check "przy DJCMS_PRIMARY=0 wdrożenie nie robi kontroli dymnej djcms" $?
 
 # Hasło doszło do skryptu zdalnego nienaruszone (printf %q w pierwszych linijkach stdin).
 last_stdin="$(grep -l '^DJCMS_ADMIN_PASSWORD=' "$WORK"/on.ssh.stdin.* | head -n 1)"
@@ -313,8 +343,8 @@ show_on_fail $rc "$WORK/again.out"
 cmp -s "$WORK/env.after-on" "$SRV/.env"
 check "kolejne wdrożenie nie zmienia .env (sekrety, znaczniki, COMPOSE_*)" $?
 grep -q 'compose up -d --remove-orphans .* proxy djcms$' "$WORK/again.docker" &&
-  grep -q 'setup_djcms_groups' "$WORK/again.docker"
-check "kolejne wdrożenie startuje djcms i odświeża grupę redaktorów" $?
+  grep -q 'setup_djcms_groups' "$WORK/again.docker" && grep -qx 'compose exec -T djcms python manage.py sync_competitions' "$WORK/again.docker"
+check "kolejne wdrożenie startuje djcms, odświeża grupę redaktorów i rejestr konkursów" $?
 ! grep -qE 'bootstrap_djcms_admin|import_cms_bundle' "$WORK/again.docker"
 check "bez DJCMS_ADMIN_* nie ma zakładania konta, po imporcie – nie ma drugiego importu" $?
 
@@ -434,6 +464,52 @@ tar -tf "$WORK/tree.tar" | grep -qx 'docker-compose.djcms.yml' && git -C "$ROOT"
 rc=$?
 check "docker-compose.djcms.yml jest w repozytorium (git archive HEAD go zabierze)" $rc
 [ $rc -eq 0 ] || printf '     (plik jeszcze nie dodany do gita – `git add docker-compose.djcms.yml`)\n'
+
+# ================================================================================================
+# 9. DJCMS_PRIMARY (serwis publiczny na djcms, DJ-02 § 3, § 10.2): generator czyta go z .env w kroku
+#    4/8, wdrożenie trybu nie zmienia, przy PRIMARY=1 kończy kontrolą dymną djcms_switch.sh check.
+# ================================================================================================
+# 9a. PRIMARY=1 bez DJCMS_ENABLED – sprzeczność, odmowa w kroku 4/8 przed budowaniem czegokolwiek.
+reset_server
+{ cat "$WORK/env.fixture"; echo "DJCMS_PRIMARY=1"; } >"$SRV/.env"
+run_deploy "$DEPLOY" prim-noenable
+rc=$?
+[ $rc -ne 0 ] && ! grep -q 'build' "$WORK/prim-noenable.docker" && grep -qF 'DJCMS_PRIMARY=1 wymaga DJCMS_ENABLED=1' "$WORK/prim-noenable.out"
+check "DJCMS_PRIMARY=1 bez DJCMS_ENABLED=1 – wdrożenie staje w kroku 4/8, nic nie jest budowane" $?
+# 9b. PRIMARY=0 wprost przy wyłączonym dj. – polecenia dzisiejsze, .env i Caddyfile nietknięte.
+reset_server
+{ cat "$WORK/env.fixture"; echo "DJCMS_PRIMARY=0"; } >"$SRV/.env"
+cp "$SRV/.env" "$WORK/env.p0"
+run_deploy "$DEPLOY" prim-zero
+[ "$(cat "$WORK/prim-zero.docker")" = "$DZISIAJ" ] && cmp -s "$WORK/env.p0" "$SRV/.env" &&
+  cmp -s "$ROOT/deploy/Caddyfile" "$SRV/deploy/Caddyfile.generated"
+check "DJCMS_PRIMARY=0 przy wyłączonym dj.: polecenia dzisiejsze, .env i Caddyfile bez zmian" $?
+# 9c. Włączone dj. i PRIMARY=1: tryb primary w konfiguracji proxy, kontrola dymna przez proxy.
+reset_server
+run_deploy "$DEPLOY" prim-enable DJCMS_ENABLE=1
+{ echo; echo "DJCMS_PRIMARY=1"; } >>"$SRV/.env"
+cp "$SRV/.env" "$WORK/env.prim"
+run_deploy "$DEPLOY" prim STUB_CURL_MODE=primary STUB_PROXY_FRESH=1
+rc=$?
+check "wdrożenie przy DJCMS_PRIMARY=1 i działającym djcms kończy się powodzeniem" $rc
+show_on_fail $rc "$WORK/prim.out"
+grep -q 'header_up X-Djcms-Mode primary' "$SRV/deploy/Caddyfile.generated" && cmp -s "$WORK/env.prim" "$SRV/.env"
+check "PRIMARY=1: konfiguracja proxy w trybie primary, .env nietknięty (wdrożenie trybu nie zmienia)" $?
+grep -qE ' https://olimpiada\.example/$' "$WORK/prim.docker.curl" && grep -qE ' https://olimpiada\.example/login/$' "$WORK/prim.docker.curl" &&
+  grep -qF 'Serwis publiczny: django CMS (DJCMS_PRIMARY=1)' "$WORK/prim.out"
+check "PRIMARY=1: kontrola dymna (/ z djcms, /login/ z web) i komunikat o trybie" $?
+! grep -q 'force-recreate' "$WORK/prim.docker"
+check "proxy widzi bieżący plik – bez odtwarzania kontenera" $?
+run_deploy "$DEPLOY" prim-bad STUB_PROXY_FRESH=1
+rc=$?
+[ $rc -ne 0 ] && grep -qF 'djcms_switch.sh off' "$WORK/prim-bad.out" && [ "$(env_line DJCMS_PRIMARY)" = 1 ] &&
+  grep -q 'check_domains' "$WORK/prim-bad.docker"
+check "PRIMARY=1, a strony publiczne nie z djcms: kod ≠ 0 z podpowiedzią off, tryb bez zmian, kroki główne wykonane" $?
+# 9d. Nieudane uzgodnienie rejestru konkursów – kod ≠ 0 po krokach głównego serwisu, bez importu.
+run_deploy "$DEPLOY" sync-bad STUB_SYNC_RC=1 STUB_PROXY_FRESH=1 STUB_CURL_MODE=primary
+rc=$?
+[ $rc -ne 0 ] && grep -q 'check_domains' "$WORK/sync-bad.docker" && ! grep -q 'import_cms_bundle' "$WORK/sync-bad.docker"
+check "nieudane sync_competitions: kod ≠ 0, po krokach głównego serwisu, bez importu" $?
 
 if [ "$failures" -ne 0 ]; then
   printf '\n%d test(ów) nie przeszło.\n' "$failures"

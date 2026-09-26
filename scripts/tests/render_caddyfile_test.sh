@@ -11,8 +11,9 @@
 # Najważniejszy przypadek jest pierwszy: **pusty `EXTRA_DOMAINS` musi dać kopię bajt w bajt**.
 # To jest jedyne zabezpieczenie przed tym, żeby dołożenie wielokonkursowości zmieniło konfigurację
 # proxy działającej produkcji (docs/UNIWERSALNY-ETAP-1.md § 0). Ta sama gwarancja dla
-# `DJCMS_ENABLED` (wersja porównawcza dj., docs/tasks/DJ-01.md § 8.8) – przypadki 14–18, a przy
-# dostępnym Dockerze (19) także `caddy validate`/`adapt` i działający Caddy z blokiem `dj.`.
+# `DJCMS_ENABLED` (docs/tasks/DJ-01.md § 8.8) – przypadki 14–18; `DJCMS_PRIMARY` i sekcja tras djcms
+# w każdym bloku aplikacji (docs/tasks/DJ-02.md § 3) – 20–27; przy dostępnym Dockerze (19) także
+# `caddy validate`/`adapt`, a na końcu scripts/tests/djcms_routing_test.sh (żywy Caddy, tablica tras).
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -33,11 +34,11 @@ check() {
 }
 
 render() {
-  # render "<EXTRA_DOMAINS>" <plik-wyjściowy> ["<PLATFORM_SUBDOMAINS>"] ["<DJCMS_ENABLED>"];
-  # zwraca kod wyjścia generatora. Trzeci i czwarty argument są **zawsze** przekazywane (choćby
-  # puste), bo zmienna nieustawiona każe generatorowi czytać `.env` – a test ma sprawdzać
-  # generator, a nie czyjś plik konfiguracyjny.
-  EXTRA_DOMAINS="$1" PLATFORM_SUBDOMAINS="${3:-}" DJCMS_ENABLED="${4:-}" CADDYFILE_OUT="$2"     bash "$RENDER" >"$WORK/stdout" 2>"$WORK/stderr"
+  # render "<EXTRA_DOMAINS>" <plik-wyjściowy> ["<PLATFORM_SUBDOMAINS>"] ["<DJCMS_ENABLED>"] ["<DJCMS_PRIMARY>"];
+  # zwraca kod wyjścia generatora. Argumenty 3–5 są **zawsze** przekazywane (choćby puste), bo
+  # zmienna nieustawiona każe generatorowi czytać `.env` – a test ma sprawdzać generator, a nie
+  # czyjś plik konfiguracyjny.
+  EXTRA_DOMAINS="$1" PLATFORM_SUBDOMAINS="${3:-}" DJCMS_ENABLED="${4:-}" DJCMS_PRIMARY="${5:-}" CADDYFILE_OUT="$2"     bash "$RENDER" >"$WORK/stdout" 2>"$WORK/stderr"
 }
 
 # 1. Pusta lista domen = dzisiejsza konfiguracja, co do bajtu.
@@ -245,9 +246,12 @@ strip_djcms() {
   # w pliku, razem z pustą linijką przed jego komentarzem) i bez komentarza nad odmową /internal/*
   # w bloku domeny głównej (jego treść zależy od przełączników). Z drugim argumentem 1 wycina też
   # same odmowy `handle /internal/* { respond 404 }` – dla porównań przy wyłączonych subdomenach,
-  # gdzie wszystkie odmowy pochodzą od DJCMS_ENABLED.
+  # gdzie wszystkie odmowy pochodzą od DJCMS_ENABLED. Zawsze wycina też sekcję tras djcms
+  # (DJ-02 § 3) – od znacznika `>>> django CMS` do `<<< django CMS` – z każdego bloku aplikacji.
   awk -v guards="$2" '
     $0 == "# Wygenerowane przez scripts/render_caddyfile.sh przy DJCMS_ENABLED=1 – nie edytuj tego pliku." { cut = 1; exit }
+    /^    # >>> django CMS / { sec = 1 }
+    sec { if ($0 == "    # <<< django CMS") sec = 0; next }
     pending { print prev; pending = 0 }
     /^    # `\/internal\/\*` jest wyłącznie dla / { skip = 3 }
     skip > 0 { skip--; next }
@@ -286,8 +290,8 @@ done
 # 16. Włączony, sam: blok `dj.` jeden i ostatni, odmowa w bloku głównym, reszta nietknięta.
 render "" "$WORK/dj-on.caddy" "" "1"
 check "generator kończy się sukcesem przy DJCMS_ENABLED=1" $?
-grep -qF 'dj. (django CMS): włączone' "$WORK/stdout"
-check "podsumowanie generatora wymienia dj." $?
+grep -qF 'dj. (django CMS): włączone, DJCMS_PRIMARY=0 (preview)' "$WORK/stdout"
+check "podsumowanie generatora wymienia dj. i tryb" $?
 [ "$(grep -c '^dj\.{\$SITE_DOMAIN} {$' "$WORK/dj-on.caddy")" -eq 1 ]
 check "blok dj.{\$SITE_DOMAIN} występuje dokładnie raz" $?
 [ "$(grep -E '^[^ #].* \{$' "$WORK/dj-on.caddy" | tail -n 1)" = 'dj.{$SITE_DOMAIN} {' ]
@@ -310,28 +314,11 @@ guards_in() { block_body "$1" "$2" | grep -c '^    handle /internal/\* {$'; }
 check "odmowa /internal/* w bloku domeny głównej (dokładnie raz)" $?
 [ "$(guards_in "$WORK/dj-on.caddy" 'dj.{$SITE_DOMAIN} {')" -eq 1 ]
 check "odmowa /internal/* w bloku dj." $?
+# dj. od DJ-02 (D1) = wyłącznie przekierowanie 302 na stronę włączenia podglądu domeny głównej.
 block_body "$WORK/dj-on.caddy" 'dj.{$SITE_DOMAIN} {' >"$WORK/dj-block.txt"
-for needle in 'reverse_proxy djcms:8000 {' \
-              'header_up X-Real-IP {remote_host}' \
-              'X-Robots-Tag "noindex, nofollow, noarchive"' \
-              'X-Content-Type-Options "nosniff"' \
-              'Strict-Transport-Security "max-age=31536000"' \
-              'handle_path /media/* {' \
-              'root * /srv/djcms-media' \
-              "header @dj_active_media Content-Security-Policy \"default-src 'none'; style-src 'unsafe-inline'; sandbox\"" \
-              'max_size {$MAX_UPLOAD_MB}MB'; do
-  grep -qF -- "$needle" "$WORK/dj-block.txt"
-  check "blok dj. zawiera „$needle”" $?
-done
-# CSP `sandbox` dla wszystkiego pod /media/ poza PDF-em. Wzorzec `path /media/*.svg` (pierwsza
-# wersja specyfikacji) nie pasuje do plików filera w podkatalogach – działanie sprawdza przypadek
-# z prawdziwym Caddym niżej (19).
-awk '/^    @dj_active_media \{$/ {on=1; next} on && /^    }$/ {exit} on' "$WORK/dj-block.txt" >"$WORK/dj-matcher.txt"
-grep -qxF '        path /media/*' "$WORK/dj-matcher.txt" &&
-  grep -qxF '        not path_regexp (?i)\.pdf$' "$WORK/dj-matcher.txt"
-check "matcher CSP sandbox: cały /media/* poza PDF (także w podkatalogach filera)" $?
-! grep -qE 'import maintenance|reverse_proxy web:8000|/srv/static' "$WORK/dj-block.txt"
-check "blok dj. bez strony prac technicznych, bez web:8000 i bez /srv/static" $?
+printf '%s\n' '    handle /internal/* {' '        respond 404' '    }' '    handle {' \
+  '        redir https://{$SITE_DOMAIN}/djcms/preview/?next={uri} 302' '    }' | cmp -s - "$WORK/dj-block.txt"
+check "blok dj. (PRIMARY=0): odmowa /internal/* + 302 na https://{\$SITE_DOMAIN}/djcms/preview/?next={uri}" $?
 
 # 17. Włączony razem z EXTRA_DOMAINS: odmowa w każdym bloku aplikacji, przekierowanie www bez niej.
 render "$DJ_EXTRA" "$WORK/dj-extra.caddy" "" "1"
@@ -363,10 +350,142 @@ check "opcja on_demand_tls nadal dokładnie raz" $?
   "$(grep -n '^\*\.{\$SITE_DOMAIN} {$' "$WORK/dj-both.caddy" | cut -d: -f1)" ]
 check "blok dj. stoi za blokiem wieloznacznym" $?
 strip_djcms "$WORK/dj-both.caddy" 0 | cmp -s - <(strip_djcms "$WORK/sub-extra.caddy" 0)
-check "przy subdomenach: wynik z DJCMS minus blok dj. i komentarz odmowy = wynik bez DJCMS" $?
+check "przy subdomenach: wynik z DJCMS minus wstawki djcms = wynik bez DJCMS" $?
 render "$DJ_EXTRA" "$WORK/dj-both-true.caddy" "true" "TRUE"
 cmp -s "$WORK/dj-both.caddy" "$WORK/dj-both-true.caddy"
 check "DJCMS_ENABLED=TRUE daje to samo, co =1" $?
+
+# --- DJCMS_PRIMARY i sekcja tras djcms (docs/tasks/DJ-02.md § 3) ----------------------------------
+
+ROUTES_ENV="$ROOT/backend/djcms_contract/app_routes.env"
+contract() { sed -n "s/^$1='\(.*\)'\$/\1/p" "$ROUTES_ENV" | tail -n 1 | tr -d '\r'; }
+C_APP_RE="$(contract APP_RE)"
+C_APP_RE_PREFIXED="$(contract APP_RE_PREFIXED)"
+
+# 20. DJCMS_PRIMARY wyłączony (pusto, 0, false, off, no) = ten sam plik; zła wartość = odmowa;
+#     PRIMARY=1 bez DJCMS_ENABLED=1 = odmowa (i przy każdej wyłączonej wartości DJCMS_ENABLED).
+for off in "0" "false" "off" "no" "OFF"; do
+  render "$DJ_EXTRA" "$WORK/pr-off.caddy" "1" "1" "$off"
+  cmp -s "$WORK/dj-both.caddy" "$WORK/pr-off.caddy"
+  check "DJCMS_PRIMARY=„$off” = DJCMS_PRIMARY pusty (tryb preview)" $?
+done
+for bad in "tak" "1;rm" "2" "primary"; do
+  render "" "$WORK/pr-bad.caddy" "" "1" "$bad"
+  status=$?
+  [ "$status" -ne 0 ]
+  check "generator odmawia dla DJCMS_PRIMARY=„$bad”" $?
+done
+render "" "$WORK/pr-keep.caddy" "" "" ""
+for dj_off in "" "0" "false"; do
+  render "" "$WORK/pr-keep.caddy" "" "$dj_off" "1"
+  status=$?
+  [ "$status" -ne 0 ] && grep -qF 'DJCMS_PRIMARY=1 wymaga DJCMS_ENABLED=1' "$WORK/stderr" && cmp -s "$SRC" "$WORK/pr-keep.caddy"
+  check "DJCMS_PRIMARY=1 przy DJCMS_ENABLED=„$dj_off” – odmowa, poprzedni plik nietknięty" $?
+done
+# Wyłączony DJCMS_ENABLED z jawnym PRIMARY=0 – nadal kopia co do bajtu (kontrakt DJ-01 bez zmian).
+render "" "$WORK/pr-zero.caddy" "" "0" "0"
+cmp -s "$SRC" "$WORK/pr-zero.caddy"
+check "DJCMS_ENABLED=0 + DJCMS_PRIMARY=0 daje kopię deploy/Caddyfile bajt w bajt" $?
+
+# 21. Kontrakt tras: przy wyłączonym przełączniku nie jest nawet czytany; przy włączonym brak albo
+#     wartość ze znakiem, który w Caddyfile'u jest składnią – odmowa.
+DJCMS_ROUTES_ENV="$WORK/nie-ma.env" render "" "$WORK/ct-off.caddy" "" "" ""
+cmp -s "$SRC" "$WORK/ct-off.caddy"
+check "bez DJCMS_ENABLED brak kontraktu tras niczego nie zmienia" $?
+DJCMS_ROUTES_ENV="$WORK/nie-ma.env" render "" "$WORK/ct-miss.caddy" "" "1" ""
+status=$?
+[ "$status" -ne 0 ] && grep -qF 'brak kontraktu tras' "$WORK/stderr"
+check "DJCMS_ENABLED=1 bez kontraktu tras – odmowa" $?
+for bad_re in "^/(?:a|b) c\$" "^/a{2}\$" "^/a\"b" "/bez-kotwicy" "^/a#b" ""; do
+  { echo "APP_RE='$bad_re'"; echo "APP_RE_PREFIXED='^/[^/]+/x\$'"; } >"$WORK/bad-routes.env"
+  DJCMS_ROUTES_ENV="$WORK/bad-routes.env" render "" "$WORK/ct-bad.caddy" "" "1" ""
+  status=$?
+  [ "$status" -ne 0 ]
+  check "kontrakt z APP_RE=„$bad_re” – odmowa" $?
+done
+
+# 22. Sekcja tras w KAŻDYM bloku aplikacji i w żadnym innym; ta sama treść (poza wyrażeniami domeny
+#     głównej); wyrażenia wprost z kontraktu (domena główna: APP_RE|APP_RE_PREFIXED i `/<seg>/djcms`).
+section_of() {  # section_of <plik> <nagłówek bloku> – sekcja djcms z bloku (bez linijek z wyrażeniami)
+  block_body "$1" "$2" | awk '/^    # >>> django CMS / {on=1} on {print} /^    # <<< django CMS$/ {on=0}'
+}
+[ "$(grep -c '^    # >>> django CMS ' "$WORK/dj-both.caddy")" -eq 4 ] &&
+  [ "$(grep -c '^    # <<< django CMS$' "$WORK/dj-both.caddy")" -eq 4 ]
+check "sekcja djcms w 4 blokach aplikacji (główna, 2 × EXTRA_DOMAINS, *.)" $?
+for head in 'www.{$SITE_DOMAIN} {' 'www.olimpiadafizyczna.pl {' 'meet.{$SITE_DOMAIN} {' 'monitor.{$SITE_DOMAIN} {' \
+            '{$S3_PUBLIC_ADDRESS} {' 'dj.{$SITE_DOMAIN} {'; do
+  ! block_body "$WORK/dj-both.caddy" "$head" | grep -qE '>>> django CMS|@djcms_|djcms:8000'
+  check "blok „$head” bez sekcji djcms" $?
+done
+section_of "$WORK/dj-both.caddy" 'konkurs.example {' | grep -vE '^    @djcms_(own|app) ' >"$WORK/sec-ref.txt"
+[ -s "$WORK/sec-ref.txt" ]
+check "sekcja djcms niepusta" $?
+for head in '{$SITE_DOMAIN} {' 'olimpiadafizyczna.pl {' '*.{$SITE_DOMAIN} {'; do
+  section_of "$WORK/dj-both.caddy" "$head" | grep -vE '^    @djcms_(own|app) ' | cmp -s - "$WORK/sec-ref.txt"
+  check "sekcja djcms w bloku „$head” = w bloku konkurs.example (poza wyrażeniami)" $?
+done
+re_line() { block_body "$1" "$2" | sed -n "s/^    @djcms_$3 path_regexp //p"; }
+[ "$(re_line "$WORK/dj-both.caddy" '{$SITE_DOMAIN} {' app)" = "$C_APP_RE|$C_APP_RE_PREFIXED" ] &&
+  [ "$(re_line "$WORK/dj-both.caddy" '{$SITE_DOMAIN} {' own)" = '^/(?:[^/]+/)?djcms(?:/.*)?$' ]
+check "domena główna: adresy aplikacji = APP_RE|APP_RE_PREFIXED z kontraktu, djcms także pod /<prefiks>/" $?
+ok_re=0
+for head in 'olimpiadafizyczna.pl {' 'konkurs.example {' '*.{$SITE_DOMAIN} {'; do
+  [ "$(re_line "$WORK/dj-both.caddy" "$head" app)" = "$C_APP_RE" ] &&
+    [ "$(re_line "$WORK/dj-both.caddy" "$head" own)" = '^/djcms(?:/.*)?$' ] || ok_re=1
+done
+check "EXTRA_DOMAINS i *.: adresy aplikacji = samo APP_RE (bez prefiksu), djcms tylko /djcms" $ok_re
+# Kolejność w bloku: /static/* przed sekcją, sekcja przed domyślnym `handle` (web).
+block_body "$WORK/dj-both.caddy" '{$SITE_DOMAIN} {' | awk '
+  $0 == "    handle_path /static/* {" { s = NR }
+  /^    # >>> django CMS / { a = NR }
+  $0 == "    # <<< django CMS" { b = NR }
+  $0 == "    handle {" { h = NR }
+  END { exit !(s && a && b && h && s < a && a < b && b < h) }'
+check "domena główna: /static/* → sekcja djcms → domyślny handle (web)" $?
+grep -qF '    request_header -X-Djcms-Mode' "$WORK/sec-ref.txt" &&
+  grep -qF '    header @djcms_vary +Vary Cookie' "$WORK/sec-ref.txt" &&
+  grep -qxF '    @djcms_vary not path /static/* /djcms/static/* /djcms/media/*' "$WORK/sec-ref.txt" &&
+  grep -qxF '        not path_regexp (?i)\.pdf$' "$WORK/sec-ref.txt" &&
+  grep -qxF '        root * /srv/djcms-media' "$WORK/sec-ref.txt" &&
+  [ "$(grep -c '^            header_up X-Djcms-Mode preview$' "$WORK/sec-ref.txt")" -eq 2 ] &&
+  grep -qxF '    @djcms_public expression `{http.request.cookie.djcms_view} == "dj"`' "$WORK/sec-ref.txt"
+check "sekcja (PRIMARY=0): nagłówek trybu zdjęty i nadany (preview), Vary: Cookie, media z CSP, ciasteczko dj" $?
+
+# 23. PRIMARY=1: jedyne różnice wobec PRIMARY=0 – tryb w nagłówku, warunek ciasteczka, opis sekcji
+#     i cel przekierowania `dj.` (podgląd sprawdza dokładnie konfigurację produkcyjną, D1).
+render "$DJ_EXTRA" "$WORK/pr-on.caddy" "1" "1" "1"
+check "generator kończy się sukcesem przy DJCMS_PRIMARY=1 (+ subdomeny, EXTRA_DOMAINS)" $?
+grep -qF 'DJCMS_PRIMARY=1 (primary)' "$WORK/stdout"
+check "podsumowanie generatora podaje tryb primary" $?
+diff "$WORK/dj-both.caddy" "$WORK/pr-on.caddy" | grep -E '^[<>]' | sed 's/^\([<>]\) */\1/' | sort | uniq -c \
+  | sed 's/^ *//' >"$WORK/pr-diff.txt"
+cat >"$WORK/pr-diff-exp.txt" <<'EOF'
+4 <# >>> django CMS (docs/tasks/DJ-02.md § 3), DJCMS_PRIMARY=0 – strony publiczne: web, z ciasteczkiem djcms_view=dj – djcms.
+4 <@djcms_public expression `{http.request.cookie.djcms_view} == "dj"`
+8 <header_up X-Djcms-Mode preview
+1 <redir https://{$SITE_DOMAIN}/djcms/preview/?next={uri} 302
+4 ># >>> django CMS (docs/tasks/DJ-02.md § 3), DJCMS_PRIMARY=1 – strony publiczne: djcms, z ciasteczkiem djcms_view=wagtail – web.
+4 >@djcms_public expression `{http.request.cookie.djcms_view} != "wagtail"`
+8 >header_up X-Djcms-Mode primary
+1 >redir https://{$SITE_DOMAIN}{uri} 302
+EOF
+sort -k2 "$WORK/pr-diff-exp.txt" | cmp -s - <(sort -k2 "$WORK/pr-diff.txt")
+rc=$?
+check "PRIMARY=1 różni się od PRIMARY=0 wyłącznie trybem, warunkiem ciasteczka i celem dj." $rc
+[ $rc -eq 0 ] || diff "$WORK/pr-diff-exp.txt" "$WORK/pr-diff.txt" | sed 's/^/     /'
+strip_djcms "$WORK/pr-on.caddy" 0 | cmp -s - <(strip_djcms "$WORK/sub-extra.caddy" 0)
+check "PRIMARY=1 minus wstawki djcms = wynik bez DJCMS" $?
+
+# 24. Zapis w miejscu (ten sam i-węzeł): `proxy` montuje plik pojedynczo, a nowy plik (mv, sed -i)
+#     nie dotarłby do kontenera – `caddy reload` w djcms_switch.sh przeładowałby starą treść.
+render "" "$WORK/inode.caddy" "" "1" "0"
+if ln "$WORK/inode.caddy" "$WORK/inode-link.caddy" 2>/dev/null; then
+  render "" "$WORK/inode.caddy" "" "1" "1"
+  grep -qF 'header_up X-Djcms-Mode primary' "$WORK/inode-link.caddy"
+  check "generator pisze w miejscu (twarde dowiązanie widzi nową treść)" $?
+else
+  printf 'skip zapis w miejscu (system plików bez twardych dowiązań)\n'
+fi
 
 # 19. Caddy sam: `caddy validate` i kolejność tras po `caddy adapt` (obraz z docker-compose.yml).
 # Pomijane bez Dockera albo przy SKIP_CADDY_VALIDATE=1 – reszta testu nie potrzebuje sieci.
@@ -379,7 +498,7 @@ if [ "${SKIP_CADDY_VALIDATE:-0}" != "1" ] && command -v docker >/dev/null 2>&1 &
       -e MAX_UPLOAD_MB=25 -e MAINTENANCE_BYPASS_TOKEN=abcdefghijklmnopqrstuvwxyz0123456789ABCD \
       "$CADDY_IMAGE" sh -c "cat > /tmp/Caddyfile && caddy $* --config /tmp/Caddyfile --adapter caddyfile" <"$file"
   }
-  for f in "$SRC" "$WORK/sub-extra.caddy" "$WORK/dj-on.caddy" "$WORK/dj-extra.caddy" "$WORK/dj-both.caddy"; do
+  for f in "$SRC" "$WORK/sub-extra.caddy" "$WORK/dj-on.caddy" "$WORK/dj-extra.caddy" "$WORK/dj-both.caddy" "$WORK/pr-on.caddy"; do
     caddy_run "$f" validate >"$WORK/validate.out" 2>&1
     rc=$?   # osobno: podstawienie $(…) w opisie nadpisałoby kod wyniku
     check "caddy validate ($CADDY_IMAGE): ${f##*/}" "$rc"
@@ -423,12 +542,14 @@ sys.exit(errors)
 PY
     check "caddy adapt: przerwa przed /static/* i aplikacją, JSON przed HTML, meet./monitor. bez przerwy" $?
 
-    # dj. po `caddy adapt` (oba przełączniki + EXTRA_DOMAINS – najgęstszy wariant): trasa `dj.`
-    # przed trasą `*.` (nazwa dosłowna wygrywa), w bloku `dj.` odmowa /internal/* i /media/* przed
-    # proxy do djcms, noindex i CSP sandbox na miejscu, bez strony prac technicznych; w bloku
-    # domeny głównej odmowa dokładnie raz.
-    caddy_run "$WORK/dj-both.caddy" adapt 2>/dev/null | grep '^{' >"$WORK/adapt-dj.json"
-    "$python_bin" - "$WORK/adapt-dj.json" <<'PY'
+    # Sekcja djcms po `caddy adapt` (oba przełączniki + EXTRA_DOMAINS, oba tryby). Caddy sortuje
+    # `handle` o jednej ścieżce po jej długości, więc kolejność zapisu to nie wszystko – sprawdzamy
+    # wynik: w KAŻDYM bloku aplikacji przerwa → pliki redaktorów → /internal/* i /static/* →
+    # adresy djcms → adresy aplikacji → strony publiczne → domyślny handle (web); nagłówek trybu
+    # zdjęty w trasie bez matchera (przed routingiem). `dj.` przed `*.`, w nim odmowa przed 302.
+    for f in dj-both pr-on; do
+      caddy_run "$WORK/$f.caddy" adapt 2>/dev/null | grep '^{' >"$WORK/adapt-$f.json"
+      "$python_bin" - "$WORK/adapt-$f.json" <<'PY'
 import json, sys
 cfg = json.load(open(sys.argv[1], encoding="utf-8"))
 srv = next(s for s in cfg["apps"]["http"]["servers"].values() if ":443" in s["listen"])
@@ -436,70 +557,60 @@ def pos(host):
     return next((i for i, r in enumerate(srv["routes"])
                  if any(host in m.get("host", []) for m in r.get("match", []))), None)
 errors = 0
+for host in ("example.org", "olimpiadafizyczna.pl", "konkurs.example", "*.example.org"):
+    routes = srv["routes"][pos(host)]["handle"][0]["routes"]
+    txt = [json.dumps(r.get("match")) + "|" + json.dumps(r["handle"]) for r in routes]
+    def idx(pred):
+        return next((i for i, t in enumerate(txt) if pred(t)), None)
+    order = {
+        "przerwa": idx(lambda t: '"try_files": ["/on"]' in t),
+        "media": idx(lambda t: t.startswith('[{"path": ["/djcms/media/*"]}]')),
+        "internal": idx(lambda t: '"/internal/*"' in t and "static_response" in t),
+        "static": idx(lambda t: t.startswith('[{"path": ["/static/*"]}]')),
+        "djcms": idx(lambda t: '"name": "djcms_own"' in t),
+        "app": idx(lambda t: '"name": "djcms_app"' in t),
+        "public": idx(lambda t: '"name": "djcms_public"' in t),
+        "web": idx(lambda t: t.startswith("null|") and '"web:8000"' in t),
+    }
+    if None in order.values():
+        print(f"FAIL {host}: brak trasy {[k for k, v in order.items() if v is None]}"); errors += 1
+        continue
+    if not (order["media"] < order["djcms"] < order["app"] < order["public"] < order["web"]
+            and order["static"] < order["djcms"] and order["internal"] < order["djcms"]
+            and order["przerwa"] < order["media"]):
+        print(f"FAIL {host}: kolejność {order}"); errors += 1
+    up = lambda k: json.dumps(routes[order[k]]["handle"])
+    if '"djcms:8000"' not in up("djcms") or '"djcms:8000"' not in up("public") or '"web:8000"' not in up("app"):
+        print(f"FAIL {host}: upstreamy sekcji"); errors += 1
+    strip = [t for t in txt if t.startswith("null|") and '"delete": ["X-Djcms-Mode"]' in t]
+    if not strip or txt.index(strip[0]) > order["przerwa"]:
+        print(f"FAIL {host}: X-Djcms-Mode nie jest zdejmowany przed routingiem"); errors += 1
 dj, wild = pos("dj.example.org"), pos("*.example.org")
 if dj is None or wild is None or not dj < wild:
     print(f"FAIL kolejność witryn: dj.={dj} *.={wild}"); errors += 1
 else:
     routes = [json.dumps(r.get("match")) + json.dumps(r["handle"]) for r in srv["routes"][dj]["handle"][0]["routes"]]
-    idx = lambda needle: next((i for i, r in enumerate(routes) if needle in r), None)
-    i, m, p = idx('"/internal/*"'), idx('"/media/*"'), idx('"djcms:8000"')
-    if None in (i, m, p) or not (i < p and m < p):
-        print(f"FAIL dj.: kolejność internal={i} media={m} proxy={p}"); errors += 1
     whole = json.dumps(srv["routes"][dj])
-    for needle in ('"X-Robots-Tag": ["noindex, nofollow, noarchive"]', "sandbox", '"/srv/djcms-media"', '"(?i)\\\\.pdf$"'):
-        if needle not in whole:
-            print(f"FAIL dj.: brak {needle}"); errors += 1
-    if "try_files" in whole or '"web:8000"' in whole:
-        print("FAIL dj.: strona prac technicznych albo proxy do web"); errors += 1
+    if len(routes) != 2 or '"/internal/*"' not in routes[0] or '"Location"' not in routes[1] or "302" not in routes[1] or "reverse_proxy" in whole or "try_files" in whole:
+        print(f"FAIL dj.: {routes}"); errors += 1
 main = json.dumps(srv["routes"][pos("example.org")])
 n = main.count('"/internal/*"')
 if n != 1:
     print(f"FAIL example.org: odmowa /internal/* {n} razy"); errors += 1
 sys.exit(errors)
 PY
-    check "caddy adapt: dj. przed *., /internal/* i /media/* przed proxy djcms, noindex, bez przerwy" $?
+      check "caddy adapt ($f): w każdym bloku aplikacji media → /internal,/static → djcms → aplikacja → publiczne → web; dj. = odmowa + 302" $?
+    done
   fi
 
-  # Działający Caddy z wygenerowanym plikiem (DJCMS_ENABLED=1): nagłówki plików redaktorów
-  # z **podkatalogów** filera, odmowa /internal/* na dj. i na domenie głównej. `SITE_DOMAIN=localhost`
-  # – Caddy wystawia wtedy certyfikaty z własnego CA, bez ACME i bez sieci. Upstreamów (`web`,
-  # `djcms`) nie ma, więc odpowiedź 404 z /internal/* może pochodzić wyłącznie z odmowy (bez niej
-  # byłby błąd proxy 502).
-  MSYS_NO_PATHCONV=1 docker run --rm -i --add-host dj.localhost:127.0.0.1 --add-host localhost:127.0.0.1 \
-    -e SITE_DOMAIN=localhost -e S3_PUBLIC_ADDRESS=localhost:9000 -e ACME_EMAIL=ops@example.org \
-    -e MAX_UPLOAD_MB=25 "$CADDY_IMAGE" sh -c '
-      cat > /tmp/Caddyfile
-      d=/srv/djcms-media/filer_public/ab/cd/0f1e; mkdir -p "$d" /srv/maintenance
-      echo "<svg xmlns=\"http://www.w3.org/2000/svg\"/>" > "$d/logo.svg"
-      echo "<p>x</p>" > "$d/Strona.HTML"; echo "%PDF-1.4" > "$d/regulamin.PDF"
-      caddy run --config /tmp/Caddyfile --adapter caddyfile >/tmp/caddy.log 2>&1 &
-      for _ in $(seq 1 20); do wget -qO- http://127.0.0.1:2019/config/ >/dev/null 2>&1 && break; sleep 0.5; done
-      sleep 1
-      get() { echo "== $1"; wget --no-check-certificate -S -O /dev/null "$1" 2>&1 | grep -E "^  (HTTP/|Content-Security-Policy|X-Robots-Tag|X-Content-Type-Options)"; }
-      get https://dj.localhost/media/filer_public/ab/cd/0f1e/logo.svg
-      get https://dj.localhost/media/filer_public/ab/cd/0f1e/Strona.HTML
-      get https://dj.localhost/media/filer_public/ab/cd/0f1e/regulamin.PDF
-      get https://dj.localhost/internal/djcms/v1/chrome
-      get https://localhost/internal/djcms/v1/chrome
-    ' <"$WORK/dj-on.caddy" >"$WORK/runtime.txt" 2>&1
-  section() { awk -v h="== $1" '$0 == h {on=1; next} /^== / {on=0} on' "$WORK/runtime.txt"; }
-  ok_rt=0
-  for f in logo.svg Strona.HTML; do
-    out="$(section "https://dj.localhost/media/filer_public/ab/cd/0f1e/$f")"
-    printf '%s' "$out" | grep -q 'HTTP/1.1 200' &&
-      printf '%s' "$out" | grep -qF "Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; sandbox" &&
-      printf '%s' "$out" | grep -qF 'X-Robots-Tag: noindex, nofollow, noarchive' &&
-      printf '%s' "$out" | grep -qF 'X-Content-Type-Options: nosniff' || ok_rt=1
-  done
-  check "działający Caddy: plik z podkatalogu filera (svg, HTML) – 200, CSP sandbox, noindex, nosniff" $ok_rt
-  out="$(section 'https://dj.localhost/media/filer_public/ab/cd/0f1e/regulamin.PDF')"
-  printf '%s' "$out" | grep -q 'HTTP/1.1 200' && ! printf '%s' "$out" | grep -q 'Content-Security-Policy' &&
-    printf '%s' "$out" | grep -qF 'X-Robots-Tag: noindex'
-  check "działający Caddy: PDF bez CSP sandbox (podgląd w przeglądarce działa), z noindex" $?
-  section 'https://dj.localhost/internal/djcms/v1/chrome' | grep -q 'HTTP/1.1 404' &&
-    section 'https://localhost/internal/djcms/v1/chrome' | grep -q 'HTTP/1.1 404'
-  check "działający Caddy: /internal/* → 404 na dj. i na domenie głównej" $?
-  [ "$failures" -eq 0 ] || sed 's/^/     /' "$WORK/runtime.txt"
+  # Działający Caddy: cała tablica tras § 3 (host × ścieżka × ciasteczko × tryb) na atrapach
+  # upstreamów – osobny skrypt, bo jest długi i przydaje się też sam.
+  if [ "${SKIP_DJCMS_ROUTING:-0}" != "1" ]; then
+    bash "$ROOT/scripts/tests/djcms_routing_test.sh" >"$WORK/routing.out" 2>&1
+    rc=$?
+    check "scripts/tests/djcms_routing_test.sh (żywy Caddy, tablica tras djcms, $(grep -c '^ok ' "$WORK/routing.out") przypadków)" $rc
+    [ $rc -eq 0 ] || grep -vE '^ok ' "$WORK/routing.out" | sed 's/^/     /'
+  fi
 else
   printf 'skip caddy validate/adapt (brak Dockera albo SKIP_CADDY_VALIDATE=1)\n'
 fi
