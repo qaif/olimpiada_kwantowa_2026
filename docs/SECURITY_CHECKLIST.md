@@ -258,6 +258,24 @@ serwerów MX odbiorców. Konfiguracja i weryfikacja: `README.md` § 4.1–4.3.
 
 ---
 
+## 11. Wersja porównawcza django CMS (`dj.<domena>`, DJ-01)
+
+Reguły z `docs/tasks/DJ-01.md` § 7, które na `dj.` wymagały osobnego zabezpieczenia (numery
+w nawiasach = numer reguły w § 7). Pozostałe reguły (1–5, 8, 9) są pokryte testami wymienionymi
+w samym § 7. Całość obowiązuje wyłącznie przy `DJCMS_ENABLED=1`; bez przełącznika konfiguracja
+Caddy'ego, compose'a i wdrożenia jest ta sama co przed DJ-01 (`render_caddyfile_test.sh`,
+`compose_profiles_test.sh`, `deploy_djcms_test.sh`, `backup_offsite_test.sh` przypadek 12).
+
+| # | Pozycja | Status | Gdzie / czym sprawdzone |
+|---|---|---|---|
+| 11.1 | (6) Publiczne strony `dj.` bez `'unsafe-inline'`/`'unsafe-eval'` w `script-src`; każdy `<script>` z `nonce` | ✔ | Middleware CSP djcms (`djcms/apps/pages`), polityka luźna wyłącznie dla personelu i `/admin/`. Testy: `djcms/apps/pages/tests/test_security_headers.py::test_anonymous_page_has_strict_csp_and_noindex`, `::test_nonce_is_fresh_per_request`, `::test_admin_login_gets_editor_policy_and_noindex`, `test_frame.py::test_every_script_has_the_response_nonce`. |
+| 11.2 | (7) `/internal/*` niedostępne z internetu | ✔ | Bramki API: host wewnętrzny + token ≥ 32 zn. w `X-Djcms-Token` + `GET`, każda porażka pusta 404 (`backend/apps/cms/djcms_api/auth.py`, `docs/API.md` § 8.1); Caddy: `handle /internal/* { respond 404 }` w każdym publicznym bloku przy `DJCMS_ENABLED=1`. Testy: `backend/apps/cms/tests/test_djcms_api.py::test_every_gate_failure_is_an_empty_404`, `::test_other_methods_are_404_even_with_a_valid_token`, `::test_unknown_paths_are_the_same_empty_404_as_a_closed_gate`, `::test_short_token_raises_the_system_check_warning`; `scripts/tests/render_caddyfile_test.sh` („odmowa /internal/*…”). |
+| 11.3 | (10) `dj.` nieindeksowane | ✔ | `X-Robots-Tag: noindex, nofollow, noarchive` z Caddy'ego i z middleware djcms na **każdej** odpowiedzi (200, 404, 500, `/admin/`), `<meta name="robots">`, `/robots.txt` z `Disallow: /`. Testy: `test_security_headers.py::test_404_has_noindex_header_meta_and_strict_csp`, `::test_500_has_noindex_header_and_meta`, `test_views.py::test_robots_txt_disallows_everything`; `render_caddyfile_test.sh` (`caddy adapt` i działający Caddy). |
+| 11.4 | (11) Rozdział sekretów i bazy | ✔ | Usługa `djcms` bez `env_file: .env` (jawna lista `environment:`), `read_only`, `cap_drop: [ALL]`, tylko sieć `internal`; rola `olimpiada_djcms` bez SUPERUSER/CREATEROLE, `REVOKE CONNECT … FROM PUBLIC` na każdej bazie poza jej własną (`scripts/djcms_db.sh`), także na bazie odtworzeniowej zaraz po `createdb` (`scripts/restore.sh`, oba tryby). Testy: `scripts/tests/compose_profiles_test.sh` („djcms: bez env_file…”), `scripts/tests/djcms_db_test.sh` („rola djcms NIE łączy się z bazą aplikacji głównej”, „…z bazą nieznaną skryptowi”), `scripts/tests/backup_offsite_test.sh` przypadki 11 i 15. |
+| 11.5 | (12) Pliki redaktorów nie wykonują skryptów w domenie `dj.` | ✔ | `/media/*` podaje Caddy z `X-Content-Type-Options: nosniff`, a wszystko poza PDF-em dodatkowo z `Content-Security-Policy: default-src 'none'; …; sandbox` (odstępstwo od listy rozszerzeń z § 8.8 – uzasadnienie: `docs/OPERACJE.md` § 22.7). Testy: `render_caddyfile_test.sh` („matcher CSP sandbox…”, „działający Caddy: plik z podkatalogu filera…”, „PDF bez CSP sandbox…”). |
+| 11.6 | (13) Logowanie redaktorów: ciasteczka i limit prób | ✔ | `djcms_sessionid`/`djcms_csrftoken`, host-only, `HttpOnly`, `SameSite=Lax`, `Secure` w produkcji (`djcms/config/settings/base.py`, `production.py`). Limit: 5 nieudanych prób / 15 min na parę (IP, login) i sufit na login z dowolnych adresów, licznik w bazie djcms z kluczami HMAC (`djcms/apps/pages/auth.py`). Testy: `djcms/apps/pages/tests/test_login_throttle.py` (m.in. `::test_fifth_failure_locks_even_correct_password`, `::test_cms_toolbar_login_is_throttled_too`, `::test_distributed_guessing_hits_per_login_ceiling`, `::test_counter_key_does_not_contain_login_or_ip`). |
+| 11.7 | Kopie `dj.` szyfrowane i odtwarzane do nowej bazy | ✔ | `djcms-db-*.dump.gpg` i `djcms-files-*.tar.gpg` tym samym `gpg --symmetric` co kopia główna, ta sama wysyłka i retencja; odtworzenie wyłącznie do nowej bazy (właściciel `olimpiada_djcms`, bez `CONNECT` dla PUBLIC) i nowego katalogu (`700`) – `docs/OPERACJE.md` § 1.1, § 2.4. Testy: `scripts/tests/backup_offsite_test.sh` przypadki 12–15. |
+
 ## Weryfikacja jednym przebiegiem
 
 ```bash

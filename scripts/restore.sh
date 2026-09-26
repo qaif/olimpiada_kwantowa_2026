@@ -8,6 +8,14 @@
 #   scripts/restore.sh --dry-run                      # co by się stało z najnowszą kopią
 #   scripts/restore.sh --dump db-20260117T030000Z.dump.gpg --files files-20260117T030000Z.tar.gpg
 #   scripts/restore.sh --dump ... --db olimpiada_restore --bucket submissions-restore
+#   scripts/restore.sh --djcms-dump djcms-db-20260117T030000Z.dump.gpg \
+#                      --djcms-files djcms-files-20260117T030000Z.tar.gpg   # wersja porównawcza dj.
+#
+# Wersja porównawcza django CMS (dj., docs/OPERACJE.md § 22 i § 2.4) odtwarza się OSOBNYM
+# przebiegiem (`--djcms-dump` nie łączy się z `--dump`/`--files`/`--bucket`): baza do NOWEJ bazy
+# `olimpiada_djcms_restore_<stamp>` (albo `--db`), pliki redaktorów rozpakowane do NOWEGO katalogu
+# `${BACKUP_DIR}/djcms-media-restore-<stamp>/` – ani bazy `olimpiada_djcms`, ani wolumenu
+# `djcms_media` skrypt nie dotyka. Na końcu wypisuje polecenia podmiany. `--dry-run` jak niżej.
 #
 # Dlaczego domyślnie do NOWEJ bazy i NOWEGO kubełka, a nie „na miejsce”: odtwarzanie robi się
 # w sytuacji, w której nikt do końca nie wie, co się stało. Nadpisanie działającej bazy zrzutem
@@ -34,6 +42,8 @@ DUMP_NAME=""
 FILES_NAME=""
 TARGET_DB=""
 TARGET_BUCKET=""
+DJCMS_DUMP_NAME=""
+DJCMS_FILES_NAME=""
 
 log() { printf '==> %s\n' "$*"; }
 die() { printf 'BŁĄD: %s\n' "$*" >&2; exit 1; }
@@ -57,7 +67,9 @@ while [ $# -gt 0 ]; do
         --files) FILES_NAME="${2:?--files wymaga nazwy pliku}"; shift ;;
         --db) TARGET_DB="${2:?--db wymaga nazwy bazy}"; shift ;;
         --bucket) TARGET_BUCKET="${2:?--bucket wymaga nazwy kubełka}"; shift ;;
-        -h|--help) sed -n '2,20p' "${BASH_SOURCE[0]}"; exit 0 ;;
+        --djcms-dump) DJCMS_DUMP_NAME="${2:?--djcms-dump wymaga nazwy pliku}"; shift ;;
+        --djcms-files) DJCMS_FILES_NAME="${2:?--djcms-files wymaga nazwy pliku}"; shift ;;
+        -h|--help) sed -n '2,/^set -euo/p' "${BASH_SOURCE[0]}" | sed '$d'; exit 0 ;;
         *) die "nieznany argument: $1" ;;
     esac
     shift
@@ -122,6 +134,144 @@ if [ "${#FETCH_NAMES[@]}" -gt 0 ]; then
     exit 0
 fi
 
+decrypt() {
+    printf '%s' "$BACKUP_PASSPHRASE" | gpg --batch --yes --quiet \
+        --pinentry-mode loopback --passphrase-fd 0 --decrypt --output "$2" "$1"
+}
+
+# --- Wersja porównawcza dj. (osobny przebieg, docs/OPERACJE.md § 2.4) --------------------------
+# Wszystko, co niżej robi przebieg bazy głównej, ma tu odpowiednik – z trzema różnicami:
+#   1. właścicielem nowej bazy i jej obiektów jest rola `olimpiada_djcms` (`createdb -O`,
+#      `pg_restore --role`), bo po podmianie łączy się nią djcms; przy samym `--no-owner` tabele
+#      należałyby do superusera i djcms po podmianie nie przeczytałby żadnej,
+#   2. pliki nie idą do MinIO, tylko do katalogu obok kopii – wolumen `djcms_media` podmienia
+#      operator (polecenia na końcu), bo w działającym wolumenie siedzą pliki bieżące,
+#   3. licznik po odtworzeniu to `cms_page` (strony), a nie konta.
+# Przebieg bez `--djcms-*` omija ten blok w całości – co do polecenia ten sam, co przed DJ-01.
+if [ -n "$DJCMS_DUMP_NAME" ] || [ -n "$DJCMS_FILES_NAME" ]; then
+    [ -n "$DJCMS_DUMP_NAME" ] || die "--djcms-files wymaga --djcms-dump (pliki bez bazy, która je opisuje, są bezużyteczne)"
+    [ -z "${DUMP_NAME}${FILES_NAME}${TARGET_BUCKET}" ] \
+        || die "--djcms-dump odtwarza się osobnym przebiegiem – bez --dump/--files/--bucket"
+    DJ_DB_ROLE=olimpiada_djcms
+    DJ_DUMP_PATH="${BACKUP_DIR}/${DJCMS_DUMP_NAME}"
+    [ -f "$DJ_DUMP_PATH" ] || die "brak pliku ${DJ_DUMP_PATH} (spoza serwera: scripts/restore.sh --fetch ${DJCMS_DUMP_NAME})"
+    DJ_FILES_PATH=""
+    if [ -n "$DJCMS_FILES_NAME" ]; then
+        DJ_FILES_PATH="${BACKUP_DIR}/${DJCMS_FILES_NAME}"
+        [ -f "$DJ_FILES_PATH" ] || die "brak pliku ${DJ_FILES_PATH} (spoza serwera: scripts/restore.sh --fetch ${DJCMS_FILES_NAME})"
+    fi
+    DJ_STAMP="$(printf '%s' "$DJCMS_DUMP_NAME" | sed -nE 's/^djcms-db-([0-9]{8}T[0-9]{6}Z)\.dump\.gpg$/\1/p')"
+    [ -n "$DJ_STAMP" ] \
+        || die "--djcms-dump: oczekiwana kopia nocna djcms-db-<stamp>.dump.gpg (scripts/backup.sh), jest: ${DJCMS_DUMP_NAME}"
+    # Znacznik jak przy bazie głównej: bez „Z”, podkreślenia, małe litery.
+    DJ_SLUG="$(printf '%s' "${DJ_STAMP%Z}" | tr 'T-' '__' | tr '[:upper:]' '[:lower:]')"
+    TARGET_DB="${TARGET_DB:-olimpiada_djcms_restore_${DJ_SLUG}}"
+    DJ_MEDIA_DIR="${BACKUP_DIR}/djcms-media-restore-${DJ_SLUG}"
+    # Sprawdzone tutaj, zanim powstanie baza: odmowa po createdb zostawiałaby pół odtworzenia.
+    if [ "$DRY_RUN" = "0" ] && [ -n "$DJ_FILES_PATH" ] && [ -e "$DJ_MEDIA_DIR" ]; then
+        die "katalog ${DJ_MEDIA_DIR} już istnieje – przenieś go albo usuń (drugie odtworzenie tej samej nocy)"
+    fi
+
+    log "Kopia bazy dj.:   $DJ_DUMP_PATH"
+    log "Kopia plików dj.: ${DJ_FILES_PATH:-(brak – odtwarzam samą bazę)}"
+    log "Baza docelowa:    $TARGET_DB   (NOWA, właściciel ${DJ_DB_ROLE}; olimpiada_djcms nie jest ruszana)"
+    [ -z "$DJ_FILES_PATH" ] || log "Katalog plików:   $DJ_MEDIA_DIR   (NOWY; wolumen djcms_media nie jest ruszany)"
+    [ "$DRY_RUN" = "1" ] && log "TRYB PRÓBNY – nic nie zostanie utworzone ani zapisane."
+
+    WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/olimpiada-restore-XXXXXX")"
+    chmod 700 "$WORK_DIR"
+    cleanup() { rm -rf "$WORK_DIR"; }
+    trap cleanup EXIT
+
+    # Rozszyfrowanie i nagłówek także w trybie próbnym – z tego samego powodu co niżej (złe hasło).
+    log "1/4 Rozszyfrowanie paczki bazy dj."
+    DJ_PLAIN="${WORK_DIR}/djcms-db.dump"
+    decrypt "$DJ_DUMP_PATH" "$DJ_PLAIN"
+    [ "$(head -c 5 "$DJ_PLAIN")" = "PGDMP" ] || die "po rozszyfrowaniu to nie jest zrzut Postgresa (brak nagłówka PGDMP)"
+    log "    rozmiar po rozszyfrowaniu: $(du -h "$DJ_PLAIN" | cut -f1), nagłówek PGDMP"
+
+    log "2/4 Tworzenie bazy ${TARGET_DB}"
+    # Rola musi istnieć, zanim powstanie baza, której ma być właścicielem. Na nowym serwerze zakłada
+    # ją wdrożenie z DJCMS_ENABLE=1 (scripts/djcms_db.sh) – odtwarzanie dj. idzie po nim. Sprawdzane
+    # także w trybie próbnym: tryb próbny odpowiada na pytanie „czy to się w ogóle uda”.
+    role="$(docker compose exec -T db psql -X -U "$POSTGRES_USER" -d postgres \
+        -Atc "SELECT 1 FROM pg_roles WHERE rolname = '${DJ_DB_ROLE}'" </dev/null | tr -d '\r')" \
+        || die "nie udało się zapytać klastra o rolę ${DJ_DB_ROLE} (czy usługa db działa?)"
+    [ "$role" = "1" ] \
+        || die "w klastrze nie ma roli ${DJ_DB_ROLE} – najpierw wdrożenie z DJCMS_ENABLE=1 albo scripts/djcms_db.sh (docs/OPERACJE.md § 22.2)"
+    if [ "$DRY_RUN" = "0" ]; then
+        docker compose exec -T db psql -U "$POSTGRES_USER" -d postgres \
+            -Atc "SELECT 1 FROM pg_database WHERE datname='${TARGET_DB}'" </dev/null | grep -q 1 \
+            && die "baza ${TARGET_DB} już istnieje – podaj inną przez --db"
+    fi
+    run docker compose exec -T db createdb -U "$POSTGRES_USER" -O "$DJ_DB_ROLE" "$TARGET_DB"
+    # Jak przy bazie głównej: CONNECT dla PUBLIC odbierany zaraz po createdb, przed pg_restore.
+    # Właściciel (`olimpiada_djcms`) łączy się dalej – ma CONNECT jako właściciel, nie przez PUBLIC.
+    run docker compose exec -T db psql -X -q -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d postgres \
+        -c "REVOKE CONNECT ON DATABASE \"${TARGET_DB//\"/\"\"}\" FROM PUBLIC" </dev/null
+
+    log "3/4 pg_restore -> ${TARGET_DB}"
+    if [ "$DRY_RUN" = "1" ]; then
+        printf '    [próba] docker compose exec -T db pg_restore -U %s -d %s --no-owner --role=%s --exit-on-error\n' \
+            "$POSTGRES_USER" "$TARGET_DB" "$DJ_DB_ROLE"
+    else
+        # `--role`: po połączeniu superuserem `SET ROLE olimpiada_djcms`, więc każdy odtworzony
+        # obiekt należy do roli djcms. `--no-owner` pomija `ALTER … OWNER TO` ze zrzutu – kopia
+        # z innego serwera mogłaby nieść inną nazwę właściciela.
+        docker compose exec -T db pg_restore -U "$POSTGRES_USER" -d "$TARGET_DB" --no-owner \
+            --role="$DJ_DB_ROLE" --exit-on-error < "$DJ_PLAIN"
+        docker compose exec -T db psql -U "$POSTGRES_USER" -d "$TARGET_DB" -Atc \
+            "SELECT 'cms_page=' || count(*) FROM cms_page" </dev/null
+    fi
+
+    if [ -z "$DJ_FILES_PATH" ]; then
+        log "4/4 Brak paczki plików dj. – katalog plików nie jest odtwarzany."
+    else
+        log "4/4 Rozszyfrowanie i rozpakowanie plików dj."
+        DJ_FILES_PLAIN="${WORK_DIR}/djcms-files.tar"
+        decrypt "$DJ_FILES_PATH" "$DJ_FILES_PLAIN"
+        log "    w paczce: $(tar -tf "$DJ_FILES_PLAIN" | grep -vc '/$' || true) plików"
+        # Katalog tylko dla roota (umask 077, a nie `mkdir -m`/`chmod` – ten sam wynik bez osobnej
+        # zmiany uprawnień): rozpakowane pliki to także treść jeszcze nieopublikowana (szkice
+        # redaktorów). `--no-overwrite-dir` zostawia te uprawnienia na katalogu głównym mimo wpisu
+        # „./” w paczce; `--numeric-owner` zachowuje uid 1000 (`app` obrazu djcms) niezależnie od
+        # tego, jak ten numer nazywa się na hoście – po skopiowaniu do wolumenu djcms je nadpisze.
+        if [ "$DRY_RUN" = "1" ]; then
+            printf '    [próba] (umask 077 && mkdir %s)\n' "$DJ_MEDIA_DIR"
+        else
+            (umask 077 && mkdir "$DJ_MEDIA_DIR")
+        fi
+        run tar --numeric-owner --no-overwrite-dir -xf "$DJ_FILES_PLAIN" -C "$DJ_MEDIA_DIR"
+    fi
+
+    if [ "$DRY_RUN" = "1" ]; then
+        log "Próba zakończona – hasło pasuje, paczki dają się otworzyć. Nic nie zostało utworzone."
+        exit 0
+    fi
+    log "Gotowe. Baza: ${TARGET_DB}${DJ_FILES_PATH:+, pliki: ${DJ_MEDIA_DIR}}. dj. działa dalej na danych bieżących."
+    log "Podmiana – dopiero po sprawdzeniu odtworzonych danych (docs/OPERACJE.md § 2.4):"
+    printf '    docker compose stop djcms\n'
+    printf "    docker compose exec -T db psql -U %s -d postgres -c 'ALTER DATABASE olimpiada_djcms RENAME TO olimpiada_djcms_przed_awaria' -c 'ALTER DATABASE \"%s\" RENAME TO olimpiada_djcms'\n" \
+        "$POSTGRES_USER" "$TARGET_DB"
+    if [ -n "$DJ_FILES_PATH" ]; then
+        # Pełna nazwa wolumenu (z prefiksem projektu) z `docker compose config` – ten sam compose,
+        # te same COMPOSE_FILE/COMPOSE_PROFILES z .env. Gdy się nie uda (np. profil djcms już
+        # wyłączony), nazwa po regule compose'a: nazwa projektu małymi literami, bez znaków spoza
+        # [a-z0-9_-] (katalog „olimpiada clade” daje „olimpiadaclade”).
+        DJ_VOLUME="$(docker compose config 2>/dev/null </dev/null | sed -n '/^volumes:/,$p' \
+            | sed -n '/^  djcms_media:$/{n;s/^ *name: *//p;}' | head -1 || true)"
+        [ -n "$DJ_VOLUME" ] || DJ_VOLUME="$(printf '%s' "${COMPOSE_PROJECT_NAME:-$(basename "$REPO_DIR")}" \
+            | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9_-')_djcms_media"
+        # Obraz Postgresa, bo na serwerze na pewno jest (usługa `db`) i ma `sh`, `cp`, `find`, `chown`.
+        # Bieżąca zawartość wolumenu idzie najpierw do katalogu `…-przed` obok kopii, nie do kosza;
+        # `chown` na końcu, bo `cp -a` przenosi na wolumen także właściciela katalogu źródłowego.
+        printf "    docker run --rm -v %s:/m -v %s:/src:ro -v %s-przed:/old %s sh -c 'cp -a /m/. /old/ && find /m -mindepth 1 -delete && cp -a /src/. /m/ && chown -R 1000:1000 /m'\n" \
+            "$DJ_VOLUME" "$DJ_MEDIA_DIR" "$DJ_MEDIA_DIR" "${POSTGRES_IMAGE:-postgres:18-alpine}"
+    fi
+    printf '    docker compose up -d djcms\n'
+    exit 0
+fi
+
 # Domyślnie najnowsza para paczek z katalogu lokalnego. `ls -t` po nazwie wzorca, a nie `find |
 # sort`: nazwy niosą znacznik czasu w UTC w formacie sortowalnym leksykograficznie, więc obie drogi
 # dają to samo, a ta jest czytelna w logu awaryjnym o trzeciej w nocy.
@@ -152,11 +302,6 @@ WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/olimpiada-restore-XXXXXX")"
 chmod 700 "$WORK_DIR"
 cleanup() { rm -rf "$WORK_DIR"; }
 trap cleanup EXIT
-
-decrypt() {
-    printf '%s' "$BACKUP_PASSPHRASE" | gpg --batch --yes --quiet \
-        --pinentry-mode loopback --passphrase-fd 0 --decrypt --output "$2" "$1"
-}
 
 # --- 1. Rozszyfrowanie -----------------------------------------------------------------------
 # Robimy je także w trybie próbnym i to jest sedno tego trybu: najczęstsza przyczyna nieudanego

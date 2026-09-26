@@ -17,17 +17,76 @@ ze standardowego wejścia (``-``) albo wprost z wewnętrznego API aplikacji gł�
 
 Raport idzie na standardowe wyjście (liczby stron i wtyczek per typ, obrazy nowe/ponownie użyte,
 pominięcia, zmiany sanityzatora, czas).
+
+Paczka z ``--from-api`` albo ze stdin trafia najpierw do pliku tymczasowego (ZIP wymaga pliku, po
+którym da się skakać). Ten plik leży w ``MEDIA_ROOT`` (wolumen ``djcms_media``), a nie w ``/tmp``:
+kontener produkcyjny ma system plików tylko do odczytu i ``/tmp`` jako tmpfs 64 MB
+(docker-compose.yml), a limit paczki to ``services.MAX_UNCOMPRESSED_BYTES`` (500 MB). Paczka
+większa niż 64 MB kończyła się w ``/tmp`` błędem „No space left on device” w połowie pobierania –
+a tmpfs to RAM, więc nawet mniejsza zajmowała pamięć kontenera (tę samą, z której żyje gunicorn
+serwisu dj.). Obniżenie limitu do 64 MB
+odrzucone: to limit kontraktu paczki (DJ-01 § 5.3), wspólny dla pliku, stdin i API, a treść
+z obrazami w pełnej rozdzielczości potrafi go przekroczyć. Szczegóły: ``Command._spool``
+i ``_GuardedSpool``.
 """
 
 from __future__ import annotations
 
+import contextlib
+import shutil
 import sys
 import tempfile
+from pathlib import Path
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 
 from apps.importer import services
+
+#: Ile miejsca na dysku mediów musi zostać wolne, gdy zapisujemy paczkę. Wolumen ``djcms_media``
+#: leży na tym samym dysku co baza (``pg_data``): pobranie, które zapełni dysk do zera, zatrzymałoby
+#: zapis WAL-u Postgresa, czyli **cały** serwis, a nie tylko import. 256 MB to kilkanaście segmentów
+#: WAL (16 MB) – margines na czas importu, nie miejsce na dane.
+SPOOL_FREE_RESERVE_BYTES = 256 * 1024 * 1024
+#: Co ile zapisanych bajtów sprawdzać wolne miejsce (``statvfs`` jest tani, ale nie przy każdym
+#: kawałku 64 KB). Między sprawdzeniami paczka może zjeść najwyżej tyle – mniej niż zapas.
+SPOOL_CHECK_EVERY_BYTES = 8 * 1024 * 1024
+
+
+class _GuardedSpool:
+    """Zapis do pliku tymczasowego, który przerywa import, zanim dysk mediów zejdzie poniżej zapasu.
+
+    Sprawdzenie w trakcie zapisu, a nie „czy zmieści się najgorszy przypadek” przed pobraniem:
+    wielkość paczki z API nie jest znana z góry, a wymaganie 500 MB (limit) na paczkę, która ma
+    zwykle kilkadziesiąt, blokowałoby import na dysku, na którym zmieściłby się bez trudu.
+
+    Błąd to ``CommandError`` z czytelnym powodem. Gdyby zamiast tego dysk się zapełnił, ``write``
+    rzuciłby ``OSError`` (ENOSPC), a ``MainApi.download_export`` zamienia każdy ``OSError`` na
+    „connection” – operator szukałby wtedy awarii sieci. ``CommandError`` przez tamten ``except``
+    przechodzi bez zmian (nie jest ``OSError``).
+    """
+
+    def __init__(self, file, directory: Path):
+        self.file = file
+        self.directory = directory
+        self._unchecked = SPOOL_CHECK_EVERY_BYTES  # pierwszy zapis sprawdza od razu
+
+    def check(self, pending: int = 0) -> None:
+        free = shutil.disk_usage(self.directory).free
+        if free - pending < SPOOL_FREE_RESERVE_BYTES:
+            raise CommandError(
+                f"Za mało miejsca na paczkę w {self.directory}: wolne {free // 2**20} MB, a musi zostać "
+                f"{SPOOL_FREE_RESERVE_BYTES // 2**20} MB zapasu (ten sam dysk co baza). Zwolnij miejsce "
+                "albo podaj paczkę jako plik (PATH) z innego dysku."
+            )
+
+    def write(self, data: bytes) -> int:
+        self._unchecked += len(data)
+        if self._unchecked >= SPOOL_CHECK_EVERY_BYTES:
+            self.check(pending=len(data))
+            self._unchecked = 0
+        return self.file.write(data)
 
 
 class Command(BaseCommand):
@@ -64,14 +123,17 @@ class Command(BaseCommand):
             )
         user = self._user(options.get("user"))
 
-        with tempfile.TemporaryFile() as spool:
+        # Plik podany ścieżką czytamy wprost – bez kopii i bez sprawdzania miejsca.
+        spooled = source in (None, "-")
+        with self._spool() if spooled else contextlib.nullcontext() as spool:
             if from_api:
                 self._download(spool)
             elif source == "-":
                 self._copy_stdin(spool)
-            spool.seek(0)
+            if spooled:
+                spool.file.seek(0)
             try:
-                bundle = services.open_bundle(spool if source in (None, "-") else source)
+                bundle = services.open_bundle(spool.file if spooled else source)
                 report = services.run_import(
                     bundle, user=user, replace=options["replace"], dry_run=options["dry_run"]
                 )
@@ -98,6 +160,25 @@ class Command(BaseCommand):
                 "Utwórz konto (bootstrap_djcms_admin) albo podaj --user."
             )
         return user
+
+    @contextlib.contextmanager
+    def _spool(self):
+        """Anonimowy plik tymczasowy na wolumenie ``MEDIA_ROOT`` (patrz docstring modułu).
+
+        ``tempfile.TemporaryFile(dir=…)`` na Linuksie otwiera plik z ``O_TMPFILE`` (albo zakłada
+        i od razu kasuje nazwę), więc plik **nie ma nazwy** w katalogu mediów: Caddy, który podaje
+        ten wolumen pod ``/media/*``, nie ma czego podać, a miejsce wraca do systemu przy zamknięciu
+        – także po błędzie importu i po zabiciu procesu (tego ``finally`` by nie załatwił).
+
+        Wolne miejsce: raz przed pobraniem (pełny dysk = odmowa bez łączenia się z API) i w trakcie
+        zapisu (``_GuardedSpool``).
+        """
+        directory = Path(settings.MEDIA_ROOT)
+        directory.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryFile(dir=directory) as file:
+            spool = _GuardedSpool(file, directory)
+            spool.check()
+            yield spool
 
     def _download(self, spool) -> None:
         from apps.live.client import MainApi, MainApiError

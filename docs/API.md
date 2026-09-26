@@ -540,3 +540,80 @@ Zasady:
 Sprawy integracji prowadzi organizator: formularz `/support/new/` w serwisie albo adres podany
 w stopce. Do zgłoszenia dołącz **przedrostek** klucza (osiem znaków, np. `7f3a9c21`), nigdy sam
 klucz, oraz identyfikator doręczenia (`X-Olimpiada-Delivery`), jeśli sprawa dotyczy webhooka.
+
+---
+
+## 8. API wewnętrzne wersji porównawczej `dj.` (`/internal/djcms/v1/`)
+
+**Nie jest to API integracji** i nie dostanie go żaden system zewnętrzny – ta sekcja jest dla
+utrzymującego platformę. Z tego API korzysta wyłącznie serwis `dj.<domena>` (django CMS, kontener
+`djcms`, docs/OPERACJE.md § 22): pobiera dane zawodów, których nie ma w swojej bazie (terminy,
+stany etapów, zadania, wyniki, warsztaty, komunikaty, rama serwisu), oraz jednorazowo paczkę treści
+Wagtaila do importu. Pełny kontrakt (kształt każdego obiektu, reguły bezpieczeństwa):
+[`docs/tasks/DJ-01.md`](tasks/DJ-01.md) § 3 i § 7. Kod: `backend/apps/cms/djcms_api/`, klient:
+`djcms/apps/live/client.py`.
+
+### 8.1. Dostęp – każda porażka to pusta 404
+
+Adres `http://web:8000/internal/djcms/v1/<endpoint>`, osiągalny wyłącznie z sieci compose'a.
+Bramki, sprawdzane w tej kolejności (`apps.cms.djcms_api.auth`):
+
+1. **host wewnętrzny** (`web`, `localhost`, `127.0.0.1`) – ta sama reguła co `/internal/tls-allowed`;
+   z domeny publicznej adres nie istnieje także z poprawnym tokenem. Caddy dodatkowo odpowiada 404
+   na `/internal/*` w każdym bloku publicznym, gdy `DJCMS_ENABLED=1`;
+2. **token włączony**: `DJCMS_INTERNAL_TOKEN` w `.env` ma co najmniej 32 znaki (krótszy albo pusty
+   wyłącza API w całości; `manage.py check` zgłasza wtedy `cms.W010`);
+3. nagłówek **`X-Djcms-Token`** równy tokenowi (porównanie w czasie stałym);
+4. metoda **`GET`** – inna też daje 404, a nie 405 (405 zdradzałoby, że adres istnieje).
+
+Odpowiedź przy każdej porażce jest ta sama: `404` bez treści. Tak samo odpowiada każdy nieznany
+adres gałęzi `/internal/djcms/…` (bez przekierowania na adres z ukośnikiem).
+
+### 8.2. Endpointy
+
+| Endpoint | Co oddaje |
+|---|---|
+| `chrome` | rama serwisu: konkurs, dane witryny (`SiteSettings`), edycja, stan rejestracji, odnośniki do aplikacji (logowanie, rejestracja, pomoc, plakaty), komunikaty, slider sponsorów, pasek osi czasu |
+| `stages` | edycja, etap „na teraz” i wiersze osi czasu (stany etapów, czy są wyniki) |
+| `problems` | zadania etapu bieżącego i treningowego – **pusta lista przed `opens_at`** (ani tytułu, ani adresu PDF) |
+| `results` | ogłoszone tabele wyników bieżącej edycji i odnośniki archiwalne |
+| `editions` | edycje konkursu (lista wyboru archiwum) |
+| `editions/<id>/results` | odnośniki do ogłoszonych tabel jednej edycji; edycja innego konkursu = pusta lista |
+| `workshops` | najbliższe warsztaty (≤ 3), cały harmonogram, zapowiedź materiałów (liczba + odnośnik do logowania) |
+| `export` | paczka treści Wagtaila (`application/zip`, format `olimpiada-cms-bundle` v1) – tylko strony `live()` i publiczne |
+
+Każda odpowiedź JSON ma `api_version` (dziś `1`) i `generated_at` (ISO 8601 z przesunięciem),
+nagłówki `Cache-Control: no-store` i `X-Content-Type-Options: nosniff`. Buforuje klient
+(60 s świeżo, do 600 s kopia awaryjna przy niedostępnym `web`), nie aplikacja.
+
+**Konkurs** wybiera konfiguracja, nie żądanie (nagłówek `Host: web:8000` z żadnym konkursem nie ma
+nic wspólnego): `DJCMS_COMPETITION_SLUG`, a gdy pusty – konkurs witryny domyślnej (`SITE_DOMAIN`).
+Adresy aplikacji w odpowiedziach (`/results/5/`, `/register/`) są bezwzględne pod adresem **tego**
+konkursu; ścieżki stron Wagtaila (`/warsztaty/`) zostają względne, bo po imporcie istnieją też
+na `dj.`; odnośnik o schemacie innym niż `http(s)` staje się pustym napisem.
+
+Błędy poza bramkami (JSON, kod `503`):
+
+| `error` | Znaczenie |
+|---|---|
+| `no-competition` | brak aktywnego konkursu (zły `DJCMS_COMPETITION_SLUG` albo konkurs nieaktywny) |
+| `no-public-url` | konkurs nie ma adresu w aplikacji głównej (ani domeny, ani prefiksu ścieżki) |
+
+`dj.` pokazuje wtedy komunikat o niedostępności sekcji żywych – nie dane innego konkursu.
+
+### 8.3. Dane osobowe – biała lista
+
+Żaden endpoint nie czyta kont ani prac: w odpowiedziach nie ma e-maili, imion, szkół,
+identyfikatorów uczestników, ocen ani wpisów do etapów. Wiersz tabeli wyników przechodzi przez
+**białą listę** kluczy (`rank`, `display`, `points`, `points_display`, `total`, `total_display`,
+`qualified`, `manual`, a gdy są w opublikowanym snapshotcie – `district`, `category`); `display`
+to ta sama etykieta, która stoi w publicznej tabeli wyników (kod, inicjały albo nazwisko w finale).
+Czegokolwiek spoza listy serializator nie zna, więc nie ma jak tego oddać.
+
+### 8.4. Wersjonowanie
+
+Dopisanie pola nie zmienia wersji. Każda inna zmiana kształtu podnosi `api_version` **i** prefiks
+adresu (`/internal/djcms/v2/`); klient odrzuca odpowiedź z inną wersją niż oczekiwana (sekcje żywe
+`dj.` przechodzą wtedy w tryb degradacji, strona odpowiada 200 z `X-Djcms-Degraded: 1`). Wersja
+`v2` (serwis djcms dla wszystkich konkursów) jest opisana w [`docs/tasks/DJ-02.md`](tasks/DJ-02.md)
+§ 4; `v1` zostaje do jej wdrożenia.

@@ -8,6 +8,51 @@ dokładnie jednemu wierszowi tej tabeli.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – wersja porównawcza na django CMS (`dj.<domena>`, DJ-01)
+
+Równoległa, publiczna, **nieindeksowana** wersja części informacyjnej serwisu pod
+`dj.olimpiadakwantowa.pl`, redagowana w django CMS – do porównania z Wagtailem (`/cms/`) przed
+decyzją, który CMS zostaje. **Domyślnie wyłączona:** bez `DJCMS_ENABLED=1` konfiguracja Caddy'ego,
+`docker compose config`, przebieg wdrożenia i kopii zapasowych są co do polecenia takie jak
+dotąd. Włączenie na produkcji wymaga zgody organizatora (`OPERACJE.md` § 22.2). Specyfikacja:
+[`tasks/DJ-01.md`](tasks/DJ-01.md).
+
+- **Wewnętrzne API aplikacji głównej** `GET /internal/djcms/v1/{chrome,stages,problems,results,editions,workshops,export}`
+  (`apps/cms/djcms_api/`, opis w `API.md` § 8): bramka hosta wewnętrznego, tokenu
+  `DJCMS_INTERNAL_TOKEN` (≥ 32 zn., nagłówek `X-Djcms-Token`) i metody `GET` – każda porażka to
+  pusta 404; wyniki przez białą listę kluczy, zadania dopiero po `opens_at`. Dane zawodów liczą te
+  same funkcje co strony Wagtaila (`apps/cms/live_data.py`, refaktoryzacja bez zmiany wyglądu).
+  Eksport drzewa Wagtaila do paczki `olimpiada-cms-bundle` v1 (`manage.py export_cms_bundle`).
+- **Projekt `djcms/`** (Django 6.1, django CMS 5.1.3, osobny obraz i usługa `djcms` w profilu
+  compose'a, osobna baza `olimpiada_djcms` i rola bez dostępu do bazy głównej – `scripts/djcms_db.sh`):
+  wtyczki treści odpowiadające blokom Wagtaila, wtyczki danych na żywo z API (bufor 60 s + kopia
+  awaryjna 600 s; przy niedostępnym `web` strony odpowiadają 200 z komunikatem), import treści
+  z Wagtaila (`import_cms_bundle`), CSP z `nonce`, `noindex` na każdej odpowiedzi, blokada prób
+  logowania w bazie.
+- **Proxy i wdrożenie** za przełącznikiem: blok `dj.` w Caddyfile, odmowa `/internal/*` w każdym
+  bloku publicznym, pliki redaktorów z CSP `sandbox`; `DJCMS_ENABLE=1 scripts/deploy.sh …` włącza
+  i generuje sekrety, buduje obraz, zakłada bazę, robi kopię przed migracjami i jednorazowy import.
+- **Kopie zapasowe** (DJ-01i): przy `DJCMS_ENABLED=1` nocna kopia obejmuje bazę
+  (`djcms-db-<stamp>.dump.gpg`) i wolumen plików redaktorów (`djcms-files-<stamp>.tar.gpg`) –
+  szyfrowanie, wysyłka poza serwer, retencja jak kopia główna; awaria po stronie `dj.` nie zatrzymuje
+  kopii głównej, ale kończy przebieg meldunkiem `--failed`. Cotygodniowy test odtwarzania sprawdza
+  bazę djcms (`cms_page` > 0) i czytelność paczki plików. `scripts/restore.sh --djcms-dump …
+  [--djcms-files …]` odtwarza do nowej bazy (właściciel `olimpiada_djcms`, bez `CONNECT` dla
+  PUBLIC) i nowego katalogu, z wypisanymi poleceniami podmiany (`OPERACJE.md` § 2.4). Baza
+  odtworzeniowa aplikacji głównej też traci `CONNECT` dla PUBLIC zaraz po `createdb`.
+- **Import paczki** (`import_cms_bundle --from-api` i `-`): plik tymczasowy na wolumenie
+  `djcms_media` zamiast `/tmp` kontenera (tmpfs 64 MB przy limicie paczki 500 MB), bez nazwy
+  w katalogu mediów; import przerywa się czytelnym błędem, zanim dysk (wspólny z bazą) zejdzie
+  poniżej 256 MB wolnego miejsca.
+- `dj` jest zarezerwowanym slugiem konkursu. Nowe zmienne `.env`: `DJCMS_ENABLED`,
+  `DJCMS_SECRET_KEY`, `DJCMS_DB_PASSWORD`, `DJCMS_INTERNAL_TOKEN`, `DJCMS_MAIN_PUBLIC_URL`,
+  opcjonalnie `DJCMS_COMPETITION_SLUG`, `DJCMS_IMAGE`, `EXTRA_CA_FILE` (dev).
+- Testy: `docker compose exec -T djcms pytest -q` (job `djcms` w CI), `test_live_data.py`,
+  `test_djcms_api.py`, `test_export_bundle.py`; skrypty: `render_caddyfile_test.sh`,
+  `compose_profiles_test.sh`, `djcms_db_test.sh`, `deploy_djcms_test.sh`,
+  `backup_offsite_test.sh` (przypadki 12–15; z `BACKUP_BASELINE_REF=<rewizja>` porównanie
+  przebiegu bez `dj.` ze skryptami sprzed zmiany).
+
 ## [Unreleased] – kopie zapasowe na Dysku Google
 
 Prośba organizatora z 25.09.2026: nocna kopia (`scripts/backup.sh`) może wyjeżdżać poza serwer na

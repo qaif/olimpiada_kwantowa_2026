@@ -26,6 +26,8 @@ wdrożenie `scripts/deploy.sh` z kluczem `~/.ssh/olimpiada_deploy`.
 | Baza (`pg_dump -Fc`) | usługa `db` | konta, zgłoszenia, oceny, decyzje komisji, audyt |
 | Kubełek `submissions` | MinIO | **prace uczestników** – w bazie są tylko ich metryki |
 | Kubełek `public-media` | MinIO | obrazy i dokumenty z CMS-u |
+| Baza `olimpiada_djcms` (`pg_dump -Fc`) – **tylko przy `DJCMS_ENABLED=1`** | usługa `db` | strony, wtyczki i wersje redakcji wersji porównawczej `dj.` (§ 22) |
+| Wolumen `djcms_media` (`tar` z kontenera `djcms`) – **tylko przy `DJCMS_ENABLED=1`** | usługa `djcms` | obrazy wgrane przez redaktorów `dj.` (filer) |
 
 Czego **nie** kopiujemy i dlaczego: obrazu aplikacji (odtwarza go `git` + `docker build`),
 certyfikatów TLS (Caddy wystawia je na nowo w kilka sekund), kluczy DKIM (odtworzenie znaczy
@@ -51,6 +53,18 @@ zakłada `scripts/deploy.sh` w kroku 8/8; przebieg loguje się do `/var/log/olim
    udanej i sprawdzonej wysyłce,
 6. meldunek do aplikacji: `manage.py record_backup_status --ok --offsite` (kopia jest też poza
    serwerem) albo `--ok` (kopia wyłącznie lokalna).
+
+**Wersja porównawcza `dj.` (§ 22).** Przy `DJCMS_ENABLED=1` w `.env` i istniejącej bazie
+`olimpiada_djcms` dochodzą podkroki: **1b** – `pg_dump -Fc` tej bazy (kontem aplikacji) →
+`djcms-db-<stamp>.dump.gpg`, **2b** – `tar` wolumenu `djcms_media` z działającego kontenera `djcms`
+→ `djcms-files-<stamp>.tar.gpg`. Obie paczki mają ten sam znacznik co kopia główna, to samo
+szyfrowanie, tę samą wysyłkę (`daily/`, `monthly/`, `rclone check`) i retencję. Bez przełącznika
+skrypt nie wykonuje **żadnego** polecenia djcms (także zapytania o bazę) – po wyłączeniu `dj.`
+(§ 22.6) ostatnią kopią jego danych jest kopia z ostatniej nocy przed wyłączeniem. Awaria po
+stronie `dj.` (djcms nie działa, zrzut albo `tar` nieudany) **nie zatrzymuje** kopii głównej –
+ta powstaje i wyjeżdża – ale przebieg kończy się kodem 1 i meldunkiem `--failed` z notatką „kopia
+główna … jest, kopia dj. NIE: …”, czyli po 36 h alarmem watchdoga. `DJCMS_ENABLED=1`, a bazy
+jeszcze nie ma (przed pierwszym wdrożeniem z `dj.`) – tylko wpis w logu, bez błędu.
 
 Miejsce wybiera `BACKUP_REMOTE_TYPE=s3|drive|none`; bez tej zmiennej: `s3`, gdy jest
 `BACKUP_REMOTE_URL`, `drive`, gdy jest token Dysku (`secrets/rclone/rclone.conf` albo
@@ -113,6 +127,13 @@ przejmie serwer, nie skasuje kopii tym samym kluczem, którym je wysyłał.
 **tymczasowego** kontenera Postgresa (dane na `tmpfs`, kontener kasowany bezwarunkowo) i liczy
 wiersze w `accounts_user`, `accounts_participant`, `competitions_stage`, `submissions_submission`
 i `core_auditlog`. Wynik melduje przez `record_backup_status --verified` (albo `--failed`).
+
+Gdy obok sprawdzanej paczki leży `djcms-db-<ten sam stamp>.dump.gpg` (kopia z `dj.`), ten sam
+tymczasowy Postgres dostaje drugą bazę: `pg_restore` i wymóg co najmniej jednej strony
+w `cms_page`; paczka `djcms-files-<stamp>.tar.gpg` musi się rozszyfrować i dać przeczytać
+w całości (`tar -tf`). Brak paczki plików przy obecnej bazie, zero stron albo nieudany
+`pg_restore` = test nieudany (`--failed`, powód w notatce). Kopie przedwdrożeniowe
+`djcms-db-pre-*.dump` nie biorą w tym udziału.
 
 Po co, skoro `backup.sh` kończy się bez błędu: „`pg_dump` zwrócił 0” nie znaczy „z tej paczki da
 się odtworzyć olimpiadę”. Kopia potrafi być pusta, obcięta albo zaszyfrowana hasłem, którego nikt
@@ -434,6 +455,42 @@ curl -s https://olimpiadakwantowa.pl/status.json
 
 Starej bazy **nie kasuj** przez co najmniej tydzień. To jedyny ślad tego, co było przed awarią,
 a pytanie „czy na pewno nic nie zginęło” pada zawsze po kilku dniach, nigdy od razu.
+
+### 2.4. Wersja porównawcza `dj.` (baza `olimpiada_djcms` i wolumen `djcms_media`)
+
+Osobny przebieg `restore.sh` (nie łączy się z `--dump`/`--files`), ta sama zasada: nowa baza
+i nowy katalog, nic „na miejsce”. Wymaga roli `olimpiada_djcms` w klastrze – na nowym serwerze
+najpierw wdrożenie z `DJCMS_ENABLE=1` (§ 22.2), potem odtwarzanie.
+
+```bash
+cd /opt/olimpiada
+./scripts/restore.sh --fetch djcms-db-20260117T031500Z.dump.gpg --fetch djcms-files-20260117T031500Z.tar.gpg   # gdy tylko poza serwerem
+./scripts/restore.sh --dry-run --djcms-dump djcms-db-20260117T031500Z.dump.gpg --djcms-files djcms-files-20260117T031500Z.tar.gpg
+./scripts/restore.sh --djcms-dump djcms-db-20260117T031500Z.dump.gpg --djcms-files djcms-files-20260117T031500Z.tar.gpg
+```
+
+Po przebiegu istnieje baza `olimpiada_djcms_restore_20260117_031500` (właścicielem jej i każdego
+obiektu jest rola `olimpiada_djcms` – `createdb -O` i `pg_restore --role`; `CONNECT` dla PUBLIC
+odebrany zaraz po `createdb`) i katalog `/opt/olimpiada-backups/djcms-media-restore-20260117_031500/`
+(tylko root) z plikami redaktorów. `dj.` działa dalej na danych bieżących. Skrypt kończy się
+wypisaniem poleceń podmiany z nazwami z tego serwera; ich postać:
+
+```bash
+docker compose stop djcms
+docker compose exec -T db psql -U olimpiada -d postgres \
+  -c 'ALTER DATABASE olimpiada_djcms RENAME TO olimpiada_djcms_przed_awaria' \
+  -c 'ALTER DATABASE "olimpiada_djcms_restore_20260117_031500" RENAME TO olimpiada_djcms'
+# wolumen: bieżąca zawartość do katalogu „…-przed”, potem pliki z kopii (właściciel uid 1000 = app)
+docker run --rm -v olimpiada_djcms_media:/m \
+  -v /opt/olimpiada-backups/djcms-media-restore-20260117_031500:/src:ro \
+  -v /opt/olimpiada-backups/djcms-media-restore-20260117_031500-przed:/old postgres:18-alpine \
+  sh -c 'cp -a /m/. /old/ && find /m -mindepth 1 -delete && cp -a /src/. /m/ && chown -R 1000:1000 /m'
+docker compose up -d djcms
+```
+
+Bazę `olimpiada_djcms_przed_awaria` i katalog `…-przed` trzymaj tydzień, jak przy bazie głównej.
+Sama baza bez plików jest dopuszczalna (`--djcms-dump` bez `--djcms-files`) – strony wrócą,
+obrazy wgrane po ostatniej kopii plików nie.
 
 ---
 
@@ -2884,7 +2941,18 @@ dwóch wersji nie synchronizuje się sam (DJ-01 § 13, ryzyko 3).
 ### 22.5. Kopie
 
 Przed każdą migracją wdrożenie robi `djcms-db-pre-<stamp>.dump` w katalogu kopii (10 ostatnich);
-polecenie odtworzenia wypisuje log kroku 4a. Kopie nocne bazy i plików djcms: § 1 (DJ-01i).
+polecenie odtworzenia wypisuje log kroku 4a.
+
+Kopia nocna (`scripts/backup.sh`, § 1.2) przy `DJCMS_ENABLED=1` obejmuje bazę
+(`djcms-db-<stamp>.dump.gpg`) i wolumen plików (`djcms-files-<stamp>.tar.gpg`) – zaszyfrowane,
+wysyłane i sprzątane razem z kopią główną; cotygodniowy test odtwarzania sprawdza je razem z nią
+(§ 1.4). Kopia plików wymaga **działającego** kontenera `djcms` – zatrzymany `djcms` w nocy daje
+przebieg nieudany (kopia główna mimo to powstaje). Odtwarzanie: § 2.4.
+
+```bash
+ls -lh /opt/olimpiada-backups/djcms-*                         # paczki djcms z ostatnich 7 dni
+grep -E '1b/5|2b/5|UWAGA' /var/log/olimpiada-backup.log | tail  # co zrobiła ostatnia noc
+```
 
 ### 22.6. Wyłączenie i usunięcie
 
@@ -2903,6 +2971,9 @@ sed -i '/^DJCMS_INTERNAL_TOKEN=/d' .env                        # brak tokenu = A
 Od tej chwili konfiguracja proxy i compose'a jest ta sama co przed DJ-01, a wdrożenia nie wykonują
 żadnego polecenia djcms. `COMPOSE_FILE`/`COMPOSE_PROFILES`, które operator zmienił ręcznie (np.
 dopisany profil `monitoring`), popraw ręcznie zamiast drugiego `sed`.
+
+Po wyłączeniu kopia nocna nie obejmuje już `dj.` (§ 1.2) – ostatnie paczki `djcms-*` to te
+z nocy przed wyłączeniem (lokalnie 7 dni, poza serwerem 30 dni w `daily/`, miesięczne rok).
 
 Usunięcie danych (po decyzji organizatora, po ostatniej kopii z § 22.5):
 
