@@ -129,6 +129,26 @@ smoke_hosts() {
   } | sed '/^$/d' | awk '!seen[$0]++'
 }
 
+# Czy wygenerowany Caddyfile ma blok aplikacji dla tej nazwy: SITE_DOMAIN, domena z EXTRA_DOMAINS
+# albo (PLATFORM_SUBDOMAINS=1) jednoczłonowa subdomena SITE_DOMAIN – ta sama reguła co generator.
+# Rejestr djcms zna też hosty, których proxy nie obsługuje – np. własną domenę konkursu pod
+# prefiksem ścieżki (`e2e-druga.localhost` przy `olimpiada.test/druga/`; API v2 podaje ją celowo,
+# DJ-02 § 4.2). Pytanie o nią przez proxy kończy się błędem TLS, a nie odpowiedzią którejkolwiek
+# usługi – kontrola dymna ją pomija (inaczej `on` wracałby do Wagtaila na każdej takiej instalacji).
+proxy_serves() {  # proxy_serves <host>
+  local host="$1" domain extra
+  domain="$(env_value SITE_DOMAIN)"
+  extra="$(env_value EXTRA_DOMAINS)"
+  [ -n "$domain" ] && [ "$host" = "$domain" ] && return 0
+  case " $extra " in *" $host "*) return 0 ;; esac
+  if flag_on "$(env_value PLATFORM_SUBDOMAINS)" && [ -n "$domain" ]; then
+    case "$host" in
+      *."$domain") case "${host%."$domain"}" in *.*|dj|www|meet|monitor|s3|mail|'') ;; *) return 0 ;; esac ;;
+    esac
+  fi
+  return 1
+}
+
 probe() {  # probe <host> <ścieżka> – nagłówki odpowiedzi (curl -D), pierwsza linijka = status
   local args=(-sk --max-time 15 -o /dev/null -D - --resolve "$1:443:127.0.0.1")
   [ "${#BYPASS}" -ge 32 ] && args+=(-H "X-Maintenance-Bypass: $BYPASS")
@@ -150,6 +170,10 @@ smoke() {  # smoke <primary|preview>
     host="${entry%%/*}"
     prefix="/"
     [ "$entry" != "$host" ] && prefix="/${entry#*/}"
+    if ! proxy_serves "$host"; then
+      printf '   –    https://%s%s – pominięte: proxy nie ma bloku dla tej nazwy (SITE_DOMAIN, *.SITE_DOMAIN, EXTRA_DOMAINS)\n' "$host" "$prefix"
+      continue
+    fi
     # Strona publiczna konkursu: primary → djcms z nagłówkiem trybu; preview → web (bez nagłówka).
     out="$(probe "$host" "$prefix")"; code="$(status_of "$out")"; mode="$(mode_header "$out")"
     if [ "$want" = primary ]; then
